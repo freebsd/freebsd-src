@@ -37,21 +37,19 @@
  *	$Id: genassym.c,v 1.6 1993/11/13 02:24:59 davidg Exp $
  */
 
-#include "sys/param.h"
-#include "sys/buf.h"
-#include "sys/vmmeter.h"
-#include "sys/proc.h"
-#include "sys/user.h"
-#include "sys/mbuf.h"
-#include "sys/msgbuf.h"
-#include "sys/resourcevar.h"
-#include "machine/cpu.h"
-#include "machine/trap.h"
-#include "machine/psl.h"
-#include "sys/syscall.h"
-#include "vm/vm_param.h"
-#include "vm/vm_map.h"
-#include "machine/pmap.h"
+#include <sys/param.h>
+#include <sys/buf.h>
+#include <sys/map.h>
+#include <sys/proc.h>
+#include <sys/mbuf.h>
+#include <sys/msgbuf.h>
+#include <machine/cpu.h>
+#include <machine/trap.h>
+#include <machine/psl.h>
+#include <machine/reg.h>
+#include <sys/syscall.h>
+#include <vm/vm.h>
+#include <sys/user.h>
 
 main()
 {
@@ -70,12 +68,12 @@ main()
 
 	printf("#define\tI386_CR3PAT %d\n", I386_CR3PAT);
 	printf("#define\tUDOT_SZ %d\n", sizeof(struct user));
-	printf("#define\tP_LINK %d\n", &p->p_link);
-	printf("#define\tP_RLINK %d\n", &p->p_rlink);
+	printf("#define\tP_LINK %d\n", &p->p_forw);
+	printf("#define\tP_RLINK %d\n", &p->p_back);
 	printf("#define\tP_VMSPACE %d\n", &p->p_vmspace);
 	printf("#define\tVM_PMAP %d\n", &vms->vm_pmap);
 	printf("#define\tP_ADDR %d\n", &p->p_addr);
-	printf("#define\tP_PRI %d\n", &p->p_pri);
+	printf("#define\tP_PRI %d\n", &p->p_priority);
 	printf("#define\tP_STAT %d\n", &p->p_stat);
 	printf("#define\tP_WCHAN %d\n", &p->p_wchan);
 	printf("#define\tP_FLAG %d\n", &p->p_flag);
@@ -87,10 +85,10 @@ main()
 	printf("#define\tV_SYSCALL %d\n", &vm->v_syscall);
 	printf("#define\tV_INTR %d\n", &vm->v_intr);
 	printf("#define\tV_SOFT %d\n", &vm->v_soft);
-	printf("#define\tV_PDMA %d\n", &vm->v_pdma);
+/*	printf("#define\tV_PDMA %d\n", &vm->v_pdma); */
 	printf("#define\tV_FAULTS %d\n", &vm->v_faults);
-	printf("#define\tV_PGREC %d\n", &vm->v_pgrec);
-	printf("#define\tV_FASTPGREC %d\n", &vm->v_fastpgrec);
+/*	printf("#define\tV_PGREC %d\n", &vm->v_pgrec); */
+/*	printf("#define\tV_FASTPGREC %d\n", &vm->v_fastpgrec); */
 	printf("#define\tUPAGES %d\n", UPAGES);
 	printf("#define\tHIGHPAGES %d\n", HIGHPAGES);
 	printf("#define\tCLSIZE %d\n", CLSIZE);

@@ -48,75 +48,8 @@
 #ifndef	_PMAP_MACHINE_
 #define	_PMAP_MACHINE_	1
 
-#include "vm/vm_prot.h"
-/*
- * 386 page table entry and page table directory
- * W.Jolitz, 8/89
- */
-struct pde
-{
-unsigned int	
-		pd_v:1,			/* valid bit */
-		pd_prot:2,		/* access control */
-		pd_mbz1:2,		/* reserved, must be zero */
-		pd_u:1,			/* hardware maintained 'used' bit */
-		:1,			/* not used */
-		pd_mbz2:2,		/* reserved, must be zero */
-		:3,			/* reserved for software */
-		pd_pfnum:20;		/* physical page frame number of pte's*/
-};
+#include <machine/pte.h>
 
-#define	PD_MASK		0xffc00000UL	/* page directory address bits */
-#define	PT_MASK		0x003ff000UL	/* page table address bits */
-#define	PD_SHIFT	22		/* page directory address shift */
-#define	PG_SHIFT	12		/* page table address shift */
-
-struct pte
-{
-unsigned int	
-		pg_v:1,			/* valid bit */
-		pg_prot:2,		/* access control */
-		pg_mbz1:2,		/* reserved, must be zero */
-		pg_u:1,			/* hardware maintained 'used' bit */
-		pg_m:1,			/* hardware maintained modified bit */
-		pg_mbz2:2,		/* reserved, must be zero */
-		pg_w:1,			/* software, wired down page */
-		:1,			/* software (unused) */
-		pg_nc:1,		/* 'uncacheable page' bit */
-		pg_pfnum:20;		/* physical page frame number */
-};
-
-#define	PG_V		0x00000001
-#define	PG_RO		0x00000000
-#define	PG_RW		0x00000002
-#define	PG_u		0x00000004
-#define	PG_PROT		0x00000006 /* all protection bits . */
-#define	PG_W		0x00000200
-#define	PG_N		0x00000800 /* Non-cacheable */
-#define	PG_M		0x00000040
-#define	PG_U		0x00000020
-#define	PG_FRAME	0xfffff000UL
-
-#define	PG_NOACC	0
-#define	PG_KR		0x00000000
-#define	PG_KW		0x00000002
-#define	PG_URKR		0x00000004
-#define	PG_URKW		0x00000004
-#define	PG_UW		0x00000006
-
-/* Garbage for current bastardized pager that assumes a hp300 */
-#define	PG_NV	0
-#define	PG_CI	0
-
-/*
- * Page Protection Exception bits
- */
-#define	PGEX_P		0x01	/* Protection violation vs. not present */
-#define	PGEX_W		0x02	/* during a Write cycle */
-#define	PGEX_U		0x04	/* access from User mode (UPL) */
-
-/* typedef struct pde	pd_entry_t;	*/ /* page directory entry */
-/* typedef struct pte	pt_entry_t;	*/ /* Mach page table entry */
 typedef unsigned int *pd_entry_t;
 typedef unsigned int *pt_entry_t;
 
@@ -129,7 +62,7 @@ typedef unsigned int *pt_entry_t;
  * given to the user (NUPDE)
  */
 #ifndef NKPT
-#define	NKPT			15	/* actual number of kernel pte's */
+#define	NKPT			24	/* actual number of kernel pte's */
 #endif
 #ifndef NKPDE
 #define NKPDE			63	/* addressable number of kpte's */
@@ -159,7 +92,6 @@ typedef unsigned int *pt_entry_t;
 #ifdef KERNEL
 extern pt_entry_t PTmap[], APTmap[], Upte;
 extern pd_entry_t PTD[], APTD[], PTDpde, APTDpde, Upde;
-extern pt_entry_t	*Sysmap;
 
 extern int	IdlePTD;	/* physical address of "Idle" state directory */
 #endif

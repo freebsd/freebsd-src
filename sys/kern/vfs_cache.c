@@ -186,6 +186,7 @@ cache_lookup(dvp, vpp, cnp)
 /*
  * Add an entry to the cache
  */
+void
 cache_enter(dvp, vp, cnp)
 	struct vnode *dvp;
 	struct vnode *vp;
@@ -252,6 +253,7 @@ cache_enter(dvp, vp, cnp)
 /*
  * Name cache initialization, from vfs_init() when we are booting
  */
+void
 nchinit()
 {
 
@@ -263,6 +265,7 @@ nchinit()
  * Cache flush, a particular vnode; called when a vnode is renamed to
  * hide entries that would now be invalid
  */
+void
 cache_purge(vp)
 	struct vnode *vp;
 {
@@ -288,6 +291,7 @@ cache_purge(vp)
  * if the cache lru chain is modified while we are dumping the
  * inode.  This makes the algorithm O(n^2), but do you think I care?
  */
+void
 cache_purgevfs(mp)
 	struct mount *mp;
 {

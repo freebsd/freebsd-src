@@ -84,8 +84,13 @@ struct	linesw linesw[] =
 	{ ttynodisc, ttyerrclose, ttyerrio, ttyerrio, nullioctl,
 	  ttyerrinput, ttyerrstart, nullmodem },	/* 1- defunct */
 
+#ifdef COMPAT_43
+	{ ttyopen, ttylclose, ttread, ttwrite, nullioctl,
+	  ttyinput, ttstart, ttymodem },		/* 2- NTTYDISC */
+#else
 	{ ttynodisc, ttyerrclose, ttyerrio, ttyerrio, nullioctl,
-	  ttyerrinput, ttyerrstart, nullmodem },	/* 2- defunct */
+	  ttyerrinput, ttyerrstart, nullmodem },
+#endif
 
 #if NTB > 0
 	{ tbopen, tbclose, tbread, enodev, tbioctl,
@@ -111,6 +116,7 @@ int	nlinesw = sizeof (linesw) / sizeof (linesw[0]);
  * discipline specific ioctl command.
  */
 /*ARGSUSED*/
+int
 nullioctl(tp, cmd, data, flags, p)
 	struct tty *tp;
 	int cmd;

@@ -34,9 +34,9 @@
  */
 
 struct cblock {
-	struct cblock *c_next;		/* next cblock in queue */
-	char c_quote[CBQSIZE];		/* quoted characters */
-	char c_info[CBSIZE];		/* characters */
+	struct cblock *c_next;			/* next cblock in queue */
+	unsigned char c_quote[CBQSIZE];		/* quoted characters */
+	unsigned char c_info[CBSIZE];		/* characters */
 };
 
 #ifdef KERNEL

@@ -160,6 +160,10 @@
 #define	SYS_statfs	157
 #define	SYS_fstatfs	158
 #define	SYS_getfh	161
+#define	SYS_getdomainname	162
+#define	SYS_setdomainname	163
+#define	SYS_uname	164
+#define	SYS_sysarch	165
 #define	SYS_shmsys	171
 #define	SYS_setgid	181
 #define	SYS_setegid	182

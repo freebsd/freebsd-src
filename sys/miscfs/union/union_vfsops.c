@@ -73,7 +73,7 @@ union_mount(mp, path, data, ndp, p)
 	struct ucred *cred = 0;
 	struct ucred *scred;
 	struct vattr va;
-	char *cp;
+	char *cp = 0;
 	int len;
 	u_int size;
 

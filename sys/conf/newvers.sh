@@ -40,9 +40,9 @@ fi
 
 touch version
 v=`cat version` u=${USER-root} d=`pwd` h=`hostname` t=`date`
-echo "char ostype[] = \"4.4BSD\";" > vers.c
-echo "char osrelease[] = \"4.4BSD-Lite\";" >> vers.c
+echo "char ostype[] = \"FreeBSD\";" > vers.c
+echo "char osrelease[] = \"2.0.0 (Development)\";" >> vers.c
 echo "char sccs[4] = { '@', '(', '#', ')' };" >>vers.c
-echo "char version[] = \"4.4BSD-Lite #${v}: ${t}\\n    ${u}@${h}:${d}\\n\";" >>vers.c
+echo "char version[] = \"FreeBSD 2.0.0 (Development) #${v}: ${t}\\n    ${u}@${h}:${d}\\n\";" >>vers.c
 
 echo `expr ${v} + 1` > version

@@ -41,9 +41,9 @@
 
 
 #include "sys/param.h"
+#include <sys/systm.h>
 #include "sys/proc.h"
 #include "sys/user.h"
-#include "sys/systm.h"
 #include "sys/buf.h"
 #include "sys/ioctl.h"
 #include "sys/tty.h"
@@ -122,7 +122,7 @@ cnopen(dev, flag, mode, p)
 		return (0);
 
 	dev = cn_tab->cn_dev;
-	if ((vfinddev(dev, VCHR, &vp) == 0) && vcount(vp))
+	if (vfinddev(dev, VCHR, &vp) && vcount(vp))
 		return (0);
 
 	return ((*cdevsw[major(dev)].d_open)(dev, flag, mode, p));
@@ -140,7 +140,7 @@ cnclose(dev, flag, mode, p)
 		return (0);
 
 	dev = cn_tab->cn_dev;
-	if ((vfinddev(dev, VCHR, &vp) == 0) && vcount(vp))
+	if (vfinddev(dev, VCHR, &vp) && vcount(vp))
 		return (0);
 
 	return ((*cdevsw[major(dev)].d_close)(dev, flag, mode, p));

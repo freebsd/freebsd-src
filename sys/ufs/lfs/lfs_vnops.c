@@ -216,6 +216,7 @@ struct vnodeopv_desc lfs_fifoop_opv_desc =
  * Synch an open file.
  */
 /* ARGSUSED */
+int
 lfs_fsync(ap)
 	struct vop_fsync_args /* {
 		struct vnode *a_vp;

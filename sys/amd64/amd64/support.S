@@ -185,6 +185,7 @@ ENTRY(outsl)					/* outsl(port, addr, cnt) */
  * memory moves on standard DX !!!!!
  */
 
+ALTENTRY(blkclr)
 ENTRY(bzero)
 #if defined(I486_CPU) && (defined(I386_CPU) || defined(I586_CPU))
 	cmpl	$CPUCLASS_486,_cpu_class
@@ -654,6 +655,17 @@ ENTRY(fuword)
 	gs
 	movl	(%edx),%eax
 	movl	$0,PCB_ONFAULT(%ecx)
+	ret
+
+/*
+ * These two routines are called from the profiling code, potentially
+ * at interrupt time. If they fail, that's okay, good things will
+ * happen later. Fail all the time for now - until the trap code is
+ * able to deal with this.
+ */
+ALTENTRY(suswintr)
+ENTRY(fuswintr)
+	movl	$-1,%eax
 	ret
 
 ENTRY(fusword)

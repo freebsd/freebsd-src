@@ -423,10 +423,12 @@ mfs_badop()
 /*
  * Memory based filesystem initialization.
  */
+int
 mfs_init()
 {
 
 #if !defined(hp300) && !defined(i386) && !defined(mips) && !defined(sparc) && !defined(luna68k)
 	rminit(mfsmap, (long)MFS_MAPREG, (long)1, "mfs mapreg", MFS_MAPSIZE);
 #endif
+	return (0);
 }

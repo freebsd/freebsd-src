@@ -52,9 +52,9 @@
 /*
  * The following primitives manipulate the run queues.
  * _whichqs tells which of the 32 queues _qs
- * have processes in them.  Setrq puts processes into queues, Remrq
+ * have processes in them.  setrunqueue puts processes into queues, Remrq
  * removes them from queues.  The running process is on no queue,
- * other processes are on a queue related to p->p_pri, divided by 4
+ * other processes are on a queue related to p->p_priority, divided by 4
  * actually to shrink the 0-127 range of priorities into the 32 available
  * queues.
  */
@@ -72,11 +72,11 @@ _want_resched:	.long	0			/* we need to re-run the scheduler */
 
 	.text
 /*
- * Setrq(p)
+ * setrunqueue(p)
  *
  * Call should be made at spl6(), and p->p_stat should be SRUN
  */
-ENTRY(setrq)
+ENTRY(setrunqueue)
 	movl	4(%esp),%eax
 	cmpl	$0,P_RLINK(%eax)		/* should not be on q already */
 	je	set1
@@ -95,7 +95,7 @@ set1:
 	movl	%eax,P_LINK(%ecx)
 	ret
 
-set2:	.asciz	"setrq"
+set2:	.asciz	"setrunqueue"
 
 /*
  * Remrq(p)
@@ -131,10 +131,10 @@ rem2:
 	ret
 
 rem3:	.asciz	"remrq"
-sw0:	.asciz	"swtch"
+sw0:	.asciz	"cpu_switch"
 
 /*
- * When no processes are on the runq, swtch() branches to _idle
+ * When no processes are on the runq, cpu_switch() branches to _idle
  * to wait for something to come ready.
  */
 	ALIGN_TEXT
@@ -146,8 +146,8 @@ _idle:
 	sti
 
 	/*
-	 * XXX callers of swtch() do a bogus splclock().  Locking should
-	 * be left to swtch().
+	 * XXX callers of cpu_switch() do a bogus splclock().  Locking should
+	 * be left to cpu_switch().
 	 */
 	movl	$SWI_AST_MASK,_cpl
 	testl	$~SWI_AST_MASK,_ipending
@@ -169,9 +169,9 @@ badsw:
 	/*NOTREACHED*/
 
 /*
- * Swtch()
+ * cpu_switch()
  */
-ENTRY(swtch)
+ENTRY(cpu_switch)
 	incl	_cnt+V_SWTCH
 
 	/* switch to new process. first, save context as needed */
@@ -340,7 +340,7 @@ ENTRY(swtch_to_inactive)
 /*
  * savectx(pcb, altreturn)
  * Update pcb, saving current processor state and arranging
- * for alternate return ala longjmp in swtch if altreturn is true.
+ * for alternate return ala longjmp in cpu_switch if altreturn is true.
  */
 ENTRY(savectx)
 	movl	4(%esp),%ecx

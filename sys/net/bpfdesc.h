@@ -40,6 +40,8 @@
  * @(#) $Header: bpfdesc.h,v 1.9 91/10/27 21:22:38 mccanne Exp $ (LBL)
  */
 
+#include <sys/select.h>
+
 /*
  * Descriptor associated with each open bpf file.
  */

@@ -274,7 +274,7 @@ NON_GPROF_ENTRY(btext)
 	movl	$0xa0,%ecx
 1:
 #endif /* BDE_DEBUGGER */
-	movl	$PG_V|PG_KW,%eax		/* having these bits set, */
+	movl	$PG_V|PG_KW|PG_NC_PWT,%eax	/* kernel R/W, valid, cache write-through */
 	lea	((1+UPAGES+1)*NBPG)(%esi),%ebx	/* phys addr of kernel PT base */
 	movl	%ebx,_KPTphys-KERNBASE		/* save in global */
 	fillkpt
@@ -302,7 +302,7 @@ NON_GPROF_ENTRY(btext)
 	movl	$(1+UPAGES+1+NKPT),%ecx	/* number of PTEs */
 	movl	%esi,%eax			/* phys address of PTD */
 	andl	$PG_FRAME,%eax			/* convert to PFN, should be a NOP */
-	orl	$PG_V|PG_KW,%eax		/* valid, kernel read/write */
+	orl	$PG_V|PG_KW|PG_NC_PWT,%eax	/* valid, kernel read/write, cache write-though */
 	movl	%esi,%ebx			/* calculate pte offset to ptd */
 	shrl	$PGSHIFT-2,%ebx
 	addl	%esi,%ebx			/* address of page directory */
@@ -452,10 +452,26 @@ reloc_gdt:
 
 	pushl	%esi				/* value of first for init386(first) */
 	call	_init386			/* wire 386 chip for unix operation */
-
-	movl	$0,_PTD
-	call	_main				/* autoconfiguration, mountroot etc */
 	popl	%esi
+
+#if 0
+	movl	$0,_PTD
+#endif
+
+	.globl	__ucodesel,__udatasel
+
+	pushl	$0				/* unused */
+	pushl	__udatasel			/* ss */
+	pushl	$0				/* esp - filled in by execve() */
+	pushl	$0x3200				/* eflags (ring 3, int enab) */
+	pushl	__ucodesel			/* cs */
+	pushl	$0				/* eip - filled in by execve() */
+	subl	$(12*4),%esp			/* space for rest of registers */
+
+	pushl	%esp				/* call main with frame pointer */
+	call	_main				/* autoconfiguration, mountroot etc */
+
+	addl	$(13*4),%esp			/* back to a frame we can return with */
 
 	/*
 	 * now we've run main() and determined what cpu-type we are, we can
@@ -473,69 +489,16 @@ reloc_gdt:
 	 * set up address space and stack so that we can 'return' to user mode
 	 */
 1:
-	.globl	__ucodesel,__udatasel
 	movl	__ucodesel,%eax
 	movl	__udatasel,%ecx
-	/* build outer stack frame */
-	pushl	%ecx				/* user ss */
-	pushl	$USRSTACK			/* user esp */
-	pushl	%eax				/* user cs */
-	pushl	$0				/* user ip */
+
 	movl	%cx,%ds
 	movl	%cx,%es
 	movl	%ax,%fs				/* double map cs to fs */
 	movl	%cx,%gs				/* and ds to gs */
-	lret					/* goto user! */
+	iret					/* goto user! */
 
-	pushl	$lretmsg1			/* "should never get here!" */
-	call	_panic
-lretmsg1:
-	.asciz	"lret: toinit\n"
-
-
-#define	LCALL(x,y)	.byte 0x9a ; .long y ; .word x
-/*
- * Icode is copied out to process 1 and executed in user mode:
- *	execve("/sbin/init", argv, envp); exit(0);
- * If the execve fails, process 1 exits and the system panics.
- */
-NON_GPROF_ENTRY(icode)
-	pushl	$0				/* envp for execve() */
-
-#	pushl	$argv-_icode			/* can't do this 'cos gas 1.38 is broken */
-	movl	$argv,%eax
-	subl	$_icode,%eax
-	pushl	%eax				/* argp for execve() */
-
-#	pushl	$init-_icode
-	movl	$init,%eax
-	subl	$_icode,%eax
-	pushl	%eax				/* fname for execve() */
-
-	pushl	%eax				/* dummy return address */
-
-	movl	$SYS_execve,%eax
-	LCALL(0x7,0x0)
-
-	/* exit if something botches up in the above execve() */
-	pushl	%eax				/* execve failed, the errno will do for an */
-						/* exit code because errnos are < 128 */
-	pushl	%eax				/* dummy return address */
-	movl	$SYS_exit,%eax
-	LCALL(0x7,0x0)
-
-init:
-	.asciz	"/sbin/init"
-	ALIGN_DATA
-argv:
-	.long	init+6-_icode			/* argv[0] = "init" ("/sbin/init" + 6) */
-	.long	eicode-_icode			/* argv[1] follows icode after copyout */
-	.long	0
-eicode:
-
-	.globl	_szicode
-_szicode:
-	.long	_szicode-_icode
+#define LCALL(x,y)	.byte 0x9a ; .long y ; .word x
 
 NON_GPROF_ENTRY(sigcode)
 	call	SIGF_HANDLER(%esp)

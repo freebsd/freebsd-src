@@ -44,6 +44,9 @@
 extern long hostid;
 extern char hostname[MAXHOSTNAMELEN];
 extern int hostnamelen;
+extern char domainname[MAXHOSTNAMELEN];
+extern int domainnamelen;
+
 
 /* 1.2 */
 extern volatile struct timeval mono_time;
@@ -57,3 +60,24 @@ extern int hz;				/* system clock's frequency */
 extern int stathz;			/* statistics clock's frequency */
 extern int profhz;			/* profiling clock's frequency */
 extern int lbolt;			/* once a second sleep address */
+
+/*
+ * The following macros are used to declare global sets of objects, which
+ * are collected by the linker into a `struct linker_set' as defined below.
+ *
+ * NB: the constants defined below must match those defined in
+ * ld/ld.h.  Since their calculation requires arithmetic, we
+ * can't name them symbolically (e.g., 23 is N_SETT | N_EXT).
+ */
+#define MAKE_SET(set, sym, type) \
+	asm(".stabs \"_" #set "\", " #type ", 0, 0, _" #sym)
+#define TEXT_SET(set, sym) MAKE_SET(set, sym, 23)
+#define DATA_SET(set, sym) MAKE_SET(set, sym, 25)
+#define BSS_SET(set, sym)  MAKE_SET(set, sym, 27)
+#define ABS_SET(set, sym)  MAKE_SET(set, sym, 21)
+
+struct linker_set {
+	int ls_length;
+	caddr_t ls_items[1];	/* really ls_length of them, trailing NULL */
+};
+

@@ -37,7 +37,8 @@
 #ifndef __h_ddb_ddb
 #define __h_ddb_ddb 1
 
-#include "machine/db_machdep.h"		/* type definitions */
+#include <machine/db_machdep.h>		/* type definitions */
+#include <vm/vm.h>
 
 /*
  * Global variables...

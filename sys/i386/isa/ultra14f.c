@@ -238,7 +238,7 @@ int     uhaprobe();
 int     uha_attach();
 int     uhaintr();
 int32   uha_scsi_cmd();
-void    uha_timeout(caddr_t, int);
+void    uha_timeout(caddr_t);
 void	uha_free_mscp();
 int     uha_abort();
 void    uhaminphys();
@@ -1077,7 +1077,7 @@ uha_scsi_cmd(xs)
 }
 
 void
-uha_timeout(caddr_t arg1, int arg2)
+uha_timeout(caddr_t arg1)
 {
 	struct mscp *mscp = (struct mscp *)arg1;
 	int     unit;

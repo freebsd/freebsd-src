@@ -113,9 +113,9 @@ char *tcptimers[] =
  */
 #define	TCPT_RANGESET(tv, value, tvmin, tvmax) { \
 	(tv) = (value); \
-	if ((tv) < (tvmin)) \
+	if ((u_long)(tv) < (u_long)(tvmin)) \
 		(tv) = (tvmin); \
-	else if ((tv) > (tvmax)) \
+	else if ((u_long)(tv) > (u_long)(tvmax)) \
 		(tv) = (tvmax); \
 }
 

@@ -49,6 +49,9 @@
 #include <sys/ioctl.h>
 #include <sys/tty.h>
 
+void pgdelete	__P((struct pgrp *));
+void fixjobc	__P((struct proc *, struct pgrp *, int));
+
 /*
  * Structure associated with user cacheing.
  */
@@ -64,6 +67,7 @@ u_long	uihash;		/* size of hash table - 1 */
 /*
  * Allocate a hash table.
  */
+void
 usrinfoinit()
 {
 
@@ -116,6 +120,7 @@ chgproccnt(uid, diff)
 /*
  * Is p an inferior of the current process?
  */
+int
 inferior(p)
 	register struct proc *p;
 {
@@ -160,6 +165,7 @@ pgfind(pgid)
 /*
  * Move p to a new or existing process group (and session)
  */
+int
 enterpgrp(p, pgid, mksess)
 	register struct proc *p;
 	pid_t pgid;
@@ -259,6 +265,7 @@ enterpgrp(p, pgid, mksess)
 /*
  * remove process from process group
  */
+int
 leavepgrp(p)
 	register struct proc *p;
 {
@@ -283,6 +290,7 @@ leavepgrp(p)
 /*
  * delete a process group
  */
+void
 pgdelete(pgrp)
 	register struct pgrp *pgrp;
 {
@@ -318,6 +326,7 @@ static void orphanpg();
  * entering == 0 => p is leaving specified group.
  * entering == 1 => p is entering specified group.
  */
+void
 fixjobc(p, pgrp, entering)
 	register struct proc *p;
 	register struct pgrp *pgrp;

@@ -51,6 +51,7 @@
  */
 
 int	nswap, nswdev;
+int	vm_swap_size;
 #ifdef SEQSWAP
 int	niswdev;		/* number of interleaved swap devices */
 int	niswap;			/* size of interleaved swap area */
@@ -143,9 +144,8 @@ swapinit()
 	/*
 	 * Now set up swap buffer headers.
 	 */
-	bswlist.b_actf = sp;
 	for (i = 0; i < nswbuf - 1; i++, sp++) {
-		sp->b_actf = sp + 1;
+		TAILQ_INSERT_HEAD(&bswlist, sp, b_freelist);
 		sp->b_rcred = sp->b_wcred = p->p_ucred;
 		sp->b_vnbufs.le_next = NOLIST;
 	}
@@ -390,12 +390,18 @@ swfree(p, index)
 		blk = niswap;
 		for (swp = &swdevt[niswdev]; swp != sp; swp++)
 			blk += swp->sw_nblks;
+#if 0
 		rmfree(swapmap, nblks, blk);
+		return (0);
+#endif
+		rlist_free(&swapmap, blk, blk + nblks - 1); 
+		vm_swap_size += nblks;
 		return (0);
 	}
 #endif
 	for (dvbase = 0; dvbase < nblks; dvbase += dmmax) {
 		blk = nblks - dvbase;
+			
 #ifdef SEQSWAP
 		if ((vsbase = index*dmmax + dvbase*niswdev) >= niswap)
 			panic("swfree");
@@ -405,6 +411,7 @@ swfree(p, index)
 #endif
 		if (blk > dmmax)
 			blk = dmmax;
+#if 0
 		if (vsbase == 0) {
 			/*
 			 * First of all chunks... initialize the swapmap.
@@ -422,6 +429,11 @@ swfree(p, index)
 			    vsbase + ctod(CLSIZE));
 		} else
 			rmfree(swapmap, blk, vsbase);
+#endif
+		/* XXX -- we need to exclude the first cluster as above */
+		/* but for now, this will work fine... */
+		rlist_free(&swapmap, vsbase, vsbase + blk - 1); 
+		vm_swap_size += blk;
 	}
 	return (0);
 }

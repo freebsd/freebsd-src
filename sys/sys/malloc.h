@@ -107,7 +107,8 @@
 #define M_ISOFSMNT	57	/* ISOFS mount structure */
 #define M_ISOFSNODE	58	/* ISOFS vnode private part */
 #define	M_TEMP		74	/* misc temporary data buffers */
-#define	M_LAST		75	/* Must be last type + 1 */
+#define M_TTYS		75	/* tty data structures */
+#define	M_LAST		76	/* Must be last type + 1 */
 
 #define INITKMEMNAMES { \
 	"free",		/* 0 M_FREE */ \
@@ -173,6 +174,7 @@
 	NULL, NULL, NULL, NULL, NULL, \
 	NULL, NULL, NULL, NULL, NULL, \
 	"temp",		/* 74 M_TEMP */ \
+	"ttys",		/* 75 M_TTYS */ \
 }
 
 struct kmemstats {

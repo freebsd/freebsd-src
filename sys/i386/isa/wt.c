@@ -156,7 +156,7 @@ static int wtwait (wtinfo_t *t, int catch, char *msg);
 static int wtcmd (wtinfo_t *t, int cmd);
 static int wtstart (wtinfo_t *t, unsigned mode, void *vaddr, unsigned len);
 static void wtdma (wtinfo_t *t);
-static void wtimer (caddr_t, int);
+static void wtimer (caddr_t);
 static void wtclock (wtinfo_t *t);
 static int wtreset (wtinfo_t *t);
 static int wtsense (wtinfo_t *t, int verb, int ignor);
@@ -782,7 +782,7 @@ static void wtclock (wtinfo_t *t)
  * This is necessary in case interrupts get eaten due to
  * multiple devices on a single IRQ line.
  */
-static void wtimer (caddr_t xt, int dummy)
+static void wtimer (caddr_t xt)
 {
 	wtinfo_t *t = (wtinfo_t *)xt;
 	int s;

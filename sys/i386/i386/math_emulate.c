@@ -35,20 +35,21 @@
  * hide most of the 387-specific things here.
  */
 
-#include "machine/cpu.h"
-#include "machine/psl.h"
-#include "machine/reg.h"
+#include <sys/param.h>
+#include <sys/systm.h>
 
-#include "param.h"
-#include "systm.h"
-#include "proc.h"
-#include "user.h"
-#include "acct.h"
-#include "kernel.h"
-#include "signal.h"
+#include <machine/cpu.h>
+#include <machine/psl.h>
+#include <machine/reg.h>
+
+#include <sys/proc.h>
+#include <sys/user.h>
+#include <sys/acct.h>
+#include <sys/kernel.h>
+#include <sys/signal.h>
 
 #define __ALIGNED_TEMP_REAL 1
-#include "i386/i386/math_emu.h"
+#include "math_emu.h"
 
 #define bswapw(x) __asm__("xchgb %%al,%%ah":"=a" (x):"0" ((short)x))
 #define ST(x) (*__st((x)))
@@ -568,7 +569,7 @@ static int __regoffset[] = {
 	tEAX, tECX, tEDX, tEBX, tESP, tEBP, tESI, tEDI
 };
 
-#define REG(x) (curproc->p_regs[__regoffset[(x)]])
+#define REG(x) (curproc->p_md.md_regs[__regoffset[(x)]])
 
 static char * sib(struct trapframe * info, int mod)
 {

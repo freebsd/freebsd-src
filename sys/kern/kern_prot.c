@@ -56,6 +56,7 @@ struct args {
 };
 
 /* ARGSUSED */
+int
 getpid(p, uap, retval)
 	struct proc *p;
 	struct args *uap;
@@ -70,6 +71,7 @@ getpid(p, uap, retval)
 }
 
 /* ARGSUSED */
+int
 getppid(p, uap, retval)
 	struct proc *p;
 	struct args *uap;
@@ -81,6 +83,7 @@ getppid(p, uap, retval)
 }
 
 /* Get process group ID; note that POSIX getpgrp takes no parameter */
+int
 getpgrp(p, uap, retval)
 	struct proc *p;
 	struct args *uap;
@@ -92,6 +95,7 @@ getpgrp(p, uap, retval)
 }
 
 /* ARGSUSED */
+int
 getuid(p, uap, retval)
 	struct proc *p;
 	struct args *uap;
@@ -106,6 +110,7 @@ getuid(p, uap, retval)
 }
 
 /* ARGSUSED */
+int
 geteuid(p, uap, retval)
 	struct proc *p;
 	struct args *uap;
@@ -117,6 +122,7 @@ geteuid(p, uap, retval)
 }
 
 /* ARGSUSED */
+int
 getgid(p, uap, retval)
 	struct proc *p;
 	struct args *uap;
@@ -136,6 +142,7 @@ getgid(p, uap, retval)
  * correctly in a library function.
  */
 /* ARGSUSED */
+int
 getegid(p, uap, retval)
 	struct proc *p;
 	struct args *uap;
@@ -150,6 +157,7 @@ struct getgroups_args {
 	u_int	gidsetsize;
 	gid_t	*gidset;
 };
+int
 getgroups(p, uap, retval)
 	struct proc *p;
 	register struct	getgroups_args *uap;
@@ -174,6 +182,7 @@ getgroups(p, uap, retval)
 }
 
 /* ARGSUSED */
+int
 setsid(p, uap, retval)
 	register struct proc *p;
 	struct args *uap;
@@ -207,6 +216,7 @@ struct setpgid_args {
 	int	pgid;	/* target pgrp id */
 };
 /* ARGSUSED */
+int
 setpgid(curp, uap, retval)
 	struct proc *curp;
 	register struct setpgid_args *uap;
@@ -239,6 +249,7 @@ struct setuid_args {
 	uid_t	uid;
 };
 /* ARGSUSED */
+int
 setuid(p, uap, retval)
 	struct proc *p;
 	struct setuid_args *uap;
@@ -271,6 +282,7 @@ struct seteuid_args {
 	uid_t	euid;
 };
 /* ARGSUSED */
+int
 seteuid(p, uap, retval)
 	struct proc *p;
 	struct seteuid_args *uap;
@@ -298,6 +310,7 @@ struct setgid_args {
 	gid_t	gid;
 };
 /* ARGSUSED */
+int
 setgid(p, uap, retval)
 	struct proc *p;
 	struct setgid_args *uap;
@@ -322,6 +335,7 @@ struct setegid_args {
 	gid_t	egid;
 };
 /* ARGSUSED */
+int
 setegid(p, uap, retval)
 	struct proc *p;
 	struct setegid_args *uap;
@@ -346,6 +360,7 @@ struct setgroups_args {
 	gid_t	*gidset;
 };
 /* ARGSUSED */
+int
 setgroups(p, uap, retval)
 	struct proc *p;
 	struct setgroups_args *uap;
@@ -374,6 +389,7 @@ struct setreuid_args {
 	int	euid;
 };
 /* ARGSUSED */
+int
 osetreuid(p, uap, retval)
 	register struct proc *p;
 	struct setreuid_args *uap;
@@ -401,6 +417,7 @@ struct setregid_args {
 	int	egid;
 };
 /* ARGSUSED */
+int
 osetregid(p, uap, retval)
 	register struct proc *p;
 	struct setregid_args *uap;
@@ -427,6 +444,7 @@ osetregid(p, uap, retval)
 /*
  * Check if gid is a member of the group set.
  */
+int
 groupmember(gid, cred)
 	gid_t gid;
 	register struct ucred *cred;
@@ -447,6 +465,7 @@ groupmember(gid, cred)
  * indicating use of super-powers.
  * Returns 0 or error.
  */
+int
 suser(cred, acflag)
 	struct ucred *cred;
 	short *acflag;
@@ -477,6 +496,7 @@ crget()
  * Free a cred structure.
  * Throws away space when ref count gets to 0.
  */
+void
 crfree(cr)
 	struct ucred *cr;
 {
@@ -529,6 +549,7 @@ struct getlogin_args {
 	u_int	namelen;
 };
 /* ARGSUSED */
+int
 getlogin(p, uap, retval)
 	struct proc *p;
 	struct getlogin_args *uap;
@@ -548,6 +569,7 @@ struct setlogin_args {
 	char	*namebuf;
 };
 /* ARGSUSED */
+int
 setlogin(p, uap, retval)
 	struct proc *p;
 	struct setlogin_args *uap;

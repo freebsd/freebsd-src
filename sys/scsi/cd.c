@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *      $Id: cd.c,v 1.17 1994/03/23 09:15:51 davidg Exp $
+ *      $Id: cd.c,v 1.18 1994/04/20 07:06:51 davidg Exp $
  */
 
 #define SPLCD splbio
@@ -496,7 +496,7 @@ cdstart(unit)
 	}
 	dp = &cd->buf_queue;
 	if ((bp = dp->b_actf) != NULL) {	/* yes, an assign */
-		dp->b_actf = bp->av_forw;
+		dp->b_actf = bp->b_actf;
 	} else {
 		return;
 	}
@@ -689,7 +689,7 @@ cdioctl(dev_t dev, int cmd, caddr_t addr, int flag)
 				args->data_format, args->track, &data, len)) {
 				break;
 			}
-			len = MIN(len, ((data.header.data_len[0] << 8) + data.header.data_len[1] +
+			len = min(len, ((data.header.data_len[0] << 8) + data.header.data_len[1] +
 				sizeof(struct cd_sub_channel_header)));
 			if (copyout(&data, args->data, len) != 0) {
 				error = EFAULT;
@@ -728,7 +728,7 @@ cdioctl(dev_t dev, int cmd, caddr_t addr, int flag)
 				(struct cd_toc_entry *)&data,
 				len + sizeof(struct ioc_toc_header)))
 				break;
-			len = MIN(len, ((((th->len & 0xff) << 8) + ((th->len >> 8))) - (sizeof(th->starting_track) + sizeof(th->ending_track))));
+			len = min(len, ((((th->len & 0xff) << 8) + ((th->len >> 8))) - (sizeof(th->starting_track) + sizeof(th->ending_track))));
 			if (copyout(data.entries, te->data, len) != 0) {
 				error = EFAULT;
 			}

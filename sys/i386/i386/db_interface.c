@@ -36,7 +36,7 @@
 #include "ddb/ddb.h"
 
 #include <sys/reboot.h>
-#include <vm/vm_statistics.h>
+/* #include <vm/vm_statistics.h> */
 #include <vm/pmap.h>
 
 #include <setjmp.h>

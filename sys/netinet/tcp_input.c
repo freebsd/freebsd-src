@@ -217,13 +217,13 @@ tcp_input(m, iphlen)
 	register struct tcpiphdr *ti;
 	register struct inpcb *inp;
 	caddr_t optp = NULL;
-	int optlen;
+	int optlen = 0;
 	int len, tlen, off;
 	register struct tcpcb *tp = 0;
 	register int tiflags;
-	struct socket *so;
+	struct socket *so = 0;
 	int todrop, acked, ourfinisacked, needoutput = 0;
-	short ostate;
+	short ostate = 0;
 	struct in_addr laddr;
 	int dropsocket = 0;
 	int iss = 0;
@@ -1173,7 +1173,7 @@ step6:
 		 * but if two URG's are pending at once, some out-of-band
 		 * data may creep in... ick.
 		 */
-		if (ti->ti_urp <= ti->ti_len
+		if (ti->ti_urp <= (u_long)ti->ti_len
 #ifdef SO_OOBINLINE
 		     && (so->so_options & SO_OOBINLINE) == 0
 #endif

@@ -48,6 +48,7 @@
 #define cttyvp(p) ((p)->p_flag & P_CONTROLT ? (p)->p_session->s_ttyvp : NULL)
 
 /*ARGSUSED*/
+int
 cttyopen(dev, flag, mode, p)
 	dev_t dev;
 	int flag, mode;
@@ -78,6 +79,7 @@ cttyopen(dev, flag, mode, p)
 }
 
 /*ARGSUSED*/
+int
 cttyread(dev, uio, flag)
 	dev_t dev;
 	struct uio *uio;
@@ -95,6 +97,7 @@ cttyread(dev, uio, flag)
 }
 
 /*ARGSUSED*/
+int
 cttywrite(dev, uio, flag)
 	dev_t dev;
 	struct uio *uio;
@@ -112,6 +115,7 @@ cttywrite(dev, uio, flag)
 }
 
 /*ARGSUSED*/
+int
 cttyioctl(dev, cmd, addr, flag, p)
 	dev_t dev;
 	int cmd;
@@ -134,6 +138,7 @@ cttyioctl(dev, cmd, addr, flag, p)
 }
 
 /*ARGSUSED*/
+int
 cttyselect(dev, flag, p)
 	dev_t dev;
 	int flag;

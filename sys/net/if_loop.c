@@ -78,14 +78,10 @@ struct	ifnet loif;
 
 /* ARGSUSED */
 void
-loopattach(n)
-	int n;
+loopattach(void)
 {
 	register struct ifnet *ifp = &loif;
 
-#ifdef lint
-	n = n;			/* Highlander: there can only be one... */
-#endif
 	ifp->if_name = "lo";
 	ifp->if_mtu = LOMTU;
 	ifp->if_flags = IFF_LOOPBACK | IFF_MULTICAST;
@@ -99,6 +95,8 @@ loopattach(n)
 	bpfattach(&ifp->if_bpf, ifp, DLT_NULL, sizeof(u_int));
 #endif
 }
+
+TEXT_SET(pseudo_set, loopattach);
 
 int
 looutput(ifp, m, dst, rt)

@@ -114,20 +114,20 @@ struct ifnet {
 		struct	timeval ifi_lastchange;/* last updated */
 	}	if_data;
 /* procedure handles */
-	int	(*if_init)		/* init routine */
+	void	(*if_init)		/* init routine */
 		__P((int));
 	int	(*if_output)		/* output routine (enqueue) */
 		__P((struct ifnet *, struct mbuf *, struct sockaddr *,
 		     struct rtentry *));
-	int	(*if_start)		/* initiate output routine */
+	void	(*if_start)		/* initiate output routine */
 		__P((struct ifnet *));
 	int	(*if_done)		/* output complete routine */
 		__P((struct ifnet *));	/* (XXX not used; fake prototype) */
 	int	(*if_ioctl)		/* ioctl routine */
 		__P((struct ifnet *, int, caddr_t));
-	int	(*if_reset)	
+	void	(*if_reset)	
 		__P((int));		/* new autoconfig will permit removal */
-	int	(*if_watchdog)		/* timer routine */
+	void	(*if_watchdog)		/* timer routine */
 		__P((int));
 	struct	ifqueue {
 		struct	mbuf *ifq_head;
@@ -356,7 +356,7 @@ void	ifafree __P((struct ifaddr *));
 void	link_rtrequest __P((int, struct rtentry *, struct sockaddr *));
 
 int	loioctl __P((struct ifnet *, int, caddr_t));
-void	loopattach __P((int));
+void	loopattach __P((void));
 int	looutput __P((struct ifnet *,
 	   struct mbuf *, struct sockaddr *, struct rtentry *));
 void	lortrequest __P((int, struct rtentry *, struct sockaddr *));

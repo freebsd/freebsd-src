@@ -34,6 +34,7 @@
  */
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/filedesc.h>
 #include <sys/proc.h>
 #include <sys/file.h>
@@ -61,6 +62,7 @@ struct socket_args {
 	int	type;
 	int	protocol;
 };
+int
 socket(p, uap, retval)
 	struct proc *p;
 	register struct socket_args *uap;
@@ -92,6 +94,7 @@ struct bind_args {
 	int	namelen;
 };
 /* ARGSUSED */
+int
 bind(p, uap, retval)
 	struct proc *p;
 	register struct bind_args *uap;
@@ -115,6 +118,7 @@ struct listen_args {
 	int	backlog;
 };
 /* ARGSUSED */
+int
 listen(p, uap, retval)
 	struct proc *p;
 	register struct listen_args *uap;
@@ -138,6 +142,7 @@ struct accept_args {
 };
 
 #ifdef COMPAT_OLDSOCK
+int
 accept(p, uap, retval)
 	struct proc *p;
 	struct accept_args *uap;
@@ -148,6 +153,7 @@ accept(p, uap, retval)
 	return (accept1(p, uap, retval));
 }
 
+int
 oaccept(p, uap, retval)
 	struct proc *p;
 	struct accept_args *uap;
@@ -162,6 +168,7 @@ oaccept(p, uap, retval)
 #define	accept1	accept
 #endif
 
+int
 accept1(p, uap, retval)
 	struct proc *p;
 	register struct accept_args *uap;
@@ -244,6 +251,7 @@ struct connect_args {
 	int	namelen;
 };
 /* ARGSUSED */
+int
 connect(p, uap, retval)
 	struct proc *p;
 	register struct connect_args *uap;
@@ -292,6 +300,7 @@ struct socketpair_args {
 	int	protocol;
 	int	*rsv;
 };
+int
 socketpair(p, uap, retval)
 	struct proc *p;
 	register struct socketpair_args *uap;
@@ -354,6 +363,7 @@ struct sendto_args {
 	caddr_t	to;
 	int	tolen;
 };
+int
 sendto(p, uap, retval)
 	struct proc *p;
 	register struct sendto_args *uap;
@@ -382,6 +392,7 @@ struct osend_args {
 	int	len;
 	int	flags;
 };
+int
 osend(p, uap, retval)
 	struct proc *p;
 	register struct osend_args *uap;
@@ -407,6 +418,7 @@ struct osendmsg_args {
 	caddr_t	msg;
 	int	flags;
 };
+int
 osendmsg(p, uap, retval)
 	struct proc *p;
 	register struct osendmsg_args *uap;
@@ -444,6 +456,7 @@ struct sendmsg_args {
 	caddr_t	msg;
 	int	flags;
 };
+int
 sendmsg(p, uap, retval)
 	struct proc *p;
 	register struct sendmsg_args *uap;
@@ -478,6 +491,7 @@ done:
 	return (error);
 }
 
+int
 sendit(p, s, mp, flags, retsize)
 	register struct proc *p;
 	int s;
@@ -505,8 +519,6 @@ sendit(p, s, mp, flags, retsize)
 	auio.uio_resid = 0;
 	iov = mp->msg_iov;
 	for (i = 0; i < mp->msg_iovlen; i++, iov++) {
-		if (iov->iov_len < 0)
-			return (EINVAL);
 		if ((auio.uio_resid += iov->iov_len) < 0)
 			return (EINVAL);
 	}
@@ -589,6 +601,7 @@ struct recvfrom_args {
 };
 
 #ifdef COMPAT_OLDSOCK
+int
 orecvfrom(p, uap, retval)
 	struct proc *p;
 	struct recvfrom_args *uap;
@@ -600,6 +613,7 @@ orecvfrom(p, uap, retval)
 }
 #endif
 
+int
 recvfrom(p, uap, retval)
 	struct proc *p;
 	register struct recvfrom_args *uap;
@@ -632,6 +646,7 @@ struct orecv_args {
 	int	len;
 	int	flags;
 };
+int
 orecv(p, uap, retval)
 	struct proc *p;
 	register struct orecv_args *uap;
@@ -661,6 +676,7 @@ struct orecvmsg_args {
 	struct	omsghdr *msg;
 	int	flags;
 };
+int
 orecvmsg(p, uap, retval)
 	struct proc *p;
 	register struct orecvmsg_args *uap;
@@ -703,6 +719,7 @@ struct recvmsg_args {
 	struct	msghdr *msg;
 	int	flags;
 };
+int
 recvmsg(p, uap, retval)
 	struct proc *p;
 	register struct recvmsg_args *uap;
@@ -742,6 +759,7 @@ done:
 	return (error);
 }
 
+int
 recvit(p, s, mp, namelenp, retsize)
 	register struct proc *p;
 	int s;
@@ -770,8 +788,6 @@ recvit(p, s, mp, namelenp, retsize)
 	auio.uio_resid = 0;
 	iov = mp->msg_iov;
 	for (i = 0; i < mp->msg_iovlen; i++, iov++) {
-		if (iov->iov_len < 0)
-			return (EINVAL);
 		if ((auio.uio_resid += iov->iov_len) < 0)
 			return (EINVAL);
 	}
@@ -877,6 +893,7 @@ struct shutdown_args {
 	int	how;
 };
 /* ARGSUSED */
+int
 shutdown(p, uap, retval)
 	struct proc *p;
 	register struct shutdown_args *uap;
@@ -898,6 +915,7 @@ struct setsockopt_args {
 	int	valsize;
 };
 /* ARGSUSED */
+int
 setsockopt(p, uap, retval)
 	struct proc *p;
 	register struct setsockopt_args *uap;
@@ -934,6 +952,7 @@ struct getsockopt_args {
 	int	*avalsize;
 };
 /* ARGSUSED */
+int
 getsockopt(p, uap, retval)
 	struct proc *p;
 	register struct getsockopt_args *uap;
@@ -969,6 +988,7 @@ struct pipe_args {
 	int	dummy;
 };
 /* ARGSUSED */
+int
 pipe(p, uap, retval)
 	struct proc *p;
 	struct pipe_args *uap;
@@ -1025,6 +1045,7 @@ struct getsockname_args {
 #endif
 };
 #ifdef COMPAT_OLDSOCK
+int
 getsockname(p, uap, retval)
 	struct proc *p;
 	struct getsockname_args *uap;
@@ -1035,6 +1056,7 @@ getsockname(p, uap, retval)
 	return (getsockname1(p, uap, retval));
 }
 
+int
 ogetsockname(p, uap, retval)
 	struct proc *p;
 	struct getsockname_args *uap;
@@ -1050,6 +1072,7 @@ ogetsockname(p, uap, retval)
 #endif
 
 /* ARGSUSED */
+int
 getsockname1(p, uap, retval)
 	struct proc *p;
 	register struct getsockname_args *uap;
@@ -1099,6 +1122,7 @@ struct getpeername_args {
 };
 
 #ifdef COMPAT_OLDSOCK
+int
 getpeername(p, uap, retval)
 	struct proc *p;
 	struct getpeername_args *uap;
@@ -1109,6 +1133,7 @@ getpeername(p, uap, retval)
 	return (getpeername1(p, uap, retval));
 }
 
+int
 ogetpeername(p, uap, retval)
 	struct proc *p;
 	struct getpeername_args *uap;
@@ -1124,6 +1149,7 @@ ogetpeername(p, uap, retval)
 #endif
 
 /* ARGSUSED */
+int
 getpeername1(p, uap, retval)
 	struct proc *p;
 	register struct getpeername_args *uap;
@@ -1161,6 +1187,7 @@ bad:
 	return (error);
 }
 
+int
 sockargs(mp, buf, buflen, type)
 	struct mbuf **mp;
 	caddr_t buf;
@@ -1200,6 +1227,7 @@ sockargs(mp, buf, buflen, type)
 	return (error);
 }
 
+int
 getsock(fdp, fdes, fpp)
 	struct filedesc *fdp;
 	int fdes;

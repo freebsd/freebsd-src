@@ -43,6 +43,7 @@
 #include <sys/buf.h>
 #include <sys/disklabel.h>
 #include <sys/syslog.h>
+#include <sys/dkbad.h>
 
 /*
  * Seek sort for disks.  We depend on the driver which calls us using b_resid
@@ -153,14 +154,19 @@ insert:	bp->b_actf = bq->b_actf;
  * string on failure.
  */
 char *
-readdisklabel(dev, strat, lp)
+readdisklabel(dev, strat, lp, dp, bdp)
 	dev_t dev;
 	int (*strat)();
 	register struct disklabel *lp;
+	struct dos_partition *dp;
+	struct dkbad *bdp;
 {
 	register struct buf *bp;
 	struct disklabel *dlp;
 	char *msg = NULL;
+	int dospartoff;
+	int i;
+	int cyl;
 
 	if (lp->d_secperunit == 0)
 		lp->d_secperunit = 0x1fffffff;
@@ -170,11 +176,61 @@ readdisklabel(dev, strat, lp)
 	lp->d_partitions[0].p_offset = 0;
 
 	bp = geteblk((int)lp->d_secsize);
-	bp->b_dev = dev;
-	bp->b_blkno = LABELSECTOR;
+	/* do dos partitions in the process of getting disklabel? */
+	dospartoff = 0;
+	cyl = LABELSECTOR / lp->d_secpercyl;
+	if (dp) {
+		struct dos_partition *ap;
+
+		/* read master boot record */
+		bp->b_dev = dev; 
+		bp->b_blkno = DOSBBSECTOR;
+		bp->b_bcount = lp->d_secsize;
+		bp->b_flags = B_BUSY | B_READ;
+		bp->b_cylinder = DOSBBSECTOR / lp->d_secpercyl;
+		(*strat)(bp);
+
+		/* if successful, wander through dos partition table */
+		if (biowait(bp)) {
+			msg = "dos partition I/O error";
+			goto done;
+		} else {
+			/* XXX how do we check veracity/bounds of this? */
+			bcopy(bp->b_un.b_addr + DOSPARTOFF, dp,
+				NDOSPART * sizeof(*dp));
+			for (i = 0; i < NDOSPART; i++, dp++)
+				/* is this ours? */
+				if (dp->dp_size &&
+					dp->dp_typ == DOSPTYP_386BSD
+					&& dospartoff == 0) {
+
+					/* need sector address for SCSI/IDE,
+					   cylinder for ESDI/ST506/RLL */
+					dospartoff = dp->dp_start;
+					cyl = DPCYL(dp->dp_scyl, dp->dp_ssect);
+
+					/* update disklabel with details */
+					lp->d_partitions[0].p_size =
+						dp->dp_size;
+					lp->d_partitions[0].p_offset = 
+						dp->dp_start;
+					lp->d_ntracks = dp->dp_ehd + 1;
+					lp->d_nsectors = DPSECT(dp->dp_esect);
+					lp->d_subtype |= (lp->d_subtype & 3)
+							+ i | DSTYPE_INDOSPART;
+					lp->d_secpercyl = lp->d_ntracks *
+						lp->d_nsectors;
+				}
+		}
+			
+	}
+	
+	/* next, dig out disk label */
+	bp->b_blkno = dospartoff + LABELSECTOR;
+	bp->b_dev = dev; 
 	bp->b_bcount = lp->d_secsize;
 	bp->b_flags = B_BUSY | B_READ;
-	bp->b_cylinder = LABELSECTOR / lp->d_secpercyl;
+	bp->b_cylinder = cyl;
 	(*strat)(bp);
 	if (biowait(bp))
 		msg = "I/O error";
@@ -194,6 +250,46 @@ readdisklabel(dev, strat, lp)
 			break;
 		}
 	}
+	if (msg)
+		goto done;
+
+	/* obtain bad sector table if requested and present */
+	if (bdp && (lp->d_flags & D_BADSECT)) {
+		struct dkbad *db;
+
+		printf("d_secsize: %d\n", lp->d_secsize);
+		i = 0;
+		do {
+			/* read a bad sector table */
+			bp->b_flags = B_BUSY | B_READ;
+			bp->b_blkno = lp->d_secperunit - lp->d_nsectors + i;
+			if (lp->d_secsize > DEV_BSIZE)
+				bp->b_blkno *= lp->d_secsize / DEV_BSIZE;
+			else
+				bp->b_blkno /= DEV_BSIZE / lp->d_secsize;
+			bp->b_bcount = lp->d_secsize;
+			bp->b_cylinder = lp->d_ncylinders - 1;
+			(*strat)(bp);
+
+			/* if successful, validate, otherwise try another */
+			if (biowait(bp)) {
+				msg = "bad sector table I/O error";
+			} else {
+				db = (struct dkbad *)(bp->b_un.b_addr);
+#define DKBAD_MAGIC 0x4321
+				if (db->bt_mbz == 0
+					&& db->bt_flag == DKBAD_MAGIC) {
+					msg = NULL;
+					*bdp = *db;
+					break;
+				} else
+					msg = "bad sector table corrupted";
+			}
+		} while ((bp->b_flags & B_ERROR) && (i += 2) < 10 &&
+			i < lp->d_nsectors);
+	}
+
+done:
 	bp->b_flags = B_INVAL | B_AGE;
 	brelse(bp);
 	return (msg);
@@ -294,6 +390,7 @@ done:
 /*
  * Compute checksum for disk label.
  */
+int
 dkcksum(lp)
 	register struct disklabel *lp;
 {

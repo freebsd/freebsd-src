@@ -95,6 +95,7 @@ loadav(avg)
 /*
  * Attributes associated with virtual memory.
  */
+int
 vm_sysctl(name, namelen, oldp, oldlenp, newp, newlen, p)
 	int *name;
 	u_int namelen;

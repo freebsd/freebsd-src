@@ -34,6 +34,7 @@
  */
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/proc.h>
 #include <sys/buf.h>
 #include <sys/vnode.h>
@@ -41,7 +42,6 @@
 #include <sys/trace.h>
 #include <sys/malloc.h>
 #include <sys/resourcevar.h>
-#include <libkern/libkern.h>
 
 #ifdef DEBUG
 #include <vm/vm.h>
@@ -106,6 +106,7 @@ int	doclusterraz = 0;
  *	rbp is the read-ahead block.
  *	If either is NULL, then you don't have to do the I/O.
  */
+int
 cluster_read(vp, filesize, lblkno, size, cred, bpp)
 	struct vnode *vp;
 	u_quad_t filesize;

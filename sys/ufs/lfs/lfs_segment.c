@@ -1085,6 +1085,7 @@ lfs_shellsort(bp_array, lb_array, nmemb)
 /*
  * Check VXLOCK.  Return 1 if the vnode is locked.  Otherwise, vget it.
  */
+int
 lfs_vref(vp)
 	register struct vnode *vp;
 {

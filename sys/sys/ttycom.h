@@ -120,9 +120,17 @@ struct winsize {
 #define	TIOCEXT		_IOW('t', 96, int)	/* pty: external processing */
 #define	TIOCSIG		 _IO('t', 95)		/* pty: generate signal */
 #define	TIOCDRAIN	 _IO('t', 94)		/* wait till output drained */
+#define TIOCMSBIDIR	_IOW('t', 93, int)	/* modem: set bidir cap. */
+#define TIOCMGBIDIR	_IOR('t', 92, int)	/* modem: get bidir cap. */
+#define TIOCMSDTRWAIT	_IOW('t', 91, int)	/* modem: set wait on close */
+#define TIOCMGDTRWAIT	_IOR('t', 90, int)	/* modem: get wait on close */
+#define TIOCTIMESTAMP	_IOR('t', 89, struct timeval)	/* get timestamp of 
+						last interrupt for xntp. */
 
 #define	TTYDISC		0		/* termios tty line discipline */
 #define	TABLDISC	3		/* tablet discipline */
 #define	SLIPDISC	4		/* serial IP discipline */
+#define PPPDISC		5		/* PPP discipline */
+
 
 #endif /* !_SYS_TTYCOM_H_ */

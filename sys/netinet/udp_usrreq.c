@@ -34,6 +34,7 @@
  */
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/protosw.h>
@@ -382,7 +383,7 @@ udp_output(inp, m, addr, control)
 	register struct udpiphdr *ui;
 	register int len = m->m_pkthdr.len;
 	struct in_addr laddr;
-	int s, error = 0;
+	int s = 0, error = 0;
 
 	if (control)
 		m_freem(control);		/* XXX */
@@ -618,6 +619,7 @@ udp_detach(inp)
 /*
  * Sysctl for udp variables.
  */
+int
 udp_sysctl(name, namelen, oldp, oldlenp, newp, newlen)
 	int *name;
 	u_int namelen;

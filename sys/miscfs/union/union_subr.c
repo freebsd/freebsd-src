@@ -49,9 +49,7 @@
 #include <sys/queue.h>
 #include <miscfs/union/union.h>
 
-#ifdef DIAGNOSTIC
 #include <sys/proc.h>
-#endif
 
 /* must be power of two, otherwise change UNION_HASH() */
 #define NHASH 32
@@ -71,6 +69,7 @@ union_init()
 	for (i = 0; i < NHASH; i++)
 		LIST_INIT(&unhead[i]);
 	bzero((caddr_t) unvplock, sizeof(unvplock));
+	return (0);
 }
 
 static int
@@ -223,10 +222,10 @@ union_allocvp(vpp, mp, undvp, dvp, cnp, uppervp, lowervp)
 	struct vnode *lowervp;		/* may be null */
 {
 	int error;
-	struct union_node *un;
+	struct union_node *un = 0;
 	struct union_node **pp;
 	struct vnode *xlowervp = NULLVP;
-	int hash;
+	int hash = 0;
 	int try;
 
 	if (uppervp == NULLVP && lowervp == NULLVP)

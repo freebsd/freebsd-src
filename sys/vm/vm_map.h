@@ -102,11 +102,11 @@ struct vm_map_entry {
 	vm_offset_t		end;		/* end address */
 	union vm_map_object	object;		/* object I point to */
 	vm_offset_t		offset;		/* offset into object */
-	boolean_t		is_a_map;	/* Is "object" a map? */
-	boolean_t		is_sub_map;	/* Is "object" a submap? */
+	boolean_t		is_a_map:1,	/* Is "object" a map? */
+				is_sub_map:1,	/* Is "object" a submap? */
 		/* Only in sharing maps: */
-	boolean_t		copy_on_write;	/* is data copy-on-write */
-	boolean_t		needs_copy;	/* does object need to be copied */
+				copy_on_write:1,/* is data copy-on-write */
+				needs_copy:1;	/* does object need to be copied */
 		/* Only in task maps: */
 	vm_prot_t		protection;	/* protection code */
 	vm_prot_t		max_protection;	/* maximum protection */
@@ -176,7 +176,7 @@ typedef struct {
 
 /* XXX: number of kernel maps and entries to statically allocate */
 #define MAX_KMAP	10
-#define	MAX_KMAPENT	500
+#define	MAX_KMAPENT	128
 
 #ifdef KERNEL
 boolean_t	 vm_map_check_protection __P((vm_map_t,

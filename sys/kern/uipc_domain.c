@@ -54,6 +54,7 @@ void	pfslowtimo __P((void *));
 	domains = &__CONCAT(x,domain); \
 }
 
+void
 domaininit()
 {
 	register struct domain *dp;
@@ -141,6 +142,7 @@ found:
 	return (maybe);
 }
 
+int
 net_sysctl(name, namelen, oldp, oldlenp, newp, newlen, p)
 	int *name;
 	u_int namelen;
@@ -178,6 +180,7 @@ found:
 	return (ENOPROTOOPT);
 }
 
+void
 pfctlinput(cmd, sa)
 	int cmd;
 	struct sockaddr *sa;

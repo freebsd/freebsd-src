@@ -62,6 +62,10 @@
 #include <vm/vm.h>
 #include <sys/user.h>		/* for coredump */
 
+void setsigvec	__P((struct proc *, int, struct sigaction *));
+void stop	__P((struct proc *));
+void sigexit	__P((struct proc *, int));
+
 /*
  * Can process p, with pcred pc, send the signal signum to process q?
  */
@@ -79,6 +83,7 @@ struct sigaction_args {
 	struct	sigaction *osa;
 };
 /* ARGSUSED */
+int
 sigaction(p, uap, retval)
 	struct proc *p;
 	register struct sigaction_args *uap;
@@ -119,6 +124,7 @@ sigaction(p, uap, retval)
 	return (0);
 }
 
+void
 setsigvec(p, signum, sa)
 	register struct proc *p;
 	int signum;
@@ -237,6 +243,7 @@ struct sigprocmask_args {
 	int	how;
 	sigset_t mask;
 };
+int
 sigprocmask(p, uap, retval)
 	register struct proc *p;
 	struct sigprocmask_args *uap;
@@ -272,6 +279,7 @@ struct sigpending_args {
 	int	dummy;
 };
 /* ARGSUSED */
+int
 sigpending(p, uap, retval)
 	struct proc *p;
 	struct sigpending_args *uap;
@@ -292,6 +300,7 @@ struct osigvec_args {
 	struct	sigvec *osv;
 };
 /* ARGSUSED */
+int
 osigvec(p, uap, retval)
 	struct proc *p;
 	register struct osigvec_args *uap;
@@ -348,6 +357,7 @@ osigvec(p, uap, retval)
 struct osigblock_args {
 	int	mask;
 };
+int
 osigblock(p, uap, retval)
 	register struct proc *p;
 	struct osigblock_args *uap;
@@ -364,6 +374,7 @@ osigblock(p, uap, retval)
 struct osigsetmask_args {
 	int	mask;
 };
+int
 osigsetmask(p, uap, retval)
 	struct proc *p;
 	struct osigsetmask_args *uap;
@@ -387,6 +398,7 @@ struct sigsuspend_args {
 	sigset_t mask;
 };
 /* ARGSUSED */
+int
 sigsuspend(p, uap, retval)
 	register struct proc *p;
 	struct sigsuspend_args *uap;
@@ -416,6 +428,7 @@ struct osigstack_args {
 	struct	sigstack *oss;
 };
 /* ARGSUSED */
+int
 osigstack(p, uap, retval)
 	struct proc *p;
 	register struct osigstack_args *uap;
@@ -447,6 +460,7 @@ struct sigaltstack_args {
 	struct	sigaltstack *oss;
 };
 /* ARGSUSED */
+int
 sigaltstack(p, uap, retval)
 	struct proc *p;
 	register struct sigaltstack_args *uap;
@@ -485,6 +499,7 @@ struct kill_args {
 	int	signum;
 };
 /* ARGSUSED */
+int
 kill(cp, uap, retval)
 	register struct proc *cp;
 	register struct kill_args *uap;
@@ -522,6 +537,7 @@ struct okillpg_args {
 	int	signum;
 };
 /* ARGSUSED */
+int
 okillpg(p, uap, retval)
 	struct proc *p;
 	register struct okillpg_args *uap;
@@ -538,6 +554,7 @@ okillpg(p, uap, retval)
  * Common code for kill process group/broadcast kill.
  * cp is calling process.
  */
+int
 killpg1(cp, signum, pgid, all)
 	register struct proc *cp;
 	int signum, pgid, all;
@@ -864,6 +881,7 @@ out:
  *	while (signum = CURSIG(curproc))
  *		postsig(signum);
  */
+int
 issignal(p)
 	register struct proc *p;
 {
@@ -1004,6 +1022,7 @@ issignal(p)
  * via wakeup.  Signals are handled elsewhere.  The process must not be
  * on the run queue.
  */
+void
 stop(p)
 	register struct proc *p;
 {
@@ -1085,6 +1104,7 @@ postsig(signum)
 /*
  * Kill the current process for stated reason.
  */
+void
 killproc(p, why)
 	struct proc *p;
 	char *why;
@@ -1103,6 +1123,7 @@ killproc(p, why)
  * If dumping core, save the signal number for the debugger.  Calls exit and
  * does not return.
  */
+void
 sigexit(p, signum)
 	register struct proc *p;
 	int signum;
@@ -1122,6 +1143,7 @@ sigexit(p, signum)
  * Dump core, into a file named "progname.core", unless the process was
  * setuid/setgid.
  */
+int
 coredump(p)
 	register struct proc *p;
 {
@@ -1186,6 +1208,7 @@ struct nosys_args {
 	int	dummy;
 };
 /* ARGSUSED */
+int
 nosys(p, args, retval)
 	struct proc *p;
 	struct nosys_args *args;

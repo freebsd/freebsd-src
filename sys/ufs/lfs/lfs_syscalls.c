@@ -34,6 +34,7 @@
  */
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/proc.h>
 #include <sys/buf.h>
 #include <sys/mount.h>
@@ -92,7 +93,7 @@ lfs_markv(p, uap, retval)
 	BLOCK_INFO *blkp;
 	IFILE *ifp;
 	struct buf *bp, **bpp;
-	struct inode *ip;
+	struct inode *ip = 0;
 	struct lfs *fs;
 	struct mount *mntp;
 	struct vnode *vp;

@@ -50,6 +50,7 @@
 #include "i386/isa/isa.h"
 #include "i386/isa/rtc.h"
 #include "i386/isa/timerreg.h"
+#include <machine/cpu.h>
 
 /* X-tals being what they are, it's nice to be able to fudge this one... */
 /* Note, the name changed here from XTALSPEED to TIMER_FREQ rgrimes 4/26/93 */
@@ -71,15 +72,23 @@ static 	u_int hardclock_divisor;
 
 
 void
-timerintr(struct intrframe frame)
+clkintr(frame)
+	struct clockframe frame;
 {
-	timer_func(frame);
+	hardclock(&frame);
+}
+
+#if 0
+void
+timerintr(struct clockframe frame)
+{
+	timer_func(&frame);
 	switch (timer0_state) {
 	case 0:
 		break;
 	case 1:
 		if ((timer0_prescale+=timer0_divisor) >= hardclock_divisor) {
-			hardclock(frame);
+			hardclock(&frame);
 			timer0_prescale = 0;
 		}
 		break;
@@ -96,7 +105,7 @@ timerintr(struct intrframe frame)
 		break;
 	case 3:
 		if ((timer0_prescale+=timer0_divisor) >= hardclock_divisor) {
-			hardclock(frame);
+			hardclock(&frame);
 			disable_intr();
 			outb(TIMER_MODE, TIMER_SEL0|TIMER_RATEGEN|TIMER_16BIT);
 			outb(TIMER_CNTR0, TIMER_DIV(hz)%256);
@@ -111,6 +120,7 @@ timerintr(struct intrframe frame)
 	}
 }
 
+#endif
 
 int
 acquire_timer0(int rate, void (*function)() )
@@ -395,16 +405,6 @@ test_inittodr(time_t base)
 }
 #endif
 
-
-/*
- * Restart the clock.
- */
-void
-resettodr()
-{
-}
-
-
 /*
  * Wire clock interrupt in.
  */
@@ -427,4 +427,16 @@ void
 spinwait(int millisecs)
 {
 	DELAY(1000 * millisecs);
+}
+
+void
+cpu_initclocks()
+{
+	startrtclock();
+	enablertclock();
+}
+
+void
+setstatclockrate(int newhz)
+{
 }

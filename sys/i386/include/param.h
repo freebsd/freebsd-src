@@ -152,6 +152,7 @@
  */
 #define trunc_page(x)		((unsigned)(x) & ~(NBPG-1))
 #define round_page(x)		((((unsigned)(x)) + NBPG - 1) & ~(NBPG-1))
+
 #define atop(x)			((unsigned)(x) >> PG_SHIFT)
 #define ptoa(x)			((unsigned)(x) << PG_SHIFT)
 

@@ -383,7 +383,7 @@ rn_addroute(v_arg, n_arg, head, treenodes)
 	struct radix_node treenodes[2];
 {
 	caddr_t v = (caddr_t)v_arg, netmask = (caddr_t)n_arg;
-	register struct radix_node *t, *x, *tt;
+	register struct radix_node *t, *x = 0, *tt;
 	struct radix_node *saved_tt, *top = head->rnh_treetop;
 	short b = 0, b_leaf;
 	int mlen, keyduplicated;

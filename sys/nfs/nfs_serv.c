@@ -88,6 +88,7 @@ nfstype nfs_type[9] = { NFNON, NFREG, NFDIR, NFBLK, NFCHR, NFLNK, NFNON,
 /*
  * nqnfs access service
  */
+int
 nqnfsrv_access(nfsd, mrep, md, dpos, cred, nam, mrq)
 	struct nfsd *nfsd;
 	struct mbuf *mrep, *md;
@@ -101,7 +102,7 @@ nqnfsrv_access(nfsd, mrep, md, dpos, cred, nam, mrq)
 	register u_long *tl;
 	register long t1;
 	caddr_t bpos;
-	int error = 0, rdonly, cache, mode = 0;
+	int error = 0, rdonly, cache = 0, mode = 0;
 	char *cp2;
 	struct mbuf *mb, *mreq;
 	u_quad_t frev;
@@ -126,6 +127,7 @@ nqnfsrv_access(nfsd, mrep, md, dpos, cred, nam, mrq)
 /*
  * nfs getattr service
  */
+int
 nfsrv_getattr(nfsd, mrep, md, dpos, cred, nam, mrq)
 	struct nfsd *nfsd;
 	struct mbuf *mrep, *md;
@@ -163,6 +165,7 @@ nfsrv_getattr(nfsd, mrep, md, dpos, cred, nam, mrq)
 /*
  * nfs setattr service
  */
+int
 nfsrv_setattr(nfsd, mrep, md, dpos, cred, nam, mrq)
 	struct nfsd *nfsd;
 	struct mbuf *mrep, *md;
@@ -263,6 +266,7 @@ out:
 /*
  * nfs lookup rpc
  */
+int
 nfsrv_lookup(nfsd, mrep, md, dpos, cred, nam, mrq)
 	struct nfsd *nfsd;
 	struct mbuf *mrep, *md;
@@ -336,6 +340,7 @@ nfsrv_lookup(nfsd, mrep, md, dpos, cred, nam, mrq)
 /*
  * nfs readlink service
  */
+int
 nfsrv_readlink(nfsd, mrep, md, dpos, cred, nam, mrq)
 	struct nfsd *nfsd;
 	struct mbuf *mrep, *md;
@@ -351,7 +356,7 @@ nfsrv_readlink(nfsd, mrep, md, dpos, cred, nam, mrq)
 	caddr_t bpos;
 	int error = 0, rdonly, cache, i, tlen, len;
 	char *cp2;
-	struct mbuf *mb, *mb2, *mp2, *mp3, *mreq;
+	struct mbuf *mb, *mb2, *mp2 = 0, *mp3 = 0, *mreq;
 	struct vnode *vp;
 	nfsv2fh_t nfh;
 	fhandle_t *fhp;
@@ -418,6 +423,7 @@ out:
 /*
  * nfs read service
  */
+int
 nfsrv_read(nfsd, mrep, md, dpos, cred, nam, mrq)
 	struct nfsd *nfsd;
 	struct mbuf *mrep, *md;
@@ -537,6 +543,7 @@ nfsrv_read(nfsd, mrep, md, dpos, cred, nam, mrq)
 /*
  * nfs write service
  */
+int
 nfsrv_write(nfsd, mrep, md, dpos, cred, nam, mrq)
 	struct nfsd *nfsd;
 	struct mbuf *mrep, *md;
@@ -666,6 +673,7 @@ nfsrv_write(nfsd, mrep, md, dpos, cred, nam, mrq)
  * nfs create service
  * now does a truncate to 0 length via. setattr if it already exists
  */
+int
 nfsrv_create(nfsd, mrep, md, dpos, cred, nam, mrq)
 	struct nfsd *nfsd;
 	struct mbuf *mrep, *md;
@@ -826,11 +834,13 @@ out:
 	vrele(nd.ni_startdir);
 	free(nd.ni_cnd.cn_pnbuf, M_NAMEI);
 	nfsm_reply(0);
+	return (0);
 }
 
 /*
  * nfs remove service
  */
+int
 nfsrv_remove(nfsd, mrep, md, dpos, cred, nam, mrq)
 	struct nfsd *nfsd;
 	struct mbuf *mrep, *md;
@@ -892,6 +902,7 @@ out:
 /*
  * nfs rename service
  */
+int
 nfsrv_rename(nfsd, mrep, md, dpos, cred, nam, mrq)
 	struct nfsd *nfsd;
 	struct mbuf *mrep, *md;
@@ -906,7 +917,7 @@ nfsrv_rename(nfsd, mrep, md, dpos, cred, nam, mrq)
 	char *cp2;
 	struct mbuf *mb, *mreq;
 	struct nameidata fromnd, tond;
-	struct vnode *fvp, *tvp, *tdvp;
+	struct vnode *fvp = 0, *tvp, *tdvp;
 	nfsv2fh_t fnfh, tnfh;
 	fhandle_t *ffhp, *tfhp;
 	u_quad_t frev;
@@ -1024,6 +1035,7 @@ nfsmout:
 /*
  * nfs link service
  */
+int
 nfsrv_link(nfsd, mrep, md, dpos, cred, nam, mrq)
 	struct nfsd *nfsd;
 	struct mbuf *mrep, *md;
@@ -1089,6 +1101,7 @@ out1:
 /*
  * nfs symbolic link service
  */
+int
 nfsrv_symlink(nfsd, mrep, md, dpos, cred, nam, mrq)
 	struct nfsd *nfsd;
 	struct mbuf *mrep, *md;
@@ -1171,6 +1184,7 @@ nfsmout:
 /*
  * nfs mkdir service
  */
+int
 nfsrv_mkdir(nfsd, mrep, md, dpos, cred, nam, mrq)
 	struct nfsd *nfsd;
 	struct mbuf *mrep, *md;
@@ -1249,6 +1263,7 @@ nfsmout:
 /*
  * nfs rmdir service
  */
+int
 nfsrv_rmdir(nfsd, mrep, md, dpos, cred, nam, mrq)
 	struct nfsd *nfsd;
 	struct mbuf *mrep, *md;
@@ -1348,6 +1363,7 @@ struct flrep {
 	u_long fl_fattr[NFSX_NQFATTR / sizeof (u_long)];
 };
 
+int
 nfsrv_readdir(nfsd, mrep, md, dpos, cred, nam, mrq)
 	struct nfsd *nfsd;
 	struct mbuf *mrep, *md;
@@ -1532,6 +1548,7 @@ again:
 	nfsm_srvdone;
 }
 
+int
 nqnfsrv_readdirlook(nfsd, mrep, md, dpos, cred, nam, mrq)
 	struct nfsd *nfsd;
 	struct mbuf *mrep, *md;
@@ -1772,6 +1789,7 @@ invalid:
 /*
  * nfs statfs service
  */
+int
 nfsrv_statfs(nfsd, mrep, md, dpos, cred, nam, mrq)
 	struct nfsd *nfsd;
 	struct mbuf *mrep, *md;
@@ -1784,7 +1802,7 @@ nfsrv_statfs(nfsd, mrep, md, dpos, cred, nam, mrq)
 	register u_long *tl;
 	register long t1;
 	caddr_t bpos;
-	int error = 0, rdonly, cache, isnq;
+	int error = 0, rdonly, cache = 0, isnq;
 	char *cp2;
 	struct mbuf *mb, *mb2, *mreq;
 	struct vnode *vp;
@@ -1819,6 +1837,7 @@ nfsrv_statfs(nfsd, mrep, md, dpos, cred, nam, mrq)
  * Null operation, used by clients to ping server
  */
 /* ARGSUSED */
+int
 nfsrv_null(nfsd, mrep, md, dpos, cred, nam, mrq)
 	struct nfsd *nfsd;
 	struct mbuf *mrep, *md;
@@ -1827,7 +1846,7 @@ nfsrv_null(nfsd, mrep, md, dpos, cred, nam, mrq)
 	struct mbuf *nam, **mrq;
 {
 	caddr_t bpos;
-	int error = VNOVAL, cache;
+	int error = VNOVAL, cache = 0;
 	struct mbuf *mb, *mreq;
 	u_quad_t frev;
 
@@ -1839,6 +1858,7 @@ nfsrv_null(nfsd, mrep, md, dpos, cred, nam, mrq)
  * No operation, used for obsolete procedures
  */
 /* ARGSUSED */
+int
 nfsrv_noop(nfsd, mrep, md, dpos, cred, nam, mrq)
 	struct nfsd *nfsd;
 	struct mbuf *mrep, *md;
@@ -1847,7 +1867,7 @@ nfsrv_noop(nfsd, mrep, md, dpos, cred, nam, mrq)
 	struct mbuf *nam, **mrq;
 {
 	caddr_t bpos;
-	int error, cache;
+	int error, cache = 0;
 	struct mbuf *mb, *mreq;
 	u_quad_t frev;
 
@@ -1869,6 +1889,7 @@ nfsrv_noop(nfsd, mrep, md, dpos, cred, nam, mrq)
  *     this because it opens a security hole, but since the nfs server opens
  *     a security hole the size of a barn door anyhow, what the heck.
  */
+int
 nfsrv_access(vp, flags, cred, rdonly, p)
 	register struct vnode *vp;
 	int flags;

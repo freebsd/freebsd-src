@@ -138,6 +138,10 @@ int	fstatfs();
 int	getfh();
 #else
 #endif
+int	getdomainname();
+int	setdomainname();
+int	uname();
+int	sysarch();
 #ifdef SYSVSHM
 int	shmsys();
 #else
@@ -308,7 +312,7 @@ struct sysent sysent[] = {
 	{ 0, nosys },			/* 68 = obsolete vwrite */
 	{ 1, sbrk },			/* 69 = sbrk */
 	{ 1, sstk },			/* 70 = sstk */
-	{ compat(7,mmap) },		/* 71 = old mmap */
+	{ compat(6,mmap) },		/* 71 = old mmap */
 	{ 1, ovadvise },			/* 72 = vadvise */
 	{ 2, munmap },			/* 73 = munmap */
 	{ 3, mprotect },			/* 74 = mprotect */
@@ -415,10 +419,10 @@ struct sysent sysent[] = {
 #else
 	{ 0, nosys },			/* 161 = nosys */
 #endif
-	{ 0, nosys },			/* 162 = nosys */
-	{ 0, nosys },			/* 163 = nosys */
-	{ 0, nosys },			/* 164 = nosys */
-	{ 0, nosys },			/* 165 = nosys */
+	{ 2, getdomainname },			/* 162 = getdomainname */
+	{ 2, setdomainname },			/* 163 = setdomainname */
+	{ 1, uname },			/* 164 = uname */
+	{ 2, sysarch },			/* 165 = sysarch */
 	{ 0, nosys },			/* 166 = nosys */
 	{ 0, nosys },			/* 167 = nosys */
 	{ 0, nosys },			/* 168 = nosys */

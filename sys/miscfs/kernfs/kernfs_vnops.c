@@ -186,6 +186,7 @@ kernfs_xwrite(kt, buf, len)
  * vp is the current namei directory
  * ndp is the name to locate in that directory...
  */
+int
 kernfs_lookup(ap)
 	struct vop_lookup_args /* {
 		struct vnode * a_dvp;
@@ -289,6 +290,7 @@ bad:;
 	return (error);
 }
 
+int
 kernfs_open(ap)
 	struct vop_open_args /* {
 		struct vnode *a_vp;
@@ -352,6 +354,7 @@ kernfs_access(ap)
 }
 
 
+int
 kernfs_getattr(ap)
 	struct vop_getattr_args /* {
 		struct vnode *a_vp;
@@ -411,6 +414,7 @@ kernfs_getattr(ap)
 	return (error);
 }
 
+int
 kernfs_setattr(ap)
 	struct vop_setattr_args /* {
 		struct vnode *a_vp;
@@ -501,6 +505,7 @@ kernfs_write(ap)
 }
 
 
+int
 kernfs_readdir(ap)
 	struct vop_readdir_args /* {
 		struct vnode *a_vp;
@@ -551,6 +556,7 @@ kernfs_readdir(ap)
 	return (error);
 }
 
+int
 kernfs_inactive(ap)
 	struct vop_inactive_args /* {
 		struct vnode *a_vp;
@@ -569,6 +575,7 @@ kernfs_inactive(ap)
 	return (0);
 }
 
+int
 kernfs_reclaim(ap)
 	struct vop_reclaim_args /* {
 		struct vnode *a_vp;
@@ -588,6 +595,7 @@ kernfs_reclaim(ap)
 /*
  * Return POSIX pathconf information applicable to special devices.
  */
+int
 kernfs_pathconf(ap)
 	struct vop_pathconf_args /* {
 		struct vnode *a_vp;
@@ -625,6 +633,7 @@ kernfs_pathconf(ap)
  * Print out the contents of a /dev/fd vnode.
  */
 /* ARGSUSED */
+int
 kernfs_print(ap)
 	struct vop_print_args /* {
 		struct vnode *a_vp;
@@ -636,6 +645,7 @@ kernfs_print(ap)
 }
 
 /*void*/
+int
 kernfs_vfree(ap)
 	struct vop_vfree_args /* {
 		struct vnode *a_pvp;
@@ -650,6 +660,7 @@ kernfs_vfree(ap)
 /*
  * /dev/fd vnode unsupported operation
  */
+int
 kernfs_enotsupp()
 {
 
@@ -659,6 +670,7 @@ kernfs_enotsupp()
 /*
  * /dev/fd "should never get here" operation
  */
+int
 kernfs_badop()
 {
 
@@ -669,6 +681,7 @@ kernfs_badop()
 /*
  * kernfs vnode null operation
  */
+int
 kernfs_nullop()
 {
 

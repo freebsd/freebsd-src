@@ -71,7 +71,7 @@ struct	isa_driver msedriver = {
 struct mse_softc {
 	int	sc_flags;
 	int	sc_mousetype;
-	pid_t	sc_selp;
+	struct	selinfo sc_selp;
 	u_int	sc_port;
 	void	(*sc_enablemouse)();
 	void	(*sc_disablemouse)();
@@ -316,7 +316,7 @@ mseselect(dev, rw, p)
 	 * Since this is an exclusive open device, any previous proc.
 	 * pointer is trash now, so we can just assign it.
 	 */
-	sc->sc_selp = p->p_pid;
+	selrecord(p, &sc->sc_selp);
 	splx(s);
 	return (0);
 }
@@ -350,11 +350,7 @@ mseintr(unit)
 			sc->sc_flags &= ~MSESC_WANT;	
 			wakeup((caddr_t)sc);	
 		}	
-		if (sc->sc_selp) {	
-			p = sc->sc_selp;	
-			sc->sc_selp = (pid_t)0;	
-			selwakeup(p, 0);	
-		}	
+		selwakeup(&sc->sc_selp);
 	}
 }
 

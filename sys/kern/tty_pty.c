@@ -76,7 +76,8 @@ int	npty = NPTY;		/* for pstat -t */
 #define	PF_NOSTOP	0x40
 #define PF_UCNTL	0x80		/* user control mode */
 
-void	ptsstop __P((struct tty *, int));
+void	ptsstop		__P((struct tty *, int));
+void	ptcwakeup	__P((struct tty *, int));
 
 /*
  * Establish n (or default if n is 1) ptys in the system.
@@ -106,6 +107,7 @@ ptyattach(n)
 }
 
 /*ARGSUSED*/
+int
 ptsopen(dev, flag, devtype, p)
 	dev_t dev;
 	int flag, devtype;
@@ -143,6 +145,7 @@ ptsopen(dev, flag, devtype, p)
 	return (error);
 }
 
+int
 ptsclose(dev, flag, mode, p)
 	dev_t dev;
 	int flag, mode;
@@ -158,6 +161,7 @@ ptsclose(dev, flag, mode, p)
 	return (err);
 }
 
+int
 ptsread(dev, uio, flag)
 	dev_t dev;
 	struct uio *uio;
@@ -210,6 +214,7 @@ again:
  * Wakeups of controlling tty will happen
  * indirectly, when tty driver calls ptsstart.
  */
+int
 ptswrite(dev, uio, flag)
 	dev_t dev;
 	struct uio *uio;
@@ -242,6 +247,7 @@ ptsstart(tp)
 	ptcwakeup(tp, FREAD);
 }
 
+void
 ptcwakeup(tp, flag)
 	struct tty *tp;
 	int flag;
@@ -260,8 +266,10 @@ ptcwakeup(tp, flag)
 
 /*ARGSUSED*/
 #ifdef __STDC__
+int
 ptcopen(dev_t dev, int flag, int devtype, struct proc *p)
 #else
+int
 ptcopen(dev, flag, devtype, p)
 	dev_t dev;
 	int flag, devtype;
@@ -289,6 +297,7 @@ ptcopen(dev, flag, devtype, p)
 	return (0);
 }
 
+int
 ptcclose(dev)
 	dev_t dev;
 {
@@ -302,6 +311,7 @@ ptcclose(dev)
 	return (0);
 }
 
+int
 ptcread(dev, uio, flag)
 	dev_t dev;
 	struct uio *uio;
@@ -392,6 +402,7 @@ ptsstop(tp, flush)
 	ptcwakeup(tp, flag);
 }
 
+int
 ptcselect(dev, rw, p)
 	dev_t dev;
 	int rw;
@@ -446,13 +457,14 @@ ptcselect(dev, rw, p)
 	return (0);
 }
 
+int
 ptcwrite(dev, uio, flag)
 	dev_t dev;
 	register struct uio *uio;
 	int flag;
 {
 	register struct tty *tp = &pt_tty[minor(dev)];
-	register u_char *cp;
+	register u_char *cp = 0;
 	register int cc = 0;
 	u_char locbuf[BUFSIZ];
 	int cnt = 0;
@@ -534,6 +546,7 @@ block:
 }
 
 /*ARGSUSED*/
+int
 ptyioctl(dev, cmd, data, flag, p)
 	dev_t dev;
 	int cmd;

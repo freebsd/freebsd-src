@@ -86,6 +86,7 @@ lfs_mountroot()
  *
  * mount system call
  */
+int
 lfs_mount(mp, path, data, ndp, p)
 	register struct mount *mp;
 	char *path;
@@ -95,7 +96,7 @@ lfs_mount(mp, path, data, ndp, p)
 {
 	struct vnode *devvp;
 	struct ufs_args args;
-	struct ufsmount *ump;
+	struct ufsmount *ump = 0;
 	register struct lfs *fs;				/* LFS */
 	u_int size;
 	int error;
@@ -312,6 +313,7 @@ out:
 /*
  * unmount system call
  */
+int
 lfs_unmount(mp, mntflags, p)
 	struct mount *mp;
 	int mntflags;
@@ -371,6 +373,7 @@ lfs_unmount(mp, mntflags, p)
 /*
  * Get file system statistics.
  */
+int
 lfs_statfs(mp, sbp, p)
 	struct mount *mp;
 	register struct statfs *sbp;
@@ -409,6 +412,7 @@ lfs_statfs(mp, sbp, p)
  *
  * Note: we are always called with the filesystem marked `MPBUSY'.
  */
+int
 lfs_sync(mp, waitfor, cred, p)
 	struct mount *mp;
 	int waitfor;
@@ -557,6 +561,7 @@ lfs_fhtovp(mp, fhp, nam, vpp, exflagsp, credanonp)
  * Vnode pointer to File handle
  */
 /* ARGSUSED */
+int
 lfs_vptofh(vp, fhp)
 	struct vnode *vp;
 	struct fid *fhp;

@@ -55,7 +55,8 @@
 #include <vm/vm.h>
 #include <sys/sysctl.h>
 
-static int change_dir __P((struct nameidata *ndp, struct proc *p));
+void	cvtstat		__P((struct stat *, struct ostat *));
+static int change_dir	__P((struct nameidata *ndp, struct proc *p));
 
 /*
  * Virtual File System System Calls
@@ -71,6 +72,7 @@ struct mount_args {
 	caddr_t	data;
 };
 /* ARGSUSED */
+int
 mount(p, uap, retval)
 	struct proc *p;
 	register struct mount_args *uap;
@@ -78,7 +80,7 @@ mount(p, uap, retval)
 {
 	register struct vnode *vp;
 	register struct mount *mp;
-	int error, flag;
+	int error, flag = 0;
 	struct nameidata nd;
 
 	/*
@@ -200,6 +202,7 @@ struct unmount_args {
 	int	flags;
 };
 /* ARGSUSED */
+int
 unmount(p, uap, retval)
 	struct proc *p;
 	register struct unmount_args *uap;
@@ -240,6 +243,7 @@ unmount(p, uap, retval)
 /*
  * Do the actual file system unmount.
  */
+int
 dounmount(mp, flags, p)
 	register struct mount *mp;
 	int flags;
@@ -289,6 +293,7 @@ struct sync_args {
 	int	dummy;
 };
 /* ARGSUSED */
+int
 sync(p, uap, retval)
 	struct proc *p;
 	struct sync_args *uap;
@@ -330,6 +335,7 @@ struct quotactl_args {
 	caddr_t arg;
 };
 /* ARGSUSED */
+int
 quotactl(p, uap, retval)
 	struct proc *p;
 	register struct quotactl_args *uap;
@@ -355,6 +361,7 @@ struct statfs_args {
 	struct statfs *buf;
 };
 /* ARGSUSED */
+int
 statfs(p, uap, retval)
 	struct proc *p;
 	register struct statfs_args *uap;
@@ -385,6 +392,7 @@ struct fstatfs_args {
 	struct statfs *buf;
 };
 /* ARGSUSED */
+int
 fstatfs(p, uap, retval)
 	struct proc *p;
 	register struct fstatfs_args *uap;
@@ -413,6 +421,7 @@ struct getfsstat_args {
 	long bufsize;
 	int flags;
 };
+int
 getfsstat(p, uap, retval)
 	struct proc *p;
 	register struct getfsstat_args *uap;
@@ -459,6 +468,7 @@ struct fchdir_args {
 	int	fd;
 };
 /* ARGSUSED */
+int
 fchdir(p, uap, retval)
 	struct proc *p;
 	struct fchdir_args *uap;
@@ -493,6 +503,7 @@ struct chdir_args {
 	char	*path;
 };
 /* ARGSUSED */
+int
 chdir(p, uap, retval)
 	struct proc *p;
 	struct chdir_args *uap;
@@ -517,6 +528,7 @@ struct chroot_args {
 	char	*path;
 };
 /* ARGSUSED */
+int
 chroot(p, uap, retval)
 	struct proc *p;
 	struct chroot_args *uap;
@@ -570,6 +582,7 @@ struct open_args {
 	int	flags;
 	int	mode;
 };
+int
 open(p, uap, retval)
 	struct proc *p;
 	register struct open_args *uap;
@@ -646,6 +659,7 @@ struct ocreat_args {
 	char	*path;
 	int	mode;
 };
+int
 ocreat(p, uap, retval)
 	struct proc *p;
 	register struct ocreat_args *uap;
@@ -669,6 +683,7 @@ struct mknod_args {
 	int	dev;
 };
 /* ARGSUSED */
+int
 mknod(p, uap, retval)
 	struct proc *p;
 	register struct mknod_args *uap;
@@ -730,6 +745,7 @@ struct mkfifo_args {
 	int	mode;
 };
 /* ARGSUSED */
+int
 mkfifo(p, uap, retval)
 	struct proc *p;
 	register struct mkfifo_args *uap;
@@ -770,6 +786,7 @@ struct link_args {
 	char	*link;
 };
 /* ARGSUSED */
+int
 link(p, uap, retval)
 	struct proc *p;
 	register struct link_args *uap;
@@ -820,6 +837,7 @@ struct symlink_args {
 	char	*link;
 };
 /* ARGSUSED */
+int
 symlink(p, uap, retval)
 	struct proc *p;
 	register struct symlink_args *uap;
@@ -862,6 +880,7 @@ struct unlink_args {
 	char	*path;
 };
 /* ARGSUSED */
+int
 unlink(p, uap, retval)
 	struct proc *p;
 	struct unlink_args *uap;
@@ -912,6 +931,7 @@ struct lseek_args {
 	off_t	offset;
 	int	whence;
 };
+int
 lseek(p, uap, retval)
 	struct proc *p;
 	register struct lseek_args *uap;
@@ -957,6 +977,7 @@ struct olseek_args {
 	long	offset;
 	int	whence;
 };
+int
 olseek(p, uap, retval)
 	struct proc *p;
 	register struct olseek_args *uap;
@@ -982,6 +1003,7 @@ struct access_args {
 	char	*path;
 	int	flags;
 };
+int
 access(p, uap, retval)
 	struct proc *p;
 	register struct access_args *uap;
@@ -1029,6 +1051,7 @@ struct ostat_args {
 	struct ostat *ub;
 };
 /* ARGSUSED */
+int
 ostat(p, uap, retval)
 	struct proc *p;
 	register struct ostat_args *uap;
@@ -1059,6 +1082,7 @@ struct olstat_args {
 	struct ostat *ub;
 };
 /* ARGSUSED */
+int
 olstat(p, uap, retval)
 	struct proc *p;
 	register struct olstat_args *uap;
@@ -1084,6 +1108,7 @@ olstat(p, uap, retval)
 /*
  * Convert from an old to a new stat structure.
  */
+void
 cvtstat(st, ost)
 	struct stat *st;
 	struct ostat *ost;
@@ -1118,6 +1143,7 @@ struct stat_args {
 	struct stat *ub;
 };
 /* ARGSUSED */
+int
 stat(p, uap, retval)
 	struct proc *p;
 	register struct stat_args *uap;
@@ -1146,6 +1172,7 @@ struct lstat_args {
 	struct stat *ub;
 };
 /* ARGSUSED */
+int
 lstat(p, uap, retval)
 	struct proc *p;
 	register struct lstat_args *uap;
@@ -1204,6 +1231,7 @@ struct pathconf_args {
 	int	name;
 };
 /* ARGSUSED */
+int
 pathconf(p, uap, retval)
 	struct proc *p;
 	register struct pathconf_args *uap;
@@ -1229,6 +1257,7 @@ struct readlink_args {
 	int	count;
 };
 /* ARGSUSED */
+int
 readlink(p, uap, retval)
 	struct proc *p;
 	register struct readlink_args *uap;
@@ -1271,6 +1300,7 @@ struct chflags_args {
 	int	flags;
 };
 /* ARGSUSED */
+int
 chflags(p, uap, retval)
 	struct proc *p;
 	register struct chflags_args *uap;
@@ -1306,6 +1336,7 @@ struct fchflags_args {
 	int	flags;
 };
 /* ARGSUSED */
+int
 fchflags(p, uap, retval)
 	struct proc *p;
 	register struct fchflags_args *uap;
@@ -1340,6 +1371,7 @@ struct chmod_args {
 	int	mode;
 };
 /* ARGSUSED */
+int
 chmod(p, uap, retval)
 	struct proc *p;
 	register struct chmod_args *uap;
@@ -1375,6 +1407,7 @@ struct fchmod_args {
 	int	mode;
 };
 /* ARGSUSED */
+int
 fchmod(p, uap, retval)
 	struct proc *p;
 	register struct fchmod_args *uap;
@@ -1410,6 +1443,7 @@ struct chown_args {
 	int	gid;
 };
 /* ARGSUSED */
+int
 chown(p, uap, retval)
 	struct proc *p;
 	register struct chown_args *uap;
@@ -1447,6 +1481,7 @@ struct fchown_args {
 	int	gid;
 };
 /* ARGSUSED */
+int
 fchown(p, uap, retval)
 	struct proc *p;
 	register struct fchown_args *uap;
@@ -1482,6 +1517,7 @@ struct utimes_args {
 	struct	timeval *tptr;
 };
 /* ARGSUSED */
+int
 utimes(p, uap, retval)
 	struct proc *p;
 	register struct utimes_args *uap;
@@ -1528,6 +1564,7 @@ struct truncate_args {
 	off_t	length;
 };
 /* ARGSUSED */
+int
 truncate(p, uap, retval)
 	struct proc *p;
 	register struct truncate_args *uap;
@@ -1565,6 +1602,7 @@ struct ftruncate_args {
 	off_t	length;
 };
 /* ARGSUSED */
+int
 ftruncate(p, uap, retval)
 	struct proc *p;
 	register struct ftruncate_args *uap;
@@ -1602,6 +1640,7 @@ struct otruncate_args {
 	long	length;
 };
 /* ARGSUSED */
+int
 otruncate(p, uap, retval)
 	struct proc *p;
 	register struct otruncate_args *uap;
@@ -1622,6 +1661,7 @@ struct oftruncate_args {
 	long	length;
 };
 /* ARGSUSED */
+int
 oftruncate(p, uap, retval)
 	struct proc *p;
 	register struct oftruncate_args *uap;
@@ -1642,6 +1682,7 @@ struct fsync_args {
 	int	fd;
 };
 /* ARGSUSED */
+int
 fsync(p, uap, retval)
 	struct proc *p;
 	struct fsync_args *uap;
@@ -1669,6 +1710,7 @@ struct rename_args {
 	char	*to;
 };
 /* ARGSUSED */
+int
 rename(p, uap, retval)
 	struct proc *p;
 	register struct rename_args *uap;
@@ -1754,6 +1796,7 @@ struct mkdir_args {
 	int	mode;
 };
 /* ARGSUSED */
+int
 mkdir(p, uap, retval)
 	struct proc *p;
 	register struct mkdir_args *uap;
@@ -1794,6 +1837,7 @@ struct rmdir_args {
 	char	*path;
 };
 /* ARGSUSED */
+int
 rmdir(p, uap, retval)
 	struct proc *p;
 	struct rmdir_args *uap;
@@ -1849,6 +1893,7 @@ struct ogetdirentries_args {
 	u_int	count;
 	long	*basep;
 };
+int
 ogetdirentries(p, uap, retval)
 	struct proc *p;
 	register struct ogetdirentries_args *uap;
@@ -1947,6 +1992,7 @@ struct getdirentries_args {
 	u_int	count;
 	long	*basep;
 };
+int
 getdirentries(p, uap, retval)
 	struct proc *p;
 	register struct getdirentries_args *uap;
@@ -2057,6 +2103,7 @@ struct revoke_args {
 	char	*path;
 };
 /* ARGSUSED */
+int
 revoke(p, uap, retval)
 	struct proc *p;
 	register struct revoke_args *uap;
@@ -2090,6 +2137,7 @@ out:
 /*
  * Convert a user file descriptor to a kernel file entry.
  */
+int
 getvnode(fdp, fd, fpp)
 	struct filedesc *fdp;
 	struct file **fpp;

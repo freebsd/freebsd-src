@@ -54,6 +54,7 @@ struct buf {
 	struct	buf *b_actf, **b_actb;	/* Device driver queue when active. */
 	struct  proc *b_proc;		/* Associated proc; NULL if kernel. */
 	volatile long	b_flags;	/* B_* flags. */
+	int	b_qindex;		/* buffer queue index */
 	int	b_error;		/* Errno value. */
 	long	b_bufsize;		/* Allocated buffer size. */
 	long	b_bcount;		/* Valid bytes in buffer. */
@@ -75,6 +76,13 @@ struct buf {
 	struct	ucred *b_wcred;		/* Write credentials reference. */
 	int	b_validoff;		/* Offset in buffer of valid region. */
 	int	b_validend;		/* Offset of end of valid region. */
+	daddr_t	b_pblkno;               /* physical block number */
+	caddr_t	b_savekva;              /* saved kva for transfer while bouncing */
+	TAILQ_HEAD(b_clusterhd,buf) b_cluster;	/* low level clustering */
+	void	*b_driver1;		/* for private use by the driver */
+	void	*b_driver2;		/* for private use by the driver */
+	void	*b_spc;
+
 };
 
 /* Device driver compatibility definitions. */
@@ -114,6 +122,8 @@ struct buf {
 #define	B_WRITE		0x00000000	/* Write buffer (pseudo flag). */
 #define	B_WRITEINPROG	0x01000000	/* Write in progress. */
 #define	B_XXX		0x02000000	/* Debugging flag. */
+#define B_CLUSTER	0x40000000	/* pagein op, so swap() can count it */
+#define B_BOUNCE	0x80000000	/* bounce buffer flag */
 
 /*
  * This structure describes a clustered I/O.  It is stored in the b_saveaddr
@@ -148,20 +158,20 @@ char	*buffers;		/* The buffer contents. */
 int	bufpages;		/* Number of memory pages in the buffer pool. */
 struct	buf *swbuf;		/* Swap I/O buffer headers. */
 int	nswbuf;			/* Number of swap I/O buffer headers. */
-struct	buf bswlist;		/* Head of swap I/O buffer headers free list. */
+TAILQ_HEAD(swqueue, buf) bswlist;
 struct	buf *bclnlist;		/* Head of cleaned page list. */
 
 __BEGIN_DECLS
-int	allocbuf __P((struct buf *, int));
-int	bawrite __P((struct buf *));
-int	bdwrite __P((struct buf *));
+void	allocbuf __P((struct buf *, int));
+void	bawrite __P((struct buf *));
+void	bdwrite __P((struct buf *));
 void	biodone __P((struct buf *));
 int	biowait __P((struct buf *));
 int	bread __P((struct vnode *, daddr_t, int,
 	    struct ucred *, struct buf **));
 int	breadn __P((struct vnode *, daddr_t, int, daddr_t *, int *, int,
 	    struct ucred *, struct buf **));
-int	brelse __P((struct buf *));
+void	brelse __P((struct buf *));
 void	bufinit __P((void));
 int	bwrite __P((struct buf *));
 void	cluster_callback __P((struct buf *));
