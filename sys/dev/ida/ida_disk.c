@@ -61,7 +61,7 @@ static int idad_detach(device_t dev);
 static	d_open_t	idad_open;
 static	d_close_t	idad_close;
 static	d_strategy_t	idad_strategy;
-static	d_dump_t	idad_dump;
+static	dumper_t	idad_dump;
 
 #define IDAD_CDEV_MAJOR	109
 
@@ -180,13 +180,15 @@ bad:
 }
 
 static int
-idad_dump(dev_t dev, void *virtual, vm_offset_t physical, off_t offset, size_t length)
+idad_dump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t length)
 {
 
 	struct idad_softc *drv;
 	int error = 0;
+	struct disk *dp;
 
-	drv = idad_getsoftc(dev);
+	dp = arg;
+	drv = idad_getsoftc(dp->d_dev);
 	if (drv == NULL)
 		return (ENXIO);
 

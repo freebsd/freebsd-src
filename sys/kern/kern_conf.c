@@ -90,7 +90,7 @@ dead_strategy(struct bio *bp)
 	biofinish(bp, NULL, ENXIO);
 }
 
-#define dead_dump	(d_dump_t *)enxio
+#define dead_dump	(dumper_t *)enxio
 
 static int
 dead_psize(dev_t dev)

@@ -586,7 +586,7 @@ DRIVER_MODULE(twed, twe, twed_driver, twed_devclass, 0, 0);
 static	d_open_t	twed_open;
 static	d_close_t	twed_close;
 static	d_strategy_t	twed_strategy;
-static	d_dump_t	twed_dump;
+static	dumper_t	twed_dump;
 
 #define TWED_CDEV_MAJOR	147
 
@@ -693,12 +693,16 @@ twed_strategy(twe_bio *bp)
  * System crashdump support
  */
 static int
-twed_dump(dev_t dev, void *virtual, vm_offset_t physical, off_t offset, size_t length)
+twed_dump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t length)
 {
-    struct twed_softc	*twed_sc = (struct twed_softc *)dev->si_drv1;
-    struct twe_softc	*twe_sc  = (struct twe_softc *)twed_sc->twed_controller;
+    struct twed_softc	*twed_sc;
+    struct twe_softc	*twe_sc;
     int			error;
+    struct disk		*dp;
 
+    dp = arg;
+    twed_sc = (struct twed_softc *)dp->d_dev->si_drv1;
+    twe_sc  = (struct twe_softc *)twed_sc->twed_controller;
     if (!twed_sc || !twe_sc)
 	return(ENXIO);
 

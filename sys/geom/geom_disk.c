@@ -160,7 +160,7 @@ g_disk_kerneldump(struct bio *bp, struct disk *dp)
 	g_trace(G_T_TOPOLOGY, "g_disk_kernedump(%s, %jd, %jd)",
 		gp->name, (intmax_t)gkd->offset, (intmax_t)gkd->length);
 	di.dumper = dp->d_dump;
-	di.priv = dp->d_dev;
+	di.priv = dp;
 	di.blocksize = dp->d_sectorsize;
 	di.mediaoffset = gkd->offset;
 	di.mediasize = gkd->length;
@@ -348,7 +348,7 @@ disk_create(int unit, struct disk *dp, int flags, struct cdevsw *cdevsw, void * 
 		dp->d_cclose = cdevsw->d_close;
 		dp->d_cioctl = cdevsw->d_ioctl;
 		dp->d_strategy = cdevsw->d_strategy;
-		dp->d_dump = (dumper_t *)cdevsw->d_dump;
+		dp->d_dump = cdevsw->d_dump;
 		dp->d_name = cdevsw->d_name;
 	} 
 	KASSERT(dp->d_strategy != NULL, ("disk_create need d_strategy"));

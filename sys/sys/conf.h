@@ -151,7 +151,6 @@ typedef int d_close_t(dev_t dev, int fflag, int devtype, struct thread *td);
 typedef void d_strategy_t(struct bio *bp);
 typedef int d_ioctl_t(dev_t dev, u_long cmd, caddr_t data,
 		      int fflag, struct thread *td);
-typedef int d_dump_t(dev_t dev,void *virtual, vm_offset_t physical, off_t offset, size_t length);
 typedef int d_psize_t(dev_t dev);
 
 typedef int d_read_t(dev_t dev, struct uio *uio, int ioflag);
@@ -169,6 +168,13 @@ typedef int l_ioctl_t(struct tty *tp, u_long cmd, caddr_t data,
 typedef int l_rint_t(int c, struct tty *tp);
 typedef int l_start_t(struct tty *tp);
 typedef int l_modem_t(struct tty *tp, int flag);
+
+typedef int dumper_t(
+	void *priv,		/* Private to the driver. */
+	void *virtual,		/* Virtual (mapped) address. */
+	vm_offset_t physical,	/* Physical address of virtual. */
+	off_t offset,		/* Byte-offset to write at. */
+	size_t length);		/* Number of bytes to dump. */
 
 #define BIO_STRATEGY(bp)						\
 	do {								\
@@ -226,7 +232,7 @@ struct cdevsw {
 	d_strategy_t	*d_strategy;
 	const char	*d_name;	/* base device name, e.g. 'vn' */
 	int		d_maj;
-	d_dump_t	*d_dump;
+	dumper_t	*d_dump;
 	d_psize_t	*d_psize;
 	u_int		d_flags;
 	/* additions below are not binary compatible with 4.2 and below */
@@ -267,7 +273,7 @@ d_kqfilter_t	nokqfilter;
 #define	nostrategy	((d_strategy_t *)NULL)
 #define	nopoll	seltrue
 
-d_dump_t	nodump;
+dumper_t	nodump;
 
 #define NUMCDEVSW 256
 
@@ -343,13 +349,6 @@ int dev_stdclone(char *_name, char **_namep, const char *_stem, int *_unit);
 EVENTHANDLER_DECLARE(dev_clone, dev_clone_fn);
 
 /* Stuff relating to kernel-dump */
-
-typedef int dumper_t(
-	void *priv,		/* Private to the driver. */
-	void *virtual,		/* Virtual (mapped) address. */
-	vm_offset_t physical,	/* Physical address of virtual. */
-	off_t offset,		/* Byte-offset to write at. */
-	size_t length);		/* Number of bytes to dump. */
 
 struct dumperinfo {
 	dumper_t *dumper;	/* Dumping function. */
