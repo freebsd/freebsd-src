@@ -181,7 +181,7 @@
  * software that is unaware of C99 keywords.
  */
 #if !(__GNUC__ == 2 && __GNUC_MINOR__ == 95)
-#if __STDC_VERSION__ < 199901
+#if !defined(__STDC_VERSION__) || __STDC_VERSION__ < 199901
 #define	__restrict
 #else
 #define	__restrict	restrict
@@ -369,13 +369,13 @@
  */
 
 /* Deal with IEEE Std. 1003.1-1990, in which _POSIX_C_SOURCE == 1. */
-#if _POSIX_C_SOURCE == 1
+#if defined(_POSIX_C_SOURCE) && _POSIX_C_SOURCE == 1
 #undef _POSIX_C_SOURCE		/* Probably illegal, but beyond caring now. */
 #define	_POSIX_C_SOURCE		199009
 #endif
 
 /* Deal with IEEE Std. 1003.2-1992, in which _POSIX_C_SOURCE == 2. */
-#if _POSIX_C_SOURCE == 2
+#if defined(_POSIX_C_SOURCE) && _POSIX_C_SOURCE == 2
 #undef _POSIX_C_SOURCE
 #define	_POSIX_C_SOURCE		199209
 #endif
