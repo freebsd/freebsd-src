@@ -219,12 +219,15 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 		cnf->password_days = atoi(arg->val);
 
 	if ((arg = getarg(args, 'g')) != NULL) {
-		p = arg->val;
-		if ((grp = GETGRNAM(p)) == NULL) {
-			if (!isdigit((unsigned char)*p) || (grp = GETGRGID((gid_t) atoi(p))) == NULL)
-				errx(EX_NOUSER, "group `%s' does not exist", p);
+		if (!*(p = arg->val))	/* Handle empty group list specially */
+			cnf->default_group = "";
+		else {
+			if ((grp = GETGRNAM(p)) == NULL) {
+				if (!isdigit((unsigned char)*p) || (grp = GETGRGID((gid_t) atoi(p))) == NULL)
+					errx(EX_NOUSER, "group `%s' does not exist", p);
+			}
+			cnf->default_group = newstr(grp->gr_name);
 		}
-		cnf->default_group = newstr(grp->gr_name);
 	}
 	if ((arg = getarg(args, 'L')) != NULL)
 		cnf->default_class = pw_checkname((u_char *)arg->val, 0);
