@@ -129,6 +129,16 @@ pcic_putw(struct pcic_slot *sp, int reg, unsigned short word)
 	sp->putb(sp, reg + 1, (word >> 8) & 0xff);
 }
 
+static __inline int
+host_irq_to_pcic(int irq)
+{
+#ifdef PC98
+	if (irq == 6)
+		irq = 7;
+#endif
+	return (irq);
+}
+
 /*
  * Free up resources allocated so far.
  */
@@ -284,6 +294,7 @@ pcic_do_mgt_irq(struct pcic_slot *sp, int irq)
 	} else {
 		/* Management IRQ changes */
 		pcic_clrb(sp, PCIC_INT_GEN, PCIC_INTR_ENA);
+		irq = host_irq_to_pcic(irq);
 		sp->putb(sp, PCIC_STAT_INT, (irq << 4) | 0x8);
 	}
 }
@@ -509,6 +520,7 @@ pcic_mapirq(struct slot *slt, int irq)
 	struct pcic_slot *sp = slt->cdata;
 	if (sp->sc->csc_route == pci_parallel)
 		return;
+	irq = host_irq_to_pcic(irq);
 	if (irq == 0)
 		pcic_clrb(sp, PCIC_INT_GEN, 0xF);
 	else
