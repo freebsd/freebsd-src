@@ -57,12 +57,12 @@ $FreeBSD$
  *	# commit the derived files after the $ FreeBSD $ has been updated.
  *	cvs commit usbdevs.h usbdevs_data.h
  *
- * Please note that these IDs do not do anything. Adding an ID in usbdevs and
+ * Please note that these IDs do not do anything. Adding an ID here and
  * regenerating the usbdevs.h and usbdevs_data.h only makes a symbolic name
- * available to the source code and does not change any functionality, nor does
- * it make your device available to a specific driver.  It will however make
- * the descriptive string available if a device does not provide the string
- * itself.
+ * available to the source code and does not change any functionality, nor
+ * does it make your device available to a specific driver.
+ * It will however make the descriptive string available if a device does not
+ * provide the string itself.
  *
  * After adding a vendor ID VNDR and a product ID PRDCT you will have the
  * following extra defines:
@@ -353,7 +353,7 @@ vendor HP2		0xf003	Hewlett Packard
 product 3COM HOMECONN		0x009d	HomeConnect USB Camera
 product 3COM 3C19250		0x03E8	3C19250 Ethernet adapter
 product 3COM USR56K		0x3021	U.S.Robotics 56000 Voice Faxmodem Pro
-product 3COM 3C460		0x11f8	HomeConnect Ethernet USB Adapter
+product 3COM 3C460		0x11f8	HomeConnect 3C460
 
 product 3COMUSR OFFICECONN	0x0082	3Com OfficeConnect Analog Modem
 product 3COMUSR USRISDN		0x008f	3Com U.S. Robotics Pro ISDN TA
@@ -364,7 +364,7 @@ product 3COMUSR USR56K		0x3021	U.S.Robotics 56000 Voice Faxmodem Pro
 product ABOCOM URE450		0x4000	URE450 Ethernet Adapter
 product ABOCOM DSB650TX_PNA	0x4003	1/10/100 ethernet adapter
 
-/* Accton Technology Corp. products */
+/* Accton products */
 product ACCTON USB320_EC	0x1046	USB320-EC Ethernet Adapter
 
 /* Acer Peripherals, Inc. products */
@@ -654,7 +654,7 @@ product KAWATSU MH4000P		0x0003	MiniHub 4000P
 /* Keisokugiken Corp. products */
 product KEISOKUGIKEN USBDAQ	0x0068	HKS-0200 USBDAQ
 
-/* Kawasaki LSI products (?) */
+/* Kawasaki products */
 product KLSI DUH3E10BT		0x0008	10BT Ethernet adapter, in the DU-H3E
 
 /* Kensington products */
@@ -705,7 +705,7 @@ product LINKSYS USB10T		0x2202	USB10T Ethernet
 product LINKSYS USB100TX	0x2203	USB100TX Ethernet
 product LINKSYS USB100H1	0x2204	USB100H1 Ethernet/HPNA
 product LINKSYS USB10TA		0x2206	USB10TA Ethernet
-product	LINKSYS	USB10TX2	0x400b	USB10TX
+product LINKSYS	USB10TX2	0x400b	USB10TX
 
 /* Logitech products */
 product LOGITECH M2452		0x0203	M2452 keyboard
@@ -736,9 +736,9 @@ product MACALLY MOUSE1		0x0101	mouse
 
 /* MCT Corp. */
 product MCT HUB0100		0x0100	Hub
+product MCT DU_H3SP_USB232	0x0200	D-Link DU-H3SP USB BAY Hub
 product MCT USB232		0x0210	USB-232 Interface
 product MCT SITECOM_USB232	0x0230	Sitecom USB-232 Products
-product MCT DU_H3SP_USB232	0x0200	D-Link DU-H3SP USB BAY Hub
 
 /* Melco, Inc products */
 product MELCO LUATX1		0x0001	LUA-TX Ethernet
@@ -799,8 +799,8 @@ product MUSTEK MDC800		0xa800	MDC-800 digital camera
 product MSYSTEMS DISKONKEY	0x0010	DiskOnKey
 
 /* National Semiconductor */
-product NATIONAL BEARPAW1200	0x1000	BearPaw 1200 scanner
-product NATIONAL BEARPAW2400	0x1001	BearPaw 2400 scanner
+product NATIONAL BEARPAW1200	0x1000	BearPaw 1200
+product NATIONAL BEARPAW2400	0x1001	BearPaw 2400
 
 /* NEC products */
 product NEC HUB			0x55aa	hub
