@@ -13,7 +13,7 @@ BIN1=   amd.map apmd.conf auth.conf \
 	motd modems networks newsyslog.conf \
 	pam.conf phones printcap profile protocols \
 	rc rc.atm rc.diskless1 rc.diskless2 rc.firewall rc.firewall6 \
-	rc.network rc.network6 rc.pccard rc.serial rc.shutdown \
+	rc.network rc.network6 rc.pccard rc.sendmail rc.serial rc.shutdown \
 	rc.syscons rc.sysctl remote rpc services shells sysctl.conf \
 	syslog.conf usbd.conf \
 	etc.${MACHINE_ARCH}/disktab \
