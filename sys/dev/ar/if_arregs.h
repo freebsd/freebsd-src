@@ -169,21 +169,19 @@
 
 #define ARC_GET_WIN(addr)	((addr >> ARC_WIN_SHFT) & AR_WIN_MSK)
 
-#define ARC_SET_MEM(iobase,win)	outb(iobase+AR_MSCA_EN, AR_ENA_MEM | \
+#define ARC_SET_MEM(hc,win)	ar_outb(hc, AR_MSCA_EN, AR_ENA_MEM | \
 				ARC_GET_WIN(win))
-#define ARC_SET_SCA(iobase,ch)	outb(iobase+AR_MSCA_EN, AR_ENA_MEM | \
+#define ARC_SET_SCA(hc,ch)	ar_outb(hc, AR_MSCA_EN, AR_ENA_MEM | \
 				AR_ENA_SCA | (ch ? AR_SEL_SCA_1:AR_SEL_SCA_0))
-#define ARC_SET_OFF(iobase)	outb(iobase+AR_MSCA_EN, 0)
+#define ARC_SET_OFF(hc)		ar_outb(hc, AR_MSCA_EN, 0)
 
 struct ar_hardc {
 	int cunit;
 	struct ar_softc *sc;
-	u_short iobase;
 	int isa_irq;
 	int numports;
 	caddr_t mem_start;
 	caddr_t mem_end;
-	caddr_t plx_mem;
 	u_char *orbase;
 
 	u_int memsize;		/* in bytes */
@@ -223,5 +221,11 @@ int ar_allocate_plx_memory(device_t device, int rid, u_long size);
 int ar_deallocate_resources(device_t device);
 int ar_attach(device_t device);
 int ar_detach (device_t);
+
+#define ar_inb(hc, port) \
+	bus_space_read_1((hc)->bt, (hc)->bh, (port))
+
+#define ar_outb(hc, port, value) \
+	bus_space_write_1((hc)->bt, (hc)->bh, (port), (value))
 
 #endif /* _IF_ARREGS_H_ */
