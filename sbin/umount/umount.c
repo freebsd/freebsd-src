@@ -48,6 +48,7 @@ static const char rcsid[] =
 #include <sys/param.h>
 #include <sys/mount.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
 
 #include <netdb.h>
 #include <rpc/rpc.h>
@@ -64,11 +65,7 @@ static const char rcsid[] =
 
 #include "mounttab.h"
 
-#define ISDOT(x)	((x)[0] == '.' && (x)[1] == '\0')
-#define ISDOTDOT(x)	((x)[0] == '.' && (x)[1] == '.' && (x)[2] == '\0')
-
-typedef enum { MNTON, MNTFROM, MNTFSID, NOTHING } mntwhat;
-typedef enum { MARK, UNMARK, NAME, COUNT, FREE } dowhat;
+typedef enum { FIND, REMOVE, CHECKUNIQUE } dowhat;
 
 struct  addrinfo *nfshost_ai = NULL;
 int	fflag, vflag;
@@ -76,15 +73,16 @@ char   *nfshost;
 
 struct statfs *checkmntlist(char *);
 int	 checkvfsname (const char *, char **);
-struct statfs *getmntentry(const char *, const char *, mntwhat, dowhat);
-char 	*getrealname(char *, char *resolved_path);
+struct statfs *getmntentry(const char *fromname, const char *onname,
+	     fsid_t *fsid, dowhat what);
 char   **makevfslist (const char *);
 size_t	 mntinfo (struct statfs **);
 int	 namematch (struct addrinfo *);
+int	 parsehexfsid(const char *hex, fsid_t *fsid);
 int	 sacmp (struct sockaddr *, struct sockaddr *);
 int	 umountall (char **);
 int	 checkname (char *, char **);
-int	 umountfs (char *, char *, fsid_t *, char *);
+int	 umountfs(struct statfs *sfs);
 void	 usage (void);
 int	 xdr_dir (XDR *, char *);
 
@@ -159,8 +157,7 @@ main(int argc, char *argv[])
 			sfs = &mntbuf[mntsize];
 			if (checkvfsname(sfs->f_fstypename, typelist))
 				continue;
-			if (umountfs(sfs->f_mntfromname, sfs->f_mntonname,
-			    &sfs->f_fsid, sfs->f_fstypename) != 0)
+			if (umountfs(sfs) != 0)
 				errs = 1;
 		}
 		free(mntbuf);
@@ -176,7 +173,6 @@ main(int argc, char *argv[])
 				errs = 1;
 		break;
 	}
-	(void)getmntentry(NULL, NULL, NOTHING, FREE);
 	exit(errs);
 }
 
@@ -230,21 +226,18 @@ umountall(char **typelist)
 }
 
 /*
- * Do magic checks on mountpoint and device or hand over
- * it to unmount(2) if everything fails.
+ * Do magic checks on mountpoint/device/fsid, and then call unmount(2).
  */
 int
 checkname(char *name, char **typelist)
 {
-	size_t len;
-	int speclen;
-	char *resolved, realname[MAXPATHLEN];
-	char *hostp, *delimp, *origname;
+	char buf[MAXPATHLEN];
+	struct statfs sfsbuf;
+	struct stat sb;
 	struct statfs *sfs;
-
-	len = 0;
-	delimp = hostp = NULL;
-	sfs = NULL;
+	char *delimp;
+	dev_t dev;
+	int len;
 
 	/*
 	 * 1. Check if the name exists in the mounttable.
@@ -255,108 +248,67 @@ checkname(char *name, char **typelist)
 	 * we look up the name in the mounttable again.
 	 */
 	if (sfs == NULL) {
-		speclen = strlen(name);
-		for (speclen = strlen(name); 
-		    speclen > 1 && name[speclen - 1] == '/';
-		    speclen--)
-			name[speclen - 1] = '\0';
+		len = strlen(name);
+		while (len > 0 && name[len - 1] == '/')
+			name[--len] = '\0';
 		sfs = checkmntlist(name);
-		resolved = name;
-		/* Save off original name in origname */
-		if ((origname = strdup(name)) == NULL)
-			err(1, "strdup");
-		/*
-		 * 3. Check if the deprecated nfs-syntax with an '@'
-		 * has been used and translate it to the ':' syntax.
-		 * Look up the name in the mounttable again.
-		 */
-		if (sfs == NULL) {
-			if ((delimp = strrchr(name, '@')) != NULL) {
-				hostp = delimp + 1;
-				if (*hostp != '\0') {
-					/*
-					 * Make both '@' and ':'
-					 * notations equal 
-					 */
-					char *host = strdup(hostp);
-					len = strlen(hostp);
-					if (host == NULL)
-						err(1, "strdup");
-					memmove(name + len + 1, name,
-					    (size_t)(delimp - name));
-					name[len] = ':';
-					memmove(name, host, len);
-					free(host);
-				}
-				for (speclen = strlen(name); 
-				    speclen > 1 && name[speclen - 1] == '/';
-				    speclen--)
-					name[speclen - 1] = '\0';
-				name[len + speclen + 1] = '\0';
-				sfs = checkmntlist(name);
-				resolved = name;
-			}
-			/*
-			 * 4. Check if a relative mountpoint has been
-			 * specified. This should happen as last check,
-			 * the order is important. To prevent possible
-			 * nfs-hangs, we just call realpath(3) on the
-			 * basedir of mountpoint and add the dirname again.
-			 * Check the name in mounttable one last time.
-			 */
-			if (sfs == NULL) {
-				(void)strcpy(name, origname);
-				if ((getrealname(name, realname)) != NULL) {
-					sfs = checkmntlist(realname);
-					resolved = realname;
-				}
-				/*
-				 * 5. All tests failed, just hand over the
-				 * mountpoint to the kernel, maybe the statfs
-				 * structure has been truncated or is not
-				 * useful anymore because of a chroot(2).
-				 * Please note that nfs will not be able to
-				 * notify the nfs-server about unmounting.
-				 * These things can change in future when the 
-				 * fstat structure get's more reliable,
-				 * but at the moment we cannot thrust it.
-				 */
-				if (sfs == NULL) {
-					(void)strcpy(name, origname);
-					if (umountfs(NULL, origname, NULL,
-					    "none") == 0) {;
-						warnx("%s not found in "
-						    "mount table, "
-						    "unmounted it anyway",
-						    origname);
-						free(origname);
-						return (0);
-					} else
-						free(origname);
-						return (1);
-				}
-			}
+	}
+	/*
+	 * 3. Check if the deprecated NFS syntax with an '@' has been used
+	 * and translate it to the ':' syntax. Look up the name in the
+	 * mount table again.
+	 */
+	if (sfs == NULL && (delimp = strrchr(name, '@')) != NULL) {
+		snprintf(buf, sizeof(buf), "%s:%.*s", delimp + 1, delimp - name,
+		    name);
+		len = strlen(buf);
+		while (len > 0 && buf[len - 1] == '/')
+			buf[--len] = '\0';
+		sfs = checkmntlist(buf);
+	}
+	/*
+	 * 4. Resort to a statfs(2) call. This is the last check so that
+	 * hung NFS filesystems for example can be unmounted without
+	 * potentially blocking forever in statfs() as long as the
+	 * filesystem is specified unambiguously. This covers all the
+	 * hard cases such as symlinks and mismatches between the
+	 * mount list and reality.
+	 * We also do this if an ambiguous mount point was specified.
+	 */
+	if (sfs == NULL || (getmntentry(NULL, name, NULL, FIND) != NULL &&
+	    getmntentry(NULL, name, NULL, CHECKUNIQUE) == NULL)) {
+		if (statfs(name, &sfsbuf) != 0) {
+			warn("%s: statfs", name);
+		} else if (stat(name, &sb) != 0) {
+			warn("%s: stat", name);
+		} else if (S_ISDIR(sb.st_mode)) {
+			/* Check that `name' is the root directory. */
+			dev = sb.st_dev;
+			snprintf(buf, sizeof(buf), "%s/..", name);
+			if (stat(buf, &sb) != 0) {
+				warn("%s: stat", buf);
+			} else if (sb.st_dev == dev) {
+				warnx("%s: not a file system root directory",
+				    name);
+				return (1);
+			} else
+				sfs = &sfsbuf;
 		}
-		free(origname);
-	} else
-		resolved = name;
-
+	}
+	if (sfs == NULL) {
+		warnx("%s: unknown file system", name);
+		return (1);
+	}
 	if (checkvfsname(sfs->f_fstypename, typelist))
 		return (1);
-
-	/*
-	 * Mark the uppermost mount as unmounted.
-	 */
-	(void)getmntentry(sfs->f_mntfromname, sfs->f_mntonname, NOTHING, MARK);
-	return (umountfs(sfs->f_mntfromname, sfs->f_mntonname, &sfs->f_fsid,
-	    sfs->f_fstypename));
+	return (umountfs(sfs));
 }
 
 /*
  * NFS stuff and unmount(2) call
  */
 int
-umountfs(char *mntfromname, char *mntonname, fsid_t *fsid, char *type)
+umountfs(struct statfs *sfs)
 {
 	char fsidbuf[64];
 	enum clnt_stat clnt_stat;
@@ -373,8 +325,8 @@ umountfs(char *mntfromname, char *mntonname, fsid_t *fsid, char *type)
 	nfsdirname = delimp = orignfsdirname = NULL;
 	memset(&hints, 0, sizeof hints);
 
-	if (strcmp(type, "nfs") == 0) {
-		if ((nfsdirname = strdup(mntfromname)) == NULL)
+	if (strcmp(sfs->f_fstypename, "nfs") == 0) {
+		if ((nfsdirname = strdup(sfs->f_mntfromname)) == NULL)
 			err(1, "strdup");
 		orignfsdirname = nfsdirname;
 		if ((delimp = strrchr(nfsdirname, ':')) != NULL) {
@@ -396,31 +348,32 @@ umountfs(char *mntfromname, char *mntonname, fsid_t *fsid, char *type)
 		 * A non-NULL return means that this is the last
 		 * mount from mntfromname that is still mounted.
 		 */
-		if (getmntentry(mntfromname, NULL, NOTHING, COUNT) != NULL)
+		if (getmntentry(sfs->f_mntfromname, NULL, NULL,
+		    CHECKUNIQUE) != NULL)
 			do_rpc = 1;
 	}
 
 	if (!namematch(ai))
 		return (1);
-	/* First try to unmount using the specified file system ID. */
-	if (fsid != NULL) {
-		snprintf(fsidbuf, sizeof(fsidbuf), "FSID:%d:%d", fsid->val[0],
-		    fsid->val[1]);
-		if (unmount(fsidbuf, fflag | MNT_BYFSID) != 0) {
-			warn("unmount of %s failed", mntonname);
-			if (errno != ENOENT)
-				return (1);
-			/* Compatability for old kernels. */
-			warnx("retrying using path instead of file system ID");
-			fsid = NULL;
+	/* First try to unmount using the file system ID. */
+	snprintf(fsidbuf, sizeof(fsidbuf), "FSID:%d:%d", sfs->f_fsid.val[0],
+	    sfs->f_fsid.val[1]);
+	if (unmount(fsidbuf, fflag | MNT_BYFSID) != 0) {
+		warn("unmount of %s failed", sfs->f_mntonname);
+		if (errno != ENOENT)
+			return (1);
+		/* Compatability for old kernels. */
+		warnx("retrying using path instead of file system ID");
+		if (unmount(sfs->f_mntonname, fflag) != 0) {
+			warn("unmount of %s failed", sfs->f_mntonname);
+			return (1);
 		}
 	}
-	if (fsid == NULL && unmount(mntonname, fflag) != 0) {
-		warn("unmount of %s failed", mntonname);
-		return (1);
-	}
+	/* Mark this this file system as unmounted. */
+	getmntentry(NULL, NULL, &sfs->f_fsid, REMOVE);
 	if (vflag)
-		(void)printf("%s: unmount from %s\n", mntfromname, mntonname);
+		(void)printf("%s: unmount from %s\n", sfs->f_mntfromname,
+		    sfs->f_mntonname);
 	/*
 	 * Report to mountd-server which nfsname
 	 * has been unmounted.
@@ -460,14 +413,12 @@ umountfs(char *mntfromname, char *mntonname, fsid_t *fsid, char *type)
 }
 
 struct statfs *
-getmntentry(const char *fromname, const char *onname, mntwhat what, dowhat mark)
+getmntentry(const char *fromname, const char *onname, fsid_t *fsid, dowhat what)
 {
 	static struct statfs *mntbuf;
 	static size_t mntsize = 0;
 	static char *mntcheck = NULL;
-	static char *mntcount = NULL;
-	fsid_t fsid;
-	char hexbuf[3];
+	struct statfs *sfs, *foundsfs;
 	int i, count;
 
 	if (mntsize <= 0) {
@@ -475,116 +426,46 @@ getmntentry(const char *fromname, const char *onname, mntwhat what, dowhat mark)
 			return (NULL);
 	}
 	if (mntcheck == NULL) {
-		if ((mntcheck = calloc(mntsize + 1, sizeof(int))) == NULL ||
-		    (mntcount = calloc(mntsize + 1, sizeof(int))) == NULL)
+		if ((mntcheck = calloc(mntsize + 1, sizeof(int))) == NULL)
 			err(1, "calloc");
 	}
 	/*
 	 * We want to get the file systems in the reverse order
-	 * that they were mounted. Mounted and unmounted file systems
-	 * are marked or unmarked in a table called 'mntcheck'.
-	 * Unmount(const char *dir, int flags) does only take the
-	 * mountpoint as argument, not the destination. If we don't pay
-	 * attention to the order, it can happen that an overlaying
-	 * file system gets unmounted instead of the one the user
-	 * has choosen.
+	 * that they were mounted. Unmounted file systems are marked
+	 * in a table called 'mntcheck'.
 	 */
-	switch (mark) {
-	case NAME:
-		/* Return only the specific name */
-		if (fromname == NULL)
-			return (NULL);
-		if (what == MNTFSID) {
-			/* Convert the hex filesystem ID to a fsid_t. */
-			if (strlen(fromname) != sizeof(fsid) * 2)
-				return (NULL);
-			hexbuf[2] = '\0';
-			for (i = 0; i < sizeof(fsid); i++) {
-				hexbuf[0] = fromname[i * 2];
-				hexbuf[1] = fromname[i * 2 + 1];
-				if (!isxdigit(hexbuf[0]) ||
-				    !isxdigit(hexbuf[1]))
-					return (NULL);
-				((u_char *)&fsid)[i] = strtol(hexbuf, NULL, 16);
-			}
-		}
-		for (i = mntsize - 1; i >= 0; i--) {
-			switch (what) {
-			case MNTON:
-				if (strcmp(mntbuf[i].f_mntonname,
-				    fromname) != 0)
-					continue;
-				break;
-			case MNTFROM:
-				if (strcmp(mntbuf[i].f_mntfromname,
-				    fromname) != 0)
-					continue;
-			case MNTFSID:
-				if (bcmp(&mntbuf[i].f_fsid, &fsid,
-				    sizeof(fsid)) != 0)
-				continue;
-			case NOTHING: /* silence compiler warning */
-				break;
-			}
-			if (mntcheck[i] != 1)
-				return (&mntbuf[i]);
-		}
+	count = 0;
+	foundsfs = NULL;
+	for (i = mntsize - 1; i >= 0; i--) {
+		if (mntcheck[i])
+			continue;
+		sfs = &mntbuf[i];
+		if (fromname != NULL && strcmp(sfs->f_mntfromname,
+		    fromname) != 0)
+			continue;
+		if (onname != NULL && strcmp(sfs->f_mntonname, onname) != 0)
+			continue;
+		if (fsid != NULL && bcmp(&sfs->f_fsid, fsid,
+		    sizeof(*fsid)) != 0)
+			continue;
 
-		return (NULL);
-	case MARK:
-		/* Mark current mount with '1' and return name */
-		for (i = mntsize - 1; i >= 0; i--) {
-			if (mntcheck[i] == 0 &&
-			    (strcmp(mntbuf[i].f_mntonname, onname) == 0) &&
-			    (strcmp(mntbuf[i].f_mntfromname, fromname) == 0)) {
-				mntcheck[i] = 1;
-				return (&mntbuf[i]);
-			}
+		switch (what) {
+		case CHECKUNIQUE:
+			foundsfs = sfs;
+			count++;
+			continue;
+		case REMOVE:
+			mntcheck[i] = 1;
+			break;
+		default:
+			break;
 		}
-		return (NULL);
-	case UNMARK:
-		/* Unmark current mount with '0' and return name */
-		for (i = 0; i < mntsize; i++) {
-			if (mntcheck[i] == 1 &&
-			    (strcmp(mntbuf[i].f_mntonname, onname) == 0) &&
-			    (strcmp(mntbuf[i].f_mntfromname, fromname) == 0)) {
-				mntcheck[i] = 0;
-				return (&mntbuf[i]);
-			}
-		}
-		return (NULL);
-	case COUNT:
-		/* Count the equal mntfromnames */
-		count = 0;
-		for (i = mntsize - 1; i >= 0; i--) {
-			if (strcmp(mntbuf[i].f_mntfromname, fromname) == 0)
-				count++;
-		}
-		/* Mark the already unmounted mounts and return
-		 * mntfromname if count <= 1. Else return NULL.
-		 */
-		for (i = mntsize - 1; i >= 0; i--) {
-			if (strcmp(mntbuf[i].f_mntfromname, fromname) == 0) {
-				if (mntcount[i] == 1)
-					count--;
-				else {
-					mntcount[i] = 1;
-					break;
-				}
-			}
-		}
-		if (count <= 1)
-			return (&mntbuf[i]);
-		else
-			return (NULL);
-	case FREE:
-		free(mntbuf);
-		free(mntcheck);
-		free(mntcount);
-		return (NULL);
-	default:
-		return (NULL);
+		return (sfs);
 	}
+
+	if (what == CHECKUNIQUE && count == 1)
+		return (foundsfs);
+	return (NULL);
 }
 
 int
@@ -642,12 +523,15 @@ struct statfs *
 checkmntlist(char *name)
 {
 	struct statfs *sfs;
+	fsid_t fsid;
 
-	sfs = getmntentry(name, NULL, MNTFSID, NAME);
+	sfs = NULL;
+	if (parsehexfsid(name, &fsid) == 0)
+		sfs = getmntentry(NULL, NULL, &fsid, FIND);
 	if (sfs == NULL)
-		sfs = getmntentry(name, NULL, MNTON, NAME);
+		sfs = getmntentry(NULL, name, NULL, FIND);
 	if (sfs == NULL)
-		sfs = getmntentry(name, NULL, MNTFROM, NAME);
+		sfs = getmntentry(name, NULL, NULL, FIND);
 	return (sfs);
 }
 
@@ -669,65 +553,27 @@ mntinfo(struct statfs **mntbuf)
 	return (mntsize);
 }
 
-char *
-getrealname(char *name, char *realname)
+/*
+ * Convert a hexidecimal filesystem ID to an fsid_t.
+ * Returns 0 on success.
+ */
+int
+parsehexfsid(const char *hex, fsid_t *fsid)
 {
-	char *dirname;
-	int havedir;
-	size_t baselen;
-	size_t dirlen;
-	
-	dirname = '\0';
-	havedir = 0;
-	if (*name == '/') {
-		if (ISDOT(name + 1) || ISDOTDOT(name + 1))
-			strcpy(realname, "/");
-		else {
-			if ((dirname = strrchr(name + 1, '/')) == NULL)
-				snprintf(realname, MAXPATHLEN, "%s", name);
-			else
-				havedir = 1;
-		}
-	} else {
-		if (ISDOT(name) || ISDOTDOT(name))
-			(void)realpath(name, realname);
-		else {
-			if ((dirname = strrchr(name, '/')) == NULL) {
-				if ((realpath(name, realname)) == NULL)
-					return (NULL);
-			} else 
-				havedir = 1;
-		}
+	char hexbuf[3];
+	int i;
+
+	if (strlen(hex) != sizeof(*fsid) * 2)
+		return (-1);
+	hexbuf[2] = '\0';
+	for (i = 0; i < sizeof(*fsid); i++) {
+		hexbuf[0] = hex[i * 2];
+		hexbuf[1] = hex[i * 2 + 1];
+		if (!isxdigit(hexbuf[0]) || !isxdigit(hexbuf[1]))
+			return (-1);
+		((u_char *)fsid)[i] = strtol(hexbuf, NULL, 16);
 	}
-	if (havedir) {
-		*dirname++ = '\0';
-		if (ISDOT(dirname)) {
-			*dirname = '\0';
-			if ((realpath(name, realname)) == NULL)
-				return (NULL);
-		} else if (ISDOTDOT(dirname)) {
-			*--dirname = '/';
-			if ((realpath(name, realname)) == NULL)
-				return (NULL);
-		} else {
-			if ((realpath(name, realname)) == NULL)
-				return (NULL);
-			baselen = strlen(realname);
-			dirlen = strlen(dirname);
-			if (baselen + dirlen + 1 > MAXPATHLEN)
-				return (NULL);
-			if (realname[1] == '\0') {
-				memmove(realname + 1, dirname, dirlen);
-				realname[dirlen + 1] = '\0';
-			} else {
-				realname[baselen] = '/';
-				memmove(realname + baselen + 1,
-				    dirname, dirlen);
-				realname[baselen + dirlen + 1] = '\0';
-			}
-		}
-	}
-	return (realname);
+	return (0);
 }
 
 /*
