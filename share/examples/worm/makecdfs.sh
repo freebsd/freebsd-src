@@ -25,5 +25,5 @@ else
 	tree=$1; shift
 	outfile=$1; shift
 	copyright="$*"
-	mkisofs $bootable -d -N -D -R -T -V "$title" -P "$copyright" -o $outfile $tree
+	mkisofs $bootable -d -N -D -r -T -V "$title" -P "$copyright" -o $outfile $tree
 fi
