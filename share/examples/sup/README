@@ -1,6 +1,7 @@
 The example supfiles contained in this directory all obtain their sources 
-from the sup.freebsd.org.  In order to reduce the load on that host, 
-please try and use one of the alternate sup servers listed below.
+from sup.freebsd.org.  In order to reduce the load on that host, 
+please try to use one of the alternate sup servers listed below in
+your own copy of the supfile.
 
 USA:
 sup2.freebsd.org
