@@ -37,6 +37,8 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 
+#define DEVDIR	"/dev/"
+
 static void __dead2
 usage(void)
 {
@@ -96,22 +98,46 @@ consmute(const char *onoff)
 		err(1, "could not change console muting");
 }
 
+/*
+ * The name we supply to the sysctls should be an entry in /dev.  If
+ * the user has specified the full pathname in /dev, DTRT.  If he
+ * specifies a name in some other directory, it's an error.
+ */
+
+static char*
+stripdev(char *devnam)
+{
+	if (memcmp (devnam, DEVDIR, strlen(DEVDIR)) == 0)
+		return (&devnam[strlen(DEVDIR)]);	    /* remove /dev */
+	else if (strchr (devnam, '/')) {
+		fprintf(stderr, "Not a device in /dev: %s\n", devnam);
+		return (NULL);				    /* end of string */
+	} else
+		return (devnam);			    /* passed */
+}
+
 static void
 consadd(char *devnam)
 {
 	size_t len;
 
+	devnam = stripdev(devnam);
+	if (devnam == NULL)
+		return;
 	len = strlen(devnam);
 	if (sysctlbyname("kern.console", NULL, NULL, devnam, len) == -1)
 		err(1, "could not add %s as a console", devnam);
 }
 
 static void
-consdel(const char *devnam)
+consdel(char *devnam)
 {
 	char *buf;
 	size_t len;
 
+	devnam = stripdev(devnam);
+	if (devnam == NULL)
+		return;
 	len = strlen(devnam) + sizeof("-");
 	if ((buf = malloc(len)) == NULL)
 		errx(1, "malloc failed");
