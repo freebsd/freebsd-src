@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.21 1993/12/12 12:22:56 davidg Exp $
+ *	$Id: machdep.c,v 1.22 1993/12/19 00:50:03 wollman Exp $
  */
 
 #include "npx.h"
@@ -211,9 +211,9 @@ again:
 	 * We allocate 1/2 as many swap buffer headers as file i/o buffers.
 	 */
 	if (bufpages == 0)
-		bufpages = ((physmem << PGSHIFT) - 3072*1024) / NBPG / 5;
-	if (bufpages < 32)
-		bufpages = 32;
+		bufpages = ((physmem << PGSHIFT) - 2048*1024) / NBPG / 5;
+	if (bufpages < 64)
+		bufpages = 64;
 
 	/*
 	 * We must still limit the maximum number of buffers to be no
@@ -223,8 +223,8 @@ again:
 	bufpages = min(bufpages, (VM_KMEM_SIZE / NBPG) * 2 / 5);
 	if (nbuf == 0) {
 		nbuf = bufpages / 2;
-		if (nbuf < 16)
-			nbuf = 16;
+		if (nbuf < 32)
+			nbuf = 32;
 	}
 	freebufspace = bufpages * NBPG;
 	if (nswbuf == 0) {
