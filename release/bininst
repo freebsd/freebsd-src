@@ -13,19 +13,14 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: bininst,v 1.49 1994/11/21 08:33:55 jkh Exp $
+# $Id: bininst,v 1.50 1994/11/21 09:50:02 jkh Exp $
 
-if [ "$_BININST_LOADED_" = "yes" ]; then
+if [ "${_BININST_LOADED_}" = "yes" ]; then
 	echo "Error, $0 loaded more than once!"
 	return 1
 else
 	_BININST_LOADED_=yes
 fi
-
-# Set some useful variables
-HOME=/; export HOME
-TMP=/tmp
-
 
 # Grab the miscellaneous functions.
 . /stand/miscfuncs.sh
@@ -44,7 +39,7 @@ set_defaults()
 {
 	network_set_defaults
 	media_set_defaults
-	installing="yes"
+	INSTALLING="yes"
 	mkdir -p ${TMP}
 	cp /stand/etc/* /etc
 }
@@ -52,43 +47,45 @@ set_defaults()
 # Print welcome banner.
 welcome()
 {
-	dialog --title "Welcome to FreeBSD!" $clear \
-	--msgbox \
+	dialog --title "Welcome to FreeBSD!" --msgbox \
 "Installation may now proceed from tape, CDROM, a network (NFS or ftp
 over ethernet, SLIP or parallel port) or DOS (existing hard disk
 partition or floppies).  If you're installing over a network, make
 sure your cables are plugged in and ready to go.  If you're installing
 from tape, CDROM or floppies, now would be a good time to remember
-where you put the distribution media! :-)  If you're set and ready
-to go, please remove the cpio floppy from the drive and press return!" -1 -1
+where you put the distribution media! :-)  Please remove the cpio
+floppy from the drive and press return." -1 -1
 }
 
 do_last_config()
 {
-	if [ "$hostname" = "" ]; then network_basic_setup; fi
-
-	done=""
-	while [ "$done" = "" ]; do
+	DONE=""
+	while [ "${DONE}" = "" ]; do
 	dialog --title "Final Configuration!" --menu \
 "We now come to the end of the installation.  If there's a\n\
 floppy in the boot drive, now would probably be a good time\n\
 to remove it as the system will reboot when you exit the shell\n\
 at the end of this stage.\n\n\
-Please select one of the following options:" -1 -1 4 \
+Please select one of the following options:" -1 -1 5 \
 "tzsetup" "Configure your time zone" \
+"network" "Configure networking"
 "user" "Add a user name for yourself to the system" \
 "guest" "Simply add a user \"guest\" with all default options" \
 "done" "Exit the installation." 2> ${TMP}/menu.tmp.$$
-	retval=$?
-	choice=`cat ${TMP}/menu.tmp.$$`
+	RETVAL=$?
+	CHOICE=`cat ${TMP}/menu.tmp.$$`
 	rm -f ${TMP}/menu.tmp.$$
-	if ! handle_rval $retval; then exit 0; fi
+	if ! handle_rval ${RETVAL}; then exit 0; fi
 
-	case $choice in
+	case ${CHOICE} in
 	tzsetup)
 		dialog --clear
 		sh /stand/tzsetup
 		dialog --clear
+	;;
+
+	network)
+		network_setup
 	;;
 
 	user)
@@ -100,7 +97,7 @@ Please select one of the following options:" -1 -1 4 \
 	;;
 
 	done)
-		done="yes"
+		DONE="yes"
 	;;
 	esac
 	done
@@ -127,14 +124,14 @@ We sincerely hope you enjoy FreeBSD 2.0!
 welcome
 set_defaults
 
-while [ "$installing" = "yes" ]; do
+while [ "${INSTALLING}" = "yes" ]; do
 	if media_select_distribution; then
 		if media_chose; then
 			media_install_set
 		fi
 	else
 		do_last_config
-		installing="no"
+		INSTALLING="no"
 	fi
 done
 echo; echo "Spawning shell.  Exit shell to continue with new bindist."
