@@ -4,7 +4,7 @@
 # This is sysconfig - a file full of useful variables that you can set 
 # to change the default startup behavior of your system.
 #
-#	$Id: sysconfig,v 1.36 1996/02/09 12:45:38 jkh Exp $
+#	$Id: sysconfig,v 1.37 1996/02/11 04:07:27 jkh Exp $
 
 ######################### Start Of Local Configuration Section ###########
 
@@ -164,8 +164,8 @@ nis_ypsetflags="NO"
 # Set to appropriate flags if you want to start NIS for a server
 nis_serverflags="NO"
 
-# Set to appropriate flags for yppasswdd, if you wish to run it.
-# Typical flags might be "-m /var/yp/master.passwd -s -f"
+# Set to appropriate flags for rpc.yppasswdd, if you wish to run it.
+# Typical flags might be "-t /var/yp/master.passwd -s -f"
 yppasswddflags="NO"
 
 # Set to appropriate flags for named, if you have a full-time
