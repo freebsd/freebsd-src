@@ -173,6 +173,7 @@ atm_sock_detach(so)
 	/*
 	 * Break links and free control blocks
 	 */
+	SOCK_LOCK(so);
 	so->so_pcb = NULL;
 	sotryfree(so);
 
