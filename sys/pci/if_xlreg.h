@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_xlreg.h,v 1.1 1998/08/16 17:14:59 wpaul Exp $
+ *	$Id: if_xlreg.h,v 1.14 1998/08/23 21:30:17 wpaul Exp $
  */
 
 #define XL_EE_READ	0x0080	/* read, 5 bit address */
@@ -169,6 +169,13 @@
 #define XL_STAT_UP_COMPLETE	0x0400	/* 10 */
 #define XL_STAT_DMABUSY		0x0800	/* 11 first generation */
 #define XL_STAT_CMDBUSY		0x1000  /* 12 */
+
+/*
+ * Interrupts we normally want enabled.
+ */
+#define XL_INTRS							\
+	(XL_STAT_UP_COMPLETE|XL_STAT_STATSOFLOW|XL_STAT_ADFAIL|		\
+	 XL_STAT_DOWN_COMPLETE|XL_STAT_TX_COMPLETE|XL_STAT_INTLATCH)
 
 /*
  * Window 0 registers
