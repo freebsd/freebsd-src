@@ -48,9 +48,9 @@ struct sipcp {
 #define IPCP_MYADDR_DYN   2	/* my address is dynamically assigned */
 #define IPCP_MYADDR_SEEN  4	/* have seen his address already */
 #ifdef notdef
-#define IPV6CP_MYIFID_DYN   2	/* my ifid is dynamically assigned */
+#define IPV6CP_MYIFID_DYN 8	/* my ifid is dynamically assigned */
 #endif
-#define IPV6CP_MYIFID_SEEN  4	/* have seen his ifid already */
+#define IPV6CP_MYIFID_SEEN 0x10	/* have seen his ifid already */
 };
 
 #define AUTHNAMELEN	32
