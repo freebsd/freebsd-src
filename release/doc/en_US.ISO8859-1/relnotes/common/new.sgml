@@ -124,11 +124,6 @@
     <para arch="i386">The &man.spic.4; driver, which provides access to the job
     dial device on some Sony laptops, has been added.</para>
 
-    <para><quote>sbufs</quote>, null-terminated string data
-    structures, and their
-    associated support routines, have been added to the kernel.
-    Details are in &man.sbuf.9;.</para>
-
     <para arch="i386">PECOFF (WIN32 Execution file format) support has been
     added.</para>
 
