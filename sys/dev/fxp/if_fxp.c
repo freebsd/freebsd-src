@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_fxp.c,v 1.21 1996/10/12 19:49:43 bde Exp $
+ *	$Id: if_fxp.c,v 1.22 1996/11/18 02:45:46 davidg Exp $
  */
 
 /*
@@ -131,7 +131,7 @@ static void fxp_attach		__P((pcici_t, int));
 static void fxp_intr		__P((void *));
 static void fxp_start		__P((struct ifnet *));
 static int fxp_ioctl		__P((struct ifnet *, int, caddr_t));
-static void fxp_init		__P((struct ifnet *));
+static void fxp_init		__P((void *));
 static void fxp_stop		__P((struct fxp_softc *));
 static void fxp_watchdog	__P((struct ifnet *));
 static void fxp_get_macaddr	__P((struct fxp_softc *));
@@ -285,6 +285,7 @@ fxp_attach(config_id, unit)
 	ifp->if_start = fxp_start;
 	ifp->if_watchdog = fxp_watchdog;
 	ifp->if_baudrate = 100000000;
+	ifp->if_init = fxp_init;
 
 	fxp_get_macaddr(sc);
 	printf("fxp%d: Ethernet address %6D\n", unit,
@@ -460,7 +461,7 @@ tbdinit:
 			segment++;
 		}
 	}
-	if (m != NULL && segment == FXP_NTXSEG) {
+	if (m != NULL) {
 		struct mbuf *mn;
 
 		/*
@@ -531,7 +532,7 @@ tbdinit:
 	/*
 	 * Pass packet to bpf if there is a listener.
 	 */
-	if (ifp->if_bpf != NULL)
+	if (ifp->if_bpf)
 		bpf_mtap(ifp, mb_head);
 #endif
 	/*
@@ -619,7 +620,7 @@ rcvloop:
 					    sizeof(struct ether_header);
 					eh = mtod(m, struct ether_header *);
 #if NBPFILTER > 0
-					if (ifp->if_bpf != NULL) {
+					if (ifp->if_bpf) {
 						bpf_tap(ifp, mtod(m, caddr_t), total_len);
 						/*
 						 * Only pass this packet up if it is for us.
@@ -788,14 +789,15 @@ fxp_watchdog(ifp)
 	log(LOG_ERR, "fxp%d: device timeout\n", ifp->if_unit);
 	ifp->if_oerrors++;
 
-	fxp_init(ifp);
+	fxp_init(ifp->if_softc);
 }
 
 static void
-fxp_init(ifp)
-	struct ifnet *ifp;
+fxp_init(xsc)
+	void *xsc;
 {
-	struct fxp_softc *sc = ifp->if_softc;
+	struct fxp_softc *sc = xsc;
+	struct ifnet *ifp = &sc->arpcom.ac_if;
 	struct fxp_cb_config *cbp;
 	struct fxp_cb_ias *cb_ias;
 	struct fxp_cb_tx *txp;
@@ -1029,77 +1031,9 @@ fxp_ioctl(ifp, command, data)
 	switch (command) {
 
 	case SIOCSIFADDR:
-		ifp->if_flags |= IFF_UP;
-
-		switch (ifa->ifa_addr->sa_family) {
-#ifdef INET
-		case AF_INET:
-			fxp_init(ifp);	/* before arpwhohas */
-			arp_ifinit((struct arpcom *)ifp, ifa);
-			break;
-#endif
-#ifdef IPX
-		/*
-		 * XXX - This code is probably wrong
-		 */
-		case AF_IPX:
-			{
-				register struct ipx_addr *ina = &(IA_SIPX(ifa)->sipx_addr);
-
-				if (ipx_nullhost(*ina))
-					ina->x_host =
-					    *(union ipx_host *) (sc->arpcom.ac_enaddr);
-				else {
-					bcopy((caddr_t) ina->x_host.c_host,
-					      (caddr_t) sc->arpcom.ac_enaddr,
-					      sizeof(sc->arpcom.ac_enaddr));
-				}
-
-				/*
-				 * Set new address
-				 */
-				fxp_init(ifp);
-				break;
-			}
-#endif
-#ifdef NS
-		/*
-		 * XXX - This code is probably wrong
-		 */
-		case AF_NS:
-			{
-				register struct ns_addr *ina = &(IA_SNS(ifa)->sns_addr);
-
-				if (ns_nullhost(*ina))
-					ina->x_host =
-					    *(union ns_host *) (sc->arpcom.ac_enaddr);
-				else {
-					bcopy((caddr_t) ina->x_host.c_host,
-					      (caddr_t) sc->arpcom.ac_enaddr,
-					      sizeof(sc->arpcom.ac_enaddr));
-				}
-
-				/*
-				 * Set new address
-				 */
-				fxp_init(ifp);
-				break;
-			}
-#endif
-		default:
-			fxp_init(ifp);
-			break;
-		}
-		break;
-
 	case SIOCGIFADDR:
-		{
-			struct sockaddr *sa;
-
-			sa = (struct sockaddr *) & ifr->ifr_data;
-			bcopy((caddr_t) sc->arpcom.ac_enaddr,
-			      (caddr_t) sa->sa_data, sizeof(sc->arpcom.ac_enaddr));
-		}
+	case SIOCSIFMTU:
+		error = ether_ioctl(ifp, command, data);
 		break;
 
 	case SIOCSIFFLAGS:
@@ -1111,7 +1045,7 @@ fxp_ioctl(ifp, command, data)
 		 * such as IFF_PROMISC are handled.
 		 */
 		if (ifp->if_flags & IFF_UP) {
-			fxp_init(ifp);
+			fxp_init(sc);
 		} else {
 			if (ifp->if_flags & IFF_RUNNING)
 				fxp_stop(sc);
@@ -1132,20 +1066,9 @@ fxp_ioctl(ifp, command, data)
 			 * Multicast list has changed; set the hardware filter
 			 * accordingly.
 			 */
-			fxp_init(ifp);
+			fxp_init(sc);
 
 			error = 0;
-		}
-		break;
-
-	case SIOCSIFMTU:
-		/*
-		 * Set the interface MTU.
-		 */
-		if (ifr->ifr_mtu > ETHERMTU) {
-			error = EINVAL;
-		} else {
-			ifp->if_mtu = ifr->ifr_mtu;
 		}
 		break;
 
