@@ -1175,6 +1175,7 @@ struct aic7770_identity {
 extern struct aic7770_identity aic7770_ident_table[];
 extern const int ahc_num_aic7770_devs;
 
+#define AHC_EISA_SLOT_SIZE	0x1000
 #define AHC_EISA_SLOT_OFFSET	0xc00
 #define AHC_EISA_IOSIZE		0x100
 
