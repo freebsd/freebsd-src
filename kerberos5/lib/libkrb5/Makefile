@@ -8,6 +8,10 @@ CFLAGS+=-I${KRB5DIR}/lib/krb5 \
 	-I${KRB5DIR}/include \
 	-I${KRB5OBJDIR} \
 	-I${ASN1OBJDIR}
+.if defined(MAKE_KERBEROS4) && \
+	(${MAKE_KERBEROS4} == "YES" || ${MAKE_KERBEROS4} == "yes")
+CFLAGS+=-I${KRB4DIR}/include
+.endif
 SRCS=	add_et_list.c addr_families.c address.c aname_to_localname.c \
 	asn1_glue.c auth_context.c build_ap_req.c build_auth.c \
 	cache.c changepw.c codec.c config_file.c config_file_netinfo.c \
@@ -19,7 +23,7 @@ SRCS=	add_et_list.c addr_families.c address.c aname_to_localname.c \
 	get_in_tkt.c get_in_tkt_pw.c get_in_tkt_with_keytab.c \
 	get_in_tkt_with_skey.c get_port.c init_creds.c init_creds_pw.c \
 	keyblock.c keytab.c keytab_file.c keytab_memory.c \
-	keytab_krb4.c keytab_keyfile.c krbhst.c kuserok.c log.c \
+	keytab_keyfile.c krbhst.c kuserok.c log.c \
 	mcache.c misc.c mk_error.c mk_priv.c mk_rep.c mk_req.c \
 	mk_req_ext.c mk_safe.c net_read.c net_write.c n-fold.c \
 	padata.c principal.c prog_setup.c prompter_posix.c \
@@ -30,6 +34,10 @@ SRCS=	add_et_list.c addr_families.c address.c aname_to_localname.c \
 	verify_init.c verify_user.c version.c warn.c write_message.c \
 	krb5_err.c krb5_err.h heim_err.c heim_err.h \
 	rc4_enc.c rc4_skey.c
+.if defined(MAKE_KERBEROS4) && \
+	(${MAKE_KERBEROS4} == "YES" || ${MAKE_KERBEROS4} == "yes")
+SRCS+=	keytab_krb4.c 
+.endif
 
 INCLUDES=${KRB5DIR}/lib/krb5/krb5.h ${.CURDIR}/../../include/krb5-types.h \
 	${KRB5DIR}/lib/krb5/krb5-protos.h heim_err.h krb5_err.h 
