@@ -46,11 +46,9 @@
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/bus.h>
-#include <sys/device.h>
 
 #include <sys/errno.h>
 /*#include <sys/ioctl.h>*/
-#include <sys/device.h>
 #include <sys/buf.h>
 #include <sys/proc.h>
 /*#include <sys/user.h>*/
@@ -71,8 +69,8 @@
 
 int esp_debug = 0; /*ESP_SHOWPHASE|ESP_SHOWMISC|ESP_SHOWTRAC|ESP_SHOWCMDS;*/
 
-/*static*/ void	espattach	__P((struct device *, struct device *, void *));
-/*static*/ int	espmatch	__P((struct device *, void *, void *));
+/*static*/ void	espattach	__P((device_t, device_t, void *));
+/*static*/ int	espmatch	__P((device_t, void *, void *));
 /*static*/ int	espprint	__P((void *, char *));
 /*static*/ u_int	esp_adapter_info __P((struct esp_softc *));
 /*static*/ void	espreadregs	__P((struct esp_softc *));
@@ -303,7 +301,7 @@ esp_reset(sc)
 		break;
 	default:
 		printf("%s: unknown revision code, assuming ESP100\n",
-		    sc->sc_dev.dv_xname);
+			device_get_nameunit(sc->sc_dev));
 		ESP_WRITE_REG(sc, ESP_CFG1, sc->sc_cfg1);
 		ESP_WRITE_REG(sc, ESP_CCF, sc->sc_ccf);
 		ESP_WRITE_REG(sc, ESP_SYNCOFF, 0);
@@ -733,7 +731,7 @@ esp_done(ecb)
 /*XXX - must take off queue here */
 			if (ecb != sc->sc_nexus) {
 				panic("%s: esp_sched: floating ecb %p",
-					sc->sc_dev.dv_xname, ecb);
+					device_get_nameunit(sc->sc_dev), ecb);
 			}
 			TAILQ_INSERT_HEAD(&sc->ready_list, ecb, chain);
 			ECB_SETQ(ecb, ECB_QREADY);
@@ -774,7 +772,8 @@ esp_done(ecb)
 	switch (ecb->flags & ECB_QBITS) {
 	case ECB_QNONE:
 		if (ecb != sc->sc_nexus) {
-			panic("%s: floating ecb", sc->sc_dev.dv_xname);
+			panic("%s: floating ecb",
+				device_get_nameunit(sc->sc_dev));
 		}
 		sc->sc_nexus = NULL;
 		sc->sc_state = ESP_IDLE;
@@ -790,11 +789,11 @@ esp_done(ecb)
 		break;
 	case ECB_QFREE:
 		panic("%s: dequeue: busy ecb on free list",
-			sc->sc_dev.dv_xname);
+			device_get_nameunit(sc->sc_dev));
 		break;
 	default:
 		panic("%s: dequeue: unknown queue %d",
-			sc->sc_dev.dv_xname, ecb->flags & ECB_QBITS);
+			device_get_nameunit(sc->sc_dev),ecb->flags & ECB_QBITS);
 	}
 
 	/* Put it on the free list, and clear flags. */
@@ -842,7 +841,7 @@ esp_msgin(sc)
 
 	if ((ESP_READ_REG(sc, ESP_FFLAG) & ESPFIFO_FF) == 0) {
 		printf("%s: msgin: no msg byte available\n",
-			sc->sc_dev.dv_xname);
+			device_get_nameunit(sc->sc_dev));
 		return;
 	}
 
@@ -939,7 +938,7 @@ gotit:
 		case MSG_MESSAGE_REJECT:
 			if (esp_debug & ESP_SHOWMSGS)
 				printf("%s: our msg rejected by target\n",
-				    sc->sc_dev.dv_xname);
+				    device_get_nameunit(sc->sc_dev));
 #if 1 /* XXX - must remember last message */
 sc_print_addr(ecb->xs->sc_link); printf("MSG_MESSAGE_REJECT>>");
 #endif
@@ -974,7 +973,7 @@ sc_print_addr(ecb->xs->sc_link); printf("MSG_MESSAGE_REJECT>>");
 			if (!ecb) {
 				esp_sched_msgout(SEND_ABORT);
 				printf("%s: no DATAPOINTERs to restore\n",
-				    sc->sc_dev.dv_xname);
+				    device_get_nameunit(sc->sc_dev));
 				break;
 			}
 			sc->sc_dp = ecb->daddr;
@@ -982,7 +981,7 @@ sc_print_addr(ecb->xs->sc_link); printf("MSG_MESSAGE_REJECT>>");
 			break;
 		case MSG_PARITY_ERROR:
 			printf("%s:target%d: MSG_PARITY_ERROR\n",
-				sc->sc_dev.dv_xname,
+				device_get_nameunit(sc->sc_dev),
 				ecb->xs->sc_link->target);
 			break;
 		case MSG_EXTENDED:
@@ -1060,7 +1059,7 @@ sc_print_addr(ecb->xs->sc_link); printf("MSG_MESSAGE_REJECT>>");
 			/* thanks for that ident... */
 			if (!MSG_ISIDENTIFY(sc->sc_imess[0])) {
 				ESP_MISC(("unknown "));
-printf("%s: unimplemented message: %d\n", sc->sc_dev.dv_xname, sc->sc_imess[0]);
+printf("%s: unimplemented message: %d\n", device_get_nameunit(sc->sc_dev), sc->sc_imess[0]);
 				ESPCMD(sc, ESPCMD_SETATN);
 			}
 			break;
@@ -1121,12 +1120,12 @@ printf("%s: unimplemented message: %d\n", sc->sc_dev.dv_xname, sc->sc_imess[0]);
 			}
 		} else {
 			printf("%s: bogus reselect (no IDENTIFY) %0x2x\n",
-			    sc->sc_dev.dv_xname, sc->sc_selid);
+			    device_get_nameunit(sc->sc_dev), sc->sc_selid);
 			esp_sched_msgout(SEND_DEV_RESET);
 		}
 	} else { /* Neither ESP_HASNEXUS nor ESP_RESELECTED! */
 		printf("%s: unexpected message in; will send DEV_RESET\n",
-		    sc->sc_dev.dv_xname);
+		    device_get_nameunit(sc->sc_dev));
 		esp_sched_msgout(SEND_DEV_RESET);
 	}
 
@@ -1308,7 +1307,7 @@ espintr(sc)
 			}
 			if (sc->sc_state != ESP_SBR) {
 				printf("%s: SCSI bus reset\n",
-					sc->sc_dev.dv_xname);
+					device_get_nameunit(sc->sc_dev));
 				esp_init(sc, 0); /* Restart everything */
 				return 1;
 			}
@@ -1320,7 +1319,7 @@ espintr(sc)
 #endif
 			if (sc->sc_nexus)
 				panic("%s: nexus in reset state",
-				      sc->sc_dev.dv_xname);
+				      device_get_nameunit(sc->sc_dev));
 			sc->sc_state = ESP_IDLE;
 			esp_sched(sc);
 			return 1;
@@ -1349,7 +1348,7 @@ espintr(sc)
 			if (sc->sc_espintr & ESPINTR_ILL) {
 				/* illegal command, out of sync ? */
 				printf("%s: illegal command: 0x%x (state %d, phase %x, prevphase %x)\n",
-					sc->sc_dev.dv_xname, sc->sc_lastcmd,
+					device_get_nameunit(sc->sc_dev), sc->sc_lastcmd,
 					sc->sc_state, sc->sc_phase,
 					sc->sc_prevphase);
 				if (ESP_READ_REG(sc, ESP_FFLAG) & ESPFIFO_FF) {
@@ -1378,7 +1377,7 @@ espintr(sc)
 			    (sc->sc_espstat & ESPSTAT_TC) == 0)
 				printf("%s: !TC [intr %x, stat %x, step %d]"
 				       " prevphase %x, resid %x\n",
-					sc->sc_dev.dv_xname,
+					device_get_nameunit(sc->sc_dev),
 					sc->sc_espintr,
 					sc->sc_espstat,
 					sc->sc_espstep,
@@ -1388,7 +1387,7 @@ espintr(sc)
 
 #if 0	/* Unreliable on some ESP revisions? */
 		if ((sc->sc_espstat & ESPSTAT_INT) == 0) {
-			printf("%s: spurious interrupt\n", sc->sc_dev.dv_xname);
+			printf("%s: spurious interrupt\n", device_get_nameunit(sc->sc_dev));
 			return 1;
 		}
 #endif
@@ -1398,7 +1397,7 @@ espintr(sc)
 		 */
 		if (sc->sc_espstat & ESPSTAT_PE) {
 			printf("%s: SCSI bus parity error\n",
-				sc->sc_dev.dv_xname);
+				device_get_nameunit(sc->sc_dev));
 			if (sc->sc_prevphase == MESSAGE_IN_PHASE)
 				esp_sched_msgout(SEND_PARITY_ERROR);
 			else
@@ -1447,7 +1446,7 @@ espintr(sc)
 #if ESP_DEBUG
 if ((esp_debug & 0x10000) && ecb->dleft == 0) {
 	printf("%s: silly disconnect (ecb %p [stat %x])\n",
-		sc->sc_dev.dv_xname, ecb, ecb->stat);
+		device_get_nameunit(sc->sc_dev), ecb, ecb->stat);
 }
 #endif
 					esp_sched(sc);
@@ -1458,7 +1457,7 @@ if ((esp_debug & 0x10000) && ecb->dleft == 0) {
 				return 1;
 			}
 			printf("%s: DISCONNECT in IDLE state!\n",
-				sc->sc_dev.dv_xname);
+				device_get_nameunit(sc->sc_dev));
 		}
 
 		/* did a message go out OK ? This must be broken */
@@ -1481,7 +1480,7 @@ printf("target put in SYNC mode\n");
 
 		case ESP_SBR:
 			printf("%s: waiting for SCSI Bus Reset to happen\n",
-				sc->sc_dev.dv_xname);
+				device_get_nameunit(sc->sc_dev));
 			return 1;
 
 		case ESP_RESELECTED:
@@ -1490,7 +1489,7 @@ printf("target put in SYNC mode\n");
 			 */
 			if (sc->sc_phase != MESSAGE_IN_PHASE) {
 				printf("%s: target didn't identify\n",
-					sc->sc_dev.dv_xname);
+					device_get_nameunit(sc->sc_dev));
 				esp_init(sc, 1);
 				return 1;
 			}
@@ -1500,7 +1499,7 @@ printf("<<RESELECT CONT'd>>");
 			if (sc->sc_state != ESP_HASNEXUS) {
 				/* IDENTIFY fail?! */
 				printf("%s: identify failed\n",
-					sc->sc_dev.dv_xname);
+					device_get_nameunit(sc->sc_dev));
 				esp_init(sc, 1);
 				return 1;
 			}
@@ -1534,13 +1533,13 @@ if (sc->sc_flags & ESP_ICCS) printf("[[esp: BUMMER]]");
 					 * Pull the brakes, i.e. reset
 					 */
 					printf("%s: target didn't identify\n",
-						sc->sc_dev.dv_xname);
+						device_get_nameunit(sc->sc_dev));
 					esp_init(sc, 1);
 					return 1;
 				}
 				if ((ESP_READ_REG(sc, ESP_FFLAG) & ESPFIFO_FF) != 2) {
 					printf("%s: RESELECT: %d bytes in FIFO!\n",
-						sc->sc_dev.dv_xname,
+						device_get_nameunit(sc->sc_dev),
 						ESP_READ_REG(sc, ESP_FFLAG) &
 						ESPFIFO_FF);
 					esp_init(sc, 1);
@@ -1553,7 +1552,7 @@ if (sc->sc_flags & ESP_ICCS) printf("[[esp: BUMMER]]");
 				if (sc->sc_state != ESP_HASNEXUS) {
 					/* IDENTIFY fail?! */
 					printf("%s: identify failed\n",
-						sc->sc_dev.dv_xname);
+						device_get_nameunit(sc->sc_dev));
 					esp_init(sc, 1);
 					return 1;
 				}
@@ -1572,19 +1571,19 @@ if (sc->sc_flags & ESP_ICCS) printf("[[esp: BUMMER]]");
 				switch (sc->sc_espstep) {
 				case 0:
 					printf("%s: select timeout/no disconnect\n",
-						sc->sc_dev.dv_xname);
+						device_get_nameunit(sc->sc_dev));
 					esp_abort(sc, ecb);
 					return 1;
 				case 1:
 					if ((ti->flags & T_NEGOTIATE) == 0) {
 						printf("%s: step 1 & !NEG\n",
-							sc->sc_dev.dv_xname);
+						device_get_nameunit(sc->sc_dev));
 						esp_abort(sc, ecb);
 						return 1;
 					}
 					if (sc->sc_phase != MESSAGE_OUT_PHASE) {
 						printf("%s: !MSGOUT\n",
-							sc->sc_dev.dv_xname);
+						device_get_nameunit(sc->sc_dev));
 						esp_abort(sc, ecb);
 						return 1;
 					}
@@ -1611,7 +1610,7 @@ if (sc->sc_flags & ESP_ICCS) printf("[[esp: BUMMER]]");
 					printf("(%s:%d:%d): selection failed;"
 						" %d left in FIFO "
 						"[intr %x, stat %x, step %d]\n",
-						sc->sc_dev.dv_xname,
+						device_get_nameunit(sc->sc_dev),
 						sc_link->target,
 						sc_link->lun,
 						ESP_READ_REG(sc, ESP_FFLAG) & ESPFIFO_FF,
@@ -1649,7 +1648,7 @@ if (sc->sc_flags & ESP_ICCS) printf("[[esp: BUMMER]]");
 			} else {
 				printf("%s: unexpected status after select"
 					": [intr %x, stat %x, step %x]\n",
-					sc->sc_dev.dv_xname,
+					device_get_nameunit(sc->sc_dev),
 					sc->sc_espintr, sc->sc_espstat,
 					sc->sc_espstep);
 				ESPCMD(sc, ESPCMD_FLUSH);
@@ -1657,8 +1656,9 @@ if (sc->sc_flags & ESP_ICCS) printf("[[esp: BUMMER]]");
 				esp_abort(sc, ecb);
 			}
 			if (sc->sc_state == ESP_IDLE) {
-				printf("%s: stray interrupt\n", sc->sc_dev.dv_xname);
-					return 0;
+				printf("%s: stray interrupt\n",
+					device_get_nameunit(sc->sc_dev));
+				return 0;
 			}
 			break;
 
@@ -1671,14 +1671,14 @@ if (sc->sc_flags & ESP_ICCS) printf("[[esp: BUMMER]]");
 				if (!(sc->sc_espintr & ESPINTR_DONE)) {
 					printf("%s: ICCS: "
 					      ": [intr %x, stat %x, step %x]\n",
-						sc->sc_dev.dv_xname,
+						device_get_nameunit(sc->sc_dev),
 						sc->sc_espintr, sc->sc_espstat,
 						sc->sc_espstep);
 				}
 				if ((ESP_READ_REG(sc, ESP_FFLAG) & ESPFIFO_FF) != 2) {
 					printf("%s: ICCS: expected 2, got %d "
 					      ": [intr %x, stat %x, step %x]\n",
-						sc->sc_dev.dv_xname,
+						device_get_nameunit(sc->sc_dev),
 						ESP_READ_REG(sc, ESP_FFLAG) & ESPFIFO_FF,
 						sc->sc_espintr, sc->sc_espstat,
 						sc->sc_espstep);
@@ -1694,15 +1694,14 @@ if (sc->sc_flags & ESP_ICCS) printf("[[esp: BUMMER]]");
 					ecb->xs->resid = ecb->dleft = sc->sc_dleft;
 				} else
 					printf("%s: STATUS_PHASE: msg %d\n",
-						sc->sc_dev.dv_xname, msg);
+					device_get_nameunit(sc->sc_dev), msg);
 				ESPCMD(sc, ESPCMD_MSGOK);
 				continue; /* ie. wait for disconnect */
 			}
 			break;
 		default:
 			panic("%s: invalid state: %d",
-			      sc->sc_dev.dv_xname,
-			      sc->sc_state);
+			      device_get_nameunit(sc->sc_dev), sc->sc_state);
 		}
 
 		/*
@@ -1729,7 +1728,7 @@ if (sc->sc_flags & ESP_ICCS) printf("[[esp: BUMMER]]");
 				if ((sc->sc_flags & ESP_WAITI) == 0) {
 					printf("%s: MSGIN: unexpected FC bit: "
 						"[intr %x, stat %x, step %x]\n",
-					sc->sc_dev.dv_xname,
+					device_get_nameunit(sc->sc_dev),
 					sc->sc_espintr, sc->sc_espstat,
 					sc->sc_espstep);
 				}
@@ -1738,7 +1737,7 @@ if (sc->sc_flags & ESP_ICCS) printf("[[esp: BUMMER]]");
 			} else {
 				printf("%s: MSGIN: weird bits: "
 					"[intr %x, stat %x, step %x]\n",
-					sc->sc_dev.dv_xname,
+					device_get_nameunit(sc->sc_dev),
 					sc->sc_espintr, sc->sc_espstat,
 					sc->sc_espstep);
 			}
@@ -1850,7 +1849,7 @@ esp_timeout(arg)
 again:
 	printf("%s: timed out [ecb %p (flags 0x%x, dleft %x, stat %x)], "
 	       "<state %d, nexus %p, phase(c %x, p %x), resid %x, msg(q %x,o %x) %s>",
-		sc->sc_dev.dv_xname,
+		device_get_nameunit(sc->sc_dev),
 		ecb, ecb->flags, ecb->dleft, ecb->stat,
 		sc->sc_state, sc->sc_nexus, sc->sc_phase, sc->sc_prevphase,
 		sc->sc_dleft, sc->sc_msgpriq, sc->sc_msgout,

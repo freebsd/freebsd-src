@@ -276,7 +276,7 @@ ioasic_lance_dma_setup(void *v)
 
 void
 ioasic_intr_establish(ioa, cookie, level, func, arg)
-        struct device *ioa;
+        device_t ioa;
         void *cookie, *arg;
         tc_intrlevel_t level;
         void (*func) __P((void *));
@@ -307,7 +307,7 @@ ioasic_intr_establish(ioa, cookie, level, func, arg)
 
 void
 ioasic_intr_disestablish(ioa, cookie)
-        struct device *ioa;
+        device_t ioa;
         void *cookie;
 {
         u_long dev, i;

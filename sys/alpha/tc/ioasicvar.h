@@ -54,6 +54,6 @@ char      *ioasic_lance_ether_address __P((void));
  * Interrupt establishment/disestablishment functions
  */
 
-void    ioasic_intr_establish __P((struct device *, void *, tc_intrlevel_t,
+void    ioasic_intr_establish __P((device_t, void *, tc_intrlevel_t,
             void (*)(void *), void *));
-void    ioasic_intr_disestablish __P((struct device *, void *));
+void    ioasic_intr_disestablish __P((device_t, void *));
