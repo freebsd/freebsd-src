@@ -762,7 +762,7 @@ tcp_connect(tp, nam, p)
 	 * Generate a CC value for this connection and
 	 * check whether CC or CCnew should be used.
 	 */
-	if ((taop = tcp_gettaocache(tp->t_inpcb)) == NULL) {
+	if ((taop = tcp_gettaocache(&tp->t_inpcb->inp_inc)) == NULL) {
 		taop = &tao_noncached;
 		bzero(taop, sizeof(*taop));
 	}
@@ -848,7 +848,7 @@ tcp6_connect(tp, nam, p)
 	 * Generate a CC value for this connection and
 	 * check whether CC or CCnew should be used.
 	 */
-	if ((taop = tcp_gettaocache(tp->t_inpcb)) == NULL) {
+	if ((taop = tcp_gettaocache(&tp->t_inpcb->inp_inc)) == NULL) {
 		taop = &tao_noncached;
 		bzero(taop, sizeof(*taop));
 	}
@@ -906,7 +906,6 @@ tcp_ctloutput(so, sopt)
 		switch (sopt->sopt_name) {
 		case TCP_NODELAY:
 		case TCP_NOOPT:
-		case TCP_NOPUSH:
 			error = sooptcopyin(sopt, &optval, sizeof optval,
 					    sizeof optval);
 			if (error)
@@ -919,9 +918,6 @@ tcp_ctloutput(so, sopt)
 			case TCP_NOOPT:
 				opt = TF_NOOPT;
 				break;
-			case TCP_NOPUSH:
-				opt = TF_NOPUSH;
-				break;
 			default:
 				opt = 0; /* dead code to fool gcc */
 				break;
@@ -931,6 +927,20 @@ tcp_ctloutput(so, sopt)
 				tp->t_flags |= opt;
 			else
 				tp->t_flags &= ~opt;
+			break;
+
+		case TCP_NOPUSH:
+			error = sooptcopyin(sopt, &optval, sizeof optval,
+					    sizeof optval);
+			if (error)
+				break;
+
+			if (optval)
+				tp->t_flags |= TF_NOPUSH;
+			else {
+				tp->t_flags &= ~TF_NOPUSH;
+				error = tcp_output(tp);
+			}
 			break;
 
 		case TCP_MAXSEG:
