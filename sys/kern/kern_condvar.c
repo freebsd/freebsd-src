@@ -76,8 +76,9 @@ void
 cv_destroy(struct cv *cvp)
 {
 #ifdef INVARIANTS
-	struct sleepqueue *sq;	
+	struct sleepqueue *sq;
 
+	sleepq_lock(cvp);
 	sq = sleepq_lookup(cvp);
 	sleepq_release(cvp);
 	KASSERT(sq == NULL, ("%s: associated sleep queue non-empty", __func__));
@@ -94,7 +95,6 @@ cv_destroy(struct cv *cvp)
 void
 cv_wait(struct cv *cvp, struct mtx *mp)
 {
-	struct sleepqueue *sq;
 	struct thread *td;
 	WITNESS_SAVE_DECL(mp);
 
@@ -118,13 +118,13 @@ cv_wait(struct cv *cvp, struct mtx *mp)
 		return;
 	}
 
-	sq = sleepq_lookup(cvp);
+	sleepq_lock(cvp);
 
 	cvp->cv_waiters++;
 	DROP_GIANT();
 	mtx_unlock(mp);
 
-	sleepq_add(sq, cvp, mp, cvp->cv_description, SLEEPQ_CONDVAR);
+	sleepq_add(cvp, mp, cvp->cv_description, SLEEPQ_CONDVAR);
 	sleepq_wait(cvp);
 
 #ifdef KTRACE
@@ -145,7 +145,6 @@ cv_wait(struct cv *cvp, struct mtx *mp)
 int
 cv_wait_sig(struct cv *cvp, struct mtx *mp)
 {
-	struct sleepqueue *sq;
 	struct thread *td;
 	struct proc *p;
 	int rval, sig;
@@ -172,7 +171,7 @@ cv_wait_sig(struct cv *cvp, struct mtx *mp)
 		return (0);
 	}
 
-	sq = sleepq_lookup(cvp);
+	sleepq_lock(cvp);
 
 	/*
 	 * Don't bother sleeping if we are exiting and not the exiting
@@ -190,7 +189,7 @@ cv_wait_sig(struct cv *cvp, struct mtx *mp)
 	DROP_GIANT();
 	mtx_unlock(mp);
 
-	sleepq_add(sq, cvp, mp, cvp->cv_description, SLEEPQ_CONDVAR |
+	sleepq_add(cvp, mp, cvp->cv_description, SLEEPQ_CONDVAR |
 	    SLEEPQ_INTERRUPTIBLE);
 	sig = sleepq_catch_signals(cvp);
 	rval = sleepq_wait_sig(cvp);
@@ -216,7 +215,6 @@ cv_wait_sig(struct cv *cvp, struct mtx *mp)
 int
 cv_timedwait(struct cv *cvp, struct mtx *mp, int timo)
 {
-	struct sleepqueue *sq;
 	struct thread *td;
 	int rval;
 	WITNESS_SAVE_DECL(mp);
@@ -242,13 +240,13 @@ cv_timedwait(struct cv *cvp, struct mtx *mp, int timo)
 		return 0;
 	}
 
-	sq = sleepq_lookup(cvp);
+	sleepq_lock(cvp);
 
 	cvp->cv_waiters++;
 	DROP_GIANT();
 	mtx_unlock(mp);
 
-	sleepq_add(sq, cvp, mp, cvp->cv_description, SLEEPQ_CONDVAR);
+	sleepq_add(cvp, mp, cvp->cv_description, SLEEPQ_CONDVAR);
 	sleepq_set_timeout(cvp, timo);
 	rval = sleepq_timedwait(cvp);
 
@@ -272,7 +270,6 @@ cv_timedwait(struct cv *cvp, struct mtx *mp, int timo)
 int
 cv_timedwait_sig(struct cv *cvp, struct mtx *mp, int timo)
 {
-	struct sleepqueue *sq;
 	struct thread *td;
 	struct proc *p;
 	int rval;
@@ -301,7 +298,7 @@ cv_timedwait_sig(struct cv *cvp, struct mtx *mp, int timo)
 		return 0;
 	}
 
-	sq = sleepq_lookup(cvp);
+	sleepq_lock(cvp);
 
 	/*
 	 * Don't bother sleeping if we are exiting and not the exiting
@@ -319,7 +316,7 @@ cv_timedwait_sig(struct cv *cvp, struct mtx *mp, int timo)
 	DROP_GIANT();
 	mtx_unlock(mp);
 
-	sleepq_add(sq, cvp, mp, cvp->cv_description, SLEEPQ_CONDVAR |
+	sleepq_add(cvp, mp, cvp->cv_description, SLEEPQ_CONDVAR |
 	    SLEEPQ_INTERRUPTIBLE);
 	sleepq_set_timeout(cvp, timo);
 	sig = sleepq_catch_signals(cvp);
@@ -349,10 +346,12 @@ void
 cv_signal(struct cv *cvp)
 {
 
+	sleepq_lock(cvp);
 	if (cvp->cv_waiters > 0) {
 		cvp->cv_waiters--;
 		sleepq_signal(cvp, SLEEPQ_CONDVAR, -1);
-	}
+	} else
+		sleepq_release(cvp);
 }
 
 /*
@@ -363,8 +362,10 @@ void
 cv_broadcastpri(struct cv *cvp, int pri)
 {
 
+	sleepq_lock(cvp);
 	if (cvp->cv_waiters > 0) {
 		cvp->cv_waiters = 0;
 		sleepq_broadcast(cvp, SLEEPQ_CONDVAR, pri);
-	}
+	} else
+		sleepq_release(cvp);
 }

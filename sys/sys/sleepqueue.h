@@ -36,15 +36,13 @@
  * Sleep queue interface.  Sleep/wakeup and condition variables use a sleep
  * queue for the queue of threads blocked on a sleep channel.
  *
- * A thread calls sleepq_lookup() to look up the proper sleep queue in the
- * hash table that is associated with a specified wait channel.  This
- * function returns a pointer to the queue and locks the associated sleep
- * queue chain.  A thread calls sleepq_add() to add themself onto a sleep
- * queue and calls one of the sleepq_wait() functions to actually go to
- * sleep.  If a thread needs to abort a sleep operation it should call
- * sleepq_release() to unlock the associated sleep queue chain lock.  If
- * the thread also needs to remove itself from a queue it just enqueued
- * itself on, it can use sleepq_remove().
+ * A thread calls sleepq_lock() to lock the sleep queue chain associated
+ * with a given wait channel.  A thread can then call call sleepq_add() to
+ * add themself onto a sleep queue and call one of the sleepq_wait()
+ * functions to actually go to sleep.  If a thread needs to abort a sleep
+ * operation it should call sleepq_release() to unlock the associated sleep
+ * queue chain lock.  If the thread also needs to remove itself from a queue
+ * it just enqueued itself on, it can use sleepq_remove() instead.
  *
  * If the thread only wishes to sleep for a limited amount of time, it can
  * call sleepq_set_timeout() after sleepq_add() to setup a timeout.  It
@@ -64,7 +62,8 @@
  * on the specified wait channel.  A thread sleeping in an interruptible
  * sleep can be interrupted by calling sleepq_abort().  A thread can also
  * be removed from a specified sleep queue using the sleepq_remove()
- * function.
+ * function.  Note that the sleep queue chain must first be locked via
+ * sleepq_lock() when calling sleepq_signal() and sleepq_broadcast().
  *
  * Each thread allocates a sleep queue at thread creation via sleepq_alloc()
  * and releases it at thread destruction via sleepq_free().  Note that
@@ -89,13 +88,13 @@ struct thread;
 
 void	init_sleepqueues(void);
 void	sleepq_abort(struct thread *td);
-void	sleepq_add(struct sleepqueue *, void *, struct mtx *, const char *,
-	    int);
+void	sleepq_add(void *, struct mtx *, const char *, int);
 struct sleepqueue *sleepq_alloc(void);
 void	sleepq_broadcast(void *, int, int);
 int	sleepq_calc_signal_retval(int sig);
 int	sleepq_catch_signals(void *wchan);
 void	sleepq_free(struct sleepqueue *);
+void	sleepq_lock(void *);
 struct sleepqueue *sleepq_lookup(void *);
 void	sleepq_release(void *);
 void	sleepq_remove(struct thread *, void *);
