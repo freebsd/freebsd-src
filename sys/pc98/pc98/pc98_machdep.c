@@ -56,8 +56,6 @@ extern	int Maxmem_under16M;
 #ifdef notyet
 static	void init_cpu_accel_mem __P((void));
 #endif
-void	pc98_init_dmac __P((void));
-void	pc98_getmemsize __P((void));
 
 /*
  * Initialize DMA controller
@@ -247,8 +245,6 @@ struct disk_parms {
 	u_int16_t	secsiz;	/* Number of bytes/sector */
 	u_int32_t	disksize;	/* total number sectors */
 };
-
-int	sd_bios_parms __P((struct disk_parms *, struct scsi_link *));
 
 /*
  * Read a geometry information of SCSI HDD from BIOS work area.
