@@ -125,7 +125,7 @@ getdtablesize(td, uap)
 	struct proc *p = td->td_proc;
 
 	mtx_lock(&Giant);
-	td->td_retval[0] = 
+	td->td_retval[0] =
 	    min((int)p->p_rlimit[RLIMIT_NOFILE].rlim_cur, maxfilesperproc);
 	mtx_unlock(&Giant);
 	return (0);
@@ -540,7 +540,7 @@ do_dup(td, type, old, new, retval)
 	 * Duplicate the source descriptor, update lastfile
 	 */
 	fdp->fd_ofiles[new] = fp;
- 	fdp->fd_ofileflags[new] = fdp->fd_ofileflags[old] &~ UF_EXCLOSE;
+	fdp->fd_ofileflags[new] = fdp->fd_ofileflags[old] &~ UF_EXCLOSE;
 	if (new > fdp->fd_lastfile)
 		fdp->fd_lastfile = new;
 	FILEDESC_UNLOCK(fdp);
@@ -745,7 +745,7 @@ fsetown(pgid, sigiop)
 	funsetown(sigiop);
 	if (pgid > 0) {
 		PROC_LOCK(proc);
-		/* 
+		/*
 		 * Since funsetownlst() is called without the proctree
 		 * locked, we need to check for P_WEXIT.
 		 * XXX: is ESRCH correct?
@@ -797,7 +797,7 @@ fgetown(sigiop)
  */
 #ifndef _SYS_SYSPROTO_H_
 struct close_args {
-        int     fd;
+	int     fd;
 };
 #endif
 /*
@@ -1180,7 +1180,7 @@ falloc(td, resultfp, resultfd)
 		if (ppsratecheck(&lastfail, &curfail, 1)) {
 			printf("kern.maxfiles limit exceeded by uid %i, please see tuning(7).\n",
 				td->td_ucred->cr_ruid);
-		}			
+		}
 		sx_xunlock(&filelist_lock);
 		uma_zfree(file_zone, fp);
 		return (ENFILE);
@@ -1472,7 +1472,7 @@ fdfree(td)
 				goto retry;
 			}
 			if (fdtol->fdl_holdcount > 0) {
-				/* 
+				/*
 				 * Ensure that fdtol->fdl_leader
 				 * remains valid in closef().
 				 */
@@ -2228,7 +2228,7 @@ filedesc_to_leader_alloc(struct filedesc_to_leader *old,
 			 struct proc *leader)
 {
 	struct filedesc_to_leader *fdtol;
-	
+
 	MALLOC(fdtol, struct filedesc_to_leader *,
 	       sizeof(struct filedesc_to_leader),
 	       M_FILEDESC_TO_LEADER,
@@ -2332,13 +2332,13 @@ sysctl_kern_file(SYSCTL_HANDLER_ARGS)
 SYSCTL_PROC(_kern, KERN_FILE, file, CTLTYPE_OPAQUE|CTLFLAG_RD,
     0, 0, sysctl_kern_file, "S,xfile", "Entire file table");
 
-SYSCTL_INT(_kern, KERN_MAXFILESPERPROC, maxfilesperproc, CTLFLAG_RW, 
+SYSCTL_INT(_kern, KERN_MAXFILESPERPROC, maxfilesperproc, CTLFLAG_RW,
     &maxfilesperproc, 0, "Maximum files allowed open per process");
 
-SYSCTL_INT(_kern, KERN_MAXFILES, maxfiles, CTLFLAG_RW, 
+SYSCTL_INT(_kern, KERN_MAXFILES, maxfiles, CTLFLAG_RW,
     &maxfiles, 0, "Maximum number of files");
 
-SYSCTL_INT(_kern, OID_AUTO, openfiles, CTLFLAG_RD, 
+SYSCTL_INT(_kern, OID_AUTO, openfiles, CTLFLAG_RD,
     &nfiles, 0, "System-wide number of open files");
 
 static void
