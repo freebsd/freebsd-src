@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_alloc.c	8.8 (Berkeley) 2/21/94
- * $Id: ffs_alloc.c,v 1.17 1995/09/08 17:16:32 davidg Exp $
+ * $Id: ffs_alloc.c,v 1.18 1995/11/14 09:40:04 phk Exp $
  */
 
 #include <sys/param.h>
@@ -336,6 +336,9 @@ ffs_reallocblks(ap)
 		struct cluster_save *a_buflist;
 	} */ *ap;
 {
+#if 1
+	return (ENOSPC);
+#else
 	struct fs *fs;
 	struct inode *ip;
 	struct vnode *vp;
@@ -476,6 +479,7 @@ fail:
 	if (sbap != &ip->i_db[0])
 		brelse(sbp);
 	return (ENOSPC);
+#endif
 }
 
 /*
