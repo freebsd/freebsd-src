@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.90 1998/07/08 08:54:38 kato Exp $
+ *  $Id: syscons.c,v 1.91 1998/07/15 12:18:34 bde Exp $
  */
 
 #include "sc.h"
@@ -522,8 +522,8 @@ scvidprobe(int unit, int flags)
      */
     u_short volatile *cp;
     u_short was;
-    u_long  pa;
-    u_long  segoff;
+    u_int pa;
+    u_int segoff;
 
     /* do this test only once */
     if (init_done != COLD)
@@ -602,11 +602,11 @@ scvidprobe(int unit, int flags)
 	    read_vgaregs(vgaregs);
 
 	    /* Get the BIOS video mode pointer */
-	    segoff = *(u_long *)pa_to_va(0x4a8);
-	    pa = (((segoff & 0xffff0000) >> 12) + (segoff & 0xffff));
-	    if (ISMAPPED(pa, sizeof(u_long))) {
-		segoff = *(u_long *)pa_to_va(pa);
-		pa = (((segoff & 0xffff0000) >> 12) + (segoff & 0xffff));       
+	    segoff = *(u_int *)pa_to_va(0x4a8);
+	    pa = ((segoff & 0xffff0000) >> 12) + (segoff & 0xffff);
+	    if (ISMAPPED(pa, sizeof(u_int))) {
+		segoff = *(u_int *)pa_to_va(pa);
+		pa = ((segoff & 0xffff0000) >> 12) + (segoff & 0xffff);       
 		if (ISMAPPED(pa, MODE_PARAM_SIZE))
 		    video_mode_ptr = (char *)pa_to_va(pa);
 	    }
