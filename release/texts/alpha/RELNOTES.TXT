@@ -56,6 +56,13 @@ FreeBSD/alpha now posseses a loader with FICL (Forth support) builtin.
 
 Parallel ports are now supported.
 
+Support for multiple new Alpha system types has been added. Please
+check HARDWARE.TXT for details.
+
+AlphaServer 4100 (Rawhide) does not want to allow installation using
+floppies. Workaround is to install using another Alpha machine and 
+move the disk to the AS4100. Once installed FreeBSD runs fine.
+
 1.2. SECURITY FIXES
 -------------------
 
