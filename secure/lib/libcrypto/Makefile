@@ -178,7 +178,7 @@ SRCS+=	v3_akey.c v3_alt.c v3_bcons.c v3_bitst.c v3_conf.c v3_cpols.c \
 HDRS=	asn1/asn1.h asn1/asn1_mac.h bio/bio.h bf/blowfish.h bn/bn.h \
 	buffer/buffer.h cast/cast.h comp/comp.h conf/conf.h crypto.h \
 	des/des.h dh/dh.h dsa/dsa.h ../e_os.h ../e_os2.h ebcdic.h \
-	err/err.h evp/evp.h hmac/hmac.h lhash/lhash.h md2/md2.h \
+	err/err.h hmac/hmac.h lhash/lhash.h md2/md2.h \
 	md5/md5.h mdc2/mdc2.h objects/objects.h opensslv.h pem/pem.h \
 	pem/pem2.h pkcs12/pkcs12.h pkcs7/pkcs7.h rand/rand.h rc2/rc2.h \
 	rc4/rc4.h rc5/rc5.h ripemd/ripemd.h rsa/rsa.h stack/safestack.h \
@@ -272,6 +272,15 @@ beforeinstall:  openssl/opensslconf.h
 	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 444 \
 	    ${CRYPTO_HDRS} openssl/opensslconf.h \
 	    ${DESTDIR}/usr/include/openssl
+.if !defined(MAKE_IDEA) || ${MAKE_IDEA} != YES
+	sed '/^#ifndef NO_IDEA$$/,/^#endif$$/d' ${LCRYPTO_SRC}/evp/evp.h > \
+	    ${.OBJDIR}/evp.h.new
+	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 444 \
+	    ${.OBJDIR}/evp.h.new ${DESTDIR}/usr/include/openssl/evp.h
+.else
+	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 444 \
+	    ${LCRYPTO_SRC}/evp/evp.h ${DESTDIR}/usr/include/openssl/evp.h
+.endif
 
 .include <bsd.lib.mk>
 
