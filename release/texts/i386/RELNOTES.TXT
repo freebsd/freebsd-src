@@ -184,7 +184,7 @@ request. [MERGED]
 kenv(1), a command to dump the kernel environment, has been added. 
 [MERGED]
 
-The behavior of periodic(8) is now controlled by /etc/defaults/periodic.conf    
+The behavior of periodic(8) is now controlled by /etc/defaults/periodic.conf
 and /etc/periodic.conf. [MERGED]
 
 boot98cfg(8), a PC-98 boot manager installation and configuration
