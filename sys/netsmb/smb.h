@@ -68,7 +68,7 @@ enum smb_dialects {
  */
 #define	SMB_SIGNATURE		"\xFFSMB"
 #define	SMB_SIGLEN		4
-#define	SMB_HDRMID(p)		(letohs(*(u_short*)((u_char*)(p) + 30)))
+#define	SMB_HDRMID(p)		(le16toh(*(u_short*)((u_char*)(p) + 30)))
 #define	SMB_HDRLEN		32
 /*
  * bits in the smb_flags field
