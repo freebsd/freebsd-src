@@ -132,13 +132,14 @@ tconfig.h:
 	echo '#include "gansidecl.h"'			> ${.TARGET}
 	echo '#include "${GCC_ARCH}/xm-${GCC_ARCH}.h"'	>> ${.TARGET}
 
-#	KEEP THIS IN SYNC with src/gcc/lib/libgcc/Makefile !!
+# KEEP THIS IN SYNC with src/gcc/lib/libgcc/Makefile !!
 tm.h:
 	echo '#include "${GCC_ARCH}/${GCC_ARCH}.h"'	> ${.TARGET}
 .if ${GCC_ARCH} == "i386"
 	echo '#include "${GCC_ARCH}/att.h"'		>> ${.TARGET}
 .endif
 	echo '#include <freebsd.h>'			>> ${.TARGET}
+	echo '#include "dbxelf.h"'			>> ${.TARGET}
 .if exists(${GCCDIR}/config/${GCC_ARCH}/elf.h)
 	echo '#include "${GCC_ARCH}/elf.h"'		>> ${.TARGET}
 .endif
