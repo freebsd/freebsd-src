@@ -103,8 +103,6 @@
 #ifndef VM_UMA_INT_H
 #define VM_UMA_INT_H
 
-#include <sys/mutex.h>
-
 #define UMA_SLAB_SIZE	PAGE_SIZE	/* How big are our slabs? */
 #define UMA_SLAB_MASK	(PAGE_SIZE - 1)	/* Mask to get back to the page */
 #define UMA_SLAB_SHIFT	PAGE_SHIFT	/* Number of bits PAGE_MASK */
@@ -174,8 +172,6 @@ struct uma_hash {
 	int		uh_hashsize;	/* Current size of the hash table */
 	int		uh_hashmask;	/* Mask used during hashing */
 };
-
-extern struct uma_hash *mallochash;
 
 /*
  * Structures for per cpu queues.
@@ -274,6 +270,7 @@ struct uma_zone {
 #define UMA_ZFLAG_NOFREE	0x0010	/* Don't free data from this zone */
 #define UMA_ZFLAG_FULL		0x0020	/* This zone reached uz_maxpages */
 #define UMA_ZFLAG_BUCKETCACHE	0x0040	/* Only allocate buckets from cache */
+#define	UMA_ZFLAG_HASH		0x0080	/* Look up slab via hash */
 
 /* This lives in uflags */
 #define UMA_ZONE_INTERNAL	0x1000	/* Internal zone for uflags */
@@ -346,5 +343,39 @@ hash_sfind(struct uma_hash *hash, u_int8_t *data)
         return (NULL);
 }
 
+static __inline uma_slab_t
+vtoslab(vm_offset_t va)
+{
+	vm_page_t p;
+	uma_slab_t slab;
+
+	p = PHYS_TO_VM_PAGE(pmap_kextract(va));
+	slab = (uma_slab_t )p->object;
+
+	if (p->flags & PG_SLAB)
+		return (slab);
+	else
+		return (NULL);
+}
+
+static __inline void
+vsetslab(vm_offset_t va, uma_slab_t slab)
+{
+	vm_page_t p;
+
+	p = PHYS_TO_VM_PAGE(pmap_kextract((vm_offset_t)va));
+	p->object = (vm_object_t)slab;
+	p->flags |= PG_SLAB;
+}
+
+static __inline void
+vsetobj(vm_offset_t va, vm_object_t obj)
+{
+	vm_page_t p;
+
+	p = PHYS_TO_VM_PAGE(pmap_kextract((vm_offset_t)va));
+	p->object = obj;
+	p->flags &= ~PG_SLAB;
+}
 
 #endif /* VM_UMA_INT_H */
