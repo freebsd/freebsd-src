@@ -113,8 +113,14 @@ struct bpb_a {
  * 16-bit and 32-bit quantities on byte boundaries.  If this is not true,
  * use the macros for the big-endian case.
  */
+
 #include <machine/endian.h>
-#if (BYTE_ORDER == LITTLE_ENDIAN) 			/* && defined(UNALIGNED_ACCESS) */
+
+#ifdef __i386__
+#define	UNLALIGNED_ACCESS
+#endif
+
+#if (BYTE_ORDER == LITTLE_ENDIAN) && defined(UNALIGNED_ACCESS)
 #define	getushort(x)	*((u_int16_t *)(x))
 #define	getulong(x)	*((u_int32_t *)(x))
 #define	putushort(p, v)	(*((u_int16_t *)(p)) = (v))
