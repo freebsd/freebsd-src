@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media.c,v 1.21 1995/05/28 03:04:58 jkh Exp $
+ * $Id: nfs.c,v 1.2 1995/05/29 11:01:35 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -53,17 +53,23 @@ Boolean NFSMounted;
 Boolean
 mediaInitNFS(Device *dev)
 {
+    Device *netDevice = (Device *)dev->private;
+
     if (NFSMounted)
 	return TRUE;
+
+    if (netDevice->init)
+	if (!(*netDevice->init)(netDevice))
+	    return FALSE;
 
     if (Mkdir("/nfs", NULL))
 	return FALSE;
 
     if (!vsystem("mount_nfs %s %s %s /nfs", getenv("nfsSlowPC") ? "-r 1024 -w 1024" : "",
-	    getenv("nfsServerSecure") ? "-P" : "", dev->private))
+	    getenv("nfsServerSecure") ? "-P" : "", dev->name))
 	return TRUE;
     else {
-	msgConfirm("Error mounting %s on /nfs: %s (%u)\n", dev->private, strerror(errno), errno);
+	msgConfirm("Error mounting %s on /nfs: %s (%u)\n", dev->name, strerror(errno), errno);
 	return FALSE;
     }
     NFSMounted = TRUE;
@@ -85,6 +91,8 @@ mediaGetNFS(char *file)
 void
 mediaShutdownNFS(Device *dev)
 {
+    Device *netdev = (Device *)dev->private;
+
     if (!NFSMounted)
 	return;
     msgDebug("Unmounting /nfs\n");
@@ -92,6 +100,8 @@ mediaShutdownNFS(Device *dev)
 	msgConfirm("Could not unmount the NFS partition: %s\n", strerror(errno));
     if (isDebug())
 	msgDebug("Unmount returned\n");
+    if (netdev->shutdown)
+	(*netdev->shutdown)(netdev);
     NFSMounted = FALSE;
     return;
 }

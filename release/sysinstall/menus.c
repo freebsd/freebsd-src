@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.38 1995/05/29 11:01:29 jkh Exp $
+ * $Id: menus.c,v 1.39 1995/05/29 11:58:16 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -663,12 +663,13 @@ When you're done, select Cancel",
 };
 
 DMenu MenuNetworking = {
-    DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
+    DMENU_NORMAL_TYPE,
     "Network Services Menu",
     "You may have already configured one network device (and the\n\
 other various hostname/gateway/name server parameters) in the process\n\
 of installing FreeBSD.  This menu allows you to configure other\n\
-aspects of your system's network configuration.",
+aspects of your system's network configuration.\n\n\
+When you are done, select Cancel.",
     NULL,
     NULL,
     { { "NFS client",	"This machine will be an NFS client",
