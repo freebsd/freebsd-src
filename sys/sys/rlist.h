@@ -16,7 +16,7 @@
  *		rlist_alloc(&swapmap, 100, &loc); obtain 100 sectors from swap
  *
  *	from: unknown?
- *	$Id: rlist.h,v 1.7 1994/10/09 07:35:10 davidg Exp $
+ *	$Id: rlist.h,v 1.8 1996/01/30 23:01:12 mpp Exp $
  */
 
 #ifndef _SYS_RLIST_H_
@@ -29,11 +29,19 @@ struct rlist {
 	struct rlist	*rl_next;	/* next list entry, if present */
 };
 
-extern struct rlist *swaplist;
+struct rlisthdr {
+	int		rlh_lock;		/* list lock */
+	struct		rlist *rlh_list;	/* list itself */
+};
+
+#define	RLH_DESIRED 	0x2
+#define RLH_LOCKED 	0x1
+
+/* extern struct rlisthdr swaplist; */
 
 /* Functions to manipulate resource lists.  */
-extern void rlist_free __P((struct rlist **, unsigned, unsigned));
-int rlist_alloc __P((struct rlist **, unsigned, unsigned *));
-extern void rlist_destroy __P((struct rlist **));
+extern void rlist_free __P((struct rlisthdr *, unsigned, unsigned));
+int rlist_alloc __P((struct rlisthdr *, unsigned, unsigned *));
+extern void rlist_destroy __P((struct rlisthdr *));
 
 #endif	/* _SYS_RLIST_H_ */
