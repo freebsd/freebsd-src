@@ -21,7 +21,7 @@
  *
  * Low-level routines relating to the user capabilities database
  *
- *	$Id$
+ *	$Id: login_cap.c,v 1.1 1997/01/04 16:50:02 davidn Exp $
  */
 
 #include <stdio.h>
@@ -214,9 +214,11 @@ login_getclassbyname(char const * name, char const * dir)
 login_cap_t *
 login_getclass(const struct passwd *pwd)
 {
-  const char * class = (pwd == NULL) ? NULL : pwd->pw_class;
-  if (pwd->pw_class == NULL || *pwd->pw_class == '\0')
-    class = (pwd->pw_uid == 0) ? "root" : NULL;  /* Kludge for 'root' user(s) */
+  const char * class = NULL;
+  if (pwd == NULL) {
+    if ((class = pwd->pw_class) == NULL) || *class == '\0')
+      class = (pwd->pw_uid == 0) ? "root" : NULL;
+  }
   return login_getclassbyname(class, 0);
 }
 
