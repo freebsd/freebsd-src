@@ -140,7 +140,7 @@ static struct cdevsw bpf_cdevsw = {
 };
 
 static struct filterops bpfread_filtops =
-	{ 1, NULL, filt_bpfdetach, filt_bpfread };	
+	{ 1, NULL, filt_bpfdetach, filt_bpfread };
 
 static int
 bpf_movein(uio, linktype, mp, sockp, datlen)
@@ -1129,7 +1129,7 @@ filt_bpfread(kn, hint)
 		d->bd_state = BPF_WAITING;
 	}
 	BPFD_UNLOCK(d);
-	
+
 	return (ready);
 }
 
@@ -1272,8 +1272,7 @@ bpf_mtap2(bp, data, dlen, m)
 
 /*
  * Move the packet data from interface memory (pkt) into the
- * store buffer.  Return 1 if it's time to wakeup a listener (buffer full),
- * otherwise 0.  "copy" is the routine called to do the actual data
+ * store buffer.  "cpfn" is the routine called to do the actual data
  * transfer.  bcopy is passed in to copy contiguous chunks, while
  * bpf_mcopy is passed in to copy mbuf chains.  In the latter case,
  * pkt is really an mbuf.
@@ -1288,6 +1287,7 @@ catchpacket(d, pkt, pktlen, snaplen, cpfn)
 	struct bpf_hdr *hp;
 	int totlen, curlen;
 	int hdrlen = d->bd_bif->bif_hdrlen;
+
 	/*
 	 * Figure out how many bytes to move.  If the packet is
 	 * greater or equal to the snapshot length, transfer that
