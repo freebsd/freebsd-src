@@ -1,5 +1,5 @@
 /*
- * $Id: tcpip.c,v 1.48.2.7 1997/01/15 04:50:21 jkh Exp $
+ * $Id: tcpip.c,v 1.48.2.8 1997/01/16 01:19:27 jkh Exp $
  *
  * Copyright (c) 1995
  *      Gary J Palmer. All rights reserved.
@@ -108,7 +108,7 @@ static void
 feepout(char *msg)
 {
     beep();
-    dialog_notify(msg);
+    msgConfirm(msg);
 }
 
 /* Very basic IP address integrity check - could be drastically improved */
