@@ -1,4 +1,4 @@
-/*	$OpenBSD: ssh-agent.c,v 1.26 2000/03/16 20:56:14 markus Exp $	*/
+/*	$OpenBSD: ssh-agent.c,v 1.31 2000/04/29 18:11:52 markus Exp $	*/
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -9,7 +9,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: ssh-agent.c,v 1.26 2000/03/16 20:56:14 markus Exp $");
+RCSID("$OpenBSD: ssh-agent.c,v 1.31 2000/04/29 18:11:52 markus Exp $");
 
 #include "ssh.h"
 #include "rsa.h"
@@ -21,7 +21,7 @@ RCSID("$OpenBSD: ssh-agent.c,v 1.26 2000/03/16 20:56:14 markus Exp $");
 #include "getput.h"
 #include "mpaux.h"
 
-#include <ssl/md5.h>
+#include <openssl/md5.h>
 
 typedef struct {
 	int fd;
@@ -46,7 +46,7 @@ Identity *identities = NULL;
 int max_fd = 0;
 
 /* pid of shell == parent of agent */
-int parent_pid = -1;
+pid_t parent_pid = -1;
 
 /* pathname and directory for AUTH_SOCKET */
 char socket_name[1024];
@@ -174,7 +174,7 @@ process_remove_identity(SocketEntry *e)
 	buffer_get_bignum(&e->input, n);
 
 	if (bits != BN_num_bits(n))
-		error("Warning: identity keysize mismatch: actual %d, announced %d",
+		log("Warning: identity keysize mismatch: actual %d, announced %d",
 		      BN_num_bits(n), bits);
 
 	/* Check if we have the key. */
@@ -403,7 +403,7 @@ prepare_select(fd_set *readset, fd_set *writeset)
 		}
 }
 
-void 
+void
 after_select(fd_set *readset, fd_set *writeset)
 {
 	unsigned int i;
@@ -436,6 +436,8 @@ after_select(fd_set *readset, fd_set *writeset)
 					shutdown(sockets[i].fd, SHUT_RDWR);
 					close(sockets[i].fd);
 					sockets[i].type = AUTH_UNUSED;
+					buffer_free(&sockets[i].input);
+					buffer_free(&sockets[i].output);
 					break;
 				}
 				buffer_consume(&sockets[i].output, len);
@@ -446,6 +448,8 @@ after_select(fd_set *readset, fd_set *writeset)
 					shutdown(sockets[i].fd, SHUT_RDWR);
 					close(sockets[i].fd);
 					sockets[i].type = AUTH_UNUSED;
+					buffer_free(&sockets[i].input);
+					buffer_free(&sockets[i].output);
 					break;
 				}
 				buffer_append(&sockets[i].input, buf, len);
@@ -460,7 +464,7 @@ after_select(fd_set *readset, fd_set *writeset)
 void
 check_parent_exists(int sig)
 {
-	if (kill(parent_pid, 0) < 0) {
+	if (parent_pid != -1 && kill(parent_pid, 0) < 0) {
 		/* printf("Parent has died - Authentication agent exiting.\n"); */
 		exit(1);
 	}
@@ -546,6 +550,7 @@ main(int ac, char **av)
 		}
 		pid = atoi(pidstr);
 		if (pid < 1) {	/* XXX PID_MAX check too */
+		/* Yes, PID_MAX check please */
 			fprintf(stderr, "%s=\"%s\", which is not a good PID\n",
 				SSH_AGENTPID_ENV_NAME, pidstr);
 			exit(1);
@@ -637,8 +642,8 @@ main(int ac, char **av)
 	}
 	signal(SIGINT, SIG_IGN);
 	signal(SIGPIPE, SIG_IGN);
-	signal(SIGHUP, cleanup_exit);                                          
-	signal(SIGTERM, cleanup_exit);                                          
+	signal(SIGHUP, cleanup_exit);
+	signal(SIGTERM, cleanup_exit);
 	while (1) {
 		FD_ZERO(&readset);
 		FD_ZERO(&writeset);

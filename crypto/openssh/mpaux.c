@@ -1,33 +1,33 @@
 /*
- * 
+ *
  * mpaux.c
- * 
+ *
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
- * 
+ *
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
  *                    All rights reserved
- * 
+ *
  * Created: Sun Jul 16 04:29:30 1995 ylo
- * 
+ *
  * This file contains various auxiliary functions related to multiple
  * precision integers.
- * 
+ *
 */
 
 #include "includes.h"
-RCSID("$Id: mpaux.c,v 1.9 1999/12/08 22:37:42 markus Exp $");
+RCSID("$Id: mpaux.c,v 1.12 2000/04/14 10:30:32 markus Exp $");
 
-#include <ssl/bn.h>
+#include <openssl/bn.h>
 #include "getput.h"
 #include "xmalloc.h"
 
-#include <ssl/md5.h>
+#include <openssl/md5.h>
 
 void
 compute_session_id(unsigned char session_id[16],
-		   unsigned char cookie[8],
-		   BIGNUM* host_key_n,
-		   BIGNUM* session_key_n)
+    unsigned char cookie[8],
+    BIGNUM* host_key_n,
+    BIGNUM* session_key_n)
 {
 	unsigned int host_key_bytes = BN_num_bytes(host_key_n);
 	unsigned int session_key_bytes = BN_num_bytes(session_key_n);

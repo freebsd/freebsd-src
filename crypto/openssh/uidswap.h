@@ -1,15 +1,15 @@
 /*
- * 
+ *
  * uidswap.h
- * 
+ *
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
- * 
+ *
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
  *                    All rights reserved
- * 
+ *
  * Created: Sat Sep  9 01:43:15 1995 ylo
  * Last modified: Sat Sep  9 02:34:04 1995 ylo
- * 
+ *
  */
 
 #ifndef UIDSWAP_H

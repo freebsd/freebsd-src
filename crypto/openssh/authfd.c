@@ -1,20 +1,20 @@
 /*
- * 
+ *
  * authfd.c
- * 
+ *
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
- * 
+ *
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
  *                    All rights reserved
- * 
+ *
  * Created: Wed Mar 29 01:30:28 1995 ylo
- * 
+ *
  * Functions for connecting the local authentication agent.
- * 
+ *
  */
 
 #include "includes.h"
-RCSID("$Id: authfd.c,v 1.16 1999/12/15 19:43:10 markus Exp $");
+RCSID("$Id: authfd.c,v 1.19 2000/04/29 18:11:52 markus Exp $");
 
 #include "ssh.h"
 #include "rsa.h"
@@ -24,7 +24,7 @@ RCSID("$Id: authfd.c,v 1.16 1999/12/15 19:43:10 markus Exp $");
 #include "xmalloc.h"
 #include "getput.h"
 
-#include <ssl/rsa.h>
+#include <openssl/rsa.h>
 
 /* Returns the number of the authentication fd, or -1 if there is none. */
 
@@ -64,7 +64,7 @@ ssh_get_authentication_socket()
  * ssh_get_authentication_socket().
  */
 
-void 
+void
 ssh_close_authentication_socket(int sock)
 {
 	if (getenv(SSH_AUTHSOCKET_ENV_NAME))
@@ -108,7 +108,7 @@ ssh_get_authentication_connection()
  * memory.
  */
 
-void 
+void
 ssh_close_authentication_connection(AuthenticationConnection *ac)
 {
 	buffer_free(&ac->packet);
@@ -217,8 +217,8 @@ ssh_get_next_identity(AuthenticationConnection *auth,
 	*comment = buffer_get_string(&auth->identities, NULL);
 
 	if (bits != BN_num_bits(n))
-		error("Warning: identity keysize mismatch: actual %d, announced %u",
-		      BN_num_bits(n), bits);
+		log("Warning: identity keysize mismatch: actual %d, announced %u",
+		    BN_num_bits(n), bits);
 
 	/* Decrement the number of remaining entries. */
 	auth->howmany--;
@@ -338,7 +338,7 @@ error_cleanup:
  * be used by normal applications.
  */
 
-int 
+int
 ssh_add_identity(AuthenticationConnection *auth,
 		 RSA * key, const char *comment)
 {
@@ -426,7 +426,7 @@ error_cleanup:
  * meant to be used by normal applications.
  */
 
-int 
+int
 ssh_remove_identity(AuthenticationConnection *auth, RSA *key)
 {
 	Buffer buffer;
@@ -509,7 +509,7 @@ error_cleanup:
  * by normal applications.
  */
 
-int 
+int
 ssh_remove_all_identities(AuthenticationConnection *auth)
 {
 	Buffer buffer;

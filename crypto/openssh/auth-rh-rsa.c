@@ -1,21 +1,21 @@
 /*
- * 
+ *
  * auth-rh-rsa.c
- * 
+ *
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
- * 
+ *
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
  *                    All rights reserved
- * 
+ *
  * Created: Sun May  7 03:08:06 1995 ylo
- * 
+ *
  * Rhosts or /etc/hosts.equiv authentication combined with RSA host
  * authentication.
  *
  */
 
 #include "includes.h"
-RCSID("$Id: auth-rh-rsa.c,v 1.11 2000/03/23 22:15:33 markus Exp $");
+RCSID("$Id: auth-rh-rsa.c,v 1.13 2000/04/14 10:30:29 markus Exp $");
 
 #include "packet.h"
 #include "ssh.h"
@@ -23,8 +23,8 @@ RCSID("$Id: auth-rh-rsa.c,v 1.11 2000/03/23 22:15:33 markus Exp $");
 #include "uidswap.h"
 #include "servconf.h"
 
-#include <ssl/rsa.h>
-#include <ssl/dsa.h>
+#include <openssl/rsa.h>
+#include <openssl/dsa.h>
 #include "key.h"
 #include "hostfile.h"
 
@@ -33,7 +33,7 @@ RCSID("$Id: auth-rh-rsa.c,v 1.11 2000/03/23 22:15:33 markus Exp $");
  * its host key.  Returns true if authentication succeeds.
  */
 
-int 
+int
 auth_rhosts_rsa(struct passwd *pw, const char *client_user, RSA *client_host_key)
 {
 	extern ServerOptions options;

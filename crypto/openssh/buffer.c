@@ -1,20 +1,20 @@
 /*
- * 
+ *
  * buffer.c
- * 
+ *
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
- * 
+ *
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
  *                    All rights reserved
- * 
+ *
  * Created: Sat Mar 18 04:15:33 1995 ylo
- * 
+ *
  * Functions for manipulating fifo buffers (that can grow if needed).
- * 
+ *
  */
 
 #include "includes.h"
-RCSID("$Id: buffer.c,v 1.4 1999/11/24 19:53:44 markus Exp $");
+RCSID("$Id: buffer.c,v 1.6 2000/04/14 10:30:30 markus Exp $");
 
 #include "xmalloc.h"
 #include "buffer.h"
@@ -22,7 +22,7 @@ RCSID("$Id: buffer.c,v 1.4 1999/11/24 19:53:44 markus Exp $");
 
 /* Initializes the buffer structure. */
 
-void 
+void
 buffer_init(Buffer *buffer)
 {
 	buffer->alloc = 4096;
@@ -33,7 +33,7 @@ buffer_init(Buffer *buffer)
 
 /* Frees any memory used for the buffer. */
 
-void 
+void
 buffer_free(Buffer *buffer)
 {
 	memset(buffer->buf, 0, buffer->alloc);
@@ -45,7 +45,7 @@ buffer_free(Buffer *buffer)
  * zero the memory.
  */
 
-void 
+void
 buffer_clear(Buffer *buffer)
 {
 	buffer->offset = 0;
@@ -54,7 +54,7 @@ buffer_clear(Buffer *buffer)
 
 /* Appends data to the buffer, expanding it if necessary. */
 
-void 
+void
 buffer_append(Buffer *buffer, const char *data, unsigned int len)
 {
 	char *cp;
@@ -68,7 +68,7 @@ buffer_append(Buffer *buffer, const char *data, unsigned int len)
  * to the allocated region.
  */
 
-void 
+void
 buffer_append_space(Buffer *buffer, char **datap, unsigned int len)
 {
 	/* If the buffer is empty, start using it from the beginning. */
@@ -102,7 +102,7 @@ restart:
 
 /* Returns the number of bytes of data in the buffer. */
 
-unsigned int 
+unsigned int
 buffer_len(Buffer *buffer)
 {
 	return buffer->end - buffer->offset;
@@ -110,32 +110,32 @@ buffer_len(Buffer *buffer)
 
 /* Gets data from the beginning of the buffer. */
 
-void 
+void
 buffer_get(Buffer *buffer, char *buf, unsigned int len)
 {
 	if (len > buffer->end - buffer->offset)
-		fatal("buffer_get trying to get more bytes than in buffer");
+		fatal("buffer_get: trying to get more bytes than in buffer");
 	memcpy(buf, buffer->buf + buffer->offset, len);
 	buffer->offset += len;
 }
 
 /* Consumes the given number of bytes from the beginning of the buffer. */
 
-void 
+void
 buffer_consume(Buffer *buffer, unsigned int bytes)
 {
 	if (bytes > buffer->end - buffer->offset)
-		fatal("buffer_get trying to get more bytes than in buffer");
+		fatal("buffer_consume: trying to get more bytes than in buffer");
 	buffer->offset += bytes;
 }
 
 /* Consumes the given number of bytes from the end of the buffer. */
 
-void 
+void
 buffer_consume_end(Buffer *buffer, unsigned int bytes)
 {
 	if (bytes > buffer->end - buffer->offset)
-		fatal("buffer_get trying to get more bytes than in buffer");
+		fatal("buffer_consume_end: trying to get more bytes than in buffer");
 	buffer->end -= bytes;
 }
 
@@ -149,7 +149,7 @@ buffer_ptr(Buffer *buffer)
 
 /* Dumps the contents of the buffer to stderr. */
 
-void 
+void
 buffer_dump(Buffer *buffer)
 {
 	int i;

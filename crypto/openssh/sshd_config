@@ -1,6 +1,7 @@
 # This is ssh server systemwide configuration file.
 
 Port 22
+#Protocol 2,1
 #ListenAddress 0.0.0.0
 #ListenAddress ::
 HostKey /etc/ssh_host_key

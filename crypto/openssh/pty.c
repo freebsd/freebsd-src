@@ -1,20 +1,20 @@
 /*
- * 
+ *
  * pty.c
- * 
+ *
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
- * 
+ *
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
  *                    All rights reserved
- * 
+ *
  * Created: Fri Mar 17 04:37:25 1995 ylo
- * 
+ *
  * Allocating a pseudo-terminal, and making it the controlling tty.
- * 
+ *
  */
 
 #include "includes.h"
-RCSID("$Id: pty.c,v 1.12 2000/02/15 16:52:58 markus Exp $");
+RCSID("$Id: pty.c,v 1.13 2000/04/14 10:30:32 markus Exp $");
 
 #include <util.h>
 #include "pty.h"
@@ -36,7 +36,7 @@ RCSID("$Id: pty.c,v 1.12 2000/02/15 16:52:58 markus Exp $");
  * returned (the buffer must be able to hold at least 64 characters).
  */
 
-int 
+int
 pty_allocate(int *ptyfd, int *ttyfd, char *namebuf, int namebuflen)
 {
 #if defined(HAVE_OPENPTY) || defined(BSD4_4)
@@ -174,7 +174,7 @@ pty_allocate(int *ptyfd, int *ttyfd, char *namebuf, int namebuflen)
 
 /* Releases the tty.  Its ownership is returned to root, and permissions to 0666. */
 
-void 
+void
 pty_release(const char *ttyname)
 {
 	if (chown(ttyname, (uid_t) 0, (gid_t) 0) < 0)
@@ -185,7 +185,7 @@ pty_release(const char *ttyname)
 
 /* Makes the tty the processes controlling tty and sets it to sane modes. */
 
-void 
+void
 pty_make_controlling_tty(int *ttyfd, const char *ttyname)
 {
 	int fd;
@@ -238,7 +238,7 @@ pty_make_controlling_tty(int *ttyfd, const char *ttyname)
 
 /* Changes the window size associated with the pty. */
 
-void 
+void
 pty_change_window_size(int ptyfd, int row, int col,
 		       int xpixel, int ypixel)
 {

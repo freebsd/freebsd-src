@@ -19,7 +19,7 @@ extern ServerOptions options;
  * return 1 on success, 0 on failure, -1 if krb4 is not available
  */
 
-int 
+int
 auth_krb4_password(struct passwd * pw, const char *password)
 {
 	AUTH_DAT adata;
@@ -135,7 +135,7 @@ krb4_cleanup_proc(void *ignore)
 	}
 }
 
-int 
+int
 krb4_init(uid_t uid)
 {
 	static int cleanup_registered = 0;
@@ -179,7 +179,7 @@ krb4_init(uid_t uid)
 	return 0;
 }
 
-int 
+int
 auth_krb4(const char *server_user, KTEXT auth, char **client)
 {
 	AUTH_DAT adat = {0};
@@ -252,7 +252,7 @@ auth_krb4(const char *server_user, KTEXT auth, char **client)
 #endif /* KRB4 */
 
 #ifdef AFS
-int 
+int
 auth_kerberos_tgt(struct passwd *pw, const char *string)
 {
 	CREDENTIALS creds;
@@ -307,7 +307,7 @@ auth_kerberos_tgt_failure:
 	return 0;
 }
 
-int 
+int
 auth_afs_token(struct passwd *pw, const char *token_string)
 {
 	CREDENTIALS creds;

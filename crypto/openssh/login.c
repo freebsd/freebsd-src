@@ -1,24 +1,24 @@
 /*
- * 
+ *
  * login.c
- * 
+ *
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
- * 
+ *
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
  *                    All rights reserved
- * 
+ *
  * Created: Fri Mar 24 14:51:08 1995 ylo
- * 
+ *
  * This file performs some of the things login(1) normally does.  We cannot
  * easily use something like login -p -h host -f user, because there are
  * several different logins around, and it is hard to determined what kind of
  * login the current system has.  Also, we want to be able to execute commands
  * on a tty.
- * 
+ *
  */
 
 #include "includes.h"
-RCSID("$Id: login.c,v 1.11 2000/01/04 00:07:59 markus Exp $");
+RCSID("$Id: login.c,v 1.13 2000/04/19 07:05:49 deraadt Exp $");
 
 #include <util.h>
 #include <utmp.h>
@@ -35,7 +35,7 @@ RCSID("$Id: login.c,v 1.11 2000/01/04 00:07:59 markus Exp $");
  * is found).  The name of the host used last time is returned in buf.
  */
 
-unsigned long 
+unsigned long
 get_last_login_time(uid_t uid, const char *logname,
 		    char *buf, unsigned int bufsize)
 {
@@ -67,8 +67,8 @@ get_last_login_time(uid_t uid, const char *logname,
  * were more standardized.
  */
 
-void 
-record_login(int pid, const char *ttyname, const char *user, uid_t uid,
+void
+record_login(pid_t pid, const char *ttyname, const char *user, uid_t uid,
 	     const char *host, struct sockaddr * addr)
 {
 	int fd;
@@ -115,8 +115,8 @@ record_login(int pid, const char *ttyname, const char *user, uid_t uid,
 
 /* Records that the user has logged out. */
 
-void 
-record_logout(int pid, const char *ttyname)
+void
+record_logout(pid_t pid, const char *ttyname)
 {
 	const char *line = ttyname + 5;	/* /dev/ttyq8 -> ttyq8 */
 	if (logout(line))
