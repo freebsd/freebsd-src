@@ -119,9 +119,6 @@ Boston, MA 02111-1307, USA.  */
           fprintf (FILE, "\t.version\t\"01.01\"\n");			\
   } while (0)
 
-/* don't override the defauts, in case gdb gets upset */
-#undef ASM_IDENTIFY_GCC
-
 /* This is how to store into the string BUF
    the symbol_ref name of an internal numbered label where      
    PREFIX is the class of label and NUM is the number within the class.  
@@ -280,8 +277,18 @@ do {									\
   }									\
 } while (0)
 
+/* in elf, the function stabs come first, before the relative offsets */
 #undef DBX_FUNCTION_FIRST
 #define DBX_CHECK_FUNCTION_FIRST TARGET_ELF
+
+/* tag end of file in elf mode */
+#undef DBX_OUTPUT_MAIN_SOURCE_FILE_END
+#define DBX_OUTPUT_MAIN_SOURCE_FILE_END(FILE, FILENAME)			\
+do {									\
+  if (TARGET_ELF) {							\
+    fprintf (FILE, "\t.text\n\t.stabs \"\",%d,0,0,.Letext\n.Letext:\n", N_SO); \
+  }									\
+} while (0)
 
 /* stabs-in-elf has offsets relative to function beginning */
 #undef DBX_OUTPUT_LBRAC
