@@ -50,6 +50,12 @@
     sbin
     ..
     share
+        bsnmp
+            defs
+            ..
+            mibs
+            ..
+        ..
         calendar
             de_DE.ISO8859-1
             ..
