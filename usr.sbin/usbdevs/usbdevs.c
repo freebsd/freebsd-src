@@ -78,7 +78,7 @@ usbdev(int f, int a, int rec)
 	struct usb_device_info di;
 	int e, p, i;
 
-	di.addr = a;
+	di.udi_addr = a;
 	e = ioctl(f, USB_DEVICEINFO, &di);
 	if (e) {
 		if (errno != ENXIO)
@@ -88,38 +88,38 @@ usbdev(int f, int a, int rec)
 	printf("addr %d: ", a);
 	done[a] = 1;
 	if (verbose) {
-		switch (di.speed) {
+		switch (di.udi_speed) {
 		case USB_SPEED_LOW:  printf("low speed, "); break;
 		case USB_SPEED_FULL: printf("full speed, "); break;
 		case USB_SPEED_HIGH: printf("high speed, "); break;
 		default: break;
 		}
-		if (di.power)
-			printf("power %d mA, ", di.power);
+		if (di.udi_power)
+			printf("power %d mA, ", di.udi_power);
 		else
 			printf("self powered, ");
-		if (di.config)
-			printf("config %d, ", di.config);
+		if (di.udi_config)
+			printf("config %d, ", di.udi_config);
 		else
 			printf("unconfigured, ");
 	}
 	if (verbose) {
 		printf("%s(0x%04x), %s(0x%04x), rev %s",
-		       di.product, di.productNo,
-		       di.vendor, di.vendorNo, di.release);
+		       di.udi_product, di.udi_productNo,
+		       di.udi_vendor, di.udi_vendorNo, di.udi_release);
 	} else
-		printf("%s, %s", di.product, di.vendor);
+		printf("%s, %s", di.udi_product, di.udi_vendor);
 	printf("\n");
 	if (showdevs) {
 		for (i = 0; i < USB_MAX_DEVNAMES; i++)
-			if (di.devnames[i][0])
+			if (di.udi_devnames[i][0])
 				printf("%*s  %s\n", indent, "",
-				       di.devnames[i]);
+				       di.udi_devnames[i]);
 	}
 	if (!rec)
 		return;
-	for (p = 0; p < di.nports; p++) {
-		int s = di.ports[p];
+	for (p = 0; p < di.udi_nports; p++) {
+		int s = di.udi_ports[p];
 		if (s >= USB_MAX_DEVICES) {
 			if (verbose) {
 				printf("%*sport %d %s\n", indent+1, "", p+1,
