@@ -175,10 +175,6 @@ autoboot(int timeout, char *prompt)
     if (timeout == -1)		/* all else fails */
 	timeout = 10;
 
-    otime = time(NULL);
-    when = otime + timeout;	/* when to boot */
-    yes = 0;
-
     kernelname = getenv("kernelname");
     if (kernelname == NULL) {
 	argv[0] = NULL;
@@ -189,6 +185,10 @@ autoboot(int timeout, char *prompt)
 	    return(CMD_ERROR);
 	}
     }
+
+    otime = time(NULL);
+    when = otime + timeout;	/* when to boot */
+    yes = 0;
 
     printf("%s\n", (prompt == NULL) ? "Hit [Enter] to boot immediately, or any other key for command prompt." : prompt);
 
