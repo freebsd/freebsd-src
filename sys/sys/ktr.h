@@ -163,42 +163,42 @@ extern struct ktr_entry ktr_buf[];
 	_ktrptr->ktr_cpu = _TR_CPU;
 #endif
 #define	CTR0(m, _desc) 						\
-	if (KTR_COMPILE & m) {					\
+	if (KTR_COMPILE & (m)) {				\
 		if ((ktr_mask & (m)) && ((1 << _TR_CPU) & ktr_cpumask)) { \
 			_TR()					\
 			memcpy (_ktrptr->ktr_desc, _desc, KTRDESCSIZE);	\
 		}						\
 	}
 #define	CTR1(m, _desc, _p1)					\
-	if (KTR_COMPILE & m) {					\
+	if (KTR_COMPILE & (m)) {				\
 		if ((ktr_mask & (m)) && ((1 << _TR_CPU) & ktr_cpumask)) { \
 			_TR()					\
 			snprintf (_ktrptr->ktr_desc, KTRDESCSIZE, _desc, _p1);	\
 		}						\
 	}
 #define	CTR2(m, _desc, _p1, _p2) 				\
-	if (KTR_COMPILE & m) {					\
+	if (KTR_COMPILE & (m)) {				\
 		if ((ktr_mask & (m)) && ((1 << _TR_CPU) & ktr_cpumask)) { \
 			_TR()					\
 			snprintf (_ktrptr->ktr_desc, KTRDESCSIZE, _desc, _p1, _p2);	\
 		}						\
 	}
 #define	CTR3(m, _desc, _p1, _p2, _p3) 				\
-	if (KTR_COMPILE & m) {					\
+	if (KTR_COMPILE & (m)) {				\
 		if ((ktr_mask & (m)) && ((1 << _TR_CPU) & ktr_cpumask)) { \
 			_TR()					\
 			snprintf (_ktrptr->ktr_desc, KTRDESCSIZE, _desc, _p1, _p2, _p3);	\
 		}						\
 	}
 #define	CTR4(m, _desc, _p1, _p2, _p3, _p4) 			\
-	if (KTR_COMPILE & m) {					\
+	if (KTR_COMPILE & (m)) {				\
 		if ((ktr_mask & (m)) && ((1 << _TR_CPU) & ktr_cpumask)) { \
 			_TR()					\
 			snprintf (_ktrptr->ktr_desc, KTRDESCSIZE, _desc, _p1, _p2, _p3, _p4);	\
 		}						\
 	}
 #define	CTR5(m, _desc, _p1, _p2, _p3, _p4, _p5) 		\
-	if (KTR_COMPILE & m) {					\
+	if (KTR_COMPILE & (m)) {					\
 		if ((ktr_mask & (m)) && ((1 << _TR_CPU) & ktr_cpumask)) { \
 			_TR()					\
 			snprintf (_ktrptr->ktr_desc, KTRDESCSIZE, _desc, _p1, _p2, _p3, _p4, _p5);	\
@@ -219,20 +219,20 @@ extern struct ktr_entry ktr_buf[];
 	_ktrptr->ktr_desc = (_desc);
 #endif
 #define	CTR0(m, _desc) 						\
-	if (KTR_COMPILE & m) {					\
+	if (KTR_COMPILE & (m)) {				\
 		if (ktr_mask & (m)) {				\
 			_TR(_desc)				\
 		}						\
 	}
 #define	CTR1(m, _desc, _p1)					\
-	if (KTR_COMPILE & m) {					\
+	if (KTR_COMPILE & (m)) {				\
 		if (ktr_mask & (m)) {				\
 			_TR(_desc)				\
 			_ktrptr->ktr_parm1 = (u_long)(_p1);	\
 		}						\
 	}
 #define	CTR2(m, _desc, _p1, _p2) 				\
-	if (KTR_COMPILE & m) {					\
+	if (KTR_COMPILE & (m)) {				\
 		if (ktr_mask & (m)) {				\
 			_TR(_desc)				\
 			_ktrptr->ktr_parm1 = (u_long)(_p1);	\
@@ -240,7 +240,7 @@ extern struct ktr_entry ktr_buf[];
 		}						\
 	}
 #define	CTR3(m, _desc, _p1, _p2, _p3) 				\
-	if (KTR_COMPILE & m) {					\
+	if (KTR_COMPILE & (m)) {				\
 		if (ktr_mask & (m)) {				\
 			_TR(_desc)				\
 			_ktrptr->ktr_parm1 = (u_long)(_p1);	\
@@ -249,7 +249,7 @@ extern struct ktr_entry ktr_buf[];
 		}						\
 	}
 #define	CTR4(m, _desc, _p1, _p2, _p3, _p4) 			\
-	if (KTR_COMPILE & m) {					\
+	if (KTR_COMPILE & (m)) {				\
 		if (ktr_mask & (m)) {				\
 			_TR(_desc)				\
 			_ktrptr->ktr_parm1 = (u_long)(_p1);	\
@@ -259,7 +259,7 @@ extern struct ktr_entry ktr_buf[];
 		}						\
 	}
 #define	CTR5(m, _desc, _p1, _p2, _p3, _p4, _p5) 		\
-	if (KTR_COMPILE & m) {					\
+	if (KTR_COMPILE & (m)) {				\
 		if (ktr_mask & (m)) {				\
 			_TR(_desc)				\
 			_ktrptr->ktr_parm1 = (u_long)(_p1);	\
