@@ -458,13 +458,48 @@ subst(char *tgt, const char *oldstr, const char *newstr)
   return tgt;
 }
 
+static char *
+substip(char *tgt, const char *oldstr, struct in_addr ip)
+{
+  return subst(tgt, oldstr, inet_ntoa(ip));
+}
+
+static char *
+substint(char *tgt, const char *oldstr, int i)
+{
+  char buf[12];
+
+  snprintf(buf, sizeof buf, "%d", i);
+
+  return subst(tgt, oldstr, buf);
+}
+
+static char *
+substull(char *tgt, const char *oldstr, unsigned long long ull)
+{
+  char buf[21];
+
+  snprintf(buf, sizeof buf, "%llu", ull);
+
+  return subst(tgt, oldstr, buf);
+}
+
+
+#ifndef NOINET6
+static char *
+substipv6(char *tgt, const char *oldstr, const struct ncpaddr *ip)
+{
+    return subst(tgt, oldstr, ncpaddr_ntoa(ip));
+}
+#endif
+
 void
 command_Expand(char **nargv, int argc, char const *const *oargv,
                struct bundle *bundle, int inc0, pid_t pid)
 {
   int arg, secs;
-  char buf[20];
-  char pidstr[12];
+  char uptime[20];
+  unsigned long long oin, oout, pin, pout;
 
   if (inc0)
     arg = 0;		/* Start at arg 0 */
@@ -472,44 +507,75 @@ command_Expand(char **nargv, int argc, char const *const *oargv,
     nargv[0] = strdup(oargv[0]);
     arg = 1;
   }
-  snprintf(pidstr, sizeof pidstr, "%d", (int)pid);
+
+  secs = bundle_Uptime(bundle);
+  snprintf(uptime, sizeof uptime, "%d:%02d:%02d",
+           secs / 3600, (secs / 60) % 60, secs % 60);
+  oin = bundle->ncp.ipcp.throughput.OctetsIn;
+  oout = bundle->ncp.ipcp.throughput.OctetsOut;
+  pin = bundle->ncp.ipcp.throughput.PacketsIn;
+  pout = bundle->ncp.ipcp.throughput.PacketsOut;
+#ifndef NOINET6
+  oin += bundle->ncp.ipv6cp.throughput.OctetsIn;
+  oout += bundle->ncp.ipv6cp.throughput.OctetsOut;
+  pin += bundle->ncp.ipv6cp.throughput.PacketsIn;
+  pout += bundle->ncp.ipv6cp.throughput.PacketsOut;
+#endif
+
   for (; arg < argc; arg++) {
     nargv[arg] = strdup(oargv[arg]);
-    nargv[arg] = subst(nargv[arg], "HISADDR",
-                       inet_ntoa(bundle->ncp.ipcp.peer_ip));
-#ifndef NOINET6
-    nargv[arg] = subst(nargv[arg], "HISADDR6",
-                       ncpaddr_ntoa(&bundle->ncp.ipv6cp.hisaddr));
-#endif
     nargv[arg] = subst(nargv[arg], "AUTHNAME", bundle->cfg.auth.name);
-    nargv[arg] = subst(nargv[arg], "INTERFACE", bundle->iface->name);
-    nargv[arg] = subst(nargv[arg], "MYADDR", inet_ntoa(bundle->ncp.ipcp.my_ip));
-#ifndef NOINET6
-    nargv[arg] = subst(nargv[arg], "MYADDR6",
-                       ncpaddr_ntoa(&bundle->ncp.ipv6cp.myaddr));
-#endif
-    nargv[arg] = subst(nargv[arg], "USER", bundle->ncp.mp.peer.authname);
-    nargv[arg] = subst(nargv[arg], "PEER_ENDDISC",
-                       mp_Enddisc(bundle->ncp.mp.peer.enddisc.class,
-                                  bundle->ncp.mp.peer.enddisc.address,
-                                  bundle->ncp.mp.peer.enddisc.len));
+    nargv[arg] = subst(nargv[arg], "COMPILATIONDATE", __DATE__);
+    nargv[arg] = substip(nargv[arg], "DNS0", bundle->ncp.ipcp.ns.dns[0]);
+    nargv[arg] = substip(nargv[arg], "DNS1", bundle->ncp.ipcp.ns.dns[1]);
     nargv[arg] = subst(nargv[arg], "ENDDISC", 
                        mp_Enddisc(bundle->ncp.mp.cfg.enddisc.class,
                                   bundle->ncp.mp.cfg.enddisc.address,
                                   bundle->ncp.mp.cfg.enddisc.len));
-    nargv[arg] = subst(nargv[arg], "PROCESSID", pidstr);
+    nargv[arg] = substip(nargv[arg], "HISADDR", bundle->ncp.ipcp.peer_ip);
+#ifndef NOINET6
+    nargv[arg] = substipv6(nargv[arg], "HISADDR6", &bundle->ncp.ipv6cp.hisaddr);
+#endif
+    nargv[arg] = subst(nargv[arg], "INTERFACE", bundle->iface->name);
+    nargv[arg] = substull(nargv[arg], "IPOCTETSIN",
+                          bundle->ncp.ipcp.throughput.OctetsIn);
+    nargv[arg] = substull(nargv[arg], "IPOCTETSOUT", 
+                          bundle->ncp.ipcp.throughput.OctetsOut);
+    nargv[arg] = substull(nargv[arg], "IPPACKETSIN", 
+                          bundle->ncp.ipcp.throughput.PacketsIn);
+    nargv[arg] = substull(nargv[arg], "IPPACKETSOUT", 
+                          bundle->ncp.ipcp.throughput.PacketsOut);
+#ifndef NOINET6
+    nargv[arg] = substull(nargv[arg], "IPV6OCTETSIN", 
+                          bundle->ncp.ipv6cp.throughput.OctetsIn);
+    nargv[arg] = substull(nargv[arg], "IPV6OCTETSOUT", 
+                          bundle->ncp.ipv6cp.throughput.OctetsOut);
+    nargv[arg] = substull(nargv[arg], "IPV6PACKETSIN", 
+                          bundle->ncp.ipv6cp.throughput.PacketsIn);
+    nargv[arg] = substull(nargv[arg], "IPV6PACKETSOUT", 
+                          bundle->ncp.ipv6cp.throughput.PacketsOut);
+#endif
     nargv[arg] = subst(nargv[arg], "LABEL", bundle_GetLabel(bundle));
-    nargv[arg] = subst(nargv[arg], "DNS0",
-                       inet_ntoa(bundle->ncp.ipcp.ns.dns[0]));
-    nargv[arg] = subst(nargv[arg], "DNS1",
-                       inet_ntoa(bundle->ncp.ipcp.ns.dns[1]));
+    nargv[arg] = substip(nargv[arg], "MYADDR", bundle->ncp.ipcp.my_ip);
+#ifndef NOINET6
+    nargv[arg] = substipv6(nargv[arg], "MYADDR6", &bundle->ncp.ipv6cp.myaddr);
+#endif
+    nargv[arg] = substull(nargv[arg], "OCTETSIN", oin);
+    nargv[arg] = substull(nargv[arg], "OCTETSOUT", oout);
+    nargv[arg] = substull(nargv[arg], "PACKETSIN", pin);
+    nargv[arg] = substull(nargv[arg], "PACKETSOUT", pout);
+    nargv[arg] = subst(nargv[arg], "PEER_ENDDISC",
+                       mp_Enddisc(bundle->ncp.mp.peer.enddisc.class,
+                                  bundle->ncp.mp.peer.enddisc.address,
+                                  bundle->ncp.mp.peer.enddisc.len));
+    nargv[arg] = substint(nargv[arg], "PROCESSID", pid);
+    if (server.cfg.port)
+      nargv[arg] = substint(nargv[arg], "SOCKNAME", server.cfg.port);
+    else
+      nargv[arg] = subst(nargv[arg], "SOCKNAME", server.cfg.sockname);
+    nargv[arg] = subst(nargv[arg], "UPTIME", uptime);
+    nargv[arg] = subst(nargv[arg], "USER", bundle->ncp.mp.peer.authname);
     nargv[arg] = subst(nargv[arg], "VERSION", Version);
-    nargv[arg] = subst(nargv[arg], "COMPILATIONDATE", __DATE__);
-
-    secs = bundle_Uptime(bundle);
-    snprintf(buf, sizeof buf, "%d:%02d:%02d", secs / 3600, (secs / 60) % 60,
-             secs % 60);
-    nargv[arg] = subst(nargv[arg], "UPTIME", buf);
   }
   nargv[arg] = NULL;
 }

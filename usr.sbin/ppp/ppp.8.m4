@@ -3497,7 +3497,7 @@ which comes with the source distribution.
 The given
 .Ar command
 is executed in the background with the following words replaced:
-.Bl -tag -width PEER_ENDDISC
+.Bl -tag -width COMPILATIONDATE
 .It Li AUTHNAME
 This is replaced with the local
 .Ar authname
@@ -3523,6 +3523,30 @@ This is replaced with the peers IP number.
 This is replaced with the peers IPv6 number.
 .It Li INTERFACE
 This is replaced with the name of the interface that's in use.
+.It Li IPOCTETSIN
+This is replaced with the number of IP bytes received since the connection
+was established.
+.It Li IPOCTETSOUT
+This is replaced with the number of IP bytes sent since the connection
+was established.
+.It Li IPPACKETSIN
+This is replaced with the number of IP packets received since the connection
+was established.
+.It Li IPPACKETSOUT
+This is replaced with the number of IP packets sent since the connection
+was established.
+.It Li IPV6OCTETSIN
+This is replaced with the number of IPv6 bytes received since the connection
+was established.
+.It Li IPV6OCTETSOUT
+This is replaced with the number of IPv6 bytes sent since the connection
+was established.
+.It Li IPV6PACKETSIN
+This is replaced with the number of IPv6 packets received since the connection
+was established.
+.It Li IPV6PACKETSOUT
+This is replaced with the number of IPv6 packets sent since the connection
+was established.
 .It Li LABEL
 This is replaced with the last label name used.
 A label may be specified on the
@@ -3538,13 +3562,24 @@ file.
 This is replaced with the IP number assigned to the local interface.
 .It Li MYADDR6
 This is replaced with the IPv6 number assigned to the local interface.
+.It Li OCTETSIN
+This is replaced with the number of bytes received since the connection
+was established.
+.It Li OCTETSOUT
+This is replaced with the number of bytes sent since the connection
+was established.
+.It Li PACKETSIN
+This is replaced with the number of packets received since the connection
+was established.
+.It Li PACKETSOUT
+This is replaced with the number of packets sent since the connection
+was established.
 .It Li PEER_ENDDISC
 This is replaced with the value of the peers endpoint discriminator.
 .It Li PROCESSID
 This is replaced with the current process id.
-.It Li VERSION
-This is replaced with the current version number of
-.Nm .
+.It Li SOCKNAME
+This is replaced with the name of the diagnostic socket.
 .It Li UPTIME
 This is replaced with the bundle uptime in HH:MM:SS format.
 .It Li USER
@@ -3552,6 +3587,9 @@ This is replaced with the username that has been authenticated with PAP or
 CHAP.
 Normally, this variable is assigned only in -direct mode.
 This value is available irrespective of whether utmp logging is enabled.
+.It Li VERSION
+This is replaced with the current version number of
+.Nm .
 .El
 .Pp
 These substitutions are also done by the
