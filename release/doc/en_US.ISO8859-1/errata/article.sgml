@@ -176,7 +176,8 @@
       Support</bridgehead>
 
     <para>NETNCP and nwfs appear to be as-yet unadapted for KSE, and
-      hence not working.</para>
+      hence not working.  These have been fixed in &os;
+      &release.current;.</para>
 
     <bridgehead renderas="sect3">&man.iir.4; controller</bridgehead>
 
@@ -275,8 +276,10 @@
     <bridgehead renderas="sect3">IPFW</bridgehead>
 
     <para>&man.ipfw.4; <literal>skipto</literal> rules do not work
-      when coupled with the <literal>log</literal> keyword.  This bug
-      has been fixed in &release.current;.</para>
+      when coupled with the <literal>log</literal> keyword.
+      &man.ipfw.4; <literal>uid</literal> rules also do not work
+      properly.  These bugs
+      have been fixed in &release.current;.</para>
 
     <bridgehead renderas="sect3">Passwords and &man.adduser.8;</bridgehead>
 
