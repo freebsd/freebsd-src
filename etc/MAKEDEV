@@ -319,9 +319,10 @@ std)
 
 jail)
 	sh MAKEDEV std pty0
-	rm mem kmem pci io klog		# for security
+	rm mem kmem pci io klog console		# for security
 	ln -sf null mem			# for libkvm (ab)users
 	ln -sf null kmem		# --//--
+	ln -sf null console
 	;;
 
 mach-4)
