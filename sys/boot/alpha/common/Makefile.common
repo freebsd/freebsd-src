@@ -74,13 +74,13 @@ beforeinstall:
 .if !exists(${DESTDIR}/boot/loader.rc)
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
 		${.CURDIR}/../../forth/loader.rc ${DESTDIR}/boot
+.endif
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
 		${.CURDIR}/../../forth/loader.4th ${DESTDIR}/boot
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
 		${.CURDIR}/../../forth/support.4th ${DESTDIR}/boot
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
 		${.CURDIR}/../../forth/loader.conf ${DESTDIR}/boot/defaults
-.endif
 
 
 start.o:	${.CURDIR}/../libalpha/start.S
