@@ -13,7 +13,7 @@
 .\" Austin, Texas  78712
 .\"
 .\" $FreeBSD$
-.Dd Jan 15, 1991
+.Dd January 15, 1991
 .Dt APROPOS 1
 .Os
 .Sh NAME
