@@ -77,10 +77,12 @@ lowest_value="$(sysctl -n hw.acpi.cpu.cx_supported | \
 eval value=\$${profile}_cx_lowest
 sysctl_set
 
-node="hw.acpi.cpu.throttle_state"
-highest_value="$(sysctl -n hw.acpi.cpu.throttle_max 2> /dev/null)"
-lowest_value="1"
-eval value=\$${profile}_throttle_state
+node="dev.cpu.0.freq"
+highest_value="$(sysctl -n dev.cpu.0.freq_levels | \
+	awk '{ split($0, a, "[/ ]"); print a[1] }' - 2> /dev/null)"
+lowest_value="$(sysctl -n dev.cpu.0.freq_levels | \
+	awk '{ split($0, a, "[/ ]"); print a[length(a) - 1] }' - 2> /dev/null)"
+eval value=\$${profile}_cpu_freq
 sysctl_set
 
 exit 0
