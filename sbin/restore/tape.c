@@ -63,7 +63,7 @@ static char sccsid[] = "@(#)tape.c	8.3 (Berkeley) 4/1/94";
 static long	fssize = MAXBSIZE;
 static int	mt = -1;
 static int	pipein = 0;
-static char	magtape[BUFSIZ];
+static char	*magtape;
 static int	blkcnt;
 static int	numtrec;
 static char	*tapebuf;
@@ -146,7 +146,11 @@ setinput(source)
 		pipein++;
 	}
 	setuid(getuid());	/* no longer need or want root privileges */
-	(void) strcpy(magtape, source);
+	magtape = strdup(source);
+	if (magtape == NULL) {
+		fprintf(stderr, "Cannot allocate space for magtape buffer\n");
+		done(1);
+	}
 }
 
 void
