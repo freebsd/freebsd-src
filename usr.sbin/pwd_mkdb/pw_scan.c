@@ -62,15 +62,20 @@ pw_scan(bp, pw)
 	int root;
 	char *p, *sh;
 
+	pw->pw_fields = 0;
 	if (!(pw->pw_name = strsep(&bp, ":")))		/* login */
 		goto fmt;
 	root = !strcmp(pw->pw_name, "root");
+	if(pw->pw_name[0] && (pw->pw_name[0] != '+' || pw->pw_name[1] == '\0'))
+		pw->pw_fields |= _PWF_NAME;
 
 	if (!(pw->pw_passwd = strsep(&bp, ":")))	/* passwd */
 		goto fmt;
+	if(pw->pw_passwd[0]) pw->pw_fields |= _PWF_PASSWD;
 
 	if (!(p = strsep(&bp, ":")))			/* uid */
 		goto fmt;
+	if(p[0]) pw->pw_fields |= _PWF_UID;
 	id = atol(p);
 	if (root && id) {
 		warnx("root uid should be 0");
@@ -84,6 +89,7 @@ pw_scan(bp, pw)
 
 	if (!(p = strsep(&bp, ":")))			/* gid */
 		goto fmt;
+	if(p[0]) pw->pw_fields |= _PWF_GID;
 	id = atol(p);
 	if (id > USHRT_MAX) {
 		warnx("%s > max gid value (%d)", p, USHRT_MAX);
@@ -92,14 +98,24 @@ pw_scan(bp, pw)
 	pw->pw_gid = id;
 
 	pw->pw_class = strsep(&bp, ":");		/* class */
+	if(pw->pw_class[0]) pw->pw_fields |= _PWF_CLASS;
+
 	if (!(p = strsep(&bp, ":")))			/* change */
 		goto fmt;
+	if(p[0]) pw->pw_fields |= _PWF_CHANGE;
 	pw->pw_change = atol(p);
+
 	if (!(p = strsep(&bp, ":")))			/* expire */
 		goto fmt;
+	if(p[0]) pw->pw_fields |= _PWF_EXPIRE;
 	pw->pw_expire = atol(p);
+
 	pw->pw_gecos = strsep(&bp, ":");		/* gecos */
+	if(pw->pw_gecos[0]) pw->pw_fields |= _PWF_GECOS;
+
 	pw->pw_dir = strsep(&bp, ":");			/* directory */
+	if(pw->pw_dir[0]) pw->pw_fields |= _PWF_DIR;
+
 	if (!(pw->pw_shell = strsep(&bp, ":")))		/* shell */
 		goto fmt;
 
@@ -113,6 +129,7 @@ pw_scan(bp, pw)
 			if (!strcmp(p, sh))
 				break;	
 		}
+	if(p[0]) pw->pw_fields |= _PWF_SHELL;
 
 	if (p = strsep(&bp, ":")) {			/* too many */
 fmt:		warnx("corrupted entry");
