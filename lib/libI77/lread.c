@@ -67,7 +67,6 @@ extern int ungetc(int, FILE*);	/* for systems with a buggy stdio.h */
 #endif
 #endif
 
-int
 t_getc(Void)
 {	int ch;
 	if(f__curunit->uend) return(EOF);
@@ -80,7 +79,12 @@ integer e_rsle(Void)
 {
 	int ch;
 	if(f__curunit->uend) return(0);
-	while((ch=t_getc())!='\n' && ch!=EOF);
+	while((ch=t_getc())!='\n')
+		if (ch == EOF) {
+			if(feof(f__cf))
+				f__curunit->uend = l_eof = 1;
+			return EOF;
+			}
 	return(0);
 }
 
@@ -88,14 +92,14 @@ flag f__lquit;
 int f__lcount,f__ltype,nml_read;
 char *f__lchar;
 double f__lx,f__ly;
-#define ERR(x) if( (n=(x)) ) return(n)
+#define ERR(x) if(n=(x)) return(n)
 #define GETC(x) (x=(*l_getc)())
 #define Ungetc(x,y) (*l_ungetc)(x,y)
 
 #ifdef KR_headers
-int l_R(poststar) int poststar;
+l_R(poststar) int poststar;
 #else
-int l_R(int poststar)
+l_R(int poststar)
 #endif
 {
 	char s[FMAX+EXPMAXDIGS+4];
@@ -250,7 +254,6 @@ rd_count(register int ch)
 	return f__lcount <= 0;
 	}
 
-int
 l_C(Void)
 {	int ch, nml_save;
 	double lz;
@@ -287,7 +290,7 @@ l_C(Void)
 	Ungetc(ch,f__cf);
 	nml_save = nml_read;
 	nml_read = 0;
-	if ( (ch = l_R(1)) )
+	if (ch = l_R(1))
 		return ch;
 	if (!f__ltype)
 		errfl(f__elist->cierr,112,"no real part");
@@ -299,7 +302,7 @@ l_C(Void)
 	}
 	while(iswhit(GETC(ch)));
 	(void) Ungetc(ch,f__cf);
-	if ( (ch = l_R(1)) )
+	if (ch = l_R(1))
 		return ch;
 	if (!f__ltype)
 		errfl(f__elist->cierr,112,"no imaginary part");
@@ -313,8 +316,6 @@ l_C(Void)
 	nml_read = nml_save;
 	return(0);
 }
-
-int
 l_L(Void)
 {
 	int ch;
@@ -361,8 +362,6 @@ l_L(Void)
 	return(0);
 }
 #define BUFSIZE	128
-
-int
 l_CHAR(Void)
 {	int ch,size,i;
 	static char rafail[] = "realloc failure";
@@ -485,9 +484,9 @@ l_CHAR(Void)
 	}
 }
 #ifdef KR_headers
-int c_le(a) cilist *a;
+c_le(a) cilist *a;
 #else
-int c_le(cilist *a)
+c_le(cilist *a)
 #endif
 {
 	if(!f__init)
@@ -505,9 +504,9 @@ int c_le(cilist *a)
 	return(0);
 }
 #ifdef KR_headers
-int l_read(number,ptr,len,type) ftnint *number,type; char *ptr; ftnlen len;
+l_read(number,ptr,len,type) ftnint *number,type; char *ptr; ftnlen len;
 #else
-int l_read(ftnint *number, char *ptr, ftnlen len, ftnint type)
+l_read(ftnint *number, char *ptr, ftnlen len, ftnint type)
 #endif
 {
 #define Ptr ((flex *)ptr)
@@ -525,7 +524,7 @@ int l_read(ftnint *number, char *ptr, ftnlen len, ftnint type)
 				GETC(ch);
 				switch(ch) {
 				case EOF:
-					goto loopend;
+					err(f__elist->ciend,(EOF),"list in")
 				case ' ':
 				case '\t':
 				case '\n':
@@ -579,13 +578,9 @@ int l_read(ftnint *number, char *ptr, ftnlen len, ftnint type)
 		Ungetc(ch,f__cf);
 	loopend:
 		if(f__lquit) return(0);
-		if(f__cf) {
-			if (feof(f__cf))
-				err(f__elist->ciend,(EOF),"list in")
-			else if(ferror(f__cf)) {
-				clearerr(f__cf);
-				errfl(f__elist->cierr,errno,"list in");
-				}
+		if(f__cf && ferror(f__cf)) {
+			clearerr(f__cf);
+			errfl(f__elist->cierr,errno,"list in");
 			}
 		if(f__ltype==0) goto bump;
 		switch((int)type)
@@ -645,7 +640,7 @@ integer s_rsle(cilist *a)
 {
 	int n;
 
-	if( (n=c_le(a)) ) return(n);
+	if(n=c_le(a)) return(n);
 	f__reading=1;
 	f__external=1;
 	f__formatted=1;

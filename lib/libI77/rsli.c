@@ -18,7 +18,8 @@ static int i_getc(Void)
 		z_rnew();
 		}
 	f__recpos++;
-	if(f__icptr >= f__icend) err(f__svic->iciend,(EOF),"internal read");
+	if(f__icptr >= f__icend)
+		return EOF;
 	return(*f__icptr++);
 	}
 

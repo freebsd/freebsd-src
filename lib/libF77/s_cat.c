@@ -12,6 +12,8 @@
  extern void free();
  extern void exit_();
 #else
+#undef min
+#undef max
 #include "stdlib.h"
  extern char *F77_aloc(ftnlen, char*);
 #endif
@@ -49,7 +51,9 @@ s_cat(char *lp, char *rpp[], ftnlen rnp[], ftnlen *np, ftnlen ll)
 			}
 		lp0 = lp;
 		lp = lp1 = F77_aloc(L = ll, "s_cat");
+		break;
 		}
+	lp1 = lp;
 #endif /* NO_OVERWRITE */
 	for(i = 0 ; i < n ; ++i) {
 		nc = ll;

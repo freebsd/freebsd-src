@@ -8,44 +8,47 @@ extern void z_div(doublecomplex*, doublecomplex*, doublecomplex*);
 void pow_zi(doublecomplex *p, doublecomplex *a, integer *b) 	/* p = a**b  */
 #endif
 {
-integer n;
-unsigned long u;
-double t;
-doublecomplex x;
-static doublecomplex one = {1.0, 0.0};
+	integer n;
+	unsigned long u;
+	double t;
+	doublecomplex q, x;
+	static doublecomplex one = {1.0, 0.0};
 
-n = *b;
-p->r = 1;
-p->i = 0;
+	n = *b;
+	q.r = 1;
+	q.i = 0;
 
-if(n == 0)
-	return;
-if(n < 0)
-	{
-	n = -n;
-	z_div(&x, &one, a);
-	}
-else
-	{
-	x.r = a->r;
-	x.i = a->i;
-	}
-
-for(u = n; ; )
-	{
-	if(u & 01)
+	if(n == 0)
+		goto done;
+	if(n < 0)
 		{
-		t = p->r * x.r - p->i * x.i;
-		p->i = p->r * x.i + p->i * x.r;
-		p->r = t;
-		}
-	if(u >>= 1)
-		{
-		t = x.r * x.r - x.i * x.i;
-		x.i = 2 * x.r * x.i;
-		x.r = t;
+		n = -n;
+		z_div(&x, &one, a);
 		}
 	else
-		break;
+		{
+		x.r = a->r;
+		x.i = a->i;
+		}
+
+	for(u = n; ; )
+		{
+		if(u & 01)
+			{
+			t = q.r * x.r - q.i * x.i;
+			q.i = q.r * x.i + q.i * x.r;
+			q.r = t;
+			}
+		if(u >>= 1)
+			{
+			t = x.r * x.r - x.i * x.i;
+			x.i = 2 * x.r * x.i;
+			x.r = t;
+			}
+		else
+			break;
+		}
+ done:
+	p->i = q.i;
+	p->r = q.r;
 	}
-}
