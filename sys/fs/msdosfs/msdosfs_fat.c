@@ -237,6 +237,11 @@ pcbmap(dep, findcn, bnp, cnp, sp)
 			bp_bn = bn;
 		}
 		prevcn = cn;
+		if (bo >= bsize) {
+			if (bp)
+				brelse(bp);
+			return (EIO);
+		}
 		if (FAT32(pmp))
 			cn = getulong(&bp->b_data[bo]);
 		else
