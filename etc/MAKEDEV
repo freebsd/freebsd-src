@@ -98,6 +98,8 @@
 #	worm*	WORM driver
 #	pt*	Processor Type (HP scanner, as one example)
 #	pass*	CAM Passthrough device
+#	ses*	SES (SCSI Environmental Services) and
+#		SAF-TE (Scsi Accessable Fault-Tolerant Enclosures) device
 #
 # PC-CARD (previously called PCMCIA) support
 #	card*	PC-CARD slots
@@ -606,6 +608,17 @@ pt[0-9]*)
 	mknod ${name}${unit} c $chr $unit
 	;;
 
+# SCSI SES/SAF-TE type driver
+ses[0-9]*)
+	chr=110
+	name=ses
+	unit=`expr $i : 'ses\([0-9][0-9]*\)'`
+	if [ -z "${unit}" ]; then
+		unit=0
+	fi
+	unit=`expr $unit + 1 - 1`
+	mknod ${name}${unit} c $chr $unit
+	;;
 # SCSI target mode sample driver
 targ[0-9]*)
 	chr=65
