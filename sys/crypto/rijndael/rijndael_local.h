@@ -1,4 +1,5 @@
 /*	$KAME: rijndael_local.h,v 1.3 2000/10/02 17:14:27 itojun Exp $	*/
+/*	$FreeBSD$	*/
 
 /* the file should not be used from outside */
 typedef u_int8_t		BYTE;
@@ -8,3 +9,5 @@ typedef u_int32_t		word32;
 
 #define MAXKC		RIJNDAEL_MAXKC
 #define MAXROUNDS	RIJNDAEL_MAXROUNDS
+
+#define	BINARY_KEY_MATERIAL	1
