@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: pccardd.c,v 1.2 1998/03/09 05:18:58 hosokawa Exp $";
+	"$Id: pccardd.c,v 1.3 1999/06/17 21:07:59 markm Exp $";
 #endif /* not lint */
 
 #include <stdio.h>
@@ -65,7 +65,7 @@ main(int argc, char *argv[])
 			config_file = optarg;
 			break;
 		case 'i':
-			/* supress specified irq */
+			/* configure available irq */
 			if (sscanf(optarg, "%d", &i) != 1) {
 				fprintf(stderr, "%s: -i number\n", argv[0]);
 				exit(1);
