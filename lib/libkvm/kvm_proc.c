@@ -528,8 +528,8 @@ kvm_doargv(kd, kp, nchr, info)
 	 * Pointers are stored at the top of the user stack.
 	 */
 	if (p->p_stat == SZOMB || 
-	    kvm_uread(kd, p, USRSTACK - sizeof(arginfo), (char *)&arginfo,
-		      sizeof(arginfo)) != sizeof(arginfo))
+	    kvm_uread(kd, p, USRSTACK - sizeof(arginfo) - SPARE_USRSPACE,
+		      (char *)&arginfo, sizeof(arginfo)) != sizeof(arginfo))
 		return (0);
 
 	(*info)(&arginfo, &addr, &cnt);
