@@ -94,6 +94,13 @@
     provide access to the system monitoring functions of the AMD 756
     chip set.</para>
 
+    <para>The <varname>kern.maxvnodes</varname> limit now properly
+    limits the number of vnodes in use.  Previously only vnodes with
+    no cached pages could be freed; this could allow the number of
+    vnodes to grow without limit on large-memory machines accessing
+    many small files.  A <literal>vnlru</literal> kernel thread helps
+    to flush and reuse vnodes.</para>
+
     <para arch="i386">A new <varname>KVA_SPACE</varname> kernel option
     can be used to reconfigure the size of the kernel virtual address
     space.</para>
@@ -358,6 +365,10 @@
       <para>The &man.ata.4; driver now has support for 48-bit
       addressing.  Devices larger than 137GB are now
       supported.</para>
+
+      <para>The &man.ata.4; driver now contains fixes for some data
+      corruption problems on systems using the VIA 82C686B Southbridge
+      chip.</para>
 
       <para arch="i386">The ciss driver, for devices utilizing the Common
       Interface for SCSI-3 Support, has been added.  This driver
