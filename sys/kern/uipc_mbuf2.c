@@ -84,10 +84,7 @@
  * XXX: M_TRAILINGSPACE/M_LEADINGSPACE only permitted on writable ext_buf.
  */
 struct mbuf *
-m_pulldown(m, off, len, offp)
-	struct mbuf *m;
-	int off, len;
-	int *offp;
+m_pulldown(struct mbuf *m, int off, int len, int *offp)
 {
 	struct mbuf *n, *o;
 	int hlen, tlen, olen;
@@ -271,9 +268,7 @@ ok:
  * we don't allow clusters at this moment. 
  */
 struct mbuf *
-m_aux_add(m, af, type)
-	struct mbuf *m;
-	int af, type;
+m_aux_add(struct mbuf *m, int af, int type)
 {
 	struct mbuf *n;
 	struct mauxtag *t;
@@ -300,9 +295,7 @@ m_aux_add(m, af, type)
 }
 
 struct mbuf *
-m_aux_find(m, af, type)
-	struct mbuf *m;
-	int af, type;
+m_aux_find(struct mbuf *m, int af, int type)
 {
 	struct mbuf *n;
 	struct mauxtag *t;
@@ -319,9 +312,7 @@ m_aux_find(m, af, type)
 }
 
 void
-m_aux_delete(m, victim)
-	struct mbuf *m;
-	struct mbuf *victim;
+m_aux_delete(struct mbuf *m, struct mbuf *victim)
 {
 	struct mbuf *n, *prev, *next;
 	struct mauxtag *t;
