@@ -217,6 +217,8 @@ nonsel:		/* Now parse the command */
 			if (!*p)
 				p = NULL;
 			cmd2 = xmalloc(sizeof(struct s_command));
+			cmd2->nonsel = cmd2->inrange = 0;
+			cmd2->a1 = cmd2->a2 = NULL;
 			cmd2->code = '}';
 			*compile_stream("}", &cmd->u.c, p) = cmd2;
 			cmd->next = cmd2;
