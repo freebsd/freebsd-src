@@ -8,6 +8,7 @@ CFLAGS+=	-I${KRB5DIR}/include \
 
 SRCS=		\
 	base64.c		\
+	bswap.c			\
 	concat.c		\
 	emalloc.c		\
 	environment.c		\
