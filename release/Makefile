@@ -211,6 +211,9 @@ MFSSIZE=		4096
 MFSINODE=		8192
 MFSLABEL=		auto
 .endif
+.if defined(NO_FLOPPIES)
+.undef MAKE_FLOPPIES
+.endif
 
 .if exists(/sbin/bsdlabel)
 DISKLABEL?=		bsdlabel
@@ -448,6 +451,7 @@ release rerelease:
 	NOSRC \
 	NO_CPU_CFLAGS \
 	NO_CPU_COPTFLAGS \
+	NO_FLOPPIES \
 	NO_SENDMAIL \
 	RELEASETAG \
 	RELNOTES_LANG \
