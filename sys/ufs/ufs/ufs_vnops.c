@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_vnops.c	8.27 (Berkeley) 5/27/95
- * $Id: ufs_vnops.c,v 1.59 1997/10/15 13:24:07 phk Exp $
+ * $Id: ufs_vnops.c,v 1.60 1997/10/16 10:50:24 phk Exp $
  */
 
 #include "opt_quota.h"
@@ -65,10 +65,43 @@
 #include <ufs/ufs/ufsmount.h>
 #include <ufs/ufs/ufs_extern.h>
 
+static int ufs_abortop __P((struct vop_abortop_args *));
+static int ufs_access __P((struct vop_access_args *));
+static int ufs_advlock __P((struct vop_advlock_args *));
 static int ufs_chmod __P((struct vnode *, int, struct ucred *, struct proc *));
-static int ufs_chown
-	__P((struct vnode *, uid_t, gid_t, struct ucred *, struct proc *));
+static int ufs_chown __P((struct vnode *, uid_t, gid_t, struct ucred *, struct proc *));
+static int ufs_close __P((struct vop_close_args *));
+static int ufs_create __P((struct vop_create_args *));
+static int ufs_getattr __P((struct vop_getattr_args *));
+static int ufs_ioctl __P((struct vop_ioctl_args *));
+static int ufs_islocked __P((struct vop_islocked_args *));
+static int ufs_link __P((struct vop_link_args *));
+static int ufs_lock __P((struct vop_lock_args *));
+static int ufs_makeinode __P((int mode, struct vnode *, struct vnode **, struct componentname *));
 static int ufs_missingop __P((struct vop_generic_args *ap));
+static int ufs_mkdir __P((struct vop_mkdir_args *));
+static int ufs_mknod __P((struct vop_mknod_args *));
+static int ufs_mmap __P((struct vop_mmap_args *));
+static int ufs_open __P((struct vop_open_args *));
+static int ufs_pathconf __P((struct vop_pathconf_args *));
+static int ufs_print __P((struct vop_print_args *));
+static int ufs_readdir __P((struct vop_readdir_args *));
+static int ufs_readlink __P((struct vop_readlink_args *));
+static int ufs_remove __P((struct vop_remove_args *));
+static int ufs_rename __P((struct vop_rename_args *));
+static int ufs_rmdir __P((struct vop_rmdir_args *));
+static int ufs_seek __P((struct vop_seek_args *));
+static int ufs_setattr __P((struct vop_setattr_args *));
+static int ufs_strategy __P((struct vop_strategy_args *));
+static int ufs_symlink __P((struct vop_symlink_args *));
+static int ufs_unlock __P((struct vop_unlock_args *));
+static int ufs_whiteout __P((struct vop_whiteout_args *));
+static int ufsfifo_close __P((struct vop_close_args *));
+static int ufsfifo_read __P((struct vop_read_args *));
+static int ufsfifo_write __P((struct vop_write_args *));
+static int ufsspec_close __P((struct vop_close_args *));
+static int ufsspec_read __P((struct vop_read_args *));
+static int ufsspec_write __P((struct vop_write_args *));
 
 #ifdef EXT2FS
 #include <gnu/ext2fs/ext2_extern.h>
