@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)chmod.2	8.1 (Berkeley) 6/4/93
-.\"	$Id: chmod.2,v 1.12 1998/01/11 17:49:51 alex Exp $
+.\"	$Id: chmod.2,v 1.13 1999/07/30 10:08:21 mpp Exp $
 .\"
 .Dd June 4, 1993
 .Dt CHMOD 2
@@ -64,7 +64,8 @@ the file specified by
 .Fa fd ) ,
 or
 is the super-user.
-.The chmod
+The
+.Fn chmod
 function follows symbolic links to operate on the target of the link
 rather than the link itself.
 .Pp
