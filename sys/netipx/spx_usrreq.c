@@ -32,9 +32,10 @@
  * SUCH DAMAGE.
  *
  *	@(#)spx_usrreq.h
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/lock.h>

@@ -36,10 +36,12 @@
  *      using byte-swap instructions
  *      polynomial $edb88320
  *
- * $FreeBSD$
  *
  * CRC32 code derived from work by Gary S. Brown.
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
