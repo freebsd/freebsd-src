@@ -1,5 +1,5 @@
 #
-# $Id$
+# $Id: Makefile,v 1.1 1996/09/19 15:39:20 peter Exp $
 #
 
 PROG =	cc1obj
@@ -10,6 +10,6 @@ BINDIR=	/usr/libexec
 NOMAN=	1
 NOSHARED= true
 DPADD+=	${LIBCC_INT} 
-LDADD+=	-lcc_int 
+LDADD+=	${LIBCC_INT}
 
 .include <bsd.prog.mk>

@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.7 1995/10/02 16:37:16 wollman Exp $
+# $Id: Makefile,v 1.8 1996/09/19 15:39:23 peter Exp $
 #
 
 #First, so that we get cp/tree.c and cp/expr.c instead of the C version
@@ -12,9 +12,9 @@ SRCS =	parse.c \
 	ptree.c repo.c search.c sig.c spew.c tree.c typeck.c typeck2.c xref.c
 BINDIR=	/usr/libexec
 NOMAN=	1
-NOSHARED=	makes_it_smaller_faster
+NOSHARED= true
 DPADD+=	${LIBCC_INT} 
-LDADD+=	-lcc_int 
+LDADD+=	${LIBCC_INT}
 CFLAGS+= -I.	# I mean it.
 
 parse.c parse.h: parse.y
