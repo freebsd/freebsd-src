@@ -30,6 +30,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <string.h>
 #include <libutil.h>
+#include <unistd.h>
 #include "crypt.h"
 
 static const struct {
@@ -58,6 +59,7 @@ static const struct {
 #endif
 	{
 		NULL,
+		NULL,
 		NULL
 	}
 };
@@ -68,7 +70,7 @@ static void
 crypt_setdefault(void)
 {
 	char *def;
-	int i;
+	size_t i;
 
 	if (crypt_type != -1)
 		return;
@@ -79,7 +81,7 @@ crypt_setdefault(void)
 	}
 	for (i = 0; i < sizeof(crypt_types) / sizeof(crypt_types[0]) - 1; i++) {
 		if (strcmp(def, crypt_types[i].name) == 0) {
-			crypt_type = i;
+			crypt_type = (int)i;
 			return;
 		}
 	}
@@ -95,14 +97,14 @@ crypt_get_format(void)
 }
 
 int
-crypt_set_format(char *type)
+crypt_set_format(const char *type)
 {
-	int i;
+	size_t i;
 
 	crypt_setdefault();
 	for (i = 0; i < sizeof(crypt_types) / sizeof(crypt_types[0]) - 1; i++) {
 		if (strcmp(type, crypt_types[i].name) == 0) {
-			crypt_type = i;
+			crypt_type = (int)i;
 			return (1);
 		}
 	}
@@ -110,9 +112,9 @@ crypt_set_format(char *type)
 }
 
 char *
-crypt(char *passwd, char *salt)
+crypt(const char *passwd, const char *salt)
 {
-	int i;
+	size_t i;
 
 	crypt_setdefault();
 	for (i = 0; i < sizeof(crypt_types) / sizeof(crypt_types[0]) - 1; i++) {
