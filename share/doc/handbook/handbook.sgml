@@ -1,4 +1,4 @@
-<!-- $Id: handbook.sgml,v 1.59 1996/11/16 14:40:47 jfieber Exp $ -->
+<!-- $Id: handbook.sgml,v 1.60 1996/11/28 18:09:27 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!DOCTYPE linuxdoc PUBLIC "-//FreeBSD//DTD linuxdoc//EN" [
@@ -44,7 +44,7 @@ you are interested in helping with this project, send
 email to the &a.doc; The latest version of this
 document is always available from
 the <url url="http://www.FreeBSD.ORG/" name="FreeBSD World Wide
-Web server">.  It may also be downloaded in ascii, LaTeX, postscript 
+Web server">.  It may also be downloaded in plain text, postscript 
 or HTML from the <url url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD/docs"
 name="FreeBSD FTP server"> or one of the numerous
 <ref id="mirrors" name="mirror sites">.  You may also want to <url url="/search.html" name="Search the Handbook">.	
