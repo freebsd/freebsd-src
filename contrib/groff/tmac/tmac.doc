@@ -1533,7 +1533,7 @@
 .de Ef
 .ds mN Ef
 .ie \\n(.$>0 .tm Usage .Ef (does not take arguments) (#\\n(.c)
-.el \&\f\\n(bF\s\\n(bZ
+.el \&\f\\n(bF\s\\n(bZ\c
 ..
 .\" Ns Bk macro - Begin Keep
 .\" Ns Ek macro - End Keep
