@@ -753,15 +753,15 @@ _getyppass(struct passwd *pw, const char *name, const char *map)
 	}
 
 	if (_gotmaster == YP_HAVE_MASTER)
-		sprintf(mastermap,"master.%s", map);
+		snprintf(mastermap, sizeof(mastermap), "master.%s", map);
 	else
-		sprintf(mastermap,"%s",map);
+		snprintf(mastermap, sizeof(mastermap), "%s", map);
 
 	if(yp_match(_pw_yp_domain, (char *)&mastermap, name, strlen(name),
 		    &result, &resultlen)) {
 		if (_gotmaster != YP_HAVE_MASTER)
 			return 0;
-		sprintf(mastermap,"%s",map);
+		snprintf(mastermap, sizeof(mastermap), "%s", map);
 		if (yp_match(_pw_yp_domain, (char *)&mastermap,
 			     name, strlen(name), &result, &resultlen))
 			return 0;
