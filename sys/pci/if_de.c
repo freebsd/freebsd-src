@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_de.c,v 1.59 1997/02/22 09:44:03 peter Exp $
+ * $Id: if_de.c,v 1.60 1997/02/23 10:57:30 joerg Exp $
  *
  */
 
@@ -3142,6 +3142,10 @@ tulip_read_macaddr(
 		copy_name = 1;
 	    } else if (bcmp(sc->tulip_rombuf + 29, "DE450", 5) == 0) {
 		copy_name = 1;
+	    } else if (bcmp(sc->tulip_hwaddr, "\x00\x00\xf4\x90", 4) == 0) {
+		sc->tulip_boardsw = &tulip_21140_de500aa_boardsw;
+		strcpy(sc->tulip_boardidbuf, "LA100-PCI ");
+		sc->tulip_boardid = sc->tulip_boardidbuf;
 	    }
 	    if (copy_name) {
 		bcopy(sc->tulip_rombuf + 29, sc->tulip_boardidbuf, 8);
