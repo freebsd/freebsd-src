@@ -49,7 +49,6 @@
 #include "opt_atalk.h"
 #include "opt_inet.h"
 #include "opt_ns.h"
-#include "bpf.h"
 
 #include <sys/param.h>
 #include <sys/kernel.h>
@@ -78,9 +77,7 @@
 #error "Huh? if_gre without inet?"
 #endif
 
-#if NBPF > 0
 #include <net/bpf.h>
-#endif
 
 #include <net/net_osdep.h>
 #include <net/if_gre.h>
@@ -183,9 +180,7 @@ gre_clone_create(ifc, unit)
 	sc->encap = NULL;
 	sc->called = 0;
 	if_attach(&sc->sc_if);
-#if NBPF
 	bpfattach(&sc->sc_if, DLT_NULL, sizeof(u_int32_t));
-#endif
 	LIST_INSERT_HEAD(&gre_softc_list, sc, sc_list);
 	return (0);
 }
@@ -201,9 +196,7 @@ gre_clone_destroy(ifp)
 		encap_detach(sc->encap);
 #endif
 	LIST_REMOVE(sc, sc_list);
-#if NBPF
 	bpfdetach(ifp);
-#endif
 	if_detach(ifp);
 	free(sc, M_GRE);
 }
@@ -247,7 +240,6 @@ gre_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 	ip = NULL;
 	osrc = 0;
 
-#if NBPF
 	if (ifp->if_bpf) {
 		/* see comment of other if_foo.c files */
 		struct mbuf m0;
@@ -259,7 +251,6 @@ gre_output(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 
 		bpf_mtap(ifp, &m0);
 	}
-#endif
 
 	m->m_flags &= ~(M_BCAST|M_MCAST);
 
