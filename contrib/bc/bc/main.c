@@ -1,7 +1,7 @@
 /* main.c: The main program for bc.  */
 
 /*  This file is part of GNU bc.
-    Copyright (C) 1991, 1992, 1993, 1994, 1997 Free Software Foundation, Inc.
+    Copyright (C) 1991, 1992, 1993, 1994, 1997, 1998 Free Software Foundation, Inc.
 
     This program is free software; you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -23,6 +23,8 @@
                 Computer Science Department, 9062
                 Western Washington University
                 Bellingham, WA 98226-9062
+
+$FreeBSD$
        
 *************************************************************************/
 
@@ -150,6 +152,11 @@ main (argc, argv)
   quiet = FALSE;
   file_names = NULL;
 
+#ifdef HAVE_SETVBUF
+  /* attempt to simplify interaction with applications such as emacs */
+  (void) setvbuf(stdout, NULL, _IOLBF, 0);
+#endif
+
   /* Environment arguments. */
   env_value = getenv ("BC_ENV_ARGS");
   if (env_value != NULL)
@@ -209,11 +216,12 @@ main (argc, argv)
     exit (1);
 
 #ifdef READLINE
-  /* Readline support.  Set both application name and input file. */
-  rl_readline_name = "bc";
-  if (interactive)
-	rl_instream = stdin;
-  using_history ();
+  if (interactive) {
+    /* Readline support.  Set both application name and input file. */
+    rl_readline_name = "bc";
+    rl_instream = stdin;
+    using_history ();
+  }
 #endif
 
   /* Do the parse. */
