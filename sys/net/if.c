@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if.c	8.3 (Berkeley) 1/4/94
- * $Id: if.c,v 1.7 1994/09/16 05:47:03 phk Exp $
+ * $Id: if.c,v 1.8 1994/10/05 20:11:23 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -48,6 +48,7 @@
 #include <net/if.h>
 #include <net/if_dl.h>
 #include <net/if_types.h>
+#include <net/radix.h>
 #include <ether.h>
 
 int	ifqmaxlen = IFQ_MAXLEN;
@@ -135,7 +136,8 @@ if_attach(ifp)
 	if (socksize < sizeof(*sdl))
 		socksize = sizeof(*sdl);
 	ifasize = sizeof(*ifa) + 2 * socksize;
-	if (ifa = (struct ifaddr *)malloc(ifasize, M_IFADDR, M_WAITOK)) {
+	ifa = (struct ifaddr *)malloc(ifasize, M_IFADDR, M_WAITOK);
+	if (ifa) {
 		bzero((caddr_t)ifa, ifasize);
 		sdl = (struct sockaddr_dl *)(ifa + 1);
 		sdl->sdl_len = socksize;
@@ -327,7 +329,8 @@ link_rtrequest(cmd, rt, sa)
 	if (cmd != RTM_ADD || ((ifa = rt->rt_ifa) == 0) ||
 	    ((ifp = ifa->ifa_ifp) == 0) || ((dst = rt_key(rt)) == 0))
 		return;
-	if (ifa = ifaof_ifpforaddr(dst, ifp)) {
+	ifa = ifaof_ifpforaddr(dst, ifp);
+	if (ifa) {
 		IFAFREE(rt->rt_ifa);
 		rt->rt_ifa = ifa;
 		ifa->ifa_refcnt++;
@@ -363,10 +366,10 @@ void
 if_up(ifp)
 	register struct ifnet *ifp;
 {
-	register struct ifaddr *ifa;
 
 	ifp->if_flags |= IFF_UP;
 #ifdef notyet
+	register struct ifaddr *ifa;
 	/* this has no effect on IP, and will kill all iso connections XXX */
 	for (ifa = ifp->if_addrlist; ifa; ifa = ifa->ifa_next)
 		pfctlinput(PRC_IFUP, ifa->ifa_addr);
@@ -384,7 +387,7 @@ if_qflush(ifq)
 	register struct mbuf *m, *n;
 
 	n = ifq->ifq_head;
-	while (m = n) {
+	while ((m = n) != 0) {
 		n = m->m_act;
 		m_freem(m);
 	}
@@ -494,7 +497,8 @@ ifioctl(so, cmd, data, p)
 		break;
 
 	case SIOCSIFFLAGS:
-		if (error = suser(p->p_ucred, &p->p_acflag))
+		error = suser(p->p_ucred, &p->p_acflag);
+		if (error)
 			return (error);
 		if (ifp->if_flags & IFF_UP && (ifr->ifr_flags & IFF_UP) == 0) {
 			int s = splimp();
@@ -513,13 +517,15 @@ ifioctl(so, cmd, data, p)
 		break;
 
 	case SIOCSIFMETRIC:
-		if (error = suser(p->p_ucred, &p->p_acflag))
+		error = suser(p->p_ucred, &p->p_acflag);
+		if (error)
 			return (error);
 		ifp->if_metric = ifr->ifr_metric;
 		break;
 
 	case SIOCSIFMTU:
-		if (error = suser(p->p_ucred, &p->p_acflag))
+		error = suser(p->p_ucred, &p->p_acflag);
+		if (error)
 			return (error);
 		if (ifp->if_ioctl == NULL)
 			return (EOPNOTSUPP);
@@ -533,7 +539,8 @@ ifioctl(so, cmd, data, p)
 
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
-		if (error = suser(p->p_ucred, &p->p_acflag))
+		error = suser(p->p_ucred, &p->p_acflag);
+		if (error)
 			return (error);
 		if (ifp->if_ioctl == NULL)
 			return (EOPNOTSUPP);
@@ -615,7 +622,7 @@ ifconf(cmd, data)
 	register struct ifconf *ifc = (struct ifconf *)data;
 	register struct ifnet *ifp = ifnet;
 	register struct ifaddr *ifa;
-	register char *cp, *ep;
+	register char *ep;
 	struct ifreq ifr, *ifrp;
 	int space = ifc->ifc_len, error = 0;
 
