@@ -1773,6 +1773,7 @@ sched_add_internal(struct thread *td, int preemptive)
 		curthread->td_flags |= TDF_NEEDRESCHED;
 	if (preemptive && maybe_preempt(td))
 		return;
+	td->td_ksegrp->kg_avail_opennings--;
 	ke->ke_ksegrp->kg_runq_threads++;
 	ke->ke_state = KES_ONRUNQ;
 
@@ -1800,6 +1801,7 @@ sched_rem(struct thread *td)
 	    ("sched_rem: KSE not on run queue"));
 
 	ke->ke_state = KES_THREAD;
+	td->td_ksegrp->kg_avail_opennings++;
 	ke->ke_ksegrp->kg_runq_threads--;
 	kseq = KSEQ_CPU(ke->ke_cpu);
 	kseq_runq_rem(kseq, ke);
