@@ -64,6 +64,9 @@ options 	AHD_REG_PRETTY_PRINT	# Print register bitfields in debug
 #options 	SMP			# Symmetric MultiProcessor Kernel
 #options 	APIC_IO			# Symmetric (APIC) I/O
 
+# To support HyperThreading, HTT is needed in addition to SMP and APIC_IO
+#options 	HTT			# HyperThreading Technology
+
 device		isa
 device		eisa
 device		pci
