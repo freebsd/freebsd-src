@@ -442,6 +442,7 @@ options 	NETGRAPH_TEE
 options 	NETGRAPH_TTY
 options 	NETGRAPH_UI
 options 	NETGRAPH_VJC
+options		NETGRAPH_ATM_ATMPIF
 
 # NgATM - Netgraph ATM
 options		NGATM_ATM
