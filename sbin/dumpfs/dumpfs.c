@@ -65,6 +65,7 @@ static const char rcsid[] =
 #include <ufs/ffs/fs.h>
 
 #include <err.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <fstab.h>
 #include <libufs.h>
