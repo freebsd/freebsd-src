@@ -694,7 +694,6 @@ sched_wakeup(struct thread *td)
 		updatepri(kg);
 	kg->kg_slptime = 0;
 	setrunqueue(td);
-	maybe_resched(td);
 }
 
 void
@@ -740,6 +739,7 @@ sched_add(struct thread *td)
 	if ((td->td_proc->p_flag & P_NOLOAD) == 0)
 		sched_tdcnt++;
 	runq_add(ke->ke_runq, ke);
+	maybe_resched(td);
 }
 
 void
