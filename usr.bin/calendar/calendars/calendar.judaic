@@ -1,7 +1,7 @@
 /*
  * Judaic
  *
- * $Id: calendar.judaic,v 1.4 1997/02/22 19:28:22 peter Exp $
+ * $Id: calendar.judaic,v 1.5 1998/01/19 14:34:53 jgrosch Exp $
  */
 
 #ifndef _calendar_judaic_
@@ -18,7 +18,7 @@
 02/07*	Parashat Be-Shallah
 02/07*	Shabbat Shirah
 02/11*	Tu bi-Shevat
-02/14*	Parashat Yitro       
+02/14*	Parashat Yitro
 02/21*	Parashat Mishpatim
 02/21*	Shekalim
 02/21*	Shabbat Mevarekhim 
@@ -48,7 +48,7 @@
 04/25*	Parashat Shemini
 04/25*	Shabbat Mevarekhim
 04/27*	Rosh Chodesh Iyar (Beginning of the month of Iyar)
-04/16*	Pesach (sabbatical)
+04/29*	Yom ha-Zikaron (Israeli Memorial Day)
 04/30*	Yom ha-Atzmaut (Israel Independence Day)
 05/02*	Parashat Tazria/Mezora
 05/09*	Parashat Aharei Mot/Kedoshim
@@ -66,7 +66,7 @@
 06/20*	Parashat Shelah
 06/20*	Shabbat Mevarekhim
 06/25*	Rosh Chodesh Tammuz (Beginning of the month of Tammuz)
-06/27*	Parashat Korah   
+06/27*	Parashat Korah
 07/04*	Parashat Hukkat
 07/11*	Parashat Balak
 07/12*	Fast of Shiv'a Asar B'Tammuz (Romans breach Wall of Jerusalem; 
@@ -126,14 +126,14 @@
 12/12*	Parashat Va-Yeshev
 12/12*	Shabbat Mevarekhim
 12/13*	Erev Hanukkah
-12/14*	Hanukkah
-12/15*	Hanukkah
-12/16*	Hanukkah
-12/17*	Hanukkah
-12/18*	Hanukkah
-12/19*	Hanukkah
-12/20*	Hanukkah
-12/21*	Hanukkah
+12/14*	Hanukkah (First day)
+12/15*	Hanukkah (Second day)
+12/16*	Hanukkah (Third day)
+12/17*	Hanukkah (Fourth day)
+12/18*	Hanukkah (Fifth day)
+12/19*	Hanukkah (Sixth day)
+12/20*	Hanukkah (Seventh day)
+12/21*	Hanukkah (Eighth day)
 12/19*	Parashat Mi-Kez
 12/20*	Rosh Chodesh Tevet (Beginning of the month of Tevet)
 12/26*	Parashat Va-Yiggash
