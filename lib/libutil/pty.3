@@ -23,7 +23,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\" 
-.\" $Id: pty.3,v 1.1 1996/12/29 18:30:42 joerg Exp $
+.\" $Id: pty.3,v 1.2 1996/12/30 21:08:44 mpp Exp $
 .\" "
 .Dd December 29, 1996
 .Os
@@ -52,7 +52,7 @@ The function
 .Fn openpty
 attempts to obtain the next available pseudo-terminal from the system (see
 .Xr pty 4 ) .
-If it successfully found one, it subsequently tries to change the
+If it successfully finds one, it subsequently tries to change the
 ownership of the slave device to the real UID of the current process,
 the group membership to the group
 .Dq tty
@@ -67,7 +67,7 @@ is not
 .Dv NULL ,
 .Fn openpty
 copies the pathname of the slave pty to this area.  The caller is
-responsible to allocate the required space in this array.
+responsible for allocating the required space in this array.
 .Pp
 If the arguments
 .Ar termp
@@ -77,7 +77,7 @@ are not
 .Dv NULL ,
 .Fn openpty
 initializes the termios and window size settings from the structures
-these argument point to, respectively.
+these arguments point to, respectively.
 .Pp
 Upon return, the open file descriptors for the master and slave side
 of the pty are returned in the locations pointed to by
