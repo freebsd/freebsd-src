@@ -39,7 +39,7 @@
  *
  * $FreeBSD$
  */
-VERSION = "$Id: //depot/aic7xxx/aic7xxx/aic79xx.reg#68 $"
+VERSION = "$Id: //depot/aic7xxx/aic7xxx/aic79xx.reg#69 $"
 
 /*
  * This file is processed by the aic7xxx_asm utility for use in assembling
@@ -3842,10 +3842,15 @@ scb {
 	}
 	SCB_LUN {
 		size	1
-		field	LID				0xff
+		field	LID	0xff
 	}
 	SCB_TASK_ATTRIBUTE {
 		size	1
+		/*
+		 * Overloaded field for non-packetized 
+		 * ignore wide residue message handling.
+		 */
+		field	SCB_XFERLEN_ODD	0x01
 	}
 	SCB_CDB_LEN {
 		size	1
