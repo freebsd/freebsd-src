@@ -236,14 +236,10 @@ _fseeko(fp, offset, whence, ltest)
 			goto abspos;
 		curoff += fp->_r;	/* kill off ungetc */
 		n = fp->_extra->_up - fp->_bf._base;
-		if (curoff < 0 && -((off_t)n) < OFF_MIN - curoff)
-			goto abspos;
 		curoff -= n;
 		n += fp->_ur;
 	} else {
 		n = fp->_p - fp->_bf._base;
-		if (curoff < 0 && -((off_t)n) < OFF_MIN - curoff)
-			goto abspos;
 		curoff -= n;
 		n += fp->_r;
 	}
