@@ -138,6 +138,23 @@ static int sysctl_kern_malloc(SYSCTL_HANDLER_ARGS);
 /* time_uptime of last malloc(9) failure */
 static time_t t_malloc_fail;
 
+#ifdef MALLOC_MAKE_FAILURES
+/*
+ * Causes malloc failures every (n) mallocs with M_NOWAIT.  If set to 0,
+ * doesn't cause failures.
+ */
+SYSCTL_NODE(_debug, OID_AUTO, malloc, CTLFLAG_RD, 0,
+    "Kernel malloc debugging options");
+
+static int malloc_failure_rate;
+static int malloc_nowait_count;
+static int malloc_failure_count;
+SYSCTL_INT(_debug_malloc, OID_AUTO, failure_rate, CTLFLAG_RW,
+    &malloc_failure_rate, 0, "Every (n) mallocs with M_NOWAIT will fail");
+SYSCTL_INT(_debug_malloc, OID_AUTO, failure_count, CTLFLAG_RD,
+    &malloc_failure_count, 0, "Number of imposed M_NOWAIT malloc failures");
+#endif
+
 int
 malloc_last_fail(void)
 {
@@ -187,6 +204,15 @@ malloc(size, type, flags)
 #if 0
 	if (size == 0)
 		Debugger("zero size malloc");
+#endif
+#ifdef MALLOC_MAKE_FAILURES
+	if ((flags & M_NOWAIT) && (malloc_failure_rate != 0)) {
+		atomic_add_int(&malloc_nowait_count, 1);
+		if ((malloc_nowait_count % malloc_failure_rate) == 0) {
+			atomic_add_int(&malloc_failure_count, 1);
+			return (NULL);
+		}
+	}
 #endif
 	if (flags & M_WAITOK)
 		KASSERT(curthread->td_intr_nesting_level == 0,
