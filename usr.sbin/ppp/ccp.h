@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ccp.h,v 1.9 1997/11/22 03:37:25 brian Exp $
+ * $Id: ccp.h,v 1.10 1997/12/03 10:23:45 brian Exp $
  *
  *	TODO:
  */
@@ -32,7 +32,8 @@
 #define	TY_GAND		19	/* Gandalf FZA */
 #define	TY_V42BIS	20	/* V.42bis compression */
 #define	TY_BSD		21	/* BSD LZW Compress */
-#define	TY_DEFLATE	24	/* Deflate (gzip) */
+#define	TY_PPPD_DEFLATE	24	/* Deflate (gzip) - (mis) numbered by pppd */
+#define	TY_DEFLATE	26	/* Deflate (gzip) - rfc 1979 */
 
 struct ccpstate {
   u_long his_proto;		/* peer's compression protocol */
