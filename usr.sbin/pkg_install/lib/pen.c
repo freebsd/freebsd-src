@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: pen.c,v 1.16 1995/08/26 10:15:18 jkh Exp $";
+static const char *rcsid = "$Id: pen.c,v 1.17 1995/08/26 18:36:27 jkh Exp $";
 #endif
 
 /*
@@ -74,9 +74,7 @@ make_playpen(char *pen, size_t sz)
 	barf("Can't mkdir '%s'.", Pen);
     if (Verbose)
     {
-	if (!sz)
-	    fprintf(stderr, "Free temp space: %d bytes in %s\n", min_free(Pen), Pen);
-	else
+	if (sz)
 	    fprintf(stderr, "Projected package size: %d bytes,
 free temp space: %d bytes in %s\n", (int)sz, min_free(Pen), Pen);
     }
