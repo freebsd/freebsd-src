@@ -238,10 +238,10 @@ static dpt_sig_S ASR_sig = {
 
 #if defined(__i386__)
 #include <i386/include/cputypes.h>
-#include <i386/include/vmparam.h>
 #elif defined(__alpha__)
 #include <alpha/include/pmap.h>
 #endif
+#include <machine/vmparam.h>
 
 #include <pci/pcivar.h>
 #include <pci/pcireg.h>
