@@ -28,18 +28,22 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+
+__FBSDID("$FreeBSD$");
+
 #include <sys/types.h>
 #include <sys/errno.h>
 #include <sys/stat.h>
+
 #include <err.h>
 #include <stdio.h>
-#include <unistd.h>
-#include <strings.h>
 #include <stdlib.h>
+#include <strings.h>
 #include <sysexits.h>
+#include <unistd.h>
 
 #include <netncp/ncp_lib.h>
 #include <netncp/ncp_rcfile.h>
