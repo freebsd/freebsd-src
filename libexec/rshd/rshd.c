@@ -30,17 +30,17 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: rshd.c,v 1.17 1997/05/10 19:02:03 davidn Exp $
+ *	$Id: rshd.c,v 1.18 1997/07/18 21:04:19 wosch Exp $
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1988, 1989, 1992, 1993, 1994\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)rshd.c	8.2 (Berkeley) 4/6/94";
+static const char sccsid[] = "@(#)rshd.c	8.2 (Berkeley) 4/6/94";
 #endif /* not lint */
 
 /*
@@ -90,7 +90,7 @@ void	 usage __P((void));
 
 #ifdef	KERBEROS
 #include <des.h>
-#include <kerberosIV/krb.h>
+#include <krb.h>
 #define	VERSION_SIZE	9
 #define SECURE_MESSAGE  "This rsh session is using DES encryption for all transmissions.\r\n"
 #define	OPTIONS		"alnkvxL"
@@ -182,6 +182,7 @@ main(argc, argv)
 		syslog(LOG_WARNING, "setsockopt (SO_LINGER): %m");
 	doit(&from);
 	/* NOTREACHED */
+	return(0);
 }
 
 char	username[20] = "USER=";
@@ -419,7 +420,7 @@ doit(fromp)
 				"rcmd", instance, &fromaddr,
 				&local_addr, kdata, "", schedule,
 				version);
-			des_set_key_krb(&kdata->session, schedule);
+			des_set_key(&kdata->session, schedule);
 		} else
 #endif
 			rc = krb_recvauth(authopts, 0, ticket, "rcmd",
@@ -573,7 +574,8 @@ fail:
 				static char msg[] = SECURE_MESSAGE;
 				(void) close(pv1[1]);
 				(void) close(pv2[1]);
-				des_write(s, msg, sizeof(msg) - 1);
+				des_enc_write(s, msg, sizeof(msg) - 1, 
+					schedule, &kdata->session);
 
 			} else
 #endif
@@ -629,7 +631,8 @@ fail:
 #ifdef CRYPT
 #ifdef KERBEROS
 					if (doencrypt)
-						ret = des_read(s, &sig, 1);
+						ret = des_enc_read(s, &sig, 1,
+						schedule, &kdata->session);
 					else
 #endif
 #endif
@@ -650,7 +653,8 @@ fail:
 #ifdef KERBEROS
 						if (doencrypt)
 							(void)
-							  des_write(s, buf, cc);
+							  des_enc_write(s, buf, cc,
+								schedule, &kdata->session);
 						else
 #endif
 #endif
@@ -667,14 +671,16 @@ fail:
 						shutdown(pv1[0], 1+1);
 						FD_CLR(pv1[0], &readfrom);
 					} else
-						(void) des_write(STDOUT_FILENO,
-						    buf, cc);
+						(void) des_enc_write(STDOUT_FILENO,
+						    buf, cc,
+							schedule, &kdata->session);
 				}
 
 				if (doencrypt && FD_ISSET(pv2[0], &wready)) {
 					errno = 0;
-					cc = des_read(STDIN_FILENO,
-					    buf, sizeof(buf));
+					cc = des_enc_read(STDIN_FILENO,
+					    buf, sizeof(buf),
+						schedule, &kdata->session);
 					if (cc <= 0) {
 						shutdown(pv2[0], 1+1);
 						FD_CLR(pv2[0], &writeto);
