@@ -5,6 +5,5 @@ VOLUME=	papers
 DOC=	fsinterface
 SRCS=	fsinterface.ms
 MACROS=	-ms
-USE_TBL=	yes
 
 .include <bsd.doc.mk>
