@@ -167,7 +167,7 @@ hme_config(struct hme_softc *sc)
 	 *
 	 * hme_softc fields that must be initialized by the front-end:
 	 *
-	 * the dma bus tag:
+	 * the DMA bus tag:
 	 *	sc_dmatag
 	 *
 	 * the bus handles, tags and offsets (splitted for SBus compatability):
@@ -175,7 +175,7 @@ hme_config(struct hme_softc *sc)
 	 *	sc_erx{t,h,o}	(Receiver Unit registers)
 	 *	sc_etx{t,h,o}	(Transmitter Unit registers)
 	 *	sc_mac{t,h,o}	(MAC registers)
-	 *	sc_mif{t,h,o}	(Managment Interface registers)
+	 *	sc_mif{t,h,o}	(Management Interface registers)
 	 *
 	 * the maximum bus burst size:
 	 *	sc_burst
@@ -270,7 +270,7 @@ hme_config(struct hme_softc *sc)
 	if_initname(ifp, device_get_name(sc->sc_dev),
 	    device_get_unit(sc->sc_dev));
 	ifp->if_mtu = ETHERMTU;
-	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX |IFF_MULTICAST;
+	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_start = hme_start;
 	ifp->if_ioctl = hme_ioctl;
 	ifp->if_init = hme_init;
@@ -302,7 +302,7 @@ hme_config(struct hme_softc *sc)
 		 * connector.
 		 */
 		if (child->mii_phy > 1 || child->mii_inst > 1) {
-			device_printf(sc->sc_dev, "cannot accomodate "
+			device_printf(sc->sc_dev, "cannot accommodate "
 			    "MII device %s at phy %d, instance %d\n",
 			    device_get_name(child->mii_dev),
 			    child->mii_phy, child->mii_inst);
