@@ -217,7 +217,7 @@ _ftp_cwd(int cd, char *file)
     char *s;
     int e;
 
-    if ((s = strrchr(file, '/')) == NULL) {
+    if ((s = strrchr(file, '/')) == NULL || s == file) {
 	e = _ftp_cmd(cd, "CWD /");
     } else {
 	e = _ftp_cmd(cd, "CWD %.*s", s - file, file);
