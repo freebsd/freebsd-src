@@ -79,9 +79,6 @@ struct cdev {
 	void		*si_drv1, *si_drv2;
 	struct cdevsw	*si_devsw;
 	int		si_iosize_max;	/* maximum I/O size (for physio &al) */
-	uid_t		si_uid;
-	gid_t		si_gid;
-	mode_t		si_mode;
 	u_long		si_usecount;
 	u_long		si_threadcount;
 	union {
@@ -176,7 +173,8 @@ typedef int dumper_t(
  * Version numbers.
  */
 #define D_VERSION_00	0x20011966
-#define D_VERSION	D_VERSION_00
+#define D_VERSION_01	0x17032005	/* Add d_uid,gid,mode & kind */
+#define D_VERSION	D_VERSION_01
 
 /*
  * Flags used for internal housekeeping
@@ -205,6 +203,10 @@ struct cdevsw {
 	d_kqfilter_t		*d_kqfilter;
 	d_purge_t		*d_purge;
 	d_spare2_t		*d_spare2;
+	uid_t			d_uid;
+	gid_t			d_gid;
+	mode_t			d_mode;
+	const char		*d_kind;
 
 	/* These fields should not be messed with by drivers */
 	LIST_ENTRY(cdevsw)	d_list;
