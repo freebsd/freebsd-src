@@ -45,7 +45,7 @@
 #include <netatm/atm_sys.h>
 #include <netatm/atm_cm.h>
 #include <netatm/atm_if.h>
-#include <pci/pcivar.h>
+#include <dev/pci/pcivar.h>
 #include <dev/hfa/fore.h>
 #include <dev/hfa/fore_aali.h>
 #include <dev/hfa/fore_slave.h>
