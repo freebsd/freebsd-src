@@ -2527,7 +2527,7 @@ umass_scsi_transform(struct umass_softc *sc, unsigned char *cmd, int cmdlen,
 		if (sc->quirks & NO_TEST_UNIT_READY) {
 			KASSERT(*rcmdlen >= sizeof(struct scsi_start_stop_unit),
 				("rcmdlen = %d < %d, buffer too small",
-				 rcmdlen, sizeof(struct scsi_start_stop_unit)));
+				 *rcmdlen, sizeof(struct scsi_start_stop_unit)));
 			DPRINTF(UDMASS_SCSI, ("%s: Converted TEST_UNIT_READY "
 				"to START_UNIT\n", USBDEVNAME(sc->sc_dev)));
 			memset(*rcmd, 0, *rcmdlen);
