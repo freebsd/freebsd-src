@@ -3,6 +3,7 @@
 
 PROG=	morse
 #MAN6=	morse.6
+NOMAN=yes
 
 .if ${MACHINE_ARCH} == "i386"
 CFLAGS += -DSPEAKER=\"/dev/speaker\"
