@@ -31,19 +31,19 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+
+__FBSDID("$FreeBSD$");
+
 #ifndef lint
 static const char copyright[] =
 "@(#) Copyright (c) 1988, 1990, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
-#endif /* not lint */
+#endif
 
 #ifndef lint
-#if 0
-static char sccsid[] = "@(#)wall.c	8.2 (Berkeley) 11/16/93";
+static const char sccsid[] = "@(#)wall.c	8.2 (Berkeley) 11/16/93";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
 
 /*
  * This program is not related to David Wall, whose Stanford Ph.D. thesis
@@ -150,7 +150,7 @@ main(int argc, char *argv[])
 			if (!pw)
 				continue;
 			for (g = grouplist; g && ingroup == 0; g = g->next) {
-				if (g->gid == -1)
+				if (g->gid == (gid_t)-1)
 					continue;
 				if (g->gid == pw->pw_gid)
 					ingroup = 1;
@@ -192,7 +192,8 @@ makemsg(char *fname)
 	time_t now;
 	FILE *fp;
 	int fd;
-	char *p, *tty, hostname[MAXHOSTNAMELEN], lbuf[256], tmpname[64];
+	char *p, hostname[MAXHOSTNAMELEN], lbuf[256], tmpname[64];
+	const char *tty;
 	const char *whom;
 	gid_t egid;
 
@@ -290,7 +291,7 @@ makemsg(char *fname)
 	mbufsize = sbuf.st_size;
 	if (!(mbuf = malloc((u_int)mbufsize)))
 		err(1, "out of memory");
-	if (fread(mbuf, sizeof(*mbuf), mbufsize, fp) != mbufsize)
+	if ((int)fread(mbuf, sizeof(*mbuf), mbufsize, fp) != mbufsize)
 		err(1, "can't read temporary file");
 	(void)close(fd);
 }
