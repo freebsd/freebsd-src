@@ -84,7 +84,7 @@ char fwohcicode[32][0x20]={
 	"Undef","ack data_err","ack type_err",""};
 
 #define MAX_SPEED 3
-extern char linkspeed[][0x10];
+extern char *linkspeed[];
 u_int32_t tagbit[4] = { 1 << 28, 1 << 29, 1 << 30, 1 << 31};
 
 static struct tcode_info tinfo[] = {
