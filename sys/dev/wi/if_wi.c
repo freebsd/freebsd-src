@@ -947,17 +947,8 @@ wi_start(struct ifnet *ifp)
 		frmhdr.wi_dat_len = htole16(m0->m_pkthdr.len);
 #if NBPFILTER > 0
 		if (sc->sc_drvbpf) {
-			struct mbuf *mb;
-
-			MGETHDR(mb, M_DONTWAIT, m0->m_type);
-			if (mb != NULL) {
-				mb->m_next = m0;
-				mb->m_data = (caddr_t)&sc->sc_tx_th;
-				mb->m_len = sizeof(sc->sc_tx_th);
-				mb->m_pkthdr.len += mb->m_len;
-				bpf_mtap(sc->sc_drvbpf, mb);
-				m_free(mb);
-			}
+			bpf_mtap2(sc->sc_drvbpf,
+				&sc->sc_tx_th, sizeof(sc->sc_tx_th), m0);
 		}
 #endif
 		if (IFF_DUMPPKTS(ifp))
@@ -1496,29 +1487,16 @@ wi_rx_intr(struct wi_softc *sc)
 
 #if NBPFILTER > 0
 	if (sc->sc_drvbpf) {
-		struct mbuf *mb;
-
-		/* XXX pre-allocate space when setting up recv's */
-		MGETHDR(mb, M_DONTWAIT, m->m_type);
-		if (mb != NULL) {
-			/* XXX replace divide by table */
-			sc->sc_rx_th.wr_rate = frmhdr.wi_rx_rate / 5;
-			sc->sc_rx_th.wr_antsignal =
-				WI_RSSI_TO_DBM(sc, frmhdr.wi_rx_signal);
-			sc->sc_rx_th.wr_antnoise =
-				WI_RSSI_TO_DBM(sc, frmhdr.wi_rx_silence);
-			sc->sc_rx_th.wr_time =
-				htole32((frmhdr.wi_rx_tstamp1 << 16) |
-					frmhdr.wi_rx_tstamp0);
-
-			(void) m_dup_pkthdr(mb, m, M_DONTWAIT);
-			mb->m_next = m;
-			mb->m_data = (caddr_t)&sc->sc_rx_th;
-			mb->m_len = sizeof(sc->sc_rx_th);
-			mb->m_pkthdr.len += mb->m_len;
-			bpf_mtap(sc->sc_drvbpf, mb);
-			m_free(mb);
-		}
+		sc->sc_rx_th.wr_rate = frmhdr.wi_rx_rate / 5;
+		sc->sc_rx_th.wr_antsignal =
+			WI_RSSI_TO_DBM(sc, frmhdr.wi_rx_signal);
+		sc->sc_rx_th.wr_antnoise =
+			WI_RSSI_TO_DBM(sc, frmhdr.wi_rx_silence);
+		sc->sc_rx_th.wr_time =
+			htole32((frmhdr.wi_rx_tstamp1 << 16) |
+				frmhdr.wi_rx_tstamp0);
+		bpf_mtap2(sc->sc_drvbpf,
+			&sc->sc_rx_th, sizeof(sc->sc_rx_th), m);
 	}
 #endif
 	wh = mtod(m, struct ieee80211_frame *);
