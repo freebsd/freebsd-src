@@ -11,7 +11,7 @@
        ${.CURDIR}/../../../contrib/amd/conf/umount
 
 LIB=	amu
-NOMAN=	noman
+INTERNALLIB= YES
 SRCS=	hasmntopt.c misc_rpc.c mount_fs.c mtab.c nfs_prot_xdr.c \
 	util.c wire.c xutil.c
 
@@ -27,7 +27,5 @@ CFLAGS+= -I${.CURDIR}/../../../contrib/amd/libamu \
 
 nfs_prot_x.c: ${NFS_PROT_X}
 	${RPCCOM} -c -C -DWANT_NFS3 ${NFS_PROT_X} -o ${.TARGET}
-
-install:
 
 .include <bsd.lib.mk>
