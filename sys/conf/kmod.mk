@@ -170,10 +170,6 @@ ${KMOD}.kld: ${OBJS}
 .endif
 .endif
 
-.if !exists(/usr/sbin/kldxref)
-NO_XREF=yes
-.endif
-
 _ILINKS=@ machine
 
 all: objwarn ${PROG}
@@ -260,7 +256,10 @@ realinstall:
 	done; true
 .endif
 .if !defined(NO_XREF)
-	-kldxref ${DESTDIR}${KMODDIR}
+	@if type kldxref >/dev/null 2>&1; then \
+		${ECHO} kldxref ${DESTDIR}${KMODDIR}; \
+		kldxref ${DESTDIR}${KMODDIR}; \
+	fi
 .endif
 .endif
 

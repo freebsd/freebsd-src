@@ -216,7 +216,10 @@ SUBDIR=${MODULES_OVERRIDE}
 .if !defined(NO_XREF)
 .MAKEFLAGS:=	${.MAKEFLAGS} -DNO_XREF
 afterinstall:
-	-kldxref ${DESTDIR}${KMODDIR}
+	@if type kldxref >/dev/null 2>&1; then \
+		${ECHO} kldxref ${DESTDIR}${KMODDIR}; \
+		kldxref ${DESTDIR}${KMODDIR}; \
+	fi
 .endif
 
 .include <bsd.subdir.mk>
