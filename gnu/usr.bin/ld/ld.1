@@ -27,7 +27,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\"	$Id: ld.1,v 1.3 1993/11/02 22:56:51 pk Exp $
+.\"	$Id: ld.1,v 1.2 1993/11/09 04:18:53 paul Exp $
 .\"
 .Dd October 14, 1993
 .Dt LD 8
@@ -142,6 +142,8 @@ Produce a NMAGIC output file.
 .It Fl o Ar filename
 Specifies the name of the output file. Defaults to
 .Dq a.out.
+.It Fl Q
+Make a BSD/386 / FreeBSD 1.1 output file.  This is the default.
 .It Fl r
 Produce relocatable object file, suitable for another pass through
 .Nm ld.
@@ -171,9 +173,12 @@ Discard all local symbols in the input files.
 .It Fl y symbol
 Trace the manipulations inflicted on
 .Ar symbol
+.It Fl Z
+Make a NetBSD 0.9 ZMAGIC output file.
 .It Fl z
-Make a ZMAGIC output file. This is the default.
+Make a ZMAGIC output file. This is the older 386BSD / FreeBSD 1.0 format.
 .Sh FILES
+
 .Sh SEE ALSO
 .Xr ldconfig 1 ,
 .Xr link 5
