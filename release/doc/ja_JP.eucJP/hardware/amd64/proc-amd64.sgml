@@ -1,10 +1,26 @@
 <!--
     $FreeBSD$
-    Original revision: 1.1
+    Original revision: 1.2
 -->
 <sect1 id="proc">
   <title>対応プロセッサおよびマザーボード</title>
 
-  <para>We need to write this part.</para>
+  <para>&os;/&arch; は 2003 年の半ばに誕生したもので、&arch.print;
+    (<quote>Hammer</quote>) アーキテクチャに対応しています。
+    最初のお披露目は &os; 5.1-RELEASE をもとにした試験的なリリース
+    でした。</para>
 
+  <para>&os;/&arch; は、執筆時点で Athlon64
+    (<quote>Clawhammer</quote>) と Opteron
+    (<quote>Sledgehammer</quote>) マシンに対応しています。これまでに試験されている
+    最大のメモリ構成は 8GB です。現在、SMP には対応していません。</para>
+
+  <para>&os;/&arch; が対応するドライバについては、ほぼ &os;/i386 と同じです。
+    ドライバ (特に古いもの) によっては、64 ビットに対応していないという問題がありますが、
+    他の 64ビットプラットフォームで正しく動作しているドライバなら、
+    だいたい動作するでしょう。</para>
+
+  <para>&os;/&arch; はまだまだ未完成です。作業の多くは &os; Perforce 
+    リポジトリでおこなわれており、安定してきた後に &os; CVS
+    リポジトリにマージされます。</para>
 </sect1>
