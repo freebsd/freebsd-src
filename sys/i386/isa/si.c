@@ -30,7 +30,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- *	$Id: si.c,v 1.9.2.1 1996/02/23 21:00:51 peter Exp $
+ *	$Id: si.c,v 1.9.2.2 1996/05/05 18:00:30 peter Exp $
  */
 
 #ifndef lint
@@ -78,6 +78,8 @@ static char si_copyright1[] =  "@(#) (C) Specialix International, 1990,1992",
 #undef	FASTPOLL	/* turn on 100Hz poller, (XXX: NOTYET!) */
 #define SI_DEF_HWFLOW	/* turn on default CRTSCTS flow control */
 #define SI_I_HIGH_WATER	(TTYHOG - 2 * SI_BUFFERSIZE)
+#define INT_COUNT 25000	/* max of 125 ints per second */
+#define RXINT_COUNT 1	/* one rxint per 10 milliseconds */
 
 enum si_mctl { GET, SET, BIS, BIC };
 
@@ -521,9 +523,9 @@ siattach(id)
 		return 0;
 	case 1:
 			/* set throttle to 125 intr per second */
-		regp->int_count = 25000;
+		regp->int_count = INT_COUNT;
 			/* rx intr max of 25 timer per second */
-		regp->rx_int_count = 4;
+		regp->rx_int_count = RXINT_COUNT;
 		regp->int_pending = 0;		/* no intr pending */
 		regp->int_scounter = 0;	/* reset counter */
 		break;
