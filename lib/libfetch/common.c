@@ -465,6 +465,7 @@ _fetch_write(conn_t *conn, const char *buf, size_t len)
 		timeout.tv_sec += fetchTimeout;
 	}
 
+	total = 0;
 	while (len > 0) {
 		while (fetchTimeout && !FD_ISSET(conn->sd, &writefds)) {
 			FD_SET(conn->sd, &writefds);
