@@ -76,8 +76,12 @@ but is a macro that expands in-line.
 The
 .Fn getchar
 function
-is equivalent to:
-getc with the argument stdin.
+is equivalent to
+.Fn getc
+with a
+.Fa stream
+of
+.Dv stdin .
 .Pp
 The
 .Fn getw
