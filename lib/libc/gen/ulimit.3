@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 8, 2002
+.Dd January 4, 2003
 .Dt ULIMIT 3
 .Os
 .Sh NAME
@@ -42,12 +42,12 @@ function will get and set process limits.
 Currently this is limited to the maximum file size.
 The
 .Fa cmd
-parameter is one of the following:
-.Bl -tag -width ".Dv UL_GETSIZE"
-.It Dv UL_GETSIZE
+argument is one of the following:
+.Bl -tag -width ".Dv UL_GETFSIZE"
+.It Dv UL_GETFSIZE
 will return the maximum file size in units of 512 blocks of
 the current process.
-.It Dv UL_SETSIZE
+.It Dv UL_SETFSIZE
 will attempt to set the maximum file size of the current
 process and its children with the second argument expressed as a long.
 .El
@@ -56,7 +56,7 @@ Upon successful completion,
 .Fn ulimit
 returns the value requested;
 otherwise the value \-1 is returned and the global variable
-.Ar errno
+.Va errno
 is set to indicate the error.
 .Sh ERRORS
 The
