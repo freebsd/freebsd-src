@@ -55,7 +55,7 @@
  *
  * W. Metzenthen   June 1994.
  *
- *  $Id: fpu_entry.c,v 1.3 1994/06/10 07:44:22 rich Exp $
+ *  $Id: fpu_entry.c,v 1.4 1994/06/22 05:52:14 jkh Exp $
  * 
  */
 
@@ -229,7 +229,7 @@ math_emulate(struct trapframe * tframe)
 #endif
 
 	FPU_lookahead = FPU_LOOKAHEAD;
-	if (curproc->p_flag & STRC)
+	if (curproc->p_flag & P_TRACED)
 		FPU_lookahead = 0;
 
 do_another_FPU_instruction:
