@@ -79,6 +79,13 @@ typedef int l_start_t __P((struct tty *tp));
 typedef int l_modem_t __P((struct tty *tp, int flag));
 
 /*
+ * Types for d_type.
+ */
+#define	D_TAPE	1
+#define	D_DISK	2
+#define	D_TTY	3
+
+/*
  * Block device switch table
  */
 struct bdevsw {

@@ -42,6 +42,8 @@ struct sysent {		/* system call table */
 	int	sy_narg;	/* number of arguments */
 	sy_call_t *sy_call;	/* implementing function */
 };
+#define SCARG(p,k)	((p)->k)	/* get arg from args pointer */
+  /* placeholder till we integrate rest of lite2 syscallargs changes XXX */
 
 struct image_params;
 struct trapframe;

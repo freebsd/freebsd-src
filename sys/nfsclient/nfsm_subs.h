@@ -33,9 +33,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)nfsm_subs.h	8.1 (Berkeley) 6/16/93
+ *	@(#)nfsm_subs.h	8.2 (Berkeley) 3/30/95
  * $FreeBSD$
  */
+
 
 #ifndef _NFS_NFSM_SUBS_H_
 #define _NFS_NFSM_SUBS_H_

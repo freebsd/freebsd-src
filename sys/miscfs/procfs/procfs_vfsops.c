@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)procfs_vfsops.c	8.4 (Berkeley) 1/21/94
+ *	@(#)procfs_vfsops.c	8.7 (Berkeley) 5/10/95
  *
  *	$FreeBSD$
  */
@@ -56,24 +56,14 @@
 #include <miscfs/procfs/procfs.h>
 #include <vm/vm.h>			/* for PAGE_SIZE */
 
-static int	procfs_fhtovp __P((struct mount *mp, struct fid *fhp,
-				   struct mbuf *nam, struct vnode **vpp,
-				   int *exflagsp, struct ucred **credanonp));
-static int	procfs_init __P((void));
+static int	procfs_init __P((struct vfsconf *vfsp));
 static int	procfs_mount __P((struct mount *mp, char *path, caddr_t data,
 				  struct nameidata *ndp, struct proc *p));
-static int	procfs_quotactl __P((struct mount *mp, int cmds, uid_t uid,
-				     caddr_t arg, struct proc *p));
 static int	procfs_start __P((struct mount *mp, int flags, struct proc *p));
 static int	procfs_statfs __P((struct mount *mp, struct statfs *sbp,
 				   struct proc *p));
-static int	procfs_sync __P((struct mount *mp, int waitfor,
-				 struct ucred *cred, struct proc *p));
 static int	procfs_unmount __P((struct mount *mp, int mntflags,
 				    struct proc *p));
-static int	procfs_vget __P((struct mount *mp, ino_t ino,
-				 struct vnode **vpp));
-static int	procfs_vptofh __P((struct vnode *vp, struct fid *fhp));
 
 /*
  * VFS Operations.
@@ -101,7 +91,7 @@ procfs_mount(mp, path, data, ndp, p)
 
 	mp->mnt_flag |= MNT_LOCAL;
 	mp->mnt_data = 0;
-	getnewfsid(mp, MOUNT_PROCFS);
+	vfs_getnewfsid(mp);
 
 	(void) copyinstr(path, (caddr_t)mp->mnt_stat.f_mntonname, MNAMELEN, &size);
 	bzero(mp->mnt_stat.f_mntonname + size, MNAMELEN - size);
@@ -125,12 +115,8 @@ procfs_unmount(mp, mntflags, p)
 	int error;
 	int flags = 0;
 
-	if (mntflags & MNT_FORCE) {
-		/* procfs can never be rootfs so don't check for it */
-		if (!doforce)
-			return (EINVAL);
+	if (mntflags & MNT_FORCE)
 		flags |= FORCECLOSE;
-	}
 
 	error = vflush(mp, 0, flags);
 	if (error)
@@ -144,24 +130,10 @@ procfs_root(mp, vpp)
 	struct mount *mp;
 	struct vnode **vpp;
 {
-	struct pfsnode *pfs;
-	struct vnode *vp;
-	int error;
 
-	error = procfs_allocvp(mp, &vp, (pid_t) 0, Proot);
-	if (error)
-		return (error);
-
-	vp->v_type = VDIR;
-	vp->v_flag = VROOT;
-	pfs = VTOPFS(vp);
-
-	*vpp = vp;
-	return (0);
+	return (procfs_allocvp(mp, vpp, 0, Proot));
 }
 
-/*
- */
 /* ARGSUSED */
 static int
 procfs_start(mp, flags, p)
@@ -182,7 +154,6 @@ procfs_statfs(mp, sbp, p)
 	struct statfs *sbp;
 	struct proc *p;
 {
-	sbp->f_type = MOUNT_PROCFS;
 	sbp->f_bsize = PAGE_SIZE;
 	sbp->f_iosize = PAGE_SIZE;
 	sbp->f_blocks = 1;	/* avoid divide by zero in some df's */
@@ -192,6 +163,7 @@ procfs_statfs(mp, sbp, p)
 	sbp->f_ffree = maxproc - nprocs;	/* approx */
 
 	if (sbp != &mp->mnt_stat) {
+		sbp->f_type = mp->mnt_vfc->vfc_typenum;
 		bcopy(&mp->mnt_stat.f_fsid, &sbp->f_fsid, sizeof(sbp->f_fsid));
 		bcopy(mp->mnt_stat.f_mntonname, sbp->f_mntonname, MNAMELEN);
 		bcopy(mp->mnt_stat.f_mntfromname, sbp->f_mntfromname, MNAMELEN);
@@ -200,68 +172,25 @@ procfs_statfs(mp, sbp, p)
 	return (0);
 }
 
-
 static int
-procfs_quotactl(mp, cmds, uid, arg, p)
-	struct mount *mp;
-	int cmds;
-	uid_t uid;
-	caddr_t arg;
-	struct proc *p;
-{
-
-	return (EOPNOTSUPP);
-}
-
-static int
-procfs_sync(mp, waitfor, cred, p)
-	struct mount *mp;
-	int waitfor;
-	struct ucred *cred;
-	struct proc *p;
+procfs_init(vfsp)
+	struct vfsconf *vfsp;
 {
 
 	return (0);
 }
 
-static int
-procfs_vget(mp, ino, vpp)
-	struct mount *mp;
-	ino_t ino;
-	struct vnode **vpp;
-{
-
-	return (EOPNOTSUPP);
-}
-
-static int
-procfs_fhtovp(mp, fhp, nam, vpp, exflagsp, credanonp)
-	struct mount *mp;
-	struct fid *fhp;
-	struct mbuf *nam;
-	struct vnode **vpp;
-	int *exflagsp;
-	struct ucred **credanonp;
-{
-
-	return (EINVAL);
-}
-
-static int
-procfs_vptofh(vp, fhp)
-	struct vnode *vp;
-	struct fid *fhp;
-{
-
-	return EINVAL;
-}
-
-static int
-procfs_init()
-{
-
-	return (0);
-}
+#define procfs_fhtovp ((int (*) __P((struct mount *, struct fid *, \
+	    struct mbuf *, struct vnode **, int *, struct ucred **)))einval)
+#define procfs_quotactl ((int (*) __P((struct mount *, int, uid_t, caddr_t, \
+	    struct proc *)))eopnotsupp)
+#define procfs_sync ((int (*) __P((struct mount *, int, struct ucred *, \
+	    struct proc *)))nullop)
+#define procfs_sysctl ((int (*) __P((int *, u_int, void *, size_t *, void *, \
+	    size_t, struct proc *)))eopnotsupp)
+#define procfs_vget ((int (*) __P((struct mount *, ino_t, struct vnode **))) \
+	    eopnotsupp)
+#define procfs_vptofh ((int (*) __P((struct vnode *, struct fid *)))einval)
 
 static struct vfsops procfs_vfsops = {
 	procfs_mount,

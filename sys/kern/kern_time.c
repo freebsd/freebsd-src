@@ -139,7 +139,9 @@ settimeofday(p, uap, retval)
 		for (p = allproc.lh_first; p != 0; p = p->p_list.le_next)
 			if (timerisset(&p->p_realtimer.it_value))
 				timevaladd(&p->p_realtimer.it_value, &delta);
-		LEASE_UPDATETIME(delta.tv_sec);
+#		ifdef NFS
+			lease_updatetime(delta.tv_sec);
+#		endif
 		splx(s);
 		resettodr();
 	}

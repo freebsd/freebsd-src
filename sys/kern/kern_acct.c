@@ -49,6 +49,7 @@
 #include <sys/file.h>
 #include <sys/syslog.h>
 #include <sys/kernel.h>
+#include <sys/sysent.h>
 #include <sys/sysctl.h>
 #include <sys/namei.h>
 #include <sys/errno.h>
@@ -101,18 +102,15 @@ SYSCTL_INT(_kern, OID_AUTO, acct_chkfreq, CTLFLAG_RW,
  * Accounting system call.  Written based on the specification and
  * previous implementation done by Mark Tinguely.
  */
-#ifndef _SYS_SYSPROTO_H_
-struct acct_args {
-	char	*path;
-};
-
-#endif
 int
-acct(p, uap, retval)
-	struct proc *p;
-	struct acct_args *uap;
-	int *retval;
+acct(a1, uap, a3)
+	struct proc *a1;
+	struct acct_args /* {
+		syscallarg(char *) path;
+	} */ *uap;
+	int *a3;
 {
+	struct proc *p = curproc;	/* XXX */
 	struct nameidata nd;
 	int error;
 
@@ -125,12 +123,13 @@ acct(p, uap, retval)
 	 * If accounting is to be started to a file, open that file for
 	 * writing and make sure it's a 'normal'.
 	 */
-	if (uap->path != NULL) {
-		NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_USERSPACE, uap->path, p);
+	if (SCARG(uap, path) != NULL) {
+		NDINIT(&nd, LOOKUP, NOFOLLOW, UIO_USERSPACE, SCARG(uap, path),
+		       p);
 		error = vn_open(&nd, FWRITE, 0);
 		if (error)
 			return (error);
-		VOP_UNLOCK(nd.ni_vp);
+		VOP_UNLOCK(nd.ni_vp, 0, p);
 		if (nd.ni_vp->v_type != VREG) {
 			vn_close(nd.ni_vp, FWRITE, p->p_ucred, p);
 			return (EACCES);
@@ -147,7 +146,7 @@ acct(p, uap, retval)
 		    p->p_ucred, p);
 		acctp = savacctp = NULLVP;
 	}
-	if (uap->path == NULL)
+	if (SCARG(uap, path) == NULL)
 		return (error);
 
 	/*
@@ -228,7 +227,7 @@ acct_process(p)
 	/*
 	 * Now, just write the accounting information to the file.
 	 */
-	LEASE_CHECK(vp, p, p->p_ucred, LEASE_WRITE);
+	VOP_LEASE(vp, p, p->p_ucred, LEASE_WRITE);
 	return (vn_rdwr(UIO_WRITE, vp, (caddr_t)&acct, sizeof (acct),
 	    (off_t)0, UIO_SYSSPACE, IO_APPEND|IO_UNIT, p->p_ucred,
 	    (int *)0, p));
@@ -298,7 +297,9 @@ acctwatch(a)
 			savacctp = NULLVP;
 			log(LOG_NOTICE, "Accounting resumed\n");
 		}
-	} else if (acctp != NULLVP) {
+	} else {
+		if (acctp == NULLVP)
+			return;
 		if (acctp->v_type == VBAD) {
 			(void) vn_close(acctp, FWRITE, NOCRED, NULL);
 			acctp = NULLVP;
@@ -310,7 +311,6 @@ acctwatch(a)
 			acctp = NULLVP;
 			log(LOG_NOTICE, "Accounting suspended\n");
 		}
-	} else
-		return;
+	}
 	timeout(acctwatch, NULL, acctchkfreq * hz);
 }

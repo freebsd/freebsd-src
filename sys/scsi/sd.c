@@ -1,3 +1,4 @@
+
 /*
  * Written by Julian Elischer (julian@dialix.oz.au)
  * for TRW Financial Systems for use under the MACH(2.5) operating system.
@@ -120,7 +121,7 @@ static	d_strategy_t	sdstrategy;
 static struct cdevsw sd_cdevsw;
 static struct bdevsw sd_bdevsw = 
 	{ sdopen,	sdclose,	sdstrategy,	sdioctl,	/*4*/
-	  sddump,	sdsize,		0,	"sd",	&sd_cdevsw,	-1 };
+	  sddump,	sdsize,		D_DISK,	"sd",	&sd_cdevsw,	-1 };
 
 
 

@@ -72,7 +72,7 @@ struct tty {
 	long	t_cancc;		/* Canonical queue statistics. */
 	struct	clist t_outq;		/* Device output queue. */
 	long	t_outcc;		/* Output queue statistics. */
-	int	t_line;			/* Interface to device drivers. */
+	u_char	t_line;			/* Interface to device drivers. */
 	dev_t	t_dev;			/* Device. */
 	int	t_state;		/* Device and driver (TS*) state. */
 	int	t_flags;		/* Tty flags. */

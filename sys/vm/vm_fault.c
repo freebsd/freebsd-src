@@ -86,7 +86,7 @@
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/vm_prot.h>
-#include <vm/lock.h>
+#include <sys/lock.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 #include <vm/vm_object.h>
@@ -146,6 +146,7 @@ vm_fault(map, vaddr, fault_type, change_wiring)
 	vm_page_t marray[VM_FAULT_READ];
 	int hardfault = 0;
 	struct vnode *vp = NULL;
+	struct proc *p = curproc;	/* XXX */
 
 	cnt.v_vm_faults++;	/* needs lock XXX */
 /*
@@ -175,7 +176,7 @@ vm_fault(map, vaddr, fault_type, change_wiring)
 		vm_object_pip_wakeup(first_object); \
 	}						\
 	UNLOCK_MAP;					\
-	if (vp != NULL) VOP_UNLOCK(vp);			\
+	if (vp != NULL) VOP_UNLOCK(vp, 0, p);		\
 }
 
 #define	UNLOCK_AND_DEALLOCATE	{			\

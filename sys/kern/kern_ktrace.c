@@ -271,7 +271,7 @@ ktrace(curp, uap, retval)
 			return (error);
 		}
 		vp = nd.ni_vp;
-		VOP_UNLOCK(vp);
+		VOP_UNLOCK(vp, 0, curp);
 		if (vp->v_type != VREG) {
 			(void) vn_close(vp, FREAD|FWRITE, curp->p_ucred, curp);
 			curp->p_traceflag &= ~KTRFAC_ACTIVE;
@@ -478,9 +478,9 @@ ktrwrite(vp, kth)
 		aiov[1].iov_len = kth->ktr_len;
 		auio.uio_resid += kth->ktr_len;
 	}
-	VOP_LOCK(vp);
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
 	error = VOP_WRITE(vp, &auio, IO_UNIT|IO_APPEND, p->p_ucred);
-	VOP_UNLOCK(vp);
+	VOP_UNLOCK(vp, 0, p);
 	if (!error)
 		return;
 	/*

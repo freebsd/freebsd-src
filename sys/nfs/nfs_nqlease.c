@@ -33,9 +33,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)nfs_nqlease.c	8.3 (Berkeley) 1/4/94
+ *	@(#)nfs_nqlease.c	8.9 (Berkeley) 5/20/95
  * $FreeBSD$
  */
+
 
 /*
  * References:
@@ -84,11 +85,8 @@ struct vop_lease_args;
 
 static int	nqsrv_cmpnam __P((struct nfssvc_sock *,struct mbuf *,
 			struct nqhost *));
-extern void	nqnfs_lease_check __P((struct vnode *vp, struct proc *p,
-				       struct ucred *cred, int flag));
 extern void	nqnfs_lease_updatetime __P((int deltat));
 static int	nqnfs_vacated __P((struct vnode *vp, struct ucred *cred));
-extern int	nqnfs_vop_lease_check __P((struct vop_lease_args *ap));
 static void	nqsrv_addhost __P((struct nqhost *lph, struct nfssvc_sock *slp,
 				   struct mbuf *nam));
 static void	nqsrv_instimeq __P((struct nqlease *lp, u_long duration));
@@ -136,6 +134,7 @@ extern nfstype nfsv3_type[9];
 extern struct nfssvc_sock *nfs_udpsock, *nfs_cltpsock;
 extern int nfsd_waiting;
 extern struct nfsstats nfsstats;
+extern int nfs_mount_type;
 
 #define TRUE	1
 #define	FALSE	0
@@ -349,7 +348,6 @@ nqnfs_lease_check(vp, p, cred, flag)
 
 #endif /* NFS_NOSERVER */
 
-#ifdef HAS_VOPLEASE
 int
 nqnfs_vop_lease_check(ap)
 	struct vop_lease_args /* {
@@ -367,7 +365,6 @@ nqnfs_vop_lease_check(ap)
 	    NQLOCALSLP, ap->a_p, (struct mbuf *)0, &cache, &frev, ap->a_cred);
 	return (0);
 }
-#endif
 
 /*
  * Add a host to an nqhost structure for a lease.
@@ -1090,7 +1087,7 @@ nqnfs_clientd(nmp, cred, ncd, flag, argp, p)
 			vp = NFSTOV(np);
 			vpid = vp->v_id;
 			if (np->n_expiry < time.tv_sec) {
-			   if (vget(vp, 1) == 0) {
+			   if (vget(vp, LK_EXCLUSIVE, p) == 0) {
 			     nmp->nm_inprog = vp;
 			     if (vpid == vp->v_id) {
 				CIRCLEQ_REMOVE(&nmp->nm_timerhead, np, n_timer);
@@ -1115,7 +1112,7 @@ nqnfs_clientd(nmp, cred, ncd, flag, argp, p)
 			} else if ((np->n_expiry - NQ_RENEWAL) < time.tv_sec) {
 			    if ((np->n_flag & (NQNFSWRITE | NQNFSNONCACHE))
 				 == NQNFSWRITE && vp->v_dirtyblkhd.lh_first &&
-				 vget(vp, 1) == 0) {
+				 vget(vp, LK_EXCLUSIVE, p) == 0) {
 				 nmp->nm_inprog = vp;
 				 if (vpid == vp->v_id &&
 				     nqnfs_getlease(vp, ND_WRITE, cred, p)==0)
@@ -1179,9 +1176,10 @@ void
 nqnfs_lease_updatetime(deltat)
 	register int deltat;
 {
-	register struct nqlease *lp;
-	register struct nfsnode *np;
-	struct mount *mp;
+	struct proc *p = curproc;	/* XXX */
+	struct nqlease *lp;
+	struct nfsnode *np;
+	struct mount *mp, *nxtmp;
 	struct nfsmount *nmp;
 	int s;
 
@@ -1197,13 +1195,13 @@ nqnfs_lease_updatetime(deltat)
 	 * Search the mount list for all nqnfs mounts and do their timer
 	 * queues.
 	 */
-	for (mp = mountlist.cqh_first; mp != (void *)&mountlist;
-		 mp = mp->mnt_list.cqe_next) {
-#ifdef __NetBSD__
-		if (!strcmp(&mp->mnt_stat.f_fstypename[0], MOUNT_NFS)) {
-#else
-		if (mp->mnt_stat.f_fsid.val[1] == MOUNT_NFS) {
-#endif
+	simple_lock(&mountlist_slock);
+	for (mp = mountlist.cqh_first; mp != (void *)&mountlist; mp = nxtmp) {
+		if (vfs_busy(mp, LK_NOWAIT, &mountlist_slock, p)) {
+			nxtmp = mp->mnt_list.cqe_next;
+			continue;
+		}
+		if (mp->mnt_stat.f_type == nfs_mount_type) {
 			nmp = VFSTONFS(mp);
 			if (nmp->nm_flag & NFSMNT_NQNFS) {
 				for (np = nmp->nm_timerhead.cqh_first;
@@ -1213,7 +1211,11 @@ nqnfs_lease_updatetime(deltat)
 				}
 			}
 		}
+		simple_lock(&mountlist_slock);
+		nxtmp = mp->mnt_list.cqe_next;
+		vfs_unbusy(mp, p);
 	}
+	simple_unlock(&mountlist_slock);
 }
 
 /*

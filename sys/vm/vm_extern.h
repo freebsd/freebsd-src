@@ -91,7 +91,7 @@ struct vmspace *vmspace_fork __P((struct vmspace *));
 void vmspace_free __P((struct vmspace *));
 void vnode_pager_setsize __P((struct vnode *, vm_ooffset_t));
 void vnode_pager_umount __P((struct mount *));
-void vnode_pager_uncache __P((struct vnode *));
+void vnode_pager_uncache __P((struct vnode *, struct proc *));
 void vslock __P((caddr_t, u_int));
 void vsunlock __P((caddr_t, u_int, int));
 void vm_object_print __P((/* db_expr_t */ int, boolean_t, /* db_expr_t */ int,

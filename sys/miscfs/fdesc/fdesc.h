@@ -61,8 +61,7 @@ typedef enum {
 } fdntype;
 
 struct fdescnode {
-	struct fdescnode *fd_forw;	/* Hash chain */
-	struct fdescnode *fd_back;
+	LIST_ENTRY(fdescnode) fd_hash;	/* Hash list */
 	struct vnode	*fd_vnode;	/* Back ptr to vnode */
 	fdntype		fd_type;	/* Type of this node */
 	unsigned	fd_fd;		/* Fd to be dup'ed */
@@ -74,7 +73,7 @@ struct fdescnode {
 #define	VTOFDESC(vp) ((struct fdescnode *)(vp)->v_data)
 
 extern dev_t devctty;
-extern int fdesc_init __P((void));
+extern int fdesc_init __P((struct vfsconf *));
 extern int fdesc_root __P((struct mount *, struct vnode **));
 extern int fdesc_allocvp __P((fdntype, int, struct mount *, struct vnode **));
 extern vop_t **fdesc_vnodeop_p;

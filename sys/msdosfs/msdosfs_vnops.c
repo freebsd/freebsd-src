@@ -1172,17 +1172,17 @@ msdosfs_rename(ap)
 	 */
 	if (newparent == 0) {
 		/* tddep and fddep point to the same denode here */
-		VOP_LOCK(ap->a_fvp);	/* ap->a_fdvp is already locked */
+		vn_lock(ap->a_fvp, LK_EXCLUSIVE | LK_RETRY, curproc);	/* ap->a_fdvp is already locked */
 		error = readep(fddep->de_pmp, fdep->de_dirclust,
 				   fdep->de_diroffset, &bp, &ep);
 		if (error) {
-			VOP_UNLOCK(ap->a_fvp);
+			VOP_UNLOCK(ap->a_fvp, 0, curproc);
 			goto bad;
 		}
 		bcopy(toname, ep->deName, 11);
 		error = bwrite(bp);
 		if (error) {
-			VOP_UNLOCK(ap->a_fvp);
+			VOP_UNLOCK(ap->a_fvp, 0, curproc);
 			goto bad;
 		}
 		bcopy(toname, fdep->de_Name, 11);	/* update denode */
@@ -1204,7 +1204,7 @@ msdosfs_rename(ap)
 		 * will also insure that the directory entry on disk has a
 		 * filesize of zero.
 		 */
-		VOP_LOCK(ap->a_fvp);
+		vn_lock(ap->a_fvp, LK_EXCLUSIVE | LK_RETRY, curproc);
 		bcopy(toname, fdep->de_Name, 11);	/* update denode */
 		if (fdep->de_Attributes & ATTR_DIRECTORY) {
 			dirsize = fdep->de_FileSize;
@@ -1216,22 +1216,22 @@ msdosfs_rename(ap)
 		}
 		if (error) {
 			/* should put back filename */
-			VOP_UNLOCK(ap->a_fvp);
+			VOP_UNLOCK(ap->a_fvp, 0, curproc);
 			goto bad;
 		}
-		VOP_LOCK(ap->a_fdvp);
+		vn_lock(ap->a_fdvp, LK_EXCLUSIVE | LK_RETRY, curproc);
 		error = readep(fddep->de_pmp, fddep->de_fndclust,
 				   fddep->de_fndoffset, &bp, &ep);
 		if (error) {
-			VOP_UNLOCK(ap->a_fvp);
-			VOP_UNLOCK(ap->a_fdvp);
+			VOP_UNLOCK(ap->a_fvp, 0, curproc);
+			VOP_UNLOCK(ap->a_fdvp, 0, curproc);
 			goto bad;
 		}
 		ep->deName[0] = SLOT_DELETED;
 		error = bwrite(bp);
 		if (error) {
-			VOP_UNLOCK(ap->a_fvp);
-			VOP_UNLOCK(ap->a_fdvp);
+			VOP_UNLOCK(ap->a_fvp, 0, curproc);
+			VOP_UNLOCK(ap->a_fdvp, 0, curproc);
 			goto bad;
 		}
 		if (!sourceisadirectory) {
@@ -1239,7 +1239,7 @@ msdosfs_rename(ap)
 			fdep->de_diroffset = tddep->de_fndoffset;
 			reinsert(fdep);
 		}
-		VOP_UNLOCK(ap->a_fdvp);
+		VOP_UNLOCK(ap->a_fdvp, 0, curproc);
 	}
 	/* fdep is still locked here */
 
@@ -1259,19 +1259,19 @@ msdosfs_rename(ap)
 			      NOCRED, &bp);
 		if (error) {
 			/* should really panic here, fs is corrupt */
-			VOP_UNLOCK(ap->a_fvp);
+			VOP_UNLOCK(ap->a_fvp, 0, curproc);
 			goto bad;
 		}
 		dotdotp = (struct direntry *) bp->b_data + 1;
 		putushort(dotdotp->deStartCluster, tddep->de_StartCluster);
 		error = bwrite(bp);
-		VOP_UNLOCK(ap->a_fvp);
+		VOP_UNLOCK(ap->a_fvp, 0, curproc);
 		if (error) {
 			/* should really panic here, fs is corrupt */
 			goto bad;
 		}
 	} else
-		VOP_UNLOCK(ap->a_fvp);
+		VOP_UNLOCK(ap->a_fvp, 0, curproc);
 bad:	;
 	vrele(DETOV(fdep));
 	vrele(DETOV(fddep));

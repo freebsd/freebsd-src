@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)ffs_vnops.c	8.7 (Berkeley) 2/3/94
+ *	@(#)ffs_vnops.c	8.15 (Berkeley) 5/14/95
  * $FreeBSD$
  */
 
@@ -62,6 +62,7 @@
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/inode.h>
 #include <ufs/ufs/dir.h>
+#include <ufs/ufs/ufsmount.h>
 #include <ufs/ufs/ufs_extern.h>
 
 #include <ufs/ffs/fs.h>
@@ -78,6 +79,7 @@ static struct vnodeopv_entry_desc ffs_vnodeop_entries[] = {
 	{ &vop_default_desc, (vop_t *)vn_default_error },
 	{ &vop_lookup_desc, (vop_t *)ufs_lookup },	/* lookup */
 	{ &vop_create_desc, (vop_t *)ufs_create },	/* create */
+	{ &vop_whiteout_desc, (vop_t *)ufs_whiteout },	/* whiteout */
 	{ &vop_mknod_desc, (vop_t *)ufs_mknod },	/* mknod */
 	{ &vop_open_desc, (vop_t *)ufs_open },		/* open */
 	{ &vop_close_desc, (vop_t *)ufs_close },	/* close */
@@ -86,8 +88,10 @@ static struct vnodeopv_entry_desc ffs_vnodeop_entries[] = {
 	{ &vop_setattr_desc, (vop_t *)ufs_setattr },	/* setattr */
 	{ &vop_read_desc, (vop_t *)ffs_read },		/* read */
 	{ &vop_write_desc, (vop_t *)ffs_write },	/* write */
+	{ &vop_lease_desc, (vop_t *)ufs_lease_check },	/* lease */
 	{ &vop_ioctl_desc, (vop_t *)ufs_ioctl },	/* ioctl */
 	{ &vop_select_desc, (vop_t *)ufs_select },	/* select */
+	{ &vop_revoke_desc, (vop_t *)ufs_revoke },	/* revoke */
 	{ &vop_mmap_desc, (vop_t *)ufs_mmap },		/* mmap */
 	{ &vop_fsync_desc, (vop_t *)ffs_fsync },	/* fsync */
 	{ &vop_seek_desc, (vop_t *)ufs_seek },		/* seek */
@@ -101,7 +105,7 @@ static struct vnodeopv_entry_desc ffs_vnodeop_entries[] = {
 	{ &vop_readlink_desc, (vop_t *)ufs_readlink },	/* readlink */
 	{ &vop_abortop_desc, (vop_t *)ufs_abortop },	/* abortop */
 	{ &vop_inactive_desc, (vop_t *)ufs_inactive },	/* inactive */
-	{ &vop_reclaim_desc, (vop_t *)ufs_reclaim },	/* reclaim */
+	{ &vop_reclaim_desc, (vop_t *)ffs_reclaim },	/* reclaim */
 	{ &vop_lock_desc, (vop_t *)ufs_lock },		/* lock */
 	{ &vop_unlock_desc, (vop_t *)ufs_unlock },	/* unlock */
 	{ &vop_bmap_desc, (vop_t *)ufs_bmap },		/* bmap */
@@ -136,8 +140,10 @@ static struct vnodeopv_entry_desc ffs_specop_entries[] = {
 	{ &vop_setattr_desc, (vop_t *)ufs_setattr },	/* setattr */
 	{ &vop_read_desc, (vop_t *)ufsspec_read },	/* read */
 	{ &vop_write_desc, (vop_t *)ufsspec_write },	/* write */
+	{ &vop_lease_desc, (vop_t *)spec_lease_check },	/* lease */
 	{ &vop_ioctl_desc, (vop_t *)spec_ioctl },	/* ioctl */
 	{ &vop_select_desc, (vop_t *)spec_select },	/* select */
+	{ &vop_revoke_desc, (vop_t *)spec_revoke },	/* revoke */
 	{ &vop_mmap_desc, (vop_t *)spec_mmap },		/* mmap */
 	{ &vop_fsync_desc, (vop_t *)ffs_fsync },	/* fsync */
 	{ &vop_seek_desc, (vop_t *)spec_seek },		/* seek */
@@ -151,7 +157,7 @@ static struct vnodeopv_entry_desc ffs_specop_entries[] = {
 	{ &vop_readlink_desc, (vop_t *)spec_readlink },	/* readlink */
 	{ &vop_abortop_desc, (vop_t *)spec_abortop },	/* abortop */
 	{ &vop_inactive_desc, (vop_t *)ufs_inactive },	/* inactive */
-	{ &vop_reclaim_desc, (vop_t *)ufs_reclaim },	/* reclaim */
+	{ &vop_reclaim_desc, (vop_t *)ffs_reclaim },	/* reclaim */
 	{ &vop_lock_desc, (vop_t *)ufs_lock },		/* lock */
 	{ &vop_unlock_desc, (vop_t *)ufs_unlock },	/* unlock */
 	{ &vop_bmap_desc, (vop_t *)spec_bmap },		/* bmap */
@@ -186,8 +192,10 @@ static struct vnodeopv_entry_desc ffs_fifoop_entries[] = {
 	{ &vop_setattr_desc, (vop_t *)ufs_setattr },	/* setattr */
 	{ &vop_read_desc, (vop_t *)ufsfifo_read },	/* read */
 	{ &vop_write_desc, (vop_t *)ufsfifo_write },	/* write */
+	{ &vop_lease_desc, (vop_t *)fifo_lease_check },	/* lease */
 	{ &vop_ioctl_desc, (vop_t *)fifo_ioctl },	/* ioctl */
 	{ &vop_select_desc, (vop_t *)fifo_select },	/* select */
+	{ &vop_revoke_desc, (vop_t *)fifo_revoke },	/* revoke */
 	{ &vop_mmap_desc, (vop_t *)fifo_mmap },		/* mmap */
 	{ &vop_fsync_desc, (vop_t *)ffs_fsync },	/* fsync */
 	{ &vop_seek_desc, (vop_t *)fifo_seek },		/* seek */
@@ -201,7 +209,7 @@ static struct vnodeopv_entry_desc ffs_fifoop_entries[] = {
 	{ &vop_readlink_desc, (vop_t *)fifo_readlink },	/* readlink */
 	{ &vop_abortop_desc, (vop_t *)fifo_abortop },	/* abortop */
 	{ &vop_inactive_desc, (vop_t *)ufs_inactive },	/* inactive */
-	{ &vop_reclaim_desc, (vop_t *)ufs_reclaim },	/* reclaim */
+	{ &vop_reclaim_desc, (vop_t *)ffs_reclaim },	/* reclaim */
 	{ &vop_lock_desc, (vop_t *)ufs_lock },		/* lock */
 	{ &vop_unlock_desc, (vop_t *)ufs_unlock },	/* unlock */
 	{ &vop_bmap_desc, (vop_t *)fifo_bmap },		/* bmap */
@@ -226,20 +234,16 @@ VNODEOP_SET(ffs_vnodeop_opv_desc);
 VNODEOP_SET(ffs_specop_opv_desc);
 VNODEOP_SET(ffs_fifoop_opv_desc);
 
-#ifdef DEBUG
 /*
  * Enabling cluster read/write operations.
  */
-#include <sys/sysctl.h>
 int doclusterread = 1;
-SYSCTL_INT(_debug, 11, doclusterread, CTLFLAG_RW, &doclusterread, 0, "");
 int doclusterwrite = 1;
-SYSCTL_INT(_debug, 12, doclusterwrite, CTLFLAG_RW, &doclusterwrite, 0, "");
-#else
-/* XXX for ufs_readwrite */
-#define doclusterread 1
-#define doclusterwrite 1
-#endif
+
+#include <sys/sysctl.h>
+SYSCTL_NODE(_vfs_ffs, MOUNT_UFS, ffs, CTLFLAG_RW, 0, "FFS");
+SYSCTL_INT(_vfs_ffs, FFS_CLUSTERREAD, doclusterread, CTLFLAG_RW, &doclusterread, 0, "");
+SYSCTL_INT(_vfs_ffs, FFS_CLUSTERWRITE, doclusterwrite, CTLFLAG_RW, &doclusterwrite, 0, "");
 
 #include <ufs/ufs/ufs_readwrite.c>
 
@@ -319,4 +323,25 @@ loop:
 
 	tv = time;
 	return (VOP_UPDATE(ap->a_vp, &tv, &tv, ap->a_waitfor == MNT_WAIT));
+}
+
+/*
+ * Reclaim an inode so that it can be used for other purposes.
+ */
+int
+ffs_reclaim(ap)
+	struct vop_reclaim_args /* {
+		struct vnode *a_vp;
+		struct proc *a_p;
+	} */ *ap;
+{
+	register struct vnode *vp = ap->a_vp;
+	int error;
+
+	if (error = ufs_reclaim(vp, ap->a_p))
+		return (error);
+	FREE(vp->v_data, VFSTOUFS(vp->v_mount)->um_devvp->v_tag == VT_MFS ?
+	    M_MFSNODE : M_FFSNODE);
+	vp->v_data = NULL;
+	return (0);
 }

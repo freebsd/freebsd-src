@@ -80,7 +80,7 @@
 #include <vm/vm_param.h>
 #include <vm/vm_prot.h>
 #include <vm/vm_inherit.h>
-#include <vm/lock.h>
+#include <sys/lock.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 #include <vm/vm_page.h>
@@ -283,9 +283,9 @@ vm_map_create(pmap, min, max, pageable)
 
 	if (kmem_map == NULL) {
 		result = kmap_free;
-		kmap_free = (vm_map_t) result->header.next;
 		if (result == NULL)
 			panic("vm_map_create: out of maps");
+		kmap_free = (vm_map_t) result->header.next;
 	} else
 		MALLOC(result, vm_map_t, sizeof(struct vm_map),
 		    M_VMMAP, M_WAITOK);
@@ -317,7 +317,8 @@ vm_map_init(map, min, max, pageable)
 	map->first_free = &map->header;
 	map->hint = &map->header;
 	map->timestamp = 0;
-	lock_init(&map->lock, TRUE);
+	lockinit(&map->lock, PVM, "thrd_sleep", 0, 0);
+	simple_lock_init(&map->ref_lock);
 }
 
 /*
@@ -486,7 +487,7 @@ vm_map_deallocate(map)
 	 * Lock the map, to wait out all other references to it.
 	 */
 
-	vm_map_lock(map);
+	vm_map_lock_drain_interlock(map);
 	(void) vm_map_delete(map, map->min_offset, map->max_offset);
 	--map->ref_count;
 	if( map->ref_count != 0) {
@@ -495,6 +496,9 @@ vm_map_deallocate(map)
 	}
 
 	pmap_destroy(map->pmap);
+
+	vm_map_unlock(map);
+
 	FREE(map, M_VMMAP);
 }
 
@@ -1367,7 +1371,7 @@ vm_map_user_pageable(map, start, end, new_pageable)
 		 * becomes completely unwired, unwire its physical pages and
 		 * mappings.
 		 */
-		lock_set_recursive(&map->lock);
+		vm_map_set_recursive(map);
 
 		entry = start_entry;
 		while ((entry != &map->header) && (entry->start < end)) {
@@ -1381,7 +1385,7 @@ vm_map_user_pageable(map, start, end, new_pageable)
 			entry = entry->next;
 		}
 		vm_map_simplify_entry(map, start_entry);
-		lock_clear_recursive(&map->lock);
+		vm_map_clear_recursive(map);
 	} else {
 
 		/*
@@ -1438,25 +1442,35 @@ vm_map_user_pageable(map, start, end, new_pageable)
 			entry->eflags |= MAP_ENTRY_USER_WIRED;
 
 			/* First we need to allow map modifications */
-			lock_set_recursive(&map->lock);
-			lock_write_to_read(&map->lock);
+			vm_map_set_recursive(map);
+			if (lockmgr(&map->lock, LK_EXCLUPGRADE,
+				(void *)0, curproc)) {
+				entry->wired_count--;
+				entry->eflags &= ~MAP_ENTRY_USER_WIRED;
 
+				vm_map_clear_recursive(map);
+				vm_map_unlock(map);
+
+				(void) vm_map_user_pageable(map, start, entry->start, TRUE);
+				return rv;
+			}
+
+				
 			rv = vm_fault_user_wire(map, entry->start, entry->end);
 			if (rv) {
 
 				entry->wired_count--;
 				entry->eflags &= ~MAP_ENTRY_USER_WIRED;
 
-				lock_clear_recursive(&map->lock);
+				vm_map_clear_recursive(map);
 				vm_map_unlock(map);
 				
 				(void) vm_map_user_pageable(map, start, entry->start, TRUE);
 				return rv;
 			}
 
-			lock_clear_recursive(&map->lock);
-			vm_map_unlock(map);
-			vm_map_lock(map);
+			vm_map_clear_recursive(map);
+			lockmgr(&map->lock, LK_DOWNGRADE, (void *)0, curproc);
 
 			goto rescan;
 		}
@@ -1536,7 +1550,7 @@ vm_map_pageable(map, start, end, new_pageable)
 		 * becomes completely unwired, unwire its physical pages and
 		 * mappings.
 		 */
-		lock_set_recursive(&map->lock);
+		vm_map_set_recursive(map);
 
 		entry = start_entry;
 		while ((entry != &map->header) && (entry->start < end)) {
@@ -1549,7 +1563,7 @@ vm_map_pageable(map, start, end, new_pageable)
 			entry = entry->next;
 		}
 		vm_map_simplify_entry(map, start_entry);
-		lock_clear_recursive(&map->lock);
+		vm_map_clear_recursive(map);
 	} else {
 		/*
 		 * Wiring.  We must do this in two passes:
@@ -1655,8 +1669,8 @@ vm_map_pageable(map, start, end, new_pageable)
 		if (vm_map_pmap(map) == kernel_pmap) {
 			vm_map_unlock(map);	/* trust me ... */
 		} else {
-			lock_set_recursive(&map->lock);
-			lock_write_to_read(&map->lock);
+			vm_map_set_recursive(map);
+			lockmgr(&map->lock, LK_DOWNGRADE, (void*)0, curproc);
 		}
 
 		rv = 0;
@@ -1686,7 +1700,7 @@ vm_map_pageable(map, start, end, new_pageable)
 		if (vm_map_pmap(map) == kernel_pmap) {
 			vm_map_lock(map);
 		} else {
-			lock_clear_recursive(&map->lock);
+			vm_map_clear_recursive(map);
 		}
 		if (rv) {
 			vm_map_unlock(map);
@@ -2379,7 +2393,8 @@ RetryLookup:;
 			 * object.
 			 */
 
-			if (lock_read_to_write(&share_map->lock)) {
+			if (lockmgr(&share_map->lock, LK_EXCLUPGRADE,
+					(void *)0, curproc)) {
 				if (share_map != map)
 					vm_map_unlock_read(map);
 				goto RetryLookup;
@@ -2391,7 +2406,8 @@ RetryLookup:;
 
 			entry->eflags &= ~MAP_ENTRY_NEEDS_COPY;
 
-			lock_write_to_read(&share_map->lock);
+			lockmgr(&share_map->lock, LK_DOWNGRADE,
+				(void *)0, curproc);
 		} else {
 			/*
 			 * We're attempting to read a copy-on-write page --
@@ -2406,7 +2422,8 @@ RetryLookup:;
 	 */
 	if (entry->object.vm_object == NULL) {
 
-		if (lock_read_to_write(&share_map->lock)) {
+		if (lockmgr(&share_map->lock, LK_EXCLUPGRADE,
+				(void *)0, curproc)) {
 			if (share_map != map)
 				vm_map_unlock_read(map);
 			goto RetryLookup;
@@ -2414,7 +2431,7 @@ RetryLookup:;
 		entry->object.vm_object = vm_object_allocate(OBJT_DEFAULT,
 		    OFF_TO_IDX(entry->end - entry->start));
 		entry->offset = 0;
-		lock_write_to_read(&share_map->lock);
+		lockmgr(&share_map->lock, LK_DOWNGRADE, (void *)0, curproc);
 	}
 
 	if (entry->object.vm_object != NULL)

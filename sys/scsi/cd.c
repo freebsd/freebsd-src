@@ -75,7 +75,7 @@ static	d_strategy_t	cdstrategy;
 static struct cdevsw cd_cdevsw;
 static struct bdevsw cd_bdevsw = 
 	{ cdopen,	cdclose,	cdstrategy,	cdioctl,	/*6*/
-	  nodump,	nopsize,	0,	"cd",	&cd_cdevsw,	-1 };
+	  nodump,	nopsize,	D_DISK,	"cd",	&cd_cdevsw,	-1 };
 
 
 static int32_t cdstrats, cdqueues;

@@ -222,12 +222,12 @@ struct lkm_table {
 		sysentp				\
 	}
 
-#define	MOD_VFS(name,vfsslot,vnodeops,vfsconf)	\
+#define	MOD_VFS(name,vnodeops,vfsconf)	\
 	static struct lkm_vfs _module = {	\
 		LM_VFS,				\
 		LKM_VERSION,			\
 		name,				\
-		vfsslot,			\
+		0,				\
 		vnodeops,			\
 		vfsconf				\
 	}

@@ -152,7 +152,7 @@ static	d_strategy_t	odstrategy;
 static struct cdevsw od_cdevsw;
 static struct bdevsw od_bdevsw = 
 	{ odopen,	odclose,	odstrategy,	odioctl,	/*20*/
-	  nodump,	nopsize,	0,	"od",	&od_cdevsw,	-1 };
+	  nodump,	nopsize,	D_DISK,	"od",	&od_cdevsw,	-1 };
 
 
 /*

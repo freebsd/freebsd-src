@@ -54,6 +54,7 @@
 #include <sys/vnode.h>
 #include <sys/mount.h>
 #include <sys/systm.h>
+#include <sys/proc.h>
 
 #include <msdosfs/bpb.h>
 #include <msdosfs/direntry.h>
@@ -156,14 +157,14 @@ msdosfs_lookup(ap)
 			VREF(vdp);
 			error = 0;
 		} else if (flags & ISDOTDOT) {
-			VOP_UNLOCK(pdp);
-			error = vget(vdp, 1);
+			VOP_UNLOCK(pdp, 0, curproc);
+			error = vget(vdp, LK_EXCLUSIVE | LK_INTERLOCK, curproc);
 			if (!error && lockparent && (flags & ISLASTCN))
-				error = VOP_LOCK(pdp);
+				error = vn_lock(pdp, LK_EXCLUSIVE | LK_RETRY, curproc);
 		} else {
-			error = vget(vdp, 1);
+			error = vget(vdp, LK_EXCLUSIVE | LK_INTERLOCK, curproc);
 			if (!lockparent || error || !(flags & ISLASTCN))
-				VOP_UNLOCK(pdp);
+				VOP_UNLOCK(pdp, 0, curproc);
 		}
 
 		if (!error) {
@@ -183,9 +184,9 @@ msdosfs_lookup(ap)
 			}
 			vput(vdp);
 			if (lockparent && pdp != vdp && (flags & ISLASTCN))
-				VOP_UNLOCK(pdp);
+				VOP_UNLOCK(pdp, 0, curproc);
 		}
-		error = VOP_LOCK(pdp);
+		error = vn_lock(pdp, LK_EXCLUSIVE | LK_RETRY, curproc);
 		if (error)
 			return error;
 		vdp = pdp;
@@ -345,7 +346,7 @@ notfound:;
 		/* dp->de_flag |= DE_UPDATE;  never update dos directories */
 		cnp->cn_flags |= SAVENAME;
 		if (!lockparent)/* leave searched dir locked?	 */
-			VOP_UNLOCK(vdp);
+			VOP_UNLOCK(vdp, 0, curproc);
 		return EJUSTRETURN;
 	}
 	/*
@@ -398,7 +399,7 @@ foundroot:;
 		}
 		*vpp = DETOV(tdp);
 		if (!lockparent)
-			VOP_UNLOCK(vdp);
+			VOP_UNLOCK(vdp, 0, curproc);
 		if (bp)
 			brelse(bp);
 		return 0;
@@ -428,7 +429,7 @@ foundroot:;
 		*vpp = DETOV(tdp);
 		cnp->cn_flags |= SAVENAME;
 		if (!lockparent)
-			VOP_UNLOCK(vdp);
+			VOP_UNLOCK(vdp, 0, curproc);
 		if (bp)
 			brelse(bp);
 		return 0;
@@ -439,16 +440,16 @@ foundroot:;
 	 */
 	pdp = vdp;
 	if (flags & ISDOTDOT) {
-		VOP_UNLOCK(pdp);
+		VOP_UNLOCK(pdp, 0, curproc);
 		error = deget(pmp, cluster, diroff, dep, &tdp);
 		if (error) {
-			VOP_LOCK(pdp);
+			vn_lock(pdp, LK_EXCLUSIVE | LK_RETRY, curproc);
 			if (bp)
 				brelse(bp);
 			return error;
 		}
 		if (lockparent && (flags & ISLASTCN)
-		    && (error = VOP_LOCK(pdp))) {
+		    && (error = vn_lock(pdp, LK_EXCLUSIVE | LK_RETRY, curproc))) {
 			vput(DETOV(tdp));
 			return error;
 		}
@@ -464,7 +465,7 @@ foundroot:;
 			return error;
 		}
 		if (!lockparent || !(flags & ISLASTCN))
-			VOP_UNLOCK(pdp);
+			VOP_UNLOCK(pdp, 0, curproc);
 		*vpp = DETOV(tdp);
 	}
 	if (bp)

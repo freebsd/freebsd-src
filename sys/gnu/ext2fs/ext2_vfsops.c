@@ -221,10 +221,10 @@ ext2_mount(mp, path, data, ndp, p)
 			flags = WRITECLOSE;
 			if (mp->mnt_flag & MNT_FORCE)
 				flags |= FORCECLOSE;
-			if (vfs_busy(mp))
+			if (vfs_busy(mp, LK_NOWAIT, 0, p))
 				return (EBUSY);
 			error = ext2_flushfiles(mp, flags, p);
-			vfs_unbusy(mp);
+			vfs_unbusy(mp, p);
 		}
 		if (!error && (mp->mnt_flag & MNT_RELOAD))
 			error = ext2_reload(mp, ndp->ni_cnd.cn_cred, p);
@@ -515,7 +515,7 @@ loop:
 		/*
 		 * Step 5: invalidate all cached file data.
 		 */
-		if (vget(vp, 1))
+		if (vget(vp, LK_EXCLUSIVE, p))
 			goto loop;
 		if (vinvalbuf(vp, 0, cred, p, 0, 0))
 			panic("ext2_reload: dirty2");
@@ -727,17 +727,12 @@ ext2_flushfiles(mp, flags, p)
 	int flags;
 	struct proc *p;
 {
-#if !defined(__FreeBSD__)
-	extern int doforce;
-#endif
 	register struct ufsmount *ump;
 	int error;
 #if QUOTA
 	int i;
 #endif
 
-	if (!doforce)
-		flags &= ~FORCECLOSE;
 	ump = VFSTOUFS(mp);
 #if QUOTA
 	if (mp->mnt_flag & MNT_QUOTA) {
@@ -872,7 +867,7 @@ loop:
 		    (IN_ACCESS | IN_CHANGE | IN_MODIFIED | IN_UPDATE)) == 0 &&
 		    vp->v_dirtyblkhd.lh_first == NULL)
 			continue;
-		if (vget(vp, 1))
+		if (vget(vp, LK_EXCLUSIVE, p))
 			goto loop;
 		if (error = VOP_FSYNC(vp, cred, waitfor, p))
 			allerror = error;

@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)cd9660_util.c	8.1 (Berkeley) 1/21/94
+ *	@(#)cd9660_util.c	8.3 (Berkeley) 12/5/94
  * $FreeBSD$
  */
 
@@ -58,104 +58,14 @@
 
 #include <isofs/cd9660/iso.h>
 
-#ifdef	__notanymore__
-int
-isonum_711 (p)
-unsigned char *p;
-{
-	return (*p);
-}
-
-int
-isonum_712 (p)
-signed char *p;
-{
-	return (*p);
-}
-
-int
-isonum_721 (p)
-unsigned char *p;
-{
-	/* little endian short */
-#if BYTE_ORDER != LITTLE_ENDIAN
-	printf ("isonum_721 called on non little-endian machine!\n");
-#endif
-
-	return *(short *)p;
-}
-
-int
-isonum_722 (p)
-unsigned char *p;
-{
-        /* big endian short */
-#if BYTE_ORDER != BIG_ENDIAN
-        printf ("isonum_722 called on non big-endian machine!\n");
-#endif
-
-	return *(short *)p;
-}
-
-int
-isonum_723 (p)
-unsigned char *p;
-{
-#if BYTE_ORDER == BIG_ENDIAN
-        return isonum_722 (p + 2);
-#elif BYTE_ORDER == LITTLE_ENDIAN
-	return isonum_721 (p);
-#else
-	printf ("isonum_723 unsupported byte order!\n");
-	return 0;
-#endif
-}
-
-int
-isonum_731 (p)
-unsigned char *p;
-{
-        /* little endian long */
-#if BYTE_ORDER != LITTLE_ENDIAN
-        printf ("isonum_731 called on non little-endian machine!\n");
-#endif
-
-	return *(long *)p;
-}
-
-int
-isonum_732 (p)
-unsigned char *p;
-{
-        /* big endian long */
-#if BYTE_ORDER != BIG_ENDIAN
-        printf ("isonum_732 called on non big-endian machine!\n");
-#endif
-
-	return *(long *)p;
-}
-
-int
-isonum_733 (p)
-unsigned char *p;
-{
-#if BYTE_ORDER == BIG_ENDIAN
-        return isonum_732 (p + 4);
-#elif BYTE_ORDER == LITTLE_ENDIAN
-	return isonum_731 (p);
-#else
-	printf ("isonum_733 unsupported byte order!\n");
-	return 0;
-#endif
-}
-#endif	/* __notanymore__ */
-
 /*
  * translate and compare a filename
  * Note: Version number plus ';' may be omitted.
  */
 int
-isofncmp(unsigned char *fn,int fnlen,unsigned char *isofn,int isolen)
+isofncmp(fn, fnlen, isofn, isolen)
+	u_char *fn, *isofn;
+	int fnlen, isolen;
 {
 	int i, j;
 	unsigned char c;
@@ -211,9 +121,12 @@ isofncmp(unsigned char *fn,int fnlen,unsigned char *isofn,int isolen)
  * translate a filename
  */
 void
-isofntrans(unsigned char *infn,int infnlen,
-	   unsigned char *outfn,unsigned short *outfnlen,
-	   int original,int assoc)
+isofntrans(infn, infnlen, outfn, outfnlen, original, assoc)
+	u_char *infn, *outfn;
+	int infnlen;
+	u_short *outfnlen;
+	int original;
+	int assoc;
 {
 	int fnidx = 0;
 

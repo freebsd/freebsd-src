@@ -457,11 +457,11 @@ vnioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 			return(error);
 		error = VOP_GETATTR(nd.ni_vp, &vattr, p->p_ucred, p);
 		if (error) {
-			VOP_UNLOCK(nd.ni_vp);
+			VOP_UNLOCK(nd.ni_vp, 0, p);
 			(void) vn_close(nd.ni_vp, FREAD|FWRITE, p->p_ucred, p);
 			return(error);
 		}
-		VOP_UNLOCK(nd.ni_vp);
+		VOP_UNLOCK(nd.ni_vp, 0, p);
 		vn->sc_vp = nd.ni_vp;
 		vn->sc_size = btodb(vattr.va_size);	/* note truncation */
 		error = vnsetcred(vn, p->p_ucred);

@@ -60,7 +60,7 @@
 			    int flags); }
 19	COMPAT	POSIX	{ long lseek(int fd, long offset, int whence); }
 20	STD	POSIX	{ pid_t getpid(void); }
-21	STD	BSD	{ int mount(int type, char *path, int flags, \
+21	STD	BSD	{ int mount(char *type, char *path, int flags, \
 			    caddr_t data); }
 ; XXX 4.4lite2 uses `char *type' but we're not ready for that.
 ; XXX `path' should have type `const char *' but we're not ready for that.
@@ -111,7 +111,7 @@
 57	STD	POSIX	{ int symlink(char *path, char *link); }
 58	STD	POSIX	{ int readlink(char *path, char *buf, int count); }
 59	STD	POSIX	{ int execve(char *fname, char **argv, char **envv); }
-60	STD	POSIX	{ int umask(int newmask); } umask umask_args mode_t
+60	STD	POSIX	{ int umask(int newmask); } umask umask_args int
 61	STD	BSD	{ int chroot(char *path); }
 62	COMPAT	POSIX	{ int fstat(int fd, struct ostat *sb); }
 63	COMPAT	BSD	{ int getkerninfo(int op, char *where, int *size, \
@@ -328,7 +328,7 @@
 203	STD	BSD	{ int mlock(caddr_t addr, size_t len); }
 204	STD	BSD	{ int munlock(caddr_t addr, size_t len); }
 205	STD	BSD	{ int utrace(caddr_t addr, size_t len); }
-206	UNIMPL	NOHIDE	nosys
+206	STD	BSD	{ int undelete(char *path); }
 207	UNIMPL	NOHIDE	nosys
 208	UNIMPL	NOHIDE	nosys
 209	UNIMPL	NOHIDE	nosys

@@ -1723,7 +1723,7 @@ nfsrv_remove(nfsd, slp, procp, mrq)
 		}
 out:
 		if (!error) {
-			vnode_pager_uncache(vp);
+			vnode_pager_uncache(vp, procp);
 			nqsrv_getl(nd.ni_dvp, ND_WRITE);
 			nqsrv_getl(vp, ND_WRITE);
 
@@ -1900,7 +1900,7 @@ out:
 		nqsrv_getl(tdvp, ND_WRITE);
 		if (tvp) {
 			nqsrv_getl(tvp, ND_WRITE);
-			(void) vnode_pager_uncache(tvp);
+			(void) vnode_pager_uncache(tvp, procp);
 		}
 		error = VOP_RENAME(fromnd.ni_dvp, fromnd.ni_vp, &fromnd.ni_cnd,
 				   tond.ni_dvp, tond.ni_vp, &tond.ni_cnd);
@@ -2027,11 +2027,7 @@ out:
 	if (!error) {
 		nqsrv_getl(vp, ND_WRITE);
 		nqsrv_getl(xp, ND_WRITE);
-#if defined(__NetBSD__) || defined(__FreeBSD__)
-		error = VOP_LINK(nd.ni_dvp, vp, &nd.ni_cnd);
-#else
 		error = VOP_LINK(vp, nd.ni_dvp, &nd.ni_cnd);
-#endif
 	} else {
 		VOP_ABORTOP(nd.ni_dvp, &nd.ni_cnd);
 		if (nd.ni_dvp == nd.ni_vp)
@@ -2479,7 +2475,7 @@ nfsrv_readdir(nfsd, slp, procp, mrq)
 	int siz, cnt, fullsiz, eofflag, rdonly, cache, ncookies;
 	int v3 = (nfsd->nd_flag & ND_NFSV3);
 	u_quad_t frev, off, toff, verf;
-	u_int *cookies = NULL, *cookiep;
+	u_long *cookies = NULL, *cookiep;
 
 	fhp = &nfh.fh_generic;
 	nfsm_srvmtofh(fhp);
@@ -2520,7 +2516,7 @@ nfsrv_readdir(nfsd, slp, procp, mrq)
 		nfsm_srvpostop_attr(getret, &at);
 		return (0);
 	}
-	VOP_UNLOCK(vp);
+	VOP_UNLOCK(vp, 0, procp);
 	MALLOC(rbuf, caddr_t, siz, M_TEMP, M_WAITOK);
 #ifdef __NetBSD__
 	ncookies = siz / (5 * NFSX_UNSIGNED); /*7 for V3, but it's an est. so*/
@@ -2538,16 +2534,12 @@ again:
 	io.uio_rw = UIO_READ;
 	io.uio_procp = (struct proc *)0;
 	eofflag = 0;
-	VOP_LOCK(vp);
-#ifndef __NetBSD__
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, procp);
 	if (cookies) {
 		free((caddr_t)cookies, M_TEMP);
 		cookies = NULL;
 	}
 	error = VOP_READDIR(vp, &io, cred, &eofflag, &ncookies, &cookies);
-#else
-	error = VOP_READDIR(vp, &io, cred, &eofflag, cookies, ncookies);
-#endif
 	off = (off_t)io.uio_offset;
 	if (!cookies && !error)
 		error = NFSERR_PERM;
@@ -2556,7 +2548,7 @@ again:
 		if (!error)
 			error = getret;
 	}
-	VOP_UNLOCK(vp);
+	VOP_UNLOCK(vp, 0, procp);
 	if (error) {
 		vrele(vp);
 		free((caddr_t)rbuf, M_TEMP);
@@ -2751,7 +2743,7 @@ nfsrv_readdirplus(nfsd, slp, procp, mrq)
 	int len, nlen, rem, xfer, tsiz, i, error = 0, getret = 1;
 	int siz, cnt, fullsiz, eofflag, rdonly, cache, dirlen, ncookies;
 	u_quad_t frev, off, toff, verf;
-	u_int *cookies = NULL, *cookiep;
+	u_long *cookies = NULL, *cookiep;
 
 	fhp = &nfh.fh_generic;
 	nfsm_srvmtofh(fhp);
@@ -2787,7 +2779,7 @@ nfsrv_readdirplus(nfsd, slp, procp, mrq)
 		nfsm_srvpostop_attr(getret, &at);
 		return (0);
 	}
-	VOP_UNLOCK(vp);
+	VOP_UNLOCK(vp, 0, procp);
 	MALLOC(rbuf, caddr_t, siz, M_TEMP, M_WAITOK);
 #ifdef __NetBSD__
 	ncookies = siz / (7 * NFSX_UNSIGNED);
@@ -2805,19 +2797,15 @@ again:
 	io.uio_rw = UIO_READ;
 	io.uio_procp = (struct proc *)0;
 	eofflag = 0;
-	VOP_LOCK(vp);
-#ifndef __NetBSD__
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, procp);
 	if (cookies) {
 		free((caddr_t)cookies, M_TEMP);
 		cookies = NULL;
 	}
 	error = VOP_READDIR(vp, &io, cred, &eofflag, &ncookies, &cookies);
-#else
-	error = VOP_READDIR(vp, &io, cred, &eofflag, cookies, ncookies);
-#endif
 	off = (u_quad_t)io.uio_offset;
 	getret = VOP_GETATTR(vp, &at, cred, procp);
-	VOP_UNLOCK(vp);
+	VOP_UNLOCK(vp, 0, procp);
 	if (!cookies && !error)
 		error = NFSERR_PERM;
 	if (!error)

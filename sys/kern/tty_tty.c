@@ -78,7 +78,7 @@ cttyopen(dev, flag, mode, p)
 
 	if (ttyvp == NULL)
 		return (ENXIO);
-	VOP_LOCK(ttyvp);
+	vn_lock(ttyvp, LK_EXCLUSIVE | LK_RETRY, p);
 #ifdef PARANOID
 	/*
 	 * Since group is tty and mode is 620 on most terminal lines
@@ -93,7 +93,7 @@ cttyopen(dev, flag, mode, p)
 	if (!error)
 #endif /* PARANOID */
 		error = VOP_OPEN(ttyvp, flag, NOCRED, p);
-	VOP_UNLOCK(ttyvp);
+	VOP_UNLOCK(ttyvp, 0, p);
 	return (error);
 }
 
@@ -104,14 +104,15 @@ cttyread(dev, uio, flag)
 	struct uio *uio;
 	int flag;
 {
-	register struct vnode *ttyvp = cttyvp(uio->uio_procp);
+	struct proc *p = uio->uio_procp;
+	register struct vnode *ttyvp = cttyvp(p);
 	int error;
 
 	if (ttyvp == NULL)
 		return (EIO);
-	VOP_LOCK(ttyvp);
+	vn_lock(ttyvp, LK_EXCLUSIVE | LK_RETRY, p);
 	error = VOP_READ(ttyvp, uio, flag, NOCRED);
-	VOP_UNLOCK(ttyvp);
+	VOP_UNLOCK(ttyvp, 0, p);
 	return (error);
 }
 
@@ -122,14 +123,15 @@ cttywrite(dev, uio, flag)
 	struct uio *uio;
 	int flag;
 {
-	register struct vnode *ttyvp = cttyvp(uio->uio_procp);
+	struct proc *p = uio->uio_procp;
+	struct vnode *ttyvp = cttyvp(uio->uio_procp);
 	int error;
 
 	if (ttyvp == NULL)
 		return (EIO);
-	VOP_LOCK(ttyvp);
+	vn_lock(ttyvp, LK_EXCLUSIVE | LK_RETRY, p);
 	error = VOP_WRITE(ttyvp, uio, flag, NOCRED);
-	VOP_UNLOCK(ttyvp);
+	VOP_UNLOCK(ttyvp, 0, p);
 	return (error);
 }
 
@@ -195,5 +197,3 @@ ctty_drvinit(void *unused)
 }
 
 SYSINIT(cttydev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,ctty_drvinit,NULL)
-
-
