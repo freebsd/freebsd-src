@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.52 1994/08/13 14:21:42 davidg Exp $
+ *	$Id: machdep.c,v 1.53 1994/08/18 22:34:40 wollman Exp $
  */
 
 #include "npx.h"
@@ -1097,7 +1097,7 @@ init386(first)
 	 * page with etext in it, the data segment goes to the end of
 	 * the address space
 	 */
-	gdt_segs[GCODE_SEL].ssd_limit = i386_btop(i386_round_page(&etext)) - 1;
+	gdt_segs[GCODE_SEL].ssd_limit = i386_btop(0) - 1 /* i386_btop(i386_round_page(&etext)) - 1 */;
 	gdt_segs[GDATA_SEL].ssd_limit = i386_btop(0) - 1;
 	for (x=0; x < NGDT; x++) ssdtosd(gdt_segs+x, gdt+x);
 

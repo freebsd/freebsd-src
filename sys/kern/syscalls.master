@@ -1,4 +1,4 @@
-	$Id$
+	$Id: syscalls.master,v 1.3 1994/08/02 07:42:44 davidg Exp $
 ;	from: @(#)syscalls.master	8.2 (Berkeley) 1/13/94
 ;
 ; System call name/number master file.
@@ -275,4 +275,30 @@
 207	UNIMPL	0 nosys
 208	UNIMPL	0 nosys
 209	UNIMPL	0 nosys
+
+;
+; The following are reserved for loadable syscalls
+;
+#ifdef LKM
+210	NODEF	0 lkmnosys
+211	NODEF	0 lkmnosys
+212	NODEF	0 lkmnosys
+213	NODEF	0 lkmnosys
+214	NODEF	0 lkmnosys
+215	NODEF	0 lkmnosys
+216	NODEF	0 lkmnosys
+217	NODEF	0 lkmnosys
+218	NODEF	0 lkmnosys
+219	NODEF	0 lkmnosys
+#else
 210	UNIMPL	0 nosys
+211	UNIMPL	0 nosys
+212	UNIMPL	0 nosys
+213	UNIMPL	0 nosys
+214	UNIMPL	0 nosys
+215	UNIMPL	0 nosys
+216	UNIMPL	0 nosys
+217	UNIMPL	0 nosys
+218	UNIMPL	0 nosys
+219	UNIMPL	0 nosys
+#endif
