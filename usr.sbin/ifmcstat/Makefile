@@ -5,7 +5,7 @@ PROG=	ifmcstat
 MAN=	ifmcstat.8
 BINMODE= 550
 
-LDADD=	-lkvm
 DPADD=	${LIBKVM}
+LDADD=	-lkvm
 
 .include <bsd.prog.mk>

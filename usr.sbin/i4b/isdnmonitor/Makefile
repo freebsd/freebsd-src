@@ -1,8 +1,8 @@
 # $FreeBSD$
 
 PROG=	isdnmonitor
-SRCS=	main.c curses.c
 MAN=	isdnmonitor.8
+SRCS=	main.c curses.c
 
 # compile debug support
 COPTS+=	-DDEBUG

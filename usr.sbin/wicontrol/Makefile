@@ -3,8 +3,7 @@
 PROG=	wicontrol
 MAN=	wicontrol.8
 
-CFLAGS+= -DWICACHE
-
 WARNS?=	2
+CFLAGS+= -DWICACHE
 
 .include <bsd.prog.mk>

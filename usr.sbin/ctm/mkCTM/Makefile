@@ -4,6 +4,7 @@ PROG=	mkctm
 NOMAN=	1
 SRCS=	mkctm.c
 
+DPADD=	${LIBMD}
 LDADD=	-lmd
 
 test:	mkctm

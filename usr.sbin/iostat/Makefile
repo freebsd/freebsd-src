@@ -4,8 +4,9 @@
 MAINTAINER=	ken@FreeBSD.ORG
 
 PROG=	iostat
+MAN=	iostat.8
+
 DPADD=	${LIBKVM} ${LIBDEVSTAT} ${LIBM}
 LDADD=	-lkvm -ldevstat -lm
-MAN=	iostat.8
 
 .include <bsd.prog.mk>
