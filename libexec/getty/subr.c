@@ -258,7 +258,7 @@ setchars()
 #define	ISSET(t, f)	((t) & (f))
 
 void
-setflags(n)
+set_flags(n)
 	int n;
 {
 	register tcflag_t iflag, oflag, cflag, lflag;
