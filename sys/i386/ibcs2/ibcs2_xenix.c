@@ -27,11 +27,12 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ibcs2_xenix.c,v 1.2 1995/02/03 21:31:35 bde Exp $
+ *	$Id: ibcs2_xenix.c,v 1.6 1995/10/10 07:59:19 swallace Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/namei.h> 
 #include <sys/sysproto.h>
 #include <sys/kernel.h>
 #include <sys/exec.h>
@@ -50,6 +51,7 @@
 #include <machine/reg.h>
 
 #include <i386/ibcs2/ibcs2_types.h>
+#include <i386/ibcs2/ibcs2_unistd.h>
 #include <i386/ibcs2/ibcs2_signal.h>
 #include <i386/ibcs2/ibcs2_util.h>
 #include <i386/ibcs2/ibcs2_proto.h>
@@ -144,7 +146,7 @@ xenix_nap(struct proc *p, struct xenix_nap_args *uap, int *retval)
 }
 
 int
-xenix_utsname(struct proc *p, struct xenix_utsname_args *args, int *retval)
+xenix_utsname(struct proc *p, struct xenix_utsname_args *uap, int *retval)
 {
 	struct ibcs2_sco_utsname {
 		char sysname[9];
@@ -173,7 +175,7 @@ xenix_utsname(struct proc *p, struct xenix_utsname_args *args, int *retval)
 	ibcs2_sco_uname.sysorigin = 0xFFFF;
 	ibcs2_sco_uname.sysoem = 0xFFFF;
 	ibcs2_sco_uname.numcpu = 1;
-	return copyout((caddr_t)&ibcs2_sco_uname, (caddr_t)args->addr,
+	return copyout((caddr_t)&ibcs2_sco_uname, (caddr_t)uap->addr,
 		       sizeof(struct ibcs2_sco_utsname));
 }
 
@@ -183,4 +185,37 @@ xenix_scoinfo(struct proc *p, struct xenix_scoinfo_args *uap, int *retval)
   /* scoinfo (not documented) */
   *retval = 0;
   return 0;
+}
+
+int     
+xenix_eaccess(struct proc *p, struct xenix_eaccess_args *uap, int *retval)
+{
+	struct ucred *cred = p->p_ucred;
+	struct vnode *vp;
+        struct nameidata nd;
+        int error, flags;
+	caddr_t sg = stackgap_init();
+
+	CHECKALTEXIST(p, &sg, SCARG(uap, path));
+
+        NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF, UIO_USERSPACE,
+            SCARG(uap, path), p);
+        if (error = namei(&nd))
+                return error;
+        vp = nd.ni_vp;
+
+        /* Flags == 0 means only check for existence. */
+        if (SCARG(uap, flags)) {
+                flags = 0;
+                if (SCARG(uap, flags) & IBCS2_R_OK)
+                        flags |= VREAD;
+                if (SCARG(uap, flags) & IBCS2_W_OK)
+                        flags |= VWRITE;
+                if (SCARG(uap, flags) & IBCS2_X_OK)
+                        flags |= VEXEC;
+                if ((flags & VWRITE) == 0 || (error = vn_writechk(vp)) == 0)
+                        error = VOP_ACCESS(vp, flags, cred, p);
+        }
+        vput(vp);
+        return error;
 }
