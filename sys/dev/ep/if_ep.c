@@ -95,8 +95,8 @@ static int epioctl(struct ifnet *, u_long, caddr_t);
 static void epstart(struct ifnet *);
 static void epwatchdog(struct ifnet *);
 
-static void epstart_body(struct ifnet *);
-static void epinit_body(struct ep_softc *);
+static void epstart_locked(struct ifnet *);
+static void epinit_locked(struct ep_softc *);
 
 /* if_media functions */
 static int ep_ifmedia_upd(struct ifnet *);
@@ -270,12 +270,11 @@ ep_attach(struct ep_softc *sc)
 	int error;
 
 	sc->gone = 0;
-	mtx_init(&sc->sc_mtx, device_get_nameunit(sc->dev), MTX_NETWORK_LOCK,
-	    MTX_DEF);
+	EP_LOCK_INIT(sc);
 	error = ep_get_macaddr(sc, (u_char *)&sc->arpcom.ac_enaddr);
 	if (error) {
 		device_printf(sc->dev, "Unable to get Ethernet address!\n");
-		mtx_destroy(&sc->sc_mtx);
+		EP_LOCK_DESTORY(sc);
 		return (ENXIO);
 	}
 	/*
@@ -349,6 +348,7 @@ ep_detach(device_t dev)
 	struct ifnet *ifp;
 
 	sc = device_get_softc(dev);
+	EP_ASSERT_UNLOCKED(sc);
 	ifp = &sc->arpcom.ac_if;
 
 	if (sc->gone) {
@@ -363,7 +363,7 @@ ep_detach(device_t dev)
 
 	sc->gone = 1;
 	ep_free(dev);
-	mtx_destroy(&sc->sc_mtx);
+	EP_LOCK_DESTORY(sc);
 
 	return (0);
 }
@@ -373,7 +373,7 @@ epinit(void *xsc)
 {
 	struct ep_softc *sc = xsc;
 	EP_LOCK(sc);
-	epinit_body(sc);
+	epinit_locked(sc);
 	EP_UNLOCK(sc);
 }
 
@@ -382,7 +382,7 @@ epinit(void *xsc)
  * interrupts. ?!
  */
 static void
-epinit_body(struct ep_softc *sc)
+epinit_locked(struct ep_softc *sc)
 {
 	struct ifnet *ifp = &sc->arpcom.ac_if;
 	int i;
@@ -390,7 +390,8 @@ epinit_body(struct ep_softc *sc)
 	if (sc->gone)
 		return;
 
-	EP_BUSY_WAIT;
+	EP_ASSERT_LOCKED(sc);
+	EP_BUSY_WAIT(sc);
 
 	GO_WINDOW(0);
 	CSR_WRITE_2(sc, EP_COMMAND, STOP_TRANSCEIVER);
@@ -412,7 +413,7 @@ epinit_body(struct ep_softc *sc)
 
 	CSR_WRITE_2(sc, EP_COMMAND, RX_RESET);
 	CSR_WRITE_2(sc, EP_COMMAND, TX_RESET);
-	EP_BUSY_WAIT;
+	EP_BUSY_WAIT(sc);
 
 	/* Window 1 is operating window */
 	GO_WINDOW(1);
@@ -461,7 +462,7 @@ epinit_body(struct ep_softc *sc)
 	 */
 
 	GO_WINDOW(1);
-	epstart_body(ifp);
+	epstart_locked(ifp);
 }
 
 static void
@@ -470,12 +471,12 @@ epstart(struct ifnet *ifp)
 	struct ep_softc *sc;
 	sc = ifp->if_softc;
 	EP_LOCK(sc);
-	epstart_body(ifp);
+	epstart_locked(ifp);
 	EP_UNLOCK(sc);
 }
 	
 static void
-epstart_body(struct ifnet *ifp)
+epstart_locked(struct ifnet *ifp)
 {
 	struct ep_softc *sc;
 	u_int len;
@@ -485,8 +486,8 @@ epstart_body(struct ifnet *ifp)
 	sc = ifp->if_softc;
 	if (sc->gone)
 		return;
-
-	EP_BUSY_WAIT;
+	EP_ASSERT_LOCKED(sc);
+	EP_BUSY_WAIT(sc);
 	if (ifp->if_flags & IFF_OACTIVE)
 		return;
 startagain:
@@ -617,7 +618,7 @@ rescan:
 			ifp->if_flags &= ~IFF_OACTIVE;
 			GO_WINDOW(1);
 			CSR_READ_2(sc, EP_W1_FREE_TX);
-			epstart_body(ifp);
+			epstart_locked(ifp);
 		}
 		if (status & S_CARD_FAILURE) {
 			ifp->if_timer = 0;
@@ -642,7 +643,7 @@ rescan:
 #endif
 
 #endif
-			epinit_body(sc);
+			epinit_locked(sc);
 			EP_UNLOCK(sc);
 			return;
 		}
@@ -690,7 +691,7 @@ rescan:
 			ifp->if_flags &= ~IFF_OACTIVE;
 			GO_WINDOW(1);
 			CSR_READ_2(sc, EP_W1_FREE_TX);
-			epstart_body(ifp);
+			epstart_locked(ifp);
 		}	/* end TX_COMPLETE */
 	}
 
@@ -835,7 +836,7 @@ read_again:
 	(*ifp->if_input) (ifp, top);
 	EP_LOCK(sc);
 	sc->top = 0;
-	EP_BUSY_WAIT;
+	EP_BUSY_WAIT(sc);
 	CSR_WRITE_2(sc, EP_COMMAND, SET_RX_EARLY_THRESH | RX_INIT_EARLY_THRESH);
 	return;
 
@@ -849,7 +850,7 @@ out:
 #endif
 	}
 	EP_FSET(sc, F_RX_FIRST);
-	EP_BUSY_WAIT;
+	EP_BUSY_WAIT(sc);
 	CSR_WRITE_2(sc, EP_COMMAND, SET_RX_EARLY_THRESH | RX_INIT_EARLY_THRESH);
 }
 
@@ -921,7 +922,7 @@ epioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			epstop(sc);
 		} else
 			/* reinitialize card on any parameter change */
-			epinit_body(sc);
+			epinit_locked(sc);
 		EP_UNLOCK(sc);
 		break;
 #ifdef notdef
@@ -974,16 +975,16 @@ epstop(struct ep_softc *sc)
 		return;
 	CSR_WRITE_2(sc, EP_COMMAND, RX_DISABLE);
 	CSR_WRITE_2(sc, EP_COMMAND, RX_DISCARD_TOP_PACK);
-	EP_BUSY_WAIT;
+	EP_BUSY_WAIT(sc);
 
 	CSR_WRITE_2(sc, EP_COMMAND, TX_DISABLE);
 	CSR_WRITE_2(sc, EP_COMMAND, STOP_TRANSCEIVER);
 	DELAY(800);
 
 	CSR_WRITE_2(sc, EP_COMMAND, RX_RESET);
-	EP_BUSY_WAIT;
+	EP_BUSY_WAIT(sc);
 	CSR_WRITE_2(sc, EP_COMMAND, TX_RESET);
-	EP_BUSY_WAIT;
+	EP_BUSY_WAIT(sc);
 
 	CSR_WRITE_2(sc, EP_COMMAND, C_INTR_LATCH);
 	CSR_WRITE_2(sc, EP_COMMAND, SET_RD_0_MASK);
