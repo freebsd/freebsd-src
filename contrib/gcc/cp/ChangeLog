@@ -1,3 +1,17 @@
+Thu Aug 22 23:47:38 1997  H.J. Lu  (hjl@gnu.ai.mit.edu)
+
+	* Version 2.7.2.3 released.
+
+Mon Apr 29 00:27:53 1996  Jason Merrill  <jason@yorick.cygnus.com>
+
+	* lex.c (real_yylex): Fix handling of __PRETTY_FUNCTION__ like C
+	frontend.
+
+Thu Oct 26 16:45:58 1995  Brendan Kehoe  <brendan@lisa.cygnus.com>
+
+	* errfn.c: Include stdio.h.
+	(cp_sprintf): Take out decl of sprintf, and cast sprintf to errorfn*.
+
 Mon Nov 20 14:06:28 1995  Mike Stump  <mrs@cygnus.com>
 
 	* Version 2.7.2 released.
