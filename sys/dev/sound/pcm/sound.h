@@ -76,7 +76,7 @@
 #define USING_MUTEX
 #define USING_DEVFS
 #else
-#define	INTR_TYPE_AV INTR_TYPE_MISC
+#define	INTR_TYPE_AV INTR_TYPE_TTY
 #endif
 #define SND_DYNSYSCTL
 
