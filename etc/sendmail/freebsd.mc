@@ -66,5 +66,6 @@ dnl define(`confCW_FILE', `-o /etc/mail/sendmail.cw')dnl
 define(`confCW_FILE', `-o /etc/mail/local-host-names')dnl
 define(`confNO_RCPT_ACTION', `add-to-undisclosed')dnl
 define(`confMAX_MIME_HEADER_LENGTH', `256/128')dnl
+define(`confPRIVACY_FLAGS', `authwarnings,noexpn,novrfy')dnl
 MAILER(local)dnl
 MAILER(smtp)dnl
