@@ -18,7 +18,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: pap.c,v 1.20 1997/12/24 09:29:11 brian Exp $
+ * $Id: pap.c,v 1.20.2.1 1998/01/29 00:49:27 brian Exp $
  *
  *	TODO:
  */
@@ -149,7 +149,6 @@ PapInput(struct mbuf * bp, struct physical *physical)
 {
   int len = plength(bp);
   struct fsmheader *php;
-  struct lcpstate *lcp = &LcpInfo;
   u_char *cp;
 
   if (len >= sizeof(struct fsmheader)) {
@@ -164,8 +163,8 @@ PapInput(struct mbuf * bp, struct physical *physical)
 	cp = (u_char *) (php + 1);
 	if (PapValidate(cp, cp + *cp + 1, physical)) {
 	  SendPapCode(php->id, PAP_ACK, "Greetings!!", physical);
-	  lcp->auth_ineed = 0;
-	  if (lcp->auth_iwait == 0) {
+	  LcpInfo.auth_ineed = 0;
+	  if (LcpInfo.auth_iwait == 0) {
 	    if ((mode & MODE_DIRECT) && Physical_IsATTY(physical) &&
 			Enabled(ConfUtmp))
 	      if (Utmp)
@@ -196,9 +195,9 @@ PapInput(struct mbuf * bp, struct physical *physical)
 	len = *cp++;
 	cp[len] = 0;
 	LogPrintf(LogPHASE, "Received PAP_ACK (%s)\n", cp);
-	if (lcp->auth_iwait == PROTO_PAP) {
-	  lcp->auth_iwait = 0;
-	  if (lcp->auth_ineed == 0)
+	if (LcpInfo.auth_iwait == PROTO_PAP) {
+	  LcpInfo.auth_iwait = 0;
+	  if (LcpInfo.auth_ineed == 0)
 	    NewPhase(physical, PHASE_NETWORK);
 	}
 	break;

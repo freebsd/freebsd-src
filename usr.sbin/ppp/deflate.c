@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: deflate.c,v 1.6 1998/01/10 01:55:09 brian Exp $
+ *	$Id: deflate.c,v 1.6.4.1 1998/01/29 00:49:16 brian Exp $
  */
 
 #include <sys/param.h>
@@ -40,10 +40,10 @@
 #include "loadalias.h"
 #include "vars.h"
 #include "hdlc.h"
+#include "timer.h"
 #include "lcp.h"
 #include "ccp.h"
 #include "lcpproto.h"
-#include "timer.h"
 #include "fsm.h"
 #include "deflate.h"
 

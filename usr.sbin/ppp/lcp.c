@@ -17,10 +17,9 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.c,v 1.55.2.1 1998/01/29 00:49:24 brian Exp $
+ * $Id: lcp.c,v 1.55.2.2 1998/01/29 23:11:38 brian Exp $
  *
  * TODO:
- *      o Validate magic number received from peer.
  *	o Limit data field length by MRU
  */
 #include <sys/param.h>
@@ -143,28 +142,27 @@ struct fsm LcpFsm = {
   LcpDecodeConfig,
 };
 
-static struct pppTimer LcpReportTimer;
-static int LcpFailedMagic;
-
 static void
 LcpReportTime(void *data)
 {
+  struct pppTimer *me = (struct pppTimer *)data;
+
   if (LogIsKept(LogDEBUG)) {
     time_t t;
 
     time(&t);
     LogPrintf(LogDEBUG, "LcpReportTime: %s\n", ctime(&t));
   }
-  StopTimer(&LcpReportTimer);
-  LcpReportTimer.state = TIMER_STOPPED;
-  StartTimer(&LcpReportTimer);
+
+  StopTimer(me);
+  me->state = TIMER_STOPPED;
+  StartTimer(me);
   HdlcErrorCheck();
 }
 
 int
 ReportLcpStatus(struct cmdargs const *arg)
 {
-  struct lcpstate *lcp = &LcpInfo;
   struct fsm *fp = &LcpFsm;
 
   if (!VarTerm)
@@ -174,13 +172,13 @@ ReportLcpStatus(struct cmdargs const *arg)
   fprintf(VarTerm,
 	  " his side: MRU %d, ACCMAP %08lx, PROTOCOMP %d, ACFCOMP %d,\n"
 	  "           MAGIC %08lx, REJECT %04x\n",
-	  lcp->his_mru, (u_long)lcp->his_accmap, lcp->his_protocomp,
-          lcp->his_acfcomp, (u_long)lcp->his_magic, lcp->his_reject);
+	  LcpInfo.his_mru, (u_long)LcpInfo.his_accmap, LcpInfo.his_protocomp,
+          LcpInfo.his_acfcomp, (u_long)LcpInfo.his_magic, LcpInfo.his_reject);
   fprintf(VarTerm,
 	  " my  side: MRU %d, ACCMAP %08lx, PROTOCOMP %d, ACFCOMP %d,\n"
           "           MAGIC %08lx, REJECT %04x\n",
-          lcp->want_mru, (u_long)lcp->want_accmap, lcp->want_protocomp,
-          lcp->want_acfcomp, (u_long)lcp->want_magic, lcp->my_reject);
+          LcpInfo.want_mru, (u_long)LcpInfo.want_accmap, LcpInfo.want_protocomp,
+          LcpInfo.want_acfcomp, (u_long)LcpInfo.want_magic, LcpInfo.my_reject);
   fprintf(VarTerm, "\nDefaults:   MRU = %d, ACCMAP = %08lx\t",
           VarMRU, (u_long)VarAccmap);
   fprintf(VarTerm, "Open Mode: %s",
@@ -204,28 +202,25 @@ GenerateMagic(void)
 void
 LcpInit(struct physical *physical)
 {
-  struct lcpstate *lcp = &LcpInfo;
-
   FsmInit(&LcpFsm, physical);
   HdlcInit();
-
-  memset(lcp, '\0', sizeof(struct lcpstate));
-  lcp->want_mru = VarMRU;
-  lcp->his_mru = DEF_MRU;
-  lcp->his_accmap = 0xffffffff;
-  lcp->want_accmap = VarAccmap;
-  lcp->want_magic = GenerateMagic();
-  lcp->want_auth = lcp->his_auth = 0;
+  memset(&LcpInfo, '\0', sizeof LcpInfo);
+  LcpInfo.want_mru = VarMRU;
+  LcpInfo.his_mru = DEF_MRU;
+  LcpInfo.his_accmap = 0xffffffff;
+  LcpInfo.want_accmap = VarAccmap;
+  LcpInfo.want_magic = GenerateMagic();
+  LcpInfo.want_auth = LcpInfo.his_auth = 0;
   if (Enabled(ConfChap))
-    lcp->want_auth = PROTO_CHAP;
+    LcpInfo.want_auth = PROTO_CHAP;
   else if (Enabled(ConfPap))
-    lcp->want_auth = PROTO_PAP;
+    LcpInfo.want_auth = PROTO_PAP;
   if (Enabled(ConfLqr))
-    lcp->want_lqrperiod = VarLqrTimeout * 100;
+    LcpInfo.want_lqrperiod = VarLqrTimeout * 100;
   if (Enabled(ConfAcfcomp))
-    lcp->want_acfcomp = 1;
+    LcpInfo.want_acfcomp = 1;
   if (Enabled(ConfProtocomp))
-    lcp->want_protocomp = 1;
+    LcpInfo.want_protocomp = 1;
   LcpFsm.maxconfig = 10;
 }
 
@@ -318,32 +313,31 @@ static void
 LcpSendConfigReq(struct fsm * fp)
 {
   u_char *cp;
-  struct lcpstate *lcp = &LcpInfo;
   struct lcp_opt o;
 
   LogPrintf(LogLCP, "LcpSendConfigReq\n");
   cp = ReqBuff;
   if (!Physical_IsSync(fp->physical)) {
-    if (lcp->want_acfcomp && !REJECTED(lcp, TY_ACFCOMP))
+    if (LcpInfo.want_acfcomp && !REJECTED(&LcpInfo, TY_ACFCOMP))
       PUTN(TY_ACFCOMP);
 
-    if (lcp->want_protocomp && !REJECTED(lcp, TY_PROTOCOMP))
+    if (LcpInfo.want_protocomp && !REJECTED(&LcpInfo, TY_PROTOCOMP))
       PUTN(TY_PROTOCOMP);
 
-    if (!REJECTED(lcp, TY_ACCMAP))
-      PUTACCMAP(lcp->want_accmap);
+    if (!REJECTED(&LcpInfo, TY_ACCMAP))
+      PUTACCMAP(LcpInfo.want_accmap);
   }
 
-  if (!REJECTED(lcp, TY_MRU))
-    PUTMRU(lcp->want_mru);
+  if (!REJECTED(&LcpInfo, TY_MRU))
+    PUTMRU(LcpInfo.want_mru);
 
-  if (lcp->want_magic && !REJECTED(lcp, TY_MAGICNUM))
-    PUTMAGIC(lcp->want_magic);
+  if (LcpInfo.want_magic && !REJECTED(&LcpInfo, TY_MAGICNUM))
+    PUTMAGIC(LcpInfo.want_magic);
 
-  if (lcp->want_lqrperiod && !REJECTED(lcp, TY_QUALPROTO))
-    PUTLQR(lcp->want_lqrperiod);
+  if (LcpInfo.want_lqrperiod && !REJECTED(&LcpInfo, TY_QUALPROTO))
+    PUTLQR(LcpInfo.want_lqrperiod);
 
-  switch (lcp->want_auth) {
+  switch (LcpInfo.want_auth) {
   case PROTO_PAP:
     PUTPAP();
     break;
@@ -372,7 +366,7 @@ LcpSendProtoRej(u_char * option, int count)
 static void
 LcpSendTerminateReq(struct fsm * fp)
 {
-  /* Most thins are done in fsm layer. Nothing to to. */
+  /* Fsm has just send a terminate request */
 }
 
 static void
@@ -392,7 +386,7 @@ LcpLayerStart(struct fsm * fp)
 static void
 StopAllTimers(void)
 {
-  StopTimer(&LcpReportTimer);
+  StopTimer(&LcpInfo.ReportTimer);
   StopIdleTimer();
   StopTimer(&AuthPapInfo.authtimer);
   StopTimer(&AuthChapInfo.authtimer);
@@ -423,11 +417,12 @@ LcpLayerUp(struct fsm * fp)
   NewPhase(fp->physical, PHASE_AUTHENTICATE);
 
   StartLqm(fp->physical);
-  StopTimer(&LcpReportTimer);
-  LcpReportTimer.state = TIMER_STOPPED;
-  LcpReportTimer.load = 60 * SECTICKS;
-  LcpReportTimer.func = LcpReportTime;
-  StartTimer(&LcpReportTimer);
+  StopTimer(&LcpInfo.ReportTimer);
+  LcpInfo.ReportTimer.state = TIMER_STOPPED;
+  LcpInfo.ReportTimer.load = 60 * SECTICKS;
+  LcpInfo.ReportTimer.arg = &LcpInfo.ReportTimer;
+  LcpInfo.ReportTimer.func = LcpReportTime;
+  StartTimer(&LcpInfo.ReportTimer);
 }
 
 static void
@@ -446,13 +441,13 @@ void
 LcpUp()
 {
   FsmUp(&LcpFsm);
-  LcpFailedMagic = 0;
+  LcpInfo.LcpFailedMagic = 0;
 }
 
 void
 LcpDown()
 {				/* Sudden death */
-  LcpFailedMagic = 0;
+  LcpInfo.LcpFailedMagic = 0;
   FsmDown(&LcpFsm);
   /* FsmDown() results in a LcpLayerDown() if we're currently open. */
   LcpLayerFinish(&LcpFsm);
@@ -462,7 +457,7 @@ void
 LcpOpen(int open_mode)
 {
   LcpFsm.open_mode = open_mode;
-  LcpFailedMagic = 0;
+  LcpInfo.LcpFailedMagic = 0;
   FsmOpen(&LcpFsm);
 }
 
@@ -472,7 +467,7 @@ LcpClose(struct fsm *fp)
   NewPhase(fp->physical, PHASE_TERMINATE);
   OsInterfaceDown(0);
   FsmClose(fp);
-  LcpFailedMagic = 0;
+  LcpInfo.LcpFailedMagic = 0;
 }
 
 /*
@@ -697,17 +692,17 @@ LcpDecodeConfig(u_char *cp, int plen, int mode_type)
 	  /* Validate magic number */
 	  if (magic == LcpInfo.want_magic) {
 	    LogPrintf(LogLCP, "Magic is same (%08lx) - %d times\n",
-                      (u_long)magic, ++LcpFailedMagic);
+                      (u_long)magic, ++LcpInfo.LcpFailedMagic);
 	    LcpInfo.want_magic = GenerateMagic();
 	    memcpy(nakp, cp, 6);
 	    nakp += 6;
-            ualarm(TICKUNIT * (4 + 4 * LcpFailedMagic), 0);
+            ualarm(TICKUNIT * (4 + 4 * LcpInfo.LcpFailedMagic), 0);
             sigpause(0);
 	  } else {
 	    LcpInfo.his_magic = magic;
 	    memcpy(ackp, cp, length);
 	    ackp += length;
-            LcpFailedMagic = 0;
+            LcpInfo.LcpFailedMagic = 0;
 	  }
 	} else {
 	  LcpInfo.my_reject |= (1 << type);

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lqr.c,v 1.22 1998/01/21 02:15:19 brian Exp $
+ * $Id: lqr.c,v 1.22.2.1 1998/01/29 00:49:25 brian Exp $
  *
  *	o LQR based on RFC1333
  *
@@ -198,7 +198,6 @@ LqrInput(struct physical *physical, struct mbuf * bp)
 void
 StartLqm(struct physical *physical)
 {
-  struct lcpstate *lcp = &LcpInfo;
   int period;
 
   lqrsendcnt = 0;		/* start waiting all over for ECHOs */
@@ -211,12 +210,13 @@ StartLqm(struct physical *physical)
   StopTimer(&LqrTimer);
   LogPrintf(LogLQM, "LQM method = %d\n", lqmmethod);
 
-  if (lcp->his_lqrperiod || lcp->want_lqrperiod) {
+  if (LcpInfo.his_lqrperiod || LcpInfo.want_lqrperiod) {
 
     /*
      * We need to run timer. Let's figure out period.
      */
-    period = lcp->his_lqrperiod ? lcp->his_lqrperiod : lcp->want_lqrperiod;
+    period = LcpInfo.his_lqrperiod ?
+      LcpInfo.his_lqrperiod : LcpInfo.want_lqrperiod;
     StopTimer(&LqrTimer);
     LqrTimer.state = TIMER_STOPPED;
     LqrTimer.load = period * SECTICKS / 100;

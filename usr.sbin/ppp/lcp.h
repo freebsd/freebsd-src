@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.h,v 1.16 1998/01/11 17:50:38 brian Exp $
+ * $Id: lcp.h,v 1.16.2.1 1998/01/29 00:49:25 brian Exp $
  *
  *	TODO:
  */
@@ -23,27 +23,30 @@
 #define	REJECTED(p, x)	((p)->his_reject & (1<<(x)))
 
 struct lcpstate {
-  u_int16_t his_mru;
-  u_int32_t his_accmap;
-  u_int32_t his_magic;
-  u_int32_t his_lqrperiod;
-  u_char his_protocomp;
-  u_char his_acfcomp;
-  u_short his_auth;
+  u_int16_t his_mru;		/* Peers maximum packet size */
+  u_int32_t his_accmap;		/* Peeers async char control map */
+  u_int32_t his_magic;		/* Peers magic number */
+  u_int32_t his_lqrperiod;	/* Peers LQR frequency */
+  int his_protocomp : 1;	/* Does peer do Protocol field compression */
+  int his_acfcomp : 1;		/* Does peer do addr & cntrl fld compression */
+  u_short his_auth;		/* Peer wants this type of authentication */
 
-  u_short want_mru;
-  u_int32_t want_accmap;
-  u_int32_t want_magic;
-  u_int32_t want_lqrperiod;
-  u_char want_protocomp;
-  u_char want_acfcomp;
-  u_short want_auth;
+  u_short want_mru;		/* Our maximum packet size */
+  u_int32_t want_accmap;	/* Our async char control map */
+  u_int32_t want_magic;		/* Our magic number */
+  u_int32_t want_lqrperiod;	/* Our LQR frequency */
+  int want_protocomp : 1;	/* Do we do protocol field compression */
+  int want_acfcomp : 1;		/* Do we do addr & cntrl fld compression */
+  u_short want_auth;		/* We want this type of authentication */
 
   u_int32_t his_reject;		/* Request codes rejected by peer */
   u_int32_t my_reject;		/* Request codes I have rejected */
 
-  u_short auth_iwait;
-  u_short auth_ineed;
+  u_short auth_iwait;		/* I must authenticate to the peer */
+  u_short auth_ineed;		/* I require that the peer authenticates */
+
+  int LcpFailedMagic;		/* Number of `magic is same' errors */
+  struct pppTimer ReportTimer;	/* Moan about hdlc errors every 60 seconds */
 };
 
 #define	LCP_MAXCODE	CODE_DISCREQ

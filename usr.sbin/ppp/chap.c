@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: chap.c,v 1.28 1997/12/24 09:28:53 brian Exp $
+ * $Id: chap.c,v 1.28.2.1 1998/01/29 00:49:13 brian Exp $
  *
  *	TODO:
  */
@@ -266,14 +266,13 @@ RecvChapResult(struct fsmheader *chp, struct mbuf *bp,
 	       struct physical *physical)
 {
   int len;
-  struct lcpstate *lcp = &LcpInfo;
 
   len = ntohs(chp->length);
   LogPrintf(LogDEBUG, "RecvChapResult: length: %d\n", len);
   if (chp->code == CHAP_SUCCESS) {
-    if (lcp->auth_iwait == PROTO_CHAP) {
-      lcp->auth_iwait = 0;
-      if (lcp->auth_ineed == 0)
+    if (LcpInfo.auth_iwait == PROTO_CHAP) {
+      LcpInfo.auth_iwait = 0;
+      if (LcpInfo.auth_ineed == 0)
 	NewPhase(physical, PHASE_NETWORK);
     }
   } else {

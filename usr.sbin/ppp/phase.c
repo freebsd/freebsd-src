@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: phase.c,v 1.6.4.1 1998/01/29 00:49:28 brian Exp $
+ *	$Id: phase.c,v 1.6.4.2 1998/01/29 23:11:41 brian Exp $
  */
 
 #include <sys/param.h>
@@ -34,9 +34,9 @@
 #include "command.h"
 #include "mbuf.h"
 #include "log.h"
+#include "timer.h"
 #include "lcp.h"
 #include "lcpproto.h"
-#include "timer.h"
 #include "auth.h"
 #include "pap.h"
 #include "chap.h"
@@ -73,21 +73,19 @@ Auth2Nam(u_short auth)
 void
 NewPhase(struct physical *physical, int new)
 {
-  struct lcpstate *lcp = &LcpInfo;
-
   phase = new;
   LogPrintf(LogPHASE, "NewPhase: %s\n", PhaseNames[phase]);
   switch (phase) {
   case PHASE_AUTHENTICATE:
-    lcp->auth_ineed = lcp->want_auth;
-    lcp->auth_iwait = lcp->his_auth;
-    if (lcp->his_auth || lcp->want_auth) {
+    LcpInfo.auth_ineed = LcpInfo.want_auth;
+    LcpInfo.auth_iwait = LcpInfo.his_auth;
+    if (LcpInfo.his_auth || LcpInfo.want_auth) {
       LogPrintf(LogPHASE, " his = %s, mine = %s\n",
-                Auth2Nam(lcp->his_auth), Auth2Nam(lcp->want_auth));
+                Auth2Nam(LcpInfo.his_auth), Auth2Nam(LcpInfo.want_auth));
        /* XXX-ML AuthPapInfo and AuthChapInfo must be allocated! */
-      if (lcp->his_auth == PROTO_PAP)
+      if (LcpInfo.his_auth == PROTO_PAP)
 	StartAuthChallenge(&AuthPapInfo, physical);
-      if (lcp->want_auth == PROTO_CHAP)
+      if (LcpInfo.want_auth == PROTO_CHAP)
 	StartAuthChallenge(&AuthChapInfo, physical);
     } else
       NewPhase(physical, PHASE_NETWORK);
