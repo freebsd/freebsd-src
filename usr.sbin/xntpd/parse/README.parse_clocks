@@ -119,9 +119,10 @@ in the parse/clk_*.c and xntpd/refclock_parse.c files).
     For the Meinberg parse look into clock_meinberg.c
 
 ---
-    RAWDCF: 127.127.8.20-23 (Conrad receiver module - delay 210ms)
-	    127.127.8.24-27 (FAU receiver - delay 258ms)
-    RAWDCF: end=TIMEOUT>1.5s, sync each char (any char),generate psuedo time
+    RAWDCF: 127.127.8.20-23 (Conrad receiver module - delay 258ms)
+	    127.127.8.24-27 (FAU receiver - delay 210ms)
+	    127.127.8.40-43 (Boeder receiver - delay 258ms)
+    RAWDCF: end=TIMEOUT>1.5s, sync each char (any char), generate psuedo time
             codes, fixed format
 
     direct DCF77 code input
