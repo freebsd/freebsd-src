@@ -1485,8 +1485,6 @@ device		miibus
 
 # an:   Aironet 4500/4800 802.11 wireless adapters. Supports the PCMCIA,
 #       PCI and ISA varieties.
-# ar:   Arnet SYNC/570i hdlc sync 2/4 port V.35/X.21 serial driver
-#       (requires sppp)
 # awi:  Support for IEEE 802.11 PC Card devices using the AMD Am79C930 and
 #       Harris (Intersil) Chipset with PCnetMobile firmware by AMD.
 # bge:	Support for gigabit ethernet adapters based on the Broadcom
@@ -1598,11 +1596,6 @@ device		miibus
 
 # Order for ISA/EISA devices is important here
 
-device		ar
-hint.ar.0.at="isa"
-hint.ar.0.port="0x300"
-hint.ar.0.irq="10"
-hint.ar.0.maddr="0xd0000"
 device		cm
 hint.cm.0.at="isa"
 hint.cm.0.port="0x2e0"
