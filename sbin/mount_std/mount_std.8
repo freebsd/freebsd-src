@@ -34,7 +34,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id$
+.\"	$Id: mount_std.8,v 1.7 1997/02/22 14:32:59 peter Exp $
 .\"
 .Dd May 13, 1996
 .Dt MOUNT_STD 8
@@ -126,12 +126,11 @@ and
 .Sh DIAGNOSTICS
 .Bl -diag
 .It argv[0] must end in _fsname
-The
-.Nm mount_std
-command was called with a zero'th argument of
+.Nm Mount_std
+was called with a zeroth argument of
 .Dq Li mount_std .
 .It vfsload(%s)
-.Nm
+.Nm Mount_std
 was unable to load a kernel module implementing the %s filesystem
 type.
 .It %s filesystem not available

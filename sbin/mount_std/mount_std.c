@@ -36,14 +36,14 @@
  */
 
 #ifndef lint
-char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1992, 1993, 1994\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: mount_std.c,v 1.6 1997/03/11 12:38:16 peter Exp $";
+	"$Id: mount_std.c,v 1.7 1997/03/29 03:32:46 imp Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -51,7 +51,6 @@ static const char rcsid[] =
 
 #include <err.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
 #include <sysexits.h>
 #include <unistd.h>
