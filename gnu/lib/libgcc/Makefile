@@ -97,11 +97,7 @@ tm.h:
 	echo '#include "svr4.h"'				>> ${.TARGET}
 .endif
 	echo '#include <freebsd.h>'				>> ${.TARGET}
-.if ${MACHINE_ARCH} == "alpha"
-	echo '#include "${MACHINE_ARCH}/freebsd4.h"'		>> ${.TARGET}
-.else
 	echo '#include "${MACHINE_ARCH}/freebsd.h"'		>> ${.TARGET}
-.endif
 .if ${MACHINE_ARCH} == "i386"
 	echo '#include "${MACHINE_ARCH}/perform.h"'		>> ${.TARGET}
 .endif
