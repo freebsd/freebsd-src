@@ -20,4 +20,4 @@ The following files were removed for this import:
 
 The vendor import was done by:
 
-	cvs import src/contrib/one-true-awk BELL_LABS bwk_20021129
+	cvs import src/contrib/one-true-awk BELL_LABS bwk_20021213
