@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.38 1996/03/12 13:46:13 dyson Exp $
+ * $Id: vm_map.c,v 1.39 1996/03/13 01:18:14 dyson Exp $
  */
 
 /*
@@ -850,17 +850,17 @@ vm_map_simplify_entry(map, entry)
 	prev = entry->prev;
 	if (prev != &map->header) {
 		prevsize = prev->end - prev->start;
-		if ( prev->end == entry->start &&
-		     prev->object.vm_object == entry->object.vm_object &&
-		     prev->offset + prevsize == entry->offset &&
-		     prev->protection == entry->protection &&
-		     prev->max_protection == entry->max_protection &&
-		     prev->inheritance == entry->inheritance &&
-		     prev->needs_copy == entry->needs_copy &&
-		     prev->copy_on_write == entry->copy_on_write &&
-		     prev->is_a_map == FALSE &&
-		     prev->is_sub_map == FALSE &&
-		     prev->wired_count == 0) {
+		if ( (prev->end == entry->start) &&
+		     (prev->object.vm_object == entry->object.vm_object) &&
+		     (prev->offset + prevsize == entry->offset) &&
+		     (prev->needs_copy == entry->needs_copy) &&
+		     (prev->copy_on_write == entry->copy_on_write) &&
+		     (prev->protection == entry->protection) &&
+		     (prev->max_protection == entry->max_protection) &&
+		     (prev->inheritance == entry->inheritance) &&
+		     (prev->is_a_map == FALSE) &&
+		     (prev->is_sub_map == FALSE) &&
+		     (prev->wired_count == 0)) {
 			if (map->first_free == prev)
 				map->first_free = entry;
 			vm_map_entry_unlink(map, prev);
@@ -875,17 +875,17 @@ vm_map_simplify_entry(map, entry)
 	if (next != &map->header) {
 		nextsize = next->end - next->start;
 		esize = entry->end - entry->start;
-		if (entry->end == next->start &&
-		    next->object.vm_object == entry->object.vm_object &&
-		    entry->offset + esize == next->offset &&
-		    next->protection == entry->protection &&
-		    next->max_protection == entry->max_protection &&
-		    next->inheritance == entry->inheritance &&
-		    next->needs_copy == entry->needs_copy &&
-		    next->copy_on_write == entry->copy_on_write &&
-		    next->is_a_map == FALSE &&
-		    next->is_sub_map == FALSE &&
-		    next->wired_count == 0) {
+		if ((entry->end == next->start) &&
+		    (next->object.vm_object == entry->object.vm_object) &&
+		    (entry->offset + esize == next->offset) &&
+		    (next->needs_copy == entry->needs_copy) &&
+		    (next->copy_on_write == entry->copy_on_write) &&
+		    (next->protection == entry->protection) &&
+		    (next->max_protection == entry->max_protection) &&
+		    (next->inheritance == entry->inheritance) &&
+		    (next->is_a_map == FALSE) &&
+		    (next->is_sub_map == FALSE) &&
+		    (next->wired_count == 0)) {
 			if (map->first_free == next)
 				map->first_free = entry;
 			vm_map_entry_unlink(map, next);
@@ -922,16 +922,12 @@ _vm_map_clip_start(map, entry, start)
 	register vm_map_entry_t new_entry;
 
 	/*
-	 * See if we can simplify this entry first
-	 */
-
-	vm_map_simplify_entry(map, entry);
-
-	/*
 	 * Split off the front portion -- note that we must insert the new
 	 * entry BEFORE this one, so that this entry has the specified
 	 * starting address.
 	 */
+
+	vm_map_simplify_entry(map, entry);
 
 	new_entry = vm_map_entry_create(map);
 	*new_entry = *entry;
@@ -1177,6 +1173,7 @@ vm_map_protect(map, start, end, new_prot, set_max)
 		current = current->next;
 	}
 
+	vm_map_simplify_entry(map, entry);
 	vm_map_unlock(map);
 	return (KERN_SUCCESS);
 }
@@ -1226,6 +1223,7 @@ vm_map_inherit(map, start, end, new_inheritance)
 		entry = entry->next;
 	}
 
+	vm_map_simplify_entry(map, temp_entry);
 	vm_map_unlock(map);
 	return (KERN_SUCCESS);
 }
@@ -1313,6 +1311,7 @@ vm_map_pageable(map, start, end, new_pageable)
 
 			entry = entry->next;
 		}
+		vm_map_simplify_entry(map, start_entry);
 		lock_clear_recursive(&map->lock);
 	} else {
 		/*
