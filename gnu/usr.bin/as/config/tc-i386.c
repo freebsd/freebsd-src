@@ -25,7 +25,7 @@
   */
 
 #ifndef lint
-static char rcsid[] = "$Id: tc-i386.c,v 1.4 1995/05/30 04:47:29 rgrimes Exp $";
+static char rcsid[] = "$Id: tc-i386.c,v 1.5 1996/10/01 00:12:43 peter Exp $";
 #endif
 
 #include "as.h"
@@ -2082,6 +2082,7 @@ relax_addressT segment_address_in_file;
 		if (!extrn_bit && !S_IS_EXTERNAL(fixP->fx_addsy))
 			as_warn("GOT relocation burb: `%s' should be global",
 					S_GET_NAME(fixP->fx_addsy));
+		S_SET_EXTERNAL(fixP->fx_addsy);
 		extrn_bit = 1;
 		break;
 	case RELOC_GOTOFF:
