@@ -45,6 +45,10 @@ extern struct _vinum_conf vinum_conf;			    /* configuration information */
 extern int debug;					    /* debug flags */
 #endif
 
+/* Physical read and write drive */
+#define read_drive(a, b, c, d) driveio (a, b, c, d, B_READ)
+#define write_drive(a, b, c, d) driveio (a, b, c, d, B_WRITE)
+
 #define CHECKALLOC(ptr, msg) \
   if (ptr == NULL) \
     { \
@@ -118,8 +122,6 @@ int init_drive(struct drive *, int);
 void throw_rude_remark(int, char *,...);
 
 /* XXX die die */
-int read_drive(struct drive *drive, void *buf, size_t length, off_t offset);
-int write_drive(struct drive *drive, void *buf, size_t length, off_t offset);
 void format_config(char *config, int len);
 void checkkernel(char *op);
 void free_drive(struct drive *drive);
@@ -188,6 +190,7 @@ void setstate_by_force(struct vinum_ioctl_msg *msg);
 void vinum_label(int);
 int vinum_writedisklabel(struct volume *, struct disklabel *);
 int initsd(int, int);
+struct buf *parityrebuild(struct plex *, u_int64_t, int, int, struct rangelock **);
 enum requeststatus sddownstate(struct request *rq);
 
 int restart_plex(int plexno);
@@ -240,6 +243,7 @@ int vinum_finddaemon(void);
 int vinum_setdaemonopts(int);
 extern struct daemonq *daemonq;				    /* daemon's work queue */
 extern struct daemonq *dqend;				    /* and the end of the queue */
+
 /* Local Variables: */
 /* fill-column: 50 */
 /* End: */
