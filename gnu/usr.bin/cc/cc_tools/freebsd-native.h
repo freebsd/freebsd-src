@@ -50,6 +50,10 @@
 
 #define STANDARD_STARTFILE_PREFIX	PREFIX"/lib/"
 
+/* For the native system compiler, we actually build libgcc in a profiled
+   version.  So we should use it with -pg.  */
+#define LIBGCC_SPEC "%{!pg: -lgcc} %{pg: -lgcc_p}"
+
 /* FreeBSD is 4.4BSD derived */
 #define bsd4_4
 
