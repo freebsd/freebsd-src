@@ -44,26 +44,26 @@ static void		write_word(u_int32_t, u_int16_t);
 ** Hardware /0 interrupt
 */
 void
-int00(regcontext_t *REGS)
+int00(regcontext_t *REGS __unused)
 {
     debug(D_ALWAYS, "Divide by 0 in DOS program!\n");
     exit(1);
 }
 
 void
-int01(regcontext_t *REGS)
+int01(regcontext_t *REGS __unused)
 {
     debug(D_ALWAYS, "INT 1 with no handler! (single-step/debug)\n");
 }
 
 void
-int03(regcontext_t *REGS)
+int03(regcontext_t *REGS __unused)
 {
     debug(D_ALWAYS, "INT 3 with no handler! (breakpoint)\n");
 }
 
 void
-int0d(regcontext_t *REGS)
+int0d(regcontext_t *REGS __unused)
 {
     debug(D_ALWAYS, "IRQ5 with no handler!\n");
 }

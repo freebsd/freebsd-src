@@ -178,7 +178,7 @@ inb_port(int port)
  */
 
 static void
-outb_nullport(int port, unsigned char byte)
+outb_nullport(int port __unused, unsigned char byte __unused)
 {
 /*
     debug(D_PORT, "outb_nullport called for port 0x%03X = 0x%02X.\n",
@@ -187,7 +187,7 @@ outb_nullport(int port, unsigned char byte)
 }
 
 static unsigned char
-inb_nullport(int port)
+inb_nullport(int port __unused)
 {
 /*
     debug(D_PORT, "inb_nullport called for port 0x%03X.\n", port);
@@ -405,7 +405,7 @@ int sound_on = 1;
 int sound_freq = 1000;
 
 void
-outb_speaker(int port, unsigned char byte)
+outb_speaker(int port __unused, unsigned char byte)
 {
 #if 0 /*XXXXX*/
     if (raw_kbd) {
@@ -420,7 +420,7 @@ outb_speaker(int port, unsigned char byte)
 }
 
 unsigned char
-inb_speaker(int port)
+inb_speaker(int port __unused)
 {
 /*    port_61 = (port_61 + 1) & 0xff; */
     return(port_61);

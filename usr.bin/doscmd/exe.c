@@ -120,7 +120,7 @@ load_com(int fd, int start_segment)
 }
 
 static void
-load_exe(int fd, int start_segment, int reloc_segment, struct exehdr *hdr, int text_size)
+load_exe(int fd, int start_segment, int reloc_segment __unused, struct exehdr *hdr, int text_size)
 {
     char *start_addr;
     int reloc_size;

@@ -1800,7 +1800,7 @@ int21_57_0(regcontext_t *REGS)
 ** set mtime for handle
 */
 static int
-int21_57_1(regcontext_t *REGS)
+int21_57_1(regcontext_t *REGS __unused)
 {
 #ifdef __NetBSD__	/* XXX need futimes() */
 	struct stat sb;

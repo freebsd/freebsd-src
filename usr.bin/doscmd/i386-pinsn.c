@@ -1465,13 +1465,13 @@ dofloat ()
 }
 
 static void
-OP_ST(int dummy)
+OP_ST(int dummy __unused)
 {
   oappend ("%st");
 }
 
 static void
-OP_STi(int dummy)
+OP_STi(int dummy __unused)
 {
   sprintf (scratchbuf, "%%st(%d)", rm);
   oappend (scratchbuf);
@@ -1834,7 +1834,7 @@ append_pc(unsigned long pc)
 }
 
 static void
-OP_SEG(int dummy)
+OP_SEG(int dummy __unused)
 {
   static const char *sreg[] = {
     "%es","%cs","%ss","%ds","%fs","%gs","%?","%?",
@@ -1880,7 +1880,7 @@ OP_DIR(int size)
 }
 
 static void
-OP_OFF(int dummy)
+OP_OFF(int dummy __unused)
 {
   int off;
   
@@ -1894,7 +1894,7 @@ OP_OFF(int dummy)
 }
 
 static void
-OP_ESDI(int dummy)
+OP_ESDI(int dummy __unused)
 {
   oappend ("%es:(");
   oappend (aflag ? "%edi" : "%di");
@@ -1902,7 +1902,7 @@ OP_ESDI(int dummy)
 }
 
 static void
-OP_DSSI(int dummy)
+OP_DSSI(int dummy __unused)
 {
   oappend ("%ds:(");
   oappend (aflag ? "%esi" : "%si");
@@ -1910,7 +1910,7 @@ OP_DSSI(int dummy)
 }
 
 static void
-OP_C(int dummy)
+OP_C(int dummy __unused)
 {
   codep++; /* skip mod/rm */
   sprintf (scratchbuf, "%%cr%d", reg);
@@ -1918,7 +1918,7 @@ OP_C(int dummy)
 }
 
 static void
-OP_D(int dummy)
+OP_D(int dummy __unused)
 {
   codep++; /* skip mod/rm */
   sprintf (scratchbuf, "%%db%d", reg);
@@ -1926,7 +1926,7 @@ OP_D(int dummy)
 }
 
 static void
-OP_T(int dummy)
+OP_T(int dummy __unused)
 {
   codep++; /* skip mod/rm */
   sprintf (scratchbuf, "%%tr%d", reg);
