@@ -142,11 +142,27 @@ stat_display(struct xferstat *xs, int force)
 	xs->last = now;
 
 	fprintf(stderr, "\rReceiving %s", xs->name);
-	if (xs->size <= 0)
+	if (xs->size <= 0) {
 		fprintf(stderr, ": %lld bytes", (long long)xs->rcvd);
-	else
+	} else {
+		long elapsed;
+
 		fprintf(stderr, " (%lld bytes): %d%%", (long long)xs->size,
 		    (int)((100.0 * xs->rcvd) / xs->size));
+		elapsed = xs->last.tv_sec - xs->start.tv_sec;
+		if (elapsed > 30) {
+			long remaining;
+
+			remaining = ((xs->size * elapsed) / xs->rcvd) - elapsed;
+			fprintf(stderr, " (ETA ");
+			if (remaining > 3600) {
+				fprintf(stderr, "%02ld:", remaining / 3600);
+				remaining %= 3600;
+			}
+			fprintf(stderr, "%02ld:%02ld)  ",
+			    remaining / 60, remaining % 60);
+		}
+	}
 }
 
 /*
@@ -328,8 +344,17 @@ fetch(char *URL, const char *path)
 
 	/* just print size */
 	if (s_flag) {
-		if (fetchStat(url, &us, flags) == -1)
+		if (timeout)
+			alarm(timeout);
+		r = fetchStat(url, &us, flags);
+		if (timeout)
+		    alarm(0);
+		if (sigalrm || sigint)
+			goto signal;
+		if (r == -1) {
+			warnx("%s", fetchLastErrString);
 			goto failure;
+		}
 		if (us.size == -1)
 			printf("Unknown\n");
 		else
@@ -359,7 +384,12 @@ fetch(char *URL, const char *path)
 		url->offset = sb.st_size;
 
 	/* start the transfer */
-	if ((f = fetchXGet(url, &us, flags)) == NULL) {
+	if (timeout)
+		alarm(timeout);
+	f = fetchXGet(url, &us, flags);
+	if (sigalrm || sigint)
+		goto signal;
+	if (f == NULL) {
 		warnx("%s: %s", path, fetchLastErrString);
 		goto failure;
 	}
@@ -501,30 +531,25 @@ fetch(char *URL, const char *path)
 
 	/* suck in the data */
 	signal(SIGINFO, sig_handler);
-	while (!sigint && !sigalrm) {
+	while (!sigint) {
 		if (us.size != -1 && us.size - count < B_size)
 			size = us.size - count;
 		else
 			size = B_size;
-		if (timeout)
-			alarm(timeout);
 		if (siginfo) {
 			stat_end(&xs);
 			siginfo = 0;
 		}
 		if ((size = fread(buf, 1, size, f)) == 0) {
-			if (ferror(f) && errno == EINTR && !sigalrm && !sigint)
+			if (ferror(f) && errno == EINTR && !sigint)
 				clearerr(f);
 			else
 				break;
 		}
-		if (timeout)
-			alarm(0);
 		stat_update(&xs, count += size);
 		for (ptr = buf; size > 0; ptr += wr, size -= wr)
 			if ((wr = fwrite(ptr, 1, size, of)) < size) {
-				if (ferror(of) && errno == EINTR &&
-				    !sigalrm && !sigint)
+				if (ferror(of) && errno == EINTR && !sigint)
 					clearerr(of);
 				else
 					break;
@@ -532,13 +557,18 @@ fetch(char *URL, const char *path)
 		if (size != 0)
 			break;
 	}
+	if (!sigalrm)
+		sigalrm = ferror(f) && errno == ETIMEDOUT;
 	signal(SIGINFO, SIG_DFL);
-
-	if (timeout)
-		alarm(0);
 
 	stat_end(&xs);
 
+	/*
+	 * If the transfer timed out or was interrupted, we still want to
+	 * set the mtime in case the file is not removed (-r or -R) and
+	 * the user later restarts the transfer.
+	 */
+ signal:
 	/* set mtime of local file */
 	if (!n_flag && us.mtime && !o_stdout
 	    && (stat(path, &sb) != -1) && sb.st_mode & S_IFREG) {
@@ -553,7 +583,6 @@ fetch(char *URL, const char *path)
 	}
 
 	/* timed out or interrupted? */
- signal:
 	if (sigalrm)
 		warnx("transfer timed out");
 	if (sigint) {
