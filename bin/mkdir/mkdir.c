@@ -42,7 +42,7 @@ static char const copyright[] =
 static char sccsid[] = "@(#)mkdir.c	8.2 (Berkeley) 1/25/94";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: mkdir.c,v 1.11 1998/05/15 06:23:45 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -105,6 +105,15 @@ main(argc, argv)
 			warn("%s", *argv);
 			exitval = 1;
 		}
+		/*
+		 * The mkdir() and umask() calls both honor only the low
+		 * nine bits, so if you try to set a mode including the
+		 * sticky, setuid, setgid bits you lose them.  So chmod().
+		 */
+		if (chmod(*argv, mode) == -1) {
+			warn("%s", *argv);
+			exitval = 1;
+		}
 	}
 	exit(exitval);
 }
@@ -160,6 +169,15 @@ build(path, omode)
 				retval = 1;
 				break;
 			}
+                	/*
+                         * The mkdir() and umask() calls both honor only the low
+                	 * nine bits, so if you try to set a mode including the
+                    	 * sticky, setuid, setgid bits you lose them. So chmod().
+                         */
+                    	if (chmod(*path, mode) == -1) {
+				warn("%s", *path);
+				exitval = 1;
+                        }
 		}
 		else if ((sb.st_mode & S_IFMT) != S_IFDIR) {
 			if (last)
