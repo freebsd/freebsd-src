@@ -216,8 +216,10 @@ svr4_setcontext(td, uc)
 	 * set to 0 right now?
 	 */
 
-	if ((uc->uc_flags & SVR4_UC_CPU) == 0)
+	if ((uc->uc_flags & SVR4_UC_CPU) == 0) {
+		PROC_UNLOCK(p);
 		return 0;
+	}
 
 	DPRINTF(("svr4_setcontext(%d)\n", p->p_pid));
 
@@ -244,8 +246,10 @@ svr4_setcontext(td, uc)
 		 * the trap, rather than doing all of the checking here.
 		 */
 		if (((r[SVR4_X86_EFL] ^ tf->tf_eflags) & PSL_USERSTATIC) != 0 ||
-		    !USERMODE(r[SVR4_X86_CS], r[SVR4_X86_EFL]))
+		    !USERMODE(r[SVR4_X86_CS], r[SVR4_X86_EFL])) {
+			PROC_UNLOCK(p);
 			return (EINVAL);
+		}
 
 #if defined(__NetBSD__)
 		/* %fs and %gs were restored by the trampoline. */
