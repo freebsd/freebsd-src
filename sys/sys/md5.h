@@ -27,7 +27,7 @@ documentation and/or software.
 #ifndef _MD5_H_
 #define _MD5_H_
 /* MD5 context. */
-typedef struct {
+typedef struct MD5Context {
   unsigned long state[4];	/* state (ABCD) */
   unsigned long count[2];	/* number of bits, modulo 2^64 (lsb first) */
   unsigned char buffer[64];	/* input buffer */
