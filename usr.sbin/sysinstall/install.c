@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.215 1998/10/12 23:47:50 jkh Exp $
+ * $Id: install.c,v 1.216 1998/10/13 10:07:43 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -948,7 +948,7 @@ installFilesystems(dialogMenuItem *self)
 			if (c2 == rootdev)
 			    continue;
 
-			if (tmp->newfs && (!upgrade || !msgYesNo("You are upgradding - are you SURE you want to newfs /dev/%s?", c2->name)))
+			if (tmp->newfs && (!upgrade || !msgYesNo("You are upgrading - are you SURE you want to newfs /dev/%s?", c2->name)))
 			    command_shell_add(tmp->mountpoint, "%s %s/dev/r%s", tmp->newfs_cmd, RunningAsInit ? "/mnt" : "", c2->name);
 			else
 			    command_shell_add(tmp->mountpoint, "fsck -y %s/dev/r%s", RunningAsInit ? "/mnt" : "", c2->name);
