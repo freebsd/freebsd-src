@@ -130,8 +130,8 @@
  * ifnet structure so that receive handling works. As far as I can
  * tell, although there is an AF_NETGRAPH address family, it's only
  * used to identify sockaddr_ng structures: there is no netgraph address
- * family domain. This means the AF_NETGRAPH entry in ifp->if_afdata[]
- * should be unused, so we can (ab)use it to hold our node context.
+ * family domain. This means the AF_NETGRAPH entry in ifp->if_afdata
+ * should be unused, so we can use to hold our node context.
  */
 #define IFP2NG(ifp)  (struct ng_node *)(ifp->if_afdata[AF_NETGRAPH])
 #define FEC_INC(x, y)	(x) = (x + 1) % y
@@ -144,7 +144,8 @@
 
 struct ng_fec_portlist {
 	struct ifnet		*fec_if;
-	void			(*fec_if_input) (struct ifnet *, struct mbuf *);
+	void			(*fec_if_input) (struct ifnet *,
+						 struct mbuf *);
 	int			fec_idx;
 	int			fec_ifstat;
 	struct ether_addr	fec_mac;
@@ -155,6 +156,10 @@ struct ng_fec_bundle {
 	TAILQ_HEAD(,ng_fec_portlist) ng_fec_ports;
 	int			fec_ifcnt;
 	int			fec_btype;
+	int			(*fec_if_output) (struct ifnet *,
+						  struct mbuf *,
+						  struct sockaddr *,
+						  struct rtentry *);
 };
 
 #define FEC_BTYPE_MAC		0x01
@@ -362,6 +367,20 @@ ng_fec_addport(struct ng_fec_private *priv, char *iface)
 		}
 	}
 
+	/*
+	 * All interfaces must use the same output vector. Once the
+	 * user attaches an interface of one type, make all subsequent
+	 * interfaces have the same output vector.
+	 */
+	if (b->fec_if_output != NULL) {
+		if (b->fec_if_output != bifp->if_output) {
+			printf("fec%d: iface %s is not the same type "
+			    "as the other interface(s) already in "
+			    "the bundle\n", priv->unit, iface);
+			return(EINVAL);
+		}
+	}
+
 	/* Allocate new list entry. */
 	MALLOC(new, struct ng_fec_portlist *,
 	    sizeof(struct ng_fec_portlist), M_NETGRAPH, M_NOWAIT);
@@ -407,6 +426,10 @@ ng_fec_addport(struct ng_fec_private *priv, char *iface)
 
 	/* Override it with our own */
 	bifp->if_input = ng_fec_input;
+
+	/* Save output vector too. */
+	if (b->fec_if_output == NULL)
+		b->fec_if_output = bifp->if_output;
 
 	/* Add to the queue */
 	new->fec_if = bifp;
@@ -473,6 +496,9 @@ ng_fec_delport(struct ng_fec_private *priv, char *iface)
 	TAILQ_REMOVE(&b->ng_fec_ports, p, fec_list);
 	FREE(p, M_NETGRAPH);
 	b->fec_ifcnt--;
+
+	if (b->fec_ifcnt == 0)
+		b->fec_if_output = NULL;
 
 	return(0);
 }
@@ -581,8 +607,7 @@ ng_fec_tick(void *arg)
 			continue;
 		}
 
-        	if (ifmr.ifm_status & IFM_AVALID &&
-                    IFM_TYPE(ifmr.ifm_active) == IFM_ETHER) {
+        	if (ifmr.ifm_status & IFM_AVALID) {
 			if (ifmr.ifm_status & IFM_ACTIVE) {
 				if (p->fec_ifstat == -1 ||
 				    p->fec_ifstat == 0) {
@@ -788,7 +813,7 @@ ng_fec_input(struct ifnet *ifp, struct mbuf *m0)
  * Take a quick peek at the packet and see if it's ok for us to use
  * the inet or inet6 hash methods on it, if they're enabled. We do
  * this by setting flags in the mbuf header. Once we've made up our
- * mind what to do, we pass the frame to ether_output() for further
+ * mind what to do, we pass the frame to output vector for further
  * processing.
  */
 
@@ -842,12 +867,12 @@ ng_fec_output(struct ifnet *ifp, struct mbuf *m,
 	}
 
 	/*
-	 * Pass the frame to ether_output() for all the protocol
+	 * Pass the frame to the output vector for all the protocol
 	 * handling. This will put the ethernet header on the packet
 	 * for us.
 	 */
 	priv->if_error = 0;
-	error = ether_output(ifp, m, dst, rt0);
+	error = (*b->fec_if_output)(ifp, m, dst, rt0);
 	if (priv->if_error && !error)
 		error = priv->if_error;
 
@@ -1007,7 +1032,7 @@ ng_fec_start(struct ifnet *ifp)
 	}
 	ifp->if_opackets++;
 
-	priv->if_error = ether_output_frame(oifp, m0);
+	priv->if_error = IF_HANDOFF(&oifp->if_snd, m0, oifp) ? 0 : ENOBUFS;
 
 	return;
 }
@@ -1085,7 +1110,6 @@ ng_fec_constructor(node_p node)
 	/* Link together node and private info */
 	NG_NODE_SET_PRIVATE(node, priv);
 	priv->node = node;
-	priv->arpcom.ac_netgraph = node;
 
 	/* Initialize interface structure */
 	if_initname(ifp, NG_FEC_FEC_NAME, priv->unit);
