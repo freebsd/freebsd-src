@@ -30,7 +30,7 @@
 
 /* dpt_led.c:  Show the blinking LED array status of a DPT HBAs */
 
-#ident "$Id: dpt_led.c,v 1.1 1998/01/23 02:45:53 ShimonR Exp ShimonR $"
+#ident "$Id: dpt_led.c,v 1.1 1998/01/26 06:26:41 julian Exp $"
 
 #include <fcntl.h>
 #include <stdio.h>
@@ -69,9 +69,10 @@ main(int argc, char **argv, char **argp)
     pass_thru.command_buffer = (u_int8_t *)&led;
 
     if ( (result = ioctl(fd, DPT_IOCTL_SEND, &pass_thru)) != 0 ) {
-		(void)fprintf(stderr, "%s ERROR:  Failed to send IOCTL %x - %s\n",
-					  argv[0], DPT_IOCTL_SEND,
-					  strerror(errno));
+		(void)fprintf(stderr, "%s ERROR:  Failed to send IOCTL %lx "
+			      "- %s\n",
+			      argv[0], DPT_IOCTL_SEND,
+			      strerror(errno));
 		exit(1);
     }
 
