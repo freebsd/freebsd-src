@@ -64,6 +64,7 @@ static char sccsid[] = "@(#)common.c	8.5 (Berkeley) 4/28/95";
 char	*AF;		/* accounting file */
 long	 BR;		/* baud rate if lp is a tty */
 char	*CF;		/* name of cifplot filter (per job) */
+long	 CT;		/* TCP connection timeout */
 char	*DF;		/* name of tex filter (per job) */
 long	 DU;		/* daeomon user-id */
 char	*FF;		/* form feed string */

@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)rmjob.c	8.2 (Berkeley) 4/28/95";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: rmjob.c,v 1.9 1997/09/24 06:47:31 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -67,6 +67,7 @@ static char	current[40];		/* active control file name */
 
 extern uid_t	uid, euid;		/* real and effective user id's */
 
+static	void	alarmhandler __P((int));
 static	void	do_unlink __P((char *));
 
 void
@@ -91,6 +92,8 @@ rmjob()
 		SD = _PATH_DEFSPOOL;
 	if (cgetstr(bp,"lo", &LO) < 0)
 		LO = DEFLOCK;
+	if (cgetnum(bp, "ct", &CT) < 0)
+		CT = DEFTIMEOUT;
 	cgetstr(bp, "rm", &RM);
 	if ((cp = checkremote()))
 		printf("Warning: %s\n", cp);
@@ -317,6 +320,7 @@ rmremote()
 	register char *cp;
 	register int i, rem;
 	char buf[BUFSIZ];
+	void (*savealrm)(int);
 
 	if (!remote)
 		return;	/* not sending to a remote machine */
@@ -339,7 +343,10 @@ rmremote()
 		(void) sprintf(cp, " %d", requ[i]);
 	}
 	strcat(cp, "\n");
+	savealrm = signal(SIGALRM, alarmhandler);
+	alarm(CT);
 	rem = getport(RM, 0);
+	(void)signal(SIGALRM, savealrm);
 	if (rem < 0) {
 		if (from != host)
 			printf("%s: ", host);
@@ -362,4 +369,10 @@ iscf(d)
 	struct dirent *d;
 {
 	return(d->d_name[0] == 'c' && d->d_name[1] == 'f');
+}
+
+void
+alarmhandler(signo)
+{
+	/* ignored */
 }

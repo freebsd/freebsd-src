@@ -112,6 +112,8 @@ displayq(format)
 		LO = DEFLOCK;
 	if (cgetstr(bp, "st", &ST) < 0)
 		ST = DEFSTAT;
+	if (cgetnum(bp, "ct", &CT) < 0)
+		CT = DEFTIMEOUT;
 	cgetstr(bp, "rm", &RM);
 	if ((cp = checkremote()))
 		printf("Warning: %s\n", cp);
@@ -237,7 +239,7 @@ displayq(format)
 	}
 	strcat(line, "\n");
 	savealrm = signal(SIGALRM, alarmhandler);
-	alarm(10);
+	alarm(CT);
 	fd = getport(RM, 0);
 	(void)signal(SIGALRM, savealrm);
 	if (fd < 0) {
