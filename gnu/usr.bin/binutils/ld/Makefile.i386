@@ -7,7 +7,7 @@ NATIVE_EMULATION=	elf_i386_fbsd
 HOST=	${TARGET_TUPLE}
 CFLAGS+= -DDEFAULT_EMULATION=\"${NATIVE_EMULATION}\"
 CFLAGS+= -DTARGET=\"${TARGET_TUPLE}\"
-_i386_path=	\"${TOOLS_PREFIX}/usr/lib\"
+_i386_path=	\"${TOOLS_PREFIX}/lib:${TOOLS_PREFIX}/usr/lib\"
 .else
 _i386_path=	\"/usr/cross/i386-freebsd/usr/lib\"
 .endif
