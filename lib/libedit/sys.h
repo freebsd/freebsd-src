@@ -76,11 +76,12 @@ typedef char* ioctl_t;
 #endif
 
 #include <stdio.h>
-#define REGEXEC
-#undef REGEXP
+#define REGEX		/* Use POSIX.2 regular expression functions */
+#undef REGEXP		/* Use UNIX V8 regular expression functions */
 
 #ifdef SUNOS
-# undef REGEXEC
+# undef REGEX
+# undef REGEXP
 # include <malloc.h>
 typedef void (*sig_t)__P((int));
 # ifdef __GNUC__
