@@ -116,7 +116,7 @@ ether_if_print(u_char *user, const struct pcap_pkthdr *h, const u_char *p)
 	 * Is it (gag) an 802.3 encapsulation?
 	 */
 	extracted_ethertype = 0;
-	if (ether_type < ETHERMTU) {
+	if (ether_type <= ETHERMTU) {
 		/* Try to print the LLC-layer header & higher layers */
 		if (llc_print(p, length, caplen, ESRC(ep), EDST(ep)) == 0) {
 			/* ether_type not known, print raw packet */
