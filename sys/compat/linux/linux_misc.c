@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_misc.c,v 1.45 1998/10/05 12:40:42 sos Exp $
+ *  $Id: linux_misc.c,v 1.46 1998/12/04 22:54:50 archie Exp $
  */
 
 #include <sys/param.h>
@@ -659,14 +659,23 @@ int
 linux_pipe(struct proc *p, struct linux_pipe_args *args)
 {
     int error;
+    int reg_edx;
 
 #ifdef DEBUG
     printf("Linux-emul(%d): pipe(*)\n", p->p_pid);
 #endif
-    if (error = pipe(p, 0))
+    reg_edx = p->p_retval[1];
+    if (error = pipe(p, 0)) {
+	p->p_retval[1] = reg_edx;
 	return error;
-    if (error = copyout(p->p_retval, args->pipefds, 2*sizeof(int)))
+    }
+
+    if (error = copyout(p->p_retval, args->pipefds, 2*sizeof(int))) {
+	p->p_retval[1] = reg_edx;
 	return error;
+    }
+     
+    p->p_retval[1] = reg_edx;
     p->p_retval[0] = 0;
     return 0;
 }
