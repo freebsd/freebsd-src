@@ -193,8 +193,10 @@ Use
 .I editor
 to enter revision log information.
 Overrides the setting of the
-.SM CVSEDITOR
-and the
+.SM CVSEDITOR\c
+,
+.SM VISUAL\c
+, and
 .SM EDITOR
 environment variables.
 .TP
@@ -397,6 +399,11 @@ file; see
 Incorporate a set of updates from off-site into the source repository,
 as a ``vendor branch''.  (Changes repository.)
 .TP
+.B init
+Initialize a repository by adding the CVSROOT subdirectory and some default
+control files. You must use this command or initialize the repository in
+some other way before you can use it.
+.TP
 .B log
 Display
 log information.
@@ -511,13 +518,6 @@ most recent version is used in this situation.)
 is available with these commands:
 .BR checkout ", " export ", "
 .BR rdiff ", " rtag ", and " update .
-.TP
-.B \-H
-Help; describe the options available for this command.  This is the
-only option supported for
-.I all
-.B cvs
-commands.
 .TP
 \fB\-k\fP \fIkflag\fP
 Alter the default
@@ -1723,7 +1723,7 @@ executes recursively through subdirectories; you can prevent this by
 using the standard \fB\-l\fP option, or specify the recursion
 explicitly by using \fB\-R\fP.
 .TP
-\fBupdate\fP [\fB\-Adf\|lPpQqR\fP] [\fB\-d\fP] [\fB\-r\fP \fItag\fP|\fB\-D\fP \fIdate\fP] \fIfiles\|.\|.\|.\fP
+\fBupdate\fP [\fB\-ACdf\|lPpQqR\fP] [\fB\-d\fP] [\fB\-r\fP \fItag\fP|\fB\-D\fP \fIdate\fP] \fIfiles\|.\|.\|.\fP
 .I Requires:
 repository, working directory.
 .br
@@ -1879,6 +1879,12 @@ described in the SEE ALSO section of this manpage).
 Use
 .` "\-I !"
 to avoid ignoring any files at all.
+.SP
+Use the
+.` "\-C"
+option to overwrite locally modified files with clean copies from
+the repository (the modified file is saved in
+`\fB.#\fP\fIfile\fP\fB.\fP\fIrevision\fP', however).
 .SP
 The standard \fBcvs\fP command options \fB\-f\fP, \fB\-k\fP,
 \fB\-l\fP, \fB\-P\fP, \fB\-p\fP, and \fB\-r\fP
@@ -2079,12 +2085,13 @@ and
 Specifies the program to use for recording log messages during
 .BR commit .
 If not set, the
+.SM VISUAL
+and
 .SM EDITOR
-environment variable is used instead.
-If
-.SM EDITOR
-is not set either, the default is
-.BR /usr/ucb/vi .
+environment variables are tried (in that order).
+If neither is set, a system-dependent default editor (e.g.,
+.BR vi )
+is used.
 .TP
 .SM CVS_IGNORE_REMOTE_ROOT
 If this variable is set then

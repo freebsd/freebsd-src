@@ -174,6 +174,7 @@ start_recursion (fileproc, filesdoneproc, direntproc, dirleaveproc, callerdat,
 		   seems to be handled somewhere (else) but why should
 		   it be a separate case?  Needs investigation...  */
 		just_subdirs = 1;
+	    free (root);
 	}
 #endif
 
@@ -591,7 +592,7 @@ do_recursion (frame)
 		/* Add it to our list. */
 
 		Node *n = getnode ();
-		n->type = UNKNOWN;
+		n->type = NT_UNKNOWN;
 		n->key = xstrdup (this_root);
 
 		if (addnode (root_directories, n))
@@ -1016,7 +1017,7 @@ but CVS uses %s for its own purposes; skipping %s directory",
 		/* Add it to our list. */
 
 		Node *n = getnode ();
-		n->type = UNKNOWN;
+		n->type = NT_UNKNOWN;
 		n->key = xstrdup (this_root);
 
 		if (addnode (root_directories, n))
@@ -1133,6 +1134,7 @@ addfile (listp, dir, file)
     char *file;
 {
     Node *n;
+    List *fl;
 
     /* add this dir. */
     addlist (listp, dir);
@@ -1145,7 +1147,9 @@ addfile (listp, dir, file)
     }
 
     n->type = DIRS;
-    addlist ((List **) &n->data, file);
+    fl = (List *) n->data;
+    addlist (&fl, file);
+    n->data = (char *) fl;
     return;
 }
 
@@ -1205,6 +1209,7 @@ unroll_files_proc (p, closure)
     }
 
     dirlist = save_dirlist;
-    filelist = NULL;
+    if (filelist)
+	dellist (&filelist);
     return(err);
 }
