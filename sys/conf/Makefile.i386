@@ -1,6 +1,6 @@
 # Copyright 1990 W. Jolitz
 #	from: @(#)Makefile.i386	7.1 5/10/91
-#	$Id: Makefile.i386,v 1.5 1993/09/26 19:44:33 rgrimes Exp $
+#	$Id: Makefile.i386,v 1.6 1993/10/06 20:49:17 rgrimes Exp $
 #
 # Makefile for FreeBSD
 #
@@ -106,7 +106,7 @@ assym.s: $S/sys/param.h machine/pte.h $S/sys/buf.h \
 assym.s: genassym
 	./genassym >assym.s
 
-genassym:
+genassym: ${I386}/i386/genassym.c
 	${CC} ${INCLUDES} -DKERNEL ${IDENT} ${PARAM} \
 		 ${I386}/i386/genassym.c -o genassym
 

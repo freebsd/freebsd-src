@@ -1,11 +1,12 @@
 #
 # GENERICBT -- Generic machine with WD/BTx family disks
 #
-#	$Id: GENERICBT,v 1.9 1993/09/30 20:44:31 rgrimes Exp $
+#	$Id: GENERICBT,v 1.10 1993/10/01 04:20:14 rgrimes Exp $
 #
 
 machine		"i386"
-cpu		"i386"
+cpu		"I386_CPU"
+cpu		"I486_CPU"
 ident		GENERICBT
 timezone	8 dst
 maxusers	10
