@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)specialreg.h	7.1 (Berkeley) 5/9/91
- *	$Id: specialreg.h,v 1.2 1993/10/16 14:39:32 rgrimes Exp $
+ *	$Id: specialreg.h,v 1.3 1993/11/07 17:43:11 wollman Exp $
  */
 
 #ifndef _MACHINE_SPECIALREG_H_
@@ -61,4 +61,57 @@
 #ifdef notyet
 #define CR0_AM	0x00040000	/* Alignment Mask (set to enable AC flag) */
 #endif
+
+/*
+ * Cyrix 486 DLC special registers, accessable as IO ports.
+ */
+#define CCR0	0xc0		/* configuration control register 0 */
+#define CCR0_NC0	0x01	/* first 64K of each 1M memory region is
+				   non-cacheable */
+#define CCR0_NC1	0x02	/* 640K-1M region is non-cacheable */
+#define CCR0_A20M	0x04	/* enables A20M# input pin */
+#define CCR0_KEN	0x08	/* enables KEN# input pin */
+#define CCR0_FLUSH	0x10	/* enables FLUSH# input pin */
+#define CCR0_BARB	0x20	/* flushes internal cache when entering hold
+				   state */
+#define CCR0_CO		0x40	/* cache org: 1=direct mapped, 0=2x set assoc */
+#define CCR0_SUSPEND	0x80	/* enables SUSP# and SUSPA# pins */
+
+#define CCR1	0xc1		/* configuration control register 1 */
+#define CCR1_RPL	0x01	/* enables RPLSET and RPLVAL# pins */
+/* the remaining 7 bits of this register are reserved */
+
+/*
+ * the following four 3-byte registers control the non-cacheable regions.
+ * These registers must be written as three seperate bytes.
+ *
+ * NCRx+0: A31-A24 of starting address
+ * NCRx+1: A23-A16 of starting address
+ * NCRx+2: A15-A12 of starting address | NCR_SIZE_xx.
+ * 
+ * The non-cacheable region's starting address must be aligned to the
+ * size indicated by the NCR_SIZE_xx field.
+ */
+#define NCR1	0xc4
+#define NCR2	0xc7
+#define NCR3	0xca
+#define NCR4	0xcd
+
+#define NCR_SIZE_0K	0
+#define NCR_SIZE_4K	1
+#define NCR_SIZE_8K	2
+#define NCR_SIZE_16K	3
+#define NCR_SIZE_32K	4
+#define NCR_SIZE_64K	5
+#define NCR_SIZE_128K	6
+#define NCR_SIZE_256K	7
+#define NCR_SIZE_512K	8
+#define NCR_SIZE_1M	9
+#define NCR_SIZE_2M	10
+#define NCR_SIZE_4M	11
+#define NCR_SIZE_8M	12
+#define NCR_SIZE_16M	13
+#define NCR_SIZE_32M	14
+#define NCR_SIZE_4G	15
+
 #endif /* _MACHINE_SPECIALREG_H_ */

@@ -24,7 +24,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: cputypes.h,v 1.1 1993/10/08 13:40:54 rgrimes Exp $
+ *	$Id: cputypes.h,v 1.2 1993/11/07 17:42:49 wollman Exp $
  */
 
 #ifndef _MACHINE_CPUTYPES_H_
@@ -49,5 +49,6 @@
 #define	CPU_486SX	3	/* Intel 80486SX */
 #define	CPU_486		4	/* Intel 80486DX */
 #define	CPU_586		5	/* Intel P.....m (I hate lawyers; it's TM) */
+#define	CPU_486DLC	6	/* Cyrix 486DLC */
 
 #endif /* _MACHINE_CPUTYPES_H_ */
