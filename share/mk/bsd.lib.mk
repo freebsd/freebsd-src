@@ -347,11 +347,12 @@ _libinstall:
 	    ${_INSTALLFLAGS} ${LINTLIB} ${DESTDIR}${LINTLIBDIR}
 .endif
 
+.if !defined(NOMAN)
+realinstall: maninstall
+.endif
+
 install: afterinstall
 afterinstall: realinstall
-.if !defined(NOMAN)
-afterinstall: maninstall
-.endif
 .endif
 
 .if !target(lint)
