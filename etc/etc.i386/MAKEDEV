@@ -96,7 +96,7 @@
 #	isdn*	ISDN devices
 #	labpc*	National Instrument's Lab-PC and LAB-PC+
 #
-#	$Id: MAKEDEV,v 1.95.4.7 1995/11/09 15:53:38 jkh Exp $
+#	$Id: MAKEDEV,v 1.95.4.8 1995/11/10 04:42:37 jkh Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
@@ -969,10 +969,20 @@ gsc*)
 	;;
 
 apm*)
-	rm -f apm0
-	mknod apm0 c 39 0
-	chown root.wheel apm0
-	chmod 660 apm0
+	rm -f apm
+	chr=39
+	mknod apm c $chr 0
+	chown root.operator apm
+	chmod 660 apm
+	;;
+
+card*)
+	unit=`expr $i : 'card\(.*\)'`
+	chr=50
+	rm -f card$unit
+	mknod card$unit c $chr $unit
+	chmod 644 card$unit
+	chown root.wheel card$unit
 	;;
 
 ttyx?|ttyy?|ttyz?)
