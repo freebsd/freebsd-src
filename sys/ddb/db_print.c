@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_print.c,v 1.15 1998/05/19 11:02:23 phk Exp $
+ *	$Id: db_print.c,v 1.16 1998/05/19 18:42:06 phk Exp $
  */
 
 /*
@@ -35,8 +35,6 @@
  * Miscellaneous printing.
  */
 #include <sys/param.h>
-#include <sys/kernel.h>
-#include <sys/msgbuf.h>
 
 #include <ddb/ddb.h>
 #include <ddb/db_variables.h>
@@ -65,29 +63,5 @@ db_show_regs(dummy1, dummy2, dummy3, dummy4)
 	    db_printf("\n");
 	}
 	db_print_loc_and_inst(PC_REGS(DDB_REGS));
-}
-
-
-DB_SHOW_COMMAND(msgbuf, db_show_msgbuf)
-{
-	int i,j;
-
-	if (!msgbufmapped) {
-		db_printf("msgbuf not mapped yet\n");
-		return;
-	}
-	db_printf("msgbufp = %p\n", msgbufp);
-	db_printf("magic = %x, size = %d, r= %d, w = %d, ptr = %p\n",
-		msgbufp->msg_magic,
-		msgbufp->msg_size,
-		msgbufp->msg_bufr,
-		msgbufp->msg_bufx,
-		msgbufp->msg_ptr);
-	for (i = 0; i < msgbufp->msg_size; i++) {
-		j = msgbufp->msg_ptr[(i + msgbufp->msg_bufr) % msgbufp->msg_size];
-		if (j)
-			db_printf("%c", j);
-	}
-	db_printf("\n");
 }
 

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_resource.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_resource.c,v 1.35 1998/04/05 02:59:10 peter Exp $
+ * $Id: kern_resource.c,v 1.36 1998/05/17 11:52:43 phk Exp $
  */
 
 #include "opt_compat.h"
@@ -399,6 +399,13 @@ dosetrlimit(p, which, limp)
 
 	switch (which) {
 
+	case RLIMIT_CPU:
+		if (limp->rlim_cur > RLIM_INFINITY / (rlim_t)1000000)
+			p->p_limit->p_cpulimit = RLIM_INFINITY;
+		else
+			p->p_limit->p_cpulimit = 
+			    (rlim_t)1000000 * limp->rlim_cur;
+		break;
 	case RLIMIT_DATA:
 		if (limp->rlim_cur > MAXDSIZ)
 			limp->rlim_cur = MAXDSIZ;
@@ -485,9 +492,8 @@ calcru(p, up, sp, ip)
 	struct timeval *sp;
 	struct timeval *ip;
 {
-	quad_t totusec;
-	u_quad_t u, st, ut, it, tot;
-	long sec, usec;
+	int64_t totusec;
+	u_int64_t u, st, ut, it, tot;
 	int s;
 	struct timeval tv;
 
@@ -504,8 +510,7 @@ calcru(p, up, sp, ip)
 		tot = 1;
 	}
 
-	sec = p->p_rtime.tv_sec;
-	usec = p->p_rtime.tv_usec;
+	totusec = p->p_runtime;
 #ifdef SMP
 	if (p->p_oncpu != (char)0xff) {
 #else
@@ -517,10 +522,9 @@ calcru(p, up, sp, ip)
 		 * quantum, which is much greater than the sampling error.
 		 */
 		microuptime(&tv);
-		sec += tv.tv_sec - p->p_runtime.tv_sec;
-		usec += tv.tv_usec - p->p_runtime.tv_usec;
+		totusec += (tv.tv_usec - p->p_switchtime.tv_usec) +
+		    (tv.tv_sec - p->p_switchtime.tv_sec) * (int64_t)1000000;
 	}
-	totusec = (quad_t)sec * 1000000 + usec;
 	if (totusec < 0) {
 		/* XXX no %qd in kernel.  Truncate. */
 		printf("calcru: negative time of %ld usec for pid %d (%s)\n",
@@ -602,8 +606,7 @@ limcopy(lim)
 
 	MALLOC(copy, struct plimit *, sizeof(struct plimit),
 	    M_SUBPROC, M_WAITOK);
-	bcopy(lim->pl_rlimit, copy->pl_rlimit,
-	    sizeof(struct rlimit) * RLIM_NLIMITS);
+	bcopy(lim->pl_rlimit, copy->pl_rlimit, sizeof(struct plimit));
 	copy->p_lflags = 0;
 	copy->p_refcnt = 1;
 	return (copy);

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)proc.h	8.15 (Berkeley) 5/19/95
- * $Id: proc.h,v 1.56 1998/03/28 10:33:23 bde Exp $
+ * $Id: proc.h,v 1.57 1998/04/04 13:26:14 phk Exp $
  */
 
 #ifndef _SYS_PROC_H_
@@ -134,8 +134,8 @@ struct	proc {
 	u_int	p_slptime;	 /* Time since last blocked. */
 
 	struct	itimerval p_realtimer;	/* Alarm timer. */
-	struct	timeval p_rtime;	/* Real time. */
-	struct	timeval p_runtime;	/* When last scheduled */
+	u_int64_t	p_runtime;	/* Real time in microsec. */
+	struct	timeval p_switchtime;	/* When last scheduled */
 	u_quad_t p_uticks;		/* Statclock hits in user mode. */
 	u_quad_t p_sticks;		/* Statclock hits in system mode. */
 	u_quad_t p_iticks;		/* Statclock hits processing intr. */
@@ -300,6 +300,7 @@ extern struct proc *curproc;		/* Current running proc. */
 extern struct proc proc0;		/* Process slot for swapper. */
 extern int nprocs, maxproc;		/* Current and max number of procs. */
 extern int maxprocperuid;		/* Max procs per uid. */
+extern struct timeval switchtime;	/* Uptime at last context switch */
 
 LIST_HEAD(proclist, proc);
 extern struct proclist allproc;		/* List of all processes. */

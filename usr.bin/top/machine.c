@@ -17,7 +17,7 @@
  *          Steven Wallace  <swallace@freebsd.org>
  *          Wolfram Schneider <wosch@FreeBSD.org>
  *
- * $Id: machine.c,v 1.8 1997/10/05 21:20:56 fsmp Exp $
+ * $Id: machine.c,v 1.9 1998/02/14 13:34:59 peter Exp $
  */
 
 
@@ -565,7 +565,7 @@ char *(*get_userid)();
     /* This does not produce the correct results */
     cputime = PP(pp, p_uticks) + PP(pp, p_sticks) + PP(pp, p_iticks);
 #endif
-    cputime = PP(pp, p_rtime).tv_sec;	/* This does not count interrupts */
+    cputime = PP(pp, p_runtime) / 1000000; /* This does not count interrupts */
 
     /* calculate the base for cpu percentages */
     pct = pctdouble(PP(pp, p_pctcpu));
@@ -736,7 +736,7 @@ struct proc **pp2;
     if ((lresult = PP(p2, p_pctcpu) - PP(p1, p_pctcpu)) == 0)
     {
 	/* use lifetime CPU usage to break the tie */
-	if ((result = PP(p2, p_rtime).tv_sec - PP(p1, p_rtime).tv_sec) == 0)
+	if ((result = PP(p2, p_runtime) - PP(p1, p_runtime)) == 0)
 	{
 	    /* use process state to break the tie */
 	    if ((result = sorted_state[(unsigned char) PP(p2, p_stat)] -
