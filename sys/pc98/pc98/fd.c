@@ -116,6 +116,17 @@
  */
 #define FDC_DMAOV_MAX	25
 
+/*
+ * Timeout value for the PIO loops to wait until the FDC main status
+ * register matches our expectations (request for master, direction
+ * bit).  This is supposed to be a number of microseconds, although
+ * timing might actually not be very accurate.
+ *
+ * Timeouts of 100 msec are believed to be required for some broken
+ * (old) hardware.
+ */
+#define	FDSTS_TIMEOUT	100000
+
 #ifdef PC98
 #define NUMTYPES 12
 #define NUMDENS  NUMTYPES
@@ -305,10 +316,6 @@ nrd_info(addr)
 * fdsu is the floppy drive unit number on that controller. (sub-unit)	*
 \***********************************************************************/
 
-/* needed for ft driver, thus exported */
-int in_fdc(struct fdc_data *);
-int out_fdc(struct fdc_data *, int);
-
 /* internal functions */
 static	void fdc_intr(void *);
 static void set_motor(struct fdc_data *, int, int);
@@ -319,6 +326,7 @@ static timeout_t fd_motor_on;
 static void fd_turnon(struct fd_data *);
 static void fdc_reset(fdc_p);
 static int fd_in(struct fdc_data *, int *);
+static int out_fdc(struct fdc_data *, int);
 static void fdstart(struct fdc_data *);
 static timeout_t fd_iotimeout;
 static timeout_t fd_pseudointr;
@@ -538,13 +546,15 @@ enable_fifo(fdc_p fdc)
 			return fdc_err(fdc, "Enable FIFO failed\n");
 		
 		/* If command is invalid, return */
-		j = 100000;
+		j = FDSTS_TIMEOUT;
 		while ((i = fdsts_rd(fdc) & (NE7_DIO | NE7_RQM))
-		       != NE7_RQM && j-- > 0)
+		       != NE7_RQM && j-- > 0) {
 			if (i == (NE7_DIO | NE7_RQM)) {
 				fdc_reset(fdc);
 				return FD_FAILED;
 			}
+			DELAY(1);
+		}
 		if (j<0 || 
 		    fd_cmd(fdc, 3,
 			   0, (fifo_threshold - 1) & 0xf, 0, 0) < 0) {
@@ -687,7 +697,7 @@ static int pc98_fd_check_ready(fdu_t fdu)
 {
 	fd_p fd = devclass_get_softc(fd_devclass, fdu);
 	struct fdc_data *fdc = fd->fdc;
-	int retry = 0;
+	int retry = 0, status;
 
 #ifdef EPSON_NRDISK
 	if (fdu == nrdu) {
@@ -701,7 +711,7 @@ static int pc98_fd_check_ready(fdu_t fdu)
 		DELAY(100);
 		out_fdc(fdc, fdu); /* Drive number */
 		DELAY(100);
-		if ((in_fdc(fdc) & NE7_ST3_RD)){
+		if ((fd_in(fdc, &status) == 0) && (status & NE7_ST3_RD)) {
 			fdctl_wr(fdc, FDC_DMAE | FDC_MTON);
 			DELAY(10);
 			return 0;
@@ -1669,66 +1679,63 @@ fdc_reset(fdc_p fdc)
 /****************************************************************************/
 /*                             fdc in/out                                   */
 /****************************************************************************/
-int
-in_fdc(struct fdc_data *fdc)
-{
-	int i, j = 100000;
-	while ((i = fdsts_rd(fdc) & (NE7_DIO|NE7_RQM))
-		!= (NE7_DIO|NE7_RQM) && j-- > 0)
-		if (i == NE7_RQM)
-			return fdc_err(fdc, "ready for output in input\n");
-	if (j <= 0)
-		return fdc_err(fdc, bootverbose? "input ready timeout\n": 0);
-#ifdef	FDC_DEBUG
-	i = fddata_rd(fdc);
-	TRACE1("[FDDATA->0x%x]", (unsigned char)i);
-	return(i);
-#else	/* !FDC_DEBUG */
-	return fddata_rd(fdc);
-#endif	/* FDC_DEBUG */
-}
-
 /*
- * fd_in: Like in_fdc, but allows you to see if it worked.
+ * FDC IO functions, take care of the main status register, timeout
+ * in case the desired status bits are never set.
+ *
+ * These PIO loops initially start out with short delays between
+ * each iteration in the expectation that the required condition
+ * is usually met quickly, so it can be handled immediately.  After
+ * about 1 ms, stepping is increased to achieve a better timing
+ * accuracy in the calls to DELAY().
  */
 static int
 fd_in(struct fdc_data *fdc, int *ptr)
 {
-	int i, j = 100000;
-	while ((i = fdsts_rd(fdc) & (NE7_DIO|NE7_RQM))
-		!= (NE7_DIO|NE7_RQM) && j-- > 0)
+	int i, j, step;
+
+	for (j = 0, step = 1;
+	    (i = fdsts_rd(fdc) & (NE7_DIO|NE7_RQM)) != (NE7_DIO|NE7_RQM) &&
+	    j < FDSTS_TIMEOUT;
+	    j += step) {
 		if (i == NE7_RQM)
-			return fdc_err(fdc, "ready for output in input\n");
-	if (j <= 0)
-		return fdc_err(fdc, bootverbose? "input ready timeout\n": 0);
+			return (fdc_err(fdc, "ready for output in input\n"));
+		if (j == 1000)
+			step = 1000;
+		DELAY(step);
+	}
+	if (j >= FDSTS_TIMEOUT)
+		return (fdc_err(fdc, bootverbose? "input ready timeout\n": 0));
 #ifdef	FDC_DEBUG
 	i = fddata_rd(fdc);
 	TRACE1("[FDDATA->0x%x]", (unsigned char)i);
 	*ptr = i;
-	return 0;
+	return (0);
 #else	/* !FDC_DEBUG */
 	i = fddata_rd(fdc);
 	if (ptr)
 		*ptr = i;
-	return 0;
+	return (0);
 #endif	/* FDC_DEBUG */
 }
 
-int
+static int
 out_fdc(struct fdc_data *fdc, int x)
 {
-	int i;
+	int i, j, step;
 
-	/* Check that the direction bit is set */
-	i = 100000;
-	while ((fdsts_rd(fdc) & NE7_DIO) && i-- > 0);
-	if (i <= 0) return fdc_err(fdc, "direction bit not set\n");
-
-	/* Check that the floppy controller is ready for a command */
-	i = 100000;
-	while ((fdsts_rd(fdc) & NE7_RQM) == 0 && i-- > 0);
-	if (i <= 0)
-		return fdc_err(fdc, bootverbose? "output ready timeout\n": 0);
+	for (j = 0, step = 1;
+	    (i = fdsts_rd(fdc) & (NE7_DIO|NE7_RQM)) != NE7_RQM &&
+	    j < FDSTS_TIMEOUT;
+	    j += step) {
+		if (i == (NE7_DIO|NE7_RQM))
+			return (fdc_err(fdc, "ready for input in output\n"));
+		if (j == 1000)
+			step = 1000;
+		DELAY(step);
+	}
+	if (j >= FDSTS_TIMEOUT)
+		return (fdc_err(fdc, bootverbose? "output ready timeout\n": 0));
 
 	/* Send the command and return */
 	fddata_wr(fdc, x);
