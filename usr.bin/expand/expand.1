@@ -32,7 +32,7 @@
 .\"	@(#)expand.1	8.1 (Berkeley) 6/9/93
 .\" $FreeBSD$
 .\"
-.Dd June 9, 1993
+.Dd April 21, 2002
 .Dt EXPAND 1
 .Os
 .Sh NAME
@@ -51,15 +51,23 @@
 .Op Ar
 .Nm unexpand
 .Op Fl a
+.Oo
+.Fl t
+.Sm off
+.Ar tab1 , tab2 , ... , tabn
+.Sm on
+.Oc
 .Op Ar
 .Sh DESCRIPTION
-.Nm Expand
-processes the named files or the standard input writing
+The
+.Nm
+utility processes the named files or the standard input writing
 the standard output with tabs changed into blanks.
 Backspace characters are preserved into the output and decrement
 the column count for tab calculations.
-.Nm Expand
-is useful for pre-processing character files
+The
+.Nm
+utility is useful for pre-processing character files
 (before sorting, looking at specific columns, etc.) that
 contain tabs.
 .Pp
@@ -71,8 +79,9 @@ spaces apart instead of the default 8.
 If multiple tabstops are given then the tabs are set at those
 specific columns.
 .Pp
-.Nm Unexpand
-puts tabs back into the data from the standard input or the named
+The
+.Nm unexpand
+utility puts tabs back into the data from the standard input or the named
 files and writes the result on the standard output.
 .Pp
 Option (with
@@ -86,6 +95,13 @@ are reconverted to maximal strings of tabs.  If the
 option is given, then tabs are inserted whenever they would compress the
 resultant file by replacing two or more characters.
 .El
+.Sh STANDARDS
+The
+.Nm expand
+and
+.Nm unexpand
+utilities conform to
+.St -p1003.1-2001 .
 .Sh HISTORY
 The
 .Nm
