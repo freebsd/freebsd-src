@@ -1401,7 +1401,10 @@ uhci_alloc_std_chain(upipe, sc, len, rd, shortok, dma, sp, ep)
 			return (USBD_NOMEM);
 		}
 		p->link.std = lastp;
-		p->td.td_link = LE(lastlink);
+		if (lastlink == UHCI_PTR_T)
+			p->td.td_link = LE(lastlink);
+		else
+			p->td.td_link = LE(lastlink|UHCI_PTR_VF);
 		lastp = p;
 		lastlink = p->physaddr;
 		p->td.td_status = LE(status);
@@ -1846,7 +1849,7 @@ uhci_device_request(xfer)
 			return (err);
 		next = data;
 		dataend->link.std = stat;
-		dataend->td.td_link = LE(stat->physaddr);
+		dataend->td.td_link = LE(stat->physaddr|UHCI_PTR_VF);
 	} else {
 		next = stat;
 	}
@@ -1855,7 +1858,7 @@ uhci_device_request(xfer)
 	memcpy(KERNADDR(&upipe->u.ctl.reqdma), req, sizeof *req);
 
 	setup->link.std = next;
-	setup->td.td_link = LE(next->physaddr);
+	setup->td.td_link = LE(next->physaddr|UHCI_PTR_VF);
 	setup->td.td_status = LE(UHCI_TD_SET_ERRCNT(3) | ls | UHCI_TD_ACTIVE);
 	setup->td.td_token = LE(UHCI_TD_SETUP(sizeof *req, endpt, addr));
 	setup->td.td_buffer = LE(DMAADDR(&upipe->u.ctl.reqdma));
