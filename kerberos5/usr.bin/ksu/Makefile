@@ -2,26 +2,14 @@
 
 PROG=	ksu
 
-SRCS=	\
-	su.c			\
-	${.OBJDIR}/asn1_err.h	\
-	${.OBJDIR}/krb5_err.h	\
-	${.OBJDIR}/heim_err.h	\
-	${.OBJDIR}/k524_err.h
+SRCS=	su.c
 
-CFLAGS+=-I${KRB5DIR}/include	\
-	-I${KRB5DIR}/lib/roken	\
-	-I${KRB5DIR}/lib/kafs	\
-	-I${KRB5DIR}/lib/krb5	\
-	-I${KRB5DIR}/lib/asn1	\
-	-I${KRB5DIR}/kuser	\
-	-I${ASN1OBJDIR}		\
-	-I${.OBJDIR}
+CFLAGS+=-I${KRB5DIR}/lib/roken
 
-LDADD=	-lkrb5 -lroken -lkafs5 ${LIBVERS} \
+LDADD=	-lkafs5 -lkrb5 -lroken ${LIBVERS} \
 	-lasn1 -lcrypto -lcrypt -lcom_err
 
-DPADD=	${LIBKRB5} ${LIBROKEN} ${LIBKAFS5} ${LIBVERS} \
+DPADD=	${LIBKAFS5} ${LIBKRB5} ${LIBROKEN} ${LIBVERS} \
 	${LIBASN1} ${LIBCRYPTO} ${LIBCRYPT} ${LIBCOM_ERR}
 
 NOMAN=	true

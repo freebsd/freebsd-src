@@ -29,21 +29,12 @@ SRCS=	\
 	set_keys.c			\
 	set_modifier.c			\
 	password_quality.c		\
-	server_glue.c			\
-	admin.h				\
-	kadm5_locl.h			\
-	private.h			\
-	${.OBJDIR}/kadm5_err.h
+	server_glue.c
 
-CFLAGS+=-I${KRB5DIR}/include		\
-	-I${KRB5DIR}/lib/krb5		\
-	-I${KRB5DIR}/lib/kadm5		\
-	-I${KRB5DIR}/lib/hdb		\
+CFLAGS+=-I${KRB5DIR}/lib/kadm5		\
 	-I${KRB5DIR}/lib/asn1		\
 	-I${KRB5DIR}/lib/roken		\
-	-I${ASN1OBJDIR}			\
-	-I${HDBOBJDIR}			\
-	-I${.OBJDIR}
+	-I.
 
 .include <bsd.lib.mk>
 
