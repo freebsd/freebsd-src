@@ -46,7 +46,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: moused.c,v 1.19 1998/06/14 20:05:27 ahasty Exp $";
+	"$Id: moused.c,v 1.21 1998/11/20 11:17:59 yokota Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -340,6 +340,7 @@ static struct rodentparam {
     int rate;			/* report rate */
     int resolution;		/* MOUSE_RES_XXX or a positive number */
     int zmap;			/* MOUSE_{X|Y}AXIS or a button number */
+    int wmode;			/* wheel mode button number */
     int mfd;			/* mouse file descriptor */
     int cfd;			/* /dev/consolectl file descriptor */
     int mremsfd;		/* mouse remote server file descriptor */
@@ -356,6 +357,7 @@ static struct rodentparam {
     rate : 0,
     resolution : MOUSE_RES_UNKNOWN, 
     zmap: 0,
+    wmode: 0,
     mfd : -1,
     cfd : -1,
     mremsfd : -1,
@@ -407,7 +409,7 @@ main(int argc, char *argv[])
     int c;
     int	i;
 
-    while((c = getopt(argc,argv,"3C:DF:I:PRS:cdfhi:l:m:p:r:st:z:")) != -1)
+    while((c = getopt(argc,argv,"3C:DF:I:PRS:cdfhi:l:m:p:r:st:w:z:")) != -1)
 	switch(c) {
 
 	case '3':
@@ -485,6 +487,15 @@ main(int argc, char *argv[])
 
 	case 's':
 	    rodent.baudrate = 9600;
+	    break;
+
+	case 'w':
+	    i = atoi(optarg);
+	    if ((i <= 0) || (i > MOUSE_MAXBUTTON)) {
+		warnx("invalid argument `%s'", optarg);
+		usage();
+	    }
+	    rodent.wmode = 1 << (i - 1);
 	    break;
 
 	case 'z':
@@ -794,8 +805,8 @@ static void
 usage(void)
 {
     fprintf(stderr, "%s\n%s\n%s\n",
-        "usage: moused [-3DRcdfs] [-I file] [-F rate] [-r resolution] [-S baudrate] [-C threshold]",
-        "              [-m N=M] [-z N] [-t <mousetype>] -p <port>",
+	"usage: moused [-3DRcdfs] [-I file] [-F rate] [-r resolution] [-S baudrate]",
+	"              [-C threshold] [-m N=M] [-w N] [-z N] [-t <mousetype>] -p <port>",
 	"       moused [-d] -i -p <port>");
     exit(1);
 }
@@ -1620,6 +1631,12 @@ r_map(mousestatus_t *act1, mousestatus_t *act2)
     lbuttons = 0;
 
     act2->obutton = act2->button;
+    if (pbuttons & rodent.wmode) {
+	pbuttons &= ~rodent.wmode;
+	act1->dz = act1->dy;
+	act1->dx = 0;
+	act1->dy = 0;
+    }
     act2->dx = act1->dx;
     act2->dy = act1->dy;
     act2->dz = act1->dz;
