@@ -540,7 +540,7 @@ static struct atapicmd *atapi_alloc (struct atapi *ata)
 static void atapi_free (struct atapi *ata, struct atapicmd *ac)
 {
 	if (! ata->free)
-		wakeup ((caddr_t)&ata);
+		wakeup ((caddr_t)ata);
 	ac->busy = 0;
 	ac->next = ata->free;
 	ata->free = ac;
