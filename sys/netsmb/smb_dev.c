@@ -396,11 +396,11 @@ smb_dev2share(int fd, int mode, struct smb_cred *scred,
 		fdrop(fp, curthread);
 		return EBADF;
 	}
-	dev = vn_todev(vp);
-	if (dev == NULL) {
+	if (vp->v_type != VCHR) {
 		fdrop(fp, curthread);
 		return EBADF;
 	}
+	dev = vp->v_rdev;
 	SMB_CHECKMINOR(dev);
 	ssp = sdp->sd_share;
 	if (ssp == NULL) {
