@@ -32,26 +32,27 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id$";
+static const char rcsid[] =
+	"$Id: rup.c,v 1.7 1997/02/22 19:56:48 peter Exp $";
 #endif /* not lint */
 
+#include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <unistd.h>
 #include <sys/param.h>
 #include <sys/socket.h>
 #include <netdb.h>
 #include <rpc/rpc.h>
+#include <rpc/pmap_clnt.h>
 #include <arpa/inet.h>
-
 #undef FSHIFT			/* Use protocol's shift and scale values */
 #undef FSCALE
 #include <rpcsvc/rstat.h>
 
 #define HOST_WIDTH 15
-
-char *argv0;
 
 struct host_list {
 	struct host_list *next;
@@ -76,15 +77,14 @@ void remember_host(struct in_addr addr)
 {
 	struct host_list *hp;
 
-	if (!(hp = (struct host_list *)malloc(sizeof(struct host_list)))) {
-		fprintf(stderr, "%s: no memory.\n", argv0);
-		exit(1);
-	}
+	if (!(hp = (struct host_list *)malloc(sizeof(struct host_list))))
+		errx(1, "no memory");
 	hp->addr.s_addr = addr.s_addr;
 	hp->next = hosts;
 	hosts = hp;
 }
 
+int
 rstat_reply(char *replyp, struct sockaddr_in *raddrp)
 {
 	struct tm *tmp_time;
@@ -150,6 +150,7 @@ rstat_reply(char *replyp, struct sockaddr_in *raddrp)
 	return(0);
 }
 
+int
 onehost(char *host)
 {
 	CLIENT *rstat_clnt;
@@ -160,14 +161,13 @@ onehost(char *host)
 
 	hp = gethostbyname(host);
 	if (hp == NULL) {
-		fprintf(stderr, "%s: unknown host \"%s\"\n",
-			argv0, host);
+		warnx("unknown host \"%s\"", host);
 		return(-1);
 	}
 
 	rstat_clnt = clnt_create(host, RSTATPROG, RSTATVERS_TIME, "udp");
 	if (rstat_clnt == NULL) {
-		fprintf(stderr, "%s: %s %s", argv0, host, clnt_spcreateerror(""));
+		warnx("%s %s", host, clnt_spcreateerror(""));
 		return(-1);
 	}
 
@@ -175,14 +175,16 @@ onehost(char *host)
 	tv.tv_sec = 15;	/* XXX ??? */
 	tv.tv_usec = 0;
 	if (clnt_call(rstat_clnt, RSTATPROC_STATS, xdr_void, NULL, xdr_statstime, &host_stat, tv) != RPC_SUCCESS) {
-		fprintf(stderr, "%s: %s: %s\n", argv0, host, clnt_sperror(rstat_clnt, host));
+		warnx("%s: %s", host, clnt_sperror(rstat_clnt, host));
 		return(-1);
 	}
 
 	addr.sin_addr.s_addr = *(int *)hp->h_addr;
 	rstat_reply((char *)&host_stat, &addr);
+	return (0);
 }
 
+void
 allhosts()
 {
 	statstime host_stat;
@@ -191,27 +193,22 @@ allhosts()
 	clnt_stat = clnt_broadcast(RSTATPROG, RSTATVERS_TIME, RSTATPROC_STATS,
 				   xdr_void, NULL,
 				   xdr_statstime, &host_stat, rstat_reply);
-	if (clnt_stat != RPC_SUCCESS && clnt_stat != RPC_TIMEDOUT) {
-		fprintf(stderr, "%s: %s\n", argv0, clnt_sperrno(clnt_stat));
-		exit(1);
-	}
+	if (clnt_stat != RPC_SUCCESS && clnt_stat != RPC_TIMEDOUT)
+		errx(1, "%s", clnt_sperrno(clnt_stat));
 }
 
+static void
 usage()
 {
-	fprintf(stderr, "Usage: %s [hosts ...]\n", argv0);
+	fprintf(stderr, "usage: rup [hosts ...]\n");
 	exit(1);
 }
 
+int
 main(int argc, char *argv[])
 {
 	int ch;
 	extern int optind;
-
-	if (!(argv0 = rindex(argv[0], '/')))
-		argv0 = argv[0];
-	else
-		argv0++;
 
 	while ((ch = getopt(argc, argv, "?")) != -1)
 		switch (ch) {
