@@ -43,7 +43,7 @@
  *
  * XXX It's incorrect to assume that we must always kludge up
  * headers on the physical device's behalf: some devices support
- * VLAN tag insersion and extraction in firmware. For these cases,
+ * VLAN tag insertion and extraction in firmware. For these cases,
  * one can change the behavior of the vlan interface by setting
  * the LINK0 flag on it (that is setting the vlan interface's LINK0
  * flag, _not_ the parent's LINK0 flag; we try to leave the parent
