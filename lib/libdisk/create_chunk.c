@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: create_chunk.c,v 1.21.2.6 1995/11/18 10:02:10 jkh Exp $
+ * $Id: create_chunk.c,v 1.22 1995/12/07 10:33:20 peter Exp $
  *
  */
 
@@ -244,7 +244,7 @@ Create_Chunk_DWIM(struct disk *d, struct chunk *parent , u_long size, chunk_e ty
 }
 
 int
-MakeDev(struct chunk *c1, char *path)
+MakeDev(struct chunk *c1, const char *path)
 {
     char *p = c1->name;
     u_long cmaj, bmaj, min, unit, part, slice;
@@ -340,7 +340,7 @@ MakeDev(struct chunk *c1, char *path)
 }
 
 int
-MakeDevChunk(struct chunk *c1, char *path)
+MakeDevChunk(struct chunk *c1, const char *path)
 {
     int i;
 
@@ -353,7 +353,7 @@ MakeDevChunk(struct chunk *c1, char *path)
 }
 
 int
-MakeDevDisk(struct disk *d, char *path)
+MakeDevDisk(struct disk *d, const char *path)
 {
     return MakeDevChunk(d->chunks, path);
 }
