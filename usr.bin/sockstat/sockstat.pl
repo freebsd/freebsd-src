@@ -140,7 +140,7 @@ sub print_unix($$) {
 	$nsd = $netstat{$fsd->[6]} || $unknown;
 	printf($unix_fmt, $fsd->[0], $fsd->[1], $fsd->[2],
 	       substr($fsd->[3], 0, -1), $fsd->[5],
-	       $nsd->[8] || ($fsd->[8] ? $endpoint{$fsd->[8]} : "(none)"));
+	       $nsd->[8] || (($fsd->[8] && $endpoint{$fsd->[8]}) ? $endpoint{$fsd->[8]} : "(none)"));
     }
     print("\n");
 }
