@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_syscalls.c	8.5 (Berkeley) 3/30/95
- * $Id: nfs_syscalls.c,v 1.23 1997/05/10 16:59:36 dfr Exp $
+ * $Id: nfs_syscalls.c,v 1.24 1997/05/13 17:25:44 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -795,6 +795,7 @@ nfssvc_iod(p)
 	    if (error) {
 		nfs_asyncdaemon[myiod] = 0;
 		if (nmp) nmp->nm_bufqiods--;
+		nfs_iodwant[myiod] = NULL;
 		nfs_iodmount[myiod] = NULL;
 		nfs_numasync--;
 		return (error);
