@@ -1,7 +1,7 @@
 # $FreeBSD$
 #
 # Mail relay access control list.  Default is to reject mail unless the
-# destination is local, or listed in /etc/mail/sendmail.cw
+# destination is local, or listed in /etc/mail/local-host-names
 #
 cyberspammer.com		550 We don't accept mail from spammers
 FREE.STEALTH.MAILER@		550 We don't accept mail from spammers
