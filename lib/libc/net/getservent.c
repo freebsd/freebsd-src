@@ -31,12 +31,9 @@
  * SUCH DAMAGE.
  */
 
-#if 0
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)getservent.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
-#endif 0
-
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
