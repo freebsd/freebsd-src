@@ -147,7 +147,7 @@ printname(const char *name)
 	else if (f_nonprint)
 		return prn_printable(name);
 	else
-		return printf("%s", name);
+		return prn_normal(name);
 }
 
 void
@@ -239,6 +239,7 @@ printstream(const DISPLAY *dp)
 	for (p = dp->list, chcnt = 0; p; p = p->fts_link) {
 		if (p->fts_number == NO_PRINT)
 			continue;
+		/* XXX strlen does not take octal escapes into account. */
 		if (strlen(p->fts_name) + chcnt +
 		    (p->fts_link ? 2 : 0) >= (unsigned)termwidth) {
 			putchar('\n');
