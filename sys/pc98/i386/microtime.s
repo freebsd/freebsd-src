@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	from: Steve McCanne's microtime code
- *	$Id: microtime.s,v 1.19 1997/12/15 08:37:13 kato Exp $
+ *	$Id: microtime.s,v 1.20 1997/12/26 20:42:33 phk Exp $
  */
 
 #include <machine/asmacros.h>
@@ -54,11 +54,20 @@ ENTRY(microtime)
 #if (defined(I586_CPU) || defined(I686_CPU)) && !defined(SMP)
 	movl	_tsc_freq, %ecx
 	testl	%ecx, %ecx
-	jne	pentium_microtime
+	je	i8254_microtime
+	pushfl
+	cli
+	.byte	0x0f, 0x31	/* RDTSC */
+	subl	_tsc_bias, %eax
+	mull	_tsc_multiplier
+	movl	%edx, %eax
+	jmp	common_microtime
 #else
 	xorl	%ecx, %ecx	/* clear ecx */
 #endif
 
+	ALIGN_TEXT
+i8254_microtime:
 	movb	$TIMER_SEL0|TIMER_LATCH, %al	/* prepare to latch */
 
 	pushfl
@@ -286,15 +295,3 @@ common_microtime:
 	movl	%eax, 4(%ecx)	/* tvp->tv_usec = usec */
 
 	ret
-
-#if (defined(I586_CPU) || defined(I686_CPU)) && !defined(SMP)
-	ALIGN_TEXT
-pentium_microtime:
-	pushfl
-	cli
-	.byte	0x0f, 0x31	/* RDTSC */
-	subl	_tsc_bias, %eax
-	mull	_tsc_multiplier
-	movl	%edx, %eax
-	jmp	common_microtime
-#endif
