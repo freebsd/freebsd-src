@@ -6,7 +6,7 @@
  * to the original author and the contributors.
  */
 #if !defined(lint)
-static const char rcsid[] = "@(#)$Id: ip_lfil.c,v 2.1 1999/08/04 17:29:57 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ip_lfil.c,v 2.1.2.1 2000/01/16 10:13:02 darrenr Exp $";
 #endif
 
 #if defined(KERNEL) && !defined(_KERNEL)
@@ -63,7 +63,7 @@ static	struct	ifnet **ifneta = NULL;
 static	int	nifs = 0;
 #endif
 
-int	ipl_inited = 0;
+int	fr_running = 0;
 int	ipl_unreach = ICMP_UNREACH_FILTER;
 u_long	ipl_frouteok[2] = {0, 0};
 
@@ -98,12 +98,12 @@ int iplattach()
 	char *defpass;
 	int s;
 
-	if (ipl_inited || (fr_checkp == fr_precheck)) {
+	if (fr_running || (fr_checkp == fr_precheck)) {
 		printk("IP Filter: already initialized\n");
 		return EBUSY;
 	}
 
-	ipl_inited = 1;
+	fr_running = 1;
 	bzero((char *)frcache, sizeof(frcache));
 	bzero((char *)nat_table, sizeof(nat_table));
 	fr_savep = fr_checkp;
@@ -138,7 +138,7 @@ int ipldetach()
 {
 	int s, i = FR_INQUE|FR_OUTQUE;
 
-	if (!ipl_inited)
+	if (!fr_running)
 	{
 		printk("IP Filter: not initialized\n");
 		return 0;
@@ -146,7 +146,7 @@ int ipldetach()
 
 	fr_checkp = fr_savep;
 	i = frflush(IPL_LOGIPF, i);
-	ipl_inited = 0;
+	fr_running = 0;
 
 	ipfr_unload();
 	ip_natunload();
