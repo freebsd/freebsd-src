@@ -124,6 +124,7 @@ struct nfs_diskless {
 extern struct nfsv3_diskless nfsv3_diskless;
 extern struct nfs_diskless nfs_diskless;
 extern int	nfs_diskless_valid;
+void bootpc_init(void);
 #endif
 
 #endif
