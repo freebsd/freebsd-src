@@ -10,16 +10,19 @@ SRCS=	anonFTP.c apache.c attr.c cdrom.c command.c config.c devices.c \
 	label.c lndir.c main.c makedevs.c media.c menus.c misc.c \
 	msg.c network.c nfs.c options.c package.c samba.c system.c \
 	tape.c tcpip.c termcap.c ufs.c variable.c wizard.c \
-	uc_eisa.c uc_isa.c uc_kmem.c uc_list.c uc_main.c uc_pci.c uc_scsi.c
+	uc_eisa.c uc_isa.c uc_kmem.c uc_list.c uc_main.c uc_pci.c \
+	uc_scsi.c
 
-CFLAGS+= -Wall -I${.CURDIR}/../../gnu/lib/libdialog -I/sys -DUC_PRIVATE
+CFLAGS+= -Wall -I${.CURDIR}/../../gnu/lib/libdialog -I${.OBJDIR} -I/sys
+CFLAGS+= -DUC_PRIVATE -DKERN_NO_SYMBOLS
 
 #CFLAGS+=	-DLOAD_CONFIG_FILE=\"install.cfg\"
 
 DPADD=	${LIBDIALOG} ${LIBNCURSES} ${LIBMYTINFO} ${LIBUTIL} ${LIBDISK}
 LDADD=	-ldialog -lncurses -lmytinfo -lutil -ldisk
 
-makedevs.c:	Makefile rtermcap
+
+makedevs.c:	Makefile rtermcap dumpnlist
 	rm -f makedevs.tmp
 	echo '#include <sys/types.h>' > makedevs.tmp
 	./rtermcap cons25 | \
@@ -44,6 +47,11 @@ makedevs.c:	Makefile rtermcap
 		file2c 'const char termcap_vt100[] = {' ',0};' \
 		>> makedevs.tmp
 	mv makedevs.tmp makedevs.c
+.if defined(KERNEL_NAME)
+	dumpnlist ${KERNEL_NAME} > kern-nlist.h
+.else
+	dumpnlist /kernel > kern-nlist.h
+.endif
 
 rtermcap:	${.CURDIR}/rtermcap.c
 	${CC} -o rtermcap ${.CURDIR}/rtermcap.c -ltermcap
