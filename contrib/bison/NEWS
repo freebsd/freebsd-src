@@ -1,7 +1,39 @@
 Bison News
 ----------
 
-Change in version 1.25:
+Changes in version 1.28:
+
+* Should compile better now with K&R compilers.
+
+* Added NLS.
+
+* Fixed a problem with escaping the double quote character.
+
+* There is now a FAQ.
+
+Changes in version 1.27:
+
+* The make rule which prevented bison.simple from being created on
+  some systems has been fixed.
+
+Changes in version 1.26:
+
+* Bison now uses automake.
+
+* New mailing lists: <bug-bison@gnu.org> and <help-bison@gnu.org>.
+
+* Token numbers now start at 257 as previously documented, not 258.
+
+* Bison honors the TMPDIR environment variable.
+
+* A couple of buffer overruns have been fixed.
+
+* Problems when closing files should now be reported.
+
+* Generated parsers should now work even on operating systems which do
+  not provide alloca().
+
+Changes in version 1.25:
 
 * Errors in the input grammar are not fatal; Bison keeps reading
 the grammar file, and reports all the errors found in it.
