@@ -567,6 +567,8 @@ DMenu MenuMediaFTP = {
 	VAR_FTP_PATH "=ftp://ftp4.kr.freebsd.org" },
       { " Korea #5",	"ftp5.kr.freebsd.org", NULL, dmenuSetVariable, NULL,
 	VAR_FTP_PATH "=ftp://ftp5.kr.freebsd.org" },
+      { "Lithuania",	"ftp.lt.freebsd.org", NULL, dmenuSetVariable, NULL,
+	VAR_FTP_PATH "=ftp://ftp.lt.freebsd.org" },
       { "New Zealand",	"ftp.nz.freebsd.org", NULL, dmenuSetVariable, NULL,
 	VAR_FTP_PATH "=ftp://ftp.nz.freebsd.org" },
       { "Norway",	"ftp.no.freebsd.org", NULL, dmenuSetVariable, NULL,
