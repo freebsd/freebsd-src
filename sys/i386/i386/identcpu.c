@@ -116,7 +116,10 @@ static const char *cpu_brandtable[MAX_BRAND_INDEX + 1] = {
 };
 #endif
 
-static struct cpu_nameclass i386_cpus[] = {
+static struct {
+	char	*cpu_name;
+	int	cpu_class;
+} i386_cpus[] = {
 	{ "Intel 80286",	CPUCLASS_286 },		/* CPU_286   */
 	{ "i386SX",		CPUCLASS_386 },		/* CPU_386SX */
 	{ "i386DX",		CPUCLASS_386 },		/* CPU_386   */
