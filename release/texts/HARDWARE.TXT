@@ -77,11 +77,12 @@ isp0    dyn     dyn     dyn     dyn     QLogic 10X0, 1240 Ultra SCSI, 1080/1280
 					Ultra2 SCSI, 12160 Ultra3 SCSI, 2X00
 					Fibre Channel SCSI controller
 dpt0    dyn    	dyn     n/a     n/a     DPT RAID SCSI controllers
-asr0	dyn	dyn	dyn	dyn	DPT SmartRaid V, VI, and 
-					Adaptec SCSI RAID
 amr0    dyn	dyn	n/a	n/a	AMI MegaRAID controllers
 mlx0    dyn	dyn	n/a	dyn	Mylex DAC960 RAID controllers
 twe0	dyn	dyn	n/a	n/a	3ware Escalade RAID controllers
+asr0	dyn	dyn	dyn	dyn	DPT SmartRaid V, VI, and 
+					Adaptec SCSI RAID
+mly0	dyn	dyn	dyn	dyn	Mylex AcceleRAID/eXtremeRAID
 
 wt0     300     5       1       dyn     Wangtek and Archive QIC-02/QIC-36
 
@@ -408,9 +409,12 @@ AMI MegaRAID Express and Enterprise family RAID controllers:
     MegaRAID Enterprise 1300
     MegaRAID Enterprise 1400
     MegaRAID Enterprise 1500
+    MegaRAID Enterprise 1600
     MegaRAID Elite 1500
+    MegaRAID Elite 1600
     MegaRAID Express 200
     MegaRAID Express 300
+    MegaRAID Express 500
     Dell PERC
     Dell PERC 2/SC
     Dell PERC 2/DC
@@ -431,6 +435,15 @@ firmware:
 This list includes controllers sold by Digital/Compaq in Alpha systems
 in the StorageWorks family, eg. KZPSC, KZPAC.  EISA adaptes are not 
 supported.
+
+Mylex PCI to SCSI RAID controllers with 6.x firmware:
+    AcceleRAID 160
+    AcceleRAID 170
+    AcceleRAID 352
+    eXtremeRAID 2000
+    eXtremeRAID 3000
+Compatible Mylex controllers not listed should work, but have not been
+verified.
 
 3ware Escalade ATA RAID controllers.  All members of the 5000 and
 6000 series are supported.

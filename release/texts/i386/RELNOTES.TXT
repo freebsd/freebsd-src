@@ -76,6 +76,12 @@ enabled by the ATA_ENABLE_TAGS option.
 The ata(4) driver now has support for ATA "pseudo" RAID controllers as
 the Promise Fasttrak and HighPoint HPT370 controllers.
 
+The mly(4) driver has been added, providing support for Mylex
+PCI RAID controllers with 6.x and later firmware.
+
+The amr(4) driver has been updated with support for new AMI
+MegaRAID models.
+
 The snc(4) driver for the National Semiconductor DP8393X (SONIC)
 Ethernet controller.  Curently, this driver is only used on the PC-98
 architecture.
@@ -221,9 +227,12 @@ AMI MegaRAID Express and Enterprise family RAID controllers:
     MegaRAID Enterprise 1300
     MegaRAID Enterprise 1400
     MegaRAID Enterprise 1500
+    MegaRAID Enterprise 1600
     MegaRAID Elite 1500
+    MegaRAID Elite 1600
     MegaRAID Express 200
     MegaRAID Express 300
+    MegaRAID Express 400
     Dell PERC
     Dell PERC 2/SC
     Dell PERC 2/DC
@@ -243,6 +252,15 @@ firmware:
     eXtremeRAID 1100
 Booting from these controllers is supported. EISA adapters are not 
 supported.
+
+Mylex PCI to SCSI RAID controllers with 6.x firmware:
+    AcceleRAID 160
+    AcceleRAID 170
+    AcceleRAID 352
+    eXtremeRAID 2000
+    eXtremeRAID 3000
+Compatible Mylex controllers not listed should work, but have not been
+verified.
 
 3ware Escalade ATA RAID controllers.  All members of the 5000 and
 6000 series are supported.
