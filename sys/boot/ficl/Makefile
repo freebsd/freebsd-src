@@ -38,6 +38,6 @@ CFLAGS+=	-I${.CURDIR} -I${.CURDIR}/${MACHINE_ARCH} -I${.CURDIR}/../common -DFICL
 
 softcore.c:	${SOFTWORDS} softcore.awk
 	(cd ${.CURDIR}/softwords; cat ${SOFTWORDS} \
-	    | awk -f softcore.awk -v datestamp="`date`") > ${.TARGET}
+	    | awk -f softcore.awk -v datestamp="`LC_TIME=C date`") > ${.TARGET}
 
 
