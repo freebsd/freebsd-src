@@ -3422,7 +3422,9 @@ File:
 .\" .	nr fV \\n(.$-1
 .	if "\\$1"-std" \{\
 .	nr cH \\*(cH
-.	if (\\n(cH<2):(\\n(cH>3) .tm Usage: .Rv -std sections 2 and 3 only
+.\" This macro also allowed for 7 section because mdoc.samples.7 will show
+.\" actual information (not hardcoded)
+.	if !((\\n(cH=2):(\\n(cH=3):(\\n(cH=7)) .tm Usage: .Rv -std sections 2 and 3 only
 .		br
 \&The
 .Fn \\$2
