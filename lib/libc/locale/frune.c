@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <stddef.h>
 #include <stdio.h>
 
+__warn_references(fgetrune, "warning: fgetrune() is deprecated. See fgetrune(3).");
 long
 fgetrune(fp)
 	FILE *fp;
@@ -72,6 +73,7 @@ fgetrune(fp)
 	return (_INVALID_RUNE);
 }
 
+__warn_references(fungetrune, "warning: fungetrune() is deprecated. See fungetrune(3).");
 int
 fungetrune(r, fp)
 	rune_t r;
@@ -87,6 +89,7 @@ fungetrune(r, fp)
 	return (0);
 }
 
+__warn_references(fputrune, "warning: fputrune() is deprecated. See fputrune(3).");
 int
 fputrune(r, fp)
 	rune_t r;
