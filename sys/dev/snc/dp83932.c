@@ -256,7 +256,7 @@ sncioctl(ifp, cmd, data)
 {
 	struct ifreq *ifr;
 	struct snc_softc *sc = ifp->if_softc;
-	int	s = splnet(), err = 0;
+	int	s = splhardnet(), err = 0;
 	int	temp;
 
 	switch (cmd) {
@@ -398,7 +398,7 @@ sncinit(xsc)
 		/* already running */
 		return;
 
-	s = splnet();
+	s = splhardnet();
 
 	NIC_PUT(sc, SNCR_CR, CR_RST);	/* DCR only accessable in reset mode! */
 
@@ -463,7 +463,7 @@ sncstop(sc)
 	struct snc_softc *sc;
 {
 	struct mtd *mtd;
-	int	s = splnet();
+	int	s = splhardnet();
 
 	/* stick chip in reset */
 	NIC_PUT(sc, SNCR_CR, CR_RST);
