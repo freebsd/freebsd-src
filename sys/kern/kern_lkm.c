@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: kern_lkm.c,v 1.14 1995/08/25 20:03:02 bde Exp $
+ * $Id: kern_lkm.c,v 1.15 1995/09/08 11:08:34 bde Exp $
  */
 
 /*
@@ -674,6 +674,9 @@ _lkm_dev(lkmtp, cmd)
 {
 	struct lkm_dev *args = lkmtp->private.lkm_dev;
 	int i;
+#ifdef JREMOD
+	dev_t descrip;
+#endif /* JREMOD */
 	int err = 0;
 
 	switch(cmd) {
@@ -683,6 +686,7 @@ _lkm_dev(lkmtp, cmd)
 			return(EEXIST);
 		switch(args->lkm_devtype) {
 		case LM_DT_BLOCK:
+#ifndef JREMOD
 			if ((i = args->lkm_offset) == -1) {	/* auto */
 				/*
 				 * Search the table looking for a slot...
@@ -710,9 +714,21 @@ _lkm_dev(lkmtp, cmd)
 
 			/* done! */
 			args->lkm_offset = i;	/* slot in bdevsw[] */
+#else /* JREMOD */
+			if ((i = args->lkm_offset) == -1)
+				descrip = (dev_t) -1;
+			else
+				descrip = makedev(args->lkm_offset,0);
+			if ( err = bdevsw_add(&descrip, args->lkm_dev.bdev,
+					&(args->lkm_olddev.bdev))) {
+				break;
+			}
+			args->lkm_offset = major(descrip) ;
+#endif /* JREMOD */
 			break;
 
 		case LM_DT_CHAR:
+#ifndef JREMOD
 			if ((i = args->lkm_offset) == -1) {	/* auto */
 				/*
 				 * Search the table looking for a slot...
@@ -741,6 +757,17 @@ _lkm_dev(lkmtp, cmd)
 			/* done! */
 			args->lkm_offset = i;	/* slot in cdevsw[] */
 
+#else /* JREMOD */
+			if ((i = args->lkm_offset) == -1)
+				descrip = (dev_t) -1;
+			else
+				descrip = makedev(args->lkm_offset,0);
+			if ( err = cdevsw_add(&descrip, args->lkm_dev.cdev,
+					&(args->lkm_olddev.cdev))) {
+				break;
+			}
+			args->lkm_offset = major(descrip) ;
+#endif /* JREMOD */
 			break;
 
 		default:
@@ -756,12 +783,22 @@ _lkm_dev(lkmtp, cmd)
 		switch(args->lkm_devtype) {
 		case LM_DT_BLOCK:
 			/* replace current slot contents with old contents */
+#ifndef JREMOD
 			bcopy(&(args->lkm_olddev.bdev), &bdevsw[i], sizeof(struct bdevsw));
+#else /* JREMOD */
+			descrip = makedev(i,0);
+			bdevsw_add(&descrip, &(args->lkm_olddev.bdev),NULL);
+#endif /* JREMOD */
 			break;
 
 		case LM_DT_CHAR:
 			/* replace current slot contents with old contents */
+#ifndef JREMOD
 			bcopy(&(args->lkm_olddev.cdev), &cdevsw[i], sizeof(struct cdevsw));
+#else /* JREMOD */
+			descrip = makedev(i,0);
+			cdevsw_add(&descrip, &(args->lkm_olddev.cdev),NULL);
+#endif /* JREMOD */
 			break;
 
 		default:
