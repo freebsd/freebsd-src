@@ -544,8 +544,10 @@ crdioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct proc *p)
 	case PIOCRWFLAG:
 		slt->rwmem = *(int *)data;
 		break;
+#ifndef	__alpha__
 	/*
 	 * Set the memory window to be used for the read/write interface.
+	 * Not available on the alpha.
 	 */
 	case PIOCRWMEM:
 		if (*(unsigned long *)data == 0) {
@@ -571,6 +573,7 @@ crdioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct proc *p)
 		    (unsigned char *)(void *)(uintptr_t)
 		    (pccard_mem + atdevbase - IOM_BEGIN);
 		break;
+#endif
 	/*
 	 * Set power values.
 	 */
