@@ -32,7 +32,11 @@
  */
 
 #ifndef lint
+#if 0
 static const char sccsid[] = "@(#)authenc.c	8.2 (Berkeley) 5/30/95";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #if	defined(AUTHENTICATION) || defined(ENCRYPTION)
@@ -75,7 +79,6 @@ telnet_spin()
 telnet_getenv(val)
 	char *val;
 {
-	extern char *getenv();
 	return(getenv(val));
 }
 

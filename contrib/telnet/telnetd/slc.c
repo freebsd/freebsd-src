@@ -32,14 +32,18 @@
  */
 
 #ifndef lint
+#if 0
 static const char sccsid[] = "@(#)slc.c	8.2 (Berkeley) 5/30/95";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include "telnetd.h"
 
 #ifdef	LINEMODE
 /*
- * local varibles
+ * local variables
  */
 static unsigned char	*def_slcbuf = (unsigned char *)0;
 static int		def_slclen = 0;
