@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.2 1996/06/05 05:42:46 wpaul Exp $
+# $Id: Makefile,v 1.3 1996/06/06 03:58:06 wpaul Exp $
 
 PROG=	ypxfr
 SRCS=	ypxfr_clnt.c yp_clnt.c ypxfr_getmap.c yp_dblookup.c \
@@ -10,7 +10,8 @@ SRCS=	ypxfr_clnt.c yp_clnt.c ypxfr_getmap.c yp_dblookup.c \
 MAN8=	ypxfr.8
 
 CFLAGS+= -I.
-LDADD+= -lrpcsvc
+DPADD=	${LIBRPCSVC}
+LDADD=	-lrpcsvc
 
 CLEANFILES= yp.h yp_clnt.c ypxfr_clnt.c
 

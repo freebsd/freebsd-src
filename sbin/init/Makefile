@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 7/19/93
-#	$Id: Makefile,v 1.6 1996/02/13 09:12:10 joerg Exp $
+#	$Id: Makefile,v 1.7 1996/05/04 08:16:20 markm Exp $
 
 PROG=	init
 MAN8=	init.8
@@ -9,11 +9,11 @@ CFLAGS+=-DDEBUGSHELL -DSECURE
 
 .if exists(../../secure) && !defined(NOCRYPT) && !defined(NOSECURE)
 DISTRIBUTION=des
-DPADD=	${DESCRYPTOBJDIR}/libdescrypt.a ${LIBUTIL}
-LDADD=	-L${DESCRYPTOBJDIR} -lutil -ldescrypt
+DPADD=	${LIBUTIL} ${DESCRYPTOBJDIR}/libdescrypt.a
+LDADD=	-lutil -L${DESCRYPTOBJDIR} -ldescrypt
 .else
-DPADD=	${SCRYPTOBJDIR}/libscrypt.a ${LIBUTIL}
-LDADD=	-L${SCRYPTOBJDIR} -lutil -lscrypt
+DPADD=	${LIBUTIL} ${SCRYPTOBJDIR}/libscrypt.a
+LDADD=	-lutil -L${SCRYPTOBJDIR} -lscrypt
 .endif
 
 .include <bsd.prog.mk>
