@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *      $Id: cd.c,v 1.41.4.1 1995/12/21 12:01:50 davidg Exp $
+ *      $Id: cd.c,v 1.41.4.2 1996/04/01 00:25:57 gibbs Exp $
  */
 
 #define SPLCD splbio
@@ -775,7 +775,7 @@ struct scsi_link *sc_link)
 			error = cd_get_mode(unit, &data, AUDIO_PAGE);
 			if (error)
 				break;
-			data.page.audio.port[LEFT_PORT].channels = LEFT_CHANNEL | RIGHT_CHANNEL | 4 | 8;
+			data.page.audio.port[LEFT_PORT].channels = LEFT_CHANNEL | RIGHT_CHANNEL;
 			data.page.audio.port[RIGHT_PORT].channels = LEFT_CHANNEL | RIGHT_CHANNEL;
 			data.page.audio.port[2].channels = 0;
 			data.page.audio.port[3].channels = 0;
@@ -784,7 +784,7 @@ struct scsi_link *sc_link)
 				break;
 		}
 		break;
-	case CDIOCSETSTERIO:
+	case CDIOCSETSTEREO:
 		{
 			struct cd_mode_data data;
 			error = cd_get_mode(unit, &data, AUDIO_PAGE);
@@ -1038,6 +1038,12 @@ cd_set_mode(unit, data)
 	scsi_cmd.byte2 |= SMS_PF;
 	scsi_cmd.length = sizeof(*data) & 0xff;
 	data->header.data_length = 0;
+	/*
+	 * SONY drives do not allow a mode select with a medium_type
+	 * value that has just been returned by a mode sense; use a
+	 * medium_type of 0 (Default) instead.
+	 */
+	data->header.medium_type = 0;
 	return (scsi_scsi_cmd(SCSI_LINK(&cd_switch, unit),
 		(struct scsi_generic *) &scsi_cmd,
 		sizeof(scsi_cmd),
