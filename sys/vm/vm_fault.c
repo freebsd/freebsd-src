@@ -66,7 +66,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_fault.c,v 1.49 1996/06/08 06:48:32 dyson Exp $
+ * $Id: vm_fault.c,v 1.50 1996/06/10 00:25:40 dyson Exp $
  */
 
 /*
@@ -966,10 +966,10 @@ vm_fault_copy_entry(dst_map, src_map, dst_entry, src_entry)
 		 * Enter it in the pmap...
 		 */
 
-		dst_m->flags |= PG_WRITEABLE|PG_MAPPED;
 		dst_m->flags &= ~PG_ZERO;
 		pmap_enter(dst_map->pmap, vaddr, VM_PAGE_TO_PHYS(dst_m),
 		    prot, FALSE);
+		dst_m->flags |= PG_WRITEABLE|PG_MAPPED;
 
 		/*
 		 * Mark it no longer busy, and put it on the active list.
