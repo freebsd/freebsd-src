@@ -80,6 +80,7 @@ __FBSDID("$FreeBSD$");
 #define PCI_EHCI_VENDORID_AMD		0x1022
 #define PCI_EHCI_VENDORID_APPLE		0x106b
 #define PCI_EHCI_VENDORID_CMDTECH	0x1095
+#define PCI_EHCI_VENDORID_INTEL		0x8086
 #define PCI_EHCI_VENDORID_NEC		0x1033
 #define PCI_EHCI_VENDORID_OPTI		0x1045
 #define PCI_EHCI_VENDORID_SIS		0x1039
@@ -202,6 +203,9 @@ ehci_pci_attach(device_t self)
 		break;
 	case PCI_EHCI_VENDORID_CMDTECH:
 		sprintf(sc->sc_vendor, "CMDTECH");
+		break;
+	case PCI_EHCI_VENDORID_INTEL:
+		sprintf(sc->sc_vendor, "Intel");
 		break;
 	case PCI_EHCI_VENDORID_NEC:
 		sprintf(sc->sc_vendor, "NEC");
