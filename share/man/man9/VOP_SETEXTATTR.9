@@ -36,7 +36,7 @@
 .Fd #include <sys/vnode.h>
 .Fd #include <sys/extattr.h>
 .Ft int
-.Fn VOP_SETEXTATTR "struct vnode *vp" "char *name" "struct uio *uio" "struct ucred *cred" "struct proc *p"
+.Fn VOP_SETEXTATTR "struct vnode *vp" "const char *name" "struct uio *uio" "struct ucred *cred" "struct proc *p"
 .Sh DESCRIPTION
 This vnode call may be used to set specific named extended attribute for a
 file or directory.
