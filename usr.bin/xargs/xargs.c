@@ -183,7 +183,7 @@ main(int argc, char **argv)
 	 * shell.  Echo is the default.  Set up pointers for the user's
 	 * arguments.
 	 */
-	if (!*argv)
+	if (*argv == NULL)
 		cnt = strlen((*bxp++ = echo));
 	else {
 		do {
@@ -195,7 +195,7 @@ main(int argc, char **argv)
 				break;
 			}
 			cnt += strlen(*bxp++ = *argv) + 1;
-		} while (*++argv);
+		} while (*++argv != NULL);
 	}
 
 	/*
@@ -446,7 +446,7 @@ run(char **argv)
 
 	if (tflag || pflag) {
 		(void)fprintf(stderr, "%s", *argv);
-		for (p = argv + 1; *p; ++p)
+		for (p = argv + 1; *p != NULL; ++p)
 			(void)fprintf(stderr, " %s", *p);
 		if (pflag && (ttyfp = fopen("/dev/tty", "r")) != NULL) {
 			(void)fprintf(stderr, "?");
