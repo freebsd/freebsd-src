@@ -26,15 +26,10 @@ ARPAHDRS=	ftp.h inet.h nameser.h nameser_compat.h telnet.h tftp.h
 
 PROTOHDRS=	dumprestore.h routed.h rwhod.h talkd.h timed.h
 
-NETSMBHDRS=	nb_lib.h smb_lib.h smb_rap.h
-
 MHDRS=	float.h floatingpoint.h stdarg.h varargs.h
 
 # posix4/aio.h conflicts with dysons and isn't installed:
 PHDRS=	mqueue.h sched.h semaphore.h # aio.h
-
-# Only for default SHARED=copies case
-SHDRS=	soundcard.h joystick.h
 
 LHDRS=	aio.h errno.h fcntl.h linker_set.h poll.h stdint.h syslog.h \
 	termios.h ucontext.h
@@ -43,15 +38,18 @@ LDIRS=	cam net netatalk netatm netgraph netinet netinet6 \
 	netipx netkey netnatm netncp netns netsmb nfs nfsclient nfsserver \
 	pccard posix4 sys vm
 
-LNOHEADERDIRS=	fs isofs ufs dev
+LNOHEADERDIRS=	dev fs isofs security ufs
 
 LSUBDIRS=	cam/scsi dev/ic dev/ppbus dev/usb dev/wi dev/an fs/devfs \
 	fs/fdescfs fs/fifofs fs/msdosfs fs/ntfs fs/nullfs fs/nwfs fs/portalfs \
 	fs/procfs fs/smbfs fs/umapfs fs/unionfs isofs/cd9660 \
+	netatm/ipatm netatm/sigpvc netatm/spans netatm/uni \
+	security/lomac \
 	ufs/ffs ufs/ufs
 
-# For SHARED=symlinks, cam is a symlink, so cam/scsi is taken care of
-LSYMSUBDIRS=	${LSUBDIRS:Ncam/scsi}
+# For SHARED=symlinks, cam and netatm are symlinks, so cam/scsi and netatm/*
+# are taken care of
+LSYMSUBDIRS=	${LSUBDIRS:Ncam/scsi:Nnetatm/*}
 
 # Define SHARED to indicate whether you want symbolic links to the system
 # source (``symlinks''), or a separate copy (``copies'').  ``symlinks'' is
@@ -113,31 +111,16 @@ copies:
 		${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 $i/*.h \
 		${DESTDIR}/usr/include/$i
 .endfor
-.if !defined(NO_IPFILTER)
-.if exists(${.CURDIR}/../sys/contrib/ipfilter/netinet)
-	cd ${.CURDIR}/../sys/contrib/ipfilter/netinet; \
-		${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 *.h \
-		${DESTDIR}/usr/include/netinet
-.endif
-.endif
-.if exists(${.CURDIR}/../sys/contrib/netsmb/include/netsmb)
-	cd ${.CURDIR}/../sys/contrib/netsmb/include/netsmb; \
-		${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ${NETSMBHDRS} \
-		${DESTDIR}/usr/include/netsmb
-.endif
-.if exists(${.CURDIR}/../sys/security/lomac)
-	cd ${.CURDIR}/../sys/security/lomac; \
-		${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 lomac.h \
-		lomacio.h ${DESTDIR}/usr/include/sys
-.endif
 .if exists(${.CURDIR}/../sys/${MACHINE_ARCH}/include)
 	cd ${.CURDIR}/../sys/${MACHINE_ARCH}/include; \
 		${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 *.h \
 		${DESTDIR}/usr/include/machine
+.if exists(${.CURDIR}/../sys/${MACHINE_ARCH}/include/pc)
+	cd ${.CURDIR}/../sys/${MACHINE_ARCH}/include/pc; \
+		${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 *.h \
+		${DESTDIR}/usr/include/machine/pc
 .endif
-.for i in ${SHDRS}
-	ln -sf ../sys/$i ${DESTDIR}/usr/include/machine/$i
-.endfor
+.endif
 
 symlinks:
 	@${ECHO} "Setting up symlinks to kernel source tree..."

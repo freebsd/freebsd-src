@@ -62,12 +62,22 @@
     libmilter
     ..
     machine
+        pc
+        ..
     ..
     net
     ..
     netatalk
     ..
     netatm
+        ipatm
+        ..
+        sigpvc
+        ..
+        spans
+        ..
+        uni
+        ..
     ..
     netgraph
     ..
@@ -110,6 +120,8 @@
     rpcsvc
     ..
     security
+        lomac
+        ..
     ..
     sys
     ..

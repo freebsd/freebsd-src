@@ -43,7 +43,7 @@
  __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
-#include <sys/lomacio.h>
+#include <security/lomac/lomacio.h>
 
 #include <err.h>
 #include <fts.h>
