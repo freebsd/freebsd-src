@@ -68,14 +68,14 @@
  * (c)		const until freeing
  */
 struct session {
-	int		s_count;	/* (m)		Ref cnt; pgrps in session. */
-	struct	proc	*s_leader;	/* (m + e)	Session leader. */
-	struct	vnode	*s_ttyvp;	/* (m)		Vnode of controlling terminal. */
-	struct	tty	*s_ttyp;	/* (m)		Controlling terminal. */
-	pid_t		s_sid;		/* (c)		Session ID. */
-					/* (m)		Setlogin() name: */
+	int		s_count;	/* (m) Ref cnt; pgrps in session. */
+	struct	proc	*s_leader;	/* (m + e) Session leader. */
+	struct	vnode	*s_ttyvp;	/* (m) Vnode of controlling tty. */
+	struct	tty	*s_ttyp;	/* (m) Controlling tty. */
+	pid_t		s_sid;		/* (c) Session ID. */
+					/* (m) Setlogin() name: */
 	char		s_login[roundup(MAXLOGNAME, sizeof(long))];
-	struct	mtx	s_mtx;		/* 		Mutex to protect members */
+	struct	mtx	s_mtx;		/* Mutex to protect members */
 };
 
 /*
@@ -87,18 +87,18 @@ struct session {
  * (c)		const until freeing
  */
 struct pgrp {
-	LIST_ENTRY(pgrp) pg_hash;	/* (e)		Hash chain. */
-	LIST_HEAD(, proc) pg_members;	/* (m + e)	Pointer to pgrp members. */
-	struct session	*pg_session;	/* (c)		Pointer to session. */
-	struct sigiolst	pg_sigiolst;	/* (m)		List of sigio sources. */
-	pid_t		pg_id;		/* (c)		Pgrp id. */
-	int		pg_jobc;	/* (m)		# procs qualifying pgrp for job control */
-	struct	mtx	pg_mtx;		/* 		Mutex to protect members */
+	LIST_ENTRY(pgrp) pg_hash;	/* (e) Hash chain. */
+	LIST_HEAD(, proc) pg_members;	/* (m + e) Pointer to pgrp members. */
+	struct session	*pg_session;	/* (c) Pointer to session. */
+	struct sigiolst	pg_sigiolst;	/* (m) List of sigio sources. */
+	pid_t		pg_id;		/* (c) Pgrp id. */
+	int		pg_jobc;	/* (m) job cntl proc count */
+	struct	mtx	pg_mtx;		/*  Mutex to protect members */
 };
 
 struct procsig {
-	sigset_t ps_sigignore;	/* Signals being ignored. */
-	sigset_t ps_sigcatch;	/* Signals being caught by user. */
+	sigset_t ps_sigignore;		/* Signals being ignored. */
+	sigset_t ps_sigcatch;		/* Signals being caught by user. */
 	int	 ps_flag;
 	struct	 sigacts *ps_sigacts;	/* Signal actions, state. */
 	int	 ps_refcnt;
@@ -177,30 +177,28 @@ struct trapframe;
  * which it is currently executing. It should threfore NEVER be referenced
  * by pointers in long lived structures that live longer than a single
  * request. If several threads complete their work at the same time,
- * they will all rewind their stacks to the uer boundary, report their
+ * they will all rewind their stacks to the user boundary, report their
  * completion state, and all but one will be freed. That last one will
  * be kept to provide a kernel stack and pcb for the NEXT syscall or kernel
- * entrance. (basically to save freeing and then re-allocating it) A process
- * might keep a cache of threads available to allow it to quickly
- * get one when it needs a new one. There would probably also be a system
- * cache of free threads.
+ * entrance. (basically to save freeing and then re-allocating it) The KSE
+ * keeps a cached thread available to allow it to quickly
+ * get one when it needs a new one. There is also a system
+ * cache of free threads. Threads have priority and partake in priority
+ * inherritance schemes.
  */
 struct thread;
 
 /* 
  * The second structure is the Kernel Schedulable Entity. (KSE)
- * As long as this is scheduled, it will continue to run any threads that
- * are assigned to it or the KSEGRP (see later) until either it runs out
- * of runnable threads or CPU.
+ * It represents the ability to take a slot in th scheduler queue.
+ * As long as this is scheduled, it cound continue to run any threads that
+ * are assigned to the KSEGRP (see later) until either it runs out
+ * of runnable threads of high enough priority, or CPU.
  * It runs on one CPU and is assigned a quantum of time. When a thread is
  * blocked, The KSE continues to run and will search for another thread
  * in a runnable state amongst those it has. It May decide to return to user
  * mode with a new 'empty' thread if there are no runnable threads.
- * threads are associated with a KSE for cache reasons, but a sheduled KSE with
- * no runnable thread will try take a thread from a sibling KSE before
- * surrendering its quantum. In some schemes it gets it's quantum from the KSEG
- * and contributes to draining that quantum, along withthe other KSEs in
- * the group. (undecided)
+ * Threads are temporarily associated with a KSE for scheduling reasons.
  */
 struct kse;
 
@@ -208,7 +206,7 @@ struct kse;
  * The KSEGRP is allocated resources across a number of CPUs.
  * (Including a number of CPUxQUANTA. It parcels these QUANTA up among
  * Its KSEs, each of which should be running in a different CPU.
- * Priority and total available sheduled quanta are properties of a KSEGRP.
+ * BASE priority and total available quanta are properties of a KSEGRP.
  * Multiple KSEGRPs in a single process compete against each other
  * for total quanta in the same way that a forked child competes against
  * it's parent process.
