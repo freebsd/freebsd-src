@@ -41,7 +41,7 @@
 
 #define EMU10K1_PCI_ID 	0x00021102
 #define EMU_BUFFSIZE	16384
-#define EMUDEBUG
+#undef EMUDEBUG
 
 struct emu_memblk {
 	SLIST_ENTRY(emu_memblk) link;
@@ -51,7 +51,7 @@ struct emu_memblk {
 
 struct emu_mem {
 	u_int8_t bmap[MAXPAGES / 8];
-	volatile u_int32_t *ptb_pages;
+	u_int32_t *ptb_pages;
 	void *silent_page;
        	SLIST_HEAD(, emu_memblk) blocks;
 };
@@ -61,6 +61,7 @@ struct emu_voice {
 	int b16:1, stereo:1, busy:1, running:1, master:1;
 	int speed;
 	int start, end;
+	u_int32_t buf;
 	struct emu_voice *slave;
 	pcm_channel *channel;
 };
@@ -374,13 +375,14 @@ emu_vinit(struct sc_info *sc, struct emu_voice *m, struct emu_voice *s,
 	if (buf == NULL)
 		return -1;
 	m->start = emu_memstart(sc, buf) * EMUPAGESIZE;
-	m->end = m->start + sz - 1;
+	m->end = m->start + sz;
 	m->channel = c;
 	m->speed = 0;
 	m->b16 = 0;
 	m->stereo = 0;
 	m->running = 0;
 	m->master = 1;
+	m->buf = vtophys(buf);
 	m->slave = s;
 	if (s != NULL) {
 		s->start = m->start;
@@ -391,6 +393,7 @@ emu_vinit(struct sc_info *sc, struct emu_voice *m, struct emu_voice *s,
 		s->stereo = 0;
 		s->running = 0;
 		s->master = 0;
+		s->buf = m->buf;
 		s->slave = NULL;
 	}
 	if (c != NULL) {
@@ -424,7 +427,7 @@ static void
 emu_vwrite(struct sc_info *sc, struct emu_voice *v)
 {
 	int s, l, r, p;
-	u_int32_t sa, ea, start = 0, val = 0, v2 = 0, sample, silent_page;
+	u_int32_t sa, ea, start = 0, val = 0, v2 = 0, sample, silent_page, i;
 
 	s = (v->stereo? 1 : 0) + (v->b16? 1 : 0);
 	sa = v->start >> s;
@@ -435,6 +438,7 @@ emu_vwrite(struct sc_info *sc, struct emu_voice *v)
 		r = v->master? 0 : r;
 	}
 	p = emu_rate_to_pitch(v->speed) >> 8;
+	sample = v->b16? 0 : 0x80808080;
 
    	emu_wrptr(sc, v->vnum, DCYSUSV, ENV_OFF);
 	emu_wrptr(sc, v->vnum, VTFT, VTFT_FILTERTARGET_MASK);
@@ -451,9 +455,7 @@ emu_vwrite(struct sc_info *sc, struct emu_voice *v)
 		} else
 			emu_wrptr(sc, v->vnum, CPF, 0);
 		sample = 0x80808080;
-		if (v->b16)
-			sample = 0;
-		else
+		if (!v->b16)
 			val <<= 1;
 		val -= 4;
 		/*
@@ -486,7 +488,6 @@ emu_vwrite(struct sc_info *sc, struct emu_voice *v)
 		 */
 		start |= CCCA_INTERPROM_0;
 	}
-	printf("val = 0x%x\n", val);
 	emu_wrptr(sc, v->vnum, DSL, ea);
 	emu_wrptr(sc, v->vnum, PSST, sa | (l << 24));
 	emu_wrptr(sc, v->vnum, CCCA, start | (v->b16? 0 : CCCA_8BITSELECT));
@@ -495,12 +496,15 @@ emu_vwrite(struct sc_info *sc, struct emu_voice *v)
 	emu_wrptr(sc, v->vnum, Z2, 0);
 
 	silent_page = ((u_int32_t)vtophys(sc->mem.silent_page) << 1) | MAP_PTI_MASK;
+	silent_page = ((u_int32_t)v->buf << 1) | (v->start / EMUPAGESIZE);
 	emu_wrptr(sc, v->vnum, MAPA, silent_page);
 	emu_wrptr(sc, v->vnum, MAPB, silent_page);
 
-	emu_vdump(sc, v);
 	if (v->master)
 		emu_wrptr(sc, v->vnum, CCR, val);
+
+	for (i = CD0; i < CDF; i++)
+		emu_wrptr(sc, v->vnum, i, sample);
 
 	emu_wrptr(sc, v->vnum, ATKHLDV, ATKHLDV_HOLDTIME_MASK | ATKHLDV_ATTACKTIME_MASK);
 	emu_wrptr(sc, v->vnum, LFOVAL1, 0x8000);
@@ -705,13 +709,11 @@ emu_malloc(struct sc_info *sc, u_int32_t sz)
 	return buf;
 }
 
-#ifdef notyet
 static void
 emu_free(struct sc_info *sc, void *buf)
 {
 	bus_dmamem_free(sc->parent_dmat, buf, NULL);
 }
-#endif
 
 static void *
 emu_memalloc(struct sc_info *sc, u_int32_t sz)
@@ -754,7 +756,7 @@ emu_memalloc(struct sc_info *sc, u_int32_t sz)
 		mem->bmap[idx >> 3] |= 1 << (idx & 7);
 		tmp = (u_int32_t)vtophys((u_int8_t *)buf + ofs);
 		/* printf("pte[%d] -> %x phys, %x virt\n", idx, tmp, ((u_int32_t)buf) + ofs); */
-		mem->ptb_pages[idx] = (tmp << 1); /* | idx; */
+		mem->ptb_pages[idx] = (tmp << 1);/* | idx;*/
 		ofs += EMUPAGESIZE;
 	}
 	SLIST_INSERT_HEAD(&mem->blocks, blk, link);
@@ -989,18 +991,22 @@ emu_init(struct sc_info *sc)
 
 	emu_initefx(sc);
 
-	sc->mem.silent_page = emu_malloc(sc, EMUPAGESIZE);
-	if (sc->mem.silent_page == NULL)
-		return -1;
-	/* Clear page with silence & setup all pointers to this page */
-	bzero(sc->mem.silent_page, EMUPAGESIZE);
-
+	SLIST_INIT(&sc->mem.blocks);
 	sc->mem.ptb_pages = emu_malloc(sc, MAXPAGES * sizeof(u_int32_t));
 	if (sc->mem.ptb_pages == NULL)
 		return -1;
+
+	sc->mem.silent_page = emu_malloc(sc, EMUPAGESIZE);
+	if (sc->mem.silent_page == NULL) {
+		emu_free(sc, sc->mem.ptb_pages);
+		return -1;
+	}
+	/* Clear page with silence & setup all pointers to this page */
+	bzero(sc->mem.silent_page, EMUPAGESIZE);
 	tmp = (u_int32_t)vtophys(sc->mem.silent_page) << 1;
 	for (i = 0; i < MAXPAGES; i++)
-		sc->mem.ptb_pages[i] = tmp | i;
+		sc->mem.ptb_pages[i] = tmp;
+
 	emu_wrptr(sc, 0, PTB, vtophys(sc->mem.ptb_pages));
 	emu_wrptr(sc, 0, TCB, 0);	/* taken from original driver */
 	emu_wrptr(sc, 0, TCBS, 4);	/* taken from original driver */
@@ -1035,8 +1041,6 @@ emu_init(struct sc_info *sc)
 			emu_wr(sc, HCFG, tmp, 4);
 		}
 	}
-
-	SLIST_INIT(&sc->mem.blocks);
 
 	return 0;
 }
