@@ -43,7 +43,7 @@
 #define	_GRP_H_
 
 #include <sys/cdefs.h>
-#include <machine/ansi.h>
+#include <sys/_types.h>
 
 #ifndef _POSIX_SOURCE
 #define	_PATH_GROUP		"/etc/group"
