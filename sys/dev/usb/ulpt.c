@@ -461,7 +461,7 @@ ulpt_input(usbd_xfer_handle xfer, usbd_private_handle priv, usbd_status status)
 		usbd_transfer(sc->sc_in_xfer1);
 }
 
-int ulptusein = 1;
+int ulptusein = 0;
 
 /*
  * Reset the printer, then wait until it's selected and not busy.
