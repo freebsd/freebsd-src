@@ -97,7 +97,7 @@ struct nfsnode {
 	u_int32_t		n_mode;		/* ACCESS mode cache */
 	uid_t			n_modeuid;	/* credentials having mode */
 	time_t			n_modestamp;	/* mode cache timestamp */
-	time_t			n_mtime;	/* Prev modify time. */
+	struct timespec		n_mtime;	/* Prev modify time. */
 	time_t			n_ctime;	/* Prev create time. */
 	time_t			n_expiry;	/* Lease expiry time */
 	nfsfh_t			*n_fhp;		/* NFS File Handle */
@@ -154,6 +154,8 @@ struct nfsnode {
  */
 #define VTONFS(vp)	((struct nfsnode *)(vp)->v_data)
 #define NFSTOV(np)	((struct vnode *)(np)->n_vnode)
+
+#define NFS_TIMESPEC_COMPARE(T1, T2)	(((T1)->tv_sec != (T2)->tv_sec) || ((T1)->tv_nsec != (T2)->tv_nsec))
 
 /*
  * Queue head for nfsiod's

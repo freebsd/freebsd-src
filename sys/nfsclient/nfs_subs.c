@@ -534,7 +534,7 @@ nfs_loadattrcache(struct vnode **vpp, struct mbuf **mdp, caddr_t *dposp,
 		vp->v_type = vtyp;
 		if (vp->v_type == VFIFO)
 			vp->v_op = &nfs_fifoops;
-		np->n_mtime = mtime.tv_sec;
+		np->n_mtime = mtime;
 	}
 	vap = &np->n_vattr;
 	vap->va_type = vtyp;
@@ -639,7 +639,7 @@ nfs_getattrcache(struct vnode *vp, struct vattr *vaper)
 	vap = &np->n_vattr;
 	nmp = VFSTONFS(vp->v_mount);
 	/* XXX n_mtime doesn't seem to be updated on a miss-and-reload */
-	timeo = (time_second - np->n_mtime) / 10;
+	timeo = (time_second - np->n_mtime.tv_sec) / 10;
 
 #ifdef NFS_ACDEBUG
 	if (nfs_acdebug>1)
@@ -941,8 +941,8 @@ nfsm_wcc_data_xx(struct vnode **v, int *f, struct mbuf **md, caddr_t *dpos)
 		if (tl == NULL)
 			return EBADRPC;
 		if (*f)
-			ttretf = (VTONFS(*v)->n_mtime ==
-			    fxdr_unsigned(u_int32_t, *(tl + 2)));
+ 			ttretf = (VTONFS(*v)->n_mtime.tv_sec == fxdr_unsigned(u_int32_t, *(tl + 2)) && 
+				  VTONFS(*v)->n_mtime.tv_nsec == fxdr_unsigned(u_int32_t, *(tl + 3))); 
 	}
 	t1 = nfsm_postop_attr_xx(v, &ttattrf, md, dpos);
 	if (t1)
