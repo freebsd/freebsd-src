@@ -6,7 +6,7 @@
  */
 
 #include <string.h>
-#include "y.tab.h"
+#include "ct.tab.h"
 #include "copyright.h"
 
 extern char *last_token, *ds();
