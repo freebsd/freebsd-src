@@ -1953,7 +1953,7 @@ ndis_wait_event(event, msecs)
 	mtx_pool_lock(ndis_mtxpool, ntoskrnl_dispatchlock);
 
 	if (event->ne_event.nk_header.dh_sigstate == TRUE) {
-		mtx_pool_lock(ndis_mtxpool, ntoskrnl_dispatchlock);
+		mtx_pool_unlock(ndis_mtxpool, ntoskrnl_dispatchlock);
 		return(TRUE);
 	}
 
