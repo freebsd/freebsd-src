@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: imgact_aout.c,v 1.22 1996/01/19 03:57:54 dyson Exp $
+ *	$Id: imgact_aout.c,v 1.23 1996/03/02 19:38:06 peter Exp $
  */
 
 #include <sys/param.h>
@@ -66,9 +66,11 @@ exec_aout_imgact(imgp)
 	 * Linux and *BSD binaries look very much alike,
 	 * only the machine id is different:
 	 * 0x64 for Linux, 0x86 for *BSD, 0x00 for BSDI.
+	 * NetBSD is in network byte order.. ugh.
 	 */
 	if (((a_out->a_magic >> 16) & 0xff) != 0x86 &&
-	    ((a_out->a_magic >> 16) & 0xff) != 0)
+	    ((a_out->a_magic >> 16) & 0xff) != 0 &&
+	    ((((int)ntohl(a_out->a_magic)) >> 16) & 0xff) != 0x86)
                 return -1;
 
 	/*
