@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.15 1995/01/09 16:05:49 davidg Exp $
+ * $Id: vm_object.c,v 1.16 1995/01/11 20:00:09 davidg Exp $
  */
 
 /*
@@ -1172,7 +1172,8 @@ again:
 
 		next = p->listq.tqe_next;
 
-		if ((p->flags & PG_BUSY) || p->busy || p->bmapped) {
+		if ((p->flags & (PG_BUSY | PG_FICTITIOUS | PG_CACHE)) ||
+		    !p->valid || p->hold_count || p->wire_count || p->busy || p->bmapped) {
 			p = next;
 			continue;
 		}
