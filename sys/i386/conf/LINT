@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.599 1999/05/18 12:55:11 roger Exp $
+#	$Id: LINT,v 1.600 1999/05/20 10:08:37 hm Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -2114,33 +2114,34 @@ controller	ohci0
 # General USB code (mandatory for USB)
 controller	usb0
 #
-# for the moment we have to specify the priorities of the device
-# drivers explicitly by the ordering in the list below. This will
-# be changed in the future.
-#
-# USB Iomega Zip 100 Drive
-controller	umass0
-# USB mouse
-device		ums0
+# Generic USB device driver
+device		ugen0
+# Human Interface Device (anything with buttons and dials)
+device		uhid0
 # USB keyboard
 device		ukbd0
 # USB printer
 device		ulpt0
-# Human Interface Device (anything with buttons and dials)
-device		uhid0
-# Generic USB device driver
-device		ugen0
+# USB Iomega Zip 100 Drive
+controller	umass0
+# USB mouse
+device		ums0
+#
+
+# debugging options for the USB subsystem
 #
 options		UHCI_DEBUG
 options		OHCI_DEBUG
 options		USB_DEBUG
-options		UHUB_DEBUG
-options		UMS_DEBUG
-options		UKBD_DEBUG
-options		UMASS_DEBUG
-options		UHID_DEBUG
+
 options		UGEN_DEBUG
+options		UHID_DEBUG
+options		UHUB_DEBUG
+options		UKBD_DEBUG
 options		ULPT_DEBUG
+options		UMASS_DEBUG
+options		UMS_DEBUG
+
 #
 # Embedded system options:
 #
