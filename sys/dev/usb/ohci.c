@@ -4,6 +4,7 @@
 /* Also, already ported:
  *	$NetBSD: ohci.c,v 1.127 2002/08/07 20:03:19 augustss Exp $
  *	$NetBSD: ohci.c,v 1.138 2003/02/08 03:32:50 ichiro Exp $
+ *	$NetBSD: ohci.c,v 1.140 2003/05/13 04:42:00 gson Exp $
  */
 
 /*
@@ -1484,11 +1485,11 @@ ohci_softintr(void *v)
 void
 ohci_device_ctrl_done(usbd_xfer_handle xfer)
 {
-	DPRINTFN(10,("ohci_ctrl_done: xfer=%p\n", xfer));
+	DPRINTFN(10,("ohci_device_ctrl_done: xfer=%p\n", xfer));
 
 #ifdef DIAGNOSTIC
 	if (!(xfer->rqflags & URQ_REQUEST)) {
-		panic("ohci_ctrl_done: not a request");
+		panic("ohci_device_ctrl_done: not a request");
 	}
 #endif
 	xfer->hcpriv = NULL;
@@ -1503,7 +1504,7 @@ ohci_device_intr_done(usbd_xfer_handle xfer)
 	ohci_soft_td_t *data, *tail;
 
 
-	DPRINTFN(10,("ohci_intr_done: xfer=%p, actlen=%d\n",
+	DPRINTFN(10,("ohci_device_intr_done: xfer=%p, actlen=%d\n",
 		     xfer, xfer->actlen));
 
 	xfer->hcpriv = NULL;
@@ -1541,7 +1542,7 @@ ohci_device_intr_done(usbd_xfer_handle xfer)
 void
 ohci_device_bulk_done(usbd_xfer_handle xfer)
 {
-	DPRINTFN(10,("ohci_bulk_done: xfer=%p, actlen=%d\n",
+	DPRINTFN(10,("ohci_device_bulk_done: xfer=%p, actlen=%d\n",
 		     xfer, xfer->actlen));
 
 	xfer->hcpriv = NULL;
