@@ -2170,7 +2170,7 @@ fi
 <code>
 #!/bin/sh
 #
-#  ifhp - Print Ghostscript-simulated PostScript on a DesJet 500
+#  ifhp - Print Ghostscript-simulated PostScript on a DeskJet 500
 #  Installed in /usr/local/libexec/hpif
 
 #
