@@ -38,6 +38,7 @@
 #include <ucontext.h>
 
 #define	KSE_STACKSIZE		16384
+#define	DTV_OFFSET		offsetof(struct tcb, tcb_tp.tp_dtv)
 
 int _thr_setcontext(mcontext_t *, intptr_t, intptr_t *);
 int _thr_getcontext(mcontext_t *);

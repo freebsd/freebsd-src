@@ -19,6 +19,7 @@ CFLAGS+=-I${.CURDIR}/../libc/include -I${.CURDIR}/thread \
 CFLAGS+=-I${.CURDIR}/arch/${MACHINE_ARCH}/include
 CFLAGS+=-I${.CURDIR}/sys
 CFLAGS+=-I${.CURDIR}/../../libexec/rtld-elf
+CFLAGS+=-I${.CURDIR}/../../libexec/rtld-elf/${MACHINE_ARCH}
 CFLAGS+=-fno-builtin
 
 # Uncomment this if you want libpthread to contain debug information for
