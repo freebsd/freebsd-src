@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2003 Marcel Moolenaar
+ * Copyright (c) 2003,2004 Marcel Moolenaar
  * Copyright (c) 2000 Doug Rabson
  * All rights reserved.
  *
@@ -793,8 +793,10 @@ IVT_ENTRY(Alternate_Instruction_TLB, 0x0c00)
 	cmp.eq	p15,p14=7,r17		// RR7->p15, RR6->p14
 (p13)	br.spnt	9f
 	;;
-(p15)	movl	r17=PTE_P+PTE_MA_WB+PTE_A+PTE_D+PTE_PL_KERN+PTE_AR_RX
-(p14)	movl	r17=PTE_P+PTE_MA_UC+PTE_A+PTE_D+PTE_PL_KERN+PTE_AR_RX
+(p15)	movl	r17=PTE_PRESENT+PTE_MA_WB+PTE_ACCESSED+PTE_DIRTY+PTE_PL_KERN+ \
+			PTE_AR_RX
+(p14)	movl	r17=PTE_PRESENT+PTE_MA_UC+PTE_ACCESSED+PTE_DIRTY+PTE_PL_KERN+ \
+			PTE_AR_RX
 	;;
 	dep	r16=0,r16,50,14		// clear bits above PPN
 	;;
@@ -818,8 +820,10 @@ IVT_ENTRY(Alternate_Data_TLB, 0x1000)
 	cmp.eq	p15,p14=7,r17		// RR7->p15, RR6->p14
 (p13)	br.spnt	9f
 	;;
-(p15)	movl	r17=PTE_P+PTE_MA_WB+PTE_A+PTE_D+PTE_PL_KERN+PTE_AR_RW
-(p14)	movl	r17=PTE_P+PTE_MA_UC+PTE_A+PTE_D+PTE_PL_KERN+PTE_AR_RW
+(p15)	movl	r17=PTE_PRESENT+PTE_MA_WB+PTE_ACCESSED+PTE_DIRTY+PTE_PL_KERN+ \
+			PTE_AR_RW
+(p14)	movl	r17=PTE_PRESENT+PTE_MA_UC+PTE_ACCESSED+PTE_DIRTY+PTE_PL_KERN+ \
+			PTE_AR_RW
 	;;
 	dep	r16=0,r16,50,14		// clear bits above PPN
 	;;
@@ -887,7 +891,7 @@ IVT_ENTRY(Data_Nested_TLB, 0x1400)
 	ld8		r28=[r27]
 	;;
 	mov		cr.itir=r29
-	or		r28=PTE_D|PTE_A,r28
+	or		r28=PTE_DIRTY+PTE_ACCESSED,r28
 	;;
 }
 {	.mlx
@@ -944,7 +948,7 @@ IVT_ENTRY(Dirty_Bit, 0x2000)
 (p15)	br.cond.sptk.few 2f		// if not, read next in chain
 	;;
 	ld8	r21=[r20]		// read pte
-	mov	r22=PTE_D|PTE_A
+	mov	r22=PTE_DIRTY+PTE_ACCESSED
 	;;
 	or	r21=r22,r21		// set dirty & access bit
 	;;
@@ -1010,7 +1014,7 @@ IVT_ENTRY(Instruction_Access_Bit, 0x2400)
 (p15)	br.cond.sptk.few 2f		// if not, read next in chain
 	;;
 	ld8	r21=[r20]		// read pte
-	mov	r22=PTE_A
+	mov	r22=PTE_ACCESSED
 	;;
 	or	r21=r22,r21		// set accessed bit
 	;;
@@ -1076,7 +1080,7 @@ IVT_ENTRY(Data_Access_Bit, 0x2800)
 (p15)	br.cond.sptk.few 2f		// if not, read next in chain
 	;;
 	ld8	r21=[r20]		// read pte
-	mov	r22=PTE_A
+	mov	r22=PTE_ACCESSED
 	;;
 	or	r21=r22,r21		// set accessed bit
 	;;

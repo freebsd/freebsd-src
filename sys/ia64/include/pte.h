@@ -29,106 +29,70 @@
 #ifndef _MACHINE_PTE_H_
 #define	_MACHINE_PTE_H_
 
-#ifdef LOCORE
+#define	PTE_PRESENT	0x0000000000000001
+#define	PTE__RV1_	0x0000000000000002
+#define	PTE_MA_MASK	0x000000000000001C
+#define	PTE_MA_WB	0x0000000000000000
+#define	PTE_MA_UC	0x0000000000000010
+#define	PTE_MA_UCE	0x0000000000000014
+#define	PTE_MA_WC	0x0000000000000018
+#define	PTE_MA_NATPAGE	0x000000000000001C
+#define	PTE_ACCESSED	0x0000000000000020
+#define	PTE_DIRTY	0x0000000000000040
+#define	PTE_PL_MASK	0x0000000000000180
+#define	PTE_PL_KERN	0x0000000000000000
+#define	PTE_PL_USER	0x0000000000000180
+#define	PTE_AR_MASK	0x0000000000000E00
+#define	PTE_AR_R	0x0000000000000000
+#define	PTE_AR_RX	0x0000000000000200
+#define	PTE_AR_RW	0x0000000000000400
+#define	PTE_AR_RWX	0x0000000000000600
+#define	PTE_AR_R_RW	0x0000000000000800
+#define	PTE_AR_RX_RWX	0x0000000000000A00
+#define	PTE_AR_RWX_RW	0x0000000000000C00
+#define	PTE_AR_X_RX	0x0000000000000E00
+#define	PTE_PPN_MASK	0x0003FFFFFFFFF000
+#define	PTE__RV2_	0x000C000000000000
+#define	PTE_ED		0x0010000000000000
+#define	PTE_IG_MASK	0xFFE0000000000000
+#define	PTE_WIRED	0x0020000000000000
+#define	PTE_MANAGED	0x0040000000000000
+#define	PTE_PROT_MASK	0x0700000000000000
 
-#define PTE_P		(1<<0)
-#define PTE_MA_WB	(0<<2)
-#define PTE_MA_UC	(4<<2)
-#define PTE_MA_UCE	(5<<2)
-#define PTE_MA_WC	(6<<2)
-#define PTE_MA_NATPAGE	(7<<2)
-#define PTE_A		(1<<5)
-#define PTE_D		(1<<6)
-#define PTE_PL_KERN	(0<<7)
-#define PTE_PL_USER	(3<<7)
-#define PTE_AR_R	(0<<9)
-#define PTE_AR_RX	(1<<9)
-#define PTE_AR_RW	(2<<9)
-#define PTE_AR_RWX	(3<<9)
-#define PTE_AR_R_RW	(4<<9)
-#define PTE_AR_RX_RWX	(5<<9)
-#define PTE_AR_RWX_RW	(6<<9)
-#define PTE_AR_X_RX	(7<<9)
+#ifndef LOCORE
 
-#else
+typedef uint64_t pt_entry_t;
 
-#define PTE_MA_WB	0
-#define PTE_MA_UC	4
-#define PTE_MA_UCE	5
-#define PTE_MA_WC	6
-#define PTE_MA_NATPAGE	7
+static __inline pt_entry_t
+pte_atomic_clear(pt_entry_t *ptep, uint64_t val)
+{
+	return (atomic_clear_64(ptep, val));
+}
 
-#define PTE_PL_KERN	0
-#define PTE_PL_USER	3
-
-#define PTE_AR_R	0
-#define PTE_AR_RX	1
-#define PTE_AR_RW	2
-#define PTE_AR_RWX	3
-#define PTE_AR_R_RW	4
-#define PTE_AR_RX_RWX	5
-#define PTE_AR_RWX_RW	6
-#define PTE_AR_X_RX	7
-
-/*
- * A short-format VHPT entry. Also matches the TLB insertion format.
- */
-struct ia64_pte {
-	uint64_t	pte_p	:1;	/* bit 0 */
-	uint64_t	__rv1__	:1;	/* bit 1 */
-	uint64_t	pte_ma	:3;	/* bits 2..4 */
-	uint64_t	pte_a	:1;	/* bit 5 */
-	uint64_t	pte_d	:1;	/* bit 6 */
-	uint64_t	pte_pl	:2;	/* bits 7..8 */
-	uint64_t	pte_ar	:3;	/* bits 9..11 */
-	uint64_t	pte_ppn	:38;	/* bits 12..49 */
-	uint64_t	__rv2__	:2;	/* bits 50..51 */
-	uint64_t	pte_ed	:1;	/* bit 52 */
-	/* The following bits are ignored by the hardware. */
-	uint64_t	pte_w	:1;	/* bit 53 */
-	uint64_t	pte_m	:1;	/* bit 54 */
-	uint64_t	pte_prot:3;	/* bits 55..57 */
-	uint64_t	__ig__	:6;	/* bits 58..63 */
-};
-
-/*
- * A long-format VHPT entry.
- */
-struct ia64_lpte {
-	uint64_t	pte_p	:1;	/* bit 0 */
-	uint64_t	__rv1__	:1;	/* bit 1 */
-	uint64_t	pte_ma	:3;	/* bits 2..4 */
-	uint64_t	pte_a	:1;	/* bit 5 */
-	uint64_t	pte_d	:1;	/* bit 6 */
-	uint64_t	pte_pl	:2;	/* bits 7..8 */
-	uint64_t	pte_ar	:3;	/* bits 9..11 */
-	uint64_t	pte_ppn	:38;	/* bits 12..49 */
-	uint64_t	__rv2__	:2;	/* bits 50..51 */
-	uint64_t	pte_ed	:1;	/* bit 52 */
-	/* The following 11 bits are ignored by the hardware. */
-	uint64_t	pte_w	:1;	/* bit 53 */
-	uint64_t	pte_m	:1;	/* bit 54 */
-	uint64_t	pte_prot:3;	/* bits 55..57 */
-	uint64_t	__ig__	:6;	/* bits 58..63 */
-
-	uint64_t	__rv3__	:2;	/* bits 0..1 */
-	uint64_t	pte_ps	:6;	/* bits 2..7 */
-	uint64_t	pte_key	:24;	/* bits 8..31 */
-	uint64_t	__rv4__	:32;	/* bits 32..63 */
-
-	uint64_t	pte_tag;	/* includes ti */
-
-	uint64_t	pte_chain;	/* pa of collision chain */
-};
+static __inline pt_entry_t
+pte_atomic_set(pt_entry_t *ptep, uint64_t val)
+{
+	return (atomic_set_64(ptep, val));
+}
 
 /*
  * Layout of cr.itir.
  */
 struct ia64_itir {
 	uint64_t	__rv1__	:2;	/* bits 0..1 */
-	uint64_t	itir_ps	:6;	/* bits 2..7 */
-	uint64_t	itir_key:24;	/* bits 8..31 */
+	uint64_t	ps	:6;	/* bits 2..7 */
+	uint64_t	key	:24;	/* bits 8..31 */
 	uint64_t	__rv2__	:32;	/* bits 32..63 */
+};
+
+/*
+ * A long-format VHPT entry.
+ */
+struct ia64_lpte {
+	pt_entry_t	pte;
+	struct ia64_itir itir;
+	uint64_t	tag;		/* includes ti */
+	uint64_t	chain;		/* pa of collision chain */
 };
 
 /*
