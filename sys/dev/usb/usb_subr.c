@@ -157,7 +157,7 @@ usbd_errstr(usbd_status err)
 
 usbd_status
 usbd_get_string_desc(usbd_device_handle dev, int sindex, int langid,
-		     usb_string_descriptor_t *sdesc)
+		     usb_string_descriptor_t *sdesc, int *sizep)
 {
 	usb_device_request_t req;
 	usbd_status err;
@@ -173,11 +173,22 @@ usbd_get_string_desc(usbd_device_handle dev, int sindex, int langid,
 	if (err)
 		return (err);
 
-	if (actlen < 1)
+	if (actlen < 2)
 		return (USBD_SHORT_XFER);
 
 	USETW(req.wLength, sdesc->bLength);	/* the whole string */
-	return (usbd_do_request(dev, &req, sdesc));
+	err = usbd_do_request_flags(dev, &req, sdesc, USBD_SHORT_XFER_OK,
+		&actlen, USBD_DEFAULT_TIMEOUT);
+	if (err)
+		return (err);
+
+	if (actlen != sdesc->bLength) {
+		DPRINTFN(-1, ("usbd_get_string_desc: expected %d, got %d\n",
+		    sdesc->bLength, actlen));
+	}
+
+	*sizep = actlen;
+	return (USBD_NORMAL_COMPLETION);
 }
 
 char *
@@ -189,6 +200,7 @@ usbd_get_string(usbd_device_handle dev, int si, char *buf)
 	int i, n;
 	u_int16_t c;
 	usbd_status err;
+	int size;
 
 	if (si == 0)
 		return (0);
@@ -196,19 +208,20 @@ usbd_get_string(usbd_device_handle dev, int si, char *buf)
 		return (0);
 	if (dev->langid == USBD_NOLANG) {
 		/* Set up default language */
-		err = usbd_get_string_desc(dev, USB_LANGUAGE_TABLE, 0, &us);
-		if (err || us.bLength < 4) {
+		err = usbd_get_string_desc(dev, USB_LANGUAGE_TABLE, 0, &us,
+		    &size);
+		if (err || size < 4) {
 			dev->langid = 0; /* Well, just pick something then */
 		} else {
 			/* Pick the first language as the default. */
 			dev->langid = UGETW(us.bString[0]);
 		}
 	}
-	err = usbd_get_string_desc(dev, si, dev->langid, &us);
+	err = usbd_get_string_desc(dev, si, dev->langid, &us, &size);
 	if (err)
 		return (0);
 	s = buf;
-	n = us.bLength / 2 - 1;
+	n = size / 2 - 1;
 	for (i = 0; i < n; i++) {
 		c = UGETW(us.bString[i]);
 		/* Convert from Unicode, handle buggy strings. */
