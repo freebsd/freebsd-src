@@ -222,8 +222,8 @@ getfdtype(io)
 		} else {
 			if (type & D_TAPE)
 				io->flags |= ISTAPE;
-			else if (type & D_DISK)
-				io->flags |= ISDISK;
+			else if (type & (D_DISK | D_MEM))
+				io->flags |= ISSEEK;
 			if (S_ISCHR(sb.st_mode) && (type & D_TAPE) == 0)
 				io->flags |= ISCHR;
 		}

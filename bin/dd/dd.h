@@ -49,7 +49,7 @@ typedef struct {
 #define	ISCHR		0x01		/* character device (warn on short) */
 #define	ISPIPE		0x02		/* pipe (not truncatable) */
 #define	ISTAPE		0x04		/* tape (not seekable) */
-#define	ISDISK		0x08		/* disk (valid to seek on) */
+#define	ISSEEK		0x08		/* valid to seek on */
 #define	NOREAD		0x10		/* not readable */
 	u_int	flags;
 
