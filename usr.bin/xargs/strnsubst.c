@@ -73,14 +73,25 @@ done:
 int 
 main(void)
 {
-	char *x, *y;
+	char *x, *y, *z, *za;
 
-	y = x = "{}{}{}";
-	strnsubst(&x, "{}", "v ybir whyv! ", 12);
-	if (strcmp(x, "v ybir whyv! ") == 0)
-		printf("strnsubst() seems to work as expected.\n");
-	printf("x: %s\ny: %s\n", x, y);
+	x = "{}%$";
+	strnsubst(&x, "%$", "{} enpury!", 255);
+	y = x;
+	strnsubst(&y, "}{}", "ybir", 255);
+	z = y;
+	strnsubst(&z, "{", "v ", 255);
+	za = z;
+	strnsubst(&z, NULL, za, 255);
+	if (strcmp(z, "v ybir enpury!") == 0)
+		printf("strnsubst() seems to work!\n");
+	else
+		printf("strnsubst() is broken.\n");
+	printf("%s\n", z);
 	free(x);
+	free(y);
+	free(z);
+	free(za);
 	return 0;
 }
 #endif
