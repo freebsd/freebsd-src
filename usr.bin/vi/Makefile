@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.10 1996/12/08 14:05:08 ache Exp $
+# $Id: Makefile,v 1.11 1996/12/30 09:24:19 peter Exp $
 #
 # This has most of the glue needed to compile tknvi and the perl hooks,
 # but not all.
@@ -191,7 +191,7 @@ afterinstall:
 		${SRCDIR}/perl_scripts/*.pl \
 		${DESTDIR}/usr/share/vi/perl
 .if defined(PERLINTERP)
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 VI.pm \
+	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 444 VI.pm \
 		${DESTDIR}/usr/share/vi/perl
 .endif
 

@@ -1,4 +1,4 @@
-# $Id$
+# $Id: Makefile,v 1.1 1996/08/29 21:48:19 peter Exp $
 
 .include "${.CURDIR}/../named/Makefile.inc"
 
@@ -11,8 +11,8 @@ CLEANFILES+= named.restart
 all:	named.restart
 
 realinstall:
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} named.restart \
-		${DESTDIR}${BINDIR}
+	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
+	    named.restart ${DESTDIR}${BINDIR}
 
 named.restart:	named.restart.sh ${BIND_DIR}/Makefile
 	sed -e "s|%INDOT%|${INDOT}|" \
