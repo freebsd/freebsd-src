@@ -25,28 +25,6 @@ if [ -r /etc/defaults/periodic.conf ]; then
     source_periodic_confs
 fi
 
-dirlist=
-
-# If a full path was not specified, check the standard cron areas
-
-for dir
-do
-    case "$dir" in
-    /*)
-	if [ -d "$dir" ]
-	then
-	    dirlist="$dirlist $dir"
-	else
-	    echo "$0: $dir not found" >&2 
-	fi;;
-    *)
-	for top in /etc/periodic ${local_periodic}
-	do
-	    [ -d $top/$dir ] && dirlist="$dirlist $top/$dir"
-	done;;
-    esac
-done
-
 host=`hostname`
 export host
 tmp_output=/var/run/periodic.$$
@@ -55,35 +33,68 @@ tmp_output=/var/run/periodic.$$
 # set, assume the user didn't really want us to muck with it (it's a
 # README file or has been disabled).
 
-for dir in $dirlist
+for arg
 do
-    eval output=\$${dir##*/}_output
+    # Where's our output going ?
+    eval output=\$${arg##*/}_output
     case "$output" in
     /*) pipe="cat >>$output";;
-    *)  pipe="mail -s '$host ${dir##*/} run output' ${output:-root}";;
+    *)  pipe="mail -s '$host ${arg##*/} run output' ${output:-root}";;
     esac
 
     success=YES info=YES badconfig=NO	# Defaults when ${run}_* aren't YES/NO
     for var in success info badconfig
     do
-	case $(eval echo "\$${dir##*/}_show_$var") in
-	[Yy][Ee][Ss]) eval $var=YES;;
-	[Nn][Oo])     eval $var=NO;;
-	esac
+        case $(eval echo "\$${arg##*/}_show_$var") in
+        [Yy][Ee][Ss]) eval $var=YES;;
+        [Nn][Oo])     eval $var=NO;;
+        esac
     done
 
-    for file in $dir/*
-    do
-	if [ -x $file -a ! -d $file ]
-	then
-	    $file </dev/null >$tmp_output 2>&1
-	    case $? in
-	    0)  [ $success = YES ] && cat $tmp_output;;
-	    1)  [ $info = YES ] && cat $tmp_output;;
-	    2)  [ $badconfig = YES ] && cat $tmp_output;;
-	    *)  cat $tmp_output;;
-	    esac
-	    rm -f $tmp_output
-	fi
-    done | eval $pipe
+    case $arg in
+    /*) if [ -d "$arg" ]
+        then
+            dirlist="$arg"
+        else
+            echo "$0: $arg not found" >&2 
+            continue
+        fi;;
+    *)  dirlist=
+        for top in /etc/periodic ${local_periodic}
+        do
+            [ -d $top/$arg ] && dirlist="$dirlist $top/$arg"
+        done;;
+    esac
+
+    {
+        empty=TRUE
+        processed=0
+        for dir in $dirlist
+        do
+            for file in $dir/*
+            do
+                if [ -x $file -a ! -d $file ]
+                then
+                    output=TRUE
+                    processed=$(($processed + 1))
+                    $file </dev/null >$tmp_output 2>&1
+                    if [ -s $tmp_output ]
+                    then
+                      case $? in
+                      0)  [ $success = NO ] && output=FALSE;;
+                      1)  [ $info = NO ] && output=FALSE;;
+                      2)  [ $badconfig = NO ] && output=FALSE;;
+                      esac
+                      [ $output = TRUE ] && { cat $tmp_output; empty=FALSE; }
+                    fi
+                    rm -f $tmp_output
+                fi
+            done
+        done
+        if [ $empty = TRUE ]
+        then
+          [ $processed = 1 ] && plural= || plural=s
+          echo "No output from the $processed file$plural processed"
+        fi
+    } | eval $pipe
 done
