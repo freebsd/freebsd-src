@@ -934,7 +934,8 @@ sched_prio(struct thread *td, u_char prio)
 		 * queue.  We still call adjustrunqueue below in case kse
 		 * needs to fix things up.
 		 */
-		if (ke && (ke->ke_flags & KEF_ASSIGNED) == 0 &&
+		if (prio < td->td_priority && ke &&
+		    (ke->ke_flags & KEF_ASSIGNED) == 0 &&
 		    ke->ke_runq != KSEQ_CPU(ke->ke_cpu)->ksq_curr) {
 			runq_remove(ke->ke_runq, ke);
 			ke->ke_runq = KSEQ_CPU(ke->ke_cpu)->ksq_curr;
