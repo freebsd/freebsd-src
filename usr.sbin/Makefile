@@ -30,6 +30,7 @@ SUBDIR=	IPXrouted \
 	faithd \
 	fdcontrol \
 	fdformat \
+	fdread \
 	fdwrite \
 	getextattr \
 	gifconfig \
