@@ -27,7 +27,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: cy.c,v 1.38 1996/10/13 01:09:16 davidg Exp $
+ *	$Id: cy.c,v 1.39 1996/10/13 01:30:32 davidg Exp $
  */
 
 #include "cy.h"
@@ -2492,14 +2492,15 @@ cystatus(unit)
 	printf("saved cor1-3:\t\t\t0x%02x 0x%02x 0x%02x\n",
 	       com->cor[0], com->cor[1], com->cor[2]);
 	printf("service request enable reg:\t0x%02x (0x%02x cached)\n",
-	       cd_inb(iobase, CD1400_SRER), com->intr_enable);
+	       cd_inb(iobase, CD1400_SRER, com->cy_align), com->intr_enable);
 	printf("service request register:\t0x%02x\n",
-	       cd_inb(iobase, CD1400_SVRR));
+	       cd_inb(iobase, CD1400_SVRR, com->cy_align));
 	printf("modem status:\t\t\t0x%02x (0x%02x cached)\n",
-	       cd_inb(iobase, CD1400_MSVR2), com->prev_modem_status);
+	       cd_inb(iobase, CD1400_MSVR2, com->cy_align), com->prev_modem_status);
 	printf("rx/tx/mdm interrupt registers:\t0x%02x 0x%02x 0x%02x\n",
-	       cd_inb(iobase, CD1400_RIR), cd_inb(iobase, CD1400_TIR),
-	       cd_inb(iobase, CD1400_MIR));
+	       cd_inb(iobase, CD1400_RIR, com->cy_align),
+	       cd_inb(iobase, CD1400_TIR, com->cy_align),
+	       cd_inb(iobase, CD1400_MIR, com->cy_align));
 	printf("\n");
 	printf("com state:\t\t\t0x%02x\n", com->state);
 	printf("calls to comstart():\t\t%d (%d useful)\n",
