@@ -691,7 +691,7 @@ enum rx_search_return
  */
 extern __const__ char *re_error_msg[];
 
-#if !defined(BSD) || (BSD < 199306)
+#if !defined(BSD) || (BSD < 199306) || defined(_RX_C_)
 /* If any error codes are removed, changed, or added, update the
    `re_error_msg' table in regex.c.  */
 typedef enum
@@ -835,18 +835,18 @@ struct re_pattern_buffer
   rx_Bitset fastset;
 };
 
-#if !defined(BSD) || (BSD < 199306)
-/* Type for byte offsets within the string.  POSIX mandates this.  */
-typedef int regoff_t;
-
 /* This is the structure we store register match data in.  See
    regex.texinfo for a full description of what registers match.  */
 struct re_registers
 {
   unsigned num_regs;
-  regoff_t *start;
-  regoff_t *end;
+  int *start;
+  int *end;
 };
+
+#if !defined(BSD) || (BSD < 199306) || defined(_RX_C_)
+/* Type for byte offsets within the string.  POSIX mandates this.  */
+typedef int regoff_t;
 
 typedef struct re_pattern_buffer regex_t;
 
@@ -1267,7 +1267,7 @@ extern reg_syntax_t re_set_syntax (reg_syntax_t syntax);
 extern void re_set_registers (struct re_pattern_buffer *bufp,
 			      struct re_registers *regs,
 			      unsigned num_regs,
-			      regoff_t * starts, regoff_t * ends);
+			      int * starts, int * ends);
 extern __const__ char * re_compile_pattern (__const__ char *pattern,
 					int length,
 					struct re_pattern_buffer * rxb);
@@ -1402,10 +1402,10 @@ struct rx_search_state
    * For some patterns, there may also be registers saved on the stack.
    */
   unsigned num_regs;		/* Includes an element for register zero. */
-  regoff_t * lparen;		/* scratch space for register returns */
-  regoff_t * rparen;
-  regoff_t * best_lpspace;	/* in case the user doesn't want these */
-  regoff_t * best_rpspace;	/* values, we still need space to store
+  int      * lparen;            /* scratch space for register returns */
+  int      * rparen;
+  int      * best_lpspace;      /* in case the user doesn't want these */
+  int      * best_rpspace;      /* values, we still need space to store
 				 * them.  Normally, this memoryis unused
 				 * and the space pointed to by REGS is 
 				 * used instead.
@@ -1984,9 +1984,9 @@ rx_search  (rxb, startpos, range, stop, total_size,
       if (!regs || rxb->no_sub)
 	{
 	  search_state.best_lpspace =
-	    (regoff_t *)REGEX_ALLOCATE (search_state.num_regs * sizeof(regoff_t));
+	    (int      *)REGEX_ALLOCATE (search_state.num_regs * sizeof(int));
 	  search_state.best_rpspace =
-	    (regoff_t *)REGEX_ALLOCATE (search_state.num_regs * sizeof(regoff_t));
+	    (int      *)REGEX_ALLOCATE (search_state.num_regs * sizeof(int));
 	  search_state.best_lparen = search_state.best_lpspace;
 	  search_state.best_rparen = search_state.best_rpspace;
 	}
@@ -1998,10 +1998,10 @@ rx_search  (rxb, startpos, range, stop, total_size,
 		 extra element beyond `search_state.num_regs' for the `-1' marker
 		 gnu code uses.  */
 	      regs->num_regs = MAX (RE_NREGS, rxb->re_nsub + 1);
-	      regs->start = ((regoff_t *)
-			     malloc (regs->num_regs * sizeof ( regoff_t)));
-	      regs->end = ((regoff_t *)
-			   malloc (regs->num_regs * sizeof ( regoff_t)));
+	      regs->start = ((int      *)
+			     malloc (regs->num_regs * sizeof ( int     )));
+	      regs->end = ((int      *)
+			   malloc (regs->num_regs * sizeof ( int     )));
 	      if (regs->start == 0 || regs->end == 0)
 		return rx_search_error;
 	      rxb->regs_allocated = REGS_REALLOCATE;
@@ -2013,12 +2013,12 @@ rx_search  (rxb, startpos, range, stop, total_size,
 	      if (regs->num_regs < search_state.num_regs + 1)
 		{
 		  regs->num_regs = search_state.num_regs + 1;
-		  regs->start = ((regoff_t *)
+		  regs->start = ((int      *)
 				 realloc (regs->start,
-					  regs->num_regs * sizeof (regoff_t)));
-		  regs->end = ((regoff_t *)
+					  regs->num_regs * sizeof (int     )));
+		  regs->end = ((int      *)
 			       realloc (regs->end,
-					regs->num_regs * sizeof ( regoff_t)));
+					regs->num_regs * sizeof ( int     )));
 		  if (regs->start == 0 || regs->end == 0)
 		    return rx_search_error;
 		}
@@ -2029,11 +2029,11 @@ rx_search  (rxb, startpos, range, stop, total_size,
 	  if (regs->num_regs < search_state.num_regs + 1)
 	    {
 	      search_state.best_lpspace =
-		((regoff_t *)
-		 REGEX_ALLOCATE (search_state.num_regs * sizeof(regoff_t)));
+		((int      *)
+		 REGEX_ALLOCATE (search_state.num_regs * sizeof(int     )));
 	      search_state.best_rpspace =
-		((regoff_t *)
-		 REGEX_ALLOCATE (search_state.num_regs * sizeof(regoff_t)));
+		((int      *)
+		 REGEX_ALLOCATE (search_state.num_regs * sizeof(int     )));
 	      search_state.best_lparen = search_state.best_lpspace;
 	      search_state.best_rparen = search_state.best_rpspace;
 	    }
@@ -2045,9 +2045,9 @@ rx_search  (rxb, startpos, range, stop, total_size,
 	}
       
       search_state.lparen =
-	(regoff_t *) REGEX_ALLOCATE (search_state.num_regs * sizeof(regoff_t));
+	(int      *) REGEX_ALLOCATE (search_state.num_regs * sizeof(int     ));
       search_state.rparen =
-	(regoff_t *) REGEX_ALLOCATE (search_state.num_regs * sizeof(regoff_t)); 
+	(int      *) REGEX_ALLOCATE (search_state.num_regs * sizeof(int     ));
       
       if (! (   search_state.best_rparen
 	     && search_state.best_lparen
@@ -2266,7 +2266,7 @@ rx_search  (rxb, startpos, range, stop, total_size,
 	search_state.backtrack_frame_bytes =
 	  (sizeof (struct rx_backtrack_frame)
 	   + (rxb->match_regs_on_stack
-	      ? sizeof (regoff_t) * (search_state.num_regs + 1) * 2
+	      ? sizeof (int     ) * (search_state.num_regs + 1) * 2
 	      : 0));
 	search_state.chunk_bytes = search_state.backtrack_frame_bytes * 64;
 	search_state.free_chunks = 0;
@@ -2920,8 +2920,8 @@ rx_search  (rxb, startpos, range, stop, total_size,
 		if (rxb->match_regs_on_stack)
 		  {
 		    int x;
-		    regoff_t * stk =
-		      (regoff_t *)((char *)bf + sizeof (*bf));
+		    int      * stk =
+		      (int      *)((char *)bf + sizeof (*bf));
 		    for (x = 0; x <= search_state.last_l; ++x)
 		      stk[x] = search_state.lparen[x];
 		    stk += x;
@@ -3071,8 +3071,8 @@ rx_search  (rxb, startpos, range, stop, total_size,
 	      if (rxb->match_regs_on_stack)
 		{
 		  int x;
-		  regoff_t * stk =
-		    (regoff_t *)((char *)bf + sizeof (*bf));
+		  int      * stk =
+		    (int      *)((char *)bf + sizeof (*bf));
 		  for (x = 0; x <= search_state.last_l; ++x)
 		    search_state.lparen[x] = stk[x];
 		  stk += x;
@@ -3171,8 +3171,8 @@ rx_search  (rxb, startpos, range, stop, total_size,
 	    int bound = (regs->num_regs > search_state.num_regs
 			 ? regs->num_regs
 			 : search_state.num_regs);
-	    regoff_t * s = regs->start;
-	    regoff_t * e = regs->end;
+	    int      * s = regs->start;
+	    int      * e = regs->end;
 	    for (q = search_state.best_last_l + 1;  q < bound; ++q)
 	      s[q] = e[q] = -1;
 	  }
