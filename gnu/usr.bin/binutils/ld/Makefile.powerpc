@@ -3,12 +3,12 @@
 #
 
 .if	${MACHINE_ARCH} == "powerpc"
-HOST=		powerpc-unknown-freebsdelf
+HOST=		powerpc-unknown-freebsd
 CFLAGS+=	-DDEFAULT_EMULATION=\"elf_powerpc\"
-CFLAGS+=	-DTARGET=\"powerpc-unknown-freebsdelf\"
+CFLAGS+=	-DTARGET=\"powerpc-unknown-freebsd\"
 _powerpc_path=	\"/usr/lib\"
 .else
-_powerpc_path=	\"/usr/cross/powerpc-freebsdelf/usr/lib\"
+_powerpc_path=	\"/usr/cross/powerpc-freebsd/usr/lib\"
 .endif
 EMS+=		ld_elf32ppc_emulation	\
 		ld_ppcmacos_emulation	\
@@ -63,8 +63,8 @@ CLEANFILES+=	eelf32ppc.c		\
 eelf32ppc.c:	emulparams/elf32ppc.sh emultempl/elf32.em \
 		scripttempl/elfppc.sc genscripts.sh emultempl/stringify.sed
 	sh ${.CURDIR}/genscripts.sh ${BINUTILSDISTDIR}/ld \
-	    ${_powerpc_path} ${HOST} powerpc-unknown-freebsdelf \
-	    powerpc-unknown-freebsdelf elf32ppc "" elf32ppc
+	    ${_powerpc_path} ${HOST} powerpc-unknown-freebsd \
+	    powerpc-unknown-freebsd elf32ppc "" elf32ppc
 
 eppcmacos.c:	emulparams/ppcmacos.sh emultempl/aix.em \
 		scripttempl/aix.sc genscripts.sh emultempl/stringify.sed
