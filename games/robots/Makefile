@@ -1,4 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 5/31/93
+# $FreeBSD$
 
 PROG=	robots
 CFLAGS+=-DMAX_PER_UID=5
@@ -10,7 +11,9 @@ LDADD=	-lcurses -ltermcap -lcompat
 HIDEGAME=hidegame
 
 beforeinstall:
+.if !exists(${DESTDIR}/var/games/robots_roll)
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 664 /dev/null \
 	    ${DESTDIR}/var/games/robots_roll
+.endif
 
 .include <bsd.prog.mk>

@@ -1,4 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 5/31/93
+# $FreeBSD$
 
 PROG=	phantasia
 SRCS=	main.c fight.c io.c interplayer.c gamesupport.c misc.c phantglobs.c
@@ -24,8 +25,12 @@ setup: cross-phantglobs.o setup.o ${LIBM}
 	${CC} -static ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${.ALLSRC:M*.o} -lm
 
 beforeinstall:
+.for file in ${DATAFILES}
+.if !exists(${DESTDIR}/var/games/phantasia/${file})
 	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 660 \
-	    ${DATAFILES} ${DESTDIR}/var/games/phantasia
+	    ${file} ${DESTDIR}/var/games/phantasia
+.endif
+.endfor
 
 # Make Phantasia map.  Change the map commands reflect your installation.
 # PLOTDEVICE is used for plotting the map.  Change as appropriate.
