@@ -97,6 +97,7 @@ Dave Burgess <burgess@hrd769.brooks.af.mil>
 Dave Rivers <rivers@ponds.uucp>
 David Dawes <dawes@physics.su.OZ.AU>
 Dean Huxley <dean@fsa.ca>
+Frank Durda IV  <bsdmail@nemesis.lonestar.org>
 Frank Maclachlan <fpm@crash.cts.com>
 Gary A. Browning <gab10@griffcd.amdahl.com>
 Gary Clark II <gclarkii@radon.gbdata.com>
@@ -248,4 +249,4 @@ Last, but not least, the release engineer would like to thank:
 	His Wife, for chocolate chip cookies, and some other things.
 	The DGB project @ TFS, for patience and tolerance.
 
-$Id: CONTRIB.FreeBSD,v 1.10 1995/05/17 20:45:10 torstenb Exp $
+$Id: CONTRIB.FreeBSD,v 1.11 1995/05/19 13:52:01 jkh Exp $
