@@ -3037,11 +3037,13 @@ siocnattach(port, speed)
 	u_char			cfcr;
 	u_int			divisor;
 	struct siocnstate	sp;
+	int			unit = 0;	/* XXX random value! */
 
 	siocniobase = port;
+	siocnunit = unit;
 	comdefaultrate = speed;
 	sio_consdev.cn_pri = CN_NORMAL;
-	sio_consdev.cn_dev = makedev(CDEV_MAJOR, 0);
+	sio_consdev.cn_dev = makedev(CDEV_MAJOR, unit);
 
 	s = spltty();
 
@@ -3077,7 +3079,7 @@ siogdbattach(port, speed)
 	u_char			cfcr;
 	u_int			divisor;
 	struct siocnstate	sp;
-	int			unit = 1;	/* XXX !!! */
+	int			unit = 1;	/* XXX random value! */
 
 	siogdbiobase = port;
 	gdbdefaultrate = speed;
