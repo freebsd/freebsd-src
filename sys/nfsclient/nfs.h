@@ -265,6 +265,7 @@ int	nfs_writerpc(struct vnode *, struct uio *, struct ucred *, int *,
 int	nfs_commit(struct vnode *vp, u_quad_t offset, int cnt,
 	    struct ucred *cred, struct thread *td);
 int	nfs_readdirrpc(struct vnode *, struct uio *, struct ucred *);
+int	nfs_nfsiodnew(void);
 int	nfs_asyncio(struct buf *, struct ucred *, struct thread *);
 int	nfs_doio(struct buf *, struct ucred *, struct thread *);
 int	nfs_readlinkrpc(struct vnode *, struct uio *, struct ucred *);
