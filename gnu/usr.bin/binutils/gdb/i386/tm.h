@@ -23,7 +23,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include "i386/tm-i386bsd.h"
 
 #undef NUM_REGS
-#define NUM_REGS 14
+#define NUM_REGS 16
 
 extern struct frame_info *setup_arbitrary_frame PARAMS ((int, CORE_ADDR *));
 

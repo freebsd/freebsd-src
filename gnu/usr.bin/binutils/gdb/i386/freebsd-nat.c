@@ -34,7 +34,7 @@ static int tregmap[] =
   tEAX, tECX, tEDX, tEBX,
   tESP, tEBP, tESI, tEDI,
   tEIP, tEFLAGS, tCS, tSS,
-  tDS, tES, tSS, tSS,		/* lies: no fs or gs */
+  tDS, tES, tFS, tGS,
 };
 
 void
@@ -88,6 +88,7 @@ fetch_core_registers (core_reg_sect, core_reg_size, which, reg_addr)
      CORE_ADDR reg_addr;
 {
   register int regno;
+  register int cregno;
   register int addr;
   int bad_reg = -1;
   int offset = -reg_addr & (core_reg_size - 1);
@@ -99,8 +100,27 @@ printf("-reg_addr: %08x\n", -reg_addr);
 
   for (regno = 0; regno < NUM_REGS; regno++)
     {
-      addr = offset + 4 * tregmap[regno];
-      if (addr < 0 || addr >= core_reg_size)
+      cregno = tregmap[regno];
+#if 1
+      if (cregno == tFS)
+	cregno = tCS;
+      else if (cregno == tGS)
+	cregno = tDS;
+#endif
+      addr = offset + 4 * cregno;
+      if (cregno == tFS)
+	{
+#if 0
+	  supply_register (15, (char *)&u.u_pcb.pcb_fs);
+#endif
+	}
+      else if (cregno == tGS)
+	{
+#if 0
+	  supply_register (16, (char *)&u.u_pcb.pcb_gs);
+#endif
+	}
+      else if (addr < 0 || addr >= core_reg_size)
 	{
 	  if (bad_reg < 0)
 	    bad_reg = regno;
