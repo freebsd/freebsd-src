@@ -955,13 +955,11 @@ msdosfs_vptofh(vp, fhp)
 
 static struct vfsops msdosfs_vfsops = {
 	.vfs_fhtovp =		msdosfs_fhtovp,
-	.vfs_init =		msdosfs_init,
 	.vfs_mount =		msdosfs_mount,
 	.vfs_cmount =		msdosfs_cmount,
 	.vfs_root =		msdosfs_root,
 	.vfs_statfs =		msdosfs_statfs,
 	.vfs_sync =		msdosfs_sync,
-	.vfs_uninit =		msdosfs_uninit,
 	.vfs_unmount =		msdosfs_unmount,
 	.vfs_vptofh =		msdosfs_vptofh,
 };

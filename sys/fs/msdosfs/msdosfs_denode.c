@@ -69,114 +69,7 @@
 
 static MALLOC_DEFINE(M_MSDOSFSNODE, "MSDOSFS node", "MSDOSFS vnode private part");
 
-static struct denode **dehashtbl;
-static u_long dehash;			/* size of hash table - 1 */
-#define	DEHASH(dev, dcl, doff)	(dehashtbl[(minor(dev) + (dcl) + (doff) / 	\
-				sizeof(struct direntry)) & dehash])
-static struct mtx dehash_mtx;
-static int dehash_init;
-
-static struct denode *
-		msdosfs_hashget(struct cdev *dev, u_long dirclust, u_long diroff);
-static void	msdosfs_hashins(struct denode *dep);
-static void	msdosfs_hashrem(struct denode *dep);
-
-/*ARGSUSED*/
-int 
-msdosfs_init(vfsp)
-	struct vfsconf *vfsp;
-{
-	/*
-	 * The following lines prevent us from initializing the mutex
-	 * init multiple times.  I'm not sure why we get called multiple
-	 * times, but the following prevents the panic when we initalize
-	 * the mutext the second time.  XXX BAD XXX
-	 */
-	if (dehash_init) {
-		printf("Warning: msdosfs_init called more than once!\n");
-		return (0);
-	}
-	dehash_init++;
-	dehashtbl = hashinit(desiredvnodes/2, M_MSDOSFSMNT, &dehash);
-	mtx_init(&dehash_mtx, "msdosfs dehash", NULL, MTX_DEF);
-	return (0);
-}
-
-int 
-msdosfs_uninit(vfsp)
-	struct vfsconf *vfsp;
-{
-
-	if (dehashtbl)
-		free(dehashtbl, M_MSDOSFSMNT);
-	mtx_destroy(&dehash_mtx);
-	dehash_init--;
-	return (0);
-}
-
-static struct denode *
-msdosfs_hashget(dev, dirclust, diroff)
-	struct cdev *dev;
-	u_long dirclust;
-	u_long diroff;
-{
-	struct thread *td = curthread;	/* XXX */
-	struct denode *dep;
-	struct vnode *vp;
-
-loop:
-	mtx_lock(&dehash_mtx);
-	for (dep = DEHASH(dev, dirclust, diroff); dep; dep = dep->de_next) {
-		if (dirclust == dep->de_dirclust
-		    && diroff == dep->de_diroffset
-		    && dev == dep->de_dev
-		    && dep->de_refcnt != 0) {
-			vp = DETOV(dep);
-			mtx_lock(&vp->v_interlock);
-			mtx_unlock(&dehash_mtx);
-			if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, td))
-				goto loop;
-			return (dep);
-		}
-	}
-	mtx_unlock(&dehash_mtx);
-	return (NULL);
-}
-
-static void
-msdosfs_hashins(dep)
-	struct denode *dep;
-{
-	struct denode **depp, *deq;
-
-	mtx_lock(&dehash_mtx);
-	depp = &DEHASH(dep->de_dev, dep->de_dirclust, dep->de_diroffset);
-	deq = *depp;
-	if (deq)
-		deq->de_prev = &dep->de_next;
-	dep->de_next = deq;
-	dep->de_prev = depp;
-	*depp = dep;
-	mtx_unlock(&dehash_mtx);
-}
-
-static void
-msdosfs_hashrem(dep)
-	struct denode *dep;
-{
-	struct denode *deq;
-
-	mtx_lock(&dehash_mtx);
-	deq = dep->de_next;
-	if (deq)
-		deq->de_prev = dep->de_prev;
-	*dep->de_prev = deq;
-#ifdef DIAGNOSTIC
-	dep->de_next = NULL;
-	dep->de_prev = NULL;
-#endif
-	mtx_unlock(&dehash_mtx);
-}
+#define	DEHASH(dcl, doff)	((dcl) + (doff) / sizeof(struct direntry))
 
 /*
  * If deget() succeeds it returns with the gotten denode locked().
@@ -198,13 +91,16 @@ deget(pmp, dirclust, diroffset, depp)
 	struct denode **depp;		/* returns the addr of the gotten denode */
 {
 	int error;
+	u_int hash;
 	struct cdev *dev = pmp->pm_dev;
 	struct mount *mntp = pmp->pm_mountp;
 	struct direntry *direntptr;
 	struct denode *ldep;
-	struct vnode *nvp;
+	struct vnode *nvp, *xvp;
 	struct buf *bp;
 	struct thread *td = curthread;	/* XXX */
+
+	hash = DEHASH(dirclust, diroffset);
 
 #ifdef MSDOSFS_DEBUG
 	printf("deget(pmp %p, dirclust %lu, diroffset %lx, depp %p)\n",
@@ -230,9 +126,11 @@ deget(pmp, dirclust, diroffset, depp)
 	 * entry that represented the file happens to be reused while the
 	 * deleted file is still open.
 	 */
-	ldep = msdosfs_hashget(dev, dirclust, diroffset);
-	if (ldep) {
-		*depp = ldep;
+	error = vfs_hash_get(mntp, hash, LK_EXCLUSIVE, curthread, &nvp);
+	if (error)
+		return(error);
+	if (nvp != NULL) {
+		*depp = VTODE(nvp);
 		return (0);
 	}
 
@@ -272,10 +170,18 @@ deget(pmp, dirclust, diroffset, depp)
 	if (VOP_LOCK(nvp, LK_EXCLUSIVE, td) != 0)
 		panic("deget: unexpected lock failure");
 
-	/*
-	 * Insert the denode into the hash queue.
-	 */
-	msdosfs_hashins(ldep);
+	error = vfs_hash_insert(nvp, hash, 0, curthread, &xvp);
+	if (error) {
+		vput(nvp);
+		*depp = NULL;
+		return (error);
+	}
+	if (xvp != NULL) {
+		/* XXX: Not sure this is right */
+		vput(nvp);
+		nvp = xvp;
+		ldep->de_vnode = nvp;
+	}
 
 	ldep->de_pmp = pmp;
 	ldep->de_refcnt = 1;
@@ -606,6 +512,8 @@ void
 reinsert(dep)
 	struct denode *dep;
 {
+	struct vnode *vp;
+
 	/*
 	 * Fix up the denode cache.  If the denode is for a directory,
 	 * there is nothing to do since the hash is based on the starting
@@ -616,8 +524,8 @@ reinsert(dep)
 	 */
 	if (dep->de_Attributes & ATTR_DIRECTORY)
 		return;
-	msdosfs_hashrem(dep);
-	msdosfs_hashins(dep);
+	vp = DETOV(dep);
+	vfs_hash_rehash(vp, DEHASH(dep->de_dirclust, dep->de_diroffset));
 }
 
 int
@@ -639,7 +547,7 @@ msdosfs_reclaim(ap)
 	/*
 	 * Remove the denode from its hash chain.
 	 */
-	msdosfs_hashrem(dep);
+	vfs_hash_remove(vp);
 	/*
 	 * Purge old data structures associated with the denode.
 	 */
