@@ -1,4 +1,4 @@
-.\" @(#) $Header: /home/ncvs/src/usr.sbin/rarpd/rarpd.8,v 1.4 1996/11/19 23:57:05 wpaul Exp $ (LBL)
+.\" @(#) $Id$ (LBL)
 .\"
 .\" Copyright (c) 1990, 1991, 1993 The Regents of the University of
 .\" California. All rights reserved.
@@ -19,90 +19,99 @@
 .\" WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
 .\" MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 .\"
-.TH RARPD 8 "19 Jul 1993"
-.SH NAME
-rarpd \- Reverse ARP Daemon
-.SH SYNOPSIS
-.na
-.B rarpd 
-[
-.B \-afsv
-]
-[
-.I interface
-]
-.br
-.ad
-.SH DESCRIPTION
-.LP
-.I Rarpd
+.Dd July 19, 1993
+.Dt RARPD 8
+.Os
+.Sh NAME
+.Nm rarpd
+.Nd reverse ARP daemon
+.Sh SYNOPSIS
+.Nm rarpd 
+.Op Fl afsv
+.Op Ar interface
+.Sh DESCRIPTION
+.Nm Rarpd
 services Reverse ARP requests on the Ethernet connected to
-.I interface.
+.Ar interface .
 Upon receiving a request, 
-.I rarpd
+.Nm
 maps the target hardware address to an IP address via its name, which 
 must be present in both the
-.I ethers(5)
+.Xr ethers 5
 and 
-.I hosts(5)
+.Xr hosts 5
 databases.
 If a host does not exist in both databases, the translation cannot
 proceed and a reply will not be sent.
 
 By default, a request is honored only if the server
-(i.e., the host that rarpd is running on)
+(i.e., the host that
+.Nm
+is running on)
 can "boot" the target; that is, a file or directory matching the glob
-/tftpboot/\fIipaddr\fP*
-exists, where \fIipaddr\fP is the target IP address in hex.
+.Pa /tftpboot/\fIipaddr\fP*
+exists, where
+.Em ipaddr
+is the target IP address in hex.
 For example, the IP address 204.216.27.18 will be replied to if any of
-/tftpboot/CCD81B12, /tftpboot/CCD81B12.SUN3, or /tftpboot/CCD81B12-boot
+.Pa /tftpboot/CCD81B12 ,
+.Pa /tftpboot/CCD81B12.SUN3 ,
+or
+.Pa /tftpboot/CCD81B12-boot
 exist.
 This requirement can be overridden with the
-.B \-s
+.Fl s
 flag (see below).
 
 In normal operation, 
-.I rarpd
+.Nm
 forks a copy of itself and runs in
 the background.  Anomalies and errors are reported via 
-.I syslog(3).
+.Xr syslog 3 .
 
-.SH OPTIONS
-.LP
-.TP
-.B \-a
+.Sh OPTIONS
+The following options are available:
+.Bl -tag -width indent
+.It Fl a
 Listen on all the Ethernets attached to the system.
-If `-a' is omitted, an interface must be specified.
-.TP
-.B \-f
+If
+.Fl a
+is omitted, an interface must be specified.
+.It Fl f
 Run in the foreground.
-.TP
-.B \-s
+.It Fl s
 Supply a response to any RARP request for which an ethernet to IP address
 mapping exists; do not depend on the existence of
-/tftpboot/\fIipaddr\fP*.
-.TP
-.B \-v
+.Pa /tftpboot/\fIipaddr\fP* .
+.It Fl v
 Enable verbose sysloging.
-
-.SH FILES
-/etc/ethers
-.br
-/etc/hosts
-.br
-/tftpboot
-.SH SEE ALSO
-bpf(4)
-.br
+.El
+.Sh FILES
+.Bl -tag -width /etc/ethers -compact
+.It Pa /etc/ethers
+.It Pa /etc/hosts
+.It Pa /tftpboot
+.El
+.Sh SEE ALSO
+.Xr bpf 4
+.Pp
 RFC 903: Finlayson, R.; Mann, T.; Mogul, J.C.; Theimer, M.  Reverse Address 
 Resolution Protocol.  1984 June; 4 p.
-.SH AUTHORS
-Craig Leres (leres@ee.lbl.gov) and
-Steven McCanne (mccanne@ee.lbl.gov).
+.Sh AUTHORS
+.An Craig Leres Aq leres@ee.lbl.gov
+and
+.An Steven McCanne Aq mccanne@ee.lbl.gov .
 Lawrence Berkeley Laboratory, University of California, Berkeley, CA.
-.SH BUGS
-.I rarpd
-can depend on the DNS to resolve the name discovered from /etc/ethers.
-If this name is not in the DNS but is in /etc/hosts, the DNS lookup
+.Sh BUGS
+.Nm Rarpd
+can depend on the DNS to resolve the name discovered from
+.Pa /etc/ethers .
+If this name is not in the DNS but is in
+.Pa /etc/hosts ,
+the DNS lookup
 can cause a delayed RARP response, so in this situation it is reccommended to
-configure /etc/host.conf to read /etc/hosts first.
+configure
+.Pa /etc/host.conf
+to read
+.Pa /etc/hosts
+first.

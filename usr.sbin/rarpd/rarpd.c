@@ -18,16 +18,17 @@
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  */
+
 #ifndef lint
-char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1990, 1991, 1992, 1993, 1996\n\
 The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
 static const char rcsid[] =
-    "$Id: rarpd.c,v 1.15 1997/02/22 16:12:44 peter Exp $";
-#endif
+	"$Id$";
+#endif /* not lint */
 
 /*
  * rarpd - Reverse ARP Daemon
@@ -154,7 +155,7 @@ int	rarp_open __P((char *));
 void	rarp_process __P((struct if_info *, u_char *, u_int));
 void	rarp_reply __P((struct if_info *, struct ether_header *, u_long, u_int));
 void	update_arptab __P((u_char *, u_long));
-void	usage __P((void));
+static void	usage __P((void));
 
 static	u_char zero[6];
 
@@ -397,10 +398,10 @@ init(target)
 			    ntohl(ii->ii_netmask), eatoa(ii->ii_eaddr));
 }
 
-void
+static void
 usage()
 {
-	(void)fprintf(stderr, "usage: rarpd [ -afnv ] [ interface ]\n");
+	(void)fprintf(stderr, "usage: rarpd [-afnv] [interface]\n");
 	exit(1);
 }
 
