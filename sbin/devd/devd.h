@@ -28,21 +28,22 @@
  * $FreeBSD$
  */
 
-#include <sys/queue.h>
-
-int yylex(void);
-void yyerror(const char *s);
-int yyparse(void);
+struct event_proc;
+struct eps;
+__BEGIN_DECLS
+void add_attach(int, struct event_proc *);
+void add_detach(int, struct event_proc *);
 void add_directory(const char *);
+void add_nomatch(int, struct event_proc *);
+struct event_proc *add_to_event_proc(struct event_proc *, struct eps *);
+struct eps *new_match(const char *, const char *);
+struct eps *new_action(const char *);
+void set_pidfile(const char *);
+void set_variable(const char *, const char *);
+void yyerror(const char *s);
+int  yylex(void);
+int  yyparse(void);
+__END_DECLS
 
-struct file_list
-{
-	char *path;
-	TAILQ_ENTRY(file_list) fl_link;
-};
-
-TAILQ_HEAD(file_list_head, file_list);
-
-extern struct file_list_head dirlist;
-
-
+#define PATH_DEVCTL	"/dev/devctl"
+#define DEVCTL_MAXBUF	1025
