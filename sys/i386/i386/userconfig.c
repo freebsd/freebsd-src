@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id: userconfig.c,v 1.50 1996/10/03 01:01:01 jkh Exp $
+ **      $Id: userconfig.c,v 1.51 1996/10/03 01:22:22 jkh Exp $
  **/
 
 /**
@@ -609,7 +609,7 @@ movedev(DEV_LIST *dev, DEV_LIST *list)
     dev->prev = ap;					/* point new to current */
     ap->next = dev;					/* and current to new */
 }
-	    
+
 
 /**
  ** Initlist
@@ -1546,6 +1546,8 @@ editval(int x, int y, int width, int hex, int min, int max, int *val, int ro)
 	    VetRet(KEY_UP);
 	    break;
 
+	case '\r':
+	case '\n':
 	case 596:
 	    VetRet(KEY_DOWN);
 	    break;
@@ -2185,7 +2187,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.50 1996/10/03 01:01:01 jkh Exp $
+ *      $Id: userconfig.c,v 1.51 1996/10/03 01:22:22 jkh Exp $
  */
 
 #include "scbus.h"
