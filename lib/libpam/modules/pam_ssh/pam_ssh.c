@@ -57,8 +57,7 @@ __FBSDID("$FreeBSD$");
 #define PAM_SM_PASSWORD
 
 #include <security/pam_modules.h>
-
-#include "pam_mod_misc.h"
+#include <security/pam_mod_misc.h>
 
 #include <openssl/dsa.h>
 #include <openssl/evp.h>
