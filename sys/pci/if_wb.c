@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_wb.c,v 1.11 1999/07/02 04:17:16 peter Exp $
+ *	$Id: if_wb.c,v 1.6.2.2 1999/05/13 21:19:31 wpaul Exp $
  */
 
 /*
@@ -84,6 +84,7 @@
  */
 
 #include "bpf.h"
+#include "opt_bdg.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -101,6 +102,10 @@
 
 #if NBPF > 0
 #include <net/bpf.h>
+#endif
+
+#ifdef BRIDGE
+#include <net/bridge.h>
 #endif
 
 #include <vm/vm.h>              /* for vtophys */
@@ -121,7 +126,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: if_wb.c,v 1.11 1999/07/02 04:17:16 peter Exp $";
+	"$Id: if_wb.c,v 1.6.2.2 1999/05/13 21:19:31 wpaul Exp $";
 #endif
 
 /*
@@ -156,7 +161,8 @@ static const char *wb_probe	__P((pcici_t, pcidi_t));
 static void wb_attach		__P((pcici_t, int));
 
 static int wb_newbuf		__P((struct wb_softc *,
-						struct wb_chain_onefrag *));
+					struct wb_chain_onefrag *,
+					struct mbuf *));
 static int wb_encap		__P((struct wb_softc *, struct wb_chain *,
 						struct mbuf *));
 
@@ -1092,11 +1098,16 @@ wb_attach(config_id, unit)
 	}
 
 	if (!pci_map_port(config_id, WB_PCI_LOIO,
-					(pci_port_t *)&(sc->wb_bhandle))) {
+			(pci_port_t *)&(sc->wb_bhandle))) {
 		printf ("wb%d: couldn't map ports\n", unit);
 		goto fail;
 	}
+#ifdef __i386__
 	sc->wb_btag = I386_BUS_SPACE_IO;
+#endif
+#ifdef __alpha__
+	sc->wb_btag = ALPHA_BUS_SPACE_IO;
+#endif
 #else
 	if (!(command & PCIM_CMD_MEMEN)) {
 		printf("wb%d: failed to enable memory mapping!\n", unit);
@@ -1107,7 +1118,12 @@ wb_attach(config_id, unit)
 		printf ("wb%d: couldn't map memory\n", unit);
 		goto fail;
 	}
+#ifdef __i386__
 	sc->wb_btag = I386_BUS_SPACE_MEM;
+#endif
+#ifdef __alpha__
+	sc->wb_btag = I386_BUS_SPACE_MEM;
+#endif
 	sc->wb_bhandle = vbase;
 #endif
 
@@ -1142,7 +1158,7 @@ wb_attach(config_id, unit)
 	}
 
 	sc->wb_ldata = (struct wb_list_data *)sc->wb_ldata_ptr;
-	round = (unsigned int)sc->wb_ldata_ptr & 0xF;
+	round = (uintptr_t)sc->wb_ldata_ptr & 0xF;
 	roundptr = sc->wb_ldata_ptr;
 	for (i = 0; i < 8; i++) {
 		if (round % 8) {
@@ -1287,7 +1303,7 @@ static int wb_list_rx_init(sc)
 	for (i = 0; i < WB_RX_LIST_CNT; i++) {
 		cd->wb_rx_chain[i].wb_ptr =
 			(struct wb_desc *)&ld->wb_rx_list[i];
-		if (wb_newbuf(sc, &cd->wb_rx_chain[i]) == ENOBUFS)
+		if (wb_newbuf(sc, &cd->wb_rx_chain[i], NULL) == ENOBUFS)
 			return(ENOBUFS);
 		if (i == (WB_RX_LIST_CNT - 1)) {
 			cd->wb_rx_chain[i].wb_nextdesc = &cd->wb_rx_chain[0];
@@ -1309,26 +1325,36 @@ static int wb_list_rx_init(sc)
 /*
  * Initialize an RX descriptor and attach an MBUF cluster.
  */
-static int wb_newbuf(sc, c)
+static int wb_newbuf(sc, c, m)
 	struct wb_softc		*sc;
 	struct wb_chain_onefrag	*c;
+	struct mbuf		*m;
 {
 	struct mbuf		*m_new = NULL;
 
-	MGETHDR(m_new, M_DONTWAIT, MT_DATA);
-	if (m_new == NULL) {
-		printf("wb%d: no memory for rx list -- packet dropped!\n",
-								sc->wb_unit);
-		return(ENOBUFS);
+	if (m == NULL) {
+		MGETHDR(m_new, M_DONTWAIT, MT_DATA);
+		if (m_new == NULL) {
+			printf("wb%d: no memory for rx "
+			    "list -- packet dropped!\n", sc->wb_unit);
+			return(ENOBUFS);
+		}
+
+		MCLGET(m_new, M_DONTWAIT);
+		if (!(m_new->m_flags & M_EXT)) {
+			printf("wb%d: no memory for rx "
+			    "list -- packet dropped!\n", sc->wb_unit);
+			m_freem(m_new);
+			return(ENOBUFS);
+		}
+		m_new->m_len = m_new->m_pkthdr.len = MCLBYTES;
+	} else {
+		m_new = m;
+		m_new->m_len = m_new->m_pkthdr.len = MCLBYTES;
+		m_new->m_data = m_new->m_ext.ext_buf;
 	}
 
-	MCLGET(m_new, M_DONTWAIT);
-	if (!(m_new->m_flags & M_EXT)) {
-		printf("wb%d: no memory for rx list -- packet dropped!\n",
-								sc->wb_unit);
-		m_freem(m_new);
-		return(ENOBUFS);
-	}
+	m_adj(m_new, sizeof(u_int64_t));
 
 	c->wb_mbuf = m_new;
 	c->wb_ptr->wb_data = vtophys(mtod(m_new, caddr_t));
@@ -1356,8 +1382,11 @@ static void wb_rxeof(sc)
 
 	while(!((rxstat = sc->wb_cdata.wb_rx_head->wb_ptr->wb_status) &
 							WB_RXSTAT_OWN)) {
+		struct mbuf		*m0 = NULL;
+
 		cur_rx = sc->wb_cdata.wb_rx_head;
 		sc->wb_cdata.wb_rx_head = cur_rx->wb_nextdesc;
+		m = cur_rx->wb_mbuf;
 
 		if ((rxstat & WB_RXSTAT_MIIERR)
 			 || WB_RXBYTES(cur_rx->wb_ptr->wb_status) == 0) {
@@ -1372,9 +1401,7 @@ static void wb_rxeof(sc)
 
 		if (rxstat & WB_RXSTAT_RXERR) {
 			ifp->if_ierrors++;
-			cur_rx->wb_ptr->wb_ctl =
-				WB_RXCTL_RLINK | (MCLBYTES - 1);
-			cur_rx->wb_ptr->wb_status = WB_RXSTAT;
+			wb_newbuf(sc, cur_rx, m);
 			continue;
 		}
 
@@ -1390,38 +1417,32 @@ static void wb_rxeof(sc)
 		 */
 		total_len -= ETHER_CRC_LEN;
 
-		if (total_len < MINCLSIZE) {
-			m = m_devget(mtod(cur_rx->wb_mbuf, char *),
-				total_len, 0, ifp, NULL);
-			cur_rx->wb_ptr->wb_ctl =
-				WB_RXCTL_RLINK | (MCLBYTES - 1);
-			cur_rx->wb_ptr->wb_status = WB_RXSTAT;
-			if (m == NULL) {
-				ifp->if_ierrors++;
-				continue;
-			}
-		} else {
-			m = cur_rx->wb_mbuf;
-		/*
-		 * Try to conjure up a new mbuf cluster. If that
-		 * fails, it means we have an out of memory condition and
-		 * should leave the buffer in place and continue. This will
-		 * result in a lost packet, but there's little else we
-		 * can do in this situation.
-		 */
-			if (wb_newbuf(sc, cur_rx) == ENOBUFS) {
-				ifp->if_ierrors++;
-				cur_rx->wb_ptr->wb_ctl =
-					WB_RXCTL_RLINK | (MCLBYTES - 1);
-				cur_rx->wb_ptr->wb_status = WB_RXSTAT;
-				continue;
-			}
-			m->m_pkthdr.rcvif = ifp;
-			m->m_pkthdr.len = m->m_len = total_len;
+		m0 = m_devget(mtod(m, char *) - ETHER_ALIGN,
+		     total_len + ETHER_ALIGN, 0, ifp, NULL);
+		wb_newbuf(sc, cur_rx, m);
+		if (m0 == NULL) {
+			ifp->if_ierrors++;
+			continue;
 		}
+		m_adj(m0, ETHER_ALIGN);
+		m = m0;
 
 		ifp->if_ipackets++;
 		eh = mtod(m, struct ether_header *);
+
+#ifdef BRIDGE
+		if (do_bridge) {
+			struct ifnet		*bdg_ifp;
+			bdg_ifp = bridge_in(m);
+			if (bdg_ifp != BDG_LOCAL && bdg_ifp != BDG_DROP)
+				bdg_forward(&m, bdg_ifp);
+			if (((bdg_ifp != BDG_LOCAL) && (bdg_ifp != BDG_BCAST) &&
+			    (bdg_ifp != BDG_MCAST)) || bdg_ifp == BDG_DROP) {
+				m_freem(m);
+				continue;
+			}
+		}
+#endif
 
 #if NBPF > 0
 		/*
