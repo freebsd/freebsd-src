@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: istallion.c,v 1.22 1998/08/23 09:57:09 bde Exp $
+ * $Id: istallion.c,v 1.23 1999/01/12 01:17:01 eivind Exp $
  */
 
 /*****************************************************************************/
@@ -129,7 +129,7 @@
 
 #define	STL_MEMDEV	0x07000000
 
-#define	STL_DEFSPEED	9600
+#define	STL_DEFSPEED	TTYDEF_SPEED
 #define	STL_DEFCFLAG	(CS8 | CREAD | HUPCL)
 
 /*****************************************************************************/
@@ -1009,7 +1009,8 @@ stliopen_restart:
 				goto stliopen_restart;
 			}
 		}
-		if ((tp->t_state & TS_XCLUDE) && (p->p_ucred->cr_uid != 0)) {
+		if ((tp->t_state & TS_XCLUDE) &&
+		    suser(p->p_ucred, &p->p_acflag)) {
 			error = EBUSY;
 			goto stliopen_end;
 		}

@@ -153,7 +153,7 @@ int cxopen (dev_t dev, int flag, int mode, struct proc *p)
 	tp = c->ttyp;
 	tp->t_dev = dev;
 	if ((tp->t_state & TS_ISOPEN) && (tp->t_state & TS_XCLUDE) &&
-	    p->p_ucred->cr_uid != 0)
+	    suser(p->p_ucred, &p->p_acflag))
 		return (EBUSY);
 	if (! (tp->t_state & TS_ISOPEN)) {
 		ttychars (tp);
