@@ -121,7 +121,7 @@ struct ifnet {
 	char	*if_name;		/* name, e.g. ``en'' or ``lo'' */
 	TAILQ_ENTRY(ifnet) if_link; 	/* all struct ifnets are chained */
 	struct	ifaddrhead if_addrhead;	/* linked list of addresses per if */
-        int	if_pcount;		/* number of promiscuous listeners */
+	int	if_pcount;		/* number of promiscuous listeners */
 	struct	bpf_if *if_bpf;		/* packet filter structure */
 	u_short	if_index;		/* numeric abbreviation for this if  */
 	short	if_unit;		/* sub-unit for lower level driver */
@@ -139,14 +139,20 @@ struct ifnet {
 		     struct rtentry *));
 	void	(*if_start)		/* initiate output routine */
 		__P((struct ifnet *));
-	int	(*if_done)		/* output complete routine */
-		__P((struct ifnet *));	/* (XXX not used; fake prototype) */
+	union {
+		int	(*if_done)		/* output complete routine */
+			__P((struct ifnet *));	/* (XXX not used) */
+		int	uif_capabilities;	/* interface capabilities */
+	} _u1;
 	int	(*if_ioctl)		/* ioctl routine */
 		__P((struct ifnet *, u_long, caddr_t));
 	void	(*if_watchdog)		/* timer routine */
 		__P((struct ifnet *));
-	int	(*if_poll_recv)		/* polled receive routine */
-		__P((struct ifnet *, int *));
+	union {
+		int	(*if_poll_recv)		/* polled receive routine */
+			__P((struct ifnet *, int *));
+		int	uif_capenable;		/* enabled features */
+	} _u2;
 	int	(*if_poll_xmit)		/* polled transmit routine */
 		__P((struct ifnet *, int *));
 	void	(*if_poll_intren)	/* polled interrupt reenable routine */
@@ -162,6 +168,12 @@ struct ifnet {
 	struct	ifprefixhead if_prefixhead; /* list of prefixes per if */
 };
 typedef void if_init_f_t __P((void *));
+
+/*
+ * Binary compatability gunk for 4.x ONLY.
+ */
+#define if_capabilities	_u1.uif_capabilities
+#define if_capenable	_u2.uif_capenable
 
 #define	if_mtu		if_data.ifi_mtu
 #define	if_type		if_data.ifi_type
