@@ -326,7 +326,7 @@ boot(int howto)
 				nbusy++;
 #if defined(SHOW_BUSYBUFS) || defined(DIAGNOSTIC)
 				printf(
-			    "%d: dev:%s, flags:%08lx, blkno:%ld, lblkno:%ld\n",
+			    "%d: dev:%s, flags:%0x, blkno:%ld, lblkno:%ld\n",
 				    nbusy, devtoname(bp->b_dev),
 				    bp->b_flags, (long)bp->b_blkno,
 				    (long)bp->b_lblkno);
