@@ -225,6 +225,11 @@ arguments it is replaced by the pathname of the current file.
 will be executed from the directory from which
 .Nm
 was executed.
+.Ar Utility
+and
+.Ar arguments
+are not subject to the further expansion of shell patterns
+and constructs.
 .It Ic -execdir Ar utility Op Ar argument ... ;
 The
 .Ic -execdir
