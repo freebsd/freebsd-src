@@ -32,12 +32,6 @@
 #ifndef SCD_H
 #define	SCD_H
 
-#if defined(__GNUC__) || defined(__INTEL_COMPILER)
-#if __GNUC__ >= 2 || defined(__INTEL_COMPILER)
-#pragma pack(1)
-#endif
-#endif
-
 typedef unsigned char	bcd_t;
 #define	M_msf(msf)	msf[0]
 #define	S_msf(msf)	msf[1]
@@ -94,7 +88,7 @@ struct sony_drive_configuration {
 	char product[16];
 	char revision[8];
 	u_short config;
-};
+} __packed;
 
 /* Almost same as cd_sub_channel_position_data */
 struct sony_subchannel_position_data {
@@ -105,14 +99,14 @@ struct sony_subchannel_position_data {
 	u_char	rel_msf[3];
 	u_char	dummy;
 	u_char	abs_msf[3];
-};
+} __packed;
 
 struct sony_tracklist {
 	u_char adr :4; /* xcdplayer needs these two values */
 	u_char ctl :4;
 	u_char track;
 	u_char start_msf[3];
-};
+} __packed;
 
 #define MAX_TRACKS 100
 
@@ -140,6 +134,6 @@ struct sony_toc {
 	/* The rest is just to take space in case all data is returned */
 
 	u_char dummy[6*9];
-};
+} __packed;
 
 #endif /* SCD_H */

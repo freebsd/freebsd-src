@@ -63,7 +63,7 @@ __FBSDID("$FreeBSD$");
  * Floating point support.
  */
 
-#if defined(__GNUC__) && !defined(lint)
+#if defined(__GNUCLIKE_ASM) && !defined(lint)
 
 #define	fldcw(addr)		__asm("fldcw %0" : : "m" (*(addr)))
 #define	fnclex()		__asm("fnclex")
@@ -77,7 +77,7 @@ __FBSDID("$FreeBSD$");
 				      : : "n" (CR0_TS) : "ax")
 #define	stop_emulating()	__asm("clts")
 
-#else	/* not __GNUC__ */
+#else	/* !__GNUCLIKE_ASM */
 
 void	fldcw(caddr_t addr);
 void	fnclex(void);
@@ -89,7 +89,7 @@ void	fxrstor(caddr_t addr);
 void	start_emulating(void);
 void	stop_emulating(void);
 
-#endif	/* __GNUC__ */
+#endif	/* __GNUCLIKE_ASM */
 
 #define GET_FPU_CW(thread) ((thread)->td_pcb->pcb_save.sv_env.en_cw)
 #define GET_FPU_SW(thread) ((thread)->td_pcb->pcb_save.sv_env.en_sw)

@@ -52,6 +52,10 @@ __FBSDID("$FreeBSD$");
 
 #include "acpi_wakecode.h"
 
+#ifndef _SYS_CDEFS_H_
+#error this file needs sys/cdefs.h as a prerequisite
+#endif
+
 extern uint32_t	acpi_reset_video;
 extern void	initializecpu(void);
 
@@ -73,7 +77,7 @@ static void		acpi_alloc_wakeup_handler(void);
 extern int		acpi_savecpu(void);
 extern int		acpi_restorecpu(void);
 
-#if defined(__GNUC__) || defined(__INTEL_COMPILER)
+#ifdef __GNUCLIKE_ASM
 __asm__("				\n\
 	.text				\n\
 	.p2align 2, 0x90		\n\
@@ -140,7 +144,7 @@ acpi_savecpu:				\n\
 	movl	$1,%eax			\n\
 	ret				\n\
 ");
-#endif /* __GNUC__ || __INTEL_COMPILER */
+#endif /* __GNUCLIKE_ASM */
 
 static void
 acpi_printcpu(void)

@@ -39,6 +39,10 @@
 #ifndef _MACHINE_CPUFUNC_H_
 #define	_MACHINE_CPUFUNC_H_
 
+#ifndef _SYS_CDEFS_H_
+#error this file needs sys/cdefs.h as a prerequisite
+#endif
+
 struct region_descriptor;
 
 #define readb(va)	(*(volatile u_int8_t *) (va))
@@ -51,7 +55,7 @@ struct region_descriptor;
 #define writel(va, d)	(*(volatile u_int32_t *) (va) = (d))
 #define writeq(va, d)	(*(volatile u_int64_t *) (va) = (d))
 
-#ifdef	__GNUC__
+#if defined(__GNUCLIKE_ASM) && defined(__CC_SUPPORTS___INLINE)
 
 static __inline void
 breakpoint(void)
@@ -152,12 +156,12 @@ halt(void)
 	__asm __volatile("hlt");
 }
 
-#if __GNUC__ < 2
+#if !defined(__GNUCLIKE_BUILTIN_CONSTANT_P) || __GNUCLIKE_ASM < 3
 
 #define	inb(port)		inbv(port)
 #define	outb(port, data)	outbv(port, data)
 
-#else /* __GNUC >= 2 */
+#else /* __GNUCLIKE_BUILTIN_CONSTANT_P  && __GNUCLIKE_ASM >= 3 */
 
 /*
  * The following complications are to get around gcc not having a
@@ -204,7 +208,7 @@ outbc(u_int port, u_char data)
 	__asm __volatile("outb %0,%1" : : "a" (data), "id" ((u_short)(port)));
 }
 
-#endif /* __GNUC <= 2 */
+#endif /* __GNUCLIKE_BUILTIN_CONSTANT_P */
 
 static __inline u_char
 inbv(u_int port)
@@ -696,7 +700,7 @@ intr_restore(register_t rflags)
 	write_rflags(rflags);
 }
 
-#else /* !__GNUC__ */
+#else /* !(__GNUCLIKE_ASM && __CC_SUPPORTS___INLINE) */
 
 int	breakpoint(void);
 u_int	bsfl(u_int mask);
@@ -761,7 +765,7 @@ void	wbinvd(void);
 void	write_rflags(u_int rf);
 void	wrmsr(u_int msr, u_int64_t newval);
 
-#endif	/* __GNUC__ */
+#endif	/* __GNUCLIKE_ASM && __CC_SUPPORTS___INLINE */
 
 void	reset_dbregs(void);
 

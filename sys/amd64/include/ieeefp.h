@@ -42,6 +42,10 @@
 #ifndef _MACHINE_IEEEFP_H_
 #define _MACHINE_IEEEFP_H_
 
+#ifndef _SYS_CDEFS_H_
+#error this file needs sys/cdefs.h as a prerequisite
+#endif
+
 /*
  * FP rounding modes
  */
@@ -117,7 +121,8 @@ typedef enum {
 #define	SSE_RND_OFF	13	/* rounding control offset */
 #define	SSE_FZ_OFF	15	/* flush to zero offset */
 
-#if defined(__GNUC__) && !defined(__cplusplus)
+#if defined(__GNUCLIKE_ASM) && defined(__CC_SUPPORTS___INLINE__) \
+    && !defined(__cplusplus)
 
 #define	__fldenv(addr)	__asm __volatile("fldenv %0" : : "m" (*(addr)))
 #define	__fnstenv(addr)	__asm __volatile("fnstenv %0" : "=m" (*(addr)))
@@ -263,9 +268,10 @@ __fpsetsticky(fp_except_t _m)
 	return (_p);
 }
 
-#endif /* __GNUC__ && !__cplusplus */
+#endif /* __GNUCLIKE_ASM && __CC_SUPPORTS___INLINE__ && !__cplusplus */
 
-#if !defined(__IEEEFP_NOINLINES__) && !defined(__cplusplus) && defined(__GNUC__)
+#if !defined(__IEEEFP_NOINLINES__) && !defined(__cplusplus) \
+    && defined(__GNUCLIKE_ASM) && defined(__CC_SUPPORTS___INLINE__)
 
 #define	fpgetround()	__fpgetround()
 #define	fpsetround(_m)	__fpsetround(_m)
@@ -279,7 +285,8 @@ __fpsetsticky(fp_except_t _m)
 /* Suppress prototypes in the MI header. */
 #define	_IEEEFP_INLINED_	1
 
-#else /* !__IEEEFP_NOINLINES__ && !__cplusplus && __GNUC__ */
+#else /* !__IEEEFP_NOINLINES__ && !__cplusplus && __GNUCLIKE_ASM
+         && __CC_SUPPORTS___INLINE__ */
 
 /* Augment the userland declarations */
 __BEGIN_DECLS
@@ -287,6 +294,7 @@ extern fp_prec_t fpgetprec(void);
 extern fp_prec_t fpsetprec(fp_prec_t);
 __END_DECLS
 
-#endif /* !__IEEEFP_NOINLINES__ && !__cplusplus && __GNUC__ */
+#endif /* !__IEEEFP_NOINLINES__ && !__cplusplus && __GNUCLIKE_ASM
+          && __CC_SUPPORTS___INLINE__ */
 
 #endif /* !_MACHINE_IEEEFP_H_ */

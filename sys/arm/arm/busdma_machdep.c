@@ -532,7 +532,7 @@ bus_dmamap_load(bus_dma_tag_t dmat, bus_dmamap_t map, void *buf,
 {
      	vm_offset_t	lastaddr = 0;
 	int		error, nsegs = -1;
-#ifdef __GNUC__
+#ifdef __CC_SUPPORTS_DYNAMIC_ARRAY_INIT
 	bus_dma_segment_t dm_segments[dmat->nsegments];
 #else
 	bus_dma_segment_t dm_segments[BUS_DMAMAP_NSEGS];
@@ -564,7 +564,7 @@ bus_dmamap_load_mbuf(bus_dma_tag_t dmat, bus_dmamap_t map, struct mbuf *m0,
 		     bus_dmamap_callback2_t *callback, void *callback_arg,
 		     int flags)
 {
-#ifdef __GNUC__
+#ifdef __CC_SUPPORTS_DYNAMIC_ARRAY_INIT
 	bus_dma_segment_t dm_segments[dmat->nsegments];
 #else
 	bus_dma_segment_t dm_segments[BUS_DMAMAP_NSEGS];
@@ -650,7 +650,7 @@ bus_dmamap_load_uio(bus_dma_tag_t dmat, bus_dmamap_t map, struct uio *uio,
     int flags)
 {
 	vm_offset_t lastaddr;
-#ifdef __GNUC__
+#ifdef __CC_SUPPORTS_DYNAMIC_ARRAY_INIT
 	bus_dma_segment_t dm_segments[dmat->nsegments];
 #else
 	bus_dma_segment_t dm_segments[BUS_DMAMAP_NSEGS];

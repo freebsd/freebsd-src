@@ -39,6 +39,10 @@
 #ifndef _MACHINE__TYPES_H_
 #define	_MACHINE__TYPES_H_
 
+#ifndef _SYS_CDEFS_H_
+#error this file needs sys/cdefs.h as a prerequisite
+#endif
+
 /*
  * Basic types upon which most other types are built.
  */
@@ -54,7 +58,7 @@ typedef	unsigned int		__uint32_t;
 typedef long long		__int64_t;
 /* LONGLONG */
 typedef unsigned long long	__uint64_t;
-#elif defined(__GNUC__)
+#elif defined(__GNUCLIKE_ATTRIBUTE_MODE_DI)
 typedef int __attribute__((__mode__(__DI__)))		__int64_t;
 typedef unsigned int __attribute__((__mode__(__DI__)))	__uint64_t;
 #else
@@ -110,7 +114,7 @@ typedef	__uint32_t	__vm_size_t;
 /*
  * Unusual type definitions.
  */
-#if defined(__GNUC__) && (__GNUC__ == 2 && __GNUC_MINOR__ > 95 || __GNUC__ >= 3)
+#if defined(__GNUCLIKE_BUILTIN_VARARGS)
 typedef __builtin_va_list	__va_list;	/* internally known to gcc */
 #else
 typedef	struct {
@@ -121,7 +125,8 @@ typedef	struct {
 	char	*__base;
 } __va_list;
 #endif /* post GCC 2.95 */
-#if defined __GNUC__ && !defined(__GNUC_VA_LIST) && !defined(__NO_GNUC_VA_LIST)
+#if defined(__GNUC_VA_LIST_COMPATIBILITY) && !defined(__GNUC_VA_LIST) \
+    && !defined(__NO_GNUC_VA_LIST)
 #define __GNUC_VA_LIST
 typedef __va_list		__gnuc_va_list;	/* compatibility w/GNU headers*/
 #endif

@@ -30,6 +30,10 @@
 #ifndef _SYS_LINKER_SET_H_
 #define _SYS_LINKER_SET_H_
 
+#ifndef _SYS_CDEFS_H_
+#error this file needs sys/cdefs.h as a prerequisite
+#endif
+
 /*
  * The following macros are used to declare global sets of objects, which
  * are collected by the linker into a `linker_set' as defined below.
@@ -39,16 +43,16 @@
 /*
  * Private macros, not to be used outside this header file.
  */
-#if defined(__GNUC__) || defined(__INTEL_COMPILER)
+#ifdef __GNUCLIKE___SECTION
 #define __MAKE_SET(set, sym)						\
 	static void const * const __set_##set##_sym_##sym 		\
 	__section("set_" #set) __used = &sym
-#else /* !(__GNUC__ || __INTEL_COMPILER) */
+#else /* !__GNUCLIKE___SECTION */
 #ifndef lint
-#error "This file needs to be compiled by GCC, an Intel compiler or lint"
+#error this file needs to be ported to your compiler
 #endif /* lint */
 #define __MAKE_SET(set, sym)	extern void const * const (__set_##set##_sym_##sym)
-#endif /* __GNUC__ || __INTEL_COMPILER */
+#endif /* __GNUCLIKE___SECTION */
 
 /*
  * Public macros.

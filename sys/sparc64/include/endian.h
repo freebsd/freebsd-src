@@ -63,7 +63,7 @@
 #define	BYTE_ORDER	_BYTE_ORDER
 #endif
 
-#if defined(__GNUC__) && defined(__OPTIMIZE__)
+#if defined(__GNUCLIKE_BUILTIN_CONSTANT_P) && defined(__OPTIMIZE__)
 #define	__is_constant(x)	__builtin_constant_p(x)
 #else
 #define	__is_constant(x)	0

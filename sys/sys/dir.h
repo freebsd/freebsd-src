@@ -33,7 +33,9 @@
 #ifndef _SYS_DIR_H_
 #define	_SYS_DIR_H_
 
-#if defined(__GNUC__) || defined (__INTEL_COMPILER)
+#include <sys/cdefs.h>
+
+#ifdef __CC_SUPPORTS_WARNING
 #warning "The information in this file should be obtained from <dirent.h>"
 #warning "and is provided solely (and temporarily) for backward compatibility."
 #endif

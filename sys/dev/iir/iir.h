@@ -47,6 +47,10 @@
 #ifndef _IIR_H
 #define _IIR_H
 
+#ifndef _SYS_CDEFS_H_
+#error this file needs sys/cdefs.h as a prerequisite
+#endif
+
 #define IIR_DRIVER_VERSION      1
 #define IIR_DRIVER_SUBVERSION   5
 
@@ -699,7 +703,7 @@ void    iir_free(struct gdt_softc *);
 void    iir_attach(struct gdt_softc *);
 void    iir_intr(void *arg);
 
-#if defined( __GNUC__) || defined(__INTEL_COMPILER)
+#ifdef __CC_SUPPORTS___INLINE__
 /* These all require correctly aligned buffers */
 static __inline__ void gdt_enc16(u_int8_t *, u_int16_t);
 static __inline__ void gdt_enc32(u_int8_t *, u_int32_t);

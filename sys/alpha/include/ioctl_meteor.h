@@ -29,7 +29,9 @@
 #ifndef	_MACHINE_IOCTL_METEOR_H_
 #define	_MACHINE_IOCTL_METEOR_H_
 
-#ifdef __GNUC__
+#include <sys/cdefs.h>
+
+#ifdef __CC_SUPPORTS_WARNING
 #warning Include dev/bktr/ioctl_meteor.h instead of this header.
 #endif
 

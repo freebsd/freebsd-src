@@ -28,6 +28,10 @@
 #ifndef _MACHINE_ATOMIC_H_
 #define _MACHINE_ATOMIC_H_
 
+#ifndef _SYS_CDEFS_H_
+#error this file needs sys/cdefs.h as a prerequisite
+#endif
+
 /*
  * Various simple arithmetic on memory which is atomic in the presence
  * of interrupts and multiple processors.
@@ -75,7 +79,7 @@ void		atomic_store_rel_##TYPE(volatile u_##TYPE *p, u_##TYPE v)
 
 #else /* !KLD_MODULE */
 
-#if defined(__GNUC__) || defined(__INTEL_COMPILER)
+#ifdef __GNUCLIKE_ASM
 
 /*
  * For userland, assume the SMP case and use lock prefixes so that
@@ -101,12 +105,12 @@ atomic_##NAME##_##TYPE(volatile u_##TYPE *p, u_##TYPE v)\
 }							\
 struct __hack
 
-#else /* !(__GNUC__ || __INTEL_COMPILER) */
+#else /* !__GNUCLIKE_ASM */
 
 #define ATOMIC_ASM(NAME, TYPE, OP, CONS, V)				\
 extern void atomic_##NAME##_##TYPE(volatile u_##TYPE *p, u_##TYPE v)
 
-#endif /* __GNUC__ || __INTEL_COMPILER */
+#endif /* __GNUCLIKE_ASM */
 
 /*
  * Atomic compare and set, used by the mutex functions
@@ -116,7 +120,7 @@ extern void atomic_##NAME##_##TYPE(volatile u_##TYPE *p, u_##TYPE v)
  * Returns 0 on failure, non-zero on success
  */
 
-#if defined(__GNUC__) || defined(__INTEL_COMPILER)
+#ifdef __GNUCLIKE_ASM
 
 #if defined(CPU_DISABLE_CMPXCHG)
 
@@ -168,9 +172,9 @@ atomic_cmpset_int(volatile u_int *dst, u_int exp, u_int src)
 
 #endif /* defined(CPU_DISABLE_CMPXCHG) */
 
-#endif /* defined(__GNUC__) || defined(__INTEL_COMPILER) */
+#endif /* __GNUCLIKE_ASM */
 
-#if defined(__GNUC__) || defined(__INTEL_COMPILER)
+#ifdef __GNUCLIKE_ASM
 
 #if defined(_KERNEL) && !defined(SMP)
 
@@ -226,7 +230,7 @@ struct __hack
 
 #endif	/* !defined(SMP) */
 
-#else /* !(defined(__GNUC__) || defined(__INTEL_COMPILER)) */
+#else /* !__GNUCLIKE_ASM */
 
 extern int atomic_cmpset_int(volatile u_int *, u_int, u_int);
 
@@ -234,7 +238,7 @@ extern int atomic_cmpset_int(volatile u_int *, u_int, u_int);
 extern u_##TYPE atomic_load_acq_##TYPE(volatile u_##TYPE *p);		\
 extern void atomic_store_rel_##TYPE(volatile u_##TYPE *p, u_##TYPE v)
 
-#endif /* defined(__GNUC__) || defined(__INTEL_COMPILER) */
+#endif /* __GNUCLIKE_ASM */
 
 #endif /* KLD_MODULE */
 
@@ -410,7 +414,7 @@ ATOMIC_PTR(subtract)
 
 #undef ATOMIC_PTR
 
-#if defined(__GNUC__) || defined(__INTEL_COMPILER)
+#ifdef __GNUCLIKE_ASM
 
 static __inline u_int
 atomic_readandclear_int(volatile u_int *addr)
@@ -442,12 +446,12 @@ atomic_readandclear_long(volatile u_long *addr)
 	return (result);
 }
 
-#else /* !(defined(__GNUC__) || defined(__INTEL_COMPILER)) */
+#else /* !__GNUCLIKE_ASM */
 
 extern u_long	atomic_readandclear_long(volatile u_long *);
 extern u_int	atomic_readandclear_int(volatile u_int *);
 
-#endif /* defined(__GNUC__) || defined(__INTEL_COMPILER) */
+#endif /* __GNUCLIKE_ASM */
 
 #endif	/* !defined(WANT_FUNCTIONS) */
 #endif /* ! _MACHINE_ATOMIC_H_ */

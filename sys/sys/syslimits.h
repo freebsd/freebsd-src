@@ -34,7 +34,10 @@
 #define _SYS_SYSLIMITS_H_
 
 #if !defined(_KERNEL) && !defined(_LIMITS_H_) && !defined(_SYS_PARAM_H_)
-#if defined(__GNUC__) || defined(__INTEL_COMPILER)
+#ifndef _SYS_CDEFS_H_
+#error this file needs sys/cdefs.h as a prerequisite
+#endif
+#ifdef __CC_SUPPORTS_WARNING
 #warning "No user-serviceable parts inside."
 #endif
 #endif

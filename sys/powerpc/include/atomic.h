@@ -33,6 +33,10 @@
 
 #include <machine/cpufunc.h>
 
+#ifndef _SYS_CDEFS_H_
+#error this file needs sys/cdefs.h as a prerequisite
+#endif
+
 /*
  * Various simple arithmetic on memory which is atomic in the presence
  * of interrupts and SMP safe.
@@ -53,7 +57,7 @@ atomic_set_32(volatile uint32_t *p, uint32_t v)
 {
 	uint32_t temp;
 
-#ifdef __GNUC__
+#ifdef __GNUCLIKE_ASM
 	__asm __volatile (
 		"1:\tlwarx %0, 0, %2\n\t"	/* load old value */
 		"or %0, %3, %0\n\t"		/* calculate new value */
@@ -70,7 +74,7 @@ atomic_clear_32(volatile uint32_t *p, uint32_t v)
 {
 	uint32_t temp;
 
-#ifdef __GNUC__
+#ifdef __GNUCLIKE_ASM
 	__asm __volatile (
 		"1:\tlwarx %0, 0, %2\n\t"	/* load old value */
 		"andc %0, %0, %3\n\t"		/* calculate new value */
@@ -87,7 +91,7 @@ atomic_add_32(volatile uint32_t *p, uint32_t v)
 {
 	uint32_t temp;
 
-#ifdef __GNUC__
+#ifdef __GNUCLIKE_ASM
 	__asm __volatile (
 		"1:\tlwarx %0, 0, %2\n\t"	/* load old value */
 		"add %0, %3, %0\n\t"		/* calculate new value */
@@ -104,7 +108,7 @@ atomic_subtract_32(volatile uint32_t *p, uint32_t v)
 {
 	uint32_t temp;
 
-#ifdef __GNUC__
+#ifdef __GNUCLIKE_ASM
 	__asm __volatile (
 		"1:\tlwarx %0, 0, %2\n\t"	/* load old value */
 		"subf %0, %3, %0\n\t"		/* calculate new value */
@@ -121,7 +125,7 @@ atomic_readandclear_32(volatile uint32_t *addr)
 {
 	uint32_t result,temp;
 
-#ifdef __GNUC__
+#ifdef __GNUCLIKE_ASM
 	__asm __volatile (
 		"\tsync\n"			/* drain writes */
 		"1:\tlwarx %0, 0, %3\n\t"	/* load old value */
@@ -348,7 +352,7 @@ atomic_cmpset_32(volatile uint32_t* p, uint32_t cmpval, uint32_t newval)
 {
 	uint32_t	ret;
 
-#ifdef __GNUC__
+#ifdef __GNUCLIKE_ASM
 	__asm __volatile (
 		"1:\tlwarx %0, 0, %2\n\t"	/* load old value */
 		"cmplw %3, %0\n\t"		/* compare */

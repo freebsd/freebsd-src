@@ -44,6 +44,9 @@
 #include <dev/isp/isp_target.h>
 #include <dev/isp/isp_tpublic.h>
 #endif
+#ifndef _SYS_CDEFS_H_
+#error this file needs sys/cdefs.h as a prerequisite
+#endif
 #endif
 #ifdef	__linux__
 #include "ispmbox.h"
@@ -760,7 +763,7 @@ int isp_async(struct ispsoftc *, ispasync_t, void *);
 /*
  * Platform Dependent Error and Debug Printout
  */
-#if defined(__GNUC__) || defined(__INTEL_COMPILER)
+#ifdef __GNUCLIKE_ATTRIBUTE_PRINTF
 void isp_prt(struct ispsoftc *, int level, const char *, ...)
 	__attribute__((__format__(__printf__,3,4)));
 #else
