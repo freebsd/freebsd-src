@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)chmod.2	8.1 (Berkeley) 6/4/93
-.\"	$Id$
+.\"	$Id: chmod.2,v 1.8 1997/02/22 15:03:43 peter Exp $
 .\"
 .Dd June 4, 1993
 .Dt CHMOD 2
@@ -92,8 +92,10 @@ defined in
 #define S_ISVTX 0001000    /* sticky bit */
 .Ed
 .Pp
-The FreeBSD VM system totally ignores the sticky bit (
-.Dv ISVTX
+The
+.Tn FreeBSD
+VM system totally ignores the sticky bit
+.Pf ( Dv ISVTX
 ) for executables.
 .Pp
 If mode
