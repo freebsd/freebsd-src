@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.31 1995/04/16 12:56:21 davidg Exp $
+ *	$Id: vm_page.c,v 1.32 1995/05/30 08:16:15 rgrimes Exp $
  */
 
 /*
@@ -971,7 +971,7 @@ vm_page_cache(m)
 
 	VM_PAGE_CHECK(m);
 	if ((m->flags & (PG_CACHE | PG_BUSY)) || m->busy || m->wire_count ||
-	    m->bmapped)
+	    m->bmapped || m->hold_count)
 		return;
 
 	s = splhigh();
