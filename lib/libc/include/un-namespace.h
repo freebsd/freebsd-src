@@ -105,6 +105,7 @@
 #undef		socket
 #undef		socketpair
 #undef		wait4
+#undef		waitpid
 #undef		write
 #undef		writev
 
@@ -130,7 +131,6 @@
 #undef		system
 #undef		tcdrain
 #undef		wait
-#undef		waitpid
 #endif	/* 0 */
 
 #ifdef _SIGNAL_H_
