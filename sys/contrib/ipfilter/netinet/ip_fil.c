@@ -120,7 +120,7 @@ extern	int	ip_optcopy __P((struct ip *, struct ip *));
 
 #if !defined(lint)
 static const char sccsid[] = "@(#)ip_fil.c	2.41 6/5/96 (C) 1993-2000 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ip_fil.c,v 2.42.2.58 2002/06/06 10:47:27 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ip_fil.c,v 2.42.2.60 2002/08/28 12:40:39 darrenr Exp $";
 #endif
 
 
@@ -157,6 +157,7 @@ static	int	ipfr_fastroute6 __P((struct mbuf *, struct mbuf **,
 				     fr_info_t *, frdest_t *));
 # endif
 # ifdef	__sgi
+extern	int		tcp_mtudisc;
 extern  kmutex_t        ipf_rw;
 extern	KRWLOCK_T	ipf_mutex;
 # endif
@@ -482,7 +483,7 @@ int ipl_disable()
 int ipldetach()
 # endif
 {
-	int s, i = FR_INQUE|FR_OUTQUE;
+	int s, i;
 #if defined(NETBSD_PF) && (__NetBSD_Version__ >= 104200000)
 	int error = 0;
 # if __NetBSD_Version__ >= 105150000
@@ -523,7 +524,8 @@ int ipldetach()
 	printf("%s unloaded\n", ipfilter_version);
 
 	fr_checkp = fr_savep;
-	i = frflush(IPL_LOGIPF, i);
+	i = frflush(IPL_LOGIPF, FR_INQUE|FR_OUTQUE|FR_INACTIVE);
+	i += frflush(IPL_LOGIPF, FR_INQUE|FR_OUTQUE);
 	fr_running = 0;
 
 # ifdef NETBSD_PF
@@ -1244,7 +1246,17 @@ struct mbuf **mp;
 		ip->ip_v = IPVERSION;
 		ip->ip_tos = oip->ip_tos;
 		ip->ip_id = oip->ip_id;
-		ip->ip_off = 0;
+
+# if defined(__NetBSD__) || defined(__OpenBSD__)
+		if (ip_mtudisc != 0)
+			ip->ip_off = IP_DF;
+# else
+#  if defined(__sgi)
+		if (ip->ip_p == IPPROTO_TCP && tcp_mtudisc != 0)
+			ip->ip_off = IP_DF;
+#  endif
+# endif
+
 # if (BSD < 199306) || defined(__sgi)
 		ip->ip_ttl = tcp_ttl;
 # else
@@ -1671,7 +1683,8 @@ frdest_t *fdp;
 	 */
 	if (ip->ip_len <= ifp->if_mtu) {
 # ifndef sparc
-#  if (!defined(__FreeBSD__) && !(_BSDI_VERSION >= 199510))
+#  if (!defined(__FreeBSD__) && !(_BSDI_VERSION >= 199510)) && \
+      !(__NetBSD_Version__ >= 105110000)
 		ip->ip_id = htons(ip->ip_id);
 #  endif
 		ip->ip_len = htons(ip->ip_len);
