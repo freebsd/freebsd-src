@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_socket.c	8.3 (Berkeley) 4/15/94
- *	$Id: uipc_socket.c,v 1.25 1997/03/23 03:36:31 bde Exp $
+ *	$Id: uipc_socket.c,v 1.26 1997/04/27 20:00:44 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -896,30 +896,53 @@ sosetopt(so, level, optname, m0, p)
 		case SO_RCVBUF:
 		case SO_SNDLOWAT:
 		case SO_RCVLOWAT:
+		    {
+			int optval;
+
 			if (m == NULL || m->m_len < sizeof (int)) {
 				error = EINVAL;
 				goto bad;
 			}
+
+			/*
+			 * Values < 1 make no sense for any of these
+			 * options, so disallow them.
+			 */
+			optval = *mtod(m, int *);
+			if (optval < 1) {
+				error = EINVAL;
+				goto bad;
+			}
+
 			switch (optname) {
 
 			case SO_SNDBUF:
 			case SO_RCVBUF:
 				if (sbreserve(optname == SO_SNDBUF ?
 				    &so->so_snd : &so->so_rcv,
-				    (u_long) *mtod(m, int *)) == 0) {
+				    (u_long) optval) == 0) {
 					error = ENOBUFS;
 					goto bad;
 				}
 				break;
 
+			/*
+			 * Make sure the low-water is never greater than
+			 * the high-water.
+			 */
 			case SO_SNDLOWAT:
-				so->so_snd.sb_lowat = *mtod(m, int *);
+				so->so_snd.sb_lowat =
+				    (optval > so->so_snd.sb_hiwat) ?
+				    so->so_snd.sb_hiwat : optval;
 				break;
 			case SO_RCVLOWAT:
-				so->so_rcv.sb_lowat = *mtod(m, int *);
+				so->so_rcv.sb_lowat =
+				    (optval > so->so_rcv.sb_hiwat) ?
+				    so->so_rcv.sb_hiwat : optval;
 				break;
 			}
 			break;
+		    }
 
 		case SO_SNDTIMEO:
 		case SO_RCVTIMEO:
