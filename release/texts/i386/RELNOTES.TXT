@@ -301,6 +301,17 @@ controlled by the net.inet.tcp.icmp_may_rst sysctl. [MERGED]
 
 TCP has received some bug fixes for its delayed ACK behavior. [MERGED]
 
+TCP now supports the NewReno modification to the TCP Fast Recovery
+algorithm.  This behavior can be controlled via the
+net.inet.tcp.newreno sysctl variable. [MERGED]
+
+TCP now uses a more aggressive timeout for initial SYN segments; this
+allows initial connection attempts to be dropped much faster. [MERGED]
+
+A new sysctl net.inet.ip.check_interface, which is on by default,
+causes IP to verify that an incoming packet arrives on an interface
+that has an address matching the packet's destination address. [MERGED]
+
 PECOFF (WIN32 Execution file format) support has been added.
 
 kernfs(5) is obsolete and has been retired.
@@ -920,6 +931,11 @@ OpenSSL.
 
 The default value for the CVS_RSH variable (used by cvs(1)) is now
 ssh, rather than rsh.
+
+bc has been updated from 1.04 to 1.06.
+
+ipfstat(8) now supports the -t option to turn on a top(1)-like
+display. [MERGED]
 
 
 2. Supported Configurations
