@@ -64,7 +64,7 @@ __FBSDID("$FreeBSD$");
 #include "fpu_extern.h"
 #include "__sparc_utrap_private.h"
 
-static int round(struct fpemu *, struct fpn *);
+static int fpround(struct fpemu *, struct fpn *);
 static int toinf(struct fpemu *, int);
 
 /*
@@ -80,7 +80,7 @@ static int toinf(struct fpemu *, int);
  * responsibility to fix this if necessary.
  */
 static int
-round(struct fpemu *fe, struct fpn *fp)
+fpround(struct fpemu *fe, struct fpn *fp)
 {
 	u_int m0, m1, m2, m3;
 	int gr, s;
@@ -344,7 +344,7 @@ __fpu_ftos(fe, fp)
 	if ((exp = fp->fp_exp + SNG_EXP_BIAS) <= 0) {	/* subnormal */
 		/* -NG for g,r; -SNG_FRACBITS-exp for fraction */
 		(void) __fpu_shr(fp, FP_NMANT - FP_NG - SNG_FRACBITS - exp);
-		if (round(fe, fp) && fp->fp_mant[3] == SNG_EXP(1))
+		if (fpround(fe, fp) && fp->fp_mant[3] == SNG_EXP(1))
 			return (sign | SNG_EXP(1) | 0);
 		if ((fe->fe_cx & FSR_NX) ||
 		    (fe->fe_fsr & (FSR_UF << FSR_TEM_SHIFT)))
@@ -357,7 +357,7 @@ __fpu_ftos(fe, fp)
 	if ((fp->fp_mant[3] & SNG_EXP(1 << FP_NG)) == 0)
 		__utrap_panic("fpu_ftos");
 #endif
-	if (round(fe, fp) && fp->fp_mant[3] == SNG_EXP(2))
+	if (fpround(fe, fp) && fp->fp_mant[3] == SNG_EXP(2))
 		exp++;
 	if (exp >= SNG_EXP_INFNAN) {
 		/* overflow to inf or to max single */
@@ -405,7 +405,7 @@ zero:		res[1] = 0;
 
 	if ((exp = fp->fp_exp + DBL_EXP_BIAS) <= 0) {
 		(void) __fpu_shr(fp, FP_NMANT - FP_NG - DBL_FRACBITS - exp);
-		if (round(fe, fp) && fp->fp_mant[2] == DBL_EXP(1)) {
+		if (fpround(fe, fp) && fp->fp_mant[2] == DBL_EXP(1)) {
 			res[1] = 0;
 			return (sign | DBL_EXP(1) | 0);
 		}
@@ -416,7 +416,7 @@ zero:		res[1] = 0;
 		goto done;
 	}
 	(void) __fpu_shr(fp, FP_NMANT - FP_NG - 1 - DBL_FRACBITS);
-	if (round(fe, fp) && fp->fp_mant[2] == DBL_EXP(2))
+	if (fpround(fe, fp) && fp->fp_mant[2] == DBL_EXP(2))
 		exp++;
 	if (exp >= DBL_EXP_INFNAN) {
 		fe->fe_cx |= FSR_OF | FSR_NX;
@@ -466,7 +466,7 @@ zero:		res[1] = res[2] = res[3] = 0;
 
 	if ((exp = fp->fp_exp + EXT_EXP_BIAS) <= 0) {
 		(void) __fpu_shr(fp, FP_NMANT - FP_NG - EXT_FRACBITS - exp);
-		if (round(fe, fp) && fp->fp_mant[0] == EXT_EXP(1)) {
+		if (fpround(fe, fp) && fp->fp_mant[0] == EXT_EXP(1)) {
 			res[1] = res[2] = res[3] = 0;
 			return (sign | EXT_EXP(1) | 0);
 		}
@@ -477,7 +477,7 @@ zero:		res[1] = res[2] = res[3] = 0;
 		goto done;
 	}
 	/* Since internal == extended, no need to shift here. */
-	if (round(fe, fp) && fp->fp_mant[0] == EXT_EXP(2))
+	if (fpround(fe, fp) && fp->fp_mant[0] == EXT_EXP(2))
 		exp++;
 	if (exp >= EXT_EXP_INFNAN) {
 		fe->fe_cx |= FSR_OF | FSR_NX;
