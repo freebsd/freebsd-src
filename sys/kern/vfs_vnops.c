@@ -92,6 +92,7 @@ vn_open(ndp, fmode, cmode)
 		ndp->ni_cnd.cn_flags = LOCKPARENT | LOCKLEAF;
 		if ((fmode & O_EXCL) == 0 && (fmode & O_NOFOLLOW) == 0)
 			ndp->ni_cnd.cn_flags |= FOLLOW;
+		bwillwrite();
 		error = namei(ndp);
 		if (error)
 			return (error);

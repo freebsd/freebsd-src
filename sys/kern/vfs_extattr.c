@@ -1111,6 +1111,7 @@ mknod(p, uap)
 	}
 	if (error)
 		return (error);
+	bwillwrite();
 	NDINIT(&nd, CREATE, LOCKPARENT, UIO_USERSPACE, SCARG(uap, path), p);
 	if ((error = namei(&nd)) != 0)
 		return (error);
@@ -1189,6 +1190,7 @@ mkfifo(p, uap)
 	int error;
 	struct nameidata nd;
 
+	bwillwrite();
 	NDINIT(&nd, CREATE, LOCKPARENT, UIO_USERSPACE, SCARG(uap, path), p);
 	if ((error = namei(&nd)) != 0)
 		return (error);
@@ -1235,6 +1237,7 @@ link(p, uap)
 	struct nameidata nd;
 	int error;
 
+	bwillwrite();
 	NDINIT(&nd, LOOKUP, FOLLOW|NOOBJ, UIO_USERSPACE, SCARG(uap, path), p);
 	if ((error = namei(&nd)) != 0)
 		return (error);
@@ -1295,6 +1298,7 @@ symlink(p, uap)
 	path = zalloc(namei_zone);
 	if ((error = copyinstr(SCARG(uap, path), path, MAXPATHLEN, NULL)) != 0)
 		goto out;
+	bwillwrite();
 	NDINIT(&nd, CREATE, LOCKPARENT|NOOBJ, UIO_USERSPACE, SCARG(uap, link), p);
 	if ((error = namei(&nd)) != 0)
 		goto out;
@@ -1337,6 +1341,7 @@ undelete(p, uap)
 	int error;
 	struct nameidata nd;
 
+	bwillwrite();
 	NDINIT(&nd, DELETE, LOCKPARENT|DOWHITEOUT, UIO_USERSPACE,
 	    SCARG(uap, path), p);
 	error = namei(&nd);
@@ -1383,6 +1388,7 @@ unlink(p, uap)
 	int error;
 	struct nameidata nd;
 
+	bwillwrite();
 	NDINIT(&nd, DELETE, LOCKPARENT, UIO_USERSPACE, SCARG(uap, path), p);
 	if ((error = namei(&nd)) != 0)
 		return (error);
@@ -2569,6 +2575,7 @@ rename(p, uap)
 	struct nameidata fromnd, tond;
 	int error;
 
+	bwillwrite();
 	NDINIT(&fromnd, DELETE, WANTPARENT | SAVESTART, UIO_USERSPACE,
 	    SCARG(uap, from), p);
 	if ((error = namei(&fromnd)) != 0)
@@ -2671,6 +2678,7 @@ mkdir(p, uap)
 	int error;
 	struct nameidata nd;
 
+	bwillwrite();
 	NDINIT(&nd, CREATE, LOCKPARENT, UIO_USERSPACE, SCARG(uap, path), p);
 	nd.ni_cnd.cn_flags |= WILLBEDIR;
 	if ((error = namei(&nd)) != 0)
@@ -2719,6 +2727,7 @@ rmdir(p, uap)
 	int error;
 	struct nameidata nd;
 
+	bwillwrite();
 	NDINIT(&nd, DELETE, LOCKPARENT | LOCKLEAF, UIO_USERSPACE,
 	    SCARG(uap, path), p);
 	if ((error = namei(&nd)) != 0)
