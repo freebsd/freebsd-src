@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cpufunc.h,v 1.86 1999/04/28 01:03:58 luoqi Exp $
+ *	$Id: cpufunc.h,v 1.87 1999/05/09 23:30:01 peter Exp $
  */
 
 /*
@@ -399,16 +399,6 @@ rdtsc(void)
 }
 
 static __inline void
-setbits(volatile u_int *addr, u_int bits)
-{
-	__asm __volatile(
-#ifdef SMP
-			 "lock; "
-#endif
-			 "orl %1,%0" : "=m" (*addr) : "ir" (bits));
-}
-
-static __inline void
 wbinvd(void)
 {
 	__asm __volatile("wbinvd");
@@ -480,7 +470,6 @@ u_int64_t rdmsr		__P((u_int msr));
 u_int64_t rdpmc		__P((u_int pmc));
 u_int64_t rdtsc		__P((void));
 u_int	read_eflags	__P((void));
-void	setbits		__P((volatile u_int *addr, u_int bits));
 void	wbinvd		__P((void));
 void	write_eflags	__P((u_int ef));
 void	wrmsr		__P((u_int msr, u_int64_t newval));
