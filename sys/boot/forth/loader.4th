@@ -48,9 +48,6 @@ s" arch-i386" environment? [if] [if]
 	[then]
 [then] [then]
 
-256 dictthreshold !  \ 256 cells minimum free space
-2048 dictincrease !  \ 2048 additional cells each time
-
 include /boot/support.4th
 
 \ ***** boot-conf
