@@ -59,6 +59,9 @@ sed	\
 	-e '/	axe	/d' \
 	-e '/	cue	/d' \
 	-e '/	kue	/d' \
+	-e '/	firewire	/d' \
+	-e '/	sbp	/d' \
+	-e '/	fwe	/d' \
 
 echo "options  SCSI_NO_OP_STRINGS" 
 echo "options  SCSI_NO_SENSE_STRINGS"
