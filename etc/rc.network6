@@ -96,6 +96,9 @@ network6_pass1() {
 		#
 		ipv6_network_interfaces="`ifconfig -l`"
 		;;
+	[Nn][Oo][Nn][Ee])
+		ipv6_network_interfaces=''
+		;;
 	esac
 
 	# just to make sure
@@ -120,17 +123,20 @@ network6_pass1() {
 		;;
 	*)
 		# act as endhost - start with manual configuration
+		# Setup of net.inet6.ip6.accept_rtadv is done later by
+		# network6_interface_setup.
 		sysctl net.inet6.ip6.forwarding=0
-		sysctl net.inet6.ip6.accept_rtadv=0
 		;;
 	esac
 
-	# setting up interfaces
-	network6_interface_setup $ipv6_network_interfaces
+	if [ -n "${ipv6_network_interfaces}" ]; then
+		# setting up interfaces
+		network6_interface_setup $ipv6_network_interfaces
 
-	# wait for DAD's completion (for global addrs)
-	sleep `sysctl -n net.inet6.ip6.dad_count`
-	sleep 1
+		# wait for DAD's completion (for global addrs)
+		sleep `sysctl -n net.inet6.ip6.dad_count`
+		sleep 1
+	fi
 
 	case ${ipv6_gateway_enable} in
 	[Yy][Ee][Ss])
