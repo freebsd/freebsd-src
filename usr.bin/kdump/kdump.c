@@ -56,6 +56,7 @@ extern int errno;
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <locale.h>
 #include "ktrace.h"
 
 int timestamp, decimal, fancy = 1, tail, maxdata;
@@ -73,6 +74,8 @@ main(argc, argv)
 	int ch, ktrlen, size;
 	register void *m;
 	int trpoints = ALL_POINTS;
+
+	(void) setlocale(LC_CTYPE, "");
 
 	while ((ch = getopt(argc,argv,"f:dlm:nRTt:")) != EOF)
 		switch((char)ch) {
