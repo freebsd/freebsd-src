@@ -1,13 +1,14 @@
 #
 # GENERIC -- Generic machine with WD/AHx/NCR/BTx family disks
 #
-#	$Id: GENERIC,v 1.54 1995/12/12 08:46:34 gibbs Exp $
+#	$Id: GENERIC,v 1.55 1995/12/14 14:35:27 peter Exp $
 #
 
 machine		"i386"
 cpu		"I386_CPU"
 cpu		"I486_CPU"
 cpu		"I586_CPU"
+cpu		"I686_CPU"
 ident		GENERIC
 maxusers	10
 
