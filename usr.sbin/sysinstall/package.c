@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: package.c,v 1.9 1995/10/22 01:32:58 jkh Exp $
+ * $Id: package.c,v 1.11 1995/10/22 12:04:11 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -71,32 +71,36 @@ package_extract(Device *dev, char *name)
     int i, fd, ret;
 
     /* Check to make sure it's not already there */
-    if (!vsystem("pkg_info -e %s", name))
+    if (!vsystem("pkg_info -e %s", name)) {
+	msgDebug("package %s marked as already installed - return SUCCESS.\n");
 	return RET_SUCCESS;
+    }
 
     if (!dev->init(dev)) {
-	msgConfirm("Unable to initialize media type for package add.");
+	dialog_clear();
+	msgConfirm("Unable to initialize media type for package extract.");
 	return RET_FAIL;
     }
 
     ret = RET_FAIL;
     sprintf(path, "packages/All/%s%s", name, strstr(name, ".tgz") ? "" : ".tgz");
-    msgDebug("pkg_extract: Attempting to fetch %s\n", path);
+    msgNotify("pkg_extract: Attempting to fetch %s from %s", path, dev->name);
     fd = dev->get(dev, path, TRUE);
     if (fd >= 0) {
 	pid_t tpid;
 
-	msgNotify("Fetching %s from %s", path, dev->name);
 	pen[0] = '\0';
 	if ((where = make_playpen(pen, 0)) != NULL) {
 	    if (isDebug())
 		msgDebug("Working in temporary directory %s, will return to %s\n", pen, where);
 	    tpid = fork();
 	    if (!tpid) {
-		dup2(fd, 0);
-		i = vsystem("tar %s-xzf -", !strcmp(variable_get(VAR_CPIO_VERBOSITY), "high") ? "-v " : "");
-		if (isDebug())
-		    msgDebug("tar command returns %d status\n", i);
+		dup2(fd, 0); close(fd);
+		dup2(DebugFD, 1);
+		dup2(DebugFD, 2);
+		i = vsystem("tar %s-xpzf -", !strcmp(variable_get(VAR_CPIO_VERBOSITY), "high") ? "-v " : "");
+		if (i)
+		    msgDebug("tar command returns %d status (errno: %d)\n", i, errno);
 		exit(i);
 	    }
 	    else {
@@ -104,9 +108,11 @@ package_extract(Device *dev, char *name)
 		
 		tpid = waitpid(tpid, &pstat, 0);
 		if (vsystem("(pwd; cat +CONTENTS) | pkg_add %s-S",
-			    !strcmp(variable_get(VAR_CPIO_VERBOSITY), "high") ? "-v " : ""))
+			    !strcmp(variable_get(VAR_CPIO_VERBOSITY), "high") ? "-v " : "")) {
+		    dialog_clear();
 		    msgConfirm("An error occurred while trying to pkg_add %s.\n"
 			       "Please check debugging screen for possible further details.", path);
+		}
 		else
 		    ret = RET_SUCCESS;
 		close(fd);
@@ -117,16 +123,28 @@ package_extract(Device *dev, char *name)
 	    if (isDebug())
 		msgDebug("Nuked pen: %s\n", pen);
 	}
-	else
+	else {
+	    dialog_clear();
 	    msgConfirm("Unable to find a temporary location to unpack this stuff in.\n"
 		       "You must simply not have enough space or you've configured your\n"
 		       "system oddly.  Sorry!");
+	    ret = RET_FAIL;
+	}
 	dev->close(dev, fd);
 	if (dev->type == DEVICE_TYPE_TAPE)
 	    unlink(path);
     }
-    else
+    else {
 	msgDebug("pkg_extract: get operation returned %d\n", fd);
+	if (variable_get(VAR_NO_CONFIRM))
+	    msgNotify("Unable to fetch package %s from selected media.\n"
+		      "No package add will be done.");
+	else {
+	    dialog_clear();
+	    msgConfirm("Unable to fetch package %s from selected media.\n"
+		       "No package add will be done.");
+	}
+    }
     return ret;
 }
 
@@ -158,6 +176,7 @@ find_play_pen(char *pen, size_t sz)
 	     min_free("/usr/tmp") >= sz)
 	strcpy(pen, "/usr/tmp/instmp.XXXXXX");
     else {
+	dialog_clear();
 	msgConfirm("Can't find enough temporary space to extract the files, please try\n"
 		   "This again after your system is up (you can run /stand/sysinstall\n"
 		   "directly) and you've had a chance to point /var/tmp somewhere with\n"
@@ -180,10 +199,12 @@ make_playpen(char *pen, size_t sz)
 	return NULL;
 
     if (!mktemp(pen)) {
+	dialog_clear();
 	msgConfirm("Can't mktemp '%s'.", pen);
 	return NULL;
     }
     if (mkdir(pen, 0755) == RET_FAIL) {
+	dialog_clear();
 	msgConfirm("Can't mkdir '%s'.", pen);
 	return NULL;
     }
@@ -193,6 +214,7 @@ make_playpen(char *pen, size_t sz)
     }
     if (min_free(pen) < sz) {
 	rmdir(pen);
+	dialog_clear();
 	msgConfirm("Not enough free space to create: `%s'\n"
 		   "Please try this again after your system is up (you can run\n"
 		   "/stand/sysinstall directly) and you've had a chance to point\n"
@@ -200,10 +222,13 @@ make_playpen(char *pen, size_t sz)
         return NULL;
     }
     if (!getcwd(Previous, FILENAME_MAX)) {
+	dialog_clear();
 	msgConfirm("getcwd");
 	return NULL;
     }
-    if (chdir(pen) == RET_FAIL)
+    if (chdir(pen) == RET_FAIL) {
+	dialog_clear();
 	msgConfirm("Can't chdir to '%s'.", pen);
+    }
     return Previous;
 }
