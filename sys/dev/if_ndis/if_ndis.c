@@ -1197,7 +1197,7 @@ ndis_intr(arg)
 	sc = arg;
 	ifp = &sc->arpcom.ac_if;
 
-	if (!(ifp->if_flags & IFF_UP) &&
+	if (!(ifp->if_flags & IFF_UP) || 
 	    sc->ndis_block.nmb_miniportadapterctx == NULL)
 		return;
 
@@ -1463,7 +1463,8 @@ ndis_init(xsc)
 	 */
 	ndis_reset_nic(sc);
 	ndis_stop(sc);
-	ndis_init_nic(sc);
+	if (ndis_init_nic(sc))
+		return;
 
 	/* Init our MAC address */
 
