@@ -81,3 +81,9 @@ makewhatis "${MANPATH}"
 #echo ""
 #echo "Reformatting manual pages:"
 #echo catman "${MANPATH}" | su man
+
+echo ""
+echo "Cleaning up kernel database files:"
+kernel=`sysctl -n kern.bootfile`
+kernel=kvm_`basename ${kernel}`.db
+find /var/db -name "kvm_*.db" -a ! -name ${kernel} -a -atime +7 -exec rm -f -- {} \;
