@@ -85,54 +85,24 @@ struct	save87 {
 	u_char	sv_pad[64];	/* padding; used by emulators */
 };
 
-/* Intel prefers long real (53 bit) precision */
-#define	__iBCS_NPXCW__		0x262
-/* wfj prefers temporary real (64 bit) precision */
-#define	__386BSD_NPXCW__	0x362
 /*
- * bde prefers 53 bit precision and all exceptions masked.
- *
- * The standard control word from finit is 0x37F, giving:
+ * The hardware default control for i387's and later coprocessors is
+ * 0x37F, giving:
  *
  *	round to nearest
  *	64-bit precision
  *	all exceptions masked.
  *
- * Now I want:
+ * We modify the affine mode bit and precision bits in this to give:
  *
  *	affine mode for 287's (if they work at all) (1 in bitfield 1<<12)
  *	53-bit precision (2 in bitfield 3<<8)
- *	overflow exception unmasked (0 in bitfield 1<<3)
- *	zero divide exception unmasked (0 in bitfield 1<<2)
- *	invalid-operand exception unmasked (0 in bitfield 1<<0).
  *
  * 64-bit precision often gives bad results with high level languages
  * because it makes the results of calculations depend on whether
  * intermediate values are stored in memory or in FPU registers.
- *
- * The "Intel" and wfj control words have:
- *
- *	underflow exception unmasked (0 in bitfield 1<<4)
- *
- * but that causes an unexpected exception in the test program 'paranoia'
- * and makes denormals useless (DBL_MIN / 2 underflows).  It doesn't make
- * a lot of sense to trap underflow without trapping denormals.
- *
- * Later I will want the IEEE default of all exceptions masked.  See the
- * 0.0 math manpage for why this is better.  The 0.1 math manpage is empty.
  */
-#define	__BDE_NPXCW__		0x1272
-#define	__BETTER_BDE_NPXCW__	0x127f
-
-#ifdef __BROKEN_NPXCW__
-#ifdef __FreeBSD__
-#define	__INITIAL_NPXCW__	__386BSD_NPXCW__
-#else
-#define	__INITIAL_NPXCW__	__iBCS_NPXCW__
-#endif
-#else
-#define	__INITIAL_NPXCW__	__BDE_NPXCW__
-#endif
+#define	__INITIAL_NPXCW__	0x127F
 
 #ifdef KERNEL
 extern struct proc *npxproc;
