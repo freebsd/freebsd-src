@@ -70,7 +70,7 @@ OBJCOPY?=	objcopy
 
 .SUFFIXES: .out .o .c .cc .cxx .C .y .l .s .S
 
-CFLAGS+=	${COPTS} -D_KERNEL ${CWARNFLAGS}
+CFLAGS+=	${COPTS} -D_KERNEL
 CFLAGS+=	-DKLD_MODULE
 
 # Don't use any standard or source-relative include directories.
