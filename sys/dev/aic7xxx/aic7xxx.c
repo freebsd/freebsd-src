@@ -3924,7 +3924,7 @@ ahc_alloc(void *platform_arg, char *name)
 		return (NULL);
 	}
 	LIST_INIT(&ahc->pending_scbs);
-	LIST_INIT(&ahd->timedout_scbs);
+	LIST_INIT(&ahc->timedout_scbs);
 	/* We don't know our unit number until the OSM sets it */
 	ahc->name = name;
 	ahc->unit = -1;
@@ -6707,6 +6707,12 @@ ahc_print_register(ahc_reg_parse_entry_t *table, u_int num_entries,
 {
 	int	printed;
 	u_int	printed_mask;
+	u_int	dummy_column;
+
+	if (cur_column == NULL) {
+		dummy_column = 0;
+		cur_column = &dummy_column;
+	}
 
 	if (cur_column != NULL && *cur_column >= wrap_point) {
 		printf("\n");
