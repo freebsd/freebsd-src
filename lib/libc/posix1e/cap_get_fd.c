@@ -47,6 +47,7 @@ cap_get_fd(int fd)
 
 	error = __cap_get_fd(fd, cap);
 	if (error) {
+		errno = erro;
 		cap_free(cap);
 		return (NULL);
 	}
