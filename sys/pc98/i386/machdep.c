@@ -104,6 +104,7 @@
 #ifdef PERFMON
 #include <machine/perfmon.h>
 #endif
+#include <machine/cputypes.h>
 
 #ifdef OLD_BUS_ARCH
 #include <i386/isa/isa_device.h>
@@ -248,6 +249,7 @@ vm_offset_t phys_avail[10];
 static vm_offset_t buffer_sva, buffer_eva;
 vm_offset_t clean_sva, clean_eva;
 static vm_offset_t pager_sva, pager_eva;
+static struct trapframe proc0_tf;
 
 static void
 cpu_startup(dummy)
@@ -441,6 +443,7 @@ again:
 	mp_start();			/* fire up the APs and APICs */
 	mp_announce();
 #endif  /* SMP */
+	cpu_setregs();
 }
 
 int
@@ -1076,6 +1079,22 @@ setregs(p, entry, stack, ps_strings)
        * on it.
        */
       p->p_retval[1] = 0;
+}
+
+void
+cpu_setregs(void)
+{
+	unsigned int cr0;
+
+	cr0 = rcr0();
+	cr0 |= CR0_NE;			/* Done by npxinit() */
+	cr0 |= CR0_MP | CR0_TS;		/* Done at every execve() too. */
+#ifdef I386_CPU
+	if (cpu_class != CPUCLASS_386)
+#endif
+		cr0 |= CR0_WP | CR0_AM;
+	load_cr0(cr0);
+	load_gs(_udatasel);
 }
 
 static int
@@ -2030,6 +2049,7 @@ init386(first)
 	proc0.p_addr->u_pcb.pcb_mpnest = 1;
 #endif
 	proc0.p_addr->u_pcb.pcb_ext = 0;
+	proc0.p_md.md_regs = &proc0_tf;
 }
 
 #if defined(I586_CPU) && !defined(NO_F00F_HACK)
