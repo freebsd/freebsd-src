@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998,1999 Søren Schmidt
+ * Copyright (c) 1998,1999,2000 Søren Schmidt
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
