@@ -220,6 +220,11 @@ isdn4bsd has been added.
 Experimental support for the Eicon.Diehl DIVA 2.0 and 2.02 ISA PnP
 ISDN cards has been added to the isic(4) isdn4bsd driver.
 
+Active CAPI-based ISDN cards manufacured by AVM are now supported 
+using the i4bcapi(4) and the iavc(4) driver. The supported cards
+are the AVM B1 PCI and AVM B1 ISA Basic Rate cards and the AVM T1
+Primary Rate cards.
+
 Support for Fujitsu MB86960A/MB86965A based Ethernet PC-Cards is back.
 [MERGED]
 

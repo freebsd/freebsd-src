@@ -302,6 +302,7 @@ ifpnp:	isdn4bsd AVM Fritz!card PnP driver
 ihfc:	isdn4bsd Cologne Chip HFC ISA driver
 isic:	isdn4bsd Siemens/Infineon ISDN chipset driver (ISAC+HSCX/IPAC)
 iwic:	isdn4bsd Winbond W6692 PCI ISDN chip driver
+iavc:	isdn4bsd AVM B1 and AVM T1 active CAPI-based ISDN cards
 joy:    Joystick
 labpc:  National Instrument's Lab-PC and Lab-PC+
 meteor: Matrox Meteor frame-grabber card
@@ -896,14 +897,25 @@ Scanners (through SANE):
 Miscalleneous:
    ActiveWire I/O Board.
 
-4.4.    ISDN (European DSS1 [Q.921/Q.931] protocol)
-----    -------------------------------------------
+4.4.    ISDN
+----    ----
+
+Note: only European DSS1 [Q.921/Q.931] protocol supported for passive cards,
+      any national ISDN protocol supported by active ISDN card microcode.
+
+AcerISDN P10 ISA PnP (experimental)
 
 Asuscom ISDNlink 128K PnP
+ASUSCOM P-IN100-ST-D (and other Winbond W6692 based cards)
 
 AVM A1
 AVM Fritz!Card classic
+AVM Fritz!Card PnP
 AVM Fritz!Card PCI
+
+AVM B1 ISA (tested with V2.0)
+AVM B1 PCI (tested with V4.0)
+AVM T1
 
 Creatix ISDN-S0/8
 Creatix ISDN-S0/16
@@ -913,9 +925,13 @@ Dr.Neuhaus Niccy 1008
 Dr.Neuhaus Niccy 1016
 Dr.Neuhaus Niccy GO@ (ISA PnP)
 
+Eicon Diehl DIVA 2.0 and 2.02
+
 ELSA QuickStep 1000pro ISA
 ELSA MicroLink ISDN/PCI (same as ELSA QuickStep 1000pro PCI)
 ELSA PCC-16
+
+ITK ix1 Micro ( < V.3, non-PnP version )
 
 Sagem Cybermod (ISA PnP)
 
@@ -923,10 +939,13 @@ Sedlbauer Win Speed
 
 Siemens I-Surf 2.0
 
+TELEINT ISDN SPEED No.1 (experimental)
+
 Teles S0/8
 Teles S0/16
-Teles S0/16.3 (the "c" Versions - like 16.3c - are unsupported !)
+Teles S0/16.3
 Teles S0/16.3 PnP
+Teles 16.3c ISA PnP (experimental)
 
 
 4.5.    Misc
