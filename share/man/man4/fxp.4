@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 24, 2004
+.Dd January 30, 2005
 .Dt FXP 4
 .Os
 .Sh NAME
@@ -64,6 +64,19 @@ Set full duplex operation
 .Pp
 Note that 100baseTX media type is not available on the Pro/10.
 For further information on configuring this device, see
+.Xr ifconfig 8 .
+.Pp
+The
+.Nm
+driver supports reception and transmission of extended frames
+for
+.Xr vlan 4 .
+This capability of
+.Nm
+can be controlled by means of the
+.Cm vlanmtu
+parameter
+to
 .Xr ifconfig 8 .
 .Pp
 The
@@ -137,6 +150,7 @@ parameterized values to the given settings.
 .Xr netintro 4 ,
 .Xr ng_ether 4 ,
 .Xr polling 4 ,
+.Xr vlan 4 ,
 .Xr ifconfig 8
 .Sh HISTORY
 The
