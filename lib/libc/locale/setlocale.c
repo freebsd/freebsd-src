@@ -93,8 +93,8 @@ static char saved_categories[_LC_LAST][ENCODING_LEN + 1];
 
 static char current_locale_string[_LC_LAST * (ENCODING_LEN + 1/*"/"*/ + 1)];
 
-static char	*currentlocale __P((void));
-static char	*loadlocale __P((int));
+static char	*currentlocale(void);
+static char	*loadlocale(int);
 
 char *
 setlocale(category, locale)

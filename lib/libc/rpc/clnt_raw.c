@@ -78,12 +78,12 @@ static struct clntraw_private {
 
 static enum clnt_stat clnt_raw_call __P((CLIENT *, rpcproc_t, xdrproc_t,
     caddr_t, xdrproc_t, caddr_t, struct timeval));
-static void clnt_raw_geterr __P((CLIENT *, struct rpc_err *));
-static bool_t clnt_raw_freeres __P((CLIENT *, xdrproc_t, caddr_t));
-static void clnt_raw_abort __P((CLIENT *));
-static bool_t clnt_raw_control __P((CLIENT *, u_int, char *));
-static void clnt_raw_destroy __P((CLIENT *));
-static struct clnt_ops *clnt_raw_ops __P((void));
+static void clnt_raw_geterr(CLIENT *, struct rpc_err *);
+static bool_t clnt_raw_freeres(CLIENT *, xdrproc_t, caddr_t);
+static void clnt_raw_abort(CLIENT *);
+static bool_t clnt_raw_control(CLIENT *, u_int, char *);
+static void clnt_raw_destroy(CLIENT *);
+static struct clnt_ops *clnt_raw_ops(void);
 
 /*
  * Create a client handle for memory based rpc.

@@ -88,7 +88,7 @@ cryptkeyres *(*__key_encryptsession_pk_LOCAL)() = 0;
 cryptkeyres *(*__key_decryptsession_pk_LOCAL)() = 0;
 des_block *(*__key_gendes_LOCAL)() = 0;
 
-static int key_call __P(( u_long, xdrproc_t, char *, xdrproc_t, char * ));
+static int key_call( u_long, xdrproc_t, char *, xdrproc_t, char * );
 
 int
 key_setsecret(secretkey)

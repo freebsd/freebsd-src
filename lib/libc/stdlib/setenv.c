@@ -42,7 +42,7 @@ static const char rcsid[] = "$FreeBSD$";
 #include <stdlib.h>
 #include <string.h>
 
-char *__findenv __P((const char *, int *));
+char *__findenv(const char *, int *);
 
 /*
  * setenv --

@@ -217,7 +217,7 @@ struct res_target {
 	int n;			/* result length */
 };
 
-static int str_isnumber __P((const char *));
+static int str_isnumber(const char *);
 static int explore_fqdn __P((const struct addrinfo *, const char *,
 	const char *, struct addrinfo **));
 static int explore_null __P((const struct addrinfo *,
@@ -230,29 +230,29 @@ static int get_canonname __P((const struct addrinfo *,
 	struct addrinfo *, const char *));
 static struct addrinfo *get_ai __P((const struct addrinfo *,
 	const struct afd *, const char *));
-static int get_portmatch __P((const struct addrinfo *, const char *));
-static int get_port __P((struct addrinfo *, const char *, int));
-static const struct afd *find_afd __P((int));
-static int addrconfig __P((struct addrinfo *));
+static int get_portmatch(const struct addrinfo *, const char *);
+static int get_port(struct addrinfo *, const char *, int);
+static const struct afd *find_afd(int);
+static int addrconfig(struct addrinfo *);
 #ifdef INET6
-static int ip6_str2scopeid __P((char *, struct sockaddr_in6 *));
+static int ip6_str2scopeid(char *, struct sockaddr_in6 *);
 #endif
 
 static struct addrinfo *getanswer __P((const querybuf *, int, const char *, int,
 	const struct addrinfo *));
-static int _dns_getaddrinfo __P((void *, void *, va_list));
-static void _sethtent __P((void));
-static void _endhtent __P((void));
-static struct addrinfo *_gethtent __P((const char *, const struct addrinfo *));
-static int _files_getaddrinfo __P((void *, void *, va_list));
+static int _dns_getaddrinfo(void *, void *, va_list);
+static void _sethtent(void);
+static void _endhtent(void);
+static struct addrinfo *_gethtent(const char *, const struct addrinfo *);
+static int _files_getaddrinfo(void *, void *, va_list);
 #ifdef YP
-static struct addrinfo *_yphostent __P((char *, const struct addrinfo *));
-static int _yp_getaddrinfo __P((void *, void *, va_list));
-extern int _yp_check __P((char **));
+static struct addrinfo *_yphostent(char *, const struct addrinfo *);
+static int _yp_getaddrinfo(void *, void *, va_list);
+extern int _yp_check(char **);
 #endif
 
-static int res_queryN __P((const char *, struct res_target *));
-static int res_searchN __P((const char *, struct res_target *));
+static int res_queryN(const char *, struct res_target *);
+static int res_searchN(const char *, struct res_target *);
 static int res_querydomainN __P((const char *, const char *,
 	struct res_target *));
 
@@ -1144,7 +1144,7 @@ getanswer(answer, anslen, qname, qtype, pai)
 	int type, class, buflen, ancount, qdcount;
 	int haveanswer, had_error;
 	char tbuf[MAXDNAME];
-	int (*name_ok) __P((const char *));
+	int (*name_ok)(const char *);
 	char hostbuf[8*1024];
 
 	memset(&sentinel, 0, sizeof(sentinel));
@@ -1671,7 +1671,7 @@ _yp_getaddrinfo(rv, cb_data, ap)
 
 /* resolver logic */
 
-extern const char *__hostalias __P((const char *));
+extern const char *__hostalias(const char *);
 extern int h_errno;
 
 /*

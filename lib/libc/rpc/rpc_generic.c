@@ -101,9 +101,9 @@ static const struct netid_af na_cvt[] = {
 };
 
 #if 0
-static char *strlocase __P((char *));
+static char *strlocase(char *);
 #endif
-static int getnettype __P((const char *));
+static int getnettype(const char *);
 
 /*
  * Cache the result of getrlimit(), so we don't have to do an

@@ -124,8 +124,8 @@ static res_send_rhook Rhook = NULL;
 		} else {}
 static char abuf[NI_MAXHOST];
 static char pbuf[NI_MAXSERV];
-static void Aerror __P((FILE *, char *, int, struct sockaddr *));
-static void Perror __P((FILE *, char *, int));
+static void Aerror(FILE *, char *, int, struct sockaddr *);
+static void Perror(FILE *, char *, int);
 
     static void
     Aerror(file, string, error, address)
@@ -180,7 +180,7 @@ res_send_setrhook(hook)
 	Rhook = hook;
 }
 
-static struct sockaddr * get_nsaddr __P((size_t));
+static struct sockaddr * get_nsaddr(size_t);
 
 /*
  * pick appropriate nsaddr_list for use.  see res_init() for initialization.

@@ -91,12 +91,12 @@ static char rcsid[] = "$FreeBSD$";
 
 #include "res_config.h"
 
-static void res_setoptions __P((char *, char *));
+static void res_setoptions(char *, char *);
 
 #ifdef RESOLVSORT
 static const char sort_mask[] = "/&";
 #define ISSORTMASK(ch) (strchr(sort_mask, ch) != NULL)
-static u_int32_t net_mask __P((struct in_addr));
+static u_int32_t net_mask(struct in_addr);
 #endif
 
 #if !defined(isascii) /* XXX - could be a function */

@@ -70,17 +70,17 @@
 #define	MAX(a, b)	(((a) > (b)) ? (a) : (b))
 #endif
 
-static void svc_dg_ops __P((SVCXPRT *));
-static enum xprt_stat svc_dg_stat __P((SVCXPRT *));
-static bool_t svc_dg_recv __P((SVCXPRT *, struct rpc_msg *));
-static bool_t svc_dg_reply __P((SVCXPRT *, struct rpc_msg *));
-static bool_t svc_dg_getargs __P((SVCXPRT *, xdrproc_t, caddr_t));
-static bool_t svc_dg_freeargs __P((SVCXPRT *, xdrproc_t, caddr_t));
-static void svc_dg_destroy __P((SVCXPRT *));
-static bool_t svc_dg_control __P((SVCXPRT *, const u_int, void *));
-static int cache_get __P((SVCXPRT *, struct rpc_msg *, char **, size_t *));
-static void cache_set __P((SVCXPRT *, size_t));
-int svc_dg_enablecache __P((SVCXPRT *, u_int));
+static void svc_dg_ops(SVCXPRT *);
+static enum xprt_stat svc_dg_stat(SVCXPRT *);
+static bool_t svc_dg_recv(SVCXPRT *, struct rpc_msg *);
+static bool_t svc_dg_reply(SVCXPRT *, struct rpc_msg *);
+static bool_t svc_dg_getargs(SVCXPRT *, xdrproc_t, caddr_t);
+static bool_t svc_dg_freeargs(SVCXPRT *, xdrproc_t, caddr_t);
+static void svc_dg_destroy(SVCXPRT *);
+static bool_t svc_dg_control(SVCXPRT *, const u_int, void *);
+static int cache_get(SVCXPRT *, struct rpc_msg *, char **, size_t *);
+static void cache_set(SVCXPRT *, size_t);
+int svc_dg_enablecache(SVCXPRT *, u_int);
 
 /*
  * Usage:

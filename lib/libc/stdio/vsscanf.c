@@ -46,7 +46,7 @@ static const char rcsid[] =
 #include <string.h>
 
 static int
-eofread __P((void *, char *, int));
+eofread(void *, char *, int);
 
 /* ARGSUSED */
 static int

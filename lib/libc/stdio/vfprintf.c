@@ -112,14 +112,14 @@ enum typeid {
 	T_DOUBLE, T_LONG_DOUBLE
 };
 
-static int	__sprint __P((FILE *, struct __suio *));
+static int	__sprint(FILE *, struct __suio *);
 static int	__sbprintf __P((FILE *, const char *, va_list)) __printflike(2, 0);
 static char	*__ujtoa __P((uintmax_t, char *, int, int, char *, int,
 		     char, const char *));
 static char	*__ultoa __P((u_long, char *, int, int, char *, int,
 		     char, const char *));
-static void	__find_arguments __P((const char *, va_list, union arg **));
-static void	__grow_type_table __P((int, enum typeid **, int *));
+static void	__find_arguments(const char *, va_list, union arg **);
+static void	__grow_type_table(int, enum typeid **, int *);
 
 /*
  * Flush out all the vectors defined by the given uio,
@@ -354,8 +354,8 @@ vfprintf(FILE *fp, const char *fmt0, va_list ap)
 #define	BUF		((MAXEXP*2)+MAXFRACT+1)		/* + decimal point */
 #define	DEFPREC		6
 
-static char *cvt __P((double, int, int, char *, int *, int, int *, char **));
-static int exponent __P((char *, int, int));
+static char *cvt(double, int, int, char *, int *, int, int *, char **);
+static int exponent(char *, int, int);
 
 #else /* no FLOATING_POINT */
 
@@ -1392,7 +1392,7 @@ __grow_type_table (int nextarg, enum typeid **typetable, int *tablesize)
 
 #ifdef FLOATING_POINT
 
-extern char *__dtoa __P((double, int, int, int *, int *, char **, char **));
+extern char *__dtoa(double, int, int, int *, int *, char **, char **);
 
 static char *
 cvt(double value, int ndigits, int flags, char *sign, int *decpt,

@@ -45,8 +45,8 @@ static char sccsid[] = "@(#)none.c	8.1 (Berkeley) 6/4/93";
 #include <rune.h>
 #include <stdlib.h>
 
-rune_t	_none_sgetrune __P((const char *, size_t, char const **));
-int	_none_sputrune __P((rune_t, char *, size_t, char **));
+rune_t	_none_sgetrune(const char *, size_t, char const **);
+int	_none_sputrune(rune_t, char *, size_t, char **);
 
 int
 _none_init(rl)

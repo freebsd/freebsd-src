@@ -89,15 +89,15 @@ struct cmessage {
 
 static enum clnt_stat clnt_vc_call __P((CLIENT *, rpcproc_t, xdrproc_t, caddr_t,
     xdrproc_t, caddr_t, struct timeval));
-static void clnt_vc_geterr __P((CLIENT *, struct rpc_err *));
-static bool_t clnt_vc_freeres __P((CLIENT *, xdrproc_t, caddr_t));
-static void clnt_vc_abort __P((CLIENT *));
-static bool_t clnt_vc_control __P((CLIENT *, u_int, char *));
-static void clnt_vc_destroy __P((CLIENT *));
-static struct clnt_ops *clnt_vc_ops __P((void));
-static bool_t time_not_ok __P((struct timeval *));
-static int read_vc __P((caddr_t, caddr_t, int));
-static int write_vc __P((caddr_t, caddr_t, int));
+static void clnt_vc_geterr(CLIENT *, struct rpc_err *);
+static bool_t clnt_vc_freeres(CLIENT *, xdrproc_t, caddr_t);
+static void clnt_vc_abort(CLIENT *);
+static bool_t clnt_vc_control(CLIENT *, u_int, char *);
+static void clnt_vc_destroy(CLIENT *);
+static struct clnt_ops *clnt_vc_ops(void);
+static bool_t time_not_ok(struct timeval *);
+static int read_vc(caddr_t, caddr_t, int);
+static int write_vc(caddr_t, caddr_t, int);
 static int __msgwrite(int, void *, size_t);
 static int __msgread(int, void *, size_t);
 

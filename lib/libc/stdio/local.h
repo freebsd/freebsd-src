@@ -46,29 +46,29 @@
  * in particular, macros and private variables.
  */
 
-extern int	_sread __P((FILE *, char *, int));
-extern int	_swrite __P((FILE *, char const *, int));
-extern fpos_t	_sseek __P((FILE *, fpos_t, int));
-extern int	_ftello __P((FILE *, fpos_t *));
-extern int	_fseeko __P((FILE *, off_t, int, int));
-extern int	__fflush __P((FILE *fp));
-extern int	__sflush __P((FILE *));
-extern FILE	*__sfp __P((void));
-extern int	__srefill __P((FILE *));
-extern int	__sread __P((void *, char *, int));
-extern int	__swrite __P((void *, char const *, int));
-extern fpos_t	__sseek __P((void *, fpos_t, int));
-extern int	__sclose __P((void *));
-extern void	__sinit __P((void));
-extern void	_cleanup __P((void));
-extern void	(*__cleanup) __P((void));
-extern void	__smakebuf __P((FILE *));
-extern int	__swhatbuf __P((FILE *, size_t *, int *));
-extern int	_fwalk __P((int (*)(FILE *)));
-extern int	__swsetup __P((FILE *));
-extern int	__sflags __P((const char *, int *));
-extern int	__ungetc __P((int, FILE *));
-extern int	__vfprintf __P((FILE *, const char *, _BSD_VA_LIST_));
+extern int	_sread(FILE *, char *, int);
+extern int	_swrite(FILE *, char const *, int);
+extern fpos_t	_sseek(FILE *, fpos_t, int);
+extern int	_ftello(FILE *, fpos_t *);
+extern int	_fseeko(FILE *, off_t, int, int);
+extern int	__fflush(FILE *fp);
+extern int	__sflush(FILE *);
+extern FILE	*__sfp(void);
+extern int	__srefill(FILE *);
+extern int	__sread(void *, char *, int);
+extern int	__swrite(void *, char const *, int);
+extern fpos_t	__sseek(void *, fpos_t, int);
+extern int	__sclose(void *);
+extern void	__sinit(void);
+extern void	_cleanup(void);
+extern void	(*__cleanup)(void);
+extern void	__smakebuf(FILE *);
+extern int	__swhatbuf(FILE *, size_t *, int *);
+extern int	_fwalk(int (*)(FILE *));
+extern int	__swsetup(FILE *);
+extern int	__sflags(const char *, int *);
+extern int	__ungetc(int, FILE *);
+extern int	__vfprintf(FILE *, const char *, _BSD_VA_LIST_);
 
 extern int	__sdidinit;
 

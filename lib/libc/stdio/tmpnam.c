@@ -48,7 +48,7 @@ static char sccsid[] = "@(#)tmpnam.c	8.3 (Berkeley) 3/28/94";
 __warn_references(tmpnam,
     "warning: tmpnam() possibly used unsafely; consider using mkstemp()");
 
-extern char *_mktemp __P((char *));
+extern char *_mktemp(char *);
 
 char *
 tmpnam(s)

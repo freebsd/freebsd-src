@@ -49,39 +49,39 @@ struct fpemu;
 struct fpn;
 
 /* fpu.c */
-void __fpu_exception __P((struct utrapframe *tf));
-void __fpu_panic __P((char *msg));
+void __fpu_exception(struct utrapframe *tf);
+void __fpu_panic(char *msg);
 
 /* fpu_add.c */
-struct fpn *__fpu_add __P((struct fpemu *));
+struct fpn *__fpu_add(struct fpemu *);
 
 /* fpu_compare.c */
-void __fpu_compare __P((struct fpemu *, int, int));
+void __fpu_compare(struct fpemu *, int, int);
 
 /* fpu_div.c */
-struct fpn *__fpu_div __P((struct fpemu *));
+struct fpn *__fpu_div(struct fpemu *);
 
 /* fpu_explode.c */
-int __fpu_itof __P((struct fpn *, u_int));
-int __fpu_xtof __P((struct fpn *, u_int64_t));
-int __fpu_stof __P((struct fpn *, u_int));
-int __fpu_dtof __P((struct fpn *, u_int, u_int ));
-int __fpu_qtof __P((struct fpn *, u_int, u_int , u_int , u_int ));
-void __fpu_explode __P((struct fpemu *, struct fpn *, int, int ));
+int __fpu_itof(struct fpn *, u_int);
+int __fpu_xtof(struct fpn *, u_int64_t);
+int __fpu_stof(struct fpn *, u_int);
+int __fpu_dtof(struct fpn *, u_int, u_int );
+int __fpu_qtof(struct fpn *, u_int, u_int , u_int , u_int );
+void __fpu_explode(struct fpemu *, struct fpn *, int, int );
 
 /* fpu_implode.c */
-u_int __fpu_ftoi __P((struct fpemu *, struct fpn *));
-u_int __fpu_ftox __P((struct fpemu *, struct fpn *, u_int *));
-u_int __fpu_ftos __P((struct fpemu *, struct fpn *));
-u_int __fpu_ftod __P((struct fpemu *, struct fpn *, u_int *));
-u_int __fpu_ftoq __P((struct fpemu *, struct fpn *, u_int *));
-void __fpu_implode __P((struct fpemu *, struct fpn *, int, u_int *));
+u_int __fpu_ftoi(struct fpemu *, struct fpn *);
+u_int __fpu_ftox(struct fpemu *, struct fpn *, u_int *);
+u_int __fpu_ftos(struct fpemu *, struct fpn *);
+u_int __fpu_ftod(struct fpemu *, struct fpn *, u_int *);
+u_int __fpu_ftoq(struct fpemu *, struct fpn *, u_int *);
+void __fpu_implode(struct fpemu *, struct fpn *, int, u_int *);
 
 /* fpu_mul.c */
-struct fpn *__fpu_mul __P((struct fpemu *));
+struct fpn *__fpu_mul(struct fpemu *);
 
 /* fpu_sqrt.c */
-struct fpn *__fpu_sqrt __P((struct fpemu *));
+struct fpn *__fpu_sqrt(struct fpemu *);
 
 /* fpu_subr.c */
 /*
@@ -89,9 +89,9 @@ struct fpn *__fpu_sqrt __P((struct fpemu *));
  * Note that the result is probably not a well-formed number (it will lack
  * the normal 1-bit mant[0]&FP_1).
  */
-int __fpu_shr __P((register struct fpn *, register int));
-void __fpu_norm __P((register struct fpn *));
+int __fpu_shr(register struct fpn *, register int);
+void __fpu_norm(register struct fpn *);
 /* Build a new Quiet NaN (sign=0, frac=all 1's). */
-struct fpn *__fpu_newnan __P((register struct fpemu *));
+struct fpn *__fpu_newnan(register struct fpemu *);
 
 #endif /* !_SPARC64_FPU_FPU_EXTERN_H_ */

@@ -70,7 +70,7 @@ struct netpath_vars {
 #define NP_VALID	0xf00d
 #define NP_INVALID	0
 
-char *_get_next_token __P((char *, int));
+char *_get_next_token(char *, int);
 
 
 /*

@@ -31,24 +31,25 @@
  * SUCH DAMAGE.
  *
  *	@(#)extern.h	8.3 (Berkeley) 6/4/94
+ * $FreeBSD$
  */
 
 #include "../btree/extern.h"
 
-int	 __rec_close __P((DB *));
-int	 __rec_delete __P((const DB *, const DBT *, u_int));
-int	 __rec_dleaf __P((BTREE *, PAGE *, u_int32_t));
-int	 __rec_fd __P((const DB *));
-int	 __rec_fmap __P((BTREE *, recno_t));
-int	 __rec_fout __P((BTREE *));
-int	 __rec_fpipe __P((BTREE *, recno_t));
-int	 __rec_get __P((const DB *, const DBT *, DBT *, u_int));
-int	 __rec_iput __P((BTREE *, recno_t, const DBT *, u_int));
-int	 __rec_put __P((const DB *dbp, DBT *, const DBT *, u_int));
-int	 __rec_ret __P((BTREE *, EPG *, recno_t, DBT *, DBT *));
-EPG	*__rec_search __P((BTREE *, recno_t, enum SRCHOP));
-int	 __rec_seq __P((const DB *, DBT *, DBT *, u_int));
-int	 __rec_sync __P((const DB *, u_int));
-int	 __rec_vmap __P((BTREE *, recno_t));
-int	 __rec_vout __P((BTREE *));
-int	 __rec_vpipe __P((BTREE *, recno_t));
+int	 __rec_close(DB *);
+int	 __rec_delete(const DB *, const DBT *, u_int);
+int	 __rec_dleaf(BTREE *, PAGE *, u_int32_t);
+int	 __rec_fd(const DB *);
+int	 __rec_fmap(BTREE *, recno_t);
+int	 __rec_fout(BTREE *);
+int	 __rec_fpipe(BTREE *, recno_t);
+int	 __rec_get(const DB *, const DBT *, DBT *, u_int);
+int	 __rec_iput(BTREE *, recno_t, const DBT *, u_int);
+int	 __rec_put(const DB *dbp, DBT *, const DBT *, u_int);
+int	 __rec_ret(BTREE *, EPG *, recno_t, DBT *, DBT *);
+EPG	*__rec_search(BTREE *, recno_t, enum SRCHOP);
+int	 __rec_seq(const DB *, DBT *, DBT *, u_int);
+int	 __rec_sync(const DB *, u_int);
+int	 __rec_vmap(BTREE *, recno_t);
+int	 __rec_vout(BTREE *);
+int	 __rec_vpipe(BTREE *, recno_t);

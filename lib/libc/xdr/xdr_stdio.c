@@ -54,14 +54,14 @@ static char *rcsid = "$FreeBSD$";
 #include <rpc/xdr.h>
 #include "un-namespace.h"
 
-static void xdrstdio_destroy __P((XDR *));
-static bool_t xdrstdio_getlong __P((XDR *, long *));
-static bool_t xdrstdio_putlong __P((XDR *, const long *));
-static bool_t xdrstdio_getbytes __P((XDR *, char *, u_int));
-static bool_t xdrstdio_putbytes __P((XDR *, const char *, u_int));
-static u_int xdrstdio_getpos __P((XDR *));
-static bool_t xdrstdio_setpos __P((XDR *, u_int));
-static int32_t *xdrstdio_inline __P((XDR *, u_int));
+static void xdrstdio_destroy(XDR *);
+static bool_t xdrstdio_getlong(XDR *, long *);
+static bool_t xdrstdio_putlong(XDR *, const long *);
+static bool_t xdrstdio_getbytes(XDR *, char *, u_int);
+static bool_t xdrstdio_putbytes(XDR *, const char *, u_int);
+static u_int xdrstdio_getpos(XDR *);
+static bool_t xdrstdio_setpos(XDR *, u_int);
+static int32_t *xdrstdio_inline(XDR *, u_int);
 
 /*
  * Ops vector for stdio type XDR
