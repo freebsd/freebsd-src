@@ -37,15 +37,6 @@
 #define _SYS_KTR_H_
 
 /*
- * Hack around due to egcs-1.1.2 not knowing what __func__ is.
- */
-#ifdef __GNUC__
-#if __GNUC__ == 2 && __GNUC_MINOR__ == 91      /* egcs 1.1.2 */
-#define        __func__        __FUNCTION__
-#endif
-#endif
-
-/*
  * Trace classes
  */
 #define	KTR_GEN		0x00000001		/* General (TR) */
