@@ -53,7 +53,7 @@
 #include <sys/errno.h>
 #include <sys/socket.h>
 #include <sys/syslog.h>
-#include <sys/ctype.h>
+/* #include <sys/ctype.h> */
 
 #include <netgraph/ng_message.h>
 #include <netgraph/netgraph.h>
