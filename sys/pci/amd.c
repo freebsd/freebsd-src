@@ -61,12 +61,12 @@
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
-#include <pci/pcivar.h>
-#include <pci/pcireg.h>
-
 #include <machine/bus_pio.h>
 #include <machine/bus.h>
 #include <machine/clock.h>
+#include <machine/resource.h>
+#include <sys/bus.h>
+#include <sys/rman.h>
 
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>
@@ -77,6 +77,8 @@
 #include <cam/scsi/scsi_all.h>
 #include <cam/scsi/scsi_message.h>
 
+#include <pci/pcivar.h>
+#include <pci/pcireg.h>
 #include <pci/amd.h>
 
 #define PCI_DEVICE_ID_AMD53C974 	0x20201022ul
@@ -124,8 +126,7 @@ static void amd_reset(struct amd_softc *amd);
 static u_int8_t * phystovirt(struct amd_srb *pSRB, u_int32_t xferCnt);
 
 void    amd_linkSRB(struct amd_softc *amd);
-static struct amd_softc *
-	amd_init(int unit, pcici_t config_id);
+static int amd_init(device_t);
 static void amd_load_defaults(struct amd_softc *amd);
 static void amd_load_eeprom_or_defaults(struct amd_softc *amd);
 static int amd_EEpromInDO(struct amd_softc *amd);
@@ -135,8 +136,8 @@ static void amd_EEpromOutDI(struct amd_softc *amd, int *regval, int Carry);
 static void amd_Prepare(struct amd_softc *amd, int *regval, u_int8_t EEpromCmd);
 static void amd_ReadEEprom(struct amd_softc *amd);
 
-static const char *amd_probe(pcici_t tag, pcidi_t type);
-static void amd_attach(pcici_t tag, int unit);
+static int amd_probe(device_t);
+static int amd_attach(device_t);
 static void amdcompletematch(struct amd_softc *amd, target_id_t target,
 			     lun_id_t lun, u_int tag, struct srb_queue *queue,
 			     cam_status status);
@@ -154,31 +155,11 @@ amd_clear_msg_state(struct amd_softc *amd)
 	amd->msgin_index = 0;
 }
 
-static u_long amd_count;
-
 /* CAM SIM entry points */
 #define ccb_srb_ptr spriv_ptr0
 #define ccb_amd_ptr spriv_ptr1
 static void	amd_action(struct cam_sim *sim, union ccb *ccb);
 static void	amd_poll(struct cam_sim *sim);
-
-/*
- * PCI device module setup
- */
-static struct pci_device amd_device =
-{
-	"amd",
-	amd_probe,
-	amd_attach,
-	&amd_count,
-	NULL
-};
-
-#ifdef COMPAT_PCI_DRIVER
-COMPAT_PCI_DRIVER(amd, amd_device);
-#else
-DATA_SET(pcidevice_set, amd_device);
-#endif
 
 /*
  * State engine function tables indexed by SCSI phase number
@@ -2134,9 +2115,9 @@ amd_EnDisableCE(struct amd_softc *amd, int mode, int *regval)
 	} else {
 		*regval = 0x80;
 	}
-	pci_cfgwrite(amd->config_id, *regval, 0, /*bytes*/1);
+	pci_write_config(amd->dev, *regval, 0, /*bytes*/1);
 	if (mode == DISABLE_CE) {
-		pci_cfgwrite(amd->config_id, *regval, 0, /*bytes*/1);
+		pci_write_config(amd->dev, *regval, 0, /*bytes*/1);
 	}
 	DELAY(160);
 }
@@ -2150,24 +2131,24 @@ amd_EEpromOutDI(struct amd_softc *amd, int *regval, int Carry)
 	if (Carry) {
 		bval = 0x40;
 		*regval = 0x80;
-		pci_cfgwrite(amd->config_id, *regval, bval, /*bytes*/1);
+		pci_write_config(amd->dev, *regval, bval, /*bytes*/1);
 	}
 	DELAY(160);
 	bval |= 0x80;
-	pci_cfgwrite(amd->config_id, *regval, bval, /*bytes*/1);
+	pci_write_config(amd->dev, *regval, bval, /*bytes*/1);
 	DELAY(160);
-	pci_cfgwrite(amd->config_id, *regval, 0, /*bytes*/1);
+	pci_write_config(amd->dev, *regval, 0, /*bytes*/1);
 	DELAY(160);
 }
 
 static int
 amd_EEpromInDO(struct amd_softc *amd)
 {
-	pci_cfgwrite(amd->config_id, 0x80, 0x80, /*bytes*/1);
+	pci_write_config(amd->dev, 0x80, 0x80, /*bytes*/1);
 	DELAY(160);
-	pci_cfgwrite(amd->config_id, 0x80, 0x40, /*bytes*/1);
+	pci_write_config(amd->dev, 0x80, 0x40, /*bytes*/1);
 	DELAY(160);
-	if (pci_cfgread(amd->config_id, 0, /*bytes*/1) == 0x22)
+	if (pci_read_config(amd->dev, 0, /*bytes*/1) == 0x22)
 		return (1);
 	return (0);
 }
@@ -2265,22 +2246,25 @@ amd_load_eeprom_or_defaults(struct amd_softc *amd)
  * Inputs        : host - pointer to this host adapter's structure/
  **********************************************************************
  */
-static struct amd_softc *
-amd_init(int unit, pcici_t config_id)
+static int
+amd_init(device_t dev)
 {
-	struct amd_softc *amd;
-	u_int  bval;
-	u_int  i;
+	struct amd_softc *amd = device_get_softc(dev);
+	struct resource	*iores;
+	int	i, rid;
+	u_int	bval;
 
-	amd = (struct amd_softc *)malloc(sizeof(struct amd_softc),
-					 M_DEVBUF, M_WAITOK);
-	if (amd == NULL) {
-		printf("DC390%d: cannot allocate ACB !\n", unit);
-		return (amd);
+	rid = PCI_BASE_ADDR0;
+	iores = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0, 1,
+				   RF_ACTIVE);
+	if (iores == NULL) {
+		if (bootverbose)
+			printf("amd_init: bus_alloc_resource failure!\n");
+		return ENXIO;
 	}
-	bzero(amd, sizeof(struct amd_softc));
-	amd->tag = I386_BUS_SPACE_IO;
-	amd->bsh = pci_conf_read(config_id, PCI_MAP_REG_START) & 0xFFFE;
+	amd->tag = rman_get_bustag(iores);
+	amd->bsh = rman_get_bushandle(iores);
+
 	/* DMA tag for mapping buffers into device visible space. */
 	if (bus_dma_tag_create(/*parent_dmat*/NULL, /*alignment*/1,
 			       /*boundary*/0,
@@ -2291,15 +2275,16 @@ amd_init(int unit, pcici_t config_id)
 			       /*maxsegsz*/AMD_MAXTRANSFER_SIZE,
 			       /*flags*/BUS_DMA_ALLOCNOW,
 			       &amd->buffer_dmat) != 0) {
-		free(amd, M_DEVBUF);
-                return (NULL);
+		if (bootverbose)
+			printf("amd_init: bus_dma_tag_create failure!\n");
+		return ENXIO;
         }
 	TAILQ_INIT(&amd->free_srbs);
 	TAILQ_INIT(&amd->running_srbs);
 	TAILQ_INIT(&amd->waiting_srbs);
 	amd->last_phase = SCSI_BUS_FREE;
-	amd->config_id = config_id;
-	amd->unit = unit;
+	amd->dev = dev;
+	amd->unit = device_get_unit(dev);
 	amd->SRBCount = MAX_SRB_CNT;
 	amd->status = 0;
 	amd_load_eeprom_or_defaults(amd);
@@ -2358,37 +2343,43 @@ amd_init(int unit, pcici_t config_id)
 
 	/* Disable SCSI bus reset interrupt */
 	amd_write8(amd, CNTLREG1, DIS_INT_ON_SCSI_RST);
-	return (amd);
+
+	return 0;
 }
 
 /*
  * attach and init a host adapter
  */
-static void
-amd_attach(pcici_t config_id, int unit)
+static int
+amd_attach(device_t dev)
 {
-	struct cam_devq *devq;	/* Device Queue to use for this SIM */
-	u_int8_t   intstat;
-	u_int32_t  wlval;
-	struct amd_softc *amd = NULL;
+	struct cam_devq	*devq;	/* Device Queue to use for this SIM */
+	u_int8_t	intstat;
+	struct amd_softc *amd = device_get_softc(dev);
+	int		unit = device_get_unit(dev);
+	int		rid;
+	void		*ih;
+	struct resource	*irqres;
 
-	wlval = pci_conf_read(config_id, PCI_ID_REG);
-
-	if (wlval == PCI_DEVICE_ID_AMD53C974) {
-		if ((amd = amd_init(unit, config_id)) == NULL)
-			return;
-
-		/* Reset Pending INT */
-		intstat = amd_read8(amd, INTSTATREG);
+	if (amd_init(dev)) {
+		if (bootverbose)
+			printf("amd_attach: amd_init failure!\n");
+		return ENXIO;
 	}
 
+	/* Reset Pending INT */
+	intstat = amd_read8(amd, INTSTATREG);
+
 	/* After setting up the adapter, map our interrupt */
-	if (!pci_map_int(config_id, amd_intr, amd, &cam_imask)) {
+	rid = 0;
+	irqres = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 0, ~0, 1,
+				    RF_SHAREABLE | RF_ACTIVE);
+	if (irqres == NULL ||
+	    bus_setup_intr(dev, irqres, INTR_TYPE_CAM, amd_intr, amd, &ih)) {
 		if (bootverbose)
 			printf("amd%d: unable to register interrupt handler!\n",
 			       unit);
-		free(amd, M_DEVBUF);
-		return;
+		return ENXIO;
 	}
 
 	/*
@@ -2399,8 +2390,9 @@ amd_attach(pcici_t config_id, int unit)
 	 */
 	devq = cam_simq_alloc(MAX_START_JOB);
 	if (devq == NULL) {
-		free(amd, M_DEVBUF);
-		return;
+		if (bootverbose)
+			printf("amd_attach: cam_simq_alloc failure!\n");
+		return ENXIO;
 	}
 
 	amd->psim = cam_sim_alloc(amd_action, amd_poll, "amd",
@@ -2408,14 +2400,16 @@ amd_attach(pcici_t config_id, int unit)
 				  devq);
 	if (amd->psim == NULL) {
 		cam_simq_free(devq);
-		free(amd, M_DEVBUF);
-		return;
+		if (bootverbose)
+			printf("amd_attach: cam_sim_alloc failure!\n");
+		return ENXIO;
 	}
 
 	if (xpt_bus_register(amd->psim, 0) != CAM_SUCCESS) {
 		cam_sim_free(amd->psim, /*free_devq*/TRUE);
-		free(amd, M_DEVBUF);
-		return;
+		if (bootverbose)
+			printf("amd_attach: xpt_bus_register failure!\n");
+		return ENXIO;
 	}
 
 	if (xpt_create_path(&amd->ppath, /* periph */ NULL,
@@ -2423,17 +2417,35 @@ amd_attach(pcici_t config_id, int unit)
 			    CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
 		xpt_bus_deregister(cam_sim_path(amd->psim));
 		cam_sim_free(amd->psim, /* free_simq */ TRUE);
-		free(amd, M_DEVBUF);
-		return;
+		if (bootverbose)
+			printf("amd_attach: xpt_create_path failure!\n");
+		return ENXIO;
 	}
+
+	return 0;
 }
 
-static const char *
-amd_probe(pcici_t tag, pcidi_t type)
+static int
+amd_probe(device_t dev)
 {
-	if (type == PCI_DEVICE_ID_AMD53C974) {
-		return ("Tekram DC390(T)/AMD53c974 SCSI Host Adapter");
-	} else {
-		return (NULL);
+	if (pci_get_devid(dev) == PCI_DEVICE_ID_AMD53C974) {
+		device_set_desc(dev,
+			"Tekram DC390(T)/AMD53c974 SCSI Host Adapter");
+		return 0;
 	}
+	return ENXIO;
 }
+
+static device_method_t amd_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		amd_probe),
+	DEVMETHOD(device_attach,	amd_attach),
+	{ 0, 0 }
+};
+
+static driver_t amd_driver = {
+	"amd", amd_methods, sizeof(struct amd_softc)
+};
+
+static devclass_t amd_devclass;
+DRIVER_MODULE(amd, pci, amd_driver, amd_devclass, 0, 0);

@@ -30,6 +30,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *********************************************************************
+ * $FreeBSD$
  */
 
 #ifndef AMD_H
@@ -192,6 +193,7 @@ TAILQ_HEAD(srb_queue, amd_srb);
  * Per-adapter, software configuration.
  */
 struct amd_softc {
+	device_t		dev;
 	bus_space_tag_t		tag;
 	bus_space_handle_t	bsh;
 	bus_dma_tag_t		buffer_dmat;   /* dmat for buffer I/O */  
@@ -209,7 +211,6 @@ struct amd_softc {
 	struct	   srb_queue waiting_srbs;
 	struct	   srb_queue running_srbs;
 
-	pcici_t	   config_id;
 	struct	   amd_srb *pTmpSRB;
 
 	u_int16_t  SRBCount;
