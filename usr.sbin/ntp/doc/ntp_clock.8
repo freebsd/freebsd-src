@@ -1,0 +1,302 @@
+.\"
+.\" $FreeBSD$
+.\"
+.Dd January 12, 2000
+.Dt NTP_CLOCK 8
+.Os
+.Sh NAME
+.Nm ntp_clock
+.Nd NTP daemon clock options
+.Sh SYNOPSIS
+.Pa /etc/ntp.conf
+.Sh DESCRIPTION
+The NTP Version 4 daemon supports many different radio,
+satellite and modem reference clocks
+plus a special pseudo-clock used for backup
+or when no other clock source is available.
+Detailed descriptions of individual device drivers
+and options can be found in the
+.Qo
+Reference Clock Drivers
+.Qc
+page
+(available as part of the HTML documentation
+provided in
+.Pa /usr/share/doc/ntp ) .
+Additional information can be found in the pages referenced there,
+including the
+.Qo
+Debugging Hints for Reference Clock Drivers
+.Qc
+and
+.Qo
+How To Write a Reference Clock Driver
+.Qc
+pages.
+In many drivers,
+support for a PPS signal is available as described in the
+.Qo
+Pulse-per-second (PPS) Signal Interfacing
+.Qc
+page.
+Many drivers support special line discipline/streams modules
+which can significantly improve the accuracy using the driver.
+These are described in the
+.Qo
+Line Disciplines and Streams Drivers
+.Qc
+page.
+.Pp
+A reference clock will generally (though not always)
+be a radio timecode receiver
+which is synchronized to a source of standard time
+such as the services offered by the NRC in Canada
+and NIST and USNO in the United States.
+The interface between the computer and the timecode receiver
+is device dependent, but is usually a serial port.
+A device driver specific to each reference clock
+must be selected and compiled in the distribution;
+however, most common radio, satellite and modem clocks
+are included by default.
+Note that an attempt to configure a reference clock
+when the driver has not been included
+or the hardware port has not been appropriately configured
+results in a scalding remark to the system log file,
+but is not otherwise hazardous.
+.Pp
+For the purposes of configuration,
+.Xr ntpd 8
+treats reference clocks in a manner
+analogous to normal NTP peers as much as possible.
+Reference clocks are identified by a syntactically correct
+but invalid IP address,
+in order to distinguish them from normal NTP peers.
+Reference clock addresses are of the form 127.127.t.u,
+where
+.Ar t
+is an integer denoting the clock type and
+.Ar u
+indicates the unit number.
+While it may seem overkill,
+it is in fact sometimes useful
+to configure multiple reference clocks of the same type,
+in which case the unit numbers must be unique.
+.Pp
+The
+.Ic server
+command is used to configure a reference clock,
+where the address argument in that command is the clock address.
+The key,
+version and ttl options are not used for reference clock support.
+The mode option is added for reference clock support,
+as described below.
+The prefer option can be useful
+to persuade the server to cherish a reference clock
+with somewhat more enthusiasm than other reference clocks or peers.
+Further information on this option can be found in the
+.Qo
+Mitigation Rules and the prefer Keyword
+.Qc
+page.
+The minpoll and maxpoll options have meaning
+only for selected clock drivers.
+See the individual clock driver document pages
+for additional information.
+.Pp
+The stratum number of a reference clock is by default zero.
+Since the
+.Xr ntpd 8
+daemon adds one to the stratum of each peer,
+a primary server ordinarily displays stratum one.
+In order to provide engineered backups,
+it is often useful to specify the reference clock stratum
+as greater than zero.
+The stratum option is used for this purpose.
+Also, in cases involving both a reference clock
+and a pulse-per-second (PPS) discipline signal,
+it is useful to specify the reference clock identifier
+as other than the default, depending on the driver.
+The refid option is used for this purpose.
+Except where noted,
+these options apply to all clock drivers.
+.Ss Reference Clock Commands
+.Bl -tag -width indent
+.It Xo Ic server No 127.127. Ns Xo
+.Ar t Ns No . Ns Xo
+.Ar u
+.Op prefer
+.Op mode Ar int
+.Op minpoll Ar int
+.Op maxpoll Ar int
+.Xc
+.Xc
+.Xc
+This command can be used to configure reference clocks
+in special ways.
+The options are interpreted as follows:
+.Bl -tag -width indent
+.It prefer
+Marks the reference clock as preferred.
+All other things being equal,
+this host will be chosen for synchronization
+among a set of correctly operating hosts.
+See the
+.Qo
+Mitigation Rules and the prefer Keyword
+.Qc
+page
+for further information.
+.It mode Ar int
+Specifies a mode number
+which is interpreted in a device-specific fashion.
+For instance, it selects a dialing protocol in the ACTS driver
+and a device subtype in the parse drivers.
+.It minpoll Ar int
+.It maxpoll Ar int
+These options specify the minimum and maximum polling interval
+for reference clock messages, in seconds to the power of two.
+For most directly connected reference clocks,
+both minpoll and maxpoll default to 6 (64 s).
+For modem reference clocks,
+minpoll defaults to 10 (17.1 m)
+and maxpoll defaults to 14 (4.5 h).
+The allowable range is 4 (16 s) to 17 (36.4 h) inclusive.
+.El
+.It Xo Ic fudge No 127.127. Ns Xo
+.Ar t Ns No . Ns Xo
+.Ar u
+.Op time1 Ar sec
+.Op time2 Ar sec
+.Op stratum Ar int
+.Op refid Ar string
+.Op mode Ar int
+.Op flag1 Ar 0 Ns | Ns Ar 1
+.Op flag2 Ar 0 Ns | Ns Ar 1
+.Op flag3 Ar 0 Ns | Ns Ar 1
+.Op flag4 Ar 0 Ns | Ns Ar 1
+.Xc
+.Xc
+.Xc
+This command can be used to configure reference clocks
+in special ways.
+It must immediately follow the
+.Ic server
+command which configures the driver.
+Note that the same capability is possible at run time
+using the
+.Xr ntpdc 8
+program.
+The options are interpreted as follows:
+.Bl -tag -width indent
+.It time1 Ar sec
+Specifies a constant to be added to the time offset produced
+by the driver, a fixed-point decimal number in seconds.
+This is used as a calibration constant
+to adjust the nominal time offset of a particular clock
+to agree with an external standard,
+such as a precision PPS signal.
+It also provides a way to correct a systematic error
+or bias due to serial port latencies,
+different cable lengths or receiver internal delay.
+The specified offset is in addition to the propagation delay
+provided by other means, such as internal DIPswitches.
+Where a calibration for an individual system
+and driver is available,
+an approximate correction is noted
+in the driver documentation pages.
+.It time2 Ar secs
+Specifies a fixed-point decimal number in seconds,
+which is interpreted in a driver-dependent way.
+See the descriptions of specific drivers in the
+.Qo
+Reference Clock Drivers
+.Qc
+page.
+.It stratum Ar int
+Specifies the stratum number assigned to the driver,
+an integer between 0 and 15.
+This number overrides the default stratum number
+ordinarily assigned by the driver itself, usually zero.
+.It refid Ar string
+Specifies an ASCII string from one to four characters
+which defines the reference identifier used by the driver.
+This string overrides the default identifier
+ordinarily assigned by the driver itself.
+.It mode Ar int
+Specifies a mode number which is interpreted
+in a device-specific fashion.
+For instance,
+it selects a dialing protocol in the ACTS driver
+and a device subtype in the parse drivers.
+.It flag1 flag2 flag3 flag4
+These four flags are used for customizing the clock driver.
+The interpretation of these values,
+and whether they are used at all,
+is a function of the particular clock driver.
+However, by convention
+flag4 is used to enable recording monitoring data
+to the clockstats file configured with the
+.Ic filegen
+command.
+When a PPS signal is available,
+a special automatic calibration facility is provided.
+If the flag1 switch is set
+and the PPS signal is actively disciplining the system time,
+the calibration value is automatically adjusted
+to maintain a residual offset of zero.
+Further information on the
+.Ic filegen
+command can be found in the
+.Xr ntp_mon 8
+page.
+.El
+.It Ic pps device [assert|clear] [hardpps]
+Specifies the name and options for the serial port device
+to which the PPS signal is connected.
+Note, this command replaces use of fudge flag3,
+which was used for the same purpose in NTPv3.
+Note that this command should preceed the
+.Ic server
+and
+.Ic fudge
+commands for the same device.
+Note also that the assert,
+clear and hardpps options are only available
+if the ppsapi standard PPS interface is available.
+.Bl -tag -width indent
+.It device
+Specify the device name associated with the PPS signal.
+The name must match exactly the link name specified
+in the driver documentation page.
+.Ic assert
+.Ic clear
+Using assert or clear specifies
+if the high going or low going edge
+of the signal must be used.
+The default is assert.
+.Ic hardpps
+This flag is used to tell the kernel that the signal
+from this device must be used to drive hardpps().
+The assert, clear and hardpps options are only available
+if the PPSAPI is used.
+.El
+.El
+.Sh SEE ALSO
+.Xr ntp_conf 8 ,
+.Xr ntpd 8 ,
+.Xr ntpdc 8 ,
+.Xr ntpq 8
+.Pp
+In addition to the manual pages provided,
+comprehensive documentation is available on the world wide web
+at
+.Li http://www.ntp.org/ .
+A snapshot of this documentation is available in HTML format in
+.Pa /usr/share/doc/ntp .
+.Sh HISTORY
+Written by
+.An Dennis Ferguson
+at the University of Toronto.
+Text amended by
+.An David Mills
+at the University of Delaware.
