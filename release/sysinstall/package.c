@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: package.c,v 1.72 1999/05/14 12:15:34 jkh Exp $
+ * $Id: package.c,v 1.73 1999/05/14 14:29:50 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -55,7 +55,7 @@ extern PkgNode Top;
 int
 package_add(char *name)
 {
-    PkgNodePtr tmp;
+    PkgNodePtr tmp, tmp2, *tmp3;
     int i;
 
     if (!mediaVerify())
@@ -63,7 +63,8 @@ package_add(char *name)
     i = index_initialize("packages/INDEX");
     if (DITEM_STATUS(i) != DITEM_SUCCESS)
 	return i;
-    tmp = index_search(&Top, name, NULL);
+    tmp3 = !strpbrk(name, "-_") ? &tmp2 : NULL;
+    tmp = index_search(&Top, name, tmp3);
     if (tmp)
 	return index_extract_one(mediaDevice, &Top, tmp, FALSE);
     else {
