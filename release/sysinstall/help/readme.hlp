@@ -2,23 +2,22 @@
        FreeBSD 2.1.5  ---  BETA Version                ,        ,
    -----------------------------------------          /(        )`
                                                       \ \___   / |
-Welcome to the latest 2.2 SNAPSHOT release of         /- _  `-/  '
-FreeBSD!  These 2.2 snapshots are done periodically  (/\/ \ \   /\
-along the way to 2.2-RELEASE (which is slated        / /   | `    \
-for release in late summer of '96) as test releases  O O   ) /    |
-and to provide early access to new 2.2 features      `-^--'`<     '
-for those developers or hobbiests who have an       (_.)  _  )   /
-interest in knowing more about what we're up to.     `.___/`    /
+Welcome to the latest 2.1.5 BETA release of           /- _  `-/  '
+FreeBSD!  This release is provided in order to test  (/\/ \ \   /\
+the upcoming 2.1.5-RELEASE before it goes out the    / /   | `    \
+door (slated for July, 1996).  Your feedback is      O O   ) /    |
+greatly appreciated as it will help us to make       `-^--'`<     '
+2.1.5-RELEASE the kind of addition to the -stable   (_.)  _  )   /
+line that everyone would like to see.          .     `.___/`    /
                                                        `-----' /
-Feedback or offers to help with anything  <----.     __ / __   \
-you see in this release are most welcome  <----|====O)))==) \) /====
-and should be sent to one of the approp-  <----'    `--' `.__,' \
-riate mailing lists (see notes below).                 |        |
+                                          <----.     __ / __   \
+Feedback should be sent to one of the     <----|====O)))==) \) /====
+appropriate mailing lists - please see    <----'    `--' `.__,' \
+notes below for more information.                      |        |
                                                         \       /       /\
-Please also note that these SNAP releases are      ______( (_  / \______/
-EXPERIMENTAL in nature and not intended for the  ,'  ,-----'   |
-casual user or in production environments!       `--{__________)
-
+                                                   ______( (_  / \______/
+                                                 ,'  ,-----'   |
+                                                 `--{__________)
 
 
 What is FreeBSD?  FreeBSD is an operating system based on 4.4 BSD Lite
