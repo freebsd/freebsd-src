@@ -692,7 +692,7 @@ read_one_tuplelist(int fd, int flags, off_t offs)
 			hss = hss_check(tp->data);
 #endif	/* HSSYNTH */
 		}
-		if (tinfo == NULL || (tinfo->length != 255 && tinfo->length > length)) {
+		if (tinfo != NULL && (tinfo->length != 255 && tinfo->length > length)) {
 			printf("code %s ignored\n", tuple_name(code));
 			tp->code = CIS_NULL;
 		}
@@ -775,7 +775,6 @@ get_tuple_info(unsigned char code)
 	for (tp = tuple_info; tp->name; tp++)
 		if (tp->code == code)
 			return (tp);
-	printf("Code %d not found\n", code);
 	return (0);
 }
 
