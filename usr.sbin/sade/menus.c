@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.209 1999/07/06 08:45:38 jkh Exp $
+ * $Id: menus.c,v 1.210 1999/07/06 09:19:36 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -788,6 +788,7 @@ DMenu MenuSubDistributions = {
     NULL,
     { { "bin",		"Binary base distribution (required)",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_BIN },
+#ifdef __i386__
       { "compat1x",	"FreeBSD 1.x binary compatibility",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_COMPAT1X },
       { "compat20",	"FreeBSD 2.0 binary compatibility",
@@ -799,6 +800,7 @@ DMenu MenuSubDistributions = {
 #if __FreeBSD__ > 3
       { "compat3x",	"FreeBSD 3.x binary compatibility",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_COMPAT3X },
+#endif
 #endif
       { "DES",		"DES encryption code - NOT FOR EXPORT!",
 	DESFlagCheck,	distSetDES },
