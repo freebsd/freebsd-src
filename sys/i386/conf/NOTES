@@ -423,6 +423,8 @@ hint.mse.0.irq="5"
 # Network interfaces:
 #
 
+# ar:   Arnet SYNC/570i hdlc sync 2/4 port V.35/X.21 serial driver
+#       (requires sppp)
 # cx:   Cronyx/Sigma multiport sync/async (with Cisco or PPP framing)
 # el:   3Com 3C501 (slow!)
 # ie:   AT&T StarLAN 10 and EN100; 3Com 3C507; unknown NI5210;
@@ -439,6 +441,11 @@ hint.mse.0.irq="5"
 
 # Order for ISA/EISA devices is important here
 
+device		ar
+hint.ar.0.at="isa"
+hint.ar.0.port="0x300"
+hint.ar.0.irq="10"
+hint.ar.0.maddr="0xd0000"
 device		cx	1
 hint.cx.0.at="isa"
 hint.cx.0.port="0x240"
