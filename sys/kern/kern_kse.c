@@ -696,6 +696,8 @@ kse_create(struct thread *td, struct kse_create_args *uap)
 		return (EPROCLIM);
 	}
 	upcall_link(newku, newkg);
+	if (mbx.km_quantum)
+		newkg->kg_upquantum = max(1, mbx.km_quantum/tick);
 
 	/*
 	 * Each upcall structure has an owner thread, find which
@@ -1002,11 +1004,6 @@ thread_export_context(struct thread *td)
 	if (suword(addr, temp))
 		goto bad;
 
-	addr = (caddr_t)(&td->td_mailbox->tm_slices);
-	temp = fuword(addr) - td->td_usticks;
-	if (suword(addr, temp))
-		goto bad;
-
 	/* Get address in latest mbox of list pointer */
 	addr = (void *)(&td->td_mailbox->tm_next);
 	/*
@@ -1118,9 +1115,9 @@ thread_update_usr_ticks(struct thread *td, int user)
 	struct proc *p = td->td_proc;
 	struct kse_thr_mailbox *tmbx;
 	struct kse_upcall *ku;
+	struct ksegrp *kg;
 	caddr_t addr;
 	uint uticks;
-	int slices;
 
 	if ((ku = td->td_upcall) == NULL)
 		return (-1);
@@ -1144,22 +1141,12 @@ thread_update_usr_ticks(struct thread *td, int user)
 			PROC_UNLOCK(p);
 			return (-2);
 		}
-		addr = (caddr_t)&tmbx->tm_slices;
-		slices = (int)fuword(addr);
-		if (slices > 0) {
-			slices -= (int)uticks;
-			if (suword(addr, slices)) {
-				PROC_LOCK(p);
-				psignal(p, SIGSEGV);
-				PROC_UNLOCK(p);
-				return (-2);
-			}
-			if (slices <= 0) {
-				mtx_lock_spin(&sched_lock);
-				td->td_upcall->ku_flags |= KUF_DOUPCALL;
-				mtx_unlock_spin(&sched_lock);
-			}
-		}
+	}
+	kg = td->td_ksegrp;
+	if (kg->kg_upquantum && ticks >= kg->kg_nextupcall) {
+		mtx_lock_spin(&sched_lock);
+		td->td_upcall->ku_flags |= KUF_DOUPCALL;
+		mtx_unlock_spin(&sched_lock);
 	}
 	return (0);
 }
@@ -1496,6 +1483,38 @@ thread_signal_upcall(struct thread *td)
 	return;
 }
 
+void
+thread_switchout(struct thread *td)
+{
+	struct kse_upcall *ku;
+
+	mtx_assert(&sched_lock, MA_OWNED);
+
+	/*
+	 * If the outgoing thread is in threaded group and has never
+	 * scheduled an upcall, decide whether this is a short
+	 * or long term event and thus whether or not to schedule
+	 * an upcall.
+	 * If it is a short term event, just suspend it in
+	 * a way that takes its KSE with it.
+	 * Select the events for which we want to schedule upcalls.
+	 * For now it's just sleep.
+	 * XXXKSE eventually almost any inhibition could do.
+	 */
+	if (TD_CAN_UNBIND(td) && (td->td_standin) && TD_ON_SLEEPQ(td)) {
+		/* 
+		 * Release ownership of upcall, and schedule an upcall
+		 * thread, this new upcall thread becomes the owner of
+		 * the upcall structure.
+		 */
+		ku = td->td_upcall;
+		ku->ku_owner = NULL;
+		td->td_upcall = NULL; 
+		td->td_flags &= ~TDF_CAN_UNBIND;
+		thread_schedule_upcall(td, ku);
+	}
+}
+
 /*
  * Setup done on the thread when it enters the kernel.
  * XXXKSE Presently only for syscalls but eventually all kernel entries.
@@ -1606,10 +1625,11 @@ thread_userret(struct thread *td, struct trapframe *frame)
 		ku = td->td_upcall;
 		if ((p->p_flag & PS_NEEDSIGCHK) == 0 &&
 		    (kg->kg_completed == NULL) &&
-		    (ku->ku_flags & KUF_DOUPCALL) == 0) {
+		    (ku->ku_flags & KUF_DOUPCALL) == 0 &&
+		    (kg->kg_upquantum && ticks >= kg->kg_nextupcall)) {
 			thread_update_usr_ticks(td, 0);
 			nanotime(&ts);
-			error = copyout(&ts, 
+			error = copyout(&ts,
 				(caddr_t)&ku->ku_mailbox->km_timeofday,
 				sizeof(ts));
 			td->td_mailbox = 0;
@@ -1679,6 +1699,7 @@ thread_userret(struct thread *td, struct trapframe *frame)
 	}
 
 	if (td->td_flags & TDF_UPCALLING) {
+		kg->kg_nextupcall = ticks+kg->kg_upquantum;
 		ku = td->td_upcall;
 		/* 
 		 * There is no more work to do and we are going to ride
