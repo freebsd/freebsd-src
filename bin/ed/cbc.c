@@ -35,11 +35,11 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)bdes.c	5.5 (Berkeley) 6/27/91
- *	$Id: cbc.c,v 1.5 1995/03/19 13:28:24 joerg Exp $
+ *	$Id: cbc.c,v 1.6 1996/08/11 16:48:11 ache Exp $
  */
 
 #ifndef lint
-static char *rcsid = "@(#)cbc.c,v 1.2 1994/02/01 00:34:36 alm Exp";
+static char * const rcsid = "@(#)cbc.c,v 1.2 1994/02/01 00:34:36 alm Exp";
 #endif /* not lint */
 
 #include <sys/types.h>

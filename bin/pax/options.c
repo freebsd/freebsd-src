@@ -34,11 +34,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: options.c,v 1.3 1995/03/19 13:28:53 joerg Exp $
+ *	$Id: options.c,v 1.4 1995/10/23 21:23:16 ache Exp $
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)options.c	8.2 (Berkeley) 4/18/94";
+static char const sccsid[] = "@(#)options.c	8.2 (Berkeley) 4/18/94";
 #endif /* not lint */
 
 #include <sys/types.h>

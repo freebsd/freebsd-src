@@ -24,11 +24,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: io.c,v 1.4 1995/03/19 13:28:32 joerg Exp $
+ *	$Id: io.c,v 1.5 1996/05/23 06:36:34 tg Exp $
  */
 
 #ifndef lint
-static char *rcsid = "@(#)io.c,v 1.1 1994/02/01 00:34:41 alm Exp";
+static char * const rcsid = "@(#)io.c,v 1.1 1994/02/01 00:34:41 alm Exp";
 #endif /* not lint */
 
 #include "ed.h"
