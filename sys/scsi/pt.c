@@ -37,7 +37,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: pt.c,v 1.26 1998/01/06 08:28:46 julian Exp $
+ *      $Id: pt.c,v 1.27 1998/01/24 02:54:49 eivind Exp $
  */
 
 #include "opt_bounce.h"
@@ -55,6 +55,8 @@
 #include <scsi/scsiconf.h>
 #include <scsi/scsi_debug.h>
 #include <scsi/scsi_driver.h>
+
+#include "ioconf.h"
 
 struct scsi_data {
 	struct buf_queue_head buf_queue;

@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.129 1998/05/07 12:13:47 julian Exp $
+ *      $Id: sd.c,v 1.130 1998/06/07 17:12:51 dfr Exp $
  */
 
 #include "opt_bounce.h"
@@ -54,6 +54,8 @@
 #ifdef PC98
 #include <pc98/pc98/pc98_machdep.h>
 #endif
+
+#include "ioconf.h"
 
 static u_int32_t sdstrats, sdqueues;
 
