@@ -55,10 +55,11 @@ int dialog_menu(unsigned char *title, unsigned char *prompt, int height, int wid
 	height = strheight(prompt)+menu_height+4+2;
   if (width < 0) {
 	i = strwidth(prompt);
-	j = strwidth(title);
+	j = ((title != NULL) ? strwidth(title) : 0);
 	width = MAX(i,j);
 	width = MAX(width,tag_x+4)+4;
   }
+  width = MAX(width,24);
 
   if (width > COLS)
 	width = COLS;

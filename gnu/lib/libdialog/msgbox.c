@@ -36,9 +36,11 @@ int dialog_msgbox(unsigned char *title, unsigned char *prompt, int height, int w
 	height = strheight(prompt)+2+2*(!!pause);
   if (width < 0) {
 	i = strwidth(prompt);
-	j = strwidth(title);
+	j = ((title != NULL) ? strwidth(title) : 0);
 	width = MAX(i,j)+4;
   }
+  if (pause)
+	width = MAX(width,10);
 
   if (width > COLS)
 	width = COLS;

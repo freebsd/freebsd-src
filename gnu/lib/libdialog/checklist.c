@@ -65,10 +65,11 @@ int dialog_checklist(unsigned char *title, unsigned char *prompt, int height, in
 	height = strheight(prompt)+list_height+4+2;
   if (width < 0) {
 	i = strwidth(prompt);
-	j = strwidth(title);
+	j = ((title != NULL) ? strwidth(title) : 0);
 	width = MAX(i,j);
 	width = MAX(width,check_x+4)+4;
   }
+  width = MAX(width,24);
 
   if (width > COLS)
 	width = COLS;
