@@ -64,13 +64,13 @@ struct g_stripe_softc {
 	u_int		 sc_type;	/* provider type */
 	struct g_geom	*sc_geom;
 	struct g_provider *sc_provider;
-	char		 sc_name[16];	/* stripe name */
 	uint32_t	 sc_id;		/* stripe unique ID */
 	struct g_consumer **sc_disks;
 	uint16_t	 sc_ndisks;
 	uint32_t	 sc_stripesize;
 	uint32_t	 sc_stripebits;
 };
+#define	sc_name	sc_geom->name
 #endif	/* _KERNEL */
 
 struct g_stripe_metadata {
