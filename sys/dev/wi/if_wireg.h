@@ -453,7 +453,7 @@ struct wi_ltv_ver {
 #define	WI_NIC_3842_PCI_AMD_ID		0x8016	/* Prism2.5 PCI-bridge */
 #define	WI_NIC_3842_PCI_SST_ID		0x8017
 #define	WI_NIC_3842_PCI_ATL_ID		0x8018
-#define	WI_NIC_3842_PCI_ATS_ID		0x8018
+#define	WI_NIC_3842_PCI_ATS_ID		0x8019
 #define	WI_NIC_3842_PCI_STR		"RF:PRISM2.5 MAC:ISL3874A(PCI-bridge)"
 
 #define	WI_NIC_P3_PCMCIA_AMD_ID		0x801A	/* Prism3 PCMCIA */
