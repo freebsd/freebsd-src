@@ -213,6 +213,7 @@ archive_read_next_header(struct archive *a, struct archive_entry **entryp)
 	*entryp = NULL;
 	entry = a->entry;
 	archive_entry_clear(entry);
+	archive_string_empty(&a->error_string);
 
 	/*
 	 * If client didn't consume entire data, skip any remainder
