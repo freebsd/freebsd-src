@@ -45,8 +45,11 @@
 #include <vm/vm_param.h>
 
 #include <machine/elf.h>
+#include <machine/frame.h>
 #include <machine/md_var.h>
 #include <machine/unwind.h>
+
+static int ia64_coredump(struct thread *, struct vnode *, off_t);
 
 struct sysentvec elf64_freebsd_sysvec = {
 	SYS_MAXSYSCALL,
@@ -63,7 +66,7 @@ struct sysentvec elf64_freebsd_sysvec = {
 	NULL,		/* &szsigcode */
 	NULL,
 	"FreeBSD ELF64",
-	__elfN(coredump),
+	ia64_coredump,
 	NULL,
 	MINSIGSTKSZ,
 	PAGE_SIZE,
@@ -92,6 +95,40 @@ SYSINIT(elf64, SI_SUB_EXEC, SI_ORDER_ANY,
 Elf_Addr link_elf_get_gp(linker_file_t);
 
 extern Elf_Addr fptr_storage[];
+
+static int
+ia64_coredump(struct thread *td, struct vnode *vp, off_t limit)
+{
+	struct trapframe *tf;
+	uint64_t *kstk, *ustk;
+	uint64_t bspst, ndirty;
+
+	tf = td->td_frame;
+	ndirty = tf->tf_special.ndirty;
+	if (ndirty != 0) {
+		__asm __volatile("mov   ar.rsc=0;;");
+		__asm __volatile("mov   %0=ar.bspstore" : "=r"(bspst));
+		/* Make sure we have all the user registers written out. */
+		if (bspst - td->td_kstack < ndirty)
+			__asm __volatile("flushrs;;");
+		__asm __volatile("mov   ar.rsc=3");
+		ustk = (uint64_t*)tf->tf_special.bspstore;
+		kstk = (uint64_t*)td->td_kstack;
+		while (ndirty > 0) {
+			*ustk++ = *kstk++;
+			if (((uintptr_t)ustk & 0x1ff) == 0x1f8)
+				*ustk++ = 0;
+			if (((uintptr_t)kstk & 0x1ff) == 0x1f8) {
+				kstk++;
+				ndirty -= 8;
+			}
+			ndirty -= 8;
+		}
+		tf->tf_special.bspstore = (uintptr_t)ustk;
+		tf->tf_special.ndirty = 0;
+	}
+	return (elf64_coredump(td, vp, limit));
+}
 
 static Elf_Addr
 lookup_fdesc(linker_file_t lf, Elf_Word symidx)
