@@ -44,6 +44,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/pcb.h>
 #include <machine/pte.h>
 #include <machine/intr.h>
+#include <machine/sysarch.h>
+
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
@@ -90,6 +92,8 @@ ASSYM(TD_PCB, offsetof(struct thread, td_pcb));
 ASSYM(TD_FLAGS, offsetof(struct thread, td_flags));
 ASSYM(TD_PROC, offsetof(struct thread, td_proc));
 ASSYM(TD_FRAME, offsetof(struct thread, td_frame));
+ASSYM(TD_MD, offsetof(struct thread, td_md));
+ASSYM(MD_TP, offsetof(struct mdthread, md_tp));
 
 ASSYM(TF_R0, offsetof(struct trapframe, tf_r0));
 ASSYM(TF_R1, offsetof(struct trapframe, tf_r1));
@@ -97,6 +101,7 @@ ASSYM(TF_PC, offsetof(struct trapframe, tf_pc));
 ASSYM(P_PID, offsetof(struct proc, p_pid));
 ASSYM(P_FLAG, offsetof(struct proc, p_flag));
 
+ASSYM(ARM_TP_ADDRESS, ARM_TP_ADDRESS);
 ASSYM(PDESIZE, PDESIZE);
 ASSYM(PMAP_DOMAIN_KERNEL, PMAP_DOMAIN_KERNEL);
 #ifdef PMAP_INCLUDE_PTE_SYNC

@@ -1,0 +1,2 @@
+# $FreeBSD$
+options		ARM_CACHE_LOCK_ENABLE
