@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.70 1997/08/19 01:10:19 brian Exp $
+ * $Id: command.c,v 1.71 1997/08/20 23:47:41 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -1373,7 +1373,7 @@ struct cmdtab const SetCommands[] = {
   { "redial",   NULL,     SetRedialTimeout,	LOCAL_AUTH,
 	"Set Redial timeout", "set redial value|random[.value|random] [dial_attempts]"},
   { "stopped",   NULL,     SetStoppedTimeout,	LOCAL_AUTH,
-	"Set STOPPED timeout", "set stopped value"},
+	"Set STOPPED timeouts", "set stopped [LCPseconds [IPCPseconds [CCPseconds]]]"},
   { "server",    "socket",     SetServer,	LOCAL_AUTH,
 	"Set server port", "set server|socket TcpPort|LocalName|none [mask]"},
   { "speed",    NULL,     SetModemSpeed,	LOCAL_AUTH,
