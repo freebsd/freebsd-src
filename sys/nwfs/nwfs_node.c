@@ -98,7 +98,7 @@ nwfs_sysctl_vnprint(SYSCTL_HANDLER_ARGS) {
 	printf("Name:uc:hc:fid:pfid\n");
 	for(i = 0; i <= nwnodehash; i++) {
 		nhpp = &nwhashtbl[i];
-		for (np = nhpp->lh_first; np != 0; np = np->n_hash.le_next) {
+		LIST_FOREACH(np, nhpp, n_hash) {
 			vp = NWTOV(np);
 			vprint(NULL, vp);
 			printf("%s:%d:%d:%d:%d\n",np->n_name,vp->v_usecount,vp->v_holdcnt,
