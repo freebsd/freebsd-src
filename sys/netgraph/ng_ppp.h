@@ -45,7 +45,7 @@
 
 /* Node type name and magic cookie */
 #define NG_PPP_NODE_TYPE	"ppp"
-#define NGM_PPP_COOKIE		940897792
+#define NGM_PPP_COOKIE		940897793
 
 /* Maximum number of supported links */
 #define NG_PPP_MAX_LINKS	16
@@ -86,6 +86,7 @@ enum {
 struct ng_ppp_link_config {
 	u_char		enableLink;	/* enable this link */
 	u_char		enableProtoComp;/* enable protocol field compression */
+	u_char		enableACFComp;	/* enable addr/ctrl field compression */
 	u_int16_t	mru;		/* peer MRU */
 	u_int32_t	latency;	/* link latency (in milliseconds) */
 	u_int32_t	bandwidth;	/* link bandwidth (in bytes/second) */

@@ -69,6 +69,7 @@
 #define PROT_CRYPTD		0x0053
 #define PROT_IP			0x0021
 #define PROT_IPX		0x002b
+#define PROT_LCP		0xc021
 #define PROT_MP			0x003d
 #define PROT_VJCOMP		0x002d
 #define PROT_VJUNCOMP		0x002f
@@ -92,7 +93,7 @@
 #define MP_LONG_FIRST_FLAG	0x80000000	/* first fragment in frame */
 #define MP_LONG_LAST_FLAG	0x40000000	/* last fragment in frame */
 
-#define MP_SEQ_MASK		(priv->conf.recvShortSeq ? \
+#define MP_SEQ_MASK(priv)	((priv)->conf.recvShortSeq ? \
 				    MP_SHORT_SEQ_MASK : MP_LONG_SEQ_MASK)
 
 /* Sign extension of MP sequence numbers */
@@ -105,7 +106,7 @@
 #define MP_SHORT_SEQ_DIFF(x,y)	(MP_SHORT_EXTEND(x) - MP_SHORT_EXTEND(y))
 #define MP_LONG_SEQ_DIFF(x,y)	(MP_LONG_EXTEND(x) - MP_LONG_EXTEND(y))
 
-#define MP_SEQ_DIFF(x,y)	(priv->conf.recvShortSeq ? \
+#define MP_SEQ_DIFF(priv,x,y)	((priv)->conf.recvShortSeq ? \
 				    MP_SHORT_SEQ_DIFF((x), (y)) : \
 				    MP_LONG_SEQ_DIFF((x), (y)))
 
@@ -190,7 +191,7 @@ static ng_disconnect_t	ng_ppp_disconnect;
 /* Helper functions */
 static int	ng_ppp_input(node_p node, int bypass,
 			int linkNum, struct mbuf *m, meta_p meta);
-static int	ng_ppp_output(node_p node, int bypass,
+static int	ng_ppp_output(node_p node, int bypass, int proto,
 			int linkNum, struct mbuf *m, meta_p meta);
 static int	ng_ppp_mp_input(node_p node, int linkNum,
 			struct mbuf *m, meta_p meta);
@@ -198,6 +199,7 @@ static int	ng_ppp_mp_output(node_p node, struct mbuf *m, meta_p meta);
 static void	ng_ppp_mp_strategy(node_p node, int len, int *distrib);
 static int	ng_ppp_intcmp(const void *v1, const void *v2);
 static struct	mbuf *ng_ppp_addproto(struct mbuf *m, int proto, int compOK);
+static struct	mbuf *ng_ppp_prepend(struct mbuf *m, const void *buf, int len);
 static int	ng_ppp_config_valid(node_p node,
 			const struct ng_ppp_node_config *newConf);
 static void	ng_ppp_update(node_p node, int newConf);
@@ -221,6 +223,9 @@ static struct ng_type ng_ppp_typestruct = {
 NETGRAPH_INIT(ppp, &ng_ppp_typestruct);
 
 static int	*compareLatencies;		/* hack for ng_ppp_intcmp() */
+
+/* Address and control field header */
+static const u_char	ng_ppp_acf[2] = { 0xff, 0x03 };
 
 #define ERROUT(x)	do { error = (x); goto done; } while (0)
 
@@ -427,6 +432,16 @@ ng_ppp_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
 		priv->linkStats[linkNum].recvFrames++;
 		priv->linkStats[linkNum].recvOctets += m->m_pkthdr.len;
 
+		/* Strip address and control fields, if present */
+		if (m->m_pkthdr.len >= 2) {
+			if (m->m_len < 2 && (m = m_pullup(m, 2)) == NULL) {
+				NG_FREE_DATA(m, meta);
+				return (ENOBUFS);
+			}
+			if (bcmp(mtod(m, u_char *), &ng_ppp_acf, 2) == 0)
+				m_adj(m, 2);
+		}
+
 		/* Dispatch incoming frame (if not enabled, to bypass) */
 		return ng_ppp_input(node,
 		    !priv->conf.links[linkNum].enableLink, linkNum, m, meta);
@@ -564,14 +579,8 @@ ng_ppp_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
 		/* FALLTHROUGH */
 	case HOOK_INDEX_ENCRYPT:
 	case HOOK_INDEX_BYPASS:
-		if ((m = ng_ppp_addproto(m, proto,
-		    linkNum == NG_PPP_BUNDLE_LINKNUM
-		      || priv->conf.links[linkNum].enableProtoComp)) == NULL) {
-			NG_FREE_META(meta);
-			return (ENOBUFS);
-		}
-		return ng_ppp_output(node,
-		    index == HOOK_INDEX_BYPASS, NG_PPP_BUNDLE_LINKNUM, m, meta);
+		return ng_ppp_output(node, index == HOOK_INDEX_BYPASS,
+		    proto, NG_PPP_BUNDLE_LINKNUM, m, meta);
 
 	/* Incoming data */
 	case HOOK_INDEX_DECRYPT:
@@ -697,11 +706,12 @@ ng_ppp_input(node_p node, int bypass, int linkNum, struct mbuf *m, meta_p meta)
 	/* For unknown/inactive protocols, forward out the bypass hook */
 bypass:
 	if (outHook == NULL) {
-		M_PREPEND(m, 4, M_NOWAIT);
-		if (m == NULL || (m->m_len < 4 && (m = m_pullup(m, 4)) == NULL))
+		u_int16_t hdr[2];
+
+		hdr[0] = htons(linkNum);
+		hdr[1] = htons((u_int16_t)proto);
+		if ((m = ng_ppp_prepend(m, &hdr, 4)) == NULL)
 			return (ENOBUFS);
-		mtod(m, u_int16_t *)[0] = htons(linkNum);
-		mtod(m, u_int16_t *)[1] = htons(proto);
 		outHook = priv->hooks[HOOK_INDEX_BYPASS];
 	}
 
@@ -714,24 +724,43 @@ bypass:
  * Deliver a frame out a link, either a real one or NG_PPP_BUNDLE_LINKNUM
  */
 static int
-ng_ppp_output(node_p node, int bypass, int linkNum, struct mbuf *m, meta_p meta)
+ng_ppp_output(node_p node, int bypass,
+	int proto, int linkNum, struct mbuf *m, meta_p meta)
 {
 	const priv_p priv = node->private;
 	int len, error;
 
-	/* Check for bundle virtual link */
-	if (linkNum == NG_PPP_BUNDLE_LINKNUM) {
-		if (priv->conf.enableMultilink)
-			return ng_ppp_mp_output(node, m, meta);
+	/* If not doing MP, map bundle virtual link to (the only) link */
+	if (linkNum == NG_PPP_BUNDLE_LINKNUM && !priv->conf.enableMultilink)
 		linkNum = priv->activeLinks[0];
-	}
 
-	/* Check link status */
-	if (!bypass && !priv->conf.links[linkNum].enableLink)
+	/* Check link status (if real) */
+	if (linkNum != NG_PPP_BUNDLE_LINKNUM
+	    && !bypass && !priv->conf.links[linkNum].enableLink)
 		return (ENXIO);
 	if (priv->links[linkNum] == NULL) {
 		NG_FREE_DATA(m, meta);
 		return (ENETDOWN);
+	}
+
+	/* Prepend protocol number, possibly compressed */
+	if ((m = ng_ppp_addproto(m, proto,
+	    linkNum == NG_PPP_BUNDLE_LINKNUM
+	      || priv->conf.links[linkNum].enableProtoComp)) == NULL) {
+		NG_FREE_META(meta);
+		return (ENOBUFS);
+	}
+
+	/* Special handling for the MP virtual link */
+	if (linkNum == NG_PPP_BUNDLE_LINKNUM)
+		return ng_ppp_mp_output(node, m, meta);
+
+	/* Prepend address and control field (unless compressed) */
+	if (proto == PROT_LCP || !priv->conf.links[linkNum].enableACFComp) {
+		if ((m = ng_ppp_prepend(m, &ng_ppp_acf, 2)) == NULL) {
+			NG_FREE_META(meta);
+			return (ENOBUFS);
+		}
 	}
 
 	/* Deliver frame */
@@ -824,7 +853,7 @@ ng_ppp_mp_input(node_p node, int linkNum, struct mbuf *m, meta_p meta)
 
 	/* Add fragment to queue, which is reverse sorted by sequence number */
 	CIRCLEQ_FOREACH(qent, &priv->frags, f_qent) {
-		diff = MP_SEQ_DIFF(frag->seq, qent->seq);
+		diff = MP_SEQ_DIFF(priv, frag->seq, qent->seq);
 		if (diff > 0) {
 			CIRCLEQ_INSERT_BEFORE(&priv->frags, qent, frag, f_qent);
 			break;
@@ -852,7 +881,7 @@ ng_ppp_mp_input(node_p node, int linkNum, struct mbuf *m, meta_p meta)
 			first = qent;
 			break;
 		}
-		nextSeq = (nextSeq + 1) & MP_SEQ_MASK;
+		nextSeq = (nextSeq - 1) & MP_SEQ_MASK(priv);
 	}
 
 	/* Find the last fragment in the possibly newly completed frame */
@@ -865,7 +894,7 @@ ng_ppp_mp_input(node_p node, int linkNum, struct mbuf *m, meta_p meta)
 			last = qent;
 			break;
 		}
-		nextSeq = (nextSeq - 1) & MP_SEQ_MASK;
+		nextSeq = (nextSeq + 1) & MP_SEQ_MASK(priv);
 	}
 
 	/* We have a complete frame, extract it from the queue */
@@ -878,7 +907,7 @@ ng_ppp_mp_input(node_p node, int linkNum, struct mbuf *m, meta_p meta)
 		} else {
 			m->m_pkthdr.len += qent->data->m_pkthdr.len;
 			tail->m_next = qent->data;
-			NG_FREE_META(qent->meta); /* drop other frag's metas */
+			NG_FREE_META(qent->meta); /* drop other frags' metas */
 		}
 		while (tail->m_next != NULL)
 			tail = tail->m_next;
@@ -891,7 +920,7 @@ pruneQueue:
 	/* Prune out stale entries in the queue */
 	for (qent = CIRCLEQ_LAST(&priv->frags); 
 	    qent != (void *) &priv->frags; qent = qnext) {
-		if (MP_SEQ_DIFF(highSeq, qent->seq) <= MP_MAX_SEQ_LINGER)
+		if (MP_SEQ_DIFF(priv, highSeq, qent->seq) <= MP_MAX_SEQ_LINGER)
 			break;
 		qnext = CIRCLEQ_PREV(qent, f_qent);
 		CIRCLEQ_REMOVE(&priv->frags, qent, f_qent);
@@ -987,15 +1016,6 @@ deliver:
 			if (priv->conf.xmitShortSeq) {
 				u_int16_t shdr;
 
-				M_PREPEND(m2, 2, M_NOWAIT);
-				if (m2 == NULL
-				    || (m2->m_len < 2
-				      && (m2 = m_pullup(m2, 2)) == NULL)) {
-					if (!lastFragment)
-						m_freem(m);
-					NG_FREE_META(meta);
-					return (ENOBUFS);
-				}
 				shdr = priv->mpSeqOut;
 				priv->mpSeqOut =
 				    (priv->mpSeqOut + 1) % MP_SHORT_SEQ_MASK;
@@ -1003,19 +1023,11 @@ deliver:
 					shdr |= MP_SHORT_FIRST_FLAG;
 				if (lastFragment)
 					shdr |= MP_SHORT_LAST_FLAG;
-				*mtod(m2, u_int16_t *) = htons(shdr);
+				shdr = htons(shdr);
+				m2 = ng_ppp_prepend(m2, &shdr, 2);
 			} else {
 				u_int32_t lhdr;
 
-				M_PREPEND(m2, 4, M_NOWAIT);
-				if (m2 == NULL
-				    || (m2->m_len < 4
-				      && (m2 = m_pullup(m2, 4)) == NULL)) {
-					if (!lastFragment)
-						m_freem(m);
-					NG_FREE_META(meta);
-					return (ENOBUFS);
-				}
 				lhdr = priv->mpSeqOut;
 				priv->mpSeqOut =
 				    (priv->mpSeqOut + 1) % MP_LONG_SEQ_MASK;
@@ -1023,12 +1035,9 @@ deliver:
 					lhdr |= MP_LONG_FIRST_FLAG;
 				if (lastFragment)
 					lhdr |= MP_LONG_LAST_FLAG;
-				*mtod(m2, u_int32_t *) = htonl(lhdr);
+				lhdr = htonl(lhdr);
+				m2 = ng_ppp_prepend(m2, &lhdr, 4);
 			}
-
-			/* Add MP protocol number */
-			m2 = ng_ppp_addproto(m, PROT_MP,
-			    priv->conf.links[linkNum].enableProtoComp);
 			if (m2 == NULL) {
 				if (!lastFragment)
 					m_freem(m);
@@ -1051,9 +1060,7 @@ deliver:
 				meta2 = meta;
 
 			/* Send fragment */
-			error = ng_ppp_output(node, 0, linkNum, m2, meta2);
-
-			/* Abort for error */
+			error = ng_ppp_output(node, 0, PROT_MP, linkNum, m2, meta2);
 			if (error != 0) {
 				if (!lastFragment)
 					NG_FREE_DATA(m, meta);
@@ -1299,16 +1306,27 @@ ng_ppp_intcmp(const void *v1, const void *v2)
 static struct mbuf *
 ng_ppp_addproto(struct mbuf *m, int proto, int compOK)
 {
-	int psize = (PROT_COMPRESSABLE(proto) && compOK) ? 1 : 2;
+	if (compOK && PROT_COMPRESSABLE(proto)) {
+		u_char pbyte = (u_char)proto;
 
-	/* Add protocol number */
-	M_PREPEND(m, psize, M_NOWAIT);
-	if (m == NULL || (m->m_len < psize && (m = m_pullup(m, psize)) == NULL))
+		return ng_ppp_prepend(m, &pbyte, 1);
+	} else {
+		u_int16_t pword = htons((u_int16_t)proto);
+
+		return ng_ppp_prepend(m, &pword, 2);
+	}
+}
+
+/*
+ * Prepend some bytes to an mbuf
+ */
+static struct mbuf *
+ng_ppp_prepend(struct mbuf *m, const void *buf, int len)
+{
+	M_PREPEND(m, len, M_NOWAIT);
+	if (m == NULL || (m->m_len < len && (m = m_pullup(m, len)) == NULL))
 		return (NULL);
-	if (psize == 1)
-		*mtod(m, u_char *) = (u_char)proto;
-	else
-		*mtod(m, u_int16_t *) = htons((u_int16_t)proto);
+	bcopy(buf, mtod(m, u_char *), len);
 	return (m);
 }
 
@@ -1332,7 +1350,8 @@ ng_ppp_update(node_p node, int newConf)
 		for (i = 0; i < NG_PPP_MAX_LINKS; i++) {
 			int hdrBytes;
 
-			hdrBytes = (priv->conf.links[i].enableProtoComp ? 1 : 2)
+			hdrBytes = (priv->conf.links[i].enableACFComp ? 0 : 2)
+			    + (priv->conf.links[i].enableProtoComp ? 1 : 2)
 			    + (priv->conf.xmitShortSeq ? 2 : 4);
 			priv->conf.links[i].latency +=
 			    ((hdrBytes * priv->conf.links[i].bandwidth) + 50)
