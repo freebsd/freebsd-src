@@ -34,7 +34,7 @@
 .\"
 .\"     from: @(#)dca.4	5.2 (Berkeley) 3/27/91
 .\"	from: com.4,v 1.1 1993/08/06 11:19:07 cgd Exp
-.\"	$Id: sio.4,v 1.1 1993/08/28 12:41:23 rgrimes Exp $
+.\"	$Id: sio.4,v 1.2 1994/02/09 23:49:45 ache Exp $
 .\"
 .Dd February 9, 1994
 .Dt SIO 4 i386
@@ -84,10 +84,20 @@ For multiport cards the
 .Nm flags
 keyword in the kernel configuration file determines which port of 
 your multiport card is the master device, and whether the 
-port is part of a multiport card. The master device is the port with 
-the shared interrupt register.
-All ports of a multiport card report
-pending interrupts using this single register.
+port is part of a multiport card. The master device is the port which
+has register through which all interrupts of the card are funneled.
+All ports of a multiport card report pending interrupts using this
+single register.
+.sp
+The master device is indicated 
+.Nm bitwise
+, so all sio entries in the kernel config file that are part of a 
+multiport card must include the correct 
+.Nm flags
+specification. The bitwise assignment allows multiple multiport cards to
+be configured in one system. It does 
+.Nm not
+imply that the hardware can share the same physical interrupt line!
 .Pp
 In the synopsis the 
 .Nm flags 0x401
@@ -104,10 +114,6 @@ will be
 .Pp
 Which port is the master device depends on the card type. Consult
 the hardware documentation of your card.
-If you are shure, that your master device fully compatible with
-standard port, you can ommit
-.Nm flags
-field from master device description line.
 .Pp
 Serial ports controlled by the 
 .Nm sio
@@ -147,18 +153,25 @@ driver is derived from the
 driver and is
 .Ud
 .Sh BUGS
-Data loss is not near as likely on busy systems
-but they still can occur at very high baud rates on slow systems. The
+Data loss is not near as likely on busy systems as they are with the
+.Xr com 4
+driver but they still can occur at very high baud rates on slow systems. The
 use of NS16550A's helps lot to handle high baud rates.
+.Pp
+Stay away from NS16550 (so without the trailing A). These are early 
+implementations of the chip with non-functional FIFO hardware.
 .Pp
 The constants which define the locations
 of the various serial ports are holdovers from
 .Nm DOS .
-As shown, hex addresses can be used instead.
+As shown, hex addresses can be and for clarity probably should be used instead.
 .Pp
 As usual, you get what you pay for; cheap NS16550 clones generally don't work.
 .Pp
-The multiport example has been successfully tested with an AST/4 card, your
-mileage may vary however.
-.Pp
-This man page can not replace the Ultimate Doc(tm): the source.
+The multiport example is based on an AST/4 card, your
+mileage may vary however. Note that on the AST/4 the card's dipswitches should 
+.Nm not
+be set to use interrupt sharing. AST/4-like interrupt sharing is only used when 
+.Nm multiple
+AST/4 cards are installed in the same system. The sio driver does not 
+support more than 1 AST/4 on one IRQ.
