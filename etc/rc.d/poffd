@@ -1,0 +1,17 @@
+#!/bin/sh
+#
+# $NetBSD$
+#
+
+# PROVIDE: poffd
+# REQUIRE: DAEMON
+
+. /etc/rc.subr
+
+name="poffd"
+rcvar=$name
+command="/usr/sbin/${name}"
+start_precmd="test -c /dev/pow0"
+
+load_rc_config $name
+run_rc_command "$1"

@@ -1,0 +1,43 @@
+#!/bin/sh
+#
+# $NetBSD: raidframe,v 1.4 2000/05/16 16:54:33 oster Exp $
+#
+
+# PROVIDE: disks
+
+. /etc/rc.subr
+
+name="raidframe"
+start_cmd="raidframe_start"
+stop_cmd=":"
+
+raidframe_start()
+{
+	# Configure raid devices.
+	# Ensure order by globbing raid[0-9].conf before raid[0-9][0-9].conf.
+	#
+	for cfg in /etc/raid[0-9].conf /etc/raid[0-9][0-9].conf ; do
+		[ ! -f $cfg ] && continue
+		dev=${cfg##*/}
+		dev=${dev%%.conf}
+		raidctl -c $cfg $dev
+	done
+
+	# Initiate parity/mirror reconstruction as needed.
+	# Backgrounded, and sequentially ordered.
+	#
+	# XXX:	this currently doesn't work for autoconfigured raid devices
+	#	that don't have a corresponding raidN.conf
+	#
+	(
+		for cfg in /etc/raid[0-9].conf /etc/raid[0-9][0-9].conf ; do
+			[ ! -f $cfg ] && continue
+			dev=${cfg##*/}
+			dev=${dev%%.conf}
+			raidctl -P $dev
+		done
+	) &
+}
+
+load_rc_config $name
+run_rc_command "$1"

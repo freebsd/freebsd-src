@@ -1,0 +1,18 @@
+#!/bin/sh
+#
+# $NetBSD$
+#
+
+# PROVIDE: ike
+# REQUIRE: kdc ppp
+
+. /etc/rc.subr
+
+name="racoon"
+rcvar=$name
+command="/usr/sbin/${name}"
+pidfile="/var/run/${name}.pid"
+required_files="/etc/racoon/racoon.conf"
+
+load_rc_config $name
+run_rc_command "$1"

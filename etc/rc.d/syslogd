@@ -1,0 +1,31 @@
+#!/bin/sh
+#
+# $NetBSD: syslogd,v 1.6 2000/07/29 21:50:20 veego Exp $
+#
+
+# PROVIDE: syslogd
+# REQUIRE: mountcritremote sysdb wscons
+
+. /etc/rc.subr
+
+name="syslogd"
+rcvar=$name
+command="/usr/sbin/${name}"
+pidfile="/var/run/${name}.pid"
+required_files="/etc/syslog.conf"
+start_precmd="syslogd_precmd"
+extra_commands="reload"
+
+syslogd_precmd()
+{
+	#	Transitional symlink for old binaries
+	#
+	if [ ! -h /dev/log ]; then
+		ln -sf /var/run/log /dev/log
+	fi
+	rm -f /var/run/log
+	return 0
+}
+
+load_rc_config $name
+run_rc_command "$1"

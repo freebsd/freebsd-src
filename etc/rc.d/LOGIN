@@ -1,0 +1,15 @@
+#!/bin/sh
+#
+# $NetBSD: LOGIN,v 1.3 2000/07/20 23:36:56 lukem Exp $
+#
+
+# PROVIDE: LOGIN
+# REQUIRE: apmd bootparams dhcpd dhcrelay gated local lpd mopd motd
+# REQUIRE: mrouted ntpd rarpd rbootd route6d routed rtadvd rtsold
+# REQUIRE: rwho screenblank timed wscons xfs yppasswdd
+
+#	This is a dummy dependancy to ensure user services such as xdm,
+#	inetd, cron and kerberos are started after everything else, incase
+#	the administrator has increased the system security level and
+#	wants to delay user logins until the system is (almost) fully
+#	operational.
