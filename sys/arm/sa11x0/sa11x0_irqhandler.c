@@ -115,16 +115,26 @@ arm_get_irqnb(void *frame)
 	return(bus_space_read_4(sc->sc_iot, sc->sc_ioh, SAIPIC_IP));
 }
 
+static uint32_t sa11x0_irq_mask = 0xfffffff;
+
+extern vm_offset_t saipic_base;
+
 void
 arm_mask_irqs(int irq)
 {
-	/* XXX */	
+
+	sa11x0_irq_mask &= ~irq;
+	__asm __volatile("str	%0, [%1, #0x04]" /* SAIPIC_MR */
+	    : : "r" (sa11x0_irq_mask), "r" (saipic_base));
 }
 
 void
 arm_unmask_irqs(int irq)
 {
-	/* XXX */
+
+	sa11x0_irq_mask |= irq;
+	__asm __volatile("str	%0, [%1, #0x04]" /* SAIPIC_MR */
+	    : : "r" (sa11x0_irq_mask), "r" (saipic_base));
 }
 
 void stray_irqhandler(void *);
