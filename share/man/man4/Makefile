@@ -270,6 +270,7 @@ MAN=	aac.4 \
 	tty.4 \
 	tun.4 \
 	twe.4 \
+	tx.4 \
 	txp.4 \
 	uart.4 \
 	uaudio.4 \
@@ -389,6 +390,7 @@ MLINKS+=tap.4 if_tap.4
 MLINKS+=ti.4 if_ti.4
 MLINKS+=tl.4 if_tl.4
 MLINKS+=tun.4 if_tun.4
+MLINKS+=tx.4 if_tx.4
 MLINKS+=txp.4 if_txp.4
 MLINKS+=vlan.4 if_vlan.4
 MLINKS+=vpo.4 imm.4
