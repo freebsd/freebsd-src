@@ -12,7 +12,7 @@
 
 #define FMT "%-32.32s %5d %5d %5d\n"
 #define HDRFMT "%-32.32s %5.5s %5.5s %5.5s\n"
-#define DASHES "-------------------------------- ---- ---- ----\n"
+#define DASHES "-------------------------------- ----- ----- -----\n"
 
 int
 main(int argc, char **argv)
@@ -33,7 +33,7 @@ main(int argc, char **argv)
         printf(FMT, vfc->vfc_name, vfc->vfc_index, vfc->vfc_refcount,
                vfc->vfc_flags);
       } else {
-	warnx("VFS %s unknown or not loaded", name);
+	warnx("VFS %s unknown or not loaded", *argv);
         rv++;
       }
     }
