@@ -93,7 +93,7 @@ static struct ac97_codecid ac97codecid[] = {
 };
 
 static char *ac97enhancement[] = {
-	"",
+	"no 3D Stereo Enhancement",
 	"Analog Devices Phat Stereo",
 	"Creative Stereo Enhancement",
 	"National Semi 3D Stereo Enhancement",
@@ -299,8 +299,12 @@ ac97_initmixer(struct ac97_info *codec)
 	for (i = 0; i < 32; i++)
 		codec->mix[i] = ac97mixtable_default[i];
 
-	if (codec->init)
-		codec->init(codec->devinfo);
+	if (codec->init) {
+		if (codec->init(codec->devinfo)) {
+			device_printf(codec->dev, "ac97 codec init failed\n");
+			return ENODEV;
+		}
+	}
 	wrcd(codec, AC97_REG_POWER, 0);
 	wrcd(codec, AC97_REG_RESET, 0);
 	DELAY(100000);
