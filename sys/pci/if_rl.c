@@ -1130,7 +1130,7 @@ static void rl_rxeof(sc)
 				m_adj(m, RL_ETHER_ALIGN);
 				m_copyback(m, wrap, total_len - wrap,
 					sc->rl_cdata.rl_rx_buf);
-				m_pullup(m, MHLEN - RL_ETHER_ALIGN);
+				m = m_pullup(m, MHLEN - RL_ETHER_ALIGN);
 			}
 			cur_rx = (total_len - wrap + ETHER_CRC_LEN);
 		} else {
