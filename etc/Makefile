@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id: Makefile,v 1.127 1995/11/30 02:32:40 jkh Exp $
+#	$Id: Makefile,v 1.128 1995/12/02 21:02:02 peter Exp $
 
 # disktab may be wrong -- hcx9 is a tahoe, but gets its own.
 # -rw-r--r--
@@ -216,8 +216,6 @@ distribution:
 	    ${DESTDIR}/var/run/utmp
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 664 ${.CURDIR}/minfree \
 	    ${DESTDIR}/var/crash
-	(cd ${.CURDIR}/etc.${MACHINE}; ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} \
-	    -m 444 fstab.* ${DESTDIR}/etc)
 	(cd ${.CURDIR}/../usr.sbin/sendmail/src; \
 	    ${MAKE} obj; \
 	    ${MAKE} all; \
