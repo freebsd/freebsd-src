@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002 Networks Associates Technology, Inc.
+ * Copyright (c) 2002-2003 Networks Associates Technology, Inc.
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project by ThinkSec AS and
@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/openpam_set_option.c#7 $
+ * $P4: //depot/projects/openpam/lib/openpam_set_option.c#13 $
  */
 
 #include <sys/param.h>
@@ -82,14 +82,13 @@ openpam_set_option(pam_handle_t *pamh,
 		cur->optv[i] = NULL;
 		RETURNC(PAM_SUCCESS);
 	}
-	if ((opt = malloc(len + strlen(value) + 2)) == NULL)
+	if (asprintf(&opt, "%.*s=%s", (int)len, option, value) < 0)
 		RETURNC(PAM_BUF_ERR);
-	sprintf(opt, "%.*s=%s", (int)len, option, value);
 	if (i == cur->optc) {
 		/* add */
 		optv = realloc(cur->optv, sizeof(char *) * (cur->optc + 2));
 		if (optv == NULL) {
-			free(opt);
+			FREE(opt);
 			RETURNC(PAM_BUF_ERR);
 		}
 		optv[i] = opt;
@@ -98,15 +97,13 @@ openpam_set_option(pam_handle_t *pamh,
 		++cur->optc;
 	} else {
 		/* replace */
-		free(cur->optv[i]);
+		FREE(cur->optv[i]);
 		cur->optv[i] = opt;
 	}
 	RETURNC(PAM_SUCCESS);
 }
 
 /*
- * NOLIST
- *
  * Error codes:
  *
  *	PAM_SYSTEM_ERR
@@ -116,4 +113,6 @@ openpam_set_option(pam_handle_t *pamh,
 /**
  * The =openpam_set_option function sets the specified option in the
  * context of the currently executing service module.
+ *
+ * >openpam_get_option
  */

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2002 Networks Associates Technology, Inc.
+ * Copyright (c) 2002-2003 Networks Associates Technology, Inc.
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project by ThinkSec AS and
@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/openpam_log.c#18 $
+ * $P4: //depot/projects/openpam/lib/openpam_log.c#23 $
  */
 
 #include <ctype.h>
@@ -47,57 +47,12 @@
 
 int _openpam_debug = 0;
 
-#if defined(openpam_log)
+#if !defined(openpam_log)
 
 /*
  * OpenPAM extension
  *
- * Log a message through syslog(3)
- */
-
-void
-_openpam_log(int level, const char *func, const char *fmt, ...)
-{
-	va_list ap;
-	char *format;
-	int len, priority;
-
-	switch (level) {
-	case PAM_LOG_DEBUG:
-		if (!_openpam_debug)
-			return;
-		priority = LOG_DEBUG;
-		break;
-	case PAM_LOG_VERBOSE:
-		priority = LOG_INFO;
-		break;
-	case PAM_LOG_NOTICE:
-		priority = LOG_NOTICE;
-		break;
-	case PAM_LOG_ERROR:
-	default:
-		priority = LOG_ERR;
-		break;
-	}
-	va_start(ap, fmt);
-	for (len = strlen(fmt); len > 0 && isspace(fmt[len]); len--)
-		/* nothing */;
-	if ((format = malloc(strlen(func) + len + 16)) != NULL) {
-		sprintf(format, "in %s(): %.*s\n", func, len, fmt);
-		vsyslog(priority, format, ap);
-		free(format);
-	} else {
-		vsyslog(priority, fmt, ap);
-	}
-	va_end(ap);
-}
-
-#else
-
-/*
- * If openpam_log isn't defined as a macro, we're on a platform that
- * doesn't support varadic macros (or it does but we aren't aware of
- * it).  Do the next best thing.
+ * Log a message through syslog
  */
 
 void
@@ -128,8 +83,67 @@ openpam_log(int level, const char *fmt, ...)
 	va_end(ap);
 }
 
+#else
+
+void
+_openpam_log(int level, const char *func, const char *fmt, ...)
+{
+	va_list ap;
+	char *format;
+	int priority;
+
+	switch (level) {
+	case PAM_LOG_DEBUG:
+		if (!_openpam_debug)
+			return;
+		priority = LOG_DEBUG;
+		break;
+	case PAM_LOG_VERBOSE:
+		priority = LOG_INFO;
+		break;
+	case PAM_LOG_NOTICE:
+		priority = LOG_NOTICE;
+		break;
+	case PAM_LOG_ERROR:
+	default:
+		priority = LOG_ERR;
+		break;
+	}
+	va_start(ap, fmt);
+	if (asprintf(&format, "in %s(): %s", func, fmt) > 0) {
+		vsyslog(priority, format, ap);
+		FREE(format);
+	} else {
+		vsyslog(priority, fmt, ap);
+	}
+	va_end(ap);
+}
+
 #endif
 
-/*
- * NOLIST
+/**
+ * The =openpam_log function logs messages using =syslog.  It is primarily
+ * intended for internal use by the library and modules.
+ *
+ * The =level argument indicates the importance of the message.  The
+ * following levels are defined:
+ *
+ *	=PAM_LOG_DEBUG:
+ *		Debugging messages.  These messages are normally not
+ *		logged unless the global integer variable :_openpam_debug
+ *		is set to a non-zero value, in which case they are logged
+ *		with a =syslog priority of =LOG_DEBUG.
+ *	=PAM_LOG_VERBOSE:
+ *		Information about the progress of the authentication
+ *		process, or other non-essential messages.  These messages
+ *		are logged with a =syslog priority of =LOG_INFO.
+ *	=PAM_LOG_NOTICE:
+ *		Messages relating to non-fatal errors.  These messages are
+ *		logged with a =syslog priority of =LOG_NOTICE.
+ *	=PAM_LOG_ERROR:
+ *		Messages relating to serious errors.  These messages are
+ *		logged with a =syslog priority of =LOG_ERR.
+ *
+ * The remaining arguments are a =printf format string and the
+ * corresponding arguments.
  */

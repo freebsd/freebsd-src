@@ -1,3 +1,22 @@
+OpenPAM Digitalis						2003-06-01
+
+ - ENHANCE: Completely rewrite the configuration parser and add
+   support for the "include" control flag.
+
+ - ENHANCE: Improve portability to NetBSD, OpenBSD and Linux.
+
+ - ENHANCE: Lots of additional paranoia.
+
+ - BUGFIX: The sample su(1) application dropped privileges before
+   forking instead of after.
+
+ - ENHANCE: Document openpam_log(3).
+
+ - ENHANCE: Other minor documentation fixes.
+
+Thanks to Dmitry V. Levin <ldv@altlinux.org> for considerable
+assistance with this release.
+============================================================================
 OpenPAM Dianthus						2003-05-02
 
  - BUGFIX: Initialize some potentially uninitialized variables.
@@ -223,4 +242,4 @@ OpenPAM	Calamite						2002-02-09
 
 First (beta) release.
 ============================================================================
-$P4: //depot/projects/openpam/HISTORY#18 $
+$P4: //depot/projects/openpam/HISTORY#19 $
