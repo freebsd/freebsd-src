@@ -39,9 +39,14 @@
 #include "sort.h"
 
 #ifndef lint
+#if 0
 __RCSID("$NetBSD: append.c,v 1.9 2001/01/18 20:59:43 jdolecek Exp $");
 __SCCSID("@(#)append.c	8.1 (Berkeley) 6/6/93");
+#endif
 #endif /* not lint */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <stdlib.h>
 #include <string.h>

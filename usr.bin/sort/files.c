@@ -40,9 +40,14 @@
 #include "fsort.h"
 
 #ifndef lint
+#if 0
 __RCSID("$NetBSD: files.c,v 1.16 2001/02/19 20:50:17 jdolecek Exp $");
 __SCCSID("@(#)files.c	8.1 (Berkeley) 6/6/93");
+#endif
 #endif /* not lint */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <string.h>
 
@@ -55,11 +60,11 @@ static int	seq __P((FILE *, DBT *, DBT *));
 int
 getnext(binno, infl0, filelist, nfiles, pos, end, dummy)
 	int binno, infl0;
-	struct filelist *filelist;
+	struct filelist *filelist __unused;
 	int nfiles;
 	RECHEADER *pos;
 	u_char *end;
-	struct field *dummy;
+	struct field *dummy __unused;
 {
 	int i;
 	u_char *hp;
@@ -107,7 +112,7 @@ getnext(binno, infl0, filelist, nfiles, pos, end, dummy)
 	if ((u_char *) pos > end - sizeof(TRECHEADER))
 		return (BUFFEND);
 	fread(pos, sizeof(TRECHEADER), 1, fp);
-	if (end - pos->data < pos->length) {
+	if ((length_t)(end - pos->data) < pos->length) {
 		hp = ((u_char *)pos) + sizeof(TRECHEADER);
 		for (i = sizeof(TRECHEADER); i ;  i--)
 			ungetc(*--hp, fp);
@@ -126,12 +131,12 @@ getnext(binno, infl0, filelist, nfiles, pos, end, dummy)
  */
 int
 makeline(flno, top, filelist, nfiles, recbuf, bufend, dummy2)
-	int flno, top;
+	int flno, top __unused;
 	struct filelist *filelist;
 	int nfiles;
 	RECHEADER *recbuf;
 	u_char *bufend;
-	struct field *dummy2;
+	struct field *dummy2 __unused;
 {
 	static u_char *obufend;
 	static size_t osz;
@@ -213,7 +218,7 @@ makeline(flno, top, filelist, nfiles, recbuf, bufend, dummy2)
  */
 int
 makekey(flno, top, filelist, nfiles, recbuf, bufend, ftbl)
-	int flno, top;
+	int flno, top __unused;
 	struct filelist *filelist;
 	int nfiles;
 	RECHEADER *recbuf;
@@ -278,7 +283,7 @@ makekey(flno, top, filelist, nfiles, recbuf, bufend, ftbl)
 static int
 seq(fp, line, key)
 	FILE *fp;
-	DBT *key, *line;
+	DBT *key __unused, *line;
 {
 	static char *buf, flag = 1;
 	char *end, *pos;
@@ -344,12 +349,12 @@ putline(rec, fp)
  */
 int
 geteasy(flno, top, filelist, nfiles, rec, end, dummy2)
-	int flno, top;
-	struct filelist *filelist;
-	int nfiles;
+	int flno, top __unused;
+	struct filelist *filelist __unused;
+	int nfiles __unused;
 	RECHEADER *rec;
 	u_char *end;
-	struct field *dummy2;
+	struct field *dummy2 __unused;
 {
 	int i;
 	FILE *fp;
@@ -362,7 +367,7 @@ geteasy(flno, top, filelist, nfiles, rec, end, dummy2)
 		fstack[flno].fp = 0;
 		return (EOF);
 	}
-	if (end - rec->data < rec->length) {
+	if ((length_t)(end - rec->data) < rec->length) {
 		for (i = sizeof(TRECHEADER) - 1; i >= 0;  i--)
 			ungetc(*((char *) rec + i), fp);
 		return (BUFFEND);
