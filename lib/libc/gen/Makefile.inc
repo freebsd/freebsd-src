@@ -7,10 +7,10 @@ SRCS+=	alarm.c assert.c clock.c closedir.c confstr.c crypt.c ctermid.c \
 	ctime.c daemon.c devname.c difftime.c disklabel.c err.c errlst.c \
 	exec.c fnmatch.c frexp.c fstab.c fts.c getbsize.c getcap.c getcwd.c \
 	getdomainname.c getgrent.c getgrouplist.c gethostname.c getloadavg.c \
-	getlogin.c getmntinfo.c getnetgrent.c getpagesize.c getpass.c \
-	getpwent.c getttyent.c getusershell.c glob.c initgroups.c isatty.c \
-	nice.c nlist.c opendir.c pause.c popen.c psignal.c pwcache.c raise.c \
-	readdir.c rewinddir.c scandir.c seekdir.c setdomainname.c \
+	getlogin.c getmntinfo.c getnetgrent.c getosreldate.c getpagesize.c \
+	getpass.c getpwent.c getttyent.c getusershell.c glob.c initgroups.c \
+	isatty.c nice.c nlist.c opendir.c pause.c popen.c psignal.c pwcache.c \
+	raise.c readdir.c rewinddir.c scandir.c seekdir.c setdomainname.c \
 	sethostname.c setjmperr.c setmode.c siginterrupt.c siglist.c signal.c \
 	sigsetjmp.c sigsetops.c sleep.c sysconf.c sysctl.c syslog.c telldir.c \
 	termios.c time.c times.c timezone.c ttyname.c ttyslot.c ualarm.c \
