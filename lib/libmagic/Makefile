@@ -10,6 +10,7 @@ MAN=	libmagic.3 magic.5
 
 SRCS=	apprentice.c apptype.c ascmagic.c compress.c fsmagic.c funcs.c \
 	is_tar.c magic.c print.c readelf.c softmagic.c
+INCS=	magic.h
 
 MAGICPATH?=	/usr/share/misc
 
