@@ -24,13 +24,29 @@
 \
 \ $FreeBSD$
 
-s" arch-alpha" environment? [if]
-s" loader_version" environment? 3 < abort" Loader version 0.3+ required"
-[then]
+s" arch-alpha" environment? [if] [if]
+	s" loader_version" environment?  [if]
+		3 < [if]
+			.( Loader version 0.3+ required) cr
+			abort
+		[then]
+	[else]
+		.( Could not get loader version!) cr
+		abort
+	[then]
+[then] [then]
 
-s" arch-i386" environment? [if]
-s" loader_version" environment? 8 < abort" Loader version 0.8+ required"
-[then]
+s" arch-i386" environment? [if] [if]
+	s" loader_version" environment?  [if]
+		8 < [if]
+			.( Loader version 0.8+ required) cr
+			abort
+		[then]
+	[else]
+		.( Could not get loader version!) cr
+		abort
+	[then]
+[then] [then]
 
 include /boot/support.4th
 
