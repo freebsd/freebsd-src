@@ -1,7 +1,7 @@
 /*
  * Birthday
  *
- * $Id$
+ * $Id: calendar.birthday,v 1.4 1997/02/22 19:28:18 peter Exp $
  */
 
 #ifndef _calendar_birthday_
@@ -252,6 +252,7 @@
 12/12	E.G. Robinson born, 1893
 12/14	George Washington dies, 1799
 12/17	William Safire (Safir) born, 1929
+12/20	Carl Sagan died, 1996
 12/21	Benjamin Disraeli born, 1804
 12/22	Giacomo Puccini born, 1858
 12/23	Joseph Smith born, 1805
