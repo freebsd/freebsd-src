@@ -384,6 +384,7 @@ extern DMenu		MenuMediaFTP;		/* FTP media menu				*/
 extern DMenu		MenuMediaTape;		/* Tape media menu				*/
 extern DMenu		MenuNetworkDevice;	/* Network device menu				*/
 extern DMenu		MenuNTP;		/* NTP time server menu				*/
+extern DMenu		MenuSecurity;		/* System security options menu			*/
 extern DMenu		MenuSecurityProfile;	/* Security profile menu			*/
 extern DMenu		MenuStartup;		/* Startup services menu			*/
 extern DMenu		MenuSyscons;		/* System console configuration menu		*/
