@@ -3,17 +3,13 @@
  * Garrett Wollman, September 1994.
  * This file is in the public domain.
  *
- *	$Id: clock.h,v 1.28 1997/12/26 20:42:01 phk Exp $
+ *	$Id: clock.h,v 1.29 1997/12/28 13:36:06 phk Exp $
  */
 
 #ifndef _MACHINE_CLOCK_H_
 #define	_MACHINE_CLOCK_H_
 
-#if (defined(I586_CPU) || defined(I686_CPU)) && !defined(SMP)
 #define CPU_CLOCKUPDATE(otime, ntime)	cpu_clockupdate((otime), (ntime))
-#else
-#define CPU_CLOCKUPDATE(otime, ntime)	(*(otime) = *(ntime))
-#endif
 
 #define CPU_THISTICKLEN(dflt) dflt
 
@@ -33,16 +29,10 @@ extern u_int	timer_freq;
 extern int	timer0_max_count;
 extern u_int	timer0_overflow_threshold;
 extern u_int	timer0_prescaler_count;
-#if defined(I586_CPU) || defined(I686_CPU)
-#ifndef SMP
 extern u_int	tsc_bias;
 extern u_int	tsc_comultiplier;
-#endif
 extern u_int	tsc_freq;
-#ifndef SMP
 extern u_int	tsc_multiplier;
-#endif
-#endif
 extern int	wall_cmos_clock;
 
 /*
@@ -85,7 +75,6 @@ clock_latency(void)
 		- ((high << 8) | low));
 }
 
-#if (defined(I586_CPU) || defined(I686_CPU)) && !defined(SMP)
 /*
  * When we update `time', on we also update `tsc_bias'
  * atomically.  `tsc_bias' is the best available approximation to
@@ -117,7 +106,6 @@ cpu_clockupdate(volatile struct timeval *otime, struct timeval *ntime)
 	} else
 		*otime = *ntime;
 }
-#endif /* I586_CPU || I686_CPU */
 
 #endif /* CLOCK_HAIR */
 
