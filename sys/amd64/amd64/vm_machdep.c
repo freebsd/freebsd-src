@@ -38,7 +38,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.39 1995/05/30 07:59:46 rgrimes Exp $
+ *	$Id: vm_machdep.c,v 1.40 1995/07/13 08:47:29 davidg Exp $
  */
 
 #include "npx.h"
@@ -61,9 +61,7 @@
 #include <i386/isa/isa.h>
 
 #ifdef BOUNCE_BUFFERS
-vm_map_t	io_map;
 volatile int	kvasfreecnt;
-
 
 caddr_t		bouncememory;
 int		bouncepages, bpwait;

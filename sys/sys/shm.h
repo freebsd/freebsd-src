@@ -1,4 +1,4 @@
-/* $Id: shm.h,v 1.3 1994/10/02 17:24:54 phk Exp $ */
+/* $Id: shm.h,v 1.4 1995/07/08 16:36:30 joerg Exp $ */
 /*	$NetBSD: shm.h,v 1.15 1994/06/29 06:45:17 cgd Exp $	*/
 
 /*
@@ -77,7 +77,7 @@ struct shminfo {
 		shmall;		/* max amount of shared memory (pages) */
 };
 extern struct shminfo	shminfo;
-struct shmid_ds	*shmsegs;
+extern struct shmid_ds	*shmsegs;
 
 void	shminit __P((void));
 void	shmexit __P((struct proc *));

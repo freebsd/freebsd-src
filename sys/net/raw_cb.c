@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)raw_cb.c	8.1 (Berkeley) 6/10/93
- * $Id: raw_cb.c,v 1.3 1994/10/08 22:38:24 phk Exp $
+ * $Id: raw_cb.c,v 1.4 1995/05/30 08:08:21 rgrimes Exp $
  */
 
 #include <sys/param.h>
@@ -57,6 +57,7 @@
  *	redo address binding to allow wildcards
  */
 
+struct rawcb rawcb;
 u_long	raw_sendspace = RAWSNDQ;
 u_long	raw_recvspace = RAWRCVQ;
 

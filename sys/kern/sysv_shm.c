@@ -1,4 +1,4 @@
-/*	$Id: sysv_shm.c,v 1.4 1995/02/20 22:23:13 davidg Exp $ */
+/*	$Id: sysv_shm.c,v 1.5 1995/05/30 08:06:04 rgrimes Exp $ */
 /*	$NetBSD: sysv_shm.c,v 1.23 1994/07/04 23:25:12 glass Exp $	*/
 
 /*
@@ -72,6 +72,7 @@ int	(*shmcalls[])() = { shmat, oshmctl, shmdt, shmget, shmctl };
 
 vm_map_t sysvshm_map;
 int shm_last_free, shm_nused, shm_committed;
+struct shmid_ds	*shmsegs;
 
 struct shm_handle {
 	vm_offset_t kva;

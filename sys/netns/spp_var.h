@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)spp_var.h	8.1 (Berkeley) 6/10/93
- * $Id: spp_var.h,v 1.2 1994/08/02 07:52:01 davidg Exp $
+ * $Id: spp_var.h,v 1.3 1994/08/21 06:22:12 paul Exp $
  */
 
 #ifndef _NETNS_SPP_VAR_H_
@@ -187,14 +187,14 @@ struct	spp_istat {
 };
 
 #ifdef KERNEL
-struct spp_istat spp_istat;
+extern struct spp_istat spp_istat;
 
 /* Following was struct sppstat sppstat; */
 #ifndef sppstat
 #define sppstat spp_istat.newstats
 #endif
 
-u_short spp_iss;
+extern u_short spp_iss;
 extern struct sppcb *spp_close(), *spp_disconnect(),
 	*spp_usrclosed(), *spp_timers(), *spp_drop();
 #endif

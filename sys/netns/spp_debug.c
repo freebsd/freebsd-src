@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)spp_debug.c	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: spp_debug.c,v 1.2 1994/08/02 07:51:57 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -59,6 +59,9 @@
 #include <netns/spp_debug.h>
 
 int	sppconsdebug = 0;
+struct	spp_debug spp_debug[SPP_NDEBUG];
+int	spp_debx;
+
 /*
  * spp debug routines
  */

@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)llc_var.h	8.1 (Berkeley) 6/10/93
- * $Id: llc_var.h,v 1.3 1994/08/21 05:44:08 paul Exp $
+ * $Id: llc_var.h,v 1.4 1995/05/30 08:08:55 rgrimes Exp $
  */
 
 #ifndef _NETCCITT_LLC_VAR_H_
@@ -595,7 +595,7 @@ extern int af_link_rts_init_done;
 	       } \
 	 }
 
-struct ifqueue llcintrq;
+extern struct ifqueue llcintrq;
 
 extern struct llccb_q llccb_q;
 extern char *frame_names[];

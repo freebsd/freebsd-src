@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)spec_vnops.c	8.6 (Berkeley) 4/9/94
- * $Id: spec_vnops.c,v 1.11 1995/04/09 06:03:10 davidg Exp $
+ * $Id: spec_vnops.c,v 1.12 1995/07/08 04:03:12 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -50,15 +50,7 @@
 #include <sys/disklabel.h>
 #include <miscfs/specfs/specdev.h>
 
-/* symbolic sleep message strings for devices */
-char	devopn[] = "devopn";
-char	devio[] = "devio";
-char	devwait[] = "devwait";
-char	devin[] = "devin";
-char	devout[] = "devout";
-char	devioc[] = "devioc";
-char	devcls[] = "devcls";
-
+struct vnode *speclisth[SPECHSZ];
 int (**spec_vnodeop_p)();
 struct vnodeopv_entry_desc spec_vnodeop_entries[] = {
 	{ &vop_default_desc, vn_default_error },

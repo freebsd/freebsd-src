@@ -1,4 +1,4 @@
-/* $Id: sem.h,v 1.3 1995/03/28 07:57:35 bde Exp $ */
+/* $Id: sem.h,v 1.4 1995/07/08 16:36:28 joerg Exp $ */
 /*	$NetBSD: sem.h,v 1.5 1994/06/29 06:45:15 cgd Exp $	*/
 
 /*
@@ -143,14 +143,11 @@ extern struct seminfo	seminfo;
 /* actual size of an undo structure */
 #define SEMUSZ	(sizeof(struct sem_undo)+sizeof(struct undo)*SEMUME)
 
-/*
- * Structures allocated in machdep.c
- */
-struct	semid_ds *sema;		/* semaphore id pool */
-struct	sem *sem;		/* semaphore pool */
-struct	map *semmap;		/* semaphore allocation map */
-struct	sem_undo *semu_list;	/* list of active undo structures */
-int	*semu;			/* undo structure pool */
+extern struct semid_ds *sema;	/* semaphore id pool */
+extern struct sem *sem;		/* semaphore pool */
+extern struct map *semmap;	/* semaphore allocation map */
+extern struct sem_undo *semu_list; /* list of active undo structures */
+extern int	*semu;		/* undo structure pool */
 
 /*
  * Macro to find a particular sem_undo vector

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfsnode.h	8.4 (Berkeley) 2/13/94
- * $Id: nfsnode.h,v 1.9 1995/03/16 18:15:42 bde Exp $
+ * $Id: nfsnode.h,v 1.10 1995/06/27 11:06:57 dfr Exp $
  */
 
 #ifndef _NFS_NFSNODE_H_
@@ -148,7 +148,7 @@ struct nfsnode {
 /*
  * Queue head for nfsiod's
  */
-TAILQ_HEAD(, buf) nfs_bufq;
+extern TAILQ_HEAD(nfs_bufq, buf) nfs_bufq;
 
 #if defined(KERNEL) || defined(_KERNEL)
 extern	int	(**fifo_nfsv2nodeop_p)();
