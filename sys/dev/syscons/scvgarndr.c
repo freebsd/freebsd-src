@@ -38,7 +38,6 @@
 #include <sys/kernel.h>
 
 #include <machine/console.h>
-#include <machine/md_var.h>
 
 #include <dev/fb/fbreg.h>
 #include <dev/fb/vgareg.h>
@@ -83,6 +82,8 @@ static vr_draw_border_t		vga_grborder;
 
 static void			vga_nop(scr_stat *scp, ...);
 
+static struct linker_set	vga_set;
+
 static sc_rndr_sw_t txtrndrsw = {
 	vga_txtclear,
 	vga_txtborder,
@@ -93,10 +94,10 @@ static sc_rndr_sw_t txtrndrsw = {
 	(vr_set_mouse_t *)vga_nop,
 	vga_txtmouse,
 };
-RENDERER(mda, 0, txtrndrsw);
-RENDERER(cga, 0, txtrndrsw);
-RENDERER(ega, 0, txtrndrsw);
-RENDERER(vga, 0, txtrndrsw);
+RENDERER(mda, 0, txtrndrsw, vga_set);
+RENDERER(cga, 0, txtrndrsw, vga_set);
+RENDERER(ega, 0, txtrndrsw, vga_set);
+RENDERER(vga, 0, txtrndrsw, vga_set);
 
 #ifdef SC_PIXEL_MODE
 static sc_rndr_sw_t egarndrsw = {
@@ -109,7 +110,7 @@ static sc_rndr_sw_t egarndrsw = {
 	(vr_set_mouse_t *)vga_nop,
 	vga_pxlmouse,
 };
-RENDERER(ega, PIXEL_MODE, egarndrsw);
+RENDERER(ega, PIXEL_MODE, egarndrsw, vga_set);
 
 static sc_rndr_sw_t vgarndrsw = {
 	vga_pxlclear,
@@ -121,7 +122,7 @@ static sc_rndr_sw_t vgarndrsw = {
 	(vr_set_mouse_t *)vga_nop,
 	vga_pxlmouse,
 };
-RENDERER(vga, PIXEL_MODE, vgarndrsw);
+RENDERER(vga, PIXEL_MODE, vgarndrsw, vga_set);
 #endif /* SC_PIXEL_MODE */
 
 #ifndef SC_NO_MODE_CHANGE
@@ -135,10 +136,12 @@ static sc_rndr_sw_t grrndrsw = {
 	(vr_set_mouse_t *)vga_nop,
 	(vr_draw_mouse_t *)vga_nop,
 };
-RENDERER(cga, GRAPHICS_MODE, grrndrsw);
-RENDERER(ega, GRAPHICS_MODE, grrndrsw);
-RENDERER(vga, GRAPHICS_MODE, grrndrsw);
+RENDERER(cga, GRAPHICS_MODE, grrndrsw, vga_set);
+RENDERER(ega, GRAPHICS_MODE, grrndrsw, vga_set);
+RENDERER(vga, GRAPHICS_MODE, grrndrsw, vga_set);
 #endif /* SC_NO_MODE_CHANGE */
+
+RENDERER_MODULE(vga, vga_set);
 
 #ifndef SC_NO_CUTPASTE
 static u_short mouse_and_mask[16] = {

@@ -240,7 +240,7 @@ daemon_saver(video_adapter_t *adp, int blank)
 			sc_vtb_clear(&scp->scr, sc->scr_map[0x20],
 				     (FG_LIGHTGREY | BG_BLACK) << 8);
 			(*vidsw[adp->va_index]->set_hw_cursor)(adp, -1, -1);
-			set_border(scp, 0);
+			sc_set_border(scp, 0);
 			xlen = ylen = tlen = 0;
 		}
 		if (blanked++ < 2)
