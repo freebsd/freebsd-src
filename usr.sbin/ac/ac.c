@@ -87,11 +87,11 @@ int			main __P((int, char **));
 int			ac __P((FILE *));
 struct tty_list		*add_tty __P((char *));
 int			do_tty __P((char *));
-FILE			*file __P((char *));
+FILE			*file __P((const char *));
 struct utmp_list	*log_in __P((struct utmp_list *, struct utmp *));
 struct utmp_list	*log_out __P((struct utmp_list *, struct utmp *));
 int			on_console __P((struct utmp_list *));
-void			show __P((char *, time_t));
+void			show __P((const char *, time_t));
 void			show_today __P((struct user_list *, struct utmp_list *,
 			    time_t));
 void			show_users __P((struct user_list *));
@@ -103,7 +103,7 @@ void			usage __P((void));
  */
 FILE *
 file(name)
-	char *name;
+	const char *name;
 {
 	FILE *fp;
 
@@ -293,7 +293,7 @@ main(argc, argv)
  */
 void
 show(name, secs)
-	char *name;
+	const char *name;
 	time_t secs;
 {
 	(void)printf("\t%-*s %8.2f\n", UT_NAMESIZE, name,
