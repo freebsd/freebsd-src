@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.173 1999/07/21 18:02:27 alc Exp $
+ * $Id: vm_map.c,v 1.174 1999/08/01 06:05:08 alc Exp $
  */
 
 /*
@@ -1028,26 +1028,12 @@ vm_map_madvise(map, start, end, advise)
 	for(current = entry;
 		(current != &map->header) && (current->start < end);
 		current = current->next) {
-		vm_size_t size;
 
 		if (current->eflags & MAP_ENTRY_IS_SUB_MAP) {
 			continue;
 		}
 
 		vm_map_clip_end(map, current, end);
-		size = current->end - current->start;
-
-		/*
-		 * Create an object if needed
-		 */
-		if (current->object.vm_object == NULL) {
-			vm_object_t object;
-			if ((advise == MADV_FREE) || (advise == MADV_DONTNEED))
-				continue;
-			object = vm_object_allocate(OBJT_DEFAULT, OFF_TO_IDX(size));
-			current->object.vm_object = object;
-			current->offset = 0;
-		}
 
 		switch (advise) {
 		case MADV_NORMAL:
@@ -1069,7 +1055,7 @@ vm_map_madvise(map, start, end, advise)
 				vm_pindex_t pindex;
 				int count;
 				pindex = OFF_TO_IDX(current->offset);
-				count = OFF_TO_IDX(size);
+				count = OFF_TO_IDX(current->end - current->start);
 				/*
 				 * MADV_DONTNEED removes the page from all
 				 * pmaps, so pmap_remove is not necessary.
@@ -1084,7 +1070,7 @@ vm_map_madvise(map, start, end, advise)
 				vm_pindex_t pindex;
 				int count;
 				pindex = OFF_TO_IDX(current->offset);
-				count = OFF_TO_IDX(size);
+				count = OFF_TO_IDX(current->end - current->start);
 				vm_object_madvise(current->object.vm_object,
 					pindex, count, advise);
 				pmap_object_init_pt(map->pmap, current->start,
