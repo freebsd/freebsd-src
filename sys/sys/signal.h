@@ -44,16 +44,7 @@
 
 #include <sys/cdefs.h>
 #include <sys/_posix.h>
-
-/*
- * sigset_t macros.
- */
-#define	_SIG_WORDS	4
-#define	_SIG_MAXSIG	128
-#define	_SIG_IDX(sig)	((sig) - 1)
-#define	_SIG_WORD(sig)	(_SIG_IDX(sig) >> 5)
-#define	_SIG_BIT(sig)	(1 << (_SIG_IDX(sig) & 31))
-#define	_SIG_VALID(sig)	((sig) <= _SIG_MAXSIG && (sig) > 0)
+#include <sys/_sigset.h>
 
 /*
  * System defined signals.
@@ -167,13 +158,9 @@ typedef struct __siginfo {
 } siginfo_t;
 #endif /* _P1003_1B_VISIBLE */
 
-typedef struct __sigset {
-	unsigned int	__bits[_SIG_WORDS];
-} sigset_t;
-
 /*
- * XXX - there are some nasty dependencies on include file order. Now that
- * sigset_t has been defined we can include the MD header.
+ * XXX - there are some nasty dependencies on include file order.
+ * <sys/_sigset.h> must be included before <machine/signal.h>.
  */     
 #include <machine/signal.h>     /* sig_atomic_t; trap codes; sigcontext */
 
