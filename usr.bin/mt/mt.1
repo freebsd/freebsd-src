@@ -286,6 +286,8 @@ Value  Width        Tracks    Density         Code Type Reference   Note
 0x2A
 0x2B   12.7  (0.5)    3          ?        ?     ?   C   X3.267       5
 0x41   12.7  (0.5)  208      3,868  (98,250)  RLL   C   DLTapeIV(40) 6,7
+0x48   12.7  (0.5)  448      5,236  (133,000) PRML  C   SDLTapeI(110) 6,8
+0x49   12.7  (0.5)  448      7,598  (193,000) PRML  C   SDLTapeI(160) 6,8
 .Ed
 .Bd -literal -offset 3n
 Code Description                                   Type Description
@@ -297,6 +299,7 @@ IMFM    Inverted modified frequency modulation
 MFM     Modified frequency modulation
 DDS     DAT data storage
 RLL     Run length limited
+PRML    Partial Response Maximum Likelihood
 .Ed
 .Bd -literal -offset 3n
 NOTES
@@ -308,6 +311,8 @@ NOTES
    an industry standard definition of the media format.
 7. DLT recording: serially recorded track pairs (DLTapeIII and
    DLTapeIV(20)), or track quads (DLTapeIV(35) and DLTapeIV(40)).
+8. Super DLT (SDLT) recording: 56 serially recorded logical tracks with
+   8 physical tracks each.
 .Ed
 .Sh ENVIRONMENT
 If the following environment variable exists, it is utilized by
