@@ -1,4 +1,4 @@
-/* $RCSfile: consarg.c,v $$Revision: 1.1.1.1 $$Date: 1993/08/23 21:29:35 $
+/* $RCSfile: consarg.c,v $$Revision: 1.1.1.1 $$Date: 1994/09/10 06:27:32 $
  *
  *    Copyright (c) 1991, Larry Wall
  *
@@ -6,6 +6,9 @@
  *    License or the Artistic License, as specified in the README file.
  *
  * $Log: consarg.c,v $
+ * Revision 1.1.1.1  1994/09/10  06:27:32  gclarkii
+ * Initial import of Perl 4.046 bmaked
+ *
  * Revision 1.1.1.1  1993/08/23  21:29:35  nate
  * PERL!
  *
@@ -707,8 +710,8 @@ register ARG *arg;
 		if (nothing_in_common(arg1,arg2))
 		    arg->arg_flags &= ~AF_COMMON;
 		if (arg->arg_type == O_ASSIGN) {
-		    if (arg1->arg_flags & AF_LOCAL)
-			arg->arg_flags |= AF_LOCAL;
+		    if (arg1->arg_flags & AF_LOCAL_XX)
+			arg->arg_flags |= AF_LOCAL_XX;
 		    arg[1].arg_flags |= AF_ARYOK;
 		    arg[2].arg_flags |= AF_ARYOK;
 		}
@@ -1058,7 +1061,7 @@ ARG *
 localize(arg)
 ARG *arg;
 {
-    arg->arg_flags |= AF_LOCAL;
+    arg->arg_flags |= AF_LOCAL_XX;
     return arg;
 }
 
