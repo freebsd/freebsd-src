@@ -153,7 +153,10 @@ devfs_getattr(ap)
 	vap->va_uid = de->de_uid;
 	vap->va_gid = de->de_gid;
 	vap->va_mode = de->de_mode;
-	vap->va_size = 0;
+	if (vp->v_type == VLNK) 
+		vap->va_size = de->de_dirent->d_namlen;
+	else
+		vap->va_size = 0;
 	vap->va_blocksize = DEV_BSIZE;
 	vap->va_type = vp->v_type;
 	if (vp->v_type != VCHR)  {
