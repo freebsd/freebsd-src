@@ -122,6 +122,7 @@ rtalloc1(struct sockaddr *dst, int report, u_long ignflags)
 	int err = 0, msgtype = RTM_MISS;
 
 	newrt = 0;
+	bzero(&info, sizeof(info));
 	/*
 	 * Look up the address in the table for that Address Family
 	 */
@@ -129,7 +130,6 @@ rtalloc1(struct sockaddr *dst, int report, u_long ignflags)
 		rtstat.rts_unreach++;
 		goto miss2;
 	}
-	bzero(&info, sizeof(info));
 	RADIX_NODE_HEAD_LOCK(rnh);
 	if ((rn = rnh->rnh_matchaddr(dst, rnh)) &&
 	    (rn->rn_flags & RNF_ROOT) == 0) {
