@@ -1,7 +1,7 @@
 #
 # Makefile for the NIS databases
 #
-# $Id: Makefile.yp,v 1.24 1998/02/21 18:14:30 wpaul Exp $
+# $Id: Makefile.yp,v 1.25 1998/07/22 06:01:13 phk Exp $
 #
 # This Makefile should only be run on the NIS master server of a domain.
 # All updated maps will be pushed to all NIS slave servers listed in the
@@ -215,7 +215,7 @@ nopass:
 	@echo "  edit /var/yp/Makefile and set the MASTER variable to point"
 	@echo "  to the source file you wish to use for building the passwd"
 	@echo "  maps, or else invoke make(1) in the following manner:"
-	@echo "
+	@echo ""
 	@echo "        make MASTER_PASSWD=/path/to/master.passwd"
 	@echo ""
 
