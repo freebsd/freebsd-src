@@ -97,8 +97,8 @@ union dinode {
 
 struct quotaname {
 	long	flags;
-	char	grpqfname[MAXPATHLEN + 1];
-	char	usrqfname[MAXPATHLEN + 1];
+	char	grpqfname[PATH_MAX];
+	char	usrqfname[PATH_MAX];
 };
 #define	HASUSR	1
 #define	HASGRP	2
