@@ -368,7 +368,7 @@ arpresolve(ac, rt, m, dst, desten, rt0)
 	register u_char *desten;
 	struct rtentry *rt0;
 {
-	register struct llinfo_arp *la = 0;
+	struct llinfo_arp *la = 0;
 	struct sockaddr_dl *sdl;
 
 	if (m->m_flags & M_BCAST) {	/* broadcast */
@@ -403,6 +403,14 @@ arpresolve(ac, rt, m, dst, desten, rt0)
 		bcopy(LLADDR(sdl), desten, sdl->sdl_alen);
 		return 1;
 	}
+	/*
+	 * If ARP is disabled on this interface, stop.
+	 * XXX
+	 * Probably should not allocate empty llinfo struct if we are
+	 * not going to be sending out an arp request.
+	 */
+	if (ac->ac_if.if_flags & IFF_NOARP)
+		return (0);
 	/*
 	 * There is an arptab entry, but no ethernet address
 	 * response yet.  Replace the held mbuf with this
