@@ -57,7 +57,7 @@
 
 #include "i386/isa/isa.h"
 #include "i386/isa/isa_device.h"
-#include "i386/isa/comreg.h"
+#include "i386/isa/sioreg.h"
 #include "i386/isa/ic/ns16550.h"
 
 #define	FAKE_DCD(unit)	((unit) == comconsole)
