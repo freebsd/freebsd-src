@@ -224,7 +224,7 @@ debuglockmgr(lkp, flags, interlkp, p, name, file, line)
 {
 	int error;
 	pid_t pid;
-	int extflags;
+	int extflags, lockflags;
 
 	CTR5(KTR_LOCKMGR,
 	    "lockmgr(): lkp == %p (lk_wmesg == \"%s\"), flags == 0x%x, "
@@ -255,20 +255,16 @@ debuglockmgr(lkp, flags, interlkp, p, name, file, line)
 		 * lock itself ).
 		 */
 		if (lkp->lk_lockholder != pid) {
-			if (p && (p->p_flag & P_DEADLKTREAT)) {
-				error = acquire(
-					    lkp,
-					    extflags,
-					    LK_HAVE_EXCL
-					);
-			} else {
-				error = acquire(
-					    lkp, 
-					    extflags,
-					    LK_HAVE_EXCL | LK_WANT_EXCL | 
-					     LK_WANT_UPGRADE
-					);
+			lockflags = LK_HAVE_EXCL;
+			if (p) {
+				PROC_LOCK(p);
+				if (!p->p_flag & P_DEADLKTREAT) {
+					lockflags |= LK_WANT_EXCL |
+					    LK_WANT_UPGRADE;
+				}
+				PROC_UNLOCK(p);
 			}
+			error = acquire(lkp, extflags, lockflags);
 			if (error)
 				break;
 			sharelock(lkp, 1);
