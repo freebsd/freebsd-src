@@ -23,32 +23,32 @@
 
   <abstract>
   <para>Les notes de version pour &os; &release.current;
-  contiennent un résumé des changements réalisés dans le
-  système &os; de base depuis &release.prev;. Les
+  contiennent un r&eacute;sum&eacute; des changements r&eacute;alis&eacute;s dans le
+  syst&egrave;me &os; de base depuis &release.prev;. Les
   changements concernant le noyau et les programmes
-  utilisateurs sont mentionnés ainsi que les avis de
-  sécurité applicables au système de base qui ont été
-  découverts depuis la dernière version. Ces notes
-  contiennent également quelques brèves remarques sur la
-  mise à jour.</para>
+  utilisateurs sont mentionn&eacute;s ainsi que les avis de
+  s&eacute;curit&eacute; applicables au syst&egrave;me de base qui ont &eacute;t&eacute;
+  d&eacute;couverts depuis la derni&egrave;re version. Ces notes
+  contiennent &eacute;galement quelques br&egrave;ves remarques sur la
+  mise &agrave; jour.</para>
   </abstract>
 </articleinfo>
 
 <sect1>
   <title>Introduction</title>
         <para>Ce document contient les notes de version pour &os;
-        &release.current; sur plate-forme &arch.print;. Il décrit les nouvelles
-        fonctions de &os; qui ont été ajoutées (ou modifiées)
-        depuis &release.prev;. Il contient également quelques notes
-        sur la mise à jour depuis la version précédente de
+        &release.current; sur plate-forme &arch.print;. Il d&eacute;crit les nouvelles
+        fonctions de &os; qui ont &eacute;t&eacute; ajout&eacute;es (ou modifi&eacute;es)
+        depuis &release.prev;. Il contient &eacute;galement quelques notes
+        sur la mise &agrave; jour depuis la version pr&eacute;c&eacute;dente de
         &os;.</para>
 <![ %release.type.snapshot [
 
-        <para>La distribution snapshot à laquelle s'applique ces notes
-        de version représente une étape sur la branche de
-        développement &release.branch; entre &release.prev; et la future
-        &release.next;. Quelques distributions binaires pré-compilées
-        de la version snapshot pour cette branche sont présentes
+        <para>La distribution snapshot &agrave; laquelle s'applique ces notes
+        de version repr&eacute;sente une &eacute;tape sur la branche de
+        d&eacute;veloppement &release.branch; entre &release.prev; et la future
+        &release.next;. Quelques distributions binaires pr&eacute;-compil&eacute;es
+        de la version snapshot pour cette branche sont pr&eacute;sentes
         sur <ulink url="&release.url;"></ulink>.</para>
 
 ]]>
@@ -91,17 +91,17 @@
 -->
 
 <sect1>
-  <title>Les nouveautés</title>
+  <title>Les nouveaut&eacute;s</title>
 
-        <para>Cette section décrit les fonctions nouvelles ou les
+        <para>Cette section d&eacute;crit les fonctions nouvelles ou les
         modifications les plus visibles pour l'utilisateur sous
         &os; depuis la version &release.prev;. Il s'agit
-        typiquement de nouveaux gestionnaires de périphériques ou
-        du support de matériels, de nouvelles commandes ou options,
-        de corrections de bugs majeurs, ou de mise à jour de
-        logiciels. Les avis de sécurité pour le système de base
-        découverts après la &release.prev; sont égalements
-        mentionnés.</para>
+        typiquement de nouveaux gestionnaires de p&eacute;riph&eacute;riques ou
+        du support de mat&eacute;riels, de nouvelles commandes ou options,
+        de corrections de bugs majeurs, ou de mise &agrave; jour de
+        logiciels. Les avis de s&eacute;curit&eacute; pour le syst&egrave;me de base
+        d&eacute;couverts apr&egrave;s la &release.prev; sont &eacute;galements
+        mentionn&eacute;s.</para>
 
 
   <sect2 id="kernel">
@@ -110,27 +110,27 @@
     <para></para>
 
 
-    <para>&man.acct.2; a été modifié pour ouvrir le fichier
-    de comptage en mode ajout, cela permet à &man.accton.8; d'etre
-    utilisé en mode ajout seul.</para>
+    <para>&man.acct.2; a &eacute;t&eacute; modifi&eacute; pour ouvrir le fichier
+    de comptage en mode ajout, cela permet &agrave; &man.accton.8; d'etre
+    utilis&eacute; en mode ajout seul.</para>
 
 
-    <para>Le support de <literal>RLIMIT_VMEM</literal> a été ajouté.
-    Cette fonctionnalité défini une nouvelle limite de ressources
-    qui couvre l'espace mémoire virtuel d'un processus, incluant l'espace
+    <para>Le support de <literal>RLIMIT_VMEM</literal> a &eacute;t&eacute; ajout&eacute;.
+    Cette fonctionnalit&eacute; d&eacute;fini une nouvelle limite de ressources
+    qui couvre l'espace m&eacute;moire virtuel d'un processus, incluant l'espace
     &man.mmap.2;. Cette limite est configurable dans &man.login.conf.5;
     via la variable <varname>vmemoryuse</varname>.</para>
 
 <!-- Above this line, kernel changes ordered by manpage/variable name -->
 
     <sect3>
-      <title>Support des cartes mères et des processeurs</title>
+      <title>Support des cartes m&egrave;res et des processeurs</title>
 
       <para></para>
     </sect3>
 
     <sect3>
-      <title>Gestionnaire de démarrage</title>
+      <title>Gestionnaire de d&eacute;marrage</title>
 
       <para></para>
 
@@ -139,20 +139,20 @@
     </sect3>
 
     <sect3>
-      <title>Support des interfaces réseau</title>
+      <title>Support des interfaces r&eacute;seau</title>
 
       <para arch="i386,pc98">Le gestionnaire &man.em.4; supporte maintenant
       les composants Intel 82545EM et 82545EB chips. Il supporte aussi les
       VLANs.</para>
       
-      <para arch="i386">Le gestionnaire &man.rp.4; été mis à jour
+      <para arch="i386">Le gestionnaire &man.rp.4; &eacute;t&eacute; mis &agrave; jour
 	en version 3.02 et peut maintenant etre compiler en module.</para>
 
 <!-- Above this line, order network driver changes by manpage/variable name-->
     </sect3>
 
     <sect3>
-      <title>Protocoles réseau</title>
+      <title>Protocoles r&eacute;seau</title>
 
 
       <para></para>
@@ -161,15 +161,15 @@
     <sect3>
       <title>Disques et Stockage</title>
 
-      <para>Un bogue empéchant parfois &man.ata.4; de fonctionner
-      correctement en mode "tagged queueing" a été corrigé.</para>
+      <para>Un bogue emp&eacute;chant parfois &man.ata.4; de fonctionner
+      correctement en mode "tagged queueing" a &eacute;t&eacute; corrig&eacute;.</para>
 
 
       <para></para>
     </sect3>
 
     <sect3>
-      <title>Systèmes de fichier</title>
+      <title>Syst&egrave;mes de fichier</title>
       <para></para>
 
 
@@ -183,7 +183,7 @@
     </sect3>
 
     <sect3>
-      <title>support Multimédia</title>
+      <title>support Multim&eacute;dia</title>
       
       <para></para>
 
@@ -198,27 +198,27 @@
   </sect2>
 
   <sect2 id="security">
-    <title>Changements liés a la sécurité</title>
+    <title>Changements li&eacute;s a la s&eacute;curit&eacute;</title>
 
-    <para>Un dépassement de tampon dans le résolveur, qui pouvait
-    etre exploité par un serveur DNS malicieux ou un attaquant en 
-    modifiant les messages DNS a été corrigé. Voyeé l'avis
-    de sécurité <ulink
+    <para>Un d&eacute;passement de tampon dans le r&eacute;solveur, qui pouvait
+    etre exploit&eacute; par un serveur DNS malicieux ou un attaquant en 
+    modifiant les messages DNS a &eacute;t&eacute; corrig&eacute;. Voye&eacute; l'avis
+    de s&eacute;curit&eacute; <ulink
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:28.resolv.asc">FreeBSD-SA-02:28</ulink>
-      pour plus de détails.</para>
+      pour plus de d&eacute;tails.</para>
 
-    <para>Un dépassement de tampon dans &man.tcpdump.1;, qui apparaissait
-    dans le cas de certains paquets NFS mal construits, a été 
-    corrigé. Voyez l'avis de sécurité
+    <para>Un d&eacute;passement de tampon dans &man.tcpdump.1;, qui apparaissait
+    dans le cas de certains paquets NFS mal construits, a &eacute;t&eacute; 
+    corrig&eacute;. Voyez l'avis de s&eacute;curit&eacute;
       <ulink
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:29.tcpdump.asc">FreeBSD-SA-02:29</ulink>
-      pour plus de détails.</para>
+      pour plus de d&eacute;tails.</para>
 
-    <para>&man.ktrace.1; ne peut plus suivre l'activité des processus
-    disposant de droits privilégiés; cela permet de prévenir
+    <para>&man.ktrace.1; ne peut plus suivre l'activit&eacute; des processus
+    disposant de droits privil&eacute;gi&eacute;s; cela permet de pr&eacute;venir
     l'obtention d'informations sensibles dont le processus dispose
-    avant de perdre les privilèges. Pour plus d'informations voyez
-    l'avis de sécurité
+    avant de perdre les privil&egrave;ges. Pour plus d'informations voyez
+    l'avis de s&eacute;curit&eacute;
       <ulink
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:30.ktrace.asc">FreeBSD-SA-02:30</ulink>
       .</para>
@@ -231,7 +231,7 @@
 <!-- Above this line, order userland changes by manpage/variable name-->
 
     <para>&man.dump.8; dispose de l'option <option>-S</option> lui
-    permettant d'afficher la taille estimée de la copie.</para>
+    permettant d'afficher la taille estim&eacute;e de la copie.</para>
  
 
     <para>&man.finger.1; supporte maintenant le fichier
@@ -246,53 +246,53 @@
     et de l'option <option>-s</option> permettant de couper au mot.</para>
 
     <para>&man.ifconfig.8; dispose de la commande <option>eui64</option>
-    permettant de remplir les 64 bits inférieurs d'une adresse
-    IPv6 automatiquement. &man.prefix.8; devient donc obsolète.</para>
+    permettant de remplir les 64 bits inf&eacute;rieurs d'une adresse
+    IPv6 automatiquement. &man.prefix.8; devient donc obsol&egrave;te.</para>
 
     <para>&man.nice.1; dispose maintenant d'une option <option>-n</option>
-    permettant de spécifier  la valeur souhaitée de <quote>nice</quote>
-    de l'utilitaire à lancer.</para>
+    permettant de sp&eacute;cifier  la valeur souhait&eacute;e de <quote>nice</quote>
+    de l'utilitaire &agrave; lancer.</para>
 
     <para>&man.pam.opie.8; ne propose plus des challenges faux lorsque
-    la variable <varname>no_fake_prompts</varname> est positionnée.</para>
+    la variable <varname>no_fake_prompts</varname> est positionn&eacute;e.</para>
 
-    <para>Un module &man.pam.opieaccess.8; a été ajouté.</para>
+    <para>Un module &man.pam.opieaccess.8; a &eacute;t&eacute; ajout&eacute;.</para>
 
     <para>&man.pam.radius.8;, &man.pam.ssh.8;, et &man.pam.tacplus.8;
-      ont été synchronisé avec les versions de  &os; -CURRENT du 3
+      ont &eacute;t&eacute; synchronis&eacute; avec les versions de  &os; -CURRENT du 3
       Juillet 2002.</para>
 
-    <para>&man.pam.unix.8; a été synchroniséavec la version de
+    <para>&man.pam.unix.8; a &eacute;t&eacute; synchronis&eacute;avec la version de
       &os; -CURRENT du 9 Mars 2002
      (pre-<application>OpenPAM</application>).</para>
 
     <para>&man.pwd.1; dispose de l'option de ligne de commande
-    <option>-L</option> permettant d'afficher le répertoire logique 
+    <option>-L</option> permettant d'afficher le r&eacute;pertoire logique 
     courant.</para>
 
     <para>La commande &man.renice.8; dispose d'une option <option>-n</option>
-    qui spécifie l'incrément à appliquer à la priorité du 
+    qui sp&eacute;cifie l'incr&eacute;ment &agrave; appliquer &agrave; la priorit&eacute; du 
     processus.</para>
 
     <para>&man.sed.1; dispose maintenant de l'option <option>-i</option> 
-    permettant d'activer l'édition automatique du fichier.</para>
+    permettant d'activer l'&eacute;dition automatique du fichier.</para>
 
     <para>&man.su.1; support l'authentification Kerberos V.</para>
 
     <para>&man.unexpand.1; dispose de l'option <option>-t</option> permettant
-    de spécifier le nombre de tabulations de la meme façon que 
+    de sp&eacute;cifier le nombre de tabulations de la meme façon que 
     &man.expand.1;.</para>
 
     <para>&man.xargs.1; dispose de l'option <option>-I</option>
-      <replaceable>replstr</replaceable> permettant de demander à
-      l'utilisateur les données à insérées depuis
-      l'entrée standard à certains points, plutot que de prendre
-      ces données à la fin des arguments. (L'option spécifique
-      à &os;, <option>-J</option>, est maintenant déprécié en 
+      <replaceable>replstr</replaceable> permettant de demander &agrave;
+      l'utilisateur les donn&eacute;es &agrave; ins&eacute;r&eacute;es depuis
+      l'entr&eacute;e standard &agrave; certains points, plutot que de prendre
+      ces donn&eacute;es &agrave; la fin des arguments. (L'option sp&eacute;cifique
+      &agrave; &os;, <option>-J</option>, est maintenant d&eacute;pr&eacute;ci&eacute; en 
       faveur de l'option portable <option>-I</option>.)</para>
 
     <para>&man.xargs.1; dispose de l'option <option>-L</option> permettant
-    de forcer la demande d'arguments après un certain nombre de 
+    de forcer la demande d'arguments apr&egrave;s un certain nombre de 
     lignes.</para>
 
 <!-- Above this line, order userland changes by manpage/variable name-->
@@ -300,30 +300,30 @@
 
     <sect3>
       <title>Logiciels externes</title>
-      <para><application>BIND</application> a été mis à jour en 
+      <para><application>BIND</application> a &eacute;t&eacute; mis &agrave; jour en 
       version 8.3.3.</para>
 
-      <para><application>gcc</application> a été mis ç jour en version
+      <para><application>gcc</application> a &eacute;t&eacute; mis ç jour en version
 	2.95.4.</para>
 
-      <para><application>libpcap</application> a été mis à jour en
+      <para><application>libpcap</application> a &eacute;t&eacute; mis &agrave; jour en
        version 0.7.1.</para>
 
-      <para>Le démon FTP de NetBSD, plus connu sous le nom
-	<application>lukemftpd</application> 1.2 beta 1, a été
-	importé et est disponible sous&man.lukemftpd.8;.</para>
+      <para>Le d&eacute;mon FTP de NetBSD, plus connu sous le nom
+	<application>lukemftpd</application> 1.2 beta 1, a &eacute;t&eacute;
+	import&eacute; et est disponible sous&man.lukemftpd.8;.</para>
 
-      <para>&man.m4.1; a été importé depuis la version du 26 Avril
+      <para>&man.m4.1; a &eacute;t&eacute; import&eacute; depuis la version du 26 Avril
       2002 de OpenBSD.</para>
 
       <para>La suite de mot de passe unique <application>OPIE</application>
-	a été mise à jour en version 2.4.</para>
+	a &eacute;t&eacute; mise &agrave; jour en version 2.4.</para>
 
-      <para><application>OpenSSH</application> a été mis à jour en 
+      <para><application>OpenSSH</application> a &eacute;t&eacute; mis &agrave; jour en 
       version 3.4p1.  Parmis les changement il y a:
 	  <itemizedlist>
 	    <listitem>
-	      <para>Les fichiers <filename>*2</filename> sont obsolètes
+	      <para>Les fichiers <filename>*2</filename> sont obsol&egrave;tes
 		(par ex, le fichier,
 		<filename>~/.ssh/known_hosts</filename> peut disposer du 
 		contenu du 
@@ -332,53 +332,53 @@
 
 	    <listitem>
 	      <para>&man.ssh-keygen.1; peut importer et exportes les clefs 
-	      en utilisant le fichier d'échange de clefs publique SECSH, 
-	      permettant l'échange de clefs avec différentes 
-	      implémentations commerciales de SSH.</para>
+	      en utilisant le fichier d'&eacute;change de clefs publique SECSH, 
+	      permettant l'&eacute;change de clefs avec diff&eacute;rentes 
+	      impl&eacute;mentations commerciales de SSH.</para>
 	    </listitem>
 
 	    <listitem>
 	      <para>&man.ssh-add.1; ajoute maintenant les trois clefs par 
-	      défaut.</para>
+	      d&eacute;faut.</para>
 	    </listitem>
 
 	    <listitem>
 	      <para>&man.ssh-keygen.1; ne dispose plus d'un certain type
-	      de clefs par défaut; il faut maintenant le spécifier 
+	      de clefs par d&eacute;faut; il faut maintenant le sp&eacute;cifier 
 	      via l'option <option>-t</option> option.</para>
 	    </listitem>
 
 	    <listitem>
-	      <para>Une fonctionnalité de <quote>séparation des 
-	      privilèges</quote> qui utilise des processus non
-	      privilégiés, pour réduire l'effet des compromissions
-	      ou d'erreurs de programmations, a été ajoutée
+	      <para>Une fonctionnalit&eacute; de <quote>s&eacute;paration des 
+	      privil&egrave;ges</quote> qui utilise des processus non
+	      privil&eacute;gi&eacute;s, pour r&eacute;duire l'effet des compromissions
+	      ou d'erreurs de programmations, a &eacute;t&eacute; ajout&eacute;e
 	    </listitem>
 
 	    <listitem>
-	      <para>Différentes corrections de bogues, dont un trou
-	      de sécurité qui permettant d'obtenir plus de privilèges
-	      via un dépassement d'entier, ont été 
-	      effectuées.</para>
+	      <para>Diff&eacute;rentes corrections de bogues, dont un trou
+	      de s&eacute;curit&eacute; qui permettant d'obtenir plus de privil&egrave;ges
+	      via un d&eacute;passement d'entier, ont &eacute;t&eacute; 
+	      effectu&eacute;es.</para>
 	    </listitem>
 
 	    <listitem>
-	      <para>Le protocole SSH par défaut a utiliser
-	      est maintenant la version 2 (avec un retour arrière possible
+	      <para>Le protocole SSH par d&eacute;faut a utiliser
+	      est maintenant la version 2 (avec un retour arri&egrave;re possible
 	      en  Version 1), plutot que la  Version 1
-	        (avec une évolution en  Version 2).</para>
+	        (avec une &eacute;volution en  Version 2).</para>
 	    </listitem>
 
 	  </itemizedlist>
 	</para>
 
-      <para><application>sendmail</application> a été mis à jour 
+      <para><application>sendmail</application> a &eacute;t&eacute; mis &agrave; jour 
       de la version 8.12.3 en version 8.12.5.</para>
 
-      <para><application>GNU tar</application> a été mis à jour 
+      <para><application>GNU tar</application> a &eacute;t&eacute; mis &agrave; jour 
       en version 1.13.25.</para>
 
-      <para><application>tcpdump</application> a été mis à jour en 
+      <para><application>tcpdump</application> a &eacute;t&eacute; mis &agrave; jour en 
       version 3.7.1.</para>
     </sect3>
 
@@ -399,69 +399,69 @@
 </sect1>
 
 <sect1>
-  <title>Mise a jour depuis une version précedente de  &os;</title>
+  <title>Mise a jour depuis une version pr&eacute;cedente de  &os;</title>
 
 
-       <para>Si vous effectuez une mise à jour depuis une version
-        antérieure de &os;, vous avez généralement 3 options
+       <para>Si vous effectuez une mise &agrave; jour depuis une version
+        ant&eacute;rieure de &os;, vous avez g&eacute;n&eacute;ralement 3 options
         :</para>
 
     <itemizedlist>
       <listitem>
-      <para>Utiliser l'option de mise à jour binaire de &man.sysinstall.8;.Cette
+      <para>Utiliser l'option de mise &agrave; jour binaire de &man.sysinstall.8;.Cette
             option est sans doute la plus rapide mais elle suppose
             que votre installation de &os; n'utilise aucune
-            option spéciale de compilation.</para>
+            option sp&eacute;ciale de compilation.</para>
           </listitem>
           <listitem>
-            <para>Faire une réinstallation complète de &os;.
-            Techniquement, ce n'est pas une méthode de mis à jour
+            <para>Faire une r&eacute;installation compl&egrave;te de &os;.
+            Techniquement, ce n'est pas une m&eacute;thode de mis &agrave; jour
             et, dans tous les cas, elle est moins pratique qu'une
-            mise à jour binaire dans le sens ou elle nécessite de
+            mise &agrave; jour binaire dans le sens ou elle n&eacute;cessite de
             sauvegarder et de restaurer manuellement le contenu du
-            répertoire <filename>/etc</filename>. Cependant,
-            cela peut être utile si vous désirez (ou si vous devez)
+            r&eacute;pertoire <filename>/etc</filename>. Cependant,
+            cela peut être utile si vous d&eacute;sirez (ou si vous devez)
             modifier le partitionnement de vos disques.</para>
           </listitem>
           <listitem>
-            <para>A partir du code source du répertoire 
+            <para>A partir du code source du r&eacute;pertoire 
 	    <filename>/usr/src</filename>.
 	    Cette option est plus souple mais demande plus d'espace disque, 
-	    plus de temps et plus de compétences techniques. Plus
+	    plus de temps et plus de comp&eacute;tences techniques. Plus
 	    d'informations se trouvent dans la section <ulink
 	    url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/makeworld.html">
 	    <quote>Using <command>make world</command></quote></ulink> du 
 	    <ulink url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/">manuel FreeBSD</ulink>. Faire 
-	    une mise à jour depuis une très ancienne version de 
-	    &os; peut être problématique; dans de tels cas, il est 
-	    généralement plus efficace de réaliser une mise à 
-	    jour binaire ou une réinstallation complète.</para>
+	    une mise &agrave; jour depuis une tr&egrave;s ancienne version de 
+	    &os; peut être probl&eacute;matique; dans de tels cas, il est 
+	    g&eacute;n&eacute;ralement plus efficace de r&eacute;aliser une mise &agrave; 
+	    jour binaire ou une r&eacute;installation compl&egrave;te.</para>
           </listitem>
     </itemizedlist>
 
         <para>Veuillez lire le fichier <filename>INSTALL.TXT</filename>
 	 pour plus d'informations, de
-        préférence <emphasis>avant</emphasis> de commencer une 
-	mise à jour.
-        Si vous effectuez une mise à jour depuis les sources,
-        veuillez également consulter le fichier
+        pr&eacute;f&eacute;rence <emphasis>avant</emphasis> de commencer une 
+	mise &agrave; jour.
+        Si vous effectuez une mise &agrave; jour depuis les sources,
+        veuillez &eacute;galement consulter le fichier
 	 <filename>/usr/src/UPDATING</filename>.</para>
 
-        <para>Enfin, si vous désirez utiliser un des moyens de suivre
+        <para>Enfin, si vous d&eacute;sirez utiliser un des moyens de suivre
         les branches -STABLE ou -CURRENT de &os;, veuillez
         consulter la section 
        <ulink url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/current-stable.html">
        <quote>-CURRENT vs. -STABLE</quote></ulink>  
        <ulink url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/">du manuel 
-       de référence de FreeBSD</ulink>.
+       de r&eacute;f&eacute;rence de FreeBSD</ulink>.
        </para>
 
         <important>
-            <para><emphasis>Important:</emphasis> La mise à jour 
+            <para><emphasis>Important:</emphasis> La mise &agrave; jour 
 	    de &os; devrait,
-            bien évidemment, être réalisée uniquement après 
-	    avoir effectué une sauvegarde de <emphasis>toutes</emphasis> 
-	    les données et des fichiers de configuration.</para>
+            bien &eacute;videmment, être r&eacute;alis&eacute;e uniquement apr&egrave;s 
+	    avoir effectu&eacute; une sauvegarde de <emphasis>toutes</emphasis> 
+	    les donn&eacute;es et des fichiers de configuration.</para>
         </important>
 
 </sect1>
