@@ -703,7 +703,7 @@ tac_add_server(struct tac_handle *h, const char *host, int port,
 	struct tac_server *srvp;
 
 	if (h->num_servers >= MAXSERVERS) {
-		generr(h, "Too many RADIUS servers specified");
+		generr(h, "Too many TACACS+ servers specified");
 		return -1;
 	}
 	srvp = &h->servers[h->num_servers];
