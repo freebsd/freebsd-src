@@ -17,6 +17,8 @@
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
+ *
+ * $FreeBSD$
  */
 
 #ifndef lint
@@ -205,7 +207,7 @@ tok2str(register const struct tok *lp, register const char *fmt,
 	}
 	if (fmt == NULL)
 		fmt = "#%d";
-	(void)sprintf(buf, fmt, v);
+	(void)snprintf(buf, sizeof(buf), fmt, v);
 	return (buf);
 }
 

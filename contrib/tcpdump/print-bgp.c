@@ -25,6 +25,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #ifdef HAVE_CONFIG_H
@@ -240,7 +242,7 @@ num_or_str(const char **table, size_t siz, int value)
 {
 	static char buf[20];
 	if (value < 0 || siz <= value || table[value] == NULL) {
-		sprintf(buf, "#%d", value);
+		snprintf(buf, sizeof(buf), "#%d", value);
 		return buf;
 	} else
 		return table[value];
@@ -266,7 +268,7 @@ bgp_notify_minor(int major, int minor)
 	} else
 		p = NULL;
 	if (p == NULL) {
-		sprintf(buf, "#%d", minor);
+		snprintf(buf, sizeof(buf), "#%d", minor);
 		return buf;
 	} else
 		return p;
@@ -288,7 +290,7 @@ decode_prefix4(const u_char *pd, char *buf, int buflen)
 		((u_char *)&addr)[(plen + 7) / 8 - 1] &=
 			((0xff00 >> (plen % 8)) & 0xff);
 	}
-	sprintf(buf, "%s/%d", getname((char *)&addr), plen);
+	snprintf(buf, buflen, "%s/%d", getname((char *)&addr), plen);
 	return 1 + (plen + 7) / 8;
 }
 
@@ -309,7 +311,7 @@ decode_prefix6(const u_char *pd, char *buf, int buflen)
 		addr.s6_addr[(plen + 7) / 8 - 1] &=
 			((0xff00 >> (plen % 8)) & 0xff);
 	}
-	sprintf(buf, "%s/%d", getname6((char *)&addr), plen);
+	snprintf(buf, buflen, "%s/%d", getname6((char *)&addr), plen);
 	return 1 + (plen + 7) / 8;
 }
 #endif
@@ -323,7 +325,7 @@ bgp_attr_print(const struct bgp_attr *attr, const u_char *dat, int len)
 	int advance;
 	int tlen;
 	const u_char *p;
-	char buf[256];
+	char buf[MAXHOSTNAMELEN + 100];
 
 	p = dat;
 
@@ -608,7 +610,7 @@ bgp_update_print(const u_char *dat, int length)
 	if (dat + length > p) {
 		printf("(NLRI:");	/* ) */
 		while (dat + length > p) {
-			char buf[256];
+			char buf[MAXHOSTNAMELEN + 100];
 			i = decode_prefix4(p, buf, sizeof(buf));
 			printf(" %s", buf);
 			if (i < 0)
