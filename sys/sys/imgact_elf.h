@@ -56,9 +56,10 @@ typedef struct {
 } Elf32_Auxargs;
 
 typedef struct {
-	char *brand;
-	char *emul_path;
-	char *interp_path;
+	int brand;
+	const char *compat_3_brand;	/* pre Binutils 2.10 method (FBSD 3) */
+	const char *emul_path;
+	const char *interp_path;
         struct sysentvec *sysvec;
 } Elf32_Brandinfo;
 
@@ -87,9 +88,10 @@ typedef struct {
 } Elf64_Auxargs;
 
 typedef struct {
-	char *brand;
-	char *emul_path;
-	char *interp_path;
+	int brand;
+	const char *compat_3_brand;	/* pre Binutils 2.10 method (FBSD 3) */
+	const char *emul_path;
+	const char *interp_path;
         struct sysentvec *sysvec;
 } Elf64_Brandinfo;
 
