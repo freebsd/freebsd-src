@@ -1188,6 +1188,7 @@ thr_sigframe_restore(struct pthread *thread, struct pthread_sigframe *psf)
 	if (psf->psf_valid == 0)
 		PANIC("invalid pthread_sigframe\n");
 	thread->flags = psf->psf_flags;
+	thread->cancelflags = psf->psf_cancelflags;
 	thread->interrupted = psf->psf_interrupted;
 	thread->timeout = psf->psf_timeout;
 	thread->state = psf->psf_state;
@@ -1200,6 +1201,7 @@ thr_sigframe_save(struct pthread *thread, struct pthread_sigframe *psf)
 {
 	/* This has to initialize all members of the sigframe. */
 	psf->psf_flags = thread->flags & THR_FLAGS_PRIVATE;
+	psf->psf_cancelflags = thread->cancelflags;
 	psf->psf_interrupted = thread->interrupted;
 	psf->psf_timeout = thread->timeout;
 	psf->psf_state = thread->state;
