@@ -5,6 +5,14 @@ directly to him.  See end of file for further details.  For commonly
 done items, please see the end of the file.  Search for 'COMMON
 ITEMS:'
 
+20010521:
+	Minor repo damanged has happened.  This may cause problems
+	with cvsup of ports.  If you get errors, please see
+	http://www.FreeBSD.org/cgi/query-pr.cgi?pr=27495
+	at the bottom for details on a workaround.  The error message
+	is
+Updater failed: Cannot delete "/usr/ports/www/jakarta-tomcat/files": Directory not empty
+
 20010520:
 	Swapping is busted on -current.  Please be patient.
 
