@@ -7,7 +7,7 @@ NOMAN=
 NEWVERSWHAT=	"ia64 SKI boot" ${MACHINE_ARCH}
 BINDIR?=	/boot
 
-SRCS+=		main.c conf.c
+SRCS+=		conf.c main.c start.S
 
 CFLAGS+=	-ffreestanding
 
