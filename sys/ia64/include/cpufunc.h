@@ -47,238 +47,151 @@ breakpoint(void)
 
 #endif
 
-extern u_int64_t	ia64_port_base;
+extern uint64_t ia64_port_base;
+#define	__MEMIO_ADDR(x)		(__volatile void*)(IA64_PHYS_TO_RR6(x))
+#define	__PIO_ADDR(x)		(__volatile void*)(ia64_port_base |	\
+	(((x) & 0xFFFC) << 10) | ((x) & 0xFFF))
 
-static __inline volatile void *
-ia64_port_address(u_int port)
+/*
+ * I/O port reads with ia32 semantics.
+ */
+static __inline uint8_t
+inb(unsigned int port)
 {
-    return (volatile void *)(ia64_port_base
-			     | ((port >> 2) << 12)
-			     | (port & ((1 << 12) - 1)));
-}
-
-static __inline volatile void *
-ia64_memory_address(u_int64_t addr)
-{
-	return (volatile void *) IA64_PHYS_TO_RR6(addr);
-}
-
-static __inline u_int8_t
-inb(u_int port)
-{
-	volatile u_int8_t *p = ia64_port_address(port);
-	u_int8_t v = *p;
+	__volatile uint8_t *p;
+	uint8_t v;
+	p = __PIO_ADDR(port);
 	ia64_mf();
-	return v;
-}
-
-static __inline u_int16_t
-inw(u_int port)
-{
-	volatile u_int16_t *p = ia64_port_address(port);
-	u_int16_t v = *p;
+	v = *p;
+	ia64_mf_a();
 	ia64_mf();
-	return v;
+	return (v);
 }
 
-static __inline u_int32_t
-inl(u_int port)
+static __inline uint16_t
+inw(unsigned int port)
 {
-	volatile u_int32_t *p = ia64_port_address(port);
-	u_int32_t v = *p;
+	__volatile uint16_t *p;
+	uint16_t v;
+	p = __PIO_ADDR(port);
 	ia64_mf();
-	return v;
+	v = *p;
+	ia64_mf_a();
+	ia64_mf();
+	return (v);
+}
+
+static __inline uint32_t
+inl(unsigned int port)
+{
+	volatile uint32_t *p;
+	uint32_t v;
+	p = __PIO_ADDR(port);
+	ia64_mf();
+	v = *p;
+	ia64_mf_a();
+	ia64_mf();
+	return (v);
 }
 
 static __inline void
-insb(u_int port, void *addr, size_t count)
+insb(unsigned int port, void *addr, size_t count)
 {
-	u_int8_t *p = addr;
+	uint8_t *buf = addr;
 	while (count--)
-		*p++ = inb(port);
+		*buf++ = inb(port);
 }
 
 static __inline void
-insw(u_int port, void *addr, size_t count)
+insw(unsigned int port, void *addr, size_t count)
 {
-	u_int16_t *p = addr;
+	uint16_t *buf = addr;
 	while (count--)
-		*p++ = inw(port);
+		*buf++ = inw(port);
 }
 
 static __inline void
-insl(u_int port, void *addr, size_t count)
+insl(unsigned int port, void *addr, size_t count)
 {
-	u_int32_t *p = addr;
+	uint32_t *buf = addr;
 	while (count--)
-		*p++ = inl(port);
+		*buf++ = inl(port);
 }
 
 static __inline void
-outb(u_int port, u_int8_t data)
+outb(unsigned int port, uint8_t data)
 {
-	volatile u_int8_t *p = ia64_port_address(port);
+	volatile uint8_t *p;
+	p = __PIO_ADDR(port);
+	ia64_mf();
 	*p = data;
+	ia64_mf_a();
 	ia64_mf();
 }
 
 static __inline void
-outw(u_int port, u_int16_t data)
+outw(unsigned int port, uint16_t data)
 {
-	volatile u_int16_t *p = ia64_port_address(port);
+	volatile uint16_t *p;
+	p = __PIO_ADDR(port);
+	ia64_mf();
 	*p = data;
+	ia64_mf_a();
 	ia64_mf();
 }
 
 static __inline void
-outl(u_int port, u_int32_t data)
+outl(unsigned int port, uint32_t data)
 {
-	volatile u_int32_t *p = ia64_port_address(port);
+	volatile uint32_t *p;
+	p = __PIO_ADDR(port);
+	ia64_mf();
 	*p = data;
+	ia64_mf_a();
 	ia64_mf();
 }
 
 static __inline void
-outsb(u_int port, const void *addr, size_t count)
+outsb(unsigned int port, const void *addr, size_t count)
 {
-	const u_int8_t *p = addr;
+	const uint8_t *buf = addr;
 	while (count--)
-		outb(port, *p++);
+		outb(port, *buf++);
 }
 
 static __inline void
-outsw(u_int port, const void *addr, size_t count)
+outsw(unsigned int port, const void *addr, size_t count)
 {
-	const u_int16_t *p = addr;
+	const uint16_t *buf = addr;
 	while (count--)
-		outw(port, *p++);
+		outw(port, *buf++);
 }
 
 static __inline void
-outsl(u_int port, const void *addr, size_t count)
+outsl(unsigned int port, const void *addr, size_t count)
 {
-	const u_int32_t *p = addr;
+	const uint32_t *buf = addr;
 	while (count--)
-		outl(port, *p++);
-}
-
-static __inline u_int8_t
-readb(u_int64_t addr)
-{
-	volatile u_int8_t *p = ia64_memory_address(addr);
-	u_int8_t v = *p;
-	ia64_mf();
-	return v;
-}
-
-static __inline u_int16_t
-readw(u_int64_t addr)
-{
-	volatile u_int16_t *p = ia64_memory_address(addr);
-	u_int16_t v = *p;
-	ia64_mf();
-	return v;
-}
-
-static __inline u_int32_t
-readl(u_int64_t addr)
-{
-	volatile u_int32_t *p = ia64_memory_address(addr);
-	u_int32_t v = *p;
-	ia64_mf();
-	return v;
-}
-
-static __inline void
-writeb(u_int64_t addr, u_int8_t data)
-{
-	volatile u_int8_t *p = ia64_memory_address(addr);
-	*p = data;
-	ia64_mf();
-}
-
-static __inline void
-writew(u_int64_t addr, u_int16_t data)
-{
-	volatile u_int16_t *p = ia64_memory_address(addr);
-	*p = data;
-	ia64_mf();
-}
-
-static __inline void
-writel(u_int64_t addr, u_int32_t data)
-{
-	volatile u_int32_t *p = ia64_memory_address(addr);
-	*p = data;
-	ia64_mf();
-}
-
-static __inline void
-memcpy_fromio(u_int8_t *addr, u_int64_t ofs, size_t count)
-{
-	volatile u_int8_t *p = ia64_memory_address(ofs);
-	while (count--)
-		*addr++ = *p++;
-}
-
-static __inline void
-memcpy_io(u_int64_t dst, u_int64_t src, size_t count)
-{
-	volatile u_int8_t *dp = ia64_memory_address(dst);
-	volatile u_int8_t *sp = ia64_memory_address(src);
-	while (count--)
-		*dp++ = *sp++;
-}
-
-static __inline void
-memcpy_toio(u_int64_t ofs, u_int8_t *addr, size_t count)
-{
-	volatile u_int8_t *p = ia64_memory_address(ofs);
-	while (count--)
-		*p++ = *addr++;
-}
-
-static __inline void
-memset_io(u_int64_t ofs, u_int8_t value, size_t count)
-{
-	volatile u_int8_t *p = ia64_memory_address(ofs);
-	while (count--)
-		*p++ = value;
-}
-
-static __inline void
-memsetw(u_int16_t *addr, int val, size_t size)
-{
-	while (size--)
-		*addr++ = val;
-}
-
-static __inline void
-memsetw_io(u_int64_t ofs, u_int16_t value, size_t count)
-{
-	volatile u_int16_t *p = ia64_memory_address(ofs);
-	while (count--)
-		*p++ = value;
+		outl(port, *buf++);
 }
 
 static __inline void
 disable_intr(void)
 {
-	__asm __volatile ("rsm psr.i;;");
+	__asm __volatile ("rsm psr.i");
 }
 
 static __inline void
 enable_intr(void)
 {
-	__asm __volatile (";; ssm psr.i;; srlz.d");
+	__asm __volatile ("ssm psr.i;; srlz.d");
 }
 
 static __inline register_t
 intr_disable(void)
 {
 	register_t psr;
-
-	__asm __volatile ("mov %0=psr;;" : "=r" (psr));
+	__asm __volatile ("mov %0=psr;;" : "=r"(psr));
 	disable_intr();
 	return (psr);
 }
@@ -286,7 +199,7 @@ intr_disable(void)
 static __inline void
 intr_restore(critical_t psr)
 {
-	__asm __volatile ("mov psr.l=%0;; srlz.d" :: "r" (psr));
+	__asm __volatile ("mov psr.l=%0;; srlz.d" :: "r"(psr));
 }
 
 #endif /* _KERNEL */
