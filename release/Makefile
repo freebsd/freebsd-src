@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.430 1998/11/12 20:40:45 jkh Exp $
+#	$Id: Makefile,v 1.431 1998/11/24 00:17:50 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -469,7 +469,7 @@ release.8: write_mfs_in_kernel dumpnlist
 		tar xvf - -C ${RD}/mfsfd/stand
 	@echo "Compressing doc files..."
 	@gzip -9 ${RD}/mfsfd/stand/help/*.hlp
-	sh -e ${.CURDIR}/doFS.sh ${RD} ${MNT} ${BOOTMFSSIZE} \
+	sh -e ${.CURDIR}/scripts/doFS.sh ${RD} ${MNT} ${BOOTMFSSIZE} \
 		${RD}/mfsfd ${MFSINODE} ${BOOTMFSLABEL}
 	mv fs-image fs-image.std
 	mv fs-image.size fs-image.std.size
@@ -507,9 +507,9 @@ release.9:
 	done
 	cp ${.CURDIR}/fixit.profile ${RD}/fixitfd/.profile
 	cp ${.CURDIR}/fixit.services ${RD}/fixitfd/etc/services
-	cp ${.CURDIR}/tar.sh ${RD}/fixitfd/stand/tar
+	cp ${.CURDIR}/scripts/tar.sh ${RD}/fixitfd/stand/tar
 	chmod 555 ${RD}/fixitfd/stand/tar
-	sh -e ${.CURDIR}/doFS.sh ${RD} ${MNT} ${FIXITSIZE} \
+	sh -e ${.CURDIR}/scripts/doFS.sh ${RD} ${MNT} ${FIXITSIZE} \
 		${RD}/fixitfd ${FIXITINODE} ${FIXITLABEL}
 	mv fs-image ${RD}/floppies/fixit.flp
 # Do our last minute floppies directory setup in a convenient place.
@@ -590,7 +590,7 @@ doTARBALL:
 		echo rolling ${TD}/$$tn tarball &&\
 		tar --exclude CVS --exclude obj --exclude BOOTMFS -cf - ${ARG} | \
 		${ZIPNSPLIT} ${RD}/dists/${TD}/$$tn. && \
-		sh ${.CURDIR}/info.sh ${RD}/dists/${TD}/$$tn > \
+		sh ${.CURDIR}/scripts/info.sh ${RD}/dists/${TD}/$$tn > \
 		   ${RD}/dists/${TD}/$$tn.inf && \
 		if [ -f ${.CURDIR}/scripts/$${TD}-install.sh ]; then \
 		  cp -p ${.CURDIR}/scripts/$${TD}-install.sh ${RD}/dists/${TD}/install.sh; \
@@ -722,10 +722,10 @@ doMFSKERN:
 	@touch ${RD}/boot.${FSIMAGE}/kernel.config
 	@rm -f ${RD}/floppies/boot${FSIMAGE}.flp
 .if defined(_MFSKERN)
-	sh -e ${.CURDIR}/doFS.sh ${RD} ${MNT} ${BOOTMFSSIZE} \
+	sh -e ${.CURDIR}/scripts/doFS.sh ${RD} ${MNT} ${BOOTMFSSIZE} \
 		${RD}/boot.${FSIMAGE} ${BOOTINODE} ${BOOTMFSLABEL}
 .else
-	sh -e ${.CURDIR}/doFS.sh ${RD} ${MNT} ${BOOTSIZE} \
+	sh -e ${.CURDIR}/scripts/doFS.sh ${RD} ${MNT} ${BOOTSIZE} \
 		${RD}/boot.${FSIMAGE} ${BOOTINODE} ${BOOTLABEL}
 .endif
 	mv fs-image ${RD}/floppies/boot${FSIMAGE}.flp
