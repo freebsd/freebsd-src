@@ -76,6 +76,7 @@ static char	*head0 = "Rank   Owner      Job  Files";
 static char	*head1 = "Total Size\n";
 
 static void	alarmhandler __P((int));
+static void	warn __P((void));
 
 /*
  * Display the current state of the queue. Format = 1 if long format.
@@ -257,7 +258,7 @@ displayq(format)
 /*
  * Print a warning message if there is no daemon present.
  */
-void
+static void
 warn()
 {
 	if (remote)
