@@ -1,4 +1,4 @@
-/* $Id: cpu.h,v 1.5 1999/02/02 09:08:23 bde Exp $ */
+/* $Id: cpu.h,v 1.6 1999/04/20 22:53:53 dt Exp $ */
 /* From: NetBSD: cpu.h,v 1.18 1997/09/23 23:17:49 mjacob Exp */
 
 /*
@@ -174,7 +174,6 @@ void	switch_trampoline __P((void));				/* MAGIC */
 void	syscall __P((u_int64_t, struct trapframe *));
 void	trap __P((unsigned long, unsigned long, unsigned long, unsigned long,
 	    struct trapframe *));
-void	cpu_set_fork_handler __P((struct proc *, void (*pc)(const void *), const void *));
 
 #endif /* _KERNEL */
 
