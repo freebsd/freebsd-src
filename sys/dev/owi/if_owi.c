@@ -1901,6 +1901,8 @@ owi_stop(sc)
 
 	WI_LOCK(sc, s);
 
+	untimeout(wi_inquire, sc, sc->wi_stat_ch);
+
 	if (sc->wi_gone) {
 		WI_UNLOCK(sc, s);
 		return;
@@ -1917,8 +1919,6 @@ owi_stop(sc)
 		CSR_WRITE_2(sc, WI_INT_EN, 0);
 		wi_cmd(sc, WI_CMD_DISABLE|sc->wi_portnum, 0, 0, 0);
 	}
-
-	untimeout(wi_inquire, sc, sc->wi_stat_ch);
 
 	ifp->if_flags &= ~(IFF_RUNNING|IFF_OACTIVE);
 
