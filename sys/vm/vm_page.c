@@ -872,6 +872,7 @@ loop:
  *	vm_wait:	(also see VM_WAIT macro)
  *
  *	Block until free pages are available for allocation
+ *	- Called in various places before memory allocations.
  */
 
 void
@@ -890,6 +891,28 @@ vm_wait()
 		}
 		tsleep(&cnt.v_free_count, PVM, "vmwait", 0);
 	}
+	splx(s);
+}
+
+/*
+ *	vm_waitpfault:	(also see VM_WAITPFAULT macro)
+ *
+ *	Block until free pages are available for allocation
+ *	- Called only in vm_fault so that processes page faulting
+ *	  can be easily tracked.
+ */
+
+void
+vm_waitpfault(void)
+{
+	int s;
+
+	s = splvm();
+	if (!vm_pages_needed) {
+		vm_pages_needed = 1;
+		wakeup(&vm_pages_needed);
+	}
+	tsleep(&cnt.v_free_count, PUSER, "pfault", 0);
 	splx(s);
 }
 
