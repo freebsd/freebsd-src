@@ -41,8 +41,10 @@
 #define BKPT_INST_TYPE int
 #endif
 
+struct vm_map;
+
 struct db_breakpoint {
-	vm_map_t map;			/* in this map */
+	struct vm_map *map;			/* in this map */
 	db_addr_t address;		/* set here */
 	int	init_count;		/* number of times to skip bkpt */
 	int	count;			/* current count */
@@ -62,6 +64,10 @@ db_breakpoint_t	db_find_breakpoint_here(db_addr_t addr);
 void		db_set_breakpoints(void);
 #ifdef SOFTWARE_SSTEP
 db_breakpoint_t	db_set_temp_breakpoint(db_addr_t);
+#endif
+
+#ifdef ALT_BREAK_TO_DEBUGGER
+int		db_alt_break(int, int *);
 #endif
 
 #endif /* !_DDB_DB_BREAK_H_ */
