@@ -428,7 +428,7 @@ get_offset(val)
 	quad_t num;
 
 	num = get_num(val);
-	if (num > QUAD_MAX || num < 0)		/* XXX quad_t != off_t */
-		errx(1, "%s: illegal offset", oper);	/* Too big/negative. */
+	if (num > QUAD_MAX)	/* XXX can't happen && quad_t != off_t */
+		errx(1, "%s: illegal offset", oper);	/* Too big. */
 	return ((off_t)num);
 }

@@ -76,6 +76,10 @@ pos_in()
 		return;
 	}
 
+	/* Don't try to read a really weird amount (like negative). */
+	if (in.offset < 0)
+		errx(1, "%s: illegal offset", "iseek/skip");
+
 	/*
 	 * Read the data.  If a pipe, read until satisfy the number of bytes
 	 * being skipped.  No differentiation for reading complete and partial
@@ -137,6 +141,10 @@ pos_out()
 			err(1, "%s", out.name);
 		return;
 	}
+
+	/* Don't try to read a really weird amount (like negative). */
+	if (out.offset < 0)
+		errx(1, "%s: illegal offset", "oseek/seek");
 
 	/* If no read access, try using mtio. */
 	if (out.flags & NOREAD) {
