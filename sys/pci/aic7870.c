@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aic7870.c,v 1.50 1997/02/22 09:43:59 peter Exp $
+ *	$Id: aic7870.c,v 1.51 1997/02/25 03:06:19 gibbs Exp $
  */
 
 #if defined(__FreeBSD__)
@@ -60,7 +60,7 @@
 #include <i386/scsi/aic7xxx.h>
 #include <i386/scsi/93cx6.h>
 
-#include <dev/aic7xxx/aic7xxx_reg.h>
+#include <aic7xxx_reg.h>
 
 #define PCI_BASEADR0	PCI_MAP_REG_START	/* I/O Address */
 #define PCI_BASEADR1	PCI_MAP_REG_START + 4	/* Mem I/O Address */
@@ -725,7 +725,7 @@ load_seeprom(ahc, sxfrctl1)
 	}
 	if (!have_seeprom) {
 		if (bootverbose)
-			printf("\n%s: No SEEPROM availible\n", ahc_name(ahc));
+			printf("\n%s: No SEEPROM available\n", ahc_name(ahc));
 		ahc->flags |= AHC_USEDEFAULTS;
 	} else {
 		/*
