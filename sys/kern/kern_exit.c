@@ -237,9 +237,9 @@ exit1(td, rv)
 	stopprofclock(p);
 	p->p_flag &= ~(P_TRACED | P_PPWAIT);
 	SIGEMPTYSET(p->p_siglist);
-	PROC_UNLOCK(p);
 	if (timevalisset(&p->p_realtimer.it_value))
 		callout_stop(&p->p_itcallout);
+	PROC_UNLOCK(p);
 
 	/*
 	 * Reset any sigio structures pointing to us as a result of
