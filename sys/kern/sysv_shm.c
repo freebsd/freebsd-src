@@ -101,7 +101,7 @@ static void shminit __P((void *));
  * Tuneable values
  */
 #ifndef SHMMAXPGS
-#define	SHMMAXPGS	1024	/* XXX increase this, it's not in kva! */
+#define	SHMMAXPGS	8192	/* note: sysv shared memory is swap backed */
 #endif
 #ifndef SHMMAX
 #define	SHMMAX	(SHMMAXPGS*PAGE_SIZE)
@@ -110,10 +110,10 @@ static void shminit __P((void *));
 #define	SHMMIN	1
 #endif
 #ifndef SHMMNI
-#define	SHMMNI	96
+#define	SHMMNI	192
 #endif
 #ifndef SHMSEG
-#define	SHMSEG	64
+#define	SHMSEG	128
 #endif
 #ifndef SHMALL
 #define	SHMALL	(SHMMAXPGS)
