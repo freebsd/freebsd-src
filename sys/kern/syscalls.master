@@ -361,11 +361,11 @@
 			    int msgflg); }
 227	MNOSTD	BSD	{ int msgrcv(int msqid, void *msgp, size_t msgsz, \
 			    long msgtyp, int msgflg); }
-228	MNOSTD	BSD	{ int shmat(int shmid, void *shmaddr, int shmflg); }
+228	MNOSTD	BSD	{ int shmat(int shmid, const void *shmaddr, int shmflg); }
 229	MNOSTD	BSD	{ int shmctl(int shmid, int cmd, \
 			    struct shmid_ds *buf); }
-230	MNOSTD	BSD	{ int shmdt(void *shmaddr); }
-231	MNOSTD	BSD	{ int shmget(key_t key, int size, int shmflg); }
+230	MNOSTD	BSD	{ int shmdt(const void *shmaddr); }
+231	MNOSTD	BSD	{ int shmget(key_t key, size_t size, int shmflg); }
 ;
 232	MSTD	POSIX	{ int clock_gettime(clockid_t clock_id, \
 			    struct timespec *tp); }
