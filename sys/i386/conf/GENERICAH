@@ -1,7 +1,7 @@
 #
 # GENERICAH -- Generic machine with WD/AHx/NCR family disks
 #
-#	$Id: GENERICAH,v 1.40 1994/09/09 22:03:49 wollman Exp $
+#	$Id: GENERICAH,v 1.41 1994/09/09 22:12:36 csgr Exp $
 #
 
 machine		"i386"
@@ -15,16 +15,9 @@ options		MATH_EMULATE		#Support for x87 emulation
 options		INET			#InterNETworking
 #options		GATEWAY			#Host is a Gateway (forwards packets)
 options		FFS			#Berkeley Fast File System
-options		LFS			#Log File System
-options		MFS			#Memory File System
 options		NFS			#Network File System
 options		PROCFS			#Process File System
-options		KERNFS			#Kernel File System
 options		FDESC			#File Descriptor File System
-options		PORTAL			#Portal File System
-options		UNION			#Union File System
-options		NULLFS			#NULL File System
-options		UMAPFS			#UID Map File System
 options		"CD9660"		#CD ISO9660 File System
 options		FIFO			#Support for FIFO files
 options		"COMPAT_43"		#Compatible with BSD 4.3
