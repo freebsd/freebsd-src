@@ -48,7 +48,6 @@
 #include <dev/usb/usbdi.h>
 #include <dev/usb/usbdi_util.h>
 #include <dev/usb/usbdivar.h>
-#include <dev/usb/usbdevs.h>
 
 #include <netgraph/ng_message.h>
 #include <netgraph/netgraph.h>
@@ -57,6 +56,8 @@
 #include <netgraph/bluetooth/include/ng_hci.h>
 #include <netgraph/bluetooth/include/ng_ubt.h>
 #include <netgraph/bluetooth/drivers/ubt/ng_ubt_var.h>
+
+#include "usbdevs.h"
 
 /*
  * USB methods
