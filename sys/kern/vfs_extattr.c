@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_syscalls.c	8.13 (Berkeley) 4/15/94
- * $Id: vfs_syscalls.c,v 1.69 1997/09/15 08:25:43 phk Exp $
+ * $Id: vfs_syscalls.c,v 1.70 1997/09/15 19:11:07 phk Exp $
  */
 
 /*
@@ -2779,29 +2779,43 @@ __getcwd(p, uap, retval)
 	struct vnode *vp;
 	struct namecache *ncp;
 	char *buf, *bp;
-	int i, j = 0, error = 0;
+	int i, j, error;
 
 	fdp = p->p_fd;
-	if (uap->buflen > PATH_MAX+1)
-		uap->buflen = PATH_MAX+1;
-	buf = bp = (char *)malloc(uap->buflen, M_TEMP, M_WAITOK);
+	j = 0;
+	error = 0;
+	if (uap->buflen < 2)
+		return (EINVAL);
+	if (uap->buflen > MAXPATHLEN)
+		uap->buflen = MAXPATHLEN;
+	buf = bp = malloc(uap->buflen, M_TEMP, M_WAITOK);
 	bp += uap->buflen - 1;
 	*bp = '\0';
 	for (vp = fdp->fd_cdir; vp != fdp->fd_rdir && vp != rootvnode;) {
-		if (vp->v_dd->v_id != vp->v_ddid)
+		if (vp->v_dd->v_id != vp->v_ddid) {
+			free(buf, M_TEMP);
 			return (ENOTDIR);
+		}
 		ncp = TAILQ_FIRST(&vp->v_cache_dst);
-		if (!ncp)
+		if (!ncp) {
+			free(buf, M_TEMP);
 			return (ENOENT);
-		if (ncp->nc_dvp != vp->v_dd)
+		}
+		if (ncp->nc_dvp != vp->v_dd) {
+			free(buf, M_TEMP);
 			return (EBADF);
+		}
 		for (i=ncp->nc_nlen - 1; i >= 0; i--) {
-			if (bp <= buf)
+			if (bp == buf) {
+				free(buf, M_TEMP);
 				return (ENOMEM);
+			}
 			*--bp = ncp->nc_name[i];
 		}
-		if (bp <= buf)
+		if (bp == buf) {
+			free(buf, M_TEMP);
 			return (ENOMEM);
+		}
 		*--bp = '/';
 		j++;
 		vp = vp->v_dd;
@@ -2809,8 +2823,10 @@ __getcwd(p, uap, retval)
 			vp = vp->v_mount->mnt_vnodecovered;
 	}
 	if (!j) {
-		if (bp <= buf)
+		if (bp == buf) {
+			free(buf, M_TEMP);
 			return (ENOMEM);
+		}
 		*--bp = '/';
 	}
 	error = copyout(bp, uap->buf, strlen(bp) + 1);
