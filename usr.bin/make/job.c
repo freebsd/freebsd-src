@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: job.c,v 1.10 1998/08/24 10:15:53 cracauer Exp $
+ *	$Id: job.c,v 1.11 1998/11/14 16:15:04 dg Exp $
  */
 
 #ifndef lint
@@ -124,8 +124,6 @@ static char sccsid[] = "@(#)job.c	8.2 (Berkeley) 3/19/94";
 #else
 # define STATIC static
 #endif
-
-extern int  errno;
 
 /*
  * error handling variables
@@ -1591,7 +1589,6 @@ JobRestart(job)
 	     * resume it.
 	     */
 	    Boolean error;
-	    extern int errno;
 	    int status;
 
 #ifdef RMT_WANTS_SIGNALS
