@@ -81,7 +81,6 @@ beforeinstall:
 .if !target(afterinstall)
 afterinstall:
 .endif
-install: afterinstall
-afterinstall: realinstall
-realinstall: beforeinstall
+install: beforeinstall realinstall afterinstall
+.ORDER: beforeinstall realinstall afterinstall
 .endif
