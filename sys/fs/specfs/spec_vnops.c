@@ -377,6 +377,7 @@ spec_fsync(ap)
 	if (!vn_isdisk(vp, NULL))
 		return (0);
 
+	VI_LOCK(vp);
 loop1:
 	/*
 	 * MARK/SCAN initialization to avoid infinite loops.
@@ -396,9 +397,12 @@ loop2:
 		nbp = TAILQ_NEXT(bp, b_vnbufs);
 		if ((bp->b_flags & B_SCANNED) != 0)
 			continue;
+		VI_UNLOCK(vp);
 		bp->b_flags |= B_SCANNED;
-		if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT))
+		if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT)) {
+			VI_LOCK(vp);
 			continue;
+		}
 		if ((bp->b_flags & B_DELWRI) == 0)
 			panic("spec_fsync: not dirty");
 		if ((vp->v_vflag & VV_OBJBUF) && (bp->b_flags & B_CLUSTEROK)) {
@@ -410,6 +414,7 @@ loop2:
 			splx(s);
 			bawrite(bp);
 		}
+		VI_LOCK(vp);
 		goto loop2;
 	}
 
@@ -420,13 +425,11 @@ loop2:
 	 * retry if dirty blocks still exist.
 	 */
 	if (ap->a_waitfor == MNT_WAIT) {
-		VI_LOCK(vp);
 		while (vp->v_numoutput) {
 			vp->v_iflag |= VI_BWAIT;
 			msleep((caddr_t)&vp->v_numoutput, VI_MTX(vp),
 			    PRIBIO + 1, "spfsyn", 0);
 		}
-		VI_UNLOCK(vp);
 		if (!TAILQ_EMPTY(&vp->v_dirtyblkhd)) {
 			if (--maxretry != 0) {
 				splx(s);
@@ -435,6 +438,7 @@ loop2:
 			vprint("spec_fsync: giving up on dirty", vp);
 		}
 	}
+	VI_UNLOCK(vp);
 	splx(s);
 	return (0);
 }
@@ -584,7 +588,6 @@ spec_close(ap)
 	struct thread *td = ap->a_td;
 	dev_t dev = vp->v_rdev;
 
-	mp_fixme("Use of v_iflags bogusly locked.");
 	/*
 	 * Hack: a tty device that is a controlling terminal
 	 * has a reference from the session structure.
@@ -602,10 +605,12 @@ spec_close(ap)
 
 	oldvp = NULL;
 	sx_xlock(&proctree_lock);
-	if (vcount(vp) == 2 && td && (vp->v_iflag & VI_XLOCK) == 0 &&
-	    vp == td->td_proc->p_session->s_ttyvp) {
+	if (td && vp == td->td_proc->p_session->s_ttyvp) {
 		SESS_LOCK(td->td_proc->p_session);
-		td->td_proc->p_session->s_ttyvp = NULL;
+		VI_LOCK(vp);
+		if (vcount(vp) == 2 && (vp->v_iflag & VI_XLOCK) == 0)
+			td->td_proc->p_session->s_ttyvp = NULL;
+		VI_UNLOCK(vp);
 		SESS_UNLOCK(td->td_proc->p_session);
 		oldvp = vp;
 	}
@@ -621,13 +626,16 @@ spec_close(ap)
 	 * sum of the reference counts on all the aliased
 	 * vnodes descends to one, we are on last close.
 	 */
+	VI_LOCK(vp);
 	if (vp->v_iflag & VI_XLOCK) {
 		/* Forced close. */
 	} else if (devsw(dev)->d_flags & D_TRACKCLOSE) {
 		/* Keep device updated on status. */
 	} else if (vcount(vp) > 1) {
+		VI_UNLOCK(vp);
 		return (0);
 	}
+	VI_UNLOCK(vp);
 	return (devsw(dev)->d_close(dev, ap->a_fflag, S_IFCHR, td));
 }
 
