@@ -1463,8 +1463,8 @@ alloc_hash(struct dn_flow_set *x, struct dn_flow_set *pfs)
 	    l = dn_hash_size;
 	if (l < 4)
 	    l = 4;
-	else if (l > 1024)
-	    l = 1024;
+	else if (l > DN_MAX_HASH_SIZE)
+	    l = DN_MAX_HASH_SIZE;
 	x->rq_size = l;
     } else                  /* one is enough for null mask */
 	x->rq_size = 1;
