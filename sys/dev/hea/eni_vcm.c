@@ -286,7 +286,7 @@ eni_closevcc ( cup, cvp )
 	/*
 	 * Reset everything
 	 */
-	KM_ZERO ( (caddr_t)vct, sizeof(VCI_Table) );
+	KM_ZERO ( (uintptr_t)vct, sizeof(VCI_Table) );
 
 	return ( err );
 }
