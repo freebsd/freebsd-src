@@ -6,9 +6,11 @@ SUBDIR=	man1 man3 man4 man5 man6 man7 man8 man9
 
 MAKEWHATIS?=	makewhatis
 
+#makedb:
+#	${MAKEWHATIS} ${DESTDIR}${BINDIR}/man
+
 makedb:
-	${MAKEWHATIS} ${DESTDIR}${BINDIR}/man
-	${MAKEWHATIS} ${DESTDIR}${BINDIR}/perl/man
+	@echo "Makewhatis is temporaily disabled. Rewrite coming soon."
 
 .include "${.CURDIR}/../Makefile.inc"
 .include <bsd.subdir.mk>
