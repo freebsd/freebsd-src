@@ -260,7 +260,6 @@ int	cdevsw_remove __P((struct cdevsw *old));
 dev_t	chrtoblk __P((dev_t dev));
 void	destroy_dev __P((dev_t dev));
 struct cdevsw *devsw __P((dev_t dev));
-int	devsw_module_handler __P((struct module *mod, int what, void *arg));
 const char *devtoname __P((dev_t dev));
 void	freedev __P((dev_t dev));
 int	iszerodev __P((dev_t dev));
