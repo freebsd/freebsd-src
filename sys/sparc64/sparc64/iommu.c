@@ -341,12 +341,12 @@ iommu_enter(struct iommu_state *is, vm_offset_t va, vm_offset_t pa, int flags)
 		iommu_strbuf_flush_done(is);
 	}
 	DPRINTF(IDB_IOMMU, ("Clearing TSB slot %d for va %p\n",
-	    (int)IOTSBSLOT(va, is->is_tsbsize), (void *)(u_long)va));
-	is->is_tsb[IOTSBSLOT(va, is->is_tsbsize)] = tte;
+	    (int)IOTSBSLOT(va), (void *)(u_long)va));
+	is->is_tsb[IOTSBSLOT(va)] = tte;
 	IOMMU_WRITE8(is, is_iommu, IMR_FLUSH, va);
 	DPRINTF(IDB_IOMMU, ("iommu_enter: va %lx pa %lx TSB[%lx]@%p=%lx\n",
-	    va, (long)pa, (u_long)IOTSBSLOT(va, is->is_tsbsize),
-	    (void *)(u_long)&is->is_tsb[IOTSBSLOT(va, is->is_tsbsize)],
+	    va, (long)pa, (u_long)IOTSBSLOT(va),
+	    (void *)(u_long)&is->is_tsb[IOTSBSLOT(va)],
 	    (u_long)tte));
 #ifdef IOMMU_DIAG
 	iommu_diag(is, va);
@@ -379,20 +379,20 @@ iommu_remove(struct iommu_state *is, vm_offset_t va, vm_size_t len)
 
 	va = trunc_io_page(va);
 	DPRINTF(IDB_IOMMU, ("iommu_remove: va %lx TSB[%lx]@%p\n",
-	    va, (u_long)IOTSBSLOT(va, is->is_tsbsize),
-	    &is->is_tsb[IOTSBSLOT(va, is->is_tsbsize)]));
+	    va, (u_long)IOTSBSLOT(va),
+	    &is->is_tsb[IOTSBSLOT(va)]));
 	while (len > 0) {
 		DPRINTF(IDB_IOMMU, ("iommu_remove: clearing TSB slot %d for va "
-		    "%p size %lx\n", (int)IOTSBSLOT(va, is->is_tsbsize),
+		    "%p size %lx\n", (int)IOTSBSLOT(va),
 		    (void *)(u_long)va, (u_long)len));
 		if (is->is_sb[0] != 0 || is->is_sb[1] != 0) {
 			DPRINTF(IDB_IOMMU, ("iommu_remove: flushing va %p "
 			    "TSB[%lx]@%p=%lx, %lu bytes left\n",
 			    (void *)(u_long)va,
-			    (long)IOTSBSLOT(va, is->is_tsbsize),
+			    (long)IOTSBSLOT(va),
 			    (void *)(u_long)&is->is_tsb[
-				    IOTSBSLOT(va, is->is_tsbsize)],
-			    (long)(is->is_tsb[IOTSBSLOT(va, is->is_tsbsize)]),
+				    IOTSBSLOT(va)],
+			    (long)(is->is_tsb[IOTSBSLOT(va)]),
 			    (u_long)len));
 			iommu_strbuf_flush(is, va);
 			if (len <= IO_PAGE_SIZE)
@@ -400,10 +400,10 @@ iommu_remove(struct iommu_state *is, vm_offset_t va, vm_size_t len)
 			DPRINTF(IDB_IOMMU, ("iommu_remove: flushed va %p "
 			    "TSB[%lx]@%p=%lx, %lu bytes left\n",
 			    (void *)(u_long)va,
-			    (long)IOTSBSLOT(va, is->is_tsbsize),
+			    (long)IOTSBSLOT(va),
 			    (void *)(u_long)&is->is_tsb[
-				    IOTSBSLOT(va,is->is_tsbsize)],
-			    (long)(is->is_tsb[IOTSBSLOT(va, is->is_tsbsize)]),
+				    IOTSBSLOT(va)],
+			    (long)(is->is_tsb[IOTSBSLOT(va)]),
 			    (u_long)len));
 		}
 
@@ -412,7 +412,7 @@ iommu_remove(struct iommu_state *is, vm_offset_t va, vm_size_t len)
 		else
 			len -= IO_PAGE_SIZE;
 
-		is->is_tsb[IOTSBSLOT(va, is->is_tsbsize)] = 0;
+		is->is_tsb[IOTSBSLOT(va)] = 0;
 		IOMMU_WRITE8(is, is_iommu, IMR_FLUSH, va);
 		va += IO_PAGE_SIZE;
 	}
@@ -844,7 +844,7 @@ iommu_diag(struct iommu_state *is, vm_offset_t va)
 	IOMMU_WRITE8(is, is_dva, 0, trunc_io_page(va));
 	membar(StoreStore | StoreLoad);
 	printf("iommu_diag: tte entry %#lx",
-	    is->is_tsb[IOTSBSLOT(va, is->is_tsbsize)]);
+	    is->is_tsb[IOTSBSLOT(va)]);
 	if (is->is_dtcmp != 0) {
 		printf(", tag compare register is %#lx\n"
 		    IOMMU_READ8(is, is_dtcmp, 0));
