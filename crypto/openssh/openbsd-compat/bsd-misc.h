@@ -1,4 +1,4 @@
-/* $Id: bsd-misc.h,v 1.14 2004/02/17 05:49:55 djm Exp $ */
+/* $Id: bsd-misc.h,v 1.15 2004/03/08 11:59:03 dtucker Exp $ */
 
 /*
  * Copyright (c) 1999-2004 Damien Miller <djm@mindrot.org>
@@ -87,6 +87,10 @@ pid_t tcgetpgrp(int);
 
 #ifndef HAVE_TCSENDBREAK
 int tcsendbreak(int, int);
+#endif
+
+#ifndef HAVE_UNSETENV
+void unsetenv(const char *);
 #endif
 
 /* wrapper for signal interface */

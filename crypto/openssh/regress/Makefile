@@ -1,4 +1,4 @@
-#	$OpenBSD: Makefile,v 1.26 2003/10/11 11:49:49 dtucker Exp $
+#	$OpenBSD: Makefile,v 1.27 2004/02/17 08:23:20 dtucker Exp $
 
 REGRESS_TARGETS=	t1 t2 t3 t4 t5 t6 t7 t-exec
 tests:		$(REGRESS_TARGETS)
@@ -21,6 +21,7 @@ LTESTS= 	connect \
 		broken-pipe \
 		try-ciphers \
 		yes-head \
+		login-timeout \
 		agent \
 		agent-getpeereid \
 		agent-timeout \

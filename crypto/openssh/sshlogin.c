@@ -52,11 +52,11 @@ u_long
 get_last_login_time(uid_t uid, const char *logname,
     char *buf, u_int bufsize)
 {
-  struct logininfo li;
+	struct logininfo li;
 
-  login_get_lastlog(&li, uid);
-  strlcpy(buf, li.hostname, bufsize);
-  return li.tv_sec;
+	login_get_lastlog(&li, uid);
+	strlcpy(buf, li.hostname, bufsize);
+	return li.tv_sec;
 }
 
 /*
@@ -67,12 +67,12 @@ void
 record_login(pid_t pid, const char *ttyname, const char *user, uid_t uid,
     const char *host, struct sockaddr * addr, socklen_t addrlen)
 {
-  struct logininfo *li;
+	struct logininfo *li;
 
-  li = login_alloc_entry(pid, user, host, ttyname);
-  login_set_addr(li, addr, addrlen);
-  login_login(li);
-  login_free_entry(li);
+	li = login_alloc_entry(pid, user, host, ttyname);
+	login_set_addr(li, addr, addrlen);
+	login_login(li);
+	login_free_entry(li);
 }
 
 #ifdef LOGIN_NEEDS_UTMPX
@@ -80,12 +80,12 @@ void
 record_utmp_only(pid_t pid, const char *ttyname, const char *user,
 		 const char *host, struct sockaddr * addr, socklen_t addrlen)
 {
-  struct logininfo *li;
+	struct logininfo *li;
 
-  li = login_alloc_entry(pid, user, host, ttyname);
-  login_set_addr(li, addr, addrlen);
-  login_utmp_only(li);
-  login_free_entry(li);
+	li = login_alloc_entry(pid, user, host, ttyname);
+	login_set_addr(li, addr, addrlen);
+	login_utmp_only(li);
+	login_free_entry(li);
 }
 #endif
 
@@ -93,9 +93,9 @@ record_utmp_only(pid_t pid, const char *ttyname, const char *user,
 void
 record_logout(pid_t pid, const char *ttyname, const char *user)
 {
-  struct logininfo *li;
+	struct logininfo *li;
 
-  li = login_alloc_entry(pid, user, NULL, ttyname);
-  login_logout(li);
-  login_free_entry(li);
+	li = login_alloc_entry(pid, user, NULL, ttyname);
+	login_logout(li);
+	login_free_entry(li);
 }
