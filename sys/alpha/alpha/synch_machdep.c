@@ -147,7 +147,7 @@ propagate_priority(struct proc *p)
 		else
 			TAILQ_INSERT_TAIL(&m->mtx_blocked, p, p_procq);
 		CTR4(KTR_LOCK,
-		    "propagate priority: p 0x%x moved before 0x%x on [0x%x] %s",
+		    "propagate priority: p %p moved before %p on [%p] %s",
 		    p, p1, m, m->mtx_description);
 	}
 }
@@ -162,10 +162,10 @@ mtx_enter_hard(mtx_t *m, int type, int ipl)
 		if ((m->mtx_lock & MTX_FLAGMASK) == (u_int64_t)p) {
 			m->mtx_recurse++;
 			atomic_set_64(&m->mtx_lock, MTX_RECURSE);
-			CTR1(KTR_LOCK, "mtx_enter: 0x%x recurse", m);
+			CTR1(KTR_LOCK, "mtx_enter: %p recurse", m);
 			return;
 		}
-		CTR3(KTR_LOCK, "mtx_enter: 0x%x contested (lock=%x) [0x%x]",
+		CTR3(KTR_LOCK, "mtx_enter: %p contested (lock=%lx) [0x%lx]",
 		    m, m->mtx_lock, RETIP(m));
 		while (!atomic_cmpset_64(&m->mtx_lock, MTX_UNOWNED,
 					 (u_int64_t)p)) {
@@ -252,7 +252,7 @@ mtx_enter_hard(mtx_t *m, int type, int ipl)
 #ifdef notyet
 			propagate_priority(p);
 #endif
-			CTR3(KTR_LOCK, "mtx_enter: p 0x%x blocked on [0x%x] %s",
+			CTR3(KTR_LOCK, "mtx_enter: p %p blocked on [%p] %s",
 			    p, m, m->mtx_description);
 			/*
 			 * cloaned from mi_switch
@@ -270,7 +270,7 @@ mtx_enter_hard(mtx_t *m, int type, int ipl)
 				microtime(&GLOBALP->gd_switchtime);
 			PCPU_SET(switchticks, ticks);
 			CTR3(KTR_LOCK,
-			    "mtx_enter: p 0x%x free from blocked on [0x%x] %s",
+			    "mtx_enter: p %p free from blocked on [%p] %s",
 			    p, m, m->mtx_description);
 			mtx_exit(&sched_lock, MTX_SPIN);
 		}
@@ -286,7 +286,7 @@ mtx_enter_hard(mtx_t *m, int type, int ipl)
 			m->mtx_recurse++;
 			return;
 		}
-		CTR1(KTR_LOCK, "mtx_enter: 0x%x spinning", m);
+		CTR1(KTR_LOCK, "mtx_enter: %p spinning", m);
 		for (;;) {
 			if (atomic_cmpset_64(&m->mtx_lock, MTX_UNOWNED,
 			    (u_int64_t)p)) {
@@ -309,7 +309,7 @@ mtx_enter_hard(mtx_t *m, int type, int ipl)
 		else
 #endif
 			m->mtx_saveipl = ipl;
-		CTR1(KTR_LOCK, "mtx_enter: 0x%x spin done", m);
+		CTR1(KTR_LOCK, "mtx_enter: %p spin done", m);
 		return;
 	    }
 	}
@@ -328,11 +328,11 @@ mtx_exit_hard(mtx_t *m, int type)
 		if (m->mtx_recurse != 0) {
 			if (--(m->mtx_recurse) == 0)
 				atomic_clear_64(&m->mtx_lock, MTX_RECURSE);
-			CTR1(KTR_LOCK, "mtx_exit: 0x%x unrecurse", m);
+			CTR1(KTR_LOCK, "mtx_exit: %p unrecurse", m);
 			return;
 		}
 		mtx_enter(&sched_lock, MTX_SPIN);
-		CTR1(KTR_LOCK, "mtx_exit: 0x%x contested", m);
+		CTR1(KTR_LOCK, "mtx_exit: %p contested", m);
 		p = CURPROC;
 		p1 = TAILQ_FIRST(&m->mtx_blocked);
 		MPASS(p->p_magic == P_MAGIC);
@@ -342,7 +342,7 @@ mtx_exit_hard(mtx_t *m, int type)
 			LIST_REMOVE(m, mtx_contested);
 			atomic_cmpset_64(&m->mtx_lock, m->mtx_lock,
 					  MTX_UNOWNED);
-			CTR1(KTR_LOCK, "mtx_exit: 0x%x not held", m);
+			CTR1(KTR_LOCK, "mtx_exit: %p not held", m);
 		} else
 			m->mtx_lock = MTX_CONTESTED;
 		pri = MAXPRI;
@@ -354,7 +354,7 @@ mtx_exit_hard(mtx_t *m, int type)
 		if (pri > p->p_nativepri)
 			pri = p->p_nativepri;
 		SET_PRIO(p, pri);
-		CTR2(KTR_LOCK, "mtx_exit: 0x%x contested setrunqueue 0x%x",
+		CTR2(KTR_LOCK, "mtx_exit: %p contested setrunqueue %p",
 		    m, p1);
 		p1->p_blocked = NULL;
 		setrunqueue(p1);
@@ -372,10 +372,10 @@ mtx_exit_hard(mtx_t *m, int type)
 			}
 #endif
 			setrunqueue(p);
-			CTR2(KTR_LOCK, "mtx_exit: 0x%x switching out lock=0x%x",
+			CTR2(KTR_LOCK, "mtx_exit: %p switching out lock=0x%lx",
 			    m, m->mtx_lock);
 			cpu_switch();
-			CTR2(KTR_LOCK, "mtx_exit: 0x%x resuming lock=0x%x",
+			CTR2(KTR_LOCK, "mtx_exit: %p resuming lock=0x%lx",
 			    m, m->mtx_lock);
 		}
 		mtx_exit(&sched_lock, MTX_SPIN);
@@ -473,7 +473,7 @@ void
 mtx_init(mtx_t *m, char *t, int flag)
 {
 
-	CTR2(KTR_LOCK, "mtx_init 0x%x (%s)", m, t);
+	CTR2(KTR_LOCK, "mtx_init %p (%s)", m, t);
 #ifdef SMP_DEBUG
 	if (mtx_validate(m, MV_INIT))	/* diagnostic and error correction */
 		return;
@@ -498,7 +498,7 @@ void
 mtx_destroy(mtx_t *m)
 {
 
-	CTR2(KTR_LOCK, "mtx_destroy 0x%x (%s)", m, m->mtx_description);
+	CTR2(KTR_LOCK, "mtx_destroy %p (%s)", m, m->mtx_description);
 #ifdef SMP_DEBUG
 	if (m->mtx_next == NULL)
 		panic("mtx_destroy: %p (%s) already destroyed",
