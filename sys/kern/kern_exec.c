@@ -257,7 +257,6 @@ kern_execve(td, fname, argv, envv, mac_p)
 	if (p->p_flag & P_HADTHREADS) {
 		if (thread_single(SINGLE_EXIT)) {
 			PROC_UNLOCK(p);
-			mtx_unlock(&Giant);
 			return (ERESTART);	/* Try again later. */
 		}
 		/*
@@ -723,6 +722,7 @@ exec_fail:
 		if (interplabel != NULL)
 			mac_vnode_label_free(interplabel);
 #endif
+		mtx_unlock(&Giant);
 		exit1(td, W_EXITCODE(0, SIGABRT));
 		/* NOT REACHED */
 		error = 0;
