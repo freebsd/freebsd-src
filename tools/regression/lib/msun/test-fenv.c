@@ -236,17 +236,27 @@ test_fegsetround(void)
 
 	assert(fegetround() == FE_TONEAREST);
 	assert(getround() == FE_TONEAREST);
+	assert(FLT_ROUNDS == 1);
+
 	assert(fesetround(FE_DOWNWARD) == 0);
 	assert(fegetround() == FE_DOWNWARD);
 	assert(getround() == FE_DOWNWARD);
+	assert(FLT_ROUNDS == 3);
+
 	assert(fesetround(FE_UPWARD) == 0);
 	assert(getround() == FE_UPWARD);
 	assert(fegetround() == FE_UPWARD);
+	assert(FLT_ROUNDS == 2);
+
 	assert(fesetround(FE_TOWARDZERO) == 0);
 	assert(getround() == FE_TOWARDZERO);
 	assert(fegetround() == FE_TOWARDZERO);
+	assert(FLT_ROUNDS == 0);
+
 	assert(fesetround(FE_TONEAREST) == 0);
 	assert(getround() == FE_TONEAREST);
+	assert(FLT_ROUNDS == 1);
+
 	assert(feclearexcept(FE_ALL_EXCEPT) == 0);
 }
 
