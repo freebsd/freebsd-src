@@ -1874,7 +1874,7 @@ update_plex_config(int plexno, int diskconfig)
     int required_sds;					    /* number of subdisks we need */
     struct sd *sd;
     struct volume *vol;
-    int data_sds;					    /* number of sds carrying data */
+    int data_sds = 0;					    /* number of sds carrying data */
 
     if (plex->state < plex_init)			    /* not a real plex, */
 	return;

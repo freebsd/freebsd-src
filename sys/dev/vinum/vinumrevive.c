@@ -131,6 +131,7 @@ revive_block(int sdno)
 	break;
 
     case plex_disorg:					    /* to keep the compiler happy */
+	break;
     }
 
     if (paritysd) {					    /* we're reviving a parity block, */
