@@ -71,7 +71,7 @@ uu_lock (char *ttyname)
 			perror("lock open");
 			return(-1);
 		}
-		if (get_pid (fd) == -1) {
+		if ((pid = get_pid (fd)) == -1) {
 			(void)close(fd);
 			perror("lock read");
 			return(-1);
