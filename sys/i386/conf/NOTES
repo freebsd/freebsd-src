@@ -751,6 +751,7 @@ device		sa0			#SCSI tapes
 device		cd0			#SCSI CD-ROMs
 device		pass0			#CAM passthrough driver
 device		pt0			#SCSI processor type
+device		ses0			#SCSI SES/SAF-TE driver
 
 # CAM OPTIONS:
 # debugging options:
@@ -806,6 +807,14 @@ options 	SA_1FM_AT_EOD
 # Optional timeout for the CAM processor target (pt) device
 # This is specified in seconds.  The default is 60 seconds.
 options 	SCSI_PT_DEFAULT_TIMEOUT="60"
+
+# Optional enable of doing SES passthrough on other devices (e.g., disks)
+#
+# Normally disabled because a lot of newer SCSI disks report themselves
+# as having SES capabilities, but this can then clot up attempts to build
+# build a topology with the SES device that's on the box these drives
+# are in....
+options		SES_ENABLE_PASSTHROUGH
 
 
 #####################################################################
