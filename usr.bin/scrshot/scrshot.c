@@ -72,6 +72,7 @@ main(int argc, char *argv[])
 		err(1, "ioctl(CONS_SCRSHOT)");
 
 	printf("SCRSHOT_%c%c%c%c", VERSION, 2, shot.xsize, shot.ysize);
+	fflush(stdout);
 	
 	(void)write(STDOUT_FILENO, shot.buf,
 	    shot.xsize * shot.ysize * sizeof(u_int16_t));
