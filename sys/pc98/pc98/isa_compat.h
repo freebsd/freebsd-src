@@ -27,7 +27,6 @@
  */
 
 #include "vt.h"
-#include "adv.h"
 #include "wdc.h"
 #include "ar.h"
 #include "cx.h"
@@ -85,7 +84,6 @@ struct old_isa_driver {
 };
 
 extern struct isa_driver  vtdriver;
-extern struct isa_driver advdriver;
 extern struct isa_driver wdcdriver;
 extern struct isa_driver  ardriver;
 extern struct isa_driver  cxdriver;
@@ -247,12 +245,6 @@ static struct old_isa_driver old_drivers[] = {
 #endif
 
 /* CAM */
-
-#ifndef PC98
-#if NADV > 0
-	{ INTR_TYPE_CAM, &advdriver },
-#endif
-#endif
 
 #ifdef PC98
 #if NBS > 0
