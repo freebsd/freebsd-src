@@ -42,7 +42,7 @@ dialog_menu(unsigned char *title, unsigned char *prompt, int height, int width, 
     int i, j, x, y, cur_x, cur_y, box_x, box_y, key = 0, button = 0, choice = 0,
 	l, k, scroll = 0, max_choice, redraw_menu = FALSE;
     char okButton, cancelButton;
-    WINDOW *dialog, *menu;
+    WINDOW *dialog, *menu, *save;
     unsigned char **items;
     dialogMenuItem *ditems;
     
@@ -99,12 +99,15 @@ dialog_menu(unsigned char *title, unsigned char *prompt, int height, int width, 
     x = DialogX ? DialogX : (COLS - width)/2;
     y = DialogY ? DialogY : (LINES - height)/2;
     
+draw:
+    save = dupwin(newscr);
 #ifdef HAVE_NCURSES
     if (use_shadow)
 	draw_shadow(stdscr, y, x, height, width);
 #endif
     dialog = newwin(height, width, y, x);
     if (dialog == NULL) {
+	delwin(save);
 	endwin();
 	fprintf(stderr, "\nnewwin(%d,%d,%d,%d) failed, maybe wrong dims\n", height,width,y,x);
 	return -1;
@@ -142,6 +145,7 @@ dialog_menu(unsigned char *title, unsigned char *prompt, int height, int width, 
     /* create new window for the menu */
     menu = subwin(dialog, menu_height, menu_width, y + box_y + 1, x + box_x + 1);
     if (menu == NULL) {
+	delwin(save);
 	endwin();
 	fprintf(stderr, "\nsubwin(dialog,%d,%d,%d,%d) failed, maybe wrong dims\n", menu_height,menu_width,y+box_y+1,x+box_x+1);
 	return -1;
@@ -188,24 +192,42 @@ dialog_menu(unsigned char *title, unsigned char *prompt, int height, int width, 
 	/* Shortcut to OK? */
 	if (toupper(key) == okButton) {
 	    if (ditems && result && ditems[OK_BUTTON].fire) {
-		if (ditems[OK_BUTTON].fire(&ditems[OK_BUTTON]) == DITEM_FAILURE)
+		int status;
+		
+		status = ditems[OK_BUTTON].fire(&ditems[OK_BUTTON]);
+		if (DITEM_STATUS(status) == DITEM_FAILURE)
 		    continue;
-		else
+		else {
 		    delwin(dialog);
+		    if (status & DITEM_RESTORE) {
+			touchwin(save);
+			wrefresh(save);
+		    }
+		}
+		
 	    }
 	    else {
 		delwin(dialog);
-		strcpy(result, items[(scroll+choice)*2]);
+		strcpy(result, items[(scroll + choice) * 2]);
 	    }
+	    delwin(save);
 	    return 0;
 	}
 	/* Shortcut to cancel? */
 	else if (toupper(key) == cancelButton) {
 	    if (ditems && result && ditems[CANCEL_BUTTON].fire) {
-		if (ditems[CANCEL_BUTTON].fire(&ditems[CANCEL_BUTTON]) == DITEM_FAILURE)
+		int status;
+		
+		status = ditems[CANCEL_BUTTON].fire(&ditems[CANCEL_BUTTON]);
+		if (DITEM_STATUS(status) == DITEM_FAILURE)
 		    continue;
+		else if (status & DITEM_RESTORE) {
+		    touchwin(save);
+		    wrefresh(save);
+		}
 	    }
 	    delwin(dialog);
+	    delwin(save);
 	    return 1;
 	}
 	
@@ -358,14 +380,29 @@ dialog_menu(unsigned char *title, unsigned char *prompt, int height, int width, 
 	case '\r':
 	case '\n':
 	    if (!button) {
+		/* A fire routine can do just about anything to the screen, so be prepared
+		   to accept some hints as to what to do in the aftermath. */
 		if (ditems && ditems[scroll + choice].fire) {
-		    if (ditems[scroll + choice].fire(&ditems[scroll + choice]) == DITEM_FAILURE)
+		    int status;
+		    
+		    status = ditems[scroll + choice].fire(&ditems[scroll + choice]);
+		    if (DITEM_STATUS(status) == DITEM_FAILURE)
 			continue;
+		    else if (status & DITEM_RESTORE) {
+			touchwin(save);
+			wrefresh(save);
+		    }
+		    else if (status & DITEM_RECREATE) {
+			delwin(save);
+			delwin(dialog);
+			goto draw;
+		    }
 		}
 		else if (result)
 		    strcpy(result, items[(scroll+choice)*2]);
 	    }
 	    delwin(dialog);
+	    delwin(save);
 	    return button;
 	    
 	case ESC:
@@ -390,6 +427,7 @@ dialog_menu(unsigned char *title, unsigned char *prompt, int height, int width, 
     }
     
     delwin(dialog);
+    delwin(save);
     return -1;    /* ESC pressed */
 }
 /* End of dialog_menu() */
