@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)fstat.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id: fstat.c,v 1.7.2.1 1997/07/10 06:35:39 charnier Exp $";
+	"$Id: fstat.c,v 1.7.2.2 1997/08/29 05:29:13 imp Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -460,7 +460,7 @@ vtrans(vp, i, flag)
 		break;
 	}
 	default:
-		printf(" %6d", fst.size);
+		printf(" %6lu", fst.size);
 	}
 	rw[0] = '\0';
 	if (flag & FREAD)
