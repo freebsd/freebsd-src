@@ -1,4 +1,4 @@
-/* $RCSfile: util.c,v $$Revision: 1.1.1.1 $$Date: 1994/09/10 06:27:34 $
+/* $RCSfile: util.c,v $$Revision: 1.2 $$Date: 1995/05/30 05:03:28 $
  *
  *    Copyright (c) 1991, Larry Wall
  *
@@ -6,6 +6,9 @@
  *    License or the Artistic License, as specified in the README file.
  *
  * $Log: util.c,v $
+ * Revision 1.2  1995/05/30 05:03:28  rgrimes
+ * Remove trailing whitespace.
+ *
  * Revision 1.1.1.1  1994/09/10  06:27:34  gclarkii
  * Initial import of Perl 4.046 bmaked
  *
@@ -980,6 +983,7 @@ va_list args;
     char *s;
     STR *tmpstr;
     int usermess;
+    size_t l;
 #ifndef HAS_VPRINTF
 #ifdef CHARVSPRINTF
     char *vsprintf();
@@ -1001,25 +1005,28 @@ va_list args;
 	*s++ = tmpstr->str_ptr[tmpstr->str_cur-1];
     }
     else {
-	(void) vsprintf(s,pat,args);
+	(void) vsnprintf(s,sizeof buf - (s - buf),pat,args);
 	s += strlen(s);
     }
 
     if (s[-1] != '\n') {
 	if (curcmd->c_line) {
-	    (void)sprintf(s," at %s line %ld",
+	    l = s - buf >= sizeof buf - 1? 1: sizeof buf - (s - buf);
+	    (void)snprintf(s,l," at %s line %ld",
 	      stab_val(curcmd->c_filestab)->str_ptr, (long)curcmd->c_line);
 	    s += strlen(s);
 	}
 	if (last_in_stab &&
 	    stab_io(last_in_stab) &&
 	    stab_io(last_in_stab)->lines ) {
-	    (void)sprintf(s,", <%s> line %ld",
+	    l = s - buf >= sizeof buf - 1? 1: sizeof buf - (s - buf);
+	    (void)snprintf(s,l,", <%s> line %ld",
 	      last_in_stab == argvstab ? "" : last_in_stab->str_magic->str_ptr,
 	      (long)stab_io(last_in_stab)->lines);
 	    s += strlen(s);
 	}
-	(void)strcpy(s,".\n");
+	if (s - buf > sizeof buf - 3)
+	    (void)strcpy(s,".\n");
 	if (usermess)
 	    str_cat(tmpstr,buf+1);
     }
