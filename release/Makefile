@@ -95,10 +95,10 @@ BIGBOOTLABEL=		minimum2
 MFSLABEL=		minimum2
 
 # overrides.
-.if ${MACHINE_ARCH} == "alpha"
+#.if ${MACHINE_ARCH} == "alpha"
 FIXITSIZE=		2880
 FIXITLABEL=		minimum2
-.endif
+#.endif
 
 ZIPNSPLIT=		gzip --no-name -9 -c | split -b 240640 -
 
