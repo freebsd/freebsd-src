@@ -51,6 +51,7 @@ static const char rcsid[] =
 #include <sys/resource.h>
 #include <sys/ttydefaults.h>
 #include <sys/utsname.h>
+
 #include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>

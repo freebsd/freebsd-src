@@ -47,6 +47,7 @@ __RCSID_SOURCE("$NetBSD: ftp.c,v 1.29.2.1 1997/11/18 01:01:04 mellon Exp $");
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/socket.h>
+#include <sys/time.h>
 
 #include <netinet/in.h>
 #include <netinet/in_systm.h>

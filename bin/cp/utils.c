@@ -41,6 +41,7 @@ static const char rcsid[] =
 
 #include <sys/param.h>
 #include <sys/stat.h>
+#include <sys/time.h>
 #ifdef VM_AND_BUFFER_CACHE_SYNCHRONIZED
 #include <sys/mman.h>
 #endif

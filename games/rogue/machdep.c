@@ -99,7 +99,9 @@ static const char rcsid[] =
 #include <sys/types.h>
 #include <sys/file.h>
 #include <sys/stat.h>
+
 #include <pwd.h>
+#include <time.h>
 
 #ifdef UNIX_BSD4_2
 #include <sys/time.h>
