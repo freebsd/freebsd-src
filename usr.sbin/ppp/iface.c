@@ -568,14 +568,20 @@ iface_ChangeFlags(const char *ifname, int flags, int how)
     close(s);
     return 0;
   }
+#ifdef __FreeBSD__
   new_flags = (ifrq.ifr_flags & 0xffff) | (ifrq.ifr_flagshigh << 16);
+#else
+  new_flags = ifrq.ifr_flags & 0xffff;
+#endif
 
   if (how == IFACE_ADDFLAGS)
     new_flags |= flags;
   else
     new_flags &= ~flags;
   ifrq.ifr_flags = new_flags & 0xffff;
+#ifdef __FreeBSD__
   ifrq.ifr_flagshigh = new_flags >> 16;
+#endif
 
   if (ID0ioctl(s, SIOCSIFFLAGS, &ifrq) < 0) {
     log_Printf(LogERROR, "iface_ChangeFlags: ioctl(SIOCSIFFLAGS): %s\n",
