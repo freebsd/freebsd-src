@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.11.2.14 1997/12/16 10:34:02 kato Exp $
+ *	$Id: machdep.c,v 1.11.2.15 1998/01/07 09:05:00 kato Exp $
  */
 
 #include "npx.h"
@@ -755,6 +755,11 @@ union descriptor gdt[NGDT];		/* global descriptor table */
 struct gate_descriptor idt[NIDT];	/* interrupt descriptor table */
 union descriptor ldt[NLDT];		/* local descriptor table */
 
+#ifndef NO_F00F_HACK
+struct gate_descriptor *t_idt;
+int has_f00f_bug;
+#endif
+
 static struct i386tss dblfault_tss;
 static char dblfault_stack[PAGE_SIZE];
 
@@ -1419,6 +1424,43 @@ init386(first)
 	proc0.p_addr->u_pcb.pcb_flags = 0;
 	proc0.p_addr->u_pcb.pcb_cr3 = IdlePTD;
 }
+
+#ifndef NO_F00F_HACK
+void f00f_hack(void);
+SYSINIT(f00f_hack, SI_SUB_INTRINSIC, SI_ORDER_FIRST, f00f_hack, NULL);
+
+void
+f00f_hack(void) {
+	struct region_descriptor r_idt;
+	unsigned char *tmp;
+	int i;
+	vm_offset_t vp;
+	unsigned *pte;
+
+	if (!has_f00f_bug)
+		return;
+
+	printf("Intel Pentium F00F detected, installing workaround\n");
+
+	r_idt.rd_limit = sizeof(idt) - 1;
+
+	tmp = kmem_alloc(kernel_map, PAGE_SIZE * 2);
+	if (tmp == 0)
+		panic("kmem_alloc returned 0");
+	if (((unsigned int)tmp & (PAGE_SIZE-1)) != 0)
+		panic("kmem_alloc returned non-page-aligned memory");
+	/* Put the first seven entries in the lower page */
+	t_idt = (struct gate_descriptor*)(tmp + PAGE_SIZE - (7*8));
+	bcopy(idt, t_idt, sizeof(idt));
+	r_idt.rd_base = (int)t_idt;
+	lidt(&r_idt);
+	vp = trunc_page(t_idt);
+	if (vm_map_protect(kernel_map, tmp, tmp + PAGE_SIZE,
+			   VM_PROT_READ, FALSE) != KERN_SUCCESS)
+		panic("vm_map_protect failed");
+	return;
+}
+#endif /* NO_F00F_HACK */
 
 /*
  * The registers are in the frame; the frame is in the user area of
