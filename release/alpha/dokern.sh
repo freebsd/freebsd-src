@@ -15,7 +15,7 @@ if [ "${ARCH}" = "i386" ]; then
 
 if [ "${FDSIZE}" = "SMALL" ]; then
 
-sed	-e '/	pci/d' \
+sed	-e '/	pci$/d' \
 	-e '/	adv/d' \
 	-e '/	ahc/d' \
 	-e '/	amd/d' \
