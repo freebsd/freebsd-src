@@ -34,6 +34,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #include "sort.h"
@@ -127,7 +129,7 @@ setcolumn(pos, cur_fld, gflag)
 	int tmp;
 	col = cur_fld->icol.num ? (&(*cur_fld).tcol) : (&(*cur_fld).icol);
 	pos += sscanf(pos, "%d", &(col->num));
-	while (isdigit(*pos))
+	while (isdigit((u_char)*pos))
 		pos++;
 	if (col->num <= 0 && !(col->num == 0 && col == &(cur_fld->tcol)))
 		errx(2, "field numbers must be positive");
@@ -136,7 +138,7 @@ setcolumn(pos, cur_fld, gflag)
 			errx(2, "cannot indent end of line");
 		++pos;
 		pos += sscanf(pos, "%d", &(col->indent));
-		while (isdigit(*pos))
+		while (isdigit((u_char)*pos))
 			pos++;
 		if (&cur_fld->icol == col)
 			col->indent--;
@@ -243,7 +245,7 @@ fixit(argc, argv)
 			argv[i] = vpos;
 			vpos += sprintf(vpos, "-k");
 			tpos += sscanf(tpos, "%d", &v);
-			while (isdigit(*tpos))
+			while (isdigit((u_char)*tpos))
 				tpos++;
 			vpos += sprintf(vpos, "%d", v+1);
 			if (*tpos == '.') {
@@ -255,16 +257,16 @@ fixit(argc, argv)
 				*vpos++ = *tpos++;
 			vpos += sprintf(vpos, ",");
 			if (argv[i+1] &&
-			    argv[i+1][0] == '-' && isdigit(argv[i+1][1])) {
+			    argv[i+1][0] == '-' && isdigit((u_char)argv[i+1][1])) {
 				tpos = argv[i+1] + 1;
 				tpos += sscanf(tpos, "%d", &w);
-				while (isdigit(*tpos))
+				while (isdigit((u_char)*tpos))
 					tpos++;
 				x = 0;
 				if (*tpos == '.') {
 					++tpos;
 					tpos += sscanf(tpos, "%d", &x);
-					while (isdigit(*tpos))
+					while (isdigit((u_char)*tpos))
 						tpos++;
 				}
 				if (x) {
