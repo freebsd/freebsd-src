@@ -944,10 +944,8 @@ ext2_vget(mp, ino, flags, vpp)
 	ip->i_number = ino;
 
 	error = vfs_hash_insert(vp, ino, flags, curthread, vpp);
-	if (error || *vpp != NULL) {
-		vput(vp);
+	if (error || *vpp != NULL)
 		return (error);
-	}
 
 	/* Read in the disk contents for the inode, copy into the inode. */
 #if 0
