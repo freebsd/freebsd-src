@@ -21,7 +21,7 @@
  *
  * Low-level routines relating to the user capabilities database
  *
- *	$Id$
+ *	$Id: login_cap.c,v 1.10 1997/02/22 15:08:20 peter Exp $
  */
 
 #include <stdio.h>
@@ -456,6 +456,12 @@ login_getcapsize(login_cap_t *lc, const char *cap, rlim_t def, rlim_t error) {
     return def;
   else if (ret < 0)
     return error;
+
+  /*
+   * "inf" and "infinity" are two special cases for this.
+   */
+  if (!strcasecmp(res, "infinity") || !strcasecmp(res, "inf"))
+    return RLIM_INFINITY;
 
   errno = 0;
   tot = 0;
