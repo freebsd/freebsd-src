@@ -490,13 +490,31 @@ is
 and
 the process ID given as argument is not in use.
 .El
+.Pp
+In addition, if 
+.Fa fd
+refers to a descriptor open on a terminal device (as opposed to a
+descriptor open on a socket), a
+.Fa cmd
+of
+.Dv F_SETOWN
+can fail for the same reasons as in
+.Xr tcsetpgrp 3 ,
+and a
+.Fa cmd
+of
+.Dv F_GETOWN
+for the reasons as stated in
+.Xr tcgetpgrp 3 .
 .Sh SEE ALSO
 .Xr close 2 ,
 .Xr execve 2 ,
 .Xr flock 2 ,
 .Xr getdtablesize 2 ,
 .Xr open 2 ,
-.Xr sigvec 2
+.Xr sigvec 2 ,
+.Xr tcgetpgrp 3 ,
+.Xr tcsetpgrp 3
 .Sh HISTORY
 The
 .Nm
