@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: imgact_elf.h,v 1.12 1999/02/05 13:52:15 newton Exp $
+ *	$Id: imgact_elf.h,v 1.13 1999/02/06 16:39:16 mjacob Exp $
  */
 
 #ifndef _SYS_IMGACT_ELF_H_
@@ -98,7 +98,6 @@ typedef struct {
 int	elf_brand_inuse        __P((Elf64_Brandinfo *entry));
 int	elf_insert_brand_entry __P((Elf64_Brandinfo *entry));
 int	elf_remove_brand_entry __P((Elf64_Brandinfo *entry));
-int	elf_brand_inuse        __P((Elf64_Brandinfo *entry));
 
 #endif /* ELF_TARG_CLASS == ELFCLASS32 */
 
