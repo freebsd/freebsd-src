@@ -23,6 +23,3 @@ install:
 		for i in ${I4BETCFILE} ; do \
 		  ${INSTALL} -o root -g wheel -m 600 $$i ${DESTDIR}/etc/isdn ; \
 		done
-
-# Suck in the ${COPY} definition.
-.include <bsd.own.mk>
