@@ -56,7 +56,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)res_send.c	8.1 (Berkeley) 6/4/93";
 static char orig_rcsid[] = "From: Id: res_send.c,v 8.14 1998/04/07 04:59:46 vixie Exp $";
-static char rcsid[] = "$Id: res_send.c,v 1.20 1997/09/16 06:03:54 peter Exp $";
+static char rcsid[] = "$Id: res_send.c,v 1.21 1998/05/02 13:11:02 peter Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 /*
@@ -607,11 +607,12 @@ read_len:
 				if (msec <= 0)
 					msec = 1000;
 			} else {
-			    timeout.tv_sec = (_res.retrans << try);
+				timeout.tv_sec = (_res.retrans << try);
 				if (try > 0)
 					timeout.tv_sec /= _res.nscount;
 				if ((long) timeout.tv_sec <= 0)
 					timeout.tv_sec = 1;
+				timeout.tv_usec = 0;
 			}
     wait:
 			if (s < 0) {
@@ -669,6 +670,13 @@ read_len:
 					   (fd_set *)NULL, &timeout);
 				if (dsmaskp != &dsmask)
 					free(dsmaskp);
+				if (n < 0) {
+					if (errno == EINTR)
+						goto wait;
+					Perror(stderr, "select", errno);
+					res_close();
+					goto next_ns;
+				}
 			}
 
 			if (n == 0) {
