@@ -18,6 +18,8 @@ Author: Martin Renters
 #include <net/if.h>
 #include <netinet/in.h>
 #include <nfs/nfsv2.h>
+#include <nfs/rpcv2.h>
+#include <nfs/nfs.h>
 #include <nfs/nfsdiskless.h>
 #include <machine/bootinfo.h>
 #include <machine/cpufunc.h>
