@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_swap.c	8.5 (Berkeley) 2/17/94
- * $Id: vm_swap.c,v 1.36 1996/03/27 20:09:26 bde Exp $
+ * $Id: vm_swap.c,v 1.37 1996/03/28 14:36:48 scrappy Exp $
  */
 
 #include <sys/param.h>
@@ -55,10 +55,6 @@
 #include <vm/swap_pager.h>
 
 #include <miscfs/specfs/specdev.h>
-#ifdef DEVFS
-#include <sys/devfsext.h>
-static void *drum_devfs_token;
-#endif /*DEVFS*/
 
 static void swstrategy __P((struct buf *));
 
