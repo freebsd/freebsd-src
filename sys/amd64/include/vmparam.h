@@ -3,6 +3,8 @@
  * All rights reserved.
  * Copyright (c) 1994 John S. Dyson
  * All rights reserved.
+ * Copyright (c) 2003 Peter Wemm
+ * All rights reserved.
  *
  * This code is derived from software contributed to Berkeley by
  * William Jolitz.
