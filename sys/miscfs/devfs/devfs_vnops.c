@@ -1,4 +1,3 @@
-
 /*
  * Copyright 1997,1998 Julian Elischer.  All rights reserved.
  * julian@freebsd.org
@@ -24,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- *	$Id: devfs_vnops.c,v 1.54 1998/04/19 23:32:17 julian Exp $
+ *	$Id: devfs_vnops.c,v 1.55 1998/05/07 04:58:32 msmith Exp $
  */
 
 
@@ -522,6 +521,9 @@ devfs_setattr(struct vop_setattr_args *ap)
 	gid_t *gp;
 	int i;
 	dn_p	file_node;
+
+	if (vap->va_flags != VNOVAL)	/* XXX needs to be implemented */
+		return (EOPNOTSUPP);
 
 	if (error = devfs_vntodn(vp,&file_node))
 	{
