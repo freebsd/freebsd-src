@@ -35,14 +35,16 @@
  * OF SUCH DAMAGE.
  *
  * $FreeBSD$
+ * $Whistle: main.c,v 1.12 1999/11/29 19:17:46 archie Exp $
  */
 
 #include "ngctl.h"
 
-#define PROMPT		"+ "
-#define MAX_ARGS	512
-#define WHITESPACE	" \t\r\n\v\f"
-#define NG_SOCKET_KLD	"ng_socket.ko"
+#define PROMPT			"+ "
+#define MAX_ARGS		512
+#define WHITESPACE		" \t\r\n\v\f"
+#define NG_SOCKET_KLD		"ng_socket.ko"
+#define DUMP_BYTES_PER_LINE	16
 
 /* Internal functions */
 static int	ReadFile(FILE *fp);
@@ -50,6 +52,8 @@ static int	DoParseCommand(char *line);
 static int	DoCommand(int ac, char **av);
 static int	DoInteractive(void);
 static const	struct ngcmd *FindCommand(const char *string);
+static int	MatchCommand(const struct ngcmd *cmd, const char *s);
+static void	DumpAscii(const u_char *buf, int len);
 static void	Usage(const char *msg);
 static int	ReadCmd(int ac, char **av);
 static int	HelpCmd(int ac, char **av);
@@ -62,6 +66,7 @@ static const struct ngcmd *const cmds[] = {
 	&help_cmd,
 	&list_cmd,
 	&mkpeer_cmd,
+	&msg_cmd,
 	&name_cmd,
 	&read_cmd,
 	&rmhook_cmd,
@@ -78,19 +83,22 @@ const struct ngcmd read_cmd = {
 	ReadCmd,
 	"read <filename>",
 	"Read and execute commands from a file",
-	NULL
+	NULL,
+	{ "source", "." }
 };
 const struct ngcmd help_cmd = {
 	HelpCmd,
 	"help [command]",
 	"Show command summary or get more help on a specific command",
-	NULL
+	NULL,
+	{ "?" }
 };
 const struct ngcmd quit_cmd = {
 	QuitCmd,
 	"quit",
 	"Exit program",
-	NULL
+	NULL,
+	{ "exit" }
 };
 
 /* Our control and data sockets */
@@ -200,16 +208,107 @@ ReadFile(FILE *fp)
 static int
 DoInteractive(void)
 {
-	char buf[LINE_MAX];
+	const int maxfd = MAX(csock, dsock) + 1;
 
-	/* Read commands from stdin */
 	(*help_cmd.func)(0, NULL);
-	do {
-		printf("%s", PROMPT);
-		if (fgets(buf, sizeof(buf), stdin) == NULL)
+	while (1) {
+		struct timeval tv;
+		fd_set rfds;
+
+		/* See if any data or control messages are arriving */
+		FD_ZERO(&rfds);
+		FD_SET(csock, &rfds);
+		FD_SET(dsock, &rfds);
+		memset(&tv, 0, sizeof(tv));
+		if (select(maxfd, &rfds, NULL, NULL, &tv) <= 0) {
+
+			/* Issue prompt and wait for anything to happen */
+			printf("%s", PROMPT);
+			fflush(stdout);
+			FD_ZERO(&rfds);
+			FD_SET(0, &rfds);
+			FD_SET(csock, &rfds);
+			FD_SET(dsock, &rfds);
+			if (select(maxfd, &rfds, NULL, NULL, NULL) < 0)
+				err(EX_OSERR, "select");
+
+			/* If not user input, print a newline first */
+			if (!FD_ISSET(0, &rfds))
+				printf("\n");
+		}
+
+		/* Display any incoming control message */
+		while (FD_ISSET(csock, &rfds)) {
+			u_char buf[2 * sizeof(struct ng_mesg) + 8192];
+			struct ng_mesg *const m = (struct ng_mesg *)buf;
+			struct ng_mesg *const ascii = (struct ng_mesg *)m->data;
+			char path[NG_PATHLEN+1];
+
+			/* Get incoming message (in binary form) */
+			if (NgRecvMsg(csock, m, sizeof(buf), path) < 0) {
+				warn("recv incoming message");
+				break;
+			}
+
+			/* Ask originating node to convert to ASCII */
+			if (NgSendMsg(csock, path, NGM_GENERIC_COOKIE,
+			      NGM_BINARY2ASCII, m,
+			      sizeof(*m) + m->header.arglen) < 0
+			    || NgRecvMsg(csock, m, sizeof(buf), NULL) < 0) {
+				printf("Rec'd %s %d from \"%s\":\n",
+				    (m->header.flags & NGF_RESP) != 0 ?
+				      "response" : "command",
+				    m->header.cmd, path);
+				if (m->header.arglen == 0)
+					printf("No arguments\n");
+				else
+					DumpAscii(m->data, m->header.arglen);
+				break;
+			}
+
+			/* Display message in ASCII form */
+			printf("Rec'd %s \"%s\" (%d) from \"%s\":\n",
+			    (ascii->header.flags & NGF_RESP) != 0 ?
+			      "response" : "command",
+			    ascii->header.cmdstr, ascii->header.cmd, path);
+			if (*ascii->data != '\0')
+				printf("Args:\t%s\n", ascii->data);
+			else
+				printf("No arguments\n");
 			break;
-		fflush(stdout);
-	} while (DoParseCommand(buf) != CMDRTN_QUIT);
+		}
+
+		/* Display any incoming data packet */
+		while (FD_ISSET(dsock, &rfds)) {
+			u_char buf[8192];
+			char hook[NG_HOOKLEN + 1];
+			int rl;
+
+			/* Read packet from socket */
+			if ((rl = NgRecvData(dsock,
+			    buf, sizeof(buf), hook)) < 0)
+				err(EX_OSERR, "read(hook)");
+			if (rl == 0)
+				errx(EX_OSERR, "EOF from hook \"%s\"?", hook);
+
+			/* Write packet to stdout */
+			printf("Rec'd data packet on hook \"%s\":\n", hook);
+			DumpAscii(buf, rl);
+			break;
+		}
+
+		/* Get any user input */
+		if (FD_ISSET(0, &rfds)) {
+			char buf[LINE_MAX];
+
+			if (fgets(buf, sizeof(buf), stdin) == NULL) {
+				printf("\n");
+				break;
+			}
+			if (DoParseCommand(buf) == CMDRTN_QUIT)
+				break;
+		}
+	}
 	return(CMDRTN_QUIT);
 }
 
@@ -255,17 +354,10 @@ DoCommand(int ac, char **av)
 static const struct ngcmd *
 FindCommand(const char *string)
 {
-	const struct ngcmd *cmd;
-	int k, len, found;
+	int k, found = -1;
 
-	if (strcmp(string, "?") == 0)
-		string = "help";
-	for (k = 0, found = -1; cmds[k]; k++) {
-		cmd = cmds[k];
-		len = strcspn(cmd->cmd, WHITESPACE);
-		if (len > strlen(string))
-			len = strlen(string);
-		if (!strncasecmp(string, cmd->cmd, len)) {
+	for (k = 0; cmds[k] != NULL; k++) {
+		if (MatchCommand(cmds[k], string)) {
 			if (found != -1) {
 				warnx("\"%s\": ambiguous command", string);
 				return(NULL);
@@ -278,6 +370,32 @@ FindCommand(const char *string)
 		return(NULL);
 	}
 	return(cmds[found]);
+}
+
+/*
+ * See if string matches a prefix of "cmd" (or an alias) case insensitively
+ */
+static int
+MatchCommand(const struct ngcmd *cmd, const char *s)
+{
+	int a;
+
+	/* Try to match command, ignoring the usage stuff */
+	if (strlen(s) <= strcspn(cmd->cmd, WHITESPACE)) {
+		if (strncasecmp(s, cmd->cmd, strlen(s)) == 0)
+			return (1);
+	}
+
+	/* Try to match aliases */
+	for (a = 0; a < MAX_CMD_ALIAS && cmd->aliases[a] != NULL; a++) {
+		if (strlen(cmd->aliases[a]) >= strlen(s)) {
+			if (strncasecmp(s, cmd->aliases[a], strlen(s)) == 0)
+				return (1);
+		}
+	}
+
+	/* No match */
+	return (0);
 }
 
 /*
@@ -333,6 +451,20 @@ HelpCmd(int ac, char **av)
 		/* Show help on a specific command */
 		if ((cmd = FindCommand(av[1])) != NULL) {
 			printf("Usage:    %s\n", cmd->cmd);
+			if (cmd->aliases[0] != NULL) {
+				int a = 0;
+
+				printf("Aliases:  ");
+				while (1) {
+					printf("%s", cmd->aliases[a++]);
+					if (a == MAX_CMD_ALIAS
+					    || cmd->aliases[a] == NULL) {
+						printf("\n");
+						break;
+					}
+					printf(", ");
+				}
+			}
 			printf("Summary:  %s\n", cmd->desc);
 			if (cmd->help != NULL) {
 				const char *s;
@@ -367,6 +499,43 @@ static int
 QuitCmd(int ac, char **av)
 {
 	return(CMDRTN_QUIT);
+}
+
+/*
+ * Dump data in hex and ASCII form
+ */
+static void
+DumpAscii(const u_char *buf, int len)
+{
+	char ch, sbuf[100];
+	int k, count;
+
+	for (count = 0; count < len; count += DUMP_BYTES_PER_LINE) {
+		snprintf(sbuf, sizeof(sbuf), "%04x:  ", count);
+		for (k = 0; k < DUMP_BYTES_PER_LINE; k++) {
+			if (count + k < len) {
+				snprintf(sbuf + strlen(sbuf),
+				    sizeof(sbuf) - strlen(sbuf),
+				    "%02x ", buf[count + k]);
+			} else {
+				snprintf(sbuf + strlen(sbuf),
+				    sizeof(sbuf) - strlen(sbuf), "   ");
+			}
+		}
+		snprintf(sbuf + strlen(sbuf), sizeof(sbuf) - strlen(sbuf), " ");
+		for (k = 0; k < DUMP_BYTES_PER_LINE; k++) {
+			if (count + k < len) {
+				ch = isprint(buf[count + k]) ?
+				    buf[count + k] : '.';
+				snprintf(sbuf + strlen(sbuf),
+				    sizeof(sbuf) - strlen(sbuf), "%c", ch);
+			} else {
+				snprintf(sbuf + strlen(sbuf),
+				    sizeof(sbuf) - strlen(sbuf), " ");
+			}
+		}
+		printf("%s\n", sbuf);
+	}
 }
 
 /*

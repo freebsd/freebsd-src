@@ -109,7 +109,8 @@ static struct ng_type typestruct = {
 	NULL,
 	ng_rfc1490_rcvdata,
 	ng_rfc1490_rcvdata,
-	ng_rfc1490_disconnect
+	ng_rfc1490_disconnect,
+	NULL
 };
 NETGRAPH_INIT(rfc1490, &typestruct);
 
