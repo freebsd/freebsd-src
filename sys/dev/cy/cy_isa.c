@@ -27,7 +27,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: cy.c,v 1.59 1997/12/28 06:23:03 bde Exp $
+ *	$Id: cy.c,v 1.60 1998/01/24 02:54:17 eivind Exp $
  */
 
 #include "opt_compat.h"
@@ -2420,16 +2420,7 @@ disc_optim(tp, t, com)
 		tp->t_state |= TS_CAN_BYPASS_L_RINT;
 	else
 		tp->t_state &= ~TS_CAN_BYPASS_L_RINT;
-	/*
-	 * Prepare to reduce input latency for packet
-	 * discplines with a end of packet character.
-	 */
-	if (tp->t_line == SLIPDISC)
-		com->hotchar = 0xc0;
-	else if (tp->t_line == PPPDISC)
-		com->hotchar = 0x7e;
-	else
-		com->hotchar = 0;
+	com->hotchar = linesw[tp->t_line].l_hotchar;
 #ifndef SOFT_HOTCHAR
 	iobase = com->iobase;
 	cd_outb(iobase, CD1400_CAR, com->cy_align, com->unit & CD1400_CAR_CHAN);

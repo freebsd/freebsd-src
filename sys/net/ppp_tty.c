@@ -70,7 +70,7 @@
  * Paul Mackerras (paulus@cs.anu.edu.au).
  */
 
-/* $Id: ppp_tty.c,v 1.28 1997/11/18 14:08:51 bde Exp $ */
+/* $Id: ppp_tty.c,v 1.29 1997/12/06 13:24:37 bde Exp $ */
 
 #include "ppp.h"
 #if NPPP > 0
@@ -161,8 +161,9 @@ void		pppasyncattach __P((void *));
  */
 
 static struct linesw pppdisc = {
-	pppopen, pppclose, pppread, pppwrite, ppptioctl,
-	pppinput, pppstart, ttymodem
+	pppopen,	pppclose,	pppread,	pppwrite,
+	ppptioctl,	pppinput,	pppstart,	ttymodem,
+	PPP_FLAG
 };
 
 void
