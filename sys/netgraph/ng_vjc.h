@@ -53,7 +53,7 @@
 #define NG_VJC_HOOK_VJUNCOMP	"vjuncomp"	/* uncompressed TCP */
 #define NG_VJC_HOOK_VJIP	"vjip"		/* uncompressed IP */
 
- /* Minimum and maximum number of channels */
+ /* Minimum and maximum number of compression channels */
 #define NG_VJC_MIN_CHANNELS	4
 #define NG_VJC_MAX_CHANNELS	16
 
