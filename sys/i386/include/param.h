@@ -98,7 +98,10 @@
 #define PDRMASK		(NBPDR-1)
 
 /* PREEMPTION exposes scheduler bugs that need to be fixed. */
+#include "opt_sched.h"
+#ifdef SCHED_4BSD
 #define	PREEMPTION
+#endif
 
 #define IOPAGES	2		/* pages of i/o permission bitmap */
 
