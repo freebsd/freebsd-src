@@ -92,6 +92,8 @@ migrate_disklabel(int fd, off_t start, struct gpt_ent *ent)
 			break;
 		}
 		default:
+			warnx("%s: warning: unknown FreeBSD partition (%d)",
+			    device_name, dl->d_partitions[i].p_fstype);
 			continue;
 		}
 
@@ -120,9 +122,8 @@ migrate(int fd)
 	last = mediasz / secsz - 1LL;
 
 	map = map_find(MAP_TYPE_MBR);
-	if (map == NULL || map_find(MAP_TYPE_MBR_PART) == NULL) {
-		warnx("%s: error: no partitions to convert",
-		    device_name);
+	if (map == NULL || map->map_start != 0) {
+		warnx("%s: error: no partitions to convert", device_name);
 		return;
 	}
 
@@ -212,6 +213,8 @@ migrate(int fd)
 		size = (size << 16) + mbr->mbr_part[i].part_size_lo;
 
 		switch (mbr->mbr_part[i].part_typ) {
+		case 0:
+			continue;
 		case 165: {	/* FreeBSD */
 			if (slice) {
 				uuid_t freebsd = GPT_ENT_TYPE_FREEBSD;
@@ -235,7 +238,9 @@ migrate(int fd)
 			break;
 		}
 		default:
-			continue;
+			warnx("%s: error: unknown partition type (%d)",
+			    device_name, mbr->mbr_part[i].part_typ);
+			return;
 		}
 	}
 	ent = tbl->map_data;

@@ -58,6 +58,7 @@ create(int fd)
 	map_t *gpt, *tpg;
 	map_t *tbl, *lbt;
 	map_t *map;
+	struct mbr *mbr;
 	struct gpt_hdr *hdr;
 	struct gpt_ent *ent;
 	unsigned int i;
@@ -66,6 +67,40 @@ create(int fd)
 	    map_find(MAP_TYPE_SEC_GPT_HDR) != NULL) {
 		warnx("%s: error: device already contains a GPT", device_name);
 		return;
+	}
+	if (map_find(MAP_TYPE_MBR) != NULL) {
+		warnx("%s: error: device contains a MBR", device_name);
+		return;
+	}
+
+	/*
+	 * Create PMBR.
+	 */
+	if (map_find(MAP_TYPE_PMBR) == NULL) {
+		if (map_free(0LL, 1LL) == 0) {
+			warnx("%s: error: no room for the PMBR", device_name);
+			return;
+		}
+		mbr = gpt_read(fd, 0LL, 1);
+		bzero(mbr, sizeof(*mbr));
+		mbr->mbr_sig = MBR_SIG;
+		mbr->mbr_part[0].part_shd = 0xff;
+		mbr->mbr_part[0].part_ssect = 0xff;
+		mbr->mbr_part[0].part_scyl = 0xff;
+		mbr->mbr_part[0].part_typ = 0xee;
+		mbr->mbr_part[0].part_ehd = 0xff;
+		mbr->mbr_part[0].part_esect = 0xff;
+		mbr->mbr_part[0].part_ecyl = 0xff;
+		mbr->mbr_part[0].part_start_lo = 1;
+		if (mediasz > 0xffffffff) {
+			mbr->mbr_part[0].part_size_lo = 0xffff;
+			mbr->mbr_part[0].part_size_hi = 0xffff;
+		} else {
+			mbr->mbr_part[0].part_size_lo = mediasz & 0xffff;
+			mbr->mbr_part[0].part_size_hi = mediasz >> 16;
+		}
+		map = map_add(0LL, 1LL, MAP_TYPE_PMBR, mbr);
+		gpt_write(fd, map);
 	}
 
 	/* Get the amount of free space after the MBR */
