@@ -53,7 +53,6 @@
 #include <sys/conf.h>
 #include <sys/mbuf.h>
 #include <sys/malloc.h>
-#include <sys/protosw.h>
 #include <sys/errno.h>
 #include <sys/syslog.h>
 
