@@ -1,4 +1,4 @@
-/*	$Id: sysv_shm.c,v 1.19 1996/05/02 14:20:26 phk Exp $ */
+/*	$Id: sysv_shm.c,v 1.20 1996/05/03 21:01:24 phk Exp $ */
 /*	$NetBSD: sysv_shm.c,v 1.23 1994/07/04 23:25:12 glass Exp $	*/
 
 /*
@@ -463,7 +463,7 @@ shmget_allocate_segment(p, uap, mode, retval)
 		return EINVAL;
 	if (shm_nused >= shminfo.shmmni) /* any shmids left? */
 		return ENOSPC;
-	size = round_page(shmseg->shm_segsz);
+	size = round_page(uap->size);
 	if (shm_committed + btoc(size) > shminfo.shmall)
 		return ENOMEM;
 	if (shm_last_free < 0) {
