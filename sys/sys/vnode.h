@@ -39,6 +39,7 @@
  */
 #include <sys/lockmgr.h>
 
+#include <sys/bufobj.h>
 #include <sys/queue.h>
 #include <sys/_lock.h>
 #include <sys/lock.h>
@@ -64,7 +65,6 @@ enum vtype	{ VNON, VREG, VDIR, VBLK, VCHR, VLNK, VSOCK, VFIFO, VBAD };
  * Each underlying filesystem allocates its own private area and hangs
  * it from v_data.  If non-null, this area is freed in getnewvnode().
  */
-TAILQ_HEAD(buflists, buf);
 
 typedef	int	vop_t(void *);
 struct namecache;
@@ -104,6 +104,8 @@ struct vpollinfo {
  * locked consistently.  This is a work in progress.  Requires Giant!
  */
 
+#if defined(_KERNEL) || defined(_KVM_VNODE)
+
 struct vnode {
 	struct	mtx v_interlock;		/* lock for "i" things */
 	u_long	v_iflag;			/* i vnode flags (see below) */
@@ -111,12 +113,7 @@ struct vnode {
 	long	v_numoutput;			/* i writes in progress */
 	struct thread *v_vxthread;		/* i thread owning VXLOCK */
 	int	v_holdcnt;			/* i page & buffer references */
-	struct	buflists v_cleanblkhd;		/* i SORTED clean blocklist */
-	struct buf	*v_cleanblkroot;	/* i clean buf splay tree  */
-	int	v_cleanbufcnt;			/* i number of clean buffers */
-	struct	buflists v_dirtyblkhd;		/* i SORTED dirty blocklist */
-	struct buf	*v_dirtyblkroot;	/* i dirty buf splay tree */
-	int	v_dirtybufcnt;			/* i number of dirty buffers */
+	struct bufobj	v_bufobj;		/* * Buffer cache object */
 	u_long	v_vflag;			/* v vnode flags */
 	int	v_writecount;			/* v ref count of writers */
 	struct vm_object *v_object;		/* v Place to store VM object */
@@ -158,11 +155,22 @@ struct vnode {
 	ino_t	v_cachedid;			/* cached file id */
 	int	v_bsize;			/* block size for I/O */
 };
+
+#endif /* defined(_KERNEL) || defined(_KVM_VNODE) */
+
 #define	v_mountedhere	v_un.vu_mountedhere
 #define	v_socket	v_un.vu_socket
 #define	v_rdev		v_un.vu_spec.vu_cdev
 #define	v_specnext	v_un.vu_spec.vu_specnext
 #define	v_fifoinfo	v_un.vu_fifoinfo
+
+/* XXX: These are temporary to avoid a source sweep at this time */
+#define v_cleanblkhd	v_bufobj.bo_clean.bv_hd
+#define v_cleanblkroot	v_bufobj.bo_clean.bv_root
+#define v_cleanbufcnt	v_bufobj.bo_clean.bv_cnt
+#define v_dirtyblkhd	v_bufobj.bo_dirty.bv_hd
+#define v_dirtyblkroot	v_bufobj.bo_dirty.bv_root
+#define v_dirtybufcnt	v_bufobj.bo_dirty.bv_cnt
 
 /*
  * Userland version of struct vnode, for sysctl.
