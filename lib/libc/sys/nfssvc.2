@@ -38,8 +38,11 @@
 .Nm nfssvc
 .Nd NFS services
 .Sh SYNOPSIS
-.Fd #include <unistd.h>
+.Fd #include <sys/param.h>
+.Fd #include <sys/mount.h>
+.Fd #include <nfs/rpcv2.h>
 .Fd #include <nfs/nfs.h>
+.Fd #include <unistd.h>
 .Ft int
 .Fn nfssvc "int flags" "void *argstructp"
 .Sh DESCRIPTION
