@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: auth.c,v 1.34 1998/12/17 00:28:12 brian Exp $
+ * $Id: auth.c,v 1.34.2.1 1999/02/01 13:48:24 brian Exp $
  *
  *	TODO:
  *		o Implement check against with registered IP addresses.
@@ -31,10 +31,12 @@
 #include <pwd.h>
 #include <stdio.h>
 #include <string.h>
+#include <termios.h>
 #include <unistd.h>
 
 #include "mbuf.h"
 #include "defs.h"
+#include "log.h"
 #include "timer.h"
 #include "fsm.h"
 #include "iplist.h"
@@ -53,6 +55,11 @@
 #include "lcpproto.h"
 #include "filter.h"
 #include "mp.h"
+#include "cbcp.h"
+#include "chap.h"
+#include "async.h"
+#include "physical.h"
+#include "datalink.h"
 #include "bundle.h"
 
 const char *
@@ -244,8 +251,10 @@ AuthTimeout(void *vauthp)
   if (--authp->retry > 0) {
     timer_Start(&authp->authtimer);
     (*authp->ChallengeFunc)(authp, ++authp->id, authp->physical);
-  } else if (authp->FailedFunc)
-    (*authp->FailedFunc)(authp->physical);
+  } else {
+    log_Printf(LogPHASE, "Auth: No response from server\n");
+    datalink_AuthNotOk(authp->physical->dl);
+  }
 }
 
 void
@@ -257,11 +266,9 @@ auth_Init(struct authinfo *authinfo)
 
 void
 auth_StartChallenge(struct authinfo *authp, struct physical *physical,
-                   void (*chal)(struct authinfo *, int, struct physical *),
-                   void (*fail)(struct physical *))
+                   void (*chal)(struct authinfo *, int, struct physical *))
 {
   authp->ChallengeFunc = chal;
-  authp->FailedFunc = fail;
   authp->physical = physical;
   timer_Stop(&authp->authtimer);
   authp->authtimer.func = AuthTimeout;
