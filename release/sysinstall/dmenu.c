@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: dmenu.c,v 1.11.2.6 1995/06/02 15:31:05 jkh Exp $
+ * $Id: dmenu.c,v 1.11.2.7 1995/06/05 09:52:09 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -78,7 +78,7 @@ checkHookVal(DMenuItem *item)
 {
 
     if (!item->check)
-	return "NO";
+	return "OFF";
     return (*item->check)(item);
 }
 
