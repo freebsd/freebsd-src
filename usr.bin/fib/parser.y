@@ -258,7 +258,7 @@ a_color: BLACK
 
 forms:  FORM NAME 
 		 { formname = cpstr($2); }
-	AT coord LBRACE formspec RBRACE
+	AT coord 
 		{
 			form = malloc(sizeof (struct form_list));
 			if (!form) {
@@ -267,6 +267,9 @@ forms:  FORM NAME
 			}
 			form->form.y = y;
 			form->form.x = x;
+		}
+	LBRACE formspec RBRACE
+		{
 			form->startfield = startname;
 			form->formname = formname;
 			form->colortable = colortable;
@@ -750,13 +753,13 @@ calc_field_height(struct field *field, char *string)
 
 	len = strlen(string);
 
-	if (!width) {
+	if (!field->width) {
 		/*
 		 * This is a failsafe, this routine shouldn't be called
 		 * with a width of 0, the width should be determined
 		 * first.
 		 */
-		height = 1;
+		field->height = 1;
 		return;
 	}
 
@@ -764,9 +767,9 @@ calc_field_height(struct field *field, char *string)
 		field->height = 1;
 		return;
 	} else
-		field->height = len / width;
+		field->height = len / field->width;
 
-	if ((field->height*width) < len)
+	if ((field->height*field->width) < len)
 		field->height++;
 
 	return;
