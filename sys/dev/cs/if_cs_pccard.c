@@ -45,9 +45,9 @@ __FBSDID("$FreeBSD$");
 #include <dev/cs/if_csvar.h>
 #include <dev/cs/if_csreg.h>
 #include <dev/pccard/pccardvar.h>
-#include "pccarddevs.h"
 
 #include "card_if.h"
+#include "pccarddevs.h"
 
 static const struct pccard_product cs_pccard_products[] = {
 	PCMCIA_CARD(IBM, ETHERJET, 0),

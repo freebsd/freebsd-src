@@ -41,11 +41,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/timepps.h>
 
 #include <dev/pccard/pccard_cis.h>
-#include "pccarddevs.h"
-#include <dev/pccard/pccardreg.h>
 #include <dev/pccard/pccardvar.h>
 
 #include <dev/sio/siovar.h>
+
+#include "pccarddevs.h"
 
 static	int	sio_pccard_attach(device_t dev);
 static	int	sio_pccard_match(device_t self);
