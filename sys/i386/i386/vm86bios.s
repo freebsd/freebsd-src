@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: vm86bios.s,v 1.4 1998/09/10 12:16:06 yokota Exp $
+ *	$Id: vm86bios.s,v 1.5 1998/09/28 03:26:22 tegge Exp $
  */
 
 #include "opt_vm86.h"
@@ -70,12 +70,9 @@ ENTRY(vm86_bioscall)
 	ALIGN_LOCK			/* Get global lock */
 	popl	%edx
 #endif
-	movl	_curproc,%ecx
-	pushl	%ecx			/* save _curproc value */
-	testl	%ecx,%ecx
-	je	1f			/* no process to save */
 
 #if NNPX > 0
+	movl	_curproc,%ecx
 	cmpl	%ecx,_npxproc		/* do we need to save fp? */
 	jne	1f
 	pushl	%edx
@@ -111,7 +108,6 @@ ENTRY(vm86_bioscall)
 	movl	_curpcb,%eax
 	pushl	%eax			/* save curpcb */
 	movl	%edx,_curpcb		/* set curpcb to vm86pcb */
-	movl	$0,_curproc		/* erase curproc */
 
 	movl	_my_tr,%esi
 	leal	_gdt(,%esi,8),%ebx	/* entry in GDT */
@@ -209,7 +205,6 @@ ENTRY(vm86_biosret)
 	ltr	%si
 	
 	popl	_curpcb			/* restore curpcb/curproc */
-	popl	_curproc
 	movl	SCR_ARGFRAME(%edx),%edx	/* original stack frame */
 	movl	TF_TRAPNO(%edx),%eax	/* return (trapno) */
 
