@@ -257,12 +257,9 @@ mmap(td, uap)
 		if (addr & PAGE_MASK)
 			return (EINVAL);
 		/* Address range must be all in user VM space. */
-		if (VM_MAXUSER_ADDRESS > 0 && addr + size > VM_MAXUSER_ADDRESS)
+		if (addr < vm_map_min(&vms->vm_map) ||
+		    addr + size > vm_map_max(&vms->vm_map))
 			return (EINVAL);
-#ifndef __i386__
-		if (VM_MIN_ADDRESS > 0 && addr < VM_MIN_ADDRESS)
-			return (EINVAL);
-#endif
 		if (addr + size < addr)
 			return (EINVAL);
 	}
@@ -611,16 +608,11 @@ munmap(td, uap)
 		return (0);
 
 	/*
-	 * Check for illegal addresses.  Watch out for address wrap... Note
-	 * that VM_*_ADDRESS are not constants due to casts (argh).
+	 * Check for illegal addresses.  Watch out for address wrap...
 	 */
-	if (VM_MAXUSER_ADDRESS > 0 && addr + size > VM_MAXUSER_ADDRESS)
-		return (EINVAL);
-#ifndef __i386__
-	if (VM_MIN_ADDRESS > 0 && addr < VM_MIN_ADDRESS)
-		return (EINVAL);
-#endif
 	map = &td->td_proc->p_vmspace->vm_map;
+	if (addr < vm_map_min(map) || addr + size > vm_map_max(map))
+		return (EINVAL);
 	/*
 	 * Make sure entire range is allocated.
 	 */
@@ -749,6 +741,7 @@ madvise(td, uap)
 	struct madvise_args *uap;
 {
 	vm_offset_t start, end;
+	vm_map_t map;
 
 	/*
 	 * Check for illegal behavior
@@ -759,13 +752,10 @@ madvise(td, uap)
 	 * Check for illegal addresses.  Watch out for address wrap... Note
 	 * that VM_*_ADDRESS are not constants due to casts (argh).
 	 */
-	if (VM_MAXUSER_ADDRESS > 0 &&
-		((vm_offset_t) uap->addr + uap->len) > VM_MAXUSER_ADDRESS)
+	map = &td->td_proc->p_vmspace->vm_map;
+	if ((vm_offset_t)uap->addr < vm_map_min(map) ||
+	    (vm_offset_t)uap->addr + uap->len > vm_map_max(map))
 		return (EINVAL);
-#ifndef __i386__
-	if (VM_MIN_ADDRESS > 0 && uap->addr < VM_MIN_ADDRESS)
-		return (EINVAL);
-#endif
 	if (((vm_offset_t) uap->addr + uap->len) < (vm_offset_t) uap->addr)
 		return (EINVAL);
 
@@ -776,8 +766,7 @@ madvise(td, uap)
 	start = trunc_page((vm_offset_t) uap->addr);
 	end = round_page((vm_offset_t) uap->addr + uap->len);
 	
-	if (vm_map_madvise(&td->td_proc->p_vmspace->vm_map, start, end,
-	    uap->behav))
+	if (vm_map_madvise(map, start, end, uap->behav))
 		return (EINVAL);
 	return (0);
 }
@@ -817,9 +806,8 @@ mincore(td, uap)
 	 */
 	first_addr = addr = trunc_page((vm_offset_t) uap->addr);
 	end = addr + (vm_size_t)round_page(uap->len);
-	if (VM_MAXUSER_ADDRESS > 0 && end > VM_MAXUSER_ADDRESS)
-		return (EINVAL);
-	if (end < addr)
+	map = &td->td_proc->p_vmspace->vm_map;
+	if (end > vm_map_max(map) || end < addr)
 		return (EINVAL);
 
 	/*
@@ -828,7 +816,6 @@ mincore(td, uap)
 	vec = uap->vec;
 
 	mtx_lock(&Giant);
-	map = &td->td_proc->p_vmspace->vm_map;
 	pmap = vmspace_pmap(td->td_proc->p_vmspace);
 
 	vm_map_lock_read(map);

@@ -149,26 +149,18 @@ useracc(addr, len, rw)
 {
 	boolean_t rv;
 	vm_prot_t prot;
+	vm_map_t map;
 
 	KASSERT((rw & ~VM_PROT_ALL) == 0,
 	    ("illegal ``rw'' argument to useracc (%x)\n", rw));
 	prot = rw;
-	/*
-	 * XXX - check separately to disallow access to user area and user
-	 * page tables - they are in the map.
-	 *
-	 * XXX - VM_MAXUSER_ADDRESS is an end address, not a max.  It was once
-	 * only used (as an end address) in trap.c.  Use it as an end address
-	 * here too.  This bogusness has spread.  I just fixed where it was
-	 * used as a max in vm_mmap.c.
-	 */
-	if ((vm_offset_t) addr + len > /* XXX */ VM_MAXUSER_ADDRESS
-	    || (vm_offset_t) addr + len < (vm_offset_t) addr) {
+	map = &curproc->p_vmspace->vm_map;
+	if ((vm_offset_t)addr + len > vm_map_max(map) ||
+	    (vm_offset_t)addr + len < (vm_offset_t)addr) {
 		return (FALSE);
 	}
-	rv = vm_map_check_protection(&curproc->p_vmspace->vm_map,
-	    trunc_page((vm_offset_t)addr), round_page((vm_offset_t)addr + len),
-	    prot);
+	rv = vm_map_check_protection(map, trunc_page((vm_offset_t)addr),
+	    round_page((vm_offset_t)addr + len), prot);
 	return (rv == TRUE);
 }
 

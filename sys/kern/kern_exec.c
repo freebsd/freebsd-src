@@ -74,6 +74,9 @@ MALLOC_DEFINE(M_PARGS, "proc-args", "Process arguments");
 
 static MALLOC_DEFINE(M_ATEXEC, "atexec", "atexec callback");
 
+static int sysctl_kern_ps_strings(SYSCTL_HANDLER_ARGS);
+static int sysctl_kern_usrstack(SYSCTL_HANDLER_ARGS);
+
 /*
  * callout list for things to do at exec time
  */
@@ -86,13 +89,12 @@ TAILQ_HEAD(exec_list_head, execlist);
 static struct exec_list_head exec_list = TAILQ_HEAD_INITIALIZER(exec_list);
 
 /* XXX This should be vm_size_t. */
-static u_long ps_strings = PS_STRINGS;
-SYSCTL_ULONG(_kern, KERN_PS_STRINGS, ps_strings, CTLFLAG_RD, &ps_strings,
-    0, "");
+SYSCTL_PROC(_kern, KERN_PS_STRINGS, ps_strings, CTLTYPE_ULONG|CTLFLAG_RD,
+    NULL, 0, sysctl_kern_ps_strings, "LU", "");
 
 /* XXX This should be vm_size_t. */
-static u_long usrstack = USRSTACK;
-SYSCTL_ULONG(_kern, KERN_USRSTACK, usrstack, CTLFLAG_RD, &usrstack, 0, "");
+SYSCTL_PROC(_kern, KERN_USRSTACK, usrstack, CTLTYPE_ULONG|CTLFLAG_RD,
+    NULL, 0, sysctl_kern_usrstack, "LU", "");
 
 u_long ps_arg_cache_limit = PAGE_SIZE / 16;
 SYSCTL_ULONG(_kern, OID_AUTO, ps_arg_cache_limit, CTLFLAG_RW, 
@@ -106,6 +108,26 @@ SYSCTL_INT(_kern, OID_AUTO, ps_argsopen, CTLFLAG_RW, &ps_argsopen, 0, "");
 static int regstkpages = 256;
 SYSCTL_INT(_machdep, OID_AUTO, regstkpages, CTLFLAG_RW, &regstkpages, 0, "");
 #endif
+
+static int
+sysctl_kern_ps_strings(SYSCTL_HANDLER_ARGS)
+{
+	struct proc *p;
+
+	p = curproc;
+	return (SYSCTL_OUT(req, &p->p_sysent->sv_psstrings,
+	   sizeof(p->p_sysent->sv_psstrings)));
+}
+
+static int
+sysctl_kern_usrstack(SYSCTL_HANDLER_ARGS)
+{
+	struct proc *p;
+
+	p = curproc;
+	return (SYSCTL_OUT(req, &p->p_sysent->sv_usrstack,
+	    sizeof(p->p_sysent->sv_usrstack)));
+}
 
 /*
  * Each of the items is a pointer to a `const struct execsw', hence the
@@ -688,18 +710,20 @@ exec_unmap_first_page(imgp)
  *	automatically in trap.c.
  */
 int
-exec_new_vmspace(imgp, minuser, maxuser, stack_addr)
+exec_new_vmspace(imgp, sv)
 	struct image_params *imgp;
-	vm_offset_t minuser, maxuser, stack_addr;
+	struct sysentvec *sv;
 {
 	int error;
 	struct execlist *ep;
 	struct proc *p = imgp->proc;
 	struct vmspace *vmspace = p->p_vmspace;
+	vm_offset_t stack_addr;
+	vm_map_t map;
 
 	GIANT_REQUIRED;
 
-	stack_addr = stack_addr - maxssiz;
+	stack_addr = sv->sv_usrstack - maxssiz;
 
 	imgp->vmspace_destroyed = 1;
 
@@ -714,21 +738,23 @@ exec_new_vmspace(imgp, minuser, maxuser, stack_addr)
 	 * otherwise, create a new VM space so that other threads are
 	 * not disrupted
 	 */
-	if (vmspace->vm_refcnt == 1 &&
-	    vm_map_min(&vmspace->vm_map) == minuser &&
-	    vm_map_max(&vmspace->vm_map) == maxuser) {
+	map = &vmspace->vm_map;
+	if (vmspace->vm_refcnt == 1 && vm_map_min(map) == sv->sv_minuser &&
+	    vm_map_max(map) == sv->sv_maxuser) {
 		if (vmspace->vm_shm)
 			shmexit(p);
-		pmap_remove_pages(vmspace_pmap(vmspace), minuser, maxuser);
-		vm_map_remove(&vmspace->vm_map, minuser, maxuser);
+		pmap_remove_pages(vmspace_pmap(vmspace), vm_map_min(map),
+		    vm_map_max(map));
+		vm_map_remove(map, vm_map_min(map), vm_map_max(map));
 	} else {
-		vmspace_exec(p, minuser, maxuser);
+		vmspace_exec(p, sv->sv_minuser, sv->sv_maxuser);
 		vmspace = p->p_vmspace;
+		map = &vmspace->vm_map;
 	}
 
 	/* Allocate a new stack */
-	error = vm_map_stack(&vmspace->vm_map, stack_addr, (vm_size_t)maxssiz,
-	    VM_PROT_ALL, VM_PROT_ALL, 0);
+	error = vm_map_stack(map, stack_addr, (vm_size_t)maxssiz,
+	    sv->sv_stackprot, VM_PROT_ALL, 0);
 	if (error)
 		return (error);
 
@@ -740,8 +766,8 @@ exec_new_vmspace(imgp, minuser, maxuser, stack_addr)
 		 * store to grow upwards. This will do for now.
 		 */
 		vm_offset_t bsaddr;
-		bsaddr = USRSTACK - 2 * maxssiz;
-		error = vm_map_find(&vmspace->vm_map, 0, 0, &bsaddr,
+		bsaddr = p->p_sysent->sv_usrstack - 2 * maxssiz;
+		error = vm_map_find(map, 0, 0, &bsaddr,
 		    regstkpages * PAGE_SIZE, 0, VM_PROT_ALL, VM_PROT_ALL, 0);
 		FIRST_THREAD_IN_PROC(p)->td_md.md_bspstore = bsaddr;
 	}
@@ -752,7 +778,7 @@ exec_new_vmspace(imgp, minuser, maxuser, stack_addr)
 	 * process stack so we can check the stack rlimit.
 	 */
 	vmspace->vm_ssize = sgrowsiz >> PAGE_SHIFT;
-	vmspace->vm_maxsaddr = (char *)USRSTACK - maxssiz;
+	vmspace->vm_maxsaddr = (char *)sv->sv_usrstack - maxssiz;
 
 	return (0);
 }
@@ -851,7 +877,7 @@ exec_copyout_strings(imgp)
 	 */
 	p = imgp->proc;
 	szsigcode = 0;
-	arginfo = (struct ps_strings *)PS_STRINGS;
+	arginfo = (struct ps_strings *)p->p_sysent->sv_psstrings;
 	if (p->p_sysent->sv_szsigcode != NULL)
 		szsigcode = *(p->p_sysent->sv_szsigcode);
 	destp =	(caddr_t)arginfo - szsigcode - SPARE_USRSPACE -
