@@ -114,6 +114,7 @@ static int div_output(struct socket *so,
 void
 div_init(void)
 {
+	INP_INFO_LOCK_INIT(&divcbinfo, "div");
 	LIST_INIT(&divcb);
 	divcbinfo.listhead = &divcb;
 	/*
