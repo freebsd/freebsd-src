@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: kldunload.c,v 1.6 1998/07/06 06:59:52 charnier Exp $";
+	"$Id: kldunload.c,v 1.7 1998/11/07 00:42:52 des Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -56,6 +56,8 @@ main(int argc, char** argv)
 	switch (c) {
 	case 'i':
 	    fileid = atoi(optarg);
+	    if (!fileid)
+		errx(1, "Invalid ID %s", optarg);
 	    break;
 	case 'n':
 	    filename = optarg;
