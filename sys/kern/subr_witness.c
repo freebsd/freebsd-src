@@ -471,13 +471,26 @@ witness_lock(struct lock_object *lock, int flags, const char *file, int line)
 		return;
 	}
 	
+	/*
+	 * We have to hold a spinlock to keep lock_list valid across the check
+	 * in the LC_SLEEPLOCK case.  In the LC_SPINLOCK case, it is already
+	 * protected by the spinlock we are currently performing the witness
+	 * checks on, so it is ok to release the lock after performing this
+	 * check.  All we have to protect is the LC_SLEEPLOCK case when no
+	 * spinlocks are held as we may get preempted during this check and
+	 * lock_list could end up pointing to some other CPU's spinlock list.
+	 */
+	mtx_lock_spin(&w_mtx);
 	lock_list = PCPU_PTR(spinlocks);
 	if (class->lc_flags & LC_SLEEPLOCK) {
-		if (*lock_list != NULL)
+		if (*lock_list != NULL) {
+			mtx_unlock_spin(&w_mtx);
 			panic("blockable sleep lock (%s) %s @ %s:%d",
 			    class->lc_name, lock->lo_name, file, line);
+		}
 		lock_list = &p->p_sleeplocks;
 	}
+	mtx_unlock_spin(&w_mtx);
 
 	if (flags & LOP_TRYLOCK)
 		goto out;
