@@ -88,13 +88,22 @@ ASSYM(TF_CR_IFS,	offsetof(struct trapframe, tf_cr_ifs));
 ASSYM(TF_NDIRTY,	offsetof(struct trapframe, tf_ndirty));
 ASSYM(TF_B,		offsetof(struct trapframe, tf_b));
 ASSYM(TF_R,		offsetof(struct trapframe, tf_r));
+ASSYM(TF_R_R1,		offsetof(struct trapframe, tf_r[FRAME_R1]));
+ASSYM(TF_R_R2,		offsetof(struct trapframe, tf_r[FRAME_R2]));
+ASSYM(TF_R_R3,		offsetof(struct trapframe, tf_r[FRAME_R3]));
+ASSYM(TF_R_R4,		offsetof(struct trapframe, tf_r[FRAME_R4]));
+ASSYM(TF_R_R5,		offsetof(struct trapframe, tf_r[FRAME_R5]));
+ASSYM(TF_R_R6,		offsetof(struct trapframe, tf_r[FRAME_R6]));
+ASSYM(TF_R_R7,		offsetof(struct trapframe, tf_r[FRAME_R7]));
+ASSYM(TF_R_R8,		offsetof(struct trapframe, tf_r[FRAME_R8]));
+ASSYM(TF_R_R9,		offsetof(struct trapframe, tf_r[FRAME_R9]));
+ASSYM(TF_R_R10,		offsetof(struct trapframe, tf_r[FRAME_R10]));
+ASSYM(TF_R_R11,		offsetof(struct trapframe, tf_r[FRAME_R11]));
+ASSYM(TF_R_SP,		offsetof(struct trapframe, tf_r[FRAME_SP]));
+ASSYM(TF_R_R13,		offsetof(struct trapframe, tf_r[FRAME_R13]));
+ASSYM(TF_R_R14,		offsetof(struct trapframe, tf_r[FRAME_R14]));
+ASSYM(TF_R_R15,		offsetof(struct trapframe, tf_r[FRAME_R15]));
 ASSYM(TF_F,		offsetof(struct trapframe, tf_f));
-
-ASSYM(FRAME_R4,		FRAME_R4);
-ASSYM(FRAME_R5,		FRAME_R5);
-ASSYM(FRAME_R6,		FRAME_R6);
-ASSYM(FRAME_R7,		FRAME_R7);
-ASSYM(FRAME_SP,		FRAME_SP);
 
 ASSYM(PCB_R4,		offsetof(struct pcb, pcb_r4));
 ASSYM(PCB_R5,		offsetof(struct pcb, pcb_r5));
