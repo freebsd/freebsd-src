@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: elink.c,v 1.1 1994/08/24 22:32:41 ats Exp $
+ *	$Id: elink.c,v 1.2 1994/09/16 13:33:35 davidg Exp $
  */
 
 /*
@@ -36,6 +36,7 @@
 #include <sys/types.h>
 #include <sys/cdefs.h>
 #include <i386/isa/elink.h>
+#include <i386/include/cpufunc.h>
 
 /*
  * Issue a `global reset' to all cards.  We have to be careful to do this only
