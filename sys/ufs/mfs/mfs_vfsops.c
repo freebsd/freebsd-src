@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mfs_vfsops.c	8.11 (Berkeley) 6/19/95
- * $Id: mfs_vfsops.c,v 1.62 1999/05/11 19:55:03 phk Exp $
+ * $Id: mfs_vfsops.c,v 1.64 1999/05/24 00:27:12 jb Exp $
  */
 
 
@@ -308,7 +308,7 @@ mfs_mount(mp, path, data, ndp, p)
 		goto error_1;
 	}
 	devvp->v_type = VBLK;
-	if (checkalias(devvp, umakedev(255, mfs_minor++), (struct mount *)0))
+	if (checkalias(devvp, makeudev(255, mfs_minor++), (struct mount *)0))
 		panic("mfs_mount: dup dev");
 	devvp->v_data = mfsp;
 	mfsp->mfs_baseoff = args.base;
