@@ -1046,7 +1046,6 @@ sis_attach(dev)
 	device_t		dev;
 {
 	u_char			eaddr[ETHER_ADDR_LEN];
-	u_int32_t		command;
 	struct sis_softc	*sc;
 	struct ifnet		*ifp;
 	int			unit, error = 0, rid, waittime = 0;
