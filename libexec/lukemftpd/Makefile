@@ -24,7 +24,7 @@ DPADD+=	${LIBOPIE}
 
 LSDIR=	../../bin/ls
 .PATH: ${.CURDIR}/${LSDIR}
-SRCS+=	ls-unmain.c cmp.c lomac.c print.c util.c
+SRCS+=	ls-unmain.c cmp.c print.c util.c
 CFLAGS+=-I${.CURDIR}/${LSDIR}
 DPADD+=	${LIBM}
 LDADD+=	-lm
