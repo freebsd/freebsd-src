@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.20 1994/08/13 03:49:41 wollman Exp $
+ *	$Id: locore.s,v 1.21 1994/08/22 14:28:57 bde Exp $
  */
 
 /*
@@ -318,7 +318,7 @@ NON_GPROF_ENTRY(btext)
 	movl	$0xa0,%ecx
 1:
 #endif /* BDE_DEBUGGER */
-	movl	$PG_V|PG_KW|PG_NC_PWT,%eax	/* kernel R/W, valid, cache write-through */
+	movl	$PG_V|PG_KW,%eax		/* kernel R/W, valid, cache write-through */
 	lea	((1+UPAGES+1)*NBPG)(%esi),%ebx	/* phys addr of kernel PT base */
 	movl	%ebx,_KPTphys-KERNBASE		/* save in global */
 	fillkpt
@@ -346,7 +346,7 @@ NON_GPROF_ENTRY(btext)
 	movl	$(1+UPAGES+1+NKPT),%ecx	/* number of PTEs */
 	movl	%esi,%eax			/* phys address of PTD */
 	andl	$PG_FRAME,%eax			/* convert to PFN, should be a NOP */
-	orl	$PG_V|PG_KW|PG_NC_PWT,%eax	/* valid, kernel read/write, cache write-though */
+	orl	$PG_V|PG_KW,%eax		/* valid, kernel read/write, cache write-though */
 	movl	%esi,%ebx			/* calculate pte offset to ptd */
 	shrl	$PGSHIFT-2,%ebx
 	addl	%esi,%ebx			/* address of page directory */
