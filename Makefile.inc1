@@ -27,7 +27,7 @@
 # The intended user-driven targets are:
 # buildworld  - rebuild *everything*, including glue to help do upgrades
 # installworld- install everything built by "buildworld"
-# update      - convenient way to update your source tree (eg: sup/cvs)
+# update      - convenient way to update your source tree (eg: cvsup/cvs)
 #
 # Standard targets (not defined here) are documented in the makefiles in
 # /usr/share/mk.  These include:
