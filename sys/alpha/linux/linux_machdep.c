@@ -149,8 +149,6 @@ linux_clone(struct thread *td, struct linux_clone_args *args)
 /*	if (exit_signal <= LINUX_SIGTBLSZ)
 		exit_signal = linux_to_bsd_signal[_SIG_IDX(exit_signal)];
 */
-	/* RFTHREAD probably not necessary here, but it shouldn't hurt */
-	ff |= RFTHREAD;
 
 	if (args->flags & CLONE_VM)
 		ff |= RFMEM;
