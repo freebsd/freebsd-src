@@ -52,7 +52,7 @@ int
 dmenuSubmenu(dialogMenuItem *tmp)
 {
     return (dmenuOpenSimple((DMenu *)(tmp->data), FALSE) ? DITEM_SUCCESS : DITEM_FAILURE) |
-	DITEM_RECREATE;
+	DITEM_RESTORE;
 }
 
 int
