@@ -98,9 +98,7 @@ g_orphan_provider(struct g_provider *pp, int error)
 	mtx_lock(&g_doorlock);
 	TAILQ_INSERT_TAIL(&g_doorstep, pp, orphan);
 	mtx_unlock(&g_doorlock);
-	mtx_lock(&Giant);
 	wakeup(&g_wait_event);
-	mtx_unlock(&Giant);
 }
 
 /*
@@ -238,9 +236,7 @@ one_event(void)
 	g_do_event(ep);
 	g_pending_events--;
 	if (g_pending_events == 0) {
-		mtx_lock(&Giant);
 		wakeup(&g_pending_events);
-		mtx_unlock(&Giant);
 	}
 	g_topology_unlock();
 	g_destroy_event(ep);
@@ -287,9 +283,7 @@ g_post_event(enum g_events ev, struct g_class *mp, struct g_geom *gp, struct g_p
 	}
 	g_pending_events++;
 	TAILQ_INSERT_TAIL(&g_events, ep, events);
-	mtx_lock(&Giant);
 	wakeup(&g_wait_event);
-	mtx_unlock(&Giant);
 }
 
 void
