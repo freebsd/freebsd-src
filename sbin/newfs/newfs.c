@@ -189,7 +189,7 @@ int	nrpos = NRPOS;		/* # of distinguished rotational positions */
 int	bbsize = BBSIZE;	/* boot block size */
 int	sbsize = SBSIZE;	/* superblock size */
 int	mntflags = MNT_ASYNC;	/* flags to be passed to mount */
-int	t_or_u_flag_provided = 0; /* user has specified -t or -u */
+int	t_or_u_flag = 0;	/* user has specified -t or -u */
 u_long	memleft;		/* virtual memory available */
 caddr_t	membase;		/* start address of memory based filesystem */
 char	*filename;
@@ -327,12 +327,12 @@ main(argc, argv)
 				fatal("%s: bad file system size", optarg);
 			break;
 		case 't':
-			t_or_u_flag_provided++;
+			t_or_u_flag++;
 			if ((ntracks = atoi(optarg)) < 0)
 				fatal("%s: bad total tracks", optarg);
 			break;
 		case 'u':
-			t_or_u_flag_provided++;
+			t_or_u_flag++;
 			if ((nsectors = atoi(optarg)) < 0)
 				fatal("%s: bad sectors/track", optarg);
 			break;
@@ -502,7 +502,7 @@ main(argc, argv)
 	 * case (4096 sectors per cylinder) is intented to disagree
 	 * with the disklabel.
 	 */
-	if (t_or_u_flag_provided && secpercyl != lp->d_secpercyl)
+	if (t_or_u_flag && secpercyl != lp->d_secpercyl)
 		fprintf(stderr, "%s (%d) %s (%lu)\n",
 			"Warning: calculated sectors per cylinder", secpercyl,
 			"disagrees with disk label", lp->d_secpercyl);
