@@ -433,14 +433,8 @@ sub variables {
     $append = 0;		# Don't delete old entries
     $locale = 0;		# Build DB only for localized man directories
 
-    # choose localized man direcotries suffixs. If $LC_CTYPE is set, then 
-    # its value will be used as suffix, otherwise $LANG value (if set)
-    $local_suffix = "";
-    if ($ENV{'LC_CTYPE'}) {
-	$local_suffix = $ENV{'LC_CTYPE'};
-    } elsif ($ENV{'LANG'}) {
-	$local_suffix = $ENV{'LANG'}
-    }
+    # choose localized man directories suffix.
+    $local_suffix = $ENV{'LC_ALL'} || $ENV{'LC_CTYPE'} || $ENV{'LANG'};
 
     # if no argument for directories given
     @defaultmanpath = ( '/usr/share/man' );

@@ -36,7 +36,7 @@ case "$weekly_whatis_enable" in
 		then
 		    for i in ${man_locales}
 		    do
-			LC_CTYPE=$i /usr/libexec/makewhatis.local -a \
+			LC_ALL=$i /usr/libexec/makewhatis.local -a \
 			    -L "${MANPATH}" || rc=3
 		    done
 		fi

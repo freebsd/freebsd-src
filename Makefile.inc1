@@ -412,7 +412,7 @@ buildkernel:
 	@echo
 .for _kernel in ${BUILDKERNELS}
 	@echo "--------------------------------------------------------------"
-	@echo ">>> Kernel build for ${_kernel} started on `LC_TIME=C date`"
+	@echo ">>> Kernel build for ${_kernel} started on `LC_ALL=C date`"
 	@echo "--------------------------------------------------------------"
 	@echo "===> ${_kernel}"
 	mkdir -p ${KRNLOBJDIR}
@@ -435,7 +435,7 @@ buildkernel:
 	cd ${KRNLOBJDIR}/${_kernel}; \
 	    ${KMAKEENV} MACHINE=${MACHINE} ${MAKE} KERNEL=${INSTKERNNAME} all
 	@echo "--------------------------------------------------------------"
-	@echo ">>> Kernel build for ${_kernel} completed on `LC_TIME=C date`"
+	@echo ">>> Kernel build for ${_kernel} completed on `LC_ALL=C date`"
 	@echo "--------------------------------------------------------------"
 .endfor
 

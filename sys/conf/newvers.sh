@@ -78,7 +78,7 @@ fi
 COPYRIGHT="$COPYRIGHT
 "
 
-LC_TIME=C; export LC_TIME
+LC_ALL=C; export LC_ALL
 if [ ! -r version ]
 then
 	echo 0 > version
