@@ -109,7 +109,8 @@ static int version_number __BACKUPFILE_P ((const char *, const char *, size_t));
 
 /* Return the name of the new backup file for file FILE,
    allocated with malloc.  Return 0 if out of memory.
-   FILE must not end with a '/' unless it is the root directory.  */
+   FILE must not end with a '/' unless it is the root directory.
+   Do not call this function if backup_type == none. */
 
 char *
 find_backup_file_name (file)
@@ -132,7 +133,7 @@ find_backup_file_name (file)
       strcpy (s, file);
 
 #if HAVE_DIR
-      if (backup_type != simple && backup_type != none)
+      if (backup_type != simple)
 	{
 	  int highest_backup;
 	  size_t dir_len = base_name (s) - s;
