@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.64 1996/12/12 22:38:38 jkh Exp $
+ * $Id: config.c,v 1.51.2.13 1996/12/12 22:56:57 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -47,6 +47,7 @@
 
 static Chunk *chunk_list[MAX_CHUNKS];
 static int nchunks;
+static int rootdev_is_od;
 
 /* arg to sort */
 static int
@@ -83,6 +84,21 @@ chunk_sort(void)
 	    }
 	}
     }
+}
+
+static void
+check_rootdev(Chunk **list, int n)
+{
+	int i;
+	Chunk *c;
+
+	rootdev_is_od = 0;
+	for (i = 0; i < n; i++) {
+		c = *list++;
+		if (c->type == part && (c->flags & CHUNK_IS_ROOT)
+		    && strncmp(c->disk->name, "od", 2) == 0)
+			rootdev_is_od = 1;
+	}
 }
 
 static char *
@@ -127,21 +143,33 @@ static char *
 fstype_short(Chunk *c1)
 {
     if (c1->type == part) {
-	if (c1->subtype != FS_SWAP)
-	    return "rw";
+	if (c1->subtype != FS_SWAP) {
+	    if (rootdev_is_od == 0 && strncmp(c1->name, "od", 2) == 0)
+		return "rw,noauto";
+	    else
+		return "rw";
+	}
 	else
 	    return "sw";
     }
-    else if (c1->type == fat)
-	return "ro";
+    else if (c1->type == fat) {
+	if (strncmp(c1->name, "od", 2) == 0)
+	    return "ro,noauto";
+	else
+	    return "ro";
+    }
     return "bog";
 }
 
 static int
 seq_num(Chunk *c1)
 {
-    if (c1->type == part && c1->subtype != FS_SWAP)
-	return 1;
+    if (c1->type == part && c1->subtype != FS_SWAP) {
+	if (rootdev_is_od == 0 && strncmp(c1->name, "od", 2) == 0)
+	    return 0;
+	else
+	    return 1;
+    }
     return 0;
 }
 
@@ -198,6 +226,8 @@ configFstab(void)
 		   "will be required.");
 	return DITEM_FAILURE;
     }
+
+    check_rootdev(chunk_list, nchunks);
 
     /* Go for the burn */
     msgDebug("Generating /etc/fstab file\n");

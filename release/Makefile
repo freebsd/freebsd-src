@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.261 1996/12/11 18:26:19 jkh Exp $
+#	$Id: Makefile,v 1.246.2.15 1996/12/12 19:47:05 jkh Exp $
 #
 # How to roll a release:
 #
@@ -375,10 +375,10 @@ release.8: write_mfs_in_kernel dumpnlist
 		DIR=${RD}/mfsfd/stand ZIP=false
 	( cd ${RD}/trees/bin/dev && \
 		ls console tty ttyv0 ttyv1 ttyv2 ttyv3 null zero \
-		*[sw]d* cuaa[01] cuaa[23] fd[01] rfd[01] \
+		*[swo]d* cuaa[01] cuaa[23] fd[01] rfd[01] \
 		cd0a mcd0a scd0a matcd0a wcd0c rst0 rft0 rwt0 | \
 	cpio -dump ${RD}/mfsfd/dev )
-	( cd ${RD}/mfsfd/dev && rm -f *[sw]d*[bdefgh] )
+	( cd ${RD}/mfsfd/dev && rm -f *[swo]d*[bdefgh] )
 	cd ${RD}/trees/bin && ls ${BOOT1} | cpio -dump ${RD}/mfsfd/stand
 	echo "nameserver      42/tcp name"	> ${RD}/mfsfd/stand/etc/services
 	echo "ftp             21/tcp"		>> ${RD}/mfsfd/stand/etc/services
