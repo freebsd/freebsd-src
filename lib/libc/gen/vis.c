@@ -97,11 +97,7 @@ vis(dst, c, flag, nextc)
 			*dst++ = '\\';
 			*dst++ = 'b';
 			goto done;
-#if __STDC__
 		case '\a':
-#else
-		case '\007':
-#endif
 			*dst++ = '\\';
 			*dst++ = 'a';
 			goto done;

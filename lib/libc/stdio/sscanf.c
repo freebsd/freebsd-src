@@ -42,11 +42,7 @@ __FBSDID("$FreeBSD$");
 
 #include <stdio.h>
 #include <string.h>
-#if __STDC__
 #include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
 #include "local.h"
 
 static int eofread(void *, char *, int);
@@ -62,16 +58,8 @@ eofread(cookie, buf, len)
 	return (0);
 }
 
-#if __STDC__
 int
 sscanf(const char *str, char const *fmt, ...)
-#else
-int
-sscanf(str, fmt, va_alist)
-	char *str;
-	char *fmt;
-	va_dcl
-#endif
 {
 	int ret;
 	va_list ap;
@@ -87,11 +75,7 @@ sscanf(str, fmt, va_alist)
 	f._lb._base = NULL;
 	f._extra = &extra;
 	INITEXTRA(&f);
-#if __STDC__
 	va_start(ap, fmt);
-#else
-	va_start(ap);
-#endif
 	ret = __svfscanf(&f, fmt, ap);
 	va_end(ap);
 	return (ret);

@@ -40,12 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 
 int
-#ifdef __STDC__
 setruid(uid_t ruid)
-#else
-setruid(ruid)
-	int ruid;
-#endif
 {
 
 	return (setreuid(ruid, -1));

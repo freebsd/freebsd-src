@@ -40,14 +40,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/sysctl.h>
 
-#if __STDC__
 long
 sethostid(long hostid)
-#else
-long
-sethostid(hostid)
-	long hostid;
-#endif
 {
 	int mib[2];
 
