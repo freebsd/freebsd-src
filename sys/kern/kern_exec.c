@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_exec.c,v 1.59 1997/04/12 04:07:50 dyson Exp $
+ *	$Id$
  */
 
 #include <sys/param.h>
@@ -380,26 +380,16 @@ exec_new_vmspace(imgp)
 	 * otherwise, create a new VM space so that other threads are
 	 * not disrupted
 	 */
-#if 0
 	if (vmspace->vm_refcnt == 1) {
-#endif
 		if (vmspace->vm_shm)
 			shmexit(imgp->proc);
 		pmap_remove_pages(&vmspace->vm_pmap, 0, USRSTACK);
 		vm_map_remove(map, 0, USRSTACK);
-#if 0
 	} else {
-		struct vmspace *oldvmspace = vmspace;
-
-		vmspace = vmspace_alloc(map->min_offset, map->max_offset,
-		    map->entries_pageable);
-		bcopy(&oldvmspace->vm_startcopy, &vmspace->vm_startcopy,
-		    (caddr_t) (vmspace + 1) - (caddr_t) &vmspace->vm_startcopy);
-		imgp->proc->p_vmspace = vmspace;
+		vmspace_exec(imgp->proc);
+		vmspace = imgp->proc->p_vmspace;
 		map = &vmspace->vm_map;
-		--oldvmspace->vm_refcnt;
 	}
-#endif
 
 	/* Allocate a new stack */
 	error = vm_map_find(map, NULL, 0, (vm_offset_t *)&stack_addr,
