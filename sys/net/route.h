@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)route.h	8.3 (Berkeley) 4/19/94
- * $Id: route.h,v 1.6 1994/12/13 22:31:48 wollman Exp $
+ * $Id: route.h,v 1.7 1995/01/23 02:00:35 wollman Exp $
  */
 
 #ifndef _NET_ROUTE_H_
@@ -79,6 +79,11 @@ struct rt_metrics {
  */
 #define	RTM_RTTUNIT	1000000	/* units for rtt, rttvar, as units per sec */
 #define	RTTTOPRHZ(r)	((r) / (RTM_RTTUNIT / PR_SLOWHZ))
+
+/*
+ * XXX kernel function pointer `rt_output' is visible to applications.
+ */
+struct mbuf;
 
 /*
  * We distinguish between routes to hosts and routes to networks,
