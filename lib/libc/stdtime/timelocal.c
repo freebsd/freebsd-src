@@ -31,13 +31,21 @@
 #include <sys/syslimits.h>
 #include <fcntl.h>
 #include <locale.h>
+#include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
 #include "setlocale.h"
 #include "timelocal.h"
 
+static int split_lines(char *, const char *);
+static void set_from_buf(const char *, int);
+
 struct lc_time_T _time_localebuf;
 int _time_using_locale;
+
+#define	LCTIME_SIZE_FULL (sizeof(struct lc_time_T) / sizeof(char *))
+#define	LCTIME_SIZE_1 \
+	(offsetof(struct lc_time_T, alt_month[0]) / sizeof(char *))
 
 const struct lc_time_T	_C_time_locale = {
 	{
@@ -81,7 +89,12 @@ const struct lc_time_T	_C_time_locale = {
 	"PM",
 
 	/* date_fmt */
-	"%a %b %e %X %Z %Y"
+	"%a %b %e %X %Z %Y",
+	
+	{
+		"January", "February", "March", "April", "May", "June",
+		"July", "August", "September", "October", "November", "December"
+	}
 };
 
 
@@ -90,11 +103,11 @@ __time_load_locale(const char *name)
 {
 	static char *		locale_buf;
 	static char		locale_buf_C[] = "C";
+	static int		num_lines;
 
 	int			fd;
 	char *			lbuf;
 	char *			p;
-	const char **		ap;
 	const char *		plim;
 	char                    filename[PATH_MAX];
 	struct stat		st;
@@ -116,11 +129,7 @@ __time_load_locale(const char *name)
 	*/
 	lbuf = locale_buf;
 	if (lbuf != NULL && strcmp(name, lbuf) == 0) {
-		p = lbuf;
-		for (ap = (const char **) &_time_localebuf;
-			ap < (const char **) (&_time_localebuf + 1);
-				++ap)
-					*ap = p += strlen(p) + 1;
+		set_from_buf(lbuf, num_lines);
 		_time_using_locale = 1;
 		return 0;
 	}
@@ -161,16 +170,14 @@ __time_load_locale(const char *name)
 	*/
 	if (plim[-1] != '\n')
 		goto bad_lbuf;
-	for (ap = (const char **) &_time_localebuf;
-		ap < (const char **) (&_time_localebuf + 1);
-			++ap) {
-				if (p == plim)
-					goto reset_locale;
-				*ap = p;
-				while (*p != '\n')
-					++p;
-				*p++ = '\0';
-	}
+	num_lines = split_lines(p, plim);
+	if (num_lines >= LCTIME_SIZE_FULL)
+		num_lines = LCTIME_SIZE_FULL;
+	else if (num_lines >= LCTIME_SIZE_1)
+		num_lines = LCTIME_SIZE_1;
+	else
+		goto reset_locale;
+	set_from_buf(lbuf, num_lines);
 	/*
 	** Record the successful parse in the cache.
 	*/
@@ -194,4 +201,31 @@ bad_locale:
 no_locale:
 	_time_using_locale = save_using_locale;
 	return -1;
+}
+
+static int
+split_lines(char *p, const char *plim)
+{
+	int i;
+
+	for (i = 0; p < plim; i++) {
+		p = strchr(p, '\n');
+		*p++ = '\0';
+	}
+	return i;
+}
+
+static void
+set_from_buf(const char *p, int num_lines)
+{
+	const char **ap;
+	int i;
+
+	for (ap = (const char **) &_time_localebuf, i = 0;
+	    i < num_lines; ++ap, ++i)
+		*ap = p += strlen(p) + 1;
+	if (num_lines == LCTIME_SIZE_FULL)
+		return;
+	for (i = 0; i < 12; i++)
+		_time_localebuf.alt_month[i] = _time_localebuf.month[i];
 }
