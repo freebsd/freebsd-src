@@ -26,13 +26,6 @@
 #define DIST_LOCAL		0x20000
 #define DIST_ALL		0x3FFFF
 
-/* Canned distribution sets */
-#define _DIST_USER \
-	( DIST_BIN | DIST_DOC | DIST_MANPAGES | DIST_DICT | DIST_CRYPTO )
-
-#define _DIST_DEVELOPER \
-	( _DIST_USER | DIST_PROFLIBS | DIST_INFO | DIST_SRC )
-
 /* Subtypes for CRYPTO distribution */
 #define DIST_CRYPTO_CRYPTO	0x0001
 #define DIST_CRYPTO_SCRYPTO	0x0002
@@ -124,4 +117,19 @@
 #define DIST_XF86_FONTS_ALL		0x003F
 #define DIST_XF86_ALL		0x1FFFF
 
+/* Canned distribution sets */
+#define _DIST_USER \
+	( DIST_BIN | DIST_DOC | DIST_MANPAGES | DIST_DICT | DIST_CRYPTO )
+
+#define _DIST_DEVELOPER \
+	( _DIST_USER | DIST_PROFLIBS | DIST_INFO | DIST_SRC )
+
+#define DIST_CRYPTO_BIN \
+	( DIST_CRYPTO_CRYPTO | DIST_CRYPTO_KERBEROS4 | DIST_CRYPTO_KERBEROS5 )
+
 #endif	/* _DIST_H_INCLUDE */
+
+
+
+
+
