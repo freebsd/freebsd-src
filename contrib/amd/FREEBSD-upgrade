@@ -10,6 +10,8 @@ For the import of AMD many files were pruned by:
 
 	tar -X FREEBSD-Xlist -xzf am-utils-6.0.9.tar.gz
 
+and `find . -name '.cvsignore' -delete`
+
 Then imported by:
 
 	cvs import -m 'Virgin import of AMD (am-utils) v6.0.9' \
