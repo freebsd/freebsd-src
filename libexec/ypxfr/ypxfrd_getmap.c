@@ -62,7 +62,7 @@ xdr_my_xfr(register XDR *xdrs, xfr *objp)
 				return(FALSE);
 			}
 		}
-		xdr_free(xdr_xfr, (char *)objp);
+		xdr_free((xdrproc_t)xdr_xfr, (char *)objp);
 		if (objp->ok == FALSE) {
 			switch (objp->xfr_u.xfrstat) {
 			case(XFR_DONE):
@@ -129,8 +129,10 @@ ypxfrd_get_map(char *host, char *map, char *domain, char *tmpname)
 		return(1);
 	}
 
-	if (clnt_call(clnt,YPXFRD_GETMAP,xdr_ypxfr_mapname,(char *)&req,
-			xdr_my_xfr, (char *)&resp, timeout) != RPC_SUCCESS) {
+	if (clnt_call(clnt,YPXFRD_GETMAP,
+			(xdrproc_t)xdr_ypxfr_mapname, (char *)&req,
+			(xdrproc_t)xdr_my_xfr, (char *)&resp,
+			timeout) != RPC_SUCCESS) {
 		yp_error("%s", clnt_sperror(clnt,"call to rpc.ypxfrd failed"));
 		status++;
 		unlink(tmpname);
