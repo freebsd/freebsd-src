@@ -950,9 +950,10 @@ get_exportlist()
 			targs.ua.fspec = NULL;
 			targs.ua.export.ex_flags = MNT_DELEXPORT;
 			if (mount(fsp->f_fstypename, fsp->f_mntonname,
-				  fsp->f_flags | MNT_UPDATE,
-				  (caddr_t)&targs) < 0)
-				syslog(LOG_ERR, "can't delete exports for %s",
+			    fsp->f_flags | MNT_UPDATE, (caddr_t)&targs) < 0 &&
+			    errno != ENOENT)
+				syslog(LOG_ERR,
+				    "can't delete exports for %s: %m",
 				    fsp->f_mntonname);
 		}
 		fsp++;
