@@ -1,4 +1,4 @@
-#	$Id: bsd.man.mk,v 1.23 1997/07/24 18:39:46 pst Exp $
+#	$Id: bsd.man.mk,v 1.24 1997/07/25 10:43:55 bde Exp $
 #
 # The include file <bsd.man.mk> handles installing manual pages and 
 # their links. <bsd.man.mk> includes the file named "../Makefile.inc" 
@@ -108,7 +108,7 @@ all-man: ${target}
 ${target}: ${page}
 	${MANFILTER} < ${.ALLSRC} > ${.TARGET}
 .endfor
-.if !empty(MANBUILDCAT)
+.if defined(MANBUILDCAT) && !empty(MANBUILDCAT)
 .for target in ${page:T:S/$/${CATEXT}${FILTEXTENSION}/g}
 all-man: ${target}
 ${target}: ${page}
@@ -122,7 +122,7 @@ ${target}: ${page}
 .for sect in ${SECTIONS}
 .if defined(MAN${sect}) && !empty(MAN${sect})
 CLEANFILES+=	${MAN${sect}:T:S/$/${CATEXT}/g}
-.if !empty(MANBUILDCAT)
+.if defined(MANBUILDCAT) && !empty(MANBUILDCAT)
 .for page in ${MAN${sect}}
 .for target in ${page:T:S/$/${CATEXT}/g}
 all-man: ${target}
@@ -153,7 +153,7 @@ ${target}: ${page}
 	${MCOMPRESS_CMD} ${.ALLSRC} > ${.TARGET}
 .endif
 .endfor
-.if !empty(MANBUILDCAT)
+.if defined(MANBUILDCAT) && !empty(MANBUILDCAT)
 .for target in ${page:T:S/$/${CATEXT}${MCOMPRESS_EXT}/}
 all-man: ${target}
 ${target}: ${page}
@@ -179,14 +179,14 @@ maninstall:: ${MAN${sect}}
 .for page in ${MAN${sect}}
 	${MINSTALL} ${page:T:S/$/${FILTEXTENSION}/g} \
 		${DESTDIR}${MANDIR}${sect}${MANSUBDIR}/${page}
-.if !empty(MANBUILDCAT)
+.if defined(MANBUILDCAT) && !empty(MANBUILDCAT)
 	${MINSTALL} ${page:T:S/$/${CATEXT}${FILTEXTENSION}/g} \
 		${DESTDIR}${CATDIR}${sect}${MANSUBDIR}/${page}
 .endif
 .endfor
 .else
 	${MINSTALL} ${.ALLSRC} ${DESTDIR}${MANDIR}${sect}${MANSUBDIR}
-.if !empty(MANBUILDCAT)
+.if defined(MANBUILDCAT) && !empty(MANBUILDCAT)
 .for page in ${MAN${sect}}
 	${MINSTALL} ${page:T:S/$/${CATEXT}/} \
 		${DESTDIR}${CATDIR}${sect}${MANSUBDIR}/${page:T}
@@ -196,7 +196,7 @@ maninstall:: ${MAN${sect}}
 .else
 	${MINSTALL} ${.ALLSRC:T:S/$/${MCOMPRESS_EXT}/g} \
 		${DESTDIR}${MANDIR}${sect}${MANSUBDIR}
-.if !empty(MANBUILDCAT)
+.if defined(MANBUILDCAT) && !empty(MANBUILDCAT)
 .for page in ${MAN${sect}}
 	${MINSTALL} ${page:T:S/$/${CATEXT}${MCOMPRESS_EXT}/g} \
 		${DESTDIR}${CATDIR}${sect}${MANSUBDIR}/${page:T:S/$/${MCOMPRESS_EXT}/}
@@ -221,7 +221,7 @@ maninstall:: ${MAN${sect}}
 		rm -f $${t} $${t}${MCOMPRESS_EXT}; \
 		ln $${l}${ZEXT} $${t}${ZEXT}; \
 	done
-.if !empty(MANBUILDCAT)
+.if defined(MANBUILDCAT) && !empty(MANBUILDCAT)
 	@set `echo ${MLINKS} " " | sed 's/\.\([^.]*\) /.\1 \1 /g'`; \
 	while : ; do \
 		case $$# in \
