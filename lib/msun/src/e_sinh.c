@@ -1,11 +1,12 @@
-/* @(#)e_sinh.c 5.1 93/09/24 */
+
+/* @(#)e_sinh.c 1.3 95/01/18 */
 /*
  * ====================================================
  * Copyright (C) 1993 by Sun Microsystems, Inc. All rights reserved.
  *
- * Developed at SunPro, a Sun Microsystems, Inc. business.
+ * Developed at SunSoft, a Sun Microsystems, Inc. business.
  * Permission to use, copy, modify, and distribute this
- * software is freely granted, provided that this notice
+ * software is freely granted, provided that this notice 
  * is preserved.
  * ====================================================
  */
@@ -15,15 +16,15 @@ static char rcsid[] = "$FreeBSD$";
 #endif
 
 /* __ieee754_sinh(x)
- * Method :
+ * Method : 
  * mathematically sinh(x) if defined to be (exp(x)-exp(-x))/2
- *	1. Replace x by |x| (sinh(-x) = -sinh(x)).
- *	2.
+ *	1. Replace x by |x| (sinh(-x) = -sinh(x)). 
+ *	2. 
  *		                                    E + E/(E+1)
  *	    0        <= x <= 22     :  sinh(x) := --------------, E=expm1(x)
  *			       			        2
  *
- *	    22       <= x <= lnovft :  sinh(x) := exp(x)/2
+ *	    22       <= x <= lnovft :  sinh(x) := exp(x)/2 
  *	    lnovft   <= x <= ln2ovft:  sinh(x) := exp(x/2)/2 * exp(x/2)
  *	    ln2ovft  <  x	    :  sinh(x) := x*shuge (overflow)
  *
@@ -49,7 +50,7 @@ __ieee754_sinh(double x)
 	ix = jx&0x7fffffff;
 
     /* x is INF or NaN */
-	if(ix>=0x7ff00000) return x+x;
+	if(ix>=0x7ff00000) return x+x;	
 
 	h = 0.5;
 	if (jx<0) h = -h;

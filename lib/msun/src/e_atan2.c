@@ -1,13 +1,15 @@
-/* @(#)e_atan2.c 5.1 93/09/24 */
+
+/* @(#)e_atan2.c 1.3 95/01/18 */
 /*
  * ====================================================
  * Copyright (C) 1993 by Sun Microsystems, Inc. All rights reserved.
  *
- * Developed at SunPro, a Sun Microsystems, Inc. business.
+ * Developed at SunSoft, a Sun Microsystems, Inc. business.
  * Permission to use, copy, modify, and distribute this
- * software is freely granted, provided that this notice
+ * software is freely granted, provided that this notice 
  * is preserved.
  * ====================================================
+ *
  */
 
 #ifndef lint
@@ -17,7 +19,7 @@ static char rcsid[] = "$FreeBSD$";
 /* __ieee754_atan2(y,x)
  * Method :
  *	1. Reduce y to positive by atan2(y,x)=-atan2(-y,x).
- *	2. Reduce x to positive by (if x and y are unexceptional):
+ *	2. Reduce x to positive by (if x and y are unexceptional): 
  *		ARG (x+iy) = arctan(y/x)   	   ... if x > 0,
  *		ARG (x+iy) = pi - arctan[y/(-x)]   ... if x < 0,
  *
@@ -35,9 +37,9 @@ static char rcsid[] = "$FreeBSD$";
  *	ATAN2(+-INF, (anything but,0,NaN, and INF)) is +-pi/2;
  *
  * Constants:
- * The hexadecimal values are the intended ones for the following
- * constants. The decimal values may be used, provided that the
- * compiler will convert from decimal to binary accurately enough
+ * The hexadecimal values are the intended ones for the following 
+ * constants. The decimal values may be used, provided that the 
+ * compiler will convert from decimal to binary accurately enough 
  * to produce the hexadecimal values shown.
  */
 
@@ -66,13 +68,13 @@ __ieee754_atan2(double y, double x)
 	if(((ix|((lx|-lx)>>31))>0x7ff00000)||
 	   ((iy|((ly|-ly)>>31))>0x7ff00000))	/* x or y is NaN */
 	   return x+y;
-	if(((hx-0x3ff00000)|lx)==0) return atan(y);   /* x=1.0 */
+	if((hx-0x3ff00000|lx)==0) return atan(y);   /* x=1.0 */
 	m = ((hy>>31)&1)|((hx>>30)&2);	/* 2*sign(x)+sign(y) */
 
     /* when y = 0 */
 	if((iy|ly)==0) {
 	    switch(m) {
-		case 0:
+		case 0: 
 		case 1: return y; 	/* atan(+-0,+anything)=+-0 */
 		case 2: return  pi+tiny;/* atan(+0,-anything) = pi */
 		case 3: return -pi-tiny;/* atan(-0,-anything) =-pi */
@@ -80,7 +82,7 @@ __ieee754_atan2(double y, double x)
 	}
     /* when x = 0 */
 	if((ix|lx)==0) return (hy<0)?  -pi_o_2-tiny: pi_o_2+tiny;
-
+	    
     /* when x is INF */
 	if(ix==0x7ff00000) {
 	    if(iy==0x7ff00000) {
