@@ -896,7 +896,7 @@ main(int argc, char **argv)
 	/* init firewire */
 	switch (dc->type) {
 	case TYPE_FW:
-#define MAXDEV 4
+#define MAXDEV 10
 		for (i = 0; i < MAXDEV; i ++) {
 			snprintf(devname, sizeof(devname),
 			    "/dev/fwmem%d.%d", unit, i);
