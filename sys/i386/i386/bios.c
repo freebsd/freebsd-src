@@ -44,8 +44,7 @@
 #include <machine/tss.h>
 #include <machine/vmparam.h>
 #include <machine/pc/bios.h>
-#include <i386/isa/isa_device.h>
-#include <i386/isa/pnp.h>
+#include <isa/pnpreg.h>
 
 #define BIOS_START	0xe0000
 #define BIOS_SIZE	0x20000
@@ -556,12 +555,12 @@ pnpbios_scan(void)
 	    if (PNP_RES_TYPE(tag) == 0) {
 		/* Small resource */
 		switch (PNP_SRES_NUM(tag)) {
-		case COMP_DEVICE_ID:
+		case PNP_TAG_COMPAT_DEVICE:
 		    compid = (u_int32_t *)(pd->devdata + idx);
 		    if (bootverbose)
 			printf("pnpbios: node %d compat ID 0x%08x\n", pd->handle, *compid);
 		    /* FALLTHROUGH */
-		case END_TAG:
+		case PNP_TAG_END:
 		    idx = left;
 		    break;
 		default:
