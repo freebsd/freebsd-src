@@ -258,16 +258,21 @@ extern int mtx_pool_valid;
 	_mtx_lock_spin_flags((m), (opts), LOCK_FILE, LOCK_LINE)
 #define	mtx_unlock_spin_flags(m, opts)					\
 	_mtx_unlock_spin_flags((m), (opts), LOCK_FILE, LOCK_LINE)
-#else
+#else	/* LOCK_DEBUG == 0 */
 #define	mtx_lock_flags(m, opts)						\
 	_get_sleep_lock((m), curthread, (opts), LOCK_FILE, LOCK_LINE)
 #define	mtx_unlock_flags(m, opts)					\
 	_rel_sleep_lock((m), curthread, (opts), LOCK_FILE, LOCK_LINE)
+#ifdef SMP
 #define	mtx_lock_spin_flags(m, opts)					\
 	_get_spin_lock((m), curthread, (opts), LOCK_FILE, LOCK_LINE)
 #define	mtx_unlock_spin_flags(m, opts)					\
 	_rel_spin_lock((m))
-#endif
+#else	/* SMP */
+#define	mtx_lock_spin_flags(m, opts)	critical_enter()
+#define	mtx_unlock_spin_flags(m, opts)	critical_exit()
+#endif	/* SMP */
+#endif	/* LOCK_DEBUG */
 
 #define mtx_trylock_flags(m, opts)					\
 	_mtx_trylock((m), (opts), LOCK_FILE, LOCK_LINE)

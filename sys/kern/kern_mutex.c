@@ -394,7 +394,11 @@ _mtx_lock_spin_flags(struct mtx *m, int opts, const char *file, int line)
 {
 
 	MPASS(curthread != NULL);
+#if defined(SMP) || LOCK_DEBUG > 0
 	_get_spin_lock(m, curthread, opts, file, line);
+#else
+	critical_enter();
+#endif
 	LOCK_LOG_LOCK("LOCK", &m->mtx_object, opts, m->mtx_recurse, file,
 	    line);
 	WITNESS_LOCK(&m->mtx_object, opts | LOP_EXCLUSIVE, file, line);
@@ -409,7 +413,11 @@ _mtx_unlock_spin_flags(struct mtx *m, int opts, const char *file, int line)
  	WITNESS_UNLOCK(&m->mtx_object, opts | LOP_EXCLUSIVE, file, line);
 	LOCK_LOG_LOCK("UNLOCK", &m->mtx_object, opts, m->mtx_recurse, file,
 	    line);
+#if defined(SMP) || LOCK_DEBUG > 0
 	_rel_spin_lock(m);
+#else
+	critical_exit();
+#endif
 }
 
 /*
