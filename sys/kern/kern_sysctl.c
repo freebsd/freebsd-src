@@ -65,7 +65,7 @@ static MALLOC_DEFINE(M_SYSCTLTMP, "sysctltmp", "sysctl temp output buffer");
 static struct sx sysctllock;
 
 #define	SYSCTL_LOCK()		sx_xlock(&sysctllock)
-#define	SYSCTL_UNLOCK()	sx_xunlock(&sysctllock)
+#define	SYSCTL_UNLOCK()		sx_xunlock(&sysctllock)
 #define	SYSCTL_INIT()		sx_init(&sysctllock, "sysctl sysctllock")
 
 static int sysctl_root(SYSCTL_HANDLER_ARGS);
