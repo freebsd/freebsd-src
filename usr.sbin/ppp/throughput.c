@@ -44,7 +44,7 @@
 void
 throughput_init(struct pppThroughput *t, int period)
 {
-  t->OctetsIn = t->OctetsOut = 0;
+  t->OctetsIn = t->OctetsOut = t->PacketsIn = t->PacketsOut = 0;
   t->SamplePeriod = period;
   t->in.SampleOctets = (long long *)
     calloc(period, sizeof *t->in.SampleOctets);
@@ -111,6 +111,8 @@ throughput_disp(struct pppThroughput *t, struct prompt *prompt)
   divisor = secs_up ? secs_up : 1;
   prompt_Printf(prompt, "%llu octets in, %llu octets out\n",
                 t->OctetsIn, t->OctetsOut);
+  prompt_Printf(prompt, "%llu packets in, %llu packets out\n",
+                t->PacketsIn, t->PacketsOut);
   if (t->rolling) {
     prompt_Printf(prompt, "  overall   %6qu bytes/sec\n",
                   (t->OctetsIn + t->OctetsOut) / divisor);
@@ -137,8 +139,10 @@ throughput_log(struct pppThroughput *t, int level, const char *title)
     if (title == NULL)
       title = "";
     log_Printf(level, "%s%sConnect time: %d secs: %llu octets in, %llu octets"
-                " out\n", title, *title ? ": " : "", secs_up, t->OctetsIn,
-                t->OctetsOut);
+               " out\n", title, *title ? ": " : "", secs_up, t->OctetsIn,
+               t->OctetsOut);
+    log_Printf(level, "%s%s: %llu packets in, %llu packets out\n",
+               title, *title ? ": " : "",  t->PacketsIn, t->PacketsOut);
     if (secs_up == 0)
       secs_up = 1;
     if (t->rolling)
@@ -235,12 +239,14 @@ void
 throughput_addin(struct pppThroughput *t, long long n)
 {
   t->OctetsIn += n;
+  t->PacketsIn++;
 }
 
 void
 throughput_addout(struct pppThroughput *t, long long n)
 {
   t->OctetsOut += n;
+  t->PacketsOut++;
 }
 
 void
