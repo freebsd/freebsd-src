@@ -1,4 +1,4 @@
-# $Id$
+# $Id: Makefile,v 1.18 1997/02/22 13:56:38 peter Exp $
 
 KEYMAPS=  INDEX.keymaps
 KEYMAPS+= be.iso.kbd
@@ -21,7 +21,8 @@ NOMAN = noman
 NOOBJ = noobj
 
 install:
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 ${KEYMAPS} \
+	cd ${.CURDIR} && \
+	       ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 ${KEYMAPS} \
 			${DESTDIR}${MAPSDIR}
 
 .include <bsd.prog.mk>
