@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)cksum.1	8.2 (Berkeley) 4/28/95
-.\"	$Id: cksum.1,v 1.5 1997/07/06 03:03:06 bde Exp $
+.\"	$Id: cksum.1,v 1.6 1997/09/26 08:02:17 phk Exp $
 .\"
 .Dd April 28, 1995
 .Dt CKSUM 1
@@ -43,7 +43,14 @@
 .Nd display file checksums and block counts
 .Sh SYNOPSIS
 .Nm cksum
-.Op Fl o Ar \&1 No \&| Ar \&2
+.Oo 
+.Fl o Ar \&1 Xo
+.No \&|
+.Ar \&2
+.No \&|
+.Ar \&3
+.Xc
+.Oc
 .Op Ar file ...
 .Nm sum
 .Op Ar file ...
