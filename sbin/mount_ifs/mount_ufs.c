@@ -72,6 +72,7 @@ mount_ufs(argc, argv)
 	struct ufs_args args;
 	int ch, mntflags;
 	char *fs_name;
+	struct vfsconf *vfc;
 
 	mntflags = 0;
 	optind = optreset = 1;		/* Reset for parse of new argv. */
@@ -100,7 +101,21 @@ mount_ufs(argc, argv)
 	else
 		args.export.ex_flags = 0;
 
-	if (mount(MOUNT_UFS, fs_name, mntflags, &args) < 0) {
+	setvfsent(0);
+	if(!(vfc = getvfsbyname("ufs"))) {
+		if(vfsisloadable("ufs")) {
+			if(vfsload("ufs")) {
+				warn("vfsload(\"ufs\")");
+				return 1;
+			}
+			endvfsent(); /* flush old table */
+			vfc = getvfsbyname("ufs");
+		} else {
+			/*warnx("ufs: filesystem not found");*/
+		}
+	}
+		
+	if (mount(vfc ? vfc->vfc_index : MOUNT_UFS, fs_name, mntflags, &args) < 0) {
 		(void)fprintf(stderr, "%s on %s: ", args.fspec, fs_name);
 		switch (errno) {
 		case EMFILE:
