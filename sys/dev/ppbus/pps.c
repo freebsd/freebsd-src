@@ -6,34 +6,30 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: pps.c,v 1.1 1998/02/13 12:59:56 phk Exp $
+ * $Id: pps.c,v 1.2 1998/02/13 17:35:33 phk Exp $
  *
  */
 
+#include "opt_devfs.h"
+
 #include <sys/param.h>
 #include <sys/kernel.h>
-#include <sys/sysctl.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
-#include <sys/buf.h>
 #include <sys/uio.h>
-#include <sys/syslog.h>
 #ifdef DEVFS
 #include <sys/devfsext.h>
-#endif /*DEVFS*/
+#endif
 #include <sys/malloc.h>
-
-#include <machine/clock.h>
-#include <machine/lpt.h>
 
 #include <dev/ppbus/ppbconf.h>
 #include "pps.h"
 
 #define PPS_NAME	"pps"		/* our official name */
 
-static struct ppps_data {
-	int	ppps_unit;
-	struct	ppb_device ppps_dev;	
+static struct pps_data {
+	int	pps_unit;
+	struct	ppb_device pps_dev;	
 	struct  ppsclockev {
 		struct	timespec timestamp;
 		u_int	serial;
@@ -41,62 +37,61 @@ static struct ppps_data {
 	int	sawtooth;
 } *softc[NPPS];
 
-static int nppps;
-static int sawtooth;
+static int npps;
 
 /*
  * Make ourselves visible as a ppbus driver
  */
 
-static struct ppb_device	*pppsprobe(struct ppb_data *ppb);
-static int			pppsattach(struct ppb_device *dev);
-static void			pppsintr(int unit);
-static void			ppps_drvinit(void *unused);
+static struct ppb_device	*ppsprobe(struct ppb_data *ppb);
+static int			ppsattach(struct ppb_device *dev);
+static void			ppsintr(int unit);
+static void			pps_drvinit(void *unused);
 
-static struct ppb_driver pppsdriver = {
-    pppsprobe, pppsattach, PPS_NAME
+static struct ppb_driver ppsdriver = {
+    ppsprobe, ppsattach, PPS_NAME
 };
 
-DATA_SET(ppbdriver_set, pppsdriver);
+DATA_SET(ppbdriver_set, ppsdriver);
 
-static	d_open_t	pppsopen;
-static	d_close_t	pppsclose;
-static	d_read_t	pppsread;
-static	d_write_t	pppswrite;
+static	d_open_t	ppsopen;
+static	d_close_t	ppsclose;
+static	d_read_t	ppsread;
+static	d_write_t	ppswrite;
 
 #define CDEV_MAJOR 89
-static struct cdevsw ppps_cdevsw = 
-	{ pppsopen,	pppsclose,	pppsread,	pppswrite,
+static struct cdevsw pps_cdevsw = 
+	{ ppsopen,	ppsclose,	ppsread,	ppswrite,
 	  noioctl,	nullstop,	nullreset,	nodevtotty,
 	  seltrue,	nommap,		nostrat,	PPS_NAME,
 	  NULL,		-1 };
 
 static struct ppb_device *
-pppsprobe(struct ppb_data *ppb)
+ppsprobe(struct ppb_data *ppb)
 {
-	struct ppps_data *sc;
+	struct pps_data *sc;
 
-	sc = (struct ppps_data *) malloc(sizeof(struct ppps_data),
+	sc = (struct pps_data *) malloc(sizeof(struct pps_data),
 							M_TEMP, M_NOWAIT);
 	if (!sc) {
 		printf(PPS_NAME ": cannot malloc!\n");
 		return (0);
 	}
-	bzero(sc, sizeof(struct ppps_data));
+	bzero(sc, sizeof(struct pps_data));
 
-	softc[nppps] = sc;
+	softc[npps] = sc;
 
-	sc->ppps_unit = nppps++;
+	sc->pps_unit = npps++;
 
-	sc->ppps_dev.id_unit = sc->ppps_unit;
-	sc->ppps_dev.ppb = ppb;
-	sc->ppps_dev.intr = pppsintr;
+	sc->pps_dev.id_unit = sc->pps_unit;
+	sc->pps_dev.ppb = ppb;
+	sc->pps_dev.intr = ppsintr;
 
-	return (&sc->ppps_dev);
+	return (&sc->pps_dev);
 }
 
 static int
-pppsattach(struct ppb_device *dev)
+ppsattach(struct ppb_device *dev)
 {
 	/*
 	 * Report ourselves
@@ -105,10 +100,10 @@ pppsattach(struct ppb_device *dev)
 	       dev->id_unit, dev->ppb->ppb_link->adapter_unit);
 
 #ifdef DEVFS
-	sc->devfs_token = devfs_add_devswf(&ppps_cdevsw,
+	devfs_add_devswf(&pps_cdevsw,
 		dev->id_unit, DV_CHR,
 		UID_ROOT, GID_WHEEL, 0600, PPS_NAME "%d", dev->id_unit);
-	sc->devfs_token_ctl = devfs_add_devswf(&ppps_cdevsw,
+	devfs_add_devswf(&pps_cdevsw,
 		dev->id_unit | LP_BYPASS, DV_CHR,
 		UID_ROOT, GID_WHEEL, 0600, PPS_NAME "%d.ctl", dev->id_unit);
 #endif
@@ -117,52 +112,51 @@ pppsattach(struct ppb_device *dev)
 }
 
 static	int
-pppsopen(dev_t dev, int flags, int fmt, struct proc *p)
+ppsopen(dev_t dev, int flags, int fmt, struct proc *p)
 {
-	struct ppps_data *sc;
+	struct pps_data *sc;
 	u_int unit = minor(dev);
 
-	if ((unit >= nppps))
+	if ((unit >= npps))
 		return (ENXIO);
 
 	sc = softc[unit];
 
-	if (ppb_request_bus(&sc->ppps_dev, PPB_WAIT|PPB_INTR))
+	if (ppb_request_bus(&sc->pps_dev, PPB_WAIT|PPB_INTR))
 		return (EINTR);
 
-	ppb_wctr(&sc->ppps_dev, 0x10);
+	ppb_wctr(&sc->pps_dev, 0x10);
 
 	return(0);
 }
 
 static	int
-pppsclose(dev_t dev, int flags, int fmt, struct proc *p)
+ppsclose(dev_t dev, int flags, int fmt, struct proc *p)
 {
-	struct ppps_data *sc = softc[minor(dev)];
+	struct pps_data *sc = softc[minor(dev)];
 
-	ppb_release_bus(&sc->ppps_dev);
+	ppb_release_bus(&sc->pps_dev);
 	return(0);
 }
 
 static void
-pppsintr(int unit)
+ppsintr(int unit)
 {
 /*
  * XXX: You want to thing carefully about what you actually want to do
  * here.
  */
-#if 0
-	struct ppps_data *sc = softc[unit];
+#if 1
+	struct pps_data *sc = softc[unit];
 	struct timespec tc;
 #if 1
 	struct timeval tv;
 #endif
 
 	nanotime(&tc);
-	if (!(ppb_rstr(&sc->ppps_dev) & nACK))
+	if (!(ppb_rstr(&sc->pps_dev) & nACK))
 		return;
 	tc.tv_nsec -= sc->sawtooth;
-	tc.tv_nsec += 10000;
 	sc->sawtooth = 0;
 	if (tc.tv_nsec > 1000000000) {
 		tc.tv_sec++;
@@ -182,41 +176,39 @@ pppsintr(int unit)
 }
 
 static	int
-pppsread(dev_t dev, struct uio *uio, int ioflag)
+ppsread(dev_t dev, struct uio *uio, int ioflag)
 {
-	struct ppps_data *sc = softc[minor(dev)];
+	struct pps_data *sc = softc[minor(dev)];
 	int err, c;
 
-	c = imin(uio->uio_resid, sizeof sc->ev);
-	err = uiomove(&sc->ev, c, uio);	
+	c = imin(uio->uio_resid, (int)sizeof sc->ev);
+	err = uiomove((caddr_t)&sc->ev, c, uio);	
 	return(err);
 }
 
 static	int
-pppswrite(dev_t dev, struct uio *uio, int ioflag)
+ppswrite(dev_t dev, struct uio *uio, int ioflag)
 {
-	struct ppps_data *sc = softc[minor(dev)];
+	struct pps_data *sc = softc[minor(dev)];
 	int err, c;
 
-	c = imin(uio->uio_resid, sizeof sc->sawtooth);
-	err = uiomove(&sc->sawtooth, c, uio);	
+	c = imin(uio->uio_resid, (int)sizeof sc->sawtooth);
+	err = uiomove((caddr_t)&sc->sawtooth, c, uio);	
 	return(err);
 }
 
-
-
-static ppps_devsw_installed = 0;
+static pps_devsw_installed = 0;
 
 static void
-ppps_drvinit(void *unused)
+pps_drvinit(void *unused)
 {
 	dev_t dev;
 
-	if( ! ppps_devsw_installed ) {
+	if( ! pps_devsw_installed ) {
 		dev = makedev(CDEV_MAJOR, 0);
-		cdevsw_add(&dev,&ppps_cdevsw, NULL);
-		ppps_devsw_installed = 1;
+		cdevsw_add(&dev, &pps_cdevsw, NULL);
+		pps_devsw_installed = 1;
     	}
 }
 
-SYSINIT(pppsdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,ppps_drvinit,NULL)
+SYSINIT(ppsdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,pps_drvinit,NULL)
