@@ -206,7 +206,11 @@ kmem_free(map, addr, size)
 	vm_offset_t addr;
 	vm_size_t size;
 {
+	int error;
 
+	error = vm_map_unwire(map, trunc_page(addr), round_page(addr + size),
+	    VM_MAP_WIRE_SYSTEM | VM_MAP_WIRE_HOLESOK);
+	KASSERT(error == 0, ("kmem_free could not vm_map_unwire"));
 	(void) vm_map_remove(map, trunc_page(addr), round_page(addr + size));
 }
 
