@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pci.c,v 1.100 1999/05/08 21:59:40 dfr Exp $
+ * $Id: pci.c,v 1.101 1999/05/09 15:54:04 peter Exp $
  *
  */
 
@@ -537,6 +537,7 @@ static int
 pci_ioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 {
 	struct pci_io *io;
+	const char *name;
 	int error;
 
 	if (!(flag & FWRITE))
@@ -710,6 +711,18 @@ pci_ioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 
 			if (i < cio->offset)
 				continue;
+
+			/* Populate pd_name and pd_unit */
+			name = NULL;
+			if (dinfo->cfg.dev && dinfo->conf.pd_name[0] == '\0')
+				name = device_get_name(dinfo->cfg.dev);
+			if (name) {
+				strncpy(dinfo->conf.pd_name, name,
+					sizeof(dinfo->conf.pd_name));
+				dinfo->conf.pd_name[PCI_MAXNAMELEN] = 0;
+				dinfo->conf.pd_unit =
+					device_get_unit(dinfo->cfg.dev);
+			}
 
 			if ((pattern_buf == NULL) ||
 			    (pci_conf_match(pattern_buf, num_patterns,
@@ -886,21 +899,6 @@ pci_compat_attach(device_t dev)
 		*dvp->pd_count = unit;
 	if (dvp->pd_attach)
 		dvp->pd_attach(cfg, unit);
-
-	/*
-	 * XXX KDM for some devices, dvp->pd_name winds up NULL.
-	 * I haven't investigated enough to figure out why this
-	 * would happen.
-	 */
-	if (dvp->pd_name != NULL)
-		strncpy(dinfo->conf.pd_name, dvp->pd_name,
-			sizeof(dinfo->conf.pd_name));
-	else
-		strncpy(dinfo->conf.pd_name, "????",
-			sizeof(dinfo->conf.pd_name));
-	dinfo->conf.pd_name[sizeof(dinfo->conf.pd_name) - 1] = 0;
-	dinfo->conf.pd_unit = unit;
-
 	return 0;
 }
 
