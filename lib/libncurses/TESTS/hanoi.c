@@ -51,13 +51,14 @@ int TileColour[] = {
 };
 int NMoves = 0;
 
+static unsigned char AutoFlag;
+
 void InitTiles(), DisplayTiles(), MakeMove(), AutoMove(), Usage();
 
 int
 main(int argc, char **argv)
 {
 int NTiles, FromCol, ToCol;
-unsigned char AutoFlag = 0;
 
 	switch(argc) {
 	case 1:
@@ -117,6 +118,10 @@ unsigned char AutoFlag = 0;
 		for(;;) {
 			if(GetMove(&FromCol, &ToCol))
 				break;
+			if (AutoFlag) {
+				AutoMove(0, 2, NTiles);
+				break;
+			}
 			if(InvalidMove(FromCol, ToCol)) {
 				mvaddstr(STATUSLINE, 0, "Invalid Move !!");
 				refresh();
@@ -209,6 +214,10 @@ GetMove(int *From, int *To)
 	refresh();
 	if((*From = getch()) == 'q')
 		return TRUE;
+	else if (*From == 'a') {
+		AutoFlag = TRUE;
+		return FALSE;
+	}
 	*From -= ('0'+1);
 	addstr(" to ");
 	clrtoeol();
