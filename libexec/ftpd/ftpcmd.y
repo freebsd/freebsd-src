@@ -75,6 +75,7 @@ static const char rcsid[] =
 #include "pathnames.h"
 
 extern	union sockunion data_dest, his_addr;
+extern	int hostinfo;
 extern	int logged_in;
 extern	struct passwd *pw;
 extern	int guest;
@@ -1554,7 +1555,10 @@ help(struct tab *ctab, char *s)
 			printf("\r\n");
 		}
 		(void) fflush(stdout);
-		reply(214, "Direct comments to ftp-bugs@%s.", hostname);
+		if (hostinfo)
+			reply(214, "Direct comments to ftp-bugs@%s.", hostname);
+		else
+			reply(214, "End.");
 		return;
 	}
 	upper(s);

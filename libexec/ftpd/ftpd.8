@@ -40,7 +40,7 @@
 .Nd Internet File Transfer Protocol server
 .Sh SYNOPSIS
 .Nm
-.Op Fl 46ADdEMmOoRrSUvW
+.Op Fl 46ADdEhMmOoRrSUvW
 .Op Fl l Op Fl l
 .Op Fl a Ar address
 .Op Fl P Ar port
@@ -108,6 +108,9 @@ Debugging information is written to the syslog using
 .It Fl E
 Disable the EPSV command.
 This is useful for servers behind older firewalls.
+.It Fl h
+Disable printing host-specific information, such as the
+server software version or hostname, in server messages.
 .It Fl l
 Each successful and failed
 .Xr ftp 1
