@@ -14,9 +14,6 @@ INCS= ypclnt.h
 CFLAGS+= -I.
 WARNS?=	5
 
-DPADD= ${LIBRPCSVC}
-LDADD= -lrpcsvc
-
 GENSRCS=yp.h \
 	yp_clnt.c \
 	yppasswd.h \
