@@ -4,8 +4,6 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $FreeBSD$
- *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
  *
@@ -32,6 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ * $FreeBSD$
  */
 
 #include <fcntl.h>
@@ -220,7 +219,7 @@ new_index(char *name, char *pathto, char *prefix, char *comment, char *descr, ch
     tmp->maintainer =	_strdup(maint);
     tmp->deps =		_strdup(deps);
     tmp->depc =		0;
-    tmp->installed =	package_exists(name);
+    tmp->installed =	package_installed(name);
     tmp->volume =	volume;
     return tmp;
 }

@@ -4,8 +4,6 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $FreeBSD$
- *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
  *
@@ -31,8 +29,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
-
  *
+ * $FreeBSD$
  */
 
 #include "sysinstall.h"
@@ -53,7 +51,7 @@ docBrowser(dialogMenuItem *self)
     }
 
     /* First, make sure we have whatever browser we've chosen is here */
-    if (!package_exists(browser)) {
+    if (!package_installed(browser)) {
 	ret = package_add(browser);
     	if (DITEM_STATUS(ret) != DITEM_SUCCESS) {
 	    msgConfirm("Unable to install the %s HTML browser package.  You may\n"
