@@ -43,7 +43,7 @@
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
  *	from:	i386 Id: pmap.c,v 1.193 1998/04/19 15:22:48 bde Exp
  *		with some ideas from NetBSD's alpha pmap
- *	$Id: pmap.c,v 1.5 1998/07/24 09:43:27 dfr Exp $
+ *	$Id: pmap.c,v 1.6 1998/07/26 18:13:28 dfr Exp $
  */
 
 /*
@@ -1004,6 +1004,12 @@ pmap_swapin_proc(p)
 		PAGE_WAKEUP(m);
 		m->flags |= PG_MAPPED | PG_WRITEABLE;
 	}
+
+	/*
+	 * The pcb may be at a different physical address now so cache the
+	 * new address.
+	 */
+	p->p_md.md_pcbpaddr = (void*) vtophys((vm_offset_t) &p->p_addr->u_pcb);
 }
 
 /***************************************************
@@ -1761,7 +1767,7 @@ pmap_remove_page(pmap_t pmap, vm_offset_t va)
 void
 pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 {
-	vm_offset_t va, nva1, nva2;
+	vm_offset_t va, nva;
 
 	if (pmap == NULL)
 		return;
@@ -1779,18 +1785,19 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 		return;
 	}
 
-	for (va = sva; va < eva; va = nva1) {
-		nva1 = alpha_l1trunc(va + ALPHA_L1SIZE);
-		if (!pmap_pte_v(pmap_lev1pte(pmap, va)))
+	for (va = sva; va < eva; va = nva) {
+		if (!pmap_pte_v(pmap_lev1pte(pmap, va))) {
+			nva = alpha_l1trunc(va + ALPHA_L1SIZE);
 			continue;
-
-		for (; va < eva && va < nva1; va = nva2) {
-			nva2 = alpha_l2trunc(va + ALPHA_L2SIZE);
-			if (!pmap_pte_v(pmap_lev2pte(pmap, va)))
-				continue;
-			for (; va < eva && va < nva2; va += PAGE_SIZE)
-				pmap_remove_page(pmap, va);
 		}
+
+		if (!pmap_pte_v(pmap_lev2pte(pmap, va))) {
+			nva = alpha_l2trunc(va + ALPHA_L2SIZE);
+			continue;
+		}
+
+		pmap_remove_page(pmap, va);
+		nva = va + PAGE_SIZE;
 	}
 }
 
