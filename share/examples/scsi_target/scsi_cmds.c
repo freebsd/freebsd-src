@@ -31,7 +31,6 @@
 #include <stdio.h>
 #include <stddef.h>
 #include <stdarg.h>
-#include <stdlib.h>
 #include <string.h>
 #include <err.h>
 #include <aio.h>
@@ -331,7 +330,7 @@ init_inquiry(u_int16_t req_flags, u_int16_t sim_flags)
 	inq = &inq_data;
 	bzero(inq, sizeof(*inq));
 	inq->device = T_DIRECT | (SID_QUAL_LU_CONNECTED << 5);
-	inq->version = SCSI_REV_SPC; /* was 2 */
+	inq->version = SCSI_REV_3; /* was 2 */
 
 	/*
 	 * XXX cpi.hba_inquiry doesn't support Addr16 so we give the

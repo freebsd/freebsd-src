@@ -1,8 +1,7 @@
 /*
- * Sample program to attach to the "targ" processor target, target mode
- * peripheral driver and push or receive data.
+ * SCSI Disk Emulator
  *
- * Copyright (c) 1998 Justin T. Gibbs.
+ * Copyright (c) 2002 Nate Lawson.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,82 +29,139 @@
  */
 
 #include <sys/types.h>
-
 #include <errno.h>
+#include <err.h>
 #include <fcntl.h>
-#include <paths.h>
-#include <poll.h>
 #include <signal.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sysexits.h>
 #include <unistd.h>
-
+#include <aio.h>
+#include <assert.h>
+#include <sys/stat.h>
+#include <sys/queue.h>
+#include <sys/event.h>
+#include <sys/param.h>
+#include <cam/cam_queue.h>
 #include <cam/scsi/scsi_all.h>
-#include <cam/scsi/scsi_message.h>
 #include <cam/scsi/scsi_targetio.h>
+#include <cam/scsi/scsi_message.h>
+#include "scsi_target.h"
 
-char	*appname;
-int	 ifd;
-char	*ifilename;
-int	 ofd;
-char	*ofilename;
-size_t	 bufsize = 64 * 1024;
-void	*buf;
-char	 targdevname[80];
-int	 targctlfd;
-int	 targfd;
-int	 quit;
-int      debug = 0;
-struct	 ioc_alloc_unit alloc_unit = {
+/* Maximum amount to transfer per CTIO */
+#define MAX_XFER	MAXPHYS
+/* Maximum number of allocated CTIOs */
+#define MAX_CTIOS	32
+/* Maximum sector size for emulated volume */
+#define MAX_SECTOR	32768
+
+/* Global variables */
+int		debug;
+u_int32_t	volume_size;
+size_t		sector_size;
+size_t		buf_size;
+
+/* Local variables */
+static int    targ_fd;
+static int    kq_fd;
+static int    file_fd;
+static int    num_ctios;
+static struct ccb_queue		pending_queue;
+static struct ccb_queue		work_queue;
+static struct ioc_enable_lun	ioc_enlun = {
 	CAM_BUS_WILDCARD,
 	CAM_TARGET_WILDCARD,
 	CAM_LUN_WILDCARD
 };
 
-static void pump_events();
-static void cleanup();
-static void handle_exception();
-static void quit_handler();
-static void usage();
+/* Local functions */
+static void		cleanup(void);
+static int		init_ccbs(void);
+static void		request_loop(void);
+static void		handle_read(void);
+/* static int		work_atio(struct ccb_accept_tio *); */
+static void		queue_io(struct ccb_scsiio *);
+static void		run_queue(struct ccb_accept_tio *);
+static int		work_inot(struct ccb_immed_notify *);
+static struct ccb_scsiio *
+			get_ctio(void);
+/* static void		free_ccb(union ccb *); */
+static cam_status	get_sim_flags(u_int16_t *);
+static void		rel_simq(void);
+static void		abort_all_pending(void);
+static void		usage(void);
 
 int
 main(int argc, char *argv[])
 {
-	int  ch;
+	int ch, unit;
+	char *file_name, targname[16];
+	u_int16_t req_flags, sim_flags;
+	off_t user_size;
 
-	appname = *argv;
-	while ((ch = getopt(argc, argv, "i:o:p:t:l:d")) != -1) {
+	/* Initialize */
+	debug = 0;
+	req_flags = sim_flags = 0;
+	user_size = 0;
+	targ_fd = file_fd = kq_fd = -1;
+	num_ctios = 0;
+	sector_size = SECTOR_SIZE;
+	buf_size = DFLTPHYS;
+
+	/* Prepare resource pools */
+	TAILQ_INIT(&pending_queue);
+	TAILQ_INIT(&work_queue);
+
+	while ((ch = getopt(argc, argv, "AdSTb:c:s:W:")) != -1) {
 		switch(ch) {
-		case 'i':
-			if ((ifd = open(optarg, O_RDONLY)) == -1) {
-				perror(optarg);
-				exit(EX_NOINPUT);
-			}
-			ifilename = optarg;
-			break;
-		case 'o':
-			if ((ofd = open(optarg,
-					O_WRONLY|O_CREAT), 0600) == -1) {
-				perror(optarg);
-				exit(EX_CANTCREAT);
-			}
-			ofilename = optarg;
-			break;
-		case 'p':
-			alloc_unit.path_id = atoi(optarg);
-			break;
-		case 't':
-			alloc_unit.target_id = atoi(optarg);
-			break;
-		case 'l':
-			alloc_unit.lun_id = atoi(optarg);
+		case 'A':
+			req_flags |= SID_Addr16;
 			break;
 		case 'd':
-			debug++;
+			debug = 1;
 			break;
-		case '?':
+		case 'S':
+			req_flags |= SID_Sync;
+			break;
+		case 'T':
+			req_flags |= SID_CmdQue;
+			break;
+		case 'b':
+			buf_size = atoi(optarg);
+			if (buf_size < 256 || buf_size > MAX_XFER)
+				errx(1, "Unreasonable buf size: %s", optarg);
+			break;
+		case 'c':
+			sector_size = atoi(optarg);
+			if (sector_size < 512 || sector_size > MAX_SECTOR)
+				errx(1, "Unreasonable sector size: %s", optarg);
+			break;
+		case 's':
+			user_size = strtoll(optarg, (char **)NULL, /*base*/10);
+			if (user_size < 0)
+				errx(1, "Unreasonable volume size: %s", optarg);
+			break;
+		case 'W':
+			req_flags &= ~(SID_WBus16 | SID_WBus32);
+			switch (atoi(optarg)) {
+			case 8:
+				/* Leave req_flags zeroed */
+				break;
+			case 16:
+				req_flags |= SID_WBus16;
+				break;
+			case 32:
+				req_flags |= SID_WBus32;
+				break;
+			default:
+				warnx("Width %s not supported", optarg);
+				usage();
+				/* NOTREACHED */
+			}
+			break;
 		default:
 			usage();
 			/* NOTREACHED */
@@ -113,263 +169,766 @@ main(int argc, char *argv[])
 	}
 	argc -= optind;
 	argv += optind;
-
-	if (alloc_unit.path_id == CAM_BUS_WILDCARD
-	 || alloc_unit.target_id == CAM_TARGET_WILDCARD
-	 || alloc_unit.lun_id == CAM_LUN_WILDCARD) {
-		fprintf(stderr, "%s: Incomplete device path specifiled\n",
-			appname);
-		usage();
-		/* NOTREACHED */
-	}
-
-	if (argc != 0) {
-		fprintf(stderr, "%s: Too many arguments\n", appname);
-		usage();
-		/* NOTREACHED */
-	}
-
-	/* Allocate a new instance */
-	if ((targctlfd = open("/dev/targ.ctl", O_RDWR)) == -1) {
-		perror("/dev/targ.ctl");
-		exit(EX_UNAVAILABLE);
-	}
-
-	if (ioctl(targctlfd, TARGCTLIOALLOCUNIT, &alloc_unit) == -1) {
-		perror("TARGCTLIOALLOCUNIT");
-		exit(EX_SOFTWARE);
-	}
-
-	snprintf(targdevname, sizeof(targdevname), "%starg%d", _PATH_DEV,
-		 alloc_unit.unit);
-
-	if ((targfd = open(targdevname, O_RDWR)) == -1) {
-		perror(targdevname);
-		ioctl(targctlfd, TARGCTLIOFREEUNIT, &alloc_unit);
-		exit(EX_NOINPUT);
-	}
 	
-	if (ioctl(targfd, TARGIODEBUG, &debug) == -1) {
-		perror("TARGIODEBUG");
-		(void) ioctl(targctlfd, TARGCTLIOFREEUNIT, &alloc_unit);
-		exit(EX_SOFTWARE);
+	if (argc != 2)
+		usage();
+
+	sscanf(argv[0], "%u:%u:%u", &ioc_enlun.path_id, &ioc_enlun.target_id,
+	       &ioc_enlun.lun_id);
+	file_name = argv[1];
+
+	if (ioc_enlun.path_id == CAM_BUS_WILDCARD ||
+	    ioc_enlun.target_id == CAM_TARGET_WILDCARD ||
+	    ioc_enlun.lun_id == CAM_LUN_WILDCARD) {
+		warnx("Incomplete target path specified");
+		usage();
+		/* NOTREACHED */
 	}
+	/* We don't support any vendor-specific commands */
+	ioc_enlun.grp6_len = 0;
+	ioc_enlun.grp7_len = 0;
 
-	buf = malloc(bufsize);
+	/* Open backing store for IO */
+	file_fd = open(file_name, O_RDWR);
+	if (file_fd < 0)
+		err(1, "open backing store file");
 
-	if (buf == NULL) {
-		fprintf(stderr, "%s: Could not malloc I/O buffer", appname);
-		if (debug) {
-			debug = 0;
-			(void) ioctl(targfd, TARGIODEBUG, &debug);
+	/* Check backing store size or use the size user gave us */
+	if (user_size == 0) {
+		struct stat st;
+
+		if (fstat(file_fd, &st) < 0)
+			err(1, "fstat file");
+		volume_size = st.st_size / sector_size;
+	} else {
+		volume_size = user_size / sector_size;
+	}
+	if (volume_size <= 0)
+		errx(1, "volume must be larger than %d", sector_size);
+
+	{
+		struct aiocb aio, *aiop;
+		
+		/* Make sure we have working AIO support */
+		memset(&aio, 0, sizeof(aio));
+		aio.aio_buf = malloc(sector_size);
+		if (aio.aio_buf == NULL)
+			err(1, "malloc");
+		aio.aio_fildes = file_fd;
+		aio.aio_offset = 0;
+		aio.aio_nbytes = sector_size;
+		signal(SIGSYS, SIG_IGN);
+		if (aio_read(&aio) != 0) {
+			printf("You must enable VFS_AIO in your kernel "
+			       "or load the aio(4) module.\n");
+			err(1, "aio_read");
 		}
-		(void) ioctl(targctlfd, TARGCTLIOFREEUNIT, &alloc_unit);
-		exit(EX_OSERR);
+		if (aio_waitcomplete(&aiop, NULL) != sector_size)
+			err(1, "aio_waitcomplete");
+		assert(aiop == &aio);
+		signal(SIGSYS, SIG_DFL);
+		free((void *)aio.aio_buf);
+		if (debug)
+			warnx("aio support tested ok");
 	}
 
-	signal(SIGHUP, quit_handler);
-	signal(SIGINT, quit_handler);
-	signal(SIGTERM, quit_handler);
+	/* Go through all the control devices and find one that isn't busy. */
+	unit = 0;
+	do {
+		snprintf(targname, sizeof(targname), "/dev/targ%d", unit++);
+    		targ_fd = open(targname, O_RDWR);
+	} while (targ_fd < 0 && errno == EBUSY);
 
+	if (targ_fd < 0)
+    	    err(1, "Tried to open %d devices, none available", unit);
+
+	/* The first three are handled by kevent() later */
+	signal(SIGHUP, SIG_IGN);
+	signal(SIGINT, SIG_IGN);
+	signal(SIGTERM, SIG_IGN);
+	signal(SIGPROF, SIG_IGN);
+	signal(SIGALRM, SIG_IGN);
+	signal(SIGSTOP, SIG_IGN);
+	signal(SIGTSTP, SIG_IGN);
+
+	/* Register a cleanup handler to run when exiting */
 	atexit(cleanup);
 
-	pump_events();
+	/* Enable listening on the specified LUN */
+	if (ioctl(targ_fd, TARGIOCENABLE, &ioc_enlun) != 0)
+		err(1, "TARGIOCENABLE");
 
-	return (0);
+	/* Enable debugging if requested */
+	if (debug) {
+		if (ioctl(targ_fd, TARGIOCDEBUG, &debug) != 0)
+			err(1, "TARGIOCDEBUG");
+	}
+
+	/* Set up inquiry data according to what SIM supports */
+	if (get_sim_flags(&sim_flags) != CAM_REQ_CMP)
+		errx(1, "get_sim_flags");
+	if (tcmd_init(req_flags, sim_flags) != 0)
+		errx(1, "Initializing tcmd subsystem failed");
+
+	/* Queue ATIOs and INOTs on descriptor */
+	if (init_ccbs() != 0)
+		errx(1, "init_ccbs failed");
+
+	if (debug)
+		warnx("main loop beginning");
+	request_loop();
+
+	exit(0);
 }
 
 static void
 cleanup()
 {
+	struct ccb_hdr *ccb_h;
+
 	if (debug) {
+		warnx("cleanup called");
 		debug = 0;
-		(void) ioctl(targfd, TARGIODEBUG, &debug);
+		ioctl(targ_fd, TARGIOCDEBUG, &debug);
 	}
-	close(targfd);
-	if (ioctl(targctlfd, TARGCTLIOFREEUNIT, &alloc_unit) == -1) {
-		perror("TARGCTLIOFREEUNIT");
+	ioctl(targ_fd, TARGIOCDISABLE, NULL);
+	close(targ_fd);
+
+	while ((ccb_h = TAILQ_FIRST(&pending_queue)) != NULL) {
+		TAILQ_REMOVE(&pending_queue, ccb_h, periph_links.tqe);
+		free_ccb((union ccb *)ccb_h);
 	}
-	close(targctlfd);
+	while ((ccb_h = TAILQ_FIRST(&work_queue)) != NULL) {
+		TAILQ_REMOVE(&work_queue, ccb_h, periph_links.tqe);
+		free_ccb((union ccb *)ccb_h);
+	}
+
+	if (kq_fd != -1)
+		close(kq_fd);
+}
+
+/* Allocate ATIOs/INOTs and queue on HBA */
+static int
+init_ccbs()
+{
+	int i;
+
+	for (i = 0; i < MAX_INITIATORS; i++) {
+		struct ccb_accept_tio *atio;
+		struct atio_descr *a_descr;
+		struct ccb_immed_notify *inot;
+
+		atio = (struct ccb_accept_tio *)malloc(sizeof(*atio));
+		if (atio == NULL) {
+			warn("malloc ATIO");
+			return (-1);
+		}
+		a_descr = (struct atio_descr *)malloc(sizeof(*a_descr));
+		if (a_descr == NULL) {
+			free(atio);
+			warn("malloc atio_descr");
+			return (-1);
+		}
+		atio->ccb_h.func_code = XPT_ACCEPT_TARGET_IO;
+		atio->ccb_h.targ_descr = a_descr;
+		send_ccb((union ccb *)atio, /*priority*/1);
+
+		inot = (struct ccb_immed_notify *)malloc(sizeof(*inot));
+		if (inot == NULL) {
+			warn("malloc INOT");
+			return (-1);
+		}
+		inot->ccb_h.func_code = XPT_IMMED_NOTIFY;
+		send_ccb((union ccb *)inot, /*priority*/1);
+	}
+
+	return (0);
 }
 
 static void
-pump_events()
+request_loop()
 {
-	struct pollfd targpoll;
+	struct kevent events[MAX_EVENTS];
+	struct timespec ts, *tptr;
+	int quit;
 
-	targpoll.fd = targfd;
-	targpoll.events = POLLRDNORM|POLLWRNORM;
+	/* Register kqueue for event notification */
+	if ((kq_fd = kqueue()) < 0)
+		err(1, "init kqueue");
 
+	/* Set up some default events */
+	EV_SET(&events[0], SIGHUP, EVFILT_SIGNAL, EV_ADD|EV_ENABLE, 0, 0, 0);
+	EV_SET(&events[1], SIGINT, EVFILT_SIGNAL, EV_ADD|EV_ENABLE, 0, 0, 0);
+	EV_SET(&events[2], SIGTERM, EVFILT_SIGNAL, EV_ADD|EV_ENABLE, 0, 0, 0);
+	EV_SET(&events[3], targ_fd, EVFILT_READ, EV_ADD|EV_ENABLE, 0, 0, 0);
+	if (kevent(kq_fd, events, 4, NULL, 0, NULL) < 0)
+		err(1, "kevent signal registration");
+
+	ts.tv_sec = 0;
+	ts.tv_nsec = 0;
+	tptr = NULL;
+	quit = 0;
+
+	/* Loop until user signal */
 	while (quit == 0) {
-		int retval;
+		int retval, i;
+		struct ccb_hdr *ccb_h;
 
-		retval = poll(&targpoll, 1, INFTIM);
-
-		if (retval == -1) {
-			if (errno == EINTR)
+		/* Check for the next signal, read ready, or AIO completion */
+		retval = kevent(kq_fd, NULL, 0, events, MAX_EVENTS, tptr);
+		if (retval < 0) {
+			if (errno == EINTR) {
+				if (debug)
+					warnx("EINTR, looping");
 				continue;
-			perror("Poll Failed");
-			exit(EX_SOFTWARE);
+            		}
+			else {
+				err(1, "kevent failed");
+			}
+		} else if (retval > MAX_EVENTS) {
+			errx(1, "kevent returned more events than allocated?");
 		}
 
-		if (retval == 0) {
-			perror("Poll returned 0 although timeout infinite???");
-			exit(EX_SOFTWARE);
+		/* Process all received events. */
+		for (i = 0; i < retval; i++) {
+			if ((events[i].flags & EV_ERROR) != 0)
+				errx(1, "kevent registration failed");
+
+			switch (events[i].filter) {
+			case EVFILT_READ:
+				if (debug)
+					warnx("read ready");
+				handle_read();
+				break;
+			case EVFILT_AIO:
+			{
+				struct ccb_scsiio *ctio;
+				struct ctio_descr *c_descr;
+				if (debug)
+					warnx("aio ready");
+
+				ctio = (struct ccb_scsiio *)events[i].udata;
+				c_descr = (struct ctio_descr *)
+					  ctio->ccb_h.targ_descr;
+				c_descr->event = AIO_DONE;
+				/* Queue on the appropriate ATIO */
+				queue_io(ctio);
+				/* Process any queued completions. */
+				run_queue(c_descr->atio);
+				break;
+			}
+			case EVFILT_SIGNAL:
+				if (debug)
+					warnx("signal ready, setting quit");
+				quit = 1;
+				break;
+			default:
+				warnx("unknown event %#x", events[i].filter);
+				break;
+			}
+
+			if (debug)
+				warnx("event done");
 		}
 
-		if (retval > 1) {
-			perror("Poll returned more fds ready than allocated");
-			exit(EX_SOFTWARE);
-		}
+		/* Grab the first CCB and perform one work unit. */
+		if ((ccb_h = TAILQ_FIRST(&work_queue)) != NULL) {
+			union ccb *ccb;
 
-		/* Process events */
-		if ((targpoll.revents & POLLERR) != 0) {
-			handle_exception();
-		}
+			ccb = (union ccb *)ccb_h;
+			switch (ccb_h->func_code) {
+			case XPT_ACCEPT_TARGET_IO:
+				/* Start one more transfer. */
+				retval = work_atio(&ccb->atio);
+				break;
+			case XPT_IMMED_NOTIFY:
+				retval = work_inot(&ccb->cin);
+				break;
+			default:
+				warnx("Unhandled ccb type %#x on workq",
+				      ccb_h->func_code);
+				abort();
+				/* NOTREACHED */
+			}
 
-		if ((targpoll.revents & POLLRDNORM) != 0) {
-			retval = read(targfd, buf, bufsize);
-
-			if (retval == -1) {
-				perror("Read from targ failed");
-				/* Go look for exceptions */
-				continue;
-			} else {
-				retval = write(ofd, buf, retval);
-				if (retval == -1) {
-					perror("Write to file failed");
+			/* Assume work function handled the exception */
+			if ((ccb_h->status & CAM_DEV_QFRZN) != 0) {
+				if (debug) {
+					warnx("Queue frozen receiving CCB, "
+					      "releasing");
 				}
+				rel_simq();
+			}
+
+			/* No more work needed for this command. */
+			if (retval == 0) {
+				TAILQ_REMOVE(&work_queue, ccb_h,
+					     periph_links.tqe);
 			}
 		}
 
-		if ((targpoll.revents & POLLWRNORM) != 0) {
-			int amount_read;
-
-			retval = read(ifd, buf, bufsize);
-			if (retval == -1) {
-				perror("Read from file failed");
-				exit(EX_SOFTWARE);
-			}
-
-			amount_read = retval;
-			retval = write(targfd, buf, retval);
-			if (retval == -1) {
-				perror("Write to targ failed");
-				retval = 0;
-			}
-
-			/* Backup in our input stream on short writes */
-			if (retval != amount_read)
-				lseek(ifd, retval - amount_read, SEEK_CUR);
-		}
-	}
-}
-
-static void
-handle_exception()
-{
-	targ_exception exceptions;
-
-	if (ioctl(targfd, TARGIOCFETCHEXCEPTION, &exceptions) == -1) {
-		perror("TARGIOCFETCHEXCEPTION");
-		exit(EX_SOFTWARE);
-	}
-
-	printf("Saw exceptions %x\n", exceptions);
-	if ((exceptions & TARG_EXCEPT_DEVICE_INVALID) != 0) {
-		/* Device went away.  Nothing more to do. */
-		printf("Device went away\n");
-		exit(0);
-	}
-
-	if ((exceptions & TARG_EXCEPT_UNKNOWN_ATIO) != 0) {
-		struct ccb_accept_tio atio;
-		struct ioc_initiator_state ioc_istate;
-		struct scsi_sense_data *sense;
-		union  ccb ccb;
-
-		if (ioctl(targfd, TARGIOCFETCHATIO, &atio) == -1) {
-			perror("TARGIOCFETCHATIO");
-			exit(EX_SOFTWARE);
-		}
-
-		printf("Ignoring unhandled command 0x%x for Id %d\n",
-		       atio.cdb_io.cdb_bytes[0], atio.init_id);
-
-		ioc_istate.initiator_id = atio.init_id;
-		if (ioctl(targfd, TARGIOCGETISTATE, &ioc_istate) == -1) {
-			perror("TARGIOCGETISTATE");
-			exit(EX_SOFTWARE);
-		}
-
-		/* Send back Illegal Command code status */
-		ioc_istate.istate.pending_ca |= CA_CMD_SENSE;
-		sense = &ioc_istate.istate.sense_data;
-		bzero(sense, sizeof(*sense));
-		sense->error_code = SSD_CURRENT_ERROR;     
-		sense->flags = SSD_KEY_ILLEGAL_REQUEST;
-		sense->add_sense_code = 0x20;    
-		sense->add_sense_code_qual = 0x00;
-		sense->extra_len = offsetof(struct scsi_sense_data, fru)
-				 - offsetof(struct scsi_sense_data, extra_len);
-
-		if (ioctl(targfd, TARGIOCSETISTATE, &ioc_istate) == -1) {
-			perror("TARGIOCSETISTATE");
-			exit(EX_SOFTWARE);
-		}
-
-		/* Clear the exception so the kernel will take our response */
-		if (ioctl(targfd, TARGIOCCLEAREXCEPTION, &exceptions) == -1) {
-			perror("TARGIOCCLEAREXCEPTION");
-			exit(EX_SOFTWARE);
-		}
-
-		bzero(&ccb, sizeof(ccb));
-		cam_fill_ctio(&ccb.csio,
-			      /*retries*/2,
-			      /*cbfcnp*/NULL,
-			      CAM_DIR_NONE | CAM_SEND_STATUS,
-			      (atio.ccb_h.flags & CAM_TAG_ACTION_VALID)?
-				MSG_SIMPLE_Q_TAG : 0,
-			      atio.tag_id,
-			      atio.init_id,
-			      SCSI_STATUS_CHECK_COND,
-			      /*data_ptr*/NULL,
-			      /*dxfer_len*/0,
-			      /*timeout*/5 * 1000);
 		/*
-		 * Make sure that periph_priv pointers are clean.
+		 * Poll for new events (i.e. completions) while we
+		 * are processing CCBs on the work_queue. Once it's
+		 * empty, use an infinite wait.
 		 */
-		bzero(&ccb.ccb_h.periph_priv, sizeof ccb.ccb_h.periph_priv);
+		if (!TAILQ_EMPTY(&work_queue))
+			tptr = &ts;
+		else
+			tptr = NULL;
+	}
+}
 
-		if (ioctl(targfd, TARGIOCCOMMAND, &ccb) == -1) {
-			perror("TARGIOCCOMMAND");
-			exit(EX_SOFTWARE);
-		}
-		
-	} else {
-		if (ioctl(targfd, TARGIOCCLEAREXCEPTION, &exceptions) == -1) {
-			perror("TARGIOCCLEAREXCEPTION");
-			exit(EX_SOFTWARE);
-		}
+/* CCBs are ready from the kernel */
+static void
+handle_read()
+{
+	union ccb *ccb_array[MAX_INITIATORS], *ccb;
+	int ccb_count, i;
+
+	ccb_count = read(targ_fd, ccb_array, sizeof(ccb_array));
+	if (ccb_count <= 0) {
+		warn("read ccb ptrs");
+		return;
+	}
+	ccb_count /= sizeof(union ccb *);
+	if (ccb_count < 1) {
+		warnx("truncated read ccb ptr?");
+		return;
 	}
 
+	for (i = 0; i < ccb_count; i++) {
+		ccb = ccb_array[i];
+		TAILQ_REMOVE(&pending_queue, &ccb->ccb_h, periph_links.tqe);
+
+		switch (ccb->ccb_h.func_code) {
+		case XPT_ACCEPT_TARGET_IO:
+		{
+			struct ccb_accept_tio *atio;
+			struct atio_descr *a_descr;
+
+			/* Initialize ATIO descr for this transaction */
+			atio = &ccb->atio;
+			a_descr = (struct atio_descr *)atio->ccb_h.targ_descr;
+			bzero(a_descr, sizeof(*a_descr));
+			TAILQ_INIT(&a_descr->cmplt_io);
+			a_descr->flags = atio->ccb_h.flags &
+				(CAM_DIS_DISCONNECT | CAM_TAG_ACTION_VALID);
+			/* XXX add a_descr->priority */
+			if ((atio->ccb_h.flags & CAM_CDB_POINTER) == 0)
+				a_descr->cdb = atio->cdb_io.cdb_bytes;
+			else
+				a_descr->cdb = atio->cdb_io.cdb_ptr;
+
+			/* ATIOs are processed in FIFO order */
+			TAILQ_INSERT_TAIL(&work_queue, &ccb->ccb_h,
+					  periph_links.tqe);
+			break;
+		}
+		case XPT_CONT_TARGET_IO:
+		{
+			struct ccb_scsiio *ctio;
+			struct ctio_descr *c_descr;
+
+			ctio = &ccb->ctio;
+			c_descr = (struct ctio_descr *)ctio->ccb_h.targ_descr;
+			c_descr->event = CTIO_DONE;
+			/* Queue on the appropriate ATIO */
+			queue_io(ctio);
+			/* Process any queued completions. */
+			run_queue(c_descr->atio);
+			break;
+		}
+		case XPT_IMMED_NOTIFY:
+			/* INOTs are handled with priority */
+			TAILQ_INSERT_HEAD(&work_queue, &ccb->ccb_h,
+					  periph_links.tqe);
+			break;
+		default:
+			warnx("Unhandled ccb type %#x in handle_read",
+			      ccb->ccb_h.func_code);
+			break;
+		}
+	}
+}
+
+/* Process an ATIO CCB from the kernel */
+int
+work_atio(struct ccb_accept_tio *atio)
+{
+	struct ccb_scsiio *ctio;
+	struct atio_descr *a_descr;
+	struct ctio_descr *c_descr;
+	cam_status status;
+	int ret;
+
+	if (debug)
+		warnx("Working on ATIO %p", atio);
+
+	a_descr = (struct atio_descr *)atio->ccb_h.targ_descr;
+
+	/* Get a CTIO and initialize it according to our known parameters */
+	ctio = get_ctio();
+	if (ctio == NULL)
+		return (1);
+	ret = 0;
+	ctio->ccb_h.flags = a_descr->flags;
+	ctio->tag_id = atio->tag_id;
+	ctio->init_id = atio->init_id;
+	/* XXX priority needs to be added to a_descr */
+	c_descr = (struct ctio_descr *)ctio->ccb_h.targ_descr;
+	c_descr->atio = atio;
+	if ((a_descr->flags & CAM_DIR_IN) != 0)
+		c_descr->offset = a_descr->base_off + a_descr->targ_req;
+	else if ((a_descr->flags & CAM_DIR_MASK) == CAM_DIR_OUT)
+		c_descr->offset = a_descr->base_off + a_descr->init_req;
+
+	/* 
+	 * Return a check condition if there was an error while
+	 * receiving this ATIO.
+	 */
+	if (atio->sense_len != 0) {
+		struct scsi_sense_data *sense;
+
+		if (debug) {
+			warnx("ATIO with %u bytes sense received",
+			      atio->sense_len);
+		}
+		sense = &atio->sense_data;
+		tcmd_sense(ctio->init_id, ctio, sense->flags,
+			   sense->add_sense_code, sense->add_sense_code_qual);
+		send_ccb((union ccb *)ctio, /*priority*/1);
+		return (0);
+	}
+
+	status = atio->ccb_h.status & CAM_STATUS_MASK;
+	switch (status) {
+	case CAM_CDB_RECVD:
+		ret = tcmd_handle(atio, ctio, ATIO_WORK);
+		break;
+	case CAM_REQ_ABORTED:
+		/* Requeue on HBA */
+		TAILQ_REMOVE(&work_queue, &atio->ccb_h, periph_links.tqe);
+		send_ccb((union ccb *)atio, /*priority*/1);
+		ret = 1;
+		break;
+	default:
+		warnx("ATIO completed with unhandled status %#x", status);
+		abort();
+		/* NOTREACHED */
+		break;
+	}
+
+	return (ret);
 }
 
 static void
-quit_handler(int signum)
+queue_io(struct ccb_scsiio *ctio)
 {
-	quit = 1;
+	struct ccb_hdr *ccb_h;
+	struct io_queue *ioq;
+	struct ctio_descr *c_descr, *curr_descr;
+	
+	c_descr = (struct ctio_descr *)ctio->ccb_h.targ_descr;
+	/* If the completion is for a specific ATIO, queue in order */
+	if (c_descr->atio != NULL) {
+		struct atio_descr *a_descr;
+
+		a_descr = (struct atio_descr *)c_descr->atio->ccb_h.targ_descr;
+		ioq = &a_descr->cmplt_io;
+	} else {
+		errx(1, "CTIO %p has NULL ATIO", ctio);
+	}
+
+	/* Insert in order, sorted by offset */
+	if (!TAILQ_EMPTY(ioq)) {
+		TAILQ_FOREACH_REVERSE(ccb_h, ioq, io_queue, periph_links.tqe) {
+			curr_descr = (struct ctio_descr *)ccb_h->targ_descr;
+			if (curr_descr->offset <= c_descr->offset) {
+				TAILQ_INSERT_AFTER(ioq, ccb_h, &ctio->ccb_h,
+						   periph_links.tqe);
+				break;
+			}
+			if (TAILQ_PREV(ccb_h, io_queue, periph_links.tqe)
+			    == NULL) {
+				TAILQ_INSERT_BEFORE(ccb_h, &ctio->ccb_h, 
+						    periph_links.tqe);
+				break;
+			}
+		}
+	} else {
+		TAILQ_INSERT_HEAD(ioq, &ctio->ccb_h, periph_links.tqe);
+	}
+}
+
+/*
+ * Go through all completed AIO/CTIOs for a given ATIO and advance data
+ * counts, start continuation IO, etc.
+ */
+static void
+run_queue(struct ccb_accept_tio *atio)
+{
+	struct atio_descr *a_descr;
+	struct ccb_hdr *ccb_h;
+	int sent_status, event;
+
+	if (atio == NULL)
+		return;
+
+	a_descr = (struct atio_descr *)atio->ccb_h.targ_descr;
+
+	while ((ccb_h = TAILQ_FIRST(&a_descr->cmplt_io)) != NULL) {
+		struct ccb_scsiio *ctio;
+		struct ctio_descr *c_descr;
+
+		ctio = (struct ccb_scsiio *)ccb_h;
+		c_descr = (struct ctio_descr *)ctio->ccb_h.targ_descr;
+
+		/* If completed item is in range, call handler */
+		if ((c_descr->event == AIO_DONE &&
+		    c_descr->offset == a_descr->base_off + a_descr->targ_ack)
+		 || (c_descr->event == CTIO_DONE &&
+		    c_descr->offset == a_descr->base_off + a_descr->init_ack)) {
+			sent_status = (ccb_h->flags & CAM_SEND_STATUS) != 0;
+			event = c_descr->event;
+
+			TAILQ_REMOVE(&a_descr->cmplt_io, ccb_h,
+				     periph_links.tqe);
+			tcmd_handle(atio, ctio, c_descr->event);
+
+			/* If entire transfer complete, send back ATIO */
+			if (sent_status != 0 && event == CTIO_DONE)
+				send_ccb((union ccb *)atio, /*priority*/1);
+		} else {
+			/* Gap in offsets so wait until later callback */
+			if (debug)
+				warnx("IO %p out of order", ccb_h);
+			break;
+		}
+	}
+}
+
+static int
+work_inot(struct ccb_immed_notify *inot)
+{
+	cam_status status;
+	int sense;
+
+	if (debug)
+		warnx("Working on INOT %p", inot);
+
+	status = inot->ccb_h.status;
+	sense = (status & CAM_AUTOSNS_VALID) != 0;
+	status &= CAM_STATUS_MASK;
+
+	switch (status) {
+	case CAM_SCSI_BUS_RESET:
+		tcmd_ua(CAM_TARGET_WILDCARD, UA_BUS_RESET);
+		abort_all_pending();
+		break;
+	case CAM_BDR_SENT:
+		tcmd_ua(CAM_TARGET_WILDCARD, UA_BDR);
+		abort_all_pending();
+		break;
+	case CAM_MESSAGE_RECV:
+		switch (inot->message_args[0]) {
+		case MSG_TASK_COMPLETE:
+		case MSG_INITIATOR_DET_ERR:
+		case MSG_ABORT_TASK_SET:
+		case MSG_MESSAGE_REJECT:
+		case MSG_NOOP:
+		case MSG_PARITY_ERROR:
+		case MSG_TARGET_RESET:
+		case MSG_ABORT_TASK:
+		case MSG_CLEAR_TASK_SET:
+		default:
+			warnx("INOT message %#x", inot->message_args[0]);
+			break;
+		}
+		break;
+	case CAM_REQ_ABORTED:
+		warnx("INOT %p aborted", inot);
+		break;
+	default:
+		warnx("Unhandled INOT status %#x", status);
+		break;
+	}
+
+	/* If there is sense data, use it */
+	if (sense != 0) {
+		struct scsi_sense_data *sense;
+
+		sense = &inot->sense_data;
+		tcmd_sense(inot->initiator_id, NULL, sense->flags,
+			   sense->add_sense_code, sense->add_sense_code_qual);
+		if (debug)
+			warnx("INOT has sense: %#x", sense->flags);
+	}
+
+	/* Requeue on SIM */
+	TAILQ_REMOVE(&work_queue, &inot->ccb_h, periph_links.tqe);
+	send_ccb((union ccb *)inot, /*priority*/1);
+
+	return (1);
+}
+
+void
+send_ccb(union ccb *ccb, int priority)
+{
+	if (debug)
+		warnx("sending ccb (%#x)", ccb->ccb_h.func_code);
+	ccb->ccb_h.pinfo.priority = priority;
+	if (XPT_FC_IS_QUEUED(ccb)) {
+		TAILQ_INSERT_TAIL(&pending_queue, &ccb->ccb_h,
+				  periph_links.tqe);
+	}
+	if (write(targ_fd, &ccb, sizeof(ccb)) != sizeof(ccb)) {
+		warn("write ccb");
+		ccb->ccb_h.status = CAM_PROVIDE_FAIL;
+	}
+}
+
+/* Return a CTIO/descr/buf combo from the freelist or malloc one */
+static struct ccb_scsiio *
+get_ctio()
+{
+	struct ccb_scsiio *ctio;
+	struct ctio_descr *c_descr;
+	struct sigevent *se;
+
+	if (num_ctios == MAX_CTIOS)
+		return (NULL);
+
+	ctio = (struct ccb_scsiio *)malloc(sizeof(*ctio));
+	if (ctio == NULL) {
+		warn("malloc CTIO");
+		return (NULL);
+	}
+	c_descr = (struct ctio_descr *)malloc(sizeof(*c_descr));
+	if (c_descr == NULL) {
+		free(ctio);
+		warn("malloc ctio_descr");
+		return (NULL);
+	}
+	c_descr->buf = malloc(buf_size);
+	if (c_descr->buf == NULL) {
+		free(c_descr);
+		free(ctio);
+		warn("malloc backing store");
+		return (NULL);
+	}
+	num_ctios++;
+
+	/* Initialize CTIO, CTIO descr, and AIO */
+	ctio->ccb_h.func_code = XPT_CONT_TARGET_IO;
+	ctio->ccb_h.retry_count = 2;
+	ctio->ccb_h.timeout = CAM_TIME_INFINITY;
+	ctio->data_ptr = c_descr->buf;
+	ctio->ccb_h.targ_descr = c_descr;
+	c_descr->aiocb.aio_buf = c_descr->buf;
+	c_descr->aiocb.aio_fildes = file_fd;
+	se = &c_descr->aiocb.aio_sigevent;
+	se->sigev_notify = SIGEV_KEVENT;
+	se->sigev_notify_kqueue = kq_fd;
+	se->sigev_value.sigval_ptr = ctio;
+
+	return (ctio);
+}
+
+void
+free_ccb(union ccb *ccb)
+{
+	switch (ccb->ccb_h.func_code) {
+	case XPT_CONT_TARGET_IO:
+	{
+		struct ctio_descr *c_descr;
+
+		c_descr = (struct ctio_descr *)ccb->ccb_h.targ_descr;
+		free(c_descr->buf);
+		num_ctios--;
+		/* FALLTHROUGH */
+	}
+	case XPT_ACCEPT_TARGET_IO:
+		free(ccb->ccb_h.targ_descr);
+		/* FALLTHROUGH */
+	case XPT_IMMED_NOTIFY:
+	default:
+		free(ccb);
+		break;
+	}
+}
+
+static cam_status
+get_sim_flags(u_int16_t *flags)
+{
+	struct ccb_pathinq cpi;
+	cam_status status;
+
+	/* Find SIM capabilities */
+	bzero(&cpi, sizeof(cpi));
+	cpi.ccb_h.func_code = XPT_PATH_INQ;
+	send_ccb((union ccb *)&cpi, /*priority*/1);
+	status = cpi.ccb_h.status & CAM_STATUS_MASK;
+	if (status != CAM_REQ_CMP) {
+		fprintf(stderr, "CPI failed, status %#x\n", status);
+		return (status);
+	}
+
+	/* Can only enable on controllers that support target mode */
+	if ((cpi.target_sprt & PIT_PROCESSOR) == 0) {
+		fprintf(stderr, "HBA does not support target mode\n");
+		status = CAM_PATH_INVALID;
+		return (status);
+	}
+
+	*flags = cpi.hba_inquiry;
+	return (status);
+}
+
+static void
+rel_simq()
+{
+	struct ccb_relsim crs;
+
+	bzero(&crs, sizeof(crs));
+	crs.ccb_h.func_code = XPT_REL_SIMQ;
+	crs.release_flags = RELSIM_RELEASE_AFTER_QEMPTY;
+	crs.openings = 0;
+	crs.release_timeout = 0;
+	crs.qfrozen_cnt = 0;
+	send_ccb((union ccb *)&crs, /*priority*/0);
+}
+
+/* Cancel all pending CCBs. */
+static void
+abort_all_pending()
+{
+	struct ccb_abort	 cab;
+	struct ccb_hdr		*ccb_h;
+
+	if (debug)
+		  warnx("abort_all_pending");
+
+	bzero(&cab, sizeof(cab));
+	cab.ccb_h.func_code = XPT_ABORT;
+	TAILQ_FOREACH(ccb_h, &pending_queue, periph_links.tqe) {
+		if (debug)
+			  warnx("Aborting pending CCB %p\n", ccb_h);
+		cab.abort_ccb = (union ccb *)ccb_h;
+		send_ccb((union ccb *)&cab, /*priority*/1);
+		if (cab.ccb_h.status != CAM_REQ_CMP) {
+			warnx("Unable to abort CCB, status %#x\n",
+			       cab.ccb_h.status);
+		}
+	}
 }
 
 static void
 usage()
 {
-
-	(void)fprintf(stderr,
-"usage: %-16s [ -d ] [-o output_file] [-i input_file] -p path -t target -l lun\n",
-		      appname);
-
-	exit(EX_USAGE);
+	fprintf(stderr,
+		"Usage: scsi_target [-AdST] [-b bufsize] [-c sectorsize]\n"
+		"\t\t[-r numbufs] [-s volsize] [-W 8,16,32]\n"
+		"\t\tbus:target:lun filename\n");
+	exit(1);
 }
-
