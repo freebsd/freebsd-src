@@ -37,6 +37,8 @@
 #ifndef	_FTS_H_
 #define	_FTS_H_
 
+struct _fts_private;			/* implementation data */
+
 typedef struct {
 	struct _ftsent *fts_cur;	/* current node */
 	struct _ftsent *fts_child;	/* linked list of children */
@@ -63,6 +65,7 @@ typedef struct {
 #define	FTS_STOP	0x200		/* (private) unrecoverable error */
 	int fts_options;		/* fts_open options, global flags */
 	void *fts_clientptr;		/* thunk for sort function */
+	struct _fts_private *fts_priv;	/* Implementation data */
 } FTS;
 
 typedef struct _ftsent {
