@@ -36,7 +36,7 @@ SECTIONS
     *(COMMON)
   }
   . = ALIGN(4096);
-  __gp = ALIGN(8) + 0x200000;
+  __gp = .;
   .sdata :
   {
     *(.got.plt)
@@ -60,6 +60,7 @@ SECTIONS
     *(.rela.stab)
     *(.rela.ctors)
     *(.relaset_*)
+    *(.rela.IA_64.pltoff)
   }
   . = ALIGN(4096);
   .reloc         : { *(.reloc) }

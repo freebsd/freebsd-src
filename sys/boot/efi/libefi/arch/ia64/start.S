@@ -72,6 +72,7 @@
 #define R_IA64_FPTR64LSB	0x47	/* word64 LSB	@fptr(S + A) */
 #define R_IA64_REL64MSB		0x6e	/* word64 MSB	BD + A */
 #define R_IA64_REL64LSB		0x6f	/* word64 LSB	BD + A */
+#define	R_IA64_IPLTLSB		0x81	/* function descriptor LSB speciaal */
 
 ENTRY(_start, 2)
 	alloc	loc0=ar.pfs,2,3,3,0
@@ -118,6 +119,9 @@ _start_plabel:
 
 	// in0:	image base
 	// in1:	system table
+	//
+	// This assumes that the pltrel section immediately follows
+	// the rela section.
 STATIC_ENTRY(_reloc, 2)
 	alloc	loc0=ar.pfs,2,2,2,0
 	mov	loc1=rp
@@ -129,6 +133,7 @@ STATIC_ENTRY(_reloc, 2)
 	add	r15=r15,gp		// relocate _DYNAMIC etc.
 	add	r2=r2,gp
 	add	r3=r3,gp
+	mov	r19=0
 	;;
 1:	ld8	r16=[r15],8		// read r15->d_tag
 	;;
@@ -143,7 +148,11 @@ STATIC_ENTRY(_reloc, 2)
 	;; 
 	cmp.eq	p6,p0=DT_RELASZ,r16
 	;; 
-(p6)	mov	r19=r17			// found rela size
+(p6)	add	r19=r17,r19		// found rela size
+	;; 
+	cmp.eq	p6,p0=DT_PLTRELSZ,r16
+	;; 
+(p6)	add	r19=r17,r19		// found pltrel size
 	;; 
 	cmp.eq	p6,p0=DT_SYMTAB,r16
 	;; 
@@ -187,6 +196,12 @@ STATIC_ENTRY(_reloc, 2)
 	;;
 (p6)	br.cond.dptk.few 4f
 	;;
+	mov	r24=R_IA64_IPLTLSB
+	;; 
+	cmp.eq	p6,p0=r24,r23
+	;;
+(p6)	br.cond.dptk.few 5f
+	;;
 
 3:	cmp.ltu	p6,p0=0,r19		// more?
 (p6)	br.cond.dptk.few 2b		// loop
@@ -195,7 +210,7 @@ STATIC_ENTRY(_reloc, 2)
 	;;
 	br.cond.sptk.few 9f		// done
 
-4:
+4:					// DIR64LSB or REL64LSB
 	ld8	r16=[r15]		// read value
 	;;
 	add	r16=r16,in0		// relocate it
@@ -203,14 +218,32 @@ STATIC_ENTRY(_reloc, 2)
 	st8	[r15]=r16		// and store it back
 	br.cond.sptk.few 3b
 
-5:
-	extr.u	r23=r16,32,32		// ELF64_R_SYM(r16)
+5:					// FPTR64LSB or IPLTLSB
+	extr.u	r24=r16,32,32		// ELF64_R_SYM(r16)
 	;; 
-	setf.sig f10=r23		// so we can multiply
+	setf.sig f10=r24		// so we can multiply
 	;;
 	xma.lu	f10=f10,f9,f8		// f10=symtab + r_sym*syment
 	;;
 	getf.sig r16=f10
+	;;
+	mov	r24=R_IA64_IPLTLSB
+	;; 
+	cmp.ne	p6,p0=r24,r23		// IPLTLSB doesn't need an @fptr
+(p6)	br.cond.sptk.few 6f
+	;;
+	add	r16=8,r16		// address of st_value
+	;;
+	ld8	r16=[r16]		// read symbol value
+	;; 
+	add	r16=r16,in0		// relocate symbol value
+	;;
+	st8	[r15]=r16,8		// update plt target
+	;;
+	st8	[r15]=gp		// and gp
+	br.cond.sptk.few 3b
+	;; 
+6:	
 	mov	r8=EFI_BUFFER_TOO_SMALL	// failure return value
 	;;
 	cmp.geu	p6,p0=r2,r3		// space left?
