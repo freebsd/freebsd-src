@@ -91,6 +91,11 @@ The CS89x0 family of adapters have a very small RAM buffer (4K).  This may
 cause problems with extremely high network loads or bursty network traffic.
 In particular, NFS operations should be limited to 1k read/write transactions
 in order to avoid overruns.
+.Sh SEE ALSO
+.Xr arp 4 ,
+.Xr netintro 4 , 
+.Xr ifconfig 8 ,
+.Xr ng_ether 8
 .Sh AUTHORS
 The
 .Nm
