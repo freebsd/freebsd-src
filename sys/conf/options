@@ -426,7 +426,6 @@ NFS_GATHERDELAY		opt_nfs.h
 NFS_UIDHASHSIZ		opt_nfs.h
 NFS_WDELAYHASHSIZ	opt_nfs.h
 NFS_MUIDHASHSIZ		opt_nfs.h
-NFS_NOSERVER		opt_nfs.h
 NFS_DEBUG		opt_nfs.h
 
 # For the Bt848/Bt848A/Bt849/Bt878/Bt879 driver
