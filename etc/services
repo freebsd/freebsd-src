@@ -9,7 +9,7 @@
 # Kerberos services are for Kerberos v4, and are unofficial.  Sites running
 # v5 should uncomment v5 entries and comment v4 entries.
 #
-#	$Id: services,v 1.44 1998/03/09 02:56:21 steve Exp $
+#	$Id: services,v 1.45 1998/03/17 02:09:49 jseger Exp $
 #	From: @(#)services	5.8 (Berkeley) 5/9/91
 #
 # WELL KNOWN PORT NUMBERS
@@ -1652,6 +1652,7 @@ ricardo-lm	6148/tcp   #Ricardo North America License Manager
 ricardo-lm	6148/udp   #Ricardo North America License Manager
 xdsxdm		6558/tcp	
 xdsxdm		6558/udp	
+natd		6668/divert # Network Address Translation
 acmsoda		6969/tcp
 acmsoda		6969/udp
 afs3-fileserver 7000/tcp   #file server itself

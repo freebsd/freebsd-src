@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     $Id: rc.conf.5,v 1.15 1998/03/09 08:50:59 jkh Exp $
+.\"     $Id: rc.conf.5,v 1.16 1998/03/12 07:30:49 charnier Exp $
 .\"
 .Dd April 26, 1997
 .Dt RC.CONF 5
@@ -121,6 +121,28 @@ must be given.
 (bool) Set to 
 .Ar YES
 to disable the display of ipfw rules on the console during boot.
+.It Ar natd_enable
+(bool) Set to
+.Ar YES
+to enable natd.
+.Ar Firewall_enable
+must also be set to
+.Ar YES ,
+and
+.Xr divert 4
+sockets must be enabled in your kernel.
+.It Ar natd_interface
+This is the name of the public interface on which natd should run.  It
+is mandatory if
+.Ar natd_enable
+is set to
+.Ar YES .
+.It Ar natd_flags
+Additional natd flags should be placed here.  The
+.Fl n
+flag is automatically added with the above
+.Ar natd_interface
+as an argument.
 .It Ar tcp_extensions
 (bool) Set to
 .Ar YES
