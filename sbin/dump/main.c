@@ -479,7 +479,7 @@ main(argc, argv)
 
 	putdumptime();
 	trewind();
-	broadcast("DUMP IS DONE!\7\7\n");
+	broadcast("DUMP IS DONE!\a\a\n");
 	msg("DUMP IS DONE\n");
 	Exit(X_FINOK);
 	/* NOTREACHED */
