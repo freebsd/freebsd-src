@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_ioctl.c,v 1.30.2.6 1999/08/14 10:39:51 marcel Exp $
+ *  $Id: linux_ioctl.c,v 1.30.2.7 1999/08/14 13:35:09 marcel Exp $
  */
 
 #include <sys/param.h>
@@ -1018,6 +1018,37 @@ linux_ioctl(struct proc *p, struct linux_ioctl_args *args)
          */
         return 0;
     }
+
+    case LINUX_TCXONC:
+	switch (args->arg) {
+	case LINUX_TCOOFF:
+	    args->cmd = TIOCSTOP;
+	    break;
+	case LINUX_TCOON:
+	    args->cmd = TIOCSTART;
+	    break;
+	case LINUX_TCIOFF:
+	case LINUX_TCION: {
+	    u_char c;
+	    struct write_args wr;
+	    error = (*func)(fp, TIOCGETA, (caddr_t)&bsd_termios, p);
+	    if (error != 0)
+		return error;
+	    c = bsd_termios.c_cc[args->arg == LINUX_TCIOFF ? VSTOP : VSTART];
+	    if (c != _POSIX_VDISABLE) {
+		wr.fd = args->fd;
+		wr.buf = &c;
+		wr.nbyte = sizeof(c);
+		return write(p, &wr);
+	    }
+	    else
+		return (0);
+	}
+	default:
+	    return EINVAL;
+	}
+	args->arg = 0;
+	return ioctl(p, (struct ioctl_args *)args);
 
     case LINUX_TCFLSH:
       args->cmd = TIOCFLUSH;
