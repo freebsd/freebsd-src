@@ -83,8 +83,6 @@
 #include <netipsec/key.h>
 #endif /* FAST_IPSEC */
 
-struct	in_addr zeroin_addr;
-
 /*
  * These configure the range of local port addresses assigned to
  * "unspecified" outgoing connections/packets/whatever.
