@@ -1670,8 +1670,15 @@ char *instring;
 			reloc_type = NO_RELOC;
 
 			switch (opP->mode) {
+				int literal;
+
 			case IMMED:
 				tmpreg=0x3c;	/* 7.4 */
+				if (*opP->con1->e_beg == ':') {
+					++opP->con1->e_beg;
+					literal = 1;
+				} else
+					literal = 0;
 				if (strchr("bwl",s[1])) nextword=get_num(opP->con1,80);
 				else nextword=nextword=get_num(opP->con1,0);
 				if (isvar(opP->con1)) {
@@ -1729,6 +1736,18 @@ char *instring;
 				if (!baseo)
 				    break;
 				
+				if (literal) {
+					if (seg(opP->con1) == SEG_BIG)
+						goto bignum;
+					while (baseo -= 2) {
+						addword(0);
+						addword(0);
+					}
+					addword(nextword>>16);
+					addword(nextword);
+					break;
+				}
+					
 				/* We gotta put out some float */
 				if (seg(opP->con1) != SEG_BIG) {
 					int_to_gen(nextword);
@@ -1739,6 +1758,7 @@ char *instring;
 				}		/* Its BIG */
 				if (offs(opP->con1)>0) {
 					as_warn("Bignum assumed to be binary bit-pattern");
+				bignum:
 					if (offs(opP->con1)>baseo) {
 						as_warn("Bignum too big for %c format; truncated",s[1]);
 						offs(opP->con1)=baseo;
@@ -4014,18 +4034,6 @@ print_frags()
 }
 #endif
 
-#ifdef DONTDEF
-/*VARARGS1*/
-panic(format,args)
-char *format;
-{
-	fputs("Internal error:",stderr);
-	_doprnt(format,&args,stderr);
-	(void)putc('\n',stderr);
-	as_where();
-	abort();
-}
-#endif
 
 /* We have no need to default values of symbols.  */
 

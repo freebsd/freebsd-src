@@ -20,7 +20,7 @@ along with GAS or GDB; see the file COPYING.	If not, write to
 the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.	*/
 
 /*
- * $Id: sparc.h,v 1.1 1993/10/02 21:00:55 pk Exp $
+ * $Id: sparc.h,v 1.1 1993/11/03 00:56:11 paul Exp $
  */
 
  /* FIXME-someday: perhaps the ,a's and such should be embedded in the
@@ -631,11 +631,24 @@ static const struct sparc_opcode sparc_opcodes[] = {
 { "udivcc",	F3(2, 0x1e, 1), F3(~2, ~0x1e, ~1),		"1,i,d", 0, v8 },
 { "udivcc",	F3(2, 0x1e, 1), F3(~2, ~0x1e, ~1),		"i,1,d", 0, v8 },
 
-
 { "call",	F1(0x1), F1(~0x1), "L", F_DELAYED, v6 },
 { "call",	F1(0x1), F1(~0x1), "L,#", F_DELAYED, v6 },
 { "call",	F3(2, 0x38, 0)|RD(0xf), F3(~2, ~0x38, ~0)|RD(~0xf)|ASI_RS2(~0), "1", F_DELAYED, v6 }, /* jmpl rs1+%g0, %o7 */
 { "call",	F3(2, 0x38, 0)|RD(0xf), F3(~2, ~0x38, ~0)|RD(~0xf)|ASI_RS2(~0), "1,#", F_DELAYED, v6 },
+
+{ "call",	F3(2, 0x38, 0)|RD(0xf), F3(~2, ~0x38, ~0)|RD(~0xf),
+"1+2", F_DELAYED, v6 }, /* jmpl rs1+rs2,%o7 */
+{ "call",	F3(2, 0x38, 0)|RD(0xf), F3(~2, ~0x38, ~0)|RD(~0xf),
+"1+2,#", F_DELAYED, v6 }, /* jmpl rs1+rs2,%o7 */
+
+{ "call",	F3(2, 0x38, 1)|RD(0xf), F3(~2, ~0x38, ~1)|RD(~0xf),
+"1+i", F_DELAYED, v6 }, /* jmpl rs1+i,%o7 */
+{ "call",	F3(2, 0x38, 1)|RD(0xf), F3(~2, ~0x38, ~1)|RD(~0xf),
+"1+i,#", F_DELAYED, v6 }, /* jmpl rs1+i,%o7 */
+{ "call",	F3(2, 0x38, 1)|RD(0xf), F3(~2, ~0x38, ~1)|RD(~0xf),
+"i+1", F_DELAYED, v6 }, /* jmpl i+rs1,%o7 */
+{ "call",	F3(2, 0x38, 1)|RD(0xf), F3(~2, ~0x38, ~1)|RD(~0xf),
+"i+1,#", F_DELAYED, v6 }, /* jmpl i+rs1,%o7 */
 
 /* Conditional instructions.
 
@@ -668,6 +681,7 @@ cond ("ba",	"ta",   CONDA, F_ALIAS), /* for nothing */
 cond ("bcc",	"tcc",  CONDCC, 0),
 cond ("bcs",	"tcs",  CONDCS, 0),
 cond ("be",	"te",   CONDE, 0),
+cond ("beq",	"teq",  CONDE, F_ALIAS), /* for be */
 cond ("bg",	"tg",   CONDG, 0),
 cond ("bgt",	"tgt",   CONDG, F_ALIAS),
 cond ("bge",	"tge",  CONDGE, 0),

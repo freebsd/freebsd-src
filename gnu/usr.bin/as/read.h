@@ -18,7 +18,7 @@
    along with GAS; see the file COPYING.  If not, write to
    the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 /*
- * $Id: read.h,v 1.2 1993/11/03 00:52:16 paul Exp $
+ * $Id: read.h,v 1.3 1993/11/30 20:55:45 jkh Exp $
  */
 
 
@@ -57,6 +57,11 @@ extern const char lex_type[];
 #endif
 extern char is_end_of_line[];
 
+/* These are initialized by the CPU specific target files (tc-*.c).  */
+extern const char comment_chars[];
+extern const char line_comment_chars[];
+extern const char line_separator_chars[];
+ 
 #if __STDC__ == 1
 
 char *demand_copy_C_string(int *len_pointer);
@@ -75,7 +80,8 @@ void read_begin(void);
 void s_abort(void);
 void s_align_bytes(int arg);
 void s_align_ptwo(void);
-void s_app_file(void);
+void s_app_file(int);
+void s_app_line(int);
 void s_comm(void);
 void s_data(void);
 void s_else(int arg);
@@ -116,6 +122,7 @@ void s_abort();
 void s_align_bytes();
 void s_align_ptwo();
 void s_app_file();
+void s_app_line();
 void s_comm();
 void s_data();
 void s_else();
