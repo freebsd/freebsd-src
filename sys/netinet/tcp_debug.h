@@ -68,7 +68,7 @@ struct	tcp_debug {
 #define	TA_DROP		4
 
 #ifdef TANAMES
-static char	*tanames[] =
+static const char	*tanames[] =
     { "input", "output", "user", "respond", "drop" };
 #endif
 
