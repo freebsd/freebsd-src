@@ -69,10 +69,20 @@ static int chn_buildfeeder(struct pcm_channel *c);
 static void
 chn_lockinit(struct pcm_channel *c, int dir)
 {
-	if (dir == PCMDIR_PLAY)
-		c->lock = snd_chnmtxcreate(c->name, "pcm play channel");
-	else
-		c->lock = snd_chnmtxcreate(c->name, "pcm record channel");
+	switch(dir) {
+	case PCMDIR_PLAY:
+		c->lock = snd_mtxcreate(c->name, "pcm play channel");
+		break;
+	case PCMDIR_REC:
+		c->lock = snd_mtxcreate(c->name, "pcm record channel");
+		break;
+	case PCMDIR_VIRTUAL:
+		c->lock = snd_mtxcreate(c->name, "pcm virtual play channel");
+		break;
+	case 0:
+		c->lock = snd_mtxcreate(c->name, "pcm fake channel");
+		break;
+	}
 }
 
 static void
@@ -746,7 +756,7 @@ chn_reset(struct pcm_channel *c, u_int32_t fmt)
 }
 
 int
-chn_init(struct pcm_channel *c, void *devinfo, int dir)
+chn_init(struct pcm_channel *c, void *devinfo, int dir, int direction)
 {
 	struct feeder_class *fc;
 	struct snd_dbuf *b, *bs;
@@ -791,7 +801,7 @@ chn_init(struct pcm_channel *c, void *devinfo, int dir)
 
 	ret = ENODEV;
 	CHN_UNLOCK(c); /* XXX - Unlock for CHANNEL_INIT() malloc() call */
-	c->devinfo = CHANNEL_INIT(c->methods, devinfo, b, c, dir);
+	c->devinfo = CHANNEL_INIT(c->methods, devinfo, b, c, direction);
 	CHN_LOCK(c);
 	if (c->devinfo == NULL)
 		goto out;
@@ -800,7 +810,7 @@ chn_init(struct pcm_channel *c, void *devinfo, int dir)
 	if ((sndbuf_getsize(b) == 0) && ((c->flags & CHN_F_VIRTUAL) == 0))
 		goto out;
 
-	ret = chn_setdir(c, dir);
+	ret = chn_setdir(c, direction);
 	if (ret)
 		goto out;
 
