@@ -129,6 +129,7 @@ SUBDIR+=ipfilter
 SUBDIR+=aac \
 	acpi \
 	aic \
+	aout \
 	ar \
 	arcnet \
 	apm \
