@@ -67,7 +67,7 @@ kdb_trap(struct trapframe *tf)
 	if (db_global_jmpbuf_valid)
 		longjmp(db_global_jmpbuf, 1);
 	ddb_regs = *tf;
-	kf = ddb_regs.tf_arg;
+	kf = (struct kdbframe *)ddb_regs.tf_arg;
 	kf->kf_cfp = kf->kf_fp;
 	setjmp(db_global_jmpbuf);
 	db_global_jmpbuf_valid = TRUE;

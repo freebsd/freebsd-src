@@ -57,25 +57,14 @@
 #define	T_IMMU_MISS	0x19
 #define	T_DMMU_MISS	0x1a
 #define	T_DMMU_PROT	0x1b
-#define	T_CLOCK		0x1c
-#define	T_SPILL		0x1d
-#define	T_FILL		0x1e
+#define	T_SPILL		0x1c
+#define	T_FILL		0x1d
+#define	T_FILL_RET	0x1e
 #define	T_BREAKPOINT	0x1f
 #define	T_SYSCALL	0x20
 #define	T_RESTOREWP	0x21
+#define	T_SOFT		0x22
 #define	T_KERNEL	0x40
-
-#define	T_TYPE_SHIFT	0
-#define	T_TYPE_SIZE	7
-#define	T_TYPE_MASK	(((1 << T_TYPE_SIZE) - 1) << T_TYPE_SHIFT)
-#define	T_TYPE(type) \
-	(((type) & T_TYPE_MASK) >> T_TYPE_SHIFT)
-
-#define	T_LEVEL_SHIFT	T_TYPE_SIZE
-#define	T_LEVEL_SIZE	4
-#define	T_LEVEL_MASK	(((1 << T_LEVEL_SIZE) - 1) << T_LEVEL_SHIFT)
-#define	T_LEVEL(type) \
-	(((type) & T_LEVEL_MASK) >> T_LEVEL_SHIFT)
 
 #ifndef LOCORE
 extern const char *trap_msg[];
