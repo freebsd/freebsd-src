@@ -72,6 +72,7 @@ static const char rcsid[] =
 #include <fcntl.h>
 #include <kvm.h>
 #include <langinfo.h>
+#include <libutil.h>
 #include <limits.h>
 #include <locale.h>
 #include <netdb.h>
@@ -104,7 +105,6 @@ int		sortidle;	/* sort by idle time */
 int		use_ampm;	/* use AM/PM time */
 int             use_comma;      /* use comma as floats separator */
 char	      **sel_users;	/* login array of particular users selected */
-char		domain[MAXHOSTNAMELEN];
 
 /*
  * One of these per active utmp entry.
@@ -120,6 +120,9 @@ struct	entry {
 } *ep, *ehead = NULL, **nextp = &ehead;
 
 #define debugproc(p) *((struct kinfo_proc **)&(p)->ki_spare[0])
+
+/* W_DISPHOSTSIZE should not be greater than UT_HOSTSIZE */
+#define	W_DISPHOSTSIZE	16
 
 static void		 pr_header __P((time_t *, int));
 static struct stat	*ttystat __P((char *, int));
@@ -141,8 +144,10 @@ main(argc, argv)
 	u_long l;
 	time_t touched;
 	int ch, i, nentries, nusers, wcmd, longidle, dropgid;
-	char *memf, *nlistf, *p, *x;
+	char *memf, *nlistf, *p, *x_suffix;
 	char buf[MAXHOSTNAMELEN], errbuf[_POSIX2_LINE_MAX];
+	char fn[MAXHOSTNAMELEN];
+	char *dot;
 
 	(void)setlocale(LC_ALL, "");
 	use_ampm = (*nl_langinfo(T_FMT_AMPM) != '\0');
@@ -276,12 +281,12 @@ main(argc, argv)
 #define HEADER_FROM		"FROM"
 #define HEADER_LOGIN_IDLE	"LOGIN@  IDLE "
 #define HEADER_WHAT		"WHAT\n"
-#define WUSED  (UT_NAMESIZE + UT_LINESIZE + UT_HOSTSIZE + \
+#define WUSED  (UT_NAMESIZE + UT_LINESIZE + W_DISPHOSTSIZE + \
 		sizeof(HEADER_LOGIN_IDLE) + 3)	/* header width incl. spaces */ 
 		(void)printf("%-*.*s %-*.*s %-*.*s  %s", 
 				UT_NAMESIZE, UT_NAMESIZE, HEADER_USER,
 				UT_LINESIZE, UT_LINESIZE, HEADER_TTY,
-				UT_HOSTSIZE, UT_HOSTSIZE, HEADER_FROM,
+				W_DISPHOSTSIZE, W_DISPHOSTSIZE, HEADER_FROM,
 				HEADER_LOGIN_IDLE HEADER_WHAT);
 	}
 
@@ -351,49 +356,43 @@ main(argc, argv)
 		}
 	}
 
-	if (!nflag) {
-		if (gethostname(domain, sizeof(domain) - 1) < 0 ||
-		    (p = strchr(domain, '.')) == NULL)
-			domain[0] = '\0';
-		else {
-			domain[sizeof(domain) - 1] = '\0';
-			memmove(domain, p, strlen(p) + 1);
-		}
-	}
-
 	for (ep = ehead; ep != NULL; ep = ep->next) {
 		char host_buf[UT_HOSTSIZE + 1];
+		struct sockaddr_storage ss;
+		struct sockaddr *sa = (struct sockaddr *)&ss;
+		struct sockaddr_in *sin = (struct sockaddr_in *)&ss;
+		struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)&ss;
+		int isaddr;
 
 		host_buf[UT_HOSTSIZE] = '\0';
 		strncpy(host_buf, ep->utmp.ut_host, UT_HOSTSIZE);
 		p = *host_buf ? host_buf : "-";
-		if ((x = strchr(p, ':')) != NULL)
-			*x++ = '\0';
-		if (!nflag && isdigit(*p) && (l = inet_addr(p)) != -1 &&
-		    (hp = gethostbyaddr((char *)&l, sizeof(l), AF_INET))) {
-			if (domain[0] != '\0') {
-				p = hp->h_name;
-				p += strlen(hp->h_name);
-				p -= strlen(domain);
-				if (p > hp->h_name &&
-				    strcasecmp(p, domain) == 0)
-					*p = '\0';
-			}
-			p = hp->h_name;
+		if ((x_suffix = strrchr(p, ':')) != NULL) {
+			if ((dot = strchr(x_suffix, '.')) != NULL &&
+			    strchr(dot+1, '.') == NULL)
+				*x_suffix++ = '\0';
+			else
+				x_suffix = NULL;
 		}
-		if (nflag && *p && strcmp(p, "-") &&
-		    inet_addr(p) == INADDR_NONE) {
-			hp = gethostbyname(p);
-
-			if (hp != NULL) {
-				struct in_addr in;
-
-				memmove(&in, hp->h_addr, sizeof(in));
-				p = inet_ntoa(in);
+		if (!nflag) {
+			/* Attempt to change an IP address into a name */
+			isaddr = 0;
+			memset(&ss, '\0', sizeof(ss));
+			if (inet_pton(AF_INET6, p, &sin6->sin6_addr) == 1) {
+				sin6->sin6_len = sizeof(*sin6);
+				sin6->sin6_family = AF_INET6;
+				isaddr = 1;
+			} else if (inet_pton(AF_INET, p, &sin->sin_addr) == 1) {
+				sin->sin_len = sizeof(*sin);
+				sin->sin_family = AF_INET;
+				isaddr = 1;
 			}
+			if (isaddr && realhostname_sa(fn, sizeof(fn), sa,
+			    sa->sa_len) == HOSTNAME_FOUND)
+				p = fn;
 		}
-		if (x) {
-			(void)snprintf(buf, sizeof(buf), "%s:%s", p, x);
+		if (x_suffix) {
+			(void)snprintf(buf, sizeof(buf), "%s:%s", p, x_suffix);
 			p = buf;
 		}
 		if (dflag) {
@@ -414,7 +413,7 @@ main(argc, argv)
 		    strncmp(ep->utmp.ut_line, "tty", 3) &&
 		    strncmp(ep->utmp.ut_line, "cua", 3) ?
 		    ep->utmp.ut_line : ep->utmp.ut_line + 3,
-		    UT_HOSTSIZE, UT_HOSTSIZE, *p ? p : "-");
+		    W_DISPHOSTSIZE, W_DISPHOSTSIZE, *p ? p : "-");
 		pr_attime(&ep->utmp.ut_time, &now);
 		longidle = pr_idle(ep->idle);
 		(void)printf("%.*s\n", argwidth - longidle, ep->args);
