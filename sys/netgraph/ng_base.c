@@ -616,7 +616,7 @@ ng_make_node_common(struct ng_type *type, node_p *nodepp)
 	NG_NODE_REF(node);				/* note reference */
 	type->refs++;
 
-	mtx_init(&node->nd_input_queue.q_mtx, "netgraph node mutex", MTX_SPIN);
+	mtx_init(&node->nd_input_queue.q_mtx, "ng_node", MTX_SPIN);
 	node->nd_input_queue.queue = NULL;
 	node->nd_input_queue.last = &node->nd_input_queue.queue;
 	node->nd_input_queue.q_flags = 0;
@@ -2923,7 +2923,7 @@ ngb_mod_event(module_t mod, int event, void *data)
 	switch (event) {
 	case MOD_LOAD:
 		/* Register line discipline */
-		mtx_init(&ng_worklist_mtx, "netgraph worklist mutex", MTX_SPIN);
+		mtx_init(&ng_worklist_mtx, "ng_worklist", MTX_SPIN);
 		mtx_init(&ng_typelist_mtx, "netgraph types mutex", 0);
 		mtx_init(&ng_nodelist_mtx, "netgraph nodelist mutex", 0);
 		mtx_init(&ng_idhash_mtx, "netgraph idhash mutex", 0);
@@ -3284,13 +3284,20 @@ ng_worklist_remove(node_p node)
 {
 	mtx_lock_spin(&ng_worklist_mtx);
 	if (node->nd_flags & NG_WORKQ) {
+		node->nd_flags &= ~NG_WORKQ;
 		TAILQ_REMOVE(&ng_worklist, node, nd_work);
+		mtx_unlock_spin(&ng_worklist_mtx);
 		NG_NODE_UNREF(node);
+	} else {
+		mtx_unlock_spin(&ng_worklist_mtx);
 	}
-	node->nd_flags &= ~NG_WORKQ;
-	mtx_unlock_spin(&ng_worklist_mtx);
 }
 
+/*
+ * XXX
+ * It's posible that a debugging NG_NODE_REF may need
+ * to be outside the mutex zone
+ */
 static void
 ng_setisr(node_p node)
 {
@@ -3302,7 +3309,7 @@ ng_setisr(node_p node)
 		 */
 		node->nd_flags |= NG_WORKQ;
 		TAILQ_INSERT_TAIL(&ng_worklist, node, nd_work);
-		NG_NODE_REF(node);
+		NG_NODE_REF(node); /* XXX fafe in mutex? */
 	}
 	mtx_unlock_spin(&ng_worklist_mtx);
 	schednetisr(NETISR_NETGRAPH);

@@ -947,6 +947,8 @@ static char *spin_order_list[] = {
 	"ap boot",
 	"imen",
 #endif
+	"ng_node",
+	"ng_worklist",
 	"smp rendezvous",
 #endif
 	NULL
