@@ -546,7 +546,7 @@ mdstart_swap(struct md_s *sc, struct bio *bp)
 		m = vm_page_grab(sc->object, i,
 		    VM_ALLOC_NORMAL|VM_ALLOC_RETRY);
 		VM_OBJECT_UNLOCK(sc->object);
-		sf = sf_buf_alloc(m);
+		sf = sf_buf_alloc(m, 0);
 		VM_OBJECT_LOCK(sc->object);
 		if (bp->bio_cmd == BIO_READ) {
 			if (m->valid != VM_PAGE_BITS_ALL)
