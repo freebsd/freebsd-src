@@ -25,49 +25,70 @@
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
 .\"
-.Dd August 31, 1994
+.Dd January 19, 1996
 .Dt AHB 4 i386
 .Os FreeBSD
 .Sh NAME
 .Nm ahb
-.Nd
-Adaptec EISA SCSI host adapter driver
+.Nd Adaptec EISA SCSI host adapter driver
 .Sh SYNOPSIS
-.Cd "controller ahb0 at isa? bio irq ? vector ahbintr
-.Cd "controller scbus0
-.sp
-For each disk:
-.Cd "device sd0
-.sp
-For each tape device:
-.Cd "device st0
-.sp
-For one or more cdroms:
-.Cd "device cd0
+.Cd controller ahb0 at isa? bio irq ? vector ahbintr
+.Cd controller scbus0 at ahb0
 .Sh DESCRIPTION
-This driver provides access to SCSI devices connected to an Adaptec 
-174x hostadapter in either Standard or Enhanced Mode. If the controller
-is set to Standard mode (by the ECU), the driver will automatically 
-switch the card to Enhanced mode during the device probe.
-.sp
-Please note that the above implies that when you are configuring a system
-with both aha and ahb drivers, the ahb driver should be listed first in the
-kernel config file. This ensures that the ahb driver will find the Adaptec 174x
-boards before the aha driver probes for Adaptec 154x boards.
-.sp
-Note that no I/O addresses are configured in the kernel config file. The
-174x uses EISA slot specific I/O which is configured automatically.
-.Sh FILES
-.Bl -tag -width Pa -compact
-.It Pa /sys/i386/isa/ahb.c
-driver source
-.It Pa /sys/i386/conf/GENERIC
-sample generic kernel config file for Adaptec based systems
-.El
-.Sh SEE ALSO
+This driver provides access to the
+.Tn SCSI
+bus connected to an Adaptec 
+174x hostadapter in either 
+.Dq Em standard
+or
+.Dq Em enhanced
+mode. If the controller
+is set to standard mode (using the
+.Tn EISA
+configuration utility),
+the driver will automatically 
+switch the card to enhanced mode during the device probe.
+.Pp
+.Sy N.B. :
+When configuring a system
+with both
 .Xr aha 4
-.Xr ahc 4
-.Xr cd 4
-.Xr scsi 4
-.Xr sd 4
+and
+.Nm
+drivers, the
+.Nm
+driver should be listed first in the kernel configuration file.  This
+ensures that the
+.Nm
+driver will find the Adaptec 174x boards before the 
+.Xr aha 4
+driver probes for Adaptec 154x boards.
+.Pp
+Note that no I/O addresses are configured in the kernel config file. The
+174x uses
+.Tn EISA
+slot-specific I/O which is configured automatically.
+.\"
+.\" .Sh DIAGNOSTICS
+.\"
+.Sh SEE ALSO
+.Xr aha 4 ,
+.Xr ahc 4 ,
+.Xr cd 4 ,
+.Xr scsi 4 ,
+.Xr sd 4 ,
 .Xr st 4
+.Sh AUTHOR
+The
+.Nm
+driver was written by Julian Elischer for
+.Tn Mach
+2.5.  It was converted to automatic
+.Tn EISA
+configuration by Justin Gibbs.
+.Sh HISTORY
+The
+.Nm
+driver first appeared in the
+.Tn 386BSD
+patchkit.
