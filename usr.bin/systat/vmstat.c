@@ -133,8 +133,8 @@ static struct nlist namelist[] = {
 	{ "_cp_time" },
 #define X_CNT		1
 	{ "_cnt" },
-#define X_TOTAL		2
-	{ "_total" },
+#define	X_BUFFERSPACE	2
+	{ "_bufspace" },
 #define	X_DK_BUSY	3
 	{ "_dk_busy" },
 #define	X_DK_TIME	4
@@ -155,8 +155,6 @@ static struct nlist namelist[] = {
 	{ "_intrcnt" },
 #define	X_EINTRCNT	12
 	{ "_eintrcnt" },
-#define	X_BUFFERSPACE	13
-	{ "_bufspace" },
 	{ "" },
 };
 
