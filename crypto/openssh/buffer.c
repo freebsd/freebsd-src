@@ -69,6 +69,8 @@ buffer_append(Buffer *buffer, const char *data, unsigned int len)
 void
 buffer_append_space(Buffer *buffer, char **datap, unsigned int len)
 {
+	u_int	newlen;
+
 	/* If the buffer is empty, start using it from the beginning. */
 	if (buffer->offset == buffer->end) {
 		buffer->offset = 0;
@@ -93,8 +95,12 @@ restart:
 		goto restart;
 	}
 	/* Increase the size of the buffer and retry. */
-	buffer->alloc += len + 32768;
-	buffer->buf = xrealloc(buffer->buf, buffer->alloc);
+	newlen = buffer->alloc + len + 32768;
+	if (newlen > 0xa00000)
+		fatal("buffer_append_space: alloc %u not supported",
+		    newlen);
+	buffer->buf = xrealloc(buffer->buf, newlen);
+	buffer->alloc = newlen;
 	goto restart;
 }
 
