@@ -363,34 +363,33 @@ camperiphunit(struct periph_driver *p_drv, path_id_t pathid,
 	      target_id_t target, lun_id_t lun)
 {
 	u_int	unit;
-	int	hit, i, val, dunit;
+	int	wired, i, val, dunit;
 	const char *dname, *strval;
 	char	pathbuf[32], *periph_name;
 
-	unit = 0;
-	hit = 0;
-
 	periph_name = p_drv->driver_name;
 	snprintf(pathbuf, sizeof(pathbuf), "scbus%d", pathid);
+	unit = 0;
 	i = 0;
 	dname = periph_name;
-	while ((resource_find_dev(&i, dname, &dunit, NULL, NULL)) == 0) {
+	for (wired = 0; resource_find_dev(&i, dname, &dunit, NULL, NULL) == 0;
+	     wired = 0) {
 		if (resource_string_value(dname, dunit, "at", &strval) == 0) {
 			if (strcmp(strval, pathbuf) != 0)
 				continue;
-			hit++;
+			wired++;
 		}
 		if (resource_int_value(dname, dunit, "target", &val) == 0) {
 			if (val != target)
 				continue;
-			hit++;
+			wired++;
 		}
 		if (resource_int_value(dname, dunit, "lun", &val) == 0) {
 			if (val != lun)
 				continue;
-			hit++;
+			wired++;
 		}
-		if (hit != 0) {
+		if (wired != 0) {
 			unit = dunit;
 			break;
 		}
@@ -402,8 +401,7 @@ camperiphunit(struct periph_driver *p_drv, path_id_t pathid,
 	 * if we have wildcard matches, we don't return the same
 	 * unit number twice.
 	 */
-	unit = camperiphnextunit(p_drv, unit, /*wired*/hit, pathid,
-				 target, lun);
+	unit = camperiphnextunit(p_drv, unit, wired, pathid, target, lun);
 
 	return (unit);
 }
