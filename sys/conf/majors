@@ -1,4 +1,4 @@
-$Id: majors.i386,v 1.24 1998/01/16 22:13:01 pst Exp $
+$Id: majors.i386,v 1.25 1998/01/26 06:11:14 julian Exp $
 
 Hopefully, this list will one day be obsoleted by DEVFS, but for now
 this is the current allocation of device major numbers.
@@ -128,3 +128,4 @@ chrdev	name		comments
 86      alog            Industrial Computer Source AIO8-P driver
 87	wfd		ATAPI floppy client of "ata"
 88	dpt		DPT RAID Controller <shimon@i-connect.net>
+89	pps		Pulse-Per-Second timing interface
