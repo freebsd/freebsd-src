@@ -62,7 +62,8 @@ int
 main(int argc, char *argv[])
 {
 	int ch, exitval, success, pflag;
-	mode_t omode, *set = (mode_t *)NULL;
+	mode_t omode;
+	void *set = NULL;
 	char *mode;
 
 	omode = pflag = 0;
