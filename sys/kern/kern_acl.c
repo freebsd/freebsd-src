@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1999, 2000 Robert N. M. Watson
+ * Copyright (c) 1999, 2000, 2001 Robert N. M. Watson
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,10 +25,9 @@
  *
  * $FreeBSD$
  */
-
 /*
- * Generic routines to support file system ACLs, at a syntactic level
- * Semantics are the responsibility of the underlying file system
+ * Developed by the TrustedBSD Project.
+ * Support for POSIX.1e access control lists.
  */
 
 #include <sys/param.h>
@@ -46,7 +45,7 @@
 #include <sys/stat.h>
 #include <sys/acl.h>
 
-static MALLOC_DEFINE(M_ACL, "acl", "access control list");
+MALLOC_DEFINE(M_ACL, "acl", "access control list");
 
 static int	vacl_set_acl(struct proc *p, struct vnode *vp, acl_type_t type,
 	    struct acl *aclp);
@@ -54,6 +53,442 @@ static int	vacl_get_acl(struct proc *p, struct vnode *vp, acl_type_t type,
 	    struct acl *aclp);
 static int	vacl_aclcheck(struct proc *p, struct vnode *vp, acl_type_t type,
 	    struct acl *aclp);
+
+/*
+ * Implement a version of vaccess() that understands POSIX.1e ACL semantics.
+ * Return 0 on success, else an errno value.  Should be merged into
+ * vaccess() eventually.
+ */
+int
+vaccess_acl_posix1e(enum vtype type, struct acl *acl, mode_t acc_mode,
+    struct ucred *cred, int *privused)
+{
+	struct acl_entry *acl_other, *acl_mask;
+	mode_t dac_granted;
+	mode_t cap_granted;
+	mode_t acl_mask_granted;
+	int group_matched, i;
+
+	/*
+	 * Look for a normal, non-privileged way to access the file/directory
+	 * as requested.  If it exists, go with that.  Otherwise, attempt
+	 * to use privileges granted via cap_granted.  In some cases,
+	 * which privileges to use may be ambiguous due to "best match",
+	 * in which case fall back on first match for the time being.
+	 */
+	if (privused != NULL)
+		*privused = 0;
+
+	/*
+	 * Determine privileges now, but don't apply until we've found
+	 * a DAC match that has failed to allow access.
+	 */
+#ifndef CAPABILITIES
+	if (suser_xxx(cred, NULL, PRISON_ROOT) == 0)
+		cap_granted = (VEXEC | VREAD | VWRITE | VADMIN);
+	else
+		cap_granted = 0;
+#else
+	cap_granted = 0;
+
+	if (type == VDIR) {
+		if ((acc_mode & VEXEC) && !cap_check(cred, NULL,
+		     CAP_DAC_READ_SEARCH, PRISON_ROOT))
+			cap_granted |= VEXEC;
+	} else {
+		if ((acc_mode & VEXEC) && !cap_check(cred, NULL,
+		    CAP_DAC_EXECUTE, PRISON_ROOT))
+			cap_granted |= VEXEC;
+	}
+
+	if ((acc_mode & VREAD) && !cap_check(cred, NULL, CAP_DAC_READ_SEARCH,
+	    PRISON_ROOT))
+		cap_granted |= VREAD;
+
+	if ((acc_mode & VWRITE) && !cap_check(cred, NULL, CAP_DAC_WRITE,
+	    PRISON_ROOT))
+		cap_granted |= VWRITE;
+
+	if ((acc_mode & VADMIN) && !cap_check(cred, NULL, CAP_FOWNER,
+	    PRISON_ROOT))
+		cap_granted |= VADMIN;
+#endif /* CAPABILITIES */
+
+	/*
+	 * Check the owner.
+	 * Also, record locations of ACL_MASK and ACL_OTHER for reference
+	 * later if the owner doesn't match.
+	 */
+	acl_mask = acl_other = NULL;
+	for (i = 0; i < acl->acl_cnt; i++) {
+		switch (acl->acl_entry[i].ae_tag) {
+		case ACL_USER_OBJ:
+			if (acl->acl_entry[i].ae_id != cred->cr_uid)
+				break;
+			dac_granted = 0;
+			dac_granted |= VADMIN;
+			if (acl->acl_entry[i].ae_perm & ACL_PERM_EXEC)
+				dac_granted |= VEXEC;
+			if (acl->acl_entry[i].ae_perm & ACL_PERM_READ)
+				dac_granted |= VREAD;
+			if (acl->acl_entry[i].ae_perm & ACL_PERM_WRITE)
+				dac_granted |= VWRITE;
+			if ((acc_mode & dac_granted) == acc_mode)
+				return (0);
+			if ((acc_mode & (dac_granted | cap_granted)) ==
+			    acc_mode) {
+				if (privused != NULL)
+					*privused = 1;
+				return (0);
+			}
+			goto error;
+
+		case ACL_MASK:
+			acl_mask = &acl->acl_entry[i];
+			break;
+
+		case ACL_OTHER:
+			acl_other = &acl->acl_entry[i];
+			break;
+
+		default:
+		}
+	}
+
+	/*
+	 * Checks against ACL_USER, ACL_GROUP_OBJ, and ACL_GROUP fields
+	 * are masked by an ACL_MASK entry, if any.  As such, first identify
+	 * the ACL_MASK field, then iterate through identifying potential
+	 * user matches, then group matches.  If there is no ACL_MASK,
+	 * assume that the mask allows all requests to succeed.
+	 * Also keep track of the location of ACL_OTHER for later consumption.
+	 */
+	if (acl_other == NULL) {
+		/*
+		 * XXX: This should never happen.  Only properly formatted
+		 * ACLs should be passed to vaccess_acl_posix1e.
+		 * Should make this a panic post-debugging.
+		 */
+		printf("vaccess_acl_posix1e: ACL_OTHER missing\n");
+		return (EPERM);
+	}
+	if (acl_mask != NULL) {
+		acl_mask_granted = 0;
+		if (acl_mask->ae_perm & ACL_PERM_EXEC)
+			acl_mask_granted |= VEXEC;
+		if (acl_mask->ae_perm & ACL_PERM_READ)
+			acl_mask_granted |= VREAD;
+		if (acl_mask->ae_perm & ACL_PERM_WRITE)
+			acl_mask_granted |= VWRITE;
+	} else
+		acl_mask_granted = VEXEC | VREAD | VWRITE;
+
+	/*
+	 * We have to check each type even if we know ACL_MASK will reject,
+	 * as we need to know what match there might have been, and
+	 * therefore what further types we might be allowed to check.
+	 * Do the checks twice -- once without privilege, and a second time
+	 * with, if there was a match.
+	 */
+
+	/*
+	 * Check ACL_USER ACL entries.
+	 */
+	for (i = 0; i < acl->acl_cnt; i++) {
+		switch (acl->acl_entry[i].ae_tag) {
+		case ACL_USER:
+			if (acl->acl_entry[i].ae_id != cred->cr_uid)
+				break;
+			dac_granted = 0;
+			if (acl->acl_entry[i].ae_perm & ACL_PERM_EXEC)
+				dac_granted |= VEXEC;
+			if (acl->acl_entry[i].ae_perm & ACL_PERM_READ)
+				dac_granted |= VREAD;
+			if (acl->acl_entry[i].ae_perm & ACL_PERM_WRITE)
+				dac_granted |= VWRITE;
+			dac_granted &= acl_mask_granted;
+			if ((acc_mode & dac_granted) == acc_mode)
+				return (0);
+			if ((acc_mode & (dac_granted | cap_granted)) ==
+			    acc_mode) {
+				if (privused != NULL)
+					*privused = 1;
+				return (0);
+			}
+			goto error;
+		}
+	}
+
+	/*
+	 * Group match is best-match, not first-match, so find a 
+	 * "best" match.  Iterate across, testing each potential group
+	 * match.  Make sure we keep track of whether we found a match
+	 * or not, so that we know if we can move on to ACL_OTHER.
+	 */
+	group_matched = 0;
+	for (i = 0; i < acl->acl_cnt; i++) {
+		switch (acl->acl_entry[i].ae_tag) {
+		case ACL_GROUP_OBJ:
+		case ACL_GROUP:
+			if (groupmember(acl->acl_entry[i].ae_id, cred)) {
+				dac_granted = 0;
+				if (acl->acl_entry[i].ae_perm & ACL_PERM_EXEC)
+					dac_granted |= VEXEC;
+				if (acl->acl_entry[i].ae_perm & ACL_PERM_READ)
+					dac_granted |= VREAD;
+				if (acl->acl_entry[i].ae_perm & ACL_PERM_WRITE)
+					dac_granted |= VWRITE;
+				dac_granted  &= acl_mask_granted;
+
+				if ((acc_mode & dac_granted) == acc_mode)
+					return (0);
+
+				group_matched = 1;
+			}
+		default:
+		}
+	}
+
+	if (group_matched == 1) {
+		/*
+		 * There was a match, but it did not grant rights via
+		 * pure DAC.  Try again, this time with privilege.
+		 */
+		for (i = 0; i < acl->acl_cnt; i++) {
+			switch (acl->acl_entry[i].ae_tag) {
+			case ACL_GROUP_OBJ:
+			case ACL_GROUP:
+				if (groupmember(acl->acl_entry[i].ae_id,
+				    cred)) {
+					dac_granted = 0;
+					if (acl->acl_entry[i].ae_perm &
+					    ACL_PERM_EXEC)
+					dac_granted |= VEXEC;
+					if (acl->acl_entry[i].ae_perm &
+					    ACL_PERM_READ)
+						dac_granted |= VREAD;
+					if (acl->acl_entry[i].ae_perm &
+					    ACL_PERM_WRITE)
+						dac_granted |= VWRITE;
+					dac_granted &= acl_mask_granted;
+					if ((acc_mode & (dac_granted |
+					    cap_granted)) == acc_mode) {
+						if (privused != NULL)
+							*privused = 1;
+						return (0);
+					}
+				}
+			default:
+			}
+		}
+		/*
+		 * Even with privilege, group membership was not sufficient.
+		 * Return failure.
+		 */
+		goto error;
+	}
+		
+	/*
+	 * Fall back on ACL_OTHER.  ACL_MASK is not applied to ACL_OTHER.
+	 */
+	dac_granted = 0;
+	if (acl_other->ae_perm & ACL_PERM_EXEC)
+		dac_granted |= VEXEC;
+	if (acl_other->ae_perm & ACL_PERM_READ)
+		dac_granted |= VREAD;
+	if (acl_other->ae_perm & ACL_PERM_WRITE)
+		dac_granted |= VWRITE;
+
+	if ((acc_mode & dac_granted) == acc_mode)
+		return (0);
+	if ((acc_mode & (dac_granted | cap_granted)) == acc_mode) {
+		if (privused != NULL)
+			*privused = 1;
+		return (0);
+	}
+
+error:
+	return ((acc_mode & VADMIN) ? EPERM : EACCES);
+}
+
+/*
+ * For the purposes of file systems maintaining the _OBJ entries in an
+ * inode with a mode_t field, this routine converts a mode_t entry
+ * to an acl_perm_t.
+ */
+acl_perm_t
+acl_posix1e_mode_to_perm(acl_tag_t tag, mode_t mode)
+{
+	acl_perm_t	perm = 0;
+
+	switch(tag) {
+	case ACL_USER_OBJ:
+		if (mode & S_IXUSR)
+			perm |= ACL_PERM_EXEC;
+		if (mode & S_IRUSR)
+			perm |= ACL_PERM_READ;
+		if (mode & S_IWUSR)
+			perm |= ACL_PERM_WRITE;
+		return (perm);
+
+	case ACL_GROUP_OBJ:
+		if (mode & S_IXGRP)
+			perm |= ACL_PERM_EXEC;
+		if (mode & S_IRGRP)
+			perm |= ACL_PERM_READ;
+		if (mode & S_IWGRP)
+			perm |= ACL_PERM_WRITE;
+		return (perm);
+
+	case ACL_OTHER:
+		if (mode & S_IXOTH)
+			perm |= ACL_PERM_EXEC;
+		if (mode & S_IROTH)
+			perm |= ACL_PERM_READ;
+		if (mode & S_IWOTH)
+			perm |= ACL_PERM_WRITE;
+		return (perm);
+
+	default:
+		printf("acl_posix1e_mode_to_perm: invalid tag (%d)\n", tag);
+		return (0);
+	}
+}
+
+/*
+ * Given inode information (uid, gid, mode), return an acl entry of the
+ * appropriate type.
+ */
+struct acl_entry
+acl_posix1e_mode_to_entry(acl_tag_t tag, uid_t uid, gid_t gid, mode_t mode)
+{
+	struct acl_entry	acl_entry;
+
+	acl_entry.ae_tag = tag;
+	acl_entry.ae_perm = acl_posix1e_mode_to_perm(tag, mode);
+	switch(tag) {
+	case ACL_USER_OBJ:
+		acl_entry.ae_id = uid;
+		break;
+
+	case ACL_GROUP_OBJ:
+		acl_entry.ae_id = gid;
+		break;
+
+	case ACL_OTHER:
+		acl_entry.ae_id = 0;
+		break;
+
+	default:
+		acl_entry.ae_id = 0;
+		printf("acl_posix1e_mode_to_entry: invalid tag (%d)\n", tag);
+	}
+
+	return (acl_entry);
+}
+
+/*
+ * Utility function to generate a file mode given appropriate ACL entries.
+ */
+mode_t
+acl_posix1e_perms_to_mode(struct acl_entry *acl_user_obj_entry,
+    struct acl_entry *acl_group_obj_entry, struct acl_entry *acl_other_entry)
+{
+	mode_t	mode;
+
+	mode = 0;
+	if (acl_user_obj_entry->ae_perm & ACL_PERM_EXEC)
+		mode |= S_IXUSR;
+	if (acl_user_obj_entry->ae_perm & ACL_PERM_READ)
+		mode |= S_IRUSR;
+	if (acl_user_obj_entry->ae_perm & ACL_PERM_WRITE)
+		mode |= S_IWUSR;
+	if (acl_group_obj_entry->ae_perm & ACL_PERM_EXEC)
+		mode |= S_IXGRP;
+	if (acl_group_obj_entry->ae_perm & ACL_PERM_READ)
+		mode |= S_IRGRP;
+	if (acl_group_obj_entry->ae_perm & ACL_PERM_WRITE)
+		mode |= S_IWGRP;
+	if (acl_other_entry->ae_perm & ACL_PERM_EXEC)
+		mode |= S_IXOTH;
+	if (acl_other_entry->ae_perm & ACL_PERM_READ)
+		mode |= S_IROTH;
+	if (acl_other_entry->ae_perm & ACL_PERM_WRITE)
+		mode |= S_IWOTH;
+
+	return (mode);
+}
+
+/*
+ * Perform a syntactic check of the ACL, sufficient to allow an
+ * implementing file system to determine if it should accept this and
+ * rely on the POSIX.1e ACL properties.
+ */
+int
+acl_posix1e_check(struct acl *acl)
+{
+	int num_acl_user_obj, num_acl_user, num_acl_group_obj, num_acl_group;
+	int num_acl_mask, num_acl_other, i;
+
+	/*
+	 * Verify that the number of entries does not exceed the maximum
+	 * defined for acl_t.
+	 * Verify that the correct number of various sorts of ae_tags are
+	 * present:
+	 *   Exactly one ACL_USER_OBJ
+	 *   Exactly one ACL_GROUP_OBJ
+	 *   Exactly one ACL_OTHER
+	 *   If any ACL_USER or ACL_GROUP entries appear, then exactly one
+	 *   ACL_MASK entry must also appear.
+	 * Verify that all ae_perm entries are in ACL_PERM_BITS.
+	 * Verify all ae_tag entries are understood by this implementation.
+	 * Note: Does not check for uniqueness of qualifier (ae_id) field.
+	 */
+	num_acl_user_obj = num_acl_user = num_acl_group_obj = num_acl_group =
+	    num_acl_mask = num_acl_other = 0;
+	if (acl->acl_cnt > ACL_MAX_ENTRIES || acl->acl_cnt < 0)
+		return (EINVAL);
+	for (i = 0; i < acl->acl_cnt; i++) {
+		/*
+		 * Check for a valid tag.
+		 */
+		switch(acl->acl_entry[i].ae_tag) {
+		case ACL_USER_OBJ:
+			num_acl_user_obj++;
+			break;
+		case ACL_GROUP_OBJ:
+			num_acl_group_obj++;
+			break;
+		case ACL_USER:
+			num_acl_user++;
+			break;
+		case ACL_GROUP:
+			num_acl_group++;
+			break;
+		case ACL_OTHER:
+			num_acl_other++;
+			break;
+		case ACL_MASK:
+			num_acl_mask++;
+			break;
+		default:
+			return (EINVAL);
+		}
+		/*
+		 * Check for valid perm entries.
+		 */
+		if ((acl->acl_entry[i].ae_perm | ACL_PERM_BITS) !=
+		    ACL_PERM_BITS)
+			return (EINVAL);
+	}
+	if ((num_acl_user_obj != 1) || (num_acl_group_obj != 1) ||
+	    (num_acl_other != 1) || (num_acl_mask != 0 && num_acl_mask != 1))
+		return (EINVAL);
+	if (((num_acl_group != 0) || (num_acl_user != 0)) &&
+	    (num_acl_mask != 1))
+		return (EINVAL);
+	return (0);
+}
 
 /*
  * These calls wrap the real vnode operations, and are called by the 
