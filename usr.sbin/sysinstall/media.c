@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media.c,v 1.58 1996/10/02 08:25:11 jkh Exp $
+ * $Id: media.c,v 1.59 1996/10/06 02:10:54 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -297,7 +297,7 @@ mediaSetFTP(dialogMenuItem *self)
 
     dialog_clear_norefresh();
     if (network_init || msgYesNo("You've already done the network configuration once,\n"
-			       "would you like to skip over it now?")) {
+			       "would you like to skip over it now?") != 0) {
 	if (!tcpDeviceSelect()) {
 	    variable_unset(VAR_FTP_PATH);
 	    return DITEM_FAILURE | what;

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.130 1996/10/05 16:33:01 jkh Exp $
+ * $Id: install.c,v 1.131 1996/10/06 14:45:57 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -210,7 +210,7 @@ installInitial(void)
 		 "If you're running this on a disk with data you wish to save\n"
 		 "then WE STRONGLY ENCOURAGE YOU TO MAKE PROPER BACKUPS before\n"
 		 "proceeding!\n\n"
-		 "We can take no responsibility for lost disk contents!"))
+		 "We can take no responsibility for lost disk contents!") != 0)
 	return DITEM_FAILURE | DITEM_RESTORE;
 
     if (DITEM_STATUS(diskLabelCommit(NULL)) != DITEM_SUCCESS) {
@@ -266,7 +266,7 @@ installFixitFloppy(dialogMenuItem *self)
 	msgConfirm("Please insert a writable fixit floppy and press return");
 	if (mount(MOUNT_UFS, "/mnt2", 0, (caddr_t)&args) != -1)
 	    break;
-	if (msgYesNo("Unable to mount the fixit floppy - do you want to try again?"))
+	if (msgYesNo("Unable to mount the fixit floppy - do you want to try again?") != 0)
 	    return DITEM_FAILURE;
     }
     dialog_clear();

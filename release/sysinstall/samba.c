@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: samba.c,v 1.7 1996/07/26 08:39:06 jkh Exp $
+ * $Id: samba.c,v 1.8 1996/08/03 10:11:46 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard & Coranth Gryphon.  All rights reserved.
@@ -131,7 +131,7 @@ configSamba(dialogMenuItem *self)
 				tptr = msgGetInput(NULL, "Enter a short description of this share?");
 				if (tptr && *tptr)
 				    fprintf(fptr, "comment = %s\n", tptr);
-				if (msgYesNo("Do you want this share to be read only?"))
+				if (msgYesNo("Do you want this share to be read only?") != 0)
 				    fprintf(fptr, "read only = no\n\n");
 				else
 				    fprintf(fptr, "read only = yes\n\n");
