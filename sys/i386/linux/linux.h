@@ -31,6 +31,8 @@
 #ifndef _I386_LINUX_LINUX_H_
 #define	_I386_LINUX_LINUX_H_
 
+#include <sys/signal.h> /* for sigval union */
+
 #include <i386/linux/linux_syscall.h>
 
 #ifdef MALLOC_DECLARE
@@ -133,8 +135,10 @@ struct linux_new_utsname {
 #define	LINUX_SIGPWR		30
 #define	LINUX_SIGUNUSED		31
 
-#define	LINUX_NSIG		64
 #define	LINUX_SIGTBLSZ		31
+#define	LINUX_NSIG_WORDS	2
+#define	LINUX_NBPW		32
+#define	LINUX_NSIG		(LINUX_NBPW * LINUX_NSIG_WORDS)
 
 /* sigaction flags */
 #define	LINUX_SA_NOCLDSTOP	0x00000001
@@ -157,11 +161,21 @@ struct linux_new_utsname {
 #define	LINUX_SIGISMEMBER(set, sig)	SIGISMEMBER(set, sig)
 #define	LINUX_SIGADDSET(set, sig)	SIGADDSET(set, sig)
 
+/* sigaltstack */
+#define LINUX_MINSIGSTKSZ	2048
+#define LINUX_SS_ONSTACK	1
+#define LINUX_SS_DISABLE	2
+
+
+int linux_to_bsd_sigaltstack(int lsa);
+int bsd_to_linux_sigaltstack(int bsa);
+
+
 typedef void	(*linux_handler_t)(int);
 typedef u_long	linux_osigset_t;
 
 typedef struct {
-	u_int	__bits[2];
+	u_int	__bits[LINUX_NSIG_WORDS];
 } linux_sigset_t;
 
 typedef struct {
@@ -210,6 +224,109 @@ struct linux_sigcontext {
 	int	sc_cr2;
 };
 
+struct linux_ucontext {
+	unsigned long     	uc_flags;
+	void  			*uc_link;
+	linux_stack_t		uc_stack;
+	struct linux_sigcontext uc_mcontext;
+        linux_sigset_t		uc_sigmask;   
+};
+
+
+#define LINUX_SI_MAX_SIZE     128
+#define LINUX_SI_PAD_SIZE     ((LINUX_SI_MAX_SIZE/sizeof(int)) - 3)
+
+typedef struct siginfo {
+	int lsi_signo;
+	int lsi_errno;
+	int lsi_code;
+
+	union {
+		int _pad[LINUX_SI_PAD_SIZE];
+		struct {
+			linux_pid_t _pid;
+			linux_uid_t _uid;
+		} _kill;
+
+		struct {
+			unsigned int _timer1;
+			unsigned int _timer2;
+		} _timer;
+		
+		struct {
+			linux_pid_t _pid;             /* sender's pid */
+			linux_uid_t _uid;             /* sender's uid */
+			union sigval _sigval;
+		} _rt;
+
+		struct {
+			linux_pid_t _pid;             /* which child */
+			linux_uid_t _uid;             /* sender's uid */
+			int _status;            /* exit code */
+			linux_clock_t _utime;
+			linux_clock_t _stime;
+		} _sigchld;
+
+		struct {
+			void *_addr; /* faulting insn/memory ref. */
+		} _sigfault;
+
+		struct {
+			int _band;      /* POLL_IN, POLL_OUT, POLL_MSG */
+			int _fd;
+		} _sigpoll;
+	} _sifields;
+} linux_siginfo_t;
+
+#define lsi_pid          _sifields._kill._pid
+#define lsi_uid          _sifields._kill._uid
+#define lsi_status       _sifields._sigchld._status
+#define lsi_utime        _sifields._sigchld._utime
+#define lsi_stime        _sifields._sigchld._stime
+#define lsi_value        _sifields._rt._sigval
+#define lsi_int          _sifields._rt._sigval.sival_int
+#define lsi_ptr          _sifields._rt._sigval.sival_ptr
+#define lsi_addr         _sifields._sigfault._addr
+#define lsi_band         _sifields._sigpoll._band
+#define lsi_fd           _sifields._sigpoll._fd
+
+struct linux_fpreg {
+	u_int16_t significand[4];
+	u_int16_t exponent;
+};
+
+struct linux_fpxreg {
+	u_int16_t significand[4];
+	u_int16_t exponent;
+	u_int16_t padding[3];
+};
+
+struct linux_xmmreg {
+	u_int32_t element[4];
+};
+
+struct linux_fpstate {
+	/* Regular FPU environment */
+	u_int32_t		cw;
+	u_int32_t		sw;
+	u_int32_t		tag;
+	u_int32_t		ipoff;
+	u_int32_t		cssel;
+	u_int32_t		dataoff;
+	u_int32_t		datasel;
+	struct linux_fpreg	_st[8];
+	u_int16_t		status;
+	u_int16_t		magic;  /* 0xffff = regular FPU data */
+
+	/* FXSR FPU environment */
+	u_int32_t		_fxsr_env[6]; /* env is ignored */
+	u_int32_t		mxcsr;
+	u_int32_t		reserved;
+	struct linux_fpxreg	_fxsr_st[8];  /* reg data is ignored */
+	struct linux_xmmreg	_xmm[8];
+	u_int32_t		padding[56];
+};
+
 /*
  * We make the stack look like Linux expects it when calling a signal
  * handler, but use the BSD way of calling the handler and sigreturn().
@@ -217,9 +334,20 @@ struct linux_sigcontext {
  * It is appended to the frame to not interfere with the rest of it.
  */
 struct linux_sigframe {
-	int	sf_sig;
-	struct	linux_sigcontext sf_sc;
-	linux_handler_t sf_handler;
+	int			sf_sig;
+	struct linux_sigcontext sf_sc;
+	struct linux_fpstate	sf_fpstate;
+	u_int			sf_extramask[LINUX_NSIG_WORDS-1];
+	linux_handler_t		sf_handler;
+};
+
+struct linux_rt_sigframe {
+	int			sf_sig;
+	linux_siginfo_t 	*sf_siginfo;
+	struct linux_ucontext	*sf_ucontext;
+	linux_siginfo_t		sf_si;
+	struct linux_ucontext 	sf_sc;
+	linux_handler_t 	sf_handler;
 };
 
 extern int bsd_to_linux_signal[];

@@ -2,7 +2,7 @@
 
 ;	@(#)syscalls.master	8.1 (Berkeley) 7/19/93
 ; System call name/number master file (or rather, slave, from LINUX).
-; Processed to created linux_sysent.c, linux_syscalls.c and linux_syscall.h.
+; Processed to create linux_sysent.c, linux_proto.h and linux_syscall.h.
 
 ; Columns: number type nargs namespc name alt{name,tag,rtyp}/comments
 ;	number	system call number, must be in order
@@ -180,7 +180,7 @@
 117	STD	LINUX	{ int linux_ipc(int what, int arg1, int arg2, \
 				int arg3, caddr_t ptr); }
 118	NOPROTO	LINUX	{ int fsync(int fd); }
-119	STD	LINUX	{ int linux_sigreturn(struct linux_sigcontext *scp); }
+119	STD	LINUX	{ int linux_sigreturn(struct linux_sigframe *sfp); }
 120	STD	LINUX	{ int linux_clone(int flags, void *stack); }
 121	NOPROTO	LINUX	{ int setdomainname(char *name, int len); }
 122	STD	LINUX	{ int linux_newuname(struct linux_new_utsname *buf); }
@@ -253,7 +253,7 @@
 171	STD	LINUX	{ int linux_getresgid(linux_gid_t *rgid, \
 				linux_gid_t *egid, linux_gid_t *sgid); }
 172	STD	LINUX	{ int linux_prctl(void); }
-173	STD	LINUX	{ int linux_rt_sigreturn(void); }
+173	STD	LINUX	{ int linux_rt_sigreturn(struct linux_ucontext *ucp); }
 174	STD	LINUX	{ int linux_rt_sigaction(int sig, \
 				linux_sigaction_t *act, \
 				linux_sigaction_t *oact, \
