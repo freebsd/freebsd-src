@@ -1,12 +1,12 @@
-/* $NetBSD: awivar.h,v 1.6 2000/03/22 11:22:22 onoe Exp $ */
+/* $NetBSD: awivar.h,v 1.12 2000/07/21 04:48:56 onoe Exp $ */
 /* $FreeBSD$ */
 
-/*
- * Copyright (c) 2000 The NetBSD Foundation, Inc.
+/*-
+ * Copyright (c) 1999 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
  * This code is derived from software contributed to The NetBSD Foundation
- * by Atsushi Onoe
+ * by Bill Sommerfeld
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -48,6 +48,7 @@
 #define	AWI_TRANS_TIMEOUT	2000
 
 #define	AWI_NTXBUFS		4
+#define	AWI_MAX_KEYLEN		16
 
 enum awi_status {
 	AWI_ST_INIT,
@@ -70,11 +71,20 @@ struct awi_bss
 	u_int16_t	dwell_time;	/* dwell time */
 	u_int8_t	timestamp[8];	/* timestamp of this bss */
 	u_int8_t	bssid[ETHER_ADDR_LEN];
+	u_int16_t	capinfo;
 	u_int32_t	rxtime;		/* unit's local time */
 	u_int16_t	interval;	/* beacon interval */
 	u_int8_t	txrate;
 	u_int8_t	fails;
 	u_int8_t	essid[IEEE80211_NWID_LEN + 2];
+};
+
+struct awi_wep_algo {
+	char		*awa_name;
+	int		(*awa_ctxlen) __P((void));
+	void		(*awa_setkey) __P((void *, u_char *, int));
+	void		(*awa_encrypt) __P((void *, u_char *, u_char *, int));
+	void		(*awa_decrypt) __P((void *, u_char *, u_char *, int));
 };
 
 struct awi_softc 
@@ -93,7 +103,6 @@ struct awi_softc
 	struct device		sc_dev;
 #endif
 	struct arpcom		sc_ec;
-	struct callout_handle	sc_tohandle;
 #endif
 	struct am79c930_softc 	sc_chip;
 	struct ifnet		*sc_ifp;
@@ -106,12 +115,14 @@ struct awi_softc
 				sc_busy:1,
 				sc_cansleep:1,
 				sc_invalid:1,
-				sc_cmd_inprog:1,
+				sc_enab_intr:1,
 				sc_format_llc:1,
 				sc_start_bss:1,
 				sc_rawbpf:1,
 				sc_no_bssid:1,
-				sc_active_scan:1;
+				sc_active_scan:1,
+				sc_attached:1;	/* attach has succeeded */
+	u_int8_t		sc_cmd_inprog;
 	int			sc_sleep_cnt;
 
 	int			sc_mgt_timer;
@@ -122,6 +133,8 @@ struct awi_softc
 	u_int8_t		sc_scan_max;
 	u_int8_t		sc_scan_set;
 	struct awi_bss		sc_bss;
+	u_int8_t		sc_ownssid[IEEE80211_NWID_LEN + 2];
+	u_int8_t		sc_ownch;
 
 	int			sc_rx_timer;
 	u_int32_t		sc_rxdoff;
@@ -136,6 +149,13 @@ struct awi_softc
 	u_int32_t		sc_txnext;
 	u_int32_t		sc_txdone;
 
+	int			sc_wep_keylen[IEEE80211_WEP_NKID]; /* keylen */
+	u_int8_t		sc_wep_key[IEEE80211_WEP_NKID][AWI_MAX_KEYLEN];
+	int			sc_wep_defkid;
+	void			*sc_wep_ctx;	/* work area */
+	struct awi_wep_algo	*sc_wep_algo;
+
+	u_char			sc_banner[AWI_BANNER_LEN];
 	struct awi_mib_local	sc_mib_local;
 	struct awi_mib_addr	sc_mib_addr;
 	struct awi_mib_mac	sc_mib_mac;
@@ -185,9 +205,24 @@ void	awi_reset __P((struct awi_softc *));
 #ifdef __NetBSD__
 int	awi_activate __P((struct device *, enum devact));
 int	awi_detach __P((struct awi_softc *));
+void	awi_power __P((struct awi_softc *, int));
 #endif
 
+void awi_stop __P((struct awi_softc *sc));
+int awi_init __P((struct awi_softc *sc));
+int awi_init_region __P((struct awi_softc *));
+int awi_wicfg __P((struct ifnet *, u_long, caddr_t));
+
+int awi_wep_setnwkey __P((struct awi_softc *, struct ieee80211_nwkey *));
+int awi_wep_getnwkey __P((struct awi_softc *, struct ieee80211_nwkey *));
+int awi_wep_getalgo __P((struct awi_softc *));
+int awi_wep_setalgo __P((struct awi_softc *, int));
+int awi_wep_setkey __P((struct awi_softc *, int, unsigned char *, int));
+int awi_wep_getkey __P((struct awi_softc *, int, unsigned char *, int *));
+struct mbuf *awi_wep_encrypt __P((struct awi_softc *, struct mbuf *, int));
+
 #ifdef __FreeBSD__
+/* Provide mem* for compat with NetBSD to fix LINT */
 static __inline int
 memcmp(const void *b1, const void *b2, size_t len)
 {
