@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: camcontrol.8,v 1.7 1998/10/06 00:32:58 ken Exp $
+.\"	$Id: camcontrol.8,v 1.8 1998/12/02 22:42:36 billf Exp $
 .\"
 .Dd September 14, 1998
 .Dt CAMCONTROL 8
@@ -65,6 +65,9 @@ eject
 .Op generic args
 .Nm camcontrol
 rescan
+.Aq bus Ns Op :target:lun
+.Nm camcontrol
+reset
 .Aq bus Ns Op :target:lun
 .Nm camcontrol
 defects
@@ -184,6 +187,12 @@ Tell the kernel to scan the given bus (XPT_SCAN_BUS), or bus:target:lun
 (XPT_SCAN_LUN) for new devices or devices that have gone away.  The user
 may only specify a bus to scan, or a lun.  Scanning all luns on a target
 isn't supported.
+.It reset
+Tell the kernel to reset the given bus (XPT_RESET_BUS) by issuing a SCSI bus
+reset for that bus, or to reset the given bus:target:lun
+(XPT_RESET_DEV), typically by issuing a BUS DEVICE RESET message after
+connecting to that device. Note that this can have a destructive impact
+on the system.
 .It defects
 Send the SCSI READ DEFECT DATA (10) command (0x37) to the given device, and
 print out any combination of: the total number of defects, the primary
