@@ -78,7 +78,6 @@ struct ctxinfo {		/* one per active hook */
 #define MAX_CT 16		/* # of dlci's active at a time (POWER OF 2!) */
 struct frmrel_softc {
 	int     unit;		/* which card are we? */
-	char    nodename[NG_NODELEN + 1];	/* store our node name */
 	int     datahooks;	/* number of data hooks attached */
 	node_p  node;		/* netgraph node */
 	int     addrlen;	/* address header length */
