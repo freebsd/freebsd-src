@@ -53,4 +53,26 @@
 #define NG_TEE_HOOK_RIGHT2LEFT	"right2left"
 #define NG_TEE_HOOK_LEFT2RIGHT	"left2right"
 
+/* Statistics structure for one hook */
+struct ng_tee_hookstat {
+	u_int64_t	inOctets;
+	u_int64_t	inFrames;
+	u_int64_t	outOctets;
+	u_int64_t	outFrames;
+};
+
+/* Statistics structure returned by NGM_TEE_GET_STATS */
+struct ng_tee_stats {
+	struct ng_tee_hookstat	right;
+	struct ng_tee_hookstat	left;
+	struct ng_tee_hookstat	right2left;
+	struct ng_tee_hookstat	left2right;
+};
+
+/* Netgraph commands */
+enum {
+	NGM_TEE_GET_STATS = 1,		/* get stats */
+	NGM_TEE_CLR_STATS,		/* clear stats */
+};
+
 #endif /* _NETGRAPH_TEE_H_ */
