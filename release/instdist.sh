@@ -10,7 +10,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: instdist.sh,v 1.44 1994/12/21 04:57:07 jkh Exp $
+# $Id: instdist.sh,v 1.45 1994/12/23 02:55:07 jkh Exp $
 
 if [ "${_INSTINST_SH_LOADED_}" = "yes" ]; then
 	return 0
@@ -395,7 +395,8 @@ system?  FreeBSD supports the following types:\n" -1 -1 3 \
 "If you only have one tape drive, simply press return - the
 default value should be correct.  Otherwise, enter the
 correct value and press return."; then
-				MEDIA_DEVICE=${ANSWER}
+					MEDIA_DEVICE=${ANSWER}
+				fi
 			;;
 
 			QIC-02)
@@ -405,7 +406,8 @@ correct value and press return."; then
 "If you only have one tape drive, simply press return - the
 default value should be correct.  Otherwise, enter the
 correct value and press return."; then
-				MEDIA_DEVICE=${ANSWER}
+					MEDIA_DEVICE=${ANSWER}
+				fi
 			;;
 
 			floppy)
