@@ -243,6 +243,7 @@ struct clockinfo {
 #endif
 #define CLOCK_VIRTUAL	1
 #define CLOCK_PROF	2
+#define CLOCK_MONOTONIC	4
 
 #define TIMER_RELTIME	0x0	/* relative timer */
 #ifndef TIMER_ABSTIME
