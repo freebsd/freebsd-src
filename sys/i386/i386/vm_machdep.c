@@ -616,10 +616,9 @@ sf_buf_alloc(struct vm_page *m)
 	mtx_lock(&sf_buf_lock);
 	LIST_FOREACH(sf, hash_list, list_entry) {
 		if (sf->m == m) {
-			if (sf->ref_count == 0)
-				TAILQ_REMOVE(&sf_buf_freelist, sf, free_entry);
 			sf->ref_count++;
 			if (sf->ref_count == 1) {
+				TAILQ_REMOVE(&sf_buf_freelist, sf, free_entry);
 				nsfbufsused++;
 				nsfbufspeak = imax(nsfbufspeak, nsfbufsused);
 			}
