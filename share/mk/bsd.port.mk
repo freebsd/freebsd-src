@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.124 1995/03/22 21:46:04 jkh Exp $
+# $Id: bsd.port.mk,v 1.125 1995/03/23 20:42:42 gpalmer Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -206,7 +206,18 @@ EXTRACT_BEFORE_ARGS?=   -xzf
 .endif
 
 PKG_CMD?=		pkg_create
-PKG_ARGS?=		-v -c ${PKGDIR}/COMMENT -d ${PKGDIR}/DESCR -f ${PKGDIR}/PLIST -p ${PREFIX}
+.if !defined(PKG_ARGS)
+PKG_ARGS=		-v -c ${PKGDIR}/COMMENT -d ${PKGDIR}/DESCR -f ${PKGDIR}/PLIST -p ${PREFIX}
+.if exists(${PKGDIR}/INSTALL)
+PKG_ARGS+=		-i ${PKGDIR}/INSTALL
+.endif
+.if exists(${PKGDIR}/DEINSTALL)
+PKG_ARGS+=		-k ${PKGDIR}/DEINSTALL
+.endif
+.if exists(${PKGDIR}/REQ)
+PKG_ARGS+=		-r ${PKGDIR}/REQ
+.endif
+.endif
 PKG_SUFX?=		.tgz
 
 ECHO_MSG?=		echo
