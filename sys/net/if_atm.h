@@ -52,8 +52,8 @@
 #define	ATM_DEVICE_NICSTAR155	9	/* other 77211 155MBit */
 #define	ATM_DEVICE_IDTABR25	10	/* 77252 based card 25MBit */
 #define	ATM_DEVICE_IDTABR155	11	/* 77252 based card 155MBit */
-#define	ATM_DEVICE_PROATM25	10	/* 77252 based ProSum card 25MBit */
-#define	ATM_DEVICE_PROATM155	11	/* 77252 based ProSum card 155MBit */
+#define	ATM_DEVICE_PROATM25	12	/* 77252 based ProSum card 25MBit */
+#define	ATM_DEVICE_PROATM155	13	/* 77252 based ProSum card 155MBit */
 
 /* map to strings and vendors */
 #define	ATM_DEVICE_NAMES						\
