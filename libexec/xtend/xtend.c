@@ -90,10 +90,10 @@ int user_command(void);
 int
 main(int argc, char *argv[])
 {
-  const char *twpath = TWPATH;
-  const char *sockpath = SOCKPATH;
-  char logpath[MAXPATHLEN+1];
-  char statpath[MAXPATHLEN+1];
+  char *twpath = TWPATH;
+  char *sockpath = SOCKPATH;
+  char logpath[MAXPATHLEN];
+  char statpath[MAXPATHLEN];
   struct sockaddr_un sa;
   struct timeval tv;
   struct passwd *pw;
@@ -119,16 +119,14 @@ main(int argc, char *argv[])
   /*
    * Open the log file before doing anything else
    */
-  strcpy(logpath, X10DIR);
-  if(stat(logpath, &sb) == -1 && errno == ENOENT) {
-    if(mkdir(logpath, 0755) != -1) {
-      chown(logpath, pw->pw_uid, gr->gr_gid);
+  if(stat(X10DIR, &sb) == -1 && errno == ENOENT) {
+    if(mkdir(X10DIR, 0755) != -1) {
+      chown(X10DIR, pw->pw_uid, gr->gr_gid);
     } else {
-      errx(1, "can't create directory '%s'", logpath);
+      errx(1, "can't create directory '%s'", X10DIR);
     }
   }
-  strcat(logpath, "/");
-  strcat(logpath, X10LOGNAME);
+  snprintf(logpath, sizeof(logpath), "%s/%s" X10DIR, X10LOGNAME);
   if((Log = fopen(logpath, "a")) == NULL)
     errx(1, "can't open log file '%s'", logpath);
   chown(logpath, pw->pw_uid, gr->gr_gid);
@@ -361,13 +359,11 @@ onpipe(int signo)
 void
 dohup(void)
 {
-  char logpath[MAXPATHLEN+1];
+  char logpath[MAXPATHLEN];
 
   fprintf(Log, "%s:  SIGHUP received, reopening Log\n", thedate());
   fclose(Log);
-  strcpy(logpath, X10DIR);
-  strcat(logpath, "/");
-  strcat(logpath, X10LOGNAME);
+  snprintf(logpath, sizeof(logpath), "%s/%s" X10DIR, X10LOGNAME);
   if((Log = fopen(logpath, "a")) == NULL)
     errx(1, "can't open log file '%s'", logpath);
   hup_flag = 0;

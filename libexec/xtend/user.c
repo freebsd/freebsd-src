@@ -59,7 +59,7 @@ user_command(void)
   char h;
   char *m;
   int i, k, n, error;
-  char cmd[512], dumppath[MAXPATHLEN+1], pkt[3];
+  char cmd[512], dumppath[MAXPATHLEN], pkt[3];
   FILE *dumpf;
 
   error = 0;
@@ -89,9 +89,7 @@ user_command(void)
 	fprintf(User, "OK\n");
       }
     } else if(!strcmp("dump\n", cmd)) {
-      strcpy(dumppath, X10DIR);
-      strcat(dumppath, "/");
-      strcat(dumppath, X10DUMPNAME);
+      snprintf(dumppath, sizeof(dumppath), "%s/%s" X10DIR, X10DUMPNAME);
       if((dumpf = fopen(dumppath, "w")) != NULL) {
 	for(h = 0; h < 16; h++) {
 	  for(i = 0; i < 16; i++) {
