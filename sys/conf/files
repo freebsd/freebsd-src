@@ -811,6 +811,7 @@ isa_if.h		optional isa					\
 isa/isa_common.c	optional isa
 isa/isahint.c		optional isa
 isa/pnp.c		optional pnp
+isa/pnpparse.c		optional pnp
 dev/pcm/sound.c		optional pcm
 dev/pcm/ac97.c		optional pcm
 dev/pcm/dsp.c		optional pcm
