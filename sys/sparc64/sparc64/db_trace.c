@@ -309,4 +309,8 @@ db_utrace(struct thread *td, struct trapframe *tf)
 void
 db_print_backtrace(void)
 {
+	u_long *sp;
+
+	sp = __builtin_frame_address(1);
+	db_stack_trace_cmd((db_expr_t)sp, TRUE, -1, "a");
 }
