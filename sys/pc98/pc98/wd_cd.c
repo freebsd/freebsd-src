@@ -77,7 +77,7 @@ static struct acd *acdtab[NUNIT];
 static int acdnlun = 0;     	/* Number of configured drives */
 
 int acdattach(struct atapi *, int, struct atapi_params *, int);
-static struct acd *acd_init_lun(struct atapi *, int, struct atapi_params *, int,
+static struct acd *acd_init_lun(struct atapi *, int, struct atapi_params *, int);
 struct devstat *);
 static void acd_start(struct acd *);
 static void acd_done(struct acd *, struct bio *, int, struct atapires);
@@ -97,8 +97,7 @@ static void atapi_dump(int ctrlr, int lun, char *label, void *data, int len);
 static void atapi_error(struct atapi *ata, int unit, struct atapires result);
 
 struct acd *
-acd_init_lun(struct atapi *ata, int unit, struct atapi_params *ap, int lun,
-	     struct devstat *device_stats)
+acd_init_lun(struct atapi *ata, int unit, struct atapi_params *ap, int lun)
 {
     struct acd *ptr;
     dev_t pdev;
@@ -116,13 +115,6 @@ acd_init_lun(struct atapi *ata, int unit, struct atapi_params *ap, int lun,
     ptr->refcnt = 0;
     ptr->slot = -1;
     ptr->changer_info = NULL;
-    if (device_stats == NULL) {
-        if (!(ptr->device_stats = malloc(sizeof(struct devstat), 
-					 M_TEMP, M_NOWAIT | M_ZERO)))
-            return NULL;
-    }
-    else
-	ptr->device_stats = device_stats;
 
     pdev = make_dev(&acd_cdevsw, dkmakeminor(lun, 0, 0),
         UID_ROOT, GID_OPERATOR, 0640, "wcd%da", lun);
@@ -219,8 +211,7 @@ acdattach(struct atapi *ata, int unit, struct atapi_params *ap, int debug)
             chp->table_length = htons(chp->table_length);
             for (i = 0; i < chp->slots && acdnlun < NUNIT; i++) {
                 if (i > 0) {
-                    tmpcdp = acd_init_lun(ata, unit, ap, acdnlun, 
-					  cdp->device_stats);
+                    tmpcdp = acd_init_lun(ata, unit, ap, acdnlun);
 		    if (!tmpcdp) {
                         printf("wcd: out of memory\n");
                         return 0;
@@ -238,14 +229,14 @@ acdattach(struct atapi *ata, int unit, struct atapi_params *ap, int debug)
             }
         }
 	sprintf(string, "wcd%d-", cdp->lun);
-        devstat_add_entry(cdp->device_stats, string, tmpcdp->lun, DEV_BSIZE,
+        cdp->device_stats = devstat_new_entry(string, tmpcdp->lun, DEV_BSIZE,
                           DEVSTAT_NO_ORDERED_TAGS,
                           DEVSTAT_TYPE_CDROM | DEVSTAT_TYPE_IF_IDE,
 			  DEVSTAT_PRIORITY_CD);
     }
     else {
         acdnlun++;
-        devstat_add_entry(cdp->device_stats, "wcd", cdp->lun, DEV_BSIZE,
+        cdp->device_stats = devstat_new_entry("wcd", cdp->lun, DEV_BSIZE,
                           DEVSTAT_NO_ORDERED_TAGS,
                           DEVSTAT_TYPE_CDROM | DEVSTAT_TYPE_IF_IDE,
 			  DEVSTAT_PRIORITY_CD);
