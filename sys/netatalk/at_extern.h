@@ -21,8 +21,7 @@ extern int	at_control	__P(( struct socket *so,
 					struct proc *p ));
 extern u_short	at_cksum	__P(( struct mbuf *m, int skip));
 extern void	ddp_init	__P((void ));
-extern struct ifaddr *at_ifawithnet	__P((struct sockaddr_at *,
-						struct ifaddrhead *));
+extern struct at_ifaddr *at_ifawithnet	__P((struct sockaddr_at *));
 #ifdef	_NETATALK_DDP_VAR_H_
 extern int	ddp_output	__P((struct mbuf *m, struct socket *so)); 
 
