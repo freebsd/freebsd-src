@@ -1,4 +1,4 @@
-/*	$OpenBSD: servconf.h,v 1.65 2003/09/01 18:15:50 markus Exp $	*/
+/*	$OpenBSD: servconf.h,v 1.67 2003/12/23 16:12:10 jakob Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -59,7 +59,7 @@ typedef struct {
 	int     x11_use_localhost;	/* If true, use localhost for fake X11 server. */
 	char   *xauth_location;	/* Location of xauth program */
 	int     strict_modes;	/* If true, require string home dir modes. */
-	int     keepalives;	/* If true, set SO_KEEPALIVE. */
+	int     tcp_keep_alive;	/* If true, set SO_KEEPALIVE. */
 	char   *ciphers;	/* Supported SSH2 ciphers. */
 	char   *macs;		/* Supported SSH2 macs. */
 	int	protocol;	/* Supported protocol versions. */
@@ -81,6 +81,8 @@ typedef struct {
 						 * /etc/passwd */
 	int     kerberos_ticket_cleanup;	/* If true, destroy ticket
 						 * file on logout. */
+	int     kerberos_get_afs_token;		/* If true, try to get AFS token if
+						 * authenticated with Kerberos. */
 	int     gss_authentication;	/* If true, permit GSSAPI authentication */
 	int     gss_cleanup_creds;	/* If true, destroy cred cache on logout */
 	int     password_authentication;	/* If true, permit password

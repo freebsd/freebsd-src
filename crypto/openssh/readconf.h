@@ -1,4 +1,4 @@
-/*	$OpenBSD: readconf.h,v 1.55 2003/09/01 18:15:50 markus Exp $	*/
+/*	$OpenBSD: readconf.h,v 1.59 2003/12/16 15:49:51 markus Exp $	*/
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -30,6 +30,7 @@ typedef struct {
 typedef struct {
 	int     forward_agent;	/* Forward authentication agent. */
 	int     forward_x11;	/* Forward X11 display. */
+	int     forward_x11_trusted;	/* Trust Forward X11 display. */
 	char   *xauth_location;	/* Location for xauth program */
 	int     gateway_ports;	/* Allow remote connects to forwarded ports. */
 	int     use_privileged_port;	/* Don't use privileged port if false. */
@@ -52,7 +53,7 @@ typedef struct {
 	int     compression;	/* Compress packets in both directions. */
 	int     compression_level;	/* Compression level 1 (fast) to 9
 					 * (best). */
-	int     keepalives;	/* Set SO_KEEPALIVE. */
+	int     tcp_keep_alive;	/* Set SO_KEEPALIVE. */
 	LogLevel log_level;	/* Level for logging. */
 
 	int     port;		/* Port to connect. */
@@ -60,7 +61,7 @@ typedef struct {
 	int     connection_attempts;	/* Max attempts (seconds) before
 					 * giving up */
 	int     connection_timeout;	/* Max time (seconds) before
-				 	 * aborting connection attempt */
+					 * aborting connection attempt */
 	int     number_of_password_prompts;	/* Max number of password
 						 * prompts. */
 	int     cipher;		/* Cipher to use. */
@@ -99,6 +100,8 @@ typedef struct {
 	int	enable_ssh_keysign;
 	int	rekey_limit;
 	int	no_host_authentication_for_localhost;
+	int	server_alive_interval; 
+	int	server_alive_count_max;
 }       Options;
 
 

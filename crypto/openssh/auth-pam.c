@@ -31,11 +31,15 @@
 
 /* Based on $xFreeBSD: src/crypto/openssh/auth2-pam-freebsd.c,v 1.11 2003/03/31 13:48:18 des Exp $ */
 #include "includes.h"
-RCSID("$Id: auth-pam.c,v 1.72.2.2 2003/09/23 09:24:21 djm Exp $");
+RCSID("$Id: auth-pam.c,v 1.95 2004/02/17 12:20:08 dtucker Exp $");
 RCSID("$FreeBSD$");
 
 #ifdef USE_PAM
+#if defined(HAVE_SECURITY_PAM_APPL_H)
 #include <security/pam_appl.h>
+#elif defined (HAVE_PAM_PAM_APPL_H)
+#include <pam/pam_appl.h>
+#endif
 
 #include "auth.h"
 #include "auth-pam.h"
@@ -53,24 +57,54 @@ RCSID("$FreeBSD$");
 #include "auth-options.h"
 
 extern ServerOptions options;
-
-#ifndef __unused
-#define __unused
-#endif
+extern Buffer loginmsg;
+extern int compat20;
 
 #ifdef USE_POSIX_THREADS
 #include <pthread.h>
 /*
- * Avoid namespace clash when *not* using pthreads for systems *with* 
- * pthreads, which unconditionally define pthread_t via sys/types.h 
+ * Avoid namespace clash when *not* using pthreads for systems *with*
+ * pthreads, which unconditionally define pthread_t via sys/types.h
  * (e.g. Linux)
  */
-typedef pthread_t sp_pthread_t; 
+typedef pthread_t sp_pthread_t;
 #else
+typedef pid_t sp_pthread_t;
+#endif
+
+struct pam_ctxt {
+	sp_pthread_t	 pam_thread;
+	int		 pam_psock;
+	int		 pam_csock;
+	int		 pam_done;
+};
+
+static void sshpam_free_ctx(void *);
+static struct pam_ctxt *cleanup_ctxt;
+
+#ifndef USE_POSIX_THREADS
 /*
  * Simulate threads with processes.
  */
-typedef pid_t sp_pthread_t;
+
+static int sshpam_thread_status = -1;
+static mysig_t sshpam_oldsig;
+
+static void 
+sshpam_sigchld_handler(int sig)
+{
+	if (cleanup_ctxt == NULL)
+		return;	/* handler called after PAM cleanup, shouldn't happen */
+	if (waitpid(cleanup_ctxt->pam_thread, &sshpam_thread_status, 0) == -1)
+		return;	/* couldn't wait for process */
+	if (WIFSIGNALED(sshpam_thread_status) &&
+	    WTERMSIG(sshpam_thread_status) == SIGTERM)
+		return;	/* terminated by pthread_cancel */
+	if (!WIFEXITED(sshpam_thread_status))
+		fatal("PAM: authentication thread exited unexpectedly");
+	if (WEXITSTATUS(sshpam_thread_status) != 0)
+		fatal("PAM: authentication thread exited uncleanly");
+}
 
 static void
 pthread_exit(void *value __unused)
@@ -93,6 +127,7 @@ pthread_create(sp_pthread_t *thread, const void *attr __unused,
 		_exit(1);
 	default:
 		*thread = pid;
+		sshpam_oldsig = signal(SIGCHLD, sshpam_sigchld_handler);
 		return (0);
 	}
 }
@@ -100,6 +135,7 @@ pthread_create(sp_pthread_t *thread, const void *attr __unused,
 static int
 pthread_cancel(sp_pthread_t thread)
 {
+	signal(SIGCHLD, sshpam_oldsig);
 	return (kill(thread, SIGTERM));
 }
 
@@ -108,6 +144,9 @@ pthread_join(sp_pthread_t thread, void **value __unused)
 {
 	int status;
 
+	if (sshpam_thread_status != -1)
+		return (sshpam_thread_status);
+	signal(SIGCHLD, sshpam_oldsig);
 	waitpid(thread, &status, 0);
 	return (status);
 }
@@ -117,18 +156,80 @@ pthread_join(sp_pthread_t thread, void **value __unused)
 static pam_handle_t *sshpam_handle = NULL;
 static int sshpam_err = 0;
 static int sshpam_authenticated = 0;
-static int sshpam_new_authtok_reqd = 0;
 static int sshpam_session_open = 0;
 static int sshpam_cred_established = 0;
+static int sshpam_account_status = -1;
+static char **sshpam_env = NULL;
+static int *force_pwchange;
 
-struct pam_ctxt {
-	sp_pthread_t	 pam_thread;
-	int		 pam_psock;
-	int		 pam_csock;
-	int		 pam_done;
-};
+/* Some PAM implementations don't implement this */
+#ifndef HAVE_PAM_GETENVLIST
+static char **
+pam_getenvlist(pam_handle_t *pamh)
+{
+	/*
+	 * XXX - If necessary, we can still support envrionment passing
+	 * for platforms without pam_getenvlist by searching for known
+	 * env vars (e.g. KRB5CCNAME) from the PAM environment.
+	 */
+	 return NULL;
+}
+#endif
 
-static void sshpam_free_ctx(void *);
+void
+pam_password_change_required(int reqd)
+{
+	debug3("%s %d", __func__, reqd);
+	*force_pwchange = reqd;
+	if (reqd) {
+		no_port_forwarding_flag |= 2;
+		no_agent_forwarding_flag |= 2;
+		no_x11_forwarding_flag |= 2;
+	} else {
+		no_port_forwarding_flag &= ~2;
+		no_agent_forwarding_flag &= ~2;
+		no_x11_forwarding_flag &= ~2;
+	}
+}
+
+/* Import regular and PAM environment from subprocess */
+static void
+import_environments(Buffer *b)
+{
+	char *env;
+	u_int i, num_env;
+	int err;
+
+	debug3("PAM: %s entering", __func__);
+
+	/* Import variables set by do_pam_account */
+	sshpam_account_status = buffer_get_int(b);
+	pam_password_change_required(buffer_get_int(b));
+
+	/* Import environment from subprocess */
+	num_env = buffer_get_int(b);
+	sshpam_env = xmalloc((num_env + 1) * sizeof(*sshpam_env));
+	debug3("PAM: num env strings %d", num_env);
+	for(i = 0; i < num_env; i++)
+		sshpam_env[i] = buffer_get_string(b, NULL);
+
+	sshpam_env[num_env] = NULL;
+
+	/* Import PAM environment from subprocess */
+	num_env = buffer_get_int(b);
+	debug("PAM: num PAM env strings %d", num_env);
+	for(i = 0; i < num_env; i++) {
+		env = buffer_get_string(b, NULL);
+
+#ifdef HAVE_PAM_PUTENV
+		/* Errors are not fatal here */
+		if ((err = pam_putenv(sshpam_handle, env)) != PAM_SUCCESS) {
+			error("PAM: pam_putenv: %s",
+			    pam_strerror(sshpam_handle, sshpam_err));
+		}
+#endif
+	}
+}
 
 /*
  * Conversation function for authentication thread.
@@ -142,6 +243,7 @@ sshpam_thread_conv(int n, const struct pam_message **msg,
 	struct pam_response *reply;
 	int i;
 
+	debug3("PAM: %s entering, %d messages", __func__, n);
 	*resp = NULL;
 
 	ctxt = data;
@@ -156,36 +258,42 @@ sshpam_thread_conv(int n, const struct pam_message **msg,
 	for (i = 0; i < n; ++i) {
 		switch (PAM_MSG_MEMBER(msg, i, msg_style)) {
 		case PAM_PROMPT_ECHO_OFF:
-			buffer_put_cstring(&buffer, 
+			buffer_put_cstring(&buffer,
 			    PAM_MSG_MEMBER(msg, i, msg));
-			ssh_msg_send(ctxt->pam_csock, 
-			    PAM_MSG_MEMBER(msg, i, msg_style), &buffer);
-			ssh_msg_recv(ctxt->pam_csock, &buffer);
+			if (ssh_msg_send(ctxt->pam_csock,
+			    PAM_MSG_MEMBER(msg, i, msg_style), &buffer) == -1)
+				goto fail;
+			if (ssh_msg_recv(ctxt->pam_csock, &buffer) == -1)
+				goto fail;
 			if (buffer_get_char(&buffer) != PAM_AUTHTOK)
 				goto fail;
 			reply[i].resp = buffer_get_string(&buffer, NULL);
 			break;
 		case PAM_PROMPT_ECHO_ON:
-			buffer_put_cstring(&buffer, 
+			buffer_put_cstring(&buffer,
 			    PAM_MSG_MEMBER(msg, i, msg));
-			ssh_msg_send(ctxt->pam_csock, 
-			    PAM_MSG_MEMBER(msg, i, msg_style), &buffer);
-			ssh_msg_recv(ctxt->pam_csock, &buffer);
+			if (ssh_msg_send(ctxt->pam_csock,
+			    PAM_MSG_MEMBER(msg, i, msg_style), &buffer) == -1)
+				goto fail;
+			if (ssh_msg_recv(ctxt->pam_csock, &buffer) == -1)
+				goto fail;
 			if (buffer_get_char(&buffer) != PAM_AUTHTOK)
 				goto fail;
 			reply[i].resp = buffer_get_string(&buffer, NULL);
 			break;
 		case PAM_ERROR_MSG:
-			buffer_put_cstring(&buffer, 
+			buffer_put_cstring(&buffer,
 			    PAM_MSG_MEMBER(msg, i, msg));
-			ssh_msg_send(ctxt->pam_csock, 
-			    PAM_MSG_MEMBER(msg, i, msg_style), &buffer);
+			if (ssh_msg_send(ctxt->pam_csock,
+			    PAM_MSG_MEMBER(msg, i, msg_style), &buffer) == -1)
+				goto fail;
 			break;
 		case PAM_TEXT_INFO:
-			buffer_put_cstring(&buffer, 
+			buffer_put_cstring(&buffer,
 			    PAM_MSG_MEMBER(msg, i, msg));
-			ssh_msg_send(ctxt->pam_csock, 
-			    PAM_MSG_MEMBER(msg, i, msg_style), &buffer);
+			if (ssh_msg_send(ctxt->pam_csock,
+			    PAM_MSG_MEMBER(msg, i, msg_style), &buffer) == -1)
+				goto fail;
 			break;
 		default:
 			goto fail;
@@ -216,10 +324,14 @@ sshpam_thread(void *ctxtp)
 	Buffer buffer;
 	struct pam_conv sshpam_conv;
 #ifndef USE_POSIX_THREADS
+	extern char **environ;
+	char **env_from_pam;
+	u_int i;
 	const char *pam_user;
 
 	pam_get_item(sshpam_handle, PAM_USER, (const void **)&pam_user);
 	setproctitle("%s [pam]", pam_user);
+	environ[0] = NULL;
 #endif
 
 	sshpam_conv.conv = sshpam_thread_conv;
@@ -233,7 +345,43 @@ sshpam_thread(void *ctxtp)
 	sshpam_err = pam_authenticate(sshpam_handle, 0);
 	if (sshpam_err != PAM_SUCCESS)
 		goto auth_fail;
+
+	if (compat20) {
+		if (!do_pam_account())
+			goto auth_fail;
+		if (*force_pwchange) {
+			sshpam_err = pam_chauthtok(sshpam_handle,
+			    PAM_CHANGE_EXPIRED_AUTHTOK);
+			if (sshpam_err != PAM_SUCCESS)
+				goto auth_fail;
+			pam_password_change_required(0);
+		}
+	}
+
 	buffer_put_cstring(&buffer, "OK");
+
+#ifndef USE_POSIX_THREADS
+	/* Export variables set by do_pam_account */
+	buffer_put_int(&buffer, sshpam_account_status);
+	buffer_put_int(&buffer, *force_pwchange);
+
+	/* Export any environment strings set in child */
+	for(i = 0; environ[i] != NULL; i++)
+		; /* Count */
+	buffer_put_int(&buffer, i);
+	for(i = 0; environ[i] != NULL; i++)
+		buffer_put_cstring(&buffer, environ[i]);
+
+	/* Export any environment strings set by PAM in child */
+	env_from_pam = pam_getenvlist(sshpam_handle);
+	for(i = 0; env_from_pam != NULL && env_from_pam[i] != NULL; i++)
+		; /* Count */
+	buffer_put_int(&buffer, i);
+	for(i = 0; env_from_pam != NULL && env_from_pam[i] != NULL; i++)
+		buffer_put_cstring(&buffer, env_from_pam[i]);
+#endif /* USE_POSIX_THREADS */
+
+	/* XXX - can't do much about an error here */
 	ssh_msg_send(ctxt->pam_csock, sshpam_err, &buffer);
 	buffer_free(&buffer);
 	pthread_exit(NULL);
@@ -241,37 +389,43 @@ sshpam_thread(void *ctxtp)
  auth_fail:
 	buffer_put_cstring(&buffer,
 	    pam_strerror(sshpam_handle, sshpam_err));
+	/* XXX - can't do much about an error here */
 	ssh_msg_send(ctxt->pam_csock, PAM_AUTH_ERR, &buffer);
 	buffer_free(&buffer);
 	pthread_exit(NULL);
-	
+
 	return (NULL); /* Avoid warning for non-pthread case */
 }
 
-static void
-sshpam_thread_cleanup(void *ctxtp)
+void
+sshpam_thread_cleanup(void)
 {
-	struct pam_ctxt *ctxt = ctxtp;
+	struct pam_ctxt *ctxt = cleanup_ctxt;
 
-	pthread_cancel(ctxt->pam_thread);
-	pthread_join(ctxt->pam_thread, NULL);
-	close(ctxt->pam_psock);
-	close(ctxt->pam_csock);
+	debug3("PAM: %s entering", __func__);
+	if (ctxt != NULL && ctxt->pam_thread != 0) {
+		pthread_cancel(ctxt->pam_thread);
+		pthread_join(ctxt->pam_thread, NULL);
+		close(ctxt->pam_psock);
+		close(ctxt->pam_csock);
+		memset(ctxt, 0, sizeof(*ctxt));
+		cleanup_ctxt = NULL;
+	}
 }
 
 static int
 sshpam_null_conv(int n, const struct pam_message **msg,
     struct pam_response **resp, void *data)
 {
+	debug3("PAM: %s entering, %d messages", __func__, n);
 	return (PAM_CONV_ERR);
 }
 
 static struct pam_conv null_conv = { sshpam_null_conv, NULL };
 
-static void
-sshpam_cleanup(void *arg)
+void
+sshpam_cleanup(void)
 {
-	(void)arg;
 	debug("PAM: cleanup");
 	if (sshpam_handle == NULL)
 		return;
@@ -284,7 +438,7 @@ sshpam_cleanup(void *arg)
 		pam_close_session(sshpam_handle, PAM_SILENT);
 		sshpam_session_open = 0;
 	}
-	sshpam_authenticated = sshpam_new_authtok_reqd = 0;
+	sshpam_authenticated = 0;
 	pam_end(sshpam_handle, sshpam_err);
 	sshpam_handle = NULL;
 }
@@ -302,7 +456,6 @@ sshpam_init(const char *user)
 		    PAM_USER, (const void **)&pam_user);
 		if (sshpam_err == PAM_SUCCESS && strcmp(user, pam_user) == 0)
 			return (0);
-		fatal_remove_cleanup(sshpam_cleanup, NULL);
 		pam_end(sshpam_handle, sshpam_err);
 		sshpam_handle = NULL;
 	}
@@ -323,11 +476,11 @@ sshpam_init(const char *user)
 		return (-1);
 	}
 #ifdef PAM_TTY_KLUDGE
-        /*
-         * Some silly PAM modules (e.g. pam_time) require a TTY to operate.
-         * sshd doesn't set the tty until too late in the auth process and 
+	/*
+	 * Some silly PAM modules (e.g. pam_time) require a TTY to operate.
+	 * sshd doesn't set the tty until too late in the auth process and
 	 * may not even set one (for tty-less connections)
-         */
+	 */
 	debug("PAM: setting PAM_TTY to \"ssh\"");
 	sshpam_err = pam_set_item(sshpam_handle, PAM_TTY, "ssh");
 	if (sshpam_err != PAM_SUCCESS) {
@@ -336,7 +489,6 @@ sshpam_init(const char *user)
 		return (-1);
 	}
 #endif
-	fatal_add_cleanup(sshpam_cleanup, NULL);
 	return (0);
 }
 
@@ -346,6 +498,7 @@ sshpam_init_ctx(Authctxt *authctxt)
 	struct pam_ctxt *ctxt;
 	int socks[2];
 
+	debug3("PAM: %s entering", __func__);
 	/* Refuse to start if we don't have PAM enabled */
 	if (!options.use_pam)
 		return NULL;
@@ -357,7 +510,9 @@ sshpam_init_ctx(Authctxt *authctxt)
 	}
 
 	ctxt = xmalloc(sizeof *ctxt);
-	ctxt->pam_done = 0;
+	memset(ctxt, 0, sizeof(*ctxt));
+
+	force_pwchange = &(authctxt->force_pwchange);
 
 	/* Start the authentication thread */
 	if (socketpair(AF_UNIX, SOCK_STREAM, PF_UNSPEC, socks) == -1) {
@@ -375,7 +530,7 @@ sshpam_init_ctx(Authctxt *authctxt)
 		xfree(ctxt);
 		return (NULL);
 	}
-	fatal_add_cleanup(sshpam_thread_cleanup, ctxt);
+	cleanup_ctxt = ctxt;
 	return (ctxt);
 }
 
@@ -390,6 +545,7 @@ sshpam_query(void *ctx, char **name, char **info,
 	char *msg;
 	size_t len;
 
+	debug3("PAM: %s entering", __func__);
 	buffer_init(&buffer);
 	*name = xstrdup("");
 	*info = xstrdup("");
@@ -413,26 +569,23 @@ sshpam_query(void *ctx, char **name, char **info,
 		case PAM_ERROR_MSG:
 		case PAM_TEXT_INFO:
 			/* accumulate messages */
-			len = plen + strlen(msg) + 1;
+			len = plen + strlen(msg) + 2;
 			**prompts = xrealloc(**prompts, len);
-			plen += snprintf(**prompts + plen, len, "%s", msg);
+			plen += snprintf(**prompts + plen, len, "%s\n", msg);
 			xfree(msg);
 			break;
 		case PAM_SUCCESS:
 		case PAM_AUTH_ERR:
 			if (**prompts != NULL) {
 				/* drain any accumulated messages */
-#if 0 /* XXX - not compatible with privsep */
-				packet_start(SSH2_MSG_USERAUTH_BANNER);
-				packet_put_cstring(**prompts);
-				packet_put_cstring("");
-				packet_send();
-				packet_write_wait();
-#endif
+				debug("PAM: %s", **prompts);
+				buffer_append(&loginmsg, **prompts,
+				    strlen(**prompts));
 				xfree(**prompts);
 				**prompts = NULL;
 			}
 			if (type == PAM_SUCCESS) {
+				import_environments(&buffer);
 				*num = 0;
 				**echo_on = 0;
 				ctxt->pam_done = 1;
@@ -440,6 +593,7 @@ sshpam_query(void *ctx, char **name, char **info,
 				return (0);
 			}
 			error("PAM: %s", msg);
+			/* FALLTHROUGH */
 		default:
 			*num = 0;
 			**echo_on = 0;
@@ -458,7 +612,7 @@ sshpam_respond(void *ctx, u_int num, char **resp)
 	Buffer buffer;
 	struct pam_ctxt *ctxt = ctx;
 
-	debug2("PAM: %s", __func__);
+	debug2("PAM: %s entering, %d responses", __func__, num);
 	switch (ctxt->pam_done) {
 	case 1:
 		sshpam_authenticated = 1;
@@ -474,7 +628,10 @@ sshpam_respond(void *ctx, u_int num, char **resp)
 	}
 	buffer_init(&buffer);
 	buffer_put_cstring(&buffer, *resp);
-	ssh_msg_send(ctxt->pam_psock, PAM_AUTHTOK, &buffer);
+	if (ssh_msg_send(ctxt->pam_psock, PAM_AUTHTOK, &buffer) == -1) {
+		buffer_free(&buffer);
+		return (-1);
+	}
 	buffer_free(&buffer);
 	return (1);
 }
@@ -484,8 +641,8 @@ sshpam_free_ctx(void *ctxtp)
 {
 	struct pam_ctxt *ctxt = ctxtp;
 
-	fatal_remove_cleanup(sshpam_thread_cleanup, ctxt);
-	sshpam_thread_cleanup(ctxtp);
+	debug3("PAM: %s entering", __func__);
+	sshpam_thread_cleanup();
 	xfree(ctxt);
 	/*
 	 * We don't call sshpam_cleanup() here because we may need the PAM
@@ -527,44 +684,28 @@ start_pam(const char *user)
 void
 finish_pam(void)
 {
-	fatal_remove_cleanup(sshpam_cleanup, NULL);
-	sshpam_cleanup(NULL);
+	sshpam_cleanup();
 }
 
 u_int
 do_pam_account(void)
 {
+	if (sshpam_account_status != -1)
+		return (sshpam_account_status);
+
 	sshpam_err = pam_acct_mgmt(sshpam_handle, 0);
-	debug3("%s: pam_acct_mgmt = %d", __func__, sshpam_err);
+	debug3("PAM: %s pam_acct_mgmt = %d", __func__, sshpam_err);
 	
-	if (sshpam_err != PAM_SUCCESS && sshpam_err != PAM_NEW_AUTHTOK_REQD)
-		return (0);
-
-	if (sshpam_err == PAM_NEW_AUTHTOK_REQD) {
-		sshpam_new_authtok_reqd = 1;
-
-		/* Prevent forwardings until password changed */
-		no_port_forwarding_flag |= 2;
-		no_agent_forwarding_flag |= 2;
-		no_x11_forwarding_flag |= 2;
+	if (sshpam_err != PAM_SUCCESS && sshpam_err != PAM_NEW_AUTHTOK_REQD) {
+		sshpam_account_status = 0;
+		return (sshpam_account_status);
 	}
 
-	return (1);
-}
+	if (sshpam_err == PAM_NEW_AUTHTOK_REQD)
+		pam_password_change_required(1);
 
-void
-do_pam_session(void)
-{
-	sshpam_err = pam_set_item(sshpam_handle, PAM_CONV, 
-	    (const void *)&null_conv);
-	if (sshpam_err != PAM_SUCCESS)
-		fatal("PAM: failed to set PAM_CONV: %s",
-		    pam_strerror(sshpam_handle, sshpam_err));
-	sshpam_err = pam_open_session(sshpam_handle, 0);
-	if (sshpam_err != PAM_SUCCESS)
-		fatal("PAM: pam_open_session(): %s",
-		    pam_strerror(sshpam_handle, sshpam_err));
-	sshpam_session_open = 1;
+	sshpam_account_status = 1;
+	return (sshpam_account_status);
 }
 
 void
@@ -606,23 +747,19 @@ do_pam_setcred(int init)
 		    pam_strerror(sshpam_handle, sshpam_err));
 }
 
-int
-is_pam_password_change_required(void)
-{
-	return (sshpam_new_authtok_reqd);
-}
-
 static int
-pam_chauthtok_conv(int n, const struct pam_message **msg,
+pam_tty_conv(int n, const struct pam_message **msg,
     struct pam_response **resp, void *data)
 {
 	char input[PAM_MAX_MSG_SIZE];
 	struct pam_response *reply;
 	int i;
 
+	debug3("PAM: %s called with %d messages", __func__, n);
+
 	*resp = NULL;
 
-	if (n <= 0 || n > PAM_MAX_NUM_MSG)
+	if (n <= 0 || n > PAM_MAX_NUM_MSG || !isatty(STDIN_FILENO))
 		return (PAM_CONV_ERR);
 
 	if ((reply = malloc(n * sizeof(*reply))) == NULL)
@@ -633,19 +770,19 @@ pam_chauthtok_conv(int n, const struct pam_message **msg,
 		switch (PAM_MSG_MEMBER(msg, i, msg_style)) {
 		case PAM_PROMPT_ECHO_OFF:
 			reply[i].resp =
-			    read_passphrase(PAM_MSG_MEMBER(msg, i, msg), 
+			    read_passphrase(PAM_MSG_MEMBER(msg, i, msg),
 			    RP_ALLOW_STDIN);
 			reply[i].resp_retcode = PAM_SUCCESS;
 			break;
 		case PAM_PROMPT_ECHO_ON:
-			fputs(PAM_MSG_MEMBER(msg, i, msg), stderr);
+			fprintf(stderr, "%s\n", PAM_MSG_MEMBER(msg, i, msg));
 			fgets(input, sizeof input, stdin);
 			reply[i].resp = xstrdup(input);
 			reply[i].resp_retcode = PAM_SUCCESS;
 			break;
 		case PAM_ERROR_MSG:
 		case PAM_TEXT_INFO:
-			fputs(PAM_MSG_MEMBER(msg, i, msg), stderr);
+			fprintf(stderr, "%s\n", PAM_MSG_MEMBER(msg, i, msg));
 			reply[i].resp_retcode = PAM_SUCCESS;
 			break;
 		default:
@@ -664,6 +801,8 @@ pam_chauthtok_conv(int n, const struct pam_message **msg,
 	return (PAM_CONV_ERR);
 }
 
+static struct pam_conv tty_conv = { pam_tty_conv, NULL };
+
 /*
  * XXX this should be done in the authentication phase, but ssh1 doesn't
  * support that
@@ -671,15 +810,10 @@ pam_chauthtok_conv(int n, const struct pam_message **msg,
 void
 do_pam_chauthtok(void)
 {
-	struct pam_conv pam_conv;
-
-	pam_conv.conv = pam_chauthtok_conv;
-	pam_conv.appdata_ptr = NULL;
-
 	if (use_privsep)
 		fatal("Password expired (unable to change with privsep)");
 	sshpam_err = pam_set_item(sshpam_handle, PAM_CONV,
-	    (const void *)&pam_conv);
+	    (const void *)&tty_conv);
 	if (sshpam_err != PAM_SUCCESS)
 		fatal("PAM: failed to set PAM_CONV: %s",
 		    pam_strerror(sshpam_handle, sshpam_err));
@@ -690,17 +824,77 @@ do_pam_chauthtok(void)
 		    pam_strerror(sshpam_handle, sshpam_err));
 }
 
-/* 
+static int
+pam_store_conv(int n, const struct pam_message **msg,
+    struct pam_response **resp, void *data)
+{
+	struct pam_response *reply;
+	int i;
+	size_t len;
+
+	debug3("PAM: %s called with %d messages", __func__, n);
+	*resp = NULL;
+
+	if (n <= 0 || n > PAM_MAX_NUM_MSG)
+		return (PAM_CONV_ERR);
+
+	if ((reply = malloc(n * sizeof(*reply))) == NULL)
+		return (PAM_CONV_ERR);
+	memset(reply, 0, n * sizeof(*reply));
+
+	for (i = 0; i < n; ++i) {
+		switch (PAM_MSG_MEMBER(msg, i, msg_style)) {
+		case PAM_ERROR_MSG:
+		case PAM_TEXT_INFO:
+			len = strlen(PAM_MSG_MEMBER(msg, i, msg));
+			buffer_append(&loginmsg, PAM_MSG_MEMBER(msg, i, msg), len);
+			buffer_append(&loginmsg, "\n", 1 );
+			reply[i].resp_retcode = PAM_SUCCESS;
+			break;
+		default:
+			goto fail;
+		}
+	}
+	*resp = reply;
+	return (PAM_SUCCESS);
+
+ fail:
+	for(i = 0; i < n; i++) {
+		if (reply[i].resp != NULL)
+			xfree(reply[i].resp);
+	}
+	xfree(reply);
+	return (PAM_CONV_ERR);
+}
+
+static struct pam_conv store_conv = { pam_store_conv, NULL };
+
+void
+do_pam_session(void)
+{
+	debug3("PAM: opening session");
+	sshpam_err = pam_set_item(sshpam_handle, PAM_CONV,
+	    (const void *)&store_conv);
+	if (sshpam_err != PAM_SUCCESS)
+		fatal("PAM: failed to set PAM_CONV: %s",
+		    pam_strerror(sshpam_handle, sshpam_err));
+	sshpam_err = pam_open_session(sshpam_handle, 0);
+	if (sshpam_err != PAM_SUCCESS)
+		fatal("PAM: pam_open_session(): %s",
+		    pam_strerror(sshpam_handle, sshpam_err));
+	sshpam_session_open = 1;
+}
+
+/*
  * Set a PAM environment string. We need to do this so that the session
  * modules can handle things like Kerberos/GSI credentials that appear
  * during the ssh authentication process.
  */
-
 int
-do_pam_putenv(char *name, char *value) 
+do_pam_putenv(char *name, char *value)
 {
 	int ret = 1;
-#ifdef HAVE_PAM_PUTENV	
+#ifdef HAVE_PAM_PUTENV
 	char *compound;
 	size_t len;
 
@@ -715,21 +909,16 @@ do_pam_putenv(char *name, char *value)
 	return (ret);
 }
 
-void
-print_pam_messages(void)
+char **
+fetch_pam_child_environment(void)
 {
-	/* XXX */
+	return sshpam_env;
 }
 
 char **
 fetch_pam_environment(void)
 {
-#ifdef HAVE_PAM_GETENVLIST
-	debug("PAM: retrieving environment");
 	return (pam_getenvlist(sshpam_handle));
-#else
-	return (NULL);
-#endif
 }
 
 void
