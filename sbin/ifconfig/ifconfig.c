@@ -580,7 +580,10 @@ main(argc, argv)
 		ifm = (struct if_msghdr *)next;
 		
 		if (ifm->ifm_type == RTM_IFINFO) {
-			sdl = (struct sockaddr_dl *)(ifm + 1);
+			if (ifm->ifm_data.ifi_datalen == 0)
+				ifm->ifm_data.ifi_datalen = sizeof(struct if_data);
+			sdl = (struct sockaddr_dl *)((char *)ifm + sizeof(struct if_msghdr) -
+			    sizeof(struct if_data) + ifm->ifm_data.ifi_datalen);
 			flags = ifm->ifm_flags;
 		} else {
 			fprintf(stderr, "out of sync parsing NET_RT_IFLIST\n");

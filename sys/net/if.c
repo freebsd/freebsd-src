@@ -193,6 +193,8 @@ if_attach(ifp)
 
 	ifindex2ifnet[if_index] = ifp;
 
+	ifp->if_data.ifi_datalen = sizeof(struct if_data);
+
 	/*
 	 * create a Link Level name for this device
 	 */
