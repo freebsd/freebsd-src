@@ -297,8 +297,14 @@ int
 soabort(so)
 	struct socket *so;
 {
+	int error;
 
-	return (*so->so_proto->pr_usrreqs->pru_abort)(so);
+	error = (*so->so_proto->pr_usrreqs->pru_abort)(so);
+	if (error) {
+		sofree(so);
+		return error;
+	}
+	return (0);
 }
 
 int
