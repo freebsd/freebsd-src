@@ -1,6 +1,6 @@
 # Makefile for gperf/doc
 
-# Copyright (C) 1998 Free Software Foundation, Inc.
+# Copyright (C) 1998, 2000 Free Software Foundation, Inc.
 #
 # This file is part of GNU GPERF.
 #
@@ -27,11 +27,14 @@ srcdir = @srcdir@
 prefix = @prefix@
 local_prefix = /usr/local
 exec_prefix = @exec_prefix@
+datadir = @datadir@
 infodir = @infodir@
 mandir = @mandir@
 man1dir = $(mandir)/man1
-dvidir = $(mandir)/dvi
-htmldir = $(mandir)/html
+docdir = $(prefix)/doc/@PACKAGE@
+dvidir = $(docdir)
+psdir = $(docdir)
+htmldir = $(docdir)
 
 # Programs used by "make":
 RM = rm -f
@@ -40,14 +43,15 @@ RM = rm -f
 # Programs used by "make" if you have changed the documentation files:
 TEX = tex
 TEXI2DVI = texi2dvi
-DVIPS = dvips -Pljfour
-MAKEINFO = LANGUAGE= makeinfo
+DVIPS = dvips -D600
+MAKEINFO = LANG= LANGUAGE= makeinfo
 TEXI2HTML = texi2html
 
 # Programs used by "make install":
 INSTALL = @INSTALL@
 INSTALL_PROGRAM = @INSTALL_PROGRAM@
 INSTALL_DATA = @INSTALL_DATA@
+MKINSTALLDIRS = $(SHELL) $(srcdir)/../mkinstalldirs
 
 #### End of system configuration section. ####
 
@@ -60,16 +64,16 @@ all : info dvi ps html
 
 info : $(srcdir)/gperf.info
 
-$(srcdir)/gperf.info : $(srcdir)/gperf.texi
+$(srcdir)/gperf.info : $(srcdir)/gperf.texi $(srcdir)/gpl.texinfo
 	cd $(srcdir) && $(MAKEINFO) --no-split gperf.texi
 
 
 dvi : $(srcdir)/gperf.dvi
 
-$(srcdir)/gperf.dvi : $(srcdir)/gperf.texi
-	cd $(srcdir) && $(RM) gperf.aux gperf.toc gperf.cp gperf.fn gperf.ky gperf.pg gperf.tp gperf.vr gperf.log
+$(srcdir)/gperf.dvi : $(srcdir)/gperf.texi $(srcdir)/gpl.texinfo
+	cd $(srcdir) && $(RM) gperf.aux gperf.toc gperf.cp gperf.fn gperf.ky gperf.pg gperf.tp gperf.vr gperf.log gperf.cps
 	cd $(srcdir) && $(TEXI2DVI) gperf.texi
-	cd $(srcdir) && $(RM) gperf.aux gperf.toc gperf.cp gperf.fn gperf.ky gperf.pg gperf.tp gperf.vr gperf.log
+	cd $(srcdir) && $(RM) gperf.aux gperf.toc gperf.cp gperf.fn gperf.ky gperf.pg gperf.tp gperf.vr gperf.log gperf.cps
 
 
 ps : $(srcdir)/gperf.ps
@@ -80,44 +84,46 @@ $(srcdir)/gperf.ps : $(srcdir)/gperf.dvi
 
 html : gperf.html gperf_toc.html
 
-gperf.html : $(srcdir)/gperf.texi
+gperf.html : $(srcdir)/gperf.texi $(srcdir)/gpl.texinfo
 	cd $(srcdir) && $(TEXI2HTML) -expandinfo -number -monolithic gperf.texi
 
-gperf_toc.html : $(srcdir)/gperf.texi
+gperf_toc.html : $(srcdir)/gperf.texi $(srcdir)/gpl.texinfo
 	cd $(srcdir) && $(RM) gperf_*.html
 	cd $(srcdir) && $(TEXI2HTML) -expandinfo -number -split_chapter gperf.texi
 
 
 install : all force
-	if [ ! -d $(infodir) ] ; then mkdir $(infodir) ; fi
-	$(INSTALL_DATA) $(srcdir)/gperf.info $(infodir)/gperf.info
-	if [ ! -d $(mandir) ] ; then mkdir $(mandir) ; fi
-	if [ ! -d $(man1dir) ] ; then mkdir $(man1dir) ; fi
-	$(INSTALL_DATA) $(srcdir)/gperf.1 $(man1dir)/gperf.1
-	if [ ! -d $(dvidir) ] ; then mkdir $(dvidir) ; fi
-	$(INSTALL_DATA) $(srcdir)/gperf.dvi $(dvidir)/gperf.dvi
-	if [ ! -d $(htmldir) ] ; then mkdir $(htmldir) ; fi
-	$(INSTALL_DATA) $(srcdir)/gperf.html $(htmldir)/gperf.html
+	$(MKINSTALLDIRS) $(DESTDIR)$(infodir)
+	$(INSTALL_DATA) $(srcdir)/gperf.info $(DESTDIR)$(infodir)/gperf.info
+	$(MKINSTALLDIRS) $(DESTDIR)$(man1dir)
+	$(INSTALL_DATA) $(srcdir)/gperf.1 $(DESTDIR)$(man1dir)/gperf.1
+#	$(MKINSTALLDIRS) $(DESTDIR)$(dvidir)
+#	$(INSTALL_DATA) $(srcdir)/gperf.dvi $(DESTDIR)$(dvidir)/gperf.dvi
+#	$(MKINSTALLDIRS) $(DESTDIR)$(psdir)
+#	$(INSTALL_DATA) $(srcdir)/gperf.ps $(DESTDIR)$(dvidir)/gperf.ps
+	$(MKINSTALLDIRS) $(DESTDIR)$(htmldir)
+	$(INSTALL_DATA) $(srcdir)/gperf.html $(DESTDIR)$(htmldir)/gperf.html
 
 installdirs : force
-	if [ ! -d $(infodir) ] ; then mkdir $(infodir) ; fi
-	if [ ! -d $(mandir) ] ; then mkdir $(mandir) ; fi
-	if [ ! -d $(man1dir) ] ; then mkdir $(man1dir) ; fi
-	if [ ! -d $(dvidir) ] ; then mkdir $(dvidir) ; fi
-	if [ ! -d $(htmldir) ] ; then mkdir $(htmldir) ; fi
+	$(MKINSTALLDIRS) $(DESTDIR)$(infodir)
+	$(MKINSTALLDIRS) $(DESTDIR)$(man1dir)
+#	$(MKINSTALLDIRS) $(DESTDIR)$(dvidir)
+#	$(MKINSTALLDIRS) $(DESTDIR)$(psdir)
+	$(MKINSTALLDIRS) $(DESTDIR)$(htmldir)
 
 uninstall : force
-	$(RM) $(infodir)/gperf.info
-	$(RM) $(man1dir)/gperf.1
-	$(RM) $(dvidir)/gperf.dvi
-	$(RM) $(htmldir)/gperf.html
+	$(RM) $(DESTDIR)$(infodir)/gperf.info
+	$(RM) $(DESTDIR)$(man1dir)/gperf.1
+#	$(RM) $(DESTDIR)$(dvidir)/gperf.dvi
+#	$(RM) $(DESTDIR)$(psdir)/gperf.ps
+	$(RM) $(DESTDIR)$(htmldir)/gperf.html
 
 check : all
 
 mostlyclean : clean
 
 clean : force
-	$(RM) *~ *.aux *.toc *.cp *.fn *.ky *.pg *.tp *.vr *.my *.log core
+	$(RM) *~ *.aux *.toc *.cp *.fn *.ky *.pg *.tp *.vr *.my *.log *.cps core
 
 distclean : clean
 	$(RM) config.status config.log config.cache Makefile

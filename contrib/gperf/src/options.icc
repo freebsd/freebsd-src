@@ -1,6 +1,6 @@
 /* Inline Functions for options.{h,cc}.
 
-   Copyright (C) 1989-1998 Free Software Foundation, Inc.
+   Copyright (C) 1989-1998, 2000 Free Software Foundation, Inc.
    written by Douglas C. Schmidt (schmidt@ics.uci.edu)
 
 This file is part of GNU GPERF.
@@ -116,6 +116,14 @@ Options::get_key_name (void)
 {
   T (Trace t ("Options::get_key_name");)
   return key_name;
+}
+
+/* Returns the struct initializer suffix. */
+INLINE const char *
+Options::get_initializer_suffix (void)
+{
+  T (Trace t ("Options::get_initializer_suffix");)
+  return initializer_suffix;
 }
 
 /* Returns the hash function name. */

@@ -1,3 +1,13 @@
+New in 2.7.2:
+
+* Keywords may now be enclosed in double quotes; this permits the use of
+  '#', ',', space or NUL inside keywords.
+* Bug fixes.
+
+New in 2.7.1:
+
+* Added option "-F" for gcc.
+
 New in 2.7:
 
 * gperf is now a stand-alone package, untied from libg++.

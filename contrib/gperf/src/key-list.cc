@@ -1,5 +1,5 @@
 /* Routines for building, ordering, and printing the keyword list.
-   Copyright (C) 1989-1998 Free Software Foundation, Inc.
+   Copyright (C) 1989-1998, 2000 Free Software Foundation, Inc.
    written by Douglas C. Schmidt (schmidt@ics.uci.edu)
 
 This file is part of GNU GPERF.
@@ -21,6 +21,7 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111, USA.  */
 #include <stdio.h>
 #include <string.h> /* declares strncpy(), strchr() */
 #include <stdlib.h> /* declares malloc(), free(), abs(), exit(), abort() */
+#include <ctype.h>  /* declares isprint() */
 #include <assert.h> /* defines assert() */
 #include <limits.h> /* defines SCHAR_MAX etc. */
 #include "options.h"
@@ -209,6 +210,144 @@ Key_List::set_output_types (void)
     }
 }
 
+/* Extracts a key from an input line and creates a new List_Node for it. */
+
+static List_Node *
+parse_line (const char *line, const char *delimiters)
+{
+  if (*line == '"')
+    {
+      /* Parse a string in ANSI C syntax. */
+      char *key = new char[strlen(line)];
+      char *kp = key;
+      const char *lp = line + 1;
+
+      for (; *lp;)
+        {
+          char c = *lp;
+
+          if (c == '\0')
+            {
+              fprintf (stderr, "unterminated string: %s\n", line);
+              exit (1);
+            }
+          else if (c == '\\')
+            {
+              c = *++lp;
+              switch (c)
+                {
+                case '0': case '1': case '2': case '3':
+                case '4': case '5': case '6': case '7':
+                  {
+                    int code = 0;
+                    int count = 0;
+                    while (count < 3 && *lp >= '0' && *lp <= '7')
+                      {
+                        code = (code << 3) + (*lp - '0');
+                        lp++;
+                        count++;
+                      }
+                    if (code > UCHAR_MAX)
+                      fprintf (stderr, "octal escape out of range: %s\n", line);
+                    *kp = (char) code;
+                    break;
+                  }
+                case 'x':
+                  {
+                    int code = 0;
+                    int count = 0;
+                    lp++;
+                    while ((*lp >= '0' && *lp <= '9')
+                           || (*lp >= 'A' && *lp <= 'F')
+                           || (*lp >= 'a' && *lp <= 'f'))
+                      {
+                        code = (code << 4)
+                               + (*lp >= 'A' && *lp <= 'F' ? *lp - 'A' + 10 :
+                                  *lp >= 'a' && *lp <= 'f' ? *lp - 'a' + 10 :
+                                  *lp - '0');
+                        lp++;
+                        count++;
+                      }
+                    if (count == 0)
+                      fprintf (stderr, "hexadecimal escape without any hex digits: %s\n", line);
+                    if (code > UCHAR_MAX)
+                      fprintf (stderr, "hexadecimal escape out of range: %s\n", line);
+                    *kp = (char) code;
+                    break;
+                  }
+                case '\\': case '\'': case '"':
+                  *kp = c;
+                  lp++;
+                  break;
+                case 'n':
+                  *kp = '\n';
+                  lp++;
+                  break;
+                case 't':
+                  *kp = '\t';
+                  lp++;
+                  break;
+                case 'r':
+                  *kp = '\r';
+                  lp++;
+                  break;
+                case 'f':
+                  *kp = '\f';
+                  lp++;
+                  break;
+                case 'b':
+                  *kp = '\b';
+                  lp++;
+                  break;
+                case 'a':
+                  *kp = '\a';
+                  lp++;
+                  break;
+                case 'v':
+                  *kp = '\v';
+                  lp++;
+                  break;
+                default:
+                  fprintf (stderr, "invalid escape sequence in string: %s\n", line);
+                  exit (1);
+                }
+            }
+          else if (c == '"')
+            break;
+          else
+            {
+              *kp = c;
+              lp++;
+            }
+          kp++;
+        }
+      lp++;
+      if (*lp != '\0')
+        {
+          if (strchr (delimiters, *lp) == NULL)
+            {
+              fprintf (stderr, "string not followed by delimiter: %s\n", line);
+              exit (1);
+            }
+          lp++;
+        }
+      return new List_Node (key, kp - key, option[TYPE] ? lp : "");
+    }
+  else
+    {
+      /* Not a string. Look for the delimiter. */
+      int len = strcspn (line, delimiters);
+      const char *rest;
+
+      if (line[len] == '\0')
+        rest = "";
+      else
+        /* Skip the first delimiter. */
+        rest = &line[len + 1];
+      return new List_Node (line, len, option[TYPE] ? rest : "");
+    }
+}
+
 /* Reads in all keys from standard input and creates a linked list pointed
    to by Head.  This list is then quickly checked for ``links,'' i.e.,
    unhashable elements possessing identical key sets and lengths. */
@@ -235,13 +374,13 @@ Key_List::read_keys (void)
       const char *delimiter = option.get_delimiter ();
       List_Node  *temp, *trail = 0;
 
-      head = new List_Node (ptr, strcspn (ptr, delimiter));
+      head = parse_line (ptr, delimiter);
 
       for (temp = head;
            (ptr = Read_Line::get_line ()) && strcmp (ptr, "%%");
            temp = temp->next)
         {
-          temp->next = new List_Node (ptr, strcspn (ptr, delimiter));
+          temp->next = parse_line (ptr, delimiter);
           total_keys++;
         }
 
@@ -266,14 +405,14 @@ Key_List::read_keys (void)
 #endif
 
       /* Make large hash table for efficiency. */
-      Hash_Table found_link (table, table_size);
+      Hash_Table found_link (table, table_size, option[NOLENGTH]);
 
       /* Test whether there are any links and also set the maximum length of
         an identifier in the keyword list. */
 
       for (temp = head; temp; temp = temp->next)
         {
-          List_Node *ptr = found_link (temp, option[NOLENGTH]);
+          List_Node *ptr = found_link.insert (temp);
 
           /* Check for links.  We deal with these by building an equivalence class
              of all duplicate values (i.e., links) so that only 1 keyword is
@@ -290,17 +429,19 @@ Key_List::read_keys (void)
 
               /* Complain if user hasn't enabled the duplicate option. */
               if (!option[DUP] || option[DEBUG])
-                fprintf (stderr, "Key link: \"%s\" = \"%s\", with key set \"%s\".\n",
-                                 temp->key, ptr->key, temp->char_set);
+                fprintf (stderr, "Key link: \"%.*s\" = \"%.*s\", with key set \"%.*s\".\n",
+                                 temp->key_length, temp->key,
+                                 ptr->key_length, ptr->key,
+                                 temp->char_set_length, temp->char_set);
             }
           else
             trail = temp;
 
           /* Update minimum and maximum keyword length, if needed. */
-          if (max_key_len < temp->length)
-            max_key_len = temp->length;
-          if (min_key_len > temp->length)
-            min_key_len = temp->length;
+          if (max_key_len < temp->key_length)
+            max_key_len = temp->key_length;
+          if (min_key_len > temp->key_length)
+            min_key_len = temp->key_length;
         }
 
 #if !LARGE_STACK_ARRAYS
@@ -319,6 +460,13 @@ Key_List::read_keys (void)
                                total_duplicates);
               exit (1);
             }
+        }
+      /* Exit program if an empty string is used as key, since the comparison
+         expressions don't work correctly for looking up an empty string. */
+      if (min_key_len == 0)
+        {
+          fprintf (stderr, "Empty input key is not allowed.\nTo recognize an empty input key, your code should check for\nlen == 0 before calling the gperf generated lookup function.\n");
+          exit (1);
         }
       if (option[ALLCHARS])
         option.set_keysig_size (max_key_len);
@@ -400,8 +548,10 @@ Key_List::get_occurrence (List_Node *ptr)
   T (Trace t ("Key_List::get_occurrence");)
   int value = 0;
 
-  for (const char *temp = ptr->char_set; *temp; temp++)
-    value += occurrences[(unsigned char)(*temp)];
+  const char *p = ptr->char_set;
+  unsigned int i = ptr->char_set_length;
+  for (; i > 0; p++, i--)
+    value += occurrences[(unsigned char)(*p)];
 
   return value;
 }
@@ -413,8 +563,11 @@ inline void
 Key_List::set_determined (List_Node *ptr)
 {
   T (Trace t ("Key_List::set_determined");)
-  for (const char *temp = ptr->char_set; *temp; temp++)
-    determined[(unsigned char)(*temp)] = 1;
+
+  const char *p = ptr->char_set;
+  unsigned int i = ptr->char_set_length;
+  for (; i > 0; p++, i--)
+    determined[(unsigned char)(*p)] = 1;
 }
 
 /* Returns TRUE if PTR's key set is already completely determined. */
@@ -425,8 +578,10 @@ Key_List::already_determined (List_Node *ptr)
   T (Trace t ("Key_List::already_determined");)
   int is_determined = 1;
 
-  for (const char *temp = ptr->char_set; is_determined && *temp; temp++)
-    is_determined = determined[(unsigned char)(*temp)];
+  const char *p = ptr->char_set;
+  unsigned int i = ptr->char_set_length;
+  for (; is_determined && i > 0; p++, i--)
+    is_determined = determined[(unsigned char)(*p)];
 
   return is_determined;
 }
@@ -653,20 +808,34 @@ Key_List::output_constants (struct Output_Constants& style)
 /* ------------------------------------------------------------------------- */
 
 /* Outputs a keyword, as a string: enclosed in double quotes, escaping
-   backslashes and double quote characters. */
+   backslashes, double quote and unprintable characters. */
 
 static void
-output_string (const char *key)
+output_string (const char *key, int len)
 {
   T (Trace t ("output_string");)
-  char      c;
 
   putchar ('"');
-  while (c = *key++, c != '\0')
+  for (; len > 0; len--)
     {
-      if (c == '"' || c == '\\')
-        putchar ('\\');
-      putchar (c);
+      unsigned char c = (unsigned char) *key++;
+      if (isprint (c))
+        {
+          if (c == '"' || c == '\\')
+            putchar ('\\');
+          putchar (c);
+        }
+      else
+        {
+          /* Use octal escapes, not hexadecimal escapes, because some old
+             C compilers didn't understand hexadecimal escapes, and because
+             hexadecimal escapes are not limited to 2 digits, thus needing
+             special care if the following character happens to be a digit. */
+          putchar ('\\');
+          putchar ('0' + ((c >> 6) & 7));
+          putchar ('0' + ((c >> 3) & 7));
+          putchar ('0' + (c & 7));
+        }
     }
   putchar ('"');
 }
@@ -798,6 +967,36 @@ void Output_Compare_Strncmp::output_comparison (const Output_Expr& expr1,
   expr1.output_expr ();
   printf (" + 1, ");
   expr2.output_expr ();
+  printf (" + 1, len - 1) && ");
+  expr2.output_expr ();
+  printf ("[len] == '\\0'");
+}
+
+/* This class outputs a comparison using memcmp.
+   Note that the length of expr1 (available through the local variable `len')
+   must be verified to be equal to the length of expr2 prior to this
+   comparison. */
+
+struct Output_Compare_Memcmp : public Output_Compare
+{
+  virtual void output_comparison (const Output_Expr& expr1,
+                                  const Output_Expr& expr2) const;
+  Output_Compare_Memcmp () {}
+  virtual ~Output_Compare_Memcmp () {}
+};
+
+void Output_Compare_Memcmp::output_comparison (const Output_Expr& expr1,
+                                               const Output_Expr& expr2) const
+{
+  T (Trace t ("Output_Compare_Memcmp::output_comparison");)
+  printf ("*");
+  expr1.output_expr ();
+  printf (" == *");
+  expr2.output_expr ();
+  printf (" && !memcmp (");
+  expr1.output_expr ();
+  printf (" + 1, ");
+  expr2.output_expr ();
   printf (" + 1, len - 1)");
 }
 
@@ -824,6 +1023,10 @@ Key_List::output_hash_function (void)
   else if (option[KRC] | option[C] | option[ANSIC])
     printf ("#ifdef __GNUC__\n"
             "__inline\n"
+            "#else\n"
+            "#ifdef __cplusplus\n"
+            "inline\n"
+            "#endif\n"
             "#endif\n");
 
   if (option[KRC] | option[C] | option[ANSIC])
@@ -1013,7 +1216,7 @@ Key_List::output_keylength_table (void)
         printf (",");
       if ((column++ % columns) == 0)
         printf("\n%s   ", indent);
-      printf ("%3d", temp->length);
+      printf ("%3d", temp->key_length);
 
       /* Deal with links specially. */
       if (temp->link) // implies option[DUP]
@@ -1023,7 +1226,7 @@ Key_List::output_keylength_table (void)
             printf (",");
             if ((column++ % columns) == 0)
               printf("\n%s   ", indent);
-            printf ("%3d", links->length);
+            printf ("%3d", links->key_length);
           }
 
       index++;
@@ -1042,9 +1245,13 @@ output_keyword_entry (List_Node *temp, const char *indent)
   printf ("%s    ", indent);
   if (option[TYPE])
     printf ("{");
-  output_string (temp->key);
+  output_string (temp->key, temp->key_length);
   if (option[TYPE])
-    printf (",%s}", temp->rest);
+    {
+      if (strlen (temp->rest) > 0)
+        printf (",%s", temp->rest);
+      printf ("}");
+    }
   if (option[DEBUG])
     printf (" /* hash value = %d, index = %d */",
             temp->hash_value, temp->index);
@@ -1053,7 +1260,17 @@ output_keyword_entry (List_Node *temp, const char *indent)
 static void
 output_keyword_blank_entries (int count, const char *indent)
 {
-  const int columns = 9;
+  int columns;
+  if (option[TYPE])
+    {
+      columns = 58 / (6 + strlen (option.get_initializer_suffix()));
+      if (columns == 0)
+        columns = 1;
+    }
+  else
+    {
+      columns = 9;
+    }
   int column = 0;
   for (int i = 0; i < count; i++)
     {
@@ -1069,7 +1286,7 @@ output_keyword_blank_entries (int count, const char *indent)
             printf (", ");
         }
       if (option[TYPE])
-        printf ("{\"\"}");
+        printf ("{\"\"%s}", option.get_initializer_suffix());
       else
         printf ("\"\"");
       column++;
@@ -1183,8 +1400,8 @@ Key_List::output_lookup_array (void)
           int hash_value = temp->hash_value;
           lookup_array[hash_value] = temp->index;
           if (option[DEBUG])
-            fprintf (stderr, "keyword = %s, index = %d\n",
-                     temp->key, temp->index);
+            fprintf (stderr, "keyword = %.*s, index = %d\n",
+                     temp->key_length, temp->key, temp->index);
           if (temp->link
               || (temp->next && hash_value == temp->next->hash_value))
             {
@@ -1200,8 +1417,8 @@ Key_List::output_lookup_array (void)
                       dup_ptr->count++;
                       if (option[DEBUG])
                         fprintf (stderr,
-                                 "static linked keyword = %s, index = %d\n",
-                                 ptr->key, ptr->index);
+                                 "static linked keyword = %.*s, index = %d\n",
+                                 ptr->key_length, ptr->key, ptr->index);
                     }
 
                   if (!(temp->next && hash_value == temp->next->hash_value))
@@ -1211,8 +1428,8 @@ Key_List::output_lookup_array (void)
 
                   dup_ptr->count++;
                   if (option[DEBUG])
-                    fprintf (stderr, "dynamic linked keyword = %s, index = %d\n",
-                             temp->key, temp->index);
+                    fprintf (stderr, "dynamic linked keyword = %.*s, index = %d\n",
+                             temp->key_length, temp->key, temp->index);
                 }
               assert (dup_ptr->count >= 2);
               dup_ptr++;
@@ -1349,15 +1566,15 @@ output_switch_case (List_Node *list, int indent, int *jumps_away)
   T (Trace t ("output_switch_case");)
 
   if (option[DEBUG])
-    printf ("%*s/* hash value = %4d, keyword = \"%s\" */\n",
-            indent, "", list->hash_value, list->key);
+    printf ("%*s/* hash value = %4d, keyword = \"%.*s\" */\n",
+            indent, "", list->hash_value, list->key_length, list->key);
 
   if (option[DUP]
       && (list->link
           || (list->next && list->hash_value == list->next->hash_value)))
     {
       if (option[LENTABLE])
-        printf ("%*slengthptr = &lengthtable[%d]\n",
+        printf ("%*slengthptr = &lengthtable[%d];\n",
                 indent, "", list->index);
       printf ("%*swordptr = &%s[%d];\n",
               indent, "", option.get_wordlist_name (), list->index);
@@ -1383,7 +1600,7 @@ output_switch_case (List_Node *list, int indent, int *jumps_away)
         {
           printf ("%*sif (len == %d)\n"
                   "%*s  {\n",
-                  indent, "", list->length,
+                  indent, "", list->key_length,
                   indent, "");
           indent += 4;
         }
@@ -1392,7 +1609,7 @@ output_switch_case (List_Node *list, int indent, int *jumps_away)
       if (option[TYPE])
         printf ("&%s[%d]", option.get_wordlist_name (), list->index);
       else
-        output_string (list->key);
+        output_string (list->key, list->key_length);
       printf (";\n");
       printf ("%*sgoto compare;\n",
               indent, "");
@@ -1654,60 +1871,64 @@ Key_List::output_lookup_function_body (const Output_Compare& comparison)
               indent -= 4;
               printf ("%*s    }\n", indent, "");
             }
-          printf ("%*s  else if (index < -TOTAL_KEYWORDS)\n"
-                  "%*s    {\n"
-                  "%*s      register int offset = - 1 - TOTAL_KEYWORDS - index;\n",
-                  indent, "", indent, "", indent, "");
-          if (option[LENTABLE])
-            printf ("%*s      register %s%s *lengthptr = &lengthtable[TOTAL_KEYWORDS + lookup[offset]];\n",
-                    indent, "", const_always, smallest_integral_type (max_key_len));
-          printf ("%*s      register ",
-                  indent, "");
-          output_const_type (const_readonly_array, struct_tag);
-          printf ("*wordptr = &%s[TOTAL_KEYWORDS + lookup[offset]];\n",
-                  option.get_wordlist_name ());
-          printf ("%*s      register ",
-                  indent, "");
-          output_const_type (const_readonly_array, struct_tag);
-          printf ("*wordendptr = wordptr + -lookup[offset + 1];\n\n");
-          printf ("%*s      while (wordptr < wordendptr)\n"
-                  "%*s        {\n",
-                  indent, "", indent, "");
-          if (option[LENTABLE])
+          if (total_duplicates > 0)
             {
-              printf ("%*s          if (len == *lengthptr)\n"
-                      "%*s            {\n",
-                      indent, "", indent, "");
-              indent += 4;
-            }
-          printf ("%*s          register %schar *s = ",
-                  indent, "", const_always);
-          if (option[TYPE])
-            printf ("wordptr->%s", option.get_key_name ());
-          else
-            printf ("*wordptr");
-          printf (";\n\n"
-                  "%*s          if (",
-                  indent, "");
-          comparison.output_comparison (Output_Expr1 ("str"), Output_Expr1 ("s"));
-          printf (")\n"
-                  "%*s            return %s;\n",
-                  indent, "",
-                  option[TYPE] ? "wordptr" : "s");
-          if (option[LENTABLE])
-            {
-              indent -= 4;
-              printf ("%*s            }\n",
+              printf ("%*s  else if (index < -TOTAL_KEYWORDS)\n"
+                      "%*s    {\n"
+                      "%*s      register int offset = - 1 - TOTAL_KEYWORDS - index;\n",
+                      indent, "", indent, "", indent, "");
+              if (option[LENTABLE])
+                printf ("%*s      register %s%s *lengthptr = &lengthtable[TOTAL_KEYWORDS + lookup[offset]];\n",
+                        indent, "", const_always, smallest_integral_type (max_key_len));
+              printf ("%*s      register ",
                       indent, "");
+              output_const_type (const_readonly_array, struct_tag);
+              printf ("*wordptr = &%s[TOTAL_KEYWORDS + lookup[offset]];\n",
+                      option.get_wordlist_name ());
+              printf ("%*s      register ",
+                      indent, "");
+              output_const_type (const_readonly_array, struct_tag);
+              printf ("*wordendptr = wordptr + -lookup[offset + 1];\n\n");
+              printf ("%*s      while (wordptr < wordendptr)\n"
+                      "%*s        {\n",
+                      indent, "", indent, "");
+              if (option[LENTABLE])
+                {
+                  printf ("%*s          if (len == *lengthptr)\n"
+                          "%*s            {\n",
+                          indent, "", indent, "");
+                  indent += 4;
+                }
+              printf ("%*s          register %schar *s = ",
+                      indent, "", const_always);
+              if (option[TYPE])
+                printf ("wordptr->%s", option.get_key_name ());
+              else
+                printf ("*wordptr");
+              printf (";\n\n"
+                      "%*s          if (",
+                      indent, "");
+              comparison.output_comparison (Output_Expr1 ("str"), Output_Expr1 ("s"));
+              printf (")\n"
+                      "%*s            return %s;\n",
+                      indent, "",
+                      option[TYPE] ? "wordptr" : "s");
+              if (option[LENTABLE])
+                {
+                  indent -= 4;
+                  printf ("%*s            }\n",
+                          indent, "");
+                }
+              if (option[LENTABLE])
+                printf ("%*s          lengthptr++;\n",
+                        indent, "");
+              printf ("%*s          wordptr++;\n"
+                      "%*s        }\n"
+                      "%*s    }\n",
+                      indent, "", indent, "", indent, "");
             }
-          if (option[LENTABLE])
-            printf ("%*s          lengthptr++;\n",
-                    indent, "");
-          printf ("%*s          wordptr++;\n"
-                  "%*s        }\n"
-                  "%*s    }\n"
-                  "%*s}\n",
-                  indent, "", indent, "", indent, "", indent, "");
+          printf ("%*s}\n",
+                  indent, "");
         }
       else
         {
@@ -1789,10 +2010,15 @@ Key_List::output_lookup_function (void)
   if (!option[GLOBAL])
     output_lookup_tables ();
 
-  if (option[COMP])
-    output_lookup_function_body (Output_Compare_Strncmp ());
+  if (option[LENTABLE])
+    output_lookup_function_body (Output_Compare_Memcmp ());
   else
-    output_lookup_function_body (Output_Compare_Strcmp ());
+    {
+      if (option[COMP])
+        output_lookup_function_body (Output_Compare_Strncmp ());
+      else
+        output_lookup_function_body (Output_Compare_Strcmp ());
+    }
 
   printf ("}\n");
 }
@@ -1916,9 +2142,10 @@ Key_List::dump ()
            field_width, "char_set");
 
   for (List_Node *ptr = head; ptr; ptr = ptr->next)
-    fprintf (stderr, "%11d,%11d,%6d, %*s, %s\n",
-             ptr->hash_value, ptr->length, ptr->index,
-             field_width, ptr->char_set, ptr->key);
+    fprintf (stderr, "%11d,%11d,%6d, %*.*s, %.*s\n",
+             ptr->hash_value, ptr->key_length, ptr->index,
+             field_width, ptr->char_set_length, ptr->char_set,
+             ptr->key_length, ptr->key);
 }
 
 /* Simple-minded constructor action here... */

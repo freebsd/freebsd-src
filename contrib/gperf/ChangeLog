@@ -1,3 +1,229 @@
+2000-09-26  Bruno Haible  <bruno@linuix.math.u-bordeaux.fr>
+
+        * gperf-2.7.2 released.
+
+        * doc/gperf.texi: Add a second bug report address
+          <gperf-bugs@lists.sourceforge.net>.
+        * README: Updated.
+
+2000-08-28  Bruno Haible  <bruno@linuix.math.u-bordeaux.fr>
+
+        * lib/getopt.h (struct option): Use "const" also when compiling in
+          C++ mode. Avoids warnings from Sun CC and HP-UX aCC.
+
+        * doc/Makefile.in (docdir): Change from $(datadir)/doc/@PACKAGE@ to
+          $(prefix)/doc/@PACKAGE@, following the newest GNU standards.
+
+2000-08-20  Bruno Haible  <bruno@linuix.math.u-bordeaux.fr>
+
+        * src/version.cc: Bump version number to 2.7.2.
+        * doc/gperf.texi: Likewise.
+
+        * doc/texinfo.tex: Update to post-texinfo-4.0 version. @code in the
+          title page now chooses a larger font. The overall layout of the
+          text is denser.
+
+        * AUTHORS: New file.
+
+        * tests/Makefile.in (all): Add check-lang-utf8 and check-lang-ucs2.
+          (check-lang-utf8, check-lang-ucs2): New targets.
+          (clean): Remove lu8out and lu2out.
+        * tests/lang-utf8.gperf, tests/lang-utf8.exp: New files.
+        * tests/lang-ucs2.gperf, tests/test2.c, tests/lang-ucs2.in,
+          tests/lang-ucs2.exp: New files.
+
+        Allow the use of embedded NULs in keys.
+        * lib/hash.h (hashpjw): Add a length argument.
+        * lib/hash.cc (hashpjw): Likewise. Don't stop when encountering a NUL
+          character.
+        * src/hash-table.h (Hash_Table constructor): Add ignore_len argument.
+          (Hash_Table::ignore_length): New field.
+          (Hash_Table::insert): Renamed from Hash_Table::operator(). Remove
+          ignore_length argument.
+        * src/hash-table.cc (NIL): Remove macro.
+          (Hash_Table constructor): Add ignore_len argument. Use it to
+          initialize ignore_length.
+          (Hash_Table destructor): Specify explicit length of char_set and
+          key.
+          (Hash_Table::insert): Renamed from Hash_Table::operator(). Remove
+          ignore_length argument. Pass explicit length to hashpjw. Compare
+          char_set using memcmp, not strcmp.
+        * src/list-node.h (List_Node): Rename field length to key_length.
+          New field char_set_length.
+          (List_Node constructor): Accept key and rest, not the entire line.
+        * src/list-node.cc (List_Node constructor): Accept key and rest, not
+          the entire line. Don't NUL terminate key and char_set. Specify
+          explicit length of key. Initialize char_set_length field.
+        * src/key-list.cc: Include <ctype.h>.
+          (parse_line): New function.
+          (Key_List::read_keys): Call parse_line instead of new List_Node.
+          Pass option[NOLENGTH] to Hash_Table constructor, not
+          Hash_Table::insert. Specify explicit length of key and char_set.
+          (Key_List::get_occurrence): Use explicit length of char_set.
+          (Key_List::set_determined): Likewise.
+          (Key_List::already_determined): Likewise.
+          (output_string): Add length argument. Output unprintable characters
+          using octal escape sequence.
+          (output_keyword_entry): Use explicit length of key.
+          (Key_List::output_lookup_array): Specify explicit length of key.
+          (output_switch_case): Likewise.
+          (Key_List::dump): Likewise.
+        * src/gen-perf.h (Gen_Perf::compute_disjoint_union): Add two length
+          arguments.
+        * src/gen-perf.cc (Gen_Perf::compute_disjoint_union): Likewise. Don't
+          stop when encountering NUL characters. Don't NUL terminate the
+          result.
+          (Gen_Perf::hash): Use explicit length of char_set.
+          (Gen_Perf::change): Specify explicit length of key.
+        * doc/gperf.texi: Document it.
+
+        * doc/help2man: New file, help2man version 1.022.
+        * Makefile.devel (all): Add doc/gperf.1.
+          (doc/gperf.1): New target.
+        * doc/gperf.1: Automatically generated.
+
+        * mkinstalldirs: New file, from automake-1.4, grep-2.4.1, guile-1.4,
+          libtool-1.3.3, make-3.79.1, tar-1.13.
+        * src/Makefile.in (MKINSTALLDIRS): New variable.
+          (install, installdirs): Use it instead of mkdir.
+        * doc/Makefile.in (MKINSTALLDIRS): New variable.
+          (install, installdirs): Use it instead of mkdir.
+
+        * INSTALL: Update.
+
+2000-08-19  Bruno Haible  <bruno@linuix.math.u-bordeaux.fr>
+
+        * src/key-list.cc (Output_Compare_Memcmp): New class.
+          (Key_List::output_lookup_function): When option -l is given, use
+          memcmp instead of strcmp or strncmp.
+
+        * doc/gperf.texi: The bug report address is <bug-gnu-utils@gnu.org>.
+          The download address is ftp.gnu.org. Remove mention of -a and -g
+          options (now nops). Explain effect of -c option.
+
+        * doc/configure.in (PACKAGE): New variable.
+        * doc/Makefile.in (datadir, docdir): New variables.
+          (dvidir, htmldir): Change values.
+          (install, installdirs): Update.
+
+        * src/configure.in: Rename cache variable gp_cxx_throw_decl to
+          gp_cv_cxx_throw_decl.
+
+        * src/key-list.cc (Key_List::output_hash_function): When outputting
+          __inline, take advantage of C++ compilers which have inline.
+
+        * src/key-list.cc (Output_Compare_Strncmp::output_comparison):
+          After the call to strncmp, verify that expr2 is not longer than
+          `len'.
+          Reported by Carlo Wood <carlo@runaway.xs4all.nl>.
+
+        * src/key-list.cc (Key_List::output_lookup_function_body): Avoid
+          emitting the loop for dealing with duplicates if
+          total_duplicates == 0.
+
+        * src/key-list.cc (Key_List::read_keys): Don't accept an empty key.
+
+        * src/Makefile.in (install, installdirs, uninstall): Respect
+          $(DESTDIR).
+        * doc/Makefile.in (install, installdirs, uninstall): Likewise.
+
+        * src/options.cc (Options::print_options): Escape the arguments which
+          contain special characters.
+
+        * tests/c-parse.gperf: Updated from gcc-2.95.2/gcc/c-parse.gperf.
+        * tests/objc.gperf: New file, from gcc-2.95.2/gcc/objc/objc.gperf.
+        * tests/chill.gperf: New file, from gcc-2.95.2/gcc/ch/gperf.
+        * tests/cplusplus.gperf: New file, from gcc-2.95.2/gcc/cp/gxx.gperf.
+        * tests/gplus.gperf: Remove file.
+        * tests/java.gperf: New file, from gcc-2.95.2/gcc/java/keyword.gperf.
+        * tests/Makefile: Check them all.
+        * tests/c-parse.exp: Renamed from tests/test-1.exp.
+        * tests/modula2.exp: Renamed from tests/test-2.exp.
+        * tests/cplusplus.exp: Renamed from tests/test-3.exp.
+        * tests/gpc.exp: Renamed from tests/test-5.exp.
+
+        * src/key-list.cc (output_switch_case): Add trailing semicolon to
+          lengthptr assignment line. Fixes bug with -D and -S.
+          From Reini Urban <rurban@sbox.tu-graz.ac.at>. Also reported by
+          David Hunter.
+        * tests/Makefile.in (check-lang-syntax): Perform each test with -D
+          once without and once with duplicates.
+
+        * src/key-list.cc (output_keyword_entry): Avoid outputting a struct
+          initializer of the form {"key",}.
+
+        * src/iterator.cc: Don't include <stream.h>.
+          From Michael Deutschmann <ldeutsch@mail.netshop.net>.
+
+        * tests/Makefile.in (VALIDATE, check-lang-syntax): Use $(srcdir) where
+          appropriate.
+          Reported by Andreas Schwab <schwab@issan.informatik.uni-dortmund.de>.
+
+        * tests/validate: Don't run -traditional tests by default.
+
+        * src/main.cc (main): Check for write error on stdout before returning.
+
+        * src/Makefile.in (LDFLAGS): New definition, to catch the value given
+          at configure time.
+
+        Make the structure initializers customizable. Based on a patch by
+        Kaveh R. Ghazi <ghazi@caip.rutgers.edu>.
+        * src/options.h (Options::get_initializer_suffix,
+          Options::initializer_suffix): New declarations.
+        * src/options.icc (Options::get_initializer_suffix): New function.
+        * src/options.cc (DEFAULT_INITIALIZER_SUFFIX): New constant.
+          (Options::initializer_suffix): New variable.
+          (Options::short_usage): Document option "-F".
+          (Options::long_usage): Document option "-F".
+          (Options constructor): Initialize initializer_suffix.
+          (Options destructor): Dump initializer_suffix.
+          (long_options): Add option "-F".
+          (Options::operator()): Accept option "-F". Sets initializer_suffix.
+        * src/key-list.cc (output_keyword_blank_entries): Output
+          initializer_suffix.
+        * doc/gperf.texi: Document option "-F".
+
+        * COPYING: Replace with GPL version 2 (with new FSF address and Y2K
+          safe year format).
+
+        * doc/gpl.texinfo: New file.
+        * doc/gperf.texi: Document it.
+        * doc/Makefile.in (gperf.info, gperf.dvi, gperf.html, gperf_toc.html):
+          Update dependencies.
+
+        * doc/Makefile.in (MAKEINFO): Unset LANG while running makeinfo.
+
+1998-05-20  Bruno Haible  <bruno@linuix.mathematik.uni-karlsruhe.de>
+
+        * doc/Makefile.in (gperf.dvi, clean): Remove gperf.cps.
+          (install, installdirs, uninstall): Don't install gperf.dvi. The
+          info and HTML documentations are sufficient for on-line use, and
+          users who wish to print the documentation (in PS or DVI format)
+          can do this directly off the source distribution.
+          (DVIPS): Use "-D600" instead of "-Pljfour", for portability.
+
+1998-05-20  Akim Demaille  <demaille@inf.enst.fr>
+
+        * doc/gperf.texi: Many modifications:
+          (Output Format): Declare `hash' and `in_word_set' as functions.
+          (Concept Index): New section.
+          (Title page): Use standard presentation.
+          (Top): Use @top instead of @unnumbered so that automatic master
+          update works.
+          (Motivation): Avoid spaces in @var.
+          (Options): Use the standard name ``Invoking ...''.
+          (Options): Declare also the long form of the options.
+          (Options): Remove redundant @itemize when @table is used.
+
+1998-05-08  Andreas Schwab  <schwab@issan.informatik.uni-dortmund.de>
+
+        * aclocal.m4 (CL_PROG_INSTALL): Set cl_cv_path_install, not
+          ac_cv_path_install.
+
+Sat May  2 13:20:54 1998  Bruno Haible  <bruno@linuix.mathematik.uni-karlsruhe.de>
+
+        * gperf-2.7 released.
+
 Sat May  2 12:31:51 1998  Bruno Haible  <bruno@linuix.mathematik.uni-karlsruhe.de>
 
         * src/version.cc (version_string): Remove the "(C++ version)" suffix.

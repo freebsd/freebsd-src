@@ -1,6 +1,6 @@
 dnl autoconf configuration for gperf/src
 
-dnl Copyright (C) 1998 Free Software Foundation, Inc.
+dnl Copyright (C) 1998, 2000 Free Software Foundation, Inc.
 dnl written by Douglas C. Schmidt (schmidt@ics.uci.edu)
 dnl
 dnl This file is part of GNU GPERF.
@@ -40,16 +40,16 @@ dnl
 dnl           checks for compiler characteristics
 dnl
 AC_MSG_CHECKING([for working throw()])
-AC_CACHE_VAL(gp_cxx_throw_decl,[
+AC_CACHE_VAL(gp_cv_cxx_throw_decl,[
 AC_LANG_SAVE()
 AC_LANG_CPLUSPLUS()
 AC_TRY_COMPILE([#include <stdlib.h>
 void operator delete (void* ptr) throw() {}], [],
-gp_cxx_throw_decl=yes, gp_cxx_throw_decl=no)
+gp_cv_cxx_throw_decl=yes, gp_cv_cxx_throw_decl=no)
 AC_LANG_RESTORE()
 ])
-AC_MSG_RESULT([$]gp_cxx_throw_decl)
-if test [$]gp_cxx_throw_decl = yes; then
+AC_MSG_RESULT([$]gp_cv_cxx_throw_decl)
+if test [$]gp_cv_cxx_throw_decl = yes; then
   AC_DEFINE(HAVE_THROW_DECL)
 fi
 dnl
