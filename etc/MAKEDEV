@@ -360,7 +360,7 @@ wt*)
 	;;
 
 # Individual slices.
-ad*s*|afd*s*|amrd*s*|da*s*|fla*s*|idad*s*|md*s*|mlxd*s*|vn*s*|wd*s*|wfd*s*)
+ad*s*|afd*s*|amrd*s*|da*s*|fla*s*|idad*s*|md*s*|mlxd*s*|twed*s*|vn*s*|wd*s*|wfd*s*)
 	umask $disk_umask
 	case $i in
 	ad*s*) name=ad; chr=116;;
@@ -371,12 +371,13 @@ ad*s*|afd*s*|amrd*s*|da*s*|fla*s*|idad*s*|md*s*|mlxd*s*|vn*s*|wd*s*|wfd*s*)
 	idad*s*) name=idad; chr=109;;
 	md*s*) name=md;  chr=95;;
 	mlxd*s*) name=mlxd; chr=131;;
+	twed*s*) name=twed; chr=147;;
 	vn*s*) name=vn; chr=43;;
 	wd*s*) name=wd;  chr=3;;
 	wfd*s*) name=wfd; chr=87;;
 	esac
 	case $i in
-	amrd*s*|mlxd*s*|idad*s*)
+	amrd*s*|idad*s*|mlxd*s*|twed*s*)
 		unit=`expr $i : '....\([0-9]*\)s'`
 		slice=`expr $i : '....[0-9]*s\([0-9]*\)'`
 		part=`expr $i : '....[0-9]*s[0-9]*\(.*\)'`
@@ -541,7 +542,7 @@ fd*)
 	umask 77
 	;;
 
-ad*|afd*|amrd*|da*|fla*|idad*|md*|mlxd*|vn*|wd*|wfd*)
+ad*|afd*|amrd*|da*|fla*|idad*|md*|mlxd*|twed*|vn*|wd*|wfd*)
 	umask $disk_umask
 	case $i in
 	ad*) name=ad; chr=116;;
@@ -552,12 +553,13 @@ ad*|afd*|amrd*|da*|fla*|idad*|md*|mlxd*|vn*|wd*|wfd*)
 	idad*) name=idad; chr=109;;
 	md*) name=md; chr=95;;
 	mlxd*) name=mlxd; chr=131;;
+	twed*) name=twed; chr=147;;
 	vn*) name=vn; chr=43;;
 	wd*) name=wd;  chr=3;;
 	wfd*) name=wfd; chr=87;;
 	esac
 	case $i in
-	amrd*|mlxd*|idad*)
+	amrd*|idad*|mlxd*|twed*)
 		unit=`expr $i : '....\(.*\)'`
 		;;
 	afd*|fla*|wfd*)
@@ -1525,6 +1527,11 @@ i4btrc*)
 mlx*)
 	unit=`expr $i : 'mlx\(.*\)'`
 	mknod mlx$unit c 130 $unit
+	;;
+
+twe*)
+	unit=`expr $i : 'twe\(.*\)'`
+	mknod twe$unit c 146 $unit
 	;;
 
 local)
