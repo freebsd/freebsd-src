@@ -27,7 +27,8 @@ SUBDIR=	${_csu} libcom_err libcrypt libkvm msun libmd libncurses \
 	${_libypclnt} ${_compat} libalias libarchive ${_libatm} \
 	libbegemot ${_libbluetooth} libbsnmp libbz2 libc ${_libc_r} \
 	libcalendar libcam libcompat libdevinfo libdevstat ${_libdisk} \
-	libedit libexpat libfetch libform libftpio libgeom ${_libio} libipsec \
+	libedit libexpat libfetch libform libftpio libgeom ${_libgpib} \
+	${_libio} libipsec \
 	libipx libkiconv libmagic libmenu ${_libmilter} ${_libmp} \
 	${_libncp} ${_libngatm} libopie libpam libpanel libpcap \
 	${_libpthread} ${_libsdp} ${_libsm} ${_libsmb} ${_libsmdb} \
@@ -111,6 +112,10 @@ _libusbhid=	libusbhid
 
 .if !defined(NO_NIS)
 _libypclnt=	libypclnt
+.endif
+
+.if !defined(NO_GPIB)
+_libgpib=	libgpib
 .endif
 
 .include <bsd.subdir.mk>
