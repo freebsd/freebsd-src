@@ -424,6 +424,7 @@ failure:
 			cbp->bio_data = cbp->bio_driver1;
 			cbp->bio_driver1 = NULL;
 		}
+		bp->bio_children--;
 		g_destroy_bio(cbp);
 	}
 	return (error);
@@ -506,6 +507,7 @@ g_stripe_start_economic(struct bio *bp, u_int no, off_t offset, off_t length)
 failure:
 	while ((cbp = TAILQ_FIRST(&queue)) != NULL) {
 		TAILQ_REMOVE(&queue, cbp, bio_queue);
+		bp->bio_children--;
 		g_destroy_bio(cbp);
 	}
 	return (error);
