@@ -1076,6 +1076,7 @@ dequeue_signals(void)
 {
 	char	bufr[128];
 	int	i, num;
+	pthread_t pthread;
 
 	/*
 	 * Enter a loop to read and handle queued signals from the
@@ -1096,7 +1097,11 @@ dequeue_signals(void)
 			}
 			else {
 				/* Handle this signal: */
-				_thread_sig_handle((int) bufr[i], NULL);
+				pthread = _thread_sig_handle((int) bufr[i],
+				    NULL);
+				if (pthread != NULL)
+					_thread_sig_deliver(pthread,
+					    (int) bufr[i]);
 			}
 		}
 	}
