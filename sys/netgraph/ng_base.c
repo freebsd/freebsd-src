@@ -3436,7 +3436,7 @@ ng_address_hook(node_p here, item_p item, hook_p hook, ng_ID_t retaddr)
 	|| NG_NODE_NOT_VALID(NG_PEER_NODE(hook))) {
 		NG_FREE_ITEM(item);
 		TRAP_ERROR();
-		return (EINVAL);
+		return (ENETDOWN);
 	}
 
 	/*
