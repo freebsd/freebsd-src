@@ -1,10 +1,10 @@
 ;;;; -*-emacs-lisp-*-
 ;;;;---------------------------------------------------------------------------
-;;;;    EMACS interface for send-pr (by Heinz G. Seidl, hgs@cygnus.com)
+;;;;    EMACS interface for send-pr (by Heinz G. Seidl)
 ;;;;    Slightly hacked by Brendan Kehoe (brendan@cygnus.com).
 ;;;;
 ;;;;    This file is part of the Problem Report Management System (GNATS)
-;;;;    Copyright 1992, 1993 Cygnus Support
+;;;;    Copyright 1992, 1993, 1997 Cygnus Support
 ;;;;
 ;;;;    This program is free software; you can redistribute it and/or
 ;;;;    modify it under the terms of the GNU General Public
@@ -64,7 +64,7 @@
 (defvar mail-self-blind nil)
 (defvar mail-default-reply-to nil)
 
-(defconst send-pr::version "3.2")
+(defconst send-pr::version "3.113")
 
 (defvar gnats:root "/home/gnats"
   "*The top of the tree containing the GNATS database.")
@@ -86,6 +86,27 @@
 	   (string-lessp emacs-version "19")))
   "Is this emacs v19?")
 
+;;; This has to be here rather than at the bottom of this file with
+;;; the other utility functions because it is used by
+;;; gnats::get-config, which is called when send-pr.el is being
+;;; loaded (see the "defconst" below), before the whole file has been
+;;; loaded.
+
+(defun gnats::find-safe-default-directory (&optional buffer)
+"If the directory referred to by `default-directory' for the current
+buffer (or for optional argument BUFFER) does not exist, set it to the home
+directory of the current user if that exists, or to `/'.
+
+Returns the final value of default-directory in the buffer."
+  (let ((homedir (expand-file-name "~/")))
+    (save-excursion
+      (if buffer (set-buffer buffer))
+      (if (not (file-exists-p default-directory))
+	  (if (file-exists-p homedir)
+	      (setq default-directory homedir)
+	    (setq default-directory "/")))
+      default-directory)))
+
 ;;; These may be changed during configuration/installation or by the individual
 ;;; user in his/her .emacs file.
 ;;;
@@ -95,11 +116,17 @@
 	ret)
     (save-excursion
       (set-buffer buf)
-      (shell-command (concat ". " gnats:root "/gnats-adm/config; echo $" var )
-		     t)
-      (if (looking-at "^\\.:\\|/bin/sh:\\|\n")
+      (shell-command-on-region
+       (point-min) (point-max)
+       (concat ". " gnats:root "/gnats-adm/config; echo $" var ) t)
+      (goto-char (point-min))
+      ; We have to use get-buffer, since shell-command-on-region will wipe
+      ; out the buffer if there's no output from the command.
+      (if (or (not (get-buffer "*Shell Command Output*"))
+	      (looking-at "^\\.:\\|/bin/sh:\\|\n"))
 	  (setq ret nil)
 	(setq ret (buffer-substring (point-min) (- (point-max) 1)))))
+    (if (and ret (string-equal ret "")) (setq ret nil))
     (kill-buffer buf)
     ret))
 
@@ -130,7 +157,7 @@ at runtime.")
   (` (("Category" send-pr::set-categories
        (, (or (gnats::get-config "DEFAULT_CATEGORY") nil)) enum)
       ("Class" (("sw-bug") ("doc-bug") ("change-request"))
-       (, (or (gnats::get-config "DEFAULT_CONFIDENTIAL") 0)) enum)
+       (, (or (gnats::get-config "DEFAULT_CLASS") 0)) enum)
       ("Confidential" (("yes") ("no"))
        (, (or (gnats::get-config "DEFAULT_CONFIDENTIAL") 1)) enum)
       ("Severity" (("non-critical") ("serious") ("critical"))
@@ -141,8 +168,7 @@ at runtime.")
        (, (or (gnats::get-config "DEFAULT_RELEASE") "@DEFAULT_RELEASE@"))
        text)
       ("Submitter-Id" nil
-       (, (or (gnats::get-config "DEFAULT_SUBMITTER") "unknown"))
-       text)
+       (, (or (gnats::get-config "DEFAULT_SUBMITTER") "unknown")) text)
       ("Synopsis" nil nil text
        (lambda (a b c) (gnats::set-mail-field "Subject" c)))))
   "AList, keyed on the name of the field, of:
@@ -201,6 +227,9 @@ it to send-pr::sites.  With arg, force update."
 (defvar send-pr:::err-buffer nil
   "The error buffer used by the current PR buffer.")
 
+(defvar send-pr:::spawn-to-send nil
+  "Whether or not send-pr-mode should spawn a send-pr process to send the PR.")
+
 (defconst gnats::indent 17 "Indent for formatting the value.")
 
 ;;;;---------------------------------------------------------------------------
@@ -234,8 +263,9 @@ to send the PR with `send-pr -b -f -'."
   (let ((oldpr (getenv "GNATS_ROOT"))
 	(case-fold-search nil))
     (setenv "GNATS_ROOT" gnats:root)
-    (shell-command (concat "send-pr -P " site) t)
+    (send-pr::insert-template site)
     (setenv "GNATS_ROOT" oldpr)
+    (goto-char (point-min))
     (if (looking-at "send-pr:")
 	(cond ((looking-at "send-pr: .* does not have a categories list")
 	       (setq send-pr::sites nil)
@@ -243,17 +273,21 @@ to send the PR with `send-pr -b -f -'."
 	      (t (error (buffer-substring (point-min) (point-max)))))
       (save-excursion
 	;; Clear cruft inserted by bdamaged .cshrcs
+	(goto-char 1)
 	(re-search-forward "^SEND-PR:")
 	(delete-region 1 (match-beginning 0)))))
   (set-buffer-modified-p nil)
   (send-pr:send-pr-mode)
   (setq send-pr:::site site)
+  (setq send-pr:::spawn-to-send t)
   (send-pr::set-categories)
   (if (null send-pr:::categories)
       (progn
 	(and send-pr:::err-buffer (kill-buffer send-pr:::err-buffer))
 	(kill-buffer nil)
 	(message "send-pr: no categories found"))
+    (or (stringp mail-default-reply-to)
+	(setq mail-default-reply-to (getenv "REPLYTO")))
     (and mail-default-reply-to
 	 (gnats::set-mail-field "Reply-To" mail-default-reply-to))
     (and mail-self-blind
@@ -262,6 +296,19 @@ to send the PR with `send-pr -b -f -'."
     (gnats::position-on-field "Description")
     (message (substitute-command-keys
 	      "To send the problem report use: \\[send-pr:submit-pr]"))))
+
+(defvar send-pr::template-alist nil
+  "An alist containing the output of send-pr -P <sitename> for various sites.")
+
+(defun send-pr::insert-template (site)
+  (let ((elt (assoc site send-pr::template-alist)))
+    (if elt
+	(save-excursion (insert (cdr elt)))
+      (call-process "send-pr" nil t nil "-P" site)
+      (save-excursion
+	(setq send-pr::template-alist
+	      (cons (cons site (buffer-substring (point-min) (point-max)))
+		    send-pr::template-alist))))))
 
 (fset 'do-send-pr 'send-pr:submit-pr)	;backward compat
 (defun send-pr:submit-pr ()
@@ -277,35 +324,47 @@ buffer was loaded with emacsclient, in which case save the buffer and exit."
       (save-buffer buffer)
       (kill-buffer buffer)
       (server-buffer-done buffer)))
+   (send-pr:::spawn-to-send
+    (if (or (buffer-modified-p)
+	    (not send-pr:::sent)
+	    (y-or-n-p "PR already sent; resend? "))
+	(progn
+	  (or (and send-pr:::err-buffer
+		   (buffer-name send-pr:::err-buffer))
+	      (setq send-pr:::err-buffer
+		    (get-buffer-create send-pr::err-buffer-name)))
+	  (let ((err-buffer send-pr:::err-buffer) mesg ok)
+	    (save-excursion (set-buffer err-buffer) (erase-buffer))
+	    (message "running send-pr...")
+	    (let ((oldpr (getenv "GNATS_ROOT")))
+	      (setenv "GNATS_ROOT" gnats:root)
+	      ;; ensure that a final newline is present:
+	      (if (not (equal (char-after (1- (point-max))) ?\n))
+		  (save-excursion (goto-char (point-max))
+				  (insert ?\n)))
+	      (call-process-region (point-min) (point-max) "send-pr"
+				   nil err-buffer nil send-pr:::site
+				   "-b" "-f" "-")
+	      (setenv "GNATS_ROOT" oldpr))
+	    (message "running send-pr...done")
+	    ;; stupidly we cannot check the return value in EMACS 18.57,
+	    ;; thus we need this kluge to find out whether send-pr succeeded.
+	    (if (save-excursion
+		  (set-buffer err-buffer)
+		  (goto-char (point-min))
+		  (setq mesg (buffer-substring (point-min) (- (point-max) 1)))
+		  (search-forward "problem report sent" nil t))
+		(progn (message mesg)
+		       (kill-buffer err-buffer)
+		       (delete-auto-save-file-if-necessary)
+		       (set-buffer-modified-p nil)
+		       (setq send-pr:::sent t)
+		       (bury-buffer))
+	      (pop-to-buffer err-buffer))
+	    ))))
    (t
-    (or (and send-pr:::err-buffer
-	     (buffer-name send-pr:::err-buffer))
-	(setq send-pr:::err-buffer
-	      (get-buffer-create send-pr::err-buffer-name)))
-    (let ((err-buffer send-pr:::err-buffer) mesg ok)
-      (save-excursion (set-buffer err-buffer) (erase-buffer))
-      (message "running send-pr...")
-      (let ((oldpr (getenv "GNATS_ROOT")))
-	(setenv "GNATS_ROOT" gnats:root)
-	(call-process-region (point-min) (point-max) "send-pr"
-			     nil err-buffer nil send-pr:::site
-			     "-b" "-f" "-")
-	(setenv "GNATS_ROOT" oldpr))
-      (message "running send-pr...done")
-      ;; stupidly we cannot check the return value in EMACS 18.57, thus we need
-      ;; this kluge to find out whether send-pr succeeded.
-      (if (save-excursion
-	    (set-buffer err-buffer)
-	    (goto-char (point-min))
-	    (setq mesg (buffer-substring (point-min) (- (point-max) 1)))
-	    (search-forward "problem report sent" nil t))
-	  (progn (message mesg)
-		 (kill-buffer err-buffer)
-		 (delete-auto-save-file-if-necessary)
-		 (set-buffer-modified-p nil)
-		 (bury-buffer))
-	(pop-to-buffer err-buffer))
-    ))))
+    (save-buffer)
+    (message "Exit emacs to send the PR."))))
    
 ;;;;---------------------------------------------------------------------------
 ;;;; send-pr:send-pr-mode mode
@@ -346,6 +405,9 @@ if it is not nil."
   (make-local-variable 'send-pr:::site)
   (make-local-variable 'send-pr:::categories)
   (make-local-variable 'send-pr:::err-buffer)
+  (make-local-variable 'send-pr:::spawn-to-send)
+  (make-local-variable 'send-pr:::sent)
+  (setq send-pr:::sent nil)
   (make-local-variable 'paragraph-separate)
   (setq paragraph-separate (concat (default-value 'paragraph-separate)
 				   "\\|" gnats::keyword "[ \t\n\f]*$"))
@@ -359,10 +421,12 @@ if it is not nil."
 ;;;; Functions to read and replace field values.
 ;;;;---------------------------------------------------------------------------
 
-(defun gnats::position-on-field (field)
+(defun gnats::position-on-field (field &optional quiet)
   (goto-char (point-min))
   (if (not (re-search-forward (concat "^>" field ":") nil t))
-      (error "Field `>%s:' not found." field)
+      (if quiet
+	  nil
+	(error "Field `>%s:' not found." field))
     (re-search-forward "[ \t\n\f]*")
     (if (looking-at gnats::keyword)
 	(backward-char 1))
@@ -385,7 +449,7 @@ if it is not nil."
   (let (pos)
     (unwind-protect
 	(save-excursion
-	  (if (not (gnats::position-on-field field))
+	  (if (not (gnats::position-on-field field t))
 	      nil
 	    (setq pos (point-marker))
 	    (if (or (looking-at "<.*>$") (eolp))
@@ -470,20 +534,22 @@ arguments of the field to change and the default value to use."
 	 new)
     (if (null old)
 	(error "ACK")
-      (let ((prompt (concat ">" field ": "))
-	    (domain (gnats::field-values field))
-	    (type (gnats::field-type field))
-	    (action (gnats::field-action field)))
-	(or default (setq default (gnats::field-default field)))
-	(setq new (if (eq type 'enum)
+      (if (or (interactive-p) t)
+	  (let ((prompt (concat ">" field ": "))
+		(domain (gnats::field-values field))
+		(type (gnats::field-type field)))
+	    (or default (setq default (gnats::field-default field)))
+	    (setq new
+		  (if (eq type 'enum)
 		      (completing-read prompt domain nil t 
 				       (if gnats::emacs-19p (cons default 0)
 					 default))
 		    (read-string prompt (if gnats::emacs-19p (cons default 1)
-					  default))))
-	(gnats::set-field field new)
-	(funcall action field old new)
-	new))))
+					  default)))))
+	(setq new default))
+      (gnats::set-field field new)
+      (funcall (gnats::field-action field) field old new)
+      new)))
 
 (defun gnats::set-field (field value)
   (save-excursion
@@ -693,7 +759,8 @@ the whole string is returned."
     (setq exec-path (save-excursion (set-buffer err-buffer)
 				    (prin1 exec-path err-buffer)
 				    (goto-char (point-min))
-				    (replace-string "//" "/")
+				    (while (search-forward "//" nil t)
+				      (replace-match "/" nil t))
 				    (goto-char (point-min))
 				    (setq ret (read err-buffer))
 				    (kill-buffer err-buffer)
