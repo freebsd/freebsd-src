@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: ftp_strat.c,v 1.6.2.13 1995/06/03 23:23:38 jkh Exp $
+ * $Id: ftp_strat.c,v 1.6.2.14 1995/06/04 05:13:31 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -73,17 +73,20 @@ mediaSetFtpUserPass(char *str)
 }
 
 static Boolean
-get_new_host(void)
+get_new_host(Device *dev)
 {
     Boolean i;
     char *oldTitle = MenuMediaFTP.title;
+    Device *netDev = dev->private;
 
-    MenuMediaFTP.title = "Open timed out - please select another ftp site";
+    MenuMediaFTP.title = "Connection timed out - please select another site";
     i = mediaSetFTP(NULL);
     MenuMediaFTP.title = oldTitle;
     if (i) {
-	mediaShutdownFTP(mediaDevice);
-	i = mediaInitFTP(mediaDevice);
+	netDev->flags |= OPT_LEAVE_NETWORK_UP;
+	(*dev->shutdown)(dev);
+	i = (*dev->init)(dev);
+	netDev->flags &= ~OPT_LEAVE_NETWORK_UP;
     }
     return i;
 }
@@ -101,12 +104,8 @@ mediaInitFTP(Device *dev)
     if (ftpInitted)
 	return TRUE;
 
-    if (netDevice->init) {
-	if (isDebug())
-	    msgDebug("InitFTP: Calling network init routine\n");
-	if (!(*netDevice->init)(netDevice))
-	    return FALSE;
-    }
+    if (!(*netDevice->init)(netDevice))
+	return FALSE;
 
     if ((ftp = FtpInit()) == NULL) {
 	msgConfirm("FTP initialisation failed!");
@@ -153,7 +152,7 @@ mediaInitFTP(Device *dev)
 	max_retries = 0;
 retry:
     if (i && ++retries > max_retries) {
-	if ((OptFlags & OPT_FTP_ABORT) || !get_new_host())
+	if ((OptFlags & OPT_FTP_ABORT) || !get_new_host(dev))
 	    return FALSE;
 	retries = 0;
     }
@@ -199,9 +198,9 @@ evil_goto:
     if (fd < 0) {
 	/* If a hard fail, try to "bounce" the ftp server to clear it */
 	if (fd == -2 || ++nretries > max_retries) {
-	    if (OptFlags & OPT_FTP_ABORT)
+	    if ((OptFlags & OPT_FTP_ABORT) || (dev->flags & OPT_EXPLORATORY_GET))
 		return -1;
-	    else if (!get_new_host())
+	    else if (!get_new_host(dev))
 		return -2;
 	    nretries = 0;
 	}
@@ -221,8 +220,9 @@ Boolean
 mediaCloseFTP(Device *dev, int fd)
 {
     FtpEOF(ftp);
-    close(fd);
-    return (TRUE);
+    if (!close(fd))
+	return (TRUE);
+    return FALSE;
 }
 
 void
@@ -237,7 +237,6 @@ mediaShutdownFTP(Device *dev)
 	FtpClose(ftp);
 	ftp = NULL;
     }
-    if (netdev->shutdown)
-	(*netdev->shutdown)(netdev);
+    (*netdev->shutdown)(netdev);
     ftpInitted = FALSE;
 }

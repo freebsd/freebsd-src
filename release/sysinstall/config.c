@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.15.2.16 1995/06/03 06:30:59 jkh Exp $
+ * $Id: config.c,v 1.15.2.17 1995/06/04 07:06:43 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -364,9 +364,8 @@ configPackages(char *str)
 	    onCD = FALSE;
 	else {
 	    onCD = TRUE;
-	    if (mediaDevice->init)
-		if (!(*mediaDevice->init)(mediaDevice))
-		    onCD = FALSE;
+	    if (!(*mediaDevice->init)(mediaDevice))
+		onCD = FALSE;
 	}
     }
     else

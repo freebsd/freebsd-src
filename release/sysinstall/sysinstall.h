@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.41.2.12 1995/06/04 05:20:25 jkh Exp $
+ * $Id: sysinstall.h,v 1.41.2.13 1995/06/04 07:06:50 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -87,16 +87,16 @@
 #define RUNNING_ON_ROOT		"_runningOnRoot"
 #define TCP_CONFIGURED		"_tcpConfigured"
 
-#define OPT_NO_CONFIRM		0x1
-#define OPT_NFS_SECURE		0x2
-#define OPT_DEBUG		0x4
-#define OPT_FTP_ACTIVE		0x8
-#define OPT_FTP_PASSIVE		0x10
-#define OPT_FTP_RESELECT	0x20
-#define OPT_FTP_ABORT		0x40
-#define OPT_SLOW_ETHER		0x80
-#define OPT_EXPLORATORY_GET	0x100
-
+#define OPT_NO_CONFIRM		0x0001
+#define OPT_NFS_SECURE		0x0002
+#define OPT_DEBUG		0x0004
+#define OPT_FTP_ACTIVE		0x0008
+#define OPT_FTP_PASSIVE		0x0010
+#define OPT_FTP_RESELECT	0x0020
+#define OPT_FTP_ABORT		0x0040
+#define OPT_SLOW_ETHER		0x0080
+#define OPT_EXPLORATORY_GET	0x0100
+#define OPT_LEAVE_NETWORK_UP	0x0200
 
 #define VAR_HOSTNAME		"hostname"
 #define VAR_DOMAINNAME		"domainname"

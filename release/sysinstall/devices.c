@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: devices.c,v 1.35.2.5 1995/06/04 05:13:26 jkh Exp $
+ * $Id: devices.c,v 1.35.2.6 1995/06/04 05:23:00 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -122,6 +122,33 @@ new_device(char *name)
     return dev;
 }
 
+/* Stubs for unimplemented strategy routines */
+static Boolean
+dummyInit(Device *dev)
+{
+    return TRUE;
+}
+
+static int
+dummyGet(Device *dev, char *dist)
+{
+    return -1;
+}
+
+static Boolean
+dummyClose(Device *dev, int fd)
+{
+    if (!close(fd))
+	return TRUE;
+    return FALSE;
+}
+
+static void
+dummyShutdown(Device *dev)
+{
+    return;
+}
+
 static int
 deviceTry(char *name, char *try)
 {
@@ -151,10 +178,10 @@ deviceRegister(char *name, char *desc, char *devname, DeviceType type, Boolean e
     newdev->devname = devname;
     newdev->type = type;
     newdev->enabled = enabled;
-    newdev->init = init;
-    newdev->get = get;
-    newdev->close = close;
-    newdev->shutdown = shutdown;
+    newdev->init = init ? init : dummyInit;
+    newdev->get = get ? get : dummyGet;
+    newdev->close = close ? close : dummyClose;
+    newdev->shutdown = shutdown ? shutdown : dummyShutdown;
     newdev->private = private;
     Devices[numDevs] = newdev;
     Devices[++numDevs] = NULL;
