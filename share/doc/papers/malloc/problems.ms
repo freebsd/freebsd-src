@@ -6,14 +6,14 @@
 .\" this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
 .\" ----------------------------------------------------------------------------
 .\"
-.\" $Id$
+.\" $Id: problems.ms,v 1.1 1996/04/13 08:30:21 phk Exp $
 .\"
 .ds RH The problems
 .NH
 The problems
 .PP
 Even though malloc(3) is a lot simpler to use
-than the raw brk(2)/sbrk(2) interface
+than the raw brk(2)/sbrk(2) interface,
 or maybe exactly because
 of that,
 a lot of problems arise from its use.
@@ -43,12 +43,12 @@ message before the core-dump.
 Even worse though, very often the program will just continue,
 possibly giving wrong results.
 .PP
-An entirely different form for problem is that
+An entirely different form of problem is that
 the memory returned by malloc(3) can contain any value.
 Unfortunately most kernels, correctly, zero out the storage they 
 provide with brk(2), and thus the storage malloc returns will be zeroed 
 in many cases as well, so programmers are not particular apt to notice 
-that their code depend on malloc'ed storage to be zeroed.
+that their code depends on malloc'ed storage being zeroed.
 .PP
 With problems this big and error handling this weak, it is not
 surprising that problems are hard and time consuming to find and fix.
