@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: index.c,v 1.10 1995/10/16 15:14:03 jkh Exp $
+ * $Id: index.c,v 1.11 1995/10/20 07:02:34 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -51,19 +51,20 @@
 
 /* Macros and magic values */
 #define MAX_MENU	13
+#define _MAX_DESC	62
 
 /* Smarter strdup */
 inline char *
 _strdup(char *ptr)
 {
-    return ptr ? strdup(ptr) : ptr;
+    return ptr ? strdup(ptr) : NULL;
 }
 
 static char *descrs[] = {
-    "Package Selection", "To select a package or category, move to it and press SPACE.\n"
-	"To remove a package from consideration, press SPACE again.\n"
-	    "To go to a previous menu, select UP item or Cancel. To search\n"
-		"for a package by name, press ESC.",
+    "Package Selection", "To mark a package or select a category, move to it and press SPACE.\n"
+	"To unmark a package, press SPACE again.  When you want to commit your\n"
+	    "marks, press [ENTER].  To go to a previous menu, select UP item or Cancel.\n"
+		"To search for a package by name, press ESC.",
     "Package Targets", "These are the packages you've selected for extraction.\n\n"
 	"If you're sure of these choices, select OK.\n"
 	    "If not, select Cancel to go back to the package selection menu.\n",
@@ -146,40 +147,16 @@ new_index(char *name, char *pathto, char *prefix, char *comment, char *descr, ch
     return tmp;
 }
 
-static char *
-strchop(char *s1, char *s2, int len)
-{
-    int len2;
-
-    if (!s1)
-	return s1;
-    if (!s2) {
-	s1[0] = '\0';
-	return s1;
-    }
-    len2 = strlen(s2);
-    if (len2 > len) {
-	strncpy(s1, s2, len - 1);
-	s1[len] = '\0';
-    }
-    else
-	strcpy(s1, s2);
-    return s1;
-}
-
 static void
 index_register(PkgNodePtr top, char *where, IndexEntryPtr ptr)
 {
     PkgNodePtr p, q;
 
-    q = NULL;
-    p = top->kids;
-    while (p) {
+    for (q = NULL, p = top->kids; p; p = p->next) {
 	if (!strcmp(p->name, where)) {
 	    q = p;
 	    break;
 	}
-	p = p->next;
     }
     if (!p) {
 	/* Add new category */
@@ -268,17 +245,15 @@ index_read(int fd, PkgNodePtr papa)
 {
     char name[127], pathto[255], prefix[255], comment[255], descr[127], maint[127], cats[511], keys[511];
 
-    while (!index_parse(fd, name, pathto, prefix, comment, descr, maint, cats, keys)) {
+    while (index_parse(fd, name, pathto, prefix, comment, descr, maint, cats, keys) != EOF) {
 	char *cp, *cp2, tmp[511];
 	IndexEntryPtr idx;
 
 	idx = new_index(name, pathto, prefix, comment, descr, maint);
 	/* For now, we only add things to menus if they're in categories.  Keywords are ignored */
-	cp = strcpy(tmp, cats);
-	while ((cp2 = strchr(cp, ' ')) != NULL) {
+	for (cp = strcpy(tmp, cats); (cp2 = strchr(cp, ' ')) != NULL; cp = cp2 + 1) {
 	    *cp2 = '\0';
 	    index_register(papa, cp, idx);
-	    cp = cp2 + 1;
 	}
 	index_register(papa, cp, idx);
 
@@ -327,14 +302,12 @@ index_node_free(PkgNodePtr top, PkgNodePtr plist)
 	tmp = tmp2;
     }
 
-    tmp = top;
-    while (tmp) {
+    for (tmp = top; tmp; tmp = tmp->next) {
 	free(tmp->name);
 	if (tmp->type == PACKAGE && tmp->data)
 	    index_entry_free((IndexEntryPtr)tmp->data);
 	if (tmp->kids)
 	    index_node_free(tmp->kids, NULL);
-	tmp = tmp->next;
     }
 }
 	
@@ -374,23 +347,18 @@ index_sort(PkgNodePtr top)
     PkgNodePtr p, q;
 
     /* Sort everything at the top level */
-    p = top->kids;
-    while (p) {
-	q = top->kids;
-	while (q) {
+    for (p = top->kids; p; p = p->next) {
+	for (q = top->kids; q; q = q->next) {
 	    if (q->next && strcmp(q->name, q->next->name) > 0)
 		swap_nodes(q, q->next);
-	    q = q->next;
 	}
-	p = p->next;
     }
 
     /* Now sub-sort everything n levels down */
-    p = top->kids;
-    while (p) {
+    
+    for (p = top->kids; p; p = p->next) {
 	if (p->kids)
 	    index_sort(p);
-	p = p->next;
     }
 }
 
@@ -464,7 +432,7 @@ is_selected_in(char *name, char *result)
 int
 index_menu(PkgNodePtr top, PkgNodePtr plist, int *pos, int *scroll)
 {
-    int n, rval;
+    int n, rval, maxname;
     int curr, max;
     PkgNodePtr sp, kp;
     char **nitems;
@@ -475,18 +443,19 @@ index_menu(PkgNodePtr top, PkgNodePtr plist, int *pos, int *scroll)
     hasPackages = FALSE;
     nitems = NULL;
 
-    n = 0;
-    kp = top->kids;
+    n = maxname = 0;
     /* Figure out if this menu is full of "leaves" or "branches" */
-    while (kp && kp->name) {
+    for (kp = top->kids; kp && kp->name; kp = kp->next) {
+	int len;
+	    
 	++n;
-	if (kp->type == PACKAGE) {
+	if (kp->type == PACKAGE && plist) {
 	    hasPackages = TRUE;
-	    break;
+	    if ((len = strlen(kp->name)) > maxname)
+		maxname = len;
 	}
-	kp = kp->next;
     }
-    if (!n) {
+    if (!n && plist) {
 	msgConfirm("The %s menu is empty.", top->name);
 	return RET_DONE;
     }
@@ -496,17 +465,16 @@ index_menu(PkgNodePtr top, PkgNodePtr plist, int *pos, int *scroll)
 	n = 0;
 	kp = top->kids;
 	if (!hasPackages && kp && kp->name && plist) {
-	    nitems = item_add_pair(nitems, "UP", ".. RETURN TO PREVIOUS MENU ..", &curr, &max);
+	    nitems = item_add_pair(nitems, "UP", "<RETURN TO PREVIOUS MENU>", &curr, &max);
 	    ++n;
 	}
 	while (kp && kp->name) {
-	    char name[10], desc[62];
-
-	    strchop(name, kp->name, 8);
-	    strchop(desc, kp->desc, 60);
-	    nitems = item_add_pair(nitems, name, desc, &curr, &max);
+	    /* Brutally adjust description to fit in menu */
+	    if (strlen(kp->desc) > (_MAX_DESC - maxname))
+		kp->desc[_MAX_DESC - maxname] = '\0';
+	    nitems = item_add_pair(nitems, kp->name, kp->desc, &curr, &max);
 	    if (hasPackages) {
-		if (kp->type == PACKAGE)
+		if (kp->type == PACKAGE && plist)
 		    nitems = item_add(nitems, index_search(plist, kp->name, NULL) ? "ON" : "OFF", &curr, &max);
 		else
 		    nitems = item_add(nitems, "OFF", &curr, &max);
@@ -524,28 +492,25 @@ index_menu(PkgNodePtr top, PkgNodePtr plist, int *pos, int *scroll)
 			       (unsigned char **)nitems, result, pos, scroll);
 	items_free(nitems, &curr, &max);
 	if (!rval && plist && strcmp(result, "UP")) {
-	    kp = top->kids;
-	    while (kp) {
+	    for (kp = top->kids; kp; kp = kp->next) {
 		if (kp->type == PACKAGE) {
 		    sp = index_search(plist, kp->name, NULL);
 		    if (is_selected_in(kp->name, result)) {
 			if (!sp) {
-			    PkgNodePtr n = (PkgNodePtr)malloc(sizeof(PkgNode));
-			    
-			    if (n) {
-				*n = *kp;
-				n->next = plist->kids;
-				plist->kids = n;
-				standout();
-				mvprintw(23, 0, "Adding package %s to selection list\n", kp->name);
-				standend();
-				refresh();
-			    }
+			    PkgNodePtr n = (PkgNodePtr)safe_malloc(sizeof(PkgNode));
+
+			    *n = *kp;
+			    n->next = plist->kids;
+			    plist->kids = n;
+			    standout();
+			    mvprintw(23, 0, "Selected packages were added to selection list\n", kp->name);
+			    standend();
+			    refresh();
 			}
 		    }
 		    else if (sp) {
 			standout();
-			mvprintw(23, 0, "Deleting package %s from selection list\n", kp->name);
+			mvprintw(23, 0, "Deleting unselected packages from selection list\n", kp->name);
 			standend();
 			refresh();
 			index_delete(sp);
@@ -557,10 +522,9 @@ index_menu(PkgNodePtr top, PkgNodePtr plist, int *pos, int *scroll)
 		    p = s = 0;
 		    index_menu(kp, plist, &p, &s);
 		}
-		kp = kp->next;
 	    }
 	}
-	else if (rval == -1) {
+	else if (rval == -1 && plist) {
 	    static char *cp;
 	    PkgNodePtr menu;
 
@@ -590,16 +554,16 @@ int
 index_extract(Device *dev, PkgNodePtr plist)
 {
     PkgNodePtr tmp;
+    int status = RET_SUCCESS;
 
-    tmp = plist->kids;
-    while (tmp) {
+    for (tmp = plist->kids; tmp; tmp = tmp->next) {
 	if (package_extract(dev, tmp->name) != RET_SUCCESS) {
 	    if (optionIsSet(OPT_NO_CONFIRM))
 		msgNotify("Unable to locate package %s..", tmp->name);
 	    else
 		msgConfirm("Unable to locate package %s..", tmp->name);
+	    status = RET_FAIL;
 	}
-	tmp = tmp->next;
     }
-    return RET_SUCCESS;
+    return status;
 }

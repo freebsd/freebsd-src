@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: installPreconfig.c,v 1.1 1995/10/20 15:40:43 jkh Exp $
+ * $Id: installPreconfig.c,v 1.2 1995/10/20 16:49:46 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -147,9 +147,8 @@ installPreconfig(char *str)
 		    break;
 		else
 		    continue;
-	    }
 	}
-
+    }
     fnord:
 	if (!cfg_file)
 	    break;
@@ -189,7 +188,7 @@ installPreconfig(char *str)
 		if (i == RET_SUCCESS)
 		    msgConfirm("Configuration file %s loaded successfully!\n"
 			       "Some parameters may now have new default values.", buf);
-		else
+		else if (i == RET_FAIL)
 		    msgConfirm("Configuration file %s loaded with some errors.\n", buf);
 	    }
 	    close(fd);
