@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.73 1998/01/20 10:53:26 kato Exp $
+ *  $Id: syscons.c,v 1.74 1998/01/24 02:54:40 eivind Exp $
  */
 
 #include "sc.h"
@@ -356,7 +356,8 @@ static u_char	ibmpc_to_pc98[16] =
 static u_char	ibmpc_to_pc98rev[16] = 
  { 0x05,0x25,0x85,0xa5,0x45,0x65,0xc5,0xe5, 0x0d,0x2d,0x8d,0xad,0x4d,0x6d,0xcd,0xed };
 
-unsigned int at2pc98(unsigned int attr)
+static unsigned int
+at2pc98(unsigned int attr)
 {
     unsigned char fg_at, bg_at;
     unsigned int at;
