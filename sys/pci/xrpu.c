@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: xrpu.c,v 1.5 1998/12/14 06:32:58 dillon Exp $
+ * $Id: xrpu.c,v 1.6 1999/01/12 01:42:43 eivind Exp $
  *
  * A very simple device driver for PCI cards based on Xilinx 6200 series
  * FPGA/RPU devices.  Current Functionality is to allow you to open and
@@ -17,6 +17,8 @@
  *
  */
 
+#include "opt_devfs.h"
+
 #include "xrpu.h"
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -24,7 +26,9 @@
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/timepps.h>
+#ifdef DEVFS
 #include <sys/devfsext.h>
+#endif
 #include <sys/xrpuio.h>
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>
@@ -64,13 +68,8 @@ static struct softc {
 	u_int	*virbase62;
 	struct timecounter tc;
 	u_int *trigger, *latch, dummy;
-	struct {
-		pps_params_t	params;
-		pps_info_t	info;
-		int		cap;
-		u_int		*assert, last_assert;
-		u_int		*clear, last_clear;
-	} pps[XRPU_MAX_PPS];
+	struct pps_state pps[XRPU_MAX_PPS];
+	u_int *assert[XRPU_MAX_PPS], *clear[XRPU_MAX_PPS];
 } *softc[NXRPU];
 
 static unsigned         
@@ -90,45 +89,21 @@ xrpu_poll_pps(struct timecounter *tc)
         unsigned count1, ppscount; 
                 
 	for (i = 0; i < XRPU_MAX_PPS; i++) {
-		if (sc->pps[i].assert) {
-			ppscount = *(sc->pps[i].assert) & tc->tc_counter_mask;
+		if (sc->assert[i]) {
+			ppscount = *(sc->assert[i]) & tc->tc_counter_mask;
 			do {
 				count1 = ppscount;
-				ppscount =  *(sc->pps[i].assert) & tc->tc_counter_mask;
+				ppscount =  *(sc->assert[i]) & tc->tc_counter_mask;
 			} while (ppscount != count1);
-			if (ppscount != sc->pps[i].last_assert) {
-				timecounter_timespec(ppscount, &sc->pps[i].info.assert_timestamp);
-				if (sc->pps[i].params.mode & PPS_OFFSETASSERT) {
-					timespecadd(&sc->pps[i].info.assert_timestamp,
-						&sc->pps[i].params.assert_offset);
-					if (sc->pps[i].info.assert_timestamp.tv_nsec < 0) {
-						sc->pps[i].info.assert_timestamp.tv_nsec += 1000000000;
-						sc->pps[i].info.assert_timestamp.tv_sec -= 1;
-					}
-				}
-				sc->pps[i].info.assert_sequence++;
-				sc->pps[i].last_assert = ppscount;
-			}
+			pps_event(&sc->pps[i], &sc->tc, ppscount, PPS_CAPTUREASSERT);
 		}
-		if (sc->pps[i].clear) {
-			ppscount = *(sc->pps[i].clear) & tc->tc_counter_mask;
+		if (sc->clear[i]) {
+			ppscount = *(sc->clear[i]) & tc->tc_counter_mask;
 			do {
 				count1 = ppscount;
-				ppscount =  *(sc->pps[i].clear) & tc->tc_counter_mask;
+				ppscount =  *(sc->clear[i]) & tc->tc_counter_mask;
 			} while (ppscount != count1);
-			if (ppscount != sc->pps[i].last_clear) {
-				timecounter_timespec(ppscount, &sc->pps[i].info.clear_timestamp);
-				if (sc->pps[i].params.mode & PPS_OFFSETASSERT) {
-					timespecadd(&sc->pps[i].info.clear_timestamp,
-						&sc->pps[i].params.clear_offset);
-					if (sc->pps[i].info.clear_timestamp.tv_nsec < 0) {
-						sc->pps[i].info.clear_timestamp.tv_nsec += 1000000000;
-						sc->pps[i].info.clear_timestamp.tv_sec -= 1;
-					}
-				}
-				sc->pps[i].info.clear_sequence++;
-				sc->pps[i].last_clear = ppscount;
-			}
+			pps_event(&sc->pps[i], &sc->tc, ppscount, PPS_CAPTURECLEAR);
 		}
 	}
 }
@@ -164,10 +139,7 @@ xrpu_ioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct proc *pr)
 		i = dev2pps(dev);
 		if (i < 0 || i >= XRPU_MAX_PPS)
 			return ENODEV;
-		if (!sc->pps[i].cap)
-			return ENODEV;
-		error =  std_pps_ioctl(cmd, arg, &sc->pps[i].params,
-                    &sc->pps[i].info, sc->pps[i].cap);
+		error =  pps_ioctl(cmd, arg, &sc->pps[i]);
 		return (error);
 	}
 		
@@ -191,17 +163,20 @@ xrpu_ioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct proc *pr)
 			if (xt->xt_pps[i].xt_addr_assert == 0
 			    && xt->xt_pps[i].xt_addr_clear == 0)
 				continue;
-			devfs_add_devswf(&xrpudevsw, (i+1)<<16, DV_CHR, UID_ROOT, GID_WHEEL, 0600,
-				"xpps%d", i);
-			/* DEVFS */
+#ifdef DEVFS
+			devfs_add_devswf(&xrpudevsw, (i+1)<<16, DV_CHR, UID_ROOT, GID_WHEEL, 
+			    0600, "xpps%d", i);
+#endif
+			sc->pps[i].ppscap = 0;
 			if (xt->xt_pps[i].xt_addr_assert) {
-				sc->pps[i].assert = sc->virbase62 + xt->xt_pps[i].xt_addr_assert;
-				sc->pps[i].cap |= PPS_CAPTUREASSERT | PPS_OFFSETASSERT;
+				sc->assert[i] = sc->virbase62 + xt->xt_pps[i].xt_addr_assert;
+				sc->pps[i].ppscap |= PPS_CAPTUREASSERT;
 			}
 			if (xt->xt_pps[i].xt_addr_clear) {
-				sc->pps[i].clear = sc->virbase62 + xt->xt_pps[i].xt_addr_clear;
-				sc->pps[i].cap |= PPS_CAPTURECLEAR | PPS_OFFSETCLEAR;
+				sc->clear[i] = sc->virbase62 + xt->xt_pps[i].xt_addr_clear;
+				sc->pps[i].ppscap |= PPS_CAPTURECLEAR;
 			}
+			pps_init(&sc->pps[i]);
 		}
 		sc->mode = TIMECOUNTER;
 		init_timecounter(&sc->tc);
@@ -266,6 +241,8 @@ xrpu_attach (pcici_t tag, int unit)
 	if (!unit)
 		cdevsw_add(&cdev, &xrpudevsw, NULL);
 
+#ifdef DEVFS
 	devfs_add_devswf(&xrpudevsw, 0, DV_CHR, UID_ROOT, GID_WHEEL, 0600,
 		"xrpu%d", unit);
+#endif
 }

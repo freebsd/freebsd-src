@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.2 (Berkeley) 1/4/94
-#	$Id: Makefile,v 1.91 1999/01/14 19:52:38 jdp Exp $
+#	$Id: Makefile,v 1.92 1999/01/17 22:35:09 dt Exp $
 #
 # Doing a make install builds /usr/include
 #
@@ -16,7 +16,7 @@ FILES=	a.out.h ar.h assert.h bitstring.h ctype.h db.h dirent.h disktab.h \
 	paths.h pthread.h pthread_np.h pwd.h \
 	ranlib.h regex.h regexp.h resolv.h rune.h runetype.h setjmp.h sgtty.h \
 	signal.h stab.h stddef.h stdio.h stdlib.h string.h stringlist.h \
-	strings.h struct.h sysexits.h tar.h time.h timepps.h timers.h \
+	strings.h struct.h sysexits.h tar.h time.h timers.h \
 	ttyent.h unistd.h utime.h utmp.h vis.h
 .if defined(WANT_CSRG_LIBM)
 FILES+=	math.h
@@ -63,6 +63,7 @@ osreldate.h:	${.CURDIR}/../sys/conf/newvers.sh \
 	echo \#'define __FreeBSD_version' $$RELDATE >> osreldate.h
 
 beforeinstall: ${SHARED}
+	@rm -f ${DESTDIR}/usr/include/timepps.h
 	cd ${.CURDIR}; \
 		${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
 		${FILES} ${DESTDIR}/usr/include

@@ -37,8 +37,10 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_clock.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_clock.c,v 1.85 1998/11/23 09:58:53 phk Exp $
+ * $Id: kern_clock.c,v 1.86 1998/11/29 20:31:02 phk Exp $
  */
+
+#include "opt_ntp.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -50,6 +52,7 @@
 #include <sys/resourcevar.h>
 #include <sys/signalvar.h>
 #include <sys/timex.h>
+#include <sys/timepps.h>
 #include <vm/vm.h>
 #include <sys/lock.h>
 #include <vm/pmap.h>
@@ -66,9 +69,6 @@
 #if defined(SMP) && defined(BETTER_CLOCK)
 #include <machine/smp.h>
 #endif
-
-/* This is where the NTIMECOUNTER option hangs out */
-#include "opt_ntp.h"
 
 /*
  * Number of timecounters used to implement stable storage
@@ -510,11 +510,14 @@ tco_delta(struct timecounter *tc)
 }
 
 /*
- * We have four functions for looking at the clock, two for microseconds
- * and two for nanoseconds.  For each there is fast but less precise
- * version "get{nano|micro}time" which will return a time which is up
- * to 1/HZ previous to the call, whereas the raw version "{nano|micro}time"
- * will return a timestamp which is as precise as possible.
+ * We have eight functions for looking at the clock, four for
+ * microseconds and four for nanoseconds.  For each there is fast
+ * but less precise version "get{nano|micro}[up]time" which will
+ * return a time which is up to 1/HZ previous to the call, whereas
+ * the raw version "{nano|micro}[up]time" will return a timestamp
+ * which is as precise as possible.  The "up" variants return the
+ * time relative to system boot, these are well suited for time
+ * interval measurements.
  */
 
 void
@@ -570,29 +573,6 @@ nanotime(struct timespec *ts)
 	tc = (struct timecounter *)timecounter;
 	ts->tv_sec = tc->tc_offset_sec;
 	count = tco_delta(tc);
-	delta = tc->tc_offset_nano;
-	delta += ((u_int64_t)count * tc->tc_scale_nano_f);
-	delta >>= 32;
-	delta += ((u_int64_t)count * tc->tc_scale_nano_i);
-	delta += boottime.tv_usec * 1000;
-	ts->tv_sec += boottime.tv_sec;
-	while (delta >= 1000000000) {
-		delta -= 1000000000;
-		ts->tv_sec++;
-	}
-	ts->tv_nsec = delta;
-}
-
-void
-timecounter_timespec(unsigned count, struct timespec *ts)
-{
-	u_int64_t delta;
-	struct timecounter *tc;
-
-	tc = (struct timecounter *)timecounter;
-	ts->tv_sec = tc->tc_offset_sec;
-	count -= tc->tc_offset_count;
-	count &= tc->tc_counter_mask;
 	delta = tc->tc_offset_nano;
 	delta += ((u_int64_t)count * tc->tc_scale_nano_f);
 	delta >>= 32;
@@ -676,10 +656,7 @@ tco_setscales(struct timecounter *tc)
 	u_int64_t scale;
 
 	scale = 1000000000LL << 32;
-	if (tc->tc_adjustment > 0)
-		scale += (tc->tc_adjustment * 1000LL) << 10;
-	else
-		scale -= (-tc->tc_adjustment * 1000LL) << 10;
+	scale += tc->tc_adjustment;
 	scale /= tc->tc_frequency;
 	tc->tc_scale_micro = scale / 1000;
 	tc->tc_scale_nano_f = scale & 0xffffffff;
@@ -809,8 +786,6 @@ tco_forward(int force)
 	while (tc->tc_offset_nano >= 1000000000ULL << 32) {
 		tc->tc_offset_nano -= 1000000000ULL << 32;
 		tc->tc_offset_sec++;
-		tc->tc_frequency = tc->tc_tweak->tc_frequency;
-		tc->tc_adjustment = tc->tc_tweak->tc_adjustment;
 		ntp_update_second(tc);	/* XXX only needed if xntpd runs */
 		tco_setscales(tc);
 		force++;
@@ -836,35 +811,149 @@ tco_forward(int force)
 	timecounter = tc;
 }
 
-static int
-sysctl_kern_timecounter_frequency SYSCTL_HANDLER_ARGS
-{
-
-	return (sysctl_handle_opaque(oidp, 
-	    &timecounter->tc_tweak->tc_frequency,
-	    sizeof(timecounter->tc_tweak->tc_frequency), req));
-}
-
-static int
-sysctl_kern_timecounter_adjustment SYSCTL_HANDLER_ARGS
-{
-
-	return (sysctl_handle_opaque(oidp, 
-	    &timecounter->tc_tweak->tc_adjustment,
-	    sizeof(timecounter->tc_tweak->tc_adjustment), req));
-}
-
 SYSCTL_NODE(_kern, OID_AUTO, timecounter, CTLFLAG_RW, 0, "");
 
-SYSCTL_INT(_kern_timecounter, KERN_ARGMAX, method, CTLFLAG_RW, &tco_method, 0,
+SYSCTL_INT(_kern_timecounter, OID_AUTO, method, CTLFLAG_RW, &tco_method, 0,
     "This variable determines the method used for updating timecounters. "
     "If the default algorithm (0) fails with \"calcru negative...\" messages "
     "try the alternate algorithm (1) which handles bad hardware better."
 
 );
 
-SYSCTL_PROC(_kern_timecounter, OID_AUTO, frequency, CTLTYPE_INT | CTLFLAG_RW,
-    0, sizeof(u_int), sysctl_kern_timecounter_frequency, "I", "");
 
-SYSCTL_PROC(_kern_timecounter, OID_AUTO, adjustment, CTLTYPE_INT | CTLFLAG_RW,
-    0, sizeof(int), sysctl_kern_timecounter_adjustment, "I", "");
+int
+pps_ioctl(u_long cmd, caddr_t data, struct pps_state *pps)
+{
+        pps_params_t *app;
+        pps_info_t *api;
+
+        switch (cmd) {
+        case PPS_IOC_CREATE:
+                return (0);
+        case PPS_IOC_DESTROY:
+                return (0);
+        case PPS_IOC_SETPARAMS:
+                app = (pps_params_t *)data;
+                if (app->mode & ~pps->ppscap)
+                        return (EINVAL);
+                pps->ppsparam = *app;         
+                return (0);
+        case PPS_IOC_GETPARAMS:
+                app = (pps_params_t *)data;
+                *app = pps->ppsparam;
+                return (0);
+        case PPS_IOC_GETCAP:
+                *(int*)data = pps->ppscap;
+                return (0);
+        case PPS_IOC_FETCH:
+                api = (pps_info_t *)data;
+                pps->ppsinfo.current_mode = pps->ppsparam.mode;         
+                *api = pps->ppsinfo;
+                return (0);
+        case PPS_IOC_WAIT:
+                return (EOPNOTSUPP);
+        default:
+                return (ENOTTY);
+        }
+}
+
+void
+pps_init(struct pps_state *pps)
+{
+	pps->ppscap |= PPS_TSFMT_TSPEC;
+	if (pps->ppscap & PPS_CAPTUREASSERT)
+		pps->ppscap |= PPS_OFFSETASSERT;
+	if (pps->ppscap & PPS_CAPTURECLEAR)
+		pps->ppscap |= PPS_OFFSETCLEAR;
+#ifdef PPS_SYNC
+	if (pps->ppscap & PPS_CAPTUREASSERT)
+		pps->ppscap |= PPS_HARDPPSONASSERT;
+	if (pps->ppscap & PPS_CAPTURECLEAR)
+		pps->ppscap |= PPS_HARDPPSONCLEAR;
+#endif
+}
+
+void
+pps_event(struct pps_state *pps, struct timecounter *tc, unsigned count, int event)
+{
+	struct timespec ts, *tsp, *osp;
+	u_int64_t delta;
+	unsigned tcount, *pcount;
+	int foff, fhard;
+	pps_seq_t	*pseq;
+
+	/* Things would be easier with arrays... */
+	if (event == PPS_CAPTUREASSERT) {
+		tsp = &pps->ppsinfo.assert_timestamp;
+		osp = &pps->ppsparam.assert_offset;
+		foff = pps->ppsparam.mode & PPS_OFFSETASSERT;
+		fhard = pps->ppsparam.mode & PPS_HARDPPSONASSERT;
+		pcount = &pps->ppscount[0];
+		pseq = &pps->ppsinfo.assert_sequence;
+	} else {
+		tsp = &pps->ppsinfo.clear_timestamp;
+		osp = &pps->ppsparam.clear_offset;
+		foff = pps->ppsparam.mode & PPS_OFFSETCLEAR;
+		fhard = pps->ppsparam.mode & PPS_HARDPPSONCLEAR;
+		pcount = &pps->ppscount[1];
+		pseq = &pps->ppsinfo.clear_sequence;
+	}
+
+	/* The timecounter changed: bail */
+	if (!pps->ppstc || 
+	    pps->ppstc->tc_name != tc->tc_name || 
+	    tc->tc_name != timecounter->tc_name) {
+		pps->ppstc = tc;
+		*pcount = count;
+		return;
+	}
+
+	/* Now, make sure we have the right instance */
+	tc = timecounter;
+
+	/* Nothing really happened */
+	if (*pcount == count)
+		return;
+
+	*pcount = count;
+
+	/* Convert the count to timespec */
+	ts.tv_sec = tc->tc_offset_sec;
+	tcount = count - tc->tc_offset_count;
+	tcount &= tc->tc_counter_mask;
+	delta = tc->tc_offset_nano;
+	delta += ((u_int64_t)tcount * tc->tc_scale_nano_f);
+	delta >>= 32;
+	delta += ((u_int64_t)tcount * tc->tc_scale_nano_i);
+	delta += boottime.tv_usec * 1000;
+	ts.tv_sec += boottime.tv_sec;
+	while (delta >= 1000000000) {
+		delta -= 1000000000;
+		ts.tv_sec++;
+	}
+	ts.tv_nsec = delta;
+
+	(*pseq)++;
+	*tsp = ts;
+	
+	if (foff) {
+		timespecadd(tsp, osp);
+		if (tsp->tv_nsec < 0) {
+			tsp->tv_nsec += 1000000000;
+			tsp->tv_sec -= 1;
+		}
+	}
+#ifdef PPS_SYNC
+	if (fhard) {
+		/* magic, at its best... */
+		tcount = count - pps->ppscount[2];
+		pps->ppscount[2] = count;
+		tcount &= tc->tc_counter_mask;
+		delta = ((u_int64_t)tcount * tc->tc_tweak->tc_scale_nano_f);
+		delta >>= 32;
+		delta += ((u_int64_t)tcount * tc->tc_tweak->tc_scale_nano_i);
+		hardpps(tsp, delta);
+	}
+#endif
+}
+

@@ -33,7 +33,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static const char rcsid[] =
-  "$Id$";
+  "$Id: ntp_gettime.c,v 1.4 1997/02/22 14:58:12 peter Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
@@ -44,14 +44,10 @@ static const char rcsid[] =
 int
 ntp_gettime(struct ntptimeval *ntv)
 {
-	int mib[3];
 	struct ntptimeval tv;
 	size_t size = sizeof tv;
 
-	mib[0] = CTL_KERN;
-	mib[1] = KERN_NTP_PLL;
-	mib[2] = NTP_PLL_GETTIME;
-	if (sysctl(mib, 3, &tv, &size, NULL, 0) == -1)
+	if (sysctlbyname("kern.ntp_pll.gettime", &tv, &size, NULL, 0) == -1)
 		return TIME_ERROR;
 	if(ntv) *ntv = tv;
 	return tv.time_state;
