@@ -132,8 +132,8 @@ GDB_VERSION=	"5.2.1 (FreeBSD)"
 gdbversion.c:
 	@echo '#include "version.h"'				> ${.TARGET}
 	@echo 'const char version[] = ${GDB_VERSION};'		>>${.TARGET}
-	@echo 'const char host_name[] = "${MACHINE_ARCH}-undermydesk-freebsd";'			>>${.TARGET}
-	@echo 'const char target_name[] = "${TARGET_ARCH}-undermydesk-freebsd";'		>>${.TARGET}
+	@echo 'const char host_name[] = "${MACHINE_ARCH}-unknown-freebsd";'			>>${.TARGET}
+	@echo 'const char target_name[] = "${TARGET_ARCH}-unknown-freebsd";'		>>${.TARGET}
 
 xregex.h:
 	@echo '#include <gnuregex.h>' >${.TARGET}
