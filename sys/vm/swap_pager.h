@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)swap_pager.h	7.1 (Berkeley) 12/5/90
- *	$Id: swap_pager.h,v 1.6 1995/05/10 18:56:04 davidg Exp $
+ *	$Id: swap_pager.h,v 1.7 1995/07/13 08:48:17 davidg Exp $
  */
 
 /*
@@ -62,18 +62,6 @@ struct swblock {
 	int swb_block[SWB_NPAGES];	/* unfortunately int instead of daddr_t */
 };
 typedef struct swblock *sw_blk_t;
-
-/*
- * Swap pager private data.
- */
-struct swpager {
-	int sw_nblocks;		/* number of blocks in list (sw_blk_t units) */
-	int sw_allocsize;	/* amount of space actually allocated */
-	sw_blk_t sw_blocks;	/* pointer to list of swap blocks */
-	short sw_poip;		/* pageouts in progress */
-	short sw_piip;		/* pageins in progress */
-};
-typedef struct swpager *sw_pager_t;
 
 #ifdef KERNEL
 void swap_pager_init __P((void));

@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.48 1995/06/11 19:31:53 rgrimes Exp $
+ * $Id: vm_object.c,v 1.49 1995/07/13 08:48:34 davidg Exp $
  */
 
 /*
@@ -136,7 +136,6 @@ _vm_object_allocate(type, size, object)
 	object->flags = 0;
 	object->paging_in_progress = 0;
 	object->resident_page_count = 0;
-	object->pg_data = NULL;
 	object->handle = NULL;
 	object->paging_offset = 0;
 	object->backing_object = NULL;
@@ -978,7 +977,14 @@ vm_object_collapse(object)
 					 * "object" and convert "object" type to OBJT_SWAP.
 					 */
 					object->type = OBJT_SWAP;
-					object->pg_data = backing_object->pg_data;
+					object->un_pager.swp.swp_nblocks =
+					    backing_object->un_pager.swp.swp_nblocks;
+					object->un_pager.swp.swp_allocsize =
+					    backing_object->un_pager.swp.swp_allocsize;
+					object->un_pager.swp.swp_blocks =
+					    backing_object->un_pager.swp.swp_blocks;
+					object->un_pager.swp.swp_poip =		/* XXX */
+					    backing_object->un_pager.swp.swp_poip;
 					object->paging_offset = backing_object->paging_offset + backing_offset;
 					TAILQ_INSERT_TAIL(&swap_pager_un_object_list, object, pager_object_list);
 
@@ -988,7 +994,6 @@ vm_object_collapse(object)
 					 * actually necessary.
 					 */
 					backing_object->type = OBJT_DEFAULT;
-					backing_object->pg_data = NULL;
 					TAILQ_REMOVE(&swap_pager_un_object_list, backing_object, pager_object_list);
 					/*
 					 * free unnecessary blocks
@@ -1389,8 +1394,8 @@ vm_object_check() {
 					object->size);
 			}
 			if (!vm_object_in_map(object)) {
-				printf("vmochk: internal obj is not in a map: ref: %d, size: %d, pg_data: 0x%x, backing_object: 0x%x\n",
-				    object->ref_count, object->size, object->pg_data, object->backing_object);
+				printf("vmochk: internal obj is not in a map: ref: %d, size: %d: 0x%x, backing_object: 0x%x\n",
+				    object->ref_count, object->size, object->backing_object);
 			}
 		}
 	}
@@ -1414,8 +1419,8 @@ vm_object_print(object, full)
 	iprintf("Object 0x%x: size=0x%x, res=%d, ref=%d, ",
 	    (int) object, (int) object->size,
 	    object->resident_page_count, object->ref_count);
-	printf("pg_data=0x%x+0x%x, backing_object=(0x%x)+0x%x\n",
-	    (int) object->pg_data, (int) object->paging_offset,
+	printf("offset=0x%x, backing_object=(0x%x)+0x%x\n",
+	    (int) object->paging_offset,
 	    (int) object->backing_object, (int) object->backing_object_offset);
 	printf("cache: next=%p, prev=%p\n",
 	    object->cached_list.tqe_next, object->cached_list.tqe_prev);
