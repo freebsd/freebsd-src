@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)inet.c	8.5 (Berkeley) 5/24/95";
 */
 static const char rcsid[] =
-	"$Id: inet.c,v 1.26 1997/08/25 16:57:05 wollman Exp $";
+	"$Id: inet.c,v 1.27 1998/05/15 20:19:15 wollman Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -382,7 +382,10 @@ ip_stats(off, name)
 	p(ips_reassembled, "\t%lu packet%s reassembled ok\n");
 	p(ips_delivered, "\t%lu packet%s for this host\n");
 	p(ips_noproto, "\t%lu packet%s for unknown/unsupported protocol\n");
-	p(ips_forward, "\t%lu packet%s forwarded\n");
+	p(ips_forward, "\t%lu packet%s forwarded");
+	p(ips_fastforward, " (%lu packet%s fast forwarded)");
+	if (ipstat.ips_forward || sflag <= 1) 
+		putchar('\n');
 	p(ips_cantforward, "\t%lu packet%s not forwardable\n");
 	p(ips_notmember,
 	  "\t%lu packet%s received for unknown multicast group\n");
