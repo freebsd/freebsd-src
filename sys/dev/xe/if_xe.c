@@ -104,6 +104,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sockio.h>
 #include <sys/systm.h>
 #include <sys/uio.h>
+#include <sys/sysctl.h>
 
 #include <sys/module.h>
 #include <sys/bus.h>
@@ -179,23 +180,38 @@ static int       xe_mii_writereg	(struct xe_softc *scp, struct xe_mii_frame *fra
 static u_int16_t xe_phy_readreg		(struct xe_softc *scp, u_int16_t reg);
 static void      xe_phy_writereg	(struct xe_softc *scp, u_int16_t reg, u_int16_t data);
 
+/*
+ * Debugging functions
+ */
+static void      xe_mii_dump		(struct xe_softc *scp);
+static void      xe_reg_dump		(struct xe_softc *scp);
 
 /*
- * Debug logging level (comment out for normal operation):
- * 1 = Log more hardware details, xe_ioctl details
- * 2 = Log most function calls, some (eg. multicast, MII) in detail
- * 3 = Log everything, including all interrupts and packets sent
+ * Debug logging levels - set with hw.xe.debug sysctl
+ * 0 = None
+ * 1 = More hardware details, probe/attach progress
+ * 2 = Most function calls, ioctls and media selection progress
+ * 3 = Everything - interrupts, packets in/out and multicast address setup
  */
-#define XE_DEBUG 0
+#define XE_DEBUG
+#ifdef XE_DEBUG
 
-#if XE_DEBUG > 2
-#define XE_REG_DUMP(scp)		xe_reg_dump((scp))
-#define XE_MII_DUMP(scp)		xe_mii_dump((scp))
-static void      xe_reg_dump		(struct xe_softc *scp);
-static void      xe_mii_dump		(struct xe_softc *scp);
+/* sysctl vars */
+SYSCTL_NODE(_hw, OID_AUTO, xe, CTLFLAG_RD, 0, "if_xe parameters");
+
+int xe_debug = 0;
+SYSCTL_INT(_hw_xe, OID_AUTO, debug, CTLFLAG_RW,
+		   &xe_debug, 0, "if_xe debug level");
+
+#define DEVPRINTF(level, arg) if (xe_debug >= (level)) device_printf arg
+#define DPRINTF(level, arg) if (xe_debug >= (level)) printf arg
+#define XE_MII_DUMP(scp) if (xe_debug >= 3) xe_mii_dump(scp)
+#define XE_REG_DUMP(scp) if (xe_debug >= 3) xe_reg_dump(scp)
 #else
-#define XE_REG_DUMP(scp)
+#define DEVPRINTF(level, arg)
+#define DPRINTF(level, arg)
 #define XE_MII_DUMP(scp)
+#define XE_REG_DUMP(scp)
 #endif
 
 
@@ -207,9 +223,7 @@ xe_attach (device_t dev)
 {
   struct xe_softc *scp = device_get_softc(dev);
 
-#if XE_DEBUG > 1
-  device_printf(dev, "attach\n");
-#endif
+  DEVPRINTF(2, (dev, "attach\n"));
 
   /* Initialise stuff... */
   scp->dev = dev;
@@ -269,19 +283,17 @@ xe_attach (device_t dev)
 	 scp->srev,
 	 scp->mohawk ? ", 100Mbps capable" : "",
 	 scp->modem ?  ", with modem"      : "");
-#if XE_DEBUG > 0
   if (scp->mohawk) {
     XE_SELECT_PAGE(0x10);
-    device_printf(dev, "DingoID=0x%04x, RevisionID=0x%04x, VendorID=0x%04x\n",
+    DEVPRINTF(1, (dev, "DingoID=0x%04x, RevisionID=0x%04x, VendorID=0x%04x\n",
 	   XE_INW(XE_DINGOID),
 	   XE_INW(XE_RevID),
-	   XE_INW(XE_VendorID));
+	   XE_INW(XE_VendorID)));
   }
   if (scp->ce2) {
     XE_SELECT_PAGE(0x45);
-    device_printf(dev, "CE2 version = 0x%#02x\n", XE_INB(XE_REV));
+    DEVPRINTF(1, (dev, "CE2 version = 0x%#02x\n", XE_INB(XE_REV)));
   }
-#endif
   device_printf(dev, "Ethernet address %6D\n", scp->arpcom.ac_enaddr, ":");
 
   /* Attach the interface */
@@ -307,9 +319,7 @@ xe_init(void *xscp) {
 
   if (scp->autoneg_status != XE_AUTONEG_NONE) return;
 
-#if XE_DEBUG > 1
-  device_printf(scp->dev, "init\n");
-#endif
+  DEVPRINTF(2, (scp->dev, "init\n"));
 
   s = splimp();
 
@@ -430,9 +440,7 @@ xe_start(struct ifnet *ifp) {
     return;
   }
 
-#if XE_DEBUG > 2
-  device_printf(scp->dev, "start\n");
-#endif
+  DEVPRINTF(3, (scp->dev, "start\n"));
 
   /*
    * Loop while there are packets to be sent, and space to send them.
@@ -488,9 +496,7 @@ xe_ioctl (register struct ifnet *ifp, u_long command, caddr_t data) {
   switch (command) {
 
   case SIOCSIFFLAGS:
-#if XE_DEBUG > 1
-    device_printf(scp->dev, "ioctl: SIOCSIFFLAGS: 0x%04x\n", ifp->if_flags);
-#endif
+    DEVPRINTF(2, (scp->dev, "ioctl: SIOCSIFFLAGS: 0x%04x\n", ifp->if_flags));
     /*
      * If the interface is marked up and stopped, then start it.  If it is
      * marked down and running, then stop it.
@@ -509,9 +515,7 @@ xe_ioctl (register struct ifnet *ifp, u_long command, caddr_t data) {
 
   case SIOCADDMULTI:
   case SIOCDELMULTI:
-#if XE_DEBUG > 1
-    device_printf(scp->dev, "ioctl: SIOC{ADD,DEL}MULTI\n");
-#endif
+    DEVPRINTF(2, (scp->dev, "ioctl: SIOC{ADD,DEL}MULTI\n"));
     /*
      * Multicast list has (maybe) changed; set the hardware filters
      * accordingly.
@@ -522,9 +526,7 @@ xe_ioctl (register struct ifnet *ifp, u_long command, caddr_t data) {
 
   case SIOCSIFMEDIA:
   case SIOCGIFMEDIA:
-#if XE_DEBUG > 1
-    device_printf(scp->dev, "ioctl: bounce to ifmedia_ioctl\n");
-#endif
+    DEVPRINTF(3, (scp->dev, "ioctl: bounce to ifmedia_ioctl\n"));
     /*
      * Someone wants to get/set media options.
      */
@@ -532,9 +534,7 @@ xe_ioctl (register struct ifnet *ifp, u_long command, caddr_t data) {
     break;
 
   default:
-#if XE_DEBUG > 1
-    device_printf(scp->dev, "ioctl: bounce to ether_ioctl\n");
-#endif
+    DEVPRINTF(3, (scp->dev, "ioctl: bounce to ether_ioctl\n"));
     error = ether_ioctl(ifp, command, data);
   }
 
@@ -583,9 +583,7 @@ xe_intr(void *xscp)
 
     /* 0xff might mean the card is no longer around */
     if (isr == 0xff) {
-#if XE_DEBUG > 2
-      device_printf(scp->dev, "intr: interrupt received for missing card?\n");
-#endif
+      DEVPRINTF(3, (scp->dev, "intr: interrupt received for missing card?\n"));
       break;
     }
 
@@ -600,11 +598,8 @@ xe_intr(void *xscp)
     XE_OUTB(XE_TXST1, 0);
     XE_SELECT_PAGE(0);
 
-#if XE_DEBUG > 2
-    device_printf(scp->dev, "intr: ISR=0x%02x, RST=0x%02x, TXT=0x%02x%02x, COLL=0x%01x\n", isr, rst0, txst1, txst0, coll);
-#endif
+    DEVPRINTF(3, (scp->dev, "intr: ISR=0x%02x, RST=0x%02x, TXT=0x%02x%02x, COLL=0x%01x\n", isr, rst0, txst1, txst0, coll));
 
-    /* Handle transmitted packet(s) */
     if (isr & XE_ISR_TX_PACKET) {
       u_int8_t tpr, sent;
 
@@ -667,16 +662,16 @@ xe_intr(void *xscp)
       }
       /* Transmit underrun -- increase early transmit threshold */
       if (txst0 & XE_TXST0_TX_UNDERRUN && scp->mohawk) {
-	device_printf(scp->dev, "transmit underrun");
+	DEVPRINTF(1, (scp->dev, "transmit underrun"));
 	if (scp->tx_thres < ETHER_MAX_LEN) {
 	  if ((scp->tx_thres += 64) > ETHER_MAX_LEN)
 	    scp->tx_thres = ETHER_MAX_LEN;
-	  printf(": increasing transmit threshold to %u", scp->tx_thres);
+	  DPRINTF(1, (": increasing transmit threshold to %u", scp->tx_thres));
 	  XE_SELECT_PAGE(0x3);
 	  XE_OUTW(XE_TPT, scp->tx_thres);
 	  XE_SELECT_PAGE(0x0);
 	}
-	printf("\n");
+	DPRINTF(1, ("\n"));
 	ifp->if_oerrors++;
 	scp->mibdata.dot3StatsInternalMacTransmitErrors++;
       }
@@ -710,9 +705,7 @@ xe_intr(void *xscp)
     while ((esr = XE_INB(XE_ESR)) & XE_ESR_FULL_PACKET_RX) {
       rsr = XE_INB(XE_RSR);
 
-#if XE_DEBUG > 2
-    device_printf(scp->dev, "intr: ESR=0x%02x, RSR=0x%02x\n", esr, rsr);
-#endif
+    DEVPRINTF(3, (scp->dev, "intr: ESR=0x%02x, RSR=0x%02x\n", esr, rsr));
 
       /* Make sure packet is a good one */
       if (rsr & XE_RSR_RX_OK) {
@@ -722,9 +715,7 @@ xe_intr(void *xscp)
 
 	len = XE_INW(XE_RBC) - ETHER_CRC_LEN;
 
-#if XE_DEBUG > 2
-    device_printf(scp->dev, "intr: receive length = %d\n", len);
-#endif
+    DEVPRINTF(3, (scp->dev, "intr: receive length = %d\n", len));
 
 	if (len == 0) {
 	  ifp->if_iqdrops++;
@@ -819,9 +810,7 @@ xe_intr(void *xscp)
 
     /* Clear receiver overruns now we have some free buffer space */
     if (rst0 & XE_RST0_RX_OVERRUN) {
-#if XE_DEBUG > 0
-      device_printf(scp->dev, "receive overrun\n");
-#endif
+      DEVPRINTF(1, (scp->dev, "receive overrun\n"));
       ifp->if_ierrors++;
       scp->mibdata.dot3StatsInternalMacReceiveErrors++;
       XE_OUTB(XE_CR, XE_CR_CLEAR_OVERRUN);
@@ -864,9 +853,7 @@ static int
 xe_media_change(struct ifnet *ifp) {
   struct xe_softc *scp = ifp->if_softc;
 
-#if XE_DEBUG > 1
-  if_printf(ifp, "media_change\n");
-#endif
+  DEVPRINTF(2, (scp->dev, "media_change\n"));
 
   if (IFM_TYPE(scp->ifm->ifm_media) != IFM_ETHER)
     return(EINVAL);
@@ -889,10 +876,9 @@ xe_media_change(struct ifnet *ifp) {
  */
 static void
 xe_media_status(struct ifnet *ifp, struct ifmediareq *mrp) {
+  struct xe_softc *scp = ifp->if_softc;
 
-#if XE_DEBUG > 1
-  if_printf(ifp, "media_status\n");
-#endif
+  DEVPRINTF(3, (scp->dev, "media_status\n"));
 
   /* XXX - This is clearly wrong.  Will fix once I have CE2 working */
   mrp->ifm_status = IFM_AVALID | IFM_ACTIVE;
@@ -909,9 +895,7 @@ static void xe_setmedia(void *xscp) {
   struct xe_softc *scp = xscp;
   u_int16_t bmcr, bmsr, anar, lpar;
 
-#if XE_DEBUG > 1
-  device_printf(scp->dev, "setmedia\n");
-#endif
+  DEVPRINTF(2, (scp->dev, "setmedia\n"));
 
   /* Cancel any pending timeout */
   untimeout(xe_setmedia, scp, scp->chand);
@@ -956,9 +940,7 @@ static void xe_setmedia(void *xscp) {
     switch (scp->autoneg_status) {
 
     case XE_AUTONEG_NONE:
-#if XE_DEBUG > 1
-      device_printf(scp->dev, "Waiting for idle transmitter\n");
-#endif
+      DEVPRINTF(2, (scp->dev, "Waiting for idle transmitter\n"));
       scp->arpcom.ac_if.if_flags |= IFF_OACTIVE;
       scp->autoneg_status = XE_AUTONEG_WAITING;
       /* FALL THROUGH */
@@ -969,9 +951,7 @@ static void xe_setmedia(void *xscp) {
 	return;
       }
       if (scp->phy_ok) {
-#if XE_DEBUG > 1
-	device_printf(scp->dev, "Starting autonegotiation\n");
-#endif
+	DEVPRINTF(2, (scp->dev, "Starting autonegotiation\n"));
 	bmcr = xe_phy_readreg(scp, PHY_BMCR);
 	bmcr &= ~(PHY_BMCR_AUTONEGENBL);
 	xe_phy_writereg(scp, PHY_BMCR, bmcr);
@@ -994,9 +974,7 @@ static void xe_setmedia(void *xscp) {
       bmsr = xe_phy_readreg(scp, PHY_BMSR);
       lpar = xe_phy_readreg(scp, PHY_LPAR);
       if (bmsr & (PHY_BMSR_AUTONEGCOMP|PHY_BMSR_LINKSTAT)) {
-#if XE_DEBUG > 1
-	device_printf(scp->dev, "Autonegotiation complete!\n");
-#endif
+	DEVPRINTF(2, (scp->dev, "Autonegotiation complete!\n"));
 	/*
 	 * XXX - Shouldn't have to do this, but (on my hub at least) the
 	 * XXX - transmitter won't work after a successful autoneg.  So we see 
@@ -1033,9 +1011,7 @@ static void xe_setmedia(void *xscp) {
 	}
       }
       else {
-#if XE_DEBUG > 1
-	device_printf(scp->dev, "Autonegotiation failed; trying 100baseTX\n");
-#endif
+	DEVPRINTF(2, (scp->dev, "Autonegotiation failed; trying 100baseTX\n"));
 	XE_MII_DUMP(scp);
 	if (scp->phy_ok) {
 	  xe_phy_writereg(scp, PHY_BMCR, PHY_BMCR_SPEEDSEL);
@@ -1053,9 +1029,7 @@ static void xe_setmedia(void *xscp) {
       (void)xe_phy_readreg(scp, PHY_BMSR);
       bmsr = xe_phy_readreg(scp, PHY_BMSR);
       if (bmsr & PHY_BMSR_LINKSTAT) {
-#if XE_DEBUG > 1
-	device_printf(scp->dev, "Got 100baseTX link!\n");
-#endif
+	DEVPRINTF(2, (scp->dev, "Got 100baseTX link!\n"));
 	XE_MII_DUMP(scp);
 	XE_SELECT_PAGE(2);
 	XE_OUTB(XE_MSR, XE_INB(XE_MSR) | 0x08);
@@ -1063,9 +1037,7 @@ static void xe_setmedia(void *xscp) {
 	scp->autoneg_status = XE_AUTONEG_NONE;
       }
       else {
-#if XE_DEBUG > 1
-	device_printf(scp->dev, "Autonegotiation failed; disabling PHY\n");
-#endif
+	DEVPRINTF(2, (scp->dev, "Autonegotiation failed; disabling PHY\n"));
 	XE_MII_DUMP(scp);
 	xe_phy_writereg(scp, PHY_BMCR, 0x0000);
 	XE_SELECT_PAGE(2);
@@ -1083,9 +1055,7 @@ static void xe_setmedia(void *xscp) {
      * already by the big switch above.
      */
     if (scp->autoneg_status == XE_AUTONEG_FAIL) {
-#if XE_DEBUG > 1
-      device_printf(scp->dev, "Selecting 10baseX\n");
-#endif
+      DEVPRINTF(2, (scp->dev, "Selecting 10baseX\n"));
       if (scp->mohawk) {
 	XE_SELECT_PAGE(0x42);
 	XE_OUTB(XE_SWC1, 0x80);
@@ -1112,9 +1082,7 @@ static void xe_setmedia(void *xscp) {
      */
    case IFM_100_TX:	/* Force 100baseTX */
     if (scp->phy_ok) {
-#if XE_DEBUG > 1
-      device_printf(scp->dev, "Selecting 100baseTX\n");
-#endif
+      DEVPRINTF(2, (scp->dev, "Selecting 100baseTX\n"));
       XE_SELECT_PAGE(0x42);
       XE_OUTB(XE_SWC1, 0);
       xe_phy_writereg(scp, PHY_BMCR, PHY_BMCR_SPEEDSEL);
@@ -1126,9 +1094,7 @@ static void xe_setmedia(void *xscp) {
     /* FALLTHROUGH */
 
    case IFM_10_T:	/* Force 10baseT */
-#if XE_DEBUG > 1
-    device_printf(scp->dev, "Selecting 10baseT\n");
-#endif
+    DEVPRINTF(2, (scp->dev, "Selecting 10baseT\n"));
     if (scp->phy_ok) {
       xe_phy_writereg(scp, PHY_BMCR, 0x0000);
       XE_SELECT_PAGE(2);
@@ -1140,9 +1106,7 @@ static void xe_setmedia(void *xscp) {
     break;
 
    case IFM_10_2:
-#if XE_DEBUG > 1
-    device_printf(scp->dev, "Selecting 10base2\n");
-#endif
+    DEVPRINTF(2, (scp->dev, "Selecting 10base2\n"));
     XE_SELECT_PAGE(0x42);
     XE_OUTB(XE_SWC1, 0xc0);
     scp->media |= IFM_10_2;
@@ -1154,9 +1118,7 @@ static void xe_setmedia(void *xscp) {
    * Finally, the LEDs are set to match whatever media was chosen and the
    * transmitter is unblocked. 
    */
-#if XE_DEBUG > 1
-  device_printf(scp->dev, "Setting LEDs\n");
-#endif
+  DEVPRINTF(2, (scp->dev, "Setting LEDs\n"));
   XE_SELECT_PAGE(2);
   switch (IFM_SUBTYPE(scp->media)) {
    case IFM_100_TX:
@@ -1185,9 +1147,7 @@ static void
 xe_reset(struct xe_softc *scp) {
   int s;
 
-#if XE_DEBUG > 1
-  device_printf(scp->dev, "reset\n");
-#endif
+  DEVPRINTF(2, (scp->dev, "reset\n"));
 
   s = splimp();
 
@@ -1218,9 +1178,7 @@ static void
 xe_stop(struct xe_softc *scp) {
   int s;
 
-#if XE_DEBUG > 1
-  device_printf(scp->dev, "stop\n");
-#endif
+  DEVPRINTF(2, (scp->dev, "stop\n"));
 
   s = splimp();
 
@@ -1262,9 +1220,7 @@ xe_stop(struct xe_softc *scp) {
 static void
 xe_enable_intr(struct xe_softc *scp) {
 
-#if XE_DEBUG > 1
-  device_printf(scp->dev, "enable_intr\n");
-#endif
+  DEVPRINTF(2, (scp->dev, "enable_intr\n"));
 
   XE_SELECT_PAGE(0);
   XE_OUTB(XE_CR, XE_CR_ENABLE_INTR);	/* Enable interrupts */
@@ -1282,9 +1238,7 @@ xe_enable_intr(struct xe_softc *scp) {
 static void
 xe_disable_intr(struct xe_softc *scp) {
 
-#if XE_DEBUG > 1
-  device_printf(scp->dev, "disable_intr\n");
-#endif
+  DEVPRINTF(2, (scp->dev, "disable_intr\n"));
 
   XE_SELECT_PAGE(0);
   XE_OUTB(XE_CR, 0);			/* Disable interrupts */
@@ -1303,9 +1257,7 @@ xe_set_multicast(struct xe_softc *scp) {
   struct ifmultiaddr *maddr;
   unsigned count, i;
 
-#if XE_DEBUG > 1
-  device_printf(scp->dev, "set_multicast\n");
-#endif
+  DEVPRINTF(2, (scp->dev, "set_multicast\n"));
 
   ifp = &scp->arpcom.ac_if;
   XE_SELECT_PAGE(0x42);
@@ -1350,9 +1302,7 @@ xe_set_multicast(struct xe_softc *scp) {
 	break;
   }
 
-#if XE_DEBUG > 1
-  device_printf(scp->dev, "set_multicast: count = %u\n", count);
-#endif
+  DEVPRINTF(2, (scp->dev, "set_multicast: count = %u\n", count));
 
   /* Now do some cleanup and enable multicast handling as needed */
   if (count == 0) {
@@ -1428,10 +1378,8 @@ xe_set_addr(struct xe_softc *scp, u_int8_t* addr, unsigned idx) {
   page = 0x50 + idx%4 + idx/4*3;
   reg = 0x0e - 2 * (idx%4);
 
-#if XE_DEBUG > 1
-  device_printf(scp->dev, "set_addr: idx = %u, page = 0x%02x, reg = 0x%02x\n",
-		idx+1, page, reg);
-#endif
+  DEVPRINTF(3, (scp->dev, "set_addr: idx = %u, page = 0x%02x, reg = 0x%02x\n",
+		idx+1, page, reg));
 
   /*
    * Copy the IA bytes.  Note that the byte order is reversed for Mohawk and
@@ -1439,21 +1387,19 @@ xe_set_addr(struct xe_softc *scp, u_int8_t* addr, unsigned idx) {
    */
   XE_SELECT_PAGE(page);
   for (i = 0; i < 6; i++) {
-#if XE_DEBUG > 1
-    if (i > 0)
-      printf(":%02x", addr[i]);
-    else
-      device_printf(scp->dev, "set_addr: %02x", addr[0]);
-#endif
+    if (i > 0) {
+      DPRINTF(3, (":%02x", addr[i]));
+    }
+    else {
+      DEVPRINTF(3, (scp->dev, "set_addr: %02x", addr[0]));
+    }
     XE_OUTB(reg, addr[scp->mohawk ? 5 - i : i]);
     if (++reg == 0x10) {
       reg = 0x08;
       XE_SELECT_PAGE(++page);
     }
   }
-#if XE_DEBUG > 1
-  printf("\n");
-#endif
+  DPRINTF(3, ("\n"));
 }
 
 
@@ -1484,9 +1430,7 @@ xe_set_hash(struct xe_softc* scp, u_int8_t* addr) {
     }
   }
 
-#if XE_DEBUG > 1
-  device_printf(scp->dev, "set_hash: CRC = 0x%08x\n", crc);
-#endif
+  DEVPRINTF(3, (scp->dev, "set_hash: CRC = 0x%08x\n", crc));
 
   /* Hash table index = 6 msbs of CRC, reversed */
   for (i = 0, idx = 0; i < 6; i++) {
@@ -1501,9 +1445,7 @@ xe_set_hash(struct xe_softc* scp, u_int8_t* addr) {
   byte = idx >> 3 | 0x08;
   bit = 0x01 << (idx & 0x07);
 
-#if XE_DEBUG > 1
-  device_printf(scp->dev, "set_hash: idx = 0x%02x, byte = 0x%02x, bit = 0x%02x\n", idx, byte, bit);
-#endif
+  DEVPRINTF(3, (scp->dev, "set_hash: idx = 0x%02x, byte = 0x%02x, bit = 0x%02x\n", idx, byte, bit));
 
   XE_SELECT_PAGE(0x58);
   XE_OUTB(byte, XE_INB(byte) | bit);
@@ -1528,9 +1470,7 @@ xe_pio_write_packet(struct xe_softc *scp, struct mbuf *mbp) {
     for (len = 0; mbp2 != NULL; len += mbp2->m_len, mbp2 = mbp2->m_next);
   }
 
-#if XE_DEBUG > 2
-  device_printf(scp->dev, "pio_write_packet: len = %u\n", len);
-#endif
+  DEVPRINTF(3, (scp->dev, "pio_write_packet: len = %u\n", len));
 
   /* Packets < minimum length may need to be padded out */
   pad = 0;
@@ -1651,15 +1591,11 @@ xe_mii_init(struct xe_softc *scp) {
 
   status = xe_phy_readreg(scp, PHY_BMSR);
   if ((status & 0xff00) != 0x7800) {
-#if XE_DEBUG > 1
-    device_printf(scp->dev, "no PHY found, %0x\n", status);
-#endif
+    DEVPRINTF(2, (scp->dev, "no PHY found, %0x\n", status));
     return 0;
   }
   else {
-#if XE_DEBUG > 1
-    device_printf(scp->dev, "PHY OK!\n");
-#endif
+    DEVPRINTF(2, (scp->dev, "PHY OK!\n"));
 
     /* Reset the PHY */
     xe_phy_writereg(scp, PHY_BMCR, PHY_BMCR_RESET);
@@ -1871,7 +1807,6 @@ xe_phy_writereg(struct xe_softc *scp, u_int16_t reg, u_int16_t data) {
 }
 
 
-#if XE_DEBUG > 2
 /*
  * A bit of debugging code.
  */
@@ -1930,7 +1865,6 @@ xe_reg_dump(struct xe_softc *scp) {
 
   (void)splx(s);
 }
-#endif
 
 int
 xe_activate(device_t dev)
@@ -1938,9 +1872,7 @@ xe_activate(device_t dev)
 	struct xe_softc *sc = device_get_softc(dev);
 	int start, err, i;
 
-#if XE_DEBUG > 1
-	device_printf(dev, "activate\n");
-#endif
+	DEVPRINTF(2, (dev, "activate\n"));
 
 	if (!sc->modem) {
 		sc->port_rid = 0;	/* 0 is managed by pccard */
@@ -1951,9 +1883,7 @@ xe_activate(device_t dev)
 		/*
 		 * Find a 16 byte aligned ioport for the card.
 		 */
-#if XE_DEBUG > 0
-		device_printf(dev, "Finding an aligned port for RealPort\n");
-#endif /* XE_DEBUG */
+		DEVPRINTF(1, (dev, "Finding an aligned port for RealPort\n"));
 		sc->port_rid = 1;	/* 0 is managed by pccard */
 		start = 0x100;
 		do {
@@ -1968,11 +1898,9 @@ xe_activate(device_t dev)
 			    sc->port_res);
 			start = (rman_get_start(sc->port_res) + 15) & ~0xf;
 		} while (1);
-#if XE_DEBUG > 1
-		device_printf(dev, "RealPort port 0x%0lx, size 0x%0lx\n",
+		DEVPRINTF(1, (dev, "RealPort port 0x%0lx, size 0x%0lx\n",
 		    bus_get_resource_start(dev, SYS_RES_IOPORT, sc->port_rid),
-		    bus_get_resource_count(dev, SYS_RES_IOPORT, sc->port_rid));
-#endif /* XE_DEBUG */
+		    bus_get_resource_count(dev, SYS_RES_IOPORT, sc->port_rid)));
 	}
 	else if (sc->ce2) {
 	    /*
@@ -1982,17 +1910,13 @@ xe_activate(device_t dev)
 	     * the second function.  Not sure that both windows are actually
 	     * needed.
 	     */
-#if XE_DEBUG > 0
-	    device_printf(dev, "Finding I/O port for CEM2/CEM3\n");
-#endif
+	    DEVPRINTF(1, (dev, "Finding I/O port for CEM2/CEM3\n"));
 	    sc->ce2_port_rid = 0;	/* 0 is managed by pccard */
 	    sc->ce2_port_res = bus_alloc_resource(dev, SYS_RES_IOPORT,
 						  &sc->ce2_port_rid, 0, ~0,
 						  8, RF_ACTIVE);
 	    if (!sc->ce2_port_res) {
-#if XE_DEBUG > 0
-		device_printf(dev, "Cannot allocate I/O port for modem\n");
-#endif
+		DEVPRINTF(1, (dev, "Cannot allocate I/O port for modem\n"));
 		return ENOMEM;
 	    }
 
@@ -2014,17 +1938,13 @@ xe_activate(device_t dev)
 				     sc->port_res);
 		sc->port_res = 0;
 	    }
-#if XE_DEBUG > 2
-		device_printf(dev, "CEM2/CEM3 port 0x%0lx, size 0x%0lx\n",
+		DEVPRINTF(1, (dev, "CEM2/CEM3 port 0x%0lx, size 0x%0lx\n",
 		    bus_get_resource_start(dev, SYS_RES_IOPORT, sc->port_rid),
-		    bus_get_resource_count(dev, SYS_RES_IOPORT, sc->port_rid));
-#endif /* XE_DEBUG */
+		    bus_get_resource_count(dev, SYS_RES_IOPORT, sc->port_rid)));
 	}
 
 	if (!sc->port_res) {
-#if XE_DEBUG > 0
-		device_printf(dev, "Cannot allocate ioport\n");
-#endif		
+		DEVPRINTF(1, (dev, "Cannot allocate ioport\n"));
 		return ENOMEM;
 	}
 
@@ -2032,9 +1952,7 @@ xe_activate(device_t dev)
 	sc->irq_res = bus_alloc_resource(dev, SYS_RES_IRQ, &sc->irq_rid, 
 	    0, ~0, 1, RF_ACTIVE);
 	if (!sc->irq_res) {
-#if XE_DEBUG > 0
-		device_printf(dev, "Cannot allocate irq\n");
-#endif
+		DEVPRINTF(1, (dev, "Cannot allocate irq\n"));
 		xe_deactivate(dev);
 		return ENOMEM;
 	}
@@ -2054,9 +1972,7 @@ xe_deactivate(device_t dev)
 {
 	struct xe_softc *sc = device_get_softc(dev);
 	
-#if XE_DEBUG > 1
-	device_printf(dev, "deactivate\n");
-#endif
+	DEVPRINTF(2, (dev, "deactivate\n"));
 	xe_disable_intr(sc);
 
 	if (sc->intrhand)
