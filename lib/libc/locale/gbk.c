@@ -52,8 +52,7 @@ int	_GBK_mbsinit(const mbstate_t *);
 size_t	_GBK_wcrtomb(char * __restrict, wchar_t, mbstate_t * __restrict);
 
 typedef struct {
-	int	count;
-	u_char	bytes[2];
+	wchar_t	ch;
 } _GBKState;
 
 int
@@ -72,7 +71,7 @@ int
 _GBK_mbsinit(const mbstate_t *ps)
 {
 
-	return (ps == NULL || ((const _GBKState *)ps)->count == 0);
+	return (ps == NULL || ((const _GBKState *)ps)->ch == 0);
 }
 
 static __inline int
@@ -89,12 +88,12 @@ _GBK_mbrtowc(wchar_t * __restrict pwc, const char * __restrict s, size_t n,
 {
 	_GBKState *gs;
 	wchar_t wc;
-	int i, len, ocount;
-        size_t ncopy;
+	size_t len;
 
 	gs = (_GBKState *)ps;
 
-	if (gs->count < 0 || gs->count > sizeof(gs->bytes)) {
+	if ((gs->ch & ~0xFF) != 0) {
+		/* Bad conversion state. */
 		errno = EINVAL;
 		return ((size_t)-1);
 	}
@@ -105,28 +104,43 @@ _GBK_mbrtowc(wchar_t * __restrict pwc, const char * __restrict s, size_t n,
 		pwc = NULL;
 	}
 
-	ncopy = MIN(MIN(n, MB_CUR_MAX), sizeof(gs->bytes) - gs->count);
-	memcpy(gs->bytes + gs->count, s, ncopy);
-	ocount = gs->count;
-	gs->count += ncopy;
-	s = (char *)gs->bytes;
-	n = gs->count;
-
-	if (n == 0 || (size_t)(len = _gbk_check(*s)) > n)
+	if (n == 0)
 		/* Incomplete multibyte sequence */
 		return ((size_t)-2);
-	if (len == 2 && s[1] == '\0') {
-		errno = EILSEQ;
-		return ((size_t)-1);
+
+	if (gs->ch != 0) {
+		if (*s == '\0') {
+			errno = EILSEQ;
+			return ((size_t)-1);
+		}
+		wc = (gs->ch << 8) | (*s & 0xFF);
+		if (pwc != NULL)
+			*pwc = wc;
+		gs->ch = 0;
+		return (1);
 	}
-	wc = 0;
-	i = len;
-	while (i-- > 0)
-		wc = (wc << 8) | (unsigned char)*s++;
-	if (pwc != NULL)
-		*pwc = wc;
-	gs->count = 0;
-	return (wc == L'\0' ? 0 : len - ocount);
+
+	len = (size_t)_gbk_check(*s);
+	wc = *s++ & 0xff;
+	if (len == 2) {
+		if (n < 2) {
+			/* Incomplete multibyte sequence */
+			gs->ch = wc;
+			return ((size_t)-2);
+		}
+		if (*s == '\0') {
+			errno = EILSEQ;
+			return ((size_t)-1);
+		}
+		wc = (wc << 8) | (*s++ & 0xff);
+		if (pwc != NULL)
+			*pwc = wc;
+                return (2);
+	} else {
+		if (pwc != NULL)
+			*pwc = wc;
+		return (wc == L'\0' ? 0 : 1);
+	}
 }
 
 size_t
@@ -136,7 +150,7 @@ _GBK_wcrtomb(char * __restrict s, wchar_t wc, mbstate_t * __restrict ps)
 
 	gs = (_GBKState *)ps;
 
-	if (gs->count != 0) {
+	if (gs->ch != 0) {
 		errno = EINVAL;
 		return ((size_t)-1);
 	}
