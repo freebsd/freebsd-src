@@ -97,3 +97,6 @@ libkern.${MACHINE_ARCH}:: ${KMSRCS}
 .endif
 
 .include <bsd.lib.mk>
+
+# Disable warnings in contributed sources.
+CWARNFLAGS:=	${.IMPSRC:Ngdtoa_*.c:C/^.+$/${CWARNFLAGS}/}
