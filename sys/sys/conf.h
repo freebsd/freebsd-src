@@ -114,17 +114,35 @@ struct thread;
 struct uio;
 struct knote;
 
-typedef int d_open_t __P((dev_t dev, int oflags, int devtype, struct thread *td));
-typedef int d_close_t __P((dev_t dev, int fflag, int devtype, struct thread *td));
+/*
+ * Note: d_thread_t is provided as a transition aid for those drivers
+ * that treat struct proc/struct thread as an opaque data type and
+ * exist in substantially the same form in both 4.x and 5.x.  Writers
+ * of drivers that dips into the d_thread_t structure should use
+ * struct thread or struct proc as appropriate for the version of the
+ * OS they are using.  It is provided in lieu of each device driver
+ * inventing its own way of doing this.  While it does violate style(9)
+ * in a number of ways, this violation is deemed to be less
+ * important than the benefits that a uniform API between releases
+ * gives.
+ *
+ * Users of struct thread/struct proc that aren't device drivers should
+ * not use d_thread_t.
+ */
+
+typedef struct thread d_thread_t;
+
+typedef int d_open_t __P((dev_t dev, int oflags, int devtype, d_thread_t *td));
+typedef int d_close_t __P((dev_t dev, int fflag, int devtype, d_thread_t *td));
 typedef void d_strategy_t __P((struct bio *bp));
 typedef int d_ioctl_t __P((dev_t dev, u_long cmd, caddr_t data,
-			   int fflag, struct thread *td));
+			   int fflag, d_thread_t *td));
 typedef int d_dump_t __P((dev_t dev));
 typedef int d_psize_t __P((dev_t dev));
 
 typedef int d_read_t __P((dev_t dev, struct uio *uio, int ioflag));
 typedef int d_write_t __P((dev_t dev, struct uio *uio, int ioflag));
-typedef int d_poll_t __P((dev_t dev, int events, struct thread *td));
+typedef int d_poll_t __P((dev_t dev, int events, d_thread_t *td));
 typedef int d_kqfilter_t __P((dev_t dev, struct knote *kn));
 typedef int d_mmap_t __P((dev_t dev, vm_offset_t offset, int nprot));
 
@@ -133,7 +151,7 @@ typedef int l_close_t __P((struct tty *tp, int flag));
 typedef int l_read_t __P((struct tty *tp, struct uio *uio, int flag));
 typedef int l_write_t __P((struct tty *tp, struct uio *uio, int flag));
 typedef int l_ioctl_t __P((struct tty *tp, u_long cmd, caddr_t data,
-			   int flag, struct thread *td));
+			   int flag, d_thread_t *td));
 typedef int l_rint_t __P((int c, struct tty *tp));
 typedef int l_start_t __P((struct tty *tp));
 typedef int l_modem_t __P((struct tty *tp, int flag));
