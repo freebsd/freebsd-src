@@ -761,7 +761,7 @@ represents the IP address of the connected peer.
 If the
 .Dq add
 command fails due to an existing route, you can overwrite the existing
-route using
+route using:
 .Bd -literal -offset indent
 PPP ON awfulhak> add! default HISADDR
 .Ed
@@ -771,7 +771,7 @@ If a new IP address is negotiated at connection time,
 .Nm
 will update your default route accordingly.
 .Pp
-You can now use your network applications (ping, telnet, ftp etc.)
+You can now use your network applications (ping, telnet, ftp, etc.)
 in other windows or terminals on your machine.
 If you wish to reuse the current terminal, you can put
 .Nm
