@@ -418,18 +418,16 @@ static struct cdevsw asr_cdevsw = {
 };
 
 /* I2O support routines */
-#define	defAlignLong(STRUCT,NAME) char NAME[sizeof(STRUCT)]
-#define	getAlignLong(STRUCT,NAME) ((STRUCT *)(NAME))
 
 /*
  *	Fill message with default.
  */
 static PI2O_MESSAGE_FRAME
-ASR_fillMessage(char *Message, u_int16_t size)
+ASR_fillMessage(void *Message, u_int16_t size)
 {
 	PI2O_MESSAGE_FRAME Message_Ptr;
 
-	Message_Ptr = getAlignLong(I2O_MESSAGE_FRAME, Message);
+	Message_Ptr = (I2O_MESSAGE_FRAME *)Message;
 	bzero(Message_Ptr, size);
 	I2O_MESSAGE_FRAME_setVersionOffset(Message_Ptr, I2O_VERSION_11);
 	I2O_MESSAGE_FRAME_setMessageSize(Message_Ptr,
@@ -489,8 +487,7 @@ ASR_resetIOP(i2oRegs_t *virt, U8 *fvirt)
 	struct resetMessage {
 		I2O_EXEC_IOP_RESET_MESSAGE M;
 		U32			   R;
-	};
-	defAlignLong(struct resetMessage,Message);
+	} Message;
 	PI2O_EXEC_IOP_RESET_MESSAGE	 Message_Ptr;
 	U32		      * volatile Reply_Ptr;
 	U32				 Old;
@@ -498,7 +495,7 @@ ASR_resetIOP(i2oRegs_t *virt, U8 *fvirt)
 	/*
 	 *  Build up our copy of the Message.
 	 */
-	Message_Ptr = (PI2O_EXEC_IOP_RESET_MESSAGE)ASR_fillMessage(Message,
+	Message_Ptr = (PI2O_EXEC_IOP_RESET_MESSAGE)ASR_fillMessage(&Message,
 	  sizeof(I2O_EXEC_IOP_RESET_MESSAGE));
 	I2O_EXEC_IOP_RESET_MESSAGE_setFunction(Message_Ptr, I2O_EXEC_IOP_RESET);
 	/*
@@ -539,14 +536,14 @@ ASR_resetIOP(i2oRegs_t *virt, U8 *fvirt)
 static PI2O_EXEC_STATUS_GET_REPLY
 ASR_getStatus(i2oRegs_t *virt, U8 *fvirt, PI2O_EXEC_STATUS_GET_REPLY buffer)
 {
-	defAlignLong(I2O_EXEC_STATUS_GET_MESSAGE,Message);
-	PI2O_EXEC_STATUS_GET_MESSAGE		 Message_Ptr;
-	U32					 Old;
+	I2O_EXEC_STATUS_GET_MESSAGE	Message;
+	PI2O_EXEC_STATUS_GET_MESSAGE	Message_Ptr;
+	U32				Old;
 
 	/*
 	 *  Build up our copy of the Message.
 	 */
-	Message_Ptr = (PI2O_EXEC_STATUS_GET_MESSAGE)ASR_fillMessage(Message,
+	Message_Ptr = (PI2O_EXEC_STATUS_GET_MESSAGE)ASR_fillMessage(&Message,
 	    sizeof(I2O_EXEC_STATUS_GET_MESSAGE));
 	I2O_EXEC_STATUS_GET_MESSAGE_setFunction(Message_Ptr,
 	    I2O_EXEC_STATUS_GET);
@@ -782,11 +779,11 @@ ASR_failActiveCommands(Asr_softc_t *sc)
 static void
 ASR_resetBus(Asr_softc_t *sc, int bus)
 {
-	defAlignLong(I2O_HBA_BUS_RESET_MESSAGE,Message);
-	I2O_HBA_BUS_RESET_MESSAGE	     * Message_Ptr;
-	PI2O_LCT_ENTRY			       Device;
+	I2O_HBA_BUS_RESET_MESSAGE	Message;
+	I2O_HBA_BUS_RESET_MESSAGE	*Message_Ptr;
+	PI2O_LCT_ENTRY			Device;
 
-	Message_Ptr = (I2O_HBA_BUS_RESET_MESSAGE *)ASR_fillMessage(Message,
+	Message_Ptr = (I2O_HBA_BUS_RESET_MESSAGE *)ASR_fillMessage(&Message,
 	  sizeof(I2O_HBA_BUS_RESET_MESSAGE));
 	I2O_MESSAGE_FRAME_setFunction(&Message_Ptr->StdMessageFrame,
 	  I2O_HBA_BUS_RESET);
@@ -894,7 +891,7 @@ ASR_getTidAddress(Asr_softc_t *sc, int bus, int target, int lun, int new_entry)
 		bcopy(bus_ptr, new_bus_ptr, sizeof(*bus_ptr)
 		    + (sizeof(bus_ptr->LUN) * (bus_ptr->size - 1)));
 		sc->ha_targets[bus] = new_bus_ptr;
-		free (bus_ptr, M_TEMP);
+		free(bus_ptr, M_TEMP);
 		bus_ptr = new_bus_ptr;
 		bus_ptr->size = new_size + 1;
 	}
@@ -945,7 +942,7 @@ ASR_getTidAddress(Asr_softc_t *sc, int bus, int target, int lun, int new_entry)
 		bcopy(target_ptr, new_target_ptr, sizeof(*target_ptr)
 		    + (sizeof(target_ptr->TID) * (target_ptr->size - 1)));
 		bus_ptr->LUN[target] = new_target_ptr;
-		free (target_ptr, M_TEMP);
+		free(target_ptr, M_TEMP);
 		target_ptr = new_target_ptr;
 		target_ptr->size = new_size + 1;
 	}
@@ -1319,7 +1316,6 @@ ASR_queue(Asr_softc_t *sc, PI2O_MESSAGE_FRAME Message)
 
 /*
  *	Retrieve Parameter Group.
- *		Buffer must be allocated using defAlignLong macro.
  */
 static void *
 ASR_getParams(Asr_softc_t *sc, tid_t TID, int Group, void *Buffer,
@@ -1333,17 +1329,16 @@ ASR_getParams(Asr_softc_t *sc, tid_t TID, int Group, void *Buffer,
 			I2O_PARAM_OPERATIONS_LIST_HEADER Header;
 			I2O_PARAM_OPERATION_ALL_TEMPLATE Template[1];
 		}			     O;
-	};
-	defAlignLong(struct paramGetMessage, Message);
-	struct Operations		   * Operations_Ptr;
-	I2O_UTIL_PARAMS_GET_MESSAGE	   * Message_Ptr;
+	}				Message;
+	struct Operations		*Operations_Ptr;
+	I2O_UTIL_PARAMS_GET_MESSAGE	*Message_Ptr;
 	struct ParamBuffer {
 		I2O_PARAM_RESULTS_LIST_HEADER	    Header;
 		I2O_PARAM_READ_OPERATION_RESULT	    Read;
 		char				    Info[1];
-	}				   * Buffer_Ptr;
+	}				*Buffer_Ptr;
 
-	Message_Ptr = (I2O_UTIL_PARAMS_GET_MESSAGE *)ASR_fillMessage(Message,
+	Message_Ptr = (I2O_UTIL_PARAMS_GET_MESSAGE *)ASR_fillMessage(&Message,
 	  sizeof(I2O_UTIL_PARAMS_GET_MESSAGE)
 	    + sizeof(I2O_SGE_SIMPLE_ELEMENT)*2 - sizeof(I2O_SG_ELEMENT));
 	Operations_Ptr = (struct Operations *)((char *)Message_Ptr
@@ -1358,7 +1353,7 @@ ASR_getParams(Asr_softc_t *sc, tid_t TID, int Group, void *Buffer,
 	  &(Operations_Ptr->Template[0]), 0xFFFF);
 	I2O_PARAM_OPERATION_ALL_TEMPLATE_setGroupNumber(
 	  &(Operations_Ptr->Template[0]), Group);
-	Buffer_Ptr = getAlignLong(struct ParamBuffer, Buffer);
+	Buffer_Ptr = (struct ParamBuffer *)Buffer;
 	bzero(Buffer_Ptr, BufferSize);
 
 	I2O_MESSAGE_FRAME_setVersionOffset(&(Message_Ptr->StdMessageFrame),
@@ -1409,7 +1404,7 @@ ASR_acquireLct(Asr_softc_t *sc)
 	  MessageSizeInBytes, M_TEMP, M_WAITOK)) == NULL) {
 		return (ENOMEM);
 	}
-	(void)ASR_fillMessage((char *)Message_Ptr, MessageSizeInBytes);
+	(void)ASR_fillMessage((void *)Message_Ptr, MessageSizeInBytes);
 	I2O_MESSAGE_FRAME_setVersionOffset(&(Message_Ptr->StdMessageFrame),
 	  (I2O_VERSION_11 +
 	  (((sizeof(I2O_EXEC_LCT_NOTIFY_MESSAGE) - sizeof(I2O_SG_ELEMENT))
@@ -1437,7 +1432,7 @@ ASR_acquireLct(Asr_softc_t *sc)
 	 *	Determine the size of the LCT table.
 	 */
 	if (sc->ha_LCT) {
-		free (sc->ha_LCT, M_TEMP);
+		free(sc->ha_LCT, M_TEMP);
 	}
 	/*
 	 *	malloc only generates contiguous memory when less than a
@@ -1446,11 +1441,11 @@ ASR_acquireLct(Asr_softc_t *sc)
 	if (((len = (I2O_LCT_getTableSize(&Table) << 2)) <=
 	  (sizeof(I2O_LCT) - sizeof(I2O_LCT_ENTRY)))
 	 || (len > (128 * 1024))) {	/* Arbitrary */
-		free (Message_Ptr, M_TEMP);
+		free(Message_Ptr, M_TEMP);
 		return (EINVAL);
 	}
 	if ((sc->ha_LCT = (PI2O_LCT)malloc (len, M_TEMP, M_WAITOK)) == NULL) {
-		free (Message_Ptr, M_TEMP);
+		free(Message_Ptr, M_TEMP);
 		return (ENOMEM);
 	}
 	/*
@@ -1519,9 +1514,9 @@ ASR_acquireLct(Asr_softc_t *sc)
 			if ((NewMessage_Ptr = (PI2O_EXEC_LCT_NOTIFY_MESSAGE)
 			    malloc(MessageSizeInBytes, M_TEMP, M_WAITOK))
 			    == NULL) {
-				free (sc->ha_LCT, M_TEMP);
+				free(sc->ha_LCT, M_TEMP);
 				sc->ha_LCT = NULL;
-				free (Message_Ptr, M_TEMP);
+				free(Message_Ptr, M_TEMP);
 				return (ENOMEM);
 			}
 			span = ((caddr_t)sg) - (caddr_t)Message_Ptr;
@@ -1535,7 +1530,7 @@ ASR_acquireLct(Asr_softc_t *sc)
 	{	int retval;
 
 		retval = ASR_queue_c(sc, (PI2O_MESSAGE_FRAME)Message_Ptr);
-		free (Message_Ptr, M_TEMP);
+		free(Message_Ptr, M_TEMP);
 		if (retval != CAM_REQ_CMP) {
 			return (ENODEV);
 		}
@@ -1574,8 +1569,7 @@ ASR_acquireLct(Asr_softc_t *sc)
 				I2O_PARAM_RESULTS_LIST_HEADER	    Header;
 				I2O_PARAM_READ_OPERATION_RESULT	    Read;
 				I2O_HBA_SCSI_CONTROLLER_INFO_SCALAR Info;
-			};
-			defAlignLong(struct ControllerInfo, Buffer);
+			} Buffer;
 			PI2O_HBA_SCSI_CONTROLLER_INFO_SCALAR Info;
 
 			Entry->le_bus = 0xff;
@@ -1586,7 +1580,7 @@ ASR_acquireLct(Asr_softc_t *sc)
 			  ASR_getParams(sc,
 			    I2O_LCT_ENTRY_getLocalTID(Entry),
 			    I2O_HBA_SCSI_CONTROLLER_INFO_GROUP_NO,
-			    Buffer, sizeof(struct ControllerInfo))) == NULL) {
+			    &Buffer, sizeof(struct ControllerInfo))) == NULL) {
 				continue;
 			}
 			Entry->le_target
@@ -1601,8 +1595,7 @@ ASR_acquireLct(Asr_softc_t *sc)
 				I2O_PARAM_RESULTS_LIST_HEADER	Header;
 				I2O_PARAM_READ_OPERATION_RESULT Read;
 				I2O_DPT_DEVICE_INFO_SCALAR	Info;
-			};
-			defAlignLong (struct DeviceInfo, Buffer);
+			} Buffer;
 			PI2O_DPT_DEVICE_INFO_SCALAR	 Info;
 
 			Entry->le_bus = 0xff;
@@ -1613,7 +1606,7 @@ ASR_acquireLct(Asr_softc_t *sc)
 			  ASR_getParams(sc,
 			    I2O_LCT_ENTRY_getLocalTID(Entry),
 			    I2O_DPT_DEVICE_INFO_GROUP_NO,
-			    Buffer, sizeof(struct DeviceInfo))) == NULL) {
+			    &Buffer, sizeof(struct DeviceInfo))) == NULL) {
 				continue;
 			}
 			Entry->le_type
@@ -1657,7 +1650,7 @@ ASR_init_message(union asr_ccb *ccb, PI2O_MESSAGE_FRAME	Message)
 	tid_t			TID;
 
 	/* We only need to zero out the PRIVATE_SCSI_SCB_EXECUTE_MESSAGE */
-	Message_Ptr = getAlignLong(I2O_MESSAGE_FRAME, Message);
+	Message_Ptr = (I2O_MESSAGE_FRAME *)Message;
 	bzero(Message_Ptr, (sizeof(PRIVATE_SCSI_SCB_EXECUTE_MESSAGE) -
 	      sizeof(I2O_SG_ELEMENT)));
 
@@ -1800,16 +1793,15 @@ ASR_initOutBound(Asr_softc_t *sc)
 	struct initOutBoundMessage {
 		I2O_EXEC_OUTBOUND_INIT_MESSAGE M;
 		U32			       R;
-	};
-	defAlignLong(struct initOutBoundMessage,Message);
-	PI2O_EXEC_OUTBOUND_INIT_MESSAGE		Message_Ptr;
-	U32			     * volatile Reply_Ptr;
-	U32					Old;
+	}				Message;
+	PI2O_EXEC_OUTBOUND_INIT_MESSAGE	Message_Ptr;
+	U32				*volatile Reply_Ptr;
+	U32				Old;
 
 	/*
 	 *  Build up our copy of the Message.
 	 */
-	Message_Ptr = (PI2O_EXEC_OUTBOUND_INIT_MESSAGE)ASR_fillMessage(Message,
+	Message_Ptr = (PI2O_EXEC_OUTBOUND_INIT_MESSAGE)ASR_fillMessage(&Message,
 	  sizeof(I2O_EXEC_OUTBOUND_INIT_MESSAGE));
 	I2O_MESSAGE_FRAME_setFunction(&(Message_Ptr->StdMessageFrame),
 	  I2O_EXEC_OUTBOUND_INIT);
@@ -1894,10 +1886,10 @@ ASR_setSysTab(Asr_softc_t *sc)
 	  sizeof(I2O_EXEC_SYS_TAB_SET_MESSAGE) - sizeof(I2O_SG_ELEMENT)
 	   + ((3+SystemTable->NumberEntries) * sizeof(I2O_SGE_SIMPLE_ELEMENT)),
 	  M_TEMP, M_WAITOK)) == NULL) {
-		free (SystemTable, M_TEMP);
+		free(SystemTable, M_TEMP);
 		return (ENOMEM);
 	}
-	(void)ASR_fillMessage((char *)Message_Ptr,
+	(void)ASR_fillMessage((void *)&Message_Ptr,
 	  sizeof(I2O_EXEC_SYS_TAB_SET_MESSAGE) - sizeof(I2O_SG_ELEMENT)
 	   + ((3+SystemTable->NumberEntries) * sizeof(I2O_SGE_SIMPLE_ELEMENT)));
 	I2O_MESSAGE_FRAME_setVersionOffset(&(Message_Ptr->StdMessageFrame),
@@ -1930,25 +1922,25 @@ ASR_setSysTab(Asr_softc_t *sc)
 	SG(sg, 1, I2O_SGL_FLAGS_DIR | I2O_SGL_FLAGS_LAST_ELEMENT
 	    | I2O_SGL_FLAGS_END_OF_BUFFER, NULL, 0);
 	retVal = ASR_queue_c(sc, (PI2O_MESSAGE_FRAME)Message_Ptr);
-	free (Message_Ptr, M_TEMP);
-	free (SystemTable, M_TEMP);
+	free(Message_Ptr, M_TEMP);
+	free(SystemTable, M_TEMP);
 	return (retVal);
 } /* ASR_setSysTab */
 
 static int
 ASR_acquireHrt(Asr_softc_t *sc)
 {
-	defAlignLong(I2O_EXEC_HRT_GET_MESSAGE,Message);
-	I2O_EXEC_HRT_GET_MESSAGE *	      Message_Ptr;
+	I2O_EXEC_HRT_GET_MESSAGE	Message;
+	I2O_EXEC_HRT_GET_MESSAGE	*Message_Ptr;
 	struct {
 		I2O_HRT	      Header;
 		I2O_HRT_ENTRY Entry[MAX_CHANNEL];
-	}				      Hrt;
-	u_int8_t			      NumberOfEntries;
-	PI2O_HRT_ENTRY			      Entry;
+	}				Hrt;
+	u_int8_t			NumberOfEntries;
+	PI2O_HRT_ENTRY			Entry;
 
 	bzero(&Hrt, sizeof (Hrt));
-	Message_Ptr = (I2O_EXEC_HRT_GET_MESSAGE *)ASR_fillMessage(Message,
+	Message_Ptr = (I2O_EXEC_HRT_GET_MESSAGE *)ASR_fillMessage(&Message,
 	  sizeof(I2O_EXEC_HRT_GET_MESSAGE) - sizeof(I2O_SG_ELEMENT)
 	  + sizeof(I2O_SGE_SIMPLE_ELEMENT));
 	I2O_MESSAGE_FRAME_setVersionOffset(&(Message_Ptr->StdMessageFrame),
@@ -1999,10 +1991,10 @@ ASR_acquireHrt(Asr_softc_t *sc)
 static int
 ASR_enableSys(Asr_softc_t *sc)
 {
-	defAlignLong(I2O_EXEC_SYS_ENABLE_MESSAGE,Message);
-	PI2O_EXEC_SYS_ENABLE_MESSAGE		 Message_Ptr;
+	I2O_EXEC_SYS_ENABLE_MESSAGE	Message;
+	PI2O_EXEC_SYS_ENABLE_MESSAGE	Message_Ptr;
 
-	Message_Ptr = (PI2O_EXEC_SYS_ENABLE_MESSAGE)ASR_fillMessage(Message,
+	Message_Ptr = (PI2O_EXEC_SYS_ENABLE_MESSAGE)ASR_fillMessage(&Message,
 	  sizeof(I2O_EXEC_SYS_ENABLE_MESSAGE));
 	I2O_MESSAGE_FRAME_setFunction(&(Message_Ptr->StdMessageFrame),
 	  I2O_EXEC_SYS_ENABLE);
@@ -2038,11 +2030,10 @@ ASR_sync(Asr_softc_t *sc, int bus, int target, int lun)
 	 && (LIST_FIRST(&(sc->ha_ccb)) != NULL)
 	 && ((TID = ASR_getTid (sc, bus, target, lun)) != (tid_t)-1)
 	 && (TID != (tid_t)0)) {
-		defAlignLong(PRIVATE_SCSI_SCB_EXECUTE_MESSAGE,Message);
-		PPRIVATE_SCSI_SCB_EXECUTE_MESSAGE	      Message_Ptr;
+		PRIVATE_SCSI_SCB_EXECUTE_MESSAGE	Message;
+		PPRIVATE_SCSI_SCB_EXECUTE_MESSAGE	Message_Ptr;
 
-		Message_Ptr = getAlignLong(PRIVATE_SCSI_SCB_EXECUTE_MESSAGE,
-					   Message);
+		Message_Ptr = (PRIVATE_SCSI_SCB_EXECUTE_MESSAGE *)&Message;
 		bzero(Message_Ptr, sizeof(PRIVATE_SCSI_SCB_EXECUTE_MESSAGE)
 		    - sizeof(I2O_SG_ELEMENT) + sizeof(I2O_SGE_SIMPLE_ELEMENT));
 
@@ -2320,7 +2311,7 @@ asr_attach(device_t tag)
 	    2)) > MAX_INBOUND_SIZE) {
 		size = MAX_INBOUND_SIZE;
 	}
-	free (status, M_TEMP);
+	free(status, M_TEMP);
 	sc->ha_SgSize = (size - sizeof(PRIVATE_SCSI_SCB_EXECUTE_MESSAGE)
 	  + sizeof(I2O_SG_ELEMENT)) / sizeof(I2O_SGE_SIMPLE_ELEMENT);
 
@@ -2333,15 +2324,14 @@ asr_attach(device_t tag)
 			I2O_PARAM_RESULTS_LIST_HEADER	    Header;
 			I2O_PARAM_READ_OPERATION_RESULT	    Read;
 			I2O_DPT_EXEC_IOP_BUFFERS_SCALAR	    Info;
-		};
-		defAlignLong (struct BufferInfo, Buffer);
+		} Buffer;
 		PI2O_DPT_EXEC_IOP_BUFFERS_SCALAR Info;
 #define FW_DEBUG_BLED_OFFSET 8
 
 		if ((Info = (PI2O_DPT_EXEC_IOP_BUFFERS_SCALAR)
 		  ASR_getParams(sc, 0,
 		    I2O_DPT_EXEC_IOP_BUFFERS_GROUP_NO,
-		    Buffer, sizeof(struct BufferInfo))) != NULL) {
+		    &Buffer, sizeof(struct BufferInfo))) != NULL) {
 			sc->ha_blinkLED = sc->ha_Fvirt
 			  + I2O_DPT_EXEC_IOP_BUFFERS_SCALAR_getSerialOutputOffset(Info)
 			  + FW_DEBUG_BLED_OFFSET;
@@ -2389,12 +2379,11 @@ asr_attach(device_t tag)
 	if ((iq = (struct scsi_inquiry_data *)malloc(
 	    sizeof(struct scsi_inquiry_data), M_TEMP, M_WAITOK | M_ZERO)) !=
 	    NULL) {
-		defAlignLong(PRIVATE_SCSI_SCB_EXECUTE_MESSAGE,Message);
-		PPRIVATE_SCSI_SCB_EXECUTE_MESSAGE	      Message_Ptr;
-		int					      posted = 0;
+		PRIVATE_SCSI_SCB_EXECUTE_MESSAGE	Message;
+		PPRIVATE_SCSI_SCB_EXECUTE_MESSAGE	Message_Ptr;
+		int					posted = 0;
 
-		Message_Ptr = getAlignLong(PRIVATE_SCSI_SCB_EXECUTE_MESSAGE,
-					   Message);
+		Message_Ptr = (PRIVATE_SCSI_SCB_EXECUTE_MESSAGE *)&Message;
 		bzero(Message_Ptr, sizeof(PRIVATE_SCSI_SCB_EXECUTE_MESSAGE) -
 		    sizeof(I2O_SG_ELEMENT) + sizeof(I2O_SGE_SIMPLE_ELEMENT));
 
@@ -2458,7 +2447,7 @@ asr_attach(device_t tag)
 			ASR_prstring (iq->revision, 4);
 			++posted;
 		}
-		free ((caddr_t)iq, M_TEMP);
+		free(iq, M_TEMP);
 		if (posted) {
 			printf (",");
 		}
@@ -2513,7 +2502,7 @@ asr_attach(device_t tag)
 			continue;
 		}
 	}
-	asr_free_ccb (ccb);
+	asr_free_ccb(ccb);
 	/*
 	 *	Generate the device node information
 	 */
@@ -2548,8 +2537,7 @@ asr_action(struct cam_sim *sim, union ccb  *ccb)
 	{
 		struct Message {
 			char M[MAX_INBOUND_SIZE];
-		};
-		defAlignLong(struct Message,Message);
+		} Message;
 		PI2O_MESSAGE_FRAME   Message_Ptr;
 
 		/* Reject incoming commands while we are resetting the card */
@@ -2581,8 +2569,8 @@ asr_action(struct cam_sim *sim, union ccb  *ccb)
 				     ccb->ccb_h.target_lun);
 		debug_asr_dump_ccb(ccb);
 
-		if ((Message_Ptr = ASR_init_message ((union asr_ccb *)ccb,
-		  (PI2O_MESSAGE_FRAME)Message)) != NULL) {
+		if ((Message_Ptr = ASR_init_message((union asr_ccb *)ccb,
+		  (PI2O_MESSAGE_FRAME)&Message)) != NULL) {
 			debug_asr_cmd2_printf ("TID=%x:\n",
 			  PRIVATE_SCSI_SCB_EXECUTE_MESSAGE_getTID(
 			    (PPRIVATE_SCSI_SCB_EXECUTE_MESSAGE)Message_Ptr));
@@ -2760,9 +2748,9 @@ asr_intr(Asr_softc_t *sc)
 		if (I2O_MESSAGE_FRAME_getMsgFlags(
 		  &(Reply->StdReplyFrame.StdMessageFrame))
 		  & I2O_MESSAGE_FLAGS_FAIL) {
-			defAlignLong(I2O_UTIL_NOP_MESSAGE,Message);
-			PI2O_UTIL_NOP_MESSAGE		  Message_Ptr;
-			U32				  MessageOffset;
+			I2O_UTIL_NOP_MESSAGE	Message;
+			PI2O_UTIL_NOP_MESSAGE	Message_Ptr;
+			U32			MessageOffset;
 
 			MessageOffset = (u_long)
 			  I2O_FAILURE_REPLY_MESSAGE_FRAME_getPreservedMFA(
@@ -2795,7 +2783,7 @@ asr_intr(Asr_softc_t *sc)
 			 * re-issue it to the controller.
 			 */
 			Message_Ptr = (PI2O_UTIL_NOP_MESSAGE)ASR_fillMessage(
-			  Message, sizeof(I2O_UTIL_NOP_MESSAGE));
+			    &Message, sizeof(I2O_UTIL_NOP_MESSAGE));
 #if (I2O_UTIL_NOP != 0)
 				I2O_MESSAGE_FRAME_setFunction (
 				  &(Message_Ptr->StdMessageFrame),
@@ -3022,7 +3010,7 @@ ASR_queue_i(Asr_softc_t	*sc, PI2O_MESSAGE_FRAME	Packet)
 	}
 	if ((error = copyin ((caddr_t)Packet, (caddr_t)Message_Ptr,
 	  sizeof(I2O_MESSAGE_FRAME))) != 0) {
-		free (Message_Ptr, M_TEMP);
+		free(Message_Ptr, M_TEMP);
 		debug_usr_cmd_printf ("Can't copy in packet errno=%d\n", error);
 		return (error);
 	}
@@ -3034,7 +3022,7 @@ ASR_queue_i(Asr_softc_t	*sc, PI2O_MESSAGE_FRAME	Packet)
 
 	/* Check if the message is a synchronous initialization command */
 	s = I2O_MESSAGE_FRAME_getFunction(Message_Ptr);
-	free (Message_Ptr, M_TEMP);
+	free(Message_Ptr, M_TEMP);
 	switch (s) {
 
 	case I2O_EXEC_IOP_RESET:
@@ -3087,7 +3075,7 @@ ASR_queue_i(Asr_softc_t	*sc, PI2O_MESSAGE_FRAME	Packet)
 	}
 	if ((error = copyin ((caddr_t)Packet, (caddr_t)Message_Ptr,
 	  MessageSizeInBytes)) != 0) {
-		free (Message_Ptr, M_TEMP);
+		free(Message_Ptr, M_TEMP);
 		debug_usr_cmd_printf ("Can't copy in packet[%d] errno=%d\n",
 		  MessageSizeInBytes, error);
 		return (error);
@@ -3097,15 +3085,15 @@ ASR_queue_i(Asr_softc_t	*sc, PI2O_MESSAGE_FRAME	Packet)
 
 	if ((Reply_Ptr = (PI2O_SCSI_ERROR_REPLY_MESSAGE_FRAME)malloc (
 	  sizeof(I2O_MESSAGE_FRAME), M_TEMP, M_WAITOK)) == NULL) {
-		free (Message_Ptr, M_TEMP);
+		free(Message_Ptr, M_TEMP);
 		debug_usr_cmd_printf (
 		  "Failed to acquire I2O_MESSAGE_FRAME memory\n");
 		return (ENOMEM);
 	}
 	if ((error = copyin ((caddr_t)Reply, (caddr_t)Reply_Ptr,
 	  sizeof(I2O_MESSAGE_FRAME))) != 0) {
-		free (Reply_Ptr, M_TEMP);
-		free (Message_Ptr, M_TEMP);
+		free(Reply_Ptr, M_TEMP);
+		free(Message_Ptr, M_TEMP);
 		debug_usr_cmd_printf (
 		  "Failed to copy in reply frame, errno=%d\n",
 		  error);
@@ -3113,9 +3101,9 @@ ASR_queue_i(Asr_softc_t	*sc, PI2O_MESSAGE_FRAME	Packet)
 	}
 	ReplySizeInBytes = (I2O_MESSAGE_FRAME_getMessageSize(
 	  &(Reply_Ptr->StdReplyFrame.StdMessageFrame)) << 2);
-	free (Reply_Ptr, M_TEMP);
+	free(Reply_Ptr, M_TEMP);
 	if (ReplySizeInBytes < sizeof(I2O_SINGLE_REPLY_MESSAGE_FRAME)) {
-		free (Message_Ptr, M_TEMP);
+		free(Message_Ptr, M_TEMP);
 		debug_usr_cmd_printf (
 		  "Failed to copy in reply frame[%d], errno=%d\n",
 		  ReplySizeInBytes, error);
@@ -3126,12 +3114,12 @@ ASR_queue_i(Asr_softc_t	*sc, PI2O_MESSAGE_FRAME	Packet)
 	  ((ReplySizeInBytes > sizeof(I2O_SCSI_ERROR_REPLY_MESSAGE_FRAME))
 	    ? ReplySizeInBytes : sizeof(I2O_SCSI_ERROR_REPLY_MESSAGE_FRAME)),
 	  M_TEMP, M_WAITOK)) == NULL) {
-		free (Message_Ptr, M_TEMP);
+		free(Message_Ptr, M_TEMP);
 		debug_usr_cmd_printf ("Failed to acquire frame[%d] memory\n",
 		  ReplySizeInBytes);
 		return (ENOMEM);
 	}
-	(void)ASR_fillMessage ((char *)Reply_Ptr, ReplySizeInBytes);
+	(void)ASR_fillMessage((void *)Reply_Ptr, ReplySizeInBytes);
 	Reply_Ptr->StdReplyFrame.StdMessageFrame.InitiatorContext
 	  = Message_Ptr->InitiatorContext;
 	Reply_Ptr->StdReplyFrame.TransactionContext
@@ -3147,7 +3135,7 @@ ASR_queue_i(Asr_softc_t	*sc, PI2O_MESSAGE_FRAME	Packet)
 	case I2O_EXEC_SYS_TAB_SET: /* Special Case of empty Scatter Gather */
 		if (MessageSizeInBytes == ((I2O_MESSAGE_FRAME_getVersionOffset(
 		  Message_Ptr) & 0xF0) >> 2)) {
-			free (Message_Ptr, M_TEMP);
+			free(Message_Ptr, M_TEMP);
 			I2O_SINGLE_REPLY_MESSAGE_FRAME_setDetailedStatusCode(
 			  &(Reply_Ptr->StdReplyFrame),
 			  (ASR_setSysTab(sc) != CAM_REQ_CMP));
@@ -3156,7 +3144,7 @@ ASR_queue_i(Asr_softc_t	*sc, PI2O_MESSAGE_FRAME	Packet)
 			  sizeof(I2O_SINGLE_REPLY_MESSAGE_FRAME));
 			error = copyout ((caddr_t)Reply_Ptr, (caddr_t)Reply,
 			  ReplySizeInBytes);
-			free (Reply_Ptr, M_TEMP);
+			free(Reply_Ptr, M_TEMP);
 			return (error);
 		}
 	}
@@ -3295,7 +3283,7 @@ ASR_queue_i(Asr_softc_t	*sc, PI2O_MESSAGE_FRAME	Packet)
 					bcopy((caddr_t)(sg-1),
 					  ((caddr_t)NewMessage_Ptr) + span,
 					  MessageSizeInBytes - span);
-					free (Message_Ptr, M_TEMP);
+					free(Message_Ptr, M_TEMP);
 					sg = (PI2O_SGE_SIMPLE_ELEMENT)
 					  (((caddr_t)NewMessage_Ptr) + span);
 					Message_Ptr = NewMessage_Ptr;
@@ -3311,10 +3299,10 @@ ASR_queue_i(Asr_softc_t	*sc, PI2O_MESSAGE_FRAME	Packet)
 		if (error) {
 			while ((elm = SLIST_FIRST(&sgList)) != NULL) {
 				SLIST_REMOVE_HEAD(&sgList, link);
-				free (elm, M_TEMP);
+				free(elm, M_TEMP);
 			}
-			free (Reply_Ptr, M_TEMP);
-			free (Message_Ptr, M_TEMP);
+			free(Reply_Ptr, M_TEMP);
+			free(Message_Ptr, M_TEMP);
 			return (error);
 		}
 	}
@@ -3327,10 +3315,10 @@ ASR_queue_i(Asr_softc_t	*sc, PI2O_MESSAGE_FRAME	Packet)
 		/* Free up in-kernel buffers */
 		while ((elm = SLIST_FIRST(&sgList)) != NULL) {
 			SLIST_REMOVE_HEAD(&sgList, link);
-			free (elm, M_TEMP);
+			free(elm, M_TEMP);
 		}
-		free (Reply_Ptr, M_TEMP);
-		free (Message_Ptr, M_TEMP);
+		free(Reply_Ptr, M_TEMP);
+		free(Message_Ptr, M_TEMP);
 		return (ENOMEM);
 	}
 
@@ -3343,7 +3331,7 @@ ASR_queue_i(Asr_softc_t	*sc, PI2O_MESSAGE_FRAME	Packet)
 
 	(void)ASR_queue (sc, (PI2O_MESSAGE_FRAME)Message_Ptr);
 
-	free (Message_Ptr, M_TEMP);
+	free(Message_Ptr, M_TEMP);
 
 	/*
 	 * Wait for the board to report a finished instruction.
@@ -3363,9 +3351,9 @@ ASR_queue_i(Asr_softc_t	*sc, PI2O_MESSAGE_FRAME	Packet)
 			/* Free up in-kernel buffers */
 			while ((elm = SLIST_FIRST(&sgList)) != NULL) {
 				SLIST_REMOVE_HEAD(&sgList, link);
-				free (elm, M_TEMP);
+				free(elm, M_TEMP);
 			}
-			free (Reply_Ptr, M_TEMP);
+			free(Reply_Ptr, M_TEMP);
 			asr_free_ccb(ccb);
 			return (EIO);
 		}
