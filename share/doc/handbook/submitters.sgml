@@ -1,4 +1,4 @@
-<!-- $Id: submitters.sgml,v 1.8 1995/10/07 04:32:03 jfieber Exp $ -->
+<!-- $Id: submitters.sgml,v 1.9 1995/12/07 13:22:18 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>Contributing to FreeBSD<label id="submitters"></heading>
@@ -254,9 +254,83 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-	$Id: submitters.sgml,v 1.8 1995/10/07 04:32:03 jfieber Exp $
+	$Id: submitters.sgml,v 1.9 1995/12/07 13:22:18 jkh Exp $
 </verb></tscreen>
 For your convenience, a copy of this text can be found in
 <tt>/usr/share/examples/etc/bsd-style-copyright</tt>.
 		      
         &porting;
+
+<sect1><heading>Contributions of money, hardware or Internet access</heading>
+<p>We're always very happy to accept donations to further the cause of
+the FreeBSD Project and, in a volunteer effort like ours, a little can go
+a long way!  Donations of hardware are also very important to expanding
+our list of supported peripherals since we generally lack the funds to
+buy such items ourselves. 
+
+<sect2><heading>Donating funds</heading>
+<p>While the FreeBSD Project is not a 501(C3) (non-profit) corporation and
+hence cannot offer special tax incentives for any donations made, any such
+donations will be gratefully accepted on behalf of the project by
+FreeBSD, Inc.
+
+<p>FreeBSD, Inc. was founded in early 1995 by &a.jkh and &a.davidg with the
+goal of furthering the aims of the FreeBSD Project and giving it a minimal
+corporate presence.  Any and all funds donated (as well as any profits
+that may eventually be realized by FreeBSD, Inc.) will be used exclusively
+to further the project's goals.  
+
+Please make any checks payable to FreeBSD, Inc., sent in care of the
+following address:
+
+<tscreen><verb>
+FreeBSD, Inc.
+246 Park St.
+Clyde CA, 94520
+</verb></tscreen>
+
+Wire transfers may also be sent directly to:
+
+<tscreen><verb>
+Bank Of America
+Concord Main Office 
+P.O. Box 37176
+San Francisco CA, 94137-5176
+ 
+Routing #: 121-000-358
+Account #: 01411-07441 (FreeBSD, Inc.)
+</verb></tscreen>
+
+If you do not wish to be listed in our `donors' section, please specify
+this in a note accompanying your donation.  Thanks!
+
+<sect2><heading>Donating hardware</heading>
+
+<p>Donations of hardware in any of the 3 following catagories are also gladly
+accepted by the FreeBSD Project:
+
+<itemize>
+<item>General purpose hardware such as disk drives, memory or complete
+systems should be sent to the FreeBSD, Inc. address listed in the
+<em>donating funds</em> section.
+
+<item>Hardware for which ongoing compliance testing is desired.
+We are currently trying to put together a testing lab of all components
+that FreeBSD supports so that proper regression testing can be done with
+each new release. We are still lacking many important pieces (network cards,
+motherboards, etc) and if you'd like to make such a donation, please contact
+&a.davidg for information on which items are still required.
+
+<item>Hardware currently unsupported by FreeBSD for which you'd like to
+see such support added.  Please contact the <htmlurl
+url="mailto:core@freebsd.org" name="FreeBSD Core Team"> before sending
+such items as we'll need to find a developer willing to take on the task
+before we can accept delivery of them.  
+</itemize>
+
+<sect2><heading>Donating internet access</heading>
+
+<p>We can always use new mirror sites for FTP, WWW or sup.
+If you'd like to be such a mirror, please contact
+<htmlurl url="mailto:admin@freebsd.org" name="the FreeBSD project
+administrators"> for more information.
