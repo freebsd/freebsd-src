@@ -22,20 +22,18 @@ library.
 The source file name must end with a suffix of ``.et''; the file
 consists of a declaration supplying the name (up to four characters
 long) of the error-code table:
-
+.Pp
 .Em error_table name
-
+.Pp
 followed by up to 256 entries of the form:
-
+.Pp
 .Em error_code name ,
-"
-.Em string
-"
-
+.No \(dq Ns Em string Ns \(dq
+.Pp
 and a final
-
+.Pp
 .Em end
-
+.Pp
 to indicate the end of the table.
 .Pp
 The name of the table is used to construct the name of a subroutine
