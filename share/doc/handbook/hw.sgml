@@ -1,4 +1,4 @@
-<!-- $Id: hw.sgml,v 1.32 1996/07/15 19:31:47 jkh Exp $ -->
+<!-- $Id: hw.sgml,v 1.33 1996/07/16 00:15:53 alex Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -290,7 +290,6 @@ that we use.
 
      <sect3><heading> 4mm (DAT: Digital Audio Tape)</heading>
 	<p><ref id="hw:storage:python" name="Archive Python"
-	<p><ref id="hw:storage:exb2501" name="Exabyte 2501"
 	<p><ref id="hw:storage:hp1533a" name="HP C1533A">
 	<p><ref id="hw:storage:hp1534a" name="HP C1534A">
 	<p><ref id="hw:storage:hp35450a" name="HP 35450A">
@@ -317,6 +316,7 @@ that we use.
 	<p><ref id="hw:storage:dectz87" name="Digital TZ87"
      <sect3><heading> Mini-Cartridge</heading>
 	<p><ref id="hw:storage:ctms3200" name="Conner CTMS 3200"
+	<p><ref id="hw:storage:exb2501" name="Exabyte 2501"
      <sect3><heading> Autoloaders/Changers</heading>
 	<p><ref id="hw:storage:hp1553a" name="Hewlett-Packard HP
 C1553A Autoloading DDS2">
@@ -471,7 +471,8 @@ including an Exabyte 8mm drive.
 	<htmlurl
 url="http://www.Exabyte.COM:80/Products/Minicartridge/2501/Rfeatures.html"
 name="Exabyte EXB-2501"></heading>
-	<p>The boot message identifier for this drive is ""
+	<p>The boot message identifier for this drive is "EXABYTE
+EXB-2501"
 	<p>This is a mini-cartridge tape drive.
 	<p>Native capacity is 1GB when using MC3000XL minicartridges.
 	<p>Data transfer rate is XXX
@@ -481,13 +482,20 @@ name="Exabyte EXB-2501"></heading>
 specifications.  The drive locks up completely in response to a
 SCSI MODE_SELECT command unless there is a formatted tape in the
 drive.  Before using this drive, set the tape blocksize with
-<tt>mt -f /dev/st0ctl.0 blocksize 1024</tt>.  Before using a
-minicartridge for the first time, the minicartridge must be
-formated. FreeBSD 2.1.0-RELEASE and earlier: <tt>/sbin/scsi -f
-/dev/rst0.ctl -s 600 -c "4 0 0 0 0 0"</tt> (alternatively, fetch
-a copy of the <tt>scsiformat</tt> shell script from FreeBSD
-2.2). FreeBSD 2.2 and later: <tt>/sbin/scsiformat -q -w
-/dev/rst0.ctl</tt>
+
+	<verb>mt -f /dev/st0ctl.0 blocksize 1024</verb>
+
+Before using a minicartridge for the first time, the minicartridge
+must be formated. FreeBSD 2.1.0-RELEASE and earlier:
+
+	<verb>/sbin/scsi -f /dev/rst0.ctl -s 600 -c "4 0 0 0 0 0"</verb>
+
+(Alternatively, fetch a copy of the <tt>scsiformat</tt> shell script
+from FreeBSD 2.1.5/2.2.) FreeBSD 2.1.5 and later:
+
+	<verb>/sbin/scsiformat -q -w /dev/rst0.ctl</verb>
+
+	<p>Right now, this drive cannot really be recommended for FreeBSD.
 	<p>Reported by: Bob Beaulieu ez@eztravel.com
 
 	<sect3><heading><label id="hw:storage:exb8200"> Exabyte
@@ -726,7 +734,7 @@ Tandberg TDC 3600</heading>
 	<p>The boot message identifier for this drive is
 "TANDBERG  TDC 3600 =08:" "type 1 removable SCSI 2"
 	<p>This is a QIC tape drive.
-	<p>Native capacity is 250MB.
+	<p>Native capacity is 150/250MB.
 	<p>This drive has quirks which are known and work around
 code is present in the scsi tape device driver (<tt>st(4)</tt>).
 Upgrading the firmware to XXX version will fix the quirks and
@@ -738,28 +746,28 @@ firmware EPROM of these units will solve the problem.
 
 	<sect3><heading><label id="hw:storage:tandberg3620">
 Tandberg TDC 3620</heading>
-	<p>The boot message identifier for this drive is
-"XXX" "XXX"
-	<p>This is a QIC tape drive.
-	<p>Native capacity is MB.  XXX ???
-	<p>Data transfer rate is XXXkB/s.
-	<p>Reported by: J"org Wunsch joerg_wunsch@uriah.heep.sax.de
+	<p>This is very similar to the <ref
+	 id="hw:storage:tandberg3600" name="Tandberg TDC 3600"> drive.
+	<p>Reported by: J&ouml;rg Wunsch joerg_wunsch@uriah.heep.sax.de
 
 	<sect3><heading><label id="hw:storage:tandberg4222">
 Tandberg TDC 4222</heading>
 	<p>The boot message identifier for this drive is
 "TANDBERG  TDC 4222 =07" "type 1 removable SCSI 2"
 	<p>This is a QIC tape drive.
-	<p>Native capacity is 1.5GB.  The drive will read all
+	<p>Native capacity is 2.5GB.  The drive will read all
 cartridges from the 60 MB (DC600A) upwards, and write 150 MB
-(DC6150) upwards.
+(DC6150) upwards.  Hardware compression is optionally supported
+for the 2.5 GB cartridges.
 	<p>This drives quirks are known and pre-compiled into the
 scsi tape device driver (<tt>st(4)</tt>) beginning with FreeBSD
 2.2-current.  For previous versions of FreeBSD, use <tt>mt</tt>
 to read one block from the tape, rewind the tape, and then
 execute the backup program (<tt>mt fsr 1; mt rewind; dump ...</tt>)
-	<p>Data transfer rate is 600kB/s.
-	<p>Reported by: J"org Wunsch joerg_wunsch@uriah.heep.sax.de
+	<p>Data transfer rate is 600kB/s (vendor claim with compression),
+	350 KB/s can even be reached in start/stop mode.  The rate
+	decreases for smaller cartridges.
+	<p>Reported by: J&ouml;rg Wunsch joerg_wunsch@uriah.heep.sax.de
 
 	<sect3><heading><label id="hw:storage:wangtek5525es">
 Wangtek 5525ES</heading>
@@ -868,7 +876,7 @@ tape drive and media around.  QIC tape drives are the least
 expensive "serious" backup drives.  The downside is the cost of
 media.  QIC tapes are expensive compared to 8mm or 4mm tapes, up
 to 5 times the price per GB data storage.  But, if your needs can
-be satisified with a half-dozen tapes.  QIC may be the correct
+be satisified with a half-dozen tapes, QIC may be the correct
 choice.  QIC is the <em>most</em> common tape drive.  Every site
 has a QIC drive of some density or another.  Therein lies the
 rub, QIC has a large number of densities on physically similar
@@ -890,7 +898,11 @@ frequently installed; they are being supplanted by DAT drives.
 	<p>Data is recorded onto the tape in tracks.  The tracks
 run along the long axis of the tape media from one end to the
 other.  The number of tracks, and therefore the width of a track,
-varies with the tape's capacity.
+varies with the tape's capacity.  Most if not all newer drives
+provide backward-compatibility at least for reading (but often
+also for writing).  QIC has a good reputation regarding the
+safety of the data (the mechanics are simpler and more robust
+than for helical scan drives).
 
 	<p>Tapes should be retired from use after 5,000 backups.
 
@@ -900,7 +912,7 @@ varies with the tape's capacity.
      <sect3><heading><label id="hw:storage:tapebackups:dlt">
 DLT</heading>
 <!--gen-->
-	<p>DLT has the faster data transfer rate of all the drive
+	<p>DLT has the fastest data transfer rate of all the drive
 types listed here.  The 1/2" (12.5mm) tape is contained in a
 single spool cartridge (4 x 4 x 1 inches; 100 x 100 x 25 mm). The
 cartridge has a swinging gate along one entire side of the
@@ -914,7 +926,7 @@ take-up spools located inside the tape cartridge itself.
 <!--spec-->
 	Data thruput is approximately 1.5MB/s, three times the
 thruput of 4mm, 8mm, or QIC tape drives.  Data capacities range
-from 10GB to 20GB for a single drives.  Drive are available in
+from 10GB to 20GB for a single drive.  Drives are available in
 both multi-tape changers and multi-tape, multi-drive tape
 libraries containing from 5 to 900 tapes over 1 to 20 drives,
 providing from 50GB to 9TB of storage.
