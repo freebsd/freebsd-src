@@ -334,10 +334,10 @@ find_major(struct cdevsw *devsw)
 {
 	int i;
 
-	if (devsw->d_maj != MAJOR_AUTO) {
+	if (devsw->d_maj != 0) {
 		printf("NOTICE: Ignoring d_maj hint from driver \"%s\", %s",
 		    devsw->d_name, "driver should be updated/fixed\n");
-		devsw->d_maj = MAJOR_AUTO;
+		devsw->d_maj = 0;
 	}
 	for (i = NUMCDEVSW - 1; i > 0; i--)
 		if (reserved_majors[i] != i)
@@ -353,7 +353,7 @@ fini_cdevsw(struct cdevsw *devsw)
 {
 	if (devsw->d_flags & D_ALLOCMAJ) {
 		reserved_majors[devsw->d_maj] = 0;
-		devsw->d_maj = MAJOR_AUTO;
+		devsw->d_maj = 0;
 		devsw->d_flags &= ~D_ALLOCMAJ;
 	}
 	devsw->d_flags &= ~D_INIT;

@@ -218,12 +218,6 @@ struct cdevsw {
 
 #define MAXMINOR	0xffff00ffU
 
-/*
- * XXX: do not use MAJOR_AUTO unless you have no choice.  In general drivers
- * should just not initialize .d_maj and that will DTRT.
- */
-#define	MAJOR_AUTO	0	/* XXX: Not GM */
-
 struct module;
 
 struct devsw_module_data {
