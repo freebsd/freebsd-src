@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.8 1993/10/08 10:47:13 rgrimes Exp $
+ *	$Id: machdep.c,v 1.9 1993/10/08 20:45:12 rgrimes Exp $
  */
 
 #include "npx.h"
@@ -339,6 +339,9 @@ identifycpu()	/* translated from hp300 -- cgd */
 	 */
 	switch (cpu_class) {
 	case CPUCLASS_286:	/* a 286 should not make it this far, anyway */
+#if !defined(I386_CPU) && !defined(I486_CPU) && !defined(I586_CPU)
+#error This kernel is not configured for one of the supported CPUs
+#endif
 #if !defined(I386_CPU)
 	case CPUCLASS_386:
 #endif
