@@ -33,6 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
+ * $Id: vinumkw.h,v 1.15 1999/12/30 07:14:20 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -61,6 +62,8 @@ enum keyword {
     kw_lv,						    /* list volume */
     kw_set,
     kw_rm,
+    kw_mv,						    /* move object */
+    kw_move,						    /* synonym for mv */
     kw_start,
     kw_stop,
     kw_makedev,						    /* make /dev/vinum devices */
