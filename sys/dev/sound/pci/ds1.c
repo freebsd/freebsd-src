@@ -953,7 +953,7 @@ ds_pci_attach(device_t dev)
 	pci_write_config(dev, PCIR_COMMAND, data, 2);
 	data = pci_read_config(dev, PCIR_COMMAND, 2);
 
-	sc->regid = PCIR_MAPS;
+	sc->regid = PCIR_BAR(0);
 	sc->reg = bus_alloc_resource(dev, SYS_RES_MEMORY, &sc->regid,
 					     0, ~0, 1, RF_ACTIVE);
 	if (!sc->reg) {

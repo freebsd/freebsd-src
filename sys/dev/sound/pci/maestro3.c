@@ -1109,7 +1109,7 @@ m3_pci_attach(device_t dev)
 	data |= (PCIM_CMD_PORTEN | PCIM_CMD_MEMEN | PCIM_CMD_BUSMASTEREN);
 	pci_write_config(dev, PCIR_COMMAND, data, 2);
 
-	sc->regid = PCIR_MAPS;
+	sc->regid = PCIR_BAR(0);
 	sc->regtype = SYS_RES_MEMORY;
 	sc->reg = bus_alloc_resource(dev, sc->regtype, &sc->regid,
 				     0, ~0, 1, RF_ACTIVE);

@@ -499,14 +499,14 @@ au88x0_pci_attach(device_t dev)
 	config = pci_read_config(dev, PCIR_COMMAND, 2);
 	if (config & PCIM_CMD_MEMEN) {
 		/* try memory-mapped I/O */
-		aui->aui_regid = PCIR_MAPS;
+		aui->aui_regid = PCIR_BAR(0);
 		aui->aui_regtype = SYS_RES_MEMORY;
 		aui->aui_reg = bus_alloc_resource(dev, aui->aui_regtype,
 		    &aui->aui_regid, 0, ~0, 1, RF_ACTIVE);
 	}
 	if (aui->aui_reg == NULL && (config & PCIM_CMD_PORTEN)) {
 		/* fall back on port I/O */
-		aui->aui_regid = PCIR_MAPS;
+		aui->aui_regid = PCIR_BAR(0);
 		aui->aui_regtype = SYS_RES_IOPORT;
 		aui->aui_reg = bus_alloc_resource(dev, aui->aui_regtype,
 		    &aui->aui_regid, 0, ~0, 1, RF_ACTIVE);

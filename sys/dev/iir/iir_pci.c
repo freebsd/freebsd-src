@@ -66,7 +66,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/iir/iir.h>
 
 /* Mapping registers for various areas */
-#define PCI_DPMEM       PCIR_MAPS
+#define PCI_DPMEM       PCIR_BAR(0)
 
 /* Product numbers for Fibre-Channel are greater than or equal to 0x200 */
 #define GDT_PCI_PRODUCT_FC      0x200

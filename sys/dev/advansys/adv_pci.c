@@ -78,8 +78,8 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/advansys/advansys.h>
 
-#define PCI_BASEADR0	PCIR_MAPS		/* I/O Address */
-#define PCI_BASEADR1	PCIR_MAPS + 4		/* Mem I/O Address */
+#define PCI_BASEADR0	PCIR_BAR(0)		/* I/O Address */
+#define PCI_BASEADR1	PCIR_BAR(1)		/* Mem I/O Address */
 
 #define	PCI_DEVICE_ID_ADVANSYS_1200A	0x110010CD
 #define	PCI_DEVICE_ID_ADVANSYS_1200B	0x120010CD

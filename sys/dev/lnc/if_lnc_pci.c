@@ -102,7 +102,7 @@ lnc_pci_attach(device_t dev)
 	command |= PCIM_CMD_PORTEN | PCIM_CMD_BUSMASTEREN;
 	pci_write_config(dev, PCIR_COMMAND, command, 4);
 
-	rid = PCIR_MAPS;
+	rid = PCIR_BAR(0);
 	sc->portres = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0, 1,
 	                                 RF_ACTIVE);
 
@@ -195,7 +195,7 @@ lnc_pci_detach(device_t dev)
 	lnc_stop(sc);
 	bus_teardown_intr(dev, sc->irqres, sc->intrhand);
 	bus_release_resource(dev, SYS_RES_IRQ, 0, sc->irqres);
-	bus_release_resource(dev, SYS_RES_IOPORT, PCIR_MAPS, sc->portres);
+	bus_release_resource(dev, SYS_RES_IOPORT, PCIR_BAR(0), sc->portres);
 
 	bus_dmamap_unload(sc->dmat, sc->dmamap);
 	bus_dmamem_free(sc->dmat, sc->recv_ring, sc->dmamap);

@@ -506,7 +506,7 @@ via_attach(device_t dev)
 		DELAY(5000);
 	}
 
-	via->regid = PCIR_MAPS;
+	via->regid = PCIR_BAR(0);
 	via->reg = bus_alloc_resource(dev, SYS_RES_IOPORT, &via->regid, 0, ~0, 1, RF_ACTIVE);
 	if (!via->reg) {
 		device_printf(dev, "cannot allocate bus resource.");

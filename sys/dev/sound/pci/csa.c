@@ -258,11 +258,11 @@ csa_attach(device_t dev)
 	scp->card = csa_findsubcard(dev);
 	scp->binfo.card = scp->card;
 	printf("csa: card is %s\n", scp->card->name);
-	resp->io_rid = PCIR_MAPS;
+	resp->io_rid = PCIR_BAR(0);
 	resp->io = bus_alloc_resource(dev, SYS_RES_MEMORY, &resp->io_rid, 0, ~0, 1, RF_ACTIVE);
 	if (resp->io == NULL)
 		return (ENXIO);
-	resp->mem_rid = PCIR_MAPS + 4;
+	resp->mem_rid = PCIR_BAR(1);
 	resp->mem = bus_alloc_resource(dev, SYS_RES_MEMORY, &resp->mem_rid, 0, ~0, 1, RF_ACTIVE);
 	if (resp->mem == NULL)
 		goto err_io;
@@ -392,10 +392,10 @@ csa_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		break;
 	case SYS_RES_MEMORY:
 		switch (*rid) {
-		case PCIR_MAPS:
+		case PCIR_BAR(0):
 			res = resp->io;
 			break;
-		case PCIR_MAPS + 4:
+		case PCIR_BAR(1):
 			res = resp->mem;
 			break;
 		default:

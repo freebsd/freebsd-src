@@ -60,8 +60,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/advansys/adwlib.h>
 #include <dev/advansys/adwmcode.h>
 
-#define ADW_PCI_IOBASE	PCIR_MAPS		/* I/O Address */
-#define ADW_PCI_MEMBASE	PCIR_MAPS + 4		/* Mem I/O Address */
+#define ADW_PCI_IOBASE	PCIR_BAR(0)		/* I/O Address */
+#define ADW_PCI_MEMBASE	PCIR_BAR(1)		/* Mem I/O Address */
 
 #define	PCI_ID_ADVANSYS_3550		0x230010CD00000000ull
 #define	PCI_ID_ADVANSYS_38C0800_REV1	0x250010CD00000000ull

@@ -849,7 +849,7 @@ cmi_attach(device_t dev)
 	data = pci_read_config(dev, PCIR_COMMAND, 2);
 
 	sc->dev = dev;
-	sc->regid = PCIR_MAPS;
+	sc->regid = PCIR_BAR(0);
 	sc->reg = bus_alloc_resource(dev, SYS_RES_IOPORT, &sc->regid,
 				      0, BUS_SPACE_UNRESTRICTED, 1, RF_ACTIVE);
 	if (!sc->reg) {

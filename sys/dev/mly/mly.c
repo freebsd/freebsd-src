@@ -368,7 +368,7 @@ mly_pci_attach(struct mly_softc *sc)
     /*
      * Allocate the PCI register window.
      */
-    sc->mly_regs_rid = PCIR_MAPS;	/* first base address register */
+    sc->mly_regs_rid = PCIR_BAR(0);	/* first base address register */
     if ((sc->mly_regs_resource = bus_alloc_resource(sc->mly_dev, SYS_RES_MEMORY, &sc->mly_regs_rid, 
 						    0, ~0, 1, RF_ACTIVE)) == NULL) {
 	mly_printf(sc, "can't allocate register window\n");

@@ -2549,10 +2549,8 @@ asr_pci_map_mem (
 	/*
 	 * I2O specification says we must find first *memory* mapped BAR
 	 */
-	for (rid = PCIR_MAPS;
-	  rid < (PCIR_MAPS + 4 * sizeof(u_int32_t));
-	  rid += sizeof(u_int32_t)) {
-		p = pci_read_config(tag, rid, sizeof(p));
+	for (rid = 0; rid < 4; rid++) {
+		p = pci_read_config(tag, PCIR_BAR(rid), sizeof(p));
 		if ((p & 1) == 0) {
 			break;
 		}
@@ -2560,9 +2558,10 @@ asr_pci_map_mem (
 	/*
 	 *	Give up?
 	 */
-	if (rid >= (PCIR_MAPS + 4 * sizeof(u_int32_t))) {
-		rid = PCIR_MAPS;
+	if (rid >= 4) {
+		rid = 0;
 	}
+	rid = PCIR_BAR(rid);
 	p = pci_read_config(tag, rid, sizeof(p));
 	pci_write_config(tag, rid, -1, sizeof(p));
 	l = 0 - (pci_read_config(tag, rid, sizeof(l)) & ~15);
@@ -2599,8 +2598,7 @@ asr_pci_map_mem (
 	}
 	sc->ha_Virt = (i2oRegs_t *) rman_get_virtual(sc->ha_mem_res);
 	if (s == 0xA5111044) { /* Split BAR Raptor Daptor */
-		if ((rid += sizeof(u_int32_t))
-		  >= (PCIR_MAPS + 4 * sizeof(u_int32_t))) {
+		if ((rid += sizeof(u_int32_t)) >= PCIR_BAR(4)) {
 			return (0);
 		}
 		p = pci_read_config(tag, rid, sizeof(p));

@@ -818,7 +818,7 @@ tr_pci_attach(device_t dev)
 	pci_write_config(dev, PCIR_COMMAND, data, 2);
 	data = pci_read_config(dev, PCIR_COMMAND, 2);
 
-	tr->regid = PCIR_MAPS;
+	tr->regid = PCIR_BAR(0);
 	tr->regtype = SYS_RES_IOPORT;
 	tr->reg = bus_alloc_resource(dev, tr->regtype, &tr->regid, 0, ~0, 1, RF_ACTIVE);
 	if (tr->reg) {
