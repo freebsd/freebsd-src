@@ -125,6 +125,7 @@ main(int argc, char **argv)
 	extern int optind;
 	char buf[_POSIX2_LINE_MAX], *mstr, **pargv, *p, *q;
 	const char *execf, *coref, *swapf;
+	int debug_opt;
 	int i, ch, bestidx, rv, criteria, drop_privs;
 	size_t jsz;
 	void (*action)(struct kinfo_proc *);
@@ -170,10 +171,14 @@ main(int argc, char **argv)
 #endif
 
 	criteria = 0;
+	debug_opt = 0;
 	drop_privs = 0;
 
-	while ((ch = getopt(argc, argv, "G:M:N:P:U:d:fg:lns:t:u:vx")) != -1)
+	while ((ch = getopt(argc, argv, "DG:M:N:P:U:d:fg:lns:t:u:vx")) != -1)
 		switch (ch) {
+		case 'D':
+			debug_opt++;
+			break;
 		case 'G':
 			makelist(&rgidlist, LT_GROUP, optarg);
 			criteria = 1;
@@ -285,8 +290,12 @@ main(int argc, char **argv)
 		}
 
 		for (i = 0, kp = plist; i < nproc; i++, kp++) {
-			if ((kp->ki_flag & P_SYSTEM) != 0)
+			if ((kp->ki_flag & P_SYSTEM) != 0) {
+				if (debug_opt > 0)
+				    printf("* Skipped %5d %3d %s\n",
+					kp->ki_pid, kp->ki_uid, kp->ki_comm);
 				continue;
+			}
 
 			if (matchargs) {
 				if ((pargv = kvm_getargv(kd, kp, 0)) == NULL)
@@ -317,6 +326,13 @@ main(int argc, char **argv)
 			} else if (rv != REG_NOMATCH) {
 				regerror(rv, &reg, buf, sizeof(buf));
 				errx(STATUS_ERROR, "regexec(): %s", buf);
+			}
+			if (debug_opt > 1) {
+				const char *rv_res = "NoMatch";
+				if (selected[i])
+					rv_res = "Matched";
+				printf("* %s %5d %3d %s\n", rv_res,
+				    kp->ki_pid, kp->ki_uid, mstr);
 			}
 		}
 
