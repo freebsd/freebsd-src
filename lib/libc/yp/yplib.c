@@ -28,7 +28,7 @@
  */
 
 #ifndef LINT
-static char *rcsid = "$Id: yplib.c,v 1.13 1995/11/05 05:39:04 wpaul Exp $";
+static char *rcsid = "$Id: yplib.c,v 1.15 1995/12/15 03:26:40 wpaul Exp $";
 #endif
 
 #include <sys/param.h>
@@ -649,7 +649,7 @@ struct ypall_callback *incallback;
 	struct timeval tv;
 	struct sockaddr_in clnt_sin;
 	CLIENT *clnt;
-	u_long status;
+	u_long status, savstat;
 	int clnt_sock;
 
 	/* Sanity check */
@@ -680,11 +680,12 @@ struct ypall_callback *incallback;
 	(void) clnt_call(clnt, YPPROC_ALL,
 		xdr_ypreq_nokey, &yprnk, xdr_ypresp_all_seq, &status, tv);
 	clnt_destroy(clnt);
+	savstat = status;
 	xdr_free(xdr_ypresp_all_seq, (char *)&status);	/* not really needed... */
 	_yp_unbind(ysd);
 
-	if(status != YP_FALSE)
-		return ypprot_err(status);
+	if(savstat != YP_NOMORE)
+		return ypprot_err(savstat);
 	return 0;
 }
 
