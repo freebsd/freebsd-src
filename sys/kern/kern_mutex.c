@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_adaptive_mutexes.h"
 #include "opt_ddb.h"
+#include "opt_mutex_wake_all.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -469,6 +470,9 @@ _mtx_lock_sleep(struct mtx *m, int opts, const char *file, int line)
 			continue;
 		}
 
+#ifdef MUTEX_WAKE_ALL
+		MPASS(v != MTX_CONTESTED);
+#else
 		/*
 		 * The mutex was marked contested on release. This means that
 		 * there are other threads blocked on it.  Grab ownership of
@@ -481,6 +485,7 @@ _mtx_lock_sleep(struct mtx *m, int opts, const char *file, int line)
 			turnstile_claim(ts);
 			break;
 		}
+#endif
 
 		/*
 		 * If the mutex isn't already contested and a failure occurs
@@ -643,6 +648,10 @@ _mtx_unlock_sleep(struct mtx *m, int opts, const char *file, int line)
 #endif
 	/* XXX */
 	td1 = turnstile_head(ts);
+#ifdef MUTEX_WAKE_ALL
+	turnstile_broadcast(ts);
+	_release_lock_quick(m);
+#else
 	if (turnstile_signal(ts)) {
 		_release_lock_quick(m);
 		if (LOCK_LOG_TEST(&m->mtx_object, opts))
@@ -653,6 +662,7 @@ _mtx_unlock_sleep(struct mtx *m, int opts, const char *file, int line)
 			CTR1(KTR_LOCK, "_mtx_unlock_sleep: %p still contested",
 			    m);
 	}
+#endif
 	turnstile_unpend(ts);
 
 	/*
