@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.57.4.14 1996/06/05 02:35:04 jkh Exp $
+#	$Id: Makefile,v 1.57.4.15 1996/06/20 14:03:52 jkh Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include and MOST of /usr/lib
@@ -306,8 +306,6 @@ libraries:
 	cd ${.CURDIR}/usr.bin/lex/lib && \
 		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
 .if exists(eBones) && !defined(NOCRYPT) && defined(MAKE_EBONES)
-	cd ${.CURDIR}/eBones/des && \
-		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
 	cd ${.CURDIR}/eBones/lib && \
 		${MAKE} depend all install ${CLEANDIR} ${OBJDIR}
 .endif
