@@ -53,9 +53,7 @@ static int blanked=0;
 static int
 apm_saver(video_adapter_t *adp, int blank)
 {
-	struct apm_softc *sc = &apm_softc;                                      
-
-	if (!sc->initialized || !sc->active)
+	if (!apm_softc.initialized || !apm_softc.active)
 		return 0;
 
 	if (blank==blanked)
@@ -71,9 +69,7 @@ apm_saver(video_adapter_t *adp, int blank)
 static int
 apm_init(video_adapter_t *adp)
 {
-	struct apm_softc *sc = &apm_softc;                                      
-
-	if (!sc->initialized || !sc->active)
+	if (!apm_softc.initialized || !apm_softc.active)
 		printf("WARNING: apm_saver module requires apm enabled\n");
 	return 0;
 }
