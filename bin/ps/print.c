@@ -69,7 +69,16 @@ printheader()
 {
 	VAR *v;
 	struct varent *vent;
+	int allempty;
 
+	allempty = 1;
+	for (vent = vhead; vent; vent = vent->next)
+		if (*vent->var->header != '\0') {
+			allempty = 0;
+			break;
+		}
+	if (allempty)
+		return;
 	for (vent = vhead; vent; vent = vent->next) {
 		v = vent->var;
 		if (v->flag & LJUST) {
