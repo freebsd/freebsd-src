@@ -160,9 +160,11 @@ struct protox {
 	u_char	pr_index;		/* index into nlist of cb head */
 	u_char	pr_sindex;		/* index into nlist of stat block */
 	u_char	pr_wanted;		/* 1 if wanted, 0 otherwise */
-	void	(*pr_cblocks)();	/* control blocks printing routine */
-	void	(*pr_stats)();		/* statistics printing routine */
-	void	(*pr_istats)();		/* per/if statistics printing routine */
+	void	(*pr_cblocks)(u_long, char *, int);
+					/* control blocks printing routine */
+	void	(*pr_stats)(u_long, char *, int);
+					/* statistics printing routine */
+	void	(*pr_istats)(char *);	/* per/if statistics printing routine */
 	char	*pr_name;		/* well-known name */
 	int	pr_usesysctl;		/* true if we use sysctl, not kvm */
 } protox[] = {
@@ -500,11 +502,11 @@ main(argc, argv)
 			exit(0);
 		}
 		if (tp->pr_usesysctl) {
-			(*tp->pr_stats)(tp->pr_usesysctl, tp->pr_name);
+			(*tp->pr_stats)(tp->pr_usesysctl, tp->pr_name, af);
 		} else {
 			kread(0, 0, 0);
 			(*tp->pr_stats)(nl[tp->pr_sindex].n_value,
-					tp->pr_name);
+					tp->pr_name, af);
 		}
 		exit(0);
 	}
@@ -611,7 +613,7 @@ printproto(tp, name)
 	register struct protox *tp;
 	char *name;
 {
-	void (*pr)();
+	void (*pr)(u_long, char *, int);
 	u_long off;
 
 	if (sflag) {
@@ -639,10 +641,7 @@ printproto(tp, name)
  * Read kernel memory, return 0 on success.
  */
 int
-kread(addr, buf, size)
-	u_long addr;
-	char *buf;
-	int size;
+kread(u_long addr, char *buf, int size)
 {
 	if (kvmd == 0) {
 		/*
@@ -679,15 +678,13 @@ kread(addr, buf, size)
 }
 
 char *
-plural(n)
-	int n;
+plural(int n)
 {
 	return (n != 1 ? "s" : "");
 }
 
 char *
-plurales(n)
-	int n;
+plurales(int n)
 {
 	return (n != 1 ? "es" : "");
 }
@@ -696,8 +693,7 @@ plurales(n)
  * Find the protox for the given "well-known" name.
  */
 static struct protox *
-knownname(name)
-	char *name;
+knownname(char *name)
 {
 	struct protox **tpp, *tp;
 
@@ -712,8 +708,7 @@ knownname(name)
  * Find the protox corresponding to name.
  */
 static struct protox *
-name2protox(name)
-	char *name;
+name2protox(char *name)
 {
 	struct protox *tp;
 	char **alias;			/* alias from p->aliases */
@@ -740,7 +735,7 @@ name2protox(name)
 }
 
 static void
-usage()
+usage(void)
 {
 	(void)fprintf(stderr, "%s\n%s\n%s\n%s\n%s\n",
 "usage: netstat [-AaLlnW] [-f address_family] [-M core] [-N system]",
