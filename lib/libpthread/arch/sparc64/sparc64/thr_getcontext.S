@@ -37,10 +37,12 @@ ENTRY(__thr_getcontext)
 	stx	%sp, [%o0 + MC_OUT + (6 * 8)]
 	stx	%o1, [%o0 + MC_TPC]
 	stx	%o2, [%o0 + MC_TNPC]
-	mov	1, %l0			# Validate the context.
-	stx	%l0, [%o0 + MC_GLOBAL]
+	mov	MC_VALID_FLAGS, %l0		/* Validate the context. */
+	stx	%l0, [%o0 + MC_FLAGS]
+	mov	1, %l0
+	stx	%l0, [%o0 + MC_OUT + (0 * 8)]	/* return 1 when resumed */
 	retl
-	nop
+	mov	0, %o0				/* return 0 */
 END(__thr_getcontext)
 
 	.weak	CNAME(_thr_setcontext)
