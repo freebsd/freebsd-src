@@ -425,7 +425,7 @@ ifa_ifwithroute(flags, dst, gateway)
 	if (ifa == 0)
 		ifa = ifa_ifwithnet(gateway);
 	if (ifa == 0) {
-		struct rtentry *rt = rtalloc1(dst, 0, 0UL);
+		struct rtentry *rt = rtalloc1(gateway, 0, 0UL);
 		if (rt == 0)
 			return (0);
 		rt->rt_refcnt--;
