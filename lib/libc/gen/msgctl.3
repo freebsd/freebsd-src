@@ -1,4 +1,4 @@
-.\"	$NetBSD: msgctl.2,v 1.1 1995/10/16 23:49:15 jtc Exp $	
+.\"	$NetBSD: msgctl.2,v 1.1 1995/10/16 23:49:15 jtc Exp $
 .\"
 .\" Copyright (c) 1995 Frank van der Linden
 .\" All rights reserved.
@@ -126,7 +126,7 @@ The values are taken from the corresponding fields in the structure
 pointed to by
 .Fa buf .
 This operation can only be executed by the super-user, or a process that
-has an effective user id equal to either 
+has an effective user id equal to either
 .Va msg_perm.cuid
 or
 .Va msg_perm.uid
@@ -145,7 +145,7 @@ Remove the message queue specified by
 .Fa msqid
 and destroy the data associated with it.
 Only the super-user or a process
-with an effective uid equal to the 
+with an effective uid equal to the
 .Va msg_perm.cuid
 or
 .Va msg_perm.uid

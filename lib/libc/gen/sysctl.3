@@ -57,7 +57,7 @@ The information available from
 .Fn sysctl
 consists of integers, strings, and tables.
 Information may be retrieved and set from the command interface
-using the 
+using the
 .Xr sysctl 8
 utility.
 .Pp
@@ -102,7 +102,7 @@ and
 .Fa oldlenp
 should be set to NULL.
 .Pp
-The size of the available data can be determined by calling 
+The size of the available data can be determined by calling
 .Fn sysctl
 with a NULL parameter for
 .Fa oldp .
@@ -177,9 +177,9 @@ Each time it runs,
 .Fn sysctl
 gets the list of debugging variables from the kernel and
 displays their current values.
-The system defines twenty 
+The system defines twenty
 .Ns ( Va struct ctldebug )
-variables named 
+variables named
 .Nm debug0
 through
 .Nm debug19 .
@@ -382,7 +382,7 @@ Return profiling information about the kernel.
 If the kernel is not compiled for profiling,
 attempts to retrieve any of the KERN_PROF values will
 fail with EOPNOTSUPP.
-The third level names for the string and integer profiling information 
+The third level names for the string and integer profiling information
 is detailed below.
 The changeable column shows whether a process with appropriate
 privilege may change the value.
@@ -495,7 +495,7 @@ The currently defined protocols and names are:
 The variables are as follows:
 .Bl -tag -width "123456"
 .It Li icmp.bmcastecho
-Returns 1 if an ICMP echo request to a broadcast or multicast address is 
+Returns 1 if an ICMP echo request to a broadcast or multicast address is
 to be answered.
 .It Li icmp.maskrepl
 Returns 1 if ICMP network mask requests are to be answered.
@@ -642,7 +642,7 @@ privilege may change the value.
 .It VM\_V\_FREE\_RESERVED	integer	yes
 .It VM\_V\_FREE\_TARGET	integer	yes
 .It VM\_V\_INACTIVE\_TARGET	integer	yes
-.It VM\_V\_PAGEOUT\_FREE\_MIN	integer	yes 
+.It VM\_V\_PAGEOUT\_FREE\_MIN	integer	yes
 .El
 .Pp
 .Bl -tag -width "123456"

@@ -47,7 +47,7 @@
 .Fd #include <glob.h>
 .Ft int
 .Fn glob "const char *pattern" "int flags" "int (*errfunc)(const char *, int)" "glob_t *pglob"
-.Ft void 
+.Ft void
 .Fn globfree "glob_t *pglob"
 .Sh DESCRIPTION
 The
@@ -99,7 +99,7 @@ field, and a pointer to a list of pointers to pathnames into the
 .Fa gl_pathv
 field.
 The first pointer after the last pathname is
-.Dv NULL . 
+.Dv NULL .
 If the pattern does not match any pathnames, the returned number of
 matched paths is set to zero.
 .Pp
@@ -220,33 +220,33 @@ This extension is provided to allow programs such as
 .Xr restore 8
 to provide globbing from directories stored on tape.
 .It Dv GLOB_BRACE
-Pre-process the pattern string to expand 
-.Ql {pat,pat,...} 
-strings like 
+Pre-process the pattern string to expand
+.Ql {pat,pat,...}
+strings like
 .Xr csh 1 .
-The pattern 
+The pattern
 .Ql {}
 is left unexpanded for historical reasons (and
-.Xr csh 1 
-does the same thing to 
+.Xr csh 1
+does the same thing to
 ease typing
-of 
-.Xr find 1 
+of
+.Xr find 1
 patterns).
 .It Dv GLOB_MAGCHAR
 Set by the
 .Fn glob
 function if the pattern included globbing characters.
-See the description of the usage of the 
+See the description of the usage of the
 .Fa gl_matchc
 structure member for more details.
 .It Dv GLOB_NOMAGIC
-Is the same as 
-.Dv GLOB_NOCHECK 
+Is the same as
+.Dv GLOB_NOCHECK
 but it only appends the
 .Fa pattern
 if it does not contain any of the special characters ``*'', ``?'' or ``[''.
-.Dv GLOB_NOMAGIC 
+.Dv GLOB_NOMAGIC
 is provided to simplify implementing the historic
 .Xr csh 1
 globbing behavior and should probably not be used anywhere else.
@@ -266,7 +266,7 @@ If, during the search, a directory is encountered that cannot be opened
 or read and
 .Fa errfunc
 is
-.Pf non- Dv NULL , 
+.Pf non- Dv NULL ,
 .Fn glob
 calls
 .Fa (*errfunc)(path, errno) .
@@ -283,7 +283,7 @@ call to
 The error routine can suppress this action by testing for
 .Dv ENOENT
 and
-.Dv ENOTDIR ; 
+.Dv ENOTDIR ;
 however, the
 .Dv GLOB_ERR
 flag will still cause an immediate
@@ -333,16 +333,16 @@ contain the values described below:
 .Bl -tag -width GLOB_NOCHECK
 .It Fa gl_pathc
 contains the total number of matched pathnames so far.
-This includes other matches from previous invocations of 
+This includes other matches from previous invocations of
 .Fn glob
-if 
+if
 .Dv GLOB_APPEND
 was specified.
 .It Fa gl_matchc
 contains the number of matched pathnames in the current invocation of
 .Fn glob .
 .It Fa gl_flags
-contains a copy of the 
+contains a copy of the
 .Fa flags
 parameter with the bit
 .Dv GLOB_MAGCHAR
@@ -352,7 +352,7 @@ contained any of the special characters ``*'', ``?'' or ``['', cleared
 if not.
 .It Fa gl_pathv
 contains a pointer to a
-.Dv NULL Ns -terminated 
+.Dv NULL Ns -terminated
 list of matched pathnames.
 However, if
 .Fa gl_pathc
@@ -416,9 +416,9 @@ that the flags
 .Dv GLOB_QUOTE,
 and
 .Dv GLOB_TILDE,
-and the fields 
+and the fields
 .Fa gl_matchc
-and 
+and
 .Fa gl_flags
 should not be used by applications striving for strict
 .Tn POSIX
