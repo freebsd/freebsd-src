@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.35.2.27 1995/06/06 07:57:36 jkh Exp $
+ * $Id: dist.c,v 1.35.2.28 1995/06/07 05:50:55 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -66,6 +66,7 @@ extern Distribution XF86ServerDistTable[];
 static Distribution DistTable[] = {
 { "bin",	"/",			&Dists,		DIST_BIN,		NULL		},
 { "games",	"/",			&Dists,		DIST_GAMES,		NULL		},
+{ "help",	NULL,			&Dists,		DIST_HELP,		NULL		},
 { "manpages",	"/",			&Dists,		DIST_MANPAGES,		NULL		},
 { "proflibs",	"/",			&Dists,		DIST_PROFLIBS,		NULL		},
 { "dict",	"/",			&Dists,		DIST_DICT,		NULL		},
@@ -275,6 +276,12 @@ distExtract(char *parent, Distribution *me)
 	/* If our bit isn't set, go to the next */
 	if (!(me[i].my_bit & *(me[i].my_mask)))
 	    continue;
+
+	/* This is shorthand for "dist currently disabled" */
+	if (!me[i].my_dir) {
+	    *(me[i].my_mask) &= ~(me[i].my_bit);
+	    continue;
+	}
 
 	/* Recurse if actually have a sub-distribution */
 	if (me[i].my_dist) {
