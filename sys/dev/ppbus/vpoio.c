@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: vpoio.c,v 1.1.2.4 1998/06/16 23:35:52 son Exp $
+ *	$Id: vpoio.c,v 1.1.2.6 1998/08/07 01:59:49 son Exp $
  *
  */
 
@@ -77,8 +77,8 @@
 #define H_nBSY		nBUSY
 #define H_SEL		SELECT
 #define H_nSEL		n(SELECT)
-#define H_ERR		ERROR
-#define H_nERR		n(ERROR)
+#define H_ERR		PERROR
+#define H_nERR		n(PERROR)
 #define H_ACK		nACK
 #define H_nACK		n(nACK)
 #define H_FLT		nFAULT
@@ -92,8 +92,18 @@
  * Microcode to execute very fast I/O sequences at the lowest bus level.
  */
 
-#define trig_d_pulse MS_TRIG(MS_REG_CTR,5,(int)d_pulse)
-char d_pulse[] = {
+/* call this macro to initialize connect/disconnect microsequences */
+#define INIT_TRIG_MICROSEQ {						\
+	int i;								\
+	for (i=1; i <= 7; i+=2) {					\
+		disconnect_microseq[i].arg[2] = (void *)d_pulse;	\
+		connect_epp_microseq[i].arg[2] = 			\
+		connect_spp_microseq[i].arg[2] = (void *)c_pulse;	\
+	}								\
+}
+
+#define trig_d_pulse MS_TRIG(MS_REG_CTR,5,MS_UNKNOWN /* d_pulse */)
+static char d_pulse[] = {
 	 H_AUTO | H_nSELIN | H_INIT | H_STROBE, 0,
 	H_nAUTO | H_nSELIN | H_INIT | H_STROBE, VP0_PULSE,
 	 H_AUTO | H_nSELIN | H_INIT | H_STROBE, 0,
@@ -101,8 +111,8 @@ char d_pulse[] = {
 	 H_AUTO | H_nSELIN | H_INIT | H_STROBE, VP0_PULSE
 };
 
-#define trig_c_pulse MS_TRIG(MS_REG_CTR,5,(int)c_pulse)
-char c_pulse[] = {
+#define trig_c_pulse MS_TRIG(MS_REG_CTR,5,MS_UNKNOWN /* c_pulse */)
+static char c_pulse[] = {
 	 H_AUTO | H_nSELIN | H_INIT | H_STROBE, 0,
 	 H_AUTO |  H_SELIN | H_INIT | H_STROBE, 0,
 	H_nAUTO |  H_SELIN | H_INIT | H_STROBE, VP0_PULSE,
@@ -110,17 +120,17 @@ char c_pulse[] = {
 	 H_AUTO | H_nSELIN | H_INIT | H_STROBE, VP0_PULSE
 };
 
-struct ppb_microseq disconnect_microseq[] = {
+static struct ppb_microseq disconnect_microseq[] = {
 	  MS_DASS(0x0), trig_d_pulse, MS_DASS(0x3c), trig_d_pulse,
 	  MS_DASS(0x20), trig_d_pulse, MS_DASS(0xf), trig_d_pulse, MS_RET(0)
 };
 
-struct ppb_microseq connect_epp_microseq[] = {
+static struct ppb_microseq connect_epp_microseq[] = {
 	  MS_DASS(0x0), trig_c_pulse, MS_DASS(0x3c), trig_c_pulse,
 	  MS_DASS(0x20), trig_c_pulse, MS_DASS(0xcf), trig_c_pulse, MS_RET(0)
 };
 
-struct ppb_microseq connect_spp_microseq[] = {
+static struct ppb_microseq connect_spp_microseq[] = {
 	  MS_DASS(0x0), trig_c_pulse, MS_DASS(0x3c), trig_c_pulse,
 	  MS_DASS(0x20), trig_c_pulse, MS_DASS(0x8f), trig_c_pulse, MS_RET(0)
 };
@@ -144,6 +154,8 @@ nibble_inbyte_hook (void *p, char *ptr)
 /*
  * Macro used to initialize each vpoio_data structure during
  * low level attachment
+ *
+ * XXX should be converted to ppb_MS_init_msq()
  */
 #define INIT_NIBBLE_INBYTE_SUBMICROSEQ(vpo) {		    	\
 	(vpo)->vpo_nibble_inbyte_msq[2].arg[2].p =		\
@@ -161,7 +173,7 @@ nibble_inbyte_hook (void *p, char *ptr)
  * Retrieve the two nibbles and call the C function to generate the character
  * and store it in the buffer (see nibble_inbyte_hook())
  */
-struct ppb_microseq nibble_inbyte_submicroseq[] = {
+static struct ppb_microseq nibble_inbyte_submicroseq[] = {
 
 /* loop: */
 	  MS_CASS( H_AUTO | H_SELIN | H_INIT | H_STROBE),
@@ -181,7 +193,7 @@ struct ppb_microseq nibble_inbyte_submicroseq[] = {
 /*
  * This is the sub-microseqence for MS_GET in PS2 mode
  */
-struct ppb_microseq ps2_inbyte_submicroseq[] = {
+static struct ppb_microseq ps2_inbyte_submicroseq[] = {
 	  MS_CASS(PCD | H_AUTO | H_SELIN | H_INIT | H_nSTROBE),
 
 /* loop: */
@@ -197,7 +209,7 @@ struct ppb_microseq ps2_inbyte_submicroseq[] = {
 /*
  * This is the sub-microsequence for MS_PUT in both NIBBLE and PS2 modes
  */
-struct ppb_microseq spp_outbyte_submicroseq[] = {
+static struct ppb_microseq spp_outbyte_submicroseq[] = {
 
 /* loop: */
 	  MS_RASSERT_P(1, MS_REG_DTR), 
@@ -211,7 +223,7 @@ struct ppb_microseq spp_outbyte_submicroseq[] = {
 };
 
 /* EPP 1.7 microsequences, ptr and len set at runtime */
-struct ppb_microseq epp17_outstr_body[] = {
+static struct ppb_microseq epp17_outstr_body[] = {
 	  MS_CASS(H_AUTO | H_SELIN | H_INIT | H_STROBE),
 
 /* loop: */
@@ -226,7 +238,7 @@ struct ppb_microseq epp17_outstr_body[] = {
 	  MS_RET(1)
 };
 
-struct ppb_microseq epp17_instr_body[] = {
+static struct ppb_microseq epp17_instr_body[] = {
 	  MS_CASS(PCD | H_AUTO | H_SELIN | H_INIT | H_STROBE),
 
 /* loop: */
@@ -238,6 +250,19 @@ struct ppb_microseq epp17_instr_body[] = {
 	  MS_RET(0),
 /* error: */
 	  MS_CASS(PCD | H_AUTO | H_nSELIN | H_INIT | H_STROBE),
+	  MS_RET(1)
+};
+
+static struct ppb_microseq in_disk_mode[] = {
+	  MS_CASS( H_AUTO | H_nSELIN | H_INIT | H_STROBE),
+	  MS_CASS(H_nAUTO | H_nSELIN | H_INIT | H_STROBE),
+
+	  MS_BRCLEAR(H_FLT, 4 /* error */),
+	  MS_CASS( H_AUTO | H_nSELIN | H_INIT | H_STROBE),
+	  MS_BRSET(H_FLT, 2 /* error */),
+
+	  MS_RET(0),
+/* error: */
 	  MS_RET(1)
 };
 
@@ -271,52 +296,43 @@ vpoio_connect(struct vpoio_data *vpo, int how)
 }
 
 /*
- * vpoio_in_disk_mode()
- *
- * Check if we are in disk mode
- *
- * XXX should be ported to microseq with MS_ASSERT()
- */
-static int
-vpoio_in_disk_mode(struct vpoio_data *vpo)
-{
-
-	/* first, set H_AUTO high */
-	ppb_wctr(&vpo->vpo_dev, H_AUTO | H_nSELIN | H_INIT | H_STROBE);
-
-	/* when H_AUTO is set low, H_FLT should be high */
-	ppb_wctr(&vpo->vpo_dev, H_nAUTO | H_nSELIN | H_INIT | H_STROBE);
-	if ((ppb_rstr(&vpo->vpo_dev) & H_FLT) == 0)
-		return (0);
-
-	/* when H_AUTO is set high, H_FLT should be low */
-	ppb_wctr(&vpo->vpo_dev, H_AUTO | H_nSELIN | H_INIT | H_STROBE);
-	if ((ppb_rstr(&vpo->vpo_dev) & H_FLT) != 0)
-		return (0);
-
-	return (1);
-}
-
-/*
  * vpoio_reset()
  *
  * SCSI reset signal, the drive must be in disk mode
- *
- * XXX should be ported to microseq with MS_TRIG()
  */
 static void
 vpoio_reset (struct vpoio_data *vpo)
 {
+	int ret;
 
-	/*
-	 * SCSI reset signal.
-	 */
-	ppb_wdtr(&vpo->vpo_dev, (1 << VP0_INITIATOR));
-	ppb_wctr(&vpo->vpo_dev, H_AUTO | H_nSELIN | H_nINIT | H_STROBE);
-	DELAY(25);
-	ppb_wctr(&vpo->vpo_dev, H_AUTO | H_nSELIN |  H_INIT | H_STROBE);
+	struct ppb_microseq reset_microseq[] = {
+
+		#define INITIATOR	MS_PARAM(0, 1, MS_TYP_INT)
+
+		MS_DASS(MS_UNKNOWN),
+		MS_CASS(H_AUTO | H_nSELIN | H_nINIT | H_STROBE),
+		MS_DELAY(25),
+		MS_CASS(H_AUTO | H_nSELIN |  H_INIT | H_STROBE),
+		MS_RET(0)
+	};
+
+	ppb_MS_init_msq(reset_microseq, 1, INITIATOR, 1 << VP0_INITIATOR);
+	ppb_MS_microseq(&vpo->vpo_dev, reset_microseq, &ret);
 
 	return;
+}
+
+/*
+ * vpoio_in_disk_mode()
+ */
+static int
+vpoio_in_disk_mode(struct vpoio_data *vpo)
+{
+	int ret;
+
+	ppb_MS_microseq(&vpo->vpo_dev, in_disk_mode, &ret);
+
+	return (ret);
 }
 
 /*
@@ -324,14 +340,13 @@ vpoio_reset (struct vpoio_data *vpo)
  *
  * Detect and initialise the VP0 adapter.
  */
-int
+static int
 vpoio_detect(struct vpoio_data *vpo)
 {
-
 	vpoio_disconnect(vpo);
 	vpoio_connect(vpo, PPB_DONTWAIT);
 
-	if (!vpoio_in_disk_mode(vpo)) {
+	if (vpoio_in_disk_mode(vpo)) {
 		vpoio_disconnect(vpo);
 		return (VP0_EINITFAILED);
 	}
@@ -341,7 +356,10 @@ vpoio_detect(struct vpoio_data *vpo)
 
 	vpoio_disconnect(vpo);
 
-	if (vpoio_in_disk_mode(vpo))
+	/* ensure we are disconnected or daisy chained peripheral 
+	 * may cause serious problem to the disk */
+
+	if (!vpoio_in_disk_mode(vpo))
 		return (VP0_EINITFAILED);
 
 	return (0);
@@ -524,6 +542,11 @@ vpoio_probe(struct ppb_data *ppb, struct vpoio_data *vpo)
 	vpo->vpo_dev.name = "vpo";
 	vpo->vpo_dev.ppb = ppb;
 
+	/*
+	 * Initialize microsequence code
+	 */
+	INIT_TRIG_MICROSEQ;
+
 	/* now, try to initialise the drive */
 	if (vpoio_detect(vpo)) {
 		return (NULL);
@@ -546,12 +569,9 @@ vpoio_attach(struct vpoio_data *vpo)
 	/*
 	 * Report ourselves
 	 */
-	printf("vpo%d: <Iomega VPI0 Parallel to SCSI adapter> on ppbus %d\n",
+	printf("vpo%d: <Iomega VPI0 Parallel to SCSI interface> on ppbus %d\n",
 		vpo->vpo_dev.id_unit, vpo->vpo_dev.ppb->ppb_link->adapter_unit);
 
-	/*
-	 * Initialize microsequence code
-	 */
 	vpo->vpo_nibble_inbyte_msq = (struct ppb_microseq *)malloc(
 		sizeof(nibble_inbyte_submicroseq), M_DEVBUF, M_NOWAIT);
 
@@ -646,9 +666,7 @@ int
 vpoio_reset_bus(struct vpoio_data *vpo)
 {
 	/* first, connect to the drive */
-	if (vpoio_connect(vpo, PPB_WAIT|PPB_INTR) ||
-		(vpoio_in_disk_mode(vpo) == 0)) {
-
+	if (vpoio_connect(vpo, PPB_WAIT|PPB_INTR) || vpoio_in_disk_mode(vpo)) {
 		/* release ppbus */
 		vpoio_disconnect(vpo);
 		return (1);
@@ -691,7 +709,7 @@ vpoio_do_scsi(struct vpoio_data *vpo, int host, int target, char *command,
 	if ((error = vpoio_connect(vpo, PPB_WAIT|PPB_INTR)))
 		return (error);
 
-	if (!vpoio_in_disk_mode(vpo)) {
+	if (vpoio_in_disk_mode(vpo)) {
 		*ret = VP0_ECONNECT; goto error;
 	}
 

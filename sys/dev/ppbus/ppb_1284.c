@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ppb_1284.c,v 1.3 1998/01/31 07:23:06 eivind Exp $
+ *	$Id: ppb_1284.c,v 1.4 1998/08/03 19:14:31 msmith Exp $
  *
  */
 
@@ -107,7 +107,7 @@ nibble_1284_inbyte(struct ppb_device *dev, char *buffer)
 
 	for (i = 0; i < 2; i++) {
 		/* ready to take data (nAUTO low) */
-		ppb_wctr(dev, AUTOFEED | nSTROBE | nINIT | nSELECTIN);
+		ppb_wctr(dev, AUTOFEED & ~(STROBE | SELECTIN));
 
 		if ((error = do_1284_wait(dev, nACK, 0)))
 			return (error);
@@ -115,12 +115,8 @@ nibble_1284_inbyte(struct ppb_device *dev, char *buffer)
 		/* read nibble */
 		nibble[i] = ppb_rstr(dev);
 
-#ifdef DEBUG_1284
-		printf("nibble_1284_inbyte: nibble[%d]=0x%x\n", i, nibble[i]);
-#endif
-
 		/* ack, not ready for another nibble */
-		ppb_wctr(dev, nAUTOFEED | nSTROBE | nINIT | nSELECTIN);
+		ppb_wctr(dev, 0 & ~(AUTOFEED | STROBE | SELECTIN));
 
 		/* wait ack from peripherial */
 		if ((error = do_1284_wait(dev, nACK, nACK)))
@@ -129,10 +125,6 @@ nibble_1284_inbyte(struct ppb_device *dev, char *buffer)
 
 	*buffer = ((nibble2char(nibble[1]) << 4) & 0xf0) |
 				(nibble2char(nibble[0]) & 0x0f);
-
-#ifdef DEBUG_1284
-	printf("nibble_1284_inbyte: byte=0x%x\n", *buffer);
-#endif
 
 	return (0);
 }
@@ -160,35 +152,80 @@ nibble_1284_sync(struct ppb_device *dev)
 }
 
 /*
- * nibble_1284_mode()
+ * ppb_1284_negociate()
  *
  * Normal nibble mode or request device id mode (see ppb_1284.h)
  */
 int
-nibble_1284_mode(struct ppb_device *dev, int mode)
+ppb_1284_negociate(struct ppb_device *dev, int mode)
 {
-	char ctrl;
 	int error;
+	int phase = 0;
 
-	ctrl = ppb_rctr(dev);
+	ppb_wctr(dev, (nINIT | SELECTIN) & ~(STROBE | AUTOFEED));
+	DELAY(1);
 
 	ppb_wdtr(dev, mode);
+	DELAY(1);
+
+	ppb_wctr(dev, (nINIT | AUTOFEED) & ~(STROBE | SELECTIN));
+
+	if ((error = do_1284_wait(dev, nACK | PERROR | SELECT | nFAULT,
+			PERROR  | SELECT | nFAULT)))
+		goto error;
+
+	phase = 1;
+
+	ppb_wctr(dev, (nINIT | STROBE | AUTOFEED) & ~SELECTIN);
 	DELAY(5);
 
-	ppb_wctr(dev, (ctrl & ~SELECTIN) | AUTOFEED);
-	if ((error = do_1284_wait(dev, nACK | ERROR | SELECT | nFAULT,
-			ERROR | SELECT | nFAULT))) {
-		ppb_wctr(dev, ctrl);
-		return (error);
+	ppb_wctr(dev, nINIT & ~(SELECTIN | AUTOFEED | STROBE));
+
+#if 0	/* not respected by most devices */
+	if ((error = do_1284_wait(dev, nACK, nACK)))
+		goto error;
+
+	if (mode == 0)
+		if ((error = do_1284_wait(dev, SELECT, 0)))
+			goto error;
+	else
+		if ((error = do_1284_wait(dev, SELECT, SELECT)))
+			goto error;
+#endif
+
+	return (0);
+
+error:
+	if (bootverbose)
+		printf("%s: status=0x%x %d\n", __FUNCTION__, ppb_rstr(dev), phase);
+
+	return (error);
+}
+
+int
+ppb_1284_terminate(struct ppb_device *dev, int how)
+{
+	int error;
+
+	switch (how) {
+	case VALID_STATE:
+
+		ppb_wctr(dev, SELECTIN & ~(STROBE | AUTOFEED));
+
+		if ((error = do_1284_wait(dev, nACK | nBUSY | nFAULT, nFAULT)))
+			return (error);
+
+		ppb_wctr(dev, (SELECTIN | AUTOFEED) & ~STROBE);
+
+		if ((error = do_1284_wait(dev, nACK, nACK)))
+			return (error);
+
+		ppb_wctr(dev, SELECTIN & ~(STROBE | AUTOFEED));
+		break;
+
+	default:
+		return (EINVAL);
 	}
-
-	ppb_wctr(dev, ppb_rctr(dev) | STROBE);
-	DELAY(5);
-
-	ppb_wctr(dev, ppb_rctr(dev) & ~STROBE);
-	DELAY(5);
-
-	ppb_wctr(dev, ppb_rctr(dev) & ~AUTOFEED);
 
 	return (0);
 }

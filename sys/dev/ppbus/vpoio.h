@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: vpoio.h,v 1.1.2.3 1998/06/14 15:37:21 son Exp $
+ *	$Id: vpoio.h,v 1.1.2.2 1998/06/14 14:37:43 son Exp $
  *
  */
 #ifndef __VP0IO_H
@@ -41,6 +41,7 @@
 #define VP0_EDATA_OVERFLOW	5	
 #define VP0_EDISCONNECT		6
 #define VP0_EPPDATA_TIMEOUT	7
+#define VP0_ENEGOCIATE		8
 #define VP0_ENOPORT		9
 #define VP0_EINITFAILED		10
 #define VP0_EINTR		12
@@ -74,10 +75,18 @@ struct vpoio_data {
 struct ppb_device *vpoio_probe(struct ppb_data *ppb, struct vpoio_data *vpo);
 
 int vpoio_attach(struct vpoio_data *vpo);
-int vpoio_detect(struct vpoio_data *vpo);
 int vpoio_reset_bus(struct vpoio_data *vpo);
 
 int vpoio_do_scsi(struct vpoio_data *vpo, int host, int target, char *command,
+		int clen, char *buffer, int blen, int *result, int *count,
+		int *ret);
+
+struct ppb_device *imm_probe(struct ppb_data *ppb, struct vpoio_data *vpo);
+
+int imm_attach(struct vpoio_data *vpo);
+int imm_reset_bus(struct vpoio_data *vpo);
+
+int imm_do_scsi(struct vpoio_data *vpo, int host, int target, char *command,
 		int clen, char *buffer, int blen, int *result, int *count,
 		int *ret);
 
