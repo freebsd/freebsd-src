@@ -43,7 +43,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.39 1998/09/14 19:56:40 sos Exp $
+ *	$Id: fd.c,v 1.40 1998/09/15 14:07:08 kato Exp $
  *
  */
 
@@ -2173,7 +2173,6 @@ retrier(fdcu)
 	struct subdev *sd;
 	fdc_p fdc = fdc_data + fdcu;
 	register struct buf *bp;
-	struct fd_data *fd;
 	int fdu;
 
 	bp = bufq_first(&fdc->head);
@@ -2223,7 +2222,7 @@ retrier(fdcu)
 		bufq_remove(&fdc->head, bp);
 	
 		/* Tell devstat we have finished with the transaction */
-		devstat_end_transaction(&fd->device_stats,
+		devstat_end_transaction(&fdc->fd->device_stats,
 					bp->b_bcount - bp->b_resid,
 					DEVSTAT_TAG_NONE,
 					(bp->b_flags & B_READ) ? DEVSTAT_READ :
