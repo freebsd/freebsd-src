@@ -173,7 +173,7 @@ ipfilter_modevent(module_t mod, int type, void *unused)
 }
 
 static moduledata_t ipfiltermod = {
-	IPL_VERSION,
+	"ipfilter",
 	ipfilter_modevent,
         0
 };
