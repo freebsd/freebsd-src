@@ -1972,7 +1972,7 @@ void script_write_params (ip, prefix, lease)
 				if (broadcast.len) {
 				    client_envadd (ip -> client,
 						   prefix, "broadcast_address",
-						   "%s", piaddr (subnet));
+						   "%s", piaddr (broadcast));
 				}
 			}
 		}
