@@ -1,5 +1,5 @@
 # Makefile for ncurses
-# $Id: Makefile,v 1.22 1997/08/24 19:09:32 ache Exp $
+# $Id: Makefile,v 1.23 1997/08/25 07:41:13 ache Exp $
 
 LIB=    ncurses
 SHLIB_MAJOR= 3
@@ -77,7 +77,7 @@ MAN3 =  curs_addch.3 \
 	curs_window.3 \
 	ncurses.3
 
-MAN5 =  term.5 terminfo.5
+MAN5 =  term.5
 
 MLINKS+=curs_addch.3 addch.3 curs_addch.3 waddch.3 curs_addch.3 echochar.3 \
 	curs_addch.3 wechochar.3 curs_addch.3 mvaddch.3 \
