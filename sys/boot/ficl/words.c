@@ -1018,6 +1018,27 @@ static void plusStore(FICL_VM *pVM)
 }
 
 
+static void iFetch(FICL_VM *pVM)
+{
+    UNS32 *pw;
+#if FICL_ROBUST > 1
+    vmCheckStack(pVM, 1, 1);
+#endif
+    pw = (UNS32)stackPopPtr(pVM->pStack);
+    stackPushUNS(pVM->pStack, (FICL_UNS)*pw);
+    return;
+}
+
+static void iStore(FICL_VM *pVM)
+{
+    UNS32 *pw;
+#if FICL_ROBUST > 1
+    vmCheckStack(pVM, 2, 0);
+#endif
+    pw = (UNS32 *)stackPopPtr(pVM->pStack);
+    *pw = (UNS32)(stackPop(pVM->pStack).u);
+}
+
 static void wFetch(FICL_VM *pVM)
 {
     UNS16 *pw;
@@ -1444,8 +1465,8 @@ static void listWords(FICL_VM *pVM)
         vmTextOut(pVM, pPad, 1);
     }
 
-    sprintf(pVM->pad, "Dictionary: %d words, %ld cells used of %lu total", 
-        nWords, dp->here - dp->dict, dp->size);
+    sprintf(pVM->pad, "Dictionary: %d words, %ld cells used of %u total", 
+        nWords, (long) (dp->here - dp->dict), dp->size);
     vmTextOut(pVM, pVM->pad, 1);
     return;
 }
@@ -1467,8 +1488,8 @@ static void listEnv(FICL_VM *pVM)
         }
     }
 
-    sprintf(pVM->pad, "Environment: %d words, %ld cells used of %lu total", 
-        nWords, dp->here - dp->dict, dp->size);
+    sprintf(pVM->pad, "Environment: %d words, %ld cells used of %u total", 
+        nWords, (long) (dp->here - dp->dict), dp->size);
     vmTextOut(pVM, pVM->pad, 1);
     return;
 }
@@ -4931,6 +4952,8 @@ void ficlCompileCore(FICL_DICT *dp)
     dictAppendWord(dp, "sliteral",  sLiteralCoIm,   FW_COMPIMMED); /* STRING */
     dictAppendWord(dp, "wid-set-super", 
                                     setParentWid,   FW_DEFAULT);
+    dictAppendWord(dp, "i@",        iFetch,         FW_DEFAULT);
+    dictAppendWord(dp, "i!",        iStore,         FW_DEFAULT);
     dictAppendWord(dp, "w@",        wFetch,         FW_DEFAULT);
     dictAppendWord(dp, "w!",        wStore,         FW_DEFAULT);
     dictAppendWord(dp, "x.",        hexDot,         FW_DEFAULT);
