@@ -169,8 +169,7 @@ ASM_T=		${LIB1ASMFUNCS:S/$/.o/}
 ASM_P=		${LIB1ASMFUNCS:S/$/.po/}
 ASM_S=		${LIB1ASMFUNCS:S/$/.So/}
 
-SYMS=		${LIB1ASMFUNCS}		\
-		${LIB2FUNCS_1}		\
+SYMS=		${LIB2FUNCS_1}		\
 		${LIB2FUNCS_2}		\
 		${LIB2_DIVMOD_FUNCS}
 .if ${TARGET_ARCH} == "arm" || ${TARGET_ARCH} == "powerpc" || ${TARGET_ARCH} == "sparc64"
@@ -178,7 +177,7 @@ SYMS+=		${FPBIT_FUNCS} ${DPBIT_FUNCS}
 .endif
 SYMS_ST=	${LIB2FUNCS_ST}		\
 		${LIB2ADD_ST}
-OBJS+=		${SYMS:S/$/.o/}
+OBJS+=		${SYMS:S/$/.o/} ${LIB1ASMFUNCS:S/$/.o/}
 OBJS_T=		${SYMS:S/$/.o/}  ${SYMS_ST:S/$/.o/}
 OBJS_P=		${SYMS:S/$/.po/} ${SYMS_ST:S/$/.po/}
 OBJS_S=		${SYMS:S/$/.So/}
