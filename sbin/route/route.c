@@ -99,7 +99,6 @@ int	iflag, verbose, aflen = sizeof (struct sockaddr_in);
 int	locking, lockrest, debugonly;
 struct	rt_metrics rt_metrics;
 u_long  rtm_inits;
-struct	in_addr inet_makeaddr();
 int	atalk_aton __P((const char *, struct at_addr *));
 char	*atalk_ntoa __P((struct at_addr));
 char	*routename(), *netname();
@@ -751,9 +750,6 @@ getaddr(which, s, hpp)
 	struct hostent **hpp;
 {
 	register sup su;
-#ifdef NS
-	struct ns_addr ns_addr();
-#endif
 	struct hostent *hp;
 	struct netent *np;
 	u_long val;
