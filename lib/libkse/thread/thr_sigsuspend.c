@@ -43,20 +43,23 @@ int
 _sigsuspend(const sigset_t *set)
 {
 	struct pthread	*curthread = _get_curthread();
+	sigset_t	oldmask, newmask;
 	int             ret = -1;
-	sigset_t	osigmask;
 
 	if (!_kse_isthreaded())
 		return __sys_sigsuspend(set);
 
 	/* Check if a new signal set was provided by the caller: */
 	if (set != NULL) {
+		newmask = *set;
+
 		THR_LOCK_SWITCH(curthread);
 
 		/* Save current sigmask */
-		memcpy(&osigmask, &curthread->sigmask, sizeof(osigmask));
+		memcpy(&oldmask, &curthread->sigmask, sizeof(sigset_t));
+
 		/* Change the caller's mask: */
-		memcpy(&curthread->sigmask, set, sizeof(sigset_t));
+		memcpy(&curthread->sigmask, &newmask, sizeof(sigset_t));
 
 		THR_SET_STATE(curthread, PS_SIGSUSPEND);
 
@@ -68,7 +71,7 @@ _sigsuspend(const sigset_t *set)
 
 		THR_SCHED_LOCK(curthread, curthread);
 		/* Restore the signal mask: */
-		memcpy(&curthread->sigmask, &osigmask, sizeof(sigset_t));
+		memcpy(&curthread->sigmask, &oldmask, sizeof(sigset_t));
 		THR_SCHED_UNLOCK(curthread, curthread);
 		/*
 		 * signal mask is reloaded, need to check if there is
