@@ -2090,18 +2090,18 @@ pmap_object_init_pt(pmap_t pmap, vm_offset_t addr,
 
 	if (pmap == NULL || object == NULL)
 		return;
-
+	VM_OBJECT_LOCK(object);
 	psize = alpha_btop(size);
 
 	if ((object->type != OBJT_VNODE) ||
 		((limit & MAP_PREFAULT_PARTIAL) && (psize > MAX_INIT_PT) &&
 			(object->resident_page_count > MAX_INIT_PT))) {
-		return;
+		goto unlock_return;
 	}
 
 	if (psize + pindex > object->size) {
 		if (object->size < pindex)
-			return;
+			goto unlock_return;
 		psize = object->size - pindex;
 	}
 
@@ -2141,8 +2141,10 @@ pmap_object_init_pt(pmap_t pmap, vm_offset_t addr,
 					vm_page_deactivate(p);
 				vm_page_busy(p);
 				vm_page_unlock_queues();
+				VM_OBJECT_UNLOCK(object);
 				mpte = pmap_enter_quick(pmap, 
 					addr + alpha_ptob(tmpidx), p, mpte);
+				VM_OBJECT_LOCK(object);
 				vm_page_lock_queues();
 				vm_page_wakeup(p);
 			}
@@ -2173,15 +2175,18 @@ pmap_object_init_pt(pmap_t pmap, vm_offset_t addr,
 					vm_page_deactivate(p);
 				vm_page_busy(p);
 				vm_page_unlock_queues();
+				VM_OBJECT_UNLOCK(object);
 				mpte = pmap_enter_quick(pmap, 
 					addr + alpha_ptob(tmpidx), p, mpte);
+				VM_OBJECT_LOCK(object);
 				vm_page_lock_queues();
 				vm_page_wakeup(p);
 			}
 			vm_page_unlock_queues();
 		}
 	}
-	return;
+unlock_return:
+	VM_OBJECT_UNLOCK(object);
 }
 
 /*
