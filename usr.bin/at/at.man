@@ -1,4 +1,4 @@
-.\" $Id: at.man,v 1.1 1995/04/12 02:42:31 ache Exp $
+.\" $Id: at.man,v 1.2 1995/06/24 17:15:55 joerg Exp $
 .Dd April 12, 1995
 .Dt "AT" 1
 .Os "FreeBSD 2.1"
@@ -12,6 +12,10 @@
 .Op Fl f Ar file
 .Op Fl mldbv
 .Ar time
+.Pp
+.Nm at
+.Op Fl V
+.Fl c Ar job Op Ar job ...
 .Pp
 .Nm atq
 .Op Fl V
@@ -215,6 +219,8 @@ For
 .Nm atq ,
 shows completed but not yet deleted jobs in the queue; otherwise
 shows the time the job will be executed.
+.It Fl c
+Cats the jobs listed on the command line to standart output.
 .Sh FILES
 .Bl -tag -width _ATJOB_DIR/_LOCKFILE -compact
 .It Pa _ATJOB_DIR

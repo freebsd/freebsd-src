@@ -1,4 +1,4 @@
-/*
+/* 
  *  panic.c - terminate fast in case of error
  *  Copyright (C) 1993  Thomas Koenig
  *
@@ -14,7 +14,7 @@
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR(S) ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
  * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
- * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * IN NO EVENT SHALL THE AUTHOR(S) BE LIABLE FOR ANY DIRECT, INDIRECT,
  * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
  * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
  * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
@@ -37,7 +37,7 @@
 
 /* File scope variables */
 
-static char rcsid[] = "$Id: panic.c,v 1.2 1995/04/12 02:42:32 ache Exp $";
+static char rcsid[] = "$Id: panic.c,v 1.1 1995/05/24 15:07:32 ig25 Exp $";
 
 /* External variables */
 
@@ -73,8 +73,9 @@ usage(void)
 /* Print usage and exit.
 */
     fprintf(stderr, "Usage: at [-V] [-q x] [-f file] [-m] time\n"
+		    "       at [-V] -c job [job ...]\n"
 		    "       atq [-V] [-q x] [-v]\n"
-		    "       atrm [-V] [-q x] job ...\n"
+		    "       atrm [-V] job [job ...]\n"
 		    "       batch [-V] [-f file] [-m]\n");
     exit(EXIT_FAILURE);
 }
