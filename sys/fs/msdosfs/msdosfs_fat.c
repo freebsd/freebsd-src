@@ -994,6 +994,7 @@ extendfile(dep, count, bpp, ncp, flags)
 	u_long cn, got;
 	struct msdosfsmount *pmp = dep->de_pmp;
 	struct buf *bp;
+	daddr_t blkno;
 
 	/*
 	 * Don't try to extend the root directory
@@ -1083,10 +1084,12 @@ extendfile(dep, count, bpp, ncp, flags)
 					 */
 					if (pcbmap(dep,
 					    de_bn2cn(pmp, bp->b_lblkno),
-					    &bp->b_blkno, 0, 0))
+					    &blkno, 0, 0))
 						bp->b_blkno = -1;
 					if (bp->b_blkno == -1)
 						panic("extendfile: pcbmap");
+					else
+						bp->b_blkno = blkno;
 				}
 				clrbuf(bp);
 				if (bpp) {

@@ -201,7 +201,7 @@ revive_block(int sdno)
 
 	    if (debug & DEBUG_REVIVECONFLICT)
 		log(LOG_DEBUG,
-		    "Relaunch revive conflict sd %d: %p\n%s dev %d.%d, offset 0x%x, length %ld\n",
+		    "Relaunch revive conflict sd %d: %p\n%s dev %d.%d, offset 0x%llx, length %ld\n",
 		    rq->sdno,
 		    rq,
 		    rq->bp->b_iocmd == BIO_READ ? "Read" : "Write",

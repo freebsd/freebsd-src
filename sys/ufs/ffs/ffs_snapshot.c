@@ -511,8 +511,8 @@ out:
 /*
  * Copy a cylinder group map. All the unallocated blocks are marked
  * BLK_NOCOPY so that the snapshot knows that it need not copy them
- * if they are later written. If how is one, then this is a first
- * pass, so only setting needs to be done. If how is 2, then this
+ * if they are later written. If passno is one, then this is a first
+ * pass, so only setting needs to be done. If passno is 2, then this
  * is a revision to a previous pass which must be undone as the
  * replacement pass is done.
  */
@@ -1102,7 +1102,7 @@ ffs_snapblkfree(fs, devvp, bno, size, inum)
 		}
 #ifdef DEBUG
 		if (snapdebug)
-			printf("%s%d lbn %d for inum %d size %ld to blkno %d\n",
+			printf("%s%d lbn %d for inum %d size %ld to blkno %lld\n",
 			    "Copyonremove: snapino ", ip->i_number, lbn,
 			    inum, size, cbp->b_blkno);
 #endif
@@ -1319,7 +1319,7 @@ retry:
 				printf("fs metadata");
 			else
 				printf("inum %d", VTOI(bp->b_vp)->i_number);
-			printf(" lblkno %d to blkno %d\n", bp->b_lblkno,
+			printf(" lblkno %lld to blkno %lld\n", bp->b_lblkno,
 			    cbp->b_blkno);
 		}
 #endif

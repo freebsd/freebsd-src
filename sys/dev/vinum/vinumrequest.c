@@ -340,7 +340,7 @@ launch_requests(struct request *rq, int reviveok)
 #ifdef VINUMDEBUG
 	if (debug & DEBUG_REVIVECONFLICT)
 	    log(LOG_DEBUG,
-		"Revive conflict sd %d: %p\n%s dev %d.%d, offset 0x%x, length %ld\n",
+		"Revive conflict sd %d: %p\n%s dev %d.%d, offset 0x%llx, length %ld\n",
 		rq->sdno,
 		rq,
 		rq->bp->b_iocmd == BIO_READ ? "Read" : "Write",
@@ -355,7 +355,7 @@ launch_requests(struct request *rq, int reviveok)
 #ifdef VINUMDEBUG
     if (debug & DEBUG_ADDRESSES)
 	log(LOG_DEBUG,
-	    "Request: %p\n%s dev %d.%d, offset 0x%x, length %ld\n",
+	    "Request: %p\n%s dev %d.%d, offset 0x%llx, length %ld\n",
 	    rq,
 	    rq->bp->b_iocmd == BIO_READ ? "Read" : "Write",
 	    major(rq->bp->b_dev),
@@ -427,7 +427,7 @@ launch_requests(struct request *rq, int reviveok)
 #ifdef VINUMDEBUG
 		if (debug & DEBUG_ADDRESSES)
 		    log(LOG_DEBUG,
-			"  %s dev %d.%d, sd %d, offset 0x%x, devoffset 0x%x, length %ld\n",
+			"  %s dev %d.%d, sd %d, offset 0x%x, devoffset 0x%llx, length %ld\n",
 			rqe->b.b_iocmd == BIO_READ ? "Read" : "Write",
 			major(rqe->b.b_dev),
 			minor(rqe->b.b_dev),
@@ -630,7 +630,7 @@ bre(struct request *rq,
 #ifdef VINUMDEBUG
 		    if (debug & DEBUG_EOFINFO) {	    /* tell on the request */
 			log(LOG_DEBUG,
-			    "vinum: EOF on plex %s, sd %s offset %x (user offset %x)\n",
+			    "vinum: EOF on plex %s, sd %s offset %x (user offset %llx)\n",
 			    plex->name,
 			    sd->name,
 			    (u_int) sd->sectors,
