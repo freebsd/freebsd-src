@@ -205,12 +205,12 @@ Create/list/extract old GNU-format incremental backup.
 Create/list/extract new GNU-format incremental backup.
 .It Fl h
 .It Fl -dereference
-Don't write symlinks as symlinks; write the data of the files they name.
+Do not write symlinks as symlinks; write the data of the files they name.
 .It Fl i
 .It Fl -ignore-zeros
 Ignore blocks of zeroes in archive (usually means End-Of-File).
 .It Fl -ignore-failed-read
-Don't exit with non-zero status on unreadable files.
+Do not exit with non-zero status on unreadable files.
 .It Fl j
 .It Fl y
 .It Fl -bzip
@@ -220,7 +220,7 @@ Filter the archive through
 .Xr bzip2 1 .
 .It Fl k
 .It Fl -keep-old-files
-Keep files which already exist on disk; don't overwrite them from the archive.
+Keep files which already exist on disk; do not overwrite them from the archive.
 .It Fl K Ar file
 .It Fl -starting-file Ar file
 Begin at
@@ -237,13 +237,13 @@ Change tapes after writing
 * 1024 bytes.
 .It Fl m
 .It Fl -modification-time
-Don't extract file modified time.
+Do not extract file modified time.
 .It Fl M
 .It Fl -multi-volume
 Create/list/extract multi-volume archive.
 .It Fl n
 .It Fl -norecurse
-Don't recurse into subdirectories when creating.
+Do not recurse into subdirectories when creating.
 .It Fl -volno-file Ar file
 File name with volume number to start with.
 .It Fl N Ar date
@@ -270,7 +270,7 @@ Has the effect of
 .Fl p s .
 .It Fl P
 .It Fl -absolute-paths
-Don't strip leading
+Do not strip leading
 .Ql /
 from file names.
 .It Fl R
@@ -333,7 +333,7 @@ Attempt to verify the archive after writing it.
 .It Fl -exclude Ar pattern
 Exclude files matching the
 .Ar pattern
-(don't extract them, don't add them, don't list them).
+(do not extract them, do not add them, do not list them).
 .It Fl X Ar file
 .It Fl -exclude-from Ar file
 Exclude files listed in
@@ -468,7 +468,7 @@ which will add the files contained in
 .Pa archive2.tar
 onto the end of
 .Pa archive1.tar
-(note that this can't be done by simply typing
+(note that this cannot be done by simply typing
 .Dl "cat archive2.tar >> archive1.tar"
 because of the end-of-file block at the end of a
 .Nm

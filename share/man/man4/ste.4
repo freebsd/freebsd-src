@@ -136,7 +136,7 @@ mode when shutting down, and some PCI BIOSes fail to bring the chip
 out of this state before configuring it.
 The controller loses all of
 its PCI configuration in the D3 state, so if the BIOS does not set
-it back to full power mode in time, it won't be able to configure it
+it back to full power mode in time, it will not be able to configure it
 correctly.
 The driver tries to detect this condition and bring
 the adapter back to the D0 (full power) state, but this may not be

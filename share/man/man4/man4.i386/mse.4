@@ -126,7 +126,7 @@ minor = (`unit' << 1) | `non-blocking'
 .Ed
 .Pp
 where `unit' is the device number (usually 0) and the `non-blocking' bit
-is set to indicate ``don't block waiting for mouse input,
+is set to indicate ``do not block waiting for mouse input,
 return immediately''.
 The `non-blocking' bit should be set for \fIXFree86\fP,
 therefore the minor device number usually used for \fIXFree86\fP is 1.
@@ -307,7 +307,7 @@ and
 are modifiable by the
 .Dv MOUSE_SETMODE
 command.
-Changing the other field doesn't cause error, but has no effect.
+Changing the other field does not cause error, but has no effect.
 .Pp
 .It Dv MOUSE_SETMODE Ar mousemode_t *mode
 The command changes the current operation parameters of the mouse driver

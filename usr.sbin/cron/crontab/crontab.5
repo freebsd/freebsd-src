@@ -127,8 +127,8 @@ instead of
 as
 your mailer when you install cron --
 .Pa /bin/mail
-doesn't do aliasing, and UUCP
-usually doesn't read its mail.
+does not do aliasing, and UUCP
+usually does not read its mail.
 .Pp
 The format of a cron command is very much the V7 standard, with a number of
 upward-compatible extensions.
@@ -185,7 +185,7 @@ hours'', just use ``*/2''.
 Names can also be used for the ``month'' and ``day of week''
 fields.
 Use the first three letters of the particular
-day or month (case doesn't matter).
+day or month (case does not matter).
 Ranges or
 lists of names are not allowed.
 .Pp
@@ -206,7 +206,7 @@ input.
 Note: The day of a command's execution can be specified by two
 fields \(em day of month, and day of week.
 If both fields are
-restricted (ie, aren't *), the command will be run when
+restricted (ie, are not *), the command will be run when
 .Em either
 field matches the current time.
 For example,
@@ -278,9 +278,9 @@ environment handed to child processes is basically the one from
 .Pp
 Command output is mailed to the crontab owner
 .No ( Bx
-can't do this), can be
-mailed to a person other than the crontab owner (SysV can't do this), or the
-feature can be turned off and no mail will be sent at all (SysV can't do this
+cannot do this), can be
+mailed to a person other than the crontab owner (SysV cannot do this), or the
+feature can be turned off and no mail will be sent at all (SysV cannot do this
 either).
 .Pp
 All of the

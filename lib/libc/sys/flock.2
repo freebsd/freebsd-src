@@ -44,7 +44,7 @@
 .In sys/file.h
 .Fd "#define	LOCK_SH		0x01		/* shared file lock */"
 .Fd "#define	LOCK_EX		0x02		/* exclusive file lock */"
-.Fd "#define	LOCK_NB		0x04		/* don't block when locking */"
+.Fd "#define	LOCK_NB		0x04		/* do not block when locking */"
 .Fd "#define	LOCK_UN		0x08		/* unlock file */"
 .Ft int
 .Fn flock "int fd" "int operation"

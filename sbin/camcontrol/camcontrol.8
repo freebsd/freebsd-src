@@ -285,7 +285,7 @@ argument), the given bus (XPT_SCAN_BUS), or bus:target:lun
 The user
 may specify a scan of all busses, a single bus, or a lun.
 Scanning all luns
-on a target isn't supported.
+on a target is not supported.
 .It Ic reset
 Tell the kernel to reset all busses in the system (with the
 .Ar all
@@ -313,14 +313,14 @@ required.
 Most drives support the physical sector format.
 Some drives
 support the logical block format.
-Many drives, if they don't support the
+Many drives, if they do not support the
 requested format, return the data in an alternate format, along with sense
-information indicating that the requested data format isn't supported.
+information indicating that the requested data format is not supported.
 The
 .Nm
 utility
 attempts to detect this, and print out whatever format the drive returns.
-If the drive uses a non-standard sense code to report that it doesn't
+If the drive uses a non-standard sense code to report that it does not
 support the requested format,
 .Nm
 will probably see the error as a failure to complete the request.
@@ -492,7 +492,7 @@ switch for this
 .Nm
 subcommand is described below.
 .It Fl q
-Be quiet, and don't report the number of tags.
+Be quiet, and do not report the number of tags.
 This is generally used when
 setting the number of tags.
 .It Fl v
@@ -566,7 +566,7 @@ The meaning of the
 flag for the
 .Ic negotiate
 command is described below.
-Also, some controller drivers don't support
+Also, some controller drivers do not support
 setting negotiation parameters, even if the underlying controller supports
 negotiation changes.
 Some controllers, such as the Advansys wide
@@ -584,9 +584,9 @@ Enable or disable disconnection.
 .It Fl O Ar offset
 Set the command delay offset.
 .It Fl q
-Be quiet, don't print anything.
+Be quiet, do not print anything.
 This is generally useful when you want to
-set a parameter, but don't want any status information.
+set a parameter, but do not want any status information.
 .It Fl R Ar syncrate
 Change the synchronization rate for a device.
 The sync rate is a floating
@@ -655,7 +655,7 @@ Some hard
 disks will complete a format operation in a very short period of time
 (on the order of 5 minutes or less).
 This is often because the drive
-doesn't really support the FORMAT UNIT command -- it just accepts the
+does not really support the FORMAT UNIT command -- it just accepts the
 command, waits a few minutes and then returns it.
 .Pp
 The
@@ -669,7 +669,7 @@ arguments can be useful for scripts.
 .Pp
 .Bl -tag -width 6n
 .It Fl q
-Be quiet, don't print any status messages.
+Be quiet, do not print any status messages.
 This option will not disable
 the questions, however.
 To disable questions, use the
@@ -697,7 +697,7 @@ will issue a non-immediate format command, and will be unable to print any
 information to let the user know what percentage of the disk has been
 formatted.
 .It Fl y
-Don't ask any questions.
+Do not ask any questions.
 By default,
 .Nm
 will ask the user if he/she really wants to format the disk in question,
@@ -853,7 +853,7 @@ in
 .Sh AUTHORS
 .An Kenneth Merry Aq ken@FreeBSD.org
 .Sh BUGS
-The code that parses the generic command line arguments doesn't know that
+The code that parses the generic command line arguments does not know that
 some of the subcommands take multiple arguments.
 So if, for instance, you
 tried something like this:

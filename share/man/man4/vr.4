@@ -144,7 +144,7 @@ mode when shutting down, and some PCI BIOSes fail to bring the chip
 out of this state before configuring it.
 The controller loses all of
 its PCI configuration in the D3 state, so if the BIOS does not set
-it back to full power mode in time, it won't be able to configure it
+it back to full power mode in time, it will not be able to configure it
 correctly.
 The driver tries to detect this condition and bring
 the adapter back to the D0 (full power) state, but this may not be
@@ -188,7 +188,7 @@ driver always copies transmit mbuf chains into longword-aligned
 buffers prior to transmission in order to pacify the Rhine chips.
 If buffers are not aligned correctly, the chip will round the
 supplied buffer address and begin DMAing from the wrong location.
-This buffer copying impairs transmit performance on slower systems but can't
+This buffer copying impairs transmit performance on slower systems but cannot
 be avoided.
 On faster machines (e.g.\& a Pentium II), the performance
 impact is much less noticeable.

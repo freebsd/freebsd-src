@@ -236,9 +236,9 @@ The default is 6 bytes.
 The
 .Nm
 driver issues a CAM Path Inquiry CCB at probe time to determine whether the
-protocol the device in question speaks (e.g.\& ATAPI) typically doesn't allow
+protocol the device in question speaks (e.g.\& ATAPI) typically does not allow
 6 byte commands.
-If it doesn't, the
+If it does not, the
 .Nm
 driver will default to using at least 10 byte CDBs.
 If a 6 byte READ or WRITE fails with an ILLEGAL REQUEST error, the

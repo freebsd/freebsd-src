@@ -96,7 +96,7 @@ The I/O vector points into a process's address space.
 .It Dv UIO_SYSSPACE
 The I/O vector points into the kernel address space.
 .It Dv UIO_NOCOPY
-Don't copy, already in object.
+Do not copy, already in object.
 .El
 .It Va uio_rw
 The direction of the desired transfer, either
@@ -125,7 +125,7 @@ The idea is that the driver maintains a private buffer for its data,
 and processes the request in chunks of maximal the size of this
 buffer.
 Note that the buffer handling below is very simplified and
-won't work (the buffer pointer is not being advanced in case of a
+will not work (the buffer pointer is not being advanced in case of a
 partial read), it's just here to demonstrate the
 .Nm
 handling.

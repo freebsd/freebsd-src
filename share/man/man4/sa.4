@@ -169,7 +169,7 @@ If a rewind is requested after a write, then the driver
 assumes that the last file on the tape has been written, and ensures
 that there are two file marks written to the tape.
 The exception to
-this is that there seems to be a standard (which we follow, but don't
+this is that there seems to be a standard (which we follow, but do not
 understand why) that certain types of tape do not actually write two
 file marks to tape, but when read, report a `phantom' file mark when the
 last file is read.
@@ -235,7 +235,7 @@ Additionally, certain
 tapes (QIC tapes mostly) that were written under
 .Fx
 2.X
-aren't automatically read correctly with this driver: you may need to
+are not automatically read correctly with this driver: you may need to
 explicitly set variable block mode or set to the blocksize that works best
 for your device in order to read tapes written under
 .Fx

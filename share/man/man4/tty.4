@@ -258,14 +258,14 @@ Pretend as if the terminal received the character pointed to by
 .Fa cp .
 .It Dv TIOCNOTTY Fa void
 This call is obsolete but left for compatibility.
-In the past, when a process that didn't have a controlling terminal (see
+In the past, when a process that did not have a controlling terminal (see
 .Em The Controlling Terminal
 in
 .Xr termios 4 )
 first opened a terminal device, it acquired that terminal as its
 controlling terminal.
 For some programs this was a hazard as they
-didn't want a controlling terminal in the first place, and this
+did not want a controlling terminal in the first place, and this
 provided a mechanism to disassociate the controlling terminal from
 the calling process.
 It

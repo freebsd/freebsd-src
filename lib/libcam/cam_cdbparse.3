@@ -279,7 +279,7 @@ This flag tells the
 .Xr pass 4
 driver to enable error recovery.
 The default is to not perform error
-recovery, which means that the retry count won't be honored without this
+recovery, which means that the retry count will not be honored without this
 flag, among other things.
 .It Dv CAM_DATA_PHYS
 This indicates that the address contained in
@@ -301,7 +301,7 @@ The
 .Fa timeout
 tells the kernel how long to wait for the given command to complete.
 If
-the timeout expires and the command hasn't completed, the CCB will be
+the timeout expires and the command has not completed, the CCB will be
 returned from the kernel with an appropriate error status.
 .Pp
 .Fa cmd_spec
@@ -559,10 +559,10 @@ CCB.
 I discovered this while implementing the arbitrary command execution
 code in
 .Xr camcontrol 8 ,
-but I haven't yet had time to implement such a function.
+but I have not yet had time to implement such a function.
 .Pp
-Some of the CCB flag descriptions really don't belong here.
+Some of the CCB flag descriptions really do not belong here.
 Rather they
 belong in a generic CCB man page.
-Since that man page hasn't yet been
+Since that man page has not yet been
 written, the shorter descriptions here will have to suffice.
