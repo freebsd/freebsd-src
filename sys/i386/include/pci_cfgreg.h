@@ -38,11 +38,7 @@
 #define CONF1_ENABLE_RES1  0x80000000ul
 
 #define CONF2_ENABLE_PORT  0x0cf8
-#ifdef PC98
-#define CONF2_FORWARD_PORT 0x0cf9
-#else
 #define CONF2_FORWARD_PORT 0x0cfa
-#endif
 
 #define CONF2_ENABLE_CHK   0x0e
 #define CONF2_ENABLE_RES   0x0e
