@@ -162,6 +162,10 @@ LstNode		*Lst_Member(Lst *, void *);
 void		Lst_ForEach(Lst *, DoProc *, void *);
 #define	Lst_ForEach(LST, FN, D)	(Lst_ForEachFrom((LST), Lst_First(LST), \
 				    (FN), (D)))
+
+#define	LST_FOREACH(PTR, LST)						\
+	for ((PTR) = (LST)->firstPtr; (PTR) != NULL; (PTR) = (PTR)->nextPtr)
+
 /*
  * Apply a function to all elements of a lst starting from a certain point.
  * If the list is circular, the application will wrap around to the
