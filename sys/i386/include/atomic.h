@@ -103,15 +103,15 @@ atomic_##NAME##_##TYPE(volatile u_##TYPE *p, u_##TYPE v)\
 #if __GNUC__ > 2 || (__GNUC__ == 2 && __GNUC_MINOR__ > 9)
 
 /* egcs 1.1.2+ version */
-ATOMIC_ASM(set,	     char,  "orb %2,%0",   v)
-ATOMIC_ASM(clear,    char,  "andb %2,%0", ~v)
-ATOMIC_ASM(add,	     char,  "addb %2,%0",  v)
-ATOMIC_ASM(subtract, char,  "subb %2,%0",  v)
+ATOMIC_ASM(set,	     char,  "orb %b2,%0",   v)
+ATOMIC_ASM(clear,    char,  "andb %b2,%0", ~v)
+ATOMIC_ASM(add,	     char,  "addb %b2,%0",  v)
+ATOMIC_ASM(subtract, char,  "subb %b2,%0",  v)
 
-ATOMIC_ASM(set,	     short, "orw %2,%0",   v)
-ATOMIC_ASM(clear,    short, "andw %2,%0", ~v)
-ATOMIC_ASM(add,	     short, "addw %2,%0",  v)
-ATOMIC_ASM(subtract, short, "subw %2,%0",  v)
+ATOMIC_ASM(set,	     short, "orw %w2,%0",   v)
+ATOMIC_ASM(clear,    short, "andw %w2,%0", ~v)
+ATOMIC_ASM(add,	     short, "addw %w2,%0",  v)
+ATOMIC_ASM(subtract, short, "subw %w2,%0",  v)
 
 ATOMIC_ASM(set,	     int,   "orl %2,%0",   v)
 ATOMIC_ASM(clear,    int,   "andl %2,%0", ~v)

@@ -169,7 +169,7 @@ jtab:
 	.text
 	SUPERALIGN_TEXT
 5:
-	jmp	jtab(,%ecx,4)
+	jmp	*jtab(,%ecx,4)
 
 	SUPERALIGN_TEXT
 do3:
@@ -303,7 +303,7 @@ fpureg_i586_bzero_loop:
 	ret
 
 i586_bz3:
-	fstpl	%st(0)
+	fstp	%st(0)
 	lmsw	%ax
 	movb	$0xfe,kernel_fpu_lock
 	ret
@@ -705,10 +705,6 @@ ENTRY(generic_copyout)
 	ja	copyout_fault
 
 #if defined(I386_CPU)
-
-#if defined(SMP)
-#error I386_CPU option not supported if SMP
-#endif
 
 #if defined(I486_CPU) || defined(I586_CPU) || defined(I686_CPU)
 	cmpl	$CPUCLASS_386,_cpu_class
@@ -1214,10 +1210,6 @@ ENTRY(suword)
 
 #if defined(I386_CPU)
 
-#if defined(SMP)
-#error I386_CPU option not supported if SMP
-#endif
-
 #if defined(I486_CPU) || defined(I586_CPU) || defined(I686_CPU)
 	cmpl	$CPUCLASS_386,_cpu_class
 	jne	2f				/* we only have to set the right segment selector */
@@ -1269,10 +1261,6 @@ ENTRY(susword)
 	movl	4(%esp),%edx
 
 #if defined(I386_CPU)
-
-#if defined(SMP)
-#error I386_CPU option not supported if SMP
-#endif
 
 #if defined(I486_CPU) || defined(I586_CPU) || defined(I686_CPU)
 	cmpl	$CPUCLASS_386,_cpu_class
@@ -1326,10 +1314,6 @@ ENTRY(subyte)
 	movl	4(%esp),%edx
 
 #if defined(I386_CPU)
-
-#if defined(SMP)
-#error I386_CPU option not supported if SMP
-#endif
 
 #if defined(I486_CPU) || defined(I586_CPU) || defined(I686_CPU)
 	cmpl	$CPUCLASS_386,_cpu_class
@@ -1529,14 +1513,14 @@ ENTRY(lgdt)
 1:
 	/* reload "stale" selectors */
 	movl	$KDSEL,%eax
-	movl	%ax,%ds
-	movl	%ax,%es
-	movl	%ax,%gs
-	movl	%ax,%ss
+	mov	%ax,%ds
+	mov	%ax,%es
+	mov	%ax,%gs
+	mov	%ax,%ss
 #ifdef SMP
 	movl	$KPSEL,%eax
 #endif
-	movl	%ax,%fs
+	mov	%ax,%fs
 
 	/* reload code selector by turning return into intersegmental return */
 	movl	(%esp),%eax

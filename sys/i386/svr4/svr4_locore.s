@@ -6,7 +6,7 @@
 /* $FreeBSD$ */
 	
 NON_GPROF_ENTRY(svr4_sigcode)
-	call	SVR4_SIGF_HANDLER(%esp)
+	call	*SVR4_SIGF_HANDLER(%esp)
 	leal	SVR4_SIGF_UC(%esp),%eax	# ucp (the call may have clobbered the
 					# copy at SIGF_UCP(%esp))
 #ifdef VM86
