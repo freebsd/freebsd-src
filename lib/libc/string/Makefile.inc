@@ -1,5 +1,5 @@
 #	@(#)Makefile.inc	8.1 (Berkeley) 6/4/93
-#	$Id: Makefile.inc,v 1.14 1998/02/20 08:23:55 jb Exp $
+#	$Id: Makefile.inc,v 1.15 1999/01/19 23:45:48 jdp Exp $
 
 .PATH: ${.CURDIR}/../libc/${MACHINE_ARCH}/string ${.CURDIR}/../libc/string
 
@@ -10,7 +10,7 @@ MISRCS+=bcmp.c bcopy.c bzero.c ffs.c index.c memccpy.c memchr.c memcmp.c \
 	memcpy.c memmove.c memset.c rindex.c strcasecmp.c strcat.c strchr.c \
 	strcmp.c strcoll.c strcpy.c strcspn.c strdup.c strerror.c strlen.c \
 	strmode.c strncat.c strncmp.c strncpy.c strpbrk.c strrchr.c strsep.c \
-	strspn.c strstr.c strtok.c strxfrm.c swab.c
+	strsignal.c strspn.c strstr.c strtok.c strxfrm.c swab.c
 
 # machine-dependent string sources
 .include "${.CURDIR}/../libc/${MACHINE_ARCH}/string/Makefile.inc"
@@ -27,5 +27,6 @@ MLINKS+=strcat.3 strncat.3
 MLINKS+=strcmp.3 strncmp.3
 MLINKS+=strcpy.3 strncpy.3
 MLINKS+=strerror.3 perror.3 strerror.3 sys_errlist.3 strerror.3 sys_nerr.3
+MLINKS+=psignal.3 strsignal.3 psignal.3 sys_siglist.3 psignal.3 sys_signame.3
 MLINKS+=strtok.3 strtok_r.3
 .endif

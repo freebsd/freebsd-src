@@ -44,6 +44,7 @@
 #if !defined(_ANSI_SOURCE) && !defined(_POSIX_SOURCE)
 extern __const char *__const sys_signame[NSIG];
 extern __const char *__const sys_siglist[NSIG];
+extern __const int sys_nsig;
 #endif
 
 __BEGIN_DECLS

@@ -86,6 +86,7 @@ char	*strdup __P((const char *));
 void	 strmode __P((int, char *));
 int	 strncasecmp __P((const char *, const char *, size_t));
 char	*strsep __P((char **, const char *));
+char	*strsignal __P((int));
 char	*strtok_r __P((char *, const char *, char **));
 void	 swab __P((const void *, void *, size_t));
 #endif
