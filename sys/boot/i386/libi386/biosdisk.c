@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: biosdisk.c,v 1.9 1998/10/02 16:32:45 msmith Exp $
+ *	$Id: biosdisk.c,v 1.10 1998/10/04 09:12:15 msmith Exp $
  */
 
 /*
@@ -298,28 +298,26 @@ bd_opendisk(struct open_disk **odp, struct i386_devdesc *dev)
     /* 
      * XXX No support here for 'extended' slices
      */
-    if (dev->d_kind.biosdisk.slice <= 0) {
+    if (dev->d_kind.biosdisk.slice < 1) {
 	/*
-	 * Search for the first FreeBSD slice; this also works on "unsliced"
-	 * disks, as they contain a "historically bogus" MBR.
+	 * Looking for an unsliced disk, check for the historically
+	 * bogus MBR.
 	 */
-	for (i = 0; i < NDOSPART; i++, dptr++)
-	    if (dptr->dp_typ == DOSPTYP_386BSD) {
-		sector = dptr->dp_start;
-		break;
-	    }
-	/* Did we find something? */
-	if (sector == -1) {
+	if ((dptr[3].dp_typ != DOSPTYP_386BSD) ||
+	    (dptr[3].dp_start != 0) ||
+	    (dptr[3].dp_size != 50000)) {
 	    error = ENOENT;
 	    goto out;
 	}
-	DEBUG("found slice at %d, %d sectors", sector, dptr->dp_size);
+	sector = 0;
+	DEBUG("disk is dedicated");
+
     } else {
 	/*
 	 * Accept the supplied slice number unequivocally (we may be looking
 	 * for a DOS partition) if we can handle it.
 	 */
-	if ((dev->d_kind.biosdisk.slice > NDOSPART) || (dev->d_kind.biosdisk.slice < 1)) {
+	if (dev->d_kind.biosdisk.slice > NDOSPART) {
 	    error = ENOENT;
 	    goto out;
 	}
@@ -329,7 +327,7 @@ bd_opendisk(struct open_disk **odp, struct i386_devdesc *dev)
     }
  unsliced:
     /* 
-     * Now we have the slice, look for the partition in the disklabel if we have
+     * Now we have the slice offset, look for the partition in the disklabel if we have
      * a partition to start with.
      *
      * XXX we might want to check the label checksum.
