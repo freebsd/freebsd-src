@@ -529,9 +529,9 @@ au88x0_set_status(device_t dev)
 	struct au88x0_info *aui;
 
 	aui = pcm_getdevinfo(dev);
-	snprintf(status, sizeof status, "at %s 0x%lx irq %ld",
+	snprintf(status, sizeof status, "at %s 0x%lx irq %ld %s",
 	    (aui->aui_regtype == SYS_RES_IOPORT)? "io" : "memory",
-	    rman_get_start(aui->aui_reg), rman_get_start(aui->aui_irq));
+	    rman_get_start(aui->aui_reg), rman_get_start(aui->aui_irq),PCM_KLDSTRING(snd_au88x0));
 	pcm_setstatus(dev, status);
 }
 

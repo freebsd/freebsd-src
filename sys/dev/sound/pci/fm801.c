@@ -638,9 +638,9 @@ fm801_pci_attach(device_t dev)
 		goto oops;
 	}
 
-	snprintf(status, 64, "at %s 0x%lx irq %ld",
+	snprintf(status, 64, "at %s 0x%lx irq %ld %s",
 		(fm801->regtype == SYS_RES_IOPORT)? "io" : "memory",
-		rman_get_start(fm801->reg), rman_get_start(fm801->irq));
+		rman_get_start(fm801->reg), rman_get_start(fm801->irq),PCM_KLDSTRING(snd_fm801));
 
 #define FM801_MAXPLAYCH	1
 	if (pcm_register(dev, fm801, FM801_MAXPLAYCH, 1)) goto oops;

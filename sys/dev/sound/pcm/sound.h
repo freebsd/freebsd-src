@@ -314,6 +314,12 @@ void pcm_lock(struct snddev_info *d);
 void pcm_unlock(struct snddev_info *d);
 #endif
 
+#ifdef KLD_MODULE
+#define PCM_KLDSTRING(a) ("kld " # a)
+#else
+#define PCM_KLDSTRING(a) ""
+#endif
+
 #endif /* _KERNEL */
 
 #endif	/* _OS_H_ */

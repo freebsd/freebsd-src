@@ -1189,9 +1189,9 @@ m3_pci_attach(device_t dev)
 			goto bad;
 		}
 	}
- 	snprintf(status, SND_STATUSLEN, "at %s 0x%lx irq %ld",
+ 	snprintf(status, SND_STATUSLEN, "at %s 0x%lx irq %ld %s",
 		 (sc->regtype == SYS_RES_IOPORT)? "io" : "memory",
-		 rman_get_start(sc->reg), rman_get_start(sc->irq));
+		 rman_get_start(sc->reg), rman_get_start(sc->irq),PCM_KLDSTRING(snd_maestro3));
 	if (pcm_setstatus(dev, status)) {
 		device_printf(dev, "attach: pcm_setstatus error\n");
 		goto bad;

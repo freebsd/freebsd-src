@@ -621,12 +621,13 @@ ad1816_attach(device_t dev)
 	else
 		status2[0] = '\0';
 
-    	snprintf(status, SND_STATUSLEN, "at io 0x%lx irq %ld drq %ld%s bufsz %u",
+    	snprintf(status, SND_STATUSLEN, "at io 0x%lx irq %ld drq %ld%s bufsz %u %s",
     	     	rman_get_start(ad1816->io_base),
 		rman_get_start(ad1816->irq),
 		rman_get_start(ad1816->drq1),
 		status2,
-		ad1816->bufsize);
+		ad1816->bufsize,
+		PCM_KLDSTRING(snd_ad1816));
 
     	if (pcm_register(dev, ad1816, 1, 1)) goto no;
     	pcm_addchan(dev, PCMDIR_REC, &ad1816chan_class, ad1816);

@@ -866,9 +866,10 @@ ess_attach(device_t dev)
 	else
 		buf[0] = '\0';
 
-    	snprintf(status, SND_STATUSLEN, "at io 0x%lx irq %ld drq %ld%s bufsz %u",
+    	snprintf(status, SND_STATUSLEN, "at io 0x%lx irq %ld drq %ld%s bufsz %u %s",
     	     	rman_get_start(sc->io_base), rman_get_start(sc->irq),
-		rman_get_start(sc->drq1), buf, sc->bufsize);
+		rman_get_start(sc->drq1), buf, sc->bufsize,
+		PCM_KLDSTRING(snd_ess));
 
     	if (pcm_register(dev, sc, 1, 1))
 		goto no;
