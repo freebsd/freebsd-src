@@ -548,7 +548,7 @@ unp_bind(unp, nam, p)
 		return EINVAL;
 	strncpy(buf, soun->sun_path, namelen);
 	buf[namelen] = 0;	/* null-terminate the string */
-	NDINIT(&nd, CREATE, FOLLOW | LOCKPARENT, UIO_SYSSPACE,
+	NDINIT(&nd, CREATE, NOFOLLOW | LOCKPARENT, UIO_SYSSPACE,
 	    buf, p);
 /* SHOULD BE ABLE TO ADOPT EXISTING AND wakeup() ALA FIFO's */
 	error = namei(&nd);
