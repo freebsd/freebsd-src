@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)dkstat.h	8.2 (Berkeley) 1/21/94
- * $Id: dkstat.h,v 1.2 1994/08/02 07:52:51 davidg Exp $
+ * $Id: dkstat.h,v 1.3 1994/08/18 22:35:42 wollman Exp $
  */
 
 #ifndef _SYS_DKSTAT_H_
@@ -50,6 +50,7 @@
 #define	CPUSTATES	5
 
 #define	DK_NDRIVE	8
+#define DK_NAMELEN	8
 #ifdef KERNEL
 extern long cp_time[CPUSTATES];
 extern long dk_seek[DK_NDRIVE];
@@ -57,6 +58,7 @@ extern long dk_time[DK_NDRIVE];
 extern long dk_wds[DK_NDRIVE];
 extern long dk_wpms[DK_NDRIVE];
 extern long dk_xfer[DK_NDRIVE];
+extern char dk_names[DK_NDRIVE][DK_NAMELEN];
 
 extern int dk_busy;
 extern int dk_ndrive;
