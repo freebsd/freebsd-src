@@ -41,14 +41,16 @@
 __FBSDID("$FreeBSD$");
 
 #include <stddef.h>
+#ifdef DEBUG_STRTOK
+#include <stdio.h>
+#endif
 #include <string.h>
 
 char *
 strtok_r(char *s, const char *delim, char **last)
 {
-	char *spanp;
 	int c, sc;
-	char *tok;
+	char *spanp, *tok, *w;
 
 	if (s == NULL && (s = *last) == NULL)
 		return (NULL);
@@ -80,7 +82,7 @@ cont:
 				if (c == 0)
 					s = NULL;
 				else {
-					char *w = s - 1;
+					w = s - 1;
 					*w = '\0';
 				}
 				*last = s;
@@ -108,23 +110,24 @@ strtok(char *s, const char *delim)
 int
 main(void)
 {
-	char test[80], blah[80];
-	char *sep = "\\/:;=-";
-	char *word, *phrase, *brkt, *brkb;
+	char blah[80], test[80];
+	char *brkb, *brkt, *phrase, *sep, *word;
+
+	sep = "\\/:;=-";
+	phrase = "foo";
 
 	printf("String tokenizer test:\n");
 	strcpy(test, "This;is.a:test:of=the/string\\tokenizer-function.");
 	for (word = strtok(test, sep); word; word = strtok(NULL, sep))
 		printf("Next word is \"%s\".\n", word);
-	phrase = "foo";
 	strcpy(test, "This;is.a:test:of=the/string\\tokenizer-function.");
 
 	for (word = strtok_r(test, sep, &brkt); word;
-	     word = strtok_r(NULL, sep, &brkt)) {
+	    word = strtok_r(NULL, sep, &brkt)) {
 		strcpy(blah, "blah:blat:blab:blag");
 
 		for (phrase = strtok_r(blah, sep, &brkb); phrase;
-		     phrase = strtok_r(NULL, sep, &brkb))
+		    phrase = strtok_r(NULL, sep, &brkb))
 			printf("So far we're at %s:%s\n", word, phrase);
 	}
 
