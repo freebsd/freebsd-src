@@ -939,7 +939,7 @@ new_session(session_t *sprev, int session_index, struct ttyent *typ)
 	 * then don't add the device to the session list.
 	 */
 	if ((fd = open(sp->se_device, O_RDONLY | O_NONBLOCK, 0)) < 0) {
-		if (errno == ENXIO) {
+		if (errno == ENXIO || errno == ENOENT) {
 			free_session(sp);
 			return (0);
 		}
