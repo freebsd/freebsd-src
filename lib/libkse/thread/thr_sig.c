@@ -286,11 +286,10 @@ thr_sig_find(struct kse *curkse, int sig, siginfo_t *info)
 
 	KSE_LOCK_ACQUIRE(curkse, &_thread_list_lock);
 	TAILQ_FOREACH(pthread, &_thread_list, tle) {
+		/* Take the scheduling lock. */
+		KSE_SCHED_LOCK(curkse, pthread->kseg);
 		if ((pthread->state == PS_SIGWAIT) &&
 		    sigismember(pthread->data.sigwait, sig)) {
-			/* Take the scheduling lock. */
-			KSE_SCHED_LOCK(curkse, pthread->kseg);
-
 			/*
 			 * Return the signal number and make the
 			 * thread runnable.
@@ -328,6 +327,7 @@ thr_sig_find(struct kse *curkse, int sig, siginfo_t *info)
 			} else if (signaled_thread == NULL)
 				signaled_thread = pthread;
 		}
+		KSE_SCHED_UNLOCK(curkse, pthread->kseg);
 	}
 	KSE_LOCK_RELEASE(curkse, &_thread_list_lock);
 
