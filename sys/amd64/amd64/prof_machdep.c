@@ -23,17 +23,18 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: prof_machdep.c,v 1.6 1997/02/22 09:36:59 peter Exp $
  */
 
 #ifdef GUPROF
-#include "opt_cpu.h"
 #include "opt_i586_guprof.h"
 #include "opt_perfmon.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/gmon.h>
+#include <sys/kernel.h>
+#include <sys/sysctl.h>
 
 #include <machine/clock.h>
 #include <machine/perfmon.h>
@@ -175,14 +176,14 @@ cputime()
 	u_char high, low;
 	static u_int prev_count;
 
-#if defined(I586_CPU) || defined(I686_CPU)
+#if (defined(I586_CPU) || defined(I686_CPU)) && !defined(SMP)
 	if (cputime_clock == CPUTIME_CLOCK_I586_CTR) {
 		count = (u_int)rdtsc();
 		delta = (int)(count - prev_count);
 		prev_count = count;
 		return (delta);
 	}
-#ifdef I586_PMC_GUPROF
+#if defined(PERFMON) && defined(I586_PMC_GUPROF)
 	if (cputime_clock == CPUTIME_CLOCK_I586_PMC) {
 		/*
 		 * XXX permon_read() should be inlined so that the
@@ -196,8 +197,8 @@ cputime()
 		prev_count = count;
 		return (delta);
 	}
-#endif /* I586_PMC_GUPROF */
-#endif /* I586_CPU or I686_CPU */
+#endif /* PERFMON && I586_PMC_GUPROF */
+#endif /* (I586_CPU || I686_CPU) && !SMP */
 
 	/*
 	 * Read the current value of the 8254 timer counter 0.
@@ -223,6 +224,49 @@ cputime()
 	return (delta);
 }
 
+static int
+sysctl_machdep_cputime_clock SYSCTL_HANDLER_ARGS
+{
+	int clock;
+	int event;
+	int error;
+	struct pmc pmc;
+
+	clock = cputime_clock;
+#if defined(PERFMON) && defined(I586_PMC_GUPROF)
+	if (clock == CPUTIME_CLOCK_I586_PMC) {
+		pmc.pmc_val = cputime_clock_pmc_conf;
+		clock += pmc.pmc_event;
+	}
+#endif
+	error = sysctl_handle_opaque(oidp, &clock, sizeof clock, req);
+	if (error == 0 && req->newptr != NULL) {
+#if defined(PERFMON) && defined(I586_PMC_GUPROF)
+		if (clock >= CPUTIME_CLOCK_I586_PMC) {
+			event = clock - CPUTIME_CLOCK_I586_PMC;
+			if (event >= 256)
+				return (EINVAL);
+			pmc.pmc_num = 0;
+			pmc.pmc_event = event;
+			pmc.pmc_unit = 0;
+			pmc.pmc_flags = PMCF_E | PMCF_OS | PMCF_USR;
+			pmc.pmc_mask = 0;
+			cputime_clock_pmc_conf = pmc.pmc_val;
+			cputime_clock = CPUTIME_CLOCK_I586_PMC;
+		} else
+#endif
+		{
+			if (clock < 0 || clock >= CPUTIME_CLOCK_I586_PMC)
+				return (EINVAL);
+			cputime_clock = clock;
+		}
+	}
+	return (error);
+}
+
+SYSCTL_PROC(_machdep, OID_AUTO, cputime_clock, CTLTYPE_INT | CTLFLAG_RW,
+	    0, sizeof(u_int), sysctl_machdep_cputime_clock, "I", "");
+
 /*
  * The start and stop routines need not be here since we turn off profiling
  * before calling them.  They are here for convenience.
@@ -234,16 +278,16 @@ startguprof(gp)
 {
 	if (cputime_clock == CPUTIME_CLOCK_UNINITIALIZED) {
 		cputime_clock = CPUTIME_CLOCK_I8254;
-#if defined(I586_CPU) || defined(I686_CPU)
+#if (defined(I586_CPU) || defined(I686_CPU)) && !defined(SMP)
 		if (i586_ctr_freq != 0)
 			cputime_clock = CPUTIME_CLOCK_I586_CTR;
 #endif
 	}
 	gp->profrate = timer_freq << CPUTIME_CLOCK_I8254_SHIFT;
-#if defined(I586_CPU) || defined(I686_CPU)
+#if (defined(I586_CPU) || defined(I686_CPU)) && !defined(SMP)
 	if (cputime_clock == CPUTIME_CLOCK_I586_CTR)
 		gp->profrate = i586_ctr_freq;
-#ifdef I586_PMC_GUPROF
+#if defined(PERFMON) && defined(I586_PMC_GUPROF)
 	else if (cputime_clock == CPUTIME_CLOCK_I586_PMC) {
 		if (perfmon_avail() &&
 		    perfmon_setup(0, cputime_clock_pmc_conf) == 0) {
@@ -268,8 +312,8 @@ startguprof(gp)
 			}
 		}
 	}
-#endif /* I586_PMC_GUPROF */
-#endif /* I586_CPU or I686_CPU */
+#endif /* PERFMON && I586_PMC_GUPROF */
+#endif /* (I586_CPU || I686_CPU) && !SMP */
 	cputime_bias = 0;
 	cputime();
 }
