@@ -35,6 +35,7 @@
 #include <sys/systm.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/syscallsubr.h>
 #include <sys/sysproto.h>
 #include <sys/proc.h>
 #include <sys/vnode.h>
@@ -324,8 +325,6 @@ struct ptrace_args {
 int
 ptrace(struct thread *td, struct ptrace_args *uap)
 {
-	struct iovec iov;
-	struct uio uio;
 	/*
 	 * XXX this obfuscation is to reduce stack usage, but the register
 	 * structs may be too large to put on the stack anyway.
@@ -336,18 +335,70 @@ ptrace(struct thread *td, struct ptrace_args *uap)
 		struct fpreg fpreg;
 		struct reg reg;
 	} r;
+	void *addr;
+	int error = 0;
+
+	addr = &r;
+	switch (uap->req) {
+	case PT_GETREGS:
+	case PT_GETFPREGS:
+	case PT_GETDBREGS:
+		break;
+	case PT_SETREGS:
+		error = copyin(uap->addr, &r.reg, sizeof r.reg);
+		break;
+	case PT_SETFPREGS:
+		error = copyin(uap->addr, &r.fpreg, sizeof r.fpreg);
+		break;
+	case PT_SETDBREGS:
+		error = copyin(uap->addr, &r.dbreg, sizeof r.dbreg);
+		break;
+	case PT_IO:
+		error = copyin(uap->addr, &r.piod, sizeof r.piod);
+		break;
+	default:
+		addr = uap->addr;
+	}
+	if (error)
+		return (error);
+
+	error = kern_ptrace(td, uap->req, uap->pid, addr, uap->data);
+	if (error)
+		return (error);
+
+	switch (uap->req) {
+	case PT_IO:
+		(void)copyout(&r.piod, uap->addr, sizeof r.piod);
+		break;
+	case PT_GETREGS:
+		error = copyout(&r.reg, uap->addr, sizeof r.reg);
+		break;
+	case PT_GETFPREGS:
+		error = copyout(&r.fpreg, uap->addr, sizeof r.fpreg);
+		break;
+	case PT_GETDBREGS:
+		error = copyout(&r.dbreg, uap->addr, sizeof r.dbreg);
+		break;
+	}
+
+	return (error);
+}
+
+int
+kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
+{
+	struct iovec iov;
+	struct uio uio;
 	struct proc *curp, *p, *pp;
 	struct thread *td2;
+	struct ptrace_io_desc *piod;
 	int error, write, tmp;
 	int proctree_locked = 0;
 
 	curp = td->td_proc;
 
-	/*
-	 * Do copyin() early before getting locks and lock proctree before
-	 * locking the process.
-	 */
-	switch (uap->req) {
+	/* Lock proctree before locking the process. */
+	switch (req) {
 	case PT_TRACE_ME:
 	case PT_ATTACH:
 	case PT_STEP:
@@ -356,37 +407,16 @@ ptrace(struct thread *td, struct ptrace_args *uap)
 		sx_xlock(&proctree_lock);
 		proctree_locked = 1;
 		break;
-#ifdef PT_SETREGS
-	case PT_SETREGS:
-		error = copyin(uap->addr, &r.reg, sizeof r.reg);
-		if (error)
-			return (error);
-		break;
-#endif /* PT_SETREGS */
-#ifdef PT_SETFPREGS
-	case PT_SETFPREGS:
-		error = copyin(uap->addr, &r.fpreg, sizeof r.fpreg);
-		if (error)
-			return (error);
-		break;
-#endif /* PT_SETFPREGS */
-#ifdef PT_SETDBREGS
-	case PT_SETDBREGS:
-		error = copyin(uap->addr, &r.dbreg, sizeof r.dbreg);
-		if (error)
-			return (error);
-		break;
-#endif /* PT_SETDBREGS */
 	default:
 		break;
 	}
 		
 	write = 0;
-	if (uap->req == PT_TRACE_ME) {
+	if (req == PT_TRACE_ME) {
 		p = td->td_proc;
 		PROC_LOCK(p);
 	} else {
-		if ((p = pfind(uap->pid)) == NULL) {
+		if ((p = pfind(pid)) == NULL) {
 			if (proctree_locked)
 				sx_xunlock(&proctree_lock);
 			return (ESRCH);
@@ -409,7 +439,7 @@ ptrace(struct thread *td, struct ptrace_args *uap)
 	/*
 	 * Permissions check
 	 */
-	switch (uap->req) {
+	switch (req) {
 	case PT_TRACE_ME:
 		/* Always legal. */
 		break;
@@ -496,7 +526,7 @@ ptrace(struct thread *td, struct ptrace_args *uap)
 
 	td->td_retval[0] = 0;
 
-	switch (uap->req) {
+	switch (req) {
 	case PT_TRACE_ME:
 		/* set my trace flag and "owner" so it can read/write me */
 		p->p_flag |= P_TRACED;
@@ -511,21 +541,21 @@ ptrace(struct thread *td, struct ptrace_args *uap)
 		p->p_oppid = p->p_pptr->p_pid;
 		if (p->p_pptr != td->td_proc)
 			proc_reparent(p, td->td_proc);
-		uap->data = SIGSTOP;
+		data = SIGSTOP;
 		goto sendsig;	/* in PT_CONTINUE below */
 
 	case PT_STEP:
 	case PT_CONTINUE:
 	case PT_DETACH:
-		/* XXX uap->data is used even in the PT_STEP case. */
-		if (uap->req != PT_STEP && (unsigned)uap->data > _SIG_MAXSIG) {
+		/* XXX data is used even in the PT_STEP case. */
+		if (req != PT_STEP && (unsigned)data > _SIG_MAXSIG) {
 			error = EINVAL;
 			goto fail;
 		}
 
 		_PHOLD(p);
 
-		if (uap->req == PT_STEP) {
+		if (req == PT_STEP) {
 			error = ptrace_single_step(td2);
 			if (error) {
 				_PRELE(p);
@@ -533,10 +563,9 @@ ptrace(struct thread *td, struct ptrace_args *uap)
 			}
 		}
 
-		if (uap->addr != (caddr_t)1) {
+		if (addr != (void *)1) {
 			fill_kinfo_proc(p, &p->p_uarea->u_kproc);
-			error = ptrace_set_pc(td2,
-			    (u_long)(uintfptr_t)uap->addr);
+			error = ptrace_set_pc(td2, (u_long)(uintfptr_t)addr);
 			if (error) {
 				_PRELE(p);
 				goto fail;
@@ -544,7 +573,7 @@ ptrace(struct thread *td, struct ptrace_args *uap)
 		}
 		_PRELE(p);
 
-		if (uap->req == PT_DETACH) {
+		if (req == PT_DETACH) {
 			/* reset process parent */
 			if (p->p_oppid != p->p_pptr->p_pid) {
 				struct proc *pp;
@@ -569,14 +598,14 @@ ptrace(struct thread *td, struct ptrace_args *uap)
 			sx_xunlock(&proctree_lock);
 		/* deliver or queue signal */
 		if (P_SHOULDSTOP(p)) {
-			p->p_xstat = uap->data;
+			p->p_xstat = data;
 			mtx_lock_spin(&sched_lock);
 			p->p_flag &= ~(P_STOPPED_TRACE|P_STOPPED_SGNL);
 			setrunnable(td2);	/* XXXKSE */
 			/* Need foreach kse in proc, ... make_kse_queued(). */
 			mtx_unlock_spin(&sched_lock);
-		} else if (uap->data)		      
-			psignal(p, uap->data);
+		} else if (data)
+			psignal(p, data);
 		PROC_UNLOCK(p);
 		
 		return (0);
@@ -590,11 +619,11 @@ ptrace(struct thread *td, struct ptrace_args *uap)
 		PROC_UNLOCK(p);
 		tmp = 0;
 		/* write = 0 set above */
-		iov.iov_base = write ? (caddr_t)&uap->data : (caddr_t)&tmp;
+		iov.iov_base = write ? (caddr_t)&data : (caddr_t)&tmp;
 		iov.iov_len = sizeof(int);
 		uio.uio_iov = &iov;
 		uio.uio_iovcnt = 1;
-		uio.uio_offset = (off_t)(uintptr_t)uap->addr;
+		uio.uio_offset = (off_t)(uintptr_t)addr;
 		uio.uio_resid = sizeof(int);
 		uio.uio_segflg = UIO_SYSSPACE;	/* i.e.: the uap */
 		uio.uio_rw = write ? UIO_WRITE : UIO_READ;
@@ -618,18 +647,16 @@ ptrace(struct thread *td, struct ptrace_args *uap)
 		return (error);
 
 	case PT_IO:
-		error = copyin(uap->addr, &r.piod, sizeof r.piod);
-		if (error)
-			return (error);
-		iov.iov_base = r.piod.piod_addr;
-		iov.iov_len = r.piod.piod_len;
+		piod = addr;
+		iov.iov_base = piod->piod_addr;
+		iov.iov_len = piod->piod_len;
 		uio.uio_iov = &iov;
 		uio.uio_iovcnt = 1;
-		uio.uio_offset = (off_t)(uintptr_t)r.piod.piod_offs;
-		uio.uio_resid = r.piod.piod_len;
+		uio.uio_offset = (off_t)(uintptr_t)piod->piod_offs;
+		uio.uio_resid = piod->piod_len;
 		uio.uio_segflg = UIO_USERSPACE;
 		uio.uio_td = td;
-		switch (r.piod.piod_op) {
+		switch (piod->piod_op) {
 		case PIOD_READ_D:
 		case PIOD_READ_I:
 			uio.uio_rw = UIO_READ;
@@ -642,60 +669,53 @@ ptrace(struct thread *td, struct ptrace_args *uap)
 			return (EINVAL);
 		}
 		error = proc_rwmem(p, &uio);
-		r.piod.piod_len -= uio.uio_resid;
-		(void)copyout(&r.piod, uap->addr, sizeof r.piod);
+		piod->piod_len -= uio.uio_resid;
 		return (error);
 
 	case PT_KILL:
-		uap->data = SIGKILL;
+		data = SIGKILL;
 		goto sendsig;	/* in PT_CONTINUE above */
 
 	case PT_SETREGS:
 		_PHOLD(p);
-		error = proc_write_regs(td2, &r.reg);
+		error = proc_write_regs(td2, addr);
 		_PRELE(p);
 		PROC_UNLOCK(p);
 		return (error);
 
 	case PT_GETREGS:
 		_PHOLD(p);
-		error = proc_read_regs(td2, &r.reg);
+		error = proc_read_regs(td2, addr);
 		_PRELE(p);
 		PROC_UNLOCK(p);
-		if (error == 0)
-			error = copyout(&r.reg, uap->addr, sizeof r.reg);
 		return (error);
 
 	case PT_SETFPREGS:
 		_PHOLD(p);
-		error = proc_write_fpregs(td2, &r.fpreg);
+		error = proc_write_fpregs(td2, addr);
 		_PRELE(p);
 		PROC_UNLOCK(p);
 		return (error);
 
 	case PT_GETFPREGS:
 		_PHOLD(p);
-		error = proc_read_fpregs(td2, &r.fpreg);
+		error = proc_read_fpregs(td2, addr);
 		_PRELE(p);
 		PROC_UNLOCK(p);
-		if (error == 0)
-			error = copyout(&r.fpreg, uap->addr, sizeof r.fpreg);
 		return (error);
 
 	case PT_SETDBREGS:
 		_PHOLD(p);
-		error = proc_write_dbregs(td2, &r.dbreg);
+		error = proc_write_dbregs(td2, addr);
 		_PRELE(p);
 		PROC_UNLOCK(p);
 		return (error);
 
 	case PT_GETDBREGS:
 		_PHOLD(p);
-		error = proc_read_dbregs(td2, &r.dbreg);
+		error = proc_read_dbregs(td2, addr);
 		_PRELE(p);
 		PROC_UNLOCK(p);
-		if (error == 0)
-			error = copyout(&r.dbreg, uap->addr, sizeof r.dbreg);
 		return (error);
 
 	default:
