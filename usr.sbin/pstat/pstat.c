@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)pstat.c	8.16 (Berkeley) 5/9/95";
 #endif
 static const char rcsid[] =
-	"$Id: pstat.c,v 1.39 1999/01/22 10:36:48 dillon Exp $";
+	"$Id: pstat.c,v 1.40 1999/01/22 10:57:22 dillon Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -67,7 +67,6 @@ static const char rcsid[] =
 #include <sys/ioctl_compat.h>	/* XXX NTTYDISC is too well hidden */
 #include <sys/tty.h>
 #include <sys/conf.h>
-#include <sys/rlist.h>
 #include <sys/blist.h>
 
 #include <sys/user.h>
