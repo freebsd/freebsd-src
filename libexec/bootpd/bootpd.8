@@ -1,6 +1,6 @@
 .\" Copyright (c) 1988, 1989, 1991 Carnegie Mellon University
 .\"
-.\"	$Header: /home/ncvs/src/libexec/bootpd/bootpd.8,v 1.4 1996/09/19 08:21:18 phk Exp $
+.\"	$Header: /home/ncvs/src/libexec/bootpd/bootpd.8,v 1.5 1996/11/12 13:32:49 phk Exp $
 .\"
 .TH BOOTPD 8 "November 06, 1993" "Carnegie Mellon University"
 .SH NAME
@@ -114,7 +114,7 @@ or
 process will wait for a BOOTP packet before exiting.
 If no packets are recieved for
 .I timeout
-seconds, then the program will exit.
+minutes, then the program will exit.
 A timeout value of zero means "run forever".
 In standalone mode, this option is forced to zero.
 .TP
