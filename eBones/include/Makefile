@@ -1,7 +1,7 @@
 #	from: @(#)Makefile	5.1 (Berkeley) 6/25/90
-#	$Id: Makefile,v 1.5 1995/08/25 21:25:09 mark Exp $
+#	$Id: Makefile,v 1.4 1995/09/13 17:23:44 markm Exp $
 
-FILES=	kparse.h krb.h krb_db.h
+FILES=	kparse.h krb.h krb_db.h des.h
 
 # mit-copyright.h kadm_err.h krb_err.h
 

@@ -12,17 +12,7 @@
 #include <stdio.h>
 
 typedef unsigned char des_cblock[8];
-typedef struct des_ks_struct
-	{
-	union	{
-		des_cblock _;
-		/* make sure things are correct size on machines with
-		 * 8 byte longs */
-		unsigned long pad[2];
-		} ks;
-#undef _
-#define _	ks._
-	} des_key_schedule[16];
+typedef struct des_ks_struct { des_cblock _; } des_key_schedule[16];
 
 #define DES_KEY_SZ 	(sizeof(des_cblock))
 #define DES_SCHEDULE_SZ (sizeof(des_key_schedule))
@@ -51,7 +41,9 @@ typedef struct des_ks_struct
 #define quad_cksum des_quad_cksum
 
 /* For compatibility with the MIT lib - eay 20/05/92 */
-typedef des_key_schedule bit_64;
+typedef struct des_ks_struct bit_64;
+#define des_fixup_key_parity des_set_odd_parity
+#define des_check_key_parity check_parity
 
 extern int des_check_key;	/* defaults to false */
 extern int des_rw_mode;		/* defaults to DES_PCBC_MODE */
@@ -71,8 +63,7 @@ extern int des_rw_mode;		/* defaults to DES_PCBC_MODE */
 int des_2ecb_encrypt(des_cblock *input,des_cblock *output,
 	des_key_schedule ks1,des_key_schedule ks2,int enc);
 int des_3ecb_encrypt(des_cblock *input,des_cblock *output,
-	des_key_schedule ks1,des_key_schedule ks2,
-	des_key_schedule ks3, int enc);
+	des_key_schedule ks1,des_key_schedule ks2, int enc);
 unsigned long des_cbc_cksum(des_cblock *input,des_cblock *output,
 	long length,des_key_schedule schedule,des_cblock *ivec);
 int des_cbc_encrypt(des_cblock *input,des_cblock *output,long length,
@@ -137,7 +128,6 @@ int des_cfb64_encrypt(unsigned char *in, unsigned char *out, long length,
 int des_ofb64_encrypt(unsigned char *in, unsigned char *out, long length,
 	des_key_schedule schedule, des_cblock *ivec, int *num);
 void des_cblock_print_file(des_cblock *cb, FILE *fp);
-
 #else
 
 int des_2ecb_encrypt();
