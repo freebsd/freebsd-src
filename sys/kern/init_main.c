@@ -97,7 +97,6 @@ static struct vmspace vmspace0;
 struct	proc *initproc;
 
 int cmask = CMASK;
-extern int fallback_elf_brand;
 
 struct	vnode *rootvp;
 int	boothowto = 0;		/* initialized so that it can be patched */
@@ -583,10 +582,6 @@ start_init(void *dummy)
 
 	if ((var = getenv("init_path")) != NULL) {
 		strlcpy(init_path, var, sizeof(init_path));
-		freeenv(var);
-	}
-	if ((var = getenv("kern.fallback_elf_brand")) != NULL) {
-		fallback_elf_brand = strtol(var, NULL, 0);
 		freeenv(var);
 	}
 	
