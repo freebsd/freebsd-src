@@ -1106,10 +1106,10 @@ sk_jfree(buf, args)
 
 	/* Extract the softc struct pointer. */
 	sc_if = (struct sk_if_softc *)args;
-	SK_IF_LOCK(sc_if);
-
 	if (sc_if == NULL)
 		panic("sk_jfree: didn't get softc pointer!");
+
+	SK_IF_LOCK(sc_if);
 
 	/* calculate the slot this buffer belongs to */
 	i = ((vm_offset_t)buf
