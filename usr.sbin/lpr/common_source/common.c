@@ -108,10 +108,10 @@ getline(cfp)
 int
 getq(pp, namelist)
 	const struct printer *pp;
-	struct queue *(*namelist[]);
+	struct jobqueue *(*namelist[]);
 {
 	register struct dirent *d;
-	register struct queue *q, **queue;
+	register struct jobqueue *q, **queue;
 	register int nitems;
 	struct stat stbuf;
 	DIR *dirp;
@@ -129,7 +129,7 @@ getq(pp, namelist)
 	 * and dividing it by a multiple of the minimum size entry. 
 	 */
 	arraysz = (stbuf.st_size / 24);
-	queue = (struct queue **)malloc(arraysz * sizeof(struct queue *));
+	queue = (struct jobqueue **)malloc(arraysz * sizeof(struct jobqueue *));
 	if (queue == NULL)
 		goto errdone;
 
@@ -141,19 +141,19 @@ getq(pp, namelist)
 		if (stat(d->d_name, &stbuf) < 0)
 			continue;	/* Doesn't exist */
 		seteuid(uid);
-		q = (struct queue *)malloc(sizeof(time_t)+strlen(d->d_name)+1);
+		q = (struct jobqueue *)malloc(sizeof(time_t)+strlen(d->d_name)+1);
 		if (q == NULL)
 			goto errdone;
-		q->q_time = stbuf.st_mtime;
-		strcpy(q->q_name, d->d_name);
+		q->job_time = stbuf.st_mtime;
+		strcpy(q->job_cfname, d->d_name);
 		/*
 		 * Check to make sure the array has space left and
 		 * realloc the maximum size.
 		 */
 		if (++nitems > arraysz) {
 			arraysz *= 2;
-			queue = (struct queue **)realloc((char *)queue,
-				arraysz * sizeof(struct queue *));
+			queue = (struct jobqueue **)realloc((char *)queue,
+				arraysz * sizeof(struct jobqueue *));
 			if (queue == NULL)
 				goto errdone;
 		}
@@ -161,7 +161,7 @@ getq(pp, namelist)
 	}
 	closedir(dirp);
 	if (nitems)
-		qsort(queue, nitems, sizeof(struct queue *), compar);
+		qsort(queue, nitems, sizeof(struct jobqueue *), compar);
 	*namelist = queue;
 	return(nitems);
 
@@ -177,13 +177,13 @@ static int
 compar(p1, p2)
 	const void *p1, *p2;
 {
-	const struct queue *qe1, *qe2;
-	qe1 = *(const struct queue **)p1;
-	qe2 = *(const struct queue **)p2;
+	const struct jobqueue *qe1, *qe2;
+	qe1 = *(const struct jobqueue **)p1;
+	qe2 = *(const struct jobqueue **)p2;
 	
-	if (qe1->q_time < qe2->q_time)
+	if (qe1->job_time < qe2->job_time)
 		return (-1);
-	if (qe1->q_time > qe2->q_time)
+	if (qe1->job_time > qe2->job_time)
 		return (1);
 	/*
 	 * At this point, the two files have the same last-modification time.
@@ -192,11 +192,11 @@ compar(p1, p2)
 	 * around when it gets to '999', we also assume that '9xx' jobs are
 	 * older than '0xx' jobs.
 	*/
-	if ((qe1->q_name[3] == '9') && (qe2->q_name[3] == '0'))
+	if ((qe1->job_cfname[3] == '9') && (qe2->job_cfname[3] == '0'))
 		return (-1);
-	if ((qe1->q_name[3] == '0') && (qe2->q_name[3] == '9'))
+	if ((qe1->job_cfname[3] == '0') && (qe2->job_cfname[3] == '9'))
 		return (1);
-	return (strcmp(qe1->q_name,qe2->q_name));
+	return (strcmp(qe1->job_cfname, qe2->job_cfname));
 }
 
 /* sleep n milliseconds */

@@ -148,8 +148,8 @@ printjob(pp)
 	struct printer *pp;
 {
 	struct stat stb;
-	register struct queue *q, **qp;
-	struct queue **queue;
+	register struct jobqueue *q, **qp;
+	struct jobqueue **queue;
 	register int i, nitems;
 	off_t pidoff;
 	int errcnt, count = 0;
@@ -227,20 +227,20 @@ again:
 	 */
 	for (qp = queue; nitems--; free((char *) q)) {
 		q = *qp++;
-		if (stat(q->q_name, &stb) < 0)
+		if (stat(q->job_cfname, &stb) < 0)
 			continue;
 		errcnt = 0;
 	restart:
 		(void) lseek(lfd, pidoff, 0);
-		(void) snprintf(line, sizeof(line), "%s\n", q->q_name);
+		(void) snprintf(line, sizeof(line), "%s\n", q->job_cfname);
 		i = strlen(line);
 		if (write(lfd, line, i) != i)
 			syslog(LOG_ERR, "%s: %s: %m", pp->printer,
 			       pp->lock_file);
 		if (!pp->remote)
-			i = printit(pp, q->q_name);
+			i = printit(pp, q->job_cfname);
 		else
-			i = sendit(pp, q->q_name);
+			i = sendit(pp, q->job_cfname);
 		/*
 		 * Check to see if we are supposed to stop printing or
 		 * if we are to rebuild the queue.
@@ -282,12 +282,12 @@ again:
 			syslog(LOG_WARNING, "%s: job could not be %s (%s)", 
 			       pp->printer,
 			       pp->remote ? "sent to remote host" : "printed",
-			       q->q_name);
+			       q->job_cfname);
 			if (i == REPRINT) {
 				/* ensure we don't attempt this job again */
-				(void) unlink(q->q_name);
-				q->q_name[0] = 'd';
-				(void) unlink(q->q_name);
+				(void) unlink(q->job_cfname);
+				q->job_cfname[0] = 'd';
+				(void) unlink(q->job_cfname);
 				if (logname[0])
 					sendmail(pp, logname, FATALERR);
 			}
