@@ -18,7 +18,7 @@
  *		Columbus, OH  43221
  *		(614)451-1883
  *
- * $Id: chat.c,v 1.21 1997/03/09 20:09:14 ache Exp $
+ * $Id: chat.c,v 1.22 1997/03/13 12:45:28 brian Exp $
  *
  *  TODO:
  *	o Support more UUCP compatible control sequences.
@@ -39,6 +39,7 @@
 #include "timeout.h"
 #include "vars.h"
 #include "sig.h"
+#include "chat.h"
 
 #define	IBSIZE 200
 
@@ -80,9 +81,10 @@ int instring;
 }
 
 int
-MakeArgs(script, pvect)
+MakeArgs(script, pvect, maxargs)
 char *script;
 char **pvect;
+int maxargs;
 {
   int nargs, nb;
   int instring;
@@ -96,9 +98,11 @@ char **pvect;
 	instring = 1;
 	script++;
 	if (*script == '\0')
-	  return(nargs);
+	  break; /* Shouldn't return here. Need to null terminate below */
       } else
 	instring = 0;
+      if (nargs >= maxargs-1)
+	break;
       *pvect++ = script;
       nargs++;
       script = findblank(script, instring);
@@ -398,7 +402,7 @@ char *command, *out;
     cp--;
   }
   snprintf(tmp, sizeof tmp, "%s %s", command, cp);
-  (void) MakeArgs(tmp, &vector);
+  (void) MakeArgs(tmp, vector, VECSIZE(vector));
 
   pipe(fids);
   pid = fork();
@@ -544,7 +548,7 @@ int
 DoChat(script)
 char *script;
 {
-  char *vector[20];
+  char *vector[40];
   char **argv;
   int argc, n, state;
 #ifdef DEBUG
@@ -559,7 +563,7 @@ char *script;
   numaborts = 0;
 
   bzero(vector, sizeof(vector));
-  n = MakeArgs(script, &vector);
+  n = MakeArgs(script, vector, VECSIZE(vector));
 #ifdef DEBUG
   logprintf("n = %d\n", n);
   for (i = 0; i < n; i++)
