@@ -2219,6 +2219,11 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:42.resolv.asc">FreeBSD-SA-02:42</ulink>.
       &merged;</para>
 
+    <para>Multiple vulnerabilities in <application>BIND</application>
+      have been fixed, as described in <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:43.bind.asc">FreeBSD-SA-02:43</ulink>.
+      &merged;</para>
+
   </sect2>
 
   <sect2 id="userland">
