@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.67 1996/09/03 15:14:34 bde Exp $
+#	$Id: BSD.usr.dist,v 1.68 1996/09/05 20:01:09 jfieber Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755
@@ -430,6 +430,8 @@
                 ..
             ..
             ISO
+            ..
+            transpec
             ..
         ..
         skel
