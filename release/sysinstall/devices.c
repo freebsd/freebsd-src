@@ -435,9 +435,13 @@ skipif:
 	    Chunk *c1;
 	    Disk *d;
 
+	    if (names[i][0] == 'm' && names[i][1] == 'd')
+		continue;
 	    d = Open_Disk(names[i]);
-	    if (!d)
-		msgFatal("Unable to open disk %s", names[i]);
+	    if (!d) {
+		msgDebug("Unable to open disk %s", names[i]);
+		continue;
+	    }
 
 	    deviceRegister(names[i], names[i], d->name, DEVICE_TYPE_DISK, FALSE,
 			   dummyInit, dummyGet, dummyShutdown, d);
