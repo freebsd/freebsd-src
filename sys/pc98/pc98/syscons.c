@@ -869,7 +869,7 @@ scioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 	    hstp = scp->history->vtb_buffer + sc_vtb_tail(scp->history) *
 		sizeof(u_int16_t) + ptr->x * sizeof(u_int16_t);
 	else
-	    hstp = NULL;
+	    hstp = 0;
 
 	retval = 0;
 	for (lnum = 0; lnum < (ptr->y + ptr->ysize); lnum++) {
