@@ -880,7 +880,7 @@ thread_single(int mode)
 		 * process.
 		 */
 		p->p_singlethread = NULL;
-		p->p_flag &= ~(P_STOPPED_SINGLE | P_SINGLE_EXIT | P_SINGLE_BOUNDARY);
+		p->p_flag &= ~(P_STOPPED_SINGLE | P_SINGLE_EXIT);
 		thread_unthread(td);
 	}
 	mtx_unlock_spin(&sched_lock);
