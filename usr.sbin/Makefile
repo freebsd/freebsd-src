@@ -215,7 +215,11 @@ _ipsend=	ipsend
 _iptest=	iptest
 .endif
 
-.if !defined(NOLIBC_R) && ${MACHINE_ARCH} != "powerpc"
+.if ${MACHINE_ARCH} == "sparc64" || ${MACHINE_ARCH} == "sparc64"
+.if !defined(NOLIBC_R)
+_pppctl=	pppctl
+.endif
+.elif !defined(NOLIBPTHREAD) && ${MACHINE_ARCH} != "powerpc"
 _pppctl=	pppctl
 .endif
 
