@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_socket.c	8.5 (Berkeley) 3/30/95
- * $Id: nfs_socket.c,v 1.30 1997/10/28 15:59:07 bde Exp $
+ * $Id: nfs_socket.c,v 1.31 1998/03/30 09:54:04 phk Exp $
  */
 
 /*
@@ -136,7 +136,7 @@ struct nfsrtt nfsrtt;
 
 static int	nfs_msg __P((struct proc *,char *,char *));
 static int	nfs_rcvlock __P((struct nfsreq *));
-static void	nfs_rcvunlock __P((int *flagp));
+static void	nfs_rcvunlock __P((int *flagp, int *statep));
 static void	nfs_realign __P((struct mbuf *m, int hsiz));
 static int	nfs_receive __P((struct nfsreq *rep, struct sockaddr **aname,
 				 struct mbuf **mp));
@@ -483,7 +483,8 @@ nfs_receive(rep, aname, mp)
 	 * until we have an entire rpc request/reply.
 	 */
 	if (sotype != SOCK_DGRAM) {
-		error = nfs_sndlock(&rep->r_nmp->nm_flag, rep);
+		error = nfs_sndlock(&rep->r_nmp->nm_flag, &rep->r_nmp->nm_state,
+				    rep);
 		if (error)
 			return (error);
 tryagain:
@@ -497,14 +498,16 @@ tryagain:
 		 * mount point.
 		 */
 		if (rep->r_mrep || (rep->r_flags & R_SOFTTERM)) {
-			nfs_sndunlock(&rep->r_nmp->nm_flag);
+			nfs_sndunlock(&rep->r_nmp->nm_flag,
+				      &rep->r_nmp->nm_state);
 			return (EINTR);
 		}
 		so = rep->r_nmp->nm_so;
 		if (!so) {
 			error = nfs_reconnect(rep);
 			if (error) {
-				nfs_sndunlock(&rep->r_nmp->nm_flag);
+				nfs_sndunlock(&rep->r_nmp->nm_flag,
+					      &rep->r_nmp->nm_state);
 				return (error);
 			}
 			goto tryagain;
@@ -516,13 +519,14 @@ tryagain:
 			if (error) {
 				if (error == EINTR || error == ERESTART ||
 				    (error = nfs_reconnect(rep))) {
-					nfs_sndunlock(&rep->r_nmp->nm_flag);
+					nfs_sndunlock(&rep->r_nmp->nm_flag,
+						      &rep->r_nmp->nm_state);
 					return (error);
 				}
 				goto tryagain;
 			}
 		}
-		nfs_sndunlock(&rep->r_nmp->nm_flag);
+		nfs_sndunlock(&rep->r_nmp->nm_flag, &rep->r_nmp->nm_state);
 		if (sotype == SOCK_STREAM) {
 			aio.iov_base = (caddr_t) &len;
 			aio.iov_len = sizeof(u_long);
@@ -621,7 +625,8 @@ errout:
 				    "receive error %d from nfs server %s\n",
 				    error,
 				 rep->r_nmp->nm_mountp->mnt_stat.f_mntfromname);
-			error = nfs_sndlock(&rep->r_nmp->nm_flag, rep);
+			error = nfs_sndlock(&rep->r_nmp->nm_flag,
+					    &rep->r_nmp->nm_state, rep);
 			if (!error)
 				error = nfs_reconnect(rep);
 			if (!error)
@@ -704,7 +709,7 @@ nfs_reply(myrep)
 		 * Get the next Rpc reply off the socket
 		 */
 		error = nfs_receive(myrep, &nam, &mrep);
-		nfs_rcvunlock(&nmp->nm_flag);
+		nfs_rcvunlock(&nmp->nm_flag, &nmp->nm_state);
 		if (error) {
 
 			/*
@@ -964,12 +969,12 @@ tryagain:
 		nmp->nm_sent < nmp->nm_cwnd)) {
 		splx(s);
 		if (nmp->nm_soflags & PR_CONNREQUIRED)
-			error = nfs_sndlock(&nmp->nm_flag, rep);
+			error = nfs_sndlock(&nmp->nm_flag, &nmp->nm_state, rep);
 		if (!error) {
 			m = m_copym(m, 0, M_COPYALL, M_WAIT);
 			error = nfs_send(nmp->nm_so, nmp->nm_nam, m, rep);
 			if (nmp->nm_soflags & PR_CONNREQUIRED)
-				nfs_sndunlock(&nmp->nm_flag);
+				nfs_sndunlock(&nmp->nm_flag, &nmp->nm_state);
 		}
 		if (!error && (rep->r_flags & R_MUSTRESEND) == 0) {
 			nmp->nm_sent += NFS_CWNDSCALE;
@@ -1445,8 +1450,9 @@ nfs_sigintr(nmp, rep, p)
  * in progress when a reconnect is necessary.
  */
 int
-nfs_sndlock(flagp, rep)
+nfs_sndlock(flagp, statep, rep)
 	register int *flagp;
+	register int *statep;
 	struct nfsreq *rep;
 {
 	struct proc *p;
@@ -1458,18 +1464,18 @@ nfs_sndlock(flagp, rep)
 			slpflag = PCATCH;
 	} else
 		p = (struct proc *)0;
-	while (*flagp & NFSMNT_SNDLOCK) {
+	while (*statep & NFSSTA_SNDLOCK) {
 		if (nfs_sigintr(rep->r_nmp, rep, p))
 			return (EINTR);
-		*flagp |= NFSMNT_WANTSND;
-		(void) tsleep((caddr_t)flagp, slpflag | (PZERO - 1), "nfsndlck",
-			slptimeo);
+		*statep |= NFSSTA_WANTSND;
+		(void) tsleep((caddr_t)flagp, slpflag | (PZERO - 1),
+			"nfsndlck", slptimeo);
 		if (slpflag == PCATCH) {
 			slpflag = 0;
 			slptimeo = 2 * hz;
 		}
 	}
-	*flagp |= NFSMNT_SNDLOCK;
+	*statep |= NFSSTA_SNDLOCK;
 	return (0);
 }
 
@@ -1477,15 +1483,16 @@ nfs_sndlock(flagp, rep)
  * Unlock the stream socket for others.
  */
 void
-nfs_sndunlock(flagp)
+nfs_sndunlock(flagp, statep)
 	register int *flagp;
+	register int *statep;
 {
 
-	if ((*flagp & NFSMNT_SNDLOCK) == 0)
+	if ((*statep & NFSSTA_SNDLOCK) == 0)
 		panic("nfs sndunlock");
-	*flagp &= ~NFSMNT_SNDLOCK;
-	if (*flagp & NFSMNT_WANTSND) {
-		*flagp &= ~NFSMNT_WANTSND;
+	*statep &= ~NFSSTA_SNDLOCK;
+	if (*statep & NFSSTA_WANTSND) {
+		*statep &= ~NFSSTA_WANTSND;
 		wakeup((caddr_t)flagp);
 	}
 }
@@ -1495,16 +1502,17 @@ nfs_rcvlock(rep)
 	register struct nfsreq *rep;
 {
 	register int *flagp = &rep->r_nmp->nm_flag;
+	register int *statep = &rep->r_nmp->nm_state;
 	int slpflag, slptimeo = 0;
 
 	if (*flagp & NFSMNT_INT)
 		slpflag = PCATCH;
 	else
 		slpflag = 0;
-	while (*flagp & NFSMNT_RCVLOCK) {
+	while (*statep & NFSSTA_RCVLOCK) {
 		if (nfs_sigintr(rep->r_nmp, rep, rep->r_procp))
 			return (EINTR);
-		*flagp |= NFSMNT_WANTRCV;
+		*statep |= NFSSTA_WANTRCV;
 		(void) tsleep((caddr_t)flagp, slpflag | (PZERO - 1), "nfsrcvlk",
 			slptimeo);
 		/*
@@ -1520,7 +1528,7 @@ nfs_rcvlock(rep)
 			slptimeo = 2 * hz;
 		}
 	}
-	*flagp |= NFSMNT_RCVLOCK;
+	*statep |= NFSSTA_RCVLOCK;
 	return (0);
 }
 
@@ -1528,15 +1536,16 @@ nfs_rcvlock(rep)
  * Unlock the stream socket for others.
  */
 static void
-nfs_rcvunlock(flagp)
+nfs_rcvunlock(flagp, statep)
 	register int *flagp;
+	register int *statep;
 {
 
-	if ((*flagp & NFSMNT_RCVLOCK) == 0)
+	if ((*statep & NFSSTA_RCVLOCK) == 0)
 		panic("nfs rcvunlock");
-	*flagp &= ~NFSMNT_RCVLOCK;
-	if (*flagp & NFSMNT_WANTRCV) {
-		*flagp &= ~NFSMNT_WANTRCV;
+	*statep &= ~NFSSTA_RCVLOCK;
+	if (*statep & NFSSTA_WANTRCV) {
+		*statep &= ~NFSSTA_WANTRCV;
 		wakeup((caddr_t)flagp);
 	}
 }

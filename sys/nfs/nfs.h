@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs.h	8.4 (Berkeley) 5/1/95
- * $Id: nfs.h,v 1.33 1998/02/01 21:23:29 bde Exp $
+ * $Id: nfs.h,v 1.34 1998/03/30 09:53:43 phk Exp $
  */
 
 #ifndef _NFS_NFS_H_
@@ -56,10 +56,16 @@
 #define	NFS_RETRANS	10		/* Num of retrans for soft mounts */
 #define	NFS_MAXGRPS	16		/* Max. size of groups list */
 #ifndef NFS_MINATTRTIMO
-#define	NFS_MINATTRTIMO 5		/* Attribute cache timeout in sec */
+#define	NFS_MINATTRTIMO 3		/* VREG attrib cache timeout in sec */
 #endif
 #ifndef NFS_MAXATTRTIMO
 #define	NFS_MAXATTRTIMO 60
+#endif
+#ifndef NFS_MINDIRATTRTIMO
+#define	NFS_MINDIRATTRTIMO 30		/* VDIR attrib cache timeout in sec */
+#endif
+#ifndef NFS_MAXDIRATTRTIMO
+#define	NFS_MAXDIRATTRTIMO 60
 #endif
 #define	NFS_WSIZE	8192		/* Def. write data size <= 8192 */
 #define	NFS_RSIZE	8192		/* Def. read data size <= 8192 */
@@ -104,15 +110,6 @@
 #endif
 
 /*
- * Set the attribute timeout based on how recently the file has been modified.
- */
-#define	NFS_ATTRTIMEO(np) \
-	((((np)->n_flag & NMODIFIED) || \
-	 (time_second - (np)->n_mtime) / 10 < NFS_MINATTRTIMO) ? NFS_MINATTRTIMO : \
-	 ((time_second - (np)->n_mtime) / 10 > NFS_MAXATTRTIMO ? NFS_MAXATTRTIMO : \
-	  (time_second - (np)->n_mtime) / 10))
-
-/*
  * Expected allocation sizes for major data structures. If the actual size
  * of the structure exceeds these sizes, then malloc() will be allocating
  * almost twice the memory required. This is used in nfs_init() to warn
@@ -149,6 +146,10 @@ struct nfs_args {
 	int		leaseterm;	/* Term (sec) of lease */
 	int		deadthresh;	/* Retrans threshold */
 	char		*hostname;	/* server's name */
+	int		acregmin;	/* cache attrs for reg files min time */
+	int		acregmax;	/* cache attrs for reg files max time */
+	int		acdirmin;	/* cache attrs for dirs min time */
+	int		acdirmax;	/* cache attrs for dirs max time */
 };
 
 /*
@@ -172,21 +173,25 @@ struct nfs_args {
 #define	NFSMNT_RESVPORT		0x00008000  /* Allocate a reserved port */
 #define	NFSMNT_RDIRPLUS		0x00010000  /* Use Readdirplus for V3 */
 #define	NFSMNT_READDIRSIZE	0x00020000  /* Set readdir size */
-#define	NFSMNT_INTERNAL		0xfffc0000  /* Bits set internally */
-#define NFSMNT_HASWRITEVERF	0x00040000  /* Has write verifier for V3 */
-#define NFSMNT_GOTPATHCONF	0x00080000  /* Got the V3 pathconf info */
-#define NFSMNT_GOTFSINFO	0x00100000  /* Got the V3 fsinfo */
-#define	NFSMNT_MNTD		0x00200000  /* Mnt server for mnt point */
-#define	NFSMNT_DISMINPROG	0x00400000  /* Dismount in progress */
-#define	NFSMNT_DISMNT		0x00800000  /* Dismounted */
-#define	NFSMNT_SNDLOCK		0x01000000  /* Send socket lock */
-#define	NFSMNT_WANTSND		0x02000000  /* Want above */
-#define	NFSMNT_RCVLOCK		0x04000000  /* Rcv socket lock */
-#define	NFSMNT_WANTRCV		0x08000000  /* Want above */
-#define	NFSMNT_WAITAUTH		0x10000000  /* Wait for authentication */
-#define	NFSMNT_HASAUTH		0x20000000  /* Has authenticator */
-#define	NFSMNT_WANTAUTH		0x40000000  /* Wants an authenticator */
-#define	NFSMNT_AUTHERR		0x80000000  /* Authentication error */
+#define	NFSMNT_ACREGMIN		0x00040000
+#define	NFSMNT_ACREGMAX		0x00080000
+#define	NFSMNT_ACDIRMIN		0x00100000
+#define	NFSMNT_ACDIRMAX		0x00200000
+
+#define NFSSTA_HASWRITEVERF	0x00040000  /* Has write verifier for V3 */
+#define NFSSTA_GOTPATHCONF	0x00080000  /* Got the V3 pathconf info */
+#define NFSSTA_GOTFSINFO	0x00100000  /* Got the V3 fsinfo */
+#define	NFSSTA_MNTD		0x00200000  /* Mnt server for mnt point */
+#define	NFSSTA_DISMINPROG	0x00400000  /* Dismount in progress */
+#define	NFSSTA_DISMNT		0x00800000  /* Dismounted */
+#define	NFSSTA_SNDLOCK		0x01000000  /* Send socket lock */
+#define	NFSSTA_WANTSND		0x02000000  /* Want above */
+#define	NFSSTA_RCVLOCK		0x04000000  /* Rcv socket lock */
+#define	NFSSTA_WANTRCV		0x08000000  /* Want above */
+#define	NFSSTA_WAITAUTH		0x10000000  /* Wait for authentication */
+#define	NFSSTA_HASAUTH		0x20000000  /* Has authenticator */
+#define	NFSSTA_WANTAUTH		0x40000000  /* Wants an authenticator */
+#define	NFSSTA_AUTHERR		0x80000000  /* Authentication error */
 
 /*
  * Structures for the nfssvc(2) syscall. Not that anyone but nfsd and mount_nfs
@@ -580,8 +585,8 @@ int	nfs_send __P((struct socket *, struct sockaddr *, struct mbuf *,
 int	nfs_rephead __P((int, struct nfsrv_descript *, struct nfssvc_sock *,
 			 int, int, u_quad_t *, struct mbuf **, struct mbuf **,
 			 caddr_t *));
-int	nfs_sndlock __P((int *, struct nfsreq *));
-void	nfs_sndunlock __P((int *flagp));
+int	nfs_sndlock __P((int *, int *, struct nfsreq *));
+void	nfs_sndunlock __P((int *, int *));
 int	nfs_disct __P((struct mbuf **, caddr_t *, int, int, caddr_t *));
 int	nfs_vinvalbuf __P((struct vnode *, int, struct ucred *, struct proc *,
 			   int));
