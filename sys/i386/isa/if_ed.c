@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ed.c,v 1.140 1998/04/17 22:36:34 des Exp $
+ *	$Id: if_ed.c,v 1.141 1998/06/07 17:10:26 dfr Exp $
  */
 
 /*
@@ -70,16 +70,16 @@
 #include <net/bpf.h>
 #endif
 
-#if NPNP > 0
-#include <i386/isa/pnp.h>
-#endif
-
 #include <machine/clock.h>
 #include <machine/md_var.h>
 
 #include <i386/isa/isa_device.h>
 #include <i386/isa/icu.h>
 #include <i386/isa/if_edreg.h>
+
+#if NPNP > 0
+#include <i386/isa/pnp.h>
+#endif
 
 /*
  * ed_softc: per line info and status
