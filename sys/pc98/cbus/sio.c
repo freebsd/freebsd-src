@@ -155,6 +155,7 @@
 #include <sys/bus.h>
 #include <machine/bus.h>
 #include <sys/rman.h>
+#include <sys/timetc.h>
 #include <sys/timepps.h>
 
 #ifdef PC98
