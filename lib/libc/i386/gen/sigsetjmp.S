@@ -59,7 +59,9 @@
  *	use sigreturn() if sigreturn() works.
  */
 
-ENTRY(sigsetjmp)
+ENTRY(__sigsetjmp)
+.weak sigsetjmp;
+.set sigsetjmp, __sigsetjmp;
 	movl	8(%esp),%eax
 	movl	4(%esp),%ecx
 	movl	%eax,44(%ecx)
@@ -89,7 +91,9 @@ ENTRY(sigsetjmp)
 	xorl	%eax,%eax
 	ret
 
-ENTRY(siglongjmp)
+ENTRY(__siglongjmp)
+.weak siglongjmp;
+.set siglongjmp, __siglongjmp;
 	movl	4(%esp),%edx
 	cmpl	$0,44(%edx)
 	jz	2f
