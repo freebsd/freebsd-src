@@ -39,7 +39,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: if_pppvar.h,v 1.9 1997/09/21 22:00:59 gibbs Exp $
+ * $Id: if_pppvar.h,v 1.10 1997/10/17 21:30:30 roberto Exp $
  */
 
 /*
@@ -76,7 +76,7 @@ struct ppp_softc {
 	void	*sc_rc_state;		/* receive decompressor state */
 	time_t	sc_last_sent;		/* time (secs) last NP pkt sent */
 	time_t	sc_last_recv;		/* time (secs) last NP pkt rcvd */
-#ifdef NBPFILTER
+#if NBPFILTER > 0
 	struct	bpf_program sc_pass_filt;   /* filter for packets to pass */
 	struct	bpf_program sc_active_filt; /* filter for "non-idle" packets */
 #endif /* NBPFILTER */
