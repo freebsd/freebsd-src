@@ -1,6 +1,6 @@
-<!-- $Id: hw.sgml,v 1.4 1996/12/28 18:42:52 max Exp $ -->
+<!-- $Id: hw.sgml,v 1.5 1997/01/02 16:42:29 max Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.58 -->
+<!-- Original revision: 1.61 -->
 
 <!--
 <!DOCTYPE chapt PUBLIC "-//FreeBSD//DTD linuxdoc//EN"> -->
@@ -81,9 +81,9 @@ name="FreeBSD POWERED hardwares">
     <htmlurl url="http://asustek.asus.com.tw/FTP/ASUS/Info/Spec/pi-p55tp4xe.txt"
      name="P55TP4XE">
      はミッドレンジからハイエンドの Pentiumサーバやワークステーションシステムに
-     はよい選択のようですが, より新しい Triton-II のボード (以下を参照
-     してください) にほとんど置き換えられました. これらのボードを買うな
-     らば <htmlurl
+     はよい選択のようですが, より新しい 430HX (Triton-II) のボード
+     (以下を参照してください) にほとんど置き換えられました. 
+     これらのボードを買うならば <htmlurl
      url="http://asustek.asus.com.tw/Products/TB/mem-0002.html"
      name="パイプラインバースト キャッシュモジュール">を使うといいでしょ
      う. 486クラスのマザーボードを探しているなら ASUSの <htmlurl
@@ -95,12 +95,13 @@ name="FreeBSD POWERED hardwares">
      訳注: 96年10月現在 上で述べられているボードは日本でも手に入りにくい部類
      になっているようです.
 
-    注: Intel <htmlurl
+   注: Intel <htmlurl
    url="http://asustek.asus.com.tw/Products/TB/trito n-intro.html"
-   name="Triton"> チップセットベースのマザーボードではメモリパリティチェッ
-   ク機能が提供されませんので, メモリエラーが起きても検出が不可能です.
+   name="430FX (Triton)"> チップセットベースのマザーボードでは
+   メモリパリティチェック機能が提供されませんので, 
+   メモリエラーが起きても検出が不可能です.
    フォルトトレラントなシステムを構築したい場合には,
-   より新しい Triton II ベースのマザーボードを買うことをおすすめしま
+   より新しい 430HX (Triton II) ベースのマザーボードを買うことをおすすめしま
    す. こちらはよりよい性能, パリティチェックと ECC機能を提供してくれます. 
    ECCを使うのであれば 82439HX Triton-II チップセットの A2以降のリビジョ
    ンを使ったマザーボードが必要です. 82371SBのリビジョンと混乱しないでくださ
@@ -316,19 +317,19 @@ name="FreeBSD POWERED hardwares">
 		設計のハードウェアで PCIバスアービタを置き換えることに
 		より解決されています. (Intelの Altair boardや他にはい
                 くつかの Intelサーバグループマザーボードに見られます).  そして,
-                もちろん Intelの公式の回答は Triton チップセットへの
+                もちろん Intelの公式の回答は 430FX チップセットへの
                 移行で, 「こちらでは修整した」ということです.
 
-              <tag>Triton <em>(430FX)</em>:</tag> 知られている
+              <tag>430FX <em>(Triton I)</em>:</tag> 知られている
 	        キャッシュコヒーレンシ
                 やバスマスタの問題はありませんがパリティチェック機能が
                 ありません.  パリティを使いたいような場合は, 可能であ
-		れば Triton-IIベースのマザーボードを選びましょう.
+		れば 430HX (Triton-II) ベースのマザーボードを選びましょう.
 
-              <tag>Triton-II <em>(430HX)</em>:</tag> このチップセット
+              <tag>430HX <em>(Triton-II)</em>:</tag> このチップセット
 	      を使っているマザーボードに関するすべての報告によれば今の
 	      ところ好評です. しかし ECCメモリを利用するのであれば 
-	      82439HX Triton-II チップセットの A2以降のリビジョンを手
+	      82439HX チップの A2以降のリビジョンを手
 	      にいれるように注意して下さい. 82371SBのリビジョンと混乱
 	      しないでください - リビジョンがA2であれば 82439HXチップ
 	      に "SU102"とマークされています. リビジョンがA1であれば S
@@ -343,16 +344,17 @@ name="FreeBSD POWERED hardwares">
 	       に制限されますが SDRAMのサポートが加えられています.
 	       しかし, 64MB以上のメモリについてはキャッシュされません.
 
-             <tag>Orion <em>(450KX)</em>:</tag> このチップセットの初期
+             <tag>450KX <em>(Orion)</em>:</tag> このチップセットの初期
 	       のバージョンでは
 	       PCI write-posting にバグがあり, 大量の PCIバストラフィッ
 	       クのあるアプリケーションでは性能の著しい低下があるとい
 	       う障害がありました. B0以降のリビジョンのチップセットで
-	       はこの問題は解決されています.
+	       は問題はいくらか解決され, C0以降では完全に解決されて
+	       います.
 
              <tag><htmlurl
 	     url="http://www.intel.com/design/motherbd/vs/index.htm"
-	     name="VS440FX"><em> (Natoma)</em>:</tag>これは<htmlurl
+	     name="440FX"><em> (Natoma)</em>:</tag>これは<htmlurl
              url="http://www.intel.com/procs/ppro/intro/index.htm"
              name="Pentium Pro"> に対応したチップセットで, 初期の 
 	     Orionチップセットにあったような問題は見られず, 問題なく動
@@ -397,13 +399,21 @@ name="FreeBSD POWERED hardwares">
 	 しかし, そうだと決めつけてはいけません.
        </verb></tscreen>
        <p>3倍クロックの CPUではメモリアクセス速度が不足気味であるとい
-         う点を考えなければ 100, 133, 166, 200 MHzを使うのが最良でしょう.
+         う点を考えなければ 100, 133, 166, 200 MHzを使うのが最良でしょ
+	 う.
+       <p>AMD K5 CPU は内部クロックではなく AMDが "PR" -- Pentium 
+  Rating とよんでいる評価値で表されます. したがって AMD PR133 のチップ
+  は Intel Pentium 133 と同等です. 実際にはこの CPUは内部 100MHz, バス 
+  66 MHz, クロック倍率 1.5 倍で動いています.
   <sect2><heading>* 486 クラス</heading>
   <sect2><heading>* 386 クラス</heading>
   <sect2><heading>286 クラス</heading>
     <p>残念ながら, FreeBSDは 80286マシンでは動きません. 現在の巨大なフ
        ルスペックの UNIXをこのようなハードウェアで動かすことはほとんど
        不可能でしょう.
+  上記の内容に加え, <htmlurl url="http://sysdoc.pair.com/cpu.html"
+    name="Tom's hardware guide"> には FreeBSDをいろいろな CPUで動かし
+  た場合の詳細な記述があります.
 
 <sect1><heading>メモリ</heading>
   <p>FreeBSDをインストールするのに最低限必要なメモリ量は 8 MBです.
@@ -412,6 +422,9 @@ name="FreeBSD POWERED hardwares">
     で動かすこともできます. FreeBSD 2.1, 2.1.5, 2.1.6 では必要なメモリ
     の最小値は 5MBです.
     boot4.flp を使えば 4 MB しかメモリがなくてもインストールできます.
+   <p>いろいろなタイプのメモリについての詳細な記述が <htmlurl
+   url="http://sysdoc.pair.com/ram.html" name="Tom's hardware guide">.
+   にあります.
 
 <sect1><heading>* BIOS</heading>
 
