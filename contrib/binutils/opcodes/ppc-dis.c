@@ -33,7 +33,8 @@ static int print_insn_powerpc PARAMS ((bfd_vma, struct disassemble_info *,
 				       int bigendian, int dialect));
 
 /* Print a big endian PowerPC instruction.  For convenience, also
-   disassemble instructions supported by the Motorola PowerPC 601.  */
+   disassemble instructions supported by the Motorola PowerPC 601
+   and the Altivec vector unit.  */
 
 int
 print_insn_big_powerpc (memaddr, info)
@@ -41,11 +42,13 @@ print_insn_big_powerpc (memaddr, info)
      struct disassemble_info *info;
 {
   return print_insn_powerpc (memaddr, info, 1,
-			     PPC_OPCODE_PPC | PPC_OPCODE_601);
+			     PPC_OPCODE_PPC | PPC_OPCODE_601 |
+			     PPC_OPCODE_ALTIVEC);
 }
 
 /* Print a little endian PowerPC instruction.  For convenience, also
-   disassemble instructions supported by the Motorola PowerPC 601.  */
+   disassemble instructions supported by the Motorola PowerPC 601
+   and the Altivec vector unit.  */
 
 int
 print_insn_little_powerpc (memaddr, info)
@@ -53,7 +56,8 @@ print_insn_little_powerpc (memaddr, info)
      struct disassemble_info *info;
 {
   return print_insn_powerpc (memaddr, info, 0,
-			     PPC_OPCODE_PPC | PPC_OPCODE_601);
+			     PPC_OPCODE_PPC | PPC_OPCODE_601 |
+			     PPC_OPCODE_ALTIVEC);
 }
 
 /* Print a POWER (RS/6000) instruction.  */
@@ -181,6 +185,8 @@ print_insn_powerpc (memaddr, info, bigendian, dialect)
 	    (*info->fprintf_func) (info->stream, "r%ld", value);
 	  else if ((operand->flags & PPC_OPERAND_FPR) != 0)
 	    (*info->fprintf_func) (info->stream, "f%ld", value);
+	  else if ((operand->flags & PPC_OPERAND_VR) != 0)
+	    (*info->fprintf_func) (info->stream, "v%ld", value);
 	  else if ((operand->flags & PPC_OPERAND_RELATIVE) != 0)
 	    (*info->print_address_func) (memaddr + value, info);
 	  else if ((operand->flags & PPC_OPERAND_ABSOLUTE) != 0)

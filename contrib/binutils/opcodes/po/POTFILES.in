@@ -2,6 +2,7 @@ a29k-dis.c
 alpha-dis.c
 alpha-opc.c
 arc-dis.c
+arc-ext.c
 arc-opc.c
 arm-dis.c
 arm-opc.h
@@ -9,6 +10,8 @@ avr-dis.c
 cgen-asm.c
 cgen-dis.c
 cgen-opc.c
+cris-dis.c
+cris-opc.c
 d10v-dis.c
 d10v-opc.c
 d30v-dis.c
@@ -29,7 +32,20 @@ hppa-dis.c
 i370-dis.c
 i370-opc.c
 i386-dis.c
+i860-dis.c
 i960-dis.c
+ia64-asmtab.c
+ia64-asmtab.h
+ia64-dis.c
+ia64-gen.c
+ia64-opc-a.c
+ia64-opc-b.c
+ia64-opc.c
+ia64-opc-d.c
+ia64-opc-f.c
+ia64-opc.h
+ia64-opc-i.c
+ia64-opc-m.c
 m10200-dis.c
 m10200-opc.c
 m10300-dis.c
@@ -42,6 +58,8 @@ m32r-ibld.c
 m32r-opc.c
 m32r-opc.h
 m32r-opinst.c
+m68hc11-dis.c
+m68hc11-opc.c
 m68k-dis.c
 m68k-opc.c
 m88k-dis.c
@@ -61,6 +79,8 @@ sparc-dis.c
 sparc-opc.c
 sysdep.h
 tic30-dis.c
+tic54x-dis.c
+tic54x-opc.c
 tic80-dis.c
 tic80-opc.c
 v850-dis.c

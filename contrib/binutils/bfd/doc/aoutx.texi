@@ -148,7 +148,7 @@ Swap the information in an internal exec header structure
 @example
 const bfd_target *aout_@var{size}_some_aout_object_p
    (bfd *abfd,
-    const bfd_target *(*callback_to_real_object_p)());
+    const bfd_target *(*callback_to_real_object_p) ());
 @end example
 @strong{Description}@*
 Some a.out variant thinks that the file open in @var{abfd}

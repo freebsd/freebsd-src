@@ -1,7 +1,7 @@
 /* Copyright (C) 1991, 1992, 1993 Free Software Foundation, Inc.
 
-NOTE: The canonical source of this file is maintained with the GNU C Library.
-Bugs can be reported to bug-glibc@prep.ai.mit.edu.
+NOTE: This source is derived from an old version taken from the GNU C
+Library (glibc).
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -45,8 +45,7 @@ Boston, MA 02111-1307, USA.  */
 
 #include <errno.h>
 #include <fnmatch.h>
-#include <ctype.h>
-
+#include <safe-ctype.h>
 
 /* Comment out all this code if we are using the GNU C Library, and are not
    actually compiling the library itself.  This code is part of the GNU C
@@ -74,8 +73,7 @@ fnmatch (pattern, string, flags)
   register const char *p = pattern, *n = string;
   register unsigned char c;
 
-/* Note that this evalutes C many times.  */
-#define FOLD(c)	((flags & FNM_CASEFOLD) && isupper (c) ? tolower (c) : (c))
+#define FOLD(c)	((flags & FNM_CASEFOLD) ? TOLOWER (c) : (c))
 
   while ((c = *p++) != '\0')
     {

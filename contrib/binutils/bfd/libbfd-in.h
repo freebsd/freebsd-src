@@ -59,9 +59,9 @@ struct artdata {
   file_ptr first_file_filepos;
   /* Speed up searching the armap */
   struct ar_cache *cache;
-  bfd *archive_head;            /* Only interesting in output routines */
+  bfd *archive_head;		/* Only interesting in output routines */
   carsym *symdefs;		/* the symdef entries */
-  symindex symdef_count;             /* how many there are */
+  symindex symdef_count;	/* how many there are */
   char *extended_names;		/* clever intel extension */
   /* when more compilers are standard C, this can be a time_t */
   long  armap_timestamp;	/* Timestamp value written into armap.
@@ -79,9 +79,9 @@ struct artdata {
 
 /* Goes in bfd's arelt_data slot */
 struct areltdata {
-  char * arch_header;			     /* it's actually a string */
-  unsigned int parsed_size;     /* octets of filesize not including ar_hdr */
-  char *filename;			     /* null-terminated */
+  char * arch_header;		/* it's actually a string */
+  unsigned int parsed_size;	/* octets of filesize not including ar_hdr */
+  char *filename;		/* null-terminated */
 };
 
 #define arelt_size(bfd) (((struct areltdata *)((bfd)->arelt_data))->parsed_size)
@@ -128,11 +128,11 @@ void	bfd_void PARAMS ((bfd *ignore));
 bfd *_bfd_new_bfd_contained_in PARAMS ((bfd *));
 const bfd_target *_bfd_dummy_target PARAMS ((bfd *abfd));
 
-void	bfd_dont_truncate_arname PARAMS ((bfd *abfd, CONST char *filename,
+void	bfd_dont_truncate_arname PARAMS ((bfd *abfd, const char *filename,
 					char *hdr));
-void	bfd_bsd_truncate_arname PARAMS ((bfd *abfd, CONST char *filename,
+void	bfd_bsd_truncate_arname PARAMS ((bfd *abfd, const char *filename,
 					char *hdr));
-void	bfd_gnu_truncate_arname PARAMS ((bfd *abfd, CONST char *filename,
+void	bfd_gnu_truncate_arname PARAMS ((bfd *abfd, const char *filename,
 					char *hdr));
 
 boolean	bsd_write_armap PARAMS ((bfd *arch, unsigned int elength,
@@ -365,7 +365,8 @@ extern boolean _bfd_dwarf1_find_nearest_line
 /* Find the nearest line using DWARF 2 debugging information.  */
 extern boolean _bfd_dwarf2_find_nearest_line
   PARAMS ((bfd *, asection *, asymbol **, bfd_vma, const char **,
-	   const char **, unsigned int *, unsigned int));
+	   const char **, unsigned int *, unsigned int,
+	   PTR *));
 
 /* A routine to create entries for a bfd_link_hash_table.  */
 extern struct bfd_hash_entry *_bfd_link_hash_newfunc

@@ -28,13 +28,24 @@
  * SUCH DAMAGE.
  */
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+#ifdef HAVE_LIMITS_H
 #include <limits.h>
-#include <ctype.h>
+#endif
+#ifdef HAVE_SYS_PARAM_H
+#include <sys/param.h>
+#endif
 #include <errno.h>
+#ifdef NEED_DECLARATION_ERRNO
+extern int errno;
+#endif
 #if 0
 #include <stdlib.h>
 #endif
 #include "ansidecl.h"
+#include "safe-ctype.h"
 
 #ifndef ULONG_MAX
 #define	ULONG_MAX	((unsigned long)(~0L))		/* 0xFFFFFFFF */
@@ -63,7 +74,7 @@ strtoul(nptr, endptr, base)
 	 */
 	do {
 		c = *s++;
-	} while (isspace(c));
+	} while (ISSPACE(c));
 	if (c == '-') {
 		neg = 1;
 		c = *s++;
@@ -80,10 +91,10 @@ strtoul(nptr, endptr, base)
 	cutoff = (unsigned long)ULONG_MAX / (unsigned long)base;
 	cutlim = (unsigned long)ULONG_MAX % (unsigned long)base;
 	for (acc = 0, any = 0;; c = *s++) {
-		if (isdigit(c))
+		if (ISDIGIT(c))
 			c -= '0';
-		else if (isalpha(c))
-			c -= isupper(c) ? 'A' - 10 : 'a' - 10;
+		else if (ISALPHA(c))
+			c -= ISUPPER(c) ? 'A' - 10 : 'a' - 10;
 		else
 			break;
 		if (c >= base)

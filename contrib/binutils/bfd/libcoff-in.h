@@ -43,6 +43,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #define obj_coff_strings(bfd)	(coff_data (bfd)->strings)
 #define obj_coff_keep_strings(bfd) (coff_data (bfd)->keep_strings)
 #define obj_coff_sym_hashes(bfd) (coff_data (bfd)->sym_hashes)
+#define obj_coff_strings_written(bfd) (coff_data (bfd)->strings_written)
 
 #define obj_coff_local_toc_table(bfd) (coff_data(bfd)->local_toc_sym_map)
 
@@ -83,6 +84,8 @@ typedef struct coff_tdata
   char *strings;
   /* If this is true, the strings may not be freed.  */
   boolean keep_strings;
+  /* If this is true, the strings have been written out already.  */
+  boolean strings_written;
 
   /* is this a PE format coff file */
   int pe;
@@ -96,6 +99,9 @@ typedef struct coff_tdata
 
   /* Used by coff_find_nearest_line.  */
   PTR line_info;
+
+  /* A place to stash dwarf2 info for this bfd. */
+  PTR dwarf2_find_line_info;
 
   /* The timestamp from the COFF file header.  */
   long timestamp;
@@ -125,6 +131,9 @@ struct xcoff_tdata
 {
   /* Basic COFF information.  */
   coff_data_type coff;
+
+  /* True if this is an XCOFF64 file. */
+  boolean xcoff64;
 
   /* True if a large a.out header should be generated.  */
   boolean full_aouthdr;

@@ -36,8 +36,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 /* We keep an instance of this structure for each reference to a
    symbol from a given object.  */
 
-struct cref_ref
-{
+struct cref_ref {
   /* The next reference.  */
   struct cref_ref *next;
   /* The object.  */
@@ -52,8 +51,7 @@ struct cref_ref
 
 /* We keep a hash table of symbols.  Each entry looks like this.  */
 
-struct cref_hash_entry
-{
+struct cref_hash_entry {
   struct bfd_hash_entry root;
   /* The demangled name.  */
   char *demangled;
@@ -63,8 +61,7 @@ struct cref_hash_entry
 
 /* This is what the hash table looks like.  */
 
-struct cref_hash_table
-{
+struct cref_hash_table {
   struct bfd_hash_table root;
 };
 
@@ -145,7 +142,6 @@ cref_hash_newfunc (entry, table, string)
 /* Add a symbol to the cref hash table.  This is called for every
    symbol that is seen during the link.  */
 
-/*ARGSUSED*/
 void
 add_cref (name, abfd, section, value)
      const char *name;
@@ -242,7 +238,7 @@ output_cref (fp)
   len = strlen (msg);
   while (len < FILECOL)
     {
-      putc (' ' , fp);
+      putc (' ', fp);
       ++len;
     }
   fprintf (fp, _("File\n"));
@@ -350,7 +346,6 @@ check_nocrossrefs ()
 
 /* Check one symbol to see if it is a prohibited cross reference.  */
 
-/*ARGSUSED*/
 static boolean
 check_nocrossref (h, ignore)
      struct cref_hash_entry *h;
@@ -391,8 +386,7 @@ check_nocrossref (h, ignore)
 /* The struct is used to pass information from check_refs to
    check_reloc_refs through bfd_map_over_sections.  */
 
-struct check_refs_info
-{
+struct check_refs_info {
   struct cref_hash_entry *h;
   asection *defsec;
   struct lang_nocrossrefs *ncrs;

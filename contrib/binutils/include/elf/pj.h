@@ -1,5 +1,5 @@
 /* picoJava ELF support for BFD.
-   Copyright (C) 1999 Free Software Foundation, Inc.
+   Copyright (C) 1999, 2000 Free Software Foundation, Inc.
 
    This file is part of BFD, the Binary File Descriptor library.
 
@@ -35,8 +35,7 @@ START_RELOC_NUMBERS (elf_pj_reloc_type)
   RELOC_NUMBER (R_PJ_CODE_HI16, 14)
   RELOC_NUMBER (R_PJ_GNU_VTINHERIT, 15)
   RELOC_NUMBER (R_PJ_GNU_VTENTRY, 16)
-  EMPTY_RELOC (R_PJ_max)
-END_RELOC_NUMBERS
+END_RELOC_NUMBERS (R_PJ_max)
 
 #define EF_PICOJAVA_ARCH     0x0000000f
 #define EF_PICOJAVA_NEWCALLS 0x00000010

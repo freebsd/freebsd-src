@@ -245,7 +245,8 @@ enum machine_type {
   M_SPARCLET_5 = 211,	/* 0xd3, reserved */
   M_SPARCLET_6 = 227,	/* 0xe3, reserved */
   /*  M_SPARCLET_7 = 243	/ * 0xf3, reserved */
-  M_SPARCLITE_LE = 243
+  M_SPARCLITE_LE = 243,
+  M_CRIS = 255		/* Axis CRIS binary.  */
 };
 
 #define N_DYNAMIC(exec) ((exec).a_info & 0x80000000)

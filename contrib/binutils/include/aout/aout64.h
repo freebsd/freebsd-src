@@ -388,13 +388,29 @@ struct reloc_ext_external {
   bfd_byte r_addend[BYTES_IN_WORD];	/* datum addend				*/
 };
 
+#ifndef RELOC_EXT_BITS_EXTERN_BIG
 #define	RELOC_EXT_BITS_EXTERN_BIG	((unsigned int) 0x80)
-#define	RELOC_EXT_BITS_EXTERN_LITTLE	((unsigned int) 0x01)
+#endif
 
+#ifndef RELOC_EXT_BITS_EXTERN_LITTLE
+#define	RELOC_EXT_BITS_EXTERN_LITTLE	((unsigned int) 0x01)
+#endif
+
+#ifndef RELOC_EXT_BITS_TYPE_BIG
 #define	RELOC_EXT_BITS_TYPE_BIG		((unsigned int) 0x1F)
+#endif
+
+#ifndef RELOC_EXT_BITS_TYPE_SH_BIG
 #define	RELOC_EXT_BITS_TYPE_SH_BIG	0
+#endif
+
+#ifndef RELOC_EXT_BITS_TYPE_LITTLE
 #define	RELOC_EXT_BITS_TYPE_LITTLE	((unsigned int) 0xF8)
+#endif
+
+#ifndef RELOC_EXT_BITS_TYPE_SH_LITTLE
 #define	RELOC_EXT_BITS_TYPE_SH_LITTLE	3
+#endif
 
 /* Bytes per relocation entry */
 #define	RELOC_EXT_SIZE	(BYTES_IN_WORD + 3 + 1 + BYTES_IN_WORD)

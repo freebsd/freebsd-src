@@ -219,7 +219,7 @@ make_tempname (filename)
   {
     /* We could have foo/bar\\baz, or foo\\bar, or d:bar.  */
     char *bslash = strrchr (filename, '\\');
-    if (bslash > slash)
+    if (slash == NULL || (bslash != NULL && bslash > slash))
       slash = bslash;
     if (slash == NULL && filename[0] != '\0' && filename[1] == ':')
       slash = filename + 1;

@@ -73,8 +73,10 @@ coff_i386_reloc (abfd, reloc_entry, symbol, data, input_section, output_bfd,
 {
   symvalue diff;
 
+#ifndef COFF_WITH_PE
   if (output_bfd == (bfd *) NULL)
     return bfd_reloc_continue;
+#endif
 
   if (bfd_is_com_section (symbol->section))
     {
@@ -102,7 +104,26 @@ coff_i386_reloc (abfd, reloc_entry, symbol, data, input_section, output_bfd,
 	 ignores the addend for a COFF target when producing
 	 relocateable output.  This seems to be always wrong for 386
 	 COFF, so we handle the addend here instead.  */
-      diff = reloc_entry->addend;
+#ifdef COFF_WITH_PE
+      if (output_bfd == (bfd *) NULL)
+	{
+	  reloc_howto_type *howto = reloc_entry->howto;
+
+	  /* Although PC relative relocations are very similar between
+	     PE and non-PE formats, but they are off by 1 << howto->size
+	     bytes. For the external relocation, PE is very different
+	     from others. See md_apply_fix3 () in gas/config/tc-i386.c.
+	     When we link PE and non-PE object files together to
+	     generate a non-PE executable, we have to compensate it
+	     here.  */
+	  if (howto->pc_relative == true && howto->pcrel_offset == true)
+	    diff = -(1 << howto->size);
+	  else
+	    diff = -reloc_entry->addend;
+	}
+      else
+#endif
+	diff = reloc_entry->addend;
     }
 
 #ifdef COFF_WITH_PE
@@ -155,19 +176,17 @@ coff_i386_reloc (abfd, reloc_entry, symbol, data, input_section, output_bfd,
 }
 
 #ifdef COFF_WITH_PE
-
 /* Return true if this relocation should appear in the output .reloc
    section.  */
 
 static boolean in_reloc_p PARAMS ((bfd *, reloc_howto_type *));
 
 static boolean in_reloc_p (abfd, howto)
-     bfd *abfd ATTRIBUTE_UNUSED;
+     bfd * abfd ATTRIBUTE_UNUSED;
      reloc_howto_type *howto;
 {
   return ! howto->pc_relative && howto->type != R_IMAGEBASE;
 }
-
 #endif /* COFF_WITH_PE */
 
 #ifndef PCRELOFFSET
@@ -575,7 +594,7 @@ const bfd_target
      bfd_getl32, bfd_getl_signed_32, bfd_putl32,
      bfd_getl16, bfd_getl_signed_16, bfd_putl16, /* hdrs */
 
-/* Note that we allow an object file to be treated as a core file as well. */
+/* Note that we allow an object file to be treated as a core file as well.  */
     {_bfd_dummy_target, coff_object_p, /* bfd_check_format */
        bfd_generic_archive_p, coff_object_p},
     {bfd_false, coff_mkobject, _bfd_generic_mkarchive, /* bfd_set_format */

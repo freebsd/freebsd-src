@@ -1,5 +1,6 @@
 /* Disassemble z8000 code.
-   Copyright 1992, 1993, 1995, 1998 Free Software Foundation, Inc.
+   Copyright 1992, 1993, 1995, 1998, 2000
+   Free Software Foundation, Inc.
 
 This file is part of GNU Binutils.
 
@@ -22,10 +23,8 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 #define DEFINE_TABLE
 #include "z8k-opc.h"
-
 
 #include <setjmp.h>
-
 
 typedef struct
 {
@@ -67,7 +66,7 @@ fetch_data (info, nibble)
 {
   unsigned char mybuf[20];
   int status;
-  instr_data_s *priv = (instr_data_s *)info->private_data;
+  instr_data_s *priv = (instr_data_s *) info->private_data;
 
   if ((nibble % 4) != 0)
     abort ();
@@ -84,15 +83,15 @@ fetch_data (info, nibble)
 
   {
     int i;
-    unsigned char *p = mybuf ;
-    
+    unsigned char *p = mybuf;
+
     for (i = 0; i < nibble;)
       {
 	priv->words[i] = (p[0] << 8) | p[1];
-	
+
 	priv->bytes[i] = *p;
 	priv->nibbles[i++] = *p >> 4;
-	priv->nibbles[i++] = *p &0xf;
+	priv->nibbles[i++] = *p & 0xf;
 
 	++p;
 	priv->bytes[i] = *p;
@@ -126,7 +125,7 @@ static char *codes[16] =
   "nc/uge"
 };
 
-int z8k_lookup_instr PARAMS ((unsigned char*, disassemble_info *));
+int z8k_lookup_instr PARAMS ((unsigned char *, disassemble_info *));
 static void output_instr
   PARAMS ((instr_data_s *, unsigned long, disassemble_info *));
 static void unpack_instr PARAMS ((instr_data_s *, int, disassemble_info *));
@@ -196,7 +195,9 @@ z8k_lookup_instr (nibbles, info)
   while (!nibl_matched && z8k_table[tabl_index].name)
     {
       nibl_matched = 1;
-      for (nibl_index = 0; nibl_index < z8k_table[tabl_index].length * 2 && nibl_matched; nibl_index++)
+      for (nibl_index = 0;
+	   nibl_index < z8k_table[tabl_index].length * 2 && nibl_matched;
+	   nibl_index++)
 	{
 	  if ((nibl_index % 4) == 0)
 	    /* Fetch one word at a time.  */
@@ -439,7 +440,7 @@ unpack_instr (instr_data, is_segmented, info)
 	  instr_data->interrupts = instr_nibl & 0x3;
 	  break;
 	case CLASS_BIT:
-	  /* do nothing */
+	  /* Do nothing.  */
 	  break;
 	case CLASS_IR:
 	  instr_data->arg_reg[datum_value] = instr_nibl;

@@ -30,7 +30,6 @@ DESCRIPTION
 #include "sysdep.h"
 #include "libbfd.h"
 
-
 /*
 FUNCTION
 	bfd_core_file_failing_command
@@ -77,7 +76,6 @@ bfd_core_file_failing_signal (abfd)
   }
   return BFD_SEND (abfd, _core_file_failing_signal, (abfd));
 }
-
 
 /*
 FUNCTION

@@ -98,7 +98,6 @@ Mon Dec 15 15:20:32 1997  Nick Clifton  <nickc@cygnus.com>
 
 	* doc/c-m32r.texi: New file, documenting m32r specific features.  
 
-
 Mon Dec 15 10:32:28 1997  Jeffrey A Law  (law@cygnus.com)
 
 	* config/tc-mips.c (mips_ip): Correctly insert 'P' operands into

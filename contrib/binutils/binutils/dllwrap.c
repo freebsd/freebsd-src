@@ -857,10 +857,10 @@ main (argc, argv)
   dlltool_cmdline = dyn_string_new (cmdline_len);
   if (verbose)
     {
-      dyn_string_append (dlltool_cmdline, " -v");
+      dyn_string_append_cstr (dlltool_cmdline, " -v");
     }
-  dyn_string_append (dlltool_cmdline, " --dllname ");
-  dyn_string_append (dlltool_cmdline, dll_name);
+  dyn_string_append_cstr (dlltool_cmdline, " --dllname ");
+  dyn_string_append_cstr (dlltool_cmdline, dll_name);
 
   for (i = 1; i < argc; ++i)
     {
@@ -868,10 +868,10 @@ main (argc, argv)
         {
 	  char *arg = saved_argv[i];
           int quote = (strchr (arg, ' ') || strchr (arg, '\t'));
-	  dyn_string_append (dlltool_cmdline, 
+	  dyn_string_append_cstr (dlltool_cmdline, 
 	                     (quote) ? " \"" : " ");
-	  dyn_string_append (dlltool_cmdline, arg);
-	  dyn_string_append (dlltool_cmdline, 
+	  dyn_string_append_cstr (dlltool_cmdline, arg);
+	  dyn_string_append_cstr (dlltool_cmdline, 
 	                     (quote) ? "\"" : "");
 	}
     }
@@ -894,9 +894,9 @@ main (argc, argv)
 	  break;
 	}
     }
-  dyn_string_append (driver_cmdline, driver_flags);
-  dyn_string_append (driver_cmdline, " -o ");
-  dyn_string_append (driver_cmdline, dll_file_name);
+  dyn_string_append_cstr (driver_cmdline, driver_flags);
+  dyn_string_append_cstr (driver_cmdline, " -o ");
+  dyn_string_append_cstr (driver_cmdline, dll_file_name);
 
   if (! entry_point || strlen (entry_point) == 0)
     {
@@ -915,10 +915,10 @@ main (argc, argv)
 	  break;
 	}
     }
-  dyn_string_append (driver_cmdline, " -Wl,-e,");
-  dyn_string_append (driver_cmdline, entry_point);
-  dyn_string_append (dlltool_cmdline, " --exclude-symbol=");
-  dyn_string_append (dlltool_cmdline, 
+  dyn_string_append_cstr (driver_cmdline, " -Wl,-e,");
+  dyn_string_append_cstr (driver_cmdline, entry_point);
+  dyn_string_append_cstr (dlltool_cmdline, " --exclude-symbol=");
+  dyn_string_append_cstr (dlltool_cmdline, 
                      (entry_point[0] == '_') ? entry_point+1 : entry_point);
 
   if (! image_base_str || strlen (image_base_str) == 0)
@@ -929,12 +929,12 @@ main (argc, argv)
       image_base_str = tmpbuf;
     }
 
-  dyn_string_append (driver_cmdline, " -Wl,--image-base,");
-  dyn_string_append (driver_cmdline, image_base_str);
+  dyn_string_append_cstr (driver_cmdline, " -Wl,--image-base,");
+  dyn_string_append_cstr (driver_cmdline, image_base_str);
 
   if (verbose)
     {
-      dyn_string_append (driver_cmdline, " -v");
+      dyn_string_append_cstr (driver_cmdline, " -v");
     }
 
   for (i = 1; i < argc; ++i)
@@ -943,10 +943,10 @@ main (argc, argv)
         {
 	  char *arg = saved_argv[i];
           int quote = (strchr (arg, ' ') || strchr (arg, '\t'));
-	  dyn_string_append (driver_cmdline, 
+	  dyn_string_append_cstr (driver_cmdline, 
 	                     (quote) ? " \"" : " ");
-	  dyn_string_append (driver_cmdline, arg);
-	  dyn_string_append (driver_cmdline, 
+	  dyn_string_append_cstr (driver_cmdline, arg);
+	  dyn_string_append_cstr (driver_cmdline, 
 	                     (quote) ? "\"" : "");
 	}
     }
@@ -963,15 +963,15 @@ main (argc, argv)
 
       step_pre1 = dyn_string_new (1024);
 
-      dyn_string_append (step_pre1, dlltool_cmdline->s);
+      dyn_string_append_cstr (step_pre1, dlltool_cmdline->s);
       if (export_all)
 	{
-          dyn_string_append (step_pre1, " --export-all --exclude-symbol=");
-          dyn_string_append (step_pre1, 
+          dyn_string_append_cstr (step_pre1, " --export-all --exclude-symbol=");
+          dyn_string_append_cstr (step_pre1, 
 	  "_cygwin_dll_entry@12,DllMainCRTStartup@12,DllMain@12,DllEntryPoint@12");
 	}
-      dyn_string_append (step_pre1, " --output-def ");
-      dyn_string_append (step_pre1, def_file_name);
+      dyn_string_append_cstr (step_pre1, " --output-def ");
+      dyn_string_append_cstr (step_pre1, def_file_name);
 
       for (i = 1; i < argc; ++i)
 	{
@@ -983,10 +983,10 @@ main (argc, argv)
 	          && (arg[len-1] == 'o' || arg[len-1] == 'a'))
 		{
 		  int quote = (strchr (arg, ' ') || strchr (arg, '\t'));
-		  dyn_string_append (step_pre1,
+		  dyn_string_append_cstr (step_pre1,
 				     (quote) ? " \"" : " ");
-		  dyn_string_append (step_pre1, arg);
-		  dyn_string_append (step_pre1,
+		  dyn_string_append_cstr (step_pre1, arg);
+		  dyn_string_append_cstr (step_pre1,
 				     (quote) ? "\"" : "");
 		}
 	    }
@@ -998,8 +998,8 @@ main (argc, argv)
       dyn_string_delete (step_pre1);
     }
 
-  dyn_string_append (dlltool_cmdline, " --def ");
-  dyn_string_append (dlltool_cmdline, def_file_name);
+  dyn_string_append_cstr (dlltool_cmdline, " --def ");
+  dyn_string_append_cstr (dlltool_cmdline, def_file_name);
 
   if (verbose)
     {
@@ -1036,18 +1036,18 @@ main (argc, argv)
     dyn_string_t step1 = dyn_string_new (driver_cmdline->length 
                                          + strlen (base_file_name)
 				         + 20);
-    dyn_string_append (step1, "-Wl,--base-file,");
+    dyn_string_append_cstr (step1, "-Wl,--base-file,");
     quote = (strchr (base_file_name, ' ') 
              || strchr (base_file_name, '\t'));
-    dyn_string_append (step1, 
+    dyn_string_append_cstr (step1, 
 	               (quote) ? "\"" : "");
-    dyn_string_append (step1, base_file_name);
-    dyn_string_append (step1, 
+    dyn_string_append_cstr (step1, base_file_name);
+    dyn_string_append_cstr (step1, 
 	               (quote) ? "\"" : "");
     if (driver_cmdline->length)
       {
-        dyn_string_append (step1, " ");
-        dyn_string_append (step1, driver_cmdline->s);
+        dyn_string_append_cstr (step1, " ");
+        dyn_string_append_cstr (step1, driver_cmdline->s);
       }
 
     if (run (driver_name, step1->s))
@@ -1087,28 +1087,28 @@ main (argc, argv)
                                          + strlen (exp_file_name)
 				         + 20);
 
-    dyn_string_append (step2, "--base-file ");
+    dyn_string_append_cstr (step2, "--base-file ");
     quote = (strchr (base_file_name, ' ') 
              || strchr (base_file_name, '\t'));
-    dyn_string_append (step2, 
+    dyn_string_append_cstr (step2, 
 	               (quote) ? "\"" : "");
-    dyn_string_append (step2, base_file_name);
-    dyn_string_append (step2, 
+    dyn_string_append_cstr (step2, base_file_name);
+    dyn_string_append_cstr (step2, 
 	               (quote) ? "\" " : " ");
 
-    dyn_string_append (step2, "--output-exp ");
+    dyn_string_append_cstr (step2, "--output-exp ");
     quote = (strchr (exp_file_name, ' ') 
              || strchr (exp_file_name, '\t'));
-    dyn_string_append (step2, 
+    dyn_string_append_cstr (step2, 
 	               (quote) ? "\"" : "");
-    dyn_string_append (step2, exp_file_name);
-    dyn_string_append (step2, 
+    dyn_string_append_cstr (step2, exp_file_name);
+    dyn_string_append_cstr (step2, 
 	               (quote) ? "\"" : "");
 
     if (dlltool_cmdline->length)
       {
-        dyn_string_append (step2, " ");
-        dyn_string_append (step2, dlltool_cmdline->s);
+        dyn_string_append_cstr (step2, " ");
+        dyn_string_append_cstr (step2, dlltool_cmdline->s);
       }
 
     if (run (dlltool_name, step2->s))
@@ -1131,27 +1131,27 @@ main (argc, argv)
                                          + strlen (exp_file_name)
                                          + strlen (base_file_name)
 				         + 20);
-    dyn_string_append (step3, "-Wl,--base-file,");
+    dyn_string_append_cstr (step3, "-Wl,--base-file,");
     quote = (strchr (base_file_name, ' ') 
              || strchr (base_file_name, '\t'));
-    dyn_string_append (step3, 
+    dyn_string_append_cstr (step3, 
 	               (quote) ? "\"" : "");
-    dyn_string_append (step3, base_file_name);
-    dyn_string_append (step3, 
+    dyn_string_append_cstr (step3, base_file_name);
+    dyn_string_append_cstr (step3, 
 	               (quote) ? "\" " : " ");
 
     quote = (strchr (exp_file_name, ' ') 
              || strchr (exp_file_name, '\t'));
-    dyn_string_append (step3, 
+    dyn_string_append_cstr (step3, 
 	               (quote) ? "\"" : "");
-    dyn_string_append (step3, exp_file_name);
-    dyn_string_append (step3, 
+    dyn_string_append_cstr (step3, exp_file_name);
+    dyn_string_append_cstr (step3, 
 	               (quote) ? "\"" : "");
 
     if (driver_cmdline->length)
       {
-        dyn_string_append (step3, " ");
-        dyn_string_append (step3, driver_cmdline->s);
+        dyn_string_append_cstr (step3, " ");
+        dyn_string_append_cstr (step3, driver_cmdline->s);
       }
 
     if (run (driver_name, step3->s))
@@ -1172,34 +1172,34 @@ main (argc, argv)
                                          + strlen (exp_file_name)
 				         + 20);
 
-    dyn_string_append (step4, "--base-file ");
+    dyn_string_append_cstr (step4, "--base-file ");
     quote = (strchr (base_file_name, ' ') 
              || strchr (base_file_name, '\t'));
-    dyn_string_append (step4, 
+    dyn_string_append_cstr (step4, 
 	               (quote) ? "\"" : "");
-    dyn_string_append (step4, base_file_name);
-    dyn_string_append (step4, 
+    dyn_string_append_cstr (step4, base_file_name);
+    dyn_string_append_cstr (step4, 
 	               (quote) ? "\" " : " ");
 
-    dyn_string_append (step4, "--output-exp ");
+    dyn_string_append_cstr (step4, "--output-exp ");
     quote = (strchr (exp_file_name, ' ') 
              || strchr (exp_file_name, '\t'));
-    dyn_string_append (step4, 
+    dyn_string_append_cstr (step4, 
 	               (quote) ? "\"" : "");
-    dyn_string_append (step4, exp_file_name);
-    dyn_string_append (step4, 
+    dyn_string_append_cstr (step4, exp_file_name);
+    dyn_string_append_cstr (step4, 
 	               (quote) ? "\"" : "");
 
     if (dlltool_cmdline->length)
       {
-        dyn_string_append (step4, " ");
-        dyn_string_append (step4, dlltool_cmdline->s);
+        dyn_string_append_cstr (step4, " ");
+        dyn_string_append_cstr (step4, dlltool_cmdline->s);
       }
 
     if (output_lib_file_name)
       {
-        dyn_string_append (step4, " --output-lib ");
-        dyn_string_append (step4, output_lib_file_name);
+        dyn_string_append_cstr (step4, " --output-lib ");
+        dyn_string_append_cstr (step4, output_lib_file_name);
       }
 
     if (run (dlltool_name, step4->s))
@@ -1225,16 +1225,16 @@ main (argc, argv)
 				         + 20);
     quote = (strchr (exp_file_name, ' ') 
              || strchr (exp_file_name, '\t'));
-    dyn_string_append (step5, 
+    dyn_string_append_cstr (step5, 
 	               (quote) ? "\"" : "");
-    dyn_string_append (step5, exp_file_name);
-    dyn_string_append (step5, 
+    dyn_string_append_cstr (step5, exp_file_name);
+    dyn_string_append_cstr (step5, 
 	               (quote) ? "\"" : "");
 
     if (driver_cmdline->length)
       {
-        dyn_string_append (step5, " ");
-        dyn_string_append (step5, driver_cmdline->s);
+        dyn_string_append_cstr (step5, " ");
+        dyn_string_append_cstr (step5, driver_cmdline->s);
       }
 
     if (run (driver_name, step5->s))
