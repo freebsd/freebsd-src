@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.128 1997/06/04 20:02:57 ache Exp $
+#	$Id: rc,v 1.129 1997/06/18 16:01:18 pst Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -294,7 +294,7 @@ if [ "X${local_startup}" != X"NO" ]; then
 fi
 
 # Do traditional (but rather obsolete) rc.local file if it exists.
-[ -f /etc/rc.local ] && sh /etc/rc.local
+[ -f /etc/rc.local ] && . /etc/rc.local
 
 date
 exit 0
