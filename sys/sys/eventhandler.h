@@ -29,15 +29,9 @@
 #ifndef SYS_EVENTHANDLER_H
 #define SYS_EVENTHANDLER_H
 
-/*
- * XXX - compatability until lockmgr() goes away or all the #includes are
- * updated.
- */
-#include <sys/lockmgr.h>
-
+#include <sys/lock.h>
+#include <sys/sx.h>
 #include <sys/queue.h>
-#include <sys/_lock.h>
-#include <sys/_mutex.h>
 
 struct eventhandler_entry 
 {
@@ -51,12 +45,15 @@ struct eventhandler_list
     char				*el_name;
     int					el_flags;
 #define EHE_INITTED	(1<<0)
-    struct lock				el_lock;
+    struct sx				el_lock;
     TAILQ_ENTRY(eventhandler_list)	el_link;
     TAILQ_HEAD(,eventhandler_entry)	el_entries;
 };
 
 typedef struct eventhandler_entry	*eventhandler_tag;
+
+#define	EHE_LOCK(p)	sx_xlock(&(p)->el_lock)
+#define	EHE_UNLOCK(p)	sx_xunlock(&(p)->el_lock)
 
 /* 
  * Fast handler lists require the eventhandler list be present
@@ -87,7 +84,7 @@ do {										\
     struct eventhandler_entry *_ep, *_en;					\
 										\
     if (_el->el_flags & EHE_INITTED) {						\
-	lockmgr(&_el->el_lock, LK_EXCLUSIVE, NULL, curthread);			\
+	EHE_LOCK(_el);								\
 	_ep = TAILQ_FIRST(&(_el->el_entries));					\
 	while (_ep != NULL) {							\
 	    _en = TAILQ_NEXT(_ep, ee_link);					\
@@ -95,7 +92,7 @@ do {										\
 								 ## args); 	\
 	    _ep = _en;								\
 	}									\
-	lockmgr(&_el->el_lock, LK_RELEASE, NULL, curthread);			\
+	EHE_UNLOCK(_el);							\
     }										\
 } while (0)
 
@@ -127,7 +124,7 @@ do {										\
 										\
     if (((_el = eventhandler_find_list(#name)) != NULL) && 			\
 	(_el->el_flags & EHE_INITTED)) {					\
-	lockmgr(&_el->el_lock, LK_EXCLUSIVE, NULL, curthread);			\
+	EHE_LOCK(_el);								\
 	_ep = TAILQ_FIRST(&(_el->el_entries));					\
 	while (_ep != NULL) {							\
 	    _en = TAILQ_NEXT(_ep, ee_link);					\
@@ -135,7 +132,7 @@ do {										\
 								 ## args); 	\
 	    _ep = _en;								\
 	}									\
-	lockmgr(&_el->el_lock, LK_RELEASE, NULL, curthread);			\
+	EHE_UNLOCK(_el);							\
     }										\
 } while (0)
 
