@@ -47,7 +47,7 @@
 .Fn random void
 .Ft void
 .Fn srandom "unsigned long seed"
-.Ft int
+.Ft void
 .Fn srandomdev void
 .Ft char *
 .Fn initstate "unsigned long seed" "char *state" "long n"
@@ -108,11 +108,6 @@ calling
 with any value, since the succeeding terms in the
 state buffer are no longer derived from the LC algorithm applied to
 a fixed seed.
-If successful
-.Fn srandomdev
-returns 0. It returns -1 on failure, and sets
-.Va errno
-to indicate the error.
 .Pp
 The
 .Fn initstate
