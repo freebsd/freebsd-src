@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: os.c,v 1.31 1997/11/09 06:22:44 brian Exp $
+ * $Id: os.c,v 1.32 1997/11/11 22:58:12 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -248,7 +248,6 @@ OsLinkdown()
     FsmDown(&IpcpFsm);	/* IPCP must come down */
     FsmDown(&CcpFsm);	/* CCP must come down */
 
-    DeleteIfRoutes(0);
     linkup = 0;
     if (SelectSystem(s, LINKDOWNFILE) < 0) {
       if (GetLabel()) {
