@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_time.c	8.1 (Berkeley) 6/10/93
- * $Id: kern_time.c,v 1.55 1998/05/17 11:52:48 phk Exp $
+ * $Id: kern_time.c,v 1.56 1998/05/17 20:08:04 bde Exp $
  */
 
 #include <sys/param.h>
@@ -427,7 +427,7 @@ getitimer(p, uap)
 	s = splclock(); /* XXX still needed ? */
 	if (uap->which == ITIMER_REAL) {
 		/*
-		 * Convert from absoulte to relative time in .it_value
+		 * Convert from absolute to relative time in .it_value
 		 * part of real time timer.  If time for real time timer
 		 * has passed return 0, else return difference between
 		 * current time and time for the timer to go off.
@@ -531,8 +531,8 @@ realitexpire(arg)
 		if (timevalcmp(&p->p_realtimer.it_value, &ctv, >)) {
 			ntv = p->p_realtimer.it_value;
 			timevalsub(&ntv, &ctv);
-			p->p_ithandle =
-			    timeout(realitexpire, (caddr_t)p, tvtohz(&ntv));
+			p->p_ithandle = timeout(realitexpire, (caddr_t)p,
+			    tvtohz(&ntv) - 1);
 			splx(s);
 			return;
 		}
