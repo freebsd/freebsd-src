@@ -403,10 +403,10 @@ buildkernel:
 		    ${MAKE} -f ${KRNLSRCDIR}/dev/aic7xxx/Makefile
 .if !defined(NO_KERNELDEPEND)
 	cd ${KRNLOBJDIR}/${_kernel}; \
-		${WMAKEENV} MACHINE=${MACHINE} KERNEL=kernel ${MAKE} depend
+		${WMAKEENV} MACHINE=${MACHINE} ${MAKE} KERNEL=kernel depend
 .endif
 	cd ${KRNLOBJDIR}/${_kernel}; \
-		${WMAKEENV} MACHINE=${MACHINE} KERNEL=kernel ${MAKE} all
+		${WMAKEENV} MACHINE=${MACHINE} ${MAKE} KERNEL=kernel all
 .endfor
 
 #
@@ -416,7 +416,7 @@ buildkernel:
 #
 installkernel:
 	cd ${KRNLOBJDIR}/${INSTALLKERNEL}; \
-		${CROSSENV} MACHINE=${MACHINE} KERNEL=kernel ${MAKE} install
+		${CROSSENV} MACHINE=${MACHINE} ${MAKE} KERNEL=kernel install
 
 #
 # update
