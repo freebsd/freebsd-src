@@ -17,7 +17,7 @@
 #include <string.h>
 #include <sys/file.h>
 #include <sys/ioctl.h>
-#include <apm_bios.h>
+#include <machine/apm_bios.h>
 
 #define APMDEV	"/dev/apm0"
 
