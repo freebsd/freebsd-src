@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.160 1998/03/12 10:08:50 bde Exp $
+#	$Id: Makefile,v 1.161 1998/03/12 10:55:02 bde Exp $
 #
 # While porting to the another architecture include the bootstrap instead
 # of the normal build.
@@ -470,10 +470,12 @@ bootstrap:
 # on cleaned away headers in ${WORLDTMP}.
 #
 include-tools:
-	cd ${.CURDIR}/usr.bin/rpcgen && ${MAKE} -B cleandepend && \
+.for d in usr.bin/compile_et usr.bin/rpcgen
+	cd ${.CURDIR}/$d && ${MAKE} cleandepend && \
 		${MAKE} ${MK_FLAGS} depend && \
 		${MAKE} ${MK_FLAGS} all && \
 		${MAKE} ${MK_FLAGS} -B install ${CLEANDIR} ${OBJDIR}
+.endfor
 
 #
 # includes - possibly generate and install the include files.
@@ -532,7 +534,7 @@ includes:
 .endif
 	cd ${.CURDIR}/lib/libtermcap &&		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libcom_err &&		${MAKE} beforeinstall
-	cd ${.CURDIR}/lib/libss &&		${MAKE} hdrs beforeinstall
+	cd ${.CURDIR}/lib/libss &&		${MAKE} -B hdrs beforeinstall
 	cd ${.CURDIR}/lib/libscsi &&		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libutil &&		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libvgl &&		${MAKE} beforeinstall
@@ -554,7 +556,6 @@ lib-tools:
 		gnu/usr.bin/bison	\
 		gnu/usr.bin/cc		\
 		usr.bin/ar		\
-		usr.bin/compile_et	\
 		usr.bin/lex/lib		\
 		usr.bin/mk_cmds		\
 		usr.bin/nm		\
