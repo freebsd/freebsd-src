@@ -1,24 +1,29 @@
-.TH ZDUMP 8
-.SH NAME
-zdump \- timezone dumper
-.SH SYNOPSIS
-.B zdump
-[
-.B \-v
-] [
-.B \-c
-cutoffyear ] [ zonename ... ]
-.SH DESCRIPTION
-.I Zdump
+.\"
+.\"	@(#)zdump.8	7.3
+.\"	$Id$
+.\"
+.Dd September 13, 1994
+.Dt ZDUMP 8
+.Os
+.Sh NAME
+.Nm zdump
+.Nd timezone dumper
+.Sh SYNOPSIS
+.Nm zdump
+.Op Fl v
+.Op Fl c Ar cutoffyear
+.Op Ar zonename ...
+.Sh DESCRIPTION
+.Nm Zdump
 prints the current time in each
-.I zonename
+.Ar zonename
 named on the command line.
-.PP
-These options are available:
-.TP
-.B \-v
+.Pp
+The following options are available:
+.Bl -tag -width indent
+.It Fl v
 For each
-.I zonename
+.Ar zonename
 on the command line,
 print the time at the lowest possible time value,
 the time one day after the lowest possible time value,
@@ -27,13 +32,13 @@ each detected time discontinuity,
 the time at one day less than the highest possible time value,
 and the time at the highest possible time value,
 Each line ends with
-.B isdst=1
+.Em isdst=1
 if the given time is Daylight Saving Time or
-.B isdst=0
+.Em isdst=0
 otherwise.
-.TP
-.BI "\-c " cutoffyear
+.It Fl c Ar cutoffyear
 Cut off the verbose output near the start of the given year.
-.SH "SEE ALSO"
-ctime(3), tzfile(5), zic(8)
-.\" @(#)zdump.8	7.3
+.Sh "SEE ALSO"
+.Xr ctime 3 ,
+.Xr tzfile 5 ,
+.Xr zic 8
