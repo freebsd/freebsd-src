@@ -52,6 +52,7 @@
 #define PTHREAD_KEYS_MAX			256
 #define PTHREAD_STACK_MIN			1024
 #define PTHREAD_THREADS_MAX			ULONG_MAX
+#define PTHREAD_BARRIER_SERIAL_THREAD		-1
 
 /*
  * Flags for threads and thread attributes.
@@ -95,6 +96,8 @@ struct pthread_mutex_attr;
 struct pthread_once;
 struct pthread_rwlock;
 struct pthread_rwlockattr;
+struct pthread_barrier;
+struct pthread_barrier_attr;
 
 /*
  * Primitive system data type definitions required by P1003.1c.
@@ -113,6 +116,8 @@ typedef int     			pthread_key_t;
 typedef struct	pthread_once		pthread_once_t;
 typedef struct	pthread_rwlock		*pthread_rwlock_t;
 typedef struct	pthread_rwlockattr	*pthread_rwlockattr_t;
+typedef struct	pthread_barrier		*pthread_barrier_t;
+typedef struct	pthread_barrierattr	*pthread_barrierattr_t;
 
 /*
  * Additional type definitions:
@@ -203,6 +208,15 @@ int		pthread_attr_setguardsize(pthread_attr_t *, size_t);
 int		pthread_attr_setstack(pthread_attr_t *, void *, size_t);
 int		pthread_attr_setstackaddr(pthread_attr_t *, void *);
 int		pthread_attr_setdetachstate(pthread_attr_t *, int);
+int		pthread_barrier_destroy(pthread_barrier_t *);
+int		pthread_barrier_init(pthread_barrier_t *,
+			const pthread_barrierattr_t *, unsigned);
+int		pthread_barrier_wait(pthread_barrier_t *);
+int		pthread_barrierattr_destroy(pthread_barrierattr_t *);
+int		pthread_barrierattr_getpshared(const pthread_barrierattr_t *,
+			int *);
+int		pthread_barrierattr_init(pthread_barrierattr_t *);
+int		pthread_barrierattr_setpshared(pthread_barrierattr_t *, int);
 void		pthread_cleanup_pop(int);
 void		pthread_cleanup_push(void (*) (void *), void *routine_arg);
 int		pthread_condattr_destroy(pthread_condattr_t *);
@@ -236,6 +250,8 @@ int		pthread_mutex_init(pthread_mutex_t *,
 			const pthread_mutexattr_t *);
 int		pthread_mutex_lock(pthread_mutex_t *);
 int		pthread_mutex_trylock(pthread_mutex_t *);
+int		pthread_mutex_timedlock(pthread_mutex_t *,
+			const struct timespec *);
 int		pthread_mutex_unlock(pthread_mutex_t *);
 int		pthread_once(pthread_once_t *, void (*) (void));
 int		pthread_rwlock_destroy(pthread_rwlock_t *);

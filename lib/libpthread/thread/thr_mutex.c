@@ -64,6 +64,8 @@
 #define	THR_ASSERT_NOT_IN_SYNCQ(thr)
 #endif
 
+#define THR_IN_MUTEXQ(thr)	(((thr)->sflags & THR_FLAGS_IN_SYNCQ) != 0)
+
 /*
  * Prototypes
  */
@@ -86,6 +88,7 @@ static pthread_mutexattr_t		static_mattr = &static_mutex_attr;
 
 /* Single underscore versions provided for libc internal usage: */
 __weak_reference(__pthread_mutex_lock, pthread_mutex_lock);
+__weak_reference(__pthread_mutex_timedlock, pthread_mutex_timedlock);
 __weak_reference(__pthread_mutex_trylock, pthread_mutex_trylock);
 
 /* No difference between libc and application usage of these: */
@@ -448,15 +451,22 @@ _pthread_mutex_trylock(pthread_mutex_t *mutex)
 }
 
 static int
-mutex_lock_common(struct pthread *curthread, pthread_mutex_t *m)
+mutex_lock_common(struct pthread *curthread, pthread_mutex_t *m,
+	const struct timespec * abstime)
 {
 	int	ret = 0;
 
 	THR_ASSERT((m != NULL) && (*m != NULL),
 	    "Uninitialized mutex in pthread_mutex_trylock_basic");
 
+	if (abstime != NULL && (abstime->tv_sec < 0 || abstime->tv_nsec < 0 ||
+	    abstime->tv_nsec >= 1000000000))
+		return (EINVAL);
+
 	/* Reset the interrupted flag: */
 	curthread->interrupted = 0;
+	curthread->timeout = 0;
+	curthread->wakeup_time.tv_sec = -1;
 
 	/*
 	 * Enter a loop waiting to become the mutex owner.  We need a
@@ -501,6 +511,14 @@ mutex_lock_common(struct pthread *curthread, pthread_mutex_t *m)
 				/* Unlock the mutex structure: */
 				THR_LOCK_RELEASE(curthread, &(*m)->m_lock);
 			} else {
+				/* Set the wakeup time: */
+				if (abstime) {
+					curthread->wakeup_time.tv_sec =
+						abstime->tv_sec;
+					curthread->wakeup_time.tv_nsec =
+						abstime->tv_nsec;
+				}
+
 				/*
 				 * Join the queue of threads waiting to lock
 				 * the mutex and save a pointer to the mutex.
@@ -521,6 +539,13 @@ mutex_lock_common(struct pthread *curthread, pthread_mutex_t *m)
 
 				/* Schedule the next thread: */
 				_thr_sched_switch(curthread);
+
+				if (THR_IN_MUTEXQ(curthread)) {
+					THR_LOCK_ACQUIRE(curthread, &(*m)->m_lock);
+					mutex_queue_remove(*m, curthread);
+					curthread->data.mutex = NULL;
+					THR_LOCK_RELEASE(curthread, &(*m)->m_lock);
+				}
 			}
 			break;
 
@@ -560,6 +585,14 @@ mutex_lock_common(struct pthread *curthread, pthread_mutex_t *m)
 				/* Unlock the mutex structure: */
 				THR_LOCK_RELEASE(curthread, &(*m)->m_lock);
 			} else {
+				/* Set the wakeup time: */
+				if (abstime) {
+					curthread->wakeup_time.tv_sec =
+						abstime->tv_sec;
+					curthread->wakeup_time.tv_nsec =
+						abstime->tv_nsec;
+				}
+
 				/*
 				 * Join the queue of threads waiting to lock
 				 * the mutex and save a pointer to the mutex.
@@ -585,6 +618,13 @@ mutex_lock_common(struct pthread *curthread, pthread_mutex_t *m)
 
 				/* Schedule the next thread: */
 				_thr_sched_switch(curthread);
+
+				if (THR_IN_MUTEXQ(curthread)) {
+					THR_LOCK_ACQUIRE(curthread, &(*m)->m_lock);
+					mutex_queue_remove(*m, curthread);
+					curthread->data.mutex = NULL;
+					THR_LOCK_RELEASE(curthread, &(*m)->m_lock);
+				}
 			}
 			break;
 
@@ -634,6 +674,14 @@ mutex_lock_common(struct pthread *curthread, pthread_mutex_t *m)
 				/* Unlock the mutex structure: */
 				THR_LOCK_RELEASE(curthread, &(*m)->m_lock);
 			} else {
+				/* Set the wakeup time: */
+				if (abstime) {
+					curthread->wakeup_time.tv_sec =
+						abstime->tv_sec;
+					curthread->wakeup_time.tv_nsec =
+						abstime->tv_nsec;
+				}
+
 				/*
 				 * Join the queue of threads waiting to lock
 				 * the mutex and save a pointer to the mutex.
@@ -659,6 +707,14 @@ mutex_lock_common(struct pthread *curthread, pthread_mutex_t *m)
 
 				/* Schedule the next thread: */
 				_thr_sched_switch(curthread);
+
+				if (THR_IN_MUTEXQ(curthread)) {
+					THR_LOCK_ACQUIRE(curthread, &(*m)->m_lock);
+					mutex_queue_remove(*m, curthread);
+					curthread->data.mutex = NULL;
+					THR_LOCK_RELEASE(curthread, &(*m)->m_lock);
+				}
+
 				/*
 				 * The threads priority may have changed while
 				 * waiting for the mutex causing a ceiling
@@ -680,7 +736,10 @@ mutex_lock_common(struct pthread *curthread, pthread_mutex_t *m)
 		}
 
 	} while (((*m)->m_owner != curthread) && (ret == 0) &&
-	    (curthread->interrupted == 0));
+	    (curthread->interrupted == 0) && (curthread->timeout == 0));
+
+	if (ret == 0 && curthread->timeout)
+		ret = ETIMEDOUT;
 
 	/*
 	 * Check to see if this thread was interrupted and
@@ -720,7 +779,7 @@ __pthread_mutex_lock(pthread_mutex_t *m)
 	 * initialization:
 	 */
 	else if ((*m != NULL) || ((ret = init_static(curthread, m)) == 0))
-		ret = mutex_lock_common(curthread, m);
+		ret = mutex_lock_common(curthread, m, NULL);
 
 	return (ret);
 }
@@ -746,7 +805,56 @@ _pthread_mutex_lock(pthread_mutex_t *m)
 	 */
 	else if ((*m != NULL) ||
 	    ((ret = init_static_private(curthread, m)) == 0))
-		ret = mutex_lock_common(curthread, m);
+		ret = mutex_lock_common(curthread, m, NULL);
+
+	return (ret);
+}
+
+int
+__pthread_mutex_timedlock(pthread_mutex_t *m,
+	const struct timespec *abs_timeout)
+{
+	struct pthread *curthread;
+	int	ret = 0;
+
+	if (_thr_initial == NULL)
+		_libpthread_init(NULL);
+
+	curthread = _get_curthread();
+	if (m == NULL)
+		ret = EINVAL;
+
+	/*
+	 * If the mutex is statically initialized, perform the dynamic
+	 * initialization:
+	 */
+	else if ((*m != NULL) || ((ret = init_static(curthread, m)) == 0))
+		ret = mutex_lock_common(curthread, m, abs_timeout);
+
+	return (ret);
+}
+
+int
+_pthread_mutex_timedlock(pthread_mutex_t *m,
+	const struct timespec *abs_timeout)
+{
+	struct pthread *curthread;
+	int	ret = 0;
+
+	if (_thr_initial == NULL)
+		_libpthread_init(NULL);
+	curthread = _get_curthread();
+
+	if (m == NULL)
+		ret = EINVAL;
+
+	/*
+	 * If the mutex is statically initialized, perform the dynamic
+	 * initialization marking it private (delete safe):
+	 */
+	else if ((*m != NULL) ||
+	    ((ret = init_static_private(curthread, m)) == 0))
+		ret = mutex_lock_common(curthread, m, abs_timeout);
 
 	return (ret);
 }
