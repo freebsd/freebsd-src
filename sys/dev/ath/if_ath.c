@@ -3551,7 +3551,7 @@ ath_tx_processq(struct ath_softc *sc, struct ath_txq *txq)
 			/*
 			 * Hand the descriptor to the rate control algorithm.
 			 */
-			ath_rate_tx_complete(sc, an, ds);
+			ath_rate_tx_complete(sc, an, ds, ds0);
 			/*
 			 * Reclaim reference to node.
 			 *
