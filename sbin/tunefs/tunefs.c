@@ -285,8 +285,11 @@ again:
 	if (nflag) {
  		name = "soft updates";
  		if (strcmp(nvalue, "enable") == 0) {
-			if ( sblock.fs_flags & FS_DOSOFTDEP ) {
+			if (sblock.fs_flags & FS_DOSOFTDEP) {
 				warnx("%s remains unchanged as enabled", name);
+			} else if (sblock.fs_clean == 0) {
+				warnx("%s cannot be enabled until fsck is run",
+				    name);
 			} else {
  				sblock.fs_flags |= FS_DOSOFTDEP;
  				warnx("%s set", name);
