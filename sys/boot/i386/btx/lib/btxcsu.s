@@ -13,7 +13,7 @@
 # purpose.
 #
 
-#	$Id:$
+#	$Id: btxcsu.s,v 1.1 1998/09/14 10:37:00 rnordier Exp $
 
 #
 # BTX C startup code (ELF).
@@ -26,13 +26,14 @@
 #
 # Constants.
 #
-		.set ARGSIZ,0x60		# Size of arguments
+		.set ARGADJ,0xfa0		# Argument adjustment
 #
 # Client entry point.
 #
 _start: 	movl %eax,__base		# Set base address
-		subl $ARGSIZ,%esp		# Set argument
-		movl %esp,__args		#  pointer
+		movl %esp,%eax			# Set
+		addl $ARGADJ,%eax		#  argument
+		movl %eax,__args		#  pointer
 		call main			# Invoke client main()
 		call exit			# Invoke client exit()
 #
