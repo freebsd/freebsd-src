@@ -44,6 +44,7 @@
 #define _NET_BPFDESC_H_
 
 #include <sys/callout.h>
+#include <sys/mac.h>
 #include <sys/selinfo.h>
 
 /*
@@ -92,6 +93,7 @@ struct bpf_d {
 #endif
 	struct mtx	bd_mtx;		/* mutex for this descriptor */
 	struct callout	bd_callout;	/* for BPF timeouts with select */
+	struct label	bd_label;	/* MAC label for descriptor */
 };
 
 /* Values for bd_state */
