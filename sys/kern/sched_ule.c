@@ -186,7 +186,6 @@ do {									\
 	    ("slots out of whack"));*/ 					\
 } while (0)
 
-
 static struct kse kse0;
 static struct kg_sched kg_sched0;
 
@@ -405,7 +404,7 @@ kseq_runq_add(struct kseq *kseq, struct kse *ke)
 		ke->ke_flags |= KEF_XFERABLE;
 	}
 #endif
-	runq_add(ke->ke_runq, ke);
+	runq_add(ke->ke_runq, ke, 0);
 }
 
 static __inline void
@@ -896,7 +895,7 @@ kseq_choose(struct kseq *kseq)
 			runq_remove(ke->ke_runq, ke);
 			sched_slice(ke);
 			ke->ke_runq = kseq->ksq_next;
-			runq_add(ke->ke_runq, ke);
+			runq_add(ke->ke_runq, ke, 0);
 			continue;
 		}
 		return (ke);
@@ -1232,7 +1231,7 @@ sched_prio(struct thread *td, u_char prio)
 		    ke->ke_runq != KSEQ_CPU(ke->ke_cpu)->ksq_curr) {
 			runq_remove(ke->ke_runq, ke);
 			ke->ke_runq = KSEQ_CPU(ke->ke_cpu)->ksq_curr;
-			runq_add(ke->ke_runq, ke);
+			runq_add(ke->ke_runq, ke, 0);
 		}
 		/*
 		 * Hold this kse on this cpu so that sched_prio() doesn't
@@ -1285,16 +1284,25 @@ sched_switch(struct thread *td, struct thread *newtd, int flags)
 				/*
 				 * We will not be on the run queue.
 				 * So we must be sleeping or similar.
+				 * Don't use the slot if we will need it 
+				 * for newtd.
 				 */
-				if (td->td_proc->p_flag & P_HADTHREADS)
+				if ((td->td_proc->p_flag & P_HADTHREADS) &&
+				    (newtd == NULL ||
+				    newtd->td_ksegrp != td->td_ksegrp))
 					slot_fill(td->td_ksegrp);
 			}
 		}
 	}
 	if (newtd != NULL) {
+		/*
+		 * If we bring in a thread, 
+		 * then account for it as if it had been added to the
+		 * run queue and then chosen.
+		 */
 		newtd->td_kse->ke_flags |= KEF_DIDRUN;
-        	TD_SET_RUNNING(newtd);
 		SLOT_USE(newtd->td_ksegrp);
+       		TD_SET_RUNNING(newtd);
 		kseq_load_add(KSEQ_SELF(), newtd->td_kse);
 	} else
 		newtd = choosethread();

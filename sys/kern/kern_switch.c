@@ -526,9 +526,7 @@ maybe_preempt(struct thread *td)
 	}
 
 	/*
-	 * Our thread state says that we are already on a run queue, so
-	 * update our state as if we had been dequeued by choosethread().
-	 * However we must not actually be on the system run queue yet.
+	 * Thread is runnable but not yet put on system run queue.
 	 */
 	MPASS(TD_ON_RUNQ(td));
 	MPASS(td->td_sched->ke_state != KES_ONRUNQ);
@@ -551,7 +549,7 @@ maybe_preempt(struct thread *td)
 	TD_SET_RUNNING(td);
 	CTR3(KTR_PROC, "preempting to thread %p (pid %d, %s)\n", td,
 	    td->td_proc->p_pid, td->td_proc->p_comm);
-	mi_switch(SW_INVOL, td);
+	mi_switch(SW_INVOL|SW_PREEMPT, td);
 	return (1);
 #else
 	return (0);
@@ -651,7 +649,7 @@ runq_setbit(struct runq *rq, int pri)
  * corresponding status bit.
  */
 void
-runq_add(struct runq *rq, struct kse *ke)
+runq_add(struct runq *rq, struct kse *ke, int flags)
 {
 	struct rqhead *rqh;
 	int pri;
@@ -662,7 +660,11 @@ runq_add(struct runq *rq, struct kse *ke)
 	rqh = &rq->rq_queues[pri];
 	CTR5(KTR_RUNQ, "runq_add: td=%p ke=%p pri=%d %d rqh=%p",
 	    ke->ke_thread, ke, ke->ke_thread->td_priority, pri, rqh);
-	TAILQ_INSERT_TAIL(rqh, ke, ke_procq);
+	if (flags & SRQ_PREEMPTED) {
+		TAILQ_INSERT_HEAD(rqh, ke, ke_procq);
+	} else {
+		TAILQ_INSERT_TAIL(rqh, ke, ke_procq);
+	}
 }
 
 /*
