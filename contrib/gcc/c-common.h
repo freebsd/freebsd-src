@@ -19,6 +19,8 @@ along with GCC; see the file COPYING.  If not, write to the Free
 Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 02111-1307, USA.  */
 
+/* $FreeBSD$ */
+
 #ifndef GCC_C_COMMON_H
 #define GCC_C_COMMON_H
 
@@ -432,6 +434,10 @@ extern int flag_isoc94;
 /* Nonzero means use the ISO C99 dialect of C.  */
 
 extern int flag_isoc99;
+
+/* Nonzero means allow the BSD kernel printf enhancments.  */
+
+extern int flag_bsd_format;
 
 /* Nonzero means environment is hosted (i.e., not freestanding) */
 
