@@ -358,6 +358,22 @@ vfs_getvfs(fsid)
 }
 
 /*
+ * Check if a user can access priveledged mount options.
+ */
+int
+vfs_suser(struct mount *mp, struct thread *td)
+{
+	int error;
+
+	if ((mp->mnt_flag & MNT_USER) == 0 ||
+	    mp->mnt_cred->cr_uid != td->td_ucred->cr_uid) {
+		if ((error = suser(td)) != 0)
+			return (error);
+	}
+	return (0);
+}
+
+/*
  * Get a new unique fsid.  Try to make its val[0] unique, since this value
  * will be used to create fake device numbers for stat().  Also try (but
  * not so hard) make its val[0] unique mod 2^16, since some emulators only
