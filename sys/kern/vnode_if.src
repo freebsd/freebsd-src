@@ -152,7 +152,7 @@ vop_access {
 #
 #% getattr	vp	= = =
 #
-# XXX: This should be L L L
+# XXX: This should be A A A
 #
 vop_getattr {
 	IN struct vnode *vp;
