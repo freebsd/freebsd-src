@@ -2658,18 +2658,16 @@ again:
 		for (bp = TAILQ_FIRST(&vp->v_dirtyblkhd); bp; bp = nbp) {
 			if (bvecpos >= bvecsize)
 				break;
+			if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT, NULL)) {
+				nbp = TAILQ_NEXT(bp, b_vnbufs);
+				continue;
+			}
 			if ((bp->b_flags & (B_DELWRI | B_NEEDCOMMIT)) !=
 			    (B_DELWRI | B_NEEDCOMMIT)) {
 				nbp = TAILQ_NEXT(bp, b_vnbufs);
 				continue;
 			}
-			if (BUF_LOCK(bp,
-			    LK_EXCLUSIVE | LK_NOWAIT | LK_INTERLOCK,
-			    VI_MTX(vp))) {
-				VI_LOCK(vp);
-				nbp = TAILQ_NEXT(bp, b_vnbufs);
-				continue;
-			}
+			VI_UNLOCK(vp);
 			bremfree(bp);
 			/*
 			 * Work out if all buffers are using the same cred
