@@ -7,31 +7,17 @@
 #ifndef _calendar_australia_
 #define _calendar_australia_
 
-Jan 02	New Year Holiday (NZ)
-Jan 14	Anniversary Day (Southland)
-Jan 21	Anniversary Day (Wellington)
-Jan 28	Anniversary Day (Auckland)
-Feb 06	Waitangi Day (NZ)
-Mar 11	Anniversary Day (Taranaki)
-Mar 25	Anniversary Day (Otago)
-Jun 03	Queen's Birthday (NZ)
-Sep 23	Anniversary Day (South Canterbury)
-Oct 25	Anniversary Day (Hawke's Bay)
-Oct 28	Labour Day (NZ)
-Nov 04	Anniversary Day (Marlborough)
-Nov 15	Anniversary Day (Canterbury)
-Dec 02	Anniversary Day (Chatham Islands)
 /* Australia */
 Jan 28	Australia Day Holiday (Australia, except NSW, Vic)
 Jun 10	Queen's Birthday Holiday (Australia, except WA)
 
 /* ACT, NSW, common */
 Mar 18	Canberra Day (ACT)
-Aug 05	Bank Holiday (ACT, NSW)
-Oct 07	Labour Day (ACT, NSW, SA)
+8/MonFirst	Bank Holiday (ACT, NSW)
+10/MonFirst	Labour Day (ACT, NSW, SA)
 
 /* Victoria */
-Mar 11	Labour Day (Vic)
+3/MonSecond	Labour Day (Vic)
 Nov/TueFirst	Melbourne Cup (Vic)
 
 /* Tasmania */
@@ -47,16 +33,20 @@ May 20	Adelaide Cup (SA)
 Dec 26	Proclamation Day (SA)
 
 /* Western Australia */
-Mar 04	Labour Day (WA)
-Jun 03	Foundation Day (WA)
+3/MonFirst	Labour Day (WA)
+6/MonFirst	Foundation Day (WA)
 Sep 30	Queen's Birthday (WA)
 
 /* Northern Territory */
-May 06	May Day (NT)
-Aug 05	Picnic Day (NT)
+5/MonFirst	May Day (NT)
+7/FriFirst	Alice Springs Show Day (NT)
+7/FriSecond	Tennant Creek Show Day (NT)
+7/FriThird	Katherine Show Day (NT)
+7/FriLast	Darwin Show Day (NT)
+8/MonFirst	Picnic Day (NT)
 
 /* Queensland */
-May 06	Labour Day (Qld)
+5/MonFirst	Labour Day (Qld)
 Aug 14	RNA Show Day (Brisbane metro)
 
 #endif
