@@ -245,6 +245,7 @@ extern union descriptor gdt[];
 extern struct soft_segment_descriptor gdt_segs[];
 extern struct gate_descriptor *idt;
 extern union descriptor ldt[NLDT];
+extern struct region_descriptor r_gdt, r_idt;
 
 void	lgdt(struct region_descriptor *rdp);
 void	sdtossd(struct segment_descriptor *sdp,
