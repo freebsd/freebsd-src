@@ -19,7 +19,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: bt9xx.c,v 1.3.2.2 1996/02/16 17:55:55 gibbs Exp $
+ *	$Id: bt9xx.c,v 1.7 1996/02/18 07:44:16 gibbs Exp $
  */
 
 #include <pci.h>
@@ -117,22 +117,20 @@ bt_pci_attach(config_id, unit)
 	return;
 }
 
-
-/*      
+/*             
  * Handle an PCI interrupt.
  * XXX should go away as soon as PCI interrupt handlers
  * return void.
  */
-static int
+static int  
 bt_pci_intr(arg)
 	void *arg;
-{       
-        bt_intr(arg);
-	return (1);  /*
+{     
+	bt_intr(arg);
+	return (1);  /* 
 		      * XXX: Always say we handle the interrupt.
 		      * won't work with edge-triggered ints.
 		      */
 }
-
 
 #endif /* NPCI > 0 */

@@ -2,7 +2,7 @@
  * Product specific probe and attach routines for:
  *      3940, 2940, aic7870, and aic7850 SCSI controllers
  *
- * Copyright (c) 1995 Justin T. Gibbs
+ * Copyright (c) 1995, 1996 Justin T. Gibbs
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -19,7 +19,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: aic7870.c,v 1.11.2.7 1996/01/08 02:54:20 gibbs Exp $
+ *	$Id: aic7870.c,v 1.27 1996/03/11 02:49:48 gibbs Exp $
  */
 
 #include <pci.h>
@@ -28,6 +28,7 @@
 #include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/kernel.h>
+#include <sys/queue.h>
 
 #include <scsi/scsi_all.h>
 #include <scsi/scsiconf.h>
@@ -139,6 +140,7 @@ struct seeprom_config {
 
 static char* aic7870_probe __P((pcici_t tag, pcidi_t type));
 static void aic7870_attach __P((pcici_t config_id, int unit));
+static int ahc_pci_intr __P((void *arg));
 static int load_seeprom __P((struct ahc_data *ahc));
 static int acquire_seeprom __P((u_long offset, u_short CS, u_short CK,
 				u_short DO, u_short DI, u_short RDY,  
@@ -228,8 +230,6 @@ aic7870_attach(config_id, unit)
 			if(!(aic3940_count & 0x01))
 				/* Even count implies second channel */
 				ahc_f |= AHC_CHNLB;
-			/* Even though it doesn't turn on RAMPS, it has them */
-			ahc_f |= AHC_EXTSCB;
 			break;
 		case PCI_DEVICE_ID_ADAPTEC_2944U:
 		case PCI_DEVICE_ID_ADAPTEC_2940U:
@@ -278,8 +278,6 @@ aic7870_attach(config_id, unit)
 			 */
 			devconfig &= ~(RAMPSM|SCBRAMSEL);
 			pci_conf_write(config_id, DEVCONFIG, devconfig);
-			
-			ahc_f |= AHC_EXTSCB;
 		}
 	}
 
@@ -311,7 +309,7 @@ aic7870_attach(config_id, unit)
 	if(!(ahc = ahc_alloc(unit, io_port, ahc_t, ahc_f)))
 		return;  /* XXX PCI code should take return status */
 
-	if(!(pci_map_int(config_id, ahcintr, (void *)ahc, &bio_imask))) {
+	if(!(pci_map_int(config_id, ahc_pci_intr, (void *)ahc, &bio_imask))) {
 		ahc_free(ahc);
 		return;
 	}
@@ -336,7 +334,6 @@ aic7870_attach(config_id, unit)
 		   {
 			id_string = "aic7880 ";
 			load_seeprom(ahc);
-			ahc->maxscbs = 16;
 			break;
 		   }
 		   case AHC_394:
@@ -345,13 +342,11 @@ aic7870_attach(config_id, unit)
 		   {
 			id_string = "aic7870 ";
 			load_seeprom(ahc);
-			ahc->maxscbs = 16;
 			break;
 		   }
 		   case AHC_AIC7850:
 		   {
 			id_string = "aic7850 ";
-			ahc->maxscbs = 3;
 			/* Assume there is no BIOS for these cards? */
 			ahc->flags |= AHC_USEDEFAULTS;
 			break;
@@ -389,27 +384,6 @@ aic7870_attach(config_id, unit)
 			/* In case we are a wide card */
 			outb(SCSICONF + 1 + iobase, 7);
 		}
-
-		if(ahc->flags & AHC_EXTSCB) {
-			/*
-			 * This adapter has external SCB memory.
-			 * Walk the SCBs to determine how many there are.
-			 */
-			int i;
-
-			for(i = 0; i < AHC_SCB_MAX; i++) {
-				outb(SCBPTR + iobase, i);
-				outb(SCBARRAY + iobase, 0xaa);
-				if(inb(SCBARRAY + iobase) == 0xaa){
-					outb(SCBARRAY + iobase, 0x55);
-					if(inb(SCBARRAY + iobase) == 0x55) {
-						continue;
-					}
-				}
-				break;
-			}
-			ahc->maxscbs = i;
-		}
 	}
 
 	if(ahc_init(ahc)){
@@ -423,6 +397,17 @@ aic7870_attach(config_id, unit)
 	return;
 }
 
+int
+ahc_pci_intr(arg)
+	void *arg;
+{
+	ahc_intr(arg);
+	return(1);	/*
+			 * XXX Remove when shared edged triggered interrupt
+			 * support is removed
+			 */
+}
+
 /*
  * Read the SEEPROM.  Return 0 on failure
  */
@@ -434,6 +419,7 @@ load_seeprom(ahc)
 	u_short *scarray = (u_short *)&sc;
 	u_short	checksum = 0;
 	u_long	iobase = ahc->baseport;
+	u_char	scsi_conf;
 	u_char	host_id;
 	int	have_seeprom, retval;
                  
@@ -459,11 +445,8 @@ load_seeprom(ahc)
 				printf ("checksum error");
 				have_seeprom = 0;
 			}
-			else {
-				if(bootverbose)
+			else if(bootverbose)
 				printf("done.\n");
-				host_id = (sc.brtime_id & CFSCSIID);
-			}
 		}
 	}
 	if (!have_seeprom) {
@@ -471,7 +454,8 @@ load_seeprom(ahc)
 		       "using leftover BIOS values\n", ahc->unit);
 		retval = 0;
 
-		host_id = 0x7; /* Assume a default */
+		host_id = 0x7;
+		scsi_conf = host_id | ENSPCHK; /* Assume a default */
 		/*
 		 * If we happen to be an ULTRA card,
 		 * default to non-ultra mode.
@@ -502,6 +486,10 @@ load_seeprom(ahc)
 
 		host_id = sc.brtime_id & CFSCSIID;
 
+		scsi_conf = (host_id & 0x7);
+		if(sc.adapter_control & CFSPARITY)
+			scsi_conf |= ENSPCHK;
+
 		if(ahc->type & AHC_ULTRA) {
 			/* Should we enable Ultra mode? */
 			if(!(sc.adapter_control & CFULTRAEN))
@@ -511,9 +499,9 @@ load_seeprom(ahc)
 		retval = 1;
 	}
 	/* Set the host ID */
-	outb(SCSICONF + iobase, host_id);
+	outb(SCSICONF + iobase, scsi_conf);
 	/* In case we are a wide card */
-	outb(SCSICONF + 1 + iobase, host_id);
+	outb(SCSICONF + 1 + iobase, scsi_conf);
 
 	return(retval);
 }
