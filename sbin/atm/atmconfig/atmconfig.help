@@ -9,9 +9,10 @@ usage:
 	atmconfig [common-options] command [subcommand] [options]
 
 Use 'atmconfig help' for general help or 'atmconfig help <command>' for
-help on 'command'.
+help on 'command' or 'atmconfig help commands' for a list of commands.
 
 ^0 help
+^^  help		show help information
 Use one of the following commands to get help on atmconfig:
 
   atmconfig help options
@@ -24,6 +25,7 @@ Use one of the following commands to get help on atmconfig:
 	gives help on the given subcommand
 
 ^0 options
+^^  help options	list common options
 Common command line options can be specified for all commands. They
 are written immediately before the command. The following options are
 available:
@@ -33,13 +35,13 @@ available:
  -v		be verbose about all actions.
 
 ^0 commands
+^^  help commands	show available commands
 The following commands are available:
 
-  help		show help information
-  diag		show/modify ATM hardware interfaces
-  natm		simple IP over ATM management (see natmip(4))
+$MAIN
 
 ^0 diag
+^^  diag		show/modify ATM hardware interfaces
 This command shows information about the ATM hardware interfaces in the
 system. A list of ATM devices is obtained by:
 
@@ -139,6 +141,7 @@ usage: atmconfig [common-options] diag stats <device>
 Prints the driver-internal statistics.
 
 ^0 natm
+^^  natm		simple IP over ATM management (see natmip(4))
 The group of CLIP commands is used to manage classical IP over ATM
 networking via NATM (see natm(4) and natmip(4)). A new PVC is added
 to a CLIP via:
