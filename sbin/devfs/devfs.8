@@ -43,7 +43,9 @@ utility provides an interface to manipulate properties of
 .Xr devfs 5
 mounts.
 .Pp
-The first keyword after the program name determines the context for
+The
+.Ar keyword
+argument determines the context for
 the rest of the arguments.
 For example,
 most of the commands related to the rule subsystem must be preceded by the
@@ -339,10 +341,10 @@ The rule numbers are preserved,
 but ruleset 10 may already have rules with non-conflicting numbers
 (these will be preserved).
 .Sh SEE ALSO
+.Xr chmod 1 ,
 .Xr jail 2 ,
 .Xr glob 3 ,
 .Xr devfs 5 ,
-.Xr chmod 1 ,
 .Xr chown 8 ,
 .Xr jail 8 ,
 .Xr mknod 8
