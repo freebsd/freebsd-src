@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fdc.h,v 1.11 1998/07/29 13:00:42 bde Exp $
+ *	$Id: fdc.h,v 1.12 1998/12/12 08:16:01 imp Exp $
  *
  */
 
@@ -68,7 +68,8 @@ struct fdc_data
 	u_int	status[7];	/* copy of the registers */
 	enum	fdc_type fdct;	/* chip version of FDC */
 	int	fdc_errs;	/* number of logged errors */
-	struct buf_queue_head head;	/* Head of buf chain	  */
+	struct	buf_queue_head head;
+	struct	buf *bp;	/* active buffer */
 };
 
 /***********************************************************************\
