@@ -33,6 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)a.out.5	8.1 (Berkeley) 6/5/93
+.\"	$Id$
 .\"
 .Dd June 5, 1993
 .Dt A.OUT 5
@@ -86,8 +87,7 @@ Every binary file begins with an
 structure:
 .Bd -literal -offset indent
 struct exec {
-	unsigned short	a_mid;
-	unsigned short	a_magic;
+	unsigned long	a_midmag;
 	unsigned long	a_text;
 	unsigned long	a_data;
 	unsigned long	a_bss;
@@ -100,25 +100,43 @@ struct exec {
 .Pp
 The fields have the following functions:
 .Bl -tag -width a_trsize
-.It Fa a_mid
-Contains a bit pattern that
-identifies binaries that were built for
-certain sub-classes of an architecture
-.Pq Sq machine IDs
-or variants of the operating system on a given architecture.
-The kernel may not support all machine IDs
-on a given architecture.
-The
-.Fa a_mid
-field is not present on some architectures;
-in this case, the
-.Fa a_magic
-field has type
-.Em unsigned long .
-.It Fa a_magic
-Contains a bit pattern
-.Pq Sq magic number
-that uniquely identifies binary files
+.It Fa a_midmag
+This field is stored in host byte-order.
+It has a number of sub-components accessed by the macros
+.Dv N_GETFLAG() ,
+.Dv N_GETMID() , and
+.Dv N_GETMAGIC() ,
+and set by the macro
+.Dv N_SETMAGIC().
+.Pp
+The macro
+.Dv N_GETFLAG()
+returns a few flags:
+.Bl -tag -width EX_DYNAMIC
+.It Dv EX_DYNAMIC
+indicates that the executable requires the services of the run-time link editor.
+.It Dv EX_PIC
+indicates that the object contains position independent code. This flag is
+set by
+.Xr as 1
+when given the
+.Sq -k
+flag and is preserved by
+.Xr ld 1
+if necessary.
+.El
+.Pp
+If both EX_DYNAMIC and EX_PIC are set, the object file is a position indendent
+executable image (eg. a shared library), which is to be loaded into the
+process address space by the run-time link editor.
+.Pp
+The macro
+.Dv N_GETMID()
+returns the machine-id.
+This indicates which machine(s) the binary is intended to run on.
+.Pp
+.Dv N_GETMAGIC()
+specifies the magic number, which uniquely identifies binary files
 and distinguishes different loading conventions.
 The field must contain one of the following values:
 .Bl -tag -width ZMAGIC
@@ -194,7 +212,10 @@ struct relocation_info {
 			r_pcrel : 1,
 			r_length : 2,
 			r_extern : 1,
-			: 4;
+			r_baserel : 1,
+			r_jmptable : 1,
+			r_relative : 1,
+			r_copy : 1;
 };
 .Ed
 .Pp
@@ -237,7 +258,9 @@ bit is clear, the relocation is
 .Sq local ;
 the link editor updates the pointer to reflect
 changes in the load addresses of the various segments,
-rather than changes in the value of a symbol.
+rather than changes in the value of a symbol (except when
+.Fa r_baserel
+is also set (see below).
 In this case, the content of the
 .Fa r_symbolnum
 field is an
@@ -245,6 +268,26 @@ field is an
 value (see below);
 this type field tells the link editor
 what segment the relocated pointer points into.
+.It Fa r_baserel
+If set, the symbol, as identified by the
+.Fa r_symbolnum
+field, is to be relocated to an offset into the Global Offset Table.
+At run-time, the entry in the Global Offset Table at this offset is set to
+be the address of the symbol.
+.It Fa r_jmptable
+If set, the symbol, as identified by the
+.Fa r_symbolnum
+field, is to be relocated to an offset into the Procedure Linkage Table.
+.It Fa r_relative
+If set, this relocation is relative to the (run-time) load address of the
+image this object file is going to be a part of. This type of relocation
+only occurs in shared objects.
+.It Fa r_copy
+If set, this relocation record identifies a symbol whose contents should
+be copied to the location given in
+.Fa r_address.
+The copying is done by the run-time link-editor from a suitable data
+item in a shared object.
 .El
 .Pp
 Symbols map names to addresses (or more generally, strings to values).
@@ -346,7 +389,28 @@ such as
 the values are described in
 .Xr stab 5 .
 .It Fa n_other
-This field is currently unused.
+This field provides information on the nature of the symbol independent of
+the symbol's location in terms of segments as determined by the
+.Fa n_type
+field. Currently, the lower 4 bits of the
+.Fa n_other
+field hold one of two values:
+.Dv AUX_FUNC
+and
+.Dv AUX_OBJECT
+.Po
+see
+.Aq Pa link.h
+for their definitions
+.Pc .
+.Dv AUX_FUNC
+associates the symbol with a callable function, while
+.Dv AUX_OBJECT
+associates the symbol with data, irrespective of their locations in
+either the text or the data segment.
+This field is intended to be used by
+.Xr ld 1
+for the construction of dynamic executables.
 .It Fa n_desc
 Reserved for use by debuggers; passed untouched by the link editor.
 Different debuggers use this field for different purposes.
@@ -364,12 +428,16 @@ The length represents the size of the entire table in bytes,
 so its minimum value (or the offset of the first string)
 is always 4 on 32-bit machines.
 .Sh SEE ALSO
+.Xr as 1 ,
+.Xr gdb 1 ,
 .Xr ld 1 ,
+.Xr brk 2 ,
 .Xr execve 2 ,
 .Xr nlist 3 ,
 .Xr core 5 ,
 .Xr dbx 5 ,
-.Xr stab 5
+.Xr stab 5 ,
+.Xr link 5
 .Sh HISTORY
 The
 .Pa a.out.h
@@ -377,7 +445,7 @@ include file appeared in
 .At v7 .
 .Sh BUGS
 Since not all of the supported architectures use the
-.Fa a_mid
+.Fa a_midmag
 field,
 it can be difficult to determine what
 architecture a binary will execute on
