@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=	iasl
-SRCS+=	aslcompiler.y.h aslcompilerparse.c aslcompilerlex.c \
+SRCS=	aslcompiler.y.h aslcompilerlex.l aslcompilerparse.y \
 	aslanalyze.c aslcodegen.c \
 	aslcompile.c aslerror.c aslfiles.c asllength.c \
 	asllisting.c aslload.c asllookup.c aslmain.c \
@@ -29,25 +29,20 @@ SRCS+=	dbfileio.c dmbuffer.c dmnames.c dmopcode.c dmobject.c \
 MAN=	iasl.8
 
 CFLAGS+= -D_ACPI_ASL_COMPILER -I.
-YFLAGS+= -v -d -pAslCompiler
-LFLAGS+= -i
 
-.if $(YACC) == "bison"
-YFLAGS+= -y
-.else
 CFLAGS+= -D_USE_BERKELEY_YACC
-.endif
+LFLAGS=	-i -PAslCompiler
+YFLAGS=	-d -pAslCompiler
 
-CLEANFILES= y.output y.tab.c y.tab.h aslcompiler.y.h \
-	aslcompilerparse.c aslcompilerlex.c
+CLEANFILES= aslcompiler.y.h aslcompilerlex.l aslcompilerparse.y
 
-aslcompilerparse.c aslcompiler.y.h: aslcompiler.y
-	${YACC} ${YFLAGS} ${ACPICA_DIR}/compiler/aslcompiler.y
-	cp y.tab.c aslcompilerparse.c
-	cp y.tab.h aslcompiler.y.h
+aslcompiler.y.h: aslcompilerparse.h
+	cat ${.ALLSRC} > ${.TARGET}
 
-aslcompilerlex.c: aslcompiler.l
-	${LEX} ${LFLAGS} -PAslCompiler -oaslcompilerlex.c \
-		${ACPICA_DIR}/compiler/aslcompiler.l
+aslcompilerlex.l: aslcompiler.l
+	cat ${.ALLSRC} > ${.TARGET}
+
+aslcompilerparse.y: aslcompiler.y
+	cat ${.ALLSRC} > ${.TARGET}
 
 .include <bsd.prog.mk>
