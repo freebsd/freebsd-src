@@ -136,10 +136,10 @@ rcmd_af(ahost, rport, locuser, remuser, cmd, fd2p, af)
 			freeaddrinfo(res);
 			return (-1);
 		}
-		_libc_fcntl(s, F_SETOWN, pid);
+		_fcntl(s, F_SETOWN, pid);
 		if (connect(s, ai->ai_addr, ai->ai_addrlen) >= 0)
 			break;
-		(void)_libc_close(s);
+		(void)_close(s);
 		if (errno == EADDRINUSE) {
 			lport--;
 			continue;
@@ -166,7 +166,12 @@ rcmd_af(ahost, rport, locuser, remuser, cmd, fd2p, af)
 			continue;
 		}
 		if (refused && timo <= 16) {
-			(void)_libc_sleep(timo);
+			struct timespec time_to_sleep, time_remaining;
+
+			time_to_sleep.tv_sec = timo;
+			time_to_sleep.tv_nsec = 0;
+			(void)_nanosleep(&time_to_sleep, &time_remaining);
+			
 			timo *= 2;
 			ai = res;
 			refused = 0;
@@ -179,7 +184,7 @@ rcmd_af(ahost, rport, locuser, remuser, cmd, fd2p, af)
 	}
 	lport--;
 	if (fd2p == 0) {
-		_libc_write(s, "", 1);
+		_write(s, "", 1);
 		lport = 0;
 	} else {
 		char num[8];
@@ -191,17 +196,17 @@ rcmd_af(ahost, rport, locuser, remuser, cmd, fd2p, af)
 			goto bad;
 		listen(s2, 1);
 		(void)snprintf(num, sizeof(num), "%d", lport);
-		if (_libc_write(s, num, strlen(num)+1) != strlen(num)+1) {
+		if (_write(s, num, strlen(num)+1) != strlen(num)+1) {
 			(void)fprintf(stderr,
 			    "rcmd: write (setting up stderr): %s\n",
 			    strerror(errno));
-			(void)_libc_close(s2);
+			(void)_close(s2);
 			goto bad;
 		}
 		nfds = max(s, s2)+1;
 		if(nfds > FD_SETSIZE) {
 			fprintf(stderr, "rcmd: too many files\n");
-			(void)_libc_close(s2);
+			(void)_close(s2);
 			goto bad;
 		}
 again:
@@ -217,7 +222,7 @@ again:
 			else
 				(void)fprintf(stderr,
 				"select: protocol failure in circuit setup\n");
-			(void)_libc_close(s2);
+			(void)_close(s2);
 			goto bad;
 		}
 		s3 = accept(s2, (struct sockaddr *)&from, &len);
@@ -239,10 +244,10 @@ again:
 		 * down and check for the real auxiliary channel to connect.
 		 */
 		if (aport == 20) {
-			_libc_close(s3);
+			_close(s3);
 			goto again;
 		}
-		(void)_libc_close(s2);
+		(void)_close(s2);
 		if (s3 < 0) {
 			(void)fprintf(stderr,
 			    "rcmd: accept: %s\n", strerror(errno));
@@ -256,17 +261,17 @@ again:
 			goto bad2;
 		}
 	}
-	(void)_libc_write(s, locuser, strlen(locuser)+1);
-	(void)_libc_write(s, remuser, strlen(remuser)+1);
-	(void)_libc_write(s, cmd, strlen(cmd)+1);
-	if (_libc_read(s, &c, 1) != 1) {
+	(void)_write(s, locuser, strlen(locuser)+1);
+	(void)_write(s, remuser, strlen(remuser)+1);
+	(void)_write(s, cmd, strlen(cmd)+1);
+	if (_read(s, &c, 1) != 1) {
 		(void)fprintf(stderr,
 		    "rcmd: %s: %s\n", *ahost, strerror(errno));
 		goto bad2;
 	}
 	if (c != 0) {
-		while (_libc_read(s, &c, 1) == 1) {
-			(void)_libc_write(STDERR_FILENO, &c, 1);
+		while (_read(s, &c, 1) == 1) {
+			(void)_write(STDERR_FILENO, &c, 1);
 			if (c == '\n')
 				break;
 		}
@@ -277,9 +282,9 @@ again:
 	return (s);
 bad2:
 	if (lport)
-		(void)_libc_close(*fd2p);
+		(void)_close(*fd2p);
 bad:
-	(void)_libc_close(s);
+	(void)_close(s);
 	sigsetmask(oldmask);
 	freeaddrinfo(res);
 	return (-1);
@@ -328,13 +333,13 @@ rresvport_af(alport, family)
 	if (bind(s, (struct sockaddr *)&sin, sizeof(sin)) >= 0)
 		return (s);
 	if (errno != EADDRINUSE) {
-		(void)_libc_close(s);
+		(void)_close(s);
 		return (-1);
 	}
 #endif
 	*sport = 0;
 	if (bindresvport_sa(s, (struct sockaddr *)&ss) == -1) {
-		(void)_libc_close(s);
+		(void)_close(s);
 		return (-1);
 	}
 	*alport = (int)ntohs(*sport);

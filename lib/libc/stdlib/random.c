@@ -298,11 +298,11 @@ srandomdev()
 		len = rand_deg * sizeof state[0];
 
 	done = 0;
-	fd = _libc_open("/dev/urandom", O_RDONLY, 0);
+	fd = _open("/dev/urandom", O_RDONLY, 0);
 	if (fd >= 0) {
-		if (_libc_read(fd, (void *) state, len) == (ssize_t) len)
+		if (_read(fd, (void *) state, len) == (ssize_t) len)
 			done = 1;
-		_libc_close(fd);
+		_close(fd);
 	}
 
 	if (!done) {

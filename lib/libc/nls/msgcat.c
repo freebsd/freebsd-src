@@ -285,7 +285,7 @@ nl_catd catd;
 	return -1;
     }
 
-    if (cat->loadType != MCLoadAll) _libc_close(cat->fd);
+    if (cat->loadType != MCLoadAll) _close(cat->fd);
     for (i = 0; i < cat->numSets; ++i) {
 	set = cat->sets + i;
 	if (!set->invalid) {
@@ -321,14 +321,14 @@ __const char *catpath;
     if (!cat) return(NLERR);
     cat->loadType = MCLoadBySet;
 
-    if ((cat->fd = _libc_open(catpath, O_RDONLY)) < 0) {
+    if ((cat->fd = _open(catpath, O_RDONLY)) < 0) {
 	free(cat);
 	return(NLERR);
     }
 
-    (void)_libc_fcntl(cat->fd, F_SETFD, FD_CLOEXEC);
+    (void)_fcntl(cat->fd, F_SETFD, FD_CLOEXEC);
 
-    if (_libc_read(cat->fd, &header, sizeof(header)) != sizeof(header))
+    if (_read(cat->fd, &header, sizeof(header)) != sizeof(header))
     	CORRUPT();
 
     if (strncmp(header.magic, MCMagic, MCMagicLen) != 0) CORRUPT();
@@ -369,7 +369,7 @@ __const char *catpath;
 
 	/* read in the set header */
 	set = cat->sets + i;
-	if (_libc_read(cat->fd, set, sizeof(*set)) != sizeof(*set)) {
+	if (_read(cat->fd, set, sizeof(*set)) != sizeof(*set)) {
 		for (j = 0; j < i; j++) {
 			set = cat->sets + j;
 			if (!set->invalid) {
@@ -408,7 +408,7 @@ __const char *catpath;
 	nextSet = set->nextSet;
     }
     if (cat->loadType == MCLoadAll) {
-	_libc_close(cat->fd);
+	_close(cat->fd);
 	cat->fd = -1;
     }
     return((nl_catd) cat);
@@ -424,7 +424,7 @@ MCSetT *set;
     /* Get the data */
     if (lseek(cat->fd, set->data.off, 0) == -1) return(0);
     if ((set->data.str = malloc(set->dataLen)) == NULL) return(-1);
-    if (_libc_read(cat->fd, set->data.str, set->dataLen) != set->dataLen) {
+    if (_read(cat->fd, set->data.str, set->dataLen) != set->dataLen) {
 	free(set->data.str); return(0);
     }
 
@@ -438,7 +438,7 @@ MCSetT *set;
 
     for (i = 0; i < set->numMsgs; ++i) {
 	msg = set->u.msgs + i;
-	if (_libc_read(cat->fd, msg, sizeof(*msg)) != sizeof(*msg)) {
+	if (_read(cat->fd, msg, sizeof(*msg)) != sizeof(*msg)) {
 	    free(set->u.msgs); free(set->data.str); return(0);
 	}
 	if (msg->invalid) {

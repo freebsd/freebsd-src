@@ -60,5 +60,5 @@ closedir(dirp)
 	free((void *)dirp->dd_buf);
 	free((void *)dirp);
 	_reclaim_telldir(dirp);
-	return(_libc_close(fd));
+	return(_close(fd));
 }

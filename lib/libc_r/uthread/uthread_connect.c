@@ -40,7 +40,7 @@
 #include "pthread_private.h"
 
 int
-_libc_connect(int fd, const struct sockaddr * name, socklen_t namelen)
+_connect(int fd, const struct sockaddr * name, socklen_t namelen)
 {
 	struct sockaddr tmpname;
 	int             errnolen, ret, tmpnamelen;
@@ -76,5 +76,5 @@ _libc_connect(int fd, const struct sockaddr * name, socklen_t namelen)
 	return (ret);
 }
 
-__weak_reference(_libc_connect, connect);
+__weak_reference(_connect, connect);
 #endif

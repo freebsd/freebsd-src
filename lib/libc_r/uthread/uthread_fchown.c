@@ -39,7 +39,7 @@
 #include "pthread_private.h"
 
 int
-_libc_fchown(int fd, uid_t owner, gid_t group)
+_fchown(int fd, uid_t owner, gid_t group)
 {
 	int             ret;
 
@@ -50,5 +50,5 @@ _libc_fchown(int fd, uid_t owner, gid_t group)
 	return (ret);
 }
 
-__weak_reference(_libc_fchown, fchown);
+__weak_reference(_fchown, fchown);
 #endif

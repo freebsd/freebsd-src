@@ -67,7 +67,7 @@ realpath(path, resolved)
 	int symlinks = 0;
 
 	/* Save the starting point. */
-	if ((fd = _libc_open(".", O_RDONLY)) < 0) {
+	if ((fd = _open(".", O_RDONLY)) < 0) {
 		(void)strcpy(resolved, ".");
 		return (NULL);
 	}
@@ -154,12 +154,12 @@ loop:
 	}
 
 	/* It's okay if the close fails, what's an fd more or less? */
-	(void)_libc_close(fd);
+	(void)_close(fd);
 	return (resolved);
 
 err1:	serrno = errno;
 	(void)fchdir(fd);
-err2:	(void)_libc_close(fd);
+err2:	(void)_close(fd);
 	errno = serrno;
 	return (NULL);
 }

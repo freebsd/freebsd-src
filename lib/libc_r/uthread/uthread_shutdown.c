@@ -39,7 +39,7 @@
 #include "pthread_private.h"
 
 int
-_libc_shutdown(int fd, int how)
+_shutdown(int fd, int how)
 {
 	int             ret;
 
@@ -70,5 +70,5 @@ _libc_shutdown(int fd, int how)
 	return (ret);
 }
 
-__weak_reference(_libc_shutdown, shutdown);
+__weak_reference(_shutdown, shutdown);
 #endif

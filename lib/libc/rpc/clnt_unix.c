@@ -158,7 +158,7 @@ clntunix_create(raddr, prog, vers, sockp, sendsz, recvsz)
 			rpc_createerr.cf_stat = RPC_SYSTEMERROR;
 			rpc_createerr.cf_error.re_errno = errno;
 			if (*sockp != -1)
-				(void)_libc_close(*sockp);
+				(void)_close(*sockp);
 			goto fooy;
 		}
 		ct->ct_closeit = TRUE;
@@ -191,7 +191,7 @@ clntunix_create(raddr, prog, vers, sockp, sendsz, recvsz)
 	    XDR_ENCODE);
 	if (! xdr_callhdr(&(ct->ct_xdrs), &call_msg)) {
 		if (ct->ct_closeit) {
-			(void)_libc_close(*sockp);
+			(void)_close(*sockp);
 		}
 		goto fooy;
 	}
@@ -465,7 +465,7 @@ clntunix_destroy(h)
 	    (struct ct_data *) h->cl_private;
 
 	if (ct->ct_closeit) {
-		(void)_libc_close(ct->ct_sock);
+		(void)_close(ct->ct_sock);
 	}
 	XDR_DESTROY(&(ct->ct_xdrs));
 	mem_free((caddr_t)ct, sizeof(struct ct_data));

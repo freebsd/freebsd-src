@@ -178,8 +178,7 @@ fts_open(argv, options, compar)
 	 * and ".." are all fairly nasty problems.  Note, if we can't get the
 	 * descriptor we run anyway, just more slowly.
 	 */
-	if (!ISSET(FTS_NOCHDIR) && (sp->fts_rfd = _libc_open(".", O_RDONLY, 0))
-	    < 0)
+	if (!ISSET(FTS_NOCHDIR) && (sp->fts_rfd = _open(".", O_RDONLY, 0)) < 0)
 		SET(FTS_NOCHDIR);
 
 	return (sp);
@@ -248,7 +247,7 @@ fts_close(sp)
 	/* Return to original directory, save errno if necessary. */
 	if (!ISSET(FTS_NOCHDIR)) {
 		saved_errno = fchdir(sp->fts_rfd) ? errno : 0;
-		(void)_libc_close(sp->fts_rfd);
+		(void)_close(sp->fts_rfd);
 
 		/* Set errno and return. */
 		if (saved_errno != 0) {
@@ -308,7 +307,7 @@ fts_read(sp)
 	    (p->fts_info == FTS_SL || p->fts_info == FTS_SLNONE)) {
 		p->fts_info = fts_stat(sp, p, 1);
 		if (p->fts_info == FTS_D && !ISSET(FTS_NOCHDIR)) {
-			if ((p->fts_symfd = _libc_open(".", O_RDONLY, 0)) < 0) {
+			if ((p->fts_symfd = _open(".", O_RDONLY, 0)) < 0) {
 				p->fts_errno = errno;
 				p->fts_info = FTS_ERR;
 			} else
@@ -323,7 +322,7 @@ fts_read(sp)
 		if (instr == FTS_SKIP ||
 		    (ISSET(FTS_XDEV) && p->fts_dev != sp->fts_dev)) {
 			if (p->fts_flags & FTS_SYMFOLLOW)
-				(void)_libc_close(p->fts_symfd);
+				(void)_close(p->fts_symfd);
 			if (sp->fts_child) {
 				fts_lfree(sp->fts_child);
 				sp->fts_child = NULL;
@@ -398,7 +397,7 @@ next:	tmp = p;
 			p->fts_info = fts_stat(sp, p, 1);
 			if (p->fts_info == FTS_D && !ISSET(FTS_NOCHDIR)) {
 				if ((p->fts_symfd =
-				    _libc_open(".", O_RDONLY, 0)) < 0) {
+				    _open(".", O_RDONLY, 0)) < 0) {
 					p->fts_errno = errno;
 					p->fts_info = FTS_ERR;
 				} else
@@ -443,12 +442,12 @@ name:		t = sp->fts_path + NAPPEND(p->fts_parent);
 	} else if (p->fts_flags & FTS_SYMFOLLOW) {
 		if (FCHDIR(sp, p->fts_symfd)) {
 			saved_errno = errno;
-			(void)_libc_close(p->fts_symfd);
+			(void)_close(p->fts_symfd);
 			errno = saved_errno;
 			SET(FTS_STOP);
 			return (NULL);
 		}
-		(void)_libc_close(p->fts_symfd);
+		(void)_close(p->fts_symfd);
 	} else if (!(p->fts_flags & FTS_DONTCHDIR)) {
 		if (CHDIR(sp, "..")) {
 			SET(FTS_STOP);
@@ -540,12 +539,12 @@ fts_children(sp, instr)
 	    ISSET(FTS_NOCHDIR))
 		return (sp->fts_child = fts_build(sp, instr));
 
-	if ((fd = _libc_open(".", O_RDONLY, 0)) < 0)
+	if ((fd = _open(".", O_RDONLY, 0)) < 0)
 		return (NULL);
 	sp->fts_child = fts_build(sp, instr);
 	if (fchdir(fd))
 		return (NULL);
-	(void)_libc_close(fd);
+	(void)_close(fd);
 	return (sp->fts_child);
 }
 
@@ -1094,7 +1093,7 @@ fts_safe_changedir(sp, p, fd)
 	newfd = fd;
 	if (ISSET(FTS_NOCHDIR))
 		return (0);
-	if (fd < 0 && (newfd = _libc_open(p->fts_accpath, O_RDONLY, 0)) < 0)
+	if (fd < 0 && (newfd = _open(p->fts_accpath, O_RDONLY, 0)) < 0)
 		return (-1);
 	if (fstat(newfd, &sb)) {
 		ret = -1;
@@ -1109,7 +1108,7 @@ fts_safe_changedir(sp, p, fd)
 bail:
 	oerrno = errno;
 	if (fd < 0)
-		(void)_libc_close(newfd);
+		(void)_close(newfd);
 	errno = oerrno;
 	return (ret);
 }

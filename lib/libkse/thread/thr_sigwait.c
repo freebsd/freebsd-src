@@ -143,6 +143,7 @@ sigwait(const sigset_t * set, int *sig)
 	}
 
 	_thread_leave_cancellation_point();
+	
 	/* Return the completion status: */
 	return (ret);
 }

@@ -39,15 +39,13 @@
 #include "pthread_private.h"
 
 int
-_libc_fcntl(int fd, int cmd,...)
+_fcntl(int fd, int cmd,...)
 {
 	int             flags = 0;
 	int		nonblock;
 	int             oldfd;
 	int             ret;
 	va_list         ap;
-
-	_thread_enter_cancellation_point();
 
 	/* Lock the file descriptor: */
 	if ((ret = _FD_LOCK(fd, FD_RDWR, NULL)) == 0) {
@@ -137,11 +135,36 @@ _libc_fcntl(int fd, int cmd,...)
 		/* Unlock the file descriptor: */
 		_FD_UNLOCK(fd, FD_RDWR);
 	}
-	_thread_leave_cancellation_point();
-
 	/* Return the completion status: */
 	return (ret);
 }
 
-__weak_reference(_libc_fcntl, fcntl);
+int
+fcntl(int fd, int cmd,...)
+{
+	int	ret;
+	va_list	ap;
+	
+	_thread_enter_cancellation_point();
+
+	va_start(ap, cmd);
+	switch (cmd) {
+		case F_DUPFD:
+		case F_SETFD:
+		case F_SETFL:
+			ret = fcntl(fd, cmd, va_arg(ap, int));
+			break;
+		case F_GETFD:
+		case F_GETFL:
+			ret = fcntl(fd, cmd);
+			break;
+		default:
+			ret = fcntl(fd, cmd, va_arg(ap, void *));
+	}
+	va_end(ap);
+
+	_thread_leave_cancellation_point();
+
+	return ret;
+}
 #endif

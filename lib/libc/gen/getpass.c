@@ -86,7 +86,7 @@ getpass(prompt)
 		if (p < buf + _PASSWORD_LEN)
 			*p++ = ch;
 	*p = '\0';
-	(void)_libc_write(fileno(outfp), "\n", 1);
+	(void)_write(fileno(outfp), "\n", 1);
 	(void)tcsetattr(fileno(fp), TCSAFLUSH|TCSASOFT, &oterm);
 
 	(void)sigprocmask(SIG_SETMASK, &oset, NULL);

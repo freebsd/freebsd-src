@@ -60,7 +60,7 @@ fopen(file, mode)
 		return (NULL);
 	if ((fp = __sfp()) == NULL)
 		return (NULL);
-	if ((f = _libc_open(file, oflags, DEFFILEMODE)) < 0) {
+	if ((f = _open(file, oflags, DEFFILEMODE)) < 0) {
 		fp->_flags = 0;			/* release */
 		return (NULL);
 	}

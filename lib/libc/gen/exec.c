@@ -249,9 +249,9 @@ execvp(name, argv)
 		 * the user may execute the wrong program.
 		 */
 		if (lp + ln + 2 > sizeof(buf)) {
-			(void)_libc_write(STDERR_FILENO, "execvp: ", 8);
-			(void)_libc_write(STDERR_FILENO, p, lp);
-			(void)_libc_write(STDERR_FILENO, ": path too long\n",
+			(void)_write(STDERR_FILENO, "execvp: ", 8);
+			(void)_write(STDERR_FILENO, p, lp);
+			(void)_write(STDERR_FILENO, ": path too long\n",
 			    16);
 			continue;
 		}

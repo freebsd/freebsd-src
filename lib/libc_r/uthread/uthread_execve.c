@@ -39,7 +39,7 @@
 #include "pthread_private.h"
 
 int 
-_libc_execve(const char *name, char *const * argv, char *const * envp)
+_execve(const char *name, char *const * argv, char *const * envp)
 {
 	int		flags;
 	int             i;
@@ -111,5 +111,5 @@ _libc_execve(const char *name, char *const * argv, char *const * envp)
 	return (ret);
 }
 
-__weak_reference(_libc_execve, execve);
+__weak_reference(_execve, execve);
 #endif

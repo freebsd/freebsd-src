@@ -44,7 +44,7 @@
 #include "pthread_private.h"
 
 ssize_t
-_libc_writev(int fd, const struct iovec * iov, int iovcnt)
+_writev(int fd, const struct iovec * iov, int iovcnt)
 {
 	int	blocking;
 	int	idx = 0;
@@ -201,5 +201,5 @@ _libc_writev(int fd, const struct iovec * iov, int iovcnt)
 	return (ret);
 }
 
-__weak_reference(_libc_writev, writev);
+__weak_reference(_writev, writev);
 #endif

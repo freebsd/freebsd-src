@@ -68,7 +68,7 @@ __rec_open(fname, flags, mode, openinfo, dflags)
 	int rfd, sverrno;
 
 	/* Open the user's file -- if this fails, we're done. */
-	if (fname != NULL && (rfd = _libc_open(fname, flags, mode)) < 0)
+	if (fname != NULL && (rfd = _open(fname, flags, mode)) < 0)
 		return (NULL);
 
 	/* Create a btree in memory (backed by disk). */
@@ -215,7 +215,7 @@ err:	sverrno = errno;
 	if (dbp != NULL)
 		(void)__bt_close(dbp);
 	if (fname != NULL)
-		(void)_libc_close(rfd);
+		(void)_close(rfd);
 	errno = sverrno;
 	return (NULL);
 }

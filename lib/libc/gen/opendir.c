@@ -80,7 +80,7 @@ __opendir2(name, flags)
 		errno = ENOTDIR;
 		return (NULL);
 	}
-	if ((fd = _libc_open(name, O_RDONLY | O_NONBLOCK)) == -1)
+	if ((fd = _open(name, O_RDONLY | O_NONBLOCK)) == -1)
 		return (NULL);
 	dirp = NULL;
 	if (fstat(fd, &statb) != 0)
@@ -89,7 +89,7 @@ __opendir2(name, flags)
 		errno = ENOTDIR;
 		goto fail;
 	}
-	if (_libc_fcntl(fd, F_SETFD, FD_CLOEXEC) == -1 ||
+	if (_fcntl(fd, F_SETFD, FD_CLOEXEC) == -1 ||
 	    (dirp = malloc(sizeof(DIR))) == NULL)
 		goto fail;
 
@@ -163,8 +163,8 @@ __opendir2(name, flags)
 		 * which has also been read -- see fts.c.
 		 */
 		if (flags & DTF_REWIND) {
-			(void)_libc_close(fd);
-			if ((fd = _libc_open(name, O_RDONLY)) == -1) {
+			(void)_close(fd);
+			if ((fd = _open(name, O_RDONLY)) == -1) {
 				saved_errno = errno;
 				free(buf);
 				free(dirp);
@@ -270,7 +270,7 @@ __opendir2(name, flags)
 fail:
 	saved_errno = errno;
 	free(dirp);
-	(void)_libc_close(fd);
+	(void)_close(fd);
 	errno = saved_errno;
 	return (NULL);
 }

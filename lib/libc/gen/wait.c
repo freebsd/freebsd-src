@@ -49,5 +49,4 @@ __wait(istat)
 	return (wait4(WAIT_ANY, istat, 0, (struct rusage *)0));
 }
 
-__weak_reference(__wait, _libc_wait);
-__weak_reference(_libc_wait, wait);
+__weak_reference(__wait, wait);

@@ -57,9 +57,9 @@ psignal(sig, s)
 	else
 		c = "Unknown signal";
 	if (s != NULL && *s != '\0') {
-		(void)_libc_write(STDERR_FILENO, s, strlen(s));
-		(void)_libc_write(STDERR_FILENO, ": ", 2);
+		(void)_write(STDERR_FILENO, s, strlen(s));
+		(void)_write(STDERR_FILENO, ": ", 2);
 	}
-	(void)_libc_write(STDERR_FILENO, c, strlen(c));
-	(void)_libc_write(STDERR_FILENO, "\n", 1);
+	(void)_write(STDERR_FILENO, c, strlen(c));
+	(void)_write(STDERR_FILENO, "\n", 1);
 }

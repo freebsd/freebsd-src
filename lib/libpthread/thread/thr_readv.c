@@ -42,7 +42,7 @@
 #include "pthread_private.h"
 
 ssize_t
-_libc_readv(int fd, const struct iovec * iov, int iovcnt)
+_readv(int fd, const struct iovec * iov, int iovcnt)
 {
 	int	ret;
 	int	type;
@@ -91,5 +91,5 @@ _libc_readv(int fd, const struct iovec * iov, int iovcnt)
 	return (ret);
 }
 
-__weak_reference(_libc_readv, readv);
+__weak_reference(_readv, readv);
 #endif
