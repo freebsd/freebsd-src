@@ -46,11 +46,20 @@ struct ifaddrs {
 #define	ifa_broadaddr	ifa_dstaddr	/* broadcast address interface */
 #endif
 
+struct ifmaddrs {
+	struct ifmaddrs	*ifma_next;
+	struct sockaddr	*ifma_name;
+	struct sockaddr	*ifma_addr;
+	struct sockaddr	*ifma_lladdr;
+};
+
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
 extern int getifaddrs(struct ifaddrs **);
 extern void freeifaddrs(struct ifaddrs *);
+extern int getifmaddrs(struct ifmaddrs **);
+extern void freeifmaddrs(struct ifmaddrs *);
 __END_DECLS
 
 #endif
