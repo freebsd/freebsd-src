@@ -96,6 +96,9 @@ struct buffer_data
 /* The size we allocate for each buffer_data structure.  */
 #define BUFFER_DATA_SIZE (4096)
 
+/* The type of a function passed as a memory error handler.  */
+typedef void (*BUFMEMERRPROC) PROTO ((struct buffer *));
+
 extern struct buffer *buf_initialize PROTO((int (*) (void *, char *, int,
 						     int, int *),
 					    int (*) (void *, const char *,
@@ -105,6 +108,7 @@ extern struct buffer *buf_initialize PROTO((int (*) (void *, char *, int,
 					    int (*) (void *),
 					    void (*) (struct buffer *),
 					    void *));
+extern void buf_free PROTO((struct buffer *));
 extern struct buffer *buf_nonio_initialize PROTO((void (*) (struct buffer *)));
 extern struct buffer *stdio_buffer_initialize
   PROTO((FILE *, int, void (*) (struct buffer *)));
@@ -127,6 +131,7 @@ extern int buf_send_special_count PROTO((struct buffer *, int));
 extern void buf_append_data PROTO((struct buffer *,
 				   struct buffer_data *,
 				   struct buffer_data *));
+extern void buf_append_buffer PROTO((struct buffer *, struct buffer *));
 extern int buf_read_file PROTO((FILE *, long, struct buffer_data **,
 				struct buffer_data **));
 extern int buf_read_file_to_eof PROTO((FILE *, struct buffer_data **,
@@ -137,6 +142,7 @@ extern int buf_read_data PROTO((struct buffer *, int, char **, int *));
 extern void buf_copy_lines PROTO((struct buffer *, struct buffer *, int));
 extern int buf_copy_counted PROTO((struct buffer *, struct buffer *, int *));
 extern int buf_chain_length PROTO((struct buffer_data *));
+extern int buf_length PROTO((struct buffer *));
 extern int buf_shutdown PROTO((struct buffer *));
 
 #ifdef SERVER_FLOWCONTROL

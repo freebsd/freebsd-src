@@ -20,6 +20,9 @@
 /* Define if you have the connect function.  */
 #undef HAVE_CONNECT
 
+/* Define if this system supports chown(), link(), and friends.  */
+#undef PRESERVE_PERMISSIONS_SUPPORT
+
 /* Define if you have memchr (always for CVS).  */
 #undef HAVE_MEMCHR
 
