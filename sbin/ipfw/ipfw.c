@@ -13,16 +13,21 @@
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
  * NEW command line interface for IP firewall facility
+ *
+ * $Id: ipfw.c,v 1.18 1995/10/23 03:57:28 ugen Exp $
+ *
  */
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include <fcntl.h>
 #include <limits.h>
 #include <netdb.h>
 #include <kvm.h>
 #include <sys/socket.h>
+#include <sys/queue.h>
 #include <net/if.h>
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
@@ -30,7 +35,6 @@
 #include <netinet/tcp.h>
 #include <arpa/inet.h>
 #define IPFIREWALL
-#define IPACCT
 #include <netinet/ip_fw.h>
 
 #define MAXSTR	25
@@ -46,20 +50,31 @@ u_short		flags=0;			/* New entry flags 	   */
 
 
 #define FW	0x001	/* Firewall action   */
-#define AC	0x002	/* Accounting action */
 
 #define S_ANY		"any"
 
 #define IS_TO(x)	(!strcmp(x,"to"))
 #define IS_FROM(x)	(!strcmp(x,"from"))
 #define IS_VIA(x) 	(!strcmp(x,"via") || !strcmp(x,"on"))
-#define IS_TOKEN(x)	(IS_TO(x) || IS_FROM(x) || IS_VIA(x))
+#define IS_IPOPT(x)	(!strncmp(x,"ipop",4) || !strncmp(x,"opt",3))
+#define IS_TCPFLG(x)	(!strncmp(x,"tcpf",4) || !strncmp(x,"fla",3))
+#define IS_TOKEN(x)	(IS_TO(x) || IS_FROM(x) || IS_VIA(x) ||\
+				     IS_IPOPT(x) || IS_TCPFLG(x))
 
-#define P_AC		"a" /* of "accept" for policy action */
-#define P_DE		"d" /* of "deny" for policy action   */
+#define IPO_LSRR	"ls"
+#define IPO_SSRR	"ss"
+#define IPO_RR		"rr"
+#define IPO_TS		"ts"
+
+#define TCPF_FIN	"fin"
+#define TCPF_SYN	"syn"
+#define TCPF_RST	"rst"
+#define TCPF_PUSH	"pus"
+#define TCPF_ACK	"ack"
+#define TCPF_URG	"urg"
+
 
 #define CH_FW		"f" /* of "firewall" for chains in zero/flush       */
-#define CH_AC		"a" /* of "accounting" for chain in zero/flush/list */
 
 char	action_tab[][MAXSTR]={
 "addf",
@@ -104,8 +119,6 @@ char	type_tab[][MAXSTR]={
 #define T_LDENY		6
 "sin",
 #define T_SINGLE	7
-"bid",
-#define T_BIDIR		8
 "",
 #define T_NONE		9
 };
@@ -118,19 +131,15 @@ char	proto_tab[][MAXSTR]={
 #define P_ICMP		1
 "tcp",
 #define P_TCP		2
-"syn",
-#define P_SYN		3
 "udp",
-#define P_UDP		4
+#define P_UDP		3
 ""
-#define P_NONE		5
+#define P_NONE		4
 };
 
 struct nlist nlf[]={
 #define N_FCHAIN 	0
 	{ "_ip_fw_chain" },
-#define N_POLICY 	1
-	{ "_ip_fw_policy" },
 	"" ,
 };
 
@@ -175,59 +184,41 @@ struct hostent *he;
 int i,mb;
 
 
-if (do_short && do_acct) {
-	printf("%8d:%8d ",chain->fw_bcnt,chain->fw_pcnt);
+	printf("%05u ", chain->fw_number);
+	if (do_acct) {
+		printf("%10u %10u ",chain->fw_bcnt,chain->fw_pcnt);
+	}
+
+
+if (do_short) {
+	if (c_t==FW) {
+		if (chain->fw_flg & IP_FW_F_ACCEPT)
+			if (chain->fw_flg & IP_FW_F_PRN)
+				printf(" l");
+			else
+				printf(" a");
+		else
+			if (chain->fw_flg & IP_FW_F_PRN)
+				if (chain->fw_flg & IP_FW_F_ICMPRPL)
+					printf("lr");
+				else
+					printf("ld");
+			else
+				if (chain->fw_flg & IP_FW_F_ICMPRPL)
+					printf(" r");
+				else
+					printf(" d");
+	}
+} else {
+	if (chain->fw_flg & IP_FW_F_PRN)
+		printf("l");
+	if (chain->fw_flg & IP_FW_F_ACCEPT)
+		printf("accept ");
+	else if (chain->fw_flg & IP_FW_F_ICMPRPL)
+		printf("reject ");
+	else 
+		printf("deny ");
 }
-
-
-if (do_short)
-	if (c_t==FW) {
-		if (chain->fw_flg & IP_FW_F_ACCEPT)
-			if (chain->fw_flg & IP_FW_F_PRN)
-				printf("l");
-			else
-				printf("a");
-		else
-			if (chain->fw_flg & IP_FW_F_PRN)
-				if (chain->fw_flg & IP_FW_F_ICMPRPL)
-					printf("R");
-				else
-					printf("D");
-			else
-				if (chain->fw_flg & IP_FW_F_ICMPRPL)
-					printf("r");
-				else
-					printf("d");
-	} else {
-		if (chain->fw_flg & IP_FW_F_BIDIR)
-			printf("b");
-		else
-			printf("s");
-	}
-else
-	if (c_t==FW) {
-		if (chain->fw_flg & IP_FW_F_ACCEPT)
-			if (chain->fw_flg & IP_FW_F_PRN)
-				printf("log ");
-			else
-				printf("accept ");
-		else
-			if (chain->fw_flg & IP_FW_F_PRN)
-				if (chain->fw_flg & IP_FW_F_ICMPRPL)
-					printf("lreject ");
-				else
-					printf("ldeny ");
-			else
-				if (chain->fw_flg & IP_FW_F_ICMPRPL)
-					printf("reject ");
-				else
-					printf("deny ");
-	} else {
-		if (chain->fw_flg & IP_FW_F_BIDIR)
-			printf("bidir  ");
-		else
-			printf("single ");
-	}
 
 if (do_short)
 	switch (chain->fw_flg & IP_FW_F_KIND) {
@@ -235,10 +226,7 @@ if (do_short)
 			printf("I ");
 			break;
 		case IP_FW_F_TCP:
-			if (chain->fw_flg&IP_FW_F_TCPSYN)
-				printf("S ");
-			else
-				printf("T ");
+			printf("T ");
 			break;
 		case IP_FW_F_UDP:
 			printf("U ");
@@ -255,10 +243,7 @@ else
 			printf("icmp ");
 			break;
 		case IP_FW_F_TCP:
-			if (chain->fw_flg&IP_FW_F_TCPSYN)
-				printf("syn  ");
-			else
-				printf("tcp  ");
+			printf("tcp  ");
 			break;
 		case IP_FW_F_UDP:
 			printf("udp  ");
@@ -281,19 +266,25 @@ else
 		he=gethostbyaddr((char *)&adrt,sizeof(u_long),AF_INET);
 		if (he==NULL) {
 			printf(inet_ntoa(chain->fw_src));
-			printf(":");
-			printf(inet_ntoa(chain->fw_smsk));
 		} else
 			printf("%s",he->h_name);
 	} else {
-		printf(inet_ntoa(chain->fw_src));
-		if (adrt!=ULONG_MAX)
-			if ((mb=mask_bits(chain->fw_smsk))>=0)
-				printf("/%d",mb);
-			else {
-				printf(":");
-				printf(inet_ntoa(chain->fw_smsk));
+		if (adrt!=ULONG_MAX) {
+			mb=mask_bits(chain->fw_smsk);
+			if (mb == 0) {
+				printf("any");
+			} else {
+				if (mb > 0) {
+					printf(inet_ntoa(chain->fw_src));
+					printf("/%d",mb);
+				} else {
+					printf(inet_ntoa(chain->fw_src));
+					printf(":");
+					printf(inet_ntoa(chain->fw_smsk));
+				}
 			}
+		} else
+			printf(inet_ntoa(chain->fw_src));
 	}
 
 	comma = " ";
@@ -316,19 +307,25 @@ else
 		he=gethostbyaddr((char *)&adrt,sizeof(u_long),AF_INET);
 		if (he==NULL) {
 			printf(inet_ntoa(chain->fw_dst));
-			printf(":");
-			printf(inet_ntoa(chain->fw_dmsk));
 		} else
 			printf("%s",he->h_name);
 	} else {
-		printf(inet_ntoa(chain->fw_dst));
-		if (adrt!=ULONG_MAX)
-			if ((mb=mask_bits(chain->fw_dmsk))>=0)
-				printf("/%d",mb);
-			else {
-				printf(":");
-				printf(inet_ntoa(chain->fw_dmsk));
+		if (adrt!=ULONG_MAX) {
+			mb=mask_bits(chain->fw_dmsk);
+			if (mb == 0) {
+				printf("any");
+			} else {
+				if (mb > 0) {
+					printf(inet_ntoa(chain->fw_dst));
+					printf("/%d",mb);
+				} else {
+					printf(inet_ntoa(chain->fw_dst));
+					printf(":");
+					printf(inet_ntoa(chain->fw_dmsk));
+				}
 			}
+		} else
+			printf(inet_ntoa(chain->fw_dst));
 	}
 
 	comma = " ";
@@ -358,8 +355,113 @@ if (chain->fw_via_ip.s_addr) {
 	printf(inet_ntoa(chain->fw_via_ip));
 }
 if (do_short)
-	printf("]\n");
-else
+	printf("]");
+
+	if (chain->fw_ipopt || chain->fw_ipnopt) {
+		if (do_short) {
+			printf("[");
+			if (chain->fw_ipopt & IP_FW_IPOPT_SSRR)
+				printf("S");
+			if (chain->fw_ipnopt & IP_FW_IPOPT_SSRR)
+				printf("s");
+			if (chain->fw_ipopt & IP_FW_IPOPT_LSRR)
+				printf("L");
+			if (chain->fw_ipnopt & IP_FW_IPOPT_LSRR)
+				printf("l");
+			if (chain->fw_ipopt & IP_FW_IPOPT_RR)
+				printf("R");
+			if (chain->fw_ipnopt & IP_FW_IPOPT_RR)
+				printf("r");
+			if (chain->fw_ipopt & IP_FW_IPOPT_TS)
+				printf("T");
+			if (chain->fw_ipnopt & IP_FW_IPOPT_TS)
+				printf("t");
+			printf("]");
+		} else {
+			int 	_opt_printed = 0;
+#define PRINTOPT(x)	{if (_opt_printed) printf(",");\
+				printf(x); _opt_printed = 1;}
+
+			printf(" ipopt ");
+			if (chain->fw_ipopt & IP_FW_IPOPT_SSRR)
+				PRINTOPT("ssrr");
+			if (chain->fw_ipnopt & IP_FW_IPOPT_SSRR)
+				PRINTOPT("!ssrr");
+			if (chain->fw_ipopt & IP_FW_IPOPT_LSRR)
+				PRINTOPT("lsrr");
+			if (chain->fw_ipnopt & IP_FW_IPOPT_LSRR)
+				PRINTOPT("!lsrr");
+			if (chain->fw_ipopt & IP_FW_IPOPT_RR)
+				PRINTOPT("rr");
+			if (chain->fw_ipnopt & IP_FW_IPOPT_RR)
+				PRINTOPT("!rr");
+			if (chain->fw_ipopt & IP_FW_IPOPT_TS)
+				PRINTOPT("ts");
+			if (chain->fw_ipnopt & IP_FW_IPOPT_TS)
+				PRINTOPT("!ts");
+		}
+	} 
+
+	if (chain->fw_tcpf || chain->fw_tcpnf) {
+		if (do_short) {
+			printf("[*");
+			if (chain->fw_tcpf & IP_FW_TCPF_FIN)
+				printf("F");
+			if (chain->fw_tcpnf & IP_FW_TCPF_FIN)
+				printf("f");
+			if (chain->fw_tcpf & IP_FW_TCPF_SYN)
+				printf("S");
+			if (chain->fw_tcpnf & IP_FW_TCPF_SYN)
+				printf("s");
+			if (chain->fw_tcpf & IP_FW_TCPF_RST)
+				printf("R");
+			if (chain->fw_tcpnf & IP_FW_TCPF_RST)
+				printf("r");
+			if (chain->fw_tcpf & IP_FW_TCPF_PUSH)
+				printf("P");
+			if (chain->fw_tcpnf & IP_FW_TCPF_PUSH)
+				printf("p");
+			if (chain->fw_tcpf & IP_FW_TCPF_ACK)
+				printf("A");
+			if (chain->fw_tcpnf & IP_FW_TCPF_ACK)
+				printf("a");
+			if (chain->fw_tcpf & IP_FW_TCPF_URG)
+				printf("U");
+			if (chain->fw_tcpnf & IP_FW_TCPF_URG)
+				printf("u");
+			printf("]");
+		} else {
+			int 	_flg_printed = 0;
+#define PRINTFLG(x)	{if (_flg_printed) printf(",");\
+				printf(x); _flg_printed = 1;}
+
+			printf(" tcpflg ");
+			if (chain->fw_tcpf & IP_FW_TCPF_FIN)
+				PRINTFLG("fin");
+			if (chain->fw_tcpnf & IP_FW_TCPF_FIN)
+				PRINTFLG("!fin");
+			if (chain->fw_tcpf & IP_FW_TCPF_SYN)
+				PRINTFLG("syn");
+			if (chain->fw_tcpnf & IP_FW_TCPF_SYN)
+				PRINTFLG("!syn");
+			if (chain->fw_tcpf & IP_FW_TCPF_RST)
+				PRINTFLG("rst");
+			if (chain->fw_tcpnf & IP_FW_TCPF_RST)
+				PRINTFLG("!rst");
+			if (chain->fw_tcpf & IP_FW_TCPF_PUSH)
+				PRINTFLG("push");
+			if (chain->fw_tcpnf & IP_FW_TCPF_PUSH)
+				PRINTFLG("!push");
+			if (chain->fw_tcpf & IP_FW_TCPF_ACK)
+				PRINTFLG("ack");
+			if (chain->fw_tcpnf & IP_FW_TCPF_ACK)
+				PRINTFLG("!ack");
+			if (chain->fw_tcpf & IP_FW_TCPF_URG)
+				PRINTFLG("urg");
+			if (chain->fw_tcpnf & IP_FW_TCPF_URG)
+				PRINTFLG("!urg");
+		}
+	} 
 	printf("\n");
 }
 
@@ -370,6 +472,7 @@ char 	**av;
 kvm_t *kd;
 static char errb[_POSIX2_LINE_MAX];
 struct ip_fw b,*btmp;
+struct ip_fw_chain *fcp,fc;
 
 	if (!(kd=kvm_openfiles(NULL,NULL,NULL,O_RDONLY,errb))) {
      		fprintf(stderr,"%s: kvm_openfiles: %s\n",
@@ -383,34 +486,14 @@ if (*av==NULL || !strncmp(*av,CH_FW,strlen(CH_FW))) {
 						progname,getbootfile());
       		exit(1);
     	}
-}
 
-if (*av==NULL || !strncmp(*av,CH_FW,strlen(CH_FW))) {
-	kvm_read(kd,(u_long)nlf[N_FCHAIN].n_value,&b,sizeof(struct ip_fw));
+	kvm_read(kd,(u_long)nlf[N_FCHAIN].n_value,&fcp,sizeof fcp);
 	printf("FireWall chain entries:\n");
-	while(b.fw_next!=NULL) {
-		btmp=b.fw_next;
-		kvm_read(kd,(u_long)btmp,&b,sizeof(struct ip_fw));
+	while(fcp!=NULL) {
+		kvm_read(kd,(u_long)fcp,&fc,sizeof fc);
+		kvm_read(kd,(u_long)fc.rule,&b,sizeof b);
 		show_ipfw(&b,FW);
-	}
-}
-
-
-if (*av==NULL ||  !strncmp(*av,CH_AC,strlen(CH_AC))) {
-	if (kvm_nlist(kd,nla)<0 || nla[0].n_type==0) {
-		fprintf(stderr,"%s: kvm_nlist: no namelist in %s\n",
-						progname,getbootfile());
-      		exit(1);
-    	}
-}
-
-if (*av==NULL || !strncmp(*av,CH_AC,strlen(CH_AC))) {
-	kvm_read(kd,(u_long)nla[N_ACHAIN].n_value,&b,sizeof(struct ip_fw));
-	printf("Accounting chain entries:\n");
-	while(b.fw_next!=NULL) {
-		btmp=b.fw_next;
-		kvm_read(kd,(u_long)btmp,&b,sizeof(struct ip_fw));
-		show_ipfw(&b,AC);
+		fcp = fc.chain.le_next;
 	}
 }
 
@@ -653,16 +736,95 @@ int i;
 	return 0;
 }
 
+void set_entry_ipopts(str, frwl)
+	char		*str;
+	struct ip_fw	*frwl;
+{
+char		*t_str,*p_str;
+u_char		*optr;
+
+	p_str = str;
+  	while ((t_str = strtok(p_str,",")) != NULL) {
+		p_str = NULL;
+
+		if (t_str[0] == '!') {
+			optr = &(frwl->fw_ipnopt);
+			t_str ++;
+		} else
+			optr = &(frwl->fw_ipopt);
+
+		if (!strncmp(t_str, IPO_LSRR, strlen(IPO_LSRR))) 
+			*(optr) |= IP_FW_IPOPT_LSRR;
+		else
+		if (!strncmp(t_str, IPO_SSRR, strlen(IPO_SSRR)))
+			*(optr) |= IP_FW_IPOPT_SSRR;
+		else
+		if (!strncmp(t_str, IPO_RR, strlen(IPO_RR)))
+			*(optr) |= IP_FW_IPOPT_RR;
+		else
+		if (!strncmp(t_str, IPO_TS, strlen(IPO_TS)))
+			*(optr) |= IP_FW_IPOPT_TS;
+		else {
+			fprintf(stderr,"%s: bad ip option.\n", progname);
+			exit(1);
+		}
+	}
+}
+
+
+void set_entry_tcpflgs(str, frwl)
+	char		*str;
+	struct ip_fw	*frwl;
+{
+char		*t_str,*p_str;
+u_char		*fptr;
+
+	p_str = str;
+  	while ((t_str = strtok(p_str,",")) != NULL) {
+		p_str = NULL;
+
+		if (t_str[0] == '!') {
+			fptr = &(frwl->fw_tcpnf);
+			t_str ++;
+		} else
+			fptr = &(frwl->fw_tcpf);
+
+		if (!strncmp(t_str, TCPF_FIN, strlen(TCPF_FIN))) 
+			*(fptr) |= IP_FW_TCPF_FIN;
+		else
+		if (!strncmp(t_str, TCPF_SYN, strlen(TCPF_SYN)))
+			*(fptr) |= IP_FW_TCPF_SYN;
+		else
+		if (!strncmp(t_str, TCPF_RST, strlen(TCPF_RST)))
+			*(fptr) |= IP_FW_TCPF_RST;
+		else
+		if (!strncmp(t_str, TCPF_PUSH, strlen(TCPF_PUSH)))
+			*(fptr) |= IP_FW_TCPF_PUSH;
+		else
+		if (!strncmp(t_str, TCPF_ACK, strlen(TCPF_ACK)))
+			*(fptr) |= IP_FW_TCPF_ACK;
+		else
+		if (!strncmp(t_str, TCPF_URG, strlen(TCPF_URG)))
+			*(fptr) |= IP_FW_TCPF_URG;
+		else {
+			fprintf(stderr,"%s: bad tcp flag.\n", progname);
+			exit(1);
+		}
+	}
+}
+
 
 void set_entry(av,frwl)
 char 	**av;
 struct ip_fw * frwl;
 {
 int 	ir;
-int 	got_from=0,got_to=0,got_via=0;
-#define	T_FROM	1
-#define T_TO	2
-#define T_VIA	3
+int 	got_from=0, got_to=0, got_via=0, got_ipopt=0, got_tcpflg=0;
+#define	T_FROM		1
+#define T_TO		2
+#define T_VIA		3
+#define T_IPOPT		4
+#define T_TCPFLG	5
 int	token;
 
 
@@ -673,6 +835,10 @@ int	token;
 	 */
 	frwl->fw_nsp=0;
 	frwl->fw_ndp=0;
+	frwl->fw_ipopt = 0;
+	frwl->fw_ipnopt = 0;
+	frwl->fw_tcpf = 0;
+	frwl->fw_tcpnf = 0;
 	frwl->fw_via_ip.s_addr=0L;
 	frwl->fw_src.s_addr=0L;
 	frwl->fw_dst.s_addr=0L;
@@ -741,6 +907,41 @@ get_next:
 		got_via = 1;
 	}
 
+	if (IS_IPOPT(*av)) {
+		token = T_IPOPT;
+
+		if (got_ipopt) {
+			show_usage("Redefined 'ipoptions'.");
+			exit(1);
+		}
+		if (*(++av)==NULL) {
+			show_usage("Missing 'ipoptions' specification.");
+			exit(1);
+		}
+
+		set_entry_ipopts(*av, frwl);
+
+		got_ipopt = 1;
+	}
+
+	if (IS_TCPFLG(*av)) {
+		token = T_TCPFLG;
+		
+		if (got_tcpflg) {
+			show_usage("Redefined 'tcpflags'.");
+			exit(1);
+		}
+
+		if (*(++av)==NULL) {
+			show_usage("Missing 'tcpflags' specification.");
+			exit(1);
+		}
+		
+		set_entry_tcpflgs(*av, frwl);
+
+		got_tcpflg = 1;
+	}
+
 	if (*(++av)==NULL) {
 		return;
 	}
@@ -793,13 +994,7 @@ char **av;
 		} else {
 			printf("All firewall entries flushed.\n");
 		}
- 		if (setsockopt(s,IPPROTO_IP,IP_ACCT_FLUSH,NULL,0)<0) {
-			fprintf(stderr,"%s: setsockopt failed.\n",progname);
-			exit(1);
-		} else {
-			printf("All accounting entries flushed.\n");
-		}
-		exit(0);
+		return;
 	}
 	if (!strncmp(*av,CH_FW,strlen(CH_FW))) {
  		if (setsockopt(s,IPPROTO_IP,IP_FW_FLUSH,NULL,0)<0) {
@@ -807,86 +1002,24 @@ char **av;
 			exit(1);
 		} else {
 			printf("All firewall entries flushed.\n");
-			exit(0);
-		}
-	}
-	if (!strncmp(*av,CH_AC,strlen(CH_AC))) {
- 		if (setsockopt(s,IPPROTO_IP,IP_ACCT_FLUSH,NULL,0)<0) {
-			fprintf(stderr,"%s: setsockopt failed.\n",progname);
-			exit(1);
-		} else {
-			printf("All accounting entries flushed.\n");
-			exit(0);
+			return;
 		}
 	}
 
 }
-
-
-
-void policy(av)
-char **av;
-{
- u_short p=0,b;
- kvm_t *kd;
- static char errb[_POSIX2_LINE_MAX];
-
-if (*av==NULL || strlen(*av)<=0) {
- if ( (kd=kvm_openfiles(NULL,NULL,NULL,O_RDONLY,errb)) == NULL) {
-     fprintf(stderr,"%s: kvm_openfiles: %s\n",progname,kvm_geterr(kd));
-     exit(1);
- }
- if (kvm_nlist(kd,nlf) < 0 || nlf[0].n_type == 0) {
-      fprintf(stderr,"%s: kvm_nlist: no namelist in %s\n",
-					progname,getbootfile());
-      exit(1);
- }
-
-kvm_read(kd,(u_long)nlf[N_POLICY].n_value,&b,sizeof(int));
-
-if (b&IP_FW_P_DENY)
-	printf("Default policy: DENY\n");
-else
-	printf("Default policy: ACCEPT\n");
-exit(1);
-}
-
-if (!strncmp(*av,P_DE,strlen(P_DE)))
-	p|=IP_FW_P_DENY;
-else
-if (!strncmp(*av,P_AC,strlen(P_AC)))
-	p&=~IP_FW_P_DENY;
-else {
-	fprintf(stderr,"%s: bad policy value.\n",progname);
-	exit(1);
-}
-
-if (setsockopt(s,IPPROTO_IP,IP_FW_POLICY,&p,sizeof(p))<0) {
-	fprintf(stderr,"%s: setsockopt failed.\n",progname);
-	exit(1);
-} else {
-	if (p&IP_FW_P_DENY)
-		printf("Policy set to DENY.\n");
-	else
-		printf("Policy set to ACCEPT.\n");
-	exit(0);
-}
-}
-
-
 
 zero()
 {
-	if (setsockopt(s,IPPROTO_IP,IP_ACCT_ZERO,NULL,0)<0) {
+	if (setsockopt(s,IPPROTO_IP,IP_FW_ZERO,NULL,0)<0) {
 		fprintf(stderr,"%s: setsockopt failed.\n",progname);
 		exit(1);
 	} else {
 		printf("Accounting cleared.\n");
-		exit(0);
+		return;
 	}
 }
 
-main(ac,av)
+ipfw_main(ac,av)
 int 	ac;
 char 	**av;
 {
@@ -943,32 +1076,17 @@ struct ip_fw	frwl;
 				int_t=FW;
 				is_check=1;
 				break;
-			case A_ADDA:
-				ctl=IP_ACCT_ADD;
-				int_t=AC;
-				break;
-			case A_DELA:
-				ctl=IP_ACCT_DEL;
-				int_t=AC;
-				break;
-			case A_CLRA:
-				ctl=IP_ACCT_CLR;
-				int_t=AC;
-				break;
 			case A_FLUSH:
 				flush(++av);
-				exit(0); /* successful exit */
+				return;
 			case A_LIST:
 				list(++av);
-				exit(0); /* successful exit */
+				return;
 			case A_ZERO:
 				zero();
-				exit(0); /* successful exit */
-			case A_POLICY:
-				policy(++av);
-				exit(0); /* we never get here */
+				return;
 			default:
-				int_t=(AC|FW);
+				int_t=(FW);
 				int_notdef=1;
 	} /*  main action switch  */
 
@@ -1015,19 +1133,6 @@ struct ip_fw	frwl;
 				break;
 			case T_SINGLE:
 				flags|=0; /* just to show it related to flags */
-				if (!int_t&AC) {
-					show_usage(NULL);
-					exit(1);
-				}
-				int_t=AC;
-				break;
-			case T_BIDIR:
-				flags|=IP_FW_F_BIDIR;
-				if (!int_t&AC) {
-					show_usage(NULL);
-					exit(1);
-				}
-				int_t=AC;
 				break;
 			default:
 				show_usage(NULL);
@@ -1038,8 +1143,6 @@ struct ip_fw	frwl;
 	if (int_notdef) {
 		if (int_t==FW)
 			ctl=IP_FW_ADD;
-		if (int_t==AC)
-			ctl=IP_ACCT_ADD;
 	}
 
 proto_switch:
@@ -1056,8 +1159,6 @@ proto_switch:
 		case P_ICMP:
 			flags|=IP_FW_F_ICMP;
 			break;
-		case P_SYN:
-			flags|=IP_FW_F_TCPSYN;
 		case P_TCP:
 			flags|=IP_FW_F_TCP;
 			ports_ok=1;
@@ -1140,4 +1241,45 @@ proto_switch:
     close(s);
 }
 
+int 
+main(ac, av)
+	int	ac;
+	char	**av;
+{
+#define MAX_ARGS	32
+	char	buf[_POSIX_ARG_MAX];
+	char	*args[MAX_ARGS];
+	char	linename[10];
+	int 	lineno = 0, i, j;
+	FILE	*f;
 
+	if (av[1] && !access(av[1], R_OK)) {
+		f = fopen(av[1], "r");
+		while (fgets(buf, _POSIX_ARG_MAX, f)) {
+			if (buf[strlen(buf)-1]=='\n')
+				buf[strlen(buf)-1] = 0;
+
+			lineno++;
+			sprintf(linename, "Line %d", lineno);
+			args[0] = linename;
+
+			args[1] = buf;
+			while(*args[1] == ' ')
+				args[1]++;
+			i = 2;
+			while(args[i] = findchar(args[i-1],' ')) {
+				*(args[i]++) = 0;
+				while(*args[i] == ' ')
+					args[i]++;
+				i++;
+			}
+			if (*args[i-1] == 0)
+				i--;
+			args[i] = NULL;
+
+			ipfw_main(i, args); 
+		}
+		fclose(f);
+	} else
+		ipfw_main(ac,av);
+}
