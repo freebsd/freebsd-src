@@ -1619,14 +1619,6 @@ cpu_boot(int howto)
 void
 cpu_halt(void)
 {
-#ifdef	SMP
-	printf("sending IPI_HALT to other processors\n");
-	DELAY(1000000);
-	ipi_all_but_self(IPI_HALT);
-	DELAY(1000000);
-	printf("Halting Self\n");
-	DELAY(1000000);
-#endif
 	prom_halt(1);
 }
 
