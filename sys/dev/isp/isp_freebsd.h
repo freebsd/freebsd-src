@@ -35,7 +35,7 @@
 #define	_ISP_FREEBSD_H
 
 #define	ISP_PLATFORM_VERSION_MAJOR	4
-#define	ISP_PLATFORM_VERSION_MINOR	3
+#define	ISP_PLATFORM_VERSION_MINOR	4
 
 
 #include <sys/param.h>
@@ -48,6 +48,7 @@
 #include <machine/bus_pio.h>
 #include <machine/bus.h>
 #include <machine/clock.h>
+#include <machine/cpu.h>
 
 #include <cam/cam.h>
 #include <cam/cam_debug.h>
@@ -61,15 +62,11 @@
 
 #include "opt_ddb.h"
 #include "opt_isp.h"
-#ifdef	SCSI_ISP_FABRIC
+/*
+ * We are now always supporting fabric mode.
+ */
 #define	ISP2100_FABRIC		1
 #define	ISP2100_SCRLEN		0x400
-#else
-#define	ISP2100_SCRLEN		0x100
-#endif
-#ifdef	SCSI_ISP_SCCLUN
-#define	ISP2100_SCCLUN	1
-#endif
 
 #ifndef	SCSI_CHECK
 #define	SCSI_CHECK	SCSI_STATUS_CHECK_COND
@@ -82,6 +79,7 @@
 #endif
 
 #define	ISP_SCSI_XFER_T		struct ccb_scsiio
+typedef void ispfwfunc __P((int, int, int, const u_int16_t **));
 
 #ifdef	ISP_TARGET_MODE
 typedef struct tstate {
@@ -114,7 +112,11 @@ struct isposinfo {
 	struct cam_path		*path;
 	struct cam_sim		*sim2;
 	struct cam_path		*path2;
-	volatile char		simqfrozen;
+	struct intr_config_hook	ehook;
+	volatile u_int16_t	:	15,
+		islocked	:	1;
+	u_int8_t		simqfrozen;
+	int			splsaved;
 #ifdef	ISP_TARGET_MODE
 #define	TM_WANTED		0x01
 #define	TM_BUSY			0x02
@@ -145,13 +147,50 @@ struct isposinfo {
 
 #define	DFLT_DBLEVEL		isp_debug
 extern int isp_debug;
-#define	ISP_LOCKVAL_DECL	int isp_spl_save
-#define	ISP_ILOCKVAL_DECL	ISP_LOCKVAL_DECL
-#define	ISP_UNLOCK(isp)		(void) splx(isp_spl_save)
-#define	ISP_LOCK(isp)		isp_spl_save = splcam()
-#define	ISP_ILOCK(isp)		ISP_LOCK(isp)
-#define	ISP_IUNLOCK(isp)	ISP_UNLOCK(isp)
-#define	IMASK			cam_imask
+
+static __inline void isp_lock(struct ispsoftc *);
+static __inline void isp_unlock(struct ispsoftc *);
+
+static __inline void
+isp_lock(struct ispsoftc *isp)
+{
+	int s = splcam();
+	if (isp->isp_osinfo.islocked == 0) {
+		isp->isp_osinfo.islocked = 1;
+		isp->isp_osinfo.splsaved = s;
+	} else {
+		splx(s);
+	}
+}
+
+static __inline void
+isp_unlock(struct ispsoftc *isp)
+{
+	if (isp->isp_osinfo.islocked) {
+		isp->isp_osinfo.islocked = 0;
+		splx(isp->isp_osinfo.splsaved);
+	}
+}
+
+#define	ISP_LOCK		isp_lock
+#define	ISP_UNLOCK		isp_unlock
+#define	SERVICING_INTERRUPT(isp)	(intr_nesting_level != 0)
+
+#define	MBOX_WAIT_COMPLETE(isp)		\
+	{ \
+		int j; \
+		for (j = 0; j < 60 * 2000; j++) { \
+			if (isp_intr(isp) == 0) { \
+				SYS_DELAY(500); \
+			} \
+			if (isp->isp_mboxbsy == 0) \
+				break; \
+		} \
+		if (isp->isp_mboxbsy != 0) \
+			printf("%s: mailbox timeout\n", isp->isp_name); \
+	}
+
+#define	MBOX_NOTIFY_COMPLETE(isp)	isp->isp_mboxbsy = 0
 
 #define	XS_NULL(ccb)		ccb == NULL
 #define	XS_ISP(ccb)		((struct ispsoftc *) (ccb)->ccb_h.spriv_ptr1)
@@ -188,20 +227,42 @@ extern int isp_debug;
 #define	XS_SNS_IS_VALID(ccb) ((ccb)->ccb_h.status |= CAM_AUTOSNS_VALID)
 #define	XS_IS_SNS_VALID(ccb) (((ccb)->ccb_h.status & CAM_AUTOSNS_VALID) != 0)
 
-#define	XS_INITERR(ccb)		\
-	(ccb)->ccb_h.status &= ~CAM_STATUS_MASK, \
-	(ccb)->ccb_h.status |= CAM_REQ_INPROG, \
-	(ccb)->ccb_h.spriv_field0 = CAM_REQ_INPROG
-#define	XS_SETERR(ccb, v)	(ccb)->ccb_h.spriv_field0 = v
-#define	XS_ERR(ccb)		(ccb)->ccb_h.spriv_field0
+#define	ISP_SPRIV_ERRSET	0x1
+#define	ISP_SPRIV_INWDOG	0x2
+#define	ISP_SPRIV_GRACE		0x4
+#define	ISP_SPRIV_DONE		0x8
+
+#define	XS_CMD_S_WDOG(sccb)	(sccb)->ccb_h.spriv_field0 |= ISP_SPRIV_INWDOG
+#define	XS_CMD_C_WDOG(sccb)	(sccb)->ccb_h.spriv_field0 &= ~ISP_SPRIV_INWDOG
+#define	XS_CMD_WDOG_P(sccb)	((sccb)->ccb_h.spriv_field0 & ISP_SPRIV_INWDOG)
+
+#define	XS_CMD_S_GRACE(sccb)	(sccb)->ccb_h.spriv_field0 |= ISP_SPRIV_GRACE
+#define	XS_CMD_C_GRACE(sccb)	(sccb)->ccb_h.spriv_field0 &= ~ISP_SPRIV_GRACE
+#define	XS_CMD_GRACE_P(sccb)	((sccb)->ccb_h.spriv_field0 & ISP_SPRIV_GRACE)
+
+#define	XS_CMD_S_DONE(sccb)	(sccb)->ccb_h.spriv_field0 |= ISP_SPRIV_DONE
+#define	XS_CMD_C_DONE(sccb)	(sccb)->ccb_h.spriv_field0 &= ~ISP_SPRIV_DONE
+#define	XS_CMD_DONE_P(sccb)	((sccb)->ccb_h.spriv_field0 & ISP_SPRIV_DONE)
+
+#define	XS_CMD_S_CLEAR(sccb)	(sccb)->ccb_h.spriv_field0 = 0
+
+
+#define	XS_SETERR(ccb, v)	(ccb)->ccb_h.status &= ~CAM_STATUS_MASK, \
+				(ccb)->ccb_h.status |= v, \
+				(ccb)->ccb_h.spriv_field0 |= ISP_SPRIV_ERRSET
+
+#define	XS_INITERR(ccb)		XS_SETERR(ccb, CAM_REQ_INPROG), \
+				XS_CMD_S_CLEAR(ccb)
+
+#define	XS_ERR(ccb)		((ccb)->ccb_h.status & CAM_STATUS_MASK)
+
 #define	XS_NOERR(ccb)		\
-	((ccb)->ccb_h.spriv_field0 == CAM_REQ_INPROG)
+	(((ccb)->ccb_h.spriv_field0 & ISP_SPRIV_ERRSET) == 0 || \
+	 ((ccb)->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_INPROG)
+
+#define	XS_CMD_DONE		isp_done
 
 extern void isp_done(struct ccb_scsiio *);
-#define	XS_CMD_DONE(sccb)	isp_done(sccb)
-
-#define	XS_IS_CMD_DONE(ccb)	\
-	(((ccb)->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_INPROG)
 
 /*
  * Can we tag?
@@ -219,7 +280,6 @@ extern void isp_done(struct ccb_scsiio *);
 #define	CMD_EAGAIN		1
 #define	CMD_QUEUED		2
 #define	CMD_RQLATER		3
-#define	STOP_WATCHDOG(f, s)
 
 extern void isp_attach(struct ispsoftc *);
 extern void isp_uninit(struct ispsoftc *);
@@ -247,6 +307,25 @@ extern void isp_uninit(struct ispsoftc *);
 #define	IDPRINTF(lev, x)	if (isp->isp_dblev >= (u_int8_t) lev) printf x
 #define	PRINTF			printf
 #define	CFGPRINTF		if (bootverbose || DFLT_DBLEVEL > 1) printf
+#define	STRNCAT			strncat
+static __inline char *strncat(char *, const char *, size_t);
+static __inline char *
+strncat(char *d, const char *s, size_t c)
+{
+        char *t = d;
+
+        if (c) {
+                while (*d)
+                        d++;
+                while ((*d++ = *s++)) {
+                        if (--c == 0) {
+                                *d = '\0';
+                                break;
+                        }
+                }
+        }
+        return (t);
+}
 
 #define	SYS_DELAY(x)	DELAY(x)
 
