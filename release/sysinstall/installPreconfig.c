@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: installPreconfig.c,v 1.15 1995/10/27 01:22:57 jkh Exp $
+ * $Id: installPreconfig.c,v 1.16 1995/10/27 17:00:23 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -60,6 +60,11 @@ static struct _word {
     char *name;
     int (*handler)(char *str);
 } resWords[] = {
+    { "configAnonFTP",		configAnonFTP		},
+    { "configApache",		configApache		},
+    { "configGated",		configGated		},
+    { "configNFSServer",	configNFSServer		},
+    { "configSamba",		configSamba		},
     { "diskPartitionEditor",	diskPartitionEditor	},
     { "diskPartitionWrite",	diskPartitionWrite	},
     { "diskLabelEditor",	diskLabelEditor		},
@@ -79,13 +84,11 @@ static struct _word {
     { "distExtractAll",		distExtractAll		},
     { "docBrowser",		docBrowser		},
     { "docShowDocument",	docShowDocument		},
-    { "installApache",		installApache		},
     { "installCommit",		installCommit		},
     { "installExpress",		installExpress		},
     { "installUpgrade",		installUpgrade		},
     { "installPreconfig",	installPreconfig	},
     { "installFixup",		installFixup		},
-    { "installNetworking",	installNetworking	},
     { "installFilesystems",	installFilesystems	},
     { "mediaSetCDROM",		mediaSetCDROM		},
     { "mediaSetFloppy",		mediaSetFloppy		},

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: installFinal.c,v 1.12 1995/10/26 08:55:47 jkh Exp $
+ * $Id: installFinal.c,v 1.13 1995/10/27 03:59:36 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard & Coranth Gryphon.  All rights reserved.
@@ -52,6 +52,8 @@
 #include <unistd.h>
 #include <sys/mount.h>
 
+/* This file contains all the final configuration thingies */
+
 static DMenu MenuSamba = {
     DMENU_MULTIPLE_TYPE | DMENU_SELECTION_RETURNS,
     "Samba Services Menu",
@@ -76,169 +78,178 @@ static DMenu MenuSamba = {
 #define SMB_CONF "./smb.conf"
 
 
-/* Do any final network configuration hackery */
+/* Load gated package and maybe even seek to configure or explain it a little */
 int
-installNetworking(char *unused)
+configGated(char *unused)
 {
-    int i, tval;
-    char tbuf[256];
+    variable_set2("gated", "YES");
+    return RET_SUCCESS;
+}
+
+/* Configure this machine as an anonymous FTP server */
+int
+configAnonFTP(char *unused)
+{
     char *tptr;
-    FILE *fptr;
+    char tbuf[256];
+    int i = RET_SUCCESS;
 
-    i = RET_SUCCESS;
+    tptr = msgGetInput("/u", "What directory should the anonymous ftp account point to?");
+    if (tptr && *tptr && (tptr[0] == '/')) {
+	int len = strlen(tbuf);
 
-    /* Do we want to install and set up gated? */
-    if (variable_get("gated")) {
-	/* Load gated package and maybe even seek to configure or explain it a little */
-    }
+	strcpy(tbuf, tptr);
+	if (tbuf[len - 1] == '/')
+	    tbuf[len - 1] = '\0';
 
-    /* Set up anonymous FTP access to this machine? */
-    if (variable_get("anon_ftp")) {
-	tptr = msgGetInput("/u", "What directory should the anonymous ftp's home be under?");
-	if (tptr && *tptr && (tptr[0] == '/')) {
-	    int len = strlen(tbuf);
-
-	    strcpy(tbuf, tptr);
-	    if (tbuf[len - 1] == '/')
-		tbuf[len - 1] = '\0';
-
-	    if (vsystem("adduser -uid %d -home %s -shell date -dotdir no -batch %s %s \"%s\" ",
-			FTP_UID, tbuf, FTP_NAME, FTP_GROUP, FTP_COMMENT)) {
-		dialog_clear();
-		msgConfirm("Unable to create FTP user!  Anonymous FTP setup failed.");
-		i = RET_FAIL;
-	    }
-	    else {    
-		vsystem("mkdir %s/%s/pub", tbuf, FTP_NAME);
-		vsystem("mkdir %s/%s/upload", tbuf, FTP_NAME);
-		vsystem("chmod 0777 %s/%s/upload", tbuf, FTP_NAME);
-	    }
-	}
-	else {
+	if (vsystem("adduser -uid %d -home %s -shell date -dotdir no -batch %s %s \"%s\" ",
+		    FTP_UID, tbuf, FTP_NAME, FTP_GROUP, FTP_COMMENT)) {
 	    dialog_clear();
-	    msgConfirm("Invalid Directory. Anonymous FTP will not be set up.");
+	    msgConfirm("Unable to create FTP user!  Anonymous FTP setup failed.");
+	    i = RET_FAIL;
+	}
+	else {
+	    vsystem("mkdir -p %s; chmod 555 %s; chown root %s", tbuf, tbuf, tbuf);
+	    vsystem("mkdir %s/bin && chmod 555 %s/bin", tbuf, tbuf);
+	    vsystem("cp /bin/ls %s/bin && chmod 111 %s/bin/ls", tbuf, tbuf);
+	    vsystem("mkdir %s/etc && chmod 555 %s/etc", tbuf, tbuf);
+	    vsystem("cp /etc/pwd.db /etc/group %s/etc && chmod 444 %s/etc/pwd.db %s/etc/group", tbuf, tbuf, tbuf);
+	    vsystem("mkdir -p %s/pub/incoming", tbuf);
+	    vsystem("chmod 1777 %s/pub/incoming", tbuf);
+	    vsystem("chown -R %s %s/pub", FTP_NAME, tbuf);
 	}
     }
-
-    /* Set this machine up as a web server? */
-    if (variable_get("apache_httpd")) {
-	i = installApache(NULL);
+    else {
+	dialog_clear();
+	msgConfirm("Invalid Directory. Anonymous FTP will not be set up.");
+	i = RET_FAIL;
     }
+    return i;
+}
 
-    /* Set this machine up as a Samba server? */
-    if (variable_get("samba")) {
-	if (!dmenuOpenSimple(&MenuSamba))
-	    i = RET_FAIL;
-	else {
-	    fptr = fopen("/tmp/smb.conf","w");
-	    if (fptr) {
-		strcpy(tbuf,"FreeBSD - Samba %v");
-		if (variable_get("SAMBA_string")) {
-		    tptr = msgGetInput("FreeBSD - Samba %%v", "What should this server list as its description?\n"
-				       "Note that the \"%%v\" refers to the samba version number.");
-		    if (tptr && *tptr)
-			strcpy(tbuf, tptr);
-		}
+int
+configSamba(char *unused)
+{
+    int i = RET_SUCCESS;
+
+    if (!dmenuOpenSimple(&MenuSamba))
+	i = RET_FAIL;
+    else {
+	FILE *fptr;
+	char tbuf[256], *tptr;
+	int tval;
+
+	fptr = fopen("/tmp/smb.conf","w");
+	if (fptr) {
+	    strcpy(tbuf,"FreeBSD - Samba %v");
+	    if (variable_get("SAMBA_string")) {
+		tptr = msgGetInput("FreeBSD - Samba %%v", "What should this server list as its description?\n"
+				   "Note that the \"%%v\" refers to the samba version number.");
+		if (tptr && *tptr)
+		    strcpy(tbuf, tptr);
+	    }
 		
-		fprintf(fptr, "[global]\n");
-		fprintf(fptr, "comment = %s\n", tbuf);
-		fprintf(fptr, "log file = /var/log/samba.log\n");
-		fprintf(fptr, "dont descend = /dev,/proc,/root,/stand\n\n");
+	    fprintf(fptr, "[global]\n");
+	    fprintf(fptr, "comment = %s\n", tbuf);
+	    fprintf(fptr, "log file = /var/log/samba.log\n");
+	    fprintf(fptr, "dont descend = /dev,/proc,/root,/stand\n\n");
 	    
-		fprintf(fptr, "printing = bsd\n");
-		fprintf(fptr, "map archive = no\n");
-		fprintf(fptr, "status = yes\n");
-		fprintf(fptr, "public = yes\n");
-		fprintf(fptr, "read only = no\n");
-		fprintf(fptr, "preserve case = yes\n");
-		fprintf(fptr, "strip dot = yes\n");
-		fprintf(fptr, "security = share\n");
-		fprintf(fptr, "guest ok = yes\n\n");
+	    fprintf(fptr, "printing = bsd\n");
+	    fprintf(fptr, "map archive = no\n");
+	    fprintf(fptr, "status = yes\n");
+	    fprintf(fptr, "public = yes\n");
+	    fprintf(fptr, "read only = no\n");
+	    fprintf(fptr, "preserve case = yes\n");
+	    fprintf(fptr, "strip dot = yes\n");
+	    fprintf(fptr, "security = share\n");
+	    fprintf(fptr, "guest ok = yes\n\n");
 	    
-		if (variable_get("SAMBA_homes")) {
-		    fprintf(fptr, "[homes]\n");
-		    fprintf(fptr, "browseable = no\n");
-		    fprintf(fptr, "comment = User Home Directory\n");
-		    fprintf(fptr, "create mode = 0775\n");
-		    fprintf(fptr, "public = no\n\n");
-		}
+	    if (variable_get("SAMBA_homes")) {
+		fprintf(fptr, "[homes]\n");
+		fprintf(fptr, "browseable = no\n");
+		fprintf(fptr, "comment = User Home Directory\n");
+		fprintf(fptr, "create mode = 0775\n");
+		fprintf(fptr, "public = no\n\n");
+	    }
 	    
-		if (variable_get("SAMBA_printers")) {
-		    fprintf(fptr, "[printers]\n");
-		    fprintf(fptr, "path = /var/spool\n");
-		    fprintf(fptr, "comment = Printers\n");
-		    fprintf(fptr, "create mode = 0700\n");
-		    fprintf(fptr, "browseable = no\n");
-		    fprintf(fptr, "printable = yes\n");
-		    fprintf(fptr, "read only = yes\n");
-		    fprintf(fptr, "public = no\n\n");
-		}
+	    if (variable_get("SAMBA_printers")) {
+		fprintf(fptr, "[printers]\n");
+		fprintf(fptr, "path = /var/spool\n");
+		fprintf(fptr, "comment = Printers\n");
+		fprintf(fptr, "create mode = 0700\n");
+		fprintf(fptr, "browseable = no\n");
+		fprintf(fptr, "printable = yes\n");
+		fprintf(fptr, "read only = yes\n");
+		fprintf(fptr, "public = no\n\n");
+	    }
 
-		if (variable_get("SAMBA_export")) {
-		    for (tval = 0; ! tval; tval = msgYesNo("Another?")) {
-			tptr = msgGetInput(NULL,"What directory to export?");
-			if (tptr && *tptr && (tptr[0] == '/')) {
-			    int len = strlen(tbuf);
-
-			    strcpy(tbuf, tptr);
-			    if (tbuf[len - 1] == '/')
-				tbuf[len - 1] = '\0';
-			    if (directoryExists(tbuf)) {
-				tptr = msgGetInput(pathBaseName(tbuf), "What do you want to call this share?");
-				if (tptr && *tptr) {
-				    fprintf(fptr, "[%s]\npath = %s\n", tptr, tbuf);
-				    tptr = msgGetInput(NULL, "Enter a short description of this share?");
-				    if (tptr && *tptr)
-					fprintf(fptr, "comment = %s\n", tptr);
-				    if (msgYesNo("Do you want this share to be read only?"))
-					fprintf(fptr, "read only = no\n\n");
-				    else
-					fprintf(fptr, "read only = yes\n\n");
-				}
-				else {
-				    dialog_clear();
-				    msgConfirm("Invalid Share Name.");
-				}
+	    if (variable_get("SAMBA_export")) {
+		for (tval = 0; ! tval; tval = msgYesNo("Another?")) {
+		    tptr = msgGetInput(NULL,"What directory to export?");
+		    if (tptr && *tptr && (tptr[0] == '/')) {
+			int len = strlen(tbuf);
+			
+			strcpy(tbuf, tptr);
+			if (tbuf[len - 1] == '/')
+			    tbuf[len - 1] = '\0';
+			if (directoryExists(tbuf)) {
+			    tptr = msgGetInput(pathBaseName(tbuf), "What do you want to call this share?");
+			    if (tptr && *tptr) {
+				fprintf(fptr, "[%s]\npath = %s\n", tptr, tbuf);
+				tptr = msgGetInput(NULL, "Enter a short description of this share?");
+				if (tptr && *tptr)
+				    fprintf(fptr, "comment = %s\n", tptr);
+				if (msgYesNo("Do you want this share to be read only?"))
+				    fprintf(fptr, "read only = no\n\n");
+				else
+				    fprintf(fptr, "read only = yes\n\n");
 			    }
 			    else {
 				dialog_clear();
-				msgConfirm("Directory does not exist.");
+				msgConfirm("Invalid Share Name.");
 			    }
-			}	/* end if (tptr)	 */
-		    }	/* end for loop		 */
-		}	/* end if (SAMBA_export) */
-		
-		fclose(fptr);
-		vsystem("mv -f /tmp/smb.conf %s", SMB_CONF);
-	    }
-	    else {
-		dialog_clear();
-		msgConfirm("Unable to open temporary smb.conf file.\nSamba must be configured by hand.");
-	    }
+			}
+			else {
+			    dialog_clear();
+			    msgConfirm("Directory does not exist.");
+			}
+		    }	/* end if (tptr)	 */
+		}	/* end for loop		 */
+	    }	/* end if (SAMBA_export) */
+	    fclose(fptr);
+	    vsystem("mv -f /tmp/smb.conf %s", SMB_CONF);
+	}
+	else {
+	    dialog_clear();
+	    msgConfirm("Unable to open temporary smb.conf file.\n"
+		       "Samba will have to be configured by hand.");
 	}
     }
+    return i;
+}
 
-    /* Set this machine up with a PC-NFS authentication server? */
-    if (variable_get("pcnfsd")) {
-	/* Load and configure pcnfsd */
-    }
-
+int
+configNFSServer(char *unused)
+{
     /* If we're an NFS server, we need an exports file */
-    if (variable_get("nfs_server") && !file_readable("/etc/exports")) {
+    if (!file_readable("/etc/exports")) {
 	dialog_clear();
 	msgConfirm("You have chosen to be an NFS server but have not yet configured\n"
 		   "the /etc/exports file.  You must configure this information before\n"
 		   "other hosts will be able to mount file systems from your machine.\n"
 		   "Press [ENTER] now to invoke an editor on /etc/exports");
-	vsystem("echo '#The following example exports /usr to 3 machines named after ducks:' > /etc/exports");
-	vsystem("echo '#/usr	huey louie dewie' >> /etc/exports");
+	vsystem("echo '#The following examples export /usr to 3 machines named after ducks,' > /etc/exports");
+	vsystem("echo '#/home and all directories under it to machines named after dead rock stars,' >> /etc/exports");
+	vsystem("echo '#and, finally, /a to 2 privileged machines allowed to write on it as root.' >> /etc/exports");
+	vsystem("echo '#/usr                huey louie dewie' >> /etc/exports");
+	vsystem("echo '#/home   -alldirs    janice jimmy frank' >> /etc/exports");
+	vsystem("echo '#/a      -maproot=0  bill albert' >> /etc/exports");
 	vsystem("echo '#' >> /etc/exports");
 	vsystem("echo '# You should replace these lines with your actual exported filesystems.' >> /etc/exports");
 	vsystem("echo >> /etc/exports");
 	systemExecute("ee /etc/exports");
     }
-    configResolv();
-    configSysconfig();
-    return i;
+    variable_set2("nfs_server", "YES");
+    return RET_SUCCESS;
 }
 
