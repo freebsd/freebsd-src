@@ -148,6 +148,7 @@ static const struct ed_product {
 	{ PCMCIA_CARD(DYNALINK, L10C, 0), 0},
 	{ PCMCIA_CARD(EDIMAX, EP4000A, 0), 0},
 	{ PCMCIA_CARD(EPSON, EEN10B, 0), 0},
+	{ PCMCIA_CARD(EXP, THINLANCOMBO, 0), 0},
 	{ PCMCIA_CARD(IBM, INFOMOVER, 0), 0},
 	{ PCMCIA_CARD(IODATA, PCLAT, 0), 0},
 	{ PCMCIA_CARD(IODATA, PCLATE, 0), 0},
@@ -416,7 +417,8 @@ ed_pccard_ax88190(device_t dev)
 	sc->chip_type = ED_CHIP_TYPE_AX88190;
 
 	/*
-	 * Set Attribute Memory IOBASE Register
+	 * Set Attribute Memory IOBASE Register.  Is this a deficiency in
+	 * the PC Card layer, or an ax88190 specific issue? xxx
 	 */
 	iobase = rman_get_start(sc->port_res);
 	ed_pccard_memwrite(dev, ED_AX88190_IOBASE0, iobase & 0xff);
