@@ -76,6 +76,7 @@
 #include <sys/vmmeter.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
+#include <sys/unistd.h>
 
 #include <machine/clock.h>
 #include <machine/cpu.h>
