@@ -1900,7 +1900,8 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	 * raise IPL while manipulating pv_table since pmap_enter can be
 	 * called at interrupt time.
 	 */
-	if (pmap_initialized && (m->flags & PG_FICTITIOUS) == 0) {
+	if (pmap_initialized && 
+	    (m->flags & (PG_FICTITIOUS|PG_UNMANAGED)) == 0) {
 		pmap_insert_entry(pmap, va, mpte, m);
 		managed |= PG_MANAGED;
 	}
@@ -1960,7 +1961,7 @@ vm_page_t
 pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_page_t mpte)
 {
 	register pt_entry_t *pte;
-
+	int managed;
 
 	/*
 	 * In the case that a page table page is not
@@ -2025,7 +2026,11 @@ pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_page_t mpte)
 	 * raise IPL while manipulating pv_table since pmap_enter can be
 	 * called at interrupt time.
 	 */
-	pmap_insert_entry(pmap, va, mpte, m);
+	managed = 0;
+	if ((m->flags & (PG_FICTITIOUS|PG_UNMANAGED)) == 0) {
+		pmap_insert_entry(pmap, va, mpte, m);
+		managed = PG_MANAGED | PG_FOR | PG_FOW | PG_FOE;
+	}
 
 	/*
 	 * Increment counters
@@ -2035,7 +2040,7 @@ pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_page_t mpte)
 	/*
 	 * Now validate mapping with RO protection
 	 */
-	*pte = pmap_phys_to_pte(VM_PAGE_TO_PHYS(m)) | PG_V | PG_KRE | PG_URE | PG_MANAGED | PG_FOR | PG_FOE | PG_FOW;
+	*pte = pmap_phys_to_pte(VM_PAGE_TO_PHYS(m)) | PG_V | PG_KRE | PG_URE | managed;
 
 	alpha_pal_imb();			/* XXX overkill? */
 	return mpte;
