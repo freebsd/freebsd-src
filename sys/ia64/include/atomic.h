@@ -266,18 +266,6 @@ IA64_ATOMIC(8, u_int64_t, subtract,	64,	-)
 #define atomic_add_rel_long		atomic_add_rel_64
 #define atomic_subtract_rel_long	atomic_subtract_rel_64
 
-static __inline void
-atomic_set_ptr(volatile void *p, u_int64_t v)
-{
-	atomic_set_64((volatile u_int64_t *) p, v);
-}
-
-static __inline void
-atomic_clear_ptr(volatile void *p, u_int64_t v)
-{
-	atomic_clear_64((volatile u_int64_t *) p, v);
-}
-
 /*
  * Atomically compare the value stored at *p with cmpval and if the
  * two values are equal, update the value of *p with newval. Returns
@@ -348,6 +336,32 @@ atomic_store_rel_ptr(volatile void *p, void *v)
 {
 	atomic_store_rel_long((volatile u_long *)p, (u_long)v);
 }
+
+#define ATOMIC_PTR(NAME)				\
+static __inline void					\
+atomic_##NAME##_ptr(volatile void *p, uintptr_t v)	\
+{							\
+	atomic_##NAME##_long((volatile u_long *)p, v);	\
+}							\
+							\
+static __inline void					\
+atomic_##NAME##_acq_ptr(volatile void *p, uintptr_t v)	\
+{							\
+	atomic_##NAME##_acq_long((volatile u_long *)p, v);\
+}							\
+							\
+static __inline void					\
+atomic_##NAME##_rel_ptr(volatile void *p, uintptr_t v)	\
+{							\
+	atomic_##NAME##_rel_long((volatile u_long *)p, v);\
+}
+
+ATOMIC_PTR(set)
+ATOMIC_PTR(clear)
+ATOMIC_PTR(add)
+ATOMIC_PTR(subtract)
+
+#undef ATOMIC_PTR
 
 static __inline u_int32_t
 atomic_readandclear_32(volatile u_int32_t* p)
