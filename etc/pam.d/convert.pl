@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 #-
-# Copyright (c) 2001 Networks Associates Technologies, Inc.
+# Copyright (c) 2001,2002 Networks Associates Technologies, Inc.
 # All rights reserved.
 #
 # This software was developed for the FreeBSD Project by ThinkSec AS and
