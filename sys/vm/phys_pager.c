@@ -201,11 +201,10 @@ phys_pager_haspage(vm_object_t object, vm_pindex_t pindex, int *before,
 }
 
 struct pagerops physpagerops = {
-	phys_pager_init,
-	phys_pager_alloc,
-	phys_pager_dealloc,
-	phys_pager_getpages,
-	phys_pager_putpages,
-	phys_pager_haspage,
-	NULL
+	.pgo_init =	phys_pager_init,
+	.pgo_alloc =	phys_pager_alloc,
+	.pgo_dealloc = 	phys_pager_dealloc,
+	.pgo_getpages =	phys_pager_getpages,
+	.pgo_putpages =	phys_pager_putpages,
+	.pgo_haspage =	phys_pager_haspage,
 };
