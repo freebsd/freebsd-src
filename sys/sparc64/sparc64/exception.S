@@ -1118,12 +1118,6 @@ END(tl0_sftrap)
 	.align	32
 	.endm
 
-	.macro	tl0_soft	count
-	.rept	\count
-	tl0_gen	T_SOFT
-	.endr
-	.endm
-
 	.macro	tl1_split
 	rdpr	%wstate, %g1
 	wrpr	%g1, WSTATE_NESTED, %wstate
