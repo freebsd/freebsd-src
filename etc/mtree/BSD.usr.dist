@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.70 1996/09/08 16:24:41 jfieber Exp $
+#	$Id: BSD.usr.dist,v 1.71 1996/09/10 02:26:28 jfieber Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755
@@ -142,12 +142,12 @@
             FreeBSD_version
             ..
             cvs
-		examples
-		..
-		contrib
-		..
-		pcl-cvs
-		..
+                contrib
+                ..
+                examples
+                ..
+                pcl-cvs
+                ..
             ..
             cvsup
             ..
