@@ -311,28 +311,3 @@ and
 .Fn localeconv
 functions first appeared in
 .Bx 4.4 .
-.Sh BUGS
-The current implementation supports only the
-.Li "\&""C""
-and
-.Li "\&""POSIX""
-locales for all but the 
-.Dv LC_COLLATE ,
-.Dv LC_CTYPE ,
-and
-.Dv LC_TIME
-categories.
-.Pp
-In spite of the gnarly currency support in
-.Fn localeconv ,
-the standards don't include any functions
-for generalized currency formatting.
-.Pp
-Use of
-.Dv LC_MONETARY
-could lead to misleading results until we have a real time currency
-conversion function.
-.Dv LC_NUMERIC
-and
-.Dv LC_TIME
-are personal choices and should not be wrapped up with the other categories.
