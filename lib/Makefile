@@ -39,7 +39,7 @@ _csu=csu/${MACHINE_ARCH}
 _csu=csu
 .endif
 
-.if ${MACHINE_ARCH} == "i386"
+.if ${OBJFORMAT} == "aout" && ${MACHINE_ARCH} == "i386"
 _libgnumalloc=	libgnumalloc
 _libresolv=	libresolv
 .endif
