@@ -2,9 +2,6 @@
 #	$Id: Makefile,v 1.10 1994/08/22 15:13:41 bde Exp $
 
 CFLAGS+=	-DLIBC_SCCS -DDYNAMIC
-.if defined(STARTUP_LOCALE)
-CFLAGS+=	-DSTARTUP_LOCALE
-.endif
 OBJS=		crt0.o gcrt0.o c++rt0.o
 CLEANFILES+=	a.out
 
