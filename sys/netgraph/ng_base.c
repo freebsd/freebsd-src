@@ -55,7 +55,7 @@
 #include <sys/queue.h>
 #include <sys/mbuf.h>
 #include <sys/socketvar.h>
-/* #include <sys/ctype.h>*/
+#include <sys/ctype.h>
 #include <machine/limits.h>
 
 #include <net/netisr.h>
@@ -662,11 +662,9 @@ ng_add_hook(node_p node, const char *name, hook_p *hookp)
 		TRAP_ERROR;
 		return (EINVAL);
 	}
-	LIST_FOREACH(hook, &node->hooks, hooks) {
-		if (strcmp(hook->name, name) == 0) {
-			TRAP_ERROR;
-			return (EEXIST);
-		}
+	if (ng_findhook(node, name) != NULL) {
+		TRAP_ERROR;
+		return (EEXIST);
 	}
 
 	/* Allocate the hook and link it up */
@@ -738,6 +736,26 @@ ng_connect(hook_p hook1, hook_p hook2)
 	hook1->flags &= ~HK_INVALID;
 	hook2->flags &= ~HK_INVALID;
 	return (0);
+}
+
+/*
+ * Find a hook
+ *
+ * Node types may supply their own optimized routines for finding
+ * hooks.  If none is supplied, we just do a linear search.
+ */
+hook_p
+ng_findhook(node_p node, const char *name)
+{
+	hook_p hook;
+
+	if (node->type->findhook != NULL)
+		return (*node->type->findhook)(node, name);
+	LIST_FOREACH(hook, &node->hooks, hooks) {
+		if (hook->name != NULL && strcmp(hook->name, name) == 0)
+			return (hook);
+	}
+	return (NULL);
 }
 
 /*
@@ -1060,10 +1078,7 @@ ng_path2node(node_p here, const char *address, node_p *destp, char **rtnp)
 			continue;
 
 		/* We have a segment, so look for a hook by that name */
-		LIST_FOREACH(hook, &node->hooks, hooks) {
-			if (hook->name && strcmp(hook->name, segment) == 0)
-				break;
-		}
+		hook = ng_findhook(node, segment);
 
 		/* Can't get there from here... */
 		if (hook == NULL
@@ -1236,11 +1251,7 @@ ng_generic_msg(node_p here, struct ng_mesg *msg, const char *retaddr,
 			return (EINVAL);
 		}
 		rmh->ourhook[sizeof(rmh->ourhook) - 1] = '\0';
-		LIST_FOREACH(hook, &here->hooks, hooks) {
-			if (hook->name && strcmp(hook->name, rmh->ourhook) == 0)
-				break;
-		}
-		if (hook)
+		if ((hook = ng_findhook(here, rmh->ourhook)) != NULL)
 			ng_destroy_hook(hook);
 		break;
 	    }
@@ -1967,239 +1978,4 @@ ngintr(void)
 	}
 }
 
-/* XXX here until we get it in libkern in 3.x */
 
-/*-
- * Copyright (c) 1990, 1993
- *	The Regents of the University of California.  All rights reserved.
- *
- * This code is derived from software contributed to Berkeley by
- * Chris Torek.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
- *
- * From: static char sccsid[] = "@(#)strtoul.c	8.1 (Berkeley) 6/4/93";
- *
- */
-
-
-/*
- * Convert a string to an unsigned long integer.
- *
- * Ignores `locale' stuff.  Assumes that the upper and lower case
- * alphabets and digits are each contiguous.
- */
-unsigned long
-strtoul(nptr, endptr, base)
-	const char *nptr;
-	const char **endptr;
-	int base;
-{
-	const char *s = nptr;
-	unsigned long acc;
-	unsigned char c;
-	unsigned long cutoff;
-	int neg = 0, any, cutlim;
-
-	/*
-	 * See strtol for comments as to the logic used.
-	 */
-	do {
-		c = *s++;
-	} while (isspace(c));
-	if (c == '-') {
-		neg = 1;
-		c = *s++;
-	} else if (c == '+')
-		c = *s++;
-	if ((base == 0 || base == 16) &&
-	    c == '0' && (*s == 'x' || *s == 'X')) {
-		c = s[1];
-		s += 2;
-		base = 16;
-	}
-	if (base == 0)
-		base = c == '0' ? 8 : 10;
-	cutoff = (unsigned long)ULONG_MAX / (unsigned long)base;
-	cutlim = (unsigned long)ULONG_MAX % (unsigned long)base;
-	for (acc = 0, any = 0;; c = *s++) {
-		if (!isascii(c))
-			break;
-		if (isdigit(c))
-			c -= '0';
-		else if (isalpha(c))
-			c -= isupper(c) ? 'A' - 10 : 'a' - 10;
-		else
-			break;
-		if (c >= base)
-			break;
-		if (any < 0 || acc > cutoff || (acc == cutoff && c > cutlim))
-			any = -1;
-		else {
-			any = 1;
-			acc *= base;
-			acc += c;
-		}
-	}
-	if (any < 0) {
-		acc = ULONG_MAX;
-	} else if (neg)
-		acc = -acc;
-	if (endptr != 0)
-		*endptr = (const char *)(any ? s - 1 : nptr);
-	return (acc);
-}
-
-/*-
- * Copyright (c) 1990, 1993
- *	The Regents of the University of California.  All rights reserved.
- *
- * This code is derived from software contributed to Berkeley by
- * Chris Torek.
- *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission.
- *
- * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
- *
- * From: static char sccsid[] = "@(#)strtol.c	8.1 (Berkeley) 6/4/93";
- *
- * $was: src/sys/libkern/strtol.c,v 1.3 1999/11/03 18:20:48 phk Exp $
- */
-
-/*
- * Convert a string to a long integer.
- *
- * Ignores `locale' stuff.  Assumes that the upper and lower case
- * alphabets and digits are each contiguous.
- */
-long
-strtol(nptr, endptr, base)
-	const char *nptr;
-	const char **endptr;
-	int base;
-{
-	const char *s = nptr;
-	unsigned long acc;
-	unsigned char c;
-	unsigned long cutoff;
-	int neg = 0, any, cutlim;
-
-	/*
-	 * Skip white space and pick up leading +/- sign if any.
-	 * If base is 0, allow 0x for hex and 0 for octal, else
-	 * assume decimal; if base is already 16, allow 0x.
-	 */
-	do {
-		c = *s++;
-	} while (isspace(c));
-	if (c == '-') {
-		neg = 1;
-		c = *s++;
-	} else if (c == '+')
-		c = *s++;
-	if ((base == 0 || base == 16) &&
-	    c == '0' && (*s == 'x' || *s == 'X')) {
-		c = s[1];
-		s += 2;
-		base = 16;
-	}
-	if (base == 0)
-		base = c == '0' ? 8 : 10;
-
-	/*
-	 * Compute the cutoff value between legal numbers and illegal
-	 * numbers.  That is the largest legal value, divided by the
-	 * base.  An input number that is greater than this value, if
-	 * followed by a legal input character, is too big.  One that
-	 * is equal to this value may be valid or not; the limit
-	 * between valid and invalid numbers is then based on the last
-	 * digit.  For instance, if the range for longs is
-	 * [-2147483648..2147483647] and the input base is 10,
-	 * cutoff will be set to 214748364 and cutlim to either
-	 * 7 (neg==0) or 8 (neg==1), meaning that if we have accumulated
-	 * a value > 214748364, or equal but the next digit is > 7 (or 8),
-	 * the number is too big, and we will return a range error.
-	 *
-	 * Set any if any `digits' consumed; make it negative to indicate
-	 * overflow.
-	 */
-	cutoff = neg ? -(unsigned long)LONG_MIN : LONG_MAX;
-	cutlim = cutoff % (unsigned long)base;
-	cutoff /= (unsigned long)base;
-	for (acc = 0, any = 0;; c = *s++) {
-		if (!isascii(c))
-			break;
-		if (isdigit(c))
-			c -= '0';
-		else if (isalpha(c))
-			c -= isupper(c) ? 'A' - 10 : 'a' - 10;
-		else
-			break;
-		if (c >= base)
-			break;
-		if (any < 0 || acc > cutoff || (acc == cutoff && c > cutlim))
-			any = -1;
-		else {
-			any = 1;
-			acc *= base;
-			acc += c;
-		}
-	}
-	if (any < 0) {
-		acc = neg ? LONG_MIN : LONG_MAX;
-	} else if (neg)
-		acc = -acc;
-	if (endptr != 0)
-		*endptr = (const char *)(any ? s - 1 : nptr);
-	return (acc);
-}

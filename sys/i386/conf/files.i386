@@ -348,6 +348,10 @@ libkern/strcpy.c		standard
 libkern/strlen.c		standard
 libkern/strncmp.c		standard
 libkern/strncpy.c		standard
+libkern/strtol.c		standard
+libkern/strtoq.c		standard
+libkern/strtoul.c		standard
+libkern/strtouq.c		standard
 libkern/udivdi3.c		standard
 libkern/umoddi3.c		standard
 gnu/i386/fpemul/div_small.s	optional	gpl_math_emulate
