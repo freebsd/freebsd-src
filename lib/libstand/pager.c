@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: pager.c,v 1.1.1.1 1998/08/20 08:19:55 msmith Exp $
  */
 /*
  * Simple paged-output and paged-viewing functions
@@ -127,7 +127,7 @@ pager_output(const char *cp)
  * Display from (fd).
  */
 int
-pager_file(char *fname)
+pager_file(const char *fname)
 {
     char	buf[80];
     size_t	hmuch;

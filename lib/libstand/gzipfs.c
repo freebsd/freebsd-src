@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: zipfs.c,v 1.1.1.1 1998/08/20 08:19:55 msmith Exp $
  *
  */
 
@@ -43,7 +43,7 @@ struct z_file
 };
 
 static int	zf_fill(struct z_file *z);
-static int	zf_open(char *path, struct open_file *f);
+static int	zf_open(const char *path, struct open_file *f);
 static int	zf_close(struct open_file *f);
 static int	zf_read(struct open_file *f, void *buf, size_t size, size_t *resid);
 static off_t	zf_seek(struct open_file *f, off_t offset, int where);
@@ -157,7 +157,7 @@ check_header(struct z_file *zf)
 }
 	
 static int
-zf_open(char *fname, struct open_file *f)
+zf_open(const char *fname, struct open_file *f)
 {
     static char		*zfname;
     int			rawfd;
