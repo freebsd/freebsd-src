@@ -26,6 +26,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "namespace.h"
 #include <sys/param.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -36,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <stdarg.h>
 #include <nsswitch.h>
+#include "un-namespace.h"
 
 extern int _ht_getnetbyname(void *, void *, va_list);
 extern int _dns_getnetbyname(void *, void *, va_list);
@@ -65,7 +67,7 @@ getnetbyname(const char *name)
 		{ 0 }
 	};       
 	
-	rval = nsdispatch((void *)&hp, dtab, NSDB_NETWORKS, "getnetbyname",
+	rval = _nsdispatch((void *)&hp, dtab, NSDB_NETWORKS, "getnetbyname",
 			  default_src, name);
 
 	if (rval != NS_SUCCESS)
@@ -87,7 +89,7 @@ getnetbyaddr(u_long addr, int af)
 		{ 0 }
 	};       
 
-	rval = nsdispatch((void *)&hp, dtab, NSDB_NETWORKS, "getnetbyaddr",
+	rval = _nsdispatch((void *)&hp, dtab, NSDB_NETWORKS, "getnetbyaddr",
 			  default_src, addr, af);
 
 	if (rval != NS_SUCCESS)
