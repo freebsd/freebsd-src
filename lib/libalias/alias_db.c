@@ -2169,21 +2169,21 @@ PunchFWHole(struct alias_link *link) {
     /* Build and apply specific part of the rules */
     rule.fw_src = GetOriginalAddress(link);
     rule.fw_dst = GetDestAddress(link);
-    rule.fw_pts[0] = ntohs(GetOriginalPort(link));
-    rule.fw_pts[1] = ntohs(GetDestPort(link));
+    rule.fw_uar.fw_pts[0] = ntohs(GetOriginalPort(link));
+    rule.fw_uar.fw_pts[1] = ntohs(GetDestPort(link));
 
     /* Skip non-bound links - XXX should not be strictly necessary,
        but seems to leave hole if not done.  Leak of non-bound links?
        (Code should be left even if the problem is fixed - it is a
        clear optimization) */
-    if (rule.fw_pts[0] != 0 && rule.fw_pts[1] != 0) {
+    if (rule.fw_uar.fw_pts[0] != 0 && rule.fw_uar.fw_pts[1] != 0) {
         r = setsockopt(fireWallFD, IPPROTO_IP, IP_FW_ADD, &rule, sizeof rule);
         if (r)
             err(1, "alias punch inbound(1) setsockopt(IP_FW_ADD)");
         rule.fw_src = GetDestAddress(link);
         rule.fw_dst = GetOriginalAddress(link);
-        rule.fw_pts[0] = ntohs(GetDestPort(link));
-        rule.fw_pts[1] = ntohs(GetOriginalPort(link));
+        rule.fw_uar.fw_pts[0] = ntohs(GetDestPort(link));
+        rule.fw_uar.fw_pts[1] = ntohs(GetOriginalPort(link));
         r = setsockopt(fireWallFD, IPPROTO_IP, IP_FW_ADD, &rule, sizeof rule);
         if (r)
             err(1, "alias punch inbound(2) setsockopt(IP_FW_ADD)");
