@@ -32,7 +32,7 @@
 # SUCH DAMAGE.
 #
 #	@(#)newvers.sh	8.1 (Berkeley) 4/20/94
-#	$Id: newvers.sh,v 1.41 1998/11/01 15:36:20 wosch Exp $
+#	$Id: newvers.sh,v 1.42 1999/01/21 03:07:33 jkh Exp $
 
 TYPE="FreeBSD"
 REVISION="4.0"
@@ -90,12 +90,14 @@ fi
 
 touch version
 v=`cat version` u=${USER-root} d=`pwd` h=`hostname` t=`date`
-echo "$COPYRIGHT" > vers.c
-echo "char ostype[] = \"${TYPE}\";" >> vers.c
-echo "char osrelease[] = \"${RELEASE}\";" >> vers.c
-echo "int osreldate = ${RELDATE};" >> vers.c
-echo "char sccs[4] = { '@', '(', '#', ')' };" >>vers.c
-echo "char version[] = \
-	\"${VERSION} #${v}: ${t}\\n    ${u}@${h}:${d}\\n\";" >>vers.c
+cat << EOF > vers.c
+$COPYRIGHT
+char sccspad[32 - 4 /* sizeof(sccs) */] = { '\\0' };
+char sccs[4] = { '@', '(', '#', ')' };
+char version[] = "${VERSION} #${v}: ${t}\\n    ${u}@${h}:${d}\\n";
+char ostype[] = "${TYPE}";
+char osrelease[] = "${RELEASE}";
+int osreldate = ${RELDATE};
+EOF
 
 echo `expr ${v} + 1` > version
