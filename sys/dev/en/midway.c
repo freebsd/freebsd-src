@@ -406,7 +406,7 @@ en_dump_packet(struct en_softc *sc, struct mbuf *m)
 		m = m->m_next;
 	}
 	printf("\n");
-	if (totlen != plen);
+	if (totlen != plen)
 		printf("sum of m_len=%u\n", totlen);
 }
 #endif
