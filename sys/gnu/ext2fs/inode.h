@@ -39,17 +39,16 @@
  * $FreeBSD$
  */
 
-#ifndef _UFS_UFS_INODE_H_
-#define	_UFS_UFS_INODE_H_
+#ifndef _SYS_GNU_EXT2FS_INODE_H_
+#define	_SYS_GNU_EXT2FS_INODE_H_
 
 #include <sys/lock.h>
 #include <sys/queue.h>
-#include <ufs/ufs/dinode.h>
 
-/*
- * The size of a logical block number.
- */
-typedef long ufs_lbn_t;
+#define	ROOTINO	((ino_t)2)
+
+#define	NDADDR	12			/* Direct addresses in inode. */
+#define	NIADDR	3			/* Indirect addresses in inode. */
 
 /*
  * This must agree with the definition in <ufs/ufs/dir.h>.
@@ -58,30 +57,22 @@ typedef long ufs_lbn_t;
 
 /*
  * The inode is used to describe each active (or recently active) file in the
- * UFS filesystem. It is composed of two types of information. The first part
- * is the information that is needed only while the file is active (such as
- * the identity of the file and linkage to speed its lookup). The second part
- * is the permanent meta-data associated with the file which is read in
+ * EXT2FS filesystem. It is composed of two types of information. The first
+ * part is the information that is needed only while the file is active (such
+ * as the identity of the file and linkage to speed its lookup). The second
+ * part is the permanent meta-data associated with the file which is read in
  * from the permanent dinode from long term storage when the file becomes
  * active, and is put back when the file is no longer being used.
  */
 struct inode {
 	LIST_ENTRY(inode) i_hash;/* Hash chain. */
-	TAILQ_ENTRY(inode) i_nextsnap; /* snapshot file list */
 	struct	vnode  *i_vnode;/* Vnode associated with this inode. */
 	struct	vnode  *i_devvp;/* Vnode for block I/O. */
 	u_int32_t i_flag;	/* flags, see below */
 	dev_t	  i_dev;	/* Device associated with the inode. */
 	ino_t	  i_number;	/* The identity of the inode. */
-	int	  i_effnlink;	/* i_nlink when I/O completes */
 
-	union {			/* Associated filesystem. */
-		struct	fs *fs;		/* FFS */
-		struct	ext2_sb_info *e2fs;	/* EXT2FS */
-	} inode_u;
-#define	i_fs	inode_u.fs
-#define	i_e2fs	inode_u.e2fs
-	struct	 dquot *i_dquot[MAXQUOTAS]; /* Dquot structures. */
+	struct	ext2_sb_info *i_e2fs;	/* EXT2FS */
 	u_quad_t i_modrev;	/* Revision level for NFS lease. */
 	struct	 lockf *i_lockf;/* Head of byte-level lock list. */
 	/*
@@ -93,33 +84,61 @@ struct inode {
 	doff_t	  i_offset;	/* Offset of free space in directory. */
 	ino_t	  i_ino;	/* Inode number of found directory. */
 	u_int32_t i_reclen;	/* Size of found directory entry. */
-	u_int32_t i_spare[3];	/* XXX actually non-spare (for ext2fs). */
 
-	struct dirhash *i_dirhash; /* Hashing for large directories */
-	/*
-	 * The on-disk dinode itself.
-	 */
-	struct	dinode i_din;	/* 128 bytes of the on-disk dinode. */
+	u_int32_t i_block_group;
+	u_int32_t i_next_alloc_block;
+	u_int32_t i_next_alloc_goal;
+	u_int32_t i_prealloc_block;
+	u_int32_t i_prealloc_count;
+
+	/* Fields from struct dinode in UFS. */
+	u_int16_t	i_mode;		/* IFMT, permissions; see below. */
+	int16_t		i_nlink;	/* File link count. */
+	u_int64_t	i_size;		/* File byte count. */
+	int32_t		i_atime;	/* Last access time. */
+	int32_t		i_atimensec;	/* Last access time. */
+	int32_t		i_mtime;	/* Last modified time. */
+	int32_t		i_mtimensec;	/* Last modified time. */
+	int32_t		i_ctime;	/* Last inode change time. */
+	int32_t		i_ctimensec;	/* Last inode change time. */
+	daddr_t		i_db[NDADDR];	/* Direct disk blocks. */
+	daddr_t		i_ib[NIADDR];	/* Indirect disk blocks. */
+	u_int32_t	i_flags;	/* Status flags (chflags). */
+	int32_t		i_blocks;	/* Blocks actually held. */
+	int32_t		i_gen;		/* Generation number. */
+	u_int32_t	i_uid;		/* File owner. */
+	u_int32_t	i_gid;		/* File group. */
 };
 
-#define	i_atime		i_din.di_atime
-#define	i_atimensec	i_din.di_atimensec
-#define	i_blocks	i_din.di_blocks
-#define	i_ctime		i_din.di_ctime
-#define	i_ctimensec	i_din.di_ctimensec
-#define	i_db		i_din.di_db
-#define	i_flags		i_din.di_flags
-#define	i_gen		i_din.di_gen
-#define	i_gid		i_din.di_gid
-#define	i_ib		i_din.di_ib
-#define	i_mode		i_din.di_mode
-#define	i_mtime		i_din.di_mtime
-#define	i_mtimensec	i_din.di_mtimensec
-#define	i_nlink		i_din.di_nlink
-#define	i_rdev		i_din.di_rdev
-#define	i_shortlink	i_din.di_shortlink
-#define	i_size		i_din.di_size
-#define	i_uid		i_din.di_uid
+/*
+ * The di_db fields may be overlaid with other information for
+ * file types that do not have associated disk storage. Block
+ * and character devices overlay the first data block with their
+ * dev_t value. Short symbolic links place their path in the
+ * di_db area.
+ */
+#define	i_shortlink	i_db
+#define	i_rdev		i_db[0]
+#define	MAXSYMLINKLEN	((NDADDR + NIADDR) * sizeof(daddr_t))
+
+/* File permissions. */
+#define	IEXEC		0000100		/* Executable. */
+#define	IWRITE		0000200		/* Writeable. */
+#define	IREAD		0000400		/* Readable. */
+#define	ISVTX		0001000		/* Sticky bit. */
+#define	ISGID		0002000		/* Set-gid. */
+#define	ISUID		0004000		/* Set-uid. */
+
+/* File types. */
+#define	IFMT		0170000		/* Mask of file type. */
+#define	IFIFO		0010000		/* Named pipe (fifo). */
+#define	IFCHR		0020000		/* Character device. */
+#define	IFDIR		0040000		/* Directory file. */
+#define	IFBLK		0060000		/* Block device. */
+#define	IFREG		0100000		/* Regular file. */
+#define	IFLNK		0120000		/* Symbolic link. */
+#define	IFSOCK		0140000		/* UNIX domain socket. */
+#define	IFWHT		0160000		/* Whiteout. */
 
 /* These flags are kept in i_flag. */
 #define	IN_ACCESS	0x0001		/* Access time update request. */
@@ -137,7 +156,7 @@ struct inode {
  * ufs_getlbns and used by truncate and bmap code.
  */
 struct indir {
-	ufs_daddr_t in_lbn;		/* Logical block number. */
+	daddr_t in_lbn;			/* Logical block number. */
 	int	in_off;			/* Offset in buffer. */
 	int	in_exists;		/* Flag if the block exists. */
 };
@@ -145,10 +164,6 @@ struct indir {
 /* Convert between inode pointers and vnode pointers. */
 #define VTOI(vp)	((struct inode *)(vp)->v_data)
 #define ITOV(ip)	((ip)->i_vnode)
-
-/* Determine if soft dependencies are being done */
-#define DOINGSOFTDEP(vp)	((vp)->v_mount->mnt_flag & MNT_SOFTDEP)
-#define DOINGASYNC(vp)		((vp)->v_mount->mnt_flag & MNT_ASYNC)
 
 /* This overlays the fid structure (see mount.h). */
 struct ufid {
@@ -159,4 +174,4 @@ struct ufid {
 };
 #endif /* _KERNEL */
 
-#endif /* !_UFS_UFS_INODE_H_ */
+#endif /* !_SYS_GNU_EXT2FS_INODE_H_ */
