@@ -7,11 +7,7 @@ SRCS=	kdump.c ioctl.c subr.c
 .PATH:	${.CURDIR}/../ktrace
 CLEANFILES+=ioctl.c
 
-.if make(depend)
-ioctl.c: .PHONY
-.else
 ioctl.c: mkioctls
-.endif
 	sh ${.CURDIR}/mkioctls ${DESTDIR}/usr/include > ${.TARGET}
 
 .include <bsd.prog.mk>
