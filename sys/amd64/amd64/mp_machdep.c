@@ -915,6 +915,12 @@ smp_tlb_shootdown(u_int vector, vm_offset_t addr1, vm_offset_t addr2)
  * -mcpu=pentiumpro and -march=pentiumpro then gcc-3.1 will use
  * an imull, and in that case it is faster.  In most other cases
  * it appears slightly slower.
+ *
+ * Another variant (also from fortune):
+ * #define BITCOUNT(x) (((BX_(x)+(BX_(x)>>4)) & 0x0F0F0F0F) % 255)
+ * #define  BX_(x)     ((x) - (((x)>>1)&0x77777777)            \
+ *                          - (((x)>>2)&0x33333333)            \
+ *                          - (((x)>>3)&0x11111111))
  */
 static __inline u_int32_t
 popcnt(u_int32_t m)
