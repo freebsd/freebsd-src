@@ -1,6 +1,6 @@
 # Copyright 1990 W. Jolitz
 #	from: @(#)Makefile.i386	7.1 5/10/91
-#	$Id: Makefile.i386,v 1.59 1995/03/25 23:21:36 bde Exp $
+#	$Id: Makefile.i386,v 1.60 1995/03/28 08:02:37 bde Exp $
 #
 # Makefile for FreeBSD
 #
@@ -36,7 +36,7 @@ CWARNFLAGS?=-W -Wreturn-type -Wcomment -Wredundant-decls -Wimplicit
 #
 COPTFLAGS?=-O
 # Not ready for -I- yet.  #include "foo.h" where foo.h is in the srcdir fails.
-INCLUDES= -nostdinc -I. -I$S -I$S/sys -I$S/../include
+INCLUDES= -nostdinc -I. -I$S -I$S/sys -I$S/../include -I/usr/include
 COPTS=	${INCLUDES} ${IDENT} -DKERNEL -Di386 -DLOAD_ADDRESS=0x${LOAD_ADDRESS}
 ASFLAGS=
 CFLAGS=	${COPTFLAGS} ${CWARNFLAGS} ${DEBUG} ${COPTS}
