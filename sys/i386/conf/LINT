@@ -392,6 +392,7 @@ options		NETATALK		#Appletalk communications protocols
 # is not already compiled into the kernel.
 options		NETGRAPH		#netgraph(4) system
 options		NETGRAPH_ASYNC
+options		NETGRAPH_BPF
 options		NETGRAPH_CISCO
 options		NETGRAPH_ECHO
 options		NETGRAPH_FRAME_RELAY
