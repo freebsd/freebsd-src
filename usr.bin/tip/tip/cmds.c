@@ -48,6 +48,7 @@ static const char rcsid[] =
 #include <err.h>
 #include <libutil.h>
 #include <stdio.h>
+#include <unistd.h>
 
 /*
  * tip
@@ -560,6 +561,21 @@ cu_put(cc)
 	transmit(fd, "\04", line);
 }
 
+
+static int
+nap(msec)
+	int msec; /* milliseconds */
+{
+	if (usleep(msec*1000) != 0) {
+		fprintf ( stderr, "warning: ldelay or cdelay interrupted, "
+			  "delay time cut short: %s\n",
+			  strerror(errno) );
+	}
+
+	return 0;
+}
+
+
 /*
  * FTP - send single character
  *  wait for echo & handle timeout
@@ -573,15 +589,11 @@ send(c)
 
 	cc = c;
 	xpwrite(FD, &cc, 1);
-#ifdef notdef
 	if (number(value(CDELAY)) > 0 && c != '\r')
 		nap(number(value(CDELAY)));
-#endif
 	if (!boolean(value(ECHOCHECK))) {
-#ifdef notdef
 		if (number(value(LDELAY)) > 0 && c == '\r')
 			nap(number(value(LDELAY)));
-#endif
 		return;
 	}
 tryagain:
