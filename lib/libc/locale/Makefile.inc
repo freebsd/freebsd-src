@@ -32,7 +32,7 @@ MAN+=	btowc.3 \
 	wcsrtombs.3 wcstod.3 wcstol.3 \
 	wctrans.3 wctype.3 wcwidth.3
 MAN+=	euc.4 utf2.4
-MAN+=	big5.5 gb18030.5 gbk.5 mskanji.5 utf8.5
+MAN+=	big5.5 gb18030.5 gb2312.5 gbk.5 mskanji.5 utf8.5
 
 MLINKS+=btowc.3 wctob.3
 MLINKS+=isdigit.3 isnumber.3
