@@ -103,7 +103,7 @@
 #	ums*	mouse
 #	urio*	Diamond Rio 500
 #	uscanner* USB scanners
-#	usio*	USB serial devices
+#	ucom*	USB serial devices
 #
 # SCSI devices (other than CD-ROM, tape and disk):
 #	ch*	SCSI Media-Changer (juke box) driver
@@ -1001,11 +1001,11 @@ urio*)
 	umask 77
 	;;
 
-usio*)
+ucom*)
 	umask 7
-	unit=`expr $i : 'usio\(.*\)'`
+	unit=`expr $i : 'ucom\(.*\)'`
 	minor=`unit2minor $(($unit + 128))`
-	mknod usio$unit c 138 $minor uucp:dialer
+	mknod ucom$unit c 138 $minor uucp:dialer
 	umask 77
 	;;
 
