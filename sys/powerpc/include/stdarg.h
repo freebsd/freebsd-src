@@ -51,12 +51,18 @@ typedef _BSD_VA_LIST_	va_list;
 
 #else
 
+#if defined __GNUC__ && (__GNUC__ > 2 || __GNUC__ == 2 && __GNUC_MINOR__ == 95)
+#define	va_start(ap, last)						\
+	(__builtin_next_arg(last),					\
+	 __builtin_memcpy ((ap), __builtin_saveregs (), sizeof(__gnuc_va_list)))
+#else
 #define	va_start(ap, last)						\
 	(__builtin_next_arg(last),					\
 	 (ap).__stack = __va_stack_args,				\
 	 (ap).__base = __va_reg_args,					\
 	 (ap).__gpr = __va_first_gpr,					\
 	 (ap).__fpr = __va_first_fpr)
+#endif
 
 #define	__va_first_gpr	(__builtin_args_info(0))
 #define	__va_first_fpr	(__builtin_args_info(1) - 32 - 1)
@@ -83,6 +89,28 @@ typedef _BSD_VA_LIST_	va_list;
 #define	__va_size(type)							\
 	((sizeof(type) + sizeof(int) - 1) / sizeof(int) * sizeof(int))
 
+#if defined __GNUC__ && (__GNUC__ > 2 || __GNUC__ == 2 && __GNUC_MINOR__ == 95)
+#define	__va_savedgpr(ap, type)						\
+	((ap)->__base + (ap)->__gpr * sizeof(int) - sizeof(type))
+
+#define	__va_savedfpr(ap, type)						\
+	((ap)->__base + 8 * sizeof(int) + (ap)->__fpr * sizeof(double) -	\
+	 sizeof(type))
+
+#define	__va_stack(ap, type)						\
+	((ap)->__stack += __va_size(type) +				\
+			(__va_longlong(type) ? (int)(ap)->__stack & 4 : 0), \
+	 (ap)->__stack - sizeof(type))
+
+#define	__va_gpr(ap, type)						\
+	((ap)->__gpr += __va_size(type) / sizeof(int) +			\
+		      (__va_longlong(type) ? (ap)->__gpr & 1 : 0),	\
+	 (ap)->__gpr <= 8 ? __va_savedgpr(ap, type) : __va_stack(ap, type))
+
+#define	__va_fpr(ap, type)						\
+	((ap)->__fpr++,							\
+	 (ap)->__fpr <= 8 ? __va_savedfpr(ap, type) : __va_stack(ap, type))
+#else
 #define	__va_savedgpr(ap, type)						\
 	((ap).__base + (ap).__gpr * sizeof(int) - sizeof(type))
 
@@ -103,6 +131,7 @@ typedef _BSD_VA_LIST_	va_list;
 #define	__va_fpr(ap, type)						\
 	((ap).__fpr++,							\
 	 (ap).__fpr <= 8 ? __va_savedfpr(ap, type) : __va_stack(ap, type))
+#endif
 
 #define	va_arg(ap, type)						\
 	(*(type *)(__va_struct(type) ? (*(void **)__va_gpr(ap, void *)) : \
