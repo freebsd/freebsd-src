@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.9 1995/08/06 12:24:05 bde Exp $
+#	$Id: Makefile,v 1.10 1995/08/06 12:41:07 bde Exp $
 
 LIB=	ss
 SRCS=	ss_err.c data.c error.c execute_cmd.c help.c invocation.c list_rqs.c \
@@ -16,12 +16,12 @@ LDADD+=	-lcom_err
 ss_err.h ss_err.c:	${.CURDIR}/ss_err.et
 	test -e ss_err.et || ln -s ${.CURDIR}/ss_err.et .
 	compile_et ss_err.et
-	-test -h ss_err.et && rm ss_err.et
+	-test -h ss_err.et && rm -f ss_err.et
 
 std_rqs.c:		${.CURDIR}/std_rqs.ct
 	test -e std_rqs.ct || ln -s ${.CURDIR}/std_rqs.ct .
 	mk_cmds std_rqs.ct
-	-test -h std_rqs.ct && rm std_rqs.ct
+	-test -h std_rqs.ct && rm -f std_rqs.ct
 
 beforeinstall:
 	-cd ${.CURDIR}; cmp -s ss.h ${DESTDIR}/usr/include/ss/ss.h || \

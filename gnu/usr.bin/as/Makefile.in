@@ -1,3 +1,5 @@
+#	$Id: $
+
 # Makefile for GNU Assembler
 #   Copyright (C) 1987-1992 Free Software Foundation, Inc.
 
@@ -306,7 +308,7 @@ targ-cpu.o : targ-cpu.c targ-env.h obj-format.h \
 doc: $(srcdir)/as.info
 
 $(srcdir)/as.info: $(srcdir)/doc/as.texinfo
-	(cd doc; make as.info; mv as.info $srcdir)
+	(cd doc; make as.info; mv -f as.info $srcdir)
 
 clean:
 	(cd doc ; $(MAKE) clean)
@@ -369,17 +371,17 @@ bootstrap3: force
 # Copy the object files from a particular stage into a subdirectory.
 stage1: force
 	-mkdir stage1
-	-mv $(STAGESTUFF) stage1
+	-mv -f $(STAGESTUFF) stage1
 	if [ -f stage1/as.new -a ! -f stage1/as ] ; then (cd stage1 ; ln -s as.new as) ; fi
 
 stage2: force
 	-mkdir stage2
-	-mv $(STAGESTUFF) stage2
+	-mv -f $(STAGESTUFF) stage2
 	if [ -f stage2/as.new -a ! -f stage2/as ] ; then (cd stage2 ; ln -s as.new as) ; fi
 
 stage3: force
 	-mkdir stage3
-	-mv $(STAGESTUFF) stage3
+	-mv -f $(STAGESTUFF) stage3
 	if [ -f stage3/as.new -a ! -f stage3/as ] ; then (cd stage3 ; ln -s as.new as) ; fi
 
 against=stage2
@@ -388,15 +390,15 @@ comparison: force
 	for i in $(STAGESTUFF) ; do cmp $$i $(against)/$$i ; done
 
 de-stage1: force
-	- (cd stage1 ; rm as ; mv -f * ..)
+	- (cd stage1 ; rm -f as ; mv -f * ..)
 	- rmdir stage1
 
 de-stage2: force
-	- (cd stage2 ; rm as ; mv -f * ..)
+	- (cd stage2 ; rm -f as ; mv -f * ..)
 	- rmdir stage2
 
 de-stage3: force
-	- (cd stage3 ; rm as ; mv -f * ..)
+	- (cd stage3 ; rm -f as ; mv -f * ..)
 	- rmdir stage3
 
 #In GNU Make, ignore whether `stage*' exists.
