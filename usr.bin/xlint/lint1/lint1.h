@@ -1,6 +1,7 @@
-/*	$NetBSD: lint1.h,v 1.6 1995/10/02 17:31:41 jpo Exp $	*/
+/* $NetBSD: lint1.h,v 1.12 2002/01/31 19:33:27 tv Exp $ */
 
 /*
+ * Copyright (c) 1996 Christopher G. Demetriou.  All Rights Reserved.
  * Copyright (c) 1994, 1995 Jochen Pohl
  * All Rights Reserved.
  *
@@ -34,13 +35,28 @@
 #include "lint.h"
 #include "op.h"
 
+/* XXX - works for most systems, but the whole ALIGN thing needs to go away */
+#ifndef ALIGN
+#define ALIGN(x) (((x) + 7) & ~7)
+#endif
+
 /*
  * Describes the position of a declaration or anything else.
  */
 typedef struct {
 	int	p_line;
 	const	char *p_file;
+	int	p_uniq;			/* uniquifier */
 } pos_t;
+
+/* Copies curr_pos, keeping things unique. */
+#define UNIQUE_CURR_POS(pos)						\
+    do {								\
+    	STRUCT_ASSIGN((pos), curr_pos);					\
+	curr_pos.p_uniq++;						\
+	if (curr_pos.p_file == csrc_pos.p_file)				\
+	    csrc_pos.p_uniq++;						\
+    } while (0)
 
 /*
  * Strings cannot be referenced to simply by a pointer to its first
@@ -76,7 +92,7 @@ typedef struct {
 	int	v_ansiu;		/* set if an integer constant is
 					   unsigned in ANSI C */
 	union {
-		quad_t	_v_quad;	/* integers */
+		int64_t	_v_quad;	/* integers */
 		ldbl_t	_v_ldbl;	/* floats */
 	} v_u;
 } val_t;
@@ -132,11 +148,11 @@ typedef	struct type {
 		str_t	*_t_str;	/* struct/union tag */
 		enum_t	*_t_enum;	/* enum tag */
 		struct	sym *_t_args;	/* arguments (if t_proto) */
-		struct {
-			u_int	_t_flen : 8;	/* length of bit-field */
-			u_int	_t_foffs : 24;	/* offset of bit-field */
-		} _t_u;
 	} t_u;
+	struct {
+		u_int	_t_flen : 8;	/* length of bit-field */
+		u_int	_t_foffs : 24;	/* offset of bit-field */
+	} t_b;
 	struct	type *t_subt;	/* element type (arrays), return value
 				   (functions), or type pointer points to */
 } type_t;
@@ -146,8 +162,8 @@ typedef	struct type {
 #define	t_field	t_u._t_field
 #define	t_enum	t_u._t_enum
 #define	t_args	t_u._t_args
-#define	t_flen	t_u._t_u._t_flen
-#define	t_foffs	t_u._t_u._t_foffs
+#define	t_flen	t_b._t_flen
+#define	t_foffs	t_b._t_foffs
 
 /*
  * types of symbols
@@ -187,6 +203,7 @@ typedef enum {
  */
 typedef	struct sym {
 	const	char *s_name;	/* name */
+	const	char *s_rename;	/* renamed symbol's given name */
 	pos_t	s_dpos;		/* position of last (prototype)definition,
 				   prototypedeclaration, no-prototype-def.,
 				   tentative definition or declaration,
@@ -378,3 +395,20 @@ typedef struct cstk {
 } cstk_t;
 
 #include "externs1.h"
+
+#define	ERR_SETSIZE	1024
+#define __NERRBITS (sizeof(unsigned int))
+
+typedef	struct err_set {
+	unsigned int	errs_bits[(ERR_SETSIZE + __NERRBITS-1) / __NERRBITS];
+} err_set;
+
+#define	ERR_SET(n, p)	\
+    ((p)->errs_bits[(n)/__NERRBITS] |= (1 << ((n) % __NERRBITS)))
+#define	ERR_CLR(n, p)	\
+    ((p)->errs_bits[(n)/__NERRBITS] &= ~(1 << ((n) % __NERRBITS)))
+#define	ERR_ISSET(n, p)	\
+    ((p)->errs_bits[(n)/__NERRBITS] & (1 << ((n) % __NERRBITS)))
+#define	ERR_ZERO(p)	(void)memset((p), 0, sizeof(*(p)))
+
+extern err_set	msgset;

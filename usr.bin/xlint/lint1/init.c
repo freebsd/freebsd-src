@@ -1,4 +1,4 @@
-/*	$NetBSD: init.c,v 1.4 1995/10/02 17:21:37 jpo Exp $	*/
+/*	$NetBSD: init.c,v 1.9 2001/09/18 18:15:54 wiz Exp $	*/
 
 /*
  * Copyright (c) 1994, 1995 Jochen Pohl
@@ -31,8 +31,9 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef lint
-static char rcsid[] = "$NetBSD: init.c,v 1.4 1995/10/02 17:21:37 jpo Exp $";
+#include <sys/cdefs.h>
+#if defined(__RCSID) && !defined(lint)
+__RCSID("$NetBSD: init.c,v 1.9 2001/09/18 18:15:54 wiz Exp $");
 #endif
 
 #include <stdlib.h>
@@ -40,7 +41,7 @@ static char rcsid[] = "$NetBSD: init.c,v 1.4 1995/10/02 17:21:37 jpo Exp $";
 #include "lint1.h"
 
 /*
- * initerr is set as soon as a fatal error occured in an initialisation.
+ * initerr is set as soon as a fatal error occurred in an initialisation.
  * The effect is that the rest of the initialisation is ignored (parsed
  * by yacc, expression trees built, but no initialisation takes place).
  */
@@ -53,12 +54,12 @@ sym_t	*initsym;
 istk_t	*initstk;
 
 
-static	void	popi2 __P((void));
-static	void	popinit __P((int));
-static	void	pushinit __P((void));
-static	void	testinit __P((void));
-static	void	nextinit __P((int));
-static	int	strginit __P((tnode_t *));
+static	void	popi2(void);
+static	void	popinit(int);
+static	void	pushinit(void);
+static	void	testinit(void);
+static	void	nextinit(int);
+static	int	strginit(tnode_t *);
 
 
 /*
@@ -66,7 +67,7 @@ static	int	strginit __P((tnode_t *));
  * which is to be initialized on it.
  */
 void
-prepinit()
+prepinit(void)
 {
 	istk_t	*istk;
 
@@ -93,7 +94,7 @@ prepinit()
 }
 
 static void
-popi2()
+popi2(void)
 {
 	istk_t	*istk;
 	sym_t	*m;
@@ -124,9 +125,9 @@ popi2()
 }
 
 static void
-popinit(brace)
-	int	brace;
+popinit(int brace)
 {
+
 	if (brace) {
 		/*
 		 * Take all entries, including the first which requires
@@ -150,7 +151,7 @@ popinit(brace)
 }
 
 static void
-pushinit()
+pushinit(void)
 {
 	istk_t	*istk;
 	int	cnt;
@@ -235,7 +236,7 @@ pushinit()
 }
 
 static void
-testinit()
+testinit(void)
 {
 	istk_t	*istk;
 
@@ -266,9 +267,9 @@ testinit()
 }
 
 static void
-nextinit(brace)
-	int	brace;
+nextinit(int brace)
 {
+
 	if (!brace) {
 		if (initstk->i_type == NULL &&
 		    !issclt(initstk->i_subt->t_tspec)) {
@@ -303,8 +304,9 @@ nextinit(brace)
 }
 
 void
-initlbr()
+initlbr(void)
 {
+
 	if (initerr)
 		return;
 
@@ -325,8 +327,9 @@ initlbr()
 }
 
 void
-initrbr()
+initrbr(void)
 {
+
 	if (initerr)
 		return;
 
@@ -334,8 +337,7 @@ initrbr()
 }
 
 void
-mkinit(tn)
-	tnode_t	*tn;
+mkinit(tnode_t *tn)
 {
 	ptrdiff_t offs;
 	sym_t	*sym;
@@ -351,7 +353,7 @@ mkinit(tn)
 
 	/*
 	 * Do not test for automatic aggregat initialisation. If the
-	 * initalizer starts with a brace we have the warning already.
+	 * initializer starts with a brace we have the warning already.
 	 * If not, an error will be printed that the initializer must
 	 * be enclosed by braces.
 	 */
@@ -412,7 +414,7 @@ mkinit(tn)
 	tmem = tsave();
 	expr(tn, 1, 0);
 	trestor(tmem);
-	
+
 	if (isityp(lt) && ln->tn_type->t_isfield && !isityp(rt)) {
 		/*
 		 * Bit-fields can be initialized in trad. C only by integer
@@ -446,8 +448,7 @@ mkinit(tn)
 
 
 static int
-strginit(tn)
-	tnode_t	*tn;
+strginit(tnode_t *tn)
 {
 	tspec_t	t;
 	istk_t	*istk;

@@ -1,6 +1,7 @@
-/*	$NetBSD: emit1.c,v 1.4 1995/10/02 17:21:28 jpo Exp $	*/
+/* $NetBSD: emit1.c,v 1.11 2002/01/31 19:36:54 tv Exp $ */
 
 /*
+ * Copyright (c) 1996 Christopher G. Demetriou.  All Rights Reserved.
  * Copyright (c) 1994, 1995 Jochen Pohl
  * All Rights Reserved.
  *
@@ -31,16 +32,17 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef lint
-static char rcsid[] = "$NetBSD: emit1.c,v 1.4 1995/10/02 17:21:28 jpo Exp $";
+#include <sys/cdefs.h>
+#if defined(__RCSID) && !defined(lint)
+__RCSID("$NetBSD: emit1.c,v 1.11 2002/01/31 19:36:54 tv Exp $");
 #endif
 
 #include <ctype.h>
 
 #include "lint1.h"
 
-static	void	outtt __P((sym_t *, sym_t *));
-static	void	outfstrg __P((strg_t *));
+static	void	outtt(sym_t *, sym_t *);
+static	void	outfstrg(strg_t *);
 
 /*
  * Write type into the output buffer.
@@ -82,8 +84,7 @@ static	void	outfstrg __P((strg_t *));
  * and 'v' (for volatile)
  */
 void
-outtype(tp)
-	type_t	*tp;
+outtype(type_t *tp)
 {
 	int	t, s, na;
 	sym_t	*arg;
@@ -153,8 +154,7 @@ outtype(tp)
  * it uses its own output buffer for conversion
  */
 const char *
-ttos(tp)
-	type_t	*tp;
+ttos(type_t *tp)
 {
 	static	ob_t	tob;
 	ob_t	tmp;
@@ -184,9 +184,12 @@ ttos(tp)
  * refers to this tag, this typename is written
  */
 static void
-outtt(tag, tdef)
-	sym_t	*tag, *tdef;
+outtt(sym_t *tag, sym_t *tdef)
 {
+
+	/*
+	 * 0 is no longer used.
+	 */
 	if (tag->s_name != unnamed) {
 		outint(1);
 		outname(tag->s_name);
@@ -194,7 +197,12 @@ outtt(tag, tdef)
 		outint(2);
 		outname(tdef->s_name);
 	} else {
-		outint(0);
+		outint(3);
+		outint(tag->s_dpos.p_line);
+		outchar('.');
+		outint(getfnid(tag->s_dpos.p_file));
+		outchar('.');
+		outint(tag->s_dpos.p_uniq);
 	}
 }
 
@@ -206,11 +214,9 @@ outtt(tag, tdef)
  * not here
  */
 void
-outsym(sym, sc, def)
-        sym_t	*sym;
-	scl_t	sc;
-	def_t	def;
+outsym(sym_t *sym, scl_t sc, def_t def)
 {
+
 	/*
 	 * Static function declarations must also be written to the output
 	 * file. Compatibility of function declarations (for both static
@@ -266,6 +272,12 @@ outsym(sym, sc, def)
 	/* name of the symbol */
 	outname(sym->s_name);
 
+	/* renamed name of symbol, if necessary */
+	if (sym->s_rename) {
+		outchar('r');
+		outname(sym->s_rename);
+	}
+
 	/* type of the symbol */
 	outtype(sym->s_type);
 }
@@ -277,10 +289,7 @@ outsym(sym, sc, def)
  * they are called with proper argument types
  */
 void
-outfdef(fsym, posp, rval, osdef, args)
-	sym_t	*fsym, *args;
-	pos_t	*posp;
-	int	rval, osdef;
+outfdef(sym_t *fsym, pos_t *posp, int rval, int osdef, sym_t *args)
 {
 	int	narg;
 	sym_t	*arg;
@@ -352,6 +361,12 @@ outfdef(fsym, posp, rval, osdef, args)
 	/* name of function */
 	outname(fsym->s_name);
 
+	/* renamed name of function, if necessary */
+	if (fsym->s_rename) {
+		outchar('r');
+		outname(fsym->s_rename);
+	}
+
 	/* argument types and return value */
 	if (osdef) {
 		narg = 0;
@@ -376,13 +391,11 @@ outfdef(fsym, posp, rval, osdef, args)
  * (casted to void)
  */
 void
-outcall(tn, rvused, rvdisc)
-	tnode_t	*tn;
-	int	rvused, rvdisc;
+outcall(tnode_t *tn, int rvused, int rvdisc)
 {
 	tnode_t	*args, *arg;
 	int	narg, n, i;
-	quad_t	q;
+	int64_t	q;
 	tspec_t	t;
 
 	/* reset buffer */
@@ -410,7 +423,8 @@ outcall(tn, rvused, rvdisc)
 	/* informations about arguments */
 	for (n = 1; n <= narg; n++) {
 		/* the last argument is the top one in the tree */
-		for (i = narg, arg = args; i > n; i--, arg = arg->tn_right) ;
+		for (i = narg, arg = args; i > n; i--, arg = arg->tn_right)
+			continue;
 		arg = arg->tn_left;
 		if (arg->tn_op == CON) {
 			if (isityp(t = arg->tn_type->t_tspec)) {
@@ -451,7 +465,8 @@ outcall(tn, rvused, rvdisc)
 	outint(narg);
 	for (n = 1; n <= narg; n++) {
 		/* the last argument is the top one in the tree */
-		for (i = narg, arg = args; i > n; i--, arg = arg->tn_right) ;
+		for (i = narg, arg = args; i > n; i--, arg = arg->tn_right)
+			continue;
 		outtype(arg->tn_left->tn_type);
 	}
 	/* expected type of return value */
@@ -463,8 +478,7 @@ outcall(tn, rvused, rvdisc)
  * writes them, enclosed in "" and qouted if necessary, to the output buffer
  */
 static void
-outfstrg(strg)
-	strg_t	*strg;
+outfstrg(strg_t *strg)
 {
 	int	c, oc, first;
 	u_char	*cp;
@@ -563,8 +577,7 @@ outfstrg(strg)
  * writes a record if sym was used
  */
 void
-outusg(sym)
-	sym_t	*sym;
+outusg(sym_t *sym)
 {
 	/* reset buffer */
 	outclr();
