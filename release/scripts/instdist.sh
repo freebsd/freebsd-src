@@ -10,7 +10,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: instdist.sh,v 1.3 1995/01/28 01:18:42 jkh Exp $
+# $Id: instdist.sh,v 1.4 1995/01/28 09:04:12 jkh Exp $
 
 if [ "${_INSTINST_SH_LOADED_}" = "yes" ]; then
 	return 0
@@ -202,7 +202,7 @@ media_extract_dist()
 				else
 					sh ./extract.sh < /dev/ttyv1 > /dev/ttyv1 2>&1
 				fi
-				dialog --title "Extraction Complete" --msgbox "Please press return to continue" -1 -1
+				dialog --title "Extraction Complete" --infobox "${MEDIA_DISTRIBUTION} is done" -1 -1
 			else
 				error "No installation script found!"
 			fi
