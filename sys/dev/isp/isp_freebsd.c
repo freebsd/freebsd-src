@@ -33,7 +33,7 @@
  * SUCH DAMAGE.
  */
 #include <dev/isp/isp_freebsd.h>
-#include <machine/stdarg.h>
+#include <machine/stdarg.h>	/* for use by isp_prt below */
 
 static void isp_intr_enable(void *);
 static void isp_cam_async(void *, u_int32_t, struct cam_path *, void *);
