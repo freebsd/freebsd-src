@@ -176,9 +176,7 @@ struct pccard_softc {
 
 	/* this stuff is for the card */
 	struct pccard_card card;
-	void		*ih;
 	int		sc_enabled_count;	/* num functions enabled */
-
 };
 
 void
