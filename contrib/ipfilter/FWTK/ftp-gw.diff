@@ -3,7 +3,7 @@
 ***************
 *** 11,31 ****
    */
-  static	char	RcsId[] = "$Header: /devel/CVS/IP-Filter/FWTK/ftp-gw.diff,v 2.0.1.1 1997/01/09 15:14:46 darrenr Exp $";
+  static	char	RcsId[] = "$Header: /devel/CVS/IP-Filter/FWTK/ftp-gw.diff,v 2.0.2.2 1997/02/23 10:38:35 darrenr Exp $";
   
   
   #include	<stdio.h>
@@ -25,7 +25,7 @@
   extern	char	*index();
 --- 11,37 ----
    */
-  static	char	RcsId[] = "$Header: /devel/CVS/IP-Filter/FWTK/ftp-gw.diff,v 2.0.1.1 1997/01/09 15:14:46 darrenr Exp $";
+  static	char	RcsId[] = "$Header: /devel/CVS/IP-Filter/FWTK/ftp-gw.diff,v 2.0.2.2 1997/02/23 10:38:35 darrenr Exp $";
   
 + /*
 +  * Patches for IP Filter NAT extensions written by Darren Reed, 7/7/96

@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <fcntl.h>
 #include <sys/types.h>
+#include <sys/time.h>
 #include <sys/errno.h>
 #include <sys/syslog.h>
 #include <sys/ioctl.h>

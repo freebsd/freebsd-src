@@ -5,6 +5,89 @@
 # Thanks to Craig Bishop of connect.com.au and Sun Microsystems for the
 # loan of a machine to work on a Solaris 2.x port of this software.
 #
+3.2alpha4	2/4/97 - Released
+
+Some compiler warnings cleaned up.
+
+FreeBSD-2.2 patches for LKM completed.
+
+3.2alpha3	31/3/97 - Released
+
+ipmon changes: -N for reading NAT logfile, -S for reading state logfile.
+-a for reading all.  -n now toggles hostname resolution.
+
+Add logging of new state entries and expiration of old state entries.
+count log successes and failures.
+
+Add logging of new NAT entries and expiration of old NAT entries.
+count log successes and failures.
+
+Use u_quad_t for records of bytes & packets where kept
+(IP Accounting: fr_hits, fr_bytes; IP state: is_pkts, is_bytes).
+
+Fixup use of CPU and DCPU in Makefiles.
+
+Fix broken 0/32 NAT mapping. Carl Makin <cmakin@nla.gov.au>
+
+3.2alpha2
+
+Implement mapping to 0/32 as being an alias for automatically using the
+interface's first IP address.
+
+Implement separate minor devices for both NAT and IP state code.
+
+Fully prototype all functions.
+
+Fix Makefile problem due to attempt to fix Sun compiling problems.
+
+3.1.10		23/3/97 - Released
+
+ipfstat -a requires a -i or -o command line option too.  Print an error
+when not present rather than attempt to do something.
+
+patch updates for SunOS4 for kernel compiling.
+patch for ipmon -s (flush's syslog file which isn't good).  Andrew J. Schorr
+<schorr@ead.dsa.com>
+
+too many people hit their heads hard when compiling code into the kernel
+that doesn't let any packets through. (fil.c - IPF_NOMATCH)
+
+icmp-type parsing doesn't return any errors when it isn't constructed
+correctly.  Neil Readwin
+
+Using "-conf" with modload on SunOS4 doesn't work.
+Timothy Demarest <demarest@arraycomm.com>
+
+Need to define ARCH in makefile for SunOS4 building.  "make sunos4"
+in INSTALL.SunOS is incorrect. James R Grinter <jrg@blodwen.demon.co.uk>
+[all SunOS targets now run buildsunos]
+
+NAT lookups are still incorrect, matching non-TCP/UDP with TCP/UDP
+information. ArkanoiD <ark@paranoid.convey.ru>
+
+Need to check for __FreeBSD_version being 199511 rather than 199607
+in mln_ipl.c. Eric Feillant <Eric.Feillant@EUnet.fr>
+
+3.1.9		8/3/97 - Released
+
+fixed incorrect lookup of active NAT entries.
+
+patch for ip_deq() wrong for pre 2.1.6 FreeBSD.
+fyeung@fyeung8.netific.com (Francis Yeung)
+
+check for out with return-rst/return-icmp at wrong place - Erkki Ritoniemi
+(erkki@vlsi.fi)
+
+text_readip returns the interface pointer pointing to text on stack -
+Neil Readwin
+
+fix from Pradeep Krishnan for printout rules "with not opt sec".
+
+3.1.8		18/2/97 - Released
+
+Diffs for ip_output.c and ip_input.c updated to fix bug with fastroute and
+compiling warnings about reuse of m0.
+
 prevent use of return-rst and return-icmp with rules blocking packets going
 out, preventing panics in certain situations.
 

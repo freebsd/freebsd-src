@@ -22,7 +22,7 @@
 
 #if !defined(lint) && defined(LIBC_SCCS)
 static	char	sccsid[] = "@(#)opt.c	1.8 4/10/96 (C) 1993-1995 Darren Reed";
-static	char	rcsid[] = "$Id: opt.c,v 2.0.1.1 1997/01/09 15:14:44 darrenr Exp $";
+static	char	rcsid[] = "$Id: opt.c,v 2.0.2.3 1997/03/10 08:10:40 darrenr Exp $";
 #endif
 
 extern	int	opts;
@@ -63,6 +63,7 @@ struct	ipopt_names	secclass[] = {
 	{ 0, 0, 0, NULL }	/* must be last */
 };
 
+static	u_char	seclevel __P((char *));
 
 static u_char seclevel(slevel)
 char *slevel;

@@ -18,6 +18,16 @@ static	char	sccsid[] = "@(#)ipsopt.c	1.2 1/11/96 (C)1995 Darren Reed";
 #include <netinet/ip.h>
 #include "ip_compat.h"
 
+
+#ifndef	__P
+# ifdef	__STDC__
+#  define	__P(x)	x
+# else
+#  define	__P(x)	()
+# endif
+#endif
+
+
 struct ipopt_names {
 	int	on_value;
 	int	on_bit;
@@ -47,6 +57,10 @@ struct	ipopt_names secnames[] = {
 	{ IPOPT_SECUR_TOPSECRET, 0x4000,0, "topsecret" },
 	{ 0, 0, 0, NULL }	/* must be last */
 };
+
+
+u_short seclevel __P((char *));
+u_long optname __P((char *, char *));
 
 
 u_short seclevel(slevel)

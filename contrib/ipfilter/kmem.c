@@ -16,12 +16,11 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/file.h>
-
-#define KMEM "/dev/kmem"
+#include "kmem.h"
 
 #if !defined(lint) && defined(LIBC_SCCS)
 static  char    sccsid[] = "@(#)kmem.c	1.4 1/12/96 (C) 1992 Darren Reed";
-static	char	rcsid[] = "$Id: kmem.c,v 2.0.1.1 1997/01/09 15:14:44 darrenr Exp $";
+static	char	rcsid[] = "$Id: kmem.c,v 2.0.2.3 1997/03/10 08:10:37 darrenr Exp $";
 #endif
 
 static	int	kmemfd = -1;

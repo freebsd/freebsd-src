@@ -34,14 +34,8 @@ static	char	sccsid[] = "%W% %G% (C)1995 Darren Reed";
 #include <netinet/ip_icmp.h>
 #ifndef	linux
 #include <netinet/ip_var.h>
-#include <netinet/tcpip.h>
 #endif
-#include "ip_compat.h"
-#ifdef	linux
-#include <linux/sockios.h>
-#include "tcpip.h"
-#endif
-#include "ipt.h"
+#include "ipsend.h"
 
 
 extern	char	*optarg;
@@ -49,7 +43,6 @@ extern	int	optind;
 #ifndef	NO_IPF
 extern	struct	ipread	snoop, pcap, etherf, iphex, tcpd, iptext;
 #endif
-extern	int	resolve(), ip_resend();
 
 int	opts = 0;
 #ifndef	DEFAULT_DEVICE
@@ -75,7 +68,11 @@ char	default_device[] = DEFAULT_DEVICE;
 #endif
 
 
-void	usage(prog)
+static	void	usage __P((char *));
+int	main __P((int, char **));
+
+
+static void usage(prog)
 char	*prog;
 {
 	fprintf(stderr, "Usage: %s [options] <-r filename|-R filename>\n\

@@ -23,30 +23,41 @@
 #include <netinet/ip.h>
 #include <netinet/tcp.h>
 #include <net/if.h>
-#include "ip_fil.h"
 #include <netdb.h>
 #include <arpa/nameser.h>
 #include <arpa/inet.h>
 #include <resolv.h>
-#include "ipf.h"
 #include <ctype.h>
+#include "ip_compat.h"
+#include "ip_fil.h"
+#include "ipf.h"
 
 #if !defined(lint) && defined(LIBC_SCCS)
 static	char	sccsid[] ="@(#)parse.c	1.44 6/5/96 (C) 1993-1996 Darren Reed";
-static	char	rcsid[] = "$Id: parse.c,v 2.0.1.2 1997/02/17 13:59:44 darrenr Exp $";
+static	char	rcsid[] = "$Id: parse.c,v 2.0.2.5 1997/03/31 10:05:38 darrenr Exp $";
 #endif
 
 extern	struct	ipopt_names	ionames[], secclass[];
 extern	int	opts;
-extern	int	gethostname();
 
-u_long	hostnum(), optname();
-u_short	portnum();
-u_char	tcp_flags();
-struct	frentry	*parse();
-void	binprint(), printfr();
-int	addicmp(), extras(), hostmask(), ports(), icmpcode(), addkeep();
-int	to_interface();
+u_short	portnum __P((char *));
+u_char	tcp_flags __P((char *, u_char *));
+int	addicmp __P((char ***, struct frentry *));
+int	extras __P((char ***, struct frentry *));
+char    ***seg;
+u_long  *sa, *msk;
+u_short *pp, *tp;
+u_char  *cp;
+
+int	hostmask __P((char ***, u_long *, u_long *, u_short *, u_char *,
+		      u_short *));
+int	ports __P((char ***, u_short *, u_char *, u_short *));
+int	icmpcode __P((char *)), addkeep __P((char ***, struct frentry *));
+int	to_interface __P((frdest_t *, char *));
+void	print_toif __P((char *, frdest_t *));
+void	optprint __P((u_short, u_short, u_long, u_long));
+int	countbits __P((u_long));
+char	*portname __P((int, int));
 
 
 char	*proto = NULL;
@@ -100,7 +111,7 @@ char	*line;
 
 	cpp = cps;
 	if (**cpp == '@')
-		fil.fr_hits = atoi(*cpp++ + 1) + 1;
+		fil.fr_hits = (U_QUAD_T)atoi(*cpp++ + 1) + 1;
 
 	if (!strcasecmp("block", *cpp)) {
 		fil.fr_flags = FR_BLOCK;
@@ -143,8 +154,10 @@ char	*line;
 	}
 	cpp++;
 
-	if (!strcasecmp("in", *cpp)) {
+	if (!strcasecmp("in", *cpp))
 		fil.fr_flags |= FR_INQUE;
+	else if (!strcasecmp("out", *cpp)) {
+		fil.fr_flags |= FR_OUTQUE;
 		if (fil.fr_flags & FR_RETICMP) {
 			(void)fprintf(stderr,
 				"Can only use return-icmp with 'in'\n");
@@ -154,9 +167,7 @@ char	*line;
 				"Can only use return-rst with 'in'\n");
 			return NULL;
 		}
-	} else if (!strcasecmp("out", *cpp))
-		fil.fr_flags |= FR_OUTQUE;
-	else {
+	} else {
 		(void)fprintf(stderr,
 			"missing 'in'/'out' keyword (%s)\n", *cpp);
 		return NULL;
@@ -314,8 +325,9 @@ char	*line;
 			return NULL;
 		}
 		ch = 0;
-		if (hostmask(&cpp, &fil.fr_src, &fil.fr_smsk,
-			     &fil.fr_sport, &ch, &fil.fr_stop)) {
+		if (hostmask(&cpp, (u_long *)&fil.fr_src,
+			     (u_long *)&fil.fr_smsk, &fil.fr_sport, &ch,
+			     &fil.fr_stop)) {
 			(void)fprintf(stderr, "bad host (%s)\n", *cpp);
 			return NULL;
 		}
@@ -338,8 +350,9 @@ char	*line;
 			return NULL;
 		}
 		ch = 0;
-		if (hostmask(&cpp, &fil.fr_dst, &fil.fr_dmsk,
-			     &fil.fr_dport, &ch, &fil.fr_dtop)) {
+		if (hostmask(&cpp, (u_long *)&fil.fr_dst,
+			     (u_long *)&fil.fr_dmsk, &fil.fr_dport, &ch,
+			     &fil.fr_dtop)) {
 			(void)fprintf(stderr, "bad host (%s)\n", *cpp);
 			return NULL;
 		}
@@ -870,6 +883,9 @@ u_long optmsk, optbits;
 					    (!secmsk && !secbits)) {
 						printf("%s%s", s, io->on_name);
 						s = ",";
+						if (io->on_value ==
+						    IPOPT_SECURITY)
+							io++;
 					} else
 						io++;
 				}
@@ -925,8 +941,11 @@ struct	frentry	*fp;
 			if (!strcasecmp(*t, **cp))
 				break;
 		}
-		if (i == -1)
+		if (i == -1) {
+			(void)fprintf(stderr,
+				"Invalid icmp-type (%s) specified\n", **cp);
 			return -1;
+		}
 	}
 	fp->fr_icmp = (u_short)(i << 8);
 	fp->fr_icmpm = (u_short)0xff00;

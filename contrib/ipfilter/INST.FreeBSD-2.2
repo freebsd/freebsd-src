@@ -1,0 +1,53 @@
+
+To build a kernel for use with the loadable kernel module, follow these
+steps:
+	1. do "make freebsd22"
+
+	2. do "make install-bsd"
+	   (probably has to be done as root)
+
+	3.  run "FreeBSD-2.2/minstall" as root
+
+	4. build a new kernel
+
+	5. install and reboot with the new kernel
+
+	6. use modload(8) to load the packet filter with:
+		modload if_ipl.o
+
+	7. do "modstat" to confirm that it has been loaded successfully.
+
+There is no need to use mknod to create the device in /dev;
+- upon loading the module, it will create itself with the correct values,
+  under the name (IPL_NAME) from the Makefile.  It will also remove itself
+  from /dev when it is modunload'd.
+
+To build a kernel with the IP filter, follow these steps:
+
+*** KERNEL INSTALL CURRENTLY UNSUPPORTED ***
+	1. do "make freebsd22"
+
+	2. do "make install-bsd"
+	   (probably has to be done as root)
+
+	3.  run "FreeBSD-2.2/kinstall" as root
+
+	4. build a new kernel
+
+	5a) For FreeBSD 2.2 (or later)
+	    create devices for IP Filter as follows:
+	      mknod /dev/ipl c 79 0
+	      mknod /dev/ipnat c 79 1
+	      mknod /dev/ipstate c 79 2
+
+	5b) For versions prior to FreeBSD 2.2:
+	    create devices for IP Filter as follows (assuming it was
+            installed into the device table as char dev 20):
+	      mknod /dev/ipl c 20 0
+	      mknod /dev/ipnat c 20 1
+	      mknod /dev/ipstate c 20 2
+
+	6. install and reboot with the new kernel
+
+Darren Reed
+darrenr@cyber.com.au
