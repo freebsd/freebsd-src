@@ -58,18 +58,20 @@ int
 _pthread_key_create(pthread_key_t *key, void (*destructor) (void *))
 {
 	struct pthread *curthread = _get_curthread();
+	int i;
 
 	/* Lock the key table: */
 	THR_LOCK_ACQUIRE(curthread, &_keytable_lock);
-	for ((*key) = 0; (*key) < PTHREAD_KEYS_MAX; (*key)++) {
+	for (i = 0; i < PTHREAD_KEYS_MAX; i++) {
 
-		if (key_table[(*key)].allocated == 0) {
-			key_table[(*key)].allocated = 1;
-			key_table[(*key)].destructor = destructor;
-			key_table[(*key)].seqno++;
+		if (key_table[i].allocated == 0) {
+			key_table[i].allocated = 1;
+			key_table[i].destructor = destructor;
+			key_table[i].seqno++;
 
 			/* Unlock the key table: */
 			THR_LOCK_RELEASE(curthread, &_keytable_lock);
+			*key = i;
 			return (0);
 		}
 
@@ -85,7 +87,7 @@ _pthread_key_delete(pthread_key_t key)
 	struct pthread *curthread = _get_curthread();
 	int ret = 0;
 
-	if (key < PTHREAD_KEYS_MAX) {
+	if ((unsigned int)key < PTHREAD_KEYS_MAX) {
 		/* Lock the key table: */
 		THR_LOCK_ACQUIRE(curthread, &_keytable_lock);
 
@@ -172,7 +174,7 @@ _pthread_setspecific(pthread_key_t key, const void *value)
 
 	if ((pthread->specific) ||
 	    (pthread->specific = pthread_key_allocate_data())) {
-		if (key < PTHREAD_KEYS_MAX) {
+		if ((unsigned int)key < PTHREAD_KEYS_MAX) {
 			if (key_table[key].allocated) {
 				if (pthread->specific[key].data == NULL) {
 					if (value != NULL)
@@ -204,7 +206,7 @@ _pthread_getspecific(pthread_key_t key)
 	pthread = _get_curthread();
 
 	/* Check if there is specific data: */
-	if (pthread->specific != NULL && key < PTHREAD_KEYS_MAX) {
+	if (pthread->specific != NULL && (unsigned int)key < PTHREAD_KEYS_MAX) {
 		/* Check if this key has been used before: */
 		if (key_table[key].allocated &&
 		    (pthread->specific[key].seqno == key_table[key].seqno)) {
