@@ -210,14 +210,15 @@ int		 pfs_uninit	(struct pfs_info *pi, struct vfsconf *vfc);
 /*
  * Directory structure construction and manipulation
  */
-struct pfs_node	*pfs_create_dir	(struct pfs_node *parent, char *name,
+struct pfs_node	*pfs_create_dir	(struct pfs_node *parent, const char *name,
 				 pfs_attr_t attr, pfs_vis_t vis, int flags);
-struct pfs_node	*pfs_create_file(struct pfs_node *parent, char *name,
+struct pfs_node	*pfs_create_file(struct pfs_node *parent, const char *name,
 				 pfs_fill_t fill, pfs_attr_t attr,
 				 pfs_vis_t vis, int flags);
-struct pfs_node	*pfs_create_link(struct pfs_node *parent, char *name,
+struct pfs_node	*pfs_create_link(struct pfs_node *parent, const char *name,
 				 pfs_fill_t fill, pfs_attr_t attr,
 				 pfs_vis_t vis, int flags);
+struct pfs_node	*pfs_find_node	(struct pfs_node *parent, const char *name);
 int		 pfs_disable	(struct pfs_node *pn);
 int		 pfs_enable	(struct pfs_node *pn);
 int		 pfs_destroy	(struct pfs_node *pn);
