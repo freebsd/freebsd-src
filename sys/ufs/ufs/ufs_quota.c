@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_quota.c	8.2 (Berkeley) 12/30/93
- * $Id: ufs_quota.c,v 1.6 1995/12/22 15:58:56 phk Exp $
+ * $Id: ufs_quota.c,v 1.7 1996/01/05 18:31:56 wollman Exp $
  */
 
 #include "opt_quota.h"		/* not really necessary... */
@@ -63,11 +63,11 @@ static int chkdqchg __P((struct inode *, long, struct ucred *, int));
 static int chkiqchg __P((struct inode *, long, struct ucred *, int));
 static int dqget __P((struct vnode *,
 		u_long, struct ufsmount *, int, struct dquot **));
-static void dqref __P((struct dquot *));
 static int dqsync __P((struct vnode *, struct dquot *));
 static void dqflush __P((struct vnode *));
 
 #ifdef DIAGNOSTIC
+static void dqref __P((struct dquot *));
 static void chkdquot __P((struct inode *));
 #endif
 
@@ -842,6 +842,7 @@ dqget(vp, id, ump, type, dqp)
 	return (0);
 }
 
+#ifdef DIAGNOSTIC
 /*
  * Obtain a reference to a dquot.
  */
@@ -852,6 +853,7 @@ dqref(dq)
 
 	dq->dq_cnt++;
 }
+#endif
 
 /*
  * Release a reference to a dquot.
