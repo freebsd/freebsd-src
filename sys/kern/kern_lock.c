@@ -148,7 +148,7 @@ acquire(struct lock **lkpp, int extflags, int wanted) {
 	struct lock *lkp = *lkpp;
 	int s, error;
 
-	CTR3(KTR_LOCKMGR,
+	CTR3(KTR_LOCK,
 	    "acquire(): lkp == %p, extflags == 0x%x, wanted == 0x%x\n",
 	    lkp, extflags, wanted);
 
@@ -222,7 +222,7 @@ debuglockmgr(lkp, flags, interlkp, td, name, file, line)
 	struct thread *thr;
 	int extflags, lockflags;
 
-	CTR5(KTR_LOCKMGR,
+	CTR5(KTR_LOCK,
 	    "lockmgr(): lkp == %p (lk_wmesg == \"%s\"), flags == 0x%x, "
 	    "interlkp == %p, td == %p", lkp, lkp->lk_wmesg, flags, interlkp, td);
 
@@ -534,7 +534,7 @@ lockinit(lkp, prio, wmesg, timo, flags)
 	int timo;
 	int flags;
 {
-	CTR5(KTR_LOCKMGR, "lockinit(): lkp == %p, prio == %d, wmesg == \"%s\", "
+	CTR5(KTR_LOCK, "lockinit(): lkp == %p, prio == %d, wmesg == \"%s\", "
 	    "timo == %d, flags = 0x%x\n", lkp, prio, wmesg, timo, flags);
 
 	if (lock_mtx_valid == 0) {
@@ -579,7 +579,7 @@ void
 lockdestroy(lkp)
 	struct lock *lkp;
 {
-	CTR2(KTR_LOCKMGR, "lockdestroy(): lkp == %p (lk_wmesg == \"%s\")",
+	CTR2(KTR_LOCK, "lockdestroy(): lkp == %p (lk_wmesg == \"%s\")",
 	    lkp, lkp->lk_wmesg);
 }
 
