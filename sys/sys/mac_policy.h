@@ -51,7 +51,19 @@
  * Operations are sorted first by general class of operation, then
  * alphabetically.
  */
+struct acl;
+struct componentname;
+struct devfs_dirent;
+struct ipq;
+struct label;
 struct mac_policy_conf;
+struct mbuf;
+struct mount;
+struct pipe;
+struct socket;
+struct ucred;
+struct uio;
+struct vnode;
 struct mac_policy_ops {
 	/*
 	 * Policy module operations.
