@@ -1166,11 +1166,8 @@ loop:
 				goto loop;
 			continue;
 		}
-		if (vp->v_type != VCHR) {
-			if ((error = VOP_FSYNC(vp, cred, waitfor, td)) != 0)
-				allerror = error;
-		} else
-			UFS_UPDATE(vp, wait);
+		if ((error = VOP_FSYNC(vp, cred, waitfor, td)) != 0)
+			allerror = error;
 		VOP_UNLOCK(vp, 0, td);
 		mtx_lock(&mntvnode_mtx);
 		if (TAILQ_NEXT(vp, v_nmntvnodes) != nvp)
