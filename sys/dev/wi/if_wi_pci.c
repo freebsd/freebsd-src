@@ -235,9 +235,8 @@ wi_pci_attach(device_t dev)
 
 	error = wi_attach(dev);
 	if (error != 0)
-		return (error);
-
-	return (0);
+		wi_free(dev);
+	return (error);
 }
 
 static int
