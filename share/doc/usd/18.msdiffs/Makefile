@@ -1,7 +1,8 @@
-#	@(#)Makefile	8.1 (Berkeley) 6/8/93
+#	From: @(#)Makefile	8.1 (Berkeley) 6/8/93
+#	$Id$
 
-DIR=	usd/18.msdiffs
+VOLUME=	usd/18.msdiffs
 SRCS=	ms.diffs
-MACROS=	-msU
+MACROS=	-ms
 
 .include <bsd.doc.mk>
