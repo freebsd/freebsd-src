@@ -93,7 +93,6 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <sysexits.h>
-#include <termios.h>
 #include <unistd.h>
 
 #define	INADDR_LEN	((int)sizeof(in_addr_t))
@@ -185,7 +184,6 @@ double tsum = 0.0;		/* sum of all times, for doing average */
 double tsumsq = 0.0;		/* sum of all times squared, for std. dev. */
 
 volatile sig_atomic_t finish_up;  /* nonzero if we've been told to finish up */
-int reset_kerninfo;
 volatile sig_atomic_t siginfo_p;
 
 static void fill(char *, char *);
@@ -216,7 +214,6 @@ main(argc, argv)
 	struct ip *ip;
 	struct msghdr msg;
 	struct sigaction si_sa;
-	struct termios ts;
 	size_t sz;
 	u_char *datap, packet[IP_MAXPACKET];
 	char *ep, *source, *target, *payload;
@@ -707,12 +704,6 @@ main(argc, argv)
 #endif
 	iov.iov_base = packet;
 	iov.iov_len = IP_MAXPACKET;
-
-	if (tcgetattr(STDOUT_FILENO, &ts) != -1) {
-		reset_kerninfo = !(ts.c_lflag & NOKERNINFO);
-		ts.c_lflag |= NOKERNINFO;
-		tcsetattr(STDOUT_FILENO, TCSANOW, &ts);
-	}
 
 	if (preload == 0)
 		pinger();		/* send the first ping */
@@ -1271,7 +1262,6 @@ check_status()
 static void
 finish()
 {
-	struct termios ts;
 
 	(void)signal(SIGINT, SIG_IGN);
 	(void)signal(SIGALRM, SIG_IGN);
@@ -1298,10 +1288,6 @@ finish()
 		(void)printf(
 		    "round-trip min/avg/max/stddev = %.3f/%.3f/%.3f/%.3f ms\n",
 		    tmin, avg, tmax, sqrt(vari));
-	}
-	if (reset_kerninfo && tcgetattr(STDOUT_FILENO, &ts) != -1) {
-		ts.c_lflag &= ~NOKERNINFO;
-		tcsetattr(STDOUT_FILENO, TCSANOW, &ts);
 	}
 
 	if (nreceived)
