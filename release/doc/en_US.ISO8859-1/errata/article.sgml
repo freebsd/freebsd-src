@@ -125,87 +125,7 @@
 ]]>
 
 <![ %release.type.snapshot [
-    <para>The implementation of the &man.realpath.3; function contained
-      a single-byte buffer overflow bug.  This had various
-      impacts, depending on the application using &man.realpath.3; and
-      other factors.  This bug was fixed on the &release.branch; development
-      branch before &release.prev;; &os; &release.prev; is therefore not affected.  However, this change
-      was not noted in the release documentation.  For
-      more information, see security advisory
-      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:08.realpath.asc">FreeBSD-SA-03:08</ulink>.</para>
-
-    <para>The kernel contains a bug that could allow it to attempt
-      delivery of invalid signals, leading to a kernel panic or, under
-      some circumstances, unauthorized modification of kernel memory.
-      This bug has been fixed on the &release.branch; development
-      branch and the &release.prev; security fix branch.  For more
-      information, see security advisory
-      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:09.signal.asc">FreeBSD-SA-03:09</ulink>.</para>
-
-    <para>A bug in the iBCS2 emulation module could result in
-      disclosing the contents of kernel memory.  (Note that this
-      module is not enabled in &os; by default.)  This bug has been
-      fixed on the &release.branch; development branch and the
-      &release.prev; security fix branch.  More information can be
-      found in security advisory
-      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:10.ibcs2.asc">FreeBSD-SA-03:10</ulink>.</para>
-
-    <para><application>OpenSSH</application> contains a bug in its
-      buffer management code that could potentially cause it to crash.
-      This bug has been fixed via a vendor-supplied patch on the
-      &release.branch; development branch and the &release.prev;
-      security fix branch.  For more details, refer to security
-      advisory
-      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:12.openssh.asc">FreeBSD-SA-03:12</ulink>.</para>
-
-    <para><application>sendmail</application> contains a
-      remotely-exploitable buffer overflow.  This bug has been fixed
-      via a new version import on the &release.branch; development
-      branch and via a vendor-supplied patch on the &release.prev;
-      security fix branch.  More details can be found in security
-      advisory
-      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:13.sendmail.asc">FreeBSD-SA-03:13</ulink>.</para>
-
-    <para>The &os; ARP code contains a bug that could allow the kernel
-      to cause resource starvation which eventually results in a system panic.
-      This bug has been fixed on the &release.branch; development branch and the
-      &release.prev; security fix branch.  More information can be
-      found in security advisory
-      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:14.arp.asc">FreeBSD-SA-03:14</ulink>.</para>
-
-    <para>Several bugs in the <application>OpenSSH</application> PAM
-      authentication code could have impacts ranging from incorrect
-      authentication to a stack corruption.  These have been corrected
-      via vendor-supplied patches; details can be found in security
-      advisory
-      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:15.openssh.asc">FreeBSD-SA-03:15</ulink>.</para>
-
-    <para>The implementation of the &man.procfs.5; and the &man.linprocfs.5;
-      contain a bug that could result in disclosing the contents of kernel memory.
-      This bug has been fixed on the &release.branch; development branch and the
-      &release.prev; security fix branch.  More information can be
-      found in security advisory
-      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:17.procfs.asc">FreeBSD-SA-03:17</ulink>.</para>
-
-    <para><application>OpenSSL</application> contains several bugs
-      which could allow a remote attacker to crash an
-      <application>OpenSSL</application>-using application or
-      to execute arbitrary code with the privileges of the application.
-      These bugs have been fixed via a vendor-supplied patch on the &release.branch;
-      development branch and the &release.prev; security fix branch.
-      Note that only applications that use <application>OpenSSL</application>'s
-      ASN.1 or X.509 handling code are affected (<application>OpenSSH</application>
-      is unaffected, for example).
-      More information can be found in security advisory 
-      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:18.openssl.asc">FreeBSD-SA-03:18</ulink>.</para>
-
-    <para><application>BIND</application> contains the potential for a
-      denial-of-service attack.  This vulnerability has been addressed
-      by a vendor patch on the &release.prev; security fix branch and
-      by the import of a new version to the &release.branch;
-      development branch.  For more information, see 
-      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:19.bind.asc">FreeBSD-SA-03:19</ulink>.</para>
-
+    <para>No advisories.</para>
 ]]>
 
   </sect1>
@@ -218,26 +138,7 @@
 ]]>
 
 <![ %release.type.snapshot [
-    <para>The RAIDframe disk driver described in &man.raid.4; is
-      non-functional for this release.</para>
-
-    <para>ACPI seems to make some &i386; machines unstable.  Turning off
-      ACPI support may help solve some of these problems; see an item
-      in <xref linkend="late-news">.</para>
-
-    <para>An integer overflow could cause kernel panics on PAE-using
-      machines with certain memory sizes.  This bug has been corrected
-      on both the <literal>RELENG_5_1</literal> and
-      <literal>HEAD</literal> branches.  A workaround for this problem
-      is to remove some memory, update the system in question, and
-      reinstall the memory.</para>
-
-    <para>Attempting to write to an &man.msdosfs.5; file system that
-      has been upgraded from read-only to read-write via
-      <command>mount -u</command> will cause the system to lock up.
-      To work around this problem, unmount the file system first, then
-      mount it again with the appropriate options instead of using
-      <command>mount -u</command>.</para>
+    <para>No open issues.</para>
 ]]>
 
   </sect1>
@@ -250,44 +151,7 @@
 ]]>
 
 <![ %release.type.snapshot [
-    <para>&man.ipfw.4; should work correctly on strict-alignment
-      64-bit architectures such as alpha and &sparc64;.</para>
-
-    <para>The release notes should have stated that the
-      <filename>libthr</filename> library is built by default for the
-      &i386; platform.</para>
-
-    <para>&os; &release.prev; includes some new boot loader scripts
-      designed to make booting &os; with different options easier.
-      This may help diagnose bootstrapping problems.  These scripts
-      build on the existing Forth-based boot loader scripts (thus,
-      <filename>/boot/loader.conf</filename> and other existing loader
-      configuration files still apply).  They are only installed by
-      default for new binary installs on &i386; machines.  The new
-      scripts present a boot-time menu that controls how &os; is
-      booted, and include options to turn off ACPI, a <quote>safe
-      mode</quote> boot, single-user booting, and verbose booting.
-      <quote>Safe mode</quote> booting can be particularly useful when
-      compatibility with a system's hardware is uncertain, and sets
-      the following kernel tunable variables:</para>
-
-      <programlisting>hint.acpi.0.disabled=1 # disable ACPI (i386 only)
-hw.ata.ata_dma=0       # disable IDE DMA
-hw.ata.atapi_dma=0     # disable ATAPI/IDE DMA
-hw.ata.wc=0            # disable IDE disk write cache
-hw.eisa_slots=0        # disable probing for EISA devices</programlisting>
-
-    <para>For new installs on &i386; architecture machines,
-      &man.sysinstall.8; will try to determine if ACPI was disabled
-      via the new boot loader scripts mentioned above, and if so,
-      ask if this change should be made permanent.</para>
-
-    <para>The release notes should have mentioned that work on the
-      following features was sponsored by the Defense Advanced
-      Research Projects Agency (DARPA): OpenPAM, NSS support, PAE
-      support, various MAC framework updates, the GEOM disk geometry
-      system.</para>
-
+    <para>No news.</para>
 ]]>
 
   </sect1>
