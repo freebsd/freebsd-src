@@ -176,11 +176,11 @@ gv_volume_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 {
 	struct g_geom *gp;
 	struct g_provider *pp2;
-	struct g_consumer *cp;
+	struct g_consumer *cp, *ocp;
 	struct gv_softc *sc;
 	struct gv_volume *v;
 	struct gv_plex *p;
-	int first;
+	int error, first;
 
 	g_trace(G_T_TOPOLOGY, "gv_volume_taste(%s, %s)", mp->name, pp->name);
 	g_topology_assert();
@@ -214,8 +214,27 @@ gv_volume_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	} else
 		gp = v->geom;
 
+	/*
+	 * Create a new consumer and attach it to the plex geom.  Since this
+	 * volume might already have a plex attached, we need to adjust the
+	 * access counts of the new consumer.
+	 */
+	ocp = LIST_FIRST(&gp->consumer);
 	cp = g_new_consumer(gp);
 	g_attach(cp, pp);
+	if ((ocp != NULL) && (ocp->acr > 0 || ocp->acw > 0 || ocp->ace > 0)) {
+		error = g_access(cp, ocp->acr, ocp->acw, ocp->ace);
+		if (error) {
+			printf("GEOM_VINUM: failed g_access %s -> %s; "
+			    "errno %d\n", v->name, p->name, error);
+			g_detach(cp);
+			g_destroy_consumer(cp);
+			if (first)
+				g_destroy_geom(gp);
+			return (NULL);
+		}
+	}
+
 	p->consumer = cp;
 
 	if (p->vol_sc != v) {
