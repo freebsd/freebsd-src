@@ -93,7 +93,6 @@ struct utmp	utmp;
 struct winsize	ws;
 kvm_t	       *kd;
 time_t		now;		/* the current time of day */
-time_t		uptime;		/* time of last reboot & elapsed time since */
 int		ttywidth;	/* width of tty */
 int		argwidth;	/* width of tty */
 int		header = 1;	/* true if -h flag: don't print heading */
@@ -425,7 +424,7 @@ pr_header(nowp, nusers)
 	int nusers;
 {
 	double avenrun[3];
-	time_t luptime;
+	time_t uptime;
 	int days, hrs, i, mins, secs;
 	int mib[2];
 	size_t size;
@@ -448,15 +447,15 @@ pr_header(nowp, nusers)
 	size = sizeof(boottime);
 	if (sysctl(mib, 2, &boottime, &size, NULL, 0) != -1 &&
 	    boottime.tv_sec != 0) {
-		luptime = now - boottime.tv_sec;
-		if (luptime > 60)
-			luptime += 30;
-		days = luptime / 86400;
-		luptime %= 86400;
-		hrs = luptime / 3600;
-		luptime %= 3600;
-		mins = luptime / 60;
-		secs = luptime % 60;
+		uptime = now - boottime.tv_sec;
+		if (uptime > 60)
+			uptime += 30;
+		days = uptime / 86400;
+		uptime %= 86400;
+		hrs = uptime / 3600;
+		uptime %= 3600;
+		mins = uptime / 60;
+		secs = uptime % 60;
 		(void)printf(" up");
 		if (days > 0)
 			(void)printf(" %d day%s,", days, days > 1 ? "s" : "");
