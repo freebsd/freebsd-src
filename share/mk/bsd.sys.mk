@@ -22,7 +22,14 @@ CFLAGS		+=	-W -Wstrict-prototypes -Wmissing-prototypes -Wpointer-arith
 .  if ${WARNS} > 3
 CFLAGS		+=	-Wreturn-type -Wcast-qual -Wwrite-strings -Wswitch -Wshadow -Wcast-align
 .  endif
-.  if ${WARNS} > 1
+.  if ${WARNS} > 4
+CFLAGS		+=	-Wuninitialized
+.  endif
+# BDECFLAGS
+.  if ${WARNS} > 5
+CFLAGS		+=	-ansi -pedantic -Wbad-function-cast -Wchar-subscripts -Winline -Wnested-externs -Wredundant-decls
+.  endif
+.  if ${WARNS} > 1 && ${WARNS} < 5
 # XXX Delete -Wuninitialized by default for now -- the compiler doesn't
 # XXX always get it right.
 CFLAGS		+=	-Wno-uninitialized
