@@ -237,8 +237,7 @@ one would use:
 .Xr more 1 ,
 .Xr whatis 1 ,
 .Xr man 7 ,
-.Xr mdoc 7 ,
-.Xr mdoc.samples 7
+.Xr mdoc 7
 .Sh BUGS
 The
 .Fl t
