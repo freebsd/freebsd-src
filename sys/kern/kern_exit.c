@@ -97,7 +97,6 @@ void
 sys_exit(struct thread *td, struct sys_exit_args *uap)
 {
 
-	mtx_lock(&Giant);
 	exit1(td, W_EXITCODE(uap->rval, 0));
 	/* NOTREACHED */
 }
@@ -121,7 +120,12 @@ exit1(struct thread *td, int rv)
 #endif
 	struct plimit *plim;
 
-	GIANT_REQUIRED;
+	/*
+	 * Drop Giant if caller has it.  Eventually we should warn about
+	 * being called with Giant held.
+	 */ 
+	while (mtx_owned(&Giant))
+		mtx_unlock(&Giant);
 
 	p = td->td_proc;
 	if (p == initproc) {
@@ -133,6 +137,7 @@ exit1(struct thread *td, int rv)
 	/*
 	 * MUST abort all other threads before proceeding past here.
 	 */
+	mtx_lock(&Giant);
 	PROC_LOCK(p);
 	if (p->p_flag & P_SA || p->p_numthreads > 1) {
 		/*
@@ -167,6 +172,7 @@ exit1(struct thread *td, int rv)
 		p->p_flag &= ~P_SA;
 		thread_single_end();	/* Don't need this any more. */
 	}
+	mtx_unlock(&Giant);
 	/*
 	 * With this state set:
 	 * Any thread entering the kernel from userspace will thread_exit()
@@ -197,17 +203,23 @@ exit1(struct thread *td, int rv)
 	}
 
 #ifdef PGINPROF
+	mtx_lock(&Giant);
 	vmsizmon();
+	mtx_unlock(&Giant);
 #endif
-	STOPEVENT(p, S_EXIT, rv);
+	PROC_LOCK(p);
+	_STOPEVENT(p, S_EXIT, rv);
 	wakeup(&p->p_stype);	/* Wakeup anyone in procfs' PIOCWAIT */
+	PROC_UNLOCK(p);
 
 	/*
 	 * Check if any loadable modules need anything done at process exit.
 	 * e.g. SYSV IPC stuff
 	 * XXX what if one of these generates an error?
 	 */
+	mtx_lock(&Giant);
 	EVENTHANDLER_INVOKE(process_exit, p);
+	mtx_unlock(&Giant);
 
 	MALLOC(p->p_ru, struct rusage *, sizeof(struct rusage),
 		M_ZOMBIE, M_WAITOK);
@@ -238,6 +250,7 @@ exit1(struct thread *td, int rv)
 	 * Reset any sigio structures pointing to us as a result of
 	 * F_SETOWN with our pid.
 	 */
+	mtx_lock(&Giant);	/* XXX: not sure if needed */
 	funsetownlst(&p->p_sigiolst);
 
 	/*
@@ -245,6 +258,7 @@ exit1(struct thread *td, int rv)
 	 * This may block!
 	 */
 	fdfree(td);
+	mtx_unlock(&Giant);	
 
 	/*
 	 * Remove ourself from our leader's peer list and wake our leader.
@@ -259,6 +273,7 @@ exit1(struct thread *td, int rv)
 	}
 	mtx_unlock(&ppeers_lock);
 
+	mtx_lock(&Giant);	
 	/* The next two chunks should probably be moved to vmspace_exit. */
 	vm = p->p_vmspace;
 	/*
@@ -345,6 +360,7 @@ exit1(struct thread *td, int rv)
 	fixjobc(p, p->p_pgrp, 0);
 	sx_xunlock(&proctree_lock);
 	(void)acct_process(td);
+	mtx_unlock(&Giant);	
 #ifdef KTRACE
 	/*
 	 * release trace file
@@ -368,7 +384,9 @@ exit1(struct thread *td, int rv)
 	 */
 	if ((vtmp = p->p_textvp) != NULL) {
 		p->p_textvp = NULL;
+		mtx_lock(&Giant);	
 		vrele(vtmp);
+		mtx_unlock(&Giant);	
 	}
 
 	/*
@@ -424,6 +442,7 @@ exit1(struct thread *td, int rv)
 	 * Save exit status and final rusage info, adding in child rusage
 	 * info and self times.
 	 */
+	mtx_lock(&Giant);	
 	PROC_LOCK(p);
 	p->p_xstat = rv;
 	*p->p_ru = p->p_stats->p_ru;
@@ -436,6 +455,7 @@ exit1(struct thread *td, int rv)
 	 * Notify interested parties of our demise.
 	 */
 	KNOTE(&p->p_klist, NOTE_EXIT);
+	mtx_unlock(&Giant);	
 	/*
 	 * Just delete all entries in the p_klist. At this point we won't
 	 * report any more events, and there are nasty race conditions that
@@ -580,7 +600,6 @@ wait1(struct thread *td, struct wait_args *uap, int compat)
 	}
 	if (uap->options &~ (WUNTRACED|WNOHANG|WCONTINUED|WLINUXCLONE))
 		return (EINVAL);
-	mtx_lock(&Giant);
 loop:
 	nfound = 0;
 	sx_xlock(&proctree_lock);
@@ -649,7 +668,6 @@ loop:
 				wakeup(t);
 				PROC_UNLOCK(t);
 				sx_xunlock(&proctree_lock);
-				mtx_unlock(&Giant);
 				return (0);
 			}
 
@@ -669,6 +687,7 @@ loop:
 			 * all other writes to this proc are visible now, so
 			 * no more locking is needed for p.
 			 */
+			mtx_lock(&Giant);
 			PROC_LOCK(p);
 			p->p_xstat = 0;		/* XXX: why? */
 			PROC_UNLOCK(p);
@@ -677,6 +696,7 @@ loop:
 			PROC_UNLOCK(q);
 			FREE(p->p_ru, M_ZOMBIE);
 			p->p_ru = NULL;
+			mtx_unlock(&Giant);
 
 			/*
 			 * Decrement the count of procs running with this uid.
@@ -696,6 +716,7 @@ loop:
 			/*
 			 * do any thread-system specific cleanups
 			 */
+			mtx_lock(&Giant);
 			thread_wait(p);
 
 			/*
@@ -704,6 +725,7 @@ loop:
 			 * release while still running in process context.
 			 */
 			vm_waitproc(p);
+			mtx_unlock(&Giant);
 #ifdef MAC
 			mac_destroy_proc(p);
 #endif
@@ -713,7 +735,6 @@ loop:
 			sx_xlock(&allproc_lock);
 			nprocs--;
 			sx_xunlock(&allproc_lock);
-			mtx_unlock(&Giant);
 			return (0);
 		}
 		mtx_lock_spin(&sched_lock);
@@ -740,7 +761,6 @@ loop:
 				PROC_UNLOCK(p);
 				error = 0;
 			}
-			mtx_unlock(&Giant);
 			return (error);
 		}
 		mtx_unlock_spin(&sched_lock);
@@ -757,30 +777,25 @@ loop:
 			} else
 				error = 0;
 
-			mtx_unlock(&Giant);
 			return (error);
 		}
 		PROC_UNLOCK(p);
 	}
 	if (nfound == 0) {
 		sx_xunlock(&proctree_lock);
-		mtx_unlock(&Giant);
 		return (ECHILD);
 	}
 	if (uap->options & WNOHANG) {
 		sx_xunlock(&proctree_lock);
 		td->td_retval[0] = 0;
-		mtx_unlock(&Giant);
 		return (0);
 	}
 	PROC_LOCK(q);
 	sx_xunlock(&proctree_lock);
 	error = msleep(q, &q->p_mtx, PWAIT | PCATCH, "wait", 0);
 	PROC_UNLOCK(q);
-	if (error) {
-		mtx_unlock(&Giant);
-		return (error);
-	}
+	if (error)
+		return (error);	
 	goto loop;
 }
 
