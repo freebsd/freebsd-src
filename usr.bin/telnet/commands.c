@@ -2026,8 +2026,12 @@ tn(int argc, char *argv[])
 #endif
 	    (hostname = strrchr(hostp, ':')) == NULL)
 	    hostname = strrchr(hostp, '@');
-	hostname++;
-	srcroute = 1;
+	if (hostname == NULL) {
+	    hostname = hostp;
+	} else {
+	    hostname++;
+	    srcroute = 1;
+	}
     } else
         hostname = hostp;
     if (!portp) {
