@@ -97,9 +97,13 @@ do_swap(fl)
 	fprintf(fp, "dev_t\trootdev = makedev(%d, 0x%08x);\t\t/* %s */\n",
 		major(fl->f_rootdev), minor(fl->f_rootdev),
 		devtoname(fl->f_rootdev));
-	fprintf(fp, "dev_t\tdumpdev = makedev(%d, 0x%08x);\t\t/* %s */\n",
-		major(fl->f_dumpdev), minor(fl->f_dumpdev),
-		devtoname(fl->f_dumpdev));
+	if (fl->f_dumpdev != NODEV) {
+		fprintf(fp, "dev_t\tdumpdev = makedev(%d, 0x%08x);\t\t/* %s */\n",
+			major(fl->f_dumpdev), minor(fl->f_dumpdev),
+			devtoname(fl->f_dumpdev));
+	} else {
+		fprintf(fp, "dev_t\tdumpdev = NODEV;\t\t\t/* unconfigured */\n");
+	}
 	fprintf(fp, "\n");
 	fprintf(fp, "struct\tswdevt swdevt[] = {\n");
 	do {
