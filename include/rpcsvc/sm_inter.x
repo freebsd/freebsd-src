@@ -35,9 +35,12 @@
 
 #ifndef RPC_HDR
 %#ifndef lint
-%/*static char sccsid[] = "from: @(#)sm_inter.x 1.7 87/06/24 Copyr 1987 Sun Micro";*/
-%/*static char sccsid[] = "from: @(#)sm_inter.x	2.2 88/08/01 4.0 RPCSRC";*/
-%static char rcsid[] = "$Id: sm_inter.x,v 1.1 1994/08/04 19:01:53 wollman Exp $";
+%#if 0
+%static char sccsid[] = "@(#)from: sm_inter.x 1.7 87/06/24 Copyr 1987 Sun Micro";
+%static char sccsid[] = "@(#)from: sm_inter.x	2.2 88/08/01 4.0 RPCSRC";
+%#endif
+%static const char rcsid[] =
+%	"$Id$";
 %#endif /* not lint */
 #endif
 
