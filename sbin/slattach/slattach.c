@@ -284,18 +284,50 @@ void setup_line(int cflag)
 /* Put the line in slip discipline. */
 void slip_discipline()
 {
+	struct ifreq ifr;
 	int slipdisc = SLIPDISC;
+	int s, tmp_unit = -1;
 
 	/* Switch to slip line discipline. */
 	if (ioctl(fd, TIOCSETD, &slipdisc) < 0) {
 		syslog(LOG_ERR, "ioctl(TIOCSETD): %m");
 		exit_handler(1);
 	}
-	/* Assert any compression or no-icmp flags. */
-	if (ioctl(fd, SIOCSIFFLAGS, &slflags) < 0) {
-		syslog(LOG_ERR, "ioctl(SIOCSIFFLAGS): %m");
+
+	/* find out what unit number we were assigned */
+        if (ioctl(fd, SLIOCGUNIT, (caddr_t)&tmp_unit) < 0) {
+                syslog(LOG_ERR, "ioctl(SLIOCGUNIT): %m");
+                exit_handler(1);
+        }
+
+	if (tmp_unit < 0) {
+		syslog(LOG_ERR, "bad unit (%d) from ioctl(SLIOCGUNIT)",tmp_unit);
 		exit_handler(1);
 	}
+
+	/* open a socket as the handle to the interface */
+	s = socket(AF_INET, SOCK_DGRAM, 0);
+	if (s < 0) {
+		syslog(LOG_ERR, "socket: %m");
+		exit_handler(1);
+	}
+	sprintf(ifr.ifr_name, "sl%d", tmp_unit);
+
+	/* get the flags for the interface */
+	if (ioctl(s, SIOCGIFFLAGS, (caddr_t)&ifr) < 0) {
+		syslog(LOG_ERR, "ioctl (SIOCGIFFLAGS): %m");
+		exit_handler(1);
+	}
+
+	/* Assert any compression or no-icmp flags. */
+#define SLMASK (~(IFF_LINK0 | IFF_LINK1 | IFF_LINK2))
+ 	ifr.ifr_flags &= SLMASK;
+ 	ifr.ifr_flags |= slflags;
+	if (ioctl(s, SIOCSIFFLAGS, (caddr_t)&ifr) < 0) {
+		syslog(LOG_ERR, "ioctl (SIOCSIFFLAGS): %m");
+		exit_handler(1);
+	}
+	close(s);
 }
 
 /* configure the interface, eg. by passing the unit number to a script. */
