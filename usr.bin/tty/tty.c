@@ -32,17 +32,25 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1988, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)tty.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <stdio.h>
+#include <unistd.h>
 
+static void usage __P((void));
+
+int
 main(argc, argv)
 	int argc;
 	char **argv;
@@ -58,12 +66,18 @@ main(argc, argv)
 			break;
 		case '?':
 		default:
-			fputs("usage: tty [-s]\n", stderr);
-			exit(2);
+			usage();
 		}
 
 	t = ttyname(0);
 	if (!sflag)
 		puts(t ? t : "not a tty");
 	exit(t ? 0 : 1);
+}
+
+static void
+usage()
+{
+	fprintf(stderr, "usage: tty [-s]\n");
+	exit(2);
 }
