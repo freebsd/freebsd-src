@@ -28,12 +28,15 @@
  */
 
 #include <sys/param.h>
-#include <sys/disklabel.h>
 #include <sys/time.h>
 
-#include <ufs/ufs/quota.h>
-#include <ufs/ufs/inode.h>
-#include <ufs/ffs/fs.h>
+typedef	int32_t	ufs_daddr_t;
+
+#define	MAXFRAG	8
+
+#include "quota.h"
+#include "inode.h"
+#include "fs.h"
 
 #define	RB_DUAL		0x40000		/* XXX */
 #define	RB_PROBEKBD	0x80000		/* XXX */
