@@ -56,28 +56,11 @@ typedef u_int64_t pci_addr_t;	/* u_int64_t for system with 64bit addresses */
 typedef u_int32_t pci_addr_t;	/* u_int64_t for system with 64bit addresses */
 #endif
 
-/* map register information */
-
-typedef struct {
-    u_int32_t	base;
-    u_int8_t	type;
-#define PCI_MAPMEM	0x01	/* memory map */
-#define PCI_MAPMEMP	0x02	/* prefetchable memory map */
-#define PCI_MAPPORT	0x04	/* port map */
-    u_int8_t	ln2size;
-    u_int8_t	ln2range;
-    u_int8_t	reg;		/* offset of map register in config space */
-/*    u_int8_t	dummy;*/
-    struct resource *res;	/* handle from resource manager */
-} pcimap;
-
 /* config header information common to all header types */
 
 typedef struct pcicfg {
     struct device *dev;		/* device which owns this */
-    pcimap	*map;		/* pointer to array of PCI maps */
     void	*hdrspec;	/* pointer to header type specific data */
-    struct resource *irqres;	/* resource descriptor for interrupt mapping */
 
     u_int16_t	subvendor;	/* card vendor ID */
     u_int16_t	subdevice;	/* card device ID, assigned by card vendor */
@@ -163,12 +146,6 @@ typedef struct pciattach {
     struct pciattach *next;
 } pciattach;
 
-struct pci_devinfo {
-    	STAILQ_ENTRY(pci_devinfo) pci_links;
-	pcicfgregs		cfg;
-	struct pci_conf		conf;
-};
-
 extern u_int32_t pci_numdevs;
 
 
@@ -191,6 +168,13 @@ pcicfgregs * pci_devlist_get_parent(pcicfgregs *cfg);
 #ifdef _SYS_BUS_H_
 
 #include "pci_if.h"
+
+/*
+ * Define pci-specific resource flags for accessing memory via dense
+ * or bwx memory spaces. These flags are ignored on i386.
+ */
+#define PCI_RF_DENSE	0x10000
+#define PCI_RF_BWX	0x20000
 
 enum pci_device_ivars {
 	PCI_IVAR_SUBVENDOR,
