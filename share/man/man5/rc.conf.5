@@ -143,7 +143,9 @@ these are the flags to pass to the
 daemon.
 .It Va pccard_ether_delay
 .Pq Vt str
-Set the delay before starting dhclient in
+Set the delay before starting
+.Xr dhclient 8
+in
 .Xr pccard_ether 8
 script.
 This defaults to 5 seconds to work around a bug in the
@@ -613,7 +615,7 @@ ifconfig_ed0="DHCP"
 Set to the list of clonable network interfaces to create on this host.
 Entries in
 .Va cloned_interfaces
-are automaticly appended to
+are automatically appended to
 .Va network_interfaces
 for configuration.
 .It Va ppp_enable
