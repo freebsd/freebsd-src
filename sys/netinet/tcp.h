@@ -126,7 +126,7 @@ struct tcphdr {
  * for more comments.
  * Setting this to "0" disables the minmssoverload check.
  */
-#define	TCP_MINMSSOVERLOAD 1000
+#define	TCP_MINMSSOVERLOAD 0	/* XXX: Disabled until refined */
 
 /*
  * Default maximum segment size for TCP6.
