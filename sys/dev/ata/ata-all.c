@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998,1999,2000,2001 Søren Schmidt <sos@FreeBSD.org>
+ * Copyright (c) 1998,1999,2000,2001,2002 Søren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -216,28 +216,51 @@ struct ata_pci_softc {
 };
 
 int
-ata_find_dev(device_t dev, u_int32_t type, u_int32_t revid)
+ata_find_dev(device_t dev, u_int32_t devid, u_int32_t revid)
 {
-    device_t *children, child;
+    device_t *children;
     int nchildren, i;
 
     if (device_get_children(device_get_parent(dev), &children, &nchildren))
 	return 0;
 
     for (i = 0; i < nchildren; i++) {
-	child = children[i];
-
-	/* check that it's on the same silicon and the device we want */
-	if (pci_get_slot(dev) == pci_get_slot(child) &&
-	    pci_get_vendor(child) == (type & 0xffff) &&
-	    pci_get_device(child) == ((type & 0xffff0000) >> 16) &&
-	    pci_get_revid(child) >= revid) {
+	if (pci_get_devid(children[i]) == devid &&
+	    pci_get_revid(children[i]) >= revid) {
 	    free(children, M_TEMP);
 	    return 1;
 	}
     }
     free(children, M_TEMP);
     return 0;
+}
+
+static void
+ata_via_southbridge_fixup(device_t dev)
+{
+    device_t *children;
+    int nchildren, i;
+
+    if (device_get_children(device_get_parent(dev), &children, &nchildren))
+	return;
+
+    for (i = 0; i < nchildren; i++) {
+	if (pci_get_devid(children[i]) == 0x03051106 ||         /* VIA VT8363 */
+	    pci_get_devid(children[i]) == 0x03911106 ||         /* VIA VT8371 */
+	    pci_get_devid(children[i]) == 0x31021106 ||         /* VIA VT8662 */
+	    pci_get_devid(children[i]) == 0x31121106) {         /* VIA VT8361 */
+	    u_int8_t reg76 = pci_read_config(children[i], 0x76, 1);
+     
+	    if ((reg76 & 0xf0) != 0xd0) {
+		device_printf(dev,
+		"Correcting VIA config for southbridge data corruption bug\n");
+		pci_write_config(children[i], 0x75, 0x80, 1);
+		pci_write_config(children[i], 0x76, (reg76 & 0x0f) | 0xd0, 1);
+	    }
+	    break;
+	}
+    }
+    free(children, M_TEMP);
 }
 
 static const char *
@@ -275,10 +298,14 @@ ata_pci_match(device_t dev)
 	return "Intel ICH3 ATA100 controller";
 
     case 0x522910b9:
-	if (pci_get_revid(dev) < 0x20)
-	    return "AcerLabs Aladdin ATA controller";
-	else
+	if (pci_get_revid(dev) >= 0xc4)
+	    return "AcerLabs Aladdin ATA100 controller";
+	if (pci_get_revid(dev) >= 0xc2)
+	    return "AcerLabs Aladdin ATA66 controller";
+	if (pci_get_revid(dev) >= 0x20)
 	    return "AcerLabs Aladdin ATA33 controller";
+	else
+	    return "AcerLabs Aladdin ATA controller";
 
     case 0x05711106: 
 	if (ata_find_dev(dev, 0x05861106, 0x02))
@@ -290,6 +317,7 @@ ata_pci_match(device_t dev)
 	if (ata_find_dev(dev, 0x05961106, 0))
 	    return "VIA 82C596 ATA33 controller";
 	if (ata_find_dev(dev, 0x06861106, 0x40) ||
+	    ata_find_dev(dev, 0x82311106, 0) ||
 	    ata_find_dev(dev, 0x30741106, 0))
 	    return "VIA 82C686 ATA100 controller";
 	if (ata_find_dev(dev, 0x06861106, 0))
@@ -297,7 +325,26 @@ ata_pci_match(device_t dev)
 	return "VIA Apollo ATA controller";
 
     case 0x55131039:
-	return "SiS 5591 ATA33 controller";
+	if (ata_find_dev(dev, 0x06301039, 0x30) ||
+	    ata_find_dev(dev, 0x06331039, 0x00) ||
+	    ata_find_dev(dev, 0x06351039, 0x00) ||
+	    ata_find_dev(dev, 0x06401039, 0x00) ||
+	    ata_find_dev(dev, 0x06451039, 0x00) ||
+	    ata_find_dev(dev, 0x06501039, 0x00) ||
+	    ata_find_dev(dev, 0x07301039, 0x00) ||
+	    ata_find_dev(dev, 0x07331039, 0x00) ||
+	    ata_find_dev(dev, 0x07351039, 0x00) ||
+	    ata_find_dev(dev, 0x07401038, 0x00) ||
+	    ata_find_dev(dev, 0x07451038, 0x00) ||
+	    ata_find_dev(dev, 0x07501039, 0x00))
+	    return "SiS 5591 ATA100 controller";
+	else if (ata_find_dev(dev, 0x05301039, 0x00) ||
+	    ata_find_dev(dev, 0x05401039, 0x00) ||
+	    ata_find_dev(dev, 0x06201039, 0x00) ||
+	    ata_find_dev(dev, 0x06301039, 0x00))
+	    return "SiS 5591 ATA66 controller";
+        else
+	    return "SiS 5591 ATA33 controller";
 
     case 0x06491095:
 	return "CMD 649 ATA100 controller";
@@ -352,6 +399,8 @@ ata_pci_match(device_t dev)
 	case 0x03:
 	case 0x04:
 	    return "HighPoint HPT370 ATA100 controller";
+	case 0x05:
+	    return "HighPoint HPT372 ATA100 controller";
 	default:
 	    return "Unknown revision HighPoint ATA controller";
 	}
@@ -474,9 +523,25 @@ ata_pci_attach(device_t dev)
 	}
 	break;
 
-    case 0x05711106:
-    case 0x74111022:
-    case 0x74091022: /* VIA 82C586, '596, '686 & AMD 756, 766 default setup */
+    case 0x05711106: /* VIA 82C586, '596, '686 default setup */
+	
+	/* prepare for ATA-66 on the 82C686a and rev 0x12 and newer 82C596's */
+	if ((ata_find_dev(dev, 0x06861106, 0) &&
+	     !ata_find_dev(dev, 0x06861106, 0x40)) ||
+	    ata_find_dev(dev, 0x05961106, 0x12)) {
+	    pci_write_config(dev, 0x50, 
+			     pci_read_config(dev, 0x50, 4) | 0x030b030b, 4);   
+	}
+
+	/* the '686b might need the data corruption fix */
+	if (ata_find_dev(dev, 0x06861106, 0x40) ||
+	    ata_find_dev(dev, 0x82311106, 0x10))
+	    ata_via_southbridge_fixup(dev);
+
+	/* FALLTHROUGH */
+
+    case 0x74091022: /* AMD 756 default setup */
+    case 0x74111022: /* AMD 766 default setup */
 
 	/* set prefetch, postwrite */
 	pci_write_config(dev, 0x41, pci_read_config(dev, 0x41, 1) | 0xf0, 1);
@@ -495,14 +560,6 @@ ata_pci_attach(device_t dev)
 	/* set sector size */
 	pci_write_config(dev, 0x60, DEV_BSIZE, 2);
 	pci_write_config(dev, 0x68, DEV_BSIZE, 2);
-	
-	/* prepare for ATA-66 on the 82C686a and rev 0x12 and newer 82C596's */
-	if ((ata_find_dev(dev, 0x06861106, 0) &&
-	     !ata_find_dev(dev, 0x06861106, 0x40)) ||
-	    ata_find_dev(dev, 0x05961106, 0x12)) {
-	    pci_write_config(dev, 0x50, 
-			     pci_read_config(dev, 0x50, 4) | 0x030b030b, 4);   
-	}
 	break;
 
     case 0x10001042:	/* RZ 100? known bad, no DMA */

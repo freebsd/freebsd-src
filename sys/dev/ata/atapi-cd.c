@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998,1999,2000,2001 Søren Schmidt
+ * Copyright (c) 1998,1999,2000,2001,2002 Søren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -1146,11 +1146,12 @@ acd_start(struct atapi_softc *atp)
 	/* if transfer goes beyond range adjust it to be within limits */
 	if (lba + count > lastlba) {
 	    /* if we are entirely beyond EOM return EOF */
-	    if ((count = lastlba - lba) <= 0) {
+	    if (lastlba <= lba) {
 		bp->b_resid = bp->b_bcount;
 		biodone(bp);
 		return;
 	    }
+	    count = lastlba - lba;
 	}
 	switch (blocksize) {
 	case 2048:
@@ -1210,6 +1211,7 @@ static void
 acd_read_toc(struct acd_softc *cdp)
 {
     int ntracks, len;
+    u_int32_t sizes[2];
     int8_t ccb[16];
 
     bzero(&cdp->toc, sizeof(cdp->toc));
@@ -1247,7 +1249,18 @@ acd_read_toc(struct acd_softc *cdp)
     cdp->toc.hdr.len = ntohs(cdp->toc.hdr.len);
 
     cdp->block_size = (cdp->toc.tab[0].control & 4) ? 2048 : 2352;
+#if 0
     cdp->disk_size = ntohl(cdp->toc.tab[cdp->toc.hdr.ending_track].addr.lba);
+#else
+    bzero(ccb, sizeof(ccb));
+    ccb[0] = ATAPI_READ_CAPACITY;
+    if (atapi_queue_cmd(cdp->atp, ccb, (caddr_t)sizes, sizeof(sizes),
+			ATPR_F_READ | ATPR_F_QUIET, 30, NULL, NULL)) {
+	bzero(&cdp->toc, sizeof(cdp->toc));
+	return;
+    }
+    cdp->disk_size = ntohl(sizes[0]) + 1;
+#endif
 
 #ifdef ACD_DEBUG
     if (cdp->disk_size && cdp->toc.hdr.ending_track) { 

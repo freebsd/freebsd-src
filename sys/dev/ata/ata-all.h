@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998,1999,2000,2001 Søren Schmidt <sos@FreeBSD.org>
+ * Copyright (c) 1998,1999,2000,2001,2002 Søren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -313,6 +313,7 @@ struct ata_softc {
 #define		ATA_UDMA2		0x42
 #define		ATA_UDMA4		0x44
 #define		ATA_UDMA5		0x45
+#define		ATA_UDMA6		0x46
 
     int				flags;		/* controller flags */
 #define		ATA_DMA_ACTIVE		0x01
