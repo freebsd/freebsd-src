@@ -16,12 +16,7 @@
  * $FreeBSD$
  */
 
-#include "opt_atalk.h"
-#include "opt_atm.h"
 #include "opt_inet.h"
-#include "opt_inet6.h"
-#include "opt_ipx.h"
-#include "opt_natm.h"
 
 #include <sys/param.h>
 #include <sys/proc.h>
@@ -42,13 +37,11 @@
 #include <sys/malloc.h>
 
 #include <net/if.h>
-#include <net/netisr.h>
 #include <net/route.h>
 #include <net/intrq.h>
 
 #ifdef INET
 #include <netinet/in.h>
-#include <netinet/in_var.h>
 #endif
 
 #include <net/bpf.h>
