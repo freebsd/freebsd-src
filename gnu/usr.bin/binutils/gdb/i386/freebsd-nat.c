@@ -17,7 +17,7 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
-	$Id: freebsd-nat.c,v 1.1.1.1 1995/04/23 18:35:38 garyj Exp $
+	$Id: freebsd-nat.c,v 1.5 1995/04/26 01:01:07 jkh Exp $
 */
 
 #include <sys/types.h>
@@ -484,8 +484,6 @@ CORE_ADDR addr;
 	static CORE_ADDR PTD = -1;
 	CORE_ADDR current_ptd;
 
-	/*if (devmem && kfd > 0)
-		return (addr);
 	/*
 	 * If we're looking at the kernel stack,
 	 * munge the address to refer to the user space mapping instead;
