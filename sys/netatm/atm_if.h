@@ -279,6 +279,8 @@ struct cmn_unit {
 				(struct cmn_unit *, Cmn_vcc *, KBuffer *);
 
 	Atm_config	cu_config;	/* Device configuration data */
+
+	void *		cu_softc;	/* pointer to driver state */
 };
 typedef struct cmn_unit	Cmn_unit;
 

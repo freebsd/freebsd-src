@@ -109,6 +109,7 @@
 #define	iu_closevcc	iu_cmn.cu_closevcc
 #define	iu_output	iu_cmn.cu_output
 #define	iu_config	iu_cmn.cu_config
+#define	iu_softc	iu_cmn.cu_softc
 
 /*
  * ATM Interface services
@@ -313,6 +314,7 @@ idt_harp_init(nicstar_reg_t *idt)
 	idt->iu_output = idt_output;
 	idt->iu_vcc_zone = idt_vcc_zone;
 	idt->iu_nif_zone = idt_nif_zone;
+	idt->iu_softc = (void *)idt;
 
 	/*
 	 * Copy serial number into config space

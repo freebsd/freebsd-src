@@ -245,6 +245,7 @@ typedef struct fore_unit	Fore_unit;
 #define	fu_closevcc	fu_cmn.cu_closevcc
 #define	fu_output	fu_cmn.cu_output
 #define	fu_config	fu_cmn.cu_config
+#define	fu_softc	fu_cmn.cu_softc
 
 /*
  * Device flags (in addition to CUF_* flags)
