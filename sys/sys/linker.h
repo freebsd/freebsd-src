@@ -226,8 +226,9 @@ extern int kld_debug;
 #endif
 
 /* Support functions */
-int	elf_reloc(linker_file_t _lf, const void *_rel, int _type,
-		  const char *_sym);
+int	elf_reloc(linker_file_t _lf, const void *_rel, int _type);
+Elf_Addr elf_lookup(linker_file_t, Elf_Word, int);
+
 /* values for type */
 #define ELF_RELOC_REL	1
 #define ELF_RELOC_RELA	2
