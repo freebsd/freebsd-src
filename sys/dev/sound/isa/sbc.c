@@ -184,7 +184,7 @@ static struct isa_pnp_id sbc_ids[] = {
 	{0x45008c0e, "Creative SB AWE64"}, /* CTL0045 */
 
 	{0x01000000, "Avance Asound 100"},
-	{0x01100001, "Avance Asound 110"},
+	{0x01100000, "Avance Asound 110"},
 	{0x01200001, "Avance Logic ALS120"},
 
 	{0x68187316, "ESS ES1868"}, /* ESS1868 */
