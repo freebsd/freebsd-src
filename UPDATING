@@ -8,6 +8,9 @@ A reverse chronology since 4.0 was released is included, followed by
 the common items quick how-tos, followed by entries for versions of
 -current prior to 4.0 Release.
 
+20040626:	p1	FreeBSD-EN-04:01.twe
+	Fix a bug in twe(4) that could cause kernel lockups.
+	
 20040527:
 	FreeBSD 4.10-RELEASE.
 
