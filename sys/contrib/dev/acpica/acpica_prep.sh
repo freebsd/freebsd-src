@@ -4,12 +4,17 @@
 # Unpack an ACPI CA drop and restructure it to fit the FreeBSD layout
 #
 
+if [ ! $# -eq 1 ]; then
+	echo "usage: $0 acpica_archive"
+	exit
+fi
+
 src=$1
 wrk=./_acpi_ca_unpack
 dst=./acpi_ca_destination
 
 # files to remove
-stripdirs="compiler"
+stripdirs="compiler generate"
 stripfiles="osunixxf.c 16bit.h Makefile a16find.c a16utils.asm a16utils.obj\
     acintel.h aclinux.h acmsvc.h acwin.h acwin64.h getopt.c"
 
