@@ -47,9 +47,11 @@ _close(int fd)
 	struct stat	sb;
 	struct fd_table_entry	*entry;
 
-	if ((fd == _thread_kern_pipe[0]) || (fd == _thread_kern_pipe[1])) {
+	if ((fd == _thread_kern_pipe[0]) || (fd == _thread_kern_pipe[1]) ||
+	    (_thread_fd_table[fd] == NULL)) {
 		/*
-		 * Don't allow silly programs to close the kernel pipe.
+		 * Don't allow silly programs to close the kernel pipe
+		 * and non-active descriptors.
 		 */
 		errno = EBADF;
 		ret = -1;
@@ -93,6 +95,10 @@ _close(int fd)
 		entry = _thread_fd_table[fd];
 		_thread_fd_table[fd] = NULL;
 		free(entry);
+
+		/* Drop stale pthread stdio descriptor flags. */
+		if (fd < 3)
+			_pthread_stdio_flags[fd] = -1;
 
 		/* Close the file descriptor: */
 		ret = __sys_close(fd);
