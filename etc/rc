@@ -52,11 +52,6 @@ case ${start_vinum} in
 [Yy][Ee][Ss])
 	vinum start
 	;;
-*)
-	if [ -n "${vinum_drives}" ]; then
-		vinum read ${vinum_drives}
-	fi
-	;;
 esac
 
 swapon -a
