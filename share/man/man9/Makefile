@@ -81,6 +81,11 @@ MAN=	BUF_LOCK.9 BUF_LOCKFREE.9 BUF_LOCKINIT.9 BUF_REFCNT.9 \
 	vfsconf.9 \
 	vget.9 vgone.9 vhold.9 vinvalbuf.9 \
 	vflush.9 \
+	vm_map_check_protection.9 vm_map_clean.9 vm_map_create.9 \
+	vm_map_delete.9 vm_map_find.9 vm_map_findspace.9 vm_map_inherit.9 \
+	vm_map_init.9 vm_map_insert.9 vm_map_lock.9 vm_map_lookup.9 \
+	vm_map_madvise.9 vm_map_max.9 vm_map_protect.9 vm_map_remove.9 \
+	vm_map_simplify_entry.9 vm_map_stack.9 vm_map_submap.9 vm_map_wire.9 \
 	vm_page_alloc.9 vm_page_bits.9 vm_page_cache.9 \
 	vm_page_copy.9 vm_page_deactivate.9 vm_page_dontneed.9 \
 	vm_page_flag.9 vm_page_free.9 vm_page_grab.9 vm_page_hold.9 \
@@ -289,6 +294,18 @@ MLINKS+=vfsconf.9 vfs_register.9
 MLINKS+=vfsconf.9 vfs_unregister.9
 MLINKS+=vgone.9 vgonel.9
 MLINKS+=vhold.9 vdrop.9
+MLINKS+=vm_map_lock.9 vm_map_unlock.9
+MLINKS+=vm_map_lock.9 vm_map_lock_read.9
+MLINKS+=vm_map_lock.9 vm_map_unlock_read.9
+MLINKS+=vm_map_lock.9 vm_map_trylock.9
+MLINKS+=vm_map_lock.9 vm_map_trylock_read.9
+MLINKS+=vm_map_lock.9 vm_map_lock_upgrade.9
+MLINKS+=vm_map_lock.9 vm_map_lock_downgrade.9
+MLINKS+=vm_map_lookup.9 vm_map_lookup_done.9
+MLINKS+=vm_map_max.9 vm_map_min.9
+MLINKS+=vm_map_max.9 vm_map_pmap.9
+MLINKS+=vm_map_stack.9 vm_map_growstack.9
+MLINKS+=vm_map_wire.9 vm_map_unwire.9
 MLINKS+=vm_page_bits.9 vm_page_set_validclean.9
 MLINKS+=vm_page_bits.9 vm_page_clear_dirty.9
 MLINKS+=vm_page_bits.9 vm_page_set_invalid.9
