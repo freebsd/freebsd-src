@@ -16,7 +16,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.11 1994/08/31 06:17:37 davidg Exp $
+ * $Id: vfs_bio.c,v 1.12 1994/09/25 19:33:51 phk Exp $
  */
 
 #include <sys/param.h>
@@ -683,6 +683,7 @@ vm_hold_load_pages(vm_offset_t froma, vm_offset_t toa) {
 	for(pg = from ; pg < to ; pg += PAGE_SIZE) {
 
 	tryagain:
+#if 0
 /*
  * don't allow buffer cache to cause VM paging
  */
@@ -710,8 +711,7 @@ vm_hold_load_pages(vm_offset_t froma, vm_offset_t toa) {
 				tsleep(&loadfreeing, PRIBIO, "biofree", 0);
 			}
 		}
-			
-
+#endif
 		if (cnt.v_free_count <=
 			cnt.v_free_reserved + (toa-froma) / PAGE_SIZE) {
 			VM_WAIT;
