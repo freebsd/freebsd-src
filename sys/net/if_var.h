@@ -74,7 +74,7 @@ struct	socket;
 struct	ether_header;
 #endif
 
-#include <sys/mac.h>		/* struct label */
+#include <sys/_label.h>		/* struct label */
 #include <sys/queue.h>		/* get TAILQ macros */
 
 #ifdef _KERNEL
