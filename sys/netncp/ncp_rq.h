@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, Boris Popov
+ * Copyright (c) 1999, 2000, 2001 Boris Popov
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -82,76 +82,49 @@
 
 
 #ifdef _KERNEL
-struct ncp_nlstables;
+
+#include <sys/mchain.h>
+
+#define	NCPR_ALLOCED		0x0001	/* request structure was allocated */
+#define	NCPR_DONTFREEONERR	0x0002	/* do not free structure on error */
+
 /* 
  * Structure to prepare ncp request and receive reply 
  */
 struct ncp_rq {
-	struct ncp_conn	*conn;		/* back link */
-	struct mbuf	*rq;
-	struct mbuf	*mrq;
-	struct mbuf	*rp;
-	struct mbuf	*mrp;
-	caddr_t		bpos;
-/*	int		rqsize;*/		/* request size without ncp header */
-	int		rpsize;		/* reply size minus ncp header */
-	int		cc;		/* completion code */
-	int		cs;		/* connection state */
-	struct proc	*p;		/* proc that did rq */
-	struct ucred	*cred;		/* user that did rq */
+	int		nr_flags;
+	struct mbchain	rq;
+	struct mdchain	rp;
+	int		nr_minrplen;	/* minimal rp size (-1 if not known) */
+	int		nr_rpsize;	/* reply size minus ncp header */
+	int		nr_cc;		/* completion code */
+	int		nr_cs;		/* connection state */
+	struct proc *	nr_p;		/* proc that did rq */
+	struct ucred *	nr_cred;	/* user that did rq */
 	int		rexmit;
+	struct ncp_conn*nr_conn;	/* back link */
 };
 
-#define DECLARE_RQ	struct ncp_rq rq;struct ncp_rq *rqp=&rq
+int  ncp_rq_alloc(u_int8_t fn, struct ncp_conn *ncp, struct proc *p,
+	struct ucred *cred, struct ncp_rq **rqpp);
+int  ncp_rq_alloc_any(u_int32_t ptype, u_int8_t fn, struct ncp_conn *ncp,
+	struct proc *p,	struct ucred *cred, struct ncp_rq **rqpp);
+int  ncp_rq_alloc_subfn(u_int8_t fn, u_int8_t subfn, struct ncp_conn *ncp,
+	struct proc *p,	struct ucred *cred, struct ncp_rq **rqpp);
+int  ncp_rq_init_any(struct ncp_rq *rqp, u_int32_t ptype, u_int8_t fn,
+	struct ncp_conn *ncp, 
+	struct proc *p, struct ucred *cred);
+void ncp_rq_done(struct ncp_rq *rqp);
+int  ncp_request(struct ncp_rq *rqp);
+int  ncp_request_int(struct ncp_rq *rqp);
 
+struct ncp_nlstables;
 
-int  ncp_rq_head(struct ncp_rq *rqp,u_int32_t ptype, u_int8_t fn,struct proc *p,
-    struct ucred *cred);
-int  ncp_rq_done(struct ncp_rq *rqp);
-
-/* common case for normal request */
-#define	ncp_rq_init(rqp,fn,p,c)	ncp_rq_head((rqp),NCP_REQUEST,(fn),(p),(c))
-#define	ncp_rq_close(rqp)	ncp_rq_done((rqp))
-
-#define NCP_RQ_HEAD(fn,p,c)	ncp_rq_init(rqp,fn,p,c)
-#define	NCP_RQ_HEAD_S(fn,sfn,p,c)	NCP_RQ_HEAD(fn,p,c);ncp_rq_word(rqp,0);ncp_rq_byte(rqp,(sfn))
-#define NCP_RQ_EXIT	bad: ncp_rq_close(rqp)
-#define NCP_RQ_EXIT_NB	ncp_rq_close(rqp)
-#define ncp_rq_word	ncp_rq_word_lh
-#define ncp_rq_dword	ncp_rq_dword_lh
-
-/*void ncp_init_request(struct ncp_rq *rqp, int fn);
-void ncp_close_request(struct ncp_rq *rqp);*/
-void ncp_rq_byte(struct ncp_rq *rqp, u_int8_t x);
-void ncp_rq_word_hl(struct ncp_rq *rqp, u_int16_t x);
-void ncp_rq_word_lh(struct ncp_rq *rqp, u_int16_t x);
-void ncp_rq_dword_lh(struct ncp_rq *rqp, u_int32_t x);
-static void ncp_rq_mem(struct ncp_rq *rqp, caddr_t source, int size);
-static int  ncp_rq_usermem(struct ncp_rq *rqp, caddr_t source, int size);
-int  ncp_rq_mbuf(struct ncp_rq *rqp, struct mbuf *m, int size);
-int  ncp_rq_putanymem(struct ncp_rq *rqp, caddr_t source, int size,int type);
-void ncp_rq_pathstring(struct ncp_rq *rqp, int size, char *name, struct ncp_nlstables*);
-void ncp_rq_dbase_path(struct ncp_rq *, u_int8_t vol_num,
+int  ncp_rq_pathstring(struct ncp_rq *rqp, int size, const char *name, struct ncp_nlstables*);
+int  ncp_rq_dbase_path(struct ncp_rq *, u_int8_t vol_num,
 		    u_int32_t dir_base, int namelen, u_char *name, struct ncp_nlstables *nt);
-void ncp_rq_pstring(struct ncp_rq *rqp, char *s);
+int  ncp_rq_pstring(struct ncp_rq *rqp, const char *s);
 
-u_int8_t  ncp_rp_byte(struct ncp_rq *rqp);
-u_int16_t ncp_rp_word_hl(struct ncp_rq *rqp);
-u_int16_t ncp_rp_word_lh(struct ncp_rq *rqp);
-u_int32_t ncp_rp_dword_hl(struct ncp_rq *rqp);
-u_int32_t ncp_rp_dword_lh(struct ncp_rq *rqp);
-void      ncp_rp_mem(struct ncp_rq *rqp,caddr_t target, int size);
-int       ncp_rp_usermem(struct ncp_rq *rqp,caddr_t target, int size);
-int nwfs_mbuftouio(struct mbuf **mrep, struct uio *uiop, int siz, caddr_t *dpos);
-int nwfs_uiotombuf(struct uio *uiop, struct mbuf **mq, int siz, caddr_t *bpos);
-struct mbuf* ncp_rp_mbuf(struct ncp_rq *rqp, int size);
-
-static void __inline ncp_rq_mem(struct ncp_rq *rqp, caddr_t source, int size) {
-	ncp_rq_putanymem(rqp,source,size,0);
-}
-static int __inline ncp_rq_usermem(struct ncp_rq *rqp, caddr_t source, int size) {
-	return ncp_rq_putanymem(rqp,source,size,1);
-}
 void ncp_sign_init(const char *logindata, char *sign_root);
 
 #else /* ifdef _KERNEL */

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, Boris Popov
+ * Copyright (c) 1999, 2000, 2001 Boris Popov
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -84,18 +84,20 @@ ncp_sign_start(struct ncp_conn *conn, char *logindata) {
  * target is a 8-byte buffer
  */
 int
-ncp_get_encryption_key(struct ncp_conn *conn, char *target) {
+ncp_get_encryption_key(struct ncp_conn *conn, char *target)
+{
+	struct ncp_rq *rqp;
 	int error;
-	DECLARE_RQ;
 
-	NCP_RQ_HEAD_S(23,23,conn->procp,conn->ucred);
-	checkbad(ncp_request(conn,rqp));
-	if (rqp->rpsize < 8) {
-		NCPFATAL("rpsize=%d < 8\n", rqp->rpsize);
-		return EIO;
-	}
-	ncp_rp_mem(rqp, target, 8);
-	NCP_RQ_EXIT;
+	error = ncp_rq_alloc_subfn(23, 23, conn, conn->procp, conn->ucred, &rqp);
+	if (error)
+		return error;
+	rqp->nr_minrplen = 8;
+	error = ncp_request(rqp);
+	if (error)
+		return error;
+	md_get_mem(&rqp->rp, target, 8, MB_MSYSTEM);
+	ncp_rq_done(rqp);
 	return error;
 }
 
@@ -122,27 +124,32 @@ ncp_login_object(struct ncp_conn *conn, unsigned char *username,
 int
 ncp_login_encrypted(struct ncp_conn *conn, struct ncp_bindery_object *object,
 		    unsigned char *key, unsigned char *passwd,
-		    struct proc *p,struct ucred *cred) {
+		    struct proc *p,struct ucred *cred)
+{
+	struct ncp_rq *rqp;
+	struct mbchain *mbp;
 	u_int32_t tmpID = htonl(object->object_id);
 	u_char buf[16 + 8];
 	u_char encrypted[8];
 	int error;
-	DECLARE_RQ;
 
 	nw_keyhash((u_char*)&tmpID, passwd, strlen(passwd), buf);
 	nw_encrypt(key, buf, encrypted);
 
-	NCP_RQ_HEAD_S(23,24,p,cred);
-	ncp_rq_mem(rqp, encrypted, 8);
-	ncp_rq_word_hl(rqp, object->object_type);
+	error = ncp_rq_alloc_subfn(23, 24, conn, p, cred, &rqp);
+	if (error)
+		return error;
+	mbp = &rqp->rq;
+	mb_put_mem(mbp, encrypted, 8, MB_MSYSTEM);
+	mb_put_uint16be(mbp, object->object_type);
 	ncp_rq_pstring(rqp, object->object_name);
-	error = ncp_request(conn, rqp);
-	NCP_RQ_EXIT_NB;
-	if (conn->flags & NCPFL_SIGNWANTED) {
-		if (error == 0 || error == NWE_PASSWORD_EXPIRED) {
-			memcpy(buf + 16, key, 8);
-			error = ncp_sign_start(conn, buf);
-		}
+	error = ncp_request(rqp);
+	if (!error)
+		ncp_rq_done(rqp);
+	if ((conn->flags & NCPFL_SIGNWANTED) &&
+	    (error == 0 || error == NWE_PASSWORD_EXPIRED)) {
+		bcopy(key, buf + 16, 8);
+		error = ncp_sign_start(conn, buf);
 	}
 	return error;
 }
@@ -152,15 +159,18 @@ ncp_login_unencrypted(struct ncp_conn *conn, u_int16_t object_type,
 		    char *object_name, unsigned char *passwd,
 		    struct proc *p, struct ucred *cred)
 {
+	struct ncp_rq *rqp;
 	int error;
-	DECLARE_RQ;
 
-	NCP_RQ_HEAD_S(23,20,conn->procp,conn->ucred);
-	ncp_rq_word_hl(rqp, object_type);
+	error = ncp_rq_alloc_subfn(23, 20, conn, p, cred, &rqp);
+	if (error)
+		return error;
+	mb_put_uint16be(&rqp->rq, object_type);
 	ncp_rq_pstring(rqp, object_name);
 	ncp_rq_pstring(rqp, passwd);
-	error = ncp_request(conn,rqp);
-	NCP_RQ_EXIT_NB;
+	error = ncp_request(rqp);
+	if (!error)
+		ncp_rq_done(rqp);
 	return error;
 }
 
@@ -188,7 +198,7 @@ ncp_login(struct ncp_conn *conn, char *user, int objtype, char *password,
 		ncp_str_upper(conn->li.password);
 	checkbad(ncp_login_object(conn, conn->li.user, objtype, conn->li.password,p,cred));
 	conn->li.objtype = objtype;
-	conn->flags |= NCPFL_LOGGED;
+	conn->flags |= NCPFL_LOGGED | NCPFL_WASLOGGED;
 	return 0;
 bad:
 	if (conn->li.user) free(conn->li.user, M_NCPDATA);

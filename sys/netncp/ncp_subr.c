@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999, Boris Popov
+ * Copyright (c) 1999, 2000, 2001 Boris Popov
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -36,10 +36,9 @@
 #include <sys/proc.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/sysctl.h>
 #include <sys/malloc.h>
 #include <sys/time.h>
-#include <sys/uio.h>
-#include <sys/mbuf.h>
 
 #include <netncp/ncp.h>
 #include <netncp/ncp_conn.h>
@@ -76,7 +75,8 @@ ncp_str_dup(char *s) {
 
 
 void
-ncp_at_exit(struct proc *p) {
+ncp_at_exit(struct proc *p)
+{
 	struct ncp_conn *ncp, *nncp;
 
 	if (ncp_conn_putprochandles(p) == 0) return;
@@ -84,10 +84,9 @@ ncp_at_exit(struct proc *p) {
 	ncp_conn_locklist(LK_EXCLUSIVE, p);
 	for (ncp = SLIST_FIRST(&conn_list); ncp; ncp = nncp) {
 		nncp = SLIST_NEXT(ncp, nc_next);
-		if (ncp->ref_cnt != 0) continue;
 		if (ncp_conn_lock(ncp, p, p->p_ucred,NCPM_READ|NCPM_EXECUTE|NCPM_WRITE))
 			continue;
-		if (ncp_disconnect(ncp) != 0)
+		if (ncp_conn_free(ncp) != 0)
 			ncp_conn_unlock(ncp,p);
 	}
 	ncp_conn_unlocklist(p);
@@ -95,7 +94,26 @@ ncp_at_exit(struct proc *p) {
 }
 
 int
-ncp_init(void) {
+ncp_sysctlbyname(char *name, void *old, size_t *oldlenp,
+	void *new, size_t newlen, size_t *retval)
+{
+	int oid[CTL_MAXNAME];
+	int nmlen, plen, error;
+
+	oid[0] = 0;		/* sysctl internal magic */
+	oid[1] = 3;		/* name2oid */
+	nmlen = sizeof(oid);
+	error = kernel_sysctl(curproc, oid, 2, oid, &nmlen, name, strlen(name), &plen);
+	if (error)
+		return error;
+	error = kernel_sysctl(curproc, oid, plen / sizeof(int), old, oldlenp,
+	    new, newlen, retval);
+	return error;
+}
+
+int
+ncp_init(void)
+{
 	ncp_conn_init();
 	if (at_exit(ncp_at_exit)) {
 		NCPFATAL("can't register at_exit handler\n");
@@ -105,32 +123,24 @@ ncp_init(void) {
 	return 0;
 }
 
-void
-ncp_done(void) {
-	struct ncp_conn *ncp, *nncp;
-	struct proc *p = curproc;
-	
+int
+ncp_done(void)
+{
+	int error;
+
+	error = ncp_conn_destroy();
+	if (error)
+		return error;
 	untimeout(ncp_timer,NULL,ncp_timer_handle);
 	rm_at_exit(ncp_at_exit);
-	ncp_conn_locklist(LK_EXCLUSIVE, p);
-	for (ncp = SLIST_FIRST(&conn_list); ncp; ncp = nncp) {
-		nncp = SLIST_NEXT(ncp, nc_next);
-		ncp->ref_cnt = 0;
-		if (ncp_conn_lock(ncp, p, p->p_ucred,NCPM_READ|NCPM_EXECUTE|NCPM_WRITE)) {
-			NCPFATAL("Can't lock connection !\n");
-			continue;
-		}
-		if (ncp_disconnect(ncp) != 0)
-			ncp_conn_unlock(ncp,p);
-	}
-	ncp_conn_unlocklist(p);
-	ncp_conn_destroy();
+	return 0;
 }
 
 
 /* tick every second and check for watch dog packets and lost connections */
 static void
-ncp_timer(void *arg){
+ncp_timer(void *arg)
+{
 	struct ncp_conn *conn;
 
 	if(ncp_conn_locklist(LK_SHARED | LK_NOWAIT, NULL) == 0) {
@@ -139,117 +149,4 @@ ncp_timer(void *arg){
 		ncp_conn_unlocklist(NULL);
 	}
 	ncp_timer_handle = timeout(ncp_timer,NULL,NCP_TIMER_TICK);
-}
-
-int
-ncp_get_bindery_object_id(struct ncp_conn *conn, 
-		u_int16_t object_type, char *object_name, 
-		struct ncp_bindery_object *target,
-		struct proc *p,struct ucred *cred)
-{
-	int error;
-	DECLARE_RQ;
-
-	NCP_RQ_HEAD_S(23,53,p,cred);
-	ncp_rq_word_hl(rqp, object_type);
-	ncp_rq_pstring(rqp, object_name);
-	checkbad(ncp_request(conn,rqp));
-	if (rqp->rpsize < 54) {
-		printf("ncp_rp_size %d < 54\n", rqp->rpsize);
-		error = EINVAL;
-		goto bad;
-	}
-	target->object_id = ncp_rp_dword_hl(rqp);
-	target->object_type = ncp_rp_word_hl(rqp);
-	ncp_rp_mem(rqp,(caddr_t)target->object_name, 48);
-	NCP_RQ_EXIT;
-	return error;
-}
-
-int
-ncp_read(struct ncp_conn *conn, ncp_fh *file, struct uio *uiop, struct ucred *cred) {
-	int error = 0, len = 0, retlen=0, tsiz, burstio;
-	DECLARE_RQ;
-
-	tsiz = uiop->uio_resid;
-#ifdef NCPBURST
-	burstio = (ncp_burst_enabled && tsiz > conn->buffer_size);
-#else
-	burstio = 0;
-#endif
-
-	while (tsiz > 0) {
-		if (!burstio) {
-			len = min(4096 - (uiop->uio_offset % 4096), tsiz);
-			len = min(len, conn->buffer_size);
-			NCP_RQ_HEAD(72,uiop->uio_procp,cred);
-			ncp_rq_byte(rqp, 0);
-			ncp_rq_mem(rqp, (caddr_t)file, 6);
-			ncp_rq_dword(rqp, htonl(uiop->uio_offset));
-			ncp_rq_word(rqp, htons(len));
-			checkbad(ncp_request(conn,rqp));
-			retlen = ncp_rp_word_hl(rqp);
-			if (uiop->uio_offset & 1)
-				ncp_rp_byte(rqp);
-			error = nwfs_mbuftouio(&rqp->mrp,uiop,retlen,&rqp->bpos);
-			NCP_RQ_EXIT;
-		} else {
-#ifdef NCPBURST
-			error = ncp_burst_read(conn, file, tsiz, &len, &retlen, uiop, cred);
-#endif
-		}
-		if (error) break;
-		tsiz -= retlen;
-		if (retlen < len)
-			break;
-	}
-	return (error);
-}
-
-int
-ncp_write(struct ncp_conn *conn, ncp_fh *file, struct uio *uiop, struct ucred *cred)
-{
-	int error = 0, len, tsiz, backup;
-	DECLARE_RQ;
-
-	if (uiop->uio_iovcnt != 1) {
-		printf("%s: can't handle iovcnt>1 !!!\n", __FUNCTION__);
-		return EIO;
-	}
-	tsiz = uiop->uio_resid;
-	while (tsiz > 0) {
-		len = min(4096 - (uiop->uio_offset % 4096), tsiz);
-		len = min(len, conn->buffer_size);
-		if (len == 0) {
-			printf("gotcha!\n");
-		}
-		/* rq head */
-		NCP_RQ_HEAD(73,uiop->uio_procp,cred);
-		ncp_rq_byte(rqp, 0);
-		ncp_rq_mem(rqp, (caddr_t)file, 6);
-		ncp_rq_dword(rqp, htonl(uiop->uio_offset));
-		ncp_rq_word_hl(rqp, len);
-		nwfs_uiotombuf(uiop,&rqp->mrq,len,&rqp->bpos);
-		checkbad(ncp_request(conn,rqp));
-		if (len == 0)
-			break;
-		NCP_RQ_EXIT;
-		if (error) {
-			backup = len;
-			uiop->uio_iov->iov_base -= backup;
-			uiop->uio_iov->iov_len += backup;
-			uiop->uio_offset -= backup;
-			uiop->uio_resid += backup;
-			break;
-		}
-		tsiz -= len;
-	}
-	if (error)
-		uiop->uio_resid = tsiz;
-	switch (error) {
-	    case NWE_INSUFFICIENT_SPACE:
-		error = ENOSPC;
-		break;
-	}
-	return (error);
 }

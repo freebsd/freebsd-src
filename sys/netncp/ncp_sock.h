@@ -41,8 +41,7 @@ struct proc;
 struct socket;
 struct timeval;
 
-int  ncp_sock_connect_ipx(struct ncp_conn *);
-int  ncp_sock_connect_in(struct ncp_conn *);
+int  ncp_sock_connect(struct ncp_conn *ncp);
 int  ncp_sock_recv(struct socket *so, struct mbuf **mp, int *rlen);
 int  ncp_sock_send(struct socket *so, struct mbuf *data, struct ncp_rq *rqp);
 int  ncp_sock_disconnect(struct ncp_conn *conn);

@@ -237,7 +237,8 @@ ncp_pathcheck(char *s, int len, struct ncp_nlstables *nt, int strict) {
  * leave it as is.
  */
 void
-ncp_pathcopy(char *src, char *dst, int len, struct ncp_nlstables *nt) {
+ncp_pathcopy(const char *src, char *dst, int len, struct ncp_nlstables *nt)
+{
 	int	donls;
 	u_char	c;
 /*	char *d = dst, *s = src;*/
