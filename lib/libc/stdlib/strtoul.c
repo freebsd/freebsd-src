@@ -90,7 +90,7 @@ strtoul(nptr, endptr, base)
 	cutoff = ULONG_MAX / base;
 	cutlim = ULONG_MAX % base;
 	for ( ; ; c = *s++) {
-		if (isdigit(c) || (base == 16 && isxdigit(c)))
+		if (isxdigit(c))
 			c = digittoint(c);
 		else if (isascii(c) && isalpha(c))
 			c -= isupper(c) ? 'A' - 10 : 'a' - 10;
