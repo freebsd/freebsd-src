@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.109 1997/09/09 21:52:31 se Exp $
+**  $Id: ncr.c,v 1.110 1997/09/10 20:46:11 se Exp $
 **
 **  Device driver for the   NCR 53C810   PCI-SCSI-Controller.
 **
@@ -1113,6 +1113,7 @@ struct ncb {
 	u_short		ticks;
 	u_short		latetime;
 	u_long		lasttime;
+	struct		callout_handle timeout_ch;
 
 	/*-----------------------------------------------
 	**	Debug and profiling
@@ -1340,7 +1341,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 
 static char ident[] =
-	"\n$Id: ncr.c,v 1.109 1997/09/09 21:52:31 se Exp $\n";
+	"\n$Id: ncr.c,v 1.110 1997/09/10 20:46:11 se Exp $\n";
 
 static const u_long	ncr_version = NCR_VERSION	* 11
 	+ (u_long) sizeof (struct ncb)	*  7
@@ -5534,7 +5535,7 @@ static void ncr_timeout (void *arg)
 		splx (oldspl);
 	}
 
-	timeout (ncr_timeout, (caddr_t) np, step ? step : 1);
+	np->timeout_ch = timeout (ncr_timeout, (caddr_t) np, step ? step : 1);
 
 	if (INB(nc_istat) & (INTF|SIP|DIP)) {
 
@@ -5895,7 +5896,7 @@ void ncr_exception (ncb_p np)
 			if (i%16==15) printf (".\n");
 		};
 
-		untimeout (ncr_timeout, (caddr_t) np);
+		untimeout (ncr_timeout, (caddr_t) np, np->timeout_ch);
 
 		printf ("%s: halted!\n", ncr_name(np));
 		/*

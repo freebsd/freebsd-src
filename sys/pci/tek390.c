@@ -119,6 +119,10 @@ static void EnableMsgOut2( PACB pACB, PSRB pSRB );
 static void EnableMsgOut( PACB pACB, PSRB pSRB );
 static void DC390_InvalidCmd( PACB pACB );
 
+/*
+ * XXX No timeouts are scheduled in this driver as the timeout handler
+ *     doesn't do anything yet!!!
+ */
 static void DC390_timeout( void *arg1);
 static void DC390_reset (PACB pACB);
 static PUCHAR  phystovirt( PSRB pSRB, ULONG xferCnt );
@@ -694,7 +698,6 @@ trmamd_scsi_cmd ( PSCSICMD cmd )
     {
 	flags = splbio();
 	SendSRB( pcmd, pACB, pSRB );
-	timeout(DC390_timeout, (caddr_t)pSRB, (pcmd->timeout * hz)/1000);
 	splx(flags);
 	return( SUCCESSFULLY_QUEUED);
     }

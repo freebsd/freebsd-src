@@ -39,7 +39,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id$
+ * $Id: if_pppvar.h,v 1.8 1997/08/19 14:10:45 peter Exp $
  */
 
 /*
@@ -55,6 +55,7 @@
 struct ppp_softc {
 	struct	ifnet sc_if;		/* network-visible interface */
 /*hi*/	u_int	sc_flags;		/* control/status bits; see if_ppp.h */
+	struct	callout_handle sc_ch;	/* Used for scheduling timeouts */
 	void	*sc_devp;		/* pointer to device-dep structure */
 	void	(*sc_start) __P((struct ppp_softc *));	/* start output proc */
 	void	(*sc_ctlp) __P((struct ppp_softc *)); /* rcvd control pkt */

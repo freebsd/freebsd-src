@@ -70,7 +70,7 @@
  * Paul Mackerras (paulus@cs.anu.edu.au).
  */
 
-/* $Id: ppp_tty.c,v 1.22 1997/08/19 14:10:47 peter Exp $ */
+/* $Id: ppp_tty.c,v 1.23 1997/08/22 11:34:08 peter Exp $ */
 
 #include "ppp.h"
 #if NPPP > 0
@@ -322,7 +322,7 @@ pppasyncrelinq(sc)
 	sc->sc_m = NULL;
     }
     if (sc->sc_flags & SC_TIMEOUT) {
-	untimeout(ppp_timeout, (void *) sc);
+	untimeout(ppp_timeout, (void *) sc, sc->sc_ch);
 	sc->sc_flags &= ~SC_TIMEOUT;
     }
     splx(s);
@@ -758,7 +758,7 @@ pppasyncstart(sc)
      * drained the t_outq.
      */
     if (!idle && (sc->sc_flags & SC_TIMEOUT) == 0) {
-	timeout(ppp_timeout, (void *) sc, 1);
+	sc->sc_ch = timeout(ppp_timeout, (void *) sc, 1);
 	sc->sc_flags |= SC_TIMEOUT;
     }
 

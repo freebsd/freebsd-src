@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: if_fxp.c,v 1.39 1997/09/05 10:23:54 davidg Exp $
  */
 
 /*
@@ -515,6 +515,7 @@ fxp_attach(config_id, unit)
 	if (sc == NULL)
 		return;
 	bzero(sc, sizeof(struct fxp_softc));
+	callout_handle_init(&sc->stat_ch);
 
 	s = splimp();
 
@@ -1112,7 +1113,7 @@ fxp_stop(sc)
 	/*
 	 * Cancel stats updater.
 	 */
-	untimeout(fxp_stats_update, sc);
+	untimeout(fxp_stats_update, sc, sc->stat_ch);
 
 	/*
 	 * Issue software reset
@@ -1337,7 +1338,7 @@ fxp_init(xsc)
 	/*
 	 * Start stats updater.
 	 */
-	timeout(fxp_stats_update, sc, hz);
+	sc->stat_ch = timeout(fxp_stats_update, sc, hz);
 }
 
 void
