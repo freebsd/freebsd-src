@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.41.2.2 1995/05/31 20:55:32 jkh Exp $
+ * $Id: sysinstall.h,v 1.41.2.3 1995/05/31 22:19:14 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -335,6 +335,7 @@ extern Boolean	mediaCloseFTP(Device *dev, int fd);
 extern Boolean	mediaInitFTP(Device *dev);
 extern int	mediaGetFTP(char *file);
 extern void	mediaShutdownFTP(Device *dev);
+extern int	mediaSetFtpUserPass(char *str);
 
 /* globals.c */
 extern void	globalsInit(void);

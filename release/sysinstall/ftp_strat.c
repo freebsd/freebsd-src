@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: ftp_strat.c,v 1.5 1995/05/29 11:01:19 jkh Exp $
+ * $Id: ftp_strat.c,v 1.6 1995/05/30 08:28:38 rgrimes Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -55,12 +55,32 @@
 Boolean ftpInitted;
 static FTP_t ftp;
 
+#define FTP_USER	"_ftpUser"
+#define FTP_PASS	"_ftpPass"
+
+int
+mediaSetFtpUserPass(char *str)
+{
+    char *user;
+    char *pass;
+
+    dialog_clear();
+    user = msgGetInput(getenv(FTP_USER), "Please enter the username you wish to login as");
+    pass = msgGetInput(getenv(FTP_PASS), "Please enter the password for this user.\nWARNING: This password will echo on the screen!");
+    dialog_clear();
+    if (user)
+	variable_set2(FTP_USER, user);
+    if (pass)
+	variable_set2(FTP_PASS, pass);
+    return 0;
+}
+
 Boolean
 mediaInitFTP(Device *dev)
 {
     int i;
     char *cp, *hostname, *dir;
-    char *my_name, email[BUFSIZ], url[BUFSIZ];
+    char *my_name, *login_name, password[BUFSIZ], url[BUFSIZ];
     Device *netDevice = (Device *)dev->private;
 
     if (ftpInitted)
@@ -99,13 +119,18 @@ mediaInitFTP(Device *dev)
 	msgConfirm("Cannot resolve hostname `%s'!  Are you sure your name server\nand/or gateway values are set properly?", hostname);
 	return FALSE;
     }
-
-    snprintf(email, BUFSIZ, "installer@%s", my_name);
-    if (isDebug())
-	msgDebug("Using fake e-mail `%s'\n", email);
-
-    msgNotify("Logging in as anonymous.");
-    if ((i = FtpOpen(ftp, hostname, "anonymous", email)) != 0) {
+    if (!getenv(FTP_USER)) {
+	snprintf(password, BUFSIZ, "installer@%s", my_name);
+	if (isDebug())
+	    msgDebug("Using fake e-mail `%s'\n", password);
+	login_name = "anonymous";
+    }
+    else {
+	login_name = getenv(FTP_USER);
+	strcpy(password, getenv(FTP_PASS) ? getenv(FTP_PASS) : login_name);
+    }
+    msgNotify("Logging in as %s.", login_name);
+    if ((i = FtpOpen(ftp, hostname, login_name, password)) != 0) {
 	msgConfirm("Couldn't open FTP connection to %s: %s (%u)\n", hostname, strerror(i), i);
 	return FALSE;
     }
