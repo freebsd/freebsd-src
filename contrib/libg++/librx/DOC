@@ -1,0 +1,179 @@
+Most of the interfaces are covered by the documentation for GNU regex.
+
+This file will accumulate factoids about other interfaces until
+somebody writes a manual.
+
+
+* Don't Pass Registers Gratuitously
+
+Search and match functions take an optional parameter which is a
+pointer to "registers" or "match positions".  This parameter points
+to a structure which during the match is filled in with the offset locations
+of parenthesized subexpressions.
+
+Unless you specificly need the values that would be stored in that
+structure, you should pass NULL for this parameter.  Usually Rx will
+do less backtracking (and so run much faster) if subexpression
+positions are not being measured.
+
+
+* Use syntax_parens
+
+Sometimes you need to know the positions of *some* parenthesized
+subexpressions, but not others.  You can still help Rx to avoid 
+backtracking by telling it specificly which subexpressions you are interested
+in.  You do this by filling in the rxb.syntax_parens field of
+a pattern buffer.
+
+  /* If this is a valid pointer, it tells rx not to store the extents of 
+   * certain subexpressions (those corresponding to non-zero entries).
+   * Passing 0x1 is the same as passing an array of all ones.  Passing 0x0
+   * is the same as passing an array of all zeros.
+   * The array should contain as many entries as their are subexps in the 
+   * regexp.
+   */
+  char * syntax_parens;
+
+
+* RX_SEARCH
+
+For an example of how to use rx_search, you can look at how
+re_search_2 is defined (in rx.c).  Basicly you need to define three
+functions.  These are GET_BURST, FETCH_CHAR, and BACK_REF.  They each
+operate on `struct rx_string_position' and a closure of your design
+passed as void *.
+
+    struct rx_string_position
+    {
+      const unsigned char * pos;	/* The current pos. */
+      const unsigned char * string; 	/* The current string burst. */
+      const unsigned char * end;	/* First invalid position >= POS. */
+      int offset;			/* Integer address of  current burst */
+      int size;				/* Current string's size. */
+      int search_direction;		/* 1 or -1 */
+      int search_end;			/* First position to not try. */
+    };
+
+On entry to GET_BURST, all these fields are set, but POS may be >=
+END.  In fact, STRING and END might both be 0.
+
+The function of GET_BURST is to make all the fields valid without
+changing the logical position in the string.  SEARCH_DIRECTION is a
+hint about which way the matcher will move next.  It is usually 1, and
+is -1 only when fastmapping during a reverse search.  SEARCH_END
+terminates the burst.
+
+	typedef enum rx_get_burst_return
+	  (*rx_get_burst_fn) (struct rx_string_position * pos,
+			      void * app_closure,
+			      int stop);
+					       
+
+The closure is whatever you pass to rx_search.  STOP is an argument to
+rx_search that bounds the search.  You should never return a string
+position from with SEARCH_END set beyond the position indicated by
+STOP.
+
+
+    enum rx_get_burst_return
+    {
+      rx_get_burst_continuation,
+      rx_get_burst_error,
+      rx_get_burst_ok,
+      rx_get_burst_no_more
+    };
+
+Those are the possible return values of get_burst.  Normally, you only
+ever care about the last two.  An error return indicates something
+like trouble reading a file.  A continuation return means suspend the
+search and resume by retrying GET_BURST if the search is restarted.
+
+GET_BURST is not quite as trivial as you might hope.  If you have a
+fragmented string, you really have to keep two adjacent fragments at
+all times, even though the GET_BURST interface looks like you only
+need one.  This is because of operators like `word-boundary' that try
+to look at two adjacent characters.  Such operators are implemented
+with FETCH_CHAR.
+
+	typedef int (*rx_fetch_char_fn) (struct rx_string_position * pos,
+					 int offset,
+					 void * app_closure,
+					 int stop);
+
+That takes the same closure passed to GET_BURST.  It returns the
+character at POS or at one past POS according to whether OFFSET is 0
+or 1. 
+
+It is guaranteed that POS + OFFSET is within the string being searched.
+
+
+
+The last function compares characters at one position with characters
+previously matched by a parenthesized subexpression.
+
+    enum rx_back_check_return
+    {
+      rx_back_check_continuation,
+      rx_back_check_error,
+      rx_back_check_pass,
+      rx_back_check_fail
+    };
+    
+	typedef enum rx_back_check_return
+	  (*rx_back_check_fn) (struct rx_string_position * pos,
+			       int lparen,
+			       int rparen,
+			       unsigned char * translate,
+			       void * app_closure,
+			       int stop);
+					       
+LPAREN and RPAREN are the integer indexes of the previously matched
+characters.  The comparison should translate both characters being
+compared by mapping them through TRANSLATE.  POS is the point at which
+to begin comparing.  It should be advanced to the last character
+matched during backreferencing.
+
+* Compilation Stages
+
+In rx_compile, a string is compiled into a pattern buffer.
+Compilation proceeds in these stages:
+
+	1. Make a syntax tree for the regexp.
+	2. Duplicate the syntax tree and make both trees nodes
+	   in a single unifying tree.
+	3. In one of the two trees, remove all side effects that
+	   aren't needed to test for the possibility of a match.
+	   Such side effects include the filling in of output registers
+	   for subexpressions that are not backreferenced.
+	4. Optimize the unifying tree.
+	5. Translate the tree to an NFA.
+	6. Analyze and optimize the NFA.
+	7. Copy the NFA into a contiguous region of memory.
+
+
+* Cache Size
+
+During a search or match, the NFA is translated into a "super NFA".
+A super NFA can match the patterns of the corresponding NFA in no more 
+and often fewer steps.
+
+The catch is that the super NFA may be costly to construct in its entirety;
+it may not even fit in memory.  So, states of the NFA are constructed 
+on demand and discarded after a period of non-use.  They are kept in a cache
+so that time is not wasted constructing existing nodes twice.
+
+The size of the super state NFA cache is a contributing factor the performance
+of Rx.   The larger the cache (to a point) the faster Rx can run.  The
+variable rx_cache_bound is an upper limit on the number of superstates
+that can exist in the cache.
+
+The defaulting setting is 128.  GNU sed uses 4096.  Neither setting
+has much justification although sed's is after a small number of quick
+and dirty experiments.  The memory consumed by one superstate is
+between 4k and 8k.  The cache only grows to its bounded size if there
+is actual demand for that many states.  Sed's setting, for example,
+may appear quite high but in practice that much memory is hardly ever
+used.  The default setting was chosen based on the heuristic that a
+megabyte is the upper limit on what a good citizen library can
+allocate without special arrangement.
+

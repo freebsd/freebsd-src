@@ -1,0 +1,11 @@
+./tGetOpt: unrecognized option `-h'
+./tGetOpt: unrecognized option `-i'
+option a
+option b
+option c with value `-de10'
+option 2
+option 0
+option 0
+option 0
+digits occur in two different argv-elements.
+option 3

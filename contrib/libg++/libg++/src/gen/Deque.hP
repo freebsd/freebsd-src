@@ -1,0 +1,57 @@
+// This may look like C code, but it is really -*- C++ -*-
+/* 
+Copyright (C) 1988 Free Software Foundation
+    written by Doug Lea (dl@rocky.oswego.edu)
+    based on code by Marc Shapiro (shapiro@sor.inria.fr)
+
+This file is part of the GNU C++ Library.  This library is free
+software; you can redistribute it and/or modify it under the terms of
+the GNU Library General Public License as published by the Free
+Software Foundation; either version 2 of the License, or (at your
+option) any later version.  This library is distributed in the hope
+that it will be useful, but WITHOUT ANY WARRANTY; without even the
+implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+PURPOSE.  See the GNU Library General Public License for more details.
+You should have received a copy of the GNU Library General Public
+License along with this library; if not, write to the Free Software
+Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+*/
+
+
+#ifndef _<T>Deque_h
+#ifdef __GNUG__
+#pragma interface
+#endif
+#define _<T>Deque_h
+
+#include <builtin.h>
+
+#include "<T>.defs.h"
+
+class <T>Deque
+{
+public:
+                        <T>Deque() { }
+  virtual              ~<T>Deque();
+
+  virtual void          push(<T&> item) = 0; // insert at front
+  virtual void          enq(<T&> item) = 0;  // insert at rear
+
+  virtual <T>&          front() = 0;
+  virtual <T>&          rear() = 0;
+
+  virtual <T>           deq() = 0;
+  virtual void          del_front() = 0;
+  virtual void          del_rear() = 0;               
+
+  virtual int           empty() = 0;
+  virtual int           full() = 0;
+  virtual int           length() = 0;
+  virtual void          clear() = 0;
+  
+  virtual int           OK() = 0;
+
+  void                  error(const char*);
+};
+
+#endif
