@@ -40,18 +40,18 @@ which should produce a sequence of messages roughly like this:
 conflicts: 43 shift/reduce, 85 reduce/reduce
 	mv y.tab.c ytab.c
 	mv y.tab.h ytab.h
-	cc -O -c ytab.c
-	cc -O -c b.c
-	cc -O -c main.c
-	cc -O -c parse.c
-	cc -O maketab.c -o maketab
+	cc -c ytab.c
+	cc -c b.c
+	cc -c main.c
+	cc -c parse.c
+	cc maketab.c -o maketab
 	./maketab >proctab.c
-	cc -O -c proctab.c
-	cc -O -c tran.c
-	cc -O -c lib.c
-	cc -O -c run.c
-	cc -O -c lex.c
-	cc -O ytab.o b.o main.o parse.o proctab.o tran.o lib.o run.o lex.o -lm
+	cc -c proctab.c
+	cc -c tran.c
+	cc -c lib.c
+	cc -c run.c
+	cc -c lex.c
+	cc ytab.o b.o main.o parse.o proctab.o tran.o lib.o run.o lex.o -lm
 
 This produces an executable a.out; you will eventually want to
 move this to some place like /usr/bin/awk.
@@ -75,9 +75,14 @@ with, though the underlying support has mysterious properties,
 the symptom of which can be truncated pipe output.  Beware.
 The file makefile.win gives hints on how to proceed.
 
-This is also said to compile on Macintosh systems, using the
+This compiles without change on Macintosh OS X using gcc and
+the standard developer tools.
+
+This is also said to compile on Macintosh OS 9 systems, using the
 file "buildmac" provided by Dan Allen (danallen@microsoft.com),
 to whom many thanks.
 
 The version of malloc that comes with some systems is sometimes
 astonishly slow.  If awk seems slow, you might try fixing that.
+More generally, turning on optimization can significantly improve
+awk's speed, perhaps by 1/3 for highest levels.

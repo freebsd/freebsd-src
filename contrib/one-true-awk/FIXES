@@ -25,6 +25,43 @@ THIS SOFTWARE.
 This file lists all bug fixes, changes, etc., made since the AWK book
 was sent to the printers in August, 1987.
 
+Nov 29, 2002:
+	modified b.c (with tiny changes in main and run) to support
+	locales, using strcoll and iswhatever tests for posix character
+	classes.  thanks to ruslan ermilov (ru@freebsd.org) for code.
+	the function isblank doesn't seem to have propagated to any
+	header file near me, so it's there explicitly.  not properly
+	tested on non-ascii character sets by me.
+
+Jun 28, 2002:
+	modified run/format() and tran/getsval() to do a slightly better
+	job on using OFMT for output from print and CONVFMT for other
+	number->string conversions, as promised by posix and done by 
+	gawk and mawk.  there are still places where it doesn't work
+	right if CONVFMT is changed; by then the STR attribute of the
+	variable has been irrevocably set.  thanks to arnold robbins for
+	code and examples.
+
+	fixed subtle bug in format that could get core dump.  thanks to
+	Jaromir Dolecek <jdolecek@NetBSD.org> for finding and fixing.
+	minor cleanup in run.c / format() at the same time.
+
+	added some tests for null pointers to debugging printf's, which
+	were never intended for external consumption.  thanks to dave
+	kerns (dkerns@lucent.com) for pointing this out.
+
+	GNU compatibility: an empty regexp matches anything (thanks to
+	dag-erling smorgrav, des@ofug.org).  subject to reversion if
+	this does more harm than good.
+
+	pervasive small changes to make things more const-correct, as
+	reported by gcc's -Wwrite-strings.  as it says in the gcc manual,
+	this may be more nuisance than useful.  provoked by a suggestion
+	and code from arnaud desitter, arnaud@nimbus.geog.ox.ac.uk
+
+	minor documentation changes to note that this now compiles out
+	of the box on Mac OS X.
+
 Feb 10, 2002:
 	changed types in posix chars structure to quiet solaris cc.
 
