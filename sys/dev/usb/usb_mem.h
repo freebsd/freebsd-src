@@ -1,5 +1,5 @@
-/*	$NetBSD: usb_mem.h,v 1.7 1999/09/09 12:26:47 augustss Exp $	*/
-/*	$FreeBSD$ */
+/*	$NetBSD: usb_mem.h,v 1.9 1999/10/13 08:10:58 augustss Exp $	*/
+/*	$FreeBSD$	*/
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -54,8 +54,8 @@ typedef struct usb_dma_block {
 #define DMAADDR(dma) ((dma)->block->segs[0].ds_addr + (dma)->offs)
 #define KERNADDR(dma) ((void *)((dma)->block->kaddr + (dma)->offs))
 
-usbd_status	usb_allocmem __P((bus_dma_tag_t, size_t, size_t, usb_dma_t *));
-void		usb_freemem  __P((bus_dma_tag_t, usb_dma_t *));
+usbd_status	usb_allocmem __P((usbd_bus_handle,size_t,size_t, usb_dma_t *));
+void		usb_freemem  __P((usbd_bus_handle, usb_dma_t *));
 
 #elif defined(__FreeBSD__)
 
