@@ -6,7 +6,7 @@
  * provided that this notice is preserved and due credit is given
  * to the original author and the contributors.
  *
- * $Id: iplang_y.y,v 2.0.2.18.2.2 1997/11/05 11:04:19 darrenr Exp $
+ * $Id: iplang_y.y,v 2.0.2.18.2.5 1997/12/10 09:54:45 darrenr Exp $
  */
  
 #include <stdio.h>
@@ -190,8 +190,8 @@ int	yyparse __P((void));
 %token	IL_IPO_TS IL_IPO_TR IL_IPO_SEC IL_IPO_LSRR IL_IPO_ESEC
 %token	IL_IPO_SATID IL_IPO_SSRR IL_IPO_ADDEXT IL_IPO_VISA IL_IPO_IMITD
 %token	IL_IPO_EIP IL_IPO_FINN IL_IPO_SECCLASS IL_IPO_CIPSO IL_IPO_ENCODE
-%token	IL_IPS_RESERV4 IL_IPS_TOPSECRET IL_IPS_SECRET IL_IPS_RESERV3
-%token	IL_IPS_CONFID IL_IPS_UNCLASS IL_IPS_RESERV2 IL_IPS_RESERV1
+%token	<str> IL_IPS_RESERV4 IL_IPS_TOPSECRET IL_IPS_SECRET IL_IPS_RESERV3
+%token	<str> IL_IPS_CONFID IL_IPS_UNCLASS IL_IPS_RESERV2 IL_IPS_RESERV1
 %token	IL_ICMP_ECHOREPLY IL_ICMP_UNREACH IL_ICMP_UNREACH_NET
 %token	IL_ICMP_UNREACH_HOST IL_ICMP_UNREACH_PROTOCOL IL_ICMP_UNREACH_PORT
 %token	IL_ICMP_UNREACH_NEEDFRAG IL_ICMP_UNREACH_SRCFAIL
@@ -235,10 +235,10 @@ ifaceopts:
 	;
 
 ifaceopt:
-	IL_IFNAME token			{ set_ifname(&yylval.str); }
-	| IL_MTU number			{ set_ifmtu(yylval.num); }
-	| IL_V4ADDR token		{ set_ifv4addr(&yylval.str); }
-	| IL_EADDR token		{ set_ifeaddr(&yylval.str); }
+	IL_IFNAME token			{ set_ifname(&$2); }
+	| IL_MTU number			{ set_ifmtu($2); }
+	| IL_V4ADDR token		{ set_ifv4addr(&$2); }
+	| IL_EADDR token		{ set_ifeaddr(&$2); }
 	;
 
 send:   sendhdr '{' sendbody '}' ';'	{ packet_done(); }
@@ -255,8 +255,8 @@ sendbody:
 	;
 
 sendopt:
-	IL_IFNAME token			{ set_sendif(&yylval.str); }
-	| IL_VIA token			{ set_sendvia(&yylval.str); }
+	IL_IFNAME token			{ set_sendif(&$2); }
+	| IL_VIA token			{ set_sendvia(&$2); }
 	;
 
 arp:    arphdr '{' arpbody '}' ';'
@@ -270,12 +270,12 @@ arpbody:
 	| arpbody arpopt
 	;
 
-arpopt: IL_V4ADDR token			{ set_arpv4addr(&yylval.str); }
-	| IL_EADDR token		{ set_arpeaddr(&yylval.str); }
+arpopt: IL_V4ADDR token			{ set_arpv4addr(&$2); }
+	| IL_EADDR token		{ set_arpeaddr(&$2); }
 	;
 
 defrouter:
-	IL_DEFROUTER token		{ set_defaultrouter(&yylval.str); }
+	IL_DEFROUTER token		{ set_defaultrouter(&$2); }
 	;
 
 bodyline:
@@ -298,17 +298,17 @@ ipv4body:
 	;
 
 ipv4type:
-	IL_V4PROTO token		{ set_ipv4proto(&yylval.str); }
-	| IL_V4SRC token		{ set_ipv4src(&yylval.str); }
-	| IL_V4DST token		{ set_ipv4dst(&yylval.str); }
-	| IL_V4OFF token		{ set_ipv4off(&yylval.str); }
-	| IL_V4V token			{ set_ipv4v(&yylval.str); }
-	| IL_V4HL token			{ set_ipv4hl(&yylval.str); }
-	| IL_V4ID token			{ set_ipv4id(&yylval.str); }
-	| IL_V4TTL token		{ set_ipv4ttl(&yylval.str); }
-	| IL_V4TOS token		{ set_ipv4tos(&yylval.str); }
-	| IL_V4SUM token		{ set_ipv4sum(&yylval.str); }
-	| IL_V4LEN token		{ set_ipv4len(&yylval.str); }
+	IL_V4PROTO token		{ set_ipv4proto(&$2); }
+	| IL_V4SRC token		{ set_ipv4src(&$2); }
+	| IL_V4DST token		{ set_ipv4dst(&$2); }
+	| IL_V4OFF token		{ set_ipv4off(&$2); }
+	| IL_V4V token			{ set_ipv4v(&$2); }
+	| IL_V4HL token			{ set_ipv4hl(&$2); }
+	| IL_V4ID token			{ set_ipv4id(&$2); }
+	| IL_V4TTL token		{ set_ipv4ttl(&$2); }
+	| IL_V4TOS token		{ set_ipv4tos(&$2); }
+	| IL_V4SUM token		{ set_ipv4sum(&$2); }
+	| IL_V4LEN token		{ set_ipv4len(&$2); }
 	| ipv4opt '{' ipv4optlist '}' ';'	{ end_ipopt(); }
 	;
 
@@ -320,20 +320,21 @@ tcpline:
 	;
 
 tcpheader:
-	tcpbody tcpheader
+	tcpbody
+	| tcpbody tcpheader
 	| bodyline
 	;
 
 tcpbody:
-	IL_SPORT token			{ set_tcpsport(&yylval.str); }
-	| IL_DPORT token		{ set_tcpdport(&yylval.str); }
-	| IL_TCPSEQ token		{ set_tcpseq(&yylval.str); }
-	| IL_TCPACK token		{ set_tcpack(&yylval.str); }
-	| IL_TCPOFF token		{ set_tcpoff(&yylval.str); }
-	| IL_TCPURP token		{ set_tcpurp(&yylval.str); }
-	| IL_TCPWIN token		{ set_tcpwin(&yylval.str); }
-	| IL_TCPSUM token		{ set_tcpsum(&yylval.str); }
-	| IL_TCPFL token		{ set_tcpflags(&yylval.str); }
+	IL_SPORT token			{ set_tcpsport(&$2); }
+	| IL_DPORT token		{ set_tcpdport(&$2); }
+	| IL_TCPSEQ token		{ set_tcpseq(&$2); }
+	| IL_TCPACK token		{ set_tcpack(&$2); }
+	| IL_TCPOFF token		{ set_tcpoff(&$2); }
+	| IL_TCPURP token		{ set_tcpurp(&$2); }
+	| IL_TCPWIN token		{ set_tcpwin(&$2); }
+	| IL_TCPSUM token		{ set_tcpsum(&$2); }
+	| IL_TCPFL token		{ set_tcpflags(&$2); }
 	| IL_TCPOPT '{' tcpopts '}' ';'	{ end_tcpopt(); }
 	;
 
@@ -343,9 +344,9 @@ tcpopts:
 
 tcpopt:	IL_TCPO_NOP ';'			{ set_tcpopt(IL_TCPO_NOP, NULL); }
 	| IL_TCPO_EOL ';'		{ set_tcpopt(IL_TCPO_EOL, NULL); }
-	| IL_TCPO_MSS optoken		{ set_tcpopt(IL_TCPO_MSS,&yylval.str);}
-	| IL_TCPO_WSCALE optoken	{ set_tcpopt(IL_TCPO_MSS,&yylval.str);}
-	| IL_TCPO_TS optoken		{ set_tcpopt(IL_TCPO_TS, &yylval.str);}
+	| IL_TCPO_MSS optoken		{ set_tcpopt(IL_TCPO_MSS,&$2);}
+	| IL_TCPO_WSCALE optoken	{ set_tcpopt(IL_TCPO_MSS,&$2);}
+	| IL_TCPO_TS optoken		{ set_tcpopt(IL_TCPO_TS, &$2);}
 	;
 
 udp:	IL_UDP				{ new_udpheader(); }
@@ -363,10 +364,10 @@ udpheader:
 	;
 
 udpbody:
-	IL_SPORT token			{ set_tcpsport(&yylval.str); }
-	| IL_DPORT token		{ set_tcpdport(&yylval.str); }
-	| IL_UDPLEN token		{ set_udplen(&yylval.str); }
-	| IL_UDPSUM token		{ set_udpsum(&yylval.str); }
+	IL_SPORT token			{ set_tcpsport(&$2); }
+	| IL_DPORT token		{ set_tcpdport(&$2); }
+	| IL_UDPLEN token		{ set_udplen(&$2); }
+	| IL_UDPSUM token		{ set_udpsum(&$2); }
 	;
 
 icmp:	IL_ICMP				{ new_icmpheader(); }
@@ -387,7 +388,7 @@ icmpheader:
 	;
 
 icmpcode:
-	IL_ICMPCODE token		{ set_icmpcodetok(&yylval.str); }
+	IL_ICMPCODE token		{ set_icmpcodetok(&$2); }
 	;
 
 icmptype:
@@ -413,7 +414,7 @@ icmptype:
 	| IL_ICMP_MASKREPLY '{' token '}' ';'
 	| IL_ICMP_PARAMPROB ';'		{ set_icmptype(ICMP_PARAMPROB); }
 	| IL_ICMP_PARAMPROB '{' paramprob '}' ';'
-	| IL_TOKEN ';'			{ set_icmptypetok(&yylval.str); }
+	| IL_TOKEN ';'			{ set_icmptypetok(&$1); }
 	;
 
 icmpechoopts:
@@ -421,17 +422,17 @@ icmpechoopts:
 	;
 
 icmpecho:
-	IL_ICMP_SEQ number 		{ set_icmpseq(yylval.num); }
-	| IL_ICMP_ID number		{ set_icmpid(yylval.num); }
+	IL_ICMP_SEQ number 		{ set_icmpseq($2); }
+	| IL_ICMP_ID number		{ set_icmpid($2); }
 	;
 
 icmptsopts:
 	| icmptsopts icmpts ';'
 	;
 
-icmpts: IL_ICMP_OTIME number 		{ set_icmpotime(yylval.num); }
-	| IL_ICMP_RTIME number 		{ set_icmprtime(yylval.num); }
-	| IL_ICMP_TTIME number 		{ set_icmpttime(yylval.num); }
+icmpts: IL_ICMP_OTIME number 		{ set_icmpotime($2); }
+	| IL_ICMP_RTIME number 		{ set_icmprtime($2); }
+	| IL_ICMP_TTIME number 		{ set_icmpttime($2); }
 	;
 
 unreach:
@@ -444,7 +445,7 @@ unreachopts:
 	| IL_ICMP_UNREACH_HOST line
 	| IL_ICMP_UNREACH_PROTOCOL line
 	| IL_ICMP_UNREACH_PORT line
-	| IL_ICMP_UNREACH_NEEDFRAG number ';'	{ set_icmpmtu(yylval.num); }
+	| IL_ICMP_UNREACH_NEEDFRAG number ';'	{ set_icmpmtu($2); }
 	| IL_ICMP_UNREACH_SRCFAIL line
 	| IL_ICMP_UNREACH_NET_UNKNOWN line
 	| IL_ICMP_UNREACH_HOST_UNKNOWN line
@@ -464,10 +465,10 @@ redirect:
 	;
 
 redirectopts:
-	| IL_ICMP_REDIRECT_NET token		{ set_redir(0, &yylval.str); }
-	| IL_ICMP_REDIRECT_HOST token		{ set_redir(1, &yylval.str); }
-	| IL_ICMP_REDIRECT_TOSNET token		{ set_redir(2, &yylval.str); }
-	| IL_ICMP_REDIRECT_TOSHOST token	{ set_redir(3, &yylval.str); }
+	| IL_ICMP_REDIRECT_NET token		{ set_redir(0, &$2); }
+	| IL_ICMP_REDIRECT_HOST token		{ set_redir(1, &$2); }
+	| IL_ICMP_REDIRECT_TOSNET token		{ set_redir(2, &$2); }
+	| IL_ICMP_REDIRECT_TOSHOST token	{ set_redir(3, &$2); }
 	;
 
 exceed:
@@ -480,7 +481,7 @@ paramprob:
 	| IL_ICMP_PARAMPROB_OPTABSENT paraprobarg
 
 paraprobarg:
-	'{' number '}' ';'		{ set_icmppprob(yylval.num); }
+	'{' number '}' ';'		{ set_icmppprob($2); }
 	;
 
 ipv4opt:	IL_V4OPT		{ new_ipv4opt(); }
@@ -492,7 +493,7 @@ ipv4optlist:
 
 ipv4opts:
 	IL_IPO_NOP ';'			{ add_ipopt(IL_IPO_NOP, NULL); }
-	| IL_IPO_RR optnumber		{ add_ipopt(IL_IPO_RR, &yylval.num); }
+	| IL_IPO_RR optnumber		{ add_ipopt(IL_IPO_RR, &$2); }
 	| IL_IPO_ZSU ';'		{ add_ipopt(IL_IPO_ZSU, NULL); }
 	| IL_IPO_MTUP ';'		{ add_ipopt(IL_IPO_MTUP, NULL); }
 	| IL_IPO_MTUR ';'		{ add_ipopt(IL_IPO_MTUR, NULL); }
@@ -501,11 +502,11 @@ ipv4opts:
 	| IL_IPO_TR ';'			{ add_ipopt(IL_IPO_TR, NULL); }
 	| IL_IPO_SEC ';'		{ add_ipopt(IL_IPO_SEC, NULL); }
 	| IL_IPO_SECCLASS secclass	{ add_ipopt(IL_IPO_SECCLASS, sclass); }
-	| IL_IPO_LSRR token		{ add_ipopt(IL_IPO_LSRR,&yylval.str); }
+	| IL_IPO_LSRR token		{ add_ipopt(IL_IPO_LSRR,&$2); }
 	| IL_IPO_ESEC ';'		{ add_ipopt(IL_IPO_ESEC, NULL); }
 	| IL_IPO_CIPSO ';'		{ add_ipopt(IL_IPO_CIPSO, NULL); }
-	| IL_IPO_SATID optnumber	{ add_ipopt(IL_IPO_SATID,&yylval.num);}
-	| IL_IPO_SSRR token		{ add_ipopt(IL_IPO_SSRR,&yylval.str); }
+	| IL_IPO_SATID optnumber	{ add_ipopt(IL_IPO_SATID,&$2);}
+	| IL_IPO_SSRR token		{ add_ipopt(IL_IPO_SSRR,&$2); }
 	| IL_IPO_ADDEXT ';'		{ add_ipopt(IL_IPO_ADDEXT, NULL); }
 	| IL_IPO_VISA ';'		{ add_ipopt(IL_IPO_VISA, NULL); }
 	| IL_IPO_IMITD ';'		{ add_ipopt(IL_IPO_IMITD, NULL); }
@@ -514,14 +515,14 @@ ipv4opts:
 	;
 
 secclass:
-	IL_IPS_RESERV4 ';'		{ set_secclass(&yylval.str); }
-	| IL_IPS_TOPSECRET ';'		{ set_secclass(&yylval.str); }
-	| IL_IPS_SECRET ';'		{ set_secclass(&yylval.str); }
-	| IL_IPS_RESERV3 ';'		{ set_secclass(&yylval.str); }
-	| IL_IPS_CONFID ';'		{ set_secclass(&yylval.str); }
-	| IL_IPS_UNCLASS ';'		{ set_secclass(&yylval.str); }
-	| IL_IPS_RESERV2 ';'		{ set_secclass(&yylval.str); }
-	| IL_IPS_RESERV1 ';'		{ set_secclass(&yylval.str); }
+	IL_IPS_RESERV4 ';'		{ set_secclass(&$1); }
+	| IL_IPS_TOPSECRET ';'		{ set_secclass(&$1); }
+	| IL_IPS_SECRET ';'		{ set_secclass(&$1); }
+	| IL_IPS_RESERV3 ';'		{ set_secclass(&$1); }
+	| IL_IPS_CONFID ';'		{ set_secclass(&$1); }
+	| IL_IPS_UNCLASS ';'		{ set_secclass(&$1); }
+	| IL_IPS_RESERV2 ';'		{ set_secclass(&$1); }
+	| IL_IPS_RESERV1 ';'		{ set_secclass(&$1); }
 	;
 
 data:	IL_DATA				{ new_data(); }
@@ -536,9 +537,9 @@ databody: dataopts
 	;
 
 dataopts:
-	IL_DLEN token			{ set_datalen(&yylval.str); }
-	| IL_DVALUE token 		{ set_data(&yylval.str); }
-	| IL_DFILE token 		{ set_datafile(&yylval.str); }
+	IL_DLEN token			{ set_datalen(&$2); }
+	| IL_DVALUE token 		{ set_data(&$2); }
+	| IL_DFILE token 		{ set_datafile(&$2); }
 	;
 
 token: IL_TOKEN ';'
@@ -618,28 +619,6 @@ ether_aton(s)
 }
 #endif
 
-#ifdef	bsdi
-struct ether_addr *
-ether_aton(s)
-	char *s;
-{
-	static struct ether_addr n;
-	u_int i[6];
-
-	if (sscanf(s, " %x:%x:%x:%x:%x:%x ", &i[0], &i[1],
-	    &i[2], &i[3], &i[4], &i[5]) == 6) {
-		n.ether_addr_octet[0] = (u_char)i[0];
-		n.ether_addr_octet[1] = (u_char)i[1];
-		n.ether_addr_octet[2] = (u_char)i[2];
-		n.ether_addr_octet[3] = (u_char)i[3];
-		n.ether_addr_octet[4] = (u_char)i[4];
-		n.ether_addr_octet[5] = (u_char)i[5];
-		return &n;
-	}
-	return NULL;
-}
-#endif
-
 
 struct in_addr getipv4addr(arg)
 char *arg;
@@ -663,7 +642,7 @@ char *pr, *name;
 	struct servent *sp;
 
 	if (!(sp = getservbyname(name, pr)))
-		return atoi(name);
+		return htons(atoi(name));
 	return sp->s_port;
 }
 
@@ -1740,7 +1719,9 @@ void free_anipheader()
 		canip->ah_next = NULL;
 		aniptail = &canip->ah_next;
 	}
-	free(aip);
+
+	if (canip)
+		free(aip);
 }
 
 

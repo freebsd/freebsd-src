@@ -7,7 +7,7 @@
  */
 #if !defined(lint)
 static const char sccsid[] = "%W% %G% (C)1995";
-static const char rcsid[] = "@(#)$Id: ip.c,v 2.0.2.11 1997/10/23 11:42:44 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ip.c,v 2.0.2.11.2.2 1997/11/28 03:36:47 darrenr Exp $";
 #endif
 #include <errno.h>
 #include <stdio.h>
@@ -96,7 +96,7 @@ int	frag;
 	static	u_short	id = 0;
 	ether_header_t	*eh;
 	ip_t	ipsv;
-	int	err;
+	int	err, iplen;
 
 	if (!ipbuf)
 		ipbuf = (char *)malloc(65536);
@@ -115,7 +115,8 @@ int	frag;
 
 	bcopy((char *)ip, (char *)&ipsv, sizeof(*ip));
 	last_gw.s_addr = gwip.s_addr;
-	ip->ip_len = htons(ip->ip_len);
+	iplen = ip->ip_len;
+	ip->ip_len = htons(iplen);
 	ip->ip_off = htons(ip->ip_off);
 	if (!(frag & 2)) {
 		if (!ip->ip_v)
@@ -126,13 +127,13 @@ int	frag;
 			ip->ip_ttl = 60;
 	}
 
-	if (!frag || (sizeof(*eh) + ntohs(ip->ip_len) < mtu))
+	if (!frag || (sizeof(*eh) + iplen < mtu))
 	    {
 		ip->ip_sum = 0;
 		ip->ip_sum = chksum((u_short *)ip, ip->ip_hl << 2);
 
-		bcopy((char *)ip, ipbuf + sizeof(*eh), ntohs(ip->ip_len));
-		err =  sendip(nfd, ipbuf, sizeof(*eh) + ntohs(ip->ip_len));
+		bcopy((char *)ip, ipbuf + sizeof(*eh), iplen);
+		err =  sendip(nfd, ipbuf, sizeof(*eh) + iplen);
 	    }
 	else
 	    {
@@ -144,7 +145,7 @@ int	frag;
 		ether_header_t	eth;
 		char	optcpy[48], ol;
 		char	*s;
-		int	i, iplen, sent = 0, ts, hlen, olen;
+		int	i, sent = 0, ts, hlen, olen;
 
 		hlen = ip->ip_hl << 2;
 		if (mtu < (hlen + 8)) {
@@ -235,43 +236,44 @@ struct	in_addr	gwip;
 {
 	static	tcp_seq	iss = 2;
 	struct	tcpiphdr *ti;
-	int	thlen, i;
-	u_long	lbuf[20];
+	tcphdr_t *t;
+	int	thlen, i, iplen, hlen;
+	u_32_t	lbuf[20];
 
+	iplen = ip->ip_len;
+	hlen = ip->ip_hl << 2;
+	t = (tcphdr_t *)((char *)ip + hlen);
 	ti = (struct tcpiphdr *)lbuf;
+	thlen = t->th_off << 2;
+	if (!thlen)
+		thlen = sizeof(tcphdr_t);
 	bzero((char *)ti, sizeof(*ti));
-	thlen = sizeof(tcphdr_t);
 	ip->ip_p = IPPROTO_TCP;
 	ti->ti_pr = ip->ip_p;
 	ti->ti_src = ip->ip_src;
 	ti->ti_dst = ip->ip_dst;
-	bcopy((char *)ip + (ip->ip_hl << 2),
-	      (char *)&ti->ti_sport, sizeof(tcphdr_t));
+	bcopy((char *)ip + hlen, (char *)&ti->ti_sport, thlen);
 
 	if (!ti->ti_win)
 		ti->ti_win = htons(4096);
-	if (!ti->ti_seq)
-		ti->ti_seq = htonl(iss);
-	iss += 64;
+	iss += 63;
 
-	if ((ti->ti_flags == TH_SYN) && !ip->ip_off)
-	    {
-		ip = (ip_t *)realloc((char *)ip, ntohs(ip->ip_len) + 4);
-		i = sizeof(struct tcpiphdr) / sizeof(long);
+	i = sizeof(struct tcpiphdr) / sizeof(long);
+
+	if ((ti->ti_flags == TH_SYN) && !ip->ip_off &&
+	    (lbuf[i] != htonl(0x020405b4))) {
 		lbuf[i] = htonl(0x020405b4);
-		bcopy((char *)(lbuf + i), (char*)ip + ntohs(ip->ip_len),
-		      sizeof(u_long));
+		bcopy((char *)ip + hlen + thlen, (char *)ip + hlen + thlen + 4,
+		      iplen - thlen - hlen);
 		thlen += 4;
 	    }
-	if (!ti->ti_off)
-		ti->ti_off = thlen >> 2;
+	ti->ti_off = thlen >> 2;
 	ti->ti_len = htons(thlen);
-	ip->ip_len = (ip->ip_hl << 2) + thlen;
+	ip->ip_len = hlen + thlen;
 	ti->ti_sum = 0;
 	ti->ti_sum = chksum((u_short *)ti, thlen + sizeof(ip_t));
 
-	bcopy((char *)&ti->ti_sport,
-	      (char *)ip + (ip->ip_hl << 2), thlen);
+	bcopy((char *)&ti->ti_sport, (char *)ip + hlen, thlen);
 	return send_ip(nfd, mtu, ip, gwip, 1);
 }
 

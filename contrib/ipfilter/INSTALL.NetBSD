@@ -36,11 +36,16 @@ To build a kernel with the IP filter, follow these steps:
 		run "NetBSD/kinstall" as root
 	3(b) NetBSD 1.2 systems or later:
 		run "NetBSD-1.2/kinstall" as root
+	3(c) If conf.c fails on the 2nd hunk of the patch, you will have to
+	     manually apply the patch.
 
 	4. build a new kernel
 
 	5. create /dev/ipl with "mknod /dev/ipl c 59 0".
 	   (for NetBSD-1.2, use "mknod /dev/ipl c 49 0")
+
+	   ** NOTE: both the numbers 49 and 59 should be substituted with
+		    whatever number you inserted it into conf.c as.
 
 	6. install and reboot with the new kernel
 

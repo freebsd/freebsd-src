@@ -32,7 +32,7 @@
   	__P((int, struct ip_moptions **, struct mbuf *));
 ***************
 *** 338,343 ****
---- 342,358 ----
+--- 342,356 ----
   	 * - Wrap: fake packet's addr/port <unimpl.>
   	 * - Encapsulate: put it in another IP and send out. <unimp.>
   	 */ 
@@ -40,9 +40,7 @@
 + 	if (fr_checkp) {
 + 		struct mbuf *m1 = m;
 + 
-+ 		if ((*fr_checkp)(ip, hlen, ifp, 1, &m1))
-+ 			error = EHOSTUNREACH;
-+ 		if (error || !m1) 
++ 		if ((error = (*fr_checkp)(ip, hlen, ifp, 1, &m1)) || !m1)
 + 			goto done;
 + 		ip = mtod(m = m1, struct ip *);
 + 	}
