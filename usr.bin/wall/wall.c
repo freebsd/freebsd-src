@@ -81,7 +81,7 @@ main(argc, argv)
 	char *p, *ttymsg();
 	char line[sizeof(utmp.ut_line) + 1];
 
-	while ((ch = getopt(argc, argv, "n")) != EOF)
+	while ((ch = getopt(argc, argv, "n")) != -1)
 		switch (ch) {
 		case 'n':
 			/* undoc option for shutdown: suppress banner */

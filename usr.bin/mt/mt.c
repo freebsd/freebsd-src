@@ -126,7 +126,7 @@ main(argc, argv)
 	if ((tape = getenv("TAPE")) == NULL)
 		tape = DEFTAPE;
 
-	while ((ch = getopt(argc, argv, "f:t:")) != EOF)
+	while ((ch = getopt(argc, argv, "f:t:")) != -1)
 		switch(ch) {
 		case 'f':
 		case 't':

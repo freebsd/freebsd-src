@@ -116,7 +116,7 @@ main(argc, argv)
 	extern char *optarg;
 	extern int optind, errno;
 
-	while ((ch = getopt(argc, argv, "ugvq")) != EOF) {
+	while ((ch = getopt(argc, argv, "ugvq")) != -1) {
 		switch(ch) {
 		case 'g':
 			gflag++;

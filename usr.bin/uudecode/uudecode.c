@@ -73,7 +73,7 @@ main(argc, argv)
 	extern int errno;
 	int rval, ch;
 
-	while ((ch = getopt(argc, argv, "cp")) != EOF) {
+	while ((ch = getopt(argc, argv, "cp")) != -1) {
 		switch(ch) {
 		case 'c':
 			cflag = 1; /* multiple uudecode'd files */

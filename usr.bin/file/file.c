@@ -26,7 +26,7 @@
  */
 #ifndef	lint
 static char *moduleid = 
-	"@(#)$Id: file.c,v 1.1.1.3 1997/03/18 17:58:41 mpp Exp $";
+	"@(#)$Id: file.c,v 1.7 1997/03/18 19:37:18 mpp Exp $";
 #endif	/* lint */
 
 #include <stdio.h>
@@ -103,7 +103,7 @@ char *argv[];
 	if (!(magicfile = getenv("MAGIC")))
 		magicfile = MAGIC;
 
-	while ((c = getopt(argc, argv, "vcdf:Lm:z")) != EOF)
+	while ((c = getopt(argc, argv, "vcdf:Lm:z")) != -1)
 		switch (c) {
 		case 'v':
 			(void) fprintf(stdout, "%s-%d.%d\n", progname,

@@ -1,7 +1,7 @@
 #ifndef lint
 /*static char sccsid[] = "from: @(#)rpcinfo.c 1.22 87/08/12 SMI";*/
 /*static char sccsid[] = "from: @(#)rpcinfo.c	2.2 88/08/11 4.0 RPCSRC";*/
-static char rcsid[] = "$Id$";
+static char rcsid[] = "$Id: rpcinfo.c,v 1.4 1997/02/22 19:56:45 peter Exp $";
 #endif
 
 /*
@@ -95,7 +95,7 @@ main(argc, argv)
 	function = NONE;
 	portnum = 0;
 	errflg = 0;
-	while ((c = getopt(argc, argv, "ptubdn:")) != EOF) {
+	while ((c = getopt(argc, argv, "ptubdn:")) != -1) {
 		switch (c) {
 
 		case 'p':

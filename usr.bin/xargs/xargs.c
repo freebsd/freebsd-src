@@ -90,7 +90,7 @@ main(argc, argv, env)
 		nline -= strlen(*ep++) + 1 + sizeof(*ep);
 	}
 	nflag = xflag = 0;
-	while ((ch = getopt(argc, argv, "0n:s:tx")) != EOF)
+	while ((ch = getopt(argc, argv, "0n:s:tx")) != -1)
 		switch(ch) {
 		case 'n':
 			nflag = 1;

@@ -122,7 +122,7 @@ main(argc, argv)
 
 	aflag = vflag = 0;
 	obsolete(argv);
-	while ((ch = getopt(argc, argv, "\01a:e:j:1:2:o:t:v:")) != EOF) {
+	while ((ch = getopt(argc, argv, "\01a:e:j:1:2:o:t:v:")) != -1) {
 		switch (ch) {
 		case '\01':		/* See comment in obsolete(). */
 			aflag = 1;

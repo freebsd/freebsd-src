@@ -60,7 +60,7 @@ main(argc, argv)
 	char *p;
 
 	width = -1;
-	while ((ch = getopt(argc, argv, "0123456789w:")) != EOF)
+	while ((ch = getopt(argc, argv, "0123456789w:")) != -1)
 		switch (ch) {
 		case 'w':
 			if ((width = atoi(optarg)) <= 0) {

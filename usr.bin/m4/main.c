@@ -160,7 +160,7 @@ main(argc,argv)
 
 	initkwds();
 
-	while ((c = getopt(argc, argv, "tD:U:o:")) != EOF)
+	while ((c = getopt(argc, argv, "tD:U:o:")) != -1)
 		switch(c) {
 
 		case 'D':               /* define something..*/

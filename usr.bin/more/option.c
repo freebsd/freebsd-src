@@ -69,7 +69,7 @@ option(argc, argv)
 			(*a)[0] = '-';
 
 	optind = 1;		/* called twice, re-init getopt. */
-	while ((ch = getopt(argc, argv, "0123456789/:ceinst:ux:f")) != EOF)
+	while ((ch = getopt(argc, argv, "0123456789/:ceinst:ux:f")) != -1)
 		switch((char)ch) {
 		case '0': case '1': case '2': case '3': case '4':
 		case '5': case '6': case '7': case '8': case '9':

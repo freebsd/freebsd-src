@@ -70,7 +70,7 @@ main(argc, argv)
 
 	cfncn = crc;
 	pfncn = pcrc;
-	while ((ch = getopt(argc, argv, "o:")) != EOF)
+	while ((ch = getopt(argc, argv, "o:")) != -1)
 		switch(ch) {
 		case 'o':
 			if (*optarg == '1') {

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *  $Id$
+ *  $Id: lastcomm.c,v 1.6 1997/02/22 19:55:33 peter Exp $
  */
 
 #ifndef lint
@@ -91,7 +91,7 @@ main(argc, argv)
 	int time = 0;
 
 	acctfile = _PATH_ACCT;
-	while ((ch = getopt(argc, argv, "f:usecSE")) != EOF)
+	while ((ch = getopt(argc, argv, "f:usecSE")) != -1)
 		switch((char)ch) {
 		case 'f':
 			acctfile = optarg;

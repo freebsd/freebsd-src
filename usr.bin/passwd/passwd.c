@@ -43,7 +43,7 @@ static const char copyright[] =
 #ifndef lint
 static const char sccsid[] = "From: @(#)passwd.c	8.3 (Berkeley) 4/2/94";
 static const char rcsid[] =
-	"$Id$";
+	"$Id: passwd.c,v 1.11 1997/02/22 19:56:35 peter Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -103,7 +103,7 @@ main(argc, argv)
 	if (strstr(argv[0], "yppasswd")) __use_yp = 1;
 #endif
 
-	while ((ch = getopt(argc, argv, OPTIONS)) != EOF) {
+	while ((ch = getopt(argc, argv, OPTIONS)) != -1) {
 		switch (ch) {
 		case 'l':		/* change local password file */
 			use_local_passwd = 1;
