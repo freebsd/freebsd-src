@@ -365,6 +365,14 @@ static struct da_quirk_entry da_quirk_table[] =
 		/*quirks*/ DA_Q_NO_SYNC_CACHE
 	},
 #endif /* DA_OLD_QUIRKS */
+	{
+		/*
+		 * EXATELECOM (Sigmatel) i-Bead 100/105 USB Flash MP3 Player
+		 * PR: kern/51675
+		 */
+		{T_DIRECT, SIP_MEDIA_REMOVABLE, "EXATEL", "i-BEAD10*", "*"},
+		/*quirks*/ DA_Q_NO_SYNC_CACHE
+	},
 };
 
 static	disk_strategy_t	dastrategy;
