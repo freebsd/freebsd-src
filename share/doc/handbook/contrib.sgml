@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.21 1995/09/28 17:01:06 nate Exp $ -->
+<!-- $Id: contrib.sgml,v 1.22 1995/10/01 22:33:46 ugen Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>FreeBSD contributor list<label id="contrib"></heading>
@@ -184,6 +184,7 @@
 	  <item>Stefan Esser &lt;se@MI.Uni-Koeln.DE&gt;
 	  <item>Stephen McKay &lt;syssgm@devetir.qld.gov.au&gt;
 	  <item>Steve Gerakines &lt;steve2@genesis.tiac.net&gt;
+	  <item>Steve Passe &lt;smp@csn.net&gt;
 	  <item>Steven Wallace &lt;swallace@ece.uci.edu&gt;
 	  <item>Tatsumi Hosokawa &lt;hosokawa@mt.cs.keio.ac.jp&gt;
 	  <item>Terry Lee &lt;terry@uivlsi.csl.uiuc.edu&gt;
