@@ -2478,6 +2478,9 @@
     <title>Serial Interfaces</title>
     <para arch="i386,alpha,ia64,sparc64"><quote>PC standard</quote> 8250, 16450, and 16550-based serial ports (&man.sio.4; driver)</para>
 
+    <para arch="sparc64">Serial ports based on the SAB82532 serial
+      chip (sab driver)</para>
+
     <para arch="i386,alpha">AST 4 port serial card using shared IRQ</para>
 
     <para arch="i386">ARNET serial cards (&man.ar.4; driver)
