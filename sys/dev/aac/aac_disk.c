@@ -252,9 +252,9 @@ aac_disk_dump(dev_t dev)
 		for (i = 0; i < dumppages; ++i) {
 			vm_offset_t a = addr + (i * PAGE_SIZE);
 			if (is_physical_memory(a)) {
-			va = pmap_kenter_temporary(trunc_page(a), i);
+				va = pmap_kenter_temporary(trunc_page(a), i);
 			} else {
-			va = pmap_kenter_temporary(trunc_page(0), i);
+				va = pmap_kenter_temporary(trunc_page(0), i);
 			}
 		}
 

@@ -279,6 +279,10 @@ aac_pci_attach(device_t dev)
 				debug(2, "set hardware up for StrongARM");
 				sc->aac_if = aac_sa_interface;
 				break;
+			case AAC_HWIF_FALCON:
+				debug(2, "set hardware up for Falcon/PPC");
+				sc->aac_if = aac_fa_interface;
+				break;
 			}
 			break;
 		}
