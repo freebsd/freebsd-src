@@ -2189,9 +2189,22 @@ loop:
 		 * to softupdates re-dirtying the buffer.  In the latter
 		 * case, B_CACHE is set after the first write completes,
 		 * preventing further loops.
+		 *
+		 * NOTE!  b*write() sets B_CACHE.  If we cleared B_CACHE
+		 * above while extending the buffer, we cannot allow the
+		 * buffer to remain with B_CACHE set after the write
+		 * completes or it will represent a corrupt state.  To
+		 * deal with this we set B_NOCACHE to scrap the buffer
+		 * after the write.
+		 *
+		 * We might be able to do something fancy, like setting
+		 * B_CACHE in bwrite() except if B_DELWRI is already set,
+		 * so the below call doesn't set B_CACHE, but that gets real
+		 * confusing.  This is much easier.
 		 */
 
 		if ((bp->b_flags & (B_CACHE|B_DELWRI)) == B_DELWRI) {
+			bp->b_flags |= B_NOCACHE;
 			VOP_BWRITE(bp->b_vp, bp);
 			goto loop;
 		}
