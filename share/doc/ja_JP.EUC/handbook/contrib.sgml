@@ -1,6 +1,6 @@
-<!-- $Id: contrib.sgml,v 1.9 1996/12/07 07:18:38 max Exp $ -->
+<!-- $Id: contrib.sgml,v 1.10 1996/12/08 00:13:24 max Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.164 -->
+<!-- Original revision: 1.166 -->
 
 <!-- Please try to keep the file 'avail' (from CVSROOT) 
      in sync with the list of FreeBSD Developers -->
@@ -173,20 +173,22 @@
 	  <item>Adrian T. Filipi-Martin &lt;atf3r@agate.cs.virginia.edu&gt;
 	  <item>Akito Fujita &lt;fujita@zoo.ncl.omron.co.jp&gt;
 	  <item>Alain Kalker &lt;A.C.P.M.Kalker@student.utwente.nl&gt;
-	  <item>Andy Whitcroft &lt;andy@sarc.city.ac.uk&gt;
-	  <item>Andrew Gordon &lt;andrew.gordon@net-tel.co.uk&gt;
-	  <item>Andrew Herbert &lt;andrew@werple.apana.org.au&gt;
 	  <item>Andreas Kohout &lt;shanee@rabbit.augusta.de&gt;
 	  <item>Andreas Lohr &lt;andreas@marvin.RoBIN.de&gt;
+<item>Andrew Gordon &lt;andrew.gordon@net-tel.co.uk&gt;
+	  <item>Andrew Herbert &lt;andrew@werple.apana.org.au&gt;
 	  <item>Andrew McRae &lt;amcrae@cisco.com&gt;
 	  <item>Andrew Moore &lt;alm@FreeBSD.org&gt;
+	  <item>Andrew Stevenson &lt;andrew@ugh.net.au&gt;
 	  <item>Andrew V. Stesin &lt;stesin@elvisti.kiev.ua&gt;
 	  <item>Andrey Zakhvatov &lt;andy@cgu.chel.su&gt;
+	  <item>Andy Whitcroft &lt;andy@sarc.city.ac.uk&gt;
 	  <item>Anthony Yee-Hang Chan &lt;yeehang@netcom.com&gt;
 	  <item>Bernd Rosauer &lt;br@schiele-ct.de&gt;
 	  <item>Bill Kish &lt;kish@osf.org&gt;
 	  <item>&a.wlloyd
 	  <item>Bob Wilcox &lt;bob@obiwan.uucp&gt;
+	  <item>Boyd Faulkner &lt;faulkner@mpd.tandem.com&gt;
 	  <item>Brent J. Nordquist &lt;nordquist@platinum.com&gt;
 	  <item>Brian Clapper &lt;bmc@willscreek.com&gt;
 	  <item>Brian Tao &lt;taob@io.org&gt;
@@ -287,6 +289,7 @@
 	  <item>Michael Searle &lt;searle@longacre.demon.co.uk&gt;
 	  <item>Miguel Angel Sagreras &lt;msagre@cactus.fi.uba.ar&gt;
 	  <item>Mikael Hybsch &lt;micke@dynas.se&gt;
+	  <item>Mike McGaughey &lt;mmcg@cs.monash.edu.au&gt;
 	  <item>Mike Peck &lt;mike@binghamton.edu&gt;
 	  <item>MITA Yoshio &lt;mita@jp.FreeBSD.ORG&gt;
 	  <item>MOROHOSHI Akihiko &lt;moro@race.u-tokyo.ac.jp&gt;
@@ -298,6 +301,7 @@
 	  <item>Nobuyuki Koganemaru &lt;kogane@kces.koganemaru.co.jp&gt;
 	  <item>Noritaka Ishizumi &lt;graphite@taurus.bekkoame.or.jp&gt;
 	  <item>Oliver Oberdorf &lt;oly@world.std.com&gt;
+	  <item>Paul Fox &lt;pgf@foxharp.boston.ma.us&gt;
 	  <item>Paul Kranenburg &lt;pk@cs.few.eur.nl&gt;
 	  <item>Paul Mackerras &lt;paulus@cs.anu.edu.au&gt;
 	  <item>Pedro Giffuni &lt;pgiffuni@fps.biblos.unal.edu.co&gt;
@@ -307,6 +311,7 @@
 	  <item>Randall Hopper &lt;rhh@stealth.ct.picker.com&gt;
 	  <item>Richard Stallman &lt;rms@gnu.ai.mit.edu&gt;
 	  <item>Richard Wiwatowski &lt;rjwiwat@adelaide.on.neti&gt;
+	  <item>Rob Mallory &lt;rmallory@csusb.edu&gt;
 	  <item>Rob Shady &lt;rls@id.net&gt;
 	  <item>Rob Snow &lt;rsnow@txdirect.net&gt;
 	  <item>Robert Sanders &lt;rsanders@mindspring.com&gt;
