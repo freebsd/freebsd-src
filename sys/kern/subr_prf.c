@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_prf.c	8.3 (Berkeley) 1/21/94
- * $Id: subr_prf.c,v 1.45 1998/05/19 08:58:51 phk Exp $
+ * $Id: subr_prf.c,v 1.46 1998/05/28 09:30:20 phk Exp $
  */
 
 #include <sys/param.h>
@@ -490,18 +490,20 @@ reswitch:	switch (ch = (u_char)*fmt++) {
 		case 'l':
 			lflag = 1;
 			goto reswitch;
-		case 'n':
-			ul = lflag ? va_arg(ap, u_long) : va_arg(ap, u_int);
-			base = radix;
-			goto number;
 		case 'o':
 			ul = lflag ? va_arg(ap, u_long) : va_arg(ap, u_int);
 			base = 8;
-			goto number;
+			goto nosign;
 		case 'p':
 			ul = (u_long)va_arg(ap, void *);
 			base = 16;
 			sharpflag = 1;
+			goto nosign;
+		case 'n':
+		case 'r':
+			ul = lflag ? va_arg(ap, u_long) :
+			    sign ? (u_long)va_arg(ap, int) : va_arg(ap, u_int);
+			base = radix;
 			goto number;
 		case 's':
 			p = va_arg(ap, char *);
@@ -527,10 +529,17 @@ reswitch:	switch (ch = (u_char)*fmt++) {
 		case 'u':
 			ul = lflag ? va_arg(ap, u_long) : va_arg(ap, u_int);
 			base = 10;
-			goto number;
+			goto nosign;
 		case 'x':
 			ul = lflag ? va_arg(ap, u_long) : va_arg(ap, u_int);
 			base = 16;
+			goto nosign;
+		case 'z':
+			ul = lflag ? va_arg(ap, u_long) :
+			    sign ? (u_long)va_arg(ap, int) : va_arg(ap, u_int);
+			base = 16;
+			goto number;
+nosign:			sign = 0;
 number:			if (sign && (long)ul < 0L) {
 				neg = 1;
 				ul = -(long)ul;
