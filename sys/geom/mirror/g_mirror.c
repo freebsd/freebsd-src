@@ -1898,18 +1898,12 @@ g_mirror_update_device(struct g_mirror_softc *sc, boolean_t force)
 		break;
 	    }
 	case G_MIRROR_DEVICE_STATE_RUNNING:
-		/*
-		 * Bump syncid here, if we need to do it immediately.
-		 */
-		if (sc->sc_bump_syncid == G_MIRROR_BUMP_IMMEDIATELY) {
-			sc->sc_bump_syncid = 0;
-			g_mirror_bump_syncid(sc);
-		}
 		if (g_mirror_ndisks(sc, -1) == 0) {
 			/*
 			 * No disks at all, we need to destroy device.
 			 */
 			sc->sc_flags |= G_MIRROR_DEVICE_FLAG_DESTROY;
+			break;
 		} else if (g_mirror_ndisks(sc,
 		    G_MIRROR_DISK_STATE_ACTIVE) == 0 &&
 		    g_mirror_ndisks(sc, G_MIRROR_DISK_STATE_NEW) == 0) {
@@ -1918,6 +1912,7 @@ g_mirror_update_device(struct g_mirror_softc *sc, boolean_t force)
 			 */
 			if (sc->sc_provider != NULL)
 				g_mirror_destroy_provider(sc);
+			break;
 		} else if (g_mirror_ndisks(sc,
 		    G_MIRROR_DISK_STATE_ACTIVE) > 0 &&
 		    g_mirror_ndisks(sc, G_MIRROR_DISK_STATE_NEW) == 0) {
@@ -1927,6 +1922,13 @@ g_mirror_update_device(struct g_mirror_softc *sc, boolean_t force)
 			 */
 			if (sc->sc_provider == NULL)
 				g_mirror_launch_provider(sc);
+		}
+		/*
+		 * Bump syncid here, if we need to do it immediately.
+		 */
+		if (sc->sc_bump_syncid == G_MIRROR_BUMP_IMMEDIATELY) {
+			sc->sc_bump_syncid = 0;
+			g_mirror_bump_syncid(sc);
 		}
 		break;
 	default:
