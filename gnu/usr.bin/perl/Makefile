@@ -4,7 +4,7 @@
 # Note: I'm not sure what to do with c2ph located in misc...
 #
 
-SUBDIR= perl tperl sperl lib x2p  
+SUBDIR= perl tperl sperl usub lib x2p  
 
 .include <bsd.subdir.mk>
 
