@@ -31,5 +31,3 @@ Boolean	Verbose		= FALSE;
 Boolean	Fake		= FALSE;
 Boolean	Force		= FALSE;
 int AutoAnswer		= FALSE;
-
-
