@@ -623,12 +623,19 @@ cryptof_close(struct file *fp, struct thread *td)
 	struct fcrypt *fcr = fp->f_data;
 	struct csession *cse;
 
+	/*
+	 * XXXRW: The cryptodev and called code all appears to be
+	 * MPSAFE, but I'm not set up to test it.  Acquire Giant
+	 * for now.
+	 */
+	mtx_lock(&Giant);
 	while ((cse = TAILQ_FIRST(&fcr->csessions))) {
 		TAILQ_REMOVE(&fcr->csessions, cse, next);
 		(void)csefree(cse);
 	}
 	FREE(fcr, M_XDATA);
 	fp->f_data = NULL;
+	mtx_unlock(&Giant);
 	return 0;
 }
 
