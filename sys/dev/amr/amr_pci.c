@@ -128,6 +128,8 @@ static struct
     {0x101e, 0x1960, 0},
     {0x1000, 0x1960, PROBE_SIGNATURE},
     {0x1000, 0x0407, 0},
+    {0x1000, 0x0408, 0},
+    {0x1000, 0x0409, 0},
     {0x1028, 0x000e, PROBE_SIGNATURE}, /* perc4/di i960 */
     {0x1028, 0x000f, 0}, /* perc4/di Verde*/
     {0x1028, 0x0013, 0}, /* perc4/di */
@@ -151,7 +153,7 @@ amr_pci_probe(device_t dev)
 		if ((sig != AMR_SIGNATURE_1) && (sig != AMR_SIGNATURE_2))
 		    continue;
 	    }
-	    device_set_desc(dev, "LSILogic MegaRAID");
+	    device_set_desc(dev, LSI_DESC_PCI);
 	    return(-10);	/* allow room to be overridden */
 	}
     }
@@ -173,6 +175,7 @@ amr_pci_attach(device_t dev)
     sc = device_get_softc(dev);
     bzero(sc, sizeof(*sc));
     sc->amr_dev = dev;
+    mtx_init(&sc->amr_io_lock, "AMR IO Lock", NULL, MTX_DEF);
 
     /* assume failure is 'not configured' */
     error = ENXIO;
@@ -182,6 +185,7 @@ amr_pci_attach(device_t dev)
      */
     command = pci_read_config(dev, PCIR_COMMAND, 1);
     if ((pci_get_device(dev) == 0x1960) || (pci_get_device(dev) == 0x0407) ||
+	(pci_get_device(dev) == 0x0408) || (pci_get_device(dev) == 0x0409) ||
 	(pci_get_device(dev) == 0x000e) || (pci_get_device(dev) == 0x000f) ||
 	(pci_get_device(dev) == 0x0013)) {
 	/*
@@ -233,7 +237,7 @@ amr_pci_attach(device_t dev)
         device_printf(sc->amr_dev, "can't allocate interrupt\n");
 	goto out;
     }
-    if (bus_setup_intr(sc->amr_dev, sc->amr_irq, INTR_TYPE_BIO | INTR_ENTROPY, amr_pci_intr, sc, &sc->amr_intr)) {
+    if (bus_setup_intr(sc->amr_dev, sc->amr_irq, INTR_TYPE_BIO | INTR_ENTROPY | INTR_MPSAFE, amr_pci_intr, sc, &sc->amr_intr)) {
         device_printf(sc->amr_dev, "can't set up interrupt\n");
 	goto out;
     }
@@ -271,7 +275,7 @@ amr_pci_attach(device_t dev)
 			   MAXBSIZE, AMR_NSEG,		/* maxsize, nsegments */
 			   MAXBSIZE,			/* maxsegsize */
 			   BUS_DMA_ALLOCNOW,		/* flags */
-			   busdma_lock_mutex, &Giant,	/* lockfunc, lockarg */
+			   busdma_lock_mutex, &sc->amr_io_lock,	/* lockfunc, lockarg */
 			   &sc->amr_buffer_dmat)) {
         device_printf(sc->amr_dev, "can't allocate buffer DMA tag\n");
 	goto out;
@@ -423,7 +427,9 @@ amr_pci_intr(void *arg)
     debug_called(2);
 
     /* collect finished commands, queue anything waiting */
+    mtx_lock(&sc->amr_io_lock);
     amr_done(sc);
+    mtx_unlock(&sc->amr_io_lock);
 }
 
 /********************************************************************************

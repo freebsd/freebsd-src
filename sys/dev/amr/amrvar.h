@@ -57,9 +57,12 @@
  */
 
 #if __FreeBSD_version >= 500005
-# include <sys/taskqueue.h>
 # include <geom/geom_disk.h>
+# include <sys/lock.h>
+# include <sys/mutex.h>
 #endif
+
+#define LSI_DESC_PCI "LSILogic MegaRAID 1.51"
 
 #ifdef AMR_DEBUG
 # define debug(level, fmt, args...)	do {if (level <= AMR_DEBUG) printf("%s: " fmt "\n", __func__ , ##args);} while(0)
@@ -174,6 +177,7 @@ struct amr_softc
     bus_dmamap_t		amr_sg_dmamap;		/* map for s/g buffers */
 
     /* controller limits and features */
+    int				amr_nextslot;		/* Next slot to use for newly allocated commands */
     int				amr_maxio;		/* maximum number of I/O transactions */
     int				amr_maxdrives;		/* max number of logical drives */
     int				amr_maxchan;		/* count of SCSI channels */
@@ -202,6 +206,7 @@ struct amr_softc
     /* CAM attachments for passthrough */
     struct cam_sim		*amr_cam_sim[AMR_MAX_CHANNELS];
     TAILQ_HEAD(, ccb_hdr)	amr_cam_ccbq;
+    struct cam_devq		*amr_cam_devq;
 
     /* control device */
     struct cdev *amr_dev_t;
@@ -221,9 +226,7 @@ struct amr_softc
     /* misc glue */
     struct intr_config_hook	amr_ich;		/* wait-for-interrupts probe hook */
     struct callout_handle	amr_timeout;		/* periodic status check */
-#if __FreeBSD_version >= 500005
-    struct task			amr_task_complete;	/* deferred-completion task */
-#endif
+    struct mtx			amr_io_lock;
 };
 
 /*

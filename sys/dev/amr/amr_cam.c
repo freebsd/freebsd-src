@@ -139,10 +139,12 @@ amr_cam_attach(struct amr_softc *sc)
     /*
      * Allocate a devq for all our channels combined.  This should
      * allow for the maximum number of SCSI commands we will accept
-     * at one time.
+     * at one time. Save the pointer in the softc so we can find it later
+     * during detach.
      */
     if ((devq = cam_simq_alloc(AMR_MAX_SCSI_CMDS)) == NULL)
 	return(ENOMEM);
+    sc->amr_cam_devq = devq;
 
     /*
      * Iterate over our channels, registering them with CAM
@@ -182,19 +184,22 @@ amr_cam_attach(struct amr_softc *sc)
 void
 amr_cam_detach(struct amr_softc *sc)
 {
-    int		chn, first;
+    int		chn;
 
-    for (chn = 0, first = 1; chn < sc->amr_maxchan; chn++) {
+    for (chn = 0; chn < sc->amr_maxchan; chn++) {
 
 	/*
 	 * If a sim was allocated for this channel, free it
 	 */
 	if (sc->amr_cam_sim[chn] != NULL) {
 	    xpt_bus_deregister(cam_sim_path(sc->amr_cam_sim[chn]));
-	    cam_sim_free(sc->amr_cam_sim[chn], first ? TRUE : FALSE);
-	    first = 0;
+	    cam_sim_free(sc->amr_cam_sim[chn], FALSE);
 	}
     }
+
+    /* Now free the devq */
+    if (sc->amr_cam_devq != NULL)
+	cam_simq_free(sc->amr_cam_devq);
 }
 
 /********************************************************************************
@@ -257,8 +262,10 @@ amr_cam_action(struct cam_sim *sim, union ccb *ccb)
 	    /* save the channel number in the ccb */
 	    csio->ccb_h.sim_priv.entries[0].field = cam_sim_bus(sim);
 
+	    mtx_lock(&sc->amr_io_lock);
 	    amr_enqueue_ccb(sc, ccb);
 	    amr_startio(sc);
+	    mtx_unlock(&sc->amr_io_lock);
 	    return;
 	}
 	break;
@@ -486,7 +493,11 @@ out:
 static void
 amr_cam_poll(struct cam_sim *sim)
 {
+    struct amr_softc	*sc = cam_sim_softc(sim);
+
+    mtx_lock(&sc->amr_io_lock);
     amr_done(cam_sim_softc(sim));
+    mtx_unlock(&sc->amr_io_lock);
 }
 
  /********************************************************************************
