@@ -1,9 +1,8 @@
 # $FreeBSD$ 
 
 MAINTAINER  =  grog@FreeBSD.org
-SOURCE=	${.CURDIR}/../../dev/vinum
 
-.PATH:  ${SOURCE}
+.PATH:  ${.CURDIR}/../../dev/vinum
 KMOD=   vinum
 SRCS=   vnode_if.h opt_vinum.h vinumstate.h vinumvar.h \
 	vinumhdr.h request.h vinumext.h vinumio.h vinumkw.h \
@@ -17,12 +16,7 @@ NOMAN=
 # Otherwise a number of ioctls will fail.
 CFLAGS+=	-DVINUMDEBUG -g -O
 
-CLEANFILES+=    vnode_if.h vnode_if.c opt_vinum.h
-
 all:
-
-opt_vinum.h:
-	@touch opt_vinum.h
 
 state.h:  maketabs vinumstate.h
 	./maketabs >state.h

@@ -11,14 +11,12 @@
 
 # $FreeBSD$
 
-S=	${.CURDIR}/../..
-.PATH:  $S/dev/bktr
+.PATH:  ${.CURDIR}/../../dev/bktr
 KMOD=	bktr 
 SRCS=	bktr_core.c bktr_os.c bktr_audio.c bktr_tuner.c bktr_card.c \
 	bktr.h opt_devfs.h opt_bktr.h smbus.h bus_if.h device_if.h \
 	pci_if.h vnode_if.h
-CLEANFILES += bktr.h opt_devfs.h opt_bktr.h smbus.h bus_if.h device_if.h \
-	pci_if.h vnode_if.h vnode_if.c
+CLEANFILES= bktr.h smbus.h
 
 bktr.h:
 	echo "#define NBKTR 1" > bktr.h
@@ -27,20 +25,5 @@ bktr.h:
 # the bt848 driver.
 smbus.h:
 	echo "#define NSMBUS 0" > smbus.h
-
-opt_devfs.h:
-	touch opt_devfs.h
-
-opt_bktr.h:
-	touch opt_bktr.h
-
-device_if.h: $S/kern/makedevops.pl $S/kern/device_if.m
-	perl $S/kern/makedevops.pl -h $S/kern/device_if.m
-
-bus_if.h: $S/kern/makedevops.pl $S/kern/bus_if.m
-	perl $S/kern/makedevops.pl -h $S/kern/bus_if.m
-
-pci_if.h: $S/kern/makedevops.pl $S/pci/pci_if.m
-	perl $S/kern/makedevops.pl -h $S/pci/pci_if.m
 
 .include <bsd.kmod.mk>

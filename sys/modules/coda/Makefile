@@ -7,10 +7,7 @@ SRCS=	coda_fbsd.c coda_namecache.c coda_psdev.c coda_subr.c \
 NOMAN=
 VFS_KLD=
 
-CLEANFILES+=	vcoda.h opt_devfs.h
-
-opt_devfs.h:
-	touch opt_devfs.h
+CLEANFILES=	vcoda.h
 
 vcoda.h:
 	echo "#define NVCODA 4" > vcoda.h

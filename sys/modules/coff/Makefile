@@ -4,7 +4,6 @@
 KMOD=	ibcs2_coff
 SRCS= 	imgact_coff.c vnode_if.h
 NOMAN=
-CLEANFILES+=	vnode_if.h vnode_if.c
 CFLAGS+=	-DCOMPAT_IBCS2
 KMODDEPS=	ibcs2
 

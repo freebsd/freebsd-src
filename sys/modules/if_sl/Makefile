@@ -9,7 +9,7 @@ NSL?=		2
 PROTOS?=	-DINET
 
 CFLAGS+= ${PROTOS}
-CLEANFILES+=	opt_inet.h sl.h
+CLEANFILES=	sl.h
 
 opt_inet.h:
 	echo "#define INET 1" > opt_inet.h

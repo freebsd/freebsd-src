@@ -11,11 +11,7 @@ SRCS=	ibcs2_errno.c ibcs2_ipc.c ibcs2_stat.c ibcs2_misc.c \
 MAN8=	ibcs2.8
 
 CFLAGS+= -DCOMPAT_IBCS2
-CLEANFILES+= vnode_if.h vnode_if.c opt_spx_hack.h
 EXPORT_SYMS= _ibcs2_mod _ibcs2_emul_path _ibcs2_svr3_sysvec
-
-opt_spx_hack.h:
-	touch	opt_spx_hack.h
 
 afterinstall:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \

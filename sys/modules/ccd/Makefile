@@ -6,7 +6,7 @@ SRCS=   ccd.c ccd.h vnode_if.h
 NOMAN=
 
 NCCD?=          4
-CLEANFILES+=    ccd.h vnode_if.h vnode_if.c
+CLEANFILES=	ccd.h
 
 ccd.h:
 	echo "#define NCCD ${NCCD}" > ccd.h
