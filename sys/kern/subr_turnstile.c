@@ -115,7 +115,7 @@ struct turnstile {
 	LIST_ENTRY(turnstile) ts_link;		/* (q) Contested locks. */
 	LIST_HEAD(, turnstile) ts_free;		/* (c) Free turnstiles. */
 	struct lock_object *ts_lockobj;		/* (c) Lock we reference. */
-	struct thread *ts_owner;		/* (q) Who owns the lock. */
+	struct thread *ts_owner;		/* (c + q) Who owns the lock. */
 };
 
 struct turnstile_chain {
@@ -231,6 +231,16 @@ propagate_priority(struct thread *td)
 		MPASS(ts != NULL);
 		tc = TC_LOOKUP(ts->ts_lockobj);
 		mtx_lock_spin(&tc->tc_lock);
+
+		/*
+		 * If this turnstile has no threads on its blocked queue
+		 * then it's possible that it was just woken up on another
+		 * CPU.  If so, we are done.
+		 */
+		if (TAILQ_EMPTY(&ts->ts_blocked)) {
+			mtx_unlock_spin(&tc->tc_lock);
+			return;
+		}
 
 		/*
 		 * Check if the thread needs to be moved up on
@@ -594,7 +604,7 @@ turnstile_wakeup(struct turnstile *ts)
 		td->td_turnstile = ts1;
 	}
 }
-	
+
 /*
  * Wakeup all threads on the pending list and adjust the priority of the
  * current thread appropriately.  This must be called with the turnstile
@@ -632,9 +642,7 @@ turnstile_unpend(struct turnstile *ts)
 	 * owner.
 	 */
 	mtx_lock_spin(&td_contested_lock);
-#ifdef INVARIANTS
 	ts->ts_owner = NULL;
-#endif
 	LIST_REMOVE(ts, ts_link);
 	mtx_unlock_spin(&td_contested_lock);
 	mtx_unlock_spin(&tc->tc_lock);
