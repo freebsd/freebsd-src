@@ -90,6 +90,7 @@ MAN4=	aac.4 \
 	ng_ksocket.4 \
 	ng_lmi.4 \
 	ng_mppc.4 \
+	ng_one2many.4 \
 	ng_ppp.4 \
 	ng_pppoe.4 \
 	ng_pptpgre.4 \
