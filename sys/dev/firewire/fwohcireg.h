@@ -34,7 +34,7 @@
  * $FreeBSD$
  *
  */
-#define		PCI_CBMEM		0x10
+#define		PCI_CBMEM		PCIR_BAR(0)
 
 #define		FW_VENDORID_NEC		0x1033
 #define		FW_VENDORID_TI		0x104c
