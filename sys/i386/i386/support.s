@@ -361,6 +361,7 @@ ENTRY(sse2_pagezero)
 	addl	$4,%ecx
 	cmpl	%ecx,%eax
 	jne	1b
+	sfence
 	popl	%ebx
 	ret
 
