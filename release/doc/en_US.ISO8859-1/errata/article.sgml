@@ -171,7 +171,18 @@
       &release.prev; security fix branch and in &os;
       &release.bugfix;.  Information on the bug fix can be found in
       security advisory <ulink
-      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:03.mail.asc">FreeBSD-SA-04:03</ulink>.</para>
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:03.jail.asc">FreeBSD-SA-04:03</ulink>.</para>
+
+    <para>(4 Mar 2004) It is possible for a remote attacker to conduct
+      a low-bandwidth denial-of-service attack against a machine
+      providing TCP-based services, filling up the target's memory
+      buffers and potentially leading to a system crash.  This
+      vulnerability has been addressed on the &os; &release.prev;
+      security fix branch, but is present in both &os; &release.prev;
+      and &release.bugfix;.  Security advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:04.tcp.asc">FreeBSD-SA-04:04</ulink>
+      contains more details, as well as information on patching
+      existing systems.</para>
 
 ]]>
 
