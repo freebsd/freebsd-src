@@ -108,8 +108,4 @@ struct pipe {
 	int	pipe_busy;		/* busy flag, mostly to handle rundown sanely */
 };
 
-#ifdef KERNEL
-int	pipe_stat __P((struct pipe *pipe, struct stat *ub));
-#endif
-
 #endif /* !_SYS_PIPE_H_ */
