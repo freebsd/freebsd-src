@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: console.h,v 1.11 1994/09/29 08:31:39 sos Exp $
+ *	$Id: console.h,v 1.12 1994/10/01 02:56:07 davidg Exp $
  */
 
 #ifndef	_CONSOLE_H_
@@ -57,6 +57,11 @@
 #define GIO_KEYMAP 	_IOR('k', 6, keymap_t)
 #define PIO_KEYMAP 	_IOW('k', 7, keymap_t)
 
+#define GIO_ATTR	_IOR('a', 0, long)
+#define GIO_COLOR	_IOR('c', 0, long)
+#define CONS_CURRENT	_IOR('c', 1, long)
+#define CONS_GET	_IOR('c', 2, long)
+/* #define CONS_IO		_IO('c', 3, long) */
 #define CONS_BLANKTIME	_IOW('c', 4, long)
 #define CONS_SSAVER	_IOW('c', 5, ssaver_t)
 #define CONS_GSAVER	_IOWR('c', 6, ssaver_t)
@@ -68,8 +73,6 @@
 #define GIO_FONT8x16	_IOR('c', 69, fnt16_t)
 #define CONS_GETINFO    _IOWR('c', 73, vid_info_t)
 #define CONS_GETVERS	_IOR('c', 74, long)
-#define CONS_80x25TEXT	_IO('c', 102)
-#define CONS_80x50TEXT	_IO('c', 103)
 
 #define VT_OPENQRY	_IOR('v', 1, int)
 #define VT_SETMODE	_IOW('v', 2, vtmode_t)	
