@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.136 1995/12/10 13:39:18 phk Exp $
+ *  $Id: syscons.c,v 1.137 1995/12/10 15:54:55 bde Exp $
  */
 
 #include "sc.h"
@@ -164,6 +164,7 @@ static	d_ioctl_t	scioctl;
 static	d_devtotty_t	scdevtotty;
 static	d_mmap_t	scmmap;
 
+#define CDEV_MAJOR 12
 static	struct cdevsw	scdevsw = {
 	scopen,		scclose,	scread,		scwrite,
 	scioctl,	nullstop,	noreset,	scdevtotty,
@@ -361,7 +362,11 @@ scattach(struct isa_device *dev)
 					DV_CHR, 0, 0, 0600 );
     }
 #endif
-    register_cdev("sc", &scdevsw);
+    {
+    dev_t dev = makedev(CDEV_MAJOR, 0);
+
+    cdevsw_add(&dev, &scdevsw, NULL);
+    }
 
     return 0;
 }
@@ -1181,20 +1186,18 @@ void
 sccnprobe(struct consdev *cp)
 {
     struct isa_device *dvp;
-    int maj;
 
     /*
      * Take control if we are the highest priority enabled display device.
      */
     dvp = find_display();
-    maj = getmajorbyname("sc");
-    if (dvp->id_driver != &scdriver || maj < 0) {
+    if (dvp != NULL && dvp->id_driver != &scdriver) {
 	cp->cn_pri = CN_DEAD;
 	return;
     }
 
     /* initialize required fields */
-    cp->cn_dev = makedev(maj, MAXCONS);
+    cp->cn_dev = makedev(CDEV_MAJOR, MAXCONS);
     cp->cn_pri = CN_INTERNAL;
 }
 
