@@ -19,6 +19,7 @@ LIBCIPHER?=	${DESTDIR}${LIBDIR}/libcipher.a	# XXX in secure dist, not base
 LIBCOM_ERR=	${DESTDIR}${LIBDIR}/libcom_err.a
 LIBCOMPAT?=	${DESTDIR}${LIBDIR}/libcompat.a
 LIBCRYPT?=	${DESTDIR}${LIBDIR}/libcrypt.a
+LIBCRYPTO?=	${DESTDIR}${LIBDIR}/libcrypto.a	# XXX in secure dist, not base
 LIBCURSES?=	${DESTDIR}${LIBDIR}/libcurses.a
 LIBDES?=	${DESTDIR}${LIBDIR}/libdes.a	# XXX in secure dist, not base
 LIBDEVSTAT?=	${DESTDIR}${LIBDIR}/libdevstat.a
@@ -58,8 +59,8 @@ LIBPAM?=	${DESTDIR}${LIBDIR}/libpam.a	# XXX doesn't exist
 MINUSLPAM?=	-lpam
 .if defined(NOSHARED) && ${NOSHARED} != "no" && ${NOSHARED} != "NO"
 .ifdef MAKE_KERBEROS4
-LIBPAM+=	${LIBKRB} ${LIBDES} ${LIBCOM_ERR}
-MINUSLPAM+=	-lkrb -ldes -lcom_err
+LIBPAM+=	${LIBKRB} ${LIBCRYPTO} ${LIBCOM_ERR}
+MINUSLPAM+=	-lkrb -lcrypto -lcom_err
 .endif
 LIBPAM+=	${LIBRADIUS} ${LIBTACPLUS} ${LIBSKEY} ${LIBCRYPT} ${LIBMD} \
 		${LIBUTIL}
@@ -74,6 +75,7 @@ LIBRADIUS?=	${DESTDIR}${LIBDIR}/libradius.a
 LIBREADLINE?=	${DESTDIR}${LIBDIR}/libreadline.a
 LIBRESOLV?=	${DESTDIR}${LIBDIR}/libresolv.a	# XXX doesn't exist
 LIBRPCSVC?=	${DESTDIR}${LIBDIR}/librpcsvc.a
+LIBRSAGLUE?=	${DESTDIR}${LIBDIR}/libRSAglue.a # XXX in US secure dist, not base
 LIBSCRYPT?=	"don't use LIBSCRYPT, use LIBCRYPT"
 LIBDESCRYPT?=	"don't use LIBDESCRYPT, use LIBCRYPT"
 LIBSCSI?=	${DESTDIR}${LIBDIR}/libscsi.a
