@@ -808,7 +808,7 @@ syscall(int code, u_int64_t *args, struct trapframe *framep)
 		framep->tf_cr_iip += 16;
 	}
 			   
-	if (p->p_flag & P_KSES)
+	if (p->p_flag & P_THREADED)
 		thread_user_enter(p, td);
 #ifdef DIAGNOSTIC
 	ia64_fpstate_check(td);

@@ -109,7 +109,7 @@ userret(td, frame, oticks)
 	/*
 	 * Do special thread processing, e.g. upcall tweaking and such.
 	 */
-	if (p->p_flag & P_KSES) {
+	if (p->p_flag & P_THREADED) {
 		thread_userret(td, frame);
 	}
 
@@ -256,7 +256,7 @@ ast(struct trapframe *framep)
 			sigs++;
 		}
 		PROC_UNLOCK(p);
-		if (p->p_flag & P_KSES && sigs)
+		if (p->p_flag & P_THREADED && sigs)
 			thread_signal_upcall(td);
 	}
 

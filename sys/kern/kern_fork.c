@@ -289,7 +289,7 @@ fork1(td, flags, pages, procp)
 		return (0);
 	}
 
-	if (p1->p_flag & P_KSES) {
+	if (p1->p_flag & P_THREADED) {
 		/*
 		 * Idle the other threads for a second.
 		 * Since the user space is copied, it must remain stable.
@@ -744,7 +744,7 @@ again:
 	/*
 	 * If other threads are waiting, let them continue now
 	 */
-	if (p1->p_flag & P_KSES) {
+	if (p1->p_flag & P_THREADED) {
 		PROC_LOCK(p1);
 		thread_single_end();
 		PROC_UNLOCK(p1);
@@ -758,7 +758,7 @@ again:
 fail:
 	sx_xunlock(&allproc_lock);
 	uma_zfree(proc_zone, newproc);
-	if (p1->p_flag & P_KSES) {
+	if (p1->p_flag & P_THREADED) {
 		PROC_LOCK(p1);
 		thread_single_end();
 		PROC_UNLOCK(p1);

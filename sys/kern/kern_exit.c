@@ -150,7 +150,7 @@ exit1(td, rv)
 	 * XXXKSE: MUST abort all other threads before proceeding past here.
 	 */
 	PROC_LOCK(p);
-	if (p->p_flag & P_KSES) {
+	if (p->p_flag & P_THREADED) {
 		/*
 		 * First check if some other thread got here before us..
 		 * if so, act apropriatly, (exit or suspend);
@@ -180,7 +180,7 @@ exit1(td, rv)
 		 * ... 
 		 * Turn off threading support.
 		 */
-		p->p_flag &= ~P_KSES;
+		p->p_flag &= ~P_THREADED;
 		thread_single_end(); 	/* Don't need this any more. */
 	}
 	/*

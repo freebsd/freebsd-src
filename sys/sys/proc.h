@@ -624,7 +624,7 @@ struct proc {
 #define	P_WAITED	0x01000	/* Someone is waiting for us */
 #define	P_WEXIT		0x02000	/* Working on exiting. */
 #define	P_EXEC		0x04000	/* Process called exec. */
-#define	P_KSES		0x08000	/* Process is using KSEs. */
+#define	P_THREADED	0x08000	/* Process is using threads. */
 #define	P_CONTINUED	0x10000	/* Proc has continued from a stopped state. */
 
 /* flags that control how threads may be suspended for some reason */

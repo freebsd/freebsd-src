@@ -958,7 +958,7 @@ syscall(frame)
 	td->td_frame = &frame;
 	if (td->td_ucred != p->p_ucred) 
 		cred_update_thread(td);
-	if (p->p_flag & P_KSES)
+	if (p->p_flag & P_THREADED)
 		thread_user_enter(p, td);
 	params = (caddr_t)frame.tf_esp + sizeof(int);
 	code = frame.tf_eax;

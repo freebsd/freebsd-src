@@ -125,7 +125,7 @@ db_ps(dummy1, dummy2, dummy3, dummy4)
 		    p->p_ucred != NULL ? p->p_ucred->cr_ruid : 0, pp->p_pid,
 		    p->p_pgrp != NULL ? p->p_pgrp->pg_id : 0, p->p_flag,
 		    state);
-		if (p->p_flag & P_KSES) 
+		if (p->p_flag & P_THREADED) 
 			db_printf("(threaded)  %s\n", p->p_comm);
 		FOREACH_THREAD_IN_PROC(p, td) {
 			dumpthread(p, td);
@@ -141,7 +141,7 @@ db_ps(dummy1, dummy2, dummy3, dummy4)
 static void
 dumpthread(volatile struct proc *p, volatile struct thread *td)
 {
-	if (p->p_flag & P_KSES) 
+	if (p->p_flag & P_THREADED) 
 		db_printf( "   thread %p ksegrp %p ", td, td->td_ksegrp);
 	if (TD_ON_SLEEPQ(td)) {
 		if (td->td_flags & TDF_CVWAITQ)
@@ -183,7 +183,7 @@ dumpthread(volatile struct proc *p, volatile struct thread *td)
 	default:
 		panic("unknown thread state");
 	}
-	if (p->p_flag & P_KSES) {
+	if (p->p_flag & P_THREADED) {
 		if (td->td_kse)
 			db_printf("[kse %p]", td->td_kse);
 		db_printf("\n");
