@@ -5,10 +5,10 @@ NOSHARED?=	YES
 
 .if exists (${.CURDIR}/../../secure)
 
-.if exists(${.CURDIR}/../../secure/lib/libcrypt/obj)
-CRYPTOBJDIR=	${.CURDIR}/../../secure/lib/libcrypt/obj
+.if exists(${.CURDIR}/../../secure/lib/libcipher/obj)
+CIPHEROBJDIR=    ${.CURDIR}/../../secure/lib/libcipher/obj
 .else
-CRYPTOBJDIR=	${.CURDIR}/../../secure/lib/libcrypt
+CIPHEROBJDIR=    ${.CURDIR}/../../secure/lib/libcipher
 .endif
 
 .endif
