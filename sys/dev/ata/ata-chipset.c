@@ -697,7 +697,7 @@ ata_highpoint_setmode(struct ata_device *atadev, int mode)
 
     mode = ata_limit_mode(atadev, mode, ctlr->chip->max_dma);
 
-    if (ctlr->chip->cfg1 == HPT366 && ATAPI_DEVICE(atadev));
+    if (ctlr->chip->cfg1 == HPT366 && ATAPI_DEVICE(atadev))
 	mode = ata_limit_mode(atadev, mode, ATA_PIO_MAX);
 
     mode = ata_highpoint_check_80pin(atadev, mode);
