@@ -132,8 +132,8 @@ struct pccard_function {
 	int		number;
 	int		function;
 	int		last_config_index;
-	u_long		ccr_base;
-	u_long		ccr_mask;
+	uint32_t	ccr_base;	/* Offset with card's memory */
+	uint32_t	ccr_mask;
 	struct resource *ccr_res;
 	int		ccr_rid;
 	STAILQ_HEAD(, pccard_config_entry) cfe_head;
@@ -146,9 +146,9 @@ struct pccard_function {
 #define	pf_ccrt		pf_pcmh.memt
 #define	pf_ccrh		pf_pcmh.memh
 #define	pf_ccr_realsize	pf_pcmh.realsize
-	bus_addr_t	pf_ccr_offset;
+	uint32_t	pf_ccr_offset;	/* Offset from ccr_base of CIS */
 	int		pf_ccr_window;
-	long		pf_mfc_iobase;
+	long		pf_mfc_iobase;	/* Right type? */
 	long		pf_mfc_iomax;
 	int		pf_flags;
 	driver_intr_t	*intr_handler;
