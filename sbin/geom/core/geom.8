@@ -94,6 +94,8 @@ RAID3
 .It
 STRIPE
 .El
+.Sh EXIT STATUS
+Exit status is 0 on success, and 1 if the command fails.
 .Sh EXAMPLES
 The following example shows how to set up a stripe on three disks for automatic
 configuration:
@@ -112,8 +114,6 @@ Unload a kernel module which implements the MD class:
 .Bd -literal -offset indent
 geom md unload
 .Ed
-.Sh EXIT STATUS
-Exit status is 0 on success, and 1 if the command fails.
 .Sh SEE ALSO
 .Xr geom 4 ,
 .Xr gconcat 8 ,

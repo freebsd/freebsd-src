@@ -235,6 +235,25 @@ denote
 .It "user.stream_max	integer	no
 .It "user.tzname_max	integer	no
 .El
+.Sh FILES
+.Bl -tag -width ".In netinet/icmp_var.h" -compact
+.It In sys/sysctl.h
+definitions for top level identifiers, second level kernel and hardware
+identifiers, and user level identifiers
+.It In sys/socket.h
+definitions for second level network identifiers
+.It In sys/gmon.h
+definitions for third level profiling identifiers
+.It In vm/vm_param.h
+definitions for second level virtual memory identifiers
+.It In netinet/in.h
+definitions for third level Internet identifiers and
+fourth level IP identifiers
+.It In netinet/icmp_var.h
+definitions for fourth level ICMP identifiers
+.It In netinet/udp_var.h
+definitions for fourth level UDP identifiers
+.El
 .Sh EXAMPLES
 For example, to retrieve the maximum number of processes allowed
 in the system, one would use the following request:
@@ -265,25 +284,6 @@ Information about the load average history may be obtained with:
 More variables than these exist, and the best and likely only place
 to search for their deeper meaning is undoubtedly the source where
 they are defined.
-.Sh FILES
-.Bl -tag -width ".In netinet/icmp_var.h" -compact
-.It In sys/sysctl.h
-definitions for top level identifiers, second level kernel and hardware
-identifiers, and user level identifiers
-.It In sys/socket.h
-definitions for second level network identifiers
-.It In sys/gmon.h
-definitions for third level profiling identifiers
-.It In vm/vm_param.h
-definitions for second level virtual memory identifiers
-.It In netinet/in.h
-definitions for third level Internet identifiers and
-fourth level IP identifiers
-.It In netinet/icmp_var.h
-definitions for fourth level ICMP identifiers
-.It In netinet/udp_var.h
-definitions for fourth level UDP identifiers
-.El
 .Sh COMPATIBILITY
 The
 .Fl w
@@ -293,13 +293,6 @@ option has been deprecated and is silently ignored.
 .Xr loader.conf 5 ,
 .Xr sysctl.conf 5 ,
 .Xr loader 8
-.Sh BUGS
-The
-.Nm
-utility presently exploits an undocumented interface to the kernel
-sysctl facility to traverse the sysctl tree and to retrieve format
-and name information.
-This correct interface is being thought about for the time being.
 .Sh HISTORY
 A
 .Nm
@@ -310,3 +303,10 @@ In
 .Fx 2.2 ,
 .Nm
 was significantly remodeled.
+.Sh BUGS
+The
+.Nm
+utility presently exploits an undocumented interface to the kernel
+sysctl facility to traverse the sysctl tree and to retrieve format
+and name information.
+This correct interface is being thought about for the time being.

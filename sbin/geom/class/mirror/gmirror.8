@@ -220,6 +220,8 @@ Additional options include:
 .It Fl v
 Be more verbose.
 .El
+.Sh EXIT STATUS
+Exit status is 0 on success, and 1 if the command fails.
 .Sh EXAMPLES
 Use 3 disks to setup a mirror.
 Choose split balance algorithm, split only
@@ -268,8 +270,6 @@ gmirror deactivate data da1
 dd if=/dev/da1 of=/backup/data.img bs=1m
 gmirror activate data da1
 .Ed
-.Sh EXIT STATUS
-Exit status is 0 on success, and 1 if the command fails.
 .Sh SEE ALSO
 .Xr geom 4 ,
 .Xr geom 8 ,

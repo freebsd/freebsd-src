@@ -129,6 +129,11 @@ The component devices need to name partitions of type
 .Dq 4.2BSD
 as shown by
 .Xr disklabel 8 ) .
+.Sh FILES
+.Bl -tag -width /etc/ccd.conf -compact
+.It Pa /etc/ccd.conf
+default ccd configuration file
+.El
 .Sh EXAMPLES
 A number of
 .Nm
@@ -209,11 +214,6 @@ or software RAID systems such as
 .Xr geom 8
 and
 .Xr vinum 8 .
-.Sh FILES
-.Bl -tag -width /etc/ccd.conf -compact
-.It Pa /etc/ccd.conf
-default ccd configuration file
-.El
 .Sh SEE ALSO
 .Xr dd 1 ,
 .Xr ccd 4 ,
@@ -222,6 +222,11 @@ default ccd configuration file
 .Xr fdisk 8 ,
 .Xr rc 8 ,
 .Xr vinum 8
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Nx 1.0a .
 .Sh BUGS
 The initial disklabel returned by
 .Xr ccd 4
@@ -231,8 +236,3 @@ One needs to change the number of paritions to 8 using
 to get the usual
 .Bx
 expectations.
-.Sh HISTORY
-The
-.Nm
-utility first appeared in
-.Nx 1.0a .

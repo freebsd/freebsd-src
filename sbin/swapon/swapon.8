@@ -146,16 +146,6 @@ environment variable is used if not specifically
 overridden.
 512 byte blocks are used by default.
 .El
-.Sh DIAGNOSTICS
-These utilities may fail for the reasons described in
-.Xr swapon 2 .
-.Sh SEE ALSO
-.Xr swapon 2 ,
-.Xr fstab 5 ,
-.Xr init 8 ,
-.Xr mdconfig 8 ,
-.Xr pstat 8 ,
-.Xr rc 8
 .Sh FILES
 .Bl -tag -width ".Pa /dev/{ad,da}?s?b" -compact
 .It Pa /dev/{ad,da}?s?b
@@ -166,6 +156,16 @@ memory disk devices
 .Tn ASCII
 file system description table
 .El
+.Sh DIAGNOSTICS
+These utilities may fail for the reasons described in
+.Xr swapon 2 .
+.Sh SEE ALSO
+.Xr swapon 2 ,
+.Xr fstab 5 ,
+.Xr init 8 ,
+.Xr mdconfig 8 ,
+.Xr pstat 8 ,
+.Xr rc 8
 .Sh HISTORY
 The
 .Nm swapon

@@ -112,22 +112,22 @@ it will ask
 A positive response will cause
 .Xr fsck 8
 to convert the inode to a regular file containing the bad block.
-.Sh SEE ALSO
-.Xr fsck 8
 .Sh DIAGNOSTICS
 The
 .Nm
 utility refuses to attach a block that
 resides in a critical area or is out of range of the file system.
 A warning is issued if the block is already in use.
+.Sh SEE ALSO
+.Xr fsck 8
+.Sh HISTORY
+The
+.Nm
+utility appeared in
+.Bx 4.1 .
 .Sh BUGS
 If more than one sector which comprise a file system fragment are bad,
 you should specify only one of them to
 .Nm ,
 as the blocks in the bad sector files actually cover all the sectors in a
 file system fragment.
-.Sh HISTORY
-The
-.Nm
-utility appeared in
-.Bx 4.1 .

@@ -412,16 +412,6 @@ Verbose mode.
 .It Fl w
 The file system object is to be read and write.
 .El
-.Sh DIAGNOSTICS
-Various, most of them are self-explanatory.
-.Pp
-.Dl XXXXX file system is not available
-.Pp
-The kernel does not support the respective file system type.
-Note that
-support for a particular file system might be provided either on a static
-(kernel compile-time), or dynamic basis (loaded as a kernel module by
-.Xr kldload 8 ) .
 .Sh ENVIRONMENT
 .Bl -tag -width ".Ev PATH_FSTAB"
 .It Ev PATH_FSTAB
@@ -441,6 +431,16 @@ for more information.)
 .It Pa /etc/fstab
 file system table
 .El
+.Sh DIAGNOSTICS
+Various, most of them are self-explanatory.
+.Pp
+.Dl XXXXX file system is not available
+.Pp
+The kernel does not support the respective file system type.
+Note that
+support for a particular file system might be provided either on a static
+(kernel compile-time), or dynamic basis (loaded as a kernel module by
+.Xr kldload 8 ) .
 .Sh SEE ALSO
 .Xr getfacl 1 ,
 .Xr setfacl 1 ,
@@ -468,8 +468,6 @@ file system table
 .Xr mount_umapfs 8 ,
 .Xr mount_unionfs 8 ,
 .Xr umount 8
-.Sh BUGS
-It is possible for a corrupted file system to cause a crash.
 .Sh CAVEATS
 After a successful
 .Nm ,
@@ -484,3 +482,5 @@ A
 .Nm
 utility appeared in
 .At v1 .
+.Sh BUGS
+It is possible for a corrupted file system to cause a crash.

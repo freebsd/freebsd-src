@@ -116,6 +116,13 @@ variable of
 .Xr loader 8
 must be used to enable dumps for system panics which occur
 during kernel initialization.
+.Sh FILES
+.Bl -tag -width "/dev/{ad,da}?s?b" -compact
+.It Pa /dev/{ad,da}?s?b
+standard swap areas
+.It Pa /etc/rc.conf
+boot-time system configuration
+.El
 .Sh SEE ALSO
 .Xr fstab 5 ,
 .Xr rc.conf 5 ,
@@ -126,18 +133,11 @@ during kernel initialization.
 .Xr savecore 8 ,
 .Xr swapon 8 ,
 .Xr panic 9
-.Sh FILES
-.Bl -tag -width "/dev/{ad,da}?s?b" -compact
-.It Pa /dev/{ad,da}?s?b
-standard swap areas
-.It Pa /etc/rc.conf
-boot-time system configuration
-.El
-.Sh BUGS
-Because the file system layer is already dead by the time a crash dump
-is taken, it is not possible to send crash dumps directly to a file.
 .Sh HISTORY
 The
 .Nm
 utility appeared in
 .Fx 2.1 .
+.Sh BUGS
+Because the file system layer is already dead by the time a crash dump
+is taken, it is not possible to send crash dumps directly to a file.
