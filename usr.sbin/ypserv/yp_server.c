@@ -45,7 +45,7 @@
 #include <rpc/rpc.h>
 
 #ifndef lint
-static char rcsid[] = "$Id: yp_server.c,v 1.5 1996/04/26 04:35:53 wpaul Exp wpaul $";
+static const char rcsid[] = "$Id: yp_server.c,v 1.9 1996/04/28 04:38:52 wpaul Exp $";
 #endif /* not lint */
 
 int forked = 0;
@@ -53,10 +53,6 @@ int children = 0;
 DB *spec_dbp = NULL;	/* Special global DB handle for ypproc_all. */
 char *master_string = "YP_MASTER_NAME";
 char *order_string = "YP_LAST_MODIFIED";
-
-#define YP_ALL_TIMEOUT 10
-
-static int yp_all_timed_out = 0;
 
 /*
  * NIS v2 support. This is where most of the action happens.
@@ -646,7 +642,7 @@ static struct ypmaplist *yp_maplist_create(domain)
 						!S_ISREG(statbuf.st_mode))
 				continue;
 			if ((cur = (struct ypmaplist *)
-					malloc(sizeof(struct ypmaplist))) < 0) {
+				malloc(sizeof(struct ypmaplist))) == NULL) {
 				yp_error("malloc() failed: %s",strerror(errno));
 				closedir(dird);
 				yp_maplist_free(yp_maplist);
