@@ -183,7 +183,7 @@ clean:	_SUBDIR
 
 .if defined(SRCS)
 afterdepend:
-	@(TMP=/tmp/_depend$$$$; \
+	@(TMP=_depend$$$$; \
 	sed -e 's/^\([^\.]*\).o[ ]*:/\1.o \1.po \1.so:/' < .depend > $$TMP; \
 	mv $$TMP .depend)
 .endif
