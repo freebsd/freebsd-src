@@ -211,8 +211,8 @@ struct ata_pci_softc {
     int32_t irqcnt;
 };
 
-static int32_t
-ata_find_dev(device_t dev, int32_t type)
+int32_t
+ata_find_dev(device_t dev, int32_t type, int32_t revid)
 {
     device_t *children, child;
     int nchildren, i;
@@ -226,7 +226,8 @@ ata_find_dev(device_t dev, int32_t type)
 	/* check that it's on the same silicon and the device we want */
 	if (pci_get_slot(dev) == pci_get_slot(child) &&
 	    pci_get_vendor(child) == (type & 0xffff) &&
-	    pci_get_device(child) == ((type & 0xffff0000) >> 16)) {
+	    pci_get_device(child) == ((type & 0xffff0000) >> 16) &&
+	    pci_get_revid(child) >= revid) {
 	    free(children, M_TEMP);
 	    return 1;
 	}
@@ -263,11 +264,13 @@ ata_pci_match(device_t dev)
 	return "AcerLabs Aladdin ATA33 controller";
 
     case 0x05711106: 
-	if (ata_find_dev(dev, 0x05861106))
+	if (ata_find_dev(dev, 0x05861106, 0))
 	    return "VIA 82C586 ATA33 controller";
-	if (ata_find_dev(dev, 0x05961106))
+	if (ata_find_dev(dev, 0x05961106, 0x12))
+	    return "VIA 82C596B ATA66 controller";
+	if (ata_find_dev(dev, 0x05961106, 0))
 	    return "VIA 82C596 ATA33 controller";
-	if (ata_find_dev(dev, 0x06861106))
+	if (ata_find_dev(dev, 0x06861106, 0))
 	    return "VIA 82C686 ATA66 controller";
 	return "VIA Apollo ATA controller";
 
@@ -428,8 +431,9 @@ ata_pci_attach(device_t dev)
 	pci_write_config(dev, 0x60, DEV_BSIZE, 2);
 	pci_write_config(dev, 0x68, DEV_BSIZE, 2);
 	
-	/* prepare for ATA-66 on the 82C686 */
-	if (ata_find_dev(dev, 0x06861106)) {
+	/* prepare for ATA-66 on the 82C686 and rev 0x12 and newer 82C596's */
+	if (ata_find_dev(dev, 0x06861106, 0) || 
+	    ata_find_dev(dev, 0x05961106, 0x12)) {
 	    pci_write_config(dev, 0x50, 
 			     pci_read_config(dev, 0x50, 4) | 0x070f070f, 4);   
 	}
@@ -697,11 +701,11 @@ ata_pcisub_probe(device_t dev)
     scp->unit = (uintptr_t) device_get_ivars(dev);
 
     /* set the chiptype to the hostchip ID, makes life easier */
-    if (ata_find_dev(device_get_parent(dev), 0x05861106))
+    if (ata_find_dev(device_get_parent(dev), 0x05861106, 0))
 	scp->chiptype = 0x05861106;
-    else if (ata_find_dev(device_get_parent(dev), 0x05961106))
+    else if (ata_find_dev(device_get_parent(dev), 0x05961106, 0))
 	scp->chiptype = 0x05961106;
-    else if (ata_find_dev(device_get_parent(dev), 0x06861106))
+    else if (ata_find_dev(device_get_parent(dev), 0x06861106, 0))
 	scp->chiptype = 0x06861106;
     else
 	scp->chiptype = pci_get_devid(device_get_parent(dev));
