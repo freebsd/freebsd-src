@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.21 1994/08/22 14:28:57 bde Exp $
+ *	$Id: locore.s,v 1.22 1994/09/02 01:29:20 davidg Exp $
  */
 
 /*
@@ -146,13 +146,18 @@ NON_GPROF_ENTRY(btext)
 	jmp	1f
 	.org	0x500				/* space for BIOS variables */
 
+ 1:
+	/* don't trust what the BIOS gives for eflags */
+	pushl   $PSL_MBO
+	popfl
+
 	/*
 	 * pass parameters on stack (howto, bootdev, unit, cyloffset, esym)
 	 * note: (%esp) is return address of boot
 	 * ( if we want to hold onto /boot, it's physical %esp up to _end)
 	 */
 
- 1:	movl	4(%esp),%eax
+	movl	4(%esp),%eax
 	movl	%eax,_boothowto-KERNBASE
 	movl	8(%esp),%eax
 	movl	%eax,_bootdev-KERNBASE
