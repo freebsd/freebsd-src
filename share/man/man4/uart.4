@@ -38,7 +38,6 @@
 .Pp
 .Cd "device puc"
 .Cd "device uart"
-.Pp
 .\"
 .Sh DESCRIPTION
 The
@@ -77,8 +76,8 @@ option applies.
 .Ss CORE COMPONENT
 At the heart of the
 .Nm
-driver is the core component. It contains the bus attachments and the low-level
-interrupt handler.
+driver is the core component.
+It contains the bus attachments and the low-level interrupt handler.
 .\"
 .Ss HARDWARE DRIVERS
 The core component and the kernel interfaces talk to the hardware through the
@@ -113,3 +112,6 @@ The
 .Nm
 device driver first appeared in
 .Fx 5.2 .
+.Sh AUTHORS
+This manual page is written by
+.An Marcel Molenaar Aq marcel@FreeBSD.ORG .
