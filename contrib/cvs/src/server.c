@@ -714,17 +714,7 @@ serve_valid_responses (arg)
 	       cause deadlock, as noted in server_cleanup.  */
 	    buf_flush (buf_to_net, 1);
 
-	    /* I'm doing this manually rather than via error_exit ()
-	       because I'm not sure whether we want to call server_cleanup.
-	       Needs more investigation....  */
-
-#ifdef SYSTEM_CLEANUP
-	    /* Hook for OS-specific behavior, for example socket subsystems on
-	       NT and OS2 or dealing with windows and arguments on Mac.  */
-	    SYSTEM_CLEANUP ();
-#endif
-
-	    exit (EXIT_FAILURE);
+	    error_exit ();
 	}
 	else if (rs->status == rs_optional)
 	    rs->status = rs_not_supported;
@@ -869,7 +859,10 @@ outside_root (repos)
     /* I think isabsolute (repos) should always be true, and that
        any RELATIVE_REPOS stuff should only be in CVS/Repository
        files, not the protocol (for compatibility), but I'm putting
-       in the isabsolute check just in case.  */
+       in the isabsolute check just in case.
+     
+       This is a good security precaution regardless. -DRP
+     */
     if (!isabsolute (repos))
     {
 	if (alloc_pending (repos_len + 80))
@@ -2922,10 +2915,10 @@ error  \n");
 	    fd_set readfds;
 	    fd_set writefds;
 	    int numfds;
-#ifdef SERVER_FLOWCONTROL
-	    int bufmemsize;
 	    struct timeval *timeout_ptr;
 	    struct timeval timeout;
+#ifdef SERVER_FLOWCONTROL
+	    int bufmemsize;
 
 	    /*
 	     * See if we are swamping the remote client and filling our VM.
@@ -3217,10 +3210,13 @@ E CVS locks may need cleaning up.\n");
 	buf_flush (buf_to_net, 1);
 	buf_shutdown (protocol_inbuf);
 	buf_free (protocol_inbuf);
+	protocol_inbuf = NULL;
 	buf_shutdown (stderrbuf);
 	buf_free (stderrbuf);
+	stderrbuf = NULL;
 	buf_shutdown (stdoutbuf);
 	buf_free (stdoutbuf);
+	stdoutbuf = NULL;
     }
 
     if (errs)
@@ -3719,7 +3715,7 @@ static void
 serve_watch_on (arg)
     char *arg;
 {
-    do_cvs_command ("watch_on", watch_on);
+    do_cvs_command ("watch", watch_on);
 }
 
 static void serve_watch_off PROTO ((char *));
@@ -3728,7 +3724,7 @@ static void
 serve_watch_off (arg)
     char *arg;
 {
-    do_cvs_command ("watch_off", watch_off);
+    do_cvs_command ("watch", watch_off);
 }
 
 static void serve_watch_add PROTO ((char *));
@@ -3737,7 +3733,7 @@ static void
 serve_watch_add (arg)
     char *arg;
 {
-    do_cvs_command ("watch_add", watch_add);
+    do_cvs_command ("watch", watch_add);
 }
 
 static void serve_watch_remove PROTO ((char *));
@@ -3746,7 +3742,7 @@ static void
 serve_watch_remove (arg)
     char *arg;
 {
-    do_cvs_command ("watch_remove", watch_remove);
+    do_cvs_command ("watch", watch_remove);
 }
 
 static void serve_watchers PROTO ((char *));
@@ -4895,9 +4891,9 @@ server_cleanup (sig)
 
 	status = buf_shutdown (buf_from_net);
 	if (status != 0)
-	{
 	    error (0, status, "shutting down buffer from client");
-	}
+	buf_free (buf_from_net);
+	buf_from_net = NULL;
     }
 
     if (dont_delete_temp)
@@ -4906,6 +4902,9 @@ server_cleanup (sig)
 	{
 	    (void) buf_flush (buf_to_net, 1);
 	    (void) buf_shutdown (buf_to_net);
+	    buf_free (buf_to_net);
+	    buf_to_net = NULL;
+	    error_use_protocol = 0;
 	}
 	return;
     }
@@ -5007,6 +5006,9 @@ server_cleanup (sig)
     {
 	(void) buf_flush (buf_to_net, 1);
 	(void) buf_shutdown (buf_to_net);
+	buf_free (buf_to_net);
+	buf_to_net = NULL;
+	error_use_protocol = 0;
     }
 }
 
@@ -5017,6 +5019,8 @@ server (argc, argv)
      int argc;
      char **argv;
 {
+    char *error_prog_name;		/* Used in error messages */
+
     if (argc == -1)
     {
 	static const char *const msg[] =
@@ -5073,18 +5077,7 @@ server (argc, argv)
 		printf ("E Fatal server error, aborting.\n\
 error ENOMEM Virtual memory exhausted.\n");
 
-		/* I'm doing this manually rather than via error_exit ()
-		   because I'm not sure whether we want to call server_cleanup.
-		   Needs more investigation....  */
-
-#ifdef SYSTEM_CLEANUP
-		/* Hook for OS-specific behavior, for example socket
-		   subsystems on NT and OS2 or dealing with windows
-		   and arguments on Mac.  */
-		SYSTEM_CLEANUP ();
-#endif
-
-		exit (EXIT_FAILURE);
+		error_exit ();
 	    }
 	    strcpy (server_temp_dir, Tmpdir);
 
@@ -5148,63 +5141,23 @@ error ENOMEM Virtual memory exhausted.\n");
 	}
     }
 
-#ifdef SIGABRT
-    (void) SIG_register (SIGABRT, server_cleanup);
-#endif
-#ifdef SIGHUP
-    (void) SIG_register (SIGHUP, server_cleanup);
-#endif
-#ifdef SIGINT
-    (void) SIG_register (SIGINT, server_cleanup);
-#endif
-#ifdef SIGQUIT
-    (void) SIG_register (SIGQUIT, server_cleanup);
-#endif
-#ifdef SIGPIPE
-    (void) SIG_register (SIGPIPE, server_cleanup);
-#endif
-#ifdef SIGTERM
-    (void) SIG_register (SIGTERM, server_cleanup);
-#endif
-
     /* Now initialize our argument vector (for arguments from the client).  */
 
     /* Small for testing.  */
     argument_vector_size = 1;
     argument_vector =
-	(char **) malloc (argument_vector_size * sizeof (char *));
-    if (argument_vector == NULL)
-    {
-	/*
-	 * Strictly speaking, we're not supposed to output anything
-	 * now.  But we're about to exit(), give it a try.
-	 */
-	printf ("E Fatal server error, aborting.\n\
-error ENOMEM Virtual memory exhausted.\n");
-
-	/* I'm doing this manually rather than via error_exit ()
-	   because I'm not sure whether we want to call server_cleanup.
-	   Needs more investigation....  */
-
-#ifdef SYSTEM_CLEANUP
-	/* Hook for OS-specific behavior, for example socket subsystems on
-	   NT and OS2 or dealing with windows and arguments on Mac.  */
-	SYSTEM_CLEANUP ();
-#endif
-
-	exit (EXIT_FAILURE);
-    }
-
+	(char **) xmalloc (argument_vector_size * sizeof (char *));
     argument_count = 1;
     /* This gets printed if the client supports an option which the
        server doesn't, causing the server to print a usage message.
-       FIXME: probably should be using program_name here.
        FIXME: just a nit, I suppose, but the usage message the server
        prints isn't literally true--it suggests "cvs server" followed
        by options which are for a particular command.  Might be nice to
        say something like "client apparently supports an option not supported
        by this server" or something like that instead of usage message.  */
-    argument_vector[0] = "cvs server";
+    error_prog_name = xmalloc( strlen(program_name) + 8 );
+    sprintf(error_prog_name, "%s server", program_name);
+    argument_vector[0] = error_prog_name;
 
     while (1)
     {
@@ -5277,6 +5230,7 @@ error ENOMEM Virtual memory exhausted.\n");
 	}
 	free (orig_cmd);
     }
+    free(error_prog_name);
     server_cleanup (0);
     return 0;
 }
@@ -5426,8 +5380,8 @@ check_repository_password (username, password, repository, host_user_ptr)
     int found_it = 0;
     int namelen;
 
-    /* We don't use current_parsed_root->directory because it hasn't been set yet
-     * -- our `repository' argument came from the authentication
+    /* We don't use current_parsed_root->directory because it hasn't been
+     * set yet -- our `repository' argument came from the authentication
      * protocol, not the regular CVS protocol.
      */
 
@@ -5588,7 +5542,7 @@ check_password (username, password, repository)
     {
 	/* No cvs password found, so try /etc/passwd. */
 
-	const char *found_passwd = NULL;
+	char *found_passwd = NULL;
 	struct passwd *pw;
 #ifdef HAVE_GETSPNAM
 	struct spwd *spw;
@@ -5610,18 +5564,23 @@ check_password (username, password, repository)
 	    printf ("E Fatal error, aborting.\n\
 error 0 %s: no such user\n", username);
 
-	    /* I'm doing this manually rather than via error_exit ()
-	       because I'm not sure whether we want to call server_cleanup.
-	       Needs more investigation....  */
-
-#ifdef SYSTEM_CLEANUP
-	    /* Hook for OS-specific behavior, for example socket subsystems on
-	       NT and OS2 or dealing with windows and arguments on Mac.  */
-	    SYSTEM_CLEANUP ();
-#endif
-
-	    exit (EXIT_FAILURE);
+	    error_exit ();
 	}
+
+	/* Allow for dain bramaged HPUX passwd aging
+	 *  - Basically, HPUX adds a comma and some data
+	 *    about whether the passwd has expired or not
+	 *    on the end of the passwd field.
+	 *  - This code replaces the ',' with '\0'.
+	 *
+	 * FIXME - our workaround is brain damaged too.  I'm
+	 * guessing that HPUX WANTED other systems to think the
+	 * password was wrong so logins would fail if the
+	 * system didn't handle expired passwds and the passwd
+	 * might be expired.  I think the way to go here
+	 * is with PAM.
+	 */
+	strtok (found_passwd, ",");
 
 	if (*found_passwd)
         {
@@ -5655,16 +5614,7 @@ error 0 %s: no such user\n", username);
 	   outweighs this.  */
 	printf ("error 0 no such user %s in CVSROOT/passwd\n", username);
 
-	/* I'm doing this manually rather than via error_exit ()
-	   because I'm not sure whether we want to call server_cleanup.
-	   Needs more investigation....  */
-
-#ifdef SYSTEM_CLEANUP
-	/* Hook for OS-specific behavior, for example socket subsystems on
-	   NT and OS2 or dealing with windows and arguments on Mac.  */
-	SYSTEM_CLEANUP ();
-#endif
-	exit (EXIT_FAILURE);
+	error_exit ();
     }
     else
     {
@@ -5921,12 +5871,8 @@ kserver_authenticate_connection ()
     {
 	printf ("E Fatal error, aborting.\n\
 error %s getpeername or getsockname failed\n", strerror (errno));
-#ifdef SYSTEM_CLEANUP
-	/* Hook for OS-specific behavior, for example socket subsystems on
-	   NT and OS2 or dealing with windows and arguments on Mac.  */
-	SYSTEM_CLEANUP ();
-#endif
-	exit (EXIT_FAILURE);
+
+	error_exit ();
     }
 
 #ifdef SO_KEEPALIVE
@@ -5952,12 +5898,8 @@ error %s getpeername or getsockname failed\n", strerror (errno));
     {
 	printf ("E Fatal error, aborting.\n\
 error 0 kerberos: %s\n", krb_get_err_text(status));
-#ifdef SYSTEM_CLEANUP
-	/* Hook for OS-specific behavior, for example socket subsystems on
-	   NT and OS2 or dealing with windows and arguments on Mac.  */
-	SYSTEM_CLEANUP ();
-#endif
-	exit (EXIT_FAILURE);
+
+	error_exit ();
     }
 
     memcpy (kblock, auth.session, sizeof (C_Block));
@@ -5968,12 +5910,8 @@ error 0 kerberos: %s\n", krb_get_err_text(status));
     {
 	printf ("E Fatal error, aborting.\n\
 error 0 kerberos: can't get local name: %s\n", krb_get_err_text(status));
-#ifdef SYSTEM_CLEANUP
-	/* Hook for OS-specific behavior, for example socket subsystems on
-	   NT and OS2 or dealing with windows and arguments on Mac.  */
-	SYSTEM_CLEANUP ();
-#endif
-	exit (EXIT_FAILURE);
+
+	error_exit ();
     }
 
     /* Switch to run as this user. */
@@ -6362,12 +6300,12 @@ cvs_output (str, len)
     if (len == 0)
 	len = strlen (str);
 #ifdef SERVER_SUPPORT
-    if (error_use_protocol)
+    if (error_use_protocol && buf_to_net != NULL)
     {
 	buf_output (saved_output, str, len);
 	buf_copy_lines (buf_to_net, saved_output, 'M');
     }
-    else if (server_active)
+    else if (server_active && protocol != NULL)
     {
 	buf_output (saved_output, str, len);
 	buf_copy_lines (protocol, saved_output, 'M');

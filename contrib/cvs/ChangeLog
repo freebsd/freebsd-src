@@ -1,3 +1,277 @@
+2002-11-21  Larry Jones  <lawrence.jones@eds.com>
+
+	* configure.in: Add contrib/check_cvs.
+	* configure: Regenerated.
+
+2002-11-12  Derek Price  <derek@ximbiot.com>
+
+	* .cvsignore: Update autom4te ignore pattern for version number
+	included in path name by new versions of autom4te.
+
+2002-10-28  Derek Price  <derek@ximbiot.com>
+
+	* configure.in: Flesh out some comments in regards to Sun Interactive
+	UNIX (ISC).
+
+2002-09-24  Derek Price  <derek@ximbiot.com>
+
+	* configure.in (WITH_KRB4): Update WITH_KRB4 output to use
+	AC_MSG_CHECKING and AC_MSG_RESULT for consitency.
+	(with-editor): Update comment.
+
+	* configure: Regenerated.
+
+2002-09-24  Derek Price  <derek@ximbiot.com>
+
+	* configure.in (--enable-password-authenticated-client): New option.
+	(--enable-encryption): Increase the readability of the help text.
+
+	* configure: Regenerated.
+	* config.h.in: Ditto.
+
+2002-09-24  Derek Price  <derek@ximbiot.com>
+
+	* configure.in (enable-encryption): Move to a more sensible location
+	and print a warning if it is specified with neither the client or the
+	server enabled.
+	(--with-editor): Move to a closer resemblance to alphabetical order.
+	(enables and withs): Reformat help strings for consistency.
+	* acinclude.m4: Ditto.
+
+	* configure: Regenerated.
+	* aclocal.m4: Ditto.
+
+2002-09-24  Derek Price  <derek@ximbiot.com>
+
+	* configure.in (enable-force-editor): New option.
+
+	* configure: Regenerated.
+	* config.h.in: Ditto.
+
+2002-09-24  Derek Price  <derek@ximbiot.com>
+
+	* acinclude.m4 (ACX_WITH_GSAPI): Use AC_MSG_CHECKING & AC_MSG_RESULT
+	instead of AS_MESSAGE for consistent appearance of the output even
+	though it makes the code look a little clunky.
+
+2002-09-24  Derek Price  <derek@ximbiot.com>
+
+	* INSTALL: Document --with-umask.
+	* configure.in (--with-umask): New option.
+	(--with-tmpdir): Move to something more closely resembling alphabetical
+	order of the --with- arguments.
+
+	* configure: Regenerated.
+	* config.h.in: Ditto.
+
+2002-09-24  Derek Price  <derek@ximbiot.com>
+
+	* INSTALL: Note new Automake version.
+	* NEWS: Ditto.
+	* configure.in (AC_ISC_POSIX): Remove this obsolete call and comment
+	out some related code with an explanation.
+
+	* Makefile.in: Regenerated using Automake 1.6.3.
+	* aclocal.m4: Ditto.
+	* configure: Regenerated.
+
+2002-09-24  Larry Jones  <lawrence.jones@eds.com>
+
+	* aclocal.m4: Remove no longer needed definition of AC_ISC_POSIX
+	from gettext-0.10.40.
+	* configure.in: Remove warnings about obsolete AC_STRUCT_ST_BLKSIZE
+	and AC_STRUCT_ST_RDEV, add check for geteuid().
+	* configure, config.h.in: Regenerated.
+
+2002-09-24  Derek Price  <derek@ximbiot.com>
+
+	* TODO (227): New item.
+
+2002-09-24  Larry Jones  <lawrence.jones@eds.com>
+
+	* configure.in (--enable-server-flow-control): Fix nonportable code.
+	* configure: Regenerated.
+
+2002-09-24  Derek Price  <derek@ximbiot.com>
+
+	* INSTALL: Explain --with-tmpdir.
+	* configure.in (--with-tmpdir): New configure argument.
+
+	* configure: Regenerated.
+	* config.h.in: Ditto.
+
+2002-09-24  Derek Price  <derek@ximbiot.com>
+
+	* INSTALL: Explain --with-editor.
+	* configure.in (--with-editor): New configure argument.
+
+	* Makefile.in: Regenerated.
+	* configure: Ditto.
+	* config.h.in: Ditto.
+
+2002-09-24  Larry Jones  <lawrence.jones@eds.com>
+
+	* TODO (226): New item.
+
+	* configure.in: Remove PATCH_PROGRAM.
+	* configure: Regenerated.
+	* config.h.in: Ditto.
+
+2002-09-20  Derek Price  <derek@ximbiot.com>
+
+	* INSTALL: Explain --enable-server-flow-control.
+	* configure.in (--enable-server-flow-control): New configure argument.
+
+	* configure: Regenerated.
+	* config.h.in: Ditto.
+
+2002-09-20  Derek Price  <derek@ximbiot.com>
+
+	* configure.in: Set PATCH_PROGRAM as possible, autodetecting with
+	a user override.
+
+	* configure: Regenerated.
+	* config.h.in: Ditto.
+
+2002-09-20  Derek Price  <derek@ximbiot.com>
+
+	* configure.in: Use AC_HELP_STRING to create pretty help strings.
+	Reformat some lines for legibility.
+	(with-krb4): Fix help strings and logging.
+
+	* configure.in: Regenerated.
+
+2002-08-16  Derek Price  <derek@ximbiot.com>
+
+	* configure.in: Make CVS_BADROOT a configure option.
+
+	* configure: Regenerated.
+	* config.h.in: Ditto.
+
+2002-08-12  Derek Price  <oberon@umich.edu>
+
+	* configure.in: Move ftruncate from AC_CHECK_FUNC to AC_REPLACE_FUNC.
+	(Symptoms reported by
+	Andrey Aristarkhov <Aristarkhov@bitechnology.ru>.)
+	* aclocal.m4: Regenerated.
+	* configure: Ditto.
+
+2002-07-09  Larry Jones  <lawrence.jones@eds.com>
+
+	* NEWS (Changes since 1.11.2): Note lock message times now UTC.
+
+2002-06-28  Derek Price  <oberon@umich.edu>
+
+	* INSTALL (Building [on] other platforms): Don't reference the Mac
+	README file since it has been missing for several releases.  Mention
+	the UNIXness of Mac OS X and correct references to wincvs.org to point
+	to the new cvsgui.org .
+	(Reported by Sarah Gonzales <slindahl@rice.edu>.)
+
+2002-05-22  Larry Jones  <lawrence.jones@eds.com>
+
+	* TODO (173, 202): Update to reflect current state of affairs.
+	(207): Defunct as of 1.11.2.
+
+	* NEWS (Changes from 1.11.1p1 to 1.11.2): Note new RereadLogAfterVerify
+	config option.
+
+2002-05-15  Larry Jones  <lawrence.jones@eds.com>
+
+	* NEWS (Changes from 1.11.1p1 to 1.11.2): Note log/rlog changes.
+
+2002-05-08  Derek Price  <oberon@umich.edu>
+
+	* configure.in: Add code to use lib/fnmatch.h.in redirection when
+	necessary to avoid namespace conflicts in #includes.
+	* configure: Regenerated.
+
+2002-05-08  Derek Price  <oberon@umich.edu>
+
+	* TODO (215): Add note.
+
+2002-05-08  Derek Price  <oberon@umich.edu>
+
+	* TODO (214): Clarify item.
+
+2002-05-02  Derek Price  <oberon@umich.edu>
+
+	* configure.in: Add check for fnmatch.h so we can avoid namespace
+	conflicts on systems where the fnmatch function is broken.  Not sure
+	this applies to any systems but Mac OS X.
+
+	* configure: Regenerated.
+	* config.h.in: Ditto.
+
+2002-05-02  Derek Price  <oberon@umich.edu>
+
+	* .cvsignore: Remove config.cache and add autom4te.cache.
+
+2002-05-02  Derek Price  <oberon@umich.edu>
+
+	* noautoconf.sh: Update this script for operation with the new autotools.
+	* stamp-h1.in: Remove this obsolete file.
+
+2002-05-01  Derek Price  <oberon@umich.edu>
+
+	* TODO (224): Comment on this item.
+
+2002-05-01  Larry Jones  <lawrence.jones@eds.com>
+
+	* TODO (215 - 225): New items.
+
+2002-05-01  Derek Price  <oberon@umich.edu>
+
+	* TODO (214): Add note about moving options.h options into the configure
+	script.
+	* configure.in: Remove last few references to options.h.
+	* configure: Regenerated.
+
+2002-04-30  Derek Price  <oberon@umich.edu>
+
+	* acconfig.h: Remove this file, it is deprecated.
+
+	* Makefile.am (AUTOMAKE_OPTIONS): Move these into configure.in.
+	* acinclude.m4: Some minor updates for compatibility with the new
+	Autotools, some reformatting for readability, and a minor bugfix or
+	two.
+	* configure.in: Add new AC_DEFINE arguments and replace some direct
+	assignments to LIBOBJS with calls to AC_LIBOBJ.  Call AC_INIT and
+	AM_INIT_AUTOMAKE with the new APIs.  Call AC_PACKAGE_NAME,
+	AC_PACKAGE_TARNAME, AC_PACKAGE_VERSION, and AC_PACKAGE_STRING to
+	subst/define the corresponding variables.  Call AC_CONFIG_FILES with
+	the old AC_OUTPUT args and call AC_OUTPUT without args.  Remove
+	references to version.h.
+	* cvs.spec.in: Use the new substs.
+
+	* INSTALL: Mention new versions of Automake & Autoconf.
+	* NEWS: Ditto.
+
+	* Makefile.in: Regenerated.
+	* aclocal.m4: Ditto.
+	* configure: Ditto.
+	* config.h.in: Ditto.
+
+2002-04-28  Derek Price  <oberon@umich.edu>
+
+	* TODO (208, 209, 210, 211, 212, 213): New items.
+
+2002-04-27  Derek Price  <oberon@umich.edu>
+
+	* configure.in: Set LIBOBJ for fnmatch.c and fnmatch.h using the
+	correct functions.  Add checks for some functions whose names conflict
+	with functions on Mac OS X 10.1 with the most recent dev packages.
+	This should be removable after the Mac dev packages are fixed.
+
+	* configure: Regenerated.
+	* config.h.in: Ditto.
+
+2002-04-18  Derek Price  <oberon@umich.edu>
+
+	* NEWS: Add a dummy entry so automake will let me update the version.
+	* configure.in: Update the version number.
+	* configure: Regenerated.
+
 2002-04-17  Derek Price  <oberon@umich.edu>
 
 	* configure.in: Update version number.

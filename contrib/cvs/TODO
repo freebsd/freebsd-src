@@ -395,11 +395,11 @@ trying to accomplish and what the best way is -kingdon, Jul 1997).
      the checkout and update commands that could turn this invocation of the
      script off, for mature users.
 
-173. We have a tagged branch in CVS.  How do we get the version of that branch
-     (for an entire directory) that corresponds to the files on that branch on a
-     certain day?  I'd like to specify BOTH -r and -D to 'cvs checkout', but I
-     can't.  It looks like I can only specify the date for the main line (as
-     opposed to any branches).  True?  Any workarounds to get what I need?
+173. Need generic date-on-branch handling.  Currently, many commands
+     allow both -r and -D, but that's problematic for commands like diff
+     that interpret that as two revisions rather than a single revision.
+     Checkout and update -j takes tag:date which is probably a better
+     solution overall.
 
 174. I would like to see "cvs release" modified so that it only removes files
      which are known to CVS - all the files in the repository, plus those which
@@ -808,9 +808,9 @@ properly.  This should ease patch submission.
 201.  cvs_temp_file should be creating temporary files in a privately owned
 subdirectory of of temp due to security issues on some systems.
 
-202.  Merge most of the diff & rdiff code.  Enable rdiff to accept most
-diff options.  Make rdiff output look like diff's.  Make CVS diff
-garbage go to stderr and only standard diff output go to stdout.
+202.  Enable rdiff to accept most diff options.  Make rdiff output look
+like diff's.  Make CVS diff garbage go to stderr and only standard diff
+output go to stdout.
 
 203.  Add val-tags additions to the tagging code.  Don't remove the
 update additions since val-tags could still be used as a cache when the
@@ -828,8 +828,84 @@ strategy to address path canonicalization and apply it consistently.
 206.  Restore directory-at-a-time locking for tag operations instead of
 locking the entire tree.
 
-207.  Fix the branch following logic in log to work with CVS branching. 
-Right now the code assumes RCS branching where all revisions on the
-branch have the same number of components in their revision numbers and
-that isn't true for CVS (revisions 1.2 and 2.4.6.8 can be on the same
-branch in CVS).
+208.  Merge enhancements to the diff package back into the original GNU source.
+
+209.  Go through this file and try to:
+
+  a.  Verify that items are still valid.
+
+  b.  Create test cases for valid items when they don't exist.
+
+  c.  Remove fixed and no longer applicable items.
+
+210.  Explain to sanity.sh how to deal with paths with spaces and other odd
+characters in them.
+
+211.  Make sanity.sh run under the Win32 bash (cygwin) and maybe other Windex
+environments (e.g. DGSS or whatever the MSVC portability environemnt is called).
+
+212.  Autotestify (see autoconf source) sanity.sh.
+
+213.  Examine desirability of updating the regex library (regex.{c,h}) to the
+more recent versions that come with glibc and emacs.  It might be worth waiting
+for the emacs folks to get their act together and merge their changes into the
+glibc version.
+
+214.  Make options.h options configure script options instead.
+
+215.  Add reditors and rwatchers commands.
+
+	- Is an r* command abstraction layer possible here for the commands
+	  where this makes sense?  Would it be simpler?  It seems to me the
+	  major operational differences lie in the file list construction.
+
+216.  Avoid command-line keyword expansion modes overriding binary mode
+(or make binary mode completely separate from keyword expansion mode).
+
+217.  Fix assertion failures that occur when CVSROOT is a symlink to the
+actual repository location.
+
+218.  Fix "checkout -d ." in client/server mode.
+
+219.  Fix "checkout -d multi/level/dir" in client/server mode.
+
+220.  Send correct Max-dotdot in client/server mode (broken by change to
+support multiple repositories).
+
+221.  Handle spaces in file/directory names.  (Most, if not all, of the
+internal infrastructure already handles them correctly, but most of the
+administrative file interfaces do not.)
+
+222.  Fix assertion failure (*rcsnode == NULL in commit.c, line 2056)
+when adding a file from a case-insensitive client that matches an Attic
+file with case differences.
+
+223.  Internationalization support.  This probably means using some kind
+of universal character set (ISO 10646?) internally and converting on
+input and output, which opens the locale can of worms.
+
+224.  Better timezone handling.  Many people would like to see times
+output in local time rather than UTC, but that's tricky since the
+conversion from internal form is currently done by the server who has no
+idea what the user's timezone even is, let alone the rules for
+converting to it.
+
+   -  On the contrary, I think the MT server response should be easily adaptable
+for this purpose.  It is defined in cvsclient.texi as processed by the client
+if it knows how and printed to stdout otherwise.  A "time" tag or the like
+could be the usual CVS server UTC time string.  An old client could just print
+the time in UTC and a new client would know that it could convert the time to a
+local time string according to the localization settings before printing it.
+
+225.  Add support for --allow-root to server command.
+
+226.  Add support for upgrading read locks to write locks and use it to
+avoid holding potentially long-term write locks (for example, in tag and
+commit).
+
+227.  'cvs release' should use the CVS/Root in the directory being released
+when such is specified rather than $CVSROOT.  In my work directory with no CVS
+dir, a release of subdirectories causes the released projects to be tested
+against my $CVSROOT environment variable, which often isn't correct but which
+can complete without generating error messages if the project also exists in
+the other CVSROOT.  This happens a lot with my copies of the ccvs project.
