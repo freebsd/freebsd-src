@@ -118,7 +118,7 @@ If the package contains a
 file (see 
 .Xr pkg_create 1 ) ,
 then this is executed first as
-.Bd -filled -offset indent -compact
+.Bd -ragged -offset indent -compact
 .Cm require
 .Ar <pkg-name>
 .Ar DEINSTALL
@@ -143,7 +143,7 @@ knows how to do is delete the files created in the original distribution.
 The
 .Nm deinstall
 script is called as:
-.Bd -filled -offset indent -compact
+.Bd -ragged -offset indent -compact
 .Cm script
 .Ar <pkg-name>
 .Ar DEINSTALL
@@ -177,7 +177,7 @@ of the package.
 The
 .Nm post-deinstall
 script is called as:
-.Bd -filled -offset indent -compact
+.Bd -ragged -offset indent -compact
 .Cm script
 .Ar <pkg-name>
 .Ar POST-DEINSTALL
