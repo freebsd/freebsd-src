@@ -1,13 +1,11 @@
-#	$Id$
+#	$Id: Makefile,v 1.9 1999/01/14 20:00:43 markm Exp $
 
-INFO=	info-stnd info texinfo
+INFO=	info info-stnd texinfo
 
-MAKEINFO= ../makeinfo/makeinfo
-
-CLEANFILES+=    ${.OBJDIR}/texinfo.texi
+CLEANFILES=	texinfo.texi
 
 texinfo.texi: texinfo.txi
-	@ln -sf ${.OODATE} ${.TARGET}
+	ln -fs ${.ALLSRC} ${.TARGET}
 
 .include <bsd.info.mk>
 
