@@ -65,7 +65,7 @@ struct fs_ops *file_system[] = {
 #ifdef LOADER_NET_SUPPORT
     &nfs_fsops,
 #endif
-    &zipfs_fsops,
+    &gzipfs_fsops,
     NULL
 };
 

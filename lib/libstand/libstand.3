@@ -589,9 +589,9 @@ File access via TFTP.
 File access via NFS.
 .It Va cd9660_fsops
 ISO 9660 (CD-ROM) file system.
-.It Va zipfs_fsops
+.It Va gzipfs_fsops
 Stacked file system supporting gzipped files.
-When trying the zipfs file system,
+When trying the gzipfs file system,
 .Nm
 appends
 .Li .gz
@@ -606,7 +606,7 @@ and
 on gzipped files will report an invalid length.
 .It Va bzipfs_fsops
 The same as
-.Va zipfs_fsops ,
+.Va gzipfs_fsops ,
 but for
 .Xr bzip2 1 Ns -compressed
 files.
