@@ -41,6 +41,7 @@
 #include <machine/resource.h>
 #include <machine/bus.h>
 #include <sys/rman.h>
+#include <sys/ata.h>
 #include <dev/ata/ata-all.h>
 
 #include <dev/ofw/openfirm.h>
@@ -228,16 +229,15 @@ static driver_t ata_iobus_sub_driver = {
 
 DRIVER_MODULE(ata, ataiobus, ata_iobus_sub_driver, ata_devclass, 0, 0);
 
-static int
-ata_iobus_intrnoop(struct ata_channel *ch)
-{
-
-	return (1);
-}
- 
 static void
 ata_iobus_locknoop(struct ata_channel *ch, int type)
 {
+}
+
+static void
+ata_iobus_setmode(struct ata_device *atadev, int mode)
+{
+	atadev->mode = ATA_PIO;
 }
 
 static int
@@ -248,8 +248,9 @@ ata_iobus_sub_probe(device_t dev)
 	/* Only a single unit per controller thus far */
 	ch->unit = 0;
 	ch->flags = (ATA_USE_16BIT|ATA_NO_SLAVE);
-	ch->intr_func = ata_iobus_intrnoop;
-	ch->lock_func = ata_iobus_locknoop;
+	ch->locking = ata_iobus_locknoop;
+	ch->device[MASTER].setmode = ata_iobus_setmode;
+	ch->device[SLAVE].setmode = ata_iobus_setmode;
 
 	return ata_probe(dev);
 }
