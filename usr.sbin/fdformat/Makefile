@@ -4,7 +4,8 @@
 
 PROG=	fdformat
 SRCS=	fdformat.c fdutil.c
+CFLAGS=	-I${.CURDIR}/../fdread
 
-CFLAGS+= -Wall -I ${.CURDIR}/../fdread
+WARNS?=	1
 
 .include <bsd.prog.mk>
