@@ -501,6 +501,7 @@ agp_generic_bind_memory(device_t dev, struct agp_memory *mem,
 	 * because vm_page_grab() used with VM_ALLOC_RETRY may
 	 * block and we can't hold a mutex while blocking.
 	 */
+	VM_OBJECT_LOCK(mem->am_obj);
 	for (i = 0; i < mem->am_size; i += PAGE_SIZE) {
 		/*
 		 * Find a page from the object and wire it
@@ -509,18 +510,18 @@ agp_generic_bind_memory(device_t dev, struct agp_memory *mem,
 		 * AGP_PAGE_SIZE. If this is the first call to bind,
 		 * the pages will be allocated and zeroed.
 		 */
-		VM_OBJECT_LOCK(mem->am_obj);
 		m = vm_page_grab(mem->am_obj, OFF_TO_IDX(i),
 		    VM_ALLOC_WIRED | VM_ALLOC_ZERO | VM_ALLOC_RETRY);
-		VM_OBJECT_UNLOCK(mem->am_obj);
 		AGP_DPF("found page pa=%#x\n", VM_PAGE_TO_PHYS(m));
 	}
+	VM_OBJECT_UNLOCK(mem->am_obj);
 
 	mtx_lock(&sc->as_lock);
 
 	if (mem->am_is_bound) {
 		device_printf(dev, "memory already bound\n");
 		error = EINVAL;
+		VM_OBJECT_LOCK(mem->am_obj);
 		goto bad;
 	}
 	
@@ -532,10 +533,9 @@ agp_generic_bind_memory(device_t dev, struct agp_memory *mem,
 	 * (i.e. use alpha_XXX_dmamap()). I don't have access to any
 	 * alpha AGP hardware to check.
 	 */
+	VM_OBJECT_LOCK(mem->am_obj);
 	for (i = 0; i < mem->am_size; i += PAGE_SIZE) {
-		VM_OBJECT_LOCK(mem->am_obj);
 		m = vm_page_lookup(mem->am_obj, OFF_TO_IDX(i));
-		VM_OBJECT_UNLOCK(mem->am_obj);
 
 		/*
 		 * Install entries in the GATT, making sure that if
@@ -566,6 +566,7 @@ agp_generic_bind_memory(device_t dev, struct agp_memory *mem,
 		vm_page_wakeup(m);
 		vm_page_unlock_queues();
 	}
+	VM_OBJECT_UNLOCK(mem->am_obj);
 
 	/*
 	 * Flush the cpu cache since we are providing a new mapping
@@ -586,7 +587,7 @@ agp_generic_bind_memory(device_t dev, struct agp_memory *mem,
 	return 0;
 bad:
 	mtx_unlock(&sc->as_lock);
-	VM_OBJECT_LOCK(mem->am_obj);
+	VM_OBJECT_LOCK_ASSERT(mem->am_obj, MA_OWNED);
 	for (i = 0; i < mem->am_size; i += PAGE_SIZE) {
 		m = vm_page_lookup(mem->am_obj, OFF_TO_IDX(i));
 		vm_page_lock_queues();
