@@ -262,7 +262,7 @@ adw_pci_attach(device_t dev)
 				   /*highaddr*/BUS_SPACE_MAXADDR,
 				   /*filter*/NULL, /*filterarg*/NULL,
 				   /*maxsize*/BUS_SPACE_MAXSIZE_32BIT,
-				   /*nsegments*/BUS_SPACE_UNRESTRICTED,
+				   /*nsegments*/~0,
 				   /*maxsegsz*/ADW_PCI_MAX_DMA_COUNT,
 				   /*flags*/0,
 				   &adw->parent_dmat);
