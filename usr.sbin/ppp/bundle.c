@@ -701,7 +701,7 @@ bundle_Create(const char *prefix, int type, int unit)
     bundle.dev.fd = ID0open(bundle.dev.Name, O_RDWR);
     if (bundle.dev.fd >= 0)
       break;
-    else if (errno == ENXIO) {
+    else if (errno == ENXIO || errno == ENOENT) {
 #if defined(__FreeBSD__) && !defined(NOKLDLOAD)
       if (bundle.unit == minunit && !kldtried++) {
         /*
