@@ -58,6 +58,8 @@ An executable object file consists of an identifying header,
 followed by pages of data representing the initial program (text)
 and initialized data pages.  Additional pages may be specified
 by the header to be initialized with zero data;  see
+.Xr elf 5
+and
 .Xr a.out 5 .
 .Pp
 An interpreter file begins with a line of the form:
@@ -280,6 +282,8 @@ of a super-user as well.
 .Xr execl 3 ,
 .Xr exit 3 ,
 .Xr sysctl 3 ,
+.Xr a.out 5 ,
+.Xr elf 5 ,
 .Xr environ 7 ,
 .Xr mount 8
 .Sh HISTORY
