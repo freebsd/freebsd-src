@@ -1822,8 +1822,8 @@ samount(struct cam_periph *periph, int oflags, struct cdev *dev)
 			 * will now attempt to rewind/load it.
 			 */
 			softc->flags &= ~SA_FLAG_TAPE_MOUNTED;
-			if (CAM_DEBUGGED(ccb->ccb_h.path, CAM_DEBUG_INFO)) {
-				xpt_print_path(ccb->ccb_h.path);
+			if (CAM_DEBUGGED(periph->path, CAM_DEBUG_INFO)) {
+				xpt_print_path(periph->path);
 				printf("error %d on TUR in samount\n", error);
 			}
 		}
@@ -1887,7 +1887,7 @@ samount(struct cam_periph *periph, int oflags, struct cdev *dev)
 		rblim = (struct  scsi_read_block_limits_data *)
 		    malloc(8192, M_TEMP, M_WAITOK);
 		if (rblim == NULL) {
-			xpt_print_path(ccb->ccb_h.path);
+			xpt_print_path(periph->path);
 			printf("no memory for test read\n");
 			xpt_release_ccb(ccb);
 			error = ENOMEM;
@@ -1909,7 +1909,7 @@ samount(struct cam_periph *periph, int oflags, struct cdev *dev)
 			    softc->device_stats);
 			QFRLS(ccb);
 			if (error) {
-				xpt_print_path(ccb->ccb_h.path);
+				xpt_print_path(periph->path);
 				printf("unable to rewind after test read\n");
 				xpt_release_ccb(ccb);
 				goto exit;
@@ -2074,7 +2074,7 @@ samount(struct cam_periph *periph, int oflags, struct cdev *dev)
 		if ((softc->max_blk < softc->media_blksize) ||
 		    (softc->min_blk > softc->media_blksize &&
 		    softc->media_blksize)) {
-			xpt_print_path(ccb->ccb_h.path);
+			xpt_print_path(periph->path);
 			printf("BLOCK LIMITS (%d..%d) could not match current "
 			    "block settings (%d)- adjusting\n", softc->min_blk,
 			    softc->max_blk, softc->media_blksize);
@@ -2109,7 +2109,7 @@ tryagain:
 			error = sasetparams(periph, SA_PARAM_BLOCKSIZE,
 			    softc->media_blksize, 0, 0, SF_NO_PRINT);
 			if (error) {
-				xpt_print_path(ccb->ccb_h.path);
+				xpt_print_path(periph->path);
 				printf("unable to set fixed blocksize to %d\n",
 				     softc->media_blksize);
 				goto exit;
@@ -2136,7 +2136,7 @@ tryagain:
 						softc->last_media_blksize = 512;
 					goto tryagain;
 				}
-				xpt_print_path(ccb->ccb_h.path);
+				xpt_print_path(periph->path);
 				printf("unable to set variable blocksize\n");
 				goto exit;
 			}
@@ -2194,7 +2194,7 @@ tryagain:
 			if (error == 0) {
 				softc->buffer_mode = SMH_SA_BUF_MODE_SIBUF;
 			} else {
-				xpt_print_path(ccb->ccb_h.path);
+				xpt_print_path(periph->path);
 				printf("unable to set buffered mode\n");
 			}
 			error = 0;	/* not an error */
