@@ -1,5 +1,5 @@
 #
-# DOCS -- Lines that can be cut/pasted into kernel and hints configs.
+# NOTES -- Lines that can be cut/pasted into kernel and hints configs.
 #
 # Lines that begin with 'device', 'options', 'machine', 'ident', 'maxusers',
 # 'makeoptions', 'hints' etc go into the kernel configuration that you
@@ -946,10 +946,10 @@ device		isa
 
 options 	COMPAT_OLDISA	#Use ISA shims and glue for old drivers
 options 	AUTO_EOI_1
-options 	AUTO_EOI_2
+#options 	AUTO_EOI_2
 
 options 	MAXMEM="(128*1024)"
-options 	BROKEN_KEYBOARD_RESET
+#options 	BROKEN_KEYBOARD_RESET
 
 # Enable support for the kernel PLL to use an external PPS signal,
 # under supervision of [x]ntpd(8)
@@ -1712,7 +1712,7 @@ device		pci
 
 # PCI options
 #
-options 	PCI_QUIET	#quiets PCI code on chipset settings
+#options 	PCI_QUIET	#quiets PCI code on chipset settings
 options 	COMPAT_OLDPCI	#Use PCI shims and glue for old drivers
 
 
@@ -2051,35 +2051,35 @@ hint.isic.0.flags="2"
 # Teles S0/16.3
 options 	TEL_S0_16_3
 hint.isic.0.at="isa"
-hint.isic.0.maddr="0xd80"
+hint.isic.0.port="0xd80"
 hint.isic.0.irq="5"
 hint.isic.0.flags="3"
 #
 # AVM A1 or AVM Fritz!Card
 options 	AVM_A1
 hint.isic.0.at="isa"
-hint.isic.0.maddr="0x340"
+hint.isic.0.port="0x340"
 hint.isic.0.irq="5"
 hint.isic.0.flags="4"
 #
 # USRobotics Sportster ISDN TA intern (not supported yet!)
 #options 	USR_STI
 #hint.isic.0.at="isa"
-#hint.isic.0.maddr="0x268"
+#hint.isic.0.port="0x268"
 #hint.isic.0.irq="5"
 #hint.isic.0.flags="7"
 #
 # ITK ix1 Micro ( < V.3, non-PnP version ) (not supported yet!)
 #options 	ITKIX1
 #hint.isic.0.at="isa"
-#hint.isic.0.maddr="0x398"
+#hint.isic.0.port="0x398"
 #hint.isic.0.irq="10"
 #hint.isic.0.flags="18"
 #
 # ELSA PCC-16
 options 	ELSA_PCC16
 hint.isic.0.at="isa"
-hint.isic.0.maddr="0x360"
+hint.isic.0.port="0x360"
 hint.isic.0.irq="10"
 hint.isic.0.flags="20"
 #
@@ -2260,7 +2260,7 @@ options 	PMAP_SHPGPERPROC=201
 # (see also sysctls "vm.defer_swapspace_pageouts" and
 # "vm.disable_swapspace_pageouts")
 #
-options 	NO_SWAPPING
+#options 	NO_SWAPPING
 
 # Set the number of sf_bufs to allocate. sf_bufs are virtual buffers
 # for sendfile(2) that are used to map file VM pages, and normally
