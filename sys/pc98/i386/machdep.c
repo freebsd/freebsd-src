@@ -639,7 +639,7 @@ sendsig(catcher, sig, mask, code)
 	psp = p->p_sigacts;
 
 	/* save user context */
-	sf.sf_uc.uc_link = NULL;
+	bzero(&sf, sizeof(struct sigframe));
 	sf.sf_uc.uc_sigmask = *mask;
 	sf.sf_uc.uc_stack = psp->ps_sigstk;
 	sf.sf_uc.uc_mcontext.mc_tf = *regs;
@@ -695,7 +695,7 @@ sendsig(catcher, sig, mask, code)
 		/* fill siginfo structure */
 		sf.sf_si.si_signo = sig;
 		sf.sf_si.si_code = code;
-		sf.sf_si.si_pid = p->p_pid;
+		sf.sf_si.si_addr = (void*)regs->tf_err;
 	}
 	else {
 		/* Old FreeBSD-style arguments. */
@@ -898,7 +898,7 @@ sigreturn(p, uap)
 	struct trapframe *regs;
 	ucontext_t *ucp;
 	struct sigframe *sfp;
-	int eflags;
+	int cs, eflags;
 
 	regs = p->p_md.md_regs;
 	ucp = uap->sigcntxp;
@@ -961,18 +961,19 @@ sigreturn(p, uap)
 	    		return(EINVAL);
 		}
 
-		*regs = ucp->uc_mcontext.mc_tf;
-
 		/*
 		 * Don't allow users to load a valid privileged %cs.  Let the
 		 * hardware check for invalid selectors, excess privilege in
 		 * other selectors, invalid %eip's and invalid %esp's.
 		 */
-		if (!CS_SECURE(regs->tf_cs)) {
-			printf("sigreturn: cs = 0x%x\n", regs->tf_cs);
+		cs = ucp->uc_mcontext.mc_tf.tf_cs;
+		if (!CS_SECURE(cs)) {
+			printf("sigreturn: cs = 0x%x\n", cs);
 			trapsignal(p, SIGBUS, T_PROTFLT);
 			return(EINVAL);
 		}
+
+		*regs = ucp->uc_mcontext.mc_tf;
 	}
 
 	p->p_sigacts->ps_sigstk = ucp->uc_stack;
