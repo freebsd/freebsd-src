@@ -9,7 +9,7 @@ SRCS=	geom.c subr.c
 CFLAGS+= -DCLASSDIR=\"${CLASSDIR}\"
 CFLAGS+= -I${.CURDIR}/../../../sys -I${.CURDIR} -I${.CURDIR}/..
 
-DPADD=	${LIBBSDXML} ${LIBGEOM} ${LIBSBUF} ${LIBUTIL}
-LDADD=	-lbsdxml -lgeom -lsbuf -lutil
+DPADD=	${LIBGEOM} ${LIBSBUF} ${LIBBSDXML} ${LIBUTIL}
+LDADD=	-lgeom -lsbuf -lbsdxml -lutil
 
 .include <bsd.prog.mk>
