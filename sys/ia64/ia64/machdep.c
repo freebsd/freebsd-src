@@ -1073,7 +1073,7 @@ freebsd4_sigreturn(struct thread *td, struct freebsd4_sigreturn_args *uap)
 #endif
 
 int
-get_mcontext(struct thread *td, mcontext_t *mc, int clear_ret)
+get_mcontext(struct thread *td, mcontext_t *mc, int flags)
 {
 	struct _special s;
 	struct trapframe *tf;
@@ -1108,7 +1108,7 @@ get_mcontext(struct thread *td, mcontext_t *mc, int clear_ret)
 		 * return register, just like gr8-gr10.
 		 */
 		mc->mc_flags |= _MC_FLAGS_RETURN_VALID;
-		if (!clear_ret) {
+		if ((flags & GET_MC_CLEAR_RET) == 0) {
 			mc->mc_scratch.gr8 = tf->tf_scratch.gr8;
 			mc->mc_scratch.gr9 = tf->tf_scratch.gr9;
 			mc->mc_scratch.gr10 = tf->tf_scratch.gr10;
