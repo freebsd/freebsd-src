@@ -8,7 +8,7 @@
  * Sun Microsystems, Inc.
  *
  * SUN RPC IS PROVIDED AS IS WITH NO WARRANTIES OF ANY KIND INCLUDING THE
- * WARRANTIES OF DESIGN, MERCHANTIBILITY AND FITNESS FOR A PARTICULAR
+ * WARRANTIES OF DESIGN, MERCHANTABILITY AND FITNESS FOR A PARTICULAR
  * PURPOSE, OR ARISING FROM A COURSE OF DEALING, USAGE OR TRADE PRACTICE.
  *
  * Sun RPC is provided with no support and without any obligation on the
@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #define	YPOP_STORE	4
 #endif
 #include <sys/fcntl.h>
+#include <err.h>
 #include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -61,7 +62,6 @@ __FBSDID("$FreeBSD$");
 
 #include "extern.h"
 
-#define index strchr
 #ifdef YPPASSWD
 struct passwd *ypgetpwuid(uid_t);
 #endif
@@ -74,7 +74,7 @@ static char PKFILE[] = "/etc/publickey";
 #endif	/* YP */
 static char ROOTKEY[] = "/etc/.rootkey";
 
-static void usage(char *);
+static void usage(void);
 extern int yp_update(char *, char *, int, char *, size_t, char *, size_t);
 
 int
@@ -90,49 +90,37 @@ main(int argc, char **argv)
 	struct passwd *pw;
 	uid_t uid;
 	int force = 0;
-	char *self;
+	int ch;
 #ifdef YP
 	char *master;
 #endif
 
-	self = argv[0];
-	for (argc--, argv++; argc > 0 && **argv == '-'; argc--, argv++) {
-		if (argv[0][2] != 0) {
-			usage(self);
-		}
-		switch (argv[0][1]) {
+	while ((ch = getopt(argc, argv, "f")) != -1)
+		switch(ch) {
 		case 'f':
 			force = 1;
 			break;
 		default:
-			usage(self);
+			usage();
 		}
-	}
-	if (argc != 0) {
-		usage(self);
-	}
+	argc -= optind;
+	argv += optind;
+
+	if (argc != 0)
+		usage();
 
 #ifdef YP
 	(void)yp_get_default_domain(&domain);
-	if (yp_master(domain, PKMAP, &master) != 0) {
-		(void)fprintf(stderr, 
-			"can't find master of publickey database\n");
-		exit(1);
-	}
+	if (yp_master(domain, PKMAP, &master) != 0)
+		errx(1, "can't find master of publickey database");
 #endif
 	uid = getuid() /*geteuid()*/;
 	if (uid == 0) {
-		if (host2netname(name, NULL, NULL) == 0) {
-			(void)fprintf(stderr,
-			"chkey: cannot convert hostname to netname\n");
-			exit(1);
-		}
+		if (host2netname(name, NULL, NULL) == 0)
+			errx(1, "cannot convert hostname to netname");
 	} else {
-		if (user2netname(name, uid, NULL) == 0) {
-			(void)fprintf(stderr,
-			"chkey: cannot convert username to netname\n");
-			exit(1);
-		}
+		if (user2netname(name, uid, NULL) == 0)
+			errx(1, "cannot convert username to netname");
 	}
 	(void)printf("Generating new key for %s.\n", name);
 
@@ -145,30 +133,24 @@ main(int argc, char **argv)
 #endif
 			if (pw == NULL) {
 #ifdef YPPASSWD
-				(void)fprintf(stderr, 
-		"No NIS password entry found: can't change key.\n");
+				errx(1,
+			"no NIS password entry found: can't change key");
 #else
-				(void)fprintf(stderr,
-		"No password entry found: can't change key.\n");
+				errx(1,
+			"no password entry found: can't change key");
 #endif
-				exit(1);
 			}
 		} else {
 			pw = getpwuid(0);
-			if (pw == NULL) {
-				(void)fprintf(stderr, 
-				"No password entry found: can't change key.\n");
-				exit(1);
-			}
+			if (pw == NULL)
+			  errx(1, "no password entry found: can't change key");
 		}
 	}
 	pass = getpass("Password:");
 #ifdef YPPASSWD
 	if (!force) {
-		if (strcmp(crypt(pass, pw->pw_passwd), pw->pw_passwd) != 0) {
-			(void)fprintf(stderr, "Invalid password.\n");
-			exit(1);
-		}
+		if (strcmp(crypt(pass, pw->pw_passwd), pw->pw_passwd) != 0)
+			errx(1, "invalid password");
 	}
 #else
 	force = 1;	/* Make this mandatory */
@@ -183,11 +165,9 @@ main(int argc, char **argv)
 	if (force) {
 		memcpy(crypt2, crypt1, HEXKEYBYTES + KEYCHECKSUMSIZE + 1);	
 		xdecrypt(crypt2, getpass("Retype password:"));
-		if (memcmp(crypt2, crypt2 + HEXKEYBYTES, KEYCHECKSUMSIZE) != 0 ||
-		    memcmp(crypt2, secret, HEXKEYBYTES) != 0) {	
-			(void)fprintf(stderr, "Password incorrect.\n");
-			exit(1);
-		}
+		if (memcmp(crypt2, crypt2 + HEXKEYBYTES, KEYCHECKSUMSIZE) != 0
+			|| memcmp(crypt2, secret, HEXKEYBYTES) != 0)
+			errx(1, "password incorrect");
 	}
 
 #ifdef YP
@@ -196,14 +176,11 @@ main(int argc, char **argv)
 	status = setpublicmap(name, public, crypt1);
 	if (status != 0) {
 #ifdef YP
-		(void)fprintf(stderr,
-		"%s: unable to update NIS database (%u): %s\n",
-				self, status, yperr_string(status));
+		errx(1, "unable to update NIS database (%u): %s",
+				status, yperr_string(status));
 #else
-		(void)fprintf(stderr,
-		"%s: unable to update publickey database\n", self);
+		errx(1, "unable to update publickey database");
 #endif
-		exit(1);
 	}
 
 	if (uid == 0) {
@@ -218,31 +195,27 @@ main(int argc, char **argv)
 
 		fd = open(ROOTKEY, O_WRONLY|O_TRUNC|O_CREAT, 0);
 		if (fd < 0) {
-			perror(ROOTKEY);
+			warn("%s", ROOTKEY);
 		} else {
 			char newline = '\n';
 
 			if (write(fd, secret, strlen(secret)) < 0 ||
-			    write(fd, &newline, sizeof(newline)) < 0) {
-				(void)fprintf(stderr, "%s: ", ROOTKEY);
-				perror("write");
-			}
+			    write(fd, &newline, sizeof(newline)) < 0)
+				warn("%s: write", ROOTKEY);
 		}
 	}
 
-	if (key_setsecret(secret) < 0) {
-		(void)printf("Unable to login with new secret key.\n");
-		exit(1);
-	}
+	if (key_setsecret(secret) < 0)
+		errx(1, "unable to login with new secret key");
 	(void)printf("Done.\n");
 	exit(0);
 	/* NOTREACHED */
 }
 
 static void
-usage(char *name)
+usage(void)
 {
-	(void)fprintf(stderr, "usage: %s [-f]\n", name);
+	(void)fprintf(stderr, "usage: chkey [-f]\n");
 	exit(1);
 	/* NOTREACHED */
 }
@@ -281,12 +254,12 @@ ypgetpwuid(uid_t uid)
 			&val, &vallen) != 0) {
 		return (NULL);
 	}
-	p = index(val, ':');
+	p = strchr(val, ':');
 	if (p == NULL) {	
 		return (NULL);
 	}
 	pw.pw_passwd = p + 1;
-	p = index(pw.pw_passwd, ':');
+	p = strchr(pw.pw_passwd, ':');
 	if (p == NULL) {
 		return (NULL);
 	}
