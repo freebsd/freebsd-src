@@ -39,7 +39,7 @@
 .Sh NAME
 .Nm nghook
 .Nd connect to a
-.Xr netgraph 8
+.Xr ng_socket 8
 node
 .Sh SYNOPSIS
 .Nm
@@ -50,14 +50,16 @@ node
 .Sh DESCRIPTION
 .Nm
 creates a
-.Xr netgraph 8
+.Xr ng_socket 8
 socket type node and connects it to hook
 .Ar hookname
 of the node found at
 .Ar path .
 If
 .Ar hookname
-is omitted, ``debug'' is assumed.
+is omitted,
+.Dq debug
+is assumed.
 .Pp
 At this point all data written to standard input is sent
 to the node and all data received from the node is relayed
@@ -67,7 +69,8 @@ The options are as follows:
 .Pp
 .Bl -tag -width indent
 .It Fl a
-Output each read packet in ASCII.
+Output each read packet in
+.Tn ASCII .
 .It Fl d
 Increase the debugging verbosity level.
 .El
@@ -78,10 +81,12 @@ there's no way to control the packetization of the input.
 .Xr netgraph 4 ,
 .Xr netgraph 3 ,
 .Xr ngctl 8 .
-.Sh AUTHOR
-Archie Cobbs <archie@whistle.com>
 .Sh HISTORY
 The
 .Em netgraph
 system was designed and first implemented at Whistle Communications, Inc.
-in a version FreeBSD 2.2 customized for the Whistle InterJet.
+in a version of
+.Fx 2.2
+customized for the Whistle InterJet.
+.Sh AUTHOR
+.An Archie Cobbs Aq archie@whistle.com

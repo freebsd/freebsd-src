@@ -37,10 +37,10 @@
 .\"
 .Dd January 19, 1999
 .Dt NG_LMI 8
-.Os FreeBSD 4.0
+.Os FreeBSD
 .Sh NAME
 .Nm ng_lmi
-.Nd Frame relay LMI protocol netgraph node type
+.Nd frame relay LMI protocol netgraph node type
 .Sh SYNOPSIS
 .Fd #include <netgraph/ng_lmi.h>
 .Sh DESCRIPTION
@@ -126,5 +126,10 @@ control message, or when all hooks have been disconnected.
 .Rs
 .%T "ITU-T Q.933 Digital Subscriber Signaling System No. 1 - Signaling Specification for Frame Mode Basic Call Control, Annex A"
 .Re
-.Sh AUTHOR
-Julian Elischer <julian@whistle.com>
+.Sh HISTORY
+The
+.Nm
+node type was implemented in
+.Fx 4.0 .
+.Sh AUTHORS
+.An Julian Elischer Aq julian@whistle.com

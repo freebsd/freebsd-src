@@ -47,7 +47,7 @@
 .Nm NgRecvData ,
 .Nm NgSetDebug ,
 .Nm NgSetErrLog
-.Nd Netgraph user library
+.Nd netgraph user library
 .Sh SYNOPSIS
 .Fd #include <netgraph.h>
 .Ft int
@@ -78,7 +78,7 @@ These functions facilitate user-mode program participation in the kernel
 graph-based networking system, by utilizing the netgraph
 .Em socket
 node type (see
-.Xr ng_socket 8 ")."
+.Xr ng_socket 8 ) .
 .Pp
 .Fn NgMkSockNode
 should be called first, to create a new
@@ -130,16 +130,22 @@ The original message header should be pointed to by
 .Fn NgSendAsciiMsg
 performs the same function as
 .Fn NgSendMsg ,
-but adds support for ASCII encoding of control messages.
+but adds support for
+.Tn ASCII
+encoding of control messages.
 .Fn NgSendAsciiMsg
 formats its input a la
 .Xr printf 3
-and then sends the resulting ASCII string to the node in a
+and then sends the resulting
+.Tn ASCII
+string to the node in a
 .Dv NGM_ASCII2BINARY
 control message.  The node returns a binary version of the
 message, which is then sent back to the node just as with
 .Fn NgSendMsg .
-Note that ASCII conversion may not be supported by all node types.
+Note that
+.Tn ASCII
+conversion may not be supported by all node types.
 .Pp
 .Fn NgRecvMsg
 reads the next control message received by the node associated with
@@ -159,12 +165,16 @@ the node from which the message was received.
 works exactly like
 .Fn NgRecvMsg ,
 except that after the message is received, any binary arguments
-are converted to ASCII by sending a
+are converted to
+.Tn ASCII
+by sending a
 .Dv NGM_BINARY2ASCII
 request back to the originating node.  The result is the same as
 .Fn NgRecvAsciiMsg ,
 with the exception that the reply arguments field will contain
-a NUL-terminated ASCII version of the arguments (and the reply
+a NUL-terminated
+.Tn ASCII
+version of the arguments (and the reply
 header argument length field will be adjusted).
 .Pp
 .Fn NgSendData
@@ -203,7 +213,9 @@ and
 .Xr vwarnx 3 .
 .Pp
 At debug level 3, the library attempts to display control message arguments
-in ASCII format; however, this results in additional messages being
+in
+.Tn ASCII
+format; however, this results in additional messages being
 sent which may interfere with debugging.  At even higher levels,
 even these additional messagages will be displayed, etc.
 .Pp
@@ -219,7 +231,9 @@ User mode programs must be linked with the
 flag to link in this library.
 .Sh INITIALIZATION
 To enable Netgraph in your kernel, either your kernel must be
-compiled with ``options NETGRAPH'' in the kernel configuration
+compiled with
+.Dq options NETGRAPH
+in the kernel configuration
 file, or else the
 .Xr netgraph 4
 and
@@ -244,11 +258,16 @@ The node type does not know how to encode or decode the control message.
 .It Bq Er ERANGE
 The encoded or decoded arguments were too long for the supplied buffer.
 .It Bq Er ENOENT
-An unknown structure field was seen in an ASCII control message.
+An unknown structure field was seen in an
+.Tn ASCII
+control message.
 .It Bq Er EALREADY
-The same structure field was specified twice in an ASCII control message.
+The same structure field was specified twice in an
+.Tn ASCII
+control message.
 .It Bq Er EINVAL
-ASCII control message parse error or illegal value.
+.Tn ASCII
+control message parse error or illegal value.
 .It Bq Er E2BIG
 ASCII control message array or fixed width string buffer overflow.
 .El
@@ -260,8 +279,10 @@ ASCII control message array or fixed width string buffer overflow.
 .Xr ng_socket 8 .
 .Sh HISTORY
 The
-.Em netgraph
+.Nm netgraph
 system was designed and first implemented at Whistle Communications, Inc. in
-a version FreeBSD 2.2 customized for the Whistle InterJet.
-.Sh AUTHOR
-.An Archie Cobbs <archie@whistle.com>
+a version of
+.Fx 2.2
+customized for the Whistle InterJet.
+.Sh AUTHORS
+.An Archie Cobbs Aq archie@whistle.com

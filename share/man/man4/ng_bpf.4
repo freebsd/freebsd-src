@@ -37,7 +37,7 @@
 .\"
 .Dd December 2, 1999
 .Dt NG_BPF 8
-.Os FreeBSD 4.0
+.Os FreeBSD
 .Sh NAME
 .Nm ng_bpf
 .Nd Berkeley packet filter netgraph node type
@@ -48,17 +48,17 @@
 The
 .Nm bpf
 node type allows Berkeley Packet Filter (see
-.Xr bpf 8 )
+.Xr bpf 4 )
 filters to be applied to data travelling through a Netgraph network.
 Each node allows an arbitrary number of connections to arbitrarily
 named hooks.  With each hook is associated a
-.Xf bpf 8
+.Xf bpf 4
 filter program which is applied to incoming data only, a destination hook
 for matching packets, a destination hook for non-matching packets,
 and various statistics counters.
 .Pp
 A
-.Xr bpf 8
+.Xr bpf 4
 program returns an unsigned integer, which is normally interpreted as
 the length of the prefix of the packet to return.  In the context of this
 node type, returning zero is considered a non-match, in which case the
@@ -102,21 +102,27 @@ Matching and non-matching incoming packets are delivered out the hooks named
 and
 .Dv ifNotMatch ,
 respectively.  The program must be a valid
-.Xr bpf 8
+.Xr bpf 4
 program or else
 .Er EINVAL
 is returned.
 .It Dv NGM_BPF_GET_FILTER
-This command takes an ASCII string argument, the hook name, and returns the
+This command takes an
+.Tn ASCII
+string argument, the hook name, and returns the
 corresponding
 .Dv "struct ngm_bpf_hookprog"
 as shown above.
 .It Dv NGM_BPF_GET_STATS
-This command takes an ASCII string argument, the hook name, and returns the
+This command takes an
+.Tn ASCII
+string argument, the hook name, and returns the
 statistics associated with the hook as a
 .Dv "struct ng_bpf_hookstat" .
 .It Dv NGM_BPF_CLR_STATS
-This command takes an ASCII string argument, the hook name, and clears the
+This command takes an
+.Tn ASCII
+string argument, the hook name, and clears the
 statistics associated with the hook.
 .It Dv NGM_BPF_GETCLR_STATS
 This command is identical to
@@ -129,15 +135,20 @@ This node shuts down upon receipt of a
 control message, or when all hooks have been disconnected.
 .Sh BUGS
 When built as a loadable kernel module, this module includes the file
-.Dv "net/bpf_filter.c" .
+.Pa net/bpf_filter.c .
 Although loading the module should fail if
-.Dv "net/bpf_filter.c"
+.Pa net/bpf_filter.c
 already exists in the kernel, currently it does not, and the duplicate
 copies of the file do not interfere.
 However, this may change in the future.
+.Sh HISTORY
+The
+.Nm
+node type was implemented in
+.Fx 4.0 .
 .Sh SEE ALSO
 .Xr netgraph 4 ,
 .Xr bpf 4 ,
 .Xr ngctl 8 .
-.Sh AUTHOR
-Archie Cobbs <archie@whistle.com>
+.Sh AUTHORS
+.An Archie Cobbs Aq archie@whistle.com

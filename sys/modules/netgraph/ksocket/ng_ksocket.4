@@ -46,21 +46,21 @@
 A
 .Nm ksocket
 node is both a netgraph node and a BSD socket.  The
-.Nm ksocket
+.Nm
 node type allows one to open a socket inside the kernel and have
 it appear as a Netgraph node.  The
-.Nm ksocket
+.Nm
 node type is the reverse of the socket node type (see
-.Xr ng_socket 8 "):"
+.Xr ng_socket 8 ) :
 whereas the socket node type enables the user-level manipulation (via
 a socket) of what is normally a kernel-level entity (the associated
 Netgraph node), the
-.Nm ksocket
+.Nm
 node type enables the kernel-level manipulation (via a Netgraph node) of
 what is normally a user-level entity (the associated socket).
 .Pp
 A
-.Nm ksocket
+.Nm
 node allows at most one hook connection.  Connecting to the node is
 equivalent to opening the associated socket.  The name given to the hook
 determines what kind of socket the node will open (see below).
@@ -136,7 +136,9 @@ retrieved value.
 .Sh ASCII FORM CONTROL MESSAGES
 For control messages that pass a
 .Dv "struct sockaddr"
-in the argument field, the normal ASCII equivalent of the C structure
+in the argument field, the normal
+.Tn ASCII
+equivalent of the C structure
 is an acceptable form.  For the
 .Dv PF_INET
 and
@@ -162,7 +164,9 @@ local/"/tmp/foo.socket"
 .Pp
 For control messages that pass a
 .Dv "struct ng_ksocket_sockopt" ,
-the normal ASCII form for that structure is used.  In the future, more
+the normal
+.Tn ASCII
+form for that structure is used.  In the future, more
 convenient encoding of the more common socket options may be supported.
 .Sh SHUTDOWN
 This node shuts down upon receipt of a
@@ -174,5 +178,10 @@ Shutdown of the node closes the associated socket.
 .Xr netgraph 4 ,
 .Xr ng_socket 8 ,
 .Xr ngctl 8 .
-.Sh AUTHOR
-Archie Cobbs <archie@whistle.com>
+.Sh HISTORY
+The
+.Nm
+node type was implemented in
+.Fx 4.0 .
+.Sh AUTHORS
+.An Archie Cobbs Aq archie@whistle.com

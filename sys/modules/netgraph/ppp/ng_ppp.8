@@ -66,7 +66,7 @@ hook which is used to handle any protocol not directly supported
 by the node. This includes all of the control protocols: LCP, IPCP,
 CCP, etc.  Typically this node is connected to a user-land daemon
 via a
-.Xr ng_socket(8)
+.Xr ng_socket 8
 type node.
 .Sh ENABLING FUNCTIONALITY
 In general, the PPP node enables a specific link or functionality when
@@ -153,7 +153,9 @@ hooks are connected, and the corresponding configuration flag is
 enabled, Van Jacobsen compression and/or decompression will become active.
 Normally these hooks connect to the corresponding hooks of a single
 .Xr ng_vjc 8
-node.  The PPP node is compatible with the ``pass through'' modes of the
+node.  The PPP node is compatible with the
+.Dq pass through
+modes of the
 .Xr ng_vjc 8
 node type.
 .Sh BYPASS HOOK
@@ -375,5 +377,10 @@ control message, or when all hooks have been disconnected.
 .%T "The PPP Multilink Protocol (MP)"
 .%O RFC 1990
 .Re
-.Sh AUTHOR
-Archie Cobbs <archie@whistle.com>
+.Sh HISTORY
+The
+.Nm
+node type was implemented in
+.Fx 4.0 .
+.Sh AUTHORS
+.An Archie Cobbs Aq archie@whistle.com

@@ -37,7 +37,7 @@
 .\"
 .Dd January 19, 1999
 .Dt NG_ECHO 8
-.Os FreeBSD 4.0
+.Os FreeBSD
 .Sh NAME
 .Nm ng_echo
 .Nd netgraph echo node type
@@ -49,8 +49,9 @@ The
 node type reflects all data and control messages back to the sender.
 This node type is used for testing and debugging.
 .Sh HOOKS
-.Nm Echo
-nodes accept any request to connect, regardless of the hook name,
+A
+.Nm echo
+node accepts any request to connect, regardless of the hook name,
 as long as the name is unique.
 .Sh CONTROL MESSAGES
 This node type supports only the generic control messages.
@@ -63,5 +64,10 @@ control message, or when all hooks have been disconnected.
 .Xr netgraph 4 ,
 .Xr ng_hole 8 ,
 .Xr ngctl 8 .
-.Sh AUTHOR
-Julian Elischer <julian@whistle.com>
+.Sh HISTORY
+The
+.Nm
+node type was implemented in
+.Fx 4.0 .
+.Sh AUTHORS
+.An Julian Elischer Aq julian@whistle.com
