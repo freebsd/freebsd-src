@@ -115,7 +115,7 @@ MAIN:{
 		    my @stat = stat("$DIR/$log.brief");
 		    my $class = success("$DIR/$log.brief") ? "ok" : "fail";
 		    $links .= "<span class=\"$class\">" .
-			strftime("%Y-%m-%d&nbsp;%H:%M", gmtime($stat[9])) .
+			strftime("%Y-%m-%d %H:%M UTC", gmtime($stat[9])) .
 			"</span><br />";
 		    my $size = sprintf("[%.1f&nbsp;kB]", $stat[7] / 1024);
 		    $links .= " <span class=\"tiny\">" .
@@ -141,7 +141,7 @@ MAIN:{
 		if $have_logs > 0;
 	}
     }
-    my $date = strftime("%Y-%m-%d %H:%M GMT", gmtime());
+    my $date = strftime("%Y-%m-%d %H:%M UTC", gmtime());
     print "    </table>
     <p class=\"update\">Last updated: $date</p>
     <p>
