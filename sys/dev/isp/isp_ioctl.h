@@ -1,4 +1,4 @@
-/* $FreeBSD$
+/* $FreeBSD$ */
 /*
  * Copyright (c) 2001 by Matthew Jacob
  *
