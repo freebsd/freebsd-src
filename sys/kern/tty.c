@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.c	8.8 (Berkeley) 1/21/94
- * $Id: tty.c,v 1.62 1995/07/31 19:17:11 bde Exp $
+ * $Id: tty.c,v 1.63 1995/07/31 21:01:23 bde Exp $
  */
 
 /*-
@@ -1148,6 +1148,7 @@ again:
 	if (rw & FREAD) {
 		FLUSHQ(&tp->t_canq);
 		FLUSHQ(&tp->t_rawq);
+		CLR(tp->t_lflag, PENDIN);
 		tp->t_rocount = 0;
 		tp->t_rocol = 0;
 		CLR(tp->t_state, TS_LOCAL);
