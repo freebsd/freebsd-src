@@ -58,7 +58,7 @@ static device_method_t ed_pccard_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		ed_pccard_probe),
 	DEVMETHOD(device_attach,	ed_pccard_attach),
-	DEVMETHOD(device_attach,	ed_pccard_detach),
+	DEVMETHOD(device_detach,	ed_pccard_detach),
 
 	{ 0, 0 }
 };
@@ -130,7 +130,6 @@ end:
 		error = ed_alloc_irq(dev, 0, 0);
 
 	ed_release_resources(dev);
-printf("probe %d\n", error);
 	return (error);
 }
 
@@ -156,6 +155,5 @@ ed_pccard_attach(device_t dev)
 	}	      
 
 	error = ed_attach(sc, device_get_unit(dev), flags);
-	printf("attach failed %d\n", error);
-	return error;
+	return (error);
 } 
