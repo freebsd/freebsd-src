@@ -542,6 +542,7 @@ bufinit(void)
 		bp->b_rcred = NOCRED;
 		bp->b_wcred = NOCRED;
 		bp->b_qindex = QUEUE_EMPTY;
+		bp->b_vflags = 0;
 		bp->b_xflags = 0;
 		LIST_INIT(&bp->b_dep);
 		BUF_LOCKINIT(bp);
@@ -1909,6 +1910,7 @@ restart:
 		bp->b_flags = 0;
 		bp->b_ioflags = 0;
 		bp->b_xflags = 0;
+		bp->b_vflags = 0;
 		bp->b_dev = NODEV;
 		bp->b_vp = NULL;
 		bp->b_blkno = bp->b_lblkno = 0;
@@ -3216,12 +3218,12 @@ bufdone(struct buf *bp)
 				    (int) m->pindex, (int)(foff >> 32),
 						(int) foff & 0xffffffff, resid, i);
 				if (!vn_isdisk(vp, NULL))
-					printf(" iosize: %ld, lblkno: %jd, flags: 0x%lx, npages: %d\n",
+					printf(" iosize: %ld, lblkno: %jd, flags: 0x%x, npages: %d\n",
 					    bp->b_vp->v_mount->mnt_stat.f_iosize,
 					    (intmax_t) bp->b_lblkno,
 					    bp->b_flags, bp->b_npages);
 				else
-					printf(" VDEV, lblkno: %jd, flags: 0x%lx, npages: %d\n",
+					printf(" VDEV, lblkno: %jd, flags: 0x%x, npages: %d\n",
 					    (intmax_t) bp->b_lblkno,
 					    bp->b_flags, bp->b_npages);
 				printf(" valid: 0x%x, dirty: 0x%x, wired: %d\n",
