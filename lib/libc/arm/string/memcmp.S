@@ -83,8 +83,8 @@ ENTRY(memcmp)
 	bne	.Lmemcmp_bytewise2	/* Badly aligned. Do it the slow way */
 
 	/* Word-align the addresses, if necessary */
-	and	r3, r1, #0x03
-	rsbs	r3, r3, #0x03
+	sub	r3, r1, #0x05
+	ands	r3, r3, #0x03
 	add	r3, r3, r3, lsl #1
 	addne	pc, pc, r3, lsl #3
 	nop
