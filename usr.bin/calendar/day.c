@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: day.c,v 1.9 1997/06/23 06:52:12 charnier Exp $
+ *	$Id: day.c,v 1.10 1997/09/18 14:06:43 phk Exp $
  */
 
 
@@ -305,7 +305,7 @@ isnow(endp, monthp, dayp, varp)
 
 	/* convert Weekday into *next*  Day, 
 	 * e.g.: 'Sunday' -> 22 
-	 *       'SunayLast' -> ??
+	 *       'SundayLast' -> ??
 	 */
 	if (flags & F_ISDAY) {
 #if DEBUG
