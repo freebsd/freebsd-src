@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: srmdisk.c,v 1.2 1998/10/31 17:12:32 dfr Exp $
+ *	$Id: srmdisk.c,v 1.3 1998/11/02 23:28:10 msmith Exp $
  */
 
 /*
@@ -46,6 +46,7 @@
 #include <machine/stdarg.h>
 #include <machine/prom.h>
 
+#include "bootstrap.h"
 #include "libalpha.h"
 
 #define SRMDISK_SECSIZE	512
