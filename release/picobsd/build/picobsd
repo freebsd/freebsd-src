@@ -43,8 +43,16 @@
 # VAR=${VAR:-value} construct for those variables which can
 # be overridden from the command line.
 
-init_vars() {	# OK
+# select the right memory disk name
+case `uname -r` in
+    5.*)
+	VN="md"
+	;;
+    *)
+	VN="vn"
+esac
 
+init_vars() {	# OK
     # if you include the floppy tree in the mfs, you
     # can boot from the image via diskless. Default to yes.
     INCLUDE_FLOPPY_IN_MFS=${INCLUDE_FLOPPY_IN_MFS:-yes}
@@ -80,8 +88,9 @@ init_vars() {	# OK
     NO_DEVFS=yes # DEVFS is currently broken. Always set this.
 
     # Find a suitable vnode
-    VNUM=`mount | awk "/vn/ { num++ } END { printf \"%d\", num }"`
-    log "---> Using vn${VNUM}..."
+    VNUM=`mount | awk "/${VN}/ { num++ } END { printf \"%d\", num }"`
+    VNDEV=${VN}${VNUM}
+    log "---> Using ${VNDEV}..."
 
     # Location of the boot blocks (in case you want them custom-built)
     boot1=/boot/boot1
@@ -137,6 +146,17 @@ clean_tree() {
     rm -rf ${BUILDDIR}
 }
 
+# free as much as possible from the vnode
+free_vnode() {
+    umount ${MFS_MOUNTPOINT}    2> /dev/null || true
+    umount /dev/${VNDEV}       2> /dev/null || true
+    if [ "${VN}" = "vn" ] ; then
+	vnconfig -u ${VNDEV} 2> /dev/null || true
+    else
+	mdconfig -d -u ${VNUM} 2> /dev/null || true
+    fi
+}
+
 # prepare a message to be printed in the dialog menus.
 set_msgs() {		# OK
     MSG1="Type: ${THETYPE} name $name"
@@ -158,7 +178,7 @@ build_image() {
     set_msgs
     printf "${MSG}"
     echo "-> We'll use the sources living in ${SRC}"
-    echo "-> vnode is $VNUM"
+    echo "-> vnode is ${VNDEV}"
     echo ""
     echo "-> I hope you have checked the PICOBSD config file..."
     echo ""
@@ -326,7 +346,7 @@ Your options:\n\
 " 20 80 2> ${RISU}
     if [ "$?" = "0" ]; then
 	echo "Writing picobsd.bin..."
-	dd if=${BUILDDIR}/picobsd.bin of=/dev/rfd0.${FLOPPY_SIZE}
+	dd if=${BUILDDIR}/picobsd.bin of=/dev/fd0.${FLOPPY_SIZE}
     else
 	echo "Ok, the image is in picobsd.bin"
     fi
@@ -381,19 +401,19 @@ do_kernel() {		# OK
 # Files are first copied to a local tree and then compressed.
 
 populate_floppy_fs() {		# OK
+    local dst excl srcdir
 
     dst=${BUILDDIR}/floppy.tree
     log "---> pwd=`pwd` Populating floppy filesystem..."
 
-    # clean relics from old compilations. This is the destination.
-    rm -rf $dst || true
-    mkdir $dst
+    # clean relics from old compilations.
+    rm -rf ${dst} || true
+    mkdir ${dst}
 
     excl=${MY_TREE}/floppy.tree.exclude
     if [ -f ${excl} ] ; then
 	excl="--exclude-from ${excl}"
-	log "---> Exclude following files from generic tree:
-`cat ${excl}`"
+	log "---> Files excluded from generic tree: `echo;cat ${excl}`"
     else
 	excl=""
     fi
@@ -421,8 +441,7 @@ populate_floppy_fs() {		# OK
     # gzip returns an error if it fails to compress some file
     (cd $dst
     gzip -9 etc/*
-    log "---> Compressed files in etc/
-`ls -l etc`"
+    log "---> Compressed files in etc/ `echo; ls -l etc`"
     ) || true
 }
 
@@ -441,13 +460,13 @@ create_mfs() {		# OK
     # installed so you have more space on the disk...
     # For small image sizes, use std disktypes
     if [ ${MFS_SIZE} -lt 1024 ] ; then
-	disklabel -rw vn${VNUM} fd${MFS_SIZE} || fail $? mfs_disklabel
+	disklabel -rw ${VNDEV} fd${MFS_SIZE} || fail $? mfs_disklabel
     else
-	disklabel -rw vn${VNUM} auto || fail $? mfs_disklabel
+	disklabel -rw ${VNDEV} auto || fail $? mfs_disklabel
     fi
-    newfs -i ${MFS_INODES} -m 0 -p 0 -o space /dev/rvn${VNUM}c > /dev/null
-    mount /dev/vn${VNUM}c ${MFS_MOUNTPOINT} || fail $? no_mount
-    log "`df /dev/vn${VNUM}c`"
+    newfs -i ${MFS_INODES} -m 0 -p 0 -o space /dev/${VNDEV}c > /dev/null
+    mount /dev/${VNDEV}c ${MFS_MOUNTPOINT} || fail $? no_mount
+    log "`df /dev/${VNDEV}c`"
 }
 
 # Populate the memory filesystem with binaries and non-variable
@@ -476,6 +495,7 @@ populate_mfs() {
     ln -s /dev/null ${MFS_MOUNTPOINT}/var/run/log
     ln -s /etc/termcap ${MFS_MOUNTPOINT}/usr/share/misc/termcap
 
+    # XXX-fixme in -current, MAKEDEV is from /usr/src/etc/MAKEDEV
     if [ "${NO_DEVFS}" != "" ] ; then
 	(cd ${MFS_MOUNTPOINT}/dev ; ln -s /dev/MAKEDEV ;
 	    ./MAKEDEV ${MY_DEVS}; rm MAKEDEV)
@@ -483,12 +503,12 @@ populate_mfs() {
 
     (
     cd ${BUILDDIR}/crunch
-    log "---> Making and installing crunch1 from `pwd`..."
+    log "---> Making and installing crunch1 from `pwd` src ${SRC}..."
     a=${BUILDDIR}/crunch1.conf
     ( export BUILDDIR SRC MY_TREE PICO_OBJ ;
 	make -v -f ${PICO_TREE}/build/Makefile.conf ${BUILDDIR}/crunch.mk )
     log "-- libs are ${LIBS} "
-    export LIBS CFLAGS # used by crunch.mk
+    export SRC LIBS CFLAGS # used by crunch.mk
     log "Now make -f crunch.mk"
     make ${makeopts} -f ${BUILDDIR}/crunch.mk
     strip --remove-section=.note --remove-section=.comment crunch1
@@ -523,15 +543,8 @@ populate_mfs() {
     (log "---> Fixing permissions"; cd ${MFS_MOUNTPOINT}; chown -R root . )
     df -ik ${MFS_MOUNTPOINT}
     umount ${MFS_MOUNTPOINT}
-    fsck -p /dev/rvn${VNUM}c
-    vnconfig -u vn${VNUM}
-}
-
-# free as much as possible from the vnode
-free_vnode() {
-    umount ${MFS_MOUNTPOINT}    2> /dev/null || true
-    umount /dev/vn${VNUM}       2> /dev/null || true
-    vnconfig -u vn${VNUM} 2> /dev/null || true
+    fsck -p /dev/${VNDEV}c
+    free_vnode
 }
 
 final_cleanup() {
@@ -548,14 +561,14 @@ fail() {
     echo "---> fail: Error <$errno> error code <$errcode>"
     case $errcode in
     no_vnconfig)
-	echo "Error while doing vnconfig of ${imgname} on /dev/rvn${VNUM}..."
-	echo "   Most probably your running kernel doesn't have the vn(4) device."
+	echo "Error while doing vnconfig of ${imgname} on /dev/${VNDEV}..."
+	echo "   Most probably your running kernel doesn't have the ${VN}(4) device."
 	;;
     mfs_disklabel)
 	echo "Error while labeling ${MFS_NAME} size ${MFS_SIZE}"
 	;;
     no_mount)
-	echo "Error while mounting ${MFS_NAME} (/dev/vn${VNUM}c) on ${MFS_MOUNTPOINT}"
+	echo "Error while mounting ${MFS_NAME} (/dev/${VNDEV}c) on ${MFS_MOUNTPOINT}"
 	;;
     mtree)
 	echo "Error while making hierarchy in ${MFS_MOUNTPOINT}"
@@ -598,7 +611,11 @@ init_fs_image() { # filename size_in_kbytes
     dd if=/dev/zero of=${imgname} count=${imgsize} bs=1k 2> /dev/null
     dd if=${boot1}  of=${imgname} conv=notrunc 2> /dev/null
 
-    vnconfig -c -s labels vn${VNUM} ${imgname} || fail $? no_vnconfig
+    if [ "${VN}" = "vn" ] ; then
+	vnconfig -c -s labels ${VNDEV} ${imgname} || fail $? no_vnconfig
+    else
+	mdconfig -a -t vnode -u ${VNUM} -f ${imgname} || fail $? no_vnconfig
+    fi
 }
 
 
@@ -618,12 +635,12 @@ fill_floppy_image() {
     log "---> Labeling floppy image"
     b2=${BUILDDIR}/boot2 # modified boot2
     perl -pne 's/\/boot\/loader/\/kernel\0\0\0\0\0/' ${boot2} > ${b2}
-    disklabel -Brw -b ${boot1} -s ${b2} vn${VNUM} fd${FLOPPY_SIZE} || \
+    disklabel -Brw -b ${boot1} -s ${b2} ${VNDEV} fd${FLOPPY_SIZE} || \
 	fail $?  floppy_disklabel
 
-    newfs -i ${FLOPPY_INODES} -m 0 -p 0 -o space /dev/vn${VNUM}c > /dev/null
+    newfs -i ${FLOPPY_INODES} -m 0 -p 0 -o space /dev/${VNDEV}c > /dev/null
 
-    mount /dev/vn${VNUM}c ${MFS_MOUNTPOINT}
+    mount /dev/${VNDEV}c ${MFS_MOUNTPOINT}
 
     # preload kernel, compress with kgzip and copy to floppy image
     (
@@ -660,6 +677,7 @@ while [ true ]; do
     --src)	# set the source path instead of /usr/src
 	SRC=$2
 	if [ "$3" = "--init" ] ; then
+	    shift
 	    # Optionally creates include directory and libraries.
 	    mkdir -p ${SRC}/usr/include		# the include directory...
 	    mkdir -p ${SRC}/usr/share/misc	# a few things go here
