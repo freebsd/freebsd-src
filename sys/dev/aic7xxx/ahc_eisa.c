@@ -159,41 +159,6 @@ aic7770_attach(device_t dev)
 	return (0);
 }
 
-int
-aic7770_map_registers(struct ahc_softc *ahc, u_int unused_ioport_arg)
-{
-	struct	resource *regs;
-	int	rid;
-
-	rid = 0;
-	regs = bus_alloc_resource_any(ahc->dev_softc, SYS_RES_IOPORT, &rid,
-				      RF_ACTIVE);
-	if (regs == NULL) {
-		device_printf(ahc->dev_softc, "Unable to map I/O space?!\n");
-		return ENOMEM;
-	}
-	ahc->platform_data->regs_res_type = SYS_RES_IOPORT;
-	ahc->platform_data->regs_res_id = rid,
-	ahc->platform_data->regs = regs;
-	ahc->tag = rman_get_bustag(regs);
-	ahc->bsh = rman_get_bushandle(regs);
-	return (0);
-}
-
-int
-aic7770_map_int(struct ahc_softc *ahc, int irq)
-{
-	int zero;
-
-	zero = 0;
-	ahc->platform_data->irq =
-	    bus_alloc_resource_any(ahc->dev_softc, SYS_RES_IRQ, &zero,
-				   RF_ACTIVE);
-	if (ahc->platform_data->irq == NULL)
-		return (ENOMEM);
-	ahc->platform_data->irq_res_type = SYS_RES_IRQ;
-	return (ahc_map_int(ahc));
-}
 
 static device_method_t ahc_eisa_device_methods[] = {
 	/* Device interface */

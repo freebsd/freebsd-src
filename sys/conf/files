@@ -318,9 +318,9 @@ dev/ahb/ahb.c		optional ahb eisa
 dev/aic/aic.c		optional aic
 dev/aic/aic_pccard.c	optional aic card
 dev/aic/aic_pccard.c	optional aic pccard
-dev/aic7xxx/aic7770.c	optional ahc eisa
+dev/aic7xxx/aic7770.c	optional ahc
 dev/aic7xxx/ahc_eisa.c	optional ahc eisa
-#dev/aic7xxx/ahc_isa.c	optional ahc isa
+dev/aic7xxx/ahc_isa.c	optional ahc isa
 dev/aic7xxx/ahc_pci.c	optional ahc pci
 dev/aic7xxx/aic7xxx.c	optional ahc
 dev/aic7xxx/aic7xxx_93cx6.c	optional ahc
