@@ -181,7 +181,7 @@ static int	binop __P((void));
 static int	equalf __P((const char *, const char *));
 static int	filstat __P((char *, enum token));
 static int	getn __P((const char *));
-static quad_t	getq __P((const char *));
+static long long	getq __P((const char *));
 static int	intcmp __P((const char *, const char *));
 static int	isoperand __P((void));
 int		main __P((int, char **));
@@ -491,15 +491,15 @@ getn(s)
 }
 
 /* atoi with error detection and 64 bit range */
-static quad_t
+static long long
 getq(s)
 	const char *s;
 {
 	char *p;
-	quad_t r;
+	long long r;
 
 	errno = 0;
-	r = strtoq(s, &p, 10);
+	r = strtoll(s, &p, 10);
 
 	if (s == p)
 		error("%s: bad number", s);
@@ -521,7 +521,7 @@ static int
 intcmp (s1, s2)
 	const char *s1, *s2;
 {
-	quad_t q1, q2;
+	long long q1, q2;
 
 
 	q1 = getq(s1);
