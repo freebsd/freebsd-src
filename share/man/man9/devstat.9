@@ -1,5 +1,5 @@
 .\"
-.\" Copyright (c) 1998 Kenneth D. Merry.
+.\" Copyright (c) 1998, 1999 Kenneth D. Merry.
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id$
+.\"	$Id: devstat.9,v 1.1 1998/09/15 06:49:18 gibbs Exp $
 .\"
 .Dd May 22, 1998
 .Dt DEVSTAT 9
@@ -43,6 +43,7 @@
 .Fa "u_int32_t block_size"
 .Fa "devstat_support_flags flags"
 .Fa "devstat_type_flags device_type"
+.Fa "devstat_priority priority"
 .Fc
 .Ft void
 .Fn devstat_remove_entry "struct devstat *ds"
@@ -56,7 +57,7 @@
 .Fa "devstat_trans_flags flags"
 .Fc
 .Sh DESCRIPTION
-The devstat subsystem is basically an interface for recording device
+The devstat subsystem is an interface for recording device
 statistics, as its name implies.  The idea is to keep reasonably detailed
 statistics while utilizing a minimum amount of CPU time to record them.
 Thus, no statistical calculations are actually performed in the kernel
@@ -94,6 +95,13 @@ The device type.  This is broken into three sections:  base device type
 (e.g. direct access, CDROM, sequential access), interface type (IDE, SCSI
 or other) and a passthrough flag to indicate pasthrough devices.  See below
 for a complete list of types.
+.It priority
+The device priority.  The priority is used to determine how devices are
+sorted within 
+.Nm devstat's
+list of devices.  Devices are sorted first by priority (highest to lowest),
+and then by attach order.  See below for a complete list of available
+priorities.
 .El
 .Pp
 .Fn devstat_remove_entry
@@ -219,6 +227,12 @@ This is the device type.  It consists of three parts:  the device type
 (e.g. direct access, CDROM, sequential access, etc.), the interface (IDE,
 SCSI or other) and whether or not the device in question is a passthrough
 driver.  See below for a complete list of device types.
+.It priority
+This is the priority.  This is the first parameter used to determine where
+to insert a device in the
+.Nm devstat
+list.  The second parameter is attach order.  See below for a list of
+available priorities.
 .El
 .Pp
 Each device is given a device type.  Passthrough devices have the same
@@ -257,6 +271,28 @@ typedef enum {
 	DEVSTAT_TYPE_IF_MASK	= 0x0f0,
 	DEVSTAT_TYPE_PASS	= 0x100
 } devstat_type_flags;
+.Ed
+.Pp
+Devices have a priority associated with them, which controls roughly where
+they are placed in the
+.Nm devstat
+list.  The priorities are as follows:
+.Bd -literal -offset indent
+typedef enum {
+	DEVSTAT_PRIORITY_MIN	= 0x000,
+	DEVSTAT_PRIORITY_OTHER	= 0x020,
+	DEVSTAT_PRIORITY_PASS	= 0x030,
+	DEVSTAT_PRIORITY_FD	= 0x040,
+	DEVSTAT_PRIORITY_WFD	= 0x050,
+	DEVSTAT_PRIORITY_SA	= 0x060,
+	DEVSTAT_PRIORITY_OCD	= 0x070,
+	DEVSTAT_PRIORITY_WCD	= 0x080,
+	DEVSTAT_PRIORITY_CD	= 0x090,
+	DEVSTAT_PRIORITY_WD	= 0x100,
+	DEVSTAT_PRIORITY_DA	= 0x110,
+	DEVSTAT_PRIORITY_CCD	= 0x120,
+	DEVSTAT_PRIORITY_MAX	= 0xfff
+} devstat_priority;
 .Ed
 .Pp
 Each device has associated with it flags to indicate what operations are
