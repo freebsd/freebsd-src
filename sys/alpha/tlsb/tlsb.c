@@ -210,7 +210,8 @@ tlsb_setup_intr(device_t dev, device_t child, struct resource *i, int f,
 		tlsb0_softc->zsc_intr = intr;
 		tlsb0_softc->zsc_arg = arg;
 		return (0);
-	} else if (strncmp(device_get_name(child), "dwlpx", 5) == 0) {
+	} else if (strncmp(device_get_name(device_get_parent(child)), "kft", 3)
+	    == 0) {
 		if (tlsb0_softc->sub_intr == NULL)
 			tlsb0_softc->sub_intr = intr;
 		return (0);
@@ -225,7 +226,8 @@ tlsb_teardown_intr(device_t dev, device_t child, struct resource *i, void *c)
 	if (strncmp(device_get_name(child), "zsc", 3) == 0) {
 		tlsb0_softc->zsc_intr = NULL;
 		return (0);
-	} else if (strncmp(device_get_name(dev), "dwlpx", 5) == 0) {
+	} else if (strncmp(device_get_name(device_get_parent(child)), "kft", 3)
+	    == 0) {
 		tlsb0_softc->sub_intr = NULL;
 		return (0);
 	} else {
