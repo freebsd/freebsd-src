@@ -67,11 +67,10 @@ static const char rcsid[] =
 static char	*acctfile;	/* accounting file (input data) */
 static int	 allflag = 1;	/* Get stats on everybody */
 static int	 errs;
-static int	 hcount;	/* Count of hash entries */
+static size_t	 hcount;	/* Count of hash entries */
 static int	 mflag = 0;	/* disregard machine names */
 static int	 pflag = 0;	/* 1 if -p on cmd line */
 static float	 price = 0.02;	/* cost per page (or what ever) */
-static long	 price100;	/* per-page cost in 100th of a cent */
 static int	 reverse;	/* Reverse sort order */
 static int	 sort;		/* Sort by cost */
 static char	*sumfile;	/* summary file */
@@ -97,7 +96,7 @@ struct hent {
 static struct	hent	*hashtab[HSHSIZE];	/* Hash table proper */
 
 int		 main(int argc, char **_argv);
-static void	 account(FILE *_acct);
+static void	 account(FILE *_acctf);
 static int	 any(int _ch, const char _str[]);
 static int	 chkprinter(const char *_ptrname);
 static void	 dumpit(void);
@@ -111,7 +110,7 @@ static void	 usage(void);
 int
 main(int argc, char **argv)
 {
-	FILE *acct;
+	FILE *acctf;
 	const char *cp, *printer;
 
 	printer = NULL;
@@ -178,15 +177,15 @@ main(int argc, char **argv)
 		exit(2);
 	}
 
-	if ((acct = fopen(acctfile, "r")) == NULL) {
+	if ((acctf = fopen(acctfile, "r")) == NULL) {
 		perror(acctfile);
 		exit(1);
 	}
-	account(acct);
-	fclose(acct);
-	if ((acct = fopen(sumfile, "r")) != NULL) {
-		account(acct);
-		fclose(acct);
+	account(acctf);
+	fclose(acctf);
+	if ((acctf = fopen(sumfile, "r")) != NULL) {
+		account(acctf);
+		fclose(acctf);
 	}
 	if (summarize)
 		rewrite();
@@ -212,7 +211,7 @@ usage(void)
  * Host names are ignored if the -m flag is present.
  */
 static void
-account(FILE *acct)
+account(FILE *acctf)
 {
 	char linebuf[BUFSIZ];
 	double t;
@@ -220,7 +219,7 @@ account(FILE *acct)
 	register struct hent *hp;
 	register int ic;
 
-	while (fgets(linebuf, BUFSIZ, acct) != NULL) {
+	while (fgets(linebuf, BUFSIZ, acctf) != NULL) {
 		cp = linebuf;
 		while (any(*cp, " \t"))
 			cp++;
@@ -258,7 +257,8 @@ dumpit(void)
 {
 	struct hent **base;
 	register struct hent *hp, **ap;
-	register int hno, c, runs;
+	register int hno, runs;
+	size_t c;
 	float feet;
 
 	hp = hashtab[0];
@@ -296,7 +296,7 @@ rewrite(void)
 {
 	register struct hent *hp;
 	register int i;
-	register FILE *acctf;
+	FILE *acctf;
 
 	if ((acctf = fopen(sumfile, "w")) == NULL) {
 		warn("%s", sumfile);
@@ -341,7 +341,7 @@ enter(const char name[])
 		return(hp);
 	h = hash(name);
 	hcount++;
-	hp = (struct hent *) calloc(sizeof *hp, 1);
+	hp = (struct hent *) calloc(sizeof *hp, (size_t)1);
 	hp->h_name = (char *) calloc(sizeof(char), strlen(name)+1);
 	strcpy(hp->h_name, name);
 	hp->h_feetpages = 0.0;
