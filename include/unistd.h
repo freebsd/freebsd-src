@@ -164,6 +164,7 @@ int	 mknod __P((const char *, mode_t, dev_t));
 int	 mkstemp __P((char *));
 int	 mkstemps __P((char *, int));
 char	*mktemp __P((char *));
+int	 nfsclnt __P((int, void *));
 int	 nfssvc __P((int, void *));
 int	 nice __P((int));
 ssize_t	 pread __P((int, void *, size_t, off_t));
