@@ -36,6 +36,7 @@ static const char rcsid[] =
 #include <sys/wait.h>
 #include <machine/elf.h>
 #include <a.out.h>
+#include <dlfcn.h>
 #include <err.h>
 #include <fcntl.h>
 #include <stdio.h>
@@ -116,6 +117,7 @@ char	*argv[];
 		int	n;
 		int	status;
 		int	file_ok;
+		int	is_shlib;
 
 		if ((fd = open(*argv, O_RDONLY, 0)) < 0) {
 			warn("%s", *argv);
@@ -130,6 +132,7 @@ char	*argv[];
 		}
 
 		file_ok = 1;
+		is_shlib = 0;
 		if (n >= sizeof hdr.aout && !N_BADMAG(hdr.aout)) {
 			/* a.out file */
 			if ((N_GETFLAG(hdr.aout) & EX_DPMASK) != EX_DYNAMIC
@@ -167,6 +170,8 @@ char	*argv[];
 			if (!dynamic) {
 				warnx("%s: not a dynamic executable", *argv);
 				file_ok = 0;
+			} else if (hdr.elf.e_type == ET_DYN) {
+				is_shlib = 1;
 			}
 		} else {
 			warnx("%s: not a dynamic executable", *argv);
@@ -204,8 +209,13 @@ char	*argv[];
 			}
 			break;
 		case 0:
-			execl(*argv, *argv, (char *)NULL);
-			warn("%s", *argv);
+			if (is_shlib == 0) {
+				execl(*argv, *argv, (char *)NULL);
+				warn("%s", *argv);
+			} else {
+				dlopen(*argv, RTLD_TRACE);
+				warnx("%s: %s", *argv, dlerror());
+			}
 			_exit(1);
 		}
 	}
