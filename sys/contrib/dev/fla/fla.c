@@ -17,8 +17,7 @@
 #include <sys/kernel.h>
 #include <sys/buf.h>
 #include <sys/malloc.h>
-#include <sys/disklabel.h>
-#include <sys/diskslice.h>
+#include <sys/disk.h>
 #include <sys/devicestat.h>
 #include <sys/module.h>
 #include <sys/conf.h>
@@ -36,6 +35,11 @@
 
 #ifdef SMP
 #include <machine/smp.h>
+#define LEAVE() rel_mplock();			
+#define ENTER() get_mplock();			
+#else
+#define LEAVE()
+#define ENTER()
 #endif
 
 #include <contrib/dev/fla/msysosak.h>
@@ -52,7 +56,6 @@ static d_strategy_t flastrategy;
 static d_open_t flaopen;
 static d_close_t flaclose;
 static d_ioctl_t flaioctl;
-static d_psize_t flapsize;
 
 static struct cdevsw fla_cdevsw = {
         /* open */      flaopen,
@@ -70,7 +73,7 @@ static struct cdevsw fla_cdevsw = {
         /* parms */     noparms,
         /* maj */       CDEV_MAJOR,
         /* dump */      nodump,
-        /* psize */     flapsize,
+        /* psize */     nopsize,
         /* flags */     D_DISK | D_CANFREE,
         /* maxio */     0,
         /* bmaj */      BDEV_MAJOR
@@ -115,73 +118,76 @@ doc2k_memset(void *dst, int c, unsigned len)
 }
 
 static struct fla_s {
+	int busy;
+	int unit;
 	unsigned nsect;
 	struct doc2k_stat ds;
 	struct diskslices *dk_slices;
 	struct buf_queue_head buf_queue;
 	struct devstat stats;
-	int busy;
+	struct disk disk;
+	dev_t dev;
 } softc[NFLA];
 
 static int
 flaopen(dev_t dev, int flag, int fmt, struct proc *p)
 {
-	int unit;
 	struct fla_s *sc;
 	int error;
-	struct disklabel dk_dd;
+	struct disklabel *dl;
 
 	if (fla_debug)
-		printf("flaopen(%x %x %x %p)\n",
-			dev2udev(dev), flag, fmt, p);
-	unit = dkunit(dev);
-	if (unit >= NFLA)
-		return (ENXIO);
-	sc = &softc[unit];
-	if (!sc->nsect)
-		return (ENXIO);
-	bzero(&dk_dd, sizeof(dk_dd));
-	error = doc2k_size(unit, &dk_dd.d_secperunit,
-	    &dk_dd.d_ncylinders, &dk_dd.d_ntracks, &dk_dd.d_nsectors);
-	dk_dd.d_secsize = DEV_BSIZE;
-	dk_dd.d_secpercyl = dk_dd.d_ntracks * dk_dd.d_nsectors;
+		printf("flaopen(%s %x %x %p)\n",
+			devtoname(dev), flag, fmt, p);
 
-	error = dsopen(dev, fmt, 0, &sc->dk_slices, &dk_dd);
-	if (error)
-		return (error);
+	sc = dev->si_drv1;
+
+	error = doc2k_open(sc->unit);
+
+	if (error) {
+		printf("doc2k_open(%d) -> err %d\n", sc->unit, error);
+		return (EIO);
+	}
+
+	dl = &sc->disk.d_label;
+	bzero(dl, sizeof(*dl));
+	error = doc2k_size(sc->unit, &dl->d_secperunit,
+	    &dl->d_ncylinders, &dl->d_ntracks, &dl->d_nsectors);
+	dl->d_secsize = DEV_BSIZE;
+	dl->d_secpercyl = dl->d_ntracks * dl->d_nsectors; /* XXX */
+
 	return (0);
 }
 
 static int
 flaclose(dev_t dev, int flags, int fmt, struct proc *p)
 {
-	int unit;
+	int error;
 	struct fla_s *sc;
 
 	if (fla_debug)
-		printf("flaclose(%x %x %x %p)\n",
-			dev2udev(dev), flags, fmt, p);
-	unit = dkunit(dev);
-	sc = &softc[unit];
-	dsclose(dev, fmt, sc->dk_slices);
+		printf("flaclose(%s %x %x %p)\n",
+			devtoname(dev), flags, fmt, p);
+
+	sc = dev->si_drv1;
+
+	error = doc2k_close(sc->unit);
+	if (error) {
+		printf("doc2k_close(%d) -> err %d\n", sc->unit, error);
+		return (EIO);
+	}
 	return (0);
 }
 
 static int
 flaioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 {
-	int unit, error;
-	struct fla_s *sc;
 
 	if (fla_debug)
-		printf("flaioctl(%x %lx %p %x %p)\n",
-			dev2udev(dev), cmd, addr, flags, p);
-	unit = dkunit(dev);
-	sc = &softc[unit];
-	error = dsioctl(dev, cmd, addr, flags, &sc->dk_slices);
-	if (error == ENOIOCTL)
-		error = ENOTTY;
-	return (error);
+		printf("flaioctl(%s %lx %p %x %p)\n",
+			devtoname(dev), cmd, addr, flags, p);
+
+	return (ENOIOCTL);
 }
 
 static void
@@ -194,16 +200,11 @@ flastrategy(struct buf *bp)
 	devstat_trans_flags dop;
 
 	if (fla_debug > 1)
-		printf("flastrategy(%p) %x %lx, %d, %ld, %p)\n",
-			    bp, dev2udev(bp->b_dev), bp->b_flags, bp->b_blkno, 
-			    bp->b_bcount / DEV_BSIZE, bp->b_data);
-	unit = dkunit(bp->b_dev);
-	sc = &softc[unit];
+		printf("flastrategy(%p) %s %lx, %d, %ld, %p)\n",
+		    bp, devtoname(bp->b_dev), bp->b_flags, bp->b_blkno, 
+		    bp->b_bcount / DEV_BSIZE, bp->b_data);
 
-	if (dscheck(bp, sc->dk_slices) <= 0) {
-		biodone(bp);
-		return;
-	}
+	sc = bp->b_dev->si_drv1;
 
 	s = splbio();
 
@@ -234,14 +235,13 @@ flastrategy(struct buf *bp)
 			what = DOC2K_READ, dop = DEVSTAT_READ;
 		else 
 			what = DOC2K_WRITE, dop = DEVSTAT_WRITE;
-#ifdef SMP
-		rel_mplock();			
-#endif
+
+		LEAVE();
+
 		error = doc2k_rwe( unit, what, bp->b_pblkno,
 		    bp->b_bcount / DEV_BSIZE, bp->b_data);
-#ifdef SMP
-		get_mplock();			
-#endif
+
+		ENTER();
 
 		if (fla_debug > 1 || error) {
 			printf("fla%d: %d = rwe(%p, %d, %d, %d, %ld, %p)\n",
@@ -266,27 +266,14 @@ flastrategy(struct buf *bp)
 }
 
 static int
-flapsize(dev_t dev)
+flaprobe (device_t dev)
 {
 	int unit;
 	struct fla_s *sc;
-
-	if (fla_debug)
-		printf("flapsize(%x)\n", dev2udev(dev));
-	unit = dkunit(dev);
-	sc = &softc[unit];
-	if (!sc->nsect)
-		return 0;
-
-	return (dssize(dev, &sc->dk_slices));
-}
-
-static int
-flarealprobe(int unit)
-{
-	struct fla_s *sc;
+	device_t bus;
 	int i;
 
+	unit = device_get_unit(dev);
 	sc = &softc[unit];
 
 	/* This is slightly ugly */
@@ -298,15 +285,21 @@ flarealprobe(int unit)
 	if (i)
 		return (ENXIO);
 
+	bus = device_get_parent(dev);
+	ISA_SET_RESOURCE(bus, dev, SYS_RES_MEMORY, 0, 
+		sc->ds.window - KERNBASE, 8192);
+
 	return (0);
 }
 
-
 static int
-flarealattach(int unit)
+flaattach (device_t dev)
 {
+	int unit;
 	int i, j, k, l, m, error;
 	struct fla_s *sc;
+
+	unit = device_get_unit(dev);
 
 	sc = &softc[unit];
 
@@ -323,6 +316,12 @@ flarealattach(int unit)
 	}
 
 	printf("fla%d: <%s %s>\n", unit, sc->ds.product, sc->ds.model);
+
+	error = doc2k_close(unit);
+	if (error) {
+		printf("doc2k_close(%d) -> err %d\n", unit, error);
+		return (EIO);
+	}
 	
 	m = 1024L * 1024L / DEV_BSIZE;
 	l = (sc->nsect * 10 + m/2) / m;
@@ -338,42 +337,15 @@ flarealattach(int unit)
 
 	bufq_init(&sc->buf_queue);
 
-	return (0);
-}
-
-static int
-flaprobe (device_t dev)
-{
-	int unit;
-	struct fla_s *sc;
-	device_t bus;
-	int i;
-
-	unit = device_get_unit(dev);
-	sc = &softc[unit];
-	i = flarealprobe(unit);
-	if (i)
-		return (i);
-
-	bus = device_get_parent(dev);
-	ISA_SET_RESOURCE(bus, dev, SYS_RES_MEMORY, 0, 
-		sc->ds.window - KERNBASE, 8192);
-
-	return (0);
-}
-
-
-static int
-flaattach (device_t dev)
-{
-	int unit, i;
-
-	unit = device_get_unit(dev);
-	i = flarealattach(unit);
 	devstat_add_entry(&softc[unit].stats, "fla", unit, DEV_BSIZE,
 		DEVSTAT_NO_ORDERED_TAGS, 
 		DEVSTAT_TYPE_DIRECT | DEVSTAT_TYPE_IF_OTHER, 0x190);
-	return (i);
+
+	sc->dev = disk_create(unit, &sc->disk, &fla_cdevsw);
+	sc->dev->si_drv1 = sc;
+	sc->unit = unit;
+
+	return (0);
 }
 
 static device_method_t fla_methods[] = {
@@ -391,4 +363,4 @@ static driver_t fladriver = {
 
 static devclass_t	fla_devclass;
 
-DEV_DRIVER_MODULE(fla, isa, fladriver, fla_devclass, fla_cdevsw, 0, 0);
+DRIVER_MODULE(fla, isa, fladriver, fla_devclass, 0, 0);
