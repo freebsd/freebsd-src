@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id$	
+.\"	$Id: kldfind.2,v 1.1 1999/04/04 12:29:31 dfr Exp $	
 .\"
 .Dd March 3, 1999
 .Dt KLDFIND 2
@@ -32,8 +32,8 @@
 .Nm kldfind
 .Nd returns the fileid of a kld file 
 .Sh SYNOPSIS
+.Fd #include <sys/param.h>
 .Fd #include <sys/linker.h>
-.br
 .Ft int
 .Fn kldfind "const char *file"
 .Sh DESCRIPTION
@@ -62,9 +62,7 @@ The data required for this operation could not be read from the kernel space.
 The file specified by
 .Va file
 does not exist or is not readable.
-.Ed
 .Sh HISTORY
 The
 .Nm kld
 interface first appeared in FreeBSD 3.0.
-

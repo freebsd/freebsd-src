@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id$
+.\"	$Id: kldunload.2,v 1.1 1999/04/04 12:29:31 dfr Exp $
 .\"
 
 .Dd March 3, 1999
@@ -33,16 +33,15 @@
 .Nm kldunload
 .Nd unload kld files
 .Sh SYNOPSIS
+.Fd #include <sys/param.h>
 .Fd #include <sys/linker.h>
-.br
 .Ft int
 .Fn kldunload "int fileid"
 .Sh DESCRIPTION
 The function
 .Fn kldunload
 unloads a kld file from the kernel that was previously linked via
-.Xr kldload 3
-.
+.Xr kldload 3 .
 .Sh RETURN VALUES
 The function
 .Fn kldunload
@@ -64,7 +63,6 @@ You don't have access to unlink the file from the kernel.
 The file was not found.
 .It Bq Er EBUSY
 You attempted to unload a file linked by the kernel.
-.Ed
 .Sh HISTORY
 The
 .Nm kld

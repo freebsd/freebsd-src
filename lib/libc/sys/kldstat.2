@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id$	
+.\"	$Id: kldstat.2,v 1.1 1999/04/04 12:29:31 dfr Exp $	
 .\"
 .Dd March 3, 1999
 .Dt KLDSTAT 2
@@ -32,8 +32,8 @@
 .Nm kldstat
 .Nd get status of kld file 
 .Sh SYNOPSIS
+.Fd #include <sys/param.h>
 .Fd #include <sys/linker.h>
-.br
 .Ft int
 .Fn kldstat "int fileid" "struct kld_file_stat *stat"
 .Sh DESCRIPTION
@@ -43,7 +43,6 @@ function writes the info for the file referred to by
 .Va fileid
 into
 .Va stat .
-.br
 .Bd -literal
 struct kld_file_stat {
 	int         version;        /* set to sizeof(linker_file_stat) */
@@ -76,7 +75,6 @@ The id of the file specified in
 The load address of the kld file.
 .It size
 The size of the file.
-.Ed
 .Sh RETURN VALUES
 .Fn kldstat
 seems to always return 0.
@@ -103,7 +101,6 @@ There was a problem copying one, some, or all of the fields into
 in the
 .Fn copyout
 function.
-.Ed
 .Sh HISTORY
 The
 .Nm kld
