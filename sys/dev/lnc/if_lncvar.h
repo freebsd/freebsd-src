@@ -33,6 +33,8 @@
  * $FreeBSD$
  */
 
+#include <dev/lnc/if_lncreg.h>
+
 /*
  * Initialize multicast address hashing registers to accept
  * all multicasts (only used when in promiscuous mode)
@@ -76,6 +78,20 @@
 /* DEPCA specific defines */
 #define DEPCA_ADDR_ROM_SIZE 32
 
+#ifdef PC98
+/* C-NET(98)S port addresses */
+#define CNET98S_RDP    0x400     /* Register Data Port */
+#define CNET98S_RAP    0x402     /* Register Address Port */
+#define CNET98S_RESET  0x404
+#define CNET98S_IDP    0x406
+#define CNET98S_EEPROM 0x40e
+/*
+ * XXX - The I/O address range is fragmented in the C-NET(98)S.
+ *       This is the number of regs at iobase.
+ */
+#define CNET98S_IOSIZE    16     /* # of i/o addresses used. */
+#endif
+
 /* Chip types */
 #define LANCE           1        /* Am7990   */
 #define C_LANCE         2        /* Am79C90  */
@@ -101,7 +117,7 @@
 #define Am79C970A 0x2621
 #define Am79C971  0x2623
 #define Am79C972  0x2624
-#define Am79C973  0x2625
+#define Am79C972  0x2625
 #define Am79C978  0x2626
 
 /* Board types */
@@ -134,22 +150,6 @@
 
 #define TRANS_MD3 \
 	"\20\6BUFF\5UFLO\4RES\3LCOL\2LCAR\1RTRY"
-
-struct nic_info {
-	int ident;         /* Type of card */
-	int ic;            /* Type of ic, Am7990, Am79C960 etc. */
-	int mem_mode;
-	int iobase;
-	int mode;          /* Mode setting at initialization */
-};
-
-struct host_ring_entry {
-	struct mds *md;
-	union {
-		struct mbuf *mbuf;
-		char *data;
-	}buff;
-};
 
 #ifdef LNC_KEEP_STATS
 #define LNCSTATS_STRUCT \
@@ -186,17 +186,38 @@ struct host_ring_entry {
 #define LNCSTATS(X)
 #endif
 
+struct nic_info {
+	int ident;         /* Type of card */
+	int ic;            /* Type of ic, Am7990, Am79C960 etc. */
+	int mem_mode;
+	int iobase;
+	int mode;          /* Mode setting at initialization */
+};
+
 typedef struct lnc_softc {
-	struct arpcom arpcom;	            /* see ../../net/if_arp.h */
-	struct nic_info nic;	            /* NIC specific info */
+	struct resource *irqres;
+	int irqrid;
+	struct resource *drqres;
+	int drqrid;
+	struct resource *portres;
+	int portrid;
+	int iobase;
+	bus_space_tag_t lnc_btag;
+	bus_space_handle_t lnc_bhandle;
+	void *intrhand;
+	bus_dma_tag_t	dmat;
+	bus_dmamap_t	dmamap;
+	struct arpcom arpcom;               /* see ../../net/if_arp.h */
+	struct nic_info nic;                /* NIC specific info */
 	int nrdre;
 	struct host_ring_entry *recv_ring;  /* start of alloc'd mem */
 	int recv_next;
 	int ntdre;
 	struct host_ring_entry *trans_ring;
 	int trans_next;
-	struct init_block *init_block;	    /* Initialisation block */
-	int pending_transmits;        /* No. of transmit descriptors in use */
+	struct init_block *init_block;      /* Initialisation block */
+	int pending_transmits;        /* No. of transmit descriptors in
+	use */
 	int next_to_send;
 	struct mbuf *mbufs;
 	int mbuf_count;
@@ -204,11 +225,19 @@ typedef struct lnc_softc {
 	int rap;
 	int rdp;
 	int bdp;
-#ifdef DEBUG
+	#ifdef DEBUG
 	int lnc_debug;
-#endif
+	#endif
 	LNCSTATS_STRUCT
 } lnc_softc_t;
+
+struct host_ring_entry {
+	struct mds *md;
+	union {
+		struct mbuf *mbuf;
+		char *data;
+	}buff;
+};
 
 #define NDESC(len2) (1 << len2)
 
@@ -223,16 +252,7 @@ typedef struct lnc_softc {
 #define RECV_NEXT (sc->recv_ring->base + sc->recv_next)
 #define TRANS_NEXT (sc->trans_ring->base + sc->trans_next)
 
-static __inline void
-write_csr(lnc_softc_t *sc, u_short port, u_short val)
-{
-	outw(sc->rap, port);
-	outw(sc->rdp, val);
-}
-
-static __inline u_short
-read_csr(lnc_softc_t *sc, u_short port)
-{
-	outw(sc->rap, port);
-	return (inw(sc->rdp));
-}
+/* Functional declarations */
+extern int lnc_attach_common __P((device_t));
+extern void lnc_stop __P((struct lnc_softc *));
+extern driver_intr_t lncintr; 
