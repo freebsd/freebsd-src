@@ -1,5 +1,5 @@
-#!/usr/local/bin/perl
-# $Id: tcsh.man2html,v 1.10 1997/10/29 17:27:04 christos Exp $
+#!/bin/sh # -*- perl -*-
+# $Id: tcsh.man2html,v 1.11 2000/04/17 23:35:54 kim Exp $
 
 # tcsh.man2html, Dave Schweisguth <dcs@proton.chem.yale.edu>
 #
@@ -22,8 +22,8 @@
 
 # Emulate #!/usr/local/bin/perl on systems without #!
 
-eval '(exit $?0)' && eval 'exec /usr/local/bin/perl -S $0 ${1+"$@"}'
-& eval 'exec /usr/local/bin/perl -S $0 $argv:q' if 0;
+eval '(exit $?0)' && eval 'exec perl -S $0 ${1+"$@"}'
+& eval 'exec perl -S $0 $argv:q' if 0;
 
 ### Constants
 
@@ -368,7 +368,7 @@ print <<EOP;
 Here are the <A HREF="$outfile">nroff manpage</A> (175K)
 from which this HTML version was generated,
 the <A HREF="$script">Perl script</A> which did the conversion
-and the <A HREF="file://ftp.astron.com/pub/tcsh/">
+and the <A HREF="ftp://ftp.astron.com/pub/tcsh/">
 complete source code</A> for <I>tcsh</I>.
 <HR>
 <I>tcsh</I> is maintained by
@@ -538,7 +538,6 @@ sub printsectionbody {
 		    }
 
 		    # Line break
-
 		    s/^\.br.*/<BR>/;
 
 		    # More nroff special characters
@@ -821,12 +820,12 @@ only the word "help".
 <A HREF="TOPFILEHERE">Up</A>
 </BODY>
 END
-#!/usr/local/bin/perl
+#!/bin/sh
 
 # Emulate #!/usr/local/bin/perl on systems without #!
 
-eval '(exit $?0)' && eval 'exec /usr/local/bin/perl -S $0 ${1+"$@"}'
-& eval 'exec /usr/local/bin/perl -S $0 $argv:q' if 0;
+eval '(exit $?0)' && eval 'exec perl -S $0 ${1+"$@"}'
+& eval 'exec perl -S $0 $argv:q' if 0;
 
 # Setup
 
