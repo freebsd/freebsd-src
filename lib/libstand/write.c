@@ -89,8 +89,8 @@ write(fd, dest, bcount)
 			btodb(f->f_offset), bcount, dest, &resid);
 		if (errno)
 			return (-1);
-		f->f_offset += (bcount - resid);
-		return (bcount - resid);
+		f->f_offset += resid;
+		return (resid);
 	}
 	resid = bcount;
 	if ((errno = (f->f_ops->fo_write)(f, dest, bcount, &resid)))
