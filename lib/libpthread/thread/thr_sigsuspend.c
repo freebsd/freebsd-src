@@ -47,13 +47,12 @@ _sigsuspend(const sigset_t *set)
 
 	/* Check if a new signal set was provided by the caller: */
 	if (set != NULL) {
-		THR_SCHED_LOCK(curthread, curthread);
+		THR_LOCK_SWITCH(curthread);
 
 		/* Change the caller's mask: */
 		memcpy(&curthread->tmbx.tm_context.uc_sigmask,
 		    set, sizeof(sigset_t));
 
-		THR_LOCK_SWITCH(curthread);
 		THR_SET_STATE(curthread, PS_SIGSUSPEND);
 
 		/* Wait for a signal: */
