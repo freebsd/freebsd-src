@@ -60,7 +60,7 @@ typedef struct fwohci_softc {
 		int flags;
 #define	FWOHCI_DBCH_FULL	(1<<1)
 		int buf_offset;
-	} arrq, arrs, atrq, atrs, it[OHCI_MAX_DMA_CH], ir[OHCI_MAX_DMA_CH];
+	} arrq, arrs, atrq, atrs, it[OHCI_DMA_ITCH], ir[OHCI_DMA_IRCH];
 	u_int maxrec;
 	u_int32_t *cromptr;
 	u_int32_t intmask;
