@@ -499,7 +499,6 @@ ext2_inactive(ap)
 		}
 	}
 out:
-	VOP_UNLOCK(vp, 0, td);
 	/*
 	 * If we are done with the inode, reclaim it
 	 * so that it can be reused immediately.
