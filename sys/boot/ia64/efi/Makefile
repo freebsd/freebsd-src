@@ -63,12 +63,6 @@ ${BASE}.efi: ${BASE}.sym
 		--target=efi-app-${MACHINE_ARCH} \
 		${BASE}.sym ${BASE}.efi
 
-${BASE}.sym: ${OBJS} ${LIBSTAND} ${LIBARC} ${CRT} vers.o
-	${LD} ${LDFLAGS} -o ${BASE}.sym -M \
-	    ${CRT} {OBJS} vers.o \
-	    ${LIBFICL} ${LIBSTAND} ${LIBEFI} ${LIBSTAND} \
-	    > ${.OBJDIR}/${BASE}.list
-
 ${BASE}.help:	help.common help.efi
 	cat ${.ALLSRC} | awk -f ${.CURDIR}/../../common/merge_help.awk \
 	    > ${.TARGET}
@@ -90,5 +84,11 @@ machine:
 	ln -sf ${.CURDIR}/../../../${MACHINE_ARCH}/include machine
 
 .include <bsd.prog.mk>
+
+${BASE}.sym: ${OBJS} ${LIBSTAND} ${LIBARC} ${CRT} vers.o
+	${LD} ${LDFLAGS} -o ${BASE}.sym -M \
+	    ${CRT} ${OBJS} vers.o \
+	    ${LIBFICL} ${LIBSTAND} ${LIBEFI} ${LIBSTAND} \
+	    > ${.OBJDIR}/${BASE}.list
 
 beforedepend ${OBJS}: machine
