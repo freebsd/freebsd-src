@@ -731,7 +731,7 @@ ExecStr(struct physical *physical, char *command, char *out, int olen)
       open(_PATH_DEVNULL, O_RDWR);	/* Leave it closed if it fails... */
     for (i = getdtablesize(); i > 3; i--)
       fcntl(i, F_SETFD, 1);
-    setuid(geteuid());
+    setuid(ID0realuid());
     execvp(argv[0], argv);
     fprintf(stderr, "execvp: %s: %s\n", argv[0], strerror(errno));
     _exit(127);
