@@ -17,6 +17,7 @@
     <year>2000</year>
     <year>2001</year>
     <year>2002</year>
+    <year>2003</year>
     <holder role="mailto:doc@FreeBSD.org">FreeBSD ドキュメンテーション
     プロジェクト</holder>
   </copyright>
@@ -38,7 +39,7 @@
   </abstract>
 </articleinfo>
 
-<sect1>
+<sect1 id="intro">
   <title>はじめに</title>
 
   <para>この文書は &arch.print; ハードウェアプラットフォームの
@@ -74,7 +75,7 @@
 ]]>
 </sect1>
 
-<sect1>
+<sect1 id="new">
   <title>更新情報</title>
 
   <para>この節では
@@ -5448,7 +5449,7 @@ hw.pcic.irq="0"</programlisting>
 
 </sect1>
 
-<sect1>
+<sect1 id="upgrade">
   <title>前のリリースの &os; からのアップグレード</title>
 
   <para>現存する &os; システムからアップグレードするユーザは

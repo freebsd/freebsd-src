@@ -1,9 +1,9 @@
 <!--
     $FreeBSD$
-    Original revision: 1.3
+    Original revision: 1.5
 -->
 
-<sect1>
+<sect1 id="intro">
   <title>はじめに</title>
 
   <para>この文書は &arch.print; プラットフォーム版 &os; &release.current;
