@@ -27,6 +27,8 @@
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <sys/un.h>
+#include <sys/socket.h>
+#include <net/route.h>
 
 #include <errno.h>
 #include <fcntl.h>
