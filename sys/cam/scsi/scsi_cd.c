@@ -455,6 +455,11 @@ cdcleanup(struct cam_periph *periph)
 	xpt_print_path(periph->path);
 	printf("removing device entry\n");
 
+	if (sysctl_ctx_free(&softc->sysctl_ctx) != 0) {
+		xpt_print_path(periph->path);
+		printf("can't remove sysctl context\n");
+	}
+
 	s = splsoftcam();
 	/*
 	 * In the queued, non-active case, the device in question
@@ -688,6 +693,7 @@ cdregister(struct cam_periph *periph, void *arg)
 
 	snprintf(tmpstr, sizeof(tmpstr), "CAM CD unit %d", periph->unit_number);
 	snprintf(tmpstr2, sizeof(tmpstr2), "%d", periph->unit_number);
+	sysctl_ctx_init(&softc->sysctl_ctx);
 	softc->sysctl_tree = SYSCTL_ADD_NODE(&softc->sysctl_ctx,
 		SYSCTL_STATIC_CHILDREN(_kern_cam_cd), OID_AUTO,
 		tmpstr2, CTLFLAG_RD, 0, tmpstr);
