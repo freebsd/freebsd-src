@@ -52,6 +52,10 @@
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
+#ifdef VFS_LKM
+#include <sys/sysent.h>
+#include <sys/syscall.h>
+#endif
 
 #include <nfs/rpcv2.h>
 #include <nfs/nfsv2.h>
@@ -96,6 +100,13 @@ extern u_long nqnfs_prog, nqnfs_vers;
 extern int nqsrv_clockskew;
 extern int nqsrv_writeslack;
 extern int nqsrv_maxlease;
+
+#ifdef VFS_LKM
+struct getfh_args;
+extern int getfh(struct proc *, struct getfh_args *, int *);
+struct nfssvc_args;
+extern int nfssvc(struct proc *, struct nfssvc_args *, int *);
+#endif
 
 /*
  * Create the header for an rpc request packet
@@ -633,6 +644,20 @@ nfs_init()
 	 */
 	nfsreqh.r_prev = nfsreqh.r_next = &nfsreqh;
 	nfs_timer();
+
+	/*
+	 * Set up lease_check and lease_updatetime so that other parts
+	 * of the system can call us, if we are loadable.
+	 */
+	lease_check = nfs_lease_check;
+	lease_updatetime = nfs_lease_updatetime;
+	vfsconf[MOUNT_NFS]->vfc_refcount++; /* make us non-unloadable */
+#ifdef VFS_LKM
+	sysent[SYS_nfssvc].sy_narg = 2;
+	sysent[SYS_nfssvc].sy_call = nfssvc;
+	sysent[SYS_getfh].sy_narg = 2;
+	sysent[SYS_getfh].sy_call = getfh;
+#endif
 
 	return (0);
 }

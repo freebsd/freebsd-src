@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_init.c	8.3 (Berkeley) 1/4/94
- * $Id: vfs_init.c,v 1.5 1994/09/21 03:46:48 wollman Exp $
+ * $Id: vfs_init.c,v 1.6 1994/09/22 01:05:09 wollman Exp $
  */
 
 
@@ -325,4 +325,12 @@ fs_sysctl(name, namelen, oldp, oldlenp, newp, newlen, p)
 	}
 	/* NOTREACHED */
 }
+
+/*
+ * This goop is here to support a loadable NFS module... grumble...
+ */
+void (*lease_check) __P((struct vnode *, struct proc *, struct ucred *, int))
+     = 0;
+void (*lease_updatetime) __P((int))
+     = 0;
 
