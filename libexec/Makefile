@@ -2,7 +2,11 @@
 
 SUBDIR=	atrun bootpd bootpgw comsat fingerd ftpd getNAME getty lfs_cleanerd \
 	mail.local makekey rexecd rlogind rpc.rstatd rpc.rusersd \
-	rpc.rwalld rshd talkd telnetd tftpd uucpd xtend
+	rpc.rwalld rshd talkd tftpd uucpd xtend
+
+.if !exists(../secure) || defined(NOSECURE)
+SUBDIR+=telnetd
+.endif
 
 # Present but disabled: kpasswdd
 
