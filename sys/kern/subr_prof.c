@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_prof.c	8.3 (Berkeley) 9/23/93
- * $Id: subr_prof.c,v 1.3 1994/08/02 07:42:32 davidg Exp $
+ * $Id: subr_prof.c,v 1.4 1994/09/21 21:58:39 bde Exp $
  */
 
 #include <sys/param.h>
@@ -45,11 +45,9 @@
 #include <sys/malloc.h>
 #include <sys/gmon.h>
 
-/*
- * Froms is actually a bunch of unsigned shorts indexing tos
- */
 struct gmonparam _gmonparam = { GMON_PROF_OFF };
 
+extern char btext[];
 extern char etext[];
 
 void
@@ -61,7 +59,7 @@ kmstartup()
 	 * Round lowpc and highpc to multiples of the density we're using
 	 * so the rest of the scaling (here and in gprof) stays in ints.
 	 */
-	p->lowpc = ROUNDDOWN(KERNBASE, HISTFRACTION * sizeof(HISTCOUNTER));
+	p->lowpc = ROUNDDOWN((u_long)btext, HISTFRACTION * sizeof(HISTCOUNTER));
 	p->highpc = ROUNDUP((u_long)etext, HISTFRACTION * sizeof(HISTCOUNTER));
 	p->textsize = p->highpc - p->lowpc;
 	printf("Profiling kernel, textsize=%d [%x..%x]\n",
