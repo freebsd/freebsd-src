@@ -151,7 +151,7 @@ static int mbuf_to_buffer __P((struct mbuf *m, char *buffer));
 static struct mbuf *chain_to_cluster __P((struct mbuf *m));
 static void lnc_start __P((struct ifnet *ifp));
 static int lnc_ioctl __P((struct ifnet *ifp, int command, caddr_t data));
-static void lnc_watchdog __P((int unit));
+static void lnc_watchdog __P((struct ifnet *ifp));
 #ifdef DEBUG
 static void lnc_dump_state __P((int unit));
 static void mbuf_dump_chain __P((struct mbuf *m));
@@ -1749,12 +1749,11 @@ lnc_ioctl(struct ifnet * ifp, int command, caddr_t data)
 }
 
 static void
-lnc_watchdog(int unit)
+lnc_watchdog(struct ifnet *ifp)
 {
-	struct lnc_softc *sc = &lnc_softc[unit];
-	log(LOG_ERR, "lnc%d: Device timeout -- Resetting\n", unit);
-	++sc->arpcom.ac_if.if_oerrors;
-	lnc_reset(unit);
+	log(LOG_ERR, "lnc%d: Device timeout -- Resetting\n", ifp->if_unit);
+	ifp->if_oerrors++;
+	lnc_reset(ifp->if_unit);
 }
 
 #ifdef DEBUG
