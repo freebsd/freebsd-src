@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_rl.c,v 1.18 1999/07/02 04:17:14 peter Exp $
+ *	$Id: if_rl.c,v 1.19 1999/07/06 19:23:28 des Exp $
  */
 
 /*
@@ -127,7 +127,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: if_rl.c,v 1.18 1999/07/02 04:17:14 peter Exp $";
+	"$Id: if_rl.c,v 1.19 1999/07/06 19:23:28 des Exp $";
 #endif
 
 /*
@@ -144,8 +144,6 @@ static struct rl_type rl_devs[] = {
 		"Delta Electronics 8139 10/100BaseTX" },
 	{ ADDTRON_VENDORID, ADDTRON_DEVICEID_8139,
 		"Addtron Technolgy 8139 10/100BaseTX" },
-	{ SIS_VENDORID, SIS_DEVICEID_8139,
-		"SiS 900 10/100BaseTX" },
 	{ 0, 0, NULL }
 };
 
@@ -1134,8 +1132,7 @@ rl_attach(config_id, unit)
 	rl_read_eeprom(sc, (caddr_t)&rl_did, RL_EE_PCI_DID, 1, 0);
 
 	if (rl_did == RT_DEVICEID_8139 || rl_did == ACCTON_DEVICEID_5030 ||
-	    rl_did == DELTA_DEVICEID_8139 || rl_did == ADDTRON_DEVICEID_8139 ||
-	    rl_did == SIS_DEVICEID_8139)
+	    rl_did == DELTA_DEVICEID_8139 || rl_did == ADDTRON_DEVICEID_8139)
 		sc->rl_type = RL_8139;
 	else if (rl_did == RT_DEVICEID_8129)
 		sc->rl_type = RL_8129;
