@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: dsmethod - Parser/Interpreter interface - control method parsing
- *              $Revision: 86 $
+ *              $Revision: 87 $
  *
  *****************************************************************************/
 
@@ -398,7 +398,7 @@ AcpiDsCallControlMethod (
 
     /* Create and init a Root Node */
 
-    Op = AcpiPsAllocOp (AML_SCOPE_OP);
+    Op = AcpiPsCreateScopeOp ();
     if (!Op)
     {
         Status = AE_NO_MEMORY;

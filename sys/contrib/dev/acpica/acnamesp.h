@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acnamesp.h - Namespace subcomponent prototypes and defines
- *       $Revision: 125 $
+ *       $Revision: 126 $
  *
  *****************************************************************************/
 
@@ -134,7 +134,7 @@
 /* Definitions of the predefined namespace names  */
 
 #define ACPI_UNKNOWN_NAME           (UINT32) 0x3F3F3F3F     /* Unknown name is  "????" */
-#define ACPI_ROOT_NAME              (UINT32) 0x2F202020     /* Root name is     "/   " */
+#define ACPI_ROOT_NAME              (UINT32) 0x5F5F5F5C     /* Root name is     "\___" */
 #define ACPI_SYS_BUS_NAME           (UINT32) 0x5F53425F     /* Sys bus name is  "_SB_" */
 
 #define ACPI_NS_ROOT_PATH           "\\"

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: tbconvrt - ACPI Table conversion utilities
- *              $Revision: 41 $
+ *              $Revision: 42 $
  *
  *****************************************************************************/
 
@@ -183,8 +183,7 @@ AcpiTbGetTableCount (
 
 ACPI_STATUS
 AcpiTbConvertToXsdt (
-    ACPI_TABLE_DESC         *TableInfo,
-    UINT32                  *NumberOfTables)
+    ACPI_TABLE_DESC         *TableInfo)
 {
     ACPI_SIZE               TableSize;
     UINT32                  i;
@@ -194,13 +193,10 @@ AcpiTbConvertToXsdt (
     ACPI_FUNCTION_ENTRY ();
 
 
-    /* Get the number of tables defined in the RSDT or XSDT */
-
-    *NumberOfTables = AcpiTbGetTableCount (AcpiGbl_RSDP, TableInfo->Pointer);
-
     /* Compute size of the converted XSDT */
 
-    TableSize = ((ACPI_SIZE) *NumberOfTables * sizeof (UINT64)) + sizeof (ACPI_TABLE_HEADER);
+    TableSize = ((ACPI_SIZE) AcpiGbl_RsdtTableCount * sizeof (UINT64)) + 
+                    sizeof (ACPI_TABLE_HEADER);
 
     /* Allocate an XSDT */
 
@@ -217,7 +213,7 @@ AcpiTbConvertToXsdt (
 
     /* Copy the table pointers */
 
-    for (i = 0; i < *NumberOfTables; i++)
+    for (i = 0; i < AcpiGbl_RsdtTableCount; i++)
     {
         if (AcpiGbl_RSDP->Revision < 2)
         {

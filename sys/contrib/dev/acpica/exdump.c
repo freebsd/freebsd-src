@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: exdump - Interpreter debug output routines
- *              $Revision: 155 $
+ *              $Revision: 157 $
  *
  *****************************************************************************/
 
@@ -220,6 +220,13 @@ AcpiExDumpOperand (
             break;
 
 
+        case AML_REF_OF_OP:
+
+            AcpiOsPrintf ("Reference: (RefOf) %p\n",
+                        ObjDesc->Reference.Object);
+            break;
+
+
         case AML_ARG_OP:
 
             AcpiOsPrintf ("Reference: Arg%d",
@@ -258,9 +265,11 @@ AcpiExDumpOperand (
 
 
         case AML_INT_NAMEPATH_OP:
+
             AcpiOsPrintf ("Reference.Node->Name %X\n",
                         ObjDesc->Reference.Node->Name.Integer);
             break;
+
 
         default:
 
@@ -675,14 +684,14 @@ AcpiExDumpObjectDescriptor (
     {
         if (!((ACPI_LV_OBJECTS & AcpiDbgLevel) && (_COMPONENT & AcpiDbgLayer)))
         {
-            return;
+            return_VOID;
         }
     }
 
     if (ACPI_GET_DESCRIPTOR_TYPE (ObjDesc) != ACPI_DESC_TYPE_OPERAND)
     {
         AcpiOsPrintf ("ExDumpObjectDescriptor: %p is not a valid ACPI object\n", ObjDesc);
-        return;
+        return_VOID;
     }
 
     /* Common Fields */

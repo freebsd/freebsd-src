@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: dswload - Dispatcher namespace load callbacks
- *              $Revision: 66 $
+ *              $Revision: 69 $
  *
  *****************************************************************************/
 
@@ -163,9 +163,11 @@ AcpiDsInitCallbacks (
         break;
 
     case 3:
+#ifndef ACPI_NO_METHOD_EXECUTION
         WalkState->ParseFlags        |= ACPI_PARSE_EXECUTE  | ACPI_PARSE_DELETE_TREE;
         WalkState->DescendingCallback = AcpiDsExecBeginOp;
         WalkState->AscendingCallback  = AcpiDsExecEndOp;
+#endif
         break;
 
     default:
@@ -269,6 +271,11 @@ AcpiDsLoad1BeginOp (
 
     Op->Named.Name = Node->Name.Integer;
 
+#if (defined (ACPI_NO_METHOD_EXECUTION) || defined (ACPI_CONSTANT_EVAL_ONLY))
+    Op->Named.Path = (UINT8 *) Path;
+#endif
+
+
     /*
      * Put the Node in the "op" object that the parser uses, so we
      * can get it again quickly when this scope is closed
@@ -322,6 +329,7 @@ AcpiDsLoad1EndOp (
 
     ObjectType = WalkState->OpInfo->ObjectType;
 
+#ifndef ACPI_NO_METHOD_EXECUTION
     if (WalkState->OpInfo->Flags & AML_FIELD)
     {
         if (WalkState->Opcode == AML_FIELD_OP          ||
@@ -343,6 +351,7 @@ AcpiDsLoad1EndOp (
             return (Status);
         }
     }
+#endif
 
     if (Op->Common.AmlOpcode == AML_NAME_OP)
     {
@@ -555,7 +564,9 @@ AcpiDsLoad2EndOp (
     ACPI_NAMESPACE_NODE     *Node;
     ACPI_PARSE_OBJECT       *Arg;
     ACPI_NAMESPACE_NODE     *NewNode;
+#ifndef ACPI_NO_METHOD_EXECUTION
     UINT32                  i;
+#endif
 
 
     ACPI_FUNCTION_NAME ("DsLoad2EndOp");
@@ -575,13 +586,6 @@ AcpiDsLoad2EndOp (
     {
         ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH,
             "Ending scope Op=%p State=%p\n", Op, WalkState));
-
-        if (Op->Named.Name == ACPI_UINT16_MAX)
-        {
-            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Unnamed scope! Op=%p State=%p\n",
-                Op, WalkState));
-            return (AE_OK);
-        }
     }
 
 
@@ -613,6 +617,7 @@ AcpiDsLoad2EndOp (
             return (Status);
         }
     }
+
 
     /*
      * Named operations are as follows:
@@ -652,6 +657,8 @@ AcpiDsLoad2EndOp (
 
     switch (WalkState->OpInfo->Type)
     {
+#ifndef ACPI_NO_METHOD_EXECUTION
+
     case AML_TYPE_CREATE_FIELD:
 
         /*
@@ -745,7 +752,7 @@ AcpiDsLoad2EndOp (
         }
 
         break;
-
+#endif /* ACPI_NO_METHOD_EXECUTION */
 
     case AML_TYPE_NAMED_COMPLEX:
 
@@ -773,6 +780,7 @@ AcpiDsLoad2EndOp (
             break;
 
 
+#ifndef ACPI_NO_METHOD_EXECUTION
         case AML_REGION_OP:
             /*
              * The OpRegion is not fully parsed at this time.  Only valid argument is the SpaceId.
@@ -802,6 +810,7 @@ AcpiDsLoad2EndOp (
 
             Status = AcpiDsCreateNode (WalkState, Node, Op);
             break;
+#endif /* ACPI_NO_METHOD_EXECUTION */
 
 
         default:

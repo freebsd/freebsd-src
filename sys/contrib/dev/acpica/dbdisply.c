@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dbdisply - debug display commands
- *              $Revision: 75 $
+ *              $Revision: 76 $
  *
  ******************************************************************************/
 
@@ -411,6 +411,12 @@ AcpiDbDecodeInternalObject (
         return;
     }
 
+    if (ACPI_GET_DESCRIPTOR_TYPE (ObjDesc) != ACPI_DESC_TYPE_OPERAND)
+    {
+        AcpiOsPrintf ("%p", ObjDesc);
+        return;
+    }
+
     AcpiOsPrintf (" %s", AcpiUtGetObjectTypeName (ObjDesc));
 
     switch (ACPI_GET_OBJECT_TYPE (ObjDesc))
@@ -449,9 +455,44 @@ AcpiDbDecodeInternalObject (
 
     
     default:
-        /* No additional display for other types */
+        
+        AcpiOsPrintf ("%p", ObjDesc);
         break;
     }
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiDbDecodeNode
+ *
+ * PARAMETERS:  Node        - Object to be displayed
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Short display of a namespace node
+ *
+ ******************************************************************************/
+
+void
+AcpiDbDecodeNode (
+    ACPI_NAMESPACE_NODE     *Node)
+{
+
+
+    AcpiOsPrintf ("<Node>            Name %4.4s Type-%s",
+        Node->Name.Ascii, AcpiUtGetTypeName (Node->Type));
+
+    if (Node->Flags & ANOBJ_METHOD_ARG)
+    {
+        AcpiOsPrintf (" [Method Arg]");
+    }
+    if (Node->Flags & ANOBJ_METHOD_LOCAL)
+    {
+        AcpiOsPrintf (" [Method Local]");
+    }
+
+    AcpiDbDecodeInternalObject (AcpiNsGetAttachedObject (Node));
 }
 
 
@@ -496,18 +537,7 @@ AcpiDbDisplayInternalObject (
 
     case ACPI_DESC_TYPE_NAMED:
 
-        AcpiOsPrintf ("<Node>            Name %4.4s Type-%s",
-                        ((ACPI_NAMESPACE_NODE *)ObjDesc)->Name.Ascii,
-                        AcpiUtGetTypeName (((ACPI_NAMESPACE_NODE *) ObjDesc)->Type));
-
-        if (((ACPI_NAMESPACE_NODE *) ObjDesc)->Flags & ANOBJ_METHOD_ARG)
-        {
-            AcpiOsPrintf (" [Method Arg]");
-        }
-        if (((ACPI_NAMESPACE_NODE *) ObjDesc)->Flags & ANOBJ_METHOD_LOCAL)
-        {
-            AcpiOsPrintf (" [Method Local]");
-        }
+        AcpiDbDecodeNode ((ACPI_NAMESPACE_NODE *) ObjDesc);
         break;
 
 
@@ -525,9 +555,11 @@ AcpiDbDisplayInternalObject (
         switch (ACPI_GET_OBJECT_TYPE (ObjDesc))
         {
         case INTERNAL_TYPE_REFERENCE:
+
             switch (ObjDesc->Reference.Opcode)
             {
             case AML_LOCAL_OP:
+
                 AcpiOsPrintf ("[Local%d] ", ObjDesc->Reference.Offset);
                 if (WalkState)
                 {
@@ -537,7 +569,9 @@ AcpiDbDisplayInternalObject (
                 }
                 break;
 
+
             case AML_ARG_OP:
+
                 AcpiOsPrintf ("[Arg%d]   ", ObjDesc->Reference.Offset);
                 if (WalkState)
                 {
@@ -547,24 +581,52 @@ AcpiDbDisplayInternalObject (
                 }
                 break;
 
+
             case AML_DEBUG_OP:
+
                 AcpiOsPrintf ("[Debug]  ");
                 break;
 
+
             case AML_INDEX_OP:
-                AcpiOsPrintf ("[Index]           ");
+
+                AcpiOsPrintf ("[Index]          ");
                 AcpiDbDecodeInternalObject (ObjDesc->Reference.Object);
                 break;
 
+
+            case AML_REF_OF_OP:
+
+                AcpiOsPrintf ("[Reference]      ");
+
+                /* Reference can be to a Node or an Operand object */
+
+                switch (ACPI_GET_DESCRIPTOR_TYPE (ObjDesc->Reference.Object))
+                {
+                case ACPI_DESC_TYPE_NAMED:
+                    AcpiDbDecodeNode (ObjDesc->Reference.Object);
+                    break;
+
+                case ACPI_DESC_TYPE_OPERAND:
+                    AcpiDbDecodeInternalObject (ObjDesc->Reference.Object);
+                    break;
+
+                default:
+                    break;
+                }
+                break;
+
+
             default:
+
                 AcpiOsPrintf ("Unknown Reference opcode %X\n", 
                     ObjDesc->Reference.Opcode);
                 break;
-
             }
             break;
 
         default:
+
             AcpiOsPrintf ("<Obj> ");
             AcpiOsPrintf ("           ");
             AcpiDbDecodeInternalObject (ObjDesc);

@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dbxface - AML Debugger external interfaces
- *              $Revision: 59 $
+ *              $Revision: 61 $
  *
  ******************************************************************************/
 
@@ -118,6 +118,7 @@
 #include "acpi.h"
 #include "amlcode.h"
 #include "acdebug.h"
+#include "acdisasm.h"
 
 
 #ifdef ENABLE_DEBUGGER
@@ -268,7 +269,7 @@ AcpiDbSingleStep (
 
         /* Now we can display it */
 
-        AcpiDbDisplayOp (WalkState, DisplayOp, ACPI_UINT32_MAX);
+        AcpiDmDisassemble (WalkState, DisplayOp, ACPI_UINT32_MAX);
 
         if ((Op->Common.AmlOpcode == AML_IF_OP) ||
             (Op->Common.AmlOpcode == AML_WHILE_OP))
@@ -476,7 +477,6 @@ AcpiDbInitialize (void)
 
     if (!AcpiGbl_DbOpt_verbose)
     {
-        AcpiGbl_DbDisasmIndent = "    ";
         AcpiGbl_DbOpt_disasm = TRUE;
         AcpiGbl_DbOpt_stats = FALSE;
     }
