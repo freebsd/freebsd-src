@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.68 1995/10/29 15:31:13 phk Exp $
+ * $Id: vfs_bio.c,v 1.69 1995/11/05 20:45:49 dyson Exp $
  */
 
 /*
@@ -938,8 +938,10 @@ loop:
 			doingvmio = 0;
 		}
 		if ((bp = getnewbuf(slpflag, slptimeo, doingvmio)) == 0) {
-			if (slpflag || slptimeo)
+			if (slpflag || slptimeo) {
+				splx(s);
 				return NULL;
+			}
 			goto loop;
 		}
 
