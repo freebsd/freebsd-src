@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: scsi_ioctl.c,v 1.10 1995/01/19 12:41:36 dufault Exp $
+ * $Id: scsi_driver.c,v 1.1 1995/03/01 22:24:41 dufault Exp $
  *
  */
 #include <sys/types.h>
@@ -88,6 +88,9 @@ scsi_open(dev_t dev, int flags, struct scsi_device *device)
 	errval  errcode;
 	u_int32 unit;
 	struct scsi_link *sc_link;
+
+	if (device == 0)
+		return ENXIO;
 
 	unit = GETUNIT(device, dev);
 	sc_link = SCSI_LINK(device, unit);
