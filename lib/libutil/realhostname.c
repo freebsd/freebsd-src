@@ -102,8 +102,15 @@ realhostname_sa(char *host, size_t hsize, struct sockaddr *addr, int addrlen)
 		struct sockaddr *sa;
 
 		memset(&hints, 0, sizeof(struct addrinfo));
-		hints.ai_family =
-			(addr->sa_family == AF_INET) ? AF_INET : AF_UNSPEC;
+		switch (addr->sa_family) {
+		case AF_INET:
+		case AF_INET6:
+			hints.ai_family = addr->sa_family;
+			break;
+		default:
+			hints.ai_family = AF_UNSPEC;
+			break;
+		}
 		hints.ai_flags = AI_CANONNAME;
 
 		error = getaddrinfo(buf, NULL, &hints, &res);
