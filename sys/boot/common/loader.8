@@ -446,9 +446,11 @@ determined when the kernel was compiled.
 Modifies
 .Va NMBCLUSTERS .
 .It Va kern.ipc.nsfbufs
-Set the number of sendfile buffers to be allocated.
-Modifies
-.Va NSFBUFS .
+Set the number of
+.Xr sendfile 2
+buffers to be allocated.
+Overrides
+.Dv NSFBUFS .
 .It Va kern.vm.kmem.size
 Sets the size of kernel memory (bytes).
 This overrides the value determined when the kernel was compiled.
