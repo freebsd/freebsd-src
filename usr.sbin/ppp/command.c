@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.173 1998/10/27 22:53:19 brian Exp $
+ * $Id: command.c,v 1.174 1998/10/27 22:53:22 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -134,7 +134,7 @@
 #define NEG_DNS		50
 
 const char Version[] = "2.0";
-const char VersionDate[] = "$Date: 1998/10/27 22:53:19 $";
+const char VersionDate[] = "$Date: 1998/10/27 22:53:22 $";
 
 static int ShowCommand(struct cmdargs const *);
 static int TerminalCommand(struct cmdargs const *);
@@ -274,29 +274,32 @@ RenameCommand(struct cmdargs const *arg)
 int
 LoadCommand(struct cmdargs const *arg)
 {
-  const char *name;
+  const char *err;
+  int n, mode;
 
-  if (arg->argc > arg->argn)
-    name = arg->argv[arg->argn];
-  else
-    name = "default";
+  mode = arg->bundle->phys_type.all;
 
-  if (!system_IsValid(name, arg->prompt, arg->bundle->phys_type.all)) {
-    log_Printf(LogWARN, "%s: Label not allowed\n", name);
+  if (arg->argn < arg->argc) {
+    for (n = arg->argn; n < arg->argc; n++)
+      if ((err = system_IsValid(arg->argv[n], arg->prompt, mode)) != NULL) {
+        log_Printf(LogWARN, "%s: %s\n", arg->argv[n], err);
+        return 1;
+      }
+
+    for (n = arg->argn; n < arg->argc; n++) {
+      bundle_SetLabel(arg->bundle, arg->argv[arg->argc - 1]);
+      system_Select(arg->bundle, arg->argv[n], CONFFILE, arg->prompt, arg->cx);
+    }
+    bundle_SetLabel(arg->bundle, arg->argv[arg->argc - 1]);
+  } else if ((err = system_IsValid("default", arg->prompt, mode)) != NULL) {
+    log_Printf(LogWARN, "default: %s\n", err);
     return 1;
   } else {
-    /*
-     * Set the label before & after so that `set enddisc' works and
-     * we handle nested `load' commands.
-     */
-    bundle_SetLabel(arg->bundle, arg->argc > arg->argn ? name : NULL);
-    if (system_Select(arg->bundle, name, CONFFILE, arg->prompt, arg->cx) < 0) {
-      bundle_SetLabel(arg->bundle, NULL);
-      log_Printf(LogWARN, "%s: label not found.\n", name);
-      return -1;
-    }
-    bundle_SetLabel(arg->bundle, arg->argc > arg->argn ? name : NULL);
+    bundle_SetLabel(arg->bundle, "default");
+    system_Select(arg->bundle, "default", CONFFILE, arg->prompt, arg->cx);
+    bundle_SetLabel(arg->bundle, "default");
   }
+
   return 0;
 }
 
@@ -614,7 +617,7 @@ static struct cmdtab const Commands[] = {
   {"deny", NULL, NegotiateCommand, LOCAL_AUTH | LOCAL_CX_OPT,
   "Deny option request", "deny option .."},
   {"dial", "call", DialCommand, LOCAL_AUTH | LOCAL_CX_OPT,
-  "Dial and login", "dial|call [remote]", NULL},
+  "Dial and login", "dial|call [system ...]", NULL},
   {"disable", NULL, NegotiateCommand, LOCAL_AUTH | LOCAL_CX_OPT,
   "Disable option", "disable option .."},
   {"down", NULL, DownCommand, LOCAL_AUTH | LOCAL_CX_OPT,
@@ -626,7 +629,7 @@ static struct cmdtab const Commands[] = {
   {"link", "datalink", LinkCommand, LOCAL_AUTH,
   "Link specific commands", "link name command ..."},
   {"load", NULL, LoadCommand, LOCAL_AUTH | LOCAL_CX_OPT,
-  "Load settings", "load [remote]"},
+  "Load settings", "load [system ...]"},
   {"open", NULL, OpenCommand, LOCAL_AUTH | LOCAL_CX_OPT,
   "Open an FSM", "open! [lcp|ccp|ipcp]", (void *)1},
   {"passwd", NULL, PasswdCommand, LOCAL_NO_AUTH,
