@@ -1654,6 +1654,10 @@ ip_forward(m, srcrt)
 		type = ICMP_SOURCEQUENCH;
 		code = 0;
 		break;
+
+	case EACCES:			/* ipfw denied packet */
+		m_freem(mcopy);
+		return;
 	}
 	icmp_error(mcopy, type, code, dest, destifp);
 }
