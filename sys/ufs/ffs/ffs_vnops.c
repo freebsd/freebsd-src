@@ -175,6 +175,7 @@ ffs_fsync(ap)
 	if (wait)
 		skipmeta = 1;
 	s = splbio();
+	VI_LOCK(vp);
 loop:
 	TAILQ_FOREACH(bp, &vp->v_dirtyblkhd, b_vnbufs)
 		bp->b_flags &= ~B_SCANNED;
@@ -199,8 +200,11 @@ loop:
 			bp->b_flags |= B_DEFERRED;
 			continue;
 		}
-		if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT))
+		VI_UNLOCK(vp);
+		if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT)) {
+			VI_LOCK(vp);
 			continue;
+		}
 		if ((bp->b_flags & B_DELWRI) == 0)
 			panic("ffs_fsync: not dirty");
 		if (vp != bp->b_vp)
@@ -251,6 +255,7 @@ loop:
 		 * Since we may have slept during the I/O, we need 
 		 * to start from a known point.
 		 */
+		VI_LOCK(vp);
 		nbp = TAILQ_FIRST(&vp->v_dirtyblkhd);
 	}
 	/*
@@ -263,7 +268,6 @@ loop:
 	}
 
 	if (wait) {
-		VI_LOCK(vp);
 		while (vp->v_numoutput) {
 			vp->v_iflag |= VI_BWAIT;
 			msleep((caddr_t)&vp->v_numoutput, VI_MTX(vp),
@@ -280,6 +284,7 @@ loop:
 			return (error);
 		s = splbio();
 
+		VI_LOCK(vp);
 		if (!TAILQ_EMPTY(&vp->v_dirtyblkhd)) {
 			/*
 			 * Block devices associated with filesystems may
@@ -299,6 +304,7 @@ loop:
 #endif
 		}
 	}
+	VI_UNLOCK(vp);
 	splx(s);
 	return (UFS_UPDATE(vp, wait));
 }
