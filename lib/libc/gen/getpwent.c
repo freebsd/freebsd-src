@@ -124,15 +124,16 @@ getpwnam(name)
 #ifdef YP
 	if (!rval && _yp_enabled) {
 		bf[1] = '+';
-		bcopy(name, bf + 2, MIN(len, UT_NAMESIZE));
+		bcopy(name, bf + 2, MIN(len, UT_NAMESIZE - 1));
 		key.data = (u_char *)bf;
 		key.size = len + 2;
 		rval = __hashpw(&key);
-		if (!rval) {
+		if (!rval && _yp_enabled < 0) {
 			key.size = 2;
 			rval = __hashpw(&key);
 		}
-		rval = _getyppass(&_pw_passwd, name, "passwd.byname");
+		if(rval)
+			rval = _getyppass(&_pw_passwd, name, "passwd.byname");
 	}
 #else
 	/*
@@ -237,7 +238,13 @@ __initdb()
 		if ((_pw_db->get)(_pw_db, &key, &data, 0)) {
 			_yp_enabled = 0;
 		} else {
-			_yp_enabled = 1;
+			/* Distinguish between old and new versions of
+			   pwd_mkdb. */
+			if(data.size != 1) {
+				_yp_enabled = -1;
+			} else {
+				_yp_enabled = (int)*((char *)data.data) - 2;
+			}
 		}
 #endif
 		return(1);
@@ -353,7 +360,7 @@ _getyppass(struct passwd *pw, const char *name, const char *map)
 	s = strchr(result, '\n');
 	if(s) *s = '\0';
 
-	if(resultlen >= sizeof resultbuf) return -1;
+	if(resultlen >= sizeof resultbuf) return 0;
 	strcpy(resultbuf, result);
 	result = resultbuf;
 	_pw_breakout_yp(pw, resultbuf);
