@@ -471,6 +471,17 @@ drivedata: 0
       this disk must have their respective partition entries in the
       old and new label match <emphasis>exactly</emphasis>, or they
       will be lost.</para></warning>
+
+	<para>If you want to double-check that your partitions end on
+	  cylinder boundaries, run <command>disklabel -e
+	  <replaceable>device</replaceable></command> again.  The
+	  editor will display the cylinders used by a particular
+	  partition on the right hand side of the output.  If any of
+	  the partitions you defined (i.e. anything except partition
+	  <literal>c</literal>) shows an <literal>*</literal> next to
+	  it, the partition does <emphasis>NOT</emphasis> start or end
+	  on a cylinder boundary.  You <emphasis>MUST</emphasis> fix
+	  these or your system will not work.</para>
       </step>
 
       <step>
