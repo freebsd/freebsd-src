@@ -1,7 +1,7 @@
 # This file tells config what files go into building a kernel,
 # files marked standard are always included.
 #
-#	$Id: files.i386,v 1.224 1999/03/01 21:19:19 sos Exp $
+#	$Id: files.i386,v 1.225 1999/03/04 09:53:18 sos Exp $
 #
 # The long compile-with and dependency lines are required because of
 # limitations in config: backslash-newline doesn't work in strings, and
@@ -307,6 +307,7 @@ i4b/layer1/i4b_tel_s0163.c	optional	isic	device-driver
 i4b/layer1/i4b_tel_s0P.c	optional	isic	device-driver
 i4b/layer1/i4b_ctx_s0P.c	optional	isic	device-driver
 i4b/layer1/i4b_avm_a1.c		optional	isic	device-driver
+i4b/layer1/i4b_avm_fritz_pci.c	optional	isic	device-driver
 i4b/layer1/i4b_avm_fritz_pcmcia.c optional	isic	device-driver
 i4b/layer1/i4b_usr_sti.c	optional	isic	device-driver
 i4b/layer1/i4b_itk_ix1.c	optional	isic	device-driver
