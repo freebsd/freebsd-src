@@ -35,9 +35,10 @@
  * vm_page->swapblk field.  The object is only converted when the page is 
  * physically freed after having been cleaned and even then vm_page->swapblk
  * is maintained whenever a resident page also has swap backing store.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
