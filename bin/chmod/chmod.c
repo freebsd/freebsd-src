@@ -75,7 +75,7 @@ main(argc, argv)
 
 	set = NULL;
 	omode = 0;
-	Hflag = Lflag = Pflag = Rflag = fflag = hflag = 0;
+	Hflag = Lflag = Pflag = Rflag = fflag = hflag = vflag = 0;
 	while ((ch = getopt(argc, argv, "HLPRXfgorstuvwx")) != -1)
 		switch (ch) {
 		case 'H':
@@ -210,6 +210,6 @@ void
 usage()
 {
 	(void)fprintf(stderr,
-	    "usage: chmod [-f -R [-H | -L | -P] -v] mode file ...\n");
+	    "usage: chmod [-fv] [-R [-H | -L | -P]] mode file ...\n");
 	exit(1);
 }
