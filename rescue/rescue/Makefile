@@ -114,7 +114,7 @@ CRUNCH_PROGS_sbin= atacontrol badsect bsdlabel		\
 	restore rcorder route routed rtquery rtsol savecore 		\
 	slattach spppcontrol startslip swapon sysctl tunefs umount 
 
-.if !defined(NOATM)
+.if !defined(NO_ATM)
 CRUNCH_PROGS_sbin+= atm atmconfig fore_dnld ilmid
 CRUNCH_LIBS+= -latm
 .endif

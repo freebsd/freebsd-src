@@ -94,7 +94,7 @@ SUBDIR=	adjkerntz \
 	tunefs \
 	umount \
 
-.if !defined(NOATM)
+.if !defined(NO_ATM)
 _atm=		atm
 .endif
 

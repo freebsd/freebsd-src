@@ -42,7 +42,7 @@ _csu=csu/${MACHINE_ARCH}
 _csu=csu
 .endif
 
-.if !defined(NOATM)
+.if !defined(NO_ATM)
 _libatm=	libatm
 _libngatm=	libngatm
 .endif

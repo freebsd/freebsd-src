@@ -11,7 +11,7 @@ SRCS=	acf.c arp.c async.c auth.c bundle.c cbcp.c ccp.c chap.c chat.c \
 WARNS?=	3
 .if defined(RELEASE_CRUNCH)
 CFLAGS+=-DRELEASE_CRUNCH
-NOATM=
+NO_ATM=
 NODES=
 NOI4B=
 NONAT=
@@ -60,7 +60,7 @@ LDADD+=	-lalias
 DPADD+= ${LIBALIAS}
 .endif
 
-.if defined(NOATM)
+.if defined(NO_ATM)
 CFLAGS+=-DNOATM
 .else
 SRCS+=	atm.c
