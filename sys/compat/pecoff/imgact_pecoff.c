@@ -162,7 +162,7 @@ static int
 pecoff_coredump(register struct proc * p, register struct vnode * vp,
 		off_t limit)
 {
-	register struct ucred *cred = p->p_ucred;
+	register struct ucred *cred;
 	register struct vmspace *vm = p->p_vmspace;
 	int             error;
 #ifdef PECOFF_DEBUG
@@ -184,6 +184,10 @@ pecoff_coredump(register struct proc * p, register struct vnode * vp,
 	ent = &map->header;
 	printf("%p %p %p\n", ent, ent->prev, ent->next);
 #endif
+	PROC_LOCK(p);
+	cred = p->p_ucred;
+	crhold(cred);
+	PROC_UNLOCK(p);
 	error = cpu_coredump(p, vp, cred);
 	if (error == 0)
 		error = vn_rdwr(UIO_WRITE, vp, vm->vm_daddr,
@@ -195,6 +199,7 @@ pecoff_coredump(register struct proc * p, register struct vnode * vp,
 				round_page(ctob(vm->vm_ssize)),
 		   (off_t) ctob(UPAGES) + ctob(vm->vm_dsize), UIO_USERSPACE,
 			    IO_NODELOCKED | IO_UNIT, cred, (int *) NULL, p);
+	crfree(cred);
 	return (error);
 
 }
@@ -600,10 +605,15 @@ pecoff_read_from(p, vp, pos, buf, siz)
 {
 	int             error;
 	size_t          resid;
+	struct ucred	*uc;
 
+	PROC_LOCK(p);
+	uc = p->p_ucred;
+	crhold(uc);
+	PROC_UNLOCK(p);
 	error = vn_rdwr(UIO_READ, vp, buf, siz, pos,
-			UIO_SYSSPACE, IO_NODELOCKED, p->p_ucred,
-			&resid, p);
+			UIO_SYSSPACE, IO_NODELOCKED, uc, &resid, p);
+	crfree(uc);
 	if (error)
 		return error;
 
