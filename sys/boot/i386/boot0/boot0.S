@@ -100,8 +100,9 @@ main:
 		callw bioscom
 #endif
 /*
- * Check what flags were loaded with us, specifically, Use a predefined Drive.
- * If what the bios gives us is bad, use the '0' in the block instead, as well.
+ * Check what flags were loaded with us, specifically if a predefined drive
+ * number should be used.  If what the bios gives us is bad, use the '0' in
+ * the block instead.
  */
 		testb $0x20,_FLAGS(%bp)		# Set number drive?
 		jnz main.1			# Yes
@@ -117,10 +118,10 @@ main.2:		movb %dl,_FAKE(%bp)		# Save drive number
 		pushw %dx			# Save drive number
 /*
  * Start out with a pointer to the 4th byte of the first table entry
- * so that after 4 iterations it's beyond the end of the sector.
+ * so that after 4 iterations it's beyond the end of the sector
  * and beyond a 256 byte boundary and has overflowed 8 bits (see next comment).
- * (remember that the table starts 2 bytes earlier than you would expect
- * as the bootable flag is after it in the block)
+ * Remember that the table starts 2 bytes earlier than you would expect
+ * as the bootable flag is after it in the block.
  */
 		movw $(partbl+0x4),%bx		# Partition table (+4)
 		xorw %dx,%dx			# Item number
@@ -132,9 +133,8 @@ main.3:		movb %ch,-0x4(%bx)		# Zero active flag (ch == 0)
 		btw %dx,_FLAGS(%bp)		# Entry enabled?
 		jnc main.5			# No
 /*
- * If any of the entries in the table are
- * the same as the 'type' in the slice table entry,
- * then this is an empty or non bootable partition. Skip it.
+ * If any of the entries in the table are the same as the 'type' in the slice
+ * table entry, then this is an empty or non bootable partition. Skip it.
  */
 		movb (%bx),%al			# Load type
 		movw $tables,%di		# Lookup tables
@@ -150,9 +150,8 @@ main.3:		movb %ch,-0x4(%bx)		# Zero active flag (ch == 0)
 		scasb				#  type?
 		jne main.4			# No
 /*
- * If it matches get the matching element in the
- * next array. if it doesn't, we are already
- * pointing at its first element which points to a "?".
+ * If it matches get the matching element in the next array.  If it doesn't,
+ * we are already pointing at its first element which points to a "?".
  */
 		addw $TBL1SZ,%di		# Adjust
 main.4:		movb (%di),%cl			# Partition
@@ -162,31 +161,27 @@ main.5:		incw %dx			# Next item
 		addb $0x10,%bl			# Next entry
 		jnc main.3			# Till done
 /*
- * Passed a 256 byte boundary..
- * table is finished.
- * Add one to the drive number and check it is valid,
+ * Passed a 256 byte boundary; the table is finished.
+ * Add one to the drive number and check it is valid.
  */
 		popw %ax			# Drive number
 		subb $0x80-0x1,%al		# Does next
 		cmpb NHRDRV,%al			#  drive exist? (from BIOS?)
 		jb main.6			# Yes
 /*
- * If not then if there is only one drive,
- * Don't display drive as an option.
+ * If this is the only drive, don't display it as an option.
  */
 		decw %ax			# Already drive 0?
 		jz main.7			# Yes
 /*
- * If it was illegal or we cycled through them,
- * then go back to drive 0.
+ * If it was illegal or we cycled through them, go back to drive 0.
  */
 		xorb %al,%al			# Drive 0
 /*
- * Whatever drive we selected, make it an ascii digit and save it back
- * to the "next drive" location in the loaded block in case we
- * want to save it for next time.
- * This also is part of the printed drive string so add 0x80 to indicate
- * end of string.
+ * Whatever drive we selected, make it an ascii digit and save it back to the
+ * "next drive" location in the loaded block in case we want to save it later
+ * for next time.  This also is part of the printed drive string so add 0x80
+ * to indicate end of string.
  */
 main.6:		addb $'0'|0x80,%al		# Save next
 		movb %al,_NXTDRV(%bp)		#  drive number
@@ -210,8 +205,7 @@ main.10:	movb $ASCII_BEL,%al		# Signal
 		movw %dx,%di			# Ticks when
 		addw _TICKS(%bp),%di		#  timeout
 /*
- * Busy loop, looking for keystrokes but
- * keeping one eye on the time.
+ * Busy loop, looking for keystrokes but keeping one eye on the time.
  */
 main.8:
 #ifndef SIO
@@ -255,8 +249,7 @@ main.11:
 #endif
 		je main.9			# Yes
 /*
- * Otherwise check if legal
- * If not ask again.
+ * Otherwise check if legal. If not ask again.
  */
 #ifndef SIO
 		subb $KEY_F1,%al		# Less F1 scan code
@@ -269,8 +262,7 @@ main.11:
 		cmpb $0x4,%al			# #1..#5?
 		ja main.10			# No
 /*
- * We have a selection.
- * but if it's a bad selection go back to complain.
+ * We have a selection.  If it's a bad selection go back to complain.
  * The bits in MNUOPT were set when the options were printed.
  * Anything not printed is not an option.
  */
@@ -311,10 +303,9 @@ main.14:	popw %si			# Restore
 		movb _NXTDRV(%bp),%dl		# Next drive
 		subb $'0',%dl			#  number
 /*
- * load  selected bootsector to the LOAD location in RAM.
- * If it fails to read or isn't marked bootable, treat it
- * as a bad selection.
- * XXX what does %si carry?
+ * Load selected bootsector to the LOAD location in RAM.
+ * If it fails to read or isn't marked bootable, treat it as a bad selection.
+ * XXX: What does %si carry?
  */
 main.15:	movw $LOAD,%bx			# Address for read
 		movb $0x2,%ah			# Read sector
@@ -416,7 +407,7 @@ tables:
  */
 		.byte 0x0, 0x5, 0xf
 /*
- * These values indicate bootable types we know the names of
+ * These values indicate bootable types we know the names of.
  */
 		.byte 0x1, 0x4, 0x6, 0xb, 0xc, 0xe, 0x83
 		.byte 0x9f, 0xa5, 0xa6, 0xa9
@@ -463,7 +454,7 @@ flags:		.byte FLAGS			# Flags
 ticks:		.word TICKS			# Delay
 
 /*
- * here is the 64 byte partition table that fdisk would fiddle with.
+ * Here is the 64 byte partition table that fdisk would fiddle with.
  */
 partbl:		.fill 0x40,0x1,0x0		# Partition table
 		.word MAGIC			# Magic number
