@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/8/93
-#	$Id: Makefile,v 1.6 1994/09/24 02:57:18 davidg Exp $
+#	$Id: Makefile,v 1.8 1995/08/27 20:26:40 joerg Exp $
 
 PROG=	sh
 SRCS=	alias.c builtins.c cd.c echo.c error.c eval.c exec.c expand.c \
@@ -11,6 +11,8 @@ DPADD=  ${LIBL} ${LIBEDIT} ${LIBTERMCAP}
 LDADD=  -ll -ledit -ltermcap
 LFLAGS= -8	# 8-bit lex scanner for arithmetic
 CFLAGS+=-DSHELL -I. -I${.CURDIR}
+# for debugging:
+#CFLAGS+=-g -DDEBUG=2
 .PATH:	${.CURDIR}/bltin ${.CURDIR}/../../usr.bin/printf
 CLEANFILES+=\
 	builtins.c builtins.h init.c mkinit mknodes mksignames mksyntax \
