@@ -62,13 +62,41 @@ struct fid {
 /*
  * filesystem statistics
  */
+#define	MFSNAMELEN	16		/* length of type name including null */
+#define	MNAMELEN	88		/* size of on/from name bufs */
+#define	STATFS_VERSION	0x20030518	/* current version number */
+struct statfs {
+	uint32_t f_version;		/* structure version number */
+	uint32_t f_type;		/* type of filesystem */
+	uint64_t f_flags;		/* copy of mount exported flags */
+	uint64_t f_bsize;		/* filesystem fragment size */
+	uint64_t f_iosize;		/* optimal transfer block size */
+	uint64_t f_blocks;		/* total data blocks in filesystem */
+	uint64_t f_bfree;		/* free blocks in filesystem */
+	int64_t	 f_bavail;		/* free blocks avail to non-superuser */
+	uint64_t f_files;		/* total file nodes in filesystem */
+	int64_t	 f_ffree;		/* free nodes avail to non-superuser */
+	uint64_t f_syncwrites;		/* count of sync writes since mount */
+	uint64_t f_asyncwrites;		/* count of async writes since mount */
+	uint64_t f_syncreads;		/* count of sync reads since mount */
+	uint64_t f_asyncreads;		/* count of async reads since mount */
+	uint64_t f_spare[10];		/* unused spare */
+	uint32_t f_namemax;		/* maximum filename length */
+	uid_t	  f_owner;		/* user that mounted the filesystem */
+	fsid_t	  f_fsid;		/* filesystem id */
+	char	  f_charspare[80];	    /* spare string space */
+	char	  f_fstypename[MFSNAMELEN]; /* filesystem type name */
+	char	  f_mntfromname[MNAMELEN];  /* mounted filesystem */
+	char	  f_mntonname[MNAMELEN];    /* directory on which mounted */
+};
 
-#define	MFSNAMELEN	16	/* length of fs type name, including null */
-#define	MNAMELEN	(88 - 2 * sizeof(long))	/* size of on/from name bufs */
+#ifdef _KERNEL
+#define	OMFSNAMELEN	16	/* length of fs type name, including null */
+#define	OMNAMELEN	(88 - 2 * sizeof(long))	/* size of on/from name bufs */
 
 /* XXX getfsstat.2 is out of date with write and read counter changes here. */
 /* XXX statfs.2 is out of date with read counter changes here. */
-struct statfs {
+struct ostatfs {
 	long	f_spare2;		/* placeholder */
 	long	f_bsize;		/* fundamental filesystem block size */
 	long	f_iosize;		/* optimal transfer block size */
@@ -83,12 +111,12 @@ struct statfs {
 	int	f_flags;		/* copy of mount exported flags */
 	long	f_syncwrites;		/* count of sync writes since mount */
 	long	f_asyncwrites;		/* count of async writes since mount */
-	char	f_fstypename[MFSNAMELEN]; /* fs type name */
-	char	f_mntonname[MNAMELEN];	/* directory on which mounted */
+	char	f_fstypename[OMFSNAMELEN]; /* fs type name */
+	char	f_mntonname[OMNAMELEN];	/* directory on which mounted */
 	long	f_syncreads;		/* count of sync reads since mount */
 	long	f_asyncreads;		/* count of async reads since mount */
 	short	f_spares1;		/* unused spare */
-	char	f_mntfromname[MNAMELEN];/* mounted filesystem */
+	char	f_mntfromname[OMNAMELEN];/* mounted filesystem */
 	short	f_spares2;		/* unused spare */
 	/*
 	 * XXX on machines where longs are aligned to 8-byte boundaries, there
@@ -98,7 +126,6 @@ struct statfs {
 	long	f_spare[2];		/* unused spare */
 };
 
-#ifdef _KERNEL
 #define	MMAXOPTIONLEN	65536		/* maximum length of a mount option */
 
 TAILQ_HEAD(vnodelst, vnode);

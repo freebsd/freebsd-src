@@ -327,8 +327,8 @@ cluster_rbuild(vp, filesize, lbn, blkno, size, run, fbp)
 	GIANT_REQUIRED;
 
 	KASSERT(size == vp->v_mount->mnt_stat.f_iosize,
-	    ("cluster_rbuild: size %ld != filesize %ld\n",
-	    size, vp->v_mount->mnt_stat.f_iosize));
+	    ("cluster_rbuild: size %ld != filesize %jd\n",
+	    size, (intmax_t)vp->v_mount->mnt_stat.f_iosize));
 
 	/*
 	 * avoid a division

@@ -68,7 +68,7 @@
 15	STD	POSIX	{ int chmod(char *path, int mode); }
 16	STD	POSIX	{ int chown(char *path, int uid, int gid); }
 17	MSTD	BSD	{ int obreak(char *nsize); } break obreak_args int
-18	STD	BSD	{ int getfsstat(struct statfs *buf, long bufsize, \
+18	COMPAT4	BSD	{ int getfsstat(struct ostatfs *buf, long bufsize, \
 			    int flags); }
 19	COMPAT	POSIX	{ long lseek(int fd, long offset, int whence); }
 20	MSTD	POSIX	{ pid_t getpid(void); }
@@ -252,8 +252,8 @@
 155	MNOIMPL	BSD	{ int nfssvc(int flag, caddr_t argp); }
 156	COMPAT	BSD	{ int getdirentries(int fd, char *buf, u_int count, \
 			    long *basep); }
-157	STD	BSD	{ int statfs(char *path, struct statfs *buf); }
-158	STD	BSD	{ int fstatfs(int fd, struct statfs *buf); }
+157	COMPAT4	BSD	{ int statfs(char *path, struct ostatfs *buf); }
+158	COMPAT4	BSD	{ int fstatfs(int fd, struct ostatfs *buf); }
 159	UNIMPL	NOHIDE	nosys
 160	UNIMPL	NOHIDE	nosys
 161	STD	BSD	{ int getfh(char *fname, struct fhandle *fhp); }
@@ -439,7 +439,7 @@
 295	UNIMPL	NOHIDE	nosys
 296	UNIMPL	NOHIDE	nosys
 ; XXX 297 is 300 in NetBSD 
-297	STD	BSD	{ int fhstatfs(const struct fhandle *u_fhp, struct statfs *buf); }
+297	COMPAT4	BSD	{ int fhstatfs(const struct fhandle *u_fhp, struct ostatfs *buf); }
 298	STD	BSD	{ int fhopen(const struct fhandle *u_fhp, int flags); }
 299	STD	BSD 	{ int fhstat(const struct fhandle *u_fhp, struct stat *sb); }
 ; syscall numbers for FreeBSD
@@ -574,10 +574,12 @@
 				struct sf_hdtr *hdtr, off_t *sbytes, int flags); }
 394	MSTD	BSD	{ int mac_syscall(const char *policy, int call, \
 				void *arg); }
-395	UNIMPL	NOHIDE	nosys
-396	UNIMPL	NOHIDE	nosys
-397	UNIMPL	NOHIDE	nosys
-398	UNIMPL	NOHIDE	nosys
+395	STD	BSD	{ int getfsstat(struct statfs *buf, long bufsize, \
+			    int flags); }
+396	STD	BSD	{ int statfs(char *path, struct statfs *buf); }
+397	STD	BSD	{ int fstatfs(int fd, struct statfs *buf); }
+398	STD	BSD	{ int fhstatfs(const struct fhandle *u_fhp, \
+			    struct statfs *buf); }
 399	UNIMPL	NOHIDE	nosys
 400	MNOSTD	BSD	{ int ksem_close(semid_t id); }
 401	MNOSTD	BSD	{ int ksem_post(semid_t id); }

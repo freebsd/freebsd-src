@@ -120,9 +120,9 @@ typedef enum { NONE, KILO, MEGA, GIGA, TERA, PETA, UNIT_MAX } unit_t;
 static unit_t unitp [] = { NONE, KILO, MEGA, GIGA, TERA, PETA };
 
 static char	 *getmntpt(const char *);
-static size_t	  longwidth(long);
+static size_t	  int64width(int64_t);
 static char	 *makenetvfslist(void);
-static void	  prthuman(const struct statfs *, size_t);
+static void	  prthuman(const struct statfs *, int64_t);
 static void	  prthumanval(double);
 static void	  prtstat(struct statfs *, struct maxwidths *);
 static size_t	  regetmntinfo(struct statfs **, long, const char **);
@@ -371,7 +371,7 @@ unit_adjust(double *val)
 }
 
 static void
-prthuman(const struct statfs *sfsp, size_t used)
+prthuman(const struct statfs *sfsp, int64_t used)
 {
 
 	prthumanval((double)sfsp->f_blocks * (double)sfsp->f_bsize);
@@ -408,10 +408,10 @@ prthumanval(double bytes)
 static void
 prtstat(struct statfs *sfsp, struct maxwidths *mwp)
 {
-	static long blocksize;
+	static u_long blocksize;
 	static int headerlen, timesthrough = 0;
 	static const char *header;
-	size_t used, availblks, inodes;
+	int64_t used, availblks, inodes;
 
 	if (++timesthrough == 1) {
 		mwp->mntfrom = max(mwp->mntfrom, strlen("Filesystem"));
@@ -445,21 +445,23 @@ prtstat(struct statfs *sfsp, struct maxwidths *mwp)
 	if (hflag) {
 		prthuman(sfsp, used);
 	} else {
-		(void)printf(" %*ld %*ld %*ld",
-		    (u_int)mwp->total, fsbtoblk(sfsp->f_blocks, sfsp->f_bsize, blocksize),
-		    (u_int)mwp->used, fsbtoblk(used, sfsp->f_bsize, blocksize),
-	            (u_int)mwp->avail, fsbtoblk(sfsp->f_bavail, sfsp->f_bsize,
-		    blocksize));
+		(void)printf(" %*qd %*qd %*qd",
+		  (u_int)mwp->total,
+		  (intmax_t)fsbtoblk(sfsp->f_blocks, sfsp->f_bsize, blocksize),
+		  (u_int)mwp->used,
+		  (intmax_t)fsbtoblk(used, sfsp->f_bsize, blocksize),
+	          (u_int)mwp->avail,
+	          (intmax_t)fsbtoblk(sfsp->f_bavail, sfsp->f_bsize, blocksize));
 	}
 	(void)printf(" %5.0f%%",
 	    availblks == 0 ? 100.0 : (double)used / (double)availblks * 100.0);
 	if (iflag) {
 		inodes = sfsp->f_files;
 		used = inodes - sfsp->f_ffree;
-		(void)printf(" %*lu %*lu %4.0f%% ",
-		    (u_int)mwp->iused, (u_long)used,
-		    (u_int)mwp->ifree, sfsp->f_ffree,
-		    inodes == 0 ? 100.0 : (double)used / (double)inodes * 100.0);
+		(void)printf(" %*qd %*qd %4.0f%% ",
+		   (u_int)mwp->iused, (intmax_t)used,
+		   (u_int)mwp->ifree, (intmax_t)sfsp->f_ffree,
+		   inodes == 0 ? 100.0 : (double)used / (double)inodes * 100.0);
 	} else
 		(void)printf("  ");
 	(void)printf("  %s\n", sfsp->f_mntonname);
@@ -472,27 +474,27 @@ prtstat(struct statfs *sfsp, struct maxwidths *mwp)
 static void
 update_maxwidths(struct maxwidths *mwp, const struct statfs *sfsp)
 {
-	static long blocksize = 0;
+	static u_long blocksize = 0;
 	int dummy;
 
 	if (blocksize == 0)
 		getbsize(&dummy, &blocksize);
 
 	mwp->mntfrom = max(mwp->mntfrom, strlen(sfsp->f_mntfromname));
-	mwp->total = max(mwp->total, longwidth(fsbtoblk(sfsp->f_blocks,
+	mwp->total = max(mwp->total, int64width(
+	    fsbtoblk((int64_t)sfsp->f_blocks, sfsp->f_bsize, blocksize)));
+	mwp->used = max(mwp->used, int64width(fsbtoblk((int64_t)sfsp->f_blocks -
+	    (int64_t)sfsp->f_bfree, sfsp->f_bsize, blocksize)));
+	mwp->avail = max(mwp->avail, int64width(fsbtoblk(sfsp->f_bavail,
 	    sfsp->f_bsize, blocksize)));
-	mwp->used = max(mwp->used, longwidth(fsbtoblk(sfsp->f_blocks -
-	    sfsp->f_bfree, sfsp->f_bsize, blocksize)));
-	mwp->avail = max(mwp->avail, longwidth(fsbtoblk(sfsp->f_bavail,
-	    sfsp->f_bsize, blocksize)));
-	mwp->iused = max(mwp->iused, longwidth(sfsp->f_files -
+	mwp->iused = max(mwp->iused, int64width((int64_t)sfsp->f_files -
 	    sfsp->f_ffree));
-	mwp->ifree = max(mwp->ifree, longwidth(sfsp->f_ffree));
+	mwp->ifree = max(mwp->ifree, int64width(sfsp->f_ffree));
 }
 
 /* Return the width in characters of the specified long. */
 static size_t
-longwidth(long val)
+int64width(int64_t val)
 {
 	size_t len;
 
