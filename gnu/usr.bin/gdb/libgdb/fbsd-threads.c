@@ -918,13 +918,13 @@ fbsd_thread_pid_to_str (ptid_t ptid)
 
       if (ti.ti_lid != 0)
         {
-          snprintf (buf, sizeof (buf), "Thread %ld (LWP %d)",
-                    GET_THREAD (ptid), ti.ti_lid);
+          snprintf (buf, sizeof (buf), "Thread %p (LWP %d)",
+                    th.th_thread, ti.ti_lid);
         }
       else
         {
-          snprintf (buf, sizeof (buf), "Thread %ld (%s)",
-                    GET_THREAD (ptid), thread_db_state_str (ti.ti_state));
+          snprintf (buf, sizeof (buf), "Thread %p (%s)",
+                    th.th_thread, thread_db_state_str (ti.ti_state));
         }
 
       return buf;
