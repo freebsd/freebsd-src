@@ -464,7 +464,7 @@ extern int vfs_badlock_print;
  * no longer ok to have an unlocked VFS.
  */
 
-#define IGNORE_LOCK(vp)	((vp)->v_type == VCHR)
+#define IGNORE_LOCK(vp)	((vp)->v_type == VCHR || (vp)->v_type == VBAD)
 
 #define ASSERT_VOP_LOCKED(vp, str)					\
 do {									\
