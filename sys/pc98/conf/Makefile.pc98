@@ -3,7 +3,7 @@
 # Makefile.i386 -- with config changes.
 # Copyright 1990 W. Jolitz
 #	from: @(#)Makefile.i386	7.1 5/10/91
-#	$Id: Makefile.pc98,v 1.29 1998/04/29 18:21:35 imp Exp $
+#	$Id: Makefile.pc98,v 1.30 1998/05/23 07:45:54 kato Exp $
 #
 # Makefile for FreeBSD
 #
@@ -79,7 +79,7 @@ SYSTEM_LD_HEAD= @echo loading ${.TARGET}; rm -f ${.TARGET}
 SYSTEM_OBJS= locore.o vnode_if.o ${OBJS} ioconf.o param.o config.o
 SYSTEM_LD= @${LD} -Bstatic -Z -T ${LOAD_ADDRESS} -o ${.TARGET} -X ${SYSTEM_OBJS} vers.o
 SYSTEM_LD_TAIL= @echo rearranging symbols; \
-	symorder -m ${SYMORDER_EXCLUDE} symbols.sort ${.TARGET} \
+	symorder -m ${SYMORDER_EXCLUDE} symbols.sort ${.TARGET}; \
 	size ${.TARGET} ; chmod 755 ${.TARGET}
 .endif
 .if ${BINFORMAT} == aoutkld
@@ -94,7 +94,7 @@ SYSTEM_OBJS= locore.o setdef0.o vnode_if.o ${OBJS} ioconf.o param.o config.o \
 	setdef1.o
 SYSTEM_LD= @${LD} -Bstatic -Ttext ${LOAD_ADDRESS} -e btext -defsym _DYNAMIC=0 \
 	-o ${.TARGET} -X ${SYSTEM_OBJS} vers.o
-SYSTEM_LD_TAIL= @size ${.TARGET}; chmod 755 ${.TARGET}
+SYSTEM_LD_TAIL= @size ${.TARGET} ; chmod 755 ${.TARGET}
 .endif
 
 %BEFORE_DEPEND
