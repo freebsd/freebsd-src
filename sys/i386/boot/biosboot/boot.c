@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, [92/04/03  16:51:14  rvb]
- *	$Id: boot.c,v 1.40 1995/04/20 23:15:08 joerg Exp $
+ *	$Id: boot.c,v 1.41 1995/04/21 16:50:31 bde Exp $
  */
 
 
@@ -108,7 +108,7 @@ boot(int drive)
 	part = 0;
 	unit = drive & 0x7f;
 #ifdef	BOOT_HD
-	maj = (drive&0x80 ? 0 : 1);		/* a good first bet */
+	maj = (drive&0x80 ? 1 : 2);		/* a good first bet */
 #else
 	maj = (drive&0x80 ? 0 : 2);		/* a good first bet */
 #endif
