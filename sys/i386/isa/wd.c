@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.181 1998/12/15 09:16:57 bde Exp $
+ *	$Id: wd.c,v 1.182 1998/12/24 06:30:21 foxfair Exp $
  */
 
 /* TODO:
@@ -1100,8 +1100,7 @@ wdintr(int unit)
 	if (du->dk_flags & (DKFL_DMA|DKFL_USEDMA)) {
 		/* XXX SMP boxes sometimes generate an early intr.  Why? */
 		if ((wddma[du->dk_interface].wdd_dmastatus(du->dk_dmacookie) & WDDS_INTERRUPT)
-		    == 0)
-			return;
+		    != 0)
 		dmastat = wddma[du->dk_interface].wdd_dmadone(du->dk_dmacookie);
 	}
 
