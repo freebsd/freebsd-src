@@ -20,30 +20,23 @@
    along with this program; if not, write to the Free Software
    Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
-/* NOTE!!!  AIX requires this to be the first thing in the file.
-   Do not put ANYTHING before it!  */
-#if !defined (__GNUC__) && defined (_AIX)
- #pragma alloca
-#endif
-
 #ifdef HAVE_CONFIG_H
+#if defined (emacs) || defined (CONFIG_BROKETS)
+/* We use <config.h> instead of "config.h" so that a compilation
+   using -I. -I$srcdir will use ./config.h rather than $srcdir/config.h
+   (which it would do because it found this file in $srcdir).  */
+#include <config.h>
+#else
 #include "config.h"
 #endif
-
-#ifdef __GNUC__
-#define alloca __builtin_alloca
-#else /* not __GNUC__ */
-#if defined (HAVE_ALLOCA_H) || (defined(sparc) && (defined(sun) || (!defined(USG) && !defined(SVR4) && !defined(__svr4__))))
-#include <alloca.h>
-#else
-#ifndef _AIX
-char *alloca ();
 #endif
-#endif /* alloca.h */
-#endif /* not __GNUC__ */
 
-#if !__STDC__ && !defined(const) && IN_GCC
+#ifndef __STDC__
+/* This is a separate conditional since some stdc systems
+   reject `defined (const)'.  */
+#ifndef const
 #define const
+#endif
 #endif
 
 /* This tells Alpha OSF/1 not to define a getopt prototype in <stdio.h>.  */
@@ -67,12 +60,9 @@ char *alloca ();
 /* This needs to come after some library #include
    to get __GNU_LIBRARY__ defined.  */
 #ifdef	__GNU_LIBRARY__
-#undef	alloca
 /* Don't include stdlib.h for non-GNU C libraries because some of them
    contain conflicting prototypes for getopt.  */
 #include <stdlib.h>
-#else	/* Not GNU C library.  */
-#define	__alloca	alloca
 #endif	/* GNU C library.  */
 
 /* If GETOPT_COMPAT is defined, `+' as well as `--' can introduce a
@@ -180,7 +170,6 @@ static enum
    in GCC.  */
 #include <string.h>
 #define	my_index	strchr
-#define	my_bcopy(src, dst, n)	memcpy ((dst), (src), (n))
 #else
 
 /* Avoid depending on library functions or files
@@ -202,16 +191,19 @@ my_index (str, chr)
   return 0;
 }
 
-static void
-my_bcopy (from, to, size)
-     const char *from;
-     char *to;
-     int size;
-{
-  int i;
-  for (i = 0; i < size; i++)
-    to[i] = from[i];
-}
+/* If using GCC, we can safely declare strlen this way.
+   If not using GCC, it is ok not to declare it.
+   (Supposedly there are some machines where it might get a warning,
+   but changing this conditional to __STDC__ is too risky.)  */
+#ifdef __GNUC__
+#ifdef IN_GCC
+#include "gstddef.h"
+#else
+#include <stddef.h>
+#endif
+extern size_t strlen (const char *);
+#endif
+
 #endif				/* GNU C library.  */
 
 /* Handle permutation of arguments.  */
@@ -236,17 +228,51 @@ static void
 exchange (argv)
      char **argv;
 {
-  int nonopts_size = (last_nonopt - first_nonopt) * sizeof (char *);
-  char **temp = (char **) __alloca (nonopts_size);
+  int bottom = first_nonopt;
+  int middle = last_nonopt;
+  int top = optind;
+  char *tem;
 
-  /* Interchange the two blocks of data in ARGV.  */
+  /* Exchange the shorter segment with the far end of the longer segment.
+     That puts the shorter segment into the right place.
+     It leaves the longer segment in the right place overall,
+     but it consists of two parts that need to be swapped next.  */
 
-  my_bcopy ((char *) &argv[first_nonopt], (char *) temp, nonopts_size);
-  my_bcopy ((char *) &argv[last_nonopt], (char *) &argv[first_nonopt],
-	    (optind - last_nonopt) * sizeof (char *));
-  my_bcopy ((char *) temp,
-	    (char *) &argv[first_nonopt + optind - last_nonopt],
-	    nonopts_size);
+  while (top > middle && middle > bottom)
+    {
+      if (top - middle > middle - bottom)
+	{
+	  /* Bottom segment is the short one.  */
+	  int len = middle - bottom;
+	  register int i;
+
+	  /* Swap it with the top part of the top segment.  */
+	  for (i = 0; i < len; i++)
+	    {
+	      tem = argv[bottom + i];
+	      argv[bottom + i] = argv[top - (middle - bottom) + i];
+	      argv[top - (middle - bottom) + i] = tem;
+	    }
+	  /* Exclude the moved bottom segment from further swapping.  */
+	  top -= len;
+	}
+      else
+	{
+	  /* Top segment is the short one.  */
+	  int len = top - middle;
+	  register int i;
+
+	  /* Swap it with the bottom part of the bottom segment.  */
+	  for (i = 0; i < len; i++)
+	    {
+	      tem = argv[bottom + i];
+	      argv[bottom + i] = argv[middle + i];
+	      argv[middle + i] = tem;
+	    }
+	  /* Exclude the moved top segment from further swapping.  */
+	  bottom += len;
+	}
+    }
 
   /* Update records for the slots the non-options now occupy.  */
 
