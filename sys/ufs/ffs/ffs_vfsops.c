@@ -1083,7 +1083,7 @@ ffs_sync(mp, waitfor, td)
 		wait = 1;
 		lockreq = LK_EXCLUSIVE;
 	}
-	lockreq |= LK_INTERLOCK;
+	lockreq |= LK_INTERLOCK | LK_SLEEPFAIL;
 	MNT_ILOCK(mp);
 loop:
 	MNT_VNODE_FOREACH(vp, mp, nvp) {
@@ -1108,14 +1108,13 @@ loop:
 		MNT_IUNLOCK(mp);
 		if ((error = vget(vp, lockreq, td)) != 0) {
 			MNT_ILOCK(mp);
-			if (error == ENOENT)
+			if (error == ENOENT || error == ENOLCK)
 				goto loop;
 			continue;
 		}
 		if ((error = ffs_syncvnode(vp, waitfor)) != 0)
 			allerror = error;
-		VOP_UNLOCK(vp, 0, td);
-		vrele(vp);
+		vput(vp);
 		MNT_ILOCK(mp);
 	}
 	MNT_IUNLOCK(mp);
