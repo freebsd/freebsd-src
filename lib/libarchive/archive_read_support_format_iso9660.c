@@ -70,7 +70,7 @@ __FBSDID("$FreeBSD$");
  */
 
 /* Structure of on-disk PVD. */
-struct primary_volume_descriptor {
+struct iso9660_primary_volume_descriptor {
 	unsigned char	type[1];
 	char	id[5];
 	unsigned char	version[1];
@@ -106,7 +106,7 @@ struct primary_volume_descriptor {
 };
 
 /* Structure of an on-disk directory record. */
-struct directory_record {
+struct iso9660_directory_record {
 	unsigned char length[1];
 	unsigned char ext_attr_length[1];
 	unsigned char extent[8];
@@ -126,15 +126,19 @@ struct directory_record {
  */
 
 /* In-memory storage for a directory record. */
-struct dir_rec {
-	struct dir_rec	*parent;
+struct file_info {
+	struct file_info	*parent;
 	int		 refcount;
-	unsigned char	 flags;
 	uint64_t	 offset;  /* Offset on disk. */
 	uint64_t	 size;	/* File size in bytes. */
 	time_t		 mtime;	/* File last modified time. */
+	time_t		 atime;	/* File last accessed time. */
+	time_t		 ctime;	/* File creation time. */
 	mode_t		 mode;
-	char		 name[1]; /* Null-terminated filename. */
+	uid_t		 uid;
+	gid_t		 gid;
+	int		 nlinks;
+	char		*name; /* Null-terminated filename. */
 };
 
 
@@ -149,7 +153,7 @@ struct iso9660 {
 	struct archive_string previous_pathname;
 
 	/* TODO: Make this a heap for fast inserts and deletions. */
-	struct dir_rec **pending_files;
+	struct file_info **pending_files;
 	int	pending_files_allocated;
 	int	pending_files_used;
 
@@ -166,14 +170,18 @@ static int	archive_read_format_iso9660_read_data(struct archive *,
 		    const void **, size_t *, off_t *);
 static int	archive_read_format_iso9660_read_header(struct archive *,
 		    struct archive_entry *);
-static const char *build_pathname(struct archive_string *, struct dir_rec *);
-static void	dump_isodirent(FILE *, const struct directory_record *);
-static time_t	isodate(const void *);
+static const char *build_pathname(struct archive_string *, struct file_info *);
+static void	dump_isodirrec(FILE *, const struct iso9660_directory_record *);
+static time_t	isodate17(const void *);
+static time_t	isodate7(const void *);
 static int	isPVD(struct iso9660 *, const char *);
-static struct dir_rec *next_entry(struct iso9660 *);
-static void	release_dirrec(struct iso9660 *, struct dir_rec *);
-static int	store_pending(struct iso9660 *, struct dir_rec *parent,
-		    const struct directory_record *);
+static struct file_info *next_entry(struct iso9660 *);
+static void	parse_rockridge(struct iso9660 *iso9660,
+		    const struct iso9660_directory_record *isodirrec,
+		    struct file_info *file);
+static void	release_file(struct iso9660 *, struct file_info *);
+static int	store_pending(struct iso9660 *, struct file_info *parent,
+		    const struct iso9660_directory_record *);
 static int	toi(const void *p, int n);
 
 int
@@ -246,7 +254,7 @@ archive_read_format_iso9660_bid(struct archive *a)
 static int
 isPVD(struct iso9660 *iso9660, const char *h)
 {
-	const struct primary_volume_descriptor *voldesc;
+	const struct iso9660_primary_volume_descriptor *voldesc;
 
 	if (h[0] != 1)
 		return (0);
@@ -254,12 +262,12 @@ isPVD(struct iso9660 *iso9660, const char *h)
 		return (0);
 
 
-	voldesc = (const struct primary_volume_descriptor *)h;
+	voldesc = (const struct iso9660_primary_volume_descriptor *)h;
 	iso9660->logical_block_size = toi(&voldesc->logical_block_size, 2);
 
 	/* Store the root directory in the pending list. */
 	store_pending(iso9660, NULL,
-	    (struct directory_record *)&voldesc->root_directory_record);
+	    (struct iso9660_directory_record *)&voldesc->root_directory_record);
 	return (48);
 }
 
@@ -269,63 +277,68 @@ archive_read_format_iso9660_read_header(struct archive *a,
 {
 	struct stat st;
 	struct iso9660 *iso9660;
-	struct dir_rec *dirrec;
+	struct file_info *file;
 	ssize_t bytes_read;
 	const void *buff;
 
 	iso9660 = *(a->pformat_data);
 
 	/* Get the next entry that appears after the current offset. */
-	dirrec = next_entry(iso9660);
-	if (dirrec == NULL)
+	file = next_entry(iso9660);
+	if (file == NULL)
 		return (ARCHIVE_EOF);
 
-	iso9660->entry_bytes_remaining = dirrec->size;
+	iso9660->entry_bytes_remaining = file->size;
 	iso9660->entry_sparse_offset = 0; /* Offset for sparse-file-aware clients. */
 
 	/* Set up the entry structure with information about this entry. */
 	memset(&st, 0, sizeof(st));
-	st.st_mode = dirrec->mode;
-	st.st_mtime = dirrec->mtime;
+	st.st_mode = file->mode;
+	st.st_uid = file->uid;
+	st.st_gid = file->gid;
+	st.st_nlink = file->nlinks;
+	st.st_mtime = file->mtime;
+	st.st_ctime = file->ctime;
+	st.st_atime = file->atime;
 	st.st_size = iso9660->entry_bytes_remaining;
 	archive_entry_copy_stat(entry, &st);
 	archive_string_empty(&iso9660->pathname);
 	archive_entry_set_pathname(entry,
-	    build_pathname(&iso9660->pathname, dirrec));
+	    build_pathname(&iso9660->pathname, file));
 
 	/* If this entry points to the same data as the previous
 	 * entry, convert this into a hardlink to that entry.
 	 * But don't bother for zero-length files. */
-	if (dirrec->offset == iso9660->previous_offset
-	    && dirrec->size == iso9660->previous_size
-	    && dirrec->size > 0) {
+	if (file->offset == iso9660->previous_offset
+	    && file->size == iso9660->previous_size
+	    && file->size > 0) {
 		archive_entry_set_hardlink(entry,
 		    iso9660->previous_pathname.s);
 		iso9660->entry_bytes_remaining = 0;
 		iso9660->entry_sparse_offset = 0;
-		release_dirrec(iso9660, dirrec);
+		release_file(iso9660, file);
 		return (ARCHIVE_OK);
 	}
 
 	/* If the offset is before our current position, we can't
 	 * seek backwards to extract it, so issue a warning. */
-	if (dirrec->offset < iso9660->current_position) {
+	if (file->offset < iso9660->current_position) {
 		archive_set_error(a, ARCHIVE_ERRNO_MISC,
 		    "Ignoring out-of-order file");
 		iso9660->entry_bytes_remaining = 0;
 		iso9660->entry_sparse_offset = 0;
-		release_dirrec(iso9660, dirrec);
+		release_file(iso9660, file);
 		return (ARCHIVE_WARN);
 	}
 
 	/* Seek forward to the start of the entry. */
-	while (iso9660->current_position < dirrec->offset) {
-		ssize_t step = dirrec->offset - iso9660->current_position;
+	while (iso9660->current_position < file->offset) {
+		ssize_t step = file->offset - iso9660->current_position;
 		if (step > iso9660->logical_block_size)
 			step = iso9660->logical_block_size;
 		bytes_read = (a->compression_read_ahead)(a, &buff, step);
 		if (bytes_read <= 0) {
-			release_dirrec(iso9660, dirrec);
+			release_file(iso9660, file);
 			return (ARCHIVE_FATAL);
 		}
 		if (bytes_read > step)
@@ -334,8 +347,8 @@ archive_read_format_iso9660_read_header(struct archive *a,
 		(a->compression_read_consume)(a, bytes_read);
 	}
 
-	iso9660->previous_size = dirrec->size;
-	iso9660->previous_offset = dirrec->offset;
+	iso9660->previous_size = file->size;
+	iso9660->previous_offset = file->offset;
 	archive_strcpy(&iso9660->previous_pathname, iso9660->pathname.s);
 
 	/* If this is a directory, read in all of the entries right now. */
@@ -350,7 +363,7 @@ archive_read_format_iso9660_read_header(struct archive *a,
 			if (bytes_read < step) {
 				archive_set_error(a, ARCHIVE_ERRNO_MISC,
 	    "Failed to read full block when scanning ISO9660 directory list");
-				release_dirrec(iso9660, dirrec);
+				release_file(iso9660, file);
 				return (ARCHIVE_FATAL);
 			}
 			if (bytes_read > step)
@@ -361,8 +374,8 @@ archive_read_format_iso9660_read_header(struct archive *a,
 			for (p = block;
 			     *p != 0 && p < (const unsigned char *)block + bytes_read;
 			     p += *p) {
-				const struct directory_record *dr
-				    = (const struct directory_record *)p;
+				const struct iso9660_directory_record *dr
+				    = (const struct iso9660_directory_record *)p;
 				/* Skip '.' entry. */
 				if (dr->name_len[0] == 1
 				    && dr->name[0] == '\0')
@@ -371,12 +384,12 @@ archive_read_format_iso9660_read_header(struct archive *a,
 				if (dr->name_len[0] == 1
 				    && dr->name[0] == '\001')
 					continue;
-				store_pending(iso9660, dirrec, dr);
+				store_pending(iso9660, file, dr);
 			}
 		}
 	}
 
-	release_dirrec(iso9660, dirrec);
+	release_file(iso9660, file);
 	return (ARCHIVE_OK);
 }
 
@@ -413,21 +426,33 @@ static int
 archive_read_format_iso9660_cleanup(struct archive *a)
 {
 	struct iso9660 *iso9660;
+	struct file_info *file;
 
 	iso9660 = *(a->pformat_data);
+	while ((file = next_entry(iso9660)) != NULL)
+		release_file(iso9660, file);
+	archive_string_free(&iso9660->pathname);
+	archive_string_free(&iso9660->previous_pathname);
 	free(iso9660);
 	*(a->pformat_data) = NULL;
 	return (ARCHIVE_OK);
 }
 
+/*
+ * This routine parses a single ISO directory record, makes sense
+ * of any extensions, and stores the result in memory.
+ */
 static int
-store_pending(struct iso9660 *iso9660, struct dir_rec *parent,
-    const struct directory_record *isodirent)
+store_pending(struct iso9660 *iso9660, struct file_info *parent,
+    const struct iso9660_directory_record *isodirrec)
 {
-	struct dir_rec *new_dirent;
+	struct file_info *file;
 
+	/* TODO: Sanity check that name_len doesn't exceed length, etc. */
+
+	/* Expand our pending files list as necessary. */
 	if (iso9660->pending_files_used >= iso9660->pending_files_allocated) {
-		struct dir_rec **new_pending_files;
+		struct file_info **new_pending_files;
 		int new_size = iso9660->pending_files_allocated * 2;
 
 		if (new_size < 1024)
@@ -441,47 +466,53 @@ store_pending(struct iso9660 *iso9660, struct dir_rec *parent,
 		iso9660->pending_files_allocated = new_size;
 	}
 
-	new_dirent = malloc(sizeof(*new_dirent) + isodirent->name_len[0] + 1);
-	new_dirent->parent = parent;
+	/* Create a new file entry and copy data from the ISO dir record. */
+	file = malloc(sizeof(*file));
+	file->parent = parent;
 	if (parent != NULL)
 		parent->refcount++;
-	new_dirent->refcount = 0;
-	new_dirent->flags = isodirent->flags[0];
-	new_dirent->offset = toi(isodirent->extent, 4)
+	file->refcount = 0;
+	file->offset = toi(isodirrec->extent, 4)
 	    * iso9660->logical_block_size;
-	new_dirent->size = toi(isodirent->size, 4);
-	new_dirent->mtime = isodate(isodirent->date);
-	memcpy(new_dirent->name, isodirent->name, isodirent->name_len[0]);
-	new_dirent->name[(int)isodirent->name_len[0]] = '\0';
-
-	if (isodirent->flags[0] & 0x02)
-		new_dirent->mode = S_IFDIR | 0700;
+	file->size = toi(isodirrec->size, 4);
+	file->mtime = isodate7(isodirrec->date);
+	file->ctime = file->atime = file->mtime;
+	file->name = malloc(isodirrec->name_len[0] + 1);
+	file->nlinks = 0;
+	file->uid = 0;
+	file->gid = 0;
+	memcpy(file->name, isodirrec->name, isodirrec->name_len[0]);
+	file->name[(int)isodirrec->name_len[0]] = '\0';
+	if (isodirrec->flags[0] & 0x02)
+		file->mode = S_IFDIR | 0700;
 	else
-		new_dirent->mode = S_IFREG | 0400;
+		file->mode = S_IFREG | 0400;
 
-	iso9660->pending_files[iso9660->pending_files_used++] = new_dirent;
+	/* Rockridge extensions overwrite information from above. */
+	parse_rockridge(iso9660, isodirrec, file);
 
+	iso9660->pending_files[iso9660->pending_files_used++] = file;
 
 	/* DEBUGGING: Warn about attributes I don't yet fully support. */
-	if ((isodirent->flags[0] & ~0x02) != 0) {
+	if ((isodirrec->flags[0] & ~0x02) != 0) {
 		fprintf(stderr, "\n ** Unrecognized flag: ");
-		dump_isodirent(stderr, isodirent);
+		dump_isodirrec(stderr, isodirrec);
 		fprintf(stderr, "\n");
-	} else if (toi(isodirent->volume_sequence_number, 2) != 1) {
+	} else if (toi(isodirrec->volume_sequence_number, 2) != 1) {
 		fprintf(stderr, "\n ** Unrecognized sequence number: ");
-		dump_isodirent(stderr, isodirent);
+		dump_isodirrec(stderr, isodirrec);
 		fprintf(stderr, "\n");
-	} else if (isodirent->file_unit_size[0] != 0) {
+	} else if (isodirrec->file_unit_size[0] != 0) {
 		fprintf(stderr, "\n ** Unexpected file unit size: ");
-		dump_isodirent(stderr, isodirent);
+		dump_isodirrec(stderr, isodirrec);
 		fprintf(stderr, "\n");
-	} else if (isodirent->interleave[0] != 0) {
+	} else if (isodirrec->interleave[0] != 0) {
 		fprintf(stderr, "\n ** Unexpected interleave: ");
-		dump_isodirent(stderr, isodirent);
+		dump_isodirrec(stderr, isodirrec);
 		fprintf(stderr, "\n");
-	} else if (isodirent->ext_attr_length[0] != 0) {
+	} else if (isodirrec->ext_attr_length[0] != 0) {
 		fprintf(stderr, "\n ** Unexpected extended attribute length: ");
-		dump_isodirent(stderr, isodirent);
+		dump_isodirrec(stderr, isodirrec);
 		fprintf(stderr, "\n");
 	}
 
@@ -489,28 +520,162 @@ store_pending(struct iso9660 *iso9660, struct dir_rec *parent,
 }
 
 static void
-release_dirrec(struct iso9660 *iso9660, struct dir_rec *dr)
+parse_rockridge(struct iso9660 *iso9660,
+    const struct iso9660_directory_record *isodirrec, struct file_info *file)
 {
-	struct dir_rec *parent;
+	const unsigned char *p, *end;
 
-	if (dr->refcount == 0) {
-		dr->flags = 0xff;
-		parent = dr->parent;
-		free(dr);
+	(void)iso9660; /* UNUSED */
+
+	end = (const unsigned char *)isodirrec + isodirrec->length[0];
+	p = isodirrec->name + isodirrec->name_len[0];
+	if ((isodirrec->name_len[0] & 1) == 0)
+		p++;
+
+	while (p + 4 < end  /* Enough space for another entry. */
+	    && p[0] >= 'A' && p[0] <= 'Z' /* Sanity-check 1st char of name. */
+	    && p[1] >= 'A' && p[1] <= 'Z' /* Sanity-check 2nd char of name. */
+	    && p + p[2] <= end) { /* Sanity-check length. */
+		const unsigned char *data = p + 4;
+		int data_length = p[2] - 4;
+		int version = p[3]; /* Currently unused. */
+
+		switch(p[0]) {
+		case 'N':
+			if (p[1] == 'M' && version == 1) { /* NM */
+				/*
+				 * NM extension comprises:
+				 *   one byte flag
+				 *   rest is long name
+				 */
+				/* TODO: Obey flags. */
+				char *old_name = file->name;
+				file->name = malloc(data_length);
+				if (file->name != NULL) {
+					free(old_name);
+					memcpy(file->name, data + 1, data_length - 1);
+					file->name[data_length - 1] = '\0';
+				} else {
+					file->name = old_name;
+				}
+			}
+			break;
+		case 'P':
+			if (p[1] == 'X' && version == 1) { /* PX */
+				/*
+				 * PX extension comprises:
+				 *   8 bytes for mode,
+				 *   8 bytes for nlinks,
+				 *   8 bytes for uid,
+				 *   8 bytes for gid.
+				 */
+				if (data_length == 32) {
+					file->mode = toi(data, 4);
+					file->nlinks = toi(data + 8, 4);
+					file->uid = toi(data + 16, 4);
+					file->gid = toi(data + 24, 4);
+				}
+			}
+			break;
+		case 'R':
+			if (p[1] == 'R' && version == 1) { /* RR */
+				/*
+				 * RR extension comprises:
+				 *
+				 */
+				/* TODO: Handle RR extension. */
+			}
+			break;
+		case 'T':
+			if (p[1] == 'F' && version == 1) { /* TF */
+				char flag = data[0];
+				/*
+				 * TF extension comprises:
+				 *   one byte flag
+				 *   create time (optional)
+				 *   modify time (optional)
+				 *   access time (optional)
+				 *   attribute time (optional)
+				 *  Time format and presence of fields
+				 *  is controlled by flag bits.
+				 */
+				data++;
+				if (flag & 0x80) {
+					/* Use 17-byte time format. */
+					if (flag & 1) /* Create time. */
+						data += 17;
+					if (flag & 2) { /* Modify time. */
+						file->mtime = isodate17(data);
+						data += 17;
+					}
+					if (flag & 4) { /* Access time. */
+						file->atime = isodate17(data);
+						data += 17;
+					}
+					if (flag & 8) { /* Attribute time. */
+						file->ctime = isodate17(data);
+						data += 17;
+					}
+				} else {
+					/* Use 7-byte time format. */
+					if (flag & 1) /* Create time. */
+						data += 7;
+					if (flag & 2) { /* Modify time. */
+						file->mtime = isodate7(data);
+						data += 7;
+					}
+					if (flag & 4) { /* Access time. */
+						file->atime = isodate7(data);
+						data += 7;
+					}
+					if (flag & 8) { /* Attribute time. */
+						file->ctime = isodate7(data);
+						data += 7;
+					}
+				}
+			}
+			break;
+		default:
+			{
+				const unsigned char *t;
+				fprintf(stderr, "\nUnsupported RRIP extension for %s\n", file->name);
+				fprintf(stderr, " %c%c(%d):", p[0], p[1], data_length);
+				for (t = data; t < data + data_length && t < data + 16; t++)
+					fprintf(stderr, " %02x", *t);
+				fprintf(stderr, "\n");
+			}
+		}
+
+
+
+		p += p[2];
+	}
+}
+
+static void
+release_file(struct iso9660 *iso9660, struct file_info *file)
+{
+	struct file_info *parent;
+
+	if (file->refcount == 0) {
+		parent = file->parent;
+		if (file->name)
+			free(file->name);
+		free(file);
 		if (parent != NULL) {
 			parent->refcount--;
-			release_dirrec(iso9660, parent);
+			release_file(iso9660, parent);
 		}
 	}
 }
 
-static struct dir_rec *
+static struct file_info *
 next_entry(struct iso9660 *iso9660)
 {
 	int least_index;
 	uint64_t least_end_offset;
 	int i;
-	struct dir_rec *r;
+	struct file_info *r;
 
 	if (iso9660->pending_files_used < 1)
 		return (NULL);
@@ -548,7 +713,7 @@ toi(const void *p, int n)
 }
 
 static time_t
-isodate(const void *p)
+isodate7(const void *p)
 {
 	struct tm tm;
 	const unsigned char *v = (const unsigned char *)p;
@@ -561,33 +726,61 @@ isodate(const void *p)
 	tm.tm_sec = v[5];
 	/* v[6] is the timezone offset, in 1/4-hour increments. */
 	offset = ((const signed char *)p)[6];
-	tm.tm_hour -= offset / 4;
-	tm.tm_min -= (offset % 4) * 15;
+	if (offset > -48 && offset < 52) {
+		tm.tm_hour -= offset / 4;
+		tm.tm_min -= (offset % 4) * 15;
+	}
+	return (timegm(&tm));
+}
+
+static time_t
+isodate17(const void *p)
+{
+	struct tm tm;
+	const unsigned char *v = (const unsigned char *)p;
+	int offset;
+	tm.tm_year = (v[0] - '0') * 1000 + (v[1] - '0') * 100
+	    + (v[2] - '0') * 10 + (v[3] - '0')
+	    - 1900;
+	tm.tm_mon = (v[4] - '0') * 10 + (v[5] - '0');
+	tm.tm_mday = (v[6] - '0') * 10 + (v[7] - '0');
+	tm.tm_hour = (v[8] - '0') * 10 + (v[9] - '0');
+	tm.tm_min = (v[10] - '0') * 10 + (v[11] - '0');
+	tm.tm_sec = (v[12] - '0') * 10 + (v[13] - '0');
+	/* v[16] is the timezone offset, in 1/4-hour increments. */
+	offset = ((const signed char *)p)[16];
+	if (offset > -48 && offset < 52) {
+		tm.tm_hour -= offset / 4;
+		tm.tm_min -= (offset % 4) * 15;
+	}
 	return (timegm(&tm));
 }
 
 static const char *
-build_pathname(struct archive_string *as, struct dir_rec *dr)
+build_pathname(struct archive_string *as, struct file_info *file)
 {
-	if (dr->parent != NULL && dr->parent->name[0] != '\0') {
-		build_pathname(as, dr->parent);
+	if (file->parent != NULL && file->parent->name[0] != '\0') {
+		build_pathname(as, file->parent);
 		archive_strcat(as, "/");
 	}
-	archive_strcat(as, dr->name);
+	if (file->name[0] == '\0')
+		archive_strcat(as, ".");
+	else
+		archive_strcat(as, file->name);
 	return (as->s);
 }
 
 static void
-dump_isodirent(FILE *out, const struct directory_record *isodirent)
+dump_isodirrec(FILE *out, const struct iso9660_directory_record *isodirrec)
 {
-	fprintf(out, " l %d,", isodirent->length[0]);
-	fprintf(out, " a %d,", isodirent->ext_attr_length[0]);
-	fprintf(out, " ext 0x%x,", toi(isodirent->extent, 4));
-	fprintf(out, " s %d,", toi(isodirent->size, 4));
-	fprintf(out, " f 0x%02x,", isodirent->flags[0]);
-	fprintf(out, " u %d,", isodirent->file_unit_size[0]);
-	fprintf(out, " ilv %d,", isodirent->interleave[0]);
-	fprintf(out, " seq %d,", toi(isodirent->volume_sequence_number,2));
-	fprintf(out, " nl %d:", isodirent->name_len[0]);
-	fprintf(out, " `%.*s'", isodirent->name_len[0], isodirent->name);
+	fprintf(out, " l %d,", isodirrec->length[0]);
+	fprintf(out, " a %d,", isodirrec->ext_attr_length[0]);
+	fprintf(out, " ext 0x%x,", toi(isodirrec->extent, 4));
+	fprintf(out, " s %d,", toi(isodirrec->size, 4));
+	fprintf(out, " f 0x%02x,", isodirrec->flags[0]);
+	fprintf(out, " u %d,", isodirrec->file_unit_size[0]);
+	fprintf(out, " ilv %d,", isodirrec->interleave[0]);
+	fprintf(out, " seq %d,", toi(isodirrec->volume_sequence_number,2));
+	fprintf(out, " nl %d:", isodirrec->name_len[0]);
+	fprintf(out, " `%.*s'", isodirrec->name_len[0], isodirrec->name);
 }
