@@ -84,7 +84,6 @@ static struct opt {
 	{ MNT_ASYNC,		"asynchronous" },
 	{ MNT_EXPORTED,		"NFS exported" },
 	{ MNT_LOCAL,		"local" },
-	{ MNT_NOAUTO,		"noauto" },
 	{ MNT_NODEV,		"nodev" },
 	{ MNT_NOEXEC,		"noexec" },
 	{ MNT_NOSUID,		"nosuid" },
@@ -167,12 +166,12 @@ main(argc, argv)
 					continue;
 				if (badvfsname(fs->fs_vfstype, vfslist))
 					continue;
-				if (!strstr(fs->fs_mntops, "noauto")) {
+				if (strstr(fs->fs_mntops, "noauto"))
+					continue;
 				if (mountfs(fs->fs_vfstype, fs->fs_spec,
-			    		fs->fs_file, init_flags, options,
-				    	fs->fs_mntops))
+		    			fs->fs_file, init_flags, options,
+			    		fs->fs_mntops))
 						rval = 1;
-				}
 			}
 		else {
 			if ((mntsize = getmntinfo(&mntbuf, MNT_NOWAIT)) == 0)
