@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: conv.c,v 1.3 1994/09/24 02:54:44 davidg Exp $
  */
 
 #ifndef lint
@@ -61,7 +61,7 @@ def()
 	int cnt;
 	u_char *inp, *t;
 
-	if ((t = ctab))
+	if ((t = ctab) != NULL)
 		for (inp = in.dbp - (cnt = in.dbrcnt); cnt--; ++inp)
 			*inp = t[*inp];
 
@@ -105,7 +105,6 @@ block()
 	int ch, cnt, maxlen;
 	u_char *inp, *outp, *t;
 
-        ch = 0;
 	/*
 	 * Record truncation can cross block boundaries.  If currently in a
 	 * truncation state, keep tossing characters until reach a newline.
@@ -130,9 +129,10 @@ block()
 	 * Copy records (max cbsz size chunks) into the output buffer.  The
 	 * translation is done as we copy into the output buffer.
 	 */
+	ch = 0;			/* Help the compiler. */
 	for (inp = in.dbp - in.dbcnt, outp = out.dbp; in.dbcnt;) {
 		maxlen = MIN(cbsz, in.dbcnt);
-		if ((t = ctab))
+		if ((t = ctab) != NULL)
 			for (cnt = 0;
 			    cnt < maxlen && (ch = *inp++) != '\n'; ++cnt)
 				*outp++ = t[ch];
@@ -216,7 +216,7 @@ unblock()
 	u_char *inp, *t;
 
 	/* Translation and case conversion. */
-	if ((t = ctab))
+	if ((t = ctab) != NULL)
 		for (cnt = in.dbrcnt, inp = in.dbp; cnt--;)
 			*--inp = t[*inp];
 	/*

@@ -1,4 +1,4 @@
-<!-- $Id$ -->
+<!-- $Id: jcontrib.sgml,v 1.1.1.1 1996/11/15 05:14:44 asami Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
 
 <chapt><heading>FreeBSD Handbook 日本語化について<label id="jcontrib"></heading>
@@ -12,9 +12,8 @@
       オリジナルの FreeBSD Handbook は日毎に更新されており, 私たちもまた
       これに追い付くために作業を続けていきます. もちろん, 新しいメンバも大歓迎
       です. 
-      日本語翻訳版について, 何かお気づきの点がありましたら,
-      FreeBSD 日本語ドキュメントメーリングリスト <tt><htmlurl url="mailto:doc-jp@jp.freebsd.org" name="&lt;doc-jp@jp.freebsd.org&gt;"></tt>
-      までご連絡ください.
+      日本語翻訳版について, 何かお気づきの点がありましたら, &a.doc-jp; 
+までご連絡ください.
       また, もし私たちの作業を手伝ってくれるなら,
       <url url="http://www.astec.co.jp/~hanai/FreeBSD/" name="FreeBSD 日本語ドキュメンテーションプロジェクトのページ">をご覧の上, 是非参加してください.
 

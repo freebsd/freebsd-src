@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ftpd.c,v 1.23 1996/08/09 22:22:30 julian Exp $
+ *	$Id: ftpd.c,v 1.25 1996/10/18 17:09:25 ache Exp $
  */
 
 #if 0
@@ -1687,7 +1687,7 @@ myoob(signo)
 void
 passive()
 {
-	int len, on;
+	int len;
 	char *p, *a;
 
 	if (pdata >= 0)		/* close old port if one set */
@@ -1701,11 +1701,16 @@ passive()
 
 	(void) seteuid((uid_t)0);
 
-	on = restricted_data_ports ? IP_PORTRANGE_HIGH : IP_PORTRANGE_DEFAULT;
-	if (setsockopt(pdata, IPPROTO_IP, IP_PORTRANGE,
-			(char *)&on, sizeof(on)) < 0) {
-		goto pasv_error;
+#ifdef IP_PORTRANGE
+	{
+	    int on = restricted_data_ports ? IP_PORTRANGE_HIGH
+					   : IP_PORTRANGE_DEFAULT;
+
+	    if (setsockopt(pdata, IPPROTO_IP, IP_PORTRANGE,
+			    (char *)&on, sizeof(on)) < 0)
+		    goto pasv_error;
 	}
+#endif
 
 	pasv_addr = ctrl_addr;
 	pasv_addr.sin_port = 0;

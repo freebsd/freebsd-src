@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: misc.c,v 1.2 1994/09/24 02:55:01 davidg Exp $
  */
 
 #ifndef lint
@@ -42,6 +42,7 @@ static char sccsid[] = "@(#)misc.c	8.3 (Berkeley) 4/2/94";
 #endif /* not lint */
 
 #include <sys/types.h>
+#include <sys/time.h>
 
 #include <err.h>
 #include <stdio.h>
@@ -56,12 +57,14 @@ static char sccsid[] = "@(#)misc.c	8.3 (Berkeley) 4/2/94";
 void
 summary()
 {
-	time_t secs;
+	struct timeval tv;
+	double secs;
 	char buf[100];
 
-	(void)time(&secs);
-	if ((secs -= st.start) == 0)
-		secs = 1;
+	(void)gettimeofday(&tv, (struct timezone *)NULL);
+	secs = tv.tv_sec + tv.tv_usec * 1e-6 - st.start;
+	if (secs < 1e-6)
+		secs = 1e-6;
 	/* Use snprintf(3) so that we don't reenter stdio(3). */
 	(void)snprintf(buf, sizeof(buf),
 	    "%u+%u records in\n%u+%u records out\n",
@@ -78,7 +81,7 @@ summary()
 		(void)write(STDERR_FILENO, buf, strlen(buf));
 	}
 	(void)snprintf(buf, sizeof(buf),
-	    "%u bytes transferred in %u secs (%u bytes/sec)\n",
+	    "%u bytes transferred in %.6f secs (%.0f bytes/sec)\n",
 	    st.bytes, secs, st.bytes / secs);
 	(void)write(STDERR_FILENO, buf, strlen(buf));
 }

@@ -2,5 +2,6 @@
 
 set CTMname	smp-cur
 set CTMref	/home/smp
-set CTMdont	{\.core$|^/CVSROOT/history.*$|/#cvs|/\.#|^/CVSROOT/val-tags$}
+set CTMignore	{^CVSROOT/history.*$|^CVSROOT/val-tags$|^CVSROOT/\\.#}
+set CTMbogus	{\\.core$|/#cvs|/\\.#}
 set CTMmail	smp-cvs-cur@freebsd.org

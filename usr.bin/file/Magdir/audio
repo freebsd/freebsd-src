@@ -71,3 +71,9 @@
 >45	byte		x		%d instruments
 >83	byte		0		(module)
 >83	byte		1		(song)
+
+# Gravis UltraSound patches
+# From <ache@nagual.ru>
+
+0	string		GF1PATCH110\0ID#000002\0	GUS patch
+0	string		GF1PATCH100\0ID#000002\0	Old GUS	patch

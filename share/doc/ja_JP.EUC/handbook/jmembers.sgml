@@ -1,9 +1,13 @@
-<!-- $Id$ -->
+<!-- $Id: jmembers.sgml,v 1.1.1.1 1996/11/15 05:14:44 asami Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
 
 <!-- 
 翻訳者及び査読者の名前及び電子メールアドレス
 -->
+
+<!ENTITY a.doc-jp "FreeBSD 日本語ドキュメンテーションプロジェクト
+  <tt><htmlurl url='mailto:doc-jp@jp.FreeBSD.ORG'
+  name='&lt;doc-jp@jp.FreeBSD.ORG&gt;'></tt>">
 
 <!--
 <!ENTITY a.asami "浅見 賢
@@ -112,5 +116,5 @@
   name='&lt;g92k0323@cfi.waseda.ac.jp&gt;'></tt>">
 
 <!ENTITY a.nao "浜田 直樹
-  <tt><htmlurl url='mailto:nao@sbl.cl.nec.co.jp' 
-  name='&lt;nao@sbl.cl.nec.co.jp&gt;'></tt>">
+  <tt><htmlurl url='mailto:nao@tom-yam.or.jp' 
+  name='&lt;nao@tom-yam.or.jp&gt;'></tt>">
