@@ -394,6 +394,7 @@ atm_dgram_control(so, cmd, data, ifp, td)
 			/*
 			 * Make sure prefix name is unique
 			 */
+			IFNET_RLOCK();
 			TAILQ_FOREACH(ifp2, &ifnet, if_link) {
 				if (!strcmp(ifp2->if_name, asp->asr_nif_pref)) {
 					/*
@@ -407,9 +408,11 @@ atm_dgram_control(so, cmd, data, ifp, td)
 					}
 					if (nip)
 						continue;
+					IFNET_RUNLOCK();
 					ATM_RETERR(EEXIST);
 				}
 			}
+			IFNET_RUNLOCK();
 
 			/*
 			 * Let interface handle it from here

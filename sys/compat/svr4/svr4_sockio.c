@@ -100,7 +100,7 @@ svr4_sock_ioctl(fp, td, retval, fd, cmd, data)
 			 * fix is to make SVR4_SIOCGIFCONF return only one
 			 * entry per physical interface?
 			 */
-
+			IFNET_RLOCK();
 			TAILQ_FOREACH(ifp, &ifnet, if_link)
 				if (TAILQ_FIRST(&ifp->if_addrhead) == NULL)
 					ifnum++;
@@ -108,8 +108,7 @@ svr4_sock_ioctl(fp, td, retval, fd, cmd, data)
 					TAILQ_FOREACH(ifa, &ifp->if_addrhead,
 					    ifa_link)
 						ifnum++;
-
-
+			IFNET_RUNLOCK();
 			DPRINTF(("SIOCGIFNUM %d\n", ifnum));
 			return copyout(&ifnum, data, sizeof(ifnum));
 		}
