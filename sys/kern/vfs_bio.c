@@ -3689,8 +3689,6 @@ vmapbuf(struct buf *bp)
 	struct vm_page *m;
 	struct pmap *pmap = &curproc->p_vmspace->vm_pmap;
 
-	GIANT_REQUIRED;
-
 	if (bp->b_bufsize < 0)
 		return (-1);
 	prot = (bp->b_iocmd == BIO_READ) ? VM_PROT_READ | VM_PROT_WRITE :
