@@ -188,7 +188,7 @@ rd_nm(ARCHD *arcn, int nsz)
 	/*
 	 * do not even try bogus values
 	 */
-	if ((nsz == 0) || (nsz > sizeof(arcn->name))) {
+	if ((nsz == 0) || (nsz > (int)sizeof(arcn->name))) {
 		paxwarn(1, "Cpio file name length %d is out of range", nsz);
 		return(-1);
 	}
@@ -266,7 +266,7 @@ rd_ln_nm(ARCHD *arcn)
 int
 cpio_id(char *blk, int size)
 {
-	if ((size < sizeof(HD_CPIO)) ||
+	if ((size < (int)sizeof(HD_CPIO)) ||
 	    (strncmp(blk, AMAGIC, sizeof(AMAGIC) - 1) != 0))
 		return(-1);
 	return(0);
@@ -522,7 +522,7 @@ cpio_wr(ARCHD *arcn)
 int
 vcpio_id(char *blk, int size)
 {
-	if ((size < sizeof(HD_VCPIO)) ||
+	if ((size < (int)sizeof(HD_VCPIO)) ||
 	    (strncmp(blk, AVMAGIC, sizeof(AVMAGIC) - 1) != 0))
 		return(-1);
 	return(0);
@@ -539,8 +539,8 @@ vcpio_id(char *blk, int size)
 int
 crc_id(char *blk, int size)
 {
-	if ((size < sizeof(HD_VCPIO)) ||
-	    (strncmp(blk, AVCMAGIC, sizeof(AVCMAGIC) - 1) != 0))
+	if ((size < (int)sizeof(HD_VCPIO)) ||
+	    (strncmp(blk, AVCMAGIC, (int)sizeof(AVCMAGIC) - 1) != 0))
 		return(-1);
 	return(0);
 }
@@ -860,7 +860,7 @@ vcpio_wr(ARCHD *arcn)
 int
 bcpio_id(char *blk, int size)
 {
-	if (size < sizeof(HD_BCPIO))
+	if (size < (int)sizeof(HD_BCPIO))
 		return(-1);
 
 	/*
