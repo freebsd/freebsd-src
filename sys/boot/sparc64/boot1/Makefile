@@ -5,15 +5,15 @@ BOOTBLOCKBASE=	0x4000
 CFLAGS=	-W -Wall -I../../ -I../../common/ -Os \
 	-DBOOTBLOCKBASE=${BOOTBLOCKBASE} \
 	-ffreestanding -mno-app-regs -mcmodel=medlow
-OBJ=	bootblock.o
+OBJ=	boot1.o
 
-all:	bootblock
+all:	boot1
 
-bootblock.o:	bootblock.c
+boot1.o:	boot1.c
 	${CC} ${CFLAGS} -c -o ${.TARGET} ${.ALLSRC}
 
-bootblock:	${OBJ}
-	${LD} -N -Ttext ${BOOTBLOCKBASE} -e main -o bootblock ${OBJ}
-	/usr/local/bin/elftoaout bootblock
+boot1:	${OBJ}
+	${LD} -N -Ttext ${BOOTBLOCKBASE} -e main -o boot1 ${OBJ}
+	/usr/local/bin/elftoaout boot1
 clean:
-	rm -f *.o bootblock
+	rm -f *.o boot1
