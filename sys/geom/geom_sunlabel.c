@@ -92,7 +92,7 @@ g_sunlabel_taste(struct g_class *mp, struct g_provider *pp, int flags)
 	int error, i, j, npart;
 	u_char *buf;
 	struct g_sunlabel_softc *ms;
-	u_int secsize, u, v, csize;
+	u_int sectorsize, u, v, csize;
 	off_t mediasize;
 
 	g_trace(G_T_TOPOLOGY, "g_sunlabel_taste(%s,%s)", mp->name, pp->name);
@@ -109,12 +109,12 @@ g_sunlabel_taste(struct g_class *mp, struct g_provider *pp, int flags)
 	while (1) {	/* a trick to allow us to use break */
 		if (gp->rank != 2 && flags == G_TF_NORMAL)
 			break;
-		j = sizeof secsize;
-		error = g_io_getattr("GEOM::sectorsize", cp, &j, &secsize);
+		j = sizeof sectorsize;
+		error = g_io_getattr("GEOM::sectorsize", cp, &j, &sectorsize);
 		if (error) {
-			secsize = 512;
+			sectorsize = 512;
 			printf("g_sunlabel_taste: error %d Sectors are %d bytes\n",
-			    error, secsize);
+			    error, sectorsize);
 		}
 		j = sizeof mediasize;
 		error = g_io_getattr("GEOM::mediasize", cp, &j, &mediasize);
@@ -123,7 +123,7 @@ g_sunlabel_taste(struct g_class *mp, struct g_provider *pp, int flags)
 			printf("g_error %d Mediasize is %lld bytes\n",
 			    error, (long long)mediasize);
 		}
-		buf = g_read_data(cp, 0, secsize, &error);
+		buf = g_read_data(cp, 0, sectorsize, &error);
 		if (buf == NULL || error != 0)
 			break;
 
