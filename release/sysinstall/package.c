@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: package.c,v 1.64 1997/09/17 16:18:16 pst Exp $
+ * $Id: package.c,v 1.65 1997/10/15 04:37:16 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -117,7 +117,7 @@ package_extract(Device *dev, char *name, Boolean depended)
     /* Make a couple of paranoid locations for temp files to live if user specified none */
     if (!variable_get(VAR_PKG_TMPDIR)) {
 	/* Set it to a location with as much space as possible */
-	variable_set2(VAR_PKG_TMPDIR, "/usr/tmp");
+	variable_set2(VAR_PKG_TMPDIR, "/usr/tmp", 0);
     }
     Mkdir(variable_get(VAR_PKG_TMPDIR));
     vsystem("chmod 1777 %s", variable_get(VAR_PKG_TMPDIR));

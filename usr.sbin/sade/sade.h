@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.154 1999/01/27 02:32:47 jkh Exp $
+ * $Id: sysinstall.h,v 1.155 1999/02/02 15:57:13 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -132,7 +132,7 @@
 #define VAR_NETWORK_DEVICE		"netDev"
 #define VAR_NFS_PATH			"nfs"
 #define VAR_NFS_HOST			"nfsHost"
-#define VAR_NFS_SECURE			"nfsSecure"
+#define VAR_NFS_SECURE			"nfs_reserved_port_only"
 #define VAR_NFS_SERVER			"nfs_server_enable"
 #define VAR_NO_CONFIRM			"noConfirm"
 #define VAR_NO_ERROR			"noError"
@@ -198,6 +198,7 @@ typedef struct _variable {
     struct _variable *next;
     char *name;
     char *value;
+    int dirty;
 } Variable;
 
 #define NO_ECHO_OBJ(type)	((type) | (DITEM_NO_ECHO << 16))
@@ -702,12 +703,12 @@ extern int	userAddGroup(dialogMenuItem *self);
 extern int	userAddUser(dialogMenuItem *self);
 
 /* variable.c */
-extern void	variable_set(char *var);
-extern void	variable_set2(char *name, char *value);
+extern void	variable_set(char *var, int dirty);
+extern void	variable_set2(char *name, char *value, int dirty);
 extern char 	*variable_get(char *var);
 extern int 	variable_cmp(char *var, char *value);
 extern void	variable_unset(char *var);
-extern char	*variable_get_value(char *var, char *prompt);
+extern char	*variable_get_value(char *var, char *prompt, int dirty);
 extern int 	variable_check(char *data);
 extern int	dump_variables(dialogMenuItem *self);
 

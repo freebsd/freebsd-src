@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: label.c,v 1.84 1999/01/08 00:14:21 jkh Exp $
+ * $Id: label.c,v 1.85 1999/01/29 11:39:04 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -167,7 +167,7 @@ diskLabelEditor(dialogMenuItem *self)
 	char *cp;
 
 	if (((cp = variable_get(DISK_LABELLED)) == NULL) || (strcmp(cp, "written")))
-	    variable_set2(DISK_LABELLED, "yes");
+	    variable_set2(DISK_LABELLED, "yes", 0);
     }
     return i;
 }
@@ -192,7 +192,7 @@ diskLabelCommit(dialogMenuItem *self)
 	i = DITEM_FAILURE;
     else {
 	msgInfo("All filesystem information written successfully.");
-	variable_set2(DISK_LABELLED, "written");
+	variable_set2(DISK_LABELLED, "written", 0);
 	i = DITEM_SUCCESS;
     }
     return i;
@@ -870,7 +870,7 @@ diskLabel(Device *dev)
 
 		/* At this point, we're reasonably "labelled" */
 		if (((cp = variable_get(DISK_LABELLED)) == NULL) || (strcmp(cp, "written")))
-		    variable_set2(DISK_LABELLED, "yes");
+		    variable_set2(DISK_LABELLED, "yes", 0);
 	    }
 	    break;
 	    
@@ -979,7 +979,7 @@ diskLabel(Device *dev)
 		    tmp->private_data = p;
 		tmp->private_free = safe_free;
 		if (((cp = variable_get(DISK_LABELLED)) == NULL) || (strcmp(cp, "written")))
-		    variable_set2(DISK_LABELLED, "yes");
+		    variable_set2(DISK_LABELLED, "yes", 0);
 		record_label_chunks(devs, dev);
 		clear_wins();
                 /*** This is where we assign focus to new label so it shows ***/
@@ -1010,7 +1010,7 @@ diskLabel(Device *dev)
 	    }
 	    Delete_Chunk(label_chunk_info[here].c->disk, label_chunk_info[here].c);
 	    if (((cp = variable_get(DISK_LABELLED)) == NULL) || (strcmp(cp, "written")))
-		variable_set2(DISK_LABELLED, "yes");
+		variable_set2(DISK_LABELLED, "yes", 0);
 	    record_label_chunks(devs, dev);
 	    break;
 
@@ -1039,7 +1039,7 @@ diskLabel(Device *dev)
 		    }
 		}
 		if (((cp = variable_get(DISK_LABELLED)) == NULL) || (strcmp(cp, "written")))
-		    variable_set2(DISK_LABELLED, "yes");
+		    variable_set2(DISK_LABELLED, "yes", 0);
 		record_label_chunks(devs, dev);
 		clear_wins();
 		break;
@@ -1067,7 +1067,7 @@ diskLabel(Device *dev)
 		safe_free(pi);
 		label_chunk_info[here].c->private_free = safe_free;
 		if (((cp = variable_get(DISK_LABELLED)) == NULL) || (strcmp(cp, "written")))
-		    variable_set2(DISK_LABELLED, "yes");
+		    variable_set2(DISK_LABELLED, "yes", 0);
 	    }
 	    else
 		msg = MSG_NOT_APPLICABLE;
@@ -1110,7 +1110,7 @@ diskLabel(Device *dev)
 			  "changes will be committed in one batch automatically at the end of\n"
 			  "these questions.\n\n"
 			  "Are you absolutely sure you want to do this now?")) {
-		variable_set2(DISK_LABELLED, "yes");
+		variable_set2(DISK_LABELLED, "yes", 0);
 		diskLabelCommit(NULL);
 	    }
 	    clear_wins();
@@ -1136,7 +1136,7 @@ diskLabel(Device *dev)
 		    	slice_wizard(((Disk *)devs[i]->private));
 		}
 		if (((cp = variable_get(DISK_LABELLED)) == NULL) || (strcmp(cp, "written")))
-		    variable_set2(DISK_LABELLED, "yes");
+		    variable_set2(DISK_LABELLED, "yes", 0);
 		DialogActive = TRUE;
 		record_label_chunks(devs, dev);
 		clear_wins();
@@ -1287,6 +1287,6 @@ diskLabelNonInteractive(Device *dev)
 	}
     }
     if (status == DITEM_SUCCESS)
-	variable_set2(DISK_LABELLED, "yes");
+	variable_set2(DISK_LABELLED, "yes", 0);
     return status;
 }

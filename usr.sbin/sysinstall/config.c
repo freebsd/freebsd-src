@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.118 1999/02/01 16:35:40 jkh Exp $
+ * $Id: config.c,v 1.119 1999/02/02 15:57:13 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -288,7 +288,7 @@ readConfig(char *config, char **lines, int max)
 #define MAX_LINES  2000 /* Some big number we're not likely to ever reach - I'm being really lazy here, I know */
 
 static void
-configReadRC_conf(char *config)
+readConfigFile(char *config, int marked)
 {
     char *lines[MAX_LINES], *cp, *cp2;
     int i, nlines;
@@ -312,9 +312,9 @@ configReadRC_conf(char *config)
 	/* If valid quotes, use it */
 	if (cp2) {
 	    *cp2 = '\0';
- 	    /* If we have a legit value and it's not already set, set it */
-	    if (strlen(cp) && !variable_get(lines[i]))
-		variable_set2(lines[i], cp);
+ 	    /* If we have a legit value, set it */
+	    if (strlen(cp))
+		variable_set2(lines[i], cp, marked);
 	}
 	free(lines[i]);
     }
@@ -324,17 +324,20 @@ configReadRC_conf(char *config)
 void
 configEnvironmentRC_conf(void)
 {
-    static char *configs[] = {
-	"/etc/rc.conf",
-	"/etc/rc.conf.site",
-	"/etc/rc.conf.local",
-	NULL
+    static struct {
+	char *fname;
+	int marked;
+    } configs[] = {
+	{ "/etc/rc.conf", 0 },
+	{ "/etc/rc.conf.site", 1 },
+	{ "/etc/rc.conf.local", 0 },
+	{ NULL, 0 },
     };
     int i;
 
-    for (i = 0; configs[i]; i++) {
-	if (file_readable(configs[i]))
-	    configReadRC_conf(configs[i]);
+    for (i = 0; configs[i].fname; i++) {
+	if (file_readable(configs[i].fname))
+	    readConfigFile(configs[i].fname, configs[i].marked);
     }
 }
 
@@ -352,10 +355,10 @@ configEnvironmentResolv(char *config)
 	Boolean name_set = (Boolean)variable_get(VAR_NAMESERVER);
 
 	if (!strncmp(lines[i], "domain", 6) && !variable_get(VAR_DOMAINNAME))
-	    variable_set2(VAR_DOMAINNAME, string_skipwhite(string_prune(lines[i] + 6)));
+	    variable_set2(VAR_DOMAINNAME, string_skipwhite(string_prune(lines[i] + 6)), 0);
 	else if (!name_set && !strncmp(lines[i], "nameserver", 10)) {
 	    /* Only take the first nameserver setting - we're lame */
-	    variable_set2(VAR_NAMESERVER, string_skipwhite(string_prune(lines[i] + 10)));
+	    variable_set2(VAR_NAMESERVER, string_skipwhite(string_prune(lines[i] + 10)), 0);
 	}
 	free(lines[i]);
     }
@@ -369,102 +372,32 @@ configRC(dialogMenuItem *unused)
     return DITEM_SUCCESS;
 }
 
-/*
- * This sucks in /etc/rc.conf, substitutes anything needing substitution, then
- * writes it all back out.  It's pretty gross and needs re-writing at some point.
- */
 void
 configRC_conf(char *config)
 {
     FILE *rcSite;
-    char *lines[MAX_LINES], *cp;
     Variable *v;
-    int i, nlines, len;
 
-    if (file_readable("/etc/rc.conf.site"))
-	system("cp /etc/rc.conf.site /etc/rc.conf.site.previous");
     rcSite = fopen("/etc/rc.conf.site", "w");
     if (!rcSite)
 	return;
 
-    nlines = readConfig(config, lines, MAX_LINES);
-    if (nlines == -1)
-	return;
-
     /* Now do variable substitutions */
     for (v = VarHead; v; v = v->next) {
-	for (i = 0; i < nlines; i++) {
-	    /* Skip the comments & non-variable settings */
-	    if (lines[i][0] == '#' || !(cp = index(lines[i], '=')))
-		continue;
-
-	    len = strlen(v->name);
-	    if (!strncmp(lines[i], v->name, cp - lines[i]) && (cp - lines[i]) == len && strcmp(cp + 1, v->value)) {
-		char *cp2, *comment = NULL;
-
-		/* If trailing comment, try and preserve it */
-		if ((index(lines[i], '#')) != NULL) {
-		    /* Find quotes */
-		    if ((cp2 = index(cp, '"')) || (cp2 = index(cp, '\047')))
-			cp2 = index(cp2 + 1, *cp2);
-		    if (cp2 && strlen(cp2 + 1)) {
-			comment = alloca(strlen(cp2));
-			strcpy(comment, cp2 + 1);
-		    }
-		}
-		free(lines[i]);
-		lines[i] = (char *)malloc(strlen(v->name) + strlen(v->value) + (comment ? strlen(comment) : 0) + 10);
-		if (comment)
-		    sprintf(lines[i], "%s=\"%s\"%s", v->name, v->value, comment);
-		else
-		    sprintf(lines[i], "%s=\"%s\"\n", v->name, v->value);
-		fputs(lines[i], rcSite);
-		/* Stand by for bogus special case handling;
-		 * we try to dump the interface specs here
-		 */
-		if (!strncmp(lines[i], VAR_INTERFACES,
-			     strlen(VAR_INTERFACES))) {
-		    Device **devp;
-		    int j, cnt;
-
-		    devp = deviceFind(NULL, DEVICE_TYPE_NETWORK);
-		    cnt = deviceCount(devp);
-		    for (j = 0; j < cnt; j++) {
-			char iname[255], toadd[512];
-			int k, addit = TRUE;
-
-			if (!strncmp(devp[j]->name, "ppp", 3) ||
-			    !strncmp(devp[j]->name, "tun", 3))
-			    continue;
-
-			snprintf(iname, 255, "%s%s", VAR_IFCONFIG, devp[j]->name);
-			if ((cp = variable_get(iname))) {
-			    snprintf(toadd, sizeof toadd, "%s=\"%s\"\n", iname, cp);
-			    for (k = 0; k < nlines; k++) {
-				if (!strcmp(lines[k], toadd)) {
-				    addit = FALSE;
-				    break;
-				}
-			    }
-			    if (addit)
-				fputs(toadd, rcSite);
-			}
-		    }
-		}
-	    }
+	if (v->dirty) {
+	    fprintf(rcSite, "%s=\"%s\"\n", v->name, v->value);
+	    v->dirty = 0;
 	}
     }
-    for (i = 0; i < nlines; i++)
-	free(lines[i]);
     fclose(rcSite);
 }
 
 int
 configSaver(dialogMenuItem *self)
 {
-    variable_set((char *)self->data);
+    variable_set((char *)self->data, 1);
     if (!variable_get(VAR_BLANKTIME))
-	variable_set2(VAR_BLANKTIME, "300");
+	variable_set2(VAR_BLANKTIME, "300", 1);
     return DITEM_SUCCESS;
 }
 
@@ -472,7 +405,7 @@ int
 configSaverTimeout(dialogMenuItem *self)
 {
     return (variable_get_value(VAR_BLANKTIME,
-	    "Enter time-out period in seconds for screen saver") ?
+	    "Enter time-out period in seconds for screen saver", 1) ?
 	    DITEM_SUCCESS : DITEM_FAILURE) | DITEM_RESTORE;
 }
 
@@ -488,7 +421,7 @@ configNTP(dialogMenuItem *self)
     int status;
 
     status = variable_get_value(VAR_NTPDATE_FLAGS,
-				"Enter the name of an NTP server")
+				"Enter the name of an NTP server", 1)
 	     ? DITEM_SUCCESS : DITEM_FAILURE;
     if (status == DITEM_SUCCESS) {
 	static char tmp[255];
@@ -625,20 +558,20 @@ configRouter(dialogMenuItem *self)
 			     "will attempt to load if you select gated.  Any other\n"
 			     "choice of routing daemon will be assumed to be something\n"
 			     "the user intends to install themselves before rebooting\n"
-			     "the system.  If you don't want any routing daemon, choose NO")
+			     "the system.  If you don't want any routing daemon, choose NO", 1)
       ? DITEM_SUCCESS : DITEM_FAILURE;
   
     if (ret == DITEM_SUCCESS) {
 	char *cp = variable_get(VAR_ROUTER);
     
 	if (cp && strcmp(cp, "NO")) {
-	    variable_set2(VAR_ROUTER_ENABLE, "YES");
+	    variable_set2(VAR_ROUTER_ENABLE, "YES", 1);
 	    if (!strcmp(cp, "gated")) {
 		if (package_add(variable_get(VAR_GATED_PKG)) != DITEM_SUCCESS) {
 		    msgConfirm("Unable to load gated package.  Falling back to no router.");
 		    variable_unset(VAR_ROUTER);
 		    variable_unset(VAR_ROUTERFLAGS);
-		    variable_set2(VAR_ROUTER_ENABLE, "NO");
+		    variable_set2(VAR_ROUTER_ENABLE, "NO", 1);
 		    cp = NULL;
 		}
 	    }
@@ -646,7 +579,7 @@ configRouter(dialogMenuItem *self)
 		/* Now get the flags, if they chose a router */
 		ret = variable_get_value(VAR_ROUTERFLAGS, 
 					 "Please Specify the routing daemon flags; if you're running routed\n"
-					 "then -q is the right choice for nodes and -s for gateway hosts.\n")
+					 "then -q is the right choice for nodes and -s for gateway hosts.\n", 1)
 		  ? DITEM_SUCCESS : DITEM_FAILURE;
 		if (ret != DITEM_SUCCESS)
 		    variable_unset(VAR_ROUTERFLAGS);
@@ -654,7 +587,7 @@ configRouter(dialogMenuItem *self)
 	}
 	else {
 	    /* No router case */
-	    variable_set2(VAR_ROUTER_ENABLE, "NO");
+	    variable_set2(VAR_ROUTER_ENABLE, "NO", 1);
 	    variable_unset(VAR_ROUTERFLAGS);
 	    variable_unset(VAR_ROUTER);
 	}
@@ -749,8 +682,8 @@ configPCNFSD(dialogMenuItem *self)
     else {
 	ret = package_add(variable_get(VAR_PCNFSD_PKG));
 	if (DITEM_STATUS(ret) == DITEM_SUCCESS) {
-	    variable_set2(VAR_PCNFSD, "YES");
-	    variable_set2("mountd_flags", "-n");
+	    variable_set2(VAR_PCNFSD, "YES", 0);
+	    variable_set2("mountd_flags", "-n", 1);
 	}
     }
     return ret;
@@ -787,7 +720,7 @@ configNFSServer(dialogMenuItem *self)
 	    systemExecute(cmd);
 	    restorescr(w);
 	}
-	variable_set2(VAR_NFS_SERVER, "YES");
+	variable_set2(VAR_NFS_SERVER, "YES", 1);
     }
     else if (variable_get(VAR_NFS_SERVER)) { /* We want to turn it off again? */
 	vsystem("mv -f /etc/exports /etc/exports.disabled");

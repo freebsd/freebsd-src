@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: installUpgrade.c,v 1.60 1998/11/03 03:38:55 jkh Exp $
+ * $Id: installUpgrade.c,v 1.61 1998/11/15 09:06:20 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -163,7 +163,7 @@ installUpgrade(dialogMenuItem *self)
     if (variable_get(VAR_NONINTERACTIVE))
 	return installUpgradeNonInteractive(self);
 
-    variable_set2(SYSTEM_STATE, "upgrade");
+    variable_set2(SYSTEM_STATE, "upgrade", 0);
     systemDisplayHelp("UPGRADE");
 
     dialog_clear_norefresh();
@@ -229,7 +229,7 @@ installUpgrade(dialogMenuItem *self)
 	}
 
 	/* Don't write out MBR info */
-	variable_set2(DISK_PARTITIONED, "written");
+	variable_set2(DISK_PARTITIONED, "written", 0);
 	if (DITEM_STATUS(diskLabelCommit(self)) == DITEM_FAILURE) {
 	    msgConfirm("Not all file systems were properly mounted.  Upgrade operation\n"
 		       "aborted.");
@@ -362,7 +362,7 @@ installUpgradeNonInteractive(dialogMenuItem *self)
     char *saved_etc;
     Boolean extractingBin = TRUE;
 
-    variable_set2(SYSTEM_STATE, "upgrade");
+    variable_set2(SYSTEM_STATE, "upgrade", 0);
 
     /* Make sure at least BIN is selected */
     Dists |= DIST_BIN;
@@ -403,7 +403,7 @@ installUpgradeNonInteractive(dialogMenuItem *self)
 	}
 
 	/* Don't write out MBR info */
-	variable_set2(DISK_PARTITIONED, "written");
+	variable_set2(DISK_PARTITIONED, "written", 0);
 	if (DITEM_STATUS(diskLabelCommit(self)) == DITEM_FAILURE) {
 	    msgConfirm("Not all file systems were properly mounted.  Upgrade operation\n"
 		       "aborted.");

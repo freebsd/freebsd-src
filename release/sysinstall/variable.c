@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: variable.c,v 1.23 1998/03/15 17:10:17 jkh Exp $
+ * $Id: variable.c,v 1.24 1998/07/18 09:42:02 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -39,7 +39,7 @@
 /* Routines for dealing with variable lists */
 
 static void
-make_variable(char *var, char *value)
+make_variable(char *var, char *value, int dirty)
 {
     Variable *vp;
 
@@ -49,32 +49,32 @@ make_variable(char *var, char *value)
     if (!var || !*var)
 	return;
 
-    /* Put it in the environment in any case */
-    setenv(var, value, 1);
 
     /* Now search to see if it's already in the list */
     for (vp = VarHead; vp; vp = vp->next) {
 	if (!strcmp(vp->name, var)) {
-	    if (isDebug())
-		msgDebug("variable %s was %s, now %s\n", vp->name, vp->value, value);
+	    if (vp->dirty && !dirty)
+		return;
+	    setenv(var, value, 1);
 	    free(vp->value);
 	    vp->value = strdup(value);
+	    vp->dirty = dirty;
 	    return;
 	}
     }
 
+    setenv(var, value, 1);
     /* No?  Create a new one */
     vp = (Variable *)safe_malloc(sizeof(Variable));
     vp->name = strdup(var);
     vp->value = strdup(value);
+    vp->dirty = dirty;
     vp->next = VarHead;
     VarHead = vp;
-    if (isDebug())
-	msgDebug("Setting variable %s to %s\n", vp->name, vp->value);
 }
 
 void
-variable_set(char *var)
+variable_set(char *var, int dirty)
 {
     char tmp[1024], *cp;
 
@@ -86,17 +86,17 @@ variable_set(char *var)
     if ((cp = index(tmp, '=')) == NULL)
 	msgFatal("Invalid variable format: %s", var);
     *(cp++) = '\0';
-    make_variable(tmp, string_skipwhite(cp));
+    make_variable(tmp, string_skipwhite(cp), dirty);
 }
 
 void
-variable_set2(char *var, char *value)
+variable_set2(char *var, char *value, int dirty)
 {
     if (!var || !value)
 	msgFatal("Null name or value passed to set_variable2!");
     else if (!*var || !*value)
 	msgDebug("Warning:  Zero length name or value passed to variable_set2()\n");
-    make_variable(var, value);
+    make_variable(var, value, dirty);
 }
 
 char *
@@ -152,7 +152,7 @@ variable_unset(char *var)
 
 /* Prompt user for the name of a variable */
 char *
-variable_get_value(char *var, char *prompt)
+variable_get_value(char *var, char *prompt, int dirty)
 {
     char *cp;
 
@@ -160,7 +160,7 @@ variable_get_value(char *var, char *prompt)
     if (cp && variable_get(VAR_NONINTERACTIVE))
 	return cp;
     else if ((cp = msgGetInput(cp, prompt)) != NULL)
-	variable_set2(var, cp);
+	variable_set2(var, cp, dirty);
     else
 	cp = NULL;
     return cp;
@@ -216,7 +216,7 @@ dump_variables(dialogMenuItem *unused)
     }
 
     for (vp = VarHead; vp; vp = vp->next)
-	fprintf(fp, "%s=\"%s\"\n", vp->name, vp->value);
+	fprintf(fp, "%s=\"%s\" (%d)\n", vp->name, vp->value, vp->dirty);
 
     fclose(fp);
 

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: system.c,v 1.86 1999/01/08 00:14:22 jkh Exp $
+ * $Id: system.c,v 1.87 1999/01/08 09:13:00 jkh Exp $
  *
  * Jordan Hubbard
  *
@@ -120,7 +120,7 @@ systemInitialize(int argc, char **argv)
 
 	/* Initalize various things for a multi-user environment */
 	if (!gethostname(hname, sizeof hname))
-	    variable_set2(VAR_HOSTNAME, hname);
+	    variable_set2(VAR_HOSTNAME, hname, 1);
     }
 
     if (set_termcap() == -1) {

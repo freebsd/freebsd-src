@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.224 1999/01/27 02:32:47 jkh Exp $
+ * $Id: install.c,v 1.225 1999/01/29 11:39:04 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -206,7 +206,7 @@ installInitial(void)
     }
     /* If it's labelled, assume it's also partitioned */
     if (!variable_get(DISK_PARTITIONED))
-	variable_set2(DISK_PARTITIONED, "yes");
+	variable_set2(DISK_PARTITIONED, "yes", 0);
 
     /* If we refuse to proceed, bail. */
     dialog_clear_norefresh();
@@ -237,7 +237,7 @@ installInitial(void)
     }
 
     chdir("/");
-    variable_set2(RUNNING_ON_ROOT, "yes");
+    variable_set2(RUNNING_ON_ROOT, "yes", 0);
 
     /* Configure various files in /etc */
     if (DITEM_STATUS(configResolv(NULL)) == DITEM_FAILURE)
@@ -267,7 +267,7 @@ installFixitCDROM(dialogMenuItem *self)
     if (!RunningAsInit)
 	return DITEM_SUCCESS;
 
-    variable_set2(SYSTEM_STATE, "fixit");
+    variable_set2(SYSTEM_STATE, "fixit", 0);
     (void)unlink("/mnt2");
     (void)rmdir("/mnt2");
 
@@ -341,7 +341,7 @@ installFixitFloppy(dialogMenuItem *self)
     if (!RunningAsInit)
 	return DITEM_SUCCESS;
 
-    variable_set2(SYSTEM_STATE, "fixit");
+    variable_set2(SYSTEM_STATE, "fixit", 0);
     Mkdir("/mnt2");
 
     /* Try to open the floppy drive */
@@ -450,7 +450,7 @@ installExpress(dialogMenuItem *self)
 {
     int i;
 
-    variable_set2(SYSTEM_STATE, "express");
+    variable_set2(SYSTEM_STATE, "express", 0);
 #ifndef __alpha__
     if (DITEM_STATUS((i = diskPartitionEditor(self))) == DITEM_FAILURE)
 	return i;
@@ -475,7 +475,7 @@ installNovice(dialogMenuItem *self)
     int i, tries = 0;
     Device **devs;
 
-    variable_set2(SYSTEM_STATE, "novice");
+    variable_set2(SYSTEM_STATE, "novice", 0);
 #ifndef __alpha__
     dialog_clear_norefresh();
     msgConfirm("In the next menu, you will need to set up a DOS-style (\"fdisk\") partitioning\n"
@@ -553,7 +553,7 @@ nodisks:
     dialog_clear_norefresh();
     if (!msgYesNo("Will this machine be an IP gateway (e.g. will it forward packets\n"
 		  "between interfaces)?"))
-	variable_set2("gateway_enable", "YES");
+	variable_set2("gateway_enable", "YES", 1);
 
     dialog_clear_norefresh();
     if (!msgYesNo("Do you want to allow anonymous FTP connections to this machine?"))
@@ -565,7 +565,7 @@ nodisks:
 
     dialog_clear_norefresh();
     if (!msgYesNo("Do you want to configure this machine as an NFS client?"))
-	variable_set2("nfs_client_enable", "YES");
+	variable_set2("nfs_client_enable", "YES", 1);
 
     dialog_clear_norefresh();
     if (!msgYesNo("Would you like to customize your system console settings?")) {
@@ -622,7 +622,7 @@ nodisks:
 	WINDOW *w = savescr();
 
 	if (!systemExecute("passwd root"))
-	    variable_set2("root_password", "YES");
+	    variable_set2("root_password", "YES", 0);
 	restorescr(w);
     }
 
@@ -722,7 +722,7 @@ try_media:
     /* When running as init, *now* it's safe to grab the rc.foo vars */
     installEnvironment();
 
-    variable_set2(SYSTEM_STATE, DITEM_STATUS(i) == DITEM_FAILURE ? "error-install" : "full-install");
+    variable_set2(SYSTEM_STATE, DITEM_STATUS(i) == DITEM_FAILURE ? "error-install" : "full-install", 0);
 
     return i | DITEM_RESTORE;
 }
@@ -760,9 +760,27 @@ installFixupBin(dialogMenuItem *self)
 		}
 #ifndef __alpha__
                 /* Snapshot any boot -c changes back to the new kernel */
-                if (kget("/kernel.config")) {
+                if (kget("/boot/kernel.conf")) {
 		    msgConfirm("Kernel copied OK, but unable to save boot -c changes\n"
 			       "to it.  See the debug screen (ALT-F2) for details.");
+		}
+		else {
+		    if (!file_readable("/boot/loader.rc")) {
+			FILE *fp;
+
+			if ((fp = fopen("/boot/loader.rc", "w")) != NULL) {
+			     fprintf(fp, "load /kernel\n");
+			     fprintf(fp, "load -t userconfig_script /boot/kernel.conf\n");
+			     fprintf(fp, "autoboot 5\n");
+			     fclose(fp);
+			}
+		    }
+		    else {
+			msgConfirm("You already have a /boot/loader.rc file so I won't touch it.\n"
+				   "You will need to add a: load -t userconfig_script /boot/kernel.conf\n"
+				   "line to your /boot/loader.rc before your saved kernel changes\n"
+				   "(if any) can go into effect.");
+		    }
 		}
 #endif
 	    }
@@ -819,12 +837,6 @@ installFixupBin(dialogMenuItem *self)
 	
 	/* BOGON #5: aliases database not build for bin */
 	vsystem("newaliases");
-
-	/* BOGON #6: deal with new boot files */
-	vsystem("touch /kernel.config");
-	vsystem("touch /boot.config");
-	if (file_readable("/stand/boot.help") && !file_readable("/boot.help"))
-	    vsystem("mv /stand/boot.help /");
 
 	/* Now run all the mtree stuff to fix things up */
         vsystem("mtree -deU -f /etc/mtree/BSD.root.dist -p /");
@@ -1037,28 +1049,28 @@ installVarDefaults(dialogMenuItem *self)
     char *cp;
 
     /* Set default startup options */
-    variable_set2(VAR_RELNAME,			getRelname());
-    variable_set2(VAR_CPIO_VERBOSITY,		"high");
-    variable_set2(VAR_TAPE_BLOCKSIZE,		DEFAULT_TAPE_BLOCKSIZE);
-    variable_set2(VAR_INSTALL_ROOT,		"/");
-    variable_set2(VAR_INSTALL_CFG,		"install.cfg");
+    variable_set2(VAR_RELNAME,			getRelname(), 0);
+    variable_set2(VAR_CPIO_VERBOSITY,		"high", 0);
+    variable_set2(VAR_TAPE_BLOCKSIZE,		DEFAULT_TAPE_BLOCKSIZE, 0);
+    variable_set2(VAR_INSTALL_ROOT,		"/", 0);
+    variable_set2(VAR_INSTALL_CFG,		"install.cfg", 0);
     cp = getenv("EDITOR");
     if (!cp)
 	cp = "/usr/bin/ee";
-    variable_set2(VAR_EDITOR,			cp);
-    variable_set2(VAR_FTP_USER,			"ftp");
-    variable_set2(VAR_BROWSER_PACKAGE,		"lynx");
-    variable_set2(VAR_BROWSER_BINARY,		"/usr/local/bin/lynx");
-    variable_set2(VAR_FTP_STATE,		"passive");
-    variable_set2(VAR_NFS_SECURE,		"YES");
-    variable_set2(VAR_PKG_TMPDIR,		"/usr/tmp");
-    variable_set2(VAR_GATED_PKG,		"gated");
-    variable_set2(VAR_PCNFSD_PKG,		"pcnfsd");
-    variable_set2(VAR_MEDIA_TIMEOUT,		itoa(MEDIA_TIMEOUT));
+    variable_set2(VAR_EDITOR,			cp, 0);
+    variable_set2(VAR_FTP_USER,			"ftp", 0);
+    variable_set2(VAR_BROWSER_PACKAGE,		"lynx", 0);
+    variable_set2(VAR_BROWSER_BINARY,		"/usr/local/bin/lynx", 0);
+    variable_set2(VAR_FTP_STATE,		"passive", 0);
+    variable_set2(VAR_NFS_SECURE,		"YES", 1);
+    variable_set2(VAR_PKG_TMPDIR,		"/usr/tmp", 0);
+    variable_set2(VAR_GATED_PKG,		"gated", 0);
+    variable_set2(VAR_PCNFSD_PKG,		"pcnfsd", 0);
+    variable_set2(VAR_MEDIA_TIMEOUT,		itoa(MEDIA_TIMEOUT), 0);
     if (getpid() != 1)
-	variable_set2(SYSTEM_STATE,		"update");
+	variable_set2(SYSTEM_STATE,		"update", 0);
     else
-	variable_set2(SYSTEM_STATE,		"init");
+	variable_set2(SYSTEM_STATE,		"init", 0);
     return DITEM_SUCCESS;
 }
 
@@ -1066,8 +1078,7 @@ installVarDefaults(dialogMenuItem *self)
 void
 installEnvironment(void)
 {
-    if (file_readable("/etc/rc.conf"))
-	configEnvironmentRC_conf();
+    configEnvironmentRC_conf();
     if (file_readable("/etc/resolv.conf"))
 	configEnvironmentResolv("/etc/resolv.conf");
 }

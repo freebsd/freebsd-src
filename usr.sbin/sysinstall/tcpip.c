@@ -1,5 +1,5 @@
 /*
- * $Id: tcpip.c,v 1.73 1998/08/31 09:02:03 jkh Exp $
+ * $Id: tcpip.c,v 1.74 1998/11/15 09:06:20 jkh Exp $
  *
  * Copyright (c) 1995
  *      Gary J Palmer. All rights reserved.
@@ -282,14 +282,14 @@ netconfig:
 	char temp[512], ifn[255];
 	char *ifaces;
 
-	variable_set2(VAR_HOSTNAME, hostname);
+	variable_set2(VAR_HOSTNAME, hostname, 1);
 	sethostname(hostname, strlen(hostname));
 	if (domainname[0])
-	    variable_set2(VAR_DOMAINNAME, domainname);
+	    variable_set2(VAR_DOMAINNAME, domainname, 0);
 	if (gateway[0])
-	    variable_set2(VAR_GATEWAY, gateway);
+	    variable_set2(VAR_GATEWAY, gateway, 1);
 	if (nameserver[0])
-	    variable_set2(VAR_NAMESERVER, nameserver);
+	    variable_set2(VAR_NAMESERVER, nameserver, 0);
 
 	if (!devp->private)
 	    devp->private = (DevInfo *)safe_malloc(sizeof(DevInfo));
@@ -300,17 +300,17 @@ netconfig:
 
 	sprintf(temp, "inet %s %s netmask %s", ipaddr, extras, netmask);
 	sprintf(ifn, "%s%s", VAR_IFCONFIG, devp->name);
-	variable_set2(ifn, temp);
+	variable_set2(ifn, temp, 1);
 	ifaces = variable_get(VAR_INTERFACES);
 	if (!ifaces)
-	    variable_set2(VAR_INTERFACES, ifaces = "lo0");
+	    variable_set2(VAR_INTERFACES, ifaces = "lo0", 1);
 	/* Only add it if it's not there already */
 	if (!strstr(ifaces, devp->name)) {
 	    sprintf(ifn, "%s %s", devp->name, ifaces);
-	    variable_set2(VAR_INTERFACES, ifn);
+	    variable_set2(VAR_INTERFACES, ifn, 1);
 	}
 	if (ipaddr[0])
-	    variable_set2(VAR_IPADDR, ipaddr);
+	    variable_set2(VAR_IPADDR, ipaddr, 0);
 	configResolv(NULL);	/* XXX this will do it on the MFS copy XXX */
 	ret = DITEM_SUCCESS;
     }
