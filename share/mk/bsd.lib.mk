@@ -1,5 +1,5 @@
 #	from: @(#)bsd.lib.mk	5.26 (Berkeley) 5/2/91
-#	$Id: bsd.lib.mk,v 1.12 1994/11/14 04:55:40 bde Exp $
+#	$Id: bsd.lib.mk,v 1.13 1994/11/14 06:28:20 bde Exp $
 #
 
 .if exists(${.CURDIR}/../Makefile.inc)
@@ -57,6 +57,8 @@ BINMODE?=	555
 
 .c.so:
 	${CC} ${PICFLAG} -DPIC ${CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
+	@${LD} -X -r ${.TARGET}
+	@mv a.out ${.TARGET}
 
 .cc.o .cxx.o .C.o:
 	${CXX} ${CXXFLAGS} -c ${.IMPSRC} -o ${.TARGET}
@@ -70,6 +72,8 @@ BINMODE?=	555
 
 .cc.so .C.so:
 	${CXX} ${PICFLAG} -DPIC ${CXXFLAGS} -c ${.IMPSRC} -o ${.TARGET}
+	@${LD} -X -r ${.TARGET}
+	@mv a.out ${.TARGET}
 
 .f.o:
 	${FC} ${FFLAGS} -o ${.TARGET} -c ${.IMPSRC} 
@@ -83,6 +87,8 @@ BINMODE?=	555
 
 .f.so:
 	${FC} ${PICFLAG} -DPIC ${FFLAGS} -o ${.TARGET} -c ${.IMPSRC}
+	@${LD} -X -r ${.TARGET}
+	@mv a.out ${.TARGET}
 
 .s.o:
 	${CPP} -E ${CFLAGS:M-[ID]*} ${AINC} ${.IMPSRC} | \
@@ -99,6 +105,8 @@ BINMODE?=	555
 .s.so:
 	${CPP} -E -DPIC ${CFLAGS:M-[ID]*} ${AINC} ${.IMPSRC} | \
 	   ${AS} -k -o ${.TARGET}
+	@${LD} -X -r ${.TARGET}
+	@mv a.out ${.TARGET}
 
 .S.o:
 	${CPP} -E ${CFLAGS:M-[ID]*} ${AINC} ${.IMPSRC} | \
@@ -111,6 +119,8 @@ BINMODE?=	555
 .S.so:
 	${CPP} -E -DPIC ${CFLAGS:M-[ID]*} ${AINC} ${.IMPSRC} | \
 	   ${AS} -k -o ${.TARGET}
+	@${LD} -X -r ${.TARGET}
+	@mv a.out ${.TARGET}
 
 .m.po:
 	${CC} ${CFLAGS} -p -c ${.IMPSRC} -o ${.TARGET}
@@ -150,7 +160,7 @@ OBJS+=	${SRCS:N*.h:R:S/$/.o/g}
 lib${LIB}.a:: ${OBJS}
 	@${ECHO} building standard ${LIB} library
 	@rm -f lib${LIB}.a
-	@${AR} cTq lib${LIB}.a `lorder ${OBJS} | tsort` ${ARADD}
+	@${AR} cq lib${LIB}.a `lorder ${OBJS} | tsort` ${ARADD}
 	${RANLIB} lib${LIB}.a
 
 .if !defined(NOPROFILE)
@@ -158,7 +168,7 @@ POBJS+=	${OBJS:.o=.po}
 lib${LIB}_p.a:: ${POBJS}
 	@${ECHO} building profiled ${LIB} library
 	@rm -f lib${LIB}_p.a
-	@${AR} cTq lib${LIB}_p.a `lorder ${POBJS} | tsort` ${ARADD}
+	@${AR} cq lib${LIB}_p.a `lorder ${POBJS} | tsort` ${ARADD}
 	${RANLIB} lib${LIB}_p.a
 .endif
 
@@ -182,7 +192,7 @@ lib${LIB}.so.${SHLIB_MAJOR}.${SHLIB_MINOR}: ${SOBJS}
 lib${LIB}_pic.a:: ${SOBJS}
 	@${ECHO} building special pic ${LIB} library
 	@rm -f lib${LIB}_pic.a
-	@${AR} cTq lib${LIB}_pic.a ${SOBJS} ${ARADD}
+	@${AR} cq lib${LIB}_pic.a ${SOBJS} ${ARADD}
 	${RANLIB} lib${LIB}_pic.a
 .endif
 
