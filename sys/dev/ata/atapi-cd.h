@@ -323,8 +323,8 @@ struct acd_softc {
 	u_int32_t	blksize;		/* block size in bytes */
     } info;
     struct audiopage		au;		/* audio page info */
-    struct cappage		cap;		/* capabilities page info */
     struct audiopage		aumask;		/* audio page mask */
+    struct cappage		cap;		/* capabilities page info */
     struct {					/* subchannel info */
 	u_int8_t	void0;
 	u_int8_t	audio_status;
