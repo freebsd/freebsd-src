@@ -59,6 +59,7 @@
 
 /* Algorithms for outgoing packet distribution (XXX only one so far) */
 #define NG_ONE2MANY_XMIT_ROUNDROBIN	1	/* round-robin delivery */
+#define NG_ONE2MANY_XMIT_ALL		2	/* send packets to all many hooks */
 
 /* Algorithms for detecting link failure (XXX only one so far) */
 #define NG_ONE2MANY_FAIL_MANUAL		1	/* use enabledLinks[] array */
@@ -86,6 +87,7 @@ struct ng_one2many_link_stats {
 	u_int64_t	recvPackets;	/* total pkts rec'd on link */
 	u_int64_t	xmitOctets;	/* total octets xmit'd on link */
 	u_int64_t	xmitPackets;	/* total pkts xmit'd on link */
+	u_int64_t	memoryFailures;	/* times couldn't get mem or mbuf */
 };
 
 /* Keep this in sync with the above structure definition */
@@ -95,6 +97,7 @@ struct ng_one2many_link_stats {
 	  { "recvPackets",	&ng_parse_uint64_type	},	\
 	  { "xmitOctets",	&ng_parse_uint64_type	},	\
 	  { "xmitPackets",	&ng_parse_uint64_type	},	\
+	  { "memoryFailures",	&ng_parse_uint64_type	},	\
 	  { NULL }						\
 	}							\
 }
