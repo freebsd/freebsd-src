@@ -63,7 +63,7 @@ ${FULLKERNEL}: ${SYSTEM_DEP} vers.o
 	${SYSTEM_LD_TAIL}
 
 .if !exists(.depend)
-${SYSTEM_OBJS}: assym.s vnode_if.h ${BEFORE_DEPEND:M*.h} ${MFILES:T:S/.m$/.h/}
+${SYSTEM_OBJS}: assym.s miidevs.h vnode_if.h ${BEFORE_DEPEND:M*.h} ${MFILES:T:S/.m$/.h/}
 .endif
 
 .for mfile in ${MFILES}
@@ -74,12 +74,6 @@ ${mfile:T:S/.m$/.c/}: ${mfile}
 ${mfile:T:S/.m$/.h/}: ${mfile}
 	${AWK} -f $S/tools/makeobjops.awk ${mfile} -h
 .endfor
-
-.if !exists(.depend)
-acphy.o amphy.o bmtphy.o brgphy.o dcphy.o e1000phy.o exphy.o if_bge.o if_tx.o \
-inphy.o lxtphy.o nsgphy.o nsphy.o pnaphy.o pnphy.o qsphy.o rlphy.o tdkphy.o \
-tlphy.o xmphy.o: miidevs.h
-.endif
 
 kernel-clean:
 	rm -f *.o *.so *.So *.ko *.s eddep errs \
