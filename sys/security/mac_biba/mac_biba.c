@@ -1,14 +1,14 @@
 /*-
  * Copyright (c) 1999-2002 Robert N. M. Watson
- * Copyright (c) 2001-2004 Networks Associates Technology, Inc.
+ * Copyright (c) 2001-2005 McAfee, Inc.
  * All rights reserved.
  *
  * This software was developed by Robert Watson for the TrustedBSD Project.
  *
- * This software was developed for the FreeBSD Project in part by Network
- * Associates Laboratories, the Security Research Division of Network
- * Associates, Inc. under DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"),
- * as part of the DARPA CHATS research program.
+ * This software was developed for the FreeBSD Project in part by McAfee
+ * Research, the Security Research Division of McAfee, Inc. under
+ * DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"), as part of the DARPA
+ * CHATS research program.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -60,6 +60,9 @@
 #include <sys/socketvar.h>
 #include <sys/pipe.h>
 #include <sys/sysctl.h>
+#include <sys/msg.h>
+#include <sys/sem.h>
+#include <sys/shm.h>
 
 #include <fs/devfs/devfs.h>
 
@@ -1080,6 +1083,59 @@ mac_biba_set_socket_peer_from_mbuf(struct mbuf *mbuf, struct label *mbuflabel,
 }
 
 /*
+ * Labeling event operations: System V IPC objects.
+ */
+
+static void
+mac_biba_create_sysv_msgmsg(struct ucred *cred, struct msqid_kernel *msqkptr,
+    struct label *msqlabel, struct msg *msgptr, struct label *msglabel)
+{
+	struct mac_biba *source, *dest;
+
+	/* Ignore the msgq label */
+	source = SLOT(cred->cr_label);
+	dest = SLOT(msglabel);
+
+	mac_biba_copy_effective(source, dest);
+}
+
+static void
+mac_biba_create_sysv_msgqueue(struct ucred *cred,
+    struct msqid_kernel *msqkptr, struct label *msqlabel)
+{
+	struct mac_biba *source, *dest;
+
+	source = SLOT(cred->cr_label);
+	dest = SLOT(msqlabel);
+
+	mac_biba_copy_effective(source, dest);
+}
+
+static void
+mac_biba_create_sysv_sema(struct ucred *cred, struct semid_kernel *semakptr,
+    struct label *semalabel)
+{
+	struct mac_biba *source, *dest;
+
+	source = SLOT(cred->cr_label);
+	dest = SLOT(semalabel);
+
+	mac_biba_copy_effective(source, dest);
+}
+
+static void
+mac_biba_create_sysv_shm(struct ucred *cred, struct shmid_kernel *shmsegptr,
+    struct label *shmlabel)
+{
+	struct mac_biba *source, *dest;
+
+	source = SLOT(cred->cr_label);
+	dest = SLOT(shmlabel);
+
+	mac_biba_copy_effective(source, dest);
+}
+
+/*
  * Labeling event operations: network objects.
  */
 static void
@@ -1377,6 +1433,36 @@ mac_biba_relabel_cred(struct ucred *cred, struct label *newlabel)
 }
 
 /*
+ * Label cleanup/flush operations
+ */
+static void
+mac_biba_cleanup_sysv_msgmsg(struct label *msglabel)
+{
+
+	bzero(SLOT(msglabel), sizeof(struct mac_biba));
+}
+
+static void
+mac_biba_cleanup_sysv_msgqueue(struct label *msqlabel)
+{
+
+	bzero(SLOT(msqlabel), sizeof(struct mac_biba));
+}
+
+static void
+mac_biba_cleanup_sysv_sema(struct label *semalabel)
+{
+
+	bzero(SLOT(semalabel), sizeof(struct mac_biba));
+}
+
+static void
+mac_biba_cleanup_sysv_shm(struct label *shmlabel)
+{
+	bzero(SLOT(shmlabel), sizeof(struct mac_biba));
+}
+
+/*
  * Access control checks.
  */
 static int
@@ -1532,6 +1618,281 @@ mac_biba_check_inpcb_deliver(struct inpcb *inp, struct label *inplabel,
 	i = SLOT(inplabel);
 
 	return (mac_biba_equal_effective(p, i) ? 0 : EACCES);
+}
+
+static int
+mac_biba_check_sysv_msgrcv(struct ucred *cred, struct msg *msgptr,
+    struct label *msglabel)
+{
+	struct mac_biba *subj, *obj;
+
+	if (!mac_biba_enabled)
+		return (0);
+
+	subj = SLOT(cred->cr_label);
+	obj = SLOT(msglabel);
+
+	if (!mac_biba_dominate_effective(obj, subj))
+		return (EACCES);
+
+	return (0);
+}
+
+static int
+mac_biba_check_sysv_msgrmid(struct ucred *cred, struct msg *msgptr,
+    struct label *msglabel)
+{
+	struct mac_biba *subj, *obj;
+
+	if (!mac_biba_enabled)
+		return (0);
+
+	subj = SLOT(cred->cr_label);
+	obj = SLOT(msglabel);
+
+	if (!mac_biba_dominate_effective(subj, obj))
+		return (EACCES);
+
+	return (0);
+}
+
+static int
+mac_biba_check_sysv_msqget(struct ucred *cred, struct msqid_kernel *msqkptr,
+    struct label *msqklabel)
+{
+	struct mac_biba *subj, *obj;
+
+	if (!mac_biba_enabled)
+		return (0);
+
+	subj = SLOT(cred->cr_label);
+	obj = SLOT(msqklabel);
+
+	if (!mac_biba_dominate_effective(obj, subj))
+		return (EACCES);
+
+	return (0);
+}
+
+static int
+mac_biba_check_sysv_msqsnd(struct ucred *cred, struct msqid_kernel *msqkptr,
+    struct label *msqklabel)
+{
+	struct mac_biba *subj, *obj;
+
+	if (!mac_biba_enabled)
+		return (0);
+
+	subj = SLOT(cred->cr_label);
+	obj = SLOT(msqklabel);
+
+	if (!mac_biba_dominate_effective(subj, obj))
+		return (EACCES);
+
+	return (0);
+}
+
+static int
+mac_biba_check_sysv_msqrcv(struct ucred *cred, struct msqid_kernel *msqkptr,
+    struct label *msqklabel)
+{
+	struct mac_biba *subj, *obj;
+
+	if (!mac_biba_enabled)
+		return (0);
+
+	subj = SLOT(cred->cr_label);
+	obj = SLOT(msqklabel);
+
+	if (!mac_biba_dominate_effective(obj, subj))
+		return (EACCES);
+
+	return (0);
+}
+
+
+static int
+mac_biba_check_sysv_msqctl(struct ucred *cred, struct msqid_kernel *msqkptr,
+    struct label *msqklabel, int cmd)
+{
+	struct mac_biba *subj, *obj;
+
+	if (!mac_biba_enabled)
+		return (0);
+
+	subj = SLOT(cred->cr_label);
+	obj = SLOT(msqklabel);
+
+	switch(cmd) {
+	case IPC_RMID:
+	case IPC_SET:
+		if (!mac_biba_dominate_effective(subj, obj))
+			return (EACCES);
+		break;
+
+	case IPC_STAT:
+		if (!mac_biba_dominate_effective(obj, subj))
+			return (EACCES);
+		break;
+
+	default:
+		return (EACCES);
+	}
+
+	return (0);
+}
+
+static int
+mac_biba_check_sysv_semctl(struct ucred *cred, struct semid_kernel *semakptr,
+    struct label *semaklabel, int cmd)
+{
+	struct mac_biba *subj, *obj;
+
+	if (!mac_biba_enabled)
+		return (0);
+
+	subj = SLOT(cred->cr_label);
+	obj = SLOT(semaklabel);
+
+	switch(cmd) {
+	case IPC_RMID:
+	case IPC_SET:
+	case SETVAL:
+	case SETALL:
+		if (!mac_biba_dominate_effective(subj, obj))
+			return (EACCES);
+		break;
+
+	case IPC_STAT:
+	case GETVAL:
+	case GETPID:
+	case GETNCNT:
+	case GETZCNT:
+	case GETALL:
+		if (!mac_biba_dominate_effective(obj, subj))
+			return (EACCES);
+		break;
+
+	default:
+		return (EACCES);
+	}
+
+	return (0);
+}
+
+
+static int
+mac_biba_check_sysv_semget(struct ucred *cred, struct semid_kernel *semakptr,
+    struct label *semaklabel)
+{
+	struct mac_biba *subj, *obj;
+
+	if (!mac_biba_enabled)
+		return (0);
+
+	subj = SLOT(cred->cr_label);
+	obj = SLOT(semaklabel);
+
+	if (!mac_biba_dominate_effective(obj, subj))
+		return (EACCES);
+
+	return (0);
+}
+
+
+static int
+mac_biba_check_sysv_semop(struct ucred *cred, struct semid_kernel *semakptr,
+    struct label *semaklabel, size_t accesstype)
+{
+	struct mac_biba *subj, *obj;
+
+	if (!mac_biba_enabled)
+		return (0);
+
+	subj = SLOT(cred->cr_label);
+	obj = SLOT(semaklabel);
+
+	if (accesstype & SEM_R)
+		if (!mac_biba_dominate_effective(obj, subj))
+			return (EACCES);
+
+	if (accesstype & SEM_A)
+		if (!mac_biba_dominate_effective(subj, obj))
+			return (EACCES);
+
+	return (0);
+}
+
+static int
+mac_biba_check_sysv_shmat(struct ucred *cred, struct shmid_kernel *shmsegptr,
+    struct label *shmseglabel, int shmflg)
+{
+	struct mac_biba *subj, *obj;
+
+	if (!mac_biba_enabled)
+		return (0);
+
+	subj = SLOT(cred->cr_label);
+	obj = SLOT(shmseglabel);
+
+	if (!mac_biba_dominate_effective(obj, subj))
+		return (EACCES);
+	if ((shmflg & SHM_RDONLY) == 0) {
+		if (!mac_biba_dominate_effective(subj, obj))
+			return (EACCES);
+	}
+	
+	return (0);
+}
+
+static int
+mac_biba_check_sysv_shmctl(struct ucred *cred, struct shmid_kernel *shmsegptr,
+    struct label *shmseglabel, int cmd)
+{
+	struct mac_biba *subj, *obj;
+
+	if (!mac_biba_enabled)
+		return (0);
+
+	subj = SLOT(cred->cr_label);
+	obj = SLOT(shmseglabel);
+
+	switch(cmd) {
+	case IPC_RMID:
+	case IPC_SET:
+		if (!mac_biba_dominate_effective(subj, obj))
+			return (EACCES);
+		break;
+
+	case IPC_STAT:
+	case SHM_STAT:
+		if (!mac_biba_dominate_effective(obj, subj))
+			return (EACCES);
+		break;
+
+	default:
+		return (EACCES);
+	}
+
+	return (0);
+}
+
+static int
+mac_biba_check_sysv_shmget(struct ucred *cred, struct shmid_kernel *shmsegptr,
+    struct label *shmseglabel, int shmflg)
+{
+	struct mac_biba *subj, *obj;
+
+	if (!mac_biba_enabled)
+		return (0);
+
+	subj = SLOT(cred->cr_label);
+	obj = SLOT(shmseglabel);
+
+	if (!mac_biba_dominate_effective(obj, subj))
+		return (EACCES);
+
+	return (0);
 }
 
 static int
@@ -2643,6 +3004,10 @@ static struct mac_policy_ops mac_biba_ops =
 	.mpo_init_devfsdirent_label = mac_biba_init_label,
 	.mpo_init_ifnet_label = mac_biba_init_label,
 	.mpo_init_inpcb_label = mac_biba_init_label_waitcheck,
+	.mpo_init_sysv_msgmsg_label = mac_biba_init_label,
+	.mpo_init_sysv_msgqueue_label = mac_biba_init_label,
+	.mpo_init_sysv_sema_label = mac_biba_init_label,
+	.mpo_init_sysv_shm_label = mac_biba_init_label,
 	.mpo_init_ipq_label = mac_biba_init_label_waitcheck,
 	.mpo_init_mbuf_label = mac_biba_init_label_waitcheck,
 	.mpo_init_mount_label = mac_biba_init_label,
@@ -2656,6 +3021,10 @@ static struct mac_policy_ops mac_biba_ops =
 	.mpo_destroy_devfsdirent_label = mac_biba_destroy_label,
 	.mpo_destroy_ifnet_label = mac_biba_destroy_label,
 	.mpo_destroy_inpcb_label = mac_biba_destroy_label,
+	.mpo_destroy_sysv_msgmsg_label = mac_biba_destroy_label,
+	.mpo_destroy_sysv_msgqueue_label = mac_biba_destroy_label,
+	.mpo_destroy_sysv_sema_label = mac_biba_destroy_label,
+	.mpo_destroy_sysv_shm_label = mac_biba_destroy_label,
 	.mpo_destroy_ipq_label = mac_biba_destroy_label,
 	.mpo_destroy_mbuf_label = mac_biba_destroy_label,
 	.mpo_destroy_mount_label = mac_biba_destroy_label,
@@ -2706,6 +3075,10 @@ static struct mac_policy_ops mac_biba_ops =
 	.mpo_create_fragment = mac_biba_create_fragment,
 	.mpo_create_ifnet = mac_biba_create_ifnet,
 	.mpo_create_inpcb_from_socket = mac_biba_create_inpcb_from_socket,
+	.mpo_create_sysv_msgmsg = mac_biba_create_sysv_msgmsg,
+	.mpo_create_sysv_msgqueue = mac_biba_create_sysv_msgqueue,
+	.mpo_create_sysv_sema = mac_biba_create_sysv_sema,
+	.mpo_create_sysv_shm = mac_biba_create_sysv_shm,
 	.mpo_create_ipq = mac_biba_create_ipq,
 	.mpo_create_mbuf_from_inpcb = mac_biba_create_mbuf_from_inpcb,
 	.mpo_create_mbuf_from_mbuf = mac_biba_create_mbuf_from_mbuf,
@@ -2721,12 +3094,28 @@ static struct mac_policy_ops mac_biba_ops =
 	.mpo_create_proc0 = mac_biba_create_proc0,
 	.mpo_create_proc1 = mac_biba_create_proc1,
 	.mpo_relabel_cred = mac_biba_relabel_cred,
+	.mpo_cleanup_sysv_msgmsg = mac_biba_cleanup_sysv_msgmsg,
+	.mpo_cleanup_sysv_msgqueue = mac_biba_cleanup_sysv_msgqueue,
+	.mpo_cleanup_sysv_sema = mac_biba_cleanup_sysv_sema,
+	.mpo_cleanup_sysv_shm = mac_biba_cleanup_sysv_shm,
 	.mpo_check_bpfdesc_receive = mac_biba_check_bpfdesc_receive,
 	.mpo_check_cred_relabel = mac_biba_check_cred_relabel,
 	.mpo_check_cred_visible = mac_biba_check_cred_visible,
 	.mpo_check_ifnet_relabel = mac_biba_check_ifnet_relabel,
 	.mpo_check_ifnet_transmit = mac_biba_check_ifnet_transmit,
 	.mpo_check_inpcb_deliver = mac_biba_check_inpcb_deliver,
+	.mpo_check_sysv_msgrcv = mac_biba_check_sysv_msgrcv,
+	.mpo_check_sysv_msgrmid = mac_biba_check_sysv_msgrmid,
+	.mpo_check_sysv_msqget = mac_biba_check_sysv_msqget,
+	.mpo_check_sysv_msqsnd = mac_biba_check_sysv_msqsnd,
+	.mpo_check_sysv_msqrcv = mac_biba_check_sysv_msqrcv,
+	.mpo_check_sysv_msqctl = mac_biba_check_sysv_msqctl,
+	.mpo_check_sysv_semctl = mac_biba_check_sysv_semctl,
+	.mpo_check_sysv_semget = mac_biba_check_sysv_semget,
+	.mpo_check_sysv_semop = mac_biba_check_sysv_semop,
+	.mpo_check_sysv_shmat = mac_biba_check_sysv_shmat,
+	.mpo_check_sysv_shmctl = mac_biba_check_sysv_shmctl,
+	.mpo_check_sysv_shmget = mac_biba_check_sysv_shmget,
 	.mpo_check_kld_load = mac_biba_check_kld_load,
 	.mpo_check_kld_unload = mac_biba_check_kld_unload,
 	.mpo_check_mount_stat = mac_biba_check_mount_stat,
