@@ -36,7 +36,7 @@
 static const char sccsid[] = "@(#)inode.c	8.8 (Berkeley) 4/28/95";
 #endif
 static const char rcsid[] =
-	"$Id: inode.c,v 1.14 1998/06/15 07:07:12 charnier Exp $";
+	"$Id: inode.c,v 1.15 1998/06/28 19:23:02 bde Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -372,7 +372,7 @@ cacheino(dp, inumber)
 {
 	register struct inoinfo *inp;
 	struct inoinfo **inpp;
-	unsigned int blks;
+	int blks;
 
 	blks = howmany(dp->di_size, sblock.fs_bsize);
 	if (blks > NDADDR)
