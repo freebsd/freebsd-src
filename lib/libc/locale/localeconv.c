@@ -85,6 +85,12 @@ localeconv()
 	M_ASSIGN_CHAR(n_sep_by_space);
 	M_ASSIGN_CHAR(p_sign_posn);
 	M_ASSIGN_CHAR(n_sign_posn);
+	M_ASSIGN_CHAR(int_p_cs_precedes);
+	M_ASSIGN_CHAR(int_n_cs_precedes);
+	M_ASSIGN_CHAR(int_p_sep_by_space);
+	M_ASSIGN_CHAR(int_n_sep_by_space);
+	M_ASSIGN_CHAR(int_p_sign_posn);
+	M_ASSIGN_CHAR(int_n_sign_posn);
 	__mlocale_changed = 0;
     }
 
