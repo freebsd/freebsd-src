@@ -494,7 +494,9 @@ assign_io(struct slot *sp)
 	 * Found a matching configuration. Now look at the I/O, memory and IRQ
 	 * to create the desired parameters. Look at memory first.
 	 */
-	if (cisconf->memspace || (defconf && defconf->memspace)) {
+	if (!(strncmp(sp->config->driver->name, "ed", 2) == 0
+		&& (sp->config->flags & 0x10))
+		&& (cisconf->memspace || (defconf && defconf->memspace))) {
 		struct cis_memblk *mp;
 
 		mp = cisconf->mem;
@@ -527,6 +529,9 @@ assign_io(struct slot *sp)
 	if (cisconf->iospace || (defconf && defconf->iospace) 
 	    || sp->card->iosize) {
 		struct cis_config *cp;
+		struct cis_ioblk *cio;
+		struct allocblk *sio;
+		int     x, xmax;
 		int iosize;
 
 		cp = cisconf;
@@ -550,49 +555,61 @@ assign_io(struct slot *sp)
  		* If no address (but a length) is available, allocate
  		* from the pool.
  		*/
-		if (iosize) {
-			sp->io.addr = 0;
-			sp->io.size = iosize;
-		}
-		else if (cp->io) {
-			sp->io.addr = cp->io->addr;
-			sp->io.size = cp->io->size;
-		} else {
-			/*
-			 * No I/O block, assume the address lines
-			 * decode gives the size.
-			 */
-			sp->io.size = 1 << cp->io_addr;
-		}
-		if (sp->io.addr == 0) {
-			int     i = bit_fns(io_avail, IOPORTS, sp->io.size);
+		cio = cp->io;
+		sio = &(sp->io);
+		xmax = 1;
+		if (cio)
+			xmax = cisconf->io_blks;
+		for (x = 0; x < xmax; x++) {
+			if (iosize) {
+				sio->addr = 0;
+				sio->size = iosize;
+			} else if (cio) {
+				sio->addr = cio->addr;
+				sio->size = cio->size;
+			} else {
+				/*
+				 * No I/O block, assume the address lines
+				 * decode gives the size.
+				 */
+				sio->size = 1 << cp->io_addr;
+			}
+			if (sio->addr == 0) {
+				int i = bit_fns(io_avail, IOPORTS,
+						sio->size, sio->size);
+				if (i < 0) {
+					return (-1);
+				}
+				sio->addr = i;
+			}
+			bit_nclear(io_avail, sio->addr,
+				   sio->addr + sio->size - 1);
+			sp->flags |= IO_ASSIGNED;
 
-			if (i < 0)
-				return (-1);
-			sp->io.addr = i;
-		}
-		bit_nclear(io_avail, sp->io.addr,
-			   sp->io.addr + sp->io.size - 1);
-		sp->flags |= IO_ASSIGNED;
-
-		/* Set up the size to take into account the decode lines. */
-		sp->io.cardaddr = cp->io_addr;
-		switch (cp->io_bus) {
-		case 0:
-			break;
-		case 1:
-			sp->io.flags = IODF_WS;
-			break;
-		case 2:
-			sp->io.flags = IODF_WS | IODF_CS16;
-			break;
-		case 3:
-			sp->io.flags = IODF_WS | IODF_CS16 | IODF_16BIT;
-			break;
-		}
-		if (debug_level > 0) {
-			logmsg("Using I/O addr 0x%x, size %d\n",
-			    sp->io.addr, sp->io.size);
+			/* Set up the size to take into account the decode lines. */
+			sio->cardaddr = cp->io_addr;
+			switch (cp->io_bus) {
+			case 0:
+				break;
+			case 1:
+				sio->flags = IODF_WS;
+				break;
+			case 2:
+				sio->flags = IODF_WS | IODF_CS16;
+				break;
+			case 3:
+				sio->flags = IODF_WS | IODF_CS16 | IODF_16BIT;
+				break;
+			}
+			if (debug_level > 0) {
+				logmsg("Using I/O addr 0x%x, size %d\n",
+				    sio->addr, sio->size);
+			}
+			if (cio && cio->next) {
+				sio->next = xmalloc(sizeof(*sio));
+				sio = sio->next;
+				cio = cio->next;
+			}
 		}
 	}
 	sp->irq = sp->config->irq;
@@ -611,10 +628,12 @@ setup_slot(struct slot *sp)
 	struct io_desc io;
 	struct dev_desc drv;
 	struct driver *drvp = sp->config->driver;
+	struct allocblk *sio;
 	char    *p;
 	char    c;
 	off_t   offs;
 	int     rw_flags;
+	int	iowin;
 
 	memset(&io, 0, sizeof io);
 	memset(&drv, 0, sizeof drv);
@@ -664,11 +683,14 @@ setup_slot(struct slot *sp)
 			return (0);
 		}
 	}
-	io.window = 0;
 	if (sp->flags & IO_ASSIGNED) {
-		io.flags = sp->io.flags;
-		io.start = sp->io.addr;
-		io.size = sp->io.size;
+	    for (iowin = 0, sio = &(sp->io); iowin <= 1; iowin++) {
+		io.window = iowin;
+		if (sio->size) {
+			io.flags = sio->flags;
+			io.start = sio->addr;
+			io.size = sio->size;
+		}
 #if 0
 		io.start = sp->io.addr & ~((1 << sp->io.cardaddr) - 1);
 		io.size = 1 << sp->io.cardaddr;
@@ -687,6 +709,21 @@ setup_slot(struct slot *sp)
 			logerr("ioctl (PIOCSIO)");
 			return (0);
 		}
+		if (ioctl(sp->fd, PIOCGIO, &io))
+		{
+		    logerr("ioctl (PIOCGIO)");
+		    return(0);
+		}
+		if (io.start != sio->addr){
+		    logmsg("I/O base address changed from 0x%x to 0x%x\n",
+			   sio->addr, io.start);
+		    sio->addr = io.start;
+		}
+		if (sio->next)
+			sio = sio->next;
+		else
+			break;
+	    }
 	}
 	strcpy(drv.name, drvp->kernel);
 	drv.unit = drvp->unit;
