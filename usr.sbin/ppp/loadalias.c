@@ -12,7 +12,7 @@
 #include "loadalias.h"
 #include "vars.h"
 
-#define _PATH_ALIAS "/usr/lib/libalias.so.2.1"
+#define _PATH_ALIAS "/usr/lib/libalias.so.2.3"
 
 #define off(item) ((int)&(((struct aliasHandlers *)0)->item))
 #define entry(a) { off(a), "_" #a }
