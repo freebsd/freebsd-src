@@ -57,6 +57,7 @@ static EVENT	*CollectTimeout;
 #define MS_UFROM	0	/* reading Unix from line */
 #define MS_HEADER	1	/* reading message header */
 #define MS_BODY		2	/* reading message body */
+#define MS_DISCARD	3	/* discarding rest of message */
 
 void
 collect(fp, smtpmode, hdrp, e)
@@ -77,6 +78,8 @@ collect(fp, smtpmode, hdrp, e)
 	volatile int istate;
 	volatile int mstate;
 	u_char *volatile pbp;
+	int nhdrlines = 0;
+	int hdrlinelen = 0;
 	u_char peekbuf[8];
 	char dfname[MAXQFNAME];
 	char bufbuf[MAXLINE];
@@ -198,6 +201,7 @@ collect(fp, smtpmode, hdrp, e)
 			switch (istate)
 			{
 			  case IS_BOL:
+				hdrlinelen = 0;
 				if (c == '.')
 				{
 					istate = IS_DOT;
@@ -262,12 +266,17 @@ collect(fp, smtpmode, hdrp, e)
 bufferchar:
 			if (!headeronly)
 				e->e_msgsize++;
-			if (mstate == MS_BODY)
+			switch (mstate)
 			{
+			  case MS_BODY:
 				/* just put the character out */
 				if (MaxMessageSize <= 0 ||
 				    e->e_msgsize <= MaxMessageSize)
 					putc(c, tf);
+
+				/* fall through */
+
+			  case MS_DISCARD:
 				continue;
 			}
 
@@ -298,7 +307,23 @@ bufferchar:
 #endif
 			}
 			else if (c != '\0')
+			{
 				*bp++ = c;
+				if (MaxHeaderLineLength > 0 &&
+				    ++hdrlinelen > MaxHeaderLineLength)
+				{
+					sm_syslog(LOG_NOTICE, e->e_id,
+						  "header line too long (%d max) from %s during message collect",
+						  MaxHeaderLineLength,
+						  CurHostName != NULL ? CurHostName : "localhost");
+					errno = 0;
+					e->e_flags |= EF_CLRQUEUE;
+					e->e_status = "5.6.0";
+					usrerr("552 Header line too long (%d max)",
+						MaxHeaderLineLength);
+					mstate = MS_DISCARD;
+				}
+			}
 			if (istate == IS_BOL)
 				break;
 		}
@@ -331,6 +356,22 @@ nextstate:
 				goto nextstate;
 			}
 
+			if (MaxHeaderLines > 0 &&
+			    ++nhdrlines > MaxHeaderLines)
+			{
+				sm_syslog(LOG_NOTICE, e->e_id,
+					  "too many header lines (%d max) from %s during message collect",
+					  MaxHeaderLines,
+					  CurHostName != NULL ? CurHostName : "localhost");
+				errno = 0;
+				e->e_flags |= EF_CLRQUEUE;
+				e->e_status = "5.6.0";
+				usrerr("552 Too many header lines (%d max)",
+					MaxHeaderLines);
+				mstate = MS_DISCARD;
+				break;
+			}
+
 			/* check for possible continuation line */
 			do
 			{
@@ -350,6 +391,7 @@ nextstate:
 			if (*--bp != '\n' || *--bp != '\r')
 				bp++;
 			*bp = '\0';
+
 			if (bitset(H_EOH, chompheader(buf, FALSE, hdrp, e)))
 			{
 				mstate = MS_BODY;
