@@ -28,6 +28,12 @@
 #ifndef _MACHINE_ATOMIC_H_
 #define _MACHINE_ATOMIC_H_
 
+#ifndef __GNUC__
+#ifndef lint
+#error "This file must be compiled with GCC or lint"
+#endif /* lint */
+#endif /* __GNUC__ */
+
 /*
  * Various simple arithmetic on memory which is atomic in the presence
  * of interrupts and multiple processors.
@@ -65,13 +71,13 @@
  */
 #if defined(KLD_MODULE)
 #define ATOMIC_ASM(NAME, TYPE, OP, CONS, V)			\
-void atomic_##NAME##_##TYPE(volatile u_##TYPE *p, u_##TYPE v);
+void atomic_##NAME##_##TYPE(volatile u_##TYPE *p, u_##TYPE v)
 
 int atomic_cmpset_int(volatile u_int *dst, u_int exp, u_int src);
 
 #define	ATOMIC_STORE_LOAD(TYPE, LOP, SOP)			\
 u_##TYPE	atomic_load_acq_##TYPE(volatile u_##TYPE *p);	\
-void		atomic_store_rel_##TYPE(volatile u_##TYPE *p, u_##TYPE v);
+void		atomic_store_rel_##TYPE(volatile u_##TYPE *p, u_##TYPE v)
 
 #else /* !KLD_MODULE */
 
@@ -89,6 +95,7 @@ void		atomic_store_rel_##TYPE(volatile u_##TYPE *p, u_##TYPE v);
  * The assembly is volatilized to demark potential before-and-after side
  * effects if an interrupt or SMP collision were to occur.
  */
+#ifdef __GNUC__
 #define ATOMIC_ASM(NAME, TYPE, OP, CONS, V)		\
 static __inline void					\
 atomic_##NAME##_##TYPE(volatile u_##TYPE *p, u_##TYPE v)\
@@ -97,6 +104,10 @@ atomic_##NAME##_##TYPE(volatile u_##TYPE *p, u_##TYPE v)\
 			 : "+m" (*p)			\
 			 : CONS (V));			\
 }
+#else /* !__GNUC__ */
+#define ATOMIC_ASM(NAME, TYPE, OP, CONS, V)			\
+void atomic_##NAME##_##TYPE(volatile u_##TYPE *p, u_##TYPE v)
+#endif /* __GNUC__ */
 
 /*
  * Atomic compare and set, used by the mutex functions
@@ -106,6 +117,7 @@ atomic_##NAME##_##TYPE(volatile u_##TYPE *p, u_##TYPE v)\
  * Returns 0 on failure, non-zero on success
  */
 
+#if defined(__GNUC__)
 #if defined(I386_CPU)
 static __inline int
 atomic_cmpset_int(volatile u_int *dst, u_int exp, u_int src)
@@ -151,7 +163,15 @@ atomic_cmpset_int(volatile u_int *dst, u_int exp, u_int src)
 	return (res);
 }
 #endif /* defined(I386_CPU) */
+#else /* !defined(__GNUC__) */
+static __inline int
+atomic_cmpset_int(volatile u_int *dst __unused, u_int exp __unused,
+    u_int src __unused)
+{
+}
+#endif /* defined(__GNUC__) */
 
+#if defined(__GNUC__)
 #if defined(I386_CPU)
 /*
  * We assume that a = b will do atomic loads and stores.
@@ -172,7 +192,7 @@ atomic_store_rel_##TYPE(volatile u_##TYPE *p, u_##TYPE v)\
 	*p = v;						\
 	__asm __volatile("" : : : "memory");		\
 }
-#else
+#else /* !defined(I386_CPU) */
 
 #define ATOMIC_STORE_LOAD(TYPE, LOP, SOP)		\
 static __inline u_##TYPE				\
@@ -200,32 +220,43 @@ atomic_store_rel_##TYPE(volatile u_##TYPE *p, u_##TYPE v)\
 	: : "memory");				 	\
 }
 #endif	/* defined(I386_CPU) */
+#else /* !defined(__GNUC__) */
+
+/*
+ * XXXX: Dummy functions!!
+ */
+#define ATOMIC_STORE_LOAD(TYPE, LOP, SOP)			\
+u_##TYPE atomic_load_acq_##TYPE(volatile u_##TYPE *p __unused);	\
+void atomic_store_rel_##TYPE(volatile u_##TYPE *p __unused,	\
+    u_##TYPE v __unused)
+
+#endif /* defined(__GNUC__) */
 #endif /* KLD_MODULE */
 
-ATOMIC_ASM(set,	     char,  "orb %b1,%0",  "iq",  v)
-ATOMIC_ASM(clear,    char,  "andb %b1,%0", "iq", ~v)
-ATOMIC_ASM(add,	     char,  "addb %b1,%0", "iq",  v)
-ATOMIC_ASM(subtract, char,  "subb %b1,%0", "iq",  v)
+ATOMIC_ASM(set,	     char,  "orb %b1,%0",  "iq",  v);
+ATOMIC_ASM(clear,    char,  "andb %b1,%0", "iq", ~v);
+ATOMIC_ASM(add,	     char,  "addb %b1,%0", "iq",  v);
+ATOMIC_ASM(subtract, char,  "subb %b1,%0", "iq",  v);
 
-ATOMIC_ASM(set,	     short, "orw %w1,%0",  "ir",  v)
-ATOMIC_ASM(clear,    short, "andw %w1,%0", "ir", ~v)
-ATOMIC_ASM(add,	     short, "addw %w1,%0", "ir",  v)
-ATOMIC_ASM(subtract, short, "subw %w1,%0", "ir",  v)
+ATOMIC_ASM(set,	     short, "orw %w1,%0",  "ir",  v);
+ATOMIC_ASM(clear,    short, "andw %w1,%0", "ir", ~v);
+ATOMIC_ASM(add,	     short, "addw %w1,%0", "ir",  v);
+ATOMIC_ASM(subtract, short, "subw %w1,%0", "ir",  v);
 
-ATOMIC_ASM(set,	     int,   "orl %1,%0",   "ir",  v)
-ATOMIC_ASM(clear,    int,   "andl %1,%0",  "ir", ~v)
-ATOMIC_ASM(add,	     int,   "addl %1,%0",  "ir",  v)
-ATOMIC_ASM(subtract, int,   "subl %1,%0",  "ir",  v)
+ATOMIC_ASM(set,	     int,   "orl %1,%0",   "ir",  v);
+ATOMIC_ASM(clear,    int,   "andl %1,%0",  "ir", ~v);
+ATOMIC_ASM(add,	     int,   "addl %1,%0",  "ir",  v);
+ATOMIC_ASM(subtract, int,   "subl %1,%0",  "ir",  v);
 
-ATOMIC_ASM(set,	     long,  "orl %1,%0",   "ir",  v)
-ATOMIC_ASM(clear,    long,  "andl %1,%0",  "ir", ~v)
-ATOMIC_ASM(add,	     long,  "addl %1,%0",  "ir",  v)
-ATOMIC_ASM(subtract, long,  "subl %1,%0",  "ir",  v)
+ATOMIC_ASM(set,	     long,  "orl %1,%0",   "ir",  v);
+ATOMIC_ASM(clear,    long,  "andl %1,%0",  "ir", ~v);
+ATOMIC_ASM(add,	     long,  "addl %1,%0",  "ir",  v);
+ATOMIC_ASM(subtract, long,  "subl %1,%0",  "ir",  v);
 
-ATOMIC_STORE_LOAD(char,	"cmpxchgb %b0,%1", "xchgb %b1,%0")
-ATOMIC_STORE_LOAD(short,"cmpxchgw %w0,%1", "xchgw %w1,%0")
-ATOMIC_STORE_LOAD(int,	"cmpxchgl %0,%1",  "xchgl %1,%0")
-ATOMIC_STORE_LOAD(long,	"cmpxchgl %0,%1",  "xchgl %1,%0")
+ATOMIC_STORE_LOAD(char,	"cmpxchgb %b0,%1", "xchgb %b1,%0");
+ATOMIC_STORE_LOAD(short,"cmpxchgw %w0,%1", "xchgw %w1,%0");
+ATOMIC_STORE_LOAD(int,	"cmpxchgl %0,%1",  "xchgl %1,%0");
+ATOMIC_STORE_LOAD(long,	"cmpxchgl %0,%1",  "xchgl %1,%0");
 
 #undef ATOMIC_ASM
 #undef ATOMIC_STORE_LOAD
@@ -370,6 +401,7 @@ ATOMIC_PTR(subtract)
 
 #undef ATOMIC_PTR
 
+#if defined(__GNUC__)
 static __inline u_int
 atomic_readandclear_int(volatile u_int *addr)
 {
@@ -384,7 +416,17 @@ atomic_readandclear_int(volatile u_int *addr)
 
 	return (result);
 }
+#else /* !defined(__GNUC__) */
+/*
+ * XXXX: Dummy!
+ */
+static __inline u_int
+atomic_readandclear_int(volatile u_int *addr __unused)
+{
+}
+#endif /* defined(__GNUC__) */
 
+#if defined(__GNUC__)
 static __inline u_long
 atomic_readandclear_long(volatile u_long *addr)
 {
@@ -399,5 +441,14 @@ atomic_readandclear_long(volatile u_long *addr)
 
 	return (result);
 }
+#else /* !defined(__GNUC__) */
+/*
+ * XXXX: Dummy!
+ */
+static __inline u_long
+atomic_readandclear_long(volatile u_long *addr __unused)
+{
+}
+#endif /* defined(__GNUC__) */
 #endif	/* !defined(WANT_FUNCTIONS) */
 #endif /* ! _MACHINE_ATOMIC_H_ */
