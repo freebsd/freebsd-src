@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.55 1997/03/05 15:43:03 bde Exp $
+#	$Id: Makefile,v 1.56 1997/04/25 19:37:58 bde Exp $
 #
 
 PROG=	boot
@@ -14,21 +14,6 @@ CFLAGS=		-O2 -malign-functions=0 -malign-jumps=0 -malign-loops=0 \
 CFLAGS+=	-DBOOTSEG=${BOOTSEG} -DBOOTSTACK=${BOOTSTACK}
 CFLAGS+=	-I${.CURDIR}/../../..
 CFLAGS+=	${CWARNFLAGS}
-
-# Probe the keyboard and use the serial console if the keyboard isn't found.
-.if defined(BOOT_PROBE_KEYBOARD)
-CFLAGS+=	-DPROBE_KEYBOARD
-.endif
-
-# Probe the keyboard lock and use the serial console if the keyboard is locked.
-.if defined(BOOT_PROBE_KEYBOARD_LOCK)
-CFLAGS+=	-DPROBE_KEYBOARD_LOCK
-.endif
-
-# Force use of the serial console.
-.if defined(BOOT_FORCE_COMCONSOLE)
-CFLAGS+=	-DFORCE_COMCONSOLE
-.endif
 
 # By default, if a serial port is going to be used as console, use COM1
 # (aka /dev/ttyd0).
