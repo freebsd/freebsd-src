@@ -49,6 +49,7 @@ struct ad1816_info {
     int		     drq1_rid;
     struct resource *drq2; /* rec */
     int		     drq2_rid;
+    void 	    *ih;
     bus_dma_tag_t    parent_dmat;
 
     struct ad1816_chinfo pch, rch;
@@ -480,6 +481,8 @@ static void
 ad1816_release_resources(struct ad1816_info *ad1816, device_t dev)
 {
     	if (ad1816->irq) {
+   		if (ad1816->ih)
+			bus_teardown_intr(dev, ad1816->irq, ad1816->ih);
 		bus_release_resource(dev, SYS_RES_IRQ, ad1816->irq_rid,
 				     ad1816->irq);
 		ad1816->irq = 0;
@@ -499,7 +502,11 @@ ad1816_release_resources(struct ad1816_info *ad1816, device_t dev)
 				     ad1816->io_base);
 		ad1816->io_base = 0;
     	}
-    	free(ad1816, M_DEVBUF);
+    	if (ad1816->parent_dmat) {
+		bus_dma_tag_destroy(ad1816->parent_dmat);
+		ad1816->parent_dmat = 0;
+    	}
+     	free(ad1816, M_DEVBUF);
 }
 
 static int
@@ -575,7 +582,6 @@ static int
 ad1816_attach(device_t dev)
 {
 	struct ad1816_info *ad1816;
-    	void *ih;
     	char status[SND_STATUSLEN];
 
 	ad1816 = (struct ad1816_info *)malloc(sizeof *ad1816, M_DEVBUF, M_NOWAIT);
@@ -590,7 +596,7 @@ ad1816_attach(device_t dev)
     	if (!ad1816_alloc_resources(ad1816, dev)) goto no;
     	ad1816_init(ad1816, dev);
     	mixer_init(dev, &ad1816_mixer, ad1816);
-	bus_setup_intr(dev, ad1816->irq, INTR_TYPE_TTY, ad1816_intr, ad1816, &ih);
+	bus_setup_intr(dev, ad1816->irq, INTR_TYPE_TTY, ad1816_intr, ad1816, &ad1816->ih);
     	if (bus_dma_tag_create(/*parent*/NULL, /*alignment*/2, /*boundary*/0,
 			/*lowaddr*/BUS_SPACE_MAXADDR_24BIT,
 			/*highaddr*/BUS_SPACE_MAXADDR,
@@ -621,10 +627,26 @@ no:
 
 }
 
+static int
+ad1816_detach(device_t dev)
+{
+	int r;
+	struct ad1816_info *ad1816;
+
+	r = pcm_unregister(dev);
+	if (r)
+		return r;
+
+	ad1816 = pcm_getdevinfo(dev);
+    	ad1816_release_resources(ad1816, dev);
+	return 0;
+}
+
 static device_method_t ad1816_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		ad1816_probe),
 	DEVMETHOD(device_attach,	ad1816_attach),
+	DEVMETHOD(device_detach,	ad1816_detach),
 
 	{ 0, 0 }
 };

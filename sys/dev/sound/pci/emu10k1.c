@@ -1410,7 +1410,7 @@ emu_pci_attach(device_t dev)
 {
 	u_int32_t	data;
 	struct sc_info *sc;
-	struct ac97_info *codec;
+	struct ac97_info *codec = NULL;
 	int		i, mapped;
 	char 		status[SND_STATUSLEN];
 
@@ -1496,9 +1496,11 @@ emu_pci_attach(device_t dev)
 	return 0;
 
 bad:
+	if (codec) ac97_destroy(codec);
 	if (sc->reg) bus_release_resource(dev, sc->regtype, sc->regid, sc->reg);
 	if (sc->ih) bus_teardown_intr(dev, sc->irq, sc->ih);
 	if (sc->irq) bus_release_resource(dev, SYS_RES_IRQ, sc->irqid, sc->irq);
+	if (sc->parent_dmat) bus_dma_tag_destroy(sc->parent_dmat);
 	free(sc, M_DEVBUF);
 	return ENXIO;
 }
@@ -1520,6 +1522,7 @@ emu_pci_detach(device_t dev)
 	bus_release_resource(dev, sc->regtype, sc->regid, sc->reg);
 	bus_teardown_intr(dev, sc->irq, sc->ih);
 	bus_release_resource(dev, SYS_RES_IRQ, sc->irqid, sc->irq);
+	bus_dma_tag_destroy(sc->parent_dmat);
 	free(sc, M_DEVBUF);
 
 	return 0;

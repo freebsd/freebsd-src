@@ -137,7 +137,7 @@ static pcmchan_caps nm_caps = {4000, 48000, nm_fmt, 0};
 
 static pcm_channel nm_chantemplate = {
 	nmchan_init,
-	nmchan_setdir,
+	NULL, 			/* setdir */
 	nmchan_setformat,
 	nmchan_setspeed,
 	nmchan_setblocksize,
@@ -379,12 +379,6 @@ nmchan_free(void *data)
 }
 
 static int
-nmchan_setdir(void *data, int dir)
-{
-	return 0;
-}
-
-static int
 nmchan_setformat(void *data, u_int32_t format)
 {
 	struct sc_chinfo *ch = data;
@@ -599,7 +593,7 @@ nm_pci_attach(device_t dev)
 {
 	u_int32_t	data;
 	struct sc_info *sc;
-	struct ac97_info *codec;
+	struct ac97_info *codec = 0;
 	char 		status[SND_STATUSLEN];
 
 	if ((sc = malloc(sizeof(*sc), M_DEVBUF, M_NOWAIT)) == NULL) {
@@ -658,12 +652,33 @@ nm_pci_attach(device_t dev)
 	return 0;
 
 bad:
+	if (codec) ac97_destroy(codec);
 	if (sc->buf) bus_release_resource(dev, SYS_RES_MEMORY, sc->bufid, sc->buf);
 	if (sc->reg) bus_release_resource(dev, SYS_RES_MEMORY, sc->regid, sc->reg);
 	if (sc->ih) bus_teardown_intr(dev, sc->irq, sc->ih);
 	if (sc->irq) bus_release_resource(dev, SYS_RES_IRQ, sc->irqid, sc->irq);
 	free(sc, M_DEVBUF);
 	return ENXIO;
+}
+
+static int
+nm_pci_detach(device_t dev)
+{
+	int r;
+	struct sc_info *sc;
+
+	r = pcm_unregister(dev);
+	if (r)
+		return r;
+
+	sc = pcm_getdevinfo(dev);
+	bus_release_resource(dev, SYS_RES_MEMORY, sc->bufid, sc->buf);
+	bus_release_resource(dev, SYS_RES_MEMORY, sc->regid, sc->reg);
+	bus_teardown_intr(dev, sc->irq, sc->ih);
+	bus_release_resource(dev, SYS_RES_IRQ, sc->irqid, sc->irq);
+	free(sc, M_DEVBUF);
+
+	return 0;
 }
 
 static int
