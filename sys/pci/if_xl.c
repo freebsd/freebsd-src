@@ -322,7 +322,8 @@ DRIVER_MODULE(miibus, xl, miibus_driver, miibus_devclass, 0, 0);
  * but it isn't called during normal operation so we can afford
  * to make it a function.
  */
-static void xl_wait(sc)
+static void
+xl_wait(sc)
 	struct xl_softc		*sc;
 {
 	register int		i;
@@ -358,7 +359,8 @@ static void xl_wait(sc)
 /*
  * Sync the PHYs by setting data bit and strobing the clock 32 times.
  */
-static void xl_mii_sync(sc)
+static void
+xl_mii_sync(sc)
 	struct xl_softc		*sc;
 {
 	register int		i;
@@ -379,7 +381,8 @@ static void xl_mii_sync(sc)
 /*
  * Clock a series of bits through the MII.
  */
-static void xl_mii_send(sc, bits, cnt)
+static void
+xl_mii_send(sc, bits, cnt)
 	struct xl_softc		*sc;
 	u_int32_t		bits;
 	int			cnt;
@@ -405,7 +408,8 @@ static void xl_mii_send(sc, bits, cnt)
 /*
  * Read an PHY register through the MII.
  */
-static int xl_mii_readreg(sc, frame)
+static int
+xl_mii_readreg(sc, frame)
 	struct xl_softc		*sc;
 	struct xl_mii_frame	*frame;
 	
@@ -503,7 +507,8 @@ fail:
 /*
  * Write to a PHY register through the MII.
  */
-static int xl_mii_writereg(sc, frame)
+static int
+xl_mii_writereg(sc, frame)
 	struct xl_softc		*sc;
 	struct xl_mii_frame	*frame;
 	
@@ -553,7 +558,8 @@ static int xl_mii_writereg(sc, frame)
 	return(0);
 }
 
-static int xl_miibus_readreg(dev, phy, reg)
+static int
+xl_miibus_readreg(dev, phy, reg)
 	device_t		dev;
 	int			phy, reg;
 {
@@ -581,7 +587,8 @@ static int xl_miibus_readreg(dev, phy, reg)
 	return(frame.mii_data);
 }
 
-static int xl_miibus_writereg(dev, phy, reg, data)
+static int
+xl_miibus_writereg(dev, phy, reg, data)
 	device_t		dev;
 	int			phy, reg, data;
 {
@@ -604,7 +611,8 @@ static int xl_miibus_writereg(dev, phy, reg, data)
 	return(0);
 }
 
-static void xl_miibus_statchg(dev)
+static void
+xl_miibus_statchg(dev)
 	device_t		dev;
 {
         struct xl_softc		*sc;
@@ -641,7 +649,8 @@ static void xl_miibus_statchg(dev)
  * point we will get a callback telling is that it's safe to add our
  * extra media.
  */
-static void xl_miibus_mediainit(dev)
+static void
+xl_miibus_mediainit(dev)
 	device_t		dev;
 {
         struct xl_softc		*sc;
@@ -689,7 +698,8 @@ static void xl_miibus_mediainit(dev)
  * The EEPROM is slow: give it time to come ready after issuing
  * it a command.
  */
-static int xl_eeprom_wait(sc)
+static int
+xl_eeprom_wait(sc)
 	struct xl_softc		*sc;
 {
 	int			i;
@@ -713,7 +723,8 @@ static int xl_eeprom_wait(sc)
  * Read a sequence of words from the EEPROM. Note that ethernet address
  * data is stored in the EEPROM in network byte order.
  */
-static int xl_read_eeprom(sc, dest, off, cnt, swap)
+static int
+xl_read_eeprom(sc, dest, off, cnt, swap)
 	struct xl_softc		*sc;
 	caddr_t			dest;
 	int			off;
@@ -800,7 +811,8 @@ static u_int8_t xl_calchash(addr)
  * NICs older than the 3c905B have only one multicast option, which
  * is to enable reception of all multicast frames.
  */
-static void xl_setmulti(sc)
+static void
+xl_setmulti(sc)
 	struct xl_softc		*sc;
 {
 	struct ifnet		*ifp;
@@ -835,7 +847,8 @@ static void xl_setmulti(sc)
 /*
  * 3c905B adapters have a hash filter that we can program.
  */
-static void xl_setmulti_hash(sc)
+static void
+xl_setmulti_hash(sc)
 	struct xl_softc		*sc;
 {
 	struct ifnet		*ifp;
@@ -881,7 +894,8 @@ static void xl_setmulti_hash(sc)
 }
 
 #ifdef notdef
-static void xl_testpacket(sc)
+static void
+xl_testpacket(sc)
 	struct xl_softc		*sc;
 {
 	struct mbuf		*m;
@@ -910,7 +924,8 @@ static void xl_testpacket(sc)
 }
 #endif
 
-static void xl_setcfg(sc)
+static void
+xl_setcfg(sc)
 	struct xl_softc		*sc;
 {
 	u_int32_t		icfg;
@@ -930,7 +945,8 @@ static void xl_setcfg(sc)
 	return;
 }
 
-static void xl_setmode(sc, media)
+static void
+xl_setmode(sc, media)
 	struct xl_softc		*sc;
 	int			media;
 {
@@ -1025,7 +1041,8 @@ static void xl_setmode(sc, media)
 	return;
 }
 
-static void xl_reset(sc)
+static void
+xl_reset(sc)
 	struct xl_softc		*sc;
 {
 	register int		i;
@@ -1076,7 +1093,8 @@ static void xl_reset(sc)
  * Probe for a 3Com Etherlink XL chip. Check the PCI vendor and device
  * IDs against our list and return a device name if we find a match.
  */
-static int xl_probe(dev)
+static int
+xl_probe(dev)
 	device_t		dev;
 {
 	struct xl_type		*t;
@@ -1107,7 +1125,8 @@ static int xl_probe(dev)
  * will try to guess the media options values and warn the user of a
  * possible manufacturing defect with his adapter/system/whatever.
  */
-static void xl_mediacheck(sc)
+static void
+xl_mediacheck(sc)
 	struct xl_softc		*sc;
 {
 
@@ -1147,7 +1166,8 @@ static void xl_mediacheck(sc)
 	return;
 }
 
-static void xl_choose_xcvr(sc, verbose)
+static void
+xl_choose_xcvr(sc, verbose)
 	struct xl_softc		*sc;
 	int			verbose;
 {
@@ -1242,7 +1262,8 @@ static void xl_choose_xcvr(sc, verbose)
  * Attach the interface. Allocate softc structures, do ifmedia
  * setup and ethernet/BPF attach.
  */
-static int xl_attach(dev)
+static int
+xl_attach(dev)
 	device_t		dev;
 {
 	u_char			eaddr[ETHER_ADDR_LEN];
@@ -1633,7 +1654,8 @@ fail:
 	return(error);
 }
 
-static int xl_detach(dev)
+static int
+xl_detach(dev)
 	device_t		dev;
 {
 	struct xl_softc		*sc;
@@ -1672,7 +1694,8 @@ static int xl_detach(dev)
 /*
  * Initialize the transmit descriptors.
  */
-static int xl_list_tx_init(sc)
+static int
+xl_list_tx_init(sc)
 	struct xl_softc		*sc;
 {
 	struct xl_chain_data	*cd;
@@ -1738,7 +1761,8 @@ static int xl_list_tx_init_90xB(sc)
  * we arrange the descriptors in a closed ring, so that the last descriptor
  * points back to the first.
  */
-static int xl_list_rx_init(sc)
+static int
+xl_list_rx_init(sc)
 	struct xl_softc		*sc;
 {
 	struct xl_chain_data	*cd;
@@ -1772,7 +1796,8 @@ static int xl_list_rx_init(sc)
 /*
  * Initialize an RX descriptor and attach an MBUF cluster.
  */
-static int xl_newbuf(sc, c)
+static int
+xl_newbuf(sc, c)
 	struct xl_softc		*sc;
 	struct xl_chain_onefrag	*c;
 {
@@ -1801,7 +1826,8 @@ static int xl_newbuf(sc, c)
 	return(0);
 }
 
-static int xl_rx_resync(sc)
+static int
+xl_rx_resync(sc)
 	struct xl_softc		*sc;
 {
 	struct xl_chain_onefrag	*pos;
@@ -1827,7 +1853,8 @@ static int xl_rx_resync(sc)
  * A frame has been uploaded: pass the resulting mbuf chain up to
  * the higher level protocols.
  */
-static void xl_rxeof(sc)
+static void
+xl_rxeof(sc)
 	struct xl_softc		*sc;
 {
         struct ether_header	*eh;
@@ -1943,7 +1970,8 @@ again:
  * A frame was downloaded to the chip. It's safe for us to clean up
  * the list buffers.
  */
-static void xl_txeof(sc)
+static void
+xl_txeof(sc)
 	struct xl_softc		*sc;
 {
 	struct xl_chain		*cur_tx;
@@ -2035,7 +2063,8 @@ static void xl_txeof_90xB(sc)
  * only get a 'TX complete' interrupt if there's a transmit error,
  * so this is really TX error handler.
  */
-static void xl_txeoc(sc)
+static void
+xl_txeoc(sc)
 	struct xl_softc		*sc;
 {
 	u_int8_t		txstat;
@@ -2097,7 +2126,8 @@ static void xl_txeoc(sc)
 	return;
 }
 
-static void xl_intr(arg)
+static void
+xl_intr(arg)
 	void			*arg;
 {
 	struct xl_softc		*sc;
@@ -2156,7 +2186,8 @@ static void xl_intr(arg)
 	return;
 }
 
-static void xl_stats_update(xsc)
+static void
+xl_stats_update(xsc)
 	void			*xsc;
 {
 	struct xl_softc		*sc;
@@ -2211,7 +2242,8 @@ static void xl_stats_update(xsc)
  * Encapsulate an mbuf chain in a descriptor by coupling the mbuf data
  * pointers to the fragment pointers.
  */
-static int xl_encap(sc, c, m_head)
+static int
+xl_encap(sc, c, m_head)
 	struct xl_softc		*sc;
 	struct xl_chain		*c;
 	struct mbuf		*m_head;
@@ -2291,7 +2323,8 @@ static int xl_encap(sc, c, m_head)
  * copy of the pointers since the transmit list fragment pointers are
  * physical addresses.
  */
-static void xl_start(ifp)
+static void
+xl_start(ifp)
 	struct ifnet		*ifp;
 {
 	struct xl_softc		*sc;
@@ -2541,7 +2574,8 @@ static void xl_start_90xB(ifp)
 	return;
 }
 
-static void xl_init(xsc)
+static void
+xl_init(xsc)
 	void			*xsc;
 {
 	struct xl_softc		*sc = xsc;
@@ -2750,7 +2784,8 @@ static void xl_init(xsc)
 /*
  * Set media options.
  */
-static int xl_ifmedia_upd(ifp)
+static int
+xl_ifmedia_upd(ifp)
 	struct ifnet		*ifp;
 {
 	struct xl_softc		*sc;
@@ -2790,7 +2825,8 @@ static int xl_ifmedia_upd(ifp)
 /*
  * Report current media status.
  */
-static void xl_ifmedia_sts(ifp, ifmr)
+static void
+xl_ifmedia_sts(ifp, ifmr)
 	struct ifnet		*ifp;
 	struct ifmediareq	*ifmr;
 {
@@ -2854,7 +2890,8 @@ static void xl_ifmedia_sts(ifp, ifmr)
 	return;
 }
 
-static int xl_ioctl(ifp, command, data)
+static int
+xl_ioctl(ifp, command, data)
 	struct ifnet		*ifp;
 	u_long			command;
 	caddr_t			data;
@@ -2929,7 +2966,8 @@ static int xl_ioctl(ifp, command, data)
 	return(error);
 }
 
-static void xl_watchdog(ifp)
+static void
+xl_watchdog(ifp)
 	struct ifnet		*ifp;
 {
 	struct xl_softc		*sc;
@@ -2965,7 +3003,8 @@ static void xl_watchdog(ifp)
  * Stop the adapter and free any mbufs allocated to the
  * RX and TX lists.
  */
-static void xl_stop(sc)
+static void
+xl_stop(sc)
 	struct xl_softc		*sc;
 {
 	register int		i;
@@ -3034,7 +3073,8 @@ static void xl_stop(sc)
  * Stop all chip I/O so that the kernel's probe routines don't
  * get confused by errant DMAs when rebooting.
  */
-static void xl_shutdown(dev)
+static void
+xl_shutdown(dev)
 	device_t		dev;
 {
 	struct xl_softc		*sc;
@@ -3049,7 +3089,8 @@ static void xl_shutdown(dev)
 	return;
 }
 
-static int xl_suspend(dev)
+static int
+xl_suspend(dev)
 	device_t		dev;
 {
 	struct xl_softc		*sc;
@@ -3063,7 +3104,8 @@ static int xl_suspend(dev)
 	return(0);
 }
 
-static int xl_resume(dev)
+static int
+xl_resume(dev)
 	device_t		dev;
 {
 	struct xl_softc		*sc;

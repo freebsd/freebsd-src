@@ -430,7 +430,8 @@ static u_int8_t ti_eeprom_getbyte(sc, addr, dest)
 /*
  * Read a sequence of bytes from the EEPROM.
  */
-static int ti_read_eeprom(sc, dest, off, cnt)
+static int
+ti_read_eeprom(sc, dest, off, cnt)
 	struct ti_softc		*sc;
 	caddr_t			dest;
 	int			off;
@@ -453,7 +454,8 @@ static int ti_read_eeprom(sc, dest, off, cnt)
  * NIC memory access function. Can be used to either clear a section
  * of NIC local memory or (if buf is non-NULL) copy data into it.
  */
-static void ti_mem(sc, addr, len, buf)
+static void
+ti_mem(sc, addr, len, buf)
 	struct ti_softc		*sc;
 	u_int32_t		addr, len;
 	caddr_t			buf;
@@ -824,7 +826,8 @@ ti_bcopy_swap(src, dst, len, swap_type)
  * is acceptable and see if we want the firmware for the Tigon 1 or
  * Tigon 2.
  */
-static void ti_loadfw(sc)
+static void
+ti_loadfw(sc)
 	struct ti_softc		*sc;
 {
 	switch(sc->ti_hwrev) {
@@ -882,7 +885,8 @@ static void ti_loadfw(sc)
 /*
  * Send the NIC a command via the command ring.
  */
-static void ti_cmd(sc, cmd)
+static void
+ti_cmd(sc, cmd)
 	struct ti_softc		*sc;
 	struct ti_cmd_desc	*cmd;
 {
@@ -904,7 +908,8 @@ static void ti_cmd(sc, cmd)
  * Send the NIC an extended command. The 'len' parameter specifies the
  * number of command slots to include after the initial command.
  */
-static void ti_cmd_ext(sc, cmd, arg, len)
+static void
+ti_cmd_ext(sc, cmd, arg, len)
 	struct ti_softc		*sc;
 	struct ti_cmd_desc	*cmd;
 	caddr_t			arg;
@@ -933,7 +938,8 @@ static void ti_cmd_ext(sc, cmd, arg, len)
 /*
  * Handle events that have triggered interrupts.
  */
-static void ti_handle_events(sc)
+static void
+ti_handle_events(sc)
 	struct ti_softc		*sc;
 {
 	struct ti_event_desc	*e;
@@ -1009,7 +1015,8 @@ static void ti_handle_events(sc)
  * be tuned by changing a #define in if_tireg.h.
  */
 
-static int ti_alloc_jumbo_mem(sc)
+static int
+ti_alloc_jumbo_mem(sc)
 	struct ti_softc		*sc;
 {
 	caddr_t			ptr;
@@ -1076,7 +1083,8 @@ static void *ti_jalloc(sc)
 /*
  * Release a jumbo buffer.
  */
-static void ti_jfree(buf, args)
+static void
+ti_jfree(buf, args)
 	void			*buf;
 	void			*args;
 {
@@ -1112,7 +1120,8 @@ static void ti_jfree(buf, args)
 /*
  * Intialize a standard receive ring descriptor.
  */
-static int ti_newbuf_std(sc, i, m)
+static int
+ti_newbuf_std(sc, i, m)
 	struct ti_softc		*sc;
 	int			i;
 	struct mbuf		*m;
@@ -1155,7 +1164,8 @@ static int ti_newbuf_std(sc, i, m)
  * Intialize a mini receive ring descriptor. This only applies to
  * the Tigon 2.
  */
-static int ti_newbuf_mini(sc, i, m)
+static int
+ti_newbuf_mini(sc, i, m)
 	struct ti_softc		*sc;
 	int			i;
 	struct mbuf		*m;
@@ -1195,7 +1205,8 @@ static int ti_newbuf_mini(sc, i, m)
  * Initialize a jumbo receive ring descriptor. This allocates
  * a jumbo buffer from the pool managed internally by the driver.
  */
-static int ti_newbuf_jumbo(sc, i, m)
+static int
+ti_newbuf_jumbo(sc, i, m)
 	struct ti_softc		*sc;
 	int			i;
 	struct mbuf		*m;
@@ -1400,7 +1411,8 @@ ti_newbuf_jumbo(sc, idx, m_old)
  * 256 ring entries and hope that our CPU is fast enough to keep up with
  * the NIC.
  */
-static int ti_init_rx_ring_std(sc)
+static int
+ti_init_rx_ring_std(sc)
 	struct ti_softc		*sc;
 {
 	register int		i;
@@ -1417,7 +1429,8 @@ static int ti_init_rx_ring_std(sc)
 	return(0);
 }
 
-static void ti_free_rx_ring_std(sc)
+static void
+ti_free_rx_ring_std(sc)
 	struct ti_softc		*sc;
 {
 	register int		i;
@@ -1434,7 +1447,8 @@ static void ti_free_rx_ring_std(sc)
 	return;
 }
 
-static int ti_init_rx_ring_jumbo(sc)
+static int
+ti_init_rx_ring_jumbo(sc)
 	struct ti_softc		*sc;
 {
 	register int		i;
@@ -1451,7 +1465,8 @@ static int ti_init_rx_ring_jumbo(sc)
 	return(0);
 }
 
-static void ti_free_rx_ring_jumbo(sc)
+static void
+ti_free_rx_ring_jumbo(sc)
 	struct ti_softc		*sc;
 {
 	register int		i;
@@ -1468,7 +1483,8 @@ static void ti_free_rx_ring_jumbo(sc)
 	return;
 }
 
-static int ti_init_rx_ring_mini(sc)
+static int
+ti_init_rx_ring_mini(sc)
 	struct ti_softc		*sc;
 {
 	register int		i;
@@ -1484,7 +1500,8 @@ static int ti_init_rx_ring_mini(sc)
 	return(0);
 }
 
-static void ti_free_rx_ring_mini(sc)
+static void
+ti_free_rx_ring_mini(sc)
 	struct ti_softc		*sc;
 {
 	register int		i;
@@ -1501,7 +1518,8 @@ static void ti_free_rx_ring_mini(sc)
 	return;
 }
 
-static void ti_free_tx_ring(sc)
+static void
+ti_free_tx_ring(sc)
 	struct ti_softc		*sc;
 {
 	register int		i;
@@ -1521,7 +1539,8 @@ static void ti_free_tx_ring(sc)
 	return;
 }
 
-static int ti_init_tx_ring(sc)
+static int
+ti_init_tx_ring(sc)
 	struct ti_softc		*sc;
 {
 	sc->ti_txcnt = 0;
@@ -1535,7 +1554,8 @@ static int ti_init_tx_ring(sc)
  * but we have to support the old way too so that Tigon 1 cards will
  * work.
  */
-void ti_add_mcast(sc, addr)
+void
+ti_add_mcast(sc, addr)
 	struct ti_softc		*sc;
 	struct ether_addr	*addr;
 {
@@ -1564,7 +1584,8 @@ void ti_add_mcast(sc, addr)
 	return;
 }
 
-void ti_del_mcast(sc, addr)
+void
+ti_del_mcast(sc, addr)
 	struct ti_softc		*sc;
 	struct ether_addr	*addr;
 {
@@ -1607,7 +1628,8 @@ void ti_del_mcast(sc, addr)
  * state so we know what addresses have been programmed into the NIC at
  * any given time.
  */
-static void ti_setmulti(sc)
+static void
+ti_setmulti(sc)
 	struct ti_softc		*sc;
 {
 	struct ifnet		*ifp;
@@ -1685,7 +1707,8 @@ static int ti_64bitslot_war(sc)
  * Do endian, PCI and DMA initialization. Also check the on-board ROM
  * self-test results.
  */
-static int ti_chipinit(sc)
+static int
+ti_chipinit(sc)
 	struct ti_softc		*sc;
 {
 	u_int32_t		cacheline;
@@ -1849,7 +1872,8 @@ static int ti_chipinit(sc)
  * Initialize the general information block and firmware, and
  * start the CPU(s) running.
  */
-static int ti_gibinit(sc)
+static int
+ti_gibinit(sc)
 	struct ti_softc		*sc;
 {
 	struct ti_rcb		*rcb;
@@ -2022,7 +2046,8 @@ static int ti_gibinit(sc)
  * Probe for a Tigon chip. Check the PCI vendor and device IDs
  * against our list and return its name if we find a match.
  */
-static int ti_probe(dev)
+static int
+ti_probe(dev)
 	device_t		dev;
 {
 	struct ti_type		*t;
@@ -2073,7 +2098,8 @@ ti_mbuf_sanity(device_t dev)
 #endif
 
 
-static int ti_attach(dev)
+static int
+ti_attach(dev)
 	device_t		dev;
 {
 	u_int32_t		command;
@@ -2376,7 +2402,8 @@ ti_unref_special(device_t dev)
 }
 
 
-static int ti_detach(dev)
+static int
+ti_detach(dev)
 	device_t		dev;
 {
 	struct ti_softc		*sc;
@@ -2476,7 +2503,8 @@ ti_hdr_split(struct mbuf *top, int hdr_len, int pkt_len, int idx)
  * 3) the frame is from the standard receive ring
  */
 
-static void ti_rxeof(sc)
+static void
+ti_rxeof(sc)
 	struct ti_softc		*sc;
 {
 	struct ifnet		*ifp;
@@ -2600,7 +2628,8 @@ static void ti_rxeof(sc)
 	return;
 }
 
-static void ti_txeof(sc)
+static void
+ti_txeof(sc)
 	struct ti_softc		*sc;
 {
 	struct ti_tx_desc	*cur_tx = NULL;
@@ -2649,7 +2678,8 @@ static void ti_txeof(sc)
 	return;
 }
 
-static void ti_intr(xsc)
+static void
+ti_intr(xsc)
 	void			*xsc;
 {
 	struct ti_softc		*sc;
@@ -2692,7 +2722,8 @@ static void ti_intr(xsc)
 	return;
 }
 
-static void ti_stats_update(sc)
+static void
+ti_stats_update(sc)
 	struct ti_softc		*sc;
 {
 	struct ifnet		*ifp;
@@ -2713,7 +2744,8 @@ static void ti_stats_update(sc)
  * Encapsulate an mbuf chain in the tx ring  by coupling the mbuf data
  * pointers to descriptors.
  */
-static int ti_encap(sc, m_head, txidx)
+static int
+ti_encap(sc, m_head, txidx)
 	struct ti_softc		*sc;
 	struct mbuf		*m_head;
 	u_int32_t		*txidx;
@@ -2813,7 +2845,8 @@ static int ti_encap(sc, m_head, txidx)
  * Main transmit routine. To avoid having to do mbuf copies, we put pointers
  * to the mbuf data regions directly in the transmit descriptors.
  */
-static void ti_start(ifp)
+static void
+ti_start(ifp)
 	struct ifnet		*ifp;
 {
 	struct ti_softc		*sc;
@@ -2879,7 +2912,8 @@ static void ti_start(ifp)
 	return;
 }
 
-static void ti_init(xsc)
+static void
+ti_init(xsc)
 	void			*xsc;
 {
 	struct ti_softc		*sc = xsc;
@@ -2988,7 +3022,8 @@ static void ti_init2(sc)
 /*
  * Set media options.
  */
-static int ti_ifmedia_upd(ifp)
+static int
+ti_ifmedia_upd(ifp)
 	struct ifnet		*ifp;
 {
 	struct ti_softc		*sc;
@@ -3089,7 +3124,8 @@ static int ti_ifmedia_upd(ifp)
 /*
  * Report current media status.
  */
-static void ti_ifmedia_sts(ifp, ifmr)
+static void
+ti_ifmedia_sts(ifp, ifmr)
 	struct ifnet		*ifp;
 	struct ifmediareq	*ifmr;
 {
@@ -3138,7 +3174,8 @@ static void ti_ifmedia_sts(ifp, ifmr)
 	return;
 }
 
-static int ti_ioctl(ifp, command, data)
+static int
+ti_ioctl(ifp, command, data)
 	struct ifnet		*ifp;
 	u_long			command;
 	caddr_t			data;
@@ -3533,7 +3570,8 @@ ti_ioctl2(dev_t dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 	return(error);
 }
 
-static void ti_watchdog(ifp)
+static void
+ti_watchdog(ifp)
 	struct ifnet		*ifp;
 {
 	struct ti_softc		*sc;
@@ -3565,7 +3603,8 @@ static void ti_watchdog(ifp)
  * Stop the adapter and free any mbufs allocated to the
  * RX and TX lists.
  */
-static void ti_stop(sc)
+static void
+ti_stop(sc)
 	struct ti_softc		*sc;
 {
 	struct ifnet		*ifp;
@@ -3614,7 +3653,8 @@ static void ti_stop(sc)
  * Stop all chip I/O so that the kernel's probe routines don't
  * get confused by errant DMAs when rebooting.
  */
-static void ti_shutdown(dev)
+static void
+ti_shutdown(dev)
 	device_t		dev;
 {
 	struct ti_softc		*sc;
