@@ -362,12 +362,15 @@ diskPartition(Device *dev)
 	    break;
 
 	case 'A':
+	case 'F':	/* Undocumented magic Dangerously Dedicated mode */
 #ifdef __alpha__
 	    rv = 1;
 #else	    /* The rest is only relevant on x86 */
 	    cp = variable_get(VAR_DEDICATE_DISK);
 	    if (cp && !strcasecmp(cp, "always"))
 		rv = 1;
+	    else if (toupper(key) == 'A')
+		rv = 0;
 	    else {
 		rv = msgYesNo("Do you want to do this with a true partition entry\n"
 			      "so as to remain cooperative with any future possible\n"
@@ -524,7 +527,7 @@ diskPartition(Device *dev)
 	    break;
 	
 	case 'U':
-	    if ((cp = variable_get(DISK_LABELLED)) && !strcmp(cp, "written")) {
+	    if (!variable_cmp(DISK_LABELLED, "written")) {
 		msgConfirm("You've already written this information out - you\n"
 			   "can't undo it.");
 	    }
@@ -621,21 +624,6 @@ diskPartition(Device *dev)
 	     * starts at sector 0), even in cases where the user has requested
 	     * booteasy or a "standard" MBR -- both would be fatal in this case.
 	     */
-#if 0
-	    if ((d->chunks->part->flags & CHUNK_FORCE_ALL) != CHUNK_FORCE_ALL) {
-#ifdef PC98
-		getBootMgr(d->name, &bootipl, &bootipl_size,
-			   &bootmenu, &bootmenu_size);
-		if (bootipl != NULL && bootmenu != NULL)
-		    Set_Boot_Mgr(d, bootipl, bootipl_size,
-				 bootmenu, bootmenu_size);
-#else
-		getBootMgr(d->name, &mbrContents, &mbrSize);
-		if (mbrContents != NULL)
-		    Set_Boot_Mgr(d, mbrContents, mbrSize);
-#endif
-	    }
-#else
 	    /*
 	     * Don't offer to update the MBR on this disk if the first "real"
 	     * chunk looks like a FreeBSD "all disk" partition, or the disk is
@@ -643,19 +631,20 @@ diskPartition(Device *dev)
 	     */
 	    if ((d->chunks->part->type != freebsd) ||
 		(d->chunks->part->offset > 1)) {
+		if (variable_cmp(DISK_PARTITIONED, "written")) {
 #ifdef PC98
-		getBootMgr(d->name, &bootipl, &bootipl_size,
-			   &bootmenu, &bootmenu_size);
-		if (bootipl != NULL && bootmenu != NULL)
-		    Set_Boot_Mgr(d, bootipl, bootipl_size,
-				 bootmenu, bootmenu_size);
+		    getBootMgr(d->name, &bootipl, &bootipl_size,
+			&bootmenu, &bootmenu_size);
+		    if (bootipl != NULL && bootmenu != NULL)
+			Set_Boot_Mgr(d, bootipl, bootipl_size,
+			    bootmenu, bootmenu_size);
 #else
-		getBootMgr(d->name, &mbrContents, &mbrSize);
-		if (mbrContents != NULL)
-		    Set_Boot_Mgr(d, mbrContents, mbrSize);
+		    getBootMgr(d->name, &mbrContents, &mbrSize);
+		    if (mbrContents != NULL)
+			Set_Boot_Mgr(d, mbrContents, mbrSize);
+		}
 #endif
 	    }
-#endif
 	    break;
 
 	case 'Z':
@@ -804,7 +793,9 @@ diskPartitionWrite(dialogMenuItem *self)
 {
     Device **devs;
     int i;
-    char *cp;
+
+    if (!variable_cmp(DISK_PARTITIONED, "written"))
+	return DITEM_SUCCESS;
 
     devs = deviceFind(NULL, DEVICE_TYPE_DISK);
     if (!devs) {
@@ -813,10 +804,6 @@ diskPartitionWrite(dialogMenuItem *self)
     }
     if (isDebug())
 	msgDebug("diskPartitionWrite: Examining %d devices\n", deviceCount(devs));
-    cp = variable_get(DISK_PARTITIONED);
-    if (cp && !strcmp(cp, "written"))
-	return DITEM_SUCCESS;
-
     for (i = 0; devs[i]; i++) {
 	Disk *d = (Disk *)devs[i]->private;
 	static u_char *boot1;
@@ -841,10 +828,6 @@ diskPartitionWrite(dialogMenuItem *self)
 	    msgConfirm("ERROR: Unable to write data to disk %s!", d->name);
 	    return DITEM_FAILURE;
 	}
-
-	/* If we've been through here before, we don't need to do the rest */
-	if (cp && !strcmp(cp, "written"))
-	    return DITEM_SUCCESS;
     }
     /* Now it's not "yes", but "written" */
     variable_set2(DISK_PARTITIONED, "written", 0);
@@ -969,3 +952,4 @@ diskPartitionNonInteractive(Device *dev)
 	variable_set2(DISK_PARTITIONED, "yes", 0);
     }
 }
+

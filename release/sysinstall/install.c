@@ -747,41 +747,25 @@ installFixupBin(dialogMenuItem *self)
 
     /* All of this is done only as init, just to be safe */
     if (RunningAsInit) {
-	/* Fix up kernel first */
-	if (!file_readable("/kernel")) {
-	    char *generic_kernel = "/kernel.GENERIC";
-	    if (file_readable(generic_kernel)) {
-		if (vsystem("cp -p %s /kernel", generic_kernel)) {
-		    msgConfirm("Unable to copy /kernel into place!");
-		    return DITEM_FAILURE;
-		}
-#ifndef __alpha__
-                /* Snapshot any boot -c changes back to the new kernel */
-		cp = variable_get(VAR_KGET);
-		if (cp && (*cp == 'Y' || *cp == 'y')) {
-		    if ((kstat = kget("/boot/kernel.conf")) != NULL) {
-			msgConfirm("Kernel copied OK, but unable to save boot -c changes\n"
-				   "to it.  See the debug screen (ALT-F2) for details.");
-		    }
-		}
-		if ((fp = fopen("/boot/loader.conf", "a")) != NULL) {
-		    fprintf(fp, "# -- sysinstall generated deltas -- #\n");
-		    if (!kstat)
-			fprintf(fp, "userconfig_script_load=\"YES\"\n");
-		    if (!OnVTY)
-			fprintf(fp, "console=\"comconsole\"\n");
-		    fclose(fp);
-		}
-#endif
-	    }
-	    else {
-		msgConfirm("Can't find a kernel image to link to on the root file system!\n"
-			   "You're going to have a hard time getting this system to\n"
-			   "boot from the hard disk, I'm afraid!");
-		return DITEM_FAILURE;
+#ifdef __i386__
+        /* Snapshot any boot -c changes back to the new kernel */
+	cp = variable_get(VAR_KGET);
+	if (cp && (*cp == 'Y' || *cp == 'y')) {
+	    if ((kstat = kget("/boot/kernel.conf")) != NULL) {
+		msgConfirm("Unable to save boot -c changes to new kernel,\n"
+			   "please see the debug screen (ALT-F2) for details.");
 	    }
 	}
-	
+	if ((fp = fopen("/boot/loader.conf", "a")) != NULL) {
+	    if (!kstat || !OnVTY)
+		fprintf(fp, "# -- sysinstall generated deltas -- #\n");
+	    if (!kstat)
+		fprintf(fp, "userconfig_script_load=\"YES\"\n");
+	    if (!OnVTY)
+		fprintf(fp, "console=\"comconsole\"\n");
+	    fclose(fp);
+	}
+#endif
 	/* BOGON #1: Resurrect /dev after bin distribution screws it up */
 	dialog_clear_norefresh();
 	msgNotify("Remaking all devices.. Please wait!");
@@ -946,6 +930,11 @@ installFilesystems(dialogMenuItem *self)
 		msgConfirm("Warning: fsck returned status of %d for %s.\n"
 			   "This partition may be unsafe to use.", i, dname);
 	}
+	if (root->soft) {
+	    i = vsystem("tunefs -n enable %s", dname);
+	    if (i)
+		msgConfirm("Warning:  Unable to enable softupdates for root filesystem on %s", dname);
+	}
 
 	/* Switch to block device */
 	sprintf(dname, "/dev/%s", rootdev->name);
@@ -988,6 +977,8 @@ installFilesystems(dialogMenuItem *self)
 			    command_shell_add(tmp->mountpoint, "%s %s/dev/%s", tmp->newfs_cmd, RunningAsInit ? "/mnt" : "", c2->name);
 			else
 			    command_shell_add(tmp->mountpoint, "fsck -y %s/dev/%s", RunningAsInit ? "/mnt" : "", c2->name);
+			if (tmp->soft)
+			    command_shell_add(tmp->mountpoint, "tunefs -n enable %s/dev/%s", RunningAsInit ? "/mnt" : "", c2->name);
 			command_func_add(tmp->mountpoint, Mount, c2->name);
 		    }
 		    else if (c2->type == part && c2->subtype == FS_SWAP) {

@@ -109,6 +109,23 @@ slices.  For FreeBSD partitions, you can also toggle the "newfs" state
 so that the partitions are either (re)created from scratch or simply
 checked and mounted (the contents are preserved).
 
+If you set (S)oftUpdates on a filesystem, it will cause the
+"Soft Updates" policy to be in effect for it.  This basically causes
+both metadata and data blocks to be written asynchronously to disk,
+but with extra state information which causes the metadata and any
+related data blocks to be committed in a single transaction.  This
+results in async metadata update speeds (which are considerably
+faster than the default sync) without the potential for data loss
+which could occur if you simply mounted the filesystem with purely
+"async" update policy and then had a power failure.  If you wish
+to later turn the softupdates policy back off, use the command
+"tunefs -n disable devicename".  NOTE:  It is probably not wise
+to use this on your root filesystem unless you have a large
+(e.g. non-standard size) root.  The reason is that smaller filesystems
+with significant activity can temporarily overflow if the soft updates
+policy results in free'd blocks not being "garbage collected" as fast
+as they're being requested.
+
 When you're done, type `Q' to exit.
 
 No actual changes will be made to the disk until you (C)ommit from the

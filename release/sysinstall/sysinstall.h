@@ -283,6 +283,7 @@ typedef struct _part_info {
     Boolean newfs;
     char mountpoint[FILENAME_MAX];
     char newfs_cmd[NEWFS_CMD_MAX];
+    int soft;
 } PartInfo;
 
 /* An option */
@@ -402,6 +403,7 @@ extern DMenu		MenuUsermgmt;		/* User management menu				*/
 extern DMenu		MenuFixit;		/* Fixit floppy/CDROM/shell menu		*/
 extern DMenu		MenuXF86Config;		/* Select XFree86 configuration type		*/
 extern int              FixItMode;              /* FixItMode starts shell onc urrent device (ie Serial port) */
+extern const char *	StartName;		/* Which name we were started as */
 
 /* Stuff from libdialog which isn't properly declared outside */
 extern void display_helpfile(void);
@@ -664,6 +666,9 @@ extern int	layoutDialogLoop(WINDOW *win, Layout *layout, ComposeObj **obj,
 extern WINDOW	*savescr(void);
 extern void	restorescr(WINDOW *w);
 extern char	*sstrncpy(char *dst, const char *src, int size);
+
+/* modules.c */
+extern void	moduleInitialize(void);
 
 /* mouse.c */
 extern int	mousedTest(dialogMenuItem *self);
