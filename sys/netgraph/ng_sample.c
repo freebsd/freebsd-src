@@ -151,7 +151,7 @@ static int
 ng_xxx_constructor(node_p node)
 {
 	xxx_p privdata;
-	int i, error;
+	int i;
 
 	/* Initialize private descriptor */
 	MALLOC(privdata, xxx_p, sizeof(*privdata), M_NETGRAPH,
@@ -164,7 +164,7 @@ ng_xxx_constructor(node_p node)
 	}
 
 	/* Link structs together; this counts as our one reference to *nodep */
-	NG_NODE_PRIVATE(node) = privdata;
+	NG_NODE_SET_PRIVATE(node, privdata);
 	privdata->node = node;
 	return (0);
 }
@@ -331,8 +331,6 @@ ng_xxx_rcvdata(hook_p hook, item_p item )
 	int dlci = -2;
 	int error;
 	struct mbuf *m;
-	meta_p meta;
-
 
 	NGI_GET_M(item, m);
 	if (NG_HOOK_PRIVATE(hook)) {
@@ -422,7 +420,6 @@ static int
 ng_xxx_shutdown(node_p node)
 {
 	const xxx_p privdata = NG_NODE_PRIVATE(node);
-	int error;
 
 #ifndef PERSISTANT_NODE
 	NG_NODE_SET_PRIVATE(node, NULL);
@@ -485,7 +482,7 @@ ng_xxx_connect(hook_p hook)
 }
 
 /*
- * Dook disconnection
+ * Hook disconnection
  *
  * For this type, removal of the last link destroys the node
  */
