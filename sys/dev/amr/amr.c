@@ -1884,7 +1884,9 @@ amr_describe_controller(struct amr_softc *sc)
 	    break;
 	}
     } else {
-	prod = "unsupported controller";
+	device_printf(sc->amr_dev, "<unsupported controller>\n");
+	mtx_unlock(&sc->amr_io_lock);
+	return;
     }
 
     /*
