@@ -190,9 +190,9 @@ idad_attach(device_t dev)
 		return (ENXIO);
 	}
 
-	drv->cylinders = dinfo.ncylinders;
-	drv->heads = dinfo.nheads;
-	drv->sectors = dinfo.nsectors;
+	drv->cylinders = dinfo.dp.ncylinders;
+	drv->heads = dinfo.dp.nheads;
+	drv->sectors = dinfo.dp.nsectors;
 	drv->secsize = dinfo.secsize == 0 ? 512 : dinfo.secsize;
 	drv->secperunit = dinfo.secperunit;
 
