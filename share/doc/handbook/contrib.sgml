@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.43 1996/01/07 11:55:51 joerg Exp $ -->
+<!-- $Id: contrib.sgml,v 1.44 1996/01/13 07:53:08 asami Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>FreeBSD contributor list<label id="contrib"></heading>
@@ -151,6 +151,7 @@
 	  <item>Anthony Yee-Hang Chan &lt;yeehang@netcom.com&gt;
 	  <item>Bill Fenner &lt;fenner@parc.xerox.com&gt;
 	  <item>Bob Wilcox &lt;bob@obiwan.uucp&gt;
+	  <item>Brian Clapper &lt;bmc@telebase.com&gt;
 	  <item>Brian Tao &lt;taob@gate.sinica.edu.tw&gt;
 	  <item>Charles Hannum &lt;mycroft@ai.mit.edu&gt;
 	  <item>Chet Ramey &lt;chet@odin.INS.CWRU.Edu&gt;
