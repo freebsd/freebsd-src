@@ -91,6 +91,7 @@ SUBDIR=	3dfx \
 	tx \
 	txp \
 	udbp \
+	ufm \
 	ugen \
 	uhid \
 	ukbd \
