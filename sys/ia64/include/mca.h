@@ -86,13 +86,13 @@ struct mca_cpu_record {
 	uint64_t	cpu_errmap;
 	uint64_t	cpu_state;
 	uint64_t	cpu_cr_lid;
-	/* Nx cpu_mod (cache) */
-	/* Nx cpu_mod (TLB) */
-	/* Nx cpu_mod (bus) */
-	/* Nx cpu_mod (reg) */
-	/* Nx cpu_mod (MS) */
-	/* cpu_cpuid */
-	/* cpu_psi */
+	/* Nx cpu_mod (cache). */
+	/* Nx cpu_mod (TLB). */
+	/* Nx cpu_mod (bus). */
+	/* Nx cpu_mod (reg). */
+	/* Nx cpu_mod (MS). */
+	/* cpu_cpuid. */
+	/* cpu_psi. */
 };
 
 struct mca_cpu_cpuid {
@@ -146,7 +146,7 @@ struct mca_mem_record {
 #define	MCA_MEM_FLAGS_RSPID		(1ULL << 12)
 #define	MCA_MEM_FLAGS_TGTID		(1ULL << 13)
 #define	MCA_MEM_FLAGS_BUSDATA		(1ULL << 14)
-#define	MCA_MEM_FLAGS_PLATFORM_ID	(1ULL << 15)
+#define	MCA_MEM_FLAGS_OEM_ID		(1ULL << 15)
 #define	MCA_MEM_FLAGS_OEM_DATA		(1ULL << 16)
 	uint64_t	mem_status;
 	uint64_t	mem_addr;
@@ -163,9 +163,69 @@ struct mca_mem_record {
 	uint64_t	mem_rspid;
 	uint64_t	mem_tgtid;
 	uint64_t	mem_busdata;
-	struct mca_guid	mem_platform;		/* XXX not really a GUID. */
+	struct mca_guid	mem_oem_id;		/* XXX not really a GUID. */
 	uint16_t	mem_oem_length;		/* Size of OEM data. */
-	/* N bytes of OEM platform data */
+	/* N bytes of OEM platform data. */
+};
+
+struct mca_pcibus_record {
+	uint64_t	pcibus_flags;
+#define	MCA_PCIBUS_FLAGS_STATUS		(1ULL << 0)
+#define	MCA_PCIBUS_FLAGS_ERROR		(1ULL << 1)
+#define	MCA_PCIBUS_FLAGS_BUS		(1ULL << 2)
+#define	MCA_PCIBUS_FLAGS_ADDR		(1ULL << 3)
+#define	MCA_PCIBUS_FLAGS_DATA		(1ULL << 4)
+#define	MCA_PCIBUS_FLAGS_CMD		(1ULL << 5)
+#define	MCA_PCIBUS_FLAGS_REQID		(1ULL << 6)
+#define	MCA_PCIBUS_FLAGS_RSPID		(1ULL << 7)
+#define	MCA_PCIBUS_FLAGS_TGTID		(1ULL << 8)
+#define	MCA_PCIBUS_FLAGS_OEM_ID		(1ULL << 9)
+#define	MCA_PCIBUS_FLAGS_OEM_DATA	(1ULL << 10)
+	uint64_t	pcibus_status;
+	uint16_t	pcibus_error;
+	uint16_t	pcibus_bus;
+	uint32_t	__reserved;
+	uint64_t	pcibus_addr;
+	uint64_t	pcibus_data;
+	uint64_t	pcibus_cmd;
+	uint64_t	pcibus_reqid;
+	uint64_t	pcibus_rspid;
+	uint64_t	pcibus_tgtid;
+	struct mca_guid	pcibus_oem_id;		/* XXX not really a GUID. */
+	uint16_t	pcibus_oem_length;	/* Size of OEM data. */
+	/* N bytes of OEM platform data. */
+};
+
+struct mca_pcidev_record {
+	uint64_t	pcidev_flags;
+#define	MCA_PCIDEV_FLAGS_STATUS		(1ULL << 0)
+#define	MCA_PCIDEV_FLAGS_INFO		(1ULL << 1)
+#define	MCA_PCIDEV_FLAGS_REG_MEM	(1ULL << 2)
+#define	MCA_PCIDEV_FLAGS_REG_IO		(1ULL << 3)
+#define	MCA_PCIDEV_FLAGS_REG_DATA	(1ULL << 4)
+#define	MCA_PCIDEV_FLAGS_OEM_DATA	(1ULL << 5)
+	uint64_t	pcidev_status;
+	struct {
+		uint16_t	info_vendor;
+		uint16_t	info_device;
+		uint32_t	info_ccfn;	/* Class code & funct. nr. */
+#define	MCA_PCIDEV_INFO_CLASS(x)	((x) & 0xffffff)
+#define	MCA_PCIDEV_INFO_FUNCTION(x)	(((x) >> 24) & 0xff)
+		uint8_t		info_slot;
+		uint8_t		info_bus;
+		uint8_t		info_segment;
+		uint8_t		__res0;
+		uint32_t	__res1;
+	} pcidev_info;
+	uint32_t	pcidev_reg_mem;
+	uint32_t	pcidev_reg_io;
+	/* Nx pcidev_reg. */
+	/* M bytes of OEM platform data. */
+};
+
+struct mca_pcidev_reg {
+	uint64_t	pcidev_reg_addr;
+	uint64_t	pcidev_reg_data;
 };
 
 #define	MCA_GUID_CPU		\
