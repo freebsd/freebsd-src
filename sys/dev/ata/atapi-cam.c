@@ -518,19 +518,19 @@ atapi_cb(struct atapi_request *req)
 	   req->sense.asc, req->sense.ascq);
 #endif
     if (hcb_status != 0) {
-	hcb->ccb->csio.scsi_status = SCSI_STATUS_CHECK_COND;
-	if ((hcb->ccb->ccb_h.flags & CAM_DIS_AUTOSENSE) == 0) {
-	    hcb->ccb->ccb_h.status |= CAM_AUTOSNS_VALID;
+	csio->scsi_status = SCSI_STATUS_CHECK_COND;
+	if ((csio->ccb_h.flags & CAM_DIS_AUTOSENSE) == 0) {
+	    csio->ccb_h.status |= CAM_AUTOSNS_VALID;
 	    bcopy((void *)&req->sense, (void *)&csio->sense_data,
 		  sizeof(struct atapi_reqsense));
 	}
 	free_hcb_and_ccb_done(hcb, CAM_SCSI_STATUS_ERROR);
     } 
     else {
-	if (((hcb->ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN) &&
+	if (((csio->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN) &&
 	    hcb->dxfer_alloc != NULL)
 	    bcopy(hcb->dxfer_alloc, csio->data_ptr, csio->dxfer_len);
-	hcb->ccb->csio.scsi_status = SCSI_STATUS_OK;
+	csio->scsi_status = SCSI_STATUS_OK;
 	free_hcb_and_ccb_done(hcb, CAM_REQ_CMP);
     }
     splx(s);
