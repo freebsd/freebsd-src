@@ -202,7 +202,7 @@ afd_describe(struct afd_softc *fdp)
 	    printf("\n");
     }
     else {
-	printf("afd%d: %luMB <%.40s> [%d/%d/%d] at ata%d-%s using %s\n",
+	printf("afd%d: %luMB <%.40s> [%d/%d/%d] at ata%d-%s %s\n",
 	       fdp->lun, (fdp->cap.cylinders*fdp->cap.heads*fdp->cap.sectors) /
 			 ((1024L * 1024L) / fdp->cap.sector_size),	
 	       ATA_PARAM(fdp->atp->controller, fdp->atp->unit)->model,
