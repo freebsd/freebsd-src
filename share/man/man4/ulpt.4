@@ -1,5 +1,4 @@
 .\" $NetBSD: ulpt.4,v 1.6 2002/02/05 00:37:48 augustss Exp $
-.\" $FreeBSD$
 .\"
 .\" Copyright (c) 1999 The NetBSD Foundation, Inc.
 .\" All rights reserved.
@@ -35,6 +34,8 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
+.\" $FreeBSD$
+.\"
 .Dd July 12, 1998
 .Dt ULPT 4
 .Os
@@ -49,17 +50,16 @@ The
 driver provides support for USB printers that follow the printer
 bi- or uni-directional protocol.
 The bits in the minor number select various features of the driver.
-.Pp
 .Bl -column "Minor Bit" "Functionxxxxxxxxxxxxxxxxxxxxxxxxxxxx" -offset indent
-.It Em "Minor Bit"	Function
-.It  64	Do not initialize (reset) the device on the port.
+.Em "Minor Bit	Function"
+64	Do not initialize (reset) the device on the port.
 .El
 .Pp
 Some printers cannot handle the reset on open; in case of problems try the
 .Pa ulpn
 device.
 .Sh FILES
-.Bl -tag -width xxxxxxxxxx
+.Bl -tag -width ".Pa /dev/ulpt?" -compact
 .It Pa /dev/ulpt?
 device with reset
 .It Pa /dev/ulpn?
@@ -76,5 +76,6 @@ appeared in
 .Nx 1.4 .
 This manual page was adopted from
 .Nx
-by Tom Rhodes <trhodes@FreeBSD.org>
+by
+.An Tom Rhodes Aq trhodes@FreeBSD.org
 in April 2002.
