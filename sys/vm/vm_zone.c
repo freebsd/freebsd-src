@@ -32,6 +32,59 @@
 
 static MALLOC_DEFINE(M_ZONE, "ZONE", "Zone header");
 
+#define ZONE_ERROR_INVALID 0
+#define ZONE_ERROR_NOTFREE 1
+#define ZONE_ERROR_ALREADYFREE 2
+
+#define ZONE_ROUNDING	32
+
+#define ZENTRY_FREE	0x12342378
+/*
+ * void *zalloc(vm_zone_t zone) --
+ *	Returns an item from a specified zone.
+ *
+ * void zfree(vm_zone_t zone, void *item) --
+ *  Frees an item back to a specified zone.
+ */
+static __inline__ void *
+_zalloc(vm_zone_t z)
+{
+	void *item;
+
+#ifdef INVARIANTS
+	if (z == 0)
+		zerror(ZONE_ERROR_INVALID);
+#endif
+
+	if (z->zfreecnt <= z->zfreemin)
+		return _zget(z);
+
+	item = z->zitems;
+	z->zitems = ((void **) item)[0];
+#ifdef INVARIANTS
+	if (((void **) item)[1] != (void *) ZENTRY_FREE)
+		zerror(ZONE_ERROR_NOTFREE);
+	((void **) item)[1] = 0;
+#endif
+
+	z->zfreecnt--;
+	z->znalloc++;
+	return item;
+}
+
+static __inline__ void
+_zfree(vm_zone_t z, void *item)
+{
+	((void **) item)[0] = z->zitems;
+#ifdef INVARIANTS
+	if (((void **) item)[1] == (void *) ZENTRY_FREE)
+		zerror(ZONE_ERROR_ALREADYFREE);
+	((void **) item)[1] = (void *) ZENTRY_FREE;
+#endif
+	z->zitems = item;
+	z->zfreecnt++;
+}
+
 /*
  * This file comprises a very simple zone allocator.  This is used
  * in lieu of the malloc allocator, where needed or more optimal.
@@ -247,10 +300,29 @@ zunlock(vm_zone_t z, int s)
  *
  */
 
+void *
+zalloc(vm_zone_t z)
+{
+#if defined(SMP)
+	return zalloci(z);
+#else
+	return _zalloc(z);
+#endif
+}
+
+void
+zfree(vm_zone_t z, void *item)
+{
+#ifdef SMP
+	zfreei(z, item);
+#else
+	_zfree(z, item);
+#endif
+}
+ 
 /*
  * Zone allocator/deallocator.  These are interrupt / (or potentially SMP)
- * safe.  The raw zalloc/zfree routines are in the vm_zone header file,
- * and are not interrupt safe, but are fast.
+ * safe.  The raw zalloc/zfree routines are not interrupt safe, but are fast.
  */
 void *
 zalloci(vm_zone_t z)
