@@ -1,4 +1,4 @@
-/* $Id: ccd.c,v 1.48 1999/05/30 16:51:18 phk Exp $ */
+/* $Id: ccd.c,v 1.49 1999/06/27 09:28:43 peter Exp $ */
 
 /*	$NetBSD: ccd.c,v 1.22 1995/12/08 19:13:26 thorpej Exp $	*/
 
@@ -376,7 +376,7 @@ ccdinit(ccd, cpaths, p)
 			free(cs->sc_cinfo, M_DEVBUF);
 			return (error);
 		}
-		ci->ci_dev = udev2dev(va.va_rdev, 2);
+		ci->ci_dev = udev2dev(va.va_rdev, vp->v_type == VBLK ? 1 : 0);
 
 		/*
 		 * Get partition information for the component.
