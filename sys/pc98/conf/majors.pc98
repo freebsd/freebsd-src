@@ -1,4 +1,4 @@
-$Id: majors.pc98,v 1.22 1998/02/14 08:40:09 kato Exp $
+$Id: majors.pc98,v 1.23 1998/02/18 12:34:32 kato Exp $
 
 Hopefully, this list will one day be obsoleted by DEVFS, but for now
 this is the current allocation of device major numbers.
@@ -113,7 +113,7 @@ chrdev	name		comments
 70	od		SCSI "magneto-optical disk type"
 71	asc		AmiScan driver
 72	stl		Stallion (cd1400 based) (gerg@stallion.oz.au)
-73	qcam		quickcam
+73	??		was qcam
 74	ccd		concatenated disk
 75	stli		Stallion (intelligent cdk based) (gerg@stallion.oz.au)
 76	scc		IBM Smart Capture Card (ohashi@mickey.ai.kyutech.ac.jp)
@@ -131,3 +131,4 @@ chrdev	name		comments
 88	dpt		DPT RAID Controller <shimon@i-connect.net>
 89	pps		Pulse-Per-Second timing interface
 90	wst		ATAPI tape client of "ata"
+91	vinum		RAID fs
