@@ -26,7 +26,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $Id$
+.\" $Id: VOP_LOOKUP.9,v 1.1 1997/03/03 18:00:26 dfr Exp $
 .\"
 .Dd July 24, 1996
 .Os FreeBSD
@@ -170,7 +170,7 @@ vop_lookup(struct vnode *dvp,
     struct vnode *vp = NULL;
 
     /*
-     * Check accessiblity of directory.
+     * Check accessibility of directory.
      */
     if (dvp->v_type != VDIR)
 	return ENOTDIR;
@@ -184,7 +184,7 @@ vop_lookup(struct vnode *dvp,
 	return (EROFS);
 
     /*
-     * Check name cachec for directory/name pair.  This returns ENOENT
+     * Check name cache for directory/name pair.  This returns ENOENT
      * if the name is known not to exist, -1 if the name was found, or
      * zero if not.
      */
