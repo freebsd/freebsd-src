@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static const char sccsid[] = "@(#)ns_forw.c	4.32 (Berkeley) 3/3/91";
-static const char rcsid[] = "$Id: ns_forw.c,v 8.68 1999/10/13 16:39:07 vixie Exp $";
+static const char rcsid[] = "$Id: ns_forw.c,v 8.69 1999/11/16 06:01:38 vixie Exp $";
 #endif /* not lint */
 
 /*
@@ -160,7 +160,7 @@ ns_forw(struct databuf *nsp[], u_char *msg, int msglen,
 		}
 	}
 
-	qp = qnew(dname, class, type);
+	qp = qnew(dname, class, type, 1);
 	getname(np, tmpdomain, sizeof tmpdomain);
 	qp->q_domain = savestr(tmpdomain, 1);
 	qp->q_from = from;	/* nslookup wants to know this */
@@ -1140,7 +1140,7 @@ qfindid(u_int16_t id) {
 }
 
 struct qinfo *
-qnew(const char *name, int class, int type) {
+qnew(const char *name, int class, int type, int forward) {
 	struct qinfo *qp;
 	const char *s;
 	int escape = 0;
@@ -1160,7 +1160,8 @@ qnew(const char *name, int class, int type) {
 	qp->q_type = (u_int16_t)type;
 	qp->q_flags = 0;
 	s = name;
-	for (;;) {		/* find forwarding zone, if any */
+	qp->q_fzone = NULL;
+	for (;forward;) {		/* find forwarding zone, if any */
 		if ((qp->q_fzone = find_zone(s, class)) != NULL &&
 		    (qp->q_fzone->z_flags & Z_FORWARD_SET) != 0)
 			break;

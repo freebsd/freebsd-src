@@ -1,3 +1,42 @@
+	--- 8.2.2-P7 released ---
+
+1048.	[bug]		ns_ctl_install() was corrupting the server_controls
+			list.
+
+1007.	[bug]		only set STREAM_AXFRIXFR if the original query is   
+			an IXFR.
+
+ 982.	[bug]		rollback the compression pointers array when a
+			RRset/RR does not fit.
+
+ 962.	[bug]		another almost-complete rewrite of IXFR from kjd (462)
+			[incorporate ZXFR DoS fix from #962]
+
+	--- 8.2.2-P6 released ---
+
+ 903.	[bug]		divide by zero bug when querying for SIG records from
+			a secure zone.
+
+ 902.	[support]	don't attempt to set q_fzone if we won't be using it.
+
+ 901.	[support]	delay notify timer setting until all zones have been
+			loaded.
+
+ 900.	[port]		hpux10 fix call to bison; sco call bison consistenly.
+
+ 899.	[bug]		dynamically allocate buffer used to display RR rather
+			than uses a fixed sized one. grow as needed.
+
+ 898.	[bug]		if truncation caused no RR's to appear in the answer we
+			mis-classified the answer on a NODATA.
+
+ 897.	[support]	descriptors used by named should not be inherited by
+			named-xfer.
+
+ 896.	[contrib]	add contrib/adm/adm-nxt, an exploit for the NXT bug
+			in 8.2 and 8.2.1.  as before, we do not recommend its
+			use, and we do recommend that you run the latest BIND.
+
 	--- 8.2.2-P5 released ---
 
  895.	[port]		minor NT build and documentation improvements.

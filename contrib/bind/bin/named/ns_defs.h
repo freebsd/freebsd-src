@@ -1,6 +1,6 @@
 /*
  *	from ns.h	4.33 (Berkeley) 8/23/90
- *	$Id: ns_defs.h,v 8.89 1999/10/07 08:24:08 vixie Exp $
+ *	$Id: ns_defs.h,v 8.89.2.1 2000/11/09 04:01:21 marka Exp $
  */
 
 /*
@@ -602,7 +602,7 @@ struct qstream {
 #define STREAM_CONNECT_EV	0x08
 #define STREAM_DONE_CLOSE	0x10
 #define STREAM_AXFR		0x20
-#define STREAM_AXFRIXFR		0x22
+#define STREAM_AXFRIXFR		0x40
 
 #define ALLOW_NETS	0x0001
 #define	ALLOW_HOSTS	0x0002

@@ -95,7 +95,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static const char sccsid[] = "@(#)res_debug.c	8.1 (Berkeley) 6/4/93";
-static const char rcsid[] = "$Id: res_debug.c,v 8.32 1999/10/13 16:39:39 vixie Exp $";
+static const char rcsid[] = "$Id: res_debug.c,v 8.33 1999/11/16 05:48:25 vixie Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include "port_before.h"
@@ -149,7 +149,8 @@ do_section(const res_state statp,
 	   int pflag, FILE *file)
 {
 	int n, sflag, rrnum;
-	char buf[2048];	/* XXX need to malloc */
+	static int buflen = 2048;
+	char *buf;
 	ns_opcode opcode;
 	ns_rr rr;
 
@@ -159,6 +160,13 @@ do_section(const res_state statp,
 	sflag = (statp->pfcode & pflag);
 	if (statp->pfcode && !sflag)
 		return;
+
+	buf = malloc(buflen);
+	if (buf == NULL) {
+		fprintf(file, ";; memory allocation failure\n");
+		return;
+	}
+		
 
 	opcode = (ns_opcode) ns_msg_getflag(*handle, ns_f_opcode);
 	rrnum = 0;
@@ -170,7 +178,7 @@ do_section(const res_state statp,
 			else if (rrnum > 0 && sflag != 0 &&
 				 (statp->pfcode & RES_PRF_HEAD1))
 				putc('\n', file);
-			return;
+			goto cleanup;
 		}
 		if (rrnum == 0 && sflag != 0 && (statp->pfcode & RES_PRF_HEAD1))
 			fprintf(file, ";; %s SECTION:\n",
@@ -182,17 +190,30 @@ do_section(const res_state statp,
 				p_class(ns_rr_class(rr)));
 		else {
 			n = ns_sprintrr(handle, &rr, NULL, NULL,
-					buf, sizeof buf);
+					buf, buflen);
 			if (n < 0) {
+				if (errno == ENOSPC) {
+					free(buf);
+					buf = malloc(buflen += 1024);
+					if (buf == NULL) {
+						fprintf(file,
+				              ";; memory allocation failure\n");
+					      return;
+					}
+					continue;
+				}
 				fprintf(file, ";; ns_sprintrr: %s\n",
 					strerror(errno));
-				return;
+				goto cleanup;
 			}
 			fputs(buf, file);
 			fputc('\n', file);
 		}
 		rrnum++;
 	}
+ cleanup:
+	if (buf != NULL)
+		free(buf);
 }
 
 /*

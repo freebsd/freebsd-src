@@ -16,7 +16,7 @@
  */
 
 #ifndef lint
-static const char rcsid[] = "$Id: ns_name.c,v 8.12 1999/10/13 17:11:23 vixie Exp $";
+static const char rcsid[] = "$Id: ns_name.c,v 8.12.2.1 2000/11/09 23:15:32 vixie Exp $";
 #endif
 
 #include "port_before.h"
@@ -500,6 +500,23 @@ ns_name_compress(const char *src, u_char *dst, size_t dstsiz,
 	if (ns_name_pton(src, tmp, sizeof tmp) == -1)
 		return (-1);
 	return (ns_name_pack(tmp, dst, dstsiz, dnptrs, lastdnptr));
+}
+
+/*
+ * Reset dnptrs so that there are no active references to pointers at or
+ * after src.
+ */
+void
+ns_name_rollback(const u_char *src, const u_char **dnptrs,
+		const u_char **lastdnptr)
+{
+	while (dnptrs < lastdnptr && *dnptrs != NULL) {
+		if (*dnptrs >= src) {
+			*dnptrs = NULL;
+			break;
+		}
+		dnptrs++;
+	}
 }
 
 /*

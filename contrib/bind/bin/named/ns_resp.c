@@ -1,6 +1,6 @@
 #if !defined(lint) && !defined(SABER)
 static const char sccsid[] = "@(#)ns_resp.c	4.65 (Berkeley) 3/3/91";
-static const char rcsid[] = "$Id: ns_resp.c,v 8.133 1999/11/05 04:40:57 vixie Exp $";
+static const char rcsid[] = "$Id: ns_resp.c,v 8.136 1999/11/16 07:10:34 vixie Exp $";
 #endif /* not lint */
 
 /*
@@ -788,7 +788,7 @@ ns_resp(u_char *msg, int msglen, struct sockaddr_in from, struct qstream *qsp)
 	/* -ve $ing non-existence of record, must handle non-authoritative
 	 * NOERRORs with c == 0.
 	 */
-	if (!hp->aa && hp->rcode == NOERROR && c == 0)
+	if (!hp->aa && !hp->tc && hp->rcode == NOERROR && c == 0)
 		goto return_msg;
 
 	if (qp->q_flags & Q_SYSTEM)
@@ -2279,7 +2279,7 @@ sysquery(const char *dname, int class, int type,
 	nsp[0] = NULL;
 	ns_debug(ns_log_default, 3, "sysquery(%s, %d, %d, %#x, %d, %d)",
 		 dname, class, type, nss, nsc, ntohs(port));
-	qp = qnew(dname, class, type);
+	qp = qnew(dname, class, type, (nss != NULL && nsc != 0) ? 0 : 1);
 
 	if (nss != NULL && nsc != 0)
 		np = NULL;
@@ -3106,7 +3106,10 @@ finddata(struct namebuf *np, int class, int type,
 
 		case cyclic_order:
 			/* first we do the non-SIG records */
-			choice = ((u_int)rand()>>3) % non_sig_count;
+			if (non_sig_count > 0)
+				choice = ((u_int)rand()>>3) % non_sig_count;
+			else
+				choice = 0;
 			for (i = 0; i < non_sig_count ; i++) {
 				dp = found[(i + choice) % non_sig_count];
 				if (foundcname != 0 && dp->d_type == T_CNAME)

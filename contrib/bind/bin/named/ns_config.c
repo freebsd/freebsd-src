@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(SABER)
-static const char rcsid[] = "$Id: ns_config.c,v 8.104 1999/11/08 23:09:42 vixie Exp $";
+static const char rcsid[] = "$Id: ns_config.c,v 8.105 1999/11/16 06:01:37 vixie Exp $";
 #endif /* not lint */
 
 /*
@@ -3057,4 +3057,6 @@ load_configuration(const char *filename) {
 
 	initial_configuration = 0;
 	loading = 0;
+	/* release queued notifies */
+	notify_afterload();
 }
