@@ -2,7 +2,7 @@
 #-*-mode:perl-*-
 #############################################################################
 #
-# Copyright (C) 1999-2000 Jason Evans <jasone@freebsd.org>.
+# Copyright (C) 1999-2001 Jason Evans <jasone@freebsd.org>.
 # All rights reserved.
 # 
 # Redistribution and use in source and binary forms, with or without
@@ -52,6 +52,7 @@ $opt_help = 0;
 $opt_verbose = 0;
 $opt_quiet = 0;
 $opt_srcdir = ".";
+$opt_objdir = ".";
 $opt_ustats = 0;
 $opt_zero = 0;
 
@@ -59,41 +60,11 @@ $opt_retval =
 &GetOptions("h|help" => \$opt_help,
 	    "v|verbose" => \$opt_verbose,
 	    "q|quiet" => \$opt_quiet,
-            "s|srcdir=s" => \$opt_srcdir,
+	    "s|srcdir=s" => \$opt_srcdir,
+            "o|objdir=s" => \$opt_objdir,
 	    "u|ustats" => \$opt_ustats,
 	    "z|zero" => \$opt_zero
 	    );
-
-$mode = "d";
-for ($i = 0; $i <= $#ARGV; $i++)
-{
-    if (($ARGV[$i] eq "-s") || ($ARGV[$i] eq "--sequence"))
-    {
-	$mode = "s";
-    }
-    elsif (($ARGV[$i] eq "-d") || ($ARGV[$i] eq "--diff"))
-    {
-	$mode = "d";
-    }
-    elsif (-x $ARGV[$i])
-    {
-	if ($mode eq "s")
-	{
-	    @STESTS = (@STESTS, $ARGV[$i]);
-	}
-	else
-	{
-	    @DTESTS = (@DTESTS, $ARGV[$i]);
-	}
-    }
-    else
-    {
-	if (!$opt_quiet)
-	{
-	    print STDERR "Cannot run \"$ARGV[$i]\"\n";
-	}
-    }
-}
 
 if ($opt_help)
 {
@@ -114,7 +85,7 @@ if ($opt_verbose && $opt_quiet)
     exit 1;
 }
 
-if ($#STESTS + $#DTESTS + 2 == 0)
+if ($#ARGV + 1 == 0)
 {
     print STDERR "No tests specified\n";
     &usage();
@@ -123,10 +94,10 @@ if ($#STESTS + $#DTESTS + 2 == 0)
 
 if ($opt_verbose)
 {
-    print STDERR "Option values: h:$opt_help, v:$opt_verbose, q:$opt_quiet, "
-	. "u:$opt_ustats\n";
-    printf STDERR "Sequence tests (%d total): @STESTS\n", $#STESTS + 1;
-    printf STDERR "Diff tests (%d total): @DTESTS\n", $#DTESTS + 1;
+    print STDERR "Option values: h:$opt_help, v:$opt_verbose, "
+	. "s:\"$opt_srcdir\", o:\"$opt_objdir\" "
+	. "q:$opt_quiet, u:$opt_ustats, z:$opt_zero\n";
+    printf STDERR "Tests (%d total): @ARGV\n", $#ARGV + 1;
 }
 
 #
@@ -156,138 +127,130 @@ $total_hutime = 0.0; # Total historical user time.
 $total_hstime = 0.0; # Total historical system time.
 $total_ntime = 0.0; # Total time for tests that have historical data.
 
-foreach $test (@STESTS)
+foreach $test (@ARGV)
 {
-    # sequence mode.
+    # Strip out any whitespace in $test.
+    $test =~ s/^\s*(.*)\s*$/$1/;
+
     $okay = 1;
 
-    ($okay, $utime, $stime) = &run_test($test);
-
-    if (open (STEST_OUT, "<./$test.out"))
+    if (-e "$opt_srcdir/$test.exp")
     {
-	$num_failed_subtests = 0;
+	# Diff mode.
 
-	$_ = <STEST_OUT>;
+	($okay, $utime, $stime) = &run_test($test);
 
-	if ($_ =~ /1\.\.(\d+)/)
+	if (-e "$opt_objdir/$test.out")
 	{
-	    $num_subtests = $1;
+	    `diff $opt_srcdir/$test.exp $opt_objdir/$test.out > $opt_objdir/$test.diff 2>&1`;
+	    if ($?)
+	    {
+		# diff returns non-zero if there is a difference.
+		$okay = 0;
+	    }
 	}
 	else
 	{
-	    $num_subtests = 0;
 	    $okay = 0;
 	    if ($opt_verbose)
 	    {
-		print STDERR "Malformed 1..n line: \"$_\"\n";
+		print STDERR
+		    "Nonexistent output file \"$opt_objdir/$test.out\"\n";
 	    }
 	}
-	for ($subtest = 1; $subtest <= $num_subtests; $subtest++)
+
+	($hutime, $hstime) = &print_stats($test, $okay, 0, 0, $utime, $stime);
+    }
+    else
+    {
+	# Sequence mode.
+
+	($okay, $utime, $stime) = &run_test($test);
+
+	if (open (STEST_OUT, "<$opt_objdir/$test.out"))
 	{
+	    $num_subtests = 0;
+	    $num_failed_subtests = 0;
+
 	    while (defined($line = <STEST_OUT>))
 	    {
-		if ($line =~ /^not\s+ok\s+(\d+)?/)
+		if ($line =~ /1\.\.(\d+)/)
 		{
-		    $not = 1;
-		    $test_num = $1;
-		    last;
-		}
-		elsif ($line =~ /^ok\s+(\d+)?/)
-		{
-		    $not = 0;
-		    $test_num = $1;
+		    $num_subtests = $1;
 		    last;
 		}
 	    }
-	    if (defined($line))
+	    if ($num_subtests == 0)
 	    {
-		if (defined($test_num) && ($test_num != $subtest))
+		$okay = 0;
+		if ($opt_verbose)
 		{
-		    # There was no output printed for one or more tests.
-		    for (; $subtest < $test_num; $subtest++)
-		    {
-			$num_failed_subtests++;
-		    }
-		}
-		if ($not)
-		{
-		    $num_failed_subtests++;
+		    print STDERR "Malformed or missing 1..n line\n";
 		}
 	    }
 	    else
 	    {
-		for (; $subtest <= $num_subtests; $subtest++)
+		for ($subtest = 1; $subtest <= $num_subtests; $subtest++)
 		{
-		    $num_failed_subtests++;
+		    while (defined($line = <STEST_OUT>))
+		    {
+			if ($line =~ /^not\s+ok\s+(\d+)?/)
+			{
+			    $not = 1;
+			    $test_num = $1;
+			    last;
+			}
+			elsif ($line =~ /^ok\s+(\d+)?/)
+			{
+			    $not = 0;
+			    $test_num = $1;
+			    last;
+			}
+		    }
+		    if (defined($line))
+		    {
+			if (defined($test_num) && ($test_num != $subtest))
+			{
+			    # There was no output printed for one or more tests.
+			    for (; $subtest < $test_num; $subtest++)
+			    {
+				$num_failed_subtests++;
+			    }
+			}
+			if ($not)
+			{
+			    $num_failed_subtests++;
+			}
+		    }
+		    else
+		    {
+			for (; $subtest <= $num_subtests; $subtest++)
+			{
+			    $num_failed_subtests++;
+			}
+		    }
+		}
+
+		if (0 < $num_failed_subtests)
+		{
+		    $okay = 0;
 		}
 	    }
 	}
-
-	if (0 < $num_failed_subtests)
+	else
 	{
-	    $okay = 0;
+	    if (!$opt_quiet)
+	    {
+		print STDERR "Cannot open output file \"$opt_objdir/$test.out\"\n";
+	    }
+	    exit 1;
 	}
-    }
-    else
-    {
-	if (!$opt_quiet)
-	{
-	    print STDERR "Cannot open output file \"$test.out\"\n";
-	}
-	exit 1;
+
+	($hutime, $hstime) = &print_stats($test, $okay,
+					  $num_failed_subtests, $num_subtests,
+					  $utime, $stime);
     }
 
-    ($hutime, $hstime) = &print_stats($test, $okay, 
-				      $num_failed_subtests, $num_subtests,
-				      $utime, $stime);
-    $total_hutime += $hutime;
-    $total_hstime += $hstime;
-
-    if ($okay)
-    {
-	$total_utime += $utime;
-	$total_stime += $stime;
-    }
-    else
-    {
-	@FAILED_TESTS = (@FAILED_TESTS, $test);
-    }
-
-    # If there were historical data, add the run time to the total time to 
-    # compare against the historical run time.
-    if (0 < ($hutime + $hstime))
-    {
-	$total_ntime += $utime + $stime;
-    }
-}
-foreach $test (@DTESTS)
-{
-    # Diff mode.
-    $okay = 1;
-
-    ($okay, $utime, $stime) = &run_test($test);
-
-    if (-e "./$test.out" && -e "$opt_srcdir/$test.exp")
-    {
-	`diff ./$test.out $opt_srcdir/$test.exp > ./$test.diff 2>&1`;
-	if ($?)
-	{
-	    # diff returns non-zero if there is a difference.
-	    $okay = 0;
-	}
-    }
-    else
-    {
-	$okay = 0;
-	if ($opt_verbose)
-	{
-	    print STDERR
-		"Nonexistent expected output file \"$opt_srcdir/$test.exp\"\n";
-            print STDERR "\$opt_srcdir is \"$opt_srcdir\"\n";
-	}
-    }
-
-    ($hutime, $hstime) = &print_stats($test, $okay, 0, 0, $utime, $stime);
     $total_hutime += $hutime;
     $total_hstime += $hstime;
 
@@ -311,10 +274,10 @@ foreach $test (@DTESTS)
 
 # Print summary stats.
 $tt_str = sprintf ("%d / %d passed (%5.2f%%%%)",
-		   ($#STESTS + $#DTESTS + 2) - ($#FAILED_TESTS + 1),
-		   $#STESTS + $#DTESTS + 2,
-		   (($#STESTS + $#DTESTS + 2) - ($#FAILED_TESTS + 1))
-		   / ($#STESTS + $#DTESTS + 2) * 100);
+		   ($#ARGV + 1) - ($#FAILED_TESTS + 1),
+		   $#ARGV + 1,
+		   (($#ARGV + 1) - ($#FAILED_TESTS + 1))
+		   / ($#ARGV + 1) * 100);
 
 $t_str = sprintf ("Totals                                   %7.2f  %7.2f %7.2f"
                   . "  %7.2f\n"
@@ -340,6 +303,11 @@ if (!$opt_quiet)
     }
 }
 
+if ($#FAILED_TESTS >= 0)
+{
+    # One or more tests failed, so return an error.
+    exit 1;
+}
 # End of main execution.
 
 sub run_test
@@ -348,8 +316,15 @@ sub run_test
     my ($okay) = 1;
     my ($tutime, $tstime);
     my ($utime, $stime, $cutime, $cstime);
-    my (@TSTATS);
+    my (@TSTATS, @TPATH);
     my ($t_str);
+    my ($srcdir, $objdir);
+
+    # Get the path component of $test, if any.
+    @TPATH = split(/\//, $test);
+    pop(@TPATH);
+    $srcdir = join('/', ($opt_srcdir, @TPATH));
+    $objdir = join('/', ($opt_objdir, @TPATH));
 
     @TSTATS = ("--------------------------------------------------------------------------\n");
 
@@ -365,7 +340,7 @@ sub run_test
     }
 
     ($utime, $stime, $cutime, $cstime) = times;
-    `./$test $opt_srcdir > ./$test.out 2>&1`;
+    `$opt_objdir/$test $srcdir $objdir > $opt_objdir/$test.out 2>&1`;
     ($utime, $stime, $tutime, $tstime) = times;
 
     # Subtract the before time from the after time.
@@ -379,7 +354,8 @@ sub run_test
 	    $okay = 0;
 	    if ($opt_verbose)
 	    {
-		print STDERR "\"./$test > ./$test.out 2>&1\" returned $?\n";
+		print STDERR
+		    "\"$opt_objdir/$test > $opt_objdir/$test.out 2>&1\" returned $?\n";
 	    }
 	}
     }
@@ -404,9 +380,9 @@ sub print_stats
     
     if (-r "$test.perf")
     {
-	if (!open (TEST_PERF, "<./$test.perf"))
+	if (!open (TEST_PERF, "<$opt_objdir/$test.perf"))
 	{
-	    print STDERR "Unable to open \"./$test.perf\"\n";
+	    print STDERR "Unable to open \"$opt_objdir/$test.perf\"\n";
 	    exit 1;
 	}
 	$_ = <TEST_PERF>;
@@ -445,11 +421,11 @@ sub print_stats
 
     if ($okay && $opt_ustats)
     {
-	if (!open (TEST_PERF, ">./$test.perf"))
+	if (!open (TEST_PERF, ">$opt_objdir/$test.perf"))
 	{
 	    if (!$opt_quiet)
 	    {
-		print STDERR "Unable to update \"$test.perf\"\n";
+		print STDERR "Unable to update \"$opt_objdir/$test.perf\"\n";
 	    }
 	}
 	else
@@ -466,7 +442,7 @@ sub usage
 {
     print <<EOF;
 $0 usage:
-    $0 [<options>] -- {[-s | -d | --sequence | --diff] <test>+}+
+    $0 [<options>] <test>+
 
     Option        | Description
     --------------+-------------------------------------------------------------
@@ -474,32 +450,25 @@ $0 usage:
     -v --verbose  | Verbose (incompatible with quiet).
     -q --quiet    | Quiet (incompatible with verbose).
     -s --srcdir   | Path to source tree (default is ".").
+    -o --objdir   | Path to object tree (default is ".").
     -u --ustats   | Update historical statistics (stored in "<test>.perf".
     -z --zero     | Consider non-zero exit code to be an error.
     --------------+-------------------------------------------------------------
 
-    Flag          | Description
-    --------------+-------------------------------------------------------------
-    -s --sequence | Sequence mode (default).
-                  | Output to stdout of the following form is expected:
-                  | 
-                  | -----------------
-                  | 1..<n>
-                  | {not} ok [1]
-                  | {not} ok [2]
-                  | ...
-                  | {not} ok [n]
-                  | -----------------
-                  | 
-                  | 1 <= <n> < 2^31
-                  | 
-                  | Lines which do not match the patterns shown above are
-                  | ignored, except that the 1..<n> construct must be the first
-                  | line of output seen.
-                  | 
-    -d --diff     | Diff mode (incompatible with sequence mode).
-                  | If <test>.exp exists, diff it with the output from <test> to
-                  | determine success or failure.
-    --------------+-------------------------------------------------------------
+    If <test>.exp exists, <test>'s output is diff'ed with <test>.exp.  Any
+    difference is considered failure.
+
+    If <test>.exp does not exist, output to stdout of the following form is
+    expected:
+
+        1..<n>
+        {not }ok[ 1]
+        {not }ok[ 2]
+        ...
+        {not }ok[ n]
+
+    1 <= <n> < 2^31
+
+    Lines which do not match the patterns shown above are ignored.
 EOF
 }
