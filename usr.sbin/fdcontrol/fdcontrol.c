@@ -30,14 +30,18 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif /* not lint */
 
+#include <sys/fdcio.h>
+#include <sys/file.h>
+
 #include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <sys/file.h>
-#include <sys/fdcio.h>
 
-int
+static int getnumber(void);
+static void usage(void);
+
+static int
 getnumber(void)
 {
   int i;
@@ -50,7 +54,7 @@ getnumber(void)
   return i;
 }
 
-void
+static void
 usage(void)
 {
   fprintf(stderr, "usage: fdcontrol [-d 0|1] | [-s] device-node\n");
