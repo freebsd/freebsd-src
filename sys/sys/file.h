@@ -84,8 +84,8 @@ struct file {
 				 * count of sequential accesses -- cleared
 				 * by most seek operations.
 				 */
-	off_t	f_nextread;	/*
-				 * offset of next expected read
+	off_t	f_nextoff;	/*
+				 * offset of next expected read or write
 				 */
 	off_t	f_offset;
 	caddr_t	f_data;		/* vnode or socket */
