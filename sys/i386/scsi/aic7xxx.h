@@ -37,7 +37,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aic7xxx.h,v 1.40 1997/02/25 03:05:35 gibbs Exp $
+ *	$Id: aic7xxx.h,v 1.41 1997/06/27 19:39:20 gibbs Exp $
  */
 
 #ifndef _AIC7XXX_H_
@@ -264,7 +264,12 @@ struct ahc_softc {
 					 * SCBs waiting ready to go but
 					 * waiting for space in the QINFIFO.
 					 */
+	STAILQ_HEAD(, scb) cmplete_scbs;/*
+					 * SCBs out of the QOUTFIFO, waiting
+					 * to be ahc_done'd.
+					 */
 	u_int8_t	activescbs;
+	u_int8_t	cmdoutcnt;
 	u_int16_t	needsdtr_orig;	/* Targets we initiate sync neg with */
 	u_int16_t	needwdtr_orig;	/* Targets we initiate wide neg with */
 	u_int16_t	needsdtr;	/* Current list of negotiated targets */

@@ -39,7 +39,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aic7xxx.c,v 1.119 1997/06/27 19:39:18 gibbs Exp $
+ *      $Id: aic7xxx.c,v 1.120 1997/07/20 16:21:34 bde Exp $
  */
 /*
  * TODO:
@@ -479,6 +479,7 @@ ahc_construct(ahc, bc, ioh, maddr, type, flags)
 	} else
 		ahc->scb_data = scb_data;
 	STAILQ_INIT(&ahc->waiting_scbs);
+	STAILQ_INIT(&ahc->cmplete_scbs);
 #if defined(__FreeBSD__)
 	ahc->unit = unit;
 #endif
@@ -784,6 +785,7 @@ ahc_intr(arg)
 
 		int_cleared = 0;
 		while (qoutcnt = (ahc_inb(ahc, QOUTCNT) & ahc->qcntmask)) {
+			ahc->cmdoutcnt += qoutcnt;
 			for (; qoutcnt > 0; qoutcnt--) {
 				scb_index = ahc_inb(ahc, QOUTFIFO);
 				scb = ahc->scb_data->scbarray[scb_index];
@@ -795,6 +797,23 @@ ahc_intr(arg)
 						qoutcnt);
 					continue;
 				}
+				STAILQ_INSERT_TAIL(&ahc->cmplete_scbs, scb,
+						   links);
+			}
+			if ((ahc->flags & AHC_PAGESCBS) != 0) {
+				if (ahc->cmdoutcnt >= ahc->qfullcount) {
+					/*
+					 * Since paging only occurs on
+					 * aic78X0 chips, we can use
+					 * Auto Access Pause to clear
+					 * the command count.
+					 */
+					ahc_outb(ahc, CMDOUTCNT, 0);
+					ahc->cmdoutcnt = 0;
+				}
+			}
+			while((scb = ahc->cmplete_scbs.stqh_first) != NULL) {
+				STAILQ_REMOVE_HEAD(&ahc->cmplete_scbs, links);
 				/*
 				 * Save off the residual if there is one.
 				 */
@@ -2306,6 +2325,9 @@ ahc_init(ahc)
 	 */
 	ahc_outb(ahc, QCNTMASK, ahc->qcntmask);
 
+	ahc_outb(ahc, FIFODEPTH, ahc->qfullcount);
+	ahc_outb(ahc, CMDOUTCNT, 0);
+
 	/* We don't have any waiting selections */
 	ahc_outb(ahc, WAITING_SCBH, SCB_LIST_NULL);
 
@@ -2581,14 +2603,13 @@ ahc_run_waiting_queue(ahc)
 
 	pause_sequencer(ahc);
 
-	while ((scb = ahc->waiting_scbs.stqh_first) != NULL) {
+	if (ahc->curqincnt >= ahc->qfullcount) {
+		ahc->curqincnt = ahc_inb(ahc, QINCNT) & ahc->qcntmask;
+	}
 
-		if (ahc->curqincnt >= ahc->qfullcount) {
-			ahc->curqincnt = ahc_inb(ahc, QINCNT) & ahc->qcntmask;
-			if (ahc->curqincnt >= ahc->qfullcount)
-				/* Still no space */
-				break;
-		}
+	while ((scb = ahc->waiting_scbs.stqh_first) != NULL
+	    && (ahc->curqincnt < ahc->qfullcount)) {
+
 		STAILQ_REMOVE_HEAD(&ahc->waiting_scbs, links);
 		scb->flags &= ~SCB_WAITINGQ;
 
