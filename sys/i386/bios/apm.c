@@ -14,7 +14,7 @@
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id$
+ *	$Id: apm.c,v 1.53 1997/02/22 09:29:49 peter Exp $
  */
 
 #include <sys/param.h>
@@ -147,7 +147,7 @@ apm_enable_disable_pm(int enable)
 	return apm_int(&eax, &ebx, &ecx);
 }
 
-/* Tell APM-BIOS that WE will do 1.1 and see what they say... */
+/* Tell APM-BIOS that WE will do 1.2 and see what they say... */
 static void
 apm_driver_version(void)
 {
@@ -155,7 +155,11 @@ apm_driver_version(void)
 
 	eax = (APM_BIOS << 8) | APM_DRVVERSION;
 	ebx  = 0x0;
-	/* XXX - The APM 1.1 specification is only supported for now */
+	/* First try APM 1.2 */
+	ecx  = 0x0102;
+	if(!apm_int(&eax, &ebx, &ecx))
+		apm_version = eax & 0xffff;
+	/* Then try APM 1.1 */
 	ecx  = 0x0101;
 	if(!apm_int(&eax, &ebx, &ecx))
 		apm_version = eax & 0xffff;
