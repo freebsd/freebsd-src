@@ -95,6 +95,7 @@
 #define SNDCARD_OPL            28
 
 #include <sys/types.h>
+#include <machine/endian.h>
 #ifndef _IOWR
 #include <sys/ioccom.h>
 #endif  /* !_IOWR */
@@ -161,6 +162,13 @@ struct snd_size {
 #define AFMT_U16_BE	0x00000100	/* Big endian unsigned 16-bit */
 #define AFMT_MPEG	0x00000200	/* MPEG MP2/MP3 audio */
 #define AFMT_AC3	0x00000400	/* Dolby Digital AC3 */
+
+#if BYTE_ORDER == LITTLE_ENDIAN
+#define AFMT_S16_NE	AFMT_S16_LE	/* native endian signed 16 */
+#else
+#define AFMT_S16_NE	AFMT_S16_BE
+#endif
+
 /*
  * 32-bit formats below used for 24-bit audio data where the data is stored
  * in the 24 most significant bits and the least significant bits are not used
