@@ -142,6 +142,8 @@ raw_append(struct inpcb *last, struct ip *ip, struct mbuf *n)
 {
 	int policyfail = 0;
 
+	INP_LOCK_ASSERT(last);
+
 #if defined(IPSEC) || defined(FAST_IPSEC)
 	/* check AH/ESP integrity. */
 	if (ipsec4_in_reject(n, last)) {
