@@ -1,0 +1,230 @@
+#
+#	$Id$
+#
+# This makefile contains rules for preforming upgrades that are outside
+# the scope of the normal build world process.
+#
+
+#
+# Build things relative to the user's preferred object directory,
+# defaulting to /usr/obj if not defined.
+#
+MAKEOBJDIRPREFIX?=/usr/obj
+
+#
+# The installed operating system release gives us the hint as to whether
+# we need to build a kernel too.
+#
+INSTALLEDVERSION!=uname -r
+
+#
+# Upgrade the installed make to the current version using the installed
+# headers, libraries and build tools. This is required on installed versions
+# prior to 2.2.5 in which the installed make doesn't support the -m argument.
+#
+make	:
+	@echo
+	@echo "--------------------------------------------------------------"
+	@echo " Upgrading the installed make"
+	@echo "--------------------------------------------------------------"
+	@cd ${.CURDIR}/usr.bin/make; \
+		make obj && make depend && make all && make install
+
+#
+# Upgrade from aout to elf, doing an aout build first to ensure that there
+# are up-to-date tools before building the initial elf world. The aout
+# tools just built into the object directory tree and executed from there
+# during the elf build. Then install the aout tools, build an aout kernel
+# with them (in case the installed kernel is an older version), then 
+# install the elf world.
+#
+aout-to-elf aout-to-elf-install :				\
+		${MAKEOBJDIRPREFIX}/do_aout_buildworld		\
+		${MAKEOBJDIRPREFIX}/do_elf_buildworld		\
+		${MAKEOBJDIRPREFIX}/do_aout_installworld	\
+		${MAKEOBJDIRPREFIX}/do_aout_kernel		\
+		${MAKEOBJDIRPREFIX}/do_elf_installworld		\
+		${MAKEOBJDIRPREFIX}/do_set_objformat		\
+		${MAKEOBJDIRPREFIX}/do_install_kernel_reboot
+
+#
+# Just do the build parts of the transition build.
+#
+aout-to-elf-build :						\
+		${MAKEOBJDIRPREFIX}/do_aout_buildworld		\
+		${MAKEOBJDIRPREFIX}/do_elf_buildworld		
+
+#
+# The installed system may not have tools capable of building an elf
+# aware world, so a complete aout buildworld is required to get a known
+# set of tools.
+#
+${MAKEOBJDIRPREFIX}/do_aout_buildworld :
+	@echo
+	@echo "--------------------------------------------------------------"
+	@echo " Doing an aout buildworld to get an up-to-date set of tools"
+	@echo "--------------------------------------------------------------"
+	@cd ${.CURDIR}; MAKEOBJDIRPREFIX=${MAKEOBJDIRPREFIX}/aout \
+		OBJFORMAT=aout \
+		make -f Makefile.inc1 -m ${.CURDIR}/share/mk buildworld
+	@touch ${MAKEOBJDIRPREFIX}/do_aout_buildworld
+
+#
+# Temporary path for initial elf build.
+#
+AOUTTMPPATH=	${MAKEOBJDIRPREFIX}/aout${.CURDIR}/tmp/sbin:${MAKEOBJDIRPREFIX}/aout${.CURDIR}/tmp/bin:${MAKEOBJDIRPREFIX}/aout${.CURDIR}/tmp/usr/sbin:${MAKEOBJDIRPREFIX}/aout${.CURDIR}/tmp/usr/bin:${MAKEOBJDIRPREFIX}/aout${.CURDIR}/tmp/usr/games
+
+#
+# Use the aout tools from the aout buildworld to do an elf buildworld.
+#
+${MAKEOBJDIRPREFIX}/do_elf_buildworld :
+	@echo
+	@echo "--------------------------------------------------------------"
+	@echo " Doing an elf buildworld using the aout tools in the aout"
+	@echo " obj tree."
+	@echo "--------------------------------------------------------------"
+	@cd ${.CURDIR}; MAKEOBJDIRPREFIX=${MAKEOBJDIRPREFIX}/elf \
+		PATH=${AOUTTMPPATH} OBJFORMAT=elf NOTOOLS=1 \
+		TOOLROOT=${MAKEOBJDIRPREFIX}/aout${.CURDIR}/tmp \
+		make -f Makefile.inc1 -m ${.CURDIR}/share/mk buildworld
+	@touch ${MAKEOBJDIRPREFIX}/do_elf_buildworld
+
+#
+# Before installing the aout world, allow for the possibility that the
+# world about to be installed has some different syscalls to the installed
+# kernel which will make shutting the system down problematic. We set aside
+# copies of certain programs which match the running kernel.
+#
+# Install the aout world so that anything that isn't replaced by the
+# elf world will be updated.
+#
+${MAKEOBJDIRPREFIX}/do_aout_installworld :
+	@echo
+	@echo "--------------------------------------------------------------"
+	@echo " You are about to update the installed system (or the system"
+	@echo " that your DESTDIR points to). You can type Ctrl-C to abort"
+	@echo " now or press return to start the first phase of the update."
+	@echo "--------------------------------------------------------------"
+	@/bin/sh -c "read -p \"Return to continue or Ctrl-C to abort: \" _e"
+.if	${INSTALLEDVERSION} != "3.0-CURRENT"
+	@echo
+	@echo "--------------------------------------------------------------"
+	@echo " Saving a copy of programs required to shut the system down"
+	@echo "--------------------------------------------------------------"
+	@cp /bin/sh ${MAKEOBJDIRPREFIX}
+	@cp /sbin/reboot ${MAKEOBJDIRPREFIX}
+.endif
+	@echo
+	@echo "--------------------------------------------------------------"
+	@echo " Doing an aout installworld using the aout tools in the aout"
+	@echo " obj tree."
+	@echo "--------------------------------------------------------------"
+	@cd ${.CURDIR}; MAKEOBJDIRPREFIX=${MAKEOBJDIRPREFIX}/aout \
+		PATH=${AOUTTMPPATH} OBJFORMAT=aout NOTOOLS=1 \
+		TOOLROOT=${MAKEOBJDIRPREFIX}/aout${.CURDIR}/tmp \
+		make -f Makefile.inc1 -m ${.CURDIR}/share/mk installworld
+	@touch ${MAKEOBJDIRPREFIX}/do_aout_installworld
+
+#
+# The installed kernel may not match the world that is installed, so build
+# a generic kernel, but don't install it. The user can decide if the kernel
+# needs to be installed. Perhaps we should install it in the root
+# directory as an obscure name just in case a reboot is required?
+#
+${MAKEOBJDIRPREFIX}/do_aout_kernel :
+.if	${INSTALLEDVERSION} == "3.0-CURRENT"
+	@echo
+	@echo "--------------------------------------------------------------"
+	@echo " You are already running 3.0-CURRENT, so a kernel build"
+	@echo " is probably not required."
+	@echo "--------------------------------------------------------------"
+.else
+	@echo
+	@echo "--------------------------------------------------------------"
+	@echo " Building a generic kernel using the new aout tools"
+	@echo "--------------------------------------------------------------"
+.if	exists(${.CURDIR}/sys/compile/GENERICupgrade)
+	@rm -rf ${.CURDIR}/sys/compile/GENERICupgrade
+.endif
+	@cd ${.CURDIR}/sys/i386/conf; config GENERICupgrade
+	@-cd ${.CURDIR}/sys/compile/GENERICupgrade; make depend && make all
+	@cd ${.CURDIR}/sys/compile/GENERICupgrade; make depend && make all
+.endif
+	@touch ${MAKEOBJDIRPREFIX}/do_aout_kernel
+
+#
+# Install the elf world overwriting just about all the previously installed
+# aout world. Any aout things that need to be kept have already been
+# installed in different places (typically in aout subdirectories).
+#
+${MAKEOBJDIRPREFIX}/do_elf_installworld :
+	@echo
+	@echo "--------------------------------------------------------------"
+	@echo " You are about to update the installed system (or the system"
+	@echo " that your DESTDIR points to) with the elf versions of"
+	@echo " everything, replacing the aout versions. You can type Ctrl-C"
+	@echo " to abort now, leaving just the aout world installed, or"
+	@echo " press return to start the second phase of the update."
+	@echo "--------------------------------------------------------------"
+	@/bin/sh -c "read -p \"Return to continue or Ctrl-C to abort: \" _e"
+	@echo
+	@echo "--------------------------------------------------------------"
+	@echo " Doing an elf installworld using the aout tools in the aout"
+	@echo " obj tree."
+	@echo "--------------------------------------------------------------"
+	@cd ${.CURDIR}; MAKEOBJDIRPREFIX=${MAKEOBJDIRPREFIX}/elf \
+		PATH=${AOUTTMPPATH} OBJFORMAT=elf NOTOOLS=1 \
+		TOOLROOT=${MAKEOBJDIRPREFIX}/aout${.CURDIR}/tmp \
+		make -f Makefile.inc1 -m ${.CURDIR}/share/mk installworld
+	@touch ${MAKEOBJDIRPREFIX}/do_elf_installworld
+
+#
+# Now that the elf world has been installed, we can set the default
+# object format to elf.
+#
+${MAKEOBJDIRPREFIX}/do_set_objformat	:
+	@echo
+	@echo "--------------------------------------------------------------"
+	@echo " Setting the default object format to elf"
+	@echo "--------------------------------------------------------------"
+	@echo "OBJFORMAT=elf" > /etc/objformat
+	@touch ${MAKEOBJDIRPREFIX}/do_set_objformat
+
+#
+# If not already running a current kernel, install the GENERICupgrade kernel
+# and reboot.
+#
+${MAKEOBJDIRPREFIX}/do_install_kernel_reboot	:
+.if	${INSTALLEDVERSION} == "3.0-CURRENT"
+	@echo
+	@echo "--------------------------------------------------------------"
+	@echo " Your system has been updated to run elf by default!"
+	@echo
+	@echo " You should reboot your system now."
+	@echo "--------------------------------------------------------------"
+	@touch ${MAKEOBJDIRPREFIX}/do_install_kernel_reboot
+.else
+	@echo
+	@echo "--------------------------------------------------------------"
+	@echo " Your system has been updated to run elf by default!"
+	@echo
+	@echo " Since you are running ${INSTALLEDVERSION}, the kernel must"
+	@echo " be installed before the system is rebooted. You can type"
+	@echo " Ctrl-C to abort the kernel installation (at your own risk),"
+	@echo " or press return for the kernel to be installed and the"
+	@echo " system rebooted."
+	@echo "--------------------------------------------------------------"
+	@${MAKEOBJDIRPREFIX}/sh -c "read -p \"Return to continue or Ctrl-C to abort: \" _e"
+	@echo
+	@echo "--------------------------------------------------------------"
+	@echo " Installing a new GENERICupgrade kernel"
+	@echo "--------------------------------------------------------------"
+	@cd ${.CURDIR}/sys/compile/GENERICupgrade; make install
+	@echo
+	@echo "--------------------------------------------------------------"
+	@echo " Rebooting......."
+	@echo "--------------------------------------------------------------"
+	@touch ${MAKEOBJDIRPREFIX}/do_install_kernel_reboot
+	@-${MAKEOBJDIRPREFIX}/reboot
+.endif
+
