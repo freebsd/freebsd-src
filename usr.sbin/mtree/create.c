@@ -52,6 +52,9 @@ __FBSDID("$FreeBSD$");
 #ifdef RMD160
 #include <ripemd.h>
 #endif
+#ifdef SHA256
+#include <sha256.h>
+#endif
 #include <pwd.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -249,6 +252,16 @@ statf(int indent, FTSENT *p)
 		output(indent, &offset, "ripemd160digest=%s", digest);
 	}
 #endif /* RMD160 */
+#ifdef SHA256
+	if (keys & F_SHA256 && S_ISREG(p->fts_statp->st_mode)) {
+		char *digest, buf[65];
+
+		digest = SHA256_File(p->fts_accpath, buf);
+		if (!digest)
+			err(1, "%s", p->fts_accpath);
+		output(indent, &offset, "sha256digest=%s", digest);
+	}
+#endif /* SHA256 */
 	if (keys & F_SLINK &&
 	    (p->fts_info == FTS_SL || p->fts_info == FTS_SLNONE))
 		output(indent, &offset, "link=%s", rlink(p->fts_accpath));

@@ -194,6 +194,11 @@ set(char *t, NODE *ip)
 			if(!ip->sha1digest)
 				errx(1, "strdup");
 			break;
+		case F_SHA256:
+			ip->sha256digest = strdup(val);
+			if(!ip->sha256digest)
+				errx(1, "strdup");
+			break;
 		case F_RMD160:
 			ip->rmd160digest = strdup(val);
 			if(!ip->rmd160digest)

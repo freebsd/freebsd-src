@@ -46,6 +46,7 @@ typedef struct _node {
 	u_long	cksum;				/* check sum */
 	char	*md5digest;			/* MD5 digest */
 	char	*sha1digest;			/* SHA-1 digest */
+	char	*sha256digest;			/* SHA-256 digest */
 	char	*rmd160digest;			/* RIPEMD160 digest */
 	char	*slink;				/* symbolic link reference */
 	uid_t	st_uid;				/* uid */
@@ -76,6 +77,7 @@ typedef struct _node {
 #define	F_SHA1	0x20000				/* SHA-1 digest */
 #define	F_RMD160 0x40000			/* RIPEMD160 digest */
 #define	F_FLAGS	0x80000				/* file flags */
+#define	F_SHA256	0x100000				/* SHA-256 digest */
 	u_int	flags;				/* items set */
 
 #define	F_BLOCK	0x001				/* block special */
