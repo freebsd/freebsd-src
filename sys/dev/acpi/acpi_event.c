@@ -298,6 +298,19 @@ acpi_enable_events(acpi_softc_t *sc)
 }
 
 void
+acpi_disable_events(acpi_softc_t *sc)
+{
+    u_int32_t	zero;
+
+    if (sc->enabled) {
+	zero = 0;
+	acpi_io_pm1_enable(sc, ACPI_REGISTER_OUTPUT, &zero);
+	acpi_io_gpe0_enable(sc, ACPI_REGISTER_OUTPUT, &zero);
+	acpi_io_gpe1_enable(sc, ACPI_REGISTER_OUTPUT, &zero);
+    }
+}
+
+void
 acpi_clear_ignore_events(void *arg)
 {
     ((acpi_softc_t *)arg)->ignore_events = 0;
