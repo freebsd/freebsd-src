@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	2.3 88/08/11 4.0 RPCSRC
-#	$Id: Makefile,v 1.21 1998/01/19 17:19:09 wpaul Exp $
+#	$Id: Makefile,v 1.22 1998/02/13 03:10:28 bde Exp $
 
 .SUFFIXES: .x
 
@@ -29,7 +29,7 @@ beforeinstall:
 		${DESTDIR}/usr/include/rpc
 
 .x.h:
-	${RPCCOM} -h ${.IMPSRC} -o ${.TARGET}
+	${RPCCOM} -h -DWANT_NFS3 ${.IMPSRC} -o ${.TARGET}
 
 nis.h: nis_object.x
 
