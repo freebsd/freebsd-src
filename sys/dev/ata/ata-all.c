@@ -563,7 +563,7 @@ ata_getparam(struct ata_device *atadev, u_int8_t command)
 	    }
 	    ata_free_request(request);
 	}
-	if (!isalpha(atacap->model[0]) || !isalpha(atacap->model[1]))
+	if (!isprint(atacap->model[0]) || !isprint(atacap->model[1]))
 	    error = ENXIO;
 	if (error) {
 	    atadev->param = NULL;
