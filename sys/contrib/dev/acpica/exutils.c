@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exutils - interpreter/scanner utilities
- *              $Revision: 100 $
+ *              $Revision: 102 $
  *
  *****************************************************************************/
 
@@ -144,6 +144,35 @@
 
 /*******************************************************************************
  *
+ * FUNCTION:    AcpiExValidateObjectType
+ *
+ * PARAMETERS:  Type            Object type to validate
+ *
+ * DESCRIPTION: Determine if a type is a valid ACPI object type
+ *
+ ******************************************************************************/
+
+BOOLEAN
+AcpiExValidateObjectType (
+    ACPI_OBJECT_TYPE        Type)
+{
+
+    ACPI_FUNCTION_ENTRY ();
+
+
+    if ((Type > ACPI_TYPE_MAX && Type < INTERNAL_TYPE_BEGIN) ||
+        (Type > INTERNAL_TYPE_MAX))
+    {
+        return (FALSE);
+    }
+
+    return (TRUE);
+}
+
+#ifndef ACPI_NO_METHOD_EXECUTION
+
+/*******************************************************************************
+ *
  * FUNCTION:    AcpiExEnterInterpreter
  *
  * PARAMETERS:  None
@@ -207,34 +236,6 @@ AcpiExExitInterpreter (void)
     }
 
     return_VOID;
-}
-
-
-/*******************************************************************************
- *
- * FUNCTION:    AcpiExValidateObjectType
- *
- * PARAMETERS:  Type            Object type to validate
- *
- * DESCRIPTION: Determine if a type is a valid ACPI object type
- *
- ******************************************************************************/
-
-BOOLEAN
-AcpiExValidateObjectType (
-    ACPI_OBJECT_TYPE        Type)
-{
-
-    ACPI_FUNCTION_ENTRY ();
-
-
-    if ((Type > ACPI_TYPE_MAX && Type < INTERNAL_TYPE_BEGIN) ||
-        (Type > INTERNAL_TYPE_MAX))
-    {
-        return (FALSE);
-    }
-
-    return (TRUE);
 }
 
 
@@ -365,6 +366,8 @@ AcpiExReleaseGlobalLock (
             ACPI_REPORT_ERROR (("Could not release ACPI Global Lock\n"));
         }
     }
+
+    return_VOID;
 }
 
 
@@ -482,4 +485,4 @@ AcpiExUnsignedIntegerToString (
     }
 }
 
-
+#endif

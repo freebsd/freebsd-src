@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: nsload - namespace loading/expanding/contracting procedures
- *              $Revision: 55 $
+ *              $Revision: 57 $
  *
  *****************************************************************************/
 
@@ -129,61 +129,7 @@
 
 /*******************************************************************************
  *
- * FUNCTION:    AcpiLoadNamespace
- *
- * PARAMETERS:  None
- *
- * RETURN:      Status
- *
- * DESCRIPTION: Load the name space from what ever is pointed to by DSDT.
- *              (DSDT points to either the BIOS or a buffer.)
- *
- ******************************************************************************/
-
-ACPI_STATUS
-AcpiNsLoadNamespace (
-    void)
-{
-    ACPI_STATUS             Status;
-
-
-    ACPI_FUNCTION_TRACE ("AcpiLoadNameSpace");
-
-
-    /* There must be at least a DSDT installed */
-
-    if (AcpiGbl_DSDT == NULL)
-    {
-        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "DSDT is not in memory\n"));
-        return_ACPI_STATUS (AE_NO_ACPI_TABLES);
-    }
-
-    /*
-     * Load the namespace.  The DSDT is required,
-     * but the SSDT and PSDT tables are optional.
-     */
-    Status = AcpiNsLoadTableByType (ACPI_TABLE_DSDT);
-    if (ACPI_FAILURE (Status))
-    {
-        return_ACPI_STATUS (Status);
-    }
-
-    /* Ignore exceptions from these */
-
-    (void) AcpiNsLoadTableByType (ACPI_TABLE_SSDT);
-    (void) AcpiNsLoadTableByType (ACPI_TABLE_PSDT);
-
-    ACPI_DEBUG_PRINT_RAW ((ACPI_DB_OK,
-        "ACPI Namespace successfully loaded at root %p\n",
-        AcpiGbl_RootNode));
-
-    return_ACPI_STATUS (Status);
-}
-
-
-/*******************************************************************************
- *
- * FUNCTION:    AcpiNsOneParsePass
+ * FUNCTION:    NsOneCompleteParse
  *
  * PARAMETERS:  PassNumber              - 1 or 2
  *              TableDesc               - The table to be parsed.
@@ -209,13 +155,12 @@ AcpiNsOneCompleteParse (
 
     /* Create and init a Root Node */
 
-    ParseRoot = AcpiPsAllocOp (AML_SCOPE_OP);
+    ParseRoot = AcpiPsCreateScopeOp ();
     if (!ParseRoot)
     {
         return_ACPI_STATUS (AE_NO_MEMORY);
     }
 
-    ParseRoot->Named.Name = ACPI_ROOT_NAME;
 
     /* Create and initialize a new walk state */
 
@@ -303,6 +248,7 @@ AcpiNsParseTable (
     return_ACPI_STATUS (Status);
 }
 
+#ifndef ACPI_NO_METHOD_EXECUTION
 
 /*******************************************************************************
  *
@@ -536,6 +482,61 @@ UnlockAndExit:
 
 /*******************************************************************************
  *
+ * FUNCTION:    AcpiLoadNamespace
+ *
+ * PARAMETERS:  None
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Load the name space from what ever is pointed to by DSDT.
+ *              (DSDT points to either the BIOS or a buffer.)
+ *
+ ******************************************************************************/
+
+ACPI_STATUS
+AcpiNsLoadNamespace (
+    void)
+{
+    ACPI_STATUS             Status;
+
+
+    ACPI_FUNCTION_TRACE ("AcpiLoadNameSpace");
+
+
+    /* There must be at least a DSDT installed */
+
+    if (AcpiGbl_DSDT == NULL)
+    {
+        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "DSDT is not in memory\n"));
+        return_ACPI_STATUS (AE_NO_ACPI_TABLES);
+    }
+
+    /*
+     * Load the namespace.  The DSDT is required,
+     * but the SSDT and PSDT tables are optional.
+     */
+    Status = AcpiNsLoadTableByType (ACPI_TABLE_DSDT);
+    if (ACPI_FAILURE (Status))
+    {
+        return_ACPI_STATUS (Status);
+    }
+
+    /* Ignore exceptions from these */
+
+    (void) AcpiNsLoadTableByType (ACPI_TABLE_SSDT);
+    (void) AcpiNsLoadTableByType (ACPI_TABLE_PSDT);
+
+    ACPI_DEBUG_PRINT_RAW ((ACPI_DB_OK,
+        "ACPI Namespace successfully loaded at root %p\n",
+        AcpiGbl_RootNode));
+
+    return_ACPI_STATUS (Status);
+}
+
+
+
+/*******************************************************************************
+ *
  * FUNCTION:    AcpiNsDeleteSubtree
  *
  * PARAMETERS:  StartHandle         - Handle in namespace where search begins
@@ -672,4 +673,5 @@ AcpiNsUnloadNamespace (
     return_ACPI_STATUS (Status);
 }
 
+#endif
 
