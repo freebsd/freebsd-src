@@ -50,7 +50,7 @@ do {								\
 		(uufsd)->d_error = str;				\
 } while (0)
 #else	/* _LIBUFS_DEBUGGING */
-#define	DEBUG(uufsd, str)					\
+#define	ERROR(uufsd, str)					\
 do {								\
 	if ((uufsd) != NULL)					\
 		(uufsd)->d_error = str;				\
