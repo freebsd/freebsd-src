@@ -1,13 +1,11 @@
 # $FreeBSD$
 
-PROG= newkey
-SRCS= newkey.c update.c generic.c
-MAN= newkey.8
-
-# Later
+PROG=	newkey
+SRCS=	generic.c newkey.c update.c
+MAN=	newkey.8
+# For later:
 #CFLAGS+= -DYP
-
-DPADD=	${LIBRPCSVC} ${LIBMP} ${LIBGMP}
+DPADD=	${LIBRPCSVC} ${LIBMP} ${LIBCRYPTO}
 LDADD=	-lrpcsvc -lmp -lcrypto
 
 .include <bsd.prog.mk>
