@@ -1543,24 +1543,21 @@ isp_cam_async(void *cbarg, u_int32_t code, struct cam_path *path, void *arg)
 			tgt = xpt_path_target_id(path);
 			ISP_LOCK(isp);
 			sdp += cam_sim_bus(sim);
+			nflags = sdp->isp_devparam[tgt].nvrm_flags;
 #ifndef	ISP_TARGET_MODE
-			if (tgt == sdp->isp_initiator_id) {
-				nflags = DPARM_DEFAULT;
-			} else {
-				nflags = DPARM_SAFE_DFLT;
-				if (isp->isp_loaded_fw) {
-					nflags |= DPARM_NARROW | DPARM_ASYNC;
-				}
+			nflags &= DPARM_SAFE_DFLT;
+			if (isp->isp_loaded_fw) {
+				nflags |= DPARM_NARROW | DPARM_ASYNC;
 			}
 #else
 			nflags = DPARM_DEFAULT;
 #endif
-			oflags = sdp->isp_devparam[tgt].dev_flags;
-			sdp->isp_devparam[tgt].dev_flags = nflags;
+			oflags = sdp->isp_devparam[tgt].goal_flags;
+			sdp->isp_devparam[tgt].goal_flags = nflags;
 			sdp->isp_devparam[tgt].dev_update = 1;
 			isp->isp_update |= (1 << cam_sim_bus(sim));
 			(void) isp_control(isp, ISPCTL_UPDATE_PARAMS, NULL);
-			sdp->isp_devparam[tgt].dev_flags = oflags;
+			sdp->isp_devparam[tgt].goal_flags = oflags;
 			ISP_UNLOCK(isp);
 		}
 		break;
@@ -1963,6 +1960,11 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 #endif
 	case XPT_SET_TRAN_SETTINGS:	/* Nexus Settings */
 		cts = &ccb->cts;
+		if (!IS_CURRENT_SETTINGS(cts)) {
+			ccb->ccb_h.status = CAM_REQ_INVALID;
+			xpt_done(ccb);
+			break;
+		}
 		tgt = cts->ccb_h.target_id;
 		CAMLOCK_2_ISPLOCK(isp);
 		if (IS_SCSI(isp)) {
@@ -1974,15 +1976,15 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 
 			sdp += bus;
 			/*
-			 * We always update (internally) from dev_flags
+			 * We always update (internally) from goal_flags
 			 * so any request to change settings just gets
 			 * vectored to that location.
 			 */
-			dptr = &sdp->isp_devparam[tgt].dev_flags;
+			dptr = &sdp->isp_devparam[tgt].goal_flags;
 
 			/*
 			 * Note that these operations affect the
-			 * the goal flags (dev_flags)- not
+			 * the goal flags (goal_flags)- not
 			 * the current state flags. Then we mark
 			 * things so that the next operation to
 			 * this HBA will cause the update to occur.
@@ -2036,11 +2038,11 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 			bus = cam_sim_bus(xpt_path_sim(cts->ccb_h.path));
 			sdp += bus;
 			/*
-			 * We always update (internally) from dev_flags
+			 * We always update (internally) from goal_flags
 			 * so any request to change settings just gets
 			 * vectored to that location.
 			 */
-			dptr = &sdp->isp_devparam[tgt].dev_flags;
+			dptr = &sdp->isp_devparam[tgt].goal_flags;
 
 			if ((spi->valid & CTS_SPI_VALID_DISC) != 0) {
 				if ((spi->flags & CTS_SPI_FLAGS_DISC_ENB) != 0)
@@ -2067,34 +2069,27 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 			 * XXX: FIX ME
 			 */
 			if ((spi->valid & CTS_SPI_VALID_SYNC_OFFSET) &&
-			    (spi->valid & CTS_SPI_VALID_SYNC_RATE)) {
+			    (spi->valid & CTS_SPI_VALID_SYNC_RATE) &&
+			    (spi->sync_period && spi->sync_offset)) {
 				*dptr |= DPARM_SYNC;
-				isp_prt(isp, ISP_LOGDEBUG0,
-				   "enabling synchronous mode, but ignoring "
-				   "setting to period 0x%x offset 0x%x",
-				   spi->sync_period, spi->sync_offset);
-			} else if (spi->sync_period && spi->sync_offset) {
-				*dptr |= DPARM_SYNC;
-				isp_prt(isp, ISP_LOGDEBUG0,
-				   "enabling synchronous mode (1), but ignoring"
-				   " setting to period 0x%x offset 0x%x",
-				   spi->sync_period, spi->sync_offset);
+				/*
+				 * XXX: CHECK FOR LEGALITY
+				 */
+				sdp->isp_devparam[tgt].goal_period =
+				    spi->sync_period;
+				sdp->isp_devparam[tgt].goal_offset =
+				    spi->sync_offset;
 			} else {
 				*dptr &= ~DPARM_SYNC;
 			}
 #endif
 			isp_prt(isp, ISP_LOGDEBUG0,
-			    "%d.%d set %s period 0x%x offset 0x%x flags 0x%x",
-			    bus, tgt, IS_CURRENT_SETTINGS(cts)?  "current" :
-			    "user", sdp->isp_devparam[tgt].sync_period,
-			    sdp->isp_devparam[tgt].sync_offset,
-			    sdp->isp_devparam[tgt].dev_flags);
+			    "SET bus %d targ %d to flags %x off %x per %x",
+			    bus, tgt, sdp->isp_devparam[tgt].goal_flags,
+			    sdp->isp_devparam[tgt].goal_offset,
+			    sdp->isp_devparam[tgt].goal_period);
 			sdp->isp_devparam[tgt].dev_update = 1;
 			isp->isp_update |= (1 << bus);
-		} else {
-			/*
-			 * What, if anything, are we supposed to do?
-			 */
 		}
 		ISPLOCK_2_CAMLOCK(isp);
 		ccb->ccb_h.status = CAM_REQ_CMP;
@@ -2158,13 +2153,13 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 				isp->isp_update |= (1 << bus);
 				(void) isp_control(isp, ISPCTL_UPDATE_PARAMS,
 				    NULL);
-				dval = sdp->isp_devparam[tgt].cur_dflags;
-				oval = sdp->isp_devparam[tgt].cur_offset;
-				pval = sdp->isp_devparam[tgt].cur_period;
+				dval = sdp->isp_devparam[tgt].actv_flags;
+				oval = sdp->isp_devparam[tgt].actv_offset;
+				pval = sdp->isp_devparam[tgt].actv_period;
 			} else {
-				dval = sdp->isp_devparam[tgt].dev_flags;
-				oval = sdp->isp_devparam[tgt].sync_offset;
-				pval = sdp->isp_devparam[tgt].sync_period;
+				dval = sdp->isp_devparam[tgt].nvrm_flags;
+				oval = sdp->isp_devparam[tgt].nvrm_offset;
+				pval = sdp->isp_devparam[tgt].nvrm_period;
 			}
 
 #ifndef	CAM_NEW_TRAN_CODE
@@ -2205,7 +2200,7 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 			if (dval & DPARM_TQING) {
 				scsi->flags |= CTS_SCSI_FLAGS_TAG_ENB;
 			}
-			if ((dval & DPARM_SYNC) && oval != 0) {
+			if ((dval & DPARM_SYNC) && oval && pval) {
 				spi->sync_offset = oval;
 				spi->sync_period = pval;
 				spi->valid |= CTS_SPI_VALID_SYNC_OFFSET;
@@ -2225,9 +2220,9 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 			}
 #endif
 			isp_prt(isp, ISP_LOGDEBUG0,
-			    "%d.%d get %s period 0x%x offset 0x%x flags 0x%x",
-			    bus, tgt, IS_CURRENT_SETTINGS(cts)? "current" :
-			    "user", pval, oval, dval);
+			    "GET %s bus %d targ %d to flags %x off %x per %x",
+			    IS_CURRENT_SETTINGS(cts)? "ACTIVE" : "NVRAM",
+			    bus, tgt, dval, oval, pval);
 		}
 		ISPLOCK_2_CAMLOCK(isp);
 		ccb->ccb_h.status = CAM_REQ_CMP;
@@ -2462,7 +2457,7 @@ isp_async(struct ispsoftc *isp, ispasync_t cmd, void *arg)
 			break;
 		}
 		CAMLOCK_2_ISPLOCK(isp);
-		flags = sdp->isp_devparam[tgt].cur_dflags;
+		flags = sdp->isp_devparam[tgt].actv_flags;
 #ifdef	CAM_NEW_TRAN_CODE
 		cts.type = CTS_TYPE_CURRENT_SETTINGS;
 		cts.protocol = PROTO_SCSI;
@@ -2490,8 +2485,8 @@ isp_async(struct ispsoftc *isp, ispasync_t cmd, void *arg)
 		if (flags & DPARM_SYNC) {
 			spi->valid |= CTS_SPI_VALID_SYNC_RATE;
 			spi->valid |= CTS_SPI_VALID_SYNC_OFFSET;
-			spi->sync_period = sdp->isp_devparam[tgt].cur_period;
-			spi->sync_offset = sdp->isp_devparam[tgt].cur_offset;
+			spi->sync_period = sdp->isp_devparam[tgt].actv_period;
+			spi->sync_offset = sdp->isp_devparam[tgt].actv_offset;
 		}
 #else
 		cts.flags = CCB_TRANS_CURRENT_SETTINGS;
@@ -2505,8 +2500,8 @@ isp_async(struct ispsoftc *isp, ispasync_t cmd, void *arg)
 		cts.valid |= CCB_TRANS_BUS_WIDTH_VALID;
 		cts.bus_width = (flags & DPARM_WIDE)?
 		    MSG_EXT_WDTR_BUS_8_BIT : MSG_EXT_WDTR_BUS_16_BIT;
-		cts.sync_period = sdp->isp_devparam[tgt].cur_period;
-		cts.sync_offset = sdp->isp_devparam[tgt].cur_offset;
+		cts.sync_period = sdp->isp_devparam[tgt].actv_period;
+		cts.sync_offset = sdp->isp_devparam[tgt].actv_offset;
 		if (flags & DPARM_SYNC) {
 			cts.valid |=
 			    CCB_TRANS_SYNC_RATE_VALID |
@@ -2515,8 +2510,8 @@ isp_async(struct ispsoftc *isp, ispasync_t cmd, void *arg)
 #endif
 		isp_prt(isp, ISP_LOGDEBUG2,
 		    "NEW_TGT_PARAMS bus %d tgt %d period %x offset %x flags %x",
-		    bus, tgt, sdp->isp_devparam[tgt].cur_period,
-		    sdp->isp_devparam[tgt].cur_offset, flags);
+		    bus, tgt, sdp->isp_devparam[tgt].actv_period,
+		    sdp->isp_devparam[tgt].actv_offset, flags);
 		xpt_setup_ccb(&cts.ccb_h, tmppath, 1);
 		ISPLOCK_2_CAMLOCK(isp);
 		xpt_async(AC_TRANSFER_NEG, tmppath, &cts);
