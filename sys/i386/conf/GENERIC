@@ -126,6 +126,7 @@ device		aac		# Adaptec FSA RAID
 device		aacp		# SCSI passthrough for aac (requires CAM)
 device		amr		# AMI MegaRAID
 device		ida		# Compaq Smart RAID
+device		ips		# IBM (Adaptec) ServeRAID
 device		mlx		# Mylex DAC960 family
 device		pst		# Promise Supertrak SX6000
 device		twe		# 3ware ATA RAID
