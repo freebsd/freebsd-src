@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: Makefile,v 1.1.1.1 1997/09/24 20:37:12 markm Exp $
 
 SUBDIR=	include lib libexec usr.bin usr.sbin
 
@@ -30,7 +30,7 @@ kprog:
 bootstrap:
 	  ${MAKE} ${MFLAGS} cleandir; \
 	  ${MAKE} ${MFLAGS} obj; \
-	  ${MAKE} ${MFLAGS} depend all install kprog )
+	  ${MAKE} ${MFLAGS} depend all install kprog
 
 help-distribute:	distribute
 	cd ${SDIR}/bin/rcp; ${CODAD}
