@@ -31,28 +31,31 @@
  * SUCH DAMAGE.
  *
  *	from: @(#) floatingpoint.h	1.0 (Berkeley) 9/23/93
- *	$Id: floatingpoint.h,v 1.4 1993/11/07 17:42:55 wollman Exp $
- */
-
-/*
- *	IEEE floating point structure and function definitions
+ *	$Id: floatingpoint.h,v 1.5 1994/08/04 19:16:36 wollman Exp $
  */
 
 #ifndef _FLOATINGPOINT_H_
 #define _FLOATINGPOINT_H_
+
+/*
+ * IEEE floating point structure and function definitions
+ */
+
+/*-
+ * XXX the following undocumented pollution is exported:
+ *	fpsetsticky().
+ *	FP*FLD, FP*OFF and FP*REG from <machine/ieeefp.h>
+ */
 
 #include <sys/cdefs.h>
 #include <machine/ieeefp.h>
 
 #ifdef __GNUC__
 
-#ifdef __i386__
-
-#define fnstcw(addr)	__asm("fnstcw %0" : "=m" (*addr) : "0" (*addr))
-#define fnstsw(addr)	__asm("fnstsw %0" : "=m" (*addr) : "0" (*addr))
-#define fnstenv(addr)	__asm("fnstenv %0" : "=m" (*addr) : "0" (*addr))
-#define fldenv(addr)	__asm("fldenv %0" : : "m" (*addr))
-
+#define __fldenv(addr)	__asm __volatile("fldenv %0" : : "m" (*(addr)))
+#define __fnstenv(addr)	__asm __volatile("fnstenv %0" : "=m" (*(addr)))
+#define __fnstcw(addr)	__asm __volatile("fnstcw %0" : "=m" (*(addr)))
+#define __fnstsw(addr)	__asm __volatile("fnstsw %0" : "=m" (*(addr)))
 
 /*
  * return the contents of a FP register
@@ -62,12 +65,20 @@ __fpgetreg(int _reg)
 {
 	unsigned short _mem;
 
+	/*-
+	 * This is more efficient than it looks.  The switch gets optimized
+	 * away if _reg is constant.
+	 *
+	 * The default case only supports _reg == 0.  We could handle more
+	 * registers (e.g., tags) using fnstenv, but the interface doesn't
+	 * support more.
+	 */
 	switch(_reg) {
 	default:
-		fnstcw(&_mem);
+		__fnstcw(&_mem);
 		break;
 	case FP_STKY_REG:
-		fnstsw(&_mem);
+		__fnstsw(&_mem);
 		break;
 	}
 	return _mem;
@@ -82,14 +93,15 @@ __fpsetreg(int _m, int _reg, int _fld, int _off)
 	unsigned _env[7];
 	unsigned _p;
 
-	fnstenv(_env);
+	/*
+	 * _reg == 0 could be handled better using fnstcw/fldcw.
+	 */
+	__fnstenv(_env);
 	_p =  (_env[_reg] & _fld) >> _off;
 	_env[_reg] = (_env[_reg] & ~_fld) | (_m << _off & _fld);
-	fldenv(_env);
+	__fldenv(_env);
 	return _p;
 }
-
-#endif /* __i386__ */
 
 #endif /* __GNUC__ */
 
