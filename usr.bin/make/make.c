@@ -78,11 +78,11 @@ __FBSDID("$FreeBSD$");
 #include    "dir.h"
 #include    "job.h"
 
-static Lst     *toBeMade;	/* The current fringe of the graph. These
-				 * are nodes which await examination by
-				 * MakeOODate. It is added to by
-				 * Make_Update and subtracted from by
-				 * MakeStartJobs */
+/* The current fringe of the graph. These are nodes which await examination
+ * by MakeOODate. It is added to by Make_Update and subtracted from by
+ * MakeStartJobs */
+static Lst toBeMade = Lst_Initializer(toBeMade);
+
 static int  	numNodes;   	/* Number of nodes to be processed. If this
 				 * is non-zero when Job_Empty() returns
 				 * TRUE, there's a cycle in the graph */
@@ -241,7 +241,7 @@ Make_OODate(GNode *gn)
      * thinking they're out-of-date.
      */
     if (!oodate) {
-	Lst_ForEach(gn->parents, MakeTimeStamp, gn);
+	Lst_ForEach(&gn->parents, MakeTimeStamp, gn);
     }
 
     return (oodate);
@@ -302,20 +302,20 @@ Make_HandleUse(GNode *cgn, GNode *pgn)
     LstNode	*ln;	 	/* An element in the children list */
 
     if (cgn->type & (OP_USE | OP_TRANSFORM)) {
-	if ((cgn->type & OP_USE) || Lst_IsEmpty(pgn->commands)) {
+	if ((cgn->type & OP_USE) || Lst_IsEmpty(&pgn->commands)) {
 	    /*
 	     * .USE or transformation and target has no commands -- append
 	     * the child's commands to the parent.
 	     */
-	     Lst_Concat(pgn->commands, cgn->commands, LST_CONCNEW);
+	     Lst_Concat(&pgn->commands, &cgn->commands, LST_CONCNEW);
 	}
 
-	for (ln = Lst_First(cgn->children); ln != NULL; ln = Lst_Succ(ln)) {
+	for (ln = Lst_First(&cgn->children); ln != NULL; ln = Lst_Succ(ln)) {
 	    gn = Lst_Datum(ln);
 
-	    if (Lst_Member(pgn->children, gn) == NULL) {
-		Lst_AtEnd(pgn->children, gn);
-		Lst_AtEnd(gn->parents, pgn);
+	    if (Lst_Member(&pgn->children, gn) == NULL) {
+		Lst_AtEnd(&pgn->children, gn);
+		Lst_AtEnd(&gn->parents, pgn);
 		pgn->unmade += 1;
 	    }
 	}
@@ -412,7 +412,7 @@ Make_Update(GNode *cgn)
 	 * To force things that depend on FRC to be made, so we have to
 	 * check for gn->children being empty as well...
 	 */
-	if (!Lst_IsEmpty(cgn->commands) || Lst_IsEmpty(cgn->children)) {
+	if (!Lst_IsEmpty(&cgn->commands) || Lst_IsEmpty(&cgn->children)) {
 	    cgn->mtime = now;
 	}
 #else
@@ -446,7 +446,7 @@ Make_Update(GNode *cgn)
 #endif
     }
 
-    for (ln = Lst_First(cgn->parents); ln != NULL; ln = Lst_Succ(ln)) {
+    for (ln = Lst_First(&cgn->parents); ln != NULL; ln = Lst_Succ(ln)) {
 	pgn = Lst_Datum(ln);
 	if (pgn->make) {
 	    pgn->unmade -= 1;
@@ -466,7 +466,7 @@ Make_Update(GNode *cgn)
 		 * Queue the node up -- any unmade predecessors will
 		 * be dealt with in MakeStartJobs.
 		 */
-		Lst_EnQueue(toBeMade, pgn);
+		Lst_EnQueue(&toBeMade, pgn);
 	    } else if (pgn->unmade < 0) {
 		Error("Graph cycles through %s", pgn->name);
 	    }
@@ -479,13 +479,13 @@ Make_Update(GNode *cgn)
      * it means we need to place it in the queue as it restrained itself
      * before.
      */
-    for (ln = Lst_First(cgn->successors); ln != NULL; ln = Lst_Succ(ln)) {
+    for (ln = Lst_First(&cgn->successors); ln != NULL; ln = Lst_Succ(ln)) {
 	GNode	*succ = Lst_Datum(ln);
 
 	if (succ->make && succ->unmade == 0 && succ->made == UNMADE &&
-	    Lst_Member(toBeMade, succ) == NULL)
+	    Lst_Member(&toBeMade, succ) == NULL)
 	{
-	    Lst_EnQueue(toBeMade, succ);
+	    Lst_EnQueue(&toBeMade, succ);
 	}
     }
 
@@ -494,7 +494,7 @@ Make_Update(GNode *cgn)
      * of this node.
      */
     cpref = Var_Value(PREFIX, cgn, &ptr);
-    for (ln = Lst_First(cgn->iParents); ln != NULL; ln = Lst_Succ(ln)) {
+    for (ln = Lst_First(&cgn->iParents); ln != NULL; ln = Lst_Succ(ln)) {
 	pgn = Lst_Datum (ln);
 	if (pgn->make) {
 	    Var_Set(IMPSRC, cname, pgn);
@@ -599,7 +599,7 @@ void
 Make_DoAllVar(GNode *gn)
 {
 
-    Lst_ForEach(gn->children, MakeAddAllSrc, gn);
+    Lst_ForEach(&gn->children, MakeAddAllSrc, gn);
 
     if (!Var_Exists (OODATE, gn)) {
 	Var_Set(OODATE, "", gn);
@@ -637,17 +637,17 @@ MakeStartJobs(void)
 {
     GNode	*gn;
 
-    while (!Lst_IsEmpty(toBeMade) && !Job_Full()) {
-	gn = Lst_DeQueue(toBeMade);
+    while (!Lst_IsEmpty(&toBeMade) && !Job_Full()) {
+	gn = Lst_DeQueue(&toBeMade);
 	DEBUGF(MAKE, ("Examining %s...", gn->name));
 	/*
 	 * Make sure any and all predecessors that are going to be made,
 	 * have been.
 	 */
-	if (!Lst_IsEmpty(gn->preds)) {
+	if (!Lst_IsEmpty(&gn->preds)) {
 	    LstNode *ln;
 
-	    for (ln = Lst_First(gn->preds); ln != NULL; ln = Lst_Succ(ln)){
+	    for (ln = Lst_First(&gn->preds); ln != NULL; ln = Lst_Succ(ln)){
 		GNode	*pgn = Lst_Datum(ln);
 
 		if (pgn->make && pgn->made == UNMADE) {
@@ -734,11 +734,11 @@ MakePrintStatus(void *gnp, void *cyclep)
 	    if (gn->made == CYCLE) {
 		Error("Graph cycles through `%s'", gn->name);
 		gn->made = ENDCYCLE;
-		Lst_ForEach(gn->children, MakePrintStatus, &t);
+		Lst_ForEach(&gn->children, MakePrintStatus, &t);
 		gn->made = UNMADE;
 	    } else if (gn->made != ENDCYCLE) {
 		gn->made = CYCLE;
-		Lst_ForEach(gn->children, MakePrintStatus, &t);
+		Lst_ForEach(&gn->children, MakePrintStatus, &t);
 	    }
 	} else {
 	    printf("`%s' not remade because of errors.\n", gn->name);
@@ -772,12 +772,11 @@ Boolean
 Make_Run(Lst *targs)
 {
     GNode	    *gn;	/* a temporary pointer */
-    Lst	    	    *examine; 	/* List of targets to examine */
+    Lst	    	    examine; 	/* List of targets to examine */
     int	    	    errors; 	/* Number of errors the Job module reports */
 
-    toBeMade = Lst_Init();
-
-    examine = Lst_Duplicate(targs, NOCOPY);
+    Lst_Init(&examine);
+    Lst_Duplicate(&examine, targs, NOCOPY);
     numNodes = 0;
 
     /*
@@ -788,8 +787,8 @@ Make_Run(Lst *targs)
      * be looked at in a minute, otherwise we add its children to our queue
      * and go on about our business.
      */
-    while (!Lst_IsEmpty(examine)) {
-	gn = Lst_DeQueue(examine);
+    while (!Lst_IsEmpty(&examine)) {
+	gn = Lst_DeQueue(&examine);
 
 	if (!gn->make) {
 	    gn->make = TRUE;
@@ -799,18 +798,16 @@ Make_Run(Lst *targs)
 	     * Apply any .USE rules before looking for implicit dependencies
 	     * to make sure everything has commands that should...
 	     */
-	    Lst_ForEach(gn->children, MakeHandleUse, gn);
+	    Lst_ForEach(&gn->children, MakeHandleUse, gn);
 	    Suff_FindDeps(gn);
 
 	    if (gn->unmade != 0) {
-		Lst_ForEach(gn->children, MakeAddChild, examine);
+		Lst_ForEach(&gn->children, MakeAddChild, &examine);
 	    } else {
-		Lst_EnQueue(toBeMade, gn);
+		Lst_EnQueue(&toBeMade, gn);
 	    }
 	}
     }
-
-    Lst_Destroy(examine, NOFREE);
 
     if (queryFlag) {
 	/*
@@ -841,7 +838,7 @@ Make_Run(Lst *targs)
      * keepgoing flag was given.
      */
     while (!Job_Empty ()) {
-	Job_CatchOutput(!Lst_IsEmpty(toBeMade));
+	Job_CatchOutput(!Lst_IsEmpty(&toBeMade));
 	Job_CatchChildren(!usePipes);
 	MakeStartJobs();
     }

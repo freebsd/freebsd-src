@@ -56,40 +56,24 @@ __FBSDID("$FreeBSD$");
  *	Duplicate an entire list. If a function to copy a void * is
  *	given, the individual client elements will be duplicated as well.
  *
- * Results:
- *	The new Lst structure or NULL if failure.
- *
  * Arguments:
- *	l	the list to duplicate
+ *	dst	the destination list (initialized)
+ *	src	the list to duplicate
  *	copyProc A function to duplicate each void
  *
- * Side Effects:
- *	A new list is created.
  *-----------------------------------------------------------------------
  */
-Lst *
-Lst_Duplicate(Lst *list, DuplicateProc *copyProc)
+void
+Lst_Duplicate(Lst *dst, Lst *src, DuplicateProc *copyProc)
 {
-    Lst *nl;
     LstNode *ln;
 
-    if (!Lst_Valid(list)) {
-	return (NULL);
-    }
-
-    nl = Lst_Init();
-    if (nl == NULL) {
-	return (NULL);
-    }
-
-    ln = list->firstPtr;
+    ln = src->firstPtr;
     while (ln != NULL) {
 	if (copyProc != NOCOPY)
-	    Lst_AtEnd(nl, (*copyProc)(ln->datum));
+	    Lst_AtEnd(dst, (*copyProc)(ln->datum));
 	else
-	    Lst_AtEnd(nl, ln->datum);
+	    Lst_AtEnd(dst, ln->datum);
 	ln = ln->nextPtr;
     }
-
-    return (nl);
 }

@@ -332,7 +332,7 @@ CondDoMake(int argLen, char *arg)
     Boolean result;
 
     arg[argLen] = '\0';
-    if (Lst_Find(create, arg, CondStrMatch) == NULL) {
+    if (Lst_Find(&create, arg, CondStrMatch) == NULL) {
 	result = FALSE;
     } else {
 	result = TRUE;
@@ -362,7 +362,7 @@ CondDoExists(int argLen, char *arg)
     char    *path;
 
     arg[argLen] = '\0';
-    path = Dir_FindFile(arg, dirSearchPath);
+    path = Dir_FindFile(arg, &dirSearchPath);
     if (path != NULL) {
 	result = TRUE;
 	free(path);
