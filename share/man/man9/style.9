@@ -237,8 +237,10 @@ void	function(int fd);
 .Ed
 .Pp
 In header files visible to userland applications, prototypes that are
-visible must use either protected names or no names with the types.  It
-is preferable to use protected names.
+visible must use either
+.Dq Li protected
+names (ones beginning with an underscore) or no names with the types.
+It is preferable to use protected names.
 E.g., use:
 .Bd -literal
 void	function(int);
