@@ -854,20 +854,18 @@ dsp_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct proc *p)
 		if (rdch) {
 			CHN_LOCK(rdch);
 			rdch->flags &= ~(CHN_F_TRIGGERED | CHN_F_NOTRIGGER);
-		    	if (*arg_i & PCM_ENABLE_INPUT) {
-				rdch->flags |= CHN_F_TRIGGERED;
+		    	if (*arg_i & PCM_ENABLE_INPUT)
 				chn_start(rdch, 1);
-			} else
+			else
 				rdch->flags |= CHN_F_NOTRIGGER;
 			CHN_UNLOCK(rdch);
 		}
 		if (wrch) {
 			CHN_LOCK(wrch);
 			wrch->flags &= ~(CHN_F_TRIGGERED | CHN_F_NOTRIGGER);
-		    	if (*arg_i & PCM_ENABLE_OUTPUT) {
-				wrch->flags |= CHN_F_TRIGGERED;
+		    	if (*arg_i & PCM_ENABLE_OUTPUT)
 				chn_start(wrch, 1);
-			} else
+			else
 				wrch->flags |= CHN_F_NOTRIGGER;
 		 	CHN_UNLOCK(wrch);
 		}

@@ -422,7 +422,7 @@ chn_start(struct pcm_channel *c, int force)
 
 	CHN_LOCKASSERT(c);
 	/* if we're running, or if we're prevented from triggering, bail */
-	if ((c->flags & CHN_F_TRIGGERED) || (c->flags & CHN_F_NOTRIGGER))
+	if ((c->flags & CHN_F_TRIGGERED) || ((c->flags & CHN_F_NOTRIGGER) && !force))
 		return EINVAL;
 
 	i = (c->direction == PCMDIR_PLAY)? sndbuf_getready(bs) : sndbuf_getfree(bs);
