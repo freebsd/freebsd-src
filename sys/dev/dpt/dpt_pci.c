@@ -93,7 +93,7 @@ dpt_pci_attach (device_t dev)
 		io = bus_alloc_resource(dev, iotype, &rid, 0, ~0, 1, RF_ACTIVE);
 	}
 #endif
-	if (io == NULL && (command & PCI_COMMAND_IO_ENABLE) != 0) {
+	if (io == NULL && (command &  PCIM_CMD_PORTEN) != 0) {
 		rid = DPT_PCI_IOADDR;
 		iotype = SYS_RES_IOPORT;
 		io = bus_alloc_resource(dev, iotype, &rid, 0, ~0, 1, RF_ACTIVE);
