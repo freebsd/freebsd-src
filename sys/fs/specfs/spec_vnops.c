@@ -285,7 +285,6 @@ spec_write(ap)
 
 	vp = ap->a_vp;
 	dev = vp->v_rdev;
-	dsw = devsw(dev);
 	uio = ap->a_uio;
 	td = uio->uio_td;
 	resid = uio->uio_resid;
