@@ -1,5 +1,5 @@
 #
-# Copyright (c) 1998 Doug Rabson
+# Copyright (c) 1998,2004 Doug Rabson
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -28,6 +28,15 @@
 
 #include <sys/bus.h>
 
+/**
+ * @defgroup DEVICE device - KObj methods for all device drivers
+ * @brief A basic set of methods required for all device drivers.
+ *
+ * The device interface is used to match devices to drivers during
+ * autoconfiguration and provides methods to allow drivers to handle
+ * system-wide events such as suspend, resume or shutdown.
+ * @{
+ */
 INTERFACE device;
 
 #
@@ -49,79 +58,227 @@ CODE {
 	    return 0;
 	}
 };
-
-#
-# Probe to see if the device is present.  Return 0 if the device exists,
-# ENXIO if it cannot be found. If some other error happens during the
-# probe (such as a memory allocation failure), an appropriate error code
-# should be returned. For cases where more than one driver matches a
-# device, a priority value can be returned.  In this case, success codes
-# are values less than or equal to zero with the highest value representing
-# the best match.  Failure codes are represented by positive values and
-# the regular unix error codes should be used for the purpose.
-
-# If a driver returns a success code which is less than zero, it must
-# not assume that it will be the same driver which is attached to the
-# device. In particular, it must not assume that any values stored in
-# the softc structure will be available for its attach method and any
-# resources allocated during probe must be released and re-allocated
-# if the attach method is called.  If a success code of zero is
-# returned, the driver can assume that it will be the one attached.
-# 
-# Devices which implement busses should use this method to probe for
-# the existence of devices attached to the bus and add them as
-# children.  If this is combined with the use of bus_generic_attach,
-# the child devices will be automatically probed and attached.
-#
+	
+/**
+ * @brief Probe to see if a device matches a driver.
+ *
+ * Users should not call this method directly. Normally, this
+ * is called via device_probe_and_attach() to select a driver
+ * calling the DEVICE_PROBE() of all candidate drivers and attach
+ * the winning driver (if any) to the device.
+ *
+ * This function is used to match devices to device drivers.
+ * Typically, the driver will examine the device to see if
+ * it is suitable for this driver. This might include checking
+ * the values of various device instance variables or reading
+ * hardware registers.
+ *  
+ * In some cases, there may be more than one driver available
+ * which can be used for a device (for instance there might
+ * be a generic driver which works for a set of many types of
+ * device and a more specific driver which works for a subset
+ * of devices). Because of this, a driver should not assume
+ * that it will be the driver that attaches to the device even
+ * if it returns a success status from DEVICE_PROBE(). In particular,
+ * a driver must free any resources which it allocated during
+ * the probe before returning. The return value of DEVICE_PROBE()
+ * is used to elect which driver is used - the driver which returns
+ * the largest non-error value wins the election and attaches to
+ * the device.
+ *
+ * If a driver matches the hardware, it should set the device
+ * description string using device_set_desc() or
+ * device_set_desc_copy(). This string is
+ * used to generate an informative message when DEVICE_ATTACH()
+ * is called.
+ * 
+ * As a special case, if a driver returns zero, the driver election
+ * is cut short and that driver will attach to the device
+ * immediately.
+ *
+ * For example, a probe method for a pci device driver might look
+ * like this:
+ *
+ * @code
+ * int foo_probe(device_t dev)
+ * {
+ *         if (pci_get_vendor(dev) == FOOVENDOR &&
+ *             pci_get_device(dev) == FOODEVICE) {
+ *                 device_set_desc(dev, "Foo device");
+ *                 return (0);
+ *         }
+ *         return (ENXIO);
+ * }
+ * @endcode
+ *
+ * To include this method in a device driver, use a line like this
+ * in the driver's method list:
+ *
+ * @code
+ * 	KOBJMETHOD(device_probe, foo_probe)
+ * @endcode
+ *
+ * @param dev		the device to probe
+ *
+ * @retval 0		if the driver strongly matches this device
+ * @retval negative	if the driver can match this device - the
+ *			least negative value is used to select the
+ *			driver
+ * @retval ENXIO	if the driver does not match the device
+ * @retval positive	if some kind of error was detected during
+ *			the probe, a regular unix error code should
+ *			be returned to indicate the type of error
+ * @see DEVICE_ATTACH(), pci_get_vendor(), pci_get_device()
+ */
 METHOD int probe {
 	device_t dev;
 };
 
-#
-# Called by a parent bus to add new devices to the bus.
-#
+/**
+ * @brief Called by a parent device to allow drivers to add new devices to the parent.
+ *
+ * The DEVICE_IDENTIFY() method is used by some drivers (e.g. the ISA bus driver)
+ * to help populate the bus device with a useful set of child devices, normally by
+ * calling the BUS_ADD_CHILD() method of the parent device. For instance,
+ * the ISA bus driver uses several special drivers, including the isahint driver and
+ * the pnp driver to create child devices based on configuration hints and PnP bus
+ * probes respectively.
+ *
+ * Many bus drivers which support true plug-and-play do not need to use this method
+ * at all since child devices can be discovered automatically without help from
+ * child drivers.
+ *
+ * To include this method in a device driver, use a line like this
+ * in the driver's method list:
+ *
+ * @code
+ * 	KOBJMETHOD(device_identify, foo_identify)
+ * @endcode
+ *
+ * @param driver	the driver whose identify method is being called
+ * @param parent	the parent device to use when adding new children
+ */
 STATICMETHOD void identify {
 	driver_t *driver;
 	device_t parent;
 };
 
-#
-# Attach a device to the system.  The probe method will have been
-# called and will have indicated that the device exists.  This routine
-# should initialise the hardware and allocate other system resources
-# (such as devfs entries).  Returns 0 on success.
-#
+/**
+ * @brief Attach a device to a device driver
+ *
+ * Normally only called via device_probe_and_attach(), this is called
+ * when a driver has succeeded in probing against a device.
+ * This method should initialise the hardware and allocate other
+ * system resources (e.g. devfs entries) as required.
+ *
+ * To include this method in a device driver, use a line like this
+ * in the driver's method list:
+ *
+ * @code
+ * 	KOBJMETHOD(device_attach, foo_attach)
+ * @endcode
+ *
+ * @param dev		the device to probe
+ *
+ * @retval 0		success
+ * @retval non-zero	if some kind of error was detected during
+ *			the attach, a regular unix error code should
+ *			be returned to indicate the type of error
+ * @see DEVICE_PROBE()
+ */
 METHOD int attach {
 	device_t dev;
 };
 
-#
-# Detach a device.  This can be called if the user is replacing the
-# driver software or if a device is about to be physically removed
-# from the system (e.g. for pccard devices).  Returns 0 on success.
-#
+/**
+ * @brief Detach a driver from a device.
+ *
+ * This can be called if the user is replacing the
+ * driver software or if a device is about to be physically removed
+ * from the system (e.g. for removable hardware such as USB or PCCARD).
+ *
+ * To include this method in a device driver, use a line like this
+ * in the driver's method list:
+ *
+ * @code
+ * 	KOBJMETHOD(device_detach, foo_detach)
+ * @endcode
+ *
+ * @param dev		the device to detach
+ *
+ * @retval 0		success
+ * @retval non-zero	the detach could not be performed, e.g. if the
+ *			driver does not support detaching.
+ *
+ * @see DEVICE_ATTACH()
+ */
 METHOD int detach {
 	device_t dev;
 };
 
-#
-# This is called during system shutdown to allow the driver to put the 
-# hardware into a consistent state for rebooting the computer.
-#
+/**
+ * @brief Called during system shutdown.
+ *
+ * This method allows drivers to detect when the system is being shut down.
+ * Some drivers need to use this to place their hardware in a consistent
+ * state before rebooting the computer.
+ *
+ * To include this method in a device driver, use a line like this
+ * in the driver's method list:
+ *
+ * @code
+ * 	KOBJMETHOD(device_shutdown, foo_shutdown)
+ * @endcode
+ */
 METHOD int shutdown {
 	device_t dev;
 } DEFAULT null_shutdown;
 
-#
-# This is called by the power-management subsystem when a suspend has been
-# requested by the user or by some automatic mechanism.  This gives
-# drivers a chance to veto the suspend or save their configuration before
-# power is removed.
-#
+/**
+ * @brief This is called by the power-management subsystem when a suspend has been
+ * requested by the user or by some automatic mechanism.
+ *
+ * This gives
+ * drivers a chance to veto the suspend or save their configuration before
+ * power is removed.
+ *
+ * To include this method in a device driver, use a line like this
+ * in the driver's method list:
+ *
+ * @code
+ * 	KOBJMETHOD(device_suspend, foo_suspend)
+ * @endcode
+ *
+ * @param dev		the device being suspended
+ *
+ * @retval 0		success
+ * @retval non-zero	an error occurred while attempting to prepare the device
+ * 			for suspension
+ *
+ * @see DEVICE_RESUME()
+ */
 METHOD int suspend {
 	device_t dev;
 } DEFAULT null_suspend;
 
+/**
+ * @brief This is called when the system resumes after a suspend.
+ *
+ * To include this method in a device driver, use a line like this
+ * in the driver's method list:
+ *
+ * @code
+ * 	KOBJMETHOD(device_resume, foo_resume)
+ * @endcode
+ *
+ * @param dev		the device being resumed
+ *
+ * @retval 0		success
+ * @retval non-zero	an error occurred while attempting to restore the device
+ * 			from suspension
+ *
+ * @see DEVICE_SUSPEND()
+ */
 METHOD int resume {
 	device_t dev;
 } DEFAULT null_resume;
