@@ -24,10 +24,12 @@
 .\"
 .\"    $FreeBSD$
 .\"
-.Dd January 3, 2000
+.Dd September, 16 2004
 .Dt MICROUPTIME 9
 .Os
 .Sh NAME
+.Nm binuptime ,
+.Nm getbinuptime ,
 .Nm microuptime ,
 .Nm getmicrouptime ,
 .Nm nanouptime ,
@@ -35,6 +37,10 @@
 .Nd get the time elapsed since boot
 .Sh SYNOPSIS
 .In sys/time.h
+.Ft void
+.Fn binuptime "struct bintime *bt"
+.Ft void
+.Fn getbinuptime "struct bintime *bt"
 .Ft void
 .Fn microuptime "struct timeval *tv"
 .Ft void
@@ -45,40 +51,51 @@
 .Fn getnanouptime "struct timespec *tsp"
 .Sh DESCRIPTION
 The
+.Fn binuptime
+and
+.Fn getbinuptime
+functions store the time elapsed since boot as a
+.Ft struct bintime
+at the address specified by
+.Fa bt .
+The
 .Fn microuptime
 and
 .Fn getmicrouptime
-functions store the time elapsed since boot as a
+functions perform the same utility, but record the elapsed time as a
 .Ft struct timeval
-at the address specified by
-.Fa tv .
-The
+instead.
+Similarly the
 .Fn nanouptime
 and
 .Fn getnanouptime
-functions perform the same utility, but record the elapsed time as a
-.Ft struct timespec
-instead.
+functions store the elapsed time as a
+.Ft struct timespec .
 .Pp
-.Fn Microuptime
+.Fn Binuptime ,
+.Fn microuptime ,
 and
 .Fn nanouptime
 always query the timecounter to return the current time as precisely as
 possible.
 Whereas
-.Fn getmicrouptime
+.Fn getbinuptime ,
+.Fn getmicrouptime ,
 and
 .Fn getnanouptime
 functions are abstractions which return a less precise, but
 faster to obtain, time.
 .Pp
 The intent of the
-.Fn getmicrouptime
+.Fn getbinuptime ,
+.Fn getmicrouptime ,
 and
 .Fn getnanouptime
 functions is to enforce the user's preference for timer accuracy versus
 execution time.
 .Sh SEE ALSO
+.Xr bintime 9 ,
+.Xr getbintime 9 ,
 .Xr getmicrotime 9 ,
 .Xr getnanotime 9 ,
 .Xr microtime 9 ,
