@@ -2315,21 +2315,20 @@ wi_write_wep(struct wi_softc *sc)
 		error = wi_write_val(sc, WI_RID_ENCRYPTION, val);
 		if (error)
 			break;
-		if (ic->ic_flags & IEEE80211_F_PRIVACY) {
-			error = wi_write_val(sc, WI_RID_TX_CRYPT_KEY,
-			    ic->ic_def_txkey);
-			if (error)
-				break;
-			memset(wkey, 0, sizeof(wkey));
-			for (i = 0; i < IEEE80211_WEP_NKID; i++) {
-				keylen = ic->ic_nw_keys[i].wk_keylen;
-				wkey[i].wi_keylen = htole16(keylen);
-				memcpy(wkey[i].wi_keydat,
-				    ic->ic_nw_keys[i].wk_key, keylen);
-			}
-			error = wi_write_rid(sc, WI_RID_DEFLT_CRYPT_KEYS,
-			    wkey, sizeof(wkey));
+		if ((ic->ic_flags & IEEE80211_F_PRIVACY) == 0)
+			break;
+		error = wi_write_val(sc, WI_RID_TX_CRYPT_KEY, ic->ic_def_txkey);
+		if (error)
+			break;
+		memset(wkey, 0, sizeof(wkey));
+		for (i = 0; i < IEEE80211_WEP_NKID; i++) {
+			keylen = ic->ic_nw_keys[i].wk_keylen;
+			wkey[i].wi_keylen = htole16(keylen);
+			memcpy(wkey[i].wi_keydat, ic->ic_nw_keys[i].wk_key,
+			    keylen);
 		}
+		error = wi_write_rid(sc, WI_RID_DEFLT_CRYPT_KEYS,
+		    wkey, sizeof(wkey));
 		break;
 
 	case WI_INTERSIL:
@@ -2366,35 +2365,33 @@ wi_write_wep(struct wi_softc *sc)
 		error = wi_write_val(sc, WI_RID_P2_ENCRYPTION, val);
 		if (error)
 			break;
-		if (val & PRIVACY_INVOKED) {
-			error = wi_write_val(sc, WI_RID_P2_TX_CRYPT_KEY,
-			    ic->ic_def_txkey);
+		if ((val & PRIVACY_INVOKED) == 0)
+			break;
+		error = wi_write_val(sc, WI_RID_P2_TX_CRYPT_KEY,
+		    ic->ic_def_txkey);
+		if (error)
+			break;
+		if (val & HOST_DECRYPT)
+			break;
+		/*
+		 * It seems that the firmware accept 104bit key only if
+		 * all the keys have 104bit length.  We get the length of
+		 * the transmit key and use it for all other keys.
+		 * Perhaps we should use software WEP for such situation.
+		 */
+		if (ic->ic_def_txkey != IEEE80211_KEYIX_NONE)
+			keylen = ic->ic_nw_keys[ic->ic_def_txkey].wk_keylen;
+		else	/* XXX should not hapen */
+			keylen = IEEE80211_WEP_KEYLEN;
+		if (keylen > IEEE80211_WEP_KEYLEN)
+			keylen = 13;	/* 104bit keys */
+		else
+			keylen = IEEE80211_WEP_KEYLEN;
+		for (i = 0; i < IEEE80211_WEP_NKID; i++) {
+			error = wi_write_rid(sc, WI_RID_P2_CRYPT_KEY0 + i,
+			    ic->ic_nw_keys[i].wk_key, keylen);
 			if (error)
 				break;
-			if ((val & HOST_DECRYPT) == 0) {
-				/*
-				 * It seems that the firmware accept 104bit key
-				 * only if all the keys have 104bit length.  We
-				 * get the length of the transmit key and use it
-				 * for all other keys.  Perhaps we should use
-				 * software WEP for such situation.
-				 */
-				if (ic->ic_def_txkey != IEEE80211_KEYIX_NONE)
-					keylen = ic->ic_nw_keys[ic->ic_def_txkey].wk_keylen;
-				else	/* XXX should not hapen */
-					keylen = IEEE80211_WEP_KEYLEN;
-				if (keylen > IEEE80211_WEP_KEYLEN)
-					keylen = 13;	/* 104bit keys */
-				else
-					keylen = IEEE80211_WEP_KEYLEN;
-				for (i = 0; i < IEEE80211_WEP_NKID; i++) {
-					error = wi_write_rid(sc,
-					    WI_RID_P2_CRYPT_KEY0 + i,
-					    ic->ic_nw_keys[i].wk_key, keylen);
-					if (error)
-						break;
-				}
-			}
 		}
 		break;
 	}
