@@ -173,10 +173,12 @@ struct file_metadata
 };
 
 struct preloaded_file;
+struct mod_depend;
 
 struct kernel_module
 {
     char			*m_name;	/* module name */
+    int				m_version;	/* module version */
 /*    char			*m_args;*/	/* arguments for the module */
     struct preloaded_file	*m_fp;
     struct kernel_module	*m_next;
@@ -215,15 +217,16 @@ struct file_format
 extern struct file_format	*file_formats[];	/* supplied by consumer */
 extern struct preloaded_file	*preloaded_files;
 
-int			mod_load(char *name, int argc, char *argv[]);
+int			mod_load(char *name, struct mod_depend *verinfo, int argc, char *argv[]);
 int			mod_loadobj(char *type, char *name);
+int			mod_loadkld(const char *name, int argc, char *argv[]);
 
 struct preloaded_file *file_alloc(void);
 struct preloaded_file *file_findfile(char *name, char *type);
 struct file_metadata *file_findmetadata(struct preloaded_file *fp, int type);
 void file_discard(struct preloaded_file *fp);
 void file_addmetadata(struct preloaded_file *fp, int type, size_t size, void *p);
-int  file_addmodule(struct preloaded_file *fp, char *modname,
+int  file_addmodule(struct preloaded_file *fp, char *modname, int version,
 	struct kernel_module **newmp);
 
 
