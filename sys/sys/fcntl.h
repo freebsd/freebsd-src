@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)fcntl.h	8.3 (Berkeley) 1/21/94
- * $Id$
+ * $Id: fcntl.h,v 1.6 1997/02/22 09:45:13 peter Exp $
  */
 
 #ifndef _SYS_FCNTL_H_
@@ -84,6 +84,7 @@
 #define	O_EXLOCK	0x0020		/* open with exclusive file lock */
 #define	O_ASYNC		0x0040		/* signal pgrp when data ready */
 #define	O_FSYNC		0x0080		/* synchronous writes */
+#define	O_NOFOLLOW	0x0100		/* don't follow symlinks */
 #endif
 #define	O_CREAT		0x0200		/* create if nonexistent */
 #define	O_TRUNC		0x0400		/* truncate to zero length */
