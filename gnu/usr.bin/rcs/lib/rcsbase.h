@@ -2,7 +2,7 @@
 /*
  *                     RCS common definitions and data structures
  */
-#define RCSBASE "$Id: rcsbase.h,v 5.11 1991/10/07 17:32:46 eggert Exp $"
+#define RCSBASE "$Id: rcsbase.h,v 1.1.1.1 1993/06/18 04:22:13 jkh Exp $"
 
 /* Copyright (C) 1982, 1988, 1989 Walter Tichy
    Copyright 1990, 1991 by Paul Eggert
@@ -43,6 +43,9 @@ Report problems and direct all questions to:
 
 
 /* $Log: rcsbase.h,v $
+ * Revision 1.1.1.1  1993/06/18  04:22:13  jkh
+ * Updated GNU utilities
+ *
  * Revision 5.11  1991/10/07  17:32:46  eggert
  * Support piece tables even if !has_mmap.
  *
@@ -380,10 +383,11 @@ struct assoc {
 #define REVISION        "Revision"
 #define SOURCE          "Source"
 #define STATE           "State"
+#define FREEBSD		"FreeBSD"
 #define keylength 8 /* max length of any of the above keywords */
 
 enum markers { Nomatch, Author, Date, Header, Id,
-	       Locker, Log, RCSfile, Revision, Source, State };
+	       Locker, Log, RCSfile, Revision, Source, State, FreeBSD };
 	/* This must be in the same order as rcskeys.c's Keyword[] array. */
 
 #define DELNUMFORM      "\n\n%s\n%s\n"

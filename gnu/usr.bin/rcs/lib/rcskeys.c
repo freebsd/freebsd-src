@@ -31,6 +31,9 @@ Report problems and direct all questions to:
 
 
 /* $Log: rcskeys.c,v $
+ * Revision 1.1.1.1  1993/06/18  04:22:12  jkh
+ * Updated GNU utilities
+ *
  * Revision 5.2  1991/08/19  03:13:55  eggert
  * Say `T const' instead of `const T'; it's less confusing for pointer types.
  * (This change was made in other source files too.)
@@ -60,17 +63,24 @@ Report problems and direct all questions to:
 
 #include "rcsbase.h"
 
-libId(keysId, "$Id: rcskeys.c,v 5.2 1991/08/19 03:13:55 eggert Exp $")
+libId(keysId, "$Id: rcskeys.c,v 1.1.1.1 1993/06/18 04:22:12 jkh Exp $")
 
 
 char const *const Keyword[] = {
     /* This must be in the same order as rcsbase.h's enum markers type. */
 	nil,
 	AUTHOR, DATE, HEADER, IDH,
-	LOCKER, LOG, RCSFILE, REVISION, SOURCE, STATE
+	LOCKER, LOG, RCSFILE, REVISION, SOURCE, STATE, FREEBSD
 };
 
 
+/* Expand all keywords by default */
+
+static int ExpandKeyword[] = {
+	nil,
+	true, true, true, true,
+	true, true, true, true, true, true, true, true
+};
 
 	enum markers
 trymatch(string)
@@ -83,6 +93,8 @@ trymatch(string)
         register int j;
 	register char const *p, *s;
 	for (j = sizeof(Keyword)/sizeof(*Keyword);  (--j);  ) {
+		if (!ExpandKeyword[j])
+			continue;
 		/* try next keyword */
 		p = Keyword[j];
 		s = string;
@@ -98,5 +110,37 @@ trymatch(string)
 		}
         }
         return(Nomatch);
+}
+
+
+setIncExc(arg)
+	char *arg;
+/* Sets up the ExpandKeyword table according to command-line flags */
+{
+	char *key;
+	int include = 0, j;
+
+	arg += 2;
+	switch (*arg++) {
+	    case 'e':
+		include = false;
+		break;
+	    case 'i':
+		include = true;
+		break;
+	    default:
+		return(false);
+	}
+	if (include)
+		for (j = sizeof(Keyword)/sizeof(*Keyword);  (--j);  )
+			ExpandKeyword[j] = false;
+	key = strtok(arg, ",");
+	while (key) {
+		for (j = sizeof(Keyword)/sizeof(*Keyword);  (--j);  )
+			if (!strcmp(key, Keyword[j]))
+				ExpandKeyword[j] = include;
+		key = strtok(NULL, ",");
+	}
+	return(true);
 }
 
