@@ -862,12 +862,12 @@ static const int db_lengths[] = {
 
 static db_addr_t
 		db_disasm_esc(db_addr_t loc, int inst, int short_addr,
-				   int size, const char *seg);
+		    int size, const char *seg);
 static void	db_print_address(const char *seg, int size,
-				      struct i_addr *addrp);
+		    struct i_addr *addrp);
 static db_addr_t
-		db_read_address(db_addr_t loc, int short_addr,
-				     int regmodrm, struct i_addr *addrp);
+		db_read_address(db_addr_t loc, int short_addr, int regmodrm,
+		    struct i_addr *addrp);
 
 /*
  * Read address at location and return updated location.
