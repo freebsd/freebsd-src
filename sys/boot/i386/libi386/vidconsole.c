@@ -308,15 +308,26 @@ CD(void)
 {
 
     get_pos();
+    if (curx > 0) {
+	v86.ctl = 0;
+	v86.addr = 0x10;
+	v86.eax = 0x0600;
+	v86.ebx = (bg_c << 4) + fg_c;
+	v86.ecx = (cury << 8) + curx;
+	v86.edx = (cury << 8) + 79;
+	v86int();
+	if (++cury > 24) {
+	    end_term();
+	    return;
+	}
+    }
     v86.ctl = 0;
     v86.addr = 0x10;
     v86.eax = 0x0600;
     v86.ebx = (bg_c << 4) + fg_c;
-    v86.ecx = v86.edx;
-    v86.edx = 0x184f;
+    v86.ecx = (cury << 8) + 0;
+    v86.edx = (24 << 8) + 79;
     v86int();
-    curx = 0;
-    curs_move(curx, cury);
     end_term();
 }
 
