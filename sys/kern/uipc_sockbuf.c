@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_socket2.c	8.1 (Berkeley) 6/10/93
- *	$Id: uipc_socket2.c,v 1.44 1999/01/25 16:58:53 fenner Exp $
+ *	$Id: uipc_socket2.c,v 1.45 1999/05/03 23:57:24 billf Exp $
  */
 
 #include <sys/param.h>
@@ -71,15 +71,15 @@ static	u_long sb_efficiency = 8;	/* parameter for sbreserve() */
  * takes no time.
  *
  * From the passive side, a socket is created with
- * two queues of sockets: so_q0 for connections in progress
- * and so_q for connections already made and awaiting user acceptance.
+ * two queues of sockets: so_incomp for connections in progress
+ * and so_comp for connections already made and awaiting user acceptance.
  * As a protocol is preparing incoming connections, it creates a socket
- * structure queued on so_q0 by calling sonewconn().  When the connection
+ * structure queued on so_incomp by calling sonewconn().  When the connection
  * is established, soisconnected() is called, and transfers the
- * socket structure to so_q, making it available to accept().
+ * socket structure to so_comp, making it available to accept().
  *
  * If a socket is closed with sockets on either
- * so_q0 or so_q, these sockets are dropped.
+ * so_incomp or so_comp, these sockets are dropped.
  *
  * If higher level protocols are implemented in
  * the kernel, the wakeups done here will sometimes
