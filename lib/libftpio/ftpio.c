@@ -14,7 +14,7 @@
  * Turned inside out. Now returns xfers as new file ids, not as a special
  * `state' of FTP_t
  *
- * $Id: ftpio.c,v 1.26 1997/09/18 14:01:15 phk Exp $
+ * $Id: ftpio.c,v 1.27 1997/10/01 07:21:41 jkh Exp $
  *
  */
 
@@ -182,6 +182,9 @@ ftpErrString(int errno)
 
     if (errno == -1)
 	return("connection in wrong state");
+    if (errno < 100)
+	/* XXX soon UNIX errnos will catch up with FTP protocol errnos */
+	return strerror(errno);
     for (k = 0; k < ftpErrListLength; k++)
       if (ftpErrList[k].num == errno)
 	return(ftpErrList[k].string);
