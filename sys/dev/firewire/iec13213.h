@@ -155,12 +155,24 @@ struct csrtext {
 struct bus_info {
 #define	CSR_BUS_NAME_IEEE1394	0x31333934
 	u_int32_t bus_name;	
+#if BYTE_ORDER == BIG_ENDIAN
+	u_int32_t irmc:1;		/* iso. resource manager capable */
+		  cmc:1,		/* cycle master capable */
+		  isc:1,		/* iso. operation support */
+		  bmc:1,		/* bus manager capable */
+		  pmc:1,		/* power manager capable */
+		  :3,
+		  cyc_clk_acc:8,	/* 0 <= ppm <= 100 */
+		  max_rec:4,		/* (2 << max_rec) bytes */
+		  :2,
+		  max_rom:2,
+		  generation:4,
+		  :1,
+		  link_spd:3;
+#else
 	u_int32_t link_spd:3,
 		  :1,
 		  generation:4,
-#define MAXROM_4	0
-#define MAXROM_64	1
-#define MAXROM_1024	2
 		  max_rom:2,
 		  :2,
 		  max_rec:4,		/* (2 << max_rec) bytes */
@@ -171,8 +183,13 @@ struct bus_info {
 		  isc:1,		/* iso. operation support */
 		  cmc:1,		/* cycle master capable */
 		  irmc:1;		/* iso. resource manager capable */
+#endif
 	struct fw_eui64 eui64;
 };
+/* max_rom */
+#define MAXROM_4	0
+#define MAXROM_64	1
+#define MAXROM_1024	2
 
 #define CROM_MAX_DEPTH	10
 struct crom_ptr {
