@@ -109,6 +109,7 @@ int	npxdna __P((void));
 void	npxexit __P((struct proc *p));
 void	npxinit __P((int control));
 void	npxsave __P((struct save87 *addr));
+int	npxtrap __P((void));
 #endif
 
 #endif /* !_MACHINE_NPX_H_ */
