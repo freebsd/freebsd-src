@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: timer.c,v 1.23 1997/11/09 06:22:49 brian Exp $
+ * $Id: timer.c,v 1.24 1997/11/22 03:37:52 brian Exp $
  *
  *  TODO:
  */
@@ -207,66 +207,60 @@ ShowTimers()
 }
 
 #ifdef SIGALRM
-u_int
-nointr_sleep(u_int sec)
+
+static void
+nointr_dosleep(u_int sec, u_int usec)
 {
   struct timeval to, st, et;
-  long sld, nwd, std;
 
   gettimeofday(&st, NULL);
+  et.tv_sec = st.tv_sec + sec;
+  et.tv_usec = st.tv_usec + usec;
   to.tv_sec = sec;
-  to.tv_usec = 0;
-  std = st.tv_sec * 1000000 + st.tv_usec;
+  to.tv_usec = usec;
   for (;;) {
     if (select(0, NULL, NULL, NULL, &to) == 0 ||
 	errno != EINTR) {
       break;
     } else {
-      gettimeofday(&et, NULL);
-      sld = to.tv_sec * 1000000 + to.tv_sec;
-      nwd = et.tv_sec * 1000000 + et.tv_usec - std;
-      if (sld > nwd)
-	sld -= nwd;
-      else
-	sld = 1;		/* Avoid both tv_sec/usec is 0 */
-
-      /* Calculate timeout value for select */
-      to.tv_sec = sld / 1000000;
-      to.tv_usec = sld % 1000000;
+      gettimeofday(&to, NULL);
+      if (to.tv_sec > et.tv_sec ||
+          (to.tv_sec == et.tv_sec && to.tv_usec > et.tv_usec) ||
+          to.tv_sec < st.tv_sec ||
+          (to.tv_sec == st.tv_sec && to.tv_usec < st.tv_usec)) {
+        LogPrintf(LogWARN, "Clock adjusted between %d and %d seconds "
+                  "during sleep !\n",
+                  to.tv_sec - st.tv_sec, sec + to.tv_sec - st.tv_sec);
+        st.tv_sec = to.tv_sec;
+        st.tv_usec = to.tv_usec;
+        et.tv_sec = st.tv_sec + sec;
+        et.tv_usec = st.tv_usec + usec;
+        to.tv_sec = sec;
+        to.tv_usec = usec;
+      } else if (to.tv_sec == et.tv_sec && to.tv_usec == et.tv_usec) {
+        break;
+      } else {
+        to.tv_sec = et.tv_sec - to.tv_sec;
+        if (et.tv_usec < to.tv_usec) {
+          to.tv_sec--;
+          to.tv_usec = 1000000 + et.tv_usec - to.tv_usec;
+        } else
+          to.tv_usec = et.tv_usec - to.tv_usec;
+      }
     }
   }
-  return (0L);
+}
+
+void
+nointr_sleep(u_int sec)
+{
+  nointr_dosleep(sec, 0);
 }
 
 void
 nointr_usleep(u_int usec)
 {
-  struct timeval to, st, et;
-  long sld, nwd, std;
-
-  gettimeofday(&st, NULL);
-  to.tv_sec = 0;
-  to.tv_usec = usec;
-  std = st.tv_sec * 1000000 + st.tv_usec;
-  for (;;) {
-    if (select(0, NULL, NULL, NULL, &to) == 0 ||
-	errno != EINTR) {
-      break;
-    } else {
-      gettimeofday(&et, NULL);
-      sld = to.tv_sec * 1000000 + to.tv_sec;
-      nwd = et.tv_sec * 1000000 + et.tv_usec - std;
-      if (sld > nwd)
-	sld -= nwd;
-      else
-	sld = 1;		/* Avoid both tv_sec/usec is 0 */
-
-      /* Calculate timeout value for select */
-      to.tv_sec = sld / 1000000;
-      to.tv_usec = sld % 1000000;
-
-    }
-  }
+  nointr_dosleep(0, usec);
 }
 
 static void 
