@@ -40,6 +40,7 @@
 .Sh SYNOPSIS
 .Nm rwhod
 .Op Fl i
+.Op Fl l
 .Op Fl m Op Ar ttl
 .Sh DESCRIPTION
 .Nm Rwhod
@@ -54,7 +55,11 @@ or
 messages on a network.
 .Pp
 .Nm Rwhod
-operates as both a producer and consumer of status information.
+operates as both a producer and consumer of status information,
+unless the
+.Fl l
+(listen mode) option is specified, in which case
+it acts as a consumer only.
 As a producer of information it periodically
 queries the state of the system and constructs
 status messages which are broadcasted or multicasted on a network.
@@ -69,6 +74,15 @@ The
 option enables insecure mode, which causes
 .Nm
 to ignore the source port on incoming packets.
+.Pp
+The
+.Fl l
+option enables listen mode, which causes
+.Nm
+to not broadcast any information.
+This allows you to monitor other machines'
+.Nm
+information, without broadcasting your own.
 .Pp
 The
 .Fl m
