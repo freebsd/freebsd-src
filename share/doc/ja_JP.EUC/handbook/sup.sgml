@@ -1,6 +1,6 @@
-<!-- $Id: sup.sgml,v 1.9 1997/02/25 04:59:00 hanai Exp $ -->
+<!-- $Id: sup.sgml,v 1.10 1997/03/07 04:56:58 hanai Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.26 -->
+<!-- Original revision: 1.27 -->
 
 <sect><heading>SUP<label id="sup"></heading>
 
@@ -75,6 +75,7 @@ sup するときに得られるものが何かを覚えておき, &a.current へ参加して
 <verb>
 src-base:         /usr/src/...          /usr/src のトップにあるその他のファイル
 src-bin:          /usr/src/bin          ユーザとシステムのバイナリ
+src-contrib:	  /usr/src/contrib	寄贈ソフトウェア
 src-secure:       /usr/src/secure       DES のソース (US/Canada ONLY)
 src-eBones:       /usr/src/eBones       Kerberos と DES (US/Canada ONLY)
 src-etc:          /usr/src/etc          システムファイル
