@@ -355,7 +355,7 @@ witness_init(struct lock_object *lock)
 	if (lock_cur_cnt > lock_max_cnt)
 		lock_max_cnt = lock_cur_cnt;
 	mtx_unlock(&all_mtx);
-	if (!witness_cold && !witness_dead &&
+	if (!witness_cold && !witness_dead && panicstr == NULL &&
 	    (lock->lo_flags & LO_WITNESS) != 0)
 		lock->lo_witness = enroll(lock->lo_name, class);
 	else
@@ -469,7 +469,7 @@ witness_lock(struct lock_object *lock, int flags, const char *file, int line)
 #endif /* DDB */
 
 	if (witness_cold || witness_dead || lock->lo_witness == NULL ||
-	    panicstr)
+	    panicstr != NULL)
 		return;
 	w = lock->lo_witness;
 	class = lock->lo_class;
@@ -723,7 +723,7 @@ witness_unlock(struct lock_object *lock, int flags, const char *file, int line)
 	int i, j;
 
 	if (witness_cold || witness_dead || lock->lo_witness == NULL ||
-	    panicstr)
+	    panicstr != NULL)
 		return;
 	p = curproc;
 	class = lock->lo_class;
@@ -821,7 +821,7 @@ witness_sleep(int check_only, struct lock_object *lock, const char *file,
 	critical_t savecrit;
 	int i, n;
 
-	if (witness_dead || panicstr)
+	if (witness_dead || panicstr != NULL)
 		return (0);
 	KASSERT(!witness_cold, ("%s: witness_cold\n", __func__));
 	n = 0;
@@ -872,7 +872,7 @@ enroll(const char *description, struct lock_class *lock_class)
 {
 	struct witness *w;
 
-	if (!witness_watch || witness_dead)
+	if (!witness_watch || witness_dead || panicstr != NULL)
 		return (NULL);
 
 	if ((lock_class->lc_flags & LC_SPINLOCK) && witness_skipspin)
@@ -1309,7 +1309,7 @@ witness_save(struct lock_object *lock, const char **filep, int *linep)
 	struct lock_instance *instance;
 
 	KASSERT(!witness_cold, ("%s: witness_cold\n", __func__));
-	if (lock->lo_witness == NULL || witness_dead)
+	if (lock->lo_witness == NULL || witness_dead || panicstr != NULL)
 		return;
 
 	KASSERT(lock->lo_class->lc_flags & LC_SLEEPLOCK,
@@ -1329,7 +1329,7 @@ witness_restore(struct lock_object *lock, const char *file, int line)
 	struct lock_instance *instance;
 
 	KASSERT(!witness_cold, ("%s: witness_cold\n", __func__));
-	if (lock->lo_witness == NULL || witness_dead)
+	if (lock->lo_witness == NULL || witness_dead || panicstr != NULL)
 		return;
 
 	KASSERT(lock->lo_class->lc_flags & LC_SLEEPLOCK,
@@ -1351,7 +1351,7 @@ witness_assert(struct lock_object *lock, int flags, const char *file, int line)
 #ifdef INVARIANT_SUPPORT
 	struct lock_instance *instance;
 
-	if (lock->lo_witness == NULL || witness_dead)
+	if (lock->lo_witness == NULL || witness_dead || panicstr != NULL)
 		return;
 
 	if ((lock->lo_class->lc_flags & LC_SLEEPLOCK) != 0)
