@@ -197,11 +197,13 @@ yes)
 				echo "Using /var/db/entropy as an entropy file"
 				cat /var/db/entropy > /dev/random 2> /dev/random
 			else
-				echo "Can't use ${entropy_file} as an entropy file, trying other sources"
+    echo "Can't use ${entropy_file} as an entropy file, trying other sources"
 				# XXX temporary until we can get the entropy
 				# harvesting rate up
-				# Entropy below is not great, but better than nothing.
-				(ps -gauxwww; iostat; vmstat; sysctl -a; dmesg) > /dev/random 2> /dev/random
+				# Entropy below is not great,
+				# but better than nothing.
+				(ps -gauxwww; iostat; vmstat; sysctl -a;
+				    dmesg) > /dev/random 2> /dev/random
 				( for i in /etc /var/run ; do
 					cd $i ; ls -al ; cat *
 				done ) > /dev/random 2> /dev/random
