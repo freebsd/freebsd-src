@@ -55,7 +55,6 @@ char    *c_dirname;	/*    -c: remote directory */
 int	 d_flag;	/*    -d: direct connection */
 int	 F_flag;	/*    -F: restart without checking mtime  */
 char	*f_filename;	/*    -f: file to fetch */
-int	 H_flag;	/*    -H: use high port */
 char	*h_hostname;	/*    -h: host to fetch from */
 int	 l_flag;	/*    -l: link rather than copy file: URLs */
 int	 m_flag;	/* -[Mm]: mirror mode */
@@ -68,10 +67,11 @@ int	 once_flag;	/*    -1: stop at first successful file */
 int	 p_flag;	/* -[Pp]: use passive FTP */
 int	 R_flag;	/*    -R: don't delete partially transferred files */
 int	 r_flag;	/*    -r: restart previously interrupted transfer */
-u_int	 T_secs = 0;	/*    -T: transfer timeout in seconds */
-int	 s_flag;        /*    -s: show size, don't fetch */
 off_t	 S_size;        /*    -S: require size to match */
+int	 s_flag;        /*    -s: show size, don't fetch */
+u_int	 T_secs = 0;	/*    -T: transfer timeout in seconds */
 int	 t_flag;	/*!   -t: workaround TCP bug */
+int	 U_flag;	/*    -U: do not use high ports */
 int	 v_level = 1;	/*    -v: verbosity level */
 int	 v_tty;		/*        stdout is a tty */
 u_int	 w_secs;	/*    -w: retry delay */
@@ -234,8 +234,8 @@ fetch(char *URL, char *path)
 	    strcat(flags, "p");
 	if (d_flag)
 	    strcat(flags, "d");
-	if (H_flag)
-	    strcat(flags, "h");
+	if (U_flag)
+	    strcat(flags, "l");
 	timeout = T_secs ? T_secs : ftp_timeout;
     }
     
@@ -537,7 +537,7 @@ main(int argc, char *argv[])
     int c, e, r;
 
     while ((c = getopt(argc, argv,
-		       "146AaB:bc:dFf:h:lHMmnPpo:qRrS:sT:tvw:")) != EOF)
+		       "146AaB:bc:dFf:Hh:lMmnPpo:qRrS:sT:tUvw:")) != EOF)
 	switch (c) {
 	case '1':
 	    once_flag = 1;
@@ -575,7 +575,7 @@ main(int argc, char *argv[])
 	    f_filename = optarg;
 	    break;
 	case 'H':
-	    H_flag = 1;
+	    warnx("The -H option is now implicit, use -U to disable\n");
 	    break;
 	case 'h':
 	    h_hostname = optarg;
@@ -625,6 +625,9 @@ main(int argc, char *argv[])
 	case 't':
 	    t_flag = 1;
 	    warnx("warning: the -t option is deprecated");
+	    break;
+	case 'U':
+	    U_flag = 1;
 	    break;
 	case 'v':
 	    v_level++;
