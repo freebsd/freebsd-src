@@ -148,13 +148,18 @@ Internet RFC requirements for Internet hosts (see RFC's 1009
 &lsqb;Requirements for Internet Hosts -- Communication Layers&rsqb;,
 and perhaps 1127 &lsqb;A Perspective on the Host Requirements
 RFCs&rsqb;), so if you want your FreeBSD SLIP Server to act as a
-router, you will have to add the line
+router, you will have to edit the <tt>/etc/sysconfig</tt> file and change
+the setting of the <bf>gateway</bf> variable to <tt>YES</tt>.  If you
+have an older system which does not have the <tt>/etc/sysconfig</tt>
+file, then add the following command:
 <verb>
-sysctl -w net.inet.ip.forwarding = 0
+sysctl -w net.inet.ip.forwarding = 1
 </verb>
-to your rc.local file.
+to your <tt>/etc/rc.local</tt> file.
 
-You will notice that near the end of the default kernel configuration
+<p>You will then need to reboot for the new settings to take effect.
+
+<p>You will notice that near the end of the default kernel configuration
 file (<tt>/sys/i386/conf/GENERIC</tt>) is a line that reads:
 
 <tscreen><verb>
