@@ -57,23 +57,6 @@
 #include <machine/cpu.h>
 #include <machine/cons.h>
 
-/* XXX this should be config(8)ed. */
-#include "sc.h"
-#include "vt.h"
-#include "sio.h"
-static struct consdev constab[] = {
-#if NSC > 0
-	{ sccnprobe,	sccninit,	sccngetc,	sccncheckc,	sccnputc },
-#endif
-#if NVT > 0
-	{ pccnprobe,	pccninit,	pccngetc,	pccncheckc,	pccnputc },
-#endif
-#if NSIO > 0
-	{ siocnprobe,	siocninit,	siocngetc,	siocncheckc,	siocnputc },
-#endif
-	{ 0 },
-};
-
 static	d_open_t	cnopen;
 static	d_close_t	cnclose;
 static	d_read_t	cnread;
@@ -112,16 +95,22 @@ static struct tty *cn_tp;		/* physical console tty struct */
 static void *cn_devfs_token;		/* represents the devfs entry */
 #endif /* DEVFS */
 
+CONS_DRIVER(cons, NULL, NULL, NULL, NULL, NULL);
+
 void
 cninit()
 {
 	struct consdev *best_cp, *cp;
+	struct consdev **list;
 
 	/*
 	 * Find the first console with the highest priority.
 	 */
 	best_cp = NULL;
-	for (cp = constab; cp->cn_probe; cp++) {
+	list = (struct consdev **)cons_set.ls_items;
+	while ((cp = *list++) != NULL) {
+		if (cp->cn_probe == NULL)
+			continue;
 		(*cp->cn_probe)(cp);
 		if (cp->cn_pri > CN_DEAD &&
 		    (best_cp == NULL || cp->cn_pri > best_cp->cn_pri))

@@ -114,6 +114,14 @@ static void vgapelinit(void);	/* read initial VGA DAC palette */
 static int pcvt_xmode_set(int on, struct proc *p); /* initialize for X mode */
 #endif /* XSERVER && !PCVT_USL_VT_COMPAT */
 
+static cn_probe_t	pccnprobe;
+static cn_init_t	pccninit;
+static cn_getc_t	pccngetc;
+static cn_checkc_t	pccncheckc;
+static cn_putc_t	pccnputc;
+
+CONS_DRIVER(pc, pccnprobe, pccninit, pccngetc, pccncheckc, pccnputc);
+
 static	d_open_t	pcopen;
 static	d_close_t	pcclose;
 static	d_read_t	pcread;
@@ -1116,7 +1124,7 @@ consinit()		/* init for kernel messages during boot */
 #endif /* PCVT_NETBSD */
 
 #if PCVT_FREEBSD > 205
-void
+static void
 #else
 int
 #endif
@@ -1171,7 +1179,7 @@ pccnprobe(struct consdev *cp)
 }
 
 #if PCVT_FREEBSD > 205
-void
+static void
 #else
 int
 #endif
@@ -1184,7 +1192,7 @@ pccninit(struct consdev *cp)
 }
 
 #if PCVT_FREEBSD > 205
-void
+static void
 #else
 int
 #endif
@@ -1218,7 +1226,7 @@ pccnputc(Dev_t dev, U_char c)
 #endif
 }
 
-int
+static int
 pccngetc(Dev_t dev)
 {
 	register int s;
@@ -1267,7 +1275,7 @@ pccngetc(Dev_t dev)
 }
 
 #if PCVT_FREEBSD >= 200
-int
+static int
 pccncheckc(Dev_t dev)
 {
 	char *cp;
