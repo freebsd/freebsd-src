@@ -678,7 +678,7 @@ ether_demux(ifp, eh, m)
 	    && (eh->ether_dhost[0] & 1) == 0
 	    && bcmp(eh->ether_dhost,
 	      IFP2AC(ifp)->ac_enaddr, ETHER_ADDR_LEN) != 0
-	    && (ifp->if_flags && IFF_PPROMISC) == 0) {
+	    && (ifp->if_flags & IFF_PPROMISC) == 0) {
 		m_freem(m);
 		return;
 	}
