@@ -28,7 +28,7 @@
  * Test program for btowc() and wctob() as specified by IEEE Std. 1003.1-2001
  * and ISO/IEC 9899:1999.
  *
- * The function is tested in only the "C" locale.
+ * The function is tested in the "C" and "ja_JP.eucJP" locales.
  */
 
 #include <sys/cdefs.h>
@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 
 #include <assert.h>
 #include <limits.h>
+#include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <wchar.h>
@@ -45,10 +46,22 @@ main(int argc, char *argv[])
 {
 	int i;
 
+	/*
+	 * C/POSIX locale.
+	 */
 	assert(btowc(EOF) == WEOF);
 	assert(wctob(WEOF) == EOF);
 	for (i = 0; i < UCHAR_MAX; i++)
 		assert(btowc(i) == (wchar_t)i && i == (int)wctob(i));
+
+	/*
+	 * Japanese (EUC) locale.
+	 */
+
+	assert(strcmp(setlocale(LC_CTYPE, "ja_JP.eucJP"), "ja_JP.eucJP") == 0);
+	assert(MB_CUR_MAX > 1);
+	assert(btowc('A') == L'A' && wctob(L'A') == 'A');
+	assert(btowc(0xa3) == WEOF && wctob(0xa3c1) == EOF);
 
 	printf("PASS btowc()\n");
 	printf("PASS wctob()\n");
