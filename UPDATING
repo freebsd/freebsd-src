@@ -8,11 +8,15 @@ ITEMS:'
 20010101:
 	ex and vi were broken by some changes to sys/queue.h.  If you
 	have a bad vi, you will see make buildworld fail with a core
-	dump wile building termcap.  You can work around this problem
+	dump while building termcap.  You can work around this problem
 	by adding -k to your make buildworld.  This will cause the
 	build to complete and install a new vi.  Once that's done, you
 	can rebuild again without the -k to pick up anything that
 	might have been ignored by the -k option.
+
+	Others have suggested that you can just rebuild libc if your
+	vi/ex is dynamically linked, but I've not received any reports
+	of this working.
 
 20001218:
 	Linksys Fast Ethernet PCCARD cards supported by the ed driver
