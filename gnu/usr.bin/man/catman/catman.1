@@ -30,7 +30,7 @@
 .\"
 .\"   E-mail: Wolfram Schneider <wosch@cs.tu-berlin.de>
 .\"
-.\" $Id: catman.1,v 1.2 1995/03/18 02:11:55 ache Exp $
+.\" $Id: catman.1,v 1.9 1995/03/27 19:51:14 w Exp $
 .\"
 
 .Dd Mar 12, 1995
@@ -42,9 +42,10 @@
 
 .Sh SYNOPSIS
 .Nm catman
-.Op Fl h | Fl help
 .Op Fl f | Fl force
+.Op Fl h | Fl help
 .Op Fl p | Fl print
+.Op Fl r | Fl remove
 .Op Fl v | Fl verbose
 .Op Ar directories...
 
@@ -66,18 +67,24 @@ defined.
 .Sh OPTIONS
 .Bl -tag -width Ds
 
-.It Fl h , Fl help
-Print options and exit.
-
-.It Fl v , Fl verbose
-More warnings.
-
 .It Fl f , Fl force
 Force overwriting old cat pages.  Normally only those pages will be formatted
 which are not up to date.  This option is a waste of time, CPU and RAM.
 
+.It Fl h , Fl help
+Print options and exit.
+
 .It Fl p , Fl print
 Don't actually format man pages. Show what would be done.
+
+.It Fl r , Fl remove
+Remove garbage, e.\& g. catpage without manpage, uncompressed catpage but
+a compressed catpage exist, filenames with non-alphanumeric
+characters, uncompressed manpage but a compressed manpage exist.
+
+.It Fl v , Fl verbose
+More warnings.
+
 
 .Sh EXAMPLES
 .Pp
