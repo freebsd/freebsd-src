@@ -916,21 +916,6 @@ usbd_ar_pipe(pipe)
 {
 	usbd_request_handle reqh;
 
-#if 0
-	for (;;) {
-		reqh = SIMPLEQ_FIRST(&pipe->queue);
-		if (reqh == 0)
-			break;
-#if defined(__NetBSD__)
-		SIMPLEQ_REMOVE_HEAD(&pipe->queue, reqh, next);
-#elif defined(__FreeBSD__)
-		SIMPLEQ_REMOVE_HEAD(&pipe->queue, next);
-#endif
-		reqh->status = USBD_CANCELLED;
-		if (reqh->callback)
-			reqh->callback(reqh, reqh->priv, reqh->status);
-	}
-#else
 	while ((reqh = SIMPLEQ_FIRST(&pipe->queue))) {
 		pipe->methods->abort(reqh);
 #if defined(__NetBSD__)
@@ -938,8 +923,15 @@ usbd_ar_pipe(pipe)
 #elif defined(__FreeBSD__)
 		SIMPLEQ_REMOVE_HEAD(&pipe->queue, next);
 #endif
+		/* XXX should the callback not be called something
+		 * else than splusb? Create a new list of reqh and
+		 * execute them after the while for example?
+		 */
+		reqh->status = USBD_CANCELLED;
+		if (reqh->callback)
+			reqh->callback(reqh, reqh->priv, reqh->status);
 	}
-#endif
+
 	return (USBD_NORMAL_COMPLETION);
 }
 
