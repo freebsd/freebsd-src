@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)in_proto.c	8.1 (Berkeley) 6/10/93
- *	$Id: in_proto.c,v 1.14 1995/05/11 00:13:17 wollman Exp $
+ *	$Id: in_proto.c,v 1.17 1995/06/26 16:11:51 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -81,7 +81,8 @@ int	tp_init(), tp_slowtimo(), tp_drain(), tp_usrreq();
 void	eoninput(), eonctlinput(), eonprotoinit();
 #endif /* EON */
 
-void multiencap_decap(struct mbuf *);
+void rsvp_input(struct mbuf *, int);
+void ipip_input(struct mbuf *, int);
 
 extern	struct domain inetdomain;
 
@@ -118,12 +119,12 @@ struct protosw inetsw[] = {
   igmp_init,	igmp_fasttimo,	igmp_slowtimo,	0,		igmp_sysctl
 },
 { SOCK_RAW,	&inetdomain,	IPPROTO_RSVP,	PR_ATOMIC|PR_ADDR,
-  rip_input,	rip_output,	0,		rip_ctloutput,
+  rsvp_input,	rip_output,	0,		rip_ctloutput,
   rip_usrreq,
   0,		0,		0,		0,
 },
-{ SOCK_RAW,	&inetdomain,	IPPROTO_ENCAP,	PR_ATOMIC|PR_ADDR,
-  multiencap_decap, rip_output, 0,		rip_ctloutput,
+{ SOCK_RAW,	&inetdomain,	IPPROTO_IPIP,	PR_ATOMIC|PR_ADDR,
+  ipip_input,	rip_output, 	0,		rip_ctloutput,
   rip_usrreq,
   0,		0,		0,		0,
 },
@@ -160,7 +161,7 @@ struct protosw inetsw[] = {
 extern int in_inithead(void **, int);
 
 struct domain inetdomain =
-    { AF_INET, "internet", 0, 0, 0,
+    { AF_INET, "internet", 0, 0, 0, 
       inetsw, &inetsw[sizeof(inetsw)/sizeof(inetsw[0])], 0,
       in_inithead, 32, sizeof(struct sockaddr_in)
     };
