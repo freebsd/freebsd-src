@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: aha1542.c,v 1.23 1994/03/23 09:15:26 davidg Exp $
+ *      $Id: aha1542.c,v 1.24 1994/04/21 22:14:43 wollman Exp $
  */
 
 /*
@@ -848,40 +848,63 @@ aha_init(unit)
 
 	for (i = AHA_RESET_TIMEOUT; i; i--) {
 		sts = inb(AHA_CTRL_STAT_PORT);
-		if (sts == (AHA_IDLE | AHA_INIT))
+		if (sts == (AHA_IDLE | AHA_INIT)) {
 			break;
+		}
 		DELAY(1000);	/* calibrated in msec */
 	}
+#ifdef	AHADEBUG
+	printf("aha_init: AHA_RESET_TIMEOUT went to %d\n", i);
+#endif /* AHADEBUG */
 	if (i == 0) {
 #ifdef	AHADEBUG
 		if (aha_debug)
-			printf("aha_init: No answer from adaptec board\n");
+			printf("aha_init: No answer from board\n");
 #endif /*AHADEBUG */
 		return (ENXIO);
 	}
 
 	/*
 	 * Assume we have a board at this stage, do an adapter inquire
-	 * to find out what type of controller it is
+	 * to find out what type of controller it is.  If the AHA_INQUIRE
+	 * command fails, blatter about it, nuke the boardid so the 1542C
+	 * stuff gets skipped over, and reset the board again.
 	 */
-	aha_cmd(unit, 0, sizeof(inquire), 1 ,&inquire, AHA_INQUIRE);
+	if(aha_cmd(unit, 0, sizeof(inquire), 1 ,&inquire, AHA_INQUIRE)) {
+		/*
+		 * Blah.. not a real adaptec board!!!
+		 * Seems that the Buslogic 545S and the DTC3290 both get
+		 * this wrong.
+		 */
+		printf ("aha%d: not a REAL adaptec board, may cause warnings\n",
+			unit);
+		inquire.boardid = 0;
+		outb(AHA_CTRL_STAT_PORT, AHA_HRST | AHA_SRST);
+		for (i = AHA_RESET_TIMEOUT; i; i--) {
+			sts = inb(AHA_CTRL_STAT_PORT);
+			if (sts == (AHA_IDLE | AHA_INIT)) {
+				break;
+			}
+			DELAY(1000);    /* calibrated in msec */
+		}
+#ifdef	AHADEBUG
+		printf("aha_init2: AHA_RESET_TIMEOUT went to %d\n", i);
+#endif /* AHADEBUG */
+		if (i == 0) {
+#ifdef	AHADEBUG
+			if (aha_debug)
+				printf("aha_init2: No answer from board\n");
+#endif /*AHADEBUG */
+		return (ENXIO);
+		}
+	}
 #ifdef	AHADEBUG
 	printf("aha%d: inquire %x, %x, %x, %x\n",
 		unit,
 		inquire.boardid, inquire.spec_opts,
 		inquire.revision_1, inquire.revision_2);
 #endif	/* AHADEBUG */
-	/*
-	 * XXX The Buslogic 545S gets the AHA_INQUIRE command wrong,
-	 * they only return one byte which causes us to print an error,
-	 * so if the boardid comes back as 0x20, tell the user why they
-	 * get the "cmd/data port empty" message
-	 */
-	if (inquire.boardid == 0x20) {
-		/* looks like a Buslogic 545 */
-		printf ("aha%d: above cmd/data port empty do to Buslogic 545\n",
-			unit);
-	}
+
 	/*
 	 * If we are a 1542C or 1542CF disable the extended bios so that the
 	 * mailbox interface is unlocked.
