@@ -334,7 +334,7 @@ phdr(signo)
 	(void)printf("      tty");
 	for (i = 0; i < dk_ndrive; i++)
 		if (dr_select[i])
-			(void)printf("          %3.3s ", dr_name[i]);
+			(void)printf("         %4.4s ", dr_name[i]);
 	(void)printf("         cpu\n tin tout");
 	for (i = 0; i < dk_ndrive; i++)
 		if (dr_select[i])
@@ -351,7 +351,7 @@ dkstats()
 	for (dn = 0; dn < dk_ndrive; ++dn) {
 		if (!dr_select[dn])
 			continue;
-		words = cur.dk_wds[dn] * 32;		/* words xfer'd */
+		words = (double)cur.dk_wds[dn] * 32;	/* words xfer'd */
 		(void)printf("%4.0f",			/* sectors */
 		    words / (DEV_BSIZE / 2) / etime);
 
