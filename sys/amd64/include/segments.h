@@ -166,7 +166,7 @@ struct region_descriptor {
 /*
  * Size of IDT table
  */
-#define	NIDT	129		/* 32 reserved, 16 h/w, 0 s/w, linux's 0x80 */
+#define	NIDT	256		/* 32 reserved, 16 h/w, 0 s/w, linux's 0x80 */
 #define	NRSVIDT	32		/* reserved entries for cpu exceptions */
 
 /*

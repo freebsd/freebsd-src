@@ -106,6 +106,12 @@ ENTRY(cpu_switch)
 	pushfq					/* PSL */
 	popq	PCB_RFLAGS(%r8)
 
+	/* Save kernel %gs.base */
+	movl	$MSR_GSBASE,%ecx
+	rdmsr
+	movl	%eax,PCB_KGSBASE(%r8)
+	movl	%edx,PCB_KGSBASE+4(%r8)
+
 	/* Save userland %fs */
 	movl	$MSR_FSBASE,%ecx
 	rdmsr
@@ -117,6 +123,12 @@ ENTRY(cpu_switch)
 	rdmsr
 	movl	%eax,PCB_GSBASE(%r8)
 	movl	%edx,PCB_GSBASE+4(%r8)
+
+	/* Save segment selector numbers */
+	movl	%ds,PCB_DS(%r8)
+	movl	%es,PCB_ES(%r8)
+	movl	%fs,PCB_FS(%r8)
+	movl	%gs,PCB_GS(%r8)
 
 	/* have we used fp, and need a save? */
 	cmpq	%rdi,PCPU(FPCURTHREAD)
@@ -159,6 +171,18 @@ sw1:
 	 * to load up the rest of the next context.
 	 */
 	movq	TD_PCB(%rsi),%r8
+
+	/* Restore segment selector numbers */
+	movl	PCB_DS(%r8),%ds
+	movl	PCB_ES(%r8),%es
+	movl	PCB_FS(%r8),%fs
+	movl	PCB_GS(%r8),%gs
+
+	/* Restore kernel %gs.base */
+	movl	$MSR_GSBASE,%ecx
+	movl	PCB_KGSBASE(%r8),%eax
+	movl	PCB_KGSBASE+4(%r8),%edx
+	wrmsr
 
 	/* Restore userland %fs */
 	movl	$MSR_FSBASE,%ecx

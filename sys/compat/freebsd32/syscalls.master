@@ -37,8 +37,8 @@
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
 #include <sys/mount.h>
-#include <ia64/ia32/ia32.h>
-#include <ia64/ia32/ia32_proto.h>
+#include <amd64/ia32/ia32.h>
+#include <amd64/ia32/ia32_proto.h>
 
 ; Reserved/unimplemented system calls in the range 0-150 inclusive
 ; are reserved for use in future Berkeley releases.
@@ -484,11 +484,11 @@
 340	MNOPROTO POSIX	{ int sigprocmask(int how, const sigset_t *set, \
 			    sigset_t *oset); }
 341	MNOPROTO POSIX	{ int sigsuspend(const sigset_t *sigmask); }
-342	STD POSIX	{ int ia32_sigaction(int sig, \
+342	COMPAT4 POSIX	{ int ia32_sigaction(int sig, \
 			    struct sigaction32 *act, \
 			    struct sigaction32 *oact); }
 343	MNOPROTO POSIX	{ int sigpending(sigset_t *set); }
-344	MNOPROTO BSD	{ int sigreturn(const struct __ucontext *sigcntxp); }
+344	MCOMPAT4 BSD	{ int ia32_sigreturn(const struct __ucontext *sigcntxp); }
 345	UNIMPL	NOHIDE	sigtimedwait
 346	UNIMPL	NOHIDE	sigwaitinfo
 347	MNOPROTO BSD	{ int __acl_get_file(const char *path, \
@@ -521,7 +521,7 @@
 360	MNOPROTO BSD	{ int getresuid(uid_t *ruid, uid_t *euid, uid_t *suid); }
 361	MNOPROTO BSD	{ int getresgid(gid_t *rgid, gid_t *egid, gid_t *sgid); }
 362	MNOPROTO BSD	{ int kqueue(void); }
-363	MNOPROTO BSD	{ int kevent(int fd, \
+363	MSTD BSD	{ int ia32_kevent(int fd, \
 			    const struct kevent *changelist, int nchanges, \
 			    struct kevent *eventlist, int nevents, \
 			    const struct timespec *timeout); }
@@ -586,8 +586,10 @@
 413	UNIMPL	BSD	extattr_get_link
 414	UNIMPL	BSD	extattr_delete_link
 415	UNIMPL	BSD	__mac_execve
-416	UNIMPL	BSD	newsigreturn
-417	UNIMPL	BSD	newsigaction
+416	MSTD BSD	{ int ia32_sigreturn(const struct ia32_ucontext *sigcntxp); }
+417	STD POSIX	{ int ia32_sigaction(int sig, \
+			    struct sigaction32 *act, \
+			    struct sigaction32 *oact); }
 418	UNIMPL	BSD	__xstat
 419	UNIMPL	BSD	__xfstat
 420	UNIMPL	BSD	__xlstat

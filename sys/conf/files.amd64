@@ -8,6 +8,19 @@
 # dependency lines other than the first are silently ignored.
 #
 
+ia32_genassym.o			optional	ia32			\
+	dependency 	"$S/amd64/ia32/ia32_genassym.c"			\
+	compile-with	"${CC} ${CFLAGS:N-fno-common} -c ${.IMPSRC}"	\
+	no-obj no-implicit-rule						\
+	clean		"ia32_genassym.o"
+#
+ia32_assym.h			optional	ia32			\
+	dependency 	"$S/kern/genassym.sh ia32_genassym.o"		\
+	compile-with	"sh $S/kern/genassym.sh ia32_genassym.o > ${.TARGET}" \
+	no-obj no-implicit-rule before-depend				\
+	clean		"ia32_assym.h"
+#
+
 dev/kbd/atkbd.c			optional	atkbd
 dev/kbd/atkbdc.c		optional	atkbdc
 dev/kbd/kbd.c			optional	atkbd
@@ -64,7 +77,14 @@ amd64/isa/npx.c			standard
 amd64/pci/pci_cfgreg.c		optional	pci
 amd64/pci/pci_bus.c		optional	pci
 
-
+amd64/ia32/ia32_misc.c		optional	ia32
+amd64/ia32/ia32_sysent.c	optional	ia32
+amd64/ia32/ia32_sysvec.c	optional	ia32
+amd64/ia32/ia32_signal.c	optional	ia32
+amd64/ia32/ia32_sigtramp.S	optional	ia32
+amd64/ia32/ia32_exception.S	optional	ia32
+amd64/ia32/ia32_syscall.c	optional	ia32
+kern/imgact_elf32.c		optional	ia32
 
 # This file tells config what files go into building a kernel,
 # files marked standard are always included.

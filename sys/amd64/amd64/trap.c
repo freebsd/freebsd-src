@@ -91,7 +91,7 @@
 extern void trap(struct trapframe frame);
 extern void syscall(struct trapframe frame);
 
-static int trap_pfault(struct trapframe *, int, vm_offset_t);
+static int trap_pfault(struct trapframe *, int);
 static void trap_fatal(struct trapframe *, vm_offset_t);
 void dblfault_handler(void);
 
@@ -161,13 +161,13 @@ trap(frame)
 	struct proc *p = td->td_proc;
 	u_int sticks = 0;
 	int i = 0, ucode = 0, type, code;
-	vm_offset_t eva;
 
 	atomic_add_int(&cnt.v_trap, 1);
 	type = frame.tf_trapno;
 
 #ifdef DDB
 	if (db_active) {
+		vm_offset_t eva;
 		eva = (type == T_PAGEFLT ? frame.tf_addr : 0);
 		trap_fatal(&frame, eva);
 		goto out;
@@ -202,7 +202,6 @@ trap(frame)
 		}
 	}
 
-	eva = 0;
 	code = frame.tf_err;
 	if (type == T_PAGEFLT) {
 		/*
@@ -213,9 +212,8 @@ trap(frame)
 		 * kernel can print out a useful trap message and even get
 		 * to the debugger.
 		 */
-		eva = frame.tf_addr;
 		if (PCPU_GET(spinlocks) != NULL)
-			trap_fatal(&frame, eva);
+			trap_fatal(&frame, frame.tf_addr);
 	}
 
 #ifdef	DEVICE_POLLING
@@ -261,7 +259,7 @@ trap(frame)
 			break;
 
 		case T_PAGEFLT:		/* page fault */
-			i = trap_pfault(&frame, TRUE, eva);
+			i = trap_pfault(&frame, TRUE);
 			if (i == -1)
 				goto userout;
 			if (i == 0)
@@ -331,7 +329,7 @@ trap(frame)
 		    ("kernel trap doesn't have ucred"));
 		switch (type) {
 		case T_PAGEFLT:			/* page fault */
-			(void) trap_pfault(&frame, FALSE, eva);
+			(void) trap_pfault(&frame, FALSE);
 			goto out;
 
 		case T_DNA:
@@ -430,7 +428,7 @@ trap(frame)
 #endif /* DEV_ISA */
 		}
 
-		trap_fatal(&frame, eva);
+		trap_fatal(&frame, 0);
 		goto out;
 	}
 
@@ -445,7 +443,7 @@ trap(frame)
 		uprintf("fatal process exception: %s",
 			trap_msg[type]);
 		if ((type == T_PAGEFLT) || (type == T_PROTFLT))
-			uprintf(", fault VA = 0x%lx", eva);
+			uprintf(", fault VA = 0x%lx", frame.tf_addr);
 		uprintf("\n");
 	}
 #endif
@@ -462,10 +460,9 @@ out:
 }
 
 static int
-trap_pfault(frame, usermode, eva)
+trap_pfault(frame, usermode)
 	struct trapframe *frame;
 	int usermode;
-	vm_offset_t eva;
 {
 	vm_offset_t va;
 	struct vmspace *vm = NULL;
@@ -474,6 +471,7 @@ trap_pfault(frame, usermode, eva)
 	vm_prot_t ftype;
 	struct thread *td = curthread;
 	struct proc *p = td->td_proc;
+	vm_offset_t eva = frame->tf_addr;
 
 	va = trunc_page(eva);
 	if (va >= KERNBASE) {
@@ -813,4 +811,3 @@ syscall(frame)
 	mtx_assert(&sched_lock, MA_NOTOWNED);
 	mtx_assert(&Giant, MA_NOTOWNED);
 }
-
