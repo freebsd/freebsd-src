@@ -8,11 +8,10 @@ SRCS=	extern.c grammar.y graphics.c input.c lex.l list.c log.c \
 MAN=	atc.6
 DPADD=	${LIBL} ${LIBM} ${LIBCURSES} ${LIBTERMCAP}
 LDADD=	-ll -lm -lcurses -ltermcap
-GAMES=  Game_List Killer crossover default easy game_2
+FILES=  Game_List Killer crossover default easy game_2
+FILESDIR=	${SHAREDIR}/games/atc
 HIDEGAME=hidegame
 
-beforeinstall:
-	(cd ${.CURDIR}/games; ${INSTALL} -c -o ${SHAREOWN} -g ${SHAREGRP} \
-	    -m ${SHAREMODE} ${GAMES} ${DESTDIR}${SHAREDIR}/games/atc)
+.PATH: ${.CURDIR}/games
 
 .include <bsd.prog.mk>

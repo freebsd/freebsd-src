@@ -5,12 +5,12 @@ PROG=	cribbage
 DPADD=	${LIBCURSES} ${LIBTERMCAP} ${LIBCOMPAT}
 LDADD=	-lcurses -ltermcap -lcompat
 SRCS=	extern.c crib.c cards.c instr.c io.c score.c support.c
+FILES=	cribbage.n
+FILESNAME_cribbage.n=	cribbage.instr
 MAN=	cribbage.6
 HIDEGAME=hidegame
 
 beforeinstall:
-	${INSTALL} -c -o ${SHAREOWN} -g ${SHAREGRP} -m ${SHAREMODE} \
-	  ${.CURDIR}/cribbage.n  ${DESTDIR}${SHAREDIR}/games/cribbage.instr
 .if !exists(${DESTDIR}/var/games/criblog)
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 664 /dev/null \
 	    ${DESTDIR}/var/games/criblog

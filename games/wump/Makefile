@@ -2,11 +2,8 @@
 # $FreeBSD$
 
 PROG=	wump
+FILES=	wump.info
 MAN=	wump.6
 HIDEGAME=hidegame
-
-beforeinstall:
-	${INSTALL} -c -o ${SHAREOWN} -g ${SHAREGRP} -m ${SHAREMODE} \
-		${.CURDIR}/wump.info ${DESTDIR}${SHAREDIR}/games
 
 .include <bsd.prog.mk>
