@@ -528,6 +528,7 @@ ipv6cp_LayerDown(struct fsm *fp)
     log_Printf(LogIPV6CP, "%s: LayerDown: %s\n", fp->link->name, addr);
 
 #ifndef NORADIUS
+    radius_Flush(&fp->bundle->radius);
     radius_Account(&fp->bundle->radius, &fp->bundle->radacct6,
 		   fp->bundle->links, RAD_STOP, &ipv6cp->throughput);
 

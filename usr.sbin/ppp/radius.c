@@ -30,6 +30,7 @@
 #include <stdint.h>
 #include <sys/param.h>
 
+#include <sys/select.h>
 #include <sys/socket.h>
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
@@ -678,6 +679,25 @@ radius_Read(struct fdescriptor *d, struct bundle *bundle __unused,
 	    const fd_set *fdset __unused)
 {
   radius_Continue(descriptor2radius(d), 1);
+}
+
+/*
+ * Flush any pending transactions
+ */
+void
+radius_Flush(struct radius *r)
+{
+  struct timeval tv;
+  fd_set s;
+
+  while (r->cx.fd != -1) {
+    FD_ZERO(&s);
+    FD_SET(r->cx.fd, &s);
+    tv.tv_sec = 0;
+    tv.tv_usec = TICKUNIT;
+    select(r->cx.fd + 1, &s, NULL, NULL, &tv);
+    radius_Continue(r, 1);
+  }
 }
 
 /*
