@@ -203,7 +203,7 @@ main(argc, argv)
 			break;
 		case 'G':
 #ifdef COLORLS
-			(void)fprintf(stderr, "The -G flag is depricated, please define CLICOLOR instead.\n");
+			(void)fprintf(stderr, "The -G flag is deprecated, please define CLICOLOR instead.\n");
 			setenv("CLICOLOR", "", 1);
 #else
 			(void)fprintf(stderr, "Color support not compiled in.\n");
