@@ -136,16 +136,34 @@ struct usb_knowndev usb_knowndevs[] = {
 	    "USB-HASP 0.06",
 	},
 	{
-	    USB_VENDOR_ALCOR, USB_PRODUCT_ALCOR_STRONGMAN,
+	    USB_VENDOR_ALCOR2, USB_PRODUCT_ALCOR2_KBD_HUB,
 	    0,
 	    "Alcor Micro, Inc.",
-	    "Strong Man Keyboard hub",
+	    "Kbd Hub",
 	},
 	{
-	    USB_VENDOR_ALCOR, USB_PRODUCT_ALCOR_STRONGMAN_KBD,
+	    USB_VENDOR_ALCOR, USB_PRODUCT_ALCOR_MA_KBD_HUB,
 	    0,
 	    "Alcor Micro, Inc.",
-	    "Strong Man Keyboard",
+	    "MacAlly Kbd Hub",
+	},
+	{
+	    USB_VENDOR_ALCOR, USB_PRODUCT_ALCOR_AU9814,
+	    0,
+	    "Alcor Micro, Inc.",
+	    "AU9814 Hub",
+	},
+	{
+	    USB_VENDOR_ALCOR, USB_PRODUCT_ALCOR_SM_KBD,
+	    0,
+	    "Alcor Micro, Inc.",
+	    "MicroConnectors/StrongMan Keyboard",
+	},
+	{
+	    USB_VENDOR_ALCOR, USB_PRODUCT_ALCOR_NEC_KBD_HUB,
+	    0,
+	    "Alcor Micro, Inc.",
+	    "NEC Kbd Hub",
 	},
 	{
 	    USB_VENDOR_ALTEC, USB_PRODUCT_ALTEC_ADA70,
@@ -280,6 +298,12 @@ struct usb_knowndev usb_knowndevs[] = {
 	    "KB-8933 keyboard",
 	},
 	{
+	    USB_VENDOR_COMPAQ, USB_PRODUCT_COMPAQ_PJB100,
+	    0,
+	    "Compaq Computers",
+	    "Personal Jukebox PJB100",
+	},
+	{
 	    USB_VENDOR_CONNECTIX, USB_PRODUCT_CONNECTIX_QUICKCAM,
 	    0,
 	    "Connectix Corp.",
@@ -296,6 +320,12 @@ struct usb_knowndev usb_knowndevs[] = {
 	    0,
 	    "Corega",
 	    "FEther USB-TX",
+	},
+	{
+	    USB_VENDOR_CTX, USB_PRODUCT_CTX_EX1300,
+	    0,
+	    "Chuntex",
+	    "Ex1300 hub",
 	},
 	{
 	    USB_VENDOR_CYPRESS, USB_PRODUCT_CYPRESS_MOUSE,
@@ -446,6 +476,18 @@ struct usb_knowndev usb_knowndevs[] = {
 	    0,
 	    "Seiko Epson Corp.",
 	    "ISD USB Smart Cable",
+	},
+	{
+	    USB_VENDOR_ETEK, USB_PRODUCT_ETEK_1COM,
+	    0,
+	    "e-TEK Labs",
+	    "Serial port",
+	},
+	{
+	    USB_VENDOR_EXTENDED, USB_PRODUCT_EXTENDED_XTNDACCESS,
+	    0,
+	    "Extended Systems, Inc.",
+	    "XTNDAccess IrDA",
 	},
 	{
 	    USB_VENDOR_GRAVIS, USB_PRODUCT_GRAVIS_GAMEPADPRO,
@@ -724,16 +766,34 @@ struct usb_knowndev usb_knowndevs[] = {
 	    "M4848 mouse",
 	},
 	{
-	    USB_VENDOR_LOGITECH, USB_PRODUCT_LOGITECH_QUICKCAM,
+	    USB_VENDOR_LOGITECH, USB_PRODUCT_LOGITECH_PAGESCAN,
 	    0,
 	    "Logitech, Inc.",
-	    "QuickCam",
+	    "PageScan",
+	},
+	{
+	    USB_VENDOR_LOGITECH, USB_PRODUCT_LOGITECH_QUICKCAMWEB,
+	    0,
+	    "Logitech, Inc.",
+	    "QuickCam Web",
 	},
 	{
 	    USB_VENDOR_LOGITECH, USB_PRODUCT_LOGITECH_QUICKCAMPRO,
 	    0,
 	    "Logitech, Inc.",
 	    "QuickCam Pro",
+	},
+	{
+	    USB_VENDOR_LOGITECH, USB_PRODUCT_LOGITECH_QUICKCAMEXP,
+	    0,
+	    "Logitech, Inc.",
+	    "QuickCam Express",
+	},
+	{
+	    USB_VENDOR_LOGITECH, USB_PRODUCT_LOGITECH_QUICKCAM,
+	    0,
+	    "Logitech, Inc.",
+	    "QuickCam",
 	},
 	{
 	    USB_VENDOR_LOGITECH, USB_PRODUCT_LOGITECH_N43,
@@ -770,6 +830,12 @@ struct usb_knowndev usb_knowndevs[] = {
 	    0,
 	    "Logitech, Inc.",
 	    "WingMan Force joystick",
+	},
+	{
+	    USB_VENDOR_LOGITECH, USB_PRODUCT_LOGITECH_QUICKCAMPRO2,
+	    0,
+	    "Logitech, Inc.",
+	    "QuickCam Pro",
 	},
 	{
 	    USB_VENDOR_LUCENT, USB_PRODUCT_LUCENT_EVALKIT,
@@ -896,6 +962,12 @@ struct usb_knowndev usb_knowndevs[] = {
 	    0,
 	    "OmniVision",
 	    "OV511 Camera",
+	},
+	{
+	    USB_VENDOR_OMNIVISION, USB_PRODUCT_OMNIVISION_OV511PLUS,
+	    0,
+	    "OmniVision",
+	    "OV511+ Camera",
 	},
 	{
 	    USB_VENDOR_PALM, USB_PRODUCT_PALM_SERIAL,
@@ -1084,6 +1156,12 @@ struct usb_knowndev usb_knowndevs[] = {
 	    "Supra Express 56K modem",
 	},
 	{
+	    USB_VENDOR_TEAC, USB_PRODUCT_TEAC_FD05PUB,
+	    0,
+	    "TEAC",
+	    "FD-05PUB floppy",
+	},
+	{
 	    USB_VENDOR_TELEX, USB_PRODUCT_TELEX_MIC1,
 	    0,
 	    "Telex Communications, Inc.",
@@ -1111,7 +1189,7 @@ struct usb_knowndev usb_knowndevs[] = {
 	    USB_VENDOR_VISION, USB_PRODUCT_VISION_VC6452V002,
 	    0,
 	    "VLSI Vision Ltd.",
-	    "VC6452V002 Camera",
+	    "CPiA Camera",
 	},
 	{
 	    USB_VENDOR_WACOM, USB_PRODUCT_WACOM_CT0405U,
@@ -1348,6 +1426,12 @@ struct usb_knowndev usb_knowndevs[] = {
 	    NULL,
 	},
 	{
+	    USB_VENDOR_COMPAQ, 0,
+	    USB_KNOWNDEV_NOPROD,
+	    "Compaq Computers",
+	    NULL,
+	},
+	{
 	    USB_VENDOR_ACERP, 0,
 	    USB_KNOWNDEV_NOPROD,
 	    "Acer Peripherals, Inc.",
@@ -1537,6 +1621,12 @@ struct usb_knowndev usb_knowndevs[] = {
 	    USB_VENDOR_PERACOM, 0,
 	    USB_KNOWNDEV_NOPROD,
 	    "Peracom Networks, Inc.",
+	    NULL,
+	},
+	{
+	    USB_VENDOR_ALCOR2, 0,
+	    USB_KNOWNDEV_NOPROD,
+	    "Alcor Micro, Inc.",
 	    NULL,
 	},
 	{
@@ -1756,6 +1846,12 @@ struct usb_knowndev usb_knowndevs[] = {
 	    NULL,
 	},
 	{
+	    USB_VENDOR_TEAC, 0,
+	    USB_KNOWNDEV_NOPROD,
+	    "TEAC",
+	    NULL,
+	},
+	{
 	    USB_VENDOR_LINKSYS, 0,
 	    USB_KNOWNDEV_NOPROD,
 	    "Linksys, Inc.",
@@ -1789,6 +1885,12 @@ struct usb_knowndev usb_knowndevs[] = {
 	    USB_VENDOR_ADVANCELOGIC, 0,
 	    USB_KNOWNDEV_NOPROD,
 	    "Avance Logic, Inc.",
+	    NULL,
+	},
+	{
+	    USB_VENDOR_CTX, 0,
+	    USB_KNOWNDEV_NOPROD,
+	    "Chuntex",
 	    NULL,
 	},
 	{
@@ -2104,6 +2206,12 @@ struct usb_knowndev usb_knowndevs[] = {
 	    NULL,
 	},
 	{
+	    USB_VENDOR_EXTENDED, 0,
+	    USB_KNOWNDEV_NOPROD,
+	    "Extended Systems, Inc.",
+	    NULL,
+	},
+	{
 	    USB_VENDOR_AUTHENTEC, 0,
 	    USB_KNOWNDEV_NOPROD,
 	    "AuthenTec, Inc.",
@@ -2227,6 +2335,12 @@ struct usb_knowndev usb_knowndevs[] = {
 	    USB_VENDOR_BROADCOM, 0,
 	    USB_KNOWNDEV_NOPROD,
 	    "Broadcom Corp.",
+	    NULL,
+	},
+	{
+	    USB_VENDOR_GEOCAST, 0,
+	    USB_KNOWNDEV_NOPROD,
+	    "Geocast Network Systems",
 	    NULL,
 	},
 	{
