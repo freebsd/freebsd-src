@@ -2467,6 +2467,8 @@ device		umass
 device		umodem
 # USB mouse
 device		ums
+# USB Rio (MP3 Player)
+device		urio
 # USB scanners
 device		uscanner
 #
