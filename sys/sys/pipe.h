@@ -25,7 +25,7 @@
 #define _SYS_PIPE_H_
 
 #ifndef KERNEL
-#include <sys/time.h>			/* for struct timeval */
+#include <sys/time.h>			/* for struct timespec */
 #include <sys/select.h>			/* for struct selinfo */
 #include <vm/vm.h>			/* for vm_page_t */
 #include <machine/param.h>		/* for PAGE_SIZE */
