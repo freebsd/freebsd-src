@@ -20,7 +20,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: cdcontrol.c,v 1.13.2.1 1997/09/15 06:27:49 charnier Exp $";
 #endif /* not lint */
 
 #include <ctype.h>
@@ -65,6 +65,9 @@ static const char rcsid[] =
 #define CMD_RESET       12
 #define CMD_SET         13
 #define CMD_STATUS      14
+#define STATUS_AUDIO    0x1
+#define STATUS_MEDIA    0x2
+#define STATUS_VOLUME   0x4
 
 struct cmdtab {
 	int command;
@@ -87,7 +90,7 @@ struct cmdtab {
 { CMD_RESET,    "reset",        4, "" },
 { CMD_RESUME,   "resume",       1, "" },
 { CMD_SET,      "set",          2, "msf | lba" },
-{ CMD_STATUS,   "status",       1, "" },
+{ CMD_STATUS,   "status",       1, "[audio | media | volume]" },
 { CMD_STOP,     "stop",         3, "" },
 { CMD_VOLUME,   "volume",       1, "<l> <r> | left | right | mute | mono | stereo" },
 { 0, }
@@ -677,43 +680,64 @@ int pstatus (char *arg)
 	struct ioc_read_subchannel ss;
 	struct cd_sub_channel_info data;
 	int rc, trk, m, s, f;
+	int what = 0;
+	char *p;
 
-	rc = status (&trk, &m, &s, &f);
-	if (rc >= 0)
+	while ((p = strtok(arg, " \t"))) {
+	    arg = 0;
+	    if (!strncasecmp(p, "audio", strlen(p)))
+		what |= STATUS_AUDIO;
+	    else if (!strncasecmp(p, "media", strlen(p)))
+		what |= STATUS_MEDIA;
+	    else if (!strncasecmp(p, "volume", strlen(p)))
+		what |= STATUS_VOLUME;
+	    else {
+		warnx("invalid command arguments");
+		return 0;
+	    }
+	}
+	if (!what)
+	    what = STATUS_AUDIO|STATUS_MEDIA|STATUS_VOLUME;
+	if (what & STATUS_AUDIO) {
+	    rc = status (&trk, &m, &s, &f);
+	    if (rc >= 0)
 		if (verbose)
-			printf ("Audio status = %d<%s>, current track = %d, current position = %d:%02d.%02d\n",
-				rc, strstatus (rc), trk, m, s, f);
+		    printf ("Audio status = %d<%s>, current track = %d, current position = %d:%02d.%02d\n",
+			    rc, strstatus (rc), trk, m, s, f);
 		else
-			printf ("%d %d %d:%02d.%02d\n", rc, trk, m, s, f);
-	else
+		    printf ("%d %d %d:%02d.%02d\n", rc, trk, m, s, f);
+	    else
 		printf ("No current status info available\n");
-
-	bzero (&ss, sizeof (ss));
-	ss.data = &data;
-	ss.data_len = sizeof (data);
-	ss.address_format = msf ? CD_MSF_FORMAT : CD_LBA_FORMAT;
-	ss.data_format = CD_MEDIA_CATALOG;
-	rc = ioctl (fd, CDIOCREADSUBCHANNEL, (char *) &ss);
-	if (rc >= 0) {
+	}
+	if (what & STATUS_MEDIA) {
+	    bzero (&ss, sizeof (ss));
+	    ss.data = &data;
+	    ss.data_len = sizeof (data);
+	    ss.address_format = msf ? CD_MSF_FORMAT : CD_LBA_FORMAT;
+	    ss.data_format = CD_MEDIA_CATALOG;
+	    rc = ioctl (fd, CDIOCREADSUBCHANNEL, (char *) &ss);
+	    if (rc >= 0) {
 		printf("Media catalog is %sactive",
-		ss.data->what.media_catalog.mc_valid ? "": "in");
+		       ss.data->what.media_catalog.mc_valid ? "": "in");
 		if (ss.data->what.media_catalog.mc_valid &&
 		    ss.data->what.media_catalog.mc_number[0])
-			printf(", number \"%.15s\"",
-			       ss.data->what.media_catalog.mc_number);
+		    printf(", number \"%.15s\"",
+			   ss.data->what.media_catalog.mc_number);
 		putchar('\n');
-	} else
+	    } else
 		printf("No media catalog info available\n");
-
-	rc = ioctl (fd, CDIOCGETVOL, &v);
-	if (rc >= 0)
+	}
+	if (what & STATUS_VOLUME) {
+	    rc = ioctl (fd, CDIOCGETVOL, &v);
+	    if (rc >= 0)
 		if (verbose)
-			printf ("Left volume = %d, right volume = %d\n",
-				v.vol[0], v.vol[1]);
+		    printf ("Left volume = %d, right volume = %d\n",
+			    v.vol[0], v.vol[1]);
 		else
-			printf ("%d %d\n", v.vol[0], v.vol[1]);
-	else
+		    printf ("%d %d\n", v.vol[0], v.vol[1]);
+	    else
 		printf ("No volume level info available\n");
+	}
 	return(0);
 }
 
