@@ -770,14 +770,13 @@ static int wi_cmd(sc, cmd, val)
 	int			i, s = 0;
 
 	/* wait for the busy bit to clear */
-	for (i = 0; i < WI_TIMEOUT; i++) {
+	for (i = 200; i > 0; i--) {
 		if (!(CSR_READ_2(sc, WI_COMMAND) & WI_CMD_BUSY)) {
 			break;
 		}
 		DELAY(10*1000);	/* 10 m sec */
 	}
-
-	if (i == WI_TIMEOUT) {
+	if (i < 0) {
 		return(ETIMEDOUT);
 	}
 
