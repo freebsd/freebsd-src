@@ -31,10 +31,15 @@ Report problems and direct all questions to:
 
 
 /* $Log: rcskeys.c,v $
+ * Revision 1.3  1994/05/15  22:15:14  rgrimes
+ * To truely have the OLD behavior of RCS by default make the expansion
+ * of $FreeBSD$ false by default.  This should keep them out
+ * of the pre 2.x repository. (Or at least make them useless in it).
+ *
  * Revision 1.2  1994/05/14  07:00:23  rgrimes
  * Add new option -K from David Dawes that allows you to turn on and off
  * specific keyword substitution during a rcs co command.
- * Add the new keyword FreeBSD that is IDENTICAL in operation to $Id$.
+ * Add the new keyword FreeBSD that is IDENTICAL in operation to $Id: rcskeys.c,v 1.3 1994/05/15 22:15:14 rgrimes Exp $.
  *
  * Revision 1.1.1.1  1993/06/18  04:22:12  jkh
  * Updated GNU utilities
@@ -68,7 +73,7 @@ Report problems and direct all questions to:
 
 #include "rcsbase.h"
 
-libId(keysId, "$Id: rcskeys.c,v 1.2 1994/05/14 07:00:23 rgrimes Exp $")
+libId(keysId, "$Id: rcskeys.c,v 1.3 1994/05/15 22:15:14 rgrimes Exp $")
 
 
 char const *const Keyword[] = {
@@ -85,7 +90,7 @@ char const *const Keyword[] = {
 static int ExpandKeyword[] = {
 	nil,
 	true, true, true, true,
-	true, true, true, true, true, true, true,
+	true, true, true, true, true, true,
 	false
 };
 
