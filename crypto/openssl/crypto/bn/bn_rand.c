@@ -55,6 +55,59 @@
  * copied and put under another distribution licence
  * [including the GNU Public Licence.]
  */
+/* ====================================================================
+ * Copyright (c) 1998-2001 The OpenSSL Project.  All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer. 
+ *
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in
+ *    the documentation and/or other materials provided with the
+ *    distribution.
+ *
+ * 3. All advertising materials mentioning features or use of this
+ *    software must display the following acknowledgment:
+ *    "This product includes software developed by the OpenSSL Project
+ *    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+ *
+ * 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+ *    endorse or promote products derived from this software without
+ *    prior written permission. For written permission, please contact
+ *    openssl-core@openssl.org.
+ *
+ * 5. Products derived from this software may not be called "OpenSSL"
+ *    nor may "OpenSSL" appear in their names without prior written
+ *    permission of the OpenSSL Project.
+ *
+ * 6. Redistributions of any form whatsoever must retain the following
+ *    acknowledgment:
+ *    "This product includes software developed by the OpenSSL Project
+ *    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+ * EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+ * ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+ * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+ * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+ * OF THE POSSIBILITY OF SUCH DAMAGE.
+ * ====================================================================
+ *
+ * This product includes cryptographic software written by Eric Young
+ * (eay@cryptsoft.com).  This product includes software written by Tim
+ * Hudson (tjh@cryptsoft.com).
+ *
+ */
 
 #include <stdio.h>
 #include <time.h>
@@ -172,8 +225,9 @@ int     BN_bntest_rand(BIGNUM *rnd, int bits, int top, int bottom)
 #endif
 
 /* random number r:  0 <= r < range */
-int	BN_rand_range(BIGNUM *r, BIGNUM *range)
+static int bn_rand_range(int pseudo, BIGNUM *r, BIGNUM *range)
 	{
+	int (*bn_rand)(BIGNUM *, int, int, int) = pseudo ? BN_pseudo_rand : BN_rand;
 	int n;
 
 	if (range->neg || BN_is_zero(range))
@@ -184,26 +238,19 @@ int	BN_rand_range(BIGNUM *r, BIGNUM *range)
 
 	n = BN_num_bits(range); /* n > 0 */
 
+	/* BN_is_bit_set(range, n - 1) always holds */
+
 	if (n == 1)
 		{
 		if (!BN_zero(r)) return 0;
 		}
-	else if (BN_is_bit_set(range, n - 2))
+	else if (!BN_is_bit_set(range, n - 2) && !BN_is_bit_set(range, n - 3))
 		{
-		do
-			{
-			/* range = 11..._2, so each iteration succeeds with probability >= .75 */
-			if (!BN_rand(r, n, -1, 0)) return 0;
-			}
-		while (BN_cmp(r, range) >= 0);
-		}
-	else
-		{
-		/* range = 10..._2,
+		/* range = 100..._2,
 		 * so  3*range (= 11..._2)  is exactly one bit longer than  range */
 		do
 			{
-			if (!BN_rand(r, n + 1, -1, 0)) return 0;
+			if (!bn_rand(r, n + 1, -1, 0)) return 0;
 			/* If  r < 3*range,  use  r := r MOD range
 			 * (which is either  r, r - range,  or  r - 2*range).
 			 * Otherwise, iterate once more.
@@ -218,6 +265,26 @@ int	BN_rand_range(BIGNUM *r, BIGNUM *range)
 			}
 		while (BN_cmp(r, range) >= 0);
 		}
+	else
+		{
+		do
+			{
+			/* range = 11..._2  or  range = 101..._2 */
+			if (!bn_rand(r, n, -1, 0)) return 0;
+			}
+		while (BN_cmp(r, range) >= 0);
+		}
 
 	return 1;
+	}
+
+
+int	BN_rand_range(BIGNUM *r, BIGNUM *range)
+	{
+	return bn_rand_range(0, r, range);
+	}
+
+int	BN_pseudo_rand_range(BIGNUM *r, BIGNUM *range)
+	{
+	return bn_rand_range(1, r, range);
 	}
