@@ -15,7 +15,7 @@ directly to him.  See end of file for further details.
 	The sigset_t datatype has been changed from an integral type
 	to a compound type and can hold 128 signals. Syscalls directly
 	or indirectly using the new sigset_t have been added as to
-	maintain compatible with existing binaries. A new kernel must
+	maintain compatibility with existing binaries. A new kernel must
 	be made and installed and booted with before a make world can
 	be done.
 
