@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: mknodes.c,v 1.7 1997/02/22 13:58:36 peter Exp $
  */
 
 #ifndef lint
@@ -54,7 +54,7 @@ static char const sccsid[] = "@(#)mknodes.c	8.2 (Berkeley) 5/4/95";
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#if __STDC__
+#ifdef __STDC__
 #include <stdarg.h>
 #else
 #include <varargs.h>
@@ -312,7 +312,7 @@ outfunc(cfile, calcsize)
 		fputs("      funcblocksize += nodesize[n->type];\n", cfile);
 	else {
 		fputs("      new = funcblock;\n", cfile);
-		fputs("      funcblock += nodesize[n->type];\n", cfile);
+		fputs("      funcblock = (char *)funcblock + nodesize[n->type];\n", cfile);
 	}
 	fputs("      switch (n->type) {\n", cfile);
 	for (sp = str ; sp < &str[nstr] ; sp++) {
@@ -394,7 +394,7 @@ static int
 nextfield(buf)
 	char *buf;
 {
-	register char *p, *q;
+	char *p, *q;
 
 	p = linep;
 	while (*p == ' ' || *p == '\t')
@@ -419,7 +419,7 @@ skipbl()
 static int
 readline()
 {
-	register char *p;
+	char *p;
 
 	if (fgets(line, 1024, infp) == NULL)
 		return 0;
@@ -437,7 +437,7 @@ readline()
 
 
 static void
-#if __STDC__
+#ifdef __STDC__
 error(const char *msg, ...)
 #else
 error(va_alist)
@@ -445,7 +445,7 @@ error(va_alist)
 #endif
 {
 	va_list va;
-#if __STDC__
+#ifdef __STDC__
 	va_start(va, msg);
 #else
 	char *msg;
@@ -468,7 +468,7 @@ static char *
 savestr(s)
 	const char *s;
 {
-	register char *p;
+	char *p;
 
 	if ((p = malloc(strlen(s) + 1)) == NULL)
 		error("Out of space");
