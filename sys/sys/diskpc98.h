@@ -399,7 +399,6 @@ dev_t	dkmodpart(dev_t dev, int part);
 dev_t	dkmodslice(dev_t dev, int slice);
 u_int	dkunit(dev_t dev);
 char	*readdisklabel(dev_t dev, struct disklabel *lp);
-void	bioqdisksort(struct bio_queue_head *ap, struct bio *bp);
 int	setdisklabel(struct disklabel *olp, struct disklabel *nlp,
 	    u_long openmask);
 int	writedisklabel(dev_t dev, struct disklabel *lp);
