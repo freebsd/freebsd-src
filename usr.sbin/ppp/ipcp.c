@@ -871,10 +871,13 @@ IpcpSendConfigReq(struct fsm *fp)
   }
 
   if (IsEnabled(ipcp->cfg.ns.dns_neg) &&
-      !REJECTED(ipcp, TY_PRIMARY_DNS - TY_ADJUST_NS) &&
-      !REJECTED(ipcp, TY_SECONDARY_DNS - TY_ADJUST_NS)) {
+      !REJECTED(ipcp, TY_PRIMARY_DNS - TY_ADJUST_NS)) {
     memcpy(o->data, &ipcp->dns[0].s_addr, 4);
     INC_LCP_OPT(TY_PRIMARY_DNS, 6, o);
+  }
+
+  if (IsEnabled(ipcp->cfg.ns.dns_neg) &&
+      !REJECTED(ipcp, TY_SECONDARY_DNS - TY_ADJUST_NS)) {
     memcpy(o->data, &ipcp->dns[1].s_addr, 4);
     INC_LCP_OPT(TY_SECONDARY_DNS, 6, o);
   }
