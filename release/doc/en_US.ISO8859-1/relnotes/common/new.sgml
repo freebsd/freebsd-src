@@ -250,6 +250,13 @@
       This behavior can be disabled by setting a loader tunable
       <varname>hint.acpi.0.disabled</varname> to <literal>0</literal>.</para>
 
+    <para>The &man.bus.dma.9; now supports transparently honoring
+      the alignment and boundary constraints in the dma tag
+      when loading buffers, and <function>bus_dmamap_load()</function>
+      will automatically use bounce buffers when needed.
+      In addition, a set of sysctls <varname>hw.busdma.*</varname>
+      for &man.bus.dma.9; statistics has been added.</para>
+
     <para arch="i386">The &man.ctau.4; driver has been added for Cronyx Tau
       synchronous serial adapters. This driver was known for a long time as
       <quote>ct</quote> in its previous life outside the &os; source tree. &merged;
@@ -280,6 +287,72 @@
     <para>&man.jail.2; now supports use of raw sockets from within a jail.
       This feature is disabled by default, and controlled using the
       <varname>security.jail.allow_raw_sockets</varname> sysctl.</para>
+
+    <para>&man.kqueue.2; now supports a new filter
+      <literal>EVFILT_FS</literal> to be used to signal generic filesystem
+      events to the user space.  Currently, mount, unmount, and up/down
+      status of NFS are signaled.</para>
+
+    <para>KDB, a new debugger framework has been added.
+      This consists of a new GDB backend, which has been rewritten to support
+      threading, run-length encoding compression, and so on, and
+      the frontend that provides a framework in which multiple, different
+      debugger backends can be configured and which provides
+      basic services to those backends.
+      The following options has been changed:</para>
+
+    <itemizedlist>
+      <listitem>
+	<para>KDB is enabled by default
+	  via a kernel option <literal>options KDB</literal>,
+	  <literal>options GDB</literal>, and <literal>options DDB</literal>.
+	  Both <literal>DDB</literal> and
+	  <literal>GDB</literal> specify which KDB backends to include.</para>
+      </listitem>
+
+      <listitem>
+	<para>WITNESS_DDB has been renamed to WITNESS_KDB.</para>
+      </listitem>
+
+      <listitem>
+	<para>DDB_TRACE has been renamed to KDB_TRACE.</para>
+      </listitem>
+
+      <listitem>
+	<para>DDB_UNATTENDED has been renamed to KDB_UNATTENDED.</para>
+      </listitem>
+
+      <listitem>
+	<para>SC_HISTORY_DDBKEY has been renamed to SC_HISTORY_KDBKEY.</para>
+      </listitem>
+
+      <listitem>
+	<para>DDB_NOKLDSYM has been removed.
+	  The new DDB backend supports pre-linker symbol
+	  lookups as well as KLD symbol lookups at the same time.</para>
+      </listitem>
+
+      <listitem>
+	<para>GDB_REMOTE_CHAT has been removed.
+	  The GDB protocol hacks to allow this are &os; specific.
+	  At the same time, the GDB protocol has packets for console
+	  output.</para>
+      </listitem>
+    </itemizedlist>
+
+    <para>The KDB also serves as the single point of contact for any and
+      all code that wants to make use of the debugger functions,
+      such as entering the debugger or handling of the
+      alternate break sequence.
+      For this purpose, the frontend has been made non-optional.
+      All debugger requests are forwarded or handed over to the current
+      backend, if applicable.
+      Selection of the current backend is done by the
+      <varname>debug.kdb.current</varname> sysctl.
+      A list of configured backends can be obtained with the
+      <varname>debug.kdb.available</varname> sysctl.
+      One can enter the debugger by writing to the
+      <varname>debug.kdb.enter</varname> sysctl.</para>
 
     <para arch="amd64">Loadable kernel modules now work and are
       enabled in the amd64 build.</para>
@@ -317,6 +390,10 @@
 
     <para arch="sparc64">The &man.sab.4; now supports
       <literal>BREAK_TO_DEBUGGER</literal> kernel option.</para>
+
+    <para>The drivers for various sound cards has been reorganized;
+      <literal>device sound</literal> is the generic sound driver,
+      and <literal>device snd_*</literal> are device-specific sound drivers.</para>
 
     <para arch="i386,pc98">The sx driver, which supports Specialix I/O8+ and I/O4+
       intelligent multiport serial controllers has been added.</para>
@@ -600,6 +677,11 @@
 	could cause erratic behavior or kernel panics after flushing
 	the Security Policy Database (SPD).</para>
 
+      <para>&man.natd.8; now supports multiple instances via
+	a new option <option>globalports</option>.
+	This allows &man.natd.8; to be bound to
+	different network interfaces and sharing of load.</para>
+
       <para>The <literal>PFIL_HOOKS</literal> option is now enabled by
 	default in the <filename>GENERIC</filename> kernel.  The most
 	notable effect of this change is to make
@@ -608,6 +690,11 @@
 
       <para>The link state change notification of Ethernet media
 	support has been added to the routing socket.</para>
+
+      <para>The LQM, Link Quality Monitoring support of &man.ppp.8;
+	has been reimplemented.  The LQM, which is described
+	in RFC 1989 allows PPP to keep track of the quality
+	of a running connection.</para>
 
       <para>The following TCP features are now enabled by default: RFC
 	3042 (Limited Retransmit), RFC 3390 (increased initial
@@ -728,7 +815,22 @@
 	testing purposes has been added.</para>
 
       <para>A new <literal>GEOM_STRIPE</literal>
-	class which implements RAID0 transformation has been added.</para>
+	class which implements RAID0 transformation has been added.
+	This class has two modes: <quote>FAST</quote> and
+	<quote>ECONOMIC</quote>.  In the <quote>FAST</quote> mode,
+	when very small stripe size is used, only one I/O request
+	will be send to every disks in stripe, and it is about 10
+	times faster for small stripe size than <quote>ECONOMIC</quote>
+	mode and other RAID0 implementations.
+	While this <quote>FAST</quote> mode is used by default,
+	because this mode consumes some more memory,
+	<quote>ECONOMIC</quote> mode which sends requests each time,
+	can be enabled by setting a loader tunable
+	<varname>kern.geom.stripe.fast</varname> to 0.
+	It is also possible to setup maximum memory
+	which <quote>FAST</quote> mode can consume,
+	by setting a loader tunable
+	<varname>kern.geom.stripe.maxmem</varname>.</para>
 
       <para>GEOM Gate, which consists of a new <literal>GEOM_GATE</literal>
 	class and several GEOM Gate userland utilities
@@ -761,6 +863,16 @@
 	significant performance penalty, this feature is only enabled
 	if the server requires it; this may eventually become an
 	option to &man.mount.smbfs.8;.</para>
+
+      <para>A kernel option <literal>options MSDOSFS_LARGE</literal>
+	has been added to support for FAT32 filesystems bigger
+	than 128GB.  This is not enabled by default, and note
+	that this uses at least 32 bytes of kernel memory for
+	each file on disk, but this is only safe to use in certain
+	controlled situations such as read-only mount
+	with less than 1 million files and so on.
+	And this does not support exporting these large filesystems
+	over NFS.</para>
     </sect3>
 
     <sect3 id="mm">
@@ -781,10 +893,15 @@
       <para><application>ALTQ framework</application>
 	has been imported from the KAME snapshot as of 20040607.
 	This import breaks ABI compatibility of
-	<varname>struct ifnet</varname>.</para>
+	<varname>struct ifnet</varname>.
+	Additionally some of the networking drivers have been
+	modified to support the ALTQ framework.
+	Updated drivers are &man.bfe.4;, &man.em.4;, &man.fxp.4;,
+	&man.em.4;, &man.lnc.4;, &man.tun.4;, &man.de.4;,
+	&man.rl.4;, &man.sis.4;, and &man.xl.4;.</para>
 
       <para><application>IPFilter</application> has been updated
-	from version 3.4.31 to version 3.4.35.</para>
+	from version 3.4.31 to version 3.4.35 &merged;.</para>
 
       <para arch="ia64">An ia64 stack unwinder,
 	<application>Unwind Express (libuwx)</application>
@@ -797,6 +914,13 @@
 
     <para>&man.bsdlabel.8; now supports a <option>-f</option> option
       to work on files instead of disk partitions.</para>
+
+    <para>&man.bsdtar.1; is the default &man.tar.1; utility in &os;
+      base system now.  <filename>/usr/bin/tar</filename>
+      has been a symlink pointing to
+      <filename>/usr/bin/bsdtar</filename> by default.
+      To use <filename>/usr/bin/gtar</filename>, <varname>WITH_GTAR</varname>
+      make variable can be used.</para>
 
     <para>The <command>bthidcontrol</command> command and the
       <command>bthidd</command> command, which support Bluetooth
@@ -822,6 +946,9 @@
     <para>&man.cut.1; <option>-c</option>,
       <option>-d</option>, and <option>-f</option>
       now work correctly in locales with multibyte characters.</para>
+
+    <para>&man.cvs.1; now supports <option>iso8601</option>
+      option keyword to print dates in ISO 8601 format.</para>
 
     <para>&man.daemon.8; now supports a <option>-p</option>
       option to create a PID file.</para>
@@ -849,6 +976,9 @@
     <para arch="pc98">The &man.fdcontrol.8;, &man.fdformat.1;, and
       &man.fdread.1; utilities now work on &os;/pc98.</para>
 
+    <para>&man.fgetwln.3; function, a wide character version of
+      &man.fgetln.3; has been added.</para>
+
     <para>The &man.find.1; utility now supports a <option>-acl</option>
       primary to locate files with &man.acl.3;.</para>
 
@@ -857,6 +987,9 @@
       which tests whether the depth of the current file relative
       to the starting point of the traversal is <replaceable>n</replaceable>.
       &merged;</para>
+
+    <para>&man.ftw.3; and &man.nftw.3; functions have been implemented.
+      These are used to traverse a directory hierarchy.</para>
 
     <para>The &man.geom.8; utility for operating on GEOM classes
       from the userland has been added.</para>
@@ -905,6 +1038,8 @@
     <para>&man.jail.8; now supports a <option>-U</option> option to
       run command as a user which exists only in the &man.jail.2;
       environment.</para>
+
+    <para>&man.join.1; now supports multibyte characters.</para>
 
     <para>&man.killall.1; now supports a <option>-e</option> flag to
       make the <option>-u</option> operate on effective, rather than
@@ -962,6 +1097,9 @@
     <para>&man.make.1; now supports the new <literal>.warning</literal>
       directive.</para>
 
+    <para>nearbyint(3) and nearbyintf(3) C99 functions
+      have been implemented.</para>
+
     <para>&man.newsyslog.8; now allows the users to set
       a debugging option via the <filename>newsyslog.conf</filename>
       file.</para>
@@ -971,6 +1109,10 @@
       to be rotated, and then send a single signal to each process
       which needs to be signaled, and finally it will compress
       all the files which were rotated.</para>
+
+    <para>&man.nextwctype.3; function to iterate over all characters
+      in a particular character class,
+      has been added.</para>
 
     <para>Initial support for UTF-8 versions of all the currently
       supported system locales has been added.  This is primarily
@@ -1008,12 +1150,20 @@
       role="package">net/nss_ldap</filename>) and groups with large
       membership lists.</para>
 
+    <para>&man.od.1; now has POSIX-style support for multibyte
+      characters.</para>
+
     <para>The &man.pgrep.1; and &man.pkill.1; commands, which come from NetBSD,
       have been added.  They also support a <option>-M</option> option
       to extract values associated with the name list from the
       specified core instead of the default <filename>/dev/kmem</filename>,
       and a <option>-N</option> option to extract the name list from
       the specified system instead of the default kernel.</para>
+
+    <para>The &man.ppp.8; now support a <quote>set rad_alive
+	<replaceable>N</replaceable></quote> command
+      to enable periodic RADIUS accounting information
+      being sent to the RADIUS server.</para>
 
     <para>&man.ps.1; compatibility with POSIX/SUSv3 has been improved.
       The changes include <option>-p</option> for a list of process IDs,
@@ -1035,6 +1185,9 @@
       when a interface has more than one IP address has been fixed.
       &merged;</para>
 
+    <para>&man.regex.3; now supports regular expression matching aware
+      of multibyte characters.</para>
+
     <para>The configuration files used by the &man.resolver.3; now
       support the <literal>timeout:</literal> and
       <literal>attempts:</literal> keywords.</para>
@@ -1049,6 +1202,8 @@
       role="package">mail/evolution</filename>, <filename
       role="package">devel/gnomevfs</filename>, and <filename
       role="package">devel/gnomevfs2</filename>.</para>
+
+    <para>&man.rev.1; now supports multibyte characters.</para>
 
     <para>&man.rmdir.1; now supports a <option>-v</option> flag,
       which makes it verbose.</para>
@@ -1065,6 +1220,9 @@
 
     <para>The &man.sdpd.8; Bluetooth Service Discovery Protocol daemon
       has been added.</para>
+
+    <para>&man.sed.1; <literal>y</literal> (translate) command
+      now supports multibyte characters.</para>
 
     <para>&man.sha1.1; and &man.rmd160.1; utility have been added.
       &merged;</para>
@@ -1092,6 +1250,8 @@
     <para>&man.top.1; now supports to display the current amount
       of I/O.  This feature can be enabled by hitting <quote>m</quote>
       or passing the command line option <option>-m io</option>.</para>
+
+    <para>&man.tr.1; now supports multibyte characters.</para>
 
     <para arch="amd64">&man.truss.1; now includes early support
       for &os;/amd64.</para>
@@ -1148,6 +1308,9 @@
     <para>The <application>ACPI-CA</application> code has been updated
       from the 20030619 snapshot to the 20040527 snapshot.</para>
 
+    <para>The <application>AMD (am-utils)</application> has been updated
+      from version 6.0.9 to version 6.0.10p1.</para>
+
     <para><application>awk</application> from Bell Labs has been
       updated from the 29 July 2003 release to the 7 February 2004
       release.</para>
@@ -1166,7 +1329,7 @@
       6.1.1.</para>
 
     <para><application>GNU grep</application> has been updated from
-      2.4d to 2.4.2.</para>
+      2.4d to 2.5.1.</para>
 
     <para><application>less</application> has been updated from
       version 371 to version 381.</para>
@@ -1176,15 +1339,13 @@
 
     <para>The <application>GNU regex</application> library has been
       updated to the version included with <application>GNU
-      grep</application> 2.4.2.</para>
+      grep</application> 2.5.1.</para>
 
     <para><application>GNU sort</application> has been updated from
       textutils 2.1 to coreutils 5.2.1.</para>
 
     <para>The <application>GNU tar</application> implementation in the
-      base system is now called <filename>gtar</filename>, with
-      <filename>tar</filename> being a link to
-      <filename>gtar</filename>.</para>
+      base system is now called <filename>gtar</filename>.</para>
 
     <para><application>Heimdal Kerberos</application> has been
        updated from 0.6 to 0.6.1.</para>
@@ -1253,6 +1414,9 @@
 
     <para><application>tcpdump</application> has been updated from
       version 3.7.1 to version 3.8.3.</para>
+
+    <para><application>tcsh</application> has been updated from
+      version 6.11 to version 6.13.00.</para>
 
     <para>The timezone database has been updated from
       <filename>tzdata2003a</filename> to
