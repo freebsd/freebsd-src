@@ -47,6 +47,7 @@ static const char rcsid[] =
 
 #include <err.h>
 #include <limits.h>
+#include <stdint.h>
 #include "gprof.h"
 
 static int valcmp(const void *, const void *);
