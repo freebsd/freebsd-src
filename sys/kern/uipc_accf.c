@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2000 Paycounter, Inc.
+ * Copyright (c) 2005 Robert N. M. Watson
  * Author: Alfred Perlstein <alfred@paycounter.com>, <alfred@FreeBSD.org>
  * All rights reserved.
  *
@@ -169,6 +170,31 @@ do_setopt_accept_filter(struct socket *so, struct sockopt *sopt)
 	struct so_accf *newaf;
 	int error = 0;
 
+	/*
+	 * Handle the simple delete case first.
+	 */
+	if (sopt == NULL) {
+		SOCK_LOCK(so);
+		if ((so->so_options & SO_ACCEPTCONN) == 0) {
+			SOCK_UNLOCK(so);
+			return (EINVAL);
+		}
+		if (so->so_accf != NULL) {
+			struct so_accf *af = so->so_accf;
+			if (af->so_accept_filter != NULL &&
+				af->so_accept_filter->accf_destroy != NULL) {
+				af->so_accept_filter->accf_destroy(so);
+			}
+			if (af->so_accept_filter_str != NULL)
+				FREE(af->so_accept_filter_str, M_ACCF);
+			FREE(af, M_ACCF);
+			so->so_accf = NULL;
+		}
+		so->so_options &= ~SO_ACCEPTFILTER;
+		SOCK_UNLOCK(so);
+		return (0);
+	}
+
 	newaf = NULL;
 	afap = NULL;
 
@@ -183,25 +209,6 @@ do_setopt_accept_filter(struct socket *so, struct sockopt *sopt)
 	if ((so->so_options & SO_ACCEPTCONN) == 0) {
 		SOCK_UNLOCK(so);
 		return (EINVAL);
-	}
-
-	/* removing the filter */
-	if (sopt == NULL) {
-		if (so->so_accf != NULL) {
-			struct so_accf *af = so->so_accf;
-			if (af->so_accept_filter != NULL &&
-				af->so_accept_filter->accf_destroy != NULL) {
-				af->so_accept_filter->accf_destroy(so);
-			}
-			if (af->so_accept_filter_str != NULL) {
-				FREE(af->so_accept_filter_str, M_ACCF);
-			}
-			FREE(af, M_ACCF);
-			so->so_accf = NULL;
-		}
-		so->so_options &= ~SO_ACCEPTFILTER;
-		SOCK_UNLOCK(so);
-		return (0);
 	}
 	SOCK_UNLOCK(so);
 
