@@ -417,6 +417,7 @@ amr_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int32_t flag, d_thread_t *
     unsigned char		*au_cmd;
     int				*au_statusp, au_direction;
     int				error;
+    struct amr_passthrough	*ap;	/* 60 bytes */
 
     debug_called(1);
 
@@ -462,6 +463,7 @@ amr_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int32_t flag, d_thread_t *
     error = 0;
     dp = NULL;
     ac = NULL;
+    ap = NULL;
 
     /* Logical Drive not supported by the driver */
     if (au_cmd[0] == 0xa4 && au_cmd[1] == 0x1c)
@@ -470,6 +472,9 @@ amr_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int32_t flag, d_thread_t *
     /* handle inbound data buffer */
     if (au_length != 0 && au_cmd[0] != 0x06) {
 	if ((dp = malloc(au_length, M_DEVBUF, M_WAITOK)) == NULL)
+	    return(ENOMEM);
+
+	if ((ap = malloc(sizeof(struct amr_passthrough ), M_DEVBUF, M_WAITOK)) == NULL)
 	    return(ENOMEM);
 
 	if ((error = copyin(au_buffer, dp, au_length)) != 0) {
@@ -487,27 +492,26 @@ amr_ioctl(struct cdev *dev, u_long cmd, caddr_t addr, int32_t flag, d_thread_t *
 
     /* handle SCSI passthrough command */
     if (au_cmd[0] == AMR_CMD_PASS) {
-	struct amr_passthrough ap;	/* 60 bytes */
         int len;
 
 	/* copy cdb */
         len = au_cmd[2];
-	ap.ap_cdb_length = len;
-	bcopy(au_cmd + 3, ap.ap_cdb, len);
+	ap->ap_cdb_length = len;
+	bcopy(au_cmd + 3, ap->ap_cdb, len);
 
 	/* build passthrough */
-	ap.ap_timeout		= au_cmd[len + 3] & 0x07;
-	ap.ap_ars		= (au_cmd[len + 3] & 0x08) ? 1 : 0;
-	ap.ap_islogical		= (au_cmd[len + 3] & 0x80) ? 1 : 0;
-	ap.ap_logical_drive_no	= au_cmd[len + 4];
-	ap.ap_channel		= au_cmd[len + 5];
-	ap.ap_scsi_id 		= au_cmd[len + 6];
-	ap.ap_request_sense_length	= 14;
-	ap.ap_data_transfer_length	= au_length;
+	ap->ap_timeout		= au_cmd[len + 3] & 0x07;
+	ap->ap_ars		= (au_cmd[len + 3] & 0x08) ? 1 : 0;
+	ap->ap_islogical		= (au_cmd[len + 3] & 0x80) ? 1 : 0;
+	ap->ap_logical_drive_no	= au_cmd[len + 4];
+	ap->ap_channel		= au_cmd[len + 5];
+	ap->ap_scsi_id 		= au_cmd[len + 6];
+	ap->ap_request_sense_length	= 14;
+	ap->ap_data_transfer_length	= au_length;
 	/* XXX what about the request-sense area? does the caller want it? */
 
 	/* build command */
-	ac->ac_data = &ap;
+	ac->ac_data = ap;
 	ac->ac_length = sizeof(struct amr_passthrough);
 	ac->ac_flags |= AMR_CMD_DATAOUT;
 	ac->ac_ccb_data = dp;
@@ -560,6 +564,7 @@ out:
      * objects have been allocated.
      */
     free(dp, M_DEVBUF);
+    free(ap, M_DEVBUF);
     amr_releasecmd(ac);
     mtx_unlock(&sc->amr_io_lock);
     return(error);
@@ -1266,7 +1271,6 @@ amr_mapcmd(struct amr_command *ac)
 		sc->amr_state |= AMR_STATE_QUEUE_FRZN;
 	    }
 	} else {
-
 	    if (bus_dmamap_load(sc->amr_buffer_dmat, ac->ac_dmamap, ac->ac_data,
 		ac->ac_length, amr_setup_dmamap, ac, BUS_DMA_NOWAIT) != 0){
 		return (ENOMEM);
@@ -1276,8 +1280,11 @@ amr_mapcmd(struct amr_command *ac)
 		0) == EINPROGRESS) {
 		sc->amr_state |= AMR_STATE_QUEUE_FRZN;
 	    }
-	}
-    }
+     }
+   } else if ((ac->ac_flags & AMR_CMD_MAPPED) == 0) {
+    	amr_start1(sc, ac);
+   }
+
     return (0);
 }
 
@@ -1309,9 +1316,6 @@ amr_unmapcmd(struct amr_command *ac)
 		bus_dmamap_sync(sc->amr_buffer_dmat, ac->ac_ccb_dmamap,
 		    BUS_DMASYNC_POSTWRITE);
 	    bus_dmamap_unload(sc->amr_buffer_dmat, ac->ac_ccb_dmamap);
-	debug(3, "slot %d  %d segments at 0x%x, passthrough at 0x%x\n",
-	    ac->ac_slot, aep->ap_no_sg_elements, aep->ap_data_transfer_address,
-	    ac->ac_dataphys);
 	}
 	ac->ac_flags &= ~AMR_CMD_MAPPED;
     }
