@@ -184,9 +184,11 @@ top:
 		  if (ioctl(tape, MTIOCGET, (char *)&mtget) < 0)
 			goto ioerror;
 		  rval = sizeof (mtget);
+		  if (rval > 24)	/* original mtget structure size */
+			rval = 24;
 		  (void)sprintf(resp, "A%d\n", rval);
 		  (void)write(1, resp, strlen(resp));
-		  (void)write(1, (char *)&mtget, sizeof (mtget));
+		  (void)write(1, (char *)&mtget, rval);
 		  goto top;
 		}
 
