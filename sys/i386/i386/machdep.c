@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.114 1995/03/16 18:11:27 bde Exp $
+ *	$Id: machdep.c,v 1.115 1995/03/17 04:19:19 davidg Exp $
  */
 
 #include "npx.h"
@@ -467,7 +467,7 @@ identifycpu()
 			    case 0x520: printf("735\\90 or 815\\100"); break;
 			}
 		}
-		printf("  Stepping=%d", cpu_id & 0xf);
+		printf("  Stepping=%d\n", cpu_id & 0xf);
 		if (cpu_high > 0) {
 			printf("  Features=0x%lx",cpu_feature);
 			if (cpu_feature & 0x1) printf(" FPU"); 
@@ -476,8 +476,8 @@ identifycpu()
 			if (cpu_feature & 0x80) printf(" MCE");
 			if (cpu_feature & 0x100) printf(" CX8");
 			if (cpu_feature & 0x200) printf(" APIC");
+			printf("\n");
 		}
-		printf("\n");
 	}
 
 	/*
