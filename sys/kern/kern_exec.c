@@ -178,6 +178,7 @@ kern_execve(td, fname, argv, envv, mac_p)
 	struct procsig *oldprocsig, *newprocsig;
 #ifdef KTRACE
 	struct vnode *tracevp = NULL;
+	struct ucred *tracecred = NULL;
 #endif
 	struct vnode *textvp = NULL;
 	int credential_changing;
@@ -489,11 +490,13 @@ interpret:
 		 */
 		setsugid(p);
 #ifdef KTRACE
-		if (p->p_tracep && suser_cred(oldcred, PRISON_ROOT)) {
+		if (p->p_tracevp != NULL && suser_cred(oldcred, PRISON_ROOT)) {
 			mtx_lock(&ktrace_mtx);
 			p->p_traceflag = 0;
-			tracevp = p->p_tracep;
-			p->p_tracep = NULL;
+			tracevp = p->p_tracevp;
+			p->p_tracevp = NULL;
+			tracecred = p->p_tracecred;
+			p->p_tracecred = NULL;
 			mtx_unlock(&ktrace_mtx);
 		}
 #endif
@@ -626,6 +629,8 @@ done1:
 #ifdef KTRACE
 	if (tracevp != NULL)
 		vrele(tracevp);
+	if (tracecred != NULL)
+		crfree(tracecred);
 #endif
 	if (oldargs != NULL)
 		pargs_drop(oldargs);

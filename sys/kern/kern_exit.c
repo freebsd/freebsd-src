@@ -135,6 +135,7 @@ exit1(td, rv)
 	struct vnode *vtmp;
 #ifdef KTRACE
 	struct vnode *tracevp;
+	struct ucred *tracecred;
 #endif
 
 	GIANT_REQUIRED;
@@ -359,12 +360,16 @@ exit1(td, rv)
 	PROC_LOCK(p);
 	mtx_lock(&ktrace_mtx);
 	p->p_traceflag = 0;	/* don't trace the vrele() */
-	tracevp = p->p_tracep;
-	p->p_tracep = NULL;
+	tracevp = p->p_tracevp;
+	p->p_tracevp = NULL;
+	tracecred = p->p_tracecred;
+	p->p_tracecred = NULL;
 	mtx_unlock(&ktrace_mtx);
 	PROC_UNLOCK(p);
 	if (tracevp != NULL)
 		vrele(tracevp);
+	if (tracecred != NULL)
+		crfree(tracecred);
 #endif
 	/*
 	 * Release reference to text vnode
