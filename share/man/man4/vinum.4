@@ -823,24 +823,46 @@ add-symbol-file /usr/src/sys/modules/vinum/vinum.ko 0x00005e24+0xf0f4e000
 .if t .vs
 .if t .ps
 .It
-Place the file
-.Pa /usr/src/sys/modules/vinum/.gdbinit
-in the directory in which you will be performing the analysis, typically
-.Pa /var/crash.
+Copy the file
+.Pa /usr/src/sys/modules/vinum/.gdbinit.crash
+to the directory in which you will be performing the analysis, typically
+.Pa /var/crash ,
+and call it
+.Pa .gdbinit .
 If you have built the module elsewhere than
 .Pa /usr/src/sys/modules/vinum,
 you will need to modify
 .Pa .gdbinit 
 accordingly.  If you have not named your debug kernel
 .Pa /var/crash/kernel.gdb,
-change
+edit
 .Pa .gdbinit
 to indicate the correct location.
+.P
+If you are remote debugging via a serial connection, copy the file
+.Pa /usr/src/sys/modules/vinum/.gdbinit.crash
+as
+.Pa .gdbinit
+to the directory in which you perform the debugging, and start it with
+.Bd -literal -indent
+gdb -k
+.Ed
+.Pp
+.Cd gdb
+will automatically establish the connection; the remote machine must already be
+in
+.Nm gdb .
+This
+.Pa .gdbinit
+file expects the serial connection to run at 38400 bits per second; if you run
+at a different speed, edit the file accordingly (look for the
+.Ar remotebaud
+specification).
 .It
-Either take a dump or use remote
+Either take a dump or use
 .Cm gdb
-to analyse the problem.  Enter the output of the shell script above.  The
-following example shows a remote debugging session using the 
+to analyse the problem.  Enter the output of the shell script shown above.  The
+following example shows a remote debugging session using the
 .Ar debug
 command of
 .Nm vinum(8):
