@@ -195,7 +195,7 @@ int dialog_ftree(unsigned char *filename, unsigned char FS,
  *
  * return values:
  * -1		- ESC pressed
- * 0		- Ok, result set (must be freed later)
+ * 0		- Ok, result set
  * 1		- Cancel
  */
  
