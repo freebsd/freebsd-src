@@ -631,17 +631,20 @@ devfs_symlink(ap)
 		char *a_target;
 	} */ *ap;
 {
-	int i;
+	int i, error;
 	struct devfs_dirent *dd;
 	struct devfs_dirent *de;
 	struct devfs_mount *dmp;
 
+	error = suser(ap->a_cnp->cn_proc);
+	if (error)
+		return(error);
 	dmp = VFSTODEVFS(ap->a_dvp->v_mount);
 	dd = ap->a_dvp->v_data;
 	de = devfs_newdirent(ap->a_cnp->cn_nameptr, ap->a_cnp->cn_namelen);
 	de->de_uid = 0;
 	de->de_gid = 0;
-	de->de_mode = 0642;
+	de->de_mode = 0755;
 	de->de_inode = dmp->dm_inode++;
 	de->de_dirent->d_type = DT_LNK;
 	i = strlen(ap->a_target) + 1;
