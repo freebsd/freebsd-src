@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.41.2.11 1995/06/02 15:31:28 jkh Exp $
+ * $Id: menus.c,v 1.41.2.12 1995/06/03 09:49:48 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -395,7 +395,7 @@ WARNING:  Do not export the DES distribution out of the U.S.!",
       { "src", "Sources for everything but DES [120MB]",
 	DMENU_CALL,	distSetSrc, 0, 0, srcFlagCheck			},
       { "XFree86", "The XFree86 3.1.1L distribution [?]",
-	DMENU_SUBMENU,	&MenuXF86Select, 0, 0, x11FlagCheck		},
+	DMENU_CALL,	distSetXF86, 0, 0, x11FlagCheck			},
       { NULL } },
 };
 

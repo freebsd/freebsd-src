@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.35.2.11 1995/06/03 09:59:37 jkh Exp $
+ * $Id: dist.c,v 1.35.2.12 1995/06/03 10:04:59 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -48,8 +48,6 @@ unsigned int SrcDists;
 unsigned int XF86Dists;
 unsigned int XF86ServerDists;
 unsigned int XF86FontDists;
-
-static int	distSetXF86(void);
 
 typedef struct _dist {
     char *my_name;
@@ -167,7 +165,7 @@ distSetXDeveloper(char *str)
 {
     Dists = _DIST_DEVELOPER;
     SrcDists = DIST_SRC_ALL;
-    distSetXF86();
+    distSetXF86(NULL);
     return 0;
 }
 
@@ -182,7 +180,7 @@ int
 distSetXUser(char *str)
 {
     Dists = _DIST_USER;
-    distSetXF86();
+    distSetXF86(NULL);
     return 0;
 }
 
@@ -198,7 +196,7 @@ distSetEverything(char *str)
 {
     Dists = DIST_ALL;
     SrcDists = DIST_SRC_ALL;
-    distSetXF86();
+    distSetXF86(NULL);
     return 0;
 }
 
@@ -211,12 +209,12 @@ distSetSrc(char *str)
     return 0;
 }
 
-static int
-distSetXF86(void)
+int
+distSetXF86(char *str)
 {
     dmenuOpenSimple(&MenuXF86Select);
     if (XF86ServerDists)
-	XF86Dists |= DIST_XF86_FONTS;
+	XF86Dists |= DIST_XF86_SERVER;
     if (XF86FontDists)
 	XF86Dists |= DIST_XF86_FONTS;
     if (XF86Dists)
