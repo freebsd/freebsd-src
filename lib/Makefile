@@ -1,33 +1,29 @@
+#	$Id$
 #	@(#)Makefile	8.1 (Berkeley) 6/4/93
 
-.if	${MACHINE} == "tahoe"
-SUBDIR=csu/tahoe.pcc
-.elif	${MACHINE} == "vax"
-SUBDIR=csu/vax.pcc
-.elif	exists(${.CURDIR}/csu/${MACHINE}-${BINFORMAT})
-SUBDIR=csu/${MACHINE}-${BINFORMAT}
-.elif	exists(${.CURDIR}/csu/${MACHINE})
-SUBDIR=csu/${MACHINE}
-.endif
-
-# Don't want to build libc on alpha just yet
-.if	${MACHINE} != "alpha"
-SUBDIR+=libc
+.if exists(${.CURDIR}/csu/${MACHINE_ARCH}-${BINFORMAT})
+SUBDIR=csu/${MACHINE_ARCH}-${BINFORMAT}
+.elif exists(${.CURDIR}/csu/${MACHINE_ARCH})
+SUBDIR=csu/${MACHINE_ARCH}
 .endif
 
 # XXX MISSING:		libplot
-SUBDIR+=libalias libcalendar libcompat libcom_err libcurses libdisk \
-	libedit libf2c libftpio libgnumalloc libipx libkvm libmd libmytinfo \
+SUBDIR+=libalias libc libcalendar libcompat libcom_err libcurses \
+	libedit libf2c libftpio libgnumalloc libipx libmd libmytinfo \
 	libncurses libopie libpcap libresolv librpcsvc \
-	libscsi libskey libss libtermcap libutil libvgl libxpg4 liby libz
+	libskey libss libtermcap libutil libxpg4 liby libz
 	
-.if !defined(NOLIBC_R) && ${MACHINE} != "alpha"
+.if !defined(NOLIBC_R)
 SUBDIR+= libc_r
 .endif
+
+.if ${MACHINE_ARCH} == "i386"
+SUBDIR+=libdisk libkvm libscsi libvgl
 
 .if !defined(NOTCL) && exists (${.CURDIR}/../contrib/tcl) && \
 	exists(${.CURDIR}/../usr.bin/tclsh) && exists (${.CURDIR}/libtcl)
 SUBDIR+=libtcl
+.endif
 .endif
 
 .if !exists(${.CURDIR}/../secure) || defined(NOSECURE) || defined(NOCRYPT)
