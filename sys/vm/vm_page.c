@@ -206,11 +206,12 @@ vm_page_startup(vm_offset_t starta, vm_offset_t enda, vm_offset_t vaddr)
 	end = phys_avail[biggestone+1];
 
 	/*
-	 * Initialize the locks.
+	 * Initialize the locks.  Recursive acquisition of the vm page
+	 * queue free mutex begins in contigmalloc1().  
 	 */
 	mtx_init(&vm_page_queue_mtx, "vm page queue mutex", NULL, MTX_DEF);
 	mtx_init(&vm_page_queue_free_mtx, "vm page queue free mutex", NULL,
-	   MTX_SPIN);
+	   MTX_RECURSE | MTX_SPIN);
 
 	/*
 	 * Initialize the queue headers for the free queue, the active queue
@@ -529,7 +530,7 @@ vm_page_insert(vm_page_t m, vm_object_t object, vm_pindex_t pindex)
 
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 	if (m->object != NULL)
-		panic("vm_page_insert: already inserted");
+		panic("vm_page_insert: page already inserted");
 
 	/*
 	 * Record the object/offset pair in this page
@@ -552,7 +553,9 @@ vm_page_insert(vm_page_t m, vm_object_t object, vm_pindex_t pindex)
 			m->right = root;
 			root->left = NULL;
 			TAILQ_INSERT_BEFORE(root, m, listq);
-		} else {
+		} else if (pindex == root->pindex)
+			panic("vm_page_insert: offset already allocated");
+		else {
 			m->right = root->right;
 			m->left = root;
 			root->right = NULL;
@@ -754,8 +757,6 @@ vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int req)
 		KASSERT(object != NULL,
 		    ("vm_page_alloc: NULL object."));
 		VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
-		KASSERT(!vm_page_lookup(object, pindex),
-		    ("vm_page_alloc: page already allocated"));
 		color = (pindex + object->pg_color) & PQ_L2_MASK;
 	} else
 		color = pindex & PQ_L2_MASK;
