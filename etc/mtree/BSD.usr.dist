@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.87 1997/02/27 12:22:25 wosch Exp $
+#	$Id: BSD.usr.dist,v 1.88 1997/02/28 17:27:07 wosch Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755
@@ -297,6 +297,8 @@
             ..
 	    lt_LN.ISO_8859-1
             ..
+	    lt_LN.ISO_8859-2
+            ..
 	    nl_BE.ISO_8859-1
             ..
 	    nl_NL.ISO_8859-1
@@ -426,6 +428,8 @@
 	    lt_LN.ASCII
             ..
 	    lt_LN.ISO_8859-1
+            ..
+	    lt_LN.ISO_8859-2
             ..
 	    nl_BE.ISO_8859-1
             ..
