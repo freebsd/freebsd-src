@@ -30,7 +30,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-#	@(#)READ_ME	8.112 (Berkeley) 11/18/95
+#	@(#)READ_ME	8.113 (Berkeley) 11/29/95
 #
 
 This directory contains the source files for sendmail.
@@ -576,6 +576,16 @@ GCC 2.7.x problems
 	problems.  I recommend against using -O on that architecture.  This
 	has been seen on FreeBSD 2.0.5 RELEASE.
 
+Configuration file location
+	Up to 8.6, sendmail tried to find the sendmail.cf file in the same
+	place as the vendors had put it, even when this was obviously
+	stupid.  As of 8.7, sendmail ALWAYS looks for /etc/sendmail.cf.
+	You can get sendmail to use the stupid vendor .cf location by
+	adding -DUSE_VENDOR_CF_PATH during compilation, but this may break
+	support programs and scripts that need to find sendmail.cf.  You
+	are STRONGLY urged to use symbolic links if you want to use the
+	vendor location rather than changing the location in the sendmail
+	binary.
 
 SunOS 4.x (Solaris 1.x)
 	You may have to use -lresolv on SunOS.  However, beware that
@@ -1180,4 +1190,4 @@ version.c	The version number and information about this
 
 Eric Allman
 
-(Version 8.112, last update 11/18/95 08:44:31)
+(Version 8.113, last update 11/29/95 11:05:14)

@@ -1,10 +1,29 @@
 			SENDMAIL RELEASE NOTES
-	     @(#)RELEASE_NOTES	8.7.2.1 (Berkeley) 11/19/95
+	     @(#)RELEASE_NOTES	8.7.3.1 (Berkeley) 12/3/95
 
 
 This listing shows the version of the sendmail binary, the version
 of the sendmail configuration files, the date of release, and a
 summary of the changes in that release.
+
+8.7.3/8.7.3	95/12/xx
+	Fix botch in name server timeout in RCPT code; this problem caused
+		two responses in SMTP, which breaks things horribly.  Fix
+		from Gregory Neil Shapiro of WPI.
+	Verify that L= value on M lines cannot be negative, which could cause
+		negative array subscripting.  Not a security problem since
+		this has to be in the config file, but it could have caused
+		core dumps.  Pointed out by Bryan Costales.
+	Fix -d21 debug output for long macro names.  Pointed out by Bryan
+		Costales.
+	PORTABILITY FIXES:
+		SCO doesn't have ftruncate.  From Bill Aten of Computerizers.
+		IBM's version of arpa/nameser.h defaults to the wrong byte
+			order.  Tweak it to work properly.  Based on fixes
+			from Fletcher Mattox of UTexas and Betty Lee of
+			Stanford University.
+	CONFIG: add confHOSTS_FILE m4 variable to set HostsFile option.
+		Deficiency pointed out by Bryan Costales of ICSI.
 
 8.7.2/8.7.2	95/11/19
 	REALLY fix the backslash escapes in SmtpGreetingMessage,
@@ -110,6 +129,12 @@ summary of the changes in that release.
 		that have the hes_getmailhost() routine.  DEC Hesiod
 		distributions do not have this routine.  Based on a patch
 		from Betty Lee of Stanford University.
+	Extensive cleanups to map open code to handle a locking race condition
+		in ndbm, hash, and btree format database files on some (most
+		non-4.4-BSD based) OS architectures.  This should solve the
+		occassional "user unknown" problem during alias rebuilds that
+		has plagued me for quite some time.  Based on a patch from
+		Thomas Dwyer III of Michigan Technological University.
 	PORTABILITY FIXES:
 		Solaris: Change location of newaliases and mailq from
 			/usr/ucb to /usr/bin to match Sun settings.  From

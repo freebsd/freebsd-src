@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)err.c	8.41 (Berkeley) 10/8/95";
+static char sccsid[] = "@(#)err.c	8.42 (Berkeley) 11/29/95";
 #endif /* not lint */
 
 # include "sendmail.h"
@@ -385,7 +385,7 @@ putoutmsg(msg, holdmsg, heldmsg)
 		fprintf(CurEnv->e_xfp, "%s\n", msg);
 
 	if (msgcode == '8')
-		msg[0] == '0';
+		msg[0] = '0';
 
 	/* output to channel if appropriate */
 	if (!Verbose && msg[0] == '0')

@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)parseaddr.c	8.86 (Berkeley) 9/28/95";
+static char sccsid[] = "@(#)parseaddr.c	8.87 (Berkeley) 11/29/95";
 #endif /* not lint */
 
 # include "sendmail.h"
@@ -888,8 +888,8 @@ rewrite(pvp, ruleset, reclevel, e)
 				ap = macvalue(rp[1], e);
 				mlp->first = avp;
 				if (tTd(21, 2))
-					printf("rewrite: LHS $&%c => \"%s\"\n",
-						rp[1],
+					printf("rewrite: LHS $&%s => \"%s\"\n",
+						macname(rp[1]),
 						ap == NULL ? "(NULL)" : ap);
 
 				if (ap == NULL)
@@ -1060,8 +1060,8 @@ rewrite(pvp, ruleset, reclevel, e)
 				{
 					*avp = macvalue(rp[1], e);
 					if (tTd(21, 2))
-						printf("rewrite: RHS $&%c => \"%s\"\n",
-							rp[1],
+						printf("rewrite: RHS $&%s => \"%s\"\n",
+							macname(rp[1]),
 							*avp == NULL ? "(NULL)" : *avp);
 					if (*avp != NULL)
 						avp++;

@@ -1,0 +1,189 @@
+#  This Makefile is designed to work on the old "make" program.  It does
+#  not use the obj subdirectory.  It also does not install documentation
+#  automatically -- think of it as a quick start for sites that have the
+#  old make program (I recommend that you get and port the new make if you
+#  are going to be doing any signficant work on sendmail).
+#
+#  Makefile for an Amdahl 5890 running UTS System V 2.1.5 (SVr3)
+#  By Janet Jackson <janet@dialix.oz.au> 1994-11-24
+#	This has been tested on (uname -a output) uts bsuts systemV 2.1.5 5890
+#
+#	@(#)Makefile.uts.systemV	8.4 (Berkeley) 6/20/95
+#
+
+#  Sendmail 8 on UTS requires BIND 4.9's include files and lib44bsd and
+#  libresolv libraries.  The BIND version on UTS is much too old.
+#
+BINDPATH=../../../bind
+
+# use O=-O (usual) or O=-g (debugging)
+O=	-g
+
+# define the database mechanisms available for map & alias lookups:
+#	-DNDBM -- use new DBM
+#	-DNEWDB -- use new Berkeley DB
+#	-DNIS -- include NIS support
+# The really old (V7) DBM library is no longer supported.
+# See READ_ME for a description of how these flags interact.
+#
+# Getting NIS working on UTS is possible (I did it!) but awkward.
+# And forget it unless you're behind some sort of a firewall.
+#
+DBMDEF=	-DNIS -DNDBM
+
+# environment definitions (e.g., -D_AIX3)
+ENVDEF= -D_UTS
+
+# see also conf.h for additional compilation flags
+
+# include directories
+# To find new BIND header files. This path assumes we are using "makesendmail".
+INCDIRS=-I${BINDPATH}/include -I${BINDPATH}/compat/include
+
+# loader options
+LDOPTS=
+
+# library directories
+# To find new libresolv.a.  This path assumes we are using "makesendmail".
+LIBDIRS=-L${BINDPATH}/res -L${BINDPATH}/compat/lib
+
+# libraries required on your system
+LIBS= -lyp -lrpc -lresolv -l44bsd -lbsd -lsocket -la
+
+# location of sendmail binary (usually /usr/sbin or /usr/lib)
+BINDIR=	${DESTDIR}/usr/lib
+
+# location of sendmail.st file (usually /var/log or /usr/lib)
+STDIR=	${DESTDIR}/usr/lib
+
+# location of sendmail.hf file (usually /usr/share/misc or /usr/lib)
+HFDIR=	${DESTDIR}/usr/lib
+
+# additional .o files needed
+OBJADD=
+
+# things to do before compilation
+BEFORE=	stddef.h
+
+###################  end of user configuration flags  ######################
+
+CFLAGS=	-eft -I. $O ${INCDIRS} ${DBMDEF} ${ENVDEF}
+
+OBJS=	alias.o arpadate.o clock.o collect.o conf.o convtime.o daemon.o \
+	deliver.o domain.o envelope.o err.o headers.o macro.o main.o \
+	map.o mci.o mime.o parseaddr.o queue.o readcf.o recipient.o \
+	savemail.o srvrsmtp.o stab.o stats.o sysexits.o \
+	trace.o udb.o usersmtp.o util.o version.o ${OBJADD}
+
+LINKS=	${DESTDIR}/usr/lib/newaliases ${DESTDIR}/usr/lib/mailq
+BINOWN=	root
+BINGRP=	mail
+BINMODE=6555
+
+#ALL=	sendmail aliases.0 mailq.0 newaliases.0 sendmail.0
+ALL=	sendmail
+
+all: ${ALL}
+
+sendmail: ${BEFORE} ${OBJS}
+	${CC} -o sendmail ${LDOPTS} ${OBJS} ${LIBDIRS} ${LIBS}
+
+stddef.h:
+	echo "#include <sys/types.h>" > stddef.h
+
+#NROFF=	nroff -h
+NROFF=	groff -Tascii
+MANDOC=	-mandoc
+
+aliases.0: aliases.5
+	${NROFF} ${MANDOC} aliases.5 > aliases.0
+
+mailq.0: mailq.1
+	${NROFF} ${MANDOC} mailq.1 > mailq.0
+
+newaliases.0: newaliases.1
+	${NROFF} ${MANDOC} newaliases.1 > newaliases.0
+
+sendmail.0: sendmail.8
+	${NROFF} ${MANDOC} sendmail.8 > sendmail.0
+
+# new target to save original sendmail files before installation
+save-orig:
+	if [ -f ${BINDIR}/sendmail.orig ]; then \
+		echo "Error: original already saved" 1>&2; \
+		exit 1; \
+	else \
+		/bin/mv ${BINDIR}/sendmail ${BINDIR}/sendmail.orig; \
+		for i in ${LINKS}; do \
+			if [ -h $$i ]; then \
+				/bin/mv $$i $$i.orig; \
+			fi; \
+		done; \
+		if [ -f ${STDIR}/sendmail.st ]; then \
+			/bin/mv ${STDIR}/sendmail.st ${STDIR}/sendmail.st.orig; \
+		fi; \
+		if [ -f ${HFDIR}/sendmail.hf ]; then \
+			/bin/mv ${HFDIR}/sendmail.hf ${HFDIR}/sendmail.hf.orig; \
+		fi; \
+		echo "Now run 'make install'." 1>&2; \
+		echo "(To back out, run 'make backout'.)" 1>&2; \
+	fi
+
+# new target to back out, ie, put back original files
+backout:
+	if [ ! -f ${BINDIR}/sendmail.orig ]; then \
+		echo "Error: original was not saved" 1>&2; \
+		exit 1; \
+	else \
+		/bin/mv ${BINDIR}/sendmail.orig ${BINDIR}/sendmail; \
+		for i in ${LINKS}; do \
+			if [ -h $$i.orig ]; then \
+				/bin/mv $$i.orig $$i; \
+			else \
+				rm -f $$i; \
+			fi; \
+		done; \
+		if [ -f ${STDIR}/sendmail.st.orig ]; then \
+			/bin/mv ${STDIR}/sendmail.st.orig ${STDIR}/sendmail.st; \
+		else \
+			rm -f ${STDIR}/sendmail.st; \
+		fi; \
+		if [ -f ${HFDIR}/sendmail.hf.orig ]; then \
+			/bin/mv ${HFDIR}/sendmail.hf.orig ${HFDIR}/sendmail.hf; \
+		else \
+			rm -f ${HFDIR}/sendmail.hf; \
+		fi; \
+		echo "Now back out config file change if necessary." 1>&2; \
+	fi
+
+#install: install-sendmail install-docs
+install: install-sendmail
+
+install-sendmail: sendmail
+	if [ ! -f ${BINDIR}/sendmail.orig ]; then \
+		echo "Error: Original not saved yet \
+			(no ${BINDIR}/sendmail.orig)" 1>&2; \
+		exit 1; \
+	else \
+		cpset -o sendmail ${BINDIR} ${BINMODE} ${BINOWN} ${BINGRP}; \
+		for i in ${LINKS}; do \
+			rm -f $$i; \
+			ln ${BINDIR}/sendmail $$i; \
+		done; \
+		cpset -o /dev/null ${STDIR}/sendmail.st 644 ${BINOWN} ${BINGRP}; \
+		cpset -o sendmail.hf ${HFDIR} 444 ${BINOWN} ${BINGRP}; \
+		echo "Now install the new config file: \
+			go to ../../cf/cf and run ./Install-dcd-config" 1>&2; \
+	fi
+
+# doesn't actually install them -- you may want to install pre-nroff versions
+install-docs: aliases.0 mailq.0 newaliases.0 sendmail.0
+
+clean:
+	rm -f ${OBJS} sendmail aliases.0 mailq.0 newaliases.0 sendmail.0
+
+# dependencies
+#   gross overkill, and yet still not quite enough....
+${OBJS}: sendmail.h conf.h
+
+depend:
