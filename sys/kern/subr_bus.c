@@ -137,7 +137,7 @@ TUNABLE_INT("bus.debug", &bus_debug);
 SYSCTL_INT(_debug, OID_AUTO, bus_debug, CTLFLAG_RW, &bus_debug, 0,
     "Debug bus code");
 
-#define PDEBUG(a)	if (bus_debug) {printf("%s:%d: ", __func__, __LINE__), printf a, printf("\n");}
+#define PDEBUG(a)	if (bus_debug) {printf("%s:%d: ", __func__, __LINE__), printf a; printf("\n");}
 #define DEVICENAME(d)	((d)? device_get_name(d): "no device")
 #define DRIVERNAME(d)	((d)? d->name : "no driver")
 #define DEVCLANAME(d)	((d)? d->name : "no devclass")
@@ -1265,18 +1265,17 @@ device_set_softc(device_t dev, void *softc)
 void *
 device_get_ivars(device_t dev)
 {
+
+	KASSERT(dev != NULL, ("device_get_ivars(NULL, ...)"));
 	return (dev->ivars);
 }
 
 void
 device_set_ivars(device_t dev, void * ivars)
 {
-	if (!dev)
-		return;
 
+	KASSERT(dev != NULL, ("device_set_ivars(NULL, ...)"));
 	dev->ivars = ivars;
-
-	return;
 }
 
 device_state_t
