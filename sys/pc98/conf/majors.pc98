@@ -1,4 +1,4 @@
-$Id: majors.pc98,v 1.30 1998/04/22 13:35:21 kato Exp $
+$Id: majors.pc98,v 1.31 1998/05/12 09:31:12 kato Exp $
 
 Hopefully, this list will one day be obsoleted by DEVFS, but for now
 this is the current allocation of device major numbers.
@@ -41,6 +41,7 @@ blkdev	name		comments
 25	vinum		RAID fs
 26	sw		VM internal swap device
 27	myx		Mylex RAID (ulf@alameda.net)
+
 chrdev	name		comments
 0	cn		console
 1	ctty		/dev/tty
@@ -141,3 +142,4 @@ chrdev	name		comments
 96	altq		alternate queueing (including cbq, red, wfq)
 97	myx		Mylex RAID controller (ulf@alameda.net)
 98	loe		Loopback pseudo-ethernet (sbabkin@dcn.att.com)
+99	tau		Cronyx/Tau serial adaptor
