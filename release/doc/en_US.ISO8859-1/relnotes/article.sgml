@@ -2493,6 +2493,9 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     <para>A &man.pam.ftp.8; module has been added to allow
       authentication of anonymous FTP users.</para>
 
+    <para>A &man.pam.ftpusers.8; module has been added to perform
+      checks against the &man.ftpusers.5; file.</para>
+
     <para>A &man.pam.lastlog.8; module has been added to record
       sessions in the &man.utmp.5;, &man.wtmp.5;, and &man.lastlog.5;
       databases.</para>
@@ -2687,6 +2690,9 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
     <para>&man.sed.1; now takes a <option>-E</option> option for
       extended regular expression support. &merged;</para>
+
+    <para>&man.sed.1; now takes a <option>-i</option> option to enable
+      in-place editing of files.</para>
 
     <para>&man.send-pr.1; now takes a <option>-a</option> option to
       include a file into the <literal>Fix:</literal> section of a
@@ -3485,8 +3491,12 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	digitally sign and verify the signatures on binary package
 	files. &merged;</para>
 
-      <para>&man.pkg.update.1;, a utility to update installed packages
-	and update their dependencies, has been added. &merged;</para>
+      <para>For some time, &os; 5.0-CURRENT (as well as some 4.X
+	releases) included a pkg_update(1) utility to update installed
+	packages, as well as their dependencies.  This utility has
+	been removed; a superset of its functionality can be found in
+	the <filename role="package">sysutils/portupgrade</filename>
+	port.</para>
 
       <para>&man.pkg.version.1; now has a version number comparison
 	routine that corresponds to the Porters Handbook.  It also has
