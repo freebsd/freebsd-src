@@ -756,8 +756,7 @@ pccard_parse_cis_tuple(struct pccard_tuple *tuple, void *arg)
 		}
 		if ((state->pf == NULL) || (state->gotmfc == 2)) {
 			state->pf = malloc(sizeof(*state->pf), M_DEVBUF,
-			    M_NOWAIT);
-			bzero(state->pf, sizeof(*state->pf));
+			    M_NOWAIT | M_ZERO);
 			state->pf->number = state->count++;
 			state->pf->last_config_index = -1;
 			STAILQ_INIT(&state->pf->cfe_head);
@@ -794,8 +793,7 @@ pccard_parse_cis_tuple(struct pccard_tuple *tuple, void *arg)
 			}
 			if (state->pf == NULL) {
 				state->pf = malloc(sizeof(*state->pf),
-				    M_DEVBUF, M_NOWAIT);
-				bzero(state->pf, sizeof(*state->pf));
+				    M_DEVBUF, M_NOWAIT | M_ZERO);
 				state->pf->number = state->count++;
 				state->pf->last_config_index = -1;
 				STAILQ_INIT(&state->pf->cfe_head);
