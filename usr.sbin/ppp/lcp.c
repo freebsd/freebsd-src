@@ -17,13 +17,15 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.c,v 1.27 1997/08/25 00:29:15 brian Exp $
+ * $Id: lcp.c,v 1.28 1997/08/31 22:59:31 brian Exp $
  *
  * TODO:
  *      o Validate magic number received from peer.
  *	o Limit data field length by MRU
  */
 #include <sys/time.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 #include "fsm.h"
 #include "lcp.h"
 #include "ipcp.h"
@@ -36,14 +38,12 @@
 #include "loadalias.h"
 #include "vars.h"
 #include "auth.h"
-#include <arpa/inet.h>
+#include "timeout.h"
 
 extern void IpcpUp();
 extern void IpcpOpen();
 extern void SetLinkParams(struct lcpstate *);
 extern void Prompt();
-extern void StopIdleTimer();
-extern void OsLinkdown();
 extern void Cleanup();
 extern struct pppTimer IpcpReportTimer;
 extern int randinit;
