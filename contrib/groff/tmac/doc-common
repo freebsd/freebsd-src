@@ -1,5 +1,5 @@
-.\" Copyright (c) 1991 The Regents of the University of California.
-.\" All rights reserved.
+.\" Copyright (c) 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -29,7 +29,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"     @(#)doc-common	5.7 (Berkeley) 8/5/91
+.\"     @(#)doc-common	8.1 (Berkeley) 06/08/93
 .\"	$FreeBSD$
 .\"
 .\"     %beginstrip%
@@ -54,15 +54,12 @@
 .nr Bx 12n
 .nr Cd 12n
 .nr Cm 10n
-.nr Co 15n
-.nr Cx 20n
 .nr Dc 3
 .nr Do 10n
 .nr Dq 12n
 .nr Ds 6n
 .nr Dq 12n
 .nr Dv 12n
-.nr tI \n(Dsu
 .nr Ec 3
 .nr El 1
 .nr Eo 12n
@@ -70,14 +67,12 @@
 .nr Em 10n
 .nr Er 17n
 .nr Ev 15n
-.nr Ex 10n
 .nr Fa 12n
 .nr Fx 12n
 .nr Fl 10n
 .nr Fc 3
 .nr Fo 16n
 .nr Fn 16n
-.nr Hl 1
 .nr I1 6n
 .nr I2 12n
 .nr I3 18n
@@ -104,12 +99,6 @@
 .nr Sq 12n
 .nr Sy 6n
 .nr Sx 16n
-.nr Ra 1
-.nr Rj 1
-.nr Rn 1
-.nr Ro 1
-.nr Rr 1
-.nr Rt 1
 .nr Rv 1
 .nr Tn 10n
 .nr Ta 1
@@ -287,7 +276,6 @@
 .	\}
 .	ev
 .\}
-.\" .tm IN 444 fM .k == \\n(.k and nl == \\n(nl
 ..
 .de lM
 .\" We may still have a partial line in the enviroment.  If this is the case,
