@@ -1,6 +1,6 @@
-<!-- $Id$ -->
+<!-- $Id: term.sgml,v 1.1.1.1 1996/11/15 05:14:44 asami Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.4 -->
+<!-- Original revision: 1.5 -->
 
 <!-- This is an SGML document in the linuxdoc DTD describing
      hardwired terminals with FreeBSD.  By Sean Kelly, (c) 1996.
