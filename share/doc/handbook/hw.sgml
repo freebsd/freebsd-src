@@ -1,4 +1,4 @@
-<!-- $Id: hw.sgml,v 1.13 1996/02/01 07:31:47 jkh Exp $ -->
+<!-- $Id: hw.sgml,v 1.14 1996/02/06 09:02:07 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!-- 
@@ -132,7 +132,7 @@ Slippery when wet.  Beware of dog.
     Other multiport cards I've heard good things about are the BOCA and AST
     cards, and <htmlurl url="http://www.stallion.com/" name="Stallion
     Technologies"> apparently offers an unofficial driver for their 
-    cards at <htmlurl url="ftp://ftp.stallion.com/unsupported/freebsd/stalbsd-0.0.2.tar.gz" name="this"> location.
+    cards at <htmlurl url="ftp://ftp.stallion.com/drivers/unsupported/freebsd/stalbsd-0.0.4.tar.gz" name="this"> location.
 
    <sect2><heading>Audio</heading>
     <p>I currently use the <htmlurl url="http://www.gravis.com/" name="Gravis">
