@@ -1202,14 +1202,14 @@ ffree(fp)
 }
 
 /*
- * Build a new filedesc structure.
+ * Build a new filedesc structure from another.
+ * Copy the current, root, and jail root vnode references.
  */
 struct filedesc *
-fdinit(td)
-	struct thread *td;
+fdinit(fdp)
+	struct filedesc *fdp;
 {
 	register struct filedesc0 *newfdp;
-	register struct filedesc *fdp = td->td_proc->p_fd;
 
 	MALLOC(newfdp, struct filedesc0 *, sizeof(struct filedesc0),
 	    M_FILEDESC, M_WAITOK | M_ZERO);
@@ -1238,13 +1238,13 @@ fdinit(td)
  * Share a filedesc structure.
  */
 struct filedesc *
-fdshare(p)
-	struct proc *p;
+fdshare(fdp)
+	struct filedesc *fdp;
 {
-	FILEDESC_LOCK(p->p_fd);
-	p->p_fd->fd_refcnt++;
-	FILEDESC_UNLOCK(p->p_fd);
-	return (p->p_fd);
+	FILEDESC_LOCK(fdp);
+	fdp->fd_refcnt++;
+	FILEDESC_UNLOCK(fdp);
+	return (fdp);
 }
 
 /*
