@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)conf.h	8.5 (Berkeley) 1/9/95
- * $Id: conf.h,v 1.48 1998/11/14 21:58:41 wollman Exp $
+ * $Id: conf.h,v 1.49 1999/01/21 16:15:53 peter Exp $
  */
 
 #ifndef _SYS_CONF_H_
@@ -48,6 +48,7 @@
 
 struct buf;
 struct proc;
+struct specinfo;
 struct tty;
 struct uio;
 struct vnode;
@@ -55,6 +56,7 @@ struct vnode;
 typedef int d_open_t __P((dev_t dev, int oflags, int devtype, struct proc *p));
 typedef int d_close_t __P((dev_t dev, int fflag, int devtype, struct proc *p));
 typedef void d_strategy_t __P((struct buf *bp));
+typedef int d_parms_t __P((dev_t dev, struct specinfo *sinfo, int ctl));
 typedef int d_ioctl_t __P((dev_t dev, u_long cmd, caddr_t data,
 			   int fflag, struct proc *p));
 typedef int d_dump_t __P((dev_t dev));
@@ -95,6 +97,10 @@ typedef int l_modem_t __P((struct tty *tp, int flag));
 #define	D_NOCLUSTERRW	(D_NOCLUSTERR | D_NOCLUSTERW)
 #define	D_CANFREE	0x40000		/* can free blocks */
 
+/*
+ * Control type for d_parms() call.
+ */
+#define DPARM_GET	0		/* ask device to load parms in  */
 
 /*
  * Character device switch table
@@ -111,8 +117,8 @@ struct cdevsw {
 	d_poll_t	*d_poll;
 	d_mmap_t	*d_mmap;
 	d_strategy_t	*d_strategy;
-	char		*d_name;	/* see above */
-	void		*d_spare;
+	char		*d_name;	/* base device name, e.g. 'vn' */
+	d_parms_t	*d_parms;	/* populate/override specinfo */
 	int		d_maj;
 	d_dump_t	*d_dump;
 	d_psize_t	*d_psize;
