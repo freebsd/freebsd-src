@@ -14,7 +14,8 @@
 The
 .Nm
 driver supports various IEEE 802.11 wireless cards
-which run AMD PCnetMobile firmware based on AMD 79c930 controller.
+which run AMD PCnetMobile firmware based on AMD 79c930 controller
+with Intersil (formerly Harris) PRISM radio chipset.
 It provides access to 32kb of memory shared between the controller
 and the host.
 All host/device interaction is via this shared memory, which can be
@@ -37,8 +38,8 @@ the coverage is limited spatially due to lack of roaming capability.
 .Pp
 In addition to these two mode in IEEE 802.11 specification, the
 .Nm
-driver also supports a variant of adhoc mode out of spec, which makes
-possible to communicate with adhoc mode of
+driver also supports a variant of adhoc mode out of spec for DS radio cards,
+which makes possible to communicate with adhoc mode of
 .Xr wi 8
 driver.  The NWID doesn't affect in this mode.
 .Pp
@@ -81,7 +82,7 @@ media types, while the FH cards support
 media type.  For each media type,
 .Em adhoc
 mediaopt can be used to indicate the driver to operate in adhoc mode.
-Also,
+For DS radio cards,
 .Em adhoc , Ns Em flag0
 mediaopt can be used for
 .Xr wi 4
@@ -101,7 +102,11 @@ for information on how to increase the memory available to the PCMCIA
 controller.
 .It "awi0: failed to complete selftest (%s)"
 The device failed to complete its self test.
-.It "awi0: synced with %s ssid %s at chanset %d"
+.It "awi0: synced with no-bssid at channel %d"
+The device is ready to relay traffic at specified channel.
+.It "awi0: synced with %s ssid %s at channel %d"
+The device has successfully synchronized with at least one of the
+identified stations and is ready to relay traffic.
 .It "awi0: associated with %s ssid %s channel %d signal %d"
 The device has successfully synchronized with the identified Access
 Point and is ready to relay traffic.
@@ -121,7 +126,6 @@ The device failed to complete the request from the system.
 .El
 .Sh BUGS
 .Pp
-Doesn't support WEP.
 Doesn't create IBSS itself.
 .Pp
 .Sh SEE ALSO
