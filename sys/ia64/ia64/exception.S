@@ -248,7 +248,7 @@ ia64_vector_table:
 	;;
 	dep	r16=0,r16,50,14		// clear bits above PPN
 	;;
-	dep	r16=r17,r17,0,12	// put pte bits in 0..11
+	dep	r16=r17,r16,0,12	// put pte bits in 0..11
 	;;
 	itc.i	r16
 	mov	pr=r18,0x1ffff		// restore predicates
@@ -271,7 +271,7 @@ ia64_vector_table:
 	;;
 	dep	r16=0,r16,50,14		// clear bits above PPN
 	;;
-	dep	r16=r17,r17,0,12	// put pte bits in 0..11
+	dep	r16=r17,r16,0,12	// put pte bits in 0..11
 	;;
 	itc.d	r16
 	mov	pr=r18,0x1ffff		// restore predicates
