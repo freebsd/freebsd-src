@@ -441,6 +441,9 @@ ng_etf_shutdown(node_p node)
 {
 	const etf_p privdata = NG_NODE_PRIVATE(node);
 
+	node->flags |= NG_INVALID;
+	ng_cutlinks(node);
+	ng_unname(node);
 	NG_NODE_SET_PRIVATE(node, NULL);
 	NG_NODE_UNREF(privdata->node);
 	FREE(privdata, M_NETGRAPH_ETF);
