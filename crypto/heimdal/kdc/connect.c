@@ -33,7 +33,7 @@
 
 #include "kdc_locl.h"
 
-RCSID("$Id: connect.c,v 1.86 2002/08/12 13:29:48 joda Exp $");
+RCSID("$Id: connect.c,v 1.86.4.1 2002/10/21 16:05:17 joda Exp $");
 
 /*
  * a tuple describing on what to listen
@@ -493,7 +493,7 @@ de_http(char *buf)
 {
     char *p, *q;
     for(p = q = buf; *p; p++, q++) {
-	if(*p == '%') {
+	if(*p == '%' && isxdigit(p[1]) && isxdigit(p[2])) {
 	    unsigned int x;
 	    if(sscanf(p + 1, "%2x", &x) != 1)
 		return -1;
