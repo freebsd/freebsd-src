@@ -220,7 +220,7 @@ ppp_clone_create(struct if_clone *ifc, int unit)
 	bpfattach(&sc->sc_if, DLT_PPP, PPP_HDRLEN);
 	LIST_INSERT_HEAD(&ppp_softc_list, sc, sc_list);
 
-	return 1;
+	return (0);
 }
 
 static void
@@ -263,8 +263,7 @@ ppp_modevent(module_t mod, int type, void *data)
 		while (!LIST_EMPTY(&ppp_softc_list))
 			ppp_clone_destroy(
 			    &LIST_FIRST(&ppp_softc_list)->sc_if);
-
-		return EINVAL; 
+		break; 
 	} 
 	return 0; 
 } 
