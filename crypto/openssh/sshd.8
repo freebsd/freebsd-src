@@ -40,7 +40,7 @@ install and use as possible.
 .Nm
 is the daemon that listens for connections from clients.  It is
 normally started at boot from 
-.Pa /etc/rc .
+.Pa /etc/rc.network .
 It forks a new
 daemon for each incoming connection.  The forked daemons handle
 key exchange, encryption, authentication, command execution,
@@ -186,7 +186,7 @@ to use IPv6 addresses only.
 .Sh CONFIGURATION FILE
 .Nm
 reads configuration data from 
-.Pa /etc/sshd_config
+.Pa /etc/ssh/sshd_config
 (or the file specified with
 .Fl f
 on the command line).  The file
@@ -197,7 +197,7 @@ and empty lines are interpreted as comments.
 The following keywords are possible.
 .Bl -tag -width Ds
 .It Cm AFSTokenPassing
-Specifies whether an AFS token may be forwarded to the server. Default is
+Specifies whether an AFS token may be forwarded to the server.  Default is
 .Dq yes .
 .It Cm AllowGroups
 This keyword can be followed by a number of group names, separated
@@ -323,18 +323,18 @@ To disable keepalives, the value should be set to
 .Dq no
 in both the server and the client configuration files.
 .It Cm KerberosAuthentication
-Specifies whether Kerberos authentication is allowed. This can
+Specifies whether Kerberos authentication is allowed.  This can
 be in the form of a Kerberos ticket, or if
 .Cm PasswordAuthentication
 is yes, the password provided by the user will be validated through
-the Kerberos KDC. Default is
+the Kerberos KDC.  Default is
 .Dq yes .
 .It Cm KerberosOrLocalPasswd
 If set then if password authentication through Kerberos fails then
 the password will be validated via any additional local mechanism
 such as
 .Pa /etc/passwd
-or SecurID. Default is
+or SecurID.  Default is
 .Dq yes .
 .It Cm KerberosTgtPassing
 Specifies whether a Kerberos TGT may be forwarded to the server.
@@ -343,7 +343,7 @@ Default is
 as this only works when the Kerberos KDC is actually an AFS kaserver.
 .It Cm KerberosTicketCleanup
 Specifies whether to automatically destroy the user's ticket cache
-file on logout. Default is
+file on logout.  Default is
 .Dq yes .
 .It Cm KeyRegenerationInterval
 The server key is automatically regenerated after this many seconds
@@ -418,19 +418,25 @@ printed by the shell,
 or equivalent.)  The default is
 .Dq yes .
 .It Cm RandomSeed
-Obsolete.  Random number generation uses other techniques.
+Obsolete - accepted and ignored with a warning.
+Random number generation uses other techniques.
 .It Cm RhostsAuthentication
-Specifies whether authentication using rhosts or /etc/hosts.equiv
+Specifies whether authentication using rhosts or
+.Pa /etc/hosts.equiv
 files is sufficient.  Normally, this method should not be permitted
 because it is insecure. 
 .Cm RhostsRSAAuthentication
 should be used
 instead, because it performs RSA-based host authentication in addition
-to normal rhosts or /etc/hosts.equiv authentication.
+to normal rhosts or
+.Pa /etc/hosts.equiv
+authentication.
 The default is
 .Dq no .
 .It Cm RhostsRSAAuthentication
-Specifies whether rhosts or /etc/hosts.equiv authentication together
+Specifies whether rhosts or
+.Pa /etc/hosts.equiv
+authentication together
 with successful RSA host authentication is allowed.  The default is
 .Dq no .
 .It Cm RSAAuthentication
@@ -444,7 +450,7 @@ Specifies whether
 .Xr skey 1 
 authentication is allowed.  The default is
 .Dq yes .
-Note that s/key authentication is enabled only if
+Note that OPIE authentication is enabled only if
 .Cm PasswordAuthentication
 is allowed, too.
 .It Cm StrictModes
@@ -463,7 +469,7 @@ LOCAL3, LOCAL4, LOCAL5, LOCAL6, LOCAL7.  The default is AUTH.
 .It Cm UseLogin
 Specifies whether
 .Xr login 1
-is used. The default is
+is used.  The default is
 .Dq no .
 .It Cm X11DisplayOffset
 Specifies the first display number available for
@@ -516,10 +522,12 @@ If
 exists, runs it; else if
 .Pa /etc/ssh/sshrc
 exists, runs
-it; otherwise runs xauth.  The
+it; otherwise runs
+.Xr xauth 1 .
+The
 .Dq rc
 files are given the X11
-authentication protocol and cookie in standard input.
+authentication protocol and cookie (if applicable) in standard input.
 .It
 Runs user's shell or command.
 .El
@@ -593,11 +601,11 @@ authentication.
 Prevents tty allocation (a request to allocate a pty will fail).
 .El
 .Ss Examples
-1024 33 12121.\|.\|.\|312314325 ylo@foo.bar
-.Pp
-from="*.niksula.hut.fi,!pc.niksula.hut.fi" 1024 35 23.\|.\|.\|2334 ylo@niksula
-.Pp
-command="dump /home",no-pty,no-port-forwarding 1024 33 23.\|.\|.\|2323 backup.hut.fi
+.Bd -literal
+1024 33 12121...312314325 ylo@foo.bar
+from="*.niksula.hut.fi,!pc.niksula.hut.fi" 1024 35 23...2334 ylo@niksula
+command="dump /home",no-pty,no-port-forwarding 1024 33 23...2323 backup.hut.fi
+.Ed
 .Sh SSH_KNOWN_HOSTS FILE FORMAT
 The 
 .Pa /etc/ssh/ssh_known_hosts
@@ -645,7 +653,9 @@ or by taking
 .Pa /etc/ssh/ssh_host_key.pub
 and adding the host names at the front.
 .Ss Examples
-closenet,closenet.hut.fi,.\|.\|.\|,130.233.208.41 1024 37 159.\|.\|.93 closenet.hut.fi
+.Bd -literal
+closenet,closenet.hut.fi,...,130.233.208.41 1024 37 159...93 closenet.hut.fi
+.Ed
 .Sh FILES
 .Bl -tag -width Ds
 .It Pa /etc/ssh/sshd_config
@@ -687,7 +697,7 @@ authentication to check the public key of the host.  The key must be
 listed in one of these files to be accepted.
 The client uses the same files
 to verify that the remote host is the one we intended to
-connect. These files should be writable only by root/the owner.
+connect.  These files should be writable only by root/the owner.
 .Pa /etc/ssh/ssh_known_hosts
 should be world-readable, and
 .Pa $HOME/.ssh/known_hosts
@@ -698,7 +708,7 @@ If this file exists,
 refuses to let anyone except root log in.  The contents of the file
 are displayed to anyone trying to log in, and non-root connections are
 refused.  The file should be world-readable.
-.It Pa /etc/hosts.allow, /etc/hosts.deny
+.It Pa /etc/hosts.allow
 If compiled with
 .Sy LIBWRAP
 support, tcp-wrappers access controls may be defined here as described in
@@ -720,7 +730,7 @@ this file is exactly the same as for
 .Pa .rhosts .
 However, this file is
 not used by rlogin and rshd, so using this permits access using SSH only.
-.Pa /etc/hosts.equiv
+.It Pa /etc/hosts.equiv
 This file is used during
 .Pa .rhosts
 authentication.  In the
@@ -762,7 +772,9 @@ can only contain empty lines, comment lines (that start with
 and assignment lines of the form name=value.  The file should be writable
 only by the user; it need not be readable by anyone else.
 .It Pa $HOME/.ssh/rc
-If this file exists, it is run with /bin/sh after reading the
+If this file exists, it is run with
+.Pa /bin/sh
+after reading the
 environment files but before starting the user's shell or command.  If
 X11 spoofing is in use, this will receive the "proto cookie" pair in
 standard input (and
@@ -776,13 +788,19 @@ which may be needed before the user's home directory becomes
 accessible; AFS is a particular example of such an environment.
 .Pp
 This file will probably contain some initialization code followed by
-something similar to: "if read proto cookie; then echo add $DISPLAY
-$proto $cookie | xauth -q -; fi".
+something similar to:
+.Bd -literal -offset indent
+if [ -n "$DISPLAY" ] && read proto cookie; then
+    echo add $DISPLAY $proto $cookie | xauth -q -
+fi
+.Ed
 .Pp
 If this file does not exist,
 .Pa /etc/ssh/sshrc
 is run, and if that
-does not exist either, xauth is used to store the cookie.
+does not exist either,
+.Xr xauth 1
+is used to store the cookie.
 .Pp
 This file should be writable only by the user, and need not be
 readable by anyone else.
