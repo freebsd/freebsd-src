@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.58 1998/06/10 08:25:23 kato Exp $
+ *	$Id: clock.c,v 1.59 1998/09/08 09:47:46 kato Exp $
  */
 
 /*
@@ -223,11 +223,26 @@ SYSCTL_OPAQUE(_debug, OID_AUTO, i8254_timecounter, CTLFLAG_RD,
 static void
 clkintr(struct clockframe frame)
 {
-	if (!i8254_ticked)
-		i8254_offset += timer0_max_count;
-	else
-		i8254_ticked = 0;
-	i8254_lastcount = 0;
+	if (timecounter->tc_get_timecount == i8254_get_timecount) {
+		/*
+		 * Maintain i8254_offset and related variables.  Optimize
+		 * the usual case where i8254 counter rollover has not been
+		 * detected in i8254_get_timecount() by pretending that we
+		 * read the counter when it rolled over.  Otherwise, call
+		 * i8254_get_timecount() to do most of the work.  The
+		 * hardware counter must be read to ensure monotonicity
+		 * despite multiple rollovers and misbehaving hardware.
+		 */
+		disable_intr();
+		if (i8254_ticked) {
+			i8254_get_timecount(NULL);
+			i8254_ticked = 0;
+		} else {
+			i8254_offset += timer0_max_count;
+			i8254_lastcount = 0;
+		}
+		enable_intr();
+	}
 	timer_func(&frame);
 	switch (timer0_state) {
 
