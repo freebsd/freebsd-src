@@ -16,7 +16,7 @@
  *
  * NEW command line interface for IP firewall facility
  *
- * $Id: ipfw.c,v 1.24 1996/05/11 20:31:55 phk Exp $
+ * $Id: ipfw.c,v 1.25 1996/06/09 23:46:22 alex Exp $
  *
  */
 
@@ -833,6 +833,8 @@ main(ac, av)
 	int 	i;
 	FILE	*f;
 
+	strcpy(progname,*av);
+
 	s = socket( AF_INET, SOCK_RAW, IPPROTO_RAW );
 	if ( s < 0 ) {
 		fprintf(stderr,"%s: Can't open raw socket.\n"
@@ -841,8 +843,6 @@ main(ac, av)
 	}
 
 	setbuf(stdout,0);
-
-	strcpy(progname,*av);
 
 	if (av[1] && !access(av[1], R_OK)) {
 		lineno = 0;
