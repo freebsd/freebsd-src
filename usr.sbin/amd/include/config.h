@@ -1,4 +1,4 @@
-/* $Id$ */
+/* $Id: config.h,v 1.6 1998/08/27 08:09:41 obrien Exp $ */
 /* portions derived from 
    $NetBSD: config.h,v 1.11 1998/08/08 22:33:37 christos Exp $	*/
 /* config.h.  Generated automatically by configure.  */
@@ -155,7 +155,7 @@
  */
 
 /* Mount(2) type/name for UFS filesystem */
-#define MOUNT_TYPE_UFS MOUNT_UFS
+#define MOUNT_TYPE_UFS "ufs"
 
 /* Mount(2) type/name for XFS filesystem (irix) */
 /* #undef MOUNT_TYPE_XFS */
@@ -164,29 +164,29 @@
 /* #undef MOUNT_TYPE_EFS */
 
 /* Mount(2) type/name for NFS filesystem */
-#define MOUNT_TYPE_NFS MOUNT_NFS
+#define MOUNT_TYPE_NFS "nfs"
 
 /* Mount(2) type/name for NFS3 filesystem */
-#define MOUNT_TYPE_NFS3 MOUNT_NFS3
+#define MOUNT_TYPE_NFS3 "nfs"
 
 /* Mount(2) type/name for PCFS filesystem */
 /* XXX: conf/trap/trap_hpux.h may override this definition for HPUX 9.0 */
-#define MOUNT_TYPE_PCFS MOUNT_MSDOS
+#define MOUNT_TYPE_PCFS "msdos"
 
 /* Mount(2) type/name for LOFS filesystem */
-#define MOUNT_TYPE_LOFS MOUNT_LOFS
+#define MOUNT_TYPE_LOFS "lofs"
 
 /* Mount(2) type/name for CDFS filesystem */
-#define MOUNT_TYPE_CDFS MOUNT_CD9660
+#define MOUNT_TYPE_CDFS "cd9660"
 
 /* Mount(2) type/name for TFS filesystem */
-#define MOUNT_TYPE_TFS MOUNT_TFS
+#define MOUNT_TYPE_TFS "tfs"
 
 /* Mount(2) type/name for TMPFS filesystem */
 /* #undef MOUNT_TYPE_TMPFS */
 
 /* Mount(2) type/name for MFS filesystem */
-#define MOUNT_TYPE_MFS MOUNT_MFS
+#define MOUNT_TYPE_MFS "mfs"
 
 /* Mount(2) type/name for CFS (crypto) filesystem */
 /* #undef MOUNT_TYPE_CFS */
@@ -201,13 +201,13 @@
 /* #undef MOUNT_TYPE_IGNORE */
 
 /* Mount(2) type/name for NULLFS (loopback on bsd44) filesystem */
-#define MOUNT_TYPE_NULLFS MOUNT_NULL
+#define MOUNT_TYPE_NULLFS "null"
 
 /* Mount(2) type/name for UNIONFS filesystem */
-#define MOUNT_TYPE_UNIONFS MOUNT_UNION
+#define MOUNT_TYPE_UNIONFS "union"
 
 /* Mount(2) type/name for UMAPFS (uid/gid mapping) filesystem */
-#define MOUNT_TYPE_UMAPFS MOUNT_UMAP
+#define MOUNT_TYPE_UMAPFS "umap"
 
 
 /*
@@ -1020,10 +1020,10 @@
 #define AUTH_CREATE_GIDLIST_TYPE gid_t
 
 /* The string used in printf to print the mount-type field of mount(2) */
-#define MTYPE_PRINTF_TYPE "%d"
+#define MTYPE_PRINTF_TYPE "%s"
 
 /* Type of the mount-type field in the mount() system call */
-#define MTYPE_TYPE int
+#define MTYPE_TYPE const char *
 
 /* Define a type for the pcfs_args structure */
 #define pcfs_args_t struct msdosfs_args
