@@ -40,16 +40,13 @@
 #ifndef _SPARC64_FPU_FPU_EXTERN_H_
 #define _SPARC64_FPU_FPU_EXTERN_H_
 
-struct proc;
-struct fpstate;
 struct utrapframe;
 union instr;
 struct fpemu;
 struct fpn;
 
 /* fpu.c */
-void __fpu_exception(struct utrapframe *tf);
-void __fpu_panic(char *msg);
+int __fpu_exception(struct utrapframe *tf);
 
 /* fpu_add.c */
 struct fpn *__fpu_add(struct fpemu *);

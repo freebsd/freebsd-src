@@ -50,6 +50,16 @@ struct utrapframe {
 extern char __sparc_utrap_fp_disabled[];
 extern char __sparc_utrap_gen[];
 
+int __emul_insn(struct utrapframe *uf);
+u_long __emul_fetch_reg(struct utrapframe *uf, int reg);
+void __emul_store_reg(struct utrapframe *uf, int reg, u_long val);
+u_long __emul_f3_op2(struct utrapframe *uf, u_int insn);
+u_long __emul_f3_memop_addr(struct utrapframe *uf, u_int insn);
+
 void __sparc_utrap(struct utrapframe *);
+
+void __utrap_write(const char *);
+void __utrap_kill_self(int);
+void __utrap_panic(const char *);
 
 #endif
