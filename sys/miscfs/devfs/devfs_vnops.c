@@ -1,7 +1,7 @@
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vnops.c,v 1.30 1996/10/16 23:14:00 julian Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vnops.c,v 1.31 1996/10/17 22:47:23 julian Exp $
  *
  * symlinks can wait 'til later.
  */
@@ -781,6 +781,7 @@ devfs_write(struct vop_write_args *ap)
 	dn_p	file_node;
 	int	error;
 
+DBPRINT(("write\n"));
 	if (error = devfs_vntodn(ap->a_vp,&file_node))
 	{
 		printf("devfs_vntodn returned %d ",error);
@@ -788,7 +789,6 @@ devfs_write(struct vop_write_args *ap)
 	}
 
 
-DBPRINT(("write\n"));
 	switch (ap->a_vp->v_type) {
 	case VREG:
 		return(EINVAL);
