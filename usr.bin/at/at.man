@@ -186,10 +186,10 @@ does not exist,
 .Pa _PERM_PATH/at.deny
 is checked, every username not mentioned in it is then allowed
 to use
-.Nm Ns .
+.Nm .
 .Pp
 If neither exists, only the superuser is allowed use of
-.Nm Ns .
+.Nm .
 This is the default configuration.
 .Sh IMPLEMENTATION NOTES
 Note that
