@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2002 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2003 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,7 +29,7 @@
  *
  * $FreeBSD$
  *
- *      last edit-date: [Tue Mar 26 14:38:11 2002]
+ *      last edit-date: [Thu Jul 31 11:05:16 2003]
  *
  *---------------------------------------------------------------------------*/
 
@@ -458,42 +458,45 @@ find_matching_entry_incoming(msg_connect_ind_t *mp)
 			continue;
 		}
 
-  		/* check all allowed remote number's for this entry */
+  		/* check all allowed remote numbers for this entry */
 
 		for (n = 0; n < cep->incoming_numbers_count; n++)
 		{
 			incoming_number_t *in = &cep->remote_phone_incoming[n];
 
-			if(in->number[0] == '*' && cep->usesubaddr && in->subaddr[0] == '*')
-				break;
+			/*
+			 * An incoming number matches whenever the main 
+			 * phone number either matches or is a wildcard AND
+			 * subaddresses are either not in use or match as 
+			 * well (or the required subaddress is a wildcard). 
+			 * This means that if subaddresses are in use and
+                         * the main phone number is a wildcard, the 
+			 * subaddress is still required to match. 
+			 *
+			 * At first glance, this does not seem logical,
+			 * but since subaddress usage can be configured per
+			 * entry, disregarding the subaddress if the main 
+			 * number matches would needlessly limit the user's
+			 * flexibility.
+			 */
 
-			if(in->number[0] == '*' && !cep->usesubaddr)
-				break;
-
-			if(in->number[0] == '*' && cep->usesubaddr && !strncmp(in->subaddr, mp->src_subaddr, strlen(in->subaddr)))
-				break;
-
-			if(strncmp(in->number, mp->src_telno, strlen(in->number)) && !cep->usesubaddr)
+			if ((in->number[0] == '*') || (!strncmp(in->number, mp->src_telno, strlen(in->number))))
+			{
+				if ((!cep->usesubaddr) || (in->subaddr[0] == '*') || (!strncmp(in->subaddr, mp->src_subaddr, strlen(in->subaddr))))
+				{
+					DBGL(DL_MSG, (log(LL_DBG, "find_matching_entry_incoming: entry %d, match: remno %s = incomingfromno %s", i,
+						in->number, mp->src_telno)));
+					break;
+				}
+			}
+			else
 			{
 				DBGL(DL_MSG, (log(LL_DBG, "find_matching_entry_incoming: entry %d, remno %s != incomingfromno %s", i,
 					in->number, mp->src_telno)));
 			}
-
-			if(strncmp(in->number, mp->src_telno, strlen(in->number)) && cep->usesubaddr && in->subaddr[0] == '*')
-			{
-				DBGL(DL_MSG, (log(LL_DBG, "find_matching_entry_incoming: entry %d, remno %s != incomingfromno %s", i,
-					in->number, mp->src_telno)));
-			}
-
-			if(strncmp(in->number, mp->src_telno, strlen(in->number)) && cep->usesubaddr && strncmp(in->subaddr, mp->src_subaddr, strlen(in->subaddr)))
-			{
-				DBGL(DL_MSG, (log(LL_DBG, "find_matching_entry_incoming: entry %d, remno %s != incomingfromno %s", i,
-					in->number, mp->src_telno)));
-			}
-
-			break;
 		}
 
+		/* If all configured remote numbers have been tested without success, proceed to the next entry. */
 		if (n >= cep->incoming_numbers_count)
 			continue;
 
