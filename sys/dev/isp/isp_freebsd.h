@@ -1,5 +1,5 @@
-/* $Id: isp_freebsd.h,v 1.13 1999/03/25 22:52:45 mjacob Exp $ */
-/* release_4_3_99 */
+/* $Id: isp_freebsd.h,v 1.14 1999/04/04 01:34:06 mjacob Exp $ */
+/* release_5_11_99 */
 /*
  * Qlogic ISP SCSI Host Adapter FreeBSD Wrapper Definitions (non CAM version)
  *---------------------------------------
@@ -94,6 +94,7 @@ struct isposinfo {
 	((struct ispsoftc *) (xs)->sc_link->adapter_softc)
 #define	XS_LUN(xs)		((int) (xs)->sc_link->lun)
 #define	XS_TGT(xs)		((int) (xs)->sc_link->target)
+#define	XS_CHANNEL(xs)		((int) (xs)->sc_link->adapter_bus)
 #define	XS_RESID(xs)		(xs)->resid
 #define	XS_XFRLEN(xs)		(xs)->datalen
 #define	XS_CDBLEN(xs)		(xs)->cmdlen
@@ -141,6 +142,8 @@ struct isposinfo {
 #define	CMD_QUEUED		SUCCESSFULLY_QUEUED
 
 #define	isp_name	isp_osinfo.name
+
+#define	SCSI_QFULL	0x28
 
 #endif	/* __FreeBSD_version >= 300004 */
 
@@ -206,7 +209,7 @@ static __inline void isp_prtstst(ispstatusreq_t *sp)
 		sprintf(buf, "%s%s", buf, "Timeout ");
 	if (sp->req_status_flags & RQSTF_NEGOTIATION)
 		sprintf(buf, "%s%s", buf, "Negotiation ");
-	sprintf(buf, "%s%s", buf, "\n");
+	printf(buf, "%s\n", buf);
 }
 
 static __inline const char *isp2100_fw_statename(int state)
@@ -222,7 +225,7 @@ static __inline const char *isp2100_fw_statename(int state)
 	case FW_REINIT:		return "Re-Init";
 	case FW_NON_PART:	return "Nonparticipating";
 	default:
-		sprintf(buf, "?0x%x?", state);
+		sprintf(buf, "0x%x", state);
 		return buf;
 	}
 }
@@ -244,9 +247,10 @@ static __inline const char *isp2100_pdb_statename(int pdb_state)
 	case PDB_STATE_PLOGO:		return "Port Logout";
 	case PDB_STATE_PLOG_ACK:	return "Wait Port Logout ACK";
 	default:
-		sprintf(buf, "?0x%x?", pdb_state);
+		sprintf(buf, "0x%x", pdb_state);
 		return buf;
 	}
 }
 
+#define	ISP_NO_FASTPOST_FC	1
 #endif	/* _ISP_FREEBSD_H */
