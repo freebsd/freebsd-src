@@ -1,5 +1,5 @@
 #	from: @(#)sys.mk	8.2 (Berkeley) 3/21/94
-#	$Id: sys.mk,v 1.7 1994/10/02 05:12:46 rgrimes Exp $
+#	$Id: sys.mk,v 1.8 1994/11/07 04:18:04 phk Exp $
 
 unix		?=	We run FreeBSD, not UNIX.
 
@@ -44,6 +44,8 @@ ECHODIR		?=	true
 FC		?=	f77
 FFLAGS		?=	-O
 EFLAGS		?=
+
+INSTALL		?=	install
 
 LEX		?=	lex
 LFLAGS		?=

@@ -1,5 +1,5 @@
 #	from: @(#)bsd.doc.mk	5.3 (Berkeley) 1/2/91
-#	$Id: bsd.doc.mk,v 1.3 1994/08/28 15:37:39 bde Exp $
+#	$Id: bsd.doc.mk,v 1.4 1994/11/13 21:05:18 phk Exp $
 
 PRINTER?=	ps
 
@@ -8,7 +8,6 @@ EQN?=		eqn -T${PRINTER}
 GREMLIN?=	grn
 GRIND?=		vgrind -f
 INDXBIB?=	indxbib
-INSTALL?=	install
 PIC?=		pic
 REFER?=		refer
 ROFF?=		groff -T${PRINTER} ${MACROS} -o${PAGES}
