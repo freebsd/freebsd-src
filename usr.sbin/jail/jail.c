@@ -53,7 +53,8 @@ main(int argc, char **argv)
 	struct jail j;
 	struct passwd *pwd;
 	struct in_addr in;
-	int ch, groups[NGROUPS], i, iflag, lflag, ngroups, uflag, Uflag;
+	gid_t groups[NGROUPS];
+	int ch, i, iflag, lflag, ngroups, uflag, Uflag;
 	char path[PATH_MAX], *username;
 	static char *cleanenv;
 	const char *shell, *p;
