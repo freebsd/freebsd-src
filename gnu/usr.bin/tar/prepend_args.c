@@ -24,6 +24,7 @@
 #endif
 #include <sys/param.h>
 #include "prepend_args.h"
+#include "port.h"
 
 
 /* Find the white-space-separated options specified by OPTIONS, and
