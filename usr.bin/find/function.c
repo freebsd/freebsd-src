@@ -70,6 +70,8 @@ static long long find_parsenum(PLAN *, const char *, char *, char *);
 static long long find_parsetime(PLAN *, const char *, char *);
 static char *nextarg(OPTION *, char ***);
 
+extern char **environ;
+
 #define	COMPARE(a, b) do {						\
 	switch (plan->flags & F_ELG_MASK) {				\
 	case F_EQUAL:							\
@@ -606,7 +608,7 @@ c_exec(option, argvp)
 	PLAN *new;			/* node returned */
 	long argmax;
 	int cnt, i;
-	char **argv, **ap, *p;
+	char **argv, **ap, **ep, *p;
 
 	/* XXX - was in c_execdir, but seems unnecessary!?
 	ftsoptions &= ~FTS_NOSTAT;
@@ -638,13 +640,15 @@ c_exec(option, argvp)
 			warn("sysconf(_SC_ARG_MAX)");
 			argmax = _POSIX_ARG_MAX;
 		}
-		/*
-		 * Estimate the maximum number of arguments as {ARG_MAX}/10,
-		 * and the maximum number of bytes to use for arguments as
-		 * {ARG_MAX}*(3/4).
-		 */
-		new->e_pnummax = argmax / 10;
-		new->e_psizemax = (argmax / 4) * 3;
+		argmax -= 1024;
+		for (ep = environ; *ep != NULL; ep++)
+			argmax -= strlen(*ep) + 1 + sizeof(*ep);
+		argmax -= 1 + sizeof(*ep);
+		new->e_pnummax = argmax / 16;
+		argmax -= sizeof(char *) * new->e_pnummax;
+		if (argmax <= 0)
+			errx(1, "no space for arguments");
+		new->e_psizemax = argmax;
 		new->e_pbsize = 0;
 		cnt += new->e_pnummax + 1;
 	}
