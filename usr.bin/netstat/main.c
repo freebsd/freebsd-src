@@ -42,7 +42,7 @@ char const copyright[] =
 static char sccsid[] = "@(#)main.c	8.4 (Berkeley) 3/1/94";
 #endif
 static const char rcsid[] =
-	"$Id: main.c,v 1.19 1997/07/29 06:51:40 charnier Exp $";
+	"$Id: main.c,v 1.20 1998/05/15 20:19:16 wollman Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -210,6 +210,7 @@ static struct protox *name2protox __P((char *));
 static struct protox *knownname __P((char *));
 
 kvm_t *kvmd;
+char *nlistf = NULL, *memf = NULL;
 
 int
 main(argc, argv)
@@ -219,7 +220,6 @@ main(argc, argv)
 	register struct protoent *p;
 	register struct protox *tp;	/* for printing cblocks & stats */
 	int ch;
-	char *nlistf = NULL, *memf = NULL;
 	char buf[_POSIX2_LINE_MAX];
 
 	af = AF_UNSPEC;
@@ -343,28 +343,6 @@ main(argc, argv)
 	if (nlistf != NULL || memf != NULL)
 		setgid(getgid());
 
-	/*
-	 * XXX.
-	 */
-	kvmd = kvm_openfiles(nlistf, memf, NULL, O_RDONLY, buf);
-	if (kvmd != NULL) {
-		if (kvm_nlist(kvmd, nl) < 0) {
-			if(nlistf)
-				errx(1, "%s: kvm_nlist: %s", nlistf,
-				     kvm_geterr(kvmd));
-			else
-				errx(1, "kvm_nlist: %s", kvm_geterr(kvmd));
-		}
-
-		if (nl[0].n_type == 0) {
-			if(nlistf)
-				errx(1, "%s: no namelist", nlistf);
-			else
-				errx(1, "no namelist");
-		}
-	} else {
-		errx(1, "%s", buf);
-	}
 	if (mflag) {
 		mbpr();
 		exit(0);
@@ -484,8 +462,29 @@ kread(addr, buf, size)
 	int size;
 {
 	if (kvmd == 0) {
-		warnx("KVM is not open");
-		return -1;
+		/*
+		 * XXX.
+		 */
+		kvmd = kvm_openfiles(nlistf, memf, NULL, O_RDONLY, buf);
+		if (kvmd != NULL) {
+			if (kvm_nlist(kvmd, nl) < 0) {
+				if(nlistf)
+					errx(1, "%s: kvm_nlist: %s", nlistf,
+					     kvm_geterr(kvmd));
+				else
+					errx(1, "kvm_nlist: %s", kvm_geterr(kvmd));
+			}
+
+			if (nl[0].n_type == 0) {
+				if(nlistf)
+					errx(1, "%s: no namelist", nlistf);
+				else
+					errx(1, "no namelist");
+			}
+		} else {
+			warnx("kvm not available");
+			return(-1);
+		}
 	}
 	if (kvm_read(kvmd, addr, buf, size) != size) {
 		warnx("%s", kvm_geterr(kvmd));
