@@ -1487,7 +1487,7 @@ pipe_kqfilter(struct file *fp, struct knote *kn)
 		cpipe = cpipe->pipe_peer;
 		if (cpipe == NULL)
 			/* other end of pipe has been closed */
-			return (EBADF);
+			return (EPIPE);
 		break;
 	default:
 		return (1);
