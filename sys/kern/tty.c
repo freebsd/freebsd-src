@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.c	8.8 (Berkeley) 1/21/94
- * $Id: tty.c,v 1.94 1997/03/24 12:02:59 bde Exp $
+ * $Id: tty.c,v 1.95 1997/09/02 20:05:54 bde Exp $
  */
 
 /*-
@@ -83,6 +83,7 @@
 #include <sys/fcntl.h>
 #include <sys/conf.h>
 #include <sys/dkstat.h>
+#include <sys/poll.h>
 #include <sys/kernel.h>
 #include <sys/vnode.h>
 #include <sys/signalvar.h>
@@ -1031,35 +1032,34 @@ ttioctl(tp, cmd, data, flag)
 }
 
 int
-ttyselect(tp, rw, p)
+ttypoll(tp, events, p)
 	struct tty *tp;
-	int rw;
+	int events;
 	struct proc *p;
 {
 	int s;
+	int revents = 0;
 
-	if (tp == NULL)
-		return (ENXIO);
+	if (tp == NULL)	/* XXX used to return ENXIO, but that means true! */
+		return ((events & (POLLIN | POLLOUT | POLLRDNORM | POLLWRNORM))
+			| POLLHUP);
 
 	s = spltty();
-	switch (rw) {
-	case FREAD:
+	if (events & (POLLIN | POLLRDNORM))
 		if (ttnread(tp) > 0 || ISSET(tp->t_state, TS_ZOMBIE))
-			goto win;
-		selrecord(p, &tp->t_rsel);
-		break;
-	case FWRITE:
+			revents |= events & (POLLIN | POLLRDNORM);
+		else
+			selrecord(p, &tp->t_rsel);
+
+	if (events & (POLLOUT | POLLWRNORM))
 		if ((tp->t_outq.c_cc <= tp->t_lowat &&
 		     ISSET(tp->t_state, TS_CONNECTED))
-		    || ISSET(tp->t_state, TS_ZOMBIE)) {
-win:			splx(s);
-			return (1);
-		}
-		selrecord(p, &tp->t_wsel);
-		break;
-	}
+		    || ISSET(tp->t_state, TS_ZOMBIE))
+			revents |= events & (POLLOUT | POLLWRNORM);
+		else
+			selrecord(p, &tp->t_wsel);
 	splx(s);
-	return (0);
+	return (revents);
 }
 
 /*
@@ -1067,12 +1067,12 @@ win:			splx(s);
  * cdevsw.  It relies on a proper xxxdevtotty routine.
  */
 int
-ttselect(dev, rw, p)
+ttpoll(dev, events, p)
 	dev_t dev;
-	int rw;
+	int events;
 	struct proc *p;
 {
-	return ttyselect((*cdevsw[major(dev)]->d_devtotty)(dev), rw, p);
+	return ttypoll((*cdevsw[major(dev)]->d_devtotty)(dev), events, p);
 }
 
 /*
