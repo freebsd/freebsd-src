@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_input.c	8.12 (Berkeley) 5/24/95
- *	$Id: tcp_input.c,v 1.48 1996/09/13 23:51:41 pst Exp $
+ *	$Id: tcp_input.c,v 1.49 1996/09/20 21:25:18 pst Exp $
  */
 
 #ifndef TUBA_INCLUDE
@@ -417,7 +417,7 @@ findpcb:
 			 */
 			so2 = sonewconn(so, 0);
 			if (!so2) {
-				so2 = TAILQ_FIRST(&so->so_incom);
+				so2 = TAILQ_FIRST(&so->so_incomp);
 				if (so2) {
 					tcp_drop(sototcpcb(so2), ETIMEDOUT);
 					so2 = sonewconn(so, 0);
