@@ -290,6 +290,7 @@ _SHLINSTALLFLAGS:=	${_SHLINSTALLFLAGS${ie}}
 
 .if defined(LIB) && !empty(LIB) && !defined(INTERNALLIB)
 realinstall: _libinstall
+.ORDER: beforeinstall _libinstall
 _libinstall:
 .if !defined(NOINSTALLLIB)
 	${INSTALL} -C -o ${LIBOWN} -g ${LIBGRP} -m ${LIBMODE} \
@@ -323,6 +324,7 @@ _libinstall:
 
 .if !defined(NOMAN)
 realinstall: _maninstall
+.ORDER: beforeinstall _maninstall
 .endif
 
 .endif
