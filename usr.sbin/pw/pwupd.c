@@ -38,7 +38,7 @@
 
 #include "pwupd.h"
 
-#define HAVE_PWDB_C	1
+#define HAVE_PWDB_C	0
 
 static int
 pwdb(char *arg,...)
