@@ -31,7 +31,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/assym.h>
 #include <sys/proc.h>
-#include <sys/user.h>
 #include <sys/mbuf.h>
 #include <sys/vmmeter.h>
 #include <vm/vm.h>
@@ -42,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/cpu.h>
 #include <machine/proc.h>
 #include <machine/cpufunc.h>
+#include <machine/pcb.h>
 #include <machine/pte.h>
 #include <machine/intr.h>
 #include <netinet/in.h>
@@ -94,7 +94,6 @@ ASSYM(TD_FRAME, offsetof(struct thread, td_frame));
 ASSYM(TF_R0, offsetof(struct trapframe, tf_r0));
 ASSYM(TF_R1, offsetof(struct trapframe, tf_r1));
 ASSYM(TF_PC, offsetof(struct trapframe, tf_pc));
-ASSYM(P_UAREA, offsetof(struct proc, p_uarea));
 ASSYM(P_PID, offsetof(struct proc, p_pid));
 ASSYM(P_FLAG, offsetof(struct proc, p_flag));
 
@@ -105,7 +104,6 @@ ASSYM(PMAP_INCLUDE_PTE_SYNC, 1);
 #endif
 ASSYM(TDF_ASTPENDING, TDF_ASTPENDING);
 ASSYM(TDF_NEEDRESCHED, TDF_NEEDRESCHED);
-ASSYM(USER_SIZE, sizeof(struct user));
 ASSYM(P_TRACED, P_TRACED);
 ASSYM(P_SIGEVENT, P_SIGEVENT);
 ASSYM(P_PROFIL, P_PROFIL);
