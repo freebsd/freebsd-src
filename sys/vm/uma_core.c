@@ -236,11 +236,9 @@ zone_timeout(uma_zone_t zone)
 {
 	uma_cache_t cache;
 	u_int64_t alloc;
-	int free;
 	int cpu;
 
 	alloc = 0;
-	free = 0;
 
 	/*
 	 * Aggregate per cpu cache statistics back to the zone.
@@ -259,10 +257,6 @@ zone_timeout(uma_zone_t zone)
 			/* Add them up, and reset */
 			alloc += cache->uc_allocs;
 			cache->uc_allocs = 0;
-			if (cache->uc_allocbucket)
-				free += cache->uc_allocbucket->ub_ptr + 1;
-			if (cache->uc_freebucket)
-				free += cache->uc_freebucket->ub_ptr + 1;
 			CPU_UNLOCK(cpu);
 		}
 	}
@@ -270,12 +264,6 @@ zone_timeout(uma_zone_t zone)
 	/* Now push these stats back into the zone.. */
 	ZONE_LOCK(zone);
 	zone->uz_allocs += alloc;
-
-	/*
-	 * cachefree is an instantanious snapshot of what is in the per cpu
-	 * caches, not an accurate counter
-	 */
-	zone->uz_cachefree = free;
 
 	/*
 	 * Expand the zone hash table.
@@ -550,8 +538,6 @@ cache_drain(uma_zone_t zone)
 			continue;
 		CPU_UNLOCK(cpu);
 	}
-
-	zone->uz_cachefree = 0;
 }
 
 /*
@@ -2093,6 +2079,10 @@ sysctl_vm_zone(SYSCTL_HANDLER_ARGS)
 	char *tmpbuf, *offset;
 	uma_zone_t z;
 	char *p;
+	int cpu;
+	int cachefree;
+	uma_bucket_t bucket;
+	uma_cache_t cache;
 
 	cnt = 0;
 	mtx_lock(&uma_mtx);
@@ -2113,8 +2103,27 @@ sysctl_vm_zone(SYSCTL_HANDLER_ARGS)
 	LIST_FOREACH(z, &uma_zones, uz_link) {
 		if (cnt == 0)	/* list may have changed size */
 			break;
+		for (cpu = 0; cpu < maxcpu; cpu++) {
+			if (CPU_ABSENT(cpu))
+				continue;
+			CPU_LOCK(cpu);
+		}
 		ZONE_LOCK(z);
-		totalfree = z->uz_free + z->uz_cachefree;
+		cachefree = 0;
+		for (cpu = 0; cpu < maxcpu; cpu++) {
+			if (CPU_ABSENT(cpu))
+				continue;
+			cache = &z->uz_cpu[cpu];
+			if (cache->uc_allocbucket != NULL)
+				cachefree += cache->uc_allocbucket->ub_ptr + 1;
+			if (cache->uc_freebucket != NULL)
+				cachefree += cache->uc_freebucket->ub_ptr + 1;
+			CPU_UNLOCK(cpu);
+		}
+		LIST_FOREACH(bucket, &z->uz_full_bucket, ub_link) {
+			cachefree += bucket->ub_ptr + 1;
+		}
+		totalfree = z->uz_free + cachefree;
 		len = snprintf(offset, linesize,
 		    "%-12.12s  %6.6u, %8.8u, %6.6u, %6.6u, %8.8llu\n",
 		    z->uz_name, z->uz_size,

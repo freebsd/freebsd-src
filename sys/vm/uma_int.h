@@ -240,7 +240,6 @@ struct uma_zone {
 	struct vm_object	*uz_obj;	/* Zone specific object */
 	vm_offset_t	uz_kva;		/* Base kva for zones with objs */
 	u_int32_t	uz_maxpages;	/* Maximum number of pages to alloc */
-	u_int32_t	uz_cachefree;	/* Last count of items free in caches */
 	u_int64_t	uz_oallocs;	/* old allocs count */
 	u_int64_t	uz_wssize;	/* Working set size */
 	int		uz_recurse;	/* Allocation recursion count */
