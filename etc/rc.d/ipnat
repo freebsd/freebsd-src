@@ -36,8 +36,7 @@ ipnat_precmd()
 {
 	# Make sure ipfilter is loaded before continuing
 	if ! ${SYSCTL} net.inet.ipf.fr_pass >/dev/null 2>&1; then
-		err 'ipnat requires ipfilter be loaded'
-		return 1
+		err 1 'ipnat requires ipfilter be loaded'
 	fi
 	return 0
 }
