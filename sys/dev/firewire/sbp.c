@@ -1332,7 +1332,7 @@ SBP_DEBUG(0)
 				" len:%x stat:%x orb:%x%08x\n",
 			sbp_status->src, sbp_status->resp, sbp_status->dead,
 			sbp_status->len, sbp_status->status,
-			ntohl(sbp_status->orb_hi), ntohl(sbp_status->orb_lo));
+			ntohs(sbp_status->orb_hi), ntohl(sbp_status->orb_lo));
 		sbp_show_sdev_info(sdev, 2);
 		status = sbp_status->status;
 		switch(sbp_status->resp) {
