@@ -92,4 +92,21 @@ int linux_emul_find __P((struct proc *, caddr_t *, const char *, char *,
 #define CHECKALTEXIST(p, sgp, path) CHECKALT(p, sgp, path, 0)
 #define CHECKALTCREAT(p, sgp, path) CHECKALT(p, sgp, path, 1)
 
+#define DUMMY(s)							\
+int									\
+linux_ ## s(struct proc *p, struct linux_ ## s ## _args *args)		\
+{									\
+	return (unsupported_msg(p, #s));				\
+}									\
+struct __hack
+
+static __inline int
+unsupported_msg(struct proc *p, const char *fname)
+{
+
+	printf("linux: syscall %s is obsoleted or not implemented (pid=%ld)\n",
+	    fname, (long)p->p_pid);
+	return (ENOSYS);
+}
+
 #endif /* !_LINUX_UTIL_H_ */
