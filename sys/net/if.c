@@ -36,9 +36,11 @@
 #include "opt_mac.h"
 
 #include <sys/param.h>
+#include <sys/types.h>
 #include <sys/conf.h>
 #include <sys/mac.h>
 #include <sys/malloc.h>
+#include <sys/sbuf.h>
 #include <sys/bus.h>
 #include <sys/mbuf.h>
 #include <sys/systm.h>
@@ -1480,28 +1482,34 @@ ifconf(u_long cmd, caddr_t data)
 	struct ifconf *ifc = (struct ifconf *)data;
 	struct ifnet *ifp;
 	struct ifaddr *ifa;
-	struct ifreq ifr, *ifrp;
-	int space = ifc->ifc_len, error = 0;
+	struct ifreq ifr;
+	struct sbuf *sb;
+	int error, full = 0, valid_len, max_len;
 
-	ifrp = ifc->ifc_req;
+	/* Limit initial buffer size to MAXPHYS to avoid DoS from userspace. */
+	max_len = MAXPHYS - 1;
+
+again:
+	if (ifc->ifc_len <= max_len) {
+		max_len = ifc->ifc_len;
+		full = 1;
+	}
+	sb = sbuf_new(NULL, NULL, max_len + 1, SBUF_FIXEDLEN);
+	max_len = 0;
+	valid_len = 0;
+
 	IFNET_RLOCK();		/* could sleep XXX */
 	TAILQ_FOREACH(ifp, &ifnet, if_link) {
 		int addrs;
 
-		if (space < sizeof(ifr))
-			break;
 		if (strlcpy(ifr.ifr_name, ifp->if_xname, sizeof(ifr.ifr_name))
-		    >= sizeof(ifr.ifr_name)) {
-			error = ENAMETOOLONG;
-			break;
-		}
+		    >= sizeof(ifr.ifr_name))
+			return (ENAMETOOLONG);
 
 		addrs = 0;
 		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			struct sockaddr *sa = ifa->ifa_addr;
 
-			if (space < sizeof(ifr))
-				break;
 			if (jailed(curthread->td_ucred) &&
 			    prison_if(curthread->td_ucred, sa))
 				continue;
@@ -1512,47 +1520,50 @@ ifconf(u_long cmd, caddr_t data)
 					 (struct osockaddr *)&ifr.ifr_addr;
 				ifr.ifr_addr = *sa;
 				osa->sa_family = sa->sa_family;
-				error = copyout((caddr_t)&ifr, (caddr_t)ifrp,
-						sizeof (ifr));
-				ifrp++;
+				sbuf_bcat(sb, &ifr, sizeof(ifr));
+				max_len += sizeof(ifr);
 			} else
 #endif
 			if (sa->sa_len <= sizeof(*sa)) {
 				ifr.ifr_addr = *sa;
-				error = copyout((caddr_t)&ifr, (caddr_t)ifrp,
-						sizeof (ifr));
-				ifrp++;
+				sbuf_bcat(sb, &ifr, sizeof(ifr));
+				max_len += sizeof(ifr);
 			} else {
-				if (space < sizeof (ifr) + sa->sa_len -
-					    sizeof(*sa))
-					break;
-				space -= sa->sa_len - sizeof(*sa);
-				error = copyout((caddr_t)&ifr, (caddr_t)ifrp,
-						sizeof (ifr.ifr_name));
-				if (error == 0)
-				    error = copyout((caddr_t)sa,
-				      (caddr_t)&ifrp->ifr_addr, sa->sa_len);
-				ifrp = (struct ifreq *)
-					(sa->sa_len + (caddr_t)&ifrp->ifr_addr);
+				sbuf_bcat(sb, &ifr,
+				    offsetof(struct ifreq, ifr_addr));
+				max_len += offsetof(struct ifreq, ifr_addr);
+				sbuf_bcat(sb, sa, sa->sa_len);
+				max_len += sa->sa_len;
 			}
-			if (error)
-				break;
-			space -= sizeof (ifr);
+
+			if (!sbuf_overflowed(sb))
+				valid_len = sbuf_len(sb);
 		}
-		if (error)
-			break;
-		if (!addrs) {
+		if (addrs == 0) {
 			bzero((caddr_t)&ifr.ifr_addr, sizeof(ifr.ifr_addr));
-			error = copyout((caddr_t)&ifr, (caddr_t)ifrp,
-			    sizeof (ifr));
-			if (error)
-				break;
-			space -= sizeof (ifr);
-			ifrp++;
+			sbuf_bcat(sb, &ifr, sizeof(ifr));
+			max_len += sizeof(ifr);
+
+			if (!sbuf_overflowed(sb))
+				valid_len = sbuf_len(sb);
 		}
 	}
 	IFNET_RUNLOCK();
-	ifc->ifc_len -= space;
+
+	/*
+	 * If we didn't allocate enough space (uncommon), try again.  If
+	 * we have already allocated as much space as we are allowed,
+	 * return what we've got.
+	 */
+	if (valid_len != max_len && !full) {
+		sbuf_delete(sb);
+		goto again;
+	}
+
+	ifc->ifc_len = valid_len;
+	sbuf_finish(sb);
+	error = copyout(sbuf_data(sb), ifc->ifc_req, ifc->ifc_len);
+	sbuf_delete(sb);
 	return (error);
 }
 
