@@ -1,10 +1,11 @@
-Updating Information for FreeBSD 5.2 users
+Updating Information for FreeBSD 5.2.1 users
 
 This file is maintained and copyrighted by M. Warner Losh
 <imp@village.org>.  See end of file for further details.  For commonly
 done items, please see the COMMON ITEMS: section later in the file.
 
-This is for the 5.2 release branch.  All entries since 5.0 are an
+This is for the 5.2 release branch.  FreeBSD 5.2.1 is part of the 5.2
+release branch and has no branch of its own.  All entries since 5.0 are an
 itemized list of commits to this branch, numbered from the beginning.
 
 The security advisories related to various patches contain information
@@ -12,6 +13,9 @@ on how to build/install a minimal set of binaries and start/stop a
 minimal number of processes, if possible, for that patch.  For those
 updates that don't have an advisory, or to be safe, you can do a full
 build and install as described in the COMMON ITEMS section.
+
+20040222:
+	FreeBSD 5.2.1 RELEASE
 
 20040210:
 	Fixed bugs in vfs_mount(9) that could allow jailed processes
