@@ -1,5 +1,5 @@
 #	From: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-#	$Id: bsd.kmod.mk,v 1.12 1995/10/02 20:01:43 wollman Exp $
+#	$Id: bsd.kmod.mk,v 1.13 1995/10/15 14:32:26 phk Exp $
 
 .if exists(${.CURDIR}/../Makefile.inc)
 .include "${.CURDIR}/../Makefile.inc"
@@ -21,6 +21,7 @@ KMODMODE?=	555
 .if defined(VFS_LKM)
 CFLAGS+= -DVFS_LKM -DMODVNOPS=${KMOD}vnops -I.
 SRCS+=	vnode_if.h
+EXPORT_SYMS+= _${KMOD}
 CLEANFILES+=	vnode_if.h vnode_if.c
 .endif
 
