@@ -862,8 +862,10 @@ struct psycho_dquirk {
 #define	DQT_BAD_INTPIN	1	/* Intpin reg 0, but intpin used */
 
 static struct psycho_dquirk dquirks[] = {
-	{ 0x1001108e, DQT_BAD_INTPIN },		/* Sun HME (PCIO func. 1) */
-	{ 0x1101108e, DQT_BAD_INTPIN },		/* Sun GEM (PCIO2 func. 1) */
+	{ 0x1001108e, DQT_BAD_INTPIN },	/* Sun HME (PCIO func. 1) */
+	{ 0x1101108e, DQT_BAD_INTPIN },	/* Sun GEM (PCIO2 func. 1) */
+	{ 0x1102108e, DQT_BAD_INTPIN },	/* Sun FireWire ctl. (PCIO2 func. 2) */
+	{ 0x1103108e, DQT_BAD_INTPIN },	/* Sun USB ctl. (PCIO2 func. 3) */
 };
 
 #define	NDQUIRKS	(sizeof(dquirks) / sizeof(dquirks[0]))
