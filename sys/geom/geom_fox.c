@@ -90,8 +90,7 @@ g_fox_select_path(void *arg, int flag)
 
 		cp1 = LIST_NEXT(sc->opath, consumer);
 
-		error = g_access(sc->opath, -sc->cr, -sc->cw, -(sc->ce + 1));
-		KASSERT(error == 0, ("Failed close of old path %d", error));
+		g_access(sc->opath, -sc->cr, -sc->cw, -(sc->ce + 1));
 
 		/*
 		 * The attempt to reopen it with a exclusive count
@@ -290,8 +289,12 @@ g_fox_access(struct g_provider *pp, int dr, int dw, int de)
 	g_topology_assert();
 	gp = pp->geom;
 	sc = gp->softc;
-	if (sc == NULL)
-		return (ENXIO);
+	if (sc == NULL) {
+		if (dr <= 0 && dw <= 0 && de <= 0)
+			return (0);
+		else
+			return (ENXIO);
+	}
 
 	if (sc->cr == 0 && sc->cw == 0 && sc->ce == 0) {
 		/*
