@@ -3,7 +3,7 @@
 #
 # modified for PC-9801
 #
-#	$Id: files.pc98,v 1.61 1998/04/20 13:52:13 kato Exp $
+#	$Id: files.pc98,v 1.62 1998/04/20 13:54:47 kato Exp $
 #
 # The long compile-with and dependency lines are required because of
 # limitations in config: backslash-newline doesn't work in strings, and
@@ -102,7 +102,6 @@ i386/isa/aha1542.c		optional	aha	device-driver
 i386/isa/aic6360.c              optional        aic     device-driver
 i386/isa/alog.c                 optional        alog    device-driver
 i386/isa/b004.c			optional	bqu	device-driver
-i386/isa/bt742a.c		optional	bt	device-driver
 i386/isa/bt5xx-445.c		optional	bt	device-driver
 pc98/pc98/clock.c		standard
 i386/isa/cronyx.c		optional	cx	device-driver
