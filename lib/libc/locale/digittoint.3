@@ -1,9 +1,5 @@
-.\" Copyright (c) 1989, 1991, 1993
+.\" Copyright (c) 1993
 .\"	The Regents of the University of California.  All rights reserved.
-.\"
-.\" This code is derived from software contributed to Berkeley by
-.\" the American National Standards Committee X3, on Information
-.\" Processing Systems.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -33,42 +29,34 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	@(#)toupper.3	8.1 (Berkeley) 6/4/93
+.\"	@(#)digittoint.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd June 4, 1993
-.Dt TOUPPER 3
+.Dd April 6, 2001
+.Dt DIGITTOINT 3
 .Os
 .Sh NAME
-.Nm toupper
-.Nd lower case to upper case letter conversion
+.Nm digittoint
+.Nd convert a numeric character to its integer value
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
-.In ctype.h
+.Fd #include <ctype.h>
 .Ft int
-.Fn toupper "int c"
+.Fn digittoint "int c"
 .Sh DESCRIPTION
 The
-.Fn toupper
-function converts a lower-case letter to the corresponding
-upper-case letter.
-For single C
-.Va char Ns s
-locales (see
-.Xr multibyte 3 )
-the value of the argument is
-representable as an
-.Li unsigned char
-or the value of
-.Dv EOF .
+.Fn digittoint
+function converts a numeric character to its corresponding integer value.  The
+character can be any decimal digit or hexadecimal digit.  With hexadecimal
+characters, the case of the values does not matter.
 .Sh RETURN VALUES
-If the argument is a lower-case letter, the
-.Fn toupper
-function returns the corresponding upper-case letter if there is
-one; otherwise the argument is returned unchanged.
+The
+.Fn digittoint
+function always returns an integer from the range of 0 to 15.  If the
+given character was not a digit as defined by
+.Xr isxdigit 3 , the function will return 0.
 .Sh SEE ALSO
-.Xr digittoint 3 ,
 .Xr isalnum 3 ,
 .Xr isalpha 3 ,
 .Xr isascii 3 ,
@@ -81,13 +69,8 @@ one; otherwise the argument is returned unchanged.
 .Xr isspace 3 ,
 .Xr isupper 3 ,
 .Xr isxdigit 3 ,
-.Xr multibyte 3 ,
 .Xr stdio 3 ,
-.Xr toascii 3 ,
+.Xr digittoint 3 ,
 .Xr tolower 3 ,
+.Xr toupper 3 ,
 .Xr ascii 7
-.Sh STANDARDS
-The
-.Fn toupper
-function conforms to
-.St -isoC .
