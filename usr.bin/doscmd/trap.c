@@ -29,7 +29,7 @@
  *
  *	BSDI trap.c,v 2.3 1996/04/08 19:33:08 bostic Exp
  *
- * $Id: trap.c,v 1.2 1997/09/30 22:04:05 jlemon Exp $
+ * $Id: trap.c,v 1.3 1999/07/06 07:15:10 cracauer Exp $
  */
 
 #include "doscmd.h"
@@ -74,7 +74,8 @@ fake_int(regcontext_t *REGS, int intnum)
     }
 
 user_int:
-    debug (D_TRAPS|intnum, "INT %02x:%02x [%04x:%04x] %04x %04x %04x %04x from %04x:%04x\n",
+    debug (D_TRAPS|intnum, 
+	   "INT %02x:%02x [%04x:%04x] %04x %04x %04x %04x from %04x:%04x\n",
 	   intnum, R_AH, ivec[intnum] >> 16, ivec[intnum] & 0xffff,
 	   R_AX, R_BX, R_CX, R_DX, R_CS, R_IP);
 
@@ -184,7 +185,8 @@ sigurg(struct sigframe *sf)
 	addr = (u_char *)GETPTR(sc->sc_cs, sc->sc_eip);
 	rep = 1;
 
-	debug (D_TRAPS2, "%04x:%04x [%02x]", GET16(sc->sc_cs), GET16(sc->sc_eip), addr[0]);
+	debug (D_TRAPS2, "%04x:%04x [%02x]", GET16(sc->sc_cs), 
+	    GET16(sc->sc_eip), addr[0]);
 	switch (addr[0]) {
 	case TRACETRAP:
 	    ipadvance(sc,1);
@@ -294,7 +296,8 @@ sigbus(struct sigframe *sf)
 
     if (sf->sf_arg2 != 0) {
         fatal("SIGBUS code %d, trapno: %d, err: %d\n",
-            sf->sf_arg2, sf->sf_siginfo.si_sc.sc_trapno, sf->sf_siginfo.si_sc.sc_err); 
+	    sf->sf_arg2, sf->sf_siginfo.si_sc.sc_trapno, 
+	    sf->sf_siginfo.si_sc.sc_err); 
     }
 
     addr = (u_char *)GETPTR(R_CS, R_IP);
@@ -311,7 +314,8 @@ sigbus(struct sigframe *sf)
         goto out;
     }
 /*    printf("%p\n", addr); fflush(stdout); */
-    debug (D_TRAPS2, "%04x:%04x [%02x %02x %02x] ", R_CS, R_IP, (int)addr[0], (int)addr[1], (int)addr[2]);
+    debug (D_TRAPS2, "%04x:%04x [%02x %02x %02x] ", R_CS, R_IP, 
+        (int)addr[0], (int)addr[1], (int)addr[2]);
 #if 0
     if ((int)addr[0] == 0x67) {
         int i;
@@ -327,7 +331,7 @@ sigbus(struct sigframe *sf)
     }
 #endif
     
-        switch (addr[0]) {				/* what was that again dear? */
+        switch (addr[0]) {		/* what was that again dear? */
 
         case CLI:
 	    debug (D_TRAPS2, "cli\n");
@@ -348,14 +352,15 @@ sigbus(struct sigframe *sf)
 	case PUSHF:
 	    debug (D_TRAPS2, "pushf <- 0x%x\n", R_EFLAGS);
 	    R_IP++;
-            N_PUSH((R_FLAGS & ~PSL_I) | (R_EFLAGS & PSL_VIF ? PSL_I : 0), REGS);
+            N_PUSH((R_FLAGS & ~PSL_I) | (R_EFLAGS & PSL_VIF ? PSL_I : 0), 
+		REGS);
 	    break;
 
 	case IRET:
-	    R_IP = N_POP(REGS);				/* get new cs:ip off the stack */
+	    R_IP = N_POP(REGS);		/* get new cs:ip off the stack */
 	    R_CS = N_POP(REGS);
 	    debug (D_TRAPS2, "iret to %04x:%04x ", R_CS, R_IP);
-	    /* FALLTHROUGH */					/* 'safe' flag pop operation */
+	    /* FALLTHROUGH */		/* 'safe' flag pop operation */
 
 	case POPF:
 /* XXX */
@@ -363,13 +368,17 @@ sigbus(struct sigframe *sf)
 
 	    if (addr[0] == POPF)
 		R_IP++;
-	    
-	    tempflags = N_POP(REGS);				/* get flags from stack */
-	    okflags =  (PSL_ALLCC | PSL_T | PSL_D | PSL_V);	/* flags we consider OK */
-	    R_FLAGS = ((R_FLAGS & ~okflags) |			/* keep state of non-OK flags */
-		       (tempflags & okflags));			/* pop state of OK flags */
+	    /* get flags from stack */
+	    tempflags = N_POP(REGS);
+	    /* flags we consider OK */
+	    okflags =  (PSL_ALLCC | PSL_T | PSL_D | PSL_V);
+	    /* keep state of non-OK flags */
+	    R_FLAGS = ((R_FLAGS & ~okflags) |
+		       /* pop state of OK flags */
+		       (tempflags & okflags));
 
-	    IntState = tempflags & PSL_I;			/* restore pseudo PSL_I flag */
+	    /* restore pseudo PSL_I flag */
+	    IntState = tempflags & PSL_I;
 	    debug(D_TRAPS2, "popf -> 0x%x\n", R_EFLAGS);
 	    break;
 
