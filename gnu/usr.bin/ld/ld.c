@@ -32,7 +32,7 @@ static char sccsid[] = "@(#)ld.c	6.10 (Berkeley) 5/22/91";
    Set, indirect, and warning symbol features added by Randy Smith. */
 
 /*
- *	$Id: ld.c,v 1.27 1995/05/30 05:01:44 rgrimes Exp $
+ *	$Id: ld.c,v 1.28 1995/06/14 06:25:09 joerg Exp $
  */
 
 /* Define how to initialize system-dependent header fields.  */
@@ -490,7 +490,7 @@ decode_command(argc, argv)
 	}
 
 	if (!number_of_files)
-		errx(1, "no input files");
+		errx(1, "No input files specified");
 
 	p = file_table = (struct file_entry *)
 		xmalloc(number_of_files * sizeof(struct file_entry));
