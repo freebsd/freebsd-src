@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)from: inetd.c	8.4 (Berkeley) 4/13/94";
 #endif
 static const char rcsid[] =
-	"$Id: inetd.c,v 1.28 1997/10/28 13:46:52 ache Exp $";
+	"$Id: inetd.c,v 1.29 1997/10/29 21:49:04 dima Exp $";
 #endif /* not lint */
 
 /*
@@ -141,6 +141,17 @@ static const char rcsid[] =
 
 #include "pathnames.h"
 
+#ifndef	MAXCHILD
+#define	MAXCHILD	-1		/* maximum number of this service
+					   < 0 = no limit */
+#endif
+
+#ifndef	MAXCPM
+#define	MAXCPM		-1		/* rate limit invocations from a
+					   single remote address,
+					   < 0 = no limit */
+#endif
+
 #define	TOOMANY		256		/* don't start more than TOOMANY */
 #define	CNT_INTVL	60		/* servers in CNT_INTVL sec. */
 #define	RETRYTIME	(60*10)		/* retry after bind or server fail */
@@ -155,6 +166,8 @@ fd_set	allsock;
 int	options;
 int	timingout;
 int	toomany = TOOMANY;
+int	maxchild = MAXCPM;
+int	maxcpm = MAXCHILD;
 struct	servent *sp;
 struct	rpcent *rpc;
 struct	in_addr bind_address;
@@ -273,6 +286,23 @@ char 	*LastArg;
 #endif
 
 int
+getvalue(arg, value, whine)
+	char *arg, *whine;
+	int  *value;
+{
+	int  tmp;
+	char *p;
+
+	tmp = strtol(arg, &p, 0);
+	if (tmp < 1 || *p) {
+		syslog(LOG_ERR, whine, arg);
+		return 1;			/* failure */
+	}
+	*value = tmp;
+	return 0;				/* success */
+}
+
+int
 main(argc, argv, envp)
 	int argc;
 	char *argv[], *envp[];
@@ -303,7 +333,7 @@ main(argc, argv, envp)
 	openlog("inetd", LOG_PID | LOG_NOWAIT, LOG_DAEMON);
 
 	bind_address.s_addr = htonl(INADDR_ANY);
-	while ((ch = getopt(argc, argv, "dlR:a:p:")) != -1)
+	while ((ch = getopt(argc, argv, "dlR:a:c:C:p:")) != -1)
 		switch(ch) {
 		case 'd':
 			debug = 1;
@@ -312,18 +342,18 @@ main(argc, argv, envp)
 		case 'l':
 			log = 1;
 			break;
-		case 'R': {	/* invocation rate */
-			char *p;
-
-			tmpint = strtol(optarg, &p, 0);
-			if (tmpint < 1 || *p)
-				syslog(LOG_ERR,
-			         "-R %s: bad value for service invocation rate",
-					optarg);
-			else
-				toomany = tmpint;
+		case 'R':
+			getvalue(optarg, &toomany,
+				"-R %s: bad value for service invocation rate");
 			break;
-		}
+		case 'c':
+			getvalue(optarg, &maxchild,
+				"-c %s: bad value for maximum children");
+			break;
+		case 'C':
+			getvalue(optarg, &maxcpm,
+				"-C %s: bad value for maximum children/minute");
+			break;
 		case 'a':
 			if (!inet_aton(optarg, &bind_address)) {
 				syslog(LOG_ERR,
@@ -338,6 +368,7 @@ main(argc, argv, envp)
 		default:
 			syslog(LOG_ERR,
 				"usage: inetd [-dl] [-a address] [-R rate]"
+				" [-c maximum] [-C rate]"
 				" [-p pidfile] [conf-file]");
 			exit(EX_USAGE);
 		}
@@ -1147,8 +1178,8 @@ more:
 			CONFIG, sep->se_service);
 		goto more;
 	}
-	sep->se_maxchild = -1;
-	sep->se_maxcpm = -1;
+	sep->se_maxchild = maxchild;
+	sep->se_maxcpm = maxcpm;
 	if ((s = strchr(arg, '/')) != NULL) {
 		char *eptr;
 		u_long val;
@@ -1874,9 +1905,9 @@ cpmip(sep, ctrl)
 		if (cnt * (CHTSIZE * CHTGRAN) / 60 > sep->se_maxcpm) {
 			r = -1;
 			syslog(LOG_ERR,
-			    "%s from %s exceeded counts/min limit %d/%d",
-			    sep->se_service, inet_ntoa(rsin.sin_addr), cnt,
-			    sep->se_maxcpm );
+			    "%s from %s exceeded counts/min (limit %d/min)",
+			    sep->se_service, inet_ntoa(rsin.sin_addr), 
+			    sep->se_maxcpm);
 		}
 	}
 	return(r);
