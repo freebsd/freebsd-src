@@ -20,7 +20,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: aic7xxx.h,v 1.17 1996/01/03 06:32:12 gibbs Exp $
+ *	$Id: aic7xxx.h,v 1.10.2.5 1996/01/04 08:54:54 gibbs Exp $
  */
 
 #ifndef _AIC7XXX_H_
@@ -200,8 +200,6 @@ extern int ahc_debug; /* Initialized in i386/scsi/aic7xxx.c */
                                                         \
                 UNPAUSE_SEQUENCER(ahc);
 
-
-extern struct ahc_data *ahcdata[NAHC];
 
 void ahc_reset __P((u_long iobase));
 struct ahc_data *ahc_alloc __P((int unit, u_long io_base, ahc_type type, ahc_flag flags));
