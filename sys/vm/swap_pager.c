@@ -2493,7 +2493,7 @@ swaponvp(td, vp, dev, nblks)
 	error = mac_check_system_swapon(td->td_ucred, vp);
 	if (error == 0)
 #endif
-		error = VOP_OPEN(vp, FREAD | FWRITE, td->td_ucred, td);
+		error = VOP_OPEN(vp, FREAD | FWRITE, td->td_ucred, td, -1);
 	(void) VOP_UNLOCK(vp, 0, td);
 	if (error)
 		return (error);

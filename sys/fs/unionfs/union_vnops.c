@@ -776,7 +776,7 @@ union_open(ap)
 	 */
 
 	if (error == 0)
-		error = VOP_OPEN(tvp, mode, cred, td);
+		error = VOP_OPEN(tvp, mode, cred, td, -1);
 
 	/*
 	 * This is absolutely necessary or UFS will blow up.

@@ -324,7 +324,7 @@ ufs_extattr_enable_with_open(struct ufsmount *ump, struct vnode *vp,
 {
 	int error;
 
-	error = VOP_OPEN(vp, FREAD|FWRITE, td->td_ucred, td);
+	error = VOP_OPEN(vp, FREAD|FWRITE, td->td_ucred, td, -1);
 	if (error) {
 		printf("ufs_extattr_enable_with_open.VOP_OPEN(): failed "
 		    "with %d\n", error);
