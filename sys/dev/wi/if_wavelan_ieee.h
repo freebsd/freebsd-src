@@ -279,6 +279,7 @@ struct wi_ltv_keys {
  */
 #define WI_RID_DNLD_BUF		0xFD01
 #define WI_RID_MEMSZ		0xFD02 /* memory size info (XXX Lucent) */
+					/* Looks like on lucnet pri firm too */
 #define	WI_RID_PRI_IDENTITY	0xFD02 /* primary funcs firmware ident (PRISM2) */
 #define WI_RID_PRI_SUP_RANGE	0xFD03 /* primary supplier compatibility */
 #define WI_RID_CIF_ACT_RANGE	0xFD04 /* controller sup. compatibility */
@@ -318,6 +319,7 @@ struct wi_ltv_keys {
 #define WI_RID_AUTH_ALGS	0xFD4D /* auth algorithms available */
 #define WI_RID_AUTH_TYPE	0xFD4E /* availanle auth types */
 #define WI_RID_WEP_AVAIL	0xFD4F /* WEP privacy option available */
+#define WI_RID_DBM_COMMS_QUAL	0xFD51 /* CommQuality normalized to dBm */
 #define WI_RID_CUR_TX_RATE1	0xFD80
 #define WI_RID_CUR_TX_RATE2	0xFD81
 #define WI_RID_CUR_TX_RATE3	0xFD82
