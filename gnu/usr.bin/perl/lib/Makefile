@@ -1,4 +1,4 @@
-PLIBDIR= /usr/local/lib/perl
+PLIBDIR= /usr/share/perl
 
 PLIB+= abbrev.pl assert.pl bigfloat.pl bigint.pl bigrat.pl cacheout.pl
 PLIB+= chat2.pl complete.pl ctime.pl dumpvar.pl exceptions.pl fastcwd.pl
