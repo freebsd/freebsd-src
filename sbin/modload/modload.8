@@ -23,7 +23,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\"	$Id: modload.8,v 1.5 1994/09/22 22:35:50 wollman Exp $
+.\"	$Id: modload.8,v 1.6 1995/10/28 13:06:09 peter Exp $
 .\"
 .Dd September 22, 1994
 .Dt MODLOAD 8
@@ -58,7 +58,8 @@ Be very quiet.
 .It Fl u
 Delete the loaded module
 .Pq Ar output_file
-after loading.
+after loading.  If the output file was not specified, this option causes the
+temporary file to be kept rather than deleted.
 .It Fl v
 Print comments about the loading process.
 .It Fl A Ar kernel
@@ -85,7 +86,8 @@ For a loadable system call, the third argument is the system
 call number.
 .It Fl o Ar output_file
 Specify the name of the output file that is produced by
-the linker.
+the linker.  If this option is not specified, a file in the /tmp directory
+is used with the name generated from the module name with a `.out' extension.
 .El
 .Sh FILES
 .Bl -tag -width /usr/include/sys/lkm.h -compact
