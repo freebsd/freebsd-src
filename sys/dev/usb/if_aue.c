@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998, 1999
+ * Copyright (c) 1997, 1998, 1999, 2000
  *	Bill Paul <wpaul@ee.columbia.edu>.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -77,21 +77,15 @@
 
 #include <net/bpf.h>
 
-#include <vm/vm.h>              /* for vtophys */
-#include <vm/pmap.h>            /* for vtophys */
 #include <machine/clock.h>      /* for DELAY */
-#include <machine/bus_pio.h>
-#include <machine/bus_memio.h>
-#include <machine/bus.h>
-#include <machine/resource.h>
 #include <sys/bus.h>
-#include <sys/rman.h>
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
 #include <dev/usb/usbdi_util.h>
 #include <dev/usb/usbdivar.h>
 #include <dev/usb/usbdevs.h>
+#include <dev/usb/usb_ethersubr.h>
 
 #include <dev/mii/mii.h>
 #include <dev/mii/miivar.h>
@@ -688,6 +682,7 @@ USB_ATTACH(aue)
 	ether_ifattach(ifp);
 	callout_handle_init(&sc->aue_stat_ch);
 	bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
+	usb_register_netisr();
 
 	splx(s);
 	USB_ATTACH_SUCCESS_RETURN;
@@ -879,24 +874,17 @@ static void aue_rxeof(xfer, priv, status)
         struct ifnet		*ifp;
 	int			total_len = 0;
 	struct aue_rxpkt	r;
-	int			s;
-
-	s = splimp();
 
 	c = priv;
 	sc = c->aue_sc;
 	ifp = &sc->arpcom.ac_if;
 
-	if (!(ifp->if_flags & IFF_RUNNING)) {
+	if (!(ifp->if_flags & IFF_RUNNING))
 		return;
-		splx(s);
-	}
 
 	if (status != USBD_NORMAL_COMPLETION) {
-		if (status == USBD_NOT_STARTED || status == USBD_CANCELLED) {
-			splx(s);
+		if (status == USBD_NOT_STARTED || status == USBD_CANCELLED)
 			return;
-		}
 		printf("aue%d: usb error on rx: %s\n", sc->aue_unit,
 		    usbd_errstr(status));
 		if (status == USBD_STALLED)
@@ -938,7 +926,6 @@ static void aue_rxeof(xfer, priv, status)
 		    AUE_CUTOFF, USBD_SHORT_XFER_OK,
 		    USBD_NO_TIMEOUT, aue_rxeof);
 		usbd_transfer(xfer);
-		splx(s);
 		return;
 	}
 
@@ -976,9 +963,8 @@ static void aue_rxeof(xfer, priv, status)
 		}
 	}
 
-	/* Remove header from mbuf and pass it on. */
-	m_adj(m, sizeof(struct ether_header));
-	ether_input(ifp, eh, m);
+	/* Put the packet on the special USB input queue. */
+	usb_ether_input(m);
 
 done:
 
@@ -987,8 +973,6 @@ done:
 	    c, mtod(c->aue_mbuf, char *), AUE_CUTOFF, USBD_SHORT_XFER_OK,
 	    USBD_NO_TIMEOUT, aue_rxeof);
 	usbd_transfer(xfer);
-
-	splx(s);
 
 	return;
 }
