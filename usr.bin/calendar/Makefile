@@ -11,8 +11,6 @@ beforeinstall:
 	    ${.CURDIR}/calendars/calendar.* ${DESTDIR}${SHAREDIR}
 	for lang in ${INTER}; \
 	do \
-		[ -d ${DESTDIR}${SHAREDIR}/$$lang ] || \
-			mkdir -p ${DESTDIR}${SHAREDIR}/$$lang; \
 		${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${TEXTMODE} \
 	    		${.CURDIR}/calendars/$$lang/calendar.* \
 			${DESTDIR}${SHAREDIR}/$$lang; \
