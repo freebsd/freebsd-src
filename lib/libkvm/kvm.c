@@ -192,11 +192,8 @@ _kvm_open(kd, uf, mf, flag, errout)
 		 */
 		if (strcmp(mf, _PATH_DEVNULL) == 0) {
 			kd->vmfd = open(_PATH_DEVNULL, O_RDONLY);
-		} else if (strcmp(mf, _PATH_MEM) != 0) {
-			_kvm_err(kd, kd->program,
-				 "%s: not physical memory device", mf);
-			goto failed;
-		} else {
+			return (kd);
+		} else if (strcmp(mf, _PATH_MEM) == 0) {
 			if ((kd->vmfd = open(_PATH_KMEM, flag)) < 0) {
 				_kvm_syserr(kd, kd->program, "%s", _PATH_KMEM);
 				goto failed;
@@ -205,24 +202,24 @@ _kvm_open(kd, uf, mf, flag, errout)
 				_kvm_syserr(kd, kd->program, "%s", _PATH_KMEM);
 				goto failed;
 			}
+			return (kd);
 		}
-	} else {
-		/*
-		 * This is a crash dump.
-		 * Initialize the virtual address translation machinery,
-		 * but first setup the namelist fd.
-		 */
-		if ((kd->nlfd = open(uf, O_RDONLY, 0)) < 0) {
-			_kvm_syserr(kd, kd->program, "%s", uf);
-			goto failed;
-		}
-		if (fcntl(kd->nlfd, F_SETFD, FD_CLOEXEC) < 0) {
-			_kvm_syserr(kd, kd->program, "%s", uf);
-			goto failed;
-		}
-		if (_kvm_initvtop(kd) < 0)
-			goto failed;
 	}
+	/*
+	 * This is a crash dump.
+	 * Initialize the virtual address translation machinery,
+	 * but first setup the namelist fd.
+	 */
+	if ((kd->nlfd = open(uf, O_RDONLY, 0)) < 0) {
+		_kvm_syserr(kd, kd->program, "%s", uf);
+		goto failed;
+	}
+	if (fcntl(kd->nlfd, F_SETFD, FD_CLOEXEC) < 0) {
+		_kvm_syserr(kd, kd->program, "%s", uf);
+		goto failed;
+	}
+	if (_kvm_initvtop(kd) < 0)
+		goto failed;
 	return (kd);
 failed:
 	/*
