@@ -60,12 +60,6 @@ __FBSDID("$FreeBSD$");
 #include <nfsclient/nfs_lock.h>
 #include <nfsclient/nlminfo.h>
 
-#define NFSOWNER_1ST_LEVEL_START	1	       /* initial entries */
-#define NFSOWNER_2ND_LEVEL	      256		/* some power of 2 */
-
-#define NFSOWNER(tbl, i)	\
-		(tbl)[(i) / NFSOWNER_2ND_LEVEL][(i) % NFSOWNER_2ND_LEVEL]
-
 /*
  * XXX
  * We have to let the process know if the call succeeded.  I'm using an extra
@@ -187,8 +181,8 @@ nfs_dolock(struct vop_advlock_args *ap)
 		 * on a local network).  XXX Probably should use a back-off
 		 * scheme.
 		 */
-		if ((error = tsleep((void *)p->p_nlminfo,
-					PCATCH | PUSER, "lockd", 20*hz)) != 0) {
+		error = tsleep(p->p_nlminfo, PCATCH | PUSER, "lockd", 20*hz);
+		if (error != 0) {
 			if (error == EWOULDBLOCK) {
 				/*
 				 * We timed out, so we rewrite the request
@@ -264,7 +258,7 @@ nfslockdans(struct thread *td, struct lockd_ans *ansp)
 	targetp->p_nlminfo->set_getlk_pid = ansp->la_set_getlk_pid;
 	targetp->p_nlminfo->getlk_pid = ansp->la_getlk_pid;
 
-	(void)wakeup((void *)targetp->p_nlminfo);
+	wakeup(targetp->p_nlminfo);
 
 	PROC_UNLOCK(targetp);
 	return (0);
