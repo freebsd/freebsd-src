@@ -2597,13 +2597,10 @@ fdmisccmd(dev_t dev, u_int cmd, void *data)
 	bp->bio_done = fdbiodone;
 	bp->bio_flags = 0;
 
-	/*
-	 * Now run the command.  The wait loop is a version of bufwait()
-	 * adapted for struct bio instead of struct buf and specialized
-	 * for the current context.
-	 */
+	/* Now run the command. */
 	fdstrategy(bp);
 	error = biowait(bp, "fdcmd");
+
 	free(bp, M_TEMP);
 	return (error);
 }
