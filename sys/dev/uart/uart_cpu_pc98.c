@@ -58,8 +58,9 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 	/*
 	 * There are 2 built-in serial ports on pc98 hardware.  The 
 	 * first one is 8251 and the second one is I think an enhance
-	 * version of that.  However, for sio flags told the story
-	 * so make a lame attempt to sort this out.
+	 * version of that.  However, for the sio driver, flags selected
+	 * which type of uart was in the sytem.  We use something similar
+	 * to sort things out.
 	 */
 	for (i = 0; i < 1; i++) {
 		if (resource_int_value("uart", i, "flags", &flags))
@@ -87,8 +88,7 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 		else
 			di->ops = uart_i8251_ops;
 		di->bas.bst = I386_BUS_SPACE_IO;
-		i386_bus_space_handle_alloc(I386_BUS_SPACE_IO, ivar, 8,
-		    &di->bas.bsh);
+		i386_bus_space_handle_alloc(di->bas.bst, ivar, 8, &di->bas.bsh);
 		di->bas.regshft = 0;
 		di->bas.rclk = 0;
 		if (resource_int_value("uart", i, "baud", &ivar) != 0)
