@@ -60,6 +60,14 @@
 #define	SUN_NPART	8
 #define	SUN_RAWPART	2
 #define	SUN_SIZE	512
+/*
+ * XXX: I am actually not sure if this should be "16 sectors" or "8192 bytes".
+ * XXX: Considering that Sun went to the effort of getting 512 byte compatible
+ * XXX: CDROM drives produced my guess is that Sun computers stand little or
+ * XXX: even no chance of running, much less booting on !=512 byte media.
+ * XXX: Define this is in terms of bytes since that is easier for us.
+ */
+#define	SUN_BOOTSIZE	8192
 
 /* partition info */
 struct sun_dkpart {
