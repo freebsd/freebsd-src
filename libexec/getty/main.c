@@ -356,7 +356,7 @@ main(int argc, char *argv[])
 				else if (islower(*p))
 					lower = 1;
 				else if (isdigit(*p))
-					digit++;
+					digit = 1;
 				*q++ = *p++;
 			}
 		} else if (!(PL && PP))
@@ -604,7 +604,7 @@ getname(void)
 			np = name;
 			continue;
 		} else if (isdigit(c))
-			digit++;
+			digit = 1;
 		if (IG && (c <= ' ' || c > 0176))
 			continue;
 		*np++ = c;
