@@ -16,22 +16,26 @@
  *
  * NEW command line interface for IP firewall facility
  *
- * $Id: ipfw.c,v 1.34.2.1 1997/01/29 13:15:25 adam Exp $
+ * $Id: ipfw.c,v 1.34.2.2 1997/02/22 20:12:46 joerg Exp $
  *
  */
 
-#include <stdio.h>
-#include <ctype.h>
-#include <err.h>
-#include <unistd.h>
-#include <string.h>
-#include <stdlib.h>
-#include <netdb.h>
-#include <limits.h>
-#include <time.h>
+#include <sys/types.h>
 #include <sys/queue.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
+#include <sys/time.h>
+
+#include <ctype.h>
+#include <err.h>
+#include <limits.h>
+#include <netdb.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+#include <unistd.h>
+
 #include <net/if.h>
 #include <netinet/in.h>
 #include <netinet/ip_fw.h>
@@ -735,6 +739,7 @@ add(ac,av)
 				char *q;
 
 				strncpy(rule.fw_via_name, *av, sizeof(rule.fw_via_name));
+				rule.fw_via_name[sizeof(rule.fw_via_name) - 1] = '\0';
 				for (q = rule.fw_via_name; *q && !isdigit(*q) && *q != '*'; q++)
 					continue;
 				if (*q == '*')
@@ -938,6 +943,7 @@ main(ac, av)
 	FILE	*f;
 
 	strncpy(progname,*av, sizeof(progname));
+	progname[sizeof(progname) - 1] = '\0';
 
 	s = socket( AF_INET, SOCK_RAW, IPPROTO_RAW );
 	if ( s < 0 ) {
