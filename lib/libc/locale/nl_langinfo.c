@@ -63,7 +63,8 @@ nl_langinfo(nl_item item) {
 						strcpy(cset, "ISO");
 						strcat(cset, ret + 4);
 						ret = cset;
-					}
+					} else
+						ret = "";
 				} else if (strcmp(ret, "EUC") == 0) {
 					if (strncmp(s, "ja_JP", 5) == 0)
 						ret = "eucJP";
