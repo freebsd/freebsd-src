@@ -112,7 +112,7 @@ extern	u_long in_ifaddrhmask;			/* mask for hash table */
 { \
 	struct in_ifaddr *ia; \
 \
-	TAILQ_FOREACH(ia, &in_ifaddrhead, ia_link) \
+	LIST_FOREACH(ia, INADDR_HASH((addr).s_addr), ia_hash) \
 		if (IA_SIN(ia)->sin_addr.s_addr == (addr).s_addr) \
 			break; \
 	(ifp) = (ia == NULL) ? NULL : ia->ia_ifp; \
