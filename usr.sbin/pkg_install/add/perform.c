@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: perform.c,v 1.34 1996/06/03 04:40:43 jkh Exp $";
+static const char *rcsid = "$Id: perform.c,v 1.26.2.10 1996/06/03 05:12:29 jkh Exp $";
 #endif
 
 /*
@@ -68,8 +68,6 @@ pkg_do(char *pkg)
     int code;
     PackingList p;
     struct stat sb;
-    char *isTMP = NULL;
-    char *cp;
     int inPlace;
 
     code = 0;
@@ -211,9 +209,7 @@ pkg_do(char *pkg)
 
     /* See if we're already registered */
     sprintf(LogDir, "%s/%s", (tmp = getenv(PKG_DBDIR)) ? tmp : DEF_LOG_DIR, PkgName);
-    if (isdir(LogDir)) {
-	char tmp[FILENAME_MAX];
-	
+    if (isdir(LogDir) && !Force) {
 	whinge("Package `%s' already recorded as installed.\n", PkgName);
 	code = 1;
 	goto success;	/* close enough for government work */
@@ -393,16 +389,17 @@ pkg_do(char *pkg)
 	    else {
 		fprintf(cfile, "%s\n", PkgName);
 		if (fclose(cfile) == EOF)
-		    warn("Cannot properly close file %s", contents);
+		    whinge("Cannot properly close file %s", contents);
 	    }
 	}
 	if (Verbose)
 	    printf("Package %s registered in %s\n", PkgName, LogDir);
     }
 
-    if (p = find_plist(&Plist, PLIST_DISPLAY)) {
+    if ((p = find_plist(&Plist, PLIST_DISPLAY)) != NULL) {
 	FILE *fp;
 	char buf[BUFSIZ];
+
 	fp = fopen(p->name, "r");
 	if (fp) {
 	    putc('\n', stdout);
@@ -411,7 +408,7 @@ pkg_do(char *pkg)
 	    putc('\n', stdout);
 	    (void) fclose(fp);
 	} else
-	    warn("Cannot open display file `%s'.", p->name);
+	    whinge("Cannot open display file `%s'.", p->name);
     }
 
     goto success;
@@ -435,7 +432,6 @@ pkg_do(char *pkg)
 static int
 sanity_check(char *pkg)
 {
-    PackingList p;
     int code = 0;
 
     if (!fexists(CONTENTS_FNAME)) {

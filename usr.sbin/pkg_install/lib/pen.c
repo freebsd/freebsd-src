@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: pen.c,v 1.21 1996/06/08 00:46:33 alex Exp $";
+static const char *rcsid = "$Id: pen.c,v 1.13.4.8 1996/06/08 00:55:26 alex Exp $";
 #endif
 
 /*
@@ -72,8 +72,6 @@ find_play_pen(char *pen, size_t sz)
 char *
 make_playpen(char *pen, size_t sz)
 {
-    char *tmp;
-
     if (!find_play_pen(pen, sz))
 	return NULL;
 
