@@ -711,19 +711,6 @@ ouch:
 }
 
 /*
- * Return default port
- */
-static int
-_ftp_default_port(void)
-{
-    struct servent *se;
-	    
-    if ((se = getservbyname(SCHEME_FTP, "tcp")) != NULL)
-	return ntohs(se->s_port);
-    return FTP_DEFAULT_PORT;
-}
-
-/*
  * Log on to FTP server
  */
 static int
@@ -776,7 +763,7 @@ _ftp_connect(struct url *url, struct url *purl, char *flags)
     user = url->user;
     if (!user || !*user)
 	user = FTP_ANONYMOUS_USER;
-    if (purl && url->port == FTP_DEFAULT_PORT)
+    if (purl && url->port == _fetch_default_port(url->scheme))
 	e = _ftp_cmd(cd, "USER %s@%s", user, url->host);
     else if (purl)
 	e = _ftp_cmd(cd, "USER %s@%s@%d", user, url->host, url->port);
@@ -859,7 +846,7 @@ _ftp_cached_connect(struct url *url, struct url *purl, char *flags)
     
     /* set default port */
     if (!url->port)
-	url->port = _ftp_default_port();
+	url->port = _fetch_default_port(url->scheme);
     
     /* try to use previously cached connection */
     if (_ftp_isconnected(url)) {
@@ -890,9 +877,9 @@ _ftp_get_proxy(void)
     if (((p = getenv("FTP_PROXY")) || (p = getenv("HTTP_PROXY"))) &&
 	*p && (purl = fetchParseURL(p)) != NULL) {
 	if (!*purl->scheme)
-	    strcpy(purl->scheme, SCHEME_FTP);
+	    strcpy(purl->scheme, SCHEME_HTTP);
 	if (!purl->port)
-	    purl->port = _ftp_default_port();
+	    purl->port = _fetch_default_proxy_port(purl->scheme);
 	if (strcasecmp(purl->scheme, SCHEME_FTP) == 0 ||
 	    strcasecmp(purl->scheme, SCHEME_HTTP) == 0)
 	    return purl;
