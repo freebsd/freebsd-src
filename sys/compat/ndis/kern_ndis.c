@@ -1613,7 +1613,7 @@ ndis_load_driver(img, arg)
 	vm_offset_t		img;
 	void			*arg;
 {
-	__stdcall driver_entry	entry;
+	driver_entry		entry;
 	image_optional_header	opt_hdr;
 	image_import_descriptor imp_desc;
 	ndis_unicode_string	dummystr;
