@@ -9,7 +9,7 @@
 # the sendmail distribution.
 #
 #
-#	$Id: README,v 8.355.2.3 2002/06/21 22:44:56 gshapiro Exp $
+#	$Id: README,v 8.355.2.11 2002/12/18 17:15:46 ca Exp $
 #
 
 This directory contains the source files for sendmail(TM).
@@ -102,6 +102,8 @@ NEWDB		The new Berkeley DB package.  Some systems (e.g., BSD/OS and
 		Berkeley DB library to a current version.  NEWDB is included
 		automatically if the Build script can find a library named
 		libdb.a or libdb.so.
+		See also OPERATING SYSTEM AND COMPILE QUIRKS about Berkeley
+		DB versions, e.g., DB 4.1.x.
 NDBM		The older NDBM implementation -- the very old V7 DBM
 		implementation is no longer supported.
 NIS		Network Information Services.  To use this you must have
@@ -597,10 +599,15 @@ MILTER		Turn on support for external filters using the Milter API.
 		See libmilter/README for more information.
 REQUIRES_DIR_FSYNC	Turn on support for file systems that require to
 		call fsync() for a directory if the meta-data in it has
-		been changed.  This should be turned on at least for
-		ReiserFS; it is enabled by default for Linux.  An alternative
-		to this compile time flag is to mount the queue directory
-		without the -async option, or using chattr +S on Linux.
+		been changed.  This should be turned on at least for older
+		versions of ReiserFS; it is enabled by default for Linux.
+		According to some information this flag is not needed
+		anymore for kernel 2.4.16 and newer.  We would appreciate
+		feedback about the semantics of the various file systems
+		available for Linux.
+		An alternative to this compile time flag is to mount the
+		queue directory without the -async option, or using
+		chattr +S on Linux.
 DBMMODE		The default file permissions to use when creating new
 		database files for maps and aliases.  Defaults to 0640.
 
@@ -679,6 +686,20 @@ and try again.  Then take a look at the logfile and see whether
 there are any problems listed about permissions (unsafe files)
 or the validity of X.509 certificates.
 
+From: Garrett Wollman <wollman@lcs.mit.edu>
+
+    If your certificate authority is hierarchical, and you only include
+    the top-level CA certificate in the CACertFile file, some mail clients
+    may be unable to infer the proper certificate chain when selecting a
+    client certificate.  Including the bottom-level CA certificate(s) in
+    the CACertFile file will allow these clients to work properly.  This
+    is not necessary if you are not using client certificates for
+    authentication, or if all your clients are running Sendmail or other
+    programs using the OpenSSL library (which get it right automatically).
+    In addition, some mail clients are totally incapable of using
+    certificate authentication -- even some of those which already support
+    SSL/TLS for confidentiality.
+
 Further information can be found via:
 http://www.sendmail.org/tips/
 
@@ -690,7 +711,7 @@ http://www.sendmail.org/tips/
 Please read the documentation accompanying the Cyrus SASL library
 (INSTALL and README).  If you use Berkeley DB for Cyrus SASL then
 you must compile sendmail with the same version of Berkeley DB.
-See devtools/README how to set the correct compile time parameters;
+See devtools/README for how to set the correct compile time parameters;
 you should at least set the following variables:
 
 APPENDDEF(`conf_sendmail_ENVDEF', `-DSASL')
@@ -703,7 +724,7 @@ BUILDING SENDMAIL.
 
 You have to select and install authentication mechanisms and tell
 sendmail where to find the sasl library and the include files (see
-devtools/README for the parameters to set).  Setup the required
+devtools/README for the parameters to set).  Set up the required
 users and passwords as explained in the SASL documentation.  See
 also cf/README for authentication related options (especially
 DefaultAuthInfo if you want authentication between MTAs).
@@ -752,7 +773,11 @@ GCC problems
 	We have been told there are problems with gcc 2.8.0.  If you are
 	using this version, you should upgrade to 2.8.1 or later.
 
-GDBM	GDBM does not work with sendmail 8.8 because the additional
+Berkeley DB
+	Berkeley DB 4.1.x with x <= 24 does not work with sendmail.
+	You need at least 4.1.25.
+
+GDBM	GDBM does not work with sendmail because the additional
 	security checks and file locking cause problems.  Unfortunately,
 	gdbm does not provide a compile flag in its version of ndbm.h so
 	the code can adapt.  Until the GDBM authors can fix these problems,
@@ -990,7 +1015,7 @@ Solaris
 
 	Do not use:
 
-		host:  nisplus dns [NOTFOUND=return] files
+		hosts:  nisplus dns [NOTFOUND=return] files
 
 	Note that 'nisplus' above is an illustration.  The same comment
 	applies no matter what naming services you are using.  If you have
@@ -1329,7 +1354,7 @@ AIX 4.X
 	/usr/lib and /lib.  If you need to allow more directories, such as
 	/usr/local/lib, modify your devtools/Site/site.AIX.4.2.m4,
 	site.AIX.4.3.m4, and/or site.AIX.4.x.m4 file(s) and set confLDOPTS
-	approriately.  For example:
+	appropriately.  For example:
 
 	define(`confLDOPTS', `-blibpath:/usr/lib:/lib:/usr/local/lib')
 
@@ -1481,7 +1506,7 @@ UNICOS 8.0.3.4
 	running sendmail.  Reported by Jerry G. DeLapp <jgd@acl.lanl.gov>.
 
 Darwin/Mac OS X (10.X.X)
-	The linker errors produced regarding getopt() and it's associated
+	The linker errors produced regarding getopt() and its associated
 	variables can safely be ignored.
 
 	From Mike Zimmerman <zimmy@torrentnet.com>:
@@ -1596,7 +1621,7 @@ Listproc 6.0c
 
 	Just upgraded to sendmail 8.7, and discovered that listproc 6.0c
 	breaks, because it, by default, sends a blank "HELO" rather than
-	a "HELO hostname" when using the 'system' or 'telnet' mailmethod.
+	a "HELO hostname" when using the 'system' or 'telnet' mail method.
 
 	The fix is to include -DZMAILER in the compilation, which will
 	cause it to use "HELO hostname" (which Z-mail apparently requires
@@ -1768,4 +1793,4 @@ util.c		Some general purpose routines used by sendmail.
 version.c	The version number and information about this
 		version of sendmail.
 
-(Version $Revision: 8.355.2.3 $, last update $Date: 2002/06/21 22:44:56 $ )
+(Version $Revision: 8.355.2.11 $, last update $Date: 2002/12/18 17:15:46 $ )

@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: mci.c,v 8.205 2002/05/24 18:53:48 gshapiro Exp $")
+SM_RCSID("@(#)$Id: mci.c,v 8.205.2.2 2002/11/26 19:15:19 gshapiro Exp $")
 
 #if NETINET || NETINET6
 # include <arpa/inet.h>
@@ -1244,8 +1244,10 @@ mci_print_persistent(pathname, hostname)
 			     locked ? '*' : ' ', hostname,
 			     pintvl(curtime() - mcib.mci_lastuse, true));
 	if (mcib.mci_rstatus != NULL)
+	{
 		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT, "%.*s\n", width,
 				     mcib.mci_rstatus);
+	}
 	else if (mcib.mci_exitstat == EX_TEMPFAIL && mcib.mci_errno != 0)
 		(void) sm_io_fprintf(smioout, SM_TIME_DEFAULT,
 				     "Deferred: %.*s\n", width - 10,

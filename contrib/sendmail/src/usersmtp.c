@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: usersmtp.c,v 8.437.2.5 2002/08/16 16:48:11 ca Exp $")
+SM_RCSID("@(#)$Id: usersmtp.c,v 8.437.2.8 2002/12/12 17:40:07 ca Exp $")
 
 #include <sysexits.h>
 
@@ -127,6 +127,7 @@ smtpinit(m, mci, e, onlyhelo)
 		goto helo;
 
 	mci->mci_state = MCIS_OPENING;
+	clrsessenvelope(e);
 
 	/*
 	**  Get the greeting message.
@@ -222,13 +223,20 @@ tryhelo:
 		return;
 	}
 
-#if !_FFR_DEPRECATE_MAILER_FLAG_I
 	/*
 	**  If this is expected to be another sendmail, send some internal
 	**  commands.
 	*/
 
-	if (bitnset(M_INTERNAL, m->m_flags))
+	if (false
+# if !_FFR_DEPRECATE_MAILER_FLAG_I
+	    || bitnset(M_INTERNAL, m->m_flags)
+# endif /* !_FFR_DEPRECATE_MAILER_FLAG_I */
+# if _FFR_MSP_VERBOSE
+	    /* If we're running as MSP, "propagate" -v flag if possible. */
+	    || (UseMSP && Verbose && bitset(MCIF_VERB, mci->mci_flags))
+# endif /* _FFR_MSP_VERBOSE */
+	   )
 	{
 		/* tell it to be verbose */
 		smtpmessage("VERB", m, mci);
@@ -236,7 +244,6 @@ tryhelo:
 		if (r < 0)
 			goto tempfail1;
 	}
-#endif /* !_FFR_DEPRECATE_MAILER_FLAG_I */
 
 	if (mci->mci_state != MCIS_CLOSED)
 	{
@@ -453,6 +460,8 @@ helo_options(line, firstline, m, mci, e)
 		mci->mci_flags |= MCIF_ENHSTAT;
 	else if (sm_strcasecmp(line, "pipelining") == 0)
 		mci->mci_flags |= MCIF_PIPELINED;
+	else if (sm_strcasecmp(line, "verb") == 0)
+		mci->mci_flags |= MCIF_VERB;
 #if STARTTLS
 	else if (sm_strcasecmp(line, "starttls") == 0)
 		mci->mci_flags |= MCIF_TLS;
@@ -2261,7 +2270,7 @@ smtprcpt(to, m, mci, e, ctladdr, xstart)
 	*/
 
 	while (mci->mci_nextaddr != NULL &&
-	       sm_io_getinfo(mci->mci_in, SM_IO_IS_READABLE, NULL))
+	       sm_io_getinfo(mci->mci_in, SM_IO_IS_READABLE, NULL) > 0)
 	{
 		int r;
 
@@ -2668,7 +2677,7 @@ smtpdata(m, mci, e, ctladdr, xstart)
 #endif /* PIPELINING */
 
 #if _FFR_CATCH_BROKEN_MTAS
-	if (sm_io_getinfo(mci->mci_in, SM_IO_IS_READABLE, NULL))
+	if (sm_io_getinfo(mci->mci_in, SM_IO_IS_READABLE, NULL) > 0)
 	{
 		/* terminate the message */
 		(void) sm_io_fprintf(mci->mci_out, SM_TIME_DEFAULT, ".%s",

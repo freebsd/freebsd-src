@@ -1,10 +1,122 @@
 			SENDMAIL RELEASE NOTES
-      $Id: RELEASE_NOTES,v 8.1340.2.43 2002/08/26 21:53:31 gshapiro Exp $
+      $Id: RELEASE_NOTES,v 8.1340.2.100 2002/12/28 19:47:00 ca Exp $
 
 
 This listing shows the version of the sendmail binary, the version
 of the sendmail configuration files, the date of release, and a
 summary of the changes in that release.
+
+8.12.7/8.12.7	2002/12/29
+	Properly clean up macros to avoid persistence of session data
+		across various connections.  This could cause session
+		oriented restrictions, e.g., STARTTLS requirements,
+		to erroneously allow a connection.  Problem noted
+		by Tim Maletic of Priority Health.
+	Do not lookup MX records when sorting the MSP queue.  The MSP
+		only needs to relay all mail to the MTA.  Problem found
+		by Gary Mills of the University of Manitoba.
+	Do not restrict the length of connection information to 100
+		characters in some logging statements.  Problem noted by
+		Erik Parker.
+	When converting an enhanced status code to an exit status, use
+		EX_CONFIG if the first digit is not 2, 4, or 5 or if *.1.5
+		is used.
+	Reset macro $x when receiving another MAIL command.  Problem
+		noted by Vlado Potisk of Wigro s.r.o.
+	Don't bother setting the permissions on the build area statistics
+		file, the proper permissions will be put on the file at
+		install time.  This fixes installation over NFS for some
+		users.  Problem noted by Martin J. Dellwo of 3-Dimensional
+		Pharmaceuticals, Inc.
+	Fix problem of decoding SASLv2 encrypted data.  Problem noted by
+		Alex Deiter of Mobile TeleSystems, Komi Republic.
+	Log milter socket open errors at MilterLogLevel 1 or higher instead
+		of 11 or higher.
+	Print early system errors to the console instead of silently
+		exiting.  Problem noted by James Jong of IBM.
+	Do not process a queue group if Runners is set to 0, regardless
+		of whether F=f or sendmail is run in verbose mode (-v).
+		The use of -qGname will still force queue group "name"
+		to be run even if Runners=0.
+	Change the level for logging the fact that a daemon is refusing
+		connections due to high load from LOG_INFO to LOG_NOTICE.
+		Patch from John Beck of Sun Microsystems.
+	Use location information for submit.cf from NetInfo
+		(/locations/sendmail/submit.cf) if available.
+	Re-enable ForkEachJob which was lost in 8.12.0.  Problem noted by
+		Neil Rickert of Northern Illinois University.
+	Make behavior of /canon in debug mode consistent with usage in
+		rulesets.  Patch from Shigeno Kazutaka of IIJ.
+	Fix a potential memory leak in envelope splitting.  Problem noted
+		by John Majikes of IBM.
+	Do not try to share an mailbox database LDAP connection across
+		different processes.  Problem noted by Randy Kunkee.
+	Fix logging for undelivered recipients when the SMTP connection
+		times out during message collection.  Problem noted by Neil
+		Rickert of Northern Illinois University.
+	Avoid problems with QueueSortOrder=random due to problems with
+		qsort() on Solaris (and maybe some other operating systems).
+		Problem noted by Stephan Schulz of Gruner+Jahr..
+	If -f "" is specified, set the sender address to "<>".  Problem
+		noted by Matthias Andree.
+	Fix formatting problem of footnotes for plain text output on some
+		versions of tmac.  Patch from Per Hedeland of Ericsson.
+	Portability:
+		Berkeley DB 4.1 support (requires at least 4.1.25).
+		Some getopt(3) implementations in GNU/Linux are broken
+			and pass a NULL pointer to an option which requires
+			an argument, hence the builtin version of
+			sendmail is used instead.  This can be overridden
+			by using -DSM_CONF_GETOPT=0.  Problem noted by
+			Vlado Potisk of Wigro s.r.o.
+		Support for nph-1.2.0 from Mark D. Roth of the University
+			of Illinois at Urbana-Champaign.
+		Support for FreeBSD 5.0's MAC labeling from Robert Watson
+			of the TrustedBSD Project.
+		Support for reading the number of processors on an IRIX
+			system from Michel Bourget of SGI.
+		Support for UnixWare 7.1 based on input from Larry Rosenman.
+		Interix support from Nedelcho Stanev of Atlantic Sky
+			Corporation.
+		Update Mac OS X/Darwin portability from Wilfredo Sanchez.
+	CONFIG: Enforce tls_client restrictions even if delay_checks
+		is used.  Problem noted by Malte Starostik.
+	CONFIG: Deal with an empty hostname created via bogus
+		DNS entries to get around access restrictions.
+		Problem noted by Kai Schlichting.
+	CONFIG: Use FEATURE(`msp', `[127.0.0.1]') in submit.mc by default
+		to avoid problems with hostname resolution for localhost
+		which on many systems does not resolve to 127.0.0.1 (or
+		::1 for IPv6).  If you do not use IPv4 but only IPv6 then
+		you need to change submit.mc accordingly, see the comment
+		in the file itself.
+	CONFIG: Set confDONT_INIT_GROUPS to True in submit.mc to avoid
+		error messages from initgroups(3) on AIX 4.3 when sending
+		mail to non-existing users. Problem noted by Mark Roth of
+		the University of Illinois at Urbana-Champaign.
+	CONFIG: Allow local_procmail to override local_lmtp settings.
+	CONFIG: Always allow connections from 127.0.0.1 or IPv6:::1 to
+		relay.
+	CONTRIB: cidrexpand: Deal with the prefix tags that may be included
+		in access_db.
+	CONTRIB: New version of doublebounce.pl contributed by Leo Bicknell.
+	LIBMILTER: On Solaris libmilter may get into an endless loop if
+		an error in the communication from/to the MTA occurs.
+		Patch from Gurusamy Sarathy of Active State.
+	LIBMILTER: Ignore EINTR from sigwait(3) which may happen on Tru64.
+		Patch from from Jose Marcio Martins da Cruz of Ecole
+		Nationale Superieure des Mines de Paris.
+	MAIL.LOCAL: Fix a truncation race condition if the close() on
+		the mailbox fails.  Problem noted by Tomoko Fukuzawa of
+		Sun Microsystems.
+	MAIL.LOCAL: Fix a potential file descriptor leak if mkstemp(3)
+		fails.  Patch from John Beck of Sun Microsystems.
+	SMRSH: SECURITY: Only allow regular files or symbolic links to be
+		used for a command.  Problem noted by David Endler of
+		iDEFENSE, Inc.
+	New Files:
+		devtools/OS/Interix
+		include/sm/bdb.h
 
 8.12.6/8.12.6	2002/08/26
 	Do not add the FallbackMXhost (or its MX records) to the list

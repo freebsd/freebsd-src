@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1999-2001 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1999-2002 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  *
  * By using this file, you agree to the terms and conditions set
@@ -19,7 +19,7 @@
 #ifdef _DEFINE
 # define EXTERN
 # define INIT(x)	= x
-SM_IDSTR(MilterlId, "@(#)$Id: libmilter.h,v 8.33 2002/04/30 23:52:24 msk Exp $")
+SM_IDSTR(MilterlId, "@(#)$Id: libmilter.h,v 8.33.2.7 2002/12/18 23:15:35 ca Exp $")
 #else /* _DEFINE */
 # define EXTERN extern
 # define INIT(x)
@@ -118,4 +118,4 @@ extern int	mi_wr_cmd __P((socket_t, struct timeval *, int, char *, size_t));
 extern bool	mi_sendok __P((SMFICTX_PTR, int));
 
 
-#endif /* !_LIBMILTER_H */
+#endif /* ! _LIBMILTER_H */
