@@ -277,7 +277,7 @@ vi_change_case(el, c)
     int c;
 {
     if (el->el_line.cursor < el->el_line.lastchar) {
-	c = *el->el_line.cursor & 0xFF;
+	c = (unsigned char)*el->el_line.cursor;
 	if (isupper(c))
 	    *el->el_line.cursor++ = tolower(c);
 	else if (islower(c))

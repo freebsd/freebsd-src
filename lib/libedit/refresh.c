@@ -43,7 +43,6 @@ static char sccsid[] = "@(#)refresh.c	8.1 (Berkeley) 6/4/93";
  */
 #include "sys.h"
 #include <stdio.h>
-#include <ctype.h>
 #include <unistd.h>
 #include <string.h>
 
@@ -97,7 +96,7 @@ re_addc(el, c)
     EditLine *el;
     int c;
 {
-    c &= 0xFF;
+    c = (unsigned char)c;
 
     if (isprint(c)) {
 	re_putc(el, c);
@@ -118,11 +117,11 @@ re_addc(el, c)
     }
     else if (iscntrl(c)) {
 	re_putc(el, '^');
-	if (c == '\177')
+	if (c == 0177)
 	    re_putc(el, '?');
 	else
 	    /* uncontrolify it; works only for iso8859-1 like sets */
-	    re_putc(el, (c | 0100));
+	    re_putc(el, (toascii(c) | 0100));
     }
     else {
 	re_putc(el, '\\');
@@ -876,7 +875,7 @@ re_refresh_cursor(el)
 
     /* do input buffer to el->el_line.cursor */
     for (cp = el->el_line.buffer; cp < el->el_line.cursor; cp++) {
-	c = *cp & 0xFF;
+	c = (unsigned char)*cp;
 	h++;			/* all chars at least this long */
 
 	if (c == '\n') {	/* handle newline in data part too */
@@ -949,7 +948,7 @@ re_fastaddc(el)
 {
     int c;
 
-    c = el->el_line.cursor[-1] & 0xFF;
+    c = (unsigned char)el->el_line.cursor[-1];
 
     if (c == '\t' || el->el_line.cursor != el->el_line.lastchar) {
 	re_refresh(el);		/* too hard to handle */
@@ -957,7 +956,7 @@ re_fastaddc(el)
     }				/* else (only do at end of line, no TAB) */
 
     if (iscntrl(c)) {		/* if control char, do caret */
-	char mc = (c == '\177') ? '?' : (c | 0100);
+	char mc = (c == 0177) ? '?' : (toascii(c) | 0100);
 	re_fastputc(el, '^');
 	re_fastputc(el, mc);
     }
