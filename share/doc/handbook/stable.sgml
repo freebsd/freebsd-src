@@ -10,7 +10,7 @@
 
                         THE FREEBSD STABLE POLICY 
 
-Last updated: $Date: 1996/10/04 22:54:15 $
+Last updated: $Date: 1997/01/14 06:26:47 $
 
 This document attempts to explain the rationale behind
 FreeBSD-stable, what you should expect should you decide to run it,
@@ -30,8 +30,8 @@ branch (see <ref id="current" name="FreeBSD-current">).
 <p>If you are a commercial user or someone who puts maximum stability of
 their FreeBSD system before all other concerns, you should consider tracking
 <em>stable</em>.  This is especially true if you have installed the most
-recent release (<htmlurl url="ftp://ftp.freebsd.org/pub/FreeBSD/2.1.5-RELEASE"
-name="2.1.5-RELEASE"> at the time of this writing) since the <em>stable</em>
+recent release (<url url="ftp://ftp.freebsd.org/pub/FreeBSD/2.1.6-RELEASE"
+name="2.1.6-RELEASE"> at the time of this writing) since the <em>stable</em>
 branch is effectively a bug-fix stream relative to the previous release.
 
 <p>Please note that the <em>stable</em> tree endeavors, above all, to
