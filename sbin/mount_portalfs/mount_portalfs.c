@@ -108,7 +108,6 @@ main(argc, argv)
 	char mountpt[MAXPATHLEN];
 	int mntflags = 0;
 	char tag[32];
-	struct vfsconf vfc;
 	mode_t um;
 
 	qelem q;
@@ -175,17 +174,7 @@ main(argc, argv)
 	sprintf(tag, "portal:%d", getpid());
 	args.pa_config = tag;
 
-	error = getvfsbyname("portalfs", &vfc);
-	if (error && vfsisloadable("portalfs")) {
-		if (vfsload("portalfs"))
-			err(EX_OSERR, "vfsload(portalfs)");
-		endvfsent();
-		error = getvfsbyname("portalfs", &vfc);
-	}
-	if (error)
-		errx(EX_OSERR, "portal filesystem is not available");
-
-	rc = mount(vfc.vfc_name, mountpt, mntflags, &args);
+	rc = mount("portalfs", mountpt, mntflags, &args);
 	if (rc < 0)
 		err(1, NULL);
 

@@ -70,13 +70,8 @@ main(argc, argv)
 {
 	struct ntfs_args args;
 	struct stat sb;
-	int c, mntflags, set_gid, set_uid, set_mask, error;
+	int c, mntflags, set_gid, set_uid, set_mask;
 	char *dev, *dir, mntpath[MAXPATHLEN];
-#if __FreeBSD_version >= 300000
-	struct vfsconf vfc;
-#else
-	struct vfsconf *vfc;
-#endif
 
 	mntflags = set_gid = set_uid = set_mask = 0;
 	(void)memset(&args, '\0', sizeof(args));
@@ -146,35 +141,7 @@ main(argc, argv)
 			args.mode = sb.st_mode & (S_IRWXU | S_IRWXG | S_IRWXO);
 	}
 
-#if __FreeBSD_version >= 300000
-	error = getvfsbyname("ntfs", &vfc);
-	if(error && vfsisloadable("ntfs")) {
-		if(vfsload("ntfs"))
-#else
-	vfc = getvfsbyname("ntfs");
-	if(!vfc && vfsisloadable("ntfs")) {
-		if(vfsload("ntfs"))
-#endif
-			err(EX_OSERR, "vfsload(ntfs)");
-		endvfsent();	/* clear cache */
-#if __FreeBSD_version >= 300000
-		error = getvfsbyname("ntfs", &vfc);
-#else
-		vfc = getvfsbyname("ntfs");
-#endif
-	}
-#if __FreeBSD_version >= 300000
-	if (error)
-#else
-	if (!vfc)
-#endif
-		errx(EX_OSERR, "ntfs filesystem is not available");
-
-#if __FreeBSD_version >= 300000
-	if (mount(vfc.vfc_name, mntpath, mntflags, &args) < 0)
-#else
-	if (mount(vfc->vfc_index, mntpath, mntflags, &args) < 0)
-#endif
+	if (mount("ntfs", mntpath, mntflags, &args) < 0)
 		err(EX_OSERR, "%s", dev);
 
 	exit (0);

@@ -90,7 +90,6 @@ main(int argc, char **argv)
 	struct iso_args args;
 	int ch, mntflags, opts;
 	char *dev, *dir, mntpath[MAXPATHLEN];
-	struct vfsconf vfc;
 	int error, verbose;
 
 	mntflags = opts = verbose = 0;
@@ -172,17 +171,7 @@ main(int argc, char **argv)
 			printf("using starting sector %d\n", args.ssector);
 	}
 
-	error = getvfsbyname("cd9660", &vfc);
-	if (error && vfsisloadable("cd9660")) {
-		if (vfsload("cd9660"))
-			err(EX_OSERR, "vfsload(cd9660)");
-		endvfsent();	/* flush cache */
-		error = getvfsbyname("cd9660", &vfc);
-	}
-	if (error)
-		errx(1, "cd9660 filesystem is not available");
-
-	if (mount(vfc.vfc_name, mntpath, mntflags, &args) < 0)
+	if (mount("cd9660", mntpath, mntflags, &args) < 0)
 		err(1, "%s", args.fspec);
 	exit(0);
 }
