@@ -45,7 +45,8 @@ wchar_t *
 wcstok(wchar_t * __restrict s, const wchar_t * __restrict delim,
     wchar_t ** __restrict last)
 {
-	wchar_t *spanp, *tok;
+	const wchar_t *spanp;
+	wchar_t *tok;
 	wchar_t c, sc;
 
 	if (s == NULL && (s = *last) == NULL)
@@ -56,7 +57,7 @@ wcstok(wchar_t * __restrict s, const wchar_t * __restrict delim,
 	 */
 cont:
 	c = *s++;
-	for (spanp = (wchar_t *)delim; (sc = *spanp++) != L'\0';) {
+	for (spanp = delim; (sc = *spanp++) != L'\0';) {
 		if (c == sc)
 			goto cont;
 	}
@@ -73,7 +74,7 @@ cont:
 	 */
 	for (;;) {
 		c = *s++;
-		spanp = (wchar_t *)delim;
+		spanp = delim;
 		do {
 			if ((sc = *spanp++) == c) {
 				if (c == L'\0')
