@@ -487,7 +487,8 @@ acpi_attach(device_t dev)
     /*
      * Create the control device
      */
-    sc->acpi_dev_t = make_dev(&acpi_cdevsw, 0, 0, 5, 0660, "acpi");
+    sc->acpi_dev_t = make_dev(&acpi_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600,
+	"acpi");
     sc->acpi_dev_t->si_drv1 = sc;
 
 #ifdef ACPI_DEBUGGER
