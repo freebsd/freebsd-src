@@ -26,6 +26,27 @@ MA 02111-1307, USA. */
 #include "gmp.h"
 #include "gmp-impl.h"
 
+static int
+digit_value_in_base (c, base)
+     int c;
+     int base;
+{
+  int digit;
+
+  if (isdigit (c))
+    digit = c - '0';
+  else if (islower (c))
+    digit = c - 'a' + 10;
+  else if (isupper (c))
+    digit = c - 'A' + 10;
+  else
+    return -1;
+
+  if (digit < base)
+    return digit;
+  return -1;
+}
+
 void
 #if __STDC__
 min (MINT *dest)
