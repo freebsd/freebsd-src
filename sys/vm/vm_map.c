@@ -2573,12 +2573,10 @@ vm_map_growstack(struct proc *p, vm_offset_t addr)
 	rlim_t stacklim, vmemlim;
 	int is_procstack, rv;
 
-	GIANT_REQUIRED;
-
 Retry:
 	PROC_LOCK(p);
 	stacklim = lim_cur(p, RLIMIT_STACK);
-	vmemlim = lim_cur(curthread->td_proc, RLIMIT_VMEM);
+	vmemlim = lim_cur(p, RLIMIT_VMEM);
 	PROC_UNLOCK(p);
 
 	vm_map_lock_read(map);
