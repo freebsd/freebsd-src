@@ -162,16 +162,18 @@ static struct ipsecstat ipsecstat;
 static void print_ipsecstats __P((void));
 static const char *pfkey_msgtype_names __P((int));
 static void ipsec_hist __P((const u_quad_t *, size_t, const struct val2str *,
-	const char *));
+	size_t, const char *));
 
 /*
  * Dump IPSEC statistics structure.
  */
 static void
-ipsec_hist(const u_quad_t *hist,
-	   size_t histmax,
-	   const struct val2str *name,
-	   const char *title)
+ipsec_hist(hist, histmax, name, namemax, title)
+	const u_quad_t *hist;
+	size_t histmax;
+	const struct val2str *name;
+	size_t namemax;
+	const char *title;
 {
 	int first;
 	size_t proto;
@@ -186,7 +188,7 @@ ipsec_hist(const u_quad_t *hist,
 			first = 0;
 		}
 		for (p = name; p && p->str; p++) {
-			if (p->val == (int)proto)
+			if (p->val == proto)
 				break;
 		}
 		if (p && p->str) {
@@ -199,12 +201,12 @@ ipsec_hist(const u_quad_t *hist,
 }
 
 static void
-print_ipsecstats(void)
+print_ipsecstats()
 {
 #define	p(f, m) if (ipsecstat.f || sflag <= 1) \
     printf(m, (CAST)ipsecstat.f, plural(ipsecstat.f))
 #define hist(f, n, t) \
-    ipsec_hist((f), sizeof(f)/sizeof(f[0]), (n), (t));
+    ipsec_hist((f), sizeof(f)/sizeof(f[0]), (n), sizeof(n)/sizeof(n[0]), (t));
 
 	p(in_success, "\t" LLU " inbound packet%s processed successfully\n");
 	p(in_polvio, "\t" LLU " inbound packet%s violated process security "
@@ -236,7 +238,9 @@ print_ipsecstats(void)
 }
 
 void
-ipsec_stats(u_long off __unused, char *name, int af __unused)
+ipsec_stats(off, name)
+	u_long off;
+	char *name;
 {
 	if (off == 0)
 		return;
@@ -247,7 +251,8 @@ ipsec_stats(u_long off __unused, char *name, int af __unused)
 }
 
 static const char *
-pfkey_msgtype_names(int x)
+pfkey_msgtype_names(x)
+	int x;
 {
 	const int max =
 	    sizeof(pfkey_msgtypenames)/sizeof(pfkey_msgtypenames[0]);
@@ -260,10 +265,12 @@ pfkey_msgtype_names(int x)
 }
 
 void
-pfkey_stats(u_long off __unused, char *name, int af __unused)
+pfkey_stats(off, name)
+	u_long off;
+	char *name;
 {
 	struct pfkeystat pfkeystat;
-	unsigned first, type;
+	int first, type;
 
 	if (off == 0)
 		return;

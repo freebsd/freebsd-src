@@ -68,7 +68,7 @@ static	const char *const socktype[] =
     { "#0", "stream", "dgram", "raw", "rdm", "seqpacket" };
 
 void
-unixpr(void)
+unixpr()
 {
 	char 	*buf;
 	int	type;
@@ -126,7 +126,9 @@ unixpr(void)
 }
 
 static void
-unixdomainpr(struct xunpcb *xunp, struct xsocket *so)
+unixdomainpr(xunp, so)
+	struct xunpcb *xunp;
+	struct xsocket *so;
 {
 	struct unpcb *unp;
 	struct sockaddr_un *sa;

@@ -65,7 +65,7 @@ static	int first = 1;
 static	int csock = -1;
 
 void
-netgraphprotopr(u_long off, char *name, int af __unused)
+netgraphprotopr(u_long off, char *name)
 {
 	struct ngpcb *this, *next;
 	struct ngpcb ngpcb;

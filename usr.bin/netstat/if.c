@@ -85,9 +85,8 @@ static char ntop_buf[INET6_ADDRSTRLEN];		/* for inet_ntop() */
 static int bdg_done;
 #endif
 
-/* print bridge statistics */
 void
-bdg_stats(u_long dummy __unused, char *name, int af __unused)
+bdg_stats(u_long dummy, char *name) /* print bridge statistics */
 {
     int i;
     size_t slen ;
@@ -132,8 +131,12 @@ bdg_stats(u_long dummy __unused, char *name, int af __unused)
 /*
  * Display a formatted value, or a '-' in the same space.
  */
-static void
-show_stat(const char *fmt, int width, u_long value, short showvalue)
+void
+show_stat(fmt, width, value, showvalue)
+	char *fmt;
+	int width;
+	u_long value;
+	short showvalue;
 {
 	char newfmt[32];
 
@@ -153,7 +156,10 @@ show_stat(const char *fmt, int width, u_long value, short showvalue)
  * Print a description of the network interfaces.
  */
 void
-intpr(int interval, u_long ifnetaddr, void (*pfunc)(char *))
+intpr(interval, ifnetaddr, pfunc)
+	int interval;
+	u_long ifnetaddr;
+	void (*pfunc)(char *);
 {
 	struct ifnet ifnet;
 	struct ifnethead ifnethead;
@@ -508,7 +514,9 @@ u_char	signalled;			/* set if alarm goes off "early" */
  * XXX - should be rewritten to use ifmib(4).
  */
 static void
-sidewaysintpr(unsigned interval, u_long off)
+sidewaysintpr(interval, off)
+	unsigned interval;
+	u_long off;
 {
 	struct ifnet ifnet;
 	u_long firstifnet;
@@ -671,7 +679,8 @@ loop:
  * Sets a flag to not wait for the alarm.
  */
 static void
-catchalarm(int signo __unused)
+catchalarm(signo)
+	int signo;
 {
 	signalled = YES;
 }
