@@ -91,6 +91,7 @@ device		wfd0		#IDE Floppy (e.g. LS-120)
 controller	ncr0		# NCR/Symbios Logic
 controller	ahb0		# EISA AHA1742 family
 controller	ahc0		# AHA2940 and onboard AIC7xxx devices
+controller	amd0		# AMD 53C974 (Teckram DC-390(T))
 controller	isp0		# Qlogic family
 controller	dpt0		# DPT Smartcache - See LINT for options!
 
