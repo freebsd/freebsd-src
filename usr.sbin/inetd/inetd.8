@@ -436,11 +436,14 @@ Without options, the service will always return
 The available arguments to this service that alter its behavior are:
 .Bl -tag -width indent
 .It Fl d Ar fallback
-Instead of returning an error if getting the socket credentials or
+If the real ident service is enabled, return this user for every
+request.
+If the real ident service is disabled, then this flag, instead of
+returning an error if getting the socket credentials or
 looking up the user name fails, return a default
 .Ar fallback
-user name to the requesting ident client.  This is primarily useful
-when running this service on a NAT machine.
+user name to the requesting ident client.
+This is primarily useful when running this service on a NAT machine.
 .It Fl t Ar sec[.usec]
 Specify a timeout for the service.
 The default timeout is 10.0 seconds.

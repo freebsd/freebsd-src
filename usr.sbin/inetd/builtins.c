@@ -469,8 +469,20 @@ ident_stream(s, sep)		/* Ident service (AKA "auth") */
 		goto printit;
 	}
 		
-	if (!rflag)	/* Send HIDDEN-USER immediately if not "real" */
-		iderror(lport, fport, s, -1);
+	/*
+	 * If not "real" (-r), send a HIDDEN-USER error for everything.
+	 * If -d is used to set a fallback username, this is used to
+	 * override it, and the fallback is returned instead.
+	 */
+	if (!rflag) {
+		if (fallback == NULL)
+			iderror(lport, fport, s, -1);
+		else {
+			cp = fallback;
+			goto printit;
+		}
+	}
+		
 	/*
 	 * We take the input and construct an array of two sockaddr_ins
 	 * which contain the local address information and foreign
