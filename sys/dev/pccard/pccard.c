@@ -404,11 +404,7 @@ pccard_function_init(struct pccard_function *pf)
 		for (i = 0; i < cfe->num_iospace; i++) {
 			start = cfe->iospace[i].start;
 			if (start)
-#ifdef COOKIE_FOR_IMP
 				end = start + cfe->iospace[i].length - 1;
-#else
-				goto not_this_one;
-#endif
 			else
 				end = ~0;
 			cfe->iorid[i] = i;
@@ -590,11 +586,13 @@ pccard_function_enable(struct pccard_function *pf)
 
 	reg = (pf->cfe->number & PCCARD_CCR_OPTION_CFINDEX);
 	reg |= PCCARD_CCR_OPTION_LEVIREQ;
+#ifdef COOKIE_FOR_WARNER
 	if (pccard_mfc(pf->sc)) {
 		reg |= (PCCARD_CCR_OPTION_FUNC_ENABLE |
 			PCCARD_CCR_OPTION_ADDR_DECODE);
 		/* PCCARD_CCR_OPTION_IRQ_ENABLE set elsewhere as needed */
 	}
+#endif
 	pccard_ccr_write(pf, PCCARD_CCR_OPTION, reg);
 
 	reg = 0;
@@ -761,9 +759,11 @@ pccard_io_map(struct pccard_function *pf, int width, bus_addr_t offset,
 
 		pccard_ccr_write(pf, PCCARD_CCR_IOSIZE, iosize);
 
+#ifdef COOKIE_FOR_WARNER
 		reg = pccard_ccr_read(pf, PCCARD_CCR_OPTION);
 		reg |= PCCARD_CCR_OPTION_ADDR_DECODE;
 		pccard_ccr_write(pf, PCCARD_CCR_OPTION, reg);
+#endif
 	}
 	return (0);
 }
@@ -1205,10 +1205,12 @@ pccard_setup_intr(device_t dev, device_t child, struct resource *irq,
 	func->intr_handler = intr;
 	func->intr_handler_arg = arg;
 	func->intr_handler_cookie = *cookiep;
+#ifdef COOKIE_FOR_WARNER
 	/* XXX Not sure this is right to write to ccr */
 	pccard_ccr_write(func, PCCARD_CCR_OPTION,
 	    pccard_ccr_read(func, PCCARD_CCR_OPTION) |
 	    PCCARD_CCR_OPTION_IREQ_ENABLE);
+#endif
 	return (0);
 }
 
@@ -1220,10 +1222,12 @@ pccard_teardown_intr(device_t dev, device_t child, struct resource *r,
 	struct pccard_function *func = ivar->fcn;
 	int ret;
 
+#ifdef COOKIE_FOR_WARNER
 	/* XXX Not sure this is right to write to ccr */
 	pccard_ccr_write(func, PCCARD_CCR_OPTION,
 	    pccard_ccr_read(func, PCCARD_CCR_OPTION) &
 	    ~PCCARD_CCR_OPTION_IREQ_ENABLE);
+#endif
 	ret = bus_generic_teardown_intr(dev, child, r, cookie);
 	if (ret == 0) {
 		func->intr_handler = NULL;
