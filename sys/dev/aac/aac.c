@@ -899,7 +899,7 @@ aac_submit_bio(struct bio *bp)
 
 	debug_called(2);
 
-	ad = (struct aac_disk *)bp->bio_dev->si_drv1;
+	ad = (struct aac_disk *)bp->bio_disk->d_drv1;
 	sc = ad->ad_controller;
 
 	/* queue the BIO and try to get some work done */
@@ -952,7 +952,7 @@ aac_bio_command(struct aac_softc *sc, struct aac_command **cmp)
 	fib->Header.Size = sizeof(struct aac_fib_header);
 
 	/* build the read/write request */
-	ad = (struct aac_disk *)bp->bio_dev->si_drv1;
+	ad = (struct aac_disk *)bp->bio_disk->d_drv1;
 	if (BIO_IS_READ(bp)) {
 		br = (struct aac_blockread *)&fib->data[0];
 		br->Command = VM_CtBlockRead;
@@ -2716,8 +2716,8 @@ aac_query_disk(struct aac_softc *sc, caddr_t uptr)
 		query_disk.Target = disk->unit;
 		query_disk.Lun = 0;
 		query_disk.UnMapped = 0;
-		bcopy(disk->ad_dev_t->si_name,
-		      &query_disk.diskDeviceName[0], 10);
+		sprintf(&query_disk.diskDeviceName[0], "%s%d",
+		        disk->ad_disk.d_name, disk->ad_disk.d_unit);
 	}
 	AAC_LOCK_RELEASE(&sc->aac_container_lock);
 
