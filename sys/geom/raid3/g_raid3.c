@@ -872,122 +872,104 @@ g_raid3_gather(struct bio *pbp)
 {
 	struct g_raid3_softc *sc;
 	struct g_raid3_disk *disk;
-	struct bio *bp, *cbp;
+	struct bio *xbp, *fbp, *cbp;
 	off_t atom, cadd, padd, left;
 
 	sc = pbp->bio_to->geom->softc;
-	if ((pbp->bio_pflags & G_RAID3_BIO_PFLAG_DEGRADED) != 0) {
+	/*
+	 * Find bio for which we have to calculate data.
+	 * While going through this path, check if all requests
+	 * succeeded, if not, deny whole request.
+	 * If we're in COMPLETE mode, we allow one request to fail,
+	 * so if we find one, we're sending it to the parity consumer.
+	 * If there are more failed requests, we deny whole request.
+	 */
+	xbp = fbp = NULL;
+	G_RAID3_FOREACH_BIO(pbp, cbp) {
+		if ((cbp->bio_cflags & G_RAID3_BIO_CFLAG_PARITY) != 0) {
+			KASSERT(xbp == NULL, ("More than one parity bio."));
+			xbp = cbp;
+		}
+		if (cbp->bio_error == 0)
+			continue;
 		/*
-		 * Find bio for which we should calculate data.
-		 * While going through this path, check if all requests
-		 * succeeded, if not, deny whole request.
+		 * Found failed request.
 		 */
-		bp = NULL;
-		G_RAID3_FOREACH_BIO(pbp, cbp) {
-			if ((cbp->bio_cflags & G_RAID3_BIO_CFLAG_PARITY) != 0) {
-				KASSERT(bp == NULL,
-				    ("More than one parity bio."));
-				bp = cbp;
-			}
-			if (cbp->bio_error == 0)
-				continue;
+		G_RAID3_LOGREQ(0, cbp, "Request failed.");
+		disk = cbp->bio_caller2;
+		if (disk != NULL) {
 			/*
-			 * Found failed request.
+			 * Actually this is pointless to bump syncid,
+			 * because whole device is fucked up.
+			 */
+			sc->sc_bump_syncid = G_RAID3_BUMP_IMMEDIATELY;
+			g_raid3_event_send(disk,
+			    G_RAID3_DISK_STATE_DISCONNECTED,
+			    G_RAID3_EVENT_DONTWAIT);
+		}
+		if (fbp == NULL) {
+			if ((pbp->bio_pflags & G_RAID3_BIO_PFLAG_DEGRADED) != 0) {
+				/*
+				 * We are already in degraded mode, so we can't
+				 * accept any failures.
+				 */
+				if (pbp->bio_error == 0)
+					pbp->bio_error = fbp->bio_error;
+			} else {
+				fbp = cbp;
+			}
+		} else {
+			/*
+			 * Next failed request, that's too many.
 			 */
 			if (pbp->bio_error == 0)
-				pbp->bio_error = cbp->bio_error;
-			disk = cbp->bio_caller2;
-			if (disk != NULL) {
-				/*
-				 * Actually this is pointless to bump syncid,
-				 * because whole device is fucked up.
-				 */
-				sc->sc_bump_syncid = G_RAID3_BUMP_IMMEDIATELY;
-				g_raid3_event_send(disk,
-				    G_RAID3_DISK_STATE_DISCONNECTED,
-				    G_RAID3_EVENT_DONTWAIT);
-			}
+				pbp->bio_error = fbp->bio_error;
 		}
-		KASSERT(bp != NULL, ("NULL parity bio."));
-		if (pbp->bio_error != 0) {
-			/*
-			 * Deny whole request.
-			 */
+	}
+	if (pbp->bio_error != 0)
+		goto finish;
+	if (fbp != NULL) {
+		struct g_consumer *cp;
+
+		/*
+		 * One request failed, so send the same request to
+		 * the parity consumer.
+		 */
+		disk = pbp->bio_driver2;
+		if (disk->d_state != G_RAID3_DISK_STATE_ACTIVE) {
+			pbp->bio_error = fbp->bio_error;
 			goto finish;
 		}
+		pbp->bio_pflags |= G_RAID3_BIO_PFLAG_DEGRADED;
+		pbp->bio_inbed--;
+		fbp->bio_flags &= ~(BIO_DONE | BIO_ERROR);
+		if (disk->d_no == sc->sc_ndisks - 1)
+			fbp->bio_cflags |= G_RAID3_BIO_CFLAG_PARITY;
+		fbp->bio_error = 0;
+		fbp->bio_completed = 0;
+		fbp->bio_children = 0;
+		fbp->bio_inbed = 0;
+		cp = disk->d_consumer;
+		fbp->bio_caller2 = disk;
+		fbp->bio_to = cp->provider;
+		G_RAID3_LOGREQ(3, fbp, "Sending request (recover).");
+		KASSERT(cp->acr > 0 && cp->ace > 0,
+		    ("Consumer %s not opened (r%dw%de%d).", cp->provider->name,
+		    cp->acr, cp->acw, cp->ace));
+		g_io_request(fbp, cp);
+		return;
+	}
+	if (xbp != NULL) {
 		/*
 		 * Calculate parity.
 		 */
 		G_RAID3_FOREACH_BIO(pbp, cbp) {
 			if ((cbp->bio_cflags & G_RAID3_BIO_CFLAG_PARITY) != 0)
 				continue;
-			g_raid3_xor(cbp->bio_data, bp->bio_data, bp->bio_data,
-			    bp->bio_length);
+			g_raid3_xor(cbp->bio_data, xbp->bio_data, xbp->bio_data,
+			    xbp->bio_length);
 		}
-		bp->bio_cflags &= ~G_RAID3_BIO_CFLAG_PARITY;
-	} else {
-		/*
-		 * If we're in COMPLETE mode, we allow one request to fail,
-		 * so if we find one, we're sending it to the parity consumer.
-		 * If there are more failed requests, we deny whole request.
-		 */
-		bp = NULL;
-		G_RAID3_FOREACH_BIO(pbp, cbp) {
-			if (cbp->bio_error == 0)
-				continue;
-			/*
-			 * Found failed request.
-			 */
-			G_RAID3_LOGREQ(0, cbp, "Request failed.");
-			disk = cbp->bio_caller2;
-			if (disk != NULL) {
-				sc->sc_bump_syncid = G_RAID3_BUMP_IMMEDIATELY;
-				g_raid3_event_send(disk,
-				    G_RAID3_DISK_STATE_DISCONNECTED,
-				    G_RAID3_EVENT_DONTWAIT);
-			}
-			if (bp == NULL)
-				bp = cbp;
-			else {
-				/*
-				 * Next failed request, that's too many.
-				 */
-				if (pbp->bio_error == 0)
-					pbp->bio_error = bp->bio_error;
-			}
-		}
-		if (pbp->bio_error != 0)
-			goto finish;
-		if (bp != NULL) {
-			struct g_consumer *cp;
-
-			/*
-			 * One request failed, so send the same request to
-			 * the parity consumer.
-			 */
-			disk = &sc->sc_disks[sc->sc_ndisks - 1];
-			if (disk->d_state != G_RAID3_DISK_STATE_ACTIVE) {
-				pbp->bio_error = bp->bio_error;
-				goto finish;
-			}
-			pbp->bio_pflags |= G_RAID3_BIO_PFLAG_DEGRADED;
-			pbp->bio_inbed--;
-			bp->bio_flags &= ~(BIO_DONE | BIO_ERROR);
-			bp->bio_cflags |= G_RAID3_BIO_CFLAG_PARITY;
-			bp->bio_error = 0;
-			bp->bio_completed = 0;
-			bp->bio_children = 0;
-			bp->bio_inbed = 0;
-			cp = disk->d_consumer;
-			bp->bio_caller2 = disk;
-			bp->bio_to = cp->provider;
-			G_RAID3_LOGREQ(3, bp, "Sending request (parity).");
-			KASSERT(cp->acr > 0 && cp->ace > 0,
-			    ("Consumer %s not opened (r%dw%de%d).", cp->provider->name,
-			    cp->acr, cp->acw, cp->ace));
-			g_io_request(bp, cp);
-			return;
-		}
+		xbp->bio_cflags &= ~G_RAID3_BIO_CFLAG_PARITY;
 	}
 	atom = sc->sc_sectorsize / (sc->sc_ndisks - 1);
 	cadd = padd = 0;
@@ -1304,6 +1286,7 @@ g_raid3_register_request(struct bio *pbp)
 	struct bio *cbp;
 	off_t offset, length;
 	u_int n, ndisks;
+	int round_robin;
 
 	ndisks = 0;
 	sc = pbp->bio_to->geom->softc;
@@ -1318,11 +1301,18 @@ g_raid3_register_request(struct bio *pbp)
 	switch (pbp->bio_cmd) {
 	case BIO_READ:
 		ndisks = sc->sc_ndisks - 1;
+		pbp->bio_driver2 = &sc->sc_disks[sc->sc_ndisks - 1];
 		break;
 	case BIO_WRITE:
 	case BIO_DELETE:
 		ndisks = sc->sc_ndisks;
 		break;
+	}
+	if (sc->sc_state == G_RAID3_DEVICE_STATE_COMPLETE &&
+	    (sc->sc_flags & G_RAID3_DEVICE_FLAG_ROUND_ROBIN) != 0) {
+		round_robin = 1;
+	} else {
+		round_robin = 0;
 	}
 	for (n = 0; n < ndisks; n++) {
 		disk = &sc->sc_disks[n];
@@ -1345,6 +1335,17 @@ g_raid3_register_request(struct bio *pbp)
 				disk = &sc->sc_disks[sc->sc_ndisks - 1];
 				cbp->bio_cflags |= G_RAID3_BIO_CFLAG_PARITY;
 				pbp->bio_pflags |= G_RAID3_BIO_PFLAG_DEGRADED;
+			} else if (round_robin &&
+			    disk->d_no == sc->sc_round_robin) {
+				/*
+				 * In round-robin mode skip one data component
+				 * and use parity component when reading.
+				 */
+				pbp->bio_driver2 = disk;
+				disk = &sc->sc_disks[sc->sc_ndisks - 1];
+				cbp->bio_cflags |= G_RAID3_BIO_CFLAG_PARITY;
+				sc->sc_round_robin++;
+				round_robin = 0;
 			}
 			break;
 		case BIO_WRITE:
@@ -1382,6 +1383,14 @@ g_raid3_register_request(struct bio *pbp)
 	}
 	switch (pbp->bio_cmd) {
 	case BIO_READ:
+		if (round_robin) {
+			/*
+			 * If we are in round-robin mode and 'round_robin' is
+			 * still 1, it means, that we skipped parity component
+			 * for this read and must reset sc_round_robin field.
+			 */
+			sc->sc_round_robin = 0;
+		}
 		G_RAID3_FOREACH_BIO(pbp, cbp) {
 			disk = cbp->bio_caller2;
 			cp = disk->d_consumer;
@@ -2474,6 +2483,7 @@ g_raid3_create(struct g_class *mp, const struct g_raid3_metadata *md)
 	sc->sc_mediasize = md->md_mediasize;
 	sc->sc_sectorsize = md->md_sectorsize;
 	sc->sc_ndisks = md->md_all;
+	sc->sc_round_robin = 0;
 	sc->sc_flags = md->md_mflags;
 	sc->sc_bump_syncid = 0;
 	for (n = 0; n < sc->sc_ndisks; n++)
@@ -2752,6 +2762,8 @@ g_raid3_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 	}								\
 } while (0)
 			ADD_FLAG(G_RAID3_DEVICE_FLAG_NOAUTOSYNC, "NOAUTOSYNC");
+			ADD_FLAG(G_RAID3_DEVICE_FLAG_ROUND_ROBIN,
+			    "ROUND-ROBIN");
 #undef	ADD_FLAG
 		}
 		sbuf_printf(sb, "</Flags>\n");
