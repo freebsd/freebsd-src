@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.273 1996/07/05 18:48:59 jhay Exp $
+#	$Id: LINT,v 1.274 1996/07/10 19:44:17 julian Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -892,6 +892,9 @@ controller	ahc0
 #
 # The `de' device provides support for the Digital Equipment DC21040
 # self-contained Ethernet adapter.
+#
+# The `fxp' device provides support for the Intel EtherExpress Pro/100B
+# PCI Fast Ethernet adapters.
 #
 # The `vx' device provides support for the 3Com 3C590 and 3C595
 # early support
