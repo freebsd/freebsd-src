@@ -115,6 +115,14 @@ acpi_battinfo(int num)
 	printf("Type:\t\t\t%s\n", battio.bif.type);
 	printf("OEM info:\t\t%s\n", battio.bif.oeminfo);
 
+	battio.unit = num;
+	if (ioctl(acpifd, ACPIIO_CMBAT_GET_BST, &battio) == -1)
+		err(EX_IOERR, "get battery info (%d) failed", num);
+	printf("State:\t\t\t%d\n", battio.bst.state);
+	printf("Present rate:\t\t%d\n", battio.bst.rate);
+	printf("Remaining capacity:\t%d mWh\n", battio.bst.cap);
+	printf("Volt:\t\t\t%.3f V\n", battio.bst.volt * .001);
+
 	return (0);
 }
 
