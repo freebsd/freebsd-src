@@ -827,13 +827,10 @@ void
 pstats_fork(struct pstats *src, struct pstats *dst)
 {
 
-#define	RANGEOF(type, start, end) (offsetof(type, end) - offsetof(type, start))
-
 	bzero(&dst->pstat_startzero,
-	    (unsigned)RANGEOF(struct pstats, pstat_startzero, pstat_endzero));
+	    __rangeof(struct pstats, pstat_startzero, pstat_endzero));
 	bcopy(&src->pstat_startcopy, &dst->pstat_startcopy,
-	    (unsigned)RANGEOF(struct pstats, pstat_startcopy, pstat_endcopy));
-#undef RANGEOF
+	    __rangeof(struct pstats, pstat_startcopy, pstat_endcopy));
 }
 
 void

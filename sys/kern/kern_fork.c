@@ -467,22 +467,19 @@ again:
 	PROC_LOCK(p2);
 	PROC_LOCK(p1);
 
-#define RANGEOF(type, start, end) (offsetof(type, end) - offsetof(type, start))
-
 	bzero(&p2->p_startzero,
-	    (unsigned) RANGEOF(struct proc, p_startzero, p_endzero));
+	    __rangeof(struct proc, p_startzero, p_endzero));
 	bzero(&td2->td_startzero,
-	    (unsigned) RANGEOF(struct thread, td_startzero, td_endzero));
+	    __rangeof(struct thread, td_startzero, td_endzero));
 	bzero(&kg2->kg_startzero,
-	    (unsigned) RANGEOF(struct ksegrp, kg_startzero, kg_endzero));
+	    __rangeof(struct ksegrp, kg_startzero, kg_endzero));
 
 	bcopy(&p1->p_startcopy, &p2->p_startcopy,
-	    (unsigned) RANGEOF(struct proc, p_startcopy, p_endcopy));
+	    __rangeof(struct proc, p_startcopy, p_endcopy));
 	bcopy(&td->td_startcopy, &td2->td_startcopy,
-	    (unsigned) RANGEOF(struct thread, td_startcopy, td_endcopy));
+	    __rangeof(struct thread, td_startcopy, td_endcopy));
 	bcopy(&td->td_ksegrp->kg_startcopy, &kg2->kg_startcopy,
-	    (unsigned) RANGEOF(struct ksegrp, kg_startcopy, kg_endcopy));
-#undef RANGEOF
+	    __rangeof(struct ksegrp, kg_startcopy, kg_endcopy));
 
 	td2->td_sigstk = td->td_sigstk;
 
