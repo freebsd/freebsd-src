@@ -231,7 +231,7 @@ hatm_mbuf_page_alloc(struct hatm_softc *sc, u_int group)
 		for (i = 0; i < MBUF0_PER_PAGE; i++, c++) {
 			c->hdr.pageno = sc->mbuf_npages;
 			c->hdr.chunkno = i;
-			c->hdr.flags = MBUF_USED;
+			c->hdr.flags = 0;
 			hatm_ext_free(&sc->mbuf_list[0],
 			    (struct mbufx_free *)c);
 		}
@@ -246,7 +246,7 @@ hatm_mbuf_page_alloc(struct hatm_softc *sc, u_int group)
 		for (i = 0; i < MBUF1_PER_PAGE; i++, c++) {
 			c->hdr.pageno = sc->mbuf_npages;
 			c->hdr.chunkno = i;
-			c->hdr.flags = MBUF_USED;
+			c->hdr.flags = 0;
 			hatm_ext_free(&sc->mbuf_list[1],
 			    (struct mbufx_free *)c);
 		}
