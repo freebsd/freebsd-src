@@ -62,6 +62,7 @@ uid_t uid;
 
 int	check(char *, char *, struct stat *);
 void	checkdot(char **);
+void	checkslash(char **);
 void	rm_file(char **);
 int	rm_overwrite(char *, struct stat *);
 void	rm_tree(char **);
@@ -140,6 +141,7 @@ main(int argc, char *argv[])
 	}
 
 	checkdot(argv);
+	checkslash(argv);
 	uid = geteuid();
 
 	if (*argv) {
@@ -463,6 +465,27 @@ check(char *path, char *name, struct stat *sp)
 	while (ch != '\n' && ch != EOF)
 		ch = getchar();
 	return (first == 'y' || first == 'Y');
+}
+
+#define ISSLASH(a)	((a)[0] == '/' && (a)[1] == '\0')
+void
+checkslash(char **argv)
+{
+	char **t, **u;
+	int complained;
+
+	complained = 0;
+	for (t = argv; *t;) {
+		if (ISSLASH(*t)) {
+			if (!complained++)
+				warnx("\"/\" may not be removed");
+			eval = 1;
+			for (u = t; u[0] != NULL; ++u)
+				u[0] = u[1];
+		} else {
+			++t;
+		}
+	}
 }
 
 #define ISDOT(a)	((a)[0] == '.' && (!(a)[1] || ((a)[1] == '.' && !(a)[2])))
