@@ -127,7 +127,7 @@ __FBSDID("$FreeBSD$");
 #define vfs_busy_pages(bp, f)
 #endif
 
-static int	nfs4_flush(struct vnode *, struct ucred *, int, struct thread *,
+static int	nfs4_flush(struct vnode *, int, struct thread *,
 		    int);
 static int	nfs4_setattrrpc(struct vnode *, struct vattr *, struct ucred *,
 		    struct thread *);
@@ -1791,10 +1791,10 @@ nfs4_rename(struct vop_rename_args *ap)
 	 * ( as far as I can tell ) it flushes dirty buffers more
 	 * often.
 	 */
-	VOP_FSYNC(fvp, fcnp->cn_cred, MNT_WAIT, fcnp->cn_thread);
+	VOP_FSYNC(fvp, MNT_WAIT, fcnp->cn_thread);
 	VOP_UNLOCK(fvp, 0, fcnp->cn_thread);
 	if (tvp)
-	    VOP_FSYNC(tvp, tcnp->cn_cred, MNT_WAIT, tcnp->cn_thread);
+	    VOP_FSYNC(tvp, MNT_WAIT, tcnp->cn_thread);
 
 	/*
 	 * If the tvp exists and is in use, sillyrename it before doing the
@@ -1869,7 +1869,7 @@ nfs4_link(struct vop_link_args *ap)
 	 * doesn't get "out of sync" with the server.
 	 * XXX There should be a better way!
 	 */
-	VOP_FSYNC(vp, cnp->cn_cred, MNT_WAIT, cnp->cn_thread);
+	VOP_FSYNC(vp, MNT_WAIT, cnp->cn_thread);
 
 	nfsstats.rpccnt[NFSPROC_LINK]++;
 
@@ -2549,7 +2549,7 @@ nfs4_strategy(struct vop_strategy_args *ap)
 static int
 nfs4_fsync(struct vop_fsync_args *ap)
 {
-	return (nfs4_flush(ap->a_vp, ap->a_cred, ap->a_waitfor, ap->a_td, 1));
+	return (nfs4_flush(ap->a_vp, ap->a_waitfor, ap->a_td, 1));
 }
 
 /*
@@ -2558,7 +2558,7 @@ nfs4_fsync(struct vop_fsync_args *ap)
  *	associated with the vnode.
  */
 static int
-nfs4_flush(struct vnode *vp, struct ucred *cred, int waitfor, struct thread *td,
+nfs4_flush(struct vnode *vp, int waitfor, struct thread *td,
     int commit)
 {
 	struct nfsnode *np = VTONFS(vp);

@@ -4042,7 +4042,7 @@ nfsrv_commit(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 			vm_object_page_clean(vp->v_object, 0, 0, OBJPC_SYNC);
 			VM_OBJECT_UNLOCK(vp->v_object);
 		}
-		error = VOP_FSYNC(vp, cred, MNT_WAIT, td);
+		error = VOP_FSYNC(vp, MNT_WAIT, td);
 	} else {
 		/*
 		 * Locate and synchronously write any buffers that fall

@@ -936,7 +936,7 @@ vinvalbuf(vp, flags, cred, td, slpflag, slptimeo)
 		}
 		if (bo->bo_dirty.bv_cnt > 0) {
 			VI_UNLOCK(vp);
-			if ((error = VOP_FSYNC(vp, cred, MNT_WAIT, td)) != 0)
+			if ((error = VOP_FSYNC(vp, MNT_WAIT, td)) != 0)
 				return (error);
 			/*
 			 * XXX We could save a lock/unlock if this was only
@@ -1487,7 +1487,7 @@ sync_vnode(struct bufobj *bo, struct thread *td)
 	vholdl(vp);
 	mtx_unlock(&sync_mtx);
 	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY | LK_INTERLOCK, td);
-	(void) VOP_FSYNC(vp, td->td_ucred, MNT_LAZY, td);
+	(void) VOP_FSYNC(vp, MNT_LAZY, td);
 	VOP_UNLOCK(vp, 0, td);
 	vn_finished_write(mp);
 	VI_LOCK(vp);
@@ -3135,7 +3135,7 @@ sync_fsync(ap)
 	asyncflag = mp->mnt_flag & MNT_ASYNC;
 	mp->mnt_flag &= ~MNT_ASYNC;
 	vfs_msync(mp, MNT_NOWAIT);
-	error = VFS_SYNC(mp, MNT_LAZY, ap->a_cred, td);
+	error = VFS_SYNC(mp, MNT_LAZY, td);
 	if (asyncflag)
 		mp->mnt_flag |= MNT_ASYNC;
 	vn_finished_write(mp);

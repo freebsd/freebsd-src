@@ -419,10 +419,9 @@ coda_nb_statfs(vfsp, sbp, td)
  * Flush any pending I/O.
  */
 int
-coda_sync(vfsp, waitfor, cred, td)
+coda_sync(vfsp, waitfor, td)
     struct mount *vfsp;
     int    waitfor;
-    struct ucred *cred;
     struct thread *td;
 {
     ENTRY;

@@ -247,7 +247,6 @@ vop_revoke {
 #
 vop_fsync {
 	IN struct vnode *vp;
-	IN struct ucred *cred;
 	IN int waitfor;
 	IN struct thread *td;
 };

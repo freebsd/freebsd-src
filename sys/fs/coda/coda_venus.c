@@ -395,14 +395,13 @@ venus_readlink(void *mdp, CodaFid *fid,
 }
 
 int
-venus_fsync(void *mdp, CodaFid *fid,
-	struct ucred *cred, struct proc *p)
+venus_fsync(void *mdp, CodaFid *fid, struct proc *p)
 {
     DECL_NO_OUT(coda_fsync);		/* sets Isize & Osize */
     ALLOC_NO_OUT(coda_fsync);		/* sets inp & outp */
 
     /* send the open to venus. */
-    INIT_IN(&inp->ih, CODA_FSYNC, cred, p);
+    INIT_IN(&inp->ih, CODA_FSYNC, NOCRED, p);	/* XXX: should be cached mount cred */
     inp->Fid = *fid;
 
     error = coda_call(mdp, Isize, &Osize, (char *)inp);

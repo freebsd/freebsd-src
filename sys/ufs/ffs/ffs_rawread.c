@@ -151,7 +151,7 @@ ffs_rawread_sync(struct vnode *vp, struct thread *td)
 		if (bo->bo_dirty.bv_cnt > 0) {
 			splx(spl);
 			VI_UNLOCK(vp);
-			if ((error = VOP_FSYNC(vp, NOCRED, MNT_WAIT, td)) != 0) {
+			if ((error = VOP_FSYNC(vp, MNT_WAIT, td)) != 0) {
 				if (upgraded != 0)
 					VOP_LOCK(vp, LK_DOWNGRADE, td);
 				return (error);
