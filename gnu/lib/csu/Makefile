@@ -9,6 +9,7 @@ CCDIR=	${.CURDIR}/../../usr.bin/cc
 SRCS=		crtstuff.c tconfig.h
 OBJS=		crtbegin.o crtend.o
 SOBJS=		crtbegin.So crtend.So
+CSTD=		gnu89
 CFLAGS+=	-DIN_GCC -DHAVE_LD_EH_FRAME_HDR
 CFLAGS+=	-finhibit-size-directive -fno-inline-functions \
 		-fno-exceptions -fno-omit-frame-pointer
