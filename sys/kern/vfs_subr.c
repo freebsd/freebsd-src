@@ -76,6 +76,8 @@ static void	addalias(struct vnode *vp, dev_t nvp_rdev);
 static void	insmntque(struct vnode *vp, struct mount *mp);
 static void	vclean(struct vnode *vp, int flags, struct thread *td);
 static void	vlruvp(struct vnode *vp);
+static int	flushbuflist(struct buf *blist, int flags, struct vnode *vp,
+		    int slpflag, int slptimeo, int *errorp);
 
 /*
  * Number of vnodes in existence.  Increased whenever getnewvnode()
@@ -898,14 +900,13 @@ vwakeup(bp)
  */
 int
 vinvalbuf(vp, flags, cred, td, slpflag, slptimeo)
-	register struct vnode *vp;
+	struct vnode *vp;
 	int flags;
 	struct ucred *cred;
 	struct thread *td;
 	int slpflag, slptimeo;
 {
-	register struct buf *bp;
-	struct buf *nbp, *blist;
+	struct buf *blist;
 	int s, error;
 	vm_object_t object;
 
@@ -934,55 +935,24 @@ vinvalbuf(vp, flags, cred, td, slpflag, slptimeo)
 		splx(s);
 	}
 	s = splbio();
-	for (;;) {
-		blist = TAILQ_FIRST(&vp->v_cleanblkhd);
-		if (!blist)
-			blist = TAILQ_FIRST(&vp->v_dirtyblkhd);
-		if (!blist)
-			break;
-
-		for (bp = blist; bp; bp = nbp) {
-			nbp = TAILQ_NEXT(bp, b_vnbufs);
-			if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT)) {
-				error = BUF_TIMELOCK(bp,
-				    LK_EXCLUSIVE | LK_SLEEPFAIL,
-				    "vinvalbuf", slpflag, slptimeo);
-				if (error == ENOLCK)
-					break;
-				splx(s);
-				return (error);
-			}
-			/*
-			 * XXX Since there are no node locks for NFS, I
-			 * believe there is a slight chance that a delayed
-			 * write will occur while sleeping just above, so
-			 * check for it.  Note that vfs_bio_awrite expects
-			 * buffers to reside on a queue, while BUF_WRITE and
-			 * brelse do not.
-			 */
-			if (((bp->b_flags & (B_DELWRI | B_INVAL)) == B_DELWRI) &&
-				(flags & V_SAVE)) {
-
-				if (bp->b_vp == vp) {
-					if (bp->b_flags & B_CLUSTEROK) {
-						BUF_UNLOCK(bp);
-						vfs_bio_awrite(bp);
-					} else {
-						bremfree(bp);
-						bp->b_flags |= B_ASYNC;
-						BUF_WRITE(bp);
-					}
-				} else {
-					bremfree(bp);
-					(void) BUF_WRITE(bp);
-				}
+	for (error = 0;;) {
+		if ((blist = TAILQ_FIRST(&vp->v_cleanblkhd)) != 0 &&
+		    flushbuflist(blist, flags, vp, slpflag, slptimeo, &error)) {
+			if (error)
 				break;
-			}
-			bremfree(bp);
-			bp->b_flags |= (B_INVAL | B_NOCACHE | B_RELBUF);
-			bp->b_flags &= ~B_ASYNC;
-			brelse(bp);
+			continue;
 		}
+		if ((blist = TAILQ_FIRST(&vp->v_dirtyblkhd)) != 0 &&
+		    flushbuflist(blist, flags, vp, slpflag, slptimeo, &error)) {
+			if (error)
+				break;
+			continue;
+		}
+		break;
+	}
+	if (error) {
+		splx(s);
+		return (error);
 	}
 
 	/*
@@ -1013,9 +983,73 @@ vinvalbuf(vp, flags, cred, td, slpflag, slptimeo)
 	}
 	mtx_unlock(&vp->v_interlock);
 
-	if (!TAILQ_EMPTY(&vp->v_dirtyblkhd) || !TAILQ_EMPTY(&vp->v_cleanblkhd))
+	if ((flags & (V_ALT | V_NORMAL)) == 0 &&
+	    (!TAILQ_EMPTY(&vp->v_dirtyblkhd) ||
+	     !TAILQ_EMPTY(&vp->v_cleanblkhd)))
 		panic("vinvalbuf: flush failed");
 	return (0);
+}
+
+/*
+ * Flush out buffers on the specified list.
+ */
+static int
+flushbuflist(blist, flags, vp, slpflag, slptimeo, errorp)
+	struct buf *blist;
+	int flags;
+	struct vnode *vp;
+	int slpflag, slptimeo;
+	int *errorp;
+{
+	struct buf *bp, *nbp;
+	int found, error;
+
+	for (found = 0, bp = blist; bp; bp = nbp) {
+		nbp = TAILQ_NEXT(bp, b_vnbufs);
+		if (((flags & V_NORMAL) && (bp->b_xflags & BX_ALTDATA)) ||
+		    ((flags & V_ALT) && (bp->b_xflags & BX_ALTDATA) == 0))
+			continue;
+		found += 1;
+		if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT)) {
+			error = BUF_TIMELOCK(bp,
+			    LK_EXCLUSIVE | LK_SLEEPFAIL,
+			    "flushbuf", slpflag, slptimeo);
+			if (error != ENOLCK)
+				*errorp = error;
+			return (found);
+		}
+		/*
+		 * XXX Since there are no node locks for NFS, I
+		 * believe there is a slight chance that a delayed
+		 * write will occur while sleeping just above, so
+		 * check for it.  Note that vfs_bio_awrite expects
+		 * buffers to reside on a queue, while BUF_WRITE and
+		 * brelse do not.
+		 */
+		if (((bp->b_flags & (B_DELWRI | B_INVAL)) == B_DELWRI) &&
+			(flags & V_SAVE)) {
+
+			if (bp->b_vp == vp) {
+				if (bp->b_flags & B_CLUSTEROK) {
+					BUF_UNLOCK(bp);
+					vfs_bio_awrite(bp);
+				} else {
+					bremfree(bp);
+					bp->b_flags |= B_ASYNC;
+					BUF_WRITE(bp);
+				}
+			} else {
+				bremfree(bp);
+				(void) BUF_WRITE(bp);
+			}
+			return (found);
+		}
+		bremfree(bp);
+		bp->b_flags |= (B_INVAL | B_NOCACHE | B_RELBUF);
+		bp->b_flags &= ~B_ASYNC;
+		brelse(bp);
+	}
+	return (found);
 }
 
 /*

@@ -60,13 +60,15 @@ int	ufs_vnoperatefifo(struct vop_generic_args *);
 int	ufs_vnoperatespec(struct vop_generic_args *);
 
 int	 ufs_bmap(struct vop_bmap_args *);
-int	 ufs_bmaparray(struct vnode *, ufs2_daddr_t, ufs2_daddr_t *, int *,
-	    int *);
+int	 ufs_bmaparray(struct vnode *, ufs2_daddr_t, ufs2_daddr_t *,
+	    struct buf *, int *, int *);
 int	 ufs_fhtovp(struct mount *, struct ufid *, struct vnode **);
 int	 ufs_checkpath(struct inode *, struct inode *, struct ucred *);
 void	 ufs_dirbad(struct inode *, doff_t, char *);
 int	 ufs_dirbadentry(struct vnode *, struct direct *, int);
 int	 ufs_dirempty(struct inode *, ino_t, struct ucred *);
+int	 ufs_extread(struct vop_read_args *);
+int	 ufs_extwrite(struct vop_write_args *);
 void	 ufs_makedirentry(struct inode *, struct componentname *,
 	    struct direct *);
 int	 ufs_direnter(struct vnode *, struct vnode *, struct direct *,
@@ -107,10 +109,12 @@ void	softdep_change_linkcnt(struct inode *);
 void	softdep_releasefile(struct inode *);
 int	softdep_slowdown(struct vnode *);
 
-/* Flags to low-level allocation routines. */
-#define BA_CLRBUF	0x01	/* Request allocated buffer be cleared. */
-#define BA_SYNC		0x02	/* Do all allocations synchronously. */
-#define BA_METAONLY	0x04	/* Return indirect block buffer. */
-#define BA_NOWAIT	0x08	/* do not sleep to await lock */
+/*
+ * Flags to low-level allocation routines.
+ * The low 16-bits are reserved for IO_ flags from vnode.h.
+ */
+#define BA_CLRBUF	0x00010000	/* Request alloced buffer be cleared. */
+#define BA_METAONLY	0x00020000	/* Return indirect block buffer. */
+#define BA_NOWAIT	0x00040000	/* Do not sleep to await lock. */
 
 #endif /* !_UFS_UFS_EXTERN_H_ */

@@ -188,9 +188,10 @@ nospace:
  * invoked to get an appropriate block.
  */
 int
-ffs_realloccg(ip, lbprev, bpref, osize, nsize, cred, bpp)
+ffs_realloccg(ip, lbprev, bprev, bpref, osize, nsize, cred, bpp)
 	struct inode *ip;
 	ufs2_daddr_t lbprev;
+	ufs2_daddr_t bprev;
 	ufs2_daddr_t bpref;
 	int osize, nsize;
 	struct ucred *cred;
@@ -200,7 +201,7 @@ ffs_realloccg(ip, lbprev, bpref, osize, nsize, cred, bpp)
 	struct fs *fs;
 	struct buf *bp;
 	int cg, request, error, reclaimed;
-	ufs2_daddr_t bprev, bno;
+	ufs2_daddr_t bno;
 
 	*bpp = 0;
 	vp = ITOV(ip);
@@ -224,7 +225,7 @@ retry:
 	if (suser_cred(cred, PRISON_ROOT) &&
 	    freespace(fs, fs->fs_minfree) -  numfrags(fs, nsize - osize) < 0)
 		goto nospace;
-	if ((bprev = DIP(ip, i_db[lbprev])) == 0) {
+	if (bprev == 0) {
 		printf("dev = %s, bsize = %ld, bprev = %jd, fs = %s\n",
 		    devtoname(ip->i_dev), (long)fs->fs_bsize, (intmax_t)bprev,
 		    fs->fs_fsmnt);
