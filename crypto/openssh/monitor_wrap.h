@@ -1,4 +1,5 @@
 /*	$OpenBSD: monitor_wrap.h,v 1.5 2002/05/12 23:53:45 djm Exp $	*/
+/*	$FreeBSD$	*/
 
 /*
  * Copyright 2002 Niels Provos <provos@citi.umich.edu>
@@ -57,6 +58,10 @@ BIGNUM *mm_auth_rsa_generate_challenge(Key *);
 
 #ifdef USE_PAM
 void mm_start_pam(char *);
+void *mm_pam_init_ctx(struct Authctxt *);
+int mm_pam_query(void *, char **, char **, u_int *, char ***, u_int **);
+int mm_pam_respond(void *, u_int, char **);
+void mm_pam_free_ctx(void *);
 #endif
 
 void mm_terminate(void);
