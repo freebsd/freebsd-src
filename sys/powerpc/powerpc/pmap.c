@@ -1170,61 +1170,6 @@ pmap_mincore(pmap_t pmap, vm_offset_t addr)
 	return (0);
 }
 
-/*              
- * Create the uarea for a new process.
- * This routine directly affects the fork perf for a process.
- */
-void
-pmap_new_proc(struct proc *p)
-{
-	vm_object_t	upobj;
-	vm_offset_t	up;
-	vm_page_t	m;
-	u_int		i;
-
-	/*
-	 * Allocate the object for the upages.
-	 */
-	upobj = p->p_upages_obj;
-	if (upobj == NULL) {
-		upobj = vm_object_allocate(OBJT_DEFAULT, UAREA_PAGES);
-		p->p_upages_obj = upobj;
-	}
-
-	/*
-	 * Get a kernel virtual address for the uarea for this process.
-	 */
-	up = (vm_offset_t)p->p_uarea;
-	if (up == 0) {
-		up = kmem_alloc_nofault(kernel_map, UAREA_PAGES * PAGE_SIZE);
-		if (up == 0)
-			panic("pmap_new_proc: upage allocation failed");
-		p->p_uarea = (struct user *)up;
-	}
-
-	for (i = 0; i < UAREA_PAGES; i++) {
-		/*
-		 * Get a uarea page.
-		 */
-		m = vm_page_grab(upobj, i, VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
-
-		/*
-		 * Wire the page.
-		 */
-		m->wire_count++;
-
-		/*
-		 * Enter the page into the kernel address space.
-		 */
-		pmap_kenter(up + i * PAGE_SIZE, VM_PAGE_TO_PHYS(m));
-
-		vm_page_wakeup(m);
-		vm_page_flag_clear(m, PG_ZERO);
-		vm_page_flag_set(m, PG_MAPPED | PG_WRITEABLE);
-		m->valid = VM_PAGE_BITS_ALL;
-	}
-}
-
 void
 pmap_object_init_pt(pmap_t pm, vm_offset_t addr, vm_object_t object,
 		    vm_pindex_t pindex, vm_size_t size, int limit)
@@ -1515,18 +1460,6 @@ pmap_remove_pages(pmap_t pm, vm_offset_t sva, vm_offset_t eva)
 	pmap_remove(pm, sva, eva);
 }
 
-void
-pmap_swapin_proc(struct proc *p)
-{
-	TODO;
-}
-
-void
-pmap_swapout_proc(struct proc *p)
-{
-	TODO;
-}
-
 /*
  * Create the kernel stack and pcb for a new thread.
  * This routine directly affects the fork perf for a process and
@@ -1578,12 +1511,6 @@ pmap_new_thread(struct thread *td)
 		vm_page_flag_set(m, PG_MAPPED | PG_WRITEABLE);
 		m->valid = VM_PAGE_BITS_ALL;
 	}
-}
-
-void
-pmap_dispose_proc(struct proc *p)
-{
-	TODO;
 }
 
 void

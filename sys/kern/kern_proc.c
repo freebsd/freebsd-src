@@ -58,6 +58,7 @@
 #endif
 
 #include <vm/vm.h>
+#include <vm/vm_extern.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 #include <vm/uma.h>
@@ -76,6 +77,11 @@ static void pgdelete(struct pgrp *);
 
 static void orphanpg(struct pgrp *pg);
 
+static void proc_ctor(void *mem, int size, void *arg);
+static void proc_dtor(void *mem, int size, void *arg);
+static void proc_init(void *mem, int size);
+static void proc_fini(void *mem, int size);
+
 /*
  * Other process lists
  */
@@ -90,6 +96,12 @@ struct sx proctree_lock;
 struct mtx pargs_ref_lock;
 uma_zone_t proc_zone;
 uma_zone_t ithread_zone;
+
+static int active_procs;
+static int cached_procs;
+static int allocated_procs;
+
+#define RANGEOF(type, start, end) (offsetof(type, end) - offsetof(type, start))
 
 CTASSERT(sizeof(struct kinfo_proc) == KINFO_PROC_SIZE);
 
@@ -107,9 +119,89 @@ procinit()
 	LIST_INIT(&zombproc);
 	pidhashtbl = hashinit(maxproc / 4, M_PROC, &pidhash);
 	pgrphashtbl = hashinit(maxproc / 4, M_PROC, &pgrphash);
-	proc_zone = uma_zcreate("PROC", sizeof (struct proc), NULL, NULL,
-	    NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
+	proc_zone = uma_zcreate("PROC", sizeof (struct proc),
+	    proc_ctor, proc_dtor, proc_init, proc_fini,
+	    UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
 	uihashinit();
+}
+
+/*
+ * Prepare a proc for use.
+ */
+static void
+proc_ctor(void *mem, int size, void *arg)
+{
+	struct proc *p;
+
+	KASSERT((size == sizeof(struct proc)),
+	    ("size mismatch: %d != %d\n", size, (int)sizeof(struct proc)));
+	p = (struct proc *)mem;
+#if 0
+	/*
+	 * Maybe move these from process creation, but maybe not.
+	 * Moving them here takes them away from their "natural" place
+	 * in the fork process.
+	 */
+	bzero(&p->p_startzero,
+	    (unsigned) RANGEOF(struct proc, p_startzero, p_endzero));
+	p->p_state = PRS_NEW;
+	mtx_init(&p->p_mtx, "process lock", NULL, MTX_DEF | MTX_DUPOK);
+	LIST_INIT(&p->p_children);
+	callout_init(&p->p_itcallout, 0);
+#endif
+	cached_procs--;
+	active_procs++;
+}
+
+/*
+ * Reclaim a proc after use.
+ */
+static void
+proc_dtor(void *mem, int size, void *arg)
+{
+	struct proc *p;
+
+	KASSERT((size == sizeof(struct proc)),
+	    ("size mismatch: %d != %d\n", size, (int)sizeof(struct proc)));
+	p = (struct proc *)mem;
+	/* INVARIANTS checks go here */
+#if 0	/* See comment in proc_ctor about seperating things */
+	mtx_destroy(&p->p_mtx);
+#endif
+	active_procs--;
+	cached_procs++;
+}
+
+/*
+ * Initialize type-stable parts of a proc (when newly created).
+ */
+static void
+proc_init(void *mem, int size)
+{
+	struct proc *p;
+
+	KASSERT((size == sizeof(struct proc)),
+	    ("size mismatch: %d != %d\n", size, (int)sizeof(struct proc)));
+	p = (struct proc *)mem;
+	vm_proc_new(p);
+	cached_procs++;
+	allocated_procs++;
+}
+
+/*
+ * Tear down type-stable parts of a proc (just before being discarded)
+ */
+static void
+proc_fini(void *mem, int size)
+{
+	struct proc *p;
+
+	KASSERT((size == sizeof(struct proc)),
+	    ("size mismatch: %d != %d\n", size, (int)sizeof(struct proc)));
+	p = (struct proc *)mem;
+	vm_proc_dispose(p);
+	cached_procs--;
+	allocated_procs--;
 }
 
 /* 
@@ -1143,3 +1235,12 @@ SYSCTL_NODE(_kern_proc, KERN_PROC_PID, pid, CTLFLAG_RD,
 
 SYSCTL_NODE(_kern_proc, KERN_PROC_ARGS, args, CTLFLAG_RW | CTLFLAG_ANYBODY,
 	sysctl_kern_proc_args, "Process argument list");
+
+SYSCTL_INT(_kern_proc, OID_AUTO, active, CTLFLAG_RD,
+	&active_procs, 0, "Number of active procs in system.");
+
+SYSCTL_INT(_kern_proc, OID_AUTO, cached, CTLFLAG_RD,
+	&cached_procs, 0, "Number of procs in proc cache.");
+
+SYSCTL_INT(_kern_proc, OID_AUTO, allocated, CTLFLAG_RD,
+	&allocated_procs, 0, "Number of procs in zone.");

@@ -97,6 +97,16 @@ thread_ctor(void *mem, int size, void *arg)
 	    (unsigned)RANGEOF(struct thread, td_startzero, td_endzero));
 	td->td_state = TDS_NEW;
 	td->td_flags |= TDF_UNBOUND;
+#if 0
+	/*
+	 * Maybe move these here from process creation, but maybe not.   
+	 * Moving them here takes them away from their "natural" place
+	 * in the fork process.
+	 */
+	/* XXX td_contested does not appear to be initialized for threads! */
+	LIST_INIT(&td->td_contested);
+	callout_init(&td->td_slpcallout, 1);
+#endif
 	cached_threads--;	/* XXXSMP */
 	active_threads++;	/* XXXSMP */
 }
