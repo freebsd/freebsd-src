@@ -120,6 +120,7 @@
 /*
  * Registers specific to the 8169 gigE chip
  */
+#define RL_TIMERINT_8169	0x0058	/* different offset than 8139 */
 #define RL_PHYAR		0x0060
 #define RL_TBICSR		0x0064
 #define RL_TBI_ANAR		0x0068
@@ -138,6 +139,8 @@
 #define RL_TXCFG_IFG		0x03000000	/* interframe gap */
 #define RL_TXCFG_HWREV		0x7CC00000
 
+#define RL_HWREV_8169		0x00000000
+#define RL_HWREV_8110		0x00800000
 #define RL_HWREV_8139		0x60000000
 #define RL_HWREV_8139A		0x70000000
 #define RL_HWREV_8139AG		0x70800000
@@ -146,6 +149,8 @@
 #define RL_HWREV_8139C		0x74000000
 #define RL_HWREV_8139D		0x74400000
 #define RL_HWREV_8139CPLUS	0x74800000
+#define RL_HWREV_8101		0x74c00000
+#define RL_HWREV_8100		0x78800000
 
 #define RL_TXDMA_16BYTES	0x00000000
 #define RL_TXDMA_32BYTES	0x00000100
