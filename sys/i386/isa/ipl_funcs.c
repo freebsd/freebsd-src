@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ipl_funcs.c,v 1.8 1997/09/07 22:03:05 fsmp Exp $
+ *	$Id: ipl_funcs.c,v 1.9 1997/09/21 21:41:16 gibbs Exp $
  */
 
 #include <sys/types.h>
@@ -223,7 +223,7 @@ GENSPL(splnet,		|=,	SWI_NET_MASK,				6)
 GENSPL(splcam,		|=,	cam_imask,				7)
 GENSPL(splsoftcam,	|=,	SWI_CAMBIO_MASK | SWI_CAMNET_MASK,	8)
 GENSPL(splsoftcambio,	|=,	SWI_CAMBIO_MASK,			9)
-GENSPL(splsoftcamnet, 	|=,	SWI_CAMNET_MASK				10)
+GENSPL(splsoftcamnet, 	|=,	SWI_CAMNET_MASK,			10)
 GENSPL(splsoftclock,	 =,	SWI_CLOCK_MASK,				11)
 GENSPL(splsofttty,	|=,	SWI_TTY_MASK,				12)
 GENSPL(splstatclock,	|=,	stat_imask,				13)
