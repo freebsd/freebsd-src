@@ -56,6 +56,12 @@ and tuning options which are managed via the kernel environment
 space, and set in the
 .Xr loader 8
 before booting the kernel.
+Kernel environment variables may also be configured in the
+.Xr loader
+configuration file
+.Pa /boot/loader.conf
+or the device resource hints file
+.Pa /boot/device.hints .
 .Pp
 Debugging is separated between layers and levels, where a layer is
 a portion of the ACPI subsystem, and a level is a particular kind
@@ -211,8 +217,8 @@ To disable the
 .Nm
 driver completely, set the kernel environment variable
 .Va hint.acpi.0.disabled
-to 1 in the device resource hints file
-.Pa /boot/device.hints .
+to 1.
+.Pp
 Some i386 machines totally fail to operate with some or all of ACPI disabled.
 Other i386 machines fail with ACPI enabled.
 Non-i386 platforms do not support operating systems which do not use ACPI.
