@@ -547,7 +547,9 @@ sabtty_intr(struct sabtty_softc *sc)
 {
 	uint8_t isr0, isr1;
 	int i, len = 0, needsoft = 0, clearfifo = 0;
+#if defined(DDB) && defined(ALT_BREAK_TO_DEBUGGER)
 	int brk = 0;
+#endif
 	uint8_t data;
 	uint8_t *ptr;
 
