@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_sl.c	8.6 (Berkeley) 2/1/94
- * $Id: if_sl.c,v 1.55 1997/07/26 20:13:56 ache Exp $
+ * $Id: if_sl.c,v 1.56 1997/07/27 19:28:26 ache Exp $
  */
 
 /*
@@ -73,6 +73,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/proc.h>
+#include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/buf.h>
 #include <sys/dkstat.h>
@@ -366,7 +367,7 @@ sltioctl(tp, cmd, data, flag, p)
 	int flag;
 	struct proc *p;
 {
-	struct sl_softc *sc = (struct sl_softc *)tp->t_sc;
+	struct sl_softc *sc = (struct sl_softc *)tp->t_sc, *nc, *tmpnc;
 	int s, nsl;
 
 	s = splimp();
@@ -377,18 +378,18 @@ sltioctl(tp, cmd, data, flag, p)
 
 	case SLIOCSUNIT:
 		if (sc->sc_if.if_unit != *(u_int *)data) {
-			struct sl_softc *nc;
-			static struct sl_softc tmpnc; /* too large for stack */
-
 			for (nsl = NSL, nc = sl_softc; --nsl >= 0; nc++) {
 				if (   nc->sc_if.if_unit == *(u_int *)data
 				    && nc->sc_ttyp == NULL
 				   ) {
-					tmpnc = *nc;
+					tmpnc = malloc(sizeof *tmpnc, M_TEMP,
+						       M_WAITOK);
+					*tmpnc = *nc;
 					*nc = *sc;
-					nc->sc_if = tmpnc.sc_if;
-					tmpnc.sc_if = sc->sc_if;
-					*sc = tmpnc;
+					nc->sc_if = tmpnc->sc_if;
+					tmpnc->sc_if = sc->sc_if;
+					*sc = *tmpnc;
+					free(tmpnc, M_TEMP);
 					tp->t_sc = sc = nc;
 					goto slfound;
 				}
