@@ -1090,8 +1090,12 @@ rt_setgate(struct rtentry *rt, struct sockaddr *dst, struct sockaddr *gate)
 	 * XXX: After removal of PRCLONING this is probably not needed anymore.
 	 */
 	if (rt->rt_flags & RTF_GATEWAY) {
-		/* XXX LOR here */
-		rt->rt_gwroute = rtalloc1(gate, 1, 0);
+		struct rtentry *gwrt;
+
+		RT_UNLOCK(rt);		/* XXX workaround LOR */
+		gwrt = rtalloc1(gate, 1, 0);
+		RT_LOCK(rt);
+		rt->rt_gwroute = gwrt;
 		if (rt->rt_gwroute == rt) {
 			RTFREE_LOCKED(rt->rt_gwroute);
 			rt->rt_gwroute = 0;
@@ -1111,8 +1115,7 @@ rt_setgate(struct rtentry *rt, struct sockaddr *dst, struct sockaddr *gate)
 
 		arg.rnh = rnh;
 		arg.rt0 = rt;
-		/* XXX workaround LOR */
-		RT_UNLOCK(rt);
+		RT_UNLOCK(rt);		/* XXX workaround LOR */
 		RADIX_NODE_HEAD_LOCK(rnh);
 		RT_LOCK(rt);
 		rnh->rnh_walktree_from(rnh, rt_key(rt), rt_mask(rt),
