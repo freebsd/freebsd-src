@@ -242,7 +242,7 @@ _thread_gc(pthread_addr_t arg)
 		 */
 		if (p_stack != NULL)
 			free(p_stack);
-		if (pthread_cln != NULL)
+		if (pthread_cln != NULL) {
 			if (pthread_cln->name != NULL) {
 				/* Free the thread name string. */
 				free(pthread_cln->name);
@@ -252,6 +252,7 @@ _thread_gc(pthread_addr_t arg)
 			 * structure.
 			 */
 			free(pthread_cln);
+		}
 	}
 	return (NULL);
 }
