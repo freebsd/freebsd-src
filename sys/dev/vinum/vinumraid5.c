@@ -493,7 +493,7 @@ bre5(struct request *rq,
 	    rqe->driveno = sd->driveno;
 	    if (build_rq_buffer(rqe, plex))		    /* build the buffer */
 		return REQUEST_ENOMEM;			    /* can't do it */
-	    rqe->b.b_iocmd == BIO_READ;			    /* we must read first */
+	    rqe->b.b_iocmd = BIO_READ;			    /* we must read first */
 	    m.sdcount++;				    /* adjust the subdisk count */
 	    rqno++;					    /* and point to the next request */
 	}
