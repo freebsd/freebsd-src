@@ -2,7 +2,7 @@
  * Product specific probe and attach routines for:
  * 	27/284X and aic7770 motherboard SCSI controllers
  *
- * Copyright (c) 1995 Justin T. Gibbs
+ * Copyright (c) 1995, 1996 Justin T. Gibbs
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -19,7 +19,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: aic7770.c,v 1.20 1995/12/14 23:23:48 bde Exp $
+ *	$Id: aic7770.c,v 1.26 1996/03/31 03:04:38 gibbs Exp $
  */
 
 #include "eisa.h"
@@ -44,8 +44,9 @@
 #define EISA_DEVICE_ID_ADAPTEC_284xB	0x04907756 /* BIOS enabled */
 #define EISA_DEVICE_ID_ADAPTEC_284x	0x04907757 /* BIOS disabled*/
 
-#define AHC_EISA_IOSIZE	0x100
-#define INTDEF		0x5cul		/* Interrupt Definition Register */
+#define AHC_EISA_SLOT_OFFSET	0xc00
+#define AHC_EISA_IOSIZE		0x100
+#define INTDEF			0x5cul	/* Interrupt Definition Register */
 
 static int	aic7770probe __P((void));
 static int	aic7770_attach __P((struct eisa_device *e_dev));
@@ -106,10 +107,11 @@ aic7770probe(void)
 
 	count = 0;
 	while ((e_dev = eisa_match_dev(e_dev, aic7770_match))) {
-		iobase = e_dev->ioconf.iobase;
+		iobase = (e_dev->ioconf.slot * EISA_SLOT_SIZE)
+			 + AHC_EISA_SLOT_OFFSET;
 		ahc_reset(iobase);
 
-		eisa_add_iospace(e_dev, iobase, AHC_EISA_IOSIZE);
+		eisa_add_iospace(e_dev, iobase, AHC_EISA_IOSIZE, RESVADDR_NONE);
 		intdef = inb(INTDEF + iobase);
 		switch (intdef & 0xf) {
 			case 9: 
@@ -154,9 +156,17 @@ aic7770_attach(e_dev)
 {
 	ahc_type type;
 	struct ahc_data *ahc;
+	resvaddr_t *iospace;
 	u_long	iobase;
 	int unit = e_dev->unit;
 	int irq = ffs(e_dev->ioconf.irq) - 1;
+
+	iospace = e_dev->ioconf.ioaddrs.lh_first;
+
+	if(!iospace)
+		return -1;
+
+	iobase = iospace->addr;
 
 	switch(e_dev->id) {
 		case EISA_DEVICE_ID_ADAPTEC_AIC7770:
@@ -175,11 +185,11 @@ aic7770_attach(e_dev)
 			break;
 	}
 
-	if(!(ahc = ahc_alloc(unit, e_dev->ioconf.iobase, type, AHC_FNONE)))
+	if(!(ahc = ahc_alloc(unit, iospace->addr, type, AHC_FNONE)))
 		return -1;
 
 	eisa_reg_start(e_dev);
-	if(eisa_reg_iospace(e_dev, e_dev->ioconf.iobase, AHC_EISA_IOSIZE)) {
+	if(eisa_reg_iospace(e_dev, iospace)) {
 		ahc_free(ahc);
 		return -1;
 	}
@@ -188,7 +198,7 @@ aic7770_attach(e_dev)
 	 * The IRQMS bit enables level sensitive interrupts only allow
 	 * IRQ sharing if its set.
 	 */
-	if(eisa_reg_intr(e_dev, irq, ahc_eisa_intr, (void *)ahc, &bio_imask,
+	if(eisa_reg_intr(e_dev, irq, ahc_intr, (void *)ahc, &bio_imask,
 			 /*shared ==*/ahc->pause & IRQMS)) {
 		ahc_free(ahc);
 		return -1;
@@ -211,10 +221,7 @@ aic7770_attach(e_dev)
 	/*
 	 * Now that we know we own the resources we need, do the 
 	 * card initialization.
-	 */
-	iobase = ahc->baseport;
-
-	/*
+	 *
 	 * First, the aic7770 card specific setup.
 	 */
 	switch( ahc->type ) {
@@ -281,12 +288,6 @@ aic7770_attach(e_dev)
 		printf("ahc%d: %s", unit, id_string);
 	}
 
-	/*
-	 * Only four SCBs on these cards.  If we ever do SCB paging,
-	 * we could support 255 on the Rev E cards.
-	 */
-	ahc->maxscbs = 0x4;     
-
 	/* Setup the FIFO threshold and the bus off time */
 	if(ahc->flags & AHC_USEDEFAULTS) {
 		outb(BUSSPD + iobase, DFTHRSH_100);
@@ -307,7 +308,7 @@ aic7770_attach(e_dev)
 		 * The board's IRQ line is not yet enabled so its safe
 		 * to release the irq.
 		 */
-		eisa_release_intr(e_dev, irq, ahc_eisa_intr);
+		eisa_release_intr(e_dev, irq, ahc_intr);
 		return -1;
 	}
 
@@ -321,7 +322,7 @@ aic7770_attach(e_dev)
 	 */
 	if(eisa_enable_intr(e_dev, irq)) {
 		ahc_free(ahc);
-		eisa_release_intr(e_dev, irq, ahc_eisa_intr);
+		eisa_release_intr(e_dev, irq, ahc_intr);
 		return -1;
 	}
 
