@@ -1,4 +1,4 @@
-<!-- $Id: current.sgml,v 1.4 1995/09/25 09:38:59 jkh Exp $ -->
+<!-- $Id: current.sgml,v 1.5 1995/09/27 00:46:16 jmz Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 
@@ -10,7 +10,7 @@
 
                         THE FREEBSD CURRENT POLICY 
 
-Last updated: $Date: 1995/09/25 09:38:59 $
+Last updated: $Date: 1995/09/27 00:46:16 $
 
 This document attempts to explain the rationale behind FreeBSD-current,
 what you should expect should you decide to run it, and states some
@@ -122,10 +122,6 @@ too much time to do this as a general task.
             changed from then on.  Many people run sup from cron
             and keep their sources up-to-date automatically.
 
-	    The problem is that sup does not use the bandwidth efficient,
-	    unless the round-trip is very fast.  If the cost of connection
-	    or the duration of the session is a concern, use CTM.
-
         <item>  Use ftp.  The source tree for FreeBSD-current is always
             "exported" on:
 <verb>
@@ -145,11 +141,15 @@ too much time to do this as a general task.
             tar file.
     </enum>
 
+    <item>  Essentially, if you need rapid on-demand access to the source and
+    communications bandwidth is not a consideration, use sup or ftp.
+    Otherwise, use CTM.
+
     <item>  If you're grabbing the sources to run, and not just look at,
-	then grab <em>all</em> of current, not just selected portions.  The
-	reason for this is that various parts of the source depend on
-	updates elsewhere and trying to compile just a subset is almost
-	guaranteed to get you into trouble.
+    then grab <em>all</em> of current, not just selected portions.  The
+    reason for this is that various parts of the source depend on
+    updates elsewhere and trying to compile just a subset is almost
+    guaranteed to get you into trouble.
 
     <item>  Before compiling current, read the Makefile in /usr/src
 	carefully.  You'll see one-time targets like `bootstrapld'
