@@ -136,56 +136,69 @@ acpi_AllocObjectList(int nobj)
 static __inline ACPI_HANDLE
 acpi_get_handle(device_t dev)
 {
+    uintptr_t up;
     ACPI_HANDLE	h;
 
-    if (BUS_READ_IVAR(device_get_parent(dev), dev, ACPI_IVAR_HANDLE, (uintptr_t *)&h))
+    if (BUS_READ_IVAR(device_get_parent(dev), dev, ACPI_IVAR_HANDLE, &up))
 	return(NULL);
+    h = (ACPI_HANDLE)up;
     return(h);
 }
 	    
 static __inline int
 acpi_set_handle(device_t dev, ACPI_HANDLE h)
 {
+    uintptr_t up;
 
-    return(BUS_WRITE_IVAR(device_get_parent(dev), dev, ACPI_IVAR_HANDLE, (uintptr_t)h));
+    up = (uintptr_t)h;
+    return(BUS_WRITE_IVAR(device_get_parent(dev), dev, ACPI_IVAR_HANDLE, up));
 }
 	    
 static __inline int
 acpi_get_magic(device_t dev)
 {
+    uintptr_t up;
     int	m;
 
-    if (BUS_READ_IVAR(device_get_parent(dev), dev, ACPI_IVAR_MAGIC, (uintptr_t *)&m))
+    if (BUS_READ_IVAR(device_get_parent(dev), dev, ACPI_IVAR_MAGIC, &up))
 	return(0);
+    m = (int)up;
     return(m);
 }
 
 static __inline int
 acpi_set_magic(device_t dev, int m)
 {
+    uintptr_t up;
 
-    return(BUS_WRITE_IVAR(device_get_parent(dev), dev, ACPI_IVAR_MAGIC, (uintptr_t)m));
+    up = (uintptr_t)m;
+    return(BUS_WRITE_IVAR(device_get_parent(dev), dev, ACPI_IVAR_MAGIC, up));
 }
 
 static __inline void *
 acpi_get_private(device_t dev)
 {
+    uintptr_t up;
     void *p;
 
-    if (BUS_READ_IVAR(device_get_parent(dev), dev, ACPI_IVAR_PRIVATE, (uintptr_t *)&p))
+    if (BUS_READ_IVAR(device_get_parent(dev), dev, ACPI_IVAR_PRIVATE, &up))
 	return(NULL);
+    p = (void *)up;
     return(p);
 }
 
 static __inline int
 acpi_set_private(device_t dev, void *p)
 {
+    uintptr_t up;
 
-    return(BUS_WRITE_IVAR(device_get_parent(dev), dev, ACPI_IVAR_PRIVATE, (uintptr_t)p));
+    up = (uintptr_t)p;
+    return(BUS_WRITE_IVAR(device_get_parent(dev), dev, ACPI_IVAR_PRIVATE, up));
 }
 
 static __inline ACPI_OBJECT_TYPE
-acpi_get_type(device_t dev) {
+acpi_get_type(device_t dev)
+{
     ACPI_HANDLE		h;
     ACPI_OBJECT_TYPE	t;
 
