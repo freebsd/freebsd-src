@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: perform.c,v 1.17 1995/07/30 01:44:38 ache Exp $";
+static const char *rcsid = "$Id: perform.c,v 1.16.4.1 1995/08/30 07:49:55 jkh Exp $";
 #endif
 
 /*
@@ -86,7 +86,7 @@ pkg_do(char *pkg)
     int code = 0;
 
     if (isURL(pkg)) {
-	if ((cp = fileGetURL(pkg)) != NULL) {
+	if ((cp = fileGetURL(NULL, pkg)) != NULL) {
 	    strcpy(fname, cp);
 	    isTMP = TRUE;
 	}
@@ -105,7 +105,7 @@ pkg_do(char *pkg)
 	cp = fname;
     }
     else {
-	if ((cp = fileFindByPath(pkg)) != NULL)
+	if ((cp = fileFindByPath(NULL, pkg)) != NULL)
 	    strncpy(fname, cp, FILENAME_MAX);
     }
     if (cp) {

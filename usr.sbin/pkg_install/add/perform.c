@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: perform.c,v 1.29 1995/08/17 00:35:41 jkh Exp $";
+static const char *rcsid = "$Id: perform.c,v 1.26.2.1 1995/08/30 07:49:42 jkh Exp $";
 #endif
 
 /*
@@ -93,7 +93,7 @@ pkg_do(char *pkg)
 	    upchuck("getcwd");
 
 	if (isURL(pkg)) {
-	    char *newname = fileGetURL(pkg);
+	    char *newname = fileGetURL(NULL, pkg);
 
 	    if (!newname) {
 		whinge("Unable to fetch `%s' by URL.", pkg);
@@ -108,7 +108,7 @@ pkg_do(char *pkg)
 	    else
 		sprintf(pkg_fullname, "%s/%s", home, pkg);
 	    if (!fexists(pkg_fullname)) {
-		char *tmp = fileFindByPath(pkg);
+		char *tmp = fileFindByPath(NULL, pkg);
 
 		if (!tmp) {
 		    whinge("Can't find package `%s'.", pkg);
@@ -135,15 +135,6 @@ pkg_do(char *pkg)
 	}
 	read_plist(&Plist, cfile);
 	fclose(cfile);
-
-	/*
-	 * If we have a prefix, delete the first one we see and add this
-	 * one in place of it.
-	 */
-	if (Prefix) {
-	    delete_plist(&Plist, FALSE, PLIST_CWD, NULL);
-	    add_plist_top(&Plist, PLIST_CWD, Prefix);
-	}
 
 	/* Extract directly rather than moving?  Oh goodie! */
 	if (find_plist_option(&Plist, "extract-in-place")) {
@@ -182,79 +173,6 @@ pkg_do(char *pkg)
 	    goto bomb;
 	}
 
-	setenv(PKG_PREFIX_VNAME,
-	       (p = find_plist(&Plist, PLIST_CWD)) ? p->name : NULL, 1);
-	/* Protect against old packages with bogus @name fields */
-	PkgName = (p = find_plist(&Plist, PLIST_NAME)) ? p->name : "anonymous";
-
-	/* See if we're already registered */
-	sprintf(LogDir, "%s/%s", (tmp = getenv(PKG_DBDIR)) ? tmp : DEF_LOG_DIR,
-		basename_of(PkgName));
-	if (isdir(LogDir)) {
-	    char tmp[FILENAME_MAX];
-
-	    whinge("Package `%s' already recorded as installed.\n", PkgName);
-	    code = 1;
-	    goto success;	/* close enough for government work */
-        }
-
-	/* Now check the packing list for dependencies */
-	for (p = Plist.head; p ; p = p->next) {
-	    char *isTMP = NULL;	/* local copy for depends only */
-
-	    if (p->type != PLIST_PKGDEP)
-		continue;
-	    if (Verbose)
-		printf("Package `%s' depends on `%s'", pkg, p->name);
-	    if (!Fake && vsystem("pkg_info -e %s", p->name)) {
-		char path[FILENAME_MAX], *cp = NULL;
-
-		if (Verbose)
-		    printf(" which is not currently loaded");
-		if (!isURL(p->name)) {
-		    snprintf(path, FILENAME_MAX, "%s/%s.tgz", Home, p->name);
-		    if (fexists(path))
-			cp = path;
-		    else
-			cp = fileFindByPath(p->name);
-		}
-		else {
-		    cp = fileGetURL(p->name);
-		    isTMP = cp;
-		}
-		if (cp) {
-		    if (Verbose)
-			printf(" but was found - loading:\n");
-		    if (!Fake && vsystem("pkg_add %s", cp)) {
-			whinge("Autoload of dependency `%s' failed%s",
-			       p->name, Force ? " (proceeding anyway)" : "!");
-			if (!Force)
-			    ++code;
-		    }
-		    else if (Verbose)
-			printf("\t`%s' loaded successfully.\n", p->name);
-		    /* Nuke the temporary URL copy */
-		    if (isTMP) {
-			unlink(isTMP);
-			isTMP = NULL;
-		    }
-		}
-		else {
-		    if (Verbose)
-			printf("and was not found%s.\n",
-			       Force ? " (proceeding anyway)" : "");
-		    else
-			printf("Package dependency %s for %s not found%s\n",
-			       p->name, pkg,
-			       Force ? " (proceeding anyway)" : "!");
-		    if (!Force)
-			++code;
-		}
-	    }
-	    else if (Verbose)
-		printf(" - already installed.\n");
-	}
-
 	/* If this is a direct extract and we didn't want it, stop now */
 	if (where_to != PlayPen && Fake)
 	    goto success;
@@ -275,6 +193,84 @@ pkg_do(char *pkg)
 	    write_plist(&Plist, stdout);
 	    return 0;
 	}
+    }
+
+    /*
+     * If we have a prefix, delete the first one we see and add this
+     * one in place of it.
+     */
+    if (Prefix) {
+	delete_plist(&Plist, FALSE, PLIST_CWD, NULL);
+	add_plist_top(&Plist, PLIST_CWD, Prefix);
+    }
+
+    setenv(PKG_PREFIX_VNAME, (p = find_plist(&Plist, PLIST_CWD)) ? p->name : NULL, 1);
+    /* Protect against old packages with bogus @name fields */
+    PkgName = (p = find_plist(&Plist, PLIST_NAME)) ? p->name : "anonymous";
+
+    /* See if we're already registered */
+    sprintf(LogDir, "%s/%s", (tmp = getenv(PKG_DBDIR)) ? tmp : DEF_LOG_DIR,	basename_of(PkgName));
+    if (isdir(LogDir)) {
+	char tmp[FILENAME_MAX];
+	
+	whinge("Package `%s' already recorded as installed.\n", PkgName);
+	code = 1;
+	goto success;	/* close enough for government work */
+    }
+
+    /* Now check the packing list for dependencies */
+    for (p = Plist.head; p ; p = p->next) {
+	char *isTMP = NULL;	/* local copy for depends only */
+
+	if (p->type != PLIST_PKGDEP)
+	    continue;
+	if (Verbose)
+	    printf("Package `%s' depends on `%s'", pkg, p->name);
+	if (!Fake && vsystem("pkg_info -e %s", p->name)) {
+	    char path[FILENAME_MAX], *cp = NULL;
+
+	    if (Verbose)
+		printf(" which is not currently loaded");
+	    if (!isURL(p->name)) {
+		snprintf(path, FILENAME_MAX, "%s/%s.tgz", Home, p->name);
+		if (fexists(path))
+		    cp = path;
+		else
+		    cp = fileFindByPath(PkgName, p->name);
+	    }
+	    else {
+		cp = fileGetURL(PkgName, p->name);
+		isTMP = cp;
+	    }
+	    if (cp) {
+		if (Verbose)
+		    printf(" but was found - loading:\n");
+		if (!Fake && vsystem("pkg_add %s", cp)) {
+		    whinge("Autoload of dependency `%s' failed%s",
+			   p->name, Force ? " (proceeding anyway)" : "!");
+		    if (!Force)
+			++code;
+		}
+		else if (Verbose)
+		    printf("\t`%s' loaded successfully.\n", p->name);
+		/* Nuke the temporary URL copy */
+		if (isTMP) {
+		    unlink(isTMP);
+		    isTMP = NULL;
+		}
+	    }
+	    else {
+		if (Verbose)
+		    printf("and was not found%s.\n", Force ? " (proceeding anyway)" : "");
+		else
+		    printf("Package dependency %s for %s not found%s\n", p->name, pkg,
+			   Force ? " (proceeding anyway)" : "!");
+		if (!Force)
+		    ++code;
+	    }
+	}
+	else if (Verbose)
+	    printf(" - already installed.\n");
     }
 
     /* Look for the requirements file */

@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: file.c,v 1.16 1995/08/01 09:49:27 jkh Exp $";
+static const char *rcsid = "$Id: file.c,v 1.10.4.1 1995/08/30 07:49:58 jkh Exp $";
 #endif
 
 /*
@@ -164,24 +164,59 @@ fileURLFilename(char *fname, char *where, int max)
 
 #define HOSTNAME_MAX	64
 /*
- * Try and fetch a file by URL, returning the fd of open
- * file if fetched successfully.
+ * Try and fetch a file by URL, returning the directory name for where
+ * it's unpacked, if successful.
  */
 char *
-fileGetURL(char *fname)
+fileGetURL(char *base, char *spec)
 {
     char host[HOSTNAME_MAX], file[FILENAME_MAX], dir[FILENAME_MAX];
-    char pword[HOSTNAME_MAX + 40], *uname, *cp;
+    char pword[HOSTNAME_MAX + 40], *uname, *cp, *rp;
+    char fname[511];
+    static char pen[FILENAME_MAX];
     static char tmpl[40];
     struct passwd *pw;
     FTP_t ftp;
+    pid_t tpid;
     int fd, fd2, i, len = 0;
     char ch;
     time_t start, stop;
 
-    if (!isURL(fname))
-	return NULL;
+    rp = NULL;
+    if (!isURL(spec)) {
+	int len;
 
+	if (!base)
+	    return NULL;
+	/* We've been given an existing URL (that's known-good) and now we need
+	   to construct a composite one out of that and the basename we were
+	   handed as a dependency. */
+	strncpy(fname, base, 511);
+	fname[511] = '\0';
+	cp = strrchr(fname, '/');
+	len = strlen(fname);
+	if (cp) {
+	    /* Special case for the all category */
+	    if (len > 3 && !strncmp(cp - 3, "All/", 4))
+		strcat(cp + 1, spec);
+	    else {
+		*cp = '\0';
+		/* Replace category with All */
+		if ((cp = strrchr(fname, '/')) != NULL) {
+		    strcat(cp + 1, "All/");
+		    strcat(cp, spec);
+		}
+		else {
+		    strcat(fname, "All/");
+		    strcat(fname, spec);
+		}
+	    }
+	}
+	else
+	    return NULL;
+    }
+    else
+	strcpy(fname, spec);
     ftp = FtpInit();
     cp = fileURLHost(fname, host, HOSTNAME_MAX);
     if (!*cp) {
@@ -226,38 +261,77 @@ fileGetURL(char *fname)
     fd = FtpGet(ftp, basename_of(file));
     if (fd < 0)
 	return NULL;
-    if ((cp = getenv("PKG_TMPDIR")) != NULL)
-	sprintf(tmpl, "%s/instpkg-XXXXXX.tgz", cp);
-    else
-	strcpy(tmpl, "/var/tmp/instpkg-XXXXXX.tgz");
-    fd2 = mkstemp(tmpl);
-    if (fd2 < 0) {
-	whinge("Unable to create a temporary file for ftp: %s", tmpl);
-	return NULL;
+
+    if (make_playpen(pen, 0)) {
+	(void)time(&start);
+	tpid = fork();
+	if (!tpid) {
+	    dup2(fd, 0); close(fd);
+	    if (DebugFD != -1)
+		dup2(DebugFD, 2);
+	    else {
+		close(2);
+		dup2(open("/dev/null", O_WRONLY), 2);
+	    }
+	    i = execl("tar", "tar", isDebug() ? "-xvf" : "-xf", "-", 0);
+	    if (isDebug())
+		msgDebug("tar command returns %d status\n", i);
+	    exit(i);
+	}
+	else {
+	    int pstat;
+
+	    tpid = waitpid(tpid, &pstat, 0);
+	    (void)time(&stop);
+	    if (Verbose)
+		printf("FTP: Read %d bytes from connection, %d elapsed seconds.\n"
+		       "%FTP: Average transfer rate: %d bytes/second.\n",
+		       len, stop - start, len / ((stop - start) + 1));
+	    rp = pen;
+	}
     }
-    if (Verbose) printf("FTP: Trying to copy from ftp connection to temporary: %s\n", tmpl);
-    (void)time(&start);
-    while (read(fd, &ch, 1) == 1) {
-	++len;
-	write(fd2, &ch, 1);
-    }
-    (void)time(&stop);
-    if (Verbose) printf("FTP: Read %d bytes from connection, %d elapsed seconds.\n%FTP: Average transfer rate: %d bytes/second.\n", len, stop - start, len / ((stop - start) + 1));
     FtpEOF(ftp);
     FtpClose(ftp);
-    return tmpl;
+    return rp;
 }
 
 char *
-fileFindByPath(char *fname)
+fileFindByPath(char *base, char *fname)
 {
     static char tmp[FILENAME_MAX];
     char *cp;
+    int len;
 
     if (fexists(fname) && isfile(fname)) {
 	strcpy(tmp, fname);
 	return tmp;
     }
+    if (base) {
+	strcpy(tmp, base);
+	cp = strchr(tmp, '/');
+	len = strlen(tmp);
+
+	if (cp) {
+	    /* Special case for the all category */
+	    if (len > 3 && !strncmp(cp - 3, "All/", 4))
+		strcat(cp + 1, fname);
+	    else {
+		*cp = '\0';
+		/* Replace category with All */
+		if ((cp = strrchr(tmp, '/')) != NULL) {
+		    strcat(cp + 1, "All/");
+		    strcat(cp, fname);
+		}
+		else {
+		    strcat(tmp, "All/");
+		    strcat(tmp, fname);
+		}
+	    }
+	}
+	if (fexists(tmp))
+	    return tmp;
+    }
+
     cp = getenv("PKG_PATH");
     while (cp) {
 	char *cp2 = strsep(&cp, ":");

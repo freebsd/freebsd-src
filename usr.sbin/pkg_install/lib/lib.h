@@ -1,4 +1,4 @@
-/* $Id: lib.h,v 1.18 1995/08/26 10:15:12 jkh Exp $ */
+/* $Id: lib.h,v 1.16.4.1 1995/08/30 07:49:59 jkh Exp $ */
 
 /*
  * FreeBSD install - a package for the installation and maintainance
@@ -107,8 +107,8 @@ typedef struct _pack Package;
 int		vsystem(const char *, ...);
 void		cleanup(int);
 char		*make_playpen(char *, size_t);
-void		leave_playpen(void);
 char		*where_playpen(void);
+void		leave_playpen(void);
 size_t		min_free(char *);
 
 /* String */
@@ -125,10 +125,10 @@ Boolean		isdir(char *);
 Boolean         isfile(char *);
 Boolean		isempty(char *);
 Boolean		isURL(char *);
-char		*fileGetURL(char *);
+char		*fileGetURL(char *, char *);
 char		*fileURLFilename(char *, char *, int);
 char		*fileURLHost(char *, char *, int);
-char		*fileFindByPath(char *);
+char		*fileFindByPath(char *, char *);
 char		*fileGetContents(char *);
 void		write_file(char *, char *);
 void		copy_file(char *, char *, char *);

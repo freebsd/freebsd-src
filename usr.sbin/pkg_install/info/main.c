@@ -1,5 +1,5 @@
 #ifndef lint
-static char *rcsid = "$Id: main.c,v 1.8 1994/12/06 00:51:44 jkh Exp $";
+static char *rcsid = "$Id: main.c,v 1.9 1995/05/30 03:49:59 rgrimes Exp $";
 #endif
 
 /*
@@ -32,7 +32,7 @@ int	Flags		= 0;
 Boolean AllInstalled	= FALSE;
 Boolean Quiet		= FALSE;
 char *InfoPrefix	= "";
-char *PlayPen		= NULL;
+char PlayPen[FILENAME_MAX];
 char *CheckPkg		= NULL;
 
 int
@@ -113,7 +113,7 @@ main(int argc, char **argv)
 	    break;
 
 	case 't':
-	    PlayPen = optarg;
+	    strcpy(PlayPen, optarg);
 	    break;
 
 	case 'e':
