@@ -479,7 +479,10 @@ g_bde_read_done(struct bio *bp)
 	sc = bp->bio_caller2;
 	mtx_lock(&sc->worklist_mutex);
 	sp->error = bp->bio_error;
-	sp->state = VALID;
+	if (sp->error == 0)
+		sp->state = VALID;
+	else
+		sp->state = JUNK;
 	wakeup(sc);
 	g_destroy_bio(bp);
 	mtx_unlock(&sc->worklist_mutex);
