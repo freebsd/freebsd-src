@@ -80,7 +80,8 @@ enum objecttype {
     invalid_object
 };
 
-/* Start an object.  Pass two integers:
+/*
+ * Start an object.  Pass two integers:
  * msg [0] index in vinum_conf.<object>
  * msg [1] type of object (see below)
  *
@@ -88,16 +89,19 @@ enum objecttype {
  */
 #define VINUM_SETSTATE 		_IOC(IOC_IN | IOC_OUT, L, 76, MAX_IOCTL_REPLY) /* start an object */
 
-/* The state to set with VINUM_SETSTATE.  Since
+/*
+ * The state to set with VINUM_SETSTATE.  Since
  * each object has a different set of states, we
- * need to translate later */
+ * need to translate later 
+ */
 enum objectstate {
     object_down,
     object_initializing,
     object_up
 };
 
-/* This structure is used for modifying objects
+/*
+ * This structure is used for modifying objects
  * (VINUM_SETSTATE, VINUM_REMOVE, VINUM_RESETSTATS, VINUM_ATTACH,
  * VINUM_DETACH, VINUM_REPLACE
  */

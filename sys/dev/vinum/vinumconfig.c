@@ -1,5 +1,6 @@
-/* To do:
-
+/*
+ * To do:
+ *
  * Don't store drive configuration on the config DB: read each drive's header
  * to decide where it is.
  *
@@ -44,7 +45,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumconfig.c,v 1.8 1999/01/21 00:32:54 grog Exp $
+ * $Id: vinumconfig.c,v 1.22 1998/12/30 05:07:24 grog Exp grog $
  */
 
 #define STATIC						    /* nothing while we're testing XXX */
@@ -60,9 +61,11 @@ void longjmp(jmp_buf, int);
 
 #define MAXTOKEN 64					    /* maximum number of tokens in a line */
 
-/* We can afford the luxury of global variables here,
+/*
+ * We can afford the luxury of global variables here,
  * since start_config ensures that these functions
- * are single-threaded. */
+ * are single-threaded.
+ */
 
 /* These are indices in vinum_conf of the last-mentioned of each kind of object */
 static int current_drive = -1;				    /* note the last drive we mention, for
@@ -86,10 +89,12 @@ struct putchar_arg {
 };
 
 #define MSG_MAX 1024					    /* maximum length of a formatted message */
-/* Format an error message and return to the user in the reply.
+/*
+ * Format an error message and return to the user in the reply.
  * CARE: This routine is designed to be called only from the
  * configuration routines, so it assumes it's the owner of
- * the configuration lock, and unlocks it on exit */
+ * the configuration lock, and unlocks it on exit
+ */
 void 
 throw_rude_remark(int error, char *msg,...)
 {
@@ -101,9 +106,11 @@ throw_rude_remark(int error, char *msg,...)
 
     va_start(ap, msg);
     if ((ioctl_reply != NULL)				    /* we're called from the user */
-    &&(!(vinum_conf.flags & VF_KERNELOP))) {		    /* and we're not doing kernel things: return msg */
-	/* XXX We can't just format to ioctl_reply, since it
-	 * may contain our input parameters */
+    &&(!(vinum_conf.flags & VF_KERNELOP))) {		    /* and not in kernel: return msg */
+	/*
+	 * XXX We can't just format to ioctl_reply, since it
+	 * may contain our input parameters 
+	 */
 	text = Malloc(MSG_MAX);
 	if (text == NULL) {
 	    printf("vinum: can't allocate error message buffer");
@@ -126,11 +133,13 @@ throw_rude_remark(int error, char *msg,...)
 
     if (vinum_conf.flags & VF_READING_CONFIG)		    /* go through to the bitter end, */
 	return;
-    /* We have a problem here: we want to unlock the
+    /*
+     * We have a problem here: we want to unlock the
      * configuration, which implies tidying up, but
      * if we find an error while tidying up, we could
      * recurse for ever.  Use this kludge to only try
-     * once */
+     * once 
+     */
     was_finishing = finishing;
     finishing = 1;
     finish_config(was_finishing);			    /* unlock anything we may be holding */
@@ -157,8 +166,10 @@ atoi(char *s)
     return r;
 }
 
-/* Find index of volume in vinum_conf.  Return the index
- * if found, or -1 if not */
+/*
+ * Find index of volume in vinum_conf.  Return the index
+ * if found, or -1 if not 
+ */
 int 
 volume_index(struct volume *vol)
 {
@@ -170,8 +181,10 @@ volume_index(struct volume *vol)
     return -1;
 }
 
-/* Find index of plex in vinum_conf.  Return the index
- * if found, or -1 if not */
+/*
+ * Find index of plex in vinum_conf.  Return the index
+ * if found, or -1 if not 
+ */
 int 
 plex_index(struct plex *plex)
 {
@@ -183,8 +196,10 @@ plex_index(struct plex *plex)
     return -1;
 }
 
-/* Find index of subdisk in vinum_conf.  Return the index
- * if found, or -1 if not */
+/*
+ * Find index of subdisk in vinum_conf.  Return the index
+ * if found, or -1 if not 
+ */
 int 
 sd_index(struct sd *sd)
 {
@@ -196,8 +211,10 @@ sd_index(struct sd *sd)
     return -1;
 }
 
-/* Find index of drive in vinum_conf.  Return the index
- * if found, or -1 if not */
+/*
+ * Find index of drive in vinum_conf.  Return the index
+ * if found, or -1 if not 
+ */
 int 
 drive_index(struct drive *drive)
 {
@@ -209,8 +226,10 @@ drive_index(struct drive *drive)
     return -1;
 }
 
-/* Check a volume to see if the plex is already assigned to it.
- * Return index in volume->plex, or -1 if not assigned */
+/*
+ * Check a volume to see if the plex is already assigned to it.
+ * Return index in volume->plex, or -1 if not assigned 
+ */
 int 
 my_plex(int volno, int plexno)
 {
@@ -224,8 +243,10 @@ my_plex(int volno, int plexno)
     return -1;						    /* not found */
 }
 
-/* Check a plex to see if the subdisk is already assigned to it.
- * Return index in plex->sd, or -1 if not assigned */
+/*
+ * Check a plex to see if the subdisk is already assigned to it.
+ * Return index in plex->sd, or -1 if not assigned 
+ */
 int 
 my_sd(int plexno, int sdno)
 {
@@ -239,13 +260,15 @@ my_sd(int plexno, int sdno)
     return -1;						    /* not found */
 }
 
-/* Check that this operation is being done in the kernel.
- * longjmp out if not.  op the name of the operation. */
+/*
+ * Check that this operation is being done in the kernel.
+ * longjmp out if not.  op is the name of the operation. 
+ */
 void 
 checkkernel(char *op)
 {
     if ((vinum_conf.flags & VF_KERNELOP) == 0)
-	    throw_rude_remark(EPERM, "Can't perform '%s' from user space", op);
+	throw_rude_remark(EPERM, "Can't perform '%s' from user space", op);
 }
 
 /* Add plex to the volume if possible */
@@ -254,10 +277,12 @@ give_plex_to_volume(int volno, int plexno)
 {
     struct volume *vol;
 
-    /* XXX It's not an error for the plex to already
+    /*
+     * XXX It's not an error for the plex to already
      * belong to the volume, but we need to check a
      * number of things to make sure it's done right.
-     * Some day. */
+     * Some day. 
+     */
     if (my_plex(volno, plexno) >= 0)
 	return plexno;					    /* that's it */
 
@@ -267,7 +292,7 @@ give_plex_to_volume(int volno, int plexno)
 	    "Too many plexes for volume %s",
 	    vol->name);
     else if ((vol->plexes > 0)				    /* we have other plexes */
-    &&((vol->flags & VF_CONFIG_SETUPSTATE) == 0))		    /* and we're not setting up state */
+    &&((vol->flags & VF_CONFIG_SETUPSTATE) == 0))	    /* and we're not setting up state */
 	invalidate_subdisks(&PLEX[plexno], sd_stale);	    /* make the subdisks invalid */
     vol->plex[vol->plexes] = plexno;			    /* this one */
     vol->plexes++;					    /* add another plex */
@@ -276,7 +301,9 @@ give_plex_to_volume(int volno, int plexno)
     return vol->plexes - 1;				    /* and return its index */
 }
 
-/* Add subdisk to a plex if possible */
+/*
+ * Add subdisk to a plex if possible 
+ */
 int 
 give_sd_to_plex(int plexno, int sdno)
 {
@@ -284,10 +311,12 @@ give_sd_to_plex(int plexno, int sdno)
     struct plex *plex;
     struct sd *sd;
 
-    /* XXX It's not an error for the sd to already
+    /*
+     * XXX It's not an error for the sd to already
      * belong to the plex, but we need to check a
      * number of things to make sure it's done right.
-     * Some day. */
+     * Some day. 
+     */
     i = my_sd(plexno, sdno);
     if (i >= 0)						    /* does it already belong to us? */
 	return i;					    /* that's it */
@@ -322,10 +351,12 @@ give_sd_to_plex(int plexno, int sdno)
     if (plex->volno >= 0)				    /* we have a volume */
 	VOL[plex->volno].size = max(VOL[plex->volno].size, plex->length); /* adjust its size */
 
-    /* We need to check that the subdisks don't overlap,
+    /*
+     * We need to check that the subdisks don't overlap,
      * but we can't do that until a point where we *must*
      * know the size of all the subdisks.  That's not
-     * here.  But we need to sort them by offset */
+     * here.  But we need to sort them by offset 
+     */
     for (i = 0; i < plex->subdisks - 1; i++) {
 	if (sd->plexoffset < SD[plex->sdnos[i]].plexoffset) { /* it fits before this one */
 	    /* First move any remaining subdisks by one */
@@ -339,16 +370,20 @@ give_sd_to_plex(int plexno, int sdno)
 	}
     }
 
-    /* The plex doesn't have any subdisk with a larger
-     * offset.  Insert it */
+    /*
+     * The plex doesn't have any subdisk with a larger
+     * offset.  Insert it 
+     */
     plex->sdnos[i] = sdno;
     sd->plexsdno = i;					    /* note where we are in the subdisk */
     return i;
 }
 
-/* Add a subdisk to drive if possible.  The pointer to the drive
+/*
+ * Add a subdisk to drive if possible.  The pointer to the drive
  * must already be stored in the sd structure, but the drive
- * doesn't know about the subdisk yet.  */
+ * doesn't know about the subdisk yet.  
+ */
 static void 
 give_sd_to_drive(int sdno)
 {
@@ -387,15 +422,19 @@ give_sd_to_drive(int sdno)
 	    }
 	}
 	if (fe == drive->freelist_entries)
-	    /* Didn't find anything.  Although the drive has
-	     * enough space, it's too fragmented */
+	    /*
+	     * Didn't find anything.  Although the drive has
+	     * enough space, it's too fragmented 
+	     */
 	{
 	    sd->driveoffset = -1;			    /* don't be confusing */
 	    throw_rude_remark(ENOSPC, "No space for %s on %s", sd->name, drive->label.name);
 	}
     } else {						    /* specific offset */
-	/* For a specific offset to work, the space must be
-	 * entirely in a single freelist entry.  Look for it. */
+	/*
+	 * For a specific offset to work, the space must be
+	 * entirely in a single freelist entry.  Look for it. 
+	 */
 	u_int64_t sdend = sd->driveoffset + sd->sectors;    /* end of our subdisk */
 	for (fe = 0; fe < drive->freelist_entries; fe++) {
 	    u_int64_t dend = drive->freelist[fe].offset + drive->freelist[fe].sectors; /* end of entry */
@@ -406,7 +445,8 @@ give_sd_to_drive(int sdno)
 			sd->name,
 			drive->label.name);
 
-		/* We've found the space, and we can allocate it.
+		/*
+		 * We've found the space, and we can allocate it.
 		 * We don't need to say that to the subdisk, which
 		 * already knows about it.  We need to tell it to
 		 * the free list, though.  We have four possibilities:
@@ -479,7 +519,8 @@ get_empty_drive(void)
     return driveno;					    /* return the index */
 }
 
-/* Find the named drive in vinum_conf.drive, return a pointer
+/*
+ * Find the named drive in vinum_conf.drive, return a pointer
  * return the index in vinum_conf.drive.
  * Don't mark the drive as allocated (XXX SMP)
  * If create != 0, create an entry if it doesn't exist
@@ -515,9 +556,11 @@ find_drive(const char *name, int create)
     return driveno;					    /* return the index */
 }
 
-/* Find a drive given its device name.
+/*
+ * Find a drive given its device name.
  * devname must be valid.
- * Otherwise the same as find_drive above */
+ * Otherwise the same as find_drive above 
+ */
 int 
 find_drive_by_dev(const char *devname, int create)
 {
@@ -586,8 +629,9 @@ free_drive(struct drive *drive)
     unlockdrive(drive);
 }
 
-/* Find the named subdisk in vinum_conf.sd.
-
+/*
+ * Find the named subdisk in vinum_conf.sd.
+ *
  * If create != 0, create an entry if it doesn't exist
  *
  * Return index in vinum_conf.sd
@@ -615,7 +659,8 @@ find_subdisk(const char *name, int create)
     return sdno;					    /* return the pointer */
 }
 
-/* Free an allocated sd entry
+/*
+ * Free an allocated sd entry
  * This performs memory management only.  remove()
  * is responsible for checking relationships.
  */
@@ -638,15 +683,18 @@ free_sd(int sdno)
 	for (fe = 0;
 	    (fe < drive->freelist_entries) && (drive->freelist[fe].offset < sd->driveoffset);
 	    fe++);
-	/* Now we are pointing to the last entry, the first
-	 * with a higher offset than the subdisk, or both. */
+	/*
+	 * Now we are pointing to the last entry, the first
+	 * with a higher offset than the subdisk, or both. 
+	 */
 	if ((fe > 1)					    /* not the first entry */
 	&&((fe == drive->freelist_entries)		    /* gone past the end */
 	||(drive->freelist[fe].offset > sd->driveoffset)))  /* or past the block were looking for */
 	    fe--;					    /* point to the block before */
 	dend = drive->freelist[fe].offset + drive->freelist[fe].sectors; /* end of the entry */
 
-	/* At this point, we are pointing to the correct
+	/*
+	 * At this point, we are pointing to the correct
 	 * place in the free list.  A number of possibilities
 	 * exist:
 	 *
@@ -735,8 +783,9 @@ get_empty_plex(void)
     return plexno;					    /* return the index */
 }
 
-/* Find the named plex in vinum_conf.plex
-
+/*
+ * Find the named plex in vinum_conf.plex
+ *
  * If create != 0, create an entry if it doesn't exist
  * return index in vinum_conf.plex
  */
@@ -763,8 +812,10 @@ find_plex(const char *name, int create)
     return plexno;					    /* return the pointer */
 }
 
-/* Free an allocated plex entry
- * and its associated memory areas */
+/*
+ * Free an allocated plex entry
+ * and its associated memory areas 
+ */
 void 
 free_plex(int plexno)
 {
@@ -809,8 +860,9 @@ get_empty_volume(void)
     return volno;					    /* return the index */
 }
 
-/* Find the named volume in vinum_conf.volume.
-
+/*
+ * Find the named volume in vinum_conf.volume.
+ *
  * If create != 0, create an entry if it doesn't exist
  * return the index in vinum_conf
  */
@@ -838,8 +890,10 @@ find_volume(const char *name, int create)
     return volno;					    /* return the pointer */
 }
 
-/* Free an allocated volume entry
- * and its associated memory areas */
+/*
+ * Free an allocated volume entry
+ * and its associated memory areas 
+ */
 void 
 free_volume(int volno)
 {
@@ -851,7 +905,8 @@ free_volume(int volno)
     vinum_conf.volumes_used--;				    /* one less volume */
 }
 
-/* Handle a drive definition.  We store the information in the global variable
+/*
+ * Handle a drive definition.  We store the information in the global variable
  * drive, so we don't need to allocate.
  *
  * If we find an error, print a message and return
@@ -873,8 +928,10 @@ config_drive(int update)
     drive->flags &= ~VF_NEWBORN;			    /* no longer newly born */
 
     if (drive->state != drive_uninit) {			    /* we already know this drive */
-	/* XXX Check which definition is more up-to-date.  Give
-	 * preference for the definition on its own drive */
+	/*
+	 * XXX Check which definition is more up-to-date.  Give
+	 * preference for the definition on its own drive 
+	 */
 	return;						    /* XXX */
     }
     for (parameter = 2; parameter < tokens; parameter++) {  /* look at the other tokens */
@@ -921,9 +978,11 @@ config_drive(int update)
 	    case DL_OURS:
 		break;
 	    }
-	    /* read_drive_label overwrites the device name.
+	    /*
+	     * read_drive_label overwrites the device name.
 	     * If we get here, we can have the drive,
-	     * so put it back again */
+	     * so put it back again 
+	     */
 	    bcopy(token[parameter],
 		drive->devicename,
 		min(sizeof(drive->devicename),
@@ -950,7 +1009,8 @@ config_drive(int update)
     }
 }
 
-/* Handle a subdisk definition.  We store the information in the global variable
+/*
+ * Handle a subdisk definition.  We store the information in the global variable
  * sd, so we don't need to allocate.
  *
  * If we find an error, print a message and return
@@ -1021,8 +1081,10 @@ config_subdisk(int update)
 	    sd->plexno = find_plex(token[++parameter], 1);  /* insert plex information */
 	    break;
 
-	    /* Set the state.  We can't do this directly,
-	     * because give_sd_to_plex may change it */
+	    /*
+	     * Set the state.  We can't do this directly,
+	     * because give_sd_to_plex may change it 
+	     */
 	case kw_state:
 	    checkkernel(token[++parameter]);		    /* must be a kernel user */
 	    state = SdState(token[parameter]);		    /* set the state */
@@ -1070,14 +1132,17 @@ config_subdisk(int update)
     else if (sd->state == sd_unallocated)		    /* no, nothing set yet, */
 	sd->state = sd_up;				    /* must be up */
 
-    /* register the subdisk with the drive.  This action
+    /*
+     * register the subdisk with the drive.  This action
      * will have the side effect of setting the offset if
      * we haven't specified one, and causing an error
-     * message if it overlaps with another subdisk. */
+     * message if it overlaps with another subdisk. 
+     */
     give_sd_to_drive(sdno);
 }
 
-/* Handle a plex definition.
+/*
+ * Handle a plex definition.
  */
 void 
 config_plex(int update)
@@ -1194,7 +1259,8 @@ config_plex(int update)
 	plex->state = plex_init;			    /* we're initialized now */
 }
 
-/* Handle a volume definition.
+/*
+ * Handle a volume definition.
  * If we find an error, print a message, deallocate the nascent volume, and return
  */
 void 
@@ -1275,9 +1341,11 @@ config_volume(int update)
 	    vol->state = VolState(token[parameter]);	    /* set the state */
 	    break;
 
-	    /* XXX experimental ideas.  These are not
+	    /*
+	     * XXX experimental ideas.  These are not
 	     * documented, and will not be until I
-	     * decide they're worth keeping */
+	     * decide they're worth keeping 
+	     */
 	case kw_writethrough:				    /* set writethrough mode */
 	    vol->flags |= VF_WRITETHROUGH;
 	    break;
@@ -1300,11 +1368,13 @@ config_volume(int update)
     current_volume = volno;				    /* note last referred volume */
     vol->devno = VINUMBDEV(volno, 0, 0, VINUM_VOLUME_TYPE); /* also note device number */
 
-    /* Before we can actually use the volume, we need
+    /*
+     * Before we can actually use the volume, we need
      * a volume label.  We could start to fake one here,
      * but it will be a lot easier when we have some
      * to copy from the drives, so defer it until we
-     * set up the configuration. XXX */
+     * set up the configuration. XXX 
+     */
     if (vol->state == volume_unallocated)
 	vol->state = volume_down;			    /* now ready to bring up at the end */
 
@@ -1313,11 +1383,13 @@ config_volume(int update)
 	vol->size = max(vol->size, PLEX[vol->plex[i]].length);
 }
 
-/* Parse a config entry.  CARE!  This destroys the original contents of the
+/*
+ * Parse a config entry.  CARE!  This destroys the original contents of the
  * config entry, which we don't really need after this.  More specifically, it
  * places \0 characters at the end of each token.
  *
- * Return 0 if all is well, otherwise EINVAL */
+ * Return 0 if all is well, otherwise EINVAL 
+ */
 int 
 parse_config(char *cptr, struct keywordset *keyset, int update)
 {
@@ -1362,13 +1434,15 @@ parse_config(char *cptr, struct keywordset *keyset, int update)
     return status;
 }
 
-/* parse a line handed in from userland via ioctl.
+/*
+ * parse a line handed in from userland via ioctl.
  * This differs only by the error reporting mechanism:
  * we return the error indication in the reply to the
  * ioctl, so we need to set a global static pointer in
  * this file.  This technique works because we have
  * ensured that configuration is performed in a single-
- * threaded manner */
+ * threaded manner 
+ */
 int 
 parse_user_config(char *cptr, struct keywordset *keyset)
 {
@@ -1474,12 +1548,16 @@ remove_sd_entry(int sdno, int force, int recurse)
 		    &plex->sdnos[mysdno],
 		    (plex->subdisks - 1 - mysdno) * sizeof(int));
 	    plex->subdisks--;
-	    /* removing a subdisk from a striped or
+	    /*
+	     * removing a subdisk from a striped or
 	     * RAID-5 plex really tears the hell out
 	     * of the structure, and it needs to be
-	     * reinitialized */
-	    /* XXX Think about this.  Maybe we should just
-	     * leave a hole */
+	     * reinitialized 
+	     */
+	    /*
+	     * XXX Think about this.  Maybe we should just
+	     * leave a hole 
+	     */
 	    if (plex->organization != plex_concat)	    /* not concatenated, */
 		set_plex_state(plex->plexno, plex_faulty, setstate_force); /* need to reinitialize */
 	    printf("vinum: removing %s\n", sd->name);
@@ -1522,12 +1600,14 @@ remove_plex_entry(int plexno, int force, int recurse)
 	}
     }
     if (plex->volno >= 0) {				    /* we are part of a volume */
-	/* XXX This should be more intelligent.  We should
+	/*
+	 * XXX This should be more intelligent.  We should
 	 * be able to remove a plex as long as the volume
 	 * does not lose any data, which is normally the
 	 * case when it has more than one plex.  To do it
 	 * right we must compare the completeness of the
-	 * mapping of all the plexes in the volume */
+	 * mapping of all the plexes in the volume 
+	 */
 	if (force) {					    /* do it at any cost */
 	    struct volume *vol = &VOL[plex->volno];
 	    int myplexno;
@@ -1601,10 +1681,12 @@ update_plex_config(int plexno, int kernelstate)
 
     /* XXX Insert checks here for sparse plexes and volumes */
 
-    /* Check that our subdisks make sense.  For
+    /*
+     * Check that our subdisks make sense.  For
      * striped and RAID5 plexes, we need at least
      * two subdisks, and they must all be the same
-     * size */
+     * size 
+     */
     if (((plex->organization == plex_striped)
 	)
 	&& (plex->subdisks < 2)) {
@@ -1627,8 +1709,10 @@ update_plex_config(int plexno, int kernelstate)
     }
 
     if (plex->subdisks) {				    /* plex has subdisks, calculate size */
-	/* XXX We shouldn't need to calculate the size any
-	 * more.  Check this some time */
+	/*
+	 * XXX We shouldn't need to calculate the size any
+	 * more.  Check this some time 
+	 */
 	if (plex->length != size)
 	    printf("Correcting length of %s: was %qd, is %qd\n", plex->name, plex->length, size);
 	plex->length = size;
@@ -1661,7 +1745,8 @@ update_volume_config(int volno, int kernelstate)
 	set_volume_state(volno, volume_up, setstate_configuring);
 }
 
-/* Update the global configuration.
+/*
+ * Update the global configuration.
  * kernelstate is != 0 if we're reading in a config
  * from disk.  In this case, we don't try to
  * bring the devices up, though we will bring
@@ -1685,9 +1770,11 @@ updateconfig(int kernelstate)
     save_config();
 }
 
-/* Start manual changes to the configuration and lock out
+/*
+ * Start manual changes to the configuration and lock out
  * others who may wish to do so.
- * XXX why do we need this and lock_config too? */
+ * XXX why do we need this and lock_config too? 
+ */
 int 
 start_config(void)
 {
@@ -1698,11 +1785,13 @@ start_config(void)
 	if ((error = tsleep(&vinum_conf, PRIBIO | PCATCH, "vincfg", 0)) != 0)
 	    return error;
     }
-    /* We need two flags here: VF_CONFIGURING
+    /*
+     * We need two flags here: VF_CONFIGURING
      * tells other processes to hold off (this
      * function), and VF_CONFIG_INCOMPLETE
      * tells the state change routines not to
-     * propagate incrememntal state changes */
+     * propagate incrememntal state changes 
+     */
     vinum_conf.flags |= VF_CONFIGURING | VF_CONFIG_INCOMPLETE;
     current_drive = -1;					    /* reset the defaults */
     current_plex = -1;					    /* and the same for the last plex */
@@ -1710,7 +1799,8 @@ start_config(void)
     return 0;
 }
 
-/* Update the config if update is 1, and unlock
+/*
+ * Update the config if update is 1, and unlock
  * it.  We won't update the configuration if we
  * are called in a recursive loop via throw_rude_remark.
  */
