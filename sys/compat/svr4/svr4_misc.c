@@ -444,6 +444,9 @@ svr4_sys_getdents(td, uap)
 	u_long *cookiebuf = NULL, *cookie;
 	int ncookies = 0, *retval = td->td_retval;
 
+	if (uap->nbytes < 0)
+		return (EINVAL);
+
 	if ((error = getvnode(td->td_proc->p_fd, uap->fd, &fp)) != 0)
 		return (error);
 
@@ -1734,6 +1737,7 @@ svr4_sys_resolvepath(td, uap)
 {
 	struct nameidata nd;
 	int error, *retval = td->td_retval;
+	unsigned int ncopy;
 
 	NDINIT(&nd, LOOKUP, NOFOLLOW | SAVENAME, UIO_USERSPACE,
 	    uap->path, td);
@@ -1741,12 +1745,11 @@ svr4_sys_resolvepath(td, uap)
 	if ((error = namei(&nd)) != 0)
 		return error;
 
-	if ((error = copyout(nd.ni_cnd.cn_pnbuf, uap->buf,
-	    uap->bufsiz)) != 0)
+	ncopy = min(uap->bufsiz, strlen(nd.ni_cnd.cn_pnbuf) + 1);
+	if ((error = copyout(nd.ni_cnd.cn_pnbuf, uap->buf, ncopy)) != 0)
 		goto bad;
 
-	*retval = strlen(nd.ni_cnd.cn_pnbuf) < uap->bufsiz ? 
-	  strlen(nd.ni_cnd.cn_pnbuf) + 1 : uap->bufsiz;
+	*retval = ncopy;
 bad:
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vput(nd.ni_vp);
