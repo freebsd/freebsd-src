@@ -50,6 +50,7 @@ static __inline void atomic_set_32(volatile u_int32_t *p, u_int32_t v)
 {
 	u_int32_t temp;
 
+#ifdef __GNUC__
 	__asm __volatile (
 		"1:\tldl_l %0, %2\n\t"		/* load old value */
 		"bis %0, %3, %0\n\t"		/* calculate new value */
@@ -62,12 +63,14 @@ static __inline void atomic_set_32(volatile u_int32_t *p, u_int32_t v)
 		: "=&r" (temp), "=m" (*p)
 		: "m" (*p), "r" (v)
 		: "memory");
+#endif
 }
 
 static __inline void atomic_clear_32(volatile u_int32_t *p, u_int32_t v)
 {
 	u_int32_t temp;
 
+#ifdef __GNUC__
 	__asm __volatile (
 		"1:\tldl_l %0, %2\n\t"		/* load old value */
 		"bic %0, %3, %0\n\t"		/* calculate new value */
@@ -80,12 +83,14 @@ static __inline void atomic_clear_32(volatile u_int32_t *p, u_int32_t v)
 		: "=&r" (temp), "=m" (*p)
 		: "m" (*p), "r" (v)
 		: "memory");
+#endif
 }
 
 static __inline void atomic_add_32(volatile u_int32_t *p, u_int32_t v)
 {
 	u_int32_t temp;
 
+#ifdef __GNUC__
 	__asm __volatile (
 		"1:\tldl_l %0, %2\n\t"		/* load old value */
 		"addl %0, %3, %0\n\t"		/* calculate new value */
@@ -98,12 +103,14 @@ static __inline void atomic_add_32(volatile u_int32_t *p, u_int32_t v)
 		: "=&r" (temp), "=m" (*p)
 		: "m" (*p), "r" (v)
 		: "memory");
+#endif
 }
 
 static __inline void atomic_subtract_32(volatile u_int32_t *p, u_int32_t v)
 {
 	u_int32_t temp;
 
+#ifdef __GNUC__
 	__asm __volatile (
 		"1:\tldl_l %0, %2\n\t"		/* load old value */
 		"subl %0, %3, %0\n\t"		/* calculate new value */
@@ -116,12 +123,14 @@ static __inline void atomic_subtract_32(volatile u_int32_t *p, u_int32_t v)
 		: "=&r" (temp), "=m" (*p)
 		: "m" (*p), "r" (v)
 		: "memory");
+#endif
 }
 
 static __inline u_int32_t atomic_readandclear_32(volatile u_int32_t *addr)
 {
 	u_int32_t result,temp;
 
+#ifdef __GNUC__
 	__asm __volatile (
 		"wmb\n"			/* ensure pending writes have drained */
 		"1:\tldl_l %0,%3\n\t"	/* load current value, asserting lock */
@@ -134,6 +143,7 @@ static __inline u_int32_t atomic_readandclear_32(volatile u_int32_t *addr)
 		: "=&r"(result), "=&r"(temp), "=m" (*addr)
 		: "m"(*addr)
 		: "memory");
+#endif
 
 	return result;
 }
@@ -142,6 +152,7 @@ static __inline void atomic_set_64(volatile u_int64_t *p, u_int64_t v)
 {
 	u_int64_t temp;
 
+#ifdef __GNUC__
 	__asm __volatile (
 		"1:\tldq_l %0, %2\n\t"		/* load old value */
 		"bis %0, %3, %0\n\t"		/* calculate new value */
@@ -154,12 +165,14 @@ static __inline void atomic_set_64(volatile u_int64_t *p, u_int64_t v)
 		: "=&r" (temp), "=m" (*p)
 		: "m" (*p), "r" (v)
 		: "memory");
+#endif
 }
 
 static __inline void atomic_clear_64(volatile u_int64_t *p, u_int64_t v)
 {
 	u_int64_t temp;
 
+#ifdef __GNUC__
 	__asm __volatile (
 		"1:\tldq_l %0, %2\n\t"		/* load old value */
 		"bic %0, %3, %0\n\t"		/* calculate new value */
@@ -172,12 +185,14 @@ static __inline void atomic_clear_64(volatile u_int64_t *p, u_int64_t v)
 		: "=&r" (temp), "=m" (*p)
 		: "m" (*p), "r" (v)
 		: "memory");
+#endif
 }
 
 static __inline void atomic_add_64(volatile u_int64_t *p, u_int64_t v)
 {
 	u_int64_t temp;
 
+#ifdef __GNUC__
 	__asm __volatile (
 		"1:\tldq_l %0, %2\n\t"		/* load old value */
 		"addq %0, %3, %0\n\t"		/* calculate new value */
@@ -190,12 +205,14 @@ static __inline void atomic_add_64(volatile u_int64_t *p, u_int64_t v)
 		: "=&r" (temp), "=m" (*p)
 		: "m" (*p), "r" (v)
 		: "memory");
+#endif
 }
 
 static __inline void atomic_subtract_64(volatile u_int64_t *p, u_int64_t v)
 {
 	u_int64_t temp;
 
+#ifdef __GNUC__
 	__asm __volatile (
 		"1:\tldq_l %0, %2\n\t"		/* load old value */
 		"subq %0, %3, %0\n\t"		/* calculate new value */
@@ -208,12 +225,14 @@ static __inline void atomic_subtract_64(volatile u_int64_t *p, u_int64_t v)
 		: "=&r" (temp), "=m" (*p)
 		: "m" (*p), "r" (v)
 		: "memory");
+#endif
 }
 
 static __inline u_int64_t atomic_readandclear_64(volatile u_int64_t *addr)
 {
 	u_int64_t result,temp;
 
+#ifdef __GNUC__
 	__asm __volatile (
 		"wmb\n"			/* ensure pending writes have drained */
 		"1:\tldq_l %0,%3\n\t"	/* load current value, asserting lock */
@@ -226,6 +245,7 @@ static __inline u_int64_t atomic_readandclear_64(volatile u_int64_t *addr)
 		: "=&r"(result), "=&r"(temp), "=m" (*addr)
 		: "m"(*addr)
 		: "memory");
+#endif
 
 	return result;
 }
@@ -354,6 +374,7 @@ atomic_cmpset_32(volatile u_int32_t* p, u_int32_t cmpval, u_int32_t newval)
 {
 	u_int32_t ret;
 
+#ifdef __GNUC__
 	__asm __volatile (
 		"1:\tldl_l %0, %4\n\t"		/* load old value */
 		"cmpeq %0, %2, %0\n\t"		/* compare */
@@ -369,6 +390,7 @@ atomic_cmpset_32(volatile u_int32_t* p, u_int32_t cmpval, u_int32_t newval)
 		: "=&r" (ret), "=m" (*p)
 		: "r" ((long)(int)cmpval), "r" (newval), "m" (*p)
 		: "memory");
+#endif
 
 	return ret;
 }
@@ -383,6 +405,7 @@ atomic_cmpset_64(volatile u_int64_t* p, u_int64_t cmpval, u_int64_t newval)
 {
 	u_int64_t ret;
 
+#ifdef __GNUC__
 	__asm __volatile (
 		"1:\tldq_l %0, %4\n\t"		/* load old value */
 		"cmpeq %0, %2, %0\n\t"		/* compare */
@@ -398,6 +421,7 @@ atomic_cmpset_64(volatile u_int64_t* p, u_int64_t cmpval, u_int64_t newval)
 		: "=&r" (ret), "=m" (*p)
 		: "r" (cmpval), "r" (newval), "m" (*p)
 		: "memory");
+#endif
 
 	return ret;
 }
