@@ -1,4 +1,4 @@
-	$Id: syscalls.master,v 1.7 1998/03/28 11:49:43 dufault Exp $
+	$Id: syscalls.master,v 1.8 1998/03/29 06:35:22 peter Exp $
 
 ;	@(#)syscalls.master	8.1 (Berkeley) 7/19/93
 ; System call name/number master file (or rather, slave, from LINUX).
@@ -211,26 +211,25 @@
 
 ; Turn on getsid after checking that it matches.
 
-147	UNIMPL LINUX getsid
-148	UNIMPL LINUX fdatasync
-149	UNIMPL LINUX _sysctl
+147	UNIMPL	LINUX	getsid
+148	UNIMPL	LINUX	fdatasync
+149	UNIMPL	LINUX	_sysctl
 
 150	NOPROTO	BSD	{ int mlock(const void *addr, size_t len); }
 151	NOPROTO	BSD	{ int munlock(const void *addr, size_t len); }
-152     NOPROTO     BSD     { int mlockall(int how); }
-153     NOPROTO     BSD     { int munlockall(void); }
+152	NOPROTO	BSD	{ int mlockall(int how); }
+153	NOPROTO	BSD	{ int munlockall(void); }
 
+154	NOPROTO	POSIX	{ int sched_setparam (pid_t pid, const struct sched_param *param); }
+155	NOPROTO	POSIX	{ int sched_getparam (pid_t pid, struct sched_param *param); }
 
-154     NOPROTO     POSIX   { int sched_setparam (pid_t pid, const struct sched_param *param); }
-155     NOPROTO     POSIX   { int sched_getparam (pid_t pid, struct sched_param *param); }
+156	NOPROTO	POSIX	{ int sched_setscheduler (pid_t pid, int policy, const struct sched_param *param); }
+157	NOPROTO	POSIX	{ int sched_getscheduler (pid_t pid); }
 
-156     NOPROTO     POSIX   { int sched_setscheduler (pid_t pid, int policy, const struct sched_param *param); }
-157     NOPROTO     POSIX   { int sched_getscheduler (pid_t pid); }
-
-158     NOPROTO     POSIX   { int sched_yield (void); }
-159     NOPROTO     POSIX   { int sched_get_priority_max (int policy); }
-160     NOPROTO     POSIX   { int sched_get_priority_min (int policy); }
-161     NOPROTO     POSIX   { int sched_rr_get_interval (pid_t pid, struct timespec *interval); }
+158	NOPROTO	POSIX	{ int sched_yield (void); }
+159	NOPROTO	POSIX	{ int sched_get_priority_max (int policy); }
+160	NOPROTO	POSIX	{ int sched_get_priority_min (int policy); }
+161	NOPROTO	POSIX	{ int sched_rr_get_interval (pid_t pid, struct timespec *interval); }
 
 162	NOPROTO	POSIX	{ int nanosleep(const struct timespec *rqtp, \
 			    struct timespec *rmtp); }
