@@ -11,7 +11,7 @@
  * 2. Absolutely no warranty of function or purpose is made by the author
  *		John S. Dyson.
  *
- * $Id: vfs_bio.c,v 1.192 1999/01/12 11:59:34 eivind Exp $
+ * $Id: vfs_bio.c,v 1.193 1999/01/19 08:00:51 dillon Exp $
  */
 
 /*
@@ -1700,12 +1700,17 @@ allocbuf(struct buf * bp, int size)
 				for (i = desiredpages; i < bp->b_npages; i++) {
 					/*
 					 * the page is not freed here -- it
-					 * is the responsibility of vnode_pager_setsize
+					 * is the responsibility of 
+					 * vnode_pager_setsize.  However, we
+					 * have to wait if it is busy in order
+					 * to be able to unwire the page.
 					 */
 					m = bp->b_pages[i];
 					KASSERT(m != bogus_page,
 					    ("allocbuf: bogus page found"));
-					vm_page_sleep(m, "biodep", &m->busy);
+
+					while(vm_page_sleep(m, "biodep", &m->busy))
+						;
 
 					bp->b_pages[i] = NULL;
 					vm_page_unwire(m, 0);
