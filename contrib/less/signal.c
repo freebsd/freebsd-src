@@ -8,6 +8,7 @@
  * contact the author, see the README file.
  */
 
+/* $FreeBSD$ */
 
 /*
  * Routines dealing with signals.
@@ -33,6 +34,7 @@ extern int lnloop;
 extern int linenums;
 extern int wscroll;
 extern int reading;
+extern int more_mode;
 
 /*
  * Interrupt signal handler.
@@ -56,6 +58,8 @@ u_interrupt(type)
 	if (kbhit())
 		getkey();
 #endif
+	if (more_mode)
+		quit(0);
 	if (reading)
 		intread();
 }
