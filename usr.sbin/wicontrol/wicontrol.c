@@ -83,7 +83,7 @@ static void wi_getval(iface, wreq)
 
 	bzero((char *)&ifr, sizeof(ifr));
 
-	strcpy(ifr.ifr_name, iface);
+	strlcpy(ifr.ifr_name, iface, sizeof(ifr.ifr_name));
 	ifr.ifr_data = (caddr_t)wreq;
 
 	s = socket(AF_INET, SOCK_DGRAM, 0);
@@ -108,7 +108,7 @@ static void wi_setval(iface, wreq)
 
 	bzero((char *)&ifr, sizeof(ifr));
 
-	strcpy(ifr.ifr_name, iface);
+	strlcpy(ifr.ifr_name, iface, sizeof(ifr.ifr_name));
 	ifr.ifr_data = (caddr_t)wreq;
 
 	s = socket(AF_INET, SOCK_DGRAM, 0);
