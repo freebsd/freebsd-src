@@ -97,7 +97,7 @@ NETGRAPH_INIT(pppoe, &typestruct);
 enum state {
     PPPOE_SNONE=0,	/* [both] Initial state */
     PPPOE_SINIT,	/* [Client] Sent discovery initiation */
-    PPPOE_PRIMED,	/* [Server] Sent offer message */
+    PPPOE_PRIMED,	/* [Server] Received discovery initiation */
     PPPOE_SOFFER,	/* [Server] Sent offer message */
     PPPOE_SREQ,		/* [Client] Sent a Request */
     PPPOE_LISTENING,	/* [Server] Listening for discover initiation msg */
@@ -181,7 +181,7 @@ static	int	pppoe_send_event(sessp sp, enum cmd cmdid);
 
 /*
  * Generate a new session id
- * XXX find out the freeBSD locking scheme.
+ * XXX find out the FreeBSD locking scheme.
  */
 static u_int16_t
 get_new_sid(node_p node)
@@ -970,9 +970,13 @@ AAA
 				insert_tag(sp, &neg->ac_name.hdr); /* AC_NAME */
 				insert_tag(sp, tag);	/* ac_cookie */
 				tag = get_tag(ph, PTT_SRV_NAME);
-				insert_tag(sp, tag);	/* returned service */
+				if (tag) {
+					insert_tag(sp, tag);/* return service */
+				}
 				tag = get_tag(ph, PTT_HOST_UNIQ);
-				insert_tag(sp, tag);    /* returned hostuniq */
+				if (tag && ntohs(tag->tag_len) != sizeof(sp)) {
+					insert_tag(sp, tag); /* return it */
+				}
 				scan_tags(sp, ph);
 				make_packet(sp);
 				sp->state = PPPOE_NEWCONNECTED;
@@ -1008,7 +1012,6 @@ AAA
 					LEAVE (ENETUNREACH);
 					break;
 				}
-
 				sendhook = pppoe_finduniq(node, tag);
 				if (sendhook == NULL) {
 					LEAVE(ENETUNREACH);
@@ -1083,10 +1086,10 @@ AAA
 				LEAVE(EMSGSIZE);
 			}
 
+			/* Also need to trim excess at the end */
 			if (m->m_pkthdr.len > length) {
 				m_adj(m, -((int)(m->m_pkthdr.len - length)));
 			}
-			/* XXX also need to trim excess at end I should think */
 			if ( sp->state != PPPOE_CONNECTED) {
 				if (sp->state == PPPOE_NEWCONNECTED) {
 					sp->state = PPPOE_CONNECTED;
@@ -1165,7 +1168,7 @@ AAA
 			 * This is the first time we hear
 			 * from the client, so note it's
 			 * unicast address, replacing the
-			 * broadcast address .
+			 * broadcast address.
 			 */
 			bcopy(wh->eh.ether_shost,
 				neg->pkt->pkt_header.eh.ether_dhost,
@@ -1183,10 +1186,14 @@ AAA
 			init_tags(sp);
 			insert_tag(sp, &neg->ac_name.hdr); /* AC_NAME */
 			tag = get_tag(ph, PTT_HOST_UNIQ);
-			insert_tag(sp, tag);	      /* returned hostunique */
+			if (tag && ntohs(tag->tag_len) == sizeof(sp)) {
+				insert_tag(sp, tag); /* returned hostunique */
+			}
 			insert_tag(sp, &uniqtag.hdr);      /* AC cookie */
 			tag = get_tag(ph, PTT_SRV_NAME);
-			insert_tag(sp, tag);	      /* returned service */
+			if (tag) {
+				insert_tag(sp, tag);	  /* return service */
+			}
 			/* XXX maybe put the tag in the session store */
 			scan_tags(sp, ph);
 			make_packet(sp);
@@ -1339,7 +1346,7 @@ AAA
 		/*
 		 * resend the last packet, using an exponential backoff.
 		 * After a period of time, stop growing the backoff,
-		 * and either leave it, or reverst to the start.
+		 * and either leave it, or revert to the start.
 		 */
 	case	PPPOE_SINIT:
 	case	PPPOE_SREQ:
@@ -1424,8 +1431,8 @@ AAA
 
 /*
  * Parse an incoming packet to see if any tags should be copied to the
- * output packet. DOon't do any tags that are likely to have been
- * handles a the main state machine.
+ * output packet. Don't do any tags that have been handled in the main
+ * state machine.
  */
 static struct pppoe_tag* 
 scan_tags(sessp	sp, struct pppoe_hdr* ph)
