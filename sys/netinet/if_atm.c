@@ -75,11 +75,13 @@ void
 atm_rtrequest(int req, struct rtentry *rt, struct rt_addrinfo *info)
 {
 	struct sockaddr *gate = rt->rt_gateway;
-	struct atm_pseudoioctl api;
+	struct atmio_openvcc op;
+	struct atmio_closevcc cl;
+	u_char *addr;
+	u_int alen;
 #ifdef NATM
 	struct sockaddr_in *sin;
 	struct natmpcb *npcb = NULL;
-	struct atm_pseudohdr *aph;
 #endif
 	static struct sockaddr_dl null_sdl = {sizeof(null_sdl), AF_LINK};
 
@@ -119,6 +121,120 @@ atm_rtrequest(int req, struct rtentry *rt, struct rt_addrinfo *info)
 
 		KASSERT(rt->rt_ifp->if_ioctl != NULL,
 		    ("atm_rtrequest: null ioctl"));
+
+		/*
+		 * Parse and verify the link level address as
+		 * an open request
+		 */
+		bzero(&op, sizeof(op));
+		addr = LLADDR(SDL(gate));
+		alen = SDL(gate)->sdl_alen;
+		if (alen < 4) {
+			printf("%s: bad link-level address\n", __func__);
+			goto failed;
+		}
+
+		if (alen == 4) {
+			/* old type address */
+			op.param.flags = *addr++;
+			op.param.vpi = *addr++;
+			op.param.vci = *addr++ << 8;
+			op.param.vci |= *addr++;
+			op.param.traffic = ATMIO_TRAFFIC_UBR;
+			op.param.aal = (op.param.flags & ATM_PH_AAL5) ?
+			    ATMIO_AAL_5 : ATMIO_AAL_0;
+		} else {
+			/* new address */
+			op.param.aal = ATMIO_AAL_5;
+			/* 1. byte LLC/SNAP flag */
+			op.param.flags = *addr++ & ATM_PH_LLCSNAP;
+			alen--;
+			/* 2.-4. byte VPI/VCI */
+			op.param.vpi = *addr++;
+			op.param.vci = *addr++ << 8;
+			op.param.vci |= *addr++;
+			alen -= 3;
+			/* 5. byte: traffic */
+			op.param.traffic = *addr++;
+			alen--;
+			switch (op.param.traffic) {
+
+			  case ATMIO_TRAFFIC_UBR:
+				if (alen >= 3) {
+					op.param.tparam.pcr = *addr++ << 16;
+					op.param.tparam.pcr = *addr++ <<  8;
+					op.param.tparam.pcr = *addr++ <<  0;
+					alen -= 3;
+				}
+				break;
+
+			  case ATMIO_TRAFFIC_CBR:
+				if (alen < 3)
+					goto bad_param;
+				op.param.tparam.pcr = *addr++ << 16;
+				op.param.tparam.pcr = *addr++ <<  8;
+				op.param.tparam.pcr = *addr++ <<  0;
+				alen -= 3;
+				break;
+
+			  case ATMIO_TRAFFIC_VBR:
+				if (alen < 3 * 3)
+					goto bad_param;
+				op.param.tparam.pcr = *addr++ << 16;
+				op.param.tparam.pcr = *addr++ <<  8;
+				op.param.tparam.pcr = *addr++ <<  0;
+				alen -= 3;
+				op.param.tparam.scr = *addr++ << 16;
+				op.param.tparam.scr = *addr++ <<  8;
+				op.param.tparam.scr = *addr++ <<  0;
+				alen -= 3;
+				op.param.tparam.mbs = *addr++ << 16;
+				op.param.tparam.mbs = *addr++ <<  8;
+				op.param.tparam.mbs = *addr++ <<  0;
+				alen -= 3;
+				break;
+
+			  case ATMIO_TRAFFIC_ABR:
+				if (alen < 4 * 3 + 1 * 2 + 5 + 1)
+					goto bad_param;
+				op.param.tparam.pcr = *addr++ << 16;
+				op.param.tparam.pcr = *addr++ <<  8;
+				op.param.tparam.pcr = *addr++ <<  0;
+				alen -= 3;
+				op.param.tparam.mcr = *addr++ << 16;
+				op.param.tparam.mcr = *addr++ <<  8;
+				op.param.tparam.mcr = *addr++ <<  0;
+				alen -= 3;
+				op.param.tparam.icr = *addr++ << 16;
+				op.param.tparam.icr = *addr++ <<  8;
+				op.param.tparam.icr = *addr++ <<  0;
+				alen -= 3;
+				op.param.tparam.tbe = *addr++ << 16;
+				op.param.tparam.tbe = *addr++ <<  8;
+				op.param.tparam.tbe = *addr++ <<  0;
+				alen -= 3;
+				op.param.tparam.nrm = *addr++;
+				alen--;
+				op.param.tparam.trm = *addr++;
+				alen--;
+				op.param.tparam.adtf = *addr++ <<  8;
+				op.param.tparam.adtf = *addr++ <<  0;
+				alen -= 2;
+				op.param.tparam.rif = *addr++;
+				alen--;
+				op.param.tparam.rdf = *addr++;
+				alen--;
+				op.param.tparam.cdf = *addr++;
+				alen--;
+				break;
+
+			  default:
+			  bad_param:
+				printf("%s: bad traffic params\n", __func__);
+				goto failed;
+			}
+		}
+		op.param.rmtu = op.param.tmtu = rt->rt_ifp->if_mtu;
 #ifdef NATM
 		/*
 		 * let native ATM know we are using this VCI/VPI
@@ -127,9 +243,7 @@ atm_rtrequest(int req, struct rtentry *rt, struct rt_addrinfo *info)
 		sin = (struct sockaddr_in *) rt_key(rt);
 		if (sin->sin_family != AF_INET)
 			goto failed;
-		aph = (struct atm_pseudohdr *) LLADDR(SDL(gate));
-		npcb = npcb_add(NULL, rt->rt_ifp, ATM_PH_VCI(aph), 
-		    ATM_PH_VPI(aph));
+		npcb = npcb_add(NULL, rt->rt_ifp, op.param.vci,  op.param.vpi);
 		if (npcb == NULL) 
 			goto failed;
 		npcb->npcb_flags |= NPCB_IP;
@@ -141,10 +255,10 @@ atm_rtrequest(int req, struct rtentry *rt, struct rt_addrinfo *info)
 		/*
 		 * let the lower level know this circuit is active
 		 */
-		bcopy(LLADDR(SDL(gate)), &api.aph, sizeof(api.aph));
-		api.rxhand = NULL;
-		if (rt->rt_ifp->if_ioctl(rt->rt_ifp, SIOCATMENA, 
-		    (caddr_t)&api) != 0) {
+		op.rxhand = NULL;
+		op.param.flags |= ATMIO_FLAG_ASYNC;
+		if (rt->rt_ifp->if_ioctl(rt->rt_ifp, SIOCATMOPENVCC, 
+		    (caddr_t)&op) != 0) {
 			printf("atm: couldn't add VC\n");
 			goto failed;
 		}
@@ -183,10 +297,14 @@ failed:
 		/*
 		 * tell the lower layer to disable this circuit
 		 */
-		bcopy(LLADDR(SDL(gate)), &api.aph, sizeof(api.aph));
-		api.rxhand = NULL;
-		(void)rt->rt_ifp->if_ioctl(rt->rt_ifp, SIOCATMDIS, 
-		    (caddr_t)&api);
+		bzero(&op, sizeof(op));
+		addr = LLADDR(SDL(gate));
+		addr++;
+		cl.vpi = *addr++;
+		cl.vci = *addr++ << 8;
+		cl.vci |= *addr++;
+		(void)rt->rt_ifp->if_ioctl(rt->rt_ifp, SIOCATMCLOSEVCC, 
+		    (caddr_t)&cl);
 		break;
 	}
 }
@@ -206,7 +324,6 @@ failed:
  *   XXX: will need more work if we wish to support ATMARP in the kernel,
  *   but this is enough for PVCs entered via the "route" command.
  */
-
 int
 atmresolve(struct rtentry *rt, struct mbuf *m, struct sockaddr *dst,
     struct atm_pseudohdr *desten)
@@ -243,9 +360,9 @@ atmresolve(struct rtentry *rt, struct mbuf *m, struct sockaddr *dst,
 	 * Check the address family and length is valid, the address
 	 * is resolved; otherwise, try to resolve.
 	 */
-	if (sdl->sdl_family == AF_LINK && sdl->sdl_alen == sizeof(*desten)) {
-		bcopy(LLADDR(sdl), desten, sdl->sdl_alen);
-		return(1);	/* ok, go for it! */
+	if (sdl->sdl_family == AF_LINK && sdl->sdl_alen >= sizeof(*desten)) {
+		bcopy(LLADDR(sdl), desten, sizeof(*desten));
+		return (1);	/* ok, go for it! */
 	}
 
 	/*
