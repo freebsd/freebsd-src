@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.7 1995/06/30 19:53:04 dfr Exp $
+ * $Id: modem.c,v 1.9 1995/09/02 17:20:53 amurai Exp $
  *
  *  TODO:
  */
@@ -27,6 +27,7 @@
 #include <sys/ioctl.h>
 #include <sys/tty.h>
 #include <errno.h>
+#include <time.h>
 #include "hdlc.h"
 #include "lcp.h"
 #include "modem.h"
@@ -39,6 +40,7 @@
 #endif
 
 extern int DoChat();
+extern void CloseModem();
 
 static int mbits;			/* Current DCD status */
 static int connect_time;		/* connection time */
@@ -80,7 +82,8 @@ struct mqueue *queue;
 #ifdef QDEBUG
   logprintf("Dequeue: len = %d\n", queue->qlen);
 #endif
-  if (bp = queue->top) {
+  bp = queue->top;
+  if (bp) {
     queue->top = queue->top->pnext;
     queue->qlen--;
     if (queue->top == NULL) {
@@ -600,6 +603,7 @@ int flag;
   }
 }
 
+void
 CloseModem()
 {
   if (modem >= 3)

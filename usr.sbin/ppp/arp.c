@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: arp.c,v 1.1 1995/02/26 12:17:09 amurai Exp $
+ * $Id: arp.c,v 1.2 1995/05/30 03:50:23 rgrimes Exp $
  *
  */
 
@@ -27,9 +27,12 @@
 
 #include <sys/ioctl.h>
 #include <sys/types.h>
+#include <sys/uio.h>
 #include <sys/socket.h>
 #include <sys/time.h>
 #include <sys/errno.h>
+#include <unistd.h>
+#include <string.h>
 
 #include <net/if.h>
 #include <net/route.h>
@@ -83,7 +86,6 @@ sifproxyarp(unit, hisaddr)
     u_long hisaddr;
 {
     int routes;
-    int l;
 
     /*
      * Get the hardware address of an interface on the same subnet
@@ -237,7 +239,6 @@ get_ether_addr(s, ipaddr, hwaddr)
     struct ifreq ifreq;
     struct ifconf ifc;
     struct ifreq ifs[MAX_IFS];
-    struct ifreq ifx;
 
     ifc.ifc_len = sizeof(ifs);
     ifc.ifc_req = ifs;

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: filter.c,v 1.4 1995/05/30 03:50:31 rgrimes Exp $
+ * $Id: filter.c,v 1.5 1995/09/17 16:14:45 amurai Exp $
  *
  *	TODO: Shoud send ICMP error message when we discard packets.
  */
@@ -200,8 +200,6 @@ int argc;
 char **argv;
 int proto;
 {
-  int port;
-  char *cp;
 
   if (argc == 0) {
     /* permit/deny all tcp traffic */
@@ -249,7 +247,7 @@ int proto;
     return(0);
   }
   if (argc > 0)
-    printf("bad %s src/dst port syntax: %s\n", *argv);
+    printf("bad src/dst port syntax: %s\n", *argv);
   return(0);
 }
 

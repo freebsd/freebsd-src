@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: uucplock.c,v 1.4 1995/03/11 15:18:53 amurai Exp $
+ * $Id: uucplock.c,v 1.5 1995/05/30 03:51:00 rgrimes Exp $
  *
  */
 
@@ -39,9 +39,14 @@ static char sccsid[] = "@(#)uucplock.c	5.5 (Berkeley) 6/1/90";
 #endif /* not lint */
 
 #include <sys/types.h>
+#include <sys/uio.h>
 #include <sys/file.h>
 #include <sys/dir.h>
+#include <stdio.h>
+#include <unistd.h>
+#include <stdlib.h>
 #include <errno.h>
+#include <signal.h>
 #include "pathnames.h"
 
 /*
@@ -50,6 +55,7 @@ static char sccsid[] = "@(#)uucplock.c	5.5 (Berkeley) 6/1/90";
  * 	  -1 - failure
  */
 
+int
 uu_lock(ttyname)
 	char *ttyname;
 {
