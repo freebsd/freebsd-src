@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: pcaudio.c,v 1.22 1995/12/08 11:14:45 julian Exp $
+ *	$Id: pcaudio.c,v 1.23 1995/12/08 23:20:36 phk Exp $
  */
 
 #include "pca.h"
@@ -87,8 +87,8 @@ static int pca_sleep = 0;
 static int pca_initialized = 0;
 
 void pcaintr(struct clockframe *frame);
-int pcaprobe(struct isa_device *dvp);
-int pcaattach(struct isa_device *dvp);
+static int pcaprobe(struct isa_device *dvp);
+static int pcaattach(struct isa_device *dvp);
 
 struct	isa_driver pcadriver = {
 	pcaprobe, pcaattach, "pca",
@@ -107,7 +107,7 @@ static struct cdevsw pca_cdevsw =
  	  pcaselect,	nommap,		NULL,	"pca",	NULL,	-1 };
 
 
-inline void conv(const void *table, void *buff, unsigned long n)
+static inline void conv(const void *table, void *buff, unsigned long n)
 {
   __asm__("1:\tmovb (%2), %3\n"
           "\txlatb\n"
@@ -232,7 +232,7 @@ pca_wait(void)
 }
 
 
-int
+static int
 pcaprobe(struct isa_device *dvp)
 {
 	return(-1);
@@ -261,7 +261,7 @@ pca_registerdev(struct isa_device *id)
 }
 
 
-int
+static int
 pcaattach(struct isa_device *dvp)
 {
 	printf("pca%d: PC speaker audio driver\n", dvp->id_unit);

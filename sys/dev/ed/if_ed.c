@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ed.c,v 1.88 1995/12/05 02:00:43 davidg Exp $
+ *	$Id: if_ed.c,v 1.89 1995/12/05 13:01:33 davidg Exp $
  */
 
 /*
@@ -92,7 +92,7 @@
 /*
  * ed_softc: per line info and status
  */
-struct ed_softc {
+static struct ed_softc {
 	struct arpcom arpcom;	/* ethernet common */
 
 	char   *type_str;	/* pointer to type string */

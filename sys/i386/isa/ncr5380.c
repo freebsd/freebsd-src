@@ -195,7 +195,7 @@ typedef struct {
 	target_t target[8];             /* target state data */
 } adapter_t;
 
-adapter_t ncadata[NNCA];
+static adapter_t ncadata[NNCA];
 
 #define IS_BUSY(a,b)    ((a)->target[(b)->xfer->sc_link->target].busy &\
 				(1 << (b)->xfer->sc_link->lun))

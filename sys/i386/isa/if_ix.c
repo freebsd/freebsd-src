@@ -28,7 +28,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_ix.c,v 1.14 1995/11/04 17:07:31 bde Exp $
+ *	$Id: if_ix.c,v 1.15 1995/12/05 02:01:11 davidg Exp $
  */
 
 #include "ix.h"
@@ -83,7 +83,7 @@ extern char all_es_snpa[], all_is_snpa[], all_l1is_snpa[], all_l2is_snpa[];
 #include <i386/isa/icu.h>
 #include <i386/isa/if_ixreg.h>
 
-ix_softc_t	ix_softc[NIX];
+static ix_softc_t	ix_softc[NIX];
 
 #define	DEBUGNONE	0x0000
 #define	DEBUGPROBE	0x0001

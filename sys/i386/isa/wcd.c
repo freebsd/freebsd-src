@@ -57,7 +57,7 @@ static struct cdevsw wcd_cdevsw =
 	  &wcd_bdevsw,	-1 };
 
 
-extern int  wcdattach(struct atapi*, int, struct atapi_params*, int, struct kern_devconf*);
+static int  wcdattach(struct atapi*, int, struct atapi_params*, int, struct kern_devconf*);
 
 #define NUNIT   (NWDC*2)                /* Max. number of devices */
 #define UNIT(d) ((minor(d) >> 3) & 3)   /* Unit part of minor device number */
@@ -278,7 +278,7 @@ static int wcd_goaway (struct kern_devconf *kdc, int force)
 	return 0;
 }
 
-int 
+static int 
 wcdattach (struct atapi *ata, int unit, struct atapi_params *ap, int debug,
 	struct kern_devconf *parent)
 {

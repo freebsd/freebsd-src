@@ -81,7 +81,8 @@ static struct {
 
 extern int timer0_max_count;
 
-int joyprobe (struct isa_device *), joyattach (struct isa_device *);
+static int joyprobe (struct isa_device *);
+static int joyattach (struct isa_device *);
 
 struct isa_driver joydriver = {joyprobe, joyattach, "joy"};
 
@@ -99,7 +100,7 @@ static struct cdevsw joy_cdevsw =
 static int get_tick ();
 
 
-int
+static int
 joyprobe (struct isa_device *dev)
 {
 #ifdef WANT_JOYSTICK_CONNECTED
@@ -111,7 +112,7 @@ joyprobe (struct isa_device *dev)
 #endif
 }
 
-int
+static int
 joyattach (struct isa_device *dev)
 {
     int	unit = dev->id_unit;

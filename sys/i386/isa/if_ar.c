@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_ar.c,v 1.1.1.1 1995/11/21 02:32:04 peter Exp $
+ * $Id: if_ar.c,v 1.2 1995/12/05 02:00:33 davidg Exp $
  */
 
 /*
@@ -145,10 +145,10 @@ struct ar_softc {
 	struct kern_devconf kdc;
 };
 
-struct ar_softc *ar_sc_ind[NAR*NPORT];
+static struct ar_softc *ar_sc_ind[NAR*NPORT];
 
-int arprobe(struct isa_device *id);
-int arattach(struct isa_device *id);
+static int arprobe(struct isa_device *id);
+static int arattach(struct isa_device *id);
 
 /*
  * This translate from irq numbers to
@@ -199,9 +199,9 @@ static struct kern_devconf kdc_arc_template = {
 	DC_CLS_NETIF
 };
 
-void arstart(struct ifnet *ifp);
-int arioctl(struct ifnet *ifp, int cmd, caddr_t data);
-void arwatchdog(struct ifnet *ifp);
+static void arstart(struct ifnet *ifp);
+static int arioctl(struct ifnet *ifp, int cmd, caddr_t data);
+static void arwatchdog(struct ifnet *ifp);
 
 static void ar_up(struct ar_softc *sc);
 static void ar_down(struct ar_softc *sc);
@@ -244,7 +244,8 @@ static inline void arc_registerdev(struct isa_device *dvp)
  * Probe to see if it is there.
  * Get its information and fill it in.
  */
-int arprobe(struct isa_device *id)
+static int
+arprobe(struct isa_device *id)
 {
 	struct ar_hardc *hc = &ar_hardc[id->id_unit];
 	u_int tmp;
@@ -337,7 +338,8 @@ int arprobe(struct isa_device *id)
  * Fill in the info for each port.
  * Attach each port to sppp and bpf.
  */
-int arattach(struct isa_device *id)
+static int
+arattach(struct isa_device *id)
 {
 	struct ar_hardc *hc = &ar_hardc[id->id_unit];
 	struct ar_softc *sc;
@@ -431,7 +433,6 @@ void arintr(int unit)
 	sca_regs *sca = hc->sca;
 	u_char isr0, isr1, isr2, arisr;
 	int scano;
-	static int intno = 0;
 
 	arisr = inb(hc->iobase + AR_ISTAT);
 
@@ -497,7 +498,8 @@ void arintr(int unit)
  * that clears that should ensure that the transmitter and it's DMA is
  * in a "good" idle state.
  */
-void arstart(struct ifnet *ifp)
+static void
+arstart(struct ifnet *ifp)
 {
 	struct ar_softc *sc = ARUNIT2SC(ifp->if_unit);
 	int i, len, tlen;
@@ -612,7 +614,8 @@ void arstart(struct ifnet *ifp)
 	ARC_SET_OFF(sc->hc->iobase);
 }
 
-int arioctl(struct ifnet *ifp, int cmd, caddr_t data)
+static int
+arioctl(struct ifnet *ifp, int cmd, caddr_t data)
 {
 	int s, error;
 	int was_up, should_be_up;
@@ -664,7 +667,8 @@ int arioctl(struct ifnet *ifp, int cmd, caddr_t data)
 /*
  * This is to catch lost tx interrupts.
  */
-void arwatchdog(struct ifnet *ifp)
+static void
+arwatchdog(struct ifnet *ifp)
 {
 	struct ar_softc *sc = ARUNIT2SC(ifp->if_unit);
 
@@ -1078,7 +1082,8 @@ void ar_init_tx_dmac(struct ar_softc *sc)
  * Return the length and status of the packet.
  * Return nonzero if there is a packet available.
  */
-int ar_packet_avail(struct ar_softc *sc,
+static int
+ar_packet_avail(struct ar_softc *sc,
 		    int *len,
 		    u_char *rxstat)
 {
@@ -1120,7 +1125,8 @@ int ar_packet_avail(struct ar_softc *sc,
  * Take into account that buffers wrap and that a packet may
  * be larger than a buffer.
  */
-void ar_copy_rxbuf(struct mbuf *m,
+static void 
+ar_copy_rxbuf(struct mbuf *m,
 		   struct ar_softc *sc,
 		   int len)
 {
@@ -1164,7 +1170,8 @@ void ar_copy_rxbuf(struct mbuf *m,
 /*
  * Just eat a packet. Update pointers to point to the next packet.
  */
-void ar_eat_packet(struct ar_softc *sc)
+static void
+ar_eat_packet(struct ar_softc *sc)
 {
 	sca_descriptor *rxdesc;
 	sca_descriptor *endp;
@@ -1203,7 +1210,8 @@ void ar_eat_packet(struct ar_softc *sc)
  * While there is packets available in the rx buffer, read them out
  * into mbufs and ship them off.
  */
-void ar_get_packets(struct ar_softc *sc)
+static void
+ar_get_packets(struct ar_softc *sc)
 {
 	sca_descriptor *rxdesc;
 	struct mbuf *m = NULL;

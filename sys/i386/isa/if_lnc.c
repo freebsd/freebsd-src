@@ -100,7 +100,7 @@
 #include <i386/isa/isa_device.h>
 #include <i386/isa/if_lnc.h>
 
-struct lnc_softc {
+static struct lnc_softc {
 	struct arpcom arpcom;	            /* see ../../netinet/if_ether.h */
 	struct nic_info nic;	            /* NIC specific info */
 	int nrdre;

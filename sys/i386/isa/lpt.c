@@ -46,7 +46,7 @@
  * SUCH DAMAGE.
  *
  *	from: unknown origin, 386BSD 0.1
- *	$Id: lpt.c,v 1.46 1995/12/08 11:14:30 julian Exp $
+ *	$Id: lpt.c,v 1.47 1995/12/08 23:20:32 phk Exp $
  */
 
 /*
@@ -200,7 +200,7 @@ int lptflag = 1;
 #define	LPTUNIT(s)	((s)&0x03)
 #define	LPTFLAGS(s)	((s)&0xfc)
 
-struct lpt_softc {
+static struct lpt_softc {
 	short	sc_port;
 	short	sc_state;
 	/* default case: negative prime, negative ack, handshake strobe,

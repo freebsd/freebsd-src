@@ -25,13 +25,13 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: kbdtables.h,v 1.28 1995/03/27 19:41:11 sos Exp $
+ *	$Id: kbdtables.h,v 1.29 1995/03/28 21:30:13 sos Exp $
  */
 
 #define SET8 0x80       	/* set eight bit on */
 
 #ifdef DKKEYMAP
-keymap_t key_map = { 0x6C,	/* DK iso8859 keymap */
+static keymap_t key_map = { 0x6C,	/* DK iso8859 keymap */
 /*                                                            alt
  * scan                          cntrl          alt    alt   cntrl
  * code     base   shift  cntrl  shift   alt   shift  cntrl  shift  spcl  flgs
@@ -149,7 +149,7 @@ keymap_t key_map = { 0x6C,	/* DK iso8859 keymap */
 #endif
 
 #ifdef UKKEYMAP
-keymap_t key_map = { 0x6C,	/* uk iso8859 keymap */
+static keymap_t key_map = { 0x6C,	/* uk iso8859 keymap */
 /*                                                            alt
  * scan                          cntrl          alt    alt   cntrl
  * code     base   shift  cntrl  shift   alt   shift  cntrl  shift  spcl  flgs
@@ -267,7 +267,7 @@ keymap_t key_map = { 0x6C,	/* uk iso8859 keymap */
 #endif
 
 #ifdef GRKEYMAP
-keymap_t key_map = { 0x6C,	/* german iso8859 keymap */
+static keymap_t key_map = { 0x6C,	/* german iso8859 keymap */
 /*                                                            alt
  * scan                          cntrl          alt    alt   cntrl
  * code     base   shift  cntrl  shift   alt   shift  cntrl  shift  spcl  flgs
@@ -385,7 +385,7 @@ keymap_t key_map = { 0x6C,	/* german iso8859 keymap */
 #endif
 
 #ifdef SWKEYMAP
-keymap_t key_map = { 0x6C,	/* swedish iso8859 keymap */
+static keymap_t key_map = { 0x6C,	/* swedish iso8859 keymap */
 /*                                                            alt
  * scan                          cntrl          alt    alt   cntrl
  * code     base   shift  cntrl  shift   alt   shift  cntrl  shift  spcl  flgs
@@ -503,7 +503,7 @@ keymap_t key_map = { 0x6C,	/* swedish iso8859 keymap */
 #endif
 
 #ifdef RUKEYMAP
-keymap_t key_map = { 0xEC,        /* keys number */
+static keymap_t key_map = { 0xEC,        /* keys number */
 /*                                                                          alt
  * scan                          cntrl                alt        alt       cntrl
  * code     base   shift  cntrl  shift     alt       shift      cntrl      shift    spcl  flgs
@@ -751,7 +751,7 @@ keymap_t key_map = { 0xEC,        /* keys number */
 #endif
 
 #if !defined(DKKEYMAP) && !defined(UKKEYMAP) && !defined(GRKEYMAP) && !defined(SWKEYMAP) && !defined(RUKEYMAP)
-keymap_t key_map = { 0x6C,	/* US iso8859 keymap */
+static keymap_t key_map = { 0x6C,	/* US iso8859 keymap */
 /*                                                            alt
  * scan                          cntrl          alt    alt   cntrl
  * code     base   shift  cntrl  shift   alt   shift  cntrl  shift  spcl  flgs
@@ -869,7 +869,7 @@ keymap_t key_map = { 0x6C,	/* US iso8859 keymap */
 
 #endif
 
-fkeytab_t fkey_tab[96] = {
+static fkeytab_t fkey_tab[96] = {
 /* 01-04 */	{"\033[M", 3}, {"\033[N", 3}, {"\033[O", 3}, {"\033[P", 3},
 /* 05-08 */	{"\033[Q", 3}, {"\033[R", 3}, {"\033[S", 3}, {"\033[T", 3},
 /* 09-12 */	{"\033[U", 3}, {"\033[V", 3}, {"\033[W", 3}, {"\033[X", 3},

@@ -100,19 +100,6 @@
 #define TRANS_MD3 \
 	"\20\6BUFF\5UFLO\4RES\3LCOL\2LCAR\1RTRY"
 
-static char *nic_ident[] = {"Unknown",
-                     "BICC",
-                     "NE2100",
-                     "DEPCA"};
-
-static char *ic_ident[] =  {"Unknown",
-                     "LANCE, Am7990",
-                     "C-LANCE, Am79C90",
-                     "PCnet-ISA, Am79C960",
-                     "PCnet-ISA+, Am79C961",
-                     "PCnet-32, Am79C965",
-                     "PCnet-PCI, Am79C970"};
-
 struct nic_info {
 	int ident;         /* Type of card */
 	int ic;            /* Type of ic, Am7990, Am79C960 etc. */

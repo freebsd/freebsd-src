@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: bt742a.c,v 1.45 1995/12/07 09:13:48 peter Exp $
+ *      $Id: bt742a.c,v 1.46 1995/12/07 12:45:55 davidg Exp $
  */
 
 /*
@@ -40,6 +40,8 @@
 #include "bt.h"
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/sysctl.h>
 #include <sys/errno.h>
 #include <sys/ioctl.h>
 #include <sys/malloc.h>
@@ -375,7 +377,7 @@ struct bt_sync_value {
 #define PAGESIZ		4096
 #define INVALIDATE_CACHE {asm volatile( ".byte	0x0F ;.byte 0x08" ); }
 
-struct bt_data {
+static struct bt_data {
 	short   bt_base;		/* base port for each board */
 	struct bt_mbx bt_mbx;		/* all our mailboxes */
 	struct bt_ccb *bt_ccb_free;	/* list of free CCBs */
@@ -394,6 +396,7 @@ struct bt_data {
 #define	BT_SHOWCMDS 0x04
 #define	BT_SHOWMISC 0x08
 static int		bt_debug = 0;
+SYSCTL_INT(_debug, OID_AUTO, bt742a_debug, CTLFLAG_RW, &bt_debug, 0, "");
 
 #ifdef	KERNEL
 static int		btprobe();

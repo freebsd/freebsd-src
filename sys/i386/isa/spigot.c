@@ -77,7 +77,7 @@ error "Can only have 1 spigot configured."
 #include	<i386/isa/isa_device.h>
 
 
-struct spigot_softc {
+static struct spigot_softc {
 	u_long		flags;
 	u_long	 	maddr;
 	struct proc	*p;
@@ -94,8 +94,8 @@ struct spigot_softc {
 
 #define	UNIT(dev) minor(dev)
 
-int	spigot_probe(struct isa_device *id);
-int	spigot_attach(struct isa_device *id);
+static int	spigot_probe(struct isa_device *id);
+static int	spigot_attach(struct isa_device *id);
 
 struct isa_driver	spigotdriver = {spigot_probe, spigot_attach, "spigot"};
 
@@ -146,7 +146,7 @@ spigot_registerdev(struct isa_device *id)
 	dev_attach(&kdc_spigot[id->id_unit]);
 }
 
-int
+static int
 spigot_probe(struct isa_device *devp)
 {
 int			status;
@@ -167,7 +167,7 @@ struct	spigot_softc	*ss=(struct spigot_softc *)&spigot_softc[devp->id_unit];
 	return(status);
 }
 
-int
+static int
 spigot_attach(struct isa_device *devp)
 {
 	char	name[32];

@@ -40,7 +40,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: mcd.c,v 1.52 1995/12/08 11:14:34 julian Exp $
+ *	$Id: mcd.c,v 1.53 1995/12/08 23:20:34 phk Exp $
  */
 static char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 
@@ -138,7 +138,7 @@ struct mcd_mbx {
 	short           mode;
 };
 
-struct mcd_data {
+static struct mcd_data {
 	short	type;
 	char	*name;
 	short	config;
