@@ -7,6 +7,7 @@ static char rcsid[] = "$FreeBSD$";
 #endif
 
 #include <stdio.h>
+#include <errno.h>
 #include "make.h"
 
 #if !__STDC__
@@ -16,9 +17,6 @@ static char rcsid[] = "$FreeBSD$";
 #endif
 
 #ifdef sun
-
-
-
 extern int errno, sys_nerr;
 extern char *sys_errlist[];
 
@@ -182,7 +180,6 @@ getwd(pathname)
 {
     DIR    *dp;
     struct dirent *d;
-    extern int errno;
 
     struct stat st_root, st_cur, st_next, st_dotdot;
     char    pathbuf[MAXPATHLEN], nextpathbuf[MAXPATHLEN * 2];

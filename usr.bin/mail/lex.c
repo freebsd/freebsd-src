@@ -29,6 +29,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #ifndef lint
@@ -65,7 +67,6 @@ setfile(name)
 	char *who = name[1] ? name + 1 : myname;
 	static int shudclob;
 	extern char *tempMesg;
-	extern int errno;
 
 	if ((name = expand(name)) == NOSTR)
 		return -1;

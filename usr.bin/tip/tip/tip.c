@@ -58,6 +58,7 @@ void ttysetup (int speed);
  */
 
 #include <err.h>
+#include <errno.h>
 #include <sys/types.h>
 #include <libutil.h>
 #include "tipconf.h"
@@ -666,7 +667,6 @@ xpwrite(fd, buf, n)
 {
 	register int i;
 	register char *bp;
-	extern int errno;
 
 	bp = buf;
 	if (bits8 == 0)
