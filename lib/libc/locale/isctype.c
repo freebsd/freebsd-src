@@ -50,7 +50,7 @@ int
 isalnum(c)
 	int c;
 {
-	return (__istype((c), (_A|_D)));
+	return (__istype((c), _A|_D));
 }
 
 #undef isalpha
