@@ -325,10 +325,6 @@ vm_page_wakeup(vm_page_t m)
 	vm_page_flash(m);
 }
 
-/*
- *
- *
- */
 void
 vm_page_io_start(vm_page_t m)
 {
