@@ -29,7 +29,6 @@ Commercial  usage is  also  possible  with  participation of it's author.
 #include <arpa/ftp.h>
 #include <netinet/in.h>
 #include <netdb.h>
-#include <varargs.h>
 #include <arpa/telnet.h>
 #include <sys/stat.h>
 
