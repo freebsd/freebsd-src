@@ -72,9 +72,8 @@ and
 .Fa size .
 The byte range is expected to be within a single page, and if
 .Fa size
-is zero no bits will be set.
+is zero, no bits will be set.
 .Pp
-.\" ------------------- VM_PAGE_SET_VALIDCLEAN -------------------
 .Fn vm_page_set_validclean
 flags the byte range between
 .Fa base
@@ -93,7 +92,7 @@ If
 .Fa base
 is zero and
 .Fa size
-is one page the modified bit in the page map is cleared; as well,
+is one page, the modified bit in the page map is cleared; as well,
 the
 .Dv PG_NOSYNC
 flag is cleared.
@@ -121,11 +120,13 @@ As well as clearing the bits within the page, the generation
 number within the object holding the page is incremented.
 .Pp
 .Fn vm_page_zero_invalid
-zeros all of the blocks within the page that are currently
-flaged as invalid.
+zeroes all of the blocks within the page that are currently
+flagged as invalid.
 If
 .Fa setvalid
-is TRUE, all of the valid bits within the page are set.
+is
+.Dv TRUE ,
+all of the valid bits within the page are set.
 .Pp
 In some cases, such as NFS, the valid bits cannot be set
 in order to maintain cache consistency.
@@ -142,12 +143,14 @@ If
 .Fa size
 is zero and the page is entirely invalid
 .Fn vm_page_is_valid
-will return TRUE, in all other cases
-a size of zero will return FALSE.
+will return
+.Dv TRUE ,
+in all other cases a size of zero will return
+.Dv FALSE .
 .Pp
 .Fn vm_page_test_dirty
 checks if a page has been modified via any of its physical maps,
-and if so flags the entire page as dirty.
+and if so, flags the entire page as dirty.
 .Fn vm_page_dirty
 is called to modify the dirty bits.
 .Pp

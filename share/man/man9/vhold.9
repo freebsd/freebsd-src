@@ -30,9 +30,8 @@
 .Dt VHOLD 9
 .Os
 .Sh NAME
-.Nm vhold
-.Nm vdrop
-.Nd "aquire/release a hold on a vnode"
+.Nm vhold , vdrop
+.Nd "acquire/release a hold on a vnode"
 .Sh SYNOPSIS
 .In sys/param.h
 .In sys/vnode.h
@@ -43,20 +42,24 @@
 .Sh DESCRIPTION
 The
 .Fn vhold
-function increments the v_holdcnt of the given vnode.
-If the vnode has already been added to the free list and is still referenced
+function increments the
+.Va v_holdcnt
+of the given vnode.
+If the vnode has already been added to the free list and is still referenced,
 it will be removed.
 .Pp
 The
 .Fn vdrop
-function decrements the v_holdcnt of the vnode.
-If the holdcount is zero or less prior to calling
-.Fn vdrop
+function decrements the
+.Va v_holdcnt
+of the vnode.
+If the holdcount is less than or equal zero prior to calling
+.Fn vdrop ,
 the system will panic.
-If the vnode is no longer referenced it will freed.
+If the vnode is no longer referenced, it will freed.
 .Sh SEE ALSO
-.Xr vfree 9 ,
-.Xr vbusy 9
+.Xr vbusy 9 ,
+.Xr vfree 9
 .Sh AUTHORS
 This man page was written by
 .An Chad David Aq davidc@acns.ab.ca .
