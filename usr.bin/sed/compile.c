@@ -435,7 +435,7 @@ compile_re(p, repp)
 		return (p);
 	}
 	*repp = xmalloc(sizeof(regex_t));
-	if (p && (eval = regcomp(*repp, re, 0)) != 0)
+	if (p && (eval = regcomp(*repp, re, rflags)) != 0)
 		errx(1, "%lu: %s: RE error: %s",
 				linenum, fname, strregerror(eval, *repp));
 	if (maxnsub < (*repp)->re_nsub)
