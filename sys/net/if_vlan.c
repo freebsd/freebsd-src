@@ -365,7 +365,7 @@ vlan_clone_create(struct if_clone *ifc, char *name, size_t len)
 
 	ifp->if_softc = ifv;
 	/*
-	 * Set the name manually rather then using if_initname because
+	 * Set the name manually rather than using if_initname because
 	 * we don't conform to the default naming convention for interfaces.
 	 */
 	strlcpy(ifp->if_xname, name, IFNAMSIZ);
