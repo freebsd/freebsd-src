@@ -563,6 +563,7 @@ vlan_input(struct ifnet *ifp, struct mbuf *m)
 		 */
 		tag = EVL_VLANOFTAG(VLAN_TAG_VALUE(mtag));
 		m_tag_delete(m, mtag);
+		m->m_flags &= ~M_VLANTAG;
 	} else {
 		switch (ifp->if_type) {
 		case IFT_ETHER:
