@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.41.2.13 1995/06/04 07:06:50 jkh Exp $
+ * $Id: sysinstall.h,v 1.41.2.14 1995/06/04 22:24:49 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -226,8 +226,6 @@ typedef struct _devPriv {
 
 /*** Externs ***/
 extern int		DebugFD;		/* Where diagnostic output goes			*/
-extern Boolean		OnCDROM;		/* Are we running off of a CDROM?		*/
-extern Boolean		OnSerial;		/* Are we on a serial console?			*/
 extern Boolean		SystemWasInstalled;	/* Did we install it?				*/
 extern Boolean		RunningAsInit;		/* Are we running stand-alone?			*/
 extern Boolean		DialogActive;		/* Is the dialog() stuff up?			*/
@@ -242,6 +240,8 @@ extern unsigned int	XF86ServerDists;	/* The XFree86 servers we want			*/
 extern unsigned int	XF86FontDists;		/* The XFree86 fonts we want			*/
 extern unsigned int	OptFlags;		/* Global options */
 extern int		BootMgr;		/* Which boot manager to use 			*/
+extern char		*InstallPrefix;		/* A location bias				*/
+
 
 extern DMenu		MenuInitial;		/* Initial installation menu			*/
 extern DMenu		MenuMBRType;		/* Type of MBR to write on the disk		*/
@@ -316,6 +316,10 @@ extern Device	*deviceRegister(char *name, char *desc, char *devname, DeviceType 
 				Boolean (*init)(Device *mediadev), int (*get)(Device *dev, char *file),
 				Boolean (*close)(Device *mediadev, int fd), void (*shutDown)(Device *mediadev),
 				void *private);
+extern Boolean	dummyInit(Device *dev);
+extern int	dummyGet(Device *dev, char *dist);
+extern Boolean	dummyClose(Device *dev, int fd);
+extern void	dummyShutdown(Device *dev);
 
 /* disks.c */
 extern int	diskPartitionEditor(char *unused);

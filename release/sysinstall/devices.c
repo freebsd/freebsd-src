@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: devices.c,v 1.35.2.6 1995/06/04 05:23:00 jkh Exp $
+ * $Id: devices.c,v 1.35.2.7 1995/06/04 22:24:42 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -123,19 +123,19 @@ new_device(char *name)
 }
 
 /* Stubs for unimplemented strategy routines */
-static Boolean
+Boolean
 dummyInit(Device *dev)
 {
     return TRUE;
 }
 
-static int
+int
 dummyGet(Device *dev, char *dist)
 {
     return -1;
 }
 
-static Boolean
+Boolean
 dummyClose(Device *dev, int fd)
 {
     if (!close(fd))
@@ -143,7 +143,7 @@ dummyClose(Device *dev, int fd)
     return FALSE;
 }
 
-static void
+void
 dummyShutdown(Device *dev)
 {
     return;

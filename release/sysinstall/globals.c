@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: globals.c,v 1.9 1995/05/30 08:28:40 rgrimes Exp $
+ * $Id: globals.c,v 1.9.2.1 1995/06/02 15:31:18 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -48,10 +48,7 @@
  * whatever values we feel are appropriate.
  */
 
-int		RootFD;	  /* The file descriptor for our ROOT floppy */
 int		DebugFD;  /* Where diagnostic output goes */
-Boolean		OnCDROM;  /* Are we running off of a CDROM? */
-Boolean		OnSerial; /* Are we on a serial console? */
 Boolean		RunningAsInit;	/* Are we running as init? */
 Boolean		DialogActive;
 Boolean		ColorDisplay;
@@ -60,6 +57,7 @@ Variable	*VarHead; /* The head of the variable chain */
 Device		*mediaDevice;	/* Where we're installing from */
 unsigned int	OptFlags;	/* Option flags */
 int		BootMgr;
+char		*InstallPrefix;  /* Always install under here */
 
 /*
  * Yes, I know some of these are already automatically initialized as
@@ -68,10 +66,7 @@ int		BootMgr;
 void
 globalsInit(void)
 {
-    RootFD = -1;
     DebugFD = -1;
-    OnCDROM = FALSE;
-    OnSerial = FALSE;
     ColorDisplay = FALSE;
     OnVTY = FALSE;
     DialogActive = FALSE;
@@ -79,4 +74,5 @@ globalsInit(void)
     mediaDevice = NULL;
     RunningAsInit = FALSE;
     OptFlags = 0;
+    InstallPrefix = NULL;
 }
