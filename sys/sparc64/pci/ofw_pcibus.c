@@ -179,7 +179,7 @@ ofw_pcibus_setup_device(device_t bridge, u_int busno, u_int slot, u_int func)
 			PCIR_LATTIMER, 1), lat);
 #endif /* OFW_PCI_DEBUG */
 		PCIB_WRITE_CONFIG(bridge, busno, slot, func,
-		    PCIR_LATTIMER, imin(lat, 255), 1);
+		    PCIR_LATTIMER, min(lat, 255), 1);
 	}
 
 	/*
@@ -187,7 +187,7 @@ ofw_pcibus_setup_device(device_t bridge, u_int busno, u_int slot, u_int func)
 	 * The role of the streaming cache is unclear in write invalidate
 	 * transfers, so it is made sure that it's line size is always reached.
 	 */
-	clnsz = imax(cache.ec_linesize, STRBUF_LINESZ);
+	clnsz = max(cache.ec_linesize, STRBUF_LINESZ);
 	KASSERT((clnsz / STRBUF_LINESZ) * STRBUF_LINESZ == clnsz &&
 	    (clnsz / cache.ec_linesize) * cache.ec_linesize == clnsz &&
 	    (clnsz / 4) * 4 == clnsz, ("bogus cache line size %d", clnsz));
