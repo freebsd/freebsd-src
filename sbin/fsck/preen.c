@@ -230,7 +230,7 @@ checkfstab(flags, maxrun, docheck, checkit)
 		}
 	}
 	if (sumstatus) {
-		p = badh.tqh_first;
+		p = TAILQ_FIRST(&badh);
 		if (p == NULL)
 			return (sumstatus);
 
@@ -334,7 +334,7 @@ startdisk(d, checkit)
 	int (*checkit) __P((const char *, const char *, const char *, void *,
 	    pid_t *));
 {
-	struct partentry *p = d->d_part.tqh_first;
+	struct partentry *p = TAILQ_FIRST(&d->d_part);
 	int rv;
 
 	while ((rv = (*checkit)(p->p_type, p->p_devname, p->p_mntpt,
