@@ -11,9 +11,9 @@
 # device lines is present in the ./LINT configuration file. If you are 
 # in doubt as to the purpose or necessity of a line, check first in LINT.
 #
-#	$Id: GENERIC98,v 1.8.2.1 1996/11/16 21:18:29 phk Exp $
+#	$Id: GENERIC98,v 1.8.2.2 1996/12/04 16:00:25 phk Exp $
 
-# GENERIC98 -- Generic PC98 machine with WD/SBIC55 disks
+# GENERIC98 -- Generic PC98 machine with WD/SCSI disks
 
 machine		"pc98"
 cpu		"I386_CPU"
@@ -110,7 +110,9 @@ controller bs0 at isa? port "IO_SCSI" bio irq 5 drq 3 flags 0 vector bsintr
 # ELECOM type
 #controller bs0 at isa? port "IO_SCSI" bio irq 5 drq 3 flags 0x30000 vector bsintr
 # SMIT
-#controller bs0 at isa? port "IO_SCSI" bio irq 5 drq 3 iomem 0xdd000 iosiz 0x1000 flags 0x40000 vector bsintr
+#controller bs0 at isa? port "IO_SCSI" bio irq 5 drq 3 iomem 0xdc000 iosiz 0x1000 flags 0x40000 vector bsintr
+# Logitec LHA-20x
+#controller bs0 at isa? port "IO_SCSI" bio irq 5 drq 3 flags 0x50000 vector bsintr
 
 controller	aic0	at isa? port 0x1840 bio irq 5 flags 0x10000 vector aicintr
 
@@ -175,14 +177,15 @@ device vx0
 device ed0 at isa? port 0x00d0 net irq 6 vector edintr
 device ed1 at isa? port 0x00d8 net irq 6 flags 0x200000 vector edintr
 device ed2 at isa? port 0x00d8 net irq 6 flags 0x300000 vector edintr
-device ed3 at isa? port 0x00d8 net irq 6 flags 0x400000 vector edintr
+device ed3 at isa? port 0x00d0 net irq 6 flags 0x400000 vector edintr
 device ed4 at isa? port 0x56d0 net irq 5 flags 0x500000 vector edintr
 device ed5 at isa? port 0x00d0 net irq 6 iomem 0xd0000 iosiz 16384 flags 0x600000 vector edintr
 device ed6 at isa? port 0x00d0 net irq 6 flags 0x800000 vector edintr
 device ed7 at isa? port 0x00d0 net irq 6 flags 0x900000 vector edintr
-device ed8 at isa? port 0x00d0 net irq 6 flags 0xa00000 vector edintr
-device ed9 at isa? port 0x00d0 net irq 6 flags 0xb00000 vector edintr
+device ed8 at isa? port 0x03d0 net irq 6 flags 0xa00000 vector edintr
+device ed9 at isa? port 0x03d0 net irq 6 flags 0xb00000 vector edintr
 
+device ep0 at isa? port 0x40d0 net irq 3 vector epintr
 device fe0 at isa? port 0x00d0 net irq 3 vector feintr
 device zp0 at isa? port 0x00d0 net irq 10 iomem 0xe0000 vector zpintr 
 
@@ -192,7 +195,7 @@ device zp0 at isa? port 0x00d0 net irq 10 iomem 0xe0000 vector zpintr
 #device	sbmidi0	at isa? port 0x80d2
 #device	opl0	at isa? port 0x28d2
 #device pcm0    at isa? port 0xa460 irq 12 vector pcmintr
-#device	mss0	at isa? port 0xf40 irq12 drq 1 vectro adintr
+#device	mss0	at isa? port 0xf40 irq 12 drq 1 vector adintr
 
 pseudo-device	loop
 pseudo-device	ether
