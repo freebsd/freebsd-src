@@ -106,7 +106,7 @@
 #	perfmon	CPU performance-monitoring counters
 #	pci	PCI configuration-space access from user mode
 #
-#	$Id: MAKEDEV,v 1.147 1998/01/02 22:16:15 jkh Exp $
+#	$Id: MAKEDEV,v 1.148 1998/01/03 11:53:52 jkh Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:$PATH
@@ -891,7 +891,7 @@ ttyR?)
 
 cuaR?)
 	major=81
-	CUnum=128; ICUnum=160; LCUnum=192
+	Rnum=0; CUnum=128; ICUnum=160; LCUnum=192
 	unit=1; minor=0
 	dmesg | grep ^RocketPort[0-4] > /tmp/rp_list
 	controllers=`awk '{print $1}' < /tmp/rp_list`
@@ -910,6 +910,7 @@ cuaR?)
 		name=cuaiR$Rnum
 		echo -n "$name "
 		mknod /dev/$name c $major $ICUnum 
+		Rnum=`expr $Rnum + 1`
 		CUnum=`expr $CUnum + 1`
 		LCUnum=`expr $LCUnum + 1`
 		ICUnum=`expr $ICUnum + 1`
