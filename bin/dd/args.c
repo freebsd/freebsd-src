@@ -67,7 +67,7 @@ static void	f_obs __P((char *));
 static void	f_of __P((char *));
 static void	f_seek __P((char *));
 static void	f_skip __P((char *));
-static quad_t	get_bsz __P((char *));
+static quad_t	get_num __P((char *));
 
 static struct arg {
 	char *name;
@@ -174,7 +174,7 @@ static void
 f_bs(arg)
 	char *arg;
 {
-	quad_t res = get_bsz(arg);
+	quad_t res = get_num(arg);
 
 	if (res < 1 || res > INT_MAX)
 		errx(1, "bs must be between 1 and %d", INT_MAX);
@@ -185,11 +185,10 @@ static void
 f_cbs(arg)
 	char *arg;
 {
-	quad_t res = get_bsz(arg);
+	quad_t res = get_num(arg);
 
 	if (res < 1 || res > INT_MAX)
 		errx(1, "cbs must be between 1 and %d", INT_MAX);
-
 	cbsz = (int)res;
 }
 
@@ -198,7 +197,8 @@ f_count(arg)
 	char *arg;
 {
 
-	cpy_cnt = get_bsz(arg);
+	cpy_cnt = get_num(arg);
+
 	if (!cpy_cnt)
 		terminate(0);
 	if (cpy_cnt < 0)
@@ -209,9 +209,10 @@ static void
 f_files(arg)
 	char *arg;
 {
-	quad_t res = get_bsz(arg);
 
-	files_cnt = res;
+	files_cnt = get_num(arg);
+	if (files_cnt < 0)
+		errx(1, "files cannot be negative");
 }
 
 static void
@@ -220,7 +221,7 @@ f_ibs(arg)
 {
 
 	if (!(ddflags & C_BS)) {
-		quad_t res = get_bsz(arg);
+		quad_t res = get_num(arg);
 
 		if (res < 1 || res > INT_MAX)
 			errx(1, "ibs must be between 1 and %d", INT_MAX);
@@ -242,7 +243,7 @@ f_obs(arg)
 {
 
 	if (!(ddflags & C_BS)) {
-		quad_t res = get_bsz(arg);
+		quad_t res = get_num(arg);
 
 		if (res < 1 || res > INT_MAX)
 			errx(1, "ibs must be between 1 and %d", INT_MAX);
@@ -263,7 +264,7 @@ f_seek(arg)
 	char *arg;
 {
 
-	out.offset = get_bsz(arg);
+	out.offset = get_num(arg);
 }
 
 static void
@@ -271,7 +272,7 @@ f_skip(arg)
 	char *arg;
 {
 
-	in.offset = get_bsz(arg);
+	in.offset = get_num(arg);
 }
 
 static struct conv {
@@ -338,7 +339,7 @@ c_conv(a, b)
  *	   the product of the indicated values.
  */
 static quad_t
-get_bsz(val)
+get_num(val)
 	char *val;
 {
 	quad_t num, t;
@@ -346,17 +347,13 @@ get_bsz(val)
 
 	errno = 0;
 	num = strtoq(val, &expr, 0);
-	if (num == QUAD_MAX && errno)		/* Overflow. */
+	if (errno)				/* Overflow or underflow. */
 		err(1, "%s", oper);
-	/*
-	 * XXX (BFF) - The checks in individual f_* functions are
-	 * now redundant, but this is only temporary.
-	 */
 	
-	if (expr == val || num < 0)		/* No digits or negative. */
+	if (expr == val)			/* Not a valid number */
 		errx(1, "%s: illegal numeric value", oper);
 
-	switch(*expr) {
+	switch (*expr) {
 	case 'b':
 		t = num;
 		num *= 512;
@@ -394,16 +391,17 @@ get_bsz(val)
 		break;
 	}
 
-	switch(*expr) {
+	switch (*expr) {
 		case '\0':
 			break;
 		case '*':			/* Backward compatible. */
 		case 'x':
 			t = num;
-			num *= get_bsz(expr + 1);
-			if (t > num)
-erange:				errx(1, "%s: %s", oper, strerror(ERANGE));
-			break;
+			num *= get_num(expr + 1);
+			if (t <= num)
+				break;
+erange:
+			errx(1, "%s: %s", oper, strerror(ERANGE));
 		default:
 			errx(1, "%s: illegal numeric value", oper);
 	}
