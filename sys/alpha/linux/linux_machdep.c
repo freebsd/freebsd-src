@@ -352,21 +352,6 @@ linux_munmap(td, uap)
 	return (munmap(td, (void *)uap));
 }
 
-/*
- * linux/alpha has 2 mappings for this,
- * This is here purely to shut the compiler up.
- */
-
-int
-linux_setpgid(td, uap)
-	struct thread *td;
-	struct linux_setpgid_args *uap;
-{
-
-	return (setpgid(td, (void *)uap));
-}
-
-
 static unsigned int linux_to_bsd_resource[LINUX_RLIM_NLIMITS] = {
 	RLIMIT_CPU, RLIMIT_FSIZE, RLIMIT_DATA, RLIMIT_STACK,
 	RLIMIT_CORE, RLIMIT_RSS, RLIMIT_NOFILE, -1,
