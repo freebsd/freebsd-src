@@ -70,11 +70,13 @@ typedef struct acl	*acl_t;
 #define	ACL_MASK	0x00000010
 #define	ACL_OTHER	0x00000020
 #define	ACL_OTHER_OBJ	ACL_OTHER
-#define	ACL_AFS_ID	0x00000040
 
-#define	ACL_TYPE_ACCESS	0x00000000
+#define	ACL_TYPE_ACCESS		0x00000000
 #define	ACL_TYPE_DEFAULT	0x00000001
-#define ACL_TYPE_AFS	0x00000003
+#define ACL_TYPE_AFS		0x00000002
+#define ACL_TYPE_CODA		0x00000003
+#define ACL_TYPE_NTFS		0x00000004
+#define ACL_TYPE_NWFS		0x00000005
 
 /*
  * Possible flags in a_perm field
@@ -132,12 +134,15 @@ __END_DECLS
 
 /*
  * Supported POSIX.1e ACL manipulation and assignment/retrieval API
+ * _np calls are local extensions that reflect an environment capable of
+ * opening file descriptors of directories, and allowing additional
+ * ACL type for different file systems (i.e., AFS)
  */
 __BEGIN_DECLS
-int	acl_calc_mask(acl_t *acl_p);
 int	acl_delete_fd_np(int filedes, acl_type_t type);
 int	acl_delete_file_np(const char *path_p, acl_type_t type);
 int	acl_delete_def_file(const char *path_p);
+acl_t	acl_dup(acl_t acl);
 int	acl_free(void *obj_p);
 acl_t	acl_from_text(const char *buf_p);
 acl_t	acl_get_fd(int fd);
