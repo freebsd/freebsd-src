@@ -1052,7 +1052,7 @@ ng_bridge_timeout(void *arg)
 static const char *
 ng_bridge_nodename(node_p node)
 {
-	static char name[NG_NODELEN+1];
+	static char name[NG_NODESIZ];
 
 	if (NG_NODE_NAME(node) != NULL)
 		snprintf(name, sizeof(name), "%s", NG_NODE_NAME(node));

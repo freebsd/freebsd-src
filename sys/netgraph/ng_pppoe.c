@@ -917,7 +917,7 @@ send_acname(sessp sp, const struct pppoe_tag *tag)
 		return (ENOMEM);
 
 	sts = (struct ngpppoe_sts *)msg->data;
-	tlen = min(NG_HOOKLEN, ntohs(tag->tag_len));
+	tlen = min(NG_HOOKSIZ - 1, ntohs(tag->tag_len));
 	strncpy(sts->hook, tag->tag_data, tlen);
 	sts->hook[tlen] = '\0';
 	NG_SEND_MSG_ID(error, NG_HOOK_NODE(sp->hook), msg, sp->creator, 0);
@@ -1763,7 +1763,7 @@ AAA
 	if (msg == NULL)
 		return (ENOMEM);
 	sts = (struct ngpppoe_sts *)msg->data;
-	strncpy(sts->hook, NG_HOOK_NAME(sp->hook), NG_HOOKLEN + 1);
+	strncpy(sts->hook, NG_HOOK_NAME(sp->hook), NG_HOOKSIZ);
 	NG_SEND_MSG_ID(error, NG_HOOK_NODE(sp->hook), msg, sp->creator, 0);
 	return (error);
 }

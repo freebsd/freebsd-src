@@ -346,7 +346,7 @@ ngd_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 	struct sockaddr_ng *const sap = (struct sockaddr_ng *) addr;
 	int     len, error;
 	hook_p  hook = NULL;
-	char	hookname[NG_HOOKLEN + 1];
+	char	hookname[NG_HOOKSIZ];
 
 	if ((pcbp == NULL) || (control != NULL)) {
 		error = EINVAL;
@@ -373,7 +373,7 @@ ngd_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 		 */
 		hook = LIST_FIRST(&pcbp->sockdata->node->nd_hooks);
 	} else {
-		if (len > NG_HOOKLEN) {
+		if (len >= NG_HOOKSIZ) {
 			error = EINVAL;
 			goto release;
 		}
@@ -698,7 +698,7 @@ ng_bind(struct sockaddr *nam, struct ngpcb *pcbp)
 		return (EINVAL);
 	}
 	if ((sap->sg_len < 4)
-	||  (sap->sg_len > (NG_NODELEN + 3))
+	||  (sap->sg_len > (NG_NODESIZ + 2))
 	||  (sap->sg_data[0] == '\0')
 	||  (sap->sg_data[sap->sg_len - 3] != '\0')) {
 		TRAP_ERROR;
@@ -863,7 +863,7 @@ ngs_rcvdata(hook_p hook, item_p item)
 	struct ngpcb *const pcbp = priv->datasock;
 	struct socket *so;
 	struct sockaddr_ng *addr;
-	char *addrbuf[NG_HOOKLEN + 1 + 4];
+	char *addrbuf[NG_HOOKSIZ + 4];
 	int addrlen;
 	struct mbuf *m;
 
@@ -877,7 +877,7 @@ ngs_rcvdata(hook_p hook, item_p item)
 	so = pcbp->ng_socket;
 
 	/* Get the return address into a sockaddr. */
-	addrlen = strlen(NG_HOOK_NAME(hook));	/* <= NG_HOOKLEN */
+	addrlen = strlen(NG_HOOK_NAME(hook));	/* <= NG_HOOKSIZ - 1 */
 	addr = (struct sockaddr_ng *) addrbuf;
 	addr->sg_len = addrlen + 3;
 	addr->sg_family = AF_NETGRAPH;

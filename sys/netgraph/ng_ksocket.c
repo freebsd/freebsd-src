@@ -551,7 +551,7 @@ ng_ksocket_newhook(node_p node, hook_p hook, const char *name0)
 {
 	struct thread *td = curthread ? curthread : &thread0;	/* XXX broken */
 	const priv_p priv = NG_NODE_PRIVATE(node);
-	char *s1, *s2, name[NG_HOOKLEN+1];
+	char *s1, *s2, name[NG_HOOKSIZ];
 	int family, type, protocol, error;
 
 	/* Check if we're already connected */

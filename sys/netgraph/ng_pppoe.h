@@ -115,7 +115,7 @@ struct ngpppoestat {
  * and begin negotiation.
  */
 struct ngpppoe_init_data {
-	char		hook[NG_HOOKLEN + 1];	/* hook to monitor on */
+	char		hook[NG_HOOKSIZ];	/* hook to monitor on */
 	u_int16_t	data_len;		/* Length of the service name */
 	char		data[0];		/* init data goes here */
 };
@@ -133,7 +133,7 @@ struct ngpppoe_init_data {
  * to whoever requested the connection. (close may use this too).
  */
 struct ngpppoe_sts {
-	char	hook[NG_HOOKLEN + 1]; /* hook associated with event session */
+	char	hook[NG_HOOKSIZ];	/* hook associated with event session */
 };
 
 /* Keep this in sync with the above structure definition */
