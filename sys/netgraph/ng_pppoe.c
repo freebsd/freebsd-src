@@ -60,14 +60,6 @@
 #include <netgraph/ng_parse.h>
 #include <netgraph/ng_pppoe.h>
 
-#define NGM_PPPOE_OLDCOOKIE		939032003
-
-struct ngpppoe_old_init_data {
-	char	hook[NG_HOOKLEN + 1];	/* hook to monitor on */
-	u_int16_t	data_len;	/* Length of the service name */
-	char	data[0];		/* init data goes here */
-};
-
 #define SIGNOFF "session closed"
 #define OFFSETOF(s, e) ((char *)&((s *)0)->e - (char *)((s *)0))
 
@@ -85,12 +77,11 @@ static ng_rcvdata_t	ng_pppoe_rcvdata;
 static ng_disconnect_t	ng_pppoe_disconnect;
 
 /* Parse type for struct ngpppoe_init_data */
-
-static const struct ng_parse_struct_info ng_pppoe_init_data_type_info
+static const struct ng_parse_struct_info ngpppoe_init_data_type_info
 	= NG_PPPOE_INIT_DATA_TYPE_INFO;
-static const struct ng_parse_type ng_pppoe_init_data_state_type = {
+static const struct ng_parse_type ngpppoe_init_data_state_type = {
 	&ng_parse_struct_type,
-	&ng_pppoe_init_data_type_info
+	&ngpppoe_init_data_type_info
 };
 
 /* Parse type for struct ngpppoe_sts */
@@ -107,21 +98,21 @@ static const struct ng_cmdlist ng_pppoe_cmds[] = {
 	  NGM_PPPOE_COOKIE,
 	  NGM_PPPOE_CONNECT,
 	  "pppoe_connect",
-	  &ng_pppoe_init_data_state_type,
+	  &ngpppoe_init_data_state_type,
 	  NULL
 	},
 	{
 	  NGM_PPPOE_COOKIE,
 	  NGM_PPPOE_LISTEN,
 	  "pppoe_listen",
-	  &ng_pppoe_init_data_state_type,
+	  &ngpppoe_init_data_state_type,
 	  NULL
 	},
 	{
 	  NGM_PPPOE_COOKIE,
 	  NGM_PPPOE_OFFER,
 	  "pppoe_offer",
-	  &ng_pppoe_init_data_state_type,
+	  &ngpppoe_init_data_state_type,
 	  NULL
 	},
 	{
@@ -209,7 +200,6 @@ typedef struct sess_neg *negp;
  * Session information that is needed after connection.
  */
 struct sess_con {
-	u_int32_t		typecookie;	/* cookie used by sender */
 	hook_p  		hook;
 	u_int16_t		Session_ID;
 	enum state		state;
@@ -598,7 +588,6 @@ AAA
 		bzero(sp, sizeof(*sp));
 
 		hook->private = sp;
-		sp->typecookie = NGM_PPPOE_COOKIE;
 		sp->hook = hook;
 	}
 	return(0);
@@ -616,53 +605,37 @@ ng_pppoe_rcvmsg(node_p node, struct ng_mesg *msg, const char *retaddr,
 {
 	priv_p privp = node->private;
 	struct ngpppoe_init_data *ourmsg = NULL;
-	struct ngpppoe_old_init_data *oldmsg;
 	struct ng_mesg *resp = NULL;
 	int error = 0;
 	hook_p hook = NULL;
 	sessp sp = NULL;
 	negp neg = NULL;
-	uint16_t datalen = 0;
 
 AAA
 	/* Deal with message according to cookie and command */
 	switch (msg->header.typecookie) {
-	case NGM_PPPOE_OLDCOOKIE: 
 	case NGM_PPPOE_COOKIE: 
 		switch (msg->header.cmd) {
 		case NGM_PPPOE_CONNECT:
 		case NGM_PPPOE_LISTEN: 
 		case NGM_PPPOE_OFFER: 
-			if (msg->header.typecookie == NGM_PPPOE_OLDCOOKIE) {
-				/* Make the old data look like new data */
-
-				oldmsg = (struct ngpppoe_old_init_data *)
-				    msg->data;
-				if (sizeof(*oldmsg) + oldmsg->data_len
-				    > msg->header.arglen) {
-					printf("pppoe_rcvmsg: bad arg size");
-					LEAVE(EMSGSIZE);
-				}
-				datalen = oldmsg->data_len;
-				if (datalen != 0)
-					bcopy(oldmsg->data, &oldmsg->data_len,
-					    datalen);
-				((char *)&oldmsg->data_len)[datalen] = '\0';
-				msg->header.arglen = datalen + sizeof(*ourmsg);
-			}
-
 			ourmsg = (struct ngpppoe_init_data *)msg->data;
+			if (msg->header.arglen < sizeof(*ourmsg)) {
+				printf("pppoe: init data too small\n");
+				LEAVE(EMSGSIZE);
+			}
 			if (msg->header.arglen - sizeof(*ourmsg) > 
 			    PPPOE_SERVICE_NAME_SIZE) {
 				printf("pppoe_rcvmsg: service name too big");
 				LEAVE(EMSGSIZE);
 			}
-			if (ourmsg->data[msg->header.arglen - sizeof(*ourmsg)]
-			    != '\0') {
-				printf("pppoe_rcvmsg: svc name unterminated");
+			if (msg->header.arglen - sizeof(*ourmsg) <
+			    ourmsg->data_len) {
+				printf("pppoe: init data has bad length,"
+				    " %d should be %d\n", ourmsg->data_len,
+				    msg->header.arglen - sizeof (*ourmsg));
 				LEAVE(EMSGSIZE);
 			}
-			datalen = strlen(ourmsg->data);
 
 			/* make sure strcmp will terminate safely */
 			ourmsg->hook[sizeof(ourmsg->hook) - 1] = '\0';
@@ -681,7 +654,6 @@ AAA
 				LEAVE(EINVAL);
 			}
 			sp = hook->private;
-			sp->typecookie = msg->header.typecookie;
 			if (sp->state |= PPPOE_SNONE) {
 				printf("pppoe: Session already active\n");
 				LEAVE(EISCONN);
@@ -749,11 +721,12 @@ AAA
 			 * start it.
 			 */
 			neg->service.hdr.tag_type = PTT_SRV_NAME;
-			neg->service.hdr.tag_len = htons(datalen);
-			if (datalen) {
-				bcopy(ourmsg->data, neg->service.data, datalen);
-			}
-			neg->service_len = datalen;
+			neg->service.hdr.tag_len =
+			    htons((u_int16_t)ourmsg->data_len);
+			if (ourmsg->data_len)
+				bcopy(ourmsg->data, neg->service.data,
+				    ourmsg->data_len);
+			neg->service_len = ourmsg->data_len;
 			pppoe_start(sp);
 			break;
 		case NGM_PPPOE_LISTEN:
@@ -766,12 +739,13 @@ AAA
 
 			 */
 			neg->service.hdr.tag_type = PTT_SRV_NAME;
-			neg->service.hdr.tag_len = htons(datalen);
+			neg->service.hdr.tag_len =
+			    htons((u_int16_t)ourmsg->data_len);
 
-			if (datalen) {
-				bcopy(ourmsg->data, neg->service.data, datalen);
-			}
-			neg->service_len = datalen;
+			if (ourmsg->data_len)
+				bcopy(ourmsg->data, neg->service.data,
+				    ourmsg->data_len);
+			neg->service_len = ourmsg->data_len;
 			neg->pkt->pkt_header.ph.code = PADT_CODE;
 			/*
 			 * wait for PADI packet coming from ethernet
@@ -786,11 +760,12 @@ AAA
 			 * Store the AC-Name given and go to PRIMED.
 			 */
 			neg->ac_name.hdr.tag_type = PTT_AC_NAME;
-			neg->ac_name.hdr.tag_len = htons(datalen);
-			if (datalen) {
-				bcopy(ourmsg->data, neg->ac_name.data, datalen);
-			}
-			neg->ac_name_len = datalen;
+			neg->ac_name.hdr.tag_len =
+			    htons((u_int16_t)ourmsg->data_len);
+			if (ourmsg->data_len)
+				bcopy(ourmsg->data, neg->ac_name.data,
+				    ourmsg->data_len);
+			neg->ac_name_len = ourmsg->data_len;
 			neg->pkt->pkt_header.ph.code = PADO_CODE;
 			/*
 			 * Wait for PADI packet coming from hook
@@ -1607,7 +1582,7 @@ pppoe_send_event(sessp sp, enum cmd cmdid)
 	struct ngpppoe_sts *sts;
 
 AAA
-	NG_MKMESSAGE(msg, sp->typecookie, cmdid,
+	NG_MKMESSAGE(msg, NGM_PPPOE_COOKIE, cmdid,
 			sizeof(struct ngpppoe_sts), M_NOWAIT);
 	sts = (struct ngpppoe_sts *)msg->data;
 	strncpy(sts->hook, sp->hook->name, NG_HOOKLEN + 1);

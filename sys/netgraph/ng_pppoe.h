@@ -49,7 +49,7 @@
 /* Node type name. This should be unique among all netgraph node types */
 #define NG_PPPOE_NODE_TYPE	"pppoe"
 
-#define NGM_PPPOE_COOKIE		939032004
+#define NGM_PPPOE_COOKIE		939032003
 
 /* Number of active sessions we can handle */
 #define	PPPOE_NUM_SESSIONS		16 /* for now */
@@ -114,15 +114,16 @@ struct ngpppoestat {
  * and begin negotiation.
  */
 struct ngpppoe_init_data {
-	char	hook[NG_HOOKLEN + 1];	/* hook to monitor on */
-	char	data[1];		/* init data goes here */
+	char		hook[NG_HOOKLEN + 1];	/* hook to monitor on */
+	u_int16_t	data_len;		/* Length of the service name */
+	char		data[0];		/* init data goes here */
 };
 
 /* Keep this in sync with the above structure definition */
 #define NG_PPPOE_INIT_DATA_TYPE_INFO	{		\
 	{						\
 	  { "hook",	&ng_parse_hookbuf_type	},	\
-	  { "data",	&ng_parse_string_type	},	\
+	  { "data",	&ng_parse_sizedstring_type },	\
 	  { NULL }					\
 	}						\
 }
