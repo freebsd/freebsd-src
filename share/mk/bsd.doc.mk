@@ -1,5 +1,5 @@
 #	from: @(#)bsd.doc.mk	5.3 (Berkeley) 1/2/91
-#	$Id: bsd.doc.mk,v 1.6 1995/01/04 21:34:13 ache Exp $
+#	$Id: bsd.doc.mk,v 1.7 1995/01/04 22:43:51 ache Exp $
 
 PRINTER?=	ps
 
@@ -10,9 +10,28 @@ GRIND?=		vgrind -f
 INDXBIB?=	indxbib
 PIC?=		pic
 REFER?=		refer
-ROFF?=		groff -T${PRINTER} ${MACROS} -o${PAGES}
+ROFF?=		groff ${TRFLAGS} ${MACROS} -o${PAGES}
 SOELIM?=	soelim
 TBL?=		tbl
+
+DOC?=		paper
+
+TRFLAGS+=	-T${PRINTER}
+.if defined(USE_EQN)
+TRFLAGS+=	-e
+.endif
+.if defined(USE_TBL)
+TRFLAGS+=	-t
+.endif
+.if defined(USE_PIC)
+TRFLAGS+=	-p
+.endif
+.if defined(USE_SOELIM)
+TRFLAGS+=	-s
+.endif
+.if defined(USE_REFER)
+TRFALGS+=	-R
+.endif
 
 PAGES?=		1-
 
@@ -20,7 +39,7 @@ PAGES?=		1-
 # Berkeley me macros.
 COMPAT?=	-C
 
-.PATH: ${.CURDIR}
+.PATH: ${.CURDIR} ${SRCDIR}
 
 all:	${DOC}.${PRINTER}
 
@@ -86,3 +105,19 @@ spell: ${SRCS}
 
 BINDIR?=	/usr/share/doc
 BINMODE=        444
+
+SRCDIR?=	${.CURDIR}
+
+.if !target(${DOC}.${PRINTER})
+CLEANFILES+=	${DOC}.${PRINTER}+
+
+${DOC}.${PRINTER}:	${SRCS}
+	(cd ${SRCDIR}; ${ROFF} ${.ALLSRC}) > ${.TARGET}+
+	rm -f ${.TARGET}
+	mv ${.TARGET}+ ${.TARGET}
+.endif
+
+.if !target(depend)
+depend:
+
+.endif
