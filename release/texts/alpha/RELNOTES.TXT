@@ -157,6 +157,12 @@ rc.conf(5) on new installs. [MERGED]
 rlogind(8), rshd(8), and fingerd(8) are now disabled by default in
 /etc/inetd.conf.  This only affects new installations.  [MERGED]
 
+String-handling library calls in many programs were fixed to reduce
+the possibility of buffer overflow-related exploits.  [MERGED]
+
+TCP now uses stronger randomness in choosing its initial sequence 
+numbers (see security advisory FreeBSD-SA-00:52). [MERGED]
+
 
 1.3. USERLAND CHANGES
 ---------------------
