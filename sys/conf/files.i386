@@ -122,6 +122,7 @@ dev/sbni/if_sbni.c		optional	sbni
 dev/sbni/if_sbni_isa.c		optional	sbni isa
 dev/sbni/if_sbni_pci.c		optional	sbni pci
 dev/sio/sio.c			optional	sio
+dev/sio/sio_isa.c		optional	sio isa
 dev/sr/if_sr_isa.c		optional	sr isa
 dev/syscons/apm/apm_saver.c	optional	apm_saver apm
 dev/syscons/schistory.c		count		sc
