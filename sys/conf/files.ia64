@@ -18,6 +18,7 @@ atkbdmap.h			optional	atkbd_dflt_keymap	\
 	no-obj no-implicit-rule before-depend				\
 	clean		"atkbdmap.h"
 #
+ia64/acpica/OsdEnvironment.c	optional	acpica
 ia64/ia64/ia64-gdbstub.c	optional	ddb
 ia64/ia64/autoconf.c		standard
 ia64/ia64/busdma_machdep.c	standard
@@ -26,7 +27,8 @@ ia64/ia64/clock_if.m		standard
 ia64/ia64/db_disasm.c		optional	ddb
 ia64/ia64/db_interface.c	optional	ddb
 ia64/ia64/db_trace.c		optional	ddb
-ia64/ia64/elf_machdep.c	standard
+ia64/ia64/efi.c			standard
+ia64/ia64/elf_machdep.c		standard
 ia64/ia64/exception.s		standard
 ia64/ia64/in_cksum.c		optional	inet
 ia64/ia64/interrupt.c		standard
@@ -37,16 +39,20 @@ ia64/ia64/machdep.c		standard
 ia64/ia64/mem.c			standard
 ia64/ia64/mountroot.c		optional	slice
 ia64/ia64/mp_machdep.c		optional	smp
+ia64/ia64/nexus.c		standard
 ia64/ia64/pal.s			standard
+ia64/ia64/pal_stub.s		optional	ski
 ia64/ia64/perfmon.c		optional	perfmon	profiling-routine
 ia64/ia64/perfmon.c		optional	perfmon
 ia64/ia64/pmap.c		standard
 ia64/ia64/procfs_machdep.c	standard
+ia64/ia64/sal.c			standard
 ia64/ia64/setjmp.s		standard
+ia64/ia64/ski.c			optional	ski
 ia64/ia64/support.s		standard
-ia64/ia64/ssc.c			standard
-ia64/ia64/sscclock.c		standard
-ia64/ia64/sscdisk.c		standard
+ia64/ia64/ssc.c			optional	ski
+ia64/ia64/sscclock.c		optional	ski
+ia64/ia64/sscdisk.c		optional	ski
 ia64/ia64/swtch.s		standard
 ia64/ia64/sys_machdep.c		standard
 ia64/ia64/trap.c		standard
@@ -54,7 +60,8 @@ ia64/ia64/trap.c		standard
 ia64/ia64/vm_machdep.c		standard
 ia64/isa/isa.c			optional	isa
 ia64/isa/isa_dma.c		optional	isa
-contrib/dev/acpica/Subsystem/Hardware/hwcpu64.c	optional acpica
+ia64/pci/nexus_pcib.c		optional	pci
+ia64/pci/pci_cfgreg.c		optional	pci
 dev/advansys/adv_isa.c		optional	adv isa
 dev/aic/aic_isa.c		optional	aic isa
 dev/fb/fb.c			optional	fb
