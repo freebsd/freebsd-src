@@ -133,6 +133,7 @@ SUBDIR+=aac \
 	pecoff \
 	ray \
 	s3 \
+	sbni \
 	splash \
 	sr \
 	streams \
