@@ -28,11 +28,6 @@
  * $FreeBSD$
  */
 
-#include "wdc.h"
-#include "wcd.h"
-
-#if NWCD > 0 && NWDC > 0
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -1482,4 +1477,3 @@ acd_drvinit(void *unused)
 }
 
 SYSINIT(acddev, SI_SUB_DRIVERS, SI_ORDER_MIDDLE + CDEV_MAJOR, acd_drvinit, NULL)
-#endif /* NWCD && NWDC */
