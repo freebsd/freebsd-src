@@ -17,6 +17,7 @@ SUBDIR=	UI \
 	gif \
 	gif_demux \
 	hole \
+	hub \
 	iface \
 	ip_input \
 	ksocket \

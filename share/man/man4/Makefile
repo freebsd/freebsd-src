@@ -170,6 +170,7 @@ MAN=	aac.4 \
 	ng_h4.4 \
 	ng_hci.4 \
 	ng_hole.4 \
+	ng_hub.4 \
 	ng_iface.4 \
 	ng_ip_input.4 \
 	ng_ksocket.4 \
