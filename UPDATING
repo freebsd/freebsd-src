@@ -5,6 +5,18 @@ directly to him.  See end of file for further details.  For commonly
 done items, please see the end of the file.  Search for 'COMMON
 ITEMS:'
 
+20000320:
+			* * * W A R N I N G * * *
+	The ata driver has some issues with the Apollo MVP3 chipset.
+	Drives work only in pio mode and must be set to pio mode early
+	int the boot process.  Do not upgrade.  If you must upgrade
+	in the face of this, add
+		/sbin/sysctl -w hw.atamodes=pio,pio,pio,pio
+	to the start of /etc/rc.conf.  Even if you do this, any and
+	all damage to your system is at your own risk.  You have been
+	warned.
+			* * * W A R N I N G * * *
+
 20000319:
 	The ISA and PCI compatability shims have been connected to the
 	options COMPAT_OLDISA and COMPAT_OLDPCI.  If you are using old
