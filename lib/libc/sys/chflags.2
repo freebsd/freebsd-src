@@ -84,16 +84,19 @@ The file may not be renamed or deleted.
 .Pp
 The
 .Dq UF_IMMUTABLE ,
-.Dq UF_APPEND
+.Dq UF_APPEND ,
+.Dq UF_NOUNLINK ,
+.Dq UF_NODUMP ,
 and
-.Dq UF_NOUNLINK
+.Dq UF_OPAQUE
 flags may be set or unset by either the owner of a file or the super-user.
 .Pp
 The
 .Dq SF_IMMUTABLE ,
-.Dq SF_APPEND
+.Dq SF_APPEND ,
+.Dq SF_NOUNLINK ,
 and
-.Dq SF_NOUNLINK
+.Dq SF_ARCHIVED
 flags may only be set or unset by the super-user.
 Attempts by the non-super-user to set the super-user only flags
 are silently ignored.
