@@ -203,6 +203,14 @@ Allow superuser (i.e., root) to bind to all
 protected ports, even if the port access control list does not
 explicitly allow this.
 (Default: 1).
+.It Va security.mac.portacl.autoport_exempt
+Allow applications to use automatic binding to port 0.
+Often applications will use port 0 as a request for
+automatic port allocation before binding an IP address to
+a socket.  This tunable will exempt port 0 allocation from
+rule checking when a low port is required and
+.Dv IP_PORTRANGELOW
+is set to a value above 1.
 .El
 .Sh SEE ALSO
 .Xr mac 3 ,
