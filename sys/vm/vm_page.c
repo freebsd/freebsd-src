@@ -312,6 +312,8 @@ vm_page_busy(vm_page_t m)
 void
 vm_page_flash(vm_page_t m)
 {
+
+	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
 	if (m->flags & PG_WANTED) {
 		vm_page_flag_clear(m, PG_WANTED);
 		wakeup(m);
