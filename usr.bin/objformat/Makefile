@@ -14,14 +14,16 @@ objformat:
 
 install:
 	$(CC) ${CFLAGS} ${.CURDIR}/objformat.c -o ${DESTDIR}/usr/bin/objformat
-
-LINKS+= /usr/bin/objformat /usr/bin/ar
-LINKS+= /usr/bin/objformat /usr/bin/as
-LINKS+= /usr/bin/objformat /usr/bin/ld
-LINKS+= /usr/bin/objformat /usr/bin/nm
-LINKS+= /usr/bin/objformat /usr/bin/ranlib
-LINKS+= /usr/bin/objformat /usr/bin/size
-LINKS+= /usr/bin/objformat /usr/bin/strings
-LINKS+= /usr/bin/objformat /usr/bin/strip
+	chown ${BINOWN} ${DESTDIR}/usr/bin/objformat
+	chgrp ${BINGRP} ${DESTDIR}/usr/bin/objformat
+	chmod ${BINMODE} ${DESTDIR}/usr/bin/objformat
+	ln -s ${DESTDIR}/usr/bin/objformat ${DESTDIR}/usr/bin/ar
+	ln -s ${DESTDIR}/usr/bin/objformat ${DESTDIR}/usr/bin/as
+	ln -s ${DESTDIR}/usr/bin/objformat ${DESTDIR}/usr/bin/ld
+	ln -s ${DESTDIR}/usr/bin/objformat ${DESTDIR}/usr/bin/nm
+	ln -s ${DESTDIR}/usr/bin/objformat ${DESTDIR}/usr/bin/ranlib
+	ln -s ${DESTDIR}/usr/bin/objformat ${DESTDIR}/usr/bin/size
+	ln -s ${DESTDIR}/usr/bin/objformat ${DESTDIR}/usr/bin/strings
+	ln -s ${DESTDIR}/usr/bin/objformat ${DESTDIR}/usr/bin/strip
 
 .include <bsd.prog.mk>
