@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.69 1994/10/02 17:29:51 phk Exp $
+ *	$Id: machdep.c,v 1.70 1994/10/04 18:44:21 ache Exp $
  */
 
 #include "npx.h"
@@ -45,7 +45,6 @@
 #include <sys/systm.h>
 #include <sys/signalvar.h>
 #include <sys/kernel.h>
-#include <sys/map.h>
 #include <sys/proc.h>
 #include <sys/user.h>
 #include <sys/buf.h>

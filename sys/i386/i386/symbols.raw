@@ -1,6 +1,6 @@
 #	@(#)symbols.raw	7.6 (Berkeley) 5/8/91
 #
-#	$Id$
+#	$Id: symbols.raw,v 1.3 1994/05/25 08:55:13 rgrimes Exp $
 #
 
 
@@ -36,7 +36,7 @@
 #pstat
 #	_cons
 	_nswap
-	_swapmap
+	_swaplist
 #vmstat
 	_cp_time
 #	_rate

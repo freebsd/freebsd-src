@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.5 (Berkeley) 2/13/94
- * $Id: nfs_vnops.c,v 1.7 1994/09/22 19:38:28 wollman Exp $
+ * $Id: nfs_vnops.c,v 1.8 1994/10/02 17:27:04 phk Exp $
  */
 
 /*
@@ -52,7 +52,6 @@
 #include <sys/conf.h>
 #include <sys/namei.h>
 #include <sys/vnode.h>
-#include <sys/map.h>
 #include <sys/dirent.h>
 #include <sys/lockf.h>
 
