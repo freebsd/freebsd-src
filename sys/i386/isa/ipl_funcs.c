@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ipl_funcs.c,v 1.6 1997/08/23 23:15:19 smp Exp smp $
+ *	$Id: ipl_funcs.c,v 1.3 1997/08/24 00:05:18 fsmp Exp $
  */
 
 #include <sys/types.h>
@@ -160,16 +160,6 @@ unsigned name(void)				\
 	return (x);				\
 }
 
-GENSPL(splbio, cpl |= bio_imask)
-GENSPL(splclock, cpl = HWI_MASK | SWI_MASK)
-GENSPL(splimp, cpl |= net_imask)
-GENSPL(splnet, cpl |= SWI_NET_MASK)
-GENSPL(splsoftclock, cpl = SWI_CLOCK_MASK)
-GENSPL(splsofttty, cpl |= SWI_TTY_MASK)
-GENSPL(splstatclock, cpl |= stat_imask)
-GENSPL(splvm, cpl |= net_imask | bio_imask)
-
-
 /*
  * This version has to check for smp_active,
  * as calling simple_lock() (ie ss_lock) before then deadlocks the system.
@@ -189,6 +179,15 @@ unsigned name(void)				\
 						\
 	return (x);				\
 }
+
+GENSPL2(splbio, cpl |= bio_imask)
+GENSPL2(splclock, cpl = HWI_MASK | SWI_MASK)
+GENSPL2(splimp, cpl |= net_imask)
+GENSPL2(splnet, cpl |= SWI_NET_MASK)
+GENSPL2(splsoftclock, cpl = SWI_CLOCK_MASK)
+GENSPL2(splsofttty, cpl |= SWI_TTY_MASK)
+GENSPL2(splstatclock, cpl |= stat_imask)
+GENSPL2(splvm, cpl |= net_imask | bio_imask)
 
 GENSPL2(splhigh, cpl = HWI_MASK | SWI_MASK)
 GENSPL2(spltty, cpl |= tty_imask)
