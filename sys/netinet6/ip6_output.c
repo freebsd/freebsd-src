@@ -2118,6 +2118,82 @@ do { \
 	return (error);
 }
 
+int
+ip6_raw_ctloutput(so, sopt)
+	struct socket *so;
+	struct sockopt *sopt;
+{
+	int error = 0, optval, optlen;
+	const int icmp6off = offsetof(struct icmp6_hdr, icmp6_cksum);
+	struct in6pcb *in6p = sotoin6pcb(so);
+	int level, op, optname;
+
+	if (sopt) {
+		level = sopt->sopt_level;
+		op = sopt->sopt_dir;
+		optname = sopt->sopt_name;
+		optlen = sopt->sopt_valsize;
+	} else
+		panic("ip6_raw_ctloutput: arg soopt is NULL");
+
+	if (level != IPPROTO_IPV6) {
+		return (EINVAL);
+	}
+
+	switch (optname) {
+	case IPV6_CHECKSUM:
+		/*
+		 * For ICMPv6 sockets, no modification allowed for checksum
+		 * offset, permit "no change" values to help existing apps.
+		 *
+		 * XXX 2292bis says: "An attempt to set IPV6_CHECKSUM
+		 * for an ICMPv6 socket will fail."
+		 * The current behavior does not meet 2292bis.
+		 */
+		switch (op) {
+		case SOPT_SET:
+			if (optlen != sizeof(int)) {
+				error = EINVAL;
+				break;
+			}
+			error = sooptcopyin(sopt, &optval, sizeof(optval),
+					    sizeof(optval));
+			if (error)
+				break;
+			if ((optval % 2) != 0) {
+				/* the API assumes even offset values */
+				error = EINVAL;
+			} else if (so->so_proto->pr_protocol ==
+			    IPPROTO_ICMPV6) {
+				if (optval != icmp6off)
+					error = EINVAL;
+			} else
+				in6p->in6p_cksum = optval;
+			break;
+
+		case SOPT_GET:
+			if (so->so_proto->pr_protocol == IPPROTO_ICMPV6)
+				optval = icmp6off;
+			else
+				optval = in6p->in6p_cksum;
+
+			error = sooptcopyout(sopt, &optval, sizeof(optval));
+			break;
+
+		default:
+			error = EINVAL;
+			break;
+		}
+		break;
+
+	default:
+		error = ENOPROTOOPT;
+		break;
+	}
+
+	return (error);
+}
+
 /*
  * Set up IP6 options in pcb for insertion in output packets or
  * specifying behavior of outgoing packets.
