@@ -32,12 +32,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
- *
  * This is the method for dealing with BSD disklabels.  It has been
  * extensively (by my standards at least) commented, in the vain hope that
  * it will serve as the source in future copy&paste operations.
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/endian.h>
