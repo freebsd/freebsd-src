@@ -646,6 +646,8 @@ __rpc_uaddr2taddr_af(int af, const char *uaddr)
 #endif
 	struct sockaddr_un *sun;
 
+	port = 0;
+	sin = NULL;
 	addrstr = strdup(uaddr);
 	if (addrstr == NULL)
 		return NULL;

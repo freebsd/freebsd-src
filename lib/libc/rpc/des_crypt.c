@@ -42,7 +42,7 @@ static const char rcsid[] = "$FreeBSD$";
 
 static int common_crypt	__P(( char *, char *, register unsigned, unsigned, struct desparams * ));
 int (*__des_crypt_LOCAL)() = 0;
-extern _des_crypt_call __P(( char *, int, struct desparams * ));
+extern int _des_crypt_call __P((char *, int, struct desparams *));
 /*
  * Copy 8 bytes
  */

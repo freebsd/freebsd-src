@@ -59,6 +59,7 @@
 __BEGIN_DECLS
 extern u_int __rpc_get_a_size __P((int));
 extern int __rpc_dtbsize __P((void));
+extern int _rpc_dtablesize __P((void));
 extern struct netconfig * __rpcgettp __P((int));
 extern  int  __rpc_get_default_domain __P((char **));
 
