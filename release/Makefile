@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.216 1996/05/29 01:35:15 jkh Exp $
+#	$Id: Makefile,v 1.217 1996/05/29 04:13:17 jkh Exp $
 #
 # How to roll a release:
 #
@@ -21,12 +21,12 @@
 EXPORT_DISTS=	games manpages proflibs dict info doc
 EXTRA_DISTS=	krb des ${EXPORT_DISTS}
 ALL_DISTS=	bin ${EXTRA_DISTS}
+KERNELS?=	GENERIC
 
 # Extra source tarballs; each argument is a pair of source dir and
 # distribution name.  The dist name should not exceed 7 characters
 # (another "s" for "source" will be prepended).
 EXTRA_SRC+=	usr.sbin/sendmail/cf smailcf
-#EXTRA_SRC+=	usr.sbin/config kconf
 
 BOOT1=	etc/protocols etc/sysconfig
 
@@ -58,6 +58,16 @@ CD=			${RELEASEDIR}/cdrom
 .if !defined(WHICH_CRUNCH)
 WHICH_CRUNCH=	boot fixit
 .endif
+
+REDO?=		sysinstall
+REDOSED=	sed -e 's/dirs/release.1/' -e 's/trees/release.2/' \
+		    -e 's/kerns/release.3/' -e 's/sysinstall/release.4/' \
+		    -e 's/fixup/release.5/' -e 's/tarbin/release.6/' \
+		    -e 's/tarsrc/release.7/' -e 's/boot\.flp/release.8/' \
+		    -e 's/fixit\.flp/release.9/' -e 's/ftp/ftp.1/' \
+		    -e 's/cdrom/cdrom.1/'
+
+REDOREDO!=	echo ${REDO} | ${REDOSED}
 
 rerelease release:
 .if !defined(CHROOTDIR) || !defined(BUILDNAME)
@@ -108,7 +118,9 @@ rerelease release:
 .endif
 	echo "cd /usr/src/release"		>> ${CHROOTDIR}/mk
 	echo "make obj"				>> ${CHROOTDIR}/mk
-	echo "rm -f obj/release.4"		>> ${CHROOTDIR}/mk
+	echo "cd obj"                           >> ${CHROOTDIR}/mk
+	echo "rm -f ${REDOREDO}"                >> ${CHROOTDIR}/mk
+	echo "cd /usr/src/release"              >> ${CHROOTDIR}/mk
 	echo "make doRELEASE"			>> ${CHROOTDIR}/mk
 	echo "echo make ${.TARGET} Finished"	>> ${CHROOTDIR}/mk
 	chmod 755 ${CHROOTDIR}/mk
@@ -165,13 +177,16 @@ release.2:
 	install -m 444 -o bin -g bin libgcc.so.261.0 ${RD}/trees/bin/usr/lib
 	touch release.2
 
-# Make and install the generic kernel.
+# Make and install the generic kernel(s).
 release.3:
 	@cd ${.CURDIR} && $(MAKE) ckRELEASEDIR
-	rm -f ${RD}/kernels/GENERIC
-	rm -rf ${.CURDIR}/../sys/compile/GENERIC
-	cd ${.CURDIR} && ${MAKE} doKERNEL KERNEL=GENERIC
-	rm -rf ${.CURDIR}/../sys/compile/GENERIC
+.for kernel in ${KERNELS}
+	rm -f ${RD}/kernels/${kernel}
+	rm -rf ${.CURDIR}/../sys/compile/${kernel}
+	cd ${.CURDIR} && ${MAKE} doKERNEL KERNEL=${kernel}
+	rm -rf ${.CURDIR}/../sys/compile/${kernel}
+	ln -f ${RD}/kernels/${kernel} ${RD}/trees/bin/kernel.${kernel}
+.endfor
 	touch release.3
 
 # Make and install the three crunched binaries which live on the floppies.
@@ -198,8 +213,6 @@ release.4:
 #
 release.5:
 	@cd ${.CURDIR} && $(MAKE) ckRELEASEDIR
-	ln -f ${RD}/kernels/GENERIC ${RD}/trees/bin/kernel.GENERIC
-
 	# Handle some grief caused by the ammunition braindeadness.
 	for i in sbin/init bin/ed ; do \
 		( cd ${.CURDIR}/../$$i; \
@@ -445,7 +458,11 @@ doTARBALL:
 		tar --exclude CVS --exclude obj -cf - ${ARG} | \
 		${ZIPNSPLIT} ${RD}/dists/${TD}/$$tn. && \
 		mkdir -p ${TD} && sh ${.CURDIR}/info.sh \
-		  ${RD}/dists/${TD}/$$tn > ${RD}/dists/${TD}/$$tn.inf )
+		${RD}/dists/${TD}/$$tn > ${RD}/dists/${TD}/$$tn.inf && \
+		  if [ "${SD}" != "/usr/src" ]; then \
+			mtree -c -i -p ${SD}/${ARG} \
+			  -k gname,md5digest,mode,nlink,uname,size,link,type \
+			  > ${RD}/dists/${TD}/$$tn.mtree ; else true; fi )
 
 doRELEASE:  release.1 release.2 release.3 release.4 release.5 release.6 \
 		release.7 release.8 release.9
@@ -516,17 +533,16 @@ doMFSKERN:
 	rm -f ${RD}/kernels/BOOTMFS.${FSIMAGE}
 	rm -f /sys/compile/BOOTMFS/mfs_vfsops.o
 	cd ${.CURDIR}/../sys/i386/conf && \
-		fgrep -v SYSV GENERIC | \
-		fgrep -v pty | \
-		fgrep -v PROCFS | \
-		sed 's/GENERIC/BOOTMFS/g' | \
-		sed '/maxusers/s/10/4/' > BOOTMFS && \
-		echo "options  MFS" >> BOOTMFS && \
-		echo "options  NFS_NOSERVER" >> BOOTMFS &&
-		echo 'options  "MAXCONS=4"' >> BOOTMFS 
-	echo "options \"MFS_ROOT=`cat fs-image.${FSIMAGE}.size`\"" >> \
-		${.CURDIR}/../sys/i386/conf/BOOTMFS
-	cd ${.CURDIR} && ${MAKE} doKERNEL KERNEL=BOOTMFS
+	  sed	-e '/SYSV/d' \
+		-e '/pty/d' \
+		-e '/PROCFS/d' \
+		-e 's/GENERIC/BOOTMFS/g' \
+		-e '/maxusers/s/10/4/' < GENERIC > BOOTMFS && \
+	  echo "options  MFS" >> BOOTMFS && \
+	  echo "options  NFS_NOSERVER" >> BOOTMFS && \
+	  echo 'options  "MAXCONS=4"' >> BOOTMFS && \
+	  echo "options \"MFS_ROOT=`cat fs-image.${FSIMAGE}.size`\"" >> BOOTMFS
+	${MAKE} doKERNEL KERNEL=BOOTMFS
 	rm -rf ${RD}/boot.${FSIMAGE}
 	mkdir  ${RD}/boot.${FSIMAGE}
 	mv ${RD}/kernels/BOOTMFS ${RD}/kernels/BOOTMFS.${FSIMAGE}
