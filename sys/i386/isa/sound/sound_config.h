@@ -30,26 +30,24 @@
 
 #include "local.h"
 
-
-#undef CONFIGURE_SOUNDCARD
-#undef DYNAMIC_BUFFER
-
-#ifdef KERNEL_SOUNDCARD
-#define CONFIGURE_SOUNDCARD
-#define DYNAMIC_BUFFER
-#undef LOADABLE_SOUNDCARD
-#endif
-
 #ifdef EXCLUDE_SEQUENCER
+#ifndef EXCLUDE_MIDI
 #define EXCLUDE_MIDI
+#endif
+#ifndef EXCLUDE_YM3812
 #define EXCLUDE_YM3812
+#endif
+#ifndef EXCLUDE_OPL3
 #define EXCLUDE_OPL3
+#endif
 #endif
 
 /** UWM - new MIDI stuff **/
 
 #ifdef EXCLUDE_CHIP_MIDI
+#ifndef EXCLUDE_PRO_MIDI
 #define EXCLUDE_PRO_MIDI
+#endif
 #endif
 
 /** UWM - stuff **/
