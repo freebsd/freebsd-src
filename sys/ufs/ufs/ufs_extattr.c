@@ -266,7 +266,7 @@ ufs_extattr_lookup(struct vnode *start_dvp, int lockparent, char *dirname,
 		return (error);
 	}
 	cnp.cn_namelen--;	/* trim nul termination */
-	vargs.a_desc = NULL;
+	vargs.a_gen.a_desc = NULL;
 	vargs.a_dvp = start_dvp;
 	vargs.a_vpp = &target_vp;
 	vargs.a_cnp = &cnp;
@@ -391,7 +391,7 @@ ufs_extattr_iterate_directory(struct ufsmount *ump, struct vnode *dvp,
 	auio.uio_td = td;
 	auio.uio_offset = 0;
 
-	vargs.a_desc = NULL;
+	vargs.a_gen.a_desc = NULL;
 	vargs.a_vp = dvp;
 	vargs.a_uio = &auio;
 	vargs.a_cred = td->td_ucred;
