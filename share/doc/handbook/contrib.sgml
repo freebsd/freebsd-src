@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.72 1996/04/30 20:39:51 asami Exp $ -->
+<!-- $Id: contrib.sgml,v 1.73 1996/05/01 01:49:03 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>FreeBSD contributor list<label id="contrib"></heading>
@@ -332,6 +332,7 @@
 	<item>Paul Popelka &lt;paulp@uts.amdahl.com&gt;
 	<item>Peter da Silva &lt;peter@NeoSoft.com&gt;
 	<item>Phil Sutherland &lt;philsuth@mycroft.dialix.oz.au&gt;
+	<item>Poul-Henning Kamp&lt;phk@FreeBSD.org&gt;
 	<item>Ralf Friedl &lt;friedl@informatik.uni-kl.de&gt;
 	<item>Rick Macklem &lt;root@snowhite.cis.uoguelph.ca&gt;
 	<item>Robert D. Thrush &lt;rd@phoenix.aii.com&gt;
