@@ -1,5 +1,6 @@
 /*	$FreeBSD$	*/
 /*	$OpenBSD: pf_ioctl.c,v 1.112.2.2 2004/07/24 18:28:12 brad Exp $ */
+/* add	$OpenBSD: pf_ioctl.c,v 1.118 2004/05/03 07:51:59 kjc Exp $ */
 
 /*
  * Copyright (c) 2001 Daniel Hartmeier
@@ -132,6 +133,8 @@ int			 pfioctl(struct cdev *, u_long, caddr_t, int, struct proc *);
 int			 pf_begin_altq(u_int32_t *);
 int			 pf_rollback_altq(u_int32_t);
 int			 pf_commit_altq(u_int32_t);
+int			 pf_enable_altq(struct pf_altq *);
+int			 pf_disable_altq(struct pf_altq *);
 #endif /* ALTQ */
 int			 pf_begin_rules(u_int32_t *, int, char *, char *);
 int			 pf_rollback_rules(u_int32_t, int, char *, char *);
@@ -144,6 +147,9 @@ extern struct timeout	 pf_expire_to;
 #endif
 
 struct pf_rule		 pf_default_rule;
+#ifdef ALTQ
+static int		 pf_altq_running;
+#endif
 
 #define	TAGID_MAX	 50000
 TAILQ_HEAD(pf_tags, pf_tagname)	pf_tags = TAILQ_HEAD_INITIALIZER(pf_tags),
@@ -866,7 +872,9 @@ pf_commit_altq(u_int32_t ticket)
 		if (altq->qname[0] == 0) {
 			/* attach the discipline */
 			error = altq_pfattach(altq);
-			if (error) {
+			if (error == 0 && pf_altq_running)
+				error = pf_enable_altq(altq);
+			if (error != 0) {
 				splx(s);
 				return (error);
 			}
@@ -878,6 +886,8 @@ pf_commit_altq(u_int32_t ticket)
 		TAILQ_REMOVE(pf_altqs_inactive, altq, entries);
 		if (altq->qname[0] == 0) {
 			/* detach and destroy the discipline */
+			if (pf_altq_running)
+				error = pf_disable_altq(altq);
 			err = altq_pfdetach(altq);
 			if (err != 0 && error == 0)
 				error = err;
@@ -891,6 +901,73 @@ pf_commit_altq(u_int32_t ticket)
 	splx(s);
 
 	altqs_inactive_open = 0;
+	return (error);
+}
+
+int
+pf_enable_altq(struct pf_altq *altq)
+{
+	struct ifnet		*ifp;
+	struct tb_profile	 tb;
+	int			 s, error = 0;
+
+	if ((ifp = ifunit(altq->ifname)) == NULL)
+		return (EINVAL);
+
+	if (ifp->if_snd.altq_type != ALTQT_NONE)
+		error = altq_enable(&ifp->if_snd);
+
+	/* set tokenbucket regulator */
+	if (error == 0 && ifp != NULL && ALTQ_IS_ENABLED(&ifp->if_snd)) {
+		tb.rate = altq->ifbandwidth;
+		tb.depth = altq->tbrsize;
+		s = splimp();
+#ifdef __FreeBSD__
+		PF_UNLOCK();
+#endif
+		error = tbr_set(&ifp->if_snd, &tb);
+#ifdef __FreeBSD__
+		PF_LOCK();
+#endif		
+		splx(s);
+	}
+
+	return (error);
+}
+
+int
+pf_disable_altq(struct pf_altq *altq)
+{
+	struct ifnet		*ifp;
+	struct tb_profile	 tb;
+	int			 s, error;
+
+	if ((ifp = ifunit(altq->ifname)) == NULL)
+		return (EINVAL);
+
+	/*
+	 * when the discipline is no longer referenced, it was overridden
+	 * by a new one.  if so, just return.
+	 */
+	if (altq->altq_disc != ifp->if_snd.altq_disc)
+		return (0);
+
+	error = altq_disable(&ifp->if_snd);
+
+	if (error == 0) {
+		/* clear tokenbucket regulator */
+		tb.rate = 0;
+		s = splimp();
+#ifdef __FreeBSD__
+		PF_UNLOCK();
+#endif
+		error = tbr_set(&ifp->if_snd, &tb);
+#ifdef __FreeBSD__
+		PF_LOCK();
+#endif
+		splx(s);
+	}
+
 	return (error);
 }
 #endif /* ALTQ */
@@ -1957,35 +2034,18 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 #ifdef ALTQ
 	case DIOCSTARTALTQ: {
 		struct pf_altq		*altq;
-		struct ifnet		*ifp;
-		struct tb_profile	 tb;
 
 		/* enable all altq interfaces on active list */
 		s = splsoftnet();
 		TAILQ_FOREACH(altq, pf_altqs_active, entries) {
 			if (altq->qname[0] == 0) {
-				if ((ifp = ifunit(altq->ifname)) == NULL) {
-					error = EINVAL;
-					break;
-				}
-				if (ifp->if_snd.altq_type != ALTQT_NONE)
-					error = altq_enable(&ifp->if_snd);
-				if (error != 0)
-					break;
-				/* set tokenbucket regulator */
-				tb.rate = altq->ifbandwidth;
-				tb.depth = altq->tbrsize;
-				PF_UNLOCK();
-				error = tbr_set(&ifp->if_snd, &tb);
-				PF_LOCK();
+				error = pf_enable_altq(altq);
 				if (error != 0)
 					break;
 			}
 		}
-#ifndef __FreeBSD__
 		if (error == 0)
-			pfaltq_running = 1;
-#endif
+			pf_altq_running = 1;
 		splx(s);
 		DPFPRINTF(PF_DEBUG_MISC, ("altq: started\n"));
 		break;
@@ -1993,36 +2053,18 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct proc *p)
 
 	case DIOCSTOPALTQ: {
 		struct pf_altq		*altq;
-		struct ifnet		*ifp;
-		struct tb_profile	 tb;
-		int			 err;
 
 		/* disable all altq interfaces on active list */
 		s = splsoftnet();
 		TAILQ_FOREACH(altq, pf_altqs_active, entries) {
 			if (altq->qname[0] == 0) {
-				if ((ifp = ifunit(altq->ifname)) == NULL) {
-					error = EINVAL;
+				error = pf_disable_altq(altq);
+				if (error != 0)
 					break;
-				}
-				if (ifp->if_snd.altq_type != ALTQT_NONE) {
-					err = altq_disable(&ifp->if_snd);
-					if (err != 0 && error == 0)
-						error = err;
-				}
-				/* clear tokenbucket regulator */
-				tb.rate = 0;
-				PF_UNLOCK();
-				err = tbr_set(&ifp->if_snd, &tb);
-				PF_LOCK();
-				if (err != 0 && error == 0)
-					error = err;
 			}
 		}
-#ifndef __FreeBSD__
 		if (error == 0)
-			pfaltq_running = 0;
-#endif
+			pf_altq_running = 0;
 		splx(s);
 		DPFPRINTF(PF_DEBUG_MISC, ("altq: stopped\n"));
 		break;
