@@ -283,6 +283,7 @@ void vm_map_wakeup(vm_map_t map);
 			_vm_map_lock_downgrade(map, LOCK_FILE, LOCK_LINE)
 
 long vmspace_resident_count(struct vmspace *vmspace);
+long vmspace_wired_count(struct vmspace *vmspace);
 #endif	/* _KERNEL */
 
 

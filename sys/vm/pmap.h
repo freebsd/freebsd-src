@@ -136,5 +136,9 @@ void		 pmap_activate(struct thread *td);
 vm_offset_t	 pmap_addr_hint(vm_object_t obj, vm_offset_t addr, vm_size_t size);
 void		*pmap_kenter_temporary(vm_offset_t pa, int i);
 void		 pmap_init2(void);
+
+#define	pmap_resident_count(pm)	((pm)->pm_stats.resident_count)
+#define	pmap_wired_count(pm)	((pm)->pm_stats.wired_count)
+
 #endif /* _KERNEL */
 #endif /* _PMAP_VM_ */

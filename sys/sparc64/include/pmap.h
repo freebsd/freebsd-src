@@ -50,7 +50,6 @@
 #define	PMAP_CONTEXT_MAX	8192
 
 #define	pmap_page_is_mapped(m)	(!TAILQ_EMPTY(&(m)->md.tte_list))
-#define	pmap_resident_count(pm)	(pm->pm_stats.resident_count)
 
 typedef	struct pmap *pmap_t;
 
