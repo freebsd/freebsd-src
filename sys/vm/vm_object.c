@@ -850,7 +850,7 @@ vm_object_page_collect_flush(vm_object_t object, vm_page_t p, int curgeneration,
 			return(0);
 		}
 	}
-
+	vm_page_lock_queues();
 	maxf = 0;
 	for(i = 1; i < vm_pageout_page_count; i++) {
 		vm_page_t tp;
@@ -934,6 +934,7 @@ vm_object_page_collect_flush(vm_object_t object, vm_page_t p, int curgeneration,
 				maxf = i - maxb - 1;
 		}
 	}
+	vm_page_unlock_queues();
 	return(maxf + 1);
 }
 

@@ -229,7 +229,7 @@ vm_pageout_clean(m)
 	int ib, is, page_base;
 	vm_pindex_t pindex = m->pindex;
 
-	GIANT_REQUIRED;
+	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 
 	object = m->object;
 
@@ -368,7 +368,7 @@ vm_pageout_flush(mc, count, flags)
 	int numpagedout = 0;
 	int i;
 
-	GIANT_REQUIRED;
+	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	/*
 	 * Initiate I/O.  Bump the vm_page_t->busy counter and
 	 * mark the pages read-only.
@@ -384,8 +384,8 @@ vm_pageout_flush(mc, count, flags)
 		vm_page_io_start(mc[i]);
 		vm_page_protect(mc[i], VM_PROT_READ);
 	}
-
 	object = mc[0]->object;
+	vm_page_unlock_queues();
 	vm_object_pip_add(object, count);
 
 	vm_pager_put_pages(object, mc, count,
@@ -438,7 +438,6 @@ vm_pageout_flush(mc, count, flags)
 				vm_page_protect(mt, VM_PROT_READ);
 		}
 	}
-	vm_page_unlock_queues();
 	return numpagedout;
 }
 
@@ -938,6 +937,7 @@ rescan0:
 			 * the (future) cleaned page.  Otherwise we could wind
 			 * up laundering or cleaning too many pages.
 			 */
+			vm_page_lock_queues();
 			s = splvm();
 			TAILQ_INSERT_AFTER(&vm_page_queues[PQ_INACTIVE].pl, m, &marker, pageq);
 			splx(s);
@@ -949,6 +949,7 @@ rescan0:
 			next = TAILQ_NEXT(&marker, pageq);
 			TAILQ_REMOVE(&vm_page_queues[PQ_INACTIVE].pl, &marker, pageq);
 			splx(s);
+			vm_page_unlock_queues();
 			if (vp) {
 				vput(vp);
 				vn_finished_write(mp);
