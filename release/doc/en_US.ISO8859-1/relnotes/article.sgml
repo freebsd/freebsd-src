@@ -134,6 +134,10 @@
 	machines, which may improve the usability of some PCI devices
 	(particularly on laptops).</para>
 
+      <para arch="i386">An integer overflow that could cause kernel
+        panics on PAE machines of certain large memory sizes has been
+        corrected.</para>
+
     </sect3>
 
     <sect3 id="boot">
@@ -148,7 +152,8 @@
     <sect3 id="net-if">
       <title>Network Interface Support</title>
 
-      <para></para>
+      <para>A bug in the &man.bge.4; driver that prevented it from
+	working correctly at 10 Mbps has been fixed.</para>
 
     </sect3>
 
@@ -175,6 +180,10 @@
 	<filename>geom_sunlabel</filename>,
 	<filename>geom_vol_ffs</filename>.
 	</para>
+
+      <para>A <literal>GEOM_FOX</literal> module has been added to
+	detect and select between multiple redundant paths to the same
+	device.</para>
 
       <para arch="i386">The &man.matcd.4; driver, which supports the
         Matsushita CR-562 and CR-563 CD drives, has returned.</para>
@@ -205,6 +214,9 @@
       environment via the <option>-u</option>, <option>-g</option>,
       and <option>-G</option> options respectively.</para>
 
+    <para>The dev_db utility is unnecessary due to the mandatory
+      presence of devfs, and has been removed.</para>
+
     <para>The <filename>libcipher</filename> DES cryptography library
       has been removed.  All of its functionality is provided by the
       <filename>libcrypto</filename> library, and all base systems
@@ -214,9 +226,14 @@
     <para arch="i386,ia64">The <filename>libthr</filename> 1:1
       threading library is now built by default.</para>
 
+    <para>The &man.locale.1; utility has been re-implemented and is
+      now POSIX-compliant.</para>
+
     <para>The &man.pam.guest.8; PAM module has been added to allow
       guest logins.  It replaces the pam_ftp(8) module.</para>
 
+    <para>&man.ps.1; now supports a <option>-H</option> to display all
+      kernel-visible threads in each process.</para>
   </sect2>
 
   <sect2 id="contrib">
