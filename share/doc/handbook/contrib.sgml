@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.105 1996/07/17 06:35:56 asami Exp $ -->
+<!-- $Id: contrib.sgml,v 1.106 1996/07/23 07:32:55 asami Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>FreeBSD contributor list<label id="contrib"></heading>
@@ -120,6 +120,7 @@
         <item>&a.paul;
         <item>&a.roberto;
         <item>&a.jraynard;
+        <item>&a.chuckr;
         <item>&a.dima;
         <item>&a.wosch;
         <item>&a.ats;
@@ -183,7 +184,6 @@
 	  <item>Christian Haury &lt;Christian.Haury@sagem.fr&gt;
 	  <item>Christoph Robitschko &lt;chmr@edvz.tu-graz.ac.at&gt;
 	  <item>Chuck Hein &lt;chein@cisco.com&gt;
-	  <item>Chuck Robey &lt;chuckr@Glue.umd.edu&gt;
 	  <item>Cornelis van der Laan &lt;nils@guru.ims.uni-stuttgart.de&gt;
 	  <item>Craig Struble &lt;cstruble@vt.edu&gt;
 	  <item>Cristian Ferretti &lt;cfs@riemann.mat.puc.cl&gt;
@@ -267,6 +267,7 @@
 	  <item>Sascha Wildner &lt;swildner@channelz.GUN.de&gt;
 	  <item>Scott Blachowicz &lt;scott@sabami.seaslug.org&gt;
 	  <item>Serge V. Vakulenko &lt;vak@zebub.msk.su&gt;
+	  <item>Soren Dayton &lt;csdayton@midway.uchicago.edu&gt;
 	  <item>Stephen McKay &lt;syssgm@devetir.qld.gov.au&gt;
 	  <item>Steve Gerakines &lt;steve2@genesis.tiac.net&gt;
 	  <item>Steve Passe &lt;smp@csn.net&gt;
