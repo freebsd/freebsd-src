@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_output.c	8.4 (Berkeley) 5/24/95
- *	$Id: tcp_output.c,v 1.31 1998/07/13 11:53:59 bde Exp $
+ *	$Id: tcp_output.c,v 1.33 1999/04/07 22:22:06 julian Exp $
  */
 
 #include "opt_tcpdebug.h"
@@ -128,7 +128,7 @@ again:
 			 * clear the FIN bit.  Usually this would
 			 * happen below when it realizes that we
 			 * aren't sending all the data.  However,
-			 * if we have exactly 1 byte of unset data,
+			 * if we have exactly 1 byte of unsent data,
 			 * then it won't clear the FIN bit below,
 			 * and if we are in persist state, we wind
 			 * up sending the packet without recording
