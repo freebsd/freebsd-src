@@ -155,8 +155,6 @@ IDTVEC(vec_name) ;							\
 	movl	PCPU(CURTHREAD),%ebx ;					\
 	incl	TD_INTR_NESTING_LEVEL(%ebx) ;				\
 ;	 								\
-  /* entry point used by doreti_unpend for HWIs. */			\
-__CONCAT(Xresume,irq_num): ;						\
 	FAKE_MCOUNT(13*4(%esp)) ;		/* XXX avoid dbl cnt */ \
 	pushl	$irq_num;			/* pass the IRQ */	\
 	call	sched_ithd ;						\

@@ -106,7 +106,6 @@ IDTVEC(vec_name) ; \
 	enable_icus ; \
 	movl	PCPU(CURTHREAD),%ebx ; \
 	incl	TD_INTR_NESTING_LEVEL(%ebx) ; \
-__CONCAT(Xresume,irq_num): ; \
 	FAKE_MCOUNT(13*4(%esp)) ;	/* XXX late to avoid double count */ \
 	pushl	$irq_num; 	/* pass the IRQ */ \
 	call	sched_ithd ; \
