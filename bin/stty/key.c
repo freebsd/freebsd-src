@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: key.c,v 1.2 1994/09/24 02:58:58 davidg Exp $
+ *	$Id: key.c,v 1.3 1995/03/19 13:29:25 joerg Exp $
  */
 
 #ifndef lint
@@ -296,6 +296,6 @@ f_tty(ip)
 	int tmp;
 
 	tmp = TTYDISC;
-	if (ioctl(0, TIOCSETD, &tmp) < 0)
+	if (ioctl(ip->fd, TIOCSETD, &tmp) < 0)
 		err(1, "TIOCSETD");
 }
