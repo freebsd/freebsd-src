@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)fdreg.h	7.1 (Berkeley) 5/9/91
- *	$Id: fdreg.h,v 1.6 1994/09/17 16:56:08 davidg Exp $
+ *	$Id: fdreg.h,v 1.7 1994/09/25 18:42:23 joerg Exp $
  */
 
 /*
@@ -53,13 +53,13 @@
 
 #define	FDSTS	4	/* NEC 765 Main Status Register (R) */
 #define	FDDATA	5	/* NEC 765 Data Register (R/W) */
+#define	FDCTL	7	/* Control Register (W) */
 
 #ifndef FDC_500KBPS
-#define	FDCTL	7	/* Control Register (W) */
-#define	FDC_500KBPS	0x00	/* 500KBPS MFM drive transfer rate */
-#define	FDC_300KBPS	0x01	/* 300KBPS MFM drive transfer rate */
-#define	FDC_250KBPS	0x02	/* 250KBPS MFM drive transfer rate */
-#define	FDC_125KBPS	0x03	/* 125KBPS FM drive transfer rate */
+#  define	FDC_500KBPS	0x00	/* 500KBPS MFM drive transfer rate */
+#  define	FDC_300KBPS	0x01	/* 300KBPS MFM drive transfer rate */
+#  define	FDC_250KBPS	0x02	/* 250KBPS MFM drive transfer rate */
+#  define	FDC_125KBPS	0x03	/* 125KBPS FM drive transfer rate */
 				/* for some controllers 1MPBS instead */
 #endif /* FDC_500KBPS */
 
