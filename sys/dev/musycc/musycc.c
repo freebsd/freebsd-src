@@ -175,19 +175,22 @@ struct schan {
 	int		rx_last_md;	/* index to next MD */
 	int		nmd;		/* count of MD's. */
 
-#if 0
-
 	time_t		last_recv;
+	time_t		last_rdrop;
 	time_t		last_rxerr;
-	time_t		last_xmit;
-
-	u_long		rx_error;
-
-	u_long		short_error;
 	u_long		crc_error;
 	u_long		dribble_error;
 	u_long		long_error;
 	u_long		abort_error;
+	u_long		short_error;
+
+	time_t		last_xmit;
+	time_t		last_txerr;
+#if 0
+
+
+	u_long		rx_error;
+
 	u_long		overflow_error;
 
 	int		last_error;
@@ -424,6 +427,38 @@ init_ctrl(struct softc *sc)
  */
 
 static void
+status_chans(struct softc *sc, char *s)
+{
+	int i;
+	struct schan *scp;
+
+	s += strlen(s);
+	for (i = 0; i < NHDLC; i++) {
+		scp = sc->chan[i];
+		if (scp == NULL)
+			continue;
+		sprintf(s + strlen(s), "c%2d:", i);
+		sprintf(s + strlen(s), " ts %08x", scp->ts);
+		sprintf(s + strlen(s), " RX %lus/%lus",
+		    time_second - scp->last_recv, time_second - scp->last_rxerr);
+		sprintf(s + strlen(s), " TX %lus/%lus",
+		    time_second - scp->last_xmit, time_second - scp->last_txerr);
+		sprintf(s + strlen(s), " CRC %lu Dribble %lu Long %lu Short %lu Abort %lu",
+		    scp->crc_error,
+		    scp->dribble_error,
+		    scp->long_error,
+		    scp->short_error,
+		    scp->abort_error);
+		sprintf(s + strlen(s), "\n");
+	}
+}
+
+
+/*
+ *
+ */
+
+static void
 status_8370(struct softc *sc, char *s)
 {
 	u_int32_t *p = sc->ds8370;
@@ -651,10 +686,6 @@ musycc_intr0_rx_eom(struct softc *sc, int ch)
 		m = md->m;
 		m->m_len = m->m_pkthdr.len = status & 0x3fff;
 		error = (status >> 16) & 0xf;
-#if 0
-		if (error == 8 && (sc->framing == E1U || sc->framing == T1U))
-			error = 0;
-#endif
 		if (error == 0) {
 			MGETHDR(m2, M_DONTWAIT, MT_DATA);
 			if (m2 != NULL) {
@@ -664,6 +695,7 @@ musycc_intr0_rx_eom(struct softc *sc, int ch)
 					md->m = m2;
 					md->data = vtophys(m2->m_data);
 					/* Pass the received mbuf upwards. */
+					sch->last_recv = time_second;
 					NG_SEND_DATA_ONLY(error, sch->hook, m);
 				} else {
 					/*
@@ -673,6 +705,7 @@ musycc_intr0_rx_eom(struct softc *sc, int ch)
 				         * the mbuf+cluster we already had.
 					 */
 					m_freem(m2);
+					sch->last_rdrop = time_second;
 					sch->rx_drop++;
 				}
 			} else {
@@ -680,13 +713,23 @@ musycc_intr0_rx_eom(struct softc *sc, int ch)
 				 * We didn't get a mbuf, drop received packet
 				 * and recycle the "old" mbuf+cluster.
 				 */
+				sch->last_rdrop = time_second;
 				sch->rx_drop++;
 			}
 		} else if (error == 9) {
-			printf("FCS\n");
+			sch->last_rxerr = time_second;
+			sch->crc_error++;
 		} else if (error == 10) {
-			printf("ALIGN\n");
+			sch->last_rxerr = time_second;
+			sch->dribble_error++;
+		} else if (error == 11) {
+			sch->last_rxerr = time_second;
+			sch->abort_error++;
+		} else if (error == 12) {
+			sch->last_rxerr = time_second;
+			sch->long_error++;
 		} else {
+			sch->last_rxerr = time_second;
 			/* Receive error, print some useful info */
 			printf("%s %s: RX 0x%08x ", sch->sc->nodename, 
 			    sch->hookname, status);
@@ -740,9 +783,11 @@ musycc_intr0(void *arg)
 			}
 			switch (ev) {
 			case 1: /* SACK		Service Request Acknowledge	    */
+#if 0
 				printf("%s: SACK: %08x group=%d", sc->nodename, csc->iqd[j], g);
 				printf("/%s", csc->iqd[j] & 0x80000000 ? "T" : "R");
 				printf(" cmd %08x (%08x) \n", sc->last, sc->reg->srd);
+#endif
 				sc->last = 0xffffffff;
 				wakeup(&sc->last);
 				break;
@@ -756,19 +801,14 @@ musycc_intr0(void *arg)
 					musycc_intr0_rx_eom(sc, ch);
 				break;
 			case 0:
-#if 1
-				if (er == 2) {	/* COFA */
-					break;
-				} else if (er == 3) {	/* ONR */
-					musycc_intr0_tx_eom(sc, ch);
-					musycc_intr0_rx_eom(sc, ch);
-				} else if (er == 13) {	/* SHT */
-					musycc_intr0_tx_eom(sc, ch);
-					musycc_intr0_rx_eom(sc, ch);
+				if (er == 13) {	/* SHT */
+					sc->chan[ch]->last_rxerr = time_second;
+					sc->chan[i]->short_error++;
 					break;
 				}
-#endif
 			default:
+				musycc_intr0_tx_eom(sc, ch);
+				musycc_intr0_rx_eom(sc, ch);
 #if 1
 				printf("huh ? %08x %d", u1, g);
 				printf("/%s", u1 & 0x80000000 ? "T" : "R");
@@ -954,6 +994,7 @@ musycc_rcvmsg(node_p node, item_p item, hook_p lasthook)
 		}
 		s = (char *)resp->data;
 		status_8370(sc, s);
+		status_chans(sc,s);
 		resp->header.arglen = strlen(s) + 1;
 		NG_FREE_MSG(msg);
 		
@@ -1083,6 +1124,7 @@ musycc_rcvdata(hook_p hook, item_p item)
 			md = &sc->mdt[ch][sch->tx_next_md];
 			if ((md->status & 0x80000000) != 0x00000000) {
 				printf("Out of tx md\n");
+				sch->last_txerr = time_second;
 				break;
 			}
 
@@ -1101,6 +1143,7 @@ musycc_rcvdata(hook_p hook, item_p item)
 			}	
 			u |= m->m_len;
 			md->status = u;
+			sch->last_xmit = time_second;
 		}
 		m = m->m_next;
 	}
@@ -1183,7 +1226,7 @@ musycc_connect(hook_p hook)
 	 *  1 timeslot,  50 bytes packets -> 68msec
 	 * 31 timeslots, 50 bytes packets -> 14msec
 	 */
-	sch->nmd = nmd = 10 + nts * 2;
+	sch->nmd = nmd = 40 + nts * 4;
 	sch->rx_last_md = 0;
 	sch->tx_next_md = 0;
 	sch->tx_last_md = 0;
