@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_subs.c	8.3 (Berkeley) 1/4/94
- * $Id$
+ * $Id: nfs_subs.c,v 1.3 1994/08/02 07:52:13 davidg Exp $
  */
 
 /*
@@ -705,12 +705,8 @@ nfs_loadattrcache(vpp, mdp, dposp, vaper)
 		else
 			vp->v_type = vtyp;
 		if (vp->v_type == VFIFO) {
-#ifdef FIFO
 			extern int (**fifo_nfsv2nodeop_p)();
 			vp->v_op = fifo_nfsv2nodeop_p;
-#else
-			return (EOPNOTSUPP);
-#endif /* FIFO */
 		}
 		if (vp->v_type == VCHR || vp->v_type == VBLK) {
 			vp->v_op = spec_nfsv2nodeop_p;
