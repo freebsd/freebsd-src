@@ -480,7 +480,7 @@ ida_intr(void *data)
 
 		if (qcb == NULL || qcb->state != QCB_ACTIVE) {
 			device_printf(ida->dev,
-			    "ignoring completion %x\n", completed);
+			    "ignoring completion %llx\n", (long long)completed);
 			continue;
 		}
 		ida_done(ida, qcb);
