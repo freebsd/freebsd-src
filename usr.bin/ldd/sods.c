@@ -23,29 +23,31 @@
  * SUCH DAMAGE.
  */
 
-#ifndef lint
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
-#include <arpa/inet.h>
-#include <assert.h>
-#include <ctype.h>
-#include <err.h>
-#include <fcntl.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-
+#include <sys/types.h>
 #include <sys/mman.h>
 #include <sys/stat.h>
+
 #include <machine/elf.h>
+
+#include <arpa/inet.h>
 
 #define FREEBSD_AOUT
 
 #include <a.out.h>
+#include <assert.h>
+#include <ctype.h>
+#include <err.h>
+#include <fcntl.h>
 #include <link.h>
 #include <stab.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+
+#include "extern.h"
 
 #define PAGE_SIZE	4096	/* i386 specific */
 
@@ -76,12 +78,12 @@ void dump_file(const char *);
 
 static void dump_rels(const char *, const struct relocation_info *,
     unsigned long, const char *(*)(unsigned long), unsigned char *);
-static void dump_segs();
-static void dump_sods();
+static void dump_segs(void);
+static void dump_sods(void);
 static void dump_sym(const struct nlist *);
-static void dump_syms();
+static void dump_syms(void);
 
-static void dump_rtsyms();
+static void dump_rtsyms(void);
 
 static const char *rtsym_name(unsigned long);
 static const char *sym_name(unsigned long);
@@ -348,15 +350,15 @@ dump_rels(const char *label, const struct relocation_info *base,
 	    switch (size) {
 	    case 1:
 		snprintf(contents, sizeof contents, "      [%02x]",
-		  *(unsigned char *)(text_addr + r->r_address));
+		  *(unsigned const char *)(text_addr + r->r_address));
 		break;
 	    case 2:
 		snprintf(contents, sizeof contents, "    [%04x]",
-		  *(unsigned short *)(text_addr + r->r_address));
+		  *(unsigned const short *)(text_addr + r->r_address));
 		break;
 	    case 4:
 		snprintf(contents, sizeof contents, "[%08lx]",
-		  *(unsigned long *)(text_addr + r->r_address));
+		  *(unsigned const long *)(text_addr + r->r_address));
 		break;
 	    }
 	} else
@@ -382,7 +384,7 @@ dump_rels(const char *label, const struct relocation_info *base,
 }
 
 static void
-dump_rtsyms()
+dump_rtsyms(void)
 {
     unsigned long i;
 
@@ -395,7 +397,7 @@ dump_rtsyms()
 }
 
 static void
-dump_segs()
+dump_segs(void)
 {
     printf("  Text segment starts at address %lx\n", origin + N_TXTOFF(*ex));
     if (N_GETFLAG(*ex) & EX_DYNAMIC) {
@@ -418,7 +420,7 @@ dump_segs()
 }
 
 static void
-dump_sods()
+dump_sods(void)
 {
     long sod_offset;
     long paths_offset;
@@ -442,8 +444,7 @@ dump_sods()
     paths_offset = sdt->sdt_paths;
     printf("  Shared object additional paths:\n");
     if (paths_offset != 0) {
-	char *path = (char *)(text_addr + paths_offset);
-	printf("    %s\n", path);
+	printf("    %s\n", (const char *)(text_addr + paths_offset));
     } else {
 	printf("    (none)\n");
     }
@@ -520,7 +521,7 @@ dump_sym(const struct nlist *np)
 }
 
 static void
-dump_syms()
+dump_syms(void)
 {
     unsigned long i;
 
