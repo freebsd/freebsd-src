@@ -41,7 +41,7 @@
  */
 
 
-/* $Id: scd.c,v 1.14 1995/12/08 23:20:39 phk Exp $ */
+/* $Id: scd.c,v 1.15 1995/12/10 19:44:52 bde Exp $ */
 
 /* Please send any comments to micke@dynas.se */
 
@@ -193,7 +193,6 @@ struct	isa_driver	scddriver = { scd_probe, scd_attach, "scd" };
 static	d_open_t	scdopen;
 static	d_close_t	scdclose;
 static	d_ioctl_t	scdioctl;
-static	d_psize_t	scdsize;
 static	d_strategy_t	scdstrategy;
 
 #define CDEV_MAJOR 45
@@ -201,7 +200,7 @@ static	d_strategy_t	scdstrategy;
 extern	struct cdevsw scd_cdevsw;
 static struct bdevsw scd_bdevsw = 
 	{ scdopen,	scdclose,	scdstrategy,	scdioctl,	/*16*/
-	  nodump,	scdsize,	0, "scd",	&scd_cdevsw,	-1 };
+	  nodump,	nopsize,	0, "scd",	&scd_cdevsw,	-1 };
 
 static struct cdevsw scd_cdevsw = 
 	{ scdopen,	scdclose,	rawread,	nowrite,	/*45*/
@@ -535,12 +534,6 @@ scdioctl(dev_t dev, int cmd, caddr_t addr, int flags, struct proc *p)
 		printf("scd%d: unsupported ioctl (cmd=0x%x)\n", unit, cmd);
 		return ENOTTY;
 	}
-}
-
-static	int
-scdsize(dev_t dev)
-{
-	return -1;
 }
 
 /***************************************************************
