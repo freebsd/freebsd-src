@@ -101,12 +101,12 @@
 .ds doc-Va-font \f[I]\s[\n[.ps]u]
 .ds doc-Xr-font \f[C]\s[\n[.ps]u]
 .
-.ds doc-left-parenthesis \f[R]\|(\|\f[P]\s[\n[.ps]u]
-.ds doc-right-parenthesis \f[R]\|)\|\f[P]\s[\n[.ps]u]
-.ds lp \f[R](\f[P]\s[\n[.ps]u]
-.ds rp \f[R])\f[P]\s[\n[.ps]u]
-.ds doc-left-bracket \f[R]\^[\^\f[P]\s[\n[.ps]u]
-.ds doc-right-bracket \f[R]\^]\f[P]\s[\n[.ps]u]
+.ds doc-left-parenthesis \f[R]\|(\|\f[]\s[\n[.ps]u]
+.ds doc-right-parenthesis \f[R]\|)\|\f[]\s[\n[.ps]u]
+.ds lp \f[R](\f[]\s[\n[.ps]u]
+.ds rp \f[R])\f[]\s[\n[.ps]u]
+.ds doc-left-bracket \f[R]\^[\^\f[]\s[\n[.ps]u]
+.ds doc-right-bracket \f[R]\^]\f[]\s[\n[.ps]u]
 .
 .tr *\[**]
 .
@@ -150,8 +150,16 @@
 .  nr doc-header-space .5i
 .  nr doc-footer-space .5i
 .
-.  ll 6.5i
-.  lt 6.5i
+.  ie r LL \
+.    ll \n[LL]u
+.  el \
+.    ll 6.5i
+.
+.  ie r LT \
+.    lt \n[LT]u
+.  el \
+.    lt 6.5i
+.
 .  po 1i
 .
 .  nr doc-display-vertical .5v
@@ -178,8 +186,9 @@
 .ds Gt >
 .ds Pm \[+-]
 .ds If \[if]
-.ds Na \f[I]NaN\f[P]
-.ds Ba \f[R]|\f[P]
+.ds Na \f[I]NaN\f[]
+.ds Ba \f[R]|\f[]
+.ds Am &
 .
 .nr gX 0
 .
