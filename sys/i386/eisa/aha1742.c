@@ -14,7 +14,7 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *      $Id: aha1742.c,v 1.62 1998/04/17 22:36:23 des Exp $
+ *      $Id: aha1742.c,v 1.63 1998/06/08 09:47:34 bde Exp $
  */
 
 #ifdef	KERNEL			/* don't laugh, it compiles as a program too.. look */
@@ -391,7 +391,7 @@ ahb_poll(struct ahb_data *ahb, int wait)
 		return (EIO);
 	}
 	if (cheat != ahb_ecb_phys_kv(ahb, inl(port + MBOXIN0))) {
-		printf("discarding 0x%lx ", inl(port + MBOXIN0));
+		printf("discarding 0x%x ", inl(port + MBOXIN0));
 		outb(port + G2CNTRL, G2CNTRL_CLEAR_EISA_INT);
 		DELAY(50000);
 		goto retry;

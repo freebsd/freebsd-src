@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *      $Id: wfd.c,v 1.11 1998/06/26 18:13:57 phk Exp $
+ *      $Id: wfd.c,v 1.12 1998/07/04 22:30:19 julian Exp $
  */
 
 /*
@@ -324,9 +324,9 @@ void wfd_describe (struct wfd *t)
 
 	if (!no_print) {
 		printf ("wfd%d: ", t->lun);
-		printf ("%lu cyls", t->cap.cyls);
-		printf (", %lu heads, %lu S/T", t->cap.heads, t->cap.sectors);
-		printf (", %lu B/S", t->cap.sector_size);
+		printf ("%u cyls", t->cap.cyls);
+		printf (", %u heads, %u S/T", t->cap.heads, t->cap.sectors);
+		printf (", %u B/S", t->cap.sector_size);
 		printf ("\n");
 	}
 }

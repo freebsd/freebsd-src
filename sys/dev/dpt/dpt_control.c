@@ -36,7 +36,7 @@
  * future.
  */
 
-#ident "$Id: dpt_control.c,v 1.5 1998/06/02 00:32:38 eivind Exp $"
+#ident "$Id: dpt_control.c,v 1.6 1998/06/07 17:09:42 dfr Exp $"
 
 #include "opt_dpt.h"
 
@@ -837,7 +837,7 @@ dpt_ioctl(dev_t dev, u_long cmd, caddr_t cmdarg, int flags, struct proc * p)
 		}
 
 	default:
-		printf("dpt%d: Invalid (%x) IOCTL\n", dpt->unit, cmd);
+		printf("dpt%d: Invalid (%lx) IOCTL\n", dpt->unit, cmd);
 		return (EINVAL);
 
 	}
