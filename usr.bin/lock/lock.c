@@ -49,8 +49,8 @@ static char sccsid[] = "@(#)lock.c	8.1 (Berkeley) 6/6/93";
 __FBSDID("$FreeBSD$");
 
 /*
- * Lock a terminal up until the given key is entered, until the root
- * password is entered, or the given interval times out.
+ * Lock a terminal up until the given key is entered or the given
+ * interval times out.
  *
  * Timeout interval is by default TIMEOUT, it can be changed with
  * an argument of the form -time where time is in minutes
