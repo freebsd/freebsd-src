@@ -31,14 +31,14 @@
 .Os
 .Sh NAME
 .Nm loader
-.Nd system bootstrap stage three
+.Nd kernel bootstrapping final stage
 .Sh DESCRIPTION
 The program called
 .Nm
-is the third stage of FreeBSD's three stage bootstrap.
-It is a
+is the final stage of FreeBSD's kernel bootstrapping process.
+On IA32 (i386) architectures, it is a
 .Pa BTX
-client linked statically to
+client. It is linked statically to
 .Xr libstand 3
 and usually located in the directory
 .Pa /boot .
