@@ -36,23 +36,24 @@
 #define DIST_DES_KERBEROS	0x0008
 
 /* Subtypes for SRC distribution */
-#define DIST_SRC_BASE		0x0001
-#define DIST_SRC_GNU		0x0002
-#define DIST_SRC_ETC		0x0004
-#define DIST_SRC_GAMES		0x0008
-#define DIST_SRC_INCLUDE	0x0010
-#define DIST_SRC_LIB		0x0020
-#define DIST_SRC_LIBEXEC	0x0040
-#define DIST_SRC_LKM		0x0080
-#define DIST_SRC_RELEASE	0x0100
-#define DIST_SRC_SBIN		0x0200
-#define DIST_SRC_SHARE		0x0400
-#define DIST_SRC_SYS		0x0800
-#define DIST_SRC_UBIN		0x1000
-#define DIST_SRC_USBIN		0x2000
-#define DIST_SRC_BIN		0x4000
-#define DIST_SRC_SMAILCF	0x8000
-#define DIST_SRC_ALL		0x7FFF	/* no SMAILCF, it's part of USBIN */
+#define DIST_SRC_BASE		0x00001
+#define DIST_SRC_CONTRIB	0x00002
+#define DIST_SRC_GNU		0x00004
+#define DIST_SRC_ETC		0x00008
+#define DIST_SRC_GAMES		0x00010
+#define DIST_SRC_INCLUDE	0x00020
+#define DIST_SRC_LIB		0x00040
+#define DIST_SRC_LIBEXEC	0x00080
+#define DIST_SRC_LKM		0x00100
+#define DIST_SRC_RELEASE	0x00200
+#define DIST_SRC_SBIN		0x00400
+#define DIST_SRC_SHARE		0x00800
+#define DIST_SRC_SYS		0x01000
+#define DIST_SRC_UBIN		0x02000
+#define DIST_SRC_USBIN		0x04000
+#define DIST_SRC_BIN		0x08000
+#define DIST_SRC_SMAILCF	0x10000
+#define DIST_SRC_ALL		0xFFFF	/* no SMAILCF, it's part of USBIN */
 
 /* Subtypes for XFree86 distribution */
 #define DIST_XF86_BIN		0x0001

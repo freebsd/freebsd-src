@@ -1,8 +1,10 @@
 /*
- * $Id: tcpip.c,v 1.30.2.25 1996/07/03 01:31:18 jkh Exp $
+ * $Id: tcpip.c,v 1.48 1996/10/05 16:33:04 jkh Exp $
  *
  * Copyright (c) 1995
  *      Gary J Palmer. All rights reserved.
+ * Copyright (c) 1996
+ *      Jordan K. Hubbard. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -15,10 +17,10 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
- * THIS SOFTWARE IS PROVIDED BY GARY J PALMER ``AS IS'' AND ANY EXPRESS OR
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHORS ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
  * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
- * IN NO EVENT SHALL GARY J PALMER BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * IN NO EVENT SHALL THE AUTHORS BE LIABLE FOR ANY DIRECT, INDIRECT,
  * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
  * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS
  * OF USE, DATA, LIFE OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
@@ -78,11 +80,11 @@ typedef struct _layout {
 
 static Layout layout[] = {
 { 1, 2, 25, HOSTNAME_FIELD_LEN - 1,
-      "Host name:", "Your fully-qualified hostname, e.g. foo.bar.com",
+      "Host:", "Your fully-qualified hostname, e.g. foo.bar.com",
       hostname, STRINGOBJ, NULL },
 #define LAYOUT_HOSTNAME		0
 { 1, 35, 20, HOSTNAME_FIELD_LEN - 1,
-      "Domain name:",
+      "Domain:",
       "The name of the domain that your machine is in, e.g. bar.com",
       domainname, STRINGOBJ, NULL },
 #define LAYOUT_DOMAINNAME	1
@@ -107,7 +109,7 @@ static Layout layout[] = {
 #define LAYOUT_NETMASK		5
 { 14, 10, 37, HOSTNAME_FIELD_LEN - 1,
       "Extra options to ifconfig:",
-      "Any interface-specific options to ifconfig you would like to use",
+      "Any interface-specific options to ifconfig you would like to add",
       extras, STRINGOBJ, NULL },
 #define LAYOUT_EXTRAS		6
 { 19, 15, 0, 0,
@@ -234,16 +236,20 @@ tcpOpenDialog(Device *devp)
     char		help[FILENAME_MAX];
     char		title[80];
 
+    if (!RunningAsInit) {
+	if (isDebug())
+	    msgDebug("Running multi-user, assuming that the network is already up\n");
+	return DITEM_SUCCESS;
+    }
     save = savescr();
-    dialog_clear();
+    dialog_clear_norefresh();
     /* We need a curses window */
     ds_win = newwin(LINES, COLS, 0, 0);
     if (ds_win == 0)
 	msgFatal("Cannot open TCP/IP dialog window!!");
 
     /* Say where our help comes from */
-    systemHelpFile(TCP_HELPFILE, help);
-    use_helpfile(help);
+    use_helpfile(systemHelpFile(TCP_HELPFILE, help));
 
     /* Setup a nice screen for us to splat stuff onto */
     draw_box(ds_win, TCP_DIALOG_Y, TCP_DIALOG_X, TCP_DIALOG_HEIGHT, TCP_DIALOG_WIDTH, dialog_attr, border_attr);
@@ -397,27 +403,9 @@ tcpOpenDialog(Device *devp)
 	       awkward for the user to go back and correct screw up's
 	       in the per-interface section */
 
-	case KEY_UP:
-	    if (obj->prev !=NULL ) {
-		obj = obj->prev;
-		--n;
-	    } else {
-		obj = last;
-		n = max;
-	    }
-	    break;
-
 	case KEY_DOWN:
-	    if (obj->next != NULL) {
-		obj = obj->next;
-		++n;
-	    } else {
-		obj = first;
-		n = 0;
-	    }
-	    break;
-
 	case SEL_TAB:
+	case SEL_CR:
 	    if (n < max)
 		++n;
 	    else
@@ -434,14 +422,7 @@ tcpOpenDialog(Device *devp)
 	    }
 	    break;
 
-	    /* Generic CR handler */
-	case SEL_CR:
-	    if (n < max)
-		++n;
-	    else
-		n = 0;
-	    break;
-
+	case KEY_UP:
 	case SEL_BACKTAB:
 	    if (n)
 		--n;
@@ -466,8 +447,7 @@ tcpOpenDialog(Device *devp)
     }
 
     /* Clear this crap off the screen */
-    dialog_clear();
-    refresh();
+    dialog_clear_norefresh();
     use_helpfile(NULL);
 
     /* We actually need to inform the rest of sysinstall about this
@@ -545,14 +525,9 @@ tcpDeviceSelect(void)
 	msgConfirm("No network devices available!");
 	status = FALSE;
     }
-    else if (cnt == 1 || (!RunningAsInit && !Fake)) {
-	/* If we're running in user mode, assume network already up */
-	if (RunningAsInit) {
-	    if (DITEM_STATUS(tcpOpenDialog(devs[0]) == DITEM_FAILURE))
-		return FALSE;
-	}
-	else
-	    msgDebug("Running multi-user, assuming that the network is already up\n");
+    else if (cnt == 1) {
+	if (DITEM_STATUS(tcpOpenDialog(devs[0]) == DITEM_FAILURE))
+	    return FALSE;
 	mediaDevice = devs[0];
 	status = TRUE;
     }

@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: network.c,v 1.7.2.23 1996/07/08 09:07:25 jkh Exp $
+ * $Id: network.c,v 1.16 1996/08/03 10:11:26 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -76,7 +76,7 @@ mediaInitNetwork(Device *dev)
 	char *val;
 	char attach[256];
 
-	dialog_clear();
+	dialog_clear_norefresh();
 	/* Cheesy slip attach */
 	snprintf(attach, 256, "slattach -a -h -l -s 9600 %s", dev->devname);
 	val = msgGetInput(attach,
@@ -180,7 +180,7 @@ startPPP(Device *devp)
     Mkdir("/var/spool/lock");
     Mkdir("/etc/ppp");
 
-    dialog_clear();
+    dialog_clear_norefresh();
     if (!variable_get(VAR_SERIAL_SPEED))
 	variable_set2(VAR_SERIAL_SPEED, "115200");
     /* Get any important user values */

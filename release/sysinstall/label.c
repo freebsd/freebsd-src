@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: label.c,v 1.53 1996/07/14 01:54:39 jkh Exp $
+ * $Id: label.c,v 1.63 1996/10/06 11:40:31 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -108,8 +108,12 @@ diskLabelEditor(dialogMenuItem *self)
 	return DITEM_FAILURE;
     }
     i = diskLabel(devs[0]->name);
-    if (DITEM_STATUS(i) != DITEM_FAILURE)
-	variable_set2(DISK_LABELLED, "yes");
+    if (DITEM_STATUS(i) != DITEM_FAILURE) {
+	char *cp;
+
+	if (((cp = variable_get(DISK_LABELLED)) == NULL) || (strcmp(cp, "written")))
+	    variable_set2(DISK_LABELLED, "yes");
+    }
     return i;
 }
 
@@ -263,7 +267,12 @@ get_mountpoint(struct chunk *old)
 	tmp = old->private_data;
     else
 	tmp = NULL;
+    if (!old) {
+	DialogX = 14;
+	DialogY = 16;
+    }
     val = msgGetInput(tmp ? tmp->mountpoint : NULL, "Please specify a mount point for the partition");
+    DialogX = DialogY = 0;
     if (!val || !*val) {
 	if (!old)
 	    return NULL;
@@ -313,7 +322,6 @@ get_partition_type(void)
 {
     char selection[20];
     int i;
-    WINDOW *w = savescr();
 
     static unsigned char *fs_types[] = {
 	"FS",
@@ -321,11 +329,13 @@ get_partition_type(void)
 	"Swap",
 	"A swap partition.",
     };
+    DialogX = 7;
+    DialogY = 8;
     i = dialog_menu("Please choose a partition type",
 		    "If you want to use this partition for swap space, select Swap.\n"
 		    "If you want to put a filesystem on it, choose FS.",
 		    -1, -1, 2, 2, fs_types, selection, NULL, NULL);
-    restorescr(w);
+    DialogX = DialogY = 0;
     if (!i) {
 	if (!strcmp(selection, "FS"))
 	    return PART_FILESYSTEM;
@@ -447,7 +457,7 @@ print_label_chunks(void)
 }
 
 static void
-print_command_summary()
+print_command_summary(void)
 {
     mvprintw(17, 0, "The following commands are valid here (upper or lower case):");
     mvprintw(18, 0, "C = Create      D = Delete         M = Mount");
@@ -459,16 +469,22 @@ print_command_summary()
     move(0, 0);
 }
 
+static void
+clear_wins(void)
+{
+    clear();
+    wclear(ChunkWin);
+}
+
 static int
 diskLabel(char *str)
 {
-    int sz, key = 0, first_time = 1;
+    int sz, key = 0;
     Boolean labeling;
     char *msg = NULL;
     PartInfo *p, *oldp;
     PartType type;
     Device **devs;
-    WINDOW *w;
 
     devs = deviceFind(NULL, DEVICE_TYPE_DISK);
     if (!devs) {
@@ -480,14 +496,12 @@ diskLabel(char *str)
     keypad(stdscr, TRUE);
     record_label_chunks(devs);
 
-    w = savescr();
-    dialog_clear(); clear();
+    clear();
     while (labeling) {
+	char *cp;
+
 	print_label_chunks();
-	if (first_time) {
-	    print_command_summary();
-	    first_time = 0;
-	}
+	print_command_summary();
 	if (msg) {
 	    attrset(title_attr); mvprintw(23, 0, msg); attrset(A_NORMAL);
 	    clrtoeol();
@@ -498,12 +512,16 @@ diskLabel(char *str)
 	    move(23, 0);
 	    clrtoeol();
 	}
-	key = toupper(getch());
-	switch (key) {
+
+	refresh();
+	key = getch();
+	switch (toupper(key)) {
 	    int i;
+	    static char _msg[40];
 
 	case '\014':	/* ^L */
-	    continue;
+	    clear_wins();
+	    break;
 
 	case KEY_UP:
 	case '-':
@@ -536,6 +554,7 @@ diskLabel(char *str)
 	case KEY_F(1):
 	case '?':
 	    systemDisplayHelp("partition");
+	    clear_wins();
 	    break;
 
 	case 'A':
@@ -544,91 +563,99 @@ diskLabel(char *str)
 		break;
 	    }
 	    sz = space_free(label_chunk_info[here].c);
-	    if (sz <= FS_MIN_SIZE) {
+	    if (sz <= FS_MIN_SIZE)
 		msg = "Not enough free space to create a new partition in the slice";
-		break;
-	    }
 	    else {
 		struct chunk *tmp;
 		int mib[2];
 		int physmem;
 		size_t size, swsize;
 		char *cp;
+		Chunk *rootdev, *swapdev, *usrdev, *vardev;
 
-		cp = variable_get(VAR_ROOT_SIZE);
-		tmp = Create_Chunk_DWIM(label_chunk_info[here].c->disk,
-					label_chunk_info[here].c,
-					(cp ? atoi(cp) : 32) * ONE_MEG, part, FS_BSDFFS, 
-					CHUNK_IS_ROOT);
-	    
-		if (!tmp) {
-		    msgConfirm("Unable to create the root partition. Too big?");
-		    break;
-		}
-		tmp->private_data = new_part("/", TRUE, tmp->size);
-		tmp->private_free = safe_free;
-		record_label_chunks(devs);
-	    
-		cp = variable_get(VAR_SWAP_SIZE);
-		if (cp)
-		    swsize = atoi(cp) * ONE_MEG;
-		else {
-		    mib[0] = CTL_HW;
-		    mib[1] = HW_PHYSMEM;
-		    size = sizeof physmem;
-		    sysctl(mib, 2, &physmem, &size, (void *)0, (size_t)0);
-		    swsize = 16 * ONE_MEG + (physmem * 2 / 512);
-		}
-		tmp = Create_Chunk_DWIM(label_chunk_info[here].c->disk,
-					label_chunk_info[here].c,
-					swsize,
-					part, FS_SWAP, 0);
-		if (!tmp) {
-		    msgConfirm("Unable to create the swap partition. Too big?");
-		    break;
-		}
-	    
-		tmp->private_data = 0;
-		tmp->private_free = safe_free;
-		record_label_chunks(devs);
-	    
-		cp = variable_get(VAR_VAR_SIZE);
-		tmp = Create_Chunk_DWIM(label_chunk_info[here].c->disk,
-					label_chunk_info[here].c,
-					(cp ? atoi(cp) : VAR_MIN_SIZE) * ONE_MEG, part, FS_BSDFFS, 0);
-		if (!tmp) {
-		    msgConfirm("Less than %dMB free for /var - you will need to\n"
-			       "partition your disk manually with a custom install!", (cp ? atoi(cp) : VAR_MIN_SIZE));
-		    break;
-		}
-		tmp->private_data = new_part("/var", TRUE, tmp->size);
-		tmp->private_free = safe_free;
-		record_label_chunks(devs);
-		
-		cp = variable_get(VAR_USR_SIZE);
-		if (cp)
-		    sz = atoi(cp) * ONE_MEG;
-		else
-		    sz = space_free(label_chunk_info[here].c);
-		if (!sz || sz < (USR_MIN_SIZE * ONE_MEG)) {
-		    msgConfirm("Less than %dMB free for /usr - you will need to\n"
-			       "partition your disk manually with a custom install!", USR_MIN_SIZE);
-		    break;
+		(void)checkLabels(FALSE, &rootdev, &swapdev, &usrdev, &vardev);
+		if (!rootdev) {
+		    cp = variable_get(VAR_ROOT_SIZE);
+		    tmp = Create_Chunk_DWIM(label_chunk_info[here].c->disk, label_chunk_info[here].c,
+					    (cp ? atoi(cp) : 32) * ONE_MEG, part, FS_BSDFFS,  CHUNK_IS_ROOT);
+		    if (!tmp) {
+			msgConfirm("Unable to create the root partition. Too big?");
+			clear_wins();
+			break;
+		    }
+		    tmp->private_data = new_part("/", TRUE, tmp->size);
+		    tmp->private_free = safe_free;
+		    record_label_chunks(devs);
 		}
 
-		tmp = Create_Chunk_DWIM(label_chunk_info[here].c->disk,
-					label_chunk_info[here].c,
-					sz, part, FS_BSDFFS, 0);
-		if (!tmp) {
-		    msgConfirm("Unable to create the /usr partition.  Not enough space?\n"
-			       "You will need to partition your disk manually with a custom install!");
-		    break;
+		if (!swapdev) {
+		    cp = variable_get(VAR_SWAP_SIZE);
+		    if (cp)
+			swsize = atoi(cp) * ONE_MEG;
+		    else {
+			mib[0] = CTL_HW;
+			mib[1] = HW_PHYSMEM;
+			size = sizeof physmem;
+			sysctl(mib, 2, &physmem, &size, (void *)0, (size_t)0);
+			swsize = 16 * ONE_MEG + (physmem * 2 / 512);
+		    }
+		    tmp = Create_Chunk_DWIM(label_chunk_info[here].c->disk, label_chunk_info[here].c,
+					    swsize, part, FS_SWAP, 0);
+		    if (!tmp) {
+			msgConfirm("Unable to create the swap partition. Too big?");
+			clear_wins();
+			break;
+		    }
+		    tmp->private_data = 0;
+		    tmp->private_free = safe_free;
+		    record_label_chunks(devs);
+		}
+
+		if (!vardev) {
+		    cp = variable_get(VAR_VAR_SIZE);
+		    tmp = Create_Chunk_DWIM(label_chunk_info[here].c->disk, label_chunk_info[here].c,
+					    (cp ? atoi(cp) : VAR_MIN_SIZE) * ONE_MEG, part, FS_BSDFFS, 0);
+		    if (!tmp) {
+			msgConfirm("Less than %dMB free for /var - you will need to\n"
+				   "partition your disk manually with a custom install!",
+				   (cp ? atoi(cp) : VAR_MIN_SIZE));
+			clear_wins();
+			break;
+		    }
+		    tmp->private_data = new_part("/var", TRUE, tmp->size);
+		    tmp->private_free = safe_free;
+		    record_label_chunks(devs);
+		}
+
+		if (!usrdev) {
+		    cp = variable_get(VAR_USR_SIZE);
+		    if (cp)
+			sz = atoi(cp) * ONE_MEG;
+		    else
+			sz = space_free(label_chunk_info[here].c);
+		    if (!sz || sz < (USR_MIN_SIZE * ONE_MEG)) {
+			msgConfirm("Less than %dMB free for /usr - you will need to\n"
+				   "partition your disk manually with a custom install!", USR_MIN_SIZE);
+			clear_wins();
+			break;
+		    }
+
+		    tmp = Create_Chunk_DWIM(label_chunk_info[here].c->disk,
+					    label_chunk_info[here].c,
+					    sz, part, FS_BSDFFS, 0);
+		    if (!tmp) {
+			msgConfirm("Unable to create the /usr partition.  Not enough space?\n"
+				   "You will need to partition your disk manually with a custom install!");
+			clear_wins();
+			break;
+		    }
+		    tmp->private_data = new_part("/usr", TRUE, tmp->size);
+		    tmp->private_free = safe_free;
+		    record_label_chunks(devs);
 		}
 		/* At this point, we're reasonably "labelled" */
-		variable_set2(DISK_LABELLED, "yes");
-		tmp->private_data = new_part("/usr", TRUE, tmp->size);
-		tmp->private_free = safe_free;
-		record_label_chunks(devs);
+		if (((cp = variable_get(DISK_LABELLED)) == NULL) || (strcmp(cp, "written")))
+		    variable_set2(DISK_LABELLED, "yes");
 	    }
 	    break;
 	    
@@ -643,18 +670,24 @@ diskLabel(char *str)
 		break;
 	    }
 	    else {
-		char *val, *cp;
+		char *val;
 		int size;
 		struct chunk *tmp;
 		char osize[80];
 		u_long flags = 0;
 
 		sprintf(osize, "%d", sz);
-		val = msgGetInput(osize, "Please specify the size for new FreeBSD partition in blocks, or\n"
-				  "append a trailing `M' for megabytes (e.g. 20M) or `C' for cylinders.\n\n"
-				  "Space free is %d blocks (%dMB)", sz, sz / ONE_MEG);
-		if (!val || (size = strtol(val, &cp, 0)) <= 0)
+		DialogX = 3;
+		DialogY = 2;
+		val = msgGetInput(osize,
+				  "Please specify the partition size in blocks or append a trailing M for\n"
+				  "megabytes or C for cylinders.  %d blocks (%dMB) are free.",
+				  sz, sz / ONE_MEG);
+		DialogX = DialogY = 0;
+		if (!val || (size = strtol(val, &cp, 0)) <= 0) {
+		    clear_wins();
 		    break;
+		}
 
 		if (*cp) {
 		    if (toupper(*cp) == 'M')
@@ -664,20 +697,28 @@ diskLabel(char *str)
 		}
 		if (size <= FS_MIN_SIZE) {
 		    msgConfirm("The minimum filesystem size is %dMB", FS_MIN_SIZE / ONE_MEG);
+		    clear_wins();
 		    break;
 		}
 		type = get_partition_type();
-		if (type == PART_NONE)
+		if (type == PART_NONE) {
+		    clear_wins();
+		    beep();
 		    break;
+		}
 
 		if (type == PART_FILESYSTEM) {
-		    if ((p = get_mountpoint(NULL)) == NULL)
+		    if ((p = get_mountpoint(NULL)) == NULL) {
+			clear_wins();
+			beep();
 			break;
+		    }
 		    else if (!strcmp(p->mountpoint, "/"))
 			flags |= CHUNK_IS_ROOT;
 		    else
 			flags &= ~CHUNK_IS_ROOT;
-		} else
+		}
+		else
 		    p = NULL;
 
 		if ((flags & CHUNK_IS_ROOT)) {
@@ -686,6 +727,7 @@ diskLabel(char *str)
 				   "FreeBSD boot code cannot deal with a root partition created\n"
 				   "in that location.  Please choose another location or smaller\n"
 				   "size for your root partition and try again!");
+			clear_wins();
 			break;
 		    }
 		    if (size < (ROOT_MIN_SIZE * ONE_MEG)) {
@@ -701,6 +743,7 @@ diskLabel(char *str)
 					flags);
 		if (!tmp) {
 		    msgConfirm("Unable to create the partition. Too big?");
+		    clear_wins();
 		    break;
 		}
 		if ((flags & CHUNK_IS_ROOT) && (tmp->flags & CHUNK_PAST_1024)) {
@@ -709,6 +752,7 @@ diskLabel(char *str)
 			       "poor location to boot from.  Please choose another\n"
 			       "location (or smaller size) for your root partition and try again!");
 		    Delete_Chunk(label_chunk_info[here].c->disk, tmp);
+		    clear_wins();
 		    break;
 		}
 		if (type != PART_SWAP) {
@@ -719,12 +763,14 @@ diskLabel(char *str)
 		else
 		    tmp->private_data = p;
 		tmp->private_free = safe_free;
-		variable_set2(DISK_LABELLED, "yes");
+		if (((cp = variable_get(DISK_LABELLED)) == NULL) || (strcmp(cp, "written")))
+		    variable_set2(DISK_LABELLED, "yes");
 		record_label_chunks(devs);
+		clear_wins();
 	    }
 	    break;
 
-	case '\177':
+	case KEY_DC:
 	case 'D':	/* delete */
 	    if (label_chunk_info[here].type == PART_SLICE) {
 		msg = MSG_NOT_APPLICABLE;
@@ -735,7 +781,8 @@ diskLabel(char *str)
 		break;
 	    }
 	    Delete_Chunk(label_chunk_info[here].c->disk, label_chunk_info[here].c);
-	    variable_set2(DISK_LABELLED, "yes");
+	    if (((cp = variable_get(DISK_LABELLED)) == NULL) || (strcmp(cp, "written")))
+		variable_set2(DISK_LABELLED, "yes");
 	    record_label_chunks(devs);
 	    break;
 
@@ -763,8 +810,10 @@ diskLabel(char *str)
 			strcpy(p->mountpoint, "/bogus");
 		    }
 		}
-		variable_set2(DISK_LABELLED, "yes");
+		if (((cp = variable_get(DISK_LABELLED)) == NULL) || (strcmp(cp, "written")))
+		    variable_set2(DISK_LABELLED, "yes");
 		record_label_chunks(devs);
+		clear_wins();
 		break;
 
 	    default:
@@ -779,6 +828,7 @@ diskLabel(char *str)
 		getNewfsCmd(label_chunk_info[here].c->private_data);
 	    else
 		msg = MSG_NOT_APPLICABLE;
+	    clear_wins();
 	    break;
 
 	case 'T':	/* Toggle newfs state */
@@ -788,43 +838,54 @@ diskLabel(char *str)
 			new_part(pi ? pi->mountpoint : NULL, pi ? !pi->newfs : TRUE, label_chunk_info[here].c->size);
 		    safe_free(pi);
 		    label_chunk_info[here].c->private_free = safe_free;
-		    variable_set2(DISK_LABELLED, "yes");
-		}
+		    if (((cp = variable_get(DISK_LABELLED)) == NULL) || (strcmp(cp, "written")))
+			variable_set2(DISK_LABELLED, "yes");
+	    }
 	    else
 		msg = MSG_NOT_APPLICABLE;
 	    break;
 
 	case 'U':
 	    clear();
-	    if (msgYesNo("Are you SURE you want to Undo everything?"))
-		break;
-	    variable_unset(DISK_PARTITIONED);
-	    variable_unset(DISK_LABELLED);
-	    for (i = 0; devs[i]; i++) {
-		Disk *d;
-
-		if (!devs[i]->enabled)
-		    continue;
-		else if ((d = Open_Disk(devs[i]->name)) != NULL) {
-		    Free_Disk(devs[i]->private);
-		    devs[i]->private = d;
-		    diskPartition(devs[i], d);
-		}
+	    if ((cp = variable_get(DISK_LABELLED)) && !strcmp(cp, "written")) {
+		msgConfirm("You've already written out your changes -\n"
+			   "it's too late to undo!");
 	    }
-	    record_label_chunks(devs);
+	    else if (!msgYesNo("Are you SURE you want to Undo everything?")) {
+		variable_unset(DISK_PARTITIONED);
+		variable_unset(DISK_LABELLED);
+		for (i = 0; devs[i]; i++) {
+		    Disk *d;
+
+		    if (!devs[i]->enabled)
+			continue;
+		    else if ((d = Open_Disk(devs[i]->name)) != NULL) {
+			Free_Disk(devs[i]->private);
+			devs[i]->private = d;
+			diskPartition(devs[i], d);
+		    }
+		}
+		record_label_chunks(devs);
+	    }
+	    clear_wins();
 	    break;
 
 	case 'W':
-	    if (!msgYesNo("You also have the option of doing this later in one final 'commit'\n"
-			  "operation, and it should also be noted that this option is NOT for\n"
-			  "use during new installations but rather for modifying existing ones.\n\n"
-			  "Are you absolutely SURE you want to do this now?")) {
-		WINDOW *save = savescr();
-
+	    if ((cp = variable_get(DISK_LABELLED)) && !strcmp(cp, "written")) {
+		msgConfirm("You've already written out your changes - if you\n"
+			   "wish to overwrite them, you'll have to start this\n"
+			   "procedure again from the beginning.");
+	    }
+	    else if (!msgYesNo("WARNING:  This should only be used when modifying an EXISTING\n"
+			  "installation.  If you are installing FreeBSD for the first time\n"
+			  "then you should simply type Q when you're finished here and your\n"
+			  "changes will be committed in one batch automatically at the end of\n"
+			  "these questions.\n\n"
+			  "Are you absolutely sure you want to do this now?")) {
 		variable_set2(DISK_LABELLED, "yes");
 		diskLabelCommit(NULL);
-		restorescr(save);
 	    }
+	    clear_wins();
 	    break;
 
 	case '|':
@@ -833,7 +894,6 @@ diskLabel(char *str)
 			  "expected to understand!")) {
 		int i;
 		Device **devs;
-		WINDOW *save = savescr();
 
 		dialog_clear();
 		end_dialog();
@@ -847,11 +907,11 @@ diskLabel(char *str)
 		    if (devs[i]->enabled)
 		    	slice_wizard(((Disk *)devs[i]->private));
 		}
-		variable_set2(DISK_LABELLED, "yes");
+		if (((cp = variable_get(DISK_LABELLED)) == NULL) || (strcmp(cp, "written")))
+		    variable_set2(DISK_LABELLED, "yes");
 		DialogActive = TRUE;
-		dialog_clear();
-		restorescr(save);
 		record_label_chunks(devs);
+		clear_wins();
 	    }
 	    else
 		msg = "A most prudent choice!";
@@ -863,10 +923,10 @@ diskLabel(char *str)
 
 	default:
 	    beep();
-	    msg = "Type F1 or ? for help";
+	    sprintf(_msg, "Invalid key %d - Type F1 or ? for help", key);
+	    msg = _msg;
 	    break;
 	}
     }
-    restorescr(w);
-    return DITEM_SUCCESS;
+    return DITEM_SUCCESS | DITEM_RESTORE;
 }

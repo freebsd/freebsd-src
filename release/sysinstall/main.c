@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: main.c,v 1.13.2.20 1996/07/03 01:31:13 jkh Exp $
+ * $Id: main.c,v 1.28 1996/09/26 21:03:35 pst Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -37,6 +37,7 @@
 #include "sysinstall.h"
 #include <stdio.h>
 #include <sys/signal.h>
+#include <sys/fcntl.h>
 
 static void
 screech(int sig)
@@ -75,7 +76,6 @@ main(int argc, char **argv)
 	variable_set2(VAR_DEBUG, "YES");
 	Fake = TRUE;
 	msgConfirm("I'll be just faking it from here on out, OK?");
-	--argc, ++argv;
     }
 
     /* Try to preserve our scroll-back buffer */
@@ -99,6 +99,8 @@ main(int argc, char **argv)
 
 	if (!strstr(argv[0], "sysinstall"))
 	    start_arg = 0;
+	else if (Fake)
+	    start_arg = 2;
 	else
 	    start_arg = 1;
 	for (i = start_arg; i < argc; i++) {
@@ -109,7 +111,58 @@ main(int argc, char **argv)
 	    systemShutdown(0);
     }
 
+    {
+	int fd;
+	Attribs attrs[512];
+
+	bzero(attrs, sizeof(attrs));
+
+	fd = open("install.cfg", O_RDONLY);
+	if (fd >= 0) {
+	    msgNotify("Loading pre-configuration file");
+	    if (DITEM_STATUS(attr_parse(attrs, fd)) == DITEM_SUCCESS) {
+		int i;
+
+		for (i = 0; *attrs[i].name; i++)
+		    variable_set2(attrs[i].name, attrs[i].value);
+	    }
+	    close(fd);
+	}
+
+#if defined(LOAD_CONFIG_FILE)
+	else {
+	    /* If we have a compiled-in startup config file name on
+	       the floppy, look for it and try to load it on startup */
+	    extern char *distWanted;
+
+	    /* Tell mediaSetFloppy() to try floppy now */
+	    distWanted = (char *)1;
+
+	    /* Try to open the floppy drive if we can do that first */
+	    if (DITEM_STATUS(mediaSetFloppy(NULL)) != DITEM_FAILURE &&
+		mediaDevice->init(mediaDevice)) {
+		int fd;
+
+		fd = mediaDevice->get(mediaDevice, LOAD_CONFIG_FILE, TRUE);
+		if (fd > 0) {
+		    msgNotify("Loading %s pre-configuration file",
+			      LOAD_CONFIG_FILE);
+		    if (DITEM_STATUS(attr_parse(attrs, fd)) == DITEM_SUCCESS) {
+			int i;
+
+			for (i = 0; *attrs[i].name; i++)
+			    variable_set2(attrs[i].name, attrs[i].value);
+		    }
+		    mediaDevice->close(mediaDevice, fd);
+		}
+		mediaDevice->shutdown(mediaDevice);
+	    }
+	}
+#endif
+    }
+ 
     /* Begin user dialog at outer menu */
+    dialog_clear();
     while (1) {
 	choice = scroll = curr = max = 0;
 	dmenuOpen(&MenuInitial, &choice, &scroll, &curr, &max, TRUE);

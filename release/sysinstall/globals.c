@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: globals.c,v 1.13 1996/04/28 20:53:58 jkh Exp $
+ * $Id: globals.c,v 1.14 1996/08/01 10:58:51 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -50,6 +50,7 @@ Boolean		OnVTY;		/* Are we on a VTY? */
 Variable	*VarHead;	/* The head of the variable chain */
 Device		*mediaDevice;	/* Where we're installing from */
 int		BootMgr;	/* Which boot manager we're using */
+int		StatusLine;	/* Where to stick our status messages */
 
 /*
  * Yes, I know some of these are already automatically initialized as

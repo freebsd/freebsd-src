@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.16.2.58 1996/07/08 09:07:08 jkh Exp $
+ * $Id: config.c,v 1.51 1996/10/14 21:32:25 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -47,8 +47,6 @@
 
 static Chunk *chunk_list[MAX_CHUNKS];
 static int nchunks;
-
-extern int cdromMounted;
 
 /* arg to sort */
 static int
@@ -333,8 +331,8 @@ configSaverTimeout(dialogMenuItem *self)
 	return DITEM_SUCCESS | DITEM_REDRAW;
     }
     else
-	return variable_get_value(VAR_BLANKTIME, "Enter time-out period in seconds for screen saver")
-	    ? DITEM_SUCCESS : DITEM_FAILURE;
+	return (variable_get_value(VAR_BLANKTIME, "Enter time-out period in seconds for screen saver")
+	    ? DITEM_SUCCESS : DITEM_FAILURE) | DITEM_RESTORE;
 }
 
 int
@@ -349,7 +347,7 @@ configNTP(dialogMenuItem *self)
 	snprintf(tmp, 255, "%s=%s", VAR_NTPDATE, variable_get(VAR_NTPDATE));
 	self->aux = (int)tmp;
     }
-    return status;
+    return status | DITEM_RESTORE;
 }
 
 int
@@ -376,16 +374,18 @@ configResolv(void)
     if (!RunningAsInit && file_readable("/etc/resolv.conf"))
 	return;
 
-    if (!variable_get(VAR_NAMESERVER)) {
-	if (mediaDevice && (mediaDevice->type == DEVICE_TYPE_NFS || mediaDevice->type == DEVICE_TYPE_FTP))
-	    msgConfirm("Warning:  Missing name server value - network operations\n"
-		       "may fail as a result!");
-	goto skip;
-    }
     if (Mkdir("/etc")) {
 	msgConfirm("Unable to create /etc directory.  Network configuration\n"
 		   "files will therefore not be written!");
 	return;
+    }
+
+    cp = variable_get(VAR_NAMESERVER);
+    if (!cp || !*cp) {
+	msgConfirm("Warning:  Missing name server value - be sure to refer\n"
+		   "to other hosts in any network operation by IP address\n"
+		   "rather than name (or go back and fill in a name server).");
+	goto skip;
     }
     fp = fopen("/etc/resolv.conf", "w");
     if (!fp) {
@@ -394,40 +394,45 @@ configResolv(void)
     }
     if (variable_get(VAR_DOMAINNAME))
 	fprintf(fp, "domain\t%s\n", variable_get(VAR_DOMAINNAME));
-    fprintf(fp, "nameserver\t%s\n", variable_get(VAR_NAMESERVER));
+    fprintf(fp, "nameserver\t%s\n", cp);
     fclose(fp);
     if (isDebug())
 	msgDebug("Wrote out /etc/resolv.conf\n");
 
 skip:
     /* Tack ourselves into /etc/hosts */
-    cp = variable_get(VAR_IPADDR);
+    fp = fopen("/etc/hosts", "w");
+
+    /* Add an entry for localhost */
     dp = variable_get(VAR_DOMAINNAME);
-    if (cp && *cp != '0' && (hp = variable_get(VAR_HOSTNAME))) {
+    fprintf(fp, "127.0.0.1\t\tlocalhost.%s localhost\n", dp ? dp : "my.domain");
+
+    /* Now the host entries, if applicable */
+    cp = variable_get(VAR_IPADDR);
+    hp = variable_get(VAR_HOSTNAME);
+    if (cp && cp[0] != '0' && hp) {
 	char cp2[255];
 
-	fp = fopen("/etc/hosts", "w");
 	if (!index(hp, '.'))
 	    cp2[0] = '\0';
 	else {
 	    strcpy(cp2, hp);
 	    *(index(cp2, '.')) = '\0';
 	}
-	fprintf(fp, "127.0.0.1\t\tlocalhost.%s localhost\n", dp ? dp : "my.domain");
 	fprintf(fp, "%s\t\t%s %s\n", cp, hp, cp2);
 	fprintf(fp, "%s\t\t%s.\n", cp, hp);
-	fclose(fp);
-	if (isDebug())
-	    msgDebug("Wrote entry for %s to /etc/hosts\n", cp);
     }
+    fclose(fp);
+    if (isDebug())
+	msgDebug("Wrote entry for %s to /etc/hosts\n", cp);
 }
 
 int
 configRoutedFlags(dialogMenuItem *self)
 {
-    return variable_get_value(VAR_ROUTEDFLAGS, 
+    return (variable_get_value(VAR_ROUTEDFLAGS, 
 			      "Specify the flags for routed; -q is the default, -s is\n"
-			      "a good choice for gateway machines.") ? DITEM_SUCCESS : DITEM_FAILURE;
+			      "a good choice for gateway machines.") ? DITEM_SUCCESS : DITEM_FAILURE) | DITEM_RESTORE;
 }
 
 int
@@ -448,7 +453,7 @@ configPackages(dialogMenuItem *self)
 	msgNotify("Attempting to fetch packages/INDEX file from selected media.");
 	fd = mediaDevice->get(mediaDevice, "packages/INDEX", TRUE);
 	if (fd < 0) {
-	    dialog_clear();
+	    dialog_clear_norefresh();
 	    msgConfirm("Unable to get packages/INDEX file from selected media.\n"
 		       "This may be because the packages collection is not available at\n"
 		       "on the distribution media you've chosen (most likely an FTP site\n"
@@ -456,7 +461,7 @@ configPackages(dialogMenuItem *self)
 		       "(or path to media) and try again.  If your local site does not\n"
 		       "carry the packages collection, then we recommend either a CD\n"
 		       "distribution or the master distribution on ftp.freebsd.org.");
-	    return DITEM_FAILURE;
+	    return DITEM_FAILURE | DITEM_RESTORE;
 	}
 	msgNotify("Got INDEX successfully, now building packages menu..");
 	index_init(&top, &plist);
@@ -464,7 +469,7 @@ configPackages(dialogMenuItem *self)
 	    msgConfirm("I/O or format error on packages/INDEX file.\n"
 		       "Please verify media (or path to media) and try again.");
 	    mediaDevice->close(mediaDevice, fd);
-	    return DITEM_FAILURE;
+	    return DITEM_FAILURE | DITEM_RESTORE;
 	}
 	mediaDevice->close(mediaDevice, fd);
 	index_sort(&top);
@@ -489,7 +494,7 @@ configPackages(dialogMenuItem *self)
 	    }
 	}
 	else {
-	    dialog_clear();
+	    dialog_clear_norefresh();
 	    msgConfirm("No packages were selected for extraction.");
 	    break;
 	}
@@ -502,101 +507,7 @@ configPackages(dialogMenuItem *self)
         tmp = tmp2;
     }
     index_init(NULL, &plist);
-    return DITEM_SUCCESS;
-}
-
-int
-configPorts(dialogMenuItem *self)
-{
-    char *cp, *dist = NULL; /* Shut up compiler */
-    int status = DITEM_SUCCESS, tries = 0;
-
-    dialog_clear();
-    if (!variable_get(VAR_PORTS_PATH))
-	variable_set2(VAR_PORTS_PATH, dist = "/cdrom/ports");
-    dialog_clear();
-    while (!directory_exists(dist)) {
-	if (++tries > 2) {
-	    msgConfirm("You appear to be having some problems with your CD drive\n"
-		       "or perhaps cannot find the second CD.  This step will now\n"
-		       "therefore be skipped.");
-	    status = DITEM_FAILURE;
-	    goto fixup;
-	}
-
-	/* Even if we're running multi-user, unmount it for this case */
-	cdromMounted = CD_WE_MOUNTED_IT;
-	mediaDevice->shutdown(mediaDevice);
-
-	msgConfirm("The ports collection is now on the second CDROM due to\n"
-		   "space constraints.  Please remove the first CD from the\n"
-		   "drive at this time and insert the second CDROM.  You will\n"
-		   "also need to have the second CDROM in your drive any time\n"
-		   "you wish to use the ports collection.  When you're ready,\n"
-		   "please press [ENTER].");
-	if (!mediaDevice->init(mediaDevice)) {
-	    msgConfirm("Mount failed - either the CDROM isn't in the drive or\n"
-		       "you did not allow sufficient time for the drive to become\n"
-		       "ready before pressing [ENTER].  Please try again.");
-	}
-    }
-
-    cp = msgGetInput("/usr/ports",
-		     "Where would you like to create the link tree?\n"
-		     "(press [ENTER] for default location).  The link tree should\n"
-		     "reside in a directory with as much free space as possible,\n"
-		     "as you'll need space to compile any ports.");
-    if (!cp || !*cp) {
-	status = DITEM_FAILURE;
-	goto fixup;
-    }
-    if (Mkdir(cp)) {
-	status = DITEM_FAILURE;
-	goto fixup;
-    }
-    if (strcmp(cp, "/usr/ports")) {
-	unlink("/usr/ports");
-	if (symlink(cp, "/usr/ports") == -1) {
-	    msgConfirm("Unable to create a symlink from /usr/ports to %s!\n"
-		       "I can't continue, sorry!", cp);
-	    status = DITEM_FAILURE;
-	    goto fixup;
-	}
-	else {
-	    msgConfirm("NOTE: This directory is also now symlinked to /usr/ports\n"
-		       "which, for a variety of reasons, is the directory the ports\n"
-		       "framework expects to find its files in.  You should refer to\n"
-		       "/usr/ports instead of %s directly when you're working in the\n"
-		       "ports collection.", cp);
-	}
-    }
-    msgNotify("Making a link tree from %s to %s.", dist, cp);
-    if (DITEM_STATUS(lndir(dist, cp)) != DITEM_SUCCESS) {
-	msgConfirm("The lndir function returned an error status and may not have.\n"
-		   "successfully generated the link tree.  You may wish to inspect\n"
-		   "the /usr/ports directory carefully for any missing link files.");
-    }
-    else {
-	msgConfirm("The /usr/ports directory is now ready to use.  When the system comes\n"
-		   "up fully, you can cd to this directory and type `make' in any sub-\n"
-		   "directory for which you'd like to compile a port.  You can also\n"
-		   "cd to /usr/ports and type `make print-index' for a complete list of all\n"
-		   "ports in the hierarchy.");
-    }
-fixup:
-    tries = 0;
-    while (++tries < 3) {
-	mediaDevice->shutdown(mediaDevice);
-	msgConfirm("Done with the second CD.  Please remove it and reinsert the first\n"
-		   "CDROM now.  It may be required for subsequence installation steps.\n\n"
-		   "When you've done so, please press [ENTER].");
-	if (!mediaDevice->init(mediaDevice)) {
-	    msgConfirm("Mount failed - either the CDROM isn't in the drive or\n"
-		       "you did not allow sufficient time for the drive to become\n"
-		       "ready before pressing [ENTER].  Please try again.");
-	}
-    }
-    return status | DITEM_RESTORE;
+    return DITEM_SUCCESS | DITEM_RESTORE | DITEM_RECREATE;
 }
 
 /* Load gated package */
@@ -621,6 +532,10 @@ configNovell(dialogMenuItem *self)
 {
     int ret = DITEM_SUCCESS;
 
+    if (!RunningAsInit) {
+	msgConfirm("This package can only be installed in multi-user mode.");
+	return ret;
+    }
     if (variable_get(VAR_NOVELL))
 	variable_unset(VAR_NOVELL);
     else {
@@ -628,7 +543,7 @@ configNovell(dialogMenuItem *self)
 	if (DITEM_STATUS(ret) == DITEM_SUCCESS)
 	    variable_set2(VAR_NOVELL, "YES");
     }
-    return ret;
+    return ret | DITEM_RESTORE;
 }
 
 /* Load pcnfsd package */
@@ -658,6 +573,7 @@ configNFSServer(dialogMenuItem *self)
     if (!file_readable("/etc/exports")) {
 	WINDOW *w = savescr();
 
+	dialog_clear_norefresh();
 	msgConfirm("Operating as an NFS server means that you must first configure\n"
 		   "an /etc/exports file to indicate which hosts are allowed certain\n"
 		   "kinds of access to your local file systems.\n"
