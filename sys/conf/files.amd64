@@ -48,6 +48,7 @@ amd64/acpica/OsdEnvironment.c	optional	acpi
 amd64/acpica/acpi_machdep.c	optional	acpi
 amd64/acpica/acpi_wakeup.c	optional	acpi
 amd64/amd64/amd64-gdbstub.c	optional	ddb
+amd64/amd64/amd64_mem.c		standard
 amd64/amd64/autoconf.c		standard
 amd64/amd64/busdma_machdep.c	standard
 amd64/amd64/cpu_switch.S	standard
