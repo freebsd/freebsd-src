@@ -50,9 +50,7 @@
 #include <sys/socketvar.h>
 #include <sys/protosw.h>
 #include <sys/kernel.h>
-#include <sys/poll.h>
 #include <sys/uio.h>
-#include <sys/file.h>
 #include <sys/syslog.h>
 #include <sys/mbuf.h>
 #include <net/route.h>
@@ -66,7 +64,6 @@
 #include <netncp/ncp_conn.h>
 #include <netncp/ncp_sock.h>
 #include <netncp/ncp_subr.h>
-#include <netncp/ncp_ncp.h>
 #include <netncp/ncp_rq.h>
 
 #ifdef IPX
