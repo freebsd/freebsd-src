@@ -168,7 +168,7 @@ struct msdosfsmount {
 #define	de_clcount(pmp, size) \
 	(((size) + (pmp)->pm_bpcluster - 1) >> (pmp)->pm_cnshift)
 
-int msdosfs_init __P((void));
+int msdosfs_init __P((struct vfsconf *vfsp));
 
 /*
  *  Arguments to mount MSDOS filesystems.
