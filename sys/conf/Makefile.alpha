@@ -21,7 +21,6 @@
 
 # Can be overridden by makeoptions or /etc/make.conf
 KERNEL?=	kernel
-KERNFORMAT?=	elf
 STD8X16FONT?=	iso
 
 .if !defined(S)
@@ -49,7 +48,10 @@ CFLAGS=	${COPTFLAGS} ${CWARNFLAGS} ${DEBUG} ${COPTS}
 # XXX LOCORE means "don't declare C stuff" not "for locore.s".
 ASM_CFLAGS= -x assembler-with-cpp -DLOCORE ${CFLAGS}
 
-FMT=
+# Select the correct set of tools. Can't set OBJFORMAT here because it
+# doesn't get exported into the environment, and if it were exported
+# then it might break building of utilities.
+FMT=		-elf
 CFLAGS+=	${FMT}
 
 LOAD_ADDRESS?=	0xfffffc0000300000
@@ -79,8 +81,6 @@ GEN_CFILES= $S/$M/$M/genassym.c
 SYSTEM_CFILES= ioconf.c param.c vnode_if.c config.c
 SYSTEM_SFILES= $S/$M/$M/locore.s
 SYSTEM_DEP= Makefile ${SYSTEM_OBJS}
-
-.if ${KERNFORMAT} == elf
 SYSTEM_OBJS= locore.o setdef0.o vnode_if.o ${OBJS} ioconf.o param.o config.o \
 	setdef1.o hack.So
 SYSTEM_LD= @${LD} ${FMT} -Bdynamic -T $S/$M/conf/kernel.script \
@@ -89,7 +89,6 @@ SYSTEM_LD= @${LD} ${FMT} -Bdynamic -T $S/$M/conf/kernel.script \
 	-o ${.TARGET} -X ${SYSTEM_OBJS} vers.o
 SYSTEM_LD_TAIL= @${SIZE} ${FMT} ${.TARGET} ; chmod 755 ${.TARGET}
 SYSTEM_DEP+= $S/$M/conf/kernel.script
-.endif
 
 %BEFORE_DEPEND
 
@@ -110,12 +109,7 @@ FULLKERNEL=	${KERNEL}
 .else
 FULLKERNEL=	${KERNEL}.debug
 ${KERNEL}: ${FULLKERNEL}
-.if ${KERNFORMAT} == "elf"
 	objcopy --strip-debug ${FULLKERNEL} ${KERNEL}
-.else
-	cp ${FULLKERNEL} ${KERNEL}
-	strip ${FMT} -d ${KERNEL}
-.endif
 .endif
 
 ${FULLKERNEL}: ${SYSTEM_DEP} vers.o
@@ -143,7 +137,6 @@ clean:
 locore.o: $S/$M/$M/locore.s assym.s
 	${NORMAL_S}
 
-.if ${KERNFORMAT} == elf
 # This is a hack.  BFD "optimizes" away dynamic mode if there are no
 # dynamic references.  We could probably do a '-Bforcedynamic' mode like
 # in the a.out ld.  For now, this works.
@@ -151,7 +144,6 @@ hack.So: Makefile
 	touch hack.c
 	${CC} ${FMT} -shared -nostdlib hack.c -o hack.So
 	rm -f hack.c
-.endif
 
 .ORDER: setdefs.h setdef0.c setdef1.c
 
