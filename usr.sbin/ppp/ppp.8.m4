@@ -1,5 +1,5 @@
 .\" manual page [] for ppp 0.94 beta2 + alpha
-.\" $Id: ppp.8,v 1.26 1997/03/13 21:39:41 brian Exp $
+.\" $Id: ppp.8,v 1.27 1997/04/12 22:58:41 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -432,7 +432,14 @@ dial mode on both ends of the link. If each end has the same timeout,
 both ends wind up calling each other at the same time if the link
 drops and both ends have packets queued.
 
- To terminate the program, type
+The 
+.Dq set redial
+command is ineffective if the
+.Fl background
+flag is specified.  For background mode, all phone numbers are dialed
+at most once until a connection is made.
+
+To terminate the program, type
 
   PPP ON tama> close
   ppp ON tama> quit all

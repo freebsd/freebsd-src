@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.41 1997/04/09 17:35:54 ache Exp $
+ * $Id: main.c,v 1.42 1997/04/12 22:58:39 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -172,7 +172,7 @@ int excode;
       LogPrintf(LOG_PHASE_BIT,"Failed to notify parent of failure.\n");
     close(BGFiledes[1]);
   }
-  LogPrintf(LOG_PHASE_BIT, "PPP Terminated.\n");
+  LogPrintf(LOG_PHASE_BIT, "PPP Terminated %d.\n",excode);
   LogClose();
   if (server >= 0) {
     close(server);
@@ -775,7 +775,12 @@ DoLoop()
 	  tries = 0;
 	} else {
 	  CloseModem();
-	  if (VarDialTries && tries >= VarDialTries) {
+	  if (mode & MODE_BACKGROUND) {
+	    if (VarNextPhone == NULL)
+	      Cleanup(EX_DIAL);  /* Tried all numbers - no luck */
+	    else
+	      sleep(1);          /* Try all numbers in background mode */
+	  } else if (VarDialTries && tries >= VarDialTries) {
 	    /* I give up !  Can't get through :( */
 	    StartRedialTimer();
 	    dial_up = FALSE;
