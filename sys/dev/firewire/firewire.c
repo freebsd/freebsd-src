@@ -184,14 +184,14 @@ dvloop:
 		}else{
 			goto out;
 		}
-#if 1
-#define DVSEC 100
-#define DVFRAC 2997	/* NTSC: 29.97 Hz (2997 = 29.97 * 100) */
-#define DVDIFF 203	/* 203 = (8000/250 - 29.97) * 100 */
-#else
+#if DV_PAL
 #define DVSEC 3
 #define DVFRAC 75	/* PAL: 25 Hz (1875 = 25 * 3) */
 #define DVDIFF 5	/* 125 = (8000/300 - 25) * 3 */
+#else
+#define DVSEC 100
+#define DVFRAC 2997	/* NTSC: 29.97 Hz (2997 = 29.97 * 100) */
+#define DVDIFF 203	/* 203 = (8000/250 - 29.97) * 100 */
 #endif
 #define	CYCLEFRAC 0xc00
 		cycle = (u_int64_t) 8000 * DVSEC * it->dvsync;

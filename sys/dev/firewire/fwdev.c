@@ -52,6 +52,7 @@
 #include <dev/firewire/firewire.h>
 #include <dev/firewire/firewirereg.h>
 #include <dev/firewire/fwmem.h>
+#include <dev/firewire/iec68113.h>
 
 #define CDEV_MAJOR 127
 #define	FWNODE_INVAL 0xffff
@@ -568,14 +569,18 @@ fw_ioctl (dev_t dev, u_long cmd, caddr_t data, int flag, fw_proc *td)
 			err = ENOMEM;
 			break;
 		}
-#define FWDVPACKET 250	/* NTSC (300 for PAL) */
+#if DV_PAL
+#define FWDVPACKET 300
+#else
+#define FWDVPACKET 250
+#endif
 #define FWDVPMAX 512
 		ibufreq->rx.nchunk = 8;
 		ibufreq->rx.npacket = 50;
 		ibufreq->rx.psize = FWDVPMAX;
 
 		ibufreq->tx.nchunk = 5;
-		ibufreq->tx.npacket = 300;
+		ibufreq->tx.npacket = FWDVPACKET + 30;	/* > 320 or 267 */
 		ibufreq->tx.psize = FWDVPMAX;
 
 		err = fw_ioctl(dev, FW_SSTBUF, (caddr_t)ibufreq, flag, td);
