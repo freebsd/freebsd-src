@@ -159,7 +159,7 @@ distribution: distrib-dirs
 	 cd ../cf/cf; \
 	    ${MAKE} obj; \
 	    ${MAKE} freefall.cf; \
-	    install -o root -g wheel -m 644 freefall.cf \
+	    install -o root -g wheel -m 644 obj/freefall.cf \
 	        ${DESTDIR}/etc/sendmail.cf)
 	(cd ../; \
 	    install -c -o root -g wheel -m 444 ${FREEBSD} ${DESTDIR}/)
