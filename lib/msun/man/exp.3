@@ -32,12 +32,15 @@
 .\"     from: @(#)exp.3	6.12 (Berkeley) 7/31/91
 .\" $FreeBSD$
 .\"
-.Dd January 14, 2005
+.Dd April 5, 2005
 .Dt EXP 3
 .Os
 .Sh NAME
 .Nm exp ,
 .Nm expf ,
+.\" The sorting error is intentional.  exp and expf should be adjacent.
+.Nm exp2 ,
+.Nm exp2f ,
 .Nm expm1 ,
 .Nm expm1f ,
 .Nm log ,
@@ -57,6 +60,10 @@
 .Fn exp "double x"
 .Ft float
 .Fn expf "float x"
+.Ft double
+.Fn exp2 "double x"
+.Ft float
+.Fn exp2f "float x"
 .Ft double
 .Fn expm1 "double x"
 .Ft float
@@ -82,7 +89,16 @@ The
 .Fn exp
 and the
 .Fn expf
-functions compute the exponential value of the given argument
+functions compute the base
+.Ms e
+exponential value of the given argument
+.Fa x .
+.Pp
+The
+.Fn exp2
+and the
+.Fn exp2f
+functions compute the base 2 exponential of the given argument
 .Fa x .
 .Pp
 The
@@ -125,57 +141,16 @@ of
 to the exponent
 .Ar y .
 .Sh ERROR (due to Roundoff etc.)
-.Fn exp x ,
-.Fn log x ,
-.Fn expm1 x
+The values of
+.Fn exp 0 ,
+.Fn expm1 0 ,
+.Fn exp2 integer ,
 and
-.Fn log1p x
-are accurate to within
-an
-.Em ulp ,
-and
-.Fn log10 x
-to within about 2
-.Em ulps ;
-an
-.Em ulp
-is one
-.Em Unit
-in the
-.Em Last
-.Em Place .
-The error in
-.Fn pow x y
-is below about 2
-.Em ulps
-when its
-magnitude is moderate, but increases as
-.Fn pow x y
-approaches
-the over/underflow thresholds until almost as many bits could be
-lost as are occupied by the floating\-point format's exponent
-field; that is 8 bits for
-.Tn "VAX D"
-and 11 bits for IEEE 754 Double.
-No such drastic loss has been exposed by testing; the worst
-errors observed have been below 20
-.Em ulps
-for
-.Tn "VAX D" ,
-300
-.Em ulps
-for
-.Tn IEEE
-754 Double.
-Moderate values of
-.Fn pow
-are accurate enough that
 .Fn pow integer integer
-is exact until it is bigger than 2**56 on a
-.Tn VAX ,
-2**53 for
-.Tn IEEE
-754.
+are exact provided that they are representable.
+.\" XXX Is this really true for pow()?
+Otherwise the error in these functions is generally below one
+.Em ulp .
 .Sh RETURN VALUES
 These functions will return the appropriate computation unless an error
 occurs or an argument is out of range.
@@ -214,15 +189,7 @@ They also provide accurate inverse hyperbolic functions.
 .Pp
 The function
 .Fn pow x 0
-returns x**0 = 1 for all x including x = 0,
-\*(If
-(not found on a
-.Tn VAX ) ,
-and
-.Em NaN
-(the reserved
-operand on a
-.Tn VAX ) .
+returns x**0 = 1 for all x including x = 0, \*(If, and \*(Na .
 Previous implementations of pow may
 have defined x**0 to be undefined in some or all of these
 cases.
@@ -267,23 +234,3 @@ and infinite x, i.e., independently of x.
 .Sh SEE ALSO
 .Xr fenv 3 ,
 .Xr math 3
-.Sh HISTORY
-A
-.Fn exp ,
-.Fn log
-and
-.Fn pow
-functions
-appeared in
-.At v6 .
-A
-.Fn log10
-function
-appeared in
-.At v7 .
-The
-.Fn log1p
-and
-.Fn expm1
-functions appeared in
-.Bx 4.3 .
