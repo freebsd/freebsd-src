@@ -117,8 +117,11 @@
       </itemizedlist>
     </para>
 
-    <para arch="i386">Adaptec 1400, 2100S, 3200S, and 3400S SCSI RAID
+    <para arch="i386">Adaptec 2100S, 3200S, and 3400S SCSI RAID
     controllers (&man.asr.4; driver)</para>
+
+    <para arch="i386">Adaptec 2400A ATA-100 RAID controller
+    (&man.asr.4; driver)</para>
 
     <para arch="i386">Adaptec FSA family RAID controllers (&man.aac.4; driver)
       <itemizedlist>
