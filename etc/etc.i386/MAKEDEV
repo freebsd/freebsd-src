@@ -44,7 +44,7 @@
 #	mcd*	"Mitsumi CD-ROM disks"
 #	scd*	"Sony CD-ROM disks"
 #	matcd*	"Matsushita (Panasonic) CD-ROM disks"
-#	wcd*	"IDE CD-ROM disks"
+#	acd*	"ATAPI CD-ROM disks"
 #	vn*	"vnode disks"
 #	od*	"optical disks"
 #	fla*	"M-Systems DiskOnChip"
@@ -121,7 +121,7 @@
 #	ipl	ipfilter control devices (ipl, ipnat, ipstate, ipauth)
 #	kbd	keyboard devices
 #
-#	$Id: MAKEDEV,v 1.185 1999/02/04 20:35:07 mjacob Exp $
+#	$Id: MAKEDEV,v 1.186 1999/02/05 22:54:37 mjacob Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:$PATH
@@ -211,7 +211,7 @@ all)
 	sh MAKEDEV od0					# bdev, optical disk
 	sh MAKEDEV wfd0					# bdev, LS-120 floppy
 	sh MAKEDEV vn0					# bdev, virtual disk
-	sh MAKEDEV cd0 matcd0 mcd0 scd0 wcd0		# bdev, cdrom
+	sh MAKEDEV cd0 matcd0 mcd0 scd0 acd0		# bdev, cdrom
 	sh MAKEDEV ft0 sa0 wt0 wst0			# bdev, tape
 	sh MAKEDEV vty4					# cdev, virtual tty
 	sh MAKEDEV cuaa0 cuaa1 cuaa2 cuaa3		# cdev, serial tty
@@ -719,19 +719,23 @@ matcd*)
 	umask 77
 	;;
 
-wcd*)
+acd?|wcd?)
 	umask 2 ;
 	unit=`expr $i : '...\(.*\)'`
 	blk=19
 	chr=69
 	case $unit in
 	0|1|2|3|4|5|6|7)
-		mknod wcd${unit}a  b $blk `expr $unit '*' 8 + 0`
-		mknod rwcd${unit}a c $chr `expr $unit '*' 8 + 0`
-		mknod wcd${unit}c  b $blk `expr $unit '*' 8 + 2`
-		mknod rwcd${unit}c c $chr `expr $unit '*' 8 + 2`
-		chgrp operator wcd${unit}[a-h] rwcd${unit}[a-h]
-		chmod 640 wcd${unit}[a-h] rwcd${unit}[a-h]
+		mknod acd${unit}a  b $blk `expr $unit '*' 8 + 0`
+		ln -fs acd${unit}a wcd${unit}a 
+		mknod racd${unit}a c $chr `expr $unit '*' 8 + 0`
+		ln -fs racd${unit}a rwcd${unit}a
+		mknod acd${unit}c  b $blk `expr $unit '*' 8 + 2`
+		ln -fs acd${unit}c wcd${unit}c
+		mknod racd${unit}c c $chr `expr $unit '*' 8 + 2`
+		ln -fs racd${unit}c rwcd${unit}c
+		chgrp operator acd${unit}[a-h] racd${unit}[a-h]
+		chmod 640 acd${unit}[a-h] racd${unit}[a-h]
 		;;
 	*)
 		echo bad unit for disk in: $i
