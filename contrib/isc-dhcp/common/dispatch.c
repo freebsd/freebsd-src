@@ -115,7 +115,7 @@ void dispatch ()
 		tvp = process_outstanding_timeouts (&tv);
 #ifdef ENABLE_POLLING_MODE
 		GET_TIME (&cur_time);
-		add_timeout(cur_time + polling_interval, state_link, 0, 0, 0);
+		add_timeout(cur_time + polling_interval, state_polling, 0, 0, 0);
 		tvp_new = process_outstanding_timeouts(&tv);
 		if (tvp != NULL && (tvp -> tv_sec > tvp_new -> tv_sec))
 			tvp = tvp_new;
