@@ -466,7 +466,7 @@ struct ste_desc_onefrag {
 #define STE_PACKET_SIZE		1536
 #define ETHER_ALIGN		2
 #define STE_RX_LIST_CNT		64
-#define STE_TX_LIST_CNT		64
+#define STE_TX_LIST_CNT		128
 #define STE_INC(x, y)		(x) = (x + 1) % y
 #define STE_NEXT(x, y)		(x + 1) % y
 
