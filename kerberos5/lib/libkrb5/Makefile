@@ -114,7 +114,7 @@ SRCS=	\
 INCS=	krb5.h ${.CURDIR}/../../include/krb5-types.h \
 	krb5-protos.h heim_err.h krb5_err.h k524_err.h
 
-MAN3=						\
+MAN=						\
 	krb5.3					\
 	krb5_425_conv_principal.3		\
 	krb5_appdefault.3			\
@@ -141,10 +141,10 @@ MAN3=						\
 	krb5_verify_user.3			\
 	krb5_warn.3
 
-MAN5=						\
+MAN+=						\
 	krb5.conf.5
 
-MAN8=						\
+MAN+=						\
 	kerberos.8				\
 	verify_krb5_conf.8
 
