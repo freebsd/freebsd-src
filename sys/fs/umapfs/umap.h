@@ -35,7 +35,7 @@
  *
  *	@(#)umap.h	8.3 (Berkeley) 1/21/94
  *
- * $Id: umap.h,v 1.2 1994/08/02 07:45:33 davidg Exp $
+ * $Id: umap.h,v 1.3 1995/05/30 08:07:15 rgrimes Exp $
  */
 
 #define MAPFILEENTRIES 64
@@ -87,6 +87,6 @@ extern struct vnode *umap_checkvp __P((struct vnode *vp, char *fil, int lno));
 #define	UMAPVPTOLOWERVP(vp) (VTOUMAP(vp)->umap_lowervp)
 #endif
 
-extern int (**umap_vnodeop_p)();
+extern vop_t **umap_vnodeop_p;
 extern struct vfsops umap_vfsops;
 #endif /* KERNEL */

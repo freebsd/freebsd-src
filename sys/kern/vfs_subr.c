@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.13 (Berkeley) 4/18/94
- * $Id: vfs_subr.c,v 1.37 1995/10/28 08:50:08 bde Exp $
+ * $Id: vfs_subr.c,v 1.38 1995/11/07 05:09:43 dyson Exp $
  */
 
 /*
@@ -312,7 +312,7 @@ vattr_null(vap)
 /*
  * Routines having to do with the management of the vnode table.
  */
-extern int (**dead_vnodeop_p) ();
+extern vop_t **dead_vnodeop_p;
 extern void vclean();
 
 /*
@@ -322,7 +322,7 @@ int
 getnewvnode(tag, mp, vops, vpp)
 	enum vtagtype tag;
 	struct mount *mp;
-	int (**vops) ();
+	vop_t **vops;
 	struct vnode **vpp;
 {
 	register struct vnode *vp;

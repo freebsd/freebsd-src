@@ -35,7 +35,7 @@
  *
  *	@(#)null.h	8.2 (Berkeley) 1/21/94
  *
- * $Id: lofs.h,v 1.8 1992/05/30 10:05:43 jsp Exp jsp $
+ * $Id: null.h,v 1.1.1.1 1994/05/24 10:05:04 rgrimes Exp $
  */
 
 struct null_args {
@@ -70,6 +70,6 @@ extern struct vnode *null_checkvp __P((struct vnode *vp, char *fil, int lno));
 #define	NULLVPTOLOWERVP(vp) (VTONULL(vp)->null_lowervp)
 #endif
 
-extern int (**null_vnodeop_p)();
+extern vop_t **null_vnodeop_p;
 extern struct vfsops null_vfsops;
 #endif /* KERNEL */

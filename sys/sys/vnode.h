@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vnode.h	8.7 (Berkeley) 2/4/94
- * $Id: vnode.h,v 1.22 1995/07/06 11:48:38 davidg Exp $
+ * $Id: vnode.h,v 1.23 1995/11/08 04:51:15 dyson Exp $
  */
 
 #ifndef _SYS_VNODE_H_
@@ -67,6 +67,8 @@ enum vtagtype	{
  */
 LIST_HEAD(buflists, buf);
 
+typedef	int 	vop_t __P((void *));
+
 struct vnode {
 	u_long	v_flag;				/* vnode flags (see below) */
 	short	v_usecount;			/* reference count of users */
@@ -75,7 +77,7 @@ struct vnode {
 	daddr_t	v_lastr;			/* last read (read-ahead) */
 	u_long	v_id;				/* capability identifier */
 	struct	mount *v_mount;			/* ptr to vfs we are in */
-	int 	(**v_op)();			/* vnode operations vector */
+	vop_t	**v_op;				/* vnode operations vector */
 	TAILQ_ENTRY(vnode) v_freelist;		/* vnode freelist */
 	LIST_ENTRY(vnode) v_mntvnodes;		/* vnodes for mount point */
 	struct	buflists v_cleanblkhd;		/* clean blocklist head */
@@ -332,11 +334,11 @@ extern struct vnodeop_desc *vnodeop_descs[];
  */
 struct vnodeopv_entry_desc {
 	struct vnodeop_desc *opve_op;   /* which operation this is */
-	int (*opve_impl)();		/* code implementing this operation */
+	vop_t *opve_impl;		/* code implementing this operation */
 };
 struct vnodeopv_desc {
 			/* ptr to the ptr to the vector where op should go */
-	int (***opv_desc_vector_p)();
+	vop_t ***opv_desc_vector_p;
 	struct vnodeopv_entry_desc *opv_desc_ops;   /* null terminated list */
 };
 

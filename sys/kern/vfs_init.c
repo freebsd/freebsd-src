@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_init.c	8.3 (Berkeley) 1/4/94
- * $Id: vfs_init.c,v 1.11 1995/08/28 09:18:55 julian Exp $
+ * $Id: vfs_init.c,v 1.12 1995/09/09 18:10:16 davidg Exp $
  */
 
 
@@ -91,8 +91,6 @@ extern struct vnodeop_desc *vfs_op_descs[];
  */
 int vfs_opv_numops;
 
-typedef int (*PFI)(); /* the standard Pointer to a Function returning an Int */
-
 /*
  * A miscellaneous routine.
  * A generic "default" routine that just returns an error.
@@ -124,8 +122,8 @@ void
 vfs_opv_init(struct vnodeopv_desc **them)
 {
 	int i, j, k;
-	int (***opv_desc_vector_p)();
-	int (**opv_desc_vector)();
+	vop_t ***opv_desc_vector_p;
+	vop_t **opv_desc_vector;
 	struct vnodeopv_entry_desc *opve_descp;
 
 	/*
@@ -139,9 +137,11 @@ vfs_opv_init(struct vnodeopv_desc **them)
 		 */
 		if (*opv_desc_vector_p == NULL) {
 			/* XXX - shouldn't be M_VNODE */
-			MALLOC(*opv_desc_vector_p, PFI*,
-			       vfs_opv_numops*sizeof(PFI), M_VNODE, M_WAITOK);
-			bzero (*opv_desc_vector_p, vfs_opv_numops*sizeof(PFI));
+			MALLOC(*opv_desc_vector_p, vop_t **,
+			       vfs_opv_numops * sizeof(vop_t *), M_VNODE,
+			       M_WAITOK);
+			bzero(*opv_desc_vector_p,
+			      vfs_opv_numops * sizeof(vop_t *));
 			DODEBUG(printf("vector at %x allocated\n",
 			    opv_desc_vector_p));
 		}
