@@ -52,7 +52,7 @@ main(int argc, char *argv[])
 	struct sockaddr_in sin;
 	char *dummy, *packet;
 	long port;
-	int s;
+	int s, v;
 
 	if (argc != 2)
 		usage();
@@ -77,6 +77,12 @@ main(int argc, char *argv[])
 	s = socket(PF_INET, SOCK_DGRAM, 0);
 	if (s == -1) {
 		perror("socket");
+		return (-1);
+	}
+
+	v = 128 * 1024;
+	if (setsockopt(s, SOL_SOCKET, SO_RCVBUF, &v, sizeof(v)) < 0) {
+		perror("SO_RCVBUF");
 		return (-1);
 	}
 
