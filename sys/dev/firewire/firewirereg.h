@@ -225,7 +225,7 @@ struct firewire_comm{
 	u_int32_t *config_rom;
 	struct fw_topology_map *topology_map;
 	struct fw_speed_map *speed_map;
-	struct callout_handle tlhandle;
+	struct callout busprobe_callout;
 	struct callout_handle bmrhandle;
 	struct callout_handle timeouthandle;
 	struct callout_handle retry_probe_handle;
