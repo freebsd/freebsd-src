@@ -62,6 +62,7 @@ SUBDIR=	accf_data \
 	nwfs \
 	portal \
 	procfs \
+	pst \
 	rl \
 	rp \
 	rue \
