@@ -54,6 +54,8 @@
 
 #if __BSD_VISIBLE
 
+#include <sys/_null.h>
+
 /* definitions for library routines operating on directories. */
 #define	DIRBLKSIZ	1024
 
@@ -80,10 +82,6 @@ typedef struct _dirdesc {
 #define DTF_NODUP	0x0002	/* don't return duplicate names */
 #define DTF_REWIND	0x0004	/* rewind after reading union stack */
 #define __DTF_READALL	0x0008	/* everything has been read */
-
-#ifndef NULL
-#define	NULL	0
-#endif
 
 #else /* !__BSD_VISIBLE */
 

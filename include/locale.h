@@ -37,6 +37,8 @@
 #ifndef _LOCALE_H_
 #define _LOCALE_H_
 
+#include <sys/_null.h>
+
 struct lconv {
 	char	*decimal_point;
 	char	*thousands_sep;
@@ -63,10 +65,6 @@ struct lconv {
 	char	int_p_sign_posn;
 	char	int_n_sign_posn;
 };
-
-#ifndef NULL
-#define	NULL	0
-#endif
 
 #define	LC_ALL		0
 #define	LC_COLLATE	1
