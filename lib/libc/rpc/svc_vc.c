@@ -68,8 +68,10 @@ static char *sccsid = "@(#)svc_tcp.c	2.2 88/08/01 4.0 RPCSRC";
 #include "rpc_com.h"
 #include "un-namespace.h"
 
-#define SOCKCREDSIZE(ngrps) \
-	(sizeof(struct cmsgcred) + (sizeof(gid_t) * ((ngrps) - 1)))
+struct cmessage {
+        struct cmsghdr cmsg;
+        struct cmsgcred cmcred;
+};
 
 static SVCXPRT *makefd_xprt __P((int, u_int, u_int));
 static bool_t rendezvous_request __P((SVCXPRT *, struct rpc_msg *));
