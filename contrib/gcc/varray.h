@@ -1,5 +1,6 @@
 /* Virtual array support.
-   Copyright (C) 1998, 1999, 2000, 2002 Free Software Foundation, Inc.
+   Copyright (C) 1998, 1999, 2000, 2002, 2003, 2004
+   Free Software Foundation, Inc.
    Contributed by Cygnus Solutions.
 
    This file is part of GCC.
@@ -28,6 +29,8 @@
 
 #ifndef GCC_SYSTEM_H
 #include "system.h"
+#include "coretypes.h"
+#include "tm.h"
 #endif
 
 /* Auxiliary structure used inside the varray structure, used for
@@ -47,15 +50,15 @@ struct const_equiv_data GTY(()) {
      pseudos that contain pointers into the replacement area allocated for
      this inline instance.  These pseudos are then marked as being equivalent
      to the appropriate address and substituted if valid.  */
-  struct rtx_def *rtx;
+  rtx rtx;
 
   /* Record the valid age for each entry.  The entry is invalid if its
      age is less than const_age.  */
   unsigned age;
 };
 
-/* Enum indicating what the varray contains.  
-   If this is changed, `element_size' in varray.c needs to be updated.  */
+/* Enum indicating what the varray contains.
+   If this is changed, `element' in varray.c needs to be updated.  */
 
 enum varray_data_enum {
   VARRAY_DATA_C,
@@ -107,18 +110,18 @@ typedef union varray_data_tag GTY (()) {
 				tag ("VARRAY_DATA_GENERIC")))	generic[1];
   char			 *GTY ((length ("%0.num_elements"),
 				tag ("VARRAY_DATA_CPTR")))	cptr[1];
-  struct rtx_def	 *GTY ((length ("%0.num_elements"),
+  rtx			  GTY ((length ("%0.num_elements"),
 				tag ("VARRAY_DATA_RTX")))	rtx[1];
-  struct rtvec_def	 *GTY ((length ("%0.num_elements"),
+  rtvec			  GTY ((length ("%0.num_elements"),
 				tag ("VARRAY_DATA_RTVEC")))	rtvec[1];
-  union tree_node	 *GTY ((length ("%0.num_elements"),
+  tree			  GTY ((length ("%0.num_elements"),
 				tag ("VARRAY_DATA_TREE")))	tree[1];
   struct bitmap_head_def *GTY ((length ("%0.num_elements"),
 				tag ("VARRAY_DATA_BITMAP")))	bitmap[1];
   struct reg_info_def	 *GTY ((length ("%0.num_elements"), skip (""),
 				tag ("VARRAY_DATA_REG")))	reg[1];
   struct const_equiv_data GTY ((length ("%0.num_elements"),
-			tag ("VARRAY_DATA_CONST_EQUIV"))) 	const_equiv[1];
+			tag ("VARRAY_DATA_CONST_EQUIV")))	const_equiv[1];
   struct basic_block_def *GTY ((length ("%0.num_elements"), skip (""),
 				tag ("VARRAY_DATA_BB")))	bb[1];
   struct elt_list	 *GTY ((length ("%0.num_elements"),
@@ -132,15 +135,14 @@ struct varray_head_tag GTY(()) {
 				   using VARRAY_PUSH/VARRAY_POP.  */
   enum varray_data_enum type;	/* The kind of elements in the varray.  */
   const char   *name;		/* name of the varray for reporting errors */
-  varray_data	GTY ((desc ("%0.type"))) data;	/* The data elements follow, 
+  varray_data	GTY ((desc ("%0.type"))) data;	/* The data elements follow,
 						   must be last.  */
 };
 typedef struct varray_head_tag *varray_type;
 
 /* Allocate a virtual array with NUM elements, each of which is SIZE bytes
    long, named NAME.  Array elements are zeroed.  */
-extern varray_type varray_init	PARAMS ((size_t, enum varray_data_enum, 
-					 const char *));
+extern varray_type varray_init (size_t, enum varray_data_enum, const char *);
 
 #define VARRAY_CHAR_INIT(va, num, name) \
   va = varray_init (num, VARRAY_DATA_C, name)
@@ -208,7 +210,7 @@ extern varray_type varray_init	PARAMS ((size_t, enum varray_data_enum,
   do { if (vp) { free (vp); vp = (varray_type) 0; } } while (0)
 
 /* Grow/shrink the virtual array VA to N elements.  */
-extern varray_type varray_grow	PARAMS ((varray_type, size_t));
+extern varray_type varray_grow (varray_type, size_t);
 
 #define VARRAY_GROW(VA, N) ((VA) = varray_grow (VA, N))
 
@@ -219,21 +221,35 @@ extern varray_type varray_grow	PARAMS ((varray_type, size_t));
 
 #define VARRAY_CLEAR(VA) varray_clear(VA)
 
-extern void varray_clear	PARAMS ((varray_type));
+extern void varray_clear (varray_type);
+
+extern void dump_varray_statistics (void);
 
 /* Check for VARRAY_xxx macros being in bound.  */
 #if defined ENABLE_CHECKING && (GCC_VERSION >= 2007)
-extern void varray_check_failed PARAMS ((varray_type, size_t,
-					const char *, int,
-					const char *)) ATTRIBUTE_NORETURN;
+extern void varray_check_failed (varray_type, size_t, const char *, int,
+				 const char *) ATTRIBUTE_NORETURN;
+extern void varray_underflow (varray_type, const char *, int, const char *)
+     ATTRIBUTE_NORETURN;
 #define VARRAY_CHECK(VA, N, T) __extension__			\
 (*({ varray_type const _va = (VA);				\
-     const size_t _n = (N); 					\
+     const size_t _n = (N);					\
      if (_n >= _va->num_elements)				\
        varray_check_failed (_va, _n, __FILE__, __LINE__, __FUNCTION__);	\
      &_va->data.T[_n]; }))
+
+#define VARRAY_POP(VA) do {					\
+  varray_type const _va = (VA);					\
+  if (_va->elements_used == 0)					\
+    varray_underflow (_va, __FILE__, __LINE__, __FUNCTION__);	\
+  else								\
+    _va->elements_used--;					\
+} while (0)
+
 #else
 #define VARRAY_CHECK(VA, N, T) ((VA)->data.T[N])
+/* Pop the top element of VA.  */
+#define VARRAY_POP(VA) do { ((VA)->elements_used--); } while (0)
 #endif
 
 /* Push X onto VA.  T is the name of the field in varray_data
@@ -246,14 +262,6 @@ extern void varray_check_failed PARAMS ((varray_type, size_t,
       (VA)->data.T[(VA)->elements_used++] = (X);	\
     }							\
   while (0)
-
-/* Pop the top element of VA.  */
-#define VARRAY_POP(VA) \
-  ((VA)->elements_used--)
-
-/* Return the top element of VA.  */
-#define VARRAY_TOP(VA, T) \
-  ((VA)->data.T[(VA)->elements_used - 1])
 
 #define VARRAY_CHAR(VA, N)		VARRAY_CHECK (VA, N, c)
 #define VARRAY_UCHAR(VA, N)		VARRAY_CHECK (VA, N, uc)
@@ -298,6 +306,8 @@ extern void varray_check_failed PARAMS ((varray_type, size_t,
 #define VARRAY_PUSH_BB(VA, X)		VARRAY_PUSH (VA, bb, X)
 
 /* Return the last element of VA.  */
+#define VARRAY_TOP(VA, T) VARRAY_CHECK(VA, (VA)->elements_used - 1, T)
+
 #define VARRAY_TOP_CHAR(VA)		VARRAY_TOP (VA, c)
 #define VARRAY_TOP_UCHAR(VA)	        VARRAY_TOP (VA, uc)
 #define VARRAY_TOP_SHORT(VA)	        VARRAY_TOP (VA, s)

@@ -2,20 +2,20 @@
    Copyright (C) 1997, 1998, 1999, 2000, 2001, 2002, 2003
    Free Software Foundation, Inc.
 
-This file is part of GNU CC.
+This file is part of GCC.
 
-GNU CC is free software; you can redistribute it and/or modify
+GCC is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
-GNU CC is distributed in the hope that it will be useful,
+GCC is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with GNU CC; see the file COPYING.  If not, write to
+along with GCC; see the file COPYING.  If not, write to
 the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
 
@@ -26,14 +26,6 @@ Boston, MA 02111-1307, USA.  */
       builtin_define ("__NetBSD__");		\
       builtin_assert ("system=unix");		\
       builtin_assert ("system=NetBSD");		\
-    }						\
-  while (0)
-
-/* TARGET_OS_CPP_BUILTINS() common to all LP64 NetBSD targets.  */
-#define NETBSD_OS_CPP_BUILTINS_LP64()		\
-  do						\
-    {						\
-      builtin_define ("_LP64");			\
     }						\
   while (0)
 
@@ -189,7 +181,7 @@ Boston, MA 02111-1307, USA.  */
 
 
 /* Attempt to turn on execute permission for the stack.  This may be
-   used by TRANSFER_FROM_TRAMPOLINE of the target needs it (that is,
+   used by INITIALIZE_TRAMPOLINE of the target needs it (that is,
    if the target machine can change execute permissions on a page).
 
    There is no way to query the execute permission of the stack, so
@@ -204,8 +196,7 @@ Boston, MA 02111-1307, USA.  */
 #define NETBSD_ENABLE_EXECUTE_STACK					\
 extern void __enable_execute_stack (void *);				\
 void									\
-__enable_execute_stack (addr)						\
-     void *addr;							\
+__enable_execute_stack (void *addr)					\
 {									\
   extern int mprotect (void *, size_t, int);				\
   extern int __sysctl (int *, unsigned int, void *, size_t *,		\

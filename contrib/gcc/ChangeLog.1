@@ -1251,7 +1251,7 @@ Wed Apr 14 13:59:27 1999  Martin von Loewis  <loewis@informatik.hu-berlin.de>
 
 Wed Apr 14 00:18:22 1999  Jan Hubicka <hubicka@freesoft.cz>
 
-	* i386.md (SImode logical compare): Avoid outputing non-pariable testw
+	* i386.md (SImode logical compare): Avoid outputting non-pariable testw
 	and testl on Pentium.
 	(register and memory bit tests): Likewise.
 	(setcc, normal and reversed conditional branches): Use shorter
@@ -3212,7 +3212,7 @@ Tue Mar 16 13:44:50 1999  Jim Wilson  <wilson@cygnus.com>
 	unless it's necessary.
 
 	* cpplib.h (parse_marker): Removed.
-	(struct cpp_buffer): Line_base is now a unsigned char *; add
+	(struct cpp_buffer): Line_base is now an unsigned char *; add
 	`mark' [long], remove `marks' [struct parse_marker *].
 	(parse_set_mark, parse_clear_mark, parse_goto_mark): Update
 	prototypes.

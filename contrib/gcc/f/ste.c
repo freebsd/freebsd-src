@@ -141,7 +141,7 @@ static void ffeste_subr_beru_ (ffestpBeruStmt *info, ffecomGfrt rt);
 /* Internal macros. */
 
 #define ffeste_emit_line_note_() \
-  emit_line_note (input_filename, lineno)
+  emit_line_note (input_location)
 #define ffeste_check_simple_() \
   assert(ffeste_statelet_ == FFESTE_stateletSIMPLE_)
 #define ffeste_check_start_() \
@@ -335,7 +335,7 @@ static void ffeste_subr_beru_ (ffestpBeruStmt *info, ffecomGfrt rt);
       tree exq = (Exp);							      \
       tree lenexq = (Lenexp);						      \
       int need_exq = (! exq);						      \
-      int need_lenexq = (! lenexq); 					      \
+      int need_lenexq = (! lenexq);					      \
       if (need_exq || need_lenexq)					      \
 	{								      \
 	  exq = ffecom_arg_ptr_to_expr ((Spec)->u.expr, &lenexq);	      \
@@ -387,8 +387,7 @@ typedef struct gbe_block
 {
   struct gbe_block *outer;
   ffestw block;
-  int lineno;
-  const char *input_filename;
+  location_t location;
   bool is_stmt;
 } *gbe_block;
 
@@ -401,8 +400,7 @@ ffeste_start_block_ (ffestw block)
 
   b->outer = ffeste_top_block_;
   b->block = block;
-  b->lineno = lineno;
-  b->input_filename = input_filename;
+  b->location = input_location;
   b->is_stmt = FALSE;
 
   ffeste_top_block_ = b;
@@ -443,8 +441,7 @@ ffeste_start_stmt_(void)
 
   b->outer = ffeste_top_block_;
   b->block = NULL;
-  b->lineno = lineno;
-  b->input_filename = input_filename;
+  b->location = input_location;
   b->is_stmt = TRUE;
 
   ffeste_top_block_ = b;
@@ -1231,7 +1228,7 @@ ffeste_io_ialist_ (bool have_err,
   initn = inits;
   ffeste_f2c_init_next_ (unitinit);
 
-  inits = build (CONSTRUCTOR, f2c_alist_struct, NULL_TREE, inits);
+  inits = build_constructor (f2c_alist_struct, inits);
   TREE_CONSTANT (inits) = constantp ? 1 : 0;
   TREE_STATIC (inits) = 1;
 
@@ -1434,7 +1431,7 @@ ffeste_io_cilist_ (bool have_err,
   ffeste_f2c_init_next_ (formatinit);
   ffeste_f2c_init_next_ (recinit);
 
-  inits = build (CONSTRUCTOR, f2c_cilist_struct, NULL_TREE, inits);
+  inits = build_constructor (f2c_cilist_struct, inits);
   TREE_CONSTANT (inits) = constantp ? 1 : 0;
   TREE_STATIC (inits) = 1;
 
@@ -1561,7 +1558,7 @@ ffeste_io_cllist_ (bool have_err,
   ffeste_f2c_init_next_ (unitinit);
   ffeste_f2c_init_next_ (statinit);
 
-  inits = build (CONSTRUCTOR, f2c_close_struct, NULL_TREE, inits);
+  inits = build_constructor (f2c_close_struct, inits);
   TREE_CONSTANT (inits) = constantp ? 1 : 0;
   TREE_STATIC (inits) = 1;
 
@@ -1766,7 +1763,7 @@ ffeste_io_icilist_ (bool have_err,
   ffeste_f2c_init_next_ (unitleninit);
   ffeste_f2c_init_next_ (unitnuminit);
 
-  inits = build (CONSTRUCTOR, f2c_icilist_struct, NULL_TREE, inits);
+  inits = build_constructor (f2c_icilist_struct, inits);
   TREE_CONSTANT (inits) = constantp ? 1 : 0;
   TREE_STATIC (inits) = 1;
 
@@ -2013,7 +2010,7 @@ ffeste_io_inlist_ (bool have_err,
   ffeste_f2c_init_next_ (blankinit);
   ffeste_f2c_init_next_ (blankleninit);
 
-  inits = build (CONSTRUCTOR, f2c_inquire_struct, NULL_TREE, inits);
+  inits = build_constructor (f2c_inquire_struct, inits);
   TREE_CONSTANT (inits) = constantp ? 1 : 0;
   TREE_STATIC (inits) = 1;
 
@@ -2189,7 +2186,7 @@ ffeste_io_olist_ (bool have_err,
   ffeste_f2c_init_next_ (reclinit);
   ffeste_f2c_init_next_ (blankinit);
 
-  inits = build (CONSTRUCTOR, f2c_open_struct, NULL_TREE, inits);
+  inits = build_constructor (f2c_open_struct, inits);
   TREE_CONSTANT (inits) = constantp ? 1 : 0;
   TREE_STATIC (inits) = 1;
 
@@ -2371,7 +2368,7 @@ ffeste_do (ffestw block)
    Applies to *only* logical IF, not to IF-THEN.  */
 
 void
-ffeste_end_R807 ()
+ffeste_end_R807 (void)
 {
   ffeste_emit_line_note_ ();
 
@@ -2712,19 +2709,18 @@ ffeste_R810 (ffestw block, unsigned long casenum)
       {
 	texprlow = (c->low == NULL) ? NULL_TREE
 	  : ffecom_constantunion_with_type (&ffebld_constant_union (c->low),
-				  ffecom_tree_type[s->type][s->kindtype], c->low->consttype);
+				  ffecom_tree_type[s->type][s->kindtype],c->low->consttype);
 	if (c->low != c->high)
 	  {
 	    texprhigh = (c->high == NULL) ? NULL_TREE
 	      : ffecom_constantunion_with_type (&ffebld_constant_union (c->high),
-				      ffecom_tree_type[s->type][s->kindtype], c->high->consttype);
+				      ffecom_tree_type[s->type][s->kindtype],c->high->consttype);
 	    pushok = pushcase_range (texprlow, texprhigh, convert,
 				     tlabel, &duplicate);
 	  }
 	else
 	  pushok = pushcase (texprlow, convert, tlabel, &duplicate);
-	assert((pushok !=2) || (pushok !=0));
-	if (pushok==2)
+	if (pushok == 2)
 	  {
 	    ffebad_start_msg ("SELECT (at %0) has duplicate cases -- check integer overflow of CASE(s)",
 	      FFEBAD_severityFATAL);
@@ -2828,7 +2824,7 @@ ffeste_R819B (ffestw block, ffelab label UNUSED, ffebld expr)
    ending an iterative DO statement, even one that ends at a label.  */
 
 void
-ffeste_R825 ()
+ffeste_R825 (void)
 {
   ffeste_check_simple_ ();
 
@@ -2954,16 +2950,19 @@ ffeste_R838 (ffelab label, ffebld target)
       TREE_CONSTANT (label_tree) = 1;
 
       target_tree = ffecom_expr_assign_w (target);
-      if (GET_MODE_SIZE (TYPE_MODE (TREE_TYPE (target_tree)))
-	  < GET_MODE_SIZE (TYPE_MODE (TREE_TYPE (label_tree))))
-	error ("ASSIGN to variable that is too small");
+      if (TREE_CODE (target_tree) != ERROR_MARK)
+      {
+        if (GET_MODE_SIZE (TYPE_MODE (TREE_TYPE (target_tree)))
+            < GET_MODE_SIZE (TYPE_MODE (TREE_TYPE (label_tree))))
+	  error ("ASSIGN to variable that is too small");
 
-      label_tree = convert (TREE_TYPE (target_tree), label_tree);
+        label_tree = convert (TREE_TYPE (target_tree), label_tree);
 
-      expr_tree = ffecom_modify (void_type_node,
+        expr_tree = ffecom_modify (void_type_node,
 				 target_tree,
 				 label_tree);
-      expand_expr_stmt (expr_tree);
+        expand_expr_stmt (expr_tree);
+      }
     }
 }
 
@@ -2982,11 +2981,15 @@ ffeste_R839 (ffebld target)
      seen here should never require use of temporaries.  */
 
   t = ffecom_expr_assign (target);
-  if (GET_MODE_SIZE (TYPE_MODE (TREE_TYPE (t)))
-      < GET_MODE_SIZE (TYPE_MODE (TREE_TYPE (null_pointer_node))))
-    error ("ASSIGNed GOTO target variable is too small");
 
-  expand_computed_goto (convert (TREE_TYPE (null_pointer_node), t));
+  if (TREE_CODE (t) != ERROR_MARK)
+  {
+       if (GET_MODE_SIZE (TYPE_MODE (TREE_TYPE (t)))
+         < GET_MODE_SIZE (TYPE_MODE (TREE_TYPE (null_pointer_node))))
+       error ("ASSIGNed GOTO target variable is too small");
+
+       expand_computed_goto (convert (TREE_TYPE (null_pointer_node), t));
+  }
 }
 
 /* Arithmetic IF statement.  */
@@ -3094,7 +3097,7 @@ ffeste_R840 (ffebld expr, ffelab neg, ffelab zero, ffelab pos)
 /* CONTINUE statement.  */
 
 void
-ffeste_R841 ()
+ffeste_R841 (void)
 {
   ffeste_check_simple_ ();
 
@@ -3635,7 +3638,7 @@ ffeste_R909_item (ffebld expr, ffelexToken expr_token)
 /* READ statement -- end.  */
 
 void
-ffeste_R909_finish ()
+ffeste_R909_finish (void)
 {
   ffeste_check_finish_ ();
 
@@ -3866,7 +3869,7 @@ ffeste_R910_item (ffebld expr, ffelexToken expr_token)
 /* WRITE statement -- end.  */
 
 void
-ffeste_R910_finish ()
+ffeste_R910_finish (void)
 {
   ffeste_check_finish_ ();
 
@@ -3993,7 +3996,7 @@ ffeste_R911_item (ffebld expr, ffelexToken expr_token)
 /* PRINT statement -- end.  */
 
 void
-ffeste_R911_finish ()
+ffeste_R911_finish (void)
 {
   ffeste_check_finish_ ();
 
@@ -4164,7 +4167,7 @@ ffeste_R923B_item (ffebld expr UNUSED)
 /* INQUIRE(IOLENGTH=expr) statement -- end.  */
 
 void
-ffeste_R923B_finish ()
+ffeste_R923B_finish (void)
 {
   ffeste_check_finish_ ();
 }
@@ -4224,14 +4227,14 @@ ffeste_R1001 (ffests s)
 /* END PROGRAM.  */
 
 void
-ffeste_R1103 ()
+ffeste_R1103 (void)
 {
 }
 
 /* END BLOCK DATA.  */
 
 void
-ffeste_R1112 ()
+ffeste_R1112 (void)
 {
 }
 
@@ -4360,14 +4363,14 @@ ffeste_R1212 (ffebld expr)
 /* END FUNCTION.  */
 
 void
-ffeste_R1221 ()
+ffeste_R1221 (void)
 {
 }
 
 /* END SUBROUTINE.  */
 
 void
-ffeste_R1225 ()
+ffeste_R1225 (void)
 {
 }
 
@@ -4433,54 +4436,6 @@ ffeste_R1227 (ffestw block UNUSED, ffebld expr)
 
 /* REWRITE statement -- start.  */
 
-#if FFESTR_VXT
-void
-ffeste_V018_start (ffestpRewriteStmt *info, ffestvFormat format)
-{
-  ffeste_check_start_ ();
-}
-
-/* REWRITE statement -- I/O item.  */
-
-void
-ffeste_V018_item (ffebld expr)
-{
-  ffeste_check_item_ ();
-}
-
-/* REWRITE statement -- end.  */
-
-void
-ffeste_V018_finish ()
-{
-  ffeste_check_finish_ ();
-}
-
-/* ACCEPT statement -- start.  */
-
-void
-ffeste_V019_start (ffestpAcceptStmt *info, ffestvFormat format)
-{
-  ffeste_check_start_ ();
-}
-
-/* ACCEPT statement -- I/O item.  */
-
-void
-ffeste_V019_item (ffebld expr)
-{
-  ffeste_check_item_ ();
-}
-
-/* ACCEPT statement -- end.  */
-
-void
-ffeste_V019_finish ()
-{
-  ffeste_check_finish_ ();
-}
-
-#endif
 /* TYPE statement -- start.  */
 
 void
@@ -4501,109 +4456,13 @@ ffeste_V020_item (ffebld expr UNUSED)
 /* TYPE statement -- end.  */
 
 void
-ffeste_V020_finish ()
+ffeste_V020_finish (void)
 {
   ffeste_check_finish_ ();
 }
 
 /* DELETE statement.  */
 
-#if FFESTR_VXT
-void
-ffeste_V021 (ffestpDeleteStmt *info)
-{
-  ffeste_check_simple_ ();
-}
-
-/* UNLOCK statement.  */
-
-void
-ffeste_V022 (ffestpBeruStmt *info)
-{
-  ffeste_check_simple_ ();
-}
-
-/* ENCODE statement -- start.  */
-
-void
-ffeste_V023_start (ffestpVxtcodeStmt *info)
-{
-  ffeste_check_start_ ();
-}
-
-/* ENCODE statement -- I/O item.  */
-
-void
-ffeste_V023_item (ffebld expr)
-{
-  ffeste_check_item_ ();
-}
-
-/* ENCODE statement -- end.  */
-
-void
-ffeste_V023_finish ()
-{
-  ffeste_check_finish_ ();
-}
-
-/* DECODE statement -- start.  */
-
-void
-ffeste_V024_start (ffestpVxtcodeStmt *info)
-{
-  ffeste_check_start_ ();
-}
-
-/* DECODE statement -- I/O item.  */
-
-void
-ffeste_V024_item (ffebld expr)
-{
-  ffeste_check_item_ ();
-}
-
-/* DECODE statement -- end.  */
-
-void
-ffeste_V024_finish ()
-{
-  ffeste_check_finish_ ();
-}
-
-/* DEFINEFILE statement -- start.  */
-
-void
-ffeste_V025_start ()
-{
-  ffeste_check_start_ ();
-}
-
-/* DEFINE FILE statement -- item.  */
-
-void
-ffeste_V025_item (ffebld u, ffebld m, ffebld n, ffebld asv)
-{
-  ffeste_check_item_ ();
-}
-
-/* DEFINE FILE statement -- end.  */
-
-void
-ffeste_V025_finish ()
-{
-  ffeste_check_finish_ ();
-}
-
-/* FIND statement.  */
-
-void
-ffeste_V026 (ffestpFindStmt *info)
-{
-  ffeste_check_simple_ ();
-}
-
-#endif
 
 #ifdef ENABLE_CHECKING
 void

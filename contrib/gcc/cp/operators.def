@@ -3,24 +3,24 @@
    This file contains definitions of the various C++ operators,
    including both overloadable operators (like `+') and
    non-overloadable operators (like the `?:' ternary operator).  
-   Writtey by Mark Mitchell <mark@codesourcery.com>
+   Written by Mark Mitchell <mark@codesourcery.com>
 
-   Copyright (C) 2000, 2001, 2002 Free Software Foundation, Inc.
+   Copyright (C) 2000, 2001, 2002, 2003 Free Software Foundation, Inc.
 
-This file is part of GNU CC.
+This file is part of GCC.
 
-GNU CC is free software; you can redistribute it and/or modify
+GCC is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
-GNU CC is distributed in the hope that it will be useful,
+GCC is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with GNU CC; see the file COPYING.  If not, write to
+along with GCC; see the file COPYING.  If not, write to
 the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
 
@@ -93,8 +93,10 @@ DEF_SIMPLE_OPERATOR ("!", TRUTH_NOT_EXPR, "nt", 1)
 DEF_SIMPLE_OPERATOR ("++", PREINCREMENT_EXPR, "pp", 1)
 DEF_SIMPLE_OPERATOR ("--", PREDECREMENT_EXPR, "mm", 1)
 DEF_SIMPLE_OPERATOR ("sizeof", SIZEOF_EXPR, "sz", 1)
-/* This is an extension.  */
+/* These are extensions.  */
 DEF_SIMPLE_OPERATOR ("alignof", ALIGNOF_EXPR, "v17alignof", 1)
+DEF_SIMPLE_OPERATOR ("__imag__", IMAGPART_EXPR, "v18__imag__", 1)
+DEF_SIMPLE_OPERATOR ("__real__", REALPART_EXPR, "v18__real__", 1)
 
 /* The cast operator.  */
 DEF_SIMPLE_OPERATOR ("", TYPE_EXPR, "cv", 1)
@@ -131,7 +133,7 @@ DEF_SIMPLE_OPERATOR ("--", POSTDECREMENT_EXPR, "mm", 2)
 DEF_SIMPLE_OPERATOR ("<?", MIN_EXPR, "v23min", 2)
 DEF_SIMPLE_OPERATOR (">?", MAX_EXPR, "v23max", 2)
 /* This one is needed for mangling.  */
-DEF_SIMPLE_OPERATOR ("::", SCOPE_REF, "sr", 2);
+DEF_SIMPLE_OPERATOR ("::", SCOPE_REF, "sr", 2)
 
 /* Assignment operators.  */
 DEF_ASSN_OPERATOR ("=", NOP_EXPR, "aS", 2)
@@ -146,8 +148,8 @@ DEF_ASSN_OPERATOR ("^=", BIT_XOR_EXPR, "eO", 2)
 DEF_ASSN_OPERATOR ("<<=", LSHIFT_EXPR, "lS", 2)
 DEF_ASSN_OPERATOR (">>=", RSHIFT_EXPR, "rS", 2)
 /* These operators are GNU extensions.  */
-DEF_ASSN_OPERATOR ("<?=", MIN_EXPR, "v23miN", 2);
-DEF_ASSN_OPERATOR (">?=", MAX_EXPR, "v23maX", 2);
+DEF_ASSN_OPERATOR ("<?=", MIN_EXPR, "v23miN", 2)
+DEF_ASSN_OPERATOR (">?=", MAX_EXPR, "v23maX", 2)
 
 /* Ternary operators.  */
 DEF_SIMPLE_OPERATOR ("?:", COND_EXPR, "qu", 3)

@@ -1,5 +1,5 @@
 /* Timing variables for measuring compiler performance.
-   Copyright (C) 2000 Free Software Foundation, Inc.
+   Copyright (C) 2000, 2003 Free Software Foundation, Inc.
    Contributed by Alex Samuel <samuel@codesourcery.com>
 
    This file is part of GCC.
@@ -53,14 +53,14 @@
 struct timevar_time_def
 {
   /* User time in this process.  */
-  float user;
+  double user;
 
   /* System time (if applicable for this host platform) in this
      process.  */
-  float sys;
+  double sys;
 
   /* Wall clock time.  */
-  float wall;
+  double wall;
 };
 
 /* An enumeration of timing variable identifiers.  Constructed from
@@ -79,16 +79,15 @@ timevar_id_t;
 /* Execute the sequence: timevar_pop (TV), return (E);  */
 #define POP_TIMEVAR_AND_RETURN(TV, E)  return (timevar_pop (TV), (E))
 
-extern void init_timevar PARAMS ((void));
-extern void timevar_push PARAMS ((timevar_id_t));
-extern void timevar_pop PARAMS ((timevar_id_t));
-extern void timevar_start PARAMS ((timevar_id_t));
-extern void timevar_stop PARAMS ((timevar_id_t));
-extern void timevar_get PARAMS ((timevar_id_t, struct timevar_time_def *));
-extern void timevar_print PARAMS ((FILE *));
+extern void timevar_init (void);
+extern void timevar_push (timevar_id_t);
+extern void timevar_pop (timevar_id_t);
+extern void timevar_start (timevar_id_t);
+extern void timevar_stop (timevar_id_t);
+extern void timevar_get (timevar_id_t, struct timevar_time_def *);
+extern void timevar_print (FILE *);
 
 /* Provided for backward compatibility.  */
-extern long get_run_time PARAMS ((void));
-extern void print_time PARAMS ((const char *, long));
+extern void print_time (const char *, long);
 
 #endif /* ! GCC_TIMEVAR_H */

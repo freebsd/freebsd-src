@@ -1,5 +1,5 @@
 /* An expandable hash tables datatype.  
-   Copyright (C) 1999, 2000, 2001, 2002 Free Software Foundation, Inc.
+   Copyright (C) 1999, 2000, 2001, 2002, 2003 Free Software Foundation, Inc.
    Contributed by Vladimir Makarov (vmakarov@cygnus.com).
 
 This file is part of the libiberty library.
@@ -195,6 +195,63 @@ htab_create_alloc (size, hash_f, eq_f, del_f, alloc_f, free_f)
   return result;
 }
 
+/* As above, but use the variants of alloc_f and free_f which accept
+   an extra argument.  */
+
+htab_t
+htab_create_alloc_ex (size, hash_f, eq_f, del_f, alloc_arg, alloc_f,
+		      free_f)
+     size_t size;
+     htab_hash hash_f;
+     htab_eq eq_f;
+     htab_del del_f;
+     PTR alloc_arg;
+     htab_alloc_with_arg alloc_f;
+     htab_free_with_arg free_f;
+{
+  htab_t result;
+
+  size = higher_prime_number (size);
+  result = (htab_t) (*alloc_f) (alloc_arg, 1, sizeof (struct htab));
+  if (result == NULL)
+    return NULL;
+  result->entries = (PTR *) (*alloc_f) (alloc_arg, size, sizeof (PTR));
+  if (result->entries == NULL)
+    {
+      if (free_f != NULL)
+	(*free_f) (alloc_arg, result);
+      return NULL;
+    }
+  result->size = size;
+  result->hash_f = hash_f;
+  result->eq_f = eq_f;
+  result->del_f = del_f;
+  result->alloc_arg = alloc_arg;
+  result->alloc_with_arg_f = alloc_f;
+  result->free_with_arg_f = free_f;
+  return result;
+}
+
+/* Update the function pointers and allocation parameter in the htab_t.  */
+
+void
+htab_set_functions_ex (htab, hash_f, eq_f, del_f, alloc_arg, alloc_f, free_f)
+     htab_t htab;
+     htab_hash hash_f;
+     htab_eq eq_f;
+     htab_del del_f;
+     PTR alloc_arg;
+     htab_alloc_with_arg alloc_f;
+     htab_free_with_arg free_f;
+{
+  htab->hash_f = hash_f;
+  htab->eq_f = eq_f;
+  htab->del_f = del_f;
+  htab->alloc_arg = alloc_arg;
+  htab->alloc_with_arg_f = alloc_f;
+  htab->free_with_arg_f = free_f;
+}
+
 /* These functions exist solely for backward compatibility.  */
 
 #undef htab_create
@@ -237,6 +294,11 @@ htab_delete (htab)
     {
       (*htab->free_f) (htab->entries);
       (*htab->free_f) (htab);
+    }
+  else if (htab->free_with_arg_f != NULL)
+    {
+      (*htab->free_with_arg_f) (htab->alloc_arg, htab->entries);
+      (*htab->free_with_arg_f) (htab->alloc_arg, htab);
     }
 }
 
@@ -315,9 +377,20 @@ htab_expand (htab)
   oentries = htab->entries;
   olimit = oentries + htab->size;
 
-  nsize = higher_prime_number (htab->size * 2);
+  /* Resize only when table after removal of unused elements is either
+     too full or too empty.  */
+  if ((htab->n_elements - htab->n_deleted) * 2 > htab->size
+      || ((htab->n_elements - htab->n_deleted) * 8 < htab->size
+	  && htab->size > 32))
+    nsize = higher_prime_number ((htab->n_elements - htab->n_deleted) * 2);
+  else
+    nsize = htab->size;
 
-  nentries = (PTR *) (*htab->alloc_f) (nsize, sizeof (PTR));
+  if (htab->alloc_with_arg_f != NULL)
+    nentries = (PTR *) (*htab->alloc_with_arg_f) (htab->alloc_arg, nsize,
+						  sizeof (PTR *));
+  else
+    nentries = (PTR *) (*htab->alloc_f) (nsize, sizeof (PTR *));
   if (nentries == NULL)
     return 0;
   htab->entries = nentries;
@@ -344,6 +417,8 @@ htab_expand (htab)
 
   if (htab->free_f != NULL)
     (*htab->free_f) (oentries);
+  else if (htab->free_with_arg_f != NULL)
+    (*htab->free_with_arg_f) (htab->alloc_arg, oentries);
   return 1;
 }
 
@@ -460,14 +535,14 @@ htab_find_slot_with_hash (htab, element, hash, insert)
   if (insert == NO_INSERT)
     return NULL;
 
-  htab->n_elements++;
-
   if (first_deleted_slot)
     {
+      htab->n_deleted--;
       *first_deleted_slot = EMPTY_ENTRY;
       return first_deleted_slot;
     }
 
+  htab->n_elements++;
   return &htab->entries[index];
 }
 
@@ -532,13 +607,16 @@ htab_clear_slot (htab, slot)
    argument.  */
 
 void
-htab_traverse (htab, callback, info)
+htab_traverse_noresize (htab, callback, info)
      htab_t htab;
      htab_trav callback;
      PTR info;
 {
-  PTR *slot = htab->entries;
-  PTR *limit = slot + htab->size;
+  PTR *slot;
+  PTR *limit;
+
+  slot = htab->entries;
+  limit = slot + htab->size;
 
   do
     {
@@ -549,6 +627,21 @@ htab_traverse (htab, callback, info)
 	  break;
     }
   while (++slot < limit);
+}
+
+/* Like htab_traverse_noresize, but does resize the table when it is
+   too empty to improve effectivity of subsequent calls.  */
+
+void
+htab_traverse (htab, callback, info)
+     htab_t htab;
+     htab_trav callback;
+     PTR info;
+{
+  if ((htab->n_elements - htab->n_deleted) * 8 < htab->size)
+    htab_expand (htab);
+
+  htab_traverse_noresize (htab, callback, info);
 }
 
 /* Return the current size of given hash table. */
@@ -619,4 +712,142 @@ htab_hash_string (p)
     r = r * 67 + c - 113;
 
   return r;
+}
+
+/* DERIVED FROM:
+--------------------------------------------------------------------
+lookup2.c, by Bob Jenkins, December 1996, Public Domain.
+hash(), hash2(), hash3, and mix() are externally useful functions.
+Routines to test the hash are included if SELF_TEST is defined.
+You can use this free for any purpose.  It has no warranty.
+--------------------------------------------------------------------
+*/
+
+/*
+--------------------------------------------------------------------
+mix -- mix 3 32-bit values reversibly.
+For every delta with one or two bit set, and the deltas of all three
+  high bits or all three low bits, whether the original value of a,b,c
+  is almost all zero or is uniformly distributed,
+* If mix() is run forward or backward, at least 32 bits in a,b,c
+  have at least 1/4 probability of changing.
+* If mix() is run forward, every bit of c will change between 1/3 and
+  2/3 of the time.  (Well, 22/100 and 78/100 for some 2-bit deltas.)
+mix() was built out of 36 single-cycle latency instructions in a 
+  structure that could supported 2x parallelism, like so:
+      a -= b; 
+      a -= c; x = (c>>13);
+      b -= c; a ^= x;
+      b -= a; x = (a<<8);
+      c -= a; b ^= x;
+      c -= b; x = (b>>13);
+      ...
+  Unfortunately, superscalar Pentiums and Sparcs can't take advantage 
+  of that parallelism.  They've also turned some of those single-cycle
+  latency instructions into multi-cycle latency instructions.  Still,
+  this is the fastest good hash I could find.  There were about 2^^68
+  to choose from.  I only looked at a billion or so.
+--------------------------------------------------------------------
+*/
+/* same, but slower, works on systems that might have 8 byte hashval_t's */
+#define mix(a,b,c) \
+{ \
+  a -= b; a -= c; a ^= (c>>13); \
+  b -= c; b -= a; b ^= (a<< 8); \
+  c -= a; c -= b; c ^= ((b&0xffffffff)>>13); \
+  a -= b; a -= c; a ^= ((c&0xffffffff)>>12); \
+  b -= c; b -= a; b = (b ^ (a<<16)) & 0xffffffff; \
+  c -= a; c -= b; c = (c ^ (b>> 5)) & 0xffffffff; \
+  a -= b; a -= c; a = (a ^ (c>> 3)) & 0xffffffff; \
+  b -= c; b -= a; b = (b ^ (a<<10)) & 0xffffffff; \
+  c -= a; c -= b; c = (c ^ (b>>15)) & 0xffffffff; \
+}
+
+/*
+--------------------------------------------------------------------
+hash() -- hash a variable-length key into a 32-bit value
+  k     : the key (the unaligned variable-length array of bytes)
+  len   : the length of the key, counting by bytes
+  level : can be any 4-byte value
+Returns a 32-bit value.  Every bit of the key affects every bit of
+the return value.  Every 1-bit and 2-bit delta achieves avalanche.
+About 36+6len instructions.
+
+The best hash table sizes are powers of 2.  There is no need to do
+mod a prime (mod is sooo slow!).  If you need less than 32 bits,
+use a bitmask.  For example, if you need only 10 bits, do
+  h = (h & hashmask(10));
+In which case, the hash table should have hashsize(10) elements.
+
+If you are hashing n strings (ub1 **)k, do it like this:
+  for (i=0, h=0; i<n; ++i) h = hash( k[i], len[i], h);
+
+By Bob Jenkins, 1996.  bob_jenkins@burtleburtle.net.  You may use this
+code any way you wish, private, educational, or commercial.  It's free.
+
+See http://burtleburtle.net/bob/hash/evahash.html
+Use for hash table lookup, or anything where one collision in 2^32 is
+acceptable.  Do NOT use for cryptographic purposes.
+--------------------------------------------------------------------
+*/
+
+hashval_t iterative_hash (k_in, length, initval)
+     const PTR k_in;               /* the key */
+     register size_t  length;      /* the length of the key */
+     register hashval_t  initval;  /* the previous hash, or an arbitrary value */
+{
+  register const unsigned char *k = (const unsigned char *)k_in;
+  register hashval_t a,b,c,len;
+
+  /* Set up the internal state */
+  len = length;
+  a = b = 0x9e3779b9;  /* the golden ratio; an arbitrary value */
+  c = initval;           /* the previous hash value */
+
+  /*---------------------------------------- handle most of the key */
+#ifndef WORDS_BIGENDIAN
+  /* On a little-endian machine, if the data is 4-byte aligned we can hash
+     by word for better speed.  This gives nondeterministic results on
+     big-endian machines.  */
+  if (sizeof (hashval_t) == 4 && (((size_t)k)&3) == 0)
+    while (len >= 12)    /* aligned */
+      {
+	a += *(hashval_t *)(k+0);
+	b += *(hashval_t *)(k+4);
+	c += *(hashval_t *)(k+8);
+	mix(a,b,c);
+	k += 12; len -= 12;
+      }
+  else /* unaligned */
+#endif
+    while (len >= 12)
+      {
+	a += (k[0] +((hashval_t)k[1]<<8) +((hashval_t)k[2]<<16) +((hashval_t)k[3]<<24));
+	b += (k[4] +((hashval_t)k[5]<<8) +((hashval_t)k[6]<<16) +((hashval_t)k[7]<<24));
+	c += (k[8] +((hashval_t)k[9]<<8) +((hashval_t)k[10]<<16)+((hashval_t)k[11]<<24));
+	mix(a,b,c);
+	k += 12; len -= 12;
+      }
+
+  /*------------------------------------- handle the last 11 bytes */
+  c += length;
+  switch(len)              /* all the case statements fall through */
+    {
+    case 11: c+=((hashval_t)k[10]<<24);
+    case 10: c+=((hashval_t)k[9]<<16);
+    case 9 : c+=((hashval_t)k[8]<<8);
+      /* the first byte of c is reserved for the length */
+    case 8 : b+=((hashval_t)k[7]<<24);
+    case 7 : b+=((hashval_t)k[6]<<16);
+    case 6 : b+=((hashval_t)k[5]<<8);
+    case 5 : b+=k[4];
+    case 4 : a+=((hashval_t)k[3]<<24);
+    case 3 : a+=((hashval_t)k[2]<<16);
+    case 2 : a+=((hashval_t)k[1]<<8);
+    case 1 : a+=k[0];
+      /* case 0: nothing left to add */
+    }
+  mix(a,b,c);
+  /*-------------------------------------------- report the result */
+  return c;
 }

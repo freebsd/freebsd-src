@@ -5,20 +5,20 @@
    Contributed by Poul-Henning Kamp <phk@login.dkuug.dk>
    Continued development by David O'Brien <obrien@NUXI.org>
 
-This file is part of GNU CC.
+This file is part of GCC.
 
-GNU CC is free software; you can redistribute it and/or modify
+GCC is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation; either version 2, or (at your option)
 any later version.
 
-GNU CC is distributed in the hope that it will be useful,
+GCC is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with GNU CC; see the file COPYING.  If not, write to
+along with GCC; see the file COPYING.  If not, write to
 the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
 
@@ -185,6 +185,7 @@ Boston, MA 02111-1307, USA.  */
    size_directive_output was set
    by ASM_DECLARE_OBJECT_NAME when it was run for the same decl.  */
 
+#undef ASM_FINISH_DECLARE_OBJECT
 #define ASM_FINISH_DECLARE_OBJECT(FILE, DECL, TOP_LEVEL, AT_END)        \
 do {                                                                    \
      const char *name = XSTR (XEXP (DECL_RTL (DECL), 0), 0);            \
@@ -208,7 +209,8 @@ do {                                                                    \
       ASM_OUTPUT_MEASURED_SIZE (FILE, FNAME);				\
   } while (0)
 
-#define ASM_SPEC   " %| %{fpic:-k} %{fPIC:-k}"
+#define AS_NEEDS_DASH_FOR_PIPED_INPUT
+#define ASM_SPEC   "%{fpic|fpie|fPIC|fPIE:-k}"
 #define LINK_SPEC \
   "%{p:%e`-p' not supported; use `-pg' and gprof(1)} \
    %{shared:-Bshareable} \

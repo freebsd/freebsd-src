@@ -20,6 +20,8 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 
 #include "config.h"
 #include "system.h"
+#include "coretypes.h"
+#include "tm.h"
 #include "gcc.h"
 
 /* The `cpp' executable installed in $(bindir) and $(cpp_install_dir)
@@ -49,10 +51,8 @@ static const char *const known_suffixes[] =
 
 /* Filter argc and argv before processing by the gcc driver proper.  */
 void
-lang_specific_driver (in_argc, in_argv, in_added_libraries)
-     int *in_argc;
-     const char *const **in_argv;
-     int *in_added_libraries ATTRIBUTE_UNUSED;
+lang_specific_driver (int *in_argc, const char *const **in_argv,
+		      int *in_added_libraries ATTRIBUTE_UNUSED)
 {
   int argc = *in_argc;
   const char *const *argv = *in_argv;
@@ -62,9 +62,6 @@ lang_specific_driver (in_argc, in_argv, in_added_libraries)
 
   /* Do we need to insert -E? */
   int need_E = 1;
-
-  /* Do we need to insert -no-gcc? */
-  int need_no_gcc = 1;
 
   /* Have we seen an input file? */
   int seen_input = 0;
@@ -120,8 +117,6 @@ lang_specific_driver (in_argc, in_argv, in_added_libraries)
 	    }
 	  else if (argv[i][1] == 'x')
 	    need_fixups = 0;
-	  else if (argv[i][1] == 'g' && !strcmp(&argv[i][2], "cc"))
-	    need_no_gcc = 0;
 	  else if (WORD_SWITCH_TAKES_ARG (&argv[i][1]))
 	    quote = 1;
 	}
@@ -170,23 +165,20 @@ lang_specific_driver (in_argc, in_argv, in_added_libraries)
 
   /* If we don't need to edit the command line, we can bail early.  */
 
-  new_argc = argc + need_E + need_no_gcc + read_stdin
+  new_argc = argc + need_E + read_stdin
     + !!o_here + !!lang_c_here + !!lang_S_here;
 
   if (new_argc == argc)
     return;
 
   /* One more slot for a terminating null.  */
-  new_argv = (const char **) xmalloc ((new_argc + 1) * sizeof(char *));
+  new_argv = xmalloc ((new_argc + 1) * sizeof(char *));
 
   new_argv[0] = argv[0];
   j = 1;
 
   if (need_E)
     new_argv[j++] = "-E";
-
-  if (need_no_gcc)
-    new_argv[j++] = "-no-gcc";
 
   for (i = 1; i < argc; i++, j++)
     {
@@ -209,7 +201,7 @@ lang_specific_driver (in_argc, in_argv, in_added_libraries)
 }
 
 /* Called before linking.  Returns 0 on success and -1 on failure.  */
-int lang_specific_pre_link ()
+int lang_specific_pre_link (void)
 {
   return 0;  /* Not used for cpp.  */
 }

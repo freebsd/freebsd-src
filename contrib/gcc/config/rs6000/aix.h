@@ -1,23 +1,23 @@
 /* Definitions of target machine for GNU compiler,
    for IBM RS/6000 POWER running AIX.
-   Copyright (C) 2000, 2001, 2002 Free Software Foundation, Inc.
+   Copyright (C) 2000, 2001, 2002, 2003, 2004 Free Software Foundation, Inc.
 
-This file is part of GNU CC.
+   This file is part of GCC.
 
-GNU CC is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2, or (at your option)
-any later version.
+   GCC is free software; you can redistribute it and/or modify it
+   under the terms of the GNU General Public License as published
+   by the Free Software Foundation; either version 2, or (at your
+   option) any later version.
 
-GNU CC is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+   GCC is distributed in the hope that it will be useful, but WITHOUT
+   ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+   or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public
+   License for more details.
 
-You should have received a copy of the GNU General Public License
-along with GNU CC; see the file COPYING.  If not, write to
-the Free Software Foundation, 59 Temple Place - Suite 330,
-Boston, MA 02111-1307, USA.  */
+   You should have received a copy of the GNU General Public License
+   along with GCC; see the file COPYING.  If not, write to the
+   Free Software Foundation, 59 Temple Place - Suite 330, Boston,
+   MA 02111-1307, USA.  */
 
 /* Yes!  We are AIX!  */
 #define DEFAULT_ABI ABI_AIX
@@ -87,8 +87,8 @@ Boston, MA 02111-1307, USA.  */
    Don't do this until the fixed IBM assembler is more generally available.
    When this becomes permanently defined, the ASM_OUTPUT_EXTERNAL,
    ASM_OUTPUT_EXTERNAL_LIBCALL, and RS6000_OUTPUT_BASENAME macros will no
-   longer be needed.  Also, the extern declaration of mcount in ASM_FILE_START
-   will no longer be needed.  */
+   longer be needed.  Also, the extern declaration of mcount in 
+   rs6000_xcoff_file_start will no longer be needed.  */
 
 /* #define ASM_SPEC "-u %(asm_cpu)" */
 
@@ -128,23 +128,47 @@ Boston, MA 02111-1307, USA.  */
 #define LIB_SPEC "%{pg:-L/lib/profiled -L/usr/lib/profiled}\
 %{p:-L/lib/profiled -L/usr/lib/profiled} %{!shared:%{g*:-lg}} -lc"
 
+/* This now supports a natural alignment mode.  */
 /* AIX word-aligns FP doubles but doubleword-aligns 64-bit ints.  */
 #define ADJUST_FIELD_ALIGN(FIELD, COMPUTED) \
+  (TARGET_ALIGN_NATURAL ? (COMPUTED) : \
   (TYPE_MODE (TREE_CODE (TREE_TYPE (FIELD)) == ARRAY_TYPE \
 	      ? get_inner_array_type (FIELD) \
 	      : TREE_TYPE (FIELD)) == DFmode \
-   ? MIN ((COMPUTED), 32) : (COMPUTED))
+   ? MIN ((COMPUTED), 32) : (COMPUTED)))
 
 /* AIX increases natural record alignment to doubleword if the first
    field is an FP double while the FP fields remain word aligned.  */
-#define ROUND_TYPE_ALIGN(STRUCT, COMPUTED, SPECIFIED)	\
-  ((TREE_CODE (STRUCT) == RECORD_TYPE			\
-    || TREE_CODE (STRUCT) == UNION_TYPE			\
-    || TREE_CODE (STRUCT) == QUAL_UNION_TYPE)		\
-   && TYPE_FIELDS (STRUCT) != 0				\
-   && DECL_MODE (TYPE_FIELDS (STRUCT)) == DFmode	\
-   ? MAX (MAX ((COMPUTED), (SPECIFIED)), 64)		\
+#define ROUND_TYPE_ALIGN(STRUCT, COMPUTED, SPECIFIED)				\
+  ((TREE_CODE (STRUCT) == RECORD_TYPE						\
+    || TREE_CODE (STRUCT) == UNION_TYPE						\
+    || TREE_CODE (STRUCT) == QUAL_UNION_TYPE)					\
+   && TARGET_ALIGN_NATURAL == 0							\
+   ? rs6000_special_round_type_align (STRUCT, COMPUTED, SPECIFIED)		\
    : MAX ((COMPUTED), (SPECIFIED)))
+
+/* The AIX ABI isn't explicit on whether aggregates smaller than a
+   word/doubleword should be padded upward or downward.  One could
+   reasonably assume that they follow the normal rules for structure
+   layout treating the parameter area as any other block of memory,
+   then map the reg param area to registers, i.e., pad upward, which
+   is the way IBM Compilers for AIX behave.
+   Setting both of the following defines results in this behavior.  */
+#define AGGREGATE_PADDING_FIXED 1
+#define AGGREGATES_PAD_UPWARD_ALWAYS 1
+
+/* We don't want anything in the reg parm area being passed on the
+   stack.  */
+#define MUST_PASS_IN_STACK(MODE, TYPE)				\
+   ((TYPE) != 0							\
+    && (TREE_CODE (TYPE_SIZE (TYPE)) != INTEGER_CST		\
+	|| TREE_ADDRESSABLE (TYPE)))
+
+/* Specify padding for the last element of a block move between
+   registers and memory.  FIRST is nonzero if this is the only
+   element.  */
+#define BLOCK_REG_PADDING(MODE, TYPE, FIRST) \
+  (!(FIRST) ? upward : FUNCTION_ARG_PADDING (MODE, TYPE))
 
 /* Indicate that jump tables go in the text section.  */
 
@@ -172,33 +196,6 @@ Boston, MA 02111-1307, USA.  */
 /* Define cutoff for using external functions to save floating point.  */
 #define FP_SAVE_INLINE(FIRST_REG) ((FIRST_REG) == 62 || (FIRST_REG) == 63)
 
-/* Optabs entries for the int->float routines and quad FP operations
-   using the standard AIX names.  */
-#define ADDTF3_LIBCALL "_xlqadd"
-#define DIVTF3_LIBCALL "_xlqdiv"
-#define MULTF3_LIBCALL "_xlqmul"
-#define SUBTF3_LIBCALL "_xlqsub"
-
-#define INIT_TARGET_OPTABS						\
-  do {									\
-    if (! TARGET_POWER2 && ! TARGET_POWERPC && TARGET_HARD_FLOAT)	\
-      {									\
-	fixdfsi_libfunc = init_one_libfunc (RS6000_ITRUNC);		\
-	fixunsdfsi_libfunc = init_one_libfunc (RS6000_UITRUNC);		\
-      }									\
-    if (TARGET_HARD_FLOAT)						\
-      {									\
-	add_optab->handlers[(int) TFmode].libfunc			\
-	  = init_one_libfunc (ADDTF3_LIBCALL);				\
-	sub_optab->handlers[(int) TFmode].libfunc			\
-	  = init_one_libfunc (SUBTF3_LIBCALL);				\
-	smul_optab->handlers[(int) TFmode].libfunc			\
-	  = init_one_libfunc (MULTF3_LIBCALL);				\
-	sdiv_optab->handlers[(int) TFmode].libfunc			\
-	  = init_one_libfunc (DIVTF3_LIBCALL);				\
-      }									\
-  } while (0)
-
 /* __throw will restore its own return address to be the same as the
    return address of the function that the throw is being made to.
    This is unfortunate, because we want to check the original
@@ -206,7 +203,44 @@ Boston, MA 02111-1307, USA.  */
    So we have to squirrel it away with this.  */
 #define SETUP_FRAME_ADDRESSES() rs6000_aix_emit_builtin_unwind_init ()
 
+/* If the current unwind info (FS) does not contain explicit info
+   saving R2, then we have to do a minor amount of code reading to
+   figure out if it was saved.  The big problem here is that the
+   code that does the save/restore is generated by the linker, so
+   we have no good way to determine at compile time what to do.  */
+
+#ifdef __powerpc64__
+#define MD_FROB_UPDATE_CONTEXT(CTX, FS)					\
+  do {									\
+    if ((FS)->regs.reg[2].how == REG_UNSAVED)				\
+      {									\
+	unsigned int *insn						\
+	  = (unsigned int *)						\
+	    _Unwind_GetGR ((CTX), LINK_REGISTER_REGNUM);		\
+	if (*insn == 0xE8410028)					\
+	  _Unwind_SetGRPtr ((CTX), 2, (CTX)->cfa + 40);			\
+      }									\
+  } while (0)
+#else
+#define MD_FROB_UPDATE_CONTEXT(CTX, FS)					\
+  do {									\
+    if ((FS)->regs.reg[2].how == REG_UNSAVED)				\
+      {									\
+	unsigned int *insn						\
+	  = (unsigned int *)						\
+	    _Unwind_GetGR ((CTX), LINK_REGISTER_REGNUM);		\
+	if (*insn == 0x80410014)					\
+	  _Unwind_SetGRPtr ((CTX), 2, (CTX)->cfa + 20);			\
+      }									\
+  } while (0)
+#endif
+
 #define PROFILE_HOOK(LABEL)   output_profile_hook (LABEL)
 
 /* Print subsidiary information on the compiler version in use.  */
 #define TARGET_VERSION ;
+
+/* No version of AIX fully supports AltiVec or 64-bit instructions in
+   32-bit mode.  */
+#define OS_MISSING_POWERPC64 1
+#define OS_MISSING_ALTIVEC 1

@@ -1,5 +1,5 @@
 /* storag.c -- Implementation File (module.c template V1.0)
-   Copyright (C) 1995, 1996 Free Software Foundation, Inc.
+   Copyright (C) 1995, 1996, 2003 Free Software Foundation, Inc.
    Contributed by James Craig Burley.
 
 This file is part of GNU Fortran.
@@ -162,7 +162,7 @@ ffestorag_dump (ffestorag s)
    ffestorag_init_2();	*/
 
 void
-ffestorag_init_2 ()
+ffestorag_init_2 (void)
 {
   ffestorag_list_.first = ffestorag_list_.last
   = (ffestorag) &ffestorag_list_.first;
@@ -416,13 +416,10 @@ ffestorag_new (ffestoragList sl)
 {
   ffestorag s;
 
-  s = (ffestorag) malloc_new_kp (ffe_pool_program_unit (), "ffestorag",
-				 sizeof (*s));
+  s = malloc_new_kp (ffe_pool_program_unit (), "ffestorag", sizeof (*s));
   s->next = (ffestorag) &sl->first;
   s->previous = sl->last;
-#ifdef FFECOM_storageHOOK
   s->hook = FFECOM_storageNULL;
-#endif
   s->previous->next = s;
   sl->last = s;
   s->equivs_.first = s->equivs_.last = (ffestorag) &s->equivs_.first;
@@ -433,7 +430,7 @@ ffestorag_new (ffestoragList sl)
 /* Report info on LOCAL non-sym-assoc'ed entities if needed.  */
 
 void
-ffestorag_report ()
+ffestorag_report (void)
 {
   ffestorag s;
 

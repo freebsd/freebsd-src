@@ -1,7 +1,7 @@
 /* Collect static initialization info into data structures that can be
    traversed by C++ initialization and finalization routines.
    Copyright (C) 1992, 1993, 1994, 1995, 1996, 1997, 1998,
-   1999, 2000, 2001, 2002 Free Software Foundation, Inc.
+   1999, 2000, 2001, 2002, 2003, 2004 Free Software Foundation, Inc.
    Contributed by Chris Smith (csmith@convex.com).
    Heavily modified by Michael Meissner (meissner@cygnus.com),
    Per Bothner (bothner@cygnus.com), and John Gilmore (gnu@cygnus.com).
@@ -28,6 +28,8 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 
 #include "config.h"
 #include "system.h"
+#include "coretypes.h"
+#include "tm.h"
 #include <signal.h>
 #if ! defined( SIGCHLD ) && defined( SIGCLD )
 #  define SIGCHLD SIGCLD
@@ -67,7 +69,6 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 #ifdef CROSS_COMPILE
 #undef SUNOS4_SHARED_LIBRARIES
 #undef OBJECT_FORMAT_COFF
-#undef OBJECT_FORMAT_ROSE
 #undef MD_EXEC_PREFIX
 #undef REAL_LD_FILE_NAME
 #undef REAL_NM_FILE_NAME
@@ -79,7 +80,7 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
    In a cross-compiler, this means you need a cross nm,
    but that is not quite as unpleasant as special headers.  */
 
-#if !defined (OBJECT_FORMAT_COFF) && !defined (OBJECT_FORMAT_ROSE)
+#if !defined (OBJECT_FORMAT_COFF)
 #define OBJECT_FORMAT_NONE
 #endif
 
@@ -102,7 +103,7 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 
 /* Some systems have an ISCOFF macro, but others do not.  In some cases
    the macro may be wrong.  MY_ISCOFF is defined in tm.h files for machines
-   that either do not have an ISCOFF macro in /usr/include or for those 
+   that either do not have an ISCOFF macro in /usr/include or for those
    where it is wrong.  */
 
 #ifndef MY_ISCOFF
@@ -110,24 +111,6 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 #endif
 
 #endif /* OBJECT_FORMAT_COFF */
-
-#ifdef OBJECT_FORMAT_ROSE
-
-#ifdef _OSF_SOURCE
-#define USE_MMAP
-#endif
-
-#ifdef USE_MMAP
-#include <sys/mman.h>
-#endif
-
-#include <unistd.h>
-#include <mach_o_format.h>
-#include <mach_o_header.h>
-#include <mach_o_vals.h>
-#include <mach_o_types.h>
-
-#endif /* OBJECT_FORMAT_ROSE */
 
 #ifdef OBJECT_FORMAT_NONE
 
@@ -167,13 +150,17 @@ int do_collecting = 1;
 int do_collecting = 0;
 #endif
 
+#ifndef COLLECT_PARSE_FLAG
+#define COLLECT_PARSE_FLAG(FLAG)
+#endif
+
 /* Nonzero if we should suppress the automatic demangling of identifiers
    in linker error messages.  Set from COLLECT_NO_DEMANGLE.  */
 int no_demangle;
 
 /* Linked lists of constructor and destructor names.  */
 
-struct id 
+struct id
 {
   struct id *next;
   int sequence;
@@ -233,7 +220,7 @@ static struct head frame_tables;	/* list of frame unwind info tables */
 struct obstack temporary_obstack;
 char * temporary_firstobj;
 
-/* Holds the return value of pexecute.  */
+/* Holds the return value of pexecute and fork.  */
 int pid;
 
 /* Structure to hold all the directories in which to search for files to
@@ -262,59 +249,55 @@ static struct path_prefix *libpaths[3] = {&cmdline_lib_dirs,
 static const char *const libexts[3] = {"a", "so", NULL};  /* possible library extensions */
 #endif
 
-static void handler		PARAMS ((int));
-static int is_ctor_dtor		PARAMS ((const char *));
-static char *find_a_file	PARAMS ((struct path_prefix *, const char *));
-static void add_prefix		PARAMS ((struct path_prefix *, const char *));
-static void prefix_from_env	PARAMS ((const char *, struct path_prefix *));
-static void prefix_from_string	PARAMS ((const char *, struct path_prefix *));
-static void do_wait		PARAMS ((const char *));
-static void fork_execute	PARAMS ((const char *, char **));
-static void maybe_unlink	PARAMS ((const char *));
-static void add_to_list		PARAMS ((struct head *, const char *));
-static int extract_init_priority PARAMS ((const char *));
-static void sort_ids		PARAMS ((struct head *));
-static void write_list		PARAMS ((FILE *, const char *, struct id *));
+static void handler (int);
+static int is_ctor_dtor (const char *);
+static char *find_a_file (struct path_prefix *, const char *);
+static void add_prefix (struct path_prefix *, const char *);
+static void prefix_from_env (const char *, struct path_prefix *);
+static void prefix_from_string (const char *, struct path_prefix *);
+static void do_wait (const char *);
+static void fork_execute (const char *, char **);
+static void maybe_unlink (const char *);
+static void add_to_list (struct head *, const char *);
+static int extract_init_priority (const char *);
+static void sort_ids (struct head *);
+static void write_list (FILE *, const char *, struct id *);
 #ifdef COLLECT_EXPORT_LIST
-static void dump_list		PARAMS ((FILE *, const char *, struct id *));
+static void dump_list (FILE *, const char *, struct id *);
 #endif
 #if 0
-static void dump_prefix_list	PARAMS ((FILE *, const char *, struct prefix_list *));
+static void dump_prefix_list (FILE *, const char *, struct prefix_list *);
 #endif
-static void write_list_with_asm PARAMS ((FILE *, const char *, struct id *));
-static void write_c_file	PARAMS ((FILE *, const char *));
-static void write_c_file_stat	PARAMS ((FILE *, const char *));
+static void write_list_with_asm (FILE *, const char *, struct id *);
+static void write_c_file (FILE *, const char *);
+static void write_c_file_stat (FILE *, const char *);
 #ifndef LD_INIT_SWITCH
-static void write_c_file_glob	PARAMS ((FILE *, const char *));
+static void write_c_file_glob (FILE *, const char *);
 #endif
-static void scan_prog_file	PARAMS ((const char *, enum pass));
+static void scan_prog_file (const char *, enum pass);
 #ifdef SCAN_LIBRARIES
-static void scan_libraries	PARAMS ((const char *));
+static void scan_libraries (const char *);
 #endif
 #if LINK_ELIMINATE_DUPLICATE_LDIRECTORIES
-static int is_in_args		PARAMS ((const char *, const char **, const char **));
+static int is_in_args (const char *, const char **, const char **);
 #endif
 #ifdef COLLECT_EXPORT_LIST
 #if 0
-static int is_in_list		PARAMS ((const char *, struct id *));
+static int is_in_list (const char *, struct id *);
 #endif
-static void write_aix_file	PARAMS ((FILE *, struct id *));
-static char *resolve_lib_name	PARAMS ((const char *));
-static int ignore_library	PARAMS ((const char *));
+static void write_aix_file (FILE *, struct id *);
+static char *resolve_lib_name (const char *);
 #endif
-static char *extract_string	PARAMS ((const char **));
+static char *extract_string (const char **);
 
 #ifndef HAVE_DUP2
-static int dup2 PARAMS ((int, int));
 static int
-dup2 (oldfd, newfd)
-     int oldfd;
-     int newfd;
+dup2 (int oldfd, int newfd)
 {
   int fdtmp[256];
   int fdx = 0;
   int fd;
- 
+
   if (oldfd == newfd)
     return oldfd;
   close (newfd);
@@ -330,8 +313,7 @@ dup2 (oldfd, newfd)
 /* Delete tempfiles and exit function.  */
 
 void
-collect_exit (status)
-     int status;
+collect_exit (int status)
 {
   if (c_file != 0 && c_file[0])
     maybe_unlink (c_file);
@@ -359,29 +341,28 @@ collect_exit (status)
 
 /* Notify user of a non-error.  */
 void
-notice VPARAMS ((const char *msgid, ...))
+notice (const char *msgid, ...)
 {
-  VA_OPEN (ap, msgid);
-  VA_FIXEDARG (ap, const char *, msgid);
+  va_list ap;
 
+  va_start (ap, msgid);
   vfprintf (stderr, _(msgid), ap);
-  VA_CLOSE (ap);
+  va_end (ap);
 }
 
 /* Die when sys call fails.  */
 
 void
-fatal_perror VPARAMS ((const char * msgid, ...))
+fatal_perror (const char * msgid, ...)
 {
   int e = errno;
+  va_list ap;
 
-  VA_OPEN (ap, msgid);
-  VA_FIXEDARG (ap, const char *, msgid);
-
+  va_start (ap, msgid);
   fprintf (stderr, "collect2: ");
   vfprintf (stderr, _(msgid), ap);
   fprintf (stderr, ": %s\n", xstrerror (e));
-  VA_CLOSE (ap);
+  va_end (ap);
 
   collect_exit (FATAL_EXIT_CODE);
 }
@@ -389,15 +370,15 @@ fatal_perror VPARAMS ((const char * msgid, ...))
 /* Just die.  */
 
 void
-fatal VPARAMS ((const char * msgid, ...))
+fatal (const char * msgid, ...)
 {
-  VA_OPEN (ap, msgid);
-  VA_FIXEDARG (ap, const char *, msgid);
-  
+  va_list ap;
+
+  va_start (ap, msgid);
   fprintf (stderr, "collect2: ");
   vfprintf (stderr, _(msgid), ap);
   fprintf (stderr, "\n");
-  VA_CLOSE (ap);
+  va_end (ap);
 
   collect_exit (FATAL_EXIT_CODE);
 }
@@ -405,29 +386,28 @@ fatal VPARAMS ((const char * msgid, ...))
 /* Write error message.  */
 
 void
-error VPARAMS ((const char * msgid, ...))
+error (const char * msgid, ...)
 {
-  VA_OPEN (ap, msgid);
-  VA_FIXEDARG (ap, const char *, msgid);
+  va_list ap;
 
+  va_start (ap, msgid);
   fprintf (stderr, "collect2: ");
   vfprintf (stderr, _(msgid), ap);
   fprintf (stderr, "\n");
-  VA_CLOSE(ap);
+  va_end(ap);
 }
 
 /* In case obstack is linked in, and abort is defined to fancy_abort,
    provide a default entry.  */
 
 void
-fancy_abort ()
+fancy_abort (void)
 {
   fatal ("internal error");
 }
 
 static void
-handler (signo)
-     int signo;
+handler (int signo)
 {
   if (c_file != 0 && c_file[0])
     maybe_unlink (c_file);
@@ -449,8 +429,7 @@ handler (signo)
 
 
 int
-file_exists (name)
-     const char *name;
+file_exists (const char *name)
 {
   return access (name, R_OK) == 0;
 }
@@ -458,8 +437,7 @@ file_exists (name)
 /* Parse a reasonable subset of shell quoting syntax.  */
 
 static char *
-extract_string (pp)
-     const char **pp;
+extract_string (const char **pp)
 {
   const char *p = *pp;
   int backquote = 0;
@@ -489,8 +467,7 @@ extract_string (pp)
 }
 
 void
-dump_file (name)
-     const char *name;
+dump_file (const char *name)
 {
   FILE *stream = fopen (name, "r");
 
@@ -552,8 +529,7 @@ dump_file (name)
    nothing special (0).  */
 
 static int
-is_ctor_dtor (s)
-     const char *s;
+is_ctor_dtor (const char *s)
 {
   struct names { const char *const name; const int len; const int ret;
     const int two_underscores; };
@@ -577,14 +553,6 @@ is_ctor_dtor (s)
     { "GLOBAL__F_", sizeof ("GLOBAL__F_")-1, 5, 0 },
     { "GLOBAL__FI_", sizeof ("GLOBAL__FI_")-1, 3, 0 },
     { "GLOBAL__FD_", sizeof ("GLOBAL__FD_")-1, 4, 0 },
-#ifdef CFRONT_LOSSAGE /* Do not collect cfront initialization functions.
-			 cfront has its own linker procedure to collect them;
-			 if collect2 gets them too, they get collected twice
-			 when the cfront procedure is run and the compiler used
-			 for linking happens to be GCC.  */
-    { "sti__", sizeof ("sti__")-1, 1, 1 },
-    { "std__", sizeof ("std__")-1, 2, 1 },
-#endif /* CFRONT_LOSSAGE */
     { NULL, 0, 0, 0 }
   };
 
@@ -619,14 +587,12 @@ static const char *const target_machine = TARGET_MACHINE;
 #endif
 
 /* Search for NAME using prefix list PPREFIX.  We only look for executable
-   files. 
+   files.
 
    Return 0 if not found, otherwise return its name, allocated with malloc.  */
 
 static char *
-find_a_file (pprefix, name)
-     struct path_prefix *pprefix;
-     const char *name;
+find_a_file (struct path_prefix *pprefix, const char *name)
 {
   char *temp;
   struct prefix_list *pl;
@@ -634,7 +600,7 @@ find_a_file (pprefix, name)
 
   if (debug)
     fprintf (stderr, "Looking for '%s'\n", name);
-  
+
 #ifdef HOST_EXECUTABLE_SUFFIX
   len += strlen (HOST_EXECUTABLE_SUFFIX);
 #endif
@@ -655,7 +621,7 @@ find_a_file (pprefix, name)
 
 	  if (debug)
 	    fprintf (stderr, "  - found: absolute path\n");
-	  
+
 	  return temp;
 	}
 
@@ -664,7 +630,7 @@ find_a_file (pprefix, name)
 	   So try appending that.  */
       strcpy (temp, name);
 	strcat (temp, HOST_EXECUTABLE_SUFFIX);
-	
+
 	if (access (temp, X_OK) == 0)
 	  return temp;
 #endif
@@ -679,7 +645,7 @@ find_a_file (pprefix, name)
 
 	strcpy (temp, pl->prefix);
 	strcat (temp, name);
-	
+
 	if (stat (temp, &st) >= 0
 	    && ! S_ISDIR (st.st_mode)
 	    && access (temp, X_OK) == 0)
@@ -689,7 +655,7 @@ find_a_file (pprefix, name)
 	/* Some systems have a suffix for executable files.
 	   So try appending that.  */
 	strcat (temp, HOST_EXECUTABLE_SUFFIX);
-	
+
 	if (stat (temp, &st) >= 0
 	    && ! S_ISDIR (st.st_mode)
 	    && access (temp, X_OK) == 0)
@@ -707,9 +673,7 @@ find_a_file (pprefix, name)
 /* Add an entry for PREFIX to prefix list PPREFIX.  */
 
 static void
-add_prefix (pprefix, prefix)
-     struct path_prefix *pprefix;
-     const char *prefix;
+add_prefix (struct path_prefix *pprefix, const char *prefix)
 {
   struct prefix_list *pl, **prev;
   int len;
@@ -723,13 +687,13 @@ add_prefix (pprefix, prefix)
   else
     prev = &pprefix->plist;
 
-  /* Keep track of the longest prefix */
+  /* Keep track of the longest prefix.  */
 
   len = strlen (prefix);
   if (len > pprefix->max_len)
     pprefix->max_len = len;
 
-  pl = (struct prefix_list *) xmalloc (sizeof (struct prefix_list));
+  pl = xmalloc (sizeof (struct prefix_list));
   pl->prefix = xstrdup (prefix);
 
   if (*prev)
@@ -743,9 +707,7 @@ add_prefix (pprefix, prefix)
    add of the entries to PPREFIX.  */
 
 static void
-prefix_from_env (env, pprefix)
-     const char *env;
-     struct path_prefix *pprefix;
+prefix_from_env (const char *env, struct path_prefix *pprefix)
 {
   const char *p;
   GET_ENVIRONMENT (p, env);
@@ -755,16 +717,14 @@ prefix_from_env (env, pprefix)
 }
 
 static void
-prefix_from_string (p, pprefix)
-     const char *p;
-     struct path_prefix *pprefix;
+prefix_from_string (const char *p, struct path_prefix *pprefix)
 {
   const char *startp, *endp;
-  char *nstore = (char *) xmalloc (strlen (p) + 3);
+  char *nstore = xmalloc (strlen (p) + 3);
 
   if (debug)
     fprintf (stderr, "Convert string '%s' into prefixes, separator = '%c'\n", p, PATH_SEPARATOR);
-  
+
   startp = endp = p;
   while (1)
     {
@@ -785,7 +745,7 @@ prefix_from_string (p, pprefix)
 
 	  if (debug)
 	    fprintf (stderr, "  - add prefix: %s\n", nstore);
-	  
+
 	  add_prefix (pprefix, nstore);
 	  if (*endp == 0)
 	    break;
@@ -798,11 +758,8 @@ prefix_from_string (p, pprefix)
 
 /* Main program.  */
 
-int main 		PARAMS ((int, char *[]));
 int
-main (argc, argv)
-     int argc;
-     char *argv[];
+main (int argc, char **argv)
 {
   static const char *const ld_suffix	= "ld";
   static const char *const real_ld_suffix = "real-ld";
@@ -885,9 +842,9 @@ main (argc, argv)
   /* Do not invoke xcalloc before this point, since locale needs to be
      set first, in case a diagnostic is issued.  */
 
-  ld1 = (const char **)(ld1_argv = (char **) xcalloc(sizeof (char *), argc+3));
-  ld2 = (const char **)(ld2_argv = (char **) xcalloc(sizeof (char *), argc+10));
-  object = (const char **)(object_lst = (char **) xcalloc(sizeof (char *), argc));
+  ld1 = (const char **)(ld1_argv = xcalloc(sizeof (char *), argc+3));
+  ld2 = (const char **)(ld2_argv = xcalloc(sizeof (char *), argc+10));
+  object = (const char **)(object_lst = xcalloc(sizeof (char *), argc));
 
 #ifdef DEBUG
   debug = 1;
@@ -898,10 +855,13 @@ main (argc, argv)
      are called.  */
   {
     int i;
-    
+
     for (i = 1; argv[i] != NULL; i ++)
-      if (! strcmp (argv[i], "-debug"))
-	debug = 1;
+      {
+	if (! strcmp (argv[i], "-debug"))
+	  debug = 1;
+	COLLECT_PARSE_FLAG (argv[i]);
+      }
     vflag = debug;
   }
 
@@ -912,7 +872,7 @@ main (argc, argv)
 #endif
 
   obstack_begin (&temporary_obstack, 0);
-  temporary_firstobj = (char *) obstack_alloc (&temporary_obstack, 0);
+  temporary_firstobj = obstack_alloc (&temporary_obstack, 0);
 
   current_demangling_style = auto_demangling;
   p = getenv ("COLLECT_GCC_OPTIONS");
@@ -924,11 +884,11 @@ main (argc, argv)
     }
   obstack_free (&temporary_obstack, temporary_firstobj);
 
-  /* -fno-exceptions -w */
-  num_c_args += 2;
+  /* -fno-profile-arcs -fno-test-coverage -fno-branch-probabilities
+     -fno-exceptions -w */
+  num_c_args += 5;
 
-  c_ptr = (const char **)
-    (c_argv = (char **) xcalloc (sizeof (char *), num_c_args));
+  c_ptr = (const char **) (c_argv = xcalloc (sizeof (char *), num_c_args));
 
   if (argc < 2)
     fatal ("no arguments");
@@ -1061,7 +1021,7 @@ main (argc, argv)
   add_prefix (&libpath_lib_dirs, "/usr/lib");
 #endif
 
-  /* Get any options that the upper GCC wants to pass to the sub-GCC.  
+  /* Get any options that the upper GCC wants to pass to the sub-GCC.
 
      AIX support needs to know if -shared has been specified before
      parsing commandline arguments.  */
@@ -1087,6 +1047,9 @@ main (argc, argv)
 	}
     }
   obstack_free (&temporary_obstack, temporary_firstobj);
+  *c_ptr++ = "-fno-profile-arcs";
+  *c_ptr++ = "-fno-test-coverage";
+  *c_ptr++ = "-fno-branch-probabilities";
   *c_ptr++ = "-fno-exceptions";
   *c_ptr++ = "-w";
 
@@ -1151,10 +1114,10 @@ main (argc, argv)
 
 #ifdef COLLECT_EXPORT_LIST
 	    /* Saving directories where to search for libraries.  */
-       	    case 'L':
+	    case 'L':
 	      add_prefix (&cmdline_lib_dirs, arg+2);
 	      break;
-#else 
+#else
 #if LINK_ELIMINATE_DUPLICATE_LDIRECTORIES
 	    case 'L':
 	      if (is_in_args (arg, (const char **) ld1_argv, ld1-1))
@@ -1219,8 +1182,8 @@ main (argc, argv)
 	    *object++ = arg;
 #ifdef COLLECT_EXPORT_LIST
 	  /* libraries can be specified directly, i.e. without -l flag.  */
-       	  else
-       	    { 
+	  else
+	    {
 	      /* Saving a full library name.  */
               add_to_list (&libs, arg);
             }
@@ -1254,7 +1217,7 @@ main (argc, argv)
   if (exports.first)
     {
       char *buf = concat ("-bE:", export_file, NULL);
-      
+
       *ld1++ = buf;
       *ld2++ = buf;
 
@@ -1378,15 +1341,15 @@ main (argc, argv)
       )
     {
 #ifdef COLLECT_EXPORT_LIST
-      /* Do tlink without additional code generation */
+      /* Do tlink without additional code generation.  */
       do_tlink (ld1_argv, object_lst);
 #endif
       /* Strip now if it was requested on the command line.  */
       if (strip_flag)
 	{
-	  char **real_strip_argv = (char **) xcalloc (sizeof (char *), 3);
+	  char **real_strip_argv = xcalloc (sizeof (char *), 3);
 	  const char ** strip_argv = (const char **) real_strip_argv;
-	  
+
 	  strip_argv[0] = strip_file_name;
 	  strip_argv[1] = output_file;
 	  strip_argv[2] = (char *) 0;
@@ -1435,10 +1398,12 @@ main (argc, argv)
       if (! exports.first)
 	*ld2++ = concat ("-bE:", export_file, NULL);
 
+#ifndef LD_INIT_SWITCH
       add_to_list (&exports, initname);
       add_to_list (&exports, fininame);
       add_to_list (&exports, "_GLOBAL__DI");
       add_to_list (&exports, "_GLOBAL__DD");
+#endif
       exportf = fopen (export_file, "w");
       if (exportf == (FILE *) 0)
 	fatal_perror ("fopen %s", export_file);
@@ -1469,16 +1434,16 @@ main (argc, argv)
 
   fork_execute ("gcc",  c_argv);
 #ifdef COLLECT_EXPORT_LIST
-  /* On AIX we must call tlink because of possible templates resolution */
+  /* On AIX we must call tlink because of possible templates resolution.  */
   do_tlink (ld2_argv, object_lst);
 #else
-  /* Otherwise, simply call ld because tlink is already done */
+  /* Otherwise, simply call ld because tlink is already done.  */
   fork_execute ("ld", ld2_argv);
 
   /* Let scan_prog_file do any final mods (OSF/rose needs this for
      constructors/destructors in shared libraries.  */
   scan_prog_file (output_file, PASS_SECOND);
-#endif 
+#endif
 
   maybe_unlink (c_file);
   maybe_unlink (o_file);
@@ -1494,8 +1459,7 @@ main (argc, argv)
 /* Wait for a process to finish, and exit if a nonzero status is found.  */
 
 int
-collect_wait (prog)
-     const char *prog;
+collect_wait (const char *prog)
 {
   int status;
 
@@ -1518,8 +1482,7 @@ collect_wait (prog)
 }
 
 static void
-do_wait (prog)
-     const char *prog;
+do_wait (const char *prog)
 {
   int ret = collect_wait (prog);
   if (ret != 0)
@@ -1533,10 +1496,7 @@ do_wait (prog)
 /* Execute a program, and wait for the reply.  */
 
 void
-collect_execute (prog, argv, redir)
-     const char *prog;
-     char **argv;
-     const char *redir;
+collect_execute (const char *prog, char **argv, const char *redir)
 {
   char *errmsg_fmt;
   char *errmsg_arg;
@@ -1588,8 +1548,7 @@ collect_execute (prog, argv, redir)
       dup2 (redir_handle, STDERR_FILENO);
     }
 
-  pid = pexecute (argv[0], argv, argv[0], NULL,
-		  &errmsg_fmt, &errmsg_arg,
+  pid = pexecute (argv[0], argv, argv[0], NULL, &errmsg_fmt, &errmsg_arg,
 		  (PEXECUTE_FIRST | PEXECUTE_LAST | PEXECUTE_SEARCH));
 
   if (redir)
@@ -1607,9 +1566,7 @@ collect_execute (prog, argv, redir)
 }
 
 static void
-fork_execute (prog, argv)
-     const char *prog;
-     char **argv;
+fork_execute (const char *prog, char **argv)
 {
   collect_execute (prog, argv, NULL);
   do_wait (prog);
@@ -1618,8 +1575,7 @@ fork_execute (prog, argv)
 /* Unlink a file unless we are debugging.  */
 
 static void
-maybe_unlink (file)
-     const char *file;
+maybe_unlink (const char *file)
 {
   if (!debug)
     unlink (file);
@@ -1633,12 +1589,9 @@ static long sequence_number = 0;
 /* Add a name to a linked list.  */
 
 static void
-add_to_list (head_ptr, name)
-     struct head *head_ptr;
-     const char *name;
+add_to_list (struct head *head_ptr, const char *name)
 {
-  struct id *newid
-    = (struct id *) xcalloc (sizeof (struct id) + strlen (name), 1);
+  struct id *newid = xcalloc (sizeof (struct id) + strlen (name), 1);
   struct id *p;
   strcpy (newid->name, name);
 
@@ -1668,8 +1621,7 @@ add_to_list (head_ptr, name)
    looks like "_GLOBAL_.I.12345.foo".  */
 
 static int
-extract_init_priority (name)
-     const char *name;
+extract_init_priority (const char *name)
 {
   int pos = 0, pri;
 
@@ -1686,8 +1638,7 @@ extract_init_priority (name)
    ctors will be run from right to left, dtors from left to right.  */
 
 static void
-sort_ids (head_ptr)
-     struct head *head_ptr;
+sort_ids (struct head *head_ptr)
 {
   /* id holds the current element to insert.  id_next holds the next
      element to insert.  id_ptr iterates through the already sorted elements
@@ -1728,10 +1679,7 @@ sort_ids (head_ptr)
 /* Write: `prefix', the names on list LIST, `suffix'.  */
 
 static void
-write_list (stream, prefix, list)
-     FILE *stream;
-     const char *prefix;
-     struct id *list;
+write_list (FILE *stream, const char *prefix, struct id *list)
 {
   while (list)
     {
@@ -1745,10 +1693,8 @@ write_list (stream, prefix, list)
    [ARGS_BEGIN,ARGS_END).  */
 
 static int
-is_in_args (string, args_begin, args_end)
-     const char *string;
-     const char **args_begin;
-     const char **args_end;
+is_in_args (const char *string, const char **args_begin,
+	    const char **args_end)
 {
   const char **args_pointer;
   for (args_pointer = args_begin; args_pointer != args_end; ++args_pointer)
@@ -1762,9 +1708,7 @@ is_in_args (string, args_begin, args_end)
 /* This function is really used only on AIX, but may be useful.  */
 #if 0
 static int
-is_in_list (prefix, list)
-     const char *prefix;
-     struct id *list;
+is_in_list (const char *prefix, struct id *list)
 {
   while (list)
     {
@@ -1779,10 +1723,7 @@ is_in_list (prefix, list)
 /* Added for debugging purpose.  */
 #ifdef COLLECT_EXPORT_LIST
 static void
-dump_list (stream, prefix, list)
-     FILE *stream;
-     const char *prefix;
-     struct id *list;
+dump_list (FILE *stream, const char *prefix, struct id *list)
 {
   while (list)
     {
@@ -1794,10 +1735,7 @@ dump_list (stream, prefix, list)
 
 #if 0
 static void
-dump_prefix_list (stream, prefix, list)
-     FILE *stream;
-     const char *prefix;
-     struct prefix_list *list;
+dump_prefix_list (FILE *stream, const char *prefix, struct prefix_list *list)
 {
   while (list)
     {
@@ -1808,10 +1746,7 @@ dump_prefix_list (stream, prefix, list)
 #endif
 
 static void
-write_list_with_asm (stream, prefix, list)
-     FILE *stream;
-     const char *prefix;
-     struct id *list;
+write_list_with_asm (FILE *stream, const char *prefix, struct id *list)
 {
   while (list)
     {
@@ -1825,9 +1760,7 @@ write_list_with_asm (stream, prefix, list)
    object), along with the functions to execute them.  */
 
 static void
-write_c_file_stat (stream, name)
-     FILE *stream;
-     const char *name ATTRIBUTE_UNUSED;
+write_c_file_stat (FILE *stream, const char *name ATTRIBUTE_UNUSED)
 {
   const char *p, *q;
   char *prefix, *r;
@@ -1875,7 +1808,7 @@ write_c_file_stat (stream, name)
 
   free (prefix);
 
-  /* Write the tables as C code  */
+  /* Write the tables as C code.  */
 
   fprintf (stream, "static int count;\n");
   fprintf (stream, "typedef void entry_pt();\n");
@@ -1956,16 +1889,14 @@ write_c_file_stat (stream, name)
 
 #ifndef LD_INIT_SWITCH
 static void
-write_c_file_glob (stream, name)
-     FILE *stream;
-     const char *name ATTRIBUTE_UNUSED;
+write_c_file_glob (FILE *stream, const char *name ATTRIBUTE_UNUSED)
 {
-  /* Write the tables as C code  */
+  /* Write the tables as C code.  */
 
   int frames = (frame_tables.number > 0);
 
   fprintf (stream, "typedef void entry_pt();\n\n");
-    
+
   write_list_with_asm (stream, "extern entry_pt ", constructors.first);
 
   if (frames)
@@ -2021,9 +1952,7 @@ write_c_file_glob (stream, name)
 #endif /* ! LD_INIT_SWITCH */
 
 static void
-write_c_file (stream, name)
-     FILE *stream;
-     const char *name;
+write_c_file (FILE *stream, const char *name)
 {
   fprintf (stream, "#ifdef __cplusplus\nextern \"C\" {\n#endif\n");
 #ifndef LD_INIT_SWITCH
@@ -2037,9 +1966,7 @@ write_c_file (stream, name)
 
 #ifdef COLLECT_EXPORT_LIST
 static void
-write_aix_file (stream, list)
-     FILE *stream;
-     struct id *list;
+write_aix_file (FILE *stream, struct id *list)
 {
   for (; list; list = list->next)
     {
@@ -2061,12 +1988,10 @@ write_aix_file (stream, list)
    destructor table has the same format, and begins at __DTOR_LIST__.  */
 
 static void
-scan_prog_file (prog_name, which_pass)
-     const char *prog_name;
-     enum pass which_pass;
+scan_prog_file (const char *prog_name, enum pass which_pass)
 {
-  void (*int_handler) PARAMS ((int));
-  void (*quit_handler) PARAMS ((int));
+  void (*int_handler) (int);
+  void (*quit_handler) (int);
   char *real_nm_argv[4];
   const char **nm_argv = (const char **) real_nm_argv;
   int argc = 0;
@@ -2110,7 +2035,7 @@ scan_prog_file (prog_name, which_pass)
   fflush (stdout);
   fflush (stderr);
 
-  /* Spawn child nm on pipe */
+  /* Spawn child nm on pipe.  */
   pid = vfork ();
   if (pid == -1)
     fatal_perror (VFORK_STRING);
@@ -2132,9 +2057,9 @@ scan_prog_file (prog_name, which_pass)
     }
 
   /* Parent context from here on.  */
-  int_handler  = (void (*) PARAMS ((int))) signal (SIGINT,  SIG_IGN);
+  int_handler  = (void (*) (int)) signal (SIGINT,  SIG_IGN);
 #ifdef SIGQUIT
-  quit_handler = (void (*) PARAMS ((int))) signal (SIGQUIT, SIG_IGN);
+  quit_handler = (void (*) (int)) signal (SIGQUIT, SIG_IGN);
 #endif
 
   if (close (pipe_fd[1]) < 0)
@@ -2158,7 +2083,7 @@ scan_prog_file (prog_name, which_pass)
 
       if (ch != '_')
 	continue;
-  
+
       name = p;
       /* Find the end of the symbol name.
 	 Do not include `|', because Encore nm can tack that on the end.  */
@@ -2238,8 +2163,8 @@ scan_prog_file (prog_name, which_pass)
 #include <sys/dir.h>
 
 /* pointers to the object file */
-unsigned object;    	/* address of memory mapped file */
-unsigned objsize;    	/* size of memory mapped to file */
+unsigned object;	/* address of memory mapped file */
+unsigned objsize;	/* size of memory mapped to file */
 char * code;		/* pointer to code segment */
 char * data;		/* pointer to data segment */
 struct nlist *symtab;	/* pointer to symbol table */
@@ -2249,11 +2174,8 @@ struct head libraries;
 
 /* Map the file indicated by NAME into memory and store its address.  */
 
-static void mapfile			PARAMS ((const char *));
-
 static void
-mapfile (name)
-     const char *name;
+mapfile (const char *name)
 {
   int fp;
   struct stat s;
@@ -2275,11 +2197,8 @@ mapfile (name)
 
 static const char *libname;
 
-static int libselect			PARAMS ((struct direct *));
-
 static int
-libselect (d)
-     struct direct *d;
+libselect (struct direct *d)
 {
   return (strncmp (libname, d->d_name, strlen (libname)) == 0);
 }
@@ -2291,11 +2210,9 @@ libselect (d)
    We must verify that the extension is numeric, because Sun saves the
    original versions of patched libraries with a .FCS extension.  Files with
    invalid extensions must go last in the sort, so that they will not be used.  */
-static int libcompare		PARAMS ((struct direct **, struct direct **));
 
 static int
-libcompare (d1, d2)
-     struct direct **d1, **d2;
+libcompare (struct direct **d1, struct direct **d2)
 {
   int i1, i2 = strlen (libname);
   char *e1 = (*d1)->d_name + i2;
@@ -2336,11 +2253,9 @@ libcompare (d1, d2)
 
 /* Given the name NAME of a dynamic dependency, find its pathname and add
    it to the list of libraries.  */
-static void locatelib			PARAMS ((const char *));
 
 static void
-locatelib (name)
-     const char *name;
+locatelib (const char *name)
 {
   static const char **l;
   static int cnt;
@@ -2353,7 +2268,7 @@ locatelib (name)
       char *ld_rules;
       char *ldr = 0;
       /* counting elements in array, need 1 extra for null */
-      cnt = 1;  
+      cnt = 1;
       ld_rules = (char *) (ld_2->ld_rules + code);
       if (ld_rules)
 	{
@@ -2374,12 +2289,12 @@ locatelib (name)
 	      cnt++;
 	  q = xstrdup (p);
 	}
-      l = (const char **) xmalloc ((cnt + 3) * sizeof (char *));
+      l = xmalloc ((cnt + 3) * sizeof (char *));
       pp = l;
       if (ldr)
 	{
 	  *pp++ = ldr;
-	  for (; *ldr != 0; ldr++) 
+	  for (; *ldr != 0; ldr++)
 	    if (*ldr == ':')
 	      {
 		*ldr++ = 0;
@@ -2389,7 +2304,7 @@ locatelib (name)
       if (q)
 	{
 	  *pp++ = q;
-	  for (; *q != 0; q++) 
+	  for (; *q != 0; q++)
 	    if (*q == ':')
 	      {
 		*q++ = 0;
@@ -2428,9 +2343,8 @@ locatelib (name)
 /* Scan the _DYNAMIC structure of the output file to find shared libraries
    that it depends upon and any constructors or destructors they contain.  */
 
-static void 
-scan_libraries (prog_name)
-     const char *prog_name;
+static void
+scan_libraries (const char *prog_name)
 {
   struct exec *header;
   char *base;
@@ -2490,7 +2404,7 @@ scan_libraries (prog_name)
   if (debug)
     fprintf (stderr, "\n");
 
-  /* now iterate through the library list adding their symbols to
+  /* Now iterate through the library list adding their symbols to
      the list.  */
   for (list = libraries.first; list; list = list->next)
     scan_prog_file (list->name, PASS_LIB);
@@ -2503,14 +2417,13 @@ scan_libraries (prog_name)
    the output file depends upon and their initialization/finalization
    routines, if any.  */
 
-static void 
-scan_libraries (prog_name)
-     const char *prog_name;
+static void
+scan_libraries (const char *prog_name)
 {
   static struct head libraries;		/* list of shared libraries found */
   struct id *list;
-  void (*int_handler) PARAMS ((int));
-  void (*quit_handler) PARAMS ((int));
+  void (*int_handler) (int);
+  void (*quit_handler) (int);
   char *real_ldd_argv[4];
   const char **ldd_argv = (const char **) real_ldd_argv;
   int argc = 0;
@@ -2551,7 +2464,7 @@ scan_libraries (prog_name)
   fflush (stdout);
   fflush (stderr);
 
-  /* Spawn child ldd on pipe */
+  /* Spawn child ldd on pipe.  */
   pid = vfork ();
   if (pid == -1)
     fatal_perror (VFORK_STRING);
@@ -2573,9 +2486,9 @@ scan_libraries (prog_name)
     }
 
   /* Parent context from here on.  */
-  int_handler  = (void (*) PARAMS ((int))) signal (SIGINT,  SIG_IGN);
+  int_handler  = (void (*) (int)) signal (SIGINT,  SIG_IGN);
 #ifdef SIGQUIT
-  quit_handler = (void (*) PARAMS ((int))) signal (SIGQUIT, SIG_IGN);
+  quit_handler = (void (*) (int)) signal (SIGQUIT, SIG_IGN);
 #endif
 
   if (close (pipe_fd[1]) < 0)
@@ -2600,7 +2513,7 @@ scan_libraries (prog_name)
 	fatal ("dynamic dependency %s not found", buf);
 
       /* Find the end of the symbol name.  */
-      for (end = p; 
+      for (end = p;
 	   (ch2 = *end) != '\0' && ch2 != '\n' && !ISSPACE (ch2) && ch2 != '|';
 	   end++)
 	continue;
@@ -2627,7 +2540,7 @@ scan_libraries (prog_name)
   signal (SIGQUIT, quit_handler);
 #endif
 
-  /* now iterate through the library list adding their symbols to
+  /* Now iterate through the library list adding their symbols to
      the list.  */
   for (list = libraries.first; list; list = list->next)
     scan_prog_file (list->name, PASS_LIB);
@@ -2645,7 +2558,7 @@ scan_libraries (prog_name)
 
 #ifdef OBJECT_FORMAT_COFF
 
-#if defined(EXTENDED_COFF)
+#if defined (EXTENDED_COFF)
 
 #   define GCC_SYMBOLS(X)	(SYMHEADER(X).isymMax + SYMHEADER(X).iextMax)
 #   define GCC_SYMENT		SYMR
@@ -2658,14 +2571,26 @@ scan_libraries (prog_name)
 
 #   define GCC_SYMBOLS(X)	(HEADER(ldptr).f_nsyms)
 #   define GCC_SYMENT		SYMENT
-#   define GCC_OK_SYMBOL(X) \
-     (((X).n_sclass == C_EXT) && \
-      ((X).n_scnum > N_UNDEF) && \
-      (aix64_flag \
-       || (((X).n_type & N_TMASK) == (DT_NON << N_BTSHFT) \
-           || ((X).n_type & N_TMASK) == (DT_FCN << N_BTSHFT))))
-#   define GCC_UNDEF_SYMBOL(X) \
-     (((X).n_sclass == C_EXT) && ((X).n_scnum == N_UNDEF))
+#   if defined (C_WEAKEXT)
+#     define GCC_OK_SYMBOL(X) \
+       (((X).n_sclass == C_EXT || (X).n_sclass == C_WEAKEXT) && \
+        ((X).n_scnum > N_UNDEF) && \
+        (aix64_flag \
+         || (((X).n_type & N_TMASK) == (DT_NON << N_BTSHFT) \
+             || ((X).n_type & N_TMASK) == (DT_FCN << N_BTSHFT))))
+#     define GCC_UNDEF_SYMBOL(X) \
+       (((X).n_sclass == C_EXT || (X).n_sclass == C_WEAKEXT) && \
+        ((X).n_scnum == N_UNDEF))
+#   else
+#     define GCC_OK_SYMBOL(X) \
+       (((X).n_sclass == C_EXT) && \
+        ((X).n_scnum > N_UNDEF) && \
+        (aix64_flag \
+         || (((X).n_type & N_TMASK) == (DT_NON << N_BTSHFT) \
+             || ((X).n_type & N_TMASK) == (DT_FCN << N_BTSHFT))))
+#     define GCC_UNDEF_SYMBOL(X) \
+       (((X).n_sclass == C_EXT) && ((X).n_scnum == N_UNDEF))
+#   endif
 #   define GCC_SYMINC(X)	((X).n_numaux+1)
 #   define GCC_SYMZERO(X)	0
 
@@ -2682,7 +2607,43 @@ scan_libraries (prog_name)
 
 #endif
 
-extern char *ldgetname ();
+#ifdef COLLECT_EXPORT_LIST
+/* Array of standard AIX libraries which should not
+   be scanned for ctors/dtors.  */
+static const char *const aix_std_libs[] = {
+  "/unix",
+  "/lib/libc.a",
+  "/lib/libm.a",
+  "/lib/libc_r.a",
+  "/lib/libm_r.a",
+  "/usr/lib/libc.a",
+  "/usr/lib/libm.a",
+  "/usr/lib/libc_r.a",
+  "/usr/lib/libm_r.a",
+  "/usr/lib/threads/libc.a",
+  "/usr/ccs/lib/libc.a",
+  "/usr/ccs/lib/libm.a",
+  "/usr/ccs/lib/libc_r.a",
+  "/usr/ccs/lib/libm_r.a",
+  NULL
+};
+
+/* This function checks the filename and returns 1
+   if this name matches the location of a standard AIX library.  */
+static int ignore_library (const char *);
+static int
+ignore_library (const char *name)
+{
+  const char *const *p = &aix_std_libs[0];
+  while (*p++ != NULL)
+    if (! strcmp (name, *p)) return 1;
+  return 0;
+}
+#endif /* COLLECT_EXPORT_LIST */
+
+#if defined (HAVE_DECL_LDGETNAME) && !HAVE_DECL_LDGETNAME
+extern char *ldgetname (LDFILE *, GCC_SYMENT *);
+#endif
 
 /* COFF version to scan the name list of the loaded program for
    the symbols g++ uses for static constructors and destructors.
@@ -2694,9 +2655,7 @@ extern char *ldgetname ();
    destructor table has the same format, and begins at __DTOR_LIST__.  */
 
 static void
-scan_prog_file (prog_name, which_pass)
-     const char *prog_name;
-     enum pass which_pass;
+scan_prog_file (const char *prog_name, enum pass which_pass)
 {
   LDFILE *ldptr = NULL;
   int sym_index, sym_count;
@@ -2748,7 +2707,7 @@ scan_prog_file (prog_name, which_pass)
 		      char *name;
 
 		      if ((name = ldgetname (ldptr, &symbol)) == NULL)
-			continue;		/* should never happen */
+			continue;		/* Should never happen.  */
 
 #ifdef XCOFF_DEBUGGING_INFO
 		      /* All AIX function names have a duplicate entry
@@ -2762,7 +2721,7 @@ scan_prog_file (prog_name, which_pass)
 			case 1:
 			  if (! is_shared)
 			    add_to_list (&constructors, name);
-#ifdef COLLECT_EXPORT_LIST
+#if defined (COLLECT_EXPORT_LIST) && !defined (LD_INIT_SWITCH)
 			  if (which_pass == PASS_OBJ)
 			    add_to_list (&exports, name);
 #endif
@@ -2771,7 +2730,7 @@ scan_prog_file (prog_name, which_pass)
 			case 2:
 			  if (! is_shared)
 			    add_to_list (&destructors, name);
-#ifdef COLLECT_EXPORT_LIST
+#if defined (COLLECT_EXPORT_LIST) && !defined (LD_INIT_SWITCH)
 			  if (which_pass == PASS_OBJ)
 			    add_to_list (&exports, name);
 #endif
@@ -2796,7 +2755,7 @@ scan_prog_file (prog_name, which_pass)
 			case 5:
 			  if (! is_shared)
 			    add_to_list (&frame_tables, name);
-#ifdef COLLECT_EXPORT_LIST
+#if defined (COLLECT_EXPORT_LIST) && !defined (LD_INIT_SWITCH)
 			  if (which_pass == PASS_OBJ)
 			    add_to_list (&exports, name);
 #endif
@@ -2804,13 +2763,14 @@ scan_prog_file (prog_name, which_pass)
 
 			default:	/* not a constructor or destructor */
 #ifdef COLLECT_EXPORT_LIST
-			  /* If we are building a shared object on AIX we need
-			     to explicitly export all global symbols.  */
-			  if (shared_obj) 
-			    {
-			      if (which_pass == PASS_OBJ && (! export_flag))
-				add_to_list (&exports, name);
-			    }
+			  /* Explicitly export all global symbols when
+			     building a shared object on AIX, but do not
+			     re-export symbols from another shared object
+			     and do not export symbols if the user
+			     provides an explicit export list.  */
+			  if (shared_obj && !is_shared
+			      && which_pass == PASS_OBJ && !export_flag)
+			    add_to_list (&exports, name);
 #endif
 			  continue;
 			}
@@ -2859,8 +2819,7 @@ scan_prog_file (prog_name, which_pass)
 /* Given a library name without "lib" prefix, this function
    returns a full library name including a path.  */
 static char *
-resolve_lib_name (name)
-     const char *name;
+resolve_lib_name (const char *name)
 {
   char *lib_buf;
   int i, j, l = 0;
@@ -2884,7 +2843,7 @@ resolve_lib_name (name)
 	    p = "/";
 	  for (j = 0; libexts[j]; j++)
 	    {
-       	      sprintf (lib_buf, "%s%slib%s.%s",
+	      sprintf (lib_buf, "%s%slib%s.%s",
 		       list->prefix, p, name, libexts[j]);
 if (debug) fprintf (stderr, "searching for: %s\n", lib_buf);
 	      if (file_exists (lib_buf))
@@ -2901,700 +2860,4 @@ if (debug) fprintf (stderr, "found: %s\n", lib_buf);
     fatal ("library lib%s not found", name);
   return (NULL);
 }
-
-/* Array of standard AIX libraries which should not
-   be scanned for ctors/dtors.  */
-static const char *const aix_std_libs[] = {
-  "/unix",
-  "/lib/libc.a",
-  "/lib/libm.a",
-  "/lib/libc_r.a",
-  "/lib/libm_r.a",
-  "/usr/lib/libc.a",
-  "/usr/lib/libm.a",
-  "/usr/lib/libc_r.a",
-  "/usr/lib/libm_r.a",
-  "/usr/lib/threads/libc.a",
-  "/usr/ccs/lib/libc.a",
-  "/usr/ccs/lib/libm.a",
-  "/usr/ccs/lib/libc_r.a",
-  "/usr/ccs/lib/libm_r.a",
-  NULL
-};
-
-/* This function checks the filename and returns 1
-   if this name matches the location of a standard AIX library.  */
-static int
-ignore_library (name)
-     const char *name;
-{
-  const char *const *p = &aix_std_libs[0];
-  while (*p++ != NULL)
-    if (! strcmp (name, *p)) return 1;
-  return 0;
-}
 #endif /* COLLECT_EXPORT_LIST */
-
-
-/*
- * OSF/rose specific stuff.
- */
-
-#ifdef OBJECT_FORMAT_ROSE
-
-/* Union of the various load commands */
-
-typedef union load_union
-{
-  ldc_header_t			hdr;	/* common header */
-  load_cmd_map_command_t	map;	/* map indexing other load cmds */
-  interpreter_command_t		iprtr;	/* interpreter pathname */
-  strings_command_t		str;	/* load commands strings section */
-  region_command_t		region;	/* region load command */
-  reloc_command_t		reloc;	/* relocation section */
-  package_command_t		pkg;	/* package load command */
-  symbols_command_t		sym;	/* symbol sections */
-  entry_command_t		ent;	/* program start section */
-  gen_info_command_t		info;	/* object information */
-  func_table_command_t		func;	/* function constructors/destructors */
-} load_union_t;
-
-/* Structure to point to load command and data section in memory.  */
-
-typedef struct load_all
-{
-  load_union_t *load;			/* load command */
-  char *section;			/* pointer to section */
-} load_all_t;
-
-/* Structure to contain information about a file mapped into memory.  */
-
-struct file_info
-{
-  char *start;				/* start of map */
-  char *name;				/* filename */
-  long	size;				/* size of the file */
-  long  rounded_size;			/* size rounded to page boundary */
-  int	fd;				/* file descriptor */
-  int	rw;				/* != 0 if opened read/write */
-  int	use_mmap;			/* != 0 if mmap'ed */
-};
-
-extern int decode_mach_o_hdr ();
-extern int encode_mach_o_hdr ();
-
-static void add_func_table	PARAMS ((mo_header_t *, load_all_t *,
-				       symbol_info_t *, int));
-static void print_header	PARAMS ((mo_header_t *));
-static void print_load_command	PARAMS ((load_union_t *, size_t, int));
-static void bad_header		PARAMS ((int));
-static struct file_info	*read_file  PARAMS ((const char *, int, int));
-static void end_file		PARAMS ((struct file_info *));
-
-/* OSF/rose specific version to scan the name list of the loaded
-   program for the symbols g++ uses for static constructors and
-   destructors.
-
-   The constructor table begins at __CTOR_LIST__ and contains a count
-   of the number of pointers (or -1 if the constructors are built in a
-   separate section by the linker), followed by the pointers to the
-   constructor functions, terminated with a null pointer.  The
-   destructor table has the same format, and begins at __DTOR_LIST__.  */
-
-static void
-scan_prog_file (prog_name, which_pass)
-     const char *prog_name;
-     enum pass which_pass;
-{
-  char *obj;
-  mo_header_t hdr;
-  load_all_t *load_array;
-  load_all_t *load_end;
-  load_all_t *load_cmd;
-  int symbol_load_cmds;
-  off_t offset;
-  int i;
-  int num_syms;
-  int status;
-  char *str_sect;
-  struct file_info *obj_file;
-  int prog_fd;
-  mo_lcid_t cmd_strings	  = -1;
-  symbol_info_t *main_sym = 0;
-  int rw		  = (which_pass != PASS_FIRST);
-
-  prog_fd = open (prog_name, (rw) ? O_RDWR : O_RDONLY);
-  if (prog_fd < 0)
-    fatal_perror ("open %s", prog_name);
-
-  obj_file = read_file (prog_name, prog_fd, rw);
-  obj = obj_file->start;
-
-  status = decode_mach_o_hdr (obj, MO_SIZEOF_RAW_HDR, MOH_HEADER_VERSION, &hdr);
-  if (status != MO_HDR_CONV_SUCCESS)
-    bad_header (status);
-
-
-  /* Do some basic sanity checks.  Note we explicitly use the big endian magic number,
-     since the hardware will automatically swap bytes for us on loading little endian
-     integers.  */
-
-#ifndef CROSS_COMPILE
-  if (hdr.moh_magic != MOH_MAGIC_MSB
-      || hdr.moh_header_version != MOH_HEADER_VERSION
-      || hdr.moh_byte_order != OUR_BYTE_ORDER
-      || hdr.moh_data_rep_id != OUR_DATA_REP_ID
-      || hdr.moh_cpu_type != OUR_CPU_TYPE
-      || hdr.moh_cpu_subtype != OUR_CPU_SUBTYPE
-      || hdr.moh_vendor_type != OUR_VENDOR_TYPE)
-    {
-      fatal ("incompatibilities between object file & expected values");
-    }
-#endif
-
-  if (debug)
-    print_header (&hdr);
-
-  offset = hdr.moh_first_cmd_off;
-  load_end = load_array
-    = (load_all_t *) xcalloc (sizeof (load_all_t), hdr.moh_n_load_cmds + 2);
-
-  /* Build array of load commands, calculating the offsets */
-  for (i = 0; i < hdr.moh_n_load_cmds; i++)
-    {
-      load_union_t *load_hdr;		/* load command header */
-
-      load_cmd = load_end++;
-      load_hdr = (load_union_t *) (obj + offset);
-
-      /* If modifying the program file, copy the header.  */
-      if (rw)
-	{
-	  load_union_t *ptr = (load_union_t *) xmalloc (load_hdr->hdr.ldci_cmd_size);
-	  memcpy ((char *)ptr, (char *)load_hdr, load_hdr->hdr.ldci_cmd_size);
-	  load_hdr = ptr;
-
-	  /* null out old command map, because we will rewrite at the end.  */
-	  if (ptr->hdr.ldci_cmd_type == LDC_CMD_MAP)
-	    {
-	      cmd_strings = ptr->map.lcm_ld_cmd_strings;
-	      ptr->hdr.ldci_cmd_type = LDC_UNDEFINED;
-	    }
-	}
-
-      load_cmd->load = load_hdr;
-      if (load_hdr->hdr.ldci_section_off > 0)
-	load_cmd->section = obj + load_hdr->hdr.ldci_section_off;
-
-      if (debug)
-	print_load_command (load_hdr, offset, i);
-
-      offset += load_hdr->hdr.ldci_cmd_size;
-    }
-
-  /* If the last command is the load command map and is not undefined,
-     decrement the count of load commands.  */
-  if (rw && load_end[-1].load->hdr.ldci_cmd_type == LDC_UNDEFINED)
-    {
-      load_end--;
-      hdr.moh_n_load_cmds--;
-    }
-
-  /* Go through and process each symbol table section.  */
-  symbol_load_cmds = 0;
-  for (load_cmd = load_array; load_cmd < load_end; load_cmd++)
-    {
-      load_union_t *load_hdr = load_cmd->load;
-
-      if (load_hdr->hdr.ldci_cmd_type == LDC_SYMBOLS)
-	{
-	  symbol_load_cmds++;
-
-	  if (debug)
-	    {
-	      const char *kind = "unknown";
-
-	      switch (load_hdr->sym.symc_kind)
-		{
-		case SYMC_IMPORTS:	   kind = "imports"; break;
-		case SYMC_DEFINED_SYMBOLS: kind = "defined"; break;
-		case SYMC_STABS:	   kind = "stabs";   break;
-		}
-
-	      notice ("\nProcessing symbol table #%d, offset = 0x%.8lx, kind = %s\n",
-		      symbol_load_cmds, load_hdr->hdr.ldci_section_off, kind);
-	    }
-
-	  if (load_hdr->sym.symc_kind != SYMC_DEFINED_SYMBOLS)
-	    continue;
-
-	  str_sect = load_array[load_hdr->sym.symc_strings_section].section;
-	  if (str_sect == (char *) 0)
-	    fatal ("string section missing");
-
-	  if (load_cmd->section == (char *) 0)
-	    fatal ("section pointer missing");
-
-	  num_syms = load_hdr->sym.symc_nentries;
-	  for (i = 0; i < num_syms; i++)
-	    {
-	      symbol_info_t *sym = ((symbol_info_t *) load_cmd->section) + i;
-	      char *name = sym->si_name.symbol_name + str_sect;
-
-	      if (name[0] != '_')
-		continue;
-
-	      if (rw)
-		{
-		  char *n = name + strlen (name) - strlen (NAME__MAIN);
-
-		  if ((n - name) < 0 || strcmp (n, NAME__MAIN))
-		    continue;
-		  while (n != name)
-		    if (*--n != '_')
-		      continue;
-
-		  main_sym = sym;
-		}
-	      else
-		{
-		  switch (is_ctor_dtor (name))
-		    {
-		    case 1:
-		      add_to_list (&constructors, name);
-		      break;
-
-		    case 2:
-		      add_to_list (&destructors, name);
-		      break;
-
-		    default:	/* not a constructor or destructor */
-		      continue;
-		    }
-		}
-
-	      if (debug)
-		fprintf (stderr, "\ttype = 0x%.4x, sc = 0x%.2x, flags = 0x%.8x, name = %.30s\n",
-			 sym->si_type, sym->si_sc_type, sym->si_flags, name);
-	    }
-	}
-    }
-
-  if (symbol_load_cmds == 0)
-    fatal ("no symbol table found");
-
-  /* Update the program file now, rewrite header and load commands.  At present,
-     we assume that there is enough space after the last load command to insert
-     one more.  Since the first section written out is page aligned, and the
-     number of load commands is small, this is ok for the present.  */
-
-  if (rw)
-    {
-      load_union_t *load_map;
-      size_t size;
-
-      if (cmd_strings == -1)
-	fatal ("no cmd_strings found");
-
-      /* Add __main to initializer list.
-	 If we are building a program instead of a shared library, do not
-	 do anything, since in the current version, you cannot do mallocs
-	 and such in the constructors.  */
-
-      if (main_sym != (symbol_info_t *) 0
-	  && ((hdr.moh_flags & MOH_EXECABLE_F) == 0))
-	add_func_table (&hdr, load_array, main_sym, FNTC_INITIALIZATION);
-
-      if (debug)
-	notice ("\nUpdating header and load commands.\n\n");
-
-      hdr.moh_n_load_cmds++;
-      size = sizeof (load_cmd_map_command_t) + (sizeof (mo_offset_t) * (hdr.moh_n_load_cmds - 1));
-
-      /* Create new load command map.  */
-      if (debug)
-	notice ("load command map, %d cmds, new size %ld.\n",
-		(int) hdr.moh_n_load_cmds, (long) size);
-
-      load_map = (load_union_t *) xcalloc (1, size);
-      load_map->map.ldc_header.ldci_cmd_type = LDC_CMD_MAP;
-      load_map->map.ldc_header.ldci_cmd_size = size;
-      load_map->map.lcm_ld_cmd_strings = cmd_strings;
-      load_map->map.lcm_nentries = hdr.moh_n_load_cmds;
-      load_array[hdr.moh_n_load_cmds-1].load = load_map;
-
-      offset = hdr.moh_first_cmd_off;
-      for (i = 0; i < hdr.moh_n_load_cmds; i++)
-	{
-	  load_map->map.lcm_map[i] = offset;
-	  if (load_array[i].load->hdr.ldci_cmd_type == LDC_CMD_MAP)
-	    hdr.moh_load_map_cmd_off = offset;
-
-	  offset += load_array[i].load->hdr.ldci_cmd_size;
-	}
-
-      hdr.moh_sizeofcmds = offset - MO_SIZEOF_RAW_HDR;
-
-      if (debug)
-	print_header (&hdr);
-
-      /* Write header */
-      status = encode_mach_o_hdr (&hdr, obj, MO_SIZEOF_RAW_HDR);
-      if (status != MO_HDR_CONV_SUCCESS)
-	bad_header (status);
-
-      if (debug)
-	notice ("writing load commands.\n\n");
-
-      /* Write load commands */
-      offset = hdr.moh_first_cmd_off;
-      for (i = 0; i < hdr.moh_n_load_cmds; i++)
-	{
-	  load_union_t *load_hdr = load_array[i].load;
-	  size_t size = load_hdr->hdr.ldci_cmd_size;
-
-	  if (debug)
-	    print_load_command (load_hdr, offset, i);
-
-	  bcopy ((char *) load_hdr, (char *) (obj + offset), size);
-	  offset += size;
-	}
-    }
-
-  end_file (obj_file);
-
-  if (close (prog_fd))
-    fatal_perror ("close %s", prog_name);
-
-  if (debug)
-    fprintf (stderr, "\n");
-}
-
-
-/* Add a function table to the load commands to call a function
-   on initiation or termination of the process.  */
-
-static void
-add_func_table (hdr_p, load_array, sym, type)
-     mo_header_t *hdr_p;		/* pointer to global header */
-     load_all_t *load_array;		/* array of ptrs to load cmds */
-     symbol_info_t *sym;		/* pointer to symbol entry */
-     int type;				/* fntc_type value */
-{
-  /* Add a new load command.  */
-  int num_cmds = ++hdr_p->moh_n_load_cmds;
-  int load_index = num_cmds - 1;
-  size_t size = sizeof (func_table_command_t) + sizeof (mo_addr_t);
-  load_union_t *ptr = xcalloc (1, size);
-  load_all_t *load_cmd;
-  int i;
-
-  /* Set the unresolved address bit in the header to force the loader to be
-     used, since kernel exec does not call the initialization functions.  */
-  hdr_p->moh_flags |= MOH_UNRESOLVED_F;
-
-  load_cmd = &load_array[load_index];
-  load_cmd->load = ptr;
-  load_cmd->section = (char *) 0;
-
-  /* Fill in func table load command.  */
-  ptr->func.ldc_header.ldci_cmd_type = LDC_FUNC_TABLE;
-  ptr->func.ldc_header.ldci_cmd_size = size;
-  ptr->func.ldc_header.ldci_section_off = 0;
-  ptr->func.ldc_header.ldci_section_len = 0;
-  ptr->func.fntc_type = type;
-  ptr->func.fntc_nentries = 1;
-
-  /* copy address, turn it from abs. address to (region,offset) if necessary.  */
-  /* Is the symbol already expressed as (region, offset)?  */
-  if ((sym->si_flags & SI_ABSOLUTE_VALUE_F) == 0)
-    {
-      ptr->func.fntc_entry_loc[i].adr_lcid = sym->si_value.def_val.adr_lcid;
-      ptr->func.fntc_entry_loc[i].adr_sctoff = sym->si_value.def_val.adr_sctoff;
-    }
-
-  /* If not, figure out which region it's in.  */
-  else
-    {
-      mo_vm_addr_t addr = sym->si_value.abs_val;
-      int found = 0;
-
-      for (i = 0; i < load_index; i++)
-	{
-	  if (load_array[i].load->hdr.ldci_cmd_type == LDC_REGION)
-	    {
-	      region_command_t *region_ptr = &load_array[i].load->region;
-
-	      if ((region_ptr->regc_flags & REG_ABS_ADDR_F) != 0
-		  && addr >= region_ptr->regc_addr.vm_addr
-		  && addr <= region_ptr->regc_addr.vm_addr + region_ptr->regc_vm_size)
-		{
-		  ptr->func.fntc_entry_loc[0].adr_lcid = i;
-		  ptr->func.fntc_entry_loc[0].adr_sctoff = addr - region_ptr->regc_addr.vm_addr;
-		  found++;
-		  break;
-		}
-	    }
-	}
-
-      if (!found)
-	fatal ("could not convert 0x%l.8x into a region", addr);
-    }
-
-  if (debug)
-    notice ("%s function, region %d, offset = %ld (0x%.8lx)\n",
-	    type == FNTC_INITIALIZATION ? "init" : "term",
-	    (int) ptr->func.fntc_entry_loc[i].adr_lcid,
-	    (long) ptr->func.fntc_entry_loc[i].adr_sctoff,
-	    (long) ptr->func.fntc_entry_loc[i].adr_sctoff);
-
-}
-
-
-/* Print the global header for an OSF/rose object.  */
-
-static void
-print_header (hdr_ptr)
-     mo_header_t *hdr_ptr;
-{
-  fprintf (stderr, "\nglobal header:\n");
-  fprintf (stderr, "\tmoh_magic            = 0x%.8lx\n", hdr_ptr->moh_magic);
-  fprintf (stderr, "\tmoh_major_version    = %d\n", (int)hdr_ptr->moh_major_version);
-  fprintf (stderr, "\tmoh_minor_version    = %d\n", (int)hdr_ptr->moh_minor_version);
-  fprintf (stderr, "\tmoh_header_version   = %d\n", (int)hdr_ptr->moh_header_version);
-  fprintf (stderr, "\tmoh_max_page_size    = %d\n", (int)hdr_ptr->moh_max_page_size);
-  fprintf (stderr, "\tmoh_byte_order       = %d\n", (int)hdr_ptr->moh_byte_order);
-  fprintf (stderr, "\tmoh_data_rep_id      = %d\n", (int)hdr_ptr->moh_data_rep_id);
-  fprintf (stderr, "\tmoh_cpu_type         = %d\n", (int)hdr_ptr->moh_cpu_type);
-  fprintf (stderr, "\tmoh_cpu_subtype      = %d\n", (int)hdr_ptr->moh_cpu_subtype);
-  fprintf (stderr, "\tmoh_vendor_type      = %d\n", (int)hdr_ptr->moh_vendor_type);
-  fprintf (stderr, "\tmoh_load_map_cmd_off = %d\n", (int)hdr_ptr->moh_load_map_cmd_off);
-  fprintf (stderr, "\tmoh_first_cmd_off    = %d\n", (int)hdr_ptr->moh_first_cmd_off);
-  fprintf (stderr, "\tmoh_sizeofcmds       = %d\n", (int)hdr_ptr->moh_sizeofcmds);
-  fprintf (stderr, "\tmon_n_load_cmds      = %d\n", (int)hdr_ptr->moh_n_load_cmds);
-  fprintf (stderr, "\tmoh_flags            = 0x%.8lx", (long)hdr_ptr->moh_flags);
-
-  if (hdr_ptr->moh_flags & MOH_RELOCATABLE_F)
-    fprintf (stderr, ", relocatable");
-
-  if (hdr_ptr->moh_flags & MOH_LINKABLE_F)
-    fprintf (stderr, ", linkable");
-
-  if (hdr_ptr->moh_flags & MOH_EXECABLE_F)
-    fprintf (stderr, ", execable");
-
-  if (hdr_ptr->moh_flags & MOH_EXECUTABLE_F)
-    fprintf (stderr, ", executable");
-
-  if (hdr_ptr->moh_flags & MOH_UNRESOLVED_F)
-    fprintf (stderr, ", unresolved");
-
-  fprintf (stderr, "\n\n");
-  return;
-}
-
-
-/* Print a short summary of a load command.  */
-
-static void
-print_load_command (load_hdr, offset, number)
-     load_union_t *load_hdr;
-     size_t offset;
-     int number;
-{
-  mo_long_t type = load_hdr->hdr.ldci_cmd_type;
-  const char *type_str = (char *) 0;
-
-  switch (type)
-    {
-    case LDC_UNDEFINED:   type_str = "UNDEFINED";	break;
-    case LDC_CMD_MAP:	  type_str = "CMD_MAP";		break;
-    case LDC_INTERPRETER: type_str = "INTERPRETER";	break;
-    case LDC_STRINGS:	  type_str = "STRINGS";		break;
-    case LDC_REGION:	  type_str = "REGION";		break;
-    case LDC_RELOC:	  type_str = "RELOC";		break;
-    case LDC_PACKAGE:	  type_str = "PACKAGE";		break;
-    case LDC_SYMBOLS:	  type_str = "SYMBOLS";		break;
-    case LDC_ENTRY:	  type_str = "ENTRY";		break;
-    case LDC_FUNC_TABLE:  type_str = "FUNC_TABLE";	break;
-    case LDC_GEN_INFO:	  type_str = "GEN_INFO";	break;
-    }
-
-  fprintf (stderr,
-	   "cmd %2d, sz: 0x%.2lx, coff: 0x%.3lx, doff: 0x%.6lx, dlen: 0x%.6lx",
-	   number,
-	   (long) load_hdr->hdr.ldci_cmd_size,
-	   (long) offset,
-	   (long) load_hdr->hdr.ldci_section_off,
-	   (long) load_hdr->hdr.ldci_section_len);
-
-  if (type_str == (char *) 0)
-    fprintf (stderr, ", ty: unknown (%ld)\n", (long) type);
-
-  else if (type != LDC_REGION)
-    fprintf (stderr, ", ty: %s\n", type_str);
-
-  else
-    {
-      const char *region = "";
-      switch (load_hdr->region.regc_usage_type)
-	{
-	case REG_TEXT_T:	region = ", .text";	break;
-	case REG_DATA_T:	region = ", .data";	break;
-	case REG_BSS_T:		region = ", .bss";	break;
-	case REG_GLUE_T:	region = ", .glue";	break;
-#if defined (REG_RDATA_T) && defined (REG_SDATA_T) && defined (REG_SBSS_T) /*mips*/
-	case REG_RDATA_T:	region = ", .rdata";	break;
-	case REG_SDATA_T:	region = ", .sdata";	break;
-	case REG_SBSS_T:	region = ", .sbss";	break;
-#endif
-	}
-
-      fprintf (stderr, ", ty: %s, vaddr: 0x%.8lx, vlen: 0x%.6lx%s\n",
-	       type_str,
-	       (long) load_hdr->region.regc_vm_addr,
-	       (long) load_hdr->region.regc_vm_size,
-	       region);
-    }
-
-  return;
-}
-
-
-/* Fatal error when {en,de}code_mach_o_header fails.  */
-
-static void
-bad_header (status)
-     int status;
-{
-  switch (status)
-    {
-    case MO_ERROR_BAD_MAGIC:		fatal ("bad magic number");
-    case MO_ERROR_BAD_HDR_VERS:		fatal ("bad header version");
-    case MO_ERROR_BAD_RAW_HDR_VERS:	fatal ("bad raw header version");
-    case MO_ERROR_BUF2SML:		fatal ("raw header buffer too small");
-    case MO_ERROR_OLD_RAW_HDR_FILE:	fatal ("old raw header file");
-    case MO_ERROR_UNSUPPORTED_VERS:	fatal ("unsupported version");
-    default:
-      fatal ("unknown {de,en}code_mach_o_hdr return value %d", status);
-    }
-}
-
-
-/* Read a file into a memory buffer.  */
-
-static struct file_info *
-read_file (name, fd, rw)
-     const char *name;		/* filename */
-     int fd;			/* file descriptor */
-     int rw;			/* read/write */
-{
-  struct stat stat_pkt;
-  struct file_info *p = (struct file_info *) xcalloc (sizeof (struct file_info), 1);
-#ifdef USE_MMAP
-  static int page_size;
-#endif
-
-  if (fstat (fd, &stat_pkt) < 0)
-    fatal_perror ("fstat %s", name);
-
-  p->name	  = name;
-  p->size	  = stat_pkt.st_size;
-  p->rounded_size = stat_pkt.st_size;
-  p->fd		  = fd;
-  p->rw		  = rw;
-
-#ifdef USE_MMAP
-  if (debug)
-    fprintf (stderr, "mmap %s, %s\n", name, (rw) ? "read/write" : "read-only");
-
-  if (page_size == 0)
-    page_size = sysconf (_SC_PAGE_SIZE);
-
-  p->rounded_size = ((p->size + page_size - 1) / page_size) * page_size;
-  p->start = mmap ((caddr_t) 0,
-		   (rw) ? p->rounded_size : p->size,
-		   (rw) ? (PROT_READ | PROT_WRITE) : PROT_READ,
-		   MAP_FILE | MAP_VARIABLE | MAP_SHARED,
-		   fd,
-		   0L);
-
-  if (p->start != (char *) 0 && p->start != (char *) -1)
-    p->use_mmap = 1;
-
-  else
-#endif /* USE_MMAP */
-    {
-      long len;
-
-      if (debug)
-	fprintf (stderr, "read %s\n", name);
-
-      p->use_mmap = 0;
-      p->start = xmalloc (p->size);
-      if (lseek (fd, 0L, SEEK_SET) < 0)
-	fatal_perror ("lseek %s 0", name);
-
-      len = read (fd, p->start, p->size);
-      if (len < 0)
-	fatal_perror ("read %s", name);
-
-      if (len != p->size)
-	fatal ("read %ld bytes, expected %ld, from %s", len, p->size, name);
-    }
-
-  return p;
-}
-
-/* Do anything necessary to write a file back from memory.  */
-
-static void
-end_file (ptr)
-     struct file_info *ptr;	/* file information block */
-{
-#ifdef USE_MMAP
-  if (ptr->use_mmap)
-    {
-      if (ptr->rw)
-	{
-	  if (debug)
-	    fprintf (stderr, "msync %s\n", ptr->name);
-
-	  if (msync (ptr->start, ptr->rounded_size, MS_ASYNC))
-	    fatal_perror ("msync %s", ptr->name);
-	}
-
-      if (debug)
-	fprintf (stderr, "munmap %s\n", ptr->name);
-
-      if (munmap (ptr->start, ptr->size))
-	fatal_perror ("munmap %s", ptr->name);
-    }
-  else
-#endif /* USE_MMAP */
-    {
-      if (ptr->rw)
-	{
-	  long len;
-
-	  if (debug)
-	    fprintf (stderr, "write %s\n", ptr->name);
-
-	  if (lseek (ptr->fd, 0L, SEEK_SET) < 0)
-	    fatal_perror ("lseek %s 0", ptr->name);
-
-	  len = write (ptr->fd, ptr->start, ptr->size);
-	  if (len < 0)
-	    fatal_perror ("write %s", ptr->name);
-
-	  if (len != ptr->size)
-	    fatal ("wrote %ld bytes, expected %ld, to %s", len, ptr->size, ptr->name);
-	}
-
-      free (ptr->start);
-    }
-
-  free (ptr);
-}
-
-#endif /* OBJECT_FORMAT_ROSE */
