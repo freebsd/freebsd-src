@@ -383,15 +383,21 @@ literal:
 				wcp = va_arg(ap, wchar_t *);
 				n = 0;
 				while (width != 0) {
-					if (n == MB_CUR_MAX)
+					if (n == MB_CUR_MAX) {
+						fp->_flags |= __SERR;
 						goto input_failure;
+					}
 					buf[n++] = *fp->_p;
 					fp->_p++;
 					fp->_r--;
 					memset(&mbs, 0, sizeof(mbs));
 					nconv = mbrtowc(wcp, buf, n, &mbs);
-					if (nconv == 0 || nconv == (size_t)-1)
+					if (nconv == (size_t)-1) {
+						fp->_flags |= __SERR;
 						goto input_failure;
+					}
+					if (nconv == 0)
+						*wcp = L'\0';
 					if (nconv != (size_t)-2) {
 						nread += n;
 						width--;
@@ -399,8 +405,10 @@ literal:
 						n = 0;
 					}
 					if (fp->_r <= 0 && __srefill(fp)) {
-						if (n != 0)
+						if (n != 0) {
+							fp->_flags |= __SERR;
 							goto input_failure;
+						}
 						break;
 					}
 				}
@@ -440,15 +448,21 @@ literal:
 				wcp = wcp0 = va_arg(ap, wchar_t *);
 				n = 0;
 				while (width != 0) {
-					if (n == MB_CUR_MAX)
+					if (n == MB_CUR_MAX) {
+						fp->_flags |= __SERR;
 						goto input_failure;
+					}
 					buf[n++] = *fp->_p;
 					fp->_p++;
 					fp->_r--;
 					memset(&mbs, 0, sizeof(mbs));
 					nconv = mbrtowc(wcp, buf, n, &mbs);
-					if (nconv == 0 || nconv == (size_t)-1)
+					if (nconv == (size_t)-1) {
+						fp->_flags |= __SERR;
 						goto input_failure;
+					}
+					if (nconv == 0)
+						*wcp = L'\0';
 					if (nconv != (size_t)-2) {
 						if (wctob(*wcp) != EOF &&
 						    !ccltab[wctob(*wcp)]) {
@@ -463,13 +477,17 @@ literal:
 						n = 0;
 					}
 					if (fp->_r <= 0 && __srefill(fp)) {
-						if (n != 0)
+						if (n != 0) {
+							fp->_flags |= __SERR;
 							goto input_failure;
+						}
 						break;
 					}
 				}
-				if (n != 0)
+				if (n != 0) {
+					fp->_flags |= __SERR;
 					goto input_failure;
+				}
 				n = wcp - wcp0;
 				if (n == 0)
 					goto match_failure;
@@ -516,15 +534,21 @@ literal:
 				wcp = va_arg(ap, wchar_t *);
 				n = 0;
 				while (!isspace(*fp->_p) && width != 0) {
-					if (n == MB_CUR_MAX)
+					if (n == MB_CUR_MAX) {
+						fp->_flags |= __SERR;
 						goto input_failure;
+					}
 					buf[n++] = *fp->_p;
 					fp->_p++;
 					fp->_r--;
 					memset(&mbs, 0, sizeof(mbs));
 					nconv = mbrtowc(wcp, buf, n, &mbs);
-					if (nconv == 0 || nconv == (size_t)-1)
+					if (nconv == (size_t)-1) {
+						fp->_flags |= __SERR;
 						goto input_failure;
+					}
+					if (nconv == 0)
+						*wcp = L'\0';
 					if (nconv != (size_t)-2) {
 						if (iswspace(*wcp)) {
 							while (--n > 0)
@@ -538,8 +562,10 @@ literal:
 						n = 0;
 					}
 					if (fp->_r <= 0 && __srefill(fp)) {
-						if (n != 0)
+						if (n != 0) {
+							fp->_flags |= __SERR;
 							goto input_failure;
+						}
 						break;
 					}
 				}
