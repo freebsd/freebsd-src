@@ -63,6 +63,9 @@ static char sccsid[] = "@(#)mount_cd9660.c	8.4 (Berkeley) 3/27/94";
 struct mntopt mopts[] = {
 	MOPT_STDOPTS,
 	MOPT_UPDATE,
+	{ "extatt", 0, ISOFSMNT_EXTATT, 1 },
+	{ "gens", 0, ISOFSMNT_GENS, 1 },
+	{ "rrip", 1, ISOFSMNT_NORRIP, 1 },
 	{ NULL }
 };
 
@@ -88,7 +91,7 @@ main(argc, argv)
 			opts |= ISOFSMNT_GENS;
 			break;
 		case 'o':
-			getmntopts(optarg, mopts, &mntflags);
+			getmntopts(optarg, mopts, &mntflags, &opts);
 			break;
 		case 'r':
 			opts |= ISOFSMNT_NORRIP;

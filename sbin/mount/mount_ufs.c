@@ -81,7 +81,7 @@ mount_ufs(argc, argv)
 	while ((ch = getopt(argc, argv, "o:")) != EOF)
 		switch (ch) {
 		case 'o':
-			getmntopts(optarg, mopts, &mntflags);
+			getmntopts(optarg, mopts, &mntflags, 0);
 			break;
 		case '?':
 		default:

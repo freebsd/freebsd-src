@@ -29,7 +29,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: mount_msdos.c,v 1.1 1994/09/19 15:30:36 dfr Exp $";
+static char rcsid[] = "$Id: mount_msdos.c,v 1.2 1994/09/22 22:16:35 wollman Exp $";
 #endif /* not lint */
 
 #include <sys/cdefs.h>
@@ -87,7 +87,7 @@ main(argc, argv)
 			set_mask = 1;
 			break;
 		case 'o':
-			getmntopts(optarg, mopts, &mntflags);
+			getmntopts(optarg, mopts, &mntflags, 0);
 			break;
 		case '?':
 		default:
