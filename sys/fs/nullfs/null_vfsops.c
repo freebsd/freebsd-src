@@ -223,8 +223,9 @@ nullfs_unmount(mp, mntflags, td)
 }
 
 static int
-nullfs_root(mp, vpp, td)
+nullfs_root(mp, flags, vpp, td)
 	struct mount *mp;
+	int flags;
 	struct vnode **vpp;
 	struct thread *td;
 {

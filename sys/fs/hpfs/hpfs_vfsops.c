@@ -306,7 +306,7 @@ hpfs_mountfs(devvp, mp, td)
 		goto failed;
 	}
 
-	error = hpfs_root(mp, &vp, td);
+	error = hpfs_root(mp, LK_EXCLUSIVE, &vp, td);
 	if (error) {
 		hpfs_cpdeinit(hpmp);
 		hpfs_bmdeinit(hpmp);
@@ -371,6 +371,7 @@ hpfs_unmount(
 static int
 hpfs_root(
 	struct mount *mp,
+	int flags,
 	struct vnode **vpp,
 	struct thread *td )
 {

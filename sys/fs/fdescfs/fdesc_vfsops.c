@@ -126,8 +126,9 @@ fdesc_unmount(mp, mntflags, td)
 }
 
 static int
-fdesc_root(mp, vpp, td)
+fdesc_root(mp, flags, vpp, td)
 	struct mount *mp;
+	int flags;
 	struct vnode **vpp;
 	struct thread *td;
 {
