@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.148 1996/05/11 23:16:23 joerg Exp $
+ *  $Id: syscons.c,v 1.149 1996/05/12 12:36:59 joerg Exp $
  */
 
 #include "sc.h"
@@ -291,6 +291,54 @@ scresume(void *dummy)
 	return 0;
 }
 #endif
+
+/*
+ * These functions need to be before calls to them so they can be inlined.
+ */
+static inline void
+draw_cursor(scr_stat *scp, int show)
+{
+    if (show && !(scp->status & CURSOR_SHOWN)) {
+	u_short cursor_image = *(Crtat + (scp->cursor_pos - scp->scr_buf));
+
+	scp->cursor_saveunder = cursor_image;
+	if (configuration & CHAR_CURSOR) {
+	    set_destructive_cursor(scp, FALSE);
+	    cursor_image = (cursor_image & 0xff00) | DEAD_CHAR;
+	}
+	else {
+	    if ((cursor_image & 0x7000) == 0x7000) {
+		cursor_image &= 0x8fff;
+		if(!(cursor_image & 0x0700))
+		    cursor_image |= 0x0700;
+	    } else {
+		cursor_image |= 0x7000;
+		if ((cursor_image & 0x0700) == 0x0700)
+		    cursor_image &= 0xf0ff;
+	    }
+	}
+	*(Crtat + (scp->cursor_pos - scp->scr_buf)) = cursor_image;
+	mark_for_update(scp, scp->cursor_pos - scp->scr_buf);
+	scp->status |= CURSOR_SHOWN;
+    }
+    if (!show && (scp->status & CURSOR_SHOWN)) {
+	*(Crtat + (scp->cursor_pos - scp->scr_buf)) = scp->cursor_saveunder;
+	mark_for_update(scp, scp->cursor_pos - scp->scr_buf);
+	scp->status &= ~CURSOR_SHOWN;
+    }
+}
+
+static inline void
+move_crsr(scr_stat *scp, int x, int y)
+{
+    if (x < 0 || y < 0 || x >= scp->xsize || y >= scp->ysize)
+	return;
+    scp->xpos = x;
+    scp->ypos = y;
+    mark_for_update(scp, scp->cursor_pos - scp->scr_buf);
+    scp->cursor_pos = scp->scr_buf + scp->ypos * scp->xsize + scp->xpos;
+    mark_for_update(scp, scp->cursor_pos - scp->scr_buf);
+}
 
 static int
 scattach(struct isa_device *dev)
@@ -1392,18 +1440,6 @@ exchange_scr(void)
     new_scp->status &= ~CURSOR_SHOWN;
 }
 
-static inline void
-move_crsr(scr_stat *scp, int x, int y)
-{
-    if (x < 0 || y < 0 || x >= scp->xsize || y >= scp->ysize)
-	return;
-    scp->xpos = x;
-    scp->ypos = y;
-    mark_for_update(scp, scp->cursor_pos - scp->scr_buf);
-    scp->cursor_pos = scp->scr_buf + scp->ypos * scp->xsize + scp->xpos;
-    mark_for_update(scp, scp->cursor_pos - scp->scr_buf);
-}
-
 static void
 scan_esc(scr_stat *scp, u_char c)
 {
@@ -1896,39 +1932,6 @@ scan_esc(scr_stat *scp, u_char c)
 	}
     }
     scp->term.esc = 0;
-}
-
-static inline void
-draw_cursor(scr_stat *scp, int show)
-{
-    if (show && !(scp->status & CURSOR_SHOWN)) {
-	u_short cursor_image = *(Crtat + (scp->cursor_pos - scp->scr_buf));
-
-	scp->cursor_saveunder = cursor_image;
-	if (configuration & CHAR_CURSOR) {
-	    set_destructive_cursor(scp, FALSE);
-	    cursor_image = (cursor_image & 0xff00) | DEAD_CHAR;
-	}
-	else {
-	    if ((cursor_image & 0x7000) == 0x7000) {
-		cursor_image &= 0x8fff;
-		if(!(cursor_image & 0x0700))
-		    cursor_image |= 0x0700;
-	    } else {
-		cursor_image |= 0x7000;
-		if ((cursor_image & 0x0700) == 0x0700)
-		    cursor_image &= 0xf0ff;
-	    }
-	}
-	*(Crtat + (scp->cursor_pos - scp->scr_buf)) = cursor_image;
-	mark_for_update(scp, scp->cursor_pos - scp->scr_buf);
-	scp->status |= CURSOR_SHOWN;
-    }
-    if (!show && (scp->status & CURSOR_SHOWN)) {
-	*(Crtat + (scp->cursor_pos - scp->scr_buf)) = scp->cursor_saveunder;
-	mark_for_update(scp, scp->cursor_pos - scp->scr_buf);
-	scp->status &= ~CURSOR_SHOWN;
-    }
 }
 
 static void
