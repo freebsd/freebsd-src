@@ -36,11 +36,11 @@
 .\"     @(#)exit.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd September 6, 2002
+.Dd September 9, 2002
 .Dt EXIT 3
 .Os
 .Sh NAME
-.Nm exit
+.Nm exit , _Exit
 .Nd perform normal program termination
 .Sh LIBRARY
 .Lb libc
@@ -48,12 +48,18 @@
 .In stdlib.h
 .Ft void
 .Fn exit "int status"
+.Ft void
+.Fn _Exit "int status"
 .Sh DESCRIPTION
-.Fn Exit
-terminates a process.
+The
+.Fn exit
+and
+.Fn _Exit
+functions terminate a process.
 .Pp
-Before termination it performs the following functions in the
-order listed:
+Before termination,
+.Fn exit
+performs the following functions in the order listed:
 .Bl -enum -offset indent
 .It
 Call the functions registered with the
@@ -69,16 +75,31 @@ Unlink all files created with the
 function.
 .El
 .Pp
-Passing arbitrary values back to the environment as
-.Ar status
-is considered bad style;
-you should use the values
-.Dv EXIT_SUCCESS
+The
+.Fn _Exit
+function terminates without calling the functions registered with the
+.Xr atexit 3
+function, and may or may not perform the other actions listed.
+Both functions make the low-order eight bits of the
+.Fa status
+argument available to a parent process which has called a
+.Xr wait 2 Ns -family
+function.
+.Pp
+The C Standard
+.Pq St -isoC-99
+defines the values
+.Li 0 ,
+.Dv EXIT_SUCCESS ,
 and
-.Dv EXIT_FAILURE .
-If portability is not a concern, you may
-use the values described in
-.Xr sysexits 3 .
+.Dv EXIT_FAILURE
+as possible values of
+.Fa status .
+Cooperating processes may use other values;
+in a program which might be called by a mail transfer agent, the
+the values described in
+.Xr sysexits 3
+may be used to provide more information to the parent process.
 .Pp
 Note that
 .Fn exit
@@ -87,16 +108,19 @@ using
 .Xr atexit 3
 itself call
 .Fn exit .
-Such functions should call
-.Xr _exit 2
+Such functions must call
+.Fn _Exit
 instead (although this has other effects as well which may not be desired).
 .Sh RETURN VALUES
 The
 .Fn exit
-function
-never returns.
+and
+.Fn _Exit
+functions
+never return.
 .Sh SEE ALSO
 .Xr _exit 2 ,
+.Xr wait 2 ,
 .Xr atexit 3 ,
 .Xr intro 3 ,
 .Xr sysexits 3 ,
@@ -104,6 +128,7 @@ never returns.
 .Sh STANDARDS
 The
 .Fn exit
-function
-conforms to
-.St -isoC .
+and
+.Fn _Exit
+functions conform to
+.St -isoC-99 .
