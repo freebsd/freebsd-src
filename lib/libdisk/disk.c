@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: disk.c,v 1.19.2.2 1995/06/05 02:24:27 jkh Exp $
+ * $Id: disk.c,v 1.20 1995/06/11 19:29:34 rgrimes Exp $
  *
  */
 
@@ -26,7 +26,7 @@
 #define DOSPTYP_EXTENDED        5
 #define DOSPTYP_ONTRACK         84
 
-char *chunk_n[] = {
+const char *chunk_n[] = {
 	"whole",
 	"unknown",
 	"fat",
@@ -38,13 +38,13 @@ char *chunk_n[] = {
 };
 
 struct disk *
-Open_Disk(char *name)
+Open_Disk(const char *name)
 {
 	return Int_Open_Disk(name,0);
 }
 
 struct disk *
-Int_Open_Disk(char *name, u_long size)
+Int_Open_Disk(const char *name, u_long size)
 {
 	int i,fd;
 	struct diskslices ds;
@@ -300,7 +300,7 @@ Disk_Names()
 }
 
 void
-Set_Boot_Mgr(struct disk *d, u_char *b)
+Set_Boot_Mgr(struct disk *d, const u_char *b)
 {
 	if (d->bootmgr)
 		free(d->bootmgr);
@@ -314,7 +314,7 @@ Set_Boot_Mgr(struct disk *d, u_char *b)
 }
 
 void
-Set_Boot_Blocks(struct disk *d, u_char *b1, u_char *b2)
+Set_Boot_Blocks(struct disk *d, const u_char *b1, const u_char *b2)
 {
 	if (d->boot1) free(d->boot1);
 	d->boot1 = malloc(512);
