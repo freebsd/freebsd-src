@@ -124,7 +124,7 @@ struct rc_softc {
 };
 
 /* Static prototypes */
-static int  rc_break(struct tty *, int);
+static void rc_break(struct tty *, int);
 static void rc_release_resources(device_t dev);
 static void rc_intr(void *);
 static void rc_hwreset(struct rc_softc *, unsigned int);
@@ -1287,7 +1287,7 @@ rc_modem(struct tty *tp, int biton, int bitoff)
 	return 0;
 }
 
-static int
+static void
 rc_break(struct tty *tp, int brk)
 {
 	struct rc_chans *rc;
@@ -1298,7 +1298,6 @@ rc_break(struct tty *tp, int brk)
 		rc->rc_pendcmd = CD180_C_SBRK;
 	else
 		rc->rc_pendcmd = CD180_C_EBRK;
-	return (0);
 }
 
 #define ERR(s) do {							\
