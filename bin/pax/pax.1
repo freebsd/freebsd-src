@@ -387,7 +387,7 @@ to perform an append operation.
 Any attempt to append to an archive stored on such a device may damage the
 archive or have other unpredictable results.
 Tape drives in particular are more likely to not support an append operation.
-An archive stored in a regular filesystem file or on a disk device will
+An archive stored in a regular file system file or on a disk device will
 usually support an append operation.
 .It Fl b Ar blocksize
 When
@@ -644,11 +644,11 @@ Ignore files that are older (having a less recent file modification time)
 than a pre-existing file or archive member with the same name.
 During
 .Em read ,
-an archive member with the same name as a file in the filesystem will be
+an archive member with the same name as a file in the file system will be
 extracted if the archive member is newer than the file.
 During
 .Em write ,
-a filesystem member with the same name as an archive member will be
+a file system member with the same name as an archive member will be
 written to the archive if it is newer than the archive member.
 During
 .Em copy ,
@@ -738,7 +738,7 @@ files,
 .Em  hard links , soft links ,
 and
 .Em  directories
-will be archived (other filesystem types are not supported).
+will be archived (other file system types are not supported).
 For backwards compatibility with even older tar formats, a
 .Fl o
 option can be used when writing an archive to omit the storage of directories.
@@ -841,9 +841,9 @@ options may be supplied and checking stops with the first match.
 Follow only command line symbolic links while performing a physical file
 system traversal.
 .It Fl L
-Follow all symbolic links to perform a logical filesystem traversal.
+Follow all symbolic links to perform a logical file system traversal.
 .It Fl P
-Do not follow symbolic links, perform a physical filesystem traversal.
+Do not follow symbolic links, perform a physical file system traversal.
 This is the default mode.
 .It Fl T Ar [from_date][,to_date][/[c][m]]
 Allow files to be selected based on a file modification or inode change

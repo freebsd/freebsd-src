@@ -655,7 +655,7 @@ mod_name(ARCHD *arcn)
 	 * anyway). But there are no such requirements for symlinks. On one
 	 * hand the symlink that refers to a file in the archive will have to
 	 * be modified to so it will still work at its new location in the
-	 * filesystem. On the other hand a symlink that points elsewhere (and
+	 * file system. On the other hand a symlink that points elsewhere (and
 	 * should continue to do so) should not be modified. There is clearly
 	 * no perfect solution here. So we handle them like hardlinks. Clearly
 	 * a replacement made by the interactive rename mapping is very likely

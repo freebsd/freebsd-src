@@ -124,7 +124,7 @@ links.
 A hard link to a file is indistinguishable from the original directory entry;
 any changes to a file are effectively independent of the name used to reference
 the file.
-Hard links may not normally refer to directories and may not span filesystems.
+Hard links may not normally refer to directories and may not span file systems.
 .Pp
 A symbolic link contains the name of the file to
 which it is linked.  The referenced file is used when an
@@ -138,7 +138,7 @@ must be done to obtain information about the link.
 The
 .Xr readlink  2
 call may be used to read the contents of a symbolic link.
-Symbolic links may span filesystems and may refer to directories.
+Symbolic links may span file systems and may refer to directories.
 .Pp
 Given one or two arguments,
 .Nm
