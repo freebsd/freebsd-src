@@ -4,7 +4,7 @@
 PROG=	keyinfo
 CFLAGS+=-Wall
 DPADD=	${LIBSKEY} ${LIBMD}
-LDADD=	-lskey -lmd
+LDADD=	-lskey -lcrypt -lmd
 BINMODE=4555
 
 .include <bsd.prog.mk>
