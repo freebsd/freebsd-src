@@ -173,7 +173,7 @@ ad_attach(void *notused)
 
 		/* use multiple sectors/interrupt if device supports it */
 		adp->transfersize = DEV_BSIZE;
-		secsperint = min(adp->ata_parm->nsecperint, 16);
+		secsperint = max(1, min(adp->ata_parm->nsecperint, 16));
 		if (!ata_command(adp->controller, adp->unit, ATA_C_SET_MULTI,
 				 0, 0, 0, secsperint, 0, ATA_WAIT_INTR) &&
 		    ata_wait(adp->controller, adp->unit, ATA_S_READY) >= 0)
