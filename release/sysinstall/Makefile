@@ -4,15 +4,11 @@ CLEANFILES=	makedevs.c rtermcap
 
 .PATH: ${.CURDIR}/../disklabel ${.CURDIR}/../../usr.bin/cksum
 
-SRCS=	globals.c	main.c		dmenu.c			\
-	menus.c		misc.c		msg.c			\
-	system.c	install.c	termcap.c		\
-	media.c		variable.c	devices.c		\
-	dist.c		lang.c		wizard.c		\
-	disks.c		command.c	decode.c		\
-	label.c		tcpip.c		media_strategy.c	\
-	makedevs.c	ftp.c		config.c		\
-	crc.c
+SRCS=	attr.c cdrom.c command.c config.c crc.c decode.c devices.c disks.c dist.c \
+	dmenu.c dos.c floppy.c ftp.c ftp_strat.c globals.c install.c label.c lang.c \
+	main.c makedevs.c media.c menus.c misc.c msg.c network.c nfs.c system.c tape.c \
+	tcpip.c termcap.c ufs.c variable.c wizard.c
+
 
 CFLAGS+=	-Wall -g -I${.CURDIR}/../libdisk \
 		-I${.CURDIR}/../../gnu/lib/libdialog

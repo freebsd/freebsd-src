@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.24 1995/05/26 10:58:50 jkh Exp $
+ * $Id: dist.c,v 1.25 1995/05/26 22:22:20 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -226,7 +226,7 @@ distExtract(char *parent, Distribution *me)
 
     status = 0;
     if (mediaDevice->init)
-	if ((*mediaDevice->init)(mediaDevice) == FALSE)
+	if (!(*mediaDevice->init)(mediaDevice))
 	    return 0;
     for (i = 0; me[i].my_name; i++) {
 	if (me[i].my_bit & *(me[i].my_mask)) {
@@ -257,9 +257,10 @@ distExtract(char *parent, Distribution *me)
 	    }
 	}
     }
-    if (mediaDevice->shutdown)
+    if (mediaDevice->shutdown && parent == NULL) {
 	(*mediaDevice->shutdown)(mediaDevice);
-    mediaDevice = NULL;
+	mediaDevice = NULL;
+    }
     return status;
 }
 
