@@ -780,6 +780,10 @@ msdosfs_write(ap)
 		 * Copy the data from user space into the buf header.
 		 */
 		error = uiomove(bp->b_data + croffset, n, uio);
+		if (error) {
+			brelse(bp);
+			break;
+		}
 
 		/*
 		 * If they want this synchronous then write it and wait for
