@@ -38,27 +38,27 @@
  */
 
 #include <sys/param.h>
-#include <sys/systm.h>
 #include <sys/assym.h>
-#include <sys/proc.h>
-#include <sys/bio.h>
-#include <sys/buf.h>
 #include <sys/errno.h>
-#include <sys/socket.h>
-#include <sys/mount.h>
-#include <sys/mutex.h>
-#include <sys/resource.h>
-#include <sys/resourcevar.h>
 #include <sys/ktr.h>
+#include <sys/proc.h>
+#include <sys/queue.h>
+#include <sys/signal.h>
+#include <sys/smp.h>
+#include <sys/systm.h>
+#include <sys/ucontext.h>
+#include <sys/user.h>
+#include <sys/ucontext.h>
 #include <sys/vmmeter.h>
+
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
-#include <net/if.h>
-#include <netinet/in.h>
+
 #include <machine/pcb.h>
 #include <machine/pmap.h>
+#include <machine/sigframe.h>
 
 ASSYM(PC_CURTHREAD, offsetof(struct pcpu, pc_curthread));
 ASSYM(PC_CURPCB, offsetof(struct pcpu, pc_curpcb));
@@ -149,3 +149,5 @@ ASSYM(KE_FLAGS, offsetof(struct kse, ke_flags));
 
 ASSYM(KEF_ASTPENDING, KEF_ASTPENDING);
 ASSYM(KEF_NEEDRESCHED, KEF_NEEDRESCHED);
+
+ASSYM(SF_UC, offsetof(struct sigframe, sf_uc));
