@@ -99,9 +99,6 @@ struct ngd_softc {
 	char nodename[NG_NODELEN + 1];
 } ngd_softc;
 
-/* helper definition */
-#define		MIN(a, b)	((a) < (b) ? (a) : (b))
-
 /* the per connection receiving queue maximum */
 #define NGD_QUEUE_SIZE (1024*10)
 

@@ -149,7 +149,6 @@
 #include <sys/selinfo.h>
 #include <sys/poll.h>
 #include <sys/bus.h>
-#define MIN(a,b)	((a)<(b)?(a):(b))
 
 #ifdef HIRESTIME
 #include <sys/time.h>
