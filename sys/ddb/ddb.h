@@ -39,8 +39,8 @@
 
 #include <machine/db_machdep.h>		/* type definitions */
 
-typedef void db_cmdfcn_t(db_expr_t addr, boolean_t have_addr,
-			      db_expr_t count, char *modif);
+typedef void db_cmdfcn_t(db_expr_t addr, boolean_t have_addr, db_expr_t count,
+	    char *modif);
 
 #define DB_COMMAND(cmd_name, func_name) \
 	DB_SET(cmd_name, func_name, db_cmd_set)

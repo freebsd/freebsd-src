@@ -95,16 +95,12 @@ void		db_printsym(db_expr_t, db_strategy_t);
 int		db_sym_numargs(c_db_sym_t, int *, char **);
 
 boolean_t	X_db_line_at_pc(db_symtab_t *symtab, c_db_sym_t cursym,
-				     char **filename, int *linenum,
-				     db_expr_t off);
+		    char **filename, int *linenum, db_expr_t off);
 c_db_sym_t	X_db_lookup(db_symtab_t *stab, const char *symstr);
 c_db_sym_t	X_db_search_symbol(db_symtab_t *symtab, db_addr_t off,
-					db_strategy_t strategy,
-					db_expr_t *diffp);
-int		X_db_sym_numargs(db_symtab_t *, c_db_sym_t, int *,
-				      char **);
-void		X_db_symbol_values(db_symtab_t *symtab,
-					c_db_sym_t sym, const char **namep,
-					db_expr_t *valuep);
+		    db_strategy_t strategy, db_expr_t *diffp);
+int		X_db_sym_numargs(db_symtab_t *, c_db_sym_t, int *, char **);
+void		X_db_symbol_values(db_symtab_t *symtab, c_db_sym_t sym,
+		    const char **namep, db_expr_t *valuep);
 
 #endif /* !_DDB_DB_SYM_H_ */
