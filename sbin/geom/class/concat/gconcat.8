@@ -137,6 +137,22 @@ Force the removal of the specified concatenated device.
 .It Fl v
 Be more verbose.
 .El
+.Sh SYSCTL VARIABLES
+The following
+.Xr sysctl 8
+variables can be used to control the behavior of the
+.Nm CONCAT
+GEOM class.
+The default value is shown next to each variable.
+.Bl -tag -width indent
+.It Va kern.geom.concat.debug : No 0
+Debug level of the
+.Nm CONCAT
+GEOM class.
+This can be set to a number between 0 and 3, both included.
+If set to 0 minimal debug information is printed, and if set to 3 the
+maximum amount of debug information in printed.
+.El
 .Sh EXAMPLES
 The following example shows how to configure four disks for automatic
 concatenation, create a file system on it, and mount it:
@@ -153,9 +169,11 @@ gconcat unload
 Exit status is 0 on success, and 1 if the command fails.
 .Sh SEE ALSO
 .Xr geom 4 ,
+.Xr loader.conf 5 ,
 .Xr geom 8 ,
 .Xr mount 8 ,
 .Xr newfs 8 ,
+.Xr sysctl 8 ,
 .Xr umount 8 ,
 .Xr vinum 8
 .Sh HISTORY
