@@ -66,10 +66,12 @@ speeds as above for 802.11a operation and
 1Mbps, 2Mbps, 5.5 Mbps and 11Mbps for 802.11b operation.
 AR5212-based devices support 802.11a, 802.11b, and 802.11g operation
 with transmit speeds appropriate to each.
-All chips also support an Atheros Turbo Mode (TM) that operates in the 802.11a frequency range with 2x the transmit speeds.
+All chips also support an Atheros Turbo Mode (TM) that operates in
+the 802.11a frequency range with 2x the transmit speeds.
 (This mode is, however, only interoperable with other Atheros-based devices.)
 The actual transmit speed used is dependent on signal quality and the
-``rate control'' algorithm employed by the driver.
+.Dq "rate control"
+algorithm employed by the driver.
 All chips support WEP encryption.
 AR5211 and AR5212 support the AES, TKIP, and Michael cryptographic
 operations required for WPA but at this time the driver does not support them.
@@ -312,7 +314,6 @@ have overlapping channels.
 Revision A1 of the D-LINK DWL-G520 and DWL-G650 are based on an
 Intersil PrismGT chip and are not supported by this driver.
 .Sh BUGS
-.Pp
 Performance in lossy environments is suboptimal.
 The algorithm used to select the rate for transmitted packets is
 very simplistic.
