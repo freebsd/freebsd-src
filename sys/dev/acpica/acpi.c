@@ -458,6 +458,7 @@ acpi_attach(device_t dev)
      */
     sc->acpi_enabled = 1;
     sc->acpi_sstate = ACPI_STATE_S0;
+    sc->acpi_sleep_disabled = 0;
 
     /*
      * Create the control device
@@ -1296,6 +1297,13 @@ acpi_AppendBufferResource(ACPI_BUFFER *buf, ACPI_RESOURCE *res)
     return(AE_OK);
 }
 
+#define ACPI_MINIMUM_AWAKETIME	5
+
+static void
+acpi_sleep_enable(void *arg)
+{
+    ((struct acpi_softc *)arg)->acpi_sleep_disabled = 0;
+}
 
 /*
  * Set the system sleep state
@@ -1314,6 +1322,9 @@ acpi_SetSleepState(struct acpi_softc *sc, int state)
 
     if (sc->acpi_sstate != ACPI_STATE_S0)
 	return_ACPI_STATUS(AE_BAD_PARAMETER);	/* avoid reentry */
+
+    if (sc->acpi_sleep_disabled)
+	return_ACPI_STATUS(AE_OK);
 
     switch (state) {
     case ACPI_STATE_S0:	/* XXX only for testing */
@@ -1356,6 +1367,7 @@ acpi_SetSleepState(struct acpi_softc *sc, int state)
 	}
 
 	sc->acpi_sstate = state;
+	sc->acpi_sleep_disabled = 1;
 
 	if (state != ACPI_STATE_S1) {
 	    acpi_sleep_machdep(sc, state);
@@ -1392,6 +1404,10 @@ acpi_SetSleepState(struct acpi_softc *sc, int state)
 	status = AE_BAD_PARAMETER;
 	break;
     }
+
+    if (sc->acpi_sleep_disabled)
+	timeout(acpi_sleep_enable, (caddr_t)sc, hz * ACPI_MINIMUM_AWAKETIME);
+
     return_ACPI_STATUS(status);
 }
 
