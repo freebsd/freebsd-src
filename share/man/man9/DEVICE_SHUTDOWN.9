@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 16, 1998
+.Dd January 6, 2005
 .Dt DEVICE_SHUTDOWN 9
 .Os
 .Sh NAME
@@ -40,7 +40,9 @@
 .Ft int
 .Fn DEVICE_SHUTDOWN "device_t dev"
 .Sh DESCRIPTION
-This is called during system shutdown to allow the driver to put the
+The
+.Fn DEVICE_SHUTDOWN
+method is called during system shutdown to allow the driver to put the
 hardware into a consistent state for rebooting the computer.
 .Sh RETURN VALUES
 Zero is returned on success, otherwise an error is returned.
