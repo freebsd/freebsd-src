@@ -75,17 +75,17 @@ for a description of the file layout.
 .Sy "Name	Type	Default	Description
 .It "af	str" Ta Dv NULL Ta No "name of accounting file"
 .It "br	num	none	if lp is a tty, set the baud rate"
-.Pf ( Xr ioctl 2
+.Xr ( ioctl 2
 call)
 .It "cf	str" Ta Dv NULL Ta No "cifplot data filter"
 .It "ct	num	120	TCP connection timeout in seconds"
 .It "df	str" Ta Dv NULL Ta No "tex data filter"
-.Pf ( Tn DVI
+.Tn ( DVI
 format)
 .It "ff	str" Ta So Li \ef Sc Ta No "string to send for a form feed"
 .It "fo	bool	false	print a form feed when device is opened"
 .It "gf	str" Ta Dv NULL Ta No "graph data filter"
-.Pf ( Xr plot 3
+.Xr ( plot 3
 format
 .It "hl	bool	false	print the burst header page last"
 .It "ic	bool	false	driver supports (non standard) ioctl to indent printout"
@@ -94,7 +94,8 @@ format
 .It "lo	str" Ta Pa lock Ta No "name of lock file"
 .It "lp	str" Ta Pa /dev/lp Ta No "device name to open for output"
 .It "mc	num	0	maximum number of copies which can be requested on"
-.Xr lpr 1 , zero = unlimited
+.Xr lpr 1 ,
+zero = unlimited
 .It "ms	str" Ta Dv NULL Ta No "if lp is a tty, a comma-separated,"
 .Xr stty 1 Ns -like
 list describing the tty modes
@@ -328,17 +329,20 @@ will therefore happen before
 is executed rather than afterwards.
 .Pp
 There are some models of network printers which accept jobs from
-.Xr lpd 8 , but they ignore the control file for a job and simply print
+.Xr lpd 8 ,
+but they ignore the control file for a job and simply print
 each data file as it arrives at the printer.
 One side-effect of this behavior is that the printer will ignore any request
 for multiple copies as given with the
 .Fl #
 flag on the
-.Xr lpr 1 command.
+.Xr lpr 1
+command.
 The
 .Cm rc
 entry will cause
-.Xr lpd 8 to resend each data file for each copy that the user
+.Xr lpd 8
+to resend each data file for each copy that the user
 originally requested.
 Note that the
 .Cm rc
