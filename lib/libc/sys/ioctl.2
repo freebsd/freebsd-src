@@ -31,6 +31,8 @@
 .\"
 .\"     @(#)ioctl.2	8.2 (Berkeley) 12/11/93
 .\"
+.\"	$Id$
+.\"
 .Dd December 11, 1993
 .Dt IOCTL 2
 .Os BSD 4
@@ -40,7 +42,7 @@
 .Sh SYNOPSIS
 .Fd #include <sys/ioctl.h>
 .Ft int
-.Fn ioctl "int d" "unsigned long request" "..."
+.Fn ioctl "int d" "unsigned long request" ...
 .Sh DESCRIPTION
 The
 .Fn ioctl
