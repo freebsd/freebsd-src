@@ -25,6 +25,8 @@
  *
  *  A <label> is an <undef-sym> ending in a colon.  Spaces, tabs, and commas
  *  are token separators.
+ *	
+ *	$Id$
  */
 
 /* #define _POSIX_SOURCE	1 */
