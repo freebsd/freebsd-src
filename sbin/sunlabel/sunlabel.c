@@ -104,8 +104,6 @@ static int edit_label(struct sun_disklabel *sl, const char *disk,
 static int parse_label(struct sun_disklabel *sl, const char *file);
 static void print_label(struct sun_disklabel *sl, const char *disk, FILE *out);
 
-static uint16_t checksum(struct sun_disklabel *sl);
-
 static int parse_size(struct sun_disklabel *sl, int part, char *size);
 static int parse_offset(struct sun_disklabel *sl, int part, char *offset);
 
@@ -171,8 +169,8 @@ main(int ac, char **av)
 			usage();
 		read_label(&sl, disk);
 		bzero(sl.sl_part, sizeof(sl.sl_part));
-		sl.sl_part[2].sdkp_cyloffset = 0;
-		sl.sl_part[2].sdkp_nsectors = sl.sl_ncylinders *
+		sl.sl_part[SUN_RAWPART].sdkp_cyloffset = 0;
+		sl.sl_part[SUN_RAWPART].sdkp_nsectors = sl.sl_ncylinders *
 		    sl.sl_ntracks * sl.sl_nsectors;
 		write_label(&sl, disk, bootpath);
 	} else if (eflag) {
@@ -217,13 +215,13 @@ check_label(struct sun_disklabel *sl)
 	int j;
 
 	nsectors = sl->sl_ncylinders * sl->sl_ntracks * sl->sl_nsectors;
-	if (sl->sl_part[2].sdkp_cyloffset != 0 ||
-	    sl->sl_part[2].sdkp_nsectors != nsectors) {
+	if (sl->sl_part[SUN_RAWPART].sdkp_cyloffset != 0 ||
+	    sl->sl_part[SUN_RAWPART].sdkp_nsectors != nsectors) {
 		warnx("partition c is incorrect, must start at 0 and cover "
 		    "whole disk");
 		return (1);
 	}
-	for (i = 0; i < 8; i++) {
+	for (i = 0; i < SUN_NPART; i++) {
 		if (i == 2 || sl->sl_part[i].sdkp_nsectors == 0)
 			continue;
 		start = (uint64_t)sl->sl_part[i].sdkp_cyloffset *
@@ -234,7 +232,7 @@ check_label(struct sun_disklabel *sl)
 			    'a' + i);
 			return (1);
 		}
-		for (j = 0; j < 8; j++) {
+		for (j = 0; j < SUN_NPART; j++) {
 			if (j == 2 || j == i ||
 			    sl->sl_part[j].sdkp_nsectors == 0)
 				continue;
@@ -261,14 +259,16 @@ read_label(struct sun_disklabel *sl, const char *disk)
 	uint32_t fwsectors;
 	uint32_t fwheads;
 	off_t mediasize;
-	int fd;
+	char buf[SUN_SIZE];
+	int fd, error;
 
 	snprintf(path, sizeof(path), "%s%s", _PATH_DEV, disk);
 	if ((fd = open(path, O_RDONLY)) < 0)
 		err(1, "open %s", path);
-	if (read(fd, sl, sizeof(*sl)) != sizeof(*sl))
+	if (read(fd, buf, sizeof(buf)) != sizeof(buf))
 		err(1, "read");
-	if (sl->sl_magic != SUN_DKMAGIC || checksum(sl) != sl->sl_cksum) {
+	error = sunlabel_dec(buf, sl);
+	if (error) {
 		bzero(sl, sizeof(*sl));
 		if (ioctl(fd, DIOCGMEDIASIZE, &mediasize) != 0)
 			err(1, "%s: ioctl(DIOCGMEDIASIZE) failed", disk);
@@ -293,8 +293,8 @@ read_label(struct sun_disklabel *sl, const char *disk)
 		sl->sl_acylinders = 2;
 		sl->sl_nsectors = fwsectors;
 		sl->sl_ntracks = fwheads;
-		sl->sl_part[2].sdkp_cyloffset = 0;
-		sl->sl_part[2].sdkp_nsectors = sl->sl_ncylinders *
+		sl->sl_part[SUN_RAWPART].sdkp_cyloffset = 0;
+		sl->sl_part[SUN_RAWPART].sdkp_nsectors = sl->sl_ncylinders *
 		    sl->sl_ntracks * sl->sl_nsectors;
 		if (mediasize > (off_t)4999L * 1024L * 1024L) {
 			sprintf(sl->sl_text,
@@ -319,13 +319,13 @@ write_label(struct sun_disklabel *sl, const char *disk, const char *bootpath)
 {
 	char path[MAXPATHLEN];
 	char boot[16 * 512];
+	char buf[SUN_SIZE];
 	off_t off;
 	int bfd;
 	int fd;
 	int i;
 
 	sl->sl_magic = SUN_DKMAGIC;
-	sl->sl_cksum = checksum(sl);
 
 	if (check_label(sl) != 0)
 		errx(1, "invalid label");
@@ -342,7 +342,7 @@ write_label(struct sun_disklabel *sl, const char *disk, const char *bootpath)
 			if (read(bfd, boot, sizeof(boot)) != sizeof(boot))
 				err(1, "read");
 			close(bfd);
-			for (i = 0; i < 8; i++) {
+			for (i = 0; i < SUN_NPART; i++) {
 				if (sl->sl_part[i].sdkp_nsectors == 0)
 					continue;
 				off = sl->sl_part[i].sdkp_cyloffset *
@@ -356,7 +356,10 @@ write_label(struct sun_disklabel *sl, const char *disk, const char *bootpath)
 		}
 		if (lseek(fd, 0, SEEK_SET) < 0)
 			err(1, "lseek");
-		if (write(fd, sl, sizeof(*sl)) != sizeof(*sl))
+		bzero(buf, sizeof(buf));
+		sunlabel_enc(buf, sl);
+		
+		if (write(fd, buf, sizeof(buf)) != sizeof(buf))
 			err(1, "write");
 		close(fd);
 	} else
@@ -484,21 +487,6 @@ parse_size(struct sun_disklabel *sl, int part, char *size)
 	return (0);
 }
 
-static uint16_t
-checksum(struct sun_disklabel *sl)
-{
-	uint16_t cksum;
-	uint16_t *sp1;
-	uint16_t *sp2;
-
-	sp1 = (u_short *)sl;
-	sp2 = (u_short *)(sl + 1) - 1;
-	cksum = 0;
-	while (sp1 < sp2)
-		cksum ^= *sp1++;
-	return (cksum);
-}
-
 static int
 parse_offset(struct sun_disklabel *sl, int part, char *offset)
 {
@@ -536,7 +524,7 @@ print_label(struct sun_disklabel *sl, const char *disk, FILE *out)
 "sectors/cylinder: %d\n"
 "sectors/unit: %d\n"
 "\n"
-"8 partitions:\n"
+"%d partitions:\n"
 "#\n"
 "# Size is in sectors, use %%dK, %%dM or %%dG to specify in kilobytes,\n"
 "# megabytes or gigabytes respectively, or '*' to specify rest of disk.\n"
@@ -547,8 +535,9 @@ print_label(struct sun_disklabel *sl, const char *disk, FILE *out)
 	    disk,
 	    sl->sl_text,
 	    sl->sl_nsectors * sl->sl_ntracks,
-	    sl->sl_nsectors * sl->sl_ntracks * sl->sl_ncylinders);
-	for (i = 0; i < 8; i++) {
+	    sl->sl_nsectors * sl->sl_ntracks * sl->sl_ncylinders,
+	    SUN_NPART);
+	for (i = 0; i < SUN_NPART; i++) {
 		if (sl->sl_part[i].sdkp_nsectors == 0)
 			continue;
 		fprintf(out, "  %c: %10u %10u\n",
