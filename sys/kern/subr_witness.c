@@ -129,6 +129,7 @@ struct witness {
 	u_char	w_Giant_squawked:1;
 	u_char	w_other_squawked:1;
 	u_char	w_same_squawked:1;
+	u_char	w_displayed:1;
 };
 
 struct witness_child_list_entry {
@@ -166,7 +167,7 @@ static void	removechild(struct witness *parent, struct witness *child);
 static int	reparentchildren(struct witness *newparent,
 		    struct witness *oldparent);
 static void	witness_displaydescendants(void(*)(const char *fmt, ...),
-					   struct witness *);
+					   struct witness *, int indent);
 static const char *fixup_filename(const char *file);
 static void	witness_leveldescendents(struct witness *parent, int level);
 static void	witness_levelall(void);
@@ -480,25 +481,15 @@ static void
 witness_display_list(void(*prnt)(const char *fmt, ...),
 		     struct witness_list *list)
 {
-	struct witness *w, *w1;
-	int found;
+	struct witness *w;
 
 	STAILQ_FOREACH(w, list, w_typelist) {
-		if (w->w_file == NULL)
-			continue;
-		found = 0;
-		STAILQ_FOREACH(w1, list, w_typelist) {
-			if (isitmychild(w1, w)) {
-				found++;
-				break;
-			}
-		}
-		if (found)
+		if (w->w_file == NULL || w->w_level > 0)
 			continue;
 		/*
 		 * This lock has no anscestors, display its descendants. 
 		 */
-		witness_displaydescendants(prnt, w);
+		witness_displaydescendants(prnt, w, 0);
 	}
 }
 	
@@ -509,6 +500,11 @@ witness_display(void(*prnt)(const char *fmt, ...))
 
 	KASSERT(!witness_cold, ("%s: witness_cold", __func__));
 	witness_levelall();
+
+	/* Clear all the displayed flags. */
+	STAILQ_FOREACH(w, &w_all, w_list) {
+		w->w_displayed = 0;
+	}
 
 	/*
 	 * First, handle sleep locks which have been acquired at least
@@ -1376,26 +1372,34 @@ witness_leveldescendents(struct witness *parent, int level)
 
 static void
 witness_displaydescendants(void(*prnt)(const char *fmt, ...),
-			   struct witness *parent)
+			   struct witness *parent, int indent)
 {
 	struct witness_child_list_entry *wcl;
 	int i, level;
 
 	level = parent->w_level;
 	prnt("%-2d", level);
-	for (i = 0; i < level; i++)
+	for (i = 0; i < indent; i++)
 		prnt(" ");
-	if (parent->w_refcount > 0) {
+	if (parent->w_refcount > 0)
 		prnt("%s", parent->w_name);
+	else
+		prnt("(dead)");
+	if (parent->w_displayed) {
+		prnt(" -- (already displayed)\n");
+		return;
+	}
+	parent->w_displayed = 1;
+	if (parent->w_refcount > 0) {
 		if (parent->w_file != NULL)
-			prnt(" -- last acquired @ %s:%d\n", parent->w_file,
+			prnt(" -- last acquired @ %s:%d", parent->w_file,
 			    parent->w_line);
-	} else
-		prnt("(dead)\n");
+	}
+	prnt("\n");
 	for (wcl = parent->w_children; wcl != NULL; wcl = wcl->wcl_next)
 		for (i = 0; i < wcl->wcl_count; i++)
 			    witness_displaydescendants(prnt,
-				wcl->wcl_children[i]);
+				wcl->wcl_children[i], indent + 1);
 }
 
 #ifdef BLESSING
