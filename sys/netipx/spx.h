@@ -33,7 +33,7 @@
  *
  *	@(#)spx.h
  *
- * $Id$
+ * $Id: spx.h,v 1.9 1997/02/22 09:41:58 peter Exp $
  */
 
 #ifndef _NETIPX_SPX_H_
@@ -169,6 +169,9 @@ struct spxpcb {
 
 #ifdef KERNEL
 
+extern struct pr_usrreqs spx_usrreqs;
+extern struct pr_usrreqs spx_usrreq_sps;
+
 void	spx_abort __P((struct ipxpcb *ipxp));
 struct spxpcb *
 	spx_close __P((struct spxpcb *cb));
@@ -192,10 +195,6 @@ struct spxpcb *
 	spx_timers __P((struct spxpcb *cb, int timer));
 struct spxpcb *
 	spx_usrclosed __P((struct spxpcb *cb));
-int	spx_usrreq __P((struct socket *so, int req, struct mbuf *m,
-			struct mbuf *nam, struct mbuf *controlp));
-int	spx_usrreq_sp __P((struct socket *so, int req, struct mbuf *m,
-			   struct mbuf *nam, struct mbuf *controlp));
 
 #endif /* KERNEL */
 
