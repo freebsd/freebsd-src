@@ -445,7 +445,7 @@ pci_cfgintr_linked(struct PIR_entry *pe, int pin)
 			 * table entry 
 			 */
 			irq = pci_cfgintr_search(pe, oe->pe_bus, oe->pe_device,
-			    j, pin);
+			    j + 1, pin);
 			if (irq != PCI_INVALID_IRQ)
 				return(irq);
 		}
