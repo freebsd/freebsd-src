@@ -182,21 +182,6 @@ across the Sahara Desert, the smell would be absolutely awful.
 There is so much sand in Northern Africa that if it were spread out it
 would completely cover the Sahara Desert.
 %
-		Another Glitch in the Call
-		------- ------ -- --- ----
-	(Sung to the tune of a recent Pink Floyd song.)
-
-We don't need no indirection
-We don't need no flow control
-No data typing or declarations
-Did you leave the lists alone?
-
-	Hey!  Hacker!  Leave those lists alone!
-
-Chorus:
-	All in all, it's just a pure-LISP function call.
-	All in all, it's just a pure-LISP function call.
-%
 		Answers to Last Fortune's Questions:
 
 (1) None.  (Moses didn't have an ark).
@@ -2914,6 +2899,10 @@ undoubtedly true.
 %
 Any philosophy that can be put in a nutshell belongs there.
 		-- Sydney J. Harris
+%
+Any problem in computer science can be solved with another layer
+of indirection.
+	-- David Wheeler
 %
 Any small object that is accidentally dropped will hide under a larger
 object.
