@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: ctm.c,v 1.4 1994/09/22 02:49:15 phk Exp $
+ * $Id: ctm.c,v 1.5 1994/10/24 20:09:20 phk Exp $
  *
  * This is the client program of 'CTM'.  It will apply a CTM-patch to a 
  * collection of files.
@@ -77,14 +77,14 @@ main(int argc, char **argv)
 	fprintf(stderr,"%d errors during option processing\n",stat);
 	return Exit_Pilot;
     }
-    stat = 0;
+    stat = Exit_Done;
     argc -= optind;
     argv += optind;
 
     if(!argc)
 	stat |= Proc("-");
 
-    while(argc-- && !stat) {
+    while(argc-- && stat != Exit_Done) {
 	stat |= Proc(*argv++);
     }
 

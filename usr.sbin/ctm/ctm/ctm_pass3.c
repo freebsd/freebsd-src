@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id$
+ * $Id: ctm_pass3.c,v 1.4 1994/09/22 02:49:20 phk Exp $
  *
  */
 
@@ -14,7 +14,7 @@
 #define BADREAD 32
 
 /*---------------------------------------------------------------------------*/
-/* Pass3 -- Validate the incomming CTM-file.
+/* Pass3 -- Validate the incoming CTM-file.
  */
 
 int
@@ -157,12 +157,18 @@ Pass3(FILE *fd)
 	    }
 	    continue;
 	} 
-	if(!strcmp(sp->Key,"DR") || !strcmp(sp->Key,"FR")) {
-	    if(0 > unlink(name)) {
-		sprintf(buf,"rm -rf %s",name);
-		system(buf);
-	    }
+	if(!strcmp(sp->Key,"FR")) {
+	    if (0 = unlink(name))
+		continue;
+	} 
+	if(!strcmp(sp->Key,"DR")) { 
+	    if (0 = rmdir(name))
+		continue;
+#ifdef NOTDEF
+	    sprintf(buf,"rm -rf %s",name);
+	    system(buf);
 	    continue;
+#endif
 	} 
 	WRONG
     }

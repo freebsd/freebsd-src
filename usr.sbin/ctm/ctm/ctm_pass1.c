@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id$
+ * $Id: ctm_pass1.c,v 1.4 1994/09/22 02:49:18 phk Exp $
  *
  */
 
@@ -14,7 +14,7 @@
 #define BADREAD 1
 
 /*---------------------------------------------------------------------------*/
-/* Pass1 -- Validate the incomming CTM-file.
+/* Pass1 -- Validate the incoming CTM-file.
  */
 
 int
@@ -28,7 +28,7 @@ Pass1(FILE *fd)
     int slashwarn=0;
 
     if(Verbose>3) 
-	printf("Pass1 -- Checking integrity of incomming CTM-patch\n");
+	printf("Pass1 -- Checking integrity of incoming CTM-patch\n");
     MD5Init (&ctx);
 
     GETFIELD(p,' ');				/* CTM_BEGIN */
