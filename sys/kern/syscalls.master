@@ -1,4 +1,4 @@
-	$Id: syscalls.master,v 1.28 1996/08/20 07:17:49 smpatel Exp $
+	$Id: syscalls.master,v 1.29 1996/09/19 19:48:38 phk Exp $
 ;	from: @(#)syscalls.master	8.2 (Berkeley) 1/13/94
 ;
 ; System call name/number master file.
@@ -385,3 +385,6 @@
 ; syscall numbers initially used in OpenBSD
 250	STD	BSD	{ int minherit(caddr_t addr, size_t len, int inherit); }
 251	STD	BSD	{ int rfork(int flags); }
+252	UNIMPL	NOHIDE	poll (OpenBSD)
+253	UNIMPL	NOHIDE	issetugid (OpenBSD)
+254	STD	BSD	{ int lchown(char *path, int uid, int gid); }
