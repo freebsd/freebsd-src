@@ -56,7 +56,7 @@
 #include <net/if_tunvar.h>
 #include <net/if_tun.h>
 
-#define TUNDEBUG	if (tundebug) printf
+#define TUNDEBUG	if (tundebug) if_printf
 #define	TUNNAME		"tun"
 
 static MALLOC_DEFINE(M_TUN, TUNNAME, "Tunnel Interface");
@@ -276,7 +276,7 @@ tunopen(dev_t dev, int flag, int mode, struct thread *td)
 	tp->tun_pid = td->td_proc->p_pid;
 	ifp = &tp->tun_if;
 	tp->tun_flags |= TUN_OPEN;
-	TUNDEBUG("%s%d: open\n", ifp->if_name, ifp->if_unit);
+	TUNDEBUG(ifp, "open\n");
 
 	return (0);
 }
@@ -327,7 +327,7 @@ tunclose(dev_t dev, int foo, int bar, struct thread *td)
 	funsetown(&tp->tun_sigio);
 	selwakeup(&tp->tun_rsel);
 
-	TUNDEBUG ("%s%d: closed\n", ifp->if_name, ifp->if_unit);
+	TUNDEBUG (ifp, "closed\n");
 	err = rman_release_resource(tp->tun_unit);
 	KASSERT(err == 0, ("Unit %d failed to release", ifp->if_unit));
 
@@ -341,7 +341,7 @@ tuninit(struct ifnet *ifp)
 	struct ifaddr *ifa;
 	int error = 0;
 
-	TUNDEBUG("%s%d: tuninit\n", ifp->if_name, ifp->if_unit);
+	TUNDEBUG(ifp, "tuninit\n");
 
 	ifp->if_flags |= IFF_UP | IFF_RUNNING;
 	getmicrotime(&ifp->if_lastchange);
@@ -391,17 +391,15 @@ tunifioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		break;
 	case SIOCSIFADDR:
 		error = tuninit(ifp);
-		TUNDEBUG("%s%d: address set, error=%d\n",
-			 ifp->if_name, ifp->if_unit, error);
+		TUNDEBUG(ifp, "address set, error=%d\n", error);
 		break;
 	case SIOCSIFDSTADDR:
 		error = tuninit(ifp);
-		TUNDEBUG("%s%d: destination address set, error=%d\n",
-			 ifp->if_name, ifp->if_unit, error);
+		TUNDEBUG(ifp, "destination address set, error=%d\n", error);
 		break;
 	case SIOCSIFMTU:
 		ifp->if_mtu = ifr->ifr_mtu;
-		TUNDEBUG("%s%d: mtu set\n", ifp->if_name, ifp->if_unit);
+		TUNDEBUG(ifp, "mtu set\n");
 		break;
 	case SIOCSIFFLAGS:
 	case SIOCADDMULTI:
@@ -429,7 +427,7 @@ tunoutput(
 	int error;
 #endif
 
-	TUNDEBUG ("%s%d: tunoutput\n", ifp->if_name, ifp->if_unit);
+	TUNDEBUG (ifp, "tunoutput\n");
 
 #ifdef MAC
 	error = mac_check_ifnet_transmit(ifp, m0);
@@ -440,8 +438,7 @@ tunoutput(
 #endif
 
 	if ((tp->tun_flags & TUN_READY) != TUN_READY) {
-		TUNDEBUG ("%s%d: not ready 0%o\n", ifp->if_name,
-			  ifp->if_unit, tp->tun_flags);
+		TUNDEBUG (ifp, "not ready 0%o\n", tp->tun_flags);
 		m_freem (m0);
 		return (EHOSTDOWN);
 	}
@@ -644,10 +641,9 @@ tunread(dev_t dev, struct uio *uio, int flag)
 	struct mbuf	*m;
 	int		error=0, len, s;
 
-	TUNDEBUG ("%s%d: read\n", ifp->if_name, ifp->if_unit);
+	TUNDEBUG (ifp, "read\n");
 	if ((tp->tun_flags & TUN_READY) != TUN_READY) {
-		TUNDEBUG ("%s%d: not ready 0%o\n", ifp->if_name,
-			  ifp->if_unit, tp->tun_flags);
+		TUNDEBUG (ifp, "not ready 0%o\n", tp->tun_flags);
 		return (EHOSTDOWN);
 	}
 
@@ -679,7 +675,7 @@ tunread(dev_t dev, struct uio *uio, int flag)
 	}
 
 	if (m) {
-		TUNDEBUG("%s%d: Dropping mbuf\n", ifp->if_name, ifp->if_unit);
+		TUNDEBUG(ifp, "Dropping mbuf\n");
 		m_freem(m);
 	}
 	return (error);
@@ -698,7 +694,7 @@ tunwrite(dev_t dev, struct uio *uio, int flag)
 	uint32_t	family;
 	int 		isr;
 
-	TUNDEBUG("%s%d: tunwrite\n", ifp->if_name, ifp->if_unit);
+	TUNDEBUG(ifp, "tunwrite\n");
 
 	if ((ifp->if_flags & IFF_UP) != IFF_UP)
 		/* ignore silently */
@@ -708,8 +704,7 @@ tunwrite(dev_t dev, struct uio *uio, int flag)
 		return (0);
 
 	if (uio->uio_resid < 0 || uio->uio_resid > TUNMRU) {
-		TUNDEBUG("%s%d: len=%d!\n", ifp->if_name, ifp->if_unit,
-		    uio->uio_resid);
+		TUNDEBUG(ifp, "len=%d!\n", uio->uio_resid);
 		return (EIO);
 	}
 	tlen = uio->uio_resid;
@@ -839,16 +834,14 @@ tunpoll(dev_t dev, int events, struct thread *td)
 	int		revents = 0;
 
 	s = splimp();
-	TUNDEBUG("%s%d: tunpoll\n", ifp->if_name, ifp->if_unit);
+	TUNDEBUG(ifp, "tunpoll\n");
 
 	if (events & (POLLIN | POLLRDNORM)) {
 		if (ifp->if_snd.ifq_len > 0) {
-			TUNDEBUG("%s%d: tunpoll q=%d\n", ifp->if_name,
-			    ifp->if_unit, ifp->if_snd.ifq_len);
+			TUNDEBUG(ifp, "tunpoll q=%d\n", ifp->if_snd.ifq_len);
 			revents |= events & (POLLIN | POLLRDNORM);
 		} else {
-			TUNDEBUG("%s%d: tunpoll waiting\n", ifp->if_name,
-			    ifp->if_unit);
+			TUNDEBUG(ifp, "tunpoll waiting\n");
 			selrecord(td, &tp->tun_rsel);
 		}
 	}
