@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: syscons.c,v 1.300 1999/04/16 21:21:56 peter Exp $
+ *	$Id: syscons.c,v 1.301 1999/04/27 11:14:04 phk Exp $
  */
 
 #include "sc.h"
@@ -354,7 +354,7 @@ static cn_putc_t	sccnputc;
 
 struct consdev sc_cons = {
     NULL, NULL, sccngetc, sccncheckc, sccnputc,
-    NULL, makedev(CDEV_MAJOR, 0), CN_NORMAL,
+    NULL, 0, CN_NORMAL,
 };
 
 #endif /* __i386__ */
@@ -1917,6 +1917,7 @@ sccnattach(void)
     }
 
     scinit();
+    sc_cons.cn_dev = makedev(CDEV_MAJOR, 0);
     cn_tab = &sc_cons;
 }
 
