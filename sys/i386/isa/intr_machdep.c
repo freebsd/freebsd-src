@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: intr_machdep.c,v 1.20 1999/04/23 21:01:19 peter Exp $
+ *	$Id: intr_machdep.c,v 1.21 1999/05/04 21:18:20 dfr Exp $
  */
 /*
  * This file contains an aggregated module marked:
@@ -63,7 +63,6 @@
 #include <machine/smp.h>
 #include <machine/smptests.h>			/** FAST_HI */
 #endif /* APIC_IO */
-#include <i386/isa/isa_device.h>
 #ifdef PC98
 #include <pc98/pc98/pc98.h>
 #include <pc98/pc98/pc98_machdep.h>
@@ -113,12 +112,12 @@ static inthand_t *fastintr[ICU_LEN] = {
 	&IDTVEC(fastintr8), &IDTVEC(fastintr9),
 	&IDTVEC(fastintr10), &IDTVEC(fastintr11),
 	&IDTVEC(fastintr12), &IDTVEC(fastintr13),
-	&IDTVEC(fastintr14), &IDTVEC(fastintr15)
+	&IDTVEC(fastintr14), &IDTVEC(fastintr15),
 #if defined(APIC_IO)
-	, &IDTVEC(fastintr16), &IDTVEC(fastintr17),
+	&IDTVEC(fastintr16), &IDTVEC(fastintr17),
 	&IDTVEC(fastintr18), &IDTVEC(fastintr19),
 	&IDTVEC(fastintr20), &IDTVEC(fastintr21),
-	&IDTVEC(fastintr22), &IDTVEC(fastintr23)
+	&IDTVEC(fastintr22), &IDTVEC(fastintr23),
 #endif /* APIC_IO */
 };
 
@@ -126,10 +125,10 @@ static inthand_t *slowintr[ICU_LEN] = {
 	&IDTVEC(intr0), &IDTVEC(intr1), &IDTVEC(intr2), &IDTVEC(intr3),
 	&IDTVEC(intr4), &IDTVEC(intr5), &IDTVEC(intr6), &IDTVEC(intr7),
 	&IDTVEC(intr8), &IDTVEC(intr9), &IDTVEC(intr10), &IDTVEC(intr11),
-	&IDTVEC(intr12), &IDTVEC(intr13), &IDTVEC(intr14), &IDTVEC(intr15)
+	&IDTVEC(intr12), &IDTVEC(intr13), &IDTVEC(intr14), &IDTVEC(intr15),
 #if defined(APIC_IO)
-	, &IDTVEC(intr16), &IDTVEC(intr17), &IDTVEC(intr18), &IDTVEC(intr19),
-	&IDTVEC(intr20), &IDTVEC(intr21), &IDTVEC(intr22), &IDTVEC(intr23)
+	&IDTVEC(intr16), &IDTVEC(intr17), &IDTVEC(intr18), &IDTVEC(intr19),
+	&IDTVEC(intr20), &IDTVEC(intr21), &IDTVEC(intr22), &IDTVEC(intr23),
 #endif /* APIC_IO */
 };
 
@@ -446,20 +445,6 @@ icu_setup(int intr, inthand2_t *handler, void *arg, u_int *maskptr, int flags)
 	return (0);
 }
 
-void
-register_imask(dvp, mask)
-	struct isa_device *dvp;
-	u_int	mask;
-{
-	if (dvp->id_alive && dvp->id_irq) {
-		int	intr;
-
-		intr = ffs(dvp->id_irq) - 1;
-		intr_mask[intr] = mask | (1 <<intr);
-	}
-	(void) update_intr_masks();
-}
-
 int
 icu_unset(intr, handler)
 	int	intr;
@@ -521,7 +506,7 @@ icu_unset(intr, handler)
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: intr_machdep.c,v 1.20 1999/04/23 21:01:19 peter Exp $
+ * $Id: intr_machdep.c,v 1.21 1999/05/04 21:18:20 dfr Exp $
  *
  */
 
@@ -823,12 +808,10 @@ inthand_remove(intrec *idesc)
 
 		oldspl = splq(1 << irq);
 
-		/* we want to remove the list head, which was known to intr_mux */
-		icu_unset(irq, intr_mux);
-
 		/* check whether the new list head is the only element on list */
 		head = intreclist_head[irq];
 		if (head != NULL) {
+			icu_unset(irq, intr_mux);
 			if (head->next != NULL) {
 				/* install the multiplex handler with new list head as argument */
 				errcode = icu_setup(irq, intr_mux, head, 0, 0);
@@ -842,11 +825,13 @@ inthand_remove(intrec *idesc)
 				if (errcode == 0)
 					update_intrname(irq, head->name);
 			}
+		} else {
+			/* revert to old handler, eg: strayintr */
+			icu_unset(irq, idesc->handler);
 		}
 		splx(oldspl);
 	}
 	update_masks(idesc->maskptr, irq);
-
 	free(idesc, M_DEVBUF);
 	return (0);
 }
