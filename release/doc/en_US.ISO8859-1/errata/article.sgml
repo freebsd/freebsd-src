@@ -144,6 +144,16 @@
 
 <![ %release.type.snapshot [
 
+    <para>Due to some problems discovered very late in the release
+      cycle, the ISO images and FTP install directories for &os;
+      &release.prev;/i386 needed to be re-generated and re-uploaded to
+      the FTP mirror sites.  For reference, the final ISO images have
+      checksums computed via &man.md5.1; as follows:</para>
+
+    <programlisting>MD5 (4.8-RELEASE-i386-disc1.iso) = c4e34b6a6be5cd1977ca206bf821c7fc
+MD5 (4.8-RELEASE-i386-disc2.iso) = 93b09f97c01deead302557d7d24f87cb
+MD5 (4.8-RELEASE-i386-mini.iso) = 5f0d2576dbb56d6ec85d49ac9fa4bbf9</programlisting>
+
     <para>Some parts of the documentation may incorrectly give the
       release date of &os; &release.prev; as March 2003, rather than
       April 2003.</para>
@@ -157,8 +167,8 @@
       install the <filename
       role="port">x11-fonts/bitstream-vera</filename> port, then
       restart <application>GNOME</application>.  The new fonts should
-      take effect automatically.  If they do not, edit your current
-      gnome-terminal profile, and select the Bitstream Vera Sans Mono
+      take effect automatically.  If they do not, edit the current
+      gnome-terminal profile and select the Bitstream Vera Sans Mono
       font.</para>
 
     <para>Due to space limitations, the &man.awi.4; driver has been
