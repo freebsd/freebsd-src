@@ -1,4 +1,4 @@
-.\" $Id: dig.1,v 4.9.1.2 1993/09/08 00:00:49 vixie Exp $
+.\" $Id: dig.1,v 8.1 1994/12/15 06:24:10 vixie Exp $
 .\"
 .\" ++Copyright++ 1993
 .\" -
@@ -61,7 +61,7 @@
 .\" Man page reformatted for this release by Andrew Cherenson
 .\" (arc@sgi.com)
 .\"
-.TH DIG @CMD_EXT_U@ "August 30, 1990"
+.TH DIG 1 "August 30, 1990"
 .SH NAME
 dig \- send domain name query packets to name servers
 .SH SYNOPSIS
@@ -99,7 +99,7 @@ at your disposal somewhere,  all that is required is that
 /etc/resolv.conf be present and indicate where the default
 name servers  reside,  so that  \fIserver\fP itself can be
 resolved. See 
-.IR resolver (@FORMAT_EXT@)
+.IR resolver (5)
 for information on /etc/resolv.conf.
 (WARNING: Changing /etc/resolv.conf will affect
 the standard  resolver library and  potentially several
@@ -188,7 +188,7 @@ Port number. Query a name server listening to a
 non-standard port number. Default is 53.
 .IP "\-P[\fIping-string\fP]"
 After query returns, execute a 
-.IR ping (@SYS_OPS_EXT@)
+.IR ping (8)
 command
 for response time comparison. This rather
 unelegantly makes a call to the shell. The last
@@ -258,7 +258,7 @@ subsequent lines (i.e. they are not restored to the
 "+" is used to specify an option to be changed in the
 query packet or to change \fIdig\fP output specifics. Many
 of these are the same parameters accepted by 
-.IR nslookup (@SYS_OPS_EXT@).
+.IR nslookup (8).
 If an option requires a parameter, the form is as
 follows:
 .sp 1
@@ -324,7 +324,7 @@ end
 (Note: \fIdig\fP always uses a value of 1 for num_servers.) 
 .SH DETAILS
 \fIDig\fP once required a slightly modified version of the BIND 
-.IR resolver (@LIB_NETWORK_EXT@)
+.IR resolver (3)
 library.  BIND's resolver has (as of BIND 4.9) been augmented to work
 properly with \fIDig\fP.  Essentially, \fIDig\fP is a straight-forward
 (albeit not pretty) effort of parsing arguments and setting appropriate
@@ -345,7 +345,7 @@ Steve Hotz
 hotz@isi.edu
 .SH ACKNOWLEDGMENTS
 \fIDig\fP uses functions from 
-.IR nslookup (@SYS_OPS_EXT@)
+.IR nslookup (8)
 authored by Andrew Cherenson.
 .SH BUGS
 \fIDig\fP has a serious case of "creeping featurism" -- the result of
@@ -361,4 +361,4 @@ batch mode.  If it exits abnormally (and is not caught), the entire
 batch aborts; when such an event is trapped, \fIdig\fP simply
 continues with the next query.
 .SH SEE ALSO
-@INDOT@named(@SYS_OPS_EXT@),  resolver(@LIB_NETWORK_EXT@),  resolver(@FORMAT_EXT@),  nslookup(@SYS_OPS_EXT@)
+named(8),  resolver(3),  resolver(5),  nslookup(8)
