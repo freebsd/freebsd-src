@@ -81,11 +81,12 @@ static int dflag, verbose;
 
 FILE *fxref;
 
-static char *xref_file = "linker.hints";
+static const char *xref_file = "linker.hints";
 
 static char recbuf[MAXRECSIZE];
 static int recpos, reccnt;
 
+void maketempfile(char *, const char *);
 static void usage(void);
 
 static void
