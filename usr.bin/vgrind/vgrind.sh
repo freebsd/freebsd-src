@@ -33,6 +33,8 @@
 #
 #       @(#)vgrind.sh	8.1 (Berkeley) 6/6/93
 #
+# $FreeBSD$
+#
 
 set voptions=
 set options=
@@ -134,7 +136,7 @@ if (-r index) then
 		sh -c "$postproc -rx1 $voptions -i -mvgrind 2>> xindex"
 	endif
     endif
-    sort -df +0 -2 xindex >index
+    sort -df -k 1,2 xindex >index
     rm nindex xindex
 else
     if ($f == 'filter') then
