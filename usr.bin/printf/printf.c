@@ -257,7 +257,7 @@ escape(fmt)
 	register char *store;
 	register int value, c;
 
-	for (store = fmt; c = *fmt; ++fmt, ++store) {
+	for (store = fmt; (c = *fmt); ++fmt, ++store) {
 		if (c != '\\') {
 			*store = c;
 			continue;
