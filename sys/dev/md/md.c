@@ -174,6 +174,7 @@ struct md_s {
 
 	/* MD_VNODE related fields */
 	struct vnode *vnode;
+	char file[PATH_MAX];
 	struct ucred *cred;
 
 	/* MD_SWAP related fields */
@@ -861,15 +862,19 @@ mdcreate_vnode(struct md_s *sc, struct md_ioctl *mdio, struct thread *td)
 	struct nameidata nd;
 	int error, flags;
 
+	if (strlcpy(sc->file, mdio->md_file, sizeof(sc->file)) >=
+	    sizeof(sc->file)) {
+		return (ENAMETOOLONG);
+	}
 	flags = FREAD|FWRITE;
-	NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, mdio->md_file, td);
+	NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, sc->file, td);
 	error = vn_open(&nd, &flags, 0, -1);
 	if (error) {
 		NDFREE(&nd, NDF_ONLY_PNBUF);
 		if (error != EACCES && error != EPERM && error != EROFS)
 			return (error);
 		flags &= ~FWRITE;
-		NDINIT(&nd, LOOKUP, FOLLOW, UIO_USERSPACE, mdio->md_file, td);
+		NDINIT(&nd, LOOKUP, FOLLOW, UIO_SYSSPACE, sc->file, td);
 		error = vn_open(&nd, &flags, 0, -1);
 	}
 	NDFREE(&nd, NDF_ONLY_PNBUF);
@@ -1097,11 +1102,15 @@ mdctlioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread 
 		mdio->md_mediasize = sc->mediasize;
 		mdio->md_sectorsize = sc->sectorsize;
 		if (sc->type == MD_VNODE) {
-			/* XXX fill this in */
-			mdio->md_file = NULL;
+			if (strlcpy(mdio->md_file, sc->file,
+			    sizeof(mdio->md_file)) >= sizeof(mdio->md_file)) {
+				return (ENAMETOOLONG);
+			}
 		}
 		return (0);
 	case MDIOCLIST:
+		if (mdio->md_version != MDIOVERSION)
+			return (EINVAL);
 		i = 1;
 		LIST_FOREACH(sc, &md_softc_list, list) {
 			if (i == MDNPAD - 1)

@@ -115,8 +115,11 @@ main(int argc, char **argv)
 				mdio.md_options = MD_CLUSTER | MD_AUTOUNIT | MD_COMPRESS;
 				cmdline = 2;
 			}
-			mdio.md_file = optarg;
-			fd = open(optarg, O_RDONLY);
+			if (realpath(optarg, mdio.md_file) == NULL) {
+				err(1, "could not find full path for %s",
+				    optarg);
+			}
+			fd = open(mdio.md_file, O_RDONLY);
 			if (fd < 0)
 				err(1, "could not open %s", optarg);
 			else if (mdio.md_mediasize == 0) {
@@ -300,6 +303,8 @@ query(const int fd, const int unit)
 	}
 	printf("\t");
 	prthumanval(mdio.md_mediasize);
+	if (mdio.md_type == MD_VNODE)
+		printf("\t%s", mdio.md_file);
 	printf("\n");
 
 	return (0);
