@@ -93,6 +93,7 @@ crypto/des/des_setkey.c		optional	netsmbcrypto
 #dev/advansys/adv_isa.c		optional	adv isa
 dev/aic/aic_cbus.c		optional	aic isa
 dev/ar/if_ar_isa.c		optional	ar isa
+dev/cm/if_cm_isa.c		optional	cm isa
 dev/ct/bshw_machdep.c		optional	ct
 dev/ct/ct.c			optional	ct
 dev/ct/ct_isa.c			optional	ct isa
