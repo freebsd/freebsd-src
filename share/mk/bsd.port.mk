@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.178 1995/09/13 10:14:31 asami Exp $
+# $Id: bsd.port.mk,v 1.179 1995/09/18 08:01:20 asami Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -1041,7 +1041,7 @@ lib-depends:
 	@for i in ${LIB_DEPENDS}; do \
 		lib=`/bin/echo $$i | /usr/bin/sed -e 's/:.*//'`; \
 		dir=`/bin/echo $$i | /usr/bin/sed -e 's/.*://'`; \
-		if ldconfig -r | grep -q -e "-l$$lib"; then \
+		if /sbin/ldconfig -r | grep -q -e "-l$$lib"; then \
 			${ECHO_MSG} "===>  ${PKGNAME} depends on shared library: $$lib - found"; \
 		else \
 			${ECHO_MSG} "===>  ${PKGNAME} depends on shared library: $$lib - not found"; \
