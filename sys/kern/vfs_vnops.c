@@ -63,18 +63,13 @@
 
 #include <machine/limits.h>
 
-static int vn_closefile(struct file *fp, struct thread *td);
-static int vn_ioctl(struct file *fp, u_long com, void *data, 
-		struct ucred *active_cred, struct thread *td);
-static int vn_read(struct file *fp, struct uio *uio, 
-		struct ucred *active_cred, int flags, struct thread *td);
-static int vn_poll(struct file *fp, int events, struct ucred *active_cred,
-		struct thread *td);
-static int vn_kqfilter(struct file *fp, struct knote *kn);
-static int vn_statfile(struct file *fp, struct stat *sb,
-		struct ucred *active_cred, struct thread *td);
-static int vn_write(struct file *fp, struct uio *uio, 
-		struct ucred *active_cred, int flags, struct thread *td);
+static fo_rdwr_t vn_read;
+static fo_rdwr_t vn_write;
+static fo_ioctl_t vn_ioctl;
+static fo_poll_t vn_poll;
+static fo_kqfilter_t vn_kqfilter;
+static fo_stat_t vn_statfile;
+static fo_close_t vn_closefile;
 
 struct 	fileops vnops = {
 	vn_read, vn_write, vn_ioctl, vn_poll, vn_kqfilter,
