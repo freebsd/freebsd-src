@@ -13,7 +13,7 @@
 # purpose.
 #
 
-#	$Id: btx.s,v 1.6 1998/10/04 21:14:33 rnordier Exp $
+#	$Id: btx.s,v 1.7 1998/11/01 13:52:52 rnordier Exp $
 
 #
 # Memory layout.
@@ -340,7 +340,7 @@ intx00: 	pushb $0x0			# Int 0x0: #DE
 intx10: 	pushb $0x10			# Int 0x10: #MF
 		jmp ex_noc			# Floating-point error
 #
-#
+# Handle #GP exception.
 #
 ex_v86: 	testb $0x2,0x12(%esp,1) 	# V86 mode?
 		jz except			# No
@@ -459,7 +459,7 @@ v86mon.1:	lodsb				# Get opcode
 v86mon.2:	cmpb $0xf4,%al			# HLT?
 		jne v86mon.3			# No
 		cmpl $inthlt+0x1,%esi		# Is inthlt?
-		jne v86mon.6			# No
+		jne v86mon.6			# No (ignore)
 		jmp intrtn			# Return to user mode
 v86mon.3:	cmpb $0xfa,%al			# CLI?
 		je v86cli			# Yes
@@ -693,12 +693,12 @@ intusr.4:	shrl $0x4,%eax			# Gives segment
 		xchgl %eax,%ebp 		# Get int no/address
 		testb $0x1,%dl			# Address?
 		jnz intusr.5			# Yes
-		shll $0x2,%eax			# XXX Scale
+		shll $0x2,%eax			# Scale
 		movl (%eax),%eax		# Load int vector
-intusr.5:	movl %eax,%ecx			# XXX Save
+intusr.5:	movl %eax,%ecx			# Save
 		shrl $0x10,%eax 		# Gives segment
 		stosl				# Set CS
-		movw %cx,%ax			# XXX Restore
+		movw %cx,%ax			# Restore
 		stosl				# Set EIP
 		leal 0x10(%esp,1),%esp		# Discard seg regs
 		popa				# Restore
@@ -755,7 +755,7 @@ dump.1: 	testb $DMP_X32,%ch		# Dump long?
 dump.2: 	testb $DMP_MEM,%ch		# Dump memory?
 		jz dump.8			# No
 		pushl %ds			# Save
-		testb $0x2,0x52(%ebx)		# XXX V86 mode?
+		testb $0x2,0x52(%ebx)		# V86 mode?
 		jnz dump.3			# Yes
 		verrl 0x4(%esi) 		# Readable selector?
 		jnz dump.3			# No
