@@ -330,7 +330,7 @@ main(int argc, char *argv[])
 				f_color = 1;
 		}
 #else
-		(void)fprintf(stderr, "Color support not compiled in.\n");
+		warnx("color support not compiled in");
 #endif /*COLORLS*/
 
 #ifdef COLORLS
@@ -691,9 +691,7 @@ display(FTSENT *p, FTSENT *list, int options)
 
 					error = mac_prepare_file_label(&label);
 					if (error == -1) {
-						fprintf(stderr, "%s: %s\n",
-						    cur->fts_name,
-						    strerror(errno));
+						warn("%s", cur->fts_name);
 						goto label_out;
 					}
 
@@ -712,7 +710,7 @@ display(FTSENT *p, FTSENT *list, int options)
 						error = mac_get_link(name,
 						    label);
 					if (error == -1) {
-						perror(cur->fts_name);
+						warn("%s", cur->fts_name);
 						mac_free(label);
 						goto label_out;
 					}
@@ -720,9 +718,7 @@ display(FTSENT *p, FTSENT *list, int options)
 					error = mac_to_text(label,
 					    &labelstr);
 					if (error == -1) {
-						fprintf(stderr, "%s: %s\n",
-						    cur->fts_name,
-						    strerror(errno));
+						warn("%s", cur->fts_name);
 						mac_free(label);
 						goto label_out;
 					}
