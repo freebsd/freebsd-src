@@ -534,28 +534,13 @@ trstat_write(struct printer *pp, tr_sendrecv sendrecv, size_t bytecnt,
 #undef UPD_EOSTAT	
 }
 
-#ifdef __STDC__
 #include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
 
 void
-#ifdef __STDC__
 fatal(const struct printer *pp, const char *msg, ...)
-#else
-fatal(pp, msg, va_alist)
-	const struct printer *pp;
-	char *msg;
-        va_dcl
-#endif
 {
 	va_list ap;
-#ifdef __STDC__
 	va_start(ap, msg);
-#else
-	va_start(ap);
-#endif
 	/* this error message is being sent to the 'from_host' */
 	if (from_host != local_host)
 		(void)printf("%s: ", local_host);
