@@ -399,7 +399,9 @@ agp_i810_free_memory(device_t dev, struct agp_memory *mem)
 		 * Unwire the page which we wired in alloc_memory.
 		 */
 		vm_page_t m = vm_page_lookup(mem->am_obj, 0);
+		vm_page_lock_queues();
 		vm_page_unwire(m, 0);
+		vm_page_unlock_queues();
 	}
 
 	sc->agp.as_allocated -= mem->am_size;

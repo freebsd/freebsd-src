@@ -887,9 +887,11 @@ pmap_dispose_thread(struct thread *td)
 		m = vm_page_lookup(ksobj, i);
 		if (m == NULL)
 			panic("pmap_dispose_thread: kstack already missing?");
+		vm_page_lock_queues();
 		vm_page_busy(m);
 		vm_page_unwire(m, 0);
 		vm_page_free(m);
+		vm_page_unlock_queues();
 	}
 	pmap_qremove(ks, KSTACK_PAGES);
 	kmem_free(kernel_map, ks - (KSTACK_GUARD_PAGES * PAGE_SIZE),
@@ -914,8 +916,10 @@ pmap_swapout_thread(struct thread *td)
 		m = vm_page_lookup(ksobj, i);
 		if (m == NULL)
 			panic("pmap_swapout_thread: kstack already missing?");
+		vm_page_lock_queues();
 		vm_page_dirty(m);
 		vm_page_unwire(m, 0);
+		vm_page_unlock_queues();
 	}
 	pmap_qremove(ks, KSTACK_PAGES);
 }
