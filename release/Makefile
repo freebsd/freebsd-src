@@ -2,6 +2,7 @@
 #
 
 FLOPPY=		fd0
+VNDEV=		vn0a
 
 
 # Evil floppies are, of course, 1.2MB floppies.
@@ -73,14 +74,16 @@ boot_144.flp:
 boot.flp: 
 	crunchgen ${.CURDIR}/boot_flp.conf
 	${MAKE} -f boot_flp.mk objs exe NOCRYPT=yes
-	-umount ${MNT}
-	-umount /dev/${FLOPPY}
-	# echo y | fdformat ${FLOPPY}
-	disklabel -w -B \
+	dd if=/dev/zero bs=${DDBS} count=${DDCOUNT} of=boot.tmp
+	-umount /dev/${VNDEV}
+	-vnconfig -u /dev/${VNDEV}
+	vnconfig -c /dev/${VNDEV} boot.tmp
+	disklabel -r -w -B \
 		-b ${DESTDIR}/usr/mdec/fdboot -s ${DESTDIR}/usr/mdec/bootfd \
-		/dev/r${FLOPPY} ${FDLABEL}
-	newfs -c 80 -b 4096 -f 512 -i 9000 -m 0 -o space /dev/r${FLOPPY}
-	mount -o async /dev/${FLOPPY} ${MNT}
+		/dev/r${VNDEV} ${FDLABEL}
+	newfs -c 80 -b 4096 -f 512 -i 9000 -m 0 -o space -T ${FDLABEL} \
+		/dev/r${VNDEV}
+	mount -o async /dev/${VNDEV} ${MNT}
 	mkdir ${MNT}/dev ${MNT}/stand ${MNT}/mnt
 .if !defined(EVIL_FLOPPY)
 	strip -x ${.CURDIR}/../sys/compile/GENERIC/kernel
@@ -88,7 +91,6 @@ boot.flp:
 	strip ${.CURDIR}/../sys/compile/GENERIC/kernel
 .endif
 	cp ${.CURDIR}/../sys/compile/GENERIC/kernel ${MNT}/kernel
-	cp ${DESTDIR}/usr/mdec/sdboot ${DESTDIR}/usr/mdec/bootsd ${MNT}/stand
 	( cd ${DESTDIR}/dev ; \
 		ls console tty ttyv1 null zero \
 		sd[0123][a-h] wd[0123][a-h] fd[01] \
@@ -112,9 +114,9 @@ boot.flp:
 	install -m 400 -c ${.CURDIR}/../share/FAQ/README-2.0 ${MNT}/README
 	touch ${MNT}/this_is_boot_flp
 	-umount ${MNT}
-	fsck /dev/r${FLOPPY}
-	dd if=/dev/r${FLOPPY} bs=${DDBS} count=${DDCOUNT} of=boot.flp
-	df -k /dev/r${FLOPPY}
+	fsck /dev/r${VNDEV}
+	vnconfig -u /dev/${VNDEV}
+	mv boot.tmp boot.flp
 
 cpio.flp:
 	crunchgen ${.CURDIR}/cpio_flp_1.conf
