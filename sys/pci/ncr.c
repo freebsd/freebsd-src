@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.24 1995/02/15 20:06:38 se Exp $
+**  $Id: ncr.c,v 1.25 1995/02/17 16:45:08 se Exp $
 **
 **  Device driver for the   NCR 53C810   PCI-SCSI-Controller.
 **
@@ -44,7 +44,7 @@
 ***************************************************************************
 */
 
-#define	NCR_PATCHLEVEL	"pl15 95/02/15"
+#define	NCR_PATCHLEVEL	"pl17 95/02/22"
 
 #define NCR_VERSION	(2)
 #define	MAX_UNITS	(16)
@@ -178,14 +178,17 @@
 #include <pci/ncrreg.h>
 #else
 #include <sys/device.h>
-#include <i386/pci/ncrreg.h>
+#include <i386/pci/ncr_reg.h>
 #include <i386/pci/pcivar.h>
 #include <i386/pci/pcireg.h>
+#define DELAY(x)	delay(x)
 #endif /* __NetBSD */
 
 #include <scsi/scsi_all.h>
 #include <scsi/scsiconf.h>
+#ifndef __NetBSD__
 #include <machine/clock.h>
+#endif /* __NetBSD */
 
 
 /*==========================================================
@@ -296,7 +299,7 @@
 
 /*==========================================================
 **
-**	Software Interrupt Codes
+**	Software Interupt Codes
 **
 **==========================================================
 */
@@ -557,7 +560,7 @@ struct tcb {
 	struct link   jump_lcb;
 
 	/*
-	**	pointer to interrupted getcc ccb
+	**	pointer to interupted getcc ccb
 	*/
 
 	ccb_p   hold_cp;
@@ -1251,7 +1254,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 
 static char ident[] =
-	"\n$Id: ncr.c,v 1.24 1995/02/15 20:06:38 se Exp $\n";
+	"\n$Id: ncr.c,v 1.25 1995/02/17 16:45:08 se Exp $\n";
 
 u_long	ncr_version = NCR_VERSION
 	+ (u_long) sizeof (struct ncb)
@@ -1403,9 +1406,9 @@ static	struct script script0 = {
 		0,
 }/*-------------------------< START0 >----------------------*/,{
 	/*
-	**	Hook for interrupted GetConditionCode.
+	**	Hook for interupted GetConditionCode.
 	**	Will be patched to ... IFTRUE by
-	**	the interrupt handler.
+	**	the interupt handler.
 	*/
 	SCR_INT ^ IFFALSE (0),
 		SIR_SENSE_RESTART,
@@ -1413,7 +1416,7 @@ static	struct script script0 = {
 }/*-------------------------< START1 >----------------------*/,{
 	/*
 	**	Hook for stalled start queue.
-	**	Will be patched to IFTRUE by the interrupt handler.
+	**	Will be patched to IFTRUE by the interupt handler.
 	*/
 	SCR_INT ^ IFFALSE (0),
 		SIR_STALL_RESTART,
@@ -1562,10 +1565,10 @@ static	struct script script0 = {
 	**	Then it will execute the next statement.
 	**
 	**	(4) There is a selection timeout.
-	**	Then the ncr should interrupt the host and stop.
+	**	Then the ncr should interupt the host and stop.
 	**	Unfortunately, it seems to continue execution
 	**	of the script. But it will fail with an
-	**	IID-interrupt on the next WHEN.
+	**	IID-interupt on the next WHEN.
 	*/
 
 	SCR_JUMPR ^ IFTRUE (WHEN (SCR_MSG_IN)),
@@ -2003,7 +2006,7 @@ static	struct script script0 = {
 	SCR_JUMP ^ IFTRUE (DATA (0)),
 		PADDR (clrack),
 	/*
-	**	Size is not 1 .. have to interrupt.
+	**	Size is not 1 .. have to interupt.
 	*/
 /*<<<*/	SCR_JUMPR ^ IFFALSE (DATA (1)),
 		40,
@@ -2660,7 +2663,7 @@ static	struct script script0 = {
 }/*-------------------------< RESELECT2 >-------------------*/,{
 	/*
 	**	If it's not connected :(
-	**	-> interrupted by SIGP bit.
+	**	-> interupted by SIGP bit.
 	**	Jump to start.
 	*/
 	SCR_FROM_REG (ctest2),
@@ -3243,19 +3246,20 @@ ncr_attach(parent, self, aux)
 
 static	void ncr_attach (pcici_t config_id, int unit)
 {
-	ncb_p np;
+	ncb_p np = (struct ncb*) 0;
 #if ! (__FreeBSD__ >= 2)
 	extern unsigned bio_imask;
 #endif
-
 
 	/*
 	**	allocate structure
 	*/
 
-	np = (ncb_p) malloc (sizeof (struct ncb), M_DEVBUF, M_WAITOK);
-	if (!np) return;
-	ncrp[unit]=np;
+	if (!np) {
+		np = (ncb_p) malloc (sizeof (struct ncb), M_DEVBUF, M_WAITOK);
+		if (!np) return;
+		ncrp[unit]=np;
+	}
 
 	/*
 	**	initialize structure.
@@ -3397,17 +3401,17 @@ static	void ncr_attach (pcici_t config_id, int unit)
 
 #ifndef __NetBSD__
 	/*
-	**	Install the interrupt handler.
+	**	Install the interupt handler.
 	*/
 
 	if (!pci_map_int (config_id, ncr_intr, np, &bio_imask))
-		printf ("\tinterruptless mode: reduced performance.\n");
+		printf ("\tinteruptless mode: reduced performance.\n");
 #endif
 
 	/*
 	**	After SCSI devices have been opened, we cannot
 	**	reset the bus safely, so we do it here.
-	**	Interrupt handler does the real work.
+	**	Interupt handler does the real work.
 	*/
 
 	OUTB (nc_scntl1, CRST);
@@ -3415,7 +3419,7 @@ static	void ncr_attach (pcici_t config_id, int unit)
 
 	/*
 	**	process the reset exception,
-	**	if interrupts are not enabled yet.
+	**	if interupts are not enabled yet.
 	**	than enable disconnects.
 	*/
 	ncr_exception (np);
@@ -3473,7 +3477,7 @@ static	void ncr_attach (pcici_t config_id, int unit)
 /*==========================================================
 **
 **
-**	Process pending device interrupts.
+**	Process pending device interupts.
 **
 **
 **==========================================================
@@ -3543,7 +3547,7 @@ static INT32 ncr_start (struct scsi_xfer * xp)
 	**
 	**   Reset SCSI bus
 	**
-	**	Interrupt handler does the real work.
+	**	Interupt handler does the real work.
 	**
 	**---------------------------------------------
 	*/
@@ -3990,7 +3994,7 @@ static INT32 ncr_start (struct scsi_xfer * xp)
 	splx (oldspl);
 
 	/*
-	**	If interrupts are enabled, return now.
+	**	If interupts are enabled, return now.
 	**	Command is successfully queued.
 	*/
 
@@ -4003,7 +4007,7 @@ static INT32 ncr_start (struct scsi_xfer * xp)
 
 	/*----------------------------------------------------
 	**
-	**	Interrupts not yet enabled - have to poll.
+	**	Interupts not yet enabled - have to poll.
 	**
 	**----------------------------------------------------
 	*/
@@ -4782,7 +4786,7 @@ static void ncr_usercmd (ncb_p np)
 **==========================================================
 **
 **	Misused to keep the driver running when
-**	interrupts are not configured correctly.
+**	interupts are not configured correctly.
 **
 **----------------------------------------------------------
 */
@@ -4836,7 +4840,7 @@ static void ncr_timeout (ncb_p np)
 			**
 			**	May be a target is hanging,
 			**	or another initator lets a tape device
-			**	rewind with disconnect disabled :-(
+			**	rewind with disabled disconnect :-(
 			**
 			**	We won't accept that.
 			*/
@@ -4907,7 +4911,7 @@ static void ncr_timeout (ncb_p np)
 	if (INB(nc_istat) & (INTF|SIP|DIP)) {
 
 		/*
-		**	Process pending interrupts.
+		**	Process pending interupts.
 		*/
 
 		int	oldspl	= splbio ();
@@ -4935,7 +4939,7 @@ void ncr_exception (ncb_p np)
 	int	i;
 
 	/*
-	**	interrupt on the fly ?
+	**	interupt on the fly ?
 	*/
 	while ((istat = INB (nc_istat)) & INTF) {
 		if (DEBUG_FLAGS & DEBUG_TINY) printf ("F");
@@ -5024,7 +5028,7 @@ void ncr_exception (ncb_p np)
 	};
 
 	/*-------------------------------------------
-	**	Programmed interrupt
+	**	Programmed interupt
 	**-------------------------------------------
 	*/
 
@@ -5167,7 +5171,7 @@ void ncr_exception (ncb_p np)
 /*
 **	@RECOVER@ HTH, SGE, ABRT.
 **
-**	We should try to recover from these interrupts.
+**	We should try to recover from these interupts.
 **	They may occur if there are problems with synch transfers,
 **	or if targets are powerswitched while the driver is running.
 */
@@ -5225,9 +5229,9 @@ void ncr_exception (ncb_p np)
 **==========================================================
 **
 **	There seems to be a bug in the 53c810.
-**	Although a STO-interrupt is pending,
+**	Although a STO-Interupt is pending,
 **	it continues executing script commands.
-**	But it will fail and interrupt (IID) on
+**	But it will fail and interupt (IID) on
 **	the next instruction where it's looking
 **	for a valid phase.
 **
@@ -5340,7 +5344,7 @@ static void ncr_int_ma (ncb_p np)
 		return;
 
 	/*
-	**	find the interrupted script command,
+	**	find the interupted script command,
 	**	and the address at where to continue.
 	*/
 
@@ -5446,7 +5450,7 @@ static void ncr_int_ma (ncb_p np)
 /*==========================================================
 **
 **
-**      ncr chip exception handler for programmed interrupts.
+**      ncr chip exception handler for programmed interupts.
 **
 **
 **==========================================================
@@ -5504,7 +5508,7 @@ void ncr_int_sir (ncb_p np)
 
 /*--------------------------------------------------------------------
 **
-**	Processing of interrupted getcc selects
+**	Processing of interupted getcc selects
 **
 **--------------------------------------------------------------------
 */
@@ -5512,7 +5516,7 @@ void ncr_int_sir (ncb_p np)
 	case SIR_SENSE_RESTART:
 		/*------------------------------------------
 		**	Script processor is idle.
-		**	Look for interrupted "check cond"
+		**	Look for interupted "check cond"
 		**------------------------------------------
 		*/
 
@@ -5550,7 +5554,7 @@ void ncr_int_sir (ncb_p np)
 
 	case SIR_SENSE_FAILED:
 		/*-------------------------------------------
-		**	While trying to reselect for
+		**	While trying to select for
 		**	getting the condition code,
 		**	a target reselected us.
 		**-------------------------------------------
@@ -5587,7 +5591,7 @@ void ncr_int_sir (ncb_p np)
 **	situation.
 **
 **	If the target doesn't answer this message immidiately
-**	(as required by the standard), the SIR_NEGO_FAIL interrupt
+**	(as required by the standard), the SIR_NEGO_FAIL interupt
 **	will be raised eventually.
 **	The handler removes the HS_NEGOTIATE status, and sets the
 **	negotiated value to the default (async / nowide).
@@ -6021,7 +6025,7 @@ void ncr_int_sir (ncb_p np)
 		};
 
 		/*
-		**	else remove the interrupt.
+		**	else remove the interupt.
 		*/
 
 		printf ("%s: queue empty.\n", ncr_name (np));
@@ -6344,7 +6348,7 @@ static	int	ncr_scatter
 
 	/*
 	**	insert extra break points at a distance of chunk.
-	**	We try to reduce the number of interrupts due to
+	**	We try to reduce the number of interupts due to
 	**	unexpected phase changes due to disconnects.
 	**	A typical harddisk may disconnect before ANY block.
 	**	If we want to avoid unexpected phase changes at all
@@ -6427,7 +6431,7 @@ static	int	ncr_scatter
 **
 **	Test the pci bus snoop logic :-(
 **
-**	Has to be called with interrupts disabled.
+**	Has to be called with disabled interupts.
 **
 **
 **==========================================================
