@@ -637,9 +637,8 @@ sched_sleep(struct thread *td)
 }
 
 void
-sched_switch(struct thread *td)
+sched_switch(struct thread *td, struct thread *newtd)
 {
-	struct thread *newtd;
 	struct kse *ke;
 	struct proc *p;
 
@@ -651,6 +650,8 @@ sched_switch(struct thread *td)
 
 	if ((p->p_flag & P_NOLOAD) == 0)
 		sched_tdcnt--;
+	if (newtd != NULL && (newtd->td_proc->p_flag & P_NOLOAD) == 0)
+		sched_tdcnt++;
 	td->td_lastcpu = td->td_oncpu;
 	td->td_last_kse = ke;
 	td->td_flags &= ~TDF_NEEDRESCHED;
@@ -658,9 +659,12 @@ sched_switch(struct thread *td)
 	/*
 	 * At the last moment, if this thread is still marked RUNNING,
 	 * then put it back on the run queue as it has not been suspended
-	 * or stopped or any thing else similar.
+	 * or stopped or any thing else similar.  We never put the idle
+	 * threads on the run queue, however.
 	 */
-	if (TD_IS_RUNNING(td)) {
+	if (td == PCPU_GET(idlethread))
+		TD_SET_CAN_RUN(td);
+	else if (TD_IS_RUNNING(td)) {
 		/* Put us back on the run queue (kse and all). */
 		setrunqueue(td);
 	} else if (p->p_flag & P_SA) {
@@ -671,7 +675,8 @@ sched_switch(struct thread *td)
 		 */
 		kse_reassign(ke);
 	}
-	newtd = choosethread();
+	if (newtd == NULL)
+		newtd = choosethread();
 	if (td != newtd)
 		cpu_switch(td, newtd);
 	sched_lock.mtx_lock = (uintptr_t)td;
@@ -830,7 +835,7 @@ sched_bind(struct thread *td, int cpu)
 
 	ke->ke_state = KES_THREAD;
 
-	mi_switch(SW_VOL);
+	mi_switch(SW_VOL, NULL);
 #endif
 }
 

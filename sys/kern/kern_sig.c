@@ -2019,7 +2019,7 @@ ptracestop(struct thread *td, int sig)
 	thread_suspend_one(td);
 	PROC_UNLOCK(p);
 	DROP_GIANT();
-	mi_switch(SW_INVOL);
+	mi_switch(SW_INVOL, NULL);
 	mtx_unlock_spin(&sched_lock);
 	PICKUP_GIANT();
 }
@@ -2168,7 +2168,7 @@ issignal(td)
 				thread_suspend_one(td);
 				PROC_UNLOCK(p);
 				DROP_GIANT();
-				mi_switch(SW_INVOL);
+				mi_switch(SW_INVOL, NULL);
 				mtx_unlock_spin(&sched_lock);
 				PICKUP_GIANT();
 				PROC_LOCK(p);

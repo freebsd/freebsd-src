@@ -908,7 +908,7 @@ thread_single(int force_exit)
 		 */
 		thread_suspend_one(td);
 		PROC_UNLOCK(p);
-		mi_switch(SW_VOL);
+		mi_switch(SW_VOL, NULL);
 		mtx_unlock_spin(&sched_lock);
 		PROC_LOCK(p);
 		mtx_lock_spin(&sched_lock);
@@ -1011,7 +1011,7 @@ thread_suspend_check(int return_instead)
 			}
 		}
 		PROC_UNLOCK(p);
-		mi_switch(SW_INVOL);
+		mi_switch(SW_INVOL, NULL);
 		mtx_unlock_spin(&sched_lock);
 		PROC_LOCK(p);
 	}

@@ -58,7 +58,7 @@ idle_setup(void *dummy)
 		p->p_flag |= P_NOLOAD;
 		mtx_lock_spin(&sched_lock);
 		td = FIRST_THREAD_IN_PROC(p);
-		td->td_state = TDS_CAN_RUN;
+		TD_SET_CAN_RUN(td);
 		td->td_flags |= TDF_IDLETD;
 		td->td_priority = PRI_MAX_IDLE;
 		mtx_unlock_spin(&sched_lock);
@@ -86,8 +86,7 @@ idle_proc(void *dummy)
 			cpu_idle();
 
 		mtx_lock_spin(&sched_lock);
-		td->td_state = TDS_CAN_RUN;
-		mi_switch(SW_VOL);
+		mi_switch(SW_VOL, NULL);
 		mtx_unlock_spin(&sched_lock);
 	}
 }

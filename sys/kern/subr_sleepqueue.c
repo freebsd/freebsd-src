@@ -409,7 +409,7 @@ sleepq_switch(void *wchan)
 
 	sched_sleep(td);
 	TD_SET_SLEEPING(td);
-	mi_switch(SW_VOL);
+	mi_switch(SW_VOL, NULL);
 	KASSERT(TD_IS_RUNNING(td), ("running but not TDS_RUNNING"));
 	CTR3(KTR_PROC, "sleepq resume: thread %p (pid %ld, %s)",
 	    (void *)td, (long)td->td_proc->p_pid, (void *)td->td_proc->p_comm);
@@ -449,7 +449,7 @@ sleepq_check_timeout(void)
 	else if (callout_stop(&td->td_slpcallout) == 0) {
 		td->td_flags |= TDF_TIMEOUT;
 		TD_SET_SLEEPING(td);
-		mi_switch(SW_INVOL);
+		mi_switch(SW_INVOL, NULL);
 	}
 	return (0);
 }

@@ -416,7 +416,7 @@ ithread_schedule(struct ithd *ithread, int do_switch)
 			    ("ithread_schedule: Bad state for curthread."));
 			if (ctd->td_flags & TDF_IDLETD)
 				ctd->td_state = TDS_CAN_RUN; /* XXXKSE */
-			mi_switch(SW_INVOL);
+			mi_switch(SW_INVOL, NULL);
 		} else {
 			curthread->td_flags |= TDF_NEEDRESCHED;
 		}
@@ -618,7 +618,7 @@ restart:
 		if (!ithd->it_need) {
 			TD_SET_IWAIT(td);
 			CTR2(KTR_INTR, "%s: pid %d: done", __func__, p->p_pid);
-			mi_switch(SW_VOL);
+			mi_switch(SW_VOL, NULL);
 			CTR2(KTR_INTR, "%s: pid %d: resumed", __func__, p->p_pid);
 		}
 		mtx_unlock_spin(&sched_lock);
