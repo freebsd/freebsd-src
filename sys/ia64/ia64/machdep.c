@@ -75,7 +75,6 @@
 #include <machine/elf.h>
 #include <ddb/ddb.h>
 #include <sys/vnode.h>
-#include <fs/procfs/procfs.h>
 #include <machine/sigframe.h>
 #include <machine/efi.h>
 #include <machine/inst.h>
@@ -1271,6 +1270,20 @@ set_regs(td, regs)
 {
 	/* TODO copy regs to trapframe */
 	return (0);
+}
+
+int
+fill_dbregs(struct thread *td, struct dbreg *dbregs)
+{
+
+	return (ENOSYS);
+}
+
+int
+set_dbregs(struct thread *td, struct dbreg *dbregs)
+{
+
+	return (ENOSYS);
 }
 
 int
