@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: asnames.h,v 1.32 1999/04/28 01:03:57 luoqi Exp $
+ * $Id: asnames.h,v 1.33 1999/05/06 09:44:52 bde Exp $
  */
 
 #ifndef _MACHINE_ASNAMES_H_
@@ -268,9 +268,9 @@
 #define _lapic				lapic
 #define _linux_sigcode			linux_sigcode
 #define _linux_szsigcode		linux_szsigcode
-#define _main				main
 #define _mask8254			mask8254
 #define _maskRTC			maskRTC
+#define _mi_startup			mi_startup
 #define _microuptime			microuptime
 #define _mp_gdtbase			mp_gdtbase
 #define _mp_lock			mp_lock
