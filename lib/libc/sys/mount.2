@@ -42,7 +42,7 @@
 .Fd #include <sys/param.h>
 .Fd #include <sys/mount.h>
 .Ft int
-.Fn mount "const char *name" "const char *dir" "int flags" "void *data"
+.Fn mount "const char *type" "const char *dir" "int flags" "void *data"
 .Ft int
 .Fn unmount "const char *dir" "int flags"
 .Sh DESCRIPTION
@@ -118,11 +118,7 @@ The
 .Fa type
 argument names the filesystem.
 The types of filesystems known to the system can be obtained with
-.Xr sysctl 8
-by using the command:
-.Bd -literal -offset indent
-sysctl vfs
-.Ed
+.Xr lsvfs 1 .
 .Pp
 .Fa Data
 is a pointer to a structure that contains the type
@@ -131,7 +127,7 @@ The format for these argument structures is described in the
 manual page for each filesystem.
 By convention filesystem manual pages are named
 by prefixing ``mount_'' to the name of the filesystem as returned by
-.Xr sysctl 8 .
+.Xr lsvfs 1 .
 Thus the
 .Nm NFS
 filesystem is described by the
@@ -300,9 +296,9 @@ or
 mount can also fail if the maximum number of filesystems are currently
 mounted.
 .Sh SEE ALSO
+.Xr lsvfs 1 ,
 .Xr mfs 8 ,
 .Xr mount 8 ,
-.Xr sysctl 8 ,
 .Xr umount 8
 .Sh BUGS
 Some of the error codes need translation to more obvious messages.
