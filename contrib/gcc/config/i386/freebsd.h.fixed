@@ -360,6 +360,9 @@ do {									\
 			 VOIDmode, 0);					\
   } while (0)
 
+/* Use dollar signs in special g++ assembler names.  */
+#undef NO_DOLLAR_IN_LABEL
+
 /* Map i386 registers to the numbers dwarf expects.  Of course this is different
    from what stabs expects.  */
 
