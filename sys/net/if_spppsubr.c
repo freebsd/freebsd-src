@@ -92,13 +92,6 @@
 #include <netns/ns_if.h>
 #endif
 
-#ifdef ISO
-#include <netiso/argo_debug.h>
-#include <netiso/iso.h>
-#include <netiso/iso_var.h>
-#include <netiso/iso_snpac.h>
-#endif
-
 #include <net/if_sppp.h>
 
 #if defined(__FreeBSD__) && __FreeBSD__ >= 3
@@ -537,15 +530,6 @@ sppp_input(struct ifnet *ifp, struct mbuf *m)
 			}
 			break;
 #endif
-#ifdef ISO
-		case PPP_ISO:
-			/* OSI NLCP not implemented yet */
-			if (sp->pp_phase == PHASE_NETWORK) {
-				schednetisr (NETISR_ISO);
-				inq = &clnlintrq;
-			}
-			break;
-#endif
 		}
 		break;
 	case CISCO_MULTICAST:
@@ -768,13 +752,6 @@ sppp_output(struct ifnet *ifp, struct mbuf *m,
 	case AF_IPX:     /* Novell IPX Protocol */
 		h->protocol = htons (sp->pp_mode == IFF_CISCO ?
 			ETHERTYPE_IPX : PPP_IPX);
-		break;
-#endif
-#ifdef ISO
-	case AF_ISO:    /* ISO OSI Protocol */
-		if (sp->pp_mode == IFF_CISCO)
-			goto nosupport;
-		h->protocol = htons (PPP_ISO);
 		break;
 #endif
 nosupport:

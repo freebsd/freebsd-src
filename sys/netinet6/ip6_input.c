@@ -173,6 +173,7 @@ ip6_init()
 		    pr->pr_protocol && pr->pr_protocol != IPPROTO_RAW)
 			ip6_protox[pr->pr_protocol] = pr - inet6sw;
 	ip6intrq.ifq_maxlen = ip6qmaxlen;
+	register_netisr(NETISR_IPV6, ip6intr);
 	nd6_init();
 	frag6_init();
 #ifdef IPV6FIREWALL
@@ -235,8 +236,6 @@ ip6intr()
 		ip6_input(m);
 	}
 }
-
-NETISR_SET(NETISR_IPV6, ip6intr);
 
 extern struct	route_in6 ip6_forward_rt;
 

@@ -142,9 +142,6 @@ rts_attach(struct socket *so, int proto, struct proc *p)
 	case AF_NS:
 		route_cb.ns_count++;
 		break;
-	case AF_ISO:
-		route_cb.iso_count++;
-		break;
 	}
 	rp->rcb_faddr = &route_src;
 	route_cb.any_count++;
@@ -197,9 +194,6 @@ rts_detach(struct socket *so)
 			break;
 		case AF_NS:
 			route_cb.ns_count--;
-			break;
-		case AF_ISO:
-			route_cb.iso_count--;
 			break;
 		}
 		route_cb.any_count--;

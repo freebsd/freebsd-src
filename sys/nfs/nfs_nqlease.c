@@ -393,11 +393,6 @@ nqsrv_addhost(lph, slp, nam)
 		lph->lph_flag |= (LC_VALID | LC_UDP);
 		lph->lph_inetaddr = saddr->sin_addr.s_addr;
 		lph->lph_port = saddr->sin_port;
-#ifdef ISO
-	} else if (nsso && nsso->so_proto->pr_protocol == ISOPROTO_CLTP) {
-		lph->lph_nam = dup_sockaddr(nam, 1);
-		lph->lph_flag |= (LC_VALID | LC_CLTP);
-#endif
 	} else {
 		lph->lph_flag |= (LC_VALID | LC_SREF);
 		slp->ns_sref++;
@@ -467,17 +462,11 @@ nqsrv_cmpnam(slp, nam, lph)
 	nsso = slp->ns_so;
 	if (nsso && nsso->so_proto->pr_protocol == IPPROTO_UDP) {
 		addr = nam;
-#ifdef ISO
-	} else if (nsso && nsso->so_proto->pr_protocol == ISOPROTO_CLTP) {
-		addr = nam;
-#endif
 	} else {
 		addr = slp->ns_nam;
 	}
 	if (lph->lph_flag & LC_UDP) {
 		ret = netaddr_match(AF_INET, &lph->lph_haddr, addr);
-	} else if (lph->lph_flag & LC_CLTP) {
-		ret = netaddr_match(AF_ISO, &lph->lph_claddr, addr);
 	} else {
 		if ((lph->lph_slp->ns_flag & SLP_VALID) == 0)
 			return (0);
@@ -531,8 +520,6 @@ nqsrv_send_eviction(vp, lp, slp, nam, cred)
 				saddr->sin_family = AF_INET;
 				saddr->sin_addr.s_addr = lph->lph_inetaddr;
 				saddr->sin_port = lph->lph_port;
-			} else if (lph->lph_flag & LC_CLTP) {
-				nam2 = lph->lph_nam;
 			} else if (lph->lph_slp->ns_flag & SLP_VALID) {
 				nam2 = (struct sockaddr *)0;
 			} else {
@@ -575,7 +562,7 @@ nqsrv_send_eviction(vp, lp, slp, nam, cred)
 			 * nfs_sndlock if PR_CONNREQUIRED XXX
 			 */
 
-			if ((lph->lph_flag & (LC_UDP | LC_CLTP)) == 0 &&
+			if ((lph->lph_flag & LC_UDP) == 0 &&
 			    ((lph->lph_slp->ns_flag & SLP_VALID) == 0 ||
 			    nfs_slplock(lph->lph_slp, 0) == 0)) {
 				m_freem(m);
@@ -700,8 +687,6 @@ nqnfs_serverd()
 			i = 0;
 			ok = 1;
 			while (ok && (lph->lph_flag & LC_VALID)) {
-				if (lph->lph_flag & LC_CLTP)
-					FREE(lph->lph_nam, M_SONAME);
 				if (lph->lph_flag & LC_SREF)
 					nfsrv_slpderef(lph->lph_slp);
 				if (++i == len) {

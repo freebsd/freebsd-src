@@ -83,22 +83,6 @@ int ether_outputdebug = 0;
 int ether_inputdebug = 0;
 #endif
 
-#ifdef ISO
-#include <netiso/argo_debug.h>
-#include <netiso/iso.h>
-#include <netiso/iso_var.h>
-#include <netiso/iso_snpac.h>
-#endif
-
-/*#ifdef LLC
-#include <netccitt/dll.h>
-#include <netccitt/llc_var.h>
-#endif*/
-
-#if defined(LLC) && defined(CCITT)
-extern struct ifqueue pkintrq;
-#endif
-
 #ifdef NETATALK
 #include <netatalk/at.h>
 #include <netatalk/at_var.h>
@@ -325,68 +309,6 @@ ether_output(ifp, m, dst, rt0)
 		}
 		break;
 #endif /* NS */
-#ifdef	ISO
-	case AF_ISO: {
-		int	snpalen;
-		struct	llc *l;
-		register struct sockaddr_dl *sdl;
-
-		if (rt && (sdl = (struct sockaddr_dl *)rt->rt_gateway) &&
-		    sdl->sdl_family == AF_LINK && sdl->sdl_alen > 0) {
-			bcopy(LLADDR(sdl), (caddr_t)edst, sizeof(edst));
-		} else if (error =
-			    iso_snparesolve(ifp, (struct sockaddr_iso *)dst,
-					    (char *)edst, &snpalen))
-			goto bad; /* Not Resolved */
-		/* If broadcasting on a simplex interface, loopback a copy */
-		if (*edst & 1)
-			m->m_flags |= (M_BCAST|M_MCAST);
-		M_PREPEND(m, 3, M_DONTWAIT);
-		if (m == NULL)
-			return (0);
-		type = htons(m->m_pkthdr.len);
-		l = mtod(m, struct llc *);
-		l->llc_dsap = l->llc_ssap = LLC_ISO_LSAP;
-		l->llc_control = LLC_UI;
-		len += 3;
-		IFDEBUG(D_ETHER)
-			int i;
-			printf("unoutput: sending pkt to: ");
-			for (i=0; i<6; i++)
-				printf("%x ", edst[i] & 0xff);
-			printf("\n");
-		ENDDEBUG
-		} break;
-#endif /* ISO */
-#ifdef	LLC
-/*	case AF_NSAP: */
-	case AF_CCITT: {
-		register struct sockaddr_dl *sdl =
-			(struct sockaddr_dl *) rt -> rt_gateway;
-
-		if (sdl && sdl->sdl_family == AF_LINK
-		    && sdl->sdl_alen > 0) {
-			bcopy(LLADDR(sdl), (char *)edst, sizeof(edst));
-		} else goto bad; /* Not a link interface ? Funny ... */
-		if (*edst & 1)
-			loop_copy = 1;
-		type = htons(m->m_pkthdr.len);
-#ifdef LLC_DEBUG
-		{
-			int i;
-			register struct llc *l = mtod(m, struct llc *);
-
-			printf("ether_output: sending LLC2 pkt to: ");
-			for (i=0; i<6; i++)
-				printf("%x ", edst[i] & 0xff);
-			printf(" len 0x%x dsap 0x%x ssap 0x%x control 0x%x\n",
-			       type & 0xff, l->llc_dsap & 0xff, l->llc_ssap &0xff,
-			       l->llc_control & 0xff);
-
-		}
-#endif /* LLC_DEBUG */
-		} break;
-#endif /* LLC */
 
 	case pseudo_AF_HDRCMPLT:
 		hdrcmplt = 1;
@@ -497,7 +419,7 @@ ether_input(ifp, eh, m)
 	register struct ifqueue *inq;
 	u_short ether_type;
 	int s;
-#if defined (ISO) || defined (LLC) || defined(NETATALK)
+#if defined(NETATALK)
 	register struct llc *l;
 #endif
 
@@ -601,12 +523,11 @@ ether_input(ifp, eh, m)
 				break;
 		}
 #endif /* NS */
-#if defined (ISO) || defined (LLC) || defined(NETATALK)
+#if defined(NETATALK)
 		if (ether_type > ETHERMTU)
 			goto dropanyway;
 		l = mtod(m, struct llc *);
 		switch (l->llc_dsap) {
-#ifdef NETATALK
 		case LLC_SNAP_LSAP:
 		    switch (l->llc_control) {
 		    case LLC_UI:
@@ -634,94 +555,6 @@ ether_input(ifp, eh, m)
 			goto dropanyway;
 		    }
 		    break;
-#endif NETATALK	
-#ifdef	ISO
-		case LLC_ISO_LSAP:
-			switch (l->llc_control) {
-			case LLC_UI:
-				/* LLC_UI_P forbidden in class 1 service */
-				if ((l->llc_dsap == LLC_ISO_LSAP) &&
-				    (l->llc_ssap == LLC_ISO_LSAP)) {
-					/* LSAP for ISO */
-					if (m->m_pkthdr.len > ether_type)
-						m_adj(m, ether_type - m->m_pkthdr.len);
-					m->m_data += 3;		/* XXX */
-					m->m_len -= 3;		/* XXX */
-					m->m_pkthdr.len -= 3;	/* XXX */
-					M_PREPEND(m, sizeof *eh, M_DONTWAIT);
-					if (m == 0)
-						return;
-					*mtod(m, struct ether_header *) = *eh;
-					IFDEBUG(D_ETHER)
-						printf("clnp packet");
-					ENDDEBUG
-					schednetisr(NETISR_ISO);
-					inq = &clnlintrq;
-					break;
-				}
-				goto dropanyway;
-
-			case LLC_XID:
-			case LLC_XID_P:
-				if(m->m_len < 6)
-					goto dropanyway;
-				l->llc_window = 0;
-				l->llc_fid = 9;
-				l->llc_class = 1;
-				l->llc_dsap = l->llc_ssap = 0;
-				/* Fall through to */
-			case LLC_TEST:
-			case LLC_TEST_P:
-			{
-				struct sockaddr sa;
-				register struct ether_header *eh2;
-				int i;
-				u_char c = l->llc_dsap;
-
-				l->llc_dsap = l->llc_ssap;
-				l->llc_ssap = c;
-				if (m->m_flags & (M_BCAST | M_MCAST))
-					bcopy((caddr_t)ac->ac_enaddr,
-					      (caddr_t)eh->ether_dhost, 6);
-				sa.sa_family = AF_UNSPEC;
-				sa.sa_len = sizeof(sa);
-				eh2 = (struct ether_header *)sa.sa_data;
-				for (i = 0; i < 6; i++) {
-					eh2->ether_shost[i] = c = eh->ether_dhost[i];
-					eh2->ether_dhost[i] =
-						eh->ether_dhost[i] = eh->ether_shost[i];
-					eh->ether_shost[i] = c;
-				}
-				ifp->if_output(ifp, m, &sa, NULL);
-				return;
-			}
-			default:
-				m_freem(m);
-				return;
-			}
-			break;
-#endif /* ISO */
-#ifdef LLC
-		case LLC_X25_LSAP:
-		{
-			if (m->m_pkthdr.len > ether_type)
-				m_adj(m, ether_type - m->m_pkthdr.len);
-			M_PREPEND(m, sizeof(struct sdl_hdr) , M_DONTWAIT);
-			if (m == 0)
-				return;
-			if ( !sdl_sethdrif(ifp, eh->ether_shost, LLC_X25_LSAP,
-					    eh->ether_dhost, LLC_X25_LSAP, 6,
-					    mtod(m, struct sdl_hdr *)))
-				panic("ETHER cons addr failure");
-			mtod(m, struct sdl_hdr *)->sdlhdr_len = ether_type;
-#ifdef LLC_DEBUG
-				printf("llc packet\n");
-#endif /* LLC_DEBUG */
-			schednetisr(NETISR_CCITT);
-			inq = &llcintrq;
-			break;
-		}
-#endif /* LLC */
 		dropanyway:
 		default:
 #ifdef	NETGRAPH
@@ -731,14 +564,14 @@ ether_input(ifp, eh, m)
 #endif	/* NETGRAPH */
 			return;
 		}
-#else /* ISO || LLC || NETATALK */
+#else /* NETATALK */
 #ifdef	NETGRAPH
 	    ngether_send(IFP2AC(ifp), eh, m);
 #else	/* NETGRAPH */
 	    m_freem(m);
 #endif	/* NETGRAPH */
 	    return;
-#endif /* ISO || LLC || NETATALK */
+#endif /* NETATALK */
 	}
 
 	s = splimp();
