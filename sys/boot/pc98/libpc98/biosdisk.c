@@ -765,7 +765,7 @@ bd_read(struct open_disk *od, daddr_t dblk, int blks, caddr_t dest)
 
     /* Decide whether we have to bounce */
 #ifdef PC98
-    if (((od->od_unit & 0xf0) == 0x90 || (od->od_unit & 0xf0) == 0x30) && 
+    if (
 #else
     if ((od->od_unit < 0x80) && 
 #endif
@@ -777,7 +777,11 @@ bd_read(struct open_disk *od, daddr_t dblk, int blks, caddr_t dest)
 	 * need to.  Use the bottom half unless there is a break there, in which case we
 	 * use the top half.
 	 */
+#ifdef PC98
+	x = min(od->od_sec, blks);
+#else
 	x = min(FLOPPY_BOUNCEBUF, blks);
+#endif
 	bbuf = malloc(x * 2 * BIOSDISK_SECSIZE);
 	if (((u_int32_t)VTOP(bbuf) & 0xffff0000) == ((u_int32_t)VTOP(dest + x * BIOSDISK_SECSIZE) & 0xffff0000)) {
 	    breg = bbuf;
@@ -818,18 +822,21 @@ bd_read(struct open_disk *od, daddr_t dblk, int blks, caddr_t dest)
 	    /* if retrying, reset the drive */
 	    if (retry > 0) {
 #ifdef PC98
+		v86.ctl = V86_FLAGS;
+		v86.addr = 0x1b;
+		v86.eax = 0x0300 | od->od_unit;
 #else
 		v86.ctl = V86_FLAGS;
 		v86.addr = 0x13;
 		v86.eax = 0;
 		v86.edx = od->od_unit;
-		v86int();
 #endif
+		v86int();
 	    }
 	    
 	    /* build request  XXX support EDD requests too */
+	    v86.ctl = V86_FLAGS;
 #ifdef PC98
-	    v86.ctl = 0;
 	    v86.addr = 0x1b;
 	    if (od->od_flags & BD_FLOPPY) {
 	        v86.eax = 0xd600 | od->od_unit;
@@ -843,17 +850,15 @@ bd_read(struct open_disk *od, daddr_t dblk, int blks, caddr_t dest)
 	    v86.ebx = x * BIOSDISK_SECSIZE;
 	    v86.es = VTOPSEG(xp);
 	    v86.ebp = VTOPOFF(xp);
-	    v86int();
 #else
-	    v86.ctl = V86_FLAGS;
 	    v86.addr = 0x13;
 	    v86.eax = 0x200 | x;
 	    v86.ecx = ((cyl & 0xff) << 8) | ((cyl & 0x300) >> 2) | sec;
 	    v86.edx = (hd << 8) | od->od_unit;
 	    v86.es = VTOPSEG(xp);
 	    v86.ebx = VTOPOFF(xp);
-	    v86int();
 #endif
+	    v86int();
 	    result = (v86.efl & 0x1);
 	    if (result == 0)
 		break;
@@ -901,7 +906,7 @@ bd_getgeom(struct open_disk *od)
 	od->od_sec = (od->od_unit & 0xf0) == 0x30 ? 18 : 15;
     }
     else {
-        v86.ctl = 0;
+        v86.ctl = V86_FLAGS;
 	v86.addr = 0x1b;
 	v86.eax = 0x8400 | od->od_unit;
 	v86int();
@@ -909,6 +914,8 @@ bd_getgeom(struct open_disk *od)
 	od->od_cyl = v86.ecx;
 	od->od_hds = (v86.edx >> 8) & 0xff;
 	od->od_sec = v86.edx & 0xff;
+	if (v86.efl & 0x1)
+	    return(1);
     }
 #else
     v86.ctl = V86_FLAGS;
