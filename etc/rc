@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.188 1999/06/01 10:47:53 brian Exp $
+#	$Id: rc,v 1.189 1999/06/21 15:59:42 sheldonh Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -179,6 +179,7 @@ mount -a -t nfs
 echo .
 
 # Whack the pty perms back into shape.
+chflags 0 /dev/tty[pqrsPQRS]*
 chmod 666 /dev/tty[pqrsPQRS]*
 chown root:wheel /dev/tty[pqrsPQRS]*
 
