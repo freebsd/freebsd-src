@@ -36,6 +36,12 @@ __FBSDID("$FreeBSD$");
 #include "archive_private.h"
 
 static void
+errmsg(const char *m)
+{
+	write(STDERR_FILENO, m, strlen(m));
+}
+
+static void
 diediedie(void)
 {
 	*(char *)0 = 1;	/* Deliberately segfault and force a coredump. */
@@ -58,15 +64,16 @@ state_name(unsigned s)
 
 
 static void
-write_all_states(FILE *f, int states)
+write_all_states(int states)
 {
 	unsigned lowbit;
 
 	/* A trick for computing the lowest set bit. */
 	while ((lowbit = states & (-states)) != 0) {
 		states &= ~lowbit;		/* Clear the low bit. */
-		fprintf(f, "%s%s", state_name(lowbit),
-		    (states != 0) ? "/" : "");
+		errmsg(state_name(lowbit));
+		if (states != 0)
+			errmsg("/");
 	}
 }
 
@@ -81,8 +88,9 @@ __archive_check_magic(struct archive *a, unsigned magic, unsigned state,
     const char *function)
 {
 	if (a->magic != magic) {
-		fprintf(stderr, "INTERNAL ERROR: Function %s invoked"
-		    " with invalid struct archive structure.\n", function);
+		errmsg("INTERNAL ERROR: Function ");
+		errmsg(function);
+		errmsg(" invoked with invalid struct archive structure.\n");
 		diediedie();
 	}
 
@@ -90,12 +98,13 @@ __archive_check_magic(struct archive *a, unsigned magic, unsigned state,
 		return;
 
 	if ((a->state & state) == 0) {
-		fprintf(stderr, "INTERNAL ERROR: Function '%s' invoked"
-		    " with archive structure in state '", function);
-		write_all_states(stderr, a->state);
-		fprintf(stderr,"', should be in state '");
-		write_all_states(stderr, state);
-		fprintf(stderr, "'\n");
+		errmsg("INTERNAL ERROR: Function '");
+		errmsg(function);
+		errmsg("' invoked with archive structure in state '");
+		write_all_states(a->state);
+		errmsg("', should be in state '");
+		write_all_states(state);
+		errmsg("'\n");
 		diediedie();
 	}
 }
