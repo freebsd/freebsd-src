@@ -192,6 +192,7 @@ struct kse {
 	int			k_flags;
 #define	KF_STARTED			0x0001	/* kernel kse created */
 #define	KF_INITIALIZED			0x0002	/* initialized on 1st upcall */
+#define	KF_TERMINATED			0x0004
 	int			k_idle;		/* kse is idle */
 	int			k_error;	/* syscall errno in critical */
 	int			k_cpu;		/* CPU ID when bound */
