@@ -325,7 +325,7 @@ userlist(int argc, char **argv)
 		    continue;
 		*conf_realname = '\0';               /* Replace : with NUL */
 		for (p = argv; *p; ++p) {
-		    if (strcmp(*p, conf_alias) == NULL) {
+		    if (strcmp(*p, conf_alias) == 0) {
 			if ((*p = strdup(conf_realname+1)) == NULL) {
 			    err(1, NULL);
 			}
