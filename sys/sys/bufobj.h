@@ -66,7 +66,24 @@ struct bufobj {
 	struct mtx	*bo_mtx;	/* Mutex which protects "i" things */
 	struct bufv	bo_clean;	/* i Clean buffers */
 	struct bufv	bo_dirty;	/* i Dirty buffers */
+	long		bo_numoutput;	/* i Writes in progress */
 };
+
+#define	BO_LOCK(bo) \
+	do { \
+		KASSERT (bo->bo_mtx != NULL, ("No lock in bufobj")); \
+		mtx_lock((bo)->bo_mtx); \
+	} while (0)
+
+#define BO_UNLOCK(bo) \
+	do { \
+		KASSERT (bo->bo_mtx != NULL, ("No lock in bufobj")); \
+		mtx_unlock((bo)->bo_mtx); \
+	} while (0)
+
+#define	BO_MTX(bo)		((bo)->bo_mtx)
+#define	ASSERT_BO_LOCKED(bo)	mtx_assert(bo->bo_mtx, MA_OWNED)
+#define	ASSERT_BO_UNLOCKED(bo)	mtx_assert(bo->bo_mtx, MA_NOTOWNED)
 
 #endif /* defined(_KERNEL) || defined(_KVM_VNODE) */
 #endif /* _SYS_BUFOBJ_H_ */
