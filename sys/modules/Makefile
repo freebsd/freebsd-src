@@ -211,7 +211,6 @@ SUBDIR+=aic \
 	apm \
 	ar \
 	arcnet \
-	atspeaker \
 	bktr \
 	coff \
 	em \
@@ -230,6 +229,7 @@ SUBDIR+=aic \
 	nsp \
 	oltr \
 	pccard \
+	pcspeaker \
 	pecoff \
 	pmc \
 	ray \
