@@ -66,7 +66,7 @@ static u_int g_mirror_reqs_per_sync = 5;
 SYSCTL_UINT(_kern_geom_mirror, OID_AUTO, reqs_per_sync, CTLFLAG_RW,
     &g_mirror_reqs_per_sync, 0,
     "Number of regular I/O requests per synchronization request");
-static u_int g_mirror_syncs_per_sec = 100;
+static u_int g_mirror_syncs_per_sec = 1000;
 SYSCTL_UINT(_kern_geom_mirror, OID_AUTO, syncs_per_sec, CTLFLAG_RW,
     &g_mirror_syncs_per_sec, 0,
     "Number of synchronizations requests per second");
