@@ -24,7 +24,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\"	$Id: wd.4,v 1.5 1997/03/07 02:50:00 jmg Exp $
+.\"	$Id: wd.4,v 1.6 1997/07/15 09:44:05 charnier Exp $
 .\"
 .Dd August 31, 1994
 .Dt WD 4 i386
@@ -61,6 +61,9 @@ Test and use the 32bit transfer capability of the drive.
 .It 0x4000
 If drive looks like it's comming out of sleep mode, assume it's 
 confused and reinitialize it.
+.It 0x2000
+Probe for and use the bus-mastering DMA capabilities of modern
+PCI chipsets.
 .It 0x0f00
 Force number of heads to ((flags & 0xf00)>>8), recalculate number
 of cylinders to match.
