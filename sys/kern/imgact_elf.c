@@ -462,7 +462,7 @@ exec_elf_imgact(struct image_params *imgp)
 	Elf_Auxargs *elf_auxargs = NULL;
 	struct vmspace *vmspace;
 	vm_prot_t prot;
-	u_long text_size = 0, data_size = 0;
+	u_long text_size = 0, data_size = 0, total_size = 0;
 	u_long text_addr = 0, data_addr = 0;
 	u_long seg_size, seg_addr;
 	u_long addr, entry = 0, proghdr = 0;
@@ -535,19 +535,31 @@ exec_elf_imgact(struct image_params *imgp)
 				phdr[i].p_vaddr - seg_addr);
 
 			/*
-			 * Is this .text or .data?  Use VM_PROT_WRITE
-			 * to distinguish between the two for the purpose
-			 * of limit checking and vmspace fields.
+			 * Is this .text or .data?  We can't use
+			 * VM_PROT_WRITE or VM_PROT_EXEC, it breaks the
+			 * alpha terribly and possibly does other bad
+			 * things so we stick to the old way of figuring
+			 * it out:  If the segment contains the program
+			 * entry point, it's a text segment, otherwise it
+			 * is a data segment.
+			 *
+			 * Note that obreak() assumes that data_addr + 
+			 * data_size == end of data load area, and the ELF
+			 * file format expects segments to be sorted by
+			 * address.  If multiple data segments exist, the
+			 * last one will be used.
 			 */
-			if (prot & VM_PROT_WRITE) {
-				data_size += seg_size;
-				if (data_addr == 0)
-					data_addr = seg_addr;
+			if (hdr->e_entry >= phdr[i].p_vaddr &&
+			    hdr->e_entry < (phdr[i].p_vaddr +
+			    phdr[i].p_memsz)) {
+				text_size = seg_size;
+				text_addr = seg_addr;
+				entry = (u_long)hdr->e_entry;
 			} else {
-				text_size += seg_size;
-				if (text_addr == 0)
-					text_addr = seg_addr;
+				data_size = seg_size;
+				data_addr = seg_addr;
 			}
+			total_size += seg_size;
 
 			/*
 			 * Check limits.  It should be safe to check the
@@ -557,16 +569,10 @@ exec_elf_imgact(struct image_params *imgp)
 			if (data_size >
 			    imgp->proc->p_rlimit[RLIMIT_DATA].rlim_cur ||
 			    text_size > maxtsiz ||
-			    data_size + text_size >
+			    total_size >
 			    imgp->proc->p_rlimit[RLIMIT_VMEM].rlim_cur) {
 				error = ENOMEM;
 				goto fail;
-			}
-
-			/* Does the entry point belong to this segment? */
-			if (hdr->e_entry >= phdr[i].p_vaddr &&
-			    hdr->e_entry <(phdr[i].p_vaddr+phdr[i].p_memsz)) {
-				entry = (u_long)hdr->e_entry;
 			}
 			break;
 	  	case PT_INTERP:	/* Path to interpreter */
