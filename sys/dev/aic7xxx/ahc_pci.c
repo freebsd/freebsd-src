@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ahc_pci.c,v 1.15 1999/05/26 16:59:17 gibbs Exp $
+ *	$Id: ahc_pci.c,v 1.16 1999/07/03 20:16:59 peter Exp $
  */
 
 #include <sys/param.h>
@@ -591,7 +591,7 @@ ahc_pci_attach(device_t dev)
 
 	/* Allocate a dmatag for our SCB DMA maps */
 	/* XXX Should be a child of the PCI bus dma tag */
-	error = bus_dma_tag_create(/*parent*/NULL, /*alignment*/0,
+	error = bus_dma_tag_create(/*parent*/NULL, /*alignment*/1,
 				   /*boundary*/0,
 				   /*lowaddr*/BUS_SPACE_MAXADDR_32BIT,
 				   /*highaddr*/BUS_SPACE_MAXADDR,
@@ -748,7 +748,7 @@ ahc_pci_attach(device_t dev)
 			id_string = "aic7896/97 ";
 			dscommand0 = ahc_inb(ahc, DSCOMMAND0);
 			dscommand0 &= ~(USCBSIZE32|DPARCKEN);
-			dscommand0 |= CACHETHEN|MPARCKEN;
+			dscommand0 |= MPARCKEN;
 			ahc_outb(ahc, DSCOMMAND0, dscommand0);
 			break;
 		}
@@ -763,7 +763,7 @@ ahc_pci_attach(device_t dev)
 			id_string = "aic7890/91 ";
 			dscommand0 = ahc_inb(ahc, DSCOMMAND0);
 			dscommand0 &= ~(USCBSIZE32|DPARCKEN);
-			dscommand0 |= CACHETHEN|MPARCKEN;
+			dscommand0 |= MPARCKEN;
 			ahc_outb(ahc, DSCOMMAND0, dscommand0);
 			break;
 		}
@@ -1236,16 +1236,17 @@ ahc_ultra2_term_detect(struct ahc_softc *ahc, int *enableSEC_low,
 	 * BRDDAT7 = Eeprom
 	 * BRDDAT6 = Enable Secondary High Byte termination
 	 * BRDDAT5 = Enable Secondary Low Byte termination
-	 * BRDDAT4 = Enable Primary low byte termination
-	 * BRDDAT3 = Enable Primary high byte termination
+	 * BRDDAT4 = Enable Primary high byte termination
+	 * BRDDAT3 = Enable Primary low byte termination
 	 */
 	brdctl = read_brdctl(ahc);
+	printf("BRDCTL = 0x%x\n", brdctl);
 
 	*eeprom_present = brdctl & BRDDAT7;
 	*enableSEC_high = (brdctl & BRDDAT6);
 	*enableSEC_low = (brdctl & BRDDAT5);
-	*enablePRI_low = (brdctl & BRDDAT4);
-	*enablePRI_high = (brdctl & BRDDAT3);
+	*enablePRI_high = (brdctl & BRDDAT4);
+	*enablePRI_low = (brdctl & BRDDAT3);
 }
 
 static void
