@@ -280,10 +280,11 @@ diskclose(dev_t dev, int fflag, int devtype, struct proc *p)
 	error = 0;
 	pdev = dkmodpart(dkmodslice(dev, WHOLE_DISK_SLICE), RAW_PART);
 	dp = pdev->si_disk;
+	if (!dp)
+		return (ENXIO);
 	dsclose(dev, devtype, dp->d_slice);
-	if (!dsisopen(dp->d_slice)) {
+	if (!dsisopen(dp->d_slice))
 		error = dp->d_devsw->d_close(dp->d_dev, fflag, devtype, p);
-	}
 	return (error);
 }
 
@@ -326,6 +327,8 @@ diskioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct proc *p)
 
 	pdev = dkmodpart(dkmodslice(dev, WHOLE_DISK_SLICE), RAW_PART);
 	dp = pdev->si_disk;
+	if (!dp)
+		return (ENXIO);
 	error = dsioctl(dev, cmd, data, fflag, &dp->d_slice);
 	if (error == ENOIOCTL)
 		error = dp->d_devsw->d_ioctl(dev, cmd, data, fflag, p);
