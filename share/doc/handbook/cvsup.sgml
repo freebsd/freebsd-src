@@ -247,15 +247,17 @@ cost in terms of disk space, however.
 
 <p><item>Where do you want to get them from?<label id="cvsup:config:where">
 
-<p>This one is easy.  We use the "host=" field to tell cvsup to get
-its updates from the primary FreeBSD distribution site,
+<p>We use the "host=" field to tell cvsup where to obtain its updates.
+Any of the <ref id="mirrors-cvsup" name="CVSup mirror sites"> will do,
+though you should try to select one that's near to you.
+In this example, we'll use the primary FreeBSD distribution site,
 "cvsup.FreeBSD.org":
 
 <verb>
   *default host=cvsup.FreeBSD.org
 </verb>
 
-<p>On any particular run of cvsup, we can override this setting on the
+<p>On any particular run of cvsup, you can override this setting on the
 command line, with "-h hostname".
 
 <p><item>Where do you want to put them on your own machine?<label id="cvsup:config:dest">

@@ -7,12 +7,9 @@
 
 <chapt><heading>Obtaining FreeBSD<label id="mirrors"></heading>
 
-<p>The official sources for FreeBSD available via anonymous FTP from:
-<quote>
-<url url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD" 
-name="ftp://ftp.FreeBSD.ORG/pub/FreeBSD">
-</quote> 
-and on CD-ROM from Walnut Creek CDROM:
+<sect><heading>CD-ROM Publishers</heading>
+
+<p>FreeBSD is available on CD-ROM from Walnut Creek CDROM:
 <quote>
  Walnut Creek CDROM<newline>
  1547 Palos Verdes Mall, Suite 260<newline>
@@ -22,6 +19,14 @@ and on CD-ROM from Walnut Creek CDROM:
  Email: <url url="mailto:info@cdrom.com" name="info@cdrom.com"><newline>
  WWW: <url url="http://www.cdrom.com/" name="http://www.cdrom.com/">
 </quote>
+
+<sect><heading>FTP Sites<label id="mirrors-ftp"></heading>
+
+<p>The official sources for FreeBSD are available via anonymous FTP from:
+<quote>
+<url url="ftp://ftp.FreeBSD.ORG/pub/FreeBSD" 
+name="ftp://ftp.FreeBSD.ORG/pub/FreeBSD">.
+</quote> 
 
 <p>Additionally, FreeBSD is available via anonymous FTP from the
       following mirror sites. If you choose to obtain FreeBSD via
@@ -522,7 +527,8 @@ for this domain.
 
 </descrip>
 
-<label id="mirrors-ctm">
+<sect><heading>CTM Sites<label id="mirrors-ctm"></heading>
+
 <p>CTM/FreeBSD is available via anonymous FTP from the
       following mirror sites. If you choose to obtain CTM via
       anonymous FTP, please try to use a site near you.
@@ -579,3 +585,85 @@ try
 	name="http://ftpsearch.ntnu.no/ftpsearch">. 
 FTP search is a great free archie server in Trondheim, Norway.
 
+<sect><heading>CVSup Sites<label id="mirrors-cvsup"></heading>
+
+<p>CVSup servers for FreeBSD are running at the following sites:
+
+<descrip>
+
+<tag>Argentina</tag>
+<itemize>
+<item>cvsup.ar.FreeBSD.ORG
+(<url url="mailto:msagre@cactus.fi.uba.ar" name="maintainer">)
+</itemize>
+
+<tag>Australia</tag>
+<itemize>
+<item>cvsup.au.FreeBSD.ORG
+(<url url="mailto:dawes@physics.usyd.edu.au" name="maintainer">)
+</itemize>
+
+<tag>Germany</tag>
+<itemize>
+<item>cvsup.de.FreeBSD.ORG
+(<url url="mailto:wosch@cs.tu-berlin.de" name="maintainer">)
+</itemize>
+
+<tag>Japan</tag>
+<itemize>
+<item>cvsup.jp.FreeBSD.ORG
+(<url url="mailto:simokawa@sat.t.u-tokyo.ac.jp" name="maintainer">)
+</itemize>
+
+<tag>Netherlands</tag>
+<itemize>
+<item>cvsup.nl.FreeBSD.ORG
+(<url url="mailto:xaa@stack.urc.tue.nl" name="maintainer">)
+</itemize>
+
+<tag>Norway</tag>
+<itemize>
+<item>cvsup.no.FreeBSD.ORG
+(<url url="mailto:Tor.Egge@idt.ntnu.no" name="maintainer">)
+</itemize>
+
+<tag>South Africa</tag>
+<itemize>
+<item>cvsup.za.FreeBSD.ORG
+(<url url="mailto:markm@FreeBSD.ORG" name="maintainer">)
+</itemize>
+
+<tag>Taiwan</tag>
+<itemize>
+<item>sup.tw.FreeBSD.ORG
+(<url url="mailto:jdli@freebsd.csie.nctu.edu.tw" name="maintainer">)
+</itemize>
+
+<tag>USA</tag>
+<itemize>
+<item>cvsup.FreeBSD.ORG
+(<url url="mailto:jdp@FreeBSD.ORG" name="maintainer">)
+<item>cvsup2.FreeBSD.ORG
+(<url url="mailto:jdp@FreeBSD.ORG" name="maintainer">)
+<item>cvsup4.FreeBSD.ORG
+(<url url="mailto:jdp@FreeBSD.ORG" name="maintainer">)
+<item>cvsup5.FreeBSD.ORG
+(<url url="mailto:skynyrd@opus.cts.cwu.edu" name="maintainer">)
+</itemize>
+
+</descrip>
+
+The export-restricted code for FreeBSD (eBones and secure) is
+available via CVSup at the following international repository.
+Please use this site to get the export-restricted code, if you are
+outside the USA or Canada.
+
+<descrip>
+
+<tag>South Africa</tag>
+<itemize>
+<item>cvsup.internat.FreeBSD.ORG
+(<url url="mailto:markm@FreeBSD.ORG" name="maintainer">)
+</itemize>
+
+</descrip>
