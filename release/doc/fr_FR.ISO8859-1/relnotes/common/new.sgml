@@ -4,7 +4,7 @@
 
      $Id$
      $FreeBSD$
-     Original revision: 1.22.2.206
+     Original revision: 1.22.2.267
 -->
 
 <articleinfo>
@@ -63,9 +63,9 @@
   url="&release.url;"></ulink> or any of its mirrors.  More
   information on obtaining this (or other) &release.type; distributions of
   &os; can be found in the <ulink
-  url="http://www.FreeBSD.org/handbook/mirrors.html"><quote>Obtaining
+  url="http://www.FreeBSD.org/doc/en_US_ISO8859-1/books/handbook/mirrors.html"><quote>Obtaining
   FreeBSD</quote></ulink> appendix in the <ulink
-  url="http://www.FreeBSD.org/handbook/">FreeBSD Handbook</ulink>.</para>
+  url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/">FreeBSD Handbook</ulink>.</para>
 
 ]]>
 </sect1>
@@ -103,27 +103,23 @@
         découverts après la &release.prev; sont égalements
         mentionnés.</para>
 
-        <para>De nombreux changements supplémentaires apportés à
-        &os; ne sont pas mentionnés ici par faute de place. Par
-        exemple, la documentation a été corrigée et améliorée, des
-        bugs mineurs ont été corrigés, du code potentiellement
-        dangereux pour la sécurité a été audité et corrigé et le
-        code source a été remis au propre.</para>
 
   <sect2 id="kernel">
     <title>Changements concernant le noyau</title>
 
     <para></para>
 
-    <para arch="i386">Le gestionnaire de périphériques &man.puc.4; (PCI <quote>Universal</quote>
-      Communications) a été ajouté, il permet de connecter les ports série basés sur le bus
-      PCI au gestionnaire de périphériques &man.sio.4;.</para>
 
-    <para>Le gestionnaire de périphérique <varname>dumpdev</varname> peut
-    maintenant etre mis en place via le chargeur. Vous pouvez donc maintenant 
-    obtenir des informations sur les crashs au moment des derniers
-    stages d'initialisation du noyau(avant que le système ne passe en mode 
-    mono-utlisateur).</para>
+    <para>&man.acct.2; a été modifié pour ouvrir le fichier
+    de comptage en mode ajout, cela permet à &man.accton.8; d'etre
+    utilisé en mode ajout seul.</para>
+
+
+    <para>Le support de <literal>RLIMIT_VMEM</literal> a été ajouté.
+    Cette fonctionnalité défini une nouvelle limite de ressources
+    qui couvre l'espace mémoire virtuel d'un processus, incluant l'espace
+    &man.mmap.2;. Cette limite est configurable dans &man.login.conf.5;
+    via la variable <varname>vmemoryuse</varname>.</para>
 
 <!-- Above this line, kernel changes ordered by manpage/variable name -->
 
@@ -145,59 +141,19 @@
     <sect3>
       <title>Support des interfaces réseau</title>
 
-      <para>Le gestionnaire &man.an.4; supporte maintenant Cisco LEAP, 
-      tout comme la clef <quote>Home</quote>WEP. Les utilitaires Linux
-      pour Aironet sont maintenant supportés via l'émulation Linux.</para>
-
-
-      <para arch="i386">Le support générique pour les réseaux a jetons
-      ARCNET a été ajouté.</para>
-
-      <para arch="i386">Le gestionnaire de périphérique cm supporte 
-      maintenant les cartes réseau ARCNET SMC COM90cx6.</para>
-
-      <para>Le gestionnaire de périphérique &man.dc.4; supporte maintenant
-      les VLAN.</para>
-
-      <para>Le gestionnaire de périphérique &man.wi.4; supporte maintenant 
-      les cartes basées sur les composants Prism II et
-	Prism 2.5.  Les clefs de 104/128-bits WEP fonctionnent maintenant 
-	avec les cartes Prism.</para>
+      <para arch="i386,pc98">Le gestionnaire &man.em.4; supporte maintenant
+      les composants Intel 82545EM et 82545EB chips. Il supporte aussi les
+      VLANs.</para>
+      
+      <para arch="i386">Le gestionnaire &man.rp.4; été mis à jour
+	en version 3.02 et peut maintenant etre compiler en module.</para>
 
 <!-- Above this line, order network driver changes by manpage/variable name-->
-
-<para> Certains gestionnaire de périphérique réseau implémentent maintenant un mode
-de semi-interrogation, permettant au système d'etre plus résistant face
-aux attaques et surcharges. Pour activer l'interrogation, les options suivantes
-sont nécessaires dans le fichier de configuration du noyau :
-
-	<programlisting>
-	options DEVICE_POLLING
-	options HZ=1000 # pas obligatoire mais véritablement recommandé</programlisting>
-
-	La variable  sysctl <varname>kern.polling.enable</varname> activera ensuite
-	le mode d'interrogation; la variable sysctl <varname>kern.polling.user_frac</varname>
-	indiquant le pourcentage de temps CPU à reserver dans le mode utilisateur. Les 
-	gestionnaires supportant cette fonctionnalité sont  &man.dc.4;, &man.fxp.4;, et
-	&man.sis.4;.  Plus de détails peuvent etre trouvé a la page de manuel de &man.polling.4;.</para>
     </sect3>
 
     <sect3>
       <title>Protocoles réseau</title>
 
-      <para>&man.bridge.4; a maintenant un support amélioré pour les 
-      clusters multi-bridge indépendant et est maintenant plus stable 
-      lors de la présence d'attachements et de détachements dynamique. 
-      Les VLANs sont aussi supportés. </para>
-      
-      <para>Un bogue dans le traitement IPSec de IPv4, qui ne tenait pas
-      compte des vérifications SPD entrantes, a été corrigé..</para>
-
-      <para>L'implémentation de synchronisation du cache de &man.tcp.4; 
-      comportait un bogue causant des paniques noyaux; ceci a été fixé.</para>
-
-      <para>L'implémentation TCP ignore maintenant proprement les paquets
-      addressé aux adresses de broadcast IP.</para>
 
       <para></para>
     </sect3>
@@ -205,17 +161,16 @@ sont nécessaires dans le fichier de configuration du noyau :
     <sect3>
       <title>Disques et Stockage</title>
 
+      <para>Un bogue empéchant parfois &man.ata.4; de fonctionner
+      correctement en mode "tagged queueing" a été corrigé.</para>
+
+
       <para></para>
     </sect3>
 
     <sect3>
       <title>Systèmes de fichier</title>
-
-      <para>Un bogue a été fixé dans les "soft updates" qui causait des
-      corruptions ocasionnels de système de fichier si le système était arréter
-      immédiatement après avoir effectué de grosses activités de transferts, comme
-      lors de l'installation d'un noyau ou d'autres logiciels.</para>
-
+      <para></para>
 
 
     </sect3>
@@ -230,84 +185,201 @@ sont nécessaires dans le fichier de configuration du noyau :
     <sect3>
       <title>support Multimédia</title>
       
-      <para arch="i386">Le gestionnaires de périphérique ufm, supportant
-      les cartesD-Link DSB-R100 USB Radio, a été ajouté.</para>
+      <para></para>
+
     </sect3>
 
     <sect3>
       <title>Logiciel externes</title>
 
       <para></para>
+
     </sect3>
   </sect2>
+
   <sect2 id="security">
     <title>Changements liés a la sécurité</title>
 
-    <para>Un bogue dans le code de multiplexage de <application>OpenSSH</application> 
-    a été résolu. Ce bogue permet a un utilisateur distant authentifié de demander
-    au serveur &man.sshd.8; d'executer un programme avec les privilèges administrateur 
-    ou permet a un client SSH d'executer un programme avec les privilège de 
-    l'utilisateur client. (Voyes l'avis de sécurité
-    <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:13.openssh.asc">FreeBSD-SA-02:13</ulink>.)</para>
+    <para>Un dépassement de tampon dans le résolveur, qui pouvait
+    etre exploité par un serveur DNS malicieux ou un attaquant en 
+    modifiant les messages DNS a été corrigé. Voyeé l'avis
+    de sécurité <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:28.resolv.asc">FreeBSD-SA-02:28</ulink>
+      pour plus de détails.</para>
 
+    <para>Un dépassement de tampon dans &man.tcpdump.1;, qui apparaissait
+    dans le cas de certains paquets NFS mal construits, a été 
+    corrigé. Voyez l'avis de sécurité
+      <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:29.tcpdump.asc">FreeBSD-SA-02:29</ulink>
+      pour plus de détails.</para>
 
-    <para></para>
-  </sect2>
+    <para>&man.ktrace.1; ne peut plus suivre l'activité des processus
+    disposant de droits privilégiés; cela permet de prévenir
+    l'obtention d'informations sensibles dont le processus dispose
+    avant de perdre les privilèges. Pour plus d'informations voyez
+    l'avis de sécurité
+      <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:30.ktrace.asc">FreeBSD-SA-02:30</ulink>
+      .</para>
+ 
+   </sect2>
+
   <sect2 id="userland">
     <title>Changements dans les programmes utilisateurs</title>
 
-    <para>&man.ctags.1; ne crée plus de fichiers corrompus si
-    le fichier source utilisent les commentaires de style C++ (<literal>//</literal> )
-    </para>
+<!-- Above this line, order userland changes by manpage/variable name-->
 
-    <para>&man.dump.8; fournit maintenant des informations de progression
-    dans le nom du processus, très util pour superviser les 
-    sauvegardes automatisées.</para>
+    <para>&man.dump.8; dispose de l'option <option>-S</option> lui
+    permettant d'afficher la taille estimée de la copie.</para>
+ 
 
-    <para><filename>/etc/rc.firewall</filename> et
-      <filename>/etc/rc.firewall6</filename> n'ajoutent plus leur
-      règles par défaut dans le cas ou le fichier de règles contenu
-      dans la variable <varname>firewall_type</varname> existe ou dans
-      le cas d'un type de firewall non existent. (Ce changement
-      est motivé par le fait de ne pas vouloir prédire la
-      politique d'un site.) De plus le type de firewall <literal>closed</literal>
-      fonctionne comme documenté dans la page de manuel de &man.rc.firewall.8;</para>
+    <para>&man.finger.1; supporte maintenant le fichier
+      <filename>.pubkey</filename>.</para>
 
+    <para>&man.finger.1; dispose maintenant de l'option de ligne de
+    commande <option>-g</option> permettant de n'afficher que le nom
+    complet de l'utilisateur depuis les informations du champ GECOS.</para>
 
-    <para>Les fonctions de <filename>/etc/security</filename> ont été
-    déplacer dans une série de scripts dans le canevas de &man.periodic.8;
-    , permettant de les personnaliser et de maintenir plus facilement. Ces
-    scripts se trouvent dans le répertoire 
-    <filename>/etc/periodic/security/</filename>.</para>
+    <para>&man.fold.1; dispose maintenant de l'option de ligne de commande
+    <option>-b</option> permettant de couper a un certain nombre de bytes
+    et de l'option <option>-s</option> permettant de couper au mot.</para>
 
+    <para>&man.ifconfig.8; dispose de la commande <option>eui64</option>
+    permettant de remplir les 64 bits inférieurs d'une adresse
+    IPv6 automatiquement. &man.prefix.8; devient donc obsolète.</para>
 
-    <para>&man.ldd.1; peut maintenant etre utilisé sur les librairies 
-    partagées en plus des programmes.</para>
-      
-      
-      <para>&man.ngctl.8; supporte maintenant une commande d' <option>écriture</option> 
-      permettant d'envoyer un paquet de données directement a un hook.</para>
-      
-    
-    <para>L option <option>-W</option> de &man.ps.1; (permettant d'extraire des informations
-    depuis un gestionnaire de swap spécifique) étant inutile depuis quelque temps a été retiré.</para>
+    <para>&man.nice.1; dispose maintenant d'une option <option>-n</option>
+    permettant de spécifier  la valeur souhaitée de <quote>nice</quote>
+    de l'utilitaire à lancer.</para>
 
-    <!-- Above this line, order userland changes by manpage/variable name -->
+    <para>&man.pam.opie.8; ne propose plus des challenges faux lorsque
+    la variable <varname>no_fake_prompts</varname> est positionnée.</para>
 
-    <para> Les noms des localisations de la forme <literal>*.EUC</literal> 
-    ont été renommées en <literal>*.euc??</literal>. Par exemple, 
-    <literal>ja_JP.euc</literal> devient <literal>ja_JP.eucJP</literal>. Cela
-    permet d'augmenter la compatibilité avec &os; CURRENT, X11R6 et
-    d'autres versions d'Unix.</para>
+    <para>Un module &man.pam.opieaccess.8; a été ajouté.</para>
+
+    <para>&man.pam.radius.8;, &man.pam.ssh.8;, et &man.pam.tacplus.8;
+      ont été synchronisé avec les versions de  &os; -CURRENT du 3
+      Juillet 2002.</para>
+
+    <para>&man.pam.unix.8; a été synchroniséavec la version de
+      &os; -CURRENT du 9 Mars 2002
+     (pre-<application>OpenPAM</application>).</para>
+
+    <para>&man.pwd.1; dispose de l'option de ligne de commande
+    <option>-L</option> permettant d'afficher le répertoire logique 
+    courant.</para>
+
+    <para>La commande &man.renice.8; dispose d'une option <option>-n</option>
+    qui spécifie l'incrément à appliquer à la priorité du 
+    processus.</para>
+
+    <para>&man.sed.1; dispose maintenant de l'option <option>-i</option> 
+    permettant d'activer l'édition automatique du fichier.</para>
+
+    <para>&man.su.1; support l'authentification Kerberos V.</para>
+
+    <para>&man.unexpand.1; dispose de l'option <option>-t</option> permettant
+    de spécifier le nombre de tabulations de la meme façon que 
+    &man.expand.1;.</para>
+
+    <para>&man.xargs.1; dispose de l'option <option>-I</option>
+      <replaceable>replstr</replaceable> permettant de demander à
+      l'utilisateur les données à insérées depuis
+      l'entrée standard à certains points, plutot que de prendre
+      ces données à la fin des arguments. (L'option spécifique
+      à &os;, <option>-J</option>, est maintenant déprécié en 
+      faveur de l'option portable <option>-I</option>.)</para>
+
+    <para>&man.xargs.1; dispose de l'option <option>-L</option> permettant
+    de forcer la demande d'arguments après un certain nombre de 
+    lignes.</para>
+
+<!-- Above this line, order userland changes by manpage/variable name-->
 
 
     <sect3>
       <title>Logiciels externes</title>
-      <para><application>BIND</application> a été mise a jour en version
-        8.3.1-REL.</para>
+      <para><application>BIND</application> a été mis à jour en 
+      version 8.3.3.</para>
 
-      <para><application>bzip2</application> a été mise a jour en version
-        1.0.2.</para>
+      <para><application>gcc</application> a été mis ç jour en version
+	2.95.4.</para>
+
+      <para><application>libpcap</application> a été mis à jour en
+       version 0.7.1.</para>
+
+      <para>Le démon FTP de NetBSD, plus connu sous le nom
+	<application>lukemftpd</application> 1.2 beta 1, a été
+	importé et est disponible sous&man.lukemftpd.8;.</para>
+
+      <para>&man.m4.1; a été importé depuis la version du 26 Avril
+      2002 de OpenBSD.</para>
+
+      <para>La suite de mot de passe unique <application>OPIE</application>
+	a été mise à jour en version 2.4.</para>
+
+      <para><application>OpenSSH</application> a été mis à jour en 
+      version 3.4p1.  Parmis les changement il y a:
+	  <itemizedlist>
+	    <listitem>
+	      <para>Les fichiers <filename>*2</filename> sont obsolètes
+		(par ex, le fichier,
+		<filename>~/.ssh/known_hosts</filename> peut disposer du 
+		contenu du 
+		fichier <filename>~/.ssh/known_hosts2</filename>).</para>
+	    </listitem>
+
+	    <listitem>
+	      <para>&man.ssh-keygen.1; peut importer et exportes les clefs 
+	      en utilisant le fichier d'échange de clefs publique SECSH, 
+	      permettant l'échange de clefs avec différentes 
+	      implémentations commerciales de SSH.</para>
+	    </listitem>
+
+	    <listitem>
+	      <para>&man.ssh-add.1; ajoute maintenant les trois clefs par 
+	      défaut.</para>
+	    </listitem>
+
+	    <listitem>
+	      <para>&man.ssh-keygen.1; ne dispose plus d'un certain type
+	      de clefs par défaut; il faut maintenant le spécifier 
+	      via l'option <option>-t</option> option.</para>
+	    </listitem>
+
+	    <listitem>
+	      <para>Une fonctionnalité de <quote>séparation des 
+	      privilèges</quote> qui utilise des processus non
+	      privilégiés, pour réduire l'effet des compromissions
+	      ou d'erreurs de programmations, a été ajoutée
+	    </listitem>
+
+	    <listitem>
+	      <para>Différentes corrections de bogues, dont un trou
+	      de sécurité qui permettant d'obtenir plus de privilèges
+	      via un dépassement d'entier, ont été 
+	      effectuées.</para>
+	    </listitem>
+
+	    <listitem>
+	      <para>Le protocole SSH par défaut a utiliser
+	      est maintenant la version 2 (avec un retour arrière possible
+	      en  Version 1), plutot que la  Version 1
+	        (avec une évolution en  Version 2).</para>
+	    </listitem>
+
+	  </itemizedlist>
+	</para>
+
+      <para><application>sendmail</application> a été mis à jour 
+      de la version 8.12.3 en version 8.12.5.</para>
+
+      <para><application>GNU tar</application> a été mis à jour 
+      en version 1.13.25.</para>
+
+      <para><application>tcpdump</application> a été mis à jour en 
+      version 3.7.1.</para>
     </sect3>
 
     <sect3>
@@ -316,6 +388,14 @@ sont nécessaires dans le fichier de configuration du noyau :
       <para></para>
     </sect3>
   </sect2>
+
+  <sect2>
+    <title>Confection de version et integration</title>
+
+    <para></para>
+
+  </sect2>
+
 </sect1>
 
 <sect1>
@@ -344,19 +424,25 @@ sont nécessaires dans le fichier de configuration du noyau :
             modifier le partitionnement de vos disques.</para>
           </listitem>
           <listitem>
-            <para>A partir du code source du répertoire <filename>/usr/src</filename>.
-	    Cette option est plus souple mais demande plus d'espace disque, plus de temps et
-            plus de compétences techniques. Faire une mise à jour
-            depuis une très ancienne version de &os; peut être
-            problématique; dans de tels cas, il est généralement
-            plus efficace de réaliser une mise à jour binaire ou
-            une réinstallation complète.</para>
+            <para>A partir du code source du répertoire 
+	    <filename>/usr/src</filename>.
+	    Cette option est plus souple mais demande plus d'espace disque, 
+	    plus de temps et plus de compétences techniques. Plus
+	    d'informations se trouvent dans la section <ulink
+	    url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/makeworld.html">
+	    <quote>Using <command>make world</command></quote></ulink> du 
+	    <ulink url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/">manuel FreeBSD</ulink>. Faire 
+	    une mise à jour depuis une très ancienne version de 
+	    &os; peut être problématique; dans de tels cas, il est 
+	    généralement plus efficace de réaliser une mise à 
+	    jour binaire ou une réinstallation complète.</para>
           </listitem>
     </itemizedlist>
 
         <para>Veuillez lire le fichier <filename>INSTALL.TXT</filename>
 	 pour plus d'informations, de
-        préférence <emphasis>avant</emphasis> de commencer une mise à jour.
+        préférence <emphasis>avant</emphasis> de commencer une 
+	mise à jour.
         Si vous effectuez une mise à jour depuis les sources,
         veuillez également consulter le fichier
 	 <filename>/usr/src/UPDATING</filename>.</para>
@@ -364,15 +450,17 @@ sont nécessaires dans le fichier de configuration du noyau :
         <para>Enfin, si vous désirez utiliser un des moyens de suivre
         les branches -STABLE ou -CURRENT de &os;, veuillez
         consulter la section 
-       <ulink url="http://www.FreeBSD.org/handbook/current-stable.html"><quote>-CURRENT
-       vs. -STABLE</quote></ulink>  <ulink url="http://www.FreeBSD.org/handbook/">du manuel 
+       <ulink url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/current-stable.html">
+       <quote>-CURRENT vs. -STABLE</quote></ulink>  
+       <ulink url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/">du manuel 
        de référence de FreeBSD</ulink>.
        </para>
 
         <important>
-            <para><emphasis>Important:</emphasis> La mise à jour de &os; devrait,
-            bien évidemment, être réalisée uniquement après avoir
-            effectué une sauvegarde de <emphasis>toutes</emphasis> 
+            <para><emphasis>Important:</emphasis> La mise à jour 
+	    de &os; devrait,
+            bien évidemment, être réalisée uniquement après 
+	    avoir effectué une sauvegarde de <emphasis>toutes</emphasis> 
 	    les données et des fichiers de configuration.</para>
         </important>
 
