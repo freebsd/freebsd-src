@@ -327,7 +327,6 @@ main(int argc, char *argv[])
 	sigemptyset(&sa.sa_mask);
 	sigaction(SIGINT, &sa, &sa_int);
 	sigaction(SIGQUIT, &sa, &sa_quit);
-	sigaction(SIGTSTP, &sa, &sa_tstp);
 
 	statusp = 1;
 	child_pid = fork();
