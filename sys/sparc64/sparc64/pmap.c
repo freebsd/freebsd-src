@@ -586,8 +586,8 @@ pmap_cache_enter(vm_page_t m, vm_offset_t va)
 	CTR2(KTR_PMAP, "pmap_cache_enter: m=%p va=%#lx", m, va);
 	PMAP_STATS_INC(pmap_ncache_enter);
 	for (i = 0, c = 0; i < DCACHE_COLORS; i++) {
-		if (i != DCACHE_COLOR(va))
-			c += m->md.colors[i];
+		if (i != DCACHE_COLOR(va) && m->md.colors[i] != 0)
+			c++;
 	}
 	m->md.colors[DCACHE_COLOR(va)]++;
 	if (c == 0) {
@@ -595,7 +595,7 @@ pmap_cache_enter(vm_page_t m, vm_offset_t va)
 		return (1);
 	}
 	PMAP_STATS_INC(pmap_ncache_enter_nc);
-	if (c != 1) {
+	if ((m->md.flags & PG_UNCACHEABLE) != 0) {
 		CTR0(KTR_PMAP, "pmap_cache_enter: already uncacheable");
 		return (0);
 	}
@@ -626,7 +626,7 @@ pmap_cache_remove(vm_page_t m, vm_offset_t va)
 		if (m->md.colors[i] != 0)
 			c++;
 	}
-	if (c != 1 || (m->md.flags & PG_UNCACHEABLE) == 0)
+	if (c > 1 || (m->md.flags & PG_UNCACHEABLE) == 0)
 		return;
 	STAILQ_FOREACH(tp, &m->md.tte_list, tte_link) {
 		tp->tte_data |= TD_CV;
