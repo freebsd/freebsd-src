@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_sl.c	8.6 (Berkeley) 2/1/94
- * $Id: if_sl.c,v 1.38 1996/04/24 15:44:34 phk Exp $
+ * $Id: if_sl.c,v 1.39 1996/04/25 02:34:37 davidg Exp $
  */
 
 /*
@@ -275,7 +275,7 @@ slopen(dev, tp)
 		return (0);
 
 	for (nsl = NSL, sc = sl_softc; --nsl >= 0; sc++)
-		if (sc->sc_ttyp == NULL) {
+		if (sc->sc_ttyp == NULL && !(sc->sc_flags & SC_STATIC)) {
 			if (slinit(sc) == 0)
 				return (ENOBUFS);
 			tp->t_sc = (caddr_t)sc;
@@ -340,7 +340,7 @@ slclose(tp,flag)
 			untimeout(sl_keepalive, sc);
 		}
 		if_down(&sc->sc_if);
-		sc->sc_flags = 0;
+		sc->sc_flags &= SC_STATIC;
 		sc->sc_ttyp = NULL;
 		tp->t_sc = NULL;
 		MCLFREE((caddr_t)(sc->sc_ep - SLBUFSIZE));
@@ -365,8 +365,8 @@ sltioctl(tp, cmd, data, flag, p)
 	int flag;
 	struct proc *p;
 {
-	struct sl_softc *sc = (struct sl_softc *)tp->t_sc;
-	int s;
+	struct sl_softc *sc = (struct sl_softc *)tp->t_sc, *nc;
+	int s, nsl;
 
 	s = splimp();
 	switch (cmd) {
@@ -375,7 +375,22 @@ sltioctl(tp, cmd, data, flag, p)
 		break;
 
 	case SLIOCSUNIT:
-		sc->sc_if.if_unit = *(u_int *)data;
+		if (sc->sc_if.if_unit != *(u_int *)data) {
+			for (nsl = NSL, nc = sl_softc; --nsl >= 0; nc++) {
+				if (   nc->sc_if.if_unit == *(u_int *)data
+				    && nc->sc_ttyp == NULL
+				   ) {
+					nc->sc_if.if_unit = sc->sc_if.if_unit;
+					nc->sc_flags &= ~SC_STATIC;
+					sc->sc_if.if_unit = *(u_int *)data;
+					goto slfound;
+				}
+			}
+			splx(s);
+			return (ENXIO);
+		}
+	slfound:
+		sc->sc_flags |= SC_STATIC;
 		break;
 
 	case SLIOCSKEEPAL:
