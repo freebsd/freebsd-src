@@ -35,7 +35,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinum.c,v 1.33 2001/01/09 06:19:15 grog Exp grog $
+ * $Id: vinum.c,v 1.34 2001/05/22 04:07:22 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -70,7 +70,6 @@ struct _vinum_conf vinum_conf;				    /* configuration information */
 
 dev_t vinum_daemon_dev;
 dev_t vinum_super_dev;
-dev_t vinum_debug_super_dev;
 
 /*
  * Called by main() during pseudo-device attachment.  All we need
@@ -85,7 +84,11 @@ vinumattach(void *dummy)
 	panic("vinum: already loaded");
 
     log(LOG_INFO, "vinum: loaded\n");
+#ifdef VINUMDEBUG
+    vinum_conf.flags |= VF_LOADED | VF_HASDEBUG;	    /* we're loaded now, and we support debug */
+#else
     vinum_conf.flags |= VF_LOADED;			    /* we're loaded now */
+#endif
 
     daemonq = NULL;					    /* initialize daemon's work queue */
     dqend = NULL;
@@ -98,14 +101,8 @@ vinumattach(void *dummy)
 	GID_WHEEL,
 	S_IRUSR | S_IWUSR,
 	"vinum/controld");
-    vinum_debug_super_dev = make_dev(&vinum_cdevsw,
-	VINUMMINOR(1, 0, 0, VINUM_SUPERDEV_TYPE),
-	UID_ROOT,
-	GID_WHEEL,
-	S_IRUSR | S_IWUSR,
-	"vinum/Control");
     vinum_super_dev = make_dev(&vinum_cdevsw,
-	VINUMMINOR(2, 0, 0, VINUM_SUPERDEV_TYPE),
+	VINUM_SUPERDEV,
 	UID_ROOT,
 	GID_WHEEL,
 	S_IRUSR | S_IWUSR,
@@ -273,7 +270,6 @@ vinum_modevent(module_t mod, modeventtype_t type, void *unused)
 #endif
 	destroy_dev(vinum_daemon_dev);			    /* daemon device */
 	destroy_dev(vinum_super_dev);
-	destroy_dev(vinum_debug_super_dev);
 	cdevsw_remove(&vinum_cdevsw);
 	log(LOG_INFO, "vinum: unloaded\n");		    /* tell the world */
 	return 0;
