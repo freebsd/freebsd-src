@@ -1412,49 +1412,6 @@ alpha_define_label (sym)
   alpha_insn_label = sym;
 }
 
-/* If we have a BRSGP reloc to a local symbol, adjust it to BRADDR and
-   let it get resolved at assembly time.  */
-
-void
-alpha_validate_fix (f)
-     fixS *f;
-{
-#ifdef OBJ_ELF
-  int offset = 0;
-  const char *name;
-
-  if (f->fx_r_type != BFD_RELOC_ALPHA_BRSGP)
-    return;
-
-  if (! S_IS_DEFINED (f->fx_addsy))
-    return;
-
-  switch (S_GET_OTHER (f->fx_addsy) & STO_ALPHA_STD_GPLOAD)
-    {
-    case STO_ALPHA_NOPV:
-      break;
-    case STO_ALPHA_STD_GPLOAD:
-      offset = 8;
-      break;
-    default:
-      if (S_IS_LOCAL (f->fx_addsy))
-	name = "<local>";
-      else
-	name = S_GET_NAME (f->fx_addsy);
-      as_bad_where (f->fx_file, f->fx_line,
-		    _("!samegp reloc against symbol without .prologue: %s"),
-		    name);
-      break;
-    }
-
-  if (! (S_IS_EXTERN (f->fx_addsy) || S_IS_WEAK (f->fx_addsy)))
-    {
-      f->fx_r_type = BFD_RELOC_23_PCREL_S2;
-      f->fx_offset += offset;
-    }
-#endif
-}
-
 /* Return true if we must always emit a reloc for a type and false if
    there is some hope of resolving it at assembly time.  */
 
@@ -1524,7 +1481,6 @@ alpha_fix_adjustable (f)
     case BFD_RELOC_ALPHA_GPDISP_HI16:
     case BFD_RELOC_ALPHA_GPDISP_LO16:
     case BFD_RELOC_ALPHA_GPDISP:
-    case BFD_RELOC_ALPHA_BRSGP:
       return 0;
 
     case BFD_RELOC_ALPHA_LITERAL:
@@ -1561,6 +1517,39 @@ alpha_fix_adjustable (f)
       /* ??? No idea why we can't return a reference to .tbss+10, but
 	 we're preventing this in the other assemblers.  Follow for now.  */
       return 0;
+
+    case BFD_RELOC_ALPHA_BRSGP:
+      /* If we have a BRSGP reloc to a local symbol, adjust it to BRADDR and
+         let it get resolved at assembly time.  */
+      {
+	symbolS *sym = f->fx_addsy;
+	const char *name;
+	int offset = 0;
+
+	if (! S_IS_DEFINED (sym))
+	  return 0;
+
+	switch (S_GET_OTHER (sym) & STO_ALPHA_STD_GPLOAD)
+	  {
+	  case STO_ALPHA_NOPV:
+	    break;
+	  case STO_ALPHA_STD_GPLOAD:
+	    offset = 8;
+	    break;
+	  default:
+	    if (S_IS_LOCAL (sym))
+	      name = "<local>";
+	    else
+	      name = S_GET_NAME (sym);
+	    as_bad_where (f->fx_file, f->fx_line,
+		_("!samegp reloc against symbol without .prologue: %s"),
+		name);
+	    break;
+	  }
+	f->fx_r_type = BFD_RELOC_23_PCREL_S2;
+	f->fx_offset += offset;
+	return 1;
+      }
 
     default:
       return 1;
@@ -4537,7 +4526,12 @@ s_alpha_prologue (ignore)
     sym = ecoff_get_cur_proc_sym ();
   else
     sym = alpha_cur_ent_sym;
-  know (sym != NULL);
+
+  if (sym == NULL)
+    {
+      as_bad (_(".prologue directive without a preceding .ent directive"));
+      return;
+    }
 
   switch (arg)
     {
@@ -5494,7 +5488,7 @@ const pseudo_typeS md_pseudo_table[] = {
   {"fmask", s_alpha_mask, 1},
   {"frame", s_alpha_frame, 0},
   {"prologue", s_alpha_prologue, 0},
-  {"file", s_alpha_file, 5},
+  {"file", (void (*) PARAMS ((int))) s_alpha_file, 5},
   {"loc", s_alpha_loc, 9},
   {"stabs", s_alpha_stab, 's'},
   {"stabn", s_alpha_stab, 'n'},

@@ -1,3 +1,40 @@
+2002-06-11  Nick Clifton  <nickc@cambridge.redhat.com>
+
+	Import the following patches from the FSF GCC sources:
+	2002-03-25  Zack Weinberg  <zack@codesourcery.com>
+
+	* texi2pod.pl: Handle @end ftable and @end vtable.
+
+	2001-12-12  Matthias Klose  <doko@debian.org>
+
+	* texi2pod.pl: Merge changes from binutils' texi2pod.pl. Allows
+	generation of more than one man page from one source.
+	Add '-' to set of valid chars for an identifier.
+	Let -D option accept flags of the form <flag>=<value>.
+	Use \s+ for whitespace detection in '@c man' lines.
+	Handle @set and @clear independent of $output.
+	Substitute all @value{}'s in a line.
+
+	2001-11-14  Joseph S. Myers  <jsm28@cam.ac.uk>
+
+	* texi2pod.pl: Handle @ifnottex, @iftex and @display.  Handle @var
+	in verbatim blocks specially.  Handle @unnumbered, @unnumberedsec
+	and @center.  Allow [a-z] after @enumerate.  Handle 0 and numbers
+	greater than 9 in enumerations.
+
+	2001-07-03  Joseph S. Myers  <jsm28@cam.ac.uk>
+
+	* texi2pod.pl: Handle @r inside @item.
+
+2002-02-27  Andrew Cagney  <ac131313@redhat.com>
+
+	* fdl.texi: New file.
+
+2002-02-24  Andrew Cagney  <ac131313@redhat.com>
+
+	* standards.texi: Import February 14, 2002 version.
+	* make-stds.texi: Import 2001 version.
+
 2002-01-26  Hans-Peter Nilsson  <hp@bitrange.com>
 
 	* Makefile.in (install): Depend on install-info.
@@ -10,7 +47,7 @@
 
 	* add-log.el, add-log.vi: New files.
 
-Wed Jan 20 01:33:50 1999  Angela Marie Thomas (angela@cygnus.com)
+1999-01-20  Angela Marie Thomas (angela@cygnus.com)
 
 	* comp-tools-verify: Remove some checks that are no longer valid.
 
@@ -18,16 +55,16 @@ Wed Jan 20 01:33:50 1999  Angela Marie Thomas (angela@cygnus.com)
 
 	* targetdoc/fr30.texi: New document.
 	
-Thu Oct  1 21:15:59 1998  Angela Marie Thomas (angela@cygnus.com)
+1998-10-01  Angela Marie Thomas (angela@cygnus.com)
 
 	* comp-tools-fix, cross-tools-fix: Replace /usr/include
 	with ${FIXINCDIR}.
 
-Tue Aug 11 19:22:11 1998  Doug Evans  <devans@canuck.cygnus.com>
+1998-08-11  Doug Evans  <devans@canuck.cygnus.com>
 
 	* make-rel-sym-tree (version): Update calculation.
 
-Fri Jun 12 21:34:01 1998  Ian Lance Taylor  <ian@cygnus.com>
+1998-06-12  Ian Lance Taylor  <ian@cygnus.com>
 
 	* configure.texi: Various additions.
 	* Makefile.in (TEXI2HTML, DVIPS): New variables.
@@ -42,7 +79,7 @@ Fri Jun 12 21:34:01 1998  Ian Lance Taylor  <ian@cygnus.com>
 	* configbuild.ein: New file (EPS version of configbuild.fig).
 	* configbuild.jin: New file (JPEG version of configbuild.fig).
 
-Wed Jun 10 14:41:25 1998  Ian Lance Taylor  <ian@cygnus.com>
+1998-06-10  Ian Lance Taylor  <ian@cygnus.com>
 
 	* configure.texi: New file.
 	* configdev.tin: New file.

@@ -1,3 +1,11 @@
+2002-10-28  Daniel Jacobowitz  <drow@mvista.com>
+
+	Merge from mainline:
+	2002-10-24  Nathan Tallent  <eraxxon@alumni.rice.edu>
+	* ansidecl.h (__STDC__): Add (__alpha && __cplusplus) to the
+	list of	platform compilers that may look, smell and act
+	like __STDC__ but that may not define it.
+
 2002-09-23  Daniel Jacobowitz  <drow@mvista.com>
 
 	Merge from mainline:

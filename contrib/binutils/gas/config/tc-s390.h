@@ -1,5 +1,5 @@
 /* tc-s390.h -- Header file for tc-s390.c.
-   Copyright 2000, 2001 Free Software Foundation, Inc.
+   Copyright 2000, 2001, 2002 Free Software Foundation, Inc.
    Written by Martin Schwidefsky (schwidefsky@de.ibm.com).
 
    This file is part of GAS, the GNU Assembler.
@@ -17,7 +17,7 @@
    You should have received a copy of the GNU General Public License
    along with GAS; see the file COPYING.  If not, write to the Free
    Software Foundation, 59 Temple Place - Suite 330, Boston, MA
-   02111-1307, USA. */
+   02111-1307, USA.  */
 
 #define TC_S390
 
@@ -34,7 +34,7 @@ struct fix;
    are willing to perform this relocation while building the .o file.
    This is only used for pcrel relocations, so GOTOFF does not need to be
    checked here.  I am not sure if some of the others are ever used with
-   pcrel, but it is easier to be safe than sorry. */
+   pcrel, but it is easier to be safe than sorry.  */
 
 #define TC_RELOC_RTSYM_LOC_FIXUP(FIX)        \
   ((FIX)->fx_r_type != BFD_RELOC_390_GOTENT  \
@@ -59,9 +59,9 @@ extern enum bfd_architecture s390_arch PARAMS ((void));
 
 /* The target BFD format.  */
 #define TARGET_FORMAT s390_target_format()
-extern const char * s390_target_format PARAMS ((void));
+extern const char *s390_target_format PARAMS ((void));
 
-/* Set the endianness we are using. */
+/* Set the endianness we are using.  */
 #define TARGET_BYTES_BIG_ENDIAN 1
 
 /* Whether or not the target is big endian */

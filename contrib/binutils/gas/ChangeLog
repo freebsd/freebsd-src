@@ -1,3 +1,91 @@
+2002-11-20  Alan Modra  <amodra@bigpond.net.au>
+
+	* write.c (adjust_reloc_syms): Don't reduce SEC_MERGE fixups with
+	fx_subsy non-NULL.
+
+2002-11-19  Richard Henderson  <rth@redhat.com>
+
+	* config/obj-elf.c (obj_elf_visibility): Overwrite only the
+	visibility portion of st_other.
+
+2002-11-19  Luke Deller <luked@cse.unsw.edu.au>
+
+	* config/tc-alpha.c (s_alpha_prologue): as_bad when sym is NULL.
+
+2002-11-13  Alan Modra  <amodra@bigpond.net.au>
+
+	Merge from mainline.
+	2002-09-04  Alan Modra  <amodra@bigpond.net.au>
+	* config/tc-ppc.c (PPC_HIGHER, PPC_HIGHEST): Fix warning.
+	(md_parse_option): No -a64 without BFD64.
+	(ppc_set_cpu): Select appropriate cpu when ppc_obj64.
+	(ppc_arch): Use bfd_mach_rs6k for bfd_arch_rs6000.
+
+2002-11-06  Richard Henderson  <rth@redhat.com>
+
+        * config/tc-alpha.c (alpha_validate_fix): Move code ...
+        (alpha_fix_adjustable): ... here.
+        * config/tc-alpha.h (TC_VALIDATE_FIX): Remove.
+
+2002-11-05  H.J. Lu <hjl@gnu.org>
+
+	* config/tc-mips.c (support_64bit_objects): Check *l before it
+	is freed.
+
+2002-10-31  David O'Brien  <obrien@FreeBSD.org>
+
+	* config/tc-ia64.c: Cast dwarf2_directive_file to int.
+	* config/tc-sparc.c: Likewise.
+	* config/tc-alpha.c: Cast s_alpha_file to int.
+	* config/tc-alpha.h (TC_INIT_FIX_DATA): info is of type struct
+	alpha_reloc_tag.
+
+2002-10-30  Daniel Jacobowitz  <drow@mvista.com>
+
+	* configure.in: Update ARM CPU patterns.
+	* configure: Regenerated.
+
+2002-10-30  Daniel Jacobowitz  <drow@mvista.com>
+
+	* po/gas.pot: Regenerated.
+
+2002-10-29  Daniel Jacobowitz  <drow@mvista.com>
+
+	* itbl-lex.l: Use #include <> for generated headers.
+	* itbl-ops.c: Likewise.
+
+2002-08-24  Andreas Schwab  <schwab@suse.de>
+
+	* config/tc-m68k.c (tc_m68k_fix_adjustable): Don't adjust symbols
+	in merge sections.
+
+2002-10-28  Daniel Jacobowitz  <drow@mvista.com>
+
+	* doc/gasp.texi: Fix typo in last typo fix.
+
+2002-10-28  Daniel Jacobowitz  <drow@mvista.com>
+
+	Merge from mainline:
+	2002-10-21  Richard Sandiford  <rsandifo@redhat.com>
+	* config/tc-mips.c (mips_need_elf_addend_fixup): Return true
+	for relocs against symbols in a merged section.
+
+	Thu Oct 10 14:31:30 2002  J"orn Rennecke <joern.rennecke@superh.com>
+	* config/tc-sh.c (assemble_ppi): Initialize reg_x / reg_y / reg_n
+	inside loop.
+
+2002-10-17  Johannes Stezenbach  <js@convergence.de>
+
+	* itbl-parse.y (entry): Provide empty action.
+
+2002-10-14  Momchil Velikov  <velco@fadata.bg>
+
+	* config/tc-v850.c (CHECK_): Remove token pasting operator.
+
+2002-10-11  David O'Brien  <obrien@FreeBSD.org>
+
+	* gas/gasp.texi: Fix typo in noting that gasp is now deprecated.
+
 2002-10-11  Michel Six  <msix@ccr.jussieu.fr>
 	    Alan Modra  <amodra@bigpond.net.au>
 

@@ -46,14 +46,12 @@
 #define NEED_LITERAL_POOL
 #define REPEAT_CONS_EXPRESSIONS
 
-extern void alpha_validate_fix PARAMS ((struct fix *));
 extern int alpha_force_relocation PARAMS ((struct fix *));
 extern int alpha_fix_adjustable PARAMS ((struct fix *));
 
 extern unsigned long alpha_gprmask, alpha_fprmask;
 extern valueT alpha_gp_value;
 
-#define TC_VALIDATE_FIX(FIXP,SEGTYPE,SKIP) alpha_validate_fix (FIXP)
 #define TC_FORCE_RELOCATION(FIXP)	alpha_force_relocation (FIXP)
 #define tc_fix_adjustable(FIXP)		alpha_fix_adjustable (FIXP)
 #define RELOC_REQUIRES_SYMBOL
@@ -152,7 +150,7 @@ struct alpha_fix_tag
 #define TC_INIT_FIX_DATA(fixP)						\
 do {									\
   fixP->tc_fix_data.next_reloc = (struct fix *)0;			\
-  fixP->tc_fix_data.info = (struct alpha_literal_tag *)0;		\
+  fixP->tc_fix_data.info = (struct alpha_reloc_tag *)0;			\
 } while (0)
 
 /* Work with DEBUG5 to print fields in tc_fix_type.  */

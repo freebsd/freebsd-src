@@ -1246,7 +1246,7 @@ Special entry points for gdb to swap in coff symbol table parts:
 .	     struct coff_link_hash_entry *, struct internal_syment *,
 .	     bfd_vma *));
 .
-.  boolean (*_bfd_coff_adjust_symndx)\
+.  boolean (*_bfd_coff_adjust_symndx)
 .    PARAMS ((bfd *, struct bfd_link_info *, bfd *, asection *,
 .	     struct internal_reloc *, boolean *));
 .

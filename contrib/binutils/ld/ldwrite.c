@@ -29,7 +29,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include "ldlang.h"
 #include "ldwrite.h"
 #include "ldmisc.h"
-#include "ldgram.h"
+#include <ldgram.h>
 #include "ldmain.h"
 
 static void build_link_order PARAMS ((lang_statement_union_type *));

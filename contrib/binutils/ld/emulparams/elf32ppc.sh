@@ -17,6 +17,10 @@ OTHER_READWRITE_SECTIONS="
   .got1         ${RELOCATING-0} : { *(.got1) }
   .got2         ${RELOCATING-0} : { *(.got2) }
 "
+OTHER_GOT_RELOC_SECTIONS="
+  .rela.got1         ${RELOCATING-0} : { *(.rela.got1) }
+  .rela.got2         ${RELOCATING-0} : { *(.rela.got2) }
+"
 
 # Treat a host that matches the target with the possible exception of "64"
 # in the name as if it were native.
