@@ -186,6 +186,7 @@ __stdcall static void ndis_free_bufpool(ndis_handle);
 __stdcall static void ndis_alloc_buf(ndis_status *, ndis_buffer **,
 	ndis_handle, void *, uint32_t);
 __stdcall static void ndis_release_buf(ndis_buffer *);
+__stdcall static uint32_t ndis_buflen(ndis_buffer *);
 __stdcall static void ndis_query_buf(ndis_buffer *, void **, uint32_t *);
 __stdcall static void ndis_query_buf_safe(ndis_buffer *, void **,
 	uint32_t *, uint32_t);
@@ -228,7 +229,7 @@ __stdcall static uint8_t ndis_sync_with_intr(ndis_miniport_interrupt *,
 	void *, void *);
 __stdcall static void ndis_time(uint64_t *);
 __stdcall static void ndis_uptime(uint32_t *);
-__stdcall static void ndis_init_string(ndis_unicode_string **, char *);
+__stdcall static void ndis_init_string(ndis_unicode_string *, char *);
 __stdcall static void ndis_init_ansi_string(ndis_ansi_string *, char *);
 __stdcall static void ndis_init_unicode_string(ndis_unicode_string *,
 	uint16_t *);
@@ -318,12 +319,11 @@ ndis_unicode_to_ascii(unicode, ulen, ascii)
 	int			i;
 
 	if (*ascii == NULL)
-		*ascii = malloc(ulen, M_DEVBUF, M_WAITOK);
-
+		*ascii = malloc((ulen / 2) + 1, M_DEVBUF, M_WAITOK|M_ZERO);
 	if (*ascii == NULL)
 		return(ENOMEM);
 	astr = *ascii;
-	for (i = 0; i < ulen; i++) {
+	for (i = 0; i < ulen / 2; i++) {
 		*astr = (uint8_t)unicode[i];
 		astr++;
 	}
@@ -526,6 +526,11 @@ ndis_read_cfg(status, parm, cfg, key, type)
 	block = (ndis_miniport_block *)cfg;
 	sc = (struct ndis_softc *)block->nmb_ifp;
 
+	if (key->nus_len == 0 || key->nus_buf == NULL) {
+		*status = NDIS_STATUS_FAILURE;
+		return;
+	}
+
 	ndis_unicode_to_ascii(key->nus_buf, key->nus_len, &keystr);
 
 	*parm = &block->nmb_replyparm;
@@ -682,6 +687,7 @@ ndis_destroy_lock(lock)
 	ndis_mtx = (struct mtx *)lock->nsl_spinlock;
 	mtx_destroy(ndis_mtx);
 	free(ndis_mtx, M_DEVBUF);
+	lock->nsl_spinlock = 0xdeadf00d; /* XXX */
 
 	return;
 }
@@ -692,6 +698,28 @@ ndis_lock(lock)
 {
 	if (lock == NULL)
 		return;
+	/*
+	 * Workaround for certain broken NDIS drivers. I have
+	 * encountered one case where a driver creates a spinlock
+	 * within its DriverEntry() routine, which is then destroyed
+	 * in its MiniportHalt() routine. This is a bug, because
+	 * MiniportHalt() is meant to only destroy what MiniportInit()
+	 * creates. This leads to the following problem:
+	 *     DriverEntry() <- spinlock created
+	 *     MiniportInit() <- NIC initialized
+	 *     MiniportHalt() <- NIC halted, spinlock destroyed
+	 *     MiniportInit() <- NIC initialized, spinlock not recreated
+	 *     NdisAcquireSpinLock(boguslock) <- panic
+	 * To work around this, we poison the spinlock on destroy, and
+	 * if we try to re-acquire the poison pill^Wspinlock, we init
+	 * it again so subsequent calls will work.
+	 *
+	 * Drivers that behave in this way are likely not officially
+	 * certified by Microsoft, since their I would expect the
+	 * Microsoft NDIS test tool to catch mistakes like this.
+	 */
+	if (lock->nsl_spinlock == 0xdeadf00d)
+		ndis_create_lock(lock);
 	mtx_lock((struct mtx *)lock->nsl_spinlock);
 
 	return;
@@ -1681,6 +1709,15 @@ ndis_release_buf(buf)
 	return;
 }
 
+/* Aw c'mon. */
+
+__stdcall static uint32_t
+ndis_buflen(buf)
+	ndis_buffer		*buf;
+{
+	return(buf->nb_bytecount);
+}
+
 /*
  * Get the virtual address and length of a buffer.
  * Note: the vaddr argument is optional.
@@ -1958,6 +1995,7 @@ ndis_sleep(usecs)
 	tv.tv_usec = usecs;
 
 	tsleep(&dummy, PPAUSE|PCATCH, "ndis", tvtohz(&tv));
+
 	return;
 }
 
@@ -2122,19 +2160,14 @@ ndis_uptime(tval)
 
 __stdcall static void
 ndis_init_string(dst, src)
-	ndis_unicode_string	**dst;
+	ndis_unicode_string	*dst;
 	char			*src;
 {
 	ndis_unicode_string	*u;
 
-	u = malloc(sizeof(ndis_unicode_string), M_DEVBUF, M_NOWAIT);
-	if (u == NULL)
+	u = dst;
+	if (ndis_ascii_to_unicode(src, &u->nus_buf))
 		return;
-	u->nus_buf = NULL;
-	if (ndis_ascii_to_unicode(src, &u->nus_buf)) {
-		free(u, M_DEVBUF);
-		return;
-	}
 	u->nus_len = u->nus_maxlen = strlen(src) * 2;
 	return;
 }
@@ -2355,6 +2388,8 @@ image_patch_table ndis_functbl[] = {
 	{ "NdisFreeMemory",		(FUNC)ndis_free },
 	{ "NdisReadPciSlotInformation",	(FUNC)ndis_read_pci },
 	{ "NdisWritePciSlotInformation",(FUNC)ndis_write_pci },
+	{ "NdisImmediateReadPciSlotInformation", (FUNC)ndis_read_pci },
+	{ "NdisImmediateWritePciSlotInformation", (FUNC)ndis_write_pci },
 	{ "NdisWriteErrorLogEntry",	(FUNC)ndis_syslog },
 	{ "NdisMStartBufferPhysicalMapping", (FUNC)ndis_vtophys_load },
 	{ "NdisMCompleteBufferPhysicalMapping", (FUNC)ndis_vtophys_unload },
@@ -2386,6 +2421,7 @@ image_patch_table ndis_functbl[] = {
 	{ "NdisAllocateBuffer",		(FUNC)ndis_alloc_buf },
 	{ "NdisQueryBuffer",		(FUNC)ndis_query_buf },
 	{ "NdisQueryBufferSafe",	(FUNC)ndis_query_buf_safe },
+	{ "NdisBufferLength",		(FUNC)ndis_buflen },
 	{ "NdisFreeBuffer",		(FUNC)ndis_release_buf },
 	{ "NdisFreeBufferPool",		(FUNC)ndis_free_bufpool },
 	{ "NdisInterlockedIncrement",	(FUNC)ndis_interlock_inc },
