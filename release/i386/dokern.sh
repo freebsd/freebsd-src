@@ -6,7 +6,7 @@ ARCH="`uname -m`"
 if [ "${ARCH}" = "i386" ]; then
 
 sed	-e '/pty/d' \
-	-e '/pass0/d' \
+	-e '/pass/d' \
 	-e '/apm0/d' \
 	-e '/ppp/d' \
 	-e '/gzip/d' \
@@ -25,7 +25,7 @@ echo "options  NETGRAPH_SOCKET"
 elif [ "${ARCH}" = "alpha" ]; then
 
 sed	-e '/pty/d' \
-	-e '/pass0/d' \
+	-e '/pass/d' \
 	-e '/apm0/d' \
 	-e '/ppp/d' \
 	-e '/gzip/d' \
