@@ -21,7 +21,7 @@
  */
 
 /*
- * $Id: if_fe.c,v 1.30 1998/02/27 15:23:37 kato Exp $
+ * $Id: if_fe.c,v 1.31 1998/06/08 08:55:44 kato Exp $
  *
  * Device driver for Fujitsu MB86960A/MB86965A based Ethernet cards.
  * To be used with FreeBSD 2.x
@@ -81,11 +81,7 @@
 #include "opt_ipx.h"
 
 #include <sys/param.h>
-#include <sys/kernel.h>
 #include <sys/systm.h>
-
-#include <sys/conf.h>
-
 #include <sys/sockio.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>
@@ -129,6 +125,7 @@
 /* PCCARD suport */
 #include "card.h"
 #if NCARD > 0
+#include <sys/kernel.h>
 #include <sys/select.h>
 #include <pccard/cardinfo.h>
 #include <pccard/slot.h>
@@ -337,9 +334,9 @@ outblk ( struct fe_softc * sc, int offs, u_char const * mem, int len )
 /*
  *      PC-Card (PCMCIA) specific code.
  */
-static int feinit	(struct pccard_devinfo *);
-static void feunload	(struct pccard_devinfo *);
-static int fe_card_intr	(struct pccard_devinfo *);
+static int	feinit		( struct pccard_devinfo * );
+static void	feunload	( struct pccard_devinfo * );
+static int	fe_card_intr	( struct pccard_devinfo * );
 
 static struct pccard_device fe_info = {
 	"fe",
@@ -347,8 +344,7 @@ static struct pccard_device fe_info = {
 	feunload,
 	fe_card_intr,
 	0,			/* Attributes - presently unused */
-	&net_imask		/* Interrupt mask for device */
-				/* XXX - Should this also include net_imask? */
+	&net_imask		/* XXX - Should this also include tty_imask? */
 };
 
 DATA_SET(pccarddrv_set, fe_info);
