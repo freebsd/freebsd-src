@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: apic_ipl.s,v 1.24 1999/07/03 06:33:47 alc Exp $
+ *	$Id: apic_ipl.s,v 1.25 1999/07/10 15:27:58 bde Exp $
  */
 
 
@@ -65,7 +65,7 @@ _vec:
  *		MAYBE_UNMASK_IRQ
  *		imen_dump()
  */
-	.align 2				/* MUST be 32bit aligned */
+	.p2align 2				/* MUST be 32bit aligned */
 	.globl _apic_imen
 _apic_imen:
 	.long	HWI_MASK
@@ -308,7 +308,7 @@ ENTRY(INTRDIS)
 #define _APIC		 12(%esp)
 #define _MASK		 16(%esp)
 
-	.align 2
+	ALIGN_TEXT
 write_ioapic_mask:
 	pushl %ebx			/* scratch */
 	pushl %esi			/* scratch */
