@@ -3,8 +3,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <pwd.h>
-
-#include "skey.h"
+#include <skey.h>
 
 /* skey_crypt - return encrypted UNIX passwd if s/key or regular password ok */
 
