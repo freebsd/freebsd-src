@@ -188,6 +188,7 @@ void	getexp_err __P((struct exportlist *, struct grouplist *));
 struct grouplist *get_grp __P((void));
 void	hang_dirp __P((struct dirlist *, struct grouplist *,
 				struct exportlist *, int));
+void	huphandler(int sig);
 void	mntsrv __P((struct svc_req *, SVCXPRT *));
 void	nextfield __P((char **, char **));
 void	out_of_mem __P((void));
@@ -222,6 +223,7 @@ int force_v2 = 0;
 int resvport_only = 1;
 int dir_only = 1;
 int log = 0;
+int got_sighup = 0;
 
 int opt_flags;
 static int have_v6 = 1;
@@ -261,6 +263,7 @@ main(argc, argv)
 	int argc;
 	char **argv;
 {
+	fd_set readfds;
 	SVCXPRT *udptransp, *tcptransp, *udp6transp, *tcp6transp;
 	struct netconfig *udpconf, *tcpconf, *udp6conf, *tcp6conf;
 	int udpsock, tcpsock, udp6sock, tcp6sock;
@@ -337,7 +340,7 @@ main(argc, argv)
 		signal(SIGINT, SIG_IGN);
 		signal(SIGQUIT, SIG_IGN);
 	}
-	signal(SIGHUP, (void (*) __P((int))) get_exportlist);
+	signal(SIGHUP, huphandler);
 	signal(SIGTERM, terminate);
 	{ FILE *pidfile = fopen(_PATH_MOUNTDPID, "w");
 	  if (pidfile != NULL) {
@@ -475,9 +478,26 @@ skip_v6:
 		syslog(LOG_ERR, "could not create any services");
 		exit(1);
 	}
-	svc_run();
-	syslog(LOG_ERR, "mountd died");
-	exit(1);
+
+	/* Expand svc_run() here so that we can call get_exportlist(). */
+	for (;;) {
+		if (got_sighup) {
+			get_exportlist();
+			got_sighup = 0;
+		}
+		readfds = svc_fdset;
+		switch (select(svc_maxfd + 1, &readfds, NULL, NULL, NULL)) {
+		case -1:
+			if (errno == EINTR)
+                                continue;
+			syslog(LOG_ERR, "mountd died: select: %m");
+			exit(1);
+		case 0:
+			continue;
+		default:
+			svc_getreqset(&readfds);
+		}
+	}
 }
 
 static void
@@ -2453,6 +2473,12 @@ sacmp(struct sockaddr *sa1, struct sockaddr *sa2)
 	}
 
 	return memcmp(p1, p2, len);
+}
+
+void
+huphandler(int sig)
+{
+	got_sighup = 1;
 }
 
 void terminate(sig)
