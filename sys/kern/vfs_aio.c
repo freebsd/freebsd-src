@@ -97,54 +97,62 @@ static	long jobrefid;
 #define AIOD_LIFETIME_DEFAULT	(30 * hz)
 #endif
 
+SYSCTL_NODE(_vfs, OID_AUTO, aio, CTLFLAG_RW, 0, "Async IO management");
+
 static int max_aio_procs = MAX_AIO_PROCS;
+SYSCTL_INT(_vfs_aio, OID_AUTO, max_aio_procs,
+	CTLFLAG_RW, &max_aio_procs, 0,
+	"Maximum number of kernel threads to use for handling async IO");
+
 static int num_aio_procs = 0;
+SYSCTL_INT(_vfs_aio, OID_AUTO, num_aio_procs,
+	CTLFLAG_RD, &num_aio_procs, 0,
+	"Number of presently active kernel threads for async IO");
+
+/*
+ * The code will adjust the actual number of AIO processes towards this
+ * number when it gets a chance.
+ */
 static int target_aio_procs = TARGET_AIO_PROCS;
+SYSCTL_INT(_vfs_aio, OID_AUTO, target_aio_procs, CTLFLAG_RW, &target_aio_procs,
+	0, "Preferred number of ready kernel threads for async IO");
+
 static int max_queue_count = MAX_AIO_QUEUE;
+SYSCTL_INT(_vfs_aio, OID_AUTO, max_aio_queue, CTLFLAG_RW, &max_queue_count, 0,
+    "Maximum number of aio requests to queue, globally");
+
 static int num_queue_count = 0;
+SYSCTL_INT(_vfs_aio, OID_AUTO, num_queue_count, CTLFLAG_RD, &num_queue_count, 0,
+    "Number of queued aio requests");
+
 static int num_buf_aio = 0;
+SYSCTL_INT(_vfs_aio, OID_AUTO, num_buf_aio, CTLFLAG_RD, &num_buf_aio, 0,
+    "Number of aio requests presently handled by the buf subsystem");
+
+/* Number of async I/O thread in the process of being started */
+/* XXX This should be local to _aio_aqueue() */
 static int num_aio_resv_start = 0;
+
 static int aiod_timeout;
+SYSCTL_INT(_vfs_aio, OID_AUTO, aiod_timeout, CTLFLAG_RW, &aiod_timeout, 0,
+    "Timeout value for synchronous aio operations");
+
 static int aiod_lifetime;
+SYSCTL_INT(_vfs_aio, OID_AUTO, aiod_lifetime, CTLFLAG_RW, &aiod_lifetime, 0,
+    "Maximum lifetime for idle aiod");
 
 static int max_aio_per_proc = MAX_AIO_PER_PROC;
+SYSCTL_INT(_vfs_aio, OID_AUTO, max_aio_per_proc, CTLFLAG_RW, &max_aio_per_proc,
+    0, "Maximum active aio requests per process (stored in the process)");
+
 static int max_aio_queue_per_proc = MAX_AIO_QUEUE_PER_PROC;
+SYSCTL_INT(_vfs_aio, OID_AUTO, max_aio_queue_per_proc, CTLFLAG_RW,
+    &max_aio_queue_per_proc, 0,
+    "Maximum queued aio requests per process (stored in the process)");
+
 static int max_buf_aio = MAX_BUF_AIO;
-
-SYSCTL_NODE(_vfs, OID_AUTO, aio, CTLFLAG_RW, 0, "AIO mgmt");
-
-SYSCTL_INT(_vfs_aio, OID_AUTO, max_aio_per_proc,
-	CTLFLAG_RW, &max_aio_per_proc, 0, "");
-
-SYSCTL_INT(_vfs_aio, OID_AUTO, max_aio_queue_per_proc,
-	CTLFLAG_RW, &max_aio_queue_per_proc, 0, "");
-
-SYSCTL_INT(_vfs_aio, OID_AUTO, max_aio_procs,
-	CTLFLAG_RW, &max_aio_procs, 0, "");
-
-SYSCTL_INT(_vfs_aio, OID_AUTO, num_aio_procs,
-	CTLFLAG_RD, &num_aio_procs, 0, "");
-
-SYSCTL_INT(_vfs_aio, OID_AUTO, num_queue_count,
-	CTLFLAG_RD, &num_queue_count, 0, "");
-
-SYSCTL_INT(_vfs_aio, OID_AUTO, max_aio_queue,
-	CTLFLAG_RW, &max_queue_count, 0, "");
-
-SYSCTL_INT(_vfs_aio, OID_AUTO, target_aio_procs,
-	CTLFLAG_RW, &target_aio_procs, 0, "");
-
-SYSCTL_INT(_vfs_aio, OID_AUTO, max_buf_aio,
-	CTLFLAG_RW, &max_buf_aio, 0, "");
-
-SYSCTL_INT(_vfs_aio, OID_AUTO, num_buf_aio,
-	CTLFLAG_RD, &num_buf_aio, 0, "");
-
-SYSCTL_INT(_vfs_aio, OID_AUTO, aiod_lifetime,
-	CTLFLAG_RW, &aiod_lifetime, 0, "");
-
-SYSCTL_INT(_vfs_aio, OID_AUTO, aiod_timeout,
-	CTLFLAG_RW, &aiod_timeout, 0, "");
+SYSCTL_INT(_vfs_aio, OID_AUTO, max_buf_aio, CTLFLAG_RW, &max_buf_aio, 0,
+    "Maximum buf aio requests per process (stored in the process)");
 
 /*
  * AIO process info
