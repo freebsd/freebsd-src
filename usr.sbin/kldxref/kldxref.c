@@ -210,9 +210,12 @@ read_kld(char *filename, char *kldname)
 		printf("%s\n", filename);
 	error = ef_open(filename, &ef, verbose);
 	if (error) {
-		if (verbose)
-			warnc(error, "elf_open(%s)", filename);
-		return error;
+		error = ef_obj_open(filename, &ef, verbose);
+		if (error) {
+			if (verbose)
+				warnc(error, "elf_open(%s)", filename);
+			return error;
+		}
 	}
 	eftype = EF_GET_TYPE(&ef);
 	if (eftype != EFT_KLD && eftype != EFT_KERNEL)  {
