@@ -66,7 +66,7 @@ static int aac_disk_detach(device_t dev);
 static	d_open_t	aac_disk_open;
 static	d_close_t	aac_disk_close;
 static	d_strategy_t	aac_disk_strategy;
-static	d_dump_t	aac_disk_dump;
+static	dumper_t	aac_disk_dump;
 
 #define AAC_DISK_CDEV_MAJOR	151
 
@@ -241,7 +241,7 @@ aac_dump_map_sg(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
  * Send out one command at a time with up to AAC_MAXIO of data.
  */
 static int
-aac_disk_dump(dev_t dev, void *virtual, vm_offset_t physical, off_t offset, size_t length)
+aac_disk_dump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t length)
 {
 	struct aac_disk *ad;
 	struct aac_softc *sc;
@@ -251,8 +251,10 @@ aac_disk_dump(dev_t dev, void *virtual, vm_offset_t physical, off_t offset, size
 	int size;
 	static bus_dmamap_t dump_datamap;
 	static int first = 0;
+	struct disk *dp;
 
-	ad = dev->si_drv1;
+	dp = arg;
+	ad = dp->d_dev->si_drv1;
 
 	if (ad == NULL)
 		return (EINVAL);

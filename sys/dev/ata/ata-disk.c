@@ -55,7 +55,7 @@
 static d_open_t		adopen;
 static d_close_t	adclose;
 static d_strategy_t	adstrategy;
-static d_dump_t		addump;
+static dumper_t		addump;
 static struct cdevsw ad_cdevsw = {
 	/* open */	adopen,
 	/* close */	adclose,
@@ -315,12 +315,15 @@ adstrategy(struct bio *bp)
 }
 
 static int
-addump(dev_t dev, void *virtual, vm_offset_t physical, off_t offset, size_t length)
+addump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t length)
 {
-    struct ad_softc *adp = dev->si_drv1;
+    struct ad_softc *adp;
     struct ad_request request;
     static int once;
+    struct disk *dp;
 
+    dp = arg;
+    adp = dp->d_dev->si_drv1;
     if (!adp)
 	return ENXIO;
 
