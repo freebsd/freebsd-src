@@ -1,4 +1,4 @@
-# $Id: mk-2nd.awk,v 1.11 1998/10/17 21:54:21 Alexander.V.Lukyanov Exp $
+# $Id: mk-2nd.awk,v 1.12 2000/04/01 20:50:36 tom Exp $
 ##############################################################################
 # Copyright (c) 1998 Free Software Foundation, Inc.                          #
 #                                                                            #
@@ -67,7 +67,14 @@ BEGIN	{
 			}
 		}
 	}
-	!/^[@#]/ {
+	/^[@#]/ {
+		next
+	}
+	$1 ~ /trace/ {
+		if (traces != "all" && traces != MODEL && $1 != "lib_trace")
+			next
+	}
+	{
 		if ($0 != "" \
 		 && using != 0) {
 			found = 1

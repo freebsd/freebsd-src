@@ -1,6 +1,6 @@
 #!/bin/sh
 ##############################################################################
-# Copyright (c) 1998 Free Software Foundation, Inc.                          #
+# Copyright (c) 1998,2000 Free Software Foundation, Inc.                     #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -29,7 +29,7 @@
 #
 # Author: Thomas E. Dickey <dickey@clark.net> 1996
 #
-# $Id: run_tic.sh,v 1.10 1998/05/31 00:29:34 mooney Exp $
+# $Id: run_tic.sh,v 1.12 2000/07/01 19:25:13 tom Exp $
 # This script is used to install terminfo.src using tic.  We use a script
 # because the path checking is too awkward to do in a makefile.
 #
@@ -118,6 +118,17 @@ if test "x$TABSET" != "x/usr/share/tabset" ; then
 	SRC=$TMP
 fi
 
+cat <<EOF
+Running tic to install $TERMINFO ...
+
+	You may see messages regarding unknown capabilities, e.g., AX.
+	These are extended terminal capabilities which can be compiled
+	using
+		tic -x
+	Read the INSTALL document before doing this - it can cause
+	problems for older ncurses applications.
+
+EOF
 if ( $srcdir/shlib tic -s $SRC )
 then
 	echo '** built new '$TERMINFO

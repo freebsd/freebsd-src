@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998 Free Software Foundation, Inc.                        *
+ * Copyright (c) 1998-2000 Free Software Foundation, Inc.                   *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -30,7 +30,7 @@
  *  Author: Thomas E. Dickey <dickey@clark.net> 1997,1998                   *
  ****************************************************************************/
 /*
- * $Id: progs.priv.h,v 1.19 1999/02/23 11:10:32 tom Exp $
+ * $Id: progs.priv.h,v 1.22 2000/04/08 23:47:39 tom Exp $
  *
  *	progs.priv.h
  *
@@ -121,6 +121,18 @@ extern int optind;
 
 #ifndef EXIT_FAILURE
 #define EXIT_FAILURE 1
+#endif
+
+#ifndef R_OK
+#define	R_OK	4		/* Test for readable.  */
+#endif
+
+#ifndef W_OK
+#define	W_OK	2		/* Test for writable.  */
+#endif
+
+#ifndef X_OK
+#define	X_OK	1		/* Test for executable.  */
 #endif
 
 #ifndef F_OK

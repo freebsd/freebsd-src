@@ -34,15 +34,12 @@ Options:
   traces will be dumped.  The program stops and waits for one character of
   input at the beginning and end of the interval.
 
-  $Id: worm.c,v 1.26 1999/10/23 01:31:40 tom Exp $
+  $Id: worm.c,v 1.30 2000/04/15 17:51:56 tom Exp $
 */
 
 #include <test.priv.h>
 
 #include <signal.h>
-
-#define typeAlloc(type,n) (type *) malloc(n * sizeof(type))
-#define typeRealloc(type,n,p) (type *) realloc(p, n * sizeof(type))
 
 static chtype flavor[] =
 {
@@ -185,7 +182,6 @@ main(int argc, char *argv[])
     short **ref;
     int x, y;
     int n;
-    int ch;
     struct worm *w;
     const struct options *op;
     int h;
@@ -255,7 +251,7 @@ main(int argc, char *argv[])
     if (has_colors()) {
 	int bg = COLOR_BLACK;
 	start_color();
-#ifdef NCURSES_VERSION
+#ifdef HAVE_USE_DEFAULT_COLORS
 	if (use_default_colors() == OK)
 	    bg = -1;
 #endif
@@ -274,9 +270,9 @@ main(int argc, char *argv[])
     }
 #endif /* A_COLOR */
 
-    ref = typeAlloc(short *, LINES);
+    ref = typeMalloc(short *, LINES);
     for (y = 0; y < LINES; y++) {
-	ref[y] = typeAlloc(short, COLS);
+	ref[y] = typeMalloc(short, COLS);
 	for (x = 0; x < COLS; x++) {
 	    ref[y][x] = 0;
 	}
@@ -289,14 +285,14 @@ main(int argc, char *argv[])
 
     for (n = number, w = &worm[0]; --n >= 0; w++) {
 	w->orientation = w->head = 0;
-	if (!(ip = typeAlloc(short, (length + 1)))) {
+	if (!(ip = typeMalloc(short, (length + 1)))) {
 	    fprintf(stderr, "%s: out of memory\n", *argv);
 	    return EXIT_FAILURE;
 	}
 	w->xpos = ip;
 	for (x = length; --x >= 0;)
 	    *ip++ = -1;
-	if (!(ip = typeAlloc(short, (length + 1)))) {
+	if (!(ip = typeMalloc(short, (length + 1)))) {
 	    fprintf(stderr, "%s: out of memory\n", *argv);
 	    return EXIT_FAILURE;
 	}
@@ -338,6 +334,8 @@ main(int argc, char *argv[])
 	    generation++;
 	}
 #else
+	int ch;
+
 	if ((ch = getch()) > 0) {
 #ifdef KEY_RESIZE
 	    if (ch == KEY_RESIZE) {
@@ -350,11 +348,11 @@ main(int argc, char *argv[])
 		    last = COLS - 1;
 		}
 		if (bottom != LINES - 1) {
-		    ref = typeRealloc(short *, LINES, ref);
-		    for (y = COLS; y <= bottom; y++)
+		    for (y = LINES; y <= bottom; y++)
 			free(ref[y]);
+		    ref = typeRealloc(short *, LINES, ref);
 		    for (y = bottom + 1; y < LINES; y++) {
-			ref[y] = typeAlloc(short, COLS);
+			ref[y] = typeMalloc(short, COLS);
 			for (x = 0; x < COLS; x++)
 			    ref[y][x] = 0;
 		    }

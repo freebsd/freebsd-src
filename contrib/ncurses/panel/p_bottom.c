@@ -36,44 +36,35 @@
  */
 #include "panel.priv.h"
 
-MODULE_ID("$Id: p_bottom.c,v 1.5 1999/09/29 15:22:32 juergen Exp $")
-
-/*+-------------------------------------------------------------------------
-	__panel_link_bottom(pan) - link panel into stack at bottom
---------------------------------------------------------------------------*/
-static void
-panel_link_bottom(PANEL *pan)
-{
-#ifdef TRACE
-  dStack("<lb%d>",1,pan);
-  if(_nc_panel_is_linked(pan))
-    return;
-#endif
-  
-  pan->above = (PANEL *)0;
-  pan->below = (PANEL *)0;
-  
-  assert(_nc_bottom_panel == _nc_stdscr_pseudo_panel);
-
-  pan->below = _nc_bottom_panel;
-  pan->above = _nc_bottom_panel->above;
-  if (pan->above)
-    pan->above->below = pan;
-  _nc_bottom_panel->above = pan;
-    
-  dStack("<lb%d>",9,pan);
-}
+MODULE_ID("$Id: p_bottom.c,v 1.7 1999/11/25 13:49:26 juergen Exp $")
 
 int
 bottom_panel(PANEL *pan)
 {
-  if(!pan)
-    return(ERR);
-  if(Is_Bottom(pan))
-    return(OK);
-  dBug(("--> bottom_panel %s", USER_PTR(pan->user)));
-  if(_nc_panel_is_linked(pan))
-    (void)hide_panel(pan);
-  panel_link_bottom(pan);
-  return(OK);
+  int err = OK;
+
+  if (pan) {
+
+    if(!Is_Bottom(pan)) {
+      
+      dBug(("--> bottom_panel %s", USER_PTR(pan->user)));
+     
+      HIDE_PANEL(pan,err,FALSE);
+      assert(_nc_bottom_panel == _nc_stdscr_pseudo_panel);
+      
+      dStack("<lb%d>",1,pan);      
+      
+      pan->below = _nc_bottom_panel;
+      pan->above = _nc_bottom_panel->above;
+      if (pan->above)
+	pan->above->below = pan;
+      _nc_bottom_panel->above = pan;
+      
+      dStack("<lb%d>",9,pan);
+    }
+  }
+  else
+    err = ERR;
+  
+  return(err);
 }

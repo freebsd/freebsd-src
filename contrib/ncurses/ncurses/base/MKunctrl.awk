@@ -1,4 +1,4 @@
-# $Id: MKunctrl.awk,v 1.6 1998/06/06 18:18:07 tom Exp $
+# $Id: MKunctrl.awk,v 1.7 2000/04/01 19:49:26 tom Exp $
 ##############################################################################
 # Copyright (c) 1998 Free Software Foundation, Inc.                          #
 #                                                                            #
@@ -50,6 +50,8 @@ END	{
 				printf "\"^\\%03o\"", ch + 64
 			} else if (ch == 127) {
 				printf "\"^?\""
+			} else if (ch >= 128 && ch < 160) {
+				printf "\"~\\%03o\"", ch - 64
 			} else {
 				printf "\"\\%03o\"", ch
 				gap = gap " "

@@ -1,6 +1,8 @@
 
 Current history:
 
+2000/03/04		Fix a few spelling errors
+1999/09/04		Minor fix to build/link on BeOS
 1999/05/16		Minor fix to build/link on CLIX
 1999/05/09		Update to build/link on NeXT
 1999/04/17		Update to work with ncurses 5.0 beta1 (TERMTYPE struct)
@@ -21,7 +23,7 @@ as little of curses as possible.
 released to USENET in comp.sources.  TED was originally written to
 test both terminfos and termcaps.  The original intent was to
 create a terminfo editor.  This code fell quite short of its goal.
-Tests were controled by command line switches and editing was done
+Tests were controlled by command line switches and editing was done
 with pen and paper.
 
    In 1995 Eric S. Raymond got interested in the program and added

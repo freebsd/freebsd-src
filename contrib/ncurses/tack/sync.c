@@ -22,7 +22,7 @@
 #include <tack.h>
 #include <time.h>
 
-MODULE_ID("$Id: sync.c,v 1.1 1998/01/10 00:31:07 tom Exp $")
+MODULE_ID("$Id: sync.c,v 1.2 2000/03/04 20:28:16 tom Exp $")
 
 /* terminal-synchronization and performance tests */
 
@@ -157,7 +157,7 @@ probe_enq_ok(void)
 		ptextln(" the terminal is overrun with data.");
 		ptext("\nENQ sequence from (u9): ");
 		putln(expand(tty_ENQ));
-		ptext("ACK recieved: ");
+		ptext("ACK received: ");
 		putln(expand(tty_ACK));
 		len = user8 ? strlen(user8) : 0;
 		sprintf(temp, "Length of ACK %d.  Expected length of ACK %d.",
@@ -368,7 +368,7 @@ sync_clear(
 }
 
 /*
-**	sync_symmary(test_list, status, ch)
+**	sync_summary(test_list, status, ch)
 **
 **	Print out the test results.
 */

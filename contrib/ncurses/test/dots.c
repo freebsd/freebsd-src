@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1999 Free Software Foundation, Inc.                        *
+ * Copyright (c) 1999,2000 Free Software Foundation, Inc.                   *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -29,7 +29,7 @@
 /*
  * Author: Thomas E. Dickey <dickey@clark.net> 1999
  *
- * $Id: dots.c,v 1.2 1999/10/23 13:24:32 tom Exp $
+ * $Id: dots.c,v 1.4 2000/02/13 01:05:13 tom Exp $
  *
  * A simple demo of the terminfo interface.
  */
@@ -125,7 +125,7 @@ main(
 
 	tputs(tparm(cursor_address, y, x), 1, outc);
 	if (max_colors > 0) {
-	    z = ranf() * max_colors;
+	    z = (int)(ranf() * max_colors);
 	    if (ranf() > 0.01) {
 		tputs(tparm(set_a_foreground, z), 1, outc);
 	    } else {

@@ -19,7 +19,7 @@
 ** Boston, MA 02111-1307, USA.
 */
 /*
- * Operating system dependant functions.  We assume the POSIX API.
+ * Operating system dependent functions.  We assume the POSIX API.
  * Note: on strict-POSIX systems (including BSD/OS) the select_delay_type
  * global has no effect.
  */
@@ -43,7 +43,7 @@
 #endif
 #endif
 
-MODULE_ID("$Id: sysdep.c,v 1.6 1999/09/04 13:45:00 tom Exp $")
+MODULE_ID("$Id: sysdep.c,v 1.7 2000/03/04 21:02:11 tom Exp $")
 
 #if DECL_ERRNO
 extern int errno;
