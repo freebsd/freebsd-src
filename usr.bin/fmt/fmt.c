@@ -175,7 +175,6 @@ static const char copyright[] =
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <ctype.h>
 #include <err.h>
 #include <locale.h>
 #include <stdio.h>
@@ -183,6 +182,8 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <sysexits.h>
 #include <unistd.h>
+#include <wchar.h>
+#include <wctype.h>
 
 /* Something that, we hope, will never be a genuine line length,
  * indentation etc.
@@ -222,14 +223,15 @@ static int coalesce_spaces_P=0;	/* Coalesce multiple whitespace -> ' ' ? */
 static int allow_indented_paragraphs=0;	/* Can first line have diff. ind.? */
 static int tab_width=8;		/* Number of spaces per tab stop */
 static size_t output_tab_width=8;	/* Ditto, when squashing leading spaces */
-static const char *sentence_enders=".?!";	/* Double-space after these */
+static const wchar_t *sentence_enders=L".?!";	/* Double-space after these */
 static int grok_mail_headers=0;	/* treat embedded mail headers magically? */
 static int format_troff=0;	/* Format troff? */
 
 static int n_errors=0;		/* Number of failed files. Return on exit. */
-static char *output_buffer=0;	/* Output line will be built here */
+static wchar_t *output_buffer=0;	/* Output line will be built here */
 static size_t x;		/* Horizontal position in output line */
 static size_t x0;		/* Ditto, ignoring leading whitespace */
+static size_t output_buffer_length = 0;
 static size_t pending_spaces;	/* Spaces to add before next word */
 static int output_in_paragraph=0;	/* Any of current para written out yet? */
 
@@ -237,13 +239,14 @@ static int output_in_paragraph=0;	/* Any of current para written out yet? */
 
 static void process_named_file (const char *);
 static void     process_stream (FILE *, const char *);
-static size_t    indent_length (const char *, size_t);
-static int     might_be_header (const unsigned char *);
+static size_t    indent_length (const wchar_t *, size_t);
+static int     might_be_header (const wchar_t *);
 static void      new_paragraph (size_t, size_t);
-static void        output_word (size_t, size_t, const char *, size_t, size_t);
+static void        output_word (size_t, size_t, const wchar_t *, size_t,
+				size_t);
 static void      output_indent (size_t);
 static void      center_stream (FILE *, const char *);
-static char *         get_line (FILE *, size_t *);
+static wchar_t *      get_line (FILE *, size_t *);
 static void *         xrealloc (void *, size_t);
 
 #define XMALLOC(x) xrealloc(0,x)
@@ -254,7 +257,9 @@ static void *         xrealloc (void *, size_t);
 int
 main(int argc, char *argv[]) {
   int ch;			/* used for |getopt| processing */
-
+  wchar_t *tmp;
+  size_t len;
+  const char *src;
 
   (void) setlocale(LC_CTYPE, "");
 
@@ -267,7 +272,13 @@ main(int argc, char *argv[]) {
       format_troff = 1;
       continue;
     case 'd':
-      sentence_enders = optarg;
+      src = optarg;
+      len = mbsrtowcs(NULL, &src, 0, NULL);
+      if (len == (size_t)-1)
+        err(EX_USAGE, "bad sentence-ending character set");
+      tmp = XMALLOC((len + 1) * sizeof(wchar_t));
+      mbsrtowcs(tmp, &src, len + 1, NULL);
+      sentence_enders = tmp;
       continue;
     case 'l':
       output_tab_width
@@ -340,7 +351,8 @@ main(int argc, char *argv[]) {
   }
   if (goal_length==0) goal_length = 65;
   if (max_length==0) max_length = goal_length+10;
-  output_buffer = XMALLOC(max_length+1);	/* really needn't be longer */
+  /* really needn't be longer */
+  output_buffer = XMALLOC((max_length+1) * sizeof(wchar_t));
 
   /* 2. Process files. */
 
@@ -365,6 +377,7 @@ process_named_file(const char *name) {
   if (!f) { warn("%s", name); ++n_errors; }
   else {
     process_stream(f, name);
+    if (ferror(f)) { warn("%s", name); ++n_errors; }
     fclose(f);
   }
 }
@@ -388,7 +401,7 @@ process_stream(FILE *stream, const char *name) {
   size_t first_indent=SILLY;	/* indentation of line 0 of paragraph */
   HdrType prev_header_type=hdr_ParagraphStart;
 	/* ^-- header_type of previous line; -1 at para start */
-  char *line;
+  wchar_t *line;
   size_t length;
 
   if (centerP) { center_stream(stream, name); return; }
@@ -424,9 +437,9 @@ process_stream(FILE *stream, const char *name) {
         if (header_type==hdr_Header) last_indent=2;	/* for cont. lines */
         if (length==0 || (line[0]=='.' && !format_troff)) {
           if (length==0)
-            putchar('\n');
+            putwchar('\n');
           else
-            printf("%.*s\n", (int)length, line);
+            wprintf(L"%.*ls\n", (int)length, line);
           prev_header_type=hdr_ParagraphStart;
           continue;
         }
@@ -465,7 +478,7 @@ process_stream(FILE *stream, const char *name) {
 /* How long is the indent on this line?
  */
 static size_t
-indent_length(const char *line, size_t length) {
+indent_length(const wchar_t *line, size_t length) {
   size_t n=0;
   while (n<length && *line++ == ' ') ++n;
   return n;
@@ -478,22 +491,21 @@ indent_length(const char *line, size_t length) {
  * conservative to avoid mangling ordinary civilised text.
  */
 static int
-might_be_header(const unsigned char *line) {
-  if (!isupper(*line++)) return 0;
-  while (*line && (isalnum(*line) || *line=='-')) ++line;
-  return (*line==':' && isspace(line[1]));
+might_be_header(const wchar_t *line) {
+  if (!iswupper(*line++)) return 0;
+  while (*line && (iswalnum(*line) || *line=='-')) ++line;
+  return (*line==':' && iswspace(line[1]));
 }
 
 /* Begin a new paragraph with an indent of |indent| spaces.
  */
 static void
 new_paragraph(size_t old_indent, size_t indent) {
-  if (x0) {
+  if (output_buffer_length) {
     if (old_indent>0) output_indent(old_indent);
-    fwrite(output_buffer, 1, x0, stdout);
-    putchar('\n');
+    wprintf(L"%.*ls\n", (int)output_buffer_length, output_buffer);
   }
-  x=indent; x0=0; pending_spaces=0;
+  x=indent; x0=0; output_buffer_length=0; pending_spaces=0;
   output_in_paragraph = 0;
 }
 
@@ -503,11 +515,11 @@ static void
 output_indent(size_t n_spaces) {
   if (output_tab_width) {
     while (n_spaces >= output_tab_width) {
-      putchar('\t');
+      putwchar('\t');
       n_spaces -= output_tab_width;
     }
   }
-  while (n_spaces-- > 0) putchar(' ');
+  while (n_spaces-- > 0) putwchar(' ');
 }
 
 /* Output a single word, or add it to the buffer.
@@ -515,9 +527,17 @@ output_indent(size_t n_spaces) {
  * lines of a paragraph. They'll often be the same, of course.
  */
 static void
-output_word(size_t indent0, size_t indent1, const char *word, size_t length, size_t spaces) {
-  size_t new_x = x+pending_spaces+length;
+output_word(size_t indent0, size_t indent1, const wchar_t *word, size_t length, size_t spaces) {
+  size_t new_x;
   size_t indent = output_in_paragraph ? indent1 : indent0;
+  size_t width;
+  const wchar_t *p;
+  int cwidth;
+
+  for (p = word, width = 0; p < &word[length]; p++)
+    width += (cwidth = wcwidth(*p)) > 0 ? cwidth : 1;
+
+  new_x = x + pending_spaces + width;
 
   /* If either |spaces==0| (at end of line) or |coalesce_spaces_P|
    * (squashing internal whitespace), then add just one space;
@@ -525,16 +545,17 @@ output_word(size_t indent0, size_t indent1, const char *word, size_t length, siz
    * actually add two spaces.
    */
   if (coalesce_spaces_P || spaces==0)
-    spaces = strchr(sentence_enders, word[length-1]) ? 2 : 1;
+    spaces = wcschr(sentence_enders, word[length-1]) ? 2 : 1;
 
   if (new_x<=goal_length) {
     /* After adding the word we still aren't at the goal length,
      * so clearly we add it to the buffer rather than outputing it.
      */
-    memset(output_buffer+x0, ' ', pending_spaces);
+    wmemset(output_buffer+output_buffer_length, L' ', pending_spaces);
     x0 += pending_spaces; x += pending_spaces;
-    memcpy(output_buffer+x0, word, length);
-    x0 += length; x += length;
+    output_buffer_length += pending_spaces;
+    wmemcpy(output_buffer+output_buffer_length, word, length);
+    x0 += width; x += width; output_buffer_length += length;
     pending_spaces = spaces;
   }
   else {
@@ -545,28 +566,30 @@ output_word(size_t indent0, size_t indent1, const char *word, size_t length, siz
      * In case (3) we put a newline in between.
      */
     if (indent>0) output_indent(indent);
-    fwrite(output_buffer, 1, x0, stdout);
+    wprintf(L"%.*ls", (int)output_buffer_length, output_buffer);
     if (x0==0 || (new_x <= max_length && new_x-goal_length <= goal_length-x)) {
-      printf("%*s", (int)pending_spaces, "");
+      wprintf(L"%*ls", (int)pending_spaces, L"");
       goto write_out_word;
     }
     else {
       /* If the word takes us over the limit on its own, just
        * spit it out and don't bother buffering it.
        */
-      if (indent+length > max_length) {
-        putchar('\n');
+      if (indent+width > max_length) {
+        putwchar('\n');
         if (indent>0) output_indent(indent);
 write_out_word:
-        fwrite(word, 1, length, stdout);
+        wprintf(L"%.*ls", (int)length, word);
         x0 = 0; x = indent1; pending_spaces = 0;
+        output_buffer_length = 0;
       }
       else {
-        memcpy(output_buffer, word, length);
-        x0 = length; x = length+indent1; pending_spaces = spaces;
+        wmemcpy(output_buffer, word, length);
+        x0 = width; x = width+indent1; pending_spaces = spaces;
+        output_buffer_length = length;
       }
     }
-    putchar('\n');
+    putwchar('\n');
     output_in_paragraph = 1;
   }
 }
@@ -576,15 +599,19 @@ write_out_word:
  */
 static void
 center_stream(FILE *stream, const char *name) {
-  char *line;
+  wchar_t *line, *p;
   size_t length;
+  size_t width;
+  int cwidth;
   while ((line=get_line(stream, &length)) != 0) {
     size_t l=length;
-    while (l>0 && isspace((unsigned char)*line)) { ++line; --l; }
+    while (l>0 && iswspace(*line)) { ++line; --l; }
     length=l;
-    while (l<goal_length) { putchar(' '); l+=2; }
-    fwrite(line, 1, length, stdout);
-    putchar('\n');
+    for (p = line, width = 0; p < &line[length]; p++)
+      width += (cwidth = wcwidth(*p)) > 0 ? cwidth : 1;
+    l = width;
+    while (l<goal_length) { putwchar(' '); l+=2; }
+    wprintf(L"%.*ls\n", (int)length, line);
   }
   if (ferror(stream)) { warn("%s", name); ++n_errors; }
 }
@@ -600,32 +627,35 @@ center_stream(FILE *stream, const char *name) {
  * Don't confuse |spaces_pending| here with the global
  * |pending_spaces|.
  */
-static char *
+static wchar_t *
 get_line(FILE *stream, size_t *lengthp) {
-  static char *buf=NULL;
+  static wchar_t *buf=NULL;
   static size_t length=0;
   size_t len=0;
-  int ch;
+  wint_t ch;
   size_t spaces_pending=0;
   int troff=0;
+  size_t col=0;
+  int cwidth;
 
-  if (buf==NULL) { length=100; buf=XMALLOC(length); }
-  while ((ch=getc(stream)) != '\n' && ch != EOF) {
+  if (buf==NULL) { length=100; buf=XMALLOC(length * sizeof(wchar_t)); }
+  while ((ch=getwc(stream)) != '\n' && ch != WEOF) {
     if (len+spaces_pending==0 && ch=='.' && !format_troff) troff=1;
     if (ch==' ') ++spaces_pending;
-    else if (troff || isprint(ch)) {
+    else if (troff || iswprint(ch)) {
       while (len+spaces_pending >= length) {
-        length*=2; buf=xrealloc(buf, length);
+        length*=2; buf=xrealloc(buf, length * sizeof(wchar_t));
       }
-      while (spaces_pending > 0) { --spaces_pending; buf[len++]=' '; }
+      while (spaces_pending > 0) { --spaces_pending; buf[len++]=' '; col++; }
       buf[len++] = ch;
+      col += (cwidth = wcwidth(ch)) > 0 ? cwidth : 1;
     }
     else if (ch=='\t')
-      spaces_pending += tab_width - (len+spaces_pending)%tab_width;
-    else if (ch=='\b') { if (len) --len; }
+      spaces_pending += tab_width - (col+spaces_pending)%tab_width;
+    else if (ch=='\b') { if (len) --len; if (col) --col; }
   }
   *lengthp=len;
-  return (len>0 || ch!=EOF) ? buf : 0;
+  return (len>0 || ch!=WEOF) ? buf : 0;
 }
 
 /* (Re)allocate some memory, exiting with an error if we can't.
