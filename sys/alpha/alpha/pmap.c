@@ -2232,7 +2232,7 @@ pmap_kenter_temporary(vm_offset_t pa, int i)
  * faults on process startup and immediately after an mmap.
  */
 void
-pmap_object_init_pt(pmap_t pmap, vm_offset_t addr,
+pmap_object_init_pt(pmap_t pmap, vm_offset_t addr, vm_prot_t prot,
 		    vm_object_t object, vm_pindex_t pindex,
 		    vm_size_t size, int limit)
 {
@@ -2241,7 +2241,7 @@ pmap_object_init_pt(pmap_t pmap, vm_offset_t addr,
 	vm_page_t p, mpte;
 	int objpgs;
 
-	if (pmap == NULL || object == NULL)
+	if ((prot & VM_PROT_READ) == 0 || pmap == NULL || object == NULL)
 		return;
 
 	psize = alpha_btop(size);
