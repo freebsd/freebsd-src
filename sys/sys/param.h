@@ -267,16 +267,6 @@ __bswap64(__uint64_t x)
 #endif /* _KERNEL */
 
 /*
- * XXX deprecated uppercase variants for byteorder(3) functions.
- */
-#ifndef _POSIX_SOURCE
-#define	NTOHL(x)	((x) = ntohl(x))
-#define	NTOHS(x)	((x) = ntohs(x))
-#define	HTONL(x)	((x) = htonl(x))
-#define	HTONS(x)	((x) = htons(x))
-#endif /* _POSIX_SOURCE */
-
-/*
  * Constants for setting the parameters of the kernel memory allocator.
  *
  * 2 ** MINBUCKET is the smallest unit of memory that will be
