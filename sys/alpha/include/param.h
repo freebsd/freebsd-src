@@ -151,10 +151,6 @@
 #endif	/* MCLSHIFT */
 #define	MCLBYTES	(1 << MCLSHIFT)	/* size of a mbuf cluster */
 
-/* pages ("clicks") to disk blocks */
-#define	ctod(x)		((x) << (PAGE_SHIFT - DEV_BSHIFT))
-#define	dtoc(x)		((x) >> (PAGE_SHIFT - DEV_BSHIFT))
-
 /* pages to bytes */
 #define	ctob(x)		((x) << PAGE_SHIFT)
 #define	btoc(x)		(((x) + PAGE_MASK) >> PAGE_SHIFT)

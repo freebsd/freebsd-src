@@ -177,10 +177,6 @@
 #define	NKMEMCLUSTERS	(4096*1024/CLBYTES)	/* XXX? */
 #endif
 
-/* pages ("clicks") to disk blocks */
-#define	ctod(x)		((x) << (PAGE_SHIFT - DEV_BSHIFT))
-#define	dtoc(x)		((x) >> (PAGE_SHIFT - DEV_BSHIFT))
-
 /* pages to bytes */
 #define	ctob(x)		((x) << PAGE_SHIFT)
 #define	btoc(x)		(((x) + PAGE_MASK) >> PAGE_SHIFT)
