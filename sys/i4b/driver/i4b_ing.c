@@ -47,9 +47,6 @@
 #include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <sys/errno.h>
-#include <sys/ctype.h>
-#include <sys/ioccom.h>
-#include <sys/syslog.h>
 #include <sys/malloc.h>
 
 #include <net/if.h>
@@ -62,7 +59,6 @@
 #include <machine/i4b_debug.h>
 
 #include <i4b/include/i4b_global.h>
-#include <i4b/include/i4b_mbuf.h>
 #include <i4b/include/i4b_l3l4.h>
 
 #include <i4b/layer4/i4b_l4.h>

@@ -42,9 +42,7 @@
 #if (NIWIC > 0) && (NPCI > 0)
 
 #include <sys/param.h>
-#include <sys/kernel.h>
 #include <sys/systm.h>
-#include <sys/mbuf.h>
 #include <sys/socket.h>
 #include <net/if.h>
 
@@ -56,9 +54,7 @@
 
 #include <i4b/layer1/i4b_l1.h>
 
-#include <i4b/include/i4b_global.h>
 #include <i4b/include/i4b_l3l4.h>
-#include <i4b/include/i4b_mbuf.h>
 
 #include <i4b/layer1/iwic/i4b_iwic.h>
 #include <i4b/layer1/iwic/i4b_w6692.h>

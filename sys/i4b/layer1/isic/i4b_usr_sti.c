@@ -45,13 +45,10 @@
 #if (NISIC > 0) && defined(USR_STI)
 
 #include <sys/param.h>
-#include <sys/kernel.h>
 #include <sys/systm.h>
-#include <sys/mbuf.h>
 
 #ifdef __FreeBSD__
 #include <machine/clock.h>
-#include <i386/isa/isa_device.h>
 #include <machine/bus.h>
 #include <machine/resource.h>
 #include <sys/bus.h>
@@ -76,7 +73,6 @@
 #include <i4b/layer1/isic/i4b_isac.h>
 #include <i4b/layer1/isic/i4b_hscx.h>
 
-#include <i4b/include/i4b_global.h>
 
 /*---------------------------------------------------------------------------*
  *	USR Sportster TA intern special registers

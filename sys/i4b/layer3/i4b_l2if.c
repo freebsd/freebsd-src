@@ -43,11 +43,8 @@
 #if NI4BQ931 > 0
 
 #include <sys/param.h>
-#include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
-#include <sys/socket.h>
-#include <net/if.h>
 
 #if defined(__NetBSD__) && __NetBSD_Version__ >= 104230000
 #include <sys/callout.h>
@@ -72,7 +69,6 @@
 #include <i4b/layer3/i4b_l3fsm.h>
 #include <i4b/layer3/i4b_q931.h>
 
-#include <i4b/layer4/i4b_l4.h>
 
 static unsigned char make_q931_cause(cause_t cause);
 

@@ -31,7 +31,7 @@
  *
  * $FreeBSD$
  *
- *	last edit-date: [Tue Aug 22 11:35:00 2000]
+ *	last edit-date: [Fri Oct 13 15:59:45 2000]
  *
  *	Note: this driver works for the Creatix ISDN S0-16 P+P and
  *	      for the Teles S0/16.3 PnP card. Although they are not
@@ -48,9 +48,7 @@
 #if (NISIC > 0) && (defined(CRTX_S0_P) || defined(TEL_S0_16_3_P))
 
 #include <sys/param.h>
-#include <sys/kernel.h>
 #include <sys/systm.h>
-#include <sys/mbuf.h>
 #include <sys/socket.h>
 
 #include <machine/clock.h>
@@ -60,14 +58,10 @@
 #include <machine/i4b_debug.h>
 #include <machine/i4b_ioctl.h>
 
-#include <i4b/include/i4b_global.h>
 
 #include <i4b/layer1/isic/i4b_isic.h>
 #include <i4b/layer1/isic/i4b_isac.h>
 #include <i4b/layer1/isic/i4b_hscx.h>
-
-/* #include <i4b/include/i4b_l1l2.h> */
-#include <i4b/include/i4b_mbuf.h>
 
 /*---------------------------------------------------------------------------*
  *      Creatix / Teles PnP ISAC get fifo routine

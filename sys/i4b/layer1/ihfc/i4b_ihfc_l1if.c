@@ -61,7 +61,6 @@
 
 #include <i4b/include/i4b_mbuf.h>
 #include <i4b/include/i4b_global.h>
-#include <i4b/include/i4b_l1l2.h>
 
 #include <i4b/layer1/i4b_l1.h>
 #include <i4b/layer1/ihfc/i4b_ihfc.h>
