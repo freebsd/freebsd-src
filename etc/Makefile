@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id: Makefile,v 1.194 1999/02/12 20:51:38 dillon Exp $
+#	$Id: Makefile,v 1.195 1999/03/28 10:47:25 markm Exp $
 
 SUBDIR=	sendmail
 
@@ -31,12 +31,6 @@ NOSPAM=	Makefile README sendmail.cf.additions
 COPYRIGHT=	COPYRIGHT
 FREEBSD=
 FREEBSD+=	${COPYRIGHT}
-
-# Compatibility stuff, remove those links
-LATIN1LINKS = \
-	da_DK de_AT de_CH de_DE en_AU en_CA en_GB en_US es_ES fi_FI \
-	fr_BE fr_CA fr_CH fr_FR is_IS it_CH it_IT nl_BE nl_NL no_NO \
-	pt_PT sv_SE
 
 etc:
 
@@ -117,16 +111,6 @@ distribution:
 distrib-dirs:
 	mtree -deU -f ${.CURDIR}/mtree/BSD.root.dist -p ${DESTDIR}/
 	mtree -deU -f ${.CURDIR}/mtree/BSD.var.dist -p ${DESTDIR}/var
-# Compatibility stuff, remove obsoleted links, if exists
-	if [ -d	${DESTDIR}/usr/share/locale ] ;	\
-	then \
-		cd ${DESTDIR}/usr/share/locale;	\
-		for l in ${LATIN1LINKS}	; do \
-			if [ -h $$l.ISO_8859-1 ]; then \
-				rm $$l.ISO_8859-1; \
-			fi ; \
-		done; \
-	fi
 	mtree -deU -f ${.CURDIR}/mtree/BSD.usr.dist -p ${DESTDIR}/usr
 	mtree -deU -f ${.CURDIR}/mtree/BSD.include.dist \
 		-p ${DESTDIR}/usr/include
