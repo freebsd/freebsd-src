@@ -60,7 +60,7 @@ static char unused;
 static void (*func)(int, struct fs *, char *);
 static long blocksize;
 static char *header;
-static int headerlen;
+static size_t headerlen;
 
 static union dinode *get_inode(int, struct fs *, ino_t);
 static int	virtualblocks(struct fs *, union dinode *);
