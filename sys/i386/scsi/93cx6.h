@@ -20,11 +20,29 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *      $Id: 93cx6.h,v 1.1 1995/07/04 21:16:12 gibbs Exp $
+ *      $Id: 93cx6.h,v 1.2 1995/09/05 23:52:00 gibbs Exp $
  */
 
 #include <sys/param.h>
+#if !defined(__NetBSD__)
 #include <sys/systm.h>
+#endif
+
+struct seeprom_descriptor {
+#if defined(__FreeBSD__)
+	u_long sd_iobase;
+#elif defined(__NetBSD__)
+	bus_chipset_tag_t sd_bc;
+	bus_io_handle_t sd_ioh;
+	bus_io_size_t sd_offset;
+#endif
+	u_int16_t sd_MS;
+	u_int16_t sd_RDY;
+	u_int16_t sd_CS;
+	u_int16_t sd_CK;
+	u_int16_t sd_DO;
+	u_int16_t sd_DI;
+};
 
 /*
  * This function will read count 16-bit words from the serial EEPROM and
@@ -41,13 +59,21 @@
  *
  *  A failed read attempt returns 0, and a successful read returns 1.
  */
-int read_seeprom (u_long   offset,
-		  u_short *buf,
-		  u_int	   start_addr,
-		  int      count,
-		  u_short  CS,
-		  u_short  CK,
-		  u_short  DO,
-		  u_short  DI,
-		  u_short  RDY,
-		  u_short  MS);
+
+#if defined(__FreeBSD__)
+#define	SEEPROM_INB(sd)		inb(sd->sd_iobase)
+#define	SEEPROM_OUTB(sd, value)	outb(sd->sd_iobase, value)
+#elif defined(__NetBSD__)
+#define	SEEPROM_INB(sd) \
+	bus_io_read_1(sd->sd_bc, sd->sd_ioh, sd->sd_offset)
+#define	SEEPROM_OUTB(sd, value) \
+	bus_io_write_1(sd->sd_bc, sd->sd_ioh, sd->sd_offset, value)
+#endif
+
+#if defined(__FreeBSD__)
+int read_seeprom __P((struct seeprom_descriptor *sd,
+    u_int16_t *buf, u_int start_addr, int count));
+#elif defined(__NetBSD__)
+int read_seeprom __P((struct seeprom_descriptor *sd,
+    u_int16_t *buf, bus_io_size_t start_addr, bus_io_size_t count));
+#endif
