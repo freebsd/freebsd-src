@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.h,v 1.20 1998/08/26 17:39:37 brian Exp $
+ * $Id: ipcp.h,v 1.21 1998/10/22 02:32:49 brian Exp $
  *
  *	TODO:
  */
@@ -56,6 +56,9 @@ struct ipcp {
     struct in_addr   netmask;		/* netmask (unused by most OSs) */
     struct in_range  peer_range;	/* HISADDR spec */
     struct iplist    peer_list;		/* Ranges of HISADDR values */
+
+    u_long sendpipe;			/* route sendpipe size */
+    u_long recvpipe;			/* route recvpipe size */
 
     struct in_addr   TriggerAddress;	/* Address to suggest in REQ */
     unsigned HaveTriggerAddress : 1;	/* Trigger address specified */

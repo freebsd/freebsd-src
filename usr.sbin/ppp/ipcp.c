@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.c,v 1.66 1998/09/17 00:45:26 brian Exp $
+ * $Id: ipcp.c,v 1.67 1998/10/22 02:32:49 brian Exp $
  *
  *	TODO:
  *		o More RFC1772 backward compatibility
@@ -28,10 +28,12 @@
 #include <netinet/ip.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
+#include <net/route.h>
 #include <netdb.h>
 #include <net/if.h>
 #include <sys/sockio.h>
 #include <sys/un.h>
+#include <arpa/nameser.h>
 
 #include <fcntl.h>
 #include <resolv.h>
@@ -457,9 +459,39 @@ ipcp_Setup(struct ipcp *ipcp)
 }
 
 static int
+ipcp_doproxyall(struct bundle *bundle,
+                int (*proxyfun)(struct bundle *, struct in_addr, int), int s)
+{
+  int n, ret;
+  struct sticky_route *rp;
+  struct in_addr addr;
+  struct ipcp *ipcp;
+
+  ipcp = &bundle->ncp.ipcp;
+  for (rp = ipcp->route; rp != NULL; rp = rp->next) {
+    if (ntohl(rp->mask.s_addr) == INADDR_BROADCAST)
+        continue;
+    n = INADDR_BROADCAST - ntohl(rp->mask.s_addr) - 1;
+    if (n > 0 && n <= 254 && rp->dst.s_addr != INADDR_ANY) {
+      addr = rp->dst;
+      while (n--) {
+        addr.s_addr = htonl(ntohl(addr.s_addr) + 1);
+	log_Printf(LogDEBUG, "ipcp_doproxyall: %s\n", inet_ntoa(addr));
+	ret = (*proxyfun)(bundle, addr, s);
+	if (!ret)
+	  return ret;
+      }
+    }
+  }
+
+  return 0;
+}
+
+static int
 ipcp_SetIPaddress(struct bundle *bundle, struct in_addr myaddr,
                   struct in_addr hisaddr, int silent)
 {
+  static struct in_addr none = { INADDR_ANY };
   struct in_addr mask, oaddr;
   u_int32_t addr;
 
@@ -486,16 +518,22 @@ ipcp_SetIPaddress(struct bundle *bundle, struct in_addr myaddr,
     /* Nuke the old one */
     iface_inDelete(bundle->iface, oaddr);
 
+  if (bundle->ncp.ipcp.cfg.sendpipe > 0 || bundle->ncp.ipcp.cfg.recvpipe > 0)
+    bundle_SetRoute(bundle, RTM_CHANGE, hisaddr, myaddr, none, 0, 0);
+
   if (Enabled(bundle, OPT_SROUTES))
     route_Change(bundle, bundle->ncp.ipcp.route, myaddr, hisaddr);
 
-  if (Enabled(bundle, OPT_PROXY)) {
+  if (Enabled(bundle, OPT_PROXY) || Enabled(bundle, OPT_PROXYALL)) {
     int s = ID0socket(AF_INET, SOCK_DGRAM, 0);
     if (s < 0)
       log_Printf(LogERROR, "ipcp_SetIPaddress: socket(): %s\n",
                  strerror(errno));
     else {
-      arp_SetProxy(bundle, hisaddr, s);
+      if (Enabled(bundle, OPT_PROXYALL))
+        ipcp_doproxyall(bundle, arp_SetProxy, s);
+      else if (Enabled(bundle, OPT_PROXY))
+        arp_SetProxy(bundle, hisaddr, s);
       close(s);
     }
   }
@@ -623,13 +661,17 @@ ipcp_CleanInterface(struct ipcp *ipcp)
 
   route_Clean(ipcp->fsm.bundle, ipcp->route);
 
-  if (iface->in_addrs && Enabled(ipcp->fsm.bundle, OPT_PROXY)) {
+  if (iface->in_addrs && (Enabled(ipcp->fsm.bundle, OPT_PROXY) ||
+                          Enabled(ipcp->fsm.bundle, OPT_PROXYALL))) {
     int s = ID0socket(AF_INET, SOCK_DGRAM, 0);
     if (s < 0)
       log_Printf(LogERROR, "ipcp_CleanInterface: socket: %s\n",
                  strerror(errno));
     else {
-      arp_ClearProxy(ipcp->fsm.bundle, iface->in_addr[0].brd, s);
+      if (Enabled(ipcp->fsm.bundle, OPT_PROXYALL))
+        ipcp_doproxyall(ipcp->fsm.bundle, arp_ClearProxy, s);
+      else if (Enabled(ipcp->fsm.bundle, OPT_PROXY))
+        arp_ClearProxy(ipcp->fsm.bundle, iface->in_addr[0].brd, s);
       close(s);
     }
   }
