@@ -948,6 +948,71 @@ devclass_delete_driver(devclass_t busclass, driver_t *driver)
 }
 
 /**
+ * @brief Quiesces a set of device drivers from a device class
+ *
+ * Quiesce a device driver from a devclass. This is normally called
+ * automatically by DRIVER_MODULE().
+ *
+ * If the driver is currently attached to any devices,
+ * devclass_quiesece_driver() will first attempt to quiesce each
+ * device.
+ *
+ * @param dc		the devclass to edit
+ * @param driver	the driver to unregister
+ */
+int
+devclass_quiesce_driver(devclass_t busclass, driver_t *driver)
+{
+	devclass_t dc = devclass_find(driver->name);
+	driverlink_t dl;
+	device_t dev;
+	int i;
+	int error;
+
+	PDEBUG(("%s from devclass %s", driver->name, DEVCLANAME(busclass)));
+
+	if (!dc)
+		return (0);
+
+	/*
+	 * Find the link structure in the bus' list of drivers.
+	 */
+	TAILQ_FOREACH(dl, &busclass->drivers, link) {
+		if (dl->driver == driver)
+			break;
+	}
+
+	if (!dl) {
+		PDEBUG(("%s not found in %s list", driver->name,
+		    busclass->name));
+		return (ENOENT);
+	}
+
+	/*
+	 * Quiesce all devices.  We iterate through all the devices in
+	 * the devclass of the driver and quiesce any which are using
+	 * the driver and which have a parent in the devclass which we
+	 * are quiescing.
+	 *
+	 * Note that since a driver can be in multiple devclasses, we
+	 * should not quiesce devices which are not children of
+	 * devices in the affected devclass.
+	 */
+	for (i = 0; i < dc->maxunit; i++) {
+		if (dc->devices[i]) {
+			dev = dc->devices[i];
+			if (dev->driver == driver && dev->parent &&
+			    dev->parent->devclass == busclass) {
+				if ((error = device_quiesce(dev)) != 0)
+					return (error);
+			}
+		}
+	}
+
+	return (0);
+}
+
+/**
  * @internal
  */
 static driverlink_t
@@ -2314,6 +2379,32 @@ device_detach(device_t dev)
 }
 
 /**
+ * @brief Tells a driver to quiesce itself.
+ *
+ * This function is a wrapper around the DEVICE_QUIESCE() driver
+ * method. If the call to DEVICE_QUIESCE() succeeds.
+ *
+ * @param dev		the device to quiesce
+ *
+ * @retval 0		success
+ * @retval ENXIO	no driver was found
+ * @retval ENOMEM	memory allocation failure
+ * @retval non-zero	some other unix error code
+ */
+int
+device_quiesce(device_t dev)
+{
+
+	PDEBUG(("%s", DEVICENAME(dev)));
+	if (dev->state == DS_BUSY)
+		return (EBUSY);
+	if (dev->state != DS_ATTACHED)
+		return (0);
+
+	return (DEVICE_QUIESCE(dev));
+}
+
+/**
  * @brief Notify a device of system shutdown
  *
  * This function calls the DEVICE_SHUTDOWN() driver method if the
@@ -3559,6 +3650,16 @@ driver_module_handler(module_t mod, int what, void *arg)
 		    DRIVERNAME(dmd->dmd_driver),
 		    dmd->dmd_busname));
 		error = devclass_delete_driver(bus_devclass,
+		    dmd->dmd_driver);
+
+		if (!error && dmd->dmd_chainevh)
+			error = dmd->dmd_chainevh(mod,what,dmd->dmd_chainarg);
+		break;
+	case MOD_QUIESCE:
+		PDEBUG(("Quiesce module: driver %s from bus %s",
+		    DRIVERNAME(dmd->dmd_driver),
+		    dmd->dmd_busname));
+		error = devclass_quiesce_driver(bus_devclass,
 		    dmd->dmd_driver);
 
 		if (!error && dmd->dmd_chainevh)
