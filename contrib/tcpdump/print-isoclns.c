@@ -53,14 +53,135 @@ struct rtentry;
 #define	NLPID_ISIS	131	/* 0x83 */
 #define	NLPID_NULLNS	0
 
+
+/*
+ * IS-IS is defined in ISO 10589.  Look there for protocol definitions.
+ */
+
+#define SYSTEM_ID_LEN	sizeof(struct ether_addr)
+#define ISIS_VERSION	1
+#define PDU_TYPE_MASK	0x1F
+#define PRIORITY_MASK	0x7F
+
+#define L1_LAN_IIH	15
+#define L2_LAN_IIH	16
+#define PTP_IIH		17
+#define L1_LS_PDU       18
+#define L2_LS_PDU       19
+#define L1_COMPLETE_SEQ_PDU  24
+#define L2_COMPLETE_SEQ_PDU  25
+
+/*
+ * A TLV is a tuple of a type, length and a value and is normally used for
+ * encoding information in all sorts of places.  This is an enumeration of
+ * the well known types.
+ */
+
+#define TLV_AREA_ADDR   1
+#define TLV_IS_REACH	2
+#define TLV_ES_REACH	3
+#define TLV_SUMMARY	5
+#define TLV_ISNEIGH     6
+#define TLV_PADDING     8
+#define TLV_LSP		9
+#define TLV_AUTHENT     10
+#define TLV_IP_REACH	128
+#define TLV_PROTOCOLS	129
+#define TLV_IP_EXTERN	130
+#define TLV_IDRP_INFO	131
+#define TLV_IPADDR	132
+#define TLV_IPAUTH	133
+#define TLV_PTP_ADJ	240
+
+/*
+ * Katz's point to point adjacency TLV uses codes to tell us the state of
+ * the remote adjacency.  Enumerate them.
+ */
+
+#define ISIS_PTP_ADJ_UP   0
+#define ISIS_PTP_ADJ_INIT 1
+#define ISIS_PTP_ADJ_DOWN 2
+
 static int osi_cksum(const u_char *, int, u_char *);
 static void esis_print(const u_char *, u_int);
 static int isis_print(const u_char *, u_int);
+
+
+struct isis_ptp_adjancey_values {
+	u_char id;
+	char   *name;
+};
+
+static struct isis_ptp_adjancey_values isis_ptp_adjancey_values[] = {
+	ISIS_PTP_ADJ_UP,    "UP",
+	ISIS_PTP_ADJ_INIT,  "INIT",
+        ISIS_PTP_ADJ_DOWN,  "DOWN"
+};
+
+struct isis_common_header {
+    u_char nlpid;
+    u_char fixed_len;
+    u_char version;			/* Protocol version? */
+    u_char id_length;
+    u_char enc_pdu_type;		/* 3 MSbs are reserved */
+    u_char pkt_version;			/* Packet format version? */
+    u_char reserved;
+    u_char enc_max_area;
+};
+
+struct isis_header {
+    u_char nlpid;
+    u_char fixed_len;
+    u_char version;			/* Protocol version? */
+    u_char id_length;
+    u_char enc_pdu_type;		/* 3 MSbs are reserved */
+    u_char pkt_version;			/* Packet format version? */
+    u_char reserved;
+    u_char enc_max_area;
+    u_char circuit;
+    u_char enc_source_id[SYSTEM_ID_LEN];
+    u_char enc_holding_time[2];
+    u_char enc_packet_len[2];
+    u_char enc_priority;
+    u_char enc_lan_id[SYSTEM_ID_LEN+1];
+};
+struct isis_lan_header {
+    u_char circuit;
+    u_char enc_source_id[SYSTEM_ID_LEN];
+    u_char enc_holding_time[2];
+    u_char enc_packet_len[2];
+    u_char enc_priority;
+    u_char enc_lan_id[SYSTEM_ID_LEN+1];
+};
+
+struct isis_ptp_header {
+    u_char circuit;
+    u_char enc_source_id[SYSTEM_ID_LEN];
+    u_char enc_holding_time[2];
+    u_char enc_packet_len[2];
+    u_char loc_circuit_id;
+};
+
+#define ISIS_COMMON_HEADER_SIZE (sizeof(struct isis_common_header))
+#define ISIS_HEADER_SIZE (15+(SYSTEM_ID_LEN<<1))
+#define ISIS_PTP_HEADER_SIZE (14+SYSTEM_ID_LEN)
+#define L1_LS_PDU_HEADER_SIZE (21+SYSTEM_ID_LEN)
+#define L2_LS_PDU_HEADER_SIZE L1_LS_PDU_HEADER_SIZE
+#define L1_COMPLETE_SEQ_PDU_HEADER_SIZE 33
+#define L2_COMPLETE_SEQ_PDU_HEADER_SIZE L1_COMPLETE_SEQ_PDU_HEADER_SIZE
+
+
 
 void
 isoclns_print(const u_char *p, u_int length, u_int caplen,
 	      const u_char *esrc, const u_char *edst)
 {
+	u_char pdu_type;
+	struct isis_header *header;
+	
+	header = (struct isis_header *)p;
+	pdu_type = header->enc_pdu_type & PDU_TYPE_MASK;
+
 	if (caplen < 1) {
 		printf("[|iso-clns] ");
 		if (!eflag)
@@ -91,10 +212,12 @@ isoclns_print(const u_char *p, u_int length, u_int caplen,
 
 	case NLPID_ISIS:
 		printf("iso isis");
-		if (!eflag)
-			(void)printf(" %s > %s",
+		if (!eflag) {
+			if(pdu_type != PTP_IIH)
+				(void)printf(" %s > %s",
 				     etheraddr_string(esrc),
 				     etheraddr_string(edst));
+		}
 		(void)printf(" len=%d ", length);
 		if (!isis_print(p, length))
 		    default_print_unaligned(p, caplen);
@@ -306,43 +429,6 @@ print_nsap (register const u_char *cp, register int length)
 }
 
 /*
- * IS-IS is defined in ISO 10589.  Look there for protocol definitions.
- */
-
-#define SYSTEM_ID_LEN	sizeof(struct ether_addr)
-#define ISIS_VERSION	1
-#define PDU_TYPE_MASK	0x1F
-#define PRIORITY_MASK	0x7F
-
-#define L1_LAN_IIH	15
-#define L2_LAN_IIH	16
-#define PTP_IIH		17
-
-#define TLV_AREA_ADDR	1
-#define TLV_ISNEIGH	6
-#define TLV_PADDING	8
-#define TLV_AUTHENT	10
-
-struct isis_header {
-    u_char nlpid;
-    u_char fixed_len;
-    u_char version;			/* Protocol version? */
-    u_char id_length;
-    u_char enc_pdu_type;		/* 3 MSbs are reserved */
-    u_char pkt_version;			/* Packet format version? */
-    u_char reserved;
-    u_char enc_max_area;
-    u_char circuit;
-    u_char enc_source_id[SYSTEM_ID_LEN];
-    u_char enc_holding_time[2];
-    u_char enc_packet_len[2];
-    u_char enc_priority;
-    u_char enc_lan_id[SYSTEM_ID_LEN+1];
-};
-
-#define ISIS_HEADER_SIZE (15+(SYSTEM_ID_LEN<<1))
-
-/*
  * isis_print
  * Decode IS-IS packets.  Return 0 on error.
  *
@@ -353,10 +439,12 @@ static int
 isis_print (const u_char *p, u_int length)
 {
     struct isis_header *header;
+    struct isis_ptp_header *header_ptp;
     u_char pdu_type, max_area, priority, *pptr, type, len, *tptr, tmp, alen;
     u_short packet_len, holding_time;
+    int i;
 
-    header = (struct isis_header *)p;
+    header_ptp = (struct isis_ptp_header *)header = (struct isis_header *)p;
     printf("\n\t\t\t");
 
     /*
@@ -378,14 +466,20 @@ isis_print (const u_char *p, u_int length)
 	return(0);
     }
 
-    if ((header->fixed_len != ISIS_HEADER_SIZE)) {
-	printf(" bogus fixed header length %d should be %d",
-	       header->fixed_len, ISIS_HEADER_SIZE);
-	return(0);
+    if ((header->fixed_len != ISIS_HEADER_SIZE) &&
+	(header->fixed_len != ISIS_PTP_HEADER_SIZE) &&
+	(header->fixed_len != L1_LS_PDU_HEADER_SIZE) &&
+	(header-> fixed_len != L1_COMPLETE_SEQ_PDU_HEADER_SIZE) ) {
+	    printf(" bogus fixed header length",
+		   header->fixed_len);
+	    return(0);
     }
 
     pdu_type = header->enc_pdu_type & PDU_TYPE_MASK;
-    if ((pdu_type != L1_LAN_IIH) && (pdu_type != L2_LAN_IIH)) {
+    if ((pdu_type != L1_LAN_IIH) && (pdu_type != L2_LAN_IIH) &&
+	(pdu_type != PTP_IIH) && 
+	(pdu_type != L1_COMPLETE_SEQ_PDU) &&
+	(pdu_type != L2_COMPLETE_SEQ_PDU) ) {
 	printf(" PDU type (%d) not supported", pdu_type);
 	return;
     }
@@ -440,7 +534,8 @@ isis_print (const u_char *p, u_int length)
 	return(0);
     }
 
-    priority = header->enc_priority & PRIORITY_MASK;
+    if(pdu_type != PTP_IIH)
+	    priority = header->enc_priority & PRIORITY_MASK;
 
     /*
      * Now print the fixed header.
@@ -451,6 +546,9 @@ isis_print (const u_char *p, u_int length)
 	break;
     case L2_LAN_IIH:
 	printf(" L2 lan iih, ");
+	break;
+    case PTP_IIH:
+	printf(" PTP iih, ");
 	break;
     }
 
@@ -470,14 +568,20 @@ isis_print (const u_char *p, u_int length)
     printf ("holding time %d ", holding_time);
     printf ("\n\t\t\t source %s, length %d",
 	    etheraddr_string(header->enc_source_id), packet_len);
-    printf ("\n\t\t\t lan id %s(%d)", etheraddr_string(header->enc_lan_id),
-	    header->enc_lan_id[SYSTEM_ID_LEN]);
+    if((pdu_type==L1_LAN_IIH)||(pdu_type==L2_LAN_IIH))
+	    printf ("\n\t\t\t lan id %s(%d)", etheraddr_string(header->enc_lan_id),
+		    header->enc_lan_id[SYSTEM_ID_LEN]);
 
     /*
      * Now print the TLV's.
      */
-    packet_len -= ISIS_HEADER_SIZE;
-    pptr = (char *)p + ISIS_HEADER_SIZE;
+    if(pdu_type==PTP_IIH) {
+	    packet_len -= ISIS_PTP_HEADER_SIZE;
+	    pptr = (char *)p + ISIS_PTP_HEADER_SIZE;
+    } else {
+	    packet_len -= ISIS_HEADER_SIZE;
+	    pptr = (char *)p + ISIS_HEADER_SIZE;
+    }
     while (packet_len >= 2) {
 	if (pptr >= snapend) {
 	    printf("\n\t\t\t packet exceeded snapshot");
@@ -521,6 +625,18 @@ isis_print (const u_char *p, u_int length)
 	case TLV_AUTHENT:
 	    printf("\n\t\t\t authentication data");
 	    default_print(pptr, len);
+	    break;
+	case TLV_PTP_ADJ:
+	    printf("\n\t\t\t PTP adjacency status %s",
+		   isis_ptp_adjancey_values[*pptr].name);
+	    break;
+	case TLV_PROTOCOLS:
+	    printf("\n\t\t\t Supports protocols %s", (len>1)? "are":"is");
+	    for(i=0;i<len;i++)
+		printf(" %02X", (u_char)*(pptr+i));
+	    break;
+	case TLV_IPADDR:
+	    printf("\n\t\t\t IP address: %s", ipaddr_string(pptr));
 	    break;
 	default:
 	    printf("\n\t\t\t unknown TLV, type %d, length %d", type, len);

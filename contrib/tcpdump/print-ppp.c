@@ -64,6 +64,10 @@ static struct protonames protonames[] = {
 	 * Protocol field values.
 	 */
 	PPP_IP,		"IP",		/* Internet Protocol */
+#ifndef PPP_ISO
+#define PPP_ISO	0x23
+#endif
+	PPP_ISO,	"ISO",		/* ISO 8473 */
 	PPP_XNS,	"XNS",		/* Xerox NS */
 	PPP_IPX,	"IPX",		/* IPX Datagram (RFC1552) */
 	PPP_VJC_COMP,	"VJC_UNCOMP",	/* VJ compressed TCP */
@@ -103,6 +107,24 @@ ppp_if_print(u_char *user, const struct pcap_pkthdr *h,
 	register u_int length = h->len;
 	register u_int caplen = h->caplen;
 
+	int frame_relay = 0;
+	int proto = PPP_CONTROL(p);
+
+	if(caplen > length) caplen = length;
+
+	/*
+	 * Check to see if this is a frame-relay, we have to do this
+	 * because BPF could not differentiate between PPP and Framerelay
+	 * link types.
+	 */
+
+	frame_relay = (fr_addr_len(p) >= 2);
+
+	if(frame_relay) {
+		fr_if_print(user, h, p);
+		return;
+	}
+
 	ts_print(&h->ts);
 
 	if (caplen < PPP_HDRLEN) {
@@ -132,10 +154,18 @@ ppp_if_print(u_char *user, const struct pcap_pkthdr *h,
 	case ETHERTYPE_IPX:
 		ipx_print((const u_char *)(p + PPP_HDRLEN), length);
 		break;
-
+		
+	case PPP_ISO:
+		isoclns_print((const u_char *)(p + PPP_HDRLEN), length,
+			      caplen, "000000", "000000");
+		break;
 	default:
-		if(!eflag)
-			ppp_hdlc_print(p, length);
+		if(!eflag) {
+			if (frame_relay)
+				fr_hdlc_print(p, length);
+			else
+				ppp_hdlc_print(p, length);
+		}
 		if(!xflag)
 			default_print((const u_char *)(p + PPP_HDRLEN),
 					caplen - PPP_HDRLEN);
