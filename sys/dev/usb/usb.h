@@ -407,6 +407,7 @@ typedef struct {
 #define USB_RESUME_TIME		(20*5)  /* ms */
 #define USB_RESUME_WAIT		10  /* ms */
 #define USB_RESUME_RECOVERY	10  /* ms */
+#define USB_EXTRA_POWER_UP_TIME	0   /* ms */
 #else
 /* Allow for marginal (i.e. non-conforming) devices. */
 #define USB_PORT_RESET_DELAY	50  /* ms */
@@ -416,6 +417,7 @@ typedef struct {
 #define USB_RESUME_DELAY	(50*5)  /* ms */
 #define USB_RESUME_WAIT		50  /* ms */
 #define USB_RESUME_RECOVERY	50  /* ms */
+#define USB_EXTRA_POWER_UP_TIME	20  /* ms */
 #endif
 
 #define USB_MIN_POWER		100 /* mA */
@@ -538,6 +540,7 @@ struct usb_event {
 #define USB_GET_REPORT_DESC	_IOR ('U', 21, struct usb_ctl_report_desc)
 #define USB_SET_IMMED		_IOW ('U', 22, int)
 #define USB_GET_REPORT		_IOWR('U', 23, struct usb_ctl_report)
+#define USB_SET_REPORT		_IOW ('U', 24, struct usb_ctl_report)
 
 /* Generic USB device */
 #define USB_GET_CONFIG		_IOR ('U', 100, int)
