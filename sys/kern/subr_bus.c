@@ -124,6 +124,7 @@ struct device {
 #define	DF_QUIET	16		/* don't print verbose attach message */
 #define	DF_DONENOMATCH	32		/* don't execute DEVICE_NOMATCH again */
 #define	DF_EXTERNALSOFTC 64		/* softc not allocated by us */
+#define DF_REBID	128	/* Can rebid after attach */
 	u_char	order;			/**< order from device_add_child_ordered() */
 	u_char	pad;
 	void	*ivars;			/**< instance variables  */
@@ -1562,7 +1563,11 @@ device_probe_child(device_t dev, device_t child)
 	if (!dc)
 		panic("device_probe_child: parent device has no devclass");
 
-	if (child->state == DS_ALIVE)
+	/*
+	 * If the state is already probed, then return.  However, don't
+	 * return if we can rebid this object.
+	 */
+	if (child->state == DS_ALIVE && (child->flags & DF_REBID) == 0)
 		return (0);
 
 	for (; dc; dc = dc->parent) {
@@ -1618,7 +1623,28 @@ device_probe_child(device_t dev, device_t child)
 	/*
 	 * If we found a driver, change state and initialise the devclass.
 	 */
+	/* XXX What happens if we rebid and got no best? */
 	if (best) {
+		/*
+		 * If this device was atached, and we were asked to
+		 * rescan, and it is a different driver, then we have
+		 * to detach the old driver and reattach this new one.
+		 * Note, we don't have to check for DF_REBID here
+		 * because if the state is > DS_ALIVE, we know it must
+		 * be.
+		 *
+		 * This assumes that all DF_REBID drivers can have
+		 * their probe routine called at any time and that
+		 * they are idempotent as well as completely benign in
+		 * normal operations.
+		 *
+		 * We also have to make sure that the detach
+		 * succeeded, otherwise we fail the operation (or
+		 * maybe it should just fail silently?  I'm torn).
+		 */
+		if (child->state > DS_ALIVE && best->driver != child->driver)
+			if ((result = device_detach(dev)) != 0)
+				return (result);
 		if (!child->devclass)
 			device_set_devclass(child, best->driver->name);
 		device_set_driver(child, best->driver);
@@ -1628,7 +1654,11 @@ device_probe_child(device_t dev, device_t child)
 			 * sure that we have the right description.
 			 */
 			DEVICE_PROBE(child);
-		}
+#if 0
+			child->flags |= DF_REBID;
+#endif
+		} else
+			child->flags &= ~DF_REBID;
 		child->state = DS_ALIVE;
 
 		bus_data_generation_update();
@@ -2140,7 +2170,7 @@ device_probe_and_attach(device_t dev)
 {
 	int error;
 
-	if (dev->state >= DS_ALIVE)
+	if (dev->state >= DS_ALIVE && (dev->flags & DF_REBID) == 0)
 		return (0);
 
 	if (!(dev->flags & DF_ENABLED)) {
@@ -2839,7 +2869,8 @@ bus_generic_driver_added(device_t dev, driver_t *driver)
 
 	DEVICE_IDENTIFY(driver, dev);
 	TAILQ_FOREACH(child, &dev->children, link) {
-		if (child->state == DS_NOTPRESENT)
+		if (child->state == DS_NOTPRESENT ||
+		    (child->flags & DF_REBID))
 			device_probe_and_attach(child);
 	}
 }
@@ -3529,6 +3560,7 @@ print_device_short(device_t dev, int indent)
 	    (dev->flags&DF_FIXEDCLASS? "fixed,":""),
 	    (dev->flags&DF_WILDCARD? "wildcard,":""),
 	    (dev->flags&DF_DESCMALLOCED? "descmalloced,":""),
+	    (dev->flags&DF_REBID? "rebiddable,":""),
 	    (dev->ivars? "":"no "),
 	    (dev->softc? "":"no "),
 	    dev->busy));
