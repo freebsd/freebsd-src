@@ -13,6 +13,7 @@ kern/subr_diskmbr.c		standard
 powerpc/powerpc/atomic.s	standard
 powerpc/powerpc/autoconf.c	standard
 powerpc/powerpc/bcopy.c		standard
+powerpc/powerpc/busdma_machdep.c standard
 powerpc/powerpc/clock.c		standard
 powerpc/powerpc/copyinout.c	standard
 powerpc/powerpc/copystr.c	standard
