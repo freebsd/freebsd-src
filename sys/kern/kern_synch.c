@@ -282,8 +282,9 @@ schedcpu(arg)
 				 * the kse slptimes are not touched in wakeup
 				 * because the thread may not HAVE a KSE
 				 */
-				if (ke->ke_state == KES_ONRUNQ ||
-				    ke->ke_state == KES_RUNNING) {
+				if ((ke->ke_state == KES_ONRUNQ) ||
+				    ((ke->ke_state == KES_THREAD) &&
+				    (ke->ke_thread->td_state == TDS_RUNNING))) {
 					ke->ke_slptime++;
 				} else {
 					ke->ke_slptime = 0;
@@ -442,8 +443,6 @@ msleep(ident, mtx, priority, wmesg, timo)
 	if (KTRPOINT(td, KTR_CSW))
 		ktrcsw(1, 0);
 #endif
-	KASSERT((td->td_kse != NULL), ("msleep: NULL KSE?"));
-	KASSERT((td->td_kse->ke_state == KES_RUNNING), ("msleep: kse state?"));
 	WITNESS_SLEEP(0, &mtx->mtx_object);
 	KASSERT(timo != 0 || mtx_owned(&Giant) || mtx != NULL,
 	    ("sleeping without a mutex"));
@@ -470,19 +469,12 @@ msleep(ident, mtx, priority, wmesg, timo)
 			mtx_lock_spin(&sched_lock);
 			if (TAILQ_FIRST(&td->td_ksegrp->kg_runq) == NULL) {
 				/* Don't recurse here! */
-	KASSERT((td->td_kse->ke_state == KES_RUNNING), ("msleep: kse stateX?"));
 				td->td_flags |= TDF_INMSLEEP;
 				thread_schedule_upcall(td, td->td_kse);
 				td->td_flags &= ~TDF_INMSLEEP;
-	KASSERT((td->td_kse->ke_state == KES_RUNNING), ("msleep: kse stateY?"));
 			}
 			mtx_unlock_spin(&sched_lock);
 		}
-		KASSERT((td->td_kse != NULL), ("msleep: NULL KSE2?"));
-		KASSERT((td->td_kse->ke_state == KES_RUNNING),
-		    ("msleep: kse state2?"));
-		KASSERT((td->td_kse->ke_thread == td),
-		    ("msleep: kse/thread mismatch?"));
 	}
 	mtx_lock_spin(&sched_lock);
 	if (cold || panicstr) {
@@ -797,7 +789,7 @@ mi_switch()
 	u_int sched_nest;
 
 	mtx_assert(&sched_lock, MA_OWNED | MA_NOTRECURSED);
-	KASSERT((ke->ke_state == KES_RUNNING), ("mi_switch: kse state?"));
+	KASSERT((ke->ke_state == KES_THREAD), ("mi_switch: kse state?"));
 #ifdef INVARIANTS
 	if (td->td_state != TDS_MTX &&
 	    td->td_state != TDS_RUNQ &&
@@ -884,7 +876,6 @@ mi_switch()
 	}
 	cpu_switch();
 	td->td_kse->ke_oncpu = PCPU_GET(cpuid);
-	td->td_kse->ke_state = KES_RUNNING;
 	sched_lock.mtx_recurse = sched_nest;
 	sched_lock.mtx_lock = (uintptr_t)td;
 	CTR3(KTR_PROC, "mi_switch: new thread %p (pid %d, %s)", td, p->p_pid,
