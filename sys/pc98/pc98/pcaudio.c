@@ -194,6 +194,7 @@ pca_volume(int volume)
 static void
 pca_init(void)
 {
+	cdevsw_add(&pca_cdevsw);
 	pca_status.open = 0;
 	pca_status.queries = 0;
 	pca_status.timer_on = 0;
@@ -583,18 +584,5 @@ pcapoll(dev_t dev, int events, struct proc *p)
 	splx(s);
 	return (revents);
 }
-
-static int pca_devsw_installed;
-
-static void 	pca_drvinit(void *unused)
-{
-
-	if( ! pca_devsw_installed ) {
-		cdevsw_add(&pca_cdevsw);
-		pca_devsw_installed = 1;
-    	}
-}
-
-SYSINIT(pcadev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,pca_drvinit,NULL)
 
 #endif
