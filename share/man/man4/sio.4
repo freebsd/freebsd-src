@@ -34,7 +34,7 @@
 .\"
 .\"     from: @(#)dca.4	5.2 (Berkeley) 3/27/91
 .\"	from: com.4,v 1.1 1993/08/06 11:19:07 cgd Exp
-.\"	$Id$
+.\"	$Id: sio.4,v 1.23 1997/02/22 13:25:41 peter Exp $
 .\"
 .Dd October 10, 1995
 .Dt SIO 4 i386
@@ -69,17 +69,19 @@ For Hayes ESP cards:
 .Pp
 Meaning of \fBflags\fR:
 .br
-\fB0x0001\fR shared IRQs
+\fB0x00001\fR shared IRQs
 .br
-\fB0x0002\fR disable FIFO
+\fB0x00002\fR disable FIFO
 .br
-\fB0x0004\fR no AST/4 compatible IRQ control register
+\fB0x00004\fR no AST/4 compatible IRQ control register
 .br
-\fB0x0008\fR recover sooner from lost output interrupts
+\fB0x00008\fR recover sooner from lost output interrupts
 .br
-\fB0x0080\fR enable diagnostics in probe
+\fB0x00080\fR enable diagnostics in probe
 .br
-\fB0x\fI??\fB00\fR minor number of master port
+\fB0x0\fI??\fB00\fR minor number of master port
+.br
+\fB0x10000\fR disable test#3 which often fails for internal modems
 .Pp
 Minor numbering:
 .br
