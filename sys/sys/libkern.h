@@ -39,6 +39,9 @@
 
 #include <sys/cdefs.h>
 #include <sys/types.h>
+#ifdef _KERNEL
+#include <sys/systm.h>
+#endif
 
 /* BCD conversions. */
 extern u_char const	bcd2bin_data[];
@@ -84,5 +87,25 @@ char	*strcpy __P((char *, const char *));
 size_t	 strlen __P((const char *));
 int	 strncmp __P((const char *, const char *, size_t));
 char	*strncpy __P((char *, const char *, size_t));
+
+
+static __inline int
+memcmp(const void *b1, const void *b2, size_t len)
+{
+	return (bcmp(b1, b2, len));
+}
+
+static __inline void *
+memset(void *b, int c, size_t len)
+{
+	char *bb;
+
+	if (c == 0)
+		bzero(b, len);
+	else
+		for (bb = b; len--; )
+			*bb++ = c;
+	return (b);
+}
 
 #endif /* !_SYS_LIBKERN_H_ */
