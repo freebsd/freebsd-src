@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_pcb.c	8.2 (Berkeley) 1/4/94
- * $Id: in_pcb.c,v 1.8 1995/03/16 18:14:51 bde Exp $
+ * $Id: in_pcb.c,v 1.9 1995/04/09 01:29:18 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -65,6 +65,7 @@ in_pcballoc(so, pcbinfo)
 	struct inpcbinfo *pcbinfo;
 {
 	register struct inpcb *inp;
+	int s;
 
 	MALLOC(inp, struct inpcb *, sizeof(*inp), M_PCB, M_NOWAIT);
 	if (inp == NULL)
@@ -72,8 +73,10 @@ in_pcballoc(so, pcbinfo)
 	bzero((caddr_t)inp, sizeof(*inp));
 	inp->inp_pcbinfo = pcbinfo;
 	inp->inp_socket = so;
+	s = splnet();
 	LIST_INSERT_HEAD(pcbinfo->listhead, inp, inp_list);
 	in_pcbinshash(inp);
+	splx(s);
 	so->so_pcb = (caddr_t)inp;
 	return (0);
 }
@@ -335,6 +338,7 @@ in_pcbdetach(inp)
 	struct inpcb *inp;
 {
 	struct socket *so = inp->inp_socket;
+	int s;
 
 	so->so_pcb = 0;
 	sofree(so);
@@ -343,8 +347,10 @@ in_pcbdetach(inp)
 	if (inp->inp_route.ro_rt)
 		rtfree(inp->inp_route.ro_rt);
 	ip_freemoptions(inp->inp_moptions);
+	s = splnet();
 	LIST_REMOVE(inp, inp_hash);
 	LIST_REMOVE(inp, inp_list);
+	splx(s);
 	FREE(inp, M_PCB);
 }
 
@@ -403,7 +409,7 @@ in_pcbnotify(head, dst, fport_arg, laddr, lport_arg, cmd, notify)
 	register struct inpcb *inp, *oinp;
 	struct in_addr faddr;
 	u_short fport = fport_arg, lport = lport_arg;
-	int errno;
+	int errno, s;
 
 	if ((unsigned)cmd > PRC_NCMDS || dst->sa_family != AF_INET)
 		return;
@@ -426,6 +432,7 @@ in_pcbnotify(head, dst, fport_arg, laddr, lport_arg, cmd, notify)
 			notify = in_rtchange;
 	}
 	errno = inetctlerrmap[cmd];
+	s = splnet();
 	for (inp = head->lh_first; inp != NULL;) {
 		if (inp->inp_faddr.s_addr != faddr.s_addr ||
 		    inp->inp_socket == 0 ||
@@ -440,6 +447,7 @@ in_pcbnotify(head, dst, fport_arg, laddr, lport_arg, cmd, notify)
 		if (notify)
 			(*notify)(oinp, errno);
 	}
+	splx(s);
 }
 
 /*
@@ -505,6 +513,9 @@ in_pcblookup(head, faddr, fport_arg, laddr, lport_arg, flags)
 	register struct inpcb *inp, *match = NULL;
 	int matchwild = 3, wildcard;
 	u_short fport = fport_arg, lport = lport_arg;
+	int s;
+
+	s = splnet();
 
 	for (inp = head->lh_first; inp != NULL; inp = inp->inp_list.le_next) {
 		if (inp->inp_lport != lport)
@@ -539,6 +550,7 @@ in_pcblookup(head, faddr, fport_arg, laddr, lport_arg, flags)
 			}
 		}
 	}
+	splx(s);
 	return (match);
 }
 
@@ -554,7 +566,9 @@ in_pcblookuphash(pcbinfo, faddr, fport_arg, laddr, lport_arg)
 	struct inpcbhead *head;
 	register struct inpcb *inp;
 	u_short fport = fport_arg, lport = lport_arg;
+	int s;
 
+	s = splnet();
 	/*
 	 * First look for an exact match.
 	 */
@@ -574,8 +588,10 @@ in_pcblookuphash(pcbinfo, faddr, fport_arg, laddr, lport_arg)
 			LIST_REMOVE(inp, inp_hash);
 			LIST_INSERT_HEAD(head, inp, inp_hash);
 		}
+		splx(s);
 		return (inp);
 	}
+	splx(s);
 
 	/*
 	 * Didn't find an exact match, so try again looking for a matching
@@ -585,6 +601,9 @@ in_pcblookuphash(pcbinfo, faddr, fport_arg, laddr, lport_arg)
 	    lport_arg, INPLOOKUP_WILDCARD));
 }
 
+/*
+ * Insert PCB into hash chain. Must be called at splnet.
+ */
 void
 in_pcbinshash(inp)
 	struct inpcb *inp;
@@ -602,11 +621,14 @@ in_pcbrehash(inp)
 	struct inpcb *inp;
 {
 	struct inpcbhead *head;
+	int s;
 
+	s = splnet();
 	LIST_REMOVE(inp, inp_hash);
 
 	head = &inp->inp_pcbinfo->hashbase[(inp->inp_faddr.s_addr +
 		inp->inp_lport + inp->inp_fport) % inp->inp_pcbinfo->hashsize];
 
 	LIST_INSERT_HEAD(head, inp, inp_hash);
+	splx(s);
 }
