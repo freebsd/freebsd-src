@@ -31,6 +31,7 @@
  */
 
 #include <sys/param.h>
+#include <sys/malloc.h>
 #include <sys/systm.h>
 #include <sys/socket.h>
 
@@ -60,9 +61,37 @@ int lnc_attach __P((struct isa_device *));
 static int dec_macaddr_extract __P((u_char[], lnc_softc_t *));
 static ointhand2_t lncintr;
 
-extern lnc_softc_t lnc_softc[];
 extern int lnc_attach_sc __P((lnc_softc_t *, int));
 extern void lncintr_sc __P((lnc_softc_t *));
+
+static lnc_softc_t *
+lnc_getsoftc(int unit)
+{
+	static lnc_softc_t **sc;
+	static int units;
+
+	if (unit >= units) {
+		/* Reallocate more softc pointers */
+
+		lnc_softc_t **nsc;
+		int n;
+
+		n = unit + 1;
+		nsc = malloc(sizeof(lnc_softc_t *) * n, M_DEVBUF, M_WAITOK);
+		if (units)
+			bcopy(sc, nsc, sizeof(lnc_softc_t *) * units);
+		bzero(nsc + units, sizeof(lnc_softc_t *) * (n - units));
+		if (sc)
+			free(sc, M_DEVBUF);
+		units = n;
+		sc = nsc;
+	}
+
+	if (sc[unit] == NULL)
+		sc[unit] = malloc(sizeof(lnc_softc_t), M_DEVBUF, M_WAITOK);
+
+	return sc[unit];
+}
 
 int
 ne2100_probe(lnc_softc_t *sc, unsigned iobase)
@@ -250,7 +279,7 @@ lnc_probe(struct isa_device * isa_dev)
 {
 	int nports;
 	int unit = isa_dev->id_unit;
-	lnc_softc_t *sc = &lnc_softc[unit];
+	lnc_softc_t *sc = lnc_getsoftc(unit);
 	unsigned iobase = isa_dev->id_iobase;
 
 #ifdef DIAGNOSTIC
@@ -275,7 +304,7 @@ int
 lnc_attach(struct isa_device * isa_dev)
 {
 	int unit = isa_dev->id_unit;
-	lnc_softc_t *sc = &lnc_softc[unit];
+	lnc_softc_t *sc = lnc_getsoftc(unit);
 	int result;
 
 	isa_dev->id_ointr = lncintr;
@@ -299,6 +328,5 @@ lnc_attach(struct isa_device * isa_dev)
 static void
 lncintr(int unit)
 {
-	lnc_softc_t *sc = &lnc_softc[unit];
-	lncintr_sc (sc);
+	lncintr_sc(lnc_getsoftc(unit));
 }
