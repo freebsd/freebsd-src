@@ -252,7 +252,7 @@ stream instances need not guarantee this.
 .Ft int
 .Xc
 .It Xo
-.Fn xdr_hyper "XDR *xdrs" "longlong_t *llp"
+.Fn xdr_hyper "XDR *xdrs" "quad_t *llp"
 .Xc
 A filter primitive that translates between ANSI C
 .Vt "long long"
@@ -313,7 +313,7 @@ This routine returns one if it succeeds, zero otherwise.
 .Ft int
 .Xc
 .It Xo
-.Fn xdr_longlong_t "XDR *xdrs" "longlong_t *llp"
+.Fn xdr_longlong_t "XDR *xdrs" "quad_t *llp"
 .Xc
 A filter primitive that translates between ANSI C
 .Vt "long long"
@@ -627,7 +627,7 @@ This routine returns one if it succeeds, zero otherwise.
 .Ft int
 .Xc
 .It Xo
-.Fn xdr_u_hyper "XDR *xdrs" "u_longlong_t *ullp"
+.Fn xdr_u_hyper "XDR *xdrs" "u_quad_t *ullp"
 .Xc
 A filter primitive that translates between
 .Vt unsigned
@@ -664,7 +664,7 @@ This routine returns one if it succeeds, zero otherwise.
 .Ft int
 .Xc
 .It Xo
-.Fn xdr_u_longlong_t "XDR *xdrs" "u_longlong_t *ullp"
+.Fn xdr_u_longlong_t "XDR *xdrs" "u_quad_t *ullp"
 .Xc
 A filter primitive that translates between
 .Vt unsigned
@@ -691,10 +691,10 @@ This routine returns one if it succeeds, zero otherwise.
 .It Xo
 .Fo xdr_union
 .Fa "XDR *xdrs"
-.Fa "int *dscmp"
+.Fa "enum_t *dscmp"
 .Fa "char *unp"
-.Fa "struct xdr_discrim *choices"
-.Fa "bool_t \*(lp*defaultarm\*(rp\*(lp\*(rp"
+.Fa "const struct xdr_discrim *choices"
+.Fa "xdrproc_t defaultarm"
 .Fc
 .Xc
 .Pp
