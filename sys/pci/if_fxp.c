@@ -1211,12 +1211,12 @@ fxp_intr(arg)
 	struct fxp_softc *sc = arg;
 	struct ifnet *ifp = &sc->sc_if;
 	u_int8_t statack;
+	FXP_SPLVAR(s)
 #if defined(__NetBSD__)
 	int claimed = 0;
-#else
+#endif
 
 	FXP_LOCK(sc, s);
-#endif
 
 	while (!sc->suspended && (statack = CSR_READ_1(sc, FXP_CSR_SCB_STATACK)) != 0) {
 #if defined(__NetBSD__)
