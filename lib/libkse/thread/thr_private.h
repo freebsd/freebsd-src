@@ -1222,12 +1222,6 @@ int	__sys___acl_set_fd(int, acl_type_t, struct acl *);
 int	__sys_aio_suspend(const struct aiocb * const[], int, const struct timespec *);
 #endif
 
-/* #include <sys/capability.h> */
-#ifdef _SYS_CAPABILITY_H
-int	__sys___cap_get_fd(int, struct cap *);
-int	__sys___cap_set_fd(int, struct cap *);
-#endif
-
 /* #include <sys/event.h> */
 #ifdef _SYS_EVENT_H_
 int	__sys_kevent(int, const struct kevent *, int, struct kevent *,
