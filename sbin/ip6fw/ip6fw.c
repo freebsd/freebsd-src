@@ -324,7 +324,7 @@ show_ip6fw(struct ip6_fw *chain)
 
 	mb=mask_bits((u_char *)&chain->fw_dmsk,sizeof(chain->fw_dmsk));
 	if (mb==128 && do_resolv) {
-		he=gethostbyaddr((char *)&(chain->fw_dst),sizeof(chain->fw_dst),AF_INET);
+		he=gethostbyaddr((char *)&(chain->fw_dst),sizeof(chain->fw_dst),AF_INET6);
 		if (he==NULL) {
 			printf(inet_ntop(AF_INET6,&chain->fw_dst,ntop_buf,sizeof(ntop_buf)));
 		} else
