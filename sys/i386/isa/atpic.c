@@ -154,7 +154,7 @@ struct atpic_intsrc {
 };
 
 static void atpic_enable_source(struct intsrc *isrc);
-static void atpic_disable_source(struct intsrc *isrc);
+static void atpic_disable_source(struct intsrc *isrc, int eoi);
 static void atpic_eoi_master(struct intsrc *isrc);
 static void atpic_eoi_slave(struct intsrc *isrc);
 static void atpic_enable_intr(struct intsrc *isrc);
@@ -191,6 +191,35 @@ static struct atpic_intsrc atintrs[] = {
 
 CTASSERT(sizeof(atintrs) / sizeof(atintrs[0]) == NUM_ISA_IRQS);
 
+static __inline void
+_atpic_eoi_master(struct intsrc *isrc)
+{
+
+	KASSERT(isrc->is_pic == &atpics[MASTER].at_pic,
+	    ("%s: mismatched pic", __func__));
+#ifndef AUTO_EOI_1
+	outb(atpics[MASTER].at_ioaddr, OCW2_EOI);
+#endif
+}
+
+/*
+ * The data sheet says no auto-EOI on slave, but it sometimes works.
+ * So, if AUTO_EOI_2 is enabled, we use it.
+ */
+static __inline void
+_atpic_eoi_slave(struct intsrc *isrc)
+{
+
+	KASSERT(isrc->is_pic == &atpics[SLAVE].at_pic,
+	    ("%s: mismatched pic", __func__));
+#ifndef AUTO_EOI_2
+	outb(atpics[SLAVE].at_ioaddr, OCW2_EOI);
+#ifndef AUTO_EOI_1
+	outb(atpics[MASTER].at_ioaddr, OCW2_EOI);
+#endif
+#endif
+}
+
 static void
 atpic_enable_source(struct intsrc *isrc)
 {
@@ -206,48 +235,48 @@ atpic_enable_source(struct intsrc *isrc)
 }
 
 static void
-atpic_disable_source(struct intsrc *isrc)
+atpic_disable_source(struct intsrc *isrc, int eoi)
 {
 	struct atpic_intsrc *ai = (struct atpic_intsrc *)isrc;
 	struct atpic *ap = (struct atpic *)isrc->is_pic;
 
-	if (ai->at_trigger == INTR_TRIGGER_EDGE)
-		return;
 	mtx_lock_spin(&icu_lock);
-	*ap->at_imen |= IMEN_MASK(ai);
-	outb(ap->at_ioaddr + ICU_IMR_OFFSET, *ap->at_imen);
+	if (ai->at_trigger != INTR_TRIGGER_EDGE) {
+		*ap->at_imen |= IMEN_MASK(ai);
+		outb(ap->at_ioaddr + ICU_IMR_OFFSET, *ap->at_imen);
+	}
+
+	/*
+	 * Take care to call these functions directly instead of through
+	 * a function pointer.  All of the referenced variables should
+	 * still be hot in the cache.
+	 */
+	if (eoi == PIC_EOI) {
+		if (isrc->is_pic == &atpics[MASTER].at_pic)
+			_atpic_eoi_master(isrc);
+		else
+			_atpic_eoi_slave(isrc);
+	}
+
 	mtx_unlock_spin(&icu_lock);
 }
 
 static void
 atpic_eoi_master(struct intsrc *isrc)
 {
-
-	KASSERT(isrc->is_pic == &atpics[MASTER].at_pic,
-	    ("%s: mismatched pic", __func__));
 #ifndef AUTO_EOI_1
 	mtx_lock_spin(&icu_lock);
-	outb(atpics[MASTER].at_ioaddr, OCW2_EOI);
+	_atpic_eoi_master(isrc);
 	mtx_unlock_spin(&icu_lock);
 #endif
 }
 
-/*
- * The data sheet says no auto-EOI on slave, but it sometimes works.
- * So, if AUTO_EOI_2 is enabled, we use it.
- */
 static void
 atpic_eoi_slave(struct intsrc *isrc)
 {
-
-	KASSERT(isrc->is_pic == &atpics[SLAVE].at_pic,
-	    ("%s: mismatched pic", __func__));
 #ifndef AUTO_EOI_2
 	mtx_lock_spin(&icu_lock);
-	outb(atpics[SLAVE].at_ioaddr, OCW2_EOI);
-#ifndef AUTO_EOI_1
-	outb(atpics[MASTER].at_ioaddr, OCW2_EOI);
-#endif
+	_atpic_eoi_slave(isrc);
 	mtx_unlock_spin(&icu_lock);
 #endif
 }

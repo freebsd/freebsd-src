@@ -118,7 +118,7 @@ static void	ioapic_write(volatile ioapic_t *apic, int reg, u_int val);
 static const char *ioapic_bus_string(int bus_type);
 static void	ioapic_print_vector(struct ioapic_intsrc *intpin);
 static void	ioapic_enable_source(struct intsrc *isrc);
-static void	ioapic_disable_source(struct intsrc *isrc);
+static void	ioapic_disable_source(struct intsrc *isrc, int eoi);
 static void	ioapic_eoi_source(struct intsrc *isrc);
 static void	ioapic_enable_intr(struct intsrc *isrc);
 static int	ioapic_vector(struct intsrc *isrc);
@@ -146,6 +146,12 @@ static int mixed_mode_active = 0;
 static int mixed_mode_active = 1;
 #endif
 TUNABLE_INT("hw.apic.mixed_mode", &mixed_mode_active);
+
+static __inline void
+_ioapic_eoi_source(struct intsrc *isrc)
+{
+	lapic_eoi();
+}
 
 static u_int
 ioapic_read(volatile ioapic_t *apic, int reg)
@@ -224,7 +230,7 @@ ioapic_enable_source(struct intsrc *isrc)
 }
 
 static void
-ioapic_disable_source(struct intsrc *isrc)
+ioapic_disable_source(struct intsrc *isrc, int eoi)
 {
 	struct ioapic_intsrc *intpin = (struct ioapic_intsrc *)isrc;
 	struct ioapic *io = (struct ioapic *)isrc->is_pic;
@@ -239,6 +245,10 @@ ioapic_disable_source(struct intsrc *isrc)
 		    flags);
 		intpin->io_masked = 1;
 	}
+
+	if (eoi == PIC_EOI)
+		_ioapic_eoi_source(isrc);
+
 	mtx_unlock_spin(&icu_lock);
 }
 
@@ -246,7 +256,7 @@ static void
 ioapic_eoi_source(struct intsrc *isrc)
 {
 
-	lapic_eoi();
+	_ioapic_eoi_source(isrc);
 }
 
 /*
