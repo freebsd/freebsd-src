@@ -421,6 +421,8 @@ cia_probe(device_t dev)
 
 	device_add_child(dev, "pcib", 0);
 	device_set_ivars(dev, (void *)use_bwx);
+	
+	chipset_bwx = use_bwx;
 
 	return 0;
 }
