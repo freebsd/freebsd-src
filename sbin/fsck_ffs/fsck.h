@@ -272,6 +272,7 @@ int	bflag;			/* location of alternate super block */
 int	debug;			/* output debugging info */
 int	cvtlevel;		/* convert to newer file system format */
 int	bkgrdcheck;		/* determine if background check is possible */
+int	bkgrdsumadj;		/* whether the kernel have ability to adjust superblock summary */
 char	usedsoftdep;		/* just fix soft dependency inconsistencies */
 char	preen;			/* just fix normal inconsistencies */
 char	rerun;			/* rerun fsck. Only used in non-preen mode */

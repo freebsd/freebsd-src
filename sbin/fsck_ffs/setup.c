@@ -140,6 +140,24 @@ setup(char *dev)
 			pfatal("kernel lacks background fsck support\n");
 			exit(EEXIT);
 		}
+		/*
+		 * When kernel is lack of runtime bgfsck superblock summary
+		 * adjustment functionality, it does not mean we can not
+		 * continue, as old kernels will recompute the summary at
+		 * mount time.  However, it will be an unexpected softupdates
+		 * inconsistency if it turns out that the summary is still
+		 * incorrect.  Set a flag so subsequent operation can know
+		 * this.
+		 */
+		bkgrdsumadj = 1;
+		if (sysctlnametomib("vfs.ffs.adjndir", adjndir, &size) < 0 ||
+		    sysctlnametomib("vfs.ffs.adjnbfree", adjnbfree, &size) < 0 ||
+		    sysctlnametomib("vfs.ffs.adjnifree", adjnifree, &size) < 0 ||
+		    sysctlnametomib("vfs.ffs.adjnffree", adjnffree, &size) < 0 ||
+		    sysctlnametomib("vfs.ffs.adjnumclusters", adjnumclusters, &size) < 0) {
+			bkgrdsumadj = 0;
+			pwarn("kernel lacks runtime superblock summary adjustment support");
+		}
 		cmd.version = FFS_CMD_VERSION;
 		cmd.handle = fsreadfd;
 		fswritefd = -1;
