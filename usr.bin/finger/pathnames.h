@@ -29,6 +29,7 @@
 #ifndef PATHNAMES_H
 
 #define	_PATH_FORWARD	".forward"
+#define	_PATH_NOFINGER	".nofinger"
 #define	_PATH_PLAN	".plan"
 #define	_PATH_PROJECT	".project"
 #define	_PATH_PUBKEY	".pubkey"
