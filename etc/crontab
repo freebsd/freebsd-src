@@ -1,6 +1,6 @@
-# /var/cron/tabs/root - root's crontab for FreeBSD
+# /etc/crontab - root's crontab for FreeBSD
 #
-# $Id: crontab,v 1.4 1994/01/08 15:07:43 ache Exp $
+# $Id: crontab,v 1.5 1994/01/22 20:44:12 guido Exp $
 # From: Id: crontab,v 1.6 1993/05/31 02:03:57 cgd Exp
 #
 SHELL=/bin/sh
@@ -9,7 +9,7 @@ HOME=/var/log
 #
 #minute	hour	mday	month	wday	who	command
 #
-0/5     *       *       *       *       root	/usr/libexec/atrun
+*/5     *       *       *       *       root	/usr/libexec/atrun
 #
 # rotate log files every hour, if necessary
 #0	*	*	*	*	root	/usr/bin/newsyslog
