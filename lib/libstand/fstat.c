@@ -1,3 +1,4 @@
+/* $FreeBSD$ */
 /*	$NetBSD: fstat.c,v 1.1 1996/01/13 22:25:38 leo Exp $	*/
 
 /*-
@@ -56,5 +57,7 @@ fstat(fd, sb)
 	}
 
 	errno = (f->f_ops->fo_stat)(f, sb);
+	if (errno)
+		return (-1);
 	return (0);
 }

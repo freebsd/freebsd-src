@@ -675,6 +675,7 @@ ufs_seek(f, offset, where)
 		fp->f_seekp = fp->f_di.di_size - offset;
 		break;
 	default:
+		errno = EINVAL;
 		return (-1);
 	}
 	return (fp->f_seekp);

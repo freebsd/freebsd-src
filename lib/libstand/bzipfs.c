@@ -223,10 +223,12 @@ bzf_read(struct open_file *f, void *buf, size_t size, size_t *resid)
     while (bzf->bzf_bzstream.avail_out) {
 	if ((bzf->bzf_bzstream.avail_in == 0) && (bzf_fill(bzf) == -1)) {
 	    printf("bzf_read: fill error\n");
-	    return(-1);
+	    return(EIO);
 	}
 	if (bzf->bzf_bzstream.avail_in == 0) {		/* oops, unexpected EOF */
 	    printf("bzf_read: unexpected EOF\n");
+	    if (bzf->bzf_bzstream.avail_out == size)
+		return (EIO);
 	    break;
 	}
 
@@ -236,8 +238,7 @@ bzf_read(struct open_file *f, void *buf, size_t size, size_t *resid)
 	}
 	if (error != BZ_OK) {				/* argh, decompression error */
 	    printf("bzf_read: BZ2_bzDecompress returned %d\n", error);
-	    errno = EIO;
-	    return(-1);
+	    return(EIO);
 	}
     }
     if (resid != NULL)
@@ -259,8 +260,11 @@ bzf_seek(struct open_file *f, off_t offset, int where)
     case SEEK_CUR:
 	target = offset + bzf->bzf_bzstream.total_out_lo32;
 	break;
-    default:
+    case SEEK_END:
 	target = -1;
+    default:
+	errno = EINVAL;
+	return (-1);
     }
 
     /* Can we get there from here? */
@@ -271,7 +275,9 @@ bzf_seek(struct open_file *f, off_t offset, int where)
 
     /* skip forwards if required */
     while (target > bzf->bzf_bzstream.total_out_lo32) {
-	if (bzf_read(f, discard, min(sizeof(discard), target - bzf->bzf_bzstream.total_out_lo32), NULL) == -1)
+	errno = bzf_read(f, discard, min(sizeof(discard),
+	    target - bzf->bzf_bzstream.total_out_lo32), NULL);
+	if (errno)
 	    return(-1);
     }
     /* This is where we are (be honest if we overshot) */

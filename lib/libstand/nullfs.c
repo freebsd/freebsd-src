@@ -72,8 +72,7 @@
  */
 int	null_open (const char *path, struct open_file *f)
 {
-	errno  = EIO;
-	return -1;
+	return EINVAL;
 }
 
 int	null_close(struct open_file *f)
@@ -83,14 +82,12 @@ int	null_close(struct open_file *f)
 
 int	null_read (struct open_file *f, void *buf, size_t size, size_t *resid)
 {
-	errno = EIO;
-	return -1;
+	return EIO;
 }
 
 int	null_write (struct open_file *f, void *buf, size_t size, size_t *resid)
 {
-	errno = EIO;
-	return -1;
+	return EIO;
 }
 
 off_t	null_seek (struct open_file *f, off_t offset, int where)
@@ -101,12 +98,10 @@ off_t	null_seek (struct open_file *f, off_t offset, int where)
 
 int	null_stat (struct open_file *f, struct stat *sb)
 {
-	errno = EIO;
-	return -1;
+	return EIO;
 }
 
 int	null_readdir(struct open_file *f, struct dirent *d)
 {
-	errno = EIO;
-	return -1;
+	return EIO;
 }

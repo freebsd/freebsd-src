@@ -653,6 +653,7 @@ nfs_seek(f, offset, where)
 		d->off = size - offset;
 		break;
 	default:
+		errno = EINVAL;
 		return (-1);
 	}
 
@@ -720,7 +721,7 @@ nfs_readdir(struct open_file *f, struct dirent *d)
 		buf  = rdata.d;
 		roff = (struct nfs_readdir_off *)buf;
 		if (ntohl(roff->cookie) != 0)
-			return 1;
+			return EIO;
 	}
 	roff = (struct nfs_readdir_off *)buf;
 
@@ -728,7 +729,7 @@ nfs_readdir(struct open_file *f, struct dirent *d)
 		eof = ntohl((roff+1)->cookie);
 		if (eof) {
 			cookie = 0;
-			return 1;
+			return ENOENT;
 		}
 		goto refill;
 	}
