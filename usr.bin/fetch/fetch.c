@@ -258,6 +258,8 @@ fetch(char *URL, char *path)
      */
     if (r_flag && !o_stdout && stat(path, &sb) != -1)
 	url->offset = sb.st_size;
+    else
+	sb.st_size = 0;
      
     /* start the transfer */
     if ((f = fetchXGet(url, &us, flags)) == NULL) {
@@ -292,7 +294,7 @@ fetch(char *URL, char *path)
     if (o_stdout) {
 	/* output to stdout */
 	of = stdout;
-    } else if (url->offset) {
+    } else if (sb.st_size) {
 	/* resume mode, local file exists */
 	if (!F_flag && us.mtime && sb.st_mtime != us.mtime) {
 	    /* no match! have to refetch */
@@ -306,25 +308,29 @@ fetch(char *URL, char *path)
 		goto signal;
 	} else {
 	    us.size += url->offset;
-	}
-	if (us.size == sb.st_size)
-	    /* nothing to do */
-	    goto success;
-	if (sb.st_size > us.size) {
-	    /* local file too long! */
-	    warnx("%s: local file (%lld bytes) is longer "
-		  "than remote file (%lld bytes)",
-		  path, sb.st_size, us.size);
-	    goto failure;
-	}
-	/* we got through, open local file in append mode */
-	/*
-	 * XXX there's a race condition here - the file we open is not
-         * necessarily the same as the one we stat()'ed earlier...
-	 */
-	if ((of = fopen(path, "a")) == NULL) {
-	    warn("%s: open()", path);
-	    goto failure;
+	    if (us.size == sb.st_size)
+		/* nothing to do */
+		goto success;
+	    if (sb.st_size > us.size) {
+		/* local file too long! */
+		warnx("%s: local file (%lld bytes) is longer "
+		      "than remote file (%lld bytes)",
+		      path, sb.st_size, us.size);
+		goto failure;
+	    }
+	    /* we got through, open local file and seek to offset */
+	    /*
+	     * XXX there's a race condition here - the file we open is not
+	     * necessarily the same as the one we stat()'ed earlier...
+	     */
+	    if ((of = fopen(path, "a")) == NULL) {
+		warn("%s: fopen()", path);
+		goto failure;
+	    }
+	    if (fseek(of, url->offset, SEEK_SET) == -1) {
+		warn("%s: fseek()", path);
+		goto failure;
+	    }
 	}
     }
     if (m_flag && stat(path, &sb) != -1) {
