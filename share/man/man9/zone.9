@@ -102,8 +102,8 @@ calling
 .Fn uma_zfree
 with a pointer to the zone and a pointer to the item.
 .Pp
-Zones created with
-.Fn zinit
+Created zones,
+which are empty,
 can be destroyed using
 .Fn uma_zdestroy ,
 freeing all memory that was allocated for the zone.
@@ -113,17 +113,6 @@ must have been freed with
 .Fn uma_zfree
 before.
 .Sh RETURN VALUES
-.Pp
-The
-.Fn zinit
-function returns a pointer to a fully initialized
-.Vt "struct vm_zone" ,
-or
-.Dv NULL
-if it was unable to
-.Fn malloc
-a
-.Vt "struct vm_zone" .
 .Pp
 The
 .Fn uma_zalloc
