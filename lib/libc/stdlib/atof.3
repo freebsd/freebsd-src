@@ -67,6 +67,20 @@ strtod(nptr, (char **)NULL);
 The decimal point
 character is defined in the program's locale (category
 .Dv LC_NUMERIC ) .
+.Pp
+The
+.Fn atof
+function does not detect errors.
+.Sh IMPLEMENTATION NOTES
+The
+.Fn atof
+function is not thread-safe and also not async-cancel-safe.
+.Pp
+The
+.Fn atof
+function has been deprecated by
+.Fn strtod
+and should not be used in new code.
 .Sh SEE ALSO
 .Xr atoi 3 ,
 .Xr atol 3 ,
@@ -77,4 +91,7 @@ character is defined in the program's locale (category
 The
 .Fn atof
 function conforms to
-.St -isoC .
+.St -isoC ,
+.St -p1003.1 ,
+and
+.St -isoC-99 .
