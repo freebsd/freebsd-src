@@ -36,10 +36,6 @@
 .Ft void
 .Fn dllockinit "void *context" "void *(*lock_create)(void *context)" "void (*rlock_acquire)(void *lock)" "void (*wlock_acquire)(void *lock)" "void (*lock_release)(void *lock)" "void (*lock_destroy)(void *lock)" "void (*context_destroy)(void *context)"
 .Sh DESCRIPTION
-.Bf Sy
-This interface is subject to change and should not be used yet.
-.Ef
-.Pp
 Threads packages can call
 .Nm
 at initialization time to register locking functions for the dynamic
@@ -80,14 +76,14 @@ parameter specifies a function to destroy a lock.  It may be
 .Dv NULL
 if locks do not need to be destroyed.  The
 .Fa context_destroy
-specifies a function to destroy the context.  It may be
+parameter specifies a function to destroy the context.  It may be
 .Dv NULL
 if the context does not need to be destroyed.
 .Pp
-Before
+Until
 .Nm
-is called, the dynamic linker protects its critical sections by
-blocking the
+is called, the dynamic linker protects its critical sections using
+a default locking mechanism which works by blocking the
 .Dv SIGVTALRM ,
 .Dv SIGPROF ,
 and
