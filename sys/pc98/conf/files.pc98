@@ -38,6 +38,7 @@ i386/apm/apm_setup.s		optional	apm
 #i386/eisa/bt74x.c		optional	bt	device-driver
 i386/eisa/eisaconf.c		optional	eisa
 i386/eisa/if_vx_eisa.c		optional	vx	device-driver
+i386/eisa/if_fea.c		optional	fea	device-driver
 i386/i386/autoconf.c		standard	device-driver
 i386/i386/cons.c		standard
 i386/i386/db_disasm.c		optional	ddb
@@ -112,6 +113,7 @@ pc98/isa/if_cx.c		optional	cx	device-driver
 pc98/pc98/if_ed.c		optional	ed	device-driver
 pc98/pc98/if_el.c		optional	el	device-driver
 i386/isa/if_ep.c		optional	ep	device-driver
+i386/isa/if_ex.c		optional	ex	device-driver
 pc98/pc98/if_fe.c		optional	fe	device-driver
 #pc98/isa/if_ie.c		optional	ie	device-driver
 #pc98/isa/if_ix.c		optional	ix	device-driver
