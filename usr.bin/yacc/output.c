@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: output.c,v 1.8 1997/04/28 03:36:12 steve Exp $
+ *	$Id: output.c,v 1.9 1997/04/29 03:05:38 steve Exp $
  */
 
 #ifndef lint
@@ -41,6 +41,7 @@ static char const sccsid[] = "@(#)output.c	5.7 (Berkeley) 5/24/93";
 #endif /* not lint */
 
 #include <stdlib.h>
+#include <string.h>
 #include "defs.h"
 
 static int default_goto __P((int));
