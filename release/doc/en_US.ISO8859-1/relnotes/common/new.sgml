@@ -135,6 +135,11 @@
     <para>A bug in &man.mmap.2; that pages marked as <literal>PROT_NONE</literal>
       may become readable under certain circumstances, has been fixed.</para>
 
+    <para arch="i386">The &man.pbio.4; driver,
+      which supports direct access to
+      the Intel 8255A programmable peripheral interface (PPI)
+      chip running in mode 0 (simple I/O) has been added.</para>
+
     <para>Bugs in <function>vm_object_madvise()</function>,
       <function>vm_object_sync()</function>, and
       <function>contigmalloc()</function>
@@ -170,6 +175,13 @@
     <sect3 id="net-if">
       <title>Network Interface Support</title>
 
+      <para>The &man.axe.4; driver, which supports
+	ASIX Electronics AX88172 USB 2.0 Ethernet chipset
+	has been added.</para>
+
+      <para>The &man.bge.4; driver now supports BCM5750
+	and BCM5751.</para>
+
       <para>The &man.em.4; driver now supports 82541ER and 82546GB
 	dual port PCI Express adapter.</para>
 
@@ -193,6 +205,11 @@
 	now also support this capability and it can be controlled
 	via &man.ifconfig.8;.</para>
 
+      <para>A system panic which occurs
+	when <varname>net.inet.ip.rtexpire</varname> and/or
+	<varname>net.inet6.ip6.rtexpire</varname> are set to
+	<literal>0</literal> has been fixed.
+
 <!-- Above this line, order network driver changes by manpage/variable name-->
 
     </sect3>
@@ -207,6 +224,9 @@
 
       <para>&man.ipfw.4; now supports lookup tables.  This feature is
         useful for handling large sparse address sets.</para>
+
+      <para>&man.ipnat.8; now allows redirect rules to work for
+	non-TCP/UDP packets.</para>
 
       <para>The <literal>RST</literal>
 	handling of the &os; TCP stack has been improved
@@ -234,6 +254,8 @@
       <para>The &man.mpt.4; driver now supports LSI Logic FC929X
 	Dual 2Gb/s Fibre Channel card.</para>
 
+      <para>The &man.trm.4; driver now supports the DC395U2W adapters
+	and problems under heavy load have been fixed.</para>
     </sect3>
 
     <sect3 id="fs">
@@ -270,10 +292,24 @@
       smooth load peaks appearing when a lot of jobs are scheduled
       for a particular moment.</para>
 
-      <para>The LQM, Link Quality Monitoring support in &man.ppp.8;
-	has been reimplemented.  The LQM, which is described
-	in RFC 1989, allows PPP to keep track of the quality
-	of a running connection.</para>
+    <para>The &man.fwcontrol.8; now supports a <option>-m</option>
+      option to set the default <literal>fwmem</literal> target.</para>
+
+    <para>The <option>-C 60</option> option is now used
+      in the default <varname>$inetd_flags</varname> variable
+      in <filename>/etc/rc.conf</filename>.</para>
+
+    <para>The <application>libc</application> now supports
+      &man.eui64.3; functions.</para>
+
+    <para>The &man.ngctl.8; now supports <command>dot</command> command to
+      produce a <application>GraphViz</application> (.dot)
+      of the entire Netgraph.</para>
+
+    <para>The LQM, Link Quality Monitoring support in &man.ppp.8;
+      has been reimplemented.  The LQM, which is described
+      in RFC 1989, allows PPP to keep track of the quality
+      of a running connection.</para>
 
     <para>The userland &man.ppp.8; implementation now supports a <quote>set rad_alive
 	<replaceable>N</replaceable></quote> command
@@ -286,6 +322,15 @@
     <para>&man.syslogd.8; now supports <literal>LOG_NTP</literal>
       facility.</para>
 
+    <para>Several off-by-one errors and potential buffer
+      overruns in &man.pax.1; have been fixed.</para>
+
+    <para>&man.whois.1; now supports NORID (Norwegian top level registry)
+      handles, the German whois nameserver, and a <option>-k</option> flag
+      for querying <hostid role="fqdn">whois.krnic.net</hostid>
+      (the National Internet Development Agency of Korea)
+      which hold details of IP address allocations within Korea.</para>
+
 <!-- Above this line, order userland changes by manpage/variable name-->
 
   </sect2>
@@ -296,6 +341,14 @@
     <para><application>sendmail</application> has been updated from
       version 8.12.11 to version 8.13.1.</para>
 
+    <para><application>GNU patch</application> source files in
+      <filename>src/contrib/patch</filename> has been removed.
+      &os; have used the &man.patch.1; sources
+      in <filename>src/gnu/usr.bin/patch</filename> for nearly seven years.</para>
+
+    <para>The timezone database has been updated from the
+      <application>tzdata2004e</application> release to the
+      <application>tzdata2004g</application> release.</para>
   </sect2>
 
   <sect2 id="ports">
@@ -322,6 +375,11 @@
       (based on Red Hat Linux 7.1)
       to <filename role="package">linux_base-8</filename>
       (based on Red Hat Linux 8.0).</para>
+
+    <para>The <varname>NOSECURE</varname> variable in <filename>make.conf</filename>
+      has been removed because it is broken and no longer supported.
+      If you had been using the <varname>NOSECURE</varname>,
+      please now use the <varname>NOCRYPT</varname> instead.</para>
   </sect2>
 </sect1>
 
