@@ -1,0 +1,5 @@
+#
+
+../pppd/pppd -d connect 'chat "" ATDT5551212 CONNECT "" ogin: ppp' netmask 255.255.255.0 /dev/com1 38400
+
+../pppd/pppd connect 'chat "" AATDT5551212 CONNECT "" ogin: ppp' netmask 255.255.255.0 /dev/com1 38400
