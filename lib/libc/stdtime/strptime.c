@@ -258,7 +258,7 @@ label:
 			if (c == 'H' || c == 'k') {
 				if (i > 23)
 					return 0;
-			} else if (i > 11)
+			} else if (i > 12)
 				return 0;
 
 			tm->tm_hour = i;
