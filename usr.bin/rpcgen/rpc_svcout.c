@@ -1,6 +1,4 @@
 /*
- * $FreeBSD$
- *
  * Sun RPC is a product of Sun Microsystems, Inc. and is provided for
  * unrestricted use provided that this legend is included on all tape
  * media and as a part of the software program in whole or part.  Users
@@ -32,7 +30,11 @@
 #ident	"@(#)rpc_svcout.c	1.4	90/04/13 SMI"
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)rpc_svcout.c 1.29 89/03/30 (C) 1987 SMI";
+#endif
+static const char rcsid[] =
+  "$FreeBSD$";
 #endif
 
 /*
