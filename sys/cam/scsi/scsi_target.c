@@ -33,21 +33,17 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/conf.h>
-#include <sys/event.h>
 #include <sys/malloc.h>
 #include <sys/poll.h>
-#include <sys/selinfo.h>
-#include <sys/uio.h>
 #include <sys/vnode.h>
-#include <sys/queue.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 #include <sys/devicestat.h>
 
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>
 #include <cam/cam_periph.h>
-#include <cam/cam_queue.h>
 #include <cam/cam_xpt_periph.h>
-#include <cam/cam_debug.h>
 #include <cam/scsi/scsi_targetio.h>
 
 /* Transaction information attached to each CCB sent by the user */
