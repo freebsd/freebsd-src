@@ -312,6 +312,12 @@ static struct witness_order_list_entry order_lists[] = {
 	{ "slip sc_mtx", &lock_class_mtx_sleep },
 	{ NULL, NULL },
 	/*
+	 * netatalk
+	 */
+	{ "ddp_list_mtx", &lock_class_mtx_sleep },
+	{ "ddp_mtx", &lock_class_mtx_sleep },
+	{ NULL, NULL },
+	/*
 	 * spin locks
 	 */
 #ifdef SMP
