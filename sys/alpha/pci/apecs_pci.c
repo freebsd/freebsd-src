@@ -140,8 +140,10 @@ apecs_pcib_read_config(device_t dev, int b, int s, int f,
 	switch (width) {
 	case 1:
 		SWIZ_CFGREAD(b, s, f, reg, BYTE, u_int8_t);
+		break;
 	case 2:
 		SWIZ_CFGREAD(b, s, f, reg, WORD, u_int16_t);
+		break;
 	case 4:
 		SWIZ_CFGREAD(b, s, f, reg, LONG, u_int32_t);
 	}
@@ -155,8 +157,10 @@ apecs_pcib_write_config(device_t dev, int b, int s, int f,
 	switch (width) {
 	case 1:
 		SWIZ_CFGWRITE(b, s, f, reg, val, BYTE, u_int8_t);
+		break;
 	case 2:
 		SWIZ_CFGWRITE(b, s, f, reg, val, WORD, u_int16_t);
+		break;
 	case 4:
 		SWIZ_CFGWRITE(b, s, f, reg, val, LONG, u_int32_t);
 	}
