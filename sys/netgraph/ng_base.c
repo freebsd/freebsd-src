@@ -309,16 +309,13 @@ ng_make_node(const char *typename, node_p *nodepp)
 
 	/* Locate the node type */
 	if ((type = ng_findtype(typename)) == NULL) {
-		char *path, filename[NG_TYPELEN + 4];
+		char filename[NG_TYPELEN + 4];
 		linker_file_t lf;
 		int error;
 
 		/* Not found, try to load it as a loadable module */
-		snprintf(filename, sizeof(filename), "ng_%s.ko", typename);
-		if ((path = linker_search_path(filename)) == NULL)
-			return (ENXIO);
-		error = linker_load_file(path, &lf);
-		FREE(path, M_LINKER);
+		snprintf(filename, sizeof(filename), "ng_%s", typename);
+		error = linker_load_file(filename, &lf);
 		if (error != 0)
 			return (error);
 		lf->userrefs++;		/* pretend loaded by the syscall */
