@@ -29,6 +29,7 @@
 int line_edit(WINDOW* dialog, int box_y, int box_x, int box_width, chtype attr, int first, unsigned char *result)
 {
   int i, key;
+  chtype old_attr;
   static int input_x, scroll;
   static unsigned char instr[MAX_LEN+1];
   unsigned char erase_char = erasechar();
@@ -37,6 +38,7 @@ int line_edit(WINDOW* dialog, int box_y, int box_x, int box_width, chtype attr, 
   unsignec char werase_char = cur_term->Ottyb.c_cc[VWERASE];
 #endif
 
+  old_attr = getattrs(dialog);
   wattrset(dialog, attr);
   keypad(dialog, TRUE);
 
@@ -93,7 +95,6 @@ int line_edit(WINDOW* dialog, int box_y, int box_x, int box_width, chtype attr, 
 	continue;
       case KEY_LEFT:
 	if (input_x || scroll) {
-	  wattrset(dialog, inputbox_attr);
 	  if (!input_x) {
 	    int oldscroll = scroll;
 	    scroll = scroll < box_width-1 ? 0 : scroll-(box_width-1);
@@ -110,7 +111,6 @@ int line_edit(WINDOW* dialog, int box_y, int box_x, int box_width, chtype attr, 
 	continue;
       case KEY_RIGHT:
 	  if (scroll+input_x < MAX_LEN) {
-	    wattrset(dialog, inputbox_attr);
 	    if (!instr[scroll+input_x])
 	      instr[scroll+input_x] = ' ';
 	    if (input_x == box_width-1) {
@@ -137,7 +137,6 @@ int line_edit(WINDOW* dialog, int box_y, int box_x, int box_width, chtype attr, 
 	if (input_x || scroll) {
 	  i = strlen(instr);
 	  memmove(instr+scroll+input_x-1, instr+scroll+input_x, i-scroll+input_x+1);
-	  wattrset(dialog, inputbox_attr);
 	  if (!input_x) {
 	    int oldscroll = scroll;
 	    scroll = scroll < box_width-1 ? 0 : scroll-(box_width-1);
@@ -166,7 +165,6 @@ int line_edit(WINDOW* dialog, int box_y, int box_x, int box_width, chtype attr, 
 	  i++;
 	  if (i < MAX_LEN) {
 	    memmove(instr+scroll+input_x+1, instr+scroll+input_x, i-scroll+input_x);
-	    wattrset(dialog, inputbox_attr);
 	    instr[scroll+input_x] = key;
 	    if (input_x == box_width-1) {
 	      scroll++;
@@ -188,6 +186,7 @@ int line_edit(WINDOW* dialog, int box_y, int box_x, int box_width, chtype attr, 
       }
     }
 ret:
+    wattrset(dialog, old_attr);
     strcpy(result, instr);
     return key;
 }

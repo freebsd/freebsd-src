@@ -97,7 +97,7 @@ int dialog_inputbox(unsigned char *title, unsigned char *prompt, int height, int
   while (key != ESC) {
 
     if (button == -1) {    /* Input box selected */
-      key = line_edit(dialog, box_y, box_x, box_width, dialog_attr, first, instr);
+      key = line_edit(dialog, box_y, box_x, box_width, inputbox_attr, first, instr);
       first = 0;
     }
     else
