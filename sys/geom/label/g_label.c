@@ -194,7 +194,7 @@ g_label_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	struct g_label_metadata md;
 	struct g_consumer *cp;
 	struct g_geom *gp;
-	int error, i;
+	int i;
 
 	g_trace(G_T_TOPOLOGY, "%s(%s, %s)", __func__, mp->name, pp->name);
 	g_topology_assert();
@@ -210,15 +210,10 @@ g_label_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	gp->orphan = g_label_orphan;
 	cp = g_new_consumer(gp);
 	g_attach(cp, pp);
-	error = g_access(cp, 1, 0, 0);
-	if (error != 0) {
-		g_wither_geom(gp, ENXIO);
-		return (NULL);
-	}
-
+	if (g_access(cp, 1, 0, 0) != 0)
+		goto end;
 	do {
-		error = g_label_read_metadata(cp, &md);
-		if (error != 0)
+		if (g_label_read_metadata(cp, &md) != 0)
 			break;
 		if (strcmp(md.md_magic, G_LABEL_MAGIC) != 0)
 			break;
@@ -241,10 +236,11 @@ g_label_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 		g_label_create(NULL, mp, pp, label, g_labels[i]->ld_dir,
 		    pp->mediasize);
 	}
-
 	g_access(cp, -1, 0, 0);
-	g_wither_geom(gp, ENXIO);
-
+end:
+	g_detach(cp);
+	g_destroy_consumer(cp);
+	g_destroy_geom(gp);
 	return (NULL);
 }
 
