@@ -246,6 +246,11 @@ PCIB_ACCESSOR(bus,		BUS,		u_int32_t)
 #undef PCIB_ACCESSOR
 
 /*
+ * PCI interrupt validation.
+ */
+#define PCI_INTERRUPT_VALID(x)	(((x) != 0) && ((x) != 255))
+
+/*
  * Convenience functions.
  *
  * These should be used in preference to manually manipulating
