@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.242 1996/10/05 07:46:54 jkh Exp $
+#	$Id: Makefile,v 1.243 1996/10/05 10:43:33 jkh Exp $
 #
 # How to roll a release:
 #
@@ -377,7 +377,6 @@ release.8: write_mfs_in_kernel dumpnlist
 	echo "domain          53/udp          nameserver" >> ${RD}/mfsfd/stand/etc/services
 	gzip -c ${.CURDIR}/../COPYRIGHT > ${RD}/mfsfd/stand/help/COPYRIGHT.hlp.gz
 	-test -f ${.CURDIR}/install.cfg && cp ${.CURDIR}/install.cfg ${RD}/mfsfd
-	./dumpnlist ${RD}/kernels/BOOTMFS.std > ${RD}/mfsfd/stand/symbols
 	# make the small bootfd
 	@echo "Making the small 4MB boot floppy."
 		sh -e ${.CURDIR}/doFS.sh ${RD} ${MNT} ${BOOTMFSSIZE} ${RD}/mfsfd \
@@ -573,6 +572,13 @@ doMFSKERN:
 	@mkdir  ${RD}/boot.${FSIMAGE}
 	@mv ${RD}/kernels/BOOTMFS ${RD}/kernels/BOOTMFS.${FSIMAGE}
 	@cp ${RD}/kernels/BOOTMFS.${FSIMAGE} ${RD}/boot.${FSIMAGE}/kernel
+	@vnconfig /dev/vn0 fs-image.${FSIMAGE}
+	@mkdir -p /tmp/mnt_xx
+	@mount /dev/vn0 /tmp/mnt_xx
+	./dumpnlist ${RD}/boot.${FSIMAGE}/kernel > /tmp/mnt_xx/stand/symbols
+	@umount /tmp/mnt_xx
+	@vnconfig -u /dev/vn0
+	@rmdir /tmp/mnt_xx
 	./write_mfs_in_kernel ${RD}/boot.${FSIMAGE}/kernel \
 		fs-image.${FSIMAGE}
 	kzip -v ${RD}/boot.${FSIMAGE}/kernel
