@@ -2322,8 +2322,8 @@ static void dc_rxeof(sc)
 #ifdef DEVICE_POLLING
 		if (ifp->if_ipending & IFF_POLLING) {
 			if (sc->rxcycles <= 0)
-				break ;
-			sc->rxcycles -- ;
+				break;
+			sc->rxcycles--;
 		}
 #endif /* DEVICE_POLLING */
 		cur_rx = &sc->dc_ldata->dc_rx_list[i];
@@ -2667,8 +2667,7 @@ dc_poll(struct ifnet *ifp, int cmd, int count)
 
 		if (status & (DC_ISR_RX_WATDOGTIMEO|DC_ISR_RX_NOBUF) ) {
 			u_int32_t r = CSR_READ_4(sc, DC_FRAMESDISCARDED);
-			ifp->if_ierrors += (r & 0xffff) +
-				( (r >> 17) & 0x7ff ) ;
+			ifp->if_ierrors += (r & 0xffff) + ((r >> 17) & 0x7ff);
 
 			if (dc_rx_resync(sc))
 				dc_rxeof(sc);
@@ -2701,11 +2700,11 @@ static void dc_intr(arg)
 
 #ifdef DEVICE_POLLING
 	if (ifp->if_ipending & IFF_POLLING)
-		return ;
+		return;
 	if (ether_poll_register(dc_poll, ifp)) { /* ok, disable interrupts */
 		CSR_WRITE_4(sc, DC_IMR, 0x00000000);
 		dc_poll(ifp, 0, poll_burst);
-		return ;
+		return;
 	}
 #endif /* DEVICE_POLLING */
 
