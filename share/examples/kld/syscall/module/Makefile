@@ -1,17 +1,7 @@
 # Makefile for building the sample syscall module
+# $FreeBSD$
 
-SRCS	= syscall.c
-KMOD	= syscall
-KO	= ${KMOD}.ko
-KLDMOD	= t
-
-KLDLOAD		= /sbin/kldload
-KLDUNLOAD	= /sbin/kldunload
-
-load: ${KO}
-	${KLDLOAD} -v ./${KO}
-
-unload: ${KO}
-	${KLDUNLOAD} -v -n ${KO}
+KMOD=	syscall
+SRCS=	syscall.c
 
 .include <bsd.kmod.mk>
