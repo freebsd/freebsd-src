@@ -246,7 +246,7 @@ cis_info(struct cis *cp, unsigned char *p, int len)
 static void
 cis_manuf_id(struct cis *cp, unsigned char *p, int len)
 {
-	if (len > 4) {
+	if (len >= 4) {
 		cp->manufacturer = tpl16(p);
 		cp->product = tpl16(p+2);
 		if (len == 5)
