@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_page.h,v 1.5 1994/09/06 11:28:44 davidg Exp $
+ * $Id: vm_page.h,v 1.6 1994/09/27 18:00:29 davidg Exp $
  */
 
 /*
@@ -134,6 +134,7 @@ struct vm_page {
 #define	PG_FILLED	0x0400		/* client flag to set when filled */
 #define	PG_DIRTY	0x0800		/* client flag to set when dirty */
 #define PG_REFERENCED	0x1000		/* page has been referenced */
+#define PG_VMIO		0x2000		/* VMIO flag */
 #define	PG_PAGEROWNED	0x4000		/* DEBUG: async paging op in progress */
 #define	PG_FREE		0x8000		/* page is in free list */
 
