@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)csh.1	8.2 (Berkeley) 1/21/94
-.\"	$Id: csh.1,v 1.9 1998/03/19 07:26:30 charnier Exp $
+.\"	$Id: csh.1,v 1.10 1998/05/06 06:50:38 charnier Exp $
 .\"
 .Dd January 21, 1994
 .Dt CSH 1
@@ -1486,6 +1486,17 @@ discards the
 entry in the stack.
 The members of the directory stack are numbered from the top starting at 0.
 .Pp
+.It Ic printf Ar format-string values
+Invokes a built-in version of 
+.Ic printf 
+after evaluating the 
+.Ar format-string 
+and 
+.Ar values . 
+See the 
+.Xr printf 1
+manpage for details.
+.Pp
 .It Ic pushd
 .It Ic pushd Ar name
 .It Ic pushd Ar n
@@ -2123,6 +2134,7 @@ To detect looping, the shell restricts the number of
 .Ic alias
 substitutions on a single line to 20.
 .Sh SEE ALSO
+.Xr printf 1 ,
 .Xr sh 1 ,
 .Xr su 1 ,
 .Xr access 2 ,
