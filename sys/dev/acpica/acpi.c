@@ -125,6 +125,7 @@ static int	acpi_isa_get_compatid(device_t dev, uint32_t *cids, int count);
 static int	acpi_isa_pnp_probe(device_t bus, device_t child,
 			struct isa_pnp_id *ids);
 static void	acpi_probe_children(device_t bus);
+static int	acpi_probe_order(ACPI_HANDLE handle, int *order);
 static ACPI_STATUS acpi_probe_child(ACPI_HANDLE handle, UINT32 level,
 			void *context, void **status);
 static void	acpi_shutdown_pre_sync(void *arg, int howto);
@@ -1152,25 +1153,31 @@ acpi_probe_children(device_t bus)
     return_VOID;
 }
 
+/*
+ * Determine the probe order for a given device and return non-zero if it
+ * should be attached immediately.
+ */
 static int
-acpi_probe_order(ACPI_HANDLE handle, int level, int *order)
+acpi_probe_order(ACPI_HANDLE handle, int *order)
 {
     int ret;
 
+    /*
+     * 1. I/O port and memory system resource holders
+     * 2. Embedded controllers (to handle early accesses)
+     */
     ret = 0;
-    /* IO port and memory system resource holders are first. */
     if (acpi_MatchHid(handle, "PNP0C01") || acpi_MatchHid(handle, "PNP0C02")) {
 	*order = 1;
 	ret = 1;
-    }
-
-    /* The embedded controller is needed to handle accesses early. */
-    if (acpi_MatchHid(handle, "PNP0C09")) {
+    } else if (acpi_MatchHid(handle, "PNP0C09")) {
 	*order = 2;
 	ret = 1;
     }
 
-    *order = (level + 1) * 10;
+    /* Always probe/attach immediately if we're debugging. */
+    ACPI_DEBUG_EXEC(ret = 1);
+
     return (ret);
 }
 
@@ -1203,11 +1210,14 @@ acpi_probe_child(ACPI_HANDLE handle, UINT32 level, void *context, void **status)
 
 	    /* 
 	     * Create a placeholder device for this node.  Sort the placeholder
-	     * so that the probe/attach passes will run breadth-first.
+	     * so that the probe/attach passes will run breadth-first.  Orders
+	     * less than 10 are reserved for special objects (i.e., system
+	     * resources).  Larger values are used for all other devices.
 	     */
 	    ACPI_DEBUG_PRINT((ACPI_DB_OBJECTS, "scanning '%s'\n",
 			     acpi_name(handle)));
-	    probe_now = acpi_probe_order(handle, level, &order);
+	    order = (level + 1) * 10;
+	    probe_now = acpi_probe_order(handle, &order);
 	    child = BUS_ADD_CHILD(bus, order, NULL, -1);
 	    if (child == NULL)
 		break;
