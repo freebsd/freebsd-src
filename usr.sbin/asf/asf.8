@@ -1,4 +1,3 @@
-.\"  Hey, Emacs, edit this file in -*- nroff-fill -*- mode
 .\" Copyright (c) 2003 Greg Lehey.  All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -38,31 +37,31 @@
 By default,
 .Nm
 reads
-.Nm kldstat
+.Xr kldstat 8
 output from standard input and writes to standard output a list of
-.Nm gdb
-commands to add symbol files from klds in subdirectories of the subdirectory
-.Ar modules
+.Xr gdb 1
+commands to add symbol files from KLDs in subdirectories of the subdirectory
+.Pa modules
 of the current directory, which is intended to be a kernel build directory.
-This enables
-.Nm gdb
+This allows
+.Xr gdb 1
 to load the symbols into the debugging environment.
 .Pp
 If
-.Pa modules-path 
+.Ar modules-path
 is specified,
 .Nm
 uses it for the modules directory instead of the default
 .Pa modules .
-This is useful when building in a non-standard location (i.e. not 
+This is useful when building in a non-standard location (i.e., not
 .Pa /usr/src
 and
-.Pa /usr/obj ).
+.Pa /usr/obj ) .
 .Pp
 If
-.Pa outfile
+.Ar outfile
 is specified,
-.Nm 
+.Nm
 writes to it instead of standard output.
 .Sh OPTIONS
 The following options modify the function of
@@ -70,29 +69,35 @@ The following options modify the function of
 .Bl -tag -width indent
 .It Fl a
 When writing to an explicit
-.Pa outfile ,
+.Ar outfile ,
 append to the file rather than overwriting it.
 .It Fl k
 Instead of reading from standard input, start a
-.Nm kldstat
+.Xr kldstat 8
 and read the information from it.
 .It Fl x
 Normally
-.Nm 
-looks for klds with names of the form
-.Pa module.ko.debug .
+.Nm
+looks for KLDs with names of the form
+.Ao Ar module Ac Ns Pa .ko.debug .
 The
 .Fl x
 option tells
 .Nm
-to look for klds with names of the form
-.Pa module.ko .
+to look for KLDs with names of the form
+.Ao Ar module Ac Ns Pa .ko .
 .El
 .Sh HISTORY
+The
 .Nm
-first appeared in 
-.Fx 5.0 .
+utility first appeared in
+.Fx 5.2 .
 .Sh AUTHORS
 .An Greg Lehey Aq grog@FreeBSD.org
 .Sh BUGS
-It should be possible to write to an outfile without specifying a module path.
+It should be possible to write to an
+.Ar outfile
+without specifying a module path.
+.Sh SEE ALSO
+.Xr gdb 1 ,
+.Xr kldstat 8
