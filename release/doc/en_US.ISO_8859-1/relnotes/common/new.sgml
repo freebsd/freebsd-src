@@ -714,7 +714,7 @@
     advisory FreeBSD-SA-01:33). &merged;</para>
 
     <para>Initial sequence numbers in TCP are more thoroughly
-    randomized.</para>
+    randomized (see security advisory FreeBSD-SA-01:39). &merged;</para>
   </sect2>
   <sect2>
     <title>Userland Changes</title>
