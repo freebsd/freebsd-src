@@ -156,21 +156,21 @@ system call is made, or an
 is performed.
 A signal-specific default action may be reset by
 setting
-.Fa sa_handler
+.Va sa_handler
 to
 .Dv SIG_DFL .
 The defaults are process termination, possibly with core dump;
 no action; stopping the process; or continuing the process.
 See the signal list below for each signal's default action.
 If
-.Fa sa_handler
+.Va sa_handler
 is
 .Dv SIG_DFL ,
 the default action for the signal is to discard the signal,
 and if a signal is pending,
 the pending signal is discarded even if the signal is masked.
 If
-.Fa sa_handler
+.Va sa_handler
 is set to
 .Dv SIG_IGN
 current and pending instances
@@ -199,10 +199,12 @@ the calling process exit.  If the calling process subsequently issues
 a
 .Xr wait 2
 (or equivalent), it blocks until all of the calling process's child
-processes terminate, and then returns a value of -1 with errno set to
+processes terminate, and then returns a value of \-1 with
+.Va errno
+set to
 .Er ECHILD .
 The same effect of avoiding zombie creation can also be achieved by setting
-.Fa sa_handler
+.Va sa_handler
 for
 .Dv SIGCHLD
 to
@@ -224,9 +226,10 @@ at the moment the signal is delivered.
 See paragraph below.
 .It Dv SA_SIGINFO
 If this bit is set, the handler function is assumed to be pointed to by the
-.Dv sa_sigaction
-member of struct sigaction and should match the prototype shown above or as
-below in
+.Va sa_sigaction
+member of
+.Vt "struct sigaction"
+and should match the prototype shown above or as below in
 .Sx EXAMPLES .
 This bit should not be set when assigning
 .Dv SIG_DFL
@@ -326,7 +329,7 @@ is possible on a descriptor (see
 .El
 .Sh NOTE
 The
-.Fa sa_mask
+.Va sa_mask
 field specified in
 .Fa act
 is not allowed to block
@@ -434,7 +437,8 @@ Realtime Interfaces:
 .Fn sigset ,
 .Fn timer_settime .
 .Pp
-ANSI C Interfaces:
+.Tn ANSI C
+Interfaces:
 .Pp
 .Fn strcpy ,
 .Fn strcat ,
@@ -464,42 +468,58 @@ being set by functions called from inside the signal handler.
 .Sh EXAMPLES
 There are three possible prototypes the handler may match:
 .Bl -tag -offset indent -width short
-.It ANSI C:
+.It Tn ANSI C :
 .Ft void
 .Fn handler int ;
 .It Traditional BSD style:
 .Ft void
 .Fn handler int "int code" "struct sigcontext *scp" ;
-.It POSIX SA_SIGINFO:
+.It Tn POSIX Dv SA_SIGINFO :
 .Ft void
 .Fn handler int "siginfo_t *info" "ucontext_t *uap" ;
 .El
 .Pp
-The handler function should match the SA_SIGINFO prototype if the
-SA_SIGINFO bit is set in flags.
+The handler function should match the
+.Dv SA_SIGINFO
+prototype if the
+.Dv SA_SIGINFO
+bit is set in
+.Va sa_flags .
 It then should be pointed to by the
-.Dv sa_sigaction
+.Va sa_sigaction
 member of
-.Dv struct sigaction .
-Note that you should not assign SIG_DFL or SIG_IGN this way.
+.Vt "struct sigaction" .
+Note that you should not assign
+.Dv SIG_DFL
+or
+.Dv SIG_IGN
+this way.
 .Pp
-If the SA_SIGINFO flag is not set, the handler function should match
-either the ANSI C or traditional
+If the
+.Dv SA_SIGINFO
+flag is not set, the handler function should match
+either the
+.Tn ANSI C
+or traditional
 .Bx
 prototype and be pointed to by
 the
-.Dv sa_handler
+.Va sa_handler
 member of
-.Dv struct sigaction .
+.Vt "struct sigaction" .
 In practice,
 .Fx
-always sends the three arguments of the latter and since the ANSI C
+always sends the three arguments of the latter and since the
+.Tn ANSI C
 prototype is a subset, both will work.
 The
-.Dv sa_handler
+.Va sa_handler
 member declaration in
 .Fx
-include files is that of ANSI C (as required by POSIX),
+include files is that of
+.Tn ANSI C
+(as required by
+.Tn POSIX ) ,
 so a function pointer of a
 .Bx Ns -style
 function needs to be casted to
@@ -507,7 +527,9 @@ compile without warning.
 The traditional
 .Bx
 style is not portable and since its capabilities
-are a full subset of a SA_SIGINFO handler,
+are a full subset of a
+.Dv SA_SIGINFO
+handler,
 its use is deprecated.
 .Pp
 The
@@ -521,27 +543,33 @@ The
 argument of the
 .Bx Ns -style
 handler and the
-.Dv si_code
+.Va si_code
 member of the
-.Dv info
-argument to a SA_SIGINFO handler contain a numeric code explaining the
+.Fa info
+argument to a
+.Dv SA_SIGINFO
+handler contain a numeric code explaining the
 cause of the signal, usually one of the
 .Dv SI_...
 values from
 <sys/signal.h> or codes specific to a signal, i.e. one of the
 .Dv FPE_...
-values for SIGFPE.
+values for
+.Dv SIGFPE .
 .Pp
 The
 .Fa scp
 argument to a
 .Bx Ns -style
-handler points to an instance of struct
-sigcontext.
+handler points to an instance of
+.Vt "struct sigcontext" .
 .Pp
 The
 .Fa uap
-argument to a POSIX SA_SIGINFO handler points to an instance of
+argument to a
+.Tn POSIX
+.Dv SA_SIGINFO
+handler points to an instance of
 ucontext_t.
 .Sh ERRORS
 The
