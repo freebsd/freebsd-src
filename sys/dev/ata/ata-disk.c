@@ -272,17 +272,18 @@ addump(dev_t dev)
     ata_reinit(adp->controller);
 
     while (count > 0) {
+	vm_offset_t va;
 	DELAY(1000);
 	if (is_physical_memory(addr))
-	    pmap_kenter((vm_offset_t)CADDR1, trunc_page(addr));
+	    va = pmap_enter_temporary(trunc_page(addr), VM_PROT_READ);
 	else
-	    pmap_kenter((vm_offset_t)CADDR1, trunc_page(0));
+	    va = pmap_enter_temporary(trunc_page(0), VM_PROT_READ);
 
 	bzero(&request, sizeof(struct ad_request));
 	request.device = adp;
 	request.blockaddr = blkno;
 	request.bytecount = PAGE_SIZE;
-	request.data = CADDR1;
+	request.data = (int8_t *) va;
 
 	while (request.bytecount > 0) {
 	    ad_transfer(&request);
