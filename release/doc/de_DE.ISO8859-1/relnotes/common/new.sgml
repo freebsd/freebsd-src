@@ -1,6 +1,6 @@
 <!--
-  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/relnotes/common/new.sgml,v 1.3.2.35 2002/05/19 15:46:44 ue Exp $
-  basiert auf: 1.22.2.239
+  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/relnotes/common/new.sgml,v 1.3.2.43 2002/05/31 20:44:33 ue Exp $
+  basiert auf: 1.22.2.248
 -->
 
 <articleinfo>
@@ -179,6 +179,13 @@
 
       <para>Der Treiber &man.dc.4; unterst&uuml;tzt jetzt VLANs.</para>
 
+      <para arch="i386">Der Standardkernel
+	(<filename>GENERIC</filename>) verwendet zur
+	Unterst&uuml;tzung von Gigabit Ethernet Karten von Intel jetzt
+	den Treiber &man.em.4; und nicht mehr &man.wx.4;.  Letzterer
+	sollte seit &os; 4.5-RELEASE nicht mehr verwendet
+	werden.</para>
+
       <para arch="alpha">Der Treiber &man.fpa.4; kann jetzt auch auf
 	Alpha-Systemen verwendet werden.</para>
 
@@ -188,7 +195,6 @@
       <para>Der Treiber &man.wi.4; unterst&uuml;tzt jetzt
         Netzwerkkarten mit dem Prism II und Prism 2.5.  104/128-bit
         WEP funktioniert jetzt auf Prism Karten.</para>
-
 
       <para>Der Treiber &man.wi.4; unterst&uuml;tzt jetzt auch die
 	Nutzung eines &os; Systems als Wireless Access Point.  Diese
@@ -234,7 +240,7 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
         dynamischen &Auml;nderungen erh&ouml;ht. VLANs werden jetzt
         vollst&auml;ndig unterst&uuml;tzt.</para>
 
-      <para>Bei der Behandlung von IPSec f&uuml;r IPv4 wurde ein
+      <para>Bei der Behandlung von IPsec f&uuml;r IPv4 wurde ein
         Fehler beseitigt, der dazu f&uuml;hrte, da&szlig; die
         &Uuml;berpr&uuml;fung von empfangenen SPDs nicht
         durchgef&uuml;hrt wurde.</para>
@@ -261,6 +267,21 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
 
       <para>Der Treiber &man.ata.4; wurde auf den Stand von &os;
 	-CURRENT vom 18. M&auml;rz 2002 gebracht.</para>
+
+      <important>
+	<para>Einige Anwender haben von Problemen beim Test von ATA
+	  tagged queueing berichtet.  Typischerweise kommt es
+	  w&auml;hrend des Systemstarts zu Timeouts bei Lesezugriffen,
+	  die dazu f&uuml;hren, da&szlig; das Root-Dateisystem nicht
+	  gemountet werden kann.  Diese Probleme traten nur bei
+	  Systmen auf, bei denen Festplatten mit diesem Feature an die
+	  IDE-Kontroller auf dem Mainboard angeschlossen waren.  Da
+	  dieses Feature nur von einigen Festplatten unterst&uuml;tzt
+	  wird und explizit aktiviert werden mu&szlig; (durch die
+	  Angabe von <literal>hw.ata.tags="1"</literal> in
+	  <filename>/boot/loader.conf</filename>), sollte die Mehrheit
+	  der Benutzer nicht von diesem Problem betroffen sein.</para>
+      </important>
 
       <para>Der Treiber &man.ata.4; kann jetzt ATA RAIDs erzeugen,
 	l&ouml;schen, abfragen und regenerieren, zur Steuerung dient
@@ -369,11 +390,40 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
       Informatione finden Sie in <ulink
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:23.stdio.asc">FreeBSD-SA-02:23</ulink>.</para>
 
+    <para>Bei der Benutzung von &man.k5su.8; konnte es zu unerwarteten
+      Seiteneffekten kommen, da ein Benutzer nicht in der Gruppe
+      <groupname>wheel</groupname> eingetragen sein mu&szlig;, um mit
+      diesem Programm zum Super-User zu werden (so wie das bei
+      &man.su.1; der Fall ist).  Um Probleme zu vermeiden, wird
+      &man.k5su.8;  standardm&auml;&szlig;ig nicht mehr SUID root
+      installiert und damit wirkungslos gemacht.  Weitere
+      Informationen finden Sie in <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:24.k5su.asc">FreeBSD-SA-02:24</ulink>.</para>
+
+    <para>In &man.bzip2.1; wurden mehrere Fehler entdeckt, durch die
+      es m&ouml;glich war, da&szlig;  Dateien ohne Warnung
+      &uuml;berschrieben werden konnten;  au&szlig;erdem war es
+      m&ouml;glich, da&szlig;  lokale Benutzer Zugriff auf f&uuml;r
+      sie eigentlich nicht zug&auml;ngliche Dateien erhielten.  Diese
+      Fehler wurden durch den Import einer neuen Version von
+      <application>bzip2</application> behoben.  Weitere Informationen
+      finden Sie in <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:25.bzip2.asc">FreeBSD-SA-02:25</ulink>.</para>
+
     <para>Ein Fehler in der Implementation des TCP SYN Cache
       (<quote>syncache</quote>) erlaubte es einem Angreifer, einen
       Denial-of-Service Angriff durchzuf&uuml;hren, wenn
       &man.accept.filter.9; genutzt wurden.  Dieser Fehler wurde
-      beseitigt.</para>
+      beseitigt, weitere Informationen finden Sie in <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:26.accept.asc">FreeBSD-SA-02:26</ulink>.</para>
+
+    <para>Durch einen Fehler bei der Behandlung der Shell-Wildcards in
+      &man.rc.8; war es normalen Anwendern m&ouml;glich, beliebige
+      Dateien zu l&ouml;schen, wenn das Verzeichnis
+      <filename>/tmp/.X11-unix</filename> nicht existierte und sie
+      einen Neustart des Systems erzwingen konnten.  Dieser Fehler
+      wurde beseitigt, weitere Informationen finden Sie in <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:27.rc.asc">FreeBSD-SA-02:27</ulink>).</para>
   </sect2>
 
   <sect2 id="userland">
@@ -432,7 +482,7 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
     <para>&man.k5su.8; wird standardm&auml;&szlig;ig nicht mehr SUID
       <username>root</username> installiert.  Wenn Sie dieses Feature
       ben&ouml;tigen, m&uuml;ssen Sie die Dateiberechtigungen f&uuml;r
-      &man.k5su.8 manuell &auml;ndern oder vor dem Update via
+      &man.k5su.8; manuell &auml;ndern oder vor dem Update via
       Sourcecode die Zeile <literal>ENABLE_SUID_K5SU=yes</literal> in
       <filename>/etc/make.conf</filename> eintragen.</para>
 
@@ -539,7 +589,7 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
 
     <para>Bei einem Teil der Locales wurden die Namen ge&auml;ndert,
       aus <literal>*.EUC</literal> wurde <literal>*.euc??</literal>.
-      Zum Beispiel wurde <literal>ja_JP.euc</literal> in
+      Zum Beispiel wurde <literal>ja_JP.EUC</literal> in
       <literal>ja_JP.eucJP</literal> umbenannt.  Durch diese
       &Auml;nderung wurde die Kompatibilit&auml;t der Namen mit &os;
       CURRENT, X11R6 und einigen anderen UNIX-Varianten
@@ -600,6 +650,23 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
 	  Variablen <varname>mta_start_script</varname> ge&auml;ndert
 	  werden.  Weitere Informationen finden Sie in der Manualpage
 	  &man.rc.sendmail.8;.</para>
+
+	<para>Wenn die von <application>sendmail</application>
+	  verwendeten Datenbanken alias und map mit
+	  <filename>/etc/mail/Makefile</filename> erzeugt werden,
+	  werden die Zugriffsrechte jetzt standardm&auml;&szlig;ig auf
+	  0640 gesetzt, um einen Denial-of-Service Angriff mittels
+	  File Locking durch lokale Benutzer zu verhindern.  Die
+	  Zugriffsrechte k&ouml;nnen in <filename>make.conf</filename>
+	  mit der neuen Option <varname>SENDMAIL_MAP_PERMS</varname>
+	  ge&auml;ndert werden.</para>
+
+	<para>Die Zugriffsrechte f&uuml;r
+	  <filename>/var/log/sendmail.st</filename>, die Datei mit den
+	  <application>sendmail</application>-Statistiken, wurden von
+	  0644 auf 0640 ge&auml;ndert, um einen Denial-of-Service
+	  Angriff mittels File Locking durch lokale Benutzer zu
+	  verhindern.</para>
       </sect4>
     </sect3>
 

@@ -1,8 +1,7 @@
 <!--
   $FreeBSD$
-  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/alpha/proc-alpha.sgml,v 1.4.2.6 2002/05/12 11:45:23 mheinen Exp $
-  $Id: proc-alpha.sgml,v 1.18 2002/03/10 16:53:43 ue Exp $
-  basiert auf: 1.13.2.21
+  $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/hardware/alpha/proc-alpha.sgml,v 1.4.2.7 2002/05/26 10:25:57 ue Exp $
+  basiert auf: 1.13.2.22
 -->
 
 <sect1>
@@ -1756,7 +1755,7 @@ cpu     EV4</programlisting>
         ebenfalls gebootet werden. Der Diamond FirePort baut zwar ebenfalls
         auf Chips von Symbios auf, hingegen kann der SRM des PC164SX
         davon nicht booten.  Es gibt Berichte, da&szlig; die PC164SX
-        problemlos von Karten mit Symbios825, Symbios875 und
+        problemlos von Karten mit Symbios825, Symbios875, Symbios895 und
         Symbios876 booten kann.  Es gibt ebenfalls Erfolgsmeldungen
         f&uuml;r Adaptec 2940U und 2940UW (verifiziert mit SRM
         V5.7-1). Adaptec 2930U2 und 2940U2[W] funktionieren
@@ -1768,6 +1767,20 @@ cpu     EV4</programlisting>
       <para>Kurz zusammengefa&szlig;t: Die Maschinen dieser
         Modellreihe sind in Punkto Kompatibilit&auml;t der
         SCSI-Kontroller eine echte Herausforderung.</para>
+
+      <para>Die 164SX unterst&uuml;tzt maximal 1 GByte RAM.  Es gibt
+	Berichte, da&szlig; eine Best&uuml;ckung mit vier normalen
+	256MB PC133 ECC DIMMs problemlos funktioniert.  Zur Zeit ist
+	nicht bekannt, ob auch 512MB DIMMs genutzt werden
+	k&ouml;nnen.</para>
+
+      <para>Die 164SX hat Probleme mit einigen PCI Bridge Chips, was
+	zu SRM Fehlern und Kernel Panics f&uuml;hren kann.  Dies
+	scheint davon abzuh&auml;ngen, ob die SRM Konsole den Chip
+	unterst&uuml;tzt und korrekt initialisieren kann.  Das
+	eingebaute IDE Interface der 164SX ist sehr langsam, durch die
+	Verwendung einer Karte von Promise kann man die
+	Geschwindigkeit um den Faktor 3-4 erh&ouml;hen.</para>
 
       <para>Der SRM der PC164 scheint ab und zu seine Einstellungen zu
         vergessen. Um ohne den Verlust von Einstellungen auszukommen,
