@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id$
+ *      $Id: scsi_sa.c,v 1.1 1998/09/15 06:36:34 gibbs Exp $
  */
 
 #include <sys/param.h>
@@ -60,6 +60,18 @@
 #include <cam/scsi/scsi_sa.h>
 
 #ifdef KERNEL
+
+#include <opt_sa.h>
+
+#ifndef SA_SPACE_TIMEOUT
+#define SA_SPACE_TIMEOUT	1 * 60
+#endif
+#ifndef SA_REWIND_TIMEOUT
+#define SA_REWIND_TIMEOUT	2 * 60
+#endif
+#ifndef SA_ERASE_TIMEOUT
+#define SA_ERASE_TIMEOUT	4 * 60
+#endif
 
 #define	SAUNIT(DEV) ((minor(DEV)&0xF0) >> 4)	/* 4 bit unit.	*/
 #define	SASETUNIT(DEV, U) makedev(major(DEV), ((U) << 4))
@@ -1835,16 +1847,13 @@ sarewind(struct cam_periph *periph)
 
 	ccb = cam_periph_getccb(periph, /*priority*/1);
 
-	/*
-	 * Put in a 2 hour timeout to deal with especially slow tape drives.
-	 */
 	scsi_rewind(&ccb->csio,
 		    /*retries*/1,
 		    /*cbcfp*/sadone,
 		    MSG_SIMPLE_Q_TAG,
 		    /*immediate*/FALSE,
 		    SSD_FULL_SIZE,
-		    (120 * 60 * 1000)); /* 2 hours */
+		    (SA_REWIND_TIMEOUT) * 60 * 1000);
 
 	error = cam_periph_runccb(ccb, saerror, /*cam_flags*/0,
 				  /*sense_flags*/0, &softc->device_stats);
@@ -1878,7 +1887,7 @@ saspace(struct cam_periph *periph, int count, scsi_space_code code)
 		   MSG_SIMPLE_Q_TAG,
 		   code, count,
 		   SSD_FULL_SIZE,
-		   60 * 60 *1000);
+		   (SA_SPACE_TIMEOUT) * 60 * 1000);
 
 	error = cam_periph_runccb(ccb, saerror, /*cam_flags*/0,
 				  /*sense_flags*/0, &softc->device_stats);
@@ -2073,7 +2082,7 @@ saerase(struct cam_periph *periph, int longerase)
 		   /*immediate*/ FALSE,
 		   /*long_erase*/ longerase,
 		   /*sense_len*/ SSD_FULL_SIZE,
-		   /*timeout*/ 4 * 60 * 60 * 1000);  /* 4 hours */
+		   /*timeout*/ (SA_ERASE_TIMEOUT) * 60 * 1000);
 
 	error = cam_periph_runccb(ccb, saerror, /*cam_flags*/0,
 				  /*sense_flags*/0, &softc->device_stats);
