@@ -1318,26 +1318,7 @@ hpfs_create(ap)
 
 	error = hpfs_makefnode (ap->a_dvp, ap->a_vpp, ap->a_cnp, ap->a_vap);
 
-	if ((ap->a_cnp->cn_flags & (HASBUF | SAVESTART)) == HASBUF)
-		zfree(namei_zone, ap->a_cnp->cn_pnbuf);
-
 	return (error);
-}
-
-static int
-hpfs_abortop(ap)
-	struct vop_abortop_args /* {
-		struct vnode *a_dvp;
-		struct componentname *a_cnp;
-	} */ *ap;
-{
-	dprintf(("hpfs_abortop(0x%x, %s, %ld): \n", VTOHP(ap->a_dvp)->h_no,
-		ap->a_cnp->cn_nameptr, ap->a_cnp->cn_namelen));
-
-	if ((ap->a_cnp->cn_flags & (HASBUF | SAVESTART)) == HASBUF)
-		zfree(namei_zone, ap->a_cnp->cn_pnbuf);
-
-	return (0);
 }
 
 /*

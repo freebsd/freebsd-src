@@ -339,14 +339,6 @@ vop_readlink {
 };
 
 #
-#% abortop	dvp	= = =
-#
-vop_abortop {
-	IN struct vnode *dvp;
-	IN struct componentname *cnp;
-};
-
-#
 #% inactive	vp	L U U
 #
 vop_inactive {

@@ -193,9 +193,9 @@ interpret:
 			goto exec_fail_dealloc;
 		if (imgp->interpreted) {
 			exec_unmap_first_page(imgp);
-			/* free old vnode and name buffer */
+			/* free name buffer and old vnode */
+			NDFREE(ndp, NDF_ONLY_PNBUF);
 			vrele(ndp->ni_vp);
-			zfree(namei_zone, ndp->ni_cnd.cn_pnbuf);
 			/* set new name to that of the interpreter */
 			NDINIT(ndp, LOOKUP, LOCKLEAF | FOLLOW | SAVENAME,
 			    UIO_SYSSPACE, imgp->interpreter_name, p);
@@ -353,8 +353,8 @@ exec_fail_dealloc:
 			ARG_MAX + PAGE_SIZE);
 
 	if (imgp->vp) {
+		NDFREE(ndp, NDF_ONLY_PNBUF);
 		vrele(imgp->vp);
-		zfree(namei_zone, ndp->ni_cnd.cn_pnbuf);
 	}
 
 	if (error == 0)

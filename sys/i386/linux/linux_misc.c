@@ -54,6 +54,7 @@
 #include <vm/vm_kern.h>
 #include <vm/vm_map.h>
 #include <vm/vm_extern.h>
+#include <vm/vm_zone.h>
 
 #include <machine/frame.h>
 #include <machine/psl.h>
@@ -194,10 +195,15 @@ linux_uselib(struct proc *p, struct linux_uselib_args *args)
 	goto cleanup;
 
     vp = ni.ni_vp;
+    /*
+     * XXX This looks like a bogus check - a LOCKLEAF namei should not succeed
+     * without returning a vnode.
+     */
     if (vp == NULL) {
 	error = ENOEXEC;	/* ?? */
 	goto cleanup;
     }
+    NDFREE(&ni, NDF_ONLY_PNBUF);
 
     /*
      * From here on down, we have a locked vnode that must be unlocked.

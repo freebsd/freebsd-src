@@ -60,7 +60,6 @@
 #include <miscfs/procfs/procfs.h>
 #include <sys/pioctl.h>
 
-static int	procfs_abortop __P((struct vop_abortop_args *));
 static int	procfs_access __P((struct vop_access_args *));
 static int	procfs_badop __P((void));
 static int	procfs_bmap __P((struct vop_bmap_args *));
@@ -387,25 +386,6 @@ procfs_print(ap)
 
 	printf("tag VT_PROCFS, type %d, pid %ld, mode %x, flags %lx\n",
 	    pfs->pfs_type, (long)pfs->pfs_pid, pfs->pfs_mode, pfs->pfs_flags);
-	return (0);
-}
-
-/*
- * _abortop is called when operations such as
- * rename and create fail.  this entry is responsible
- * for undoing any side-effects caused by the lookup.
- * this will always include freeing the pathname buffer.
- */
-static int
-procfs_abortop(ap)
-	struct vop_abortop_args /* {
-		struct vnode *a_dvp;
-		struct componentname *a_cnp;
-	} */ *ap;
-{
-
-	if ((ap->a_cnp->cn_flags & (HASBUF | SAVESTART)) == HASBUF)
-		zfree(namei_zone, ap->a_cnp->cn_pnbuf);
 	return (0);
 }
 
@@ -997,7 +977,6 @@ atopid(b, len)
 vop_t **procfs_vnodeop_p;
 static struct vnodeopv_entry_desc procfs_vnodeop_entries[] = {
 	{ &vop_default_desc,		(vop_t *) vop_defaultop },
-	{ &vop_abortop_desc,		(vop_t *) procfs_abortop },
 	{ &vop_access_desc,		(vop_t *) procfs_access },
 	{ &vop_advlock_desc,		(vop_t *) procfs_badop },
 	{ &vop_bmap_desc,		(vop_t *) procfs_bmap },

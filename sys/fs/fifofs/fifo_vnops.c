@@ -79,7 +79,6 @@ static int	fifo_advlock __P((struct vop_advlock_args *));
 vop_t **fifo_vnodeop_p;
 static struct vnodeopv_entry_desc fifo_vnodeop_entries[] = {
 	{ &vop_default_desc,		(vop_t *) vop_defaultop },
-	{ &vop_abortop_desc,		(vop_t *) fifo_badop },
 	{ &vop_access_desc,		(vop_t *) vop_ebadf },
 	{ &vop_advlock_desc,		(vop_t *) fifo_advlock },
 	{ &vop_bmap_desc,		(vop_t *) fifo_bmap },

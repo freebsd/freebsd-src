@@ -46,6 +46,7 @@
 #include <sys/proc.h>
 #include <sys/vnode.h>
 #include <sys/mount.h>
+#include <vm/vm_zone.h>
 
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/inode.h>
@@ -390,6 +391,7 @@ quotaon(p, mp, type, fname)
 	error = vn_open(&nd, FREAD|FWRITE, 0);
 	if (error)
 		return (error);
+	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vp = nd.ni_vp;
 	VOP_UNLOCK(vp, 0, p);
 	if (vp->v_type != VREG) {

@@ -279,8 +279,8 @@ coff_load_file(struct proc *p, char *name)
  fail:
 	VOP_UNLOCK(vp, 0, p);
  unlocked_fail:
+	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vrele(nd.ni_vp);
-	zfree(namei_zone, nd.ni_cnd.cn_pnbuf);
   	return error;
 }
 

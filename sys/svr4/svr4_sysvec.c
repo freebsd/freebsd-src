@@ -296,6 +296,7 @@ svr4_emul_find(p, sgp, prefix, path, pbuf, cflag)
 			free(buf, M_TEMP);
 			return error;
 		}
+		NDFREE(&nd, NDF_ONLY_PNBUF);
 
 		*cp = '/';
 	}
@@ -306,6 +307,7 @@ svr4_emul_find(p, sgp, prefix, path, pbuf, cflag)
 			free(buf, M_TEMP);
 			return error;
 		}
+		NDFREE(&nd, NDF_ONLY_PNBUF);
 
 		/*
 		 * We now compare the vnode of the svr4_root to the one
@@ -324,6 +326,7 @@ svr4_emul_find(p, sgp, prefix, path, pbuf, cflag)
 			vrele(nd.ni_vp);
 			return error;
 		}
+		NDFREE(&ndroot, NDF_ONLY_PNBUF);
 
 		if ((error = VOP_GETATTR(nd.ni_vp, &vat, p->p_ucred, p)) != 0) {
 			goto done;

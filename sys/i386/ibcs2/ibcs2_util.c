@@ -27,6 +27,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *	from: svr4_util.c,v 1.5 1995/01/22 23:44:50 christos Exp
+ * $FreeBSD$
  */
 
 #include <sys/param.h>
@@ -36,6 +37,8 @@
 #include <sys/vnode.h>
 
 #include <i386/ibcs2/ibcs2_util.h>
+
+#include <vm/vm_zone.h>
 
 const char      ibcs2_emul_path[] = "/compat/ibcs2";
 
@@ -133,6 +136,7 @@ ibcs2_emul_find(p, sgp, prefix, path, pbuf, cflag)
 		if ((error = namei(&ndroot)) != 0) {
 			/* Cannot happen! */
 			free(buf, M_TEMP);
+			NDFREE(&nd, NDF_ONLY_PNBUF);
 			vrele(nd.ni_vp);
 			return error;
 		}
@@ -164,8 +168,11 @@ ibcs2_emul_find(p, sgp, prefix, path, pbuf, cflag)
 
 
 done:
+	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vrele(nd.ni_vp);
-	if (!cflag)
+	if (!cflag) {
+		NDFREE(&ndroot, NDF_ONLY_PNBUF);
 		vrele(ndroot.ni_vp);
+	}
 	return error;
 }

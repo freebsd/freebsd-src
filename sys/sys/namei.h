@@ -144,13 +144,62 @@ struct nameidata {
 /*
  * Initialization of an nameidata structure.
  */
-#define NDINIT(ndp, op, flags, segflg, namep, p) { \
-	(ndp)->ni_cnd.cn_nameiop = op; \
-	(ndp)->ni_cnd.cn_flags = flags; \
-	(ndp)->ni_segflg = segflg; \
-	(ndp)->ni_dirp = namep; \
-	(ndp)->ni_cnd.cn_proc = p; \
+static void NDINIT __P((struct nameidata *, u_long, u_long, enum uio_seg,
+	    const char *, struct proc *));
+static __inline void
+NDINIT(ndp, op, flags, segflg, namep, p)
+	struct nameidata *ndp;
+	u_long op, flags;
+	enum uio_seg segflg;
+	const char *namep;
+	struct proc *p;
+{
+	ndp->ni_cnd.cn_nameiop = op;
+	ndp->ni_cnd.cn_flags = flags;
+	ndp->ni_segflg = segflg;
+	ndp->ni_dirp = namep;
+	ndp->ni_cnd.cn_proc = p;
 }
+
+#define NDF_NO_DVP_RELE		0x00000001
+#define NDF_NO_DVP_UNLOCK	0x00000002
+#define NDF_NO_DVP_PUT		0x00000003
+#define NDF_NO_VP_RELE		0x00000004
+#define NDF_NO_VP_UNLOCK	0x00000008
+#define NDF_NO_VP_PUT		0x0000000c
+#define NDF_NO_STARTDIR_RELE	0x00000010
+#define NDF_NO_FREE_PNBUF	0x00000020
+#define NDF_ONLY_PNBUF		(~NDF_NO_FREE_PNBUF)
+
+#define NDFREE(ndp, flags) do {						\
+	struct nameidata *_ndp = (ndp);					\
+	unsigned int _flags = (flags);					\
+									\
+	if (!(_flags & NDF_NO_FREE_PNBUF) &&				\
+	    (_ndp->ni_cnd.cn_flags & HASBUF)) {				\
+		zfree(namei_zone, _ndp->ni_cnd.cn_pnbuf);		\
+		_ndp->ni_cnd.cn_flags &= ~HASBUF;			\
+	}								\
+	if (!(_flags & NDF_NO_DVP_UNLOCK) &&				\
+	    (_ndp->ni_cnd.cn_flags & LOCKPARENT))			\
+		VOP_UNLOCK(_ndp->ni_dvp, 0, _ndp->ni_cnd.cn_proc);	\
+	if (!(_flags & NDF_NO_DVP_RELE) &&				\
+	    (_ndp->ni_cnd.cn_flags & (LOCKPARENT|WANTPARENT))) {	\
+		vrele(_ndp->ni_dvp);					\
+		_ndp->ni_dvp = NULL;					\
+	}								\
+	if (!(_flags & NDF_NO_VP_RELE) &&				\
+	    _ndp->ni_vp) {						\
+		vrele(_ndp->ni_vp);					\
+		_ndp->ni_vp = NULL;					\
+	}								\
+	if (!(_flags & NDF_NO_STARTDIR_RELE) &&				\
+	    (_ndp->ni_cnd.cn_flags & SAVESTART)) {			\
+		vrele(_ndp->ni_startdir);				\
+		_ndp->ni_startdir = NULL;				\
+	}								\
+} while (0)
+
 #endif
 
 #ifdef KERNEL

@@ -40,6 +40,8 @@
 #include <dev/vinum/vinumhdr.h>
 #include <dev/vinum/request.h>
 
+#include <vm/vm_zone.h>
+
 static char *sappend(char *txt, char *s);
 static int drivecmp(const void *va, const void *vb);
 
@@ -77,6 +79,7 @@ open_drive(struct drive *drive, struct proc *p, int verbose)
 		drive->vp->v_usecount);
     }
     if (!vn_isdisk(drive->vp)) {			    /* only consider block devices */
+    	NDFREE(&nd, NDF_ONLY_PNBUF);
 	VOP_UNLOCK(drive->vp, 0, drive->p);
 	close_drive(drive);
 	drive->lasterror = ENOTBLK;
@@ -88,6 +91,7 @@ open_drive(struct drive *drive, struct proc *p, int verbose)
     }
     drive->vp->v_numoutput = 0;
     VOP_UNLOCK(drive->vp, 0, drive->p);
+    NDFREE(&nd, NDF_NO_VP_RELE);
     return 0;
 }
 

@@ -73,7 +73,6 @@ static int iso_uiodir __P((struct isoreaddir *idp, struct dirent *dp,
 static int iso_shipdir __P((struct isoreaddir *idp));
 static int cd9660_readdir __P((struct vop_readdir_args *));
 static int cd9660_readlink __P((struct vop_readlink_args *ap));
-static int cd9660_abortop __P((struct vop_abortop_args *));
 static int cd9660_strategy __P((struct vop_strategy_args *));
 static int cd9660_print __P((struct vop_print_args *));
 static int cd9660_getpages __P((struct vop_getpages_args *));
@@ -737,22 +736,6 @@ cd9660_readlink(ap)
 }
 
 /*
- * Ufs abort op, called after namei() when a CREATE/DELETE isn't actually
- * done. If a buffer has been saved in anticipation of a CREATE, delete it.
- */
-static int
-cd9660_abortop(ap)
-	struct vop_abortop_args /* {
-		struct vnode *a_dvp;
-		struct componentname *a_cnp;
-	} */ *ap;
-{
-	if ((ap->a_cnp->cn_flags & (HASBUF | SAVESTART)) == HASBUF)
-		zfree(namei_zone, ap->a_cnp->cn_pnbuf);
-	return (0);
-}
-
-/*
  * Calculate the logical to physical mapping if not done already,
  * then call the device strategy routine.
  */
@@ -880,7 +863,6 @@ cd9660_putpages(ap)
 vop_t **cd9660_vnodeop_p;
 static struct vnodeopv_entry_desc cd9660_vnodeop_entries[] = {
 	{ &vop_default_desc,		(vop_t *) vop_defaultop },
-	{ &vop_abortop_desc,		(vop_t *) cd9660_abortop },
 	{ &vop_access_desc,		(vop_t *) cd9660_access },
 	{ &vop_bmap_desc,		(vop_t *) cd9660_bmap },
 	{ &vop_cachedlookup_desc,	(vop_t *) cd9660_lookup },

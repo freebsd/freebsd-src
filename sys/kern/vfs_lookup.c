@@ -372,6 +372,7 @@ dirloop:
 		ndp->ni_vp = dp;
 		if (!(cnp->cn_flags & (LOCKPARENT | LOCKLEAF)))
 			VOP_UNLOCK(dp, 0, p);
+		/* XXX This should probably move to the top of function. */
 		if (cnp->cn_flags & SAVESTART)
 			panic("lookup: SAVESTART");
 		return (0);
@@ -527,9 +528,8 @@ nextname:
 			cnp->cn_nameptr++;
 			ndp->ni_pathlen--;
 		}
-		if (ndp->ni_dvp != ndp->ni_vp) {
-		    ASSERT_VOP_UNLOCKED(ndp->ni_dvp, "lookup");
-		}
+		if (ndp->ni_dvp != ndp->ni_vp)
+			ASSERT_VOP_UNLOCKED(ndp->ni_dvp, "lookup");
 		vrele(ndp->ni_dvp);
 		goto dirloop;
 	}
@@ -629,6 +629,7 @@ relookup(dvp, vpp, cnp)
 		if (!(cnp->cn_flags & LOCKLEAF))
 			VOP_UNLOCK(dp, 0, p);
 		*vpp = dp;
+		/* XXX This should probably move to the top of function. */
 		if (cnp->cn_flags & SAVESTART)
 			panic("lookup: SAVESTART");
 		return (0);

@@ -53,6 +53,7 @@
 #include <vm/vm_page.h>
 #include <vm/vm_object.h>
 #include <vm/vm_extern.h>
+#include <vm/vm_zone.h>
 
 #if defined(__NetBSD__)
 #include <miscfs/specfs/specdev.h>
@@ -316,7 +317,7 @@ ntfs_mount (
 		/* can't get devvp!*/
 		goto error_1;
 	}
-
+	NDFREE(ndp, NDF_ONLY_PNBUF);
 	devvp = ndp->ni_vp;
 
 #if defined(__FreeBSD__)

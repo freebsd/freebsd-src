@@ -52,6 +52,7 @@
 #include <sys/filio.h>
 #include <sys/ttycom.h>
 #include <sys/conf.h>
+#include <vm/vm_zone.h>
 
 static int vn_closefile __P((struct file *fp, struct proc *p));
 static int vn_ioctl __P((struct file *fp, u_long com, caddr_t data, 
@@ -70,6 +71,9 @@ struct 	fileops vnops =
 /*
  * Common code for vnode open operations.
  * Check permissions, and call the VOP_OPEN or VOP_CREATE routine.
+ * 
+ * Note that this do NOT free nameidata for the successful case,
+ * due to the NDINIT being done elsewhere.
  */
 int
 vn_open(ndp, fmode, cmode)
@@ -100,15 +104,17 @@ vn_open(ndp, fmode, cmode)
 			VOP_LEASE(ndp->ni_dvp, p, cred, LEASE_WRITE);
 			error = VOP_CREATE(ndp->ni_dvp, &ndp->ni_vp,
 					   &ndp->ni_cnd, vap);
-			vput(ndp->ni_dvp);
-			if (error)
+			if (error) {
+				NDFREE(ndp, NDF_ONLY_PNBUF);
+				vput(ndp->ni_dvp);
 				return (error);
+			}
+			vput(ndp->ni_dvp);
 			ASSERT_VOP_UNLOCKED(ndp->ni_dvp, "create");
 			ASSERT_VOP_LOCKED(ndp->ni_vp, "create");
 			fmode &= ~O_TRUNC;
 			vp = ndp->ni_vp;
 		} else {
-			VOP_ABORTOP(ndp->ni_dvp, &ndp->ni_cnd);
 			if (ndp->ni_dvp == ndp->ni_vp)
 				vrele(ndp->ni_dvp);
 			else
@@ -183,6 +189,7 @@ vn_open(ndp, fmode, cmode)
 		vp->v_writecount++;
 	return (0);
 bad:
+	NDFREE(ndp, NDF_ONLY_PNBUF);
 	vput(vp);
 	return (error);
 }

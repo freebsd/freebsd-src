@@ -109,6 +109,8 @@
 
 #include <sys/ccdvar.h>
 
+#include <vm/vm_zone.h>
+
 #if defined(CCDDEBUG) && !defined(DEBUG)
 #define DEBUG
 #endif
@@ -1598,15 +1600,13 @@ ccdlookup(path, p, vpp)
 	vp = nd.ni_vp;
 
 	if (vp->v_usecount > 1) {
-		VOP_UNLOCK(vp, 0, p);
-		(void)vn_close(vp, FREAD|FWRITE, p->p_ucred, p);
-		return (EBUSY);
+		error = EBUSY;
+		goto bad;
 	}
 
 	if (!vn_isdisk(vp)) {
-		VOP_UNLOCK(vp, 0, p);
-		(void)vn_close(vp, FREAD|FWRITE, p->p_ucred, p);
-		return (ENOTBLK);
+		error = ENOTBLK;
+		goto bad;
 	}
 
 #ifdef DEBUG
@@ -1615,8 +1615,15 @@ ccdlookup(path, p, vpp)
 #endif
 
 	VOP_UNLOCK(vp, 0, p);
+	NDFREE(&nd, NDF_ONLY_PNBUF);
 	*vpp = vp;
 	return (0);
+bad:
+	VOP_UNLOCK(vp, 0, p);
+	NDFREE(&nd, NDF_ONLY_PNBUF);
+	/* vn_close does vrele() for vp */
+	(void)vn_close(vp, FREAD|FWRITE, p->p_ucred, p);
+	return (error);
 }
 
 /*
