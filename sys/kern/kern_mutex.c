@@ -405,7 +405,8 @@ mtx_exit_hard(struct mtx *m, int type)
 			_release_lock_quick(m);
 			CTR1(KTR_LOCK, "mtx_exit: 0x%p not held", m);
 		} else
-			m->mtx_lock = MTX_CONTESTED;
+			atomic_store_rel_ptr(&m->mtx_lock,
+			    (void *)MTX_CONTESTED);
 		pri = MAXPRI;
 		LIST_FOREACH(m1, &p->p_contested, mtx_contested) {
 			int cp = TAILQ_FIRST(&m1->mtx_blocked)->p_priority;
