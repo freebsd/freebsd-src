@@ -83,7 +83,7 @@ main(argc, argv)
 	char **argv;
 {
 	enum { NEWSH, LOADENTRY, EDITENTRY, NEWPW, NEWEXP } op;
-	struct passwd *pw = NULL, lpw;
+	struct passwd *pw = NULL, lpw, old_pw;
 	char *username = NULL;
 	int ch, pfd, tfd;
 	char *arg = NULL;
@@ -160,7 +160,7 @@ main(argc, argv)
 
 	uid = getuid();
 
-	if (op == EDITENTRY || op == NEWSH || op == NEWPW || op == NEWEXP)
+	if (op == EDITENTRY || op == NEWSH || op == NEWPW || op == NEWEXP) {
 		switch(argc) {
 #ifdef YP
 		case 0:
@@ -186,6 +186,12 @@ main(argc, argv)
 		default:
 			usage();
 		}
+
+		/* Make a copy for later verification */
+		old_pw = *pw;
+		old_pw.pw_gecos = strdup(old_pw.pw_gecos);
+	}
+
 	if (op == NEWSH) {
 		/* protect p_shell -- it thinks NULL is /bin/sh */
 		if (!arg[0])
@@ -222,31 +228,31 @@ main(argc, argv)
 
 	/*
 	 * The temporary file/file descriptor usage is a little tricky here.
-	 * 1:	We start off with two fd's, one for the master password
-	 *	file (used to lock everything), and one for a temporary file.
+	 * 1:	Create a temporary file called tempname, get descriptor tfd.
 	 * 2:	Display() gets an fp for the temporary file, and copies the
 	 *	user's information into it.  It then gives the temporary file
 	 *	to the user and closes the fp, closing the underlying fd.
 	 * 3:	The user edits the temporary file some number of times.
-	 * 4:	Verify() gets an fp for the temporary file, and verifies the
-	 *	contents.  It can't use an fp derived from the step #2 fd,
-	 *	because the user's editor may have created a new instance of
-	 *	the file.  Once the file is verified, its contents are stored
-	 *	in a password structure.  The verify routine closes the fp,
-	 *	closing the underlying fd.
-	 * 5:	Delete the temporary file.
-	 * 6:	Get a new temporary file/fd.  Pw_copy() gets an fp for it
-	 *	file and copies the master password file into it, replacing
-	 *	the user record with a new one.  We can't use the first
-	 *	temporary file for this because it was owned by the user.
-	 *	Pw_copy() closes its fp, flushing the data and closing the
-	 *	underlying file descriptor.  We can't close the master
-	 *	password fp, or we'd lose the lock.
-	 * 7:	Call pw_mkdb() (which renames the temporary file) and exit.
+	 *	The results are stored in pw by edit().
+	 * 4:	Delete the temporary file.
+	 * 5:	Make a new temporary file, descriptor tfd.
+	 * 6:	Get a descriptor for the master.passwd file, pfd, and
+	 *	lock master.passwd.
+	 * 7:	Pw_copy() gets descriptors for master.passwd and the 
+	 *	temporary file and copies the master password file into it,
+	 *	replacing the modified user's record with a new one.  We can't
+	 *	use the first temporary file for this because it was owned
+	 *	by the user.  Pass the new and old user info.  Check the
+	 *	entry for our user has not been changed by someone else by
+	 *	while the user was editing by comparing the old info to
+	 *	the entry freshly read from master.passwd. Pw_copy() closes
+	 *	its fp, flushing the data and closing the underlying file
+	 *	descriptor.  We can't close the master password fp, or we'd
+	 *	lose the lock.
+	 * 8:	Call pw_mkdb() (which renames the temporary file) and exit.
 	 *	The exit closes the master passwd fp/fd.
 	 */
 	pw_init();
-	pfd = pw_lock();
 	tfd = pw_tmp();
 
 	if (op == EDITENTRY) {
@@ -262,7 +268,8 @@ main(argc, argv)
 		(void)unlink(tempname);
 	} else {
 #endif /* YP */
-	pw_copy(pfd, tfd, pw);
+	pfd = pw_lock();
+	pw_copy(pfd, tfd, pw, (op == LOADENTRY) ? NULL : &old_pw);
 
 	if (!pw_mkdb(username))
 		pw_error((char *)NULL, 0, 1);
