@@ -536,18 +536,6 @@ ENTRY(subyte)
 END(subyte)
 
 /*
- * int suibyte(const void *base, int byte)
- */
-ENTRY(suibyte)
-#if KTR_COMPILE & KTR_CT1
-	CATR(KTR_CT1, "suibyte: base=%#lx", %g1, %g2, %g3, 7, 8, 9)
-	stx	%o0, [%g1 + KTR_PARM1]
-9:
-#endif
-	SU_ALIGNED(stba, fsbail)
-END(suibyte)
-
-/*
  * int susword(const void *base, int word)
  */
 ENTRY(susword)

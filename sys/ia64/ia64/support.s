@@ -359,11 +359,6 @@ ENTRY(fubyte, 1)
 
 END(fubyte)
 	
-ENTRY(suibyte, 2)
-	mov	ret0=-1
-	br.ret.sptk.few rp
-END(suibyte)
-
 ENTRY(fusufault, 0)
 	st8	[r15]=r0 ;;			// r15 points at onfault
 	mov	ret0=r0
