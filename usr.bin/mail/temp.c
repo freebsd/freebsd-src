@@ -32,11 +32,15 @@
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)temp.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include "rcv.h"
-#include <errno.h>
+#include <err.h>
 #include "extern.h"
 
 /*
@@ -62,10 +66,8 @@ tinit()
 		tmpdir = _PATH_TMP;
 	else {
 		len = strlen(tmpdir);
-		if ((cp = malloc(len + 2)) == NULL) {
-			(void)fprintf(stderr, "mail: %s\n", strerror(errno));
-			exit (1);
-		}
+		if ((cp = malloc(len + 2)) == NULL)
+			err(1, NULL);
 		(void)strcpy(cp, tmpdir);
 		cp[len] = '/';
 		cp[len + 1] = '\0';
