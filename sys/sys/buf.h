@@ -110,6 +110,7 @@ struct buf {
 	unsigned char b_xflags;		/* extra flags */
 	struct lock b_lock;		/* Buffer lock */
 	long	b_bufsize;		/* Allocated buffer size. */
+	long	b_runningbufspace;	/* when I/O is running, pipelining */
 	caddr_t	b_kvabase;		/* base kva for buffer */
 	int	b_kvasize;		/* size of kva for buffer */
 	daddr_t	b_lblkno;		/* Logical block number. */
@@ -480,6 +481,7 @@ buf_countdeps(struct buf *bp, int i)
 
 #ifdef _KERNEL
 extern int	nbuf;			/* The number of buffer headers */
+extern int	runningbufspace;
 extern int      buf_maxio;              /* nominal maximum I/O for buffer */
 extern struct	buf *buf;		/* The buffer headers. */
 extern char	*buffers;		/* The buffer contents. */

@@ -242,6 +242,7 @@ extern struct vpgqueues vm_page_queues[PQ_COUNT];
  */
 #define	PG_BUSY		0x0001		/* page is in transit (O) */
 #define	PG_WANTED	0x0002		/* someone is waiting for page (O) */
+#define PG_WINATCFLS	0x0004		/* flush dirty page on inactive q */
 #define	PG_FICTITIOUS	0x0008		/* physical page doesn't exist (O) */
 #define	PG_WRITEABLE	0x0010		/* page is mapped writeable */
 #define PG_MAPPED	0x0020		/* page is mapped */
