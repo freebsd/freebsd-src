@@ -271,26 +271,26 @@ struct com_s {
 };
 
 #ifdef COM_ESP
-static	int	espattach	(struct com_s *com, Port_t esp_port);
+static	int	espattach(struct com_s *com, Port_t esp_port);
 #endif
 
 static	timeout_t siobusycheck;
-static	u_int	siodivisor	(u_long rclk, speed_t speed);
+static	u_int	siodivisor(u_long rclk, speed_t speed);
 static	timeout_t siodtrwakeup;
-static	void	comhardclose	(struct com_s *com);
-static	void	sioinput	(struct com_s *com);
-static	void	siointr1	(struct com_s *com);
-static	void	siointr		(void *arg);
-static	int	commctl		(struct com_s *com, int bits, int how);
-static	int	comparam	(struct tty *tp, struct termios *t);
-static	void	siopoll		(void *);
-static	void	siosettimeout	(void);
-static	int	siosetwater	(struct com_s *com, speed_t speed);
-static	void	comstart	(struct tty *tp);
-static	void	comstop		(struct tty *tp, int rw);
+static	void	comhardclose(struct com_s *com);
+static	void	sioinput(struct com_s *com);
+static	void	siointr1(struct com_s *com);
+static	void	siointr(void *arg);
+static	int	commctl(struct com_s *com, int bits, int how);
+static	int	comparam(struct tty *tp, struct termios *t);
+static	void	siopoll(void *);
+static	void	siosettimeout(void);
+static	int	siosetwater(struct com_s *com, speed_t speed);
+static	void	comstart(struct tty *tp);
+static	void	comstop(struct tty *tp, int rw);
 static	timeout_t comwakeup;
-static	void	disc_optim	(struct tty *tp, struct termios *t,
-				     struct com_s *com);
+static	void	disc_optim(struct tty *tp, struct termios *t,
+		    struct com_s *com);
 
 char		sio_driver_name[] = "sio";
 static struct	mtx sio_lock;
@@ -2705,9 +2705,9 @@ struct siocnstate {
 #ifndef __alpha__
 static speed_t siocngetspeed(Port_t, u_long rclk);
 #endif
-static void siocnclose	(struct siocnstate *sp, Port_t iobase);
-static void siocnopen	(struct siocnstate *sp, Port_t iobase, int speed);
-static void siocntxwait	(Port_t iobase);
+static void siocnclose(struct siocnstate *sp, Port_t iobase);
+static void siocnopen(struct siocnstate *sp, Port_t iobase, int speed);
+static void siocntxwait(Port_t iobase);
 
 #ifdef __alpha__
 int siocnattach(int port, int speed);
