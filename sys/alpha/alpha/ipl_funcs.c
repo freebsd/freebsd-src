@@ -165,3 +165,34 @@ GENSET(schedsoftcambio,	&idelayed,	1 << SWI_CAMBIO)
 GENSET(schedsoftvm,	&idelayed,	1 << SWI_VM)
 GENSET(schedsoftclock,	&idelayed,	1 << SWI_CLOCK)
 
+#ifdef INVARIANT_SUPPORT
+#define	GENSPLASSERT(name, pri)				\
+void							\
+name##assert(const char *msg)				\
+{							\
+	u_int cpl;					\
+							\
+	cpl = getcpl();					\
+	if (cpl < ALPHA_PSL_IPL_##pri);			\
+		panic("%s: not %s, cpl == %#x",		\
+		    msg, __XSTRING(name) + 3, cpl);	\
+}
+#else
+#define	GENSPLASSERT(name, pri)
+#endif
+
+GENSPLASSERT(splbio, IO)
+GENSPLASSERT(splcam, IO)
+GENSPLASSERT(splclock, CLOCK)
+GENSPLASSERT(splhigh, HIGH)
+GENSPLASSERT(splimp, IO)
+GENSPLASSERT(splnet, IO)
+GENSPLASSERT(splsoftcam, SOFT)
+GENSPLASSERT(splsoftcambio, SOFT)	/* XXX no corresponding spl for alpha */
+GENSPLASSERT(splsoftcamnet, SOFT)	/* XXX no corresponding spl for alpha */
+GENSPLASSERT(splsoftclock, SOFT)
+GENSPLASSERT(splsofttty, SOFT)		/* XXX no corresponding spl for alpha */
+GENSPLASSERT(splsoftvm, SOFT)
+GENSPLASSERT(splstatclock, CLOCK)
+GENSPLASSERT(spltty, IO)
+GENSPLASSERT(splvm, IO)
