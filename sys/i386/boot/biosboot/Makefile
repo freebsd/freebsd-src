@@ -20,7 +20,7 @@
 # the rights to redistribute these changes.
 #
 #	from: Mach, Revision 2.2	92/04/04  11:33:46  rpd
-#	$Id: Makefile,v 1.11 1994/08/21 17:47:24 paul Exp $
+#	$Id: Makefile,v 1.12 1994/08/21 18:15:45 paul Exp $
 #
 
 wd0:
@@ -51,7 +51,7 @@ OBJS = start.o table.o boot2.o boot.o asm.o bios.o io.o disk.o sys.o
 	$(CC)  $(CFLAGS) -c $<
 
 boot: $(OBJS)
-	$(LD) -Bstatic -N -T 0 -o boot $(OBJS) $(LIBS)
+	$(LD) -Bstatic -N -T 0 -o boot $(OBJS) $(LIBS) ${LDDESTDIR}
 	cp boot boot.sym
 	@strip boot
 	@size boot
