@@ -169,7 +169,7 @@ intpr(interval, ifnetaddr, pfunc)
 	if (kread(ifnetaddr, (char *)&ifnet, sizeof ifnet))
 		return;
 
-	if (!sflag && !pflag) {
+	if ((!sflag || iflag) && !pflag) {
 		printf("%-5.5s %-5.5s %-13.13s %-15.15s %8.8s %5.5s",
 		       "Name", "Mtu", "Network", "Address", "Ipkts", "Ierrs");
 		if (bflag)
