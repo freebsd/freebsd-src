@@ -59,12 +59,12 @@ star_saver(video_adapter_t *adp, int blank)
 	sc_softc_t	*sc;
 	scr_stat	*scp;
 	int		cell, i;
-	char 		pattern[] = {"...........++++***   "};
+	static u_char	pattern[] = {"...........++++***   "};
 #ifndef PC98
-	char		colors[] = {FG_DARKGREY, FG_LIGHTGREY,
+	static char	colors[] = {FG_DARKGREY, FG_LIGHTGREY,
 				    FG_WHITE, FG_LIGHTCYAN};
 #else
-	char		colors[] = {FG_BLUE, FG_LIGHTGREY,
+	static char	colors[] = {FG_BLUE, FG_LIGHTGREY,
 				    FG_LIGHTGREY, FG_CYAN};
 #endif /* PC98 */
 	static u_short 	stars[NUM_STARS][2];
