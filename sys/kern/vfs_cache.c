@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_cache.c	8.5 (Berkeley) 3/22/95
- * $Id: vfs_cache.c,v 1.24 1997/03/08 15:22:14 bde Exp $
+ * $Id: vfs_cache.c,v 1.25 1997/05/04 09:17:28 phk Exp $
  */
 
 #include <sys/param.h>
@@ -48,7 +48,6 @@
 #include <sys/errno.h>
 #include <sys/malloc.h>
 
-#define MAXVNODEUSE 32
 
 /*
  * Name caching works as follows:
