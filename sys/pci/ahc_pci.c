@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ahc_pci.c,v 1.2 1998/10/07 03:40:51 gibbs Exp $
+ *	$Id: ahc_pci.c,v 1.3 1998/12/07 21:58:45 archie Exp $
  */
 
 #include <pci.h>
@@ -138,7 +138,7 @@ static u_int8_t read_brdctl(struct ahc_softc *ahc);
 
 static struct ahc_softc *first_398X;
 
-static char* ahc_pci_probe(pcici_t tag, pcidi_t type);
+static const char* ahc_pci_probe(pcici_t tag, pcidi_t type);
 static void ahc_pci_attach(pcici_t config_id, int unit);
 
 /* Exported for use in the ahc_intr routine */
@@ -154,7 +154,7 @@ static struct  pci_device ahc_pci_driver = {
 
 DATA_SET (pcidevice_set, ahc_pci_driver);
 
-static  char*
+static const char*
 ahc_pci_probe (pcici_t tag, pcidi_t type)
 {
 	switch (type) {

@@ -1,5 +1,5 @@
 /*	$NetBSD: if_de.c,v 1.80 1998/09/25 18:06:53 matt Exp $	*/
-/*	$Id: if_de.c,v 1.90 1998/11/06 02:13:13 peter Exp $ */
+/*	$Id: if_de.c,v 1.91 1998/11/28 00:25:32 msmith Exp $ */
 
 /*-
  * Copyright (c) 1994-1997 Matt Thomas (matt@3am-software.com)
@@ -5310,7 +5310,7 @@ tulip_pci_shutdown(
 }
 #endif
 
-static char*
+static const char*
 tulip_pci_probe(
     pcici_t config_id,
     pcidi_t device_id)
