@@ -707,7 +707,7 @@ The
 or
 .Cm all
 keywords mean any protocol will match.
-.It Ar src No and Ar dst : ip-address | Cm { Ar ip-address Cm or ... } Op Ar ports
+.It Ar src No and Ar dst : ip-address | Cm { Ar ip-address Cm or ... } Op Oo Cm not Oc Ar ports
 A single
 .Ar ip-address
 , or an
@@ -776,7 +776,7 @@ masks, and resort to the
 format for contiguous masks, which is more compact and less
 error-prone.
 .El
-.It Ar ports : Oo Cm not Oc Bro Ar port | port Ns \&- Ns Ar port Ns Brc Op , Ns Ar ...
+.It Ar ports : Bro Ar port | port Ns \&- Ns Ar port Ns Brc Op , Ns Ar ports
 For protocols which support port numbers (such as TCP and UDP), optional
 .Cm ports
 may be specified as one or more ports or port ranges, separated
@@ -827,10 +827,10 @@ The following match patterns can be used (listed in alphabetical order):
 .Bl -tag -width indent
 .It Cm bridged
 Matches only bridged packets.
-.It Cm dst-ip Ar ip address
+.It Cm dst-ip Ar ip-address
 Matches IP packets whose destination IP is one of the address(es)
 specified as argument.
-.It Cm dst-port Ar source ports
+.It Cm dst-port Ar ports
 Matches IP packets whose destination port is one of the port(s)
 specified as argument.
 .It Cm established
@@ -892,15 +892,21 @@ are mutually exclusive (in fact,
 .Cm out
 is implemented as
 .Cm not in Ns No ).
-.It Cm ipid Ar id
+.It Cm ipid Ar id-list
 Matches IP packets whose
 .Cm ip_id
-field has value
-.Ar id .
-.It Cm iplen Ar len
+field has value included in
+.Ar id-list ,
+which is either a single value or a list of values or ranges
+specified in the same way as
+.Ar ports .
+.It Cm iplen Ar len-list
 Matches IP packets whose total length, including header and data, is
-.Ar len
-bytes.
+in the set
+.Ar len-list ,
+which is either a single value or a list of values or ranges 
+specified in the same way as
+.Ar ports .
 .It Cm ipoptions Ar spec
 Matches packets whose IP header contains the comma separated list of
 options specified in
@@ -942,9 +948,12 @@ The supported IP types of service are:
 The absence of a particular type may be denoted
 with a
 .Ql \&! .
-.It Cm ipttl Ar ttl
-Matches IP packets whose time to live is
-.Ar ttl .
+.It Cm ipttl Ar ttl-list
+Matches IP packets whose time to live is included in
+.Ar ttl-list ,
+which is either a single value or a list of values or ranges
+specified in the same way as
+.Ar ports .
 .It Cm ipversion Ar ver
 Matches IP packets whose IP version field is
 .Ar ver .
@@ -1762,15 +1771,20 @@ The sysctl variable
 .Em net.link.ether.ipfw
 has no effect there.
 .It Options
-The following options are not supported in
-.Nm ipfw1
+In
+.Nm ipfw1 ,
+the following options only accept a single value as an argument:
+.Pp
+.Cm ipid, iplen, ipttl
+.Pp
+The following options are not implemented by
+.Nm ipfw1 :
 .Pp
 .Cm dst-ip, dst-port, layer2, mac, mac-type, src-ip, src-port.
 .Pp
-Additionally, the following options are not supported in
+Additionally, the RELENG_4 version of
 .Nm ipfw1
-(RELENG_4)
-rules:
+does not implement the following options:
 .Pp
 .Cm ipid, iplen, ipprecedence, iptos, ipttl,
 .Cm ipversion, tcpack, tcpseq, tcpwin .
