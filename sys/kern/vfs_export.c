@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.216 1999/08/13 10:10:01 phk Exp $
+ * $Id: vfs_subr.c,v 1.217 1999/08/13 10:29:21 phk Exp $
  */
 
 /*
@@ -358,6 +358,48 @@ vfs_getnewfsid(mp)
 	}
 	mp->mnt_stat.f_fsid.val[0] = tfsid.val[0];
 	simple_unlock(&mntid_slock);
+}
+
+/*
+ * Knob to control the precision of file timestamps:
+ *
+ *   0 = seconds only; nanoseconds zeroed.
+ *   1 = seconds and nanoseconds, accurate within 1/HZ.
+ *   2 = seconds and nanoseconds, truncated to microseconds.
+ * >=3 = seconds and nanoseconds, maximum precision.
+ */
+enum { TSP_SEC, TSP_HZ, TSP_USEC, TSP_NSEC };
+
+static int timestamp_precision = TSP_SEC;
+SYSCTL_INT(_vfs, OID_AUTO, timestamp_precision, CTLFLAG_RW,
+    &timestamp_precision, 0, "");
+
+/*
+ * Get a current timestamp.
+ */
+void
+vfs_timestamp(tsp)
+	struct timespec *tsp;
+{
+	struct timeval tv;
+
+	switch (timestamp_precision) {
+	case TSP_SEC:
+		tsp->tv_sec = time_second;
+		tsp->tv_nsec = 0;
+		break;
+	case TSP_HZ:
+		getnanotime(tsp);
+		break;
+	case TSP_USEC:
+		microtime(&tv);
+		TIMEVAL_TO_TIMESPEC(&tv, tsp);
+		break;
+	case TSP_NSEC:
+	default:
+		nanotime(tsp);
+		break;
+	}
 }
 
 /*
