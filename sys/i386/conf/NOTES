@@ -4,7 +4,7 @@
 #
 #	This kernel is NOT MEANT to be runnable!
 #
-#	$Id: LINT,v 1.24 1993/11/07 05:26:17 wollman Exp $
+#	$Id: LINT,v 1.25 1993/11/07 16:44:40 wollman Exp $
 #
 
 machine		"i386"
@@ -41,7 +41,7 @@ options		DECBIT			#here because clnp.h wanted it here
 options		TROLL			#CLNP network error simulator
 options		ICMPPRINTFS		#ICMP packet dump by printf()
 options		NSERRPRINTFS		#ditto for XNS Error protocol
-					#^^above two NOT RECOMMENTED
+					#^^above three NOT RECOMMENTED
 options		SCSIDUMP		#support for crash dumps on sd disks
 options		FASTLINKS		#support for fast symbolic links
 
