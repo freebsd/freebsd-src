@@ -210,10 +210,7 @@ vxattach(sc)
     ifp->if_watchdog = vxwatchdog;
     ifp->if_softc = sc;
 
-    if_attach(ifp);
-    ether_ifattach(ifp);
-
-    bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
+    ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
 
     sc->tx_start_thresh = 20;	/* probably a good starting point. */
 

@@ -128,9 +128,7 @@ ef_attach(struct efnet *sc)
 	/*
 	 * Attach the interface
 	 */
-	if_attach(ifp);
-	ether_ifattach(ifp);
-	bpfattach(ifp, DLT_EN10MB, sizeof(struct ether_header));
+	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
 
 	ifp->if_resolvemulti = 0;
 	ifp->if_type = IFT_XETHER;
