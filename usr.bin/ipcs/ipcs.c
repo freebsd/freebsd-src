@@ -215,7 +215,7 @@ main(argc, argv)
 	}
 
 	if ((display & (MSGINFO | MSGTOTAL)) &&
-	    kvm_read(kd, symbols[X_MSGINFO].n_value, &msginfo, sizeof(msginfo))) {
+	    kvm_read(kd, symbols[X_MSGINFO].n_value, &msginfo, sizeof(msginfo))== sizeof(msginfo)) {
 
 		if (display & MSGTOTAL) {
 			printf("msginfo:\n");
