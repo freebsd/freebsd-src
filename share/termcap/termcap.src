@@ -4314,7 +4314,7 @@ kons25jx-m|kon3jx-m|jkons3jx-mono|kons24-jis1983-j-mono:\
 	:pa@:Co@:Sf@:Sb@:op@:us=\E[4m:ue=\E[m:md@:mh@:tc=kons25jx:
 
 # Termcap for Top Gun Telnet and SSH on the Palm Pilot.
-# http://www.isaac.cs.berkeley.edu/pilot/tgtelnet.html
+# http://www.ai/~iang/TGssh/
 pi|pilot|tgtelnet:am:xn:bs:co#39:li#16:cl=\Ec:cm=\Em%+ %+ :ho=\Em  :nw=\Em~ :\
 	:so=\Eb:se=\EB:bl=^g:cr=^m:do=^j:le=^h:kP=^k:kN=^l:
 
