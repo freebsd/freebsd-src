@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pager.c,v 1.42 1999/01/21 10:15:24 dillon Exp $
+ * $Id: vm_pager.c,v 1.43 1999/01/24 02:32:15 dillon Exp $
  */
 
 /*
@@ -72,9 +72,11 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/vnode.h>
 #include <sys/buf.h>
 #include <sys/ucred.h>
 #include <sys/malloc.h>
+#include <sys/proc.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -249,6 +251,25 @@ vm_pager_deallocate(object)
 	vm_object_t object;
 {
 	(*pagertab[object->type]->pgo_dealloc) (object);
+}
+
+/*
+ *      vm_pager_strategy:
+ *
+ *      called with no specific spl
+ *      Execute strategy routine directly to pager.
+ */
+
+void
+vm_pager_strategy(vm_object_t object, struct buf *bp)
+{
+	if (pagertab[object->type]->pgo_strategy) {
+	    (*pagertab[object->type]->pgo_strategy)(object, bp);
+	} else {
+		bp->b_flags |= B_ERROR;
+		bp->b_error = ENXIO;
+		biodone(bp);
+	}
 }
 
 /*
@@ -442,3 +463,136 @@ relpbuf(bp, pfreecnt)
 	}
 	splx(s);
 }
+
+/********************************************************
+ *		CHAINING FUNCTIONS			*
+ ********************************************************
+ *
+ *	These functions support recursion of I/O operations
+ *	on bp's, typically by chaining one or more 'child' bp's
+ *	to the parent.  Synchronous, asynchronous, and semi-synchronous
+ *	chaining is possible.
+ */
+
+/*
+ *	vm_pager_chain_iodone:
+ *
+ *	io completion routine for child bp.  Currently we fudge a bit
+ *	on dealing with b_resid.   Since users of these routines may issue
+ *	multiple children simultaniously, sequencing of the error can be lost.
+ */
+
+static void
+vm_pager_chain_iodone(struct buf *nbp)
+{
+	struct buf *bp;
+
+	if ((bp = nbp->b_chain.parent) != NULL) {
+		if (nbp->b_flags & B_ERROR) {
+			bp->b_flags |= B_ERROR;
+			bp->b_error = nbp->b_error;
+		} else if (nbp->b_resid != 0) {
+			bp->b_flags |= B_ERROR;
+			bp->b_error = EINVAL;
+		} else {
+			bp->b_resid -= nbp->b_bcount;
+		}
+		nbp->b_chain.parent = NULL;
+		--bp->b_chain.count;
+		if (bp->b_flags & B_WANTED) {
+			bp->b_flags &= ~B_WANTED;
+			wakeup(bp);
+		}
+		if (!bp->b_chain.count && (bp->b_flags & B_AUTOCHAINDONE)) {
+			bp->b_flags &= ~B_AUTOCHAINDONE;
+			if (bp->b_resid != 0 && !(bp->b_flags & B_ERROR)) {
+				bp->b_flags |= B_ERROR;
+				bp->b_error = EINVAL;
+			}
+			biodone(bp);
+		}
+	}
+	nbp->b_flags |= B_DONE;
+	nbp->b_flags &= ~(B_ASYNC|B_WANTED);
+	relpbuf(nbp, NULL);
+}
+
+/*
+ *	getchainbuf:
+ *
+ *	Obtain a physical buffer and chain it to its parent buffer.  When
+ *	I/O completes, the parent buffer will be B_SIGNAL'd.  Errors are
+ *	automatically propogated to the parent
+ */
+
+struct buf *
+getchainbuf(struct buf *bp, struct vnode *vp, int flags)
+{
+	struct buf *nbp = getpbuf(NULL);
+
+	nbp->b_chain.parent = bp;
+	++bp->b_chain.count;
+
+	if (bp->b_chain.count > 4)
+		waitchainbuf(bp, 4, 0);
+
+	nbp->b_flags = B_BUSY | B_CALL | (bp->b_flags & B_ORDERED) | flags;
+	nbp->b_proc = &proc0;
+	nbp->b_rcred = nbp->b_proc->p_ucred;
+	nbp->b_wcred = nbp->b_proc->p_ucred;
+	nbp->b_iodone = vm_pager_chain_iodone;
+
+	crhold(nbp->b_rcred);
+	crhold(nbp->b_wcred);
+
+	if (vp)
+		pbgetvp(vp, nbp);
+	return(nbp);
+}
+
+void
+flushchainbuf(struct buf *nbp)
+{
+	if (nbp->b_bcount) {
+		nbp->b_bufsize = nbp->b_bcount;
+		if ((nbp->b_flags & B_READ) == 0)
+			nbp->b_dirtyend = nbp->b_bcount;
+		VOP_STRATEGY(nbp->b_vp, nbp);
+	} else {
+		biodone(nbp);
+	}
+}
+
+void
+waitchainbuf(struct buf *bp, int count, int done)
+{
+ 	int s;
+
+	s = splbio();
+	while (bp->b_chain.count > count) {
+		bp->b_flags |= B_WANTED;
+		tsleep(bp, PRIBIO + 4, "bpchain", 0);
+	}
+	if (done) {
+		if (bp->b_resid != 0 && !(bp->b_flags & B_ERROR)) {
+			bp->b_flags |= B_ERROR;
+			bp->b_error = EINVAL;
+		}
+		biodone(bp);
+	}
+	splx(s);
+}
+
+void
+autochaindone(struct buf *bp)
+{
+ 	int s;
+
+	s = splbio();
+	if (bp->b_chain.count == 0)
+		biodone(bp);
+	else
+		bp->b_flags |= B_AUTOCHAINDONE;
+	splx(s);
+}
+

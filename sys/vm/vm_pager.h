@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vm_pager.h	8.4 (Berkeley) 1/12/94
- * $Id: vm_pager.h,v 1.19 1999/01/21 10:15:47 dillon Exp $
+ * $Id: vm_pager.h,v 1.20 1999/01/24 02:32:15 dillon Exp $
  */
 
 /*
@@ -50,6 +50,8 @@
 
 TAILQ_HEAD(pagerlst, vm_object);
 
+struct buf;
+
 struct pagerops {
 	void (*pgo_init) __P((void));		/* Initialize pager. */
 	vm_object_t (*pgo_alloc) __P((void *, vm_ooffset_t, vm_prot_t, vm_ooffset_t));	/* Allocate pager. */
@@ -58,6 +60,7 @@ struct pagerops {
 	void (*pgo_putpages) __P((vm_object_t, vm_page_t *, int, int, int *)); /* Put (write) page. */
 	boolean_t (*pgo_haspage) __P((vm_object_t, vm_pindex_t, int *, int *)); /* Does pager have page? */
 	void (*pgo_pageunswapped) __P((vm_page_t));
+	void (*pgo_strategy) __P((vm_object_t, struct buf *));
 };
 
 /*
@@ -101,6 +104,11 @@ vm_offset_t vm_pager_map_page __P((vm_page_t));
 void vm_pager_sync __P((void));
 void vm_pager_unmap_pages __P((vm_offset_t, int));
 void vm_pager_unmap_page __P((vm_offset_t));
+void vm_pager_strategy __P((vm_object_t object, struct buf *bp));
+struct buf *getchainbuf(struct buf *bp, struct vnode *vp, int flags);
+void flushchainbuf(struct buf *nbp);
+void waitchainbuf(struct buf *bp, int count, int done);
+void autochaindone(struct buf *bp);
 
 static __inline int
 vm_pager_get_pages(
@@ -148,7 +156,6 @@ vm_pager_page_unswapped(vm_page_t m)
 	if (pagertab[m->object->type]->pgo_pageunswapped)
 		(*pagertab[m->object->type]->pgo_pageunswapped)(m);
 }
-
 
 #endif
 
