@@ -1,4 +1,4 @@
-/*	$Id: sysv_shm.c,v 1.21 1996/05/05 13:53:48 joerg Exp $ */
+/*	$Id: sysv_shm.c,v 1.22 1996/09/07 03:24:44 dyson Exp $ */
 /*	$NetBSD: sysv_shm.c,v 1.23 1994/07/04 23:25:12 glass Exp $	*/
 
 /*
@@ -53,6 +53,7 @@
 #include <vm/vm_map.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_extern.h>
+#include <vm/vm_pager.h>
 
 #ifndef _SYS_SYSPROTO_H_
 struct shmat_args;
@@ -496,8 +497,13 @@ shmget_allocate_segment(p, uap, mode, retval)
 	    malloc(sizeof(struct shm_handle), M_SHM, M_WAITOK);
 	shmid = IXSEQ_TO_IPCID(segnum, shmseg->shm_perm);
 	
+	/*
+	 * We make sure that we have allocated a pager before we need
+	 * to.
+	 */
 	shm_handle->shm_object =
-		vm_object_allocate(OBJT_DEFAULT, round_page(size)/PAGE_SIZE);
+		vm_pager_allocate(OBJT_SWAP, 0, OFF_TO_IDX(size),
+			VM_PROT_DEFAULT, 0);
 	shmseg->shm_internal = shm_handle;
 	shmseg->shm_perm.cuid = shmseg->shm_perm.uid = cred->cr_uid;
 	shmseg->shm_perm.cgid = shmseg->shm_perm.gid = cred->cr_gid;
