@@ -1,8 +1,5 @@
 # $FreeBSD$
 
-NOMAN=YES
-CLEANFILES+= ${LOCALES:S/$/.out/g}
-
 LOCALES=	am_ET.UTF-8 \
 		be_BY.CP1131 \
 		be_BY.CP1251 \
@@ -93,128 +90,57 @@ LOCALES=	am_ET.UTF-8 \
 		zh_TW.Big5 \
 		zh_TW.UTF-8
 
-LOCALEDIR=      ${DESTDIR}/usr/share/locale
-
-UTF8_LATIN1LINKS=	en_GB en_US eu_ES nl_NL
-
-LATIN15LINKS=   ca_ES da_DK de_AT de_DE en_GB en_US es_ES eu_ES fi_FI fr_FR \
-		is_IS \
-		it_IT la_LN nl_NL no_NO pt_PT sv_SE
-DE_LINKS=	de_CH
-FR_LINKS=	fr_BE fr_CA fr_CH
-IT_LINKS=	it_CH
-LN_LINKS=	la_LN.US-ASCII la_LN.ISO8859-2 la_LN.ISO8859-4
-NL_LINKS=	nl_BE
-US_LINKS=
-GB_LINKS=	en_AU en_CA en_NZ
+LOCALEDIR=      /usr/share/locale
 
 .SUFFIXES: .src .out
 
 .src.out:
 	grep -v '^#' < ${.IMPSRC} > ${.TARGET}
 
-all: ${LOCALES:S/$/.out/g}
+FILES=		${LOCALES:S/$/.out/}
+FILESNAME=	LC_TIME
+FILESMODE=	644			# XXX
 
-afterinstall:
-	for l in ${LOCALES}; do \
-		${INSTALL} -m 644 -o ${BINOWN} -g ${BINGRP} $$l.out \
-			   ${LOCALEDIR}/$$l/LC_TIME; \
-	done
-	for l in ${LATIN15LINKS}; do \
-		ln -fs ../$$l.ISO8859-1/LC_TIME \
-		       ${LOCALEDIR}/$$l.ISO8859-15/LC_TIME; \
-	done
-	for l in ${DE_LINKS}; do \
-		ln -fs ../de_DE.ISO8859-1/LC_TIME \
-		       ${LOCALEDIR}/$$l.ISO8859-1/LC_TIME; \
-		ln -fs ../de_DE.ISO8859-1/LC_TIME \
-		       ${LOCALEDIR}/$$l.ISO8859-15/LC_TIME; \
-	done
-	for l in ${IT_LINKS}; do \
-		ln -fs ../it_IT.ISO8859-1/LC_TIME \
-		       ${LOCALEDIR}/$$l.ISO8859-1/LC_TIME; \
-		ln -fs ../it_IT.ISO8859-1/LC_TIME \
-		       ${LOCALEDIR}/$$l.ISO8859-15/LC_TIME; \
-	done
-	for l in ${FR_LINKS}; do \
-		ln -fs ../fr_FR.ISO8859-1/LC_TIME \
-		       ${LOCALEDIR}/$$l.ISO8859-1/LC_TIME; \
-		ln -fs ../fr_FR.ISO8859-1/LC_TIME \
-		       ${LOCALEDIR}/$$l.ISO8859-15/LC_TIME; \
-	done
-	for l in ${LN_LINKS}; do \
-		ln -fs ../la_LN.ISO8859-1/LC_TIME \
-		       ${LOCALEDIR}/$$l/LC_TIME; \
-	done
-	for l in ${NL_LINKS}; do \
-		ln -fs ../nl_NL.ISO8859-1/LC_TIME \
-		       ${LOCALEDIR}/$$l.ISO8859-1/LC_TIME; \
-		ln -fs ../nl_NL.ISO8859-1/LC_TIME \
-		       ${LOCALEDIR}/$$l.ISO8859-15/LC_TIME; \
-	done
-	for l in ${US_LINKS}; do \
-		ln -fs ../en_US.ISO8859-1/LC_TIME \
-		       ${LOCALEDIR}/$$l.ISO8859-1/LC_TIME; \
-		ln -fs ../en_US.ISO8859-1/LC_TIME \
-		       ${LOCALEDIR}/$$l.ISO8859-15/LC_TIME; \
-		ln -fs ../en_US.ISO8859-1/LC_TIME \
-		       ${LOCALEDIR}/$$l.US-ASCII/LC_TIME; \
-	done
-	for l in ${GB_LINKS}; do \
-		ln -fs ../en_GB.ISO8859-1/LC_TIME \
-		       ${LOCALEDIR}/$$l.ISO8859-1/LC_TIME; \
-		ln -fs ../en_GB.ISO8859-1/LC_TIME \
-		       ${LOCALEDIR}/$$l.ISO8859-15/LC_TIME; \
-		ln -fs ../en_GB.ISO8859-1/LC_TIME \
-		       ${LOCALEDIR}/$$l.US-ASCII/LC_TIME; \
-	done
-	ln -fs ../en_GB.ISO8859-1/LC_TIME \
-		${LOCALEDIR}/en_GB.US-ASCII/LC_TIME
-	ln -fs ../en_US.ISO8859-1/LC_TIME \
-		${LOCALEDIR}/en_US.US-ASCII/LC_TIME
-	ln -fs ../en_US.ISO8859-1/LC_TIME \
-		${LOCALEDIR}/af_ZA.ISO8859-1/LC_TIME
-	ln -fs ../en_US.ISO8859-15/LC_TIME \
-		${LOCALEDIR}/af_ZA.ISO8859-15/LC_TIME
-	ln -fs ../ko_KR.eucKR/LC_TIME \
-		${LOCALEDIR}/ko_KR.CP949/LC_TIME
-	ln -fs ../zh_CN.GB2312/LC_TIME \
-		${LOCALEDIR}/zh_CN.GBK/LC_TIME
-	for l in ${UTF8_LATIN1LINKS}; do \
-		ln -fs ../$$l.ISO8859-1/LC_TIME \
-		       ${LOCALEDIR}/$$l.UTF-8/LC_TIME; \
-	done
-	for l in ${DE_LINKS}; do \
-		ln -fs ../de_DE.UTF-8/LC_TIME \
-		       ${LOCALEDIR}/$$l.UTF-8/LC_TIME; \
-	done
-	for l in ${IT_LINKS}; do \
-		ln -fs ../it_IT.UTF-8/LC_TIME \
-		       ${LOCALEDIR}/$$l.UTF-8/LC_TIME; \
-	done
-	for l in ${FR_LINKS}; do \
-		ln -fs ../fr_FR.UTF-8/LC_TIME \
-		       ${LOCALEDIR}/$$l.UTF-8/LC_TIME; \
-	done
-	for l in ${NL_LINKS}; do \
-		ln -fs ../nl_NL.UTF-8/LC_TIME \
-		       ${LOCALEDIR}/$$l.UTF-8/LC_TIME; \
-	done
-	for l in ${US_LINKS}; do \
-		ln -fs ../en_US.UTF-8/LC_TIME \
-		       ${LOCALEDIR}/$$l.UTF-8/LC_TIME; \
-	done
-	for l in ${GB_LINKS}; do \
-		ln -fs ../en_GB.UTF-8/LC_TIME \
-		       ${LOCALEDIR}/$$l.UTF-8/LC_TIME; \
-	done
-	ln -fs ../en_GB.UTF-8/LC_TIME \
-	       ${LOCALEDIR}/en_IE.UTF-8/LC_TIME
-	ln -fs ../en_US.UTF-8/LC_TIME \
-	       ${LOCALEDIR}/af_ZA.UTF-8/LC_TIME
-	ln -fs ../zh_TW.UTF-8/LC_TIME \
-		${LOCALEDIR}/zh_HK.UTF-8/LC_TIME
-	ln -fs ../zh_TW.UTF-8/LC_TIME \
-		${LOCALEDIR}/zh_HK.Big5HKSCS/LC_TIME
+.for locale in ${LOCALES}
+FILESDIR_${locale}.out= ${LOCALEDIR}/${locale}
+.endfor
+
+CLEANFILES=	${FILES}
+
+ENCODINGS=	Big5HKSCS CP949 eucKR GB2312 GBK \
+		ISO8859-1 ISO8859-2 ISO8859-4 ISO8859-15 \
+		US-ASCII UTF-8
+
+DE_LINKS=	de_DE:de_CH
+FR_LINKS=	fr_FR:fr_BE fr_FR:fr_CA fr_FR:fr_CH
+IT_LINKS=	it_IT:it_CH
+NL_LINKS=	nl_NL:nl_BE
+GB_LINKS=	en_GB:en_AU en_GB:en_CA en_GB:en_NZ
+
+eucKR_CP949=	ko_KR
+GB2312_GBK=	zh_CN
+ISO8859-1_ISO8859-1= ${DE_LINKS} ${FR_LINKS} ${GB_LINKS} ${IT_LINKS} \
+		${NL_LINKS} en_US:af_ZA
+ISO8859-1_ISO8859-15= ca_ES da_DK de_AT de_DE en_GB en_US es_ES eu_ES \
+		fi_FI fr_FR is_IS it_IT la_LN nl_NL no_NO pt_PT sv_SE \
+		${DE_LINKS} ${FR_LINKS} ${GB_LINKS} ${IT_LINKS} ${NL_LINKS}
+ISO8859-1_US-ASCII= ${GB_LINKS} en_GB en_US la_LN
+ISO8859-1_ISO8859-2= la_LN
+ISO8859-1_ISO8859-4= la_LN
+ISO8859-1_UTF-8= en_GB en_US eu_ES nl_NL
+ISO8859-15_ISO8859-15= en_US:af_ZA
+UTF-8_Big5HKSCS= zh_TW:zh_HK
+UTF-8_UTF-8=	${DE_LINKS} ${FR_LINKS} ${GB_LINKS} ${IT_LINKS} ${NL_LINKS} \
+		en_GB:en_IE en_US:af_ZA zh_TW:zh_HK
+
+SYMLINKS=
+.for enc1 in ${ENCODINGS}
+.for enc2 in ${ENCODINGS}
+.for lang_terr in ${${enc1}_${enc2}}
+SYMLINKS+=	../${lang_terr:C/:.*$//}.${enc1}/${FILESNAME} \
+		${LOCALEDIR}/${lang_terr:C/^.*://}.${enc2}
+.endfor
+.endfor
+.endfor
 
 .include <bsd.prog.mk>
