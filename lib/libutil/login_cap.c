@@ -4,6 +4,10 @@
  * David Nugent <davidn@blaze.net.au>
  * All rights reserved.
  *
+ * Portions copyright (c) 1995,1997
+ * Berkeley Software Design, Inc.
+ * All rights reserved.
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, is permitted provided that the following conditions
  * are met:
@@ -21,13 +25,14 @@
  *
  * Low-level routines relating to the user capabilities database
  *
- *	$Id: login_cap.c,v 1.10 1997/02/22 15:08:20 peter Exp $
+ *	$Id: login_cap.c,v 1.11 1997/02/27 00:24:05 ache Exp $
  */
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <unistd.h>
 
 #include <sys/types.h>
@@ -35,13 +40,19 @@
 #include <sys/resource.h>
 #include <sys/param.h>
 #include <pwd.h>
+#include <libutil.h>
+#include <syslog.h>
 #include <login_cap.h>
 
-#ifdef RLIM_LONG
-# define STRTOV strtol
-#else
-# define STRTOV strtoq
-#endif
+/*
+ * allocstr()
+ * Manage a single static pointer for handling a local char* buffer,
+ * resizing as necessary to contain the string.
+ *
+ * allocarray()
+ * Manage a static array for handling a group of strings, resizing
+ * when necessary.
+ */
 
 static int lc_object_count = 0;
 
@@ -51,30 +62,33 @@ static size_t internal_arraysz = 0;
 static char ** internal_array = NULL;
 
 static char *
-allocstr(char * str)
+allocstr(char *str)
 {
-  char * p;
-  size_t sz = strlen(str) + 1;	/* realloc() only if necessary */
-  if (sz <= internal_stringsz)
-    p = strcpy(internal_string, str);
-  else if ((p = realloc(internal_string, sz)) != NULL) {
-    internal_stringsz = sz;
-    internal_string = strcpy(p, str);
-  }
-  return p;
+    char    *p;
+
+    size_t sz = strlen(str) + 1;	/* realloc() only if necessary */
+    if (sz <= internal_stringsz)
+	p = strcpy(internal_string, str);
+    else if ((p = realloc(internal_string, sz)) != NULL) {
+	internal_stringsz = sz;
+	internal_string = strcpy(p, str);
+    }
+    return p;
 }
+
 
 static char **
 allocarray(size_t sz)
 {
-  char ** p;
-  if (sz <= internal_arraysz)
-    p = internal_array;
-  else if ((p = realloc(internal_array, sz * sizeof(char*))) != NULL) {
-    internal_arraysz = sz;
-    internal_array = p;
-  }
-  return p;
+    char    **p;
+
+    if (sz <= internal_arraysz)
+	p = internal_array;
+    else if ((p = realloc(internal_array, sz * sizeof(char*))) != NULL) {
+	internal_arraysz = sz;
+	internal_array = p;
+    }
+    return p;
 }
 
 
@@ -89,37 +103,42 @@ allocarray(size_t sz)
 static char **
 arrayize(char *str, const char *chars, int *size)
 {
-  int i;
-  char *ptr;
-  char **res = NULL;
+    int	    i;
+    char    *ptr;
+    char    **res = NULL;
 
-  for (i = 0, ptr = str; *ptr; i++) {
-    int count = strcspn(ptr, chars);
-    ptr += count;
-    if (*ptr)
-      ++ptr;
-  }
-
-  if ((ptr = allocstr(str)) == NULL) {
-    res = NULL;
-    i = 0;
-  } else if ((res = allocarray(++i)) == NULL) {
-    free(str);
-    i = 0;
-  } else {
-    for (i = 0; *ptr; i++) {
-      int count = strcspn(ptr, chars);
-      res[i] = ptr;
-      ptr += count;
-      if (*ptr)
-	*ptr++ = '\0';
+    /* count the sub-strings */
+    for (i = 0, ptr = str; *ptr; i++) {
+	int count = strcspn(ptr, chars);
+	ptr += count;
+	if (*ptr)
+	    ++ptr;
     }
-    res[i] = 0;
-  }
-  if (size)
-    *size = i;
-  return res;
+
+    i = 0;
+    /* alloc the array */
+    if ((ptr = allocstr(str)) != NULL) {
+	if ((res = allocarray(++i)) == NULL)
+	    free(str);
+	else {
+	    /* now split the string */
+	    while (*ptr) {
+		int count = strcspn(ptr, chars);
+		res[i++] = ptr;
+		ptr += count;
+		if (*ptr)
+		    *ptr++ = '\0';
+	    }
+	    res[i] = NULL;
+	}
+    }
+
+    if (size)
+	*size = i;
+
+    return res;
 }
+
 
 /*
  * login_close()
@@ -130,20 +149,20 @@ arrayize(char *str, const char *chars, int *size)
 void
 login_close(login_cap_t * lc)
 {
-  if (lc) {
-    free(lc->lc_style);
-    free(lc->lc_class);
-    free(lc);
-    if (--lc_object_count == 0) {
-      free(internal_string);
-      free(internal_array);
-      internal_array = NULL;
-      internal_arraysz = 0;
-      internal_string = NULL;
-      internal_stringsz = 0;
-      cgetclose();
+    if (lc) {
+	free(lc->lc_style);
+	free(lc->lc_class);
+	free(lc);
+	if (--lc_object_count == 0) {
+	    free(internal_string);
+	    free(internal_array);
+	    internal_array = NULL;
+	    internal_arraysz = 0;
+	    internal_string = NULL;
+	    internal_stringsz = 0;
+	    cgetclose();
+	}
     }
-  }
 }
 
 
@@ -159,36 +178,97 @@ login_close(login_cap_t * lc)
  */
 
 login_cap_t *
-login_getclassbyname(char const * name, char const * dir)
+login_getclassbyname(char const *name, const struct passwd *pwd)
 {
-  login_cap_t *lc = malloc(sizeof(login_cap_t));
+    login_cap_t	*lc;
   
-  if (lc != NULL) {
-    int   i = 0;
-    char  userpath[MAXPATHLEN];
-    static char *login_dbarray[] = { NULL, NULL, NULL };
+    if ((lc = malloc(sizeof(login_cap_t))) != NULL) {
+	int	    r, i = 0;
+	const char  *msg = NULL;
+	const char  *dir = (pwd == NULL) ? NULL : pwd->pw_dir;
+	char	    userpath[MAXPATHLEN];
 
-    if (dir && snprintf(userpath, MAXPATHLEN, "%s/%s", dir, _FILE_LOGIN_CONF) < MAXPATHLEN)
-      login_dbarray[i++] = userpath;
-    else
-      login_dbarray[i++]   = _PATH_LOGIN_CONF;
-    login_dbarray[i  ]   = NULL;
+	static char *login_dbarray[] = { NULL, NULL, NULL };
 
-    lc->lc_cap = lc->lc_class = lc->lc_style = NULL;
+	if (dir && snprintf(userpath, MAXPATHLEN, "%s/%s", dir,
+			    _FILE_LOGIN_CONF) < MAXPATHLEN) {
+	    login_dbarray[i] = userpath;
+	    if (_secure_path(userpath, pwd->pw_uid, pwd->pw_gid) != -1)
+		i++;		/* only use 'secure' data */
+	}
+	if (_secure_path(_PATH_LOGIN_CONF, 0, 0) != -1)
+	    login_dbarray[i++] = _PATH_LOGIN_CONF;
+	login_dbarray[i] = NULL;
 
-    if ((name == NULL || cgetent(&lc->lc_cap, login_dbarray, (char*)name) != 0) &&
-	cgetent(&lc->lc_cap, login_dbarray, (char*)(name = LOGIN_DEFCLASS)) != 0) {
+	memset(lc, 0, sizeof(login_cap_t));
+	lc->lc_cap = lc->lc_class = lc->lc_style = NULL;
+
+	if (name == NULL || *name == '\0')
+	    name = LOGIN_DEFCLASS;
+
+	switch (cgetent(&lc->lc_cap, login_dbarray, (char*)name)) {
+	case -1:		/* Failed, entry does not exist */
+	    if (strcmp(name, LOGIN_MECLASS) == 0)
+		break;	/* Don't retry default on 'me' */
+	    if (i == 0)
+	        r = -1;
+	    else if ((r = open(login_dbarray[0], O_RDONLY)) >= 0)
+	        close(r);
+	    /*
+	     * If there's at least one login class database,
+	     * and we aren't searching for a default class
+	     * then complain about a non-existent class.
+	     */
+	    if (r >= 0 || strcmp(name, LOGIN_DEFCLASS) != 0)
+		syslog(LOG_ERR, "login_getclass: unknown class '%s'", name);
+	    /* fall-back to default class */
+	    name = LOGIN_DEFCLASS;
+	    msg = "%s: no default/fallback class '%s'";
+	    if (cgetent(&lc->lc_cap, login_dbarray, (char*)name) != 0 && r >= 0)
+		break;
+	    /* Fallthru - just return system defaults */
+	case 0:		/* success! */
+	    if ((lc->lc_class = strdup(name)) != NULL) {
+		++lc_object_count;
+		return lc;
+	    }
+	    msg = "%s: strdup: %m";
+	    break;
+	case -2:
+	    msg = "%s: retrieving class information: %m";
+	    break;
+	case -3:
+	    msg = "%s: 'tc=' reference loop '%s'";
+	    break;
+	case 1:
+	    msg = "couldn't resolve 'tc=' reference in '%s'";
+	    break;
+	default:
+	    msg = "%s: unexpected cgetent() error '%s': %m";
+	    break;
+	}
+	if (msg != NULL)
+	    syslog(LOG_ERR, msg, "login_getclass", name);
 	free(lc);
-	lc = NULL;
-    } else {
-      ++lc_object_count;
-      lc->lc_class = strdup(name);
     }
-  }
 
-  return lc;
+    return NULL;
 }
 
+
+
+/*
+ * login_getclass()
+ * Get the login class for the system (only) login class database.
+ * Return a filled-out login_cap_t structure, including
+ * class name, and the capability record buffer.
+ */
+
+login_cap_t *
+login_getclass(const char *cls)
+{
+    return login_getclassbyname(cls, NULL);
+}
 
 
 /*
@@ -203,14 +283,16 @@ login_getclassbyname(char const * name, char const * dir)
  */
 
 login_cap_t *
-login_getclass(const struct passwd *pwd)
+login_getpwclass(const struct passwd *pwd)
 {
-  const char * class = NULL;
-  if (pwd != NULL) {
-    if ((class = pwd->pw_class) == NULL || *class == '\0')
-      class = (pwd->pw_uid == 0) ? "root" : NULL;
-  }
-  return login_getclassbyname(class, 0);
+    const char	*cls = NULL;
+
+    if (pwd != NULL) {
+	cls = pwd->pw_class;
+	if (cls == NULL || *cls == '\0')
+	    cls = (pwd->pw_uid == 0) ? LOGIN_DEFROOTCLASS : LOGIN_DEFCLASS;
+    }
+    return login_getclassbyname(cls, pwd);
 }
 
 
@@ -218,20 +300,12 @@ login_getclass(const struct passwd *pwd)
  * login_getuserclass()
  * Get the login class for a given password entry, allowing user
  * overrides via ~/.login_conf.
- * ### WAS: If the password entry's class field is not set,
- * #######  or the class specified does not exist, then use
- * If an entry with the recordid "me" does not exist, then use
- * the default of LOGIN_DEFCLASS (ie. "default").
- * Return a filled-out login_cap_t structure, including
- * class name, and the capability record buffer.
  */
 
 login_cap_t *
 login_getuserclass(const struct passwd *pwd)
 {
-  const char * class = "me"; /* (pwd == NULL) ? NULL : pwd->pw_class; */
-  const char * home  = (pwd == NULL) ? NULL : pwd->pw_dir;
-  return login_getclassbyname(class, home);
+    return login_getclassbyname(LOGIN_MECLASS, pwd);
 }
 
 
@@ -246,18 +320,15 @@ login_getuserclass(const struct passwd *pwd)
 char *
 login_getcapstr(login_cap_t *lc, const char *cap, char *def, char *error)
 {
-  char *res;
-  int ret;
+    char    *res;
+    int	    ret;
 
-  if (lc == NULL || cap == NULL || lc->lc_cap == NULL || *cap == '\0')
-    return def;
+    if (lc == NULL || cap == NULL || lc->lc_cap == NULL || *cap == '\0')
+	return def;
 
-  if ((ret = cgetstr(lc->lc_cap, (char *)cap, &res)) == -1) {
-    return def;
-  } else if (ret >= 0)
-    return res;
-  else
-    return error;
+    if ((ret = cgetstr(lc->lc_cap, (char *)cap, &res)) == -1)
+	return def;
+    return (ret >= 0) ? res : error;
 }
 
 
@@ -269,15 +340,15 @@ login_getcapstr(login_cap_t *lc, const char *cap, char *def, char *error)
  */
 
 char **
-login_getcaplist(login_cap_t *lc, const char * cap, const char * chars)
+login_getcaplist(login_cap_t *lc, const char *cap, const char *chars)
 {
-  char * lstring;
+    char    *lstring;
 
-  if (chars == NULL)
-    chars = ", \t";
-  if ((lstring = login_getcapstr(lc, (char*)cap, NULL, NULL)) != NULL)
-    return arrayize(lstring, chars, NULL);
-  return NULL;
+    if (chars == NULL)
+	chars = ", \t";
+    if ((lstring = login_getcapstr(lc, (char*)cap, NULL, NULL)) != NULL)
+	return arrayize(lstring, chars, NULL);
+    return NULL;
 }
 
 
@@ -292,21 +363,124 @@ login_getcaplist(login_cap_t *lc, const char * cap, const char * chars)
 char *
 login_getpath(login_cap_t *lc, const char *cap, char * error)
 {
-  char *str = login_getcapstr(lc, (char*)cap, NULL, NULL);
+    char    *str;
 
-  if (str == NULL)
-    str = error;
-  else {
-    char *ptr = str;
+    if ((str = login_getcapstr(lc, (char*)cap, NULL, NULL)) == NULL)
+	str = error;
+    else {
+	char *ptr = str;
 
-    while (*ptr) {
-      int count = strcspn(ptr, ", \t");
-      ptr += count;
-      if (*ptr)
-	*ptr++ = ':';
+	while (*ptr) {
+	    int count = strcspn(ptr, ", \t");
+	    ptr += count;
+	    if (*ptr)
+		*ptr++ = ':';
+	}
     }
-  }
-  return str;
+    return str;
+}
+
+
+static int
+isinfinite(const char *s)
+{
+    static const char *infs[] = {
+	"infinity",
+	"inf",
+	"unlimited",
+	"unlimit",
+	"-1",
+	NULL
+    };
+    const char **i = &infs[0];
+
+    while (*i != NULL) {
+	if (strcasecmp(s, *i) == 0)
+	    return 1;
+	++i;
+    }
+    return 0;
+}
+
+
+static u_quad_t
+rmultiply(u_quad_t n1, u_quad_t n2)
+{
+    u_quad_t	m, r;
+    int		b1, b2;
+
+    static int bpw = 0;
+
+    /* Handle simple cases */
+    if (n1 == 0 || n2 == 0)
+	return 0;
+    if (n1 == 1)
+	return n2;
+    if (n2 == 1)
+	return n1;
+
+    /*
+     * sizeof() returns number of bytes needed for storage.
+     * This may be different from the actual number of useful bits.
+     */
+    if (!bpw) {
+	bpw = sizeof(u_quad_t) * 8;
+	while (((u_quad_t)1 << (bpw-1)) == 0)
+	    --bpw;
+    }
+
+    /*
+     * First check the magnitude of each number. If the sum of the
+     * magnatude is way to high, reject the number. (If this test
+     * is not done then the first multiply below may overflow.)
+     */
+    for (b1 = bpw; (((u_quad_t)1 << (b1-1)) & n1) == 0; --b1)
+	; 
+    for (b2 = bpw; (((u_quad_t)1 << (b2-1)) & n2) == 0; --b2)
+	; 
+    if (b1 + b2 - 2 > bpw) {
+	errno = ERANGE;
+	return (UQUAD_MAX);
+    }
+
+    /*
+     * Decompose the multiplication to be:
+     * h1 = n1 & ~1
+     * h2 = n2 & ~1
+     * l1 = n1 & 1
+     * l2 = n2 & 1
+     * (h1 + l1) * (h2 + l2)
+     * (h1 * h2) + (h1 * l2) + (l1 * h2) + (l1 * l2)
+     *
+     * Since h1 && h2 do not have the low bit set, we can then say:
+     *
+     * (h1>>1 * h2>>1 * 4) + ...
+     *
+     * So if (h1>>1 * h2>>1) > (1<<(bpw - 2)) then the result will
+     * overflow.
+     *
+     * Finally, if MAX - ((h1 * l2) + (l1 * h2) + (l1 * l2)) < (h1*h2)
+     * then adding in residual amout will cause an overflow.
+     */
+
+    m = (n1 >> 1) * (n2 >> 1);
+    if (m >= ((u_quad_t)1 << (bpw-2))) {
+	errno = ERANGE;
+	return (UQUAD_MAX);
+    }
+    m *= 4;
+
+    r = (n1 & n2 & 1)
+	+ (n2 & 1) * (n1 & ~(u_quad_t)1)
+	+ (n1 & 1) * (n2 & ~(u_quad_t)1);
+
+    if ((u_quad_t)(m + r) < m) {
+	errno = ERANGE;
+	return (UQUAD_MAX);
+    }
+    m += r;
+
+    return (m);
 }
 
 
@@ -321,70 +495,80 @@ login_getpath(login_cap_t *lc, const char *cap, char * error)
 rlim_t
 login_getcaptime(login_cap_t *lc, const char *cap, rlim_t def, rlim_t error)
 {
-  char *res, *ep;
-  int ret;
-  rlim_t tot;
+    char    *res, *ep, *oval;
+    int	    r;
+    rlim_t  tot;
 
-  errno = 0;
-  if (lc == NULL || lc->lc_cap == NULL)
-    return def;
+    errno = 0;
+    if (lc == NULL || lc->lc_cap == NULL)
+	return def;
 
-  /*
-   * Look for <cap> in lc_cap.
-   * If it's not there (-1), return <def>.
-   * If there's an error, return <error>.
-   */
+    /*
+     * Look for <cap> in lc_cap.
+     * If it's not there (-1), return <def>.
+     * If there's an error, return <error>.
+     */
 
-  if ((ret = cgetstr(lc->lc_cap, (char *)cap, &res)) == -1)
-    return def;
-  else if (ret < 0)
-    return error;
-
-  /*
-   * "inf" and "infinity" are two special cases for this.
-   */
-  if (!strcasecmp(res, "infinity") || !strcasecmp(res, "inf"))
-    return RLIM_INFINITY;
-
-  /*
-   * Now go through the string, turning something like 1h2m3s into
-   * an integral value.  Whee.
-   */
-
-  errno = 0;
-  tot = 0;
-  while (*res) {
-    rlim_t tim = STRTOV(res, &ep, 0);
-    if ((ep == NULL) || (ep == res) || errno) {
-      return error;
+    if ((r = cgetstr(lc->lc_cap, (char *)cap, &res)) == -1)
+	return def;
+    else if (r < 0) {
+	errno = ERANGE;
+	return error;
     }
-    /* Look for suffixes */
-    switch (*ep++) {
-    case 0:
-      ep--; break;	/* end of string */
-    case 's': case 'S':	/* seconds */
-      break;
-    case 'm': case 'M':	/* minutes */
-      tim *= 60L;
-      break;
-    case 'h': case 'H':	/* hours */
-      tim *= (60L * 60L);
-      break;
-    case 'd': case 'D':	/* days */
-      tim *= (60L * 60L * 24L);
-      break;
-    case 'w': case 'W':	/* weeks */
-      tim *= (60L * 60L * 24L * 7L);
-    case 'y': case 'Y':	/* Years */
-      /* I refuse to take leap years into account here.  Sue me. */
-      tim *= (60L * 60L * 24L * 365L);
-    default:
-      return error;
+
+    /* "inf" and "infinity" are special cases */
+    if (isinfinite(res))
+	return RLIM_INFINITY;
+
+    /*
+     * Now go through the string, turning something like 1h2m3s into
+     * an integral value.  Whee.
+     */
+
+    errno = 0;
+    tot = 0;
+    oval = res;
+    while (*res) {
+	rlim_t tim = strtoq(res, &ep, 0);
+	rlim_t mult = 1;
+
+	if (ep == NULL || ep == res || errno != 0) {
+	invalid:
+	    syslog(LOG_WARNING, "login_getcaptime: class '%s' bad value %s=%s",
+		   lc->lc_class, cap, oval);
+	    errno = ERANGE;
+	    return error;
+	}
+	/* Look for suffixes */
+	switch (*ep++) {
+	case 0:
+	    ep--;
+	    break;	/* end of string */
+	case 's': case 'S':	/* seconds */
+	    break;
+	case 'm': case 'M':	/* minutes */
+	    mult = 60;
+	    break;
+	case 'h': case 'H':	/* hours */
+	    mult = 60L * 60L;
+	    break;
+	case 'd': case 'D':	/* days */
+	    mult = 60L * 60L * 24L;
+	    break;
+	case 'w': case 'W':	/* weeks */
+	    mult = 60L * 60L * 24L * 7L;
+	case 'y': case 'Y':	/* 365-day years */
+	    mult = 60L * 60L * 24L * 365L;
+	default:
+	    goto invalid;
+	}
+	res = ep;
+	tot += rmultiply(tim, mult);
+	if (errno)
+	    goto invalid;
     }
-    res = ep;
-    tot += tim;
-  }
-  return tot;
+
+    return tot;
 }
 
 
@@ -400,39 +584,45 @@ login_getcaptime(login_cap_t *lc, const char *cap, rlim_t def, rlim_t error)
 rlim_t
 login_getcapnum(login_cap_t *lc, const char *cap, rlim_t def, rlim_t error)
 {
-  char *ep, *res;
-  int ret;
-  rlim_t val;
+    char    *ep, *res;
+    int	    r;
+    rlim_t  val;
 
-  if (lc == NULL || lc->lc_cap == NULL)
-    return def;
+    if (lc == NULL || lc->lc_cap == NULL)
+	return def;
 
-  /*
-   * For BSDI compatibility, try for the tag=<val> first
-   */
-  if ((ret = cgetstr(lc->lc_cap, (char *)cap, &res)) == -1) {
-    long lval;
     /*
-     * String capability not present, so try for tag#<val> as numeric
+     * For BSDI compatibility, try for the tag=<val> first
      */
-    if ((ret = cgetnum(lc->lc_cap, (char *)cap, &lval)) == -1)
-      return def; /* Not there, so return default */
-    else if (ret < 0)
-      return error;
-    return (rlim_t)lval;
-  }
-  else if (ret < 0)
-    return error;
+    if ((r = cgetstr(lc->lc_cap, (char *)cap, &res)) == -1) {
+	long	lval;
+	/* string capability not present, so try for tag#<val> as numeric */
+	if ((r = cgetnum(lc->lc_cap, (char *)cap, &lval)) == -1)
+	    return def; /* Not there, so return default */
+	else if (r >= 0)
+	    return (rlim_t)lval;
+    }
 
-  if (!strcasecmp(res, "infinity") || !strcasecmp(res, "inf"))
-    return RLIM_INFINITY;
+    if (r < 0) {
+	errno = ERANGE;
+	return error;
+    }
 
-  errno = 0;
-  val = STRTOV(res, &ep, 0);
-  if ((ep == NULL) || (ep == res) || errno)
-    return error;
-  return val;
+    if (isinfinite(res))
+	return RLIM_INFINITY;
+
+    errno = 0;
+    val = strtoq(res, &ep, 0);
+    if (ep == NULL || ep == res || errno != 0) {
+	syslog(LOG_WARNING, "login_getcapnum: class '%s' bad value %s=%s",
+	       lc->lc_class, cap, res);
+	errno = ERANGE;
+	return error;
+    }
+
+    return val;
 }
+
 
 
 /*
@@ -444,55 +634,68 @@ login_getcapnum(login_cap_t *lc, const char *cap, rlim_t def, rlim_t error)
  */
 
 rlim_t
-login_getcapsize(login_cap_t *lc, const char *cap, rlim_t def, rlim_t error) {
-  char *ep, *res;
-  int ret;
-  rlim_t tot, mult;
+login_getcapsize(login_cap_t *lc, const char *cap, rlim_t def, rlim_t error)
+{
+    char    *ep, *res, *oval;
+    int	    r;
+    rlim_t  tot;
 
-  if (lc == NULL || lc->lc_cap == NULL)
-    return def;
+    if (lc == NULL || lc->lc_cap == NULL)
+	return def;
 
-  if ((ret = cgetstr(lc->lc_cap, (char *)cap, &res)) == -1)
-    return def;
-  else if (ret < 0)
-    return error;
-
-  /*
-   * "inf" and "infinity" are two special cases for this.
-   */
-  if (!strcasecmp(res, "infinity") || !strcasecmp(res, "inf"))
-    return RLIM_INFINITY;
-
-  errno = 0;
-  tot = 0;
-  while (*res) {
-    rlim_t val = STRTOV(res, &ep, 0);
-    if ((res == NULL) || (res == ep) || errno)
-      return error;
-    switch (*ep++) {
-    case 0:	/* end of string */
-      ep--;
-      mult = 1;
-      break;
-    case 'b': case 'B':	/* 512-byte blocks */
-      mult = 512; break;
-    case 'k': case 'K':	/* 1024-byte Kilobytes */
-      mult = 1024; break;
-    case 'm': case 'M':	/* 1024-k kbytes */
-      mult = 1024 * 1024; break;
-    case 'g': case 'G':	/* 1Gbyte */
-      mult = 1024 * 1024 * 1024; break;
-#ifndef RLIM_LONG
-    case 't': case 'T':	/* 1TBte */
-      mult = 1024LL * 1024LL * 1024LL * 1024LL; break;
-#endif
-    default:
-      return error;
+    if ((r = cgetstr(lc->lc_cap, (char *)cap, &res)) == -1)
+	return def;
+    else if (r < 0) {
+	errno = ERANGE;
+	return error;
     }
-    res = ep;
-    tot += (val * mult);
-  }
-  return tot;
+
+    if (isinfinite(res))
+	return RLIM_INFINITY;
+
+    errno = 0;
+    tot = 0;
+    oval = res;
+    while (*res) {
+	rlim_t siz = strtoq(res, &ep, 0);
+	rlim_t mult = 1;
+
+	if (ep == NULL || ep == res || errno != 0) {
+	invalid:
+	    syslog(LOG_WARNING, "login_getcapsize: class '%s' bad value %s=%s",
+		   lc->lc_class, cap, oval);
+	    errno = ERANGE;
+	    return error;
+	}
+	switch (*ep++) {
+	case 0:	/* end of string */
+	    ep--;
+	    break;
+	case 'b': case 'B':	/* 512-byte blocks */
+	    mult = 512;
+	    break;
+	case 'k': case 'K':	/* 1024-byte Kilobytes */
+	    mult = 1024;
+	    break;
+	case 'm': case 'M':	/* 1024-k kbytes */
+	    mult = 1024 * 1024;
+	    break;
+	case 'g': case 'G':	/* 1Gbyte */
+	    mult = 1024 * 1024 * 1024;
+	    break;
+	case 't': case 'T':	/* 1TBte */
+	    mult = 1024LL * 1024LL * 1024LL * 1024LL;
+	    break;
+	default:
+	    goto invalid;
+	}
+	res = ep;
+	tot += rmultiply(siz, mult);
+	if (errno)
+	    goto invalid;
+    }
+
+    return tot;
 }
 
 
@@ -506,9 +709,9 @@ login_getcapsize(login_cap_t *lc, const char *cap, rlim_t def, rlim_t error) {
 int
 login_getcapbool(login_cap_t *lc, const char *cap, int def)
 {
-  if (lc == NULL || lc->lc_cap == NULL)
-    return def;
-  return (cgetcap(lc->lc_cap, (char *)cap, ':') != NULL);
+    if (lc == NULL || lc->lc_cap == NULL)
+	return def;
+    return (cgetcap(lc->lc_cap, (char *)cap, ':') != NULL);
 }
 
 
@@ -535,38 +738,41 @@ login_getcapbool(login_cap_t *lc, const char *cap, int def)
 char *
 login_getstyle(login_cap_t *lc, char *style, const char *auth)
 {
-  int  i;
-  char **authtypes = NULL;
-  char *auths= NULL;
-  char realauth[64];
+    int	    i;
+    char    **authtypes = NULL;
+    char    *auths= NULL;
+    char    realauth[64];
 
-  static char *defauthtypes[] = { LOGIN_DEFSTYLE, NULL };
+    static char *defauthtypes[] = { LOGIN_DEFSTYLE, NULL };
 
-  if (auth != NULL && *auth != '\0' &&
-      snprintf(realauth, sizeof realauth, "auth-%s", auth) < sizeof realauth)
-    authtypes = login_getcaplist(lc, realauth, NULL);
+    if (auth != NULL && *auth != '\0') {
+	if (snprintf(realauth, sizeof realauth, "auth-%s", auth) < sizeof realauth)
+	    authtypes = login_getcaplist(lc, realauth, NULL);
+    }
 
-  if (authtypes == NULL)
-    authtypes = login_getcaplist(lc, "auth", NULL);
+    if (authtypes == NULL)
+	authtypes = login_getcaplist(lc, "auth", NULL);
 
-  if (authtypes == NULL)
-    authtypes = defauthtypes;
+    if (authtypes == NULL)
+	authtypes = defauthtypes;
 
-  /*
-   * We have at least one authtype now; auths is a comma-seperated
-   * (or space-separated) list of authentication types.  We have to
-   * convert from this to an array of char*'s; authtypes then gets this.
-   */
-  i = 0;
-  if (style != NULL && *style != '\0') {
-    while (authtypes[i] != NULL && strcmp(style, authtypes[i]) != 0)
-      i++;
-  }
-  lc->lc_style = NULL;
-  if (authtypes[i] != NULL && (auths = strdup(authtypes[i])) != NULL)
-    lc->lc_style = auths;
+    /*
+     * We have at least one authtype now; auths is a comma-seperated
+     * (or space-separated) list of authentication types.  We have to
+     * convert from this to an array of char*'s; authtypes then gets this.
+     */
+    i = 0;
+    if (style != NULL && *style != '\0') {
+	while (authtypes[i] != NULL && strcmp(style, authtypes[i]) != 0)
+	    i++;
+    }
 
-  return lc->lc_style;
+    lc->lc_style = NULL;
+    if (authtypes[i] != NULL && (auths = strdup(authtypes[i])) != NULL)
+	lc->lc_style = auths;
+
+    if (lc->lc_style != NULL)
+	lc->lc_style = strdup(lc->lc_style);
+
+    return lc->lc_style;
 }
-
-
