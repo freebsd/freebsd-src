@@ -105,7 +105,6 @@ struct mtx_debug {
 #define mtx_owner(m)	(mtx_unowned((m)) ? NULL \
 	: (struct proc *)((m)->mtx_lock & MTX_FLAGMASK))
 
-#define RETIP(x)		*(((uintptr_t *)(&x)) - 1)
 #define SET_PRIO(p, pri)	(p)->p_pri.pri_level = (pri)
 
 /*
@@ -310,7 +309,7 @@ _mtx_trylock(struct mtx *m, int opts, const char *file, int line)
 #endif	/* WITNESS */
 
 	if ((opts & MTX_QUIET) == 0)
-		CTR5(KTR_LOCK, "TRY_ENTER %s [%p] result=%d at %s:%d",
+		CTR5(KTR_LOCK, "TRY_LOCK %s [%p] result=%d at %s:%d",
 		    m->mtx_description, m, rval, file, line);
 
 	return rval;
@@ -336,8 +335,9 @@ _mtx_lock_sleep(struct mtx *m, int opts, const char *file, int line)
 	}
 
 	if ((opts & MTX_QUIET) == 0)
-		CTR3(KTR_LOCK, "_mtx_lock_sleep: %p contested (lock=%p) [%p]",
-		    m, (void *)m->mtx_lock, (void *)RETIP(m));
+		CTR4(KTR_LOCK,
+		    "_mtx_lock_sleep: %s contested (lock=%p) at %s:%d",
+		    m->mtx_description, (void *)m->mtx_lock, file, line);
 
 	/*
 	 * Save our priority. Even though p_nativepri is protected by
@@ -401,13 +401,13 @@ _mtx_lock_sleep(struct mtx *m, int opts, const char *file, int line)
 		 * If we're borrowing an interrupted thread's VM context, we
 		 * must clean up before going to sleep.
 		 */
-		if (p->p_flag & (P_ITHD | P_SITHD)) {
-			ithd_t *it = (ithd_t *)p;
+		if (p->p_ithd != NULL) {
+			struct ithd *it = p->p_ithd;
 
 			if (it->it_interrupted) {
 				if ((opts & MTX_QUIET) == 0)
 					CTR2(KTR_LOCK,
-				    "_mtx_lock_sleep: 0x%x interrupted 0x%x",
+				    "_mtx_lock_sleep: %p interrupted %p",
 					    it, it->it_interrupted);
 				intr_thd_fixup(it);
 			}
@@ -556,19 +556,18 @@ _mtx_unlock_sleep(struct mtx *m, int opts, const char *file, int line)
 		    m, p1);
 
 	p1->p_blocked = NULL;
-	p1->p_mtxname = NULL;
 	p1->p_stat = SRUN;
 	setrunqueue(p1);
 
 	if ((opts & MTX_NOSWITCH) == 0 && p1->p_pri.pri_level < pri) {
 #ifdef notyet
-		if (p->p_flag & (P_ITHD | P_SITHD)) {
-			ithd_t *it = (ithd_t *)p;
+		if (p->p_ithd != NULL) {
+			struct ithd *it = p->p_ithd;
 
 			if (it->it_interrupted) {
 				if ((opts & MTX_QUIET) == 0)
 					CTR2(KTR_LOCK,
-				    "_mtx_unlock_sleep: 0x%x interrupted 0x%x",
+				    "_mtx_unlock_sleep: %p interrupted %p",
 					    it, it->it_interrupted);
 				intr_thd_fixup(it);
 			}
@@ -597,9 +596,9 @@ _mtx_unlock_sleep(struct mtx *m, int opts, const char *file, int line)
  */
 
 /*
- * The INVARIANTS-enabled mtx_assert()
+ * The backing function for the INVARIANTS-enabled mtx_assert()
  */
-#ifdef INVARIANTS
+#ifdef INVARIANTS_SUPPORT
 void
 _mtx_assert(struct mtx *m, int what, const char *file, int line)
 {
