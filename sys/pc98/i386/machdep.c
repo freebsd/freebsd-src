@@ -2126,6 +2126,8 @@ init386(first)
 	if (bootinfo.bi_modulep) {
 		preload_metadata = (caddr_t)bootinfo.bi_modulep + KERNBASE;
 		preload_bootstrap_relocate(KERNBASE);
+	} else {
+		printf("WARNING: loader(8) metadata is missing!\n");
 	}
 	if (bootinfo.bi_envp)
 		kern_envp = (caddr_t)bootinfo.bi_envp + KERNBASE;
