@@ -194,7 +194,7 @@ time_t Mktime (dp)
     }
 
 #ifdef DEBUG
-    fprintf(stderr, "Mktime: %d %d %d %s\n", (int)mktime(&tm), (int)t, len,
+    fprintf(stderr, "Mktime: %d %d %s\n", (int)mktime(&tm), (int)t,
 	   asctime(&tm));
 #endif
     return(mktime(&tm));
