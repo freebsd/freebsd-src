@@ -2540,8 +2540,8 @@ usb_device_descriptor_t uhci_devd = {
 	USB_DEVICE_DESCRIPTOR_SIZE,
 	UDESC_DEVICE,		/* type */
 	{0x00, 0x01},		/* USB version */
-	UCLASS_HUB,		/* class */
-	USUBCLASS_HUB,		/* subclass */
+	UDCLASS_HUB,		/* class */
+	UDSUBCLASS_HUB,		/* subclass */
 	0,			/* protocol */
 	64,			/* max packet */
 	{0},{0},{0x00,0x01},	/* device id */
@@ -2568,8 +2568,8 @@ usb_interface_descriptor_t uhci_ifcd = {
 	0,
 	0,
 	1,
-	UCLASS_HUB,
-	USUBCLASS_HUB,
+	UICLASS_HUB,
+	UISUBCLASS_HUB,
 	0,
 	0
 };
