@@ -31,11 +31,13 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_var.h	8.1 (Berkeley) 6/10/93
- * $Id: in_var.h,v 1.7 1994/10/25 22:13:32 swallace Exp $
+ * $Id: in_var.h,v 1.8 1995/03/16 18:14:53 bde Exp $
  */
 
 #ifndef _NETINET_IN_VAR_H_
 #define _NETINET_IN_VAR_H_
+
+#include <sys/queue.h>
 
 /*
  * Interface address, Internet version.  One of these structures
@@ -58,7 +60,8 @@ struct in_ifaddr {
 	struct	sockaddr_in ia_dstaddr; /* reserve space for broadcast addr */
 #define	ia_broadaddr	ia_dstaddr
 	struct	sockaddr_in ia_sockmask; /* reserve space for general netmask */
-	struct	in_multi *ia_multiaddrs; /* list of multicast addresses */
+	LIST_HEAD(in_multihead, in_multi) ia_multiaddrs; 
+					/* list of multicast addresses */
 };
 
 struct	in_aliasreq {
@@ -140,12 +143,12 @@ struct router_info {
  * structure.
  */
 struct in_multi {
+	LIST_ENTRY(in_multi) inm_entry; /* list glue */
 	struct	in_addr inm_addr;	/* IP multicast address */
 	struct	ifnet *inm_ifp;		/* back pointer to ifnet */
 	struct	in_ifaddr *inm_ia;	/* back pointer to in_ifaddr */
 	u_int	inm_refcount;		/* no. membership claims by sockets */
 	u_int	inm_timer;		/* IGMP membership report timer */
-	struct	in_multi *inm_next;	/* ptr to next multicast address */
 	u_int	inm_state;		/*  state of the membership */
 	struct	router_info *inm_rti;	/* router info*/
 };
@@ -175,9 +178,9 @@ struct in_multistep {
 	if (ia == NULL) \
 		(inm) = NULL; \
 	else \
-		for ((inm) = ia->ia_multiaddrs; \
+		for ((inm) = ia->ia_multiaddrs.lh_first; \
 		    (inm) != NULL && (inm)->inm_addr.s_addr != (addr).s_addr; \
-		     (inm) = inm->inm_next) \
+		     (inm) = inm->inm_entry.le_next) \
 			 continue; \
 }
 
@@ -193,13 +196,13 @@ struct in_multistep {
 	/* struct in_multi *inm; */ \
 { \
 	if (((inm) = (step).i_inm) != NULL) \
-		(step).i_inm = (inm)->inm_next; \
+		(step).i_inm = (inm)->inm_entry.le_next; \
 	else \
 		while ((step).i_ia != NULL) { \
-			(inm) = (step).i_ia->ia_multiaddrs; \
+			(inm) = (step).i_ia->ia_multiaddrs.lh_first; \
 			(step).i_ia = (step).i_ia->ia_next; \
 			if ((inm) != NULL) { \
-				(step).i_inm = (inm)->inm_next; \
+				(step).i_inm = (inm)->inm_entry.le_next; \
 				break; \
 			} \
 		} \
