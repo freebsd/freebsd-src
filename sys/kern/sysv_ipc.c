@@ -67,9 +67,13 @@ shmexit(struct vmspace *vm)
 }
 
 /*
- * Check for ipc permission
+ * Check for IPC permission.
+ *
+ * Note: The MAC Framework does not require any modifications to the
+ * ipcperm() function, as access control checks are performed throughout the
+ * implementation of each primitive.  Those entry point calls complement the
+ * ipcperm() discertionary checks.
  */
-
 int
 ipcperm(td, perm, mode)
 	struct thread *td;
