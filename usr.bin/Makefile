@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.3 (Berkeley) 1/7/94
-#	$Id: Makefile,v 1.63 1995/10/23 16:44:22 peter Exp $
+#	$Id: Makefile,v 1.64 1995/12/29 15:29:35 bde Exp $
 
 # XXX MISSING:		deroff diction graph learn plot
 #			spell spline struct units xsend
@@ -38,7 +38,7 @@ SUBDIR+= ../secure/usr.bin/telnet
 .if	make(clean) || make(cleandir)
 # XXX Should have `f77', `pascal' & `vmstat.sparc' judging by the
 #     machine dependant lines, but we don't have them
-SUBDIR+=cmp kzip look systat tail vmstat
+SUBDIR+=cmp kzip look sasc systat tail vmstat
 .elif	${MACHINE} == "hp300"
 SUBDIR+=cmp ld look systat tail vmstat
 .elif	${MACHINE} == "i386"
