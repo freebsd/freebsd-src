@@ -806,7 +806,7 @@ vm_map_insert(vm_map_t map, vm_object_t object, vm_ooffset_t offset,
 		 (prev_entry->wired_count == 0) &&
 		 ((prev_entry->object.vm_object == NULL) ||
 		  vm_object_coalesce(prev_entry->object.vm_object,
-				     OFF_TO_IDX(prev_entry->offset),
+				     prev_entry->offset,
 				     (vm_size_t)(prev_entry->end - prev_entry->start),
 				     (vm_size_t)(end - prev_entry->end)))) {
 		/*
@@ -2781,7 +2781,7 @@ Retry:
 		/* Grow the underlying object if applicable. */
 		if (stack_entry->object.vm_object == NULL ||
 		    vm_object_coalesce(stack_entry->object.vm_object,
-		    OFF_TO_IDX(stack_entry->offset),
+		    stack_entry->offset,
 		    (vm_size_t)(stack_entry->end - stack_entry->start),
 		    (vm_size_t)grow_amount)) {
 			map->size += (addr - stack_entry->end);

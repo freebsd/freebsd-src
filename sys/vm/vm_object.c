@@ -1824,17 +1824,14 @@ again:
  *	Parameters:
  *		prev_object	First object to coalesce
  *		prev_offset	Offset into prev_object
- *		next_object	Second object into coalesce
- *		next_offset	Offset into next_object
- *
  *		prev_size	Size of reference to prev_object
- *		next_size	Size of reference to next_object
+ *		next_size	Size of reference to the second object
  *
  *	Conditions:
  *	The object must *not* be locked.
  */
 boolean_t
-vm_object_coalesce(vm_object_t prev_object, vm_pindex_t prev_pindex,
+vm_object_coalesce(vm_object_t prev_object, vm_ooffset_t prev_offset,
 	vm_size_t prev_size, vm_size_t next_size)
 {
 	vm_pindex_t next_pindex;
@@ -1865,7 +1862,7 @@ vm_object_coalesce(vm_object_t prev_object, vm_pindex_t prev_pindex,
 
 	prev_size >>= PAGE_SHIFT;
 	next_size >>= PAGE_SHIFT;
-	next_pindex = prev_pindex + prev_size;
+	next_pindex = OFF_TO_IDX(prev_offset) + prev_size;
 
 	if ((prev_object->ref_count > 1) &&
 	    (prev_object->size != next_pindex)) {
