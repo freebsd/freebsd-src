@@ -124,7 +124,7 @@ struct device {
 #define	DF_QUIET	16		/* don't print verbose attach message */
 #define	DF_DONENOMATCH	32		/* don't execute DEVICE_NOMATCH again */
 #define	DF_EXTERNALSOFTC 64		/* softc not allocated by us */
-#define DF_REBID	128	/* Can rebid after attach */
+#define	DF_REBID	128		/* Can rebid after attach */
 	u_char	order;			/**< order from device_add_child_ordered() */
 	u_char	pad;
 	void	*ivars;			/**< instance variables  */
