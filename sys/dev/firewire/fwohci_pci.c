@@ -181,7 +181,7 @@ fwohci_pci_attach(device_t self)
 {
 	fwohci_softc_t *sc = device_get_softc(self);
 	int err;
-	int rid;
+	int rid, s;
 #if __FreeBSD_version < 500000
 	int intr;
 	/* For the moment, put in a message stating what is wrong */
@@ -258,7 +258,9 @@ fwohci_pci_attach(device_t self)
 #if 0
 	DELAY(100);
 #endif
+	s = splfw();
 	fwohci_intr((void *)sc);
+	splx(s);
 
 	return 0;
 }
