@@ -11,7 +11,7 @@
  * this software for any purpose.  It is provided "as is"
  * without express or implied warranty.
  *
- * $Id: mse.c,v 1.7 1994/10/21 01:19:07 wollman Exp $
+ * $Id: mse.c,v 1.8 1994/10/23 21:27:31 wollman Exp $
  */
 /*
  * Driver for the Logitech and ATI Inport Bus mice for use with 386bsd and
@@ -27,6 +27,8 @@
 
 /*
  * Modification history:
+ * Sep 6, 1994 -- Lars Fredriksen(fredriks@mcs.com)
+ *   improved probe based on input from Logitech.
  *
  * Oct 19, 1992 -- E. Stark (stark@cs.sunysb.edu)
  *   fixes to make it work with Microsoft InPort busmouse
@@ -94,6 +96,7 @@ struct mse_softc {
 /* and Mouse Types */
 #define	MSE_LOGITECH	0x1
 #define	MSE_ATIINPORT	0x2
+#define	MSE_LOGI_SIG	0xA5
 
 #define	MSE_PORTA	0
 #define	MSE_PORTB	1
@@ -107,6 +110,31 @@ struct mse_softc {
  * Logitech bus mouse definitions
  */
 #define	MSE_SETUP	0x91	/* What does this mean? */
+				/* The definition for the control port */
+				/* is as follows: */
+				
+				/* D7 	 =  Mode set flag (1 = active) 	*/
+				/* D6,D5 =  Mode selection (port A) 	*/	
+				/* 	    00 = Mode 0 = Basic I/O 	*/
+				/* 	    01 = Mode 1 = Strobed I/O 	*/
+				/* 	    10 = Mode 2 = Bi-dir bus 	*/
+				/* D4	 =  Port A direction (1 = input)*/
+				/* D3	 =  Port C (upper 4 bits) 	*/
+				/*	    direction. (1 = input)	*/
+				/* D2	 =  Mode selection (port B & C) */
+				/*	    0 = Mode 0 = Basic I/O	*/
+				/*	    1 = Mode 1 = Strobed I/O	*/
+				/* D1	 =  Port B direction (1 = input)*/
+				/* D0	 =  Port C (lower 4 bits)	*/
+				/*	    direction. (1 = input)	*/
+				
+				/* So 91 means Basic I/O on all 3 ports,*/
+				/* Port A is an input port, B is an 	*/
+				/* output port, C is split with upper	*/
+				/* 4 bits being an output port and lower*/
+				/* 4 bits an input port, and enable the */
+				/* sucker.				*/
+				/* Courtesy Intel 8255 databook. Lars   */
 #define	MSE_HOLD	0x80
 #define	MSE_RXLOW	0x00
 #define	MSE_RXHIGH	0x20
@@ -391,13 +419,21 @@ mse_probelogi(idp)
 	register struct isa_device *idp;
 {
 
-	outb(idp->id_iobase + MSE_PORTB, 0x55);
-	if (inb(idp->id_iobase + MSE_PORTB) == 0x55) {
-		outb(idp->id_iobase + MSE_PORTB, 0xaa);
-		if (inb(idp->id_iobase + MSE_PORTB) == 0xaa)
-			return (1);
+	int sig;
+
+	outb(idp->id_iobase + MSE_PORTD, MSE_SETUP);
+		/* set the signature port */
+	outb(idp->id_iobase + MSE_PORTB, MSE_LOGI_SIG);
+
+	DELAY(30000); /* 30 ms delay */
+	sig = inb(idp->id_iobase + MSE_PORTB) & 0xFF;
+	if (sig == MSE_LOGI_SIG) {
+		outb(idp->id_iobase + MSE_PORTC, MSE_DISINTR);
+		return(1);
+	} else {
+		printf("mse%d: wrong signature %x\n",idp->id_unit,sig); 
+		return(0);
 	}
-	return (0);
 }
 
 /*
