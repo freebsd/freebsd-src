@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acconfig.h - Global configuration constants
- *       $Revision: 74 $
+ *       $Revision: 78 $
  *
  *****************************************************************************/
 
@@ -125,12 +125,13 @@
  *****************************************************************************/
 
 /*
- * ACPI_DEBUG           - This switch enables all the debug facilities of the ACPI
- *                          subsystem.  This includes the DEBUG_PRINT output statements
- *                          When disabled, all DEBUG_PRINT statements are compiled out.
+ * ACPI_DEBUG           - This switch enables all the debug facilities of the 
+ *                        ACPI subsystem.  This includes the DEBUG_PRINT output 
+ *                        statements.  When disabled, all DEBUG_PRINT 
+ *                        statements are compiled out.
  *
  * ACPI_APPLICATION     - Use this switch if the subsystem is going to be run
- *                          at the application level.
+ *                        at the application level.
  *
  */
 
@@ -144,7 +145,7 @@
 
 /* Version string */
 
-#define ACPI_CA_VERSION             0x20011018
+#define ACPI_CA_VERSION             0x20011120
 
 /* Version of ACPI supported */
 
@@ -153,17 +154,17 @@
 
 /* Maximum objects in the various object caches */
 
-#define MAX_STATE_CACHE_DEPTH       64         /* State objects for stacks */
+#define MAX_STATE_CACHE_DEPTH       64          /* State objects for stacks */
 #define MAX_PARSE_CACHE_DEPTH       96          /* Parse tree objects */
 #define MAX_EXTPARSE_CACHE_DEPTH    64          /* Parse tree objects */
 #define MAX_OBJECT_CACHE_DEPTH      64          /* Interpreter operand objects */
-#define MAX_WALK_CACHE_DEPTH        4           /* Objects for parse tree walks (method execution) */
+#define MAX_WALK_CACHE_DEPTH        4           /* Objects for parse tree walks */
 
 
 /* String size constants */
 
 #define MAX_STRING_LENGTH           512
-#define PATHNAME_MAX                256     /* A full namespace pathname */
+#define PATHNAME_MAX                256         /* A full namespace pathname */
 
 
 /* Maximum count for a semaphore object */
@@ -232,7 +233,7 @@
 /* Names within the namespace are 4 bytes long */
 
 #define ACPI_NAME_SIZE              4
-#define PATH_SEGMENT_LENGTH         5           /* 4 chars for name + 1 INT8 for separator */
+#define PATH_SEGMENT_LENGTH         5           /* 4 chars for name + 1 char for separator */
 #define PATH_SEPARATOR              '.'
 
 
@@ -244,10 +245,15 @@
 #define HI_RSDP_WINDOW_SIZE         0x20000
 #define RSDP_SCAN_STEP              16
 
+
+/* Operation regions */
+
+#define ACPI_NUM_PREDEFINED_REGIONS 7
+#define ACPI_USER_REGION_BEGIN      0x80
+
 /* Maximum SpaceIds for Operation Regions */
 
 #define ACPI_MAX_ADDRESS_SPACE      255
-#define ACPI_NUM_ADDRESS_SPACES     256
 
 
 #endif /* _ACCONFIG_H */
