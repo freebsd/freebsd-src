@@ -23,16 +23,17 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: vm.c,v 1.1.1.1 1998/08/27 17:38:45 abial Exp $
+ *	$Id: vm.c,v 1.2 1998/10/29 12:38:06 abial Exp $
  */
 
-#include <stdio.h>
 #include <sys/types.h>
+#include <sys/param.h>
 #include <sys/sysctl.h>
 #include <sys/vmmeter.h>
+
 #include <vm/vm_param.h>
 
-#define pgtok(a) ((a) * (u_int) DEFAULT_PAGE_SIZE >> 10)
+#include <stdio.h>
 
 int
 main(int argc, char *argv[])
