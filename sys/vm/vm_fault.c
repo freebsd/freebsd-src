@@ -117,8 +117,10 @@ struct faultstate {
 static __inline void
 release_page(struct faultstate *fs)
 {
+	vm_page_lock_queues();
 	vm_page_wakeup(fs->m);
 	vm_page_deactivate(fs->m);
+	vm_page_unlock_queues();
 	fs->m = NULL;
 }
 
@@ -137,7 +139,9 @@ _unlock_things(struct faultstate *fs, int dealloc)
 	GIANT_REQUIRED;
 	vm_object_pip_wakeup(fs->object);
 	if (fs->object != fs->first_object) {
+		vm_page_lock_queues();
 		vm_page_free(fs->first_m);
+		vm_page_unlock_queues();
 		vm_object_pip_wakeup(fs->first_object);
 		fs->first_m = NULL;
 	}
@@ -563,14 +567,18 @@ readrest:
 			 */
 			if (((fs.map != kernel_map) && (rv == VM_PAGER_ERROR)) ||
 				(rv == VM_PAGER_BAD)) {
+				vm_page_lock_queues();
 				vm_page_free(fs.m);
+				vm_page_unlock_queues();
 				fs.m = NULL;
 				unlock_and_deallocate(&fs);
 				mtx_unlock(&Giant);
 				return ((rv == VM_PAGER_ERROR) ? KERN_FAILURE : KERN_PROTECTION_FAILURE);
 			}
 			if (fs.object != fs.first_object) {
+				vm_page_lock_queues();
 				vm_page_free(fs.m);
+				vm_page_unlock_queues();
 				fs.m = NULL;
 				/*
 				 * XXX - we cannot just fall out at this
@@ -687,8 +695,10 @@ readrest:
 				/*
 				 * get rid of the unnecessary page
 				 */
+				vm_page_lock_queues();
 				vm_page_protect(fs.first_m, VM_PROT_NONE);
 				vm_page_free(fs.first_m);
+				vm_page_unlock_queues();
 				fs.first_m = NULL;
 
 				/*
@@ -1214,9 +1224,11 @@ vm_fault_additional_pages(m, rbehind, rahead, marray, reqpage)
 
 			rtm = vm_page_alloc(object, tpindex, VM_ALLOC_NORMAL);
 			if (rtm == NULL) {
+				vm_page_lock_queues();
 				for (j = 0; j < i; j++) {
 					vm_page_free(marray[j]);
 				}
+				vm_page_unlock_queues();
 				marray[0] = m;
 				*reqpage = 0;
 				return 1;
