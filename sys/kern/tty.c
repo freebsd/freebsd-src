@@ -1,3 +1,5 @@
+static volatile int ttyverbose = 0;
+
 /*-
  * Copyright (c) 1982, 1986, 1990, 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -36,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.c	8.8 (Berkeley) 1/21/94
- * $Id: tty.c,v 1.99 1997/12/06 13:23:52 bde Exp $
+ * $Id: tty.c,v 1.100 1997/12/16 17:40:24 eivind Exp $
  */
 
 /*-
@@ -190,16 +192,8 @@ static u_char const char_type[] = {
 #define	CLR(t, f)	(t) &= ~(f)
 #define	ISSET(t, f)	((t) & (f))
 
-/*
- * Input control starts when we would not be able to fit the maximum
- * contents of the ping-pong buffers and finishes when we would be able
- * to fit that much plus 1/8 more.
- */
-#define	I_HIGH_WATER	(TTYHOG - 2 * 256)	/* XXX */
-#define	I_LOW_WATER	((TTYHOG - 2 * 256) * 7 / 8)	/* XXX */
-
 #undef MAX_INPUT		/* XXX wrong in <sys/syslimits.h> */
-#define	MAX_INPUT	TTYHOG
+#define	MAX_INPUT	TTYHOG	/* XXX limit is usually larger for !ICANON */
 
 /*
  * Initial open of tty, or (re)entry to standard tty line discipline.
@@ -219,16 +213,7 @@ ttyopen(device, tp)
 			SET(tp->t_state, TS_CONNECTED);
 		bzero(&tp->t_winsize, sizeof(tp->t_winsize));
 	}
-
-	/*
-	 * Initialize or restore a cblock allocation policy suitable for
-	 * the standard line discipline.
-	 */
-	clist_alloc_cblocks(&tp->t_canq, TTYHOG, 512);
-	clist_alloc_cblocks(&tp->t_outq, TTMAXHIWAT + OBUFSIZ + 100,
-			    TTMAXHIWAT + OBUFSIZ + 100);
-	clist_alloc_cblocks(&tp->t_rawq, TTYHOG, TTYHOG);
-
+	ttsetwater(tp);
 	splx(s);
 	return (0);
 }
@@ -318,7 +303,7 @@ ttyinput(c, tp)
 	 * The 3 is slop for PARMRK.
 	 */
 	iflag = tp->t_iflag;
-	if (tp->t_rawq.c_cc + tp->t_canq.c_cc > I_HIGH_WATER - 3 &&
+	if (tp->t_rawq.c_cc + tp->t_canq.c_cc > tp->t_ihiwat - 3 &&
 	    (!ISSET(lflag, ICANON) || tp->t_canq.c_cc != 0) &&
 	    (ISSET(tp->t_cflag, CRTS_IFLOW) || ISSET(iflag, IXOFF)) &&
 	    !ISSET(tp->t_state, TS_TBLOCK))
@@ -556,7 +541,7 @@ parmrk:
 	if (tp->t_rawq.c_cc + tp->t_canq.c_cc >= MAX_INPUT) {
 input_overflow:
 		if (ISSET(iflag, IMAXBEL)) {
-			if (tp->t_outq.c_cc < tp->t_hiwat)
+			if (tp->t_outq.c_cc < tp->t_ohiwat)
 				(void)ttyoutput(CTRL('g'), tp);
 		}
 		goto endcase;
@@ -1055,7 +1040,7 @@ ttypoll(tp, events, p)
 			selrecord(p, &tp->t_rsel);
 
 	if (events & (POLLOUT | POLLWRNORM))
-		if ((tp->t_outq.c_cc <= tp->t_lowat &&
+		if ((tp->t_outq.c_cc <= tp->t_olowat &&
 		     ISSET(tp->t_state, TS_CONNECTED))
 		    || ISSET(tp->t_state, TS_ZOMBIE))
 			revents |= events & (POLLOUT | POLLWRNORM);
@@ -1681,7 +1666,7 @@ out:
 	 */
 	s = spltty();
 	if (ISSET(tp->t_state, TS_TBLOCK) &&
-	    tp->t_rawq.c_cc + tp->t_canq.c_cc <= I_LOW_WATER)
+	    tp->t_rawq.c_cc + tp->t_canq.c_cc <= tp->t_ilowat)
 		ttyunblock(tp);
 	splx(s);
 
@@ -1702,7 +1687,7 @@ ttycheckoutq(tp, wait)
 {
 	int hiwat, s, oldsig;
 
-	hiwat = tp->t_hiwat;
+	hiwat = tp->t_ohiwat;
 	s = spltty();
 	oldsig = wait ? curproc->p_siglist : 0;
 	if (tp->t_outq.c_cc > hiwat + OBUFSIZ + 100)
@@ -1736,7 +1721,7 @@ ttwrite(tp, uio, flag)
 	int i, hiwat, cnt, error, s;
 	char obuf[OBUFSIZ];
 
-	hiwat = tp->t_hiwat;
+	hiwat = tp->t_ohiwat;
 	cnt = uio->uio_resid;
 	error = 0;
 	cc = 0;
@@ -2111,7 +2096,7 @@ ttwwakeup(tp)
 	register struct tty *tp;
 {
 
-	if (tp->t_wsel.si_pid != 0 && tp->t_outq.c_cc <= tp->t_lowat)
+	if (tp->t_wsel.si_pid != 0 && tp->t_outq.c_cc <= tp->t_olowat)
 		selwakeup(&tp->t_wsel);
 	if (ISSET(tp->t_state, TS_BUSY | TS_SO_OCOMPLETE) ==
 	    TS_SO_OCOMPLETE && tp->t_outq.c_cc == 0) {
@@ -2119,7 +2104,7 @@ ttwwakeup(tp)
 		wakeup(TSA_OCOMPLETE(tp));
 	}
 	if (ISSET(tp->t_state, TS_SO_OLOWAT) &&
-	    tp->t_outq.c_cc <= tp->t_lowat) {
+	    tp->t_outq.c_cc <= tp->t_olowat) {
 		CLR(tp->t_state, TS_SO_OLOWAT);
 		wakeup(TSA_OLOWAT(tp));
 	}
@@ -2142,25 +2127,72 @@ ttspeedtab(speed, table)
 }
 
 /*
- * Set tty hi and low water marks.
- *
- * Try to arrange the dynamics so there's about one second
- * from hi to low water.
- *
+ * Set input and output watermarks and buffer sizes.  For input, the
+ * high watermark is about one second's worth of input above empty, the
+ * low watermark is slightly below high water, and the buffer size is a
+ * driver-dependent amount above high water.  For output, the watermarks
+ * are near the ends of the buffer, with about 1 second's worth of input
+ * between them.  All this only applies to the standard line discipline.
  */
 void
 ttsetwater(tp)
 	struct tty *tp;
 {
-	register int cps, x;
+	register int cps, ttmaxhiwat, x;
 
+	/* Input. */
+	clist_alloc_cblocks(&tp->t_canq, TTYHOG, 512);
+	if (ttyverbose)
+		printf("ttsetwater: can: %d, ", TTYHOG);
+	switch (tp->t_ispeedwat) {
+	case (speed_t)-1:
+		cps = tp->t_ispeed / 10;
+		break;
+	case 0:
+		/*
+		 * This case is for old drivers that don't know about
+		 * t_ispeedwat.  Arrange for them to get the old buffer
+		 * sizes and watermarks.
+		 */
+		cps = TTYHOG - 2 * 256;
+		tp->t_ififosize = 2 * 256;
+		break;
+	default:
+		cps = tp->t_ispeedwat / 10;
+		break;
+	}
+	tp->t_ihiwat = cps;
+	tp->t_ilowat = 7 * cps / 8;
+	x = cps + tp->t_ififosize;
+	clist_alloc_cblocks(&tp->t_rawq, x, x);
+	if (ttyverbose)
+		printf("raw: %d, ", x);
+
+	/* Output. */
+	switch (tp->t_ospeedwat) {
+	case (speed_t)-1:
+		cps = tp->t_ospeed / 10;
+		ttmaxhiwat = 200000;
+		break;
+	case 0:
+		cps = tp->t_ospeed / 10;
+		ttmaxhiwat = TTMAXHIWAT;
+		break;
+	default:
+		cps = tp->t_ospeedwat / 10;
+		ttmaxhiwat = 200000;
+		break;
+	}
 #define CLAMP(x, h, l)	((x) > h ? h : ((x) < l) ? l : (x))
-
-	cps = tp->t_ospeed / 10;
-	tp->t_lowat = x = CLAMP(cps / 2, TTMAXLOWAT, TTMINLOWAT);
+	tp->t_olowat = x = CLAMP(cps / 2, TTMAXLOWAT, TTMINLOWAT);
 	x += cps;
-	x = CLAMP(x, TTMAXHIWAT, TTMINHIWAT);
-	tp->t_hiwat = roundup(x, CBSIZE);
+	x = CLAMP(x, ttmaxhiwat, TTMINHIWAT);	/* XXX clamps are too magic */
+	tp->t_ohiwat = roundup(x, CBSIZE);	/* XXX for compat */
+	x = imax(tp->t_ohiwat, TTMAXHIWAT);	/* XXX for compat/safety */
+	x += OBUFSIZ + 100;
+	clist_alloc_cblocks(&tp->t_outq, x, x);
+	if (ttyverbose)
+		printf("out: %d\n", x);
 #undef	CLAMP
 }
 
