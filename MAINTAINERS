@@ -44,3 +44,8 @@ iostat(8)	ken	Pre-commit review requested.
 cd(4)		ken	Pre-commit review requested.
 pass(4)		ken	Pre-commit review requested.
 ch(4)		ken	Pre-commit review requested.
+sendmail	gshapiro	Pre-commit review requested.
+etc/mail	gshapiro	Pre-commit review requested.
+				Keep in sync with -STABLE.
+etc/sendmail	gshapiro	Pre-commit review requested.
+				Keep in sync with -STABLE.
