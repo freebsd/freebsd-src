@@ -37,6 +37,7 @@
 #include <sys/kernel.h>
 #include <sys/module.h>
 
+#include <machine/clock.h>
 #include <pccard/i82365.h>
 #include <pccard/pcic_pci.h>
 #include <pccard/cardinfo.h>
@@ -294,7 +295,9 @@ pcic_io(struct slot *slt, int win)
 static void
 pcic_do_mgt_irq(struct pcic_slot *sp, int irq)
 {
+#ifdef NOT_YET_XXX
 	u_int32_t	reg;
+#endif
 
 	if (sp->sc->csc_route == pci_parallel) {
 #ifdef NOT_YET_XXX
