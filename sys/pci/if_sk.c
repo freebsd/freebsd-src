@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_sk.c,v 1.51 1999/07/14 21:48:19 wpaul Exp $
+ *	$Id: if_sk.c,v 1.7 1999/07/23 02:06:55 wpaul Exp $
  */
 
 /*
@@ -102,7 +102,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: if_sk.c,v 1.51 1999/07/14 21:48:19 wpaul Exp $";
+	"$Id: if_sk.c,v 1.7 1999/07/23 02:06:55 wpaul Exp $";
 #endif
 
 static struct sk_type sk_devs[] = {
@@ -175,7 +175,7 @@ static device_method_t sk_methods[] = {
 };
 
 static driver_t sk_driver = {
-	"sk",
+	"skc",
 	sk_methods,
 	sizeof(struct sk_softc)
 };
