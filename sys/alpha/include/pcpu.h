@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 1999 Luoqi Chen <luoqi@freebsd.org>
+ * Copyright (c) Peter Wemm <peter@netplex.com.au>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -43,26 +44,26 @@
  * point at the globaldata structure.
  */
 struct globaldata {
-	struct alpha_pcb gd_idlepcb;		/* pcb for idling */
-	struct proc	*gd_curproc;		/* current process */
-	struct proc	*gd_idleproc;		/* idle process */
-	struct proc	*gd_fpcurproc;		/* fp state owner */
-	struct pcb	*gd_curpcb;		/* current pcb */
-	struct timeval	gd_switchtime;	
-	int		gd_switchticks;
-	u_int		gd_cpuid;		/* this cpu number */
-	u_int		gd_other_cpus;		/* all other cpus */
+	struct	alpha_pcb gd_idlepcb;		/* pcb for idling */
+	struct	proc *gd_curproc;		/* current process */
+	struct	proc *gd_idleproc;		/* idle process */
+	struct	proc *gd_fpcurproc;		/* fp state owner */
+	struct	pcb *gd_curpcb;			/* current pcb */
+	struct	timeval gd_switchtime;	
+	int	gd_switchticks;
+	u_int	gd_cpuid;			/* this cpu number */
+	u_int	gd_other_cpus;			/* all other cpus */
 	u_int64_t	gd_idlepcbphys;		/* pa of gd_idlepcb */
 	u_int64_t	gd_pending_ipis;	/* pending IPI events */
 	u_int32_t	gd_next_asn;		/* next ASN to allocate */
 	u_int32_t	gd_current_asngen;	/* ASN rollover check */
 
 	SLIST_ENTRY(globaldata) gd_allcpu;
-	struct lock_list_entry *gd_spinlocks;
+	struct	lock_list_entry *gd_spinlocks;
 #ifdef KTR_PERCPU
 	volatile int	gd_ktr_idx;		/* Index into trace table */
-	char		*gd_ktr_buf;
-	char		gd_ktr_buf_data[0];
+	char	*gd_ktr_buf;
+	char	gd_ktr_buf_data[0];
 #endif
 };
 

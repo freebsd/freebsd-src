@@ -29,6 +29,8 @@
 #ifndef _MACHINE_GLOBALDATA_H_
 #define _MACHINE_GLOBALDATA_H_
 
+#ifdef _KERNEL
+
 #include <machine/segments.h>
 #include <machine/tss.h>
 
@@ -50,27 +52,25 @@
  * other processors"
  */
 struct globaldata {
-	struct globaldata *gd_prvspace;		/* self-reference */
-	struct proc	*gd_curproc;
-	struct proc	*gd_npxproc;
-	struct pcb	*gd_curpcb;
-	struct proc	*gd_idleproc;
-	struct timeval	gd_switchtime;
-	struct i386tss	gd_common_tss;
-	int		gd_switchticks;
-	struct segment_descriptor gd_common_tssd;
-	struct segment_descriptor *gd_tss_gdt;
-	int		gd_currentldt;
-	u_int		gd_cpuid;
-	u_int		gd_other_cpus;
+	struct	globaldata *gd_prvspace;	/* self-reference */
+	struct	proc *gd_curproc;		/* current process */
+	struct	proc *gd_idleproc;		/* idle process */
+	struct	proc *gd_npxproc;
+	struct	pcb *gd_curpcb;			/* current pcb */
+	struct	timeval gd_switchtime;
+	struct	i386tss gd_common_tss;
+	int	gd_switchticks;
+	struct	segment_descriptor gd_common_tssd;
+	struct	segment_descriptor *gd_tss_gdt;
+	int	gd_currentldt;
+	u_int	gd_cpuid;			/* this cpu number */
+	u_int	gd_other_cpus;			/* all other cpus */
 	SLIST_ENTRY(globaldata) gd_allcpu;
-	struct lock_list_entry *gd_spinlocks;
+	struct	lock_list_entry *gd_spinlocks;
 #ifdef KTR_PERCPU
-#ifdef KTR
-	volatile int	gd_ktr_idx;
-	char		*gd_ktr_buf;
-	char		gd_ktr_buf_data[KTR_SIZE];
-#endif
+	volatile int	gd_ktr_idx;		/* Index into trace table */
+	char	*gd_ktr_buf;
+	char	gd_ktr_buf_data[KTR_SIZE];
 #endif
 };
 
@@ -82,16 +82,18 @@ struct globaldata {
  */
 struct privatespace {
 	/* page 0 - data page */
-	struct globaldata globaldata;
-	char		__filler0[PAGE_SIZE - sizeof(struct globaldata)];
+	struct	globaldata globaldata;
+	char	__filler0[PAGE_SIZE - sizeof(struct globaldata)];
 
 	/* page 1 - idle stack (UPAGES pages) */
-	char		idlestack[UPAGES * PAGE_SIZE];
+	char	idlestack[UPAGES * PAGE_SIZE];
 	/* page 1+UPAGES... */
 };
 
 extern struct privatespace SMP_prvspace[];
 
 #endif
+
+#endif	/* _KERNEL */
 
 #endif	/* ! _MACHINE_GLOBALDATA_H_ */
