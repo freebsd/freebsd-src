@@ -164,12 +164,18 @@ pthread_exit(void *status)
 	if (pthread_cond_signal(&_gc_cond) != 0)
 		PANIC("Cannot signal gc cond");
 
+	/*
+	 * Mark the thread as dead so it will not return if it
+	 * gets context switched out when the mutex is unlocked.
+	 */
+	PTHREAD_SET_STATE(_thread_run, PS_DEAD);
+
 	/* Unlock the garbage collector mutex: */
 	if (pthread_mutex_unlock(&_gc_mutex) != 0)
 		PANIC("Cannot lock gc mutex");
 
 	/* This this thread will never be re-scheduled. */
-	_thread_kern_sched_state(PS_DEAD, __FILE__, __LINE__);
+	_thread_kern_sched(NULL);
 
 	/* This point should not be reached. */
 	PANIC("Dead thread has resumed");
