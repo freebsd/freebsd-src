@@ -58,7 +58,7 @@ int		 sbuf_bcat(struct sbuf *s, const char *str, size_t len);
 int		 sbuf_bcpy(struct sbuf *s, const char *str, size_t len);
 int		 sbuf_cat(struct sbuf *s, const char *str);
 int		 sbuf_cpy(struct sbuf *s, const char *str);
-int		 sbuf_printf(struct sbuf *s, char *fmt, ...);
+int		 sbuf_printf(struct sbuf *s, const char *fmt, ...);
 int		 sbuf_putc(struct sbuf *s, int c);
 int		 sbuf_overflowed(struct sbuf *s);
 void		 sbuf_finish(struct sbuf *s);
