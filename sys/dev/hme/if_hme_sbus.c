@@ -63,13 +63,13 @@
 #include <net/if_dl.h>
 #include <net/if_media.h>
 
-#include <mii/mii.h>
-#include <mii/miivar.h>
+#include <dev/mii/mii.h>
+#include <dev/mii/miivar.h>
 
 #include <sparc64/sbus/sbusvar.h>
 
-#include <hme/if_hmereg.h>
-#include <hme/if_hmevar.h>
+#include <dev/hme/if_hmereg.h>
+#include <dev/hme/if_hmevar.h>
 
 #include "miibus_if.h"
 
