@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/openpam_set_option.c#6 $
+ * $P4: //depot/projects/openpam/lib/openpam_set_option.c#7 $
  */
 
 #include <sys/param.h>
@@ -61,7 +61,7 @@ openpam_set_option(pam_handle_t *pamh,
 	size_t len;
 	int i;
 
-	ENTER();
+	ENTERS(option);
 	if (pamh == NULL || pamh->current == NULL || option == NULL)
 		RETURNC(PAM_SYSTEM_ERR);
 	cur = pamh->current;
