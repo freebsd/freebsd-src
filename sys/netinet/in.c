@@ -30,8 +30,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)in.c	8.2 (Berkeley) 11/15/93
- * $Id: in.c,v 1.14 1995/05/30 08:09:26 rgrimes Exp $
+ *	@(#)in.c	8.4 (Berkeley) 1/9/95
+ *	$Id: in.c,v 1.15 1995/07/17 15:15:15 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -176,7 +176,7 @@ int	in_interfaces;		/* number of external internet interfaces */
 int
 in_control(so, cmd, data, ifp)
 	struct socket *so;
-	int cmd;
+	u_long cmd;
 	caddr_t data;
 	register struct ifnet *ifp;
 {
