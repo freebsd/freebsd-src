@@ -55,8 +55,6 @@ static const char rcsid[] =
 #include "mtree.h"
 #include "extern.h"
 
-extern long int crc_total;
-
 int ftsoptions = FTS_PHYSICAL;
 int cflag, dflag, eflag, iflag, nflag, qflag, rflag, sflag, uflag, Uflag;
 u_int keys;
@@ -126,7 +124,7 @@ main(int argc, char *argv[])
 			break;
 		case 's':
 			sflag = 1;
-			crc_total = ~strtol(optarg, &p, 0);
+			crc_total = ~strtoul(optarg, &p, 0);
 			if (*p)
 				errx(1, "illegal seed value -- %s", optarg);
 		case 'U':

@@ -68,7 +68,6 @@ static const char rcsid[] =
 #define	INDENTNAMELEN	15
 #define	MAXLINELEN	80
 
-extern long int crc_total;
 extern int ftsoptions;
 extern int dflag, iflag, nflag, sflag;
 extern u_int keys;
@@ -142,7 +141,7 @@ cwalk()
 	}
 	(void)fts_close(t);
 	if (sflag && keys & F_CKSUM)
-		warnx("%s checksum: %lu", fullpath, crc_total);
+		warnx("%s checksum: %lu", fullpath, (unsigned long)crc_total);
 }
 
 static void
@@ -152,7 +151,8 @@ statf(indent, p)
 {
 	struct group *gr;
 	struct passwd *pw;
-	u_long len, val;
+	uint32_t val;
+	off_t len;
 	int fd, offset;
 	char *fflags;
 	char *escaped_name;
@@ -218,7 +218,7 @@ statf(indent, p)
 		    crc(fd, &val, &len))
 			err(1, "line %d: %s", lineno, p->fts_accpath);
 		(void)close(fd);
-		output(indent, &offset, "cksum=%lu", val);
+		output(indent, &offset, "cksum=%lu", (unsigned long)val);
 	}
 #ifdef MD5
 	if (keys & F_MD5 && S_ISREG(p->fts_statp->st_mode)) {
