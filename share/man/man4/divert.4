@@ -95,9 +95,12 @@ the tag is interpretted as the rule number
 .Em after which
 rule processing should restart.
 .Sh LOOP AVOIDANCE
-Packets written into a divert socket (using
+Packets written into a divert socket
+.Po
+using
 .Xr sendto 2
-) Re-enter the packet filter at the rule number
+.Pc
+re-enter the packet filter at the rule number
 following the tag given in the port part of the socket address, which
 is usually already set at the rule number that caused the diversion
 (not the next rule if there are several at the same number). If the 'tag'
