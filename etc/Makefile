@@ -76,9 +76,7 @@ distribution:
 	( cd ${.CURDIR}/../share/termcap; ${MAKE} etc-termcap ); \
 	( cd ${.CURDIR}/../usr.sbin/rmt; ${MAKE} etc-rmt ); \
 	( cd ${.CURDIR}/isdn; ${MAKE} install ); \
-	pwd_mkdb -p -d ${DESTDIR}/etc ${DESTDIR}/etc/master.passwd; \
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 555 \
-	     MAKEDEV.local MAKEDEV ${DESTDIR}/dev )
+	pwd_mkdb -p -d ${DESTDIR}/etc ${DESTDIR}/etc/master.passwd; )
 .if !defined(NO_SENDMAIL)
 	( cd ${.CURDIR}/sendmail; ${MAKE} distribution );
 .endif
@@ -94,6 +92,8 @@ distribution:
 	    ${DESTDIR}/etc/ssl )
 .endif
 .if !defined(NO_MAKEDEV)
+	( cd ${.CURDIR}; ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 555 \
+	     MAKEDEV.local MAKEDEV ${DESTDIR}/dev )
 	(cd ${DESTDIR}/dev; sh MAKEDEV all)
 .endif
 	(cd ${.CURDIR}/root; \
