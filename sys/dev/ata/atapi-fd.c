@@ -146,6 +146,19 @@ afd_sense(struct afd_softc *fdp)
 		       0, 0, 0, 0, 0, 0, 0 };
     int count, error = 0;
 
+    /* The IOMEGA Clik! doesn't support reading the cap page, fake it */
+    if (!strncmp(ATA_PARAM(fdp->atp->controller, fdp->atp->unit)->model, 
+		 "IOMEGA Clik!", 12)) {
+	fdp->transfersize = 64;
+	fdp->cap.transfer_rate = 500;
+	fdp->cap.heads = 1;
+	fdp->cap.sectors = 2;
+	fdp->cap.cylinders = 39441;
+	fdp->cap.sector_size = 512;
+	atapi_test_ready(fdp->atp);
+	return 0;
+    }
+
     bzero(buffer, sizeof(buffer));
     /* get drive capabilities, some drives needs this repeated */
     for (count = 0 ; count < 5 ; count++) {
@@ -439,5 +452,8 @@ afd_prevent_allow(struct afd_softc *fdp, int lock)
     int8_t ccb[16] = { ATAPI_PREVENT_ALLOW, 0, 0, 0, lock,
 		       0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
     
+    if (!strncmp(ATA_PARAM(fdp->atp->controller, fdp->atp->unit)->model, 
+		 "IOMEGA Clik!", 12))
+	return 0;
     return atapi_queue_cmd(fdp->atp, ccb, NULL, 0, 0, 30, NULL, NULL);
 }
