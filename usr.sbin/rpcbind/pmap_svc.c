@@ -173,7 +173,7 @@ pmapproc_change(struct svc_req *rqstp, SVCXPRT *xprt, unsigned long op)
 	RPCB rpcbreg;
 	long ans;
 	struct sockaddr_in *who;
-	struct cmsgcred *cmcred;
+	uid_t uid;
 	char uidbuf[32];
 
 #ifdef RPCBIND_DEBUG
@@ -194,19 +194,18 @@ pmapproc_change(struct svc_req *rqstp, SVCXPRT *xprt, unsigned long op)
 	}
 
 	who = svc_getcaller(xprt);
-	cmcred = __svc_getcallercreds(xprt);
 
 	/*
 	 * Can't use getpwnam here. We might end up calling ourselves
 	 * and looping.
 	 */
-	if (cmcred == NULL)
+	if (__rpc_get_local_uid(xprt, &uid) < 0)
 		rpcbreg.r_owner = "unknown";
-	else if (cmcred->cmcred_uid == 0)
+	else if (uid == 0)
 		rpcbreg.r_owner = "superuser";
 	else {
 		/* r_owner will be strdup-ed later */
-		snprintf(uidbuf, sizeof uidbuf, "%d", cmcred->cmcred_uid);
+		snprintf(uidbuf, sizeof uidbuf, "%d", uid);
 		rpcbreg.r_owner = uidbuf;
 	}
 
