@@ -92,8 +92,6 @@ static int ipxqmaxlen = IFQ_MAXLEN;
 long	ipx_pexseq;
 const int ipxintrq_present = 1;
 
-NETISR_SET(NETISR_IPX, ipxintr);
-
 static	int ipx_do_route(struct ipx_addr *src, struct route *ro);
 static	void ipx_undo_route(struct route *ro);
 static	void ipx_forward(struct mbuf *m);
@@ -119,6 +117,8 @@ ipx_init()
 	ipx_hostmask.sipx_len = 12;
 	ipx_hostmask.sipx_addr.x_net = ipx_broadnet;
 	ipx_hostmask.sipx_addr.x_host = ipx_broadhost;
+
+	register_netisr(NETISR_IPX, ipxintr);
 }
 
 /*

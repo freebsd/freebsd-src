@@ -59,9 +59,6 @@
 
 #include <netinet/in.h>
 #include <netinet/tcp.h>
-#ifdef ISO
-#include <netiso/iso.h>
-#endif
 #include <nfs/xdr_subs.h>
 #include <nfs/rpcv2.h>
 #include <nfs/nfsproto.h>
@@ -339,15 +336,6 @@ nfssvc_addsock(fp, mynam, p)
 				FREE(mynam, M_SONAME);
 			return (EPERM);
 		}
-#ifdef ISO
-	} else if (so->so_proto->pr_protocol == ISOPROTO_CLTP) {
-		tslp = nfs_cltpsock;
-		if (tslp->ns_flag & SLP_VALID) {
-			if (mynam != NULL)
-				FREE(mynam, M_SONAME);
-			return (EPERM);
-		}
-#endif /* ISO */
 	}
 #endif
 	if (so->so_type == SOCK_STREAM)

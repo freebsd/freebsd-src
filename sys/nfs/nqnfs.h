@@ -96,17 +96,12 @@ struct nqhost {
 			union nethostaddr udp_haddr;
 		} un_udp;
 		struct {
-			union nethostaddr connless_haddr;
-		} un_connless;
-		struct {
 			int	dummy;
 		} un_conn;
 	} lph_un;
 };
 #define	lph_haddr	lph_un.un_udp.udp_haddr
 #define	lph_inetaddr	lph_un.un_udp.udp_haddr.had_inetaddr
-#define	lph_claddr	lph_un.un_connless.connless_haddr
-#define	lph_nam		lph_un.un_connless.connless_haddr.had_nam
 
 struct nqlease {
 	LIST_ENTRY(nqlease) lc_hash;	/* Fhandle hash list */
@@ -128,7 +123,7 @@ struct nqlease {
 #define	LC_WANTED	0x0010	/* Lock wanted */
 #define	LC_EXPIREDWANTED 0x0020	/* Want lease when expired */
 #define	LC_UDP		0x0040	/* Host address for udp socket */
-#define	LC_CLTP		0x0080	/* Host address for other connectionless */
+/* 0x0080 free */
 #define	LC_LOCAL	0x0100	/* Host is server */
 #define	LC_VACATED	0x0200	/* Host has vacated lease */
 #define	LC_WRITTEN	0x0400	/* Recently wrote to the leased file */

@@ -45,9 +45,6 @@
  * level for the clock (so you can enter the network in routines called
  * at timeout time).
  */
-#if defined(vax) || defined(tahoe)
-#define	setsoftnet()	mtpr(SIRR, 12)
-#endif
 
 /*
  * Each ``pup-level-1'' input queue has a bit in a ``netisr'' status
@@ -55,41 +52,29 @@
  * interrupt used for scheduling the network code to calls
  * on the lowest level routine of each protocol.
  */
-#define	NETISR_RAW	0		/* same as AF_UNSPEC */
 #define	NETISR_IP	2		/* same as AF_INET */
-#define	NETISR_IMP	3		/* same as AF_IMPLINK */
 #define	NETISR_NS	6		/* same as AF_NS */
-#define	NETISR_ISO	7		/* same as AF_ISO */
-#define	NETISR_CCITT	10		/* same as AF_CCITT */
 #define	NETISR_ATALK    16              /* same as AF_APPLETALK */
 #define	NETISR_ARP	18		/* same as AF_LINK */
 #define	NETISR_IPX	23		/* same as AF_IPX */
 #define NETISR_USB	25		/* USB soft interrupt */
-#define	NETISR_ISDN	26		/* same as AF_E164 */
 #define	NETISR_PPP	27		/* PPP soft interrupt */
 #define	NETISR_IPV6	28		/* same as AF_INET6 */
 #define	NETISR_NATM	29		/* same as AF_NATM */
 #define	NETISR_NETGRAPH	31		/* same as AF_NETGRAPH */
 
-#define	schednetisr(anisr)	{ netisr |= 1<<(anisr); setsoftnet(); }
 
 #ifndef LOCORE
 #ifdef _KERNEL
+
 extern volatile unsigned int	netisr;	/* scheduling bits for network */
+#define	schednetisr(anisr)	{ netisr |= 1 << (anisr); setsoftnet(); }
 
 typedef void netisr_t __P((void));
 
-struct netisrtab {
-	int nit_num;
-	netisr_t *nit_isr;
-};
-
 int register_netisr __P((int, netisr_t *));
-void netisr_sysinit __P((void *));
+int unregister_netisr __P((int));
 
-#define NETISR_SET(num, isr) \
-	static struct netisrtab nisr_##num = { num, isr }; \
-	SYSINIT(nisr_##num, SI_SUB_CPU, SI_ORDER_ANY, netisr_sysinit, &nisr_##num)
 #endif
 #endif
 

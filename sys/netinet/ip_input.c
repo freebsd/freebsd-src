@@ -244,6 +244,8 @@ ip_init()
 
 	ip_id = time_second & 0xffff;
 	ipintrq.ifq_maxlen = ipqmaxlen;
+
+	register_netisr(NETISR_IP, ipintr);
 }
 
 static struct	sockaddr_in ipaddr = { sizeof(ipaddr), AF_INET };
@@ -770,8 +772,6 @@ ipintr(void)
 	}
 }
 
-NETISR_SET(NETISR_IP, ipintr);
-  
 /*
  * Take incoming datagram fragment and try to reassemble it into
  * whole datagram.  If a chain for reassembly of this datagram already
