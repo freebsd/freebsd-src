@@ -32,6 +32,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
@@ -41,7 +43,6 @@ static char sccsid[] = "@(#)none.c	8.1 (Berkeley) 6/4/93";
 #include <stddef.h>
 #include <stdio.h>
 #include <rune.h>
-#include <errno.h>
 #include <stdlib.h>
 
 rune_t	_none_sgetrune __P((const char *, size_t, char const **));
