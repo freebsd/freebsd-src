@@ -29,6 +29,7 @@
 .Op Fl i Cm adapter | mode
 .Op Fl l Ar screen_map
 .Op Fl L
+.Op Fl M Ar char
 .Op Fl m Cm on | off
 .Op Fl r Ar foreground Ar background
 .Op Fl s Ar number
@@ -122,6 +123,9 @@ Install default screen output map.
 Shows info about the current video adapter.
 .It Fl i Cm mode
 Shows the possible video modes with the current video hardware.
+.It Fl M Ar char
+Sets the base character used to render the mouse pointer to
+.Ar char .
 .It Fl m Cm on | off
 Switch the mouse pointer
 .Cm on
