@@ -457,8 +457,10 @@ nfs_bioread(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *cred)
 			rabn = lbn + 1 + nra;
 			if (incore(vp, rabn) == NULL) {
 			    rabp = nfs_getcacheblk(vp, rabn, biosize, td);
-			    if (!rabp)
-				return (EINTR);
+			    if (!rabp) {
+				error = nfs_sigintr(nmp, NULL, td);
+				return (error ? error : EINTR);
+			    }
 			    if ((rabp->b_flags & (B_CACHE|B_DELWRI)) == 0) {
 				rabp->b_flags |= B_ASYNC;
 				rabp->b_iocmd = BIO_READ;
@@ -501,6 +503,8 @@ again:
 			case ENOLCK:
 				goto again;
 				/* not reached */
+			case EIO:
+				return (EIO);
 			case EINTR:
 			case ERESTART:
 				return(EINTR);
@@ -514,8 +518,10 @@ again:
 
 		if (bcount != biosize)
 			nfs_rsunlock(np, td);
-		if (!bp)
-			return (EINTR);
+		if (!bp) {
+			error = nfs_sigintr(nmp, NULL, td);
+			return (error ? error : EINTR);
+		}
 
 		/*
 		 * If B_CACHE is not set, we must issue the read.  If this
@@ -547,8 +553,10 @@ again:
 	    case VLNK:
 		nfsstats.biocache_readlinks++;
 		bp = nfs_getcacheblk(vp, (daddr_t)0, NFS_MAXPATHLEN, td);
-		if (!bp)
-			return (EINTR);
+		if (!bp) {
+			error = nfs_sigintr(nmp, NULL, td);
+			return (error ? error : EINTR);
+		}
 		if ((bp->b_flags & B_CACHE) == 0) {
 		    bp->b_iocmd = BIO_READ;
 		    vfs_busy_pages(bp, 0);
@@ -571,8 +579,10 @@ again:
 		lbn = (uoff_t)uio->uio_offset / NFS_DIRBLKSIZ;
 		on = uio->uio_offset & (NFS_DIRBLKSIZ - 1);
 		bp = nfs_getcacheblk(vp, lbn, NFS_DIRBLKSIZ, td);
-		if (!bp)
-		    return (EINTR);
+		if (!bp) {
+		    error = nfs_sigintr(nmp, NULL, td);
+		    return (error ? error : EINTR);
+		}
 		if ((bp->b_flags & B_CACHE) == 0) {
 		    bp->b_iocmd = BIO_READ;
 		    vfs_busy_pages(bp, 0);
@@ -598,8 +608,10 @@ again:
 				&& (i * NFS_DIRBLKSIZ) >= np->n_direofoffset)
 				    return (0);
 			    bp = nfs_getcacheblk(vp, i, NFS_DIRBLKSIZ, td);
-			    if (!bp)
-				return (EINTR);
+			    if (!bp) {
+				error = nfs_sigintr(nmp, NULL, td);
+				return (error ? error : EINTR);
+			    }
 			    if ((bp->b_flags & B_CACHE) == 0) {
 				    bp->b_iocmd = BIO_READ;
 				    vfs_busy_pages(bp, 0);
@@ -790,6 +802,8 @@ restart:
 		case ENOLCK:
 			goto restart;
 			/* not reached */
+		case EIO:
+			return (EIO);
 		case EINTR:
 		case ERESTART:
 			return(EINTR);
@@ -878,7 +892,9 @@ again:
 		}
 
 		if (!bp) {
-			error = EINTR;
+			error = nfs_sigintr(nmp, NULL, td);
+			if (!error)
+				error = EINTR;
 			break;
 		}
 
@@ -917,7 +933,9 @@ again:
 			}
 		}
 		if (!bp) {
-			error = EINTR;
+			error = nfs_sigintr(nmp, NULL, td);
+			if (!error)
+				error = EINTR;
 			break;
 		}
 		if (bp->b_wcred == NOCRED)
@@ -1120,14 +1138,13 @@ nfs_vinvalbuf(struct vnode *vp, int flags, struct ucred *cred,
 	np->n_flag |= NFLUSHINPROG;
 	error = vinvalbuf(vp, flags, cred, td, slpflag, 0);
 	while (error) {
-		if (intrflg &&
-		    nfs_sigintr(nmp, NULL, td)) {
+		if (intrflg && (error = nfs_sigintr(nmp, NULL, td))) {
 			np->n_flag &= ~NFLUSHINPROG;
 			if (np->n_flag & NFLUSHWANT) {
 				np->n_flag &= ~NFLUSHWANT;
 				wakeup(&np->n_flag);
 			}
-			return (EINTR);
+			return (error);
 		}
 		error = vinvalbuf(vp, flags, cred, td, 0, slptimeo);
 	}
@@ -1155,7 +1172,7 @@ nfs_asyncio(struct buf *bp, struct ucred *cred, struct thread *td)
 	int gotiod;
 	int slpflag = 0;
 	int slptimeo = 0;
-	int error;
+	int error, error2;
 
 	nmp = VFSTONFS(bp->b_vp->v_mount);
 
@@ -1234,8 +1251,9 @@ again:
 			error = tsleep(&nmp->nm_bufq, slpflag | PRIBIO,
 				       "nfsaio", slptimeo);
 			if (error) {
-				if (nfs_sigintr(nmp, NULL, td))
-					return (EINTR);
+				error2 = nfs_sigintr(nmp, NULL, td);
+				if (error2)
+					return (error2);
 				if (slpflag == PCATCH) {
 					slpflag = 0;
 					slptimeo = 2 * hz;
@@ -1474,7 +1492,7 @@ nfs_doio(struct buf *bp, struct ucred *cr, struct thread *td)
 		 * bp in this case is not an NFS cache block so we should
 		 * be safe. XXX
 		 */
-    		if (error == EINTR
+    		if (error == EINTR || error == EIO
 		    || (!error && (bp->b_flags & B_NEEDCOMMIT))) {
 			int s;
 

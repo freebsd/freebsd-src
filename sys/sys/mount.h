@@ -554,7 +554,7 @@ extern	char *mountrootfsname;
 int	dounmount(struct mount *, int, struct thread *);
 int	kernel_mount(struct iovec *, u_int, int);
 int	kernel_vmount(int flags, ...);
-void	vfs_event_signal(fsid_t *, u_int32_t, void *);
+void	vfs_event_signal(fsid_t *, u_int32_t, intptr_t);
 int	vfs_getopt(struct vfsoptlist *, const char *, void **, int *);
 int	vfs_copyopt(struct vfsoptlist *, const char *, void *, int);
 int	vfs_mount(struct thread *, const char *, char *, int, void *);
