@@ -53,8 +53,6 @@ extern int	opt;		/* optimization preference (space or time) */
 extern int	density;	/* number of bytes per inode */
 extern int	maxcontig;	/* max contiguous blocks to allocate */
 extern int	maxbpg;		/* maximum blocks per file in a cyl group */
-extern int	bbsize;		/* boot block size */
-extern int	sbsize;		/* superblock size */
 extern int	avgfilesize;	/* expected average file size */
 extern int	avgfilesperdir;	/* expected number of files per directory */
 void mkfs (struct partition *, char *, int, int);
