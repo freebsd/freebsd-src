@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.87 1997/12/18 00:28:36 brian Exp $
+.\" $Id: ppp.8,v 1.88 1997/12/21 01:07:13 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -329,7 +329,8 @@ Each line contains one comment, inclusion, label or command:
 .It
 A line starting with a
 .Pq Dq #
-character is treated as a comment line.
+character is treated as a comment line.  Leading whitespace are ignored
+when identifying comment lines.
 .It
 An inclusion is a line beginning with the word
 .Sq !include .
