@@ -93,8 +93,8 @@ union u_spcl {
 		int32_t	c_mtimensec;	    /* last modified time, nanosecs */
 		int32_t	c_spare2[2];	    /* old ctime */
 		int32_t	c_rdev;		    /* for devices, device number */
-		int32_t	c_createtimensec;   /* creation time, nanosecs */
-		int64_t	c_createtime;	    /* creation time, seconds */
+		int32_t	c_birthtimensec;    /* creation time, nanosecs */
+		int64_t	c_birthtime;	    /* creation time, seconds */
 		int64_t	c_atime;	    /* last access time, seconds */
 		int64_t	c_mtime;	    /* last modified time, seconds */
 		int32_t	c_spare4[7];	    /* old block pointers */

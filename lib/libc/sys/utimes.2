@@ -75,6 +75,15 @@ is
 it is assumed to point to an array of two timeval structures.
 The access time is set to the value of the first element, and the
 modification time is set to the value of the second element.
+For filesystems that support file birth (creation) times (such as
+.Dv UFS2 ),
+the birth time will be set to the value of the second element
+if the second element is older than the currently set birth time.
+To set both a birth time and a modification time,
+two calls are required; the first to set the birth time
+and the second to set the (presumably newer) modification time.
+Ideally a new system call will be added that allows the setting
+of all three times at once.
 The caller must be the owner of the file or be the super-user.
 .Pp
 In either case, the inode-change-time of the file is set to the current
