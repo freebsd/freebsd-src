@@ -53,10 +53,10 @@
 /*
  * Weak symbols for externally visible functions in this file:
  */
-#pragma weak	flockfile=_flockfile
-#pragma weak	_flockfile_debug=_flockfile_debug_stub
-#pragma weak	ftrylockfile=_ftrylockfile
-#pragma weak	funlockfile=_funlockfile
+__weak_reference(_flockfile, flockfile);
+__weak_reference(_flockfile_debug_stub, _flockfile_debug);
+__weak_reference(_ftrylockfile, ftrylockfile);
+__weak_reference(_funlockfile, funlockfile);
 
 /*
  * We need to retain binary compatibility for a while.  So pretend
