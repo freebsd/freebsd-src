@@ -59,6 +59,36 @@ be recompiled and the system rebooted.  See the README.* files for
 details.
 
 
+What's new in ppp-2.3.1.
+************************
+
+* Enhancements to chat, thanks to Francis Demierre.  Chat can now
+accept comments in the chat script file, and has new SAY, HANGUP,
+CLR_ABORT and CLR_REPORT keywords.
+
+* Fixed a bug which causes 2.3.0 to crash Solaris systems.
+
+* Bug-fixes and restructuring of the Linux kernel driver.
+
+* The holdoff behaviour of pppd has been changed slightly: now, if
+the link comes up for IP (or other network protocol) traffic, we
+consider that the link has been successfully established, and don't
+enforce the holdoff period after the link goes down.
+
+* Pppd should now correctly wait for CD (carrier detect) from the
+modem, even when the serial port initially had CLOCAL set, and it
+should also detect loss of CD during or immediately after the
+connection script runs.
+[[ ***************************
+[[ NOTE: This change has NOT been incorporated into the FreeBSD version
+[[ due to tty handling differences!  (This causes EIO during chat(8))
+
+* Under linux, pppd will work with older 2.2.0* version kernel
+drivers, although demand-dialling is not supported with them.
+
+* Minor bugfixes for pppd.
+
+
 What's new in ppp-2.3.
 **********************
 
