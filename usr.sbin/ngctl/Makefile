@@ -10,6 +10,5 @@ LDADD+=		-lnetgraph
 DPADD+=		/usr/lib/libnetgraph.a
 
 COPTS+=		-O2 -g -Wall -Werror
-COPTS+=		-I/usr/src.freefall/sys
 
 .include <bsd.prog.mk>
