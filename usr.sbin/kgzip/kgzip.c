@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id:$";
+	"$Id: kgzip.c,v 1.1.1.1 1999/07/19 18:00:18 rnordier Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
