@@ -1,8 +1,8 @@
-@(#)README	7.8
+@(#)README	7.10
 
 "What time is it?" -- Richard Deacon as The King
 "Any time you want it to be." -- Frank Baxter as The Scientist
-					(from the Bell System film on time)
+					(from the Bell System film "About Time")
 
 The 1989 update of the time zone package featured
 
@@ -36,7 +36,7 @@ leap second information from its output files.
 Be sure to read the comments in "Makefile" and make any changes
 needed to make things right for your system.
 
-To use the new functions, use a "-lz" option when compiling or linking.
+To use the new functions, use a "-ltz" option when compiling or linking.
 
 Historical local time information has been included here not because it
 is particularly useful, but rather to:
