@@ -165,8 +165,8 @@ static	void	npx_intr	__P((void *));
 #endif
 static	int	npx_probe	__P((device_t dev));
 static	int	npx_probe1	__P((device_t dev));
-static	void	fpusave		__P((union savefpu *, u_char));
-static	void	fpurstor	__P((union savefpu *, u_char));
+static	void	fpusave		__P((union savefpu *));
+static	void	fpurstor	__P((union savefpu *));
 #ifdef I586_CPU_XXX
 static	long	timezero	__P((const char *funcname,
 				     void (*func)(void *buf, size_t len)));
@@ -632,7 +632,7 @@ npxinit(control)
 	stop_emulating();
 	fldcw(&control);
 	if (PCPU_GET(curpcb) != NULL)
-		fpusave(&PCPU_GET(curpcb)->pcb_save, curproc->p_oncpu);
+		fpusave(&PCPU_GET(curpcb)->pcb_save);
 	start_emulating();
 	critical_exit(savecrit);
 }
@@ -934,7 +934,7 @@ npxdna()
 	 * fnsave are broken, so our treatment breaks fnclex if it is the
 	 * first FPU instruction after a context switch.
 	 */
-	fpurstor(&PCPU_GET(curpcb)->pcb_save, curproc->p_oncpu);
+	fpurstor(&PCPU_GET(curpcb)->pcb_save);
 	critical_exit(s);
 
 	return (1);
@@ -969,18 +969,18 @@ npxsave(addr)
 {
 
 	stop_emulating();
-	fpusave(addr, curproc->p_oncpu);
+	fpusave(addr);
 
 	start_emulating();
 	PCPU_SET(npxproc, NULL);
 }
 
 static void
-fpusave(addr, oncpu)
+fpusave(addr)
 	union savefpu *addr;
-	u_char oncpu;
 {
 	static struct savexmm svxmm[MAXCPU];
+	u_char oncpu = PCPU_GET(cpuid);
 	
 	if (!cpu_fxsr)
 		fnsave(addr);
@@ -991,11 +991,11 @@ fpusave(addr, oncpu)
 }
 
 static void
-fpurstor(addr, oncpu)
+fpurstor(addr)
 	union savefpu *addr;
-	u_char oncpu;
 {
 	static struct savexmm svxmm[MAXCPU];
+	u_char oncpu = PCPU_GET(cpuid);
 
 	if (!cpu_fxsr)
 		frstor(addr);
