@@ -33,10 +33,6 @@
 
 #include "opt_cy_pci_fastintr.h"
 
-#ifndef COMPAT_OLDPCI
-#error "The cy device requires the old pci compatibility shims"
-#endif
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -49,6 +45,10 @@
 
 #ifdef CY_PCI_FASTINTR
 #include <i386/isa/intr_machdep.h>
+#endif
+
+#ifndef COMPAT_OLDPCI
+#error "The cy device requires the old pci compatibility shims"
 #endif
 
 static const char *cy_probe		__P((pcici_t, pcidi_t));

@@ -26,10 +26,6 @@
  * $FreeBSD$
  */
 
-#ifndef COMPAT_OLDPCI
-#error "The simos device requires the old pci compatibility shims"
-#endif
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/malloc.h>
@@ -55,6 +51,10 @@
 
 #include <pci/pcireg.h>
 #include <pci/pcivar.h>
+
+#ifndef COMPAT_OLDPCI
+#error "The simos device requires the old pci compatibility shims"
+#endif
 
 #include <machine/alpha_cpu.h>
 
