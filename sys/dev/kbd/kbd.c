@@ -139,6 +139,7 @@ kbd_init_struct(keyboard_t *kbd, char *name, int type, int unit, int config,
 	kbd->kb_delay1 = KB_DELAY1;	/* these values are advisory only */
 	kbd->kb_delay2 = KB_DELAY2;
 	kbd->kb_count = 0L;
+	bzero(kbd->kb_lastact, sizeof(kbd->kb_lastact));
 }
 
 void
@@ -1018,107 +1019,111 @@ genkbd_keyaction(keyboard_t *kbd, int keycode, int up, int *shiftstate,
 		|| ((key->flgs & FLAG_LOCK_N) && (state & NLKED)) )
 		i ^= 1;
 
-	action = key->map[i];
 	if (up) {	/* break: key released */
-		if (key->spcl & (0x80 >> i)) {
-			/* special keys */
-			switch (action) {
-			case LSHA:
-				if (state & SHIFTAON) {
-					set_lockkey_state(kbd, state, ALK);
-					state &= ~ALKDOWN;
-				}
-				action = LSH;
-				/* FALL THROUGH */
-			case LSH:
-				state &= ~SHIFTS1;
-				break;
-			case RSHA:
-				if (state & SHIFTAON) {
-					set_lockkey_state(kbd, state, ALK);
-					state &= ~ALKDOWN;
-				}
-				action = RSH;
-				/* FALL THROUGH */
-			case RSH:
-				state &= ~SHIFTS2;
-				break;
-			case LCTRA:
-				if (state & SHIFTAON) {
-					set_lockkey_state(kbd, state, ALK);
-					state &= ~ALKDOWN;
-				}
-				action = LCTR;
-				/* FALL THROUGH */
-			case LCTR:
-				state &= ~CTLS1;
-				break;
-			case RCTRA:
-				if (state & SHIFTAON) {
-					set_lockkey_state(kbd, state, ALK);
-					state &= ~ALKDOWN;
-				}
-				action = RCTR;
-				/* FALL THROUGH */
-			case RCTR:
-				state &= ~CTLS2;
-				break;
-			case LALTA:
-				if (state & SHIFTAON) {
-					set_lockkey_state(kbd, state, ALK);
-					state &= ~ALKDOWN;
-				}
-				action = LALT;
-				/* FALL THROUGH */
-			case LALT:
-				state &= ~ALTS1;
-				break;
-			case RALTA:
-				if (state & SHIFTAON) {
-					set_lockkey_state(kbd, state, ALK);
-					state &= ~ALKDOWN;
-				}
-				action = RALT;
-				/* FALL THROUGH */
-			case RALT:
-				state &= ~ALTS2;
-				break;
-			case ASH:
-				state &= ~AGRS1;
-				break;
-			case META:
-				state &= ~METAS1;
-				break;
-			case NLK:
-				state &= ~NLKDOWN;
-				break;
-			case CLK:
-#ifndef PC98
-				state &= ~CLKDOWN;
-#else
-				state &= ~CLKED;
-				i = state & LOCK_MASK;
-				(*kbdsw[kbd->kb_index]->ioctl)(kbd, KDSETLED,
-							       (caddr_t)&i);
-#endif
-				break;
-			case SLK:
-				state &= ~SLKDOWN;
-				break;
-			case ALK:
+		action = kbd->kb_lastact[keycode];
+		kbd->kb_lastact[keycode] = NOP;
+		switch (action) {
+		case LSHA:
+			if (state & SHIFTAON) {
+				set_lockkey_state(kbd, state, ALK);
 				state &= ~ALKDOWN;
-				break;
 			}
-			*shiftstate = state & ~SHIFTAON;
-			return (SPCLKEY | RELKEY | action);
+			action = LSH;
+			/* FALL THROUGH */
+		case LSH:
+			state &= ~SHIFTS1;
+			break;
+		case RSHA:
+			if (state & SHIFTAON) {
+				set_lockkey_state(kbd, state, ALK);
+				state &= ~ALKDOWN;
+			}
+			action = RSH;
+			/* FALL THROUGH */
+		case RSH:
+			state &= ~SHIFTS2;
+			break;
+		case LCTRA:
+			if (state & SHIFTAON) {
+				set_lockkey_state(kbd, state, ALK);
+				state &= ~ALKDOWN;
+			}
+			action = LCTR;
+			/* FALL THROUGH */
+		case LCTR:
+			state &= ~CTLS1;
+			break;
+		case RCTRA:
+			if (state & SHIFTAON) {
+				set_lockkey_state(kbd, state, ALK);
+				state &= ~ALKDOWN;
+			}
+			action = RCTR;
+			/* FALL THROUGH */
+		case RCTR:
+			state &= ~CTLS2;
+			break;
+		case LALTA:
+			if (state & SHIFTAON) {
+				set_lockkey_state(kbd, state, ALK);
+				state &= ~ALKDOWN;
+			}
+			action = LALT;
+			/* FALL THROUGH */
+		case LALT:
+			state &= ~ALTS1;
+			break;
+		case RALTA:
+			if (state & SHIFTAON) {
+				set_lockkey_state(kbd, state, ALK);
+				state &= ~ALKDOWN;
+			}
+			action = RALT;
+			/* FALL THROUGH */
+		case RALT:
+			state &= ~ALTS2;
+			break;
+		case ASH:
+			state &= ~AGRS1;
+			break;
+		case META:
+			state &= ~METAS1;
+			break;
+		case NLK:
+			state &= ~NLKDOWN;
+			break;
+		case CLK:
+#ifndef PC98
+			state &= ~CLKDOWN;
+#else
+			state &= ~CLKED;
+			i = state & LOCK_MASK;
+			(*kbdsw[kbd->kb_index]->ioctl)(kbd, KDSETLED,
+						       (caddr_t)&i);
+#endif
+			break;
+		case SLK:
+			state &= ~SLKDOWN;
+			break;
+		case ALK:
+			state &= ~ALKDOWN;
+			break;
+		case NOP:
+			/* release events of regular keys are not reported */
+			*shiftstate &= ~SHIFTAON;
+			return NOKEY;
 		}
-		/* release events of regular keys are not reported */
-		*shiftstate &= ~SHIFTAON;
-		return NOKEY;
+		*shiftstate = state & ~SHIFTAON;
+		return (SPCLKEY | RELKEY | action);
 	} else {	/* make: key pressed */
+		action = key->map[i];
 		state &= ~SHIFTAON;
 		if (key->spcl & (0x80 >> i)) {
 			/* special keys */
+			if (kbd->kb_lastact[keycode] == NOP)
+				kbd->kb_lastact[keycode] = action;
+			if (kbd->kb_lastact[keycode] != action)
+				action = NOP;
 			switch (action) {
 			/* LOCKING KEYS */
 			case NLK:
@@ -1198,6 +1203,9 @@ genkbd_keyaction(keyboard_t *kbd, int keycode, int up, int *shiftstate,
 			case META:
 				state |= METAS1;
 				break;
+			case NOP:
+				*shiftstate = state;
+				return NOKEY;
 			default:
 				/* is this an accent (dead) key? */
 				*shiftstate = state;
@@ -1230,6 +1238,7 @@ genkbd_keyaction(keyboard_t *kbd, int keycode, int up, int *shiftstate,
 			return (SPCLKEY | action);
 		} else {
 			/* regular keys */
+			kbd->kb_lastact[keycode] = NOP;
 			*shiftstate = state;
 			if (*accents > 0) {
 				/* make an accented char */
