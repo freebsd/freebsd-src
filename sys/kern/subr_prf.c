@@ -802,14 +802,17 @@ msgbufinit(void *ptr, size_t size)
 	char *cp;
 	static struct msgbuf *oldp = NULL;
 
+	size -= sizeof(*msgbufp);
 	cp = (char *)ptr;
-	msgbufp = (struct msgbuf *) (cp + size - sizeof(*msgbufp));
-	if (msgbufp->msg_magic != MSG_MAGIC || msgbufp->msg_ptr != cp) {
+	msgbufp = (struct msgbuf *) (cp + size);
+	if (msgbufp->msg_magic != MSG_MAGIC || msgbufp->msg_size != size ||
+	    msgbufp->msg_bufx >= size || msgbufp->msg_bufr >= size) {
 		bzero(cp, size);
+		bzero(msgbufp, sizeof(*msgbufp));
 		msgbufp->msg_magic = MSG_MAGIC;
 		msgbufp->msg_size = (char *)msgbufp - cp;
-		msgbufp->msg_ptr = cp;
 	}
+	msgbufp->msg_ptr = cp;
 	if (msgbufmapped && oldp != msgbufp)
 		msgbufcopy(oldp);
 	msgbufmapped = 1;
