@@ -1,11 +1,12 @@
 /*	$NetBSD: usbdevs.c,v 1.4 1998/07/23 13:57:51 augustss Exp $	*/
-/*	FreeBSD $Id$ */
+/*	$FreeBSD$	*/
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
- * Author: Lennart Augustsson
+ * This code is derived from software contributed to The NetBSD Foundation
+ * by Lennart Augustsson (augustss@netbsd.org).
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -98,9 +99,12 @@ usbdev(f, a, rec)
 		else
 			printf("unconfigured, ");
 	}
-	printf("%s, %s", di.product, di.vendor);
-	if (verbose)
-		printf(", rev %s", di.revision);
+	if (verbose) {
+		printf("%s(0x%04x), %s(0x%04x), rev %s",
+			di.product, di.productNo,
+			di.vendor, di.vendorNo, di.revision);
+	} else
+		printf("%s, %s", di.product, di.vendor);
 	printf("\n");
 	if (!rec)
 		return;
