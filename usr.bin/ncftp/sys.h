@@ -446,10 +446,10 @@ extern int errno;
 #		ifndef SYSDIRH
 #			define SYSDIRH 1
 #		endif
-#		ifndef SGTTYB
-#			define SGTTYB
-#		endif
 #	endif
+#       ifndef SGTTYB
+#               define SGTTYB
+#       endif
 #endif
 
 /*
