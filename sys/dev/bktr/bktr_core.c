@@ -1,4 +1,4 @@
-/* $Id: brooktree848.c,v 1.64 1999/01/28 17:47:47 roger Exp $ */
+/* $Id: brooktree848.c,v 1.65 1999/02/08 11:53:05 roger Exp $ */
 /* BT848 Driver for Brooktree's Bt848, Bt849, Bt878 and Bt 879 based cards.
    The Brooktree  BT848 Driver driver is based upon Mark Tinguely and
    Jim Lowe's driver for the Matrox Meteor PCI card . The 
@@ -341,6 +341,13 @@ They are unrelated to Revision Control numbering of FreeBSD or any other system.
                            Added detection for Bt848a.
                            Vsevolod Lobko<seva@sevasoft.alex-ua.com> added
                            more XUSSR channels.
+
+1.59           9 Feb 1999  Added ioctl REMOTE_GETKEY for Hauppauge Infra-Red
+                           Remote Control. Submitted by Roger Hardiman.
+                           Added ioctl TVTUNER_GETCHANSET and
+                           BT848_GPIO_SET_EN,BT848_GPIO_SET_DATA (and GETs)
+                           Submitted by Vsevolod Lobko <seva@alex-ua.com>
+
 */
 
 #define DDB(x) x
@@ -1120,6 +1127,7 @@ static int	tuner_open( bktr_ptr_t bktr );
 static int	tuner_close( bktr_ptr_t bktr );
 static int	tuner_ioctl( bktr_ptr_t bktr, int unit,
 			     int cmd, caddr_t arg, struct proc* pr );
+static int	tuner_getchnlset( struct bktr_chnlset *chnlset );
 
 static int	tv_channel( bktr_ptr_t bktr, int channel );
 static int	tv_freq( bktr_ptr_t bktr, int frequency );
@@ -1142,6 +1150,12 @@ static unsigned int	msp_read(bktr_ptr_t bktr, unsigned char dev,
                         unsigned int addr);
 static void 	msp_write( bktr_ptr_t bktr, unsigned char dev,
                 unsigned int addr, unsigned int data);
+
+/*
+ * Remote Control Functions
+ */
+static void	remote_read(bktr_ptr_t bktr, struct bktr_remote *remote);
+
 
 /*
  * ioctls common to both video & tuner.
@@ -2604,6 +2618,12 @@ tuner_ioctl( bktr_ptr_t bktr, int unit, int cmd, caddr_t arg, struct proc* pr )
 
 	switch ( cmd ) {
 
+	case REMOTE_GETKEY:
+		/* Read the last key pressed by the Remote Control */
+		if (bktr->remote_control == 0) return (EINVAL);
+		remote_read(bktr, (struct bktr_remote *)arg);
+		break;
+
 #if defined( TUNER_AFC )
 	case TVTUNER_SETAFC:
 		bktr->tuner.afc = (*(int *)arg != 0);
@@ -2666,6 +2686,9 @@ tuner_ioctl( bktr_ptr_t bktr, int unit, int cmd, caddr_t arg, struct proc* pr )
 	case TVTUNER_GETFREQ:
 		*(unsigned long *)arg = bktr->tuner.frequency;
 		break;
+
+	case TVTUNER_GETCHNLSET:
+		return tuner_getchnlset((struct bktr_chnlset *)arg);
 
 	case BT848_SAUDIO:	/* set audio channel */
 		if ( set_audio( bktr, *(int*)arg ) < 0 )
@@ -2865,6 +2888,26 @@ tuner_ioctl( bktr_ptr_t bktr, int unit, int cmd, caddr_t arg, struct proc* pr )
 		if ( signCard( bktr, offset, count, buf ) < 0 )
 			return( EIO );
 		break;
+
+        /* Ioctl's for direct gpio access */
+#ifdef BKTR_GPIO_ACCESS
+        case BT848_GPIO_GET_EN:
+                *(int*)arg = bt848->gpio_out_en;
+                break;
+
+        case BT848_GPIO_SET_EN:
+                bt848->gpio_out_en = *(int*)arg;
+                break;
+
+        case BT848_GPIO_GET_DATA:
+                *(int*)arg = bt848->gpio_data;
+                break;
+
+        case BT848_GPIO_SET_DATA:
+                bt848->gpio_data = *(int*)arg;
+                break;
+#endif /* BKTR_GPIO_ACCESS */
+
 	/* Ioctl's for running the tuner device in radio mode		*/
 
 	case RADIO_GETMODE:
@@ -4404,6 +4447,17 @@ msp_reset( bktr_ptr_t bktr )
 	return;
 }
 
+static void remote_read(bktr_ptr_t bktr, struct bktr_remote *remote) {
+	int read;
+
+	/* XXX errors ignored */
+	iicbus_start(IICBUS(bktr), bktr->remote_control_addr, 0 /* no timeout? */);
+	iicbus_read(IICBUS(bktr),  remote->data, 3, &read, IIC_LAST_READ, 0);
+	iicbus_stop(IICBUS(bktr));
+
+	return;
+}
+
 #else /* defined(__FreeBSD__) */
 
 /*
@@ -4424,7 +4478,7 @@ i2cWrite( bktr_ptr_t bktr, int addr, int byte1, int byte2 )
 	/* build the command datum */
 	if (bktr->id == BROOKTREE_848  ||
 	    bktr->id == BROOKTREE_848A ||
-	    bktr->id == BROOKTREE_849 {
+	    bktr->id == BROOKTREE_849) {
 	  data = ((addr & 0xff) << 24) | ((byte1 & 0xff) << 16) | I2C_COMMAND;
 	} else {
 	  data = ((addr & 0xff) << 24) | ((byte1 & 0xff) << 16) | I2C_COMMAND_878;
@@ -4655,6 +4709,21 @@ static void msp_reset( bktr_ptr_t bktr ) {
 	i2c_stop(bktr);
 
 }
+
+static void remote_read(bktr_ptr_t bktr, struct bktr_remote *remote) {
+	int read;
+
+	/* XXX errors ignored */
+	i2c_start(bktr);
+	i2c_write_byte(bktr,bktr->remote_control_addr);
+	i2c_read_byte(bktr,&(remote->data[0]), 0);
+	i2c_read_byte(bktr,&(remote->data[1]), 0);
+	i2c_read_byte(bktr,&(remote->data[2]), 0);
+	i2c_stop(bktr);
+
+	return;
+}
+
 
 #endif /* !define(__FreeBSD__) */
 
@@ -5607,22 +5676,24 @@ static int xussr[] = {
 };
 #undef IF_FREQ
 
-static int* freqTable[] = {
-	NULL,
-	nabcst,
-	irccable,
-	hrccable,
-	weurope,
-	jpnbcst,
-	jpncable,
-	xussr
-	
+static struct {
+        int     *ptr;
+        char    name[BT848_MAX_CHNLSET_NAME_LEN];
+} freqTable[] = {
+        {NULL,          ""},
+        {nabcst,        "nabcst"},
+        {irccable,      "cableirc"},
+        {hrccable,      "cablehrc"},
+        {weurope,       "weurope"},
+        {jpnbcst,       "jpnbcst"},
+        {jpncable,      "jpncable"},
+        {xussr,         "xussr"},
+ 
 };
 
-
-#define TBL_CHNL	freqTable[ bktr->tuner.chnlset ][ x ]
-#define TBL_BASE_FREQ	freqTable[ bktr->tuner.chnlset ][ x + 1 ]
-#define TBL_OFFSET	freqTable[ bktr->tuner.chnlset ][ x + 2 ]
+#define TBL_CHNL	freqTable[ bktr->tuner.chnlset ].ptr[ x ]
+#define TBL_BASE_FREQ	freqTable[ bktr->tuner.chnlset ].ptr[ x + 1 ]
+#define TBL_OFFSET	freqTable[ bktr->tuner.chnlset ].ptr[ x + 2 ]
 static int
 frequency_lookup( bktr_ptr_t bktr, int channel )
 {
@@ -5649,7 +5720,7 @@ frequency_lookup( bktr_ptr_t bktr, int channel )
 #undef TBL_CHNL
 
 
-#define TBL_IF	freqTable[ bktr->tuner.chnlset ][ 1 ]
+#define TBL_IF	freqTable[ bktr->tuner.chnlset ].ptr[ 1 ]
 /*
  * set the frequency of the tuner
  */
@@ -5823,7 +5894,22 @@ tv_channel( bktr_ptr_t bktr, int channel )
 	return( (bktr->tuner.channel = channel) );
 }
 
+/*
+ * get channelset name
+ */
+static int
+tuner_getchnlset(struct bktr_chnlset *chnlset)
+{
+       if (( chnlset->index < CHNLSET_MIN ) ||
+               ( chnlset->index > CHNLSET_MAX ))
+                       return( EINVAL );
 
+       memcpy(&chnlset->name, &freqTable[chnlset->index].name,
+               BT848_MAX_CHNLSET_NAME_LEN);
+
+       chnlset->max_channel=freqTable[chnlset->index].ptr[0];
+       return( 0 );
+}
 /******************************************************************************
  * audio specific routines:
  */
