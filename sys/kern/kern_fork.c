@@ -447,6 +447,9 @@ again:
 	if (pages != 0)
 		pmap_new_altkstack(td2, pages);
 
+	PROC_LOCK(p2);
+	PROC_LOCK(p1);
+
 #define RANGEOF(type, start, end) (offsetof(type, end) - offsetof(type, start))
 
 	bzero(&p2->p_startzero,
@@ -457,10 +460,6 @@ again:
 	    (unsigned) RANGEOF(struct thread, td_startzero, td_endzero));
 	bzero(&kg2->kg_startzero,
 	    (unsigned) RANGEOF(struct ksegrp, kg_startzero, kg_endzero));
-
-	mtx_init(&p2->p_mtx, "process lock", NULL, MTX_DEF | MTX_DUPOK);
-	PROC_LOCK(p2);
-	PROC_LOCK(p1);
 
 	bcopy(&p1->p_startcopy, &p2->p_startcopy,
 	    (unsigned) RANGEOF(struct proc, p_startcopy, p_endcopy));
