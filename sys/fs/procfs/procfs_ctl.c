@@ -35,6 +35,9 @@
  * SUCH DAMAGE.
  *
  *	@(#)procfs_ctl.c	8.4 (Berkeley) 6/15/94
+ *
+ * From:
+ *	$Id: procfs_ctl.c,v 3.2 1993/12/15 09:40:17 jsp Exp $
  * $FreeBSD$
  */
 
@@ -190,7 +193,7 @@ out:
 	/*
 	 * do single-step fixup if needed
 	 */
-	FIX_SSTEP(FIRST_THREAD_IN_PROC(p));		/* XXXKSE */
+	FIX_SSTEP(FIRST_THREAD_IN_PROC(p));	/* XXXKSE */
 #endif
 
 	/*
@@ -349,13 +352,15 @@ procfs_doprocctl(PFS_FILL_ARGS)
 			PROC_LOCK(p);
 			mtx_lock_spin(&sched_lock);
 
-/* This is very broken XXXKSE */
+			/* This is very broken XXXKSE: */
 			if (TRACE_WAIT_P(td->td_proc, p)) {
 				p->p_xstat = nm->nm_val;
 #ifdef FIX_SSTEP
-				FIX_SSTEP(FIRST_THREAD_IN_PROC(p));   /* XXXKSE */
+				/* XXXKSE: */
+				FIX_SSTEP(FIRST_THREAD_IN_PROC(p));
 #endif
-				setrunnable(FIRST_THREAD_IN_PROC(p)); /* XXXKSE */
+				/* XXXKSE: */
+				setrunnable(FIRST_THREAD_IN_PROC(p));
 				mtx_unlock_spin(&sched_lock);
 			} else {
 				mtx_unlock_spin(&sched_lock);
