@@ -393,7 +393,7 @@ ad_print(struct ad_softc *adp)
     }
     else {
 	ata_prtdev(adp->device,
-		   "%lluMB <%.40s/%.8s> [%lld/%d/%d] at ata%d-%s %s",
+		   "%lluMB <%.40s/%.8s> [%lld/%d/%d] at ata%d-%s %s%s\n",
 		   (unsigned long long)(adp->total_secs /
 					((1024L * 1024L) / DEV_BSIZE)),
 		   adp->device->param->model, adp->device->param->revision,
@@ -402,13 +402,8 @@ ad_print(struct ad_softc *adp)
 		   adp->heads, adp->sectors,
 		   device_get_unit(adp->device->channel->dev),
 		   (adp->device->unit == ATA_MASTER) ? "master" : "slave",
-		   (adp->flags & AD_F_TAG_ENABLED) ? "tagged " : "");
-	
-	if (adp->device->param->satacapabilities != 0x0000 &&
-            adp->device->param->satacapabilities != 0xffff)
-	    printf("SATA150\n");
-	else
-	    printf("%s\n", ata_mode2str(adp->device->mode));
+		   (adp->flags & AD_F_TAG_ENABLED) ? "tagged " : "",
+		   ata_mode2str(adp->device->mode));
     }
 }
 

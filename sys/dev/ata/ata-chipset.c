@@ -188,13 +188,16 @@ ata_sata_setmode(struct ata_device *atadev, int mode)
      * Marvell 88SX8030 SATA->PATA converters and UDMA6/ATA133.
      */
     if (atadev->param->satacapabilities != 0x0000 &&
-	atadev->param->satacapabilities != 0xffff)
-	mode = ata_limit_mode(atadev, mode, ATA_UDMA6);
-    else
+	atadev->param->satacapabilities != 0xffff) {
+        if (!ata_controlcmd(atadev, ATA_SETFEATURES, ATA_SF_SETXFER, 0,
+			    ata_limit_mode(atadev, mode, ATA_UDMA6)))
+	    atadev->mode = ATA_SA150;
+    }
+    else {
 	mode = ata_limit_mode(atadev, mode, ATA_UDMA5);
-
-    if (!ata_controlcmd(atadev, ATA_SETFEATURES, ATA_SF_SETXFER, 0, mode))
-	atadev->mode = mode;
+	if (!ata_controlcmd(atadev, ATA_SETFEATURES, ATA_SF_SETXFER, 0, mode))
+	    atadev->mode = mode;
+    }
 }
 
 /*
