@@ -32,11 +32,6 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/namei.h>
-#include <sys/proc.h>
-#include <sys/file.h>
-#include <sys/stat.h>
-#include <sys/filedesc.h>
-#include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/vnode.h>
 

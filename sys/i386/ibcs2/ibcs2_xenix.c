@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ibcs2_xenix.c,v 1.11 1997/05/07 20:05:45 peter Exp $
+ *	$Id: ibcs2_xenix.c,v 1.12 1997/06/22 19:04:03 sef Exp $
  */
 
 #include <sys/param.h>
@@ -35,20 +35,11 @@
 #include <sys/namei.h> 
 #include <sys/sysproto.h>
 #include <sys/kernel.h>
-#include <sys/exec.h>
 #include <sys/filio.h>
-#include <sys/proc.h>
 #include <sys/vnode.h>
 #include <sys/sysctl.h>
-#include <sys/sysent.h>
-#include <sys/errno.h>
-#include <sys/timeb.h>
-#include <sys/unistd.h>
 
-#include <vm/vm.h>
 #include <machine/cpu.h>
-#include <machine/psl.h>
-#include <machine/reg.h>
 
 #include <i386/ibcs2/ibcs2_types.h>
 #include <i386/ibcs2/ibcs2_unistd.h>

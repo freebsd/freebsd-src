@@ -25,19 +25,12 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: ibcs2_signal.c,v 1.9 1997/02/22 09:33:26 peter Exp $
+ * $Id: ibcs2_signal.c,v 1.10 1997/03/24 11:23:32 bde Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/namei.h>
-#include <sys/proc.h>
-#include <sys/filedesc.h>
-#include <sys/mount.h>
-#include <sys/kernel.h>
-#include <sys/signal.h>
 #include <sys/signalvar.h>
-#include <sys/malloc.h>
 #include <sys/sysproto.h>
 
 #include <i386/ibcs2/ibcs2_types.h>

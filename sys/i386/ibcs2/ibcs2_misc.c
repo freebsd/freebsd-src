@@ -45,7 +45,7 @@
  *
  *	@(#)sun_misc.c	8.1 (Berkeley) 6/18/93
  *
- * $Id: ibcs2_misc.c,v 1.20 1997/05/07 20:05:44 peter Exp $
+ * $Id: ibcs2_misc.c,v 1.21 1997/06/25 01:01:21 sef Exp $
  */
 
 /*
@@ -56,49 +56,28 @@
  */
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/namei.h>
-#include <sys/proc.h>
 #include <sys/fcntl.h>
 #include <sys/file.h>
 #include <sys/filedesc.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
-#include <sys/mbuf.h>
-#include <sys/mman.h>
-#include <sys/mount.h>
 #include <sys/reboot.h>
-#include <sys/resource.h>
 #include <sys/resourcevar.h>
-#include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/dirent.h>
 #include <sys/time.h>
 #include <sys/times.h>
 #include <sys/vnode.h>
-#include <sys/uio.h>
 #include <sys/wait.h>
-#include <sys/utsname.h>
-#include <sys/unistd.h>
-
-#include <netinet/in.h>
 #include <sys/sysproto.h>
-
-#include <miscfs/specfs/specdev.h>
-
-#include <vm/vm.h>
 #include <sys/sysctl.h>		/* must be included after vm.h */
 
 #include <machine/cpu.h>
 #include <machine/psl.h>
-#include <machine/reg.h>
 
-#include <i386/ibcs2/ibcs2_types.h>
 #include <i386/ibcs2/ibcs2_dirent.h>
-#include <i386/ibcs2/ibcs2_fcntl.h>
-#include <i386/ibcs2/ibcs2_time.h>
 #include <i386/ibcs2/ibcs2_signal.h>
 #include <i386/ibcs2/ibcs2_unistd.h>
-#include <i386/ibcs2/ibcs2_utsname.h>
 #include <i386/ibcs2/ibcs2_util.h>
 #include <i386/ibcs2/ibcs2_utime.h>
 #include <i386/ibcs2/ibcs2_proto.h>

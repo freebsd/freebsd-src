@@ -24,24 +24,17 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: ibcs2_fcntl.c,v 1.7 1997/03/23 03:34:03 bde Exp $
+ * $Id: ibcs2_fcntl.c,v 1.8 1997/03/24 11:52:23 bde Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/namei.h>
-#include <sys/proc.h>
 #include <sys/fcntl.h>
 #include <sys/file.h>
-#include <sys/stat.h>
 #include <sys/filedesc.h>
 #include <sys/ttycom.h>
-#include <sys/kernel.h>
-#include <sys/mount.h>
-#include <sys/malloc.h>
 #include <sys/sysproto.h>
 
-#include <i386/ibcs2/ibcs2_types.h>
 #include <i386/ibcs2/ibcs2_fcntl.h>
 #include <i386/ibcs2/ibcs2_signal.h>
 #include <i386/ibcs2/ibcs2_proto.h>
