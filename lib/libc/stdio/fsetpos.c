@@ -43,7 +43,7 @@ static char sccsid[] = "@(#)fsetpos.c	8.1 (Berkeley) 6/4/93";
 /*
  * fsetpos: like fseek.
  */
-fsetpos(iop, pos)
+int fsetpos(iop, pos)
 	FILE *iop;
 	const fpos_t *pos;
 {
