@@ -500,7 +500,7 @@ union ipx_net val;
 {
 	static char buf[100];
 	net.net_e = val;
-	(void)sprintf(buf, "%lx", ntohl(net.long_e));
+	(void)sprintf(buf, "%u", ntohl(net.long_e));
 	return (buf);
 }
 

@@ -39,7 +39,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)startup.c	8.1 (Berkeley) 6/5/93";
+static const char sccsid[] = "@(#)startup.c	8.1 (Berkeley) 6/5/93";
 #endif /* not lint */
 
 /*
@@ -57,6 +57,7 @@ static char sccsid[] = "@(#)startup.c	8.1 (Berkeley) 6/5/93";
 
 #include <errno.h>
 #include <nlist.h>
+#include <search.h>
 #include <stdlib.h>
 
 struct	interface *ifnet;
@@ -254,7 +255,7 @@ addrouteforif(ifp)
 		match = afswitch[dst->sa_family].af_netmatch;
 		if (match)
 		for (ifp2 = ifnet; ifp2; ifp2 =ifp2->int_next) {
-			if (ifp->int_flags & IFF_POINTOPOINT == 0)
+			if ((ifp->int_flags & IFF_POINTOPOINT) == 0)
 				continue;
 			if ((*match)(&ifp2->int_dstaddr,&ifp->int_dstaddr)) {
 				insque(&ifp2->int_sq,&ifp->int_sq);
