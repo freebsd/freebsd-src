@@ -137,11 +137,11 @@ usage(const char *reason)
 	p = getprogname();
 	fprintf(stderr, "Usage error: %s", reason);
 	fprintf(stderr, "Usage:\n");
-	fprintf(stderr, "\t%s attach dest [-l lockfile]\n", p);
+	fprintf(stderr, "\t%s attach dest [-l lockfile] [-p pass-phrase]\n", p);
 	fprintf(stderr, "\t%s detach dest\n", p);
-	fprintf(stderr, "\t%s init /dev/dest [-i] [-f filename] [-L lockfile]\n", p);
-	fprintf(stderr, "\t%s setkey dest [-n key] [-l lockfile] [-L lockfile]\n", p);
-	fprintf(stderr, "\t%s destroy dest [-n key] [-l lockfile] [-L lockfile]\n", p);
+	fprintf(stderr, "\t%s init /dev/dest [-i] [-f filename] [-L lockfile] [-P pass-phrase]\n", p);
+	fprintf(stderr, "\t%s setkey dest [-n key] [-l lockfile] [-p pass-phrase] [-L new-lockfile] [-P new-pass-phrase]\n", p);
+	fprintf(stderr, "\t%s destroy dest [-n key] [-l lockfile] [-p pass-phrase] [-L lockfile]\n", p);
 	exit (1);
 }
 
@@ -799,13 +799,13 @@ main(int argc, char **argv)
 		}
 
 	if (doopen) {
-		dfd = open(dest, O_RDWR | O_CREAT, 0644);
-		if (dfd < 0) {
+		dfd = open(dest, O_RDWR);
+		if (dfd < 0 && dest[0] != '/') {
 			if (snprintf(buf, sizeof(buf), "%s%s",
 			    _PATH_DEV, dest) >= (ssize_t)sizeof(buf))
 				errno = ENAMETOOLONG;
 			else
-				dfd = open(buf, O_RDWR | O_CREAT, 0644);
+				dfd = open(buf, O_RDWR);
 		}
 		if (dfd < 0)
 			err(1, "%s", dest);
