@@ -235,7 +235,7 @@ options 	CLK_USE_TSC_CALIBRATION
 # MISCELLANEOUS DEVICES AND OPTIONS
 
 device		speaker		#Play IBM BASIC-style noises out your speaker
-device		gzip		#Exec gzipped a.out's
+device		gzip		#Exec gzipped a.out's. REQUIRES COMPAT_AOUT!
 
 
 #####################################################################
