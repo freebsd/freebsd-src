@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: builtins.c,v 1.7 1999/07/23 15:49:14 green Exp $
+ * $Id: builtins.c,v 1.8 1999/07/24 12:35:50 sheldonh Exp $
  *
  */
 
@@ -87,6 +87,11 @@ struct biltin biltins[] = {
 
 	{ NULL }
 };
+
+/*
+ * RFC864 Character Generator Protocol. Generates character data without
+ * any regard for input.
+ */
 
 void
 initring()
@@ -171,6 +176,11 @@ chargen_stream(s, sep)		/* Character generator */
 	exit(0);
 }
 
+/*
+ * RFC867 Daytime Protocol. Sends the current date and time as an ascii
+ * character string without any regard for input.
+ */
+
 /* ARGSUSED */
 void
 daytime_dg(s, sep)		/* Return human-readable time of day */
@@ -212,6 +222,11 @@ daytime_stream(s, sep)		/* Return human-readable time of day */
 	(void) write(s, buffer, strlen(buffer));
 }
 
+/*
+ * RFC863 Discard Protocol. Any data received is thrown away and no response
+ * is sent.
+ */
+
 /* ARGSUSED */
 void
 discard_dg(s, sep)		/* Discard service -- ignore data */
@@ -241,6 +256,11 @@ discard_stream(s, sep)		/* Discard service -- ignore data */
 	}
 	exit(0);
 }
+
+/*
+ * RFC862 Echo Protocol. Any data received is sent back to the sender as
+ * received.
+ */
 
 /* ARGSUSED */
 void
@@ -279,6 +299,12 @@ echo_stream(s, sep)		/* Echo service -- echo data back */
 		;
 	exit(0);
 }
+
+/*
+ * RFC1413 Identification Protocol. Given a TCP port number pair, return a
+ * character string which identifies the owner of that connection on the
+ * server's system. Extended to allow for ~/.fakeid support.
+ */
 
 /* ARGSUSED */
 void
@@ -436,6 +462,7 @@ printit:
 }
 
 /*
+ * RFC738 Time Server.
  * Return a machine readable date and time, in the form of the
  * number of seconds since midnight, Jan 1, 1900.  Since gettimeofday
  * returns the number of seconds since midnight, Jan 1, 1970,
@@ -494,6 +521,9 @@ machtime_stream(s, sep)
 }
 
 /*
+ * RFC1078 TCP Port Service Multiplexer (TCPMUX). Service connections to
+ * services based on the service name sent.
+ *
  *  Based on TCPMUX.C by Mark K. Lottor November 1988
  *  sri-nic::ps:<mkl>tcpmux.c
  */
@@ -578,4 +608,3 @@ tcpmux(s)
 	strwrite(s, "-Service not available\r\n");
 	return (NULL);
 }
-
