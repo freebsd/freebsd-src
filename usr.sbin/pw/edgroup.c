@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: edgroup.c,v 1.5 1997/10/10 06:23:30 charnier Exp $";
 #endif /* not lint */
 
 #include <stdio.h>
@@ -64,7 +64,7 @@ editgroups(char *name, char **groups)
 	int             rc = 0;
 	int             infd;
 
-	if ((infd = open(groupfile, O_RDWR | O_CREAT | O_EXLOCK, 0644)) != -1) {
+	if ((infd = open(groupfile, O_RDWR | O_CREAT, 0644)) != -1) {
 		FILE           *infp;
 
 		if ((infp = fdopen(infd, "r+")) == NULL)
