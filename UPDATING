@@ -77,10 +77,12 @@ COMMON ITEMS: section later in the file.
 20010924:
 	The buildworld has been fixed.  You may need to install
 	the 4.x compatibility libraries for some old binaries
-	to work.
-		cd src/lib/compat/compat4x.i386
+	to work.  Add COMPAT4X=true to your /etc/make.conf to
+	get them installed on every installworld, or execute the
+	following to get them installed only once:
+		cd src/lib/compat/compat4x.<arch>
 		make all install
-	You will see __stdoutp undefined until you do this.
+	You will see ``__stdoutp undefined'' until you do this.
 
 20010919:
 	There's a bug in the world build process.  The cross-tools
