@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.89.2.18 1997/02/01 03:03:02 jkh Exp $
+ * $Id: menus.c,v 1.89.2.19 1997/02/13 00:31:59 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -444,9 +444,7 @@ DMenu MenuMediaFTP = {
     "guaranteed to carry the full range of possible distributions.",
     "Select a site that's close!",
     "install",
-    { { "2.2-GAMMA Site", "22gamma.freebsd.org", NULL, dmenuSetVariable, NULL,
-	VAR_FTP_PATH "=ftp://22gamma.freebsd.org/pub/FreeBSD/" },
-      { "Primary Site",	"ftp.freebsd.org", NULL, dmenuSetVariable, NULL,
+    { { "Primary Site",	"ftp.freebsd.org", NULL, dmenuSetVariable, NULL,
 	VAR_FTP_PATH "=ftp://ftp.freebsd.org/pub/FreeBSD/" },
       { "URL",		"Specify some other ftp site by URL", NULL, dmenuSetVariable, NULL,
 	VAR_FTP_PATH "=other" },
