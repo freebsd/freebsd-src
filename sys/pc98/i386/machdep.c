@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.38 1997/04/27 13:22:02 kato Exp $
+ *	$Id: machdep.c,v 1.39 1997/05/08 09:34:16 kato Exp $
  */
 
 #include "npx.h"
@@ -1066,7 +1066,12 @@ init386(first)
 	 */
 	gdt_segs[GCODE_SEL].ssd_limit = i386_btop(0) - 1;
 	gdt_segs[GDATA_SEL].ssd_limit = i386_btop(0) - 1;
-	for (x = 0; x < NGDT; x++)
+#ifdef BDE_DEBUGGER
+#define	NGDT1	8		/* avoid overwriting db entries with APM ones */
+#else
+#define	NGDT1	(sizeof gdt_segs / sizeof gdt_segs[0])
+#endif
+	for (x = 0; x < NGDT1; x++)
 		ssdtosd(&gdt_segs[x], &gdt[x].sd);
 
 #ifdef SMP
@@ -1102,8 +1107,7 @@ init386(first)
 #define VM_END_USER_R_ADDRESS	(VM_END_USER_RW_ADDRESS + UPAGES * PAGE_SIZE)
 	ldt_segs[LUCODE_SEL].ssd_limit = i386_btop(VM_END_USER_R_ADDRESS) - 1;
 	ldt_segs[LUDATA_SEL].ssd_limit = i386_btop(VM_END_USER_RW_ADDRESS) - 1;
-	/* Note. eventually want private ldts per process */
-	for (x = 0; x < NLDT; x++)
+	for (x = 0; x < sizeof ldt_segs / sizeof ldt_segs[0]; x++)
 		ssdtosd(&ldt_segs[x], &ldt[x].sd);
 
 	/* exceptions */
