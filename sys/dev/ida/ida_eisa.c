@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2000 Jonathan Lemon
  * Copyright (c) 1999 by Matthew N. Dodd <winter@jurai.net>
  * All Rights Reserved.

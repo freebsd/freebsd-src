@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2002 M Warner Losh.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without

@@ -1,4 +1,4 @@
-/*
+/*-
  * vkbd.c
  *
  * Copyright (c) 2004 Maksim Yevmenkin <m_evmenkin@yahoo.com>

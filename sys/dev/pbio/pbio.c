@@ -1,4 +1,4 @@
-/*
+/*-
  *  Copyright (c) 2000-2004
  *          Diomidis D. Spinellis, Athens, Greece
  *      All rights reserved.

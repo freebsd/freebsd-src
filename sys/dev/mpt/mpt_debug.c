@@ -1,4 +1,4 @@
-/*
+/*-
  * Debug routines for LSI '909 FC  adapters.
  * FreeBSD Version.
  *

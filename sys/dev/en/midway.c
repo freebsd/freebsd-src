@@ -1,8 +1,7 @@
 /*	$NetBSD: midway.c,v 1.30 1997/09/29 17:40:38 chuck Exp $	*/
 /*	(sync'd to midway.c 1.68)	*/
 
-/*
- *
+/*-
  * Copyright (c) 1996 Charles D. Cranor and Washington University.
  * All rights reserved.
  *

@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2002 Orion Hodson <orion@freebsd.org>
  * All rights reserved.
  *

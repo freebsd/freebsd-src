@@ -1,4 +1,4 @@
-/*
+/*-
  * Defines for Cronyx-Tau adapter driver.
  *
  * Copyright (C) 1994-2003 Cronyx Engineering.

@@ -1,5 +1,5 @@
-/* radeon_cp.c -- CP support for Radeon -*- linux-c -*-
- *
+/* radeon_cp.c -- CP support for Radeon -*- linux-c -*- */
+/*-
  * Copyright 2000 Precision Insight, Inc., Cedar Park, Texas.
  * Copyright 2000 VA Linux Systems, Inc., Fremont, California.
  * All Rights Reserved.

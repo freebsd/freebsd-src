@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2001 Orion Hodson <oho@acm.org>
  * All rights reserved.
  *

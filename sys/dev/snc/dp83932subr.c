@@ -1,7 +1,7 @@
 /*	$NecBSD: dp83932subr.c,v 1.5.6.2 1999/10/09 05:47:23 kmatsuda Exp $	*/
 /*	$NetBSD$	*/
   
-/*
+/*-
  * Copyright (c) 1997, 1998, 1999
  *	Kouichi Matsuda.  All rights reserved.
  *

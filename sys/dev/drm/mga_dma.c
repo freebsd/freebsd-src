@@ -1,6 +1,6 @@
 /* mga_dma.c -- DMA support for mga g200/g400 -*- linux-c -*-
- * Created: Mon Dec 13 01:50:01 1999 by jhartmann@precisioninsight.com
- *
+ * Created: Mon Dec 13 01:50:01 1999 by jhartmann@precisioninsight.com */
+/*-
  * Copyright 1999 Precision Insight, Inc., Cedar Park, Texas.
  * Copyright 2000 VA Linux Systems, Inc., Sunnyvale, California.
  * All Rights Reserved.

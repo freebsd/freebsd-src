@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 1999 Seigo Tanimura
  * All rights reserved.
  *

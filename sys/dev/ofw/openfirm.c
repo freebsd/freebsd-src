@@ -1,6 +1,6 @@
 /*	$NetBSD: Locore.c,v 1.7 2000/08/20 07:04:59 tsubai Exp $	*/
 
-/*
+/*-
  * Copyright (C) 1995, 1996 Wolfgang Solfrank.
  * Copyright (C) 1995, 1996 TooLs GmbH.
  * All rights reserved.
@@ -33,7 +33,7 @@
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
-/*
+/*-
  * Copyright (C) 2000 Benno Rice.
  * All rights reserved.
  *

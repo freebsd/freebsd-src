@@ -1,4 +1,4 @@
-/*
+/*-
  * All Rights Reserved, Copyright (C) Fujitsu Limited 1995
  *
  * This software may be used, modified, copied, distributed, and sold, in

@@ -1,4 +1,4 @@
-/*
+/*-
  * Device probe and attach routines for the following
  * Advanced Systems Inc. SCSI controllers:
  *

@@ -1,5 +1,5 @@
 /* $FreeBSD$ */
-/*
+/*-
  * Principal Author: Parag Patel
  * Copyright (c) 2001
  * All rights reserved.
@@ -30,7 +30,7 @@
  * Secondary Author: Matthew Jacob
  */
 
-/*
+/*-
  * Derived by information released by Intel under the following license:
  *
  * Copyright (c) 1999 - 2001, Intel Corporation 

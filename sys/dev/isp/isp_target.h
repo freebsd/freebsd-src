@@ -1,5 +1,5 @@
 /* $FreeBSD$ */
-/*
+/*-
  * Qlogic Target Mode Structure and Flag Definitions
  *
  * Copyright (c) 1997, 1998

@@ -1,4 +1,4 @@
-/*
+/*-
  * Product specific probe and attach routines for:
  *      3940, 2940, aic7895, aic7890, aic7880,
  *	aic7870, aic7860 and aic7850 SCSI controllers

@@ -2,7 +2,7 @@
 /*	$FreeBSD$	*/
 
 
-/*
+/*-
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
  * All rights reserved.
  *

@@ -1,5 +1,5 @@
 /* $FreeBSD$ */
-/*
+/*-
  * Machine Independent (well, as best as possible) register
  * definitions for Qlogic ISP SCSI adapters.
  *

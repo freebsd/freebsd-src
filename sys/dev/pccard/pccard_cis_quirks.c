@@ -5,7 +5,7 @@ __FBSDID("$FreeBSD$");
 
 #define	PCCARDDEBUG
 
-/*
+/*-
  * Copyright (c) 1998 Marc Horowitz.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without

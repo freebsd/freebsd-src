@@ -1,4 +1,4 @@
-/*
+/*-
  * Product specific probe and attach routines for:
  *	aic7901 and aic7902 SCSI controllers
  *

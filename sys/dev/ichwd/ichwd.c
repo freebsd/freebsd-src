@@ -1,4 +1,4 @@
-/*
+/*-
  * Copyright (c) 2004 Texas A&M University
  * All rights reserved.
  *

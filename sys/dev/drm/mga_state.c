@@ -1,6 +1,6 @@
 /* mga_state.c -- State support for MGA G200/G400 -*- linux-c -*-
- * Created: Thu Jan 27 02:53:43 2000 by jhartmann@precisioninsight.com
- *
+ * Created: Thu Jan 27 02:53:43 2000 by jhartmann@precisioninsight.com */
+/*-
  * Copyright 1999 Precision Insight, Inc., Cedar Park, Texas.
  * Copyright 2000 VA Linux Systems, Inc., Sunnyvale, California.
  * All Rights Reserved.

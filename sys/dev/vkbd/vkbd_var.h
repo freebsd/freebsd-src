@@ -1,4 +1,4 @@
-/*
+/*-
  * vkbd_var.h
  *
  * Copyright (c) 2004 Maksim Yevmenkin <m_evmenkin@yahoo.com>
