@@ -183,20 +183,26 @@ __END_DECLS
  *
  *	The following indicate actions to take on a given datafile.  The same
  *	datafile may appear on more than one "print this file" command in the
- *	control file.  Note that ALL ids with lowercase letters are commands
- *	to "print this file":
+ *	control file.  Note that ALL ids with lowercase letters are expected
+ *	to be actions to "print this file":
  *
- *	  f   - "file name", a plain-text file to print
- *	  l   - "file name", text file with control chars to print (some
- *		printers recognize this id as a request to print a
- *		postscript file)
- *	  p   - "file name", text file to print with pr(1)
- *	  t   - "file name", troff(1) file to print
- *	  n   - "file name", ditroff(1) file to print
- *	  d   - "file name", dvi file to print
- *	  g   - "file name", plot(1G) file to print
+ *	  c   - "file name", cifplot file to print.  This action appears
+ *		when the user has requested 'lpr -c'.
+ *	  d   - "file name", dvi file to print, user requested 'lpr -d'
+ *	  f   - "file name", a plain-text file to print = "standard"
+ *	  g   - "file name", plot(1G) file to print, ie 'lpr -g'
+ *	  l   - "file name", text file with control chars which should
+ *		be printed literally, ie 'lpr -l'  (note: some printers
+ *		take this id as a request to print a postscript file)
+ *	  n   - "file name", ditroff(1) file to print, ie 'lpr -n'
+ *	  o   - "file name", a postscript file to print.  This id is
+ *		described in the original RFC, but not much has been
+ *		done with it.  This 'lpr' does not generate control
+ *		lines with 'o'-actions, but lpd's printjob processing
+ *		will treat it the same as 'f'.
+ *	  p   - "file name", text file to print with pr(1), ie 'lpr -p'
+ *	  t   - "file name", troff(1) file to print, ie 'lpr -t'
  *	  v   - "file name", plain raster file to print
- *	  c   - "file name", cifplot file to print
  *
  *	  U   - "file name" of datafile to unlink (ie, remove file
  *		from spool directory.  To be done in a 'Pass 2',
