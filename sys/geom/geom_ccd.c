@@ -114,7 +114,7 @@ struct ccdiinfo {
  * Describes a single component of a concatenated disk.
  */
 struct ccdcinfo {
-	size_t		ci_size; 		/* size */
+	daddr_t		ci_size; 		/* size */
 	struct g_provider *ci_provider;		/* provider */
 	struct g_consumer *ci_consumer;		/* consumer */
 };
@@ -128,7 +128,7 @@ struct ccd_s {
 
 	int		 sc_unit;		/* logical unit number */
 	int		 sc_flags;		/* flags */
-	size_t		 sc_size;		/* size of ccd */
+	daddr_t		 sc_size;		/* size of ccd */
 	int		 sc_ileave;		/* interleave */
 	u_int		 sc_ndisks;		/* number of components */
 	struct ccdcinfo	 *sc_cinfo;		/* component info */
@@ -204,9 +204,9 @@ static int
 ccdinit(struct gctl_req *req, struct ccd_s *cs)
 {
 	struct ccdcinfo *ci;
-	size_t size;
+	daddr_t size;
 	int ix;
-	size_t minsize;
+	daddr_t minsize;
 	int maxsecsize;
 	off_t mediasize;
 	u_int sectorsize;
@@ -309,7 +309,7 @@ ccdinterleave(struct ccd_s *cs)
 	struct ccdiinfo *ii;
 	daddr_t bn, lbn;
 	int ix;
-	u_long size;
+	daddr_t size;
 
 
 	/*
