@@ -147,6 +147,7 @@ isa_alloc_resourcev(device_t child, int type, int *rid,
 
 	device_t	bus = device_get_parent(child);
 	bus_addr_t	start;
+	bus_space_handle_t bh;
 	struct resource *re;
 	struct resource	**bsre;
 	int		i, j, k, linear_cnt, ressz, bsrid;
@@ -193,8 +194,9 @@ isa_alloc_resourcev(device_t child, int type, int *rid,
 		}
 	}
 
-	re->r_bushandle->bsh_res = bsre;
-	re->r_bushandle->bsh_ressz = ressz;
+	bh = rman_get_bushandle(re);
+	bh->bsh_res = bsre;
+	bh->bsh_ressz = ressz;
 
 	return re;
 }
@@ -203,23 +205,25 @@ int
 isa_load_resourcev(struct resource *re, bus_addr_t *res, bus_size_t count)
 {
 	bus_addr_t	start;
+	bus_space_handle_t bh;
 	int		i;
 
-	if (count > re->r_bushandle->bsh_maxiatsz) {
+	bh = rman_get_bushandle(re);
+	if (count > bh->bsh_maxiatsz) {
 		printf("isa_load_resourcev: map size too large\n");
 		return EINVAL;
 	}
 
 	start = rman_get_start(re);
-	for (i = 0; i < re->r_bushandle->bsh_maxiatsz; i++) {
+	for (i = 0; i < bh->bsh_maxiatsz; i++) {
 		if (i < count)
-			re->r_bushandle->bsh_iat[i] = start + res[i];
+			bh->bsh_iat[i] = start + res[i];
 		else
-			re->r_bushandle->bsh_iat[i] = start;
+			bh->bsh_iat[i] = start;
 	}
 
-	re->r_bushandle->bsh_iatsz = count;
-	re->r_bushandle->bsh_bam = re->r_bustag->bs_ra;	/* relocate access */
+	bh->bsh_iatsz = count;
+	bh->bsh_bam = rman_get_bustag(re)->bs_ra;	/* relocate access */
 
 	return 0;
 }
@@ -237,13 +241,15 @@ isa_release_resource(device_t bus, device_t child, int type, int rid,
 	 * defined in sys/i386/include/bus_pc98.h.
 	 */
 	int	i;
+	bus_space_handle_t bh;
 
 	if (type == SYS_RES_MEMORY || type == SYS_RES_IOPORT) {
-		for (i = 1; i < r->r_bushandle->bsh_ressz; i++)
+		bh = rman_get_bushandle(r);
+		for (i = 1; i < bh->bsh_ressz; i++)
 			resource_list_release(rl, bus, child, type, rid + i,
-					      r->r_bushandle->bsh_res[i]);
-		if (r->r_bushandle->bsh_res != NULL)
-			free(r->r_bushandle->bsh_res, M_DEVBUF);
+					      bh->bsh_res[i]);
+		if (bh->bsh_res != NULL)
+			free(bh->bsh_res, M_DEVBUF);
 	}
 #endif
 	return resource_list_release(rl, bus, child, type, rid, r);
