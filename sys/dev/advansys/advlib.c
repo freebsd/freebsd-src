@@ -1,7 +1,7 @@
 /*
  * Low level routines for the Advanced Systems Inc. SCSI controllers chips
  *
- * Copyright (c) 1996-1997 Justin Gibbs.
+ * Copyright (c) 1996-1997, 1999-2000 Justin Gibbs.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -234,7 +234,6 @@ static void	 adv_enable_interrupt(struct adv_softc *adv);
 static void	 adv_toggle_irq_act(struct adv_softc *adv);
 
 /* Chip Control */
-static int	 adv_stop_chip(struct adv_softc *adv);
 static int	 adv_host_req_chip_halt(struct adv_softc *adv);
 static void	 adv_set_chip_ih(struct adv_softc *adv, u_int16_t ins_code);
 #if UNUSED
@@ -536,19 +535,25 @@ adv_set_eeprom_config(struct adv_softc *adv,
 }
 
 int
-adv_reset_chip_and_scsi_bus(struct adv_softc *adv)
+adv_reset_chip(struct adv_softc *adv, int reset_bus)
 {
 	adv_stop_chip(adv);
-	ADV_OUTB(adv, ADV_CHIP_CTRL,
-		 ADV_CC_CHIP_RESET | ADV_CC_SCSI_RESET | ADV_CC_HALT);
-	DELAY(200 * 1000);
+	ADV_OUTB(adv, ADV_CHIP_CTRL, ADV_CC_CHIP_RESET | ADV_CC_HALT
+				     | (reset_bus ? ADV_CC_SCSI_RESET : 0));
+	DELAY(60);
 
 	adv_set_chip_ih(adv, ADV_INS_RFLAG_WTM);
 	adv_set_chip_ih(adv, ADV_INS_HALT);
 
-	ADV_OUTB(adv, ADV_CHIP_CTRL, ADV_CC_CHIP_RESET | ADV_CC_HALT);
+	if (reset_bus)
+		ADV_OUTB(adv, ADV_CHIP_CTRL, ADV_CC_CHIP_RESET | ADV_CC_HALT);
+
 	ADV_OUTB(adv, ADV_CHIP_CTRL, ADV_CC_HALT);
-	DELAY(200 * 1000);
+	if (reset_bus)
+		DELAY(200 * 1000);
+
+	ADV_OUTW(adv, ADV_CHIP_STATUS, ADV_CIW_CLR_SCSI_RESET_INT);
+	ADV_OUTW(adv, ADV_CHIP_STATUS, 0);
 	return (adv_is_chip_halted(adv));
 }
 
@@ -712,7 +717,7 @@ adv_execute_scsi_queue(struct adv_softc *adv, struct adv_scsi_q *scsiq,
 			panic("adv_execute_scsi_queue: "
 			      "Queue with too many segs.");
 
-		if (adv->type & (ADV_ISA | ADV_VL | ADV_EISA)) {
+		if ((adv->type & (ADV_ISA | ADV_VL | ADV_EISA)) != 0) {
 			int i;
 
 			for (i = 0; i < sg_entry_cnt_minus_one; i++) {
@@ -819,15 +824,14 @@ adv_copy_lram_doneq(struct adv_softc *adv, u_int16_t q_addr,
 	scsiq->extra_bytes = (val >> 8) & 0xFF;
 
 	/*
-	 * XXX 
-	 * Due to a bug in accessing LRAM on the 940UA, we only pull
-	 * the low 16bits of residual information.  In the future, we'll
-	 * want to allow transfers larger than 64K, but hopefully we'll
-	 * get a new firmware revision from AdvanSys that address this
-	 * problem before we up the transfer size.
+	 * Due to a bug in accessing LRAM on the 940UA, the residual
+	 * is split into separate high and low 16bit quantities.
 	 */
 	scsiq->remain_bytes =
 	    adv_read_lram_16(adv, q_addr + ADV_SCSIQ_DW_REMAIN_XFER_CNT);
+	scsiq->remain_bytes |=
+	    adv_read_lram_16(adv, q_addr + ADV_SCSIQ_W_ALT_DC1) << 16;
+
 	/*
 	 * XXX Is this just a safeguard or will the counter really
 	 * have bogus upper bits?
@@ -955,10 +959,11 @@ adv_isr_chip_halted(struct adv_softc *adv)
 		adv_handle_extmsg_in(adv, halt_q_addr, q_cntl,
 				     target_mask, tid_no);
 	} else if (int_halt_code == ADV_HALT_CHK_CONDITION) {
-		struct	 adv_target_transinfo* tinfo;
-		union	 ccb *ccb;
-		u_int8_t tag_code;
-		u_int8_t q_status;
+		struct	  adv_target_transinfo* tinfo;
+		union	  ccb *ccb;
+		u_int32_t cinfo_index;
+		u_int8_t  tag_code;
+		u_int8_t  q_status;
 
 		tinfo = &adv->tinfo[tid_no];
 		q_cntl |= QC_REQ_SENSE;
@@ -995,8 +1000,9 @@ adv_isr_chip_halted(struct adv_softc *adv)
 		/*
 		 * Freeze the devq until we can handle the sense condition.
 		 */
-		ccb = (union ccb *) adv_read_lram_32(adv, halt_q_addr
-							 + ADV_SCSIQ_D_CCBPTR);
+		cinfo_index =
+		    adv_read_lram_32(adv, halt_q_addr + ADV_SCSIQ_D_CINFO_IDX);
+		ccb = adv->ccb_infos[cinfo_index].ccb;
 		xpt_freeze_devq(ccb->ccb_h.path, /*count*/1);
 		ccb->ccb_h.status |= CAM_DEV_QFRZN;
 		adv_abort_ccb(adv, tid_no, ADV_TIX_TO_LUN(target_ix),
@@ -1033,11 +1039,13 @@ adv_isr_chip_halted(struct adv_softc *adv)
 	} else if (int_halt_code == ADV_HALT_SS_QUEUE_FULL) {
 		u_int8_t scsi_status;
 		union ccb *ccb;
+		u_int32_t cinfo_index;
 		
 		scsi_status = adv_read_lram_8(adv, halt_q_addr
 					      + ADV_SCSIQ_SCSI_STATUS);
-		ccb = (union ccb *) adv_read_lram_32(adv, halt_q_addr
-						     + ADV_SCSIQ_D_CCBPTR);
+		cinfo_index =
+		    adv_read_lram_32(adv, halt_q_addr + ADV_SCSIQ_D_CINFO_IDX);
+		ccb = adv->ccb_infos[cinfo_index].ccb;
 		xpt_freeze_devq(ccb->ccb_h.path, /*count*/1);
 		ccb->ccb_h.status |= CAM_DEV_QFRZN|CAM_SCSI_STATUS_ERROR;
 		ccb->csio.scsi_status = SCSI_STATUS_QUEUE_FULL; 
@@ -1047,6 +1055,8 @@ adv_isr_chip_halted(struct adv_softc *adv)
 		scsi_busy = adv_read_lram_8(adv, ADVV_SCSIBUSY_B);
 		scsi_busy &= ~target_mask;
 		adv_write_lram_8(adv, ADVV_SCSIBUSY_B, scsi_busy);		
+	} else {
+		printf("Unhandled Halt Code %x\n", int_halt_code);
 	}
 	adv_write_lram_16(adv, ADVV_HALTCODE_W, 0);
 }
@@ -1556,7 +1566,7 @@ adv_start_execution(struct adv_softc *adv)
 	}
 }
 
-static int
+int
 adv_stop_chip(struct adv_softc *adv)
 {
 	u_int8_t cc_val;
@@ -1869,15 +1879,17 @@ adv_handle_extmsg_in(struct adv_softc *adv, u_int16_t halt_q_addr,
 	if ((ext_msg.msg_type == MSG_EXTENDED)
 	 && (ext_msg.msg_req == MSG_EXT_SDTR)
 	 && (ext_msg.msg_len == MSG_EXT_SDTR_LEN)) {
-		union	 ccb *ccb;
-		struct	 adv_target_transinfo* tinfo;
+		union	  ccb *ccb;
+		struct	  adv_target_transinfo* tinfo;
+		u_int32_t cinfo_index;
 		u_int	 period;
 		u_int	 offset;
 		int	 sdtr_accept;
 		u_int8_t orig_offset;
 
-		ccb = (union ccb *) adv_read_lram_32(adv, halt_q_addr
-							 + ADV_SCSIQ_D_CCBPTR);
+		cinfo_index =
+		    adv_read_lram_32(adv, halt_q_addr + ADV_SCSIQ_D_CINFO_IDX);
+		ccb = adv->ccb_infos[cinfo_index].ccb;
 		tinfo = &adv->tinfo[tid_no];
 		sdtr_accept = TRUE;
 
@@ -1966,23 +1978,25 @@ adv_abort_ccb(struct adv_softc *adv, int target, int lun, union ccb *ccb,
 	target_ix = ADV_TIDLUN_TO_IX(target, lun);
 	count = 0;
 	for (q_no = ADV_MIN_ACTIVE_QNO; q_no <= adv->max_openings; q_no++) {
+		struct adv_ccb_info *ccb_info;
 		q_addr = ADV_QNO_TO_QADDR(q_no);
 
 		adv_copy_lram_doneq(adv, q_addr, scsiq, adv->max_dma_count);
+		ccb_info = &adv->ccb_infos[scsiq->d2.ccb_index];
 		if (((scsiq->q_status & QS_READY) != 0)
 		 && ((scsiq->q_status & QS_ABORTED) == 0)
 		 && ((scsiq->cntl & QCSG_SG_XFER_LIST) == 0)
 		 && (scsiq->d2.target_ix == target_ix)
 		 && (queued_only == 0
 		  || !(scsiq->q_status & (QS_DISC1|QS_DISC2|QS_BUSY|QS_DONE)))
-		 && (ccb == NULL || (ccb == (union ccb *)scsiq->d2.ccb_ptr))) {
+		 && (ccb == NULL || (ccb == ccb_info->ccb))) {
 			union ccb *aborted_ccb;
 			struct adv_ccb_info *cinfo;
 
 			scsiq->q_status |= QS_ABORTED;
 			adv_write_lram_8(adv, q_addr + ADV_SCSIQ_B_STATUS,
 					 scsiq->q_status);
-			aborted_ccb = (union ccb *)scsiq->d2.ccb_ptr;
+			aborted_ccb = ccb_info->ccb;
 			/* Don't clobber earlier error codes */
 			if ((aborted_ccb->ccb_h.status & CAM_STATUS_MASK)
 			  == CAM_REQ_INPROG)
@@ -1997,19 +2011,21 @@ adv_abort_ccb(struct adv_softc *adv, int target, int lun, union ccb *ccb,
 }
 
 int
-adv_reset_bus(struct adv_softc *adv)
+adv_reset_bus(struct adv_softc *adv, int initiate_bus_reset)
 {
 	int count; 
 	int i;
 	union ccb *ccb;
 
-	adv_reset_chip_and_scsi_bus(adv);
+	i = 200;
+	while ((ADV_INW(adv, ADV_CHIP_STATUS) & ADV_CSW_SCSI_RESET_ACTIVE) != 0
+	    && i--)
+		DELAY(1000);
+	adv_reset_chip(adv, initiate_bus_reset);
 	adv_reinit_lram(adv);
-	for (i = 0; i <= ADV_MAX_TID; i++) {
-		if (adv->fix_asyn_xfer & (0x01 << i))
-			adv_set_sdtr_reg_at_id(adv, i,
-					       ASYN_SDTR_DATA_FIX_PCI_REV_AB);
-        }
+	for (i = 0; i <= ADV_MAX_TID; i++)
+		adv_set_syncrate(adv, NULL, i, /*period*/0,
+				 /*offset*/0, ADV_TRANS_CUR);
 	ADV_OUTW(adv, ADV_REG_PROG_COUNTER, ADV_MCODE_START_ADDR);
 
 	/* Tell the XPT layer that a bus reset occured */
