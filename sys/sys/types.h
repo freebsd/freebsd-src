@@ -45,7 +45,7 @@
 #include <sys/cdefs.h>
 
 /* Machine type dependent parameters. */
-#include <sys/inttypes.h>		/* includes <machine/ansi.h> */
+#include <sys/stdint.h>			/* includes <machine/ansi.h> */
 #include <machine/types.h>
 
 #ifndef _POSIX_SOURCE
