@@ -329,13 +329,12 @@ static int
 isp_pci_attach(device_t dev)
 {
 	struct resource *regs, *irq;
-	int unit, bitmap, rtp, rgd, iqd, m1, m2;
+	int unit, bitmap, rtp, rgd, iqd, m1, m2, s;
 	u_int32_t data, cmd, linesz, psize, basetype;
 	struct isp_pcisoftc *pcs;
 	struct ispsoftc *isp;
 	struct ispmdvec *mdvp;
 	bus_size_t lim;
-	ISP_LOCKVAL_DECL;
 
 	/*
 	 * Figure out if we're supposed to skip this one.
@@ -412,9 +411,6 @@ isp_pci_attach(device_t dev)
 	pcs->pci_poff[SXP_BLOCK >> _BLK_REG_SHFT] = PCI_SXP_REGS_OFF;
 	pcs->pci_poff[RISC_BLOCK >> _BLK_REG_SHFT] = PCI_RISC_REGS_OFF;
 	pcs->pci_poff[DMA_BLOCK >> _BLK_REG_SHFT] = DMA_REGS_OFF;
-	/*
- 	 * GCC!
-	 */
 	mdvp = &mdvec;
 	basetype = ISP_HA_SCSI_UNKNOWN;
 	psize = sizeof (sdparam);
@@ -506,7 +502,7 @@ isp_pci_attach(device_t dev)
 	 *
 	 */
 
-	ISP_LOCK(isp);
+	s = splbio();
 	/*
 	 * Make sure that SERR, PERR, WRITE INVALIDATE and BUSMASTER
 	 * are set.
@@ -541,7 +537,7 @@ isp_pci_attach(device_t dev)
 	data = pci_read_config(dev, PCIR_ROMADDR, 4);
 	data &= ~1;
 	pci_write_config(dev, PCIR_ROMADDR, data, 4);
-	ISP_UNLOCK(isp);
+	splx(s);
 
 	if (bus_dma_tag_create(NULL, 1, 0, BUS_SPACE_MAXADDR_32BIT,
 	    BUS_SPACE_MAXADDR, NULL, NULL, lim + 1,
@@ -618,17 +614,17 @@ isp_pci_attach(device_t dev)
 #ifdef	ISP_TARGET_MODE
 	(void) getenv_int("isp_tdebug", &isp_tdebug);
 #endif
-	ISP_LOCK(isp);
+	s = splbio();
 	if (bus_setup_intr(dev, irq, INTR_TYPE_CAM, (void (*)(void *))isp_intr,
 	    isp, &pcs->ih)) {
-		ISP_UNLOCK(isp);
+		splx(s);
 		device_printf(dev, "could not setup interrupt\n");
 		goto bad;
 	}
 
 	isp_reset(isp);
 	if (isp->isp_state != ISP_RESETSTATE) {
-		ISP_UNLOCK(isp);
+		splx(s);
 		goto bad;
 	}
 	isp_init(isp);
@@ -636,7 +632,7 @@ isp_pci_attach(device_t dev)
 		/* If we're a Fibre Channel Card, we allow deferred attach */
 		if (IS_SCSI(isp)) {
 			isp_uninit(isp);
-			ISP_UNLOCK(isp);
+			splx(s);
 			goto bad;
 		}
 	}
@@ -645,11 +641,11 @@ isp_pci_attach(device_t dev)
 		/* If we're a Fibre Channel Card, we allow deferred attach */
 		if (IS_SCSI(isp)) {
 			isp_uninit(isp);
-			ISP_UNLOCK(isp);
+			splx(s);
 			goto bad;
 		}
 	}
-	ISP_UNLOCK(isp);
+	splx(s);
 	/*
 	 * XXXX: Here is where we might unload the f/w module
 	 * XXXX: (or decrease the reference count to it).
@@ -1049,7 +1045,7 @@ dma2_tgt(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 	}
 
 	pci = (struct isp_pcisoftc *)mp->isp;
-	dp = &pci->dmaps[handle - 1];
+	dp = &pci->dmaps[isp_handle_index(handle)];
 	if ((csio->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN) {
 		bus_dmamap_sync(pci->parent_dmat, *dp, BUS_DMASYNC_PREREAD);
 	} else {
@@ -1263,7 +1259,7 @@ dma2_tgt_fc(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 	bzero(&cto->rsp, sizeof (cto->rsp));
 
 	pci = (struct isp_pcisoftc *)mp->isp;
-	dp = &pci->dmaps[handle - 1];
+	dp = &pci->dmaps[isp_handle_index(handle)];
 	if ((csio->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN) {
 		bus_dmamap_sync(pci->parent_dmat, *dp, BUS_DMASYNC_PREREAD);
 	} else {
@@ -1444,7 +1440,7 @@ dma2(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 	csio = mp->cmd_token;
 	rq = mp->rq;
 	pci = (struct isp_pcisoftc *)mp->isp;
-	dp = &pci->dmaps[rq->req_handle - 1];
+	dp = &pci->dmaps[isp_handle_index(rq->req_handle)];
 
 	if ((csio->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN) {
 		bus_dmamap_sync(pci->parent_dmat, *dp, BUS_DMASYNC_PREREAD);
@@ -1614,7 +1610,7 @@ isp_pci_dmasetup(struct ispsoftc *isp, struct ccb_scsiio *csio, ispreq_t *rq,
 	if ((csio->ccb_h.flags & CAM_SCATTER_VALID) == 0) {
 		if ((csio->ccb_h.flags & CAM_DATA_PHYS) == 0) {
 			int error, s;
-			dp = &pci->dmaps[rq->req_handle - 1];
+			dp = &pci->dmaps[isp_handle_index(rq->req_handle)];
 			s = splsoftvm();
 			error = bus_dmamap_load(pci->parent_dmat, *dp,
 			    csio->data_ptr, csio->dxfer_len, eptr, mp, 0);
@@ -1689,9 +1685,7 @@ static void
 isp_pci_dmateardown(struct ispsoftc *isp, ISP_SCSI_XFER_T *xs, u_int32_t handle)
 {
 	struct isp_pcisoftc *pci = (struct isp_pcisoftc *)isp;
-	bus_dmamap_t *dp = &pci->dmaps[handle - 1];
-	KASSERT((handle > 0 && handle <= isp->isp_maxcmds),
-	    ("bad handle in isp_pci_dmateardonw"));
+	bus_dmamap_t *dp = &pci->dmaps[isp_handle_index(handle)];
 	if ((xs->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN) {
 		bus_dmamap_sync(pci->parent_dmat, *dp, BUS_DMASYNC_POSTREAD);
 	} else {
@@ -1706,6 +1700,8 @@ isp_pci_reset1(struct ispsoftc *isp)
 {
 	/* Make sure the BIOS is disabled */
 	isp_pci_wr_reg(isp, HCCR, PCI_HCCR_CMD_BIOS);
+	/* and enable interrupts */
+	ENABLE_INTS(isp);
 }
 
 static void
