@@ -114,35 +114,6 @@
 
 #include <net/net_osdep.h>
 
-#ifdef HAVE_NRL_INPCB
-/* inpcb members */
-#define in6pcb		inpcb
-#define in6p_laddr	inp_laddr6
-#define in6p_faddr	inp_faddr6
-#define in6p_icmp6filt	inp_icmp6filt
-#define in6p_route	inp_route
-#define in6p_socket	inp_socket
-#define in6p_flags	inp_flags
-#define in6p_moptions	inp_moptions6
-#define in6p_outputopts	inp_outputopts6
-#define in6p_ip6	inp_ipv6
-#define in6p_flowinfo	inp_flowinfo
-#define in6p_sp		inp_sp
-#define in6p_next	inp_next
-#define in6p_prev	inp_prev
-/* macro names */
-#define sotoin6pcb	sotoinpcb
-/* function names */
-#define in6_pcbdetach	in_pcbdetach
-#define in6_rtchange	in_rtchange
-
-/*
- * for KAME src sync over BSD*'s. XXX: FreeBSD (>=3) are VERY different from
- * others...
- */
-#define in6p_ip6_nxt	inp_ipv6.ip6_nxt
-#endif
-
 extern struct domain inet6domain;
 
 struct icmp6stat icmp6stat;
@@ -1926,10 +1897,6 @@ icmp6_rip6_input(mp, off)
 	LIST_FOREACH(in6p, &ripcb, inp_list) {
 		if ((in6p->inp_vflag & INP_IPV6) == 0)
 			continue;
-#ifdef HAVE_NRL_INPCB
-		if (!(in6p->in6p_flags & INP_IPV6))
-			continue;
-#endif
 		if (in6p->in6p_ip6_nxt != IPPROTO_ICMPV6)
 			continue;
 		if (!IN6_IS_ADDR_UNSPECIFIED(&in6p->in6p_laddr) &&
@@ -2697,11 +2664,6 @@ fail:
 		m_freem(m0);
 }
 
-#ifdef HAVE_NRL_INPCB
-#define sotoin6pcb	sotoinpcb
-#define in6pcb		inpcb
-#define in6p_icmp6filt	inp_icmp6filt
-#endif
 /*
  * ICMPv6 socket option processing.
  */
@@ -2775,11 +2737,6 @@ icmp6_ctloutput(so, sopt)
 
 	return (error);
 }
-#ifdef HAVE_NRL_INPCB
-#undef sotoin6pcb
-#undef in6pcb
-#undef in6p_icmp6filt
-#endif
 
 #ifndef HAVE_PPSRATECHECK
 #ifndef timersub
