@@ -311,7 +311,7 @@ vn_rdwr(rw, vp, base, len, offset, segflg, ioflg, cred, aresid, p)
 	if ((ioflg & IO_NODELOCKED) == 0) {
 		mp = NULL;
 		if (rw == UIO_WRITE &&
-		    vp->v_type != VCHR && vp->v_type != VBLK &&
+		    vp->v_type != VCHR &&
 		    (error = vn_start_write(vp, &mp, V_WAIT | PCATCH)) != 0)
 			return (error);
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
@@ -407,7 +407,7 @@ vn_write(fp, uio, cred, flags, p)
 	    (vp->v_mount && (vp->v_mount->mnt_flag & MNT_SYNCHRONOUS)))
 		ioflag |= IO_SYNC;
 	mp = NULL;
-	if (vp->v_type != VCHR && vp->v_type != VBLK &&
+	if (vp->v_type != VCHR &&
 	    (error = vn_start_write(vp, &mp, V_WAIT | PCATCH)) != 0)
 		return (error);
 	VOP_LEASE(vp, p, cred, LEASE_WRITE);

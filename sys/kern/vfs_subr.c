@@ -1234,7 +1234,6 @@ reassignbuf(bp, newvp)
 				delay = dirdelay;
 				break;
 			case VCHR:
-			case VBLK:
 				if (newvp->v_rdev->si_mountpoint != NULL) {
 					delay = metadelay;
 					break;
@@ -1314,9 +1313,8 @@ reassignbuf(bp, newvp)
 }
 
 /*
- * Create a vnode for a block device.
+ * Create a vnode for a device.
  * Used for mounting the root file system.
- * XXX: This now changed to a VCHR due to the block/char merging.
  */
 int
 bdevvp(dev, vpp)
@@ -1362,9 +1360,11 @@ addaliasu(nvp, nvp_rdev)
 	vop_t **ops;
 	dev_t dev;
 
-	if (nvp->v_type != VBLK && nvp->v_type != VCHR)
+	if (nvp->v_type == VBLK)
+		return (nvp);
+	if (nvp->v_type != VCHR)
 		panic("addaliasu on non-special vnode");
-	dev = udev2dev(nvp_rdev, nvp->v_type == VBLK ? 1 : 0);
+	dev = udev2dev(nvp_rdev, 0);
 	/*
 	 * Check to see if we have a bdevvp vnode with no associated
 	 * filesystem. If so, we want to associate the filesystem of
@@ -1405,8 +1405,7 @@ addalias(nvp, dev)
 	dev_t dev;
 {
 
-	KASSERT(nvp->v_type == VBLK || nvp->v_type == VCHR,
-	    ("addalias on non-special vnode"));
+	KASSERT(nvp->v_type == VCHR, ("addalias on non-special vnode"));
 	nvp->v_rdev = dev;
 	simple_lock(&spechash_slock);
 	SLIST_INSERT_HEAD(&dev->si_hlist, nvp, v_specnext);
@@ -1682,7 +1681,7 @@ loop:
 		 */
 		if (flags & FORCECLOSE) {
 			simple_unlock(&mntvnode_slock);
-			if (vp->v_type != VBLK && vp->v_type != VCHR) {
+			if (vp->v_type != VCHR) {
 				vgonel(vp, p);
 			} else {
 				vclean(vp, 0, p);
@@ -1925,7 +1924,7 @@ vgonel(vp, p)
 	 * If special device, remove it from special device alias list
 	 * if it is on one.
 	 */
-	if ((vp->v_type == VBLK || vp->v_type == VCHR) && vp->v_rdev != NULL) {
+	if (vp->v_type == VCHR && vp->v_rdev != NULL && vp->v_rdev != NODEV) {
 		simple_lock(&spechash_slock);
 		SLIST_REMOVE(&vp->v_rdev->si_hlist, vp, vnode, v_specnext);
 		freedev(vp->v_rdev);
@@ -2932,13 +2931,13 @@ sync_print(ap)
 }
 
 /*
- * extract the dev_t from a VBLK or VCHR
+ * extract the dev_t from a VCHR
  */
 dev_t
 vn_todev(vp)
 	struct vnode *vp;
 {
-	if (vp->v_type != VBLK && vp->v_type != VCHR)
+	if (vp->v_type != VCHR)
 		return (NODEV);
 	return (vp->v_rdev);
 }
@@ -2953,7 +2952,7 @@ vn_isdisk(vp, errp)
 {
 	struct cdevsw *cdevsw;
 
-	if (vp->v_type != VBLK && vp->v_type != VCHR) {
+	if (vp->v_type != VCHR) {
 		if (errp != NULL)
 			*errp = ENOTBLK;
 		return (0);

@@ -139,21 +139,14 @@ spec_open(ap)
 	struct cdevsw *dsw;
 	const char *cp;
 
+	if (vp->v_type == VBLK) 
+		return ENXIO;
 	/*
 	 * Don't allow open if fs is mounted -nodev.
 	 */
 	if (vp->v_mount && (vp->v_mount->mnt_flag & MNT_NODEV))
 		return (ENXIO);
 
-	if (vp->v_type == VBLK) {
-		if (*dev->si_name != '\0') 
-			printf("Device \"%s\" ", dev->si_name);
-		else
-			printf("Device char-major=%d minor=0x%x ", 
-			    major(dev), minor(dev));
-		printf("failed attempt to open in block mode\n");
-		return ENXIO;
-	}
 	dsw = devsw(dev);
 	if ( (dsw == NULL) || (dsw->d_open == NULL))
 		return ENXIO;
