@@ -23,6 +23,7 @@ SUBDIR=	accf_data \
 	dcons_crom \
 	dummynet \
 	ed \
+	ext2fs \
 	fdesc \
 	firewire \
 	fxp \
@@ -158,10 +159,6 @@ SUBDIR+=canbepm \
 
 .if ${MACHINE_ARCH} == "alpha"
 SUBDIR+=osf1
-.endif
-
-.if defined(WANT_EXT2FS_MODULE)
-SUBDIR+=ext2fs
 .endif
 
 .if defined(MODULES_OVERRIDE)
