@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)union_vnops.c	8.32 (Berkeley) 6/23/95
- * $Id: union_vnops.c,v 1.30 1997/04/27 10:49:37 kato Exp $
+ * $Id: union_vnops.c,v 1.31 1997/04/29 02:06:07 kato Exp $
  */
 
 #include <sys/param.h>
@@ -644,6 +644,7 @@ union_access(ap)
 	struct proc *p = ap->a_p;
 	int error = EACCES;
 	struct vnode *vp;
+	struct vnode *savedvp;
 
 	if ((vp = un->un_uppervp) != NULLVP) {
 		FIXUP(un, p);
@@ -653,10 +654,11 @@ union_access(ap)
 
 	if ((vp = un->un_lowervp) != NULLVP) {
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, p);
+		savedvp = ap->a_vp;
 		ap->a_vp = vp;
 		error = VCALL(vp, VOFFSET(vop_access), ap);
 		if (error == 0) {
-			struct union_mount *um = MOUNTTOUNIONMOUNT(ap->a_vp->v_mount);
+			struct union_mount *um = MOUNTTOUNIONMOUNT(savedvp->v_mount);
 
 			if (um->um_op == UNMNT_BELOW) {
 				ap->a_cred = um->um_cred;
