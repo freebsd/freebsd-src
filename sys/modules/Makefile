@@ -12,6 +12,7 @@ SUBDIR=	3dfx \
 	amr \
 	an \
 	aue \
+	bge \
 	cam \
 	ccd \
 	cd9660 \

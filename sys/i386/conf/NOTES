@@ -1665,6 +1665,10 @@ device		miibus
 #       (requires sppp)
 # awi:  Support for IEEE 802.11 PC Card devices using the AMD Am79C930 and
 #       Harris (Intersil) Chipset with PCnetMobile firmware by AMD.
+# bge:	Support for gigabit ethernet adapters based on the Broadcom
+#	BCM570x familiy of controllers, including the 3Com 3c996-T,
+#	the SysKonnect SK-9D21 and SK-9D41, and the embedded gigE NICs
+#	on Dell PowerEdge 2550 servers.
 # cnw:  Xircom CNW/Netware Airsurfer PC Card adapter
 # cs:   IBM Etherjet and other Crystal Semi CS89x0-based adapters
 # cx:   Cronyx/Sigma multiport sync/async (with Cisco or PPP framing)
@@ -1872,9 +1876,11 @@ device		xl		# 3Com 3c90x (``Boomerang'', ``Cyclone'')
 
 # PCI Ethernet NICs.
 device		de		# DEC/Intel DC21x4x (``Tulip'')
+device		txp		# 3Com 3cR990 (``Typhoon'')
 device		vx		# 3Com 3c590, 3c595 (``Vortex'')
 
 # PCI Gigabit & FDDI NICs.
+device		bge
 device		lge
 device		nge
 device		sk
