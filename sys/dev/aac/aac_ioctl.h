@@ -1,7 +1,8 @@
 /*-
  * Copyright (c) 2000 Michael Smith
- * Copyright (c) 2000 Scott Long
+ * Copyright (c) 2000-2001 Scott Long
  * Copyright (c) 2000 BSDi
+ * Copyright (c) 2001 Adaptec, Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -60,7 +61,8 @@ union aac_statrequest {
  * These bit encodings are actually descended from Windows NT.  Ick.
  */
 
-#define CTL_CODE(devType, func, meth, acc) (((devType) << 16) | ((acc) << 14) | ((func) << 2) | (meth))
+#define CTL_CODE(devType, func, meth, acc) (((devType) << 16) | ((acc) << 14) \
+					   | ((func) << 2) | (meth))
 #define METHOD_BUFFERED                 0
 #define METHOD_IN_DIRECT                1
 #define METHOD_OUT_DIRECT               2
@@ -70,12 +72,18 @@ union aac_statrequest {
 #define FILE_WRITE_ACCESS         	( 0x0002 )
 #define FILE_DEVICE_CONTROLLER          0x00000004
 
-#define FSACTL_SENDFIB			CTL_CODE(FILE_DEVICE_CONTROLLER, 2050, METHOD_BUFFERED, FILE_ANY_ACCESS)
-#define FSACTL_AIF_THREAD		CTL_CODE(FILE_DEVICE_CONTROLLER, 2127, METHOD_NEITHER, FILE_ANY_ACCESS)
-#define FSACTL_OPEN_GET_ADAPTER_FIB	CTL_CODE(FILE_DEVICE_CONTROLLER, 2100, METHOD_BUFFERED, FILE_ANY_ACCESS)
-#define FSACTL_GET_NEXT_ADAPTER_FIB	CTL_CODE(FILE_DEVICE_CONTROLLER, 2101, METHOD_BUFFERED, FILE_ANY_ACCESS)
-#define FSACTL_CLOSE_GET_ADAPTER_FIB	CTL_CODE(FILE_DEVICE_CONTROLLER, 2102, METHOD_BUFFERED, FILE_ANY_ACCESS)
-#define FSACTL_MINIPORT_REV_CHECK	CTL_CODE(FILE_DEVICE_CONTROLLER, 2107, METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define FSACTL_SENDFIB			CTL_CODE(FILE_DEVICE_CONTROLLER, 2050, \
+					METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define FSACTL_AIF_THREAD		CTL_CODE(FILE_DEVICE_CONTROLLER, 2127, \
+					METHOD_NEITHER, FILE_ANY_ACCESS)
+#define FSACTL_OPEN_GET_ADAPTER_FIB	CTL_CODE(FILE_DEVICE_CONTROLLER, 2100, \
+					METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define FSACTL_GET_NEXT_ADAPTER_FIB	CTL_CODE(FILE_DEVICE_CONTROLLER, 2101, \
+					METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define FSACTL_CLOSE_GET_ADAPTER_FIB	CTL_CODE(FILE_DEVICE_CONTROLLER, 2102, \
+					METHOD_BUFFERED, FILE_ANY_ACCESS)
+#define FSACTL_MINIPORT_REV_CHECK	CTL_CODE(FILE_DEVICE_CONTROLLER, 2107, \
+					METHOD_BUFFERED, FILE_ANY_ACCESS)
 
 /*
  * Support for faking the "miniport" version.
