@@ -89,14 +89,12 @@ static const char rcsid[] =
 #define BIG_NEWFS_FRAG   4096U
 #define BIG_NEWFS_CPG    64U
 
-#ifdef tahoe
-#define	NUMBOOT	0
-#else
-#if defined(__alpha__) || defined(hp300) || defined(hp800)
+#if defined(__i386__) || defined(__ia64__)
+#define	NUMBOOT	2
+#elif defined(__alpha__) || defined(__sparc64__)
 #define	NUMBOOT	1
 #else
-#define	NUMBOOT	2
-#endif
+#error	I do not know about this architecture.
 #endif
 
 void	makelabel	__P((char *, char *, struct disklabel *));
@@ -640,7 +638,7 @@ makebootarea(boot, dp, f)
 
 	/*
 	 * Strange rules:
-	 * 1. One-piece bootstrap (hp300/hp800)
+	 * 1. One-piece bootstrap (alpha/sparc64)
 	 *	up to d_bbsize bytes of ``xxboot'' go in bootarea, the rest
 	 *	is remembered and written later following the bootarea.
 	 * 2. Two-piece bootstraps (vax/i386?/mips?)
