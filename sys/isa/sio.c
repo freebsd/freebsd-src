@@ -1762,6 +1762,35 @@ siointr1(com)
 				recv_data = 0;
 			else
 				recv_data = inb(com->data_port);
+#if defined(DDB) && defined(ALT_BREAK_TO_DEBUGGER)
+			/*
+			 * Solaris implements a new BREAK which is initiated
+			 * by a character sequence CR ~ ^b which is similar
+			 * to a familiar pattern used on Sun servers by the
+			 * Remote Console.
+			 */
+#define	KEY_CRTLB	2	/* ^B */
+#define	KEY_CR		13	/* CR '\r' */
+#define	KEY_TILDE	126	/* ~ */
+
+			if (com->unit == comconsole) {
+				static int brk_state1 = 0, brk_state2 = 0;
+				if (recv_data == KEY_CR) {
+					brk_state1 = recv_data;
+					brk_state2 = 0;
+				} else if (brk_state1 == KEY_CR && (recv_data == KEY_TILDE || recv_data == KEY_CRTLB)) {
+					if (recv_data == KEY_TILDE)
+						brk_state2 = recv_data;
+					else if (brk_state2 == KEY_TILDE && recv_data == KEY_CRTLB) {
+							breakpoint();
+							brk_state1 = brk_state2 = 0;
+							goto cont;
+					} else
+						brk_state2 = 0;
+				} else
+					brk_state1 = 0;
+			}
+#endif
 			if (line_status & (LSR_BI | LSR_FE | LSR_PE)) {
 				/*
 				 * Don't store BI if IGNBRK or FE/PE if IGNPAR.
