@@ -1239,7 +1239,7 @@ FindLinkOut(struct in_addr src_addr,
        specified as using the default source address
        (i.e. device interface address) without knowing
        in advance what that address is. */
-        if (aliasAddress.s_addr != 0 &&
+        if (aliasAddress.s_addr != INADDR_ANY &&
             src_addr.s_addr == aliasAddress.s_addr)
         {
             link = _FindLinkOut(nullAddress, dst_addr, src_port, dst_port,
@@ -1395,7 +1395,7 @@ FindLinkIn(struct in_addr dst_addr,
        specified as using the default aliasing address
        (i.e. device interface address) without knowing
        in advance what that address is. */
-        if (aliasAddress.s_addr != 0 &&
+        if (aliasAddress.s_addr != INADDR_ANY &&
             alias_addr.s_addr == aliasAddress.s_addr)
         {
             link = _FindLinkIn(dst_addr, nullAddress, dst_port, alias_port,
@@ -1805,7 +1805,8 @@ FindOriginalAddress(struct in_addr alias_addr)
         if (targetAddress.s_addr == INADDR_ANY)
             return alias_addr;
         else if (targetAddress.s_addr == INADDR_NONE)
-            return aliasAddress;
+            return (aliasAddress.s_addr != INADDR_ANY) ?
+		aliasAddress : alias_addr;
         else
             return targetAddress;
     }
@@ -1818,7 +1819,8 @@ FindOriginalAddress(struct in_addr alias_addr)
 	    link->server = link->server->next;
 	    return (src_addr);
         } else if (link->src_addr.s_addr == INADDR_ANY)
-            return aliasAddress;
+            return (aliasAddress.s_addr != INADDR_ANY) ?
+		aliasAddress : alias_addr;
         else
             return link->src_addr;
     }
@@ -1834,12 +1836,14 @@ FindAliasAddress(struct in_addr original_addr)
                        0, 0, LINK_ADDR, 0);
     if (link == NULL)
     {
-        return aliasAddress;
+	return (aliasAddress.s_addr != INADDR_ANY) ?
+	    aliasAddress : original_addr;
     }
     else
     {
         if (link->alias_addr.s_addr == INADDR_ANY)
-            return aliasAddress;
+            return (aliasAddress.s_addr != INADDR_ANY) ?
+		aliasAddress : original_addr;
         else
             return link->alias_addr;
     }
@@ -2354,6 +2358,7 @@ UninitPacketAliasLog(void)
     PacketAliasAddServer()
     PacketAliasRedirectProto()
     PacketAliasRedirectAddr()
+    PacketAliasRedirectDynamic()
     PacketAliasRedirectDelete()
     PacketAliasSetAddress()
     PacketAliasInit()
@@ -2492,6 +2497,20 @@ PacketAliasRedirectAddr(struct in_addr src_addr,
 #endif
 
     return link;
+}
+
+
+/* Mark the aliasing link dynamic */
+int
+PacketAliasRedirectDynamic(struct alias_link *link)
+{
+
+    if (link->flags & LINK_PARTIALLY_SPECIFIED)
+	return (-1);
+    else {
+	link->flags &= ~LINK_PERMANENT;
+	return (0);
+    }
 }
 
 

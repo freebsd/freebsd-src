@@ -66,11 +66,12 @@ The packet aliasing engine was designed to operate in user space outside
 of the kernel, without any access to private kernel data structure, but
 the source code can also be ported to a kernel environment.
 .Sh INITIALIZATION AND CONTROL
-Two special functions,
-.Fn PacketAliasInit
-and
-.Fn PacketAliasSetAddress ,
+One special function,
+.Fn PacketAliasInit ,
 must always be called before any packet handling may be performed.
+Normally, the
+.Fn PacketAliasSetAddress
+function is called afterwards, to set the default aliasing address.
 In addition, the operating mode of the packet aliasing engine can be
 customized by calling
 .Fn PacketAliasSetMode .
@@ -97,9 +98,10 @@ below for the meaning of these mode bits.
 .Pp
 This function will always return the packet aliasing engine to the same
 initial state.
+The
 .Fn PacketAliasSetAddress
-must be called afterwards, and any desired changes from the default mode
-bits listed above require a call to
+function is normally called afterwards, and any desired changes from the
+default mode bits listed above require a call to
 .Fn PacketAliasSetMode .
 .Pp
 It is mandatory that this function be called at the beginning of a program
@@ -130,6 +132,8 @@ local area network are aliased.
 All outgoing packets are re-mapped to this address unless overridden by a
 static address mapping established by
 .Fn PacketAliasRedirectAddr .
+If this function is not called, and no static rules match, an outgoing
+packet retains its source address.
 .Pp
 If the
 .Dv PKT_ALIAS_RESET_ON_ADDR_CHANGE
@@ -542,7 +546,26 @@ the
 .Fa port
 argument is ignored and could have any value, e.g. htons(~0).
 .Pp
-This function returns 0 on success, -1 otherwise.
+This function returns 0 on success, \-1 otherwise.
+.Ed
+.Pp
+.Ft int
+.Fn PacketAliasRedirectDynamic "struct alias_link *link"
+.Bd -ragged -offset indent
+This function marks the specified static redirect rule entered by
+.Fn PacketAliasRedirectPort
+as dynamic.
+This can be used to e.g. dynamically redirect a single TCP connection,
+after which the rule is removed.
+Only fully specified links can be made dynamic.
+(See the
+.Sx STATIC AND DYNAMIC LINKS
+and
+.Sx PARTIALLY SPECIFIED ALIASING LINKS
+sections below for a definition of static vs. dynamic,
+and partially vs. fully specified links.)
+.Pp
+This function returns 0 on success, \-1 otherwise.
 .Ed
 .Pp
 .Ft void
@@ -577,20 +600,18 @@ pass the original address and port information into the new destination
 server.
 If
 .Cm encode_ip_hdr
-is specified, the original address and port is passed as an extra IP
-option.
+is specified, the original destination address and port are passed
+as an extra IP option.
 If
 .Cm encode_tcp_stream
-is specified, the original address and port is passed as the first
-piece of data in the TCP stream in the format
-.Dq DEST Ar IP port .
+is specified, the original destination address and port are passed
+as the first piece of data in the TCP stream in the format
+.Dq Li DEST Ar IP port .
 .It Cm port Ar portnum
 Only packets with the destination port
 .Ar portnum
 are proxied.
-.It Cm server Ar host Ns Xo
-.Op : Ns Ar portnum
-.Xc
+.It Cm server Ar host Ns Op : Ns Ar portnum
 This specifies the
 .Ar host
 and
@@ -625,9 +646,7 @@ When used, all existing rules with the given
 are deleted.
 .It Cm proto tcp | udp
 If specified, only packets of the given protocol type are matched.
-.It Cm src Ar IP Ns Xo
-.Op / Ns Ar bits
-.Xc
+.It Cm src Ar IP Ns Op / Ns Ar bits
 If specified, only packets with a source address matching the given
 .Ar IP
 are matched.
@@ -639,9 +658,7 @@ bits of
 .Ar IP
 are taken as a network specification, and all IP addresses from that
 network will be matched.
-.It Cm dst Ar IP Ns Xo
-.Op / Ns Ar bits
-.Xc
+.It Cm dst Ar IP Ns Op / Ns Ar bits
 If specified, only packets with a destination address matching the given
 .Ar IP
 are matched.
@@ -759,9 +776,10 @@ returns
 Once a fragment pointer is retrieved, it becomes the calling program's
 responsibility to free the dynamically allocated memory for the fragment.
 .Pp
+The
 .Fn PacketAliasGetFragment
-can be called sequentially until there are no more fragments available,
-at which time it returns
+function can be called sequentially until there are no more fragments
+available, at which time it returns
 .Dv NULL .
 .Ed
 .Pp
@@ -861,6 +879,8 @@ improvements; added the firewall bypass for FTP/IRC DCC.
 added support for PPTP and RTSP.
 .An Junichi Satoh Aq junichi@junichi.org
 added support for RTSP/PNA.
+.An Ruslan Ermilov Aq ru@FreeBSD.org
+added support for PPTP and LSNAT as well as general hacking.
 .Sh ACKNOWLEDGMENTS
 Listed below, in approximate chronological order, are individuals who
 have provided valuable comments and/or debugging assistance.

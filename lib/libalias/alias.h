@@ -69,6 +69,7 @@ int	 PacketAliasAddServer(struct alias_link *_link,
 struct alias_link *
 	 PacketAliasRedirectAddr(struct in_addr _src_addr,
 	    struct in_addr _alias_addr);
+int	 PacketAliasRedirectDynamic(struct alias_link *_link);
 void	 PacketAliasRedirectDelete(struct alias_link *_link);
 struct alias_link *
 	 PacketAliasRedirectPort(struct in_addr _src_addr,
