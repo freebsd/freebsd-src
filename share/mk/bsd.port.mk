@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.128 1995/04/01 09:34:11 jkh Exp $
+# $Id: bsd.port.mk,v 1.129 1995/04/01 09:35:29 jkh Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -264,7 +264,7 @@ PKGNAME?=		${DISTNAME}
 # Documentation
 MAINTAINER?=	ports@FreeBSD.ORG
 CATEGORIES?=	orphans
-KEYWORDS?=		orphans
+KEYWORDS?=		${CATEGORIES}
 
 .if exists(${PACKAGES})
 PKGFILE?=		${PACKAGES}/${PKGNAME}${PKG_SUFX}
