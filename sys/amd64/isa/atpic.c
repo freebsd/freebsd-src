@@ -64,14 +64,9 @@ __FBSDID("$FreeBSD$");
 #define	SLAVE	1
 
 /*
- * PC-98 machines wire the slave 8259A to pin 7 on the master PIC, and
  * PC-AT machines wire the slave PIC to pin 2 on the master PIC.
  */
-#ifdef PC98
-#define	ICU_SLAVEID	7
-#else
 #define	ICU_SLAVEID	2
-#endif
 
 /*
  * Determine the base master and slave modes not including auto EOI support.
