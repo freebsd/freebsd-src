@@ -46,14 +46,19 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
    XXX FreeBSD, by convention, shouldn't do __alpha, but lots of applications
    expect it because that's what OSF/1 does. */
 
+#undef TARGET_VERSION
+#define TARGET_VERSION fprintf (stderr, " (FreeBSD/alpha ELF)");
+
 #undef TARGET_DEFAULT
 #define TARGET_DEFAULT (MASK_FP | MASK_FPREGS | MASK_GAS)
 
 #undef CPP_PREDEFINES
-#define CPP_PREDEFINES "\
--D__alpha__ -D__alpha -Acpu(alpha) -Amachine(alpha) " \
-CPP_FBSD_PREDEFINES \
-SUB_CPP_PREDEFINES
+#define CPP_PREDEFINES \
+  "-D__alpha__ -D__alpha -D__ELF__ -Acpu(alpha) -Amachine(alpha)"  \
+  CPP_FBSD_PREDEFINES
+
+#undef CPP_SPEC
+#define CPP_SPEC "%{posix:-D_POSIX_SOURCE}"
 
 /* Make gcc agree with <machine/ansi.h> */
 
@@ -376,7 +381,7 @@ dtors_section ()							\
 #undef SELECT_RTX_SECTION
 #define SELECT_RTX_SECTION(MODE,RTX) const_section()
 
-/* Define the strings used for the special svr4 .type and .size directives.
+/* Define the strings used for the .type, .size and .set directives.
    These strings generally do not vary from one system running svr4 to
    another, but if a given system (e.g. m88k running svr) needs to use
    different pseudo-op names for these, they may be overridden in the
@@ -384,6 +389,7 @@ dtors_section ()							\
 
 #define TYPE_ASM_OP	".type"
 #define SIZE_ASM_OP	".size"
+#define SET_ASM_OP	".set"
 
 /* This is how we tell the assembler that two symbols have the same value.  */
 
@@ -441,3 +447,69 @@ dtors_section ()							\
 
 #undef PREFERRED_DEBUGGING_TYPE
 #define PREFERRED_DEBUGGING_TYPE DBX_DEBUG
+
+#undef LINK_SPEC
+#define LINK_SPEC "-m elf64alpha 				\
+  %{p:%e`-p' not supported; use `-pg' and gprof(1)}		\
+  %{Wl,*:%*}							\
+  %{assert*} %{R*} %{rpath*} %{defsym*}				\
+  %{shared:-Bshareable %{h*} %{soname*}}			\
+  %{symbolic:-Bsymbolic}					\
+  %{!shared:							\
+    %{!static:							\
+      %{rdynamic:-export-dynamic}				\
+      %{!dynamic-linker:-dynamic-linker /usr/libexec/ld-elf.so.1}} \
+    %{static:-Bstatic}}"
+
+#undef	STARTFILE_SPEC
+#define STARTFILE_SPEC \
+  "%{!shared: %{pg:gcrt1.o%s} %{!pg:%{p:gcrt1.o%s} %{!p:crt1.o%s}}} \
+     %{!shared:crtbegin.o%s} %{shared:crtbeginS.o%s}"
+
+/* Provide a ENDFILE_SPEC appropriate for ELF.  Here we tack on the
+   magical crtend.o file which provides part of the support for
+   getting C++ file-scope static object constructed before entering
+   `main', followed by a normal ELF "finalizer" file, `crtn.o'.  */
+
+#undef	ENDFILE_SPEC
+#define ENDFILE_SPEC \
+  "%{!shared:crtend.o%s} %{shared:crtendS.o%s}"
+
+/* Implicit library calls should use memcpy, not bcopy, etc.  */
+
+#define TARGET_MEM_FUNCTIONS
+
+/* Handle #pragma weak and #pragma pack.  */
+
+#define HANDLE_SYSV_PRAGMA
+
+/*
+ * Some imports from svr4.h in support of shared libraries.
+ * Currently, we need the DECLARE_OBJECT_SIZE stuff.
+ */
+
+/* This is how we tell the assembler that a symbol is weak.  */
+
+#undef ASM_WEAKEN_LABEL
+#define ASM_WEAKEN_LABEL(FILE,NAME) \
+  do { fputs ("\t.globl\t", FILE); assemble_name (FILE, NAME); \
+       fputc ('\n', FILE); \
+       fputs ("\t.weak\t", FILE); assemble_name (FILE, NAME); \
+       fputc ('\n', FILE); } while (0)
+
+/* The following macro defines the format used to output the second
+   operand of the .type assembler directive.  Different svr4 assemblers
+   expect various different forms for this operand.  The one given here
+   is just a default.  You may need to override it in your machine-
+   specific tm.h file (depending upon the particulars of your assembler).  */
+
+#undef TYPE_OPERAND_FMT
+#define TYPE_OPERAND_FMT	"@%s"
+
+/* Write the extra assembler code needed to declare a function's result.
+   Most svr4 assemblers don't require any special declaration of the
+   result value, but there are exceptions.  */
+
+#ifndef ASM_DECLARE_RESULT
+#define ASM_DECLARE_RESULT(FILE, RESULT)
+#endif
