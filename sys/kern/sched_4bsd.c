@@ -723,6 +723,8 @@ sched_pctcpu(struct thread *td)
 	struct kse *ke;
 
 	ke = td->td_kse;
+	if (ke == NULL)
+		ke = td->td_last_kse;
 	if (ke)
 		return (ke->ke_pctcpu);
 
