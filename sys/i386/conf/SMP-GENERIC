@@ -11,7 +11,7 @@
 # device lines is present in the ./LINT configuration file. If you are 
 # in doubt as to the purpose or necessity of a line, check first in LINT.
 #
-#	$Id: SMP-GENERIC,v 1.2 1997/05/06 20:40:52 fsmp Exp $
+#	$Id: SMP-GENERIC,v 1.3 1997/05/11 19:01:24 andreas Exp $
 
 machine		"i386"
 # SMP does NOT support 386/486 CPUs.
@@ -26,9 +26,6 @@ maxusers	10
 # Create a SMP capable kernel (mandatory options):
 options		SMP			# Symmetric MultiProcessor Kernel
 options		APIC_IO			# Symmetric (APIC) I/O
-
-# Useful and reported to work:
-options		SMP_AUTOSTART		# start the additional CPUs during boot
 
 # Optional, these are the defaults:
 #options		NCPU=2			# number of CPUs

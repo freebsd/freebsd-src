@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)npx.c	7.2 (Berkeley) 5/12/91
- *	$Id: npx.c,v 1.44 1997/05/31 09:27:31 peter Exp $
+ *	$Id: npx.c,v 1.45 1997/06/02 08:19:05 dfr Exp $
  */
 
 #include "npx.h"
@@ -63,6 +63,7 @@
 #include <machine/clock.h>
 #include <machine/specialreg.h>
 #if defined(APIC_IO)
+#include <machine/smp.h>
 #include <machine/apic.h>
 #include <machine/mpapic.h>
 #endif /* APIC_IO */
@@ -140,10 +141,8 @@ SYSCTL_INT(_hw,HW_FLOATINGPT, floatingpoint,
 	"Floatingpoint instructions executed in hardware");
 
 static u_int	npx0_imask = SWI_CLOCK_MASK;
-#ifdef SMP
-#define npxproc	(SMPnpxproc[cpunumber()])
-struct proc	*SMPnpxproc[NCPU];
-#else
+
+#ifndef SMP	/* XXX per-cpu on smp */
 struct proc	*npxproc;
 #endif
 
@@ -172,8 +171,8 @@ asm
 	ss
 	incl	" __XSTRING(CNAME(npx_intrs_while_probing)) "
 	pushl	%eax
-	movl	" __XSTRING(CNAME(apic_base)) ",%eax	# EOI to local APIC
-	movl	$0,0xb0(,%eax,1)	# movl $0, APIC_EOI(%eax)
+	movl	$lapic_eoi,%eax		# EOI to local APIC
+	movl	$0,(%eax)		# movl $0, APIC_EOI(%eax)
 	movb	$0,%al
 	outb	%al,$0xf0		# clear BUSY# latch
 	popl	%eax

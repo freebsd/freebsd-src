@@ -36,16 +36,13 @@
  * SUCH DAMAGE.
  *
  *	@(#)proc.h	8.15 (Berkeley) 5/19/95
- * $Id: proc.h,v 1.39 1997/06/01 08:49:49 peter Exp $
+ * $Id: proc.h,v 1.40 1997/06/16 00:29:25 dyson Exp $
  */
 
 #ifndef _SYS_PROC_H_
 #define	_SYS_PROC_H_
 
 #include <machine/proc.h>		/* Machine-dependent proc substruct. */
-#if defined(KERNEL) && defined(SMP)
-#include <machine/smp.h>		/* cpunumber() */
-#endif
 #include <sys/rtprio.h>			/* For struct rtprio. */
 #include <sys/select.h>			/* For struct selinfo. */
 #include <sys/time.h>			/* For structs itimerval, timeval. */
@@ -273,13 +270,7 @@ extern u_long pidhash;
 extern LIST_HEAD(pgrphashhead, pgrp) *pgrphashtbl;
 extern u_long pgrphash;
 
-#ifdef SMP
-extern struct proc *SMPcurproc[];		/* Current running proc. */
-#define	curproc	(SMPcurproc[cpunumber()])
-#else /* !SMP */
 extern struct proc *curproc;		/* Current running proc. */
-#endif /* SMP */
-
 extern struct proc proc0;		/* Process slot for swapper. */
 extern int nprocs, maxproc;		/* Current and max number of procs. */
 extern int maxprocperuid;		/* Max procs per uid. */

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)npx.h	5.3 (Berkeley) 1/18/91
- *	$Id$
+ *	$Id: npx.h,v 1.12 1997/02/22 09:34:52 peter Exp $
  */
 
 /*
@@ -139,6 +139,8 @@ struct	save87 {
 #include <machine/frame.h>
 
 struct proc;
+
+extern struct proc *npxproc;
 
 int	npxdna __P((void));
 void	npxexit __P((struct proc *p));

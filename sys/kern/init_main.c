@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)init_main.c	8.9 (Berkeley) 1/21/94
- * $Id: init_main.c,v 1.63 1997/05/29 04:52:03 peter Exp $
+ * $Id: init_main.c,v 1.64 1997/06/16 00:29:30 dyson Exp $
  */
 
 #include "opt_rlimit.h"
@@ -104,11 +104,7 @@ struct	timeval boottime;
 SYSCTL_STRUCT(_kern, KERN_BOOTTIME, boottime,
 	CTLFLAG_RW, &boottime, timeval, "");
 
-/*
- * for SMP, the runtime variable has to be per-cpu, so we use the
- * extern declaration in sys/kernel.h
- */
-#ifndef SMP
+#ifndef SMP	/* per-cpu on smp */
 struct	timeval runtime;
 #endif
 
