@@ -640,6 +640,7 @@ cdregister(struct cam_periph *periph, void *arg)
 {
 	struct cd_softc *softc;
 	struct ccb_setasync csa;
+	struct ccb_pathinq cpi;
 	struct ccb_getdev *cgd;
 	char tmpstr[80], tmpstr2[80];
 	caddr_t match;
@@ -687,6 +688,13 @@ cdregister(struct cam_periph *periph, void *arg)
 		softc->quirks = ((struct cd_quirk_entry *)match)->quirks;
 	else
 		softc->quirks = CD_Q_NONE;
+
+	/* Check if the SIM does not want 6 byte commands */
+	xpt_setup_ccb(&cpi.ccb_h, periph->path, /*priority*/1);
+	cpi.ccb_h.func_code = XPT_PATH_INQ;
+	xpt_action((union ccb *)&cpi);
+	if (cpi.ccb_h.status == CAM_REQ_CMP && (cpi.hba_misc & PIM_NO_6_BYTE))
+		softc->quirks |= CD_Q_10_BYTE_ONLY;
 
 	snprintf(tmpstr, sizeof(tmpstr), "CAM CD unit %d", periph->unit_number);
 	snprintf(tmpstr2, sizeof(tmpstr2), "%d", periph->unit_number);
