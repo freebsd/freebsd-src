@@ -814,16 +814,15 @@ and drivers you do not have will reduce the size of your kernel, sometimes
 by a megabyte or more, leaving more memory available for applications.
 .Pp
 .Dv SCSI_DELAY
-and
-.Dv IDE_DELAY
 may be used to reduce system boot times.
 The defaults are fairly high and
-can be responsible for 15+ seconds of delay in the boot process.
+can be responsible for 5+ seconds of delay in the boot process.
 Reducing
 .Dv SCSI_DELAY
-to 5 seconds usually works (especially with modern drives).
+to something below 5 seconds could work (especially with modern drives).
 Reducing
 .Dv IDE_DELAY
+(only available for PC98)
 also works but you have to be a little more careful.
 .Pp
 There are a number of
