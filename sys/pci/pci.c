@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pci.c,v 1.57.2.3 1997/01/25 02:02:40 se Exp $
+**  $Id: pci.c,v 1.57.2.4 1997/04/23 20:25:04 se Exp $
 **
 **  General subroutines for the PCI bus.
 **  pci_configure ()
@@ -393,31 +393,6 @@ pci_mfdev (int bus, int device)
     tag0 = pcibus->pb_tag  (bus, device, 0);
     if (pci_conf_read (tag0, PCI_HEADER_MISC) & PCI_HEADER_MULTIFUNCTION)
 	return 1;
-
-    /*
-    ** Well, as always: Theory and implementation of PCI ...
-    **
-    ** If there is a valid device ID returned for function 1 AND
-    **		the device ID of function 0 and 1 is different OR
-    **		the first mapping register of 0 and 1 differs,
-    ** then assume a multi-function device anyway ...
-    **
-    ** Example of such a broken device: ISA and IDE chip i83371FB (Triton)
-    */
-    tag1 = pcibus->pb_tag  (bus, device, 1);
-    pci_id1 = pci_conf_read (tag1, PCI_ID_REG);
-
-    if (pci_id1 != 0xffffffff) {
-
-	pci_id0 = pci_conf_read (tag0, PCI_ID_REG);
-
-	if (pci_id0 != pci_id1)
-	    return 1;
-
-	if (pci_conf_read (tag0, PCI_MAP_REG_START) 
-			!= pci_conf_read (tag1, PCI_MAP_REG_START))
-	    return 1;
-    }
     return 0;
 }
 
