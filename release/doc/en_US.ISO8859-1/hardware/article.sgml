@@ -531,7 +531,7 @@
 	  <para>New Media Corporation BASICS SCSI</para>
         </listitem>
 	<listitem>
-	  <para>Qlogic Fast SCSI</para>
+	  <para>QLogic Fast SCSI</para>
         </listitem>
 	<listitem>
 	  <para>RATOC REX-9530, REX-5572 (as SCSI only)</para>
@@ -561,24 +561,28 @@
       </itemizedlist>
     </para>
 
-    <para>Qlogic controllers and variants (&man.isp.4; driver)
+    <para>QLogic controllers and variants (&man.isp.4; driver)
       <itemizedlist>
         <listitem>
-	  <para>Qlogic 1020, 1040 SCSI and Ultra SCSI host
+	  <para>QLogic 1020, 1040 SCSI and Ultra SCSI host
 	  adapters</para>
 	</listitem>
 	<listitem>
-	  <para>Qlogic 1240 dual Ultra SCSI controllers</para>
+	  <para>QLogic 1240 dual Ultra SCSI controllers</para>
 	</listitem>
 	<listitem>
-	  <para>Qlogic 1080 Ultra2 LVD and 1280 Dual Ultra2 LVD
+	  <para>QLogic 1080 Ultra2 LVD and 1280 Dual Ultra2 LVD
 	  controllers</para>
 	</listitem>
 	<listitem>
-	  <para>Qlogic 12160 Ultra3 LVD controllers</para>
+	  <para>QLogic 12160 Ultra3 LVD controllers</para>
 	</listitem>
 	<listitem>
-	  <para>Qlogic 2100 and Qlogic 2200 Fibre Channel SCSI
+	  <para>QLogic 2100 and QLogic 2200 Fibre Channel SCSI
+	  controllers</para>
+	</listitem>
+	<listitem>
+	  <para>QLogic 2300 and QLogic 2312 2-Gigabit Fibre Channel SCSI
 	  controllers</para>
 	</listitem>
 	<listitem>
