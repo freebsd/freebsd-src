@@ -36,8 +36,10 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)ffs_softdep.c	9.59 (McKusick) 6/21/00
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * For now we want the safety net that the DIAGNOSTIC and DEBUG flags provide.
@@ -833,6 +835,8 @@ softdep_flushfiles(oldmnt, flags, td)
 	struct thread *td;
 {
 	int error, count, loopcnt;
+
+	error = 0;
 
 	/*
 	 * Alternately flush the vnodes associated with the mount
