@@ -80,11 +80,7 @@ struct tty {
 	struct	clist t_outq;		/* Device output queue. */
 	long	t_outcc;		/* Output queue statistics. */
 	int	t_line;			/* Interface to device drivers. */
-	union {
-		struct cdev *t_kdev;		/* Device. */
-		dev_t	t_udev;		/* Userland (sysctl) instance. */
-		void	*t_devp;	/* Keep user/kernel size in sync. */
-	} ttyu;
+	struct cdev *t_dev;		/* Device. */
 	int	t_state;		/* Device and driver (TS*) state. */
 	int	t_flags;		/* Tty flags. */
 	int     t_timeout;              /* Timeout for ttywait() */
@@ -120,7 +116,6 @@ struct tty {
 
 #define	t_cc		t_termios.c_cc
 #define	t_cflag		t_termios.c_cflag
-#define	t_dev		ttyu.t_kdev
 #define	t_iflag		t_termios.c_iflag
 #define	t_ispeed	t_termios.c_ispeed
 #define	t_lflag		t_termios.c_lflag
