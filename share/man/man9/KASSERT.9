@@ -1,6 +1,6 @@
 .\" -*- nroff -*-
 .\"
-.\" Copyright (c) 1996 Joanthan M Bresler
+.\" Copyright (c) 2000 Jonathan M. Bresler
 .\"
 .\" All rights reserved.
 .\"
@@ -35,8 +35,8 @@
 .Nm KASSERT
 .Nd kernel expression verification macro
 .Sh SYNOPSIS
-.Fd options INVARIANTS
-.Fn KASSERT "int expression, char *msg"
+.Cd options INVARIANTS
+.Fn KASSERT "int expression, const char *msg"
 .Sh DESCRIPTION
 In a kernel compiled with "options INVARIANTS",
 the 
@@ -51,7 +51,7 @@ syscall, terminating the running system.
 In a kernel that does not have "options INVARIANTS",
 the 
 .Fn KASSERT
-macro is defined to be no-op.  
+macro is defined to be a no-op.  
 .Sh EXAMPLE
 The kernel function
 .Fn vput
@@ -70,5 +70,6 @@ vput(vp)
 .Xr config 8 ,
 .Xr panic 9 
 .Sh AUTHORS
-This man page was written by
-.An Jonathan M Bresler .
+This manual page was written by
+.An Jonathan M. Bresler
+.Aq jmb@freebsd.org .
