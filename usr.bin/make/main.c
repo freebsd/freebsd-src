@@ -159,7 +159,8 @@ MainParseArgs(int argc, char **argv)
 rearg:	while((c = getopt(argc, argv, OPTFLAGS)) != -1) {
 		switch(c) {
 		case 'C':
-			chdir(optarg);
+			if (chdir(optarg) == -1)
+				err(1, "chdir %s", optarg);
 			break;
 		case 'D':
 			Var_Set(optarg, "1", VAR_GLOBAL);
