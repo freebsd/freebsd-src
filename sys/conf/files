@@ -541,6 +541,7 @@ dev/ncv/ncr53c500_pccard.c	optional ncv pccard
 dev/nsp/nsp.c		optional nsp
 dev/nsp/nsp_pccard.c	optional nsp card
 dev/nsp/nsp_pccard.c	optional nsp pccard
+dev/mc146818/mc146818.c	optional mc146818
 dev/mca/mca_bus.c	optional mca
 dev/mcd/mcd.c		optional mcd isa nowerror
 dev/mcd/mcd_isa.c	optional mcd isa nowerror
