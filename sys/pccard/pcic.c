@@ -40,12 +40,13 @@
 
 #include <machine/clock.h>
 
+#include <i386/isa/icu.h>
+#include <i386/isa/isa_device.h>
+
 #include <pccard/i82365.h>
 #ifdef	PC98
 #include <pccard/pcic98reg.h>
 #endif
-#include <i386/isa/isa_device.h>
-#include <i386/isa/icu.h>
 
 #include <pccard/card.h>
 #include <pccard/driver.h>
