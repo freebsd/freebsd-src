@@ -58,7 +58,8 @@
 #include <sys/ktrace.h>
 #include <sys/kthread.h>
 #include <sys/unistd.h>	
-#include <sys/jail.h>	
+#include <sys/jail.h>
+#include <sys/sx.h>
 
 #include <vm/vm.h>
 #include <sys/lock.h>
@@ -85,6 +86,8 @@ struct forklist {
 	TAILQ_ENTRY(forklist) next;
 };
 
+static struct sx fork_list_lock;
+
 TAILQ_HEAD(forklist_head, forklist);
 static struct forklist_head fork_list = TAILQ_HEAD_INITIALIZER(fork_list);
 
@@ -93,6 +96,14 @@ struct fork_args {
 	int     dummy;
 };
 #endif
+
+static void
+init_fork_list(void *data __unused)
+{
+
+	sx_init(&fork_list_lock, "fork list");
+}
+SYSINIT(fork_list, SI_SUB_INTRINSIC, SI_ORDER_ANY, init_fork_list, NULL);
 
 /* ARGSUSED */
 int
@@ -370,10 +381,13 @@ again:
 	 */
 	bzero(&p2->p_startzero,
 	    (unsigned) ((caddr_t)&p2->p_endzero - (caddr_t)&p2->p_startzero));
+	PROC_LOCK(p1);
 	bcopy(&p1->p_startcopy, &p2->p_startcopy,
 	    (unsigned) ((caddr_t)&p2->p_endcopy - (caddr_t)&p2->p_startcopy));
+	PROC_UNLOCK(p1);
 
 	mtx_init(&p2->p_mtx, "process lock", MTX_DEF);
+	PROC_LOCK(p2);
 	p2->p_aioinfo = NULL;
 
 	/*
@@ -387,8 +401,11 @@ again:
 	if (p1->p_sflag & PS_PROFIL)
 		startprofclock(p2);
 	mtx_unlock_spin(&sched_lock);
+	PROC_UNLOCK(p2);
 	MALLOC(p2->p_cred, struct pcred *, sizeof(struct pcred),
 	    M_SUBPROC, M_WAITOK);
+	PROC_LOCK(p2);
+	PROC_LOCK(p1);
 	bcopy(p1->p_cred, p2->p_cred, sizeof(*p2->p_cred));
 	p2->p_cred->p_refcnt = 1;
 	crhold(p1->p_ucred);
@@ -402,12 +419,14 @@ again:
 		p2->p_procsig->ps_refcnt++;
 		if (p1->p_sigacts == &p1->p_addr->u_sigacts) {
 			struct sigacts *newsigacts;
-			int s;
 
+			PROC_UNLOCK(p1);
+			PROC_UNLOCK(p2);
 			/* Create the shared sigacts structure */
 			MALLOC(newsigacts, struct sigacts *,
 			    sizeof(struct sigacts), M_SUBPROC, M_WAITOK);
-			s = splhigh();
+			PROC_LOCK(p2);
+			PROC_LOCK(p1);
 			/*
 			 * Set p_sigacts to the new shared structure.
 			 * Note that this is updating p1->p_sigacts at the
@@ -418,11 +437,14 @@ again:
 			bcopy(&p1->p_addr->u_sigacts, p2->p_sigacts,
 			    sizeof(*p2->p_sigacts));
 			*p2->p_sigacts = p1->p_addr->u_sigacts;
-			splx(s);
 		}
 	} else {
+		PROC_UNLOCK(p1);
+		PROC_UNLOCK(p2);
 		MALLOC(p2->p_procsig, struct procsig *, sizeof(struct procsig),
 		    M_SUBPROC, M_WAITOK);
+		PROC_LOCK(p2);
+		PROC_LOCK(p1);
 		bcopy(p1->p_procsig, p2->p_procsig, sizeof(*p2->p_procsig));
 		p2->p_procsig->ps_refcnt = 1;
 		p2->p_sigacts = NULL;	/* finished in vm_fork() */
@@ -458,7 +480,7 @@ again:
 	}
 
 	/*
-	 * Preserve some more flags in subprocess.  P_PROFIL has already
+	 * Preserve some more flags in subprocess.  PS_PROFIL has already
 	 * been preserved.
 	 */
 	p2->p_flag |= p1->p_flag & P_SUGID;
@@ -468,6 +490,8 @@ again:
 		p2->p_flag |= P_PPWAIT;
 
 	LIST_INSERT_AFTER(p1, p2, p_pglist);
+	PROC_UNLOCK(p1);
+	PROC_UNLOCK(p2);
 
 	/*
 	 * Attach the new process to its parent.
@@ -481,9 +505,12 @@ again:
 	else
 		pptr = p1;
 	PROCTREE_LOCK(PT_EXCLUSIVE);
+	PROC_LOCK(p2);
 	p2->p_pptr = pptr;
+	PROC_UNLOCK(p2);
 	LIST_INSERT_HEAD(&pptr->p_children, p2, p_sibling);
 	PROCTREE_LOCK(PT_RELEASE);
+	PROC_LOCK(p2);
 	LIST_INIT(&p2->p_children);
 	LIST_INIT(&p2->p_heldmtx);
 	LIST_INIT(&p2->p_contested);
@@ -491,12 +518,13 @@ again:
 	callout_init(&p2->p_itcallout, 0);
 	callout_init(&p2->p_slpcallout, 1);
 
+	PROC_LOCK(p1);
 #ifdef KTRACE
 	/*
 	 * Copy traceflag and tracefile if enabled.
 	 * If not inherited, these were zeroed above.
 	 */
-	if (p1->p_traceflag&KTRFAC_INHERIT) {
+	if (p1->p_traceflag & KTRFAC_INHERIT) {
 		p2->p_traceflag = p1->p_traceflag;
 		if ((p2->p_tracep = p1->p_tracep) != NULL)
 			VREF(p2->p_tracep);
@@ -512,7 +540,9 @@ again:
 	 * This begins the section where we must prevent the parent
 	 * from being swapped.
 	 */
-	PHOLD(p1);
+	_PHOLD(p1);
+	PROC_UNLOCK(p1);
+	PROC_UNLOCK(p2);
 
 	/*
 	 * Finish creating the child process.  It will return via a different
@@ -539,9 +569,11 @@ again:
 	 * to adjust anything.
 	 *   What if they have an error? XXX
 	 */
+	sx_slock(&fork_list_lock);
 	TAILQ_FOREACH(ep, &fork_list, next) {
 		(*ep->function)(p1, p2, flags);
 	}
+	sx_sunlock(&fork_list_lock);
 
 	/*
 	 * If RFSTOPPED not requested, make child runnable and add to
@@ -550,31 +582,33 @@ again:
 	microtime(&(p2->p_stats->p_start));
 	p2->p_acflag = AFORK;
 	if ((flags & RFSTOPPED) == 0) {
-		splhigh();
 		mtx_lock_spin(&sched_lock);
 		p2->p_stat = SRUN;
 		setrunqueue(p2);
 		mtx_unlock_spin(&sched_lock);
-		spl0();
 	}
 
 	/*
 	 * Now can be swapped.
 	 */
-	PRELE(p1);
+	PROC_LOCK(p1);
+	_PRELE(p1);
 
 	/*
 	 * tell any interested parties about the new process
 	 */
 	KNOTE(&p1->p_klist, NOTE_FORK | p2->p_pid);
+	PROC_UNLOCK(p1);
 
 	/*
 	 * Preserve synchronization semantics of vfork.  If waiting for
 	 * child to exec or exit, set P_PPWAIT on child, and sleep on our
 	 * proc (in case of exit).
 	 */
+	PROC_LOCK(p2);
 	while (p2->p_flag & P_PPWAIT)
-		tsleep(p1, PWAIT, "ppwait", 0);
+		msleep(p1, &p2->p_mtx, PWAIT, "ppwait", 0);
+	PROC_UNLOCK(p2);
 
 	/*
 	 * Return child proc pointer to parent.
@@ -609,7 +643,9 @@ at_fork(function)
 	if (ep == NULL)
 		return (ENOMEM);
 	ep->function = function;
+	sx_xlock(&fork_list_lock);
 	TAILQ_INSERT_TAIL(&fork_list, ep, next);
+	sx_xunlock(&fork_list_lock);
 	return (0);
 }
 
@@ -624,13 +660,16 @@ rm_at_fork(function)
 {
 	struct forklist *ep;
 
+	sx_xlock(&fork_list_lock);
 	TAILQ_FOREACH(ep, &fork_list, next) {
 		if (ep->function == function) {
 			TAILQ_REMOVE(&fork_list, ep, next);
+			sx_xunlock(&fork_list_lock);
 			free(ep, M_ATFORK);
 			return(1);
 		}
-	}	
+	}
+	sx_xunlock(&fork_list_lock);
 	return (0);
 }
 
@@ -646,10 +685,12 @@ fork_exit(callout, arg, frame)
 {
 	struct proc *p;
 
+	p = curproc;
+
 	/*
 	 * Setup the sched_lock state so that we can release it.
 	 */
-	sched_lock.mtx_lock = (uintptr_t)curproc;
+	sched_lock.mtx_lock = (uintptr_t)p;
 	sched_lock.mtx_recurse = 0;
 	mtx_unlock_spin(&sched_lock);
 	/*
@@ -675,13 +716,15 @@ fork_exit(callout, arg, frame)
 	 * Check if a kernel thread misbehaved and returned from its main
 	 * function.
 	 */
-	p = CURPROC;
+	PROC_LOCK(p);
 	if (p->p_flag & P_KTHREAD) {
+		PROC_UNLOCK(p);
 		mtx_lock(&Giant);
 		printf("Kernel thread \"%s\" (pid %d) exited prematurely.\n",
 		    p->p_comm, p->p_pid);
 		kthread_exit(0);
 	}
+	PROC_UNLOCK(p);
 	mtx_assert(&Giant, MA_NOTOWNED);
 }
 
