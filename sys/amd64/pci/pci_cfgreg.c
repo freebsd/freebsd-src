@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcibus.c,v 1.20 1995/12/10 13:39:04 phk Exp $
+**  $Id: pcibus.c,v 1.21 1995/12/16 00:27:59 bde Exp $
 **
 **  pci bus subroutines for i386 architecture.
 **
@@ -34,6 +34,8 @@
 **
 ***************************************************************************
 */
+
+#include "vector.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -425,10 +427,35 @@ pcibus_write (pcici_t tag, u_long reg, u_long data)
 static int
 pcibus_ihandler_attach (int irq, inthand2_t *func, int arg, unsigned * maskptr)
 {
-	int result;
+	char buf[16];
+	char *cp;
+	int free_id, id, result;
+
+	sprintf(buf, "pci irq%d", irq);
+	for (cp = intrnames, free_id = 0, id = 0; id < NR_DEVICES; id++) {
+		if (strcmp(cp, buf) == 0)
+			break;
+		if (free_id <= 0 && strcmp(cp, "pci irqnn") == 0)
+			free_id = id;
+		while (*cp++ != '\0')
+			;
+	}
+	if (id == NR_DEVICES) {
+		id = free_id;
+		if (id == 0) {
+			/*
+			 * All pci irq counters are in use, perhaps because
+			 * config is old so there aren't any.  Abuse the
+			 * clk0 counter.
+			 */
+			printf (
+		"pcibus_ihandler_attach: counting pci irq%d's as clk0 irqs\n",
+				irq);
+		}
+	}
 	result = register_intr(
 		irq,		    /* isa irq	    */
-		0,		    /* deviced??    */
+		id,		    /* device id    */
 		0,		    /* flags?	    */
 		func,		    /* handler	    */
 		maskptr,	    /* mask pointer */
