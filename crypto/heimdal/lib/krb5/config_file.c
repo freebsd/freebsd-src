@@ -32,7 +32,7 @@
  */
 
 #include "krb5_locl.h"
-RCSID("$Id: config_file.c,v 1.45 2002/08/14 17:35:03 joda Exp $");
+RCSID("$Id: config_file.c,v 1.46 2002/09/10 19:04:55 joda Exp $");
 
 #ifndef HAVE_NETINFO
 
@@ -341,7 +341,7 @@ vget_next(krb5_context context,
 {
     const char *p = va_arg(args, const char *);
     while(b != NULL) {
-	if(strcmp(b->name, name) == NULL) {
+	if(strcmp(b->name, name) == 0) {
 	    if(b->type == type && p == NULL) {
 		*pointer = b;
 		return b->u.generic;

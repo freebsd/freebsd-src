@@ -1,4 +1,4 @@
-@c $Id: install.texi,v 1.17 2001/07/02 18:06:02 joda Exp $
+@c $Id: install.texi,v 1.18 2002/09/04 03:18:48 assar Exp $
 
 @node Building and Installing, Setting up a realm, What is Kerberos?, Top
 @comment  node-name,  next,  previous,  up
@@ -97,5 +97,10 @@ these two options.
 On Irix there are three different ABIs that can be used (@samp{32},
 @samp{n32}, or @samp{64}).  This option allows you to override the
 automatic selection.
+
+@item @kbd{--disable-mmap}
+Do not use the mmap system call.  Normally, configure detects if there
+is a working mmap and it is only used if there is one.  Only try this
+option if it fails to work anyhow.
 
 @end table

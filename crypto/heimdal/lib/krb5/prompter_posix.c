@@ -33,7 +33,7 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: prompter_posix.c,v 1.6 2001/05/11 20:26:49 assar Exp $");
+RCSID("$Id: prompter_posix.c,v 1.7 2002/09/16 17:32:11 nectar Exp $");
 
 int
 krb5_prompter_posix (krb5_context context,
@@ -65,8 +65,7 @@ krb5_prompter_posix (krb5_context context,
 		     prompts[i].reply->length,
 		     stdin) == NULL)
 		return 1;
-	    if(s[strlen(s) - 1] == '\n')
-		s[strlen(s) - 1] = '\0';
+	    s[strcspn(s, "\n")] = '\0';
 	}
     }
     return 0;

@@ -1,5 +1,5 @@
 .\" Copyright (c) 2001 Kungliga Tekniska Högskolan
-.\" $Id: krb5_context.3,v 1.3 2002/08/28 15:30:48 joda Exp $
+.\" $Id: krb5_context.3,v 1.4 2002/09/02 12:42:00 joda Exp $
 .Dd January 21, 2001
 .Dt KRB5_CONTEXT 3
 .Os HEIMDAL
@@ -10,8 +10,8 @@
 The
 .Nm
 structure is designed to hold all per thread state. All global
-variables that are context specific are stored in this struture,
-including default encryption types, credential-cache (ticket file), and
+variables that are context specific are stored in this structure,
+including default encryption types, credentials-cache (ticket file), and
 default realms.
 .Pp
 The internals of the structure should never be accessed directly,
