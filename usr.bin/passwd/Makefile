@@ -1,9 +1,10 @@
 # From:	@(#)Makefile	8.3 (Berkeley) 4/2/94
-# $Id: Makefile,v 1.19.2.1 1996/11/05 20:13:30 phk Exp $
+# $Id$
 
 PROG=	passwd
 SRCS=	local_passwd.c yppasswd_private_xdr.c yppasswd_comm.c yp_passwd.c \
 	passwd.c pw_copy.c pw_util.c pw_yp.c
+CFLAGS+=-Wall
 
 DPADD=	${LIBCRYPT} ${LIBRPCSVC} ${LIBUTIL}
 LDADD=	-lcrypt -lrpcsvc -lutil
@@ -52,15 +53,13 @@ MAN1=passwd.1
 LINKS=${BINDIR}/passwd ${BINDIR}/yppasswd
 MLINKS=passwd.1 yppasswd.1
 
-.if exists(${DESTDIR}/usr/lib/libkrb.a) && (defined(MAKE_EBONES))
-SRCS+=	kpasswd.c
+.if exists(${DESTDIR}/usr/lib/libkrb.a) && (defined(MAKE_KERBEROS4))
+SRCS+=	kpasswd_standalone.c
 .PATH:	${.CURDIR}/../../usr.bin/chpass ${.CURDIR}/../../usr.sbin/vipw \
 	${.CURDIR}/../../usr.bin/rlogin ${.CURDIR}/../../usr.bin/passwd \
-	${.CURDIR}/../../eBones/usr.bin/passwd
+	${.CURDIR}/../../crypto/kerberosIV/kadmin
 
-CFLAGS+=	-DKERBEROS \
-		-I${.CURDIR}/../../eBones/include \
-		-I${.CURDIR}/../../eBones/lib/libkadm
+CFLAGS+=	-DKERBEROS
 # XXX not defined: ${LIBKADM}, ${LIBCOM_ERR}
 DPADD=	${LIBKADM} ${LIBKRB} ${LIBDES} ${LIBCRYPT} ${LIBRPCSVC} ${LIBCOM_ERR} ${LIBUTIL}
 LDADD=	-lkadm -lkrb -ldes -lcrypt -lrpcsvc -lcom_err -lutil

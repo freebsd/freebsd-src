@@ -42,7 +42,7 @@ static char copyright[] =
 static char sccsid[] = "@(#)login.c	8.4 (Berkeley) 4/2/94";
 #endif
 static const char rcsid[] =
-	"$Id: login.c,v 1.12.2.7 1997/10/19 09:35:12 joerg Exp $";
+	"$Id$";
 #endif /* not lint */
 
 /*
@@ -110,6 +110,7 @@ void	 sleepexit __P((int));
 void	 refused __P((char *,char *,int));
 char	*stypeof __P((char *));
 void	 timedout __P((int));
+int	 login_access __P((char *, char *));
 void     login_fbtab __P((char *, uid_t, gid_t));
 #ifdef KERBEROS
 int	 klogin __P((struct passwd *, char *, char *, char *));
@@ -436,6 +437,8 @@ main(argc, argv)
 			}
 		}
 #else /* !LOGIN_CAP_AUTH */
+		(void)signal(SIGINT, SIG_DFL);
+		(void)signal(SIGQUIT, SIG_DFL);
 #ifdef SKEY
 		permit_passwd = skeyaccess(username, tty,
 					   hostname ? full_hostname : NULL,
@@ -973,6 +976,7 @@ char *
 stypeof(ttyid)
 	char *ttyid;
 {
+
 	struct ttyent *t;
 
 	return (ttyid && (t = getttynam(ttyid)) ? t->ty_type : UNKNOWN);

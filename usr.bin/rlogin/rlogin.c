@@ -38,11 +38,9 @@ static const char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-#if 0
-static char sccsid[] = "@(#)rlogin.c	8.1 (Berkeley) 6/6/93";
-#endif
+static const char sccsid[] = "@(#)rlogin.c	8.1 (Berkeley) 6/6/93";
 static const char rcsid[] =
-	"$Id: rlogin.c,v 1.13.2.2 1997/08/29 05:29:46 imp Exp $";
+	"$Id$";
 #endif /* not lint */
 
 /*
@@ -71,16 +69,11 @@ static const char rcsid[] =
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-
-#ifdef __STDC__
-#include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
+#include <err.h>
 
 #ifdef KERBEROS
 #include <des.h>
-#include <kerberosIV/krb.h>
+#include <krb.h>
 
 #include "krb.h"
 
@@ -139,9 +132,6 @@ void		usage __P((void)) __dead2;
 void		writer __P((void));
 void		writeroob __P((int));
 
-#ifdef	KERBEROS
-void		warning __P((const char *, ...));
-#endif
 #ifdef OLDSUN
 int		get_window_size __P((int, struct winsize *));
 #endif
@@ -164,7 +154,7 @@ main(argc, argv)
 	one = 1;
 	host = user = NULL;
 
-	if (p = rindex(argv[0], '/'))
+	if ((p = rindex(argv[0], '/')))
 		++p;
 	else
 		p = argv[0];
@@ -251,7 +241,7 @@ main(argc, argv)
 		sp = getservbyname((doencrypt ? "eklogin" : "klogin"), "tcp");
 		if (sp == NULL) {
 			use_kerberos = 0;
-			warning("can't get entry for %s/tcp service",
+			warn("can't get entry for %s/tcp service",
 			    doencrypt ? "eklogin" : "klogin");
 		}
 	}
@@ -304,7 +294,7 @@ try_connect:
 		if (doencrypt) {
 			rem = krcmd_mutual(&host, sp->s_port, user, term, 0,
 			    dest_realm, &cred, schedule);
-			des_set_key_krb(&cred.session, schedule);
+			des_set_key(&cred.session, schedule);
 		} else
 #endif /* CRYPT */
 			rem = krcmd(&host, sp->s_port, user, term, 0,
@@ -315,9 +305,9 @@ try_connect:
 			if (sp == NULL)
 				errx(1, "unknown service login/tcp");
 			if (errno == ECONNREFUSED)
-				warning("remote host doesn't support Kerberos");
+				warn("remote host doesn't support Kerberos");
 			if (errno == ENOENT)
-				warning("can't provide Kerberos auth data");
+				warn("can't provide Kerberos auth data");
 			goto try_connect;
 		}
 	} else {
@@ -520,8 +510,9 @@ writer()
 #ifdef CRYPT
 #ifdef KERBEROS
 				if (doencrypt)
-					(void)des_write(rem,
-					    (char *)&escapechar, 1);
+					(void)des_enc_write(rem,
+					    (char *)&escapechar, 1,
+						schedule, &cred.session);
 				else
 #endif
 #endif
@@ -531,7 +522,7 @@ writer()
 #ifdef CRYPT
 #ifdef KERBEROS
 		if (doencrypt) {
-			if (des_write(rem, &c, 1) == 0) {
+			if (des_enc_write(rem, &c, 1, schedule, &cred.session) == 0) {
 				msg("line gone");
 				break;
 			}
@@ -626,7 +617,8 @@ sendwindow()
 #ifdef CRYPT
 #ifdef KERBEROS
 	if(doencrypt)
-		(void)des_write(rem, obuf, sizeof(obuf));
+		(void)des_enc_write(rem, obuf, sizeof(obuf),
+			schedule, &cred.session);
 	else
 #endif
 #endif
@@ -771,7 +763,8 @@ reader(omask)
 #ifdef CRYPT
 #ifdef KERBEROS
 		if (doencrypt)
-			rcvcnt = des_read(rem, rcvbuf, sizeof(rcvbuf));
+			rcvcnt = des_enc_read(rem, rcvbuf, sizeof(rcvbuf),
+				schedule, &cred.session);
 		else
 #endif
 #endif
@@ -852,31 +845,6 @@ msg(str)
 {
 	(void)fprintf(stderr, "rlogin: %s\r\n", str);
 }
-
-#ifdef KERBEROS
-/* VARARGS */
-void
-#if __STDC__
-warning(const char *fmt, ...)
-#else
-warning(fmt, va_alist)
-	char *fmt;
-	va_dcl
-#endif
-{
-	va_list ap;
-
-	(void)fprintf(stderr, "rlogin: warning, using standard rlogin: ");
-#ifdef __STDC__
-	va_start(ap, fmt);
-#else
-	va_start(ap);
-#endif
-	vfprintf(stderr, fmt, ap);
-	va_end(ap);
-	(void)fprintf(stderr, ".\n");
-}
-#endif
 
 void
 usage()
