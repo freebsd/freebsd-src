@@ -4,7 +4,7 @@
  * THIS FILE AUTOMATICALLY GENERATED.  DO NOT EDIT.
  *
  * generated from:
- *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.63 2003/08/14 06:26:58 imp Exp 
+ *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.64 2003/08/21 16:40:20 imp Exp 
  */
 /* $NetBSD: pcmciadevs,v 1.184 2003/07/26 10:39:32 martin Exp $ */
 /* $OpenBSD: pcmciadevs,v 1.93 2002/06/21 08:31:10 henning Exp $ */
@@ -50,7 +50,7 @@
  */
 
 #define	PCMCIA_VENDOR_FUJITSU	0x0004	/* Fujitsu Corporation */
-#define	PCMCIA_VENDOR_NETGEAR_2	0x000b	/* Netgear */
+#define	PCMCIA_VENDOR_INTERSIL	0x000b	/* Intersil */
 #define	PCMCIA_VENDOR_PANASONIC	0x0032	/* Matsushita Electric Industrial Co. */
 #define	PCMCIA_VENDOR_SANDISK	0x0045	/* Sandisk Corporation */
 #define	PCMCIA_VENDOR_NEWMEDIA	0x0057	/* New Media Corporation */
@@ -405,6 +405,12 @@
 #define	PCMCIA_PRODUCT_INTEL_EEPRO100	0x010a
 #define	PCMCIA_STR_INTEL_EEPRO100	"Intel EtherExpress PRO/100"
 
+/* Intersil */
+/* Note: The following likely is an OEM card under a different Intersil name */
+#define	PCMCIA_CIS_INTERSIL_MA401RA	{ NULL, NULL, NULL, NULL }
+#define	PCMCIA_PRODUCT_INTERSIL_MA401RA	0x7300
+#define	PCMCIA_STR_INTERSIL_MA401RA	"Netgear MA401RA"
+
 /* I-O DATA */
 #define	PCMCIA_CIS_IODATA_PCLATE	{ NULL, NULL, NULL, NULL }
 #define	PCMCIA_PRODUCT_IODATA_PCLATE	0x2216
@@ -550,9 +556,6 @@
 #define	PCMCIA_CIS_NETGEAR_FA411	{ NULL, NULL, NULL, NULL }
 #define	PCMCIA_PRODUCT_NETGEAR_FA411	0x0411
 #define	PCMCIA_STR_NETGEAR_FA411	"Netgear FA411"
-#define	PCMCIA_CIS_NETGEAR_2_MA401RA	{ NULL, NULL, NULL, NULL }
-#define	PCMCIA_PRODUCT_NETGEAR_2_MA401RA	0x7300
-#define	PCMCIA_STR_NETGEAR_2_MA401RA	"Netgear MA401RA"
 
 /* National Instruments */
 #define	PCMCIA_CIS_NI_PCMCIA_GPIB	{ NULL, NULL, NULL, NULL }
