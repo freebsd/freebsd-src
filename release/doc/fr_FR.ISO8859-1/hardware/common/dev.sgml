@@ -4,7 +4,7 @@
 
      $Id$
      $FreeBSD$
-     Original revision: 1.13.2.69
+     Original revision: 1.13.2.70
 -->
 <!--
 
@@ -3024,6 +3024,9 @@
         <listitem>
 	  <para>Clavier Microsoft</para>
 	</listitem>
+        <listitem>
+          <para>Clavier USB Sun Microsystems Type 6</para>
+        </listitem>
       </itemizedlist>
     </para>
     <para arch="i386,pc98">Divers
@@ -3085,6 +3088,9 @@
         <listitem>
 	  <para>Microsoft IntelliMouse (3 boutons)</para>
 	</listitem>
+        <listitem>
+          <para>Souris USB Sun Microsystems Type 6</para>
+        </listitem>
         <listitem>
 	  <para>Souris Trust Ami (3 boutons)</para>
 	</listitem>
