@@ -367,33 +367,37 @@ ufs_access(ap)
 		return (EPERM);
 
 #ifdef UFS_ACL
-	MALLOC(acl, struct acl *, sizeof(*acl), M_ACL, M_WAITOK);
-	len = sizeof(*acl);
-	error = VOP_GETACL(vp, ACL_TYPE_ACCESS, acl, ap->a_cred, ap->a_td);
-	switch (error) {
-	case EOPNOTSUPP:
+	if ((vp->v_mount->mnt_flag & MNT_ACLS) != 0) {
+		MALLOC(acl, struct acl *, sizeof(*acl), M_ACL, M_WAITOK);
+		len = sizeof(*acl);
+		error = VOP_GETACL(vp, ACL_TYPE_ACCESS, acl, ap->a_cred,
+		    ap->a_td);
+		switch (error) {
+		case EOPNOTSUPP:
+			error = vaccess(vp->v_type, ip->i_mode, ip->i_uid,
+			    ip->i_gid, ap->a_mode, ap->a_cred, NULL);
+			break;
+		case 0:
+			error = vaccess_acl_posix1e(vp->v_type, ip->i_uid,
+			    ip->i_gid, acl, ap->a_mode, ap->a_cred, NULL);
+			break;
+		default:
+			printf(
+"ufs_access(): Error retrieving ACL on object (%d).\n",
+			    error);
+			/*
+			 * XXX: Fall back until debugged.  Should
+			 * eventually possibly log an error, and return
+			 * EPERM for safety.
+			 */
+			error = vaccess(vp->v_type, ip->i_mode, ip->i_uid,
+			    ip->i_gid, ap->a_mode, ap->a_cred, NULL);
+		}
+		FREE(acl, M_ACL);
+	} else
+#endif /* !UFS_ACL */
 		error = vaccess(vp->v_type, ip->i_mode, ip->i_uid, ip->i_gid,
 		    ap->a_mode, ap->a_cred, NULL);
-		break;
-	case 0:
-		error = vaccess_acl_posix1e(vp->v_type, ip->i_uid, ip->i_gid,
-		    acl, ap->a_mode, ap->a_cred, NULL);
-		break;
-	default:
-		printf("ufs_access(): Error retrieving ACL on object (%d).\n",
-		    error);
-		/*
-		 * XXX: Fall back until debugged.  Should eventually
-		 * possibly log an error, and return EPERM for safety.
-		 */
-		error = vaccess(vp->v_type, ip->i_mode, ip->i_uid, ip->i_gid,
-		    ap->a_mode, ap->a_cred, NULL);
-	}
-	FREE(acl, M_ACL);
-#else
-	error = vaccess(vp->v_type, ip->i_mode, ip->i_uid, ip->i_gid,
-	    ap->a_mode, ap->a_cred, NULL);
-#endif
 	return (error);
 }
 
@@ -1436,58 +1440,63 @@ ufs_mkdir(ap)
 #endif	/* !SUIDDIR */
 	ip->i_flag |= IN_ACCESS | IN_CHANGE | IN_UPDATE;
 #ifdef UFS_ACL
-	MALLOC(acl, struct acl *, sizeof(*acl), M_ACL, M_WAITOK);
-	MALLOC(dacl, struct acl *, sizeof(*acl), M_ACL, M_WAITOK);
+	acl = dacl = NULL;
+	if ((dvp->v_mount->mnt_flag & MNT_ACLS) != 0) {
+		MALLOC(acl, struct acl *, sizeof(*acl), M_ACL, M_WAITOK);
+		MALLOC(dacl, struct acl *, sizeof(*dacl), M_ACL, M_WAITOK);
 
-	/*
-	 * Retrieve default ACL from parent, if any.
-	 */
-	error = VOP_GETACL(dvp, ACL_TYPE_DEFAULT, acl, cnp->cn_cred,
-	    cnp->cn_thread);
-	switch (error) {
-	case 0:
 		/*
-		 * Retrieved a default ACL, so merge mode and ACL if
-		 * necessary.
+		 * Retrieve default ACL from parent, if any.
 		 */
-		if (acl->acl_cnt != 0) {
+		error = VOP_GETACL(dvp, ACL_TYPE_DEFAULT, acl, cnp->cn_cred,
+		    cnp->cn_thread);
+		switch (error) {
+		case 0:
 			/*
-			 * Two possible ways for default ACL to not be
-			 * present.  First, the EA can be undefined,
-			 * or second, the default ACL can be blank.
-			 * If it's blank, fall through to the it's
-			 * not defined case.
+			 * Retrieved a default ACL, so merge mode and ACL if
+			 * necessary.
+			 */
+			if (acl->acl_cnt != 0) {
+				/*
+				 * Two possible ways for default ACL to not
+				 * be present.  First, the EA can be
+				 * undefined, or second, the default ACL can
+				 * be blank.  If it's blank, fall through to
+				 * the it's not defined case.
+				 */
+				ip->i_mode = dmode;
+				DIP(ip, i_mode) = dmode;
+				*dacl = *acl;
+				ufs_sync_acl_from_inode(ip, acl);
+				break;
+			}
+			/* FALLTHROUGH */
+	
+		case EOPNOTSUPP:
+			/*
+			 * Just use the mode as-is.
 			 */
 			ip->i_mode = dmode;
 			DIP(ip, i_mode) = dmode;
-			*dacl = *acl;
-			ufs_sync_acl_from_inode(ip, acl);
+			FREE(acl, M_ACL);
+			FREE(dacl, M_ACL);
+			dacl = acl = NULL;
 			break;
+		
+		default:
+			UFS_VFREE(tvp, ip->i_number, dmode);
+			vput(tvp);
+			FREE(acl, M_ACL);
+				FREE(dacl, M_ACL);
+			return (error);
 		}
-		/* FALLTHROUGH */
-
-	case EOPNOTSUPP:
-		/*
-		 * Just use the mode as-is.
-		 */
+	} else {
+#endif /* !UFS_ACL */
 		ip->i_mode = dmode;
 		DIP(ip, i_mode) = dmode;
-		FREE(acl, M_ACL);
-		FREE(dacl, M_ACL);
-		dacl = acl = NULL;
-		break;
-	
-	default:
-		UFS_VFREE(tvp, ip->i_number, dmode);
-		vput(tvp);
-		FREE(acl, M_ACL);
-		FREE(dacl, M_ACL);
-		return (error);
+#ifdef UFS_ACL
 	}
-#else /* !UFS_ACL */
-	ip->i_mode = dmode;
-	DIP(ip, i_mode) = dmode;
-#endif /* !UFS_ACL */
+#endif
 	tvp->v_type = VDIR;	/* Rest init'd in getnewvnode(). */
 	ip->i_effnlink = 2;
 	ip->i_nlink = 2;
@@ -2342,53 +2351,60 @@ ufs_makeinode(mode, dvp, vpp, cnp)
 #endif	/* !SUIDDIR */
 	ip->i_flag |= IN_ACCESS | IN_CHANGE | IN_UPDATE;
 #ifdef UFS_ACL
-	MALLOC(acl, struct acl *, sizeof(*acl), M_ACL, M_WAITOK);
-	/*
-	 * Retrieve default ACL for parent, if any.
-	 */
-	error = VOP_GETACL(dvp, ACL_TYPE_DEFAULT, acl, cnp->cn_cred,
-	    cnp->cn_thread);
-	switch (error) {
-	case 0:
+	acl = NULL;
+	if ((dvp->v_mount->mnt_flag & MNT_ACLS) != 0) {
+		MALLOC(acl, struct acl *, sizeof(*acl), M_ACL, M_WAITOK);
+
 		/*
-		 * Retrieved a default ACL, so merge mode and ACL if
-		 * necessary.
+		 * Retrieve default ACL for parent, if any.
 		 */
-		if (acl->acl_cnt != 0) {
+		error = VOP_GETACL(dvp, ACL_TYPE_DEFAULT, acl, cnp->cn_cred,
+		    cnp->cn_thread);
+		switch (error) {
+		case 0:
 			/*
-			 * Two possible ways for default ACL to not be
-			 * present.  First, the EA can be undefined,
-			 * or second, the default ACL can be blank.
-			 * If it's blank, fall through to the it's
-			 * not defined case.
+			 * Retrieved a default ACL, so merge mode and ACL if
+			 * necessary.
+			 */
+			if (acl->acl_cnt != 0) {
+				/*
+				 * Two possible ways for default ACL to not
+				 * be present.  First, the EA can be
+				 * undefined, or second, the default ACL can
+				 * be blank.  If it's blank, fall through to
+				 * the it's not defined case.
+				 */
+				ip->i_mode = mode;
+				DIP(ip, i_mode) = mode;
+				ufs_sync_acl_from_inode(ip, acl);
+				break;
+			}
+			/* FALLTHROUGH */
+	
+		case EOPNOTSUPP:
+			/*
+			 * Just use the mode as-is.
 			 */
 			ip->i_mode = mode;
 			DIP(ip, i_mode) = mode;
-			ufs_sync_acl_from_inode(ip, acl);
+			FREE(acl, M_ACL);
+			acl = NULL;
 			break;
+	
+		default:
+			UFS_VFREE(tvp, ip->i_number, mode);
+			vput(tvp);
+			FREE(acl, M_ACL);
+			acl = NULL;
+			return (error);
 		}
-
-	case EOPNOTSUPP:
-		/*
-		 * Just use the mode as-is.
-		 */
+	} else {
+#endif
 		ip->i_mode = mode;
 		DIP(ip, i_mode) = mode;
-		FREE(acl, M_ACL);
-		acl = NULL;
-		break;
-
-	default:
-		UFS_VFREE(tvp, ip->i_number, mode);
-		vput(tvp);
-		FREE(acl, M_ACL);
-		acl = NULL;
-		return (error);
+#ifdef UFS_ACL
 	}
-#else /* !UFS_ACL */
-	ip->i_mode = mode;
-	DIP(ip, i_mode) = mode;
-#endif /* !UFS_ACL */
+#endif
 	tvp->v_type = IFTOVT(mode);	/* Rest init'd in getnewvnode(). */
 	ip->i_effnlink = 1;
 	ip->i_nlink = 1;

@@ -225,6 +225,12 @@ ufs_getacl(ap)
 	struct inode *ip = VTOI(ap->a_vp);
 	int error, len;
 
+	/*
+	 * XXX: If ufs_getacl() should work on file systems not supporting
+	 * ACLs, remove this check.
+	 */
+	if ((ap->a_vp->v_mount->mnt_flag & MNT_ACLS) == 0)
+		return (EOPNOTSUPP);
 
 	/*
 	 * Attempt to retrieve the ACL based on the ACL type.
@@ -362,6 +368,9 @@ ufs_setacl(ap)
 	mode_t old_mode, preserve_mask;
 	int error;
 
+	if ((ap->a_vp->v_mount->mnt_flag & MNT_ACLS) == 0)
+		return (EOPNOTSUPP);
+
 	/*
 	 * If this is a set operation rather than a delete operation,
 	 * invoke VOP_ACLCHECK() on the passed ACL to determine if it is
@@ -474,6 +483,9 @@ ufs_aclcheck(ap)
 		struct thread *td;
 	} */ *ap;
 {
+
+	if ((ap->a_vp->v_mount->mnt_flag & MNT_ACLS) == 0)
+		return (EOPNOTSUPP);
 
 	/*
 	 * Verify we understand this type of ACL, and that it applies
