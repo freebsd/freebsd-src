@@ -87,23 +87,22 @@ this parameter should be set higher.
 .It Fl m Ar minfree
 This value specifies the percentage of space held back
 from normal users; the minimum free space threshold.
-The default value used is 10%.
+The default value used is 8%.
 This value can be set to zero, however up to a factor of three
 in throughput will be lost over the performance obtained at a 10%
-threshold.
+threshold. Settings of 5% and less force space optimization to
+always be used which will greatly increase the overhead for file
+writes.
 Note that if the value is raised above the current usage level,
 users will be unable to allocate files until enough files have
 been deleted to get under the higher threshold.
 .It Fl o Ar optimize_preference
 The file system can either try to minimize the time spent
 allocating blocks, or it can attempt to minimize the space
-fragmentation on the disk.
-If the value of minfree (see above) is less than 10%,
-then the file system should optimize for space to avoid
-running out of full sized blocks.
-For values of minfree greater than or equal to 10%,
-fragmentation is unlikely to be problematical, and
-the file system can be optimized for time.
+fragmentation on the disk. Optimization for space has much
+higher overhead for file writes.
+The kernel normally changes the preference automatically as
+the percent fragmentation changes on the file system.
 .El
 .Sh SEE ALSO
 .Xr fs 5 ,
