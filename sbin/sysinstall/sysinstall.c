@@ -12,8 +12,6 @@
  * its use.
  */
 
-#define DEBUG
-
 #include <sys/types.h>
 #include <sys/errno.h>
 #include <sys/uio.h>
@@ -29,6 +27,8 @@
 #include <ufs/ffs/fs.h>
 #include <sys/mount.h>
 #include <sys/wait.h>
+#include <sys/stat.h>
+#include <sys/reboot.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -113,7 +113,7 @@ alloc_memory()
 {
 	int i;
 
-	scratch = (char *) calloc(100,sizeof(char));
+	scratch = (char *) calloc(SCRATCHSIZE, sizeof(char));
 	avail_disklabels = (struct disklabel *) calloc(MAX_NO_DISKS, sizeof(struct disklabel));
 	if (!(avail_disklabels)) 
 		fatal("Couldn't malloc memory for disklabels");
@@ -505,21 +505,25 @@ write_DOS_partitions(int fd)
 		fatal("Failed to write DOS partition area");
 }
 
-void
+int
 exec(char *cmd, char *args, ...)
 {
-	int pid, w, stat;
-	char **argv;
+	int pid, w, status;
+	char **argv = NULL;
 	int arg = 0;
 	int no_args = 0;
 	va_list ap;
+	struct stat dummy;
+
+	if (stat(cmd, &dummy) == -1)
+		return(-1);
 
 	va_start(ap, args);
 	do {
 		if (arg == no_args) {
 			no_args += 10;
 			if (!(argv = realloc(argv, no_args * sizeof(char *))))
-				fatal("Couldn't alloc memory in exec");
+				return(-1);
 			if (arg == 0)
 				argv[arg++] = (char *)args;
 		}
@@ -531,12 +535,94 @@ exec(char *cmd, char *args, ...)
 		exit(1);
 	}
 	
-	while ((w = wait(&stat)) != pid && w != -1)
+	while ((w = wait(&status)) != pid && w != -1)
 		;
 
-	if (w == -1)
-		fatal("exec failed!");
 	free(argv);
+	if (w == -1)
+		return(-1);
+
+	return(0);
+}
+
+/* Copy a file */
+
+int
+copy(char *src, char *dst)
+{
+
+	int src_fd, dst_fd;
+	struct stat src_stat;
+	int rcount, wcount;
+
+	if ((src_fd = open(src, O_RDONLY, 0)) == -1)
+		return(-1);
+
+	if (fstat(src_fd, &src_stat) == -1)
+		return(-1);
+
+	dst_fd = open(dst, O_WRONLY | O_TRUNC | O_CREAT, src_stat.st_mode);
+	if (dst_fd == -1)
+		return(-1);
+
+	while ((rcount = read(src_fd, scratch, SCRATCHSIZE)) > 0) {
+		if (rcount != -1) {
+			wcount = write(dst_fd, scratch, rcount);
+			if (rcount != wcount ) {
+				rcount = -1;
+				break;
+			}
+		} else {
+			break;
+		}
+	}
+
+	/* Clean up if the copy failed */
+	if (rcount == -1) {
+		(void) unlink(dst);
+		return(-1);
+	}
+
+	/* Fixup the ownership */
+
+	if (fchown(dst_fd, src_stat.st_uid, src_stat.st_gid) == -1)
+		return(-1);
+
+	if (close(src_fd) == -1) {
+		return(-1);
+	}
+
+	if (close(dst_fd) == -1) {
+		return(-1);
+	}
+
+	return(0);
+}
+
+void
+set_termcap()
+{
+	char *term;
+
+	term = getenv("TERM");
+	if (term == NULL) {
+		putenv("TERM=cons25");
+		putenv("TERMCAP=\
+cons25|ansis|ansi80x25:\
+:ac=l\\332m\\300k\\277j\\331u\\264t\\303v\\301w\\302q\\304x\\263n\\305`^Da\\260f\\370g\\361~\\371.^Y-^Xh\\261I^U0\\333y\\363z\\362:\
+:al=\\E[L:am:bs:cd=\\E[J:ce=\\E[K:cl=\\E[H\\E[J:cm=\\E[%i%d;%dH:co#80:\
+:dc=\\E[P:dl=\\E[M:do=\\E[B:bt=\\E[Z:ho=\\E[H:ic=\\E[@:li#25:\
+:ms:nd=\\E[C:pt:rs=\\E[x\\E[m\\Ec:so=\\E[7m:se=\\E[m:up=\\E[A:\
+:pa#64:Co#8:Sf=\\E[3%dm:Sb=\\E[4%dm:op=\\E[37;40m:\
+:k1=\\E[M:k2=\\E[N:k3=\\E[O:k4=\\E[P:k5=\\E[Q:k6=\\E[R:k7=\\E[S:k8=\\E[T:\
+:k9=\\E[U:k;=\\E[V:F1=\\E[W:F2=\\E[X:\
+:kb=^H:kh=\\E[H:ku=\\E[A:kd=\\E[B:kl=\\E[D:kr=\\E[C:\
+:le=^H:eo:sf=\\E[S:sr=\\E[T:\
+:kN=\\E[G:kP=\\E[I:@7=\\E[F:kI=\\E[L:kD=\\177:kB=\\E[Z:\
+:IC=\\E[%d@:DC=\\E[%dP:SF=\\E[%dS:SR=\\E[%dT:AL=\\E[%dL:DL=\\E[%dM:\
+:DO=\\E[%dB:LE=\\E[%dD:RI=\\E[%dC:UP=\\E[%dA:bw:\
+:mb=\\E[5m:md=\\E[1m:mh=\\E[30;1m:mr=\\E[7m:me=\\E[m:bl=^G:ut:it#8:");
+	}
 }
 
 void
@@ -546,11 +632,17 @@ main(int argc, char **argv)
 	struct ufs_args ufsargs;
 	int i;
 
-close(0); open("/dev/console",O_RDWR);
-close(1); dup(0);
-close(2); dup(0);
-putenv("TERM=cons25");
+	/* Are we running as init? */
+	if (getpid() == 1) {
+		close(0); open("/dev/console",O_RDWR);
+		close(1); dup(0);
+		close(2); dup(0);
+		i = 1;
+		ioctl(0,TIOCSPGRP,&i);
+		setlogin("root");
+	}
 
+	set_termcap();
 	alloc_memory();
 	init_dialog();
 
@@ -576,6 +668,8 @@ putenv("TERM=cons25");
 		write_bootblocks(avail_fds[inst_disk], mboot.parts[inst_part].dp_start, avail_disklabels[inst_disk].d_bbsize);
 	}
 
+	disable_label(avail_fds[inst_disk]);
+
 	/* close all the open disks */
 	for (i=0; i < no_disks; i++)
 		if (close(avail_fds[i]) == -1)
@@ -584,16 +678,12 @@ putenv("TERM=cons25");
 	/* newfs the root partition */
 	strcpy(scratch, avail_disknames[inst_disk]);
 	strcat(scratch, "a");
-	exec("/sbin/newfs","/sbin/newfs",scratch, 0);
+	exec("/sbin/newfs","/sbin/newfs", scratch, 0);
 
 	/* newfs the /usr partition */
 	strcpy(scratch, avail_disknames[inst_disk]);
 	strcat(scratch, "e");
 	exec("/sbin/newfs", "/sbin/newfs", scratch, 0);
-
-
-	cleanup();
-	printf("Done newfs\n");
 
 	strcpy(scratch, "/dev/");
 	strcat(scratch, avail_disknames[inst_disk]);
@@ -602,36 +692,38 @@ putenv("TERM=cons25");
 	if (mount(MOUNT_UFS,"/mnt", 0, (caddr_t) &ufsargs) == -1)
 		printf("Error mounting %s: %s\n",scratch, strerror(errno));
 
-	printf("Done mount of %s\n",scratch);
-
-	mkdir("/mnt/usr",S_IRWXU);
-	printf("Done mkdir \n");
+	if (mkdir("/mnt/usr",S_IRWXU) == -1)
+		printf("Couldn't create directory /mnt/usr: %s\n",strerror(errno));
 
 	strcpy(scratch, "/dev/");
 	strcat(scratch, avail_disknames[inst_disk]);
 	strcat(scratch, "e");
 	ufsargs.fspec = scratch;
-	mount(MOUNT_UFS,"/mnt/usr", 0, (caddr_t) &ufsargs);
+	if (mount(MOUNT_UFS,"/mnt/usr", 0, (caddr_t) &ufsargs) == -1)
+		printf("Error mounting %s: %s\n",scratch, strerror(errno));
 
-	printf("Done mount of %s\n",scratch);
+	if (exec("/bin/cp","/bin/cp","/kernel","/mnt", 0) == -1)
+		printf("Couldn't copy /kernel to /mnt: %s\n",strerror(errno));
+	if (exec("/bin/cp","/bin/cp","/sysinstall","/mnt", 0) == -1)
+		printf("Couldn't copy /sysinstall to /mnt: %s\n",strerror(errno));
+	if (exec("/bin/cp","/bin/cp","-R","/sbin","/mnt", 0) == -1)
+		printf("Couldn't copy /sbin to /mnt: %s\n",strerror(errno));
+	if (exec("/bin/cp","/bin/cp","-R","/bin","/mnt", 0) == -1)
+		printf("Couldn't copy /bin to /mnt: %s\n",strerror(errno));
+	if (exec("/bin/cp","/bin/cp","-R","/dev","/mnt", 0) == -1)
+		printf("Couldn't copy /dev to /mnt: %s\n",strerror(errno));
+	if (exec("/bin/cp","/bin/cp","-R","/usr","/mnt", 0) == -1)
+		printf("Couldn't copy /usr to /mnt: %s\n",strerror(errno));
 
-	/* Copy over a basic system */
-	exec("/bin/cp","/bin/cp","-R","/dev","/mnt/dev",0);
-	printf("Done dev \n");
-	exec("/bin/cp","/bin/cp","-R","/etc","/mnt",0);
-	printf("Done etc \n");
-	exec("/bin/cp","/bin/cp","-R","/bin","/mnt",0);
-	printf("Done bin \n");
-	exec("/bin/cp","/bin/cp","-R","/sbin","/mnt",0);
-	printf("Done sbin\n");
-	exec("/bin/cp","/bin/cp","/.profile","/mnt",0);
-	printf("Done profile\n");
-	exec("/bin/cp","/bin/cp","/kernel","/mnt",0);
-	printf("Done kernel\n");
-	exec("/bin/cp","/bin/cp","-R","/usr","/mnt/usr",0);
+	if (unmount("/mnt/usr", 0) == -1)
+		printf("Error unmounting /mnt/usr: %s\n", strerror(errno));
 
-	disable_label(avail_fds[inst_disk]);
+	if (unmount("/mnt", 0) == -1)
+		printf("Error unmounting /mnt: %s\n", strerror(errno));
 
-	cleanup();
-	exec("/sbin/reboot", "/sbin/reboot", 0);
+	dialog_msgbox("Phase 1 complete", "Remove any floppies from the drives
+	and hit return to reboot from the hard disk", 10, 75, 1);
+
+	if (reboot(RB_AUTOBOOT) == -1)
+		fatal("Reboot failed");
 }
