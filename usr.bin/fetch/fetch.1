@@ -216,20 +216,20 @@ only if they were all successfully retrieved.
 .Sh ENVIRONMENT
 .Bl -tag -width HTTP_TIMEOUT
 .It Ev FTP_TIMEOUT
-maximum time, in seconds, to wait before aborting an
-.Tn FTP
-connection.
+maximum time, in seconds, to wait before aborting an FTP connection.
 .It Ev HTTP_TIMEOUT
-maximum time, in seconds, to wait before aborting an
-.Tn HTTP
-connection.
+mum time, in seconds, to wait before aborting an HTTP connection.
 .El
 .Pp
 All environment variables mentioned in the documentation for the
 .Xr fetch 3
 library are supported.
+A number of these are quite important to the proper operation of
+.Nm ;
+you are strongly encouraged to read 
+.Xr fetch 3
+as well.
 .Sh SEE ALSO
-.Xr sh 1 ,
 .Xr fetch 3
 .Sh HISTORY
 The
@@ -243,15 +243,15 @@ This implementation first appeared in
 The original implementation of
 .Nm
 was done by
-.An Jean-Marc Zucconi .
+.An Jean-Marc Zucconi Aq jmz@FreeBSD.org .
 It was extensively re-worked for
 .Fx 2.2
 by
-.An Garrett Wollman ,
+.An Garrett Wollman Aq wollman@FreeBSD.org ,
 and later completely rewritten to use the
 .Xr fetch 3
 library by
-.An Dag-Erling Sm\(/orgrav .
+.An Dag-Erling Sm\(/orgrav Aq des@FreeBSD.org .
 .Sh NOTES
 The
 .Fl b
