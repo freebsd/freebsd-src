@@ -141,13 +141,14 @@ main(int argc, char **argv)
 		}
 		if (!strcmp(argv[arg], "erase") || !strcmp(argv[arg], "blank")){
 		    	int error, blank, percent;
-			if (!quiet)
-				fprintf(stderr, "%sing CD, please wait..\r",
-					argv[arg]);
+
 			if (!strcmp(argv[arg], "erase"))
 				blank = CDR_B_ALL;
 			else
 				blank = CDR_B_MIN;
+			if (!quiet)
+				fprintf(stderr, "%sing CD, please wait..\r",
+					blank == CDR_B_ALL ? "eras" : "blank");
 
 			if (ioctl(fd, CDRIOCBLANK, &blank) < 0)
         			err(EX_IOERR, "ioctl(CDRIOCBLANK)");
@@ -156,9 +157,9 @@ main(int argc, char **argv)
 				error = ioctl(fd, CDRIOCGETPROGRESS, &percent);
 				if (percent > 0 && !quiet)
 					fprintf(stderr, 
-						"%sing CD - %d %% done"
-						"     \r",
-						argv[arg], percent);
+						"%sing CD - %d %% done     \r",
+						blank == CDR_B_ALL ? 
+						"eras" : "blank", percent);
 				if (error || percent == 100)
 					break;
 			}
