@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: atkbd.c,v 1.1 1999/01/09 02:44:49 yokota Exp $
+ * $Id: atkbd.c,v 1.2 1999/01/13 11:19:19 yokota Exp $
  */
 
 #include "atkbd.h"
@@ -46,6 +46,8 @@
 #include <dev/kbd/atkbdcreg.h>
 
 #ifndef __i386__
+
+#include <isa/isareg.h>
 
 #define ATKBD_SOFTC(unit)		\
 	((atkbd_softc_t *)devclass_get_softc(atkbd_devclass, unit))
@@ -192,7 +194,7 @@ atkbd_timeout(void *arg)
 		 */
 		(*kbdsw[kbd->kb_index]->lock)(kbd, FALSE);
 		if ((*kbdsw[kbd->kb_index]->check_char)(kbd))
-			(*kbdsw[kbd->kb_index]->intr)(kbd, NULL);
+			(*kbdsw[kbd->kb_index]->intr)(kbd);
 	}
 	splx(s);
 	timeout(atkbd_timeout, arg, hz/10);
@@ -331,7 +333,7 @@ static int		get_kbd_id(KBDC kbdc);
 /* local variables */
 
 /* the initial key map, accent map and fkey strings */
-#include <i386/isa/kbdtables.h>
+#include <dev/kbd/kbdtables.h>
 
 /* structures for the default keyboard */
 static keyboard_t	default_kbd;
@@ -524,7 +526,7 @@ atkbd_term(keyboard_t *kbd)
 
 /* keyboard interrupt routine */
 static int
-atkbd_intr(keyboard_t *kbd, void *arg)
+atkbd_intr(keyboard_t *kbd)
 {
 	atkbd_state_t *state;
 	int c;
@@ -1203,6 +1205,15 @@ init_keyboard(KBDC kbdc, int *type, int flags)
 			return EIO;
 		}
 	}
+
+#ifdef __alpha__
+	if (send_kbd_command_and_data(
+		kbdc, KBDC_SET_SCANCODE_SET, 2) != KBD_ACK) {
+		printf("atkbd: can't set translation.\n");
+		
+	}
+	c |= KBD_TRANSLATION;
+#endif
 
 	/* enable the keyboard port and intr. */
 	if (!set_controller_command_byte(kbdc, 
