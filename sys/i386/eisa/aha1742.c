@@ -14,7 +14,7 @@
  *
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  *
- *      $Id: aha1742.c,v 1.47 1996/01/07 19:20:59 gibbs Exp $
+ *      $Id: aha1742.c,v 1.48 1996/01/14 02:19:42 gibbs Exp $
  */
 
 #include <sys/types.h>
@@ -26,11 +26,13 @@
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
-#include <sys/errno.h>
-#include <sys/ioctl.h>
+#include <sys/devconf.h>
 #include <sys/malloc.h>
 #include <sys/buf.h>
 #include <sys/proc.h>
+
+#include <scsi/scsi_all.h>
+#include <scsi/scsiconf.h>
 
 #include <machine/clock.h>
 
@@ -41,9 +43,6 @@
 #else
 #define	NAHB	1
 #endif /*KERNEL */
-#include <scsi/scsi_all.h>
-#include <scsi/scsiconf.h>
-#include <sys/devconf.h>
 
 /* */
 
@@ -72,6 +71,7 @@ typedef unsigned long int physaddr;
 
 #define EISA_DEVICE_ID_ADAPTEC_1740  0x04900000
 #define	AHB_EISA_IOSIZE 0x100
+#define	AHB_EISA_SLOT_OFFSET 0xc00
 
 /* AHA1740 EISA board control registers (Offset from slot base) */
 #define	EBCTRL		0x084
@@ -473,9 +473,10 @@ ahbprobe(void)
                 
 	count = 0;      
 	while ((e_dev = eisa_match_dev(e_dev, ahbmatch))) {
-		iobase = e_dev->ioconf.iobase;
+		iobase = (e_dev->ioconf.slot * EISA_SLOT_SIZE) +
+			 AHB_EISA_SLOT_OFFSET;
                         
-		eisa_add_iospace(e_dev, iobase, AHB_EISA_IOSIZE);
+		eisa_add_iospace(e_dev, iobase, AHB_EISA_IOSIZE, RESVADDR_NONE);
 		intdef = inb(INTDEF + iobase);
 		switch (intdef & 0x7) {
 			case INT9:  
@@ -594,18 +595,24 @@ ahb_attach(e_dev)
 	 */
 	int	unit = e_dev->unit;
 	struct	ahb_data *ahb;
+	resvaddr_t *iospace;
 	int	irq = ffs(e_dev->ioconf.irq) - 1;
 
-	if(!(ahb_reset(e_dev->ioconf.iobase)))
+	iospace = e_dev->ioconf.ioaddrs.lh_first;
+
+	if(!iospace)
+		return -1;
+
+	if(!(ahb_reset(iospace->addr)))
 		return -1;
 
 	eisa_reg_start(e_dev);
-	if(eisa_reg_iospace(e_dev, e_dev->ioconf.iobase, AHB_EISA_IOSIZE)) {
+	if(eisa_reg_iospace(e_dev, iospace)) {
 		eisa_reg_end(e_dev);
 		return -1;
 	}
 
-	if(!(ahb = ahb_alloc(unit, e_dev->ioconf.iobase, irq))) {
+	if(!(ahb = ahb_alloc(unit, iospace->addr, irq))) {
 		ahb_free(ahb);
 		eisa_reg_end(e_dev);
 		return -1;
