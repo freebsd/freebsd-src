@@ -54,10 +54,8 @@ struct ofiocdesc {
 
 /* Get openprom field. */
 #define	OFIOCGET	_IOWR(OFIOC_BASE, 1, struct ofiocdesc)
-#if 0
 /* Set openprom field. */
-#define	OFIOCSET	_IOW(OFIOC_BASE, 2, struct ofiocdesc)
-#endif
+#define	OFIOCSET	_IOWR(OFIOC_BASE, 2, struct ofiocdesc)
 /* Get next property. */
 #define	OFIOCNEXTPROP	_IOWR(OFIOC_BASE, 3, struct ofiocdesc)
 /* Get options node. */
@@ -70,5 +68,10 @@ struct ofiocdesc {
 #define	OFIOCFINDDEVICE	_IOWR(OFIOC_BASE, 7, struct ofiocdesc)
 /* Retrieve the size of a property. */
 #define	OFIOCGETPROPLEN	_IOWR(OFIOC_BASE, 8, struct ofiocdesc)
+
+/* Maximum accepted name length. */
+#define	OFIOCMAXNAME	8191
+/* Maximum accepted value length (maximum of nvramrc property). */
+#define	OFIOCMAXVALUE	8192
 
 #endif /* _DEV_OFW_OPENFIRMIO_H_ */
