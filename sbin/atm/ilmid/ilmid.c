@@ -65,6 +65,7 @@
 #include <err.h>
 #include <errno.h>
 #include <libatm.h>
+#include <libgen.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -2079,30 +2080,6 @@ set_address ( hdr, intf )
 
 	build_pdu ( PDU_Header, PDU_TYPE_SET );
 	send_resp ( intf, PDU_Header, Resp_Buf );
-}
-
-/* 
- * Utility to strip off any leading path information from a filename
- *      
- * Arguments:
- *      path            pathname to strip
- *      
- * Returns:
- *      fname           striped filename
- * 
- */     
-char *
-basename ( path )
-        char *path;
-{  
-        char *fname;
-
-        if ( ( fname = (char *)strrchr ( path, '/' ) ) != NULL )
-                fname++;
-        else
-                fname = path;
-
-        return ( fname );
 }
 
 /*
