@@ -752,14 +752,12 @@
 .\" NS iS register - indent second command line in a synopsis
 .de Nm
 .if \\n(aC==0 \{\
+.	ds mN Nm
 .	ie \\n(.$==0 \{\
 .		ie "\\*(n1"" .tm Usage: .Nm Name(s) ... \\*(Pu (#\\n(.c)
-.		el \&\\*(nM\\*(n1\fP\s0
+.		el .aV \\*(n1
 .	\}
-.	el \{\
-.		ds mN Nm
-.		aV \\$1 \\$2 \\$3 \\$4 \\$5 \\$6 \\$7 \\$8 \\$9
-.       \}
+.	el .aV \\$1 \\$2 \\$3 \\$4 \\$5 \\$6 \\$7 \\$8 \\$9
 .\}
 .if \\n(aC>0 \{\
 .	ie \\n(aC==\\n(aP \{\
@@ -782,7 +780,7 @@
 .					ie \\n(nS>1 .br
 .					el \{\
 .						if \\n(iS==0 \{\
-.							sW \\$1
+.							sW \\*(A\\n(aP
 .					nr iS ((\\n(sWu+1)*\\n(fW)u
 .						\}
 .					\}
