@@ -73,6 +73,9 @@
 #undef	USING_DEVFS
 
 #if __FreeBSD_version > 500000
+#include <sys/lock.h>
+#include <sys/mutex.h>
+
 #define USING_MUTEX
 #define USING_DEVFS
 #endif
