@@ -55,15 +55,15 @@ extern	const char *ieee80211_mgt_subtype_name[];
 extern	void ieee80211_proto_attach(struct ifnet *);
 extern	void ieee80211_proto_detach(struct ifnet *);
 
+struct ieee80211_node;
 extern	void ieee80211_input(struct ifnet *, struct mbuf *,
-		int, u_int32_t, u_int);
-extern	void ieee80211_recv_mgmt(struct ieee80211com *, struct mbuf *, int,
-		int, u_int32_t, u_int);
+		struct ieee80211_node *, int, u_int32_t);
+extern	void ieee80211_recv_mgmt(struct ieee80211com *, struct mbuf *,
+		struct ieee80211_node *, int, int, u_int32_t);
 extern	int ieee80211_send_mgmt(struct ieee80211com *, struct ieee80211_node *,
 		int, int);
-extern	int ieee80211_mgmt_output(struct ifnet *, struct ieee80211_node *,
-		struct mbuf *, int);
-extern	struct mbuf *ieee80211_encap(struct ifnet *, struct mbuf *);
+extern	struct mbuf *ieee80211_encap(struct ifnet *, struct mbuf *,
+		struct ieee80211_node **);
 extern	struct mbuf *ieee80211_decap(struct ifnet *, struct mbuf *);
 extern	u_int8_t *ieee80211_add_rates(u_int8_t *frm,
 		const struct ieee80211_rateset *);
