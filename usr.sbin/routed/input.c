@@ -31,13 +31,12 @@
  * SUCH DAMAGE.
  */
 
-#if !defined(lint) && !defined(sgi)
-/*
+#if !defined(lint) && !defined(sgi) && !defined(__NetBSD__)
 static char sccsid[] = "@(#)input.c	8.1 (Berkeley) 6/5/93";
-*/
-static const char rcsid[] =
-	"$Id$";
-#endif /* not lint */
+#elif defined(__NetBSD__)
+static char rcsid[] = "$NetBSD$";
+#endif
+#ident "$Revision: 1.1.3.3 $"
 
 #include "defs.h"
 
@@ -203,10 +202,14 @@ input(struct sockaddr_in *from,		/* received from this IP address */
 			    && n == rip->rip_nets
 			    && n+1 == lim) {
 				if (from->sin_port != htons(RIP_PORT)) {
-					/* query */
+					/* query from `rtquery` or similar
+					 */
 					supply(from, ifp,
 					       OUT_QUERY, 0, rip->rip_vers);
 				} else if (supplier) {
+					/* a router trying to prime its
+					 * tables.
+					 */
 					supply(from, ifp,
 					       OUT_UNICAST, 0, rip->rip_vers);
 				}
@@ -236,34 +239,35 @@ input(struct sockaddr_in *from,		/* received from this IP address */
 			}
 
 			if (rip->rip_vers == RIPv1
-			    || 0 == (mask = ntohl(n->n_mask)))
+			    || 0 == (mask = ntohl(n->n_mask))
+			    || 0 != (ntohl(dst) & ~mask))
 				mask = ripv1_mask_host(dst,ifp);
 
 			rt = rtget(dst, mask);
-			if (!rt)
+			if (!rt && dst != RIP_DEFAULT)
 				rt = rtfind(n->n_dst);
 
 			n->n_tag = 0;
 			n->n_nhop = 0;
-			if (!rt) {
+			if (rip->rip_vers == RIPv1) {
+				n->n_mask = 0;
+			} else {
+				n->n_mask = mask;
+			}
+			if (rt == 0) {
 				n->n_metric = HOPCNT_INFINITY;
 			} else {
 				n->n_metric = rt->rt_metric+1;
-				if (ifp != 0)
-					n->n_metric +=  ifp->int_metric;
+				n->n_metric += (ifp!=0) ? ifp->int_metric : 1;
 				if (n->n_metric > HOPCNT_INFINITY)
 					n->n_metric = HOPCNT_INFINITY;
-				if (rip->rip_vers == RIPv1) {
-					n->n_mask = 0;
-				} else {
+				if (rip->rip_vers != RIPv1) {
 					n->n_tag = rt->rt_tag;
-					if (!ifp
-					    || !on_net(rt->rt_gate,
+					if (ifp != 0
+					    && on_net(rt->rt_gate,
 						      ifp->int_net,
 						      ifp->int_mask)
-					    || rt->rt_gate != ifp->int_addr)
-						n->n_nhop = 0;
-					else
+					    && rt->rt_gate != ifp->int_addr)
 						n->n_nhop = rt->rt_gate;
 				}
 			}
@@ -301,7 +305,7 @@ input(struct sockaddr_in *from,		/* received from this IP address */
 		}
 		if (rip->rip_cmd == RIPCMD_TRACEON) {
 			rip->rip_tracefile[size-4] = '\0';
-			trace_on(rip->rip_tracefile, 0);
+			trace_on((char*)rip->rip_tracefile, 0);
 		} else {
 			trace_off("tracing turned off by %s\n",
 				  naddr_ntoa(FROM_NADDR));
@@ -387,20 +391,27 @@ input(struct sockaddr_in *from,		/* received from this IP address */
 			return;
 		}
 
-		/* Authenticate the packet.
+		/* Authenticate the packet if we have a secret.
 		 */
-		if (ifp->int_passwd[0] != '\0'
-		    && (n >= lim
-			|| n->n_family != RIP_AF_AUTH
-			|| ((struct netauth*)n)->a_type != RIP_AUTH_PW
-			|| 0 != bcmp(((struct netauth*)n)->au.au_pw,
-				     ifp->int_passwd,
-				     sizeof(ifp->int_passwd)))) {
-			if (from->sin_addr.s_addr != use_auth)
-				msglog("missing authentication from %s",
-				       naddr_ntoa(FROM_NADDR));
-			use_auth = from->sin_addr.s_addr;
-			return;
+		if (ifp->int_passwd[0] != '\0') {
+			if (n >= lim
+			    || n->n_family != RIP_AF_AUTH
+			    || ((struct netauth*)n)->a_type != RIP_AUTH_PW) {
+				if (from->sin_addr.s_addr != use_auth)
+					msglog("missing password from %s",
+					       naddr_ntoa(FROM_NADDR));
+				use_auth = from->sin_addr.s_addr;
+				return;
+
+			} else if (0 != bcmp(((struct netauth*)n)->au.au_pw,
+					     ifp->int_passwd,
+					     sizeof(ifp->int_passwd))) {
+				if (from->sin_addr.s_addr != use_auth)
+					msglog("bad password from %s",
+					       naddr_ntoa(FROM_NADDR));
+				use_auth = from->sin_addr.s_addr;
+				return;
+			}
 		}
 
 		for (; n < lim; n++) {
@@ -527,15 +538,16 @@ input(struct sockaddr_in *from,		/* received from this IP address */
 				 || !(rt->rt_state & RS_NET_SYN)))) {
 				ddst_h = v1_mask & -v1_mask;
 				i = (v1_mask & ~mask)/ddst_h;
-				if (i >= 1024) {
+				if (i >= 511) {
 					/* Punt if we would have to generate
 					 * an unreasonable number of routes.
 					 */
 #ifdef DEBUG
-					msglog("accept %s from %s as-is"
-					       " instead of as %d routes",
+					msglog("accept %s from %s as 1"
+					       " instead of %d routes",
 					       addrname(dst,mask,0),
-					       naddr_ntoa(FROM_NADDR), i);
+					       naddr_ntoa(FROM_NADDR),
+					       i+1);
 #endif
 					i = 0;
 				} else {
@@ -598,7 +610,9 @@ input_route(struct interface *ifp,
 		if (n->n_metric == HOPCNT_INFINITY)
 			return;
 
-		rtadd(dst, mask, gate, from, n->n_metric, n->n_tag, 0, ifp);
+		if (total_routes < MAX_ROUTES)
+			rtadd(dst, mask, gate, from, n->n_metric,
+			      n->n_tag, 0, ifp);
 		return;
 	}
 
@@ -639,11 +653,12 @@ input_route(struct interface *ifp,
 		 */
 		int old_metric = rts->rts_metric;
 
-		/* Keep poisoned routes around only long
-		 * enough to pass the poison on.
+		/* Keep poisoned routes around only long enough to pass
+		 * the poison on.  Get a new timestamp for good routes.
 		 */
-		if (old_metric < HOPCNT_INFINITY)
-			new_time = now.tv_sec;
+		new_time =((old_metric == HOPCNT_INFINITY)
+			   ? rts->rts_time
+			   : now.tv_sec);
 
 		/* If this is an update for the router we currently prefer,
 		 * then note it.

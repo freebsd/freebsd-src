@@ -31,10 +31,12 @@
  * SUCH DAMAGE.
  */
 
-#if !defined(lint) && !defined(sgi)
-static const char rcsid[] =
-	"$Id: rdisc.c,v 1.2 1996/06/15 17:10:27 wollman Exp $";
-#endif /* not lint */
+#if !defined(lint) && !defined(sgi) && !defined(__NetBSD__)
+static char sccsid[] = "@(#)rdisc.c	8.1 (Berkeley) x/y/95";
+#elif defined(__NetBSD__)
+static char rcsid[] = "$NetBSD$";
+#endif
+#ident "$Revision: 1.1.3.3 $"
 
 #include "defs.h"
 #include <netinet/in_systm.h>
@@ -43,12 +45,12 @@ static const char rcsid[] =
 
 /* router advertisement ICMP packet */
 struct icmp_ad {
-	u_char	icmp_type;		/* type of message */
-	u_char	icmp_code;		/* type sub code */
-	u_short	icmp_cksum;		/* ones complement cksum of struct */
-	u_char	icmp_ad_num;		/* # of following router addresses */
-	u_char	icmp_ad_asize;		/* 2--words in each advertisement */
-	u_short	icmp_ad_life;		/* seconds of validity */
+	u_int8_t    icmp_type;		/* type of message */
+	u_int8_t    icmp_code;		/* type sub code */
+	u_int16_t   icmp_cksum;		/* ones complement cksum of struct */
+	u_int8_t    icmp_ad_num;	/* # of following router addresses */
+	u_int8_t    icmp_ad_asize;	/* 2--words in each advertisement */
+	u_int16_t   icmp_ad_life;	/* seconds of validity */
 	struct icmp_ad_info {
 	    n_long  icmp_ad_addr;
 	    n_long  icmp_ad_pref;
@@ -57,10 +59,10 @@ struct icmp_ad {
 
 /* router solicitation ICMP packet */
 struct icmp_so {
-	u_char	icmp_type;		/* type of message */
-	u_char	icmp_code;		/* type sub code */
-	u_short	icmp_cksum;		/* ones complement cksum of struct */
-	n_long	icmp_so_rsvd;
+	u_int8_t    icmp_type;		/* type of message */
+	u_int8_t    icmp_code;		/* type sub code */
+	u_int16_t   icmp_cksum;		/* ones complement cksum of struct */
+	n_long	    icmp_so_rsvd;
 };
 
 union ad_u {
@@ -126,7 +128,7 @@ trace_rdisc(char	*act,
 		lim = &wp[(len - sizeof(p->ad)) / sizeof(*wp)];
 		for (i = 0; i < p->ad.icmp_ad_num && wp <= lim; i++) {
 			(void)fprintf(ftrace, "\t%s preference=%#x",
-				      naddr_ntoa(wp[0]), ntohl(wp[1]));
+				      naddr_ntoa(wp[0]), (int)ntohl(wp[1]));
 			wp += p->ad.icmp_ad_asize;
 		}
 		(void)fputc('\n',ftrace);
@@ -140,6 +142,20 @@ trace_rdisc(char	*act,
 	}
 }
 
+/* prepare Router Discovery socket.
+ */
+static void
+get_rdisc_sock(void)
+{
+	if (rdisc_sock < 0) {
+		rdisc_sock = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
+		if (rdisc_sock < 0)
+			BADERR(1,"rdisc_sock = socket()");
+		fix_sock(rdisc_sock,"rdisc_sock");
+		fix_select();
+	}
+}
+
 
 /* Pick multicast group for router-discovery socket
  */
@@ -148,8 +164,17 @@ set_rdisc_mg(struct interface *ifp,
 	     int on) {			/* 0=turn it off */
 	struct ip_mreq m;
 
-	if (rdisc_sock == -1
-	    || !(ifp->int_if_flags & IFF_MULTICAST)
+	if (rdisc_sock < 0) {
+		/* Create the raw socket so that we can hear at least
+		 * broadcast router discovery packets.
+		 */
+		if ((ifp->int_state & IS_NO_RDISC) == IS_NO_RDISC
+		    || !on)
+			return;
+		get_rdisc_sock();
+	}
+
+	if (!(ifp->int_if_flags & IFF_MULTICAST)
 	    || (ifp->int_state & IS_ALIAS)) {
 		ifp->int_state &= ~(IS_ALL_HOSTS | IS_ALL_ROUTERS);
 		return;
@@ -166,7 +191,8 @@ set_rdisc_mg(struct interface *ifp,
 	if (supplier
 	    || (ifp->int_state & IS_NO_ADV_IN)
 	    || !on) {
-		/* stop listening to advertisements */
+		/* stop listening to advertisements
+		 */
 		if (ifp->int_state & IS_ALL_HOSTS) {
 			m.imr_multiaddr.s_addr = htonl(INADDR_ALLHOSTS_GROUP);
 			if (setsockopt(rdisc_sock, IPPROTO_IP,
@@ -177,7 +203,8 @@ set_rdisc_mg(struct interface *ifp,
 		}
 
 	} else if (!(ifp->int_state & IS_ALL_HOSTS)) {
-		/* start listening to advertisements */
+		/* start listening to advertisements
+		 */
 		m.imr_multiaddr.s_addr = htonl(INADDR_ALLHOSTS_GROUP);
 		if (setsockopt(rdisc_sock, IPPROTO_IP, IP_ADD_MEMBERSHIP,
 			       &m, sizeof(m)) < 0) {
@@ -190,7 +217,8 @@ set_rdisc_mg(struct interface *ifp,
 	if (!supplier
 	    || (ifp->int_state & IS_NO_ADV_OUT)
 	    || !on) {
-		/* stop listening to solicitations */
+		/* stop listening to solicitations
+		 */
 		if (ifp->int_state & IS_ALL_ROUTERS) {
 			m.imr_multiaddr.s_addr=htonl(INADDR_ALLROUTERS_GROUP);
 			if (setsockopt(rdisc_sock, IPPROTO_IP,
@@ -201,7 +229,8 @@ set_rdisc_mg(struct interface *ifp,
 		}
 
 	} else if (!(ifp->int_state & IS_ALL_ROUTERS)) {
-		/* start hearing solicitations */
+		/* start hearing solicitations
+		 */
 		m.imr_multiaddr.s_addr=htonl(INADDR_ALLROUTERS_GROUP);
 		if (setsockopt(rdisc_sock, IPPROTO_IP, IP_ADD_MEMBERSHIP,
 			       &m, sizeof(m)) < 0) {
@@ -540,12 +569,12 @@ parse_ad(naddr from,
 	/* ignore pointers to ourself and routes via unreachable networks
 	 */
 	if (ifwithaddr(gate, 1, 0) != 0) {
-		trace_pkt("\tdiscard our own Router Discovery Ad\n");
+		trace_pkt("\tdiscard Router Discovery Ad pointing at us\n");
 		return;
 	}
 	if (!on_net(gate, ifp->int_net, ifp->int_mask)) {
 		trace_pkt("\tdiscard Router Discovery Ad"
-			  " from unreachable net\n");
+			  " toward unreachable net\n");
 		return;
 	}
 
@@ -553,7 +582,7 @@ parse_ad(naddr from,
 	 * and later bias it by the metric of the interface.
 	 */
 	pref = ntohl(pref) ^ MIN_PreferenceLevel;
-	
+
 	if (pref == 0 || life == 0) {
 		pref = 0;
 		life = 0;
@@ -656,6 +685,10 @@ send_rdisc(union ad_u *p,
 
 	bzero(&sin, sizeof(sin));
 	sin.sin_addr.s_addr = dst;
+	sin.sin_family = AF_INET;
+#ifdef _HAVE_SIN_LEN
+	sin.sin_len = sizeof(sin);
+#endif
 	flags = MSG_DONTROUTE;
 
 	switch (type) {
@@ -709,6 +742,9 @@ send_rdisc(union ad_u *p,
 		flags = 0;
 		break;
 	}
+
+	if (rdisc_sock < 0)
+		get_rdisc_sock();
 
 	trace_rdisc(msg, ifp->int_addr, sin.sin_addr.s_addr, ifp,
 		    p, p_size);

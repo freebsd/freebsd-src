@@ -34,9 +34,12 @@
 char copyright[] =
 "@(#) Copyright (c) 1983, 1988, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
-#if !defined(lint) && !defined(sgi)
+#if !defined(lint) && !defined(sgi) && !defined(__NetBSD__)
 static char sccsid[] = "@(#)main.c	8.1 (Berkeley) 6/5/93";
-#endif /* not lint */
+#elif defined(__NetBSD__)
+static char rcsid[] = "$NetBSD$";
+#endif
+#ident "$Revision: 1.1.3.3 $"
 
 #include "defs.h"
 #include "pathnames.h"
@@ -272,14 +275,7 @@ usage:
 	if (setsockopt(rt_sock, SOL_SOCKET,SO_USELOOPBACK,
 		       &off,sizeof(off)) < 0)
 		LOGERR("setsockopt(SO_USELOOPBACK,0)");
-
-	/* prepare Router Discovery socket.
-	 */
-	rdisc_sock = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
-	if (rdisc_sock < 0)
-		BADERR(1,"rdisc_sock = socket()");
-	fix_sock(rdisc_sock,"rdisc_sock");
-
+	
 	fix_select();
 
 
@@ -730,6 +726,19 @@ rip_on(struct interface *ifp)
 
 		fix_select();
 	}
+}
+
+
+/* die if malloc(3) fails
+ */
+void *
+rtmalloc(size_t size,
+	 char *msg)
+{
+	void *p = malloc(size);
+	if (p == 0)
+		logbad(1,"malloc() failed in %s", msg);
+	return p;
 }
 
 
