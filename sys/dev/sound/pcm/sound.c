@@ -361,6 +361,10 @@ pcm_register(device_t dev, void *devinfo, int numplay, int numrec)
 		d->ref = (int *)malloc(sz, M_DEVBUF, M_NOWAIT);
     		if (!d->ref) goto no;
     		bzero(d->ref, sz);
+
+		d->atype = (int *)malloc(sz, M_DEVBUF, M_NOWAIT);
+    		if (!d->atype) goto no;
+    		bzero(d->atype, sz);
 	}
 
 	if (numplay > 0) {
@@ -404,6 +408,7 @@ no:
 	if (d->arec) free(d->arec, M_DEVBUF);
 	if (d->rec) free(d->rec, M_DEVBUF);
 	if (d->ref) free(d->ref, M_DEVBUF);
+	if (d->atype) free(d->atype, M_DEVBUF);
 	return ENXIO;
 }
 
@@ -447,6 +452,7 @@ pcm_unregister(device_t dev)
 	if (d->arec) free(d->arec, M_DEVBUF);
 	if (d->rec) free(d->rec, M_DEVBUF);
 	if (d->ref) free(d->ref, M_DEVBUF);
+	if (d->atype) free(d->atype, M_DEVBUF);
 
 	fkchan_kill(&d->fakechan);
 
