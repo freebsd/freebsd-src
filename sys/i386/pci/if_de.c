@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_de.c,v 1.8 1994/11/24 14:29:34 davidg Exp $
+ * $Id: if_de.c,v 1.9 1994/11/30 12:08:23 davidg Exp $
  *
  */
 
@@ -1109,7 +1109,7 @@ tulip_pci_attach(
     }
 
     bzero(sc, sizeof(sc));				/* Zero out the softc*/
-    sc->tulip_rxspace = kmem_alloc(kernel_map, TULIP_RXSPACE + NBPG);
+    sc->tulip_rxspace = vm_page_alloc_contig(TULIP_RXSPACE + NBPG, 0, 0xffffffff, PAGE_SIZE);
     /*
      * We've allocated an extra page of receive space so we can double map
      * the first page of the receive space into the page after the last page
@@ -1118,7 +1118,7 @@ tulip_pci_attach(
      * that greatly simplifies the recevie logic.
      */
     pmap_enter(pmap_kernel(), sc->tulip_rxspace + TULIP_RXSPACE,
-	       vtophys(sc->tulip_rxspace), VM_PROT_READ, TRUE);
+	       vtophys(sc->tulip_rxspace), VM_PROT_READ|VM_PROT_WRITE, TRUE);
 
     sc->tulip_unit = unit;
     sc->tulip_name = "de";
