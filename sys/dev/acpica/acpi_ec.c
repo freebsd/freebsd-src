@@ -713,28 +713,33 @@ EcSpaceHandler(UINT32 Function, ACPI_PHYSICAL_ADDRESS Address, UINT32 width,
 	       ACPI_INTEGER *Value, void *Context, void *RegionContext)
 {
     struct acpi_ec_softc	*sc = (struct acpi_ec_softc *)Context;
-    ACPI_STATUS			Status = AE_OK;
+    ACPI_STATUS			Status;
     UINT8			EcAddr, EcData;
     int				i;
 
     ACPI_FUNCTION_TRACE_U32((char *)(uintptr_t)__func__, (UINT32)Address);
 
-    if (Address > 0xFF || width % 8 != 0 || Value == NULL || Context == NULL)
+    if (width % 8 != 0 || Value == NULL || Context == NULL)
 	return_ACPI_STATUS (AE_BAD_PARAMETER);
+    if (Address + (width / 8) - 1 > 0xFF)
+	return_ACPI_STATUS (AE_BAD_ADDRESS);
 
-    /*
-     * Perform the transaction.
-     */
+    if (Function == ACPI_READ)
+	*Value = 0;
     EcAddr = Address;
-    for (i = 0; i < width; i += 8) {
+    Status = AE_ERROR;
+
+    /* Perform the transaction(s), based on width. */
+    for (i = 0; i < width; i += 8, EcAddr++) {
 	Status = EcLock(sc);
 	if (ACPI_FAILURE(Status))
-	    return (Status);
+	    break;
 
 	switch (Function) {
 	case ACPI_READ:
-	    EcData = 0;
 	    Status = EcRead(sc, EcAddr, &EcData);
+	    if (ACPI_SUCCESS(Status))
+		*Value |= ((ACPI_INTEGER)EcData) << i;
 	    break;
 	case ACPI_WRITE:
 	    EcData = (UINT8)((*Value) >> i);
@@ -746,15 +751,11 @@ EcSpaceHandler(UINT32 Function, ACPI_PHYSICAL_ADDRESS Address, UINT32 width,
 	    Status = AE_BAD_PARAMETER;
 	    break;
 	}
-
 	EcUnlock(sc);
 	if (ACPI_FAILURE(Status))
-	    return (Status);
-
-	*Value |= (ACPI_INTEGER)EcData << i;
-	if (++EcAddr == 0)
-	    return_ACPI_STATUS (AE_BAD_PARAMETER);
+	    break;
     }
+
     return_ACPI_STATUS (Status);
 }
 
