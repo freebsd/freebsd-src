@@ -347,7 +347,7 @@ atomic_cmpset_32(volatile u_int32_t* p, u_int32_t cmpval, u_int32_t newval)
 		"bne- 1b\n\t"			/* spin if failed */
 		"eieio\n"			/* memory barrier */
 		"2:\t\n"
-		: "=r" (ret)
+		: "=&r" (ret)
 		: "r" (cmpval), "r" (newval), "r" (p)
 		: "memory");
 
