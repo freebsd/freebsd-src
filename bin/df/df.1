@@ -40,7 +40,7 @@
 .Fl b | h | H | k |
 .Fl m | P
 .Oc
-.Op Fl ailn
+.Op Fl aciln
 .Op Fl t Ar type
 .Op Ar file | filesystem ...
 .Sh DESCRIPTION
@@ -69,6 +69,8 @@ Use 512-byte blocks rather than the default.  Note that
 this overrides the
 .Ev BLOCKSIZE
 specification from the environment.
+.It Fl c
+Display a grand total.
 .It Fl g
 Use 1073741824-byte (1-Gbyte) blocks rather than the default.  Note that
 this overrides the

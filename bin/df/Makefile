@@ -2,7 +2,7 @@
 # $FreeBSD$
 
 MOUNT=	${.CURDIR}/../../sbin/mount
-.PATH:	${MOUNT}
+.PATH: ${MOUNT}
 
 PROG=	df
 SRCS=	df.c vfslist.c
