@@ -638,8 +638,10 @@ pfi_instance_add(struct ifnet *ifp, int net, int flags)
 		af = ia->ifa_addr->sa_family;
 		if (af != AF_INET && af != AF_INET6)
 			continue;
+#ifdef notyet
 		if (!(ia->ifa_flags & IFA_ROUTE))
 			continue;
+#endif
 		if ((flags & PFI_AFLAG_BROADCAST) && af == AF_INET6)
 			continue;
 		if ((flags & PFI_AFLAG_BROADCAST) &&
