@@ -827,8 +827,9 @@ pmap_extract(pmap_t pmap, vm_offset_t va)
 	pt_entry_t *pte;
 	pd_entry_t pde;
 
+	rtval = 0;
 	if (pmap == NULL)
-		return 0;
+		return (rtval);
 	PMAP_LOCK(pmap);
 	pde = pmap->pm_pdir[va >> PDRSHIFT];
 	if (pde != 0) {
@@ -839,11 +840,9 @@ pmap_extract(pmap_t pmap, vm_offset_t va)
 		}
 		pte = pmap_pte(pmap, va);
 		rtval = (*pte & PG_FRAME) | (va & PAGE_MASK);
-		PMAP_UNLOCK(pmap);
-		return rtval;
 	}
 	PMAP_UNLOCK(pmap);
-	return 0;
+	return (rtval);
 }
 
 /*
