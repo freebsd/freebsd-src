@@ -75,23 +75,22 @@ __FBSDID("$FreeBSD$");
 
 devclass_t ed_devclass;
 
-static void	ed_init		(void *);
-static int	ed_ioctl	(struct ifnet *, u_long, caddr_t);
-static void	ed_start	(struct ifnet *);
-static void	ed_reset	(struct ifnet *);
-static void	ed_watchdog	(struct ifnet *);
+static void	ed_init(void *);
+static int	ed_ioctl(struct ifnet *, u_long, caddr_t);
+static void	ed_start(struct ifnet *);
+static void	ed_reset(struct ifnet *);
+static void	ed_watchdog(struct ifnet *);
 #ifndef ED_NO_MIIBUS
-static void	ed_tick		(void *);
+static void	ed_tick(void *);
 #endif
 
-static void	ds_getmcaf	(struct ed_softc *, uint32_t *);
+static void	ed_ds_getmcaf(struct ed_softc *, uint32_t *);
 
-static void	ed_get_packet	(struct ed_softc *, char *, /* u_short */ int);
+static void	ed_get_packet(struct ed_softc *, char *, u_short);
 
-static __inline void	ed_rint	(struct ed_softc *);
-static __inline void	ed_xmit	(struct ed_softc *);
-static __inline char *	ed_ring_copy(struct ed_softc *, char *, char *,
-					  /* u_short */ int);
+static __inline void	ed_rint(struct ed_softc *);
+static __inline void	ed_xmit(struct ed_softc *);
+static __inline char *ed_ring_copy(struct ed_softc *, char *, char *, u_short);
 static void	ed_hpp_set_physical_link(struct ed_softc *);
 static void	ed_hpp_readmem(struct ed_softc *, long, uint8_t *, uint16_t);
 static void	ed_hpp_writemem(struct ed_softc *, uint8_t *, uint16_t,
@@ -177,8 +176,7 @@ static uint16_t ed_hpp_intr_val[] = {
  */
 
 int
-ed_probe_generic8390(sc)
-	struct ed_softc *sc;
+ed_probe_generic8390(struct ed_softc *sc)
 {
 	if ((ed_nic_inb(sc, ED_P0_CR) &
 	     (ED_CR_RD2 | ED_CR_TXP | ED_CR_STA | ED_CR_STP)) !=
@@ -194,10 +192,7 @@ ed_probe_generic8390(sc)
  * Probe and vendor-specific initialization routine for SMC/WD80x3 boards
  */
 int
-ed_probe_WD80x3_generic(dev, flags, intr_vals)
-	device_t dev;
-	int flags;
-	unsigned short *intr_vals[];
+ed_probe_WD80x3_generic(device_t dev, int flags, uint16_t *intr_vals[])
 {
 	struct ed_softc *sc = device_get_softc(dev);
 	int	error;
@@ -601,10 +596,7 @@ ed_probe_WD80x3_generic(dev, flags, intr_vals)
 }
 
 int
-ed_probe_WD80x3(dev, port_rid, flags)
-	device_t dev;
-	int port_rid;
-	int flags;
+ed_probe_WD80x3(device_t dev, int port_rid, int flags)
 {
 	struct ed_softc *sc = device_get_softc(dev);
 	int	error;
@@ -624,10 +616,7 @@ ed_probe_WD80x3(dev, port_rid, flags)
  * Probe and vendor-specific initialization routine for 3Com 3c503 boards
  */
 int
-ed_probe_3Com(dev, port_rid, flags)
-	device_t dev;
-	int port_rid;
-	int flags;
+ed_probe_3Com(device_t dev, int port_rid, int flags)
 {
 	struct ed_softc *sc = device_get_softc(dev);
 	int	error;
@@ -911,10 +900,7 @@ ed_probe_3Com(dev, port_rid, flags)
  * Probe and vendor-specific initialization routine for SIC boards
  */
 int
-ed_probe_SIC(dev, port_rid, flags)
-	device_t dev;
-	int port_rid;
-	int flags;
+ed_probe_SIC(device_t dev, int port_rid, int flags)
 {
 	struct ed_softc *sc = device_get_softc(dev);
 	int	error;
@@ -1025,9 +1011,7 @@ ed_probe_SIC(dev, port_rid, flags)
  * Probe and vendor-specific initialization routine for NE1000/2000 boards
  */
 int
-ed_probe_Novell_generic(dev, flags)
-	device_t dev;
-	int flags;
+ed_probe_Novell_generic(device_t dev, int flags)
 {
 	struct ed_softc *sc = device_get_softc(dev);
 	u_int   memsize, n;
@@ -1236,10 +1220,7 @@ ed_probe_Novell_generic(dev, flags)
 }
 
 int
-ed_probe_Novell(dev, port_rid, flags)
-	device_t dev;
-	int port_rid;
-	int flags;
+ed_probe_Novell(device_t dev, int port_rid, int flags)
 {
 	struct ed_softc *sc = device_get_softc(dev);
 	int	error;
@@ -1279,10 +1260,7 @@ ed_probe_Novell(dev, port_rid, flags)
  * command line.
  */
 int
-ed_probe_HP_pclanp(dev, port_rid, flags)
-	device_t dev;
-	int port_rid;
-	int flags;
+ed_probe_HP_pclanp(device_t dev, int port_rid, int flags)
 {
 	struct ed_softc *sc = device_get_softc(dev);
 	int error;
@@ -1595,10 +1573,7 @@ ed_hpp_set_physical_link(struct ed_softc *sc)
  * Allocate a port resource with the given resource id.
  */
 int
-ed_alloc_port(dev, rid, size)
-	device_t dev;
-	int rid;
-	int size;
+ed_alloc_port(device_t dev, int rid, int size)
 {
 	struct ed_softc *sc = device_get_softc(dev);
 	struct resource *res;
@@ -1619,10 +1594,7 @@ ed_alloc_port(dev, rid, size)
  * Allocate a memory resource with the given resource id.
  */
 int
-ed_alloc_memory(dev, rid, size)
-	device_t dev;
-	int rid;
-	int size;
+ed_alloc_memory(device_t dev, int rid, int size)
 {
 	struct ed_softc *sc = device_get_softc(dev);
 	struct resource *res;
@@ -1643,10 +1615,7 @@ ed_alloc_memory(dev, rid, size)
  * Allocate an irq resource with the given resource id.
  */
 int
-ed_alloc_irq(dev, rid, flags)
-	device_t dev;
-	int rid;
-	int flags;
+ed_alloc_irq(device_t dev, int rid, int flags)
 {
 	struct ed_softc *sc = device_get_softc(dev);
 	struct resource *res;
@@ -1666,8 +1635,7 @@ ed_alloc_irq(dev, rid, flags)
  * Release all resources
  */
 void
-ed_release_resources(dev)
-	device_t dev;
+ed_release_resources(device_t dev)
 {
 	struct ed_softc *sc = device_get_softc(dev);
 
@@ -1698,8 +1666,7 @@ ed_release_resources(dev)
  * Install interface into kernel networking data structures
  */
 int
-ed_attach(dev)
-	device_t dev;
+ed_attach(device_t dev)
 {
 	struct ed_softc *sc = device_get_softc(dev);
 	struct ifnet *ifp = &sc->arpcom.ac_if;
@@ -1801,8 +1768,7 @@ ed_detach(device_t dev)
  * Reset interface.
  */
 static void
-ed_reset(ifp)
-	struct ifnet *ifp;
+ed_reset(struct ifnet *ifp)
 {
 	struct ed_softc *sc = ifp->if_softc;
 	int     s;
@@ -1824,8 +1790,7 @@ ed_reset(ifp)
  * Take interface offline.
  */
 void
-ed_stop(sc)
-	struct ed_softc *sc;
+ed_stop(struct ed_softc *sc)
 {
 	int     n = 5000;
 
@@ -1854,8 +1819,7 @@ ed_stop(sc)
  *	generate an interrupt after a transmit has been started on it.
  */
 static void
-ed_watchdog(ifp)
-	struct ifnet *ifp;
+ed_watchdog(struct ifnet *ifp)
 {
 	struct ed_softc *sc = ifp->if_softc;
 
@@ -1869,8 +1833,7 @@ ed_watchdog(ifp)
 
 #ifndef ED_NO_MIIBUS
 static void
-ed_tick(arg)
-	void *arg;
+ed_tick(void *arg)
 {
 	struct ed_softc *sc = arg;
 	struct mii_data *mii;
@@ -1894,8 +1857,7 @@ ed_tick(arg)
  * Initialize device.
  */
 static void
-ed_init(xsc)
-	void *xsc;
+ed_init(void *xsc)
 {
 	struct ed_softc *sc = xsc;
 	struct ifnet *ifp = &sc->arpcom.ac_if;
@@ -2056,8 +2018,7 @@ ed_init(xsc)
  * This routine actually starts the transmission on the interface
  */
 static __inline void
-ed_xmit(sc)
-	struct ed_softc *sc;
+ed_xmit(struct ed_softc *sc)
 {
 	struct ifnet *ifp = (struct ifnet *)sc;
 	unsigned short len;
@@ -2112,8 +2073,7 @@ ed_xmit(sc)
  *     (i.e. that the output part of the interface is idle)
  */
 static void
-ed_start(ifp)
-	struct ifnet *ifp;
+ed_start(struct ifnet *ifp)
 {
 	struct ed_softc *sc = ifp->if_softc;
 	struct mbuf *m0, *m;
@@ -2264,8 +2224,7 @@ outloop:
  * Ethernet interface receiver interrupt.
  */
 static __inline void
-ed_rint(sc)
-	struct ed_softc *sc;
+ed_rint(struct ed_softc *sc)
 {
 	struct ifnet *ifp = &sc->arpcom.ac_if;
 	u_char  boundry;
@@ -2399,8 +2358,7 @@ ed_rint(sc)
  * Ethernet interface interrupt processor
  */
 void
-edintr(arg)
-	void *arg;
+edintr(void *arg)
 {
 	struct ed_softc *sc = (struct ed_softc*) arg;
 	struct ifnet *ifp = (struct ifnet *)sc;
@@ -2663,14 +2621,10 @@ edintr(arg)
 }
 
 /*
- * Process an ioctl request. This code needs some work - it looks
- *	pretty ugly.
+ * Process an ioctl request.
  */
 static int
-ed_ioctl(ifp, command, data)
-	register struct ifnet *ifp;
-	u_long     command;
-	caddr_t data;
+ed_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 {
 	struct ed_softc *sc = ifp->if_softc;
 #ifndef ED_NO_MIIBUS
@@ -2757,11 +2711,7 @@ ed_ioctl(ifp, command, data)
  *	ring-wrap.
  */
 static __inline char *
-ed_ring_copy(sc, src, dst, amount)
-	struct ed_softc *sc;
-	char   *src;
-	char   *dst;
-	u_short amount;
+ed_ring_copy(struct ed_softc *sc, char *src, char *dst, u_short amount)
 {
 	u_short tmp_amount;
 
@@ -2792,10 +2742,7 @@ ed_ring_copy(sc, src, dst, amount)
  * ether_input().
  */
 static void
-ed_get_packet(sc, buf, len)
-	struct ed_softc *sc;
-	char   *buf;
-	u_short len;
+ed_get_packet(struct ed_softc *sc, char *buf, u_short len)
 {
 	struct ifnet *ifp = &sc->arpcom.ac_if;
 	struct ether_header *eh;
@@ -2935,10 +2882,7 @@ ed_pio_writemem(struct ed_softc *sc, uint8_t *src, uint16_t dst, uint16_t len)
  *	programmed I/O.
  */
 static u_short
-ed_pio_write_mbufs(sc, m, dst)
-	struct ed_softc *sc;
-	struct mbuf *m;
-	long dst;
+ed_pio_write_mbufs(struct ed_softc *sc, struct mbuf *m, long dst)
 {
 	struct ifnet *ifp = (struct ifnet *)sc;
 	unsigned short total_len, dma_len;
@@ -3329,9 +3273,7 @@ ed_hpp_write_mbufs(struct ed_softc *sc, struct mbuf *m, int dst)
  * MII bus support routines.
  */
 int
-ed_miibus_readreg(dev, phy, reg)
-	device_t dev;
-	int phy, reg;
+ed_miibus_readreg(device_t dev, int phy, int reg)
 {
 	struct ed_softc *sc;
 	int failed, s, val;
@@ -3358,9 +3300,7 @@ ed_miibus_readreg(dev, phy, reg)
 }
 
 void
-ed_miibus_writereg(dev, phy, reg, data)
-	device_t dev;
-	int phy, reg, data;
+ed_miibus_writereg(device_t dev, int phy, int reg, int data)
 {
 	struct ed_softc *sc;
 	int s;
@@ -3385,8 +3325,7 @@ ed_miibus_writereg(dev, phy, reg, data)
 }
 
 int
-ed_ifmedia_upd(ifp)
-	struct ifnet *ifp;
+ed_ifmedia_upd(struct ifnet *ifp)
 {
 	struct ed_softc *sc;
 	struct mii_data *mii;
@@ -3400,9 +3339,7 @@ ed_ifmedia_upd(ifp)
 }
 
 void
-ed_ifmedia_sts(ifp, ifmr)
-	struct ifnet *ifp;
-	struct ifmediareq *ifmr;
+ed_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 {
 	struct ed_softc *sc;
 	struct mii_data *mii;
@@ -3418,9 +3355,7 @@ ed_ifmedia_sts(ifp, ifmr)
 }
 
 void
-ed_child_detached(dev, child)
-	device_t dev;
-	device_t child;
+ed_child_detached(device_t dev, device_t child)
 {
 	struct ed_softc *sc;
 
@@ -3431,8 +3366,7 @@ ed_child_detached(dev, child)
 #endif
 
 static void
-ed_setrcr(sc)
-	struct ed_softc *sc;
+ed_setrcr(struct ed_softc *sc)
 {
 	struct ifnet *ifp = (struct ifnet *)sc;
 	int     i;
@@ -3473,7 +3407,7 @@ ed_setrcr(sc)
 				mcaf[0] = 0xffffffff;
 				mcaf[1] = 0xffffffff;
 			} else
-				ds_getmcaf(sc, mcaf);
+				ed_ds_getmcaf(sc, mcaf);
 
 			/*
 			 * Set multicast filter on chip.
@@ -3512,12 +3446,10 @@ ed_setrcr(sc)
  * list of multicast addresses we need to listen to.
  */
 static void
-ds_getmcaf(sc, mcaf)
-	struct ed_softc *sc;
-	uint32_t *mcaf;
+ed_ds_getmcaf(struct ed_softc *sc, uint32_t *mcaf)
 {
-	register uint32_t index;
-	register u_char *af = (u_char *) mcaf;
+	uint32_t index;
+	u_char *af = (u_char *) mcaf;
 	struct ifmultiaddr *ifma;
 
 	mcaf[0] = 0;
