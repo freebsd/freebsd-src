@@ -137,7 +137,11 @@ static struct pci_device vxdevice = {
     NULL
 };
 
+#ifdef COMPAT_PCI_DRIVER
+COMPAT_PCI_DRIVER (vx, vxdevice);
+#else
 DATA_SET (pcidevice_set, vxdevice);
+#endif /* COMPAT_PCI_DRIVER */
 
 #endif	/* NVX */
 #endif	/* NPCI */

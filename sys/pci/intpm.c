@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: intpm.c,v 1.4 1999/01/28 00:57:53 dillon Exp $
+ *	$Id: intpm.c,v 1.5 1999/04/21 07:26:29 peter Exp $
  */
 
 #include "pci.h"
@@ -150,7 +150,11 @@ static struct	pci_device intpm_device = {
 	&intpm_count
 };
 
+#ifdef COMPAT_PCI_DRIVER
+COMPAT_PCI_DRIVER (intpm, intpm_device);
+#else
 DATA_SET (pcidevice_set, intpm_device);
+#endif /* COMPAT_PCI_DRIVER */
 
 static int 
 intsmb_probe(device_t dev)

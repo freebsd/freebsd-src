@@ -21,7 +21,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_fpa.c,v 1.7 1998/02/20 13:11:53 bde Exp $
+ * $Id: if_fpa.c,v 1.8 1998/12/14 06:32:55 dillon Exp $
  *
  */
 
@@ -214,9 +214,12 @@ static struct pci_device fpadevice = {
     NULL
 };
 
-#ifdef DATA_SET
+#ifdef COMPAT_PCI_DRIVER
+COMPAT_PCI_DRIVER (fpa, fpadevice);
+#else
 DATA_SET (pcidevice_set, fpadevice);
-#endif
+#endif /* COMPAT_PCI_DRIVER */
+
 #elif defined(__bsdi__)
 
 static int

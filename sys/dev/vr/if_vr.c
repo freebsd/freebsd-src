@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_vr.c,v 1.18 1999/02/23 06:47:52 wpaul Exp $
+ *	$Id: if_vr.c,v 1.9 1999/02/23 15:38:24 wpaul Exp $
  */
 
 /*
@@ -97,7 +97,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: if_vr.c,v 1.18 1999/02/23 06:47:52 wpaul Exp $";
+	"$Id: if_vr.c,v 1.9 1999/02/23 15:38:24 wpaul Exp $";
 #endif
 
 /*
@@ -1959,4 +1959,8 @@ static struct pci_device vr_device = {
 	&vr_count,
 	NULL
 };
+#ifdef COMPAT_PCI_DRIVER
+COMPAT_PCI_DRIVER(vr, vr_device);
+#else
 DATA_SET(pcidevice_set, vr_device);
+#endif /* COMPAT_PCI_DRIVER */
