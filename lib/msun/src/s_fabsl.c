@@ -30,8 +30,11 @@
 
 #include <math.h>
 
+#include "fpmath.h"
+
 long double
 fabsl(long double x)
 {
-	return (x < 0) ? -x : x;
+	((union IEEEl2bits *)&x)->bits.sign = 0;
+	return (x);
 }
