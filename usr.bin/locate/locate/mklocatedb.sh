@@ -28,8 +28,7 @@
 # 
 # usage: mklocatedb [-presort] < filelist > database
 #
-# $Id: mklocatedb.sh,v 1.6 1998/03/08 15:28:35 wosch Exp $
-
+# $Id: mklocatedb.sh,v 1.7 1998/03/08 16:09:28 wosch Exp $
 
 # The directory containing locate subprograms
 : ${LIBEXECDIR:=/usr/libexec}; export LIBEXECDIR
@@ -38,8 +37,12 @@ PATH=$LIBEXECDIR:/bin:/usr/bin:$PATH; export PATH
 
 umask 077			# protect temp files
 
-: ${TMPDIR:=/var/tmp}; export TMPDIR
-test -d "$TMPDIR" || TMPDIR=/var/tmp
+: ${TMPDIR:=/tmp}; export TMPDIR
+test -d "$TMPDIR" || TMPDIR=/tmp
+if ! TMPDIR=`mktemp -d $TMPDIR/mklocateXXXXXX`; then
+	exit 1
+fi
+
 
 # utilities to built locate database
 : ${bigram:=locate.bigram}
@@ -50,23 +53,41 @@ test -d "$TMPDIR" || TMPDIR=/var/tmp
 sortopt="-u -T $TMPDIR"
 sortcmd=$sort
 
-# Input already sorted
-case X"$1" in 
-	X-nosort|X-presort) sortcmd=cat; sortopt=;shift;; 
-esac
-
 
 bigrams=$TMPDIR/_mklocatedb$$.bigrams
 filelist=$TMPDIR/_mklocatedb$$.list
 
-trap 'rm -f $bigrams $filelist' 0 1 2 3 5 10 15
+trap 'rm -f $bigrams $filelist; rmdir $TMPDIR' 0 1 2 3 5 10 15
 
 
-if $sortcmd $sortopt > $filelist; then
-        $bigram < $filelist | $sort -nr | 
-                awk 'NR <= 128 { printf $2 }' > $bigrams &&
-        $code $bigrams < $filelist 
+# Input already sorted
+if [ X"$1" = "X-presort" ]; then
+    shift; 
+
+    # create an empty file
+    true > $bigrams
+    
+    # Locate database bootstrapping
+    # 1. first build a temp database without bigram compression
+    # 2. create the bigram from the temp database
+    # 3. create the real locate database with bigram compression.
+    #
+    # This scheme avoid large temporary files in /tmp
+
+    $code $bigrams > $filelist || exit 1
+    locate -d $filelist / | $bigram | $sort -nr | head -128 |
+    perl -ne '/^\s*[0-9]+\s(..)$/ && print $1 || exit 1'  > $bigrams || exit 1
+    locate -d $filelist / | $code $bigrams || exit 1
+    exit 	
+
 else
+    if $sortcmd $sortopt > $filelist; then
+        $bigram < $filelist | $sort -nr | 
+	perl -ne '/^\s*[0-9]+\s(..)$/ && print $1 || exit 1' > $bigrams 
+	    || exit 1
+        $code $bigrams < $filelist || exit 1
+    else
         echo "`basename $0`: cannot build locate database" >&2
         exit 1
+    fi
 fi
