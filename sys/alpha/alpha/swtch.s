@@ -140,12 +140,14 @@ Lcs1:	LDGP(pv)
 	cmpeq	s0, s2, t0			/* oldproc == newproc? */
 	bne	t0, Lcs7			/* Yes!  Skip! */
 
+#ifdef SMP
 	/*
 	 * Save fp state if we have some.
 	 */
 	mov	s0, a0				/* curproc */
 	ldiq	a1, 1				/* clear fpcurproc */
 	CALL(alpha_fpstate_save)
+#endif
 
 	/*
 	 * Deactivate the old address space before activating the
