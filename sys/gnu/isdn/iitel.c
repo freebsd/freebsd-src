@@ -1,6 +1,6 @@
-static char     _itelid[] = "@(#)$Id: iitel.c,v 1.2 1995/02/15 06:28:27 jkh Exp $";
+static char     _itelid[] = "@(#)$Id: iitel.c,v 1.3 1995/03/28 07:54:41 bde Exp $";
 /*******************************************************************************
- *  II - Version 0.1 $Revision: 1.2 $   $State: Exp $
+ *  II - Version 0.1 $Revision: 1.3 $   $State: Exp $
  *
  * Copyright 1994 Dietmar Friede
  *******************************************************************************
@@ -10,6 +10,11 @@ static char     _itelid[] = "@(#)$Id: iitel.c,v 1.2 1995/02/15 06:28:27 jkh Exp 
  *
  *******************************************************************************
  * $Log: iitel.c,v $
+ * Revision 1.3  1995/03/28  07:54:41  bde
+ * Add and move declarations to fix all of the warnings from `gcc -Wimplicit'
+ * (except in netccitt, netiso and netns) that I didn't notice when I fixed
+ * "all" such warnings before.
+ *
  * Revision 1.2  1995/02/15  06:28:27  jkh
  * Fix up include paths, nuke some warnings.
  *
@@ -32,7 +37,6 @@ static char     _itelid[] = "@(#)$Id: iitel.c,v 1.2 1995/02/15 06:28:27 jkh Exp 
 #include "buf.h"
 #include "systm.h"
 #include "ioctl.h"
-#include "tty.h"
 #include "proc.h"
 #include "user.h"
 #include "uio.h"

@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_ctl.c	8.3 (Berkeley) 1/21/94
  *
- *	$Id: procfs_ctl.c,v 1.4 1995/02/20 15:53:32 davidg Exp $
+ *	$Id: procfs_ctl.c,v 1.5 1995/03/16 18:13:46 bde Exp $
  */
 
 #include <sys/param.h>
@@ -46,7 +46,6 @@
 #include <sys/proc.h>
 #include <sys/vnode.h>
 #include <sys/ioctl.h>
-#include <sys/tty.h>
 #include <sys/ptrace.h>
 #include <sys/resource.h>
 #include <sys/resourcevar.h>

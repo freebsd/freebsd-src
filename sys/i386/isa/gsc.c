@@ -43,7 +43,6 @@
 #include <sys/malloc.h>
 #include <sys/kernel.h>
 #include <sys/ioctl.h>
-#include <sys/tty.h>
 #include <sys/uio.h>
 #include <sys/syslog.h>
 

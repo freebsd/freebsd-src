@@ -28,7 +28,6 @@
 #include "buf.h"
 #include "systm.h"
 #include "sys/ioctl.h"
-#include "tty.h"
 #include "proc.h"
 #include "user.h"
 #include "uio.h"

@@ -37,7 +37,7 @@
  *
  *      @(#)bpf.c	8.2 (Berkeley) 3/28/94
  *
- * $Id: bpf.c,v 1.7 1995/05/30 08:07:50 rgrimes Exp $
+ * $Id: bpf.c,v 1.8 1995/06/15 18:10:57 pst Exp $
  */
 
 #include "bpfilter.h"
@@ -63,7 +63,6 @@
 #if defined(sparc) && BSD < 199103
 #include <sys/stream.h>
 #endif
-#include <sys/tty.h>
 #include <sys/uio.h>
 
 #include <sys/protosw.h>
