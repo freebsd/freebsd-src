@@ -176,49 +176,52 @@ use the default range of values, normally
 through
 .Dv IPPORT_HILASTAUTO .
 This is adjustable through the sysctl setting:
-.Sy net.inet.ip.portrange.first
+.Va net.inet.ip.portrange.first
 and
-.Sy net.inet.ip.portrange.last .
+.Va net.inet.ip.portrange.last .
 .It Dv IP_PORTRANGE_HIGH
 use a high range of values, normally
 .Dv IPPORT_HIFIRSTAUTO
 and
 .Dv IPPORT_HILASTAUTO .
 This is adjustable through the sysctl setting:
-.Sy net.inet.ip.portrange.hifirst
+.Va net.inet.ip.portrange.hifirst
 and
-.Sy net.inet.ip.portrange.hilast .
+.Va net.inet.ip.portrange.hilast .
 .It Dv IP_PORTRANGE_LOW
 use a low range of ports, which are normally restricted to
 privileged processes on
 .Ux
 systems.  The range is normally from
-.Dv IPPORT_RESERVED - 1
-down to
+.Dv IPPORT_RESERVED
+\- 1 down to
 .Li IPPORT_RESERVEDSTART
 in descending order.
 This is adjustable through the sysctl setting:
-.Sy net.inet.ip.portrange.lowfirst
+.Va net.inet.ip.portrange.lowfirst
 and
-.Sy net.inet.ip.portrange.lowlast .
+.Va net.inet.ip.portrange.lowlast .
 .El
 .Pp
 The range of privileged ports which only may be opened by
 root-owned processes may be modified by the
-.Sy net.inet.ip.portrange.reservedlow
+.Va net.inet.ip.portrange.reservedlow
 and
-.Sy net.inet.ip.portrange.reservedhigh
+.Va net.inet.ip.portrange.reservedhigh
 sysctl settings.
 The values default to the traditional range,
 0 through
-.Dv IPPORT_RESERVED - 1
+.Dv IPPORT_RESERVED
+\- 1
 (0 through 1023), respectively.
 Note that these settings do not affect and are not accounted for in the
 use or calculation of the other
-.Sy net.inet.ip.portrange
+.Va net.inet.ip.portrange
 values above.
-Changing these values departs from Unix tradition and has security
-concequences that the administrator should carefully evaluate before
+Changing these values departs from
+.Ux
+tradition and has security
+consequences that the administrator should carefully evaluate before
 modifying these settings.
 .Ss "Multicast Options"
 .Pp

@@ -49,9 +49,9 @@ tool.
 .Pp
 At least one source file in the running kernel must have been compiled
 with the
-.Fl --test-coverage
+.Fl Fl test-coverage
 and
-.Fl --profile-arcs
+.Fl Fl profile-arcs
 options.
 .Pp
 The output is stored in the filenames compiled into the kernel by
@@ -60,7 +60,9 @@ If the absolute pathname cannot be written to, the directory part
 of the filename is discarded and the file stored in the current
 directory under its basename.
 .Pp
-The output files are named *.da, and the
+The output files are named
+.Pa *.da ,
+and the
 .Xr gcov 1
 program will extract the counts and merge them with the source
 file to show actual execution counts.
@@ -72,7 +74,7 @@ the default system
 the default memory
 .El
 .Sh SEE ALSO
-.Xr cc 1
+.Xr cc 1 ,
 .Xr gcov 1
 .Sh AUTHORS
 The

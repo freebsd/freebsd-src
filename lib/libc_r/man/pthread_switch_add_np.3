@@ -30,7 +30,7 @@
 .Sh NAME
 .Nm pthread_switch_add_np ,
 .Nm pthread_switch_delete_np
-.Nd threads context switches debugging primitives
+.Nd thread context switches debugging primitives
 .Sh LIBRARY
 .Lb libc_r
 .Sh SYNOPSIS
@@ -40,22 +40,22 @@
 .Ft int
 .Fn pthread_switch_delete_np "pthread_switch_routine_t routine"
 .Sh DESCRIPTION
-The application is allowed to monitor thread context switches inside
-threading library.
-An application can install routine that gets called everytime a thread
-(explicitly created by the application with
-.Fn pthread_create
-function) gets context switched.
-This routine gets passed the pthread IDs of the threads that are
+An application is allowed to monitor the thread context switches inside
+the threading library.
+An application can install a routine that gets called every time a thread
+(explicitly created by an application with the
+.Xr pthread_create 3
+function) gets the context switched.
+The routine is passed the thread IDs of the threads that are
 being switched in and out.
-Installation and removal of these hooks may be done using
+Installation and removal of these hooks may be done using the
 .Fn pthread_switch_add_np
 and
 .Fn pthread_switch_delete_np
 functions respectively.
 .Sh RETURN VALUES
 If successful,
-functions return 0. 
+these functions return 0. 
 Otherwise, an error number is returned to indicate the error.
 .Sh ERRORS
 The
@@ -63,25 +63,25 @@ The
 may fail if:
 .Bl -tag -width Er
 .It Bq Er EINVAL
-NULL pointer passed as
+.Dv NULL
+pointer was passed in the
 .Fa routine
 argument.
 .El
+.Pp
 The
 .Fn pthread_switch_delete_np
 may fail if:
 .Bl -tag -width Er
 .It Bq Er EINVAL
+The
 .Fa routine
-argument is different from argument previously passed to
+argument is different from the argument previously passed to the
 .Fn pthread_switch_add_np
+function.
 .El
 .Sh SEE ALSO
 .Xr pthread_create 3
 .Sh AUTHORS
-The
-.Nm
-manpage was written by
-.An Alexey Zelkin
-.Aq phantom@FreeBSD.org
-
+This manual page was written by
+.An Alexey Zelkin Aq phantom@FreeBSD.org .
