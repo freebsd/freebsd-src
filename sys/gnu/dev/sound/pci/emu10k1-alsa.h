@@ -1,7 +1,7 @@
 #ifndef __SOUND_EMU10K1_H
 #define __SOUND_EMU10K1_H
 
-/*
+/*-
  *  Copyright (c) by Jaroslav Kysela <perex@suse.cz>,
  *		     Creative Labs, Inc.
  *  Definitions for EMU10K1 (SB Live!) chips
@@ -22,6 +22,8 @@
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  *
  */
+
+/* $FreeBSD$ */
 
 #ifdef __KERNEL__
 
