@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.24 1994/01/31 08:52:12 ache Exp $
+ *	$Id: sio.c,v 1.25 1994/01/31 19:07:59 ache Exp $
  */
 
 #include "sio.h"
@@ -872,16 +872,15 @@ siointr(unit)
 		possibly_more_intrs = FALSE;
 		for (unit = 0; unit < NSIO; ++unit) {
 			com = com_addr(unit);
-			if (com != NULL
-			    && (inb(com->int_id_port) & IIR_IMASK)
-			       != IIR_NOPEND) {
+			if (com != NULL) {
 				/*
 				 * XXX call comintr1() instead of here from
 				 * comwakeup().  The interrupt edge problem
 				 * only exists for real interrupts.
 				 */
 				comintr1(com);
-				possibly_more_intrs = TRUE;
+				if ((inb(com->int_id_port) & IIR_IMASK) != IIR_NOPEND)
+					possibly_more_intrs = TRUE;
 			}
 		}
 	} while (possibly_more_intrs);
