@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: diskslice.h,v 1.23 1998/07/04 22:30:26 julian Exp $
+ *	$Id: diskslice.h,v 1.24 1998/07/20 13:39:45 bde Exp $
  */
 
 #ifndef	_SYS_DISKSLICE_H_
@@ -73,6 +73,9 @@ struct diskslices {
 	struct cdevsw *dss_cdevsw;	/* for containing device */
 	int	dss_first_bsd_slice;	/* COMPATIBILITY_SLICE is mapped here */
 	u_int	dss_nslices;		/* actual dimension of dss_slices[] */
+	int	dss_secmult;		/* block to sector multiplier */
+	int	dss_secshift;		/* block to sector shift (or -1) */
+	int	dss_secsize;		/* sector size */
 	struct diskslice
 		dss_slices[MAX_SLICES];	/* actually usually less */
 };
