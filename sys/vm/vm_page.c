@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.98 1998/04/15 17:47:38 bde Exp $
+ *	$Id: vm_page.c,v 1.99 1998/05/02 03:02:13 peter Exp $
  */
 
 /*
@@ -74,6 +74,7 @@
 #include <sys/proc.h>
 #include <sys/vmmeter.h>
 #include <sys/vnode.h>
+#include <sys/kernel.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -275,26 +276,17 @@ vm_page_startup(starta, enda, vaddr)
 
 	new_start = start + vm_page_bucket_count * sizeof(struct pglist);
 	new_start = round_page(new_start);
-	mapped = vaddr;
+	mapped = round_page(vaddr);
 	vaddr = pmap_map(mapped, start, new_start,
 	    VM_PROT_READ | VM_PROT_WRITE);
 	start = new_start;
+	vaddr = round_page(vaddr);
 	bzero((caddr_t) mapped, vaddr - mapped);
-	mapped = vaddr;
 
 	for (i = 0; i < vm_page_bucket_count; i++) {
 		TAILQ_INIT(bucket);
 		bucket++;
 	}
-
-	/*
-	 * Validate these zone addresses.
-	 */
-
-	new_start = start + (vaddr - mapped);
-	pmap_map(mapped, start, new_start, VM_PROT_READ | VM_PROT_WRITE);
-	bzero((caddr_t) mapped, (vaddr - mapped));
-	start = round_page(new_start);
 
 	/*
 	 * Compute the number of pages of memory that will be available for
@@ -313,14 +305,12 @@ vm_page_startup(starta, enda, vaddr)
 	 * Initialize the mem entry structures now, and put them in the free
 	 * queue.
 	 */
-
 	vm_page_array = (vm_page_t) vaddr;
 	mapped = vaddr;
 
 	/*
 	 * Validate these addresses.
 	 */
-
 	new_start = round_page(start + page_range * sizeof(struct vm_page));
 	mapped = pmap_map(mapped, start, new_start,
 	    VM_PROT_READ | VM_PROT_WRITE);
@@ -348,7 +338,7 @@ vm_page_startup(starta, enda, vaddr)
 			m->phys_addr = pa;
 			m->flags = 0;
 			m->pc = (pa >> PAGE_SHIFT) & PQ_L2_MASK;
-			m->queue = PQ_FREE + m->pc;
+			m->queue = m->pc + PQ_FREE;
 			TAILQ_INSERT_TAIL(vm_page_queues[m->queue].pl, m, pageq);
 			++(*vm_page_queues[m->queue].lcnt);
 			pa += PAGE_SIZE;
