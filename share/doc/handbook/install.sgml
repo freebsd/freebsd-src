@@ -669,14 +669,26 @@ ftp://192.216.222.4/pub/FreeBSD/&rel.current;-RELEASE
 
 	    <quote><bf>Note:</bf> Active and passive modes are
 	      not the same as a `proxy' connection, where a proxy
-	      ftp server is listening on a different port!</quote>
+	      FTP server is listening and forwarding FTP requests!</quote>
 
-	    In such instances, you should specify the URL as something like:
+            For a proxy FTP server, you should usually give name of
+	    the server you really want as a part of the username,
+	    after an @-sign.  The proxy server then 'fakes' the real
+	    server.  An example: Say you want to install from
+	    ftp.freebsd.org, using the proxy FTP server foo.bar.com,
+	    listening on port 1234.
+
+	    In this case, you go to the options menu, set the FTP
+	    username to ftp@ftp.freebsd.org, and the password to your
+	    e-mail address.  As your installation media, you specify
+	    FTP (or passive FTP, if the proxy support it), and the URL
 <tscreen><verb>
 ftp://foo.bar.com:1234/pub/FreeBSD
 </verb></tscreen>
-
-        Where ``1234'' is the port number of the proxy ftp server.
+            /pub/FreeBSD from ftp.freebsd.org is proxied under
+	    foo.bar.com, allowing you to install from _that_ machine
+	    (which fetch the files from ftp.freebsd.org as your
+	    installation requests them).
 
     <sect><heading>Installing FreeBSD</heading>
 
