@@ -24,7 +24,7 @@ vidcontrol - a utility for manipulating the syscons video driver.
 The
 .B vidcontrol
 command is used to set various options for the syscons video driver,
-such as video mode, colors, cursor, scrnmaps, font and screensaver timeout.
+such as video mode, colors, cursors, scrnmaps, font and screensaver timeout.
 
 A new video mode is selected by specifying its name as an argument to
 .B vidcontrol
@@ -78,6 +78,10 @@ Install screen output map file from
 .TP
 .BI "\-L\ " 
 Install default screen output map.
+.TP
+.BI "\-m\ " on|off
+Switches the mousepointer on or off. Used together with the moused
+daemon for textmode cut & paste functionality.
 .TP
 .BI "\-f\ " size\ file
 Load font

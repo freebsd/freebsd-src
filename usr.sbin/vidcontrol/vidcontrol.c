@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1994-1995 Søren Schmidt
+ * Copyright (c) 1994-1996 Søren Schmidt
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: vidcontrol.c,v 1.10 1995/03/03 21:21:24 dima Exp $
+ *	$Id: vidcontrol.c,v 1.11 1995/05/30 03:52:53 rgrimes Exp $
  */
 
 #include <ctype.h>
@@ -64,6 +64,7 @@ usage()
 "                  -c destructive   (set cursor to blinking destructive char)\n"
 "                  -d               (dump screenmap to stdout)\n"
 "                  -l filename      (load srceenmap file filename)\n"
+"                  -m on|off        (switch mousepointer support on or off)\n"
 "                  -L               (load default screenmap)\n"
 "                  -f DxL filename  (load font, D dots wide & L lines high)\n"
 "                  -t N             (set screensaver timeout in seconds)\n"
@@ -347,6 +348,23 @@ set_border_color(char *arg)
 		usage();
 }
 
+void
+set_mouse(char *arg)
+{
+	struct mouse_info mouse;
+
+	if (!strcmp(arg, "on"))
+		mouse.operation = MOUSE_SHOW;
+	else if (!strcmp(arg, "off"))
+		mouse.operation = MOUSE_HIDE;
+	else {
+		fprintf(stderr,
+		    "argument to -m must either on or off\n");
+		return;
+	}
+	ioctl(0, CONS_MOUSECTL, &mouse);
+}
+
 test_frame()
 {
 	int i;
@@ -377,13 +395,13 @@ main(int argc, char **argv)
 		perror("Must be on a virtual console");
 		exit(1);
 	}
-	while((opt = getopt(argc, argv, "b:c:df:l:Lr:t:x")) != -1)
+	while((opt = getopt(argc, argv, "b:c:df:l:Lm:r:t:x")) != -1)
 		switch(opt) {
-			case 'c':
-				set_cursor_type(optarg);
-				break;
 			case 'b':
 				set_border_color(optarg);
+				break;
+			case 'c':
+				set_cursor_type(optarg);
 				break;
 			case 'd':
 				print_scrnmap();
@@ -397,6 +415,9 @@ main(int argc, char **argv)
 				break;
 			case 'L':
 				load_default_scrnmap();
+				break;
+			case 'm':
+				set_mouse(optarg);
 				break;
 			case 'r':
 				set_reverse_colors(argc, argv, &optind);
