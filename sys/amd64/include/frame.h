@@ -69,6 +69,7 @@ struct trapframe {
 	register_t	tf_r15;
 	register_t	tf_trapno;
 	register_t	tf_addr;
+	register_t	tf_flags;
 	/* below portion defined in hardware */
 	register_t	tf_err;
 	register_t	tf_rip;
@@ -98,6 +99,7 @@ struct intrframe {
 	register_t	if_r15;
 	register_t	:64;		/* compat with trap frame - trapno */
 	register_t	:64;		/* compat with trap frame - addr */
+	register_t	:64;		/* compat with trap frame - flags */
 	register_t	:64;		/* compat with trap frame - err */
 	/* below portion defined in hardware */
 	register_t	if_rip;
@@ -127,6 +129,7 @@ struct clockframe {
 	register_t	cf_r15;
 	register_t	:64;		/* compat with trap frame - trapno */
 	register_t	:64;		/* compat with trap frame - addr */
+	register_t	:64;		/* compat with trap frame - flags */
 	register_t	:64;		/* compat with trap frame - err */
 	/* below portion defined in hardware */
 	register_t	cf_rip;

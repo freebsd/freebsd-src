@@ -258,6 +258,9 @@ trap(frame)
 		default:
 			ucode = code + BUS_SEGM_FAULT ;
 			i = SIGBUS;
+printf("trap %d: pid %d err %p eva %p, rip %p, rax %p, rbx %p, rcx %p, rdx %p, rsp %p, rbp %p, rsi %p, rdi %p\n", type, p->p_pid, (void *)frame.tf_err,
+(void *)frame.tf_addr, (void *)frame.tf_rip, (void *)frame.tf_rax, (void *)frame.tf_rbx, (void *)frame.tf_rcx, (void *)frame.tf_rdx, (void *)frame.tf_rsp, (void *)frame.tf_rbp, (void *)frame.tf_rsi, (void *)frame.tf_rdi);
+
 			break;
 
 		case T_PAGEFLT:		/* page fault */
@@ -541,6 +544,12 @@ nogo:
 		trap_fatal(frame, eva);
 		return (-1);
 	}
+
+printf("trap_pfault: pid %d %s %s %s eva %p, rip %p, rax %p, rbx %p, rcx %p, rdx %p, rsp %p, rbp %p, rsi %p, rdi %p\n", p->p_pid,
+			frame->tf_err & PGEX_U ? "user" : "supervisor",
+			frame->tf_err & PGEX_W ? "write" : "read",
+			frame->tf_err & PGEX_P ? "protection violation" : "page not present",
+(void *)eva, (void *)frame->tf_rip, (void *)frame->tf_rax, (void *)frame->tf_rbx, (void *)frame->tf_rcx, (void *)frame->tf_rdx, (void *)frame->tf_rsp, (void *)frame->tf_rbp, (void *)frame->tf_rsi, (void *)frame->tf_rdi);
 
 	return((rv == KERN_PROTECTION_FAILURE) ? SIGBUS : SIGSEGV);
 }
