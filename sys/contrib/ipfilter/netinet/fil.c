@@ -115,10 +115,10 @@ extern	int	opts;
 # define	FR_VERBOSE(verb_pr)
 # define	FR_DEBUG(verb_pr)
 # define	IPLLOG(a, c, d, e)		ipflog(a, c, d, e)
-# if SOLARIS || defined(__sgi)
+# if SOLARIS || defined(__sgi) || (__FreeBSD_version >= 500043)
 extern	KRWLOCK_T	ipf_mutex, ipf_auth, ipf_nat;
 extern	kmutex_t	ipf_rw;
-# endif /* SOLARIS || __sgi */
+# endif /* SOLARIS || __sgi || __FreeBSD_version */
 #endif /* _KERNEL */
 
 

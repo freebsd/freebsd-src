@@ -171,6 +171,9 @@ static	int	ipfr_fastroute6 __P((struct mbuf *, struct mbuf **,
 extern	int		tcp_mtudisc;
 extern	kmutex_t        ipf_rw;
 extern	KRWLOCK_T	ipf_mutex;
+# elif (__FreeBSD_version >= 500043)
+extern	kmutex_t        ipf_rw;
+extern	KRWLOCK_T	ipf_mutex;
 # endif
 #else
 void	init_ifp __P((void));
