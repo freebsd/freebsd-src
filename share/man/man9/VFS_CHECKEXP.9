@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 10, 1999
+.Dd January 7, 2005
 .Os
 .Dt VFS_CHECKEXP 9
 .Sh NAME
@@ -36,10 +36,12 @@
 .Ft int
 .Fn VFS_CHECKEXP "struct mount *mp" "struct sockaddr *nam" "int *exflagsp" "struct ucred **credanonp"
 .Sh DESCRIPTION
-This is used by the NFS server to check if a mount point is exported
+The
+.Fn VFS_CHECKEXP
+macro is used by the NFS server to check if a mount point is exported
 to a client.
 .Pp
-Its arguments are:
+The arguments it expects are:
 .Bl -tag -width credanonp
 .It Fa mp
 The mount point to be checked.
@@ -51,7 +53,9 @@ Return parameter for the export flags for this client.
 Return parameter for the anonymous credentials for this client.
 .El
 .Pp
-This should be called on a file system's mount structure to determine if it
+The
+.Fn VFS_CHECKEXP
+macro should be called on a file system's mount structure to determine if it
 is exported to a client whose address is contained in
 .Fa nam .
 .Pp
