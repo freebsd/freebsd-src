@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: swtch.s,v 1.72 1998/05/12 18:37:10 dyson Exp $
+ *	$Id: swtch.s,v 1.73 1998/05/19 20:59:07 dufault Exp $
  */
 
 #include "npx.h"
@@ -251,6 +251,10 @@ rem3id:	.asciz	"remrq.id"
  */
 	ALIGN_TEXT
 _idle:
+	xorl	%eax,%eax
+	movl	%eax, _switchtime
+	movl	%eax, _switchtime+4
+
 #ifdef SMP
 	/* when called, we have the mplock, intr disabled */
 

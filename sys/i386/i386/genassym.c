@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)genassym.c	5.11 (Berkeley) 5/10/91
- *	$Id: genassym.c,v 1.56 1998/05/17 22:12:07 tegge Exp $
+ *	$Id: genassym.c,v 1.57 1998/05/17 23:08:03 tegge Exp $
  */
 
 #include "opt_vm86.h"
@@ -106,7 +106,7 @@ main()
 	printf("#define\tP_WCHAN %p\n", &p->p_wchan);
 	printf("#define\tP_FLAG %p\n", &p->p_flag);
 	printf("#define\tP_PID %p\n", &p->p_pid);
-	printf("#define\tP_RUNTIME %p\n", &p->p_runtime);
+	printf("#define\tP_SWITCHTIME %p\n", &p->p_switchtime);
 #ifdef SMP
 	printf("#define\tP_ONCPU %p\n", &p->p_oncpu);
 	printf("#define\tP_LASTCPU %p\n", &p->p_lastcpu);
@@ -208,6 +208,7 @@ main()
 	printf("#define\tGD_NPXPROC %d\n", &globaldata->npxproc);
 	printf("#define\tGD_CURPCB %d\n", &globaldata->curpcb);
 	printf("#define\tGD_COMMON_TSS %d\n", &globaldata->common_tss);
+	printf("#define\tGD_SWITCHTIME %d\n", &globaldata->switchtime);
 #ifdef VM86
 	printf("#define\tGD_COMMON_TSSD %d\n", &globaldata->common_tssd);
 	printf("#define\tGD_PRIVATE_TSS %d\n", &globaldata->private_tss);

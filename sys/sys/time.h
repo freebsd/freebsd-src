@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)time.h	8.5 (Berkeley) 5/4/95
- * $Id: time.h,v 1.27 1998/05/17 11:53:40 phk Exp $
+ * $Id: time.h,v 1.28 1998/05/19 18:55:02 phk Exp $
  */
 
 #ifndef _SYS_TIME_H_
@@ -129,12 +129,12 @@ struct timezone {
  */
 
 struct timecounter;
-typedef u_int timecounter_get_t __P((void));
+typedef unsigned timecounter_get_t __P((void));
 
 struct timecounter {
 	/* These fields must be initialized by the driver. */
 	timecounter_get_t	*get_timecount;
-	u_int			counter_mask;
+	unsigned 		counter_mask;
 	u_int32_t		frequency;
 	char			*name;
 	/* These fields will be managed by the generic code. */
@@ -143,7 +143,7 @@ struct timecounter {
 	u_int32_t		scale_micro;
 	u_int32_t		scale_nano_i;
 	u_int32_t		scale_nano_f;
-	u_int			offset_count;
+	unsigned 		offset_count;
 	u_int32_t		offset_sec;
 	u_int32_t		offset_micro;
 	u_int64_t		offset_nano;

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: globaldata.h,v 1.3 1998/05/17 18:53:07 tegge Exp $
+ * $Id: globaldata.h,v 1.4 1998/05/17 23:08:02 tegge Exp $
  */
 
 /*
@@ -43,6 +43,7 @@ struct globaldata {
 	struct proc	*npxproc;
 	struct pcb	*curpcb;
 	struct i386tss	common_tss;
+	struct timeval	switchtime;
 #ifdef VM86
 	struct segment_descriptor common_tssd;
 	u_int		private_tss;
