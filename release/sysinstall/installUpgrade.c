@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: installUpgrade.c,v 1.49 1997/05/09 07:44:19 jkh Exp $
+ * $Id: installUpgrade.c,v 1.50 1997/09/08 11:09:09 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -295,6 +295,8 @@ media:
 			      "and start over from the beginning.  Select Yes to reboot now"))
 		    systemShutdown(1);
 	    }
+	    else /* Give us a working kernel in case we crash and reboot */
+		system("cp /kernel.prev /kernel");
 	}
     }
 
@@ -444,7 +446,10 @@ installUpgradeNonInteractive(dialogMenuItem *self)
 
     if (file_readable("/kernel")) {
 	msgNotify("Moving old kernel to /kernel.prev");
-	system("chflags noschg /kernel && mv /kernel /kernel.prev");
+	if (!system("chflags noschg /kernel && mv /kernel /kernel.prev")) {
+	    /* Give us a working kernel in case we crash and reboot */
+	    system("cp /kernel.prev /kernel");
+	}
     }
 
     msgNotify("Beginning extraction of distributions..");
