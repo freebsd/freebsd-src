@@ -495,12 +495,7 @@ aac_cam_complete(struct aac_command *cm)
 	}
 
 	aac_release_command(cm);
-
-	mtx_unlock(&sc->aac_io_lock);
-	mtx_lock(&Giant);
 	xpt_done(ccb);
-	mtx_unlock(&Giant);
-	mtx_lock(&sc->aac_io_lock);
 
 	return;
 }
