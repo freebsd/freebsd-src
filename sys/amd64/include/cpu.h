@@ -105,12 +105,9 @@
 #ifdef _KERNEL
 extern char	btext[];
 extern char	etext[];
+extern u_int	tsc_present;
 
 void	fork_trampoline __P((void));
-
-#if defined(I386_CPU) || defined(I486_CPU)
-extern u_int   tsc_present;
-#endif
 
 /*
  * Return contents of in-cpu fast counter as a sort of "bogo-time"
