@@ -136,7 +136,7 @@ taskqueue_enqueue(struct taskqueue *queue, struct task *task)
 	/*
 	 * Optimise the case when all tasks have the same priority.
 	 */
-	prev = STAILQ_LAST(&queue->tq_queue);
+	prev = STAILQ_LAST(&queue->tq_queue, task, ta_link);
 	if (!prev || prev->ta_priority >= task->ta_priority) {
 		STAILQ_INSERT_TAIL(&queue->tq_queue, task, ta_link);
 	} else {
