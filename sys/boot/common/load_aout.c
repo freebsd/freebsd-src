@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: load_aout.c,v 1.12 1999/01/22 21:33:52 rnordier Exp $
+ *	$Id: load_aout.c,v 1.13 1999/01/22 23:50:14 msmith Exp $
  */
 
 #include <sys/param.h>
@@ -221,7 +221,7 @@ aout_loadimage(struct loaded_module *mp, int fd, vm_offset_t loadaddr, struct ex
     addr += ehdr->a_bss;
 
     /* symbol table size */
-    ssym = addr;
+    ssym = esym = addr;
     if(ehdr->a_syms!=NULL) {
     	archsw.arch_copyin(&ehdr->a_syms, addr, sizeof(ehdr->a_syms));
     	addr += sizeof(ehdr->a_syms);
@@ -241,6 +241,7 @@ aout_loadimage(struct loaded_module *mp, int fd, vm_offset_t loadaddr, struct ex
     	if (archsw.arch_readin(fd, addr, ss) != ss)
 		return(0);
     	addr += ss;
+	esym = addr;
 
     	mod_addmetadata(mp, MODINFOMD_SSYM, sizeof(ssym), &ssym);
     	mod_addmetadata(mp, MODINFOMD_ESYM, sizeof(esym), &esym);
@@ -248,7 +249,6 @@ aout_loadimage(struct loaded_module *mp, int fd, vm_offset_t loadaddr, struct ex
 	printf("symbols=[none]");
     }
     printf("\n");
-    esym = addr;
 
     return(addr - loadaddr);
 }
