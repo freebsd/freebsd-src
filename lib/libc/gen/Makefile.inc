@@ -1,4 +1,5 @@
-#	@(#)Makefile.inc	8.3 (Berkeley) 4/16/94
+#	From: @(#)Makefile.inc	8.3 (Berkeley) 4/16/94
+#	$Id$
 
 # machine-independent gen sources
 .PATH: ${.CURDIR}/${MACHINE}/gen ${.CURDIR}/gen
@@ -18,6 +19,10 @@ SRCS+=	alarm.c assert.c clock.c closedir.c confstr.c crypt.c ctermid.c \
 	telldir.c termios.c time.c times.c timezone.c ttyname.c ttyslot.c \
 	ualarm.c uname.c unvis.c usleep.c utime.c valloc.c vis.c wait.c \
 	wait3.c waitpid.c getvfsent.c
+
+# *rand48 family, from 1.1.5
+SRCS+=	_rand48.c drand48.c erand48.c jrand48.c lcong48.c lrand48.c \
+	mrand48.c nrand48.c seed48.c srand48.c
 
 # machine-dependent gen sources
 .include "${.CURDIR}/${MACHINE}/gen/Makefile.inc"
@@ -39,7 +44,7 @@ MAN3+=	gen/alarm.3 gen/clock.3 gen/confstr.3 gen/crypt.3 gen/ctermid.3 \
 	gen/getpwent.3 gen/getttyent.3 gen/getusershell.3 gen/glob.3 \
 	gen/initgroups.3 gen/isinf.3 gen/ldexp.3 gen/modf.3 gen/nice.3 \
 	gen/nlist.3 gen/pause.3 gen/popen.3 gen/psignal.3 gen/pwcache.3 \
-	gen/raise.3 gen/scandir.3 gen/setjmp.3 gen/setmode.3 \
+	gen/raise.3 gen/rand48.3 gen/scandir.3 gen/setjmp.3 gen/setmode.3 \
 	gen/siginterrupt.3 gen/signal.3 gen/sigsetops.3 gen/sleep.3 \
 	gen/sysconf.3 gen/sysctl.3 gen/syslog.3 gen/tcgetpgrp.3 \
 	gen/tcsendbreak.3 gen/tcsetattr.3 gen/tcsetpgrp.3 gen/time.3 \
@@ -75,6 +80,10 @@ MLINKS+=glob.3 globfree.3
 MLINKS+=popen.3 pclose.3
 MLINKS+=psignal.3 sys_siglist.3
 MLINKS+=pwcache.3 user_from_uid.3 pwcache.3 group_from_gid.3
+MLINKS+=rand48.3 _rand48.3 rand48.3 drand48.3 rand48.3 erand48.3 \
+	rand48.3 jrand48.3 rand48.3 lcong48.3 rand48.3 lrand48.3 \
+	rand48.3 mrand48.3 rand48.3 nrand48.3 rand48.3 seed48.3 \
+	rand48.3 srand48.3
 MLINKS+=scandir.3 alphasort.3
 MLINKS+=setjmp.3 _longjmp.3 setjmp.3 _setjmp.3 setjmp.3 longjmp.3 \
 	setjmp.3 longjmperr.3 setjmp.3 longjmperror.3 \
