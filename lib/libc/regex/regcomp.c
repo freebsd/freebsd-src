@@ -1949,7 +1949,7 @@ struct re_guts *g;
 	/* If the character does not exist in the pattern, the jump
 	 * is equal to the number of characters in the pattern.
 	 */
-	for (ch = 0; ch < 256; ch++)
+	for (ch = 0; ch < (UCHAR_MAX+1); ch++)
 		g->charjump[ch] = g->mlen;
 
 	/* If the character does exist, compute the jump that would
