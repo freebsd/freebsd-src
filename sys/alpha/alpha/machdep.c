@@ -655,7 +655,10 @@ alpha_init(pfn, ptb, bim, bip, biv)
 
 	/* Get the loader(8) metadata */
 	preload_metadata = (caddr_t)bootinfo.modptr;
-	kern_envp = bootinfo.envp;
+	if (envmode == 1)
+		kern_envp = static_env;
+	else
+		kern_envp = bootinfo.envp;
 
 	/* Do basic tuning, hz etc */
 	init_param();
