@@ -40,6 +40,8 @@
 
 #include <sys/queue.h>
 
+struct mtx;
+
 SLIST_HEAD(callout_list, callout);
 TAILQ_HEAD(callout_tailq, callout);
 
@@ -51,6 +53,7 @@ struct callout {
 	int	c_time;				/* ticks to the event */
 	void	*c_arg;				/* function argument */
 	void	(*c_func)(void *);	/* function to call */
+	struct mtx *c_mtx;			/* mutex to lock */
 	int	c_flags;			/* state of this entry */
 };
 
@@ -58,6 +61,7 @@ struct callout {
 #define	CALLOUT_ACTIVE		0x0002 /* callout is currently active */
 #define	CALLOUT_PENDING		0x0004 /* callout is waiting for timeout */
 #define	CALLOUT_MPSAFE		0x0008 /* callout handler is mp safe */
+#define	CALLOUT_RETURNUNLOCKED	0x0010 /* handler returns with mtx unlocked */
 
 struct callout_handle {
 	struct callout *callout;
@@ -75,6 +79,7 @@ extern struct mtx callout_lock;
 #define	callout_deactivate(c)	((c)->c_flags &= ~CALLOUT_ACTIVE)
 #define	callout_drain(c)	_callout_stop_safe(c, 1)
 void	callout_init(struct callout *, int);
+void	callout_init_mtx(struct callout *, struct mtx *, int);
 #define	callout_pending(c)	((c)->c_flags & CALLOUT_PENDING)
 void	callout_reset(struct callout *, int, void (*)(void *), void *);
 #define	callout_stop(c)		_callout_stop_safe(c, 0)
