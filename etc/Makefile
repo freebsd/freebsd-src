@@ -285,8 +285,8 @@ cpio-floppy:
 
 dos-floppy:
 	mount -t pcfs /dev/${FLOPPY}a ${MOUNT}
-	(cd ${DESTDIR}/; \
-		cp /sys/i386/floppy/* ${MOUNT}; \
+	(cd ${.CURDIR}/../; \
+		cp sys/i386/floppy/* ${MOUNT}; \
 		cp ${DOS_FILES} ${MOUNT})
 	df -ik ${MOUNT}
 	umount /dev/${FLOPPY}a
