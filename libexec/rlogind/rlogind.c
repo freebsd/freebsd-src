@@ -42,7 +42,7 @@ static const char copyright[] =
 static const char sccsid[] = "@(#)rlogind.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: rlogind.c,v 1.12.2.5 1998/02/18 11:48:08 markm Exp $";
 #endif /* not lint */
 
 /*
@@ -390,7 +390,7 @@ void
 protocol(f, p)
 	register int f, p;
 {
-	char pibuf[1024+1], fibuf[1024], *pbp, *fbp;
+	char pibuf[1024+1], fibuf[1024], *pbp = NULL, *fbp = NULL;
 	register pcc = 0, fcc = 0;
 	int cc, nfd, n;
 	char cntl;

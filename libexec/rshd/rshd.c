@@ -42,7 +42,7 @@ static const char copyright[] =
 static const char sccsid[] = "@(#)rshd.c	8.2 (Berkeley) 4/6/94";
 #endif
 static const char rcsid[] =
-	"$Id: rshd.c,v 1.9.2.6 1998/03/06 01:46:10 jkh Exp $";
+	"$Id: rshd.c,v 1.9.2.7 1998/07/19 06:53:02 jkh Exp $";
 #endif /* not lint */
 
 /*
@@ -204,9 +204,9 @@ doit(fromp)
 	struct passwd *pwd;
 	u_short port;
 	fd_set ready, readfrom;
-	int cc, nfd, pv[2], pid, s;
+	int cc, nfd, pv[2], pid, s = 0;
 	int one = 1;
-	char *hostname, *errorstr, *errorhost;
+	char *hostname, *errorstr, *errorhost = NULL;
 	char *cp, sig, buf[BUFSIZ];
 	char cmdbuf[NCARGS+1], locuser[16], remuser[16];
 	char remotehost[2 * MAXHOSTNAMELEN + 1];
@@ -304,7 +304,7 @@ doit(fromp)
 	(void) alarm(0);
 	if (port != 0) {
 		int lport = IPPORT_RESERVED - 1;
-		s = rresvport(&lport);
+		int s = rresvport(&lport);
 		if (s < 0) {
 			syslog(LOG_ERR, "can't get stderr port: %m");
 			exit(1);
