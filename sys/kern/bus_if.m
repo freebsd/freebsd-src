@@ -23,7 +23,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-#	$Id: bus_if.m,v 1.11 1999/05/28 09:25:08 dfr Exp $
+#	$Id: bus_if.m,v 1.12 1999/07/11 13:42:36 dfr Exp $
 #
 
 INTERFACE bus;
@@ -46,9 +46,11 @@ CODE {
 # This is called from system code which prints out a description of a
 # device.  It should describe the attachment that the child has with
 # the parent.  For instance the TurboLaser bus prints which node the
-# device is attached to.
+# device is attached to.  See bus_generic_print_child.9 for more 
+# information.
+# This method returns the number of characters output.
 #
-METHOD void print_child {
+METHOD int print_child {
 	device_t dev;
 	device_t child;
 };

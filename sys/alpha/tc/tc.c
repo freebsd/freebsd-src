@@ -1,4 +1,4 @@
-/* $Id: tc.c,v 1.4 1999/05/10 15:53:33 peter Exp $ */
+/* $Id: tc.c,v 1.5 1999/07/01 22:49:03 peter Exp $ */
 /*
  * Copyright (c) 1994, 1995, 1996 Carnegie-Mellon University.
  * All rights reserved.
@@ -72,7 +72,6 @@ static tc_offset_t tc_slot_romoffs[NTC_ROMOFFS] = {
 
 static int tc_probe(device_t dev);
 static int tc_attach(device_t dev);
-static void tc_print_child(device_t bus, device_t dev);
 int    tc_checkslot(        tc_addr_t slotbase, char *namep);
 
 static device_method_t tc_methods[] = {
@@ -80,7 +79,7 @@ static device_method_t tc_methods[] = {
 	DEVMETHOD(device_probe,		tc_probe),
 	DEVMETHOD(device_attach,	tc_attach),
 	/* Bus interface */
-	DEVMETHOD(bus_print_child,   tc_print_child),
+	DEVMETHOD(bus_print_child,	bus_generic_print_child),
 	{ 0, 0 },
 };
 
@@ -682,15 +681,6 @@ tc_intr_disestablish(dev, cookie)
         struct tc_softc *sc = (struct tc_softc *)device_get_softc(dev);
 
         (*sc->sc_intr_disestablish)(device_get_parent(dev), cookie);
-}
-
-
-
-static void
-tc_print_child(device_t bus, device_t dev)
-{
-        printf(" at %s%d",
-               device_get_name(bus), device_get_unit(bus));
 }
 
 DRIVER_MODULE(tc, tcasic, tc_driver, tc_devclass, 0, 0);

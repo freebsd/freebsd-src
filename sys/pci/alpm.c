@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: alpm.c,v 1.4 1999/05/09 17:06:38 peter Exp $
+ *	$Id: alpm.c,v 1.5 1999/07/03 20:17:00 peter Exp $
  *
  */
 
@@ -147,7 +147,6 @@ struct alsmb_softc {
 
 static int alsmb_probe(device_t);
 static int alsmb_attach(device_t);
-static void alsmb_print_child(device_t, device_t);
 static int alsmb_smb_callback(device_t, int, caddr_t *);
 static int alsmb_smb_quick(device_t dev, u_char slave, int how);
 static int alsmb_smb_sendb(device_t dev, u_char slave, char byte);
@@ -167,7 +166,7 @@ static device_method_t alsmb_methods[] = {
 	DEVMETHOD(device_attach,	alsmb_attach),
 
 	/* bus interface */
-	DEVMETHOD(bus_print_child,	alsmb_print_child),
+	DEVMETHOD(bus_print_child,	bus_generic_print_child),
 	
 	/* smbus interface */
 	DEVMETHOD(smbus_callback,	alsmb_smb_callback),
@@ -315,14 +314,6 @@ alsmb_attach(device_t dev)
 	device_probe_and_attach(sc->smbus);
 
 	return (0);
-}
-
-static void
-alsmb_print_child(device_t bus, device_t dev)
-{
-	printf(" on %s%d", device_get_name(bus), device_get_unit(bus));
-
-	return;
 }
 
 static int

@@ -78,7 +78,7 @@ static devclass_t gbus_devclass;
  * Device methods
  */
 static int gbus_probe(device_t dev);
-static void gbus_print_child(device_t dev, device_t child);
+static int gbus_print_child(device_t dev, device_t child);
 static int gbus_read_ivar(device_t dev, device_t child, int which, u_long *result);;
 
 static device_method_t gbus_methods[] = {
@@ -128,14 +128,17 @@ gbus_probe(device_t dev)
 	return 0;
 }
 
-static void
+static int
 gbus_print_child(device_t bus, device_t dev)
 {
 	struct gbus_device* gdev = DEVTOGBUS(dev);
+	int retval = 0;
 
-	printf(" at %s%d offset 0x%x",
-	       device_get_name(bus), device_get_unit(bus),
-	       gdev->gd_offset);
+	retval += bus_print_child_header(bus, dev);
+	retval += printf(" on %s offset 0x%x\n", device_get_nameunit(bus),
+			 gdev->gd_offset);
+
+	return (retval);
 }
 
 static int

@@ -1,4 +1,4 @@
-/* $Id: tcasic.c,v 1.3 1999/05/08 21:58:49 dfr Exp $ */
+/* $Id: tcasic.c,v 1.4 1999/05/10 15:54:58 peter Exp $ */
 /* from $NetBSD: tcasic.c,v 1.23 1998/05/14 00:01:31 thorpej Exp $ */
 
 /*
@@ -56,13 +56,12 @@ struct tcasic_softc {
 
 static int tcasic_probe(device_t dev);
 static int tcasic_attach(device_t dev);
-static void tcasic_print_child(device_t bus, device_t dev);
 
 static device_method_t tcasic_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		tcasic_probe),
 	DEVMETHOD(device_attach,	tcasic_attach),
-	DEVMETHOD(bus_print_child,      tcasic_print_child),
+	DEVMETHOD(bus_print_child,      bus_generic_print_child),
 	{ 0, 0 }
 };
 
@@ -96,15 +95,6 @@ tcasic_attach(device_t dev)
 	device_probe_and_attach(tc0);
 	return 0;
 }
-
-static void
-tcasic_print_child(device_t bus, device_t dev)
-{
-        printf(" at %s%d",
-               device_get_name(bus), device_get_unit(bus));
-}
-
-
 
 DRIVER_MODULE(tcasic, root, tcasic_driver, tcasic_devclass, 0, 0);
 

@@ -1,4 +1,4 @@
-/* $Id: kftxx.c,v 1.4 1998/11/15 18:25:16 dfr Exp $ */
+/* $Id: kftxx.c,v 1.5 1999/05/08 21:58:53 dfr Exp $ */
 /* $NetBSD: kftxx.c,v 1.9 1998/05/14 00:01:32 thorpej Exp $ */
 
 /*
@@ -75,7 +75,7 @@ static devclass_t kft_devclass;
  * Device methods
  */
 static int kft_probe(device_t dev);
-static void kft_print_child(device_t dev, device_t child);
+static int kft_print_child(device_t dev, device_t child);
 static int kft_read_ivar(device_t dev, device_t child, int which, u_long *result);;
 
 static device_method_t kft_methods[] = {
@@ -151,14 +151,17 @@ kft_probe(device_t dev)
 	return 0;
 }
 
-static void
+static int
 kft_print_child(device_t bus, device_t dev)
 {
 	struct kft_device *kd = (struct kft_device*) device_get_ivars(dev);
+	int retval = 0;
 
-	printf(" at %s%d hose %d",
-	       device_get_name(bus), device_get_unit(bus),
-	       kd->kd_hosenum);
+	retval += bus_print_child_header(bus, dev);
+	retval += printf(" on %s hose %d\n", device_get_nameunit(bus),
+			 kd->kd_hosenum);
+
+	return (retval);
 }
 
 static int

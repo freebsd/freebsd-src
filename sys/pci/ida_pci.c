@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ida_pci.c,v 1.1 1999/06/24 03:32:07 jlemon Exp $
+ *	$Id: ida_pci.c,v 1.2 1999/07/03 20:17:02 peter Exp $
  */
 
 #include <sys/param.h>
@@ -69,13 +69,12 @@ static struct {
 
 static int ida_pci_probe(device_t dev);
 static int ida_pci_attach(device_t dev);
-static void ida_pci_print_child(device_t bus, device_t dev);
 
 static device_method_t ida_pci_methods[] = {
 	DEVMETHOD(device_probe,		ida_pci_probe),
 	DEVMETHOD(device_attach,	ida_pci_attach),
 
-	DEVMETHOD(bus_print_child,	ida_pci_print_child),
+	DEVMETHOD(bus_print_child,	bus_generic_print_child),
 
 	{ 0, 0 }
 };
@@ -183,12 +182,6 @@ ida_pci_attach(device_t dev)
 	ida->flags = IDA_ATTACHED; 
 
 	return (0);
-}
-
-static void
-ida_pci_print_child(device_t bus, device_t dev)
-{
-	printf(" on %s%d", device_get_name(bus), device_get_unit(bus));
 }
 
 DRIVER_MODULE(ida, pci, ida_pci_driver, ida_devclass, 0, 0);

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: iicbus.c,v 1.8 1999/04/11 02:55:52 eivind Exp $
+ *	$Id: iicbus.c,v 1.9 1999/05/08 21:59:04 dfr Exp $
  *
  */
 
@@ -92,7 +92,7 @@ static devclass_t iicbus_devclass;
  */
 static int iicbus_probe(device_t);
 static int iicbus_attach(device_t);
-static void iicbus_print_child(device_t, device_t);
+static int iicbus_print_child(device_t, device_t);
 static int iicbus_read_ivar(device_t , device_t, int, u_long *);
 static int iicbus_write_ivar(device_t , device_t, int, u_long);
 
@@ -231,27 +231,29 @@ iicbus_null_repeated_start(device_t dev, u_char addr)
 	return (IIC_ENOTSUPP);
 }
 
-static void
+static int
 iicbus_print_child(device_t bus, device_t dev)
 {
 	struct iicbus_device* iicdev = DEVTOIICBUS(dev);
+	int retval = 0;
+
+	retval += bus_print_child_header(bus, dev);
 
 	switch (iicdev->iicd_class) {	
 	case IICBUS_DEVICE_CLASS:
-		printf(" on %s%d addr 0x%x", device_get_name(bus),
-			device_get_unit(bus), iicdev->iicd_addr);
+		retval += printf(" on %s addr 0x%x\n",
+				 device_get_nameunit(bus), iicdev->iicd_addr);
 		break;
 
 	case IICBUS_DRIVER_CLASS:
-		printf(" on %s%d", device_get_name(bus),
-			device_get_unit(bus));
+		retval += bus_print_child_footer(bus, dev);
 		break;
 
 	default:
-		panic("%s: unknown class!", __FUNCTION__);
+		panic("%s: unknown class!\n", __FUNCTION__);
 	}
 
-	return;
+	return (retval);
 }
 
 static int

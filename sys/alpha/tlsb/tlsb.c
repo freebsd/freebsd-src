@@ -93,7 +93,7 @@ static devclass_t		tlsb_devclass;
  * Device methods
  */
 static int tlsb_probe(device_t dev);
-static void tlsb_print_child(device_t dev, device_t child);
+static int tlsb_print_child(device_t dev, device_t child);
 static int tlsb_read_ivar(device_t dev, device_t child, int which, u_long* result);
 static int tlsb_setup_intr(device_t dev, device_t child,
 			   struct resource *irq, int flags,
@@ -230,15 +230,17 @@ tlsb_probe(device_t dev)
 	return 0;
 }
 
-static void
+static int
 tlsb_print_child(device_t dev, device_t child)
 {
 	struct tlsb_device* tdev = DEVTOTLSB(child);
+	int retval = 0;
 
-	printf(" at %s%d node %d",
-	       device_get_name(dev),
-	       device_get_unit(dev),
-	       tdev->td_node);
+	retval += bus_print_child_header(dev, child);
+	retval += printf(" at %s node %d\n", device_get_nameunit(dev),
+			 tdev->td_node);
+
+	return (retval);
 }
 
 static int
