@@ -6,6 +6,12 @@
 #include "fp.h"
 
 extern char *f__fmtbuf;
+
+#ifdef Allow_TYQUAD
+static longint f__llx;
+static int quad_read;
+#endif
+
 #ifdef KR_headers
 extern double atof();
 extern char *malloc(), *realloc();
@@ -102,6 +108,9 @@ l_R(int poststar)
 			return(0);
 		f__lcount = 1;
 		}
+#ifdef Allow_TYQUAD
+	f__llx = 0;
+#endif
 	f__ltype = 0;
 	exp = 0;
 	havestar = 0;
@@ -184,6 +193,22 @@ bad:
 		else
 			sp[1] = 0;
 		f__lx = atof(s);
+#ifdef Allow_TYQUAD
+		if (quad_read && (se = sp - sp1 + exp) > 14 && se < 20) {
+			/* Assuming 64-bit longint and 32-bit long. */
+			if (exp < 0)
+				sp += exp;
+			if (sp1 <= sp) {
+				f__llx = *sp1 - '0';
+				while(++sp1 <= sp)
+					f__llx = 10*f__llx + (*sp1 - '0');
+				}
+			while(--exp >= 0)
+				f__llx *= 10;
+			if (*s == '-')
+				f__llx = -f__llx;
+			}
+#endif
 		}
 	else
 		f__lx = 0.;
@@ -280,6 +305,9 @@ l_C(Void)
 	if(ch!=')') errfl(f__elist->cierr,112,"no )");
 	f__ly = f__lx;
 	f__lx = lz;
+#ifdef Allow_TYQUAD
+	f__llx = 0;
+#endif
 	nml_read = nml_save;
 	return(0);
 }
@@ -456,6 +484,8 @@ c_le(a) cilist *a;
 c_le(cilist *a)
 #endif
 {
+	if(!f__init)
+		f_init();
 	f__fmtbuf="list io";
 	if(a->ciunit>=MXUNIT || a->ciunit<0)
 		err(a->cierr,101,"stler");
@@ -512,13 +542,19 @@ l_read(ftnint *number, char *ptr, ftnlen len, ftnint type)
 		case TYINT1:
 		case TYSHORT:
 		case TYLONG:
-#ifdef TYQUAD
-		case TYQUAD:
-#endif
 		case TYREAL:
 		case TYDREAL:
 			ERR(l_R(0));
 			break;
+#ifdef TYQUAD
+		case TYQUAD:
+			quad_read = 1;
+			n = l_R(0);
+			quad_read = 0;
+			if (n)
+				return n;
+			break;
+#endif
 		case TYCOMPLEX:
 		case TYDCOMPLEX:
 			ERR(l_C());
@@ -560,9 +596,10 @@ l_read(ftnint *number, char *ptr, ftnlen len, ftnint type)
 		case TYLONG:
 			Ptr->flint=f__lx;
 			break;
-#ifdef TYQUAD
+#ifdef Allow_TYQUAD
 		case TYQUAD:
-			Ptr->fllongint = f__lx;
+			if (!(Ptr->fllongint = f__llx))
+				Ptr->fllongint = f__lx;
 			break;
 #endif
 		case TYREAL:
@@ -602,7 +639,6 @@ integer s_rsle(cilist *a)
 {
 	int n;
 
-	if(!f__init) f_init();
 	if(n=c_le(a)) return(n);
 	f__reading=1;
 	f__external=1;
@@ -613,6 +649,8 @@ integer s_rsle(cilist *a)
 	l_eof = 0;
 	if(f__curunit->uwrt && f__nowreading(f__curunit))
 		err(a->cierr,errno,"read start");
+	if(f__curunit->uend)
+		err(f__elist->ciend,(EOF),"read start");
 	l_getc = t_getc;
 	l_ungetc = un_getc;
 	f__doend = xrd_SL;

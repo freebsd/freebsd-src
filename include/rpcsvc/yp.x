@@ -34,7 +34,7 @@
 #ifndef RPC_HDR
 %#ifndef lint
 %/*static char sccsid[] = "from: @(#)yp.x	2.1 88/08/01 4.0 RPCSRC";*/
-%static char rcsid[] = "$Id: yp.x,v 1.1 1993/09/14 17:42:53 jtc Exp $";
+%static char rcsid[] = "$Id: yp.x,v 1.5 1996/02/26 02:22:53 wpaul Exp $";
 %#endif /* not lint */
 #endif
 
@@ -119,8 +119,13 @@ struct ypresp_val {
 
 struct ypresp_key_val {
 	ypstat stat;
+#ifdef STUPID_SUN_BUG /* These are backwards */
 	keydat key;
 	valdat val;
+#else
+	valdat val;
+	keydat key;
+#endif
 };
 
 
@@ -220,9 +225,78 @@ struct ypbind_setdom {
 
 
 /*
+ * NIS v1 support for backwards compatibility
+ */
+enum ypreqtype {
+	YPREQ_KEY = 1,
+	YPREQ_NOKEY = 2,
+	YPREQ_MAP_PARMS = 3
+};
+
+enum ypresptype {
+	YPRESP_VAL = 1,
+	YPRESP_KEY_VAL = 2,
+	YPRESP_MAP_PARMS = 3
+};
+
+union yprequest switch (ypreqtype yp_reqtype) {
+case YPREQ_KEY:
+	ypreq_key yp_req_keytype;
+case YPREQ_NOKEY:
+	ypreq_nokey yp_req_nokeytype;
+case YPREQ_MAP_PARMS:
+	ypmap_parms yp_req_map_parmstype;
+};
+
+union ypresponse switch (ypresptype yp_resptype) {
+case YPRESP_VAL:
+	ypresp_val yp_resp_valtype;
+case YPRESP_KEY_VAL:
+	ypresp_key_val yp_resp_key_valtype;
+case YPRESP_MAP_PARMS:
+	ypmap_parms yp_resp_map_parmstype;
+};
+
+#if !defined(YPBIND_ONLY) && !defined(YPPUSH_ONLY)
+/*
  * YP access protocol
  */
 program YPPROG {
+/*
+ * NIS v1 support for backwards compatibility
+ */
+	version YPOLDVERS {
+		void
+		YPOLDPROC_NULL(void) = 0;
+
+		bool
+		YPOLDPROC_DOMAIN(domainname) = 1;
+
+		bool
+		YPOLDPROC_DOMAIN_NONACK(domainname) = 2;
+
+		ypresponse
+		YPOLDPROC_MATCH(yprequest) = 3;
+
+		ypresponse
+		YPOLDPROC_FIRST(yprequest) = 4;
+
+		ypresponse
+		YPOLDPROC_NEXT(yprequest) = 5;
+
+		ypresponse
+		YPOLDPROC_POLL(yprequest) = 6;
+
+		ypresponse
+		YPOLDPROC_PUSH(yprequest) = 7;
+
+		ypresponse
+		YPOLDPROC_PULL(yprequest) = 8;
+
+		ypresponse
+		YPOLDPROC_GET(yprequest) = 9;
+	} = 1;
+
 	version YPVERS {
 		void 
 		YPPROC_NULL(void) = 0;
@@ -237,8 +311,11 @@ program YPPROG {
 		YPPROC_MATCH(ypreq_key) = 3;
 
 		ypresp_key_val 
+#ifdef STUPID_SUN_BUG /* should be ypreq_nokey */
 		YPPROC_FIRST(ypreq_key) = 4;
-
+#else
+		YPPROC_FIRST(ypreq_nokey) = 4;
+#endif
 		ypresp_key_val 
 		YPPROC_NEXT(ypreq_key) = 5;
 
@@ -261,8 +338,8 @@ program YPPROG {
 		YPPROC_MAPLIST(domainname) = 11;
 	} = 2;
 } = 100004;
-
-
+#endif
+#if !defined(YPSERV_ONLY) && !defined(YPBIND_ONLY)
 /*
  * YPPUSHPROC_XFRRESP is the callback routine for result of YPPROC_XFR
  */
@@ -270,13 +347,17 @@ program YPPUSH_XFRRESPPROG {
 	version YPPUSH_XFRRESPVERS {
 		void
 		YPPUSHPROC_NULL(void) = 0;
-
+#ifdef STUPID_SUN_BUG /* argument and return value are backwards */
 		yppushresp_xfr	
 		YPPUSHPROC_XFRRESP(void) = 1;
+#else
+		void
+		YPPUSHPROC_XFRRESP(yppushresp_xfr) = 1;
+#endif
 	} = 1;
 } = 0x40000000;	/* transient: could be anything up to 0x5fffffff */
-
-
+#endif
+#if !defined(YPSERV_ONLY) && !defined(YPPUSH_ONLY)
 /*
  * YP binding protocol
  */
@@ -293,4 +374,4 @@ program YPBINDPROG {
 	} = 2;
 } = 100007;
 
-
+#endif

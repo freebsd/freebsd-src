@@ -80,3 +80,17 @@ extern int f__scale;
 #define VAL(x) (x!='\n'?x:' ')
 #define PUT(x) (*f__putn)(x)
 extern int f__cursor;
+
+#undef TYQUAD
+#ifndef Allow_TYQUAD
+#undef longint
+#define longint long
+#else
+#define TYQUAD 14
+#endif
+
+#ifdef KR_headers
+extern char *f__icvt();
+#else
+extern char *f__icvt(longint, int*, int*, int);
+#endif

@@ -162,8 +162,8 @@ __END_DECLS
 #define	__SMBF	0x0080		/* _buf is from malloc */
 #define	__SAPP	0x0100		/* fdopen()ed in append mode */
 #define	__SSTR	0x0200		/* this is an sprintf/snprintf string */
-#define	__SOPT	0x0400		/* do fseek() optimisation */
-#define	__SNPT	0x0800		/* do not do fseek() optimisation */
+#define	__SOPT	0x0400		/* do fseek() optimization */
+#define	__SNPT	0x0800		/* do not do fseek() optimization */
 #define	__SOFF	0x1000		/* set iff _offset is in fact correct */
 #define	__SMOD	0x2000		/* true => fgetln modified _p text */
 
@@ -224,7 +224,7 @@ int	 ferror __P((FILE *));
 int	 fflush __P((FILE *));
 int	 fgetc __P((FILE *));
 int	 fgetpos __P((FILE *, fpos_t *));
-char	*fgets __P((char *, size_t, FILE *));
+char	*fgets __P((char *, int, FILE *));
 FILE	*fopen __P((const char *, const char *));
 int	 fprintf __P((FILE *, const char *, ...));
 int	 fputc __P((int, FILE *));
@@ -234,7 +234,7 @@ FILE	*freopen __P((const char *, const char *, FILE *));
 int	 fscanf __P((FILE *, const char *, ...));
 int	 fseek __P((FILE *, long, int));
 int	 fsetpos __P((FILE *, const fpos_t *));
-long	 ftell __P((const FILE *));
+long	 ftell __P((FILE *));
 size_t	 fwrite __P((const void *, size_t, size_t, FILE *));
 int	 getc __P((FILE *));
 int	 getchar __P((void));
@@ -283,6 +283,7 @@ __END_DECLS
  */
 #if !defined (_ANSI_SOURCE) && !defined(_POSIX_SOURCE)
 __BEGIN_DECLS
+int	 asprintf __P((char **, const char *, ...));
 char	*fgetln __P((FILE *, size_t *));
 int	 fpurge __P((FILE *));
 int	 getw __P((FILE *));
@@ -293,6 +294,7 @@ void	 setbuffer __P((FILE *, char *, int));
 int	 setlinebuf __P((FILE *));
 char	*tempnam __P((const char *, const char *));
 int	 snprintf __P((char *, size_t, const char *, ...));
+int	 vasprintf __P((char **, const char *, _BSD_VA_LIST_));
 int	 vsnprintf __P((char *, size_t, const char *, _BSD_VA_LIST_));
 int	 vscanf __P((const char *, _BSD_VA_LIST_));
 int	 vsscanf __P((const char *, const char *, _BSD_VA_LIST_));

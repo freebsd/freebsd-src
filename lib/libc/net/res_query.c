@@ -53,7 +53,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)res_query.c	8.1 (Berkeley) 6/4/93";
-static char rcsid[] = "$Id: res_query.c,v 1.4 1995/05/30 05:40:57 rgrimes Exp $";
+static char rcsid[] = "$Id: res_query.c,v 1.4.4.1 1995/08/30 04:06:57 davidg Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
@@ -139,21 +139,21 @@ res_query(name, class, type, answer, anslen)
 			    ntohs(hp->ancount));
 #endif
 		switch (hp->rcode) {
-			case NXDOMAIN:
-				h_errno = HOST_NOT_FOUND;
-				break;
-			case SERVFAIL:
-				h_errno = TRY_AGAIN;
-				break;
-			case NOERROR:
-				h_errno = NO_DATA;
-				break;
-			case FORMERR:
-			case NOTIMP:
-			case REFUSED:
-			default:
-				h_errno = NO_RECOVERY;
-				break;
+		case NXDOMAIN:
+			h_errno = HOST_NOT_FOUND;
+			break;
+		case SERVFAIL:
+			h_errno = TRY_AGAIN;
+			break;
+		case NOERROR:
+			h_errno = NO_DATA;
+			break;
+		case FORMERR:
+		case NOTIMP:
+		case REFUSED:
+		default:
+			h_errno = NO_RECOVERY;
+			break;
 		}
 		return (-1);
 	}
@@ -186,7 +186,7 @@ res_search(name, class, type, answer, anslen)
 	errno = 0;
 	h_errno = HOST_NOT_FOUND;	/* default, if we never query */
 	dots = 0;
-	for (cp = name;  *cp;  cp++)
+	for (cp = name; *cp; cp++)
 		dots += (*cp == '.');
 	trailing_dot = 0;
 	if (cp > name && *--cp == '.')

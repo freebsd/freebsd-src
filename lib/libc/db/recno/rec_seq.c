@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1991, 1993
+ * Copyright (c) 1991, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,7 +32,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)rec_seq.c	8.2 (Berkeley) 9/7/93";
+static char sccsid[] = "@(#)rec_seq.c	8.3 (Berkeley) 7/14/94";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -82,8 +82,8 @@ __rec_seq(dbp, key, data, flags)
 			goto einval;
 		break;
 	case R_NEXT:
-		if (ISSET(t, B_SEQINIT)) {
-			nrec = t->bt_rcursor + 1;
+		if (F_ISSET(&t->bt_cursor, CURS_INIT)) {
+			nrec = t->bt_cursor.rcursor + 1;
 			break;
 		}
 		/* FALLTHROUGH */
@@ -91,14 +91,14 @@ __rec_seq(dbp, key, data, flags)
 		nrec = 1;
 		break;
 	case R_PREV:
-		if (ISSET(t, B_SEQINIT)) {
-			if ((nrec = t->bt_rcursor - 1) == 0)
+		if (F_ISSET(&t->bt_cursor, CURS_INIT)) {
+			if ((nrec = t->bt_cursor.rcursor - 1) == 0)
 				return (RET_SPECIAL);
 			break;
 		}
 		/* FALLTHROUGH */
 	case R_LAST:
-		if (!ISSET(t, R_EOF | R_INMEM) &&
+		if (!F_ISSET(t, R_EOF | R_INMEM) &&
 		    t->bt_irec(t, MAX_REC_NUMBER) == RET_ERROR)
 			return (RET_ERROR);
 		nrec = t->bt_nrecs;
@@ -107,9 +107,9 @@ __rec_seq(dbp, key, data, flags)
 einval:		errno = EINVAL;
 		return (RET_ERROR);
 	}
-
+	
 	if (t->bt_nrecs == 0 || nrec > t->bt_nrecs) {
-		if (!ISSET(t, R_EOF | R_INMEM) &&
+		if (!F_ISSET(t, R_EOF | R_INMEM) &&
 		    (status = t->bt_irec(t, nrec)) != RET_SUCCESS)
 			return (status);
 		if (t->bt_nrecs == 0 || nrec > t->bt_nrecs)
@@ -119,11 +119,11 @@ einval:		errno = EINVAL;
 	if ((e = __rec_search(t, nrec - 1, SEARCH)) == NULL)
 		return (RET_ERROR);
 
-	SET(t, B_SEQINIT);
-	t->bt_rcursor = nrec;
+	F_SET(&t->bt_cursor, CURS_INIT);
+	t->bt_cursor.rcursor = nrec;
 
 	status = __rec_ret(t, e, nrec, key, data);
-	if (ISSET(t, B_DB_LOCK))
+	if (F_ISSET(t, B_DB_LOCK))
 		mpool_put(t->bt_mp, e->page, 0);
 	else
 		t->bt_pinned = e->page;

@@ -3,7 +3,7 @@
 .Os FreeBSD 2.0
 .Sh NAME
 .Nm tzfile
-.Nd time zone information
+.Nd timezone information
 .Sh SYNOPSIS
 .Fd #include <tzfile.h>
 .Sh DESCRIPTION
@@ -40,7 +40,7 @@ four-byte values of type
 sorted in ascending order.
 These values are written in ``standard'' byte order.
 Each is used as a transition time (as returned by
-.Xr time 2 )
+.Xr time 3 )
 at which the rules for computing local time change.
 Next come
 .Li tzh_timecnt
@@ -89,7 +89,7 @@ Then there are
 pairs of four-byte values, written in standard byte order;
 the first value of each pair gives the time
 (as returned by
-.Xr time 2 )
+.Xr time 3 )
 at which a leap second occurs;
 the second gives the
 .Em total

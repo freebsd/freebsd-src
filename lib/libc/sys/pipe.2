@@ -48,12 +48,13 @@ function
 creates a
 .Em pipe ,
 which is an object allowing
-unidirectional data flow,
+bidirectional data flow,
 and allocates a pair of file descriptors.
-The first descriptor connects to the
+.Pp
+By convention, the first descriptor is normally used as the
 .Em read end
 of the pipe,
-and the second connects to the
+and the second is normally the
 .Em write end  ,
 so that data written to
 .Fa fildes[1]
@@ -69,7 +70,7 @@ the read end of the pipe.
 The pipe itself persists until all its associated descriptors are
 closed.
 .Pp
-A pipe whose read or write end has been closed is considered
+A pipe that has had an end closed is considered
 .Em widowed .
 Writing on such a pipe causes the writing process to receive
 a
@@ -79,9 +80,10 @@ Widowing a pipe is the only way to deliver end-of-file to a reader:
 after the reader consumes any buffered data, reading a widowed pipe
 returns a zero count.
 .Pp
-Pipes are really a special case of the 
-.Xr socketpair 2
-call and, in fact, are implemented as such in the system.
+The bidirectional nature of this implementation of pipes is not
+portable to older systems, so it is recommended to use the convention
+for using the endpoints in the traditional manner when using a
+pipe in one direction.
 .Sh RETURN VALUES
 On successful creation of the pipe, zero is returned. Otherwise, 
 a value of -1 is returned and the variable
@@ -113,3 +115,5 @@ space.
 A
 .Nm
 function call appeared in Version 6 AT&T UNIX.
+.Pp
+Bidirectional pipes were first used on Unix System V release 4.

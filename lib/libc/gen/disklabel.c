@@ -32,7 +32,11 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)disklabel.c	8.1 (Berkeley) 6/4/93";
+#if 0
+static char sccsid[] = "@(#)disklabel.c	8.2 (Berkeley) 5/3/95";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -46,8 +50,8 @@ static char sccsid[] = "@(#)disklabel.c	8.1 (Berkeley) 6/4/93";
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <ctype.h>
 
-static int	error __P((int));
 static int	gettype __P((char *, char **));
 
 struct disklabel *
@@ -62,7 +66,7 @@ getdiskbyname(name)
 	char	*cp, *cq;	/* can't be register */
 	char	p, max, psize[3], pbsize[3],
 		pfsize[3], poffset[3], ptype[3];
-	u_long	*dx;
+	u_int32_t *dx;
 
 	if (cgetent(&buf, db_array, (char *) name) < 0)
 		return NULL;
@@ -166,18 +170,4 @@ gettype(t, names)
 	if (isdigit(*t))
 		return (atoi(t));
 	return (0);
-}
-
-static int
-error(err)
-	int err;
-{
-	char *p;
-
-	(void)write(STDERR_FILENO, "disktab: ", 9);
-	(void)write(STDERR_FILENO, _PATH_DISKTAB, sizeof(_PATH_DISKTAB) - 1);
-	(void)write(STDERR_FILENO, ": ", 2);
-	p = strerror(err);
-	(void)write(STDERR_FILENO, p, strlen(p));
-	(void)write(STDERR_FILENO, "\n", 1);
 }

@@ -33,8 +33,12 @@
  *	@(#)routed.h	8.1 (Berkeley) 6/2/93
  */
 
-#ifndef _PROTOCOLS_ROUTED_H_
-#define	_PROTOCOLS_ROUTED_H_
+#ifndef _ROUTED_H_
+#define	_ROUTED_H_
+#ifdef __cplusplus
+extern "C" {
+#endif
+#ident "$Revision: 1.4 $"
 
 /*
  * Routing Information Protocol
@@ -43,44 +47,93 @@
  * by changing 32-bit net numbers to sockaddr's and
  * padding stuff to 32-bit boundaries.
  */
-#define	RIPVERSION	1
 
+#define	RIPv1		1
+#define	RIPv2		2
+#ifndef RIPVERSION
+#define	RIPVERSION	RIPv1
+#endif
+
+#define RIP_PORT	520
+	
+#if RIPVERSION == 1
+/* Note that this so called sockaddr has a 2-byte sa_family and no sa_len.
+ * It is not a UNIX sockaddr, but the shape of an address as defined
+ * in RIPv1.
+ */
 struct netinfo {
 	struct	sockaddr rip_dst;	/* destination net/host */
 	int	rip_metric;		/* cost of route */
+};
+#else
+struct netinfo {
+	u_short	n_family;
+#define	    RIP_AF_INET	    htons(AF_INET)
+#define	    RIP_AF_UNSPEC   0
+#define	    RIP_AF_AUTH	    0xffff
+	u_short	n_tag;			/* optional in RIPv2 */
+	u_int	n_dst;			/* destination net or host */
+#define	    RIP_DEFAULT	    0
+	u_int	n_mask;			/* netmask in RIPv2 */
+	u_int	n_nhop;			/* optional next hop in RIPv2 */
+	u_int	n_metric;		/* cost of route */
+};
+#endif
+
+/* RIPv2 authentication */
+struct netauth {
+	u_short	a_type;
+#define	    RIP_AUTH_PW	    htons(2)	/* password type */
+	union {
+#define	    RIP_AUTH_PW_LEN 16
+	    char    au_pw[RIP_AUTH_PW_LEN];
+	} au;
 };
 
 struct rip {
 	u_char	rip_cmd;		/* request/response */
 	u_char	rip_vers;		/* protocol version # */
-	u_char	rip_res1[2];		/* pad to 32-bit boundary */
-	union {
-		struct	netinfo ru_nets[1];	/* variable length... */
-		char	ru_tracefile[1];	/* ditto ... */
+	u_short	rip_res1;		/* pad to 32-bit boundary */
+	union {				/* variable length... */
+	    struct netinfo ru_nets[1];
+	    char    ru_tracefile[1];
+	    struct netauth ru_auth[1];
 	} ripun;
 #define	rip_nets	ripun.ru_nets
 #define	rip_tracefile	ripun.ru_tracefile
 };
 
-/*
- * Packet types.
+/* Packet types.
  */
 #define	RIPCMD_REQUEST		1	/* want info */
 #define	RIPCMD_RESPONSE		2	/* responding to request */
 #define	RIPCMD_TRACEON		3	/* turn tracing on */
 #define	RIPCMD_TRACEOFF		4	/* turn it off */
 
-#define	RIPCMD_MAX		5
+/* Gated extended RIP to include a "poll" command instead of using
+ * RIPCMD_REQUEST with (RIP_AF_UNSPEC, RIP_DEFAULT).  RFC 1058 says
+ * command 5 is used by Sun Microsystems for its own purposes.
+ */
+#define RIPCMD_POLL		5
+
+#define	RIPCMD_MAX		6
+
 #ifdef RIPCMDS
-char *ripcmds[RIPCMD_MAX] =
-  { "#0", "REQUEST", "RESPONSE", "TRACEON", "TRACEOFF" };
+char *ripcmds[RIPCMD_MAX] = {
+	"#0", "REQUEST", "RESPONSE", "TRACEON", "TRACEOFF"
+};
 #endif
 
-#define	HOPCNT_INFINITY		16	/* per Xerox NS */
+#define	HOPCNT_INFINITY		16
 #define	MAXPACKETSIZE		512	/* max broadcast size */
+#define NETS_LEN ((MAXPACKETSIZE-sizeof(struct rip))	\
+		      / sizeof(struct netinfo) +1)
 
-/*
- * Timer values used in managing the routing table.
+#define INADDR_RIP_GROUP (u_long)0xe0000009 /* 224.0.0.9 */
+
+
+/* Timer values used in managing the routing table.
+ *
  * Complete tables are broadcast every SUPPLY_INTERVAL seconds.
  * If changes occur between updates, dynamic updates containing only changes
  * may be sent.  When these are sent, a timer is set for a random value
@@ -89,16 +142,30 @@ char *ripcmds[RIPCMD_MAX] =
  *
  * Every update of a routing entry forces an entry's timer to be reset.
  * After EXPIRE_TIME without updates, the entry is marked invalid,
- * but held onto until GARBAGE_TIME so that others may
- * see it "be deleted".
+ * but held onto until GARBAGE_TIME so that others may see it, to
+ * "poison" the bad route.
  */
-#define	TIMER_RATE		30	/* alarm clocks every 30 seconds */
-
 #define	SUPPLY_INTERVAL		30	/* time to supply tables */
-#define	MIN_WAITTIME		2	/* min. interval to broadcast changes */
-#define	MAX_WAITTIME		5	/* max. time to delay changes */
+#define	MIN_WAITTIME		2	/* min sec until next flash updates */
+#define	MAX_WAITTIME		5	/* max sec until flash update */
 
+#define STALE_TIME		90	/* switch to a new gateway */
 #define	EXPIRE_TIME		180	/* time to mark entry invalid */
 #define	GARBAGE_TIME		240	/* time to garbage collect */
 
+/* It is good to continue advertising bad routes this long so other
+ * routers notice.  This is fairly cheap, so it can be long.  It
+ * should be long to combat bogus holddowns implemented by major
+ * router vendors.
+ */
+#define POISON_TIME		120
+
+/* Do not switch to a new route for this long after a route has gone
+ * bad, to ensure that the new route is not a remanent of the old route.
+ */
+#define HOLD_TIME		(MAX_WAITTIME*2)
+
+#ifdef __cplusplus
+}
+#endif
 #endif /* !_ROUTED_H_ */

@@ -51,7 +51,8 @@ vis(dst, c, flag, nextc)
 	int c, nextc;
 	register int flag;
 {
-	if ((u_int)c <= UCHAR_MAX && isgraph(c) ||
+	c = (unsigned char)c;
+	if (isgraph(c) ||
 	   ((flag & VIS_SP) == 0 && c == ' ') ||
 	   ((flag & VIS_TAB) == 0 && c == '\t') ||
 	   ((flag & VIS_NL) == 0 && c == '\n') ||

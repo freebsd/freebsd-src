@@ -29,9 +29,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	@(#)hash.3	8.5 (Berkeley) 2/21/94
+.\"	@(#)hash.3	8.6 (Berkeley) 8/18/94
 .\"
-.TH HASH 3 "February 21, 1994"
+.TH HASH 3 "August 18, 1994"
 .UC 7
 .SH NAME
 hash \- hash database access method
@@ -131,12 +131,19 @@ If a hash function is specified,
 will attempt to determine if the hash function specified is the same as
 the one with which the database was created, and will fail if it is not.
 .PP
-Backward compatible interfaces to the routines described in
-.IR dbm (3),
+Backward compatible interfaces to the older
+.I dbm
 and
-.IR ndbm (3)
-are provided, however these interfaces are not compatible with
+.I ndbm
+routines are provided, however these interfaces are not compatible with
 previous file formats.
+.SH ERRORS
+The
+.I hash
+access method routines may fail and set
+.I errno
+for any of the errors specified for the library routine
+.IR dbopen (3).
 .SH "SEE ALSO"
 .IR btree (3),
 .IR dbopen (3),

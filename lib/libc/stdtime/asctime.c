@@ -1,5 +1,4 @@
 
-
 #ifndef lint
 #ifndef NOID
 static char	elsieid[] = "@(#)asctime.c	7.5";

@@ -7,7 +7,7 @@
  * program developed by the user.
  *
  * SUN RPC IS PROVIDED AS IS WITH NO WARRANTIES OF ANY KIND INCLUDING THE
- * WARRANTIES OF DESIGN, MERCHANTIBILITY AND FITNESS FOR A PARTICULAR
+ * WARRANTIES OF DESIGN, MERCHANTABILITY AND FITNESS FOR A PARTICULAR
  * PURPOSE, OR ARISING FROM A COURSE OF DEALING, USAGE OR TRADE PRACTICE.
  *
  * Sun RPC is provided with no support and without any obligation on the
@@ -28,7 +28,7 @@
  *
  *	from: @(#)svc_auth.h 1.6 86/07/16 SMI
  *	from: @(#)svc_auth.h	2.1 88/07/29 4.0 RPCSRC
- *	$Id: svc_auth.h,v 1.2 1994/08/07 18:41:01 wollman Exp $
+ *	$Id: svc_auth.h,v 1.4 1996/01/30 23:32:36 mpp Exp $
  */
 
 /*

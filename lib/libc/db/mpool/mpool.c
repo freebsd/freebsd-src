@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1990, 1993
+ * Copyright (c) 1990, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,10 +32,11 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)mpool.c	8.2 (Berkeley) 2/21/94";
+static char sccsid[] = "@(#)mpool.c	8.5 (Berkeley) 7/26/94";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
+#include <sys/queue.h>
 #include <sys/stat.h>
 
 #include <errno.h>
@@ -45,31 +46,21 @@ static char sccsid[] = "@(#)mpool.c	8.2 (Berkeley) 2/21/94";
 #include <unistd.h>
 
 #include <db.h>
+
 #define	__MPOOLINTERFACE_PRIVATE
-#include "mpool.h"
+#include <mpool.h>
 
 static BKT *mpool_bkt __P((MPOOL *));
 static BKT *mpool_look __P((MPOOL *, pgno_t));
 static int  mpool_write __P((MPOOL *, BKT *));
-#ifdef DEBUG
-static void __mpoolerr __P((const char *fmt, ...));
-#endif
 
 /*
- * MPOOL_OPEN -- initialize a memory pool.
- *
- * Parameters:
- *	key:		Shared buffer key.
- *	fd:		File descriptor.
- *	pagesize:	File page size.
- *	maxcache:	Max number of cached pages.
- *
- * Returns:
- *	MPOOL pointer, NULL on error.
+ * mpool_open --
+ *	Initialize a memory pool.
  */
 MPOOL *
 mpool_open(key, fd, pagesize, maxcache)
-	DBT *key;
+	void *key;
 	int fd;
 	pgno_t pagesize, maxcache;
 {
@@ -77,49 +68,35 @@ mpool_open(key, fd, pagesize, maxcache)
 	MPOOL *mp;
 	int entry;
 
+	/*
+	 * Get information about the file.
+	 *
+	 * XXX
+	 * We don't currently handle pipes, although we should.
+	 */
 	if (fstat(fd, &sb))
 		return (NULL);
-	/* XXX
-	 * We should only set st_size to 0 for pipes -- 4.4BSD has the fix so
-	 * that stat(2) returns true for ISSOCK on pipes.  Until then, this is
-	 * fairly close.
-	 */
 	if (!S_ISREG(sb.st_mode)) {
 		errno = ESPIPE;
 		return (NULL);
 	}
 
-	if ((mp = (MPOOL *)malloc(sizeof(MPOOL))) == NULL)
+	/* Allocate and initialize the MPOOL cookie. */
+	if ((mp = (MPOOL *)calloc(1, sizeof(MPOOL))) == NULL)
 		return (NULL);
-	mp->free.cnext = mp->free.cprev = (BKT *)&mp->free;
-	mp->lru.cnext = mp->lru.cprev = (BKT *)&mp->lru;
+	CIRCLEQ_INIT(&mp->lqh);
 	for (entry = 0; entry < HASHSIZE; ++entry)
-		mp->hashtable[entry].hnext = mp->hashtable[entry].hprev =
-		    mp->hashtable[entry].cnext = mp->hashtable[entry].cprev =
-		    (BKT *)&mp->hashtable[entry];
-	mp->curcache = 0;
+		CIRCLEQ_INIT(&mp->hqh[entry]);
 	mp->maxcache = maxcache;
-	mp->pagesize = pagesize;
 	mp->npages = sb.st_size / pagesize;
+	mp->pagesize = pagesize;
 	mp->fd = fd;
-	mp->pgcookie = NULL;
-	mp->pgin = mp->pgout = NULL;
-
-#ifdef STATISTICS
-	mp->cachehit = mp->cachemiss = mp->pagealloc = mp->pageflush =
-	    mp->pageget = mp->pagenew = mp->pageput = mp->pageread =
-	    mp->pagewrite = 0;
-#endif
 	return (mp);
 }
 
 /*
- * MPOOL_FILTER -- initialize input/output filters.
- *
- * Parameters:
- *	pgin:		Page in conversion routine.
- *	pgout:		Page out conversion routine.
- *	pgcookie:	Cookie for page in/out routines.
+ * mpool_filter --
+ *	Initialize input/output filters.
  */
 void
 mpool_filter(mp, pgin, pgout, pgcookie)
@@ -132,126 +109,130 @@ mpool_filter(mp, pgin, pgout, pgcookie)
 	mp->pgout = pgout;
 	mp->pgcookie = pgcookie;
 }
-
+	
 /*
- * MPOOL_NEW -- get a new page
- *
- * Parameters:
- *	mp:		mpool cookie
- *	pgnoadddr:	place to store new page number
- * Returns:
- *	RET_ERROR, RET_SUCCESS
+ * mpool_new --
+ *	Get a new page of memory.
  */
 void *
 mpool_new(mp, pgnoaddr)
 	MPOOL *mp;
 	pgno_t *pgnoaddr;
 {
-	BKT *b;
-	BKTHDR *hp;
+	struct _hqh *head;
+	BKT *bp;
 
+	if (mp->npages == MAX_PAGE_NUMBER) {
+		(void)fprintf(stderr, "mpool_new: page allocation overflow.\n");
+		abort();
+	}
 #ifdef STATISTICS
 	++mp->pagenew;
 #endif
 	/*
-	 * Get a BKT from the cache.  Assign a new page number, attach it to
-	 * the hash and lru chains and return.
+	 * Get a BKT from the cache.  Assign a new page number, attach
+	 * it to the head of the hash chain, the tail of the lru chain,
+	 * and return.
 	 */
-	if ((b = mpool_bkt(mp)) == NULL)
+	if ((bp = mpool_bkt(mp)) == NULL)
 		return (NULL);
-	*pgnoaddr = b->pgno = mp->npages++;
-	b->flags = MPOOL_PINNED;
-	inshash(b, b->pgno);
-	inschain(b, &mp->lru);
-	return (b->page);
+	*pgnoaddr = bp->pgno = mp->npages++;
+	bp->flags = MPOOL_PINNED;
+
+	head = &mp->hqh[HASHKEY(bp->pgno)];
+	CIRCLEQ_INSERT_HEAD(head, bp, hq);
+	CIRCLEQ_INSERT_TAIL(&mp->lqh, bp, q);
+	return (bp->page);
 }
 
 /*
- * MPOOL_GET -- get a page from the pool
- *
- * Parameters:
- *	mp:	mpool cookie
- *	pgno:	page number
- *	flags:	not used
- *
- * Returns:
- *	RET_ERROR, RET_SUCCESS
+ * mpool_get
+ *	Get a page.
  */
 void *
 mpool_get(mp, pgno, flags)
 	MPOOL *mp;
 	pgno_t pgno;
-	u_int flags;		/* XXX not used? */
+	u_int flags;				/* XXX not used? */
 {
-	BKT *b;
-	BKTHDR *hp;
+	struct _hqh *head;
+	BKT *bp;
 	off_t off;
 	int nr;
 
-	/*
-	 * If asking for a specific page that is already in the cache, find
-	 * it and return it.
-	 */
-	if (b = mpool_look(mp, pgno)) {
-#ifdef STATISTICS
-		++mp->pageget;
-#endif
-#ifdef DEBUG
-		if (b->flags & MPOOL_PINNED)
-			__mpoolerr("mpool_get: page %d already pinned",
-			    b->pgno);
-#endif
-		rmchain(b);
-		inschain(b, &mp->lru);
-		b->flags |= MPOOL_PINNED;
-		return (b->page);
-	}
-
-	/* Not allowed to retrieve a non-existent page. */
+	/* Check for attempt to retrieve a non-existent page. */
 	if (pgno >= mp->npages) {
 		errno = EINVAL;
 		return (NULL);
 	}
 
-	/* Get a page from the cache. */
-	if ((b = mpool_bkt(mp)) == NULL)
-		return (NULL);
-	b->pgno = pgno;
-	b->flags = MPOOL_PINNED;
+#ifdef STATISTICS
+	++mp->pageget;
+#endif
 
+	/* Check for a page that is cached. */
+	if ((bp = mpool_look(mp, pgno)) != NULL) {
+#ifdef DEBUG
+		if (bp->flags & MPOOL_PINNED) {
+			(void)fprintf(stderr,
+			    "mpool_get: page %d already pinned\n", bp->pgno);
+			abort();
+		}
+#endif
+		/*
+		 * Move the page to the head of the hash chain and the tail
+		 * of the lru chain.
+		 */
+		head = &mp->hqh[HASHKEY(bp->pgno)];
+		CIRCLEQ_REMOVE(head, bp, hq);
+		CIRCLEQ_INSERT_HEAD(head, bp, hq);
+		CIRCLEQ_REMOVE(&mp->lqh, bp, q);
+		CIRCLEQ_INSERT_TAIL(&mp->lqh, bp, q);
+
+		/* Return a pinned page. */
+		bp->flags |= MPOOL_PINNED;
+		return (bp->page);
+	}
+
+	/* Get a page from the cache. */
+	if ((bp = mpool_bkt(mp)) == NULL)
+		return (NULL);
+
+	/* Read in the contents. */
 #ifdef STATISTICS
 	++mp->pageread;
 #endif
-	/* Read in the contents. */
 	off = mp->pagesize * pgno;
 	if (lseek(mp->fd, off, SEEK_SET) != off)
 		return (NULL);
-	if ((nr = read(mp->fd, b->page, mp->pagesize)) != mp->pagesize) {
+	if ((nr = read(mp->fd, bp->page, mp->pagesize)) != mp->pagesize) {
 		if (nr >= 0)
 			errno = EFTYPE;
 		return (NULL);
 	}
-	if (mp->pgin)
-		(mp->pgin)(mp->pgcookie, b->pgno, b->page);
 
-	inshash(b, b->pgno);
-	inschain(b, &mp->lru);
-#ifdef STATISTICS
-	++mp->pageget;
-#endif
-	return (b->page);
+	/* Set the page number, pin the page. */
+	bp->pgno = pgno;
+	bp->flags = MPOOL_PINNED;
+
+	/*
+	 * Add the page to the head of the hash chain and the tail
+	 * of the lru chain.
+	 */
+	head = &mp->hqh[HASHKEY(bp->pgno)];
+	CIRCLEQ_INSERT_HEAD(head, bp, hq);
+	CIRCLEQ_INSERT_TAIL(&mp->lqh, bp, q);
+
+	/* Run through the user's filter. */
+	if (mp->pgin != NULL)
+		(mp->pgin)(mp->pgcookie, bp->pgno, bp->page);
+
+	return (bp->page);
 }
 
 /*
- * MPOOL_PUT -- return a page to the pool
- *
- * Parameters:
- *	mp:	mpool cookie
- *	page:	page pointer
- *	pgno:	page number
- *
- * Returns:
- *	RET_ERROR, RET_SUCCESS
+ * mpool_put
+ *	Return a page.
  */
 int
 mpool_put(mp, page, flags)
@@ -259,193 +240,172 @@ mpool_put(mp, page, flags)
 	void *page;
 	u_int flags;
 {
-	BKT *baddr;
-#ifdef DEBUG
-	BKT *b;
-#endif
+	BKT *bp;
 
 #ifdef STATISTICS
 	++mp->pageput;
 #endif
-	baddr = (BKT *)((char *)page - sizeof(BKT));
+	bp = (BKT *)((char *)page - sizeof(BKT));
 #ifdef DEBUG
-	if (!(baddr->flags & MPOOL_PINNED))
-		__mpoolerr("mpool_put: page %d not pinned", b->pgno);
-	for (b = mp->lru.cnext; b != (BKT *)&mp->lru; b = b->cnext) {
-		if (b == (BKT *)&mp->lru)
-			__mpoolerr("mpool_put: %0x: bad address", baddr);
-		if (b == baddr)
-			break;
+	if (!(bp->flags & MPOOL_PINNED)) {
+		(void)fprintf(stderr,
+		    "mpool_put: page %d not pinned\n", bp->pgno);
+		abort();
 	}
 #endif
-	baddr->flags &= ~MPOOL_PINNED;
-	baddr->flags |= flags & MPOOL_DIRTY;
+	bp->flags &= ~MPOOL_PINNED;
+	bp->flags |= flags & MPOOL_DIRTY;
 	return (RET_SUCCESS);
 }
 
 /*
- * MPOOL_CLOSE -- close the buffer pool
- *
- * Parameters:
- *	mp:	mpool cookie
- *
- * Returns:
- *	RET_ERROR, RET_SUCCESS
+ * mpool_close
+ *	Close the buffer pool.
  */
 int
 mpool_close(mp)
 	MPOOL *mp;
 {
-	BKT *b, *next;
+	BKT *bp;
 
 	/* Free up any space allocated to the lru pages. */
-	for (b = mp->lru.cprev; b != (BKT *)&mp->lru; b = next) {
-		next = b->cprev;
-		free(b);
+	while ((bp = mp->lqh.cqh_first) != (void *)&mp->lqh) {
+		CIRCLEQ_REMOVE(&mp->lqh, mp->lqh.cqh_first, q);
+		free(bp);
 	}
+
+	/* Free the MPOOL cookie. */
 	free(mp);
 	return (RET_SUCCESS);
 }
 
 /*
- * MPOOL_SYNC -- sync the file to disk.
- *
- * Parameters:
- *	mp:	mpool cookie
- *
- * Returns:
- *	RET_ERROR, RET_SUCCESS
+ * mpool_sync
+ *	Sync the pool to disk.
  */
 int
 mpool_sync(mp)
 	MPOOL *mp;
 {
-	BKT *b;
+	BKT *bp;
 
-	for (b = mp->lru.cprev; b != (BKT *)&mp->lru; b = b->cprev)
-		if (b->flags & MPOOL_DIRTY && mpool_write(mp, b) == RET_ERROR)
+	/* Walk the lru chain, flushing any dirty pages to disk. */
+	for (bp = mp->lqh.cqh_first;
+	    bp != (void *)&mp->lqh; bp = bp->q.cqe_next)
+		if (bp->flags & MPOOL_DIRTY &&
+		    mpool_write(mp, bp) == RET_ERROR)
 			return (RET_ERROR);
+
+	/* Sync the file descriptor. */
 	return (fsync(mp->fd) ? RET_ERROR : RET_SUCCESS);
 }
 
 /*
- * MPOOL_BKT -- get/create a BKT from the cache
- *
- * Parameters:
- *	mp:	mpool cookie
- *
- * Returns:
- *	NULL on failure and a pointer to the BKT on success
+ * mpool_bkt
+ *	Get a page from the cache (or create one).
  */
 static BKT *
 mpool_bkt(mp)
 	MPOOL *mp;
 {
-	BKT *b;
+	struct _hqh *head;
+	BKT *bp;
 
+	/* If under the max cached, always create a new page. */
 	if (mp->curcache < mp->maxcache)
 		goto new;
 
 	/*
-	 * If the cache is maxxed out, search the lru list for a buffer we
-	 * can flush.  If we find one, write it if necessary and take it off
-	 * any lists.  If we don't find anything we grow the cache anyway.
+	 * If the cache is max'd out, walk the lru list for a buffer we
+	 * can flush.  If we find one, write it (if necessary) and take it
+	 * off any lists.  If we don't find anything we grow the cache anyway.
 	 * The cache never shrinks.
 	 */
-	for (b = mp->lru.cprev; b != (BKT *)&mp->lru; b = b->cprev)
-		if (!(b->flags & MPOOL_PINNED)) {
-			if (b->flags & MPOOL_DIRTY &&
-			    mpool_write(mp, b) == RET_ERROR)
+	for (bp = mp->lqh.cqh_first;
+	    bp != (void *)&mp->lqh; bp = bp->q.cqe_next)
+		if (!(bp->flags & MPOOL_PINNED)) {
+			/* Flush if dirty. */
+			if (bp->flags & MPOOL_DIRTY &&
+			    mpool_write(mp, bp) == RET_ERROR)
 				return (NULL);
-			rmhash(b);
-			rmchain(b);
 #ifdef STATISTICS
 			++mp->pageflush;
 #endif
+			/* Remove from the hash and lru queues. */
+			head = &mp->hqh[HASHKEY(bp->pgno)];
+			CIRCLEQ_REMOVE(head, bp, hq);
+			CIRCLEQ_REMOVE(&mp->lqh, bp, q);
 #ifdef DEBUG
-			{
-				void *spage;
-				spage = b->page;
-				memset(b, 0xff, sizeof(BKT) + mp->pagesize);
-				b->page = spage;
+			{ void *spage;
+				spage = bp->page;
+				memset(bp, 0xff, sizeof(BKT) + mp->pagesize);
+				bp->page = spage;
 			}
 #endif
-			return (b);
+			return (bp);
 		}
 
-new:	if ((b = (BKT *)malloc(sizeof(BKT) + mp->pagesize)) == NULL)
+new:	if ((bp = (BKT *)malloc(sizeof(BKT) + mp->pagesize)) == NULL)
 		return (NULL);
 #ifdef STATISTICS
 	++mp->pagealloc;
 #endif
-#ifdef DEBUG
-	memset(b, 0xff, sizeof(BKT) + mp->pagesize);
+#if defined(DEBUG) || defined(PURIFY)
+	memset(bp, 0xff, sizeof(BKT) + mp->pagesize);
 #endif
-	b->page = (char *)b + sizeof(BKT);
+	bp->page = (char *)bp + sizeof(BKT);
 	++mp->curcache;
-	return (b);
+	return (bp);
 }
 
 /*
- * MPOOL_WRITE -- sync a page to disk
- *
- * Parameters:
- *	mp:	mpool cookie
- *
- * Returns:
- *	RET_ERROR, RET_SUCCESS
+ * mpool_write
+ *	Write a page to disk.
  */
 static int
-mpool_write(mp, b)
+mpool_write(mp, bp)
 	MPOOL *mp;
-	BKT *b;
+	BKT *bp;
 {
 	off_t off;
-
-	if (mp->pgout)
-		(mp->pgout)(mp->pgcookie, b->pgno, b->page);
 
 #ifdef STATISTICS
 	++mp->pagewrite;
 #endif
-	off = mp->pagesize * b->pgno;
+
+	/* Run through the user's filter. */
+	if (mp->pgout)
+		(mp->pgout)(mp->pgcookie, bp->pgno, bp->page);
+
+	off = mp->pagesize * bp->pgno;
 	if (lseek(mp->fd, off, SEEK_SET) != off)
 		return (RET_ERROR);
-	if (write(mp->fd, b->page, mp->pagesize) != mp->pagesize)
+	if (write(mp->fd, bp->page, mp->pagesize) != mp->pagesize)
 		return (RET_ERROR);
-	b->flags &= ~MPOOL_DIRTY;
+
+	bp->flags &= ~MPOOL_DIRTY;
 	return (RET_SUCCESS);
 }
 
 /*
- * MPOOL_LOOK -- lookup a page
- *
- * Parameters:
- *	mp:	mpool cookie
- *	pgno:	page number
- *
- * Returns:
- *	NULL on failure and a pointer to the BKT on success
+ * mpool_look
+ *	Lookup a page in the cache.
  */
 static BKT *
 mpool_look(mp, pgno)
 	MPOOL *mp;
 	pgno_t pgno;
 {
-	register BKT *b;
-	register BKTHDR *tb;
+	struct _hqh *head;
+	BKT *bp;
 
-	/* XXX
-	 * If find the buffer, put it first on the hash chain so can
-	 * find it again quickly.
-	 */
-	tb = &mp->hashtable[HASHKEY(pgno)];
-	for (b = tb->hnext; b != (BKT *)tb; b = b->hnext)
-		if (b->pgno == pgno) {
+	head = &mp->hqh[HASHKEY(pgno)];
+	for (bp = head->cqh_first; bp != (void *)head; bp = bp->hq.cqe_next)
+		if (bp->pgno == pgno) {
 #ifdef STATISTICS
 			++mp->cachehit;
 #endif
-			return (b);
+			return (bp);
 		}
 #ifdef STATISTICS
 	++mp->cachemiss;
@@ -455,16 +415,14 @@ mpool_look(mp, pgno)
 
 #ifdef STATISTICS
 /*
- * MPOOL_STAT -- cache statistics
- *
- * Parameters:
- *	mp:	mpool cookie
+ * mpool_stat
+ *	Print out cache statistics.
  */
 void
 mpool_stat(mp)
 	MPOOL *mp;
 {
-	BKT *b;
+	BKT *bp;
 	int cnt;
 	char *sep;
 
@@ -478,7 +436,7 @@ mpool_stat(mp)
 	    mp->pagealloc, mp->pageflush);
 	if (mp->cachehit + mp->cachemiss)
 		(void)fprintf(stderr,
-		    "%.0f%% cache hit rate (%lu hits, %lu misses)\n",
+		    "%.0f%% cache hit rate (%lu hits, %lu misses)\n", 
 		    ((double)mp->cachehit / (mp->cachehit + mp->cachemiss))
 		    * 100, mp->cachehit, mp->cachemiss);
 	(void)fprintf(stderr, "%lu page reads, %lu page writes\n",
@@ -486,49 +444,20 @@ mpool_stat(mp)
 
 	sep = "";
 	cnt = 0;
-	for (b = mp->lru.cnext; b != (BKT *)&mp->lru; b = b->cnext) {
-		(void)fprintf(stderr, "%s%d", sep, b->pgno);
-		if (b->flags & MPOOL_DIRTY)
+	for (bp = mp->lqh.cqh_first;
+	    bp != (void *)&mp->lqh; bp = bp->q.cqe_next) {
+		(void)fprintf(stderr, "%s%d", sep, bp->pgno);
+		if (bp->flags & MPOOL_DIRTY)
 			(void)fprintf(stderr, "d");
-		if (b->flags & MPOOL_PINNED)
+		if (bp->flags & MPOOL_PINNED)
 			(void)fprintf(stderr, "P");
 		if (++cnt == 10) {
 			sep = "\n";
 			cnt = 0;
 		} else
 			sep = ", ";
-
+			
 	}
 	(void)fprintf(stderr, "\n");
-}
-#endif
-
-#ifdef DEBUG
-#if __STDC__
-#include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
-
-static void
-#if __STDC__
-__mpoolerr(const char *fmt, ...)
-#else
-__mpoolerr(fmt, va_alist)
-	char *fmt;
-	va_dcl
-#endif
-{
-	va_list ap;
-#if __STDC__
-	va_start(ap, fmt);
-#else
-	va_start(ap);
-#endif
-	(void)vfprintf(stderr, fmt, ap);
-	va_end(ap);
-	(void)fprintf(stderr, "\n");
-	abort();
-	/* NOTREACHED */
 }
 #endif

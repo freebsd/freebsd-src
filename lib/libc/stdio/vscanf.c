@@ -39,11 +39,24 @@ static char sccsid[] = "@(#)vscanf.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
 
 #include <stdio.h>
+#ifdef _THREAD_SAFE
+#include <pthread.h>
+#include "pthread_private.h"
+#endif
 
+int
 vscanf(fmt, ap)
 	const char *fmt;
 	_BSD_VA_LIST_ ap;
 {
+	int retval;
 
-	return (__svfscanf(stdin, fmt, ap));
+#ifdef _THREAD_SAFE
+	_thread_flockfile(stdin,__FILE__,__LINE__);
+#endif
+	retval = __svfscanf(stdin, fmt, ap);
+#ifdef _THREAD_SAFE
+	_thread_funlockfile(stdin);
+#endif
+	return (retval);
 }

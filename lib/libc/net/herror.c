@@ -53,7 +53,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)herror.c	8.1 (Berkeley) 6/4/93";
-static char rcsid[] = "$Id: herror.c,v 1.2 1995/05/30 05:40:49 rgrimes Exp $";
+static char rcsid[] = "$Id: herror.c,v 1.2.4.1 1995/08/30 04:06:46 davidg Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/types.h>
@@ -69,7 +69,7 @@ const char *h_errlist[] = {
 	"Unknown server error",			/* 3 NO_RECOVERY */
 	"No address associated with name",	/* 4 NO_ADDRESS */
 };
-int	h_nerr = { sizeof(h_errlist)/sizeof(h_errlist[0]) };
+int	h_nerr = { sizeof h_errlist / sizeof h_errlist[0] };
 
 extern int	h_errno;
 

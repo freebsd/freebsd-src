@@ -7,7 +7,7 @@
  * program developed by the user.
  *
  * SUN RPC IS PROVIDED AS IS WITH NO WARRANTIES OF ANY KIND INCLUDING THE
- * WARRANTIES OF DESIGN, MERCHANTIBILITY AND FITNESS FOR A PARTICULAR
+ * WARRANTIES OF DESIGN, MERCHANTABILITY AND FITNESS FOR A PARTICULAR
  * PURPOSE, OR ARISING FROM A COURSE OF DEALING, USAGE OR TRADE PRACTICE.
  *
  * Sun RPC is provided with no support and without any obligation on the
@@ -28,7 +28,7 @@
  *
  *	from: @(#)svc.h 1.20 88/02/08 SMI
  *	from: @(#)svc.h	2.2 88/07/29 4.0 RPCSRC
- *	$Id: svc.h,v 1.3 1995/02/24 08:57:45 phk Exp $
+ *	$Id: svc.h,v 1.5 1996/01/30 23:32:29 mpp Exp $
  */
 
 /*
@@ -76,7 +76,7 @@ typedef struct {
 	int		xp_sock;
 	u_short		xp_port;	 /* associated port number */
 	struct xp_ops {
-	    bool_t	(*xp_recv)();	 /* receive incomming requests */
+	    bool_t	(*xp_recv)();	 /* receive incoming requests */
 	    enum xprt_stat (*xp_stat)(); /* get transport status */
 	    bool_t	(*xp_getargs)(); /* get arguments */
 	    bool_t	(*xp_reply)();	 /* send reply */

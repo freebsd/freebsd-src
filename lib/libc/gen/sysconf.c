@@ -39,6 +39,7 @@ static char sccsid[] = "@(#)sysconf.c	8.2 (Berkeley) 3/20/94";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/param.h>
+#include <sys/time.h>
 #include <sys/sysctl.h>
 #include <sys/resource.h>
 
@@ -62,7 +63,6 @@ long
 sysconf(name)
 	int name;
 {
-	struct clockinfo clk;
 	struct rlimit rl;
 	size_t len;
 	int mib[2], value;

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1982, 1986, 1991, 1993
+ * Copyright (c) 1982, 1986, 1991, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  * (c) UNIX System Laboratories, Inc.
  * All or some portions of this file are derived from material licensed
@@ -35,17 +35,16 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)types.h	8.4 (Berkeley) 1/21/94
- * $Id: types.h,v 1.3 1994/09/16 11:44:45 paul Exp $
+ *	@(#)types.h	8.6 (Berkeley) 2/19/95
+ * $Id: types.h,v 1.11 1996/04/30 23:35:57 bde Exp $
  */
 
 #ifndef _SYS_TYPES_H_
 #define	_SYS_TYPES_H_
 
-#include <sys/cdefs.h>
-
 /* Machine type dependent parameters. */
-#include <machine/endian.h>
+#include <machine/ansi.h>
+#include <machine/types.h>
 
 #ifndef _POSIX_SOURCE
 typedef	unsigned char	u_char;
@@ -56,23 +55,29 @@ typedef	unsigned short	ushort;		/* Sys V compatibility */
 typedef	unsigned int	uint;		/* Sys V compatibility */
 #endif
 
-typedef	unsigned long long u_quad_t;	/* quads */
-typedef	long long	quad_t;
+typedef	u_int64_t	u_quad_t;	/* quads */
+typedef	int64_t		quad_t;
 typedef	quad_t *	qaddr_t;
 
 typedef	char *		caddr_t;	/* core address */
-typedef	long		daddr_t;	/* disk address */
-typedef	unsigned long	dev_t;		/* device number */
-typedef unsigned long	fixpt_t;	/* fixed point number */
-typedef	unsigned long	gid_t;		/* group id */
-typedef	unsigned long	ino_t;		/* inode number */
-typedef	unsigned short	mode_t;		/* permissions */
-typedef	unsigned short	nlink_t;	/* link count */
-typedef	quad_t		off_t;		/* file offset */
-typedef	long		pid_t;		/* process id */
-typedef	long		segsz_t;	/* segment size */
-typedef	long		swblk_t;	/* swap offset */
-typedef	unsigned long	uid_t;		/* user id */
+typedef	int32_t		daddr_t;	/* disk address */
+typedef	u_int32_t	dev_t;		/* device number */
+typedef u_int32_t	fixpt_t;	/* fixed point number */
+typedef	u_int32_t	gid_t;		/* group id */
+typedef	u_int32_t	ino_t;		/* inode number */
+typedef	long		key_t;		/* IPC key (for Sys V IPC) */
+typedef	u_int16_t	mode_t;		/* permissions */
+typedef	u_int16_t	nlink_t;	/* link count */
+typedef	_BSD_OFF_T_	off_t;		/* file offset */
+typedef	_BSD_PID_T_	pid_t;		/* process id */
+typedef	int32_t		segsz_t;	/* segment size */
+typedef	int32_t		swblk_t;	/* swap offset */
+typedef	u_int32_t	uid_t;		/* user id */
+
+#ifdef KERNEL
+typedef	int		boolean_t;
+typedef	struct vm_page	*vm_page_t;
+#endif
 
 /*
  * This belongs in unistd.h, but is placed here to ensure that programs
@@ -80,6 +85,7 @@ typedef	unsigned long	uid_t;		/* user id */
  * version of lseek.
  */
 #ifndef KERNEL
+#include <sys/cdefs.h>
 __BEGIN_DECLS
 off_t	 lseek __P((int, off_t, int));
 __END_DECLS
@@ -93,11 +99,10 @@ __END_DECLS
  */
 #define	major(x)	((int)(((u_int)(x) >> 8)&0xff))	/* major number */
 #define	minor(x)	((int)((x)&0xffff00ff))		/* minor number */
-#define	makedev(x,y)	((dev_t)(((x)<<8) | (y)))	/* create dev_t */
+#define	makedev(x,y)	((dev_t)(((x) << 8) | (y)))	/* create dev_t */
 #endif
 
-#include <machine/ansi.h>
-#include <machine/types.h>
+#include <machine/endian.h>
 
 #ifdef	_BSD_CLOCK_T_
 typedef	_BSD_CLOCK_T_	clock_t;
@@ -136,7 +141,7 @@ typedef long	fd_mask;
 #define NFDBITS	(sizeof(fd_mask) * NBBY)	/* bits per mask */
 
 #ifndef howmany
-#define	howmany(x, y)	(((x)+((y)-1))/(y))
+#define	howmany(x, y)	(((x) + ((y) - 1)) / (y))
 #endif
 
 typedef	struct fd_set {

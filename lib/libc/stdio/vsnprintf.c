@@ -40,6 +40,7 @@ static char sccsid[] = "@(#)vsnprintf.c	8.1 (Berkeley) 6/4/93";
 
 #include <stdio.h>
 
+int
 vsnprintf(str, n, fmt, ap)
 	char *str;
 	size_t n;
@@ -51,6 +52,7 @@ vsnprintf(str, n, fmt, ap)
 
 	if ((int)n < 1)
 		return (EOF);
+	f._file = -1;
 	f._flags = __SWR | __SSTR;
 	f._bf._base = f._p = (unsigned char *)str;
 	f._bf._size = f._w = n - 1;

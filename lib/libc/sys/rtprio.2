@@ -27,7 +27,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\" 
-.\" $Id: rtprio.2,v 1.2 1994/09/01 12:09:17 davidg Exp $
+.\" $Id: rtprio.2,v 1.2.6.1 1995/08/28 05:07:08 davidg Exp $
 .\"
 .Dd July 23, 1994
 .Dt RTPRIO 2
@@ -35,10 +35,10 @@
 .Nm rtprio
 .Nd examine or modify a process realtime or idle priority
 .Sh SYNOPSIS
-.Fd #include <sys/resource.h>
+.Fd #include <sys/types.h>
 .Fd #include <sys/rtprio.h>
 .Ft int 
-.Fn rtprio "function" "pid_t pid" "struct rtprio *rtp"
+.Fn rtprio "int function" "pid_t pid" "struct rtprio *rtp"
 .Sh DESCRIPTION
 .Fn rtprio
 is used to lookup or change the realtime or idle priority of a process.
@@ -101,6 +101,6 @@ implementation in FreeBSD was substantially rewritten by David Greenman.
 .Xr rtprio 1 ,
 .Xr nice 1 ,
 .Xr ps 1 ,
-.Xr nice 2 ,
+.Xr setpriority 2 ,
+.Xr nice 3 ,
 .Xr renice 8
-

@@ -36,7 +36,6 @@ static char sccsid[] = "@(#)unvis.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/types.h>
-#include <ctype.h>
 #include <vis.h>
 
 /*

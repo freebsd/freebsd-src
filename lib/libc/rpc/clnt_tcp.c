@@ -30,7 +30,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)clnt_tcp.c 1.37 87/10/05 Copyr 1984 Sun Micro";*/
 /*static char *sccsid = "from: @(#)clnt_tcp.c	2.2 88/08/01 4.0 RPCSRC";*/
-static char *rcsid = "$Id: clnt_tcp.c,v 1.1 1994/08/07 18:35:47 wollman Exp $";
+static char *rcsid = "$Id: clnt_tcp.c,v 1.2 1995/05/30 05:41:18 rgrimes Exp $";
 #endif
 
 /*
@@ -53,6 +53,9 @@ static char *rcsid = "$Id: clnt_tcp.c,v 1.1 1994/08/07 18:35:47 wollman Exp $";
  */
 
 #include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
 #include <rpc/rpc.h>
 #include <sys/socket.h>
 #include <netdb.h>
@@ -188,7 +191,7 @@ clnttcp_create(raddr, prog, vers, sockp, sendsz, recvsz)
 	call_msg.rm_call.cb_vers = vers;
 
 	/*
-	 * pre-serialize the staic part of the call msg and stash it away
+	 * pre-serialize the static part of the call msg and stash it away
 	 */
 	xdrmem_create(&(ct->ct_xdrs), ct->ct_mcall, MCALL_MSG_SIZE,
 	    XDR_ENCODE);
@@ -417,8 +420,8 @@ readtcp(ct, buf, len)
 #endif /* def FD_SETSIZE */
 	while (TRUE) {
 		readfds = mask;
-		switch (select(_rpc_dtablesize(), &readfds, (int*)NULL, (int*)NULL,
-			       &(ct->ct_wait))) {
+		switch (select(_rpc_dtablesize(), &readfds, (fd_set *)NULL,
+			       (fd_set *)NULL, &(ct->ct_wait))) {
 		case 0:
 			ct->ct_error.re_status = RPC_TIMEDOUT;
 			return (-1);

@@ -33,12 +33,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sigsetjmp.S,v 1.3 1994/12/27 13:34:04 bde Exp $
+ *	$Id: sigsetjmp.S,v 1.4 1995/01/23 01:27:10 davidg Exp $
  */
 
 #if defined(LIBC_RCS) && !defined(lint)
 	.text
-	.asciz "$Id: sigsetjmp.S,v 1.3 1994/12/27 13:34:04 bde Exp $"
+	.asciz "$Id: sigsetjmp.S,v 1.4 1995/01/23 01:27:10 davidg Exp $"
 #endif /* LIBC_RCS and not lint */
 
 #include "DEFS.h"
@@ -59,18 +59,28 @@
  *	use sigreturn() if sigreturn() works.
  */
 
+#ifdef _THREAD_SAFE
+ENTRY(_thread_sys_sigsetjmp)
+#else
 ENTRY(sigsetjmp)
+#endif
 	movl	8(%esp),%eax
 	movl	4(%esp),%ecx 
 	movl	%eax,32(%ecx)
 	testl	%eax,%eax
-	jz	1f
+	jz	2f
+	PIC_PROLOGUE
 	pushl	$0
-	call	PIC_PLT(_sigblock)
+#ifdef _THREAD_SAFE
+	call	PIC_PLT(CNAME(_thread_sys_sigblock))
+#else
+	call	PIC_PLT(CNAME(sigblock))
+#endif
 	addl	$4,%esp
+	PIC_EPILOGUE
 	movl	4(%esp),%ecx 
 	movl	%eax,24(%ecx)
-1:	movl	0(%esp),%edx
+2:	movl	0(%esp),%edx
 	movl	%edx, 0(%ecx)
 	movl	%ebx, 4(%ecx)
 	movl	%esp, 8(%ecx)
@@ -81,14 +91,24 @@ ENTRY(sigsetjmp)
 	xorl	%eax,%eax
 	ret
 
+#ifdef _THREAD_SAFE
+ENTRY(_thread_sys_siglongjmp)
+#else
 ENTRY(siglongjmp)
+#endif
 	movl	4(%esp),%edx
 	cmpl	$0,32(%edx)
-	jz	1f
+	jz	2f
+	PIC_PROLOGUE
 	pushl	24(%edx)
-	call	PIC_PLT(_sigsetmask)
+#ifdef _THREAD_SAFE
+	call	PIC_PLT(CNAME(_thread_sys_sigsetmask))
+#else
+	call	PIC_PLT(CNAME(sigsetmask))
+#endif
 	addl	$4,%esp
-1:	movl	4(%esp),%edx
+	PIC_EPILOGUE
+2:	movl	4(%esp),%edx
 	movl	8(%esp),%eax
 	movl	0(%edx),%ecx
 	movl	4(%edx),%ebx
@@ -99,7 +119,7 @@ ENTRY(siglongjmp)
 	fninit
 	fldcw	28(%edx)
 	testl	%eax,%eax
-	jnz	2f
+	jnz	1f
 	incl	%eax
-2:	movl	%ecx,0(%esp)
+1:	movl	%ecx,0(%esp)
 	ret

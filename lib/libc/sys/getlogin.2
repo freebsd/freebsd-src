@@ -66,6 +66,50 @@ This call is restricted to the super-user, and
 is normally used only when a new session is being created on behalf
 of the named user
 (for example, at login time, or when a remote shell is invoked).
+.Pp
+.Em NOTE:
+There is only one `login name' per `session .
+.Pp
+It is
+.Em CRITICALLY
+important to ensure that
+.Fn setlogin
+is only ever called after the process has taken adequate steps to ensure
+that it is detached from it's parent's session.
+Making a
+.Fn setsid
+system call is the
+.Em ONLY
+way to do this.  The
+.Fn daemon
+library call calls
+.Fn setsid
+which is an ideal way of detaching from a controlling terminal and
+forking into the background.
+.Pp
+In particular, doing a
+.Fn "ioctl" "ttyfd" "TIOCNOTTY" "..."
+or
+.Fn "setpgrp" "..."
+is
+.Em NOT
+sufficient.
+.Pp
+Once a parent process does a
+.Fn setsid
+call, it is acceptable for some child of that process to then do a
+.Fn setlogin
+even though it is not the session leader, but beware that ALL processes
+in the session will change their login name at the same time, even the
+parent.
+.Pp
+This is not the same as the traditional UNIX behavior of inheriting privilege.
+.Pp
+Since the
+.Fn setlogin
+system call is restricted to the super-user, it is assumed that (like
+all other privileged programs) the programmer has taken adequate
+precautions to prevent security violations.
 .Sh RETURN VALUES
 If a call to
 .Fn getlogin
@@ -101,7 +145,8 @@ characters, currently 12.
 The caller tried to set the login name and was not the super-user.
 .El
 .Sh SEE ALSO
-.Xr setsid 2
+.Xr setsid 2 ,
+.Xr daemon 3
 .Sh BUGS
 Login names are limited in length by
 .Fn setlogin .

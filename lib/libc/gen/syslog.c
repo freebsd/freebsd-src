@@ -32,7 +32,11 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)syslog.c	8.4 (Berkeley) 3/18/94";
+/*
+static char sccsid[] = "From: @(#)syslog.c	8.4 (Berkeley) 3/18/94";
+*/
+static const char rcsid[] =
+  "$Id$";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/types.h>
@@ -57,11 +61,15 @@ static char sccsid[] = "@(#)syslog.c	8.4 (Berkeley) 3/18/94";
 
 static int	LogFile = -1;		/* fd for log */
 static int	connected;		/* have done connect */
+static int	opened;			/* have done openlog() */
 static int	LogStat = 0;		/* status bits, set by openlog() */
 static const char *LogTag = NULL;	/* string to tag the entry with */
 static int	LogFacility = LOG_USER;	/* default facility code */
 static int	LogMask = 0xff;		/* mask of priorities to be logged */
 extern char	*__progname;		/* Program name, from crt0. */
+
+static void	disconnectlog __P((void)); /* disconnect from syslogd */
+static void	connectlog __P((void));	/* (re)connect to syslogd */
 
 /*
  * Format of the magic cookie passed through the stdio hook
@@ -76,7 +84,8 @@ struct bufcookie {
  * XXX: Maybe one day, dynamically allocate it so that the line length
  *      is `unlimited'.
  */
-static writehook(cookie, buf, len)
+static
+int writehook(cookie, buf, len)
 	void	*cookie;	/* really [struct bufcookie *] */
 	char	*buf;		/* characters to copy */
 	int	len;		/* length to copy */
@@ -128,7 +137,7 @@ vsyslog(pri, fmt, ap)
 	va_list ap;
 {
 	register int cnt;
-	register char ch, *p, *t;
+	register char ch, *p;
 	time_t now;
 	int fd, saved_errno;
 	char *stdp, tbuf[2048], fmt_cpy[1024];
@@ -229,8 +238,18 @@ vsyslog(pri, fmt, ap)
 	}
 
 	/* Get connected, output the message to the local logger. */
-	if (!connected)
+	if (!opened)
 		openlog(LogTag, LogStat | LOG_NDELAY, 0);
+	connectlog();
+	if (send(LogFile, tbuf, cnt, 0) >= 0)
+		return;
+
+	/*
+	 * If the send() failed, the odds are syslogd was restarted.
+	 * Make one (only) attempt to reconnect to /dev/log.
+	 */
+	disconnectlog();
+	connectlog();
 	if (send(LogFile, tbuf, cnt, 0) >= 0)
 		return;
 
@@ -257,6 +276,41 @@ vsyslog(pri, fmt, ap)
 
 static struct sockaddr SyslogAddr;	/* AF_UNIX address of local logger */
 
+static void
+disconnectlog()
+{
+	/*
+	 * If the user closed the FD and opened another in the same slot,
+	 * that's their problem.  They should close it before calling on
+	 * system services.
+	 */
+	if (LogFile != -1) {
+		close(LogFile);
+		LogFile = -1;
+	}
+	connected = 0;			/* retry connect */
+}
+
+static void
+connectlog()
+{
+	if (LogFile == -1) {
+		SyslogAddr.sa_family = AF_UNIX;
+		(void)strncpy(SyslogAddr.sa_data, _PATH_LOG,
+		    sizeof(SyslogAddr.sa_data));
+		if ((LogFile = socket(AF_UNIX, SOCK_DGRAM, 0)) == -1)
+			return;
+		(void)fcntl(LogFile, F_SETFD, 1);
+	}
+	if (LogFile != -1 && !connected) {
+		if (connect(LogFile, &SyslogAddr, sizeof(SyslogAddr)) == -1) {
+			(void)close(LogFile);
+			LogFile = -1;
+		} else
+			connected = 1;
+	}
+}
+
 void
 openlog(ident, logstat, logfac)
 	const char *ident;
@@ -268,22 +322,10 @@ openlog(ident, logstat, logfac)
 	if (logfac != 0 && (logfac &~ LOG_FACMASK) == 0)
 		LogFacility = logfac;
 
-	if (LogFile == -1) {
-		SyslogAddr.sa_family = AF_UNIX;
-		(void)strncpy(SyslogAddr.sa_data, _PATH_LOG,
-		    sizeof(SyslogAddr.sa_data));
-		if (LogStat & LOG_NDELAY) {
-			if ((LogFile = socket(AF_UNIX, SOCK_DGRAM, 0)) == -1)
-				return;
-			(void)fcntl(LogFile, F_SETFD, 1);
-		}
-	}
-	if (LogFile != -1 && !connected)
-		if (connect(LogFile, &SyslogAddr, sizeof(SyslogAddr)) == -1) {
-			(void)close(LogFile);
-			LogFile = -1;
-		} else
-			connected = 1;
+	if (LogStat & LOG_NDELAY)	/* open immediately */
+		connectlog();
+
+	opened = 1;	/* ident and facility has been set */
 }
 
 void

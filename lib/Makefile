@@ -9,11 +9,32 @@ SUBDIR=csu/vax.pcc
 SUBDIR=csu/${MACHINE}
 .endif
 
-# XXX MISSING:		libmp libplot
-SUBDIR+=	libc libcompat libcom_err libcrypt libcurses libedit \
-		libdisk libf2c libforms \
+# XXX MISSING:		libplot
+SUBDIR+=        libc libcompat libcom_err libcurses libedit \
+		libf2c libforms \
 	libkvm libmd libmytinfo libncurses libpcap libresolv librpcsvc \
-	libscsi libskey libss libtelnet libtermcap libutil liby
+	libscsi libskey libss libtermcap libutil libxpg4 liby \
+	libdisk
+
+.if !exists(../secure) || defined(NOSECURE) || defined(NOCRYPT)
+SUBDIR+= libcrypt
+.else
+SUBDIR+= ../secure/lib/libcrypt
+.if defined(RELEASEDIR)
+# releases do need both libraries
+SUBDIR+= libcrypt
+.endif
+.endif
+
+.if !exists(../secure) || defined(NOSECURE)
+SUBDIR+= libtelnet
+.else
+.if defined(RELEASEDIR)
+# releases do need both libraries
+SUBDIR+= libtelnet
+.endif
+SUBDIR+= ../secure/lib/libtelnet
+.endif
 
 .if defined(WANT_CSRG_LIBM)
 SUBDIR+= libm

@@ -7,6 +7,7 @@ shortint pow_hh(shortint *ap, shortint *bp)
 #endif
 {
 	shortint pow, x, n;
+	unsigned u;
 
 	x = *ap;
 	n = *bp;
@@ -18,11 +19,12 @@ shortint pow_hh(shortint *ap, shortint *bp)
 			return x == 0 ? 1/x : 0;
 		n = -n;
 		}
+	u = n;
 	for(pow = 1; ; )
 		{
-		if(n & 01)
+		if(u & 01)
 			pow *= x;
-		if(n >>= 1)
+		if(u >>= 1)
 			x *= x;
 		else
 			break;

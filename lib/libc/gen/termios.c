@@ -36,15 +36,11 @@ static char sccsid[] = "@(#)termios.c	8.2 (Berkeley) 2/21/94";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/types.h>
-#include <sys/ioctl.h>
-#include <sys/tty.h>
-#include <sys/time.h>
-#define KERNEL			/* XXX - FREAD and FWRITE ifdef'd KERNEL*/
 #include <sys/fcntl.h>
-#undef KERNEL
+#include <sys/ioctl.h>
+#include <sys/time.h>
 
 #include <errno.h>
-#include <stdio.h>
 #include <termios.h>
 #include <unistd.h>
 
@@ -99,6 +95,7 @@ tcsetpgrp(fd, pgrp)
 
 pid_t
 tcgetpgrp(fd)
+	int fd;
 {
 	int s;
 
@@ -168,11 +165,12 @@ cfmakeraw(t)
 	t->c_oflag &= ~OPOST;
 	t->c_lflag &= ~(ECHO|ECHOE|ECHOK|ECHONL|ICANON|ISIG|IEXTEN|NOFLSH|TOSTOP|PENDIN);
 	t->c_cflag &= ~(CSIZE|PARENB);
-	t->c_cflag |= CS8;
+	t->c_cflag |= CS8|CREAD;
 	t->c_cc[VMIN] = 1;
 	t->c_cc[VTIME] = 0;
 }
 
+int
 tcsendbreak(fd, len)
 	int fd, len;
 {
@@ -188,6 +186,7 @@ tcsendbreak(fd, len)
 	return (0);
 }
 
+int
 tcdrain(fd)
 	int fd;
 {
@@ -195,6 +194,7 @@ tcdrain(fd)
 	return (ioctl(fd, TIOCDRAIN, 0));
 }
 
+int
 tcflush(fd, which)
 	int fd, which;
 {
@@ -217,6 +217,7 @@ tcflush(fd, which)
 	return (ioctl(fd, TIOCFLUSH, &com));
 }
 
+int
 tcflow(fd, action)
 	int fd, action;
 {

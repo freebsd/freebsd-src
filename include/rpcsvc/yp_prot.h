@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: yp_prot.h,v 1.1 1994/08/04 19:01:56 wollman Exp $
+ *	$Id: yp_prot.h,v 1.3 1996/01/30 23:33:04 mpp Exp $
  */
 
 #ifndef _YP_PROT_H_
@@ -294,8 +294,8 @@ struct ypbind_setdom {
  *  is supplied to ypxfr as a command-line parameter when it
  *  is activated by ypserv."
  *
- * This protocol is not implimented, naturally, because this YP
- * implimentation only does the client side.
+ * This protocol is not implemented, naturally, because this YP
+ * implementation only does the client side.
  */
 #define YPPUSHVERS		((u_long)1)
 #define YPPUSHVERS_ORIG		((u_long)1)
@@ -314,7 +314,7 @@ struct yppushresp_xfr {
 #define YPPUSH_AGE	((long)2)	/* Master's version not newer */
 #define YPPUSH_NOMAP 	((long)-1)	/* Can't find server for map */
 #define YPPUSH_NODOM 	((long)-2)	/* Domain not supported */
-#define YPPUSH_RSRC 	((long)-3)	/* Local resouce alloc failure */
+#define YPPUSH_RSRC 	((long)-3)	/* Local resource alloc failure */
 #define YPPUSH_RPC 	((long)-4)	/* RPC failure talking to server */
 #define YPPUSH_MADDR	((long)-5)	/* Can't get master address */
 #define YPPUSH_YPERR 	((long)-6)	/* YP server/map db error */

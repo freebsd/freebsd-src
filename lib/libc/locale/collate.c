@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: collate.c,v 1.3 1995/02/18 01:42:02 ache Exp $
+ * $Id: collate.c,v 1.4 1995/05/30 05:40:40 rgrimes Exp $
  */
 
 #include <rune.h>
@@ -36,6 +36,7 @@
 #include <sysexits.h>
 #include "collate.h"
 
+char *_PathLocale;
 int __collate_load_error = 1;
 u_char __collate_charmap_table[UCHAR_MAX + 1][STR_LEN];
 u_char __collate_substitute_table[UCHAR_MAX + 1][STR_LEN];
@@ -58,20 +59,27 @@ __collate_load_tables(encoding)
 	char *encoding;
 {
 	char buf[PATH_MAX];
-	static char *path_locale;
 	FILE *fp;
+	int save_load_error;
 
+	save_load_error = __collate_load_error;
 	__collate_load_error = 1;
-	if (!encoding)
+	if (!encoding) {
+		__collate_load_error = save_load_error;
 		return -1;
-	if (!path_locale && !(path_locale = getenv("PATH_LOCALE")))
-		path_locale = _PATH_LOCALE;
-	strcpy(buf, path_locale);
+	}
+	if (!*encoding || !strcmp(encoding, "C") || !strcmp(encoding, "POSIX"))
+		return 0;
+	if (!_PathLocale && !(_PathLocale = getenv("PATH_LOCALE")))
+		_PathLocale = _PATH_LOCALE;
+	strcpy(buf, _PathLocale);
 	strcat(buf, "/");
 	strcat(buf, encoding);
 	strcat(buf, "/LC_COLLATE");
-	if ((fp = fopen(buf, "r")) == NULL)
+	if ((fp = fopen(buf, "r")) == NULL) {
+		__collate_load_error = save_load_error;
 		return -1;
+	}
 	FREAD(__collate_charmap_table, sizeof(__collate_charmap_table), 1, fp);
 	FREAD(__collate_substitute_table, sizeof(__collate_substitute_table),
 	      1, fp);

@@ -1,4 +1,4 @@
-static char junk[] = "\n@(#) LIBI77 VERSION pjw,dmg-mods 6 Octt. 1994\n";
+static char junk[] = "\n@(#) LIBI77 VERSION pjw,dmg-mods 19950907\n";
 
 /*
 2.01	$ format added
@@ -198,3 +198,27 @@ wrtfmt.c:
 		 INTEGER*1, and (under -DAllow_TYQUAD) INTEGER*8
 		 in NAMELISTs. */
 /* 6 Oct. 1994:  util.c: omit f__mvgbt, as it is never used. */
+/* 2 Nov. 1994:  add #ifdef ALWAYS_FLUSH logic. */
+/* 26 Jan. 1995: wref.c: fix glitch in printing the exponent of 0 when
+		 GOOD_SPRINTF_EXPONENT is not #defined. */
+/* 24 Feb. 1995: iio.c: z_getc: insert (unsigned char *) to allow
+		 internal reading of characters with high-bit set
+		 (on machines that sign-extend characters). */
+/* 14 March 1995:lread.c and rsfe.c: adjust s_rsle and s_rsfe to
+		 check for end-of-file (to prevent infinite loops
+		 with empty read statements). */
+/* 26 May 1995:  iio.c: z_wnew: fix bug in handling T format items
+		 in internal writes whose last item is written to
+		 an earlier position than some previous item. */
+/* 29 Aug. 1995: backspace.c: adjust MSDOS logic. */
+/* 6 Sept. 1995: Adjust namelist input to treat a subscripted name
+		 whose subscripts do not involve colons similarly
+		 to the name without a subscript: accept several
+		 values, stored in successive elements starting at
+		 the indicated subscript.  Adjust namelist output
+		 to quote character strings (avoiding confusion with
+		 arrays of character strings).  Adjust f_init calls
+		 for people who don't use libF77's main(); now open and
+		 namelist read statements invoke f_init if needed. */
+/* 7 Sept. 1995: Fix some bugs with -DAllow_TYQUAD (for integer*8).
+		 Add -DNo_Namelist_Comments lines to rsne.c. */

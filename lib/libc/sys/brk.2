@@ -94,7 +94,7 @@ it will not be possible to set the break
 beyond the
 .Em rlim_max
 value returned from a call to
-.Xr getrlimit ,
+.Xr getrlimit 2 ,
 e.g.
 .Dq qetext + rlp\(->rlim_max.
 (see
@@ -109,12 +109,12 @@ otherwise -1 with
 set to indicate why the allocation failed.
 The
 .Nm sbrk
-returns a pointer to the base of the new storage if successful;
+function returns a pointer to the base of the new storage if successful;
 otherwise -1 with
 .Va errno
 set to indicate why the allocation failed.
 .Sh ERRORS
-.Xr Sbrk
+.Fn Sbrk
 will fail and no additional memory will be allocated if
 one of the following are true:
 .Bl -tag -width [ENOMEM]
@@ -139,7 +139,7 @@ Setting the break may fail due to a temporary lack of
 swap space.  It is not possible to distinguish this
 from a failure caused by exceeding the maximum size of
 the data segment without consulting 
-.Xr getrlimit .
+.Xr getrlimit 2 .
 .Sh HISTORY
 A
 .Nm
