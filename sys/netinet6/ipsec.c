@@ -3219,14 +3219,11 @@ ipsec_copypkt(m)
 	for (n = m, mpp = &m; n; n = n->m_next) {
 		if (n->m_flags & M_EXT) {
 			/*
-			 * Make a copy only if there are more than one references
-			 * to the cluster.
+			 * Make a copy only if there are more than one
+			 * references to the cluster.
 			 * XXX: is this approach effective?
 			 */
-			if (
-				n->m_ext.ext_free ||
-				MEXT_IS_REF(n)
-			    )
+			if (n->m_ext.ext_type != EXT_CLUSTER || MEXT_IS_REF(n)) 
 			{
 				int remain, copied;
 				struct mbuf *mm;
