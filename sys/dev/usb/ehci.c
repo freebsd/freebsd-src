@@ -1,4 +1,4 @@
-/*	$NetBSD: ehci.c,v 1.89 2004/12/03 08:51:31 augustss Exp $ */
+/*	$NetBSD: ehci.c,v 1.91 2005/02/27 00:27:51 perry Exp $ */
 
 /*-
  * Copyright (c) 2004 The NetBSD Foundation, Inc.
@@ -48,21 +48,15 @@
 
 /*
  * TODO:
- * 1) hold off explorations by companion controllers until ehci has started.
- *
- * 2) The EHCI driver lacks support for interrupt isochronous transfers, so
+ * 1) The EHCI driver lacks support for isochronous transfers, so
  *    devices using them don't work.
- *    Interrupt transfers are not difficult, it's just not done. 
  *
- * 3) The meaty part to implement is the support for USB 2.0 hubs.
- *    They are quite complicated since the need to be able to do
- *    "transaction translation", i.e., converting to/from USB 2 and USB 1.
- *    So the hub driver needs to handle and schedule these things, to
- *    assign place in frame where different devices get to go. See chapter
- *    on hubs in USB 2.0 for details. 
+ * 2) Interrupt transfer scheduling does not manage the time available
+ *    in each frame, so it is possible for the transfers to overrun
+ *    the end of the frame.
  *
- * 4) command failures are not recovered correctly
-*/
+ * 3) Command failures are not recovered correctly.
+ */
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
@@ -818,12 +812,12 @@ ehci_idone(struct ehci_xfer *ex)
 			actlen += sqtd->len - EHCI_QTD_GET_BYTES(status);
 	}
 
-	/* 
+	/*
 	 * If there are left over TDs we need to update the toggle.
 	 * The default pipe doesn't need it since control transfers
 	 * start the toggle at 0 every time.
 	 */
-	if (sqtd != lsqtd->nextqtd && 
+	if (sqtd != lsqtd->nextqtd &&
 	    xfer->pipe->device->default_pipe != xfer->pipe) {
 		DPRINTF(("ehci_idone: need toggle update status=%08x nstatus=%08x\n", status, nstatus));
 #if 0
@@ -833,7 +827,7 @@ ehci_idone(struct ehci_xfer *ex)
 		epipe->nexttoggle = EHCI_QTD_GET_TOGGLE(nstatus);
 	}
 
-	/* 
+	/*
 	 * For a short transfer we need to update the toggle for the missing
 	 * packets within the qTD.
 	 */
@@ -2574,11 +2568,11 @@ ehci_abort_xfer(usbd_xfer_handle xfer, usbd_status status)
 	/*
 	 * Step 4: Remove any vestiges of the xfer from the hardware.
 	 * The complication here is that the hardware may have executed
-	 * into or even beyond the xfer we're trying to abort. 
+	 * into or even beyond the xfer we're trying to abort.
 	 * So as we're scanning the TDs of this xfer we check if
 	 * the hardware points to any of them.
 	 *
-	 * first we need to see if there are any transfers 
+	 * first we need to see if there are any transfers
 	 * on this queue before the xfer we are aborting.. we need
 	 * to update any pointers that point to us to point past
 	 * the aborting xfer.  (If there is something past us).
@@ -2618,10 +2612,10 @@ ehci_abort_xfer(usbd_xfer_handle xfer, usbd_status status)
 	 */
 	if (!hit) {
 
-		/* 
+		/*
 		 * Now reinitialise the QH to point to the next qTD
 		 * (if there is one). We only need to do this if
-		 * it was previously pointing to us. 
+		 * it was previously pointing to us.
 		 * XXX Not quite sure what to do about the data toggle.
 		 */
 		sqtd = exfer->sqtdstart;
