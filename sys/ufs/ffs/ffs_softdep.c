@@ -2017,12 +2017,20 @@ free_newdirblk(newdirblk)
 		panic("free_newdirblk: lock not held");
 #endif
 	/*
-	 * Free any directory additions that have been committed.
+	 * If the pagedep is still linked onto the directory buffer
+	 * dependency chain, then some of the entries on the
+	 * pd_pendinghd list may not be committed to disk yet. In
+	 * this case, we will simply clear the NEWBLOCK flag and
+	 * let the pd_pendinghd list be processed when the pagedep
+	 * is next written. If the pagedep is no longer on the buffer
+	 * dependency chain, then all the entries on the pd_pending
+	 * list are committed to disk and we can free them here.
 	 */
 	pagedep = newdirblk->db_pagedep;
 	pagedep->pd_state &= ~NEWBLOCK;
-	while ((dap = LIST_FIRST(&pagedep->pd_pendinghd)) != NULL)
-		free_diradd(dap);
+	if ((pagedep->pd_state & ONWORKLIST) == 0)
+		while ((dap = LIST_FIRST(&pagedep->pd_pendinghd)) != NULL)
+			free_diradd(dap);
 	/*
 	 * If no dependencies remain, the pagedep will be freed.
 	 */
