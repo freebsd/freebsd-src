@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_mx.c,v 1.16 1999/05/06 15:32:45 wpaul Exp $
+ *	$Id: if_mx.c,v 1.17 1999/05/09 17:06:56 peter Exp $
  */
 
 /*
@@ -94,7 +94,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: if_mx.c,v 1.16 1999/05/06 15:32:45 wpaul Exp $";
+	"$Id: if_mx.c,v 1.17 1999/05/09 17:06:56 peter Exp $";
 #endif
 
 /*
@@ -113,6 +113,8 @@ static struct mx_type mx_devs[] = {
 		"Macronix 98715/98715A 10/100BaseTX" },
 	{ MX_VENDORID, MX_DEVICEID_987x5,
 		"Macronix 98725 10/100BaseTX" },
+	{ PN_VENDORID, PN_DEVICEID_PNIC_II,
+		"LC82C115 PNIC II 10/100BaseTX" },
 	{ 0, 0, NULL }
 };
 
