@@ -236,6 +236,10 @@
     tunables and can be overridden at boot-time.  The
     <varname>hz</varname> parameter is also now a tunable. &merged;</para>
 
+    <para>It is now possible to hardwire kernel environment variables (such
+    as tuneables) at compile-time using &man.config.8;'s
+    <literal>ENV</literal> directive.</para>
+
     <sect3>
       <title>Processor/Motherboard Support</title>
 
