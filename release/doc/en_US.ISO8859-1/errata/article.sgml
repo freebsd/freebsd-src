@@ -175,6 +175,14 @@
       to run &os; with a pared-down kernel.  The installation
       instructions in <filename>INSTALL.TXT</filename> (and other
       renditions thereof) cited somewhat lower figures.</para> 
+
+    <para>A release note mentioned the merging of two libraries used
+      for password authentication hashing, but listed their names
+      incorrectly.  The libraries that were merged were
+      <filename>libscrypt</filename> and
+      <filename>libdescrypt</filename>; the new unified
+      library is called <filename>libcrypt</filename>.</para>
+
 ]]>
   </sect1>
 </article>
