@@ -99,7 +99,7 @@ LIB2FUNCS_EXTRA = qrnnd.asm
 
 .if ${TARGET_ARCH} == "arm"
 #	from config/arm/t-strongarm-elf
-LIB1ASMSRC = arm/lib1funcs.asm
+LIB1ASMSRC = lib1funcs.asm
 LIB1ASMFUNCS = _udivsi3 _divsi3 _umodsi3 _modsi3 _dvmd_tls _bb_init_func
 # We want fine grained libraries, so use the new code to build the
 # floating point emulation libraries.
@@ -108,7 +108,7 @@ XXX fix this: NEED_FP_EMULATION set to "yes" with different rules per platform
 
 .if ${TARGET_ARCH} == "ia64"
 #	from config/ia64/t-ia64
-LIB1ASMSRC    = ia64/lib1funcs.asm
+LIB1ASMSRC    = lib1funcs.asm
 LIB1ASMFUNCS  = __divtf3 __divdf3 __divsf3 \
 	__divdi3 __moddi3 __udivdi3 __umoddi3 \
 	__divsi3 __modsi3 __udivsi3 __umodsi3 __save_stack_nonlocal \
@@ -130,7 +130,7 @@ OBJS+=	dp-bit.o fp-bit.o
 #	from config/sparc/t-elf
 # We want fine grained libraries, so use the new code to build the
 # floating point emulation libraries.
-LIB1ASMSRC = sparc/lb1spc.asm
+LIB1ASMSRC = lb1spc.asm
 LIB1ASMFUNCS = _mulsi3 _divsi3 _modsi3
 OBJS+=	dp-bit.o fp-bit.o
 .endif
@@ -213,24 +213,29 @@ ${OBJS_P}: libgcc2.c
 .endif
 
 .if defined(LIB1ASMSRC)
-${ASM_T}: ${LIB1ASMSRC}
-	${XCC} -x assembler-with-cpp -c ${CFLAGS} -DL${.PREFIX} -o ${.TARGET} ${GCCDIR}/config/${LIB1ASMSRC}
+.for _lib1asmsrc in ${LIB1ASMSRC}
+${ASM_T}: ${_lib1asmsrc}
+	${XCC} -x assembler-with-cpp -c ${CFLAGS} -DL${.PREFIX} \
+	    -o ${.TARGET} ${.ALLSRC:N*.h}
 	@${LD} -o ${.TARGET}.tmp -x -r ${.TARGET}
 	@mv ${.TARGET}.tmp ${.TARGET}
 
 .if !defined(NOPIC)
-${ASM_S}: ${LIB1ASMSRC}
-	${XCC} -x assembler-with-cpp -c ${PICFLAG} ${CFLAGS} -DL${.PREFIX} -o ${.TARGET} ${GCCDIR}/config/${LIB1ASMSRC}
+${ASM_S}: ${_lib1asmsrc}
+	${XCC} -x assembler-with-cpp -c ${PICFLAG} ${CFLAGS} -DL${.PREFIX} \
+	    -o ${.TARGET} ${.ALLSRC:N*.h}
 	@${LD} -o ${.TARGET}.tmp -x -r ${.TARGET}
 	@mv ${.TARGET}.tmp ${.TARGET}
 .endif
 
 .if !defined(NOPROFILE)
-${ASM_P}: ${LIB1ASMSRC}
-	${XCC} -x assembler-with-cpp -c -p ${CFLAGS} -DL${.PREFIX} -o ${.TARGET} ${GCCDIR}/config/${LIB1ASMSRC}
+${ASM_P}: ${_lib1asmsrc}
+	${XCC} -x assembler-with-cpp -p -c ${CFLAGS} -DL${.PREFIX} \
+	    -o ${.TARGET} ${.ALLSRC:N*.h}
 	@${LD} -o ${.TARGET}.tmp -X -r ${.TARGET}
 	@mv ${.TARGET}.tmp ${.TARGET}
 .endif
+.endfor
 .endif
 
 .include <bsd.lib.mk>
