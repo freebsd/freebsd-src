@@ -484,8 +484,11 @@ struct nge_desc_64 {
 #define nge_ctl			nge_cmdsts
 	u_int32_t		nge_extsts;
 	/* Driver software section */
-	struct mbuf		*nge_mbuf;
-	struct nge_desc_64	*nge_nextdesc;
+	union {
+		struct mbuf		*nge_mbuf;
+		struct nge_desc_64	*nge_nextdesc;
+		u_int64_t		nge_dummy[2];
+	} nge_u;
 };
 
 struct nge_desc_32 {
@@ -498,11 +501,16 @@ struct nge_desc_32 {
 #define nge_ctl			nge_cmdsts
 	u_int32_t		nge_extsts;
 	/* Driver software section */
-	struct mbuf		*nge_mbuf;
-	struct nge_desc_32	*nge_nextdesc;
+	union {
+		struct mbuf		*nge_mbuf;
+		struct nge_desc_32	*nge_nextdesc;
+		u_int64_t		nge_dummy[2];
+	} nge_u;
 };
 
 #define nge_desc	nge_desc_32
+#define nge_mbuf	nge_u.nge_mbuf
+#define nge_nextdesc	nge_u.nge_nextdesc
 
 #define NGE_CMDSTS_BUFLEN	0x0000FFFF
 #define NGE_CMDSTS_PKT_OK	0x08000000
