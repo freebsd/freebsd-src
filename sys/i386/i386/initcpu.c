@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *		$Id: initcpu.c,v 1.5.2.2 1997/06/28 07:56:12 kato Exp $
+ *		$Id: initcpu.c,v 1.5.2.3 1997/07/25 08:34:11 kato Exp $
  */
 
 #include "opt_cpu.h"
@@ -304,6 +304,15 @@ init_6x86(void)
 	/* Initialize CCR0. */
 	write_cyrix_reg(CCR0, read_cyrix_reg(CCR0) | CCR0_NC1);
 
+	/* Initialize CCR1. */
+#ifdef CPU_CYRIX_NO_LOCK
+	write_cyrix_reg(CCR0, read_cyrix_reg(CCR0) | CCR1_NO_LOCK);
+#else
+#ifdef FAILSAFE
+	write_cyrix_reg(CCR0, read_cyrix_reg(CCR0) & ~CCR1_NO_LOCK);
+#endif
+#endif
+
 	/* Initialize CCR2. */
 #ifdef CPU_SUSP_HLT
 	write_cyrix_reg(CCR2, read_cyrix_reg(CCR2) | CCR2_SUSP_HLT);
@@ -322,6 +331,11 @@ init_6x86(void)
 	write_cyrix_reg(CCR4, ccr4 | (CPU_IORT & CCR4_IOMASK));
 #else
 	write_cyrix_reg(CCR4, ccr4 | 7);
+#endif
+
+	/* Initialize CCR5. */
+#ifdef CPU_WT_ALLOC
+	write_cyrix_reg(CCR5, read_cyrix_reg(CCR5) | CCR5_WT_ALLOC);
 #endif
 
 	/* Restore CCR3. */
@@ -373,6 +387,15 @@ init_6x86MX(void)
 	/* Initialize CCR0. */
 	write_cyrix_reg(CCR0, read_cyrix_reg(CCR0) | CCR0_NC1);
 
+	/* Initialize CCR1. */
+#ifdef CPU_CYRIX_NO_LOCK
+	write_cyrix_reg(CCR0, read_cyrix_reg(CCR0) | CCR1_NO_LOCK);
+#else
+#ifdef FAILSAFE
+	write_cyrix_reg(CCR0, read_cyrix_reg(CCR0) & ~CCR1_NO_LOCK);
+#endif
+#endif
+
 	/* Initialize CCR2. */
 #ifdef CPU_SUSP_HLT
 	write_cyrix_reg(CCR2, read_cyrix_reg(CCR2) | CCR2_SUSP_HLT);
@@ -390,6 +413,11 @@ init_6x86MX(void)
 	write_cyrix_reg(CCR4, ccr4 | (CPU_IORT & CCR4_IOMASK));
 #else
 	write_cyrix_reg(CCR4, ccr4 | 7);
+#endif
+
+	/* Initialize CCR5. */
+#ifdef CPU_WT_ALLOC
+	write_cyrix_reg(CCR5, read_cyrix_reg(CCR5) | CCR5_WT_ALLOC);
 #endif
 
 	/* Restore CCR3. */
@@ -506,10 +534,10 @@ DB_SHOW_COMMAND(cyrixreg, cyrixreg)
 		ccr1 = read_cyrix_reg(CCR1);
 		ccr2 = read_cyrix_reg(CCR2);
 		ccr3 = read_cyrix_reg(CCR3);
-		if ((cpu == CPU_M1SC) || (cpu == CPU_M1)) {
+		if ((cpu == CPU_M1SC) || (cpu == CPU_M1) || (cpu == CPU_M2)) {
 			write_cyrix_reg(CCR3, CCR3_MAPEN0);
 			ccr4 = read_cyrix_reg(CCR4);
-			if (cpu == CPU_M1)
+			if ((cpu == CPU_M1) || (cpu == CPU_M2))
 				ccr5 = read_cyrix_reg(CCR5);
 			else
 				pcr0 = read_cyrix_reg(PCR0);
@@ -522,12 +550,12 @@ DB_SHOW_COMMAND(cyrixreg, cyrixreg)
 
 		printf("CCR1=%x, CCR2=%x, CCR3=%x",
 			(u_int)ccr1, (u_int)ccr2, (u_int)ccr3);
-		if ((cpu == CPU_M1SC) || (cpu == CPU_M1)) {
+		if ((cpu == CPU_M1SC) || (cpu == CPU_M1) || (cpu == CPU_M2)) {
 			printf(", CCR4=%x, ", (u_int)ccr4);
-			if (cpu == CPU_M1)
-				printf("CCR5=%x\n", ccr5);
-			else
+			if (cpu == CPU_M1SC)
 				printf("PCR0=%x\n", pcr0);
+			else
+				printf("CCR5=%x\n", ccr5);
 		}
 	}
 	printf("CR0=%x\n", cr0);
