@@ -100,8 +100,8 @@
 
 #include <net/bpf.h>
 
-#include <machine/if_wavelan_ieee.h>
-#include <i386/isa/if_wireg.h>
+#include <dev/wi/if_wavelan_ieee.h>
+#include <dev/wi/if_wireg.h>
 
 #if !defined(lint)
 static const char rcsid[] =
