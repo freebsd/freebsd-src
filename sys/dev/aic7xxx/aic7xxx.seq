@@ -39,7 +39,7 @@
  *
  *-M************************************************************************/
 
-VERSION AIC7XXX_SEQ_VER "$Id: aic7xxx.seq,v 1.32 1996/03/31 03:02:33 gibbs Exp $"
+VERSION AIC7XXX_SEQ_VER "$Id: aic7xxx.seq,v 1.33 1996/04/20 21:20:29 gibbs Exp $"
 
 #include "../../dev/aic7xxx/aic7xxx_reg.h"
 
@@ -393,7 +393,7 @@ dma_finish2:
  * For Linux, we must throw away four bytes since there is a 32bit gap
  * in the middle of a struct scatterlist.
  */
-#ifdef linux
+#ifdef __linux__
 	mov	NONE,DFDAT
 	mov	NONE,DFDAT
 	mov	NONE,DFDAT
