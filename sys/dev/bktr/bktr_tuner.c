@@ -46,7 +46,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#include <sys/vnode.h>
 #ifdef __NetBSD__
 #include <sys/proc.h>
 #endif
@@ -56,14 +55,15 @@ __FBSDID("$FreeBSD$");
 #include <machine/clock.h>              /* for DELAY */
 #include <pci/pcivar.h>
 #else
+#include <sys/lock.h>
+#include <sys/mutex.h>
+#include <sys/selinfo.h>
 #include <dev/pci/pcivar.h>
 #endif
 
-#if (__FreeBSD_version >=300000)
 #include <machine/bus_memio.h>          /* for bus space */
 #include <machine/bus.h>
 #include <sys/bus.h>
-#endif
 #endif
 
 #ifdef __NetBSD__
@@ -137,7 +137,6 @@ __FBSDID("$FreeBSD$");
 
 
 static void mt2032_set_tv_freq(bktr_ptr_t bktr, unsigned int freq);
-static int mt2032_init(bktr_ptr_t bktr);
 
 
 static const struct TUNER tuners[] = {
@@ -726,9 +725,6 @@ void    select_tuner( bktr_ptr_t bktr, int tuner_type ) {
 	} else {
 		bktr->card.tuner = NULL;
 	}
-	if (tuner_type == TUNER_MT2032) {
-		mt2032_init(bktr);
-	}
 }
 
 /*
@@ -1044,29 +1040,18 @@ tuner_getchnlset(struct bktr_chnlset *chnlset)
 
 #define	TDA9887_ADDR	0x86
 
-int
+static int
 TDA9887_init(bktr_ptr_t bktr, int output2_enable)
 {
 	u_char addr = TDA9887_ADDR;
-#if 0
-	char buf[8];
 
-	/* NOTE: these are PAL values */
-	buf[0] = 0;	/* sub address */
-	buf[1] = 0x50;	/* output port1 inactive */
-	buf[2] = 0x6e;	/* tuner takeover point / de-emphasis */
-	buf[3] = 0x09;	/* fVIF = 38.9 MHz, fFM = 5.5 MHz */
-
-	if (!output2_enable)
-		buf[1] |= 0x80;
-
-	if (i2cWriteBuf(bktr, addr, 4, buf) == -1) {
-		printf("%s: TDA9887 write failed\n", bktr_name(bktr));
-		return -1;
-	}
-#else
 	i2cWrite(bktr, addr, 0, output2_enable ? 0x50 : 0xd0);
-	i2cWrite(bktr, addr, 1, 0x6e);
+	i2cWrite(bktr, addr, 1, 0x6e); /* takeover point / de-emphasis */
+
+	/* PAL BG: 0x09  PAL I: 0x0a  NTSC: 0x04 */
+#ifdef MT2032_NTSC
+	i2cWrite(bktr, addr, 2, 0x04);
+#else
 	i2cWrite(bktr, addr, 2, 0x09);
 #endif
 	return 0;
@@ -1086,19 +1071,22 @@ static int      MT2032_XOGC = 4;
 #define	MT2032_ADDR		(bktr->card.tuner_pllAddr)
 #endif
 
-static u_char 
+static int 
 _MT2032_GetRegister(bktr_ptr_t bktr, u_char regNum)
 {
 	int		ch;
 
 	if (i2cWrite(bktr, MT2032_ADDR, regNum, -1) == -1) {
-		printf("%s: MT2032 write failed (i2c addr %#x)\n",
-			bktr_name(bktr), MT2032_ADDR);
+		if (bootverbose)
+			printf("%s: MT2032 write failed (i2c addr %#x)\n",
+				bktr_name(bktr), MT2032_ADDR);
+		return -1;
 	}
 	if ((ch = i2cRead(bktr, MT2032_ADDR + 1)) == -1) {
-		printf("%s: MT2032 get register %d failed\n",
-			bktr_name(bktr), regNum);
-		return 0;
+		if (bootverbose)
+			printf("%s: MT2032 get register %d failed\n",
+				bktr_name(bktr), regNum);
+		return -1;
 	}
 	return ch;
 }
@@ -1113,21 +1101,31 @@ _MT2032_SetRegister(bktr_ptr_t bktr, u_char regNum, u_char data)
 #define	MT2032_SetRegister(r,d)		_MT2032_SetRegister(bktr,r,d)
 
 
-static int 
+int 
 mt2032_init(bktr_ptr_t bktr)
 {
 	u_char            rdbuf[22];
 	int             xogc, xok = 0;
 	int             i;
+	int		x;
 
 	TDA9887_init(bktr, 0);
 
-	for (i = 0; i < 21; i++)
-		rdbuf[i] = MT2032_GetRegister(i);
+	for (i = 0; i < 21; i++) {
+		if ((x = MT2032_GetRegister(i)) == -1)
+			break;
+		rdbuf[i] = x;
+	}
+	if (i < 21)
+		return -1;
 
 	printf("%s: MT2032: Companycode=%02x%02x Part=%02x Revision=%02x\n",
 		bktr_name(bktr),
 		rdbuf[0x11], rdbuf[0x12], rdbuf[0x13], rdbuf[0x14]);
+	if (rdbuf[0x13] != 4) {
+		printf("%s: MT2032 not found or unknown type\n", bktr_name(bktr));
+		return -1;
+	}
 
 	/* Initialize Registers per spec. */
 	MT2032_SetRegister(2, 0xff);
@@ -1355,10 +1353,6 @@ MT2032_SetIFFreq(bktr_ptr_t bktr, int rfin, int if1, int if2, int from, int to)
 
 	TDA9887_init(bktr, 0);
 
-	printf("%s: MT2032-SetIFFreq: 0x%02X%02X%02X%02X...\n",
-		bktr_name(bktr),
-		buf[0x00], buf[0x01], buf[0x02], buf[0x03]);
-
 	/* send only the relevant registers per Rev. 1.2 */
 	MT2032_SetRegister(0, buf[0x00]);
 	MT2032_SetRegister(1, buf[0x01]);
@@ -1399,12 +1393,25 @@ static void
 mt2032_set_tv_freq(bktr_ptr_t bktr, unsigned int freq)
 {
 	int if2,from,to;
+	int stat, tad;
 
+#ifdef MT2032_NTSC
+	from=40750*1000;
+	to=46750*1000;
+	if2=45750*1000;
+#else
 	from=32900*1000;
 	to=39900*1000;
 	if2=38900*1000;
+#endif
 
-	printf("%s: setting frequency to %d\n", bktr_name(bktr), freq*62500);
-	MT2032_SetIFFreq(bktr, freq*62500 /* freq*1000*1000/16 */,
-		1090*1000*1000, if2, from, to);
+	if (MT2032_SetIFFreq(bktr, freq*62500 /* freq*1000*1000/16 */,
+			1090*1000*1000, if2, from, to) == 0) {
+		bktr->tuner.frequency = freq;
+		stat = MT2032_GetRegister(0x0e);
+		tad = MT2032_GetRegister(0x0f);
+		if (bootverbose)
+			printf("%s: frequency set to %d, st = %#x, tad = %#x\n",
+				bktr_name(bktr), freq*62500, stat, tad);
+	}
 }

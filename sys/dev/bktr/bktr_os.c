@@ -72,27 +72,20 @@ __FBSDID("$FreeBSD$");
 #else
 #include <sys/select.h>
 #endif
-#include <sys/vnode.h>
 
 #include <vm/vm.h>
 #include <vm/vm_kern.h>
 #include <vm/pmap.h>
 #include <vm/vm_extern.h>
 
-#if (__FreeBSD_version >=400000)
 #include <sys/bus.h>		/* used by smbus and newbus */
-#endif
 
-#if (__FreeBSD_version >=300000)
 #include <machine/bus_memio.h>	/* used by bus space */
 #include <machine/bus.h>	/* used by bus space and newbus */
 #include <sys/bus.h>
-#endif
 
-#if (__FreeBSD_version >=400000)
 #include <sys/rman.h>		/* used by newbus */
 #include <machine/resource.h>	/* used by newbus */
-#endif
 
 #if (__FreeBSD_version < 500000)
 #include <machine/clock.h>              /* for DELAY */
@@ -208,7 +201,6 @@ int bktr_debug = 0;
 /****************************/
 /* *** FreeBSD 4.x code *** */
 /****************************/
-#if (__FreeBSD_version >= 400000)
 
 static int	bktr_probe( device_t dev );
 static int	bktr_attach( device_t dev );
@@ -272,10 +264,8 @@ static struct cdevsw bktr_cdevsw = {
 };
 
 DRIVER_MODULE(bktr, pci, bktr_driver, bktr_devclass, 0, 0);
-#if (__FreeBSD_version > 410000)
 MODULE_DEPEND(bktr, bktr_mem, 1,1,1);
 MODULE_VERSION(bktr, 1);
-#endif
 
 
 /*
@@ -856,8 +846,6 @@ bktr_poll( struct cdev *dev, int events, struct thread *td)
 
 	return (revents);
 }
-
-#endif		/* FreeBSD 4.x specific kernel interface routines */
 
 /*****************/
 /* *** BSDI  *** */

@@ -107,20 +107,20 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/fcntl.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/signalvar.h>
-#include <sys/vnode.h>
+#include <sys/selinfo.h>
+#include <sys/uio.h>
 
 #include <vm/vm.h>
 #include <vm/vm_kern.h>
 #include <vm/pmap.h>
 #include <vm/vm_extern.h>
 
-#if (__FreeBSD_version >=400000) || (NSMBUS > 0)
 #include <sys/bus.h>		/* used by smbus and newbus */
-#endif
 
 #if (__FreeBSD_version < 500000)
 #include <machine/clock.h>              /* for DELAY */
@@ -131,12 +131,9 @@ __FBSDID("$FreeBSD$");
 #include <dev/pci/pcivar.h>
 #endif
 
-
-#if (__FreeBSD_version >=300000)
 #include <machine/bus_memio.h>	/* for bus space */
 #include <machine/bus.h>
 #include <sys/bus.h>
-#endif
 
 #include <dev/bktr/ioctl_meteor.h>
 #include <dev/bktr/ioctl_bt848.h>	/* extensions to ioctl_meteor.h */
@@ -1258,7 +1255,7 @@ vbi_read(bktr_ptr_t bktr, struct uio *uio, int ioflag)
 	LOCK_VBI(bktr);
 
 	while(bktr->vbisize == 0) {
-		if (ioflag & IO_NDELAY) {
+		if (ioflag & FNDELAY) {
 			status = EWOULDBLOCK;
 			goto out;
 		}
