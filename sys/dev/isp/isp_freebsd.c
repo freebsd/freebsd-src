@@ -1,5 +1,5 @@
 /* $FreeBSD$ */
-/* $Id: isp_freebsd.c,v 1.11 1998/09/14 23:22:12 mjacob Exp $ */
+/* $Id: isp_freebsd.c,v 1.3 1998/09/15 08:42:55 gibbs Exp $ */
 /*
  * Platform (FreeBSD) dependent common attachment code for Qlogic adapters.
  *
@@ -248,7 +248,7 @@ isp_action(sim, ccb)
 	case XPT_RESET_DEV:		/* BDR the specified SCSI device */
 		tgt = ccb->ccb_h.target_id;
 		s = splcam();
-		error = isp_control(isp, ISPCTL_RESET_DEV, (void *) tgt);
+		error = isp_control(isp, ISPCTL_RESET_DEV, (void *)(intptr_t) tgt);
 		(void) splx(s);
 		if (error) {
 			ccb->ccb_h.status = CAM_REQ_CMP_ERR;
