@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: uucplock.c,v 1.8 1997/08/10 18:42:39 ache Exp $
+ * $Id: uucplock.c,v 1.9 1998/05/28 23:17:09 brian Exp $
  *
  */
 
@@ -204,7 +204,7 @@ put_pid(int fd, pid_t pid)
 	char buf[32];
 	int len;
 
-	len = sprintf (buf, "%10d\n", pid);
+	len = sprintf (buf, "%10d\n", (int)pid);
 	return write (fd, buf, len) == len;
 }
 
