@@ -34,7 +34,7 @@
 
 #include <machine/asm.h>
 __FBSDID("$FreeBSD$");
-#define SOFTFLOAT /* XXX */
+
 /*
  * C library -- _setjmp, _longjmp
  *
