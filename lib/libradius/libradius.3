@@ -32,8 +32,12 @@
 .Nd RADIUS client library
 .Sh SYNOPSIS
 .Fd #include <radlib.h>
+.Ft struct rad_handle *
+.Fn rad_acct_open "void"
 .Ft int
 .Fn rad_add_server "struct rad_handle *h" "const char *host" "int port" "const char *secret" "int timeout" "int max_tries"
+.Ft struct rad_handle *
+.Fn rad_auth_open "void"
 .Ft void
 .Fn rad_close "struct rad_handle *h"
 .Ft int
@@ -52,8 +56,6 @@
 .Fn rad_get_attr "struct rad_handle *h" "const void **data" "size_t *len"
 .Ft int
 .Fn rad_init_send_request "struct rad_handle *h" "int *fd" "struct timeval *tv"
-.Ft struct rad_handle *
-.Fn rad_open "void"
 .Ft int
 .Fn rad_put_addr "struct rad_handle *h" "int type" "struct in_addr addr"
 .Ft int
@@ -69,23 +71,31 @@
 .Sh DESCRIPTION
 The
 .Nm
-library implements the client side of the Remote Authentication
-Dial In User Service (RADIUS).  RADIUS, defined in RFC 2138, allows
-clients to perform authentication by means of network requests to
-remote authentication servers.
+library implements the client side of the Remote Authentication Dial
+In User Service (RADIUS).  RADIUS, defined in RFCs 2138 and 2139,
+allows clients to perform authentication and accounting by means of
+network requests to remote servers.
 .Sh INITIALIZATION
 To use the library, an application must first call
-.Fn rad_open
+.Fn rad_auth_open
+or
+.Fn rad_acct_open
 to obtain a
 .Va struct rad_handle * ,
 which provides the context for subsequent operations.
+The former function is used for RADIUS authentication and the
+latter is used for RADIUS accounting.
 Calls to
-.Fn rad_open
+.Fn rad_auth_open
+and
+.Fn rad_acct_open
 always succeed unless insufficient virtual memory is available.  If
-the necessary memory cannot be allocated,
-.Fn rad_open
-returns
+the necessary memory cannot be allocated, the functions return
 .Dv NULL .
+For compatibility with earlier versions of this library,
+.Fn rad_open
+is provided as a synonym for
+.Fn rad_auth_open .
 .Pp
 Before issuing any RADIUS requests, the library must be made aware
 of the servers it can contact.  The easiest way to configure the
@@ -119,9 +129,12 @@ parameter specifies the UDP port to contact on the server.  If
 .Va port
 is given as 0, the library looks up the
 .Ql radius/udp
+or
+.Ql radacct/udp
 service in the network services database, and uses the port found
-there.  If no entry is found, the library uses port 1812, the standard
-RADIUS port.  The shared secret for the server host is passed to the
+there.  If no entry is found, the library uses the standard RADIUS
+ports, 1812 for authentication and 1813 for accounting.
+The shared secret for the server host is passed to the
 .Va secret
 parameter.
 It may be any NUL-terminated string of bytes.  The RADIUS protocol
@@ -346,9 +359,11 @@ without recording an error message.
 .Pp
 .Bl -item -offset indent -compact
 .It
-.Fn rad_cvt_string
+.Fn rad_acct_open
 .It
-.Fn rad_open
+.Fn rad_auth_open
+.It
+.Fn rad_cvt_string
 .El
 .Sh FILES
 .Pa /etc/radius.conf
@@ -359,7 +374,14 @@ without recording an error message.
 .%T Remote Authentication Dial In User Service (RADIUS)
 .%O RFC 2138
 .Re
+.Rs
+.%A C. Rigney
+.%T RADIUS Accounting
+.%O RFC 2139
+.Re
 .Sh AUTHORS
-This software was written by
+This software was originally written by
 .An John Polstra ,
 and donated to the FreeBSD project by Juniper Networks, Inc.
+Oleg Semyonov subsequently added the ability to perform RADIUS
+accounting.
