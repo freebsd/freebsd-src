@@ -128,6 +128,11 @@
       install hardware watchpoints (as opposed to software
       watchpoints) if supported by the architecture. &merged;</para>
 
+    <para>A <filename>devctl</filename> device has been added to allow
+      userland programs to learn when devices come and go in the device
+      tree (different from the XXX).  This facility is primariliy used
+      by the &man.devd.8; utility.</para>
+
     <para>&man.devfs.5;, which allows entries in the
       <filename>/dev</filename> directory to be built automatically
       and supports more flexible attachment of devices, has been
@@ -1303,6 +1308,22 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	support a wide variety of operations on I/O requests on their
 	way from the upper kernel to the device drivers.</para>
 
+      <para>A GEOM Based Disk Encryption module has been added.  It
+        provides denial of access to <quote>cold disks</quote>, with
+        four different cryptographic barriers and up to four
+        changeable pass-phrases.  Much more information can be found
+        in the &man.gbde.4; manual page.  The &man.gbde.8; userland
+        utility provides an operation and management interface to this
+        module.  This feature is not enabled by default; it requires
+        <literal>options GEOM_BDE</literal> to be added to a kernel
+        configuration file.
+
+	<note>
+	  <para>This feature should be considered experimental.
+	</note>
+
+	</para>
+
       <para role="historic">The ida disk driver now has crashdump
 	support. &merged;</para>
 
@@ -1353,6 +1374,21 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <para arch="i386">The &man.pst.4; driver, for supporting Promise
 	SuperTrak ATA RAID controllers, has been
 	added. &merged;</para>
+
+      <para>The RAIDframe disk driver has been imported from NetBSD.
+        This driver provides software-based RAID 0, 1, 4, and 5
+        capabilities, as well as other functionality.  More
+        information can be found in the &man.raid.4; driver manual
+        page.  The &man.raidctl.8; utility is used to configure and
+        unconfigure disk arrays.  This feature is not enabled by
+        default, and requires <literal>device raidframe</literal> to
+        be configured into a kernel.
+
+	<note>
+	  <para>This feature should be considered experimental.
+	</note>
+
+	</para>
 
       <para>Some problems in &man.sa.4; error handling have been
 	fixed, including the <quote>tape drive spinning indefinitely
@@ -2328,6 +2364,17 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       controlling terminal and executes a program specified on the
       command line.  This allows the user to run an arbitrary program
       as if it were written to be a daemon. &merged;</para>
+
+    <para>The &man.devd.8; utility, a userland daemon that can run
+      arbitrary commands when devices come and go in the device tree,
+      has been added.  This program is a generalization of some of the
+      functionality of &man.pccardd.8;.
+
+      <note>
+        <para>&man.devd.8; is work-in-progress.</para>
+      </note>
+
+      </para>
 
     <para>&man.devinfo.8;, a simple tool to print the device tree and resource
       usage by devices, has been added.</para>
@@ -3657,6 +3704,25 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       features added have been listed in the release notes for each
       utility.  The standards conformance of each utility or library
       function is generally listed in its manual page.</para>
+
+    <para>A number of games have been removed from the base system.
+      These include: adventure(6), arithmetic(6), atc(6),
+      backgammon(6), battlestar(6), bs(6), canfield(6), cribbage(6),
+      fish(6), hack(6), hangman(6), larn(6), mille(6), phantasia(6),
+      piano(6), pig(6), quiz(6), rain(6), robots(6), rogue(6),
+      sail(6), snake(6), trek(6), wargames(6), worm(6), worms(6),
+      wump(6).  dm(8), which was used to control access to games, is
+      no longer necessary, and has also been removed.  The
+      <quote>utility-like</quote> games, as well as &man.fortune.6;,
+      remain.
+
+      <note>
+        <para>The affected programs will reappear as a port in the
+	  Ports Collection.  This note will contain a pointer to that
+	  port, once it has been committed.</para>
+      </note>
+
+      </para>
 
     <sect3>
       <title>Contributed Software</title>
