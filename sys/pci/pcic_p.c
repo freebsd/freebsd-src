@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: pcic_p.c,v 1.7 1998/12/14 06:32:57 dillon Exp $
+ * $Id: pcic_p.c,v 1.8 1999/01/25 12:59:31 torstenb Exp $
  */
 
 #include "pci.h"
@@ -67,16 +67,38 @@ static const char *
 pcic_pci_probe(pcici_t tag, pcidi_t type)
 {
 	switch (type) {
+	case PCI_DEVICE_ID_PCIC_CLPD6832:
+		return ("Cirrus Logic PD6832 PCI/CardBus Bridge");
+	case PCI_DEVICE_ID_PCIC_TI1130:
+		return ("TI PCI-1130 PCI-CardBus Bridge");
+	case PCI_DEVICE_ID_PCIC_TI1131:
+		return ("TI PCI-1131 PCI-CardBus Bridge");
+	case PCI_DEVICE_ID_PCIC_TI1220:
+		return ("TI PCI-1220 PCI-CardBus Bridge");
+	case PCI_DEVICE_ID_PCIC_TI1221:
+		return ("TI PCI-1221 PCI-CardBus Bridge");
+	case PCI_DEVICE_ID_PCIC_TI1250:
+		return ("TI PCI-1250 PCI-CardBus Bridge");
+	case PCI_DEVICE_ID_TOSHIBA_TOPIC95:
+		return ("Toshiba ToPIC95 PCI-CardBus Bridge");
+	case PCI_DEVICE_ID_TOSHIBA_TOPIC97:
+		return ("Toshiba ToPIC97 PCI-CardBus Bridge");
+ 	case PCI_DEVICE_ID_RICOH_RL5C465:
+		return ("Ricoh RL5C465 PCI-CardBus Brige");
+	case PCI_DEVICE_ID_RICOH_RL5C475:
+		return ("Ricoh RL5C475 PCI-CardBus Brige");
+	case PCI_DEVICE_ID_RICOH_RL5C476:
+		return ("Ricoh RL5C476 PCI-CardBus Brige");
+	case PCI_DEVICE_ID_RICOH_RL5C478:
+		return ("Ricoh RL5C478 PCI-CardBus Brige");
+	/* 16bit PC-card bridges */
 	case PCI_DEVICE_ID_PCIC_CLPD6729:
 		return ("Cirrus Logic PD6729/6730 PC-Card Controller");
-	case PCI_DEVICE_ID_PCIC_CLPD6832:
-		return ("Cirrus Logic PD6832 CardBus Adapter");
-	case PCI_DEVICE_ID_PCIC_TI1130:
-		return ("TI 1130 PCMCIA/CardBus Bridge");
-	case PCI_DEVICE_ID_PCIC_TI1131:
-		return ("TI 1131 PCI to PCMCIA/CardBus bridge");
-	case PCI_DEVICE_ID_PCIC_TI1250:
-		return ("TI 1250 PCI to PCMCIA/CardBus bridge");
+	case PCI_DEVICE_ID_PCIC_OZ6729:
+		return ("O2micro OZ6729 PC-Card Bridge");
+	case PCI_DEVICE_ID_PCIC_OZ6730:
+		return ("O2micro OZ6730 PC-Card Bridge");
+
 	default:
 		break;
 	}
