@@ -88,7 +88,6 @@ SUCH DAMAGE.
 #define AUTONEG_ADV_DEFAULT             (ADVERTISE_10_HALF | ADVERTISE_10_FULL | \
                                          ADVERTISE_100_HALF | ADVERTISE_100_FULL | \
                                          ADVERTISE_1000_FULL)
-#define EM_ENABLE_RXCSUM_OFFLOAD        1
 #define EM_REPORT_TX_EARLY              2
 #define EM_CHECKSUM_FEATURES            (CSUM_TCP | CSUM_UDP)
 #define EM_MAX_INTR                     3
@@ -185,10 +184,12 @@ struct adapter {
 	struct em_osdep osdep;
 	struct device   *dev;
 	struct resource *res_memory;
+	struct resource *res_ioport;
 	struct resource *res_interrupt;
 	void            *int_handler_tag;
 	struct ifmedia  media;
 	struct callout_handle timer_handle;
+	int             io_rid;
 	u_int8_t        unit;
 
 	/* Info about the board itself */
@@ -199,7 +200,6 @@ struct adapter {
 	u_int32_t       tx_int_delay;
 	u_int32_t       rx_int_delay;
 
-	u_int8_t        rx_checksum;
 	XSUM_CONTEXT_T  active_checksum_context;
 
 	/* Transmit definitions */

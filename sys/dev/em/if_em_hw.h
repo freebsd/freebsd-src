@@ -199,6 +199,8 @@ int32_t em_validate_mdi_setting(struct em_hw *hw);
 /* EEPROM Functions */
 int32_t em_read_eeprom(struct em_hw *hw, uint16_t reg, uint16_t *data);
 int32_t em_validate_eeprom_checksum(struct em_hw *hw);
+int32_t em_update_eeprom_checksum(struct em_hw *hw);
+int32_t em_write_eeprom(struct em_hw *hw, uint16_t reg, uint16_t data);
 int32_t em_read_part_num(struct em_hw *hw, uint32_t * part_num);
 int32_t em_read_mac_addr(struct em_hw * hw);
 
@@ -225,7 +227,17 @@ void em_reset_adaptive(struct em_hw *hw);
 void em_update_adaptive(struct em_hw *hw);
 void em_tbi_adjust_stats(struct em_hw *hw, struct em_hw_stats *stats, uint32_t frame_len, uint8_t * mac_addr);
 void em_get_bus_info(struct em_hw *hw);
+void em_read_pci_cfg(struct em_hw *hw, uint32_t reg, uint16_t * value);
 void em_write_pci_cfg(struct em_hw *hw, uint32_t reg, uint16_t * value);
+/* Port I/O is only supported on 82544 and newer */
+uint32_t em_io_read(struct em_hw *hw, uint32_t port);
+uint32_t em_read_reg_io(struct em_hw *hw, uint32_t offset);
+void em_io_write(struct em_hw *hw, uint32_t port, uint32_t value);
+void em_write_reg_io(struct em_hw *hw, uint32_t offset, uint32_t value);
+#define E1000_READ_REG_IO(a, reg) \
+    em_read_reg_io((a), E1000_##reg)
+#define E1000_WRITE_REG_IO(a, reg, val) \
+    em_write_reg_io((a), E1000_##reg, val)
 
 /* PCI Device IDs */
 #define E1000_DEV_ID_82542          0x1000
@@ -840,6 +852,7 @@ struct em_hw {
     em_bus_speed bus_speed;
     em_bus_width bus_width;
     em_bus_type bus_type;
+    uint32_t io_base;
     uint32_t phy_id;
     uint32_t phy_addr;
     uint32_t original_fc;
@@ -1295,6 +1308,7 @@ struct em_hw {
 #define EEPROM_EWDS_OPCODE  0x10 /* EERPOM erast/write disable */
 
 /* EEPROM Word Offsets */
+#define EEPROM_COMPAT              0x0003
 #define EEPROM_ID_LED_SETTINGS     0x0004
 #define EEPROM_INIT_CONTROL1_REG   0x000A
 #define EEPROM_INIT_CONTROL2_REG   0x000F
@@ -1305,9 +1319,9 @@ struct em_hw {
 #define ID_LED_RESERVED_0000 0x0000
 #define ID_LED_RESERVED_FFFF 0xFFFF
 #define ID_LED_DEFAULT       ((ID_LED_OFF1_ON2 << 12) | \
-		              (ID_LED_OFF1_OFF2 << 8) | \
-		              (ID_LED_DEF1_DEF2 << 4) | \
-			      (ID_LED_DEF1_DEF2))
+                              (ID_LED_OFF1_OFF2 << 8) | \
+                              (ID_LED_DEF1_DEF2 << 4) | \
+                              (ID_LED_DEF1_DEF2))
 #define ID_LED_DEF1_DEF2     0x1
 #define ID_LED_DEF1_ON2      0x2
 #define ID_LED_DEF1_OFF2     0x3
@@ -1317,6 +1331,10 @@ struct em_hw {
 #define ID_LED_OFF1_DEF2     0x7
 #define ID_LED_OFF1_ON2      0x8
 #define ID_LED_OFF1_OFF2     0x9
+
+/* Mask bits for fields in Word 0x03 of the EEPROM */
+#define EEPROM_COMPAT_SERVER 0x0400
+#define EEPROM_COMPAT_CLIENT 0x0200
 
 /* Mask bits for fields in Word 0x0a of the EEPROM */
 #define EEPROM_WORD0A_ILOS   0x0010
@@ -1402,6 +1420,16 @@ struct em_hw {
 #define FC_DEFAULT_HI_THRESH        (0x8000)    /* 32KB */
 #define FC_DEFAULT_LO_THRESH        (0x4000)    /* 16KB */
 #define FC_DEFAULT_TX_TIMER         (0x100)     /* ~130 us */
+
+/* PCIX Config space */
+#define PCIX_COMMAND_REGISTER    0xE6
+#define PCIX_STATUS_REGISTER_LO  0xE8
+#define PCIX_STATUS_REGISTER_HI  0xEA
+
+#define PCIX_COMMAND_MMRBC_MASK      0x000C
+#define PCIX_COMMAND_MMRBC_SHIFT     0x2
+#define PCIX_STATUS_HI_MMRBC_MASK    0x0060
+#define PCIX_STATUS_HI_MMRBC_SHIFT   0x5
 
 
 /* The number of bits that we need to shift right to move the "pause"
