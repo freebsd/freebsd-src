@@ -200,8 +200,13 @@ int r;
       c->mode = COPY;
     case COPY:          /* o: copying bytes in window, waiting for space */
       f = q - c->sub.copy.dist;
-      while (f < s->window)             /* modulo window size-"while" instead */
-        f += s->end - s->window;        /* of "if" handles invalid distances */
+      {
+      /* XXX work around a gcc bug. */
+      volatile inflate_blocks_statef *s1 = s;
+
+      while (f < s1->window)            /* modulo window size-"while" instead */
+        f += s1->end - s1->window;      /* of "if" handles invalid distances */
+      }
       while (c->len)
       {
         NEEDOUT
