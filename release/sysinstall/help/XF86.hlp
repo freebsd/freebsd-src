@@ -122,8 +122,14 @@ information should prove useful:
       X312man.tgz
          (1.7Mb) man pages except XFree86 specific ones in etc archive
 
+      X312ctrb.tgz
+         (1.0Mb) Contributed clients like ico, xeyes, etc.
+
       X312f100.tgz
          (1.8Mb) 100dpi fonts
+
+      X312fcyr.tgz
+         (1.8Mb) Cyrillic fonts
 
       X312fscl.tgz
          (1.6Mb) Speedo and Type1 fonts
