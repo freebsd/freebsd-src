@@ -1250,6 +1250,12 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 		ifr->ifr_curcap = ifp->if_capenable;
 		break;
 
+#ifdef MAC
+	case SIOCGIFMAC:
+		error = mac_ioctl_ifnet_get(td->td_proc->p_ucred, ifr, ifp);
+		break;
+#endif
+
 	case SIOCGIFMETRIC:
 		ifr->ifr_metric = ifp->if_metric;
 		break;
@@ -1295,6 +1301,12 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 			return (EINVAL);
 		(void) (*ifp->if_ioctl)(ifp, cmd, data);
 		break;
+
+#ifdef MAC
+	case SIOCSIFMAC:
+		error = mac_ioctl_ifnet_set(td->td_proc->p_ucred, ifr, ifp);
+		break;
+#endif
 
 	case SIOCSIFMETRIC:
 		error = suser(td);
