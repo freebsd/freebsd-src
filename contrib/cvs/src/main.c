@@ -1237,6 +1237,9 @@ parseopts(root)
 	    if (q)
 		*q = '\0';
 
+	    if (!strcmp(buf, "iso8601")) {
+		datesep = '-';
+	    }
 	    if (!strncmp(buf, "tag=", 4)) {
 		char *what;
 		char *rcs_localid;

@@ -10,6 +10,8 @@
  * Prints the RCS "log" (rlog) information for the specified files.  With no
  * argument, prints the log information for all the files in the directory
  * (recursive by default).
+ *
+ * $FreeBSD$
  */
 
 #include "cvs.h"
@@ -1605,8 +1607,8 @@ log_version (log_data, revlist, rcs, ver, trunk)
 		   &sec);
     if (year < 1900)
 	year += 1900;
-    sprintf (buf, "%04d/%02d/%02d %02d:%02d:%02d", year, mon, mday,
-	     hour, min, sec);
+    sprintf (buf, "%04d%c%02d%c%02d %02d:%02d:%02d",
+	     year, datesep, mon, datesep, mday, hour, min, sec);
     cvs_output (buf, 0);
 
     cvs_output (";  author: ", 0);
