@@ -667,23 +667,23 @@ iommu_dvma_vallocseg(bus_dma_tag_t dt, struct iommu_state *is, bus_dmamap_t map,
 	return (0);
 }
 
-int
-iommu_dvmamem_alloc(bus_dma_tag_t pt, bus_dma_tag_t dt, void **vaddr,
-    int flags, bus_dmamap_t *mapp)
+static int
+iommu_dvmamem_alloc(bus_dma_tag_t dt, void **vaddr, int flags,
+    bus_dmamap_t *mapp)
 {
-	struct iommu_state *is = pt->dt_cookie;
+	struct iommu_state *is = dt->dt_cookie;
 	int error;
 
 	/*
 	 * XXX: This will break for 32 bit transfers on machines with more than
 	 * 16G (1 << 34 bytes) of memory.
 	 */
-	if ((error = sparc64_dmamem_alloc_map(dt, mapp)) != 0)
+	if ((error = sparc64_dma_alloc_map(dt, mapp)) != 0)
 		return (error);
 	if ((*vaddr = malloc(dt->dt_maxsize, M_IOMMU,
 	    (flags & BUS_DMA_NOWAIT) ? M_NOWAIT : M_WAITOK)) == NULL) {
 		error = ENOMEM;
-		sparc64_dmamem_free_map(dt, *mapp);
+		sparc64_dma_free_map(dt, *mapp);
 		return (error);
 	}
 	iommu_map_insq(*mapp);
@@ -695,26 +695,24 @@ iommu_dvmamem_alloc(bus_dma_tag_t pt, bus_dma_tag_t dt, void **vaddr,
 	return (0);
 }
 
-void
-iommu_dvmamem_free(bus_dma_tag_t pt, bus_dma_tag_t dt, void *vaddr,
-    bus_dmamap_t map)
+static void
+iommu_dvmamem_free(bus_dma_tag_t dt, void *vaddr, bus_dmamap_t map)
 {
-	struct iommu_state *is = pt->dt_cookie;
+	struct iommu_state *is = dt->dt_cookie;
 
 	iommu_dvma_vfree(is, map);
-	sparc64_dmamem_free_map(dt, map);
+	sparc64_dma_free_map(dt, map);
 	free(vaddr, M_IOMMU);
 }
 
-int
-iommu_dvmamap_create(bus_dma_tag_t pt, bus_dma_tag_t dt, int flags,
-    bus_dmamap_t *mapp)
+static int
+iommu_dvmamap_create(bus_dma_tag_t dt, int flags, bus_dmamap_t *mapp)
 {
-	struct iommu_state *is = pt->dt_cookie;
+	struct iommu_state *is = dt->dt_cookie;
 	bus_size_t totsz, presz, currsz;
 	int error, i, maxpre;
 
-	if ((error = sparc64_dmamap_create(pt->dt_parent, dt, flags, mapp)) != 0)
+	if ((error = sparc64_dma_alloc_map(dt, mapp)) != 0)
 		return (error);
 	KASSERT(SLIST_EMPTY(&(*mapp)->dm_reslist),
 	    ("iommu_dvmamap_create: hierarchy botched"));
@@ -751,13 +749,14 @@ iommu_dvmamap_create(bus_dma_tag_t pt, bus_dma_tag_t dt, int flags,
 	return (0);
 }
 
-int
-iommu_dvmamap_destroy(bus_dma_tag_t pt, bus_dma_tag_t dt, bus_dmamap_t map)
+static int
+iommu_dvmamap_destroy(bus_dma_tag_t dt, bus_dmamap_t map)
 {
-	struct iommu_state *is = pt->dt_cookie;
+	struct iommu_state *is = dt->dt_cookie;
 
 	iommu_dvma_vfree(is, map);
-	return (sparc64_dmamap_destroy(pt->dt_parent, dt, map));
+	sparc64_dma_free_map(dt, map);
+	return (0);
 }
 
 /*
@@ -842,12 +841,12 @@ iommu_dvmamap_load_buffer(bus_dma_tag_t dt, struct iommu_state *is,
 	return (0);
 }
 
-int
-iommu_dvmamap_load(bus_dma_tag_t pt, bus_dma_tag_t dt, bus_dmamap_t map,
-    void *buf, bus_size_t buflen, bus_dmamap_callback_t *cb, void *cba,
+static int
+iommu_dvmamap_load(bus_dma_tag_t dt, bus_dmamap_t map, void *buf,
+    bus_size_t buflen, bus_dmamap_callback_t *cb, void *cba,
     int flags)
 {
-	struct iommu_state *is = pt->dt_cookie;
+	struct iommu_state *is = dt->dt_cookie;
 #ifdef __GNUC__
 	bus_dma_segment_t sgs[dt->dt_nsegments];
 #else
@@ -878,11 +877,11 @@ iommu_dvmamap_load(bus_dma_tag_t pt, bus_dma_tag_t dt, bus_dmamap_t map,
 	return (error);
 }
 
-int
-iommu_dvmamap_load_mbuf(bus_dma_tag_t pt, bus_dma_tag_t dt, bus_dmamap_t map,
-    struct mbuf *m0, bus_dmamap_callback2_t *cb, void *cba, int flags)
+static int
+iommu_dvmamap_load_mbuf(bus_dma_tag_t dt, bus_dmamap_t map, struct mbuf *m0,
+    bus_dmamap_callback2_t *cb, void *cba, int flags)
 {
-	struct iommu_state *is = pt->dt_cookie;
+	struct iommu_state *is = dt->dt_cookie;
 #ifdef __GNUC__
 	bus_dma_segment_t sgs[dt->dt_nsegments];
 #else
@@ -923,11 +922,11 @@ iommu_dvmamap_load_mbuf(bus_dma_tag_t pt, bus_dma_tag_t dt, bus_dmamap_t map,
 	return (error);
 }
 
-int
-iommu_dvmamap_load_uio(bus_dma_tag_t pt, bus_dma_tag_t dt, bus_dmamap_t map,
-    struct uio *uio, bus_dmamap_callback2_t *cb,  void *cba, int flags)
+static int
+iommu_dvmamap_load_uio(bus_dma_tag_t dt, bus_dmamap_t map, struct uio *uio,
+    bus_dmamap_callback2_t *cb,  void *cba, int flags)
 {
-	struct iommu_state *is = pt->dt_cookie;
+	struct iommu_state *is = dt->dt_cookie;
 #ifdef __GNUC__
 	bus_dma_segment_t sgs[dt->dt_nsegments];
 #else
@@ -982,23 +981,22 @@ iommu_dvmamap_load_uio(bus_dma_tag_t pt, bus_dma_tag_t dt, bus_dmamap_t map,
 	return (error);
 }
 
-void
-iommu_dvmamap_unload(bus_dma_tag_t pt, bus_dma_tag_t dt, bus_dmamap_t map)
+static void
+iommu_dvmamap_unload(bus_dma_tag_t dt, bus_dmamap_t map)
 {
-	struct iommu_state *is = pt->dt_cookie;
+	struct iommu_state *is = dt->dt_cookie;
 
 	if (map->dm_loaded == 0)
 		return;
 	iommu_dvmamap_vunload(is, map);
 	iommu_map_insq(map);
-	sparc64_dmamap_unload(pt->dt_parent, dt, map);
+	map->dm_loaded = 0;
 }
 
-void
-iommu_dvmamap_sync(bus_dma_tag_t pt, bus_dma_tag_t dt, bus_dmamap_t map,
-    bus_dmasync_op_t op)
+static void
+iommu_dvmamap_sync(bus_dma_tag_t dt, bus_dmamap_t map, bus_dmasync_op_t op)
 {
-	struct iommu_state *is = pt->dt_cookie;
+	struct iommu_state *is = dt->dt_cookie;
 	struct bus_dmamap_res *r;
 	vm_offset_t va;
 	vm_size_t len;
@@ -1055,3 +1053,15 @@ iommu_diag(struct iommu_state *is, vm_offset_t va)
 }
 
 #endif /* IOMMU_DIAG */
+
+struct bus_dma_methods iommu_dma_methods = {
+	iommu_dvmamap_create,
+	iommu_dvmamap_destroy,
+	iommu_dvmamap_load,
+	iommu_dvmamap_load_mbuf,
+	iommu_dvmamap_load_uio,
+	iommu_dvmamap_unload,
+	iommu_dvmamap_sync,
+	iommu_dvmamem_alloc,
+	iommu_dvmamem_free,
+};
