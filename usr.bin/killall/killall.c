@@ -67,7 +67,7 @@ upper(const char *str)
 	strncpy(buf, str, sizeof(buf));
 	buf[sizeof(buf) - 1] = '\0';
 	for (s = buf; *s; s++)
-		*s = toupper(*s);
+		*s = toupper((unsigned char)*s);
 	return buf;
 }
 
@@ -206,7 +206,7 @@ main(int ac, char **av)
 				zflag++;
 				break;
 			default:
-				if (isalpha(**av)) {
+				if (isalpha((unsigned char)**av)) {
 					if (strncasecmp(*av, "sig", 3) == 0)
 						*av += 3;
 					for (sig = NSIG, p = sys_signame + 1;
@@ -217,7 +217,7 @@ main(int ac, char **av)
 						}
 					if (!sig)
 						nosig(*av);
-				} else if (isdigit(**av)) {
+				} else if (isdigit((unsigned char)**av)) {
 					sig = strtol(*av, &ep, 10);
 					if (!*av || *ep)
 						errx(1, "illegal signal number: %s", *av);
