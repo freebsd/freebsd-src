@@ -208,11 +208,6 @@ connection limits) an attack that can lead to guessing the server key
 (not host key) by regenerating the server key when an RSA failure is
 detected (see security advisory FreeBSD-SA-01:24).
 
-A number of programs have had output formatting strings corrected so
-as to reduce the risk of vulnerabilities.
-
-A number of programs that use temporary files now do so more securely.
-
 A bug in ICMP that could cause an attacker to disrupt TCP and UDP
 "sessions" has been corrected.
 
@@ -222,10 +217,6 @@ packets, has been corrected (see security advisory FreeBSD-SA-01:28).
 A bug in rwhod(8), which caused it to crash if sent certain malformed
 packets, has been corrected (see security advisory FreeBSD-SA-01:29).
 
-To prevent some forms of DOS attacks, glob(3) allows specification of
-a limit on the number of pathname matches it will return.  ftpd(8) now
-uses this feature.
-
 A security hole in FreeBSD's FFS and EXT2FS implementations, which
 allowed a race condition that could cause users to have unauthorized
 access to data, has been fixed (see security advisory FreeBSD-SA-01:30).
@@ -233,7 +224,19 @@ access to data, has been fixed (see security advisory FreeBSD-SA-01:30).
 A remotely-exploitable vulnerability in ntpd(8) has been closed (see
 security advisory FreeBSD-SA-01:31).
 
-A security hole in IPFilter's fragment cache has been closed.
+A security hole in IPFilter's fragment cache has been closed (see
+security advisory FreeBSD-SA-01:32).
+
+Buffer overflows in glob(3), which could cause arbitrary code to be
+run on an FTP server, have been closed.  In addition, to prevent some
+forms of DOS attacks, glob(3) now allows specification of a limit on
+the number of pathname matches it will return.  ftpd(8) now uses this
+feature (see security advisory FreeBSD-SA-01:33).
+
+A number of programs have had output formatting strings corrected so
+as to reduce the risk of vulnerabilities.
+
+A number of programs that use temporary files now do so more securely.
 
 
 1.3. USERLAND CHANGES
