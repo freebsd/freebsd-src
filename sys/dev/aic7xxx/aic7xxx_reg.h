@@ -13,10 +13,20 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Absolutely no warranty of function or purpose is made by the author
- *    Justin T. Gibbs.
- * 4. Modifications may be freely made to this file if the above conditions
- *    are met.
+ * 3. The name of the author may not be used to endorse or promote products
+ *    derived from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
+ * ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  *
  *	$Id: aic7xxx_reg.h,v 1.7 1996/03/31 03:02:37 gibbs Exp $
  */
@@ -547,7 +557,9 @@
 #define		SCB_CMDPTR2	0x0b6
 #define		SCB_CMDPTR3	0x0b7
 #define	SCB_CMDLEN		0x0b8
-#define	SCB_NEXT_WAITING	0x0b9
+#define SCB_TAG			0x0b9
+#define	SCB_NEXT		0x0ba
+#define	SCB_PREV		0x0bb
 
 #ifdef linux
 #define	SG_SIZEOF		0x0c		/* sizeof(struct scatterlist) */
@@ -665,63 +677,68 @@
  */
 #define LASTPHASE		0x03d
 #define ARG_1			0x03e
-#define RETURN_1		0x03e
-#define		SEND_SENSE	0x80
+#define		MAXOFFSET	0x01
+#define RETURN_1		0x03f
 #define		SEND_WDTR	0x80
-#define		SEND_SDTR	0x80
-#define		SEND_REJ	0x40
+#define		SEND_SDTR	0x60
+#define		SEND_SENSE	0x40
+#define		SEND_REJ	0x20
+#define		SCB_PAGEDIN	0x10
 
-#define SIGSTATE		0x03f
+#define SIGSTATE		0x040
 
-#define DMAPARAMS		0x040	/* Parameters for DMA Logic */
+#define DMAPARAMS		0x041	/* Parameters for DMA Logic */
 
-#define	SG_COUNT		0x041
-#define	SG_NEXT			0x042	/* working value of SG pointer */
-#define		SG_NEXT0	0x042
-#define		SG_NEXT1	0x043
-#define		SG_NEXT2	0x044
-#define		SG_NEXT3	0x045
+#define	SG_COUNT		0x042
+#define	SG_NEXT			0x043	/* working value of SG pointer */
+#define		SG_NEXT0	0x043
+#define		SG_NEXT1	0x044
+#define		SG_NEXT2	0x045
+#define		SG_NEXT3	0x046
 
-#define	SCBCOUNT		0x046	/*
+#define	SCBCOUNT		0x047	/*
 					 * Number of SCBs supported by
 					 * this card.
 					 */
-#define	COMP_SCBCOUNT		0x047	/*
+#define	COMP_SCBCOUNT		0x048	/*
 					 * Two's compliment of SCBCOUNT
 					 */
-#define QCNTMASK		0x048	/*
+#define QCNTMASK		0x049	/*
 					 * Mask of bits to test against
 					 * when looking at the Queue Count
 					 * registers.  Works around a bug
 					 * on aic7850 chips. 
 					 */
-#define FLAGS			0x049
+#define FLAGS			0x04a
 #define		SINGLE_BUS	0x00
 #define		TWIN_BUS	0x01
 #define		WIDE_BUS	0x02
-#define		PAGE_SCBS	0x04
+#define		PAGESCBS	0x04
 #define		DPHASE		0x10
-#define		MAXOFFSET	0x20
+#define		SELECTED	0x20
 #define		IDENTIFY_SEEN	0x40
 #define		RESELECTED	0x80
 
-#define	ACTIVE_A		0x050
-#define	ACTIVE_B		0x051
-#define	SAVED_TCL		0x052	/*
+#define	SAVED_TCL		0x04b	/*
 					 * Temporary storage for the
 					 * target/channel/lun of a
 					 * reconnecting target
 					 */
-#define WAITING_SCBH		0x053	/*
+#define	ACTIVE_A		0x04c
+#define	ACTIVE_B		0x04d
+#define WAITING_SCBH		0x04e	/*
 					 * head of list of SCBs awaiting
 					 * selection
 					 */
-#define DISCONNECTED_SCBH	0x053	/*
+#define DISCONNECTED_SCBH	0x04f	/*
 					 * head of list of SCBs that are
 					 * disconnected.  Used for SCB
 					 * paging.
 					 */
 #define		SCB_LIST_NULL	0xff
+
+#define SAVED_LINKPTR		0x050
+#define SAVED_SCBPTR		0x051
 
 #define SCSICONF		0x05a
 #define HOSTCONF		0x05d
@@ -743,6 +760,7 @@
 #define MSG_NOP			0x08
 #define MSG_MSG_PARITY_ERROR	0x09
 #define MSG_BUS_DEVICE_RESET	0x0c
+#define MSG_ABORT_TAG		0x0d
 #define MSG_SIMPLE_TAG		0x20
 #define MSG_IDENTIFY		0x80
 
