@@ -1,0 +1,161 @@
+.TH Chess GNU
+.SH NAME
+Chess \- GNU Chess
+.SH SYNOPSIS
+.B Chess
+[
+.B arg1 arg2
+]
+.SH DESCRIPTION
+.I Chess
+plays a game of chess against the user or it plays against itself.
+.PP
+.I Chess
+has a simple alpha-numeric board display or it can be compiled for
+use with the CHESSTOOL program on a SUN workstation.
+The program gets its opening moves from the file gnuchess.book which
+should be located in the same directory as gnuchess.
+To invoke the prgram, type 'gnuchess' or type 'chesstool gnuchess'
+on a SUN workstation where 'CHESSTOOL' is installed.
+The 'gnuchess' command can be followed by up to 2 command line arguments.
+If one argument is given it determines the programs search time in
+seconds.  If two arguments are given, they will be used to set tournament
+time controls with the first argument being the number of moves and the second
+being the total clock time in minutes.  Thus, entering 'chess 60 5' will set
+the clocks for 5 minutes (300 seconds) for the first 60 moves.
+If no argument is given the program will prompt the user for level of
+play.
+For use with CHESSTOOL, see the documentation on that program.
+.PP
+Once
+.I Chess
+is invoked, the program will display the board and prompt the user
+for a move. To enter a move, use the notation 'e2e4' where the first
+letter-number pair indicates the origination square
+and the second letter-number pair indicates the destination square.
+An alternative is to use the notation 'nf3' where
+the first letter indicates the piece type (p,n,b,r,q,k).
+To castle, type the origin and destination squares
+of the king just as you would do for a regular move, or type
+"o-o" for kingside castling and "o-o-o" for queenside.
+.SH COMMANDS
+.PP
+In addition to legal moves, the following commands are available as responses.
+.PP
+.I beep
+-- causes the program to beep after each move.
+.PP
+.I bd
+-- updates the current board position on the display.
+.PP
+.I book
+-- turns off use of the opening library.
+.PP
+.I both
+-- causes the computer to play both sides of a chess game.
+.PP
+.I black
+-- causes the computer to take the black pieces with the move
+and begin searching.
+.PP
+.I level
+-- allows the user to set time controls such as
+60 moves in 5 minutes etc.  In tournament mode, the program will
+vary the time it takes for each
+move depending on the situation.  If easy mode is disabled (using
+the 'easy' command), the program
+will often respond with its move immediately, saving time on
+its clock for use later on.
+.PP
+.I depth
+-- allows the user to change the
+search depth of the program.  The maximum depth is 29 ply.
+Normally the depth is set to 29 and the computer terminates
+its search based on elapsed time rather than depth.
+Using the depth command allows setting depth to say
+4 ply and setting response time to a large number such as
+9999 seconds. The program will then search until all moves
+have been examined to a depth of 4 ply (with extensions up
+to 11 additional ply for sequences of checks and captures). 
+.PP
+.I easy
+-- toggles easy mode (thinking on opponents time)
+on and off. The default is easy mode ON.  If easy mode is disabled,
+the user must enter a 'break' or '^C' to get the programs
+attention before entering each move.
+.PP
+.I edit
+-- allows the user to set up a board position.
+In this mode, the '#' command will clear the board, the 'c'
+command will toggle piece color, and the '.' command will exit
+setup mode.  Pieces are entered by typing a letter (p,n,b,r,q,k) for
+the piece followed by the coordinate.  For example "pb3" would
+place a pawn on square b3.
+.PP
+.I force
+-- allows the user to enter moves for both
+sides. To get the program to play after a sequence of moves
+has been entered use the 'white' or 'black' commands.
+.PP
+.I get
+-- retrieves a game from disk.  The program will
+prompt the user for a file name.
+.PP
+.I help
+-- displays a short description of the commands.
+.PP
+.I hint
+-- causes the program to supply the user with
+its predicted move.
+.PP
+.I list
+-- writes the game moves and some statistics
+on search depth, nodes, and time to the file 'chess.lst'.
+.PP
+.I new
+-- starts a new game.
+.PP
+.I post
+-- causes the program to display the principle
+variation and the score during the search.  A score of
+100 is equivalent to a 1 pawn advantage for the computer.
+.PP
+.I random
+-- causes the program to randomize its move
+selection slightly.
+.PP
+.I reverse
+-- causes the board display to be reversed.  That
+is, the white pieces will now appear at the top of the board.
+.PP
+.I quit
+-- exits the game.
+.PP
+.I save
+-- saves a game to disk.  The program will prompt
+the user for a file name.
+.PP
+.I switch
+-- causes the program to switch places with
+the opponent and begin searching.
+.PP
+.I undo
+-- undoes the last move whether it was the computer's
+or the human's. You may also type "remove". This is equivalent
+to two "undo's" (e.g. retract one move for each side).
+.PP
+.I white
+-- causes the computer to take the white pieces
+with the move and begin searching.
+.SH BUGS
+.PP
+Pawn promotion to pieces other than a queen is not allowed.
+En-Passant does not work properly with CHESSTOOOL.
+The transposition table may not work properly in some
+positions so the default is to turn this off. 
+.fi
+.SH SEE ALSO
+.nf
+chesstool(6)
+.fi
+
