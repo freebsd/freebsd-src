@@ -30,10 +30,11 @@
 #
 # BOOTP has mounted / for us.  Assume a read-only mount.  We must then
 # - figure out our IP by querying the interface
-# - fill /conf/etc (writable) with files from /etc, and then update
-#   per-machine files from /conf/*/ where * is the IP of the host,
-#   the IP of the subnet, "default", or nothing.
-# - mount /conf/etc over /etc so we can see the new files.
+# - copy /etc temporarily out of the way to /tmp/etc
+# - mount /etc as an MFS
+# - repopulate /etc with the saved off copy
+# - override files in /etc with files from /conf/*/etc where
+#   '*' is default, netmask of client, ip-address of client
 #
 # WARNING: i thing you should not change /etc/rc or strange things could
 # happen.
@@ -87,39 +88,42 @@ for i in ${iflist} ; do
     fi
 done
 echo "Interface ${bootp_ifc} IP-Address ${bootp_ipa} Broadcast ${bootp_ipbca}"
- 
-# Files in /etc are copied to /conf/etc which is writable. Then
-# per-machine configs from /conf/ip.address/etc are copied onto this
-# directory. First choice is using the client's IP, then the client's
-# broadcast address, then a default configuration.
+
+
+# Create an MFS /tmp to temporarily hold files from /etc until we
+# can bootstrap /etc as an MFS.
+
+/sbin/mount_mfs -s 4096 -T qp120at dummy /tmp
+chkerr $? "MFS mount on /tmp"
+/bin/cp -Rp /etc /tmp
+chkerr $? "cp /etc to /tmp/etc MFS"
+
+/sbin/mount_mfs -s 4096 -T qp120at dummy /etc
+chkerr $? "MFS mount on /etc"
+/bin/chmod 755 /etc
+
+/bin/cp -Rp /tmp/etc/* /etc
+chkerr $? "cp /tmp/etc to /etc MFS"
+
+rm -rf /tmp/etc
+/sbin/umount /tmp
+
+
+# Allow for override files to replace files in /etc.  Use /conf/*/etc
+# to find the override files.  First choice is default files that
+# always override, then files that from the directory that matches the
+# client's broadcast address, finally followed by overrides that match
+# the client's IP address.
+#
 # This way we have some flexibility to handle clusters of machines
 # on separate subnets.
 #
-# WARNING! null mounts cannot handle mmap, and since many programs
-# use mmap (such as 'cp'), we have to copy.
-#
-mount_mfs -s 2048 -T qp120at dummy /conf/etc
-cp -Rp /etc/* /conf/etc
-chkerr $? "MFS mount on /conf/etc"
 
-# Pick up default, network-specific, and host-specific config, in that
-# order
-
-if [ -d /conf/default/etc/ ]; then
-	cp -Rp /conf/default/etc/* /conf/etc
-fi
-
-if [ -d /conf/${bootp_ipbca} ] ; then
-	cp -Rp /conf/${bootp_ipbca}/etc/* /conf/etc
-fi
-
-if [ -d /conf/${bootp_ipa} ] ; then
-	cp -Rp /conf/${bootp_ipa}/etc/* /conf/etc
-fi
-
-# Make the new directory available as /etc
-#
-mount_null /conf/etc /etc
+for i in default ${bootp_ipbca} ${bootp_ipa} ; do
+	if [ -d /conf/${i}/etc ]; then
+		cp -Rp /conf/${i}/etc/* /etc
+	fi
+done
 
 # Tell /etc/rc to run the specified script after
 # it does its mounts but before it does anything
