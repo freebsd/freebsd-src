@@ -1,16 +1,15 @@
 .\" -*- nroff-fill -*-
 .\" $FreeBSD$
-.Dd December 23, 1999
-.Os FreeBSD
-.Dt PicoBSD 8
+.Dd April 21, 2001
+.Os
+.Dt PICOBSD 8
 .Sh NAME
 .Nm picobsd
-.Nd Floppy disk based FreeBSD system
+.Nd floppy disk based FreeBSD system
 .Sh SYNOPSIS
 .Nm
 .Op Fl n
 .Op Ar floppy-type Op Ar site-name
-.Pp
 .Sh DESCRIPTION
 .Nm
 is a minimal implementation of
@@ -28,14 +27,14 @@ system and mounts it as root.  It then copies the files in the floppy
 .Pa /etc
 directory to the MFS
 .Pa /etc
-directory and executes a specialized version
+directory and executes a specialized version of
 .Pa /etc/rc .
 The standard version of
 .Pa /etc/rc
 prompts for additional floppies and reads them in to the MFS file system.
 .Sh ENVIRONMENT
 As a result of the extreme size limitations, the
-.Nm 
+.Nm
 environment differs from the normal
 .Fx
 in a number of ways:
@@ -52,11 +51,11 @@ floppy are joined together as a single executable built with
 Some programs are supplied in minimalistic versions, specifically
 .Nm ns ,
 a cut-down version of
-.Nm netstat ,
+.Xr netstat 1 ,
 and
 .Nm vm ,
 a cut-down version of
-.Nm vmstat .
+.Xr vmstat 8 .
 .El
 .Sh BUILDING picobsd
 The
@@ -69,12 +68,16 @@ directory.  The
 build process has changed slightly over time, in order to cope
 with the unavoidable increase of code size, which requires more and more
 tricks to cram as much as possible on
-to the floppies. In FreeBSD 4.3, the supported build script is
+to the floppies.
+In
+.Fx 4.3 ,
+the supported build script is
 .Pa /usr/src/release/picobsd/build/picobsd
 which can be run from anywhere.
 This interactive script will ask for parameter entries and then build the
-appropriate single floppy version. The following kinds of floppy are envisaged:
-.Bl -hang
+appropriate single floppy version.
+The following kinds of floppy are envisaged:
+.Bl -hang -width "install  "
 .It bridge
 is a configuration suitable for bridges, routers and firewalls
 .It dial
@@ -90,8 +93,8 @@ is a configuration suitable for use as a router.  This particular configuration
 aims to work on minimal hardware.
 .El
 .Pp
-These configurations serve only as examples to build your
-own. Not all of them have been tested, and you might need small tweaks
+These configurations serve only as examples to build your own.
+Not all of them have been tested, and you might need small tweaks
 to the configuration files to make them work or even fit into
 the available disk space as code size increases.
 .Pp
@@ -99,25 +102,27 @@ You can define your own floppy type, by creating a directory
 with a name of your choice (e.g. FOO) which contains
 .Pp
 .Bl -tag -width "floppy.tree.exclude" -compact
-.It PICOBSD
+.It Pa PICOBSD
 the kernel configuration file (required).
-.It crunch.conf
+.It Pa crunch.conf
 crunchgen configuration (required).
-.It config
-shell variables, sourced by the "picobsd" script (optional).
-.It floppy.tree.exclude
+.It Pa config
+shell variables, sourced by the
+.Pa picobsd
+script (optional).
+.It Pa floppy.tree.exclude
 files from the standard floppy tree which are not needed (optional).
-.It floppy.tree/
+.It Pa floppy.tree/
 local additions to the standard floppy tree (optional).
-.It floppy.tree.${site}
+.It Pa floppy.tree. Ns ${site}
 same as above, site-specific (optional).
 .El
-
-More information on the build process can be found in
-the "picobsd" script.
+.Pp
+More information on the build process can be found in the
+.Pa picobsd
+script.
 Sample configurations can be found in
-.Pa /usr/src/release/picobsd/${type}/
-
+.Pa /usr/src/release/picobsd/ Ns ${type} Ns /
 .Sh BOOTING PicoBSD
 To boot
 .Nm ,
@@ -131,10 +136,12 @@ anywhere between 1 and 3 minutes.
 To speed up booting, you can use
 .Xr etherboot
 to load the preloaded, uncompressed kernel image
-which is a byproduct of the picobsd build. In this case
+which is a byproduct of the
+.Nm
+build.
+In this case
 the load time is a matter of a few seconds, even on a 10Mbit/s
 ethernet.
-minutes.
 .Ss Swap space
 After booting,
 .Nm
@@ -154,26 +161,29 @@ command.
 .Xr crunchgen 1 ,
 .Xr swapon 8 ,
 .Xr vnconfig 8
-.\" .Sh STANDARDS
-.\" .Sh HISTORY
 .Sh AUTHORS
 .An -nosplit
 .An Andrzej Bialecki Aq abial@FreeBSD.org ,
 with subsequent work on the scripts by
 .An Luigi Rizzo Aq luigi@iet.unipi.it
 and others.
-Man page and Makefiles created by
+Man page and
+.Pa Makefiles
+created by
 .An Greg Lehey Aq grog@lemis.com .
 .Sh BUGS
-In order to build 
+In order to build
 .Nm ,
 the kernel of the system on which it is built must have the
-.Nm vn
-driver installed.  
+.Xr vn 4
+driver installed.
 .Pp
 The build process must be run as
-.Nm root
-because of the need of running vnconfig and mount.
+.Dq root
+because of the need of running
+.Xr vnconfig 8
+and
+.Xr mount 8 .
 .Pp
 Building
 .Nm
