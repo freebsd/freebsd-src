@@ -81,18 +81,9 @@ struct glue __sglue = { &uglue, 3, __sF };
  * symbols and expects libc to provide them.  We only have need to support
  * i386 and alpha because they are the only "old" systems we have deployed.
  */
-#if defined(__i386__)
-#define FILE_SIZE 88
-#elif defined(__alpha__)
-#define FILE_SIZE 152
-#endif
-#ifndef FILE_SIZE
-#error "You must define FILE_SIZE for this platform"
-#endif
-#define X(loc, sym)	__strong_reference(loc, sym)
-X(__sF + FILE_SIZE * 0, __stdin);
-X(__sF + FILE_SIZE * 1, __stdout);
-X(__sF + FILE_SIZE * 2, __stderr);
+FILE *__stdinp = &__sF[0];
+FILE *__stdoutp = &__sF[1];
+FILE *__stderrp = &__sF[2];
 
 static struct glue *	moreglue __P((int));
 
