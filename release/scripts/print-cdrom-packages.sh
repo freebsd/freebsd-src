@@ -113,7 +113,11 @@ else
 	CDROM_SET_1="${CDROM_SET_1} x11/xorg-documents"
 	CDROM_SET_1="${CDROM_SET_1} x11/xorg-libraries"
 	CDROM_SET_1="${CDROM_SET_1} x11/xorg-manpages"
-	CDROM_SET_1="${CDROM_SET_1} x11/gnome2"
+	if [ "X${PKG_ARCH}" = "Xi386" ]; then
+		CDROM_SET_1="${CDROM_SET_1} x11/gnome2-lite"
+	else
+		CDROM_SET_1="${CDROM_SET_1} x11/gnome2"
+	fi
 	CDROM_SET_1="${CDROM_SET_1} x11/kde-lite"
 	CDROM_SET_1="${CDROM_SET_1} www/links"
 
@@ -140,6 +144,7 @@ else
 	CDROM_SET_1="${CDROM_SET_1} print/a2ps-letter"
 	if [ "X${PKG_ARCH}" = "Xi386" ]; then
 		CDROM_SET_1="${CDROM_SET_1} print/acroread5"
+		CDROM_SET_1="${CDROM_SET_1} comms/ltmdm"
 	fi
 	CDROM_SET_1="${CDROM_SET_1} print/apsfilter"
 	CDROM_SET_1="${CDROM_SET_1} print/ghostscript-gnu-nox11"
