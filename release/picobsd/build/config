@@ -5,11 +5,13 @@
 # The type-specific "config" file is sourced after this one, so
 # you can override things there.
 
-# The two variables below contain the list of links and device entries
-# which are created on the mfs image.
+# STAND_LINKS contains the list of links to be created on the mfs image.
+# o_no_devfs is set to an empty string to inform the build script that
+# we are using devfs (this need to be done in a less confusing way sometime...)
 
 STAND_LINKS=${STAND_LINKS:-"bin sbin usr/bin usr/sbin usr/libexec \
 	usr/local/bin"}
 
-MY_DEVS=${MY_DEVS:-"std tun2 cuaa0 cuaa1 cuaa2 vty10 fd0 ad0 pty0 \
-	ttyd0 cuaa0 bpf0 bpf1 sa0 sa1"}
+o_no_devfs="" # we have devfs.
+
+# fd_size="2880"  # use this variable to set floppy sizes (in KBytes)
