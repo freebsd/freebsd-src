@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)if.c	8.3 (Berkeley) 1/4/94
+ *	@(#)if.c	8.5 (Berkeley) 1/9/95
  */
 
 #include <sys/param.h>
@@ -198,7 +198,8 @@ ifa_ifwithdstaddr(addr)
 	for (ifp = ifnet; ifp; ifp = ifp->if_next) 
 	    if (ifp->if_flags & IFF_POINTOPOINT)
 		for (ifa = ifp->if_addrlist; ifa; ifa = ifa->ifa_next) {
-			if (ifa->ifa_addr->sa_family != addr->sa_family)
+			if (ifa->ifa_addr->sa_family != addr->sa_family ||
+			    ifa->ifa_dstaddr == NULL)
 				continue;
 			if (equal(addr, ifa->ifa_dstaddr))
 				return (ifa);
@@ -457,7 +458,7 @@ ifunit(name)
 int
 ifioctl(so, cmd, data, p)
 	struct socket *so;
-	int cmd;
+	u_long cmd;
 	caddr_t data;
 	struct proc *p;
 {

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)radix.h	8.1 (Berkeley) 6/10/93
+ *	@(#)radix.h	8.2 (Berkeley) 10/31/94
  */
 
 #ifndef _RADIX_H_
@@ -84,9 +84,15 @@ extern struct radix_mask {
 	char	rm_unused;		/* cf. rn_bmask */
 	u_char	rm_flags;		/* cf. rn_flags */
 	struct	radix_mask *rm_mklist;	/* more masks to try */
-	caddr_t	rm_mask;		/* the mask */
+	union	{
+		caddr_t	rmu_mask;		/* the mask */
+		struct	radix_node *rmu_leaf;	/* for normal routes */
+	}	rm_rmu;
 	int	rm_refs;		/* # of references to this struct */
 } *rn_mkfreelist;
+
+#define rm_mask rm_rmu.rmu_mask
+#define rm_leaf rm_rmu.rmu_leaf		/* extra field would make 32 bytes */
 
 #define MKGet(m) {\
 	if (rn_mkfreelist) {\
@@ -113,6 +119,8 @@ struct radix_node_head {
 		__P((void *v, void *mask, struct radix_node_head *head));
 	struct	radix_node *(*rnh_matchaddr)	/* locate based on sockaddr */
 		__P((void *v, struct radix_node_head *head));
+	struct	radix_node *(*rnh_lookup)	/* locate based on sockaddr */
+		__P((void *v, void *mask, struct radix_node_head *head));
 	struct	radix_node *(*rnh_matchpkt)	/* locate based on packet hdr */
 		__P((void *v, struct radix_node_head *head));
 	int	(*rnh_walktree)			/* traverse tree */
@@ -123,6 +131,7 @@ struct radix_node_head {
 
 #ifndef KERNEL
 #define Bcmp(a, b, n) bcmp(((char *)(a)), ((char *)(b)), (n))
+#define Bcopy(a, b, n) bcopy(((char *)(a)), ((char *)(b)), (unsigned)(n))
 #define Bzero(p, n) bzero((char *)(p), (int)(n));
 #define R_Malloc(p, t, n) (p = (t) malloc((unsigned int)(n)))
 #define Free(p) free((char *)p);
@@ -132,6 +141,7 @@ struct radix_node_head {
 #define Bzero(p, n) bzero((caddr_t)(p), (unsigned)(n));
 #define R_Malloc(p, t, n) (p = (t) malloc((unsigned long)(n), M_RTABLE, M_DONTWAIT))
 #define Free(p) free((caddr_t)p, M_RTABLE);
+#endif /*KERNEL*/
 
 void	 rn_init __P((void));
 int	 rn_inithead __P((void **, int));
@@ -149,5 +159,4 @@ struct radix_node
 	 *rn_search __P((void *, struct radix_node *)),
 	 *rn_search_m __P((void *, struct radix_node *, void *));
 
-#endif /*KERNEL*/
 #endif /* _RADIX_H_ */
