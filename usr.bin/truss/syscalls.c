@@ -308,7 +308,8 @@ print_arg(int fd, struct syscall_args *sc, unsigned long *args) {
 	  == -1)
 	  err(2, "get_struct %p", (void *)args[sc->offset]);
       } else {
-	if (get_struct(fd, (void *)args[sc->offset], (void *)&ss, ss.ss_len)
+	if (get_struct(fd, (void *)args[sc->offset], (void *)&ss,
+	    ss.ss_len < sizeof(ss) ? ss.ss_len : sizeof(ss))
 	  == -1)
 	  err(2, "get_struct %p", (void *)args[sc->offset]);
       }
