@@ -664,10 +664,12 @@ mac_policy_register(struct mac_policy_conf *mpc)
 			    mpe->mpe_function;
 			break;
 		case MAC_CREATE_PROC0:
-			mpc->mpc_ops->mpo_create_proc0 = mpe->mpe_function;
+			mpc->mpc_ops->mpo_create_proc0 =
+			    mpe->mpe_function;
 			break;
 		case MAC_CREATE_PROC1:
-			mpc->mpc_ops->mpo_create_proc1 = mpe->mpe_function;
+			mpc->mpc_ops->mpo_create_proc1 =
+			    mpe->mpe_function;
 			break;
 		case MAC_RELABEL_CRED:
 			mpc->mpc_ops->mpo_relabel_cred =
