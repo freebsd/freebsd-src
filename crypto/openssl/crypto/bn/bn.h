@@ -59,7 +59,7 @@
 #ifndef HEADER_BN_H
 #define HEADER_BN_H
 
-#ifndef WIN16
+#ifndef NO_FP_API
 #include <stdio.h> /* FILE */
 #endif
 #include <openssl/opensslconf.h>
@@ -233,7 +233,7 @@ typedef struct bignum_st
 	BN_ULONG *d;	/* Pointer to an array of 'BN_BITS2' bit chunks. */
 	int top;	/* Index of last used d +1. */
 	/* The next are internal book keeping for bn_expand. */
-	int max;	/* Size of the d array. */
+	int dmax;	/* Size of the d array. */
 	int neg;	/* one if the number is negative */
 	int flags;
 	} BIGNUM;
@@ -364,6 +364,8 @@ int	BN_mod_exp(BIGNUM *r, BIGNUM *a, const BIGNUM *p,
 		   const BIGNUM *m,BN_CTX *ctx);
 int	BN_mod_exp_mont(BIGNUM *r, BIGNUM *a, const BIGNUM *p,
 			const BIGNUM *m, BN_CTX *ctx, BN_MONT_CTX *m_ctx);
+int	BN_mod_exp_mont_word(BIGNUM *r, BN_ULONG a, const BIGNUM *p,
+			const BIGNUM *m, BN_CTX *ctx, BN_MONT_CTX *m_ctx);
 int	BN_mod_exp2_mont(BIGNUM *r, BIGNUM *a1, BIGNUM *p1,BIGNUM *a2,
 		BIGNUM *p2,BIGNUM *m,BN_CTX *ctx,BN_MONT_CTX *m_ctx);
 int	BN_mod_exp_simple(BIGNUM *r, BIGNUM *a, BIGNUM *p,
@@ -433,9 +435,9 @@ int	BN_div_recp(BIGNUM *dv, BIGNUM *rem, BIGNUM *m,
 
 /* library internal functions */
 
-#define bn_expand(a,bits) ((((((bits+BN_BITS2-1))/BN_BITS2)) <= (a)->max)?\
+#define bn_expand(a,bits) ((((((bits+BN_BITS2-1))/BN_BITS2)) <= (a)->dmax)?\
 	(a):bn_expand2((a),(bits)/BN_BITS2+1))
-#define bn_wexpand(a,words) (((words) <= (a)->max)?(a):bn_expand2((a),(words)))
+#define bn_wexpand(a,words) (((words) <= (a)->dmax)?(a):bn_expand2((a),(words)))
 BIGNUM *bn_expand2(BIGNUM *a, int words);
 
 #define bn_fix_top(a) \
@@ -483,7 +485,9 @@ BN_ULONG bn_sub_words(BN_ULONG *rp, BN_ULONG *ap, BN_ULONG *bp,int num);
 #define BN_F_BN_CTX_NEW					 106
 #define BN_F_BN_DIV					 107
 #define BN_F_BN_EXPAND2					 108
+#define BN_F_BN_MOD_EXP2_MONT				 118
 #define BN_F_BN_MOD_EXP_MONT				 109
+#define BN_F_BN_MOD_EXP_MONT_WORD			 117
 #define BN_F_BN_MOD_INVERSE				 110
 #define BN_F_BN_MOD_MUL_RECIPROCAL			 111
 #define BN_F_BN_MPI2BN					 112

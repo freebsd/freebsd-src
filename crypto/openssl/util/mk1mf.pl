@@ -52,7 +52,8 @@ foreach (@ARGV)
 		{ printf STDERR "\t%-10s\t%s\n",$i,$ops{$i}; }
 		print STDERR <<"EOF";
 and [options] can be one of
-	no-md2 no-md5 no-sha no-mdc2 no-ripemd  - Skip this digest
+	no-md2 no-md4 no-md5 no-sha no-mdc2	- Skip this digest
+	no-ripemd
 	no-rc2 no-rc4 no-idea no-des no-bf no-cast - Skip this symetric cipher
 	no-rc5
 	no-rsa no-dsa no-dh			- Skip this public key cipher
@@ -65,6 +66,7 @@ and [options] can be one of
 	no-err					- No error strings
 	dll/shlib				- Build shared libraries (MS)
 	debug					- Debug build
+        profile                                 - Profiling build
 	gcc					- Use Gcc (unix)
 	rsaref					- Build to require RSAref
 
@@ -200,6 +202,7 @@ $cflags.=" -DNO_RC2"  if $no_rc2;
 $cflags.=" -DNO_RC4"  if $no_rc4;
 $cflags.=" -DNO_RC5"  if $no_rc5;
 $cflags.=" -DNO_MD2"  if $no_md2;
+$cflags.=" -DNO_MD4"  if $no_md4;
 $cflags.=" -DNO_MD5"  if $no_md5;
 $cflags.=" -DNO_SHA"  if $no_sha;
 $cflags.=" -DNO_SHA1" if $no_sha1;
@@ -217,9 +220,10 @@ $cflags.=" -DNO_SSL3" if $no_ssl3;
 $cflags.=" -DNO_ERR"  if $no_err;
 $cflags.=" -DRSAref"  if $rsaref ne "";
 
-if ($unix)
-	{ $cflags="$c_flags" if ($c_flags ne ""); }
-else	{ $cflags="$c_flags$cflags" if ($c_flags ne ""); }
+## if ($unix)
+##	{ $cflags="$c_flags" if ($c_flags ne ""); }
+##else
+	{ $cflags="$c_flags$cflags" if ($c_flags ne ""); }
 
 $ex_libs="$l_flags$ex_libs" if ($l_flags ne "");
 
@@ -273,6 +277,8 @@ LFLAGS=$lflags
 
 BN_ASM_OBJ=$bn_asm_obj
 BN_ASM_SRC=$bn_asm_src
+BNCO_ASM_OBJ=$bnco_asm_obj
+BNCO_ASM_SRC=$bnco_asm_src
 DES_ENC_OBJ=$des_enc_obj
 DES_ENC_SRC=$des_enc_src
 BF_ENC_OBJ=$bf_enc_obj
@@ -379,6 +385,7 @@ $banner
 	\$(MKDIR) \$(INC_D)
 
 headers: \$(HEADER) \$(EXHEADER)
+	@
 
 lib: \$(LIBS_DEP)
 
@@ -539,6 +546,11 @@ foreach (values %lib_nam)
 		$lib_obj =~ s/\s\S*\/bn_asm\S*/ \$(BN_ASM_OBJ)/;
 		$rules.=&do_asm_rule($bn_asm_obj,$bn_asm_src);
 		}
+	if (($bnco_asm_obj ne "") && ($_ eq "CRYPTO"))
+		{
+		$lib_obj .= "\$(BNCO_ASM_OBJ)";
+		$rules.=&do_asm_rule($bnco_asm_obj,$bnco_asm_src);
+		}
 	if (($des_enc_obj ne "") && ($_ eq "CRYPTO"))
 		{
 		$lib_obj =~ s/\s\S*des_enc\S*/ \$(DES_ENC_OBJ)/;
@@ -601,6 +613,14 @@ $rules.= &do_lib_rule("\$(CRYPTOOBJ)","\$(O_CRYPTO)",$crypto,$shlib,"\$(SO_CRYPT
 $rules.=&do_link_rule("\$(BIN_D)$o\$(E_EXE)$exep","\$(E_OBJ)","\$(LIBS_DEP)","\$(L_LIBS) \$(EX_LIBS)");
 
 print $defs;
+
+if ($platform eq "linux-elf") {
+    print <<"EOF";
+# Generate perlasm output files
+%.cpp:
+	(cd \$(\@D)/..; PERL=perl make -f Makefile.ssl asm/\$(\@F))
+EOF
+}
 print "###################################################################\n";
 print $rules;
 
@@ -652,6 +672,7 @@ sub var_add
 	@a=grep(!/(_sock$)|(_acpt$)|(_conn$)|(^pxy_)/,@a) if $no_sock;
 
 	@a=grep(!/(^md2)|(_md2$)/,@a) if $no_md2;
+	@a=grep(!/(^md4)|(_md4$)/,@a) if $no_md4;
 	@a=grep(!/(^md5)|(_md5$)/,@a) if $no_md5;
 	@a=grep(!/(rmd)|(ripemd)/,@a) if $no_rmd160;
 
@@ -717,6 +738,7 @@ sub do_defs
 			{ $pf=".c"; }
 		else	{ $pf=$postfix; }
 		if ($_ =~ /BN_ASM/)	{ $t="$_ "; }
+		elsif ($_ =~ /BNCO_ASM/){ $t="$_ "; }
 		elsif ($_ =~ /DES_ENC/)	{ $t="$_ "; }
 		elsif ($_ =~ /BF_ENC/)	{ $t="$_ "; }
 		elsif ($_ =~ /CAST_ENC/){ $t="$_ "; }
@@ -840,6 +862,7 @@ sub read_options
 	elsif (/^no-bf$/)	{ $no_bf=1; }
 	elsif (/^no-cast$/)	{ $no_cast=1; }
 	elsif (/^no-md2$/)  	{ $no_md2=1; }
+	elsif (/^no-md4$/)	{ $no_md4=1; }
 	elsif (/^no-md5$/)	{ $no_md5=1; }
 	elsif (/^no-sha$/)	{ $no_sha=1; }
 	elsif (/^no-sha1$/)	{ $no_sha1=1; }
@@ -865,8 +888,10 @@ sub read_options
 	elsif (/^rsaref$/)	{ $rsaref=1; }
 	elsif (/^gcc$/)		{ $gcc=1; }
 	elsif (/^debug$/)	{ $debug=1; }
+	elsif (/^profile$/)	{ $profile=1; }
 	elsif (/^shlib$/)	{ $shlib=1; }
 	elsif (/^dll$/)		{ $shlib=1; }
+	elsif (/^shared$/)	{ } # We just need to ignore it for now...
 	elsif (/^([^=]*)=(.*)$/){ $VARS{$1}=$2; }
 	elsif (/^-[lL].*$/)	{ $l_flags.="$_ "; }
 	elsif ((!/^-help/) && (!/^-h/) && (!/^-\?/) && /^-.*$/)

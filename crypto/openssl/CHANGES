@@ -2,6 +2,678 @@
  OpenSSL CHANGES
  _______________
 
+ Changes between 0.9.5a and 0.9.6  [24 Sep 2000]
+
+  *) In ssl23_get_client_hello, generate an error message when faced
+     with an initial SSL 3.0/TLS record that is too small to contain the
+     first two bytes of the ClientHello message, i.e. client_version.
+     (Note that this is a pathologic case that probably has never happened
+     in real life.)  The previous approach was to use the version number
+     from the record header as a substitute; but our protocol choice
+     should not depend on that one because it is not authenticated
+     by the Finished messages.
+     [Bodo Moeller]
+
+  *) More robust randomness gathering functions for Windows.
+     [Jeffrey Altman <jaltman@columbia.edu>]
+
+  *) For compatibility reasons if the flag X509_V_FLAG_ISSUER_CHECK is
+     not set then we don't setup the error code for issuer check errors
+     to avoid possibly overwriting other errors which the callback does
+     handle. If an application does set the flag then we assume it knows
+     what it is doing and can handle the new informational codes
+     appropriately.
+     [Steve Henson]
+
+  *) Fix for a nasty bug in ASN1_TYPE handling. ASN1_TYPE is used for
+     a general "ANY" type, as such it should be able to decode anything
+     including tagged types. However it didn't check the class so it would
+     wrongly interpret tagged types in the same way as their universal
+     counterpart and unknown types were just rejected. Changed so that the
+     tagged and unknown types are handled in the same way as a SEQUENCE:
+     that is the encoding is stored intact. There is also a new type
+     "V_ASN1_OTHER" which is used when the class is not universal, in this
+     case we have no idea what the actual type is so we just lump them all
+     together.
+     [Steve Henson]
+
+  *) On VMS, stdout may very well lead to a file that is written to
+     in a record-oriented fashion.  That means that every write() will
+     write a separate record, which will be read separately by the
+     programs trying to read from it.  This can be very confusing.
+
+     The solution is to put a BIO filter in the way that will buffer
+     text until a linefeed is reached, and then write everything a
+     line at a time, so every record written will be an actual line,
+     not chunks of lines and not (usually doesn't happen, but I've
+     seen it once) several lines in one record.  BIO_f_linebuffer() is
+     the answer.
+
+     Currently, it's a VMS-only method, because that's where it has
+     been tested well enough.
+     [Richard Levitte]
+
+  *) Remove 'optimized' squaring variant in BN_mod_mul_montgomery,
+     it can return incorrect results.
+     (Note: The buggy variant was not enabled in OpenSSL 0.9.5a,
+     but it was in 0.9.6-beta[12].)
+     [Bodo Moeller]
+
+  *) Disable the check for content being present when verifying detached
+     signatures in pk7_smime.c. Some versions of Netscape (wrongly)
+     include zero length content when signing messages.
+     [Steve Henson]
+
+  *) New BIO_shutdown_wr macro, which invokes the BIO_C_SHUTDOWN_WR
+     BIO_ctrl (for BIO pairs).
+     [Bodo Möller]
+
+  *) Add DSO method for VMS.
+     [Richard Levitte]
+
+  *) Bug fix: Montgomery multiplication could produce results with the
+     wrong sign.
+     [Ulf Möller]
+
+  *) Add RPM specification openssl.spec and modify it to build three
+     packages.  The default package contains applications, application
+     documentation and run-time libraries.  The devel package contains
+     include files, static libraries and function documentation.  The
+     doc package contains the contents of the doc directory.  The original
+     openssl.spec was provided by Damien Miller <djm@mindrot.org>.
+     [Richard Levitte]
+     
+  *) Add a large number of documentation files for many SSL routines.
+     [Lutz Jaenicke <Lutz.Jaenicke@aet.TU-Cottbus.DE>]
+
+  *) Add a configuration entry for Sony News 4.
+     [NAKAJI Hiroyuki <nakaji@tutrp.tut.ac.jp>]
+
+  *) Don't set the two most significant bits to one when generating a
+     random number < q in the DSA library.
+     [Ulf Möller]
+
+  *) New SSL API mode 'SSL_MODE_AUTO_RETRY'.  This disables the default
+     behaviour that SSL_read may result in SSL_ERROR_WANT_READ (even if
+     the underlying transport is blocking) if a handshake took place.
+     (The default behaviour is needed by applications such as s_client
+     and s_server that use select() to determine when to use SSL_read;
+     but for applications that know in advance when to expect data, it
+     just makes things more complicated.)
+     [Bodo Moeller]
+
+  *) Add RAND_egd_bytes(), which gives control over the number of bytes read
+     from EGD.
+     [Ben Laurie]
+
+  *) Add a few more EBCDIC conditionals that make `req' and `x509'
+     work better on such systems.
+     [Martin Kraemer <Martin.Kraemer@MchP.Siemens.De>]
+
+  *) Add two demo programs for PKCS12_parse() and PKCS12_create().
+     Update PKCS12_parse() so it copies the friendlyName and the
+     keyid to the certificates aux info.
+     [Steve Henson]
+
+  *) Fix bug in PKCS7_verify() which caused an infinite loop
+     if there was more than one signature.
+     [Sven Uszpelkat <su@celocom.de>]
+
+  *) Major change in util/mkdef.pl to include extra information
+     about each symbol, as well as presentig variables as well
+     as functions.  This change means that there's n more need
+     to rebuild the .num files when some algorithms are excluded.
+     [Richard Levitte]
+
+  *) Allow the verify time to be set by an application,
+     rather than always using the current time.
+     [Steve Henson]
+  
+  *) Phase 2 verify code reorganisation. The certificate
+     verify code now looks up an issuer certificate by a
+     number of criteria: subject name, authority key id
+     and key usage. It also verifies self signed certificates
+     by the same criteria. The main comparison function is
+     X509_check_issued() which performs these checks.
+ 
+     Lot of changes were necessary in order to support this
+     without completely rewriting the lookup code.
+ 
+     Authority and subject key identifier are now cached.
+ 
+     The LHASH 'certs' is X509_STORE has now been replaced
+     by a STACK_OF(X509_OBJECT). This is mainly because an
+     LHASH can't store or retrieve multiple objects with
+     the same hash value.
+
+     As a result various functions (which were all internal
+     use only) have changed to handle the new X509_STORE
+     structure. This will break anything that messed round
+     with X509_STORE internally.
+ 
+     The functions X509_STORE_add_cert() now checks for an
+     exact match, rather than just subject name.
+ 
+     The X509_STORE API doesn't directly support the retrieval
+     of multiple certificates matching a given criteria, however
+     this can be worked round by performing a lookup first
+     (which will fill the cache with candidate certificates)
+     and then examining the cache for matches. This is probably
+     the best we can do without throwing out X509_LOOKUP
+     entirely (maybe later...).
+ 
+     The X509_VERIFY_CTX structure has been enhanced considerably.
+ 
+     All certificate lookup operations now go via a get_issuer()
+     callback. Although this currently uses an X509_STORE it
+     can be replaced by custom lookups. This is a simple way
+     to bypass the X509_STORE hackery necessary to make this
+     work and makes it possible to use more efficient techniques
+     in future. A very simple version which uses a simple
+     STACK for its trusted certificate store is also provided
+     using X509_STORE_CTX_trusted_stack().
+ 
+     The verify_cb() and verify() callbacks now have equivalents
+     in the X509_STORE_CTX structure.
+ 
+     X509_STORE_CTX also has a 'flags' field which can be used
+     to customise the verify behaviour.
+     [Steve Henson]
+ 
+  *) Add new PKCS#7 signing option PKCS7_NOSMIMECAP which 
+     excludes S/MIME capabilities.
+     [Steve Henson]
+
+  *) When a certificate request is read in keep a copy of the
+     original encoding of the signed data and use it when outputing
+     again. Signatures then use the original encoding rather than
+     a decoded, encoded version which may cause problems if the
+     request is improperly encoded.
+     [Steve Henson]
+
+  *) For consistency with other BIO_puts implementations, call
+     buffer_write(b, ...) directly in buffer_puts instead of calling
+     BIO_write(b, ...).
+
+     In BIO_puts, increment b->num_write as in BIO_write.
+     [Peter.Sylvester@EdelWeb.fr]
+
+  *) Fix BN_mul_word for the case where the word is 0. (We have to use
+     BN_zero, we may not return a BIGNUM with an array consisting of
+     words set to zero.)
+     [Bodo Moeller]
+
+  *) Avoid calling abort() from within the library when problems are
+     detected, except if preprocessor symbols have been defined
+     (such as REF_CHECK, BN_DEBUG etc.).
+     [Bodo Moeller]
+
+  *) New openssl application 'rsautl'. This utility can be
+     used for low level RSA operations. DER public key
+     BIO/fp routines also added.
+     [Steve Henson]
+
+  *) New Configure entry and patches for compiling on QNX 4.
+     [Andreas Schneider <andreas@ds3.etech.fh-hamburg.de>]
+
+  *) A demo state-machine implementation was sponsored by
+     Nuron (http://www.nuron.com/) and is now available in
+     demos/state_machine.
+     [Ben Laurie]
+
+  *) New options added to the 'dgst' utility for signature
+     generation and verification.
+     [Steve Henson]
+
+  *) Unrecognized PKCS#7 content types are now handled via a
+     catch all ASN1_TYPE structure. This allows unsupported
+     types to be stored as a "blob" and an application can
+     encode and decode it manually.
+     [Steve Henson]
+
+  *) Fix various signed/unsigned issues to make a_strex.c
+     compile under VC++.
+     [Oscar Jacobsson <oscar.jacobsson@celocom.com>]
+
+  *) ASN1 fixes. i2d_ASN1_OBJECT was not returning the correct
+     length if passed a buffer. ASN1_INTEGER_to_BN failed
+     if passed a NULL BN and its argument was negative.
+     [Steve Henson, pointed out by Sven Heiberg <sven@tartu.cyber.ee>]
+
+  *) Modification to PKCS#7 encoding routines to output definite
+     length encoding. Since currently the whole structures are in
+     memory there's not real point in using indefinite length 
+     constructed encoding. However if OpenSSL is compiled with
+     the flag PKCS7_INDEFINITE_ENCODING the old form is used.
+     [Steve Henson]
+
+  *) Added BIO_vprintf() and BIO_vsnprintf().
+     [Richard Levitte]
+
+  *) Added more prefixes to parse for in the the strings written
+     through a logging bio, to cover all the levels that are available
+     through syslog.  The prefixes are now:
+
+	PANIC, EMERG, EMR	=>	LOG_EMERG
+	ALERT, ALR		=>	LOG_ALERT
+	CRIT, CRI		=>	LOG_CRIT
+	ERROR, ERR		=>	LOG_ERR
+	WARNING, WARN, WAR	=>	LOG_WARNING
+	NOTICE, NOTE, NOT	=>	LOG_NOTICE
+	INFO, INF		=>	LOG_INFO
+	DEBUG, DBG		=>	LOG_DEBUG
+
+     and as before, if none of those prefixes are present at the
+     beginning of the string, LOG_ERR is chosen.
+
+     On Win32, the LOG_* levels are mapped according to this:
+
+	LOG_EMERG, LOG_ALERT, LOG_CRIT, LOG_ERR	=> EVENTLOG_ERROR_TYPE
+	LOG_WARNING				=> EVENTLOG_WARNING_TYPE
+	LOG_NOTICE, LOG_INFO, LOG_DEBUG		=> EVENTLOG_INFORMATION_TYPE
+
+     [Richard Levitte]
+
+  *) Made it possible to reconfigure with just the configuration
+     argument "reconf" or "reconfigure".  The command line arguments
+     are stored in Makefile.ssl in the variable CONFIGURE_ARGS,
+     and are retrieved from there when reconfiguring.
+     [Richard Levitte]
+
+  *) MD4 implemented.
+     [Assar Westerlund <assar@sics.se>, Richard Levitte]
+
+  *) Add the arguments -CAfile and -CApath to the pkcs12 utility.
+     [Richard Levitte]
+
+  *) The obj_dat.pl script was messing up the sorting of object
+     names. The reason was that it compared the quoted version
+     of strings as a result "OCSP" > "OCSP Signing" because
+     " > SPACE. Changed script to store unquoted versions of
+     names and add quotes on output. It was also omitting some
+     names from the lookup table if they were given a default
+     value (that is if SN is missing it is given the same
+     value as LN and vice versa), these are now added on the
+     grounds that if an object has a name we should be able to
+     look it up. Finally added warning output when duplicate
+     short or long names are found.
+     [Steve Henson]
+
+  *) Changes needed for Tandem NSK.
+     [Scott Uroff <scott@xypro.com>]
+
+  *) Fix SSL 2.0 rollback checking: Due to an off-by-one error in
+     RSA_padding_check_SSLv23(), special padding was never detected
+     and thus the SSL 3.0/TLS 1.0 countermeasure against protocol
+     version rollback attacks was not effective.
+
+     In s23_clnt.c, don't use special rollback-attack detection padding
+     (RSA_SSLV23_PADDING) if SSL 2.0 is the only protocol enabled in the
+     client; similarly, in s23_srvr.c, don't do the rollback check if
+     SSL 2.0 is the only protocol enabled in the server.
+     [Bodo Moeller]
+
+  *) Make it possible to get hexdumps of unprintable data with 'openssl
+     asn1parse'.  By implication, the functions ASN1_parse_dump() and
+     BIO_dump_indent() are added.
+     [Richard Levitte]
+
+  *) New functions ASN1_STRING_print_ex() and X509_NAME_print_ex()
+     these print out strings and name structures based on various
+     flags including RFC2253 support and proper handling of
+     multibyte characters. Added options to the 'x509' utility 
+     to allow the various flags to be set.
+     [Steve Henson]
+
+  *) Various fixes to use ASN1_TIME instead of ASN1_UTCTIME.
+     Also change the functions X509_cmp_current_time() and
+     X509_gmtime_adj() work with an ASN1_TIME structure,
+     this will enable certificates using GeneralizedTime in validity
+     dates to be checked.
+     [Steve Henson]
+
+  *) Make the NEG_PUBKEY_BUG code (which tolerates invalid
+     negative public key encodings) on by default,
+     NO_NEG_PUBKEY_BUG can be set to disable it.
+     [Steve Henson]
+
+  *) New function c2i_ASN1_OBJECT() which acts on ASN1_OBJECT
+     content octets. An i2c_ASN1_OBJECT is unnecessary because
+     the encoding can be trivially obtained from the structure.
+     [Steve Henson]
+
+  *) crypto/err.c locking bugfix: Use write locks (CRYPTO_w_[un]lock),
+     not read locks (CRYPTO_r_[un]lock).
+     [Bodo Moeller]
+
+  *) A first attempt at creating official support for shared
+     libraries through configuration.  I've kept it so the
+     default is static libraries only, and the OpenSSL programs
+     are always statically linked for now, but there are
+     preparations for dynamic linking in place.
+     This has been tested on Linux and True64.
+     [Richard Levitte]
+
+  *) Randomness polling function for Win9x, as described in:
+     Peter Gutmann, Software Generation of Practically Strong
+     Random Numbers.
+     [Ulf Möller]
+
+  *) Fix so PRNG is seeded in req if using an already existing
+     DSA key.
+     [Steve Henson]
+
+  *) New options to smime application. -inform and -outform
+     allow alternative formats for the S/MIME message including
+     PEM and DER. The -content option allows the content to be
+     specified separately. This should allow things like Netscape
+     form signing output easier to verify.
+     [Steve Henson]
+
+  *) Fix the ASN1 encoding of tags using the 'long form'.
+     [Steve Henson]
+
+  *) New ASN1 functions, i2c_* and c2i_* for INTEGER and BIT
+     STRING types. These convert content octets to and from the
+     underlying type. The actual tag and length octets are
+     already assumed to have been read in and checked. These
+     are needed because all other string types have virtually
+     identical handling apart from the tag. By having versions
+     of the ASN1 functions that just operate on content octets
+     IMPLICIT tagging can be handled properly. It also allows
+     the ASN1_ENUMERATED code to be cut down because ASN1_ENUMERATED
+     and ASN1_INTEGER are identical apart from the tag.
+     [Steve Henson]
+
+  *) Change the handling of OID objects as follows:
+
+     - New object identifiers are inserted in objects.txt, following
+       the syntax given in objects.README.
+     - objects.pl is used to process obj_mac.num and create a new
+       obj_mac.h.
+     - obj_dat.pl is used to create a new obj_dat.h, using the data in
+       obj_mac.h.
+
+     This is currently kind of a hack, and the perl code in objects.pl
+     isn't very elegant, but it works as I intended.  The simplest way
+     to check that it worked correctly is to look in obj_dat.h and
+     check the array nid_objs and make sure the objects haven't moved
+     around (this is important!).  Additions are OK, as well as
+     consistent name changes. 
+     [Richard Levitte]
+
+  *) Add BSD-style MD5-based passwords to 'openssl passwd' (option '-1').
+     [Bodo Moeller]
+
+  *) Addition of the command line parameter '-rand file' to 'openssl req'.
+     The given file adds to whatever has already been seeded into the
+     random pool through the RANDFILE configuration file option or
+     environment variable, or the default random state file.
+     [Richard Levitte]
+
+  *) mkstack.pl now sorts each macro group into lexical order.
+     Previously the output order depended on the order the files
+     appeared in the directory, resulting in needless rewriting
+     of safestack.h .
+     [Steve Henson]
+
+  *) Patches to make OpenSSL compile under Win32 again. Mostly
+     work arounds for the VC++ problem that it treats func() as
+     func(void). Also stripped out the parts of mkdef.pl that
+     added extra typesafe functions: these no longer exist.
+     [Steve Henson]
+
+  *) Reorganisation of the stack code. The macros are now all 
+     collected in safestack.h . Each macro is defined in terms of
+     a "stack macro" of the form SKM_<name>(type, a, b). The 
+     DEBUG_SAFESTACK is now handled in terms of function casts,
+     this has the advantage of retaining type safety without the
+     use of additional functions. If DEBUG_SAFESTACK is not defined
+     then the non typesafe macros are used instead. Also modified the
+     mkstack.pl script to handle the new form. Needs testing to see
+     if which (if any) compilers it chokes and maybe make DEBUG_SAFESTACK
+     the default if no major problems. Similar behaviour for ASN1_SET_OF
+     and PKCS12_STACK_OF.
+     [Steve Henson]
+
+  *) When some versions of IIS use the 'NET' form of private key the
+     key derivation algorithm is different. Normally MD5(password) is
+     used as a 128 bit RC4 key. In the modified case
+     MD5(MD5(password) + "SGCKEYSALT")  is used insted. Added some
+     new functions i2d_RSA_NET(), d2i_RSA_NET() etc which are the same
+     as the old Netscape_RSA functions except they have an additional
+     'sgckey' parameter which uses the modified algorithm. Also added
+     an -sgckey command line option to the rsa utility. Thanks to 
+     Adrian Peck <bertie@ncipher.com> for posting details of the modified
+     algorithm to openssl-dev.
+     [Steve Henson]
+
+  *) The evp_local.h macros were using 'c.##kname' which resulted in
+     invalid expansion on some systems (SCO 5.0.5 for example).
+     Corrected to 'c.kname'.
+     [Phillip Porch <root@theporch.com>]
+
+  *) New X509_get1_email() and X509_REQ_get1_email() functions that return
+     a STACK of email addresses from a certificate or request, these look
+     in the subject name and the subject alternative name extensions and 
+     omit any duplicate addresses.
+     [Steve Henson]
+
+  *) Re-implement BN_mod_exp2_mont using independent (and larger) windows.
+     This makes DSA verification about 2 % faster.
+     [Bodo Moeller]
+
+  *) Increase maximum window size in BN_mod_exp_... to 6 bits instead of 5
+     (meaning that now 2^5 values will be precomputed, which is only 4 KB
+     plus overhead for 1024 bit moduli).
+     This makes exponentiations about 0.5 % faster for 1024 bit
+     exponents (as measured by "openssl speed rsa2048").
+     [Bodo Moeller]
+
+  *) Rename memory handling macros to avoid conflicts with other
+     software:
+          Malloc         =>  OPENSSL_malloc
+          Malloc_locked  =>  OPENSSL_malloc_locked
+          Realloc        =>  OPENSSL_realloc
+          Free           =>  OPENSSL_free
+     [Richard Levitte]
+
+  *) New function BN_mod_exp_mont_word for small bases (roughly 15%
+     faster than BN_mod_exp_mont, i.e. 7% for a full DH exchange).
+     [Bodo Moeller]
+
+  *) CygWin32 support.
+     [John Jarvie <jjarvie@newsguy.com>]
+
+  *) The type-safe stack code has been rejigged. It is now only compiled
+     in when OpenSSL is configured with the DEBUG_SAFESTACK option and
+     by default all type-specific stack functions are "#define"d back to
+     standard stack functions. This results in more streamlined output
+     but retains the type-safety checking possibilities of the original
+     approach.
+     [Geoff Thorpe]
+
+  *) The STACK code has been cleaned up, and certain type declarations
+     that didn't make a lot of sense have been brought in line. This has
+     also involved a cleanup of sorts in safestack.h to more correctly
+     map type-safe stack functions onto their plain stack counterparts.
+     This work has also resulted in a variety of "const"ifications of
+     lots of the code, especially "_cmp" operations which should normally
+     be prototyped with "const" parameters anyway.
+     [Geoff Thorpe]
+
+  *) When generating bytes for the first time in md_rand.c, 'stir the pool'
+     by seeding with STATE_SIZE dummy bytes (with zero entropy count).
+     (The PRNG state consists of two parts, the large pool 'state' and 'md',
+     where all of 'md' is used each time the PRNG is used, but 'state'
+     is used only indexed by a cyclic counter. As entropy may not be
+     well distributed from the beginning, 'md' is important as a
+     chaining variable. However, the output function chains only half
+     of 'md', i.e. 80 bits.  ssleay_rand_add, on the other hand, chains
+     all of 'md', and seeding with STATE_SIZE dummy bytes will result
+     in all of 'state' being rewritten, with the new values depending
+     on virtually all of 'md'.  This overcomes the 80 bit limitation.)
+     [Bodo Moeller]
+
+  *) In ssl/s2_clnt.c and ssl/s3_clnt.c, call ERR_clear_error() when
+     the handshake is continued after ssl_verify_cert_chain();
+     otherwise, if SSL_VERIFY_NONE is set, remaining error codes
+     can lead to 'unexplainable' connection aborts later.
+     [Bodo Moeller; problem tracked down by Lutz Jaenicke]
+
+  *) Major EVP API cipher revision.
+     Add hooks for extra EVP features. This allows various cipher
+     parameters to be set in the EVP interface. Support added for variable
+     key length ciphers via the EVP_CIPHER_CTX_set_key_length() function and
+     setting of RC2 and RC5 parameters.
+
+     Modify EVP_OpenInit() and EVP_SealInit() to cope with variable key length
+     ciphers.
+
+     Remove lots of duplicated code from the EVP library. For example *every*
+     cipher init() function handles the 'iv' in the same way according to the
+     cipher mode. They also all do nothing if the 'key' parameter is NULL and
+     for CFB and OFB modes they zero ctx->num.
+
+     New functionality allows removal of S/MIME code RC2 hack.
+
+     Most of the routines have the same form and so can be declared in terms
+     of macros.
+
+     By shifting this to the top level EVP_CipherInit() it can be removed from
+     all individual ciphers. If the cipher wants to handle IVs or keys
+     differently it can set the EVP_CIPH_CUSTOM_IV or EVP_CIPH_ALWAYS_CALL_INIT
+     flags.
+
+     Change lots of functions like EVP_EncryptUpdate() to now return a
+     value: although software versions of the algorithms cannot fail
+     any installed hardware versions can.
+     [Steve Henson]
+
+  *) Implement SSL_OP_TLS_ROLLBACK_BUG: In ssl3_get_client_key_exchange, if
+     this option is set, tolerate broken clients that send the negotiated
+     protocol version number instead of the requested protocol version
+     number.
+     [Bodo Moeller]
+
+  *) Call dh_tmp_cb (set by ..._TMP_DH_CB) with correct 'is_export' flag;
+     i.e. non-zero for export ciphersuites, zero otherwise.
+     Previous versions had this flag inverted, inconsistent with
+     rsa_tmp_cb (..._TMP_RSA_CB).
+     [Bodo Moeller; problem reported by Amit Chopra]
+
+  *) Add missing DSA library text string. Work around for some IIS
+     key files with invalid SEQUENCE encoding.
+     [Steve Henson]
+
+  *) Add a document (doc/standards.txt) that list all kinds of standards
+     and so on that are implemented in OpenSSL.
+     [Richard Levitte]
+
+  *) Enhance c_rehash script. Old version would mishandle certificates
+     with the same subject name hash and wouldn't handle CRLs at all.
+     Added -fingerprint option to crl utility, to support new c_rehash
+     features.
+     [Steve Henson]
+
+  *) Eliminate non-ANSI declarations in crypto.h and stack.h.
+     [Ulf Möller]
+
+  *) Fix for SSL server purpose checking. Server checking was
+     rejecting certificates which had extended key usage present
+     but no ssl client purpose.
+     [Steve Henson, reported by Rene Grosser <grosser@hisolutions.com>]
+
+  *) Make PKCS#12 code work with no password. The PKCS#12 spec
+     is a little unclear about how a blank password is handled.
+     Since the password in encoded as a BMPString with terminating
+     double NULL a zero length password would end up as just the
+     double NULL. However no password at all is different and is
+     handled differently in the PKCS#12 key generation code. NS
+     treats a blank password as zero length. MSIE treats it as no
+     password on export: but it will try both on import. We now do
+     the same: PKCS12_parse() tries zero length and no password if
+     the password is set to "" or NULL (NULL is now a valid password:
+     it wasn't before) as does the pkcs12 application.
+     [Steve Henson]
+
+  *) Bugfixes in apps/x509.c: Avoid a memory leak; and don't use
+     perror when PEM_read_bio_X509_REQ fails, the error message must
+     be obtained from the error queue.
+     [Bodo Moeller]
+
+  *) Avoid 'thread_hash' memory leak in crypto/err/err.c by freeing
+     it in ERR_remove_state if appropriate, and change ERR_get_state
+     accordingly to avoid race conditions (this is necessary because
+     thread_hash is no longer constant once set).
+     [Bodo Moeller]
+
+  *) Bugfix for linux-elf makefile.one.
+     [Ulf Möller]
+
+  *) RSA_get_default_method() will now cause a default
+     RSA_METHOD to be chosen if one doesn't exist already.
+     Previously this was only set during a call to RSA_new()
+     or RSA_new_method(NULL) meaning it was possible for
+     RSA_get_default_method() to return NULL.
+     [Geoff Thorpe]
+
+  *) Added native name translation to the existing DSO code
+     that will convert (if the flag to do so is set) filenames
+     that are sufficiently small and have no path information
+     into a canonical native form. Eg. "blah" converted to
+     "libblah.so" or "blah.dll" etc.
+     [Geoff Thorpe]
+
+  *) New function ERR_error_string_n(e, buf, len) which is like
+     ERR_error_string(e, buf), but writes at most 'len' bytes
+     including the 0 terminator.  For ERR_error_string_n, 'buf'
+     may not be NULL.
+     [Damien Miller <djm@mindrot.org>, Bodo Moeller]
+
+  *) CONF library reworked to become more general.  A new CONF
+     configuration file reader "class" is implemented as well as a
+     new functions (NCONF_*, for "New CONF") to handle it.  The now
+     old CONF_* functions are still there, but are reimplemented to
+     work in terms of the new functions.  Also, a set of functions
+     to handle the internal storage of the configuration data is
+     provided to make it easier to write new configuration file
+     reader "classes" (I can definitely see something reading a
+     configuration file in XML format, for example), called _CONF_*,
+     or "the configuration storage API"...
+
+     The new configuration file reading functions are:
+
+        NCONF_new, NCONF_free, NCONF_load, NCONF_load_fp, NCONF_load_bio,
+        NCONF_get_section, NCONF_get_string, NCONF_get_numbre
+
+        NCONF_default, NCONF_WIN32
+
+        NCONF_dump_fp, NCONF_dump_bio
+
+     NCONF_default and NCONF_WIN32 are method (or "class") choosers,
+     NCONF_new creates a new CONF object.  This works in the same way
+     as other interfaces in OpenSSL, like the BIO interface.
+     NCONF_dump_* dump the internal storage of the configuration file,
+     which is useful for debugging.  All other functions take the same
+     arguments as the old CONF_* functions wth the exception of the
+     first that must be a `CONF *' instead of a `LHASH *'.
+
+     To make it easer to use the new classes with the old CONF_* functions,
+     the function CONF_set_default_method is provided.
+     [Richard Levitte]
+
+  *) Add '-tls1' option to 'openssl ciphers', which was already
+     mentioned in the documentation but had not been implemented.
+     (This option is not yet really useful because even the additional
+     experimental TLS 1.0 ciphers are currently treated as SSL 3.0 ciphers.)
+     [Bodo Moeller]
+
+  *) Initial DSO code added into libcrypto for letting OpenSSL (and
+     OpenSSL-based applications) load shared libraries and bind to
+     them in a portable way.
+     [Geoff Thorpe, with contributions from Richard Levitte]
+
  Changes between 0.9.5 and 0.9.5a  [1 Apr 2000]
 
   *) Make sure _lrotl and _lrotr are only used with MSVC.
@@ -643,11 +1315,11 @@
 
      With these changes, a new set of functions and macros have appeared:
 
-       CRYPTO_set_mem_debug_functions()		[F]
-       CRYPTO_get_mem_debug_functions()		[F]
-       CRYPTO_dbg_set_options()			[F]
-       CRYPTO_dbg_get_options()			[F]
-       CRYPTO_malloc_debug_init()		[M]
+       CRYPTO_set_mem_debug_functions()	        [F]
+       CRYPTO_get_mem_debug_functions()         [F]
+       CRYPTO_dbg_set_options()	                [F]
+       CRYPTO_dbg_get_options()                 [F]
+       CRYPTO_malloc_debug_init()               [M]
 
      The memory debug functions are NULL by default, unless the library
      is compiled with CRYPTO_MDEBUG or friends is defined.  If someone

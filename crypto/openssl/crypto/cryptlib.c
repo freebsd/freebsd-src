@@ -60,10 +60,14 @@
 #include <string.h>
 #include "cryptlib.h"
 #include <openssl/crypto.h>
+#include <openssl/safestack.h>
 
 #if defined(WIN32) || defined(WIN16)
 static double SSLeay_MSVC5_hack=0.0; /* and for VC1.5 */
 #endif
+
+DECLARE_STACK_OF(CRYPTO_dynlock)
+IMPLEMENT_STACK_OF(CRYPTO_dynlock)
 
 /* real #defines in crypto.h, keep these upto date */
 static const char* lock_names[CRYPTO_NUM_LOCKS] =
@@ -94,18 +98,35 @@ static const char* lock_names[CRYPTO_NUM_LOCKS] =
 	"RSA_blinding",
 	"dh",
 	"debug_malloc2",
-#if CRYPTO_NUM_LOCKS != 26
+	"dso",
+	"dynlock",
+#if CRYPTO_NUM_LOCKS != 28
 # error "Inconsistency between crypto.h and cryptlib.c"
 #endif
 	};
 
+/* This is for applications to allocate new type names in the non-dynamic
+   array of lock names.  These are numbered with positive numbers.  */
 static STACK *app_locks=NULL;
+
+/* For applications that want a more dynamic way of handling threads, the
+   following stack is used.  These are externally numbered with negative
+   numbers.  */
+static STACK_OF(CRYPTO_dynlock) *dyn_locks=NULL;
+
 
 static void (MS_FAR *locking_callback)(int mode,int type,
 	const char *file,int line)=NULL;
 static int (MS_FAR *add_lock_callback)(int *pointer,int amount,
 	int type,const char *file,int line)=NULL;
 static unsigned long (MS_FAR *id_callback)(void)=NULL;
+static struct CRYPTO_dynlock_value *(MS_FAR *dynlock_create_callback)
+	(const char *file,int line)=NULL;
+static void (MS_FAR *dynlock_lock_callback)(int mode,
+	struct CRYPTO_dynlock_value *l, const char *file,int line)=NULL;
+static void (MS_FAR *dynlock_destroy_callback)(struct CRYPTO_dynlock_value *l,
+	const char *file,int line)=NULL;
+
 int CRYPTO_get_new_lockid(char *name)
 	{
 	char *str;
@@ -125,10 +146,13 @@ int CRYPTO_get_new_lockid(char *name)
 		return(0);
 		}
 	if ((str=BUF_strdup(name)) == NULL)
+		{
+		CRYPTOerr(CRYPTO_F_CRYPTO_GET_NEW_LOCKID,ERR_R_MALLOC_FAILURE);
 		return(0);
+		}
 	i=sk_push(app_locks,str);
 	if (!i)
-		Free(str);
+		OPENSSL_free(str);
 	else
 		i+=CRYPTO_NUM_LOCKS; /* gap of one :-) */
 	return(i);
@@ -138,6 +162,156 @@ int CRYPTO_num_locks(void)
 	{
 	return CRYPTO_NUM_LOCKS;
 	}
+
+int CRYPTO_get_new_dynlockid(void)
+	{
+	int i = 0;
+	CRYPTO_dynlock *pointer = NULL;
+
+	if (dynlock_create_callback == NULL)
+		{
+		CRYPTOerr(CRYPTO_F_CRYPTO_GET_NEW_DYNLOCKID,CRYPTO_R_NO_DYNLOCK_CREATE_CALLBACK);
+		return(0);
+		}
+	CRYPTO_w_lock(CRYPTO_LOCK_DYNLOCK);
+	if ((dyn_locks == NULL)
+		&& ((dyn_locks=sk_CRYPTO_dynlock_new_null()) == NULL))
+		{
+		CRYPTO_w_unlock(CRYPTO_LOCK_DYNLOCK);
+		CRYPTOerr(CRYPTO_F_CRYPTO_GET_NEW_DYNLOCKID,ERR_R_MALLOC_FAILURE);
+		return(0);
+		}
+	CRYPTO_w_unlock(CRYPTO_LOCK_DYNLOCK);
+
+	pointer = (CRYPTO_dynlock *)OPENSSL_malloc(sizeof(CRYPTO_dynlock));
+	if (pointer == NULL)
+		{
+		CRYPTOerr(CRYPTO_F_CRYPTO_GET_NEW_DYNLOCKID,ERR_R_MALLOC_FAILURE);
+		return(0);
+		}
+	pointer->references = 1;
+	pointer->data = dynlock_create_callback(__FILE__,__LINE__);
+	if (pointer->data == NULL)
+		{
+		OPENSSL_free(pointer);
+		CRYPTOerr(CRYPTO_F_CRYPTO_GET_NEW_DYNLOCKID,ERR_R_MALLOC_FAILURE);
+		return(0);
+		}
+
+	CRYPTO_w_lock(CRYPTO_LOCK_DYNLOCK);
+	/* First, try to find an existing empty slot */
+	i=sk_CRYPTO_dynlock_find(dyn_locks,NULL);
+	/* If there was none, push, thereby creating a new one */
+	if (i == -1)
+		i=sk_CRYPTO_dynlock_push(dyn_locks,pointer);
+	CRYPTO_w_unlock(CRYPTO_LOCK_DYNLOCK);
+
+	if (!i)
+		{
+		dynlock_destroy_callback(pointer->data,__FILE__,__LINE__);
+		OPENSSL_free(pointer);
+		}
+	else
+		i += 1; /* to avoid 0 */
+	return -i;
+	}
+
+void CRYPTO_destroy_dynlockid(int i)
+	{
+	CRYPTO_dynlock *pointer = NULL;
+	if (i)
+		i = -i-1;
+	if (dynlock_destroy_callback == NULL)
+		return;
+
+	CRYPTO_w_lock(CRYPTO_LOCK_DYNLOCK);
+
+	if (dyn_locks == NULL || i >= sk_CRYPTO_dynlock_num(dyn_locks))
+		return;
+	pointer = sk_CRYPTO_dynlock_value(dyn_locks, i);
+	if (pointer != NULL)
+		{
+		--pointer->references;
+#ifdef REF_CHECK
+		if (pointer->references < 0)
+			{
+			fprintf(stderr,"CRYPTO_destroy_dynlockid, bad reference count\n");
+			abort();
+			}
+		else
+#endif
+			if (--(pointer->references) <= 0)
+				{
+				sk_CRYPTO_dynlock_set(dyn_locks, i, NULL);
+				}
+			else
+				pointer = NULL;
+		}
+	CRYPTO_w_unlock(CRYPTO_LOCK_DYNLOCK);
+
+	if (pointer)
+		{
+		dynlock_destroy_callback(pointer->data,__FILE__,__LINE__);
+		OPENSSL_free(pointer);
+		}
+	}
+
+struct CRYPTO_dynlock_value *CRYPTO_get_dynlock_value(int i)
+	{
+	CRYPTO_dynlock *pointer = NULL;
+	if (i)
+		i = -i-1;
+
+	CRYPTO_w_lock(CRYPTO_LOCK_DYNLOCK);
+
+	if (dyn_locks != NULL && i < sk_CRYPTO_dynlock_num(dyn_locks))
+		pointer = sk_CRYPTO_dynlock_value(dyn_locks, i);
+	if (pointer)
+		pointer->references++;
+
+	CRYPTO_w_unlock(CRYPTO_LOCK_DYNLOCK);
+
+	if (pointer)
+		return pointer->data;
+	return NULL;
+	}
+
+struct CRYPTO_dynlock_value *(*CRYPTO_get_dynlock_create_callback(void))
+	(const char *file,int line)
+	{
+	return(dynlock_create_callback);
+	}
+
+void (*CRYPTO_get_dynlock_lock_callback(void))(int mode,
+	struct CRYPTO_dynlock_value *l, const char *file,int line)
+	{
+	return(dynlock_lock_callback);
+	}
+
+void (*CRYPTO_get_dynlock_destroy_callback(void))
+	(struct CRYPTO_dynlock_value *l, const char *file,int line)
+	{
+	return(dynlock_destroy_callback);
+	}
+
+void CRYPTO_set_dynlock_create_callback(struct CRYPTO_dynlock_value *(*func)
+	(const char *file, int line))
+	{
+	dynlock_create_callback=func;
+	}
+
+void CRYPTO_set_dynlock_lock_callback(void (*func)(int mode,
+	struct CRYPTO_dynlock_value *l, const char *file, int line))
+	{
+	dynlock_lock_callback=func;
+	}
+
+void CRYPTO_set_dynlock_destroy_callback(void (*func)
+	(struct CRYPTO_dynlock_value *l, const char *file, int line))
+	{
+	dynlock_destroy_callback=func;
+	}
+
 
 void (*CRYPTO_get_locking_callback(void))(int mode,int type,const char *file,
 		int line)
@@ -219,14 +393,28 @@ void CRYPTO_lock(int mode, int type, const char *file, int line)
 			CRYPTO_get_lock_name(type), file, line);
 		}
 #endif
-	if (locking_callback != NULL)
-		locking_callback(mode,type,file,line);
+	if (type < 0)
+		{
+		int i = -type - 1;
+		struct CRYPTO_dynlock_value *pointer
+			= CRYPTO_get_dynlock_value(i);
+
+		if (pointer)
+			{
+			dynlock_lock_callback(mode, pointer, file, line);
+			}
+
+		CRYPTO_destroy_dynlockid(i);
+		}
+	else
+		if (locking_callback != NULL)
+			locking_callback(mode,type,file,line);
 	}
 
 int CRYPTO_add_lock(int *pointer, int amount, int type, const char *file,
 	     int line)
 	{
-	int ret;
+	int ret = 0;
 
 	if (add_lock_callback != NULL)
 		{
@@ -265,7 +453,7 @@ int CRYPTO_add_lock(int *pointer, int amount, int type, const char *file,
 const char *CRYPTO_get_lock_name(int type)
 	{
 	if (type < 0)
-		return("ERROR");
+		return("dynamic");
 	else if (type < CRYPTO_NUM_LOCKS)
 		return(lock_names[type]);
 	else if (type-CRYPTO_NUM_LOCKS >= sk_num(app_locks))

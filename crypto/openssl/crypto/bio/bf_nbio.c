@@ -66,14 +66,14 @@
 /* BIO_put and BIO_get both add to the digest,
  * BIO_gets returns the digest */
 
-static int nbiof_write(BIO *h,char *buf,int num);
+static int nbiof_write(BIO *h,const char *buf,int num);
 static int nbiof_read(BIO *h,char *buf,int size);
-static int nbiof_puts(BIO *h,char *str);
+static int nbiof_puts(BIO *h,const char *str);
 static int nbiof_gets(BIO *h,char *str,int size);
-static long nbiof_ctrl(BIO *h,int cmd,long arg1,char *arg2);
+static long nbiof_ctrl(BIO *h,int cmd,long arg1,void *arg2);
 static int nbiof_new(BIO *h);
 static int nbiof_free(BIO *data);
-static long nbiof_callback_ctrl(BIO *h,int cmd,void (*fp)());
+static long nbiof_callback_ctrl(BIO *h,int cmd,bio_info_cb *fp);
 typedef struct nbio_test_st
 	{
 	/* only set if we sent a 'should retry' error */
@@ -104,7 +104,7 @@ static int nbiof_new(BIO *bi)
 	{
 	NBIO_TEST *nt;
 
-	nt=(NBIO_TEST *)Malloc(sizeof(NBIO_TEST));
+	nt=(NBIO_TEST *)OPENSSL_malloc(sizeof(NBIO_TEST));
 	nt->lrn= -1;
 	nt->lwn= -1;
 	bi->ptr=(char *)nt;
@@ -117,7 +117,7 @@ static int nbiof_free(BIO *a)
 	{
 	if (a == NULL) return(0);
 	if (a->ptr != NULL)
-		Free(a->ptr);
+		OPENSSL_free(a->ptr);
 	a->ptr=NULL;
 	a->init=0;
 	a->flags=0;
@@ -159,7 +159,7 @@ static int nbiof_read(BIO *b, char *out, int outl)
 	return(ret);
 	}
 
-static int nbiof_write(BIO *b, char *in, int inl)
+static int nbiof_write(BIO *b, const char *in, int inl)
 	{
 	NBIO_TEST *nt;
 	int ret=0;
@@ -204,7 +204,7 @@ static int nbiof_write(BIO *b, char *in, int inl)
 	return(ret);
 	}
 
-static long nbiof_ctrl(BIO *b, int cmd, long num, char *ptr)
+static long nbiof_ctrl(BIO *b, int cmd, long num, void *ptr)
 	{
 	long ret;
 
@@ -226,7 +226,7 @@ static long nbiof_ctrl(BIO *b, int cmd, long num, char *ptr)
 	return(ret);
 	}
 
-static long nbiof_callback_ctrl(BIO *b, int cmd, void (*fp)())
+static long nbiof_callback_ctrl(BIO *b, int cmd, bio_info_cb *fp)
 	{
 	long ret=1;
 
@@ -247,7 +247,7 @@ static int nbiof_gets(BIO *bp, char *buf, int size)
 	}
 
 
-static int nbiof_puts(BIO *bp, char *str)
+static int nbiof_puts(BIO *bp, const char *str)
 	{
 	if (bp->next_bio == NULL) return(0);
 	return(BIO_puts(bp->next_bio,str));

@@ -62,14 +62,14 @@
 #include <openssl/buffer.h>
 #include <openssl/evp.h>
 
-static int enc_write(BIO *h,char *buf,int num);
-static int enc_read(BIO *h,char *buf,int size);
-/*static int enc_puts(BIO *h,char *str); */
-/*static int enc_gets(BIO *h,char *str,int size); */
-static long enc_ctrl(BIO *h,int cmd,long arg1,char *arg2);
+static int enc_write(BIO *h, const char *buf, int num);
+static int enc_read(BIO *h, char *buf, int size);
+/*static int enc_puts(BIO *h, const char *str); */
+/*static int enc_gets(BIO *h, char *str, int size); */
+static long enc_ctrl(BIO *h, int cmd, long arg1, void *arg2);
 static int enc_new(BIO *h);
 static int enc_free(BIO *data);
-static long enc_callback_ctrl(BIO *h,int cmd,void (*fp)());
+static long enc_callback_ctrl(BIO *h, int cmd, bio_info_cb *fps);
 #define ENC_BLOCK_SIZE	(1024*4)
 
 typedef struct enc_struct
@@ -105,7 +105,7 @@ static int enc_new(BIO *bi)
 	{
 	BIO_ENC_CTX *ctx;
 
-	ctx=(BIO_ENC_CTX *)Malloc(sizeof(BIO_ENC_CTX));
+	ctx=(BIO_ENC_CTX *)OPENSSL_malloc(sizeof(BIO_ENC_CTX));
 	EVP_CIPHER_CTX_init(&ctx->cipher);
 	if (ctx == NULL) return(0);
 
@@ -129,7 +129,7 @@ static int enc_free(BIO *a)
 	b=(BIO_ENC_CTX *)a->ptr;
 	EVP_CIPHER_CTX_cleanup(&(b->cipher));
 	memset(a->ptr,0,sizeof(BIO_ENC_CTX));
-	Free(a->ptr);
+	OPENSSL_free(a->ptr);
 	a->ptr=NULL;
 	a->init=0;
 	a->flags=0;
@@ -224,7 +224,7 @@ static int enc_read(BIO *b, char *out, int outl)
 	return((ret == 0)?ctx->cont:ret);
 	}
 
-static int enc_write(BIO *b, char *in, int inl)
+static int enc_write(BIO *b, const char *in, int inl)
 	{
 	int ret=0,n,i;
 	BIO_ENC_CTX *ctx;
@@ -279,7 +279,7 @@ static int enc_write(BIO *b, char *in, int inl)
 	return(ret);
 	}
 
-static long enc_ctrl(BIO *b, int cmd, long num, char *ptr)
+static long enc_ctrl(BIO *b, int cmd, long num, void *ptr)
 	{
 	BIO *dbio;
 	BIO_ENC_CTX *ctx,*dctx;
@@ -370,7 +370,7 @@ again:
 	return(ret);
 	}
 
-static long enc_callback_ctrl(BIO *b, int cmd, void (*fp)())
+static long enc_callback_ctrl(BIO *b, int cmd, bio_info_cb *fp)
 	{
 	long ret=1;
 

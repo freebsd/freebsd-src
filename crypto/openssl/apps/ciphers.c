@@ -74,6 +74,7 @@ static char *ciphers_usage[]={
 " -v          - verbose mode, a textual listing of the ciphers in SSLeay\n",
 " -ssl2       - SSL2 mode\n",
 " -ssl3       - SSL3 mode\n",
+" -tls1       - TLS1 mode\n",
 NULL
 };
 
@@ -107,6 +108,12 @@ int MAIN(int argc, char **argv)
 	if (bio_err == NULL)
 		bio_err=BIO_new_fp(stderr,BIO_NOCLOSE);
 	STDout=BIO_new_fp(stdout,BIO_NOCLOSE);
+#ifdef VMS
+	{
+	BIO *tmpbio = BIO_new(BIO_f_linebuffer());
+	STDout = BIO_push(tmpbio, STDout);
+	}
+#endif
 
 	argc--;
 	argv++;
@@ -121,6 +128,10 @@ int MAIN(int argc, char **argv)
 #ifndef NO_SSL3
 		else if (strcmp(*argv,"-ssl3") == 0)
 			meth=SSLv3_client_method();
+#endif
+#ifndef NO_TLS1
+		else if (strcmp(*argv,"-tls1") == 0)
+			meth=TLSv1_client_method();
 #endif
 		else if ((strncmp(*argv,"-h",2) == 0) ||
 			 (strcmp(*argv,"-?") == 0))
@@ -190,7 +201,7 @@ err:
 end:
 	if (ctx != NULL) SSL_CTX_free(ctx);
 	if (ssl != NULL) SSL_free(ssl);
-	if (STDout != NULL) BIO_free(STDout);
+	if (STDout != NULL) BIO_free_all(STDout);
 	EXIT(ret);
 	}
 
