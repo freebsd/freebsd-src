@@ -42,7 +42,7 @@
  *
  *	from: hp300: @(#)pmap.h	7.2 (Berkeley) 12/16/90
  *	from: @(#)pmap.h	7.4 (Berkeley) 5/12/91
- * 	$Id: pmap.h,v 1.31 1995/12/17 07:39:05 bde Exp $
+ * 	$Id: pmap.h,v 1.32 1996/01/30 22:54:48 mpp Exp $
  */
 
 #ifndef _MACHINE_PMAP_H_
@@ -159,20 +159,6 @@ extern pmap_t		kernel_pmap;
 #endif
 
 /*
- * Macros for speed
- */
-#define	PMAP_ACTIVATE(pmapp, pcbp) \
-	if ((pmapp) != NULL /*&& (pmapp)->pm_pdchanged */) {  \
-		(pcbp)->pcb_cr3 = \
-		    pmap_extract(kernel_pmap, (vm_offset_t)(pmapp)->pm_pdir); \
-		if ((pmapp) == &curproc->p_vmspace->vm_pmap) \
-			load_cr3((pcbp)->pcb_cr3); \
-		(pmapp)->pm_pdchanged = FALSE; \
-	}
-
-#define	PMAP_DEACTIVATE(pmapp, pcbp)
-
-/*
  * For each vm_page_t, there is a list of all currently valid virtual
  * mappings of that page.  An entry is a pv_entry_t, the list is pv_table.
  */
@@ -205,7 +191,6 @@ extern vm_offset_t virtual_end;
 
 struct pcb;
 
-void	pmap_activate __P((pmap_t, struct pcb *));
 void	pmap_bootstrap __P(( vm_offset_t, vm_offset_t));
 pmap_t	pmap_kernel __P((void));
 void	*pmap_mapdev __P((vm_offset_t, vm_size_t));
