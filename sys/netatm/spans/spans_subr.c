@@ -192,7 +192,7 @@ spans_open_vcc(spp, cvp)
 	/*
 	 * Allocate control block for VCC
 	 */
-	svp = (struct spans_vccb *)atm_allocate(&spans_vcpool);
+	svp = uma_zalloc(spans_vc_zone, M_WAITOK);
 	if (svp == NULL) {
 		return(ENOMEM);
 	}
@@ -251,7 +251,7 @@ spans_open_vcc(spp, cvp)
 			DEQUEUE(svp, struct spans_vccb, sv_sigelem,
 					spp->sp_vccq);
 			cvp->cvc_vcc = (struct vccb *)0;
-			atm_free((caddr_t)svp);
+			uma_zfree(spans_vc_zone, svp);
 			return(err);
 		} else {
 			/*

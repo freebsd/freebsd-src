@@ -279,8 +279,9 @@ spans_timer(tip)
 		/*
 		 * Send out SPANS_STAT_REQ message
 		 */
-		msg = (spans_msg *)atm_allocate(&spans_msgpool);
+		msg = uma_zalloc(spans_msg_zone, M_WAITOK);
 		if (msg == NULL) {
+			/* XXX arr: This is bogus and will go away RSN */
 			/* Retry later if no memory */
 			SPANS_TIMER(spp, SPANS_PROBE_ERR_WAIT);
 			break;
@@ -291,10 +292,10 @@ spans_timer(tip)
 		if (spans_send_msg(spp, msg)) {
 			/* Retry later if send fails */
 			SPANS_TIMER(spp, SPANS_PROBE_ERR_WAIT);
-			atm_free(msg);
+			uma_zfree(spans_msg_zone, msg);
 			break;
 		}
-		atm_free(msg);
+		uma_zfree(spans_msg_zone, msg);
 		spp->sp_probe_ct++;
 
 		/*
