@@ -19,7 +19,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id$
+ * $Id: psm.c,v 1.26 1996/11/15 05:30:52 nate Exp $
  */
 
 /*
@@ -72,10 +72,6 @@
 #include <sys/devfsext.h>
 #endif /*DEVFS*/
 
-/*
-#include <machine/mouse.h>
-#include <machine/clock.h>
-*/
 #include <i386/include/mouse.h>
 #include <i386/include/clock.h>
 
@@ -88,13 +84,9 @@
 
 /* debugging */
 #ifndef PSM_DEBUG
-#define PSM_DEBUG	2	/* controls debug logging: 
+#define PSM_DEBUG	0	/* controls debug logging: 
 				   0: no logging, 1: brief, 2: verbose */
 #endif
-
-/* version dependency */
-#define PSM_CURRENT		/* compiles for FreeBSD-current, if defined.
-				   otherwise, compiles for FreeBSD 2.1.x. */
 
 /* features */
 /* #define PSM_NOCHECKSYNC	   the driver does not check the header data
@@ -114,12 +106,7 @@
 #define PSMD_DEFAULT_RESOLUTION	800	/* resolution: 800 ppi */
 #define PSMD_DEFAULT_RATE	100	/* report rate: 100 Hz */
 
-/* misc */
-#define TRUE			(-1)
-#define FALSE			0
-
 /* some macros */
-
 #define PSM_UNIT(dev)		(minor(dev) >> 1)
 #define PSM_NBLOCKIO(dev)	(minor(dev) & 1)
 #define PSM_MKMINOR(unit,block)	(((unit) << 1) | ((block) ? 0:1))
@@ -132,7 +119,6 @@
 #endif
 
 /* mouse status block */
-
 typedef struct mousestatus {
 	int button;		/* button status */
 	int obutton;		/* previous button status */
@@ -141,7 +127,6 @@ typedef struct mousestatus {
 } mousestatus_t;
 
 /* ring buffer */
-
 #define PSM_BUFSIZE		256
 
 typedef struct ringbuf {
@@ -152,8 +137,7 @@ typedef struct ringbuf {
 } ringbuf_t;
 
 /* driver control block */
-
-typedef int (*packetfunc_t) __P((unsigned char *,int *,int,mousestatus_t *));
+typedef int (*packetfunc_t) __P((unsigned char *, int *, int, mousestatus_t *));
 
 static struct psm_softc {	/* Driver status information */
 	struct selinfo rsel;	/* Process selecting for Input */
@@ -183,26 +167,21 @@ static struct psm_softc {	/* Driver status information */
 #define PSM_ASLP		2	/* Waiting for mouse data */
 
 /* function prototypes */
-
 static int psmprobe __P((struct isa_device *));
 static int psmattach __P((struct isa_device *));
-static int mkms __P((unsigned char *,int *,int,mousestatus_t *));
-static int mkmsc __P((unsigned char *,int *,int,mousestatus_t *));
-static int mkps2 __P((unsigned char *,int *,int,mousestatus_t *));
+static int mkms __P((unsigned char *, int *, int, mousestatus_t *));
+static int mkmsc __P((unsigned char *, int *, int, mousestatus_t *));
+static int mkps2 __P((unsigned char *, int *, int, mousestatus_t *));
 
-#ifdef PSM_CURRENT 
 static d_open_t psmopen;
 static d_close_t psmclose;
 static d_read_t psmread;
 static d_ioctl_t psmioctl;
 static d_select_t psmselect;
-#endif /* PSM_CURRENT */
 
 /* device driver declarateion */
-
 struct isa_driver psmdriver = { psmprobe, psmattach, "psm", FALSE };
 
-#ifdef PSM_CURRENT 
 #define CDEV_MAJOR		21
 
 static	struct	cdevsw psm_cdevsw = {
@@ -210,15 +189,11 @@ static	struct	cdevsw psm_cdevsw = {
 	psmioctl,	nostop, 	nullreset,	nodevtotty,
 	psmselect,	nommap, 	NULL,		"psm",	NULL,	-1
 };
-#endif /* PSM_CURRENT */
 
 /* debug message level */
-
-extern int bootverbose;		/* `-v' option at `boot:' prompt */
 static int verbose = PSM_DEBUG;
 
 /* device I/O routines */
-
 static int
 enable_aux_dev(int port)
 {
@@ -226,7 +201,7 @@ enable_aux_dev(int port)
 
 	res = send_aux_command(port,PSMC_ENABLE_DEV);
 	if (verbose >= 2)
-	    log(LOG_DEBUG,"psm: ENABLE_DEV return code:%04x\n",res);
+	    log(LOG_DEBUG, "psm: ENABLE_DEV return code:%04x\n",res);
 
 	return (res == PSM_ACK);
 }
@@ -236,22 +211,22 @@ disable_aux_dev(int port)
 {
 	int res;
 
-	res = send_aux_command(port,PSMC_DISABLE_DEV);
+	res = send_aux_command(port, PSMC_DISABLE_DEV);
 	if (verbose >= 2)
-	    log(LOG_DEBUG,"psm: DISABLE_DEV return code:%04x\n",res);
+	    log(LOG_DEBUG, "psm: DISABLE_DEV return code:%04x\n",res);
 
 	return (res == PSM_ACK);
 }
 
 static int
-get_mouse_status(int port,int *status)
+get_mouse_status(int port, int *status)
 {
 	int res;
 
 	empty_both_buffers(port);
 	res = send_aux_command(port,PSMC_SEND_DEV_STATUS);
 	if (verbose >= 2)
-	    log(LOG_DEBUG,"psm: SEND_AUX_STATUS return code:%04x\n",res);
+	    log(LOG_DEBUG, "psm: SEND_AUX_STATUS return code:%04x\n",res);
 	if (res != PSM_ACK)
 	    return FALSE;
 
@@ -276,7 +251,7 @@ get_aux_id(int port)
 	    DELAY(10000);
 	    c = read_controller_data(port);
 	    if (verbose >= 2)
-	    	log(LOG_DEBUG,"psm: SEND_DEV_ID return code:%04x\n",c);
+	    	log(LOG_DEBUG, "psm: SEND_DEV_ID return code:%04x\n",c);
 	    if (c == PSM_ACK)
 		break;
 	}
@@ -285,19 +260,19 @@ get_aux_id(int port)
 
 	id = read_aux_data(port);
 	if (verbose >= 2)
-	    log(LOG_DEBUG,"psm: device ID: %04x\n",id);
+	    log(LOG_DEBUG, "psm: device ID: %04x\n",id);
 
 	return id;
 }
 
 static int
-set_mouse_sampling_rate(int port,int rate)
+set_mouse_sampling_rate(int port, int rate)
 {
 	int res;
 
 	res = send_aux_command_and_data(port,PSMC_SET_SAMPLING_RATE,rate);
 	if (verbose >= 2)
-	    log(LOG_DEBUG,"psm: SET_SAMPLING_RATE (%d) %04x\n",rate,res);
+	    log(LOG_DEBUG, "psm: SET_SAMPLING_RATE (%d) %04x\n",rate,res);
 
 	return ((res == PSM_ACK) ? rate : -1);
 }
@@ -309,13 +284,13 @@ set_mouse_scaling(int port)
 
 	res = send_aux_command(port,PSMC_SET_SCALING11);
 	if (verbose >= 2)
-	    log(LOG_DEBUG,"psm: SET_SCALING11 return code:%04x\n",res);
+	    log(LOG_DEBUG, "psm: SET_SCALING11 return code:%04x\n",res);
 
 	return (res == PSM_ACK);
 }
 
 static int
-set_mouse_resolution(int port,int res)
+set_mouse_resolution(int port, int res)
 {
 	static struct {
 	    int resolution;
@@ -343,7 +318,7 @@ set_mouse_resolution(int port,int res)
 	    ret = send_aux_command_and_data(port,
 			PSMC_SET_RESOLUTION,rescode[i].code);
 	    if (verbose >= 2)
-	        log(LOG_DEBUG,"psm: SET_RESOLUTION (%d) %04x\n",
+	        log(LOG_DEBUG, "psm: SET_RESOLUTION (%d) %04x\n",
 		        rescode[i].code,ret);
 	    if (ret == PSM_ACK)
 		return rescode[i].resolution;
@@ -361,7 +336,7 @@ set_mouse_mode(int port)
 
 	res = send_aux_command(port,PSMC_SET_STREAM_MODE);
 	if (verbose >= 2)
-	    log(LOG_DEBUG,"psm: SET_STREAM_MODE return code:%04x\n",res);
+	    log(LOG_DEBUG, "psm: SET_STREAM_MODE return code:%04x\n",res);
 
 	return (res == PSM_ACK);
 }
@@ -382,7 +357,7 @@ get_mouse_buttons(int port)
 	if (set_mouse_scaling(port) && set_mouse_scaling(port)
 		&& set_mouse_scaling(port) && get_mouse_status(port,status)) {
 	    if (verbose) {
-	        log(LOG_DEBUG,"psm: status %02x %02x %02x (get_mouse_buttons)\n",
+	        log(LOG_DEBUG, "psm: status %02x %02x %02x (get_mouse_buttons)\n",
 		    status[0],status[1],status[2]);
 	    }
 	    if (status[1] == 3)	
@@ -429,7 +404,7 @@ recover_from_error(int port)
 }
 
 static void
-restore_controller(int port,int command_byte)
+restore_controller(int port, int command_byte)
 {
 	set_controller_command_byte(port,command_byte,0);
 }
@@ -606,7 +581,7 @@ psmprobe(struct isa_device *dvp)
 	/* just check the status of the mouse */
 	if (verbose) {
 	    get_mouse_status(ioport,stat);
-	    log(LOG_DEBUG,"psm%d: status %02x %02x %02x\n",
+	    log(LOG_DEBUG, "psm%d: status %02x %02x %02x\n",
 	        unit,stat[0],stat[1],stat[2]);
 	}
 
@@ -658,10 +633,7 @@ psmattach(struct isa_device *dvp)
 	/* return (0); XXX eh? usually 1 indicates success */
 }
 
-#ifdef PSM_CURRENT
-static
-#endif
-int
+static int
 psmopen(dev_t dev, int flag, int fmt, struct proc *p)
 {
 	int unit = PSM_UNIT(dev);
@@ -710,7 +682,7 @@ psmopen(dev_t dev, int flag, int fmt, struct proc *p)
 	if (!enable_aux_dev(ioport)) {
 	    set_controller_command_byte(ioport,sc->command_byte,
 		KBD_DISABLE_AUX_PORT | KBD_DISABLE_AUX_INT);
-	    log(LOG_ERR,"psm%d: unable to enable the pointing device.\n",unit);
+	    log(LOG_ERR, "psm%d: unable to enable the pointing device.\n",unit);
 	    return (EIO);
 	}
 
@@ -728,10 +700,7 @@ psmopen(dev_t dev, int flag, int fmt, struct proc *p)
 	return (0);
 }
 
-#ifdef PSM_CURRENT
-static
-#endif
-int
+static int
 psmclose(dev_t dev, int flag, int fmt, struct proc *p)
 {
 	struct psm_softc *sc = &psm_softc[PSM_UNIT(dev)];
@@ -760,7 +729,7 @@ psmclose(dev_t dev, int flag, int fmt, struct proc *p)
 }
 
 static int
-mkms(unsigned char *buf,int *len,int maxlen,register mousestatus_t *status)
+mkms(unsigned char *buf, int *len, int maxlen, register mousestatus_t *status)
 {
 	static int butmap[] = {
 	    0, MOUSE_MSS_BUTTON3DOWN, MOUSE_MSS_BUTTON2DOWN,
@@ -802,7 +771,7 @@ mkms(unsigned char *buf,int *len,int maxlen,register mousestatus_t *status)
 }
 
 static int
-mkmsc(unsigned char *buf,int *len,int maxlen,register mousestatus_t *status)
+mkmsc(unsigned char *buf, int *len, int maxlen, register mousestatus_t *status)
 {
 	static int butmap[] = {
 	    0, MOUSE_MSC_BUTTON3UP, MOUSE_MSC_BUTTON2UP,
@@ -844,7 +813,7 @@ mkmsc(unsigned char *buf,int *len,int maxlen,register mousestatus_t *status)
 }
 
 static int
-mkps2(unsigned char *buf,int *len,int maxlen,register mousestatus_t *status)
+mkps2(unsigned char *buf, int *len, int maxlen,r egister mousestatus_t *status)
 {
 	static int butmap[] = {
 	    0, MOUSE_PS2_BUTTON3DOWN, MOUSE_PS2_BUTTON2DOWN,
@@ -887,10 +856,7 @@ mkps2(unsigned char *buf,int *len,int maxlen,register mousestatus_t *status)
 	return TRUE;
 }
 
-#ifdef PSM_CURRENT
-static
-#endif
-int
+static int
 psmread(dev_t dev, struct uio *uio, int flag)
 {
 	register struct psm_softc *sc = &psm_softc[PSM_UNIT(dev)];
@@ -948,10 +914,7 @@ psmread(dev_t dev, struct uio *uio, int flag)
 	return (error);
 }
 
-#ifdef PSM_CURRENT
-static
-#endif
-int
+static int
 psmioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p)
 {
 	struct psm_softc *sc = &psm_softc[PSM_UNIT(dev)];
@@ -1180,10 +1143,7 @@ psmintr(int unit)
 	selwakeup(&sc->rsel);
 }
 
-#ifdef PSM_CURRENT
-static
-#endif
-int
+static int
 psmselect(dev_t dev, int rw, struct proc *p)
 {
 	struct psm_softc *sc = &psm_softc[PSM_UNIT(dev)];
@@ -1206,8 +1166,6 @@ psmselect(dev_t dev, int rw, struct proc *p)
 	return (ret);
 }
 
-#ifdef PSM_CURRENT 
-
 static int psm_devsw_installed = FALSE;
 
 static void
@@ -1223,7 +1181,5 @@ psm_drvinit(void *unused)
 }
 
 SYSINIT(psmdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE + CDEV_MAJOR,psm_drvinit,NULL)
-
-#endif /* PSM_CURRENT */
 
 #endif /* NPSM > 0 */
