@@ -151,10 +151,10 @@ static struct {
 } sysctl_table[] = {
 	/* name,		handler */
 	{"force_fan",		hci_force_fan},
-	{"cpu_speed",		hci_cpu_speed},
 	{"video_output",	hci_video_output},
-	{"lcd_backlight",	hci_lcd_backlight},
 	{"lcd_brightness",	hci_lcd_brightness},
+	{"lcd_backlight",	hci_lcd_backlight},
+	{"cpu_speed",		hci_cpu_speed},
 	{NULL, NULL}
 };
 
@@ -198,7 +198,7 @@ acpi_toshiba_probe(device_t dev)
 	    device_get_unit(dev) == 0 &&
 	    (acpi_MatchHid(dev, "TOS6200") ||
 	     acpi_MatchHid(dev, "TOS6207"))) {
-		device_set_desc(dev, "Toshiba Extra HCI");
+		device_set_desc(dev, "Toshiba HCI Extras");
 		ret = 0;
 	}
 
