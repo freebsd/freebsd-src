@@ -260,7 +260,7 @@
             ..
             la_LN.ASCII
             ..
-            la_LN.DIS_8859-15
+	    la_LN.ISO_8859-15
             ..
             la_LN.ISO_8859-1
             ..
