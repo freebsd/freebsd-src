@@ -1,7 +1,7 @@
 <!-- This is an SGML document in the linuxdoc DTD describing
      Printing with FreeBSD.  By Sean Kelly, 1995.
 
-     $Id: printing.sgml,v 1.6 1996/05/16 23:18:12 mpp Exp $
+     $Id: printing.sgml,v 1.7 1996/06/30 08:03:35 andreas Exp $
 
      The FreeBSD Documentation Project
 
@@ -988,7 +988,7 @@ bamboo|ps|PS|S|panasonic|Panasonic KX-P4455 PostScript v51.4:\
 #
 # Simply copies stdin to stdout.  Ignores all filter arguments.
 
-/bin/cat &ero;&ero; exit 0
+/bin/cat &amp;&amp; exit 0
 exit 2
 </code>
 	      Make the file executable:
@@ -1049,11 +1049,11 @@ bamboo|ps|PS|S|panasonic|Panasonic KX-P4455 PostScript v51.4:\
 	      results should look like the following:
 
 <tscreen><verb>
-!"#$%&ero;'()*+,-./01234
-"#$%&ero;'()*+,-./012345
-#$%&ero;'()*+,-./0123456
-$%&ero;'()*+,-./01234567
-%&ero;'()*+,-./012345678
+!"#$%&amp;'()*+,-./01234
+"#$%&amp;'()*+,-./012345
+#$%&amp;'()*+,-./0123456
+$%&amp;'()*+,-./01234567
+%&amp;'()*+,-./012345678
 </verb></tscreen>
 
 	      To further test the printer, try downloading larger
@@ -1103,7 +1103,7 @@ $%&ero;'()*+,-./01234567
 # Simply copies stdin to stdout.  Ignores all filter arguments.
 # Writes a form feed character (\f) after printing job.
 
-/bin/cat &ero;&ero; printf "\f" &ero;&ero; exit 0
+/bin/cat &amp;&amp; printf "\f" &amp;&amp; exit 0
 exit 2
 </code>
 
@@ -1111,9 +1111,9 @@ exit 2
 
 		  You got the following on paper:
 <tscreen><verb>
-!"#$%&ero;'()*+,-./01234
-                        "#$%&ero;'()*+,-./012345
-                                                #$%&ero;'()*+,-./0123456
+!"#$%&amp;'()*+,-./01234
+                        "#$%&amp;'()*+,-./012345
+                                                #$%&amp;'()*+,-./0123456
 </verb></tscreen>
 		  You have become another victim of the <em/staircase
 		  effect/, caused by conflicting interpretations of
@@ -1188,7 +1188,7 @@ Printer received LF		Printer prints CR + LF
 # Tells printer to treat LF as CR+LF. Writes a form feed character
 # after printing job.
 
-printf "\033&ero;k2G" &ero;&ero; cat &ero;&ero; printf "\f" &ero;&ero; exit 0
+printf "\033&amp;k2G" &amp;&amp; cat &amp;&amp; printf "\f" &amp;&amp; exit 0
 exit 2
 </code>
 
@@ -2118,13 +2118,13 @@ if [ "$first_two_chars" = "%!" ]; then
    #
    #  PostScript job, print it.
    #
-   echo $first_line &ero;&ero; cat &ero;&ero; printf "\004" &ero;&ero; exit 0
+   echo $first_line &amp;&amp; cat &amp;&amp; printf "\004" &amp;&amp; exit 0
    exit 2
 else
    #
    #  Plain text, convert it, then print it.
    #
-   ( echo $first_line; cat ) | /usr/local/bin/textps &ero;&ero; printf "\004" &ero;&ero; exit 0
+   ( echo $first_line; cat ) | /usr/local/bin/textps &amp;&amp; printf "\004" &amp;&amp; exit 0
    exit 2
 fi
 </code>
@@ -2176,7 +2176,7 @@ fi
 #
 #  Treat LF as CR+LF:
 #
-printf "\033&ero;k2G" || exit 2
+printf "\033&amp;k2G" || exit 2
 
 #
 #  Read first two characters of the file
@@ -2189,14 +2189,14 @@ if [ "$first_two_chars" = "%!" ]; then
     #  It is PostScript; use Ghostscript to scan-convert and print it
     #
     /usr/local/bin/gs -dSAFER -dNOPAUSE -q -sDEVICE=djet500 -sOutputFile=- - \
-        &ero;&ero; exit 0
+        &amp;&amp; exit 0
 
 else
     #
     #  Plain text or HP/PCL, so just print it directly; print a form
     #  at the end to eject the last page.
     #
-    echo $first_line &ero;&ero; cat &ero;&ero; printf "\f" &ero;&ero; exit 2
+    echo $first_line &amp;&amp; cat &amp;&amp; printf "\f" &amp;&amp; exit 2
 fi
 
 exit 2
@@ -2426,7 +2426,7 @@ exec grops
 # Installed in /usr/local/libexec/hprf
 #
 
-printf "\033&ero;k2G" &ero;&ero; fpr &ero;&ero; printf "\f" &ero;&ero; exit 0
+printf "\033&amp;k2G" &amp;&amp; fpr &amp;&amp; printf "\f" &amp;&amp; exit 0
 exit 2
 </code>
 	      And we will add this line to the <tt>/etc/printcap</tt>
@@ -2503,7 +2503,7 @@ cleanup() {
 #  job.
 #
 fatal() {
-    echo "$@" 1>&ero;2
+    echo "$@" 1>&amp;2
     cleanup
     exit 2
 }
@@ -2527,7 +2527,7 @@ ln -s /dev/fd/0 hpdf$$.dvi || fatal "Cannot symlink /dev/fd/0"
 #
 #  Make LF = CR+LF
 #
-printf "\033&ero;k2G" || fatal "Cannot initialize printer"
+printf "\033&amp;k2G" || fatal "Cannot initialize printer"
 
 # 
 #  Convert and print.  Return value from dvilj2p does not seem to be
@@ -2714,7 +2714,7 @@ exit 0
 #  Installed in /usr/local/libexec/hpof
 
 
-printf "\033&ero;k2G" || exit 2
+printf "\033&amp;k2G" || exit 2
 exec /usr/libexec/lpr/lpf
 </code>
 	    Specify the path to the output filter in the <tt/of/
@@ -2921,7 +2921,7 @@ border=72
 #  Check arguments
 #
 if [ $# -ne 3 ]; then
-    echo "Usage: `basename $0` <user> <host> <job>" 1>&ero;2
+    echo "Usage: `basename $0` <user> <host> <job>" 1>&amp;2
     exit 1
 fi
 
@@ -3000,7 +3000,7 @@ EOF
 orig_args="$@"
 
 fail() {
-    echo "$@" 1>&ero;2
+    echo "$@" 1>&amp;2
     exit 2
 }
 
@@ -3009,7 +3009,7 @@ while getopts "x:y:n:h:" option; do
         x|y)  ;; # Ignore
 	n)    login=$OPTARG ;;
 	h)    host=$OPTARG ;; 
-	*)    echo "LPD started `basename $0` wrong." 1>&ero;2
+	*)    echo "LPD started `basename $0` wrong." 1>&amp;2
               exit 2
               ;;
     esac
@@ -3248,9 +3248,9 @@ require 'sys/socket.ph';
 ($ignore, $ignore, $ignore, $ignore, $address)
     = gethostbyname($printer_host);
 
-$sockaddr = pack('S n a4 x8', &ero;AF_INET, $printer_port, $address);
+$sockaddr = pack('S n a4 x8', &amp;AF_INET, $printer_port, $address);
 
-socket(PRINTER, &ero;PF_INET, &ero;SOCK_STREAM, $protocol)
+socket(PRINTER, &amp;PF_INET, &amp;SOCK_STREAM, $protocol)
     || die "Can't create TCP/IP stream socket: $!";
 connect(PRINTER, $sockaddr) || die "Can't contact $printer_host: $!";
 while (<STDIN>) { print PRINTER; }
