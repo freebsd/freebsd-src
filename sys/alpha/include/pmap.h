@@ -227,19 +227,19 @@ extern vm_offset_t virtual_end;
 
 struct vmspace;
 
-vm_offset_t pmap_steal_memory __P((vm_size_t));
-void	pmap_bootstrap __P((vm_offset_t, u_int));
-void	pmap_setdevram __P((unsigned long long basea, vm_offset_t sizea));
-int	pmap_uses_prom_console __P((void));
-pmap_t	pmap_kernel __P((void));
-void	*pmap_mapdev __P((vm_offset_t, vm_size_t));
-void	pmap_unmapdev __P((vm_offset_t, vm_size_t));
-unsigned *pmap_pte __P((pmap_t, vm_offset_t)) __pure2;
-vm_page_t pmap_use_pt __P((pmap_t, vm_offset_t));
-void	pmap_set_opt	__P((unsigned *));
-void	pmap_set_opt_bsp	__P((void));
-void	pmap_deactivate __P((struct thread *td));
-void	pmap_emulate_reference __P((struct vmspace *vm, vm_offset_t v, int user, int write));
+vm_offset_t pmap_steal_memory(vm_size_t);
+void	pmap_bootstrap(vm_offset_t, u_int);
+void	pmap_setdevram(unsigned long long basea, vm_offset_t sizea);
+int	pmap_uses_prom_console(void);
+pmap_t	pmap_kernel(void);
+void	*pmap_mapdev(vm_offset_t, vm_size_t);
+void	pmap_unmapdev(vm_offset_t, vm_size_t);
+unsigned *pmap_pte(pmap_t, vm_offset_t) __pure2;
+vm_page_t pmap_use_pt(pmap_t, vm_offset_t);
+void	pmap_set_opt	(unsigned *);
+void	pmap_set_opt_bsp	(void);
+void	pmap_deactivate(struct thread *td);
+void	pmap_emulate_reference(struct vmspace *vm, vm_offset_t v, int user, int write);
 
 #endif /* _KERNEL */
 

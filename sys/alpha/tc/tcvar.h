@@ -95,7 +95,7 @@ typedef int32_t         tc_offset_t;
  * These functions are private, and may not be called by
  * machine-independent code.
  */
-void tc_dma_init __P((void));
+void tc_dma_init(void);
 
 /*
  * Address of scatter/gather SRAM on the 3000/500-series.
@@ -149,9 +149,9 @@ struct tcbus_attach_args {
 
         /* TC bus resource management; XXX will move elsewhere eventually. */
 /*
-        void    (*tba_intr_establish) __P((device_t, void *,
-                    tc_intrlevel_t, int (*)(void *), void *));
-        void    (*tba_intr_disestablish) __P((device_t, void *));
+        void    (*tba_intr_establish)(device_t, void *,
+                    tc_intrlevel_t, int (*)(void *), void *);
+        void    (*tba_intr_disestablish)(device_t, void *);
 */
 };
 
@@ -174,9 +174,9 @@ struct tc_attach_args {
 /*
  * Interrupt establishment functions.
  */
-void	tc_intr_establish __P((device_t, void *, tc_intrlevel_t,
-	    int (*)(void *), void *));
-void	tc_intr_disestablish __P((device_t, void *));
+void	tc_intr_establish(device_t, void *, tc_intrlevel_t,
+	    int (*)(void *), void *);
+void	tc_intr_disestablish(device_t, void *);
 
 #if 0
 #include "locators.h"

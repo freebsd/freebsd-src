@@ -86,10 +86,10 @@
 #define	DPRINTF uprintf
 int osf1_sigdbg = 0;
 
-static void bsd_to_osf1_sigaction __P((const struct sigaction *bsa,
-					struct osf1_sigaction *osa));
-static void osf1_to_bsd_sigaction __P((const struct osf1_sigaction *osa,
-					struct sigaction *bsa));
+static void bsd_to_osf1_sigaction(const struct sigaction *bsa,
+					struct osf1_sigaction *osa);
+static void osf1_to_bsd_sigaction(const struct osf1_sigaction *osa,
+					struct sigaction *bsa);
 
 #define	sigemptyset(s)		SIGEMPTYSET(*(s))
 #define	sigismember(s, n)	SIGISMEMBER(*(s), n)

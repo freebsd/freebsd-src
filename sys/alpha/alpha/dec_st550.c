@@ -59,20 +59,20 @@
 #endif
 static int comcnrate = CONSPEED;
 
-void st550_init __P((void));
-static void st550_cons_init __P((void));
-static void st550_intr_init __P((void));
-static void pyxis_intr_enable __P((int));
-static void pyxis_intr_disable __P((int));
-static void st550_intr_enable __P((int));
-static void st550_intr_disable __P((int));
-static void st550_intr_map __P((void *));
+void st550_init(void);
+static void st550_cons_init(void);
+static void st550_intr_init(void);
+static void pyxis_intr_enable(int);
+static void pyxis_intr_disable(int);
+static void st550_intr_enable(int);
+static void st550_intr_disable(int);
+static void st550_intr_map(void *);
 #define ST550_PCI_IRQ_BEGIN 8
 #define ST550_PCI_MAX_IRQ  47
 
-extern int siocnattach __P((int, int));
-extern int siogdbattach __P((int, int));
-extern int sccnattach __P((void));
+extern int siocnattach(int, int);
+extern int siogdbattach(int, int);
+extern int sccnattach(void);
 
 void
 st550_init()

@@ -99,23 +99,23 @@
 #endif
 static int comcnrate = CONSPEED;
 
-void dec_1000a_init __P((int));
-static void dec_1000a_cons_init __P((void));
+void dec_1000a_init(int);
+static void dec_1000a_cons_init(void);
 
 
-static void dec_1000_intr_map __P((void *));
-static void dec_1000_intr_disable __P((int));
-static void dec_1000_intr_enable __P((int));
-static void dec_1000_intr_init __P((void));
+static void dec_1000_intr_map(void *);
+static void dec_1000_intr_disable(int);
+static void dec_1000_intr_enable(int);
+static void dec_1000_intr_init(void);
 
-static void dec_1000a_intr_map __P((void *));
-static void dec_1000a_intr_disable __P((int));
-static void dec_1000a_intr_enable __P((int));
-static void dec_1000a_intr_init __P((void));
+static void dec_1000a_intr_map(void *);
+static void dec_1000a_intr_disable(int);
+static void dec_1000a_intr_enable(int);
+static void dec_1000a_intr_init(void);
 
-extern int siocnattach __P((int, int));
-extern int siogdbattach __P((int, int));
-extern int sccnattach __P((void));
+extern int siocnattach(int, int);
+extern int siogdbattach(int, int);
+extern int sccnattach(void);
 
 
 static const struct alpha_variation_table dec_1000_variations[] = {

@@ -84,9 +84,9 @@ static struct cdevsw zs_cdevsw = {
 	/* flags */	0,
 };
 
-static void	zsstart __P((struct tty *));
-static int	zsparam __P((struct tty *, struct termios *));
-static void	zsstop __P((struct tty *tp, int flag));
+static void	zsstart(struct tty *);
+static int	zsparam(struct tty *, struct termios *);
+static void	zsstop(struct tty *tp, int flag);
 
 /*
  * Helpers for console support.
@@ -109,7 +109,7 @@ static driver_t zs_driver = {
 	"zs", zs_methods, sizeof (struct zs_softc),
 };
 
-static void zs_poll_intr __P((void *));
+static void zs_poll_intr(void *);
 static int zspolltime;
 
 
@@ -216,9 +216,9 @@ zs_putc(caddr_t base, int chan, int c)
 /*
  * Console support
  */
-int		zs_cngetc __P((dev_t));
-int		zs_cncheckc __P((dev_t));
-void		zs_cnputc __P((dev_t, int));
+int		zs_cngetc(dev_t);
+int		zs_cncheckc(dev_t);
+void		zs_cnputc(dev_t, int);
 
 static caddr_t zs_console_addr;
 CONS_DRIVER(zs, NULL, NULL, NULL, zs_cngetc, zs_cncheckc, zs_cnputc, NULL);

@@ -186,7 +186,7 @@ SYSCTL_INT(_machdep, CPU_UNALIGNED_FIX, unaligned_fix,
 SYSCTL_INT(_machdep, CPU_UNALIGNED_SIGBUS, unaligned_sigbus,
 	CTLFLAG_RW, &alpha_unaligned_sigbus, 0, "");
 
-static void cpu_startup __P((void *));
+static void cpu_startup(void *);
 SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL)
 
 struct msgbuf *msgbufp=0;
@@ -233,7 +233,7 @@ SYSCTL_INT(_hw, OID_AUTO, availpages, CTLFLAG_RD, &physmem, 0, "");
 void osendsig(sig_t catcher, int sig, sigset_t *mask, u_long code);
 #endif
 
-static void identifycpu __P((void));
+static void identifycpu(void);
 
 struct kva_md_info kmi;
 

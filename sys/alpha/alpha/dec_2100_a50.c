@@ -56,16 +56,16 @@
 #endif
 static int comcnrate = CONSPEED;
 
-void dec_2100_a50_init __P((void));
-static void dec_2100_a50_cons_init __P((void));
-static void dec_2100_a50_intr_map  __P((void *));
-void sio_intr_establish __P((int));
-void sio_intr_disestablish __P((int));
-void sio_intr_setup __P((void));
+void dec_2100_a50_init(void);
+static void dec_2100_a50_cons_init(void);
+static void dec_2100_a50_intr_map(void *);
+void sio_intr_establish(int);
+void sio_intr_disestablish(int);
+void sio_intr_setup(void);
 
-extern int siocnattach __P((int, int));
-extern int siogdbattach __P((int, int));
-extern int sccnattach __P((void));
+extern int siocnattach(int, int);
+extern int siogdbattach(int, int);
+extern int sccnattach(void);
 
 const struct alpha_variation_table dec_2100_a50_variations[] = {
 	{ SV_ST_AVANTI,	"AlphaStation 400 4/233 (\"Avanti\")" },

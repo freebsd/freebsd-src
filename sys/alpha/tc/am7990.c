@@ -111,27 +111,27 @@
 #include <alpha/tc/am7990var.h>
 
 #ifdef LEDEBUG
-void am7990_recv_print __P((struct am7990_softc *, int));
-void am7990_xmit_print __P((struct am7990_softc *, int));
+void am7990_recv_print(struct am7990_softc *, int);
+void am7990_xmit_print(struct am7990_softc *, int);
 #endif
 
-integrate void am7990_rint __P((struct am7990_softc *));
-integrate void am7990_tint __P((struct am7990_softc *));
+integrate void am7990_rint(struct am7990_softc *);
+integrate void am7990_tint(struct am7990_softc *);
 
-integrate int am7990_put __P((struct am7990_softc *, int, struct mbuf *));
-integrate struct mbuf *am7990_get __P((struct am7990_softc *, int, int));
-integrate void am7990_read __P((struct am7990_softc *, int, int)); 
+integrate int am7990_put(struct am7990_softc *, int, struct mbuf *);
+integrate struct mbuf *am7990_get(struct am7990_softc *, int, int);
+integrate void am7990_read(struct am7990_softc *, int, int); 
 
 /*
-hide void am7990_shutdown __P((void *));
+hide void am7990_shutdown(void *);
 */
 
-int am7990_mediachange __P((struct ifnet *));
-void am7990_mediastatus __P((struct ifnet *, struct ifmediareq *));
+int am7990_mediachange(struct ifnet *);
+void am7990_mediastatus(struct ifnet *, struct ifmediareq *);
 
 #define	ifp	(&sc->sc_ethercom.ac_if)
 
-static __inline u_int16_t ether_cmp __P((void *, void *));
+static __inline u_int16_t ether_cmp(void *, void *);
  char * ether_sprintf(u_char *ap);
 /*
  * Compare two Ether/802 addresses for equality, inlined and

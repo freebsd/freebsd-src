@@ -107,42 +107,42 @@ struct trapframe;
 extern struct rpb *hwrpb;
 extern volatile int mc_expected, mc_received;
 
-void	XentArith __P((u_int64_t, u_int64_t, u_int64_t));	/* MAGIC */
-void	XentIF __P((u_int64_t, u_int64_t, u_int64_t));		/* MAGIC */
-void	XentInt __P((u_int64_t, u_int64_t, u_int64_t));		/* MAGIC */
-void	XentMM __P((u_int64_t, u_int64_t, u_int64_t));		/* MAGIC */
-void	XentRestart __P((void));				/* MAGIC */
-void	XentSys __P((u_int64_t, u_int64_t, u_int64_t));		/* MAGIC */
-void	XentUna __P((u_int64_t, u_int64_t, u_int64_t));		/* MAGIC */
-void	alpha_init __P((u_long, u_long, u_long, u_long, u_long));
-int	alpha_pa_access __P((u_long));
-void	alpha_fpstate_check __P((struct thread *p));
-void	alpha_fpstate_save __P((struct thread *p, int write));
-void	alpha_fpstate_drop __P((struct thread *p));
-void	alpha_fpstate_switch __P((struct thread *p));
-int	badaddr	__P((void *, size_t));
-int	badaddr_read __P((void *, size_t, void *));
-u_int64_t console_restart __P((u_int64_t, u_int64_t, u_int64_t));
-void	dumpconf __P((void));
-void	exception_return __P((void));				/* MAGIC */
-void	frametoreg __P((struct trapframe *, struct reg *));
-long	fswintrberr __P((void));				/* MAGIC */
-void	init_prom_interface __P((struct rpb*));
-void	interrupt
-	__P((unsigned long, unsigned long, unsigned long, struct trapframe *));
-void	machine_check
-	__P((unsigned long, struct trapframe *, unsigned long, unsigned long));
-u_int64_t hwrpb_checksum __P((void));
-void	hwrpb_restart_setup __P((void));
-void	regdump __P((struct trapframe *));
-void	regtoframe __P((struct reg *, struct trapframe *));
-void	savectx __P((struct pcb *));
-void	set_iointr __P((void (*)(void *, unsigned long)));
-void    switch_exit __P((struct thread *));			/* MAGIC */
-void	fork_trampoline __P((void));				/* MAGIC */
-void	syscall __P((u_int64_t, struct trapframe *));
-void	trap __P((unsigned long, unsigned long, unsigned long, unsigned long,
-	    struct trapframe *));
+void	XentArith(u_int64_t, u_int64_t, u_int64_t);		/* MAGIC */
+void	XentIF(u_int64_t, u_int64_t, u_int64_t);		/* MAGIC */
+void	XentInt(u_int64_t, u_int64_t, u_int64_t);		/* MAGIC */
+void	XentMM(u_int64_t, u_int64_t, u_int64_t);		/* MAGIC */
+void	XentRestart(void);					/* MAGIC */
+void	XentSys(u_int64_t, u_int64_t, u_int64_t);		/* MAGIC */
+void	XentUna(u_int64_t, u_int64_t, u_int64_t);		/* MAGIC */
+void	alpha_init(u_long, u_long, u_long, u_long, u_long);
+int	alpha_pa_access(u_long);
+void	alpha_fpstate_check(struct thread *p);
+void	alpha_fpstate_save(struct thread *p, int write);
+void	alpha_fpstate_drop(struct thread *p);
+void	alpha_fpstate_switch(struct thread *p);
+int	badaddr	(void *, size_t);
+int	badaddr_read(void *, size_t, void *);
+u_int64_t console_restart(u_int64_t, u_int64_t, u_int64_t);
+void	dumpconf(void);
+void	exception_return(void);					/* MAGIC */
+void	frametoreg(struct trapframe *, struct reg *);
+long	fswintrberr(void);					/* MAGIC */
+void	init_prom_interface(struct rpb*);
+void	interrupt(unsigned long, unsigned long, unsigned long,
+	    struct trapframe *);
+void	machine_check(unsigned long, struct trapframe *, unsigned long,
+	    unsigned long);
+u_int64_t hwrpb_checksum(void);
+void	hwrpb_restart_setup(void);
+void	regdump(struct trapframe *);
+void	regtoframe(struct reg *, struct trapframe *);
+void	savectx(struct pcb *);
+void	set_iointr(void (*)(void *, unsigned long));
+void    switch_exit(struct thread *);				/* MAGIC */
+void	fork_trampoline(void);					/* MAGIC */
+void	syscall(u_int64_t, struct trapframe *);
+void	trap(unsigned long, unsigned long, unsigned long, unsigned long,
+	    struct trapframe *);
 
 /*
  * Return contents of in-cpu fast counter as a sort of "bogo-time"

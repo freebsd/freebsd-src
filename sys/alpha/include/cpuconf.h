@@ -65,24 +65,24 @@ extern struct platform {
 	 *	clockintr	-	Clock Interrupt Handler
 	 *	mcheck_handler	-	Platform Specific Machine Check Handler
 	 */
-	void	(*cons_init) __P((void));
-	void	(*device_register) __P((struct device *, void *));
-	void	(*iointr) __P((void *, unsigned long));
-	void	(*clockintr) __P((void *));
-	void	(*mcheck_handler) __P((unsigned long, struct trapframe *,
-		unsigned long, unsigned long));
-	void	(*pci_intr_init) __P((void));
-	void	(*pci_intr_map) __P((void *));
-	int	(*pci_intr_route) __P((struct device *, struct device *, int));
-	void    (*pci_intr_disable) __P((int));
-	void    (*pci_intr_enable) __P((int));
-	int	(*pci_setup_ide_intr) __P((struct device *dev,
+	void	(*cons_init)(void);
+	void	(*device_register)(struct device *, void *);
+	void	(*iointr)(void *, unsigned long);
+	void	(*clockintr)(void *);
+	void	(*mcheck_handler)(unsigned long, struct trapframe *,
+		unsigned long, unsigned long);
+	void	(*pci_intr_init)(void);
+	void	(*pci_intr_map)(void *);
+	int	(*pci_intr_route)(struct device *, struct device *, int);
+	void    (*pci_intr_disable)(int);
+	void    (*pci_intr_enable)(int);
+	int	(*pci_setup_ide_intr)(struct device *dev,
 					   struct device *child,
-					   int chan, void (*fn)(void*), void *arg));
-	int     (*isa_setup_intr) __P((struct device *, struct device *,
-		struct resource *, int, void *, void *, void **));
-	int     (*isa_teardown_intr) __P((struct device *, struct device *,
-		struct resource *, void *));
+					   int chan, void (*fn)(void*), void *arg);
+	int     (*isa_setup_intr)(struct device *, struct device *,
+		struct resource *, int, void *, void *, void **);
+	int     (*isa_teardown_intr)(struct device *, struct device *,
+		struct resource *, void *);
 } platform;
 
 /*
@@ -108,7 +108,7 @@ struct alpha_variation_table {
  */
 
 struct cpuinit {
-	void	(*init) __P((int));
+	void	(*init)(int);
 	const char *option;
 };
 
@@ -118,17 +118,17 @@ struct cpuinit {
 /*
  * Misc. support routines.
  */
-const char	*alpha_dsr_sysname __P((void));
-const char	*alpha_variation_name __P((u_int64_t variation,
-    const struct alpha_variation_table *avtp));
-const char	*alpha_unknown_sysname __P((void));
+const char	*alpha_dsr_sysname(void);
+const char	*alpha_variation_name(u_int64_t variation,
+    const struct alpha_variation_table *avtp);
+const char	*alpha_unknown_sysname(void);
 
 extern struct cpuinit cpuinit[];
 extern struct cpuinit api_cpuinit[];
 extern int ncpuinit;
 extern int napi_cpuinit;
-extern void platform_not_configured __P((int));
-extern void platform_not_supported __P((int));
+extern void platform_not_configured(int);
+extern void platform_not_supported(int);
 
 #endif /* _KERNEL */
 #endif /* !_ALPHA_CPUCONF_H */

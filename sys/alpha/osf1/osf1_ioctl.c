@@ -56,14 +56,14 @@
 
 /*#define	IOCTL_DEBUG*/
 
-int osf1_ioctl_i	__P((struct thread *td, struct ioctl_args *nuap,
-			    int cmd, int dir, int len));
-int osf1_ioctl_t	__P((struct thread *td, struct ioctl_args *nuap,
-			    int cmd, int dir, int len));
-int osf1_ioctl_f	__P((struct thread *td, struct ioctl_args *nuap,
-			    int cmd, int dir, int len));
-int osf1_ioctl_m	__P((struct thread *td, struct ioctl_args *nuap,
-			    int cmd, int dir, int len));
+int osf1_ioctl_i(struct thread *td, struct ioctl_args *nuap,
+			    int cmd, int dir, int len);
+int osf1_ioctl_t(struct thread *td, struct ioctl_args *nuap,
+			    int cmd, int dir, int len);
+int osf1_ioctl_f(struct thread *td, struct ioctl_args *nuap,
+			    int cmd, int dir, int len);
+int osf1_ioctl_m(struct thread *td, struct ioctl_args *nuap,
+			    int cmd, int dir, int len);
 
 int
 osf1_ioctl(td, uap)

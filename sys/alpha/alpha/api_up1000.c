@@ -52,12 +52,12 @@
 #endif
 static int comcnrate = CONSPEED;
 
-void api_up1000_init __P((void));
-static void api_up1000_cons_init __P((void));
+void api_up1000_init(void);
+static void api_up1000_cons_init(void);
 
-extern int siocnattach __P((int, int));
-extern int siogdbattach __P((int, int));
-extern int sccnattach __P((void));
+extern int siocnattach(int, int);
+extern int siogdbattach(int, int);
+extern int sccnattach(void);
 
 void
 api_up1000_init()

@@ -90,8 +90,8 @@
 #include <machine/fpu.h>
 #include <machine/rpb.h>
 
-static void cvtstat2osf1 __P((struct stat *, struct osf1_stat *));
-static int  osf2bsd_pathconf __P((int *));
+static void cvtstat2osf1(struct stat *, struct osf1_stat *);
+static int  osf2bsd_pathconf(int *);
 
 static const char osf1_emul_path[] = "/compat/osf1";
 /*
