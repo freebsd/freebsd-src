@@ -310,6 +310,12 @@ _libpthread_init(struct pthread *curthread)
 
 	_thr_signal_init();
 	_kse_critical_leave(&_thr_initial->tcb->tcb_tmbx);
+	/*
+	 * activate threaded mode as soon as possible if we are
+	 * being debugged
+	 */
+	if (_libkse_debug)
+		_kse_setthreaded(1);
 }
 
 /*
