@@ -235,9 +235,10 @@ kernfs_lookup(ap)
 	struct vnode *fvp;
 	int error, i;
 
-#ifdef KERNFS_DIAGNOSTIC
-	printf("kernfs_lookup(%x)\n", ap);
-	printf("kernfs_lookup(dp = %x, vpp = %x, cnp = %x)\n", dvp, vpp, ap->a_cnp);
+#ifdef DEBUG
+	printf("kernfs_lookup(%p)\n", (void *)ap);
+	printf("kernfs_lookup(dp = %p, vpp = %p, cnp = %p)\n",
+	    (void *)dvp, (void *)vpp, (void *)ap->a_cnp);
 	printf("kernfs_lookup(%s)\n", pname);
 #endif
 
@@ -269,7 +270,7 @@ kernfs_lookup(ap)
 			goto found;
 	}
 
-#ifdef KERNFS_DIAGNOSTIC
+#ifdef DEBUG
 	printf("kernfs_lookup: i = %d, failed", i);
 #endif
 
@@ -290,7 +291,7 @@ found:
 		return (0);
 	}
 
-#ifdef KERNFS_DIAGNOSTIC
+#ifdef DEBUG
 	printf("kernfs_lookup: allocate new vnode\n");
 #endif
 	if ((error = getnewvnode(VT_KERNFS, dvp->v_mount, kernfs_vnodeop_p,
@@ -306,8 +307,8 @@ found:
 	vn_lock(fvp, LK_SHARED | LK_RETRY, p);
 	*vpp = fvp;
 
-#ifdef KERNFS_DIAGNOSTIC
-	printf("kernfs_lookup: newvp = %x\n", fvp);
+#ifdef DEBUG
+	printf("kernfs_lookup: newvp = %p\n", (void *)fvp);
 #endif
 	return (0);
 }
@@ -389,7 +390,7 @@ kernfs_getattr(ap)
 	vap->va_bytes = 0;
 
 	if (vp->v_flag & VROOT) {
-#ifdef KERNFS_DIAGNOSTIC
+#ifdef DEBUG
 		printf("kernfs_getattr: stat rootdir\n");
 #endif
 		vap->va_type = VDIR;
@@ -400,7 +401,7 @@ kernfs_getattr(ap)
 	} else {
 		struct kern_target *kt = VTOKERN(vp)->kf_kt;
 		int nbytes;
-#ifdef KERNFS_DIAGNOSTIC
+#ifdef DEBUG
 		printf("kernfs_getattr: stat target %s\n", kt->kt_name);
 #endif
 		vap->va_type = kt->kt_vtype;
@@ -411,7 +412,7 @@ kernfs_getattr(ap)
 		vap->va_size = nbytes;
 	}
 
-#ifdef KERNFS_DIAGNOSTIC
+#ifdef DEBUG
 	printf("kernfs_getattr: return error %d\n", error);
 #endif
 	return (error);
@@ -460,7 +461,7 @@ kernfs_read(ap)
 
 	kt = VTOKERN(vp)->kf_kt;
 
-#ifdef KERNFS_DIAGNOSTIC
+#ifdef DEBUG
 	printf("kern_read %s\n", kt->kt_name);
 #endif
 
@@ -536,7 +537,7 @@ kernfs_readdir(ap)
 	for (kt = &kern_targets[i];
 		uio->uio_resid >= UIO_MX && i < nkern_targets; kt++, i++) {
 		struct dirent *dp = &d;
-#ifdef KERNFS_DIAGNOSTIC
+#ifdef DEBUG
 		printf("kernfs_readdir: i = %d\n", i);
 #endif
 
@@ -552,7 +553,7 @@ kernfs_readdir(ap)
 		dp->d_namlen = kt->kt_namlen;
 		bcopy(kt->kt_name, dp->d_name, kt->kt_namlen+1);
 
-#ifdef KERNFS_DIAGNOSTIC
+#ifdef DEBUG
 		printf("kernfs_readdir: name = %s, len = %d\n",
 				dp->d_name, dp->d_namlen);
 #endif
@@ -583,8 +584,8 @@ kernfs_inactive(ap)
 {
 	struct vnode *vp = ap->a_vp;
 
-#ifdef KERNFS_DIAGNOSTIC
-	printf("kernfs_inactive(%x)\n", vp);
+#ifdef DEBUG
+	printf("kernfs_inactive(%p)\n", (void *)vp);
 #endif
 	/*
 	 * Clear out the v_type field to avoid
@@ -603,8 +604,8 @@ kernfs_reclaim(ap)
 {
 	struct vnode *vp = ap->a_vp;
 
-#ifdef KERNFS_DIAGNOSTIC
-	printf("kernfs_reclaim(%x)\n", vp);
+#ifdef DEBUG
+	printf("kernfs_reclaim(%p)\n", (void *)vp);
 #endif
 	if (vp->v_data) {
 		FREE(vp->v_data, M_TEMP);

@@ -111,8 +111,8 @@ kernfs_mount(mp, path, data, ndp, p)
 	struct kernfs_mount *fmp;
 	struct vnode *rvp;
 
-#ifdef KERNFS_DIAGNOSTIC
-	printf("kernfs_mount(mp = %x)\n", mp);
+#ifdef DEBUG
+	printf("kernfs_mount(mp = %p)\n", (void *)mp);
 #endif
 
 	/*
@@ -132,8 +132,8 @@ kernfs_mount(mp, path, data, ndp, p)
 
 	rvp->v_type = VDIR;
 	rvp->v_flag |= VROOT;
-#ifdef KERNFS_DIAGNOSTIC
-	printf("kernfs_mount: root vp = %x\n", rvp);
+#ifdef DEBUG
+	printf("kernfs_mount: root vp = %p\n", (void *)rvp);
 #endif
 	fmp->kf_root = rvp;
 	mp->mnt_flag |= MNT_LOCAL;
@@ -145,7 +145,7 @@ kernfs_mount(mp, path, data, ndp, p)
 	bzero(mp->mnt_stat.f_mntfromname, MNAMELEN);
 	bcopy("kernfs", mp->mnt_stat.f_mntfromname, sizeof("kernfs"));
 	(void)kernfs_statfs(mp, &mp->mnt_stat, p);
-#ifdef KERNFS_DIAGNOSTIC
+#ifdef DEBUG
 	printf("kernfs_mount: at %s\n", mp->mnt_stat.f_mntonname);
 #endif
 
@@ -172,8 +172,8 @@ kernfs_unmount(mp, mntflags, p)
 	int flags = 0;
 	struct vnode *rootvp = VFSTOKERNFS(mp)->kf_root;
 
-#ifdef KERNFS_DIAGNOSTIC
-	printf("kernfs_unmount(mp = %x)\n", mp);
+#ifdef DEBUG
+	printf("kernfs_unmount(mp = %p)\n", (void *)mp);
 #endif
 
 	if (mntflags & MNT_FORCE)
@@ -186,14 +186,14 @@ kernfs_unmount(mp, mntflags, p)
 	 */
 	if (rootvp->v_usecount > 1)
 		return (EBUSY);
-#ifdef KERNFS_DIAGNOSTIC
+#ifdef DEBUG
 	printf("kernfs_unmount: calling vflush\n");
 #endif
 	error = vflush(mp, rootvp, flags);
 	if (error)
 		return (error);
 
-#ifdef KERNFS_DIAGNOSTIC
+#ifdef DEBUG
 	vprint("kernfs root", rootvp);
 #endif
 	/*
@@ -220,8 +220,8 @@ kernfs_root(mp, vpp)
 	struct proc *p = curproc;	/* XXX */
 	struct vnode *vp;
 
-#ifdef KERNFS_DIAGNOSTIC
-	printf("kernfs_root(mp = %x)\n", mp);
+#ifdef DEBUG
+	printf("kernfs_root(mp = %p)\n", (void *)mp);
 #endif
 
 	/*
@@ -240,8 +240,8 @@ kernfs_statfs(mp, sbp, p)
 	struct statfs *sbp;
 	struct proc *p;
 {
-#ifdef KERNFS_DIAGNOSTIC
-	printf("kernfs_statfs(mp = %x)\n", mp);
+#ifdef DEBUG
+	printf("kernfs_statfs(mp = %p)\n", (void *)mp);
 #endif
 
 	sbp->f_flags = 0;
