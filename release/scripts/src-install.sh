@@ -12,14 +12,14 @@ if [ $# -lt 1 ]; then
 	echo "possible subcomponents are:"
 	echo
 	echo "base bin contrib etc games gnu include lib libexec"
-	echo "release sbin share sys tools ubin usbin"
+	echo "release rescue sbin share sys tools ubin usbin"
 	echo
 	echo "You may also specify all to extract all subcomponents."
 	exit 1
 fi
 
 if [ "$1" = "all" ]; then
-	dists="base bin contrib etc games gnu include lib libexec release sbin share sys tools ubin usbin"
+	dists="base bin contrib etc games gnu include lib libexec release rescue sbin share sys tools ubin usbin"
 else
 	dists="$*"
 fi
