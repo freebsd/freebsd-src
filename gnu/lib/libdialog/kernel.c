@@ -378,30 +378,44 @@ void draw_box(WINDOW *win, int y, int x, int height, int width, chtype box, chty
 void draw_shadow(WINDOW *win, int y, int x, int height, int width)
 {
   int i,sx,sy;
+  chtype attrs;
 
   if (has_colors()) {    /* Whether terminal supports color? */
     getbegyx(win,sy,sx);
-    /* small touch */
-    wattrset(win, A_INVIS);
-    wmove(win, y + height, x + 2);
-    for (i = 0; i < width; i++)
-      waddch(win, ' ');
-    /* end touch */
-    wattrset(win, shadow_attr);
-    wmove(win, y + height, x + 2);
-    for (i = 0; i < width; i++)
-      waddch(win, mvwinch(newscr, sy+y+height, sx+x+2+i) & A_CHARTEXT);
-    for (i = y + 1; i < y + height + 1; i++) {
-      /* small touch */
-      wattrset(win, A_INVIS);
-      wmove(win, i, x + width);
-      waddstr(win, "  ");
-      /* end touch */
-      wattrset(win, shadow_attr);
-      wmove(win, i, x + width);
-      waddch(win, mvwinch(newscr, sy+i, sx+x+width) & A_CHARTEXT);
-      waddch(win, mvwinch(newscr, sy+i, sx+x+width+1) & A_CHARTEXT);
+    attrs = getattrs(win);
+    if (y+height < getmaxy(win)) {
+	/* small touch */
+	wattrset(win, A_INVIS);
+	wmove(win, y + height, x + 2);
+	for (i = 0; i < width; i++)
+	    if (i+x+2 < getmaxx(win))
+	       waddch(win, ' ');
+	/* end touch */
+	wattrset(win, shadow_attr);
+	wmove(win, y + height, x + 2);
+	for (i = 0; i < width; i++)
+	    if (i+x+2 < getmaxx(win))
+	       waddch(win, mvwinch(newscr, sy+y+height, sx+x+2+i) & A_CHARTEXT);
     }
+    if (x+width < getmaxx(win)) {
+	for (i = y + 1; i < y + height + 1; i++) {
+	  if (i < getmaxy(win)) {
+	      /* small touch */
+	      wattrset(win, A_INVIS);
+	      wmove(win, i, x + width);
+	      waddch(win, ' ');
+	      if (x+width+1 < getmaxx(win))
+		    waddch(win, ' ');
+	      /* end touch */
+	      wattrset(win, shadow_attr);
+	      wmove(win, i, x + width);
+	      waddch(win, mvwinch(newscr, sy+i, sx+x+width) & A_CHARTEXT);
+	      if (x+width+1 < getmaxx(win))
+		    waddch(win, mvwinch(newscr, sy+i, sx+x+width+1) & A_CHARTEXT);
+	  }
+	}
+    }
+    wattrset(win, attrs);
     wnoutrefresh(win);
   }
 }
