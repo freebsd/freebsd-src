@@ -48,7 +48,9 @@ driver supplies control devices,
 .Pa /dev/targ0 ,
 .Pa /dev/targ1 ,
 etc.
-If a device is already in use, open(2) will fail and
+If a device is already in use,
+.Xr open 2
+will fail and
 .Va errno
 will be set to
 .Er EBUSY .

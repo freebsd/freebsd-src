@@ -44,8 +44,8 @@ Most fields of
 .Vt pthread_attr_t
 structure are exact values of attributes provided at thread creation
 time (as parameter to
-.Fn pthread_create
-function), except stack address.
+.Xr pthread_create 3
+function), except for the stack address.
 .Pp
 Value returned as
 .Fa dst
@@ -61,11 +61,11 @@ should point to allocated memory area big enough to fit this structure.
 It is HIGHLY RECOMMENDED to use
 .Xr pthread_attr_init 3
 function to allocate attribute storage.
-.Sh IMPLEMENTATION DETAILS
+.Sh IMPLEMENTATION NOTES
 The
 .Fn pthread_attr_get_np
-function will always return pointer to thread's real stack address
-regardless to its value in original attributes structure.
+function will always return a pointer to the thread's real stack address,
+regardless of its value in the original attributes structure.
 .Sh EXAMPLES
 .Bd -literal
 size_t
@@ -109,7 +109,7 @@ thread ID.
 .Xr pthread_attr_init 3
 .Sh AUTHORS
 The
-.Nm
-function and manpage were written by
+.Fn pthread_attr_get_np
+function and this manual page were written by
 .An Alexey Zelkin
-.Aq phantom@FreeBSD.org
+.Aq phantom@FreeBSD.org .

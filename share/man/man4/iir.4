@@ -7,34 +7,39 @@
 .Os
 .Sh NAME
 .Nm iir
-.Nd Intel Integrated RAID Controller and ICP Vortex driver
+.Nd Intel Integrated RAID controller and ICP Vortex driver
 .Sh SYNOPSIS
-For one or more adapters:
-.Cd device scbus
-.Cd device iir
+.Cd "device scbus"
+.Cd "device iir"
 .Sh DESCRIPTION
-.Pp
 The
 .Nm
 driver claims to interface with the Intel integrated
-RAID controller cards, and the all versions of the
+RAID controller cards, and all versions of the
 ICP Vortex controllers (including FC).
-.Sh COMPATIBILITY
 .Pp
 Supported controllers include:
 .Pp
-.Bl -tag -compact -width "Supported RAID Controllers"
-.It Intel RAID Controller SRCMR
-.It Intel Server RAID Controller U3-l (SRCU31a)
-.It Intel Server RAID Controller U3-1L (SRCU31La)
-.It Intel Server RAID Controller U3-2 (SRCU32)
-.It All past and future releases of Intel and ICP RAID Controllers.
+.Bl -item -compact
+.It
+Intel RAID Controller SRCMR
+.It
+Intel Server RAID Controller U3-l (SRCU31a)
+.It
+Intel Server RAID Controller U3-1L (SRCU31La)
+.It
+Intel Server RAID Controller U3-2 (SRCU32)
+.It
+All past and future releases of Intel and ICP RAID Controllers.
 .El
 .Pp
-.Bl -tag -compact -width "Unsupported RAID Controllers"
-.It Intel RAID Controller SRCU21 (discontinued)
-.It Intel RAID Controller SRCU31 (older revision, not compatible)
-.It Intel RAID Controller SRCU31L (older revision, not compatible)
+.Bl -item -compact
+.It
+Intel RAID Controller SRCU21 (discontinued)
+.It
+Intel RAID Controller SRCU31 (older revision, not compatible)
+.It
+Intel RAID Controller SRCU31L (older revision, not compatible)
 .El
 .Pp
 The SRCU31 and SRCU31L can be updated via a firmware update available
@@ -43,19 +48,21 @@ from Intel.
 .Xr cam 4 ,
 .Xr pass 4 ,
 .Xr xpt 4 ,
-.Xr camcontrol 8 .
+.Xr camcontrol 8
 .Sh AUTHORS
 The
 .Nm
 driver is supported and maintained by
-.An -nosplit Achim Leubner Aq achim.leubner@intel.com
+.An -nosplit
+.An Achim Leubner Aq achim.leubner@intel.com
 and
 .An Boji Tony Kannanthanam Aq boji.t.kannanthanam@intel.com
-of Intel's Storage Components devision.
+of Intel's Storage Components division.
+.Pp
 This manual page was written by
 .An Tom Rhodes Aq trhodes@FreeBSD.org
 and is based on information supplied by the driver authors and the website of
-.An Mike Smith Aq msith@FreeBSD.org
+.An Mike Smith Aq msith@FreeBSD.org .
 .Sh BUGS
 During a
 .Fx

@@ -178,7 +178,7 @@ perform this function.
 .El
 .Sh KERNEL CONFIGURATION
 .Nm
-is currently supplied as a loadable kernel module (KLD), and does not require
+is currently supplied as a KLD module, and does not require
 configuration.
 As with other KLDs, it is absolutely necessary to match the KLD
 to the version of the operating system.
@@ -236,7 +236,7 @@ explaining the problem and what to do to correct it.
 Make
 .Nm
 automatically scan all available disks at attach time.
-This is a deprecated way that is primarily intented for environments
+This is a deprecated way that is primarily intended for environments
 that do not want to rely on kernel environment variables set by
 .Xr loader 8 .
 .Pp
@@ -311,8 +311,8 @@ subsystem can be automatically started at attach time.
 There are two kernel environment variables that can be set in
 .Xr loader.conf 5
 to accomplish this.
-.Bl -tag -width "vinum.autostart" -offset indent
-.It Dv vinum.autostart
+.Bl -tag -width ".Va vinum.autostart" -offset indent
+.It Va vinum.autostart
 If this variable is set (to any value), the attach function will attempt
 to scan all available disks for valid
 .Nm
@@ -321,10 +321,12 @@ This is the preferred way if automatic startup is desired.
 .Pp
 Example:
 .Dl vinum.autostart="YES"
-.It Dv vinum.drives
+.It Va vinum.drives
 Alternatively, this variable can enumerate a list of disk devices
 to scan for configuration records.
-Note that only the `bare' device names need to be given, since
+Note that only the
+.Dq bare
+device names need to be given, since
 .Nm
 will automatically scan all possible slices and partitions.
 .Pp
@@ -338,7 +340,7 @@ variable of
 .Xr rc.conf 5 .
 Note that if
 .Nm
-is to supply to the volume for the root filesystem, it is necessary
+is to supply to the volume for the root file system, it is necessary
 to start the subsystem early.
 This can be achieved by specifying
 .Pp

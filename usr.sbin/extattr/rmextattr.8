@@ -39,7 +39,7 @@
 .Nm lsextattr ,
 .Nm rmextattr ,
 .Nm setextattr
-.Nd manipulated extended attributes
+.Nd manipulate extended attributes
 .Sh SYNOPSIS
 .Nm getextattr
 .Op Fl fhqsx
@@ -64,12 +64,15 @@
 .Sh DESCRIPTION
 These
 utilities
-are user tools to manipulated a named extended attributes on files and
+are user tools to manipulate the named extended attributes on files and
 directories.
 The
 .Ar attrnamespace
 argument should be the namespace of the attribute to retrieve: legal
-values are "user" and "system".
+values are
+.Cm user
+and
+.Cm system .
 The
 .Ar attrname
 argument should be the name of the attribute,
@@ -79,41 +82,53 @@ the name of the target file or directory,
 a string to store in the attribute.
 .Pp
 The following options are available:
-.Bl -tag -width flag
+.Bl -tag -width indent
 .It Fl f
-(Force) Ignore errors on individual filenames and continue with
+(Force.)
+Ignore errors on individual filenames and continue with
 the remaining arguments.
 .It Fl h
-(No follow) If the file is a symbolic link, perform the operation on the
+(No follow.)
+If the file is a symbolic link, perform the operation on the
 link itself rather than the file that the link points to.
 .It Fl n
-(Nul-terminate) Nul-terminate the extent content written out.
+.Dv ( NUL Ns
+-terminate.)
+.Dv NUL Ns
+-terminate the extent content written out.
 .It Fl q
-(Quiet) Do not print out the pathname and suppress error messages.
+(Quiet.)
+Do not print out the pathname and suppress error messages.
 .It Fl s
-(Stringify) Escape nonprinting characters and put quotes around the output.
+(Stringify.)
+Escape nonprinting characters and put quotes around the output.
 .It Fl x
-(Hex) Print the output in hexadecimal.
+(Hex.)
+Print the output in hexadecimal.
 .El
 .Sh EXAMPLES
-.Dl # setextattr system md5 `md5 -q /boot/kernel/kernel` /boot/kernel/kernel 
-.Dl # getextattr system md5 /boot/kernel/kernel
-.Dl # lsextattr system /boot/kernel/kernel
-.Dl # rmextattr system md5 /boot/kernel/kernel
+.Bd -literal
+setextattr system md5 `md5 -q /boot/kernel/kernel` /boot/kernel/kernel
+getextattr system md5 /boot/kernel/kernel
+lsextattr system /boot/kernel/kernel
+rmextattr system md5 /boot/kernel/kernel
+.Ed
 .Sh SEE ALSO
 .Xr extattr 2 ,
 .Xr extattr 3 ,
 .Xr extattrctl 8 ,
 .Xr extattr 9
 .Sh HISTORY
-Extended attribute support was developed as part of the TrustedBSD Project,
+Extended attribute support was developed as part of the
+.Tn TrustedBSD
+Project,
 and introduced in
 .Fx 5.0 .
 It was developed to support security extensions requiring additional labels
 to be associated with each file or directory.
 .Sh AUTHORS
-Robert N M Watson and
-Poul-Henning Kamp
+.An Robert N M Watson
+.An Poul-Henning Kamp
 .Sh BUGS
 The
 .Nm setextattr

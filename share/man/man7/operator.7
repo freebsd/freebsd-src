@@ -32,7 +32,7 @@
 .\"	@(#)operator.7	8.1 (Berkeley) 6/9/93
 .\" $FreeBSD$
 .\"
-.Dd June 9, 1993
+.Dd January 22, 2003
 .Dt OPERATOR 7
 .Os
 .Sh NAME
@@ -40,24 +40,24 @@
 .Nd C operator precedence and order of evaluation
 .Sh DESCRIPTION
 .Bd -ragged -offset indent -compact
-.Bl -column "\&= += -= *= /= %= <<= >>= &= ^= |="
+.Bl -column "= += -= *= /= %= <<= >>= &= ^= |="
 .It Sy "Operator	Associativity"
 .It "--------	-------------"
-.It "\&() [] -> .	left to right"
+.It "() [] -> .	left to right"
 .It "! ~ ++ -- - (type) * & sizeof	right to left"
-.It "\&* / %	left to right"
-.It "\&+ -	left to right"
-.It "\&<< >>	left to right"
-.It "\&< <= > >=	left to right"
-.It "\&== !=	left to right"
-.It "\&&	left to right"
-.It "\&^	left to right"
-.It "\&|	left to right"
-.It "\&&&	left to right"
-.It "\&||	left to right"
-.It "\&?:	right to left"
-.It "\&= += -= *= /= %= <<= >>= &= ^= |=	right to left"
-.It "\&,	left to right"
+.It "* / %	left to right"
+.It "+ -	left to right"
+.It "<< >>	left to right"
+.It "< <= > >=	left to right"
+.It "== !=	left to right"
+.It "&	left to right"
+.It "^	left to right"
+.It "|	left to right"
+.It "&&	left to right"
+.It "||	left to right"
+.It "?:	right to left"
+.It "= += -= *= /= %= <<= >>= &= ^= |=	right to left"
+.It ",	left to right"
 .El
 .Ed
 .Sh FILES
