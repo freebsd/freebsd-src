@@ -169,7 +169,7 @@ static int atapi_io (struct atapi *ata, struct atapicmd *ac);
 static int atapi_start_cmd (struct atapi *ata, struct atapicmd *ac);
 static int atapi_wait_cmd (struct atapi *ata, struct atapicmd *ac);
 
-extern int wdstart (int ctrlr);
+extern void wdstart (int ctrlr);
 extern int acdattach(struct atapi*, int, struct atapi_params*, int);
 extern int wfdattach(struct atapi*, int, struct atapi_params*, int);
 extern int wstattach(struct atapi*, int, struct atapi_params*, int);
