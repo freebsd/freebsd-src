@@ -1,5 +1,7 @@
 /* $FreeBSD$ */
 
+#include <osreldate.h>
+
 /* config.h.  Generated automatically by configure.  */
 /* config.h.in.  Generated automatically from configure.in by autoheader.  */
 
@@ -92,7 +94,9 @@
 #define HAVE_LOCALE_H 1
 
 /* Define if you have the <stdint.h> header file.  */
+#if __FreeBSD_version >= 500019
 #define HAVE_STDINT_H 1
+#endif
 
 /* Define if you have the <sys/mman.h> header file.  */
 #define HAVE_SYS_MMAN_H 1
