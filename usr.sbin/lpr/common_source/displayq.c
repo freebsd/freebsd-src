@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)displayq.c	8.4 (Berkeley) 4/28/95";
 */
 static const char rcsid[] =
-	"$Id$";
+	"$Id: displayq.c,v 1.13 1997/12/02 20:45:19 wollman Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -447,7 +447,7 @@ ldump(nfile, file, copies)
 	else
 		printf("%-32s", nfile);
 	if (*file && !stat(file, &lbuf))
-		printf(" %qd bytes", lbuf.st_size);
+		printf(" %qd bytes", (long long) lbuf.st_size);
 	else
 		printf(" ??? bytes");
 	putchar('\n');
