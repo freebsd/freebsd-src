@@ -329,14 +329,11 @@ global:
 	writev;
 
 	# Debugger needs these.
+	_libkse_debug;
+	_thread_activated;
 	_thread_list;
-	_thread_next_offset;
-	_thread_uniqueid_offset;
-	_thread_state_offset;
-	_thread_name_offset;
-	_thread_ctx_offset;
-	_thread_PS_RUNNING_value;
-	_thread_PS_DEAD_value;
+	_thread_keytable;
+	_thread_active_threads;
 
 local:
 	*;
