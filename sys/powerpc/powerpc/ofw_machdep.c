@@ -57,11 +57,35 @@ __FBSDID("$FreeBSD$");
 
 #define	OFMEM_REGIONS	32
 static struct mem_region OFmem[OFMEM_REGIONS + 1], OFavail[OFMEM_REGIONS + 3];
+static struct mem_region OFfree[OFMEM_REGIONS + 3];
 
 extern long	ofmsr;
 extern struct	pmap ofw_pmap;
 extern int	pmap_bootstrapped;
 static int	(*ofwcall)(void *);
+
+/*
+ * Memory region utilities: determine if two regions overlap,
+ * and merge two overlapping regions into one
+ */
+static int
+memr_overlap(struct mem_region *r1, struct mem_region *r2)
+{
+	if ((r1->mr_start + r1->mr_size) < r2->mr_start ||
+	    (r2->mr_start + r2->mr_size) < r1->mr_start)
+		return (FALSE);
+	
+	return (TRUE);	
+}
+
+static void
+memr_merge(struct mem_region *from, struct mem_region *to)
+{
+	int end;
+	end = imax(to->mr_start + to->mr_size, from->mr_start + from->mr_size);
+	to->mr_start = imin(from->mr_start, to->mr_start);
+	to->mr_size = end - to->mr_start;
+}
 
 /*
  * This is called during powerpc_init, before the system is really initialized.
@@ -75,7 +99,9 @@ mem_regions(struct mem_region **memp, int *memsz,
 		struct mem_region **availp, int *availsz)
 {
 	int phandle;
-	int asz, msz; 
+	int asz, msz, fsz;
+	int i, j;
+	int still_merging;
 	
 	/*
 	 * Get memory.
@@ -90,8 +116,40 @@ mem_regions(struct mem_region **memp, int *memsz,
 		panic("no memory?");
 	*memp = OFmem;
 	*memsz = msz / sizeof(struct mem_region);
-	*availp = OFavail;
-	*availsz = asz / sizeof(struct mem_region);
+
+	/*
+	 * OFavail may have overlapping regions - collapse these
+	 * and copy out remaining regions to OFfree
+	 */
+	asz /= sizeof(struct mem_region);
+	do {
+		still_merging = FALSE;
+		for (i = 0; i < asz; i++) {
+			if (OFavail[i].mr_size == 0)
+				continue;
+			for (j = i+1; j < asz; j++) {
+				if (OFavail[j].mr_size == 0)
+					continue;
+				if (memr_overlap(&OFavail[j], &OFavail[i])) {
+					memr_merge(&OFavail[j], &OFavail[i]);
+					/* mark inactive */
+					OFavail[j].mr_size = 0;
+					still_merging = TRUE;
+				}
+			}
+		}
+	} while (still_merging == TRUE);
+
+	/* evict inactive ranges */
+	for (i = 0, fsz = 0; i < asz; i++) {
+		if (OFavail[i].mr_size != 0) {
+			OFfree[fsz] = OFavail[i];
+			fsz++;
+		}
+	}
+
+	*availp = OFfree;
+	*availsz = fsz;
 }
 
 void
@@ -156,21 +214,6 @@ openfirmware(void *args)
 	);
 
 	return (result);
-}
-
-void
-ppc_exit()
-{
-
-	OF_exit();
-}
-
-void
-ppc_boot(str)
-	char *str;
-{
-
-	OF_boot(str);
 }
 
 void
