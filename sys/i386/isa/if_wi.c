@@ -399,9 +399,15 @@ wi_generic_attach(device_t dev)
 	/* Reset the NIC. */
 	wi_reset(sc);
 
-	/* Read the station address. */
+	/*
+	 * Read the station address.
+	 * And do it twice. I've seen PRISM-based cards that return
+	 * an error when trying to read it the first time, which causes
+	 * the probe to fail.
+	 */
 	mac.wi_type = WI_RID_MAC_NODE;
 	mac.wi_len = 4;
+	wi_read_record(sc, (struct wi_ltv_gen *)&mac);
 	if ((error = wi_read_record(sc, (struct wi_ltv_gen *)&mac)) != 0) {
 		device_printf(dev, "mac read failed %d\n", error);
 		wi_free(dev);
