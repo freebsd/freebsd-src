@@ -33,6 +33,8 @@
 #
 #	@(#)lorder.sh	8.1 (Berkeley) 6/6/93
 #
+# $FreeBSD$
+#
 
 # only one argument is a special case, just output the name twice
 case $# in
@@ -45,8 +47,8 @@ case $# in
 esac
 
 # temporary files
-R=/tmp/_reference_$$
-S=/tmp/_symbol_$$
+R=$(mktemp -t _reference_)
+S=$(mktemp -t _symbol_)
 
 # remove temporary files on HUP, INT, QUIT, PIPE, TERM
 trap "rm -f $R $S; exit 1" 1 2 3 13 15
