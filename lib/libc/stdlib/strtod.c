@@ -127,6 +127,9 @@ __FBSDID("$FreeBSD$");
 #else
 #define IEEE_LITTLE_ENDIAN
 #endif
+#if defined(__alpha__)
+#define	Sudden_Underflow
+#endif
 #endif /* defined(__i386__) ... */
 
 typedef	int32_t   Long;
