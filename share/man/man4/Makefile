@@ -27,6 +27,7 @@ MLINKS+=ipfirewall.4 ipacct.4 ipfirewall.4 ipaccounting.4 ipfirewall.4 ipfw.4
 MLINKS+=lp.4 plip.4
 MLINKS+=mem.4 kmem.4
 MLINKS+=netintro.4 networking.4
+MLINKS+=pcm.4 snd.4
 MLINKS+=pcvt.4 vt.4
 MLINKS+=scsi.4 CAM.4
 MLINKS+=scsi.4 SCSI.4
