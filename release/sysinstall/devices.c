@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: devices.c,v 1.40 1996/03/02 07:31:51 jkh Exp $
+ * $Id: devices.c,v 1.41 1996/03/18 15:27:46 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -116,21 +116,18 @@ new_device(char *name)
 Boolean
 dummyInit(Device *dev)
 {
-    msgDebug("Dummy init called for %s\n", dev->name);
     return TRUE;
 }
 
 int
 dummyGet(Device *dev, char *dist, Boolean probe)
 {
-    msgDebug("Dummy get called for %s\n", dev->name);
     return -1;
 }
 
 Boolean
 dummyClose(Device *dev, int fd)
 {
-    msgDebug("Dummy [default] close called for %s with fd of %d.\n", dev->name, fd);
     if (!close(fd))
 	return TRUE;
     return FALSE;
@@ -139,7 +136,6 @@ dummyClose(Device *dev, int fd)
 void
 dummyShutdown(Device *dev)
 {
-    msgDebug("Dummy shutdown called for %s\n", dev->name);
     return;
 }
 
