@@ -64,6 +64,7 @@ void	a_uid __P((const char *));
 void	chownerr __P((const char *));
 u_long	id __P((const char *, const char *));
 void	usage __P((void));
+int	main __P((int argc, char *argv[]));
 
 uid_t uid;
 gid_t gid;
