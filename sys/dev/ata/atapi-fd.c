@@ -68,7 +68,6 @@ static struct cdevsw afddisk_cdevsw;
 /* prototypes */
 static int afd_sense(struct afd_softc *);
 static void afd_describe(struct afd_softc *);
-static int afd_partial_done(struct atapi_request *);
 static int afd_done(struct atapi_request *);
 static int afd_eject(struct afd_softc *, int);
 static int afd_start_stop(struct afd_softc *, int);
@@ -100,17 +99,20 @@ afdattach(struct ata_device *atadev)
 	return 0;
     }
 
-    if (!strncmp(atadev->param->model, "IOMEGA ZIP", 10))
-	fdp->transfersize = 64;
-
     devstat_add_entry(&fdp->stats, "afd", fdp->lun, DEV_BSIZE,
 		      DEVSTAT_NO_ORDERED_TAGS,
 		      DEVSTAT_TYPE_DIRECT | DEVSTAT_TYPE_IF_IDE,
 		      DEVSTAT_PRIORITY_WFD);
     dev = disk_create(fdp->lun, &fdp->disk, 0, &afd_cdevsw, &afddisk_cdevsw);
     dev->si_drv1 = fdp;
-    dev->si_iosize_max = 252 * DEV_BSIZE;
     fdp->dev = dev;
+
+    if (!strncmp(atadev->param->model, "IOMEGA ZIP", 10) ||
+	!strncmp(atadev->param->model, "IOMEGA Clik!", 12))
+	fdp->dev->si_iosize_max = 64 * DEV_BSIZE;
+    else
+	fdp->dev->si_iosize_max = 252 * DEV_BSIZE;
+
     afd_describe(fdp);
     atadev->flags |= ATA_D_MEDIA_CHANGED;
     atadev->driver = fdp;
@@ -148,7 +150,6 @@ afd_sense(struct afd_softc *fdp)
 
     /* The IOMEGA Clik! doesn't support reading the cap page, fake it */
     if (!strncmp(fdp->device->param->model, "IOMEGA Clik!", 12)) {
-	fdp->transfersize = 64;
 	fdp->cap.transfer_rate = 500;
 	fdp->cap.heads = 1;
 	fdp->cap.sectors = 2;
@@ -190,8 +191,6 @@ afd_describe(struct afd_softc *fdp)
 		   fdp->cap.cylinders, fdp->cap.heads, fdp->cap.sectors,
 		   fdp->cap.sector_size);
 	ata_prtdev(fdp->device, "%dKB/s,", fdp->lun, fdp->cap.transfer_rate/8);
-	if (fdp->transfersize)
-	    printf(" transfer limit %d blks,", fdp->transfersize);
 	printf(" %s\n", ata_mode2str(fdp->device->mode));
 	if (fdp->cap.medium_type) {
 	    ata_prtdev(fdp->device, "Medium: ");
@@ -297,6 +296,13 @@ afdstrategy(struct buf *bp)
 	return;
     }
 
+    /* if it's a null transfer, return immediatly. */
+    if (bp->b_bcount == 0) {
+	bp->b_resid = 0;
+	biodone(bp);
+	return;
+    }
+
     s = splbio();
     bufqdisksort(&fdp->queue, bp);
     splx(s);
@@ -329,7 +335,7 @@ afd_start(struct ata_device *atadev)
     lba = bp->b_pblkno;
     count = bp->b_bcount / fdp->cap.sector_size;
     data_ptr = bp->b_data;
-    bp->b_resid = 0; 
+    bp->b_resid = bp->b_bcount; 
 
     bzero(ccb, sizeof(ccb));
 
@@ -338,26 +344,6 @@ afd_start(struct ata_device *atadev)
     else
 	ccb[0] = ATAPI_WRITE_BIG;
 
-    devstat_start_transaction(&fdp->stats);
-
-    while (fdp->transfersize && (count > fdp->transfersize)) {
-	ccb[2] = lba>>24;
-	ccb[3] = lba>>16;
-	ccb[4] = lba>>8;
-	ccb[5] = lba;
-	ccb[7] = fdp->transfersize>>8;
-	ccb[8] = fdp->transfersize;
-
-	atapi_queue_cmd(fdp->device, ccb, data_ptr, 
-			fdp->transfersize * fdp->cap.sector_size,
-			(bp->b_flags & B_READ) ? ATPR_F_READ : 0, 30,
-			afd_partial_done, bp);
-
-	count -= fdp->transfersize;
-	lba += fdp->transfersize;
-	data_ptr += fdp->transfersize * fdp->cap.sector_size;
-    }
-
     ccb[2] = lba>>24;
     ccb[3] = lba>>16;
     ccb[4] = lba>>8;
@@ -365,22 +351,11 @@ afd_start(struct ata_device *atadev)
     ccb[7] = count>>8;
     ccb[8] = count;
 
+    devstat_start_transaction(&fdp->stats);
+
     atapi_queue_cmd(fdp->device, ccb, data_ptr, count * fdp->cap.sector_size,
 		    (bp->b_flags & B_READ) ? ATPR_F_READ : 0, 30,
 		    afd_done, bp);
-}
-
-static int 
-afd_partial_done(struct atapi_request *request)
-{
-    struct buf *bp = request->driver;
-
-    if (request->error) {
-	bp->b_error = request->error;
-	bp->b_flags |= B_ERROR;
-    }
-    bp->b_resid += request->bytecount;
-    return 0;
 }
 
 static int 
@@ -394,7 +369,7 @@ afd_done(struct atapi_request *request)
 	bp->b_flags |= B_ERROR;
     }
     else
-	bp->b_resid += (bp->b_bcount - request->donecount);
+	bp->b_resid = bp->b_bcount - request->donecount;
     devstat_end_transaction_buf(&fdp->stats, bp);
     biodone(bp);
     return 0;
