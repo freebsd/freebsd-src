@@ -313,7 +313,7 @@ kernfs_access(ap)
 	if ((amode & VWRITE) && (fmode & (S_IWUSR|S_IWGRP|S_IWOTH)) == 0)
 		return (EPERM);
 
-	return (vaccess(vp->v_tag, fmode, 0, 0, ap->a_mode, ap->a_cred));
+	return (vaccess(vp->v_tag, fmode, 0, 0, ap->a_mode, ap->a_cred, NULL));
 }
 
 static int

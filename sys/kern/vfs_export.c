@@ -2986,54 +2986,106 @@ NDFREE(ndp, flags)
 }
 
 int
-vaccess(type, file_mode, uid, gid, acc_mode, cred)
+vaccess(type, file_mode, file_uid, file_gid, acc_mode, cred, privused)
 	enum vtype type;
 	mode_t file_mode;
-	uid_t uid;
-	gid_t gid;
+	uid_t file_uid;
+	gid_t file_gid;
 	mode_t acc_mode;
 	struct ucred *cred;
+	int *privused;
 {
-	mode_t mask;
+	mode_t dac_granted;
+#ifdef CAPABILITIES
+	mode_t cap_granted;
+#endif
 
 	/*
-	 * At this point, uid == 0 can do anything.
-	 * XXX: should use suser() ?
-	 * XXX: Should only check root-ness after other checks fail.
+	 * Look for a normal, non-privileged way to access the file/directory
+	 * as requested.  If it exists, go with that.
 	 */
-	if (cred->cr_uid == 0)
-		return (0);
 
-	mask = 0;
+	if (privused != NULL)
+		*privused = 0;
 
-        /* Otherwise, check the owner. */
-        if (cred->cr_uid == uid) {
-                if (acc_mode & VEXEC)
-                        mask |= S_IXUSR;
-                if (acc_mode & VREAD)
-                        mask |= S_IRUSR;
-                if (acc_mode & VWRITE)
-                        mask |= S_IWUSR;
-                return ((file_mode & mask) == mask ? 0 : EACCES);
-        }
+	dac_granted = 0;
 
-	/* Otherwise, check for all groups. */
-	if (groupmember(gid, cred)) {
-		if (acc_mode & VEXEC)
-			mask |= S_IXGRP;
-		if (acc_mode & VREAD)
-			mask |= S_IRGRP;
-		if (acc_mode & VWRITE)
-			mask |= S_IWGRP;
-		return ((file_mode & mask) == mask ?  0 : EACCES);
+	/* Check the owner. */
+	if (cred->cr_uid == file_uid) {
+		if (file_mode & S_IXUSR)
+			dac_granted |= VEXEC;
+		if (file_mode & S_IRUSR)
+			dac_granted |= VREAD;
+		if (file_mode & S_IWUSR)
+			dac_granted |= VWRITE;
+
+		if ((acc_mode & dac_granted) == acc_mode)
+			return (0);
+
+		goto privcheck;
 	}
 
-        /* Otherwise, check everyone else. */
-	if (acc_mode & VEXEC)
-		mask |= S_IXOTH;
-	if (acc_mode & VREAD)
-		mask |= S_IROTH;
-	if (acc_mode & VWRITE)
-		mask |= S_IWOTH;
-	return ((file_mode & mask) == mask ? 0 : EACCES);
+	/* Otherwise, check the groups (first match) */
+	if (groupmember(file_gid, cred)) {
+		if (file_mode & S_IXGRP)
+			dac_granted |= VEXEC;
+		if (file_mode & S_IRGRP)
+			dac_granted |= VREAD;
+		if (file_mode & S_IWGRP)
+			dac_granted |= VWRITE;
+
+		if ((acc_mode & dac_granted) == acc_mode)
+			return (0);
+
+		goto privcheck;
+	}
+
+	/* Otherwise, check everyone else. */
+	if (file_mode & S_IXOTH)
+		dac_granted |= VEXEC;
+	if (file_mode & S_IROTH)
+		dac_granted |= VREAD;
+	if (file_mode & S_IWOTH)
+		dac_granted |= VWRITE;
+	if ((acc_mode & dac_granted) == acc_mode)
+		return (0);
+
+privcheck:
+	if (!suser_xxx(cred, NULL, PRISON_ROOT)) {
+		/* XXX audit: privilege used */
+		if (privused != NULL)
+			*privused = 1;
+		return (0);
+	}
+
+#ifdef CAPABILITIES
+	/*
+	 * Build a capability mask to determine if the set of capabilities
+	 * satisfies the requirements when combined with the granted mask
+	 * from above.
+	 * For each capability, if the capability is required, bitwise
+	 * or the request type onto the cap_granted mask.
+	 */
+	cap_granted = 0;
+	if ((acc_mode & VEXEC) && ((dac_granted & VEXEC) == 0) &&
+	    !cap_check_xxx(cred, p, CAP_DAC_EXECUTE, PRISON_ROOT))
+	    cap_granted |= VEXEC;
+
+	if ((acc_mode & VREAD) && ((dac_granted & VREAD) == 0) &&
+	    !cap_check_xxx(cred, p, CAP_DAC_READ_SEARCH, PRISON_ROOT))
+		cap_granted |= VREAD;
+
+	if ((acc_mode & VWRITE) && ((dac_granted & VWRITE) == 0) &&
+	    !cap_check_xxx(cred, p, CAP_DAC_WRITE, PRISON_ROOT))
+		cap_granted |= VWRITE;
+
+	if ((acc_mode & (cap_granted | dac_granted)) == mode) {
+		/* XXX audit: privilege used */
+		if (privused != NULL)
+			*privused = 1;
+		return (0);
+	}
+#endif
+
+	return (EACCES);
 }
