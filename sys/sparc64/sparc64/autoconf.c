@@ -26,11 +26,18 @@
  * $FreeBSD$
  */
 
+#include "opt_isa.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/cons.h>
 #include <sys/kernel.h>
+
+#ifdef DEV_ISA
+#include <isa/isavar.h>
+extern device_t isa_bus_device;
+#endif
 
 dev_t dumpdev = NODEV;
 dev_t rootdev = NODEV;
@@ -39,10 +46,18 @@ static void configure(void *);
 
 SYSINIT(configure, SI_SUB_CONFIGURE, SI_ORDER_ANY, configure, NULL);
 
+static device_t nexusdev;
+
+
 static void
 configure(void *v)
 {
-	device_add_child(root_bus, "upa", 0);
+
+	nexusdev = device_add_child(root_bus, "nexus", 0);
 	root_bus_configure();
+#ifdef DEV_ISA
+	if (isa_bus_device != NULL)
+		isa_probe_children(isa_bus_device);
+#endif
 	cold = 0;
 }
