@@ -50,6 +50,8 @@ void serial_putchar (unsigned char c)
 {
 	unsigned char stat;
 
+	if (c == '\n')
+		serial_putchar('\r');
 	do {
 		 stat = inb (COMCONSOLE+5);
 	} while (!(stat & 0x20));
