@@ -155,15 +155,12 @@ int eflags;
 	char *start;
 	char *stop;
 	/* Boyer-Moore algorithms variables */
-	register unsigned char *pp;
+	register char *pp;
 	int cj, mj;
-	register unsigned char *mustfirst;
-	register unsigned char *mustlast;
-	register int mustlen;
+	register char *mustfirst;
+	register char *mustlast;
 	register int *matchjump;
 	register int *charjump;
-	register unsigned char *bmp;
-	register unsigned char *bmps;
 
 	/* simplify the situation where possible */
 	if (g->cflags&REG_NOSUB)
@@ -181,39 +178,36 @@ int eflags;
 	/* prescreening; this does wonders for this rather slow code */
 	if (g->must != NULL) {
 		if (g->charjump != NULL && g->matchjump != NULL) {
-			mustlen = -g->mlen;
 			mustfirst = g->must;
 			mustlast = g->must + g->mlen - 1;
 			charjump = g->charjump;
 			matchjump = g->matchjump;
-			bmps = stop;
 			pp = mustlast;
-			for (bmp = start+g->mlen-1; bmp < bmps;) {
+			for (dp = start+g->mlen-1; dp < stop;) {
 				/* Fast skip non-matches */
-				while (bmp < bmps && charjump[*bmp])
-					bmp += charjump[*bmp];
+				while (dp < stop && charjump[*dp])
+					dp += charjump[*dp];
 
-				if (bmp >= bmps)
+				if (dp >= stop)
 					break;
 
 				/* Greedy matcher */
 				/* We depend on not being used for
 				 * for strings of length 1
 				 */
-				while (*--bmp == *--pp && pp != mustfirst);
+				while (*--dp == *--pp && pp != mustfirst);
 
-				if (*bmp == *pp)
+				if (*dp == *pp)
 					break;
 
 				/* Jump to next possible match */
 				mj = matchjump[pp - mustfirst];
-				cj = charjump[*bmp];
-				bmp += (cj < mj ? mj : cj);
-				pp = mustlast;				
+				cj = charjump[*dp];
+				dp += (cj < mj ? mj : cj);
+				pp = mustlast;
 			}
 			if (pp != mustfirst)
 				return(REG_NOMATCH);
-			dp = bmp;
 		} else {
 			for (dp = start; dp < stop; dp++)
 				if (*dp == g->must[0] &&
