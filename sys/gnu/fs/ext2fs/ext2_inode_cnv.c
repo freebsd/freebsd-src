@@ -19,6 +19,7 @@
  * improvements that they make and grant CSL redistribution rights.
  *
  *      Utah $Hdr$
+ * $FreeBSD$
  */
 
 /*
@@ -33,7 +34,10 @@
 #include <ufs/ufs/quota.h>
 #include <ufs/ufs/inode.h>
 
-/* these defs would destroy the ext2_fs_i #include */
+/*
+ * Undo the definitions in <ufs/ufs/inode.h> that would destroy the include
+ * of <gnu/ext2fs/ext2_fs.h>.
+ */
 #undef i_atime
 #undef i_blocks
 #undef i_ctime
@@ -52,7 +56,6 @@
 
 #include <gnu/ext2fs/ext2_fs.h>
 #include <gnu/ext2fs/ext2_extern.h>
-#include <gnu/ext2fs/ext2_fs_i.h>
 
 void
 ext2_print_dinode( di )
