@@ -45,6 +45,7 @@
 #include <sys/mutex.h>
 #include <sys/proc.h>
 #include <sys/kse.h>
+#include <sys/sched.h>
 #include <sys/smp.h>
 #include <sys/sysctl.h>
 #include <sys/filedesc.h>
@@ -123,7 +124,7 @@ procinit()
 	LIST_INIT(&zombproc);
 	pidhashtbl = hashinit(maxproc / 4, M_PROC, &pidhash);
 	pgrphashtbl = hashinit(maxproc / 4, M_PROC, &pgrphash);
-	proc_zone = uma_zcreate("PROC", sizeof (struct proc),
+	proc_zone = uma_zcreate("PROC", sched_sizeof_proc(),
 	    proc_ctor, proc_dtor, proc_init, proc_fini,
 	    UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
 	uihashinit();
@@ -137,8 +138,6 @@ proc_ctor(void *mem, int size, void *arg)
 {
 	struct proc *p;
 
-	KASSERT((size == sizeof(struct proc)),
-	    ("size mismatch: %d != %d\n", size, (int)sizeof(struct proc)));
 	p = (struct proc *)mem;
 }
 
@@ -154,8 +153,6 @@ proc_dtor(void *mem, int size, void *arg)
 	struct kse *ke;
 
 	/* INVARIANTS checks go here */
-	KASSERT((size == sizeof(struct proc)),
-	    ("size mismatch: %d != %d\n", size, (int)sizeof(struct proc)));
 	p = (struct proc *)mem;
 	KASSERT((p->p_numthreads == 1),
 	    ("bad number of threads in exiting process"));
@@ -194,9 +191,8 @@ proc_init(void *mem, int size)
 	struct ksegrp *kg;
 	struct kse *ke;
 
-	KASSERT((size == sizeof(struct proc)),
-	    ("size mismatch: %d != %d\n", size, (int)sizeof(struct proc)));
 	p = (struct proc *)mem;
+	p->p_sched = (struct p_sched *)&p[1];
 	vm_proc_new(p);
 	td = thread_alloc();
 	ke = kse_alloc();
@@ -215,8 +211,6 @@ proc_fini(void *mem, int size)
 	struct ksegrp *kg;
 	struct kse *ke;
 
-	KASSERT((size == sizeof(struct proc)),
-	    ("size mismatch: %d != %d\n", size, (int)sizeof(struct proc)));
 	p = (struct proc *)mem;
 	KASSERT((p->p_numthreads == 1),
 	    ("bad number of threads in freeing process"));

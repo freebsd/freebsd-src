@@ -51,6 +51,10 @@
 #include <sys/sysctl.h>
 #include <sys/sx.h>
 
+struct ke_sched *kse0_sched = NULL;
+struct kg_sched *ksegrp0_sched = NULL;
+struct p_sched *proc0_sched = NULL;
+struct td_sched *thread0_sched = NULL;
 
 static int	sched_quantum;	/* Roundrobin scheduling quantum in ticks. */
 #define	SCHED_QUANTUM	(hz / 10);	/* Default sched quantum */
@@ -617,4 +621,25 @@ sched_userret(struct thread *td)
 		td->td_priority = kg->kg_user_pri;
 		mtx_unlock_spin(&sched_lock);
 	}
+}
+
+int
+sched_sizeof_kse(void)
+{
+	return (sizeof(struct kse));
+}
+int
+sched_sizeof_ksegrp(void)
+{
+	return (sizeof(struct ksegrp));
+}
+int
+sched_sizeof_proc(void)
+{
+	return (sizeof(struct proc));
+}
+int
+sched_sizeof_thread(void)
+{
+	return (sizeof(struct thread));
 }

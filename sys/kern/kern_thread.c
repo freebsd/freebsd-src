@@ -39,9 +39,10 @@
 #include <sys/sysctl.h>
 #include <sys/sysproto.h>
 #include <sys/filedesc.h>
-#include <sys/tty.h>
+#include <sys/sched.h>
 #include <sys/signalvar.h>
 #include <sys/sx.h>
+#include <sys/tty.h>
 #include <sys/user.h>
 #include <sys/jail.h>
 #include <sys/kse.h>
@@ -101,9 +102,6 @@ thread_ctor(void *mem, int size, void *arg)
 {
 	struct thread	*td;
 
-	KASSERT((size == sizeof(struct thread)),
-	    ("size mismatch: %d != %d\n", size, (int)sizeof(struct thread)));
-
 	td = (struct thread *)mem;
 	td->td_state = TDS_INACTIVE;
 	td->td_flags |= TDF_UNBOUND;
@@ -116,9 +114,6 @@ static void
 thread_dtor(void *mem, int size, void *arg)
 {
 	struct thread	*td;
-
-	KASSERT((size == sizeof(struct thread)),
-	    ("size mismatch: %d != %d\n", size, (int)sizeof(struct thread)));
 
 	td = (struct thread *)mem;
 
@@ -152,14 +147,12 @@ thread_init(void *mem, int size)
 {
 	struct thread	*td;
 
-	KASSERT((size == sizeof(struct thread)),
-	    ("size mismatch: %d != %d\n", size, (int)sizeof(struct thread)));
-
 	td = (struct thread *)mem;
 	mtx_lock(&Giant);
 	pmap_new_thread(td, 0);
 	mtx_unlock(&Giant);
 	cpu_thread_setup(td);
+	td->td_sched = (struct td_sched *)&td[1];
 }
 
 /*
@@ -170,11 +163,30 @@ thread_fini(void *mem, int size)
 {
 	struct thread	*td;
 
-	KASSERT((size == sizeof(struct thread)),
-	    ("size mismatch: %d != %d\n", size, (int)sizeof(struct thread)));
-
 	td = (struct thread *)mem;
 	pmap_dispose_thread(td);
+}
+/*
+ * Initialize type-stable parts of a kse (when newly created).
+ */
+static void
+kse_init(void *mem, int size)
+{
+	struct kse	*ke;
+
+	ke = (struct kse *)mem;
+	ke->ke_sched = (struct ke_sched *)&ke[1];
+}
+/*
+ * Initialize type-stable parts of a ksegrp (when newly created).
+ */
+static void
+ksegrp_init(void *mem, int size)
+{
+	struct ksegrp	*kg;
+
+	kg = (struct ksegrp *)mem;
+	kg->kg_sched = (struct kg_sched *)&kg[1];
 }
 
 /* 
@@ -609,7 +621,7 @@ threadinit(void)
 {
 
 #ifndef __ia64__
-	thread_zone = uma_zcreate("THREAD", sizeof (struct thread),
+	thread_zone = uma_zcreate("THREAD", sched_sizeof_thread(),
 	    thread_ctor, thread_dtor, thread_init, thread_fini,
 	    UMA_ALIGN_CACHE, 0);
 #else
@@ -620,16 +632,16 @@ threadinit(void)
 	 * in the system startup while contigmalloc() still works. Once we
 	 * have them, keep them.  Sigh.
 	 */
-	thread_zone = uma_zcreate("THREAD", sizeof (struct thread),
+	thread_zone = uma_zcreate("THREAD", sched_sizeof_thread(),
 	    thread_ctor, thread_dtor, thread_init, thread_fini,
 	    UMA_ALIGN_CACHE, UMA_ZONE_NOFREE);
 	uma_prealloc(thread_zone, 512);		/* XXX arbitary */
 #endif
-	ksegrp_zone = uma_zcreate("KSEGRP", sizeof (struct ksegrp),
-	    NULL, NULL, NULL, NULL,
+	ksegrp_zone = uma_zcreate("KSEGRP", sched_sizeof_ksegrp(),
+	    NULL, NULL, ksegrp_init, NULL,
 	    UMA_ALIGN_CACHE, 0);
-	kse_zone = uma_zcreate("KSE", sizeof (struct kse),
-	    NULL, NULL, NULL, NULL,
+	kse_zone = uma_zcreate("KSE", sched_sizeof_kse(),
+	    NULL, NULL, kse_init, NULL,
 	    UMA_ALIGN_CACHE, 0);
 }
 
