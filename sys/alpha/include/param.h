@@ -98,9 +98,16 @@
 #define	DEV_BSHIFT	9		/* log2(DEV_BSIZE) */
 #define	DEV_BSIZE	(1<<DEV_BSHIFT)
 
-#define BLKDEV_IOSIZE	2048
+#ifndef BLKDEV_IOSIZE
+#define BLKDEV_IOSIZE  PAGE_SIZE	/* default block device I/O size */
+#endif
+
+#ifndef DFLTPHYS
 #define DFLTPHYS	(64 * 1024)	/* default max raw I/O transfer size */
+#endif
+#ifndef MAXPHYS
 #define MAXPHYS		(128 * 1024)	/* max raw I/O transfer size */
+#endif
 
 #define	CLSIZE		1
 #define	CLSIZELOG2	0
