@@ -743,6 +743,7 @@ u_int flags;
 	is->is_hv = hv;
 	is->is_rule = fin->fin_fr;
 	if (is->is_rule != NULL) {
+		is->is_group = is->is_rule->fr_group;
 		ATOMIC_INC32(is->is_rule->fr_ref);
 		pass = is->is_rule->fr_flags;
 		is->is_frage[0] = is->is_rule->fr_age[0];
@@ -811,8 +812,8 @@ u_int flags;
 #endif
 	RWLOCK_EXIT(&ipf_state);
 	fin->fin_rev = IP6NEQ(is->is_dst, fin->fin_fi.fi_dst);
-	if ((fin->fin_fi.fi_fl & FI_FRAG) && (pass & FR_KEEPFRAG))
-		ipfr_newfrag(ip, fin, pass ^ FR_KEEPSTATE);
+	if ((fin->fin_fl & FI_FRAG) && (pass & FR_KEEPFRAG))
+		ipfr_newfrag(ip, fin);
 	return is;
 }
 
@@ -1068,7 +1069,7 @@ tcphdr_t *tcp;
 			} else {
 				is->is_src = fin->fin_fi.fi_dst;
 			}
-		} else if ((flags & FI_W_DPORT) != 0) {
+		} else if ((flags & FI_W_DADDR) != 0) {
 			if (rev == 0) {
 				is->is_dst = fin->fin_fi.fi_dst;
 			} else {
@@ -1404,7 +1405,8 @@ fr_info_t *fin;
 	tcphdr_t *tcp;
 	int rev;
 
-	if (fr_state_lock || (fin->fin_off != 0) || (fin->fin_fl & FI_SHORT))
+	if ((ips_list == NULL) || (fin->fin_off != 0) || fr_state_lock ||
+	    (fin->fin_fl & FI_SHORT))
 		return NULL;
 
 	is = NULL;
@@ -1635,7 +1637,7 @@ retry_tcpudp:
 	pass = is->is_pass;
 	RWLOCK_EXIT(&ipf_state);
 	if ((fin->fin_fl & FI_FRAG) && (pass & FR_KEEPFRAG))
-		ipfr_newfrag(ip, fin, pass ^ FR_KEEPSTATE);
+		ipfr_newfrag(ip, fin);
 #ifndef	_KERNEL
 	if ((tcp != NULL) && (tcp->th_flags & TCP_CLOSE))
 		fr_delstate(is);
@@ -2046,6 +2048,8 @@ u_int type;
 	ipsl.isl_p = is->is_p;
 	ipsl.isl_v = is->is_v;
 	ipsl.isl_flags = is->is_flags;
+	ipsl.isl_rulen = is->is_rulen;
+	ipsl.isl_group = is->is_group;
 	if (ipsl.isl_p == IPPROTO_TCP || ipsl.isl_p == IPPROTO_UDP) {
 		ipsl.isl_sport = is->is_sport;
 		ipsl.isl_dport = is->is_dport;

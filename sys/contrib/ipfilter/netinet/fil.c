@@ -1087,7 +1087,7 @@ int out;
 		fin->fin_fr = fr;
 		if ((pass & (FR_KEEPFRAG|FR_KEEPSTATE)) == FR_KEEPFRAG) {
 			if (fin->fin_fl & FI_FRAG) {
-				if (ipfr_newfrag(ip, fin, pass) == -1) {
+				if (ipfr_newfrag(ip, fin) == -1) {
 					ATOMIC_INCL(frstats[out].fr_bnfr);
 				} else {
 					ATOMIC_INCL(frstats[out].fr_nfr);
@@ -1207,7 +1207,16 @@ logit:
 		 * some operating systems.
 		 */
 		if (!out) {
-			if (pass & FR_RETICMP) {
+			if (changed == -1)
+				/*
+				 * If a packet results in a NAT error, do not
+				 * send a reset or ICMP error as it may disrupt
+				 * an existing flow.  This is the proxy saying
+				 * the content is bad so just drop the packet
+				 * silently.
+				 */
+				;
+			else if (pass & FR_RETICMP) {
 				int dst;
 
 				if ((pass & FR_RETMASK) == FR_FAKEICMP)
@@ -1517,7 +1526,7 @@ nodata:
  * SUCH DAMAGE.
  *
  *	@(#)uipc_mbuf.c	8.2 (Berkeley) 1/4/94
- * $Id: fil.c,v 2.35.2.61 2002/06/05 08:18:09 darrenr Exp $
+ * $Id: fil.c,v 2.35.2.63 2002/08/28 12:40:08 darrenr Exp $
  */
 /*
  * Copy data from an mbuf chain starting "off" bytes from the beginning,

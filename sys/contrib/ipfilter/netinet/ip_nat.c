@@ -2267,8 +2267,8 @@ register natlookup_t *np;
 	fr_info_t fi;
 
 	bzero((char *)&fi, sizeof(fi));
-	fi.fin_data[0] = np->nl_inport;
-	fi.fin_data[1] = np->nl_outport;
+	fi.fin_data[0] = ntohs(np->nl_inport);
+	fi.fin_data[1] = ntohs(np->nl_outport);
 
 	/*
 	 * If nl_inip is non null, this is a lookup based on the real
@@ -2450,7 +2450,7 @@ maskloop:
 	if (nat) {
 		np = nat->nat_ptr;
 		if (natadd && (fin->fin_fl & FI_FRAG) && np)
-			ipfr_nat_newfrag(ip, fin, 0, nat);
+			ipfr_nat_newfrag(ip, fin, nat);
 		MUTEX_ENTER(&nat->nat_lock);
 		if (fin->fin_p != IPPROTO_TCP) {
 			if (np && np->in_age[1])
@@ -2542,6 +2542,8 @@ maskloop:
 			i = appr_check(ip, fin, nat);
 			if (i == 0)
 				i = 1;
+			else if (i == -1)
+				nat->nat_drop[1]++;
 		} else
 			i = 1;
 		ATOMIC_INCL(nat_stats.ns_mapped[1]);
@@ -2666,11 +2668,12 @@ maskloop:
 		np = nat->nat_ptr;
 		fin->fin_fr = nat->nat_fr;
 		if (natadd && (fin->fin_fl & FI_FRAG) && np)
-			ipfr_nat_newfrag(ip, fin, 0, nat);
+			ipfr_nat_newfrag(ip, fin, nat);
 		if (np && (np->in_apr != NULL) && (np->in_dport == 0 ||
 		     (tcp != NULL && sport == np->in_dport))) {
 			i = appr_check(ip, fin, nat);
 			if (i == -1) {
+				nat->nat_drop[0]++;
 				RWLOCK_EXIT(&ipf_nat);
 				return i;
 			}
