@@ -60,6 +60,7 @@
 #define	_PW_KEYBYNAME		'1'	/* stored by name */
 #define	_PW_KEYBYNUM		'2'	/* stored by entry in the "file" */
 #define	_PW_KEYBYUID		'3'	/* stored by uid */
+#define _PW_KEYYPENABLED	'4'	/* YP is enabled */
 
 #define	_PASSWORD_EFMT1		'_'	/* extended encryption format */
 
@@ -77,7 +78,21 @@ struct passwd {
 	char	*pw_dir;		/* home directory */
 	char	*pw_shell;		/* default shell */
 	time_t	pw_expire;		/* account expiration */
+	int	pw_fields;		/* internal: fields filled in */
 };
+
+/* Mapping from fields to bits for pw_fields. */
+#define _PWF(x)		(1 << x)
+#define _PWF_NAME	_PWF(0)
+#define _PWF_PASSWD	_PWF(1)
+#define _PWF_UID	_PWF(2)
+#define _PWF_GID	_PWF(3)
+#define _PWF_CHANGE	_PWF(4)
+#define _PWF_CLASS	_PWF(5)
+#define _PWF_GECOS	_PWF(6)
+#define _PWF_DIR	_PWF(7)
+#define _PWF_SHELL	_PWF(8)
+#define _PWF_EXPIRE	_PWF(9)
 
 #include <sys/cdefs.h>
 
