@@ -1317,8 +1317,16 @@ void
 cleanup(int sig __unused)
 {
 	char *p;
+	sigset_t mask;
 
 	p = line + sizeof(_PATH_DEV) - 1;
+	/*
+	 * Block all signals before clearing the utmp entry.  We don't want to
+	 * be called again after calling logout() and then not add the wtmp
+	 * entry because of not finding the corresponding entry in utmp.
+	 */
+	sigfillset(&mask);
+	sigprocmask(SIG_SETMASK, &mask, NULL);
 	if (logout(p))
 		logwtmp(p, "", "");
 	(void)chmod(line, 0666);
