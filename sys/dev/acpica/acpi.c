@@ -556,6 +556,7 @@ acpi_print_child(device_t bus, device_t child)
     retval += acpi_print_resources(rl, "port",  SYS_RES_IOPORT, "%#lx");
     retval += acpi_print_resources(rl, "iomem", SYS_RES_MEMORY, "%#lx");
     retval += acpi_print_resources(rl, "irq",   SYS_RES_IRQ,    "%ld");
+    retval += acpi_print_resources(rl, "drq",   SYS_RES_DRQ,    "%ld");
     retval += bus_print_child_footer(bus, child);
 
     return(retval);
