@@ -41,6 +41,26 @@ __FBSDID("$FreeBSD$");
 #define	DPRINTX(x)
 #endif
 
+const enum platform platform =
+#if defined (P_DEBUG)
+	P_DEBUG
+#elif defined (PC98)
+	p_pc98
+#elif defined(__i386__)
+	p_i386
+#elif defined(__alpha__)
+	p_alpha
+#elif defined(__sparc64__)
+	p_sparc64
+#elif defined(__ia64__)
+	p_ia64
+#elif defined(__ppc__)
+	p_ppc
+#else
+	IHAVENOIDEA
+#endif
+	;
+
 const char *
 chunk_name(chunk_e type)
 {
