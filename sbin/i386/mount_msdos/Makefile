@@ -1,13 +1,10 @@
 #
-#	$Id: Makefile,v 1.1 1994/09/19 15:30:33 dfr Exp $
+#	$Id: Makefile,v 1.2 1994/12/04 08:01:24 bde Exp $
 #
 
 PROG=	mount_msdos
 SRCS=	mount_msdos.c getmntopts.c
 MAN8=	mount_msdos.8
-
-BINOWN=	root
-BINMODE= 4555
 
 MOUNT=	${.CURDIR}/../../mount
 CFLAGS+= -I${MOUNT}
