@@ -1124,7 +1124,7 @@ chn_buildfeeder(struct pcm_channel *c)
 	} else {
 		if (c->direction == PCMDIR_REC) {
 			tmp[0] = c->format;
-			tmp[1] = NULL;
+			tmp[1] = 0;
 			hwfmt = chn_fmtchain(c, tmp);
 		} else {
 			hwfmt = chn_fmtchain(c, chn_getcaps(c)->fmtlist);

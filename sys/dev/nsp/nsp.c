@@ -727,7 +727,7 @@ nsp_setup_fifo(sc, on, direction, datalen)
 	/* determine a transfer type */
 	if (datalen < DEV_BSIZE || (datalen & 3) != 0)
 	{
-		if (sc->sc_memh != NULL &&
+		if (sc->sc_memh != 0 &&
 		    (nsp_io_control & NSP_USE_MEMIO) != 0)
 			xfermode = XFERMR_XEN | XFERMR_MEM8;
 		else
@@ -735,7 +735,7 @@ nsp_setup_fifo(sc, on, direction, datalen)
 	}
 	else
 	{
-		if (sc->sc_memh != NULL &&
+		if (sc->sc_memh != 0 &&
 		    (nsp_io_control & NSP_USE_MEMIO) != 0)
 			xfermode = XFERMR_XEN | XFERMR_MEM32;
 		else
