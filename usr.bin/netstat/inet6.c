@@ -348,7 +348,8 @@ ip6_stats(off, name)
 	if (off == 0)
 		return;
 
-	kread(off, (char *)&ip6stat, sizeof (ip6stat));
+	if (kread(off, (char *)&ip6stat, sizeof (ip6stat)))
+		return;
 	printf("%s:\n", name);
 
 #define	p(f, m) if (ip6stat.f || sflag <= 1) \
