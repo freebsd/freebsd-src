@@ -78,8 +78,6 @@ int pccard_card_intr(void *);
 int pccard_card_intrdebug(void *);
 #endif
 
-/* XXX Shouldn't be touching hardware, that's a layering violation */
-/* XXX imp */
 int
 pccard_ccr_read(pf, ccr)
 	struct pccard_function *pf;
@@ -269,9 +267,8 @@ pccard_card_gettype(device_t dev)
  * disabled.
  */
 void
-pccard_function_init(pf, cfe)
-	struct pccard_function *pf;
-	struct pccard_config_entry *cfe;
+pccard_function_init(struct pccard_function *pf, 
+    struct pccard_config_entry *cfe)
 {
 	if (pf->pf_flags & PFF_ENABLED)
 		panic("pccard_function_init: function is enabled");
@@ -282,11 +279,11 @@ pccard_function_init(pf, cfe)
 
 /* Enable a PCCARD function */
 int
-pccard_function_enable(pf)
-	struct pccard_function *pf;
+pccard_function_enable(struct pccard_function *pf)
 {
 	struct pccard_function *tmp;
 	int reg;
+	device_t dev = pf->sc->dev;
 
 	if (pf->cfe == NULL)
 		panic("pccard_function_enable: function not initialized");
@@ -296,10 +293,8 @@ pccard_function_enable(pf)
 	 * necessary.
 	 */
 	if (pf->sc->sc_enabled_count++ == 0)
-		POWER_ENABLE_SOCKET(device_get_parent(pf->sc->dev), 
-		    pf->sc->dev);
-	DEVPRINTF((pf->sc->dev, "++enabled_count = %d\n", 
-	    pf->sc->sc_enabled_count));
+		POWER_ENABLE_SOCKET(device_get_parent(dev), dev);
+	DEVPRINTF((dev, "++enabled_count = %d\n", pf->sc->sc_enabled_count));
 
 	if (pf->pf_flags & PFF_ENABLED) {
 		/*
@@ -336,15 +331,16 @@ pccard_function_enable(pf)
 	}
 
 	if (tmp == NULL) {
-		if (pccard_mem_alloc(pf, PCCARD_CCR_SIZE, &pf->pf_pcmh))
+		pf->ccr_rid = 0;
+		pf->ccr_res = bus_alloc_resource(dev, SYS_RES_MEMORY,
+		    &pf->ccr_rid, pf->ccr_base, pf->ccr_base + PCCARD_CCR_SIZE,
+		    PCCARD_CCR_SIZE, RF_ACTIVE | RF_PCCARD_ATTR);
+		if (!pf->ccr_res)
 			goto bad;
-
-		if (pccard_mem_map(pf, PCCARD_MEM_ATTR, pf->ccr_base,
-		    PCCARD_CCR_SIZE, &pf->pf_pcmh, &pf->pf_ccr_offset,
-		    &pf->pf_ccr_window)) {
-			pccard_mem_free(pf, &pf->pf_pcmh);
-			goto bad;
-		}
+		pf->pf_ccrt = rman_get_bustag(pf->ccr_res);
+		pf->pf_ccrh = rman_get_bushandle(pf->ccr_res);
+		pf->pf_ccr_offset = rman_get_start(pf->ccr_res);
+		pf->pf_ccr_realsize = 1;
 	}
 
 	reg = (pf->cfe->number & PCCARD_CCR_OPTION_CFINDEX);
@@ -407,7 +403,6 @@ pccard_function_enable(pf)
 		}
 	}
 #endif
-
 	pf->pf_flags |= PFF_ENABLED;
 	return (0);
 
@@ -417,20 +412,18 @@ pccard_function_enable(pf)
 	 * necessary.
 	 */
 	if (--pf->sc->sc_enabled_count == 0)
-		POWER_DISABLE_SOCKET(device_get_parent(pf->sc->dev), 
-		    pf->sc->dev);
-	DEVPRINTF((pf->sc->dev, "--enabled_count = %d\n",
-		 pf->sc->sc_enabled_count));
+		POWER_DISABLE_SOCKET(device_get_parent(dev), dev);
+	DEVPRINTF((dev, "--enabled_count = %d\n", pf->sc->sc_enabled_count));
 
 	return (1);
 }
 
 /* Disable PCCARD function. */
 void
-pccard_function_disable(pf)
-	struct pccard_function *pf;
+pccard_function_disable(struct pccard_function *pf)
 {
 	struct pccard_function *tmp;
+	device_t dev = pf->sc->dev;
 
 	if (pf->cfe == NULL)
 		panic("pccard_function_enable: function not initialized");
@@ -459,8 +452,9 @@ pccard_function_disable(pf)
 
 	/* Not used by anyone else; unmap the CCR. */
 	if (tmp == NULL) {
-		pccard_mem_unmap(pf, pf->pf_ccr_window);
-		pccard_mem_free(pf, &pf->pf_pcmh);
+		bus_release_resource(dev, SYS_RES_MEMORY, pf->ccr_rid, 
+		    pf->ccr_res);
+		pf->ccr_res = NULL;
 	}
 
 	/*
@@ -468,20 +462,15 @@ pccard_function_disable(pf)
 	 * necessary.
 	 */
 	if (--pf->sc->sc_enabled_count == 0)
-		POWER_DISABLE_SOCKET(device_get_parent(pf->sc->dev), 
-		    pf->sc->dev);
-	DEVPRINTF((pf->sc->dev, "--enabled_count = %d\n",
-	    pf->sc->sc_enabled_count));
+		POWER_DISABLE_SOCKET(device_get_parent(dev), dev);
+	DEVPRINTF((dev, "--enabled_count = %d\n", pf->sc->sc_enabled_count));
 }
 
+#if 0
+/* XXX These functions are needed, but not like this XXX */
 int
-pccard_io_map(pf, width, offset, size, pcihp, windowp)
-	struct pccard_function *pf;
-	int width;
-	bus_addr_t offset;
-	bus_size_t size;
-	struct pccard_io_handle *pcihp;
-	int *windowp;
+pccard_io_map(struct pccard_function *pf, int width, bus_addr_t offset,
+    bus_size_t size, struct pccard_io_handle *pcihp, int *windowp)
 {
 	int reg;
 
@@ -515,10 +504,10 @@ pccard_io_map(pf, width, offset, size, pcihp, windowp)
 			;
 		iosize--;
 
-		pccard_ccr_write(pf, PCCARD_CCR_IOBASE0,
-				 pf->pf_mfc_iobase & 0xff);
+		pccard_ccr_write(pf, PCCARD_CCR_IOBASE0, 
+		    pf->pf_mfc_iobase & 0xff);
 		pccard_ccr_write(pf, PCCARD_CCR_IOBASE1,
-				 (pf->pf_mfc_iobase >> 8) & 0xff);
+		    (pf->pf_mfc_iobase >> 8) & 0xff);
 		pccard_ccr_write(pf, PCCARD_CCR_IOBASE2, 0);
 		pccard_ccr_write(pf, PCCARD_CCR_IOBASE3, 0);
 
@@ -532,231 +521,19 @@ pccard_io_map(pf, width, offset, size, pcihp, windowp)
 }
 
 void
-pccard_io_unmap(pf, window)
-	struct pccard_function *pf;
-	int window;
+pccard_io_unmap(struct pccard_function *pf, int window)
 {
 
 	pccard_chip_io_unmap(pf->sc->pct, pf->sc->pch, window);
 
 	/* XXX Anything for multi-function cards? */
 }
-
-void *
-pccard_intr_establish(pf, ipl, ih_fct, ih_arg)
-	struct pccard_function *pf;
-	int ipl;
-	int (*ih_fct)(void *);
-	void *ih_arg;
-{
-	void *ret;
-
-	/* behave differently if this is a multifunction card */
-
-	if (pccard_mfc(pf->sc)) {
-		int s, ihcnt, hiipl, reg;
-		struct pccard_function *pf2;
-
-		/*
-		 * mask all the ipl's which are already used by this card,
-		 * and find the highest ipl number (lowest priority)
-		 */
-
-		ihcnt = 0;
-		s = 0;		/* this is only here to keep the compiler
-				   happy */
-		hiipl = 0;	/* this is only here to keep the compiler
-				   happy */
-
-		STAILQ_FOREACH(pf2, &pf->sc->card.pf_head, pf_list) {
-			if (pf2->ih_fct) {
-				DEVPRINTF((pf2->sc->dev, 
-				    "function %d has ih_fct %p\n",
-				    pf2->number, pf2->ih_fct));
-
-				if (ihcnt == 0) {
-					hiipl = pf2->ih_ipl;
-				} else {
-					if (pf2->ih_ipl > hiipl)
-						hiipl = pf2->ih_ipl;
-				}
-
-				ihcnt++;
-			}
-		}
-
-		/*
-		 * establish the real interrupt, changing the ipl if
-		 * necessary
-		 */
-
-		if (ihcnt == 0) {
-#ifdef DIAGNOSTIC
-			if (pf->sc->ih != NULL)
-				panic("card has intr handler, but no function does");
-#endif
-			s = splhigh();
-
-			/* set up the handler for the new function */
-
-			pf->ih_fct = ih_fct;
-			pf->ih_arg = ih_arg;
-			pf->ih_ipl = ipl;
-
-			pf->sc->ih = pccard_chip_intr_establish(pf->sc->pct,
-			    pf->sc->pch, pf, ipl, PCCARD_CARD_INTR, pf->sc);
-			splx(s);
-		} else if (ipl > hiipl) {
-#ifdef DIAGNOSTIC
-			if (pf->sc->ih == NULL)
-				panic("functions have ih, but the card does not");
 #endif
 
-			/* XXX need #ifdef for splserial on x86 */
-			s = splhigh();
-
-			pccard_chip_intr_disestablish(pf->sc->pct, pf->sc->pch,
-						      pf->sc->ih);
-
-			/* set up the handler for the new function */
-			pf->ih_fct = ih_fct;
-			pf->ih_arg = ih_arg;
-			pf->ih_ipl = ipl;
-
-			pf->sc->ih = pccard_chip_intr_establish(pf->sc->pct,
-			    pf->sc->pch, pf, ipl, PCCARD_CARD_INTR, pf->sc);
-
-			splx(s);
-		} else {
-			s = splhigh();
-
-			/* set up the handler for the new function */
-
-			pf->ih_fct = ih_fct;
-			pf->ih_arg = ih_arg;
-			pf->ih_ipl = ipl;
-
-			splx(s);
-		}
-
-		ret = pf->sc->ih;
-
-		if (ret != NULL) {
-			reg = pccard_ccr_read(pf, PCCARD_CCR_OPTION);
-			reg |= PCCARD_CCR_OPTION_IREQ_ENABLE;
-			pccard_ccr_write(pf, PCCARD_CCR_OPTION, reg);
-
-			reg = pccard_ccr_read(pf, PCCARD_CCR_STATUS);
-			reg |= PCCARD_CCR_STATUS_INTRACK;
-			pccard_ccr_write(pf, PCCARD_CCR_STATUS, reg);
-		}
-	} else {
-		ret = pccard_chip_intr_establish(pf->sc->pct, pf->sc->pch,
-		    pf, ipl, ih_fct, ih_arg);
-	}
-
-	return (ret);
-}
-
-void
-pccard_intr_disestablish(pf, ih)
-	struct pccard_function *pf;
-	void *ih;
-{
-	/* behave differently if this is a multifunction card */
-
-	if (pccard_mfc(pf->sc)) {
-		int s, ihcnt, hiipl;
-		struct pccard_function *pf2;
-
-		/*
-		 * mask all the ipl's which are already used by this card,
-		 * and find the highest ipl number (lowest priority).  Skip
-		 * the current function.
-		 */
-
-		ihcnt = 0;
-		s = 0;		/* this is only here to keep the compipler
-				   happy */
-		hiipl = 0;	/* this is only here to keep the compipler
-				   happy */
-
-		STAILQ_FOREACH(pf2, &pf->sc->card.pf_head, pf_list) {
-			if (pf2 == pf)
-				continue;
-
-			if (pf2->ih_fct) {
-				if (ihcnt == 0) {
-					hiipl = pf2->ih_ipl;
-				} else {
-					if (pf2->ih_ipl > hiipl)
-						hiipl = pf2->ih_ipl;
-				}
-				ihcnt++;
-			}
-		}
-
-		/*
-		 * if the ih being removed is lower priority than the lowest
-		 * priority remaining interrupt, up the priority.
-		 */
-
-		/* ihcnt is the number of interrupt handlers *not* including
-		   the one about to be removed. */
-
-		if (ihcnt == 0) {
-			int reg;
-
-#ifdef DIAGNOSTIC
-			if (pf->sc->ih == NULL)
-				panic("disestablishing last function, but card has no ih");
-#endif
-			pccard_chip_intr_disestablish(pf->sc->pct, pf->sc->pch,
-			    pf->sc->ih);
-
-			reg = pccard_ccr_read(pf, PCCARD_CCR_OPTION);
-			reg &= ~PCCARD_CCR_OPTION_IREQ_ENABLE;
-			pccard_ccr_write(pf, PCCARD_CCR_OPTION, reg);
-
-			pf->ih_fct = NULL;
-			pf->ih_arg = NULL;
-
-			pf->sc->ih = NULL;
-		} else if (pf->ih_ipl > hiipl) {
-#ifdef DIAGNOSTIC
-			if (pf->sc->ih == NULL)
-				panic("changing ih ipl, but card has no ih");
-#endif
-			/* XXX need #ifdef for splserial on x86 */
-			s = splhigh();
-
-			pccard_chip_intr_disestablish(pf->sc->pct, pf->sc->pch,
-			    pf->sc->ih);
-			pf->sc->ih = pccard_chip_intr_establish(pf->sc->pct,
-			    pf->sc->pch, pf, hiipl, PCCARD_CARD_INTR, pf->sc);
-
-			/* null out the handler for this function */
-
-			pf->ih_fct = NULL;
-			pf->ih_arg = NULL;
-
-			splx(s);
-		} else {
-			s = splhigh();
-
-			pf->ih_fct = NULL;
-			pf->ih_arg = NULL;
-
-			splx(s);
-		}
-	} else {
-		pccard_chip_intr_disestablish(pf->sc->pct, pf->sc->pch, ih);
-	}
-}
-
+/* I don't think FreeBSD needs the next two functions at all */
+/* XXX */
 int 
-pccard_card_intr(arg)
-	void *arg;
+pccard_card_intr(void *arg)
 {
 	struct pccard_softc *sc = arg;
 	struct pccard_function *pf;
