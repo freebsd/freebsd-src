@@ -1233,7 +1233,7 @@ chip_match(device_t dev)
 
 	/* Sony -- vendor 0x104d */
 	case 0x8009104d:
-		return ("Sony CXD1847A FireWire Host Controller");
+		return ("Sony CXD1947A FireWire Host Controller");
 
 	/* SiS -- vendor 0x1039 */
 	case 0x04961039:
