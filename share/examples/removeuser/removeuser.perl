@@ -29,7 +29,7 @@
 # /usr/sbin/removeuser
 # Perl script to remove users
 #
-# Guy Helmer <ghelmer@alpha.dsu.edu>, 06/30/96
+# Guy Helmer <ghelmer@alpha.dsu.edu>, 07/17/96
 #
 #	$Id$
 
@@ -138,13 +138,26 @@ if ($ans eq 'N') {
 
 $remove_directory = 1;
 
-if (!(-d $home_dir)) {
+if (-l $home_dir) {
+    $real_home_dir = &resolvelink($home_dir);
+} else {
+    $real_home_dir = $home_dir;
+}
+
+#
+# If home_dir is a symlink and points to something that isn't a directory,
+# or if home_dir is not a symlink and is not a directory, don't remove
+# home_dir -- seems like a good thing to do, but probably isn't necessary...
+if (((-l $home_dir) && ((-e $real_home_dir) && !(-d $real_home_dir))) ||
+    (!(-l $home_dir) && !(-d $home_dir))) {
     print STDERR "${whoami}: Home ${home_dir} is not a directory, so it won't be removed\n";
     $remove_directory = 0;
-} else {
-    $dir_owner = (stat($home_dir))[4]; # UID
+}
+
+if (length($real_home_dir) && -d $real_home_dir) {
+    $dir_owner = (stat($real_home_dir))[4]; # UID
     if ($dir_owner != $uid) {
-	print STDERR "${whoami}: Home dir ${home_dir} is not owned by ${login_name} (uid ${dir_owner})\n";
+	print STDERR "${whoami}: Home dir ${real_home_dir} is not owned by ${login_name} (uid ${dir_owner})\n";
 	$remove_directory = 0;
     }
 }
@@ -377,11 +390,26 @@ sub update_group_file {
 }
 
 sub remove_dir {
-    # Recursively remove directories
+    # Remove the user's home directory
     local($dir) = @_;
+    local($linkdir);
 
+    if (-l $dir) {
+	$linkdir = &resolvelink($dir);
+	# Remove the symbolic link
+	unlink($dir) ||
+	    warn "${whoami}: Warning: could not unlink symlink $dir: $!\n";
+	if (!(-e $linkdir)) {
+	    #
+	    # Dangling symlink - just return now
+	    return;
+	}
+	# Set dir to be the resolved pathname
+	$dir = $linkdir;
+    }
     if (!(-d $dir)) {
-	print STDERR "${whoami}: Error: $dir is not a directory\n";
+	print STDERR "${whoami}: Warning: $dir is not a directory\n";
+	unlink($dir) || warn "${whoami}: Warning: could not unlink $dir: $!\n";
 	return;
     }
     system('/bin/rm', '-rf', $dir);
@@ -413,4 +441,23 @@ sub remove_at_jobs {
     if ($found) {
 	print STDERR " done.\n";
     }
+}
+
+sub resolvelink {
+    local($path) = @_;
+    local($l);
+
+    while (-l $path && -e $path) {
+	if (!defined($l = readlink($path))) {
+	    die "${whoami}: readlink on $path failed (but it should have worked!): $!\n";
+	}
+	if ($l =~ /^\//) {
+	    # Absolute link
+	    $path = $l;
+	} else {
+	    # Relative link
+	    $path =~ s/\/[^\/]+\/?$/\/$l/; # Replace last component of path
+	}
+    }
+    return $path;
 }

@@ -1,5 +1,3 @@
-# $Id$
-
 Here lies removeuser(8) for FreeBSD 2.x.  It will remove a user's
 password entry, home directory, and incoming mail file from /var/mail.
 
