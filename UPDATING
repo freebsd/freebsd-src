@@ -26,7 +26,7 @@ NOTE TO PEOPLE WHO THINK THAT 5.0-CURRENT IS SLOW:
 
 20030128:
 	NODEVFS option has been removed and DEVFS thereby made standard.
-	This makes all references to MAKEDEV obsolete, and the should
+	This makes all references to MAKEDEV obsolete, and they should
 	be removed when convenient.
 
 20030126:
@@ -36,7 +36,7 @@ NOTE TO PEOPLE WHO THINK THAT 5.0-CURRENT IS SLOW:
 20030125:
 	The scheduler framework has grown a second scheduler and consequently
 	you must specify one and only one scheduler in your kernel config.
-	The in cvs config files have been updated to use the old scheduler
+	The cvs config files have been updated to use the old scheduler
 	which may be selected via 'options SCHED_4BSD'.  If you would like
 	to try the new, much more experimental, scheduler please try
 	'options SCHED_ULE' and contribute to the arch@ discussion.
@@ -411,7 +411,7 @@ http://www.freebsd.org/cgi/mid.cgi?db=mid&id=<20011207155805.R8975@blossom.cjcla
 
 	Please note that a feature of config is that if you have config
 	file FOO and FOO.hints, it automatically adds FOO.hints to the
-	hints.c file, wheather you want it to or not.
+	hints.c file, whether you want it to or not.
 
 20010610:
 	Locale names have changed to match other systems better.
@@ -447,7 +447,7 @@ install: warning: the -d and -C options may not be specified together
 	definitely is in bad shape.
 
 20010521:
-	Minor repo damange has happened.  This may cause problems
+	Minor repo damage has happened.  This may cause problems
 	with cvsup of ports.  If you get errors, please see
 	http://www.FreeBSD.org/cgi/query-pr.cgi?pr=27495
 	at the bottom for details on a workaround.  The error message
@@ -513,7 +513,7 @@ Updater failed: Cannot delete "/usr/ports/www/jakarta-tomcat/files": Directory n
 
 20010315:
 	ata subsystem changes.  ATA_ENABLE_ATAPI_DMA, ATA_ENABLE_WC
-	and ATA_ENABEL_TAGS are no longer kernel options.  They have
+	and ATA_ENABLE_TAGS are no longer kernel options.  They have
 	been replaced by tunables.  See ata.4 for details.
 
 20010312:
@@ -578,7 +578,7 @@ Updater failed: Cannot delete "/usr/ports/www/jakarta-tomcat/files": Directory n
 	This requires a new config to build correctly.
 
 20010116:
-	The kerrnel option I386_CPU is now mutually exclusive with the
+	The kernel option I386_CPU is now mutually exclusive with the
 	other cpu types. If you have an i386 system, be sure that it
 	only had this line.  Remove it for all other configurations.
 
@@ -604,7 +604,7 @@ Updater failed: Cannot delete "/usr/ports/www/jakarta-tomcat/files": Directory n
 
 20001228:
 	There have been some changes to libcrypt in -current.  The
-	libscrypt/libdescrypt symlink sillyness is gone and the installed
+	libscrypt/libdescrypt symlink silliness is gone and the installed
 	libcrypt is fully functional.  Be aware of this.
 
 20001218:
@@ -1110,7 +1110,7 @@ COMMON ITEMS:
 	# modules has changed.  If you are installing 5.0 onto a 4.x
 	# system, you'll need about 30MB of free disk space on your /
 	# partition.  If you have less than this, you may encounter difficult
-	# to back out of problems with this proceedure.  If /tmp is on
+	# to back out of problems with this procedure.  If /tmp is on
 	# the / partition, you may want to completely remove all its content
 	# before upgrading, as this can be a common source of shortage of
 	# space on /.
