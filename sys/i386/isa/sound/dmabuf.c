@@ -44,6 +44,10 @@ static struct dma_buffparms dmaps[MAX_AUDIO_DEV] =
 				   * Needs dynamic run-time alloction.
 				 */
 
+static int space_in_queue (int);
+static void reorganize_buffers (int);
+static void dma_init_buffers (int);
+
 static void
 reorganize_buffers (int dev)
 {
@@ -510,14 +514,48 @@ DMAbuf_ioctl (int dev, unsigned int cmd, unsigned int arg, int local)
     case SNDCTL_DSP_GETOSPACE:
       if (!local)
 	return RET_ERROR (EINVAL);
+      else
+	{
+	  audio_buf_info *info = (audio_buf_info *) arg;
 
-      {
-	audio_buf_info *info = (audio_buf_info *) arg;
+	  if (!(dmap->flags & DMA_ALLOC_DONE))
+	    reorganize_buffers (dev);
 
-	info->fragments = dmap->qlen;
-	info->fragsize = dmap->fragment_size;
-	info->bytes = dmap->qlen * dmap->fragment_size;
-      }
+	  info->fragstotal = dmap->nbufs;
+
+	  if (cmd == SNDCTL_DSP_GETISPACE)
+	    info->fragments = dmap->qlen;
+	  else
+	    {
+	      if (!space_in_queue (dev))
+		info->fragments = 0;
+	      else
+		{
+		  info->fragments = dmap->nbufs - dmap->qlen;
+		  if (audio_devs[dev]->local_qlen)
+		    {
+		      int             tmp = audio_devs[dev]->local_qlen (dev);
+
+		      if (tmp & info->fragments)
+			tmp--;	/*
+				   * This buffer has been counted twice
+				 */
+		      info->fragments -= tmp;
+		    }
+		}
+	    }
+
+	  if (info->fragments < 0)
+	    info->fragments = 0;
+	  else if (info->fragments > dmap->nbufs)
+	    info->fragments = dmap->nbufs;
+
+	  info->fragsize = dmap->fragment_size;
+	  info->bytes = info->fragments * dmap->fragment_size;
+
+	  if (cmd == SNDCTL_DSP_GETISPACE && dmap->qlen)
+	    info->bytes -= dmap->counts[dmap->qhead];
+	}
       return 0;
 
     default:
