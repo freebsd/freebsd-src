@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: BSD.usr.dist,v 1.121 1998/09/09 17:54:47 markm Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755
@@ -536,7 +536,7 @@
             ..
             man1            uname=bin
             ..
-            man1aout
+            man1aout        uname=bin
             ..
             man2            uname=bin
             ..
