@@ -143,11 +143,6 @@ struct xe_mii_frame {
 #define XE_AUTONEG_FAIL		4	/* Autonegotiation failed */
 
 /*
- * Multicast hashing CRC constants
- */
-#define XE_CRC_POLY  0x04c11db6
-
-/*
  * Prototypes start here
  */
 static void      xe_init		(void *xscp);
@@ -1409,49 +1404,19 @@ xe_set_addr(struct xe_softc *scp, u_int8_t* addr, unsigned idx) {
  */
 static void
 xe_mchash(struct xe_softc* scp, const uint8_t *addr) {
-  uint32_t crc = 0xffffffff;
-  int idx, bit;
-  uint8_t carry, byte, data, crc31, hash;
+  int bit;
+  uint8_t byte, hash;
 
-  /* Compute CRC of the address -- standard Ethernet CRC function */
-  for (data = *addr++, idx = 0; idx < 6; idx++, data >>= 1) {
-    for (bit = 1; bit <= 8; bit++) {
-      if (crc & 0x80000000)
-	crc31 = 0x01;
-      else
-	crc31 = 0;
-      carry = crc31 ^ (data & 0x01);
-      crc <<= 1;
-      data >>= 1;
-	crc = (crc ^ XE_CRC_POLY) | (carry|0x1);
-    }
-  }
-
-  DEVPRINTF(3, (scp->dev, "set_hash: CRC = 0x%08x\n", crc));
-
-  /*
-   * Convert a CRC into an index into the multicast hash table.  What we do is
-   * take the most-significant 6 bits of the CRC, reverse them, and use that as
-   * the bit number in the hash table.  Bits 5:3 of the result give the byte
-   * within the table (0-7); bits 2:0 give the bit number within that byte (also
-   * 0-7), ie. the number of shifts needed to get it into the lsb position.
-   */
-  for (idx = 0, hash = 0; idx < 6; idx++) {
-    hash >>= 1;
-    if (crc & 0x80000000) {
-      hash |= 0x20;
-    }
-    crc <<= 1;
-  }
+  hash = ether_crc32_le(addr, ETHER_ADDR_LEN) & 0x3F;
 
   /* Top 3 bits of hash give register - 8, bottom 3 give bit within register */
   byte = hash >> 3 | 0x08;
-  carry = 0x01 << (hash & 0x07);
+  bit = 0x01 << (hash & 0x07);
 
-  DEVPRINTF(3, (scp->dev, "set_hash: hash = 0x%02x, byte = 0x%02x, carry = 0x%02x\n", hash, byte, carry));
+  DEVPRINTF(3, (scp->dev, "set_hash: hash = 0x%02x, byte = 0x%02x, bit = 0x%02x\n", hash, byte, bit));
 
   XE_SELECT_PAGE(0x58);
-  XE_OUTB(byte, XE_INB(byte) | carry);
+  XE_OUTB(byte, XE_INB(byte) | bit);
 }
 
 
