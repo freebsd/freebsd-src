@@ -99,7 +99,7 @@
 #	labpc*	National Instrument's Lab-PC and LAB-PC+
 #	perfmon	CPU performance-monitoring counters
 #
-#	$Id: MAKEDEV,v 1.117 1996/05/02 09:15:57 jkh Exp $
+#	$Id: MAKEDEV,v 1.118 1996/05/03 05:37:34 asami Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
@@ -662,8 +662,10 @@ wcd*)
 	rm -f wcd$unit? rwcd$unit?
 	case $unit in
 	0|1|2|3)
-		mknod wcd${unit}c  b $blk `expr $unit '*' 8 + 0`
-		mknod rwcd${unit}c c $chr `expr $unit '*' 8 + 0`
+		mknod wcd${unit}a  b $blk `expr $unit '*' 8 + 0`
+		mknod rwcd${unit}a c $chr `expr $unit '*' 8 + 0`
+		mknod wcd${unit}c  b $blk `expr $unit '*' 8 + 2`
+		mknod rwcd${unit}c c $chr `expr $unit '*' 8 + 2`
 		chgrp operator wcd${unit}[a-h] rwcd${unit}[a-h]
 		chmod 640 wcd${unit}[a-h] rwcd${unit}[a-h]
 		;;
