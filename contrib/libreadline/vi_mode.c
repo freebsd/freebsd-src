@@ -272,10 +272,12 @@ rl_vi_search (count, key)
   switch (key)
     {
     case '?':
+      _rl_free_saved_history_line ();
       rl_noninc_forward_search (count, key);
       break;
 
     case '/':
+      _rl_free_saved_history_line ();
       rl_noninc_reverse_search (count, key);
       break;
 
@@ -690,7 +692,7 @@ _rl_vi_change_mbchar_case (count)
 {
   wchar_t wc;
   char mb[MB_LEN_MAX+1];
-  int mblen;
+  int mblen, p;
   mbstate_t ps;
 
   memset (&ps, 0, sizeof (mbstate_t));
@@ -713,11 +715,14 @@ _rl_vi_change_mbchar_case (count)
       /* Vi is kind of strange here. */
       if (wc)
 	{
+	  p = rl_point;
 	  mblen = wcrtomb (mb, wc, &ps);
 	  if (mblen >= 0)
 	    mb[mblen] = '\0';
 	  rl_begin_undo_group ();
-	  rl_delete (1, 0);
+	  rl_vi_delete (1, 0);
+	  if (rl_point < p)	/* Did we retreat at EOL? */
+	    rl_point++;	/* XXX - should we advance more than 1 for mbchar? */
 	  rl_insert_text (mb);
 	  rl_end_undo_group ();
 	  rl_vi_check ();
@@ -1310,12 +1315,16 @@ rl_vi_change_char (count, key)
       rl_vi_delete (1, c);
 #if defined (HANDLE_MULTIBYTE)
       if (MB_CUR_MAX > 1 && rl_byte_oriented == 0)
-	while (_rl_insert_char (1, c))
-	  {
-	    RL_SETSTATE (RL_STATE_MOREINPUT);
-	    c = rl_read_key ();
-	    RL_UNSETSTATE (RL_STATE_MOREINPUT);
-	  }
+	{
+	  if (rl_point < p)		/* Did we retreat at EOL? */
+	    rl_point++;
+	  while (_rl_insert_char (1, c))
+	    {
+	      RL_SETSTATE (RL_STATE_MOREINPUT);
+	      c = rl_read_key ();
+	      RL_UNSETSTATE (RL_STATE_MOREINPUT);
+	    }
+	}
       else
 #endif
 	{

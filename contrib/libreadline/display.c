@@ -201,7 +201,7 @@ expand_prompt (pmt, lp, lip, niflp, vlp)
      int *lp, *lip, *niflp, *vlp;
 {
   char *r, *ret, *p;
-  int l, rl, last, ignoring, ninvis, invfl, ind, pind, physchars;
+  int l, rl, last, ignoring, ninvis, invfl, invflset, ind, pind, physchars;
 
   /* Short-circuit if we can. */
   if ((MB_CUR_MAX <= 1 || rl_byte_oriented) && strchr (pmt, RL_PROMPT_START_IGNORE) == 0)
@@ -222,6 +222,7 @@ expand_prompt (pmt, lp, lip, niflp, vlp)
   r = ret = (char *)xmalloc (l + 1);
 
   invfl = 0;	/* invisible chars in first line of prompt */
+  invflset = 0;	/* we only want to set invfl once */
 
   for (rl = ignoring = last = ninvis = physchars = 0, p = pmt; p && *p; p++)
     {
@@ -249,7 +250,10 @@ expand_prompt (pmt, lp, lip, niflp, vlp)
 	      while (l--)
 	        *r++ = *p++;
 	      if (!ignoring)
-		rl += ind - pind;
+		{
+		  rl += ind - pind;
+		  physchars += _rl_col_width (pmt, pind, ind);
+		}
 	      else
 		ninvis += ind - pind;
 	      p--;			/* compensate for later increment */
@@ -259,16 +263,19 @@ expand_prompt (pmt, lp, lip, niflp, vlp)
 	    {
 	      *r++ = *p;
 	      if (!ignoring)
-		rl++;			/* visible length byte counter */
+		{
+		  rl++;			/* visible length byte counter */
+		  physchars++;
+		}
 	      else
 		ninvis++;		/* invisible chars byte counter */
 	    }
 
-	  if (rl >= _rl_screenwidth)
-	    invfl = ninvis;
-
-	  if (ignoring == 0)
-	    physchars++;
+	  if (invflset == 0 && rl >= _rl_screenwidth)
+	    {
+	      invfl = ninvis;
+	      invflset = 1;
+	    }
 	}
     }
 
@@ -351,14 +358,14 @@ rl_expand_prompt (prompt)
       local_prompt = expand_prompt (p, &prompt_visible_length,
 				       &prompt_last_invisible,
 				       (int *)NULL,
-				       (int *)NULL);
+				       &prompt_physical_chars);
       c = *t; *t = '\0';
       /* The portion of the prompt string up to and including the
 	 final newline is now null-terminated. */
       local_prompt_prefix = expand_prompt (prompt, &prompt_prefix_length,
 						   (int *)NULL,
 						   &prompt_invis_chars_first_line,
-						   &prompt_physical_chars);
+						   (int *)NULL);
       *t = c;
       return (prompt_prefix_length);
     }
@@ -417,7 +424,7 @@ rl_redisplay ()
   register int in, out, c, linenum, cursor_linenum;
   register char *line;
   int c_pos, inv_botlin, lb_botlin, lb_linenum;
-  int newlines, lpos, temp, modmark;
+  int newlines, lpos, temp, modmark, n0, num;
   char *prompt_this_line;
 #if defined (HANDLE_MULTIBYTE)
   wchar_t wc;
@@ -573,6 +580,7 @@ rl_redisplay ()
 
 #if defined (HANDLE_MULTIBYTE)
   memset (_rl_wrapped_line, 0, vis_lbsize);
+  num = 0;
 #endif
 
   /* prompt_invis_chars_first_line is the number of invisible characters in
@@ -591,13 +599,32 @@ rl_redisplay ()
          probably too much work for the benefit gained.  How many people have
          prompts that exceed two physical lines?
          Additional logic fix from Edward Catmur <ed@catmur.co.uk> */
+#if defined (HANDLE_MULTIBYTE)
+      n0 = num;
+      temp = local_prompt ? strlen (local_prompt) : 0;
+      while (num < temp)
+	{
+	  if (_rl_col_width  (local_prompt, n0, num) > _rl_screenwidth)
+	    {
+	      num = _rl_find_prev_mbchar (local_prompt, num, MB_FIND_ANY);
+	      break;
+	    }
+	  num++;
+	}
+      temp = num +
+#else
       temp = ((newlines + 1) * _rl_screenwidth) +
+#endif /* !HANDLE_MULTIBYTE */
              ((local_prompt_prefix == 0) ? ((newlines == 0) ? prompt_invis_chars_first_line
 							    : ((newlines == 1) ? wrap_offset : 0))
 					 : ((newlines == 0) ? wrap_offset :0));
              
       inv_lbreaks[++newlines] = temp;
+#if defined (HANDLE_MULTIBYTE)
+      lpos -= _rl_col_width (local_prompt, n0, num);
+#else
       lpos -= _rl_screenwidth;
+#endif
     }
 
   prompt_last_screen_line = newlines;
