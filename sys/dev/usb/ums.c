@@ -214,10 +214,8 @@ USB_ATTACH(ums)
 	sc->sc_disconnected = 1;
 	sc->sc_iface = iface;
 	id = usbd_get_interface_descriptor(iface);
-	usbd_devinfo(uaa->device, 0, devinfo);
+	usbd_devinfo(uaa->device, USBD_SHOW_INTERFACE_CLASS, devinfo);
 	USB_ATTACH_SETUP;
-	printf("%s: %s, iclass %d/%d\n", USBDEVNAME(sc->sc_dev),
-	       devinfo, id->bInterfaceClass, id->bInterfaceSubClass);
 	ed = usbd_interface2endpoint_descriptor(iface, 0);
 	if (!ed) {
 		printf("%s: could not read endpoint descriptor\n",

@@ -313,7 +313,6 @@ USB_ATTACH(uscanner)
 
 	usbd_devinfo(uaa->device, 0, devinfo);
 	USB_ATTACH_SETUP;
-	printf("%s: %s\n", USBDEVNAME(sc->sc_dev), devinfo);
 
 	sc->sc_dev_flags = uscanner_lookup(uaa->vendor, uaa->product)->flags;
 

@@ -321,15 +321,17 @@ void
 usbd_devinfo(usbd_device_handle dev, int showclass, char *cp)
 {
 	usb_device_descriptor_t *udd = &dev->ddesc;
+	usbd_interface_handle iface;
 	char vendor[USB_MAX_STRING_LEN];
 	char product[USB_MAX_STRING_LEN];
 	int bcdDevice, bcdUSB;
+	usb_interface_descriptor_t *id;
 
 	usbd_devinfo_vp(dev, vendor, product, 1);
 	cp += sprintf(cp, "%s %s", vendor, product);
-	if (showclass)
+	if (showclass & USBD_SHOW_DEVICE_CLASS)
 		cp += sprintf(cp, ", class %d/%d",
-			      udd->bDeviceClass, udd->bDeviceSubClass);
+		    udd->bDeviceClass, udd->bDeviceSubClass);
 	bcdUSB = UGETW(udd->bcdUSB);
 	bcdDevice = UGETW(udd->bcdDevice);
 	cp += sprintf(cp, ", rev ");
@@ -337,6 +339,14 @@ usbd_devinfo(usbd_device_handle dev, int showclass, char *cp)
 	*cp++ = '/';
 	cp += usbd_printBCD(cp, bcdDevice);
 	cp += sprintf(cp, ", addr %d", dev->address);
+	if (showclass & USBD_SHOW_INTERFACE_CLASS)
+	{
+		/* fetch the interface handle for the first interface */
+		(void)usbd_device2interface_handle(dev, 0, &iface);
+		id = usbd_get_interface_descriptor(iface);
+		cp += sprintf(cp, ", iclass %d/%d",
+		    id->bInterfaceClass, id->bInterfaceSubClass);
+	}
 	*cp = 0;
 }
 
