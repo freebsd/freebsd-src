@@ -27,6 +27,8 @@
  * $FreeBSD$
  */
 
+#include <stddef.h>
+
 #include "ldpart.h"
 #include "timelocal.h"
 
@@ -34,7 +36,9 @@ static struct lc_time_T _time_locale;
 static int _time_using_locale;
 static char * time_locale_buf;
 
-#define	LCTIME_SIZE (sizeof(struct lc_time_T) / sizeof(char *))
+#define LCTIME_SIZE_FULL (sizeof(struct lc_time_T) / sizeof(char *))
+#define LCTIME_SIZE_MIN \
+		(offsetof(struct lc_time_T, ampm_fmt) / sizeof(char *))
 
 static const struct lc_time_T	_C_time_locale = {
 	{
@@ -90,7 +94,12 @@ static const struct lc_time_T	_C_time_locale = {
 	/* EF_fmt
 	** To determine long months / day order
 	*/
-	"%B %e"
+	"%B %e",
+
+	/* ampm_fmt
+	** To determine 12-hour clock format time (empty, if N/A)
+	*/
+	"%I:%M:%S %p"
 };
 
 struct lc_time_T *
@@ -105,12 +114,15 @@ __time_load_locale(const char *name) {
 
 	int	ret;
 
+	_time_locale.ampm_fmt = _C_time_locale.ampm_fmt;
+
 	ret = __part_load_locale(name, &_time_using_locale,
-			time_locale_buf, "LC_TIME", LCTIME_SIZE, LCTIME_SIZE,
+			time_locale_buf, "LC_TIME",
+			LCTIME_SIZE_FULL, LCTIME_SIZE_MIN,
 			(const char **)&_time_locale);
 
 	/* XXX: always overwrite for ctime format parsing compatibility */
-	if (ret == 0 && _time_using_locale)
-		_time_locale.c_fmt = _C_time_locale.c_fmt;
+	_time_locale.c_fmt = _C_time_locale.c_fmt;
+
 	return (ret);
 }

@@ -45,8 +45,9 @@ struct lc_time_T {
 	const char *	pm;
 	const char *	date_fmt;
 	const char *	alt_month[12];
-	const char *    Ef_fmt;
-	const char *    EF_fmt;
+	const char *	Ef_fmt;
+	const char *	EF_fmt;
+	const char *	ampm_fmt;
 };
 
 struct lc_time_T * __get_current_time_locale(void);
