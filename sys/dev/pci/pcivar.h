@@ -137,16 +137,6 @@ typedef struct {
     u_int8_t	seclat;		/* CardBus latency timer */
 } pcih2cfgregs;
 
-#if 0
-/* PCI bus attach definitions (there could be multiple PCI bus *trees* ... */
-
-typedef struct pciattach {
-    int		unit;
-    int		pcibushigh;
-    struct pciattach *next;
-} pciattach;
-#endif
-
 extern u_int32_t pci_numdevs;
 
 
