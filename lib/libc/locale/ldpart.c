@@ -149,9 +149,13 @@ split_lines(char *p, const char *plim)
 {
 	int i;
 
-	for (i = 0; p < plim; i++) {
-		p = strchr(p, '\n');
-		*p++ = '\0';
+	i = 0;
+	while (p < plim) {
+		if (*p == '\n') {
+			*p = '\0';
+			i++;
+		}
+		p++;
 	}
 	return (i);
 }
