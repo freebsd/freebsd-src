@@ -16,14 +16,28 @@ NM?=		nm
 OBJCOPY?=	objcopy
 SIZE?=		size
 
+.if ${CC} == "icc"
+COPTFLAGS?=-O
+.else
 COPTFLAGS?=-O -pipe
-.if ${COPTFLAGS:M-O[23s]} != ""
+. if ${COPTFLAGS:M-O[23s]} != ""
 COPTFLAGS+= -fno-strict-aliasing
+. endif
 .endif
 .if !defined(NO_CPU_COPTFLAGS)
+. if ${CC} == "icc"
+COPTFLAGS+= ${_ICC_CPUCFLAGS:C/(-x[^M^K^W]+)[MKW]+|-x[MKW]+/\1/}
+. else
 COPTFLAGS+= ${_CPUCFLAGS}
+. endif
 .endif
-INCLUDES= -nostdinc -I- ${INCLMAGIC} -I. -I$S
+.if ${CC} == "icc"
+NOSTDINC= -X
+.else
+NOSTDINC= -nostdinc
+.endif
+
+INCLUDES= ${NOSTDINC} -I- ${INCLMAGIC} -I. -I$S
 
 # This hack lets us use the Intel ACPICA code without spamming a new 
 # include path into 100+ source files.
@@ -43,19 +57,34 @@ INCLUDES+= -I$S/contrib/ngatm
 
 COPTS=	${INCLUDES} -D_KERNEL -include opt_global.h
 CFLAGS=	${COPTFLAGS} ${CWARNFLAGS} ${DEBUG} ${COPTS}
+.if ${CC} != "icc"
 CFLAGS+= -fno-common -finline-limit=${INLINE_LIMIT}
 WERROR?= -Werror
+.endif
 
 # XXX LOCORE means "don't declare C stuff" not "for locore.s".
 ASM_CFLAGS= -x assembler-with-cpp -DLOCORE ${CFLAGS}
 
 .if defined(PROFLEVEL) && ${PROFLEVEL} >= 1
+. if ${CC} == "icc"
+CFLAGS+=	-DGPROF
+. else
 CFLAGS+=	-DGPROF -falign-functions=16
+. endif
 .if ${PROFLEVEL} >= 2
 CFLAGS+=	-DGPROF4 -DGUPROF
+. if ${CC} == "icc"
+# XXX doesn't work yet
+#PROF=	-prof_gen
+. else
 PROF=	-finstrument-functions
+. endif
 .else
+. if ${CC} == "icc"
+PROF=	-p
+. else
 PROF=	-pg
+. endif
 .endif
 .endif
 DEFINED_PROF=	${PROF}
