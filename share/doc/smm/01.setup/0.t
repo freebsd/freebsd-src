@@ -30,6 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)0.t	8.1 (Berkeley) 7/27/93
+.\" $FreeBSD$
 .\"
 .ds Ux \s-1UNIX\s0
 .ds Bs \s-1BSD\s0
@@ -50,7 +51,8 @@
 \s-1\\$1\s0\\$2
 ..
 .de Pn		\" pathname
-\f(CW\\$1\fP\\$2
+.ie n \fI\\$1\fP\\$2
+.el \f(CW\\$1\fP\\$2
 ..
 .de Li		\" literal
 \f(CW\\$1\fP\\$2
