@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)param.c	8.3 (Berkeley) 8/20/94
- * $Id: param.c,v 1.19 1996/05/10 19:28:32 wollman Exp $
+ * $Id: param.c,v 1.20 1996/05/31 00:20:29 peter Exp $
  */
 
 #include "opt_sysvipc.h"
@@ -100,8 +100,8 @@ int	extravnodes = EXTRAVNODES;		/* spare vnodes to allocate */
 #endif
 int	nmbclusters = NMBCLUSTERS;
 
-/* allocate same amount of virtual address space for mbufs XXX */
-int	nmbufs = NMBCLUSTERS * (MCLBYTES / MSIZE);
+/* allocate 1/4th amount of virtual address space for mbufs XXX */
+int	nmbufs = NMBCLUSTERS * 4;
 
 int	fscale = FSCALE;	/* kernel uses `FSCALE', user uses `fscale' */
 
