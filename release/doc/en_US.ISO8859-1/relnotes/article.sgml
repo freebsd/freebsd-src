@@ -342,6 +342,12 @@
       very short packets and BPF or bridging active has been
       fixed. &merged;</para>
 
+      <para>The &man.ed.4; driver now has support for D-Link
+      DL10022 chips, necessary for the NetGear FA-410TX and other
+      cards.  As a result, <literal>device miibus</literal> is
+      required in kernel configurations using the &man.ed.4;
+      driver. &merged;</para>
+
       <para>The &man.fxp.4; driver now requires a <literal>device
       miibus</literal> entry in the kernel configuration file. &merged;</para>
 
@@ -486,7 +492,7 @@
       closes a minor information leak which allows a remote observer
       to determine the rate at which the machine is generating
       packets, since the default behaviour is to increment a counter
-      for each packet sent.</para>
+      for each packet sent. &merged;</para>
 
       <para>IP multicast now works on VLAN devices.  Several other
       bugs in the VLAN code have also been fixed.</para>
@@ -737,6 +743,10 @@
 	supported using the &man.i4bcapi.4; and the &man.iavc.4; driver. The
 	supported cards are the AVM B1 PCI and AVM B1 ISA Basic Rate
 	cards and the AVM T1 Primary Rate cards.</para>
+
+	<para>A new <literal>maxconnecttime</literal> keyword is now
+	accepted in &man.isdnd.rc.5; files to limit the time a
+	connection may remain open.</para>
       </sect4>
 
       <sect4 id="kame-kernel">
@@ -1242,7 +1252,7 @@
 
     <para>&man.lpd.8; now takes two new options:  <option>-c</option>
     will log all connection errors to &man.syslogd.8;, while
-    <option>-w</option> will allow connections from non-reserved
+    <option>-W</option> will allow connections from non-reserved
     ports. &merged;</para>
 
     <para>&man.lpc.8; has been improved; <command>lpc clean</command>
@@ -1257,15 +1267,15 @@
     <para>&man.rdist.1; has been retired.</para>
 
     <para>&man.ppp.8; has gained the <literal>tcpmssfixup</literal>
-    option, which adjusts outgoing TCP SYN packets so that the maximum
+    option, which adjusts outgoing and incoming TCP SYN packets so that the maximum
     receive segment size is no larger than allowed by the interface
-    MTU.</para>
+    MTU. &merged;</para>
 
     <para><filename>libcrypt</filename> and
     <filename>libdescrypt</filename> have been unified to provide a
     configurable password authentication hash library.  Both the md5
     and des hash methods are provided unless the des hash is
-    specifically compiled out.</para>
+    specifically compiled out. &merged;</para>
 
     <para>&man.passwd.1; and &man.pw.8; now select the password hash
     algorithm at run time.  See the <literal>passwd_format</literal>
@@ -1656,6 +1666,11 @@
       <para>The ISC library from the <application>BIND</application>
       distribution is now built as
       <filename>libisc</filename>. &merged;</para>
+
+      <para><application>BIND</application> is now built with the
+      <literal>NOADDITIONAL</literal> flag, which causes &man.named.8;
+      to operate in a more consistent fashion for certain common
+      misconfigurations. &merged;</para>
 
       <para><application>Binutils</application> have been upgraded a
       snapshot from 19 July 2001 on the 2.11 development branch.</para>
