@@ -1,15 +1,38 @@
 #include <sys/types.h>
 #include <sys/ipc.h>
 #include <sys/sem.h>
+#if __STDC__
+#include <stdarg.h>
+#else
+#include <varargs.h>
+#endif
+#include <stdlib.h>
 
 #if __STDC__
-int semctl(int semid, int semnum, int cmd, union semun semun)
+int semctl(int semid, int semnum, int cmd, ...)
 #else
-int semctl(semid, int semnum, cmd, semun)
+int semctl(semid, int semnum, cmd, va_alist)
 	int semid, semnum;
 	int cmd;
-	union semun semun;
+	va_dcl
 #endif
 {
-	return (semsys(0, semid, semnum, cmd, &semun));
+	va_list ap;
+	union semun semun;
+	union semun *semun_ptr;
+#if __STDC__
+	va_start(ap, cmd);
+#else
+	va_start(ap);
+#endif
+	if (cmd == IPC_SET || cmd == IPC_STAT || cmd == GETALL
+	    || cmd == SETVAL || cmd == SETALL) {
+		semun = va_arg(ap, union semun);
+		semun_ptr = &semun;
+	} else {
+		semun_ptr = NULL;
+	}
+	va_end(ap);
+
+	return (semsys(0, semid, semnum, cmd, semun_ptr));
 }
