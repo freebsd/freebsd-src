@@ -514,11 +514,7 @@ ng_pptpgre_xmit(node_p node, struct mbuf *m, meta_p meta)
 		gre->hasAck = 1;
 		gre->data[gre->hasSeq] = htonl(priv->recvSeq);
 		priv->xmitAck = priv->recvSeq;
-		if (a->sackTimerPtr != NULL) {
-			untimeout(ng_pptpgre_send_ack_timeout,
-			    a->sackTimerPtr, a->sackTimer);
-			a->sackTimerPtr = NULL;
-		}
+		a->sackTimerPtr = NULL;		/* "stop" timer */
 	}
 
 	/* Prepend GRE header to outgoing frame */
@@ -670,11 +666,7 @@ bad:
 		}
 
 		/* Stop/(re)start receive ACK timer as necessary */
-		if (a->rackTimerPtr != NULL) {
-			untimeout(ng_pptpgre_recv_ack_timeout,
-			    a->rackTimerPtr, a->rackTimer);
-			a->rackTimerPtr = NULL;
-		}
+		a->rackTimerPtr = NULL;
 		if (priv->recvAck != priv->xmitSeq)
 			ng_pptpgre_start_recv_ack_timer(node);
 	}
@@ -920,17 +912,9 @@ ng_pptpgre_reset(node_p node)
 	/* Reset stats */
 	bzero(&priv->stats, sizeof(priv->stats));
 
-	/* Stop timers */
-	if (a->sackTimerPtr != NULL) {
-		untimeout(ng_pptpgre_send_ack_timeout,
-		    a->sackTimerPtr, a->sackTimer);
-		a->sackTimerPtr = NULL;
-	}
-	if (a->rackTimerPtr != NULL) {
-		untimeout(ng_pptpgre_recv_ack_timeout,
-		    a->rackTimerPtr, a->rackTimer);
-		a->rackTimerPtr = NULL;
-	}
+	/* "Stop" timers */
+	a->sackTimerPtr = NULL;
+	a->rackTimerPtr = NULL;
 }
 
 /*
