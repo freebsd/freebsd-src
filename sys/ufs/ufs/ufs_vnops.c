@@ -102,6 +102,7 @@ static int ufs_strategy __P((struct vop_strategy_args *));
 static int ufs_symlink __P((struct vop_symlink_args *));
 static int ufs_whiteout __P((struct vop_whiteout_args *));
 static int ufsfifo_close __P((struct vop_close_args *));
+static int ufsfifo_kqfilter __P((struct vop_kqfilter_args *));
 static int ufsfifo_read __P((struct vop_read_args *));
 static int ufsfifo_write __P((struct vop_write_args *));
 static int ufsspec_close __P((struct vop_close_args *));
@@ -2088,6 +2089,23 @@ ufsfifo_close(ap)
 }
 
 /*
+ * Kqfilter wrapper for fifos.
+ *
+ * Fall through to ufs kqfilter routines if needed 
+ */
+int
+ufsfifo_kqfilter(ap)
+	struct vop_kqfilter_args *ap;
+{
+	int error;
+
+	error = VOCALL(fifo_vnodeop_p, VOFFSET(vop_kqfilter), ap);
+	if (error)
+		error = ufs_kqfilter(ap);
+	return (error);
+}
+
+/*
  * Return POSIX pathconf information applicable to ufs filesystems.
  */
 int
@@ -2579,6 +2597,7 @@ static struct vnodeopv_entry_desc ufs_fifoop_entries[] = {
 	{ &vop_getattr_desc,		(vop_t *) ufs_getattr },
 	{ &vop_inactive_desc,		(vop_t *) ufs_inactive },
 	{ &vop_islocked_desc,		(vop_t *) vop_stdislocked },
+	{ &vop_kqfilter_desc,		(vop_t *) ufsfifo_kqfilter },
 	{ &vop_lock_desc,		(vop_t *) vop_stdlock },
 	{ &vop_print_desc,		(vop_t *) ufs_print },
 	{ &vop_read_desc,		(vop_t *) ufsfifo_read },
