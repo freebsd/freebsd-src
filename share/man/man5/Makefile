@@ -15,6 +15,7 @@ MAN=	acct.5 \
 	drivers.conf.5 \
 	elf.5 \
 	ethers.5 \
+	eui64.5 \
 	fbtab.5 \
 	fdescfs.5 \
 	forward.5 \
