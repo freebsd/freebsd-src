@@ -148,7 +148,6 @@ product AIRONET PC4800		0x0007 Aironet PC4800 Wireless LAN Adapter
 product AIRONET 350		0x000a Aironet 350 Wireless LAN Adapter
 
 /* Allied Telesis K.K. */
-product ALLIEDTELESIS WR211PCM	0x0000 Allied Telesis WR211PCM
 product ALLIEDTELESIS LA_PCM	0x0002 Allied Telesis LA-PCM
 
 /* Archos */
@@ -455,6 +454,7 @@ product ACCTON EN2212		{ "ACCTON", "EN2212", NULL, NULL } Accton EN2212
 product ACCTON EN2216		{ "ACCTON", "EN2216-PCMCIA-ETHERNET", "EN2216R01", NULL } Accton EN2216
 product ACCTON EN2226		{ "Accton", "Fast&spEtherCard-16", "EN2226", "1.00" } Accton EN2226
 product ADDTRON AWP100		{ "Addtron", "AWP-100&spWireless&spPCMCIA", "Version&sp01.02", NULL }
+product ALLIEDTELESIS WR211PCM	{ "Allied&spTelesis&spK.K.", "WR211PCM", NULL, NULL } Allied Telesis WR211PCM
 product AMBICOM AMB8002T	{ "AmbiCom&spInc", "AMB8002T", NULL, NULL } AmbiCom AMB8002T
 product AMD AM79C930		{ "AMD", "Am79C930", NULL, NULL } AMD Am79C930
 product ARGOSY SP320		{ "PCMCIA", "RS-COM 2P", NULL, NULL } ARGOSY SP320 Dual port serial PCMCIA
