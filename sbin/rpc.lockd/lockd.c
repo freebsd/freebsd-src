@@ -1,4 +1,3 @@
-
 /*
  * Copyright (c) 1995
  *	A.R. Gordon (andrew.gordon@net-tel.co.uk).  All rights reserved.
@@ -39,12 +38,11 @@
 
 #include "lockd.h"
 
+extern void nlm_prog_1 __P((struct svc_req, register SVCXPRT));
+extern void nlm_prog_3 __P((struct svc_req, register SVCXPRT));
 
 int debug_level = 0;	/* Zero means no debugging syslog() calls	*/
 
-
-static void nlm_prog_1();
-static void nlm_prog_3();
 
 main(int argc, char **argv)
 {
@@ -102,8 +100,10 @@ main(int argc, char **argv)
 
   /* Note that it is NOT sensible to run this program from inetd - the 	*/
   /* protocol assumes that it will run immediately at boot time.	*/
-  daemon(0, 0);
-
+  if (daemon(0,0)) {
+    perror("cannot fork");
+    exit(1);
+  }
   openlog("rpc.lockd", 0, LOG_DAEMON);
   if (debug_level) syslog(LOG_INFO, "Starting, debug level %d", debug_level);
   else syslog(LOG_INFO, "Starting");
@@ -111,215 +111,3 @@ main(int argc, char **argv)
   svc_run();	/* Should never return					*/
   exit(1);
 }
-
-static void
-nlm_prog_1(struct svc_req *rqstp, SVCXPRT *transp)
-{
-  union
-  {
-    struct nlm_testargs nlm_test_1_arg;
-    struct nlm_lockargs nlm_lock_1_arg;
-    struct nlm_cancargs nlm_cancel_1_arg;
-    struct nlm_unlockargs nlm_unlock_1_arg;
-    struct nlm_testargs nlm_granted_1_arg;
-    struct nlm_testargs nlm_test_msg_1_arg;
-    struct nlm_lockargs nlm_lock_msg_1_arg;
-    struct nlm_cancargs nlm_cancel_msg_1_arg;
-    struct nlm_unlockargs nlm_unlock_msg_1_arg;
-    struct nlm_testargs nlm_granted_msg_1_arg;
-    nlm_testres nlm_test_res_1_arg;
-    nlm_res nlm_lock_res_1_arg;
-    nlm_res nlm_cancel_res_1_arg;
-    nlm_res nlm_unlock_res_1_arg;
-    nlm_res nlm_granted_res_1_arg;
-  } argument;
-  char *result;
-  bool_t (*xdr_argument)(), (*xdr_result)();
-  char *(*local)();
-
-  switch (rqstp->rq_proc)
-  {
-    case NULLPROC:
-      (void)svc_sendreply(transp, xdr_void, (char *)NULL);
-      return;
-
-    case NLM_TEST:
-      xdr_argument = xdr_nlm_testargs;
-      xdr_result = xdr_nlm_testres;
-      local = (char *(*)()) nlm_test_1;
-      break;
-
-    case NLM_LOCK:
-      xdr_argument = xdr_nlm_lockargs;
-      xdr_result = xdr_nlm_res;
-      local = (char *(*)()) nlm_lock_1;
-      break;
-
-    case NLM_CANCEL:
-      xdr_argument = xdr_nlm_cancargs;
-      xdr_result = xdr_nlm_res;
-      local = (char *(*)()) nlm_cancel_1;
-      break;
-
-    case NLM_UNLOCK:
-      xdr_argument = xdr_nlm_unlockargs;
-      xdr_result = xdr_nlm_res;
-      local = (char *(*)()) nlm_unlock_1;
-      break;
-
-    case NLM_GRANTED:
-      xdr_argument = xdr_nlm_testargs;
-      xdr_result = xdr_nlm_res;
-      local = (char *(*)()) nlm_granted_1;
-      break;
-
-    case NLM_TEST_MSG:
-      xdr_argument = xdr_nlm_testargs;
-      xdr_result = xdr_void;
-      local = (char *(*)()) nlm_test_msg_1;
-      break;
-
-    case NLM_LOCK_MSG:
-      xdr_argument = xdr_nlm_lockargs;
-      xdr_result = xdr_void;
-      local = (char *(*)()) nlm_lock_msg_1;
-      break;
-
-    case NLM_CANCEL_MSG:
-      xdr_argument = xdr_nlm_cancargs;
-      xdr_result = xdr_void;
-      local = (char *(*)()) nlm_cancel_msg_1;
-      break;
-
-    case NLM_UNLOCK_MSG:
-      xdr_argument = xdr_nlm_unlockargs;
-      xdr_result = xdr_void;
-      local = (char *(*)()) nlm_unlock_msg_1;
-      break;
-
-    case NLM_GRANTED_MSG:
-      xdr_argument = xdr_nlm_testargs;
-      xdr_result = xdr_void;
-      local = (char *(*)()) nlm_granted_msg_1;
-      break;
-
-    case NLM_TEST_RES:
-      xdr_argument = xdr_nlm_testres;
-      xdr_result = xdr_void;
-      local = (char *(*)()) nlm_test_res_1;
-      break;
-
-    case NLM_LOCK_RES:
-      xdr_argument = xdr_nlm_res;
-      xdr_result = xdr_void;
-      local = (char *(*)()) nlm_lock_res_1;
-      break;
-
-    case NLM_CANCEL_RES:
-      xdr_argument = xdr_nlm_res;
-      xdr_result = xdr_void;
-      local = (char *(*)()) nlm_cancel_res_1;
-      break;
-
-    case NLM_UNLOCK_RES:
-      xdr_argument = xdr_nlm_res;
-      xdr_result = xdr_void;
-      local = (char *(*)()) nlm_unlock_res_1;
-      break;
-
-    case NLM_GRANTED_RES:
-      xdr_argument = xdr_nlm_res;
-      xdr_result = xdr_void;
-      local = (char *(*)()) nlm_granted_res_1;
-      break;
-
-    default:
-      svcerr_noproc(transp);
-      return;
-  }
-  bzero((char *)&argument, sizeof(argument));
-  if (!svc_getargs(transp, xdr_argument, (caddr_t)&argument))
-  {
-    syslog(LOG_ERR, "RPC received with invalid arguments");
-    svcerr_decode(transp);
-    return;
-  }
-  result = (*local)(&argument, rqstp);
-  if (result != NULL && !svc_sendreply(transp, xdr_result, result))
-  {
-    svcerr_systemerr(transp);
-  }
-  if (!svc_freeargs(transp, xdr_argument, (caddr_t)&argument))
-  {
-    syslog(LOG_ERR, "unable to free arguments");
-  }
-
-}
-
-
-static void
-nlm_prog_3(struct svc_req *rqstp, SVCXPRT *transp)
-{
-  union
-  {
-    nlm_shareargs nlm_share_3_arg;
-    nlm_shareargs nlm_unshare_3_arg;
-    nlm_lockargs nlm_nm_lock_3_arg;
-    nlm_notify nlm_free_all_3_arg;
-  } argument;
-  char *result;
-  bool_t (*xdr_argument)(), (*xdr_result)();
-  char *(*local)();
-
-  switch (rqstp->rq_proc)
-  {
-    case NULLPROC:
-      (void)svc_sendreply(transp, xdr_void, (char *)NULL);
-      return;
-
-    case NLM_SHARE:
-      xdr_argument = xdr_nlm_shareargs;
-      xdr_result = xdr_nlm_shareres;
-      local = (char *(*)()) nlm_share_3;
-      break;
-
-    case NLM_UNSHARE:
-      xdr_argument = xdr_nlm_shareargs;
-      xdr_result = xdr_nlm_shareres;
-      local = (char *(*)()) nlm_unshare_3;
-      break;
-
-    case NLM_NM_LOCK:
-      xdr_argument = xdr_nlm_lockargs;
-      xdr_result = xdr_nlm_res;
-      local = (char *(*)()) nlm_nm_lock_3;
-      break;
-
-    case NLM_FREE_ALL:
-      xdr_argument = xdr_nlm_notify;
-      xdr_result = xdr_void;
-      local = (char *(*)()) nlm_free_all_3;
-      break;
-
-    default:
-      svcerr_noproc(transp);
-      return;
-  }
-  bzero((char *)&argument, sizeof(argument));
-  if (!svc_getargs(transp, xdr_argument, (caddr_t)&argument))
-  {
-    syslog(LOG_ERR, "RPC received with invalid arguments");
-    svcerr_decode(transp);
-    return;
-  }
-  result = (*local)(&argument, rqstp);
-  if (result != NULL && !svc_sendreply(transp, xdr_result, result))
-  {
-    svcerr_systemerr(transp);
-  }
-  if (!svc_freeargs(transp, xdr_argument, (caddr_t)&argument))
-  {
-    syslog(LOG_ERR, "unable to free arguments");
-  }
-}
-
