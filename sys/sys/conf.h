@@ -159,16 +159,6 @@ typedef int d_kqfilter_t(dev_t dev, struct knote *kn);
 typedef int d_mmap_t(dev_t dev, vm_offset_t offset, vm_paddr_t *paddr,
    		     int nprot);
 
-typedef int l_open_t(dev_t dev, struct tty *tp);
-typedef int l_close_t(struct tty *tp, int flag);
-typedef int l_read_t(struct tty *tp, struct uio *uio, int flag);
-typedef int l_write_t(struct tty *tp, struct uio *uio, int flag);
-typedef int l_ioctl_t(struct tty *tp, u_long cmd, caddr_t data,
-		      int flag, struct thread *td);
-typedef int l_rint_t(int c, struct tty *tp);
-typedef int l_start_t(struct tty *tp);
-typedef int l_modem_t(struct tty *tp, int flag);
-
 typedef int dumper_t(
 	void *priv,		/* Private to the driver. */
 	void *virtual,		/* Virtual (mapped) address. */
@@ -239,27 +229,6 @@ struct cdevsw {
 	int			d_refcount;
 };
 
-/*
- * Line discipline switch table
- */
-struct linesw {
-	l_open_t	*l_open;
-	l_close_t	*l_close;
-	l_read_t	*l_read;
-	l_write_t	*l_write;
-	l_ioctl_t	*l_ioctl;
-	l_rint_t	*l_rint;
-	l_start_t	*l_start;
-	l_modem_t	*l_modem;
-	u_char		l_hotchar;
-};
-
-extern struct linesw linesw[];
-extern int nlinesw;
-
-int ldisc_register(int , struct linesw *);
-void ldisc_deregister(int);
-#define LDISC_LOAD 	-1		/* Loadable line discipline */
 #endif /* _KERNEL */
 
 #ifdef _KERNEL
@@ -271,10 +240,6 @@ void ldisc_deregister(int);
  * should just not initialize .d_maj and that will DTRT.
  */
 #define	MAJOR_AUTO	0	/* XXX: Not GM */
-
-l_ioctl_t	l_nullioctl;
-l_read_t	l_noread;
-l_write_t	l_nowrite;
 
 struct module;
 
