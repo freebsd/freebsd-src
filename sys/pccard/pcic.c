@@ -295,15 +295,11 @@ pcic_io(struct slot *slt, int win)
 static void
 pcic_do_mgt_irq(struct pcic_slot *sp, int irq)
 {
-#ifdef NOT_YET_XXX
 	u_int32_t	reg;
-#endif
 
 	if (sp->sc->csc_route == pci_parallel) {
-#ifdef NOT_YET_XXX
 		reg = CB_SM_CD;
 		bus_space_write_4(sp->bst, sp->bsh, CB_SOCKET_MASK, reg);
-#endif
 	} else {
 		/* Management IRQ changes */
 		pcic_clrb(sp, PCIC_INT_GEN, PCIC_INTR_ENA);
