@@ -72,7 +72,8 @@ static struct kmembuckets bucket[MINBUCKET + 16];
 static struct kmemusage *kmemusage;
 static char *kmembase;
 static char *kmemlimit;
-static u_int vm_kmem_size;
+
+u_int vm_kmem_size;
 
 #ifdef INVARIANTS
 /*

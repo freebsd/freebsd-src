@@ -49,6 +49,7 @@
 #include "opt_rlimit.h"
 
 #include <sys/param.h>
+#include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/sysproto.h>
 #include <sys/filedesc.h>
@@ -60,6 +61,7 @@
 #include <sys/conf.h>
 #include <sys/stat.h>
 #include <sys/vmmeter.h>
+#include <sys/sysctl.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -72,12 +74,36 @@
 #include <vm/vm_pageout.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_page.h>
+#include <vm/vm_kern.h>
 
 #ifndef _SYS_SYSPROTO_H_
 struct sbrk_args {
 	int incr;
 };
 #endif
+
+static int max_proc_mmap;
+SYSCTL_INT(_vm, OID_AUTO, max_proc_mmap, CTLFLAG_RW, &max_proc_mmap, 0, "");
+
+/*
+ * Set the maximum number of vm_map_entry structures per process.  Roughly
+ * speaking vm_map_entry structures are tiny, so allowing them to eat 1/100
+ * of our KVM malloc space still results in generous limits.  We want a 
+ * default that is good enough to prevent the kernel running out of resources
+ * if attacked from compromised user account but generous enough such that
+ * multi-threaded processes are not unduly inconvenienced.
+ */
+
+static void vmmapentry_rsrc_init __P((void *));
+SYSINIT(vmmersrc, SI_SUB_KVM_RSRC, SI_ORDER_FIRST, vmmapentry_rsrc_init, NULL)
+
+static void
+vmmapentry_rsrc_init(dummy)
+        void *dummy;
+{
+    max_proc_mmap = vm_kmem_size / sizeof(struct vm_map_entry);
+    max_proc_mmap /= 100;
+}
 
 /* ARGSUSED */
 int
@@ -171,6 +197,7 @@ mmap(p, uap)
 	int flags, error;
 	int disablexworkaround;
 	off_t pos;
+	struct vmspace *vms = p->p_vmspace;
 
 	addr = (vm_offset_t) uap->addr;
 	size = uap->len;
@@ -234,9 +261,9 @@ mmap(p, uap)
 	 * location.
 	 */
 	else if (addr == 0 ||
-	    (addr >= round_page((vm_offset_t)p->p_vmspace->vm_taddr) &&
-	     addr < round_page((vm_offset_t)p->p_vmspace->vm_daddr + MAXDSIZ)))
-		addr = round_page((vm_offset_t)p->p_vmspace->vm_daddr + MAXDSIZ);
+	    (addr >= round_page((vm_offset_t)vms->vm_taddr) &&
+	     addr < round_page((vm_offset_t)vms->vm_daddr + MAXDSIZ)))
+		addr = round_page((vm_offset_t)vms->vm_daddr + MAXDSIZ);
 
 	if (flags & MAP_ANON) {
 		/*
@@ -332,7 +359,18 @@ mmap(p, uap)
 			handle = (void *)vp;
 		}
 	}
-	error = vm_mmap(&p->p_vmspace->vm_map, &addr, size, prot, maxprot,
+
+	/*
+	 * Do not allow more then a certain number of vm_map_entry structures
+	 * per process.  Scale with the number of rforks sharing the map
+	 * to make the limit reasonable for threads.
+	 */
+	if (max_proc_mmap && 
+	    vms->vm_map.nentries >= max_proc_mmap * vms->vm_refcnt) {
+		return (ENOMEM);
+	}
+
+	error = vm_mmap(&vms->vm_map, &addr, size, prot, maxprot,
 	    flags, handle, pos);
 	if (error == 0)
 		p->p_retval[0] = (register_t) (addr + pageoff);
