@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-# $Id: periodic.sh,v 1.1.1.1 1997/08/12 17:48:49 pst Exp $
+# $Id: periodic.sh,v 1.2 1997/08/13 06:02:18 pst Exp $
 #
 # Run nightly periodic scripts
 #
@@ -55,33 +55,10 @@ echo "Subject: $host $run run output"
 # set, assume the user didn't really want us to muck with it (it's a
 # README file or has been disabled).
 
-# We can't run scripts in order if we don't have sort and sed, which
-# might not be present on an embedded system.
-
-if [ -x /usr/bin/sort -a -x /usr/bin/sed ] ; then
-
-    # Sort files in ascending alphanumeric order based on their basename
-    # across all directories.  XXX scripts better not have ':' in their names!
-    for file in `(
-	for dir in $dirlist ; do
-	    for file in $dir/* ; do
-		echo $file | sed -e 's;\(.*\)/\([^/]*$\);\2:\1;'
-	    done
-	done
-    ) | sort | sed -e 's; *\([^:]*\):\([^ ]*\);\2/\1 ;g' `; do
+for dir in $dirlist ; do
+    for file in $dir/* ; do
 	if [ -x $file ] ; then
 	    $file
 	fi
     done
-
-else
-    # Just run scripts in order in each directory.
-
-    for dir in $dirlist ; do
-	for file in $dir/* ; do
-	    if [ -x $file ] ; then
-		$file
-	    fi
-	done
-    done
-fi
+done
