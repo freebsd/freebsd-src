@@ -4,6 +4,9 @@
    source tree so it can be configured appropriately without using
    the GNU configure/build mechanism. */
 
+#undef  FREEBSD_NATIVE
+#define FREEBSD_NATIVE 1
+
 #undef SYSTEM_INCLUDE_DIR		/* We don't need one for now. */
 #undef GCC_INCLUDE_DIR			/* We don't need one for now. */
 #undef TOOL_INCLUDE_DIR			/* We don't need one for now. */
