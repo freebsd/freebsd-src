@@ -1,5 +1,5 @@
 #	from: @(#)bsd.lib.mk	5.26 (Berkeley) 5/2/91
-#	$Id: bsd.lib.mk,v 1.17 1995/01/04 22:32:40 ache Exp $
+#	$Id: bsd.lib.mk,v 1.18 1995/01/14 07:51:07 jkh Exp $
 #
 
 .if exists(${.CURDIR}/../Makefile.inc)
@@ -152,7 +152,20 @@ _LIBS+=lib${LIB}_pic.a
 PICFLAG=-fpic
 .endif
 
-all: ${_LIBS} # llib-l${LIB}.ln
+_LIBSUBDIR: .USE
+.if defined(SUBDIR) && !empty(SUBDIR)
+	@for entry in ${SUBDIR}; do \
+		(${ECHODIR} "===> ${DIRPRFX}$$entry"; \
+		if test -d ${.CURDIR}/$${entry}.${MACHINE}; then \
+			cd ${.CURDIR}/$${entry}.${MACHINE}; \
+		else \
+			cd ${.CURDIR}/$${entry}; \
+		fi; \
+		${MAKE} ${.TARGET:S/realinstall/install/:S/.depend/depend/} DIRPRFX=${DIRPRFX}$$entry/); \
+	done
+.endif
+
+all: ${_LIBS} _LIBSUBDIR # llib-l${LIB}.ln
 
 OBJS+=	${SRCS:N*.h:R:S/$/.o/g}
 
