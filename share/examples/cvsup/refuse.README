@@ -25,23 +25,18 @@ and you do not want CVSup to overwrite it:
 If you are an English speaker and don't wish to receive the
 foreign-language documentation or ports, use the following patterns:
 
-    doc/de
     doc/de_*
-    doc/es
     doc/es_*
-    doc/fr
+    doc/el_*
     doc/fr_*
-    doc/it
     doc/it_*
-    doc/ja
     doc/ja_*
-    doc/nl
     doc/nl_*
-    doc/ru
+    doc/no_*
+    doc/pl_*
+    doc/pt_*
     doc/ru_*
-    doc/sr
     doc/sr_*
-    doc/zh
     doc/zh_*
     ports/chinese
     ports/french
