@@ -74,37 +74,29 @@ usleep(useconds)
 	struct timespec time_remaining;
 	struct sigaction act, oact;
 	sigset_t mask, omask;
-	int alarm_blocked;
 
 	if (useconds != 0) {
 		time_to_sleep.tv_nsec = (useconds % 1000000) * 1000;
 		time_to_sleep.tv_sec = useconds / 1000000;
 
-		/* Block SIGALRM while fiddling with it */
+		/*
+		 * Set up handler to interrupt signanosleep and ensure
+		 * SIGARLM is not blocked.  Block SIGALRM while fiddling
+		 * with things.
+		 */
+		memset(&act, 0, sizeof(act));
+		act.sa_handler = sleephandler;
 		sigemptyset(&mask);
 		sigaddset(&mask, SIGALRM);
 		sigprocmask(SIG_BLOCK, &mask, &omask);
-
-		/* Was SIGALRM blocked already? */
-		alarm_blocked = sigismember(&omask, SIGALRM);
-
-		if (!alarm_blocked) {
-			/*
-			 * Set up handler to interrupt signanosleep only if
-			 * SIGALRM was unblocked. (Save some syscalls)
-			 */
-			memset(&act, 0, sizeof(act));
-			act.sa_handler = sleephandler;
-			sigaction(SIGALRM, &act, &oact);
-		}
+		sigaction(SIGALRM, &act, &oact);
+		mask = omask;
+		sigdelset(&mask, SIGALRM);
 
 		/*
 		 * signanosleep() uses the given mask for the lifetime of
 		 * the syscall only - it resets on return.  Note that the
-		 * Old sleep explicitly unblocks SIGALRM during the sleep,
-		 * we don't do that now since we don't depend on SIGALRM
-		 * to end the timout.  If the process blocks SIGALRM, it
-		 * gets what it asks for.
+		 * old sleep explicitly unblocks SIGALRM during the sleep.
 		 */
 
 		do {
@@ -113,11 +105,9 @@ usleep(useconds)
 		} while (time_to_sleep.tv_sec != 0 &&
 			 time_to_sleep.tv_nsec != 0);
 
-		if (!alarm_blocked) {
-			/* Unwind */
-			sigaction(SIGALRM, &oact, (struct sigaction *)0);
-			sigprocmask(SIG_SETMASK, &omask, (sigset_t *)0);
-		}
+		/* Unwind */
+		sigaction(SIGALRM, &oact, (struct sigaction *)0);
+		sigprocmask(SIG_SETMASK, &omask, (sigset_t *)0);
 	}
 #endif	/* _THREAD_SAFE */
 }
