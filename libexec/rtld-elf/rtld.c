@@ -683,10 +683,6 @@ digest_phdr(const Elf_Phdr *phdr, int phnum, caddr_t entry, const char *path)
 	    break;
 
 	case PT_LOAD:
-	    if (nsegs >= 2) {
-		_rtld_error("%s: too many PT_LOAD segments", path);
-		return NULL;
-	    }
 	    if (nsegs == 0) {	/* First load segment */
 		obj->vaddrbase = trunc_page(ph->p_vaddr);
 		obj->mapbase = (caddr_t) obj->vaddrbase;
@@ -705,7 +701,7 @@ digest_phdr(const Elf_Phdr *phdr, int phnum, caddr_t entry, const char *path)
 	    break;
 	}
     }
-    if (nsegs < 2) {
+    if (nsegs < 1) {
 	_rtld_error("%s: too few PT_LOAD segments", path);
 	return NULL;
     }
