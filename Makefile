@@ -62,7 +62,7 @@
 # developer convenience only.  They are intentionally not documented and
 # completely subject to change without notice.
 #
-TGTS=	all all-man buildkernel buildworld checkdpadd clean \
+TGTS=	all all-man buildenv buildkernel buildworld checkdpadd clean \
 	cleandepend cleandir depend distribute distributeworld everything \
 	hierarchy install installcheck installkernel installkernel.debug\
 	reinstallkernel reinstallkernel.debug installworld \
