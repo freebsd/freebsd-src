@@ -187,8 +187,6 @@ vfs_opv_recalc(void)
 			MALLOC(*opv_desc_vector_p, vop_t **,
 				vfs_opv_numops * sizeof(vop_t *), M_VNODE,
 				M_WAITOK | M_ZERO);
-		if (*opv_desc_vector_p == NULL)
-			panic("no memory for vop_t ** vector");
 
 		/* Fill in, with slot 0 being to return EOPNOTSUPP */
 		opv_desc_vector = *opv_desc_vector_p;
@@ -224,8 +222,6 @@ vfs_add_vnodeops(const void *data)
 	opv = (const struct vnodeopv_desc *)data;
 	MALLOC(newopv, const struct vnodeopv_desc **,
 	       (vnodeopv_num + 1) * sizeof(*newopv), M_VNODE, M_WAITOK);
-	if (newopv == NULL)
-		panic("vfs_add_vnodeops: no memory");
 	if (vnodeopv_descs) {
 		bcopy(vnodeopv_descs, newopv, vnodeopv_num * sizeof(*newopv));
 		FREE(vnodeopv_descs, M_VNODE);
@@ -249,14 +245,10 @@ vfs_add_vnodeops(const void *data)
 			MALLOC(newop, struct vnodeop_desc **,
 			       (num_op_descs + 1) * sizeof(*newop),
 			       M_VNODE, M_WAITOK);
-			if (newop == NULL)
-				panic("vfs_add_vnodeops: no memory for desc");
 			/* new reference count (for unload) */
 			MALLOC(newref, int *,
 				(num_op_descs + 1) * sizeof(*newref),
 				M_VNODE, M_WAITOK);
-			if (newref == NULL)
-				panic("vfs_add_vnodeops: no memory for refs");
 			if (vfs_op_descs) {
 				bcopy(vfs_op_descs, newop,
 					num_op_descs * sizeof(*newop));
@@ -315,14 +307,10 @@ vfs_rm_vnodeops(const void *data)
 			MALLOC(newop, struct vnodeop_desc **,
 			       (num_op_descs - 1) * sizeof(*newop),
 			       M_VNODE, M_WAITOK);
-			if (newop == NULL)
-				panic("vfs_remove_vnodeops: no memory for desc");
 			/* new reference count (for unload) */
 			MALLOC(newref, int *,
 				(num_op_descs - 1) * sizeof(*newref),
 				M_VNODE, M_WAITOK);
-			if (newref == NULL)
-				panic("vfs_remove_vnodeops: no memory for refs");
 			for (k = j; k < (num_op_descs - 1); k++) {
 				vfs_op_descs[k] = vfs_op_descs[k + 1];
 				vfs_op_desc_refs[k] = vfs_op_desc_refs[k + 1];
@@ -353,8 +341,6 @@ vfs_rm_vnodeops(const void *data)
 		FREE(opv_desc_vector, M_VNODE);
 	MALLOC(newopv, const struct vnodeopv_desc **,
 	       (vnodeopv_num - 1) * sizeof(*newopv), M_VNODE, M_WAITOK);
-	if (newopv == NULL)
-		panic("vfs_remove_vnodeops: no memory");
 	bcopy(vnodeopv_descs, newopv, (vnodeopv_num - 1) * sizeof(*newopv));
 	FREE(vnodeopv_descs, M_VNODE);
 	vnodeopv_descs = newopv;
