@@ -108,6 +108,11 @@ The same as
 forces the revocation of write access when trying to downgrade
 a filesystem mount status from read-write to read-only. Also
 forces the R/W mount of an unclean filesystem (dangerous; use with caution).
+.It noauto
+Do not attempt to mount this filesystem when the
+.Fl a
+flag is specified.  This allows you to have mount entries that can
+be invoked manually when needed, but not before.
 .It nodev
 Do not interpret character or block special devices on the file system.
 This option is useful for a server that has file systems containing
