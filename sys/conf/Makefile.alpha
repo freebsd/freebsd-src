@@ -270,7 +270,7 @@ kernel-install kernel-install.debug:
 
 kernel-reinstall kernel-reinstall.debug:
 	install -c -m 555 -o root -g wheel -fschg \
-		${KERNEL}${.TARGET:S/reinstall//} ${DESTDIR}/${KERNEL}
+		${KERNEL}${.TARGET:S/kernel-reinstall//} ${DESTDIR}/${KERNEL}
 
 .if !defined(NO_MODULES) && exists($S/modules)
 all:	modules
