@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)msgs.c	8.2 (Berkeley) 4/28/95";
 #endif
 static const char rcsid[] =
-	"$Id: msgs.c,v 1.11 1998/07/07 22:20:50 jkh Exp $";
+	"$Id: msgs.c,v 1.12 1998/07/09 14:06:54 ghelmer Exp $";
 #endif /* not lint */
 
 /*
@@ -179,8 +179,7 @@ int argc; char *argv[];
 	setlocale(LC_ALL, "");
 
 	time(&t);
-	seteuid(uid = getuid());
-	setuid(uid);
+	setuid(uid = getuid());
 	ruptible = (signal(SIGINT, SIG_IGN) == SIG_DFL);
 	if (ruptible)
 		signal(SIGINT, SIG_DFL);
