@@ -66,7 +66,7 @@ struct timezone tz;
 
 static int	nanosleep1 __P((struct thread *td, struct timespec *rqt,
 		    struct timespec *rmt));
-static int	settime __P((struct timeval *));
+static int	settime __P((struct proc *, struct timeval *));
 static void	timevalfix __P((struct timeval *));
 static void	no_lease_updatetime __P((int));
 
@@ -79,7 +79,8 @@ no_lease_updatetime(deltat)
 void (*lease_updatetime) __P((int))  = no_lease_updatetime;
 
 static int
-settime(tv)
+settime(p, tv)
+	struct proc *p;
 	struct timeval *tv;
 {
 	struct timeval delta, tv1, tv2;
@@ -103,7 +104,7 @@ settime(tv)
 	 * than one second, nor more than once per second. This allows
 	 * a miscreant to make the clock march double-time, but no worse.
 	 */
-	if (securelevel > 1) {
+	if (securelevel_gt(p->p_ucred, 1) != 0) {
 		if (delta.tv_sec < 0 || delta.tv_usec < 0) {
 			/*
 			 * Update maxtime to latest time we've seen.
@@ -200,7 +201,7 @@ clock_settime(td, uap)
 	}
 	/* XXX Don't convert nsec->usec and back */
 	TIMESPEC_TO_TIMEVAL(&atv, &ats);
-	error = settime(&atv);
+	error = settime(td->td_proc, &atv);
 done2:
 	mtx_unlock(&Giant);
 	return (error);
@@ -390,7 +391,7 @@ settimeofday(td, uap)
 	    (error = copyin((caddr_t)uap->tzp, (caddr_t)&atz, sizeof(atz)))) {
 		goto done2;
 	}
-	if (uap->tv && (error = settime(&atv)))
+	if (uap->tv && (error = settime(td->td_proc, &atv)))
 		goto done2;
 	if (uap->tzp)
 		tz = atz;
