@@ -58,6 +58,7 @@
 
 #define ALPHA_LABEL_OFFSET	64
 
+static void g_bsd_hotwrite(void *arg, int flag);
 /*
  * Our private data about one instance.  All the rest is handled by the
  * slice code and stored in its softc, so this is just the stuff
@@ -190,6 +191,7 @@ g_bsd_modify(struct g_geom *gp, struct disklabel *dl)
 	struct partition *ppp;
 	struct g_slicer *gsp;
 	struct g_consumer *cp;
+	struct g_bsd_softc *ms;
 	u_int secsize, u;
 	off_t mediasize;
 
@@ -244,6 +246,7 @@ g_bsd_modify(struct g_geom *gp, struct disklabel *dl)
 
 	/* Don't munge open partitions. */
 	gsp = gp->softc;
+	ms = gsp->softc;
 	for (i = 0; i < dl->d_npartitions; i++) {
 		ppp = &dl->d_partitions[i];
 
@@ -267,6 +270,9 @@ g_bsd_modify(struct g_geom *gp, struct disklabel *dl)
 		     dl->d_secsize,
 		    "%s%c", gp->name, 'a' + u);
 	}
+	g_slice_conf_hot(gp, 0, ms->labeloffset, g_bsd_ondisk_size(),
+	    G_SLICE_HOT_ALLOW, G_SLICE_HOT_DENY, G_SLICE_HOT_CALL);
+	gsp->hot = g_bsd_hotwrite;
 	return (0);
 }
 
@@ -332,13 +338,7 @@ g_bsd_try(struct g_geom *gp, struct g_slicer *gsp, struct g_consumer *cp, int se
 	/* Remember to free the buffer g_read_data() gave us. */
 	g_free(buf);
 
-	/* If we had a label, record it properly. */
-	if (error == 0) {
-		ms->labeloffset = offset;
-		g_topology_lock();
-		g_slice_conf_hot(gp, 0, offset, g_bsd_ondisk_size());
-		g_topology_unlock();
-	}
+	ms->labeloffset = offset;
 	return (error);
 }
 
@@ -494,6 +494,10 @@ g_bsd_hotwrite(void *arg, int flag)
 	u_char *p;
 	int error;
 	
+	/*
+	 * We should never get canceled, because that would amount to a removal
+	 * of the geom while there was outstanding I/O requests.
+	 */
 	KASSERT(flag != EV_CANCEL, ("g_bsd_hotwrite cancelled"));
 	bp = arg;
 	gp = bp->bio_to->geom;
@@ -551,15 +555,6 @@ g_bsd_start(struct bio *bp)
 	gsp = gp->softc;
 	ms = gsp->softc;
 	switch(bp->bio_cmd) {
-	case BIO_READ:
-		/* We allow reading of our hot spots */
-		return (0);
-	case BIO_DELETE:
-		/* We do not allow deleting our hot spots */
-		return (EPERM);
-	case BIO_WRITE:
-		g_call_me(g_bsd_hotwrite, bp, gp, NULL);
-		return (EJUSTRETURN);
 	case BIO_GETATTR:
 		if (g_handleattr(bp, "BSD::labelsum", ms->labelsum,
 		    sizeof(ms->labelsum)))
