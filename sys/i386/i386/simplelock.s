@@ -94,6 +94,7 @@ setlock:
 	testl	%ecx, %ecx
 	jz	gotit			/* it was clear, return */
 wait:
+	pause
 	cmpl	$0, (%eax)		/* wait to empty */
 	jne	wait			/* still set... */
 	jmp	setlock			/* empty again, try once more */
@@ -117,6 +118,7 @@ setlock:
 	je	bad_slock		/* yes, thats not good... */
 	addl	$4, %esp		/* clear the stack */
 wait:
+	pause
 	cmpl	$0, (%edx)		/* wait to empty */
 	jne	wait			/* still set... */
 	jmp	setlock			/* empty again, try once more */
@@ -223,6 +225,7 @@ ssetlock:
 	jz	sgotit			/* it was clear, return */
 	popfl				/* previous value while waiting */
 swait:
+	pause
 	cmpl	$0, (%eax)		/* wait to empty */
 	jne	swait			/* still set... */
 	jmp	ssetlock		/* empty again, try once more */
@@ -250,6 +253,7 @@ ssetlock:
 	addl	$4, %esp		/* clear the stack */
 	popfl
 swait:
+	pause
 	cmpl	$0, (%edx)		/* wait to empty */
 	jne	swait			/* still set... */
 	jmp	ssetlock		/* empty again, try once more */
@@ -300,6 +304,7 @@ NON_GPROF_ENTRY(s_lock_np)
 	testl	%ecx, %ecx
 	jz	3f
 2:
+	pause
 	cmpl	$0, (%eax)		/* wait to empty */
 	jne	2b			/* still set... */
 	jmp	1b			/* empty again, try once more */
