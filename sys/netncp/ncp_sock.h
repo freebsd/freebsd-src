@@ -31,8 +31,8 @@
  *
  * $FreeBSD$
  */
-#ifndef _NCP_SOCK_H_
-#define _NCP_SOCK_H_
+#ifndef _NETNCP_NCP_SOCK_H_
+#define _NETNCP_NCP_SOCK_H_
 
 int  ncp_sock_connect_ipx(struct ncp_conn *);
 int  ncp_sock_connect_in(struct ncp_conn *);

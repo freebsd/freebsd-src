@@ -3,8 +3,8 @@
  *
  * $FreeBSD$
  */
-#if !defined (_NWERROR_H_)
-#define _NWERROR_H_
+#ifndef _NETNCP_NWERROR_H_
+#define _NETNCP_NWERROR_H_
 
 #ifndef SUCCESS
 #define SUCCESS                        0
