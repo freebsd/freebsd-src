@@ -267,6 +267,39 @@ unit
 .Em unit
 was successfully attached.
 .El
+.Sh FILES
+.Ar /etc/sliphome/slip.hosts
+list of host login names and parameters.
+.Pp
+.Ar /etc/sliphome/slip.login
+script executed when a connection is made.
+.Pp
+.Ar /etc/sliphome/slip.login.loginname
+script executed when a connection is made by
+.Ar loginname .
+.Pp
+.Ar /etc/sliphome/slip.logout
+script executed when a connection is lost.
+.Pp
+.Ar /etc/sliphome/slip.logout.loginname
+script executed when a connection is lost by
+.Ar loginname .
+.Pp
+.Ar /etc/sliphome/slip.slparms
+extra parameters file.
+.Pp
+.Ar /etc/sliphome/slip.slparms.loginname
+extra parameters file for
+.Ar loginname .
+.Pp
+.Ar /var/run/ttyXn.if
+contains the name of the network interface used by the sliplogin process on
+.Ar ttyXn .
+.Pp
+.Ar /var/run/slX.pid
+contains the PID of the sliplogin process which is using interface
+.Ar slX .
+.Pp
 .Sh SEE ALSO
 .Xr slattach 8 ,
 .Xr syslogd 8 ,

@@ -105,8 +105,11 @@ int     slunit;
 char	loginargs[BUFSIZ];
 char	loginfile[MAXPATHLEN];
 char	loginname[BUFSIZ];
-static char raddr[32];
-
+static char raddr[32];			/* remote address */
+char ifname[IFNAMSIZ];          	/* interface name */
+static 	char pidfilename[MAXPATHLEN];   /* name of pid file */
+static 	char iffilename[MAXPATHLEN];    /* name of if file */
+static	pid_t	pid;			/* our pid */
 
 char *
 make_ipaddr(void)
@@ -316,6 +319,10 @@ hup_handler(s)
 	}
 	syslog(LOG_INFO, "closed %s slip unit %d (%s)\n", loginname, unit,
 	       sigstr(s));
+	if (unlink(pidfilename) < 0 && errno != ENOENT)
+		syslog(LOG_WARNING, "unable to delete pid file: %m");
+	if (unlink(iffilename) < 0 && errno != ENOENT)
+		syslog(LOG_WARNING, "unable to delete if file: %m");
 	exit(1);
 	/* NOTREACHED */
 }
@@ -363,6 +370,12 @@ main(argc, argv)
 	struct termios tios, otios;
 	char logincmd[2*BUFSIZ+32];
 	extern uid_t getuid();
+
+	FILE *pidfile;				/* pid file */
+	FILE *iffile;				/* interfaces file */
+	char *p;
+	int n;
+	char devnam[MAXPATHLEN] = "/dev/tty";   /* Device name */
 
 	if ((name = strrchr(argv[0], '/')) == NULL)
 		name = argv[0];
@@ -454,6 +467,38 @@ main(argc, argv)
 		syslog(LOG_ERR, "ioctl(SLIOCSOUTFILL): %m");
 		exit(1);
 	}
+
+        /* write pid to file */
+	pid = getpid();
+	(void) sprintf(ifname, "sl%d", unit);
+	(void) sprintf(pidfilename, "%s%s.pid", _PATH_VARRUN, ifname);
+	if ((pidfile = fopen(pidfilename, "w")) != NULL) {
+		fprintf(pidfile, "%d\n", pid);
+		(void) fclose(pidfile);
+	} else {
+		syslog(LOG_ERR, "Failed to create pid file %s: %m",
+				pidfilename);
+		pidfilename[0] = 0;
+	}
+
+        /* write interface unit number to file */
+	p = ttyname(0);
+	if (p)
+		strcpy(devnam, p);
+	for (n = strlen(devnam); n > 0; n--) 
+		if (devnam[n] == '/') {
+			n++;
+			break;
+		}
+	(void) sprintf(iffilename, "%s%s.if", _PATH_VARRUN, &devnam[n]);
+	if ((iffile = fopen(iffilename, "w")) != NULL) {
+		fprintf(iffile, "sl%d\n", unit); 
+		(void) fclose(iffile);
+	} else {
+		syslog(LOG_ERR, "Failed to create if file %s: %m", iffilename);
+		iffilename[0] = 0;  
+	}
+
 
 	syslog(LOG_INFO, "attaching slip unit %d for %s\n", unit, loginname);
 	(void)snprintf(logincmd, sizeof(logincmd), "%s %d %ld %s", loginfile, unit, speed,
