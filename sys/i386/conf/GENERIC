@@ -190,12 +190,6 @@ device		cs0	at isa? port 0x300 irq ?
 # requires PCCARD (PCMCIA) support to be activated
 #device		xe0	at isa? port? irq ?
 
-# PCCARD NIC drivers.
-# ze and zp take over the pcic and cannot coexist with generic pccard
-# support, nor the ed and ep drivers they replace.
-#device		ze0	at isa? port 0x300 irq 10 iomem 0xd8000	
-#device		zp0	at isa? port 0x300 irq 10 iomem 0xd8000
-
 # Pseudo devices - the number indicates how many units to allocated.
 pseudo-device	loop		# Network loopback
 pseudo-device	ether		# Ethernet support
