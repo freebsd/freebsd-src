@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.24.2.20 1997/09/16 23:20:20 brian Exp $
+ * $Id: modem.c,v 1.24.2.21 1997/09/19 09:42:03 brian Exp $
  *
  *  TODO:
  */
@@ -442,20 +442,9 @@ OpenModem(int mode)
     LogPrintf(LogDEBUG, "OpenModem: Modem is already open!\n");
     /* We're going back into "term" mode */
   else if (mode & MODE_DIRECT) {
-    if (isatty(0)) {
-      char *dev;
-      modem = open(dev = ctermid(NULL), O_RDWR | O_NONBLOCK);
-      if (modem < 0) {
-	LogPrintf(LogERROR, "OpenModem(direct) failed: %s: %s\n",
-		  dev, strerror(errno));
-	return (-1);
-      }
-      LogPrintf(LogDEBUG, "OpenModem(direct): Modem is a tty\n");
-    } else {
-      /* must be a tcp connection */
-      LogPrintf(LogDEBUG, "OpenModem(direct): Modem is not a tty\n");
-      return modem = dup(0);
-    }
+    LogPrintf(LogDEBUG, "OpenModem(direct): Modem is %sa tty\n",
+              isatty(0) ? "" : "not ");
+    return modem = 0;
   } else {
     if (strncmp(VarDevice, "/dev/", 5) == 0) {
       if ((res = uu_lock(VarBaseDevice)) != UU_LOCK_OK) {
