@@ -345,7 +345,7 @@ linker_make_file(const char* pathname, void* priv, struct linker_file_ops* ops)
     int namelen;
     const char *filename;
 
-    filename = rindex(pathname, '/');
+    filename = c_rindex(pathname, '/');
     if (filename && filename[1])
 	filename++;
     else
@@ -993,7 +993,7 @@ linker_search_path(const char *name)
     enum vtype		type;
 
     /* qualified at all? */
-    if (index(name, '/'))
+    if (c_index(name, '/'))
 	return(linker_strdup(name));
 
     /* traverse the linker path */
