@@ -224,6 +224,7 @@ dev/acpica/Osd/OsdMemory.c	optional acpica
 dev/acpica/Osd/OsdSchedule.c	optional acpica
 dev/acpica/Osd/OsdStream.c	optional acpica
 dev/acpica/Osd/OsdSynch.c	optional acpica
+dev/acpica/Osd/OsdTable.c	optional acpica
 dev/advansys/adv_eisa.c	optional adv eisa
 dev/advansys/adv_pci.c	optional adv pci
 dev/advansys/advansys.c	optional adv

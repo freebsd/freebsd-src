@@ -119,8 +119,6 @@
 
 #include "acpi.h"
 #include "acinterp.h"
-#include "acnamesp.h"
-#include "achware.h"
 #include "acevents.h"
 
 #define _COMPONENT          ACPI_EXECUTER
@@ -347,8 +345,8 @@ AcpiExSystemReleaseMutex (
      */
     if (ObjDesc->Mutex.Semaphore == AcpiGbl_GlobalLockSemaphore)
     {
-        AcpiEvReleaseGlobalLock ();
-        return_ACPI_STATUS (AE_OK);
+        Status = AcpiEvReleaseGlobalLock ();
+        return_ACPI_STATUS (Status);
     }
 
     Status = AcpiOsSignalSemaphore (ObjDesc->Mutex.Semaphore, 1);
@@ -454,7 +452,7 @@ AcpiExSystemResetEvent (
     Status = AcpiOsCreateSemaphore (ACPI_NO_UNIT_LIMIT, 0, &TempSemaphore);
     if (ACPI_SUCCESS (Status))
     {
-        AcpiOsDeleteSemaphore (ObjDesc->Event.Semaphore);
+        (void) AcpiOsDeleteSemaphore (ObjDesc->Event.Semaphore);
         ObjDesc->Event.Semaphore = TempSemaphore;
     }
 
