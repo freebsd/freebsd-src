@@ -159,7 +159,7 @@ CROSSENV=	MAKEOBJDIRPREFIX=${OBJTREE} \
 		COMPILER_PATH=${WORLDTMP}/usr/libexec:${WORLDTMP}/usr/bin \
 		LIBRARY_PATH=${WORLDTMP}${SHLIBDIR}:${WORLDTMP}/usr/lib \
 		OBJFORMAT_PATH=${WORLDTMP}/usr/libexec \
-		PERL5LIB=${WORLDTMP}/usr/libdata/perl/5.00503
+		PERL5LIB=${WORLDTMP}/usr/libdata/perl/5.006
 
 # bootstrap-tool stage
 BMAKEENV=	${BOOTSTRAPENV}
@@ -530,9 +530,13 @@ _libkrb5= kerberos5/lib/libroken kerberos5/lib/libasn1 kerberos5/lib/libhdb \
 	kerberos5/lib/libsl
 .endif
 
+.if !defined(NOPERL)
+_perl=	gnu/usr.bin/perl
+.endif
+
 build-tools:
 .for _tool in bin/sh ${_games} gnu/usr.bin/cc/cc_tools ${_fortran} \
-    ${_libroken4} ${_libkrb5} lib/libncurses ${_share}
+    ${_libroken4} ${_libkrb5} lib/libncurses ${_share} ${_perl}
 	cd ${.CURDIR}/${_tool}; ${MAKE} build-tools
 .endfor
 
@@ -712,10 +716,6 @@ _kerberos5_lib=	kerberos5/lib
 _libm=	lib/libm
 .else
 _libm=	lib/msun
-.endif
-
-.if !defined(NOPERL)
-_libperl=	gnu/usr.bin/perl/libperl
 .endif
 
 .if ${MACHINE_ARCH} == "i386"
