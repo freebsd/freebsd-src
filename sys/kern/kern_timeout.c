@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_clock.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_timeout.c,v 1.48 1998/01/07 12:29:17 phk Exp $
+ * $Id: kern_timeout.c,v 1.49 1998/01/10 13:16:26 phk Exp $
  */
 
 /* Portions of this software are covered by the following: */
@@ -108,8 +108,7 @@ static struct callout *nextsoftcheck;	/* Next callout to be checked. */
 
 /*ARGSUSED*/
 void
-softclock(frame)
-	struct clockframe *frame;
+softclock()
 {
 	register struct callout *c;
 	register struct callout_tailq *bucket;
@@ -122,11 +121,6 @@ softclock(frame)
 
 	if (TAILQ_FIRST(&callwheel[ticks & callwheelmask]) == NULL) {
 		softticks++;
-		return;
-	}
-	if (!CLKF_BASEPRI(frame)) {
-		/* Not yet, come back later */
-		setsoftclock();
 		return;
 	}
 
