@@ -93,6 +93,16 @@ that are used for all builds, or are used by the
 .Pa makefiles
 for things other than builds.
 .Bl -tag -width Ar
+.It Va ALWAYS_CHECK_MAKE
+.Pq Vt bool
+Instructs the top-level makefile in the source tree (normally
+.Pa /usr/src )
+to always check if
+.Xr make 1
+is up-to-date.
+Normally this is only done for the world and buildworld targets to handle
+upgrades from older versions of
+.Fx .
 .It Va CFLAGS
 .Pq Vt str
 Controls the compiler setting when compiling C code.
