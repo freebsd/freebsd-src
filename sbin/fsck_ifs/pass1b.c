@@ -32,14 +32,11 @@
  */
 
 #ifndef lint
-#if 0
 static const char sccsid[] = "@(#)pass1b.c	8.4 (Berkeley) 4/28/95";
-#endif
-static const char rcsid[] =
-	"$Id$";
 #endif /* not lint */
 
 #include <sys/param.h>
+#include <sys/time.h>
 
 #include <ufs/ufs/dinode.h>
 #include <ufs/ffs/fs.h>
@@ -72,7 +69,7 @@ pass1b()
 			if (dp == NULL)
 				continue;
 			idesc.id_number = inumber;
-			if (statemap[inumber] != USTATE &&
+			if (inoinfo(inumber)->ino_state != USTATE &&
 			    (ckinode(dp, &idesc) & STOP))
 				return;
 		}

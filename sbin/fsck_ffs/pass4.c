@@ -32,16 +32,14 @@
  */
 
 #ifndef lint
-#if 0
 static const char sccsid[] = "@(#)pass4.c	8.4 (Berkeley) 4/28/95";
-#endif
-static const char rcsid[] =
-	"$Id$";
 #endif /* not lint */
 
 #include <sys/param.h>
+#include <sys/time.h>
 
 #include <ufs/ufs/dinode.h>
+#include <ufs/ffs/fs.h>
 
 #include <err.h>
 #include <string.h>
@@ -55,22 +53,27 @@ pass4()
 	register struct zlncnt *zlnp;
 	struct dinode *dp;
 	struct inodesc idesc;
-	int n;
+	int i, n, cg;
 
 	memset(&idesc, 0, sizeof(struct inodesc));
 	idesc.id_type = ADDR;
 	idesc.id_func = pass4check;
-	for (inumber = ROOTINO; inumber <= lastino; inumber++) {
-		idesc.id_number = inumber;
-		switch (statemap[inumber]) {
+	for (cg = 0; cg < sblock.fs_ncg; cg++) {
+		inumber = cg * sblock.fs_ipg;
+		for (i = 0; i < inostathead[cg].il_numalloced; i++, inumber++) {
+			if (inumber < ROOTINO)
+				continue;
+			idesc.id_number = inumber;
+			switch (inoinfo(inumber)->ino_state) {
 
-		case FSTATE:
-		case DFOUND:
-			n = lncntp[inumber];
-			if (n)
-				adjust(&idesc, (short)n);
-			else {
-				for (zlnp = zlnhead; zlnp; zlnp = zlnp->next)
+			case FSTATE:
+			case DFOUND:
+				n = inoinfo(inumber)->ino_linkcnt;
+				if (n) {
+					adjust(&idesc, (short)n);
+					break;
+				}
+				for (zlnp = zlnhead; zlnp; zlnp = zlnp->next) {
 					if (zlnp->zlncnt == inumber) {
 						zlnp->zlncnt = zlnhead->zlncnt;
 						zlnp = zlnhead;
@@ -79,30 +82,31 @@ pass4()
 						clri(&idesc, "UNREF", 1);
 						break;
 					}
-			}
-			break;
-
-		case DSTATE:
-			clri(&idesc, "UNREF", 1);
-			break;
-
-		case DCLEAR:
-			dp = ginode(inumber);
-			if (dp->di_size == 0) {
-				clri(&idesc, "ZERO LENGTH", 1);
+				}
 				break;
+
+			case DSTATE:
+				clri(&idesc, "UNREF", 1);
+				break;
+
+			case DCLEAR:
+				dp = ginode(inumber);
+				if (dp->di_size == 0) {
+					clri(&idesc, "ZERO LENGTH", 1);
+					break;
+				}
+				/* fall through */
+			case FCLEAR:
+				clri(&idesc, "BAD/DUP", 1);
+				break;
+
+			case USTATE:
+				break;
+
+			default:
+				errx(EEXIT, "BAD STATE %d FOR INODE I=%d",
+				    inoinfo(inumber)->ino_state, inumber);
 			}
-			/* fall through */
-		case FCLEAR:
-			clri(&idesc, "BAD/DUP", 1);
-			break;
-
-		case USTATE:
-			break;
-
-		default:
-			errx(EEXIT, "BAD STATE %d FOR INODE I=%d",
-			    statemap[inumber], inumber);
 		}
 	}
 }

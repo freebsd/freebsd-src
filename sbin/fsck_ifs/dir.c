@@ -32,14 +32,11 @@
  */
 
 #ifndef lint
-#if 0
 static const char sccsid[] = "@(#)dir.c	8.8 (Berkeley) 4/28/95";
-#endif
-static const char rcsid[] =
-	"$Id: dir.c,v 1.11 1998/06/28 19:23:02 bde Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
+#include <sys/time.h>
 
 #include <ufs/ufs/dinode.h>
 #include <ufs/ufs/dir.h>
@@ -88,9 +85,9 @@ propagate()
 			inp = *inpp;
 			if (inp->i_parent == 0)
 				continue;
-			if (statemap[inp->i_parent] == DFOUND &&
-			    statemap[inp->i_number] == DSTATE) {
-				statemap[inp->i_number] = DFOUND;
+			if (inoinfo(inp->i_parent)->ino_state == DFOUND &&
+			    inoinfo(inp->i_number)->ino_state == DSTATE) {
+				inoinfo(inp->i_number)->ino_state = DFOUND;
 				change++;
 			}
 		}
@@ -123,6 +120,8 @@ dirscan(idesc)
 	idesc->id_loc = 0;
 	for (dp = fsck_readdir(idesc); dp != NULL; dp = fsck_readdir(idesc)) {
 		dsize = dp->d_reclen;
+		if (dsize > sizeof(dbuf))
+			dsize = sizeof(dbuf);
 		memmove(dbuf, dp, (size_t)dsize);
 #		if (BYTE_ORDER == LITTLE_ENDIAN)
 			if (!newinofmt) {
@@ -235,8 +234,7 @@ dircheck(idesc, dp)
 	int spaceleft;
 
 	spaceleft = DIRBLKSIZ - (idesc->id_loc % DIRBLKSIZ);
-	if (dp->d_ino >= maxino ||
-	    dp->d_reclen == 0 ||
+	if (dp->d_reclen == 0 ||
 	    dp->d_reclen > spaceleft ||
 	    (dp->d_reclen & 0x3) != 0)
 		return (0);
@@ -306,13 +304,40 @@ adjust(idesc, lcnt)
 	register struct inodesc *idesc;
 	int lcnt;
 {
-	register struct dinode *dp;
+	struct dinode *dp;
+	int saveresolved;
 
 	dp = ginode(idesc->id_number);
 	if (dp->di_nlink == lcnt) {
-		if (linkup(idesc->id_number, (ino_t)0) == 0)
-			clri(idesc, "UNREF", 0);
-	} else {
+		/*
+		 * If we have not hit any unresolved problems, are running
+		 * in preen mode, and are on a filesystem using soft updates,
+		 * then just toss any partially allocated files.
+		 */
+		if (resolved && preen && usedsoftdep) {
+			clri(idesc, "UNREF", 1);
+			return;
+		} else {
+			/*
+			 * The filesystem can be marked clean even if
+			 * a file is not linked up, but is cleared.
+			 * Hence, resolved should not be cleared when
+			 * linkup is answered no, but clri is answered yes.
+			 */
+			saveresolved = resolved;
+			if (linkup(idesc->id_number, (ino_t)0, NULL) == 0) {
+				resolved = saveresolved;
+				clri(idesc, "UNREF", 0);
+				return;
+			}
+			/*
+			 * Account for the new reference created by linkup().
+			 */
+			dp = ginode(idesc->id_number);
+			lcnt--;
+		}
+	}
+	if (lcnt != 0) {
 		pwarn("LINK COUNT %s", (lfdir == idesc->id_number) ? lfname :
 			((dp->di_mode & IFMT) == IFDIR ? "DIR" : "FILE"));
 		pinode(idesc->id_number);
@@ -355,7 +380,7 @@ mkentry(idesc)
 	dirp->d_ino = idesc->id_parent;	/* ino to be entered is in id_parent */
 	dirp->d_reclen = newent.d_reclen;
 	if (newinofmt)
-		dirp->d_type = typemap[idesc->id_parent];
+		dirp->d_type = inoinfo(idesc->id_parent)->ino_type;
 	else
 		dirp->d_type = 0;
 	dirp->d_namlen = newent.d_namlen;
@@ -388,16 +413,17 @@ chgino(idesc)
 		return (KEEPON);
 	dirp->d_ino = idesc->id_parent;
 	if (newinofmt)
-		dirp->d_type = typemap[idesc->id_parent];
+		dirp->d_type = inoinfo(idesc->id_parent)->ino_type;
 	else
 		dirp->d_type = 0;
 	return (ALTERED|STOP);
 }
 
 int
-linkup(orphan, parentdir)
+linkup(orphan, parentdir, name)
 	ino_t orphan;
 	ino_t parentdir;
+	char *name;
 {
 	register struct dinode *dp;
 	int lostdir;
@@ -410,7 +436,7 @@ linkup(orphan, parentdir)
 	lostdir = (dp->di_mode & IFMT) == IFDIR;
 	pwarn("UNREF %s ", lostdir ? "DIR" : "FILE");
 	pinode(orphan);
-	if ((preen || usedsoftdep) && dp->di_size == 0)
+	if (preen && dp->di_size == 0)
 		return (0);
 	if (preen)
 		printf(" (RECONNECTED)\n");
@@ -431,6 +457,7 @@ linkup(orphan, parentdir)
 				lfdir = allocdir(ROOTINO, (ino_t)0, lfmode);
 				if (lfdir != 0) {
 					if (makeentry(ROOTINO, lfdir, lfname) != 0) {
+						numdirs++;
 						if (preen)
 							printf(" (CREATED)\n");
 					} else {
@@ -466,21 +493,21 @@ linkup(orphan, parentdir)
 		idesc.id_type = ADDR;
 		idesc.id_func = pass4check;
 		idesc.id_number = oldlfdir;
-		adjust(&idesc, lncntp[oldlfdir] + 1);
-		lncntp[oldlfdir] = 0;
+		adjust(&idesc, inoinfo(oldlfdir)->ino_linkcnt + 1);
+		inoinfo(oldlfdir)->ino_linkcnt = 0;
 		dp = ginode(lfdir);
 	}
-	if (statemap[lfdir] != DFOUND) {
+	if (inoinfo(lfdir)->ino_state != DFOUND) {
 		pfatal("SORRY. NO lost+found DIRECTORY\n\n");
 		return (0);
 	}
 	(void)lftempname(tempname, orphan);
-	if (makeentry(lfdir, orphan, tempname) == 0) {
+	if (makeentry(lfdir, orphan, (name ? name : tempname)) == 0) {
 		pfatal("SORRY. NO SPACE IN lost+found DIRECTORY");
 		printf("\n\n");
 		return (0);
 	}
-	lncntp[orphan]--;
+	inoinfo(orphan)->ino_linkcnt--;
 	if (lostdir) {
 		if ((changeino(orphan, "..", lfdir) & ALTERED) == 0 &&
 		    parentdir != (ino_t)-1)
@@ -488,19 +515,11 @@ linkup(orphan, parentdir)
 		dp = ginode(lfdir);
 		dp->di_nlink++;
 		inodirty();
-		lncntp[lfdir]++;
+		inoinfo(lfdir)->ino_linkcnt++;
 		pwarn("DIR I=%lu CONNECTED. ", orphan);
 		if (parentdir != (ino_t)-1) {
 			printf("PARENT WAS I=%lu\n", (u_long)parentdir);
-			/*
-			 * The parent directory, because of the ordering
-			 * guarantees, has had the link count incremented
-			 * for the child, but no entry was made.  This
-			 * fixes the parent link count so that fsck does
-			 * not need to be rerun.
-			 */
-			lncntp[parentdir]++;
-
+			inoinfo(parentdir)->ino_linkcnt++;
 		}
 		if (preen == 0)
 			printf("\n");
@@ -658,19 +677,20 @@ allocdir(parent, request, mode)
 	dp->di_nlink = 2;
 	inodirty();
 	if (ino == ROOTINO) {
-		lncntp[ino] = dp->di_nlink;
+		inoinfo(ino)->ino_linkcnt = dp->di_nlink;
 		cacheino(dp, ino);
 		return(ino);
 	}
-	if (statemap[parent] != DSTATE && statemap[parent] != DFOUND) {
+	if (inoinfo(parent)->ino_state != DSTATE &&
+	    inoinfo(parent)->ino_state != DFOUND) {
 		freeino(ino);
 		return (0);
 	}
 	cacheino(dp, ino);
-	statemap[ino] = statemap[parent];
-	if (statemap[ino] == DSTATE) {
-		lncntp[ino] = dp->di_nlink;
-		lncntp[parent]++;
+	inoinfo(ino)->ino_state = inoinfo(parent)->ino_state;
+	if (inoinfo(ino)->ino_state == DSTATE) {
+		inoinfo(ino)->ino_linkcnt = dp->di_nlink;
+		inoinfo(parent)->ino_linkcnt++;
 	}
 	dp = ginode(parent);
 	dp->di_nlink++;
