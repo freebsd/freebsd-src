@@ -13,7 +13,7 @@
  * all derivative works or modified versions.
  *
  * From: Version 1.9, Mon Oct  9 20:27:42 MSK 1995
- * $Id$
+ * $Id: wcd.c,v 1.46 1997/10/29 22:11:00 sos Exp $
  */
 
 #include "wdc.h"
@@ -434,6 +434,8 @@ wcdattach (struct atapi *ata, int unit, struct atapi_params *ap, int debug)
 		    	}
 		}
 	}
+	else
+        	wcdnlun++;
 	return (1);
 }
 
