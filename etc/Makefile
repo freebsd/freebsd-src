@@ -68,7 +68,6 @@ distribution:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 ${BIN1} ${DESTDIR}/etc; \
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 755 ${BIN2} ${DESTDIR}/etc; \
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 defaults/rc.conf ${DESTDIR}/etc/defaults/; \
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 defaults/make.conf ${DESTDIR}/etc/defaults/; \
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 defaults/pccard.conf ${DESTDIR}/etc/defaults/; \
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 defaults/periodic.conf ${DESTDIR}/etc/defaults/; \
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 600 /dev/null \
@@ -202,8 +201,6 @@ etc-examples:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 ${BIN1} ${BIN2} \
 	    opieaccess ${DESTDIR}/usr/share/examples/etc; \
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 defaults/rc.conf \
-	    ${DESTDIR}/usr/share/examples/etc/defaults; \
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 defaults/make.conf \
 	    ${DESTDIR}/usr/share/examples/etc/defaults; \
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 defaults/pccard.conf \
 	    ${DESTDIR}/usr/share/examples/etc/defaults; \

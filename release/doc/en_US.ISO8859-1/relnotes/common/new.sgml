@@ -2057,7 +2057,7 @@
 	<para>New <filename>make.conf</filename> options:
 	<varname>SENDMAIL_MC</varname> and
 	<varname>SENDMAIL_ADDITIONAL_MC</varname>.  See
-	<filename>/etc/defaults/make.conf</filename> for more
+	<filename>/usr/share/examples/etc/make.conf</filename> for more
 	information. &merged;</para>
 
 	<para><filename>/etc/mail/Makefile</filename> now supports: the
