@@ -492,7 +492,8 @@ hint.mse.0.irq="5"
 # ar:   Arnet SYNC/570i hdlc sync 2/4 port V.35/X.21 serial driver
 #       (requires sppp)
 # ath:	Atheros a/b/g WiFi adapters (requires ath_hal and wlan)
-# cx:   Cronyx/Sigma multiport sync/async (with Cisco or PPP framing)
+# cx:   Cronyx/Sigma multiport sync/async adapter (requires sppp or NETGRAPH,
+#       depends on NETGRAPH_CRONYX option) 
 # ed:   Western Digital and SMC 80xx; Novell NE1000 and NE2000; 3Com 3C503
 #       HP PC Lan+, various PC Card devices (refer to etc/defaults/pccard.conf)
 #       (requires miibus)
@@ -524,6 +525,7 @@ hint.cx.0.at="isa"
 hint.cx.0.port="0x240"
 hint.cx.0.irq="15"
 hint.cx.0.drq="7"
+#options	NETGRAPH_CRONYX		# Enable NETGRAPH support for Cronyx adapter(s)
 device		ed
 #options 	ED_NO_MIIBUS		# Disable ed miibus support
 hint.ed.0.at="isa"
