@@ -125,7 +125,7 @@ should be set to NULL and
 set to 0.
 .Pp
 The top level names are defined with a CTL_ prefix in
-.Pa <sys/sysctl.h> ,
+.Aq Pa sys/sysctl.h ,
 and are as follows.
 The next and subsequent levels down are found in the include files
 listed here, and described in separate sections below.
@@ -168,7 +168,7 @@ sysctl(mib, 2, NULL, &len, NULL, 0);
 p = malloc(len);
 sysctl(mib, 2, p, &len, NULL, 0);
 .Ed
-.Sh CTL_DEBUG
+.Ss CTL_DEBUG
 The debugging variables vary from system to system.
 A debugging variable may be added or deleted without need to recompile
 .Fn sysctl
@@ -194,7 +194,7 @@ as a debugging variable, the following declaration would be used:
 int dospecialcheck = 1;
 struct ctldebug debug5 = { "dospecialcheck", &dospecialcheck };
 .Ed
-.Sh CTL_VFS
+.Ss CTL_VFS
 A distinguished second level name, VFS_GENERIC,
 is used to get general information about all filesystems.
 One of its third level identifiers is VFS_MAXTYPENUM
@@ -211,7 +211,7 @@ call or from VFS_CONF.
 The third level identifiers available for each filesystem
 are given in the header file that defines the mount
 argument structure for that filesystem.
-.Sh CTL_HW
+.Ss CTL_HW
 The string and integer information available for the CTL_HW level
 is detailed below.
 The changeable column shows whether a process with appropriate
@@ -254,7 +254,7 @@ The machine dependent architecture type.
 .\".It Fa HW_DISKNAMES
 .\".It Fa HW_DISKSTATS
 .El
-.Sh CTL_KERN
+.Ss CTL_KERN
 The string and integer information available for the CTL_KERN level
 is detailed below.
 The changeable column shows whether a process with appropriate
@@ -440,7 +440,7 @@ calls in the
 .Xr update 4
 process.
 .El
-.Sh CTL_MACHDEP
+.Ss CTL_MACHDEP
 The set of variables defined is architecture dependent.
 The following variables are defined for the i386 architecture.
 .Bl -column "CONSOLE_DEVICEXXX" "struct bootinfoXXX" -offset indent
@@ -451,7 +451,7 @@ The following variables are defined for the i386 architecture.
 .It Li CPU_BOOTINFO	struct bootinfo	no
 .It Li CPU_WALLCLOCK	int	yes
 .El
-.Sh CTL_NET
+.Ss CTL_NET
 The string and integer information available for the CTL_NET level
 is detailed below.
 The changeable column shows whether a process with appropriate
@@ -518,7 +518,7 @@ This value applies to normal transport protocols, not to ICMP.
 Returns 1 when UDP checksums are being computed and checked.
 Disabling UDP checksums is strongly discouraged.
 .El
-.Sh CTL_USER
+.Ss CTL_USER
 The string and integer information available for the CTL_USER level
 is detailed below.
 The changeable column shows whether a process with appropriate
@@ -615,7 +615,7 @@ at any one time.
 The minimum maximum number of types supported for the name of a
 timezone.
 .El
-.Sh CTL_VM
+.Ss CTL_VM
 The string and integer information available for the CTL_VM level
 is detailed below.
 The changeable column shows whether a process with appropriate
@@ -721,21 +721,21 @@ A process without appropriate privilege attempts to set a value.
 .El
 .Sh FILES
 .Bl -tag -width <netinet/icmpXvar.h> -compact
-.It Pa <sys/sysctl.h>
+.It Pa Aq sys/sysctl.h
 definitions for top level identifiers, second level kernel and hardware
 identifiers, and user level identifiers
-.It Pa <sys/socket.h>
+.It Pa Aq sys/socket.h
 definitions for second level network identifiers
-.It Pa <sys/gmon.h>
+.It Pa Aq sys/gmon.h
 definitions for third level profiling identifiers
-.It Pa <vm/vm_param.h>
+.It Pa Aq vm/vm_param.h
 definitions for second level virtual memory identifiers
-.It Pa <netinet/in.h>
+.It Pa Aq netinet/in.h
 definitions for third level Internet identifiers and
 fourth level IP identifiers
-.It Pa <netinet/icmp_var.h>
+.It Pa Aq netinet/icmp_var.h
 definitions for fourth level ICMP identifiers
-.It Pa <netinet/udp_var.h>
+.It Pa Aq netinet/udp_var.h
 definitions for fourth level UDP identifiers
 .El
 .Sh SEE ALSO
