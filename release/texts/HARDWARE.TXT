@@ -455,8 +455,8 @@ Mylex PCI to SCSI RAID controllers with 6.x firmware:
 Compatible Mylex controllers not listed should work, but have not been
 verified.
 
-3ware Escalade ATA RAID controllers.  All members of the 5000 and
-6000 series are supported.
+3ware Escalade ATA RAID controllers.  All members of the 5000,
+6000, and 7000 series are supported.
 
 Qlogic Controllers and variants:
 	Qlogic 1020, 1040 SCSI and Ultra SCSI host adapters
