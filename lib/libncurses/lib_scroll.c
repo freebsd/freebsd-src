@@ -114,7 +114,7 @@ int i;
 			    && (parm_rindex || scroll_reverse)
 			   ) {
 				if (change_scroll_region &&
-				    (win->_begy+win->_regtop != 0 || win->_begy+win->_regbottom == lines - 1)
+				    (win->_begy+win->_regtop != 0 || win->_begy+win->_regbottom != lines - 1)
 				   )
 					putp(tparm(change_scroll_region, win->_begy+win->_regtop, win->_begy+win->_regbottom));
 				i = abs(n);
@@ -126,7 +126,7 @@ int i;
 						putp(scroll_reverse);
 				}
 				if (change_scroll_region &&
-				    (win->_begy+win->_regtop != 0 || win->_begy+win->_regbottom == lines - 1)
+				    (win->_begy+win->_regtop != 0 || win->_begy+win->_regbottom != lines - 1)
 				   )
 					putp(tparm(change_scroll_region, 0, lines-1));
 			} else {
@@ -156,7 +156,7 @@ int i;
 			    && (parm_index || scroll_forward)
 			   ) {
 				if (change_scroll_region &&
-				    (win->_begy+win->_regtop != 0 || win->_begy+win->_regbottom == lines - 1)
+				    (win->_begy+win->_regtop != 0 || win->_begy+win->_regbottom != lines - 1)
 				   )
 					putp(tparm(change_scroll_region, win->_begy+win->_regtop, win->_begy+win->_regbottom));
 				mvcur(-1, -1, win->_begy+win->_regbottom, 0);
@@ -168,7 +168,7 @@ int i;
 						putp(scroll_forward);
 				}
 				if (change_scroll_region &&
-				    (win->_begy+win->_regtop != 0 || win->_begy+win->_regbottom == lines - 1)
+				    (win->_begy+win->_regtop != 0 || win->_begy+win->_regbottom != lines - 1)
 				   )
 					putp(tparm(change_scroll_region, 0, lines-1));
 			} else {
