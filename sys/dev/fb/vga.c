@@ -40,6 +40,7 @@
 #include <sys/fcntl.h>
 #include <sys/malloc.h>
 #include <sys/fbio.h>
+#include <sys/stdint.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -2454,8 +2455,8 @@ vga_mmap_buf(video_adapter_t *adp, vm_offset_t offset, int prot)
 	return -1;
 
 #if VGA_DEBUG > 0
-    printf("vga_mmap_buf(): window:0x%x, offset:0x%x\n", 
-	   adp->va_info.vi_window, offset);
+    printf("vga_mmap_buf(): window:0x%jx, offset:0x%jx\n", 
+	   (uintmax_t)adp->va_info.vi_window, (uintmax_t)offset);
 #endif
 
     /* XXX: is this correct? */
