@@ -1,5 +1,0 @@
-NOTE:  The LKM mechanism is now deprecated in favor of the superior KLD
-mechanism as of FreeBSD 3.0-RELEASE.  These examples are provided purely
-for historical reasons and you should see the ../kld directory if you're
-interested in actually writing a dynamically-loadable extention to the
-kernel for any reasonably modern release of FreeBSD.  - jkh
