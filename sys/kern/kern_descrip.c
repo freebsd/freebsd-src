@@ -1319,6 +1319,7 @@ SYSCTL_INT(_kern, KERN_MAXFILESPERPROC, maxfilesperproc, CTLFLAG_RW,
 SYSCTL_INT(_kern, KERN_MAXFILES, maxfiles, CTLFLAG_RW, 
     &maxfiles, 0, "Maximum number of files");
 
+#ifdef DEVFS
 static void
 fildesc_clone(void *arg, char *name, int namelen, dev_t *dev)
 {
@@ -1333,6 +1334,7 @@ fildesc_clone(void *arg, char *name, int namelen, dev_t *dev)
 	*dev = make_dev(&fildesc_cdevsw, u, UID_BIN, GID_BIN, 0666, name);
 	return;
 }
+#endif
 
 static void
 fildesc_drvinit(void *unused)
