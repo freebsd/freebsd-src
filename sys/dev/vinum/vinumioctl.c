@@ -41,7 +41,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumioctl.c,v 1.23 2003/05/23 01:02:22 grog Exp $
+ * $Id: vinumioctl.c,v 1.23 2003/05/23 01:02:22 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -358,11 +358,6 @@ vinum_super_ioctl(dev_t dev,
     case VINUM_RQINFO:
 	return vinum_rqinfo(data);
 #endif
-
-    case VINUM_LABEL:					    /* label a volume */
-	ioctl_reply->error = write_volume_label(*(int *) data);	/* index of the volume to label */
-	ioctl_reply->msg[0] = '\0';			    /* no message */
-	return 0;
 
     case VINUM_REMOVE:
 	remove((struct vinum_ioctl_msg *) data);	    /* remove an object */
