@@ -566,19 +566,14 @@ ether_input(struct ifnet *ifp, struct ether_header *eh, struct mbuf *m)
 			m_freem(m);
 			return;
 		}
+		if (ifp->if_bpf != NULL)
+			bpf_mtap(ifp, m);
 		m->m_pkthdr.rcvif = ifp;
 		eh = mtod(m, struct ether_header *);
 		m->m_data += sizeof(struct ether_header);
 		m->m_len -= sizeof(struct ether_header);
 		m->m_pkthdr.len = m->m_len;
-	}
-
-#ifdef MAC
-	mac_create_mbuf_from_ifnet(ifp, m);
-#endif
-
-	/* Check for a BPF tap */
-	if (ifp->if_bpf != NULL) {
+	} else if (ifp->if_bpf != NULL) {
 		struct m_hdr mh;
 
 		/* This kludge is OK; BPF treats the "mbuf" as read-only */
@@ -587,6 +582,10 @@ ether_input(struct ifnet *ifp, struct ether_header *eh, struct mbuf *m)
 		mh.mh_len = ETHER_HDR_LEN;
 		bpf_mtap(ifp, (struct mbuf *)&mh);
 	}
+
+#ifdef MAC
+	mac_create_mbuf_from_ifnet(ifp, m);
+#endif
 
 	ifp->if_ibytes += m->m_pkthdr.len + sizeof (*eh);
 
