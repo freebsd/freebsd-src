@@ -328,12 +328,12 @@ Turn on verbose debugging information about what ACPI is doing.
 .El
 .Sh SYSCTLS
 .Bl -tag -width indent
-.It Va hw.acpi.cpu.performance_speed
-Sets the speed of the CPU, if it supports multiple speeds, while in
-the performance power profile.
-.It Va hw.acpi.cpu.economy_speed
-Sets the speed of the CPU, if it supports multiple speeds, while in
-the economy power profile.
+.It Va hw.acpi.cpu.throttle_max
+Maximum value for CPU throttling, equal to 100% of the clock rate.
+.It Va hw.acpi.cpu.throttle_state
+Get or set the current throttling state, from 1 to
+.Va hw.acpi.cpu.throttle_max .
+This scales back the CPU clock rate and the corresponding power consumption.
 .It Va hw.acpi.cpu.cx_history
 Debugging information listing all sleep states and the number of
 long and short sleeps for each one.
