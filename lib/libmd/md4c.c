@@ -46,11 +46,11 @@ typedef unsigned long int UINT4;
 #define S33 11
 #define S34 15
 
-static void MD4Transform PROTO_LIST ((UINT4 [4], unsigned char [64]));
+static void MD4Transform PROTO_LIST ((UINT4 [4], const unsigned char [64]));
 static void Encode PROTO_LIST
   ((unsigned char *, UINT4 *, unsigned int));
 static void Decode PROTO_LIST
-  ((UINT4 *, unsigned char *, unsigned int));
+  ((UINT4 *, const unsigned char *, unsigned int));
 
 static unsigned char PADDING[64] = {
   0x80, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -104,7 +104,7 @@ MD4_CTX *context;                                        /* context */
  */
 void MD4Update (context, input, inputLen)
 MD4_CTX *context;                                        /* context */
-unsigned char *input;                                /* input block */
+const unsigned char *input;                                /* input block */
 unsigned int inputLen;                     /* length of input block */
 {
   unsigned int i, index, partLen;
@@ -172,7 +172,7 @@ MD4_CTX *context;                                        /* context */
  */
 static void MD4Transform (state, block)
 UINT4 state[4];
-unsigned char block[64];
+const unsigned char block[64];
 {
   UINT4 a = state[0], b = state[1], c = state[2], d = state[3], x[16];
 
@@ -266,7 +266,7 @@ unsigned int len;
 static void Decode (output, input, len)
 
 UINT4 *output;
-unsigned char *input;
+const unsigned char *input;
 unsigned int len;
 {
   unsigned int i, j;

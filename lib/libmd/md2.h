@@ -31,10 +31,10 @@ typedef struct {
 } MD2_CTX;
 
 void   MD2Init(MD2_CTX *);
-void   MD2Update(MD2_CTX *, unsigned char *, unsigned int);
+void   MD2Update(MD2_CTX *, const unsigned char *, unsigned int);
 void   MD2Final(unsigned char [16], MD2_CTX *);
 char * MD2End(MD2_CTX *);
 char * MD2File(char *);
-char * MD2Data(unsigned char *, unsigned int);
+char * MD2Data(const unsigned char *, unsigned int);
 
 #endif /* _MD2_H_ */

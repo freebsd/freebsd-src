@@ -57,7 +57,7 @@ MDXFile (char *filename)
 }
 
 char *
-MDXData (unsigned char *data, unsigned int len)
+MDXData (const unsigned char *data, unsigned int len)
 {
     unsigned char digest[16];
     MDX_CTX ctx;
