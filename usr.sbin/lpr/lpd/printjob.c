@@ -1846,30 +1846,15 @@ setty(const struct printer *pp)
 	}
 }
 
-#ifdef __STDC__
 #include <stdarg.h>
-#else
-#include <varargs.h>
-#endif
 
 static void
-#ifdef __STDC__
 pstatus(const struct printer *pp, const char *msg, ...)
-#else
-pstatus(pp, msg, va_alist)
-	const struct printer *pp;
-	char *msg;
-        va_dcl
-#endif
 {
 	int fd;
 	char *buf;
 	va_list ap;
-#ifdef __STDC__
 	va_start(ap, msg);
-#else
-	va_start(ap);
-#endif
 
 	umask(0);
 	fd = open(pp->status_file, O_WRONLY|O_CREAT|O_EXLOCK, STAT_FILE_MODE);
