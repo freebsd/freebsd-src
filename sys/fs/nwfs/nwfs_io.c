@@ -440,8 +440,7 @@ nwfs_getpages(ap)
 
 	relpbuf(bp, &nwfs_pbuf_freecnt);
 
-	if (error)
-		VM_OBJECT_LOCK(object);
+	VM_OBJECT_LOCK(object);
 	if (error && (uio.uio_resid == count)) {
 		printf("nwfs_getpages: error %d\n",error);
 		vm_page_lock_queues();
@@ -497,8 +496,7 @@ nwfs_getpages(ap)
 		}
 	}
 	vm_page_unlock_queues();
-	if (error)
-		VM_OBJECT_UNLOCK(object);
+	VM_OBJECT_UNLOCK(object);
 	return 0;
 #endif /* NWFS_RWCACHE */
 }

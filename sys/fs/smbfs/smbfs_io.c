@@ -453,10 +453,10 @@ smbfs_getpages(ap)
 	 */
 	m = pages[reqpage];
 
+	VM_OBJECT_LOCK(object);
 	if (m->valid != 0) {
 		/* handled by vm_fault now	  */
 		/* vm_page_zero_invalid(m, TRUE); */
-		VM_OBJECT_LOCK(object);
 		vm_page_lock_queues();
 		for (i = 0; i < npages; ++i) {
 			if (i != reqpage)
@@ -466,6 +466,7 @@ smbfs_getpages(ap)
 		VM_OBJECT_UNLOCK(object);
 		return 0;
 	}
+	VM_OBJECT_UNLOCK(object);
 
 	smb_makescred(&scred, td, cred);
 
@@ -491,8 +492,7 @@ smbfs_getpages(ap)
 
 	relpbuf(bp, &smbfs_pbuf_freecnt);
 
-	if (error)
-		VM_OBJECT_LOCK(object);
+	VM_OBJECT_LOCK(object);
 	if (error && (uio.uio_resid == count)) {
 		printf("smbfs_getpages: error %d\n",error);
 		vm_page_lock_queues();
@@ -563,8 +563,7 @@ smbfs_getpages(ap)
 		}
 	}
 	vm_page_unlock_queues();
-	if (error)
-		VM_OBJECT_UNLOCK(object);
+	VM_OBJECT_UNLOCK(object);
 	return 0;
 #endif /* SMBFS_RWGENERIC */
 }
