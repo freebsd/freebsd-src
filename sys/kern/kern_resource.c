@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_resource.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_resource.c,v 1.11 1995/02/20 19:42:33 guido Exp $
+ * $Id: kern_resource.c,v 1.12 1995/05/30 08:05:39 rgrimes Exp $
  */
 
 #include <sys/param.h>
@@ -487,7 +487,7 @@ calcru(p, up, sp, ip)
 		sec += tv.tv_sec - runtime.tv_sec;
 		usec += tv.tv_usec - runtime.tv_usec;
 	}
-	u = sec * 1000000 + usec;
+	u = (u_quad_t) sec * 1000000 + usec;
 	st = (u * st) / tot;
 	sp->tv_sec = st / 1000000;
 	sp->tv_usec = st % 1000000;
