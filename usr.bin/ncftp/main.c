@@ -345,7 +345,8 @@ Examples:\n\
 		makeargv();
 		/* setpeer uses this to tell if it was called from the cmd-line. */
 		eventnumber = 0L;
-		(void) cmdOpen(margc, margv);
+		if (cmdOpen(margc, margv) != NOERR)
+			exit(1);
 	}
 	eventnumber = 1L;
 
