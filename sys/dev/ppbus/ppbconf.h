@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ppbconf.h,v 1.10 1999/01/10 12:04:55 nsouch Exp $
+ *	$Id: ppbconf.h,v 1.11 1999/01/10 16:41:14 nsouch Exp $
  *
  */
 #ifndef __PPBCONF_H
@@ -34,7 +34,7 @@
 /*
  * Parallel Port Bus sleep/wakeup queue.
  */
-#define PPBPRI	PZERO+8
+#define PPBPRI	(PZERO+8)
 
 /*
  * Parallel Port Chipset mode masks.
