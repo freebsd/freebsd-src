@@ -498,15 +498,15 @@ ad_transfer(struct ad_request *request)
 	printf("ad_transfer: timeout waiting for DRQ");
     
     /* output the data */
-#ifdef ATA_16BIT_ONLY
-    outsw(adp->controller->ioaddr + ATA_DATA,
-	  (void *)((uintptr_t)request->data + request->donecount),
-	  request->currentsize / sizeof(int16_t));
-#else
-    outsl(adp->controller->ioaddr + ATA_DATA,
-	  (void *)((uintptr_t)request->data + request->donecount),
-	  request->currentsize / sizeof(int32_t));
-#endif
+    if (adp->controller->flags & ATA_USE_16BIT)
+	outsw(adp->controller->ioaddr + ATA_DATA,
+	      (void *)((uintptr_t)request->data + request->donecount),
+	      request->currentsize / sizeof(int16_t));
+    else
+	outsl(adp->controller->ioaddr + ATA_DATA,
+	      (void *)((uintptr_t)request->data + request->donecount),
+	      request->currentsize / sizeof(int32_t));
+
     request->bytecount -= request->currentsize;
 }
 
@@ -589,15 +589,15 @@ oops:
 	}
 
 	/* data ready, read in */
-#ifdef ATA_16BIT_ONLY 
-	insw(adp->controller->ioaddr + ATA_DATA,
-	     (void *)((uintptr_t)request->data + request->donecount), 
-	     request->currentsize / sizeof(int16_t));
-#else
-	insl(adp->controller->ioaddr + ATA_DATA,
-	     (void *)((uintptr_t)request->data + request->donecount), 
-	     request->currentsize / sizeof(int32_t));
-#endif
+	if (adp->controller->flags & ATA_USE_16BIT)
+	    insw(adp->controller->ioaddr + ATA_DATA,
+		 (void *)((uintptr_t)request->data + request->donecount), 
+		 request->currentsize / sizeof(int16_t));
+	else
+	    insl(adp->controller->ioaddr + ATA_DATA,
+		 (void *)((uintptr_t)request->data + request->donecount), 
+		 request->currentsize / sizeof(int32_t));
+
 	request->bytecount -= request->currentsize;
     }
 

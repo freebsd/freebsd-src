@@ -98,16 +98,20 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
     switch (scp->chiptype) {
 
     case 0x71118086:	/* Intel PIIX4 */
-    case 0x71998086:	/* Intel PIIX4 */
+    case 0x71998086:	/* Intel PIIX4e */
+    case 0x24118086:	/* Intel ICH */
+    case 0x24218086:	/* Intel ICH0 */
 	if (udmamode >= 2) {
 	    int32_t mask48, new48;
 
 	    error = ata_command(scp, device, ATA_C_SETFEATURES, 0, 0, 0,
 				ATA_UDMA2, ATA_C_F_SETXFER, ATA_WAIT_READY);
 	    if (bootverbose)
-		printf("ata%d-%s: %s setting up UDMA2 mode on PIIX4 chip\n",
+		printf("ata%d-%s: %s setting up UDMA2 mode on %s chip\n",
 		       scp->lun, (device == ATA_MASTER) ? "master" : "slave",
-		       (error) ? "failed" : "success");
+		       (error) ? "failed" : "success",
+		       (scp->chiptype == 0x24118086) ? "ICH" : 
+			(scp->chiptype == 0x24218086) ? "ICH0" :"PIIX4");
 	    if (!error) {
 		mask48 = (1 << devno) + (3 << (16 + (devno << 2)));
 		new48 = (1 << devno) + (2 << (16 + (devno << 2)));
@@ -143,10 +147,12 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
 	    error = ata_command(scp, device, ATA_C_SETFEATURES, 0, 0, 0,
 				ATA_WDMA2, ATA_C_F_SETXFER, ATA_WAIT_READY);
 	    if (bootverbose)
-		printf("ata%d-%s: %s setting up WDMA2 mode on PIIX%s chip\n",
+		printf("ata%d-%s: %s setting up WDMA2 mode on %s chip\n",
 		       scp->lun, (device == ATA_MASTER) ? "master" : "slave",
 		       (error) ? "failed" : "success",
-		       (scp->chiptype == 0x70108086) ? "3" : "4");
+		       (scp->chiptype == 0x70108086) ? "PIIX3" : 
+		        (scp->chiptype == 0x24118086) ? "ICH" :
+			 (scp->chiptype == 0x24218086) ? "ICH0" :"PIIX4");
 	    if (!error) {
 		if (device == ATA_MASTER) {
 		    mask40 = 0x0000330f;
@@ -251,16 +257,44 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
 
     case 0x05711106:	/* VIA 82C571, 82C586, 82C596 & 82C686 */
     case 0x74091022:	/* AMD 756 */
-	/* UDMA4 mode only on 82C686 and AMD 756 */
-	if ((udmamode >= 4 && ata_find_dev(scp->dev, 0x06861106)) ||
-	    (udmamode >= 4 && scp->chiptype == 0x74091022)) {
-	    error = ata_command(scp, device, ATA_C_SETFEATURES, 0, 0, 0,
+	/* UDMA modes on 82C686 */
+	if (ata_find_dev(scp->dev, 0x06861106)) {
+	    if (udmamode >= 4) {
+		error = ata_command(scp, device, ATA_C_SETFEATURES, 0, 0, 0,
 				    ATA_UDMA4, ATA_C_F_SETXFER, ATA_WAIT_READY);
+		if (bootverbose)
+		    printf("ata%d-%s: %s setting up UDMA4 mode on VIA chip\n",
+		           scp->lun, (device == ATA_MASTER) ? "master":"slave",
+		           (error) ? "failed" : "success");
+		if (!error) {
+	            pci_write_config(scp->dev, 0x53 - devno, 0xe8, 1);
+		    scp->mode[(device == ATA_MASTER) ? 0 : 1] = ATA_UDMA4;
+		    return 0;
+		}
+	    }
+	    if (udmamode >= 2) {
+		error = ata_command(scp, device, ATA_C_SETFEATURES, 0, 0, 0,
+				    ATA_UDMA2, ATA_C_F_SETXFER, ATA_WAIT_READY);
+		if (bootverbose)
+		    printf("ata%d-%s: %s setting up UDMA2 mode on VIA chip\n",
+		           scp->lun, (device == ATA_MASTER) ? "master":"slave",
+		           (error) ? "failed" : "success");
+		if (!error) {
+	            pci_write_config(scp->dev, 0x53 - devno, 0xea, 1);
+		    scp->mode[(device == ATA_MASTER) ? 0 : 1] = ATA_UDMA2;
+		    return 0;
+		}
+	    }
+	}
+
+	/* UDMA4 mode on AMD 756 */
+	if (udmamode >= 4 && scp->chiptype == 0x74091022) {
+	    error = ata_command(scp, device, ATA_C_SETFEATURES, 0, 0, 0,
+				ATA_UDMA4, ATA_C_F_SETXFER, ATA_WAIT_READY);
 	    if (bootverbose)
-		printf("ata%d-%s: %s setting up UDMA4 mode on %s chip\n",
+		printf("ata%d-%s: %s setting up UDMA4 mode on AMD chip\n",
 		       scp->lun, (device == ATA_MASTER) ? "master":"slave",
-		       (error) ? "failed" : "success",
-		       (scp->chiptype == 0x74091022) ? "AMD" : "VIA");
+		       (error) ? "failed" : "success");
 	    if (!error) {
 	        pci_write_config(scp->dev, 0x53 - devno, 0xc3, 1);
 		scp->mode[(device == ATA_MASTER) ? 0 : 1] = ATA_UDMA4;
@@ -268,11 +302,10 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
 	    }
 	}
 
-	/* UDMA2 mode only on 82C586 > rev1, 82C596, 82C686, AMD 756 */
+	/* UDMA2 mode only on 82C586 > rev1, 82C596, AMD 756 */
 	if ((udmamode >= 2 && ata_find_dev(scp->dev, 0x05861106) &&
 	     pci_read_config(scp->dev, 0x08, 1) >= 0x01) ||
 	    (udmamode >= 2 && ata_find_dev(scp->dev, 0x05961106)) ||
-	    (udmamode >= 2 && ata_find_dev(scp->dev, 0x06861106)) ||
 	    (udmamode >= 2 && scp->chiptype == 0x74091022)) {
 	    error = ata_command(scp, device, ATA_C_SETFEATURES, 0, 0, 0,
 				ATA_UDMA2, ATA_C_F_SETXFER, ATA_WAIT_READY);
@@ -288,7 +321,6 @@ ata_dmainit(struct ata_softc *scp, int32_t device,
 	    }
 	}
 	if (wdmamode >= 2 && apiomode >= 4) {
-	    /* set WDMA2 mode timing */
 	    error = ata_command(scp, device, ATA_C_SETFEATURES, 0, 0, 0,
 				ATA_WDMA2, ATA_C_F_SETXFER, ATA_WAIT_READY);
 	    if (bootverbose)

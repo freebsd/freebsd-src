@@ -966,9 +966,12 @@ acdioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
 	break;
 
     case CDRIOCCLOSEDISK:
-	if (!(cdp->flags & F_WRITTEN) || !(cdp->flags & F_DISK_OPEN)) {
+	if (!(cdp->flags & F_DISK_OPEN)) {
 	    error = EINVAL;
 	    printf("acd%d: sequence error (nothing to close)\n", cdp->lun);
+	}
+	else if (!(cdp->flags & F_WRITTEN)) {
+	    cdp->flags &= ~(F_DISK_OPEN | F_TRACK_OPEN);
 	}
 	else {
 	    error = acd_close_disk(cdp);
