@@ -48,6 +48,9 @@ If there are threads blocked on the semaphore when
 is called, then the highest priority thread that has been blocked the longest on
 the semaphore will be allowed to return from
 .Fn sem_wait .
+.Pp
+.Fn sem_post
+is signal-reentrant and may be called within signal handlers.
 .Sh RETURN VALUES
 If successful,
 .Fn sem_post
