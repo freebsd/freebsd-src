@@ -482,6 +482,11 @@ static struct xpt_quirk_entry xpt_quirk_table[] =
 		CAM_QUIRK_NOLUNS, /*mintags*/0, /*maxtags*/0
 	},
 	{
+		/* TeraSolutions special settings for TRC-22 RAID */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "TERASOLU", "TRC-22", "*" },
+		  /*quirks*/0, /*mintags*/55, /*maxtags*/255
+	},
+	{
 		/* Default tagged queuing parameters for all devices */
 		{
 		  T_ANY, SIP_MEDIA_REMOVABLE|SIP_MEDIA_FIXED,
