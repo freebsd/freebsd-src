@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995 John Birrell <jb@cimlogic.com.au>.
+ * Copyright (c) 1995-1998 John Birrell <jb@cimlogic.com.au>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: uthread_open.c,v 1.3 1997/05/03 03:57:21 jb Exp $
  *
  */
 #include <stdarg.h>
@@ -49,9 +49,6 @@ open(const char *path, int flags,...)
 	int             status;
 	va_list         ap;
 
-	/* Block signals: */
-	_thread_kern_sig_block(&status);
-
 	/* Check if the file is being created: */
 	if (flags & O_CREAT) {
 		/* Get the creation mode: */
@@ -70,9 +67,6 @@ open(const char *path, int flags,...)
 		/* Reset the file descriptor: */
 		fd = -1;
 	}
-
-	/* Unblock signals: */
-	_thread_kern_sig_unblock(status);
 
 	/* Return the file descriptor or -1 on error: */
 	return (fd);

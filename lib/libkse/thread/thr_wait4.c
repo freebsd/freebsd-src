@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995 John Birrell <jb@cimlogic.com.au>.
+ * Copyright (c) 1995-1998 John Birrell <jb@cimlogic.com.au>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -39,23 +39,23 @@
 pid_t
 wait4(pid_t pid, int *istat, int options, struct rusage * rusage)
 {
-	int             status;
 	pid_t           ret;
-	_thread_kern_sig_block(&status);
 
 	/* Perform a non-blocking wait4 syscall: */
 	while ((ret = _thread_sys_wait4(pid, istat, options | WNOHANG, rusage)) == 0 && (options & WNOHANG) == 0) {
+		/* Reset the interrupted operation flag: */
+		_thread_run->interrupted = 0;
+
 		/* Schedule the next thread while this one waits: */
 		_thread_kern_sched_state(PS_WAIT_WAIT, __FILE__, __LINE__);
 
 		/* Check if this call was interrupted by a signal: */
-		if (errno == EINTR) {
+		if (_thread_run->interrupted) {
+			errno = EINTR;
 			ret = -1;
 			break;
 		}
-		_thread_kern_sig_block(NULL);
 	}
-	_thread_kern_sig_unblock(status);
 	return (ret);
 }
 #endif

@@ -60,6 +60,10 @@
  */
 #define PANIC(string)   _thread_exit(__FILE__,__LINE__,string)
 
+/* Output debug messages like this: */
+#define	stdout_debug(_x)	_write(1,_x,strlen(_x));
+#define	stderr_debug(_x)	_write(2,_x,strlen(_x));
+
 /*
  * State change macro:
  */
@@ -97,6 +101,11 @@ struct pthread_mutex {
 	struct pthread			*m_owner;
 	union pthread_mutex_data	m_data;
 	long				m_flags;
+
+	/*
+	 * Lock for accesses to this structure.
+	 */
+	long			access_lock;
 };
 
 /*
@@ -131,6 +140,11 @@ struct pthread_cond {
 	struct pthread_queue	c_queue;
 	void			*c_data;
 	long			c_flags;
+
+	/*
+	 * Lock for accesses to this structure.
+	 */
+	long			access_lock;
 };
 
 struct pthread_cond_attr {
@@ -204,6 +218,7 @@ struct pthread_attr {
 
 struct pthread_key {
 	pthread_mutex_t mutex;
+	long            access_lock;
 	long            count;
 	void            (*destructor) ();
 };
@@ -243,6 +258,13 @@ enum pthread_state {
  * File descriptor table structure.
  */
 struct fd_table_entry {
+	/*
+	 * Lock for accesses to this file descriptor table
+	 * entry. This is passed to _spinlock() to provide atomic
+	 * access to this structure. It does *not* represent the
+	 * state of the lock on the file descriptor.
+	 */
+	long			access_lock;
 	struct pthread_queue	r_queue;	/* Read queue.                        */
 	struct pthread_queue	w_queue;	/* Write queue.                       */
 	struct pthread		*r_owner;	/* Ptr to thread owning read lock.    */
@@ -288,6 +310,11 @@ struct pthread {
 	char			*name;
 
 	/*
+	 * Lock for accesses to this thread structure.
+	 */
+	long			access_lock;
+
+	/*
 	 * Pointer to the next thread in the thread linked list.
 	 */
 	struct pthread	*nxt;
@@ -300,13 +327,6 @@ struct pthread {
 	void			*arg;
 	void			*stack;
 	struct pthread_attr	attr;
-
-	/*
-	 * Thread-specific signal handler interface:
-	 *
-	 * Array of signal actions for this thread.
-	 */
-	struct  sigaction act[NSIG];
 
 #if (defined(__FreeBSD__) || defined(__NetBSD__)) && defined(__i386__)
 	/*
@@ -335,17 +355,10 @@ struct pthread {
 	int	sig_saved;
 
 	/*
-	 * Current signal mask and array of pending signals.
+	 * Current signal mask and pending signals.
 	 */
 	sigset_t	sigmask;
-	int		sigpend[NSIG];
-
-	/*
-	 * Pointer to the parent thread for which the current thread is
-	 * a signal handler thread, otherwise NULL if the current thread
-	 * is not a signal handler thread.
-	 */
-	struct  pthread	*parent_thread;
+	sigset_t	sigpend;
 
 	/* Thread state: */
 	enum pthread_state	state;
@@ -463,7 +476,7 @@ SCLASS struct pthread   * volatile _thread_link_list
 
 /*
  * Array of kernel pipe file descriptors that are used to ensure that
- * no signals are missed in calls to _thread_sys_select.
+ * no signals are missed in calls to _select.
  */
 SCLASS int              _thread_kern_pipe[2]
 #ifdef GLOBAL_PTHREAD_PRIVATE
@@ -475,6 +488,12 @@ SCLASS int              _thread_kern_pipe[2]
 ;
 #endif
 SCLASS int              _thread_kern_in_select
+#ifdef GLOBAL_PTHREAD_PRIVATE
+= 0;
+#else
+;
+#endif
+SCLASS int              _thread_kern_in_sched
 #ifdef GLOBAL_PTHREAD_PRIVATE
 = 0;
 #else
@@ -558,6 +577,11 @@ SCLASS int    _thread_dtablesize        /* Descriptor table size.           */
 ;
 #endif
 
+/*
+ * Array of signal actions for this process.
+ */
+struct  sigaction _thread_sigact[NSIG];
+
 /* Undefine the storage class specifier: */
 #undef  SCLASS
 
@@ -568,8 +592,18 @@ __BEGIN_DECLS
 char    *__ttyname_basic(int);
 char    *__ttyname_r_basic(int, char *, size_t);
 char    *ttyname_r(int, char *, size_t);
+int     _find_dead_thread(pthread_t);
+int     _find_thread(pthread_t);
 int     _thread_create(pthread_t *,const pthread_attr_t *,void *(*start_routine)(void *),void *,pthread_t);
 int     _thread_fd_lock(int, int, struct timespec *,char *fname,int lineno);
+void    _dispatch_signals(void);
+void    _thread_signal(pthread_t, int);
+void    _lock_dead_thread_list(void);
+void    _lock_thread(void);
+void    _lock_thread_list(void);
+void    _unlock_dead_thread_list(void);
+void    _unlock_thread(void);
+void    _unlock_thread_list(void);
 void    _thread_exit(char *, int, char *);
 void    _thread_fd_unlock(int, int);
 void    *_thread_cleanup(pthread_t);
@@ -579,8 +613,6 @@ void    _thread_init(void);
 void    _thread_kern_sched(struct sigcontext *);
 void    _thread_kern_sched_state(enum pthread_state,char *fname,int lineno);
 void    _thread_kern_set_timeout(struct timespec *);
-void    _thread_kern_sig_block(int *);
-void    _thread_kern_sig_unblock(int);
 void    _thread_sig_handler(int, int, struct sigcontext *);
 void    _thread_start(void);
 void    _thread_start_sig_handler(void);
@@ -597,11 +629,9 @@ int     _thread_sys_sigaction(int, const struct sigaction *, struct sigaction *)
 int     _thread_sys_sigpending(sigset_t *);
 int     _thread_sys_sigprocmask(int, const sigset_t *, sigset_t *);
 int     _thread_sys_sigsuspend(const sigset_t *);
-int     _thread_sys_sigblock(int);
 int     _thread_sys_siginterrupt(int, int);
 int     _thread_sys_sigpause(int);
 int     _thread_sys_sigreturn(struct sigcontext *);
-int     _thread_sys_sigsetmask(int);
 int     _thread_sys_sigstack(const struct sigstack *, struct sigstack *);
 int     _thread_sys_sigvec(int, struct sigvec *, struct sigvec *);
 void    _thread_sys_psignal(unsigned int, const char *);
@@ -732,17 +762,6 @@ int     _thread_sys_creat(const char *, mode_t);
 int     _thread_sys_fcntl(int, int, ...);
 int     _thread_sys_flock(int, int);
 int     _thread_sys_open(const char *, int, ...);
-#endif
-
-/* #include <setjmp.h> */
-#ifdef  _SETJMP_H_
-int     __thread_sys_setjmp(jmp_buf);
-int     _thread_sys_setjmp(jmp_buf);
-int     _thread_sys_sigsetjmp(sigjmp_buf, int);
-void    __thread_sys_longjmp(jmp_buf, int);
-void    _thread_sys_longjmp(jmp_buf, int);
-void    _thread_sys_longjmperror(void);
-void    _thread_sys_siglongjmp(sigjmp_buf, int);
 #endif
 
 /* #include <sys/ioctl.h> */

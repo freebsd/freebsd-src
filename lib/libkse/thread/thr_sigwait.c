@@ -43,9 +43,6 @@ sigwait(const sigset_t * set, int *sig)
 	int status;
 	sigset_t oset;
 
-	/* Block signals: */
-	_thread_kern_sig_block(&status);
-
 	/* Save the current sigmal mask: */
 	oset = _thread_run->sigmask;
 
@@ -55,17 +52,11 @@ sigwait(const sigset_t * set, int *sig)
 	/* Wait for a signal: */
 	_thread_kern_sched_state(PS_SIGWAIT, __FILE__, __LINE__);
 
-	/* Block signals again: */
-	_thread_kern_sig_block(NULL);
-
 	/* Return the signal number to the caller: */
 	*sig = _thread_run->signo;
 
 	/* Restore the signal mask: */
 	_thread_run->sigmask = oset;
-
-	/* Unblock signals: */
-	_thread_kern_sig_unblock(status);
 
 	/* Return the completion status: */
 	return (ret);

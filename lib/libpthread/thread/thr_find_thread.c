@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995-1998 John Birrell <jb@cimlogic.com.au>
+ * Copyright (c) 1998 John Birrell <jb@cimlogic.com.au>.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,21 +30,68 @@
  * SUCH DAMAGE.
  *
  */
-#include <sys/types.h>
-#include <sys/socket.h>
+#include <errno.h>
 #ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
 
+/* Find a thread in the linked list of active threads: */
 int
-setsockopt(int fd, int level, int optname, const void *optval, int optlen)
+_find_thread(pthread_t pthread)
 {
-	int             ret;
+	pthread_t pthread1;
 
-	if ((ret = _thread_fd_lock(fd, FD_RDWR, NULL, __FILE__, __LINE__)) == 0) {
-		ret = _thread_sys_setsockopt(fd, level, optname, optval, optlen);
-		_thread_fd_unlock(fd, FD_RDWR);
+	/* Check if the caller has specified an invalid thread: */
+	if (pthread == NULL || pthread->magic != PTHREAD_MAGIC)
+		/* Invalid thread: */
+		return(EINVAL);
+
+	/* Lock the thread list: */
+	_lock_thread_list();
+
+	/* Point to the first thread in the list: */
+	pthread1 = _thread_link_list;
+
+	/* Search for the thread to join to: */
+	while (pthread1 != NULL && pthread1 != pthread) {
+		/* Point to the next thread: */
+		pthread1 = pthread1->nxt;
 	}
-	return ret;
+
+	/* Unlock the thread list: */
+	_unlock_thread_list();
+
+	/* Return zero if the thread exists: */
+	return ((pthread1 != NULL) ? 0:ESRCH);
+}
+
+/* Find a thread in the linked list of dead threads: */
+int
+_find_dead_thread(pthread_t pthread)
+{
+	pthread_t pthread1;
+
+	/* Check if the caller has specified an invalid thread: */
+	if (pthread == NULL || pthread->magic != PTHREAD_MAGIC)
+		/* Invalid thread: */
+		return(EINVAL);
+
+	/* Lock the dead thread list: */
+	_lock_dead_thread_list();
+
+	/* Point to the first thread in the list: */
+	pthread1 = _thread_dead;
+
+	/* Search for the thread to join to: */
+	while (pthread1 != NULL && pthread1 != pthread) {
+		/* Point to the next thread: */
+		pthread1 = pthread1->nxt;
+	}
+
+	/* Unlock the dead thread list: */
+	_unlock_dead_thread_list();
+
+	/* Return zero if the thread exists: */
+	return ((pthread1 != NULL) ? 0:ESRCH);
 }
 #endif

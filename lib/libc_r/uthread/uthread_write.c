@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995 John Birrell <jb@cimlogic.com.au>.
+ * Copyright (c) 1995-1998 John Birrell <jb@cimlogic.com.au>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: uthread_write.c,v 1.3 1997/04/01 22:44:17 jb Exp $
+ * $Id: uthread_write.c,v 1.4 1998/02/13 01:27:33 julian Exp $
  *
  */
 #include <sys/types.h>
@@ -45,7 +45,6 @@ ssize_t
 write(int fd, const void *buf, size_t nbytes)
 {
 	int	ret;
-	int	status;
 
 	/* Lock the file descriptor for write: */
 	if ((ret = _thread_fd_lock(fd, FD_WRITE, NULL,
@@ -54,7 +53,6 @@ write(int fd, const void *buf, size_t nbytes)
 		while ((ret = _thread_sys_write(fd, buf, nbytes)) < 0) {
 			if ((_thread_fd_table[fd]->flags & O_NONBLOCK) == 0 &&
 			    (errno == EWOULDBLOCK || errno == EAGAIN)) {
-				_thread_kern_sig_block(&status);
 				_thread_run->data.fd.fd = fd;
 				_thread_kern_set_timeout(NULL);
 
@@ -69,6 +67,7 @@ write(int fd, const void *buf, size_t nbytes)
 				 * interrupted by a signal
 				 */
 				if (_thread_run->interrupted) {
+					errno = EINTR;
 					ret = -1;
 					break;
 				}

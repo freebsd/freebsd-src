@@ -53,6 +53,9 @@ sigsuspend(const sigset_t * set)
 		/* Wait for a signal: */
 		_thread_kern_sched_state(PS_SIGWAIT, __FILE__, __LINE__);
 
+		/* Always return an interrupted error: */
+		errno = EINTR;
+
 		/* Restore the signal mask: */
 		_thread_run->sigmask = oset;
 	} else {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1995 John Birrell <jb@cimlogic.com.au>.
+ * Copyright (c) 1995-1998 John Birrell <jb@cimlogic.com.au>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -47,8 +47,8 @@ fork(void)
 	pthread_t	pthread;
 	pthread_t	pthread_next;
 
-	/* Block signals to avoid being interrupted at a bad time: */
-	_thread_kern_sig_block(&status);
+	/* Lock the thread list: */
+	_lock_thread_list();
 
 	/* Fork a new process: */
 	if ((ret = _thread_sys_fork()) <= 0) {
@@ -59,12 +59,12 @@ fork(void)
 		_thread_sys_close(_thread_kern_pipe[1]);
 
 		/* Reset signals pending for the running thread: */
-		memset(_thread_run->sigpend, 0, sizeof(_thread_run->sigpend));
+		_thread_run->sigpend = 0;
 
 		/*
 		 * Create a pipe that is written to by the signal handler to
 		 * prevent signals being missed in calls to
-		 * _thread_sys_select: 
+		 * _select: 
 		 */
 		if (_thread_sys_pipe(_thread_kern_pipe) != 0) {
 			/* Cannot create pipe, so abort: */
@@ -122,8 +122,8 @@ fork(void)
 		}
 	}
 
-	/* Unblock signals: */
-	_thread_kern_sig_unblock(status);
+	/* Unock the thread list: */
+	_unlock_thread_list();
 
 	/* Return the process ID: */
 	return (ret);

@@ -42,14 +42,11 @@ pthread_detach(pthread_t pthread)
 	int             status;
 	pthread_t       next_thread;
 
-	/* Block signals: */
-	_thread_kern_sig_block(&status);
-
 	/* Check for invalid calling parameters: */
-	if (pthread == NULL || pthread->magic != PTHREAD_MAGIC) {
+	if (pthread == NULL || pthread->magic != PTHREAD_MAGIC)
 		/* Return an invalid argument error: */
 		rval = EINVAL;
-	}
+
 	/* Check if the thread has not been detached: */
 	else if ((pthread->attr.flags & PTHREAD_DETACHED) == 0) {
 		/* Flag the thread as detached: */
@@ -60,13 +57,9 @@ pthread_detach(pthread_t pthread)
 			/* Make the thread run: */
 			PTHREAD_NEW_STATE(next_thread,PS_RUNNING);
 		}
-	} else {
+	} else
 		/* Return an error: */
 		rval = EINVAL;
-	}
-
-	/* Unblock signals: */
-	_thread_kern_sig_unblock(status);
 
 	/* Return the completion status: */
 	return (rval);
