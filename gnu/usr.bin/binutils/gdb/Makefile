@@ -59,7 +59,7 @@ CFLAGS+=	-I${.CURDIR}/${TARGET_ARCH}
 CFLAGS+=	-I${SRCDIR}/binutils -I${SRCDIR}/bfd
 CFLAGS+=	-I${GDBDIR}/gdb -I${GDBDIR}/gdb/config
 CFLAGS+=        -I${.CURDIR}/../../../../../include/gnu
-CFLAGS+=	-I$(.CURDIR) -I${DESTDIR}/usr/include/readline
+CFLAGS+=        -I$(.CURDIR)
 
 YFLAGS=
 
