@@ -8,7 +8,7 @@
  * file.
  *
  * Written by Julian Elischer (julian@dialix.oz.au)
- *      $Id: scsi_base.c,v 1.28 1995/04/23 22:07:50 gibbs Exp $
+ *      $Id: scsi_base.c,v 1.29 1995/05/30 08:13:27 rgrimes Exp $
  */
 
 #define SPLSD splbio
@@ -848,7 +848,7 @@ void scsi_sense_print(xs)
 			printf(" info?:%lx", info);
 
 		if (ext->extra_len >= 4) {
-			if (memcmp(ext->cmd_spec_info, "\0\0\0\0", 4)) {
+			if (bcmp(ext->cmd_spec_info, "\0\0\0\0", 4)) {
 				printf(" csi:%x,%x,%x,%x",
 				ext->cmd_spec_info[0],
 				ext->cmd_spec_info[1],
