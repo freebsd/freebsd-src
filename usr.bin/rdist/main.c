@@ -32,13 +32,17 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1983, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)main.c	8.1 (Berkeley) 6/9/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include "defs.h"
@@ -229,9 +233,10 @@ main(argc, argv)
 static void
 usage()
 {
-	printf("Usage: rdist [-nqbhirvwyD] [-P /path/to/rsh ] [-f distfile] [-d var=value]\n");
-	printf("             [-m host] [file ...]\n");
-	printf("or:    rdist [-nqbhirvwyD] [-P /path/to/rsh ] -c source [...] machine[:dest]\n");
+	printf("%s\n%s\n%s\n",
+"usage: rdist [-nqbhirvwyD] [-P /path/to/rsh ] [-f distfile] [-d var=value]",
+"             [-m host] [file ...]",
+"       rdist [-nqbhirvwyD] [-P /path/to/rsh ] -c source [...] machine[:dest]");
 	exit(1);
 }
 
