@@ -1,5 +1,5 @@
 dnl***************************************************************************
-dnl Copyright (c) 1998,1999,2000,2001,2002 Free Software Foundation, Inc.    *
+dnl Copyright (c) 1998-2001,2002 Free Software Foundation, Inc.              *
 dnl                                                                          *
 dnl Permission is hereby granted, free of charge, to any person obtaining a  *
 dnl copy of this software and associated documentation files (the            *
@@ -26,16 +26,16 @@ dnl sale, use or other dealings in this Software without prior written       *
 dnl authorization.                                                           *
 dnl***************************************************************************
 dnl
-dnl Author: Thomas E. Dickey <dickey@clark.net> 1996,1997
+dnl Author: Thomas E. Dickey 1995-on
 dnl
-dnl $Id: configure.in,v 1.267 2002/05/18 21:14:13 tom Exp $
+dnl $Id: configure.in,v 1.268 2002/06/15 17:40:45 tom Exp $
 dnl Process this file with autoconf to produce a configure script.
 dnl
 dnl See http://dickey.his.com/autoconf/ for additional information.
 dnl
 dnl ---------------------------------------------------------------------------
-AC_PREREQ(2.13.20000819)
-AC_REVISION($Revision: 1.267 $)
+AC_PREREQ(2.13.20020210)
+AC_REVISION($Revision: 1.268 $)
 AC_INIT(ncurses/base/lib_initscr.c)
 AC_CONFIG_HEADER(include/ncurses_cfg.h:include/ncurses_cfg.hin)
 
@@ -723,15 +723,6 @@ AC_ARG_WITH(develop,
 	[with_develop=no])
 AC_MSG_RESULT($with_develop)
 
-###   use option --enable-colorfgbg to turn on use of $COLORFGBG environment
-AC_MSG_CHECKING(if you want colorfgbg code)
-AC_ARG_ENABLE(enable-colorfgbg,
-	[  --enable-colorfgbg      compile with \$COLORFGBG code],
-	[with_colorfgbg=$enableval],
-	[with_colorfgbg=$with_develop])
-AC_MSG_RESULT($with_colorfgbg)
-test "$with_colorfgbg" = yes && AC_DEFINE(USE_COLORFGBG)
-
 ###   use option --enable-hard-tabs to turn on use of hard-tabs optimize
 AC_MSG_CHECKING(if you want hard-tabs code)
 AC_ARG_ENABLE(hard-tabs,
@@ -778,6 +769,15 @@ AC_ARG_ENABLE(hashmap,
 	[with_hashmap=yes])
 AC_MSG_RESULT($with_hashmap)
 test "$with_hashmap" = yes && AC_DEFINE(USE_HASHMAP)
+
+###   use option --enable-colorfgbg to turn on use of $COLORFGBG environment
+AC_MSG_CHECKING(if you want colorfgbg code)
+AC_ARG_ENABLE(colorfgbg,
+	[  --enable-colorfgbg      compile with \$COLORFGBG code],
+	[with_colorfgbg=$enableval],
+	[with_colorfgbg=no])
+AC_MSG_RESULT($with_colorfgbg)
+test "$with_colorfgbg" = yes && AC_DEFINE(USE_COLORFGBG)
 
 AC_MSG_CHECKING(if you want experimental safe-sprintf code)
 AC_ARG_ENABLE(safe-sprintf,

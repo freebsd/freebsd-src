@@ -34,7 +34,7 @@
 
 #include <ctype.h>
 
-MODULE_ID("$Id: varargs.c,v 1.1 2001/10/20 20:37:48 tom Exp $")
+MODULE_ID("$Id: varargs.c,v 1.2 2002/06/01 16:16:00 tom Exp $")
 
 #ifdef TRACE
 
@@ -53,17 +53,18 @@ typedef enum {
 NCURSES_EXPORT(char *)
 _nc_varargs(const char *fmt, va_list ap)
 {
+    static char dummy[] = "";
     static char *result_buf;
     static size_t result_len;
 
     char buffer[BUFSIZ];
 
     if (fmt == 0 || *fmt == '\0')
-	return "";
+	return dummy;
     if (result_len == 0)
 	result_buf = typeMalloc(char, result_len = BUFSIZ);
     if (result_buf == 0)
-	return "";
+	return dummy;
     *result_buf = '\0';
 
     while (*fmt != '\0') {

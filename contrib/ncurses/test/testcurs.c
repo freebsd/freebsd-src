@@ -7,7 +7,7 @@
  *  wrs(5/28/93) -- modified to be consistent (perform identically) with either
  *                  PDCurses or under Unix System V, R4
  *
- * $Id: testcurs.c,v 1.28 2002/02/03 00:29:22 tom Exp $
+ * $Id: testcurs.c,v 1.29 2002/06/01 16:17:52 tom Exp $
  */
 
 #include <test.priv.h>
@@ -387,13 +387,13 @@ inputTest(WINDOW *win)
 
     repeat = 0;
     do {
-	static char *fmt[] = {
+	static const char *fmt[] = {
 	    "%d %10s",
 	    "%d %[a-zA-Z]s",
 	    "%d %[][a-zA-Z]s",
 	    "%d %[^0-9]"
 	};
-	char *format = fmt[repeat % SIZEOF(fmt)];
+	const char *format = fmt[repeat % SIZEOF(fmt)];
 
 	wclear(win);
 	mvwaddstr(win, 3, 2, "The window should have moved");

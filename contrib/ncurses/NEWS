@@ -1,10 +1,45 @@
--- $Id: NEWS,v 1.686 2002/05/18 21:26:10 tom Exp $
+-- $Id: NEWS,v 1.690 2002/06/16 00:31:21 tom Exp $
 
 This is a log of changes that ncurses has gone through since Zeyd started
 working with Pavel Curtis' original work, pcurses, in 1992.
 
 Changes through 1.9.9e are recorded by Zeyd M. Ben-Halim.
 Changes since 1.9.9e are recorded by Thomas Dickey.
+
+20020615
+	+ modify wgetch() to allow returning ungetch'd KEY_RESIZE as a function
+	  key code in get_wch().
+	+ extended resize-handling in test/ncurses 'a' menu to the entire
+	  stack of windows created with 'w' commands.
+	+ improve $COLORFGBG feature by interpreting an out-of-range color
+	  value as an SGR 39 or 49, for foreground/background respectively.
+	+ correct a typo in configure --enable-colorfgbg option, and move it
+	  to the experimental section (cf: 20011208).
+
+20020601
+	+ add logic to dump_entry.c to remove function-key definitions that do
+	  not fit into the 1023-byte limit for generated termcaps.  This makes
+	  hds200 fit.
+	+ more improvements to tic's warnings, including logic to ignore
+	  differences between delay values in sgr strings.
+	+ move definition of KEY_RESIZE into MKkeydefs.sh script, to
+	  accommodate Caps.osf1r5 which introduced a conflicting definition.
+
+20020525
+	+ add simple resize-handling in test/ncurses.c 'a' menu.
+	+ fixes in keyname() and _tracechar() to handle negative values.
+	+ make tic's warnings about mismatches in sgr strings easier to follow.
+	+ correct tic checks for number of parameters in smgbp and smglp.
+	+ improve scoansi terminfo entry, and add scoansi-new entry -TD
+	+ add pcvt25-color terminfo entry -TD
+	+ add kf13-kf48 strings to cons25w terminfo entry (reported by Stephen
+	  Hurd <deuce@lordlegacy.org> in newsgroup lucky.freebsd.bugs) -TD
+	+ add entrypoint _nc_trace_ttymode(), use this to distinguish the
+	  Ottyb and Nttyb members of terminal (aka cur_term), for tracing.
+
+20020523
+	+ correct and simplify logic for lib_pad.c change in 20020518 (reported
+	  by Mike Castle).
 
 20020518
 	+ fix lib_pad.c for case of drawing a double-width character which
