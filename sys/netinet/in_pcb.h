@@ -370,7 +370,7 @@ void	in_pcbnotifyall(struct inpcbinfo *pcbinfo, struct in_addr,
 void	in_pcbrehash(struct inpcb *);
 void	in_pcbsetsolabel(struct socket *so);
 int	in_setpeeraddr(struct socket *so, struct sockaddr **nam, struct inpcbinfo *pcbinfo);
-int	in_setsockaddr(struct socket *so, struct sockaddr **nam, struct inpcbinfo *pcbinfo);;
+int	in_setsockaddr(struct socket *so, struct sockaddr **nam, struct inpcbinfo *pcbinfo);
 struct sockaddr *
 	in_sockaddr(in_port_t port, struct in_addr *addr);
 void	in_pcbsosetlabel(struct socket *so);

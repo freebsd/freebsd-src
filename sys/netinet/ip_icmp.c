@@ -897,7 +897,7 @@ badport_bandlim(int which)
 	static struct rate {
 		const char	*type;
 		struct timeval	lasttime;
-		int		curpps;;
+		int		curpps;
 	} rates[BANDLIM_MAX+1] = {
 		{ "icmp unreach response" },
 		{ "icmp ping response" },
