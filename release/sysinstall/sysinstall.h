@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.170 1999/07/18 10:18:06 jkh Exp $
+ * $Id: sysinstall.h,v 1.171 1999/07/19 10:06:17 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -148,6 +148,8 @@
 #define VAR_PCNFSD			"pcnfsd"
 #define VAR_PKG_TMPDIR			"PKG_TMPDIR"
 #define VAR_PORTS_PATH			"ports"
+#define VAR_PPP_ENABLE			"ppp_enable"
+#define VAR_PPP_PROFILE			"ppp_profile"
 #define VAR_RELNAME			"releaseName"
 #define VAR_ROOT_SIZE			"rootSize"
 #define VAR_ROUTER			"router"
