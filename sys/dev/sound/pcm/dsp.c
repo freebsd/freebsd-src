@@ -808,7 +808,7 @@ dsp_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct thread *td)
 		}
 		break;
 
-    	case SNDCTL_DSP_GETISPACE: /* XXX Space for reading? Makes no sense... */
+    	case SNDCTL_DSP_GETISPACE:
 		/* return the size of data available in the input queue */
 		{
 	    		audio_buf_info *a = (audio_buf_info *)arg;
@@ -816,8 +816,7 @@ dsp_ioctl(dev_t i_dev, u_long cmd, caddr_t arg, int mode, struct thread *td)
 	        		struct snd_dbuf *bs = rdch->bufsoft;
 
 				CHN_LOCK(rdch);
-				chn_rdupdate(rdch);
-				a->bytes = sndbuf_getfree(bs);
+				a->bytes = sndbuf_getready(bs);
 	        		a->fragments = a->bytes / sndbuf_getblksz(bs);
 	        		a->fragstotal = sndbuf_getblkcnt(bs);
 	        		a->fragsize = sndbuf_getblksz(bs);
