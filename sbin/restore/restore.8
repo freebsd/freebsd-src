@@ -398,6 +398,11 @@ it has no control over inode allocation;
 thus a full dump must be done to get a new set of directories
 reflecting the new inode numbering,
 even though the contents of the files is unchanged.
+.Pp
+To do a network restore, you have to run restore as root.  This is due
+to the previous security history of dump and restore.  (restore is
+written to be setuid root, but we are not certain all bugs are gone
+from the restore code - run setuid at your own risk.)
 .Sh HISTORY
 The
 .Nm restore
