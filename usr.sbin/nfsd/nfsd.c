@@ -438,8 +438,7 @@ main(argc, argv, envp)
 						"can't create udp6 socket");
 					nfsd_exit(1);
 				}
-				if (setsockopt(sock, IPPROTO_IPV6,
-				    IPV6_BINDV6ONLY,
+				if (setsockopt(sock, IPPROTO_IPV6, IPV6_V6ONLY,
 				    &on, sizeof on) < 0) {
 					syslog(LOG_ERR,
 					    "can't set v6-only binding for "
@@ -581,7 +580,7 @@ main(argc, argv, envp)
 					syslog(LOG_ERR,
 					    "setsockopt SO_REUSEADDR: %m");
 				if (setsockopt(tcp6sock, IPPROTO_IPV6,
-				    IPV6_BINDV6ONLY, &on, sizeof on) < 0) {
+				    IPV6_V6ONLY, &on, sizeof on) < 0) {
 					syslog(LOG_ERR,
 					"can't set v6-only binding for tcp6 "
 					    "socket: %m");

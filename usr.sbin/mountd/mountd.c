@@ -362,12 +362,12 @@ main(argc, argv)
 	 * by default on NFS sockets too.
 	 */
 	if (udp6sock != -1 && setsockopt(udp6sock, IPPROTO_IPV6,
-		IPV6_BINDV6ONLY, &one, sizeof one) < 0){
+		IPV6_V6ONLY, &one, sizeof one) < 0){
 		syslog(LOG_ERR, "can't disable v4-in-v6 on UDP socket");
 		exit(1);
 	}
 	if (tcp6sock != -1 && setsockopt(tcp6sock, IPPROTO_IPV6,
-		IPV6_BINDV6ONLY, &one, sizeof one) < 0){
+		IPV6_V6ONLY, &one, sizeof one) < 0){
 		syslog(LOG_ERR, "can't disable v4-in-v6 on UDP socket");
 		exit(1);
 	}
