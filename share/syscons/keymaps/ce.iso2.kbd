@@ -3,6 +3,8 @@
 #
 # Version 1.0 - 1999-03-18
 #
+# $FreeBSD$
+#
 # This map uses the US QWERTY keyboard for its basic layout.
 # It adds a "third row" to the top of the PC keyboard. To
 # access the third row, press and hold the Alt key, then

@@ -42,6 +42,9 @@ be.iso.acc.kbd:de:Belgisch ISO-8859-1 (mit Akzenten)
 be.iso.acc.kbd:pt:Belga ISO-8859-1 (com acentos)
 be.iso.acc.kbd:es:Belga ISO-8859-1 (con acentos)
 
+bg.bds.ctrlcaps.kbd:bg:Bulgarian BDS
+bg.phonetic.ctrlcaps.kbd:bg:Bulgarian Phonetic
+
 br275.iso.kbd:en:Brazilian 275 ISO-8859-1
 br275.iso.kbd:de:Brasilianisch 275 ISO-8859-1
 br275.iso.kbd:pt:Brasileiro 275 ISO-8859-1
