@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: sig.c,v 1.2 1997/02/22 16:10:51 peter Exp $
  *
  *  TODO:
  *
@@ -39,7 +39,7 @@
 
 #define __MAXSIG (32)		/* Sizeof u_long: Make life convenient.... */
 static u_long caused;				/* A mask of pending signals */
-static __sighandler_t *handler[ __MAXSIG ];	/* all start at SIG_DFL */
+static sig_type handler[ __MAXSIG ];	/* all start at SIG_DFL */
 
 
 /* Record a signal in the "caused" mask */
@@ -55,8 +55,8 @@ static void signal_recorder(int sig) {
     call in handle_signal()
 */
 
-__sighandler_t *pending_signal(int sig,__sighandler_t *fn) {
-    __sighandler_t *Result;
+sig_type pending_signal(int sig,sig_type fn) {
+    sig_type Result;
 
     if (sig <= 0 || sig > __MAXSIG) {
 	/* Oops - we must be a bit out of date (too many sigs ?) */
@@ -66,7 +66,7 @@ __sighandler_t *pending_signal(int sig,__sighandler_t *fn) {
 
     Result = handler[sig-1];
     if (fn == SIG_DFL || fn == SIG_IGN) {
-        handler[sig-1] = (__sighandler_t *)0;
+        handler[sig-1] = (sig_type)0;
         signal(sig,fn);
     } else {
         handler[sig-1] = fn;
