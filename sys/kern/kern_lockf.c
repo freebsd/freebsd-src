@@ -103,7 +103,7 @@ lf_advlock(ap, head, size)
 {
 	register struct flock *fl = ap->a_fl;
 	register struct lockf *lock;
-	off_t start, end;
+	off_t start, end, oadd;
 	int error;
 
 	/*
@@ -121,7 +121,6 @@ lf_advlock(ap, head, size)
 		break;
 
 	case SEEK_END:
-		/* 'size' is always >= 0 */
 		if ((fl->l_start > 0 && size > OFF_MAX - fl->l_start) ||
 		    (fl->l_start < 0 && size + fl->l_start > OFF_MAX))
 			return (EOVERFLOW);
@@ -143,9 +142,7 @@ lf_advlock(ap, head, size)
 	} else if (fl->l_len == 0)
 		end = -1;
 	else {
-		off_t oadd = fl->l_len - 1;
-
-		/* 'oadd' and 'start' are >= 0 */
+		oadd = fl->l_len - 1;
 		if (oadd > OFF_MAX - start)
 			return (EOVERFLOW);
 		end = start + oadd;
