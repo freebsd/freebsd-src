@@ -96,6 +96,8 @@
 .Nm
 .Fl i Ar iface Fl r Ar RTS_threshold
 .Nm
+.Fl i Ar iface Fl M Cm 0 Ns - Ns Cm 15
+.Nm
 .Fl h
 .Sh DESCRIPTION
 The
@@ -429,6 +431,24 @@ The
 .Ar RTS_threshold
 can be any value between 0 and 2312.
 The default is 2312.
+.It Fl i Ar iface Fl M Cm 0 Ns - Ns Cm 15
+Set monitor mode via bit mask, meaning:
+.Pp
+.Bl -tag -width indent -offset indent -compact
+.It Em Bit
+.Em Meaning
+.It 0
+to not dump 802.11 packet.
+.It 1
+to enable 802.11 monitor.
+.It 2
+to monitor any SSID.
+.It 4
+to not skip beacons, monitor beacons produces a high system load.
+.It 8
+to enable full Aironet header returned via BPF.
+Note it appears that a SSID must be set.
+.El
 .It Fl h
 Print a list of available options and sample usage.
 .El
