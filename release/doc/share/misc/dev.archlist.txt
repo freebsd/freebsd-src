@@ -55,6 +55,7 @@ ciss	i386,amd64
 cm	i386
 cp	i386,pc98
 ct	pc98
+ctau	i386
 cue	i386,pc98,amd64
 cx	i386
 dc	i386,pc98,alpha,sparc64,amd64
