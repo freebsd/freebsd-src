@@ -827,6 +827,7 @@ alpha_init(pfn, ptb, bim, bip, biv)
 		if (physmem - sz > Maxmem) {
 			phys_avail[i] = 0;
 			phys_avail_cnt -= 2;
+			physmem -= sz;
 		} else {
 			nsz = sz - (physmem - Maxmem);
 			phys_avail[i+1] = phys_avail[i] + alpha_ptob(nsz);
