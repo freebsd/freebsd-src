@@ -781,10 +781,10 @@ echo ''
 echo "*** Beginning comparison"
 echo ''
 
+# Pre-world does not populate /etc/rc.d.
 # It is very possible that a previous run would have deleted files in
 # ${TEMPROOT}/etc/rc.d, thus creating a lot of false positives.
-case "${RERUN}" in
-'')
+if [ -z "${PRE_WORLD}" -a -z "${RERUN}" ]; then
   echo "   *** Checking ${DESTDIR}/etc/rc.d for stale files"
   echo ''
   cd "${DESTDIR}/etc/rc.d" &&
@@ -809,7 +809,7 @@ case "${RERUN}" in
     case "${AUTO_RUN}" in
     '')
       echo ''
-      echo -n '   *** Delete them now? [y]'
+      echo -n '   *** Delete them now? [y] '
       read DELETE_STALE_RC_FILES
       case "${DELETE_STALE_RC_FILES}" in
       [nN])
@@ -827,8 +827,7 @@ case "${RERUN}" in
     ;;
   esac
   echo ''
-  ;;
-esac
+fi
 
 cd "${TEMPROOT}"
 
