@@ -1,7 +1,7 @@
 #
 # SYSCONS -- Generic machine with WD/AHx family disks and syscons
 #
-#	$Id: SYSCONS,v 1.5 1993/08/31 15:17:26 rgrimes Exp $
+#	$Id: SYSCONS,v 1.6 1993/09/06 12:26:10 rgrimes Exp $
 #
 
 machine		"i386"
@@ -52,7 +52,7 @@ device		cd1
 device		sc0	at isa? port "IO_KBD" tty irq 1 vector scintr
 device		npx0	at isa? port "IO_NPX" irq 13 vector npxintr
 
-#The old drivers are rearly needed anymore...
+#The old drivers are rarely needed anymore...
 #device		com0	at isa? port "IO_COM1" tty irq 4 vector comintr
 #device		com1	at isa? port "IO_COM2" tty irq 3 vector comintr
 #device		com2	at isa? port "IO_COM3" tty irq 5 vector comintr
