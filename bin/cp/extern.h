@@ -41,7 +41,7 @@ typedef struct {
 } PATH_T;
 
 extern PATH_T to;
-extern int iflag, pflag, fflag, vflag;
+extern int fflag, iflag, nflag, pflag, vflag;
 
 #include <sys/cdefs.h>
 
