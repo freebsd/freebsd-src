@@ -32,27 +32,36 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1989, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)vis.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
-#include <stdio.h>
-#include <vis.h>
+#include <err.h>
 #include <locale.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <vis.h>
 
 int eflags, fold, foldwidth=80, none, markeol, debug;
 
+void process __P((FILE *, char *filename));
+static void usage __P((void));
+extern int foldit __P((char *, int, int));
+
+int
 main(argc, argv)
 	char *argv[];
 {
-	extern char *optarg;
-	extern int optind;
-	extern int errno;
 	FILE *fp;
 	int ch;
 
@@ -82,11 +91,8 @@ main(argc, argv)
 			eflags |= VIS_NOSLASH;
 			break;
 		case 'F':
-			if ((foldwidth = atoi(optarg))<5) {
-				fprintf(stderr,
-				 "vis: can't fold lines to less than 5 cols\n");
-				exit(1);
-			}
+			if ((foldwidth = atoi(optarg))<5)
+				errx(1, "can't fold lines to less than 5 cols");
 			/*FALLTHROUGH*/
 		case 'f':
 			fold++;		/* fold output lines to 80 cols */
@@ -101,9 +107,7 @@ main(argc, argv)
 #endif
 		case '?':
 		default:
-			fprintf(stderr,
-		"usage: vis [-nwctsobf] [-F foldwidth]\n");
-			exit(1);
+			usage();
 		}
 	argc -= optind;
 	argv += optind;
@@ -113,8 +117,7 @@ main(argc, argv)
 			if ((fp=fopen(*argv, "r")) != NULL)
 				process(fp, *argv);
 			else
-				fprintf(stderr, "vis: %s: %s\n", *argv,
-				    (char *)strerror(errno));
+				warn("%s", *argv);
 			argv++;
 		}
 	else
@@ -122,6 +125,19 @@ main(argc, argv)
 	exit(0);
 }
 
+
+static void
+usage()
+{
+#ifdef DEBUG
+	fprintf(stderr, "usage: vis [-cbflnostwd] [-F foldwidth] [file ...]\n");
+#else
+	fprintf(stderr, "usage: vis [-cbflnostw] [-F foldwidth] [file ...]\n");
+#endif
+	exit(1);
+}
+
+void
 process(fp, filename)
 	FILE *fp;
 	char *filename;
@@ -129,7 +145,6 @@ process(fp, filename)
 	static int col = 0;
 	register char *cp = "\0"+1;	/* so *(cp-1) starts out != '\n' */
 	register int c, rachar;
-	register char nc;
 	char buff[5];
 
 	c = getc(fp);
