@@ -59,17 +59,23 @@ db_regs_t ddb_regs;
 
 static jmp_buf	db_global_jmpbuf;
 
+static __inline u_short
+rss(void)
+{
+	u_short ss;
 #ifdef __GNUC__
-#define	rss() ({u_short ss; __asm __volatile("mov %%ss,%0" : "=r" (ss)); ss;})
+	__asm __volatile("mov %%ss,%0" : "=r" (ss));
+#else
+	ss = 0; /* XXXX Fix for other compilers. */
 #endif
+	return ss;
+}
 
 /*
  *  kdb_trap - field a TRACE or BPT trap
  */
 int
-kdb_trap(type, code, regs)
-	int	type, code;
-	register struct i386_saved_state *regs;
+kdb_trap(int type, int code, struct i386_saved_state *regs)
 {
 	volatile int ddb_mode = !(boothowto & RB_GDB);
 
@@ -217,12 +223,9 @@ kdb_trap(type, code, regs)
  * Read bytes from kernel address space for debugger.
  */
 void
-db_read_bytes(addr, size, data)
-	vm_offset_t	addr;
-	register size_t	size;
-	register char	*data;
+db_read_bytes(vm_offset_t addr, size_t size, char *data)
 {
-	register char	*src;
+	char	*src;
 
 	db_nofault = &db_jmpbuf;
 
@@ -237,12 +240,9 @@ db_read_bytes(addr, size, data)
  * Write bytes to kernel address space for debugger.
  */
 void
-db_write_bytes(addr, size, data)
-	vm_offset_t	addr;
-	register size_t	size;
-	register char	*data;
+db_write_bytes(vm_offset_t addr, size_t size, char *data)
 {
-	register char	*dst;
+	char	*dst;
 
 	unsigned	*ptep0 = NULL;
 	unsigned	oldmap0 = 0;
@@ -302,8 +302,7 @@ db_write_bytes(addr, size, data)
  * installed.
  */
 void
-Debugger(msg)
-	const char *msg;
+Debugger(const char *msg)
 {
 	static volatile u_int in_Debugger;
 
