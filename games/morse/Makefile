@@ -2,7 +2,7 @@
 # $FreeBSD$
 
 PROG=	morse
-MAN6=	morse.6
+MAN=	morse.6
 
 .if ${MACHINE_ARCH} == "i386"
 CFLAGS += -DSPEAKER=\"/dev/speaker\"

@@ -9,7 +9,7 @@ SRCS=	curses.c hit.c init.c inventory.c level.c machdep.c main.c \
 DPADD=	${LIBCURSES} ${LIBTERMCAP}
 LDADD=	-lcurses -ltermcap
 HIDEGAME=hidegame
-MAN6=	rogue.6
+MAN=	rogue.6
 
 beforeinstall:
 .if !exists(${DESTDIR}/var/games/rogue.scores)

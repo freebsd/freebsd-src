@@ -1,7 +1,7 @@
 # $FreeBSD$
 
 PROG=		kdestroy
-MAN1=		${KRB4DIR}/man/kdestroy.1
+MAN=		${KRB4DIR}/man/kdestroy.1
 SRCS=		kdestroy.c protos.h
 CFLAGS+=	-I${KRB4DIR}/include \
 		-I${KRB4DIR}/lib/roken \

@@ -1,7 +1,8 @@
 #	@(#)Makefile	8.1 (Berkeley) 5/31/93
+# $FreeBSD$
 
 PROG=	pom
-MAN6=	pom.6
+MAN=	pom.6
 DPADD=	${LIBM}
 LDADD=	-lm
 CFLAGS+=-Wall

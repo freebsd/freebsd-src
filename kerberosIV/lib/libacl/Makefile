@@ -8,7 +8,7 @@ CFLAGS+=	-I${KRB4DIR}/include \
 		-I${INCLUDEOBJDIR} \
 		-I${.OBJDIR}
 SRCS=		acl_files.c protos.h
-MAN3=		${KRB4DIR}/man/acl_check.3
+MAN=		${KRB4DIR}/man/acl_check.3
 MLINKS=		acl_check.3 acl_canonicalize_principal.3 \
 		acl_check.3 acl_exact_match.3 \
 		acl_check.3 acl_add.3 \

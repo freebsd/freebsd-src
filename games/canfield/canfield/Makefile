@@ -2,7 +2,7 @@
 # $FreeBSD$
 
 PROG=	canfield
-MAN6=	canfield.6
+MAN=	canfield.6
 DPADD=	${LIBCURSES} ${LIBTERMCAP} ${LIBCOMPAT}
 LDADD=	-lcurses -ltermcap -lcompat
 HIDEGAME=hidegame
