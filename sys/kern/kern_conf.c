@@ -277,6 +277,17 @@ make_dev(struct cdevsw *devsw, int minor, uid_t uid, gid_t gid, int perms, const
 	KASSERT((minor & ~0xffff00ff) == 0,
 	    ("Invalid minor (0x%x) in make_dev", minor));
 
+	if (devsw->d_open == NULL)	devsw->d_open = noopen;
+	if (devsw->d_close == NULL)	devsw->d_close = noclose;
+	if (devsw->d_read == NULL)	devsw->d_read = noread;
+	if (devsw->d_write == NULL)	devsw->d_write = nowrite;
+	if (devsw->d_ioctl == NULL)	devsw->d_ioctl = noioctl;
+	if (devsw->d_poll == NULL)	devsw->d_poll = nopoll;
+	if (devsw->d_mmap == NULL)	devsw->d_mmap = nommap;
+	if (devsw->d_strategy == NULL)	devsw->d_strategy = nostrategy;
+	if (devsw->d_dump == NULL)	devsw->d_dump = nodump;
+	if (devsw->d_kqfilter == NULL)	devsw->d_kqfilter = nokqfilter;
+
 	if (devsw->d_maj == MAJOR_AUTO) {
 		for (i = NUMCDEVSW - 1; i > 0; i--)
 			if (reserved_majors[i] != i)
