@@ -7,7 +7,7 @@ User PPP Packet Aliasing
     2. Setup
     3. New commands in ppp
     4. Future Work
-    5. Authors / Acknowledgments
+    5. Authors / Acknowledgements
     6. Revision History for Aliasing Code
 
 
@@ -52,7 +52,7 @@ masquerading solutions.
 
 The implementation supports all standard, non-encoding TCP and UDP protocols.
 Examples of these protocols are http, gopher and telnet. The standard UDP
-mode of RealAudio is not presently supported, but the TCP mode does work
+mode of Real-Audio is not presently supported, but the TCP mode does work
 correctly.
 
 The packet aliasing code also handle many ICMP messages.  In particular,
@@ -86,12 +86,12 @@ and masks.
 
 3. New commands in ppp
 
-In order to control aliasing behavior in a simple manner (no need for
-recompilation), a new command has been added to iij-ppp: alias.  This
+In order to control aliasing behaviour in a simple manner (no need for
+recompilation), a new command has been added to ppp: alias.  This
 is in addition to the -alias command line option.  System managers and
-more experienced users may prefer to use the iij-ppp command syntax
+more experienced users may prefer to use the ppp command syntax
 within the ppp.conf file.  The alias command also allows packet aliasing
-behavior to be more precisely specified.
+behaviour to be more precisely specified.
 
 The decision to add a command instead of extending 'set' or 'option' was
 to make obvious that these options only work when aliasing is enabled.
@@ -119,7 +119,7 @@ Set to "yes" to disable all incoming connections.  This just drops
 connections to, for example, ftp, telnet or web servers.  The aliasing
 mechanism prevents these connections. Technically, this option denies
 all incoming TCP and UDP requests, making the aliasing software a
-fairly efficient one-way firewall.  The default is no, which will
+fairly efficient one-way firewall.  The default is no, which will allow
 all incoming connections to telnetd, ftpd, etc.
 
 
@@ -128,7 +128,7 @@ all incoming connections to telnetd, ftpd, etc.
 Controls logging of alias link creation to "/var/log/alias.log" - this
 is usually only useful if debugging a setup, to see if the bug is in
 the PPP aliasing.  The debugging information is fairly limited, listing
-the number of aliasing links open for different prototocols.
+the number of aliasing links open for different protocols.
 
 
  - alias same_ports [yes|no] (default yes)
@@ -137,7 +137,7 @@ When a connection is being established going through the aliasing
 routines, it will normally have its port number changed to allow the
 aliasing code to track it.  If same_ports is enabled, the alias
 software attempts to keep the connection's source port unchanged.
-This will allow rsh, RPC and other specialized protocols to work
+This will allow rsh, RPC and other specialised protocols to work
 _most of the time_, at least on the host machine.  Please, do not
 report this being unstable as a bug - it is a result of the way
 aliasing has to work. TCP/IP was intended to have one IP address
@@ -149,11 +149,11 @@ per machine.
 This is a fairly obscure option.  For the most part, the packet aliasing
 software does not have to allocate system sockets when it chooses an
 aliasing port number.  Under very specific circumstances, FTP data
-connections (which don't know the remote port nubmer, though it is
+connections (which don't know the remote port number, though it is
 usually 20) and IRC DCC send (which doesn't know either the address or
 the port from which the connection will come), there can potentially be
 some interference with an open server socket having the same port number
-on the ppp host machine.  This possibility for interferience only exists
+on the ppp host machine.  This possibility for interference only exists
 until the TCP connection has been acknowledged on both sides.  The safe
 option is yes, though fewer system resources are consumed by specifying
 no.
@@ -183,7 +183,7 @@ local area network.  One example of this would be:
 
     alias port tcp 192.168.0.4:telnet  8066
 
-All traffic to port 8066 fthe ppp host would then be sent to
+All traffic to port 8066 of the ppp host would then be sent to
 the telnet port (23) of machine 192.168.0.4.  Port numbers
 can either be designated numerically or by symbolic names
 listed in /etc/services.  Similarly, addresses can be either
@@ -205,14 +205,14 @@ case of a single, dynamically allocated IP address:
 The above command would redirect all incoming traffic to
 machine 10.0.0.8. 
 
-If several address aliases specifiy the same public addres
+If several address aliases specify the same public address
 as follows
 
     alias addr 192.168.0.2  public_addr
     alias addr 192.168.0.3  public_addr
     alias addr 192.168.0.4  public_addr
 
-then incoming traffice will be directed to the last
+then incoming traffic will be directed to the last
 translated local address (192.168.0.4), but outgoing
 traffic to the first two addresses will still be aliased
 to the specified public address.
@@ -239,12 +239,12 @@ robust.
 The packet aliasing engine (alias.c, alias_db.c, alias_ftp.c, alias_irc.c
 and alias_util.c) runs in user space, and is intended to be both portable
 and reusable for interfaces other than ppp.  To access the basic engine
-only requires four simple function calls (initialization, communication of
+only requires four simple function calls (initialisation, communication of
 host address, outgoing aliasing and incoming de-aliasing).
 
 
 
-5. Authors / Acknowledgments
+5. Authors / Acknowledgements
 
 Charles Mott (cmott@srv.net)   <versions 1.0 - 1.8, 2.0, 2.1>
 Eivind Eklund (perhaps@yes.no) <versions 1.8b - 1.9, new ppp commands>
@@ -275,7 +275,7 @@ Version 1.2:  September 7, 1996 (cjm)
     Fragment handling error in alias_db.c corrected.
 
 Version 1.3: September 15, 1996 (cjm)
-    - Generalized mechanism for handling incoming connections
+    - Generalised mechanism for handling incoming connections
       (no more 0 to 1023 restriction).
     - Increased ICMP support (will handle traceroute now).
     - Improved TCP close connection logic.
@@ -291,7 +291,7 @@ Version 1.6: September 18, 1996
     Simplified ICMP data storage.  Will now handle
     tracert from Win95 as well as FreeBSD traceroute.
 
-Verstion 1.7: January 9, 1997 (cjm)
+Version 1.7: January 9, 1997 (cjm)
     - Reduced malloc() activity for ICMP echo and 
       timestamp requests.
     - Added handling for out-of-order IP fragments.
@@ -303,12 +303,12 @@ Verstion 1.7: January 9, 1997 (cjm)
       from two hosts which are both running packet
       aliasing.
 
-Verstion 1.8: January 14, 1997 (cjm)
+Version 1.8: January 14, 1997 (cjm)
     - Fixed data type error in function StartPoint()
       in alias_db.c (this bug did not exist before v1.7)
 
 Version 1.8b: January 16, 1997 (Eivind Eklund <perhaps@yes.no>)
-    - Upgraded base PPP version to be the sourcecode from
+    - Upgraded base PPP version to be the source code from
       FreeBSD 2.1.6, with additional security patches.  This
       version should still be possible to run on 2.1.5, though -
       I've run it with a 2.1.5 kernel without problems.
@@ -335,10 +335,10 @@ Version 1.9: February 1, 1997 (Eivind Eklund <perhaps@yes.no>)
       (cjm)
 
 Version 2.0: March, 1997 (cjm)
-    - Incoming packets which are not recognized by the packet
+    - Incoming packets which are not recognised by the packet
       aliasing engine are now completely dropped in ip.c.
     - Aliasing links are cleared when a host interface address
-      changes (due to re-dial and dynamic address allocatioa).
+      changes (due to re-dial and dynamic address allocation).
     - PacketAliasPermanentLink() API added.
     - Option for only aliasing private, unregistered IP addresses
       added.
@@ -347,6 +347,6 @@ Version 2.0: March, 1997 (cjm)
 Version 2.1: May, 1997 (cjm)
     - Continuing rework to the aliasing lookup engine to support
       multiple incoming addresses and static NAT.
-    - Now supports outgoing as well as incoming ICMP error messges/
+    - Now supports outgoing as well as incoming ICMP error messages/
     - PPP commands to support address and port redirection.
 

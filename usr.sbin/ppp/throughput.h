@@ -23,10 +23,16 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: throughput.h,v 1.5 1998/06/12 20:12:26 brian Exp $
  */
 
 #define SAMPLE_PERIOD 5
+
+#define THROUGHPUT_OVERALL 0x0001
+#define THROUGHPUT_CURRENT 0x0002
+#define THROUGHPUT_PEAK    0x0004
+#define THROUGHPUT_ALL     THROUGHPUT_OVERALL | THROUGHPUT_CURRENT \
+                           | THROUGHPUT_PEAK	
 
 struct pppThroughput {
   time_t uptime;
@@ -35,14 +41,17 @@ struct pppThroughput {
   u_long SampleOctets[SAMPLE_PERIOD];
   int OctetsPerSecond;
   int BestOctetsPerSecond;
+  time_t BestOctetsPerSecondTime;
   int nSample;
+  unsigned rolling : 1;
   struct pppTimer Timer;
 };
 
 extern void throughput_init(struct pppThroughput *);
-extern void throughput_disp(struct pppThroughput *, FILE *);
+extern void throughput_disp(struct pppThroughput *, struct prompt *);
 extern void throughput_log(struct pppThroughput *, int, const char *);
-extern void throughput_start(struct pppThroughput *);
+extern void throughput_start(struct pppThroughput *, const char *, int);
 extern void throughput_stop(struct pppThroughput *);
 extern void throughput_addin(struct pppThroughput *, int);
 extern void throughput_addout(struct pppThroughput *, int);
+extern void throughput_clear(struct pppThroughput *, int, struct prompt *);

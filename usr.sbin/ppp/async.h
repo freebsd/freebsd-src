@@ -23,10 +23,30 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: async.h,v 1.4 1998/06/27 12:03:48 brian Exp $
  */
 
-extern void AsyncInit(void);
-extern void SetLinkParams(struct lcpstate *);
-extern void AsyncOutput(int, struct mbuf *, int);
-extern void AsyncInput(u_char *, int);
+#define HDLCSIZE	(MAX_MRU*2+6)
+
+struct async {
+  int mode;
+  int length;
+  u_char hbuff[HDLCSIZE];	/* recv buffer */
+  u_char xbuff[HDLCSIZE];	/* xmit buffer */
+  u_int32_t my_accmap;
+  u_int32_t his_accmap;
+
+  struct {
+    u_char EscMap[33];
+  } cfg;
+};
+
+struct lcp;
+struct mbuf;
+struct physical;
+struct bundle;
+
+extern void async_Init(struct async *);
+extern void async_SetLinkParams(struct async *, struct lcp *);
+extern void async_Output(int, struct mbuf *, int, struct physical *);
+extern void async_Input(struct bundle *, u_char *, int, struct physical *);
