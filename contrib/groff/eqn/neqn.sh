@@ -3,17 +3,16 @@
 # GNU eqn with groff -Tascii|-Tlatin1 is supported.
 
 # Default device.
-if test `expr "$LC_CTYPE" : ".*\.ISO_8859-1"` -gt 0 || \
-   test `expr "$LANG" : ".*\.ISO_8859-1"` -gt 0
+locale=${LC_CTYPE:-$LANG}
+if test `expr "$locale" : ".*\.ISO_8859-1"` -gt 0
 then
-	T=-Tlatin1
+	T=latin1
 else
-if test `expr "$LC_CTYPE" : ".*\.KOI8-R"` -gt 0 || \
-   test `expr "$LANG" : ".*\.KOI8-R"` -gt 0
+if test `expr "$locale" : ".*\.KOI8-R"` -gt 0
 then
-	T=-Tkoi8-r
+	T=koi8-r
 else
-	T=-Tascii
+	T=ascii
 fi
 fi
 
