@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mfs_vfsops.c	8.4 (Berkeley) 4/16/94
- * $Id: mfs_vfsops.c,v 1.9 1995/05/29 03:27:37 phk Exp $
+ * $Id: mfs_vfsops.c,v 1.9.4.1 1995/08/24 06:06:25 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -220,13 +220,21 @@ mfs_mount(mp, path, data, ndp, p)
 #endif
 		return (0);
 	}
+	/*
+	 * Do the MALLOC before the getnewvnode since doing so afterward
+	 * might cause a bogus v_data pointer to get dereferenced
+	 * elsewhere if MALLOC should block.
+	 */
+	MALLOC(mfsp, struct mfsnode *, sizeof *mfsp, M_MFSNODE, M_WAITOK);
+
 	error = getnewvnode(VT_MFS, (struct mount *)0, mfs_vnodeop_p, &devvp);
-	if (error)
+	if (error) {
+		FREE(mfsp, M_MFSNODE);
 		return (error);
+	}
 	devvp->v_type = VBLK;
 	if (checkalias(devvp, makedev(255, mfs_minor++), (struct mount *)0))
 		panic("mfs_mount: dup dev");
-	mfsp = (struct mfsnode *)malloc(sizeof *mfsp, M_MFSNODE, M_WAITOK);
 	devvp->v_data = mfsp;
 	mfsp->mfs_baseoff = args.base;
 	mfsp->mfs_size = args.size;

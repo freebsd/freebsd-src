@@ -35,7 +35,7 @@
  *
  *	@(#)null_subr.c	8.4 (Berkeley) 1/21/94
  *
- * $Id: null_subr.c,v 1.2 1994/05/25 09:08:00 rgrimes Exp $
+ * $Id: null_subr.c,v 1.3 1994/10/02 17:48:14 phk Exp $
  */
 
 #include <sys/param.h>
@@ -153,12 +153,20 @@ null_node_alloc(mp, lowervp, vpp)
 	struct vnode *othervp, *vp;
 	int error;
 
+	/*
+	 * Do the MALLOC before the getnewvnode since doing so afterward
+	 * might cause a bogus v_data pointer to get dereferenced
+	 * elsewhere if MALLOC should block.
+	 */
+	MALLOC(xp, struct null_node *, sizeof(struct null_node), M_TEMP, M_WAITOK);
+
 	error = getnewvnode(VT_NULL, mp, null_vnodeop_p, vpp);
-	if (error)
+	if (error) {
+		FREE(xp, M_TEMP);
 		return (error);
+	}
 	vp = *vpp;
 
-	MALLOC(xp, struct null_node *, sizeof(struct null_node), M_TEMP, M_WAITOK);
 	vp->v_type = lowervp->v_type;
 	xp->null_vnode = vp;
 	vp->v_data = xp;

@@ -35,7 +35,7 @@
  *
  *	@(#)umap_subr.c	8.6 (Berkeley) 1/26/94
  *
- * $Id: umap_subr.c,v 1.3 1994/10/10 07:55:43 phk Exp $
+ * $Id: umap_subr.c,v 1.4 1995/05/30 08:07:17 rgrimes Exp $
  */
 
 #include <sys/param.h>
@@ -212,13 +212,23 @@ umap_node_alloc(mp, lowervp, vpp)
 	struct vnode *othervp, *vp;
 	int error;
 
-	error = getnewvnode(VT_UMAP, mp, umap_vnodeop_p, vpp);
-	if (error)
-		return (error);
-	vp = *vpp;
+	/* XXX This routine probably needs a node_alloc lock */
 
+	/*
+	 * Do the MALLOC before the getnewvnode since doing so afterward
+	 * might cause a bogus v_data pointer to get dereferenced
+	 * elsewhere if MALLOC should block.
+	 */
 	MALLOC(xp, struct umap_node *, sizeof(struct umap_node),
 	    M_TEMP, M_WAITOK);
+
+	error = getnewvnode(VT_UMAP, mp, umap_vnodeop_p, vpp);
+	if (error) {
+		FREE(xp, M_TEMP);
+		return (error);
+	}
+	vp = *vpp;
+
 	vp->v_type = lowervp->v_type;
 	xp->umap_vnode = vp;
 	vp->v_data = xp;

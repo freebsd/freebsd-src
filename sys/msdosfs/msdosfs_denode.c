@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_denode.c,v 1.11 1995/04/11 17:13:17 bde Exp $ */
+/*	$Id: msdosfs_denode.c,v 1.12 1995/05/30 08:07:37 rgrimes Exp $ */
 /*	$NetBSD: msdosfs_denode.c,v 1.9 1994/08/21 18:44:00 ws Exp $	*/
 
 /*-
@@ -200,6 +200,12 @@ deget(pmp, dirclust, diroffset, direntptr, depp)
 		return 0;
 	}
 
+	/*
+	 * Do the MALLOC before the getnewvnode since doing so afterward
+	 * might cause a bogus v_data pointer to get dereferenced
+	 * elsewhere if MALLOC should block.
+	 */
+	MALLOC(ldep, struct denode *, sizeof(struct denode), M_MSDOSFSNODE, M_WAITOK);
 
 	/*
 	 * Directory entry was not in cache, have to create a vnode and
@@ -208,10 +214,10 @@ deget(pmp, dirclust, diroffset, direntptr, depp)
 	/* getnewvnode() does a VREF() on the vnode */
 	error = getnewvnode(VT_MSDOSFS, mntp, msdosfs_vnodeop_p, &nvp);
 	if (error) {
-		*depp = 0;
+		*depp = NULL;
+		FREE(ldep, M_MSDOSFSNODE);
 		return error;
 	}
-	MALLOC(ldep, struct denode *, sizeof(struct denode), M_MSDOSFSNODE, M_WAITOK);
 	bzero((caddr_t)ldep, sizeof *ldep);
 	nvp->v_data = ldep;
 	ldep->de_vnode = nvp;

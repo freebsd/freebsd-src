@@ -35,7 +35,7 @@
  *
  *	@(#)portal_vnops.c	8.8 (Berkeley) 1/21/94
  *
- * $Id: portal_vnops.c,v 1.5 1995/03/28 07:57:02 bde Exp $
+ * $Id: portal_vnops.c,v 1.6 1995/05/30 08:07:06 rgrimes Exp $
  */
 
 /*
@@ -109,15 +109,21 @@ portal_lookup(ap)
 		return (0);
 	}
 
-
-	error = getnewvnode(VT_PORTAL, ap->a_dvp->v_mount, portal_vnodeop_p, &fvp);
-	if (error)
-		goto bad;
-	fvp->v_type = VREG;
-	MALLOC(fvp->v_data, void *, sizeof(struct portalnode),
+	/*
+	 * Do the MALLOC before the getnewvnode since doing so afterward
+	 * might cause a bogus v_data pointer to get dereferenced
+	 * elsewhere if MALLOC should block.
+	 */
+	MALLOC(pt, struct portalnode *, sizeof(struct portalnode),
 		M_TEMP, M_WAITOK);
 
-	pt = VTOPORTAL(fvp);
+	error = getnewvnode(VT_PORTAL, ap->a_dvp->v_mount, portal_vnodeop_p, &fvp);
+	if (error) {
+		FREE(pt, M_TEMP);
+		goto bad;
+	}
+	fvp->v_type = VREG;
+	fvp->v_data = pt;
 	/*
 	 * Save all of the remaining pathname and
 	 * advance the namei next pointer to the end
