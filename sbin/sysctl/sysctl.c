@@ -367,7 +367,7 @@ show_var(int *oid, int nlen)
 	int i;
 	size_t j, len;
 	u_int kind;
-	int (*func)(int, void *) = 0;
+	int (*func)(int, void *);
 
 	qoid[0] = 0;
 	memcpy(qoid + 2, oid, nlen * sizeof(int));
@@ -428,8 +428,8 @@ show_var(int *oid, int nlen)
 			else
 				printf("%s%d", val, *(int *)p);
 			val = " ";
-			len -= sizeof (int);
-			p += sizeof (int);
+			len -= sizeof(int);
+			p += sizeof(int);
 		}
 		return (0);
 
@@ -444,8 +444,8 @@ show_var(int *oid, int nlen)
 			else
 				printf("%s%ld", val, *(long *)p);
 			val = " ";
-			len -= sizeof (long);
-			p += sizeof (long);
+			len -= sizeof(long);
+			p += sizeof(long);
 		}
 		return (0);
 
@@ -458,10 +458,16 @@ show_var(int *oid, int nlen)
 	case 'T':
 	case 'S':
 		i = 0;
-		if (!strcmp(fmt, "S,clockinfo"))	func = S_clockinfo;
-		else if (!strcmp(fmt, "S,timeval"))	func = S_timeval;
-		else if (!strcmp(fmt, "S,loadavg"))	func = S_loadavg;
-		else if (!strcmp(fmt, "T,dev_t"))	func = T_dev_t;
+		if (strcmp(fmt, "S,clockinfo") == 0)
+			func = S_clockinfo;
+		else if (strcmp(fmt, "S,timeval") == 0)
+			func = S_timeval;
+		else if (strcmp(fmt, "S,loadavg") == 0)
+			func = S_loadavg;
+		else if (strcmp(fmt, "T,dev_t") == 0)
+			func = T_dev_t;
+		else
+			func = NULL;
 		if (func) {
 			if (!nflag)
 				printf("%s: ", name);
@@ -474,15 +480,10 @@ show_var(int *oid, int nlen)
 		if (!nflag)
 			printf("%s: ", name);
 		printf("Format:%s Length:%d Dump:0x", fmt, len);
-		while (len--) {
+		while (len-- && (xflag || p < val + 16))
 			printf("%02x", *p++);
-			if (xflag || p < val+16)
-				continue;
-			if (len == 16)
-				break;
+		if (!xflag && len > 16)
 			printf("...");
-			break;
-		}
 		return (0);
 	}
 	return (1);
@@ -505,7 +506,7 @@ sysctl_all (int *oid, int len)
 		name1[2] = 1;
 		l1++;
 	}
-	while (1) {
+	for (;;) {
 		l2 = sizeof name2;
 		j = sysctl(name1, l1, name2, &l2, 0, 0);
 		if (j < 0) {
