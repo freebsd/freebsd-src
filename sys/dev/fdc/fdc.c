@@ -1724,7 +1724,7 @@ fdstrategy(struct bio *bp)
 	s = splbio();
 	bioqdisksort(&fdc->head, bp);
 	untimeout(fd_turnoff, fd, fd->toffhandle); /* a good idea */
-	devstat_start_transaction(fd->device_stats);
+	devstat_start_transaction_bio(fd->device_stats, bp);
 	device_busy(fd->dev);
 	fdstart(fdc);
 	splx(s);
