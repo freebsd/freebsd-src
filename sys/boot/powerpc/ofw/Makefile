@@ -11,6 +11,10 @@ INSTALLFLAGS=	-b
 LOADER_DISK_SUPPORT?=	yes
 LOADER_NET_SUPPORT?=	yes
 
+# load address
+RELOC?=		0x6c0000
+CFLAGS+=	-DRELOC=${RELOC}
+
 # architecture-specific loader code
 SRCS=		conf.c
 
@@ -45,7 +49,7 @@ CFLAGS+=	-I${.CURDIR}/../../.. -I.
 CLEANFILES+=	vers.c vers.o ${BASE}.list ${BASE}.bin ${BASE}.sym ${BASE}.help
 
 CFLAGS+=	-Wall
-LDFLAGS=	-nostdlib -static -Ttext 6c0000
+LDFLAGS=	-nostdlib -static -Ttext ${RELOC}
 
 # OpenFirmware standalone support library
 LIBOFW=		${.OBJDIR}/../../ofw/libofw/libofw.a

@@ -41,48 +41,30 @@ extern char bootprog_rev[];
 extern char bootprog_date[];
 extern char bootprog_maker[];
 
-struct ofw_reg
-{
-	uint32_t	base;
-        uint32_t	size;
-};
+phandle_t	chosen;
+
+#define	HEAP_SIZE	0x40000
 
 void
 init_heap(void)
 {
-	ihandle_t	meminstance;
-	phandle_t	chosen, memory;
-	struct ofw_reg	available;
-	void *		aligned_end;
+	void	*base;
 
-	chosen = OF_finddevice("/chosen");
-	OF_getprop(chosen, "memory", &meminstance, sizeof(meminstance));
-	memory = OF_instance_to_package(meminstance);
-	OF_getprop(memory, "available", &available, sizeof(available));
-	printf("available.base = 0x%08x\n", available.base);
-	printf("available.size = 0x%08x\n", available.size);
-
-	if (OF_claim((void *)available.base, 0x00040000, 0) ==
-	    (void *) 0xffffffff) {
+	if ((base = ofw_alloc_heap(HEAP_SIZE)) == (void *)0xffffffff) {
 		printf("Heap memory claim failed!\n");
 		OF_enter();
 	}
 
-	aligned_end = (void *)(((int)end + sizeof(int) - 1) &
-	    ~(sizeof(int) - 1));
-	printf("end = 0x%08x, aligned_end = 0x%08x\n", (uint32_t)end,
-	    (uint32_t)aligned_end);
-	setheap((void *)aligned_end, (void *)(available.base + available.size));
+	setheap(base, base + (HEAP_SIZE / sizeof(base)));
 }
 
 uint32_t
 memsize(void)
 {
 	ihandle_t	meminstance;
-	phandle_t	chosen, memory;
+	phandle_t	memory;
 	struct ofw_reg	reg;
 
-	chosen = OF_finddevice("/chosen");
 	OF_getprop(chosen, "memory", &meminstance, sizeof(meminstance));
 	memory = OF_instance_to_package(meminstance);
 
@@ -95,7 +77,6 @@ int
 main(int (*openfirm)(void *))
 {
 	int		i;
-	phandle_t	chosen;
 	char		bootpath[64];
 	char		*ch;
 
@@ -103,6 +84,8 @@ main(int (*openfirm)(void *))
 	 * Initalise the OpenFirmware routines by giving them the entry point.
 	 */
 	OF_init(openfirm);
+
+	chosen = OF_finddevice("/chosen");
 
 	/*
          * Set up console.
@@ -133,7 +116,6 @@ main(int (*openfirm)(void *))
 	printf("(%s, %s)\n", bootprog_maker, bootprog_date);
 	printf("Memory: %dKB\n", memsize() / 1024);
 
-	chosen = OF_finddevice("/chosen");
 	OF_getprop(chosen, "bootpath", bootpath, 64);
 	ch = index(bootpath, ':');
 	*ch = '\0';
@@ -183,6 +165,7 @@ main(int (*openfirm)(void *))
 	archsw.arch_copyin = ofw_copyin;
 	archsw.arch_copyout = ofw_copyout;
 	archsw.arch_readin = ofw_readin;
+	archsw.arch_autoload = ofw_autoload;
 
 	interact();				/* doesn't return */
 
@@ -198,5 +181,15 @@ command_halt(int argc, char *argv[])
 {
 
 	OF_exit();
+	return (CMD_OK);
+}
+
+COMMAND_SET(memmap, "memmap", "print memory map", command_memmap);
+
+int
+command_memmap(int argc, char **argv)
+{
+
+	ofw_memmap();
 	return (CMD_OK);
 }
