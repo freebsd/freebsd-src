@@ -163,6 +163,12 @@
 
     <!-- Above this line, sort kernel changes by manpage/keyword-->
 
+    <para>The swap pager has been revamped.  Among user-visible
+      changes are a change in the layout policy (from fixed-width
+      striping to a round-robin across devices) for better I/O
+      throughput, the elimination of compile-time limits on the number
+      of swap devices, and a reduction in memory overheads.</para>
+
     <sect3 id="proc">
       <title>Platform-Specific Hardware Support</title>
 
@@ -247,6 +253,10 @@
         This implements a flexible form of <quote>persistent
           rules</quote>.  More details can be found in &man.ipfw.8;.
         &merged;</para>
+
+      <para>The &man.ng.atmpif.4; NetGraph node type has been added.
+	It emulates a HARP physical interface, and allows one
+	to run the HARP ATM stack without real hardware.</para>
 
       <para>To reduce information leakage, IPv4 packets no longer have
 	a <varname>ip_id</varname> field set unless fragmentation is
@@ -351,7 +361,8 @@
       threading library is now built by default.</para>
 
     <para>The &man.locale.1; utility has been re-implemented and is
-      now POSIX-compliant.</para>
+      now POSIX-compliant.  A new <option>-m</option> option shows all
+      available codesets.</para>
 
     <para>The &man.mount.8; utility now supports to display the filesystem
       ID for each file system in addition to the normal information
@@ -404,7 +415,17 @@
       to 8.3.6.</para>
 
     <para><application>GCC</application> has been updated from 3.2.2 to
-      3.3.1-prerelease (a 11 July 2003 snapshot).</para>
+      3.3.1-prerelease (a 11 July 2003 snapshot).
+
+      <note>
+        <para>Previous versions of <application>GCC</application>
+	  generated incorrect code when
+	  <literal>-march=pentium4</literal> optimization was
+	  enabled.  This problem is believed to have been fixed with
+	  this upgrade, and the earlier workaround for the case of
+	  <literal>CPUTYPE=p4</literal> has been removed.</para>
+      </note>
+      </para>
 
     <para><application>lukemftp</application> has been updated from
       1.6beta2 to a 30 June 2003 snapshot from NetBSD.</para>
