@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998 Free Software Foundation, Inc.                        *
+ * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -39,40 +39,41 @@
 */
 
 #include <curses.priv.h>
-#include <tic.h>	/* for MAX_ALIAS */
+#include <tic.h>		/* for MAX_ALIAS */
 
 #if HAVE_SYS_TERMIO_H
-#include <sys/termio.h>	/* needed for ISC */
+#include <sys/termio.h>		/* needed for ISC */
 #endif
 
-MODULE_ID("$Id: lib_initscr.c,v 1.26 1998/12/19 23:10:09 tom Exp $")
+MODULE_ID("$Id: lib_initscr.c,v 1.28 2000/12/10 02:43:27 tom Exp $")
 
-WINDOW *initscr(void)
+NCURSES_EXPORT(WINDOW *)
+initscr(void)
 {
-static	bool initialized = FALSE;
-NCURSES_CONST char *name;
-int value;
+    static bool initialized = FALSE;
+    NCURSES_CONST char *name;
+    int value;
 
-	T((T_CALLED("initscr()")));
-	/* Portable applications must not call initscr() more than once */
-	if (!initialized) {
-		initialized = TRUE;
+    T((T_CALLED("initscr()")));
+    /* Portable applications must not call initscr() more than once */
+    if (!initialized) {
+	initialized = TRUE;
 
-		if ((name = getenv("TERM")) == 0
-		 || *name == '\0')
-			name = "unknown";
-		if (newterm(name, stdout, stdin) == 0) {
-			fprintf(stderr, "Error opening terminal: %s.\n", name);
-			exit(EXIT_FAILURE);
-		}
-
-		/* allow user to set maximum escape delay from the environment */
-		if ((value = _nc_getenv_num("ESCDELAY")) >= 0) {
-			ESCDELAY = value;
-		}
-
-		/* def_shell_mode - done in newterm/_nc_setupscreen */
-		def_prog_mode();
+	if ((name = getenv("TERM")) == 0
+	    || *name == '\0')
+	    name = "unknown";
+	if (newterm(name, stdout, stdin) == 0) {
+	    fprintf(stderr, "Error opening terminal: %s.\n", name);
+	    exit(EXIT_FAILURE);
 	}
-	returnWin(stdscr);
+
+	/* allow user to set maximum escape delay from the environment */
+	if ((value = _nc_getenv_num("ESCDELAY")) >= 0) {
+	    ESCDELAY = value;
+	}
+
+	/* def_shell_mode - done in newterm/_nc_setupscreen */
+	def_prog_mode();
+    }
+    returnWin(stdscr);
 }

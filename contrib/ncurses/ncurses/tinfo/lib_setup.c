@@ -48,7 +48,7 @@
 
 #include <term.h>		/* lines, columns, cur_term */
 
-MODULE_ID("$Id: lib_setup.c,v 1.60 2000/09/02 18:13:12 tom Exp $")
+MODULE_ID("$Id: lib_setup.c,v 1.64 2000/12/10 02:55:07 tom Exp $")
 
 /****************************************************************************
  *
@@ -94,16 +94,21 @@ static int _use_env = TRUE;
 
 static void do_prototype(void);
 
-void
+NCURSES_EXPORT(void)
 use_env(bool f)
 {
     _use_env = f;
 }
 
-int LINES = 0, COLS = 0, TABSIZE = 0;
+NCURSES_EXPORT_VAR(int)
+LINES = 0;
+NCURSES_EXPORT_VAR(int)
+COLS = 0;
+NCURSES_EXPORT_VAR(int)
+TABSIZE = 0;
 
-static void
-_nc_get_screensize(int *linep, int *colp)
+     static void
+       _nc_get_screensize(int *linep, int *colp)
 /* Obtain lines/columns values from the environment and/or terminfo entry */
 {
     /* figure out the size of the screen */
@@ -133,7 +138,7 @@ _nc_get_screensize(int *linep, int *colp)
 	    *colp = screendata[0];
 	    *linep = screendata[1];
 	    T(("EMX screen size: environment LINES = %d COLUMNS = %d",
-		    *linep, *colp));
+	       *linep, *colp));
 	}
 #endif
 #if HAVE_SIZECHANGE
@@ -165,11 +170,12 @@ _nc_get_screensize(int *linep, int *colp)
 #endif /* HAVE_SIZECHANGE */
 
 	/* if we can't get dynamic info about the size, use static */
-	if (*linep <= 0 || *colp <= 0)
-	    if (lines > 0 && columns > 0) {
-		*linep = (int) lines;
-		*colp = (int) columns;
-	    }
+	if (*linep <= 0) {
+	    *linep = (int) lines;
+	}
+	if (*colp <= 0) {
+	    *colp = (int) columns;
+	}
 
 	/* the ultimate fallback, assume fixed 24x80 size */
 	if (*linep <= 0 || *colp <= 0) {
@@ -196,7 +202,7 @@ _nc_get_screensize(int *linep, int *colp)
 }
 
 #if USE_SIZECHANGE
-void
+NCURSES_EXPORT(void)
 _nc_update_screensize(void)
 {
     int my_lines, my_cols;
@@ -265,18 +271,20 @@ grab_entry(const char *const tn, TERMTYPE * const tp)
      */
     if (status == 1) {
 	int n;
-	for_each_boolean(n, tp)
+	for_each_boolean(n, tp) {
 	    if (!VALID_BOOLEAN(tp->Booleans[n]))
-	    tp->Booleans[n] = FALSE;
-	for_each_string(n, tp)
+		tp->Booleans[n] = FALSE;
+	}
+	for_each_string(n, tp) {
 	    if (tp->Strings[n] == CANCELLED_STRING)
-	    tp->Strings[n] = ABSENT_STRING;
+		tp->Strings[n] = ABSENT_STRING;
+	}
     }
     return (status);
 }
 #endif
 
-char ttytype[NAMESIZE] = "";
+NCURSES_EXPORT_VAR(char) ttytype[NAMESIZE] = "";
 
 /*
  *	setupterm(termname, Filedes, errret)
@@ -286,8 +294,9 @@ char ttytype[NAMESIZE] = "";
  *
  */
 
-int
-setupterm(NCURSES_CONST char *tname, int Filedes, int *errret)
+NCURSES_EXPORT(int)
+setupterm
+(NCURSES_CONST char *tname, int Filedes, int *errret)
 {
     struct term *term_ptr;
     int status;
@@ -302,7 +311,7 @@ setupterm(NCURSES_CONST char *tname, int Filedes, int *errret)
     }
     if (strlen(tname) > MAX_NAME_SIZE) {
 	ret_error(-1, "TERM environment must be <= %d characters.\n",
-	    MAX_NAME_SIZE);
+		  MAX_NAME_SIZE);
     }
 
     T(("your terminal name is %s", tname));

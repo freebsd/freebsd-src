@@ -29,7 +29,7 @@
 /*
  * Author: Thomas E. Dickey <dickey@clark.net> 1999
  *
- * $Id: cardfile.c,v 1.5 2000/09/09 19:08:32 tom Exp $
+ * $Id: cardfile.c,v 1.6 2000/11/04 23:14:28 tom Exp $
  *
  * File format: text beginning in column 1 is a title; other text forms the content.
  */
@@ -75,7 +75,7 @@ strdup(char *s)
 static const char *
 skip(const char *buffer)
 {
-    while (isspace(*buffer))
+    while (isspace(CharOf(*buffer)))
 	buffer++;
     return buffer;
 }
@@ -84,7 +84,7 @@ static void
 trim(char *buffer)
 {
     unsigned n = strlen(buffer);
-    while (n-- && isspace(buffer[n]))
+    while (n-- && isspace(CharOf(buffer[n])))
 	buffer[n] = 0;
 }
 
@@ -166,7 +166,7 @@ read_data(char *fname)
     if ((fp = fopen(fname, "r")) != 0) {
 	while (fgets(buffer, sizeof(buffer), fp)) {
 	    trim(buffer);
-	    if (isspace(*buffer)) {
+	    if (isspace(CharOf(*buffer))) {
 		if (card == 0)
 		    card = add_title("");
 		add_content(card, buffer);

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998 Free Software Foundation, Inc.                        *
+ * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -37,7 +37,7 @@
 
 #include "menu.priv.h"
 
-MODULE_ID("$Id: m_scale.c,v 1.4 1999/05/16 17:28:00 juergen Exp $")
+MODULE_ID("$Id: m_scale.c,v 1.5 2000/12/10 02:16:48 tom Exp $")
 
 /*---------------------------------------------------------------------------
 |   Facility      :  libnmenu  
@@ -50,7 +50,8 @@ MODULE_ID("$Id: m_scale.c,v 1.4 1999/05/16 17:28:00 juergen Exp $")
 |                    E_BAD_ARGUMENT        - invalid menu pointer
 |                    E_NOT_CONNECTED       - no items are connected to menu
 +--------------------------------------------------------------------------*/
-int scale_menu(const MENU *menu, int *rows, int *cols)
+NCURSES_EXPORT(int)
+scale_menu (const MENU *menu, int *rows, int *cols)
 {
   if (!menu) 
     RETURN( E_BAD_ARGUMENT );

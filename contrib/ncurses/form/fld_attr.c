@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998 Free Software Foundation, Inc.                        *
+ * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -31,14 +31,14 @@
  ****************************************************************************/
 #include "form.priv.h"
 
-MODULE_ID("$Id: fld_attr.c,v 1.4 1999/05/16 17:16:30 juergen Exp $")
+MODULE_ID("$Id: fld_attr.c,v 1.5 2000/12/10 02:09:38 tom Exp $")
 
 /*----------------------------------------------------------------------------
   Field-Attribute manipulation routines
   --------------------------------------------------------------------------*/
 /* "Template" macro to generate a function to set a fields attribute */
 #define GEN_FIELD_ATTR_SET_FCT( name ) \
-int set_field_ ## name (FIELD * field, chtype attr)\
+NCURSES_IMPEXP int NCURSES_API set_field_ ## name (FIELD * field, chtype attr)\
 {\
    int res = E_BAD_ARGUMENT;\
    if ( attr==A_NORMAL || ((attr & A_ATTRIBUTES)==attr) )\
@@ -57,7 +57,7 @@ int set_field_ ## name (FIELD * field, chtype attr)\
 
 /* "Template" macro to generate a function to get a fields attribute */
 #define GEN_FIELD_ATTR_GET_FCT( name ) \
-chtype field_ ## name (const FIELD * field)\
+NCURSES_IMPEXP chtype NCURSES_API field_ ## name (const FIELD * field)\
 {\
    return ( A_ATTRIBUTES & (Normalize_Field( field ) -> name) );\
 }

@@ -1,4 +1,4 @@
-# $Id: dist.mk,v 1.224 2000/10/09 22:47:15 tom Exp $
+# $Id: dist.mk,v 1.247 2001/05/12 18:18:37 tom Exp $
 # Makefile for creating ncurses distributions.
 #
 # This only needs to be used directly as a makefile by developers, but
@@ -9,8 +9,8 @@ SHELL = /bin/sh
 
 # These define the major/minor/patch versions of ncurses.
 NCURSES_MAJOR = 5
-NCURSES_MINOR = 1
-NCURSES_PATCH = 20001009
+NCURSES_MINOR = 2
+NCURSES_PATCH = 20010512
 
 # We don't append the patch to the version, since this only applies to releases
 VERSION = $(NCURSES_MAJOR).$(NCURSES_MINOR)
@@ -49,8 +49,8 @@ doc/ncurses-intro.doc: doc/html/ncurses-intro.html
 doc/hackguide.doc: doc/html/hackguide.html
 	$(DUMP2) doc/html/hackguide.html > $@
 
-# Note that this rule assumes the manpages were installed - it does not use
-# the copies in the build tree except to get the list of names.
+MANPROG	= tbl | nroff -man
+
 manhtml: MANIFEST
 	@rm -f doc/html/man/*.html
 	@mkdir -p doc/html/man
@@ -70,7 +70,7 @@ manhtml: MANIFEST
 	   g=$${m}.html ;\
 	   if [ -f doc/html/$$g ]; then chmod +w doc/html/$$g; fi;\
 	   echo "Converting $$m to HTML" ;\
-	   man $$f | tr '\255' '-' | $(MAN2HTML) | \
+	   man/edit_man.sh editing /usr/man man $$f | $(MANPROG) | tr '\255' '-' | $(MAN2HTML) | \
 	   sed -f subst.sed |\
 	   sed -e 's/"curses.3x.html"/"ncurses.3x.html"/g' \
 	   > doc/html/man/$$g ;\

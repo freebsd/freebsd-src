@@ -32,7 +32,7 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: wresize.c,v 1.16 2000/03/05 00:14:35 tom Exp $")
+MODULE_ID("$Id: wresize.c,v 1.18 2000/12/10 02:43:28 tom Exp $")
 
 /*
  * Reallocate a curses WINDOW struct to either shrink or grow to the specified
@@ -44,7 +44,7 @@ MODULE_ID("$Id: wresize.c,v 1.16 2000/03/05 00:14:35 tom Exp $")
 #define	ld_ALLOC(p,n)	DOALLOC(p,struct ldat,n)
 #define	c_ALLOC(p,n)	DOALLOC(p,chtype,n)
 
-int
+NCURSES_EXPORT(int)
 wresize(WINDOW *win, int ToLines, int ToCols)
 {
     register int row;
@@ -56,9 +56,9 @@ wresize(WINDOW *win, int ToLines, int ToCols)
     T((T_CALLED("wresize(%p,%d,%d)"), win, ToLines, ToCols));
     if (win) {
 	TR(TRACE_UPDATE, ("...beg (%d, %d), max(%d,%d), reg(%d,%d)",
-		win->_begy, win->_begx,
-		win->_maxy, win->_maxx,
-		win->_regtop, win->_regbottom));
+			  win->_begy, win->_begx,
+			  win->_maxy, win->_maxx,
+			  win->_regtop, win->_regbottom));
 	if (_nc_tracing & TRACE_UPDATE)
 	    _tracedump("...before", win);
     }
@@ -169,9 +169,9 @@ wresize(WINDOW *win, int ToLines, int ToCols)
 
 #ifdef TRACE
     TR(TRACE_UPDATE, ("...beg (%d, %d), max(%d,%d), reg(%d,%d)",
-	    win->_begy, win->_begx,
-	    win->_maxy, win->_maxx,
-	    win->_regtop, win->_regbottom));
+		      win->_begy, win->_begx,
+		      win->_maxy, win->_maxx,
+		      win->_regtop, win->_regbottom));
     if (_nc_tracing & TRACE_UPDATE)
 	_tracedump("...after:", win);
 #endif

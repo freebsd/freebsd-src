@@ -39,15 +39,17 @@
 #define __INTERNAL_CAPS_VISIBLE
 #include <term_entry.h>
 
-MODULE_ID("$Id: lib_termcap.c,v 1.37 2000/09/16 20:30:16 tom Exp $")
+MODULE_ID("$Id: lib_termcap.c,v 1.39 2000/12/10 02:56:30 tom Exp $")
 
 /*
    some of the code in here was contributed by:
    Magnus Bengtsson, d6mbeng@dtek.chalmers.se
 */
 
-char *UP = 0;
-char *BC = 0;
+NCURSES_EXPORT_VAR(char *)
+UP = 0;
+NCURSES_EXPORT_VAR(char *)
+BC = 0;
 
 /***************************************************************************
  *
@@ -64,8 +66,9 @@ char *BC = 0;
  *
  ***************************************************************************/
 
-int
-tgetent(char *bufp GCC_UNUSED, const char *name)
+NCURSES_EXPORT(int)
+tgetent
+(char *bufp GCC_UNUSED, const char *name)
 {
     int errcode;
 
@@ -108,7 +111,7 @@ tgetent(char *bufp GCC_UNUSED, const char *name)
  *
  ***************************************************************************/
 
-int
+NCURSES_EXPORT(int)
 tgetflag(NCURSES_CONST char *id)
 {
     int i;
@@ -136,7 +139,7 @@ tgetflag(NCURSES_CONST char *id)
  *
  ***************************************************************************/
 
-int
+NCURSES_EXPORT(int)
 tgetnum(NCURSES_CONST char *id)
 {
     int i;
@@ -165,8 +168,9 @@ tgetnum(NCURSES_CONST char *id)
  *
  ***************************************************************************/
 
-char *
-tgetstr(NCURSES_CONST char *id, char **area)
+NCURSES_EXPORT(char *)
+tgetstr
+(NCURSES_CONST char *id, char **area)
 {
     int i;
 
@@ -176,7 +180,7 @@ tgetstr(NCURSES_CONST char *id, char **area)
 	for_each_string(i, tp) {
 	    const char *capname = ExtStrname(tp, i, strcodes);
 	    if (!strncmp(id, capname, 2)) {
-		TR(TRACE_DATABASE,("found match : %s", _nc_visbuf(tp->Strings[i])));
+		TR(TRACE_DATABASE, ("found match : %s", _nc_visbuf(tp->Strings[i])));
 		/* setupterm forces canceled strings to null */
 		if (area != 0
 		    && *area != 0

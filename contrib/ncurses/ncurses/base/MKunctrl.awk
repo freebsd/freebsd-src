@@ -1,6 +1,6 @@
-# $Id: MKunctrl.awk,v 1.7 2000/04/01 19:49:26 tom Exp $
+# $Id: MKunctrl.awk,v 1.8 2000/12/10 02:25:37 tom Exp $
 ##############################################################################
-# Copyright (c) 1998 Free Software Foundation, Inc.                          #
+# Copyright (c) 1998,2000 Free Software Foundation, Inc.                     #
 #                                                                            #
 # Permission is hereby granted, free of charge, to any person obtaining a    #
 # copy of this software and associated documentation files (the "Software"), #
@@ -39,7 +39,7 @@ BEGIN	{
 		print ""
 	}
 END	{
-		print "NCURSES_CONST char *unctrl(register chtype ch)"
+		print "NCURSES_EXPORT(NCURSES_CONST char *) unctrl (register chtype ch)"
 		print "{"
 		printf "static const char* const table[] = {"
 		for ( ch = 0; ch < 256; ch++ ) {

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998 Free Software Foundation, Inc.                        *
+ * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -31,49 +31,44 @@
  *     and: Eric S. Raymond <esr@snark.thyrsus.com>                         *
  ****************************************************************************/
 
-
 #include <curses.priv.h>
 
 #include <term.h>
 
-MODULE_ID("$Id: lib_print.c,v 1.11 1999/02/27 19:59:05 tom Exp $")
+MODULE_ID("$Id: lib_print.c,v 1.13 2000/12/10 02:55:07 tom Exp $")
 
-int mcprint(char *data, int len)
+NCURSES_EXPORT(int)
+mcprint(char *data, int len)
 /* ship binary character data to the printer via mc4/mc5/mc5p */
 {
-    char	*mybuf, *switchon;
-    size_t	onsize,	offsize, res;
+    char *mybuf, *switchon;
+    size_t onsize, offsize, res;
 
     errno = 0;
-    if (!cur_term || (!prtr_non && (!prtr_on || !prtr_off)))
-    {
+    if (!cur_term || (!prtr_non && (!prtr_on || !prtr_off))) {
 	errno = ENODEV;
-	return(ERR);
+	return (ERR);
     }
 
-    if (prtr_non)
-    {
+    if (prtr_non) {
 	switchon = tparm(prtr_non, len);
 	onsize = strlen(switchon);
 	offsize = 0;
-    }
-    else
-    {
+    } else {
 	switchon = prtr_on;
 	onsize = strlen(prtr_on);
 	offsize = strlen(prtr_off);
     }
 
-    if ((mybuf = typeMalloc(char, onsize + len + offsize + 1)) == (char *)0)
-    {
+    if ((mybuf = typeMalloc(char, onsize + len + offsize + 1)) == (char *) 0) {
 	errno = ENOMEM;
-	return(ERR);
+	return (ERR);
     }
 
     (void) strcpy(mybuf, switchon);
     memcpy(mybuf + onsize, data, len);
     if (offsize)
-      (void) strcpy(mybuf + onsize + len, prtr_off);
+	(void) strcpy(mybuf + onsize + len, prtr_off);
 
     /*
      * We're relying on the atomicity of UNIX writes here.  The
@@ -92,5 +87,5 @@ int mcprint(char *data, int len)
     (void) sleep(0);
 
     free(mybuf);
-    return(res);
+    return (res);
 }

@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998 Free Software Foundation, Inc.                        *
+ * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -31,7 +31,6 @@
  *     and: Eric S. Raymond <esr@snark.thyrsus.com>                         *
  ****************************************************************************/
 
-
 /*
  *	beep.c
  *
@@ -40,9 +39,9 @@
  */
 
 #include <curses.priv.h>
-#include <term.h>	/* beep, flash */
+#include <term.h>		/* beep, flash */
 
-MODULE_ID("$Id: lib_beep.c,v 1.7 1999/10/22 21:39:09 tom Exp $")
+MODULE_ID("$Id: lib_beep.c,v 1.9 2000/12/10 02:43:26 tom Exp $")
 
 /*
  *	beep()
@@ -52,22 +51,23 @@ MODULE_ID("$Id: lib_beep.c,v 1.7 1999/10/22 21:39:09 tom Exp $")
  *
  */
 
-int beep(void)
+NCURSES_EXPORT(int)
+beep(void)
 {
-	int res = ERR;
+    int res = ERR;
 
-	T((T_CALLED("beep()")));
+    T((T_CALLED("beep()")));
 
-	/* FIXME: should make sure that we are not in altchar mode */
-	if (bell) {
-		TPUTS_TRACE("bell");
-		res = putp(bell);
-		_nc_flush();
-	} else if (flash_screen) {
-		TPUTS_TRACE("flash_screen");
-		res = putp(flash_screen);
-		_nc_flush();
-	}
+    /* FIXME: should make sure that we are not in altchar mode */
+    if (bell) {
+	TPUTS_TRACE("bell");
+	res = putp(bell);
+	_nc_flush();
+    } else if (flash_screen) {
+	TPUTS_TRACE("flash_screen");
+	res = putp(flash_screen);
+	_nc_flush();
+    }
 
-	returnCode(res);
+    returnCode(res);
 }

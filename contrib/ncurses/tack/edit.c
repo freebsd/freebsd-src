@@ -23,7 +23,7 @@
 #include <time.h>
 #include <tic.h>
 
-MODULE_ID("$Id: edit.c,v 1.5 2000/03/25 17:26:12 tom Exp $")
+MODULE_ID("$Id: edit.c,v 1.7 2001/02/24 22:10:40 tom Exp $")
 
 /*
  * Terminfo edit features
@@ -563,11 +563,11 @@ can_test(
 	const char *s,
 	int flags)
 {
-	int ch, i, j;
+	int ch, j;
 	char name[32];
 
 	if (s) {
-		for (i = j = 0; (name[j] = ch = *s); s++) {
+		for (j = 0; (name[j] = ch = *s); s++) {
 			if (ch == ' ' || ch == ')' || ch == '(') {
 				if (j) {
 					name[j] = '\0';
@@ -597,11 +597,11 @@ cap_index(
 	int *inx)
 {
 	struct name_table_entry const *nt;
-	int ch, i, j;
+	int ch, j;
 	char name[32];
 
 	if (s) {
-		for (i = j = 0; ; s++) {
+		for (j = 0; ; s++) {
 			name[j] = ch = *s;
 			if (ch == ' ' || ch == ')' || ch == '(' || ch == 0) {
 				if (j) {
@@ -876,7 +876,7 @@ change_one_entry(
 	putln(buf);
 	ptextln("Enter new pad.  0 for no pad.  CR for no change.");
 	read_string(buf, 32);
-	if (buf[0] == '\0' || (buf[1] == '\0' && isalpha(buf[0]))) {
+	if (buf[0] == '\0' || (buf[1] == '\0' && isalpha(CharOf(buf[0])))) {
 		*chp = buf[0];
 		return;
 	}

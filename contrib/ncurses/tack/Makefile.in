@@ -1,4 +1,4 @@
-# $Id: Makefile.in,v 1.22 2000/08/26 21:51:23 tom Exp $
+# $Id: Makefile.in,v 1.25 2001/03/24 19:49:06 tom Exp $
 # Makefile for tack
 #
 # The variable 'srcdir' refers to the source-distribution, and can be set with
@@ -28,6 +28,8 @@ mandir		= @mandir@/man1
 includedir	= @includedir@
 datadir		= @datadir@
 
+LIBTOOL		= @LIBTOOL@
+
 INSTALL		= @INSTALL@
 INSTALL_PROGRAM	= @INSTALL_PROGRAM@
 INSTALL_DATA	= @INSTALL_DATA@
@@ -44,6 +46,7 @@ CPPFLAGS	= -DHAVE_CONFIG_H -I../tack -I$(srcdir) @CPPFLAGS@
 
 CCFLAGS		= $(CPPFLAGS) $(CFLAGS)
 
+CFLAGS_LIBTOOL	= $(CCFLAGS)
 CFLAGS_NORMAL	= $(CCFLAGS)
 CFLAGS_DEBUG	= $(CCFLAGS) @CC_G_OPT@ -DTRACE
 CFLAGS_PROFILE	= $(CCFLAGS) -pg
@@ -52,10 +55,11 @@ CFLAGS_SHARED	= $(CCFLAGS) @CC_SHARED_OPTS@
 CFLAGS_DEFAULT	= $(CFLAGS_@DFT_UPR_MODEL@)
 
 LD		= @LD@
-LINK		= @LINK_PROGS@ $(CC)
+LINK		= @LINK_PROGS@ $(LIBTOOL) $(CC)
 LDFLAGS		= @EXTRA_LDFLAGS@ \
 		@PROG_ARGS@ @LDFLAGS@ @LD_MODEL@ @LIBS@ @EXTRA_LIBS@
 
+LDFLAGS_LIBTOOL	= $(LDFLAGS)
 LDFLAGS_NORMAL	= $(LDFLAGS)
 LDFLAGS_DEBUG	= $(LDFLAGS) @CC_G_OPT@
 LDFLAGS_PROFILE	= $(LDFLAGS) -pg
@@ -88,11 +92,11 @@ uninstall.libs:
 install.tack: $(PROGS) \
 	$(DESTDIR)$(bindir) \
 	$(DESTDIR)$(mandir)
-	$(INSTALL_PROGRAM) tack$x $(DESTDIR)$(bindir)/tack$x
+	$(LIBTOOL) $(INSTALL_PROGRAM) tack$x $(DESTDIR)$(bindir)/tack$x
 	$(INSTALL_DATA) $(srcdir)/tack.1 $(DESTDIR)$(mandir)/tack.1
 
 uninstall.tack:
-	-@rm -f $(DESTDIR)$(bindir)/tack$x
+	-@$(LIBTOOL) rm -f $(DESTDIR)$(bindir)/tack$x
 	-@rm -f $(DESTDIR)$(mandir)/tack.1
 
 $(DESTDIR)$(bindir) \
@@ -134,14 +138,15 @@ tags:
 @MAKE_UPPER_TAGS@TAGS:
 @MAKE_UPPER_TAGS@	etags *.[ch]
 
-clean ::
-	-rm -f tags TAGS do.tic *~
+mostlyclean ::
+	-rm -f tags TAGS *.i do.tic *~
+
+clean :: mostlyclean
 	-rm -f $(PROGS)
+	-rm -rf .libs
 
 distclean :: clean
 	-rm -f Makefile
-
-mostlyclean :: clean
 
 realclean :: distclean
 

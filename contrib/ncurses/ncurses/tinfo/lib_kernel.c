@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998 Free Software Foundation, Inc.                        *
+ * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -31,7 +31,6 @@
  *     and: Eric S. Raymond <esr@snark.thyrsus.com>                         *
  ****************************************************************************/
 
-
 /*
  *	lib_kernel.c
  *
@@ -46,9 +45,9 @@
  */
 
 #include <curses.priv.h>
-#include <term.h>	/* cur_term */
+#include <term.h>		/* cur_term */
 
-MODULE_ID("$Id: lib_kernel.c,v 1.19 1998/12/20 00:18:45 tom Exp $")
+MODULE_ID("$Id: lib_kernel.c,v 1.21 2000/12/10 02:55:07 tom Exp $")
 
 /*
  *	erasechar()
@@ -57,22 +56,20 @@ MODULE_ID("$Id: lib_kernel.c,v 1.19 1998/12/20 00:18:45 tom Exp $")
  *
  */
 
-char
+NCURSES_EXPORT(char)
 erasechar(void)
 {
-	T((T_CALLED("erasechar()")));
+    T((T_CALLED("erasechar()")));
 
-	if (cur_term != 0) {
+    if (cur_term != 0) {
 #ifdef TERMIOS
-		returnCode(cur_term->Ottyb.c_cc[VERASE]);
+	returnCode(cur_term->Ottyb.c_cc[VERASE]);
 #else
-		returnCode(cur_term->Ottyb.sg_erase);
+	returnCode(cur_term->Ottyb.sg_erase);
 #endif
-	}
-	returnCode(ERR);
+    }
+    returnCode(ERR);
 }
-
-
 
 /*
  *	killchar()
@@ -81,22 +78,20 @@ erasechar(void)
  *
  */
 
-char
+NCURSES_EXPORT(char)
 killchar(void)
 {
-	T((T_CALLED("killchar()")));
+    T((T_CALLED("killchar()")));
 
-	if (cur_term != 0) {
+    if (cur_term != 0) {
 #ifdef TERMIOS
-		returnCode(cur_term->Ottyb.c_cc[VKILL]);
+	returnCode(cur_term->Ottyb.c_cc[VKILL]);
 #else
-		returnCode(cur_term->Ottyb.sg_kill);
+	returnCode(cur_term->Ottyb.sg_kill);
 #endif
-	}
-	returnCode(ERR);
+    }
+    returnCode(ERR);
 }
-
-
 
 /*
  *	flushinp()
@@ -105,26 +100,27 @@ killchar(void)
  *
  */
 
-int flushinp(void)
+NCURSES_EXPORT(int)
+flushinp(void)
 {
-	T((T_CALLED("flushinp()")));
+    T((T_CALLED("flushinp()")));
 
-	if (cur_term != 0) {
+    if (cur_term != 0) {
 #ifdef TERMIOS
-		tcflush(cur_term->Filedes, TCIFLUSH);
+	tcflush(cur_term->Filedes, TCIFLUSH);
 #else
-		errno = 0;
-		do {
-		    ioctl(cur_term->Filedes, TIOCFLUSH, 0);
-		} while
-		    (errno == EINTR);
+	errno = 0;
+	do {
+	    ioctl(cur_term->Filedes, TIOCFLUSH, 0);
+	} while
+	    (errno == EINTR);
 #endif
-		if (SP) {
-			SP->_fifohead = -1;
-			SP->_fifotail = 0;
-			SP->_fifopeek = 0;
-		}
-		returnCode(OK);
+	if (SP) {
+	    SP->_fifohead = -1;
+	    SP->_fifotail = 0;
+	    SP->_fifopeek = 0;
 	}
-	returnCode(ERR);
+	returnCode(OK);
+    }
+    returnCode(ERR);
 }

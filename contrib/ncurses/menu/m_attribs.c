@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998 Free Software Foundation, Inc.                        *
+ * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -37,7 +37,7 @@
 
 #include "menu.priv.h"
 
-MODULE_ID("$Id: m_attribs.c,v 1.8 1999/05/16 17:24:24 juergen Exp $")
+MODULE_ID("$Id: m_attribs.c,v 1.9 2000/12/10 02:16:48 tom Exp $")
 
 /* Macro to redraw menu if it is posted and changed */
 #define Refresh_Menu(menu) \
@@ -49,7 +49,7 @@ MODULE_ID("$Id: m_attribs.c,v 1.8 1999/05/16 17:24:24 juergen Exp $")
 
 /* "Template" macro to generate a function to set a menus attribute */
 #define GEN_MENU_ATTR_SET_FCT( name ) \
-int set_menu_ ## name (MENU * menu, chtype attr)\
+NCURSES_IMPEXP int NCURSES_API set_menu_ ## name (MENU * menu, chtype attr)\
 {\
    if (!(attr==A_NORMAL || (attr & A_ATTRIBUTES)==attr))\
       RETURN(E_BAD_ARGUMENT);\
@@ -64,7 +64,7 @@ int set_menu_ ## name (MENU * menu, chtype attr)\
 
 /* "Template" macro to generate a function to get a menus attribute */
 #define GEN_MENU_ATTR_GET_FCT( name ) \
-chtype menu_ ## name (const MENU * menu)\
+NCURSES_IMPEXP chtype NCURSES_API menu_ ## name (const MENU * menu)\
 {\
    return (Normalize_Menu( menu ) -> name);\
 }

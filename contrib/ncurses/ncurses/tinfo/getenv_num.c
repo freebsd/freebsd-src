@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998 Free Software Foundation, Inc.                        *
+ * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -36,21 +36,21 @@
 
 #include <curses.priv.h>
 
-MODULE_ID("$Id: getenv_num.c,v 1.1 1998/09/19 21:30:23 tom Exp $")
+MODULE_ID("$Id: getenv_num.c,v 1.3 2000/12/10 02:55:07 tom Exp $")
 
-int
+NCURSES_EXPORT(int)
 _nc_getenv_num(const char *name)
 {
-	char *dst = 0;
-	char *src = getenv(name);
-	long value;
+    char *dst = 0;
+    char *src = getenv(name);
+    long value;
 
-	if ((src == 0)
-	 || (value = strtol(src, &dst, 0)) < 0
-	 || (dst == src)
-	 || (*dst != '\0')
-	 || (int)value < value)
-		value = -1;
+    if ((src == 0)
+	|| (value = strtol(src, &dst, 0)) < 0
+	|| (dst == src)
+	|| (*dst != '\0')
+	|| (int) value < value)
+	value = -1;
 
-	return (int) value;
+    return (int) value;
 }

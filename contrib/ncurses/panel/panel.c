@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998 Free Software Foundation, Inc.                        *
+ * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -34,11 +34,12 @@
 /* panel.c -- implementation of panels library, some core routines */
 #include "panel.priv.h"
 
-MODULE_ID("$Id: panel.c,v 1.18 1999/09/29 15:22:32 juergen Exp $")
+MODULE_ID("$Id: panel.c,v 1.20 2001/02/24 23:17:26 tom Exp $")
 
 #ifdef TRACE
 #ifndef TRACE_TXT
-const char *_nc_my_visbuf(const void *ptr)
+NCURSES_EXPORT(const char *)
+_nc_my_visbuf (const void *ptr)
 {
 	char temp[32];
 	if (ptr != 0)
@@ -55,8 +56,9 @@ const char *_nc_my_visbuf(const void *ptr)
 	dPanel(text,pan)
 --------------------------------------------------------------------------*/
 #ifdef TRACE
-void
-_nc_dPanel(const char *text, const PANEL *pan)
+NCURSES_EXPORT(void)
+_nc_dPanel 
+(const char *text, const PANEL *pan)
 {
 	_tracef("%s id=%s b=%s a=%s y=%d x=%d",
 		text, USER_PTR(pan->user),
@@ -70,8 +72,9 @@ _nc_dPanel(const char *text, const PANEL *pan)
 	dStack(fmt,num,pan)
 --------------------------------------------------------------------------*/
 #ifdef TRACE
-void
-_nc_dStack(const char *fmt, int num, const PANEL *pan)
+NCURSES_EXPORT(void)
+_nc_dStack 
+(const char *fmt, int num, const PANEL *pan)
 {
   char s80[80];
 
@@ -94,8 +97,8 @@ _nc_dStack(const char *fmt, int num, const PANEL *pan)
 	Wnoutrefresh(pan) - debugging hook for wnoutrefresh
 --------------------------------------------------------------------------*/
 #ifdef TRACE
-void
-_nc_Wnoutrefresh(const PANEL *pan)
+NCURSES_EXPORT(void)
+_nc_Wnoutrefresh (const PANEL *pan)
 {
   dPanel("wnoutrefresh",pan);
   wnoutrefresh(pan->win);
@@ -106,8 +109,8 @@ _nc_Wnoutrefresh(const PANEL *pan)
 	Touchpan(pan)
 --------------------------------------------------------------------------*/
 #ifdef TRACE
-void
-_nc_Touchpan(const PANEL *pan)
+NCURSES_EXPORT(void)
+_nc_Touchpan (const PANEL *pan)
 {
   dPanel("Touchpan",pan);
   touchwin(pan->win);
@@ -118,8 +121,9 @@ _nc_Touchpan(const PANEL *pan)
 	Touchline(pan,start,count)
 --------------------------------------------------------------------------*/
 #ifdef TRACE
-void
-_nc_Touchline(const PANEL *pan, int start, int count)
+NCURSES_EXPORT(void)
+_nc_Touchline 
+(const PANEL *pan, int start, int count)
 {
   char s80[80];
   sprintf(s80,"Touchline s=%d c=%d",start,count);
@@ -131,6 +135,6 @@ _nc_Touchline(const PANEL *pan, int start, int count)
 #ifndef TRACE
 #  ifndef __GNUC__
      /* Some C compilers need something defined in a source file */
-     static char GCC_UNUSED dummy;
+     void _nc_dummy_panel(void) { }
 #  endif
 #endif

@@ -23,7 +23,7 @@
 #include <tack.h>
 #include <time.h>
 
-MODULE_ID("$Id: output.c,v 1.5 2000/03/04 21:06:57 tom Exp $")
+MODULE_ID("$Id: output.c,v 1.6 2000/11/05 00:21:58 tom Exp $")
 
 /* globals */
 long char_sent;			/* number of characters sent */
@@ -122,7 +122,7 @@ tc_putch(int c)
 	}
 	if (log_fp) {
 		/* terminal output logging */
-		c &= 0xff;
+		c = CharOf(c);
 		if (c < 32) {
 			fprintf(log_fp, "<%s>", c0[c]);
 			log_count += 5;
@@ -561,7 +561,7 @@ hex_expand_to(char *s, int l)
 	char *t;
 
 	for (t = buf; *s; s++) {
-		sprintf(t, "%02X ", *s & 0xff);
+		sprintf(t, "%02X ", CharOf(*s));
 		t += 3;
 		if (t - buf > (int) sizeof(buf) - 4) {
 			break;
@@ -584,13 +584,13 @@ expand_command(const char *c)
 	char *s;
 
 	s = buf;
-	for (i = FALSE; (ch = (*c & 0xff)); c++) {
+	for (i = FALSE; (ch = CharOf(*c)) != 0; c++) {
 		if (i) {
 			*s++ = ' ';
 		}
 		i = TRUE;
 		if (ch < 32) {
-			j = c[1] & 0xff;
+			j = CharOf(c[1]);
 			if (ch == '\033' && j >= '@' && j <= '_') {
 				ch = j - '@';
 				c++;
@@ -599,7 +599,7 @@ expand_command(const char *c)
 				for (j = 0; (*s = c0[ch][j++]); s++);
 		} else {
 			*s++ = ch;
-			j = c[1] & 0xff;
+			j = CharOf(c[1]);
 			if (ch >= '0' && ch <= '9' &&
 				j >= '0' && j <= '9') {
 				i = FALSE;

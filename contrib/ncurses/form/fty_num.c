@@ -13,7 +13,7 @@
 
 #include "form.priv.h"
 
-MODULE_ID("$Id: fty_num.c,v 1.13 1999/05/16 17:23:30 juergen Exp $")
+MODULE_ID("$Id: fty_num.c,v 1.14 2000/12/09 23:46:12 tom Exp $")
 
 #if HAVE_LOCALE_H
 #include <locale.h>
@@ -190,6 +190,6 @@ static FIELDTYPE typeNUMERIC = {
   NULL
 };
 
-FIELDTYPE* TYPE_NUMERIC = &typeNUMERIC;
+NCURSES_EXPORT_VAR(FIELDTYPE*) TYPE_NUMERIC = &typeNUMERIC;
 
 /* fty_num.c ends here */

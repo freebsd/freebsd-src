@@ -1,5 +1,5 @@
 /****************************************************************************
- * Copyright (c) 1998 Free Software Foundation, Inc.                        *
+ * Copyright (c) 1998,2000 Free Software Foundation, Inc.                   *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
  * copy of this software and associated documentation files (the            *
@@ -29,20 +29,20 @@
 #ifndef TTY_DISPLAY_H
 #define TTY_DISPLAY_H 1
 
-extern bool _nc_tty_beep(void);
-extern bool _nc_tty_check_resize(void);
-extern bool _nc_tty_cursor(int);
-extern bool _nc_tty_flash(void);
-extern bool _nc_tty_init_color(int,int,int,int);
-extern bool _nc_tty_init_pair(int,int,int);
-extern bool _nc_tty_slk_hide(bool);
-extern bool _nc_tty_slk_update(int,const char *);
-extern bool _nc_tty_start_color(void);
-extern void _nc_tty_display_resume(void);
-extern void _nc_tty_display_suspend(void);
-extern void _nc_tty_dispose(void);	/* frees SP->_term */
-extern void _nc_tty_switch_to(void);
-extern void _nc_tty_update(void);
+extern NCURSES_EXPORT(bool) _nc_tty_beep (void);
+extern NCURSES_EXPORT(bool) _nc_tty_check_resize (void);
+extern NCURSES_EXPORT(bool) _nc_tty_cursor (int);
+extern NCURSES_EXPORT(bool) _nc_tty_flash (void);
+extern NCURSES_EXPORT(bool) _nc_tty_init_color (int,int,int,int);
+extern NCURSES_EXPORT(bool) _nc_tty_init_pair (int,int,int);
+extern NCURSES_EXPORT(bool) _nc_tty_slk_hide (bool);
+extern NCURSES_EXPORT(bool) _nc_tty_slk_update (int,const char *);
+extern NCURSES_EXPORT(bool) _nc_tty_start_color (void);
+extern NCURSES_EXPORT(void) _nc_tty_display_resume (void);
+extern NCURSES_EXPORT(void) _nc_tty_display_suspend (void);
+extern NCURSES_EXPORT(void) _nc_tty_dispose (void);	/* frees SP->_term */
+extern NCURSES_EXPORT(void) _nc_tty_switch_to (void);
+extern NCURSES_EXPORT(void) _nc_tty_update (void);
 
 struct tty_display_data {
 	int             _fifohold;      /* set if breakout marked           */
