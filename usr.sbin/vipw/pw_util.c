@@ -148,7 +148,7 @@ pw_tmp()
 	int fd;
 	char *p;
 
-	if ((p = strchr(masterpasswd, '/')) == NULL)
+	if ((p = strrchr(masterpasswd, '/')) == NULL)
 		strcpy(path, "pw.XXXXXX");
 	else
 		if (snprintf(path, sizeof path, "%.*s/pw.XXXXXX",
