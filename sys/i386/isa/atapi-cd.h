@@ -274,12 +274,12 @@ struct write_param {
 	u_char sub_hdr_byte1;
 	u_char sub_hdr_byte2;
 	u_char sub_hdr_byte3;
-/*
+#if 0 /* these are reserved bytes, should not be read */
 	u_char 	vendor_specific_byte0;
 	u_char 	vendor_specific_byte1;
 	u_char 	vendor_specific_byte2;
 	u_char 	vendor_specific_byte3;
-*/
+#endif
 
 } __attribute__((packed));
 /*
@@ -345,6 +345,8 @@ struct acd {
 	u_char speed;			/* Select drive speed */
 	u_int next_writeable_lba;	/* Next writable position */
 	struct wormio_prepare_track preptrack;	/* Scratch region */
+
+	u_long starting_lba ;		/* for multitrack */
 #ifdef	DEVFS
 	void *ra_devfs_token;
 	void *rc_devfs_token;
@@ -353,5 +355,13 @@ struct acd {
 #endif
 };
 
+struct atapireq {
+       u_char  cmd[16];
+       caddr_t databuf;
+       int     datalen;
+       struct  atapires result;
+};     
+
 #define CDRIOCBLANK     	_IO('c',100)    /* Blank a CDRW disc */
 #define CDRIOCNEXTWRITEABLEADDR	_IOR('c',101,int)   
+#define CDRIOCATAPIREQ  _IOWR('c',102,struct atapireq)
