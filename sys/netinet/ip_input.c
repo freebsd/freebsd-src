@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_input.c,v 1.101 1998/09/10 08:56:40 dfr Exp $
+ * $Id: ip_input.c,v 1.109 1998/12/14 18:09:13 luigi Exp $
  *	$ANA: ip_input.c,v 1.5 1996/09/18 14:34:59 wollman Exp $
  */
 
@@ -234,9 +234,6 @@ ip_init()
 
 	ip_id = time_second & 0xffff;
 	ipintrq.ifq_maxlen = ipqmaxlen;
-#ifdef IPFIREWALL
-	ip_fw_init();
-#endif
 #ifdef DUMMYNET
 	ip_dn_init();
 #endif
@@ -261,7 +258,6 @@ ip_input(struct mbuf *m)
 {
 	struct ip *ip;
 	struct ipq *fp;
-	struct ipqent *ipqe;
 	struct in_ifaddr *ia;
 	int    i, hlen, mff;
 	u_short sum;
@@ -566,7 +562,7 @@ ours:
 	 */
 	if (ip->ip_off & (IP_MF | IP_OFFMASK | IP_RF)) {
 		if (m->m_flags & M_EXT) {		/* XXX */
-			if ((m = m_pullup(m, sizeof (struct ip))) == 0) {
+			if ((m = m_pullup(m, hlen)) == 0) {
 				ipstat.ips_toosmall++;
 #ifdef IPDIVERT
 				frag_divert_port = 0;
@@ -764,13 +760,13 @@ ip_reass(m, fp, where)
 		fp->ipq_id = ip->ip_id;
 		fp->ipq_src = ip->ip_src;
 		fp->ipq_dst = ip->ip_dst;
-		fp->ipq_frags = 0;
+		fp->ipq_frags = m;
+		m->m_nextpkt = NULL;
 #ifdef IPDIVERT
 		fp->ipq_divert = 0;
 		fp->ipq_div_cookie = 0;
 #endif
-		q = 0;
-		goto insert;
+		goto inserted;
 	}
 
 #define GETIP(m)	((struct ip*)((m)->m_pkthdr.header))
@@ -785,7 +781,8 @@ ip_reass(m, fp, where)
 	/*
 	 * If there is a preceding segment, it may provide some of
 	 * our data already.  If so, drop the data from the incoming
-	 * segment.  If it provides all of our data, drop us.
+	 * segment.  If it provides all of our data, drop us, otherwise
+	 * stick new segment in the proper place.
 	 */
 	if (p) {
 		i = GETIP(p)->ip_off + GETIP(p)->ip_len - ip->ip_off;
@@ -796,6 +793,11 @@ ip_reass(m, fp, where)
 			ip->ip_off += i;
 			ip->ip_len -= i;
 		}
+		m->m_nextpkt = p->m_nextpkt;
+		p->m_nextpkt = m;
+	} else {
+		m->m_nextpkt = fp->ipq_frags;
+		fp->ipq_frags = m;
 	}
 
 	/*
@@ -803,7 +805,7 @@ ip_reass(m, fp, where)
 	 * if they are completely covered, dequeue them.
 	 */
 	for (; q != NULL && ip->ip_off + ip->ip_len > GETIP(q)->ip_off;
-	     p = q, q = nq) {
+	     q = nq) {
 		i = (ip->ip_off + ip->ip_len) -
 		    GETIP(q)->ip_off;
 		if (i < GETIP(q)->ip_len) {
@@ -813,14 +815,11 @@ ip_reass(m, fp, where)
 			break;
 		}
 		nq = q->m_nextpkt;
-		if (p)
-			p->m_nextpkt = nq;
-		else
-			fp->ipq_frags = nq;
+		m->m_nextpkt = nq;
 		m_freem(q);
 	}
 
-insert:
+inserted:
 
 #ifdef IPDIVERT
 	/*
@@ -835,16 +834,8 @@ insert:
 #endif
 
 	/*
-	 * Stick new segment in its place;
-	 * check for complete reassembly.
+	 * Check for complete reassembly.
 	 */
-	if (p == NULL) {
-		m->m_nextpkt = fp->ipq_frags;
-		fp->ipq_frags = m;
-	} else {
-		m->m_nextpkt = p->m_nextpkt;
-		p->m_nextpkt = m;
-	}
 	next = 0;
 	for (p = NULL, q = fp->ipq_frags; q; p = q, q = q->m_nextpkt) {
 		if (GETIP(q)->ip_off != next)
@@ -1300,7 +1291,7 @@ ip_srcroute()
 	*(mtod(m, struct in_addr *)) = *p--;
 #ifdef DIAGNOSTIC
 	if (ipprintfs)
-		printf(" hops %lx", ntohl(mtod(m, struct in_addr *)->s_addr));
+		printf(" hops %lx", (u_long)ntohl(mtod(m, struct in_addr *)->s_addr));
 #endif
 
 	/*
@@ -1320,7 +1311,7 @@ ip_srcroute()
 	while (p >= ip_srcrt.route) {
 #ifdef DIAGNOSTIC
 		if (ipprintfs)
-			printf(" %lx", ntohl(q->s_addr));
+			printf(" %lx", (u_long)ntohl(q->s_addr));
 #endif
 		*q++ = *p--;
 	}
@@ -1330,7 +1321,7 @@ ip_srcroute()
 	*q = ip_srcrt.dst;
 #ifdef DIAGNOSTIC
 	if (ipprintfs)
-		printf(" %lx\n", ntohl(q->s_addr));
+		printf(" %lx\n", (u_long)ntohl(q->s_addr));
 #endif
 	return (m);
 }
