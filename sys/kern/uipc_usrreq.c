@@ -865,19 +865,26 @@ unp_externalize(rights)
 	struct proc *p = curproc;		/* XXX */
 	register int i;
 	register struct cmsghdr *cm = mtod(rights, struct cmsghdr *);
-	register struct file **rp = (struct file **)(cm + 1);
+	register int *fdp;
+	register struct file **rp;
 	register struct file *fp;
-	int newfds = (cm->cmsg_len - sizeof(*cm)) / sizeof (int);
+	int newfds = (cm->cmsg_len - (CMSG_DATA(cm) - (u_char *)cm))
+		/ sizeof (struct file *);
 	int f;
 
 	/*
 	 * if the new FD's will not fit, then we free them all
 	 */
 	if (!fdavail(p, newfds)) {
+		rp = (struct file **)CMSG_DATA(cm);
 		for (i = 0; i < newfds; i++) {
 			fp = *rp;
-			unp_discard(fp);
+			/*
+			 * zero the pointer before calling unp_discard,
+			 * since it may end up in unp_gc()..
+			 */
 			*rp++ = 0;
+			unp_discard(fp);
 		}
 		return (EMSGSIZE);
 	}
@@ -885,17 +892,45 @@ unp_externalize(rights)
 	 * now change each pointer to an fd in the global table to 
 	 * an integer that is the index to the local fd table entry
 	 * that we set up to point to the global one we are transferring.
-	 * XXX this assumes a pointer and int are the same size...!
+	 * If sizeof (struct file *) is bigger than or equal to sizeof int,
+	 * then do it in forward order. In that case, an integer will
+	 * always come in the same place or before its corresponding
+	 * struct file pointer.
+	 * If sizeof (struct file *) is smaller than sizeof int, then
+	 * do it in reverse order.
 	 */
-	for (i = 0; i < newfds; i++) {
-		if (fdalloc(p, 0, &f))
-			panic("unp_externalize");
-		fp = *rp;
-		p->p_fd->fd_ofiles[f] = fp;
-		fp->f_msgcount--;
-		unp_rights--;
-		*(int *)rp++ = f;
+	if (sizeof (struct file *) >= sizeof (int)) {
+		fdp = (int *)(cm + 1);
+		rp = (struct file **)CMSG_DATA(cm);
+		for (i = 0; i < newfds; i++) {
+			if (fdalloc(p, 0, &f))
+				panic("unp_externalize");
+			fp = *rp++;
+			p->p_fd->fd_ofiles[f] = fp;
+			fp->f_msgcount--;
+			unp_rights--;
+			*fdp++ = f;
+		}
+	} else {
+		fdp = (int *)(cm + 1) + newfds - 1;
+		rp = (struct file **)CMSG_DATA(cm) + newfds - 1;
+		for (i = 0; i < newfds; i++) {
+			if (fdalloc(p, 0, &f))
+				panic("unp_externalize");
+			fp = *rp--;
+			p->p_fd->fd_ofiles[f] = fp;
+			fp->f_msgcount--;
+			unp_rights--;
+			*fdp-- = f;
+		}
 	}
+
+	/*
+	 * Adjust length, in case sizeof(struct file *) and sizeof(int)
+	 * differs.
+	 */
+	cm->cmsg_len = CMSG_LEN(newfds * sizeof(int));
+	rights->m_len = cm->cmsg_len;
 	return (0);
 }
 
@@ -918,13 +953,14 @@ unp_internalize(control, p)
 	struct mbuf *control;
 	struct proc *p;
 {
-	struct filedesc *fdp = p->p_fd;
+	struct filedesc *fdescp = p->p_fd;
 	register struct cmsghdr *cm = mtod(control, struct cmsghdr *);
 	register struct file **rp;
 	register struct file *fp;
-	register int i, fd;
+	register int i, fd, *fdp;
 	register struct cmsgcred *cmcred;
 	int oldfds;
+	u_int newlen;
 
 	if ((cm->cmsg_type != SCM_RIGHTS && cm->cmsg_type != SCM_CREDS) ||
 	    cm->cmsg_level != SOL_SOCKET || cm->cmsg_len != control->m_len)
@@ -951,25 +987,68 @@ unp_internalize(control, p)
 	 * check that all the FDs passed in refer to legal OPEN files
 	 * If not, reject the entire operation.
 	 */
-	rp = (struct file **)(cm + 1);
+	fdp = (int *)(cm + 1);
 	for (i = 0; i < oldfds; i++) {
-		fd = *(int *)rp++;
-		if ((unsigned)fd >= fdp->fd_nfiles ||
-		    fdp->fd_ofiles[fd] == NULL)
+		fd = *fdp++;
+		if ((unsigned)fd >= fdescp->fd_nfiles ||
+		    fdescp->fd_ofiles[fd] == NULL)
 			return (EBADF);
 	}
 	/*
 	 * Now replace the integer FDs with pointers to
 	 * the associated global file table entry..
-	 * XXX this assumes a pointer and an int are the same size!
+	 * Allocate a bigger buffer as necessary. But if an cluster is not
+	 * enough, return E2BIG.
 	 */
-	rp = (struct file **)(cm + 1);
-	for (i = 0; i < oldfds; i++) {
-		fp = fdp->fd_ofiles[*(int *)rp];
-		*rp++ = fp;
-		fp->f_count++;
-		fp->f_msgcount++;
-		unp_rights++;
+	newlen = CMSG_LEN(oldfds * sizeof(struct file *));
+	if (newlen > MCLBYTES)
+		return (E2BIG);
+	if (newlen - control->m_len > M_TRAILINGSPACE(control)) {
+		if (control->m_flags & M_EXT)
+			return (E2BIG);
+		MCLGET(control, M_WAIT);
+		if ((control->m_flags & M_EXT) == 0)
+			return (ENOBUFS);
+
+		/* copy the data to the cluster */
+		memcpy(mtod(control, char *), cm, cm->cmsg_len);
+		cm = mtod(control, struct cmsghdr *);
+	}
+
+	/*
+	 * Adjust length, in case sizeof(struct file *) and sizeof(int)
+	 * differs.
+	 */
+	control->m_len = cm->cmsg_len = newlen;
+
+	/*
+	 * Transform the file descriptors into struct file pointers.
+	 * If sizeof (struct file *) is bigger than or equal to sizeof int,
+	 * then do it in reverse order so that the int won't get until
+	 * we're done.
+	 * If sizeof (struct file *) is smaller than sizeof int, then
+	 * do it in forward order.
+	 */
+	if (sizeof (struct file *) >= sizeof (int)) {
+		fdp = (int *)(cm + 1) + oldfds - 1;
+		rp = (struct file **)CMSG_DATA(cm) + oldfds - 1;
+		for (i = 0; i < oldfds; i++) {
+			fp = fdescp->fd_ofiles[*fdp--];
+			*rp-- = fp;
+			fp->f_count++;
+			fp->f_msgcount++;
+			unp_rights++;
+		}
+	} else {
+		fdp = (int *)(cm + 1);
+		rp = (struct file **)CMSG_DATA(cm);
+		for (i = 0; i < oldfds; i++) {
+			fp = fdescp->fd_ofiles[*fdp++];
+			*rp++ = fp;
+			fp->f_count++;
+			fp->f_msgcount++;
+			unp_rights++;
+		}
 	}
 	return (0);
 }
@@ -1168,9 +1247,10 @@ unp_scan(m0, op)
 				if (cm->cmsg_level != SOL_SOCKET ||
 				    cm->cmsg_type != SCM_RIGHTS)
 					continue;
-				qfds = (cm->cmsg_len - sizeof *cm)
+				qfds = (cm->cmsg_len -
+					(CMSG_DATA(cm) - (u_char *)cm))
 						/ sizeof (struct file *);
-				rp = (struct file **)(cm + 1);
+				rp = (struct file **)CMSG_DATA(cm);
 				for (i = 0; i < qfds; i++)
 					(*op)(*rp++);
 				break;		/* XXX, but saves time */
