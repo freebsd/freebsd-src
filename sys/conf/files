@@ -16,6 +16,7 @@ ddb/db_variables.c	optional ddb
 ddb/db_watch.c		optional ddb
 ddb/db_write_cmd.c	optional ddb
 dev/ccd/ccd.c		optional ccd device-driver
+dev/en/midway.c		optional en device-driver
 dev/pdq/pdq.c		optional fea device-driver
 dev/pdq/pdq_ifsubr.c	optional fea device-driver
 dev/pdq/pdq.c		optional fpa device-driver
@@ -159,6 +160,7 @@ net/bpf.c		optional bpfilter
 net/bpf_filter.c	optional bpfilter
 net/bsd_comp.c		optional ppp
 net/if.c		standard
+net/if_atmsubr.c	optional atm
 net/if_disc.c		optional disc
 net/if_ethersubr.c	optional ether
 net/if_fddisubr.c	optional fddi
@@ -207,6 +209,7 @@ netatalk/ddp_usrreq.c	optional netatalk
 #netimp/if_imp.c		optional imp
 #netimp/if_imphost.c	optional imp
 #netimp/raw_imp.c	optional imp
+netinet/if_atm.c	optional atm
 netinet/if_ether.c	optional ether
 netinet/igmp.c		optional inet
 netinet/in.c		optional inet
@@ -294,6 +297,9 @@ netipx/spx_usrreq.c	optional ipx
 #netiso/tuba_table.c	optional iso tuba
 #netiso/tuba_usrreq.c	optional iso tuba
 netkey/key.c		optional key
+netnatm/natm.c		optional natm
+netnatm/natm_pcb.c	optional natm
+netnatm/natm_proto.c	optional natm
 #netns/idp_usrreq.c	optional ns
 #netns/ns.c		optional ns
 #netns/ns_error.c	optional ns
@@ -323,6 +329,7 @@ pci/bt9xx.c		optional bt device-driver
 pci/cy_pci.c		optional cy device-driver
 pci/if_de.c		optional de device-driver
 pci/if_ed_p.c		optional ed device-driver
+pci/if_en_pci.c		optional en device-driver
 pci/if_fxp.c		optional fxp device-driver
 pci/if_lnc_p.c		optional lnc device-driver
 pci/if_fpa.c		optional fpa device-driver
