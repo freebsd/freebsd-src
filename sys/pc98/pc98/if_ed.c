@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ed.c,v 1.14 1996/12/11 16:55:27 kato Exp $
+ *	$Id: if_ed.c,v 1.15 1996/12/15 09:14:46 kato Exp $
  */
 
 /*
@@ -2030,146 +2030,218 @@ ed_probe_CNET98(isa_dev)
 
 {
 	struct ed_softc *sc = &ed_softc[isa_dev->id_unit];
-	u_int     i;
-	u_char  sum;
+	int     i;
+	u_long  j; 
+	u_char  cmd,sum;
+	u_char  tmp,tmp_s,tmp_e;
 
-	/*
-	 * Setup card RAM area and i/o addresses
-	 * Kernel Virtual to segment C0000-DFFFF?????
-	 */
+	sc->vendor         = ED_VENDOR_MISC;	 /* vendor name          */
+	sc->type_str       = "CNET98";           /* board name           */
+	sc->isa16bit       = 0;					 /* 16bit mode off = 0   */
+	sc->cr_proto       = ED_CR_RD2;          /*                      */
+	sc->asic_addr      = isa_dev->id_iobase; /* 0xa3d0,0xb3d0,0xc3d0 */
+	sc->nic_addr       = isa_dev->id_iobase; /* 0xd3d0,0xe3d0,0xf3d0 */
+	sc->is790          = 0;			 		 /* special chip         */
 
-	sc->isa16bit       = 0;						/* 16bit mode off = 0 */
-	sc->cr_proto       = ED_CR_RD2;
-	sc->vendor         = ED_VENDOR_MISC;		/* vendor name */
-	sc->asic_addr      = isa_dev->id_iobase;
-	sc->nic_addr       = sc->asic_addr;			/* 0xa3d0      */
-	sc->is790          = 0;						/* special chip */
 	sc->mem_start      = (caddr_t)isa_dev->id_maddr;
 	sc->mem_end        = sc->mem_start + isa_dev->id_msize;
 	sc->mem_ring       = sc->mem_start + (ED_PAGE_SIZE * ED_TXBUF_SIZE);
-	sc->mem_size       = isa_dev->id_msize;		/*  16kbyte */
-	sc->mem_shared     = 1;						/* sharedmemory on=1,off=0 */
-	sc->txb_cnt        = 1;						/* tx buffer counter 1 */
-	sc->tx_page_start  = 0;						/* page offset 0 */
-	sc->rec_page_start = ED_TXBUF_SIZE;			/* page offset 6 */
+	sc->mem_size       = isa_dev->id_msize;
+	sc->mem_shared     = 1;					 /* shared memory on    */
+	sc->txb_cnt        = 1;					 /* tx buffer counter 1 */
+	sc->tx_page_start  = 0;					 /* page offset 0       */
+	sc->rec_page_start = ED_TXBUF_SIZE;		 /* page offset 6       */
 	sc->rec_page_stop  = isa_dev->id_msize / ED_PAGE_SIZE;
-												/* page offset 40 */
-
-	if (sc->asic_addr == 0xa3d0) {
-		/*
-		 * reset card to force it into a known state.
-		 */
-		outb(ED_CNET98_INIT_ADDR, 0x00);    /* Request */
-		DELAY(5000);
-		outb(ED_CNET98_INIT_ADDR, 0x01);    /* Cancel  */
-		DELAY(5000);
-		/*
-		 * set i/o address and cpu type
-		 */
-		sc->asic_addr = (0xf000 & sc->asic_addr) >> 8;
-		sc->asic_addr = sc->asic_addr & 0xf0;
-		sc->asic_addr = sc->asic_addr | 0x09;
-		/* debug printf(" Board status %x \n",sc->asic_addr); */
-		outb((ED_CNET98_INIT_ADDR + 2), sc->asic_addr);
-		DELAY(1000);
-		sc->asic_addr = sc->nic_addr;
-		/*
-		 *  set window ethernet address area
-		 *    board memory base 0x480000  data 256byte 
-		 *    window   base     0xc40000
-		 *
-		 *    FreeBSD address 0xf00c4000
-		 */
-		outb((sc->asic_addr + ED_CNET98_MAP_REG0L),0x00);
-		DELAY(10);
-		outb((sc->asic_addr + ED_CNET98_MAP_REG0H),0x48);
-		DELAY(10);
-		outb((sc->asic_addr + ED_CNET98_MAP_REG1L),0x00);
-		DELAY(10);
-		outb((sc->asic_addr + ED_CNET98_MAP_REG1H),0x41);
-		DELAY(10);
-		outb((sc->asic_addr + ED_CNET98_MAP_REG2L),0x00);
-		DELAY(10);
-		outb((sc->asic_addr + ED_CNET98_MAP_REG2H),0x42);
-		DELAY(10);
-		outb((sc->asic_addr + ED_CNET98_MAP_REG3L),0x00);
-		DELAY(10);
-		outb((sc->asic_addr + ED_CNET98_MAP_REG3H),0x43);
-		DELAY(10);
-
-		outb((sc->asic_addr + ED_CNET98_WIN_REG),0xc4);
-		DELAY(10);
-		/*
-		 * CNET98 checksum code
-		 *
-		 * for (sum = 0, i = 0; i < ETHER_ADDR_LEN; ++i)
-		 *   sum ^= *((caddr_t)(isa_dev -> id_maddr + i));
-		 * printf(" checkusum = %x \n",sum);
-		 */
-
-		/*
-		 * Get station address from on-board ROM
-		 */
-		for (i = 0; i < ETHER_ADDR_LEN; ++i) 
-			sc->arpcom.ac_enaddr[i] = *((caddr_t)(isa_dev -> id_maddr + i));
-
-		outb((sc->asic_addr + ED_CNET98_WIN_REG),0x44);
-		DELAY(10);
-
-		/*
-		 *  set window buffer memory area
-		 *    board memory base 0x400000  data 16kbyte 
-		 *    window   base     0xc40000
-		 *
-		 *    FreeBSD address 0xf00c4000
-		 */
-		outb((sc->asic_addr + ED_CNET98_MAP_REG0L),0x00);
-		DELAY(10);
-		outb((sc->asic_addr + ED_CNET98_MAP_REG0H),0x40);
-		DELAY(10);
-		outb((sc->asic_addr + ED_CNET98_MAP_REG1L),0x00);
-		DELAY(10);
-		outb((sc->asic_addr + ED_CNET98_MAP_REG1H),0x41);
-		DELAY(10);
-		outb((sc->asic_addr + ED_CNET98_MAP_REG2L),0x00);
-		DELAY(10);
-		outb((sc->asic_addr + ED_CNET98_MAP_REG2H),0x42);
-		DELAY(10);
-		outb((sc->asic_addr + ED_CNET98_MAP_REG3L),0x00);
-		DELAY(10);
-		outb((sc->asic_addr + ED_CNET98_MAP_REG3H),0x43);
-		DELAY(10);
-
-		outb((sc->asic_addr + ED_CNET98_WIN_REG),0xc4);
-		DELAY(10);
-
-		/*
-		 * clear interface memory, then sum to make sure its valid
-		 */
-		for (i = 0; i < sc->mem_size; ++i)
-			sc->mem_start[i] = 0x0;
-		for (sum = 0, i = 0; i < sc->mem_size; ++i)
-			sum |= sc->mem_start[i];
-		if (sum != 0x0) {
-			printf("ed%d: CNET98 dual port RAM address error\n",
-				   isa_dev->id_unit);
-			return (0);
-		}
-		/*
-		 *   interrupt set
-		 *   irq 12 set
-		 */
-		/* int 5 set */
-		outb((sc->asic_addr + ED_CNET98_INT_MASK),0x7e);
-		DELAY(1000);
-		outb((sc->asic_addr + ED_CNET98_INT_LEV),0x20);
-		DELAY(1000);
-
-		return (32); /* 0xa3d0 -- 0xa3df , 0xa7d0 -- 0xa7df */
-
-	} else {
-		return(0); /* error no board */
+											 /* page offset 40      */
+	/*
+	 * Check i/o address.
+	 * 0xa3d0, 0xb3d0, 0xc3d0, 0xd3d0, 0xe3d0, 0xf3d0
+	 */
+	if ( ((sc->asic_addr & (u_short) 0x0fff) != 0x03d0) &&
+	     ((sc->asic_addr & (u_short) 0xf000) >= 0xa000)   ){
+		printf("ed%d: Invalid i/o port configuration (0x%x) must be "
+			   "0x?3d0 for CNET98\n",
+			   isa_dev->id_unit, sc->asic_addr);
+		return (0);
 	}
+	/*
+	 * Check window area address.
+	 */
+	tmp_s = kvtop(sc->mem_start) >> 12;
+	if ( tmp_s < 0x80 ) {
+		printf("ed%d: Please change window address(0x%x) \n",
+			   isa_dev->id_unit,sc->mem_start);
+	  return (0);
+	}
+
+	tmp   = sc->asic_addr >> 12;
+	tmp_s = (tmp_s & (u_char) 0x0f);
+	tmp_e = tmp_s + 4;
+	if ( (tmp_s <= tmp) && (tmp < tmp_e ) ){
+printf("ed%d: Please change iobase address(0x%x) or window address(0x%x) \n",
+	   isa_dev->id_unit,isa_dev->id_iobase,kvtop(sc->mem_start));
+	  return (0);
+	}
+
+	/*
+	 * Reset card to force it into a known state.
+	 */
+	outb(ED_CNET98_INIT_ADDR, 0x00);    /* Request */
+	DELAY(5000);
+	outb(ED_CNET98_INIT_ADDR, 0x01);    /* Cancel  */
+	DELAY(5000);
+
+	/*
+	 * Set i/o address and cpu type
+	 *
+	 *   AAAAIXXC(8bit)
+	 *   AAAA: A15-A12,  I: I/O enable, XX: reserved, C: CPU type
+	 */
+	tmp =  (sc->asic_addr & (u_short) 0xf000) >> 8;
+	tmp |= (0x08 | 0x01);
+#ifdef ED_DEBUG
+	printf("ed%d: Board status %x \n",isa_dev->id_unit, tmp);
+#endif
+	outb((ED_CNET98_INIT_ADDR + 2), tmp);
+	DELAY(1000);
+
+	/*
+	 *  Set window ethernet address area
+	 *    board memory base 0x480000  data 256byte 
+	 *    FreeBSD address 0xf00xxxxx
+	 */
+	outb((sc->asic_addr + ED_CNET98_MAP_REG0L),0x00);
+	DELAY(10);
+	outb((sc->asic_addr + ED_CNET98_MAP_REG0H),0x48);
+	DELAY(10);
+	outb((sc->asic_addr + ED_CNET98_MAP_REG1L),0x00);
+	DELAY(10);
+	outb((sc->asic_addr + ED_CNET98_MAP_REG1H),0x41);
+	DELAY(10);
+	outb((sc->asic_addr + ED_CNET98_MAP_REG2L),0x00);
+	DELAY(10);
+	outb((sc->asic_addr + ED_CNET98_MAP_REG2H),0x42);
+	DELAY(10);
+	outb((sc->asic_addr + ED_CNET98_MAP_REG3L),0x00);
+	DELAY(10);
+	outb((sc->asic_addr + ED_CNET98_MAP_REG3H),0x43);
+	DELAY(10);
+
+	/*
+	 * Enable window memory(16Kbyte)
+	 *    bit7:0 disable , 1 enable
+	 */
+	cmd = (kvtop(sc->mem_start) >> 12);
+#ifdef ED_DEBUG
+	printf("ed%d: Set window start address %x \n",isa_dev->id_unit,cmd);
+#endif
+	outb((sc->asic_addr + ED_CNET98_WIN_REG),cmd);
+	DELAY(10);
+	/*
+	 * CNET98 checksum code
+	 *
+	 * for (sum = 0, i = 0; i < ETHER_ADDR_LEN; ++i)
+	 *   sum ^= *((caddr_t)(isa_dev -> id_maddr + i));
+	 * printf(" checkusum = %x \n",sum);
+	 */
+
+	/*
+	 * Get station address from on-board ROM
+	 */
+	for (i = 0; i < ETHER_ADDR_LEN; ++i) 
+		sc->arpcom.ac_enaddr[i] = *((caddr_t)(isa_dev -> id_maddr + i));
+
+	/*
+	 * Disable window memory
+	 *   bit7:1 enable , 0 disable
+	 */
+	cmd = cmd & 0x7f;
+	outb((sc->asic_addr + ED_CNET98_WIN_REG),cmd);
+	DELAY(10);
+
+	/*
+	 * Set window buffer memory area
+	 *    board memory base 0x400000  data 16kbyte 
+	 *    FreeBSD address 0xf00xxxxx
+	 */
+	outb((sc->asic_addr + ED_CNET98_MAP_REG0L),0x00);
+	DELAY(10);
+	outb((sc->asic_addr + ED_CNET98_MAP_REG0H),0x40);
+	DELAY(10);
+	outb((sc->asic_addr + ED_CNET98_MAP_REG1L),0x00);
+	DELAY(10);
+	outb((sc->asic_addr + ED_CNET98_MAP_REG1H),0x41);
+	DELAY(10);
+	outb((sc->asic_addr + ED_CNET98_MAP_REG2L),0x00);
+	DELAY(10);
+	outb((sc->asic_addr + ED_CNET98_MAP_REG2H),0x42);
+	DELAY(10);
+	outb((sc->asic_addr + ED_CNET98_MAP_REG3L),0x00);
+	DELAY(10);
+	outb((sc->asic_addr + ED_CNET98_MAP_REG3H),0x43);
+	DELAY(10);
+
+	/*
+	 * Enable window memory
+	 *   bit7:1 enable , 0 disable
+	 */
+	cmd = cmd | 0x80;
+	outb((sc->asic_addr + ED_CNET98_WIN_REG),cmd);
+	DELAY(10);
+
+	/*
+	 *   Clear interface memory, then sum to make sure its valid
+	 */
+	for (j = 0; j < sc->mem_size; ++j)
+		sc->mem_start[j] = 0x0;
+	for (sum = 0, j = 0; j < sc->mem_size; ++j)
+		sum |= sc->mem_start[j];
+	if (sum != 0x0) {
+		printf("ed%d: CNET98 dual port RAM address error\n",
+			   isa_dev->id_unit);
+		return (0);
+	}
+
+	/*
+	 *   Set interrupt level
+	 */
+	switch (isa_dev->id_irq) {
+	case IRQ12:
+		outb((sc->asic_addr + ED_CNET98_INT_LEV),ED_CNET98_INT_IRQ12);
+		break;
+	case IRQ3:
+		outb((sc->asic_addr + ED_CNET98_INT_LEV),ED_CNET98_INT_IRQ3);
+		break;
+	case IRQ5:
+		outb((sc->asic_addr + ED_CNET98_INT_LEV),ED_CNET98_INT_IRQ5);
+		break;
+	case IRQ6:
+		outb((sc->asic_addr + ED_CNET98_INT_LEV),ED_CNET98_INT_IRQ6);
+		break;
+	case IRQ9:
+		outb((sc->asic_addr + ED_CNET98_INT_LEV),ED_CNET98_INT_IRQ9);
+		break;
+	case IRQ13:
+		outb((sc->asic_addr + ED_CNET98_INT_LEV),ED_CNET98_INT_IRQ13);
+		break;
+	default:
+printf("ed%d: Change Interrupt level default value from %d to %d.\n",
+			isa_dev->id_irq,IRQ5);
+		isa_dev->id_irq = IRQ5;
+		outb((sc->asic_addr + ED_CNET98_INT_LEV),ED_CNET98_INT_IRQ5);
+		break;
+	}
+	DELAY(1000);
+	/*
+	 *   Set interrupt mask.
+	 *     bit7:1 all interrupt mask
+	 *     bit1:1 timer interrupt mask
+	 *     bit0:0 NS controler interrupt enable
+	 */
+	outb((sc->asic_addr + ED_CNET98_INT_MASK),0x7e);
+	DELAY(1000);
+
+	return (ED_CNET98_IO_PORTS); 
 }
 
 
