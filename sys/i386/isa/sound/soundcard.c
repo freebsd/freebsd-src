@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: soundcard.c,v 1.40 1995/12/11 09:26:16 phk Exp $
+ * $Id: soundcard.c,v 1.41 1996/01/18 20:54:15 ache Exp $
  */
 
 #include "sound_config.h"
@@ -55,8 +55,12 @@ static int      soundcards_installed = 0;	/* Number of installed
 static int      soundcard_configured = 0;
 
 static struct fileinfo files[SND_NDEVS];
+
+#ifdef DEVFS
 static void * snd_devfs_token[SND_NDEVS];
 static void * sndstat_devfs_token;
+#endif 
+
 struct selinfo selinfo[SND_NDEVS >> 4];
 
 static int	sndprobe (struct isa_device *dev);
@@ -300,7 +304,6 @@ sndattach (struct isa_device *dev)
   static int      seq_initialized = 0;
   unsigned long	  mem_start = 0xefffffffUL;
   struct address_info hw_config;
-  char name[32];
 
   unit = driver_to_voxunit(dev->id_driver);
   hw_config.io_base = dev->id_iobase;
@@ -361,54 +364,49 @@ sndattach (struct isa_device *dev)
 #define SND_UID 0
 #define SND_GID 13
 
-
-    sprintf(name,"mixer%d",unit);
-    snd_devfs_token[unit]=devfs_add_devsw(
-	"/", name, &snd_cdevsw, (unit << 4)+SND_DEV_CTL,
-		DV_CHR, SND_UID,  SND_GID, 0660);
+    snd_devfs_token[unit]=
+		devfs_add_devswf(&snd_cdevsw, (unit << 4)+SND_DEV_CTL, DV_CHR, 
+				 SND_UID,  SND_GID, 0660, "mixer%d", unit);
 
 #ifndef EXCLUDE_SEQUENCER
-    sprintf(name,"sequencer%d",unit);
-    snd_devfs_token[unit]=devfs_add_devsw(
-	"/", name, &snd_cdevsw, (unit << 4)+SND_DEV_SEQ,
-		DV_CHR, SND_UID,  SND_GID, 0660);
-    sprintf(name,"music%d",unit);
-    snd_devfs_token[unit]=devfs_add_devsw(
-	"/", name, &snd_cdevsw, (unit << 4)+SND_DEV_SEQ2,
-		DV_CHR, SND_UID,  SND_GID, 0660);
+    snd_devfs_token[unit]=
+		devfs_add_devswf(&snd_cdevsw, (unit << 4)+SND_DEV_SEQ, DV_CHR,
+				 SND_UID,  SND_GID, 0660, "sequencer%d", unit);
+    snd_devfs_token[unit]=
+		devfs_add_devswf(&snd_cdevsw, (unit << 4)+SND_DEV_SEQ2, DV_CHR,
+				 SND_UID,  SND_GID, 0660, "music%d", unit);
 #endif
 
 #ifndef EXCLUDE_MIDI
-    sprintf(name,"midi%d",unit);
-    snd_devfs_token[unit]=devfs_add_devsw(
-	"/", name, &snd_cdevsw, (unit << 4)+SND_DEV_MIDIN,
-		DV_CHR, SND_UID,  SND_GID, 0660);
+    snd_devfs_token[unit]=
+		devfs_add_devswf(&snd_cdevsw, (unit << 4)+SND_DEV_MIDIN,
+				 DV_CHR, SND_UID,  SND_GID, 0660, "midi%d", 
+				 unit);
 #endif
 
 #ifndef EXCLUDE_AUDIO
-    sprintf(name,"dsp%d",unit);
-    snd_devfs_token[unit]=devfs_add_devsw(
-	"/", name, &snd_cdevsw, (unit << 4)+SND_DEV_DSP,
-		DV_CHR, SND_UID,  SND_GID, 0660);
-    sprintf(name,"audio%d",unit);
-    snd_devfs_token[unit]=devfs_add_devsw(
-	"/", name, &snd_cdevsw, (unit << 4)+SND_DEV_AUDIO,
-		DV_CHR, SND_UID,  SND_GID, 0660);
-    sprintf(name,"dspW%d",unit);
-    snd_devfs_token[unit]=devfs_add_devsw(
-	"/", name, &snd_cdevsw, (unit << 4)+SND_DEV_DSP16,
-		DV_CHR, SND_UID,  SND_GID, 0660);
+    snd_devfs_token[unit]=
+		devfs_add_devswf(&snd_cdevsw, (unit << 4)+SND_DEV_DSP, DV_CHR,
+				 SND_UID,  SND_GID, 0660, "dsp%d", unit);
+    snd_devfs_token[unit]=
+		devfs_add_devswf(&snd_cdevsw, (unit << 4)+SND_DEV_AUDIO,
+				 DV_CHR, SND_UID,  SND_GID, 0660, "audio%d", 
+				 unit);
+    snd_devfs_token[unit]=
+		devfs_add_devswf(&snd_cdevsw, (unit << 4)+SND_DEV_DSP16,
+				 DV_CHR, SND_UID,  SND_GID, 0660, "dspW%d", 
+				 unit);
 #endif
 
-    sprintf(name,"pss%d",unit);
-    snd_devfs_token[unit]=devfs_add_devsw(
-	"/", name, &snd_cdevsw, (unit << 4)+SND_DEV_SNDPROC,
-		DV_CHR, SND_UID,  SND_GID, 0660);
+    snd_devfs_token[unit]=
+		devfs_add_devswf(&snd_cdevsw, (unit << 4)+SND_DEV_SNDPROC,
+		 		 DV_CHR, SND_UID,  SND_GID, 0660, "pss%d", 
+				 unit);
 
     if ( ! sndstat_devfs_token) {
-        sndstat_devfs_token = devfs_add_devsw(
-	    "/", "sndstat", &snd_cdevsw, 6,
-		DV_CHR, SND_UID,  SND_GID, 0660);
+        sndstat_devfs_token = 
+		devfs_add_devswf(&snd_cdevsw, 6, DV_CHR, SND_UID, SND_GID, 
+				 0660, "sndstat");
     }
 #endif /* DEVFS */
   return TRUE;
