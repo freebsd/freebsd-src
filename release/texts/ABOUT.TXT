@@ -206,7 +206,7 @@ by running the sysinstall utility with the argument ``configPackages''
 or by feeding the individual filenames to the pkg_add(1) command.
 
 The ports collection may be installed like any other distribution
-and requires about 50MB unpacked.  More information on the ports collection
+and requires about 100MB unpacked.  More information on the ports collection
 may be obtained from http://www.freebsd.org/ports or locally from
 file:/usr/share/doc/handbook if you've installed the doc distribution.
 
