@@ -1514,4 +1514,23 @@ pcic_start_threads(void *arg)
 	}
 }
 
+int
+pcic_detach(device_t dev)
+{
+	device_t pccarddev;
+	device_t *kids;
+	int nkids;
+	int i;
+	int ret;
+
+	device_get_children(dev, &kids, &nkids);
+	for (i = 0; i < nkids; i++) {
+		if ((ret = device_delete_child(pccarddev, kids[i])) != 0)
+			device_printf(dev, "delete of %s failed: %d\n",
+				device_get_nameunit(kids[i]), ret);
+	}
+	free(kids, M_TEMP);
+	return (bus_generic_detach(dev));
+}
+
 SYSINIT(pcic, SI_SUB_KTHREAD_IDLE, SI_ORDER_ANY, pcic_start_threads, 0);
