@@ -1,0 +1,128 @@
+.\"
+.\" Copyright (c) 1995 Joerg Wunsch
+.\"
+.\" All rights reserved.
+.\"
+.\" This program is free software.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE DEVELOPERS ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE DEVELOPERS BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $Id$
+.\"
+.Dd November 5, 1995
+.Os
+.Dt MKDOSFS 1
+.Sh NAME
+.Nm mkdosfs
+.Nd create an MS-DOS (FAT) file system
+.Sh SYNOPSIS
+.Nm mkdosfs
+.Bq Fl f Ar capacity
+.Bq Fl L Ar vollabel
+.Ar device
+.Sh DESCRIPTION
+.Nm Mkdosfs
+establishes a file system structure on
+.Ar device
+that is understood by
+.Xr mount_msdos
+and some ancient program loader.
+.Ar Device
+will typically be the character device node for a floppy disk drive,
+.Pq e.\ g. Pa /dev/rfd0 ,
+although any existing writable file or device is acceptable.  In case
+of a regular file it is treated as a dumped image of an MS-DOS file
+system; only the file system structure will be written to it, and it
+won't be truncated.
+.Pp
+The options are as follows:
+.Bl -tag -width 10n -offset indent
+.It Fl f Ar capacity
+Use defaults for a typical file system with
+.Ar capacity
+kilobytes.  Currently, the values 360, 720, 1200, and 1440 are
+recognized.
+.It Fl L Ar vollabel
+Use
+.Ar vollabel
+to describe the file system, instead of the default
+.Ql 4.4BSD .
+.El
+.Pp
+The file system structure consists of three major areas:
+.Bl -tag -width 10n -offset indent
+.It Em The bootsector
+This is the very first (512-byte) sector.  It contains executable
+code that normally would bootstrap an operating system when loaded.
+Since it's beyond the scope of
+.Nm
+to install an operating system on the medium, this boot code will only
+print a message that the disk does not contain a bootable system.
+Inside the
+.Em bootsector
+is the
+.Em BIOS parameter block (BPB) ,
+where several statistical parameters of the file system are being
+held.
+.It Em The file allocation table(s) (FAT)
+Sectors next to the
+.Em bootsector
+hold the FAT, which is used to register file system allocation,
+as well as keeping pointer chains for the chunks constituting
+one file.  There are usually two identical copies of the FAT.
+.It Em The root directory
+The final structure is the root directory for this medium.  It is
+merely a space reservation, padded with 0's, and unfortunately fixed
+in its size.
+.Nm mkdosfs
+initializes it to empty, and enters a volume label record into the
+very first directory slot.
+.Sh DIAGNOSTICS
+An exit status of 0 is returned upon successful operation. Exit status
+1 is returned on any errors during file system creation, and an exit status
+of 2 reflects invalid arguments given to the program (along with an
+appropriate information written to diagnostic output).
+.Sh SEE ALSO
+.Xr fdformat 1 ,
+.Xr mount_msdos 8 ,
+.Xr newfs 8 .
+.Sh BUGS
+There is currently no way to specify obscure file system parameters.
+Thus, only media with one of the supported capacity values can be
+formatted.  For the same reason, it's not possible to handle hard disk
+partitions.  More options should be added to allow this.  More entries
+should be added to the table of known formats, too.
+.Pp
+No attempt is made to handle media defects.  However, this is beyond
+the scope of
+.Nm mkdosfs
+and should better be handled by the (nonexistent)
+.Xr dosfsck 1
+utility.
+.Sh HISTORY
+.Nm Mkdosfs
+appeared in
+.Em FreeBSD 2.2 .
+.Sh AUTHOR
+The program has been contributed by
+.if n Joerg Wunsch,
+.if t J\(:org Wunsch,
+Dresden.
