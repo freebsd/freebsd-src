@@ -1797,10 +1797,10 @@ vm_object_coalesce(vm_object_t prev_object, vm_pindex_t prev_pindex,
 		vm_object_page_remove(prev_object,
 				      next_pindex,
 				      next_pindex + next_size, FALSE);
-		VM_OBJECT_UNLOCK(prev_object);
 		if (prev_object->type == OBJT_SWAP)
 			swap_pager_freespace(prev_object,
 					     next_pindex, next_size);
+		VM_OBJECT_UNLOCK(prev_object);
 	}
 
 	/*
