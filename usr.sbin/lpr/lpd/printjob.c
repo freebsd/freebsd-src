@@ -163,8 +163,8 @@ printjob(struct printer *pp)
 
 	jobcount = 0;
 	init(pp); /* set up capabilities */
-	(void) write(1, "", 1);	/* ack that daemon is started */
-	(void) close(2);			/* set up log file */
+	(void) write(STDOUT_FILENO, "", 1);	/* ack that daemon is started */
+	(void) close(STDERR_FILENO);			/* set up log file */
 	if (open(pp->log_file, O_WRONLY|O_APPEND, LOG_FILE_MODE) < 0) {
 		syslog(LOG_ERR, "%s: open(%s): %m", pp->printer,
 		    pp->log_file);
@@ -664,8 +664,8 @@ print(struct printer *pp, int format, char *file)
 		}
 		pipe(p);
 		if ((prchild = dofork(pp, DORETURN)) == 0) {	/* child */
-			dup2(fi, 0);		/* file is stdin */
-			dup2(p[1], 1);		/* pipe is stdout */
+			dup2(fi, STDIN_FILENO);		/* file is stdin */
+			dup2(p[1], STDOUT_FILENO);	/* pipe is stdout */
 			closelog();
 			closeallfds(3);
 			execl(_PATH_PR, "pr", width, length,
@@ -803,13 +803,13 @@ print(struct printer *pp, int format, char *file)
 	}
 start:
 	if ((child = dofork(pp, DORETURN)) == 0) { /* child */
-		dup2(fi, 0);
-		dup2(fo, 1);
+		dup2(fi, STDIN_FILENO);
+		dup2(fo, STDOUT_FILENO);
 		/* setup stderr for the filter (child process)
 		 * so it goes to our temporary errors file */
 		n = open(tempstderr, O_WRONLY|O_TRUNC, 0664);
 		if (n >= 0)
-			dup2(n, 2);
+			dup2(n, STDERR_FILENO);
 		closelog();
 		closeallfds(3);
 		execv(prog, av);
@@ -1285,11 +1285,11 @@ execfilter(struct printer *pp, char *f_cmd, char *f_av[], int infd, int outfd)
 	 * file, and the parent process will copy that temporary file to
 	 * the real logfile after the filter completes.
 	 */
-	dup2(infd, 0);
-	dup2(outfd, 1);
+	dup2(infd, STDIN_FILENO);
+	dup2(outfd, STDOUT_FILENO);
 	errfd = open(tempstderr, O_WRONLY|O_TRUNC, 0664);
 	if (errfd >= 0)
-		dup2(errfd, 2);
+		dup2(errfd, STDERR_FILENO);
 	closelog();
 	closeallfds(3);
 	execv(f_cmd, f_av);
@@ -1438,7 +1438,7 @@ sendmail(struct printer *pp, char *userid, int bombed)
 
 	pipe(p);
 	if ((s = dofork(pp, DORETURN)) == 0) {		/* child */
-		dup2(p[0], 0);
+		dup2(p[0], STDIN_FILENO);
 		closelog();
 		closeallfds(3);
 		if ((cp = strrchr(_PATH_SENDMAIL, '/')) != NULL)
@@ -1448,7 +1448,7 @@ sendmail(struct printer *pp, char *userid, int bombed)
 		execl(_PATH_SENDMAIL, cp, "-t", (char *)0);
 		_exit(0);
 	} else if (s > 0) {				/* parent */
-		dup2(p[1], 1);
+		dup2(p[1], STDOUT_FILENO);
 		printf("To: %s@%s\n", userid, origin_host);
 		printf("Subject: %s printer job \"%s\"\n", pp->printer,
 			*jobname ? jobname : "<unknown>");
@@ -1489,7 +1489,7 @@ sendmail(struct printer *pp, char *userid, int bombed)
 			printf("\nwas not printed because it was not linked to the original file\n");
 		}
 		fflush(stdout);
-		(void) close(1);
+		(void) close(STDOUT_FILENO);
 	} else {
 		syslog(LOG_WARNING, "unable to send mail to %s: %m", userid);
 		return;
@@ -1681,9 +1681,9 @@ openpr(const struct printer *pp)
 			tfd = mkstemp(tfile);
 		}
 		if ((of_pid = dofork(pp, DOABORT)) == 0) {	/* child */
-			dup2(p[0], 0);		/* pipe is std in */
+			dup2(p[0], STDIN_FILENO);	/* pipe is std in */
 			/* tfile/printer is stdout */
-			dup2(pp->remote ? tfd : pfd, 1);
+			dup2(pp->remote ? tfd : pfd, STDOUT_FILENO);
 			closelog();
 			closeallfds(3);
 			if ((cp = strrchr(pp->filters[LPF_OUTPUT], '/')) == NULL)

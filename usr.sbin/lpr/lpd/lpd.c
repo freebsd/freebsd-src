@@ -410,7 +410,7 @@ main(int argc, char **argv)
                         	for (i = 1; i <= *finet; i++) 
 					(void)close(finet[i]);
 			}
-			dup2(s, 1);
+			dup2(s, STDOUT_FILENO);
 			(void) close(s);
 			if (domain == AF_INET) {
 				/* for both AF_INET and AF_INET6 */
