@@ -282,6 +282,7 @@ startPPP(Device *devp)
     fprintf(fp, " set speed %s\n", speed);
     fprintf(fp, " set device %s\n", devp->devname);
     fprintf(fp, " set ifaddr %s %s 255.255.255.0 0.0.0.0\n", myaddr, provider);
+    fprintf(fp, " add! default HISADDR\n");
     fprintf(fp, " set timeout 0\n");
     fprintf(fp, " enable dns\n");
     fprintf(fp, " set log local phase\n");
