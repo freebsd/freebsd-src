@@ -1,7 +1,7 @@
                                  RELEASE NOTES
-                          FreeBSD Release 2.2-ALPHA
+                          FreeBSD Release 2.2-BETA
 
-This is an ALPHA release of FreeBSD 2.2-RELEASE and is aimed primarily
+This is an BETA release of FreeBSD 2.2-RELEASE and is aimed primarily
 at release testers.  Some parts of the documentation may not be updated
 yet and should be reported if and when seen.  Naturally, any installation
 failures or crashes should also be reported ASAP by sending mail to
@@ -144,9 +144,10 @@ Adaptec 154x series ISA SCSI controllers
 Adaptec 174x series EISA SCSI controller in standard and enhanced mode.
 Adaptec 274X/284X/2940/3940 (Narrow/Wide/Twin) series ISA/EISA/PCI SCSI
 controllers.
-Adaptec AIC-6260 and AIC-6360 based boards, which includes
 Adaptec AIC7850 on-board SCSI controllers.
-the AHA-152x and SoundBlaster SCSI cards.
+
+Adaptec AIC-6260 and AIC-6360 based boards, which includes the AHA-152x
+and SoundBlaster SCSI cards.
 
 ** Note: You cannot boot from the SoundBlaster cards as they have no
    on-board BIOS, such being necessary for mapping the boot device into the
@@ -157,7 +158,6 @@ the AHA-152x and SoundBlaster SCSI cards.
    or reset, and in such cases you *will* also be able to boot from them.
    Check your system/board documentation for more details.
 
-[Note that Buslogic was formerly known as "Bustec"]
 Buslogic 545S & 545c
 Buslogic 445S/445c VLB SCSI controller
 Buslogic 742A, 747S, 747c EISA SCSI controller.
@@ -531,4 +531,4 @@ We sincerely hope you enjoy this release of FreeBSD!
 
                         The FreeBSD Core Team
 
-$Id: relnotes.hlp,v 1.24 1996/11/15 07:06:58 jkh Exp $
+$Id: relnotes.hlp,v 1.25 1996/11/15 18:44:02 jkh Exp $
