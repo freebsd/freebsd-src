@@ -13,41 +13,84 @@ FreeBSD development community.                       O O   ) /    |
 Feedback or offers to help with anything  <----.     __ / __   \
 you see in this release are most welcome  <----|====O)))==) \) /====
 and should be sent to one of the approp-  <----'    `--' `.__,' \
-riate mailing lists (see notes below).                 |        |
-                                                        \       /       /\
-Please note that SNAPSHOT releases, as much        ______( (_  / \______/
-as we enjoy seeing them tested in serious        ,'  ,-----'   |
-situations, are NOT recommended for production   `--{__________)
-environments!  They are first and foremost test
-vehicles used by the project to periodically give testers or developers
-access to the latest -current technology.  They are not put through the
-same quality assurance mechanisms that full releases are!
-                                                         
-For the latest errata information (security hole & fix information,
-bugs fixes, documentation updates, etc.), should there be any for this
-release, please see:
+riate mailing lists - please see the                   |        |
+ABOUT.TXT file for more information.                    \       /       /\
+                                                   ______( (_  / \______/
+                                                 ,'  ,-----'   |
+                                                 `--{__________)
+                                            
 
-	http://www.freebsd.org/releases/[releaseversion]/errata.html
-
-Or the file:
-
-	ERRATA.TXT
-
-In the base directory of the distribution.
-
-
-** Most files here are also in the Documentation Menu of the boot floppy **
+            Most files here are also in the Documentation 
+                    Menu of the boot floppy
 
 ROAD MAP:
 
-  ERRATA.TXT            Errata information for this release (optional file).
-  README.TXT            This file.
-  ABOUT.TXT             All about FreeBSD and the physical organization
-                        of this distribution.
-  INSTALL.TXT           How to install FreeBSD on your PC using the files
-                        you'll find here.
-  HARDWARE.TXT          PC Hardware information & troubleshooting guide.
-  RELNOTES.TXT          Release Notes - what's new & different in this
-                        release.
+  README.TXT    This file
 
----
+  ABOUT.TXT     All about FreeBSD, including contact information
+
+  RELNOTES.TXT  Release Notes - what's new & different in this 
+                release
+
+  LAYOUT.TXT    Information about the layout of the release
+                directory. If you are installing from floppies,
+                it is especially important that you 
+                *read this section!*
+
+  ERRATA.TXT    Any late-breaking errata information for this
+                release.  On FTP sites, this file may be frequently
+                updated so it's a good idea to check it first
+                (the master copy is always on ftp.freebsd.org)
+                before reporting problems
+
+  HARDWARE.TXT  Information about the configuration of the
+                GENERIC kernel and supported hardware
+
+  INSTALL.TXT   How to make a new installation of FreeBSD 
+                on your PC using the data you see here
+
+  UPGRADE.TXT   How to upgrade an existing FreeBSD
+                installation
+
+  TROUBLE.TXT   Troubleshooting information
+
+
+o For new installation instructions, see the INSTALL.TXT
+  and HARDWARE.TXT files.
+
+o If you are upgrading from a previous FreeBSD version,
+  please take a look at UPGRADE.TXT.
+
+o It is also important to check the ERRATA.TXT file for any
+  late-breaking issues with this release. This file contains
+  the latest information on upgrade, security or other problems
+  which an administrator should be aware of. 
+
+o Information regarding problems which arise after the CD 
+  is printed can be found at:
+  ftp://ftp.freebsd.org/pub/FreeBSD/2.2.6-RELEASE/ERRATA.TXT
+
+For the most up-to-date software along the RELENG_2_2 branch
+(also known as -Stable) which is now proceeding onwards toward
+the release of FreeBSD 2.2.7, please install from:
+
+        ftp://releng22.freebsd.org/pub/FreeBSD/
+
+Or for the latest 3.0-Current (HEAD branch) snapshot releases,
+please install from:
+
+        ftp://current.freebsd.org/pub/FreeBSD
+
+If you plan to run either -Stable or -Current you MUST be
+subscribed to the appropriate mailing list, either
+freebsd-stable or freebsd-current. For information on
+subscribing to either list (or both), send an e-mail to 
+majordomo@freebsd.org with the following in the body, not 
+the subject of the letter as appropriate:
+
+subscribe freebsd-stable
+subscribe freebsd-current
+end
+
+We hope you enjoy using FreeBSD as much as we enjoyed 
+creating it. :)
