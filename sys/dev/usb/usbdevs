@@ -345,6 +345,7 @@ vendor GREENHOUSE	0x0a6b	GREENHOUSE
 vendor GEOCAST		0x0a79	Geocast Network Systems
 vendor NEODIO		0x0aec  Neodio
 vendor TODOS		0x0b0c	Todos Data System
+vendor SIIG2		0x0b39	SIIG
 vendor HAL		0x0b41	HAL Corporation
 vendor EMS		0x0b43	EMS Production Ltd.
 vendor NEC2		0x0b62	NEC
@@ -375,12 +376,12 @@ vendor UMAX		0x1606	UMAX Data Systems
 vendor INSIDEOUT	0x1608	Inside Out Networks
 vendor ENTREGA		0x1645	Entrega
 vendor ACTIONTEC	0x1668	Actiontec Electronics
+vendor LINKSYS3		0x1915	Linksys
 vendor DLINK		0x2001	D-Link
 vendor VIDZMEDIA	0x3275	VidzMedia Pte Ltd
 vendor DAISY		0x3579	Daisy Technology
 vendor DELL		0x413c	Dell
 vendor INTEL		0x8086	Intel
-vendor SIIG2		0x0b39	SIIG
 vendor HP2		0xf003	Hewlett Packard
 
 /*
@@ -895,6 +896,7 @@ product LINKSYS USB10TA		0x2206	USB10TA Ethernet
 product LINKSYS USB10TX2	0x400b	USB10TX
 product LINKSYS2 WUSB11		0x2219	WUSB11 Wireless adapter
 product LINKSYS2 USB200M	0x2226  USB 2.0 10/100 ethernet controller
+product LINKSYS3 WUSB11v28	0x2233	WUSB11 v2.8 wireless adapter
 
 /* Logitech products */
 product LOGITECH M2452		0x0203	M2452 keyboard
