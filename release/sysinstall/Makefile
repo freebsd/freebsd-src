@@ -1,5 +1,6 @@
 PROG=	sysinstall
 NOMAN=	yes
+BINDIR=/stand
 
 CLEANFILES+=	makedevs.c rtermcap rtermcap.tmp dumpnlist
 CLEANFILES+=	keymap.tmp keymap.h
