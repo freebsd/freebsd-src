@@ -20,8 +20,8 @@ Notes:
 	$ cd easyedit
 	$ rm Makefile create.make genstr make.default
 	$ mv README.ee README
-	$ mkdir -p nls/en_US.ISO_8859-1
-	$ mv ee.msg nls/en_US.ISO_8859-1/
+	$ mkdir -p nls/en_US.US-ASCII
+	$ mv ee.msg nls/en_US.US-ASCII/
 
 
 sobomax@FreeBSD.org
