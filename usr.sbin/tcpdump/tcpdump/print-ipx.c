@@ -25,7 +25,7 @@
  */
 #ifndef lint
 static  char rcsid[] =
-    "@(#)$Header: print-ipx.c,v 1.6 94/06/20 19:44:38 leres Exp $";
+    "@(#)$Header: /home/ncvs/src/usr.sbin/tcpdump/tcpdump/print-ipx.c,v 1.1 1995/03/08 12:52:34 olah Exp $";
 #endif
 
 #include <sys/param.h>
@@ -94,7 +94,7 @@ ipxaddr_string(u_int32 net, const u_char *node)
 {
     static char line[256];
 
-    sprintf(line, "%lu.%02x:%02x:%02x:%02x:%02x:%02x",
+    sprintf(line, "%lx.%02x:%02x:%02x:%02x:%02x:%02x",
 	    net, node[0], node[1], node[2], node[3], node[4], node[5]);
 
     return line;
@@ -192,13 +192,13 @@ ipx_rip_print(const u_short *ipx, int length)
       case 1:
 	(void)printf("ipx-rip-req");
 	if (length > 0)
-	    (void)printf(" %lu/%d.%d", EXTRACT_LONG(&ipx[0]),
+	    (void)printf(" %lx/%d.%d", EXTRACT_LONG(&ipx[0]),
 			 EXTRACT_SHORT(&ipx[2]), EXTRACT_SHORT(&ipx[3]));
 	break;
       case 2:
 	(void)printf("ipx-rip-resp");
 	for (i = 0; i < 50 && length > 0; i++) {
-	    (void)printf(" %lu/%d.%d", EXTRACT_LONG(&ipx[0]),
+	    (void)printf(" %lx/%d.%d", EXTRACT_LONG(&ipx[0]),
 			 EXTRACT_SHORT(&ipx[2]), EXTRACT_SHORT(&ipx[3]));
 
 	    ipx += 4;
