@@ -61,6 +61,11 @@ onto a hard disk and boot the installer from it. Once sysinstall(8) is
 running, a normal installation can be performed. Similar problems have 
 been observed on the AlphaServer 1200 and 8400.
 
+For AlphaServer 4100 adapter cards with PCI bridge chips might cause 
+trouble. In addition, the capability of booting from an adapter might be
+influenced by the placement of the adapter card on a specific PCI hose.
+Please use 'send-pr' to report any problems you might encounter in this area.
+
 Write combining for crashdumps has been implemented.  This feature
 is useful when write caching is disabled on both SCSI and IDE disks,
 where large memory dumps could take up to an hour to complete.
