@@ -486,7 +486,7 @@ struct interface_info *interface_or_dummy (name)
 			error ("Insufficient memory to record interface %s",
 			       name);
 		memset (ip, 0, sizeof *ip);
-		strcpy (ip -> name, name);
+		strlcpy (ip -> name, name, IFNAMSIZ);
 		ip -> next = dummy_interfaces;
 		dummy_interfaces = ip;
 	}
