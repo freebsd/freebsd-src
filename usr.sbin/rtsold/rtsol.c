@@ -1,4 +1,4 @@
-/*	$KAME: rtsol.c,v 1.11 2000/08/13 06:14:59 itojun Exp $	*/
+/*	$KAME: rtsol.c,v 1.12 2001/11/12 11:47:11 jinmei Exp $	*/
 
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
@@ -92,6 +92,8 @@ sockopen()
 		return(-1);
 	}
 	memset(&sin6_allrouters, 0, sizeof(struct sockaddr_in6));
+	sin6_allrouters.sin6_family = AF_INET6;
+	sin6_allrouters.sin6_len = sizeof(sin6_allrouters);
 	if (inet_pton(AF_INET6, ALLROUTER,
 		      &sin6_allrouters.sin6_addr.s6_addr) != 1) {
 		warnmsg(LOG_ERR, __FUNCTION__, "inet_pton failed for %s",
