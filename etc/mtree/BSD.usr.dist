@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.26 1994/10/27 23:05:15 wollman Exp $
+#	$Id: BSD.usr.dist,v 1.27 1995/01/03 02:57:45 rgrimes Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755
@@ -175,6 +175,8 @@
         tabset         
         ..
         tmac           
+	    mdoc
+            ..
             mm             
             ..
         ..
