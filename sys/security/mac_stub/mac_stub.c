@@ -689,9 +689,25 @@ static int
 mac_none_check_vnode_lookup(struct ucred *cred, struct vnode *dvp, 
     struct label *dlabel, struct componentname *cnp)
 {
- 
+
 	return (0);
-} 
+}
+
+static int
+mac_none_check_vnode_mmap(struct ucred *cred, struct vnode *vp,
+    struct label *label, int prot)
+{
+
+	return (0);
+}
+
+static int
+mac_none_check_vnode_mprotect(struct ucred *cred, struct vnode *vp,
+    struct label *label, int prot)
+{
+
+	return (0);
+}
 
 static int
 mac_none_check_vnode_open(struct ucred *cred, struct vnode *vp,
@@ -1041,6 +1057,10 @@ static struct mac_policy_op_entry mac_none_ops[] =
 	    (macop_t)mac_none_check_vnode_link },
 	{ MAC_CHECK_VNODE_LOOKUP,
 	    (macop_t)mac_none_check_vnode_lookup },
+	{ MAC_CHECK_VNODE_MMAP,
+	    (macop_t)mac_none_check_vnode_mmap },
+	{ MAC_CHECK_VNODE_MPROTECT,
+	    (macop_t)mac_none_check_vnode_mprotect },
 	{ MAC_CHECK_VNODE_OPEN,
 	    (macop_t)mac_none_check_vnode_open },
 	{ MAC_CHECK_VNODE_POLL,
