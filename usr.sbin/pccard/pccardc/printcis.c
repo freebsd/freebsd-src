@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: printcis.c,v 1.8 1997/10/06 11:35:55 charnier Exp $";
+	"$Id: printcis.c,v 1.9 1997/11/18 21:08:07 nate Exp $";
 #endif /* not lint */
 
 #include <stdio.h>
@@ -620,9 +620,15 @@ dump_info_v1(unsigned char *p, int len)
 	while (*p++);
 	printf("card vers = [%s]\n", p);
 	while (*p++);
+	if (*p == 0xff)
+		return;
 	printf("\tAddit. info = [%s]", p);
 	while (*p++);
-	printf(",[%s]\n", p);
+	while (*p != 0xff) {
+		printf(",[%s]", p);
+		while (*p++);
+	}
+	printf("\n");
 }
 
 /*
