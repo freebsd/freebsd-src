@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *	$Id: sd.c,v 1.8 1993/09/10 18:03:21 ats Exp $
+ *	$Id: sd.c,v 1.9 1993/09/20 06:27:04 rgrimes Exp $
  */
 
 #define SPLSD splbio
@@ -807,7 +807,7 @@ sd_size(unit, flags)
 			sizeof(scsi_cmd),
 			&rdcap,
 			sizeof(rdcap),  
-			2000,
+			6000,
 			NULL,
 			flags | SCSI_DATA_IN) != 0)
 	{
