@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.124 1995/01/12 15:37:16 jkh Exp $
+#	$Id: LINT,v 1.125 1995/01/14 02:39:22 jkh Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -378,6 +378,7 @@ device		npx0	at isa? port "IO_NPX" irq 13 vector npxintr
 # pas: ProAudioSpectrum cards using the NCR 5380 (slow!)
 # uha: UltraStore 14F and 34F
 # sea: Seagate ST01/02 8 bit controller (slow!)
+# wds: Western Digital WD7000 controller (no scatter/gather!).
 #
 # Note that the order is important in order for Buslogic cards to be
 # probed correctly.
@@ -396,6 +397,7 @@ controller	pas2	at isa? port 0x1f8c
 controller	pas3	at isa? port 0x1e88
 
 controller	sea0	at isa? bio irq 5 iomem 0xdc000 iosiz 0x2000 vector seaintr
+controller	wds0	at isa? port 0x350 bio irq 15 drq 6 vector wdsintr
 
 #
 # ST-506, ESDI, and IDE hard disks: `wdc' and `wd'
