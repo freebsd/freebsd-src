@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aic7770.c,v 1.40 1997/07/20 06:31:08 bde Exp $
+ *	$Id: ahc_eisa.c,v 1.1 1998/09/15 07:24:58 gibbs Exp $
  */
 
 #include "eisa.h"
@@ -249,7 +249,13 @@ aic7770_attach(struct eisa_device *e_dev)
 	switch (chip & (AHC_EISA|AHC_VL)) {
 	case AHC_EISA:
 	{
-		u_int8_t biosctrl = ahc_inb(ahc, HA_274_BIOSCTRL);
+		u_int biosctrl;
+		u_int scsiconf;
+		u_int scsiconf1;
+
+		biosctrl = ahc_inb(ahc, HA_274_BIOSCTRL);
+		scsiconf = ahc_inb(ahc, SCSICONF);
+		scsiconf1 = ahc_inb(ahc, SCSICONF + 1);
 
 #if 0
 		for (i = TARG_SCSIRATE; i <= HA_274_BIOSCTRL; i+=8) {
@@ -273,10 +279,16 @@ aic7770_attach(struct eisa_device *e_dev)
 			ahc->flags |= AHC_USEDEFAULTS;
 		} else {
 			if ((ahc->features & AHC_WIDE) != 0) {
-				ahc->our_id = ahc_inb(ahc, SCSICONF + 1) & HWSCSIID;
+				ahc->our_id = scsiconf1 & HWSCSIID;
+				if (scsiconf & TERM_ENB)
+					ahc->flags |= AHC_TERM_ENB_A;
 			} else {
-				ahc->our_id = ahc_inb(ahc, SCSICONF) & HSCSIID;
-				ahc->our_id_b = ahc_inb(ahc, SCSICONF) & HSCSIID;
+				ahc->our_id = scsiconf & HSCSIID;
+				ahc->our_id_b = scsiconf1 & HSCSIID;
+				if (scsiconf & TERM_ENB)
+					ahc->flags |= AHC_TERM_ENB_A;
+				if (scsiconf1 & TERM_ENB)
+					ahc->flags |= AHC_TERM_ENB_B;
 			}
 		}
 		break;
@@ -367,7 +379,6 @@ aha2840_load_seeprom(struct ahc_softc *ahc)
 	struct	  seeprom_config sc;
 	u_int16_t checksum = 0;
 	u_int8_t  scsi_conf;
-	u_int8_t  sxfrctl1;
 	int	  have_seeprom;
 
 	sd.sd_tag = ahc->tag;
@@ -446,13 +457,8 @@ aha2840_load_seeprom(struct ahc_softc *ahc)
 		/* Set SCSICONF info */
 		ahc_outb(ahc, SCSICONF, scsi_conf);
 
-		sxfrctl1 = ahc_inb(ahc, SXFRCTL1);
-		if (sc.adapter_control & CF284XSTERM) {
-			sxfrctl1 |= STPWEN;
-		} else {
-			sxfrctl1 &= ~STPWEN;
-		}
-		ahc_outb(ahc, SXFRCTL1, sxfrctl1);
+		if (sc.adapter_control & CF284XSTERM)
+			ahc->flags |= AHC_TERM_ENB_A;
 	}
 }
 
