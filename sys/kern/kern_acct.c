@@ -238,6 +238,7 @@ acct_process(td)
 	 * Get process accounting information.
 	 */
 
+	PROC_LOCK(p);
 	/* (1) The name of the command that ran */
 	bcopy(p->p_comm, acct.ac_comm, sizeof acct.ac_comm);
 
@@ -272,17 +273,16 @@ acct_process(td)
 	acct.ac_gid = p->p_ucred->cr_rgid;
 
 	/* (7) The terminal from which the process was started */
-	PROC_LOCK(p);
 	SESS_LOCK(p->p_session);
 	if ((p->p_flag & P_CONTROLT) && p->p_pgrp->pg_session->s_ttyp)
 		acct.ac_tty = dev2udev(p->p_pgrp->pg_session->s_ttyp->t_dev);
 	else
 		acct.ac_tty = NOUDEV;
 	SESS_UNLOCK(p->p_session);
-	PROC_UNLOCK(p);
 
 	/* (8) The boolean flags that tell how the process terminated, etc. */
 	acct.ac_flag = p->p_acflag;
+	PROC_UNLOCK(p);
 
 	/*
 	 * Write the accounting information to the file.
