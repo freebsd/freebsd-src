@@ -49,7 +49,7 @@ struct pcicfg;
 void	busdma_swi __P((void));
 void	cpu_halt __P((void));
 void	cpu_reset __P((void));
-int	is_physical_memory __P((vm_offset_t addr));
+int	is_physical_memory __P((vm_paddr_t addr));
 void	swi_vm __P((void));
 int	vm_page_zero_idle __P((void));
 int	fill_regs __P((struct proc *, struct reg *));

@@ -537,7 +537,7 @@ dumpsys(void)
 }
 
 int
-dumpstatus(vm_offset_t addr, off_t count)
+dumpstatus(vm_paddr_t addr, off_t count)
 {
 	int c;
 

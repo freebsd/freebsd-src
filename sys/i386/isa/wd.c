@@ -1831,7 +1831,7 @@ wddump(dev_t dev)
 	static int wddoingadump = 0;
 	long	cylin, head, sector;
 	long	secpertrk, secpercyl;
-	char   *addr;
+	vm_paddr_t addr;
 
 	/* Toss any characters present prior to dump. */
 	while (cncheckc() != -1)
@@ -1887,7 +1887,7 @@ wddump(dev_t dev)
 	}
 
 	du->dk_flags |= DKFL_SINGLE;
-	addr = (char *) 0;
+	addr = 0;
 	blknum = dumplo + blkoff;
 	while (num > 0) {
 		blkcnt = num;
@@ -1929,12 +1929,10 @@ wddump(dev_t dev)
 		while (blkcnt != 0) {
 			caddr_t va;
 
-			if (is_physical_memory((vm_offset_t)addr))
-				va = pmap_kenter_temporary(
-					trunc_page((vm_offset_t)addr), 0);
+			if (is_physical_memory(addr))
+				va = pmap_kenter_temporary(trunc_page(addr), 0);
 			else
-				va = pmap_kenter_temporary(
-					trunc_page(0), 0);
+				va = pmap_kenter_temporary(trunc_page(0), 0);
 
 			/* Ready to send data? */
 			DELAY(5);	/* ATA spec */

@@ -812,7 +812,7 @@ dadump(dev_t dev)
 	u_int	    num;	/* number of sectors to write */
 	u_int	    blknum;
 	long	    blkcnt;
-	vm_offset_t addr;	
+	vm_paddr_t  addr;	
 	struct	    ccb_scsiio csio;
 	int         dumppages = MAXDUMPPGS;
 	int	    error;
@@ -847,7 +847,7 @@ dadump(dev_t dev)
 			dumppages = num / blkcnt;
 
 		for (i = 0; i < dumppages; ++i) {
-			vm_offset_t a = addr + (i * PAGE_SIZE);
+			vm_paddr_t a = addr + (i * PAGE_SIZE);
 			if (is_physical_memory(a))
 				va = pmap_kenter_temporary(trunc_page(a), i);
 			else

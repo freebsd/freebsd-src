@@ -568,7 +568,7 @@ swi_vm()
 
 int
 is_physical_memory(addr)
-	vm_offset_t addr;
+	vm_paddr_t addr;
 {
 
 #if NISA > 0

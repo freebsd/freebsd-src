@@ -96,7 +96,7 @@ int	i586_copyin __P((const void *udaddr, void *kaddr, size_t len));
 int	i586_copyout __P((const void *kaddr, void *udaddr, size_t len));
 void	i686_pagezero __P((void *addr));
 void	init_AMD_Elan_sc520(void);
-int	is_physical_memory __P((vm_offset_t addr));
+int	is_physical_memory __P((vm_paddr_t addr));
 vm_paddr_t kvtop __P((void *addr));
 void	setidt __P((int idx, alias_for_inthand_t *func, int typ, int dpl,
 		    int selec));

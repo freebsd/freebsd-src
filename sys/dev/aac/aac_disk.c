@@ -228,7 +228,7 @@ aac_disk_dump(dev_t dev)
 {
 	struct aac_disk *ad;
 	struct aac_softc *sc;
-	vm_offset_t addr;
+	vm_paddr_t addr;
 	long blkcnt;
 	unsigned int count, blkno, secsize;
 	int dumppages;
@@ -255,7 +255,7 @@ aac_disk_dump(dev_t dev)
 			dumppages = count / blkcnt;
 
 		for (i = 0; i < dumppages; ++i) {
-			vm_offset_t a = addr + (i * PAGE_SIZE);
+			vm_paddr_t a = addr + (i * PAGE_SIZE);
 			if (is_physical_memory(a)) {
 				va = pmap_kenter_temporary(trunc_page(a), i);
 			} else {

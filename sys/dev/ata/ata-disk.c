@@ -312,7 +312,7 @@ addump(dev_t dev)
     struct ad_softc *adp = dev->si_drv1;
     struct ad_request request;
     u_int count, blkno, secsize;
-    vm_offset_t addr = 0;
+    vm_paddr_t addr = 0;
     long blkcnt;
     int dumppages = MAXDUMPPGS;
     int error;
@@ -338,7 +338,7 @@ addump(dev_t dev)
 	    dumppages = count / blkcnt;
 
 	for (i = 0; i < dumppages; ++i) {
-	    vm_offset_t a = addr + (i * PAGE_SIZE);
+	    vm_paddr_t a = addr + (i * PAGE_SIZE);
 	    if (is_physical_memory(a))
 		va = pmap_kenter_temporary(trunc_page(a), i);
 	    else

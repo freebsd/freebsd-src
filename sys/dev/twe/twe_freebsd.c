@@ -730,7 +730,7 @@ twed_dump(dev_t dev)
     struct twed_softc	*twed_sc = (struct twed_softc *)dev->si_drv1;
     struct twe_softc	*twe_sc  = (struct twe_softc *)twed_sc->twed_controller;
     u_int		count, blkno, secsize;
-    vm_offset_t		addr = 0;
+    vm_paddr_t		addr = 0;
     long		blkcnt;
     int			dumppages = MAXDUMPPGS;
     int			error;
@@ -751,7 +751,7 @@ twed_dump(dev_t dev)
 	    dumppages = count / blkcnt;
 
 	for (i = 0; i < dumppages; ++i) {
-	    vm_offset_t a = addr + (i * PAGE_SIZE);
+	    vm_paddr_t a = addr + (i * PAGE_SIZE);
 	    if (is_physical_memory(a))
 		va = pmap_kenter_temporary(trunc_page(a), i);
 	    else

@@ -101,7 +101,7 @@ struct tty;
 struct uio;
 
 void	Debugger __P((const char *msg));
-int	dumpstatus __P((vm_offset_t addr, off_t count));
+int	dumpstatus __P((vm_paddr_t addr, off_t count));
 int	nullop __P((void));
 int	eopnotsupp __P((void));
 int	einval __P((void));

@@ -206,7 +206,7 @@ idad_dump(dev_t dev)
 	long blkcnt;
 	int i, error, dumppages;
         caddr_t va;
-	vm_offset_t addr, a;
+	vm_paddr_t addr, a;
 
 	if ((error = disk_dumpcheck(dev, &count, &blkno, &secsize)))
 		return (error);
