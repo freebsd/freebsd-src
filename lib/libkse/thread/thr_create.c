@@ -118,12 +118,9 @@ pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 				    + (void *) spare_stack
 				    - PTHREAD_STACK_DEFAULT;
 			} else {
-				/* Unlock the garbage collector mutex. */
-				if (pthread_mutex_unlock(&_gc_mutex) != 0)
-					PANIC("Cannot unlock gc mutex");
-			    
 				/* Allocate a new stack. */
 				stack = _next_stack + PTHREAD_STACK_GUARD;
+			    
 				/*
 				 * Even if stack allocation fails, we don't want
 				 * to try to use this location again, so
@@ -133,23 +130,26 @@ pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 				 * overflow of the adjacent thread stack.
 				 */
 				_next_stack -= (PTHREAD_STACK_DEFAULT
-						+ PTHREAD_STACK_GUARD);
+				    + PTHREAD_STACK_GUARD);
+
+				/* Unlock the garbage collector mutex. */
+				if (pthread_mutex_unlock(&_gc_mutex) != 0)
+					PANIC("Cannot unlock gc mutex");
 
 				/* Red zone: */
-				if (mmap(_next_stack, PTHREAD_STACK_GUARD, 0,
-					 MAP_ANON, -1, 0) == MAP_FAILED) {
+				if (mmap(stack - PTHREAD_STACK_GUARD,
+				    PTHREAD_STACK_GUARD, 0, MAP_ANON,
+				    -1, 0) == MAP_FAILED) {
 					ret = EAGAIN;
 					free(new_thread);
 				}
 				/* Stack: */
-				else if (mmap(stack,
-					      PTHREAD_STACK_DEFAULT,
-					      PROT_READ | PROT_WRITE,
-					      MAP_STACK,
-					      -1, 0) == MAP_FAILED) {
+				else if (mmap(stack, PTHREAD_STACK_DEFAULT,
+				    PROT_READ | PROT_WRITE, MAP_STACK,
+				    -1, 0) == MAP_FAILED) {
 					ret = EAGAIN;
-					munmap(_next_stack,
-					       PTHREAD_STACK_GUARD);
+					munmap(stack - PTHREAD_STACK_GUARD,
+					    PTHREAD_STACK_GUARD);
 					free(new_thread);
 				}
 			}
@@ -159,7 +159,7 @@ pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 		 * really know what they want, and simply malloc the stack.
 		 */
 		else if ((stack = (void *) malloc(pattr->stacksize_attr))
-			 == NULL) {
+		    == NULL) {
 			/* Insufficient memory to create a thread: */
 			ret = EAGAIN;
 			free(new_thread);
