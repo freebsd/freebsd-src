@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vnops.c,v 1.2 1994/09/21 03:47:17 wollman Exp $ */
+/*	$Id: msdosfs_vnops.c,v 1.3 1994/09/27 20:42:56 phk Exp $ */
 /*	$NetBSD: msdosfs_vnops.c,v 1.20 1994/08/21 18:44:13 ws Exp $	*/
 
 /*-
@@ -1444,19 +1444,14 @@ msdosfs_readdir(ap)
 	struct dirent *crnt;
 	u_char dirbuf[512];	/* holds converted dos directories */
 	struct uio *uio = ap->a_uio;
-	int ncookies = 1;
-	u_int* cookies = NULL;
+	off_t off;
+	int ncookies = 0;
 
 #ifdef MSDOSFS_DEBUG
 	printf("msdosfs_readdir(): vp %08x, uio %08x, cred %08x, eofflagp %08x\n",
 	       ap->a_vp, uio, ap->a_cred, ap->a_eofflag);
 #endif
 
-#if 0
-	if (!ap->a_cookies)
-		ncookies = 1;
-#endif
-	
 	/*
 	 * msdosfs_readdir() won't operate properly on regular files since
 	 * it does i/o only with the the filesystem vnode, and hence can
@@ -1478,6 +1473,7 @@ msdosfs_readdir(ap)
 		return EINVAL;
 	uio->uio_resid = count;
 	uio->uio_iov->iov_len = count;
+	off = uio->uio_offset;
 
 	/*
 	 * If they are reading from the root directory then, we simulate
@@ -1501,23 +1497,14 @@ msdosfs_readdir(ap)
 			n = 1;
 			if (!uio->uio_offset) {
 				n = 2;
-				if (cookies) {
-					*cookies++ = sizeof(struct direntry);
-					ncookies--;
-				}
+				ncookies++;
 			}
-			if (cookies) {
-				if (ncookies-- <= 0)
-					n--;
-				else
-					*cookies++ = 2 * sizeof(struct direntry);
-			}
-			
+			ncookies++;
 			error = uiomove((char *) rootdots + uio->uio_offset,
 					n * sizeof(struct direntry), uio);
 		}
 	}
-	while (!error && uio->uio_resid > 0 && ncookies > 0) {
+	while (!error && uio->uio_resid > 0) {
 		lbn = (uio->uio_offset - bias) >> pmp->pm_cnshift;
 		on = (uio->uio_offset - bias) & pmp->pm_crbomask;
 		n = min((u_long) (pmp->pm_bpcluster - on), uio->uio_resid);
@@ -1561,10 +1548,6 @@ msdosfs_readdir(ap)
 			    (dentp->deAttributes & ATTR_VOLUME)) {
 				if (prev) {
 					prev->d_reclen += sizeof(struct direntry);
-					if (cookies) {
-						ncookies++;
-						cookies--;
-					}
 				} else {
 					prev = crnt;
 					prev->d_fileno = 0;
@@ -1572,6 +1555,7 @@ msdosfs_readdir(ap)
 					prev->d_type = DT_UNKNOWN;
 					prev->d_namlen = 0;
 					prev->d_name[0] = 0;
+					ncookies++;
 				}
 			} else {
 				/*
@@ -1606,13 +1590,9 @@ msdosfs_readdir(ap)
 				 *	  dentp->deStartCluster);
 				 */
 				prev = crnt;
+				ncookies++;
 			}
 			dentp++;
-			if (cookies) {
-				*cookies++ = (u_int)((char *)dentp - bp->b_data - on)
-						   + uio->uio_offset;
-				ncookies--;
-			}
 			
 			crnt = (struct dirent *) ((char *) crnt + sizeof(struct direntry));
 			pushout = 1;
@@ -1634,8 +1614,6 @@ msdosfs_readdir(ap)
 				prev = 0;
 				crnt = (struct dirent *) dirbuf;
 			}
-			if (ncookies <= 0)
-				break;
 		}
 		if (pushout) {
 			pushout = 0;
@@ -1659,18 +1637,40 @@ msdosfs_readdir(ap)
 	}
 out:	;
 	uio->uio_resid += lost;
+	if (!error && ap->a_ncookies != NULL) {
+		struct dirent* dpStart;
+		struct dirent* dpEnd;
+		struct dirent* dp;
+		u_int *cookies;
+		u_int *cookiep;
 
-#if 0
+		if (uio->uio_segflg != UIO_SYSSPACE || uio->uio_iovcnt != 1)
+			panic("msdosfs_readdir: unexpected uio from NFS server");
+		dpStart = (struct dirent *)
+		     (uio->uio_iov->iov_base - (uio->uio_offset - off));
+		dpEnd = (struct dirent *) uio->uio_iov->iov_base;
+		MALLOC(cookies, u_int *, ncookies * sizeof(u_int),
+		       M_TEMP, M_WAITOK);
+		for (dp = dpStart, cookiep = cookies;
+		     dp < dpEnd;
+		     dp = (struct dirent *)((caddr_t) dp + dp->d_reclen)) {
+			off += dp->d_reclen;
+			*cookiep++ = (u_int) off;
+		}
+		*ap->a_ncookies = ncookies;
+		*ap->a_cookies = cookies;
+	}
+
 	/*
 	 * I don't know why we bother setting this eofflag, getdirentries()
 	 * in vfs_syscalls.c doesn't bother to look at it when we return.
 	 * (because NFS uses it in nfs_serv.c -- JMP)
 	 */
-	if (dep->de_FileSize - uio->uio_offset - bias <= 0)
-		*ap->a_eofflag = 1;
-	else
-		*ap->a_eofflag = 0;
-#endif
+	if (ap->a_eofflag)
+		if (dep->de_FileSize - uio->uio_offset - bias <= 0)
+			*ap->a_eofflag = 1;
+		else
+			*ap->a_eofflag = 0;
 	
 	return error;
 }

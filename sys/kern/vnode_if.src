@@ -31,7 +31,7 @@
 # SUCH DAMAGE.
 #
 #	@(#)vnode_if.src	8.3 (Berkeley) 2/3/94
-# $Id$
+# $Id: vnode_if.src,v 1.2 1994/08/02 07:43:37 davidg Exp $
 #
 vop_lookup {
 	IN struct vnode *dvp;
@@ -188,6 +188,9 @@ vop_readdir {
 	IN struct vnode *vp;
 	INOUT struct uio *uio;
 	IN struct ucred *cred;
+	INOUT int *eofflag;
+	INOUT int *ncookies;
+	INOUT u_int **cookies;
 };
 
 vop_readlink {
