@@ -26,6 +26,8 @@
  */
 
 #define FOLLOWFORKS        0x00000001
+#define RELATIVETIMESTAMPS 0x00000002
+#define ABSOLUTETIMESTAMPS 0x00000004
 #define NOSIGS             0x00000008
 
 struct trussinfo
@@ -34,4 +36,8 @@ struct trussinfo
 	int flags;
 	int in_fork;
 	FILE *outfile;
+
+	struct timeval start_time;
+	struct timeval before;
+	struct timeval after;
 };
