@@ -136,7 +136,7 @@ main(int argc, char *argv[])
 				i = *p;
 				strvisx(visbuf, p + 1, i,
 				    VIS_SAFE | VIS_WHITE);
-				printf(" \"%s\", visbuf);
+				printf(" \"%s\"", visbuf);
 			}
 			free(visbuf);
 			printf("\n");
