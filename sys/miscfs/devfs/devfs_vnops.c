@@ -1,7 +1,7 @@
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vnops.c,v 1.32.2.2 1997/08/27 01:32:30 julian Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_vnops.c,v 1.32.2.3 1997/08/27 02:56:53 julian Exp $
  *
  * symlinks can wait 'til later.
  */
@@ -111,8 +111,12 @@ DBPRINT(("lookup\n"));
 		return (error);
 	}
 
+	/*
+	 * We now have a segment name to search for, and a directory to search.
+	 *
+	 */
+
 /***********************************************************************\
-* We now have a segment name to search for, and a directory to search.  *
 * SEARCH FOR NAME							*
 * while making sure the component is null terminated for the strcmp 	*
 \***********************************************************************/
@@ -341,34 +345,6 @@ DBPRINT(("mknod\n"));
 		break;
 	}
 	return error;
-}
-#endif /* notyet */
-
-static int
-devfs_open(struct vop_open_args *ap)
-        /*struct vop_open_args  {
-                struct vnode *a_vp;
-                int  a_mode;
-                struct ucred *a_cred;
-                struct proc *a_p;
-        } */
-{
-DBPRINT(("open\n"));
-	return 0;
-}
-
-#ifdef notyet
-static int
-devfs_close( struct vop_close_args *ap)
-        /*struct vop_close_args  {
-                struct vnode *a_vp;
-                int  a_fflag;
-                struct ucred *a_cred;
-                struct proc *a_p;
-        } */ 
-{
-DBPRINT(("close\n"));
-	return 0;
 }
 #endif /* notyet */
 
@@ -762,47 +738,7 @@ DBPRINT(("select\n"));
 	return 1;		/* filesystems never block? */
 }
 
-static int
-devfs_mmap(struct vop_mmap_args *ap)
-        /*struct vop_mmap_args  {
-                struct vnode *a_vp;
-                int  a_fflags;
-                struct ucred *a_cred;
-                struct proc *a_p;
-        } */
-{
-DBPRINT(("mmap\n"));
-	return EINVAL;
-}
 
-/*
- *  Flush the blocks of a file to disk.
- */
-static int
-devfs_fsync(struct vop_fsync_args *ap)
-        /*struct vop_fsync_args {
-                struct vnode *a_vp;
-                struct ucred *a_cred;
-                int  a_waitfor;
-                struct proc *a_p;
-        } */ 
-{
-DBPRINT(("fsync\n"));
-	return(0);
-}
-
-static int
-devfs_seek(struct vop_seek_args *ap)
-        /*struct vop_seek_args  {
-                struct vnode *a_vp;
-                off_t  a_oldoff;
-                off_t  a_newoff;
-                struct ucred *a_cred;
-        } */
-{
-DBPRINT(("seek\n"));
-	return 0;
-}
 #endif /* notyet */
 
 static int
@@ -1486,20 +1422,6 @@ DBPRINT(("bmap\n"));
 }
 
 static int
-devfs_strategy(struct vop_strategy_args *ap)
-        /*struct vop_strategy_args {
-                struct buf *a_bp;
-        } */
-{
-DBPRINT(("strategy\n"));
-
-	if (ap->a_bp->b_vp->v_type == VBLK  ||  ap->a_bp->b_vp->v_type == VCHR)
-		printf("devfs_strategy: spec");
-	return 0;
-}
-
-
-static int
 devfs_advlock(struct vop_advlock_args *ap)
         /*struct vop_advlock_args {
                 struct vnode *a_vp;
@@ -1520,7 +1442,7 @@ devfs_reclaim(struct vop_reclaim_args *ap)
 		struct vnode *a_vp;
         } */
 {
-	dn_p	file_node;
+	dn_p	file_node = NULL;
 	int	error;
 
 DBPRINT(("reclaim\n"));
@@ -1531,48 +1453,12 @@ DBPRINT(("reclaim\n"));
 	}
 
 	ap->a_vp->v_data = NULL;
-	file_node->vn = 0;
-	file_node->vn_id = 0;
+	if (file_node) {
+		file_node->vn = 0;
+		file_node->vn_id = 0;
+	}
 	return(0);
 }
-
-/*
- * Return POSIX pathconf information applicable to special devices.
- */
-static int
-devfs_pathconf(struct vop_pathconf_args *ap)
-        /*struct vop_pathconf_args {
-                struct vnode *a_vp;
-                int a_name;
-                int *a_retval;
-        } */
-{
-
-        switch (ap->a_name) {
-        case _PC_LINK_MAX:
-                *ap->a_retval = LINK_MAX;
-                return (0);
-        case _PC_MAX_CANON:
-                *ap->a_retval = MAX_CANON;
-                return (0);
-        case _PC_MAX_INPUT:
-                *ap->a_retval = MAX_INPUT;
-                return (0);
-        case _PC_PIPE_BUF:
-                *ap->a_retval = PIPE_BUF;
-                return (0);
-        case _PC_CHOWN_RESTRICTED:
-                *ap->a_retval = 1;
-                return (0);
-        case _PC_VDISABLE:
-                *ap->a_retval = _POSIX_VDISABLE;
-                return (0);
-        default:
-                return (EINVAL);
-        }
-        /* NOTREACHED */
-}
-
 
 /*
  * Print out the contents of a /devfs vnode.
@@ -1585,18 +1471,6 @@ devfs_print(struct vop_print_args *ap)
 {
 
 	printf("tag VT_DEVFS, devfs vnode\n");
-	return (0);
-}
-
-static int
-devfs_vfree(struct vop_vfree_args *ap)
-	/*struct vop_vfree_args {
-		struct vnode *a_pvp;
-		ino_t a_ino;
-		int a_mode;
-	} */
-{
-
 	return (0);
 }
 
@@ -1656,6 +1530,9 @@ devfs_dropvnode(dn_p dnp)
 #define devfs_mmap ((int (*) __P((struct  vop_mmap_args *)))devfs_enotsupp)
 #define devfs_fsync ((int (*) __P((struct  vop_fsync_args *)))nullop)
 #define devfs_seek ((int (*) __P((struct  vop_seek_args *)))nullop)
+#define devfs_open ((int (*) __P((struct  vop_open_args *)))nullop)
+#define devfs_pathconf ((int (*) __P((struct  vop_pathconf_args *)))nullop)
+#define devfs_vfree ((int (*) __P((struct  vop_vfree_args *)))nullop)
 #define devfs_mkdir ((int (*) __P((struct  vop_mkdir_args *)))devfs_enotsupp)
 #define devfs_rmdir ((int (*) __P((struct  vop_rmdir_args *)))devfs_enotsupp)
 /*
