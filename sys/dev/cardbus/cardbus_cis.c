@@ -456,7 +456,6 @@ decode_tuple_bar(device_t cbdev, device_t child, int id,
 	 * device drivers will know which type of BARs can be used.
 	 */
 	pci_enable_io(child, type);
-
 	return (0);
 }
 
@@ -770,6 +769,14 @@ cardbus_parse_cis(device_t cbdev, device_t child,
 	return (0);
 }
 
+static void
+cardbus_do_res(struct resource_list_entry *rle, device_t child, uint32_t start)
+{
+	rle->start = start;
+	rle->end = start + rle->count - 1;
+	pci_write_config(child, rle->rid, rle->start, 4);
+}
+
 static int
 barsort(const void *a, const void *b)
 {
@@ -821,10 +828,11 @@ cardbus_alloc_resources(device_t cbdev, device_t child)
 	/* Allocate prefetchable memory */
 	flags = 0;
 	for (tmp = 0; tmp < count; tmp++) {
-		if (barlist[tmp]->res == NULL &&
-		    barlist[tmp]->type == SYS_RES_MEMORY &&
-		    dinfo->mprefetchable & BARBIT(barlist[tmp]->rid)) {
-			flags = rman_make_alignment_flags(barlist[tmp]->count);
+		rle = barlist[tmp];
+		if (rle->res == NULL &&
+		    rle->type == SYS_RES_MEMORY &&
+		    dinfo->mprefetchable & BARBIT(rle->rid)) {
+			flags = rman_make_alignment_flags(rle->count);
 			break;
 		}
 	}
@@ -850,36 +858,11 @@ cardbus_alloc_resources(device_t cbdev, device_t child)
 		 */
 		bus_release_resource(cbdev, SYS_RES_MEMORY, rid, res);
 		for (tmp = 0; tmp < count; tmp++) {
-			if (barlist[tmp]->res == NULL &&
-			    barlist[tmp]->type == SYS_RES_MEMORY &&
-			    dinfo->mprefetchable & BARBIT(barlist[tmp]->rid)) {
-				barlist[tmp]->res = bus_alloc_resource(cbdev,
-				    barlist[tmp]->type,
-				    &barlist[tmp]->rid, start, end,
-				    barlist[tmp]->count,
-				    rman_make_alignment_flags(
-				    barlist[tmp]->count));
-				if (barlist[tmp]->res == NULL) {
-					mem_nsize += barlist[tmp]->count;
-					dinfo->mprefetchable &=
-					    ~BARBIT(barlist[tmp]->rid);
-					DEVPRINTF((cbdev, "Cannot pre-allocate "
-					    "prefetchable memory, will try as "
-					    "non-prefetchable.\n"));
-				} else {
-					barlist[tmp]->start =
-					    rman_get_start(barlist[tmp]->res);
-					barlist[tmp]->end =
-					    rman_get_end(barlist[tmp]->res);
-					pci_write_config(child,
-					    barlist[tmp]->rid,
-					    barlist[tmp]->start, 4);
-					DEVPRINTF((cbdev, "Prefetchable memory "
-					    "rid=%x at %lx-%lx\n",
-					    barlist[tmp]->rid,
-					    barlist[tmp]->start,
-					    barlist[tmp]->end));
-				}
+			rle = barlist[tmp];
+			if (rle->type == SYS_RES_MEMORY &&
+			    dinfo->mprefetchable & BARBIT(rle->rid)) {
+				cardbus_do_res(rle, child, start);
+				start += rle->count;
 			}
 		}
 	}
@@ -887,9 +870,10 @@ cardbus_alloc_resources(device_t cbdev, device_t child)
 	/* Allocate non-prefetchable memory */
 	flags = 0;
 	for (tmp = 0; tmp < count; tmp++) {
-		if (barlist[tmp]->res == NULL &&
-		    barlist[tmp]->type == SYS_RES_MEMORY) {
-			flags = rman_make_alignment_flags(barlist[tmp]->count);
+		rle = barlist[tmp];
+		if (rle->type == SYS_RES_MEMORY &&
+		    (dinfo->mprefetchable & BARBIT(rle->rid)) == 0) {
+			flags = rman_make_alignment_flags(rle->count);
 			break;
 		}
 	}
@@ -916,29 +900,11 @@ cardbus_alloc_resources(device_t cbdev, device_t child)
 		 */
 		bus_release_resource(cbdev, SYS_RES_MEMORY, rid, res);
 		for (tmp = 0; tmp < count; tmp++) {
-			if (barlist[tmp]->res == NULL &&
-			    barlist[tmp]->type == SYS_RES_MEMORY) {
-				barlist[tmp]->res = bus_alloc_resource(cbdev,
-				    barlist[tmp]->type, &barlist[tmp]->rid,
-				    start, end, barlist[tmp]->count,
-				    rman_make_alignment_flags(
-				    barlist[tmp]->count));
-				if (barlist[tmp]->res == NULL) {
-					DEVPRINTF((cbdev, "Cannot pre-allocate "
-					    "memory for cardbus device\n"));
-					free(barlist, M_DEVBUF);
-					return (ENOMEM);
-				}
-				barlist[tmp]->start =
-				    rman_get_start(barlist[tmp]->res);
-				barlist[tmp]->end = rman_get_end(
-					barlist[tmp]->res);
-				pci_write_config(child, barlist[tmp]->rid,
-				    barlist[tmp]->start, 4);
-				DEVPRINTF((cbdev, "Non-prefetchable memory "
-				    "rid=%x at %lx-%lx (%lx)\n",
-				    barlist[tmp]->rid, barlist[tmp]->start,
-				    barlist[tmp]->end, barlist[tmp]->count));
+			rle = barlist[tmp];
+			if (rle->type == SYS_RES_MEMORY &&
+			    (dinfo->mprefetchable & BARBIT(rle->rid)) == 0) {
+				cardbus_do_res(rle, child, start);
+				start += rle->count;
 			}
 		}
 	}
@@ -946,9 +912,9 @@ cardbus_alloc_resources(device_t cbdev, device_t child)
 	/* Allocate IO ports */
 	flags = 0;
 	for (tmp = 0; tmp < count; tmp++) {
-		if (barlist[tmp]->res == NULL &&
-		    barlist[tmp]->type == SYS_RES_IOPORT) {
-			flags = rman_make_alignment_flags(barlist[tmp]->count);
+		rle = barlist[tmp];
+		if (rle->type == SYS_RES_IOPORT) {
+			flags = rman_make_alignment_flags(rle->count);
 			break;
 		}
 	}
@@ -973,28 +939,10 @@ cardbus_alloc_resources(device_t cbdev, device_t child)
 		 */
 		bus_release_resource(cbdev, SYS_RES_IOPORT, rid, res);
 		for (tmp = 0; tmp < count; tmp++) {
-			if (barlist[tmp]->res == NULL &&
-			    barlist[tmp]->type == SYS_RES_IOPORT) {
-				barlist[tmp]->res = bus_alloc_resource(cbdev,
-				    barlist[tmp]->type, &barlist[tmp]->rid,
-				    start, end, barlist[tmp]->count,
-				    rman_make_alignment_flags(
-				    barlist[tmp]->count));
-				if (barlist[tmp]->res == NULL) {
-					DEVPRINTF((cbdev, "Cannot pre-allocate "
-					    "IO port for cardbus device\n"));
-					free(barlist, M_DEVBUF);
-					return (ENOMEM);
-				}
-				barlist[tmp]->start =
-				    rman_get_start(barlist[tmp]->res);
-				barlist[tmp]->end =
-				    rman_get_end(barlist[tmp]->res);
-			pci_write_config(child, barlist[tmp]->rid,
-			    barlist[tmp]->start, 4);
-			DEVPRINTF((cbdev, "IO port rid=%x at %lx-%lx\n",
-			    barlist[tmp]->rid, barlist[tmp]->start,
-			    barlist[tmp]->end));
+			rle = barlist[tmp];
+			if (rle->type == SYS_RES_IOPORT) {
+				cardbus_do_res(rle, child, start);
+				start += rle->count;
 			}
 		}
 	}
@@ -1003,10 +951,11 @@ cardbus_alloc_resources(device_t cbdev, device_t child)
 	rid = 0;
 	res = bus_alloc_resource(cbdev, SYS_RES_IRQ, &rid, 0, ~0UL, 1,
 	    RF_SHAREABLE);
-	resource_list_add(&dinfo->pci.resources, SYS_RES_IRQ, rid,
-	    rman_get_start(res), rman_get_end(res), 1);
-	rle = resource_list_find(&dinfo->pci.resources, SYS_RES_IRQ, rid);
-	rle->res = res;
+	start = rman_get_start(res);
+	end = rman_get_end(res);
+	bus_release_resource(cbdev, SYS_RES_IRQ, rid, res);
+	resource_list_add(&dinfo->pci.resources, SYS_RES_IRQ, rid, start, end,
+	    1);
 	dinfo->pci.cfg.intline = rman_get_start(res);
 	pci_write_config(child, PCIR_INTLINE, rman_get_start(res), 1);
 

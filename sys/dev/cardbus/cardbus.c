@@ -71,40 +71,18 @@ SYSCTL_INT(_hw_cardbus, OID_AUTO, cis_debug, CTLFLAG_RW,
 #define	DEVPRINTF(x) if (cardbus_debug) device_printf x
 
 
-static struct resource	*cardbus_alloc_resource(device_t cbdev, device_t child,
-		    int type, int *rid, u_long start, u_long end, u_long count,
-		    u_int flags);
 static int	cardbus_attach(device_t cbdev);
 static int	cardbus_attach_card(device_t cbdev);
-static void	cardbus_delete_resource(device_t cbdev, device_t child,
-		    int type, int rid);
-static void	cardbus_delete_resource_method(device_t cbdev, device_t child,
-		    int type, int rid);
 static int	cardbus_detach(device_t cbdev);
 static int	cardbus_detach_card(device_t cbdev);
 static void	cardbus_device_setup_regs(device_t brdev, int b, int s, int f,
 		    pcicfgregs *cfg);
 static void	cardbus_driver_added(device_t cbdev, driver_t *driver);
-static int	cardbus_get_resource(device_t cbdev, device_t child, int type,
-		    int rid, u_long *startp, u_long *countp);
-static int	cardbus_get_resource_method(device_t cbdev, device_t child,
-		    int type, int rid, u_long *startp, u_long *countp);
 static int	cardbus_probe(device_t cbdev);
 static int	cardbus_read_ivar(device_t cbdev, device_t child, int which,
 		    uintptr_t *result);
 static void	cardbus_release_all_resources(device_t cbdev,
 		    struct cardbus_devinfo *dinfo);
-static int	cardbus_release_resource(device_t cbdev, device_t child,
-		    int type, int rid, struct resource *r);
-static int	cardbus_set_resource(device_t cbdev, device_t child, int type,
-		    int rid, u_long start, u_long count, struct resource *res);
-static int	cardbus_set_resource_method(device_t cbdev, device_t child,
-		    int type, int rid, u_long start, u_long count);
-static int	cardbus_setup_intr(device_t cbdev, device_t child,
-		    struct resource *irq, int flags, driver_intr_t *intr,
-		    void *arg, void **cookiep);
-static int	cardbus_teardown_intr(device_t cbdev, device_t child,
-		    struct resource *irq, void *cookie);
 static int	cardbus_write_ivar(device_t cbdev, device_t child, int which,
 		    uintptr_t value);
 
@@ -300,143 +278,6 @@ cardbus_driver_added(device_t cbdev, driver_t *driver)
 	free(devlist, M_TEMP);
 }
 
-/************************************************************************/
-/* Resources								*/
-/************************************************************************/
-
-static int
-cardbus_set_resource(device_t cbdev, device_t child, int type, int rid,
-    u_long start, u_long count, struct resource *res)
-{
-	struct cardbus_devinfo *dinfo;
-	struct resource_list *rl;
-	struct resource_list_entry *rle;
-
-	if (device_get_parent(child) != cbdev)
-		return ENOENT;
-
-	dinfo = device_get_ivars(child);
-	rl = &dinfo->pci.resources;
-	rle = resource_list_find(rl, type, rid);
-	if (rle == NULL) {
-		resource_list_add(rl, type, rid, start, start + count - 1,
-		    count);
-		if (res != NULL) {
-			rle = resource_list_find(rl, type, rid);
-			rle->res = res;
-		}
-	} else {
-		if (rle->res == NULL) {
-		} else if (rman_get_device(rle->res) == cbdev &&
-		    (!(rman_get_flags(rle->res) & RF_ACTIVE))) {
-			int f;
-			f = rman_get_flags(rle->res);
-			bus_release_resource(cbdev, type, rid, res);
-			rle->res = bus_alloc_resource(cbdev, type, &rid,
-			    start, start + count - 1,
-			    count, f);
-		} else {
-			device_printf(cbdev, "set_resource: resource busy\n");
-			return EBUSY;
-		}
-		rle->start = start;
-		rle->end = start + count - 1;
-		rle->count = count;
-		if (res != NULL)
-			rle->res = res;
-	}
-	if (device_get_parent(child) == cbdev)
-		pci_write_config(child, rid, start, 4);
-	return 0;
-}
-
-static int
-cardbus_get_resource(device_t cbdev, device_t child, int type, int rid,
-    u_long *startp, u_long *countp)
-{
-	struct cardbus_devinfo *dinfo;
-	struct resource_list *rl;
-	struct resource_list_entry *rle;
-
-	if (device_get_parent(child) != cbdev)
-		return ENOENT;
-
-	dinfo = device_get_ivars(child);
-	rl = &dinfo->pci.resources;
-	rle = resource_list_find(rl, type, rid);
-	if (!rle)
-		return ENOENT;
-	if (startp)
-		*startp = rle->start;
-	if (countp)
-		*countp = rle->count;
-	return 0;
-}
-
-static void
-cardbus_delete_resource(device_t cbdev, device_t child, int type, int rid)
-{
-	struct cardbus_devinfo *dinfo;
-	struct resource_list *rl;
-	struct resource_list_entry *rle;
-
-	if (device_get_parent(child) != cbdev)
-		return;
-
-	dinfo = device_get_ivars(child);
-	rl = &dinfo->pci.resources;
-	rle = resource_list_find(rl, type, rid);
-	if (rle) {
-		if (rle->res) {
-			if (rman_get_device(rle->res) != cbdev ||
-			    rman_get_flags(rle->res) & RF_ACTIVE) {
-				device_printf(cbdev, "delete_resource: "
-				    "Resource still owned by child, oops. "
-				    "(type=%d, rid=%d, addr=%lx)\n",
-				    rle->type, rle->rid,
-				    rman_get_start(rle->res));
-				return;
-			}
-			bus_release_resource(cbdev, type, rid, rle->res);
-		}
-		resource_list_delete(rl, type, rid);
-	}
-	if (device_get_parent(child) == cbdev)
-		pci_write_config(child, rid, 0, 4);
-}
-
-static int
-cardbus_set_resource_method(device_t cbdev, device_t child, int type, int rid,
-    u_long start, u_long count)
-{
-	int ret;
-	ret = cardbus_set_resource(cbdev, child, type, rid, start, count, NULL);
-	if (ret != 0)
-		return ret;
-	return BUS_SET_RESOURCE(device_get_parent(cbdev), child, type, rid,
-	    start, count);
-}
-
-static int
-cardbus_get_resource_method(device_t cbdev, device_t child, int type, int rid,
-    u_long *startp, u_long *countp)
-{
-	int ret;
-	ret = cardbus_get_resource(cbdev, child, type, rid, startp, countp);
-	if (ret != 0)
-		return ret;
-	return BUS_GET_RESOURCE(device_get_parent(cbdev), child, type, rid,
-	    startp, countp);
-}
-
-static void
-cardbus_delete_resource_method(device_t cbdev, device_t child,
-    int type, int rid)
-{
-	cardbus_delete_resource(cbdev, child, type, rid);
-	BUS_DELETE_RESOURCE(device_get_parent(cbdev), child, type, rid);
-}
-
 static void
 cardbus_release_all_resources(device_t cbdev, struct cardbus_devinfo *dinfo)
 {
@@ -463,155 +304,6 @@ cardbus_release_all_resources(device_t cbdev, struct cardbus_devinfo *dinfo)
 	}
 	resource_list_free(&dinfo->pci.resources);
 }
-
-static struct resource *
-cardbus_alloc_resource(device_t cbdev, device_t child, int type,
-    int *rid, u_long start, u_long end, u_long count, u_int flags)
-{
-	struct cardbus_devinfo *dinfo;
-	struct resource_list_entry *rle = 0;
-	int passthrough = (device_get_parent(child) != cbdev);
-
-	if (passthrough) {
-		return (BUS_ALLOC_RESOURCE(device_get_parent(cbdev), child,
-		    type, rid, start, end, count, flags));
-	}
-
-	dinfo = device_get_ivars(child);
-	rle = resource_list_find(&dinfo->pci.resources, type, *rid);
-
-	if (!rle)
-		return NULL;		/* no resource of that type/rid */
-
-	if (!rle->res) {
-		device_printf(cbdev, "WARNING: Resource not reserved by bus\n");
-		return NULL;
-	} else {
-		/* Release the cardbus hold on the resource */
-		if (rman_get_device(rle->res) != cbdev)
-			return NULL;
-		bus_release_resource(cbdev, type, *rid, rle->res);
-		rle->res = NULL;
-		switch (type) {
-		case SYS_RES_IOPORT:
-		case SYS_RES_MEMORY:
-			if (!(flags & RF_ALIGNMENT_MASK))
-				flags |= rman_make_alignment_flags(rle->count);
-			break;
-		case SYS_RES_IRQ:
-			flags |= RF_SHAREABLE;
-			break;
-		}
-		/* Allocate the resource to the child */
-		return resource_list_alloc(&dinfo->pci.resources, cbdev, child,
-		    type, rid, rle->start, rle->end, rle->count, flags);
-	}
-}
-
-static int
-cardbus_release_resource(device_t cbdev, device_t child, int type, int rid,
-    struct resource *r)
-{
-	struct cardbus_devinfo *dinfo;
-	int passthrough = (device_get_parent(child) != cbdev);
-	struct resource_list_entry *rle = 0;
-	int flags;
-	int ret;
-
-	if (passthrough) {
-		return BUS_RELEASE_RESOURCE(device_get_parent(cbdev), child,
-		    type, rid, r);
-	}
-
-	dinfo = device_get_ivars(child);
-	/*
-	 * According to the PCI 2.2 spec, devices may share an address
-	 * decoder between memory mapped ROM access and memory
-	 * mapped register access.  To be safe, disable ROM access
-	 * whenever it is released.
-	 */
-	if (rid == CARDBUS_ROM_REG) {
-		uint32_t rom_reg;
-
-		rom_reg = pci_read_config(child, rid, 4);
-		rom_reg &= ~CARDBUS_ROM_ENABLE;
-		pci_write_config(child, rid, rom_reg, 4);
-	}
-
-	rle = resource_list_find(&dinfo->pci.resources, type, rid);
-
-	if (!rle) {
-		device_printf(cbdev, "Allocated resource not found\n");
-		return ENOENT;
-	}
-	if (!rle->res) {
-		device_printf(cbdev, "Allocated resource not recorded\n");
-		return ENOENT;
-	}
-
-	ret = BUS_RELEASE_RESOURCE(device_get_parent(cbdev), child,
-	    type, rid, r);
-	switch (type) {
-	case SYS_RES_IOPORT:
-	case SYS_RES_MEMORY:
-		flags = rman_make_alignment_flags(rle->count);
-		break;
-	case SYS_RES_IRQ:
-		flags = RF_SHAREABLE;
-		break;
-	default:
-		flags = 0;
-	}
-	/* Restore cardbus hold on the resource */
-	rle->res = bus_alloc_resource(cbdev, type, &rid,
-	    rle->start, rle->end, rle->count, flags);
-	if (rle->res == NULL)
-		device_printf(cbdev, "release_resource: "
-		    "unable to reacquire resource\n");
-	return ret;
-}
-
-static int
-cardbus_setup_intr(device_t cbdev, device_t child, struct resource *irq,
-    int flags, driver_intr_t *intr, void *arg, void **cookiep)
-{
-	int ret;
-	device_t cdev;
-	struct cardbus_devinfo *dinfo;
-
-	ret = bus_generic_setup_intr(cbdev, child, irq, flags, intr, arg,
-	    cookiep);
-	if (ret != 0)
-		return ret;
-
-	for (cdev = child; cbdev != device_get_parent(cdev);
-	    cdev = device_get_parent(cdev))
-		/* NOTHING */;
-	dinfo = device_get_ivars(cdev);
-
-	return 0;
-}
-
-static int
-cardbus_teardown_intr(device_t cbdev, device_t child, struct resource *irq,
-    void *cookie)
-{
-	int ret;
-	device_t cdev;
-	struct cardbus_devinfo *dinfo;
-
-	ret = bus_generic_teardown_intr(cbdev, child, irq, cookie);
-	if (ret != 0)
-		return ret;
-
-	for (cdev = child; cbdev != device_get_parent(cdev);
-	    cdev = device_get_parent(cdev))
-		/* NOTHING */;
-	dinfo = device_get_ivars(cdev);
-
-	return (0);
-}
-
 
 /************************************************************************/
 /* Other Bus Methods							*/
@@ -665,16 +357,18 @@ static device_method_t cardbus_methods[] = {
 	DEVMETHOD(bus_read_ivar,	cardbus_read_ivar),
 	DEVMETHOD(bus_write_ivar,	cardbus_write_ivar),
 	DEVMETHOD(bus_driver_added,	cardbus_driver_added),
-	DEVMETHOD(bus_alloc_resource,	cardbus_alloc_resource),
-	DEVMETHOD(bus_release_resource,	cardbus_release_resource),
 	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
 	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
-	DEVMETHOD(bus_setup_intr,	cardbus_setup_intr),
-	DEVMETHOD(bus_teardown_intr,	cardbus_teardown_intr),
-
-	DEVMETHOD(bus_set_resource,	cardbus_set_resource_method),
-	DEVMETHOD(bus_get_resource,	cardbus_get_resource_method),
-	DEVMETHOD(bus_delete_resource,	cardbus_delete_resource_method),
+	DEVMETHOD(bus_get_resource_list,pci_get_resource_list),
+	DEVMETHOD(bus_set_resource,	bus_generic_rl_set_resource),
+	DEVMETHOD(bus_get_resource,	bus_generic_rl_get_resource),
+	DEVMETHOD(bus_delete_resource,	pci_delete_resource),
+	DEVMETHOD(bus_alloc_resource,	pci_alloc_resource),
+	DEVMETHOD(bus_release_resource,	bus_generic_rl_release_resource),
+	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
+	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
+	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
+	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
 	DEVMETHOD(bus_child_pnpinfo_str, pci_child_pnpinfo_str_method),
 	DEVMETHOD(bus_child_location_str, pci_child_location_str_method),
 
@@ -707,7 +401,3 @@ static devclass_t cardbus_devclass;
 
 DRIVER_MODULE(cardbus, cbb, cardbus_driver, cardbus_devclass, 0, 0);
 MODULE_VERSION(cardbus, 1);
-MODULE_DEPEND(cardbus, exca, 1, 1, 1);
-/*
-MODULE_DEPEND(cardbus, pccbb, 1, 1, 1);
-*/
