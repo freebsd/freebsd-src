@@ -802,6 +802,7 @@ try_krb5_authentication(krb5_context *context, krb5_auth_context *auth_context)
                 problem = krb5_rd_rep(*context, *auth_context, &ap, &reply);
                 if (problem) { 
 		   ret = 0;
+		   goto out;
                 } 
 		ret = 1;
 		break;
