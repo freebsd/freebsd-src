@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)gmon.h	8.2 (Berkeley) 1/4/94
- * $Id$
+ * $Id: gmon.h,v 1.12 1997/02/22 09:45:17 peter Exp $
  */
 
 #ifndef _SYS_GMON_H_
@@ -57,7 +57,7 @@ struct gmonhdr {
  * Type of histogram counters used in the kernel.
  */
 #ifdef GPROF4
-#define	HISTCOUNTER	int
+#define	HISTCOUNTER	int64_t
 #else
 #define	HISTCOUNTER	unsigned short
 #endif

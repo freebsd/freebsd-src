@@ -77,7 +77,7 @@ typedef int	bool;
 long	hz;
 
 #ifdef GPROF4
-typedef	int32_t UNIT;
+typedef	int64_t UNIT;
 #else
 typedef	u_short UNIT;		/* unit of profiling */
 #endif
