@@ -69,7 +69,7 @@
  * Paul Mackerras (paulus@cs.anu.edu.au).
  */
 
-/* $Id: if_ppp.c,v 1.15 1995/07/08 16:34:55 joerg Exp $ */
+/* $Id: if_ppp.c,v 1.16 1995/07/21 20:52:55 bde Exp $ */
 /* from if_sl.c,v 1.11 84/10/04 12:54:47 rick Exp */
 
 #include "ppp.h"
@@ -146,7 +146,7 @@ int	pppstart __P((struct tty *tp));
 
 static struct linesw pppdisc = {
 	pppopen, pppclose, pppread, pppwrite, ppptioctl,
-	pppinput, pppstart, nullmodem
+	pppinput, pppstart, ttymodem
 };
 
 static int	pppasyncstart __P((struct ppp_softc *));
