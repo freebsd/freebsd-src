@@ -27,3 +27,6 @@
 
 #.com and .bin for MIT scheme 
 0	string	\372\372\372\372	MIT scheme (library?)
+
+# From: David Allouche <david@allouche.net>
+0	string	\<TeXmacs|	TeXmacs document text

@@ -60,10 +60,10 @@ AC_HEADER_SYS_WAIT
 AC_HEADER_STDINT
 AC_CHECK_HEADERS(fcntl.h locale.h)
 AC_CHECK_HEADERS(sys/mman.h sys/stat.h sys/types.h)
+AC_CHECK_HEADERS(stdint.h inttypes.h)
 AC_CHECK_HEADERS(unistd.h)
 AC_CHECK_HEADERS(getopt.h)
 AC_CHECK_HEADERS(locale.h)
-AC_CHECK_HEADERS(stdint.h)
 
 dnl Checks for typedefs, structures, and compiler characteristics.
 AC_C_CONST
@@ -91,7 +91,7 @@ AC_CHECK_SIZEOF_STDC_HEADERS(uint32_t, 0)
 AC_CHECK_SIZEOF_STDC_HEADERS(uint64_t, 0)
 
 dnl Checks for functions
-AC_CHECK_FUNCS(mmap strerror strtoul mkstemp)
+AC_CHECK_FUNCS(mmap strerror strtoul mkstemp getopt_long)
 
 dnl Checks for libraries
 AC_CHECK_LIB(z,gzopen)
