@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "From: @(#)xinstall.c	8.1 (Berkeley) 7/21/93";
 #endif
 static const char rcsid[] =
-	"$Id: xinstall.c,v 1.27 1997/10/28 14:20:10 ache Exp $";
+	"$Id: xinstall.c,v 1.28 1998/01/09 06:05:13 jb Exp $";
 #endif /* not lint */
 
 /*-
@@ -87,7 +87,7 @@ static const char rcsid[] =
 #define MAP_FAILED ((caddr_t)-1)	/* from <sys/mman.h> */
 #endif
 
-int debug, docompare, docopy, dodir, dopreserve, dostrip, verbose;
+int debug, docompare, docopy, dodir, dopreserve, dostrip, verbose, nommap;
 int mode = S_IRWXU|S_IRGRP|S_IXGRP|S_IROTH|S_IXOTH;
 char *group, *owner, pathbuf[MAXPATHLEN];
 char pathbuf2[MAXPATHLEN];
@@ -136,7 +136,7 @@ main(argc, argv)
 	char *flags, *to_name;
 
 	iflags = 0;
-	while ((ch = getopt(argc, argv, "CcdDf:g:m:o:psv")) != -1)
+	while ((ch = getopt(argc, argv, "CcdDf:g:m:Mo:psv")) != -1)
 		switch((char)ch) {
 		case 'C':
 			docompare = docopy = 1;
@@ -164,6 +164,9 @@ main(argc, argv)
 				errx(EX_USAGE, "invalid file mode: %s",
 				     optarg);
 			mode = getmode(set, 0);
+			break;
+		case 'M':
+			nommap = 1;
 			break;
 		case 'o':
 			owner = optarg;
@@ -711,7 +714,7 @@ trymmap(fd)
 {
 	struct statfs stfs;
 
-	if (fstatfs(fd, &stfs) < 0)
+	if (nommap || fstatfs(fd, &stfs) < 0)
 		return 0;
 
 /* NetBSD MOUNT_XXX defines are strings, but doesn't have a MOUNT_NONE. */
