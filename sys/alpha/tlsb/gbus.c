@@ -65,7 +65,6 @@ struct gbus_device {
 
 struct gbus_device gbus_children[] = {
 	{ "zsc",	GBUS_DUART0_OFFSET },
-/* 	{ "zsc",	GBUS_DUART1_OFFSET },*/
 	{ "mcclock",	GBUS_CLOCK_OFFSET },
 	{ NULL,		0 },
 };
@@ -113,18 +112,18 @@ gbus_probe(device_t dev)
 
 	/*
 	 * Make sure we're looking for a Gbus.
-	 * Right now, only Gbus could be a
-	 * child of a TLSB CPU Node.
+	 * A Gbus can only be a child of a TLSB CPU Node.
 	 */
-	if (!TLDEV_ISCPU(tlsb_get_dtype(dev)))
+	if (!TLDEV_ISCPU(tlsb_get_dtype(device_get_parent(dev)))) {
 		return ENXIO;
+	}
 
 	for (gdev = gbus_children; gdev->gd_name; gdev++) {
 		child = device_add_child(dev, gdev->gd_name, -1);
 		device_set_ivars(child, gdev);
 	}
 
-	return 0;
+	return (0);
 }
 
 static int
