@@ -1,5 +1,5 @@
 /* pe-dll.h: Header file for routines used to build Windows DLLs.
-   Copyright 1999, 2000, 2002 Free Software Foundation, Inc.
+   Copyright 1999, 2000, 2002, 2003 Free Software Foundation, Inc.
 
    This file is part of GLD, the Gnu Linker.
 
@@ -35,20 +35,28 @@ extern int pe_dll_warn_dup_exports;
 extern int pe_dll_compat_implib;
 extern int pe_dll_extra_pe_debug;
 
-extern void pe_dll_id_target PARAMS ((const char *));
-extern void pe_dll_add_excludes PARAMS ((const char *, const int));
-extern void pe_dll_generate_def_file PARAMS ((const char *));
-extern void pe_dll_generate_implib PARAMS ((def_file *, const char *));
-extern void pe_process_import_defs PARAMS ((bfd *, struct bfd_link_info *));
-extern boolean pe_implied_import_dll PARAMS ((const char *));
-extern void pe_dll_build_sections PARAMS ((bfd *, struct bfd_link_info *));
-extern void pe_exe_build_sections PARAMS ((bfd *, struct bfd_link_info *));
-extern void pe_dll_fill_sections PARAMS ((bfd *, struct bfd_link_info *));
-extern void pe_exe_fill_sections PARAMS ((bfd *, struct bfd_link_info *));
-
-extern void pe_walk_relocs_of_symbol PARAMS ((struct bfd_link_info * info,
-					      const char *name,
-					      int (*cb) (arelent *, asection *)));
-
-extern void pe_create_import_fixup PARAMS ((arelent * rel));
+extern void pe_dll_id_target
+  (const char *);
+extern void pe_dll_add_excludes
+  (const char *, const int);
+extern void pe_dll_generate_def_file
+  (const char *);
+extern void pe_dll_generate_implib
+  (def_file *, const char *);
+extern void pe_process_import_defs
+  (bfd *, struct bfd_link_info *);
+extern bfd_boolean pe_implied_import_dll
+  (const char *);
+extern void pe_dll_build_sections
+  (bfd *, struct bfd_link_info *);
+extern void pe_exe_build_sections
+  (bfd *, struct bfd_link_info *);
+extern void pe_dll_fill_sections
+  (bfd *, struct bfd_link_info *);
+extern void pe_exe_fill_sections
+  (bfd *, struct bfd_link_info *);
+extern void pe_walk_relocs_of_symbol
+  (struct bfd_link_info *, const char *, int (*) (arelent *, asection *));
+extern void pe_create_import_fixup
+  (arelent * rel, asection *, int);
 #endif /* PE_DLL_H */

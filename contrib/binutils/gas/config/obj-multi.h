@@ -1,5 +1,5 @@
 /* Multiple object format emulation.
-   Copyright 1995, 1996, 1997, 1999, 2000
+   Copyright 1995, 1996, 1997, 1999, 2000, 2002
    Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
@@ -53,6 +53,11 @@
 #define obj_frob_file_before_adjust()			\
 	(this_format->frob_file_before_adjust		\
 	 ? (*this_format->frob_file_before_adjust) ()	\
+	 : (void) 0)
+
+#define obj_frob_file_before_fix()			\
+	(this_format->frob_file_before_fix		\
+	 ? (*this_format->frob_file_before_fix) ()	\
 	 : (void) 0)
 
 #define obj_frob_file_after_relocs()			\

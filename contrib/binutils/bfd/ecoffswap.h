@@ -1,23 +1,23 @@
 /* Generic ECOFF swapping routines, for BFD.
-   Copyright 1992, 1993, 1994, 1995, 1996, 2000, 2001
+   Copyright 1992, 1993, 1994, 1995, 1996, 2000, 2001, 2002
    Free Software Foundation, Inc.
    Written by Cygnus Support.
 
-This file is part of BFD, the Binary File Descriptor library.
+   This file is part of BFD, the Binary File Descriptor library.
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 /* NOTE: This is a header file, but it contains executable routines.
    This is done this way because these routines are substantially
@@ -220,7 +220,7 @@ ecoff_swap_fdr_in (abfd, ext_copy, intern)
   intern->rfdBase       = H_GET_32 (abfd, ext->f_rfdBase);
   intern->crfd          = H_GET_32 (abfd, ext->f_crfd);
 
-  /* now the fun stuff...  */
+  /* Now the fun stuff...  */
   if (bfd_header_big_endian (abfd))
     {
       intern->lang       = ((ext->f_bits1[0] & FDR_BITS1_LANG_BIG)
@@ -263,7 +263,8 @@ ecoff_swap_fdr_out (abfd, intern_copy, ext_ptr)
   struct fdr_ext *ext = (struct fdr_ext *) ext_ptr;
   FDR intern[1];
 
-  *intern = *intern_copy;	/* Make it reasonable to do in-place.  */
+  /* Make it reasonable to do in-place.  */
+  *intern = *intern_copy;
 
   ECOFF_PUT_OFF (abfd, intern->adr,       ext->f_adr);
   H_PUT_32      (abfd, intern->rss,       ext->f_rss);
@@ -288,7 +289,7 @@ ecoff_swap_fdr_out (abfd, intern_copy, ext_ptr)
   H_PUT_32      (abfd, intern->rfdBase,   ext->f_rfdBase);
   H_PUT_32      (abfd, intern->crfd,      ext->f_crfd);
 
-  /* now the fun stuff...  */
+  /* Now the fun stuff...  */
   if (bfd_header_big_endian (abfd))
     {
       ext->f_bits1[0] = (((intern->lang << FDR_BITS1_LANG_SH_BIG)
@@ -355,6 +356,11 @@ ecoff_swap_pdr_in (abfd, ext_copy, intern)
   intern->cbLineOffset  = ECOFF_GET_OFF (abfd, ext->p_cbLineOffset);
 
 #if defined (ECOFF_64) || defined (ECOFF_SIGNED_64)
+  if (intern->isym == (signed long) 0xffffffff)
+    intern->isym = -1;
+  if (intern->iline == (signed long) 0xffffffff)
+    intern->iline = -1;
+
   intern->gp_prologue = H_GET_8 (abfd, ext->p_gp_prologue);
   if (bfd_header_big_endian (abfd))
     {
@@ -396,7 +402,8 @@ ecoff_swap_pdr_out (abfd, intern_copy, ext_ptr)
   struct pdr_ext *ext = (struct pdr_ext *) ext_ptr;
   PDR intern[1];
 
-  *intern = *intern_copy;	/* Make it reasonable to do in-place.  */
+  /* Make it reasonable to do in-place.  */
+  *intern = *intern_copy;
 
   ECOFF_PUT_OFF (abfd, intern->adr,          ext->p_adr);
   H_PUT_32      (abfd, intern->isym,         ext->p_isym);
@@ -494,7 +501,8 @@ ecoff_swap_pdr_out (abfd, intern_copy, ext_ptr)
   struct pdr_ext *ext = (struct pdr_ext *) ext_ptr;
   PDR intern[1];
 
-  *intern = *intern_copy;	/* Make it reasonable to do in-place.  */
+  /* Make it reasonable to do in-place.  */
+  *intern = *intern_copy;
 
   ECOFF_PUT_OFF (abfd, intern->adr,          ext->p_adr);
   H_PUT_32      (abfd, intern->isym,         ext->p_isym);
@@ -533,33 +541,41 @@ ecoff_swap_sym_in (abfd, ext_copy, intern)
   intern->iss           = H_GET_32 (abfd, ext->s_iss);
   intern->value         = ECOFF_GET_OFF (abfd, ext->s_value);
 
-  /* now the fun stuff...  */
-  if (bfd_header_big_endian (abfd)) {
-    intern->st          =  (ext->s_bits1[0] & SYM_BITS1_ST_BIG)
-					   >> SYM_BITS1_ST_SH_BIG;
-    intern->sc          = ((ext->s_bits1[0] & SYM_BITS1_SC_BIG)
-					   << SYM_BITS1_SC_SH_LEFT_BIG)
-			| ((ext->s_bits2[0] & SYM_BITS2_SC_BIG)
-					   >> SYM_BITS2_SC_SH_BIG);
-    intern->reserved    = 0 != (ext->s_bits2[0] & SYM_BITS2_RESERVED_BIG);
-    intern->index       = ((ext->s_bits2[0] & SYM_BITS2_INDEX_BIG)
-					   << SYM_BITS2_INDEX_SH_LEFT_BIG)
-			| (ext->s_bits3[0] << SYM_BITS3_INDEX_SH_LEFT_BIG)
-			| (ext->s_bits4[0] << SYM_BITS4_INDEX_SH_LEFT_BIG);
-  } else {
-    intern->st          =  (ext->s_bits1[0] & SYM_BITS1_ST_LITTLE)
-					   >> SYM_BITS1_ST_SH_LITTLE;
-    intern->sc          = ((ext->s_bits1[0] & SYM_BITS1_SC_LITTLE)
-					   >> SYM_BITS1_SC_SH_LITTLE)
-			| ((ext->s_bits2[0] & SYM_BITS2_SC_LITTLE)
-					   << SYM_BITS2_SC_SH_LEFT_LITTLE);
-    intern->reserved    = 0 != (ext->s_bits2[0] & SYM_BITS2_RESERVED_LITTLE);
-    intern->index       = ((ext->s_bits2[0] & SYM_BITS2_INDEX_LITTLE)
-					   >> SYM_BITS2_INDEX_SH_LITTLE)
-			| (ext->s_bits3[0] << SYM_BITS3_INDEX_SH_LEFT_LITTLE)
-			| ((unsigned int) ext->s_bits4[0]
-			   << SYM_BITS4_INDEX_SH_LEFT_LITTLE);
-  }
+#if defined (ECOFF_64) || defined (ECOFF_SIGNED_64)
+  if (intern->iss == (signed long) 0xffffffff)
+    intern->iss = -1;
+#endif  
+
+  /* Now the fun stuff...  */
+  if (bfd_header_big_endian (abfd))
+    {
+      intern->st          =  (ext->s_bits1[0] & SYM_BITS1_ST_BIG)
+					     >> SYM_BITS1_ST_SH_BIG;
+      intern->sc          = ((ext->s_bits1[0] & SYM_BITS1_SC_BIG)
+					     << SYM_BITS1_SC_SH_LEFT_BIG)
+			  | ((ext->s_bits2[0] & SYM_BITS2_SC_BIG)
+					     >> SYM_BITS2_SC_SH_BIG);
+      intern->reserved    = 0 != (ext->s_bits2[0] & SYM_BITS2_RESERVED_BIG);
+      intern->index       = ((ext->s_bits2[0] & SYM_BITS2_INDEX_BIG)
+					     << SYM_BITS2_INDEX_SH_LEFT_BIG)
+			  | (ext->s_bits3[0] << SYM_BITS3_INDEX_SH_LEFT_BIG)
+			  | (ext->s_bits4[0] << SYM_BITS4_INDEX_SH_LEFT_BIG);
+    }
+  else
+    {
+      intern->st          =  (ext->s_bits1[0] & SYM_BITS1_ST_LITTLE)
+					     >> SYM_BITS1_ST_SH_LITTLE;
+      intern->sc          = ((ext->s_bits1[0] & SYM_BITS1_SC_LITTLE)
+					     >> SYM_BITS1_SC_SH_LITTLE)
+			  | ((ext->s_bits2[0] & SYM_BITS2_SC_LITTLE)
+					     << SYM_BITS2_SC_SH_LEFT_LITTLE);
+      intern->reserved    = 0 != (ext->s_bits2[0] & SYM_BITS2_RESERVED_LITTLE);
+      intern->index       = ((ext->s_bits2[0] & SYM_BITS2_INDEX_LITTLE)
+					     >> SYM_BITS2_INDEX_SH_LITTLE)
+			  | (ext->s_bits3[0] << SYM_BITS3_INDEX_SH_LEFT_LITTLE)
+			  | ((unsigned int) ext->s_bits4[0]
+			     << SYM_BITS4_INDEX_SH_LEFT_LITTLE);
+    }
 
 #ifdef TEST
   if (memcmp ((char *)ext, (char *)intern, sizeof (*intern)) != 0)
@@ -578,37 +594,41 @@ ecoff_swap_sym_out (abfd, intern_copy, ext_ptr)
   struct sym_ext *ext = (struct sym_ext *) ext_ptr;
   SYMR intern[1];
 
-  *intern = *intern_copy;	/* Make it reasonable to do in-place.  */
+  /* Make it reasonable to do in-place.  */
+  *intern = *intern_copy;
 
   H_PUT_32 (abfd, intern->iss, ext->s_iss);
   ECOFF_PUT_OFF (abfd, intern->value, ext->s_value);
 
-  /* now the fun stuff...  */
-  if (bfd_header_big_endian (abfd)) {
-    ext->s_bits1[0] = (((intern->st << SYM_BITS1_ST_SH_BIG)
-			& SYM_BITS1_ST_BIG)
-		       | ((intern->sc >> SYM_BITS1_SC_SH_LEFT_BIG)
-			  & SYM_BITS1_SC_BIG));
-    ext->s_bits2[0] = (((intern->sc << SYM_BITS2_SC_SH_BIG)
-			& SYM_BITS2_SC_BIG)
-		       | (intern->reserved ? SYM_BITS2_RESERVED_BIG : 0)
-		       | ((intern->index >> SYM_BITS2_INDEX_SH_LEFT_BIG)
-			  & SYM_BITS2_INDEX_BIG));
-    ext->s_bits3[0] = (intern->index >> SYM_BITS3_INDEX_SH_LEFT_BIG) & 0xff;
-    ext->s_bits4[0] = (intern->index >> SYM_BITS4_INDEX_SH_LEFT_BIG) & 0xff;
-  } else {
-    ext->s_bits1[0] = (((intern->st << SYM_BITS1_ST_SH_LITTLE)
-			& SYM_BITS1_ST_LITTLE)
-		       | ((intern->sc << SYM_BITS1_SC_SH_LITTLE)
-			  & SYM_BITS1_SC_LITTLE));
-    ext->s_bits2[0] = (((intern->sc >> SYM_BITS2_SC_SH_LEFT_LITTLE)
-			& SYM_BITS2_SC_LITTLE)
-		       | (intern->reserved ? SYM_BITS2_RESERVED_LITTLE : 0)
-		       | ((intern->index << SYM_BITS2_INDEX_SH_LITTLE)
-			  & SYM_BITS2_INDEX_LITTLE));
-    ext->s_bits3[0] = (intern->index >> SYM_BITS3_INDEX_SH_LEFT_LITTLE) & 0xff;
-    ext->s_bits4[0] = (intern->index >> SYM_BITS4_INDEX_SH_LEFT_LITTLE) & 0xff;
-  }
+  /* Now the fun stuff...  */
+  if (bfd_header_big_endian (abfd))
+    {
+      ext->s_bits1[0] = (((intern->st << SYM_BITS1_ST_SH_BIG)
+			  & SYM_BITS1_ST_BIG)
+			 | ((intern->sc >> SYM_BITS1_SC_SH_LEFT_BIG)
+			    & SYM_BITS1_SC_BIG));
+      ext->s_bits2[0] = (((intern->sc << SYM_BITS2_SC_SH_BIG)
+			  & SYM_BITS2_SC_BIG)
+			 | (intern->reserved ? SYM_BITS2_RESERVED_BIG : 0)
+			 | ((intern->index >> SYM_BITS2_INDEX_SH_LEFT_BIG)
+			    & SYM_BITS2_INDEX_BIG));
+      ext->s_bits3[0] = (intern->index >> SYM_BITS3_INDEX_SH_LEFT_BIG) & 0xff;
+      ext->s_bits4[0] = (intern->index >> SYM_BITS4_INDEX_SH_LEFT_BIG) & 0xff;
+    }
+  else
+    {
+      ext->s_bits1[0] = (((intern->st << SYM_BITS1_ST_SH_LITTLE)
+			  & SYM_BITS1_ST_LITTLE)
+			 | ((intern->sc << SYM_BITS1_SC_SH_LITTLE)
+			    & SYM_BITS1_SC_LITTLE));
+      ext->s_bits2[0] = (((intern->sc >> SYM_BITS2_SC_SH_LEFT_LITTLE)
+			  & SYM_BITS2_SC_LITTLE)
+			 | (intern->reserved ? SYM_BITS2_RESERVED_LITTLE : 0)
+			 | ((intern->index << SYM_BITS2_INDEX_SH_LITTLE)
+			    & SYM_BITS2_INDEX_LITTLE));
+      ext->s_bits3[0] = (intern->index >> SYM_BITS3_INDEX_SH_LEFT_LITTLE) & 0xff;
+      ext->s_bits4[0] = (intern->index >> SYM_BITS4_INDEX_SH_LEFT_LITTLE) & 0xff;
+    }
 
 #ifdef TEST
   if (memcmp ((char *)ext, (char *)intern, sizeof (*intern)) != 0)
@@ -628,23 +648,26 @@ ecoff_swap_ext_in (abfd, ext_copy, intern)
 
   *ext = *(struct ext_ext *) ext_copy;
 
-  /* now the fun stuff...  */
-  if (bfd_header_big_endian (abfd)) {
-    intern->jmptbl      = 0 != (ext->es_bits1[0] & EXT_BITS1_JMPTBL_BIG);
-    intern->cobol_main  = 0 != (ext->es_bits1[0] & EXT_BITS1_COBOL_MAIN_BIG);
-    intern->weakext     = 0 != (ext->es_bits1[0] & EXT_BITS1_WEAKEXT_BIG);
-  } else {
-    intern->jmptbl      = 0 != (ext->es_bits1[0] & EXT_BITS1_JMPTBL_LITTLE);
-    intern->cobol_main  = 0 != (ext->es_bits1[0] & EXT_BITS1_COBOL_MAIN_LITTLE);
-    intern->weakext     = 0 != (ext->es_bits1[0] & EXT_BITS1_WEAKEXT_LITTLE);
-  }
+  /* Now the fun stuff...  */
+  if (bfd_header_big_endian (abfd))
+    {
+      intern->jmptbl      = 0 != (ext->es_bits1[0] & EXT_BITS1_JMPTBL_BIG);
+      intern->cobol_main  = 0 != (ext->es_bits1[0] & EXT_BITS1_COBOL_MAIN_BIG);
+      intern->weakext     = 0 != (ext->es_bits1[0] & EXT_BITS1_WEAKEXT_BIG);
+    }
+  else
+    {
+      intern->jmptbl      = 0 != (ext->es_bits1[0] & EXT_BITS1_JMPTBL_LITTLE);
+      intern->cobol_main  = 0 != (ext->es_bits1[0] & EXT_BITS1_COBOL_MAIN_LITTLE);
+      intern->weakext     = 0 != (ext->es_bits1[0] & EXT_BITS1_WEAKEXT_LITTLE);
+    }
   intern->reserved = 0;
 
 #if defined (ECOFF_32) || defined (ECOFF_SIGNED_32)
-  intern->ifd           = H_GET_S16 (abfd, ext->es_ifd);
+  intern->ifd = H_GET_S16 (abfd, ext->es_ifd);
 #endif
 #if defined (ECOFF_64) || defined (ECOFF_SIGNED_64)
-  intern->ifd           = H_GET_S32 (abfd, ext->es_ifd);
+  intern->ifd = H_GET_S32 (abfd, ext->es_ifd);
 #endif
 
   ecoff_swap_sym_in (abfd, &ext->es_asym, &intern->asym);
@@ -666,28 +689,32 @@ ecoff_swap_ext_out (abfd, intern_copy, ext_ptr)
   struct ext_ext *ext = (struct ext_ext *) ext_ptr;
   EXTR intern[1];
 
-  *intern = *intern_copy;	/* Make it reasonable to do in-place.  */
+  /* Make it reasonable to do in-place.  */
+  *intern = *intern_copy;
 
-  /* now the fun stuff...  */
-  if (bfd_header_big_endian (abfd)) {
-    ext->es_bits1[0] = ((intern->jmptbl ? EXT_BITS1_JMPTBL_BIG : 0)
-			| (intern->cobol_main ? EXT_BITS1_COBOL_MAIN_BIG : 0)
-			| (intern->weakext ? EXT_BITS1_WEAKEXT_BIG : 0));
-    ext->es_bits2[0] = 0;
+  /* Now the fun stuff...  */
+  if (bfd_header_big_endian (abfd))
+    {
+      ext->es_bits1[0] = ((intern->jmptbl ? EXT_BITS1_JMPTBL_BIG : 0)
+			  | (intern->cobol_main ? EXT_BITS1_COBOL_MAIN_BIG : 0)
+			  | (intern->weakext ? EXT_BITS1_WEAKEXT_BIG : 0));
+      ext->es_bits2[0] = 0;
 #if defined (ECOFF_64) || defined (ECOFF_SIGNED_64)
-    ext->es_bits2[1] = 0;
-    ext->es_bits2[2] = 0;
+      ext->es_bits2[1] = 0;
+      ext->es_bits2[2] = 0;
 #endif
-  } else {
-    ext->es_bits1[0] = ((intern->jmptbl ? EXT_BITS1_JMPTBL_LITTLE : 0)
-			| (intern->cobol_main ? EXT_BITS1_COBOL_MAIN_LITTLE : 0)
-			| (intern->weakext ? EXT_BITS1_WEAKEXT_LITTLE : 0));
-    ext->es_bits2[0] = 0;
+    }
+  else
+    {
+      ext->es_bits1[0] = ((intern->jmptbl ? EXT_BITS1_JMPTBL_LITTLE : 0)
+			  | (intern->cobol_main ? EXT_BITS1_COBOL_MAIN_LITTLE : 0)
+			  | (intern->weakext ? EXT_BITS1_WEAKEXT_LITTLE : 0));
+      ext->es_bits2[0] = 0;
 #if defined (ECOFF_64) || defined (ECOFF_SIGNED_64)
-    ext->es_bits2[1] = 0;
-    ext->es_bits2[2] = 0;
+      ext->es_bits2[1] = 0;
+      ext->es_bits2[2] = 0;
 #endif
-  }
+    }
 
 #if defined (ECOFF_32) || defined (ECOFF_SIGNED_32)
   H_PUT_S16 (abfd, intern->ifd, ext->es_ifd);
@@ -792,7 +819,8 @@ ecoff_swap_opt_out (abfd, intern_copy, ext_ptr)
   struct opt_ext *ext = (struct opt_ext *) ext_ptr;
   OPTR intern[1];
 
-  *intern = *intern_copy;	/* Make it reasonable to do in-place.  */
+  /* Make it reasonable to do in-place.  */
+  *intern = *intern_copy;
 
   if (bfd_header_big_endian (abfd))
     {
@@ -852,7 +880,8 @@ ecoff_swap_dnr_out (abfd, intern_copy, ext_ptr)
   struct dnr_ext *ext = (struct dnr_ext *) ext_ptr;
   DNR intern[1];
 
-  *intern = *intern_copy;	/* Make it reasonable to do in-place.  */
+  /* Make it reasonable to do in-place.  */
+  *intern = *intern_copy;
 
   H_PUT_32 (abfd, intern->rfd, ext->d_rfd);
   H_PUT_32 (abfd, intern->index, ext->d_index);

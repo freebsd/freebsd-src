@@ -1514,7 +1514,7 @@
 
 2001-10-08  Aldy Hernandez  <aldyh@redhat.com>
 
-	* bfd/config.bfd (targ_cpu): Add arm9e-*-elf.
+	* config.bfd (targ_cpu): Add arm9e-*-elf.
 
 2001-10-06  Stephane Carrez  <Stephane.Carrez@worldnet.fr>
 
@@ -2858,13 +2858,13 @@
 2001-08-31  Eric Christopher  <echristo@redhat.com>
 	    Jason Eckhardt  <jle@redhat.com>
 
-	* bfd/archures.c: Add mipsisa32 and mipsisa64. Remove mips32,
+	* archures.c: Add mipsisa32 and mipsisa64. Remove mips32,
 	mips32_4k and mips64.
-	* bfd/aoutx.h: Remove bfd_mach_mips32, bfd_mach_mips32_4k,
+	* aoutx.h: Remove bfd_mach_mips32, bfd_mach_mips32_4k,
 	bfd_mach_mips64.  Add bfd_mach_mipsisa32, bfd_mach_mipsisa64.
-	* bfd/cpu-mips.c: Ditto.
-	* bfd/elf32-mips.c (_bfd_mips_elf_final_write_processing): Ditto.
-	* bfd/bfd-in2.h: Regenerate.
+	* cpu-mips.c: Ditto.
+	* elf32-mips.c (_bfd_mips_elf_final_write_processing): Ditto.
+	* bfd-in2.h: Regenerate.
 
 2001-08-31  Jakub Jelinek  <jakub@redhat.com>
 
@@ -3726,7 +3726,7 @@
 
 2001-07-04  H.J. Lu  <hjl@gnu.org>
 
-	* bfd/elf32-mips.c (_bfd_mips_elf_final_write_processing):
+	* elf32-mips.c (_bfd_mips_elf_final_write_processing):
 	Handle bfd_mach_mips4400, bfd_mach_mips4600 and
 	bfd_mach_mips5000.
 
@@ -4529,7 +4529,7 @@
 
 	* elf32-openrisc.c (openrisc_elf_howto_table): Do not complain
 	about overflow in R_OPENRISC_LO_16_IN_INSN and
-	R_OPENRISC_HI_16_IN_INSN.Index: bfd/elf32-openrisc.c
+	R_OPENRISC_HI_16_IN_INSN.
 
 2001-04-30  H.J. Lu  <hjl@gnu.org>
 

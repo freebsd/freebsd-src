@@ -44,7 +44,7 @@
    Obstacks provide all the functionality needed, but are too
    complicated, hence the sb.
 
-   An sb is allocated by the caller, and is initialzed to point to an
+   An sb is allocated by the caller, and is initialized to point to an
    sb_element.  sb_elements are kept on a free lists, and used when
    needed, replaced onto the free list when unused.
  */
@@ -78,22 +78,22 @@ typedef struct
 
 extern int string_count[sb_max_power_two];
 
-extern void sb_build PARAMS ((sb *, int));
-extern void sb_new PARAMS ((sb *));
-extern void sb_kill PARAMS ((sb *));
-extern void sb_add_sb PARAMS ((sb *, sb *));
-extern void sb_reset PARAMS ((sb *));
-extern void sb_add_char PARAMS ((sb *, int));
-extern void sb_add_string PARAMS ((sb *, const char *));
-extern void sb_add_buffer PARAMS ((sb *, const char *, int));
-extern void sb_print PARAMS ((FILE *, sb *));
-extern void sb_print_at PARAMS ((FILE *, int, sb *));
-extern char *sb_name PARAMS ((sb *));
-extern char *sb_terminate PARAMS ((sb *));
-extern int sb_skip_white PARAMS ((int, sb *));
-extern int sb_skip_comma PARAMS ((int, sb *));
+extern void sb_build (sb *, int);
+extern void sb_new (sb *);
+extern void sb_kill (sb *);
+extern void sb_add_sb (sb *, sb *);
+extern void sb_reset (sb *);
+extern void sb_add_char (sb *, int);
+extern void sb_add_string (sb *, const char *);
+extern void sb_add_buffer (sb *, const char *, int);
+extern void sb_print (FILE *, sb *);
+extern void sb_print_at (FILE *, int, sb *);
+extern char *sb_name (sb *);
+extern char *sb_terminate (sb *);
+extern int sb_skip_white (int, sb *);
+extern int sb_skip_comma (int, sb *);
 
 /* Actually in input-scrub.c.  */
-extern void input_scrub_include_sb PARAMS ((sb *, char *, int));
+extern void input_scrub_include_sb (sb *, char *, int);
 
 #endif /* SB_H */

@@ -2,7 +2,8 @@
 # It does some substitutions.
 cat >e${EMULATION_NAME}.c <<EOF
 /* A vanilla emulation with no defaults
-   Copyright 1991, 1992, 1994, 2000, 2001 Free Software Foundation, Inc.
+   Copyright 1991, 1992, 1994, 2000, 2001, 2002, 2003
+   Free Software Foundation, Inc.
    Written by Steve Chamberlain steve@cygnus.com
 
 This file is part of GLD, the Gnu Linker.
@@ -34,17 +35,12 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include "ldfile.h"
 #include "ldemul.h"
 
-static void vanilla_before_parse PARAMS ((void));
-static void vanilla_set_output_arch PARAMS ((void));
-static char *vanilla_get_script PARAMS ((int *));
-
-
-static void vanilla_before_parse()
+static void vanilla_before_parse (void)
 {
 }
 
 static void
-vanilla_set_output_arch()
+vanilla_set_output_arch (void)
 {
   /* Set the output architecture and machine if possible */
   unsigned long  machine = 0;
@@ -52,14 +48,13 @@ vanilla_set_output_arch()
 }
 
 static char *
-vanilla_get_script(isfile)
-     int *isfile;
+vanilla_get_script (int *isfile)
 {
   *isfile = 0;
   return "";
 }
 
-struct ld_emulation_xfer_struct ld_vanilla_emulation = 
+struct ld_emulation_xfer_struct ld_vanilla_emulation =
 {
   vanilla_before_parse,
   syslib_default,
@@ -79,6 +74,8 @@ struct ld_emulation_xfer_struct ld_vanilla_emulation =
   NULL,	/* place orphan */
   NULL,	/* set symbols */
   NULL,	/* parse args */
+  NULL,	/* add_options */
+  NULL,	/* handle_option */
   NULL,	/* unrecognized file */
   NULL,	/* list options */
   NULL,	/* recognized file */

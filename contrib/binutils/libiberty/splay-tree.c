@@ -234,7 +234,7 @@ splay_tree_xmalloc_allocate (size, data)
      int size;
      void *data ATTRIBUTE_UNUSED;
 {
-  return xmalloc (size);
+  return (void *) xmalloc (size);
 }
 
 static void
@@ -472,7 +472,7 @@ splay_tree_predecessor (sp, key)
   if (comparison < 0)
     return sp->root;
 
-  /* Otherwise, find the leftmost element of the right subtree.  */
+  /* Otherwise, find the rightmost element of the left subtree.  */
   node = sp->root->left;
   if (node)
     while (node->right)
@@ -482,7 +482,7 @@ splay_tree_predecessor (sp, key)
 }
 
 /* Return the immediate successor KEY, or NULL if there is no
-   predecessor.  KEY need not be present in the tree.  */
+   successor.  KEY need not be present in the tree.  */
 
 splay_tree_node
 splay_tree_successor (sp, key)
@@ -492,7 +492,7 @@ splay_tree_successor (sp, key)
   int comparison;
   splay_tree_node node;
 
-  /* If the tree is empty, there is certainly no predecessor.  */
+  /* If the tree is empty, there is certainly no successor.  */
   if (!sp->root)
     return NULL;
 
@@ -505,7 +505,7 @@ splay_tree_successor (sp, key)
   if (comparison > 0)
     return sp->root;
 
-  /* Otherwise, find the rightmost element of the left subtree.  */
+  /* Otherwise, find the leftmost element of the right subtree.  */
   node = sp->root->right;
   if (node)
     while (node->left)

@@ -1,5 +1,5 @@
 /* Generate parameters for an a.out system.
-   Copyright 1990, 1991, 1992, 1993, 1994, 1995, 2001
+   Copyright 1990, 1991, 1992, 1993, 1994, 1995, 2001, 2002
    Free Software Foundation, Inc.
 
 This file is part of BFD, the Binary File Descriptor library.

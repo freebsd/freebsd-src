@@ -84,14 +84,14 @@ extern const int table_size_of_flonum_powers_of_ten;
  *									*
  \***********************************************************************/
 
-int atof_generic PARAMS ((char **address_of_string_pointer,
-			  const char *string_of_decimal_marks,
-			  const char *string_of_decimal_exponent_marks,
-			  FLONUM_TYPE * address_of_generic_floating_point_number));
+int atof_generic (char **address_of_string_pointer,
+		  const char *string_of_decimal_marks,
+		  const char *string_of_decimal_exponent_marks,
+		  FLONUM_TYPE * address_of_generic_floating_point_number);
 
-void flonum_copy PARAMS ((FLONUM_TYPE * in, FLONUM_TYPE * out));
-void flonum_multip PARAMS ((const FLONUM_TYPE * a, const FLONUM_TYPE * b,
-			    FLONUM_TYPE * product));
+void flonum_copy (FLONUM_TYPE * in, FLONUM_TYPE * out);
+void flonum_multip (const FLONUM_TYPE * a, const FLONUM_TYPE * b,
+		    FLONUM_TYPE * product);
 
 /***********************************************************************\
  *									*

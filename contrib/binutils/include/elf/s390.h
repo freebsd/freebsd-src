@@ -49,7 +49,7 @@ START_RELOC_NUMBERS (elf_s390_reloc_type)
     RELOC_NUMBER (R_390_GLOB_DAT, 10)	/* Create GOT entry.  */
     RELOC_NUMBER (R_390_JMP_SLOT, 11)	/* Create PLT entry.  */
     RELOC_NUMBER (R_390_RELATIVE, 12)	/* Adjust by program base.  */
-    RELOC_NUMBER (R_390_GOTOFF, 13)	/* 32 bit offset to GOT.  */
+    RELOC_NUMBER (R_390_GOTOFF32, 13)	/* 32 bit offset to GOT.  */
     RELOC_NUMBER (R_390_GOTPC, 14)	/* 32 bit PC relative offset to GOT.  */
     RELOC_NUMBER (R_390_GOT16, 15)	/* 16 bit GOT offset.  */
     RELOC_NUMBER (R_390_PC16, 16)	/* PC relative 16 bit.  */
@@ -63,6 +63,58 @@ START_RELOC_NUMBERS (elf_s390_reloc_type)
     RELOC_NUMBER (R_390_GOT64, 24)	/* 64 bit GOT offset.  */
     RELOC_NUMBER (R_390_PLT64, 25)	/* 64 bit PC relative PLT address.  */
     RELOC_NUMBER (R_390_GOTENT, 26)	/* 32 bit PC rel. to GOT entry >> 1. */
+    RELOC_NUMBER (R_390_GOTOFF16, 27)   /* 16 bit offset to GOT. */
+    RELOC_NUMBER (R_390_GOTOFF64, 28)   /* 64 bit offset to GOT. */
+    RELOC_NUMBER (R_390_GOTPLT12, 29)   /* 12 bit offset to jump slot.  */
+    RELOC_NUMBER (R_390_GOTPLT16, 30)   /* 16 bit offset to jump slot.  */
+    RELOC_NUMBER (R_390_GOTPLT32, 31)   /* 32 bit offset to jump slot.  */
+    RELOC_NUMBER (R_390_GOTPLT64, 32)   /* 64 bit offset to jump slot.  */
+    RELOC_NUMBER (R_390_GOTPLTENT, 33)  /* 32 bit rel. offset to jump slot.  */
+    RELOC_NUMBER (R_390_PLTOFF16, 34)   /* 16 bit offset from GOT to PLT. */
+    RELOC_NUMBER (R_390_PLTOFF32, 35)   /* 32 bit offset from GOT to PLT. */
+    RELOC_NUMBER (R_390_PLTOFF64, 36)   /* 16 bit offset from GOT to PLT. */
+    RELOC_NUMBER (R_390_TLS_LOAD, 37)	/* Tag for load insn in TLS code. */
+    RELOC_NUMBER (R_390_TLS_GDCALL, 38)	/* Tag for function call in general
+					   dynamic TLS code.  */
+    RELOC_NUMBER (R_390_TLS_LDCALL, 39)	/* Tag for function call in local
+					   dynamic TLS code.  */
+    RELOC_NUMBER (R_390_TLS_GD32, 40)	/* Direct 32 bit for general dynamic
+					   thread local data.  */
+    RELOC_NUMBER (R_390_TLS_GD64, 41)	/* Direct 64 bit for general dynamic
+					   thread local data.  */
+    RELOC_NUMBER (R_390_TLS_GOTIE12, 42)/* 12 bit GOT offset for static TLS
+					   block offset.  */
+    RELOC_NUMBER (R_390_TLS_GOTIE32, 43)/* 32 bit GOT offset for static TLS
+					   block offset.  */
+    RELOC_NUMBER (R_390_TLS_GOTIE64, 44)/* 64 bit GOT offset for static TLS
+					   block offset.  */
+    RELOC_NUMBER (R_390_TLS_LDM32, 45)	/* Direct 32 bit for local dynamic
+					   thread local data in LD code.  */
+    RELOC_NUMBER (R_390_TLS_LDM64, 46)	/* Direct 64 bit for local dynamic
+					   thread local data in LD code.  */
+    RELOC_NUMBER (R_390_TLS_IE32, 47)	/* 32 bit address of GOT entry for
+					   negated static TLS block offset.  */
+    RELOC_NUMBER (R_390_TLS_IE64, 48)	/* 64 bit address of GOT entry for
+					   negated static TLS block offset.  */
+    RELOC_NUMBER (R_390_TLS_IEENT, 49)	/* 32 bit rel. offset to GOT entry for
+					   negated static TLS block offset.  */
+    RELOC_NUMBER (R_390_TLS_LE32, 50)	/* 32 bit negated offset relative to
+					   static TLS block.  */
+    RELOC_NUMBER (R_390_TLS_LE64, 51)	/* 64 bit negated offset relative to
+					   static TLS block.  */
+    RELOC_NUMBER (R_390_TLS_LDO32, 52)	/* 32 bit offset relative to TLS
+					   block.  */
+    RELOC_NUMBER (R_390_TLS_LDO64, 53)	/* 64 bit offset relative to TLS
+					   block.  */
+    RELOC_NUMBER (R_390_TLS_DTPMOD, 54)	/* ID of module containing symbol.  */
+    RELOC_NUMBER (R_390_TLS_DTPOFF, 55)	/* Offset in TLS block.  */
+    RELOC_NUMBER (R_390_TLS_TPOFF, 56)	/* Negate offset in static TLS
+					   block.  */
+    RELOC_NUMBER (R_390_20, 57)		/* Direct 20 bit.  */
+    RELOC_NUMBER (R_390_GOT20, 58)	/* 20 bit GOT offset.  */
+    RELOC_NUMBER (R_390_GOTPLT20, 59)	/* 20 bit offset to jump slot.  */
+    RELOC_NUMBER (R_390_TLS_GOTIE20, 60)/* 20 bit GOT offset for statis TLS
+					   block offset.  */
     /* These are GNU extensions to enable C++ vtable garbage collection.  */
     RELOC_NUMBER (R_390_GNU_VTINHERIT, 250)
     RELOC_NUMBER (R_390_GNU_VTENTRY, 251)

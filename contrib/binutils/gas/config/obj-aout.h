@@ -1,6 +1,6 @@
 /* obj-aout.h, a.out object file format for gas, the assembler.
-   Copyright 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1998, 2000
-   Free Software Foundation, Inc.
+   Copyright 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1998, 2000,
+   2002, 2003 Free Software Foundation, Inc.
 
    This file is part of GAS, the GNU Assembler.
 
@@ -82,9 +82,9 @@ typedef struct nlist obj_symbol_type;	/* Symbol table entry */
 asection *text_section, *data_section, *bss_section;
 
 #define obj_frob_symbol(S,PUNT)	obj_aout_frob_symbol (S, &PUNT)
-#define obj_frob_file()		obj_aout_frob_file ()
+#define obj_frob_file_before_fix() obj_aout_frob_file_before_fix ()
 extern void obj_aout_frob_symbol PARAMS ((symbolS *, int *));
-extern void obj_aout_frob_file PARAMS ((void));
+extern void obj_aout_frob_file_before_fix PARAMS ((void));
 
 #define obj_sec_sym_ok_for_reloc(SEC)	(1)
 
@@ -95,7 +95,7 @@ extern void obj_aout_frob_file PARAMS ((void));
 
 /*
  *  Macros to extract information from a symbol table entry.
- *  This syntaxic indirection allows independence regarding a.out or coff.
+ *  This syntactic indirection allows independence regarding a.out or coff.
  *  The argument (s) of all these macros is a pointer to a symbol table entry.
  */
 
@@ -108,6 +108,12 @@ extern void obj_aout_frob_file PARAMS ((void));
 
 #define S_IS_COMMON(s) \
   (S_GET_TYPE (s) == N_UNDF && S_GET_VALUE (s) != 0)
+
+/* Return true for symbols that should not be reduced to section
+   symbols or eliminated from expressions, because they may be
+   overridden by the linker.  */
+#define S_FORCE_RELOC(s, strict) \
+  (!SEG_NORMAL (S_GET_SEGMENT (s)))
 
 #define S_IS_REGISTER(s)	((s)->sy_symbol.n_type == N_REGISTER)
 

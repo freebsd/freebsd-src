@@ -46,56 +46,57 @@ typedef struct {
    The result is an error message or NULL for success.
    The parsed value is stored in the bfd_vma *.  */
 extern const char * gas_cgen_parse_operand
-     PARAMS ((CGEN_CPU_DESC, enum cgen_parse_operand_type,
-	      const char **, int, int, enum cgen_parse_operand_result *,
-	      bfd_vma *));
+     (CGEN_CPU_DESC, enum cgen_parse_operand_type,
+      const char **, int, int, enum cgen_parse_operand_result *,
+      bfd_vma *);
 
 /* Call this from md_assemble to initialize the assembler callback.  */
-extern void gas_cgen_init_parse PARAMS ((void));
+extern void gas_cgen_init_parse (void);
 
 /* Routines and macros for saving fixup chains.  */
-extern void gas_cgen_save_fixups PARAMS ((int));
-extern void gas_cgen_restore_fixups PARAMS ((int));
-extern void gas_cgen_swap_fixups PARAMS ((int));
-extern void gas_cgen_initialize_saved_fixups_array PARAMS ((void));
+extern void gas_cgen_save_fixups (int);
+extern void gas_cgen_restore_fixups (int);
+extern void gas_cgen_swap_fixups (int);
+extern void gas_cgen_initialize_saved_fixups_array (void);
 #define MAX_SAVED_FIXUP_CHAINS 50
 
 /* Add a register to the assembler's hash table.
    This makes lets GAS parse registers for us.
    ??? This isn't currently used, but it could be in the future.  */
-extern void cgen_asm_record_register PARAMS ((char *, int));
+extern void cgen_asm_record_register (char *, int);
 
 /* After CGEN_SYM (assemble_insn) is done, this is called to
    output the insn and record any fixups.  */
-extern void gas_cgen_finish_insn PARAMS ((const CGEN_INSN *,
-					  CGEN_INSN_BYTES_PTR, unsigned int,
-					  int, finished_insnS *));
+extern void gas_cgen_finish_insn (const CGEN_INSN *,
+				  CGEN_INSN_BYTES_PTR, unsigned int,
+				  int, finished_insnS *);
 
 /* Record a fixup.  */
-extern fixS * gas_cgen_record_fixup PARAMS ((fragS *, int, const CGEN_INSN *,
-					     int, const CGEN_OPERAND *, int,
-					     symbolS *, offsetT));
-extern fixS * gas_cgen_record_fixup_exp PARAMS ((fragS *, int, const CGEN_INSN *,
-						 int, const CGEN_OPERAND *, int,
-						 expressionS *));
+extern fixS * gas_cgen_record_fixup (fragS *, int, const CGEN_INSN *,
+				     int, const CGEN_OPERAND *, int,
+				     symbolS *, offsetT);
+extern fixS * gas_cgen_record_fixup_exp (fragS *, int, const CGEN_INSN *,
+					 int, const CGEN_OPERAND *, int,
+					 expressionS *);
 
 /* md_apply_fix3 handler */
-extern void gas_cgen_md_apply_fix3 PARAMS ((fixS *, valueT *, segT));
+extern void gas_cgen_md_apply_fix3 (fixS *, valueT *, segT);
 
 /* tc_gen_reloc handler */
-extern arelent *gas_cgen_tc_gen_reloc PARAMS ((asection *, fixS *));
+extern arelent *gas_cgen_tc_gen_reloc (asection *, fixS *);
 
 /* Target supplied routine to lookup a reloc.  */
 extern bfd_reloc_code_real_type
-md_cgen_lookup_reloc PARAMS ((const CGEN_INSN *, const CGEN_OPERAND *,
-			      fixS *));
+md_cgen_lookup_reloc (const CGEN_INSN *, const CGEN_OPERAND *, fixS *);
 
 /* Optional target supplied routine to record a fixup for an expression.  */
 extern fixS *
-md_cgen_record_fixup_exp PARAMS ((fragS *, int, const CGEN_INSN *, int,
-				  const CGEN_OPERAND *, int,
-				  expressionS *));
+md_cgen_record_fixup_exp (fragS *, int, const CGEN_INSN *, int,
+			  const CGEN_OPERAND *, int, expressionS *);
 
-extern void gas_cgen_md_operand PARAMS ((expressionS *));
+extern void gas_cgen_md_operand (expressionS *);
+
+/* Perform any cgen specific initialisation for gas.  */
+extern void gas_cgen_begin (void);
 
 #endif /* GAS_CGEN_H */

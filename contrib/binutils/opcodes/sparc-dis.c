@@ -1,20 +1,20 @@
 /* Print SPARC instructions.
    Copyright 1989, 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999,
-   2000, 2002 Free Software Foundation, Inc.
+   2000, 2002, 2003, 2004 Free Software Foundation, Inc.
 
-This program is free software; you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation; either version 2 of the License, or
-(at your option) any later version.
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; either version 2 of the License, or
+   (at your option) any later version.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-You should have received a copy of the GNU General Public License
-along with this program; if not, write to the Free Software
-Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
 #include <stdio.h>
 
@@ -46,7 +46,8 @@ static const struct sparc_opcode **sorted_opcodes;
 static int opcode_bits[4] = { 0x01c00000, 0x0, 0x01f80000, 0x01f80000 };
 #define HASH_INSN(INSN) \
   ((((INSN) >> 24) & 0xc0) | (((INSN) & opcode_bits[((INSN) >> 30) & 3]) >> 19))
-struct opcode_hash {
+struct opcode_hash
+{
   struct opcode_hash *next;
   const struct sparc_opcode *opcode;
 };
@@ -223,7 +224,7 @@ print_insn_sparc (memaddr, info)
   static int opcodes_initialized = 0;
   /* bfd mach number of last call.  */
   static unsigned long current_mach = 0;
-  bfd_vma (*getword) PARAMS ((const unsigned char *));
+  bfd_vma (*getword) (const void *);
 
   if (!opcodes_initialized
       || info->mach != current_mach)
@@ -257,7 +258,7 @@ print_insn_sparc (memaddr, info)
   }
 
   /* On SPARClite variants such as DANlite (sparc86x), instructions
-     are always big-endian even when the machine is in little-endian mode. */
+     are always big-endian even when the machine is in little-endian mode.  */
   if (info->endian == BFD_ENDIAN_BIG || info->mach == bfd_mach_sparc_sparclite)
     getword = bfd_getb32;
   else
@@ -265,10 +266,10 @@ print_insn_sparc (memaddr, info)
 
   insn = getword (buffer);
 
-  info->insn_info_valid = 1;			/* We do return this info */
-  info->insn_type = dis_nonbranch;		/* Assume non branch insn */
-  info->branch_delay_insns = 0;			/* Assume no delay */
-  info->target = 0;				/* Assume no target known */
+  info->insn_info_valid = 1;			/* We do return this info.  */
+  info->insn_type = dis_nonbranch;		/* Assume non branch insn.  */
+  info->branch_delay_insns = 0;			/* Assume no delay.  */
+  info->target = 0;				/* Assume no target known.  */
 
   for (op = opcode_hash_table[HASH_INSN (insn)]; op; op = op->next)
     {
@@ -316,32 +317,34 @@ print_insn_sparc (memaddr, info)
 
 	    if (opcode->args[0] != ',')
 	      (*info->fprintf_func) (stream, " ");
+
 	    for (s = opcode->args; *s != '\0'; ++s)
 	      {
 		while (*s == ',')
 		  {
 		    (*info->fprintf_func) (stream, ",");
 		    ++s;
-		    switch (*s) {
-		    case 'a':
-		      (*info->fprintf_func) (stream, "a");
-		      is_annulled = 1;
-		      ++s;
-		      continue;
-		    case 'N':
-		      (*info->fprintf_func) (stream, "pn");
-		      ++s;
-		      continue;
+		    switch (*s)
+		      {
+		      case 'a':
+			(*info->fprintf_func) (stream, "a");
+			is_annulled = 1;
+			++s;
+			continue;
+		      case 'N':
+			(*info->fprintf_func) (stream, "pn");
+			++s;
+			continue;
 
-		    case 'T':
-		      (*info->fprintf_func) (stream, "pt");
-		      ++s;
-		      continue;
+		      case 'T':
+			(*info->fprintf_func) (stream, "pt");
+			++s;
+			continue;
 
-		    default:
-		      break;
-		    }		/* switch on arg */
-		  }		/* while there are comma started args */
+		      default:
+			break;
+		      }
+		  }
 
 		(*info->fprintf_func) (stream, " ");
 			
@@ -682,26 +685,33 @@ print_insn_sparc (memaddr, info)
 	      unsigned long prev_insn;
 	      int errcode;
 
-	      errcode =
-		(*info->read_memory_func)
+	      if (memaddr >= 4)
+		errcode =
+		  (*info->read_memory_func)
 		  (memaddr - 4, buffer, sizeof (buffer), info);
+	      else
+		errcode = 1;
+
 	      prev_insn = getword (buffer);
 
 	      if (errcode == 0)
 		{
 		  /* If it is a delayed branch, we need to look at the
 		     instruction before the delayed branch.  This handles
-		     sequences such as
+		     sequences such as:
 
 		     sethi %o1, %hi(_foo), %o1
 		     call _printf
-		     or %o1, %lo(_foo), %o1
-		     */
+		     or %o1, %lo(_foo), %o1  */
 
 		  if (is_delayed_branch (prev_insn))
 		    {
-		      errcode = (*info->read_memory_func)
-			(memaddr - 8, buffer, sizeof (buffer), info);
+		      if (memaddr >= 8)
+			errcode = (*info->read_memory_func)
+			  (memaddr - 8, buffer, sizeof (buffer), info);
+		      else
+			errcode = 1;
+
 		      prev_insn = getword (buffer);
 		    }
 		}
@@ -746,7 +756,7 @@ print_insn_sparc (memaddr, info)
 	}
     }
 
-  info->insn_type = dis_noninsn;	/* Mark as non-valid instruction */
+  info->insn_type = dis_noninsn;	/* Mark as non-valid instruction.  */
   (*info->fprintf_func) (stream, _("unknown"));
   return sizeof (buffer);
 }

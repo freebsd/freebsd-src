@@ -1,3 +1,11 @@
+2004-01-06  Mark Kettenis  <kettenis@gnu.org>
+
+	* stab.def: Add N_PATCH to DO definition.
+
+2003-03-06  Elias Athanasopoulos  <elathan@phys.uoa.gr>
+
+	* aout64.h (BYTES_IN_WORD): Define if necessary.
+
 2001-09-18  Alan Modra  <amodra@bigpond.net.au>
 
 	* aout64.h: Formatting fixes.
@@ -6,7 +14,7 @@
 	* hp300hpux.h: Formatting fixes.
 	(N_DATADDR): Avoid negative unsigned warning.
 
-Mon Apr  3 13:29:08 2000  Hans-Peter Nilsson  <hp@axis.com>
+2000-04-03  Hans-Peter Nilsson  <hp@axis.com>
 
 	* aout64.h (RELOC_EXT_BITS_EXTERN_BIG): Wrap definition in #ifndef.
 	(RELOC_EXT_BITS_EXTERN_LITTLE): Ditto.
@@ -20,97 +28,97 @@ Mon Apr  3 13:29:08 2000  Hans-Peter Nilsson  <hp@axis.com>
 	* aout64.h (N_SHARED_LIB): Define as 0 if TEXT_START_ADDR is
 	defined as 0.
 
-Sun Jun 28 11:33:48 1998  Peter Schauer  <pes@regent.e-technik.tu-muenchen.de>
+1998-06-28  Peter Schauer  <pes@regent.e-technik.tu-muenchen.de>
 
 	* stab.def:  Add N_ALIAS from SunPro F77.
 
-Mon Mar 11 12:15:52 1996  Ian Lance Taylor  <ian@cygnus.com>
+1996-03-11  Ian Lance Taylor  <ian@cygnus.com>
 
 	* stab.def: Use __define_stab_duplicate rather than __define_stab
 	for duplicate entries N_BROWS and N_MOD2.
 	* stab_gnu.h (__define_stab_duplicate): Define before including
 	stab.def.
 
-Fri Oct 27 17:47:16 1995  Niklas Hallqvist  <niklas@appli.se>
+1995-10-27  Niklas Hallqvist  <niklas@appli.se>
 
 	* aout64.h, host.h, hp300hpux.h, sun4.h: Changed PAGE_SIZE to
 	TARGET_PAGE_SIZE.
 
-Tue Sep 12 12:07:02 1995  Ian Lance Taylor  <ian@cygnus.com>
+1995-09-12  Ian Lance Taylor  <ian@cygnus.com>
 
 	* sun4.h (struct internal_sun4_dynamic_link): Change all fields
 	from long to unsigned long.
 
-Wed Jul 12 00:15:13 1995  Ken Raeburn  <raeburn@kr-pc.cygnus.com>
+1995-07-12  Ken Raeburn  <raeburn@kr-pc.cygnus.com>
 
 	* sun4.h (PAGE_SIZE): Undefine before defining.
 
-Sun Sep 04 17:58:10 1994  Richard Earnshaw (rwe@pegasus.esprit.ec.org)
+1994-09-04  Richard Earnshaw (rwe@pegasus.esprit.ec.org)
 
 	* aout64.h: Only define QMAGIC if it isn't already defined.
 
-Thu Jun 16 14:22:55 1994  Ian Lance Taylor  (ian@tweedledumb.cygnus.com)
+1994-06-16  Ian Lance Taylor  (ian@tweedledumb.cygnus.com)
 
 	* aout64.h (BMAGIC): Define.
 
-Sat Jun 11 16:16:09 1994  Ian Lance Taylor  (ian@tweedledumb.cygnus.com)
+1994-06-11  Ian Lance Taylor  (ian@tweedledumb.cygnus.com)
 
 	Add weak symbols as an extension to a.out.
 	* aout64.h (N_WEAKU, N_WEAKA, N_WEAKT, N_WEAKD, N_WEAKB): Define.
 	* stab.def: Update symbol value table.
 
-Thu Jun  2 17:13:38 1994  Ian Lance Taylor  (ian@tweedledumb.cygnus.com)
+1994-06-02  Ian Lance Taylor  (ian@tweedledumb.cygnus.com)
 
 	* sun4.h (EXTERNAL_SUN4_DYNAMIC_DEBUGGER_SIZE): Correct from 28 to
 	24.  Fix up ld_got comment.
 
-Wed Mar 30 00:31:49 1994  Peter Schauer  (pes@regent.e-technik.tu-muenchen.de)
+1994-03-30  Peter Schauer  (pes@regent.e-technik.tu-muenchen.de)
 
 	* dynix3.h:  Cleanup, adapt to current bfd version.
 
-Sat Feb 26 10:25:53 1994  Ian Lance Taylor  (ian@cygnus.com)
+1994-02-26  Ian Lance Taylor  (ian@cygnus.com)
 
 	* aout64.h: Add casts to avoid warnings from SVR4 cc.
 
-Fri Feb 11 12:56:04 1994  Stan Shebs  (shebs@andros.cygnus.com)
+1994-02-11  Stan Shebs  (shebs@andros.cygnus.com)
 
 	* ar.h (ARMAG, ARMAGB, ARFMAG): Change '\n' to '\012', for greater
 	portability.
 
-Fri Jan 21 00:59:06 1994  Ian Lance Taylor  (ian@tweedledumb.cygnus.com)
+1994-01-21  Ian Lance Taylor  (ian@tweedledumb.cygnus.com)
 
 	* sun4.h: Added information about SunOS shared libraries.
 
-Fri Jan  7 08:20:13 1994  Jim Kingdon  (kingdon@deneb.cygnus.com)
+1994-01-07  Jim Kingdon  (kingdon@deneb.cygnus.com)
 
 	* aout64.h (N_TXTADDR): Add comment regarding OMAGIC and NMAGIC.
 
-Sat Dec 25 14:55:41 1993  Jim Kingdon  (kingdon@lioth.cygnus.com)
+1993-12-25  Jim Kingdon  (kingdon@lioth.cygnus.com)
 
 	* aout64.h (N_DATOFF): Don't pad (revert change of 8 Jul 1993).
 
-Tue Nov 16 15:43:46 1993  Jim Kingdon  (kingdon@lioth.cygnus.com)
+1993-11-16  Jim Kingdon  (kingdon@lioth.cygnus.com)
 
 	* aout64.h: New macros ZMAGIC_DISK_BLOCK_SIZE and N_DISK_BLOCK_SIZE
 	for Linux ZMAGIC.
 	(N_TXTOFF, N_DATOFF): Use them.
 
-Thu Nov  4 00:33:48 1993  Ken Raeburn  (raeburn@kr-pc.cygnus.com)
+1993-11-04  Ken Raeburn  (raeburn@kr-pc.cygnus.com)
 
 	* aout64.h (RELOC_STD_BITS_RELATIVE_LITTLE): Fixed value to match
 	sun3 system; used to overlap other fields.
 	(RELOC_STD_BITS_JMPTABLE_LITTLE): Likewise.
 
-Wed Nov  3 13:48:27 1993  David J. Mackenzie  (djm@thepub.cygnus.com)
+1993-11-03  David J. Mackenzie  (djm@thepub.cygnus.com)
 
 	* aout64.h (RELOC_STD_BITS_BASEREL_LITTLE): Make it 0x10 (Ken's
 	suggestion) to avoid conflict with RELOC_STD_BITS_EXTERN_LITTLE.
 
-Fri Oct 29 15:09:52 1993  Ian Lance Taylor  (ian@tweedledumb.cygnus.com)
+1993-10-29  Ian Lance Taylor  (ian@tweedledumb.cygnus.com)
 
 	* hp300hpux.h (N_SHARED_LIB): Define to be 0.
 
-Mon Sep 13 21:00:56 1993  John Gilmore  (gnu@cygnus.com)
+1993-09-13  John Gilmore  (gnu@cygnus.com)
 
 	* ar.h (ARMAP_TIME_OFFSET):  Add and describe.
 
@@ -118,30 +126,30 @@ Mon Aug 23  Sean Fagan  (sef@cygnus.com)
 
 	* aout64.h [ARCH_SIZE != 64]: Allow N_BADMAG to be overridden.
 
-Mon Aug 16 14:30:14 1993  Jim Kingdon  (kingdon@lioth.cygnus.com)
+1993-08-16  Jim Kingdon  (kingdon@lioth.cygnus.com)
 
 	* stab_gnu.h: Include aout/stab.def not just stab.def.
 
-Sun Jul 18 21:41:47 1993  Jim Kingdon  (kingdon@rtl.cygnus.com)
+1993-07-18  Jim Kingdon  (kingdon@rtl.cygnus.com)
 
 	* dynix3.h: New, for symmetry running dynix.
 
-Thu Jul  8 12:52:22 1993  Jim Kingdon  (kingdon@lioth.cygnus.com)
+1993-07-08  Jim Kingdon  (kingdon@lioth.cygnus.com)
 
 	* aout64.h (N_BADMAG): Recognize QMAGIC.
 	N_TXTOFF, N_TXTADDR, N_TXTSIZE: Special code for QMAGIC.
 	N_DATOFF: Pad text size if we need to.
 
-Fri Jun 18 19:19:38 1993  Jim Kingdon  (kingdon@lioth.cygnus.com)
+1993-06-18  Jim Kingdon  (kingdon@lioth.cygnus.com)
 
 	* stab.def (N_ECOML): Fix comment.
 
-Mon May 31 09:21:30 1993  Jim Kingdon  (kingdon@cygnus.com)
+1993-05-31  Jim Kingdon  (kingdon@cygnus.com)
 
 	* stab.def: Remove Solaris information on N_FUN stabstring grammar;
 	I've transferred it to gdb/doc/stabs.texinfo, where it belongs.
 
-Mon May 10 05:48:43 1993  Ken Raeburn  (raeburn@kr-pc.cygnus.com)
+1993-05-10  Ken Raeburn  (raeburn@kr-pc.cygnus.com)
 
 	* hp300hpux.h: Patch from Glenn Engel for linker problem and
 	compatibility fix:
@@ -151,11 +159,11 @@ Mon May 10 05:48:43 1993  Ken Raeburn  (raeburn@kr-pc.cygnus.com)
 	(_N_BADMAG): Adjusted.
 	(N_HEADER_IN_TEXT, N_DATADDR): New macros.
 
-Thu Apr 29 12:07:37 1993  Ken Raeburn  (raeburn@deneb.cygnus.com)
+1993-04-29  Ken Raeburn  (raeburn@deneb.cygnus.com)
 
 	* hp300hpux.h: New file from Glenn Engel, glenne@lsid.hp.com.
 
-Tue Apr 27 05:51:04 1993  Ken Raeburn  (raeburn@kr-pc.cygnus.com)
+1993-04-27  Ken Raeburn  (raeburn@kr-pc.cygnus.com)
 
 	* aout64.h (struct external_exec, *MAGIC, N_BADMAG): Don't define
 	if `external_exec' is already defined as a macro.
@@ -164,35 +172,35 @@ Tue Apr 27 05:51:04 1993  Ken Raeburn  (raeburn@kr-pc.cygnus.com)
 	(struct external_nlist, EXTERNAL_NLIST_SIZE): Don't define if
 	`external_nlist' is already defined as a macro.
 
-Sat Aug 15 04:23:02 1992  John Gilmore  (gnu@cygnus.com)
+1992-08-15  John Gilmore  (gnu@cygnus.com)
 
 	* adobe.h:  Add description of a.out.adobe format.
 
-Fri Jul  3 00:36:52 1992  John Gilmore  (gnu at cygnus.com)
+1992-07-03  John Gilmore  (gnu at cygnus.com)
 
 	* stab.def:  Update more Solaris definitions.
 	* stab_gnu.h:  Add N_SO language types, and Solaris basic float types.
 
-Sun Jun 14 10:53:53 1992  John Gilmore  (gnu at cygnus.com)
+1992-06-14  John Gilmore  (gnu at cygnus.com)
 
 	* stab.def:  Update descriptions of Solaris-2 stabs; add N_UNDF.
 
-Thu Jun 11 01:12:07 1992  John Gilmore  (gnu at cygnus.com)
+1992-06-11  John Gilmore  (gnu at cygnus.com)
 
 	* stab.def:  Add N_OBJ and N_OPT from Solaris-2.
 
-Thu Jan 30 18:12:44 1992  John Gilmore  (gnu at cygnus.com)
+1992-01-30  John Gilmore  (gnu at cygnus.com)
 
 	* aout64.h: N_TXTSIZE needs some more parentheses.
 	I don't trust C precedence.
 
-Wed Dec 18 14:32:01 1991  Per Bothner  (bothner at cygnus.com)
+1991-12-18  Per Bothner  (bothner at cygnus.com)
 
 	* aout64.h:  Move common sunos-specific test
 	to recognize shared libraries into new macro N_SHARED_LIB.
 	Use it to simplify & reformat N_TXTADDR, N_TXTOFF, N_TXTSIZE.
 
-Sat Nov 30 20:34:52 1991  Steve Chamberlain  (sac at rtl.cygnus.com)
+1991-11-30  Steve Chamberlain  (sac at rtl.cygnus.com)
 
 	* aout64.h, ar.h, encap.h, host.h, hp.h, ranlib.h, reloc.h,
 	stab.def, stab_gnu.h, sun4.h: All moved from the devo/include

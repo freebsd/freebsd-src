@@ -23,7 +23,7 @@
 #define TARGET_SYM i386pe_vec
 #define TARGET_NAME "pe-i386"
 #define COFF_WITH_PE
-#define PCRELOFFSET true
+#define PCRELOFFSET TRUE
 #define TARGET_UNDERSCORE '_'
 #define COFF_LONG_SECTION_NAMES
 #define COFF_LONG_FILENAMES

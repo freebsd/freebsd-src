@@ -40,6 +40,7 @@
 @set I80386
 @set I860
 @set I960
+@set IP2K
 @set M32R
 @set M68HC11
 @set M680X0
@@ -47,15 +48,17 @@
 @set MCORE
 @set MIPS
 @set MMIX
+@set MSP430
 @set PDP11
 @set PJ
 @set PPC
 @set SH
 @set SPARC
-@set C54X
+@set TIC54X
 @set V850
 @set VAX
 @set VXWORKS
+@set XTENSA
 @set Z8000
 
 @c Does this version of the assembler use the difference-table kluge?

@@ -1,5 +1,5 @@
 /* tc-ppc.h -- Header file for tc-ppc.c.
-   Copyright 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002
+   Copyright 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003
    Free Software Foundation, Inc.
    Written by Ian Lance Taylor, Cygnus Support.
 
@@ -117,7 +117,7 @@ extern char *ppc_target_format PARAMS ((void));
 #define LEX_QM 1
 
 /* Don't adjust TOC relocs.  */
-#define tc_fix_adjustable(fixp) ppc_pe_fix_adjustable (fixp)
+#define tc_fix_adjustable(FIX) ppc_pe_fix_adjustable (FIX)
 extern int ppc_pe_fix_adjustable PARAMS ((struct fix *));
 
 #endif
@@ -177,12 +177,8 @@ extern void ppc_symbol_new_hook PARAMS ((symbolS *));
 extern void ppc_frob_label PARAMS ((symbolS *));
 
 /* TOC relocs requires special handling.  */
-#define tc_fix_adjustable(fixp) ppc_fix_adjustable (fixp)
+#define tc_fix_adjustable(FIX) ppc_fix_adjustable (FIX)
 extern int ppc_fix_adjustable PARAMS ((struct fix *));
-
-/* A relocation from one csect to another must be kept.  */
-#define TC_FORCE_RELOCATION(FIXP) ppc_force_relocation (FIXP)
-extern int ppc_force_relocation PARAMS ((struct fix *));
 
 /* We need to set the section VMA.  */
 #define tc_frob_section(sec) ppc_frob_section (sec)
@@ -210,23 +206,10 @@ do {								\
 
 #endif /* OBJ_XCOFF */
 
+extern const char       ppc_symbol_chars[];
+#define tc_symbol_chars ppc_symbol_chars
+
 #ifdef OBJ_ELF
-
-/* Branch prediction relocations must force relocation, as must
-   the vtable description relocs.  */
-#define TC_FORCE_RELOCATION(FIXP)					\
-((FIXP)->fx_r_type == BFD_RELOC_PPC_B16_BRTAKEN				\
- || (FIXP)->fx_r_type == BFD_RELOC_PPC_B16_BRNTAKEN			\
- || (FIXP)->fx_r_type == BFD_RELOC_PPC_BA16_BRTAKEN			\
- || (FIXP)->fx_r_type == BFD_RELOC_PPC_BA16_BRNTAKEN			\
- || (FIXP)->fx_r_type == BFD_RELOC_PPC64_TOC				\
- || (FIXP)->fx_r_type == BFD_RELOC_VTABLE_INHERIT			\
- || (FIXP)->fx_r_type == BFD_RELOC_VTABLE_ENTRY)
-
-#define TC_FORCE_RELOCATION_SECTION(FIXP,SEC)				\
-(TC_FORCE_RELOCATION (FIXP)						\
- || ((FIXP)->fx_addsy && !(FIXP)->fx_subsy				\
-     && S_GET_SEGMENT ((FIXP)->fx_addsy) != SEC))
 
 /* Support for SHF_EXCLUDE and SHT_ORDERED */
 extern int ppc_section_letter PARAMS ((int, char **));
@@ -239,49 +222,48 @@ extern int ppc_section_flags PARAMS ((int, int, int));
 #define md_elf_section_word(STR, LEN)		ppc_section_word (STR, LEN)
 #define md_elf_section_flags(FLAGS, ATTR, TYPE)	ppc_section_flags (FLAGS, ATTR, TYPE)
 
-/* Add extra PPC sections -- Note, for now, make .sbss2 and .PPC.EMB.sbss0 a
-   normal section, and not a bss section so that the linker doesn't crater
-   when trying to make more than 2 sections.  */
-#define ELF_TC_SPECIAL_SECTIONS \
-  { ".tags",		SHT_ORDERED,	SHF_ALLOC },			\
-  { ".sdata",		SHT_PROGBITS,	SHF_ALLOC + SHF_WRITE },	\
-  { ".sbss",		SHT_NOBITS,	SHF_ALLOC + SHF_WRITE },	\
-  { ".sdata2",		SHT_PROGBITS,	SHF_ALLOC },			\
-  { ".sbss2",		SHT_PROGBITS,	SHF_ALLOC },			\
-  { ".PPC.EMB.sdata0",	SHT_PROGBITS,	SHF_ALLOC },			\
-  { ".PPC.EMB.sbss0",	SHT_PROGBITS,	SHF_ALLOC },			\
-  /* Extra sections for 64-bit ELF PPC.  */				\
-  { ".toc",		SHT_PROGBITS,	SHF_ALLOC + SHF_WRITE},		\
-  { ".tocbss",		SHT_NOBITS,	SHF_ALLOC + SHF_WRITE},
-
 #define tc_comment_chars ppc_comment_chars
 extern const char *ppc_comment_chars;
 
 /* Keep relocations relative to the GOT, or non-PC relative.  */
-#define tc_fix_adjustable(fixp) ppc_fix_adjustable (fixp)
+#define tc_fix_adjustable(FIX) ppc_fix_adjustable (FIX)
 extern int ppc_fix_adjustable PARAMS ((struct fix *));
 
-/* We must never ever try to resolve references to externally visible
-   symbols in the assembler, because the .o file might go into a shared
-   library, and some other shared library might override that symbol.  */
-#define TC_RELOC_RTSYM_LOC_FIXUP(FIX)  \
-  ((FIX)->fx_addsy == NULL \
-   || (! S_IS_EXTERNAL ((FIX)->fx_addsy) \
-       && ! S_IS_WEAK ((FIX)->fx_addsy) \
-       && S_IS_DEFINED ((FIX)->fx_addsy) \
-       && ! S_IS_COMMON ((FIX)->fx_addsy)))
+/* Values passed to md_apply_fix3 don't include symbol values.  */
+#define MD_APPLY_SYM_VALUE(FIX) 0
 
 #define tc_frob_file_before_adjust ppc_frob_file_before_adjust
 extern void ppc_frob_file_before_adjust PARAMS ((void));
 
-#define DWARF2_LINE_MIN_INSN_LENGTH 4
 #endif /* OBJ_ELF */
 
+#if defined (OBJ_ELF) || defined (OBJ_XCOFF)
+#define TC_FORCE_RELOCATION(FIX) ppc_force_relocation (FIX)
+extern int ppc_force_relocation PARAMS ((struct fix *));
+#endif
+
 /* call md_pcrel_from_section, not md_pcrel_from */
-#define MD_PCREL_FROM_SECTION(FIXP, SEC) md_pcrel_from_section(FIXP, SEC)
+#define MD_PCREL_FROM_SECTION(FIX, SEC) md_pcrel_from_section(FIX, SEC)
 extern long md_pcrel_from_section PARAMS ((struct fix *, segT));
 
 #define md_parse_name(name, exp, c) ppc_parse_name (name, exp)
 extern int ppc_parse_name PARAMS ((const char *, struct expressionS *));
 
 #define md_operand(x)
+
+#define md_cleanup() ppc_cleanup ()
+ extern void ppc_cleanup PARAMS ((void));
+
+#define TARGET_USE_CFIPOP 1
+
+#define tc_cfi_frame_initial_instructions ppc_cfi_frame_initial_instructions
+extern void ppc_cfi_frame_initial_instructions PARAMS ((void));
+
+#define tc_regname_to_dw2regnum tc_ppc_regname_to_dw2regnum
+extern int tc_ppc_regname_to_dw2regnum PARAMS ((const char *regname));
+
+extern int ppc_cie_data_alignment;
+
+#define DWARF2_LINE_MIN_INSN_LENGTH     4
+#define DWARF2_DEFAULT_RETURN_COLUMN    0x41
+#define DWARF2_CIE_DATA_ALIGNMENT       ppc_cie_data_alignment

@@ -12,6 +12,7 @@ budemang.h
 coffdump.c
 coffgrok.c
 coffgrok.h
+cxxfilt.c
 debug.c
 debug.c
 debug.h

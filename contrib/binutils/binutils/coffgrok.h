@@ -53,7 +53,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
    int nrelocs;
    int size;
    struct coff_reloc *relocs;
-   struct sec *bfd_section;
+   struct bfd_section *bfd_section;
  };
 
 struct coff_ofile

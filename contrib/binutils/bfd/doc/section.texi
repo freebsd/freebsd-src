@@ -124,7 +124,7 @@ struct bfd_comdat_info
   long symbol;
 @};
 
-typedef struct sec
+typedef struct bfd_section
 @{
   /* The name of the section; the name isn't a copy, the pointer is
      the same as that passed to bfd_make_section.  */
@@ -137,7 +137,7 @@ typedef struct sec
   int index;
 
   /* The next section in the list belonging to the BFD, or NULL.  */
-  struct sec *next;
+  struct bfd_section *next;
 
   /* The field flags contains attributes of the section. Some
      flags are read in from the object file, and some are
@@ -335,9 +335,38 @@ typedef struct sec
   /* A mark flag used by some linker backends for garbage collection.  */
   unsigned int gc_mark : 1;
 
-  /* Used by the ELF code to mark sections which have been allocated
-     to segments.  */
+  /* The following flags are used by the ELF linker. */
+
+  /* Mark sections which have been allocated to segments.  */
   unsigned int segment_mark : 1;
+
+  /* Type of sec_info information.  */
+  unsigned int sec_info_type:3;
+#define ELF_INFO_TYPE_NONE      0
+#define ELF_INFO_TYPE_STABS     1
+#define ELF_INFO_TYPE_MERGE     2
+#define ELF_INFO_TYPE_EH_FRAME  3
+#define ELF_INFO_TYPE_JUST_SYMS 4
+
+  /* Nonzero if this section uses RELA relocations, rather than REL.  */
+  unsigned int use_rela_p:1;
+
+  /* Bits used by various backends.  */
+  unsigned int has_tls_reloc:1;
+
+  /* Nonzero if this section needs the relax finalize pass.  */
+  unsigned int need_finalize_relax:1;
+
+  /* Nonzero if this section has a gp reloc.  */
+  unsigned int has_gp_reloc:1;
+
+  /* Unused bits.  */
+  unsigned int flag13:1;
+  unsigned int flag14:1;
+  unsigned int flag15:1;
+  unsigned int flag16:4;
+  unsigned int flag20:4;
+  unsigned int flag24:8;
 
   /* End of internal packed boolean fields.  */
 
@@ -374,7 +403,7 @@ typedef struct sec
   bfd_vma output_offset;
 
   /* The output section through which to map on output.  */
-  struct sec *output_section;
+  struct bfd_section *output_section;
 
   /* The alignment requirement of the section, as an exponent of 2 -
      e.g., 3 aligns to 2^3 (or 8).  */
@@ -404,7 +433,7 @@ typedef struct sec
   file_ptr line_filepos;
 
   /* Pointer to data for applications.  */
-  PTR userdata;
+  void *userdata;
 
   /* If the SEC_IN_MEMORY flag is set, this points to the actual
      contents.  */
@@ -422,6 +451,10 @@ typedef struct sec
   /* Optional information about a COMDAT entry; NULL if not COMDAT.  */
   struct bfd_comdat_info *comdat;
 
+  /* Points to the kept section if this section is a link-once section,
+     and is discarded.  */
+  struct bfd_section *kept_section;
+
   /* When a section is being output, this value changes as more
      linenumbers are written out.  */
   file_ptr moving_line_filepos;
@@ -429,7 +462,7 @@ typedef struct sec
   /* What the section number is in the target world.  */
   int target_index;
 
-  PTR used_by_bfd;
+  void *used_by_bfd;
 
   /* If this is a constructor section then here is a list of the
      relocations created to relocate items within it.  */
@@ -439,8 +472,8 @@ typedef struct sec
   bfd *owner;
 
   /* A symbol which points at this section only.  */
-  struct symbol_cache_entry *symbol;
-  struct symbol_cache_entry **symbol_ptr_ptr;
+  struct bfd_symbol *symbol;
+  struct bfd_symbol **symbol_ptr_ptr;
 
   struct bfd_link_order *link_order_head;
   struct bfd_link_order *link_order_tail;
@@ -457,18 +490,18 @@ typedef struct sec
 #define BFD_IND_SECTION_NAME "*IND*"
 
 /* The absolute section.  */
-extern const asection bfd_abs_section;
+extern asection bfd_abs_section;
 #define bfd_abs_section_ptr ((asection *) &bfd_abs_section)
 #define bfd_is_abs_section(sec) ((sec) == bfd_abs_section_ptr)
 /* Pointer to the undefined section.  */
-extern const asection bfd_und_section;
+extern asection bfd_und_section;
 #define bfd_und_section_ptr ((asection *) &bfd_und_section)
 #define bfd_is_und_section(sec) ((sec) == bfd_und_section_ptr)
 /* Pointer to the common section.  */
-extern const asection bfd_com_section;
+extern asection bfd_com_section;
 #define bfd_com_section_ptr ((asection *) &bfd_com_section)
 /* Pointer to the indirect section.  */
-extern const asection bfd_ind_section;
+extern asection bfd_ind_section;
 #define bfd_ind_section_ptr ((asection *) &bfd_ind_section)
 #define bfd_is_ind_section(sec) ((sec) == bfd_ind_section_ptr)
 
@@ -478,13 +511,12 @@ extern const asection bfd_ind_section;
   || ((SEC) == bfd_com_section_ptr)            \
   || ((SEC) == bfd_ind_section_ptr))
 
-extern const struct symbol_cache_entry * const bfd_abs_symbol;
-extern const struct symbol_cache_entry * const bfd_com_symbol;
-extern const struct symbol_cache_entry * const bfd_und_symbol;
-extern const struct symbol_cache_entry * const bfd_ind_symbol;
+extern const struct bfd_symbol * const bfd_abs_symbol;
+extern const struct bfd_symbol * const bfd_com_symbol;
+extern const struct bfd_symbol * const bfd_und_symbol;
+extern const struct bfd_symbol * const bfd_ind_symbol;
 #define bfd_get_section_size_before_reloc(section) \
-     ((section)->reloc_done ? (abort (), (bfd_size_type) 1) \
-                            : (section)->_raw_size)
+     ((section)->_raw_size)
 #define bfd_get_section_size_after_reloc(section) \
      ((section)->reloc_done ? (section)->_cooked_size \
                             : (abort (), (bfd_size_type) 1))
@@ -534,7 +566,7 @@ hash table entries.
 @subsubsection @code{bfd_get_section_by_name}
 @strong{Synopsis}
 @example
-asection *bfd_get_section_by_name(bfd *abfd, const char *name);
+asection *bfd_get_section_by_name (bfd *abfd, const char *name);
 @end example
 @strong{Description}@*
 Run through @var{abfd} and return the one of the
@@ -550,9 +582,8 @@ or something else) for each section.
 @subsubsection @code{bfd_get_unique_section_name}
 @strong{Synopsis}
 @example
-char *bfd_get_unique_section_name(bfd *abfd,
-    const char *templat,
-    int *count);
+char *bfd_get_unique_section_name
+   (bfd *abfd, const char *templat, int *count);
 @end example
 @strong{Description}@*
 Invent a section name that is unique in @var{abfd} by tacking
@@ -565,7 +596,7 @@ pointed to by @var{count} will be incremented in this case.
 @subsubsection @code{bfd_make_section_old_way}
 @strong{Synopsis}
 @example
-asection *bfd_make_section_old_way(bfd *abfd, const char *name);
+asection *bfd_make_section_old_way (bfd *abfd, const char *name);
 @end example
 @strong{Description}@*
 Create a new empty section called @var{name}
@@ -592,7 +623,7 @@ If memory allocation fails.
 @subsubsection @code{bfd_make_section_anyway}
 @strong{Synopsis}
 @example
-asection *bfd_make_section_anyway(bfd *abfd, const char *name);
+asection *bfd_make_section_anyway (bfd *abfd, const char *name);
 @end example
 @strong{Description}@*
 Create a new empty section called @var{name} and attach it to the end of
@@ -612,7 +643,7 @@ Return @code{NULL} and set @code{bfd_error} on error; possible errors are:
 @subsubsection @code{bfd_make_section}
 @strong{Synopsis}
 @example
-asection *bfd_make_section(bfd *, const char *name);
+asection *bfd_make_section (bfd *, const char *name);
 @end example
 @strong{Description}@*
 Like @code{bfd_make_section_anyway}, but return @code{NULL} (without calling
@@ -624,12 +655,13 @@ section named @var{name}.  If there is an error, return @code{NULL} and set
 @subsubsection @code{bfd_set_section_flags}
 @strong{Synopsis}
 @example
-boolean bfd_set_section_flags(bfd *abfd, asection *sec, flagword flags);
+bfd_boolean bfd_set_section_flags
+   (bfd *abfd, asection *sec, flagword flags);
 @end example
 @strong{Description}@*
 Set the attributes of the section @var{sec} in the BFD
-@var{abfd} to the value @var{flags}. Return @code{true} on success,
-@code{false} on error. Possible error returns are:
+@var{abfd} to the value @var{flags}. Return @code{TRUE} on success,
+@code{FALSE} on error. Possible error returns are:
 
 @itemize @bullet
 
@@ -644,11 +676,10 @@ have the @code{SEC_HAS_CONTENTS} field set.
 @subsubsection @code{bfd_map_over_sections}
 @strong{Synopsis}
 @example
-void bfd_map_over_sections(bfd *abfd,
-    void (*func) (bfd *abfd,
-    asection *sect,
-    PTR obj),
-    PTR obj);
+void bfd_map_over_sections
+   (bfd *abfd,
+    void (*func) (bfd *abfd, asection *sect, void *obj),
+    void *obj);
 @end example
 @strong{Description}@*
 Call the provided function @var{func} for each section
@@ -656,27 +687,28 @@ attached to the BFD @var{abfd}, passing @var{obj} as an
 argument. The function will be called as if by
 
 @example
-       func(abfd, the_section, obj);
+       func (abfd, the_section, obj);
 @end example
 
-This is the prefered method for iterating over sections; an
+This is the preferred method for iterating over sections; an
 alternative would be to use a loop:
 
 @example
           section *p;
           for (p = abfd->sections; p != NULL; p = p->next)
-             func(abfd, p, ...)
+             func (abfd, p, ...)
 @end example
 
 @findex bfd_set_section_size
 @subsubsection @code{bfd_set_section_size}
 @strong{Synopsis}
 @example
-boolean bfd_set_section_size(bfd *abfd, asection *sec, bfd_size_type val);
+bfd_boolean bfd_set_section_size
+   (bfd *abfd, asection *sec, bfd_size_type val);
 @end example
 @strong{Description}@*
 Set @var{sec} to the size @var{val}. If the operation is
-ok, then @code{true} is returned, else @code{false}.
+ok, then @code{TRUE} is returned, else @code{FALSE}.
 
 Possible error returns:
 @itemize @bullet
@@ -690,9 +722,9 @@ Writing has started to the BFD, so setting the size is invalid.
 @subsubsection @code{bfd_set_section_contents}
 @strong{Synopsis}
 @example
-boolean bfd_set_section_contents (bfd *abfd, asection *section,
-    PTR data, file_ptr offset,
-    bfd_size_type count);
+bfd_boolean bfd_set_section_contents
+   (bfd *abfd, asection *section, const void *data,
+    file_ptr offset, bfd_size_type count);
 @end example
 @strong{Description}@*
 Sets the contents of the section @var{section} in BFD
@@ -700,7 +732,7 @@ Sets the contents of the section @var{section} in BFD
 data is written to the output section starting at offset
 @var{offset} for @var{count} octets.
 
-Normally @code{true} is returned, else @code{false}. Possible error
+Normally @code{TRUE} is returned, else @code{FALSE}. Possible error
 returns are:
 @itemize @bullet
 
@@ -718,8 +750,8 @@ This routine is front end to the back end function
 @subsubsection @code{bfd_get_section_contents}
 @strong{Synopsis}
 @example
-boolean bfd_get_section_contents (bfd *abfd, asection *section,
-    PTR location, file_ptr offset,
+bfd_boolean bfd_get_section_contents
+   (bfd *abfd, asection *section, void *location, file_ptr offset,
     bfd_size_type count);
 @end example
 @strong{Description}@*
@@ -731,20 +763,20 @@ and is read for @var{count} bytes.
 If the contents of a constructor with the @code{SEC_CONSTRUCTOR}
 flag set are requested or if the section does not have the
 @code{SEC_HAS_CONTENTS} flag set, then the @var{location} is filled
-with zeroes. If no errors occur, @code{true} is returned, else
-@code{false}.
+with zeroes. If no errors occur, @code{TRUE} is returned, else
+@code{FALSE}.
 
 @findex bfd_copy_private_section_data
 @subsubsection @code{bfd_copy_private_section_data}
 @strong{Synopsis}
 @example
-boolean bfd_copy_private_section_data (bfd *ibfd, asection *isec,
-    bfd *obfd, asection *osec);
+bfd_boolean bfd_copy_private_section_data
+   (bfd *ibfd, asection *isec, bfd *obfd, asection *osec);
 @end example
 @strong{Description}@*
 Copy private section information from @var{isec} in the BFD
 @var{ibfd} to the section @var{osec} in the BFD @var{obfd}.
-Return @code{true} on success, @code{false} on error.  Possible error
+Return @code{TRUE} on success, @code{FALSE} on error.  Possible error
 returns are:
 
 @itemize @bullet
@@ -778,7 +810,7 @@ to remove sections.
 @subsubsection @code{bfd_generic_discard_group}
 @strong{Synopsis}
 @example
-boolean bfd_generic_discard_group (bfd *abfd, asection *group);
+bfd_boolean bfd_generic_discard_group (bfd *abfd, asection *group);
 @end example
 @strong{Description}@*
 Remove all members of @var{group} from the output.

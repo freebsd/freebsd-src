@@ -23,11 +23,19 @@
 # arch-asm.c, arch-dis.c, arch-opinst.c, arch-ibld.[ch].
 #
 # Usage:
-# cgen.sh action srcdir cgen cgendir cgenflags arch prefix options
+# cgen.sh action srcdir cgen cgendir cgenflags arch prefix \
+#         arch-file opc-file options [extrafiles]
 #
 # ACTION is currently always "opcodes". It exists to be consistent with the 
 # simulator.
-# OPTIONS is comma separated list of options:
+# ARCH is the name of the architecture.
+# It is substituted into @arch@ and @ARCH@ in the generated files.
+# PREFIX is both the generated file prefix and is substituted into
+# @prefix@ in the generated files.
+# ARCH-FILE is the name of the .cpu file (including path).
+# OPC-FILE is the name of the .opc file (including path).
+# OPTIONS is comma separated list of options (???).
+# EXTRAFILES is a space separated list (1 arg still) of extra files to build:
 #	- opinst - arch-opinst.c is being made, causes semantic analysis
 #
 # We store the generated files in the source directory until we decide to
@@ -44,11 +52,13 @@ cgendir=$4
 cgenflags=$5
 arch=$6
 prefix=$7
-options=$8
+archfile=$8
+opcfile=$9
+shift ; options=$9
 
 # List of extra files to build.
 # Values: opinst (only 1 extra file at present)
-extrafiles=$9
+shift ; extrafiles=$9
 
 rootdir=${srcdir}/..
 
@@ -88,7 +98,8 @@ opcodes)
 		${cgenflags} \
 		-f "${options}" \
 		-m all \
-		-a ${arch} \
+		-a ${archfile} \
+	        -OPC ${opcfile} \
 		-H tmp-desc.h1 \
 		-C tmp-desc.c1 \
 		-O tmp-opc.h1 \

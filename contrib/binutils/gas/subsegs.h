@@ -121,8 +121,8 @@ typedef struct segment_info_struct {
 
 #ifdef BFD_ASSEMBLER
 
-extern segment_info_type *seg_info PARAMS ((segT));
-extern symbolS *section_symbol PARAMS ((segT));
+extern segment_info_type *seg_info (segT);
+extern symbolS *section_symbol (segT);
 
 #else /* ! BFD_ASSEMBLER */
 
@@ -152,4 +152,4 @@ struct seg_info_trash {
 
 #endif /* ! BFD_ASSEMBLER */
 
-extern void subsegs_print_statistics PARAMS ((FILE *));
+extern void subsegs_print_statistics (FILE *);

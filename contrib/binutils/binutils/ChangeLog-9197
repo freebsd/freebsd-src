@@ -2394,7 +2394,7 @@ Thu Jul 13 10:43:59 1995  Ian Lance Taylor  <ian@cygnus.com>
 	* nlmconv.c (powerpc_mangle_relocs): Cast memset arg to size_t.
 	* objcopy.c (copy_object): Likewise.
 
-	* nm.c (HAVE_SBRK): Define execpt on amigados and WINDOWS_NT.
+	* nm.c (HAVE_SBRK): Define except on amigados and WINDOWS_NT.
 	(struct size_sym): Define.
 	(show_stats): New static variable.
 	(long_options): Add undocumented option "stats".
@@ -5200,7 +5200,7 @@ Thu May 16 16:06:55 1991  Steve Chamberlain  (steve at cygint.cygnus.com)
 	consistent with gdb and as: Add 0x when printing hex.
 	Don't print extra leading zeros.
 	Attempt to not print "filename.o".
-	* objdump.c: Add some enum-to-int casts to accomodate old compilers.
+	* objdump.c: Add some enum-to-int casts to accommodate old compilers.
 
 
 Fri May  3 22:21:44 1991  John Gilmore  (gnu at cygint.cygnus.com)

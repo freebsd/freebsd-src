@@ -35,7 +35,7 @@ bfd_hash_table} (defined in @code{bfd.h}) and call
 @code{bfd_hash_table_init} (if you know approximately how many
 entries you will need, the function @code{bfd_hash_table_init_n},
 which takes a @var{size} argument, may be used).
-@code{bfd_hash_table_init} returns @code{false} if some sort of
+@code{bfd_hash_table_init} returns @code{FALSE} if some sort of
 error occurs.
 
 @findex bfd_hash_newfunc
@@ -61,24 +61,24 @@ been allocated for a hash table.  This will not free up the
 The function @code{bfd_hash_lookup} is used both to look up a
 string in the hash table and to create a new entry.
 
-If the @var{create} argument is @code{false}, @code{bfd_hash_lookup}
+If the @var{create} argument is @code{FALSE}, @code{bfd_hash_lookup}
 will look up a string.  If the string is found, it will
 returns a pointer to a @code{struct bfd_hash_entry}.  If the
 string is not found in the table @code{bfd_hash_lookup} will
 return @code{NULL}.  You should not modify any of the fields in
 the returns @code{struct bfd_hash_entry}.
 
-If the @var{create} argument is @code{true}, the string will be
+If the @var{create} argument is @code{TRUE}, the string will be
 entered into the hash table if it is not already there.
 Either way a pointer to a @code{struct bfd_hash_entry} will be
 returned, either to the existing structure or to a newly
 created one.  In this case, a @code{NULL} return means that an
 error occurred.
 
-If the @var{create} argument is @code{true}, and a new entry is
+If the @var{create} argument is @code{TRUE}, and a new entry is
 created, the @var{copy} argument is used to decide whether to
 copy the string onto the hash table objalloc or not.  If
-@var{copy} is passed as @code{false}, you must be careful not to
+@var{copy} is passed as @code{FALSE}, you must be careful not to
 deallocate or modify the string as long as the hash table
 exists.
 
@@ -95,7 +95,7 @@ hash table entry (a @code{struct bfd_hash_entry *}) and the
 generic pointer passed to @code{bfd_hash_traverse}.  The function
 must return a @code{boolean} value, which indicates whether to
 continue traversing the hash table.  If the function returns
-@code{false}, @code{bfd_hash_traverse} will stop the traversal and
+@code{FALSE}, @code{bfd_hash_traverse} will stop the traversal and
 return immediately.
 
 @node Deriving a New Hash Table Type, , Traversing a Hash Table, Hash Tables

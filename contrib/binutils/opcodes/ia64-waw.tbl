@@ -3,7 +3,13 @@ ALAT;	IC:mem-readers-alat, IC:mem-writers, chk.a.clr, IC:invala-all;	IC:mem-read
 AR[BSP];	br.call, brl.call, br.ret, cover, IC:mov-to-AR-BSPSTORE, rfi;	br.call, brl.call, br.ret, cover, IC:mov-to-AR-BSPSTORE, rfi;	impliedF
 AR[BSPSTORE];	alloc, loadrs, flushrs, IC:mov-to-AR-BSPSTORE;	alloc, loadrs, flushrs, IC:mov-to-AR-BSPSTORE;	impliedF
 AR[CCV];	IC:mov-to-AR-CCV;	IC:mov-to-AR-CCV;	impliedF
+AR[CFLG];	IC:mov-to-AR-CFLG;	IC:mov-to-AR-CFLG;	impliedF
+AR[CSD];	ld16, IC:mov-to-AR-CSD;	ld16, IC:mov-to-AR-CSD;	impliedF
 AR[EC];	br.ret, IC:mod-sched-brs, IC:mov-to-AR-EC;	br.ret, IC:mod-sched-brs, IC:mov-to-AR-EC;	impliedF
+AR[EFLAG];	mov-to-AR-EFLAG;	mov-to-AR-EFLAG;	impliedF
+AR[FCR];	mov-to-AR-FCR;	mov-to-AR-FCR;	impliedF
+AR[FDR];	mov-to-AR-FDR;	mov-to-AR-FDR;	impliedF
+AR[FIR];	mov-to-AR-FIR;	mov-to-AR-FIR;	impliedF
 AR[FPSR].sf0.controls;	IC:mov-to-AR-FPSR, fsetc.s0;	IC:mov-to-AR-FPSR, fsetc.s0;	impliedF
 AR[FPSR].sf1.controls;	IC:mov-to-AR-FPSR, fsetc.s1;	IC:mov-to-AR-FPSR, fsetc.s1;	impliedF
 AR[FPSR].sf2.controls;	IC:mov-to-AR-FPSR, fsetc.s2;	IC:mov-to-AR-FPSR, fsetc.s2;	impliedF
@@ -18,6 +24,7 @@ AR[FPSR].sf3.flags;	IC:fp-arith-s3, IC:fcmp-s3, IC:fpcmp-s3;	IC:fp-arith-s3, IC:
 AR[FPSR].sf3.flags;	fclrf.s3, IC:fcmp-s3, IC:fp-arith-s3, IC:fpcmp-s3, IC:mov-to-AR-FPSR;	fclrf.s3, IC:mov-to-AR-FPSR;	impliedF
 AR[FPSR].rv;	IC:mov-to-AR-FPSR;	IC:mov-to-AR-FPSR;	impliedF
 AR[FPSR].traps;	IC:mov-to-AR-FPSR;	IC:mov-to-AR-FPSR;	impliedF
+AR[FSR];	IC:mov-to-AR-FSR;	IC:mov-to-AR-FSR;	impliedF
 AR[ITC];	IC:mov-to-AR-ITC;	IC:mov-to-AR-ITC;	impliedF
 AR[K%], % in 0 - 7;	IC:mov-to-AR-K+1;	IC:mov-to-AR-K+1;	impliedF
 AR[LC];	IC:mod-sched-brs-counted, IC:mov-to-AR-LC;	IC:mod-sched-brs-counted, IC:mov-to-AR-LC;	impliedF

@@ -64,7 +64,7 @@ AC_PROG_CC
 AC_PROG_YACC
 AM_PROG_LEX
 
-ALL_LINGUAS="fr tr ja es sv da"
+ALL_LINGUAS="fr tr ja es sv da zh_CN ru"
 CY_GNU_GETTEXT
 
 AM_MAINTAINER_MODE
@@ -208,7 +208,7 @@ do
     else
 	case $targ in
 changequote(,)dnl
-	i[3456]86*-*-netware*) 
+	i[3-7]86*-*-netware*) 
 changequote([,])dnl
 	  BUILD_NLMCONV='$(NLMCONV_PROG)$(EXEEXT)'
 	  NLMCONV_DEFS="$NLMCONV_DEFS -DNLMCONV_I386"
@@ -235,12 +235,12 @@ changequote([,])dnl
 	  DLLTOOL_DEFS="$DLLTOOL_DEFS -DDLLTOOL_ARM_EPOC -DDLLTOOL_ARM"
 	  BUILD_WINDRES='$(WINDRES_PROG)$(EXEEXT)'
 	  ;;
-	arm-pe* | arm-*-wince)
+	arm-*-pe* | arm-*-wince)
   	  BUILD_DLLTOOL='$(DLLTOOL_PROG)$(EXEEXT)'
 	  DLLTOOL_DEFS="$DLLTOOL_DEFS -DDLLTOOL_ARM"
 	  BUILD_WINDRES='$(WINDRES_PROG)$(EXEEXT)'
 	  ;;
-	thumb-pe*)
+	thumb-*-pe*)
   	  BUILD_DLLTOOL='$(DLLTOOL_PROG)$(EXEEXT)'
 	  DLLTOOL_DEFS="$DLLTOOL_DEFS -DDLLTOOL_ARM"
 	  BUILD_WINDRES='$(WINDRES_PROG)$(EXEEXT)'
@@ -249,16 +249,25 @@ changequote([,])dnl
 	  OBJDUMP_DEFS="-DDISASSEMBLER_NEEDS_RELOCS"
 	  ;;
 changequote(,)dnl
-	i[3-6]86-pe* | i[3-6]86-*-cygwin* | i[3-6]86-*-mingw32** | i[3-6]86-*-netbsdpe*)
+	i[3-7]86-*-pe* | i[3-7]86-*-cygwin* | i[3-7]86-*-mingw32** | i[3-7]86-*-netbsdpe*)
 changequote([,])dnl
   	  BUILD_DLLTOOL='$(DLLTOOL_PROG)$(EXEEXT)'
 	  DLLTOOL_DEFS="$DLLTOOL_DEFS -DDLLTOOL_I386"
 	  BUILD_WINDRES='$(WINDRES_PROG)$(EXEEXT)'
 	  BUILD_DLLWRAP='$(DLLWRAP_PROG)$(EXEEXT)'
 	  ;;
-	i[3-6]86-*-interix)
+changequote(,)dnl
+	i[3-7]86-*-interix)
+changequote([,])dnl
 	  BUILD_DLLTOOL='$(DLLTOOL_PROG)'
 	  DLLTOOL_DEFS="$DLLTOOL_DEFS -DDLLTOOL_I386"
+	  ;;
+changequote(,)dnl
+	powerpc*-aix5.[01])
+changequote([,])dnl
+	  ;;
+	powerpc*-aix5.*)
+	  OBJDUMP_DEFS="-DAIX_WEAK_SUPPORT"
 	  ;;
 	powerpc*-*-pe* | powerpc*-*-cygwin*)
   	  BUILD_DLLTOOL='$(DLLTOOL_PROG)$(EXEEXT)'
@@ -275,14 +284,20 @@ changequote([,])dnl
 	  DLLTOOL_DEFS="$DLLTOOL_DEFS -DDLLTOOL_MIPS"
 	  BUILD_WINDRES='$(WINDRES_PROG)$(EXEEXT)'
 	  ;;
-	mcore-pe)
+	mcore-*-pe)
   	  BUILD_DLLTOOL='$(DLLTOOL_PROG)$(EXEEXT)'
 	  DLLTOOL_DEFS="$DLLTOOL_DEFS -DDLLTOOL_MCORE"
 	  BUILD_WINDRES='$(WINDRES_PROG)$(EXEEXT)'
 	  ;;
-	mcore-*elf)
+	mcore-*-elf)
   	  BUILD_DLLTOOL='$(DLLTOOL_PROG)$(EXEEXT)'
 	  DLLTOOL_DEFS="$DLLTOOL_DEFS -DDLLTOOL_MCORE_ELF"
+	  ;;
+        c4x-*-* | tic4x-*-*)
+          OBJDUMP_DEFS="$OBJDUMP_DEFS -DSKIP_ZEROES=32"
+          ;;
+	ia64-*-*)
+	  OBJDUMP_DEFS="$OBJDUMP_DEFS -DSKIP_ZEROES=16"
 	  ;;
 	esac
     fi
@@ -311,7 +326,8 @@ if test "x$targ_underscore" = "xyes"; then
 else
     UNDERSCORE=0
 fi
-AC_SUBST(UNDERSCORE)
+AC_DEFINE_UNQUOTED(TARGET_PREPENDS_UNDERSCORE, $UNDERSCORE,
+ [Define to 1 if user symbol names have a leading underscore, 0 if not.])
 
 # Emulation 
 for targ_alias in `echo $target_alias $enable_targets | sed 's/,/ /g'`

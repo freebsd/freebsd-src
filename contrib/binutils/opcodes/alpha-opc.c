@@ -1,5 +1,5 @@
 /* alpha-opc.c -- Alpha AXP opcode list
-   Copyright 1996, 1997, 1998, 1999, 2000 Free Software Foundation, Inc.
+   Copyright 1996, 1997, 1998, 1999, 2000, 2003 Free Software Foundation, Inc.
    Contributed by Richard Henderson <rth@cygnus.com>,
    patterned after the PPC opcode handling written by Ian Lance Taylor.
 
@@ -214,7 +214,6 @@ const unsigned alpha_num_operands = sizeof(alpha_operands)/sizeof(*alpha_operand
    the RA field into the RB field, and the extraction function just
    checks that the fields are the same. */
 
-/*ARGSUSED*/
 static unsigned
 insert_rba(insn, value, errmsg)
      unsigned insn;
@@ -238,7 +237,6 @@ extract_rba(insn, invalid)
 
 /* The same for the RC field */
 
-/*ARGSUSED*/
 static unsigned
 insert_rca(insn, value, errmsg)
      unsigned insn;
@@ -262,7 +260,6 @@ extract_rca(insn, invalid)
 
 /* Fake arguments in which the registers must be set to ZERO */
 
-/*ARGSUSED*/
 static unsigned
 insert_za(insn, value, errmsg)
      unsigned insn;
@@ -282,7 +279,6 @@ extract_za(insn, invalid)
   return 0;
 }
 
-/*ARGSUSED*/
 static unsigned
 insert_zb(insn, value, errmsg)
      unsigned insn;
@@ -302,7 +298,6 @@ extract_zb(insn, invalid)
   return 0;
 }
 
-/*ARGSUSED*/
 static unsigned
 insert_zc(insn, value, errmsg)
      unsigned insn;
@@ -336,7 +331,6 @@ insert_bdisp(insn, value, errmsg)
   return insn | ((value / 4) & 0x1FFFFF);
 }
 
-/*ARGSUSED*/
 static int
 extract_bdisp(insn, invalid)
      unsigned insn;
@@ -359,7 +353,6 @@ insert_jhint(insn, value, errmsg)
   return insn | ((value / 4) & 0x3FFF);
 }
 
-/*ARGSUSED*/
 static int
 extract_jhint(insn, invalid)
      unsigned insn;
@@ -381,7 +374,6 @@ insert_ev6hwjhint(insn, value, errmsg)
   return insn | ((value / 4) & 0x1FFF);
 }
 
-/*ARGSUSED*/
 static int
 extract_ev6hwjhint(insn, invalid)
      unsigned insn;
@@ -533,9 +525,13 @@ const struct alpha_opcode alpha_opcodes[] = {
   { "halt",		SPCD(0x00,0x0000), BASE, ARG_NONE },
   { "draina",		SPCD(0x00,0x0002), BASE, ARG_NONE },
   { "bpt",		SPCD(0x00,0x0080), BASE, ARG_NONE },
+  { "bugchk",		SPCD(0x00,0x0081), BASE, ARG_NONE },
   { "callsys",		SPCD(0x00,0x0083), BASE, ARG_NONE },
   { "chmk", 		SPCD(0x00,0x0083), BASE, ARG_NONE },
   { "imb",		SPCD(0x00,0x0086), BASE, ARG_NONE },
+  { "rduniq",		SPCD(0x00,0x009e), BASE, ARG_NONE },
+  { "wruniq",		SPCD(0x00,0x009f), BASE, ARG_NONE },
+  { "gentrap",		SPCD(0x00,0x00aa), BASE, ARG_NONE },
   { "call_pal",		PCD(0x00), BASE, ARG_PCD },
   { "pal",		PCD(0x00), BASE, ARG_PCD },		/* alias */
 
@@ -1101,7 +1097,8 @@ const struct alpha_opcode alpha_opcodes[] = {
   { "wmb",		MFC(0x18,0x4400), BASE, ARG_NONE },
   { "fetch",		MFC(0x18,0x8000), BASE, { ZA, PRB } },
   { "fetch_m",		MFC(0x18,0xA000), BASE, { ZA, PRB } },
-  { "rpcc",		MFC(0x18,0xC000), BASE, { RA } },
+  { "rpcc",		MFC(0x18,0xC000), BASE, { RA, ZB } },
+  { "rpcc",		MFC(0x18,0xC000), BASE, { RA, RB } },	/* ev6 una */
   { "rc",		MFC(0x18,0xE000), BASE, { RA } },
   { "ecb",		MFC(0x18,0xE800), BASE, { ZA, PRB } },	/* ev56 una */
   { "rs",		MFC(0x18,0xF000), BASE, { RA } },
