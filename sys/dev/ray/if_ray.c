@@ -589,8 +589,7 @@ ray_detach(device_t dev)
 	untimeout(ray_com_ecf_timo, sc, sc->com_timerh);
 	untimeout(ray_tx_timo, sc, sc->tx_timerh);
 	com = TAILQ_FIRST(&sc->sc_comq);
-	for (com = TAILQ_FIRST(&sc->sc_comq); com != NULL;
-	    com = TAILQ_NEXT(com, c_chain)) {
+	TAILQ_FOREACH(com, &sc->sc_comq, c_chain) {
 		com->c_flags |= RAY_COM_FDETACHED;
 		com->c_retval = 0;
 		RAY_DPRINTF(sc, RAY_DBG_STOP, "looking at com %p %b",

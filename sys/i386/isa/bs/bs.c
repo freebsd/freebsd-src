@@ -450,8 +450,7 @@ again:
 	{
 		struct targ_info *tmpti;
 
-		for (tmpti = TAILQ_FIRST(&bsc->sc_titab); tmpti;
-		     tmpti = TAILQ_NEXT(tmpti, ti_tchain))
+		TAILQ_FOREACH(tmpti, &bsc->sc_titab, ti_tchain)
 			if (tmpti->ti_phase >= DISCONNECTED)
 				goto retry;
 	}

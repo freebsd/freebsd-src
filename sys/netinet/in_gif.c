@@ -350,8 +350,7 @@ gif_encapcheck4(m, off, proto, arg)
 		return 0;
 	}
 	/* reject packets with broadcast on source */
-	for (ia4 = TAILQ_FIRST(&in_ifaddrhead); ia4;
-	     ia4 = TAILQ_NEXT(ia4, ia_link))
+	TAILQ_FOREACH(ia4, &in_ifaddrhead, ia_link)
 	{
 		if ((ia4->ia_ifa.ifa_ifp->if_flags & IFF_BROADCAST) == 0)
 			continue;

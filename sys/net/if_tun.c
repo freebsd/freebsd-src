@@ -241,8 +241,7 @@ tunclose(dev, foo, bar, p)
 
 		s = splimp();
 		/* find internet addresses and delete routes */
-		for (ifa = TAILQ_FIRST(&ifp->if_addrhead); ifa;
-		    ifa = TAILQ_NEXT(ifa, ifa_link))
+		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)
 			if (ifa->ifa_addr->sa_family == AF_INET)
 				rtinit(ifa, (int)RTM_DELETE,
 				    tp->tun_flags & TUN_DSTADDR ? RTF_HOST : 0);

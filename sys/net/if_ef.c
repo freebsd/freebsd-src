@@ -163,8 +163,7 @@ ef_detach(struct efnet *sc)
 		if (ifp->if_flags & IFF_RUNNING) {
 		    /* find internet addresses and delete routes */
 		    register struct ifaddr *ifa;
-		    for (ifa = TAILQ_FIRST(&ifp->if_addrhead); ifa;
-			 ifa = TAILQ_NEXT(ifa, ifa_link)) {
+		    TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			    rtinit(ifa, (int)RTM_DELETE, 0);
 		    }
 		}
