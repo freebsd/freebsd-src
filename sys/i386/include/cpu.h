@@ -58,7 +58,8 @@
 
 #define	cpu_exec(p)	/* nothing */
 #define cpu_swapin(p)	/* nothing */
-#define cpu_setstack(p, ap)		((p)->p_md.md_regs[SP] = (ap))
+#define	cpu_getstack(p)			((p)->p_md.md_regs->tf_esp)
+#define cpu_setstack(p, ap)		((p)->p_md.md_regs->tf_esp = (ap))
 
 #define	CLKF_USERMODE(framep) \
 	((ISPL((framep)->cf_cs) == SEL_UPL) || (framep->cf_eflags & PSL_VM))

@@ -404,7 +404,7 @@ svr4_sendsig(catcher, sig, mask, code)
 #endif
 
 	tf = p->p_md.md_regs;
-	oonstack = p->p_sigstk.ss_flags & SS_ONSTACK;
+	oonstack = sigonstack(tf->tf_esp);
 
 	/*
 	 * Allocate space for the signal handler context.

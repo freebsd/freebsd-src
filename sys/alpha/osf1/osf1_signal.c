@@ -583,7 +583,7 @@ osf1_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	psp = p->p_sigacts;
 
 	frame = p->p_md.md_tf;
-	oonstack = p->p_sigstk.ss_flags & SS_ONSTACK;
+	oonstack = sigonstack(alpha_pal_rdusp());
 	fsize = sizeof ksi;
 	rndfsize = ((fsize + 15) / 16) * 16;
 
@@ -618,7 +618,7 @@ osf1_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	/*
 	 * Build the signal context to be used by sigreturn.
 	 */
-	ksi.si_sc.sc_onstack = oonstack;
+	ksi.si_sc.sc_onstack = (oonstack) ? 1 : 0;
 	bsd_to_osf1_sigset(mask, &ksi.si_sc.sc_mask);
 	ksi.si_sc.sc_pc = frame->tf_regs[FRAME_PC];
 	ksi.si_sc.sc_ps = frame->tf_regs[FRAME_PS];

@@ -82,8 +82,6 @@ linux_to_bsd_sigaltstack(int lsa)
 		bsa |= SS_DISABLE;
 	if (lsa & LINUX_SS_ONSTACK)
 		bsa |= SS_ONSTACK;
-	if (lsa == LINUX_SS_ONSTACK_BC)
-		bsa = SS_ONSTACK;
 	return (bsa);
 }
 

@@ -494,14 +494,16 @@ osendsig(catcher, sig, mask, code)
 	p = curproc;
 	psp = p->p_sigacts;
 	regs = p->p_md.md_regs;
-	oonstack = p->p_sigstk.ss_flags & SS_ONSTACK;
+	oonstack = sigonstack(regs->tf_esp);
 
 	/* Allocate and validate space for the signal handler context. */
 	if ((p->p_flag & P_ALTSTACK) && !oonstack &&
 	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
 		fp = (struct osigframe *)(p->p_sigstk.ss_sp +
 		    p->p_sigstk.ss_size - sizeof(struct osigframe));
+#if defined(COMPAT_43) || defined(COMPAT_SUNOS)
 		p->p_sigstk.ss_flags |= SS_ONSTACK;
+#endif
 	} else
 		fp = (struct osigframe *)regs->tf_esp - 1;
 
@@ -560,7 +562,7 @@ osendsig(catcher, sig, mask, code)
 	sf.sf_siginfo.si_sc.sc_isp = regs->tf_isp;
 
 	/* Build the signal context to be used by osigreturn(). */
-	sf.sf_siginfo.si_sc.sc_onstack = oonstack;
+	sf.sf_siginfo.si_sc.sc_onstack = (oonstack) ? 1 : 0;
 	SIG2OSIG(*mask, sf.sf_siginfo.si_sc.sc_mask);
 	sf.sf_siginfo.si_sc.sc_sp = regs->tf_esp;
 	sf.sf_siginfo.si_sc.sc_fp = regs->tf_ebp;
@@ -633,13 +635,15 @@ sendsig(catcher, sig, mask, code)
 		return;
 	}
 	regs = p->p_md.md_regs;
-	oonstack = p->p_sigstk.ss_flags & SS_ONSTACK;
+	oonstack = sigonstack(regs->tf_esp);
 
 	/* Save user context. */
 	bzero(&sf, sizeof(sf));
 	sf.sf_uc.uc_sigmask = *mask;
 	sf.sf_uc.uc_stack = p->p_sigstk;
-	sf.sf_uc.uc_mcontext.mc_onstack = oonstack;
+	sf.sf_uc.uc_stack.ss_flags = (p->p_flag & P_ALTSTACK)
+	    ? ((oonstack) ? SS_ONSTACK : 0) : SS_DISABLE;
+	sf.sf_uc.uc_mcontext.mc_onstack = (oonstack) ? 1 : 0;
 	sf.sf_uc.uc_mcontext.mc_gs = rgs();
 	bcopy(regs, &sf.sf_uc.uc_mcontext.mc_fs, sizeof(*regs));
 
@@ -648,7 +652,9 @@ sendsig(catcher, sig, mask, code)
 	    SIGISMEMBER(psp->ps_sigonstack, sig)) {
 		sfp = (struct sigframe *)(p->p_sigstk.ss_sp +
 		    p->p_sigstk.ss_size - sizeof(struct sigframe));
+#if defined(COMPAT_43) || defined(COMPAT_SUNOS)
 		p->p_sigstk.ss_flags |= SS_ONSTACK;
+#endif
 	} else
 		sfp = (struct sigframe *)regs->tf_esp - 1;
 
@@ -849,10 +855,13 @@ osigreturn(p, uap)
 	regs->tf_ss = scp->sc_ss;
 	regs->tf_isp = scp->sc_isp;
 
-	if (scp->sc_onstack & 01)
+#if defined(COMPAT_43) || defined(COMPAT_SUNOS)
+	if (scp->sc_onstack & 1)
 		p->p_sigstk.ss_flags |= SS_ONSTACK;
 	else
 		p->p_sigstk.ss_flags &= ~SS_ONSTACK;
+#endif
+
 	SIGSETOLD(p->p_sigmask, scp->sc_mask);
 	SIG_CANTMASK(p->p_sigmask);
 	regs->tf_ebp = scp->sc_fp;
@@ -958,10 +967,13 @@ sigreturn(p, uap)
 
 		bcopy(&ucp->uc_mcontext.mc_fs, regs, sizeof(*regs));
 	}
+
+#if defined(COMPAT_43) || defined(COMPAT_SUNOS)
 	if (ucp->uc_mcontext.mc_onstack & 1)
 		p->p_sigstk.ss_flags |= SS_ONSTACK;
 	else
 		p->p_sigstk.ss_flags &= ~SS_ONSTACK;
+#endif
 
 	p->p_sigmask = ucp->uc_sigmask;
 	SIG_CANTMASK(p->p_sigmask);
