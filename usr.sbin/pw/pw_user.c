@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: pw_user.c,v 1.1.1.1.2.3 1996/12/11 15:17:10 joerg Exp $
+ *	$Id: pw_user.c,v 1.1.1.1.2.4 1996/12/22 10:48:48 davidn Exp $
  */
 
 #include <unistd.h>
@@ -45,7 +45,7 @@ static time_t   pw_exppolicy(struct userconf * cnf, struct cargs * args);
 static char    *pw_homepolicy(struct userconf * cnf, struct cargs * args, char const * user);
 static char    *pw_shellpolicy(struct userconf * cnf, struct cargs * args, char *newshell);
 static char    *pw_password(struct userconf * cnf, struct cargs * args, char const * user);
-static char    *pw_checkname(char *name, int gecos);
+static char    *pw_checkname(u_char *name, int gecos);
 static char    *shell_path(char const * path, char *shells[], char *sh);
 static void     rmat(uid_t uid);
 
@@ -126,9 +126,47 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 
 	if ((arg = getarg(args, 'b')) != NULL) {
 		cnf->home = arg->val;
-		if (stat(cnf->home, &st) == -1 || !S_ISDIR(st.st_mode))
-			cmderr(EX_OSFILE, "root home `%s' is not a directory or does not exist\n", cnf->home);
 	}
+
+	/*
+	 * If we'll need to use it or we're updating it,
+	 * then create the base home directory if necessary
+	 */
+	if (arg != NULL || getarg(args, 'm') != NULL) {
+		int	l = strlen(cnf->home);
+
+		if (l > 1 && cnf->home[l-1] == '/')	/* Shave off any trailing path delimiter */
+			cnf->home[--l] = '\0';
+
+		if (l < 2 || *cnf->home != '/')		/* Check for absolute path name */
+			cmderr(EX_DATAERR, "invalid base directory for home '%s'\n", cnf->home);
+
+		if (stat(cnf->home, &st) == -1) {
+			char	dbuf[MAXPATHLEN];
+
+			p = strncpy(dbuf, cnf->home, sizeof dbuf);
+			dbuf[MAXPATHLEN-1] = '\0';
+			while ((p = strchr(++p, '/')) != NULL) {
+				*p = '\0';
+				if (stat(dbuf, &st) == -1) {
+					if (mkdir(dbuf, 0755) == -1)
+						goto direrr;
+					chown(dbuf, 0, 0);
+				} else if (!S_ISDIR(st.st_mode))
+					cmderr(EX_OSFILE, "'%s' (root home parent) is not a directory\n", dbuf);
+				*p = '/';
+			}
+			if (stat(dbuf, &st) == -1) {	/* Should not be strictly necessary */
+				if (mkdir(dbuf, 0755) == -1) {
+				direrr:	cmderr(EX_OSFILE, "mkdir '%s': %s\n", dbuf, strerror(errno));
+				}
+				chown(dbuf, 0, 0);
+			}
+		} else if (!S_ISDIR(st.st_mode))
+			cmderr(EX_OSFILE, "root home `%s' is not a directory\n", cnf->home);
+	}
+
+
 	if ((arg = getarg(args, 'e')) != NULL)
 		cnf->expire_days = atoi(arg->val);
 
@@ -144,7 +182,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 		cnf->default_group = newstr(grp->gr_name);
 	}
 	if ((arg = getarg(args, 'L')) != NULL)
-		cnf->default_class = pw_checkname(arg->val, 0);
+		cnf->default_class = pw_checkname((u_char*)arg->val, 0);
 
 	if ((arg = getarg(args, 'G')) != NULL && arg->val) {
 		int             i = 0;
@@ -200,7 +238,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 		return EXIT_SUCCESS;
 	}
 	if ((a_name = getarg(args, 'n')) != NULL)
-		pwd = getpwnam(pw_checkname(a_name->val, 0));
+		pwd = getpwnam(pw_checkname((u_char*)a_name->val, 0));
 	a_uid = getarg(args, 'u');
 
 	if (a_uid == NULL) {
@@ -302,7 +340,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 		if ((arg = getarg(args, 'l')) != NULL) {
 			if (strcmp(pwd->pw_name, "root") == 0)
 				cmderr(EX_DATAERR, "can't rename `root' account\n");
-			pwd->pw_name = pw_checkname(arg->val, 0);
+			pwd->pw_name = pw_checkname((u_char*)arg->val, 0);
 		}
 		if ((arg = getarg(args, 'u')) != NULL && isdigit(*arg->val)) {
 			pwd->pw_uid = (uid_t) atol(arg->val);
@@ -383,7 +421,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 	 * Shared add/edit code
 	 */
 	if ((arg = getarg(args, 'c')) != NULL)
-		pwd->pw_gecos = pw_checkname(arg->val, 1);
+		pwd->pw_gecos = pw_checkname((u_char*)arg->val, 1);
 
 	if ((arg = getarg(args, 'h')) != NULL) {
 		if (strcmp(arg->val, "-") == 0)
@@ -862,16 +900,18 @@ print_user(struct passwd * pwd, int pretty)
 }
 
 static char    *
-pw_checkname(char *name, int gecos)
+pw_checkname(u_char *name, int gecos)
 {
 	int             l = 0;
-	char const     *notch = gecos ? ":" : " ,\t:+-&#%$^()!@~*?<>=|\\/\"";
+	char const     *notch = gecos ? ":!@" : " ,\t:+&#%$^()!@~*?<>=|\\/\"";
 
 	while (name[l]) {
-		if (strchr(notch, name[l]) != NULL || name[l] < ' ' || name[l] > 126)
-			cmderr(EX_DATAERR, (name[l]<' ' || (unsigned char)name[l] > 126)
+		if (strchr(notch, name[l]) != NULL || name[l] < ' ' || name[l] == 127 ||
+			(!gecos && l==0 && name[l] == '-') ||	/* leading '-' */
+			(!gecos && name[l] & 0x80))	/* 8-bit */
+			cmderr(EX_DATAERR, (name[l] >= ' ' && name[l] < 127)
 					    ? "invalid character `%c' in field\n"
-					    : "invalid character 0x$02x in field\n",
+					    : "invalid character 0x%02x in field\n",
 					    name[l]);
 		++l;
 	}
