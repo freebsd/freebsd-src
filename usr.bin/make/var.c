@@ -396,7 +396,7 @@ VarAdd (name, val, ctxt)
 
     (void) Lst_AtFront (ctxt->context, (void *)v);
     (void) Lst_AtEnd (allVars, (void *) v);
-    DEBUGF(VAR, "%s:%s = %s\n", ctxt->name, name, val);
+    DEBUGF(VAR, ("%s:%s = %s\n", ctxt->name, name, val));
 }
 
 
@@ -444,7 +444,7 @@ Var_Delete(name, ctxt)
 {
     LstNode 	  ln;
 
-    DEBUGF(VAR, "%s:delete %s\n", ctxt->name, name);
+    DEBUGF(VAR, ("%s:delete %s\n", ctxt->name, name));
     ln = Lst_Find(ctxt->context, (void *)name, VarCmp);
     if (ln != NULL) {
 	Var 	  *v;
@@ -499,7 +499,7 @@ Var_Set (name, val, ctxt)
 	Buf_Discard(v->val, Buf_Size(v->val));
 	Buf_AddBytes(v->val, strlen(val), (Byte *)val);
 
-	DEBUGF(VAR, "%s:%s = %s\n", ctxt->name, name, val);
+	DEBUGF(VAR, ("%s:%s = %s\n", ctxt->name, name, val));
     }
     /*
      * Any variables given on the command line are automatically exported
@@ -550,8 +550,8 @@ Var_Append (name, val, ctxt)
 	Buf_AddByte(v->val, (Byte)' ');
 	Buf_AddBytes(v->val, strlen(val), (Byte *)val);
 
-	DEBUGF(VAR, "%s:%s = %s\n", ctxt->name, name, 
-	       (char *) Buf_GetAll(v->val, (int *)NULL));
+	DEBUGF(VAR, ("%s:%s = %s\n", ctxt->name, name, 
+	       (char *) Buf_GetAll(v->val, (int *)NULL)));
 
 	if (v->flags & VAR_FROM_ENV) {
 	    /*
@@ -1772,7 +1772,7 @@ Var_Parse (str, ctxt, err, lengthPtr, freePtr)
 	    char	*newStr;    /* New value to return */
 	    char	termc;	    /* Character which terminated scan */
 
-	    DEBUGF(VAR, "Applying :%c to \"%s\"\n", *tstr, str);
+	    DEBUGF(VAR, ("Applying :%c to \"%s\"\n", *tstr, str));
 	    switch (*tstr) {
 	        case 'U':
 			if (tstr[1] == endc || tstr[1] == ':') {
@@ -2241,7 +2241,7 @@ Var_Parse (str, ctxt, err, lengthPtr, freePtr)
 		    }
 		}
 	    }
-	    DEBUGF(VAR, "Result is \"%s\"\n", newStr);
+	    DEBUGF(VAR, ("Result is \"%s\"\n", newStr));
 
 	    if (*freePtr) {
 		free (str);

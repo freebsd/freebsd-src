@@ -1126,6 +1126,28 @@ bad:
     *res = '\0';
     return res;
 }
+ 
+/*-
+ * Debug --
+ *	Print a debugging message given its format.
+ *
+ * Results:
+ *	None.
+ *
+ * Side Effects:
+ *	The message is printed.
+ */
+/* VARARGS */
+void
+Debug(const char *fmt, ...)
+{
+	va_list ap;
+
+	va_start(ap, fmt);
+	(void)vfprintf(stderr, fmt, ap);
+	va_end(ap);
+	(void)fflush(stderr);
+}
 
 /*-
  * Error --

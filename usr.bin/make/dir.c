@@ -541,7 +541,7 @@ DirPrintWord(word, dummy)
     void *  word;
     void *  dummy;
 {
-    DEBUGF(DIR, "%s ", (char *) word);
+    DEBUGF(DIR, ("%s ", (char *) word));
 
     return(dummy ? 0 : 0);
 }
@@ -569,7 +569,7 @@ Dir_Expand (word, path, expansions)
 {
     char    	  *cp;
 
-    DEBUGF(DIR, "expanding \"%s\"...", word);
+    DEBUGF(DIR, ("expanding \"%s\"...", word));
 
     cp = strchr(word, '{');
     if (cp) {
@@ -653,7 +653,7 @@ Dir_Expand (word, path, expansions)
     }
     if (DEBUG(DIR)) {
 	Lst_ForEach(expansions, DirPrintWord, (void *) 0);
-	DEBUGF(DIR, "\n");
+	DEBUGF(DIR, ("\n"));
     }
 }
 
@@ -703,7 +703,7 @@ Dir_FindFile (name, path)
 	cp = name;
     }
 
-    DEBUGF(DIR, "Searching for %s...", name);
+    DEBUGF(DIR, ("Searching for %s...", name));
     /*
      * No matter what, we always look for the file in the current directory
      * before anywhere else and we *do not* add the ./ to it if it exists.
@@ -712,14 +712,14 @@ Dir_FindFile (name, path)
      */
     if ((!hasSlash || (cp - name == 2 && *name == '.')) &&
 	(Hash_FindEntry (&dot->files, cp) != (Hash_Entry *)NULL)) {
-	    DEBUGF(DIR, "in '.'\n");
+	    DEBUGF(DIR, ("in '.'\n"));
 	    hits += 1;
 	    dot->hits += 1;
 	    return (estrdup (name));
     }
 
     if (Lst_Open (path) == FAILURE) {
-	DEBUGF(DIR, "couldn't open path, file not found\n");
+	DEBUGF(DIR, ("couldn't open path, file not found\n"));
 	misses += 1;
 	return ((char *) NULL);
     }
@@ -734,9 +734,9 @@ Dir_FindFile (name, path)
      */
     while ((ln = Lst_Next (path)) != NULL) {
 	p = (Path *) Lst_Datum (ln);
-	DEBUGF(DIR, "%s...", p->name);
+	DEBUGF(DIR, ("%s...", p->name));
 	if (Hash_FindEntry (&p->files, cp) != (Hash_Entry *)NULL) {
-	    DEBUGF(DIR, "here...");
+	    DEBUGF(DIR, ("here..."));
 	    if (hasSlash) {
 		/*
 		 * If the name had a slash, its initial components and p's
@@ -752,12 +752,12 @@ Dir_FindFile (name, path)
 		    p1 -= 1; p2 -= 1;
 		}
 		if (p2 >= name || (p1 >= p->name && *p1 != '/')) {
-		    DEBUGF(DIR, "component mismatch -- continuing...");
+		    DEBUGF(DIR, ("component mismatch -- continuing..."));
 		    continue;
 		}
 	    }
 	    file = str_concat (p->name, cp, STR_ADDSLASH);
-	    DEBUGF(DIR, "returning %s\n", file);
+	    DEBUGF(DIR, ("returning %s\n", file));
 	    Lst_Close (path);
 	    p->hits += 1;
 	    hits += 1;
@@ -772,7 +772,7 @@ Dir_FindFile (name, path)
 		continue;
 	    }
 	    if (*p1 == '\0' && p2 == cp - 1) {
-		DEBUGF(DIR, "must be here but isn't -- returing NULL\n");
+		DEBUGF(DIR, ("must be here but isn't -- returing NULL\n"));
 		Lst_Close (path);
 		return ((char *) NULL);
 	    }
@@ -792,7 +792,7 @@ Dir_FindFile (name, path)
      * end). This phase is only performed if the file is *not* absolute.
      */
     if (!hasSlash) {
-	DEBUGF(DIR, "failed.\n");
+	DEBUGF(DIR, ("failed.\n"));
 	misses += 1;
 	return ((char *) NULL);
     }
@@ -800,7 +800,7 @@ Dir_FindFile (name, path)
     if (*name != '/') {
 	Boolean	checkedDot = FALSE;
 
-	DEBUGF(DIR, "failed. Trying subdirectories...");
+	DEBUGF(DIR, ("failed. Trying subdirectories..."));
 	(void) Lst_Open (path);
 	while ((ln = Lst_Next (path)) != NULL) {
 	    p = (Path *) Lst_Datum (ln);
@@ -813,10 +813,10 @@ Dir_FindFile (name, path)
 		file = estrdup(name);
 		checkedDot = TRUE;
 	    }
-	    DEBUGF(DIR, "checking %s...", file);
+	    DEBUGF(DIR, ("checking %s...", file));
 
 	    if (stat (file, &stb) == 0) {
-		DEBUGF(DIR, "got it.\n");
+		DEBUGF(DIR, ("got it.\n"));
 
 		Lst_Close (path);
 
@@ -839,7 +839,7 @@ Dir_FindFile (name, path)
 		 * Save the modification time so if it's needed, we don't have
 		 * to fetch it again.
 		 */
-		DEBUGF(DIR, "Caching %s for %s\n", Targ_FmtTime(stb.st_mtime), file);
+		DEBUGF(DIR, ("Caching %s for %s\n", Targ_FmtTime(stb.st_mtime), file));
 		entry = Hash_CreateEntry(&mtimes, (char *) file,
 					 (Boolean *)NULL);
 		Hash_SetValue(entry, (long)stb.st_mtime);
@@ -850,7 +850,7 @@ Dir_FindFile (name, path)
 	    }
 	}
 
-	DEBUGF(DIR, "failed. ");
+	DEBUGF(DIR, ("failed. "));
 	Lst_Close (path);
 
 	if (checkedDot) {
@@ -858,7 +858,7 @@ Dir_FindFile (name, path)
 	     * Already checked by the given name, since . was in the path,
 	     * so no point in proceeding...
 	     */
-	    DEBUGF(DIR, "Checked . already, returning NULL\n");
+	    DEBUGF(DIR, ("Checked . already, returning NULL\n"));
 	    return(NULL);
 	}
     }
@@ -899,20 +899,20 @@ Dir_FindFile (name, path)
 	return ((char *) NULL);
     }
 #else /* !notdef */
-    DEBUGF(DIR, "Looking for \"%s\"...", name);
+    DEBUGF(DIR, ("Looking for \"%s\"...", name));
 
     bigmisses += 1;
     entry = Hash_FindEntry(&mtimes, name);
     if (entry != (Hash_Entry *)NULL) {
-	DEBUGF(DIR, "got it (in mtime cache)\n");
+	DEBUGF(DIR, ("got it (in mtime cache)\n"));
 	return (estrdup(name));
     } else if (stat (name, &stb) == 0) {
 	entry = Hash_CreateEntry(&mtimes, name, (Boolean *)NULL);
-	DEBUGF(DIR, "Caching %s for %s\n", Targ_FmtTime(stb.st_mtime), name);
+	DEBUGF(DIR, ("Caching %s for %s\n", Targ_FmtTime(stb.st_mtime), name));
 	Hash_SetValue(entry, (long)stb.st_mtime);
 	return (estrdup (name));
     } else {
-	DEBUGF(DIR, "failed. Returning NULL\n");
+	DEBUGF(DIR, ("failed. Returning NULL\n"));
 	return ((char *)NULL);
     }
 #endif /* notdef */
@@ -961,8 +961,8 @@ Dir_MTime (gn)
 	 * see if the file was actually updated, so we need to actually go
 	 * to the filesystem.
 	 */
-	DEBUGF(DIR, "Using cached time %s for %s\n",
-	       Targ_FmtTime((time_t)(long)Hash_GetValue(entry)), fullName);
+	DEBUGF(DIR, ("Using cached time %s for %s\n",
+	       Targ_FmtTime((time_t)(long)Hash_GetValue(entry)), fullName));
 	stb.st_mtime = (time_t)(long)Hash_GetValue(entry);
 	Hash_DeleteEntry(&mtimes, entry);
     } else if (stat (fullName, &stb) < 0) {
@@ -1016,7 +1016,7 @@ Dir_AddDir (path, name)
 	    (void)Lst_AtEnd (path, (void *)p);
 	}
     } else {
-	DEBUGF(DIR, "Caching %s...", name);
+	DEBUGF(DIR, ("Caching %s...", name));
 
 	if ((d = opendir (name)) != (DIR *) NULL) {
 	    p = (Path *) emalloc (sizeof (Path));
@@ -1053,7 +1053,7 @@ Dir_AddDir (path, name)
 	    (void)Lst_AtEnd (openDirectories, (void *)p);
 	    (void)Lst_AtEnd (path, (void *)p);
 	}
-	DEBUGF(DIR, "done\n");
+	DEBUGF(DIR, ("done\n"));
     }
 }
 

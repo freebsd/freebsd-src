@@ -338,11 +338,10 @@ extern int debug;
 #define	CONCAT(a,b)	a##b
 
 #define	DEBUG(module)	(debug & CONCAT(DEBUG_,module))
-#define	DEBUGF(module,fmt,args...)		\
+#define	DEBUGF(module,args)		\
 do {						\
 	if (DEBUG(module)) {			\
-		fprintf(stderr, fmt, ##args);	\
-		fflush(stderr);			\
+		Debug args ;			\
 	}					\
 } while (0)
 #define	ISDOT(c) ((c)[0] == '.' && (((c)[1] == '\0') || ((c)[1] == '/')))

@@ -699,7 +699,7 @@ ArchSVR4Entry(ar, name, size, arch)
 	strncmp(name, ARLONGNAMES2, sizeof(ARLONGNAMES2) - 1) == 0) {
 
 	if (ar->fnametab != NULL) {
-	    DEBUGF(ARCH, "Attempted to redefine an SVR4 name table\n");
+	    DEBUGF(ARCH, ("Attempted to redefine an SVR4 name table\n"));
 	    return -1;
 	}
 
@@ -711,7 +711,7 @@ ArchSVR4Entry(ar, name, size, arch)
 	ar->fnamesize = size;
 
 	if (fread(ar->fnametab, size, 1, arch) != 1) {
-	    DEBUGF(ARCH, "Reading an SVR4 name table failed\n");
+	    DEBUGF(ARCH, ("Reading an SVR4 name table failed\n"));
 	    return -1;
 	}
 	eptr = ar->fnametab + size;
@@ -728,7 +728,7 @@ ArchSVR4Entry(ar, name, size, arch)
 	    default:
 		break;
 	    }
-	DEBUGF(ARCH, "Found svr4 archive name table with %zu entries\n", entry);
+	DEBUGF(ARCH, ("Found svr4 archive name table with %zu entries\n", entry));
 	return 0;
     }
 
@@ -737,16 +737,16 @@ ArchSVR4Entry(ar, name, size, arch)
 
     entry = (size_t) strtol(&name[1], &eptr, 0);
     if ((*eptr != ' ' && *eptr != '\0') || eptr == &name[1]) {
-	DEBUGF(ARCH, "Could not parse SVR4 name %s\n", name);
+	DEBUGF(ARCH, ("Could not parse SVR4 name %s\n", name));
 	return 2;
     }
     if (entry >= ar->fnamesize) {
-	DEBUGF(ARCH, "SVR4 entry offset %s is greater than %zu\n",
-	       name, ar->fnamesize);
+	DEBUGF(ARCH, ("SVR4 entry offset %s is greater than %zu\n",
+	       name, ar->fnamesize));
 	return 2;
     }
 
-    DEBUGF(ARCH, "Replaced %s with %s\n", name, &ar->fnametab[entry]);
+    DEBUGF(ARCH, ("Replaced %s with %s\n", name, &ar->fnametab[entry]));
 
     (void) strncpy(name, &ar->fnametab[entry], MAXPATHLEN);
     name[MAXPATHLEN] = '\0';
