@@ -23,6 +23,11 @@
 
 /* static data */
 struct apm_softc {
+#ifdef PC98
+	bus_space_tag_t		sc_iot;
+	bus_space_handle_t	sc_ioh;
+	struct resource 	*sc_res;
+#endif
 	int	initialized, active, bios_busy;
 	int	always_halt_cpu, slow_idle_cpu;
 	int	disabled, disengaged;
