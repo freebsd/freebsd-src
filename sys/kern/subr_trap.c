@@ -128,6 +128,7 @@ userret(td, frame, oticks)
 		ticks = td->td_sticks - oticks;
 		addupc_task(td, TRAPF_PC(frame), (u_int)ticks * psratio);
 	}
+
 	/*
 	 * Let the scheduler adjust our priority etc.
 	 */
