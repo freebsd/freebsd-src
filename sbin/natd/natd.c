@@ -97,7 +97,6 @@ static int      StrToPortRange (const char* str, const char* proto, port_range *
 static int 	StrToProto (const char* str);
 static int      StrToAddrAndPortRange (const char* str, struct in_addr* addr, char* proto, port_range *portRange);
 static void	ParseArgs (int argc, char** argv);
-static void	FlushPacketBuffer (int fd);
 static void	SetupPunchFW(const char *strValue);
 
 /*
@@ -118,11 +117,6 @@ static 	int			dynamicMode;
 static  int			ifMTU;
 static	int			aliasOverhead;
 static 	int			icmpSock;
-static	char			packetBuf[IP_MAXPACKET];
-static 	int			packetLen;
-static	struct sockaddr_in	packetAddr;
-static 	int			packetSock;
-static 	int			packetDirection;
 static  int			dropIgnoredIncoming;
 static  int			logDropped;
 static	int			logFacility;
@@ -136,7 +130,6 @@ int main (int argc, char** argv)
 	int			routeSock;
 	struct sockaddr_in	addr;
 	fd_set			readMask;
-	fd_set			writeMask;
 	int			fdMax;
 /* 
  * Initialize packet aliasing software.
@@ -162,11 +155,6 @@ int main (int argc, char** argv)
  	logDropped		= 0;
  	logFacility		= LOG_DAEMON;
 	logIpfwDenied		= -1;
-/*
- * Mark packet buffer empty.
- */
-	packetSock		= -1;
-	packetDirection		= DONT_KNOW;
 
 	ParseArgs (argc, argv);
 /*
@@ -330,7 +318,7 @@ int main (int argc, char** argv)
 
 	while (running) {
 
-		if (divertInOut != -1 && !ifName && packetSock == -1) {
+		if (divertInOut != -1 && !ifName) {
 /*
  * When using only one socket, just call 
  * DoAliasing repeatedly to process packets.
@@ -342,30 +330,17 @@ int main (int argc, char** argv)
  * Build read mask from socket descriptors to select.
  */
 		FD_ZERO (&readMask);
-		FD_ZERO (&writeMask);
-
 /*
- * If there is unsent packet in buffer, use select
- * to check when socket comes writable again.
+ * Check if new packets are available.
  */
-		if (packetSock != -1) {
+		if (divertIn != -1)
+			FD_SET (divertIn, &readMask);
 
-			FD_SET (packetSock, &writeMask);
-		}
-		else {
-/*
- * No unsent packet exists - safe to check if
- * new ones are available.
- */
-			if (divertIn != -1)
-				FD_SET (divertIn, &readMask);
+		if (divertOut != -1)
+			FD_SET (divertOut, &readMask);
 
-			if (divertOut != -1)
-				FD_SET (divertOut, &readMask);
-
-			if (divertInOut != -1)
-				FD_SET (divertInOut, &readMask);
-		}
+		if (divertInOut != -1)
+			FD_SET (divertInOut, &readMask);
 /*
  * Routing info is processed always.
  */
@@ -374,7 +349,7 @@ int main (int argc, char** argv)
 
 		if (select (fdMax + 1,
 			    &readMask,
-			    &writeMask,
+			    NULL,
 			    NULL,
 			    NULL) == -1) {
 
@@ -383,10 +358,6 @@ int main (int argc, char** argv)
 
 			Quit ("Select failed.");
 		}
-
-		if (packetSock != -1)
-			if (FD_ISSET (packetSock, &writeMask))
-				FlushPacketBuffer (packetSock);
 
 		if (divertIn != -1)
 			if (FD_ISSET (divertIn, &readMask))
@@ -470,9 +441,13 @@ static void DoAliasing (int fd, int direction)
 {
 	int			bytes;
 	int			origBytes;
+	char			buf[IP_MAXPACKET];
+	struct sockaddr_in	addr;
+	int			wrote;
 	int			status;
 	int			addrSize;
 	struct ip*		ip;
+	char			msgBuf[80];
 
 	if (assignAliasAddr) {
 
@@ -482,12 +457,12 @@ static void DoAliasing (int fd, int direction)
 /*
  * Get packet from socket.
  */
-	addrSize  = sizeof packetAddr;
+	addrSize  = sizeof addr;
 	origBytes = recvfrom (fd,
-			      packetBuf,
-			      sizeof packetBuf,
+			      buf,
+			      sizeof buf,
 			      0,
-			      (struct sockaddr*) &packetAddr,
+			      (struct sockaddr*) &addr,
 			      &addrSize);
 
 	if (origBytes == -1) {
@@ -500,9 +475,9 @@ static void DoAliasing (int fd, int direction)
 /*
  * This is a IP packet.
  */
-	ip = (struct ip*) packetBuf;
+	ip = (struct ip*) buf;
 	if (direction == DONT_KNOW) {
-		if (packetAddr.sin_addr.s_addr == INADDR_ANY)
+		if (addr.sin_addr.s_addr == INADDR_ANY)
 			direction = OUTPUT;
 		else
 			direction = INPUT;
@@ -541,14 +516,14 @@ static void DoAliasing (int fd, int direction)
 /*
  * Outgoing packets. Do aliasing.
  */
-		PacketAliasOut (packetBuf, IP_MAXPACKET);
+		PacketAliasOut (buf, IP_MAXPACKET);
 	}
 	else {
 
 /*
  * Do aliasing.
  */	
-		status = PacketAliasIn (packetBuf, IP_MAXPACKET);
+		status = PacketAliasIn (buf, IP_MAXPACKET);
 		if (status == PKT_ALIAS_IGNORED &&
 		    dropIgnoredIncoming) {
 
@@ -583,42 +558,24 @@ static void DoAliasing (int fd, int direction)
 		printf ("\n");
 	}
 
-	packetLen  	= bytes;
-	packetSock 	= fd;
-	packetDirection = direction;
-
-	FlushPacketBuffer (fd);
-}
-
-static void FlushPacketBuffer (int fd)
-{
-	int			wrote;
-	char			msgBuf[80];
 /*
  * Put packet back for processing.
  */
 	wrote = sendto (fd, 
-		        packetBuf,
-	    		packetLen,
+		        buf,
+	    		bytes,
 	    		0,
-	    		(struct sockaddr*) &packetAddr,
-	    		sizeof packetAddr);
+	    		(struct sockaddr*) &addr,
+	    		sizeof addr);
 	
-	if (wrote != packetLen) {
-/*
- * If buffer space is not available,
- * just return. Main loop will take care of 
- * retrying send when space becomes available.
- */
-		if (errno == ENOBUFS)
-			return;
+	if (wrote != bytes) {
 
 		if (errno == EMSGSIZE) {
 
-			if (packetDirection == OUTPUT &&
+			if (direction == OUTPUT &&
 			    ifMTU != -1)
 				SendNeedFragIcmp (icmpSock,
-						  (struct ip*) packetBuf,
+						  (struct ip*) buf,
 						  ifMTU - aliasOverhead);
 		}
 		else if (errno == EACCES && logIpfwDenied) {
@@ -627,8 +584,6 @@ static void FlushPacketBuffer (int fd)
 			Warn (msgBuf);
 		}
 	}
-
-	packetSock = -1;
 }
 
 static void HandleRoutingInfo (int fd)
