@@ -1331,7 +1331,10 @@ isp_cam_async(void *cbarg, u_int32_t code, struct cam_path *path, void *arg)
 static void
 isp_poll(struct cam_sim *sim)
 {
-	isp_intr((struct ispsoftc *) cam_sim_softc(sim));
+	struct ispsoftc *isp = cam_sim_softc(sim);
+	ISP_LOCK(isp);
+	(void) isp_intr(isp);
+	ISP_UNLOCK(isp);
 }
 
 static void
@@ -1533,7 +1536,9 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 			xpt_done(ccb);
 			break;
 		case CMD_COMPLETE:
+			ISP_LOCK(isp);
 			isp_done((struct ccb_scsiio *) ccb);
+			ISP_UNLOCK(isp);
 			break;
 		default:
 			isp_prt(isp, ISP_LOGERR,
@@ -1982,7 +1987,15 @@ isp_done(struct ccb_scsiio *sccb)
 			    "finished command on borrowed time");
 		}
 		XS_CMD_S_CLEAR(sccb);
+		ISP_UNLOCK(isp);
+#ifdef	ISP_SMPLOCK
+		mtx_enter(&Giant, MTX_DEF);
 		xpt_done((union ccb *) sccb);
+		mtx_exit(&Giant, MTX_DEF);
+#else
+		xpt_done((union ccb *) sccb);
+#endif
+		ISP_LOCK(isp);
 	}
 }
 
