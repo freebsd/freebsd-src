@@ -47,7 +47,7 @@
 
 /* Node type name and magic cookie */
 #define NG_ETHER_NODE_TYPE	"ether"
-#define NGM_ETHER_COOKIE	917786906
+#define NGM_ETHER_COOKIE	1108206947
 
 /* Hook names */
 #define NG_ETHER_HOOK_LOWER	"lower"		/* connection to raw device */
@@ -65,7 +65,8 @@ enum {
 	NGM_ETHER_SET_PROMISC,		/* enable/disable promiscuous mode */
 	NGM_ETHER_GET_AUTOSRC,		/* get source address override */
 	NGM_ETHER_SET_AUTOSRC,		/* enable/disable src addr override */
+	NGM_ETHER_ADD_MULTI,		/* add multicast membership */
+	NGM_ETHER_DEL_MULTI,		/* delete multicast membership */
 };
 
 #endif /* _NETGRAPH_NG_ETHER_H_ */
-
