@@ -38,7 +38,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.18 1995/02/27 13:39:39 ugen Exp $
+ *      $Id: userconfig.c,v 1.19 1995/03/01 22:29:06 dufault Exp $
  */
 
 #include <sys/param.h>
@@ -49,6 +49,7 @@
 #include <i386/isa/isa_device.h>
 
 #include <scsi/scsiconf.h>
+#include "scbus.h"
 
 #define PARM_DEVSPEC	0x1
 #define PARM_INT	0x2
@@ -76,7 +77,11 @@ typedef struct _cmd {
     CmdParm *parms;
 } Cmd;
 
+#if NSCBUS > 0
 static void lsscsi(void);
+static int list_scsi(CmdParm *);
+#endif
+
 static void lsdevtab(struct isa_device *);
 static struct isa_device *find_device(char *, int);
 static struct isa_device *search_devtable(struct isa_device *, char *, int);
@@ -85,7 +90,6 @@ static Cmd *parse_cmd(char *);
 static int parse_args(char *, CmdParm *);
 unsigned long strtoul(const char *, char **, int);
 
-static int list_scsi(CmdParm *);
 static int list_devices(CmdParm *);
 static int set_device_ioaddr(CmdParm *);
 static int set_device_irq(CmdParm *);
@@ -135,7 +139,9 @@ static Cmd CmdList[] = {
     { "po",	set_device_ioaddr,	int_parms },	/* port dev addr */
     { "pr",	device_probe,		dev_parms },	/* probe dev */
     { "q", 	quitfunc, 		NULL },		/* quit		*/
+#if NSCBUS > 0
     { "s",	list_scsi,		NULL },		/* scsi */
+#endif
     { NULL,	NULL,			NULL },
 };
 
@@ -563,6 +569,7 @@ strtoul(nptr, endptr, base)
 	return (acc);
 }
 
+#if NSCBUS > 0
 /* scsi: Support for displaying configured SCSI devices.
  * There is no way to edit them, and this is inconsistent
  * with the ISA method.  This is here as a basis for further work.
@@ -637,3 +644,4 @@ list_scsi(CmdParm *parms)
     lsscsi();
     return 0;
 }
+#endif
