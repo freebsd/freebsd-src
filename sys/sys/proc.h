@@ -354,7 +354,6 @@ struct thread {
 #define	TDF_CVWAITQ	0x000080 /* Thread is on a cv_waitq (not slpq). */
 #define	TDF_UPCALLING	0x000100 /* This thread is doing an upcall. */
 #define	TDF_ONSLEEPQ	0x000200 /* On the sleep queue. */
-#define	TDF_INMSLEEP	0x000400 /* Don't recurse in msleep(). */
 #define	TDF_ASTPENDING	0x000800 /* Thread has some asynchronous events. */
 #define	TDF_TIMOFAIL	0x001000 /* Timeout from sleep after we were awake. */
 #define	TDF_INTERRUPT	0x002000 /* Thread is marked as interrupted. */
