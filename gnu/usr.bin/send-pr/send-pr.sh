@@ -285,9 +285,7 @@ SEND-PR: will all comments (text enclosed in `<' and `>').
 SEND-PR: 
 SEND-PR: Please consult the send-pr man page `send-pr(1)' or the Texinfo
 SEND-PR: manual if you are not sure how to fill out a problem report.
-SEND-PR: Note that the Synopsis field is mandatory.  The Subject (for
-SEND-PR: the mail) will be made the same as Synopsis unless explicitly
-SEND-PR: changed.
+SEND-PR: Note that the Synopsis field is mandatory.
 SEND-PR:
 SEND-PR: Choose from the following categories:
 SEND-PR:
@@ -307,7 +305,6 @@ __EOF__
 
       cat >> $file << __EOF__
 To: $GNATS_ADDR
-Subject: 
 From: $FROM
 Reply-To: $REPLY_TO
 Cc: $CC
@@ -476,19 +473,31 @@ while true; do
 done
 
 #
-# Make sure the mail has got a Subject.  If not, use the same as
-# in Synopsis.
+# Remove the subject field if one is already there.  There's no reason
+# for it to be any different than the synopsis.
 #
-
-if grep '^Subject:[ 	]*$' $TEMP > /dev/null
+if grep '^Subject:' $TEMP > /dev/null
 then
-  SYNOPSIS=`grep '^>Synopsis:' $TEMP | sed -e 's/^>Synopsis:[ 	]*//'`
   ed -s $TEMP << __EOF__
-/^Subject:/s/:.*\$/: $SYNOPSIS/
+/^Subject:/d
 w
 q
 __EOF__
 fi
+
+#
+# Add the subject field with the value of $SYNOPSIS.  We use the To:
+# field as an anchor, which had better be there.
+#
+SYNOPSIS=`grep '^>Synopsis:' $TEMP | sed -e 's/^>Synopsis:[ 	]*//' |
+    sed -e "s;$SYNOPSIS_C;;"`
+ed -s $TEMP << __EOF__
+/^To:/a
+Subject: $SYNOPSIS
+.
+w
+q
+__EOF__
 
 #
 #	Remove comments and send the problem report
