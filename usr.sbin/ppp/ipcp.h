@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.h,v 1.23 1999/01/28 01:56:32 brian Exp $
+ * $Id: ipcp.h,v 1.24 1999/02/26 21:28:12 brian Exp $
  *
  *	TODO:
  */
@@ -33,14 +33,6 @@
 #define TY_SECONDARY_DNS	131
 #define TY_SECONDARY_NBNS	132
 #define TY_ADJUST_NS		119 /* subtract from NS val for REJECT bit */
-
-#define addr2mask(addr) (			\
-  IN_CLASSA(addr) ?				\
-    htonl(IN_CLASSA_NET) :			\
-  IN_CLASSB(addr) ?				\
-    htonl(IN_CLASSB_NET) : htonl(IN_CLASSC_NET)	\
-)
-
 
 struct sticky_route;
 
@@ -124,3 +116,4 @@ extern int  ipcp_UseHisaddr(struct bundle *, const char *, int);
 extern int  ipcp_vjset(struct cmdargs const *);
 extern void ipcp_CleanInterface(struct ipcp *);
 extern int  ipcp_InterfaceUp(struct ipcp *);
+extern struct in_addr addr2mask(struct in_addr);

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.183 1999/02/25 20:05:54 brian Exp $
+ * $Id: command.c,v 1.184 1999/02/26 21:28:07 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -141,7 +141,7 @@
 #define NEG_DNS		52
 
 const char Version[] = "2.11";
-const char VersionDate[] = "$Date: 1999/02/25 20:05:54 $";
+const char VersionDate[] = "$Date: 1999/02/26 21:28:07 $";
 
 static int ShowCommand(struct cmdargs const *);
 static int TerminalCommand(struct cmdargs const *);
@@ -1295,7 +1295,7 @@ SetInterfaceAddr(struct cmdargs const *arg)
     if (arg->argc > arg->argn+1) {
       hisaddr = arg->argv[arg->argn+1];
       if (arg->argc > arg->argn+2) {
-        ipcp->cfg.netmask = GetIpAddr(arg->argv[arg->argn+2]);
+        ipcp->ifmask = ipcp->cfg.netmask = GetIpAddr(arg->argv[arg->argn+2]);
 	if (arg->argc > arg->argn+3) {
 	  ipcp->cfg.TriggerAddress = GetIpAddr(arg->argv[arg->argn+3]);
 	  ipcp->cfg.HaveTriggerAddress = 1;
