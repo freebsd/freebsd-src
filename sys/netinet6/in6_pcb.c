@@ -65,7 +65,6 @@
  * $FreeBSD$
  */
 
-#include "opt_inet.h"
 #include "opt_key.h"
 
 #include <sys/param.h>
@@ -96,19 +95,14 @@
 #include <netinet/in_pcb.h>
 #include <netinet6/in6_pcb.h>
 
-/* #include "faith.h" */
+#include "faith.h"
 
 #ifdef IPSEC
 #include <netinet6/ipsec.h>
-#ifdef INET6
 #include <netinet6/ipsec6.h>
-#endif /* INET6 */
 #include <netkey/key.h>
 #ifdef KEY_DEBUG
 #include <netkey/key_debug.h>
-#ifdef INET6
-#include <netkey/key_debug6.h>
-#endif /* INET6 */
 #else
 #define DPRINTF(lev,arg)
 #define DDO(lev, stmt)
@@ -1065,7 +1059,7 @@ in6_pcblookup_hash(pcbinfo, faddr, fport_arg, laddr, lport_arg, wildcard, ifp)
 	head = &pcbinfo->hashbase[INP_PCBHASH(faddr->s6_addr32[3] /* XXX */,
 					      lport, fport,
 					      pcbinfo->hashmask)];
-	for (inp = head->lh_first; inp != NULL; inp = inp->inp_hash.le_next) {
+	LIST_FOREACH(inp, head, inp_hash) {
 		if ((inp->inp_vflag & INP_IPV6) == NULL)
 			continue;
 		if (IN6_ARE_ADDR_EQUAL(&inp->in6p_faddr, faddr) &&
@@ -1083,8 +1077,7 @@ in6_pcblookup_hash(pcbinfo, faddr, fport_arg, laddr, lport_arg, wildcard, ifp)
 
 		head = &pcbinfo->hashbase[INP_PCBHASH(INADDR_ANY, lport, 0,
 						      pcbinfo->hashmask)];
-		for (inp = head->lh_first; inp != NULL;
-		     inp = inp->inp_hash.le_next) {
+		LIST_FOREACH(inp, head, inp_hash) {
 			if ((inp->inp_vflag & INP_IPV6) == NULL)
 				continue;
 			if (IN6_IS_ADDR_UNSPECIFIED(&inp->in6p_faddr) &&

@@ -390,7 +390,7 @@ findpcb:
 		 * already got one like this? 
 		 */
 		inp = in_pcblookup_hash(&tcbinfo, ti->ti_src, ti->ti_sport,
-			ti->ti_dst, ti->ti_dport, 0);
+			ti->ti_dst, ti->ti_dport, 0, m->m_pkthdr.rcvif);
 		if (!inp) {
 			/* 
 			 * No, then it's new. Try find the ambushing socket
@@ -398,12 +398,13 @@ findpcb:
 			if (!ip_fw_fwd_addr->sin_port) {
 				inp = in_pcblookup_hash(&tcbinfo, ti->ti_src,
 				    ti->ti_sport, ip_fw_fwd_addr->sin_addr,
-				    ti->ti_dport, 1);
+				    ti->ti_dport, 1, m->m_pkthdr.rcvif);
 			} else {
 				inp = in_pcblookup_hash(&tcbinfo,
 				    ti->ti_src, ti->ti_sport,
 	    			    ip_fw_fwd_addr->sin_addr,
-				    ntohs(ip_fw_fwd_addr->sin_port), 1);
+				    ntohs(ip_fw_fwd_addr->sin_port), 1,
+				    m->m_pkthdr.rcvif);
 			}
 		}
 		ip_fw_fwd_addr = NULL;
@@ -411,7 +412,7 @@ findpcb:
 #endif	/* IPFIREWALL_FORWARD */
 
 	inp = in_pcblookup_hash(&tcbinfo, ti->ti_src, ti->ti_sport,
-	    ti->ti_dst, ti->ti_dport, 1);
+	    ti->ti_dst, ti->ti_dport, 1, m->m_pkthdr.rcvif);
 
 	/*
 	 * If the state is CLOSED (i.e., TCB does not exist) then

@@ -1,9 +1,11 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/5/93
+# $FreeBSD$
 
 PROG=	route
 MAN8=	route.8
 SRCS=	route.c keywords.h
 CFLAGS+=-I. -Wall -DNS
+#CFLAGS+=-DINET6
 CLEANFILES+=keywords.h
 BINMODE=4555
 

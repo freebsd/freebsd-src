@@ -42,6 +42,7 @@
 
 #include "opt_atalk.h"
 #include "opt_inet.h"
+#include "opt_inet6.h"
 #include "opt_ipx.h"
 
 #include <sys/param.h>
@@ -90,13 +91,13 @@
 #include <netatalk/at_var.h>
 #endif NETATALK
 
-static int loioctl __P((struct ifnet *, u_long, caddr_t));
+int loioctl __P((struct ifnet *, u_long, caddr_t));
 static void lortrequest __P((int, struct rtentry *, struct sockaddr *));
 
 static void loopattach __P((void *));
 PSEUDO_SET(loopattach, if_loop);
 
-static int looutput __P((struct ifnet *ifp,
+int looutput __P((struct ifnet *ifp,
 		struct mbuf *m, struct sockaddr *dst, struct rtentry *rt));
 
 #ifdef TINY_LOMTU
@@ -131,7 +132,7 @@ loopattach(dummy)
 	}
 }
 
-static int
+int
 looutput(ifp, m, dst, rt)
 	struct ifnet *ifp;
 	register struct mbuf *m;
@@ -341,7 +342,7 @@ lortrequest(cmd, rt, sa)
  * Process an ioctl request.
  */
 /* ARGSUSED */
-static int
+int
 loioctl(ifp, cmd, data)
 	register struct ifnet *ifp;
 	u_long cmd;

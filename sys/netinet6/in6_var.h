@@ -437,7 +437,7 @@ MALLOC_DECLARE(M_IPMADDR);
 /* struct in6_ifaddr *ia; */				\
 do {									\
 	struct ifaddr *ifa;						\
-	for (ifa = (ifp)->if_addrlist.tqh_first; ifa; ifa = ifa->ifa_list.tqe_next) {	\
+	TAILQ_FOREACH(ifa, &(ifp)->if_addrlist, ifa_list) {		\
 		if (!ifa->ifa_addr)					\
 			continue;					\
 		if (ifa->ifa_addr->sa_family == AF_INET6)		\
@@ -467,6 +467,11 @@ struct	in6_multi {
 };
 
 #ifdef _KERNEL
+
+#ifdef SYSCTL_DECL
+SYSCTL_DECL(_net_inet6_ip6);
+#endif
+
 extern LIST_HEAD(in6_multihead, in6_multi) in6_multihead;
 
 /*
@@ -512,14 +517,14 @@ do { \
 /* struct in6_multi *in6m; */						\
 do { \
 	if (((in6m) = (step).i_in6m) != NULL) \
-		(step).i_in6m = (step).i_in6m->in6m_entry.le_next; \
+		(step).i_in6m = LIST_NEXT((step).i_in6m, in6m_entry); \
 } while(0)
 
 #define	IN6_FIRST_MULTI(step, in6m)		\
 /* struct in6_multistep step; */		\
 /* struct in6_multi *in6m */			\
 do { \
-	(step).i_in6m = in6_multihead.lh_first; \
+	(step).i_in6m = LIST_FIRST(&in6_multihead); \
 		IN6_NEXT_MULTI((step), (in6m)); \
 } while(0)
 

@@ -64,8 +64,6 @@
  *	@(#)in.c	8.2 (Berkeley) 11/15/93
  */
 
-#include "opt_inet.h"
-
 #include <sys/param.h>
 #include <sys/errno.h>
 #include <sys/malloc.h>
@@ -81,10 +79,8 @@
 #include <net/if.h>
 #include <net/if_types.h>
 #include <net/route.h>
-/* #include "gif.h" */
-#if NGIF > 0
-#include <net/if_gif.h>
-#endif
+#include "gif.h"
+
 #include <net/if_dl.h>
 
 #include <netinet/in.h>
@@ -96,6 +92,9 @@
 #include <netinet6/ip6_var.h>
 #include <netinet6/mld6_var.h>
 #include <netinet6/in6_ifattach.h>
+#if NGIF > 0
+#include <net/if_gif.h>
+#endif
 
 #include <net/net_osdep.h>
 
@@ -348,7 +347,7 @@ in6_ifindex2scopeid(idx)
 		return -1;
 	ifp = ifindex2ifnet[idx];
 
-	for (ifa = ifp->if_addrlist.tqh_first; ifa; ifa = ifa->ifa_list.tqe_next)
+	TAILQ_FOREACH(ifa, &ifp->if_addrlist, ifa_list)
 	{
 		if (ifa->ifa_addr->sa_family != AF_INET6)
 			continue;
@@ -1059,9 +1058,7 @@ in6_lifaddr_ioctl(so, cmd, data, ifp, p)
 			}
 		}
 
-		for (ifa = ifp->if_addrlist.tqh_first;
-		     ifa;
-		     ifa = ifa->ifa_list.tqe_next)
+		TAILQ_FOREACH(ifa, &ifp->if_addrlist, ifa_list)
 		{
 			if (ifa->ifa_addr->sa_family != AF_INET6)
 				continue;
@@ -1311,7 +1308,7 @@ in6ifa_ifpforlinklocal(ifp)
 {
 	register struct ifaddr *ifa;
 
-	for (ifa = ifp->if_addrlist.tqh_first; ifa; ifa = ifa->ifa_list.tqe_next)
+	TAILQ_FOREACH(ifa, &ifp->if_addrlist, ifa_list)
 	{
 		if (ifa->ifa_addr == NULL)
 			continue;	/* just for safety */
@@ -1335,7 +1332,7 @@ in6ifa_ifpwithaddr(ifp, addr)
 {
 	register struct ifaddr *ifa;
 
-	for (ifa = ifp->if_addrlist.tqh_first; ifa; ifa = ifa->ifa_list.tqe_next)
+	TAILQ_FOREACH(ifa, &ifp->if_addrlist, ifa_list)
 	{
 		if (ifa->ifa_addr == NULL)
 			continue;	/* just for safety */
@@ -1575,7 +1572,7 @@ in6_ifawithscope(ifp, dst)
 	 * If two or more, return one which matches the dst longest.
 	 * If none, return one of global addresses assigned other ifs.
 	 */
-	for (ifa = ifp->if_addrlist.tqh_first; ifa; ifa = ifa->ifa_list.tqe_next)
+	TAILQ_FOREACH(ifa, &ifp->if_addrlist, ifa_list)
 	{
 		if (ifa->ifa_addr->sa_family != AF_INET6)
 			continue;
@@ -1661,7 +1658,7 @@ in6_ifawithifp(ifp, dst)
 	 * If two or more, return one which matches the dst longest.
 	 * If none, return one of global addresses assigned other ifs.
 	 */
-	for (ifa = ifp->if_addrlist.tqh_first; ifa; ifa = ifa->ifa_list.tqe_next)
+	TAILQ_FOREACH(ifa, &ifp->if_addrlist, ifa_list)
 	{
 		if (ifa->ifa_addr->sa_family != AF_INET6)
 			continue;
@@ -1696,7 +1693,7 @@ in6_ifawithifp(ifp, dst)
 	if (besta)
 		return(besta);
 
-	for (ifa = ifp->if_addrlist.tqh_first; ifa; ifa = ifa->ifa_list.tqe_next)
+	TAILQ_FOREACH(ifa, &ifp->if_addrlist, ifa_list)
 	{
 		if (ifa->ifa_addr->sa_family != AF_INET6)
 			continue;
@@ -1742,7 +1739,7 @@ in6_if_up(ifp)
 	bzero(&ea, sizeof(ea));
 	sdl = NULL;
 
-	for (ifa = ifp->if_addrlist.tqh_first; ifa; ifa = ifa->ifa_list.tqe_next)
+	TAILQ_FOREACH(ifa, &ifp->if_addrlist, ifa_list)
 	{
 		if (ifa->ifa_addr->sa_family == AF_INET6
 		 && IN6_IS_ADDR_LINKLOCAL(&((struct sockaddr_in6 *)ifa->ifa_addr)->sin6_addr)) {
@@ -1789,7 +1786,7 @@ in6_if_up(ifp)
 
 dad:
 	dad_delay = 0;
-	for (ifa = ifp->if_addrlist.tqh_first; ifa; ifa = ifa->ifa_list.tqe_next)
+	TAILQ_FOREACH(ifa, &ifp->if_addrlist, ifa_list)
 	{
 		if (ifa->ifa_addr->sa_family != AF_INET6)
 			continue;

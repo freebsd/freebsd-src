@@ -287,7 +287,8 @@ struct inpcb *
 	    struct in_addr, u_int, int));
 struct inpcb *
 	in_pcblookup_hash __P((struct inpcbinfo *,
-	    struct in_addr, u_int, struct in_addr, u_int, int));
+			       struct in_addr, u_int, struct in_addr, u_int,
+			       int, struct ifnet *));
 void	in_pcbnotify __P((struct inpcbhead *, struct sockaddr *,
 	    u_int, struct in_addr, u_int, int, void (*)(struct inpcb *, int)));
 void	in_pcbrehash __P((struct inpcb *));

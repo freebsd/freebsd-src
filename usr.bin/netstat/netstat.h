@@ -42,6 +42,7 @@ int	bflag;		/* show i/f total bytes in/out */
 int	dflag;		/* show i/f dropped packets */
 int	gflag;		/* show group (multicast) routing or stats */
 int	iflag;		/* show interfaces */
+int	lflag;		/* show routing table with use and ref */
 int	mflag;		/* show memory stats */
 int	nflag;		/* show addresses numerically */
 int	pflag;		/* show given protocol */
@@ -61,21 +62,36 @@ char	*plural __P((int));
 char	*plurales __P((int));
 void	trimdomain __P((char *));
 
-void	protopr __P((u_long, char *));
+void	protopr __P((u_long, char *, int));
 void	tcp_stats __P((u_long, char *));
 void	udp_stats __P((u_long, char *));
 void	ip_stats __P((u_long, char *));
 void	icmp_stats __P((u_long, char *));
 void	igmp_stats __P((u_long, char *));
+#ifdef IPSEC
+void	ipsec_stats __P((u_long, char *));
+#endif
+
+#ifdef INET6
+void	ip6_stats __P((u_long, char *));
+void	ip6_ifstats __P((char *));
+void	icmp6_stats __P((u_long, char *));
+void	icmp6_ifstats __P((char *));
+#ifdef notyet
+void	pim6_stats __P((u_long, char *));
+void	mroute6pr __P((u_long, u_long));
+void	mrt6_stats __P((u_long));
+#endif
+#endif /*INET6*/
+
 void	bdg_stats __P((u_long, char *));
-void	protopr __P((u_long, char *));
 
 void	mbpr __P((void));
 
 void	hostpr __P((u_long, u_long));
 void	impstats __P((u_long, u_long));
 
-void	intpr __P((int, u_long));
+void	intpr __P((int, u_long, void (*) __P((char *))));
 
 void	pr_rthdr __P(());
 void	pr_family __P((int));
@@ -107,8 +123,6 @@ void	atalkprotopr __P((u_long, char *));
 void	ddp_stats __P((u_long, char *));
 
 void	netgraphprotopr __P((u_long, char *));
-
-void	intpr __P((int, u_long));
 
 void	unixpr __P((void));
 

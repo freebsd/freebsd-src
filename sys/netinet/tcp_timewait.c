@@ -35,7 +35,7 @@
  */
 
 #include "opt_compat.h"
-#include "opt_inet.h"
+#include "opt_inet6.h"
 #include "opt_tcpdebug.h"
 
 #include <sys/param.h>
@@ -647,7 +647,7 @@ tcp_getcred SYSCTL_HANDLER_ARGS
 		return (error);
 	s = splnet();
 	inp = in_pcblookup_hash(&tcbinfo, addrs[1].sin_addr, addrs[1].sin_port,
-	    addrs[0].sin_addr, addrs[0].sin_port, 0);
+	    addrs[0].sin_addr, addrs[0].sin_port, 0, NULL);
 	if (inp == NULL || inp->inp_socket == NULL) {
 		error = ENOENT;
 		goto out;

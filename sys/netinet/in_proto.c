@@ -63,6 +63,11 @@
  * TCP/IP protocol family: IP, ICMP, UDP, TCP.
  */
 
+#include "gif.h"
+#if NGIF > 0
+#include <netinet/in_gif.h>
+#endif
+
 #ifdef IPXIP
 #include <netipx/ipx_ip.h>
 #endif
@@ -119,12 +124,29 @@ struct protosw inetsw[] = {
   0,		0,		0,		0,
   &rip_usrreqs
 },
+#if NGIF > 0
+{ SOCK_RAW,	&inetdomain,	IPPROTO_IPV4,	PR_ATOMIC|PR_ADDR,
+  in_gif_input,	0,	 	0,		0,
+  0,
+  0,		0,		0,		0,
+  &nousrreqs
+},
+# ifdef INET6
+{ SOCK_RAW,	&inetdomain,	IPPROTO_IPV6,	PR_ATOMIC|PR_ADDR,
+  in_gif_input,	0,	 	0,		0,
+  0,
+  0,		0,		0,		0,
+  &nousrreqs
+},
+#endif
+#else /*NGIF*/
 { SOCK_RAW,	&inetdomain,	IPPROTO_IPIP,	PR_ATOMIC|PR_ADDR,
   ipip_input,	0,	 	0,		rip_ctloutput,
   0,
   0,		0,		0,		0,
   &rip_usrreqs
 },
+#endif /*NGIF*/
 #ifdef IPDIVERT
 { SOCK_RAW,	&inetdomain,	IPPROTO_DIVERT,	PR_ATOMIC|PR_ADDR,
   div_input,	0,	 	0,		ip_ctloutput,

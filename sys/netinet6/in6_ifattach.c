@@ -153,13 +153,11 @@ in6_ifattach_getifid(ifp0)
 	if (found_first_ifid)
 		return 0;
 
-	for (ifp = ifnet.tqh_first; ifp; ifp = ifp->if_list.tqe_next)
+	TAILQ_FOREACH(ifp, &ifnet, if_list)
 	{
 		if (ifp0 != NULL && ifp0 != ifp)
 			continue;
-		for (ifa = ifp->if_addrlist.tqh_first;
-		     ifa;
-		     ifa = ifa->ifa_list.tqe_next)
+		TAILQ_FOREACH(ifa, &ifp->if_addrlist, ifa_list)
 		{
 			if (ifa->ifa_addr->sa_family != AF_LINK)
 				continue;
@@ -239,7 +237,7 @@ in6_ifattach_p2p()
 	if (found_first_ifid == 0)
 		return;
 
-	for (ifp = ifnet.tqh_first; ifp; ifp = ifp->if_list.tqe_next)
+	TAILQ_FOREACH(ifp, &ifnet, if_list)
 	{
 		switch (ifp->if_type) {
 		case IFT_GIF:
@@ -645,7 +643,7 @@ in6_ifdetach(ifp)
 	struct rtentry *rt;
 	short rtflags;
 
-	for (ifa = ifp->if_addrlist.tqh_first; ifa; ifa = ifa->ifa_list.tqe_next)
+	TAILQ_FOREACH(ifa, &ifp->if_addrlist, ifa_list)
 	{
 		if (ifa->ifa_addr->sa_family != AF_INET6
 		 || !IN6_IS_ADDR_LINKLOCAL(&satosin6(&ifa->ifa_addr)->sin6_addr)) {

@@ -184,7 +184,7 @@ search_matched_prefix(struct ifnet *ifp, struct in6_prefixreq *ipr)
 	 * which matches the addr
 	 */
 
-	for (ifa = ifp->if_addrlist.tqh_first; ifa; ifa = ifa->ifa_list.tqe_next)
+	TAILQ_FOREACH(ifa, &ifp->if_addrlist, ifa_list)
 	{
 		if (ifa->ifa_addr->sa_family != AF_INET6)
 			continue;
@@ -249,7 +249,7 @@ mark_matched_prefixes(u_long cmd, struct ifnet *ifp, struct in6_rrenumreq *irr)
 	 * search matched addr, and then search prefixes
 	 * which matche the addr
 	 */
-	for (ifa = ifp->if_addrlist.tqh_first; ifa; ifa = ifa->ifa_list.tqe_next)
+	TAILQ_FOREACH(ifa, &ifp->if_addrlist, ifa_list)
 	{
 		struct rr_prefix *rpp;
 
@@ -364,8 +364,7 @@ search_ifidwithprefix(struct rr_prefix *rpp, struct in6_addr *ifid)
 {
 	struct rp_addr *rap;
 
-	for (rap = rpp->rp_addrhead.lh_first; rap != NULL;
-	     rap = rap->ra_entry.le_next)
+	LIST_FOREACH(rap, &rpp->rp_addrhead, ra_entry)
 		if (rr_are_ifid_equal(ifid, &rap->ra_ifid,
 				      (sizeof(struct in6_addr) << 3) -
 				      rpp->rp_plen))
@@ -682,8 +681,7 @@ rrpr_update(struct socket *so, struct rr_prefix *new)
 	 * If it existed but not pointing to the prefix yet,
 	 * init the prefix pointer.
 	 */
-	for (rap = rpp->rp_addrhead.lh_first; rap != NULL;
-	     rap = rap->ra_entry.le_next) {
+	LIST_FOREACH(rap, &rpp->rp_addrhead, ra_entry) {
 		if (rap->ra_addr != NULL) {
 			if (rap->ra_addr->ia6_ifpr == NULL)
 				rap->ra_addr->ia6_ifpr = rp2ifpr(rpp);
@@ -771,8 +769,7 @@ init_newprefix(struct in6_rrenumreq *irr, struct ifprefix *ifpr,
 			 irr->irr_u_uselen,
 			 min(ifpr->ifpr_plen - irr->irr_u_uselen,
 			     irr->irr_u_keeplen));
-	for (orap = (ifpr2rp(ifpr)->rp_addrhead).lh_first; orap != NULL;
-	     orap = orap->ra_entry.le_next) {
+	LIST_FOREACH(orap, &(ifpr2rp(ifpr)->rp_addrhead), ra_entry) {
 		struct rp_addr *rap;
 		int error = 0;
 
@@ -845,8 +842,7 @@ unprefer_prefix(struct rr_prefix *rpp)
 {
 	struct rp_addr *rap;
 
-	for (rap = rpp->rp_addrhead.lh_first; rap != NULL;
-	     rap = rap->ra_entry.le_next) {
+	LIST_FOREACH(rap, &rpp->rp_addrhead, ra_entry) {
 		if (rap->ra_addr == NULL)
 			continue;
 		rap->ra_addr->ia6_lifetime.ia6t_preferred = time_second;
@@ -863,7 +859,7 @@ delete_each_prefix(struct socket *so, struct rr_prefix *rpp, u_char origin)
 	if (rpp->rp_origin > origin)
 		return(EPERM);
 
-	while (rpp->rp_addrhead.lh_first != NULL) {
+	while (!LIST_EMPTY(&rpp->rp_addrhead)) {
 		struct rp_addr *rap;
 		int s;
 
@@ -923,8 +919,7 @@ link_stray_ia6s(struct rr_prefix *rpp)
 {
 	struct ifaddr *ifa;
 
-	for (ifa = rpp->rp_ifp->if_addrlist.tqh_first; ifa;
-	     ifa = ifa->ifa_list.tqe_next)
+	TAILQ_FOREACH(ifa, &rpp->rp_ifp->if_addrlist, ifa_list)
 	{
 		struct rp_addr *rap;
 		struct rr_prefix *orpp;

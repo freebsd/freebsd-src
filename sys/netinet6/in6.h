@@ -74,6 +74,7 @@
  * Identification of the network protocol stack
  */
 #define	__KAME__
+#define	__KAME_VERSION		"SNAP 19991101"
 
 /*
  * Local port number conventions:
@@ -343,13 +344,6 @@ extern const struct in6_addr in6addr_linklocal_allrouters;
 #endif
 
 /*
- * Wildcard Socket
- */
-#if 0	/*pre-RFC2553*/
-#define	IN6_IS_ADDR_ANY(a)	IN6_IS_ADDR_UNSPECIFIED(a)
-#endif
-
-/*
  * KAME Scope
  */
 #ifdef _KERNEL	/*nonstandard*/
@@ -522,65 +516,12 @@ struct in6_pktinfo {
 #define	IPV6CTL_AUTO_FLOWLABEL	17
 #define	IPV6CTL_DEFMCASTHLIM	18
 #define	IPV6CTL_GIF_HLIM	19	/* default HLIM for gif encap packet */
+#define	IPV6CTL_KAME_VERSION	20
 #define	IPV6CTL_USE_DEPRECATED	21	/* use deprecated addr (RFC2462 5.5.4) */
 #define	IPV6CTL_RR_PRUNE	22	/* walk timer for router renumbering */
 #define	IPV6CTL_MAPPED_ADDR	23
 /* New entries should be added here from current IPV6CTL_MAXID value. */
 #define	IPV6CTL_MAXID		24
-
-#define	IPV6CTL_NAMES { \
-	{ 0, 0 }, \
-	{ "forwarding", CTLTYPE_INT }, \
-	{ "redirect", CTLTYPE_INT }, \
-	{ "hlim", CTLTYPE_INT }, \
-	{ "mtu", CTLTYPE_INT }, \
-	{ "forwsrcrt", CTLTYPE_INT }, \
-	{ 0, 0 }, \
-	{ 0, 0 }, \
-	{ "mrtproto", CTLTYPE_INT }, \
-	{ "maxfragpackets", CTLTYPE_INT }, \
-	{ "sourcecheck", CTLTYPE_INT }, \
-	{ "sourcecheck_logint", CTLTYPE_INT }, \
-	{ "accept_rtadv", CTLTYPE_INT }, \
-	{ "keepfaith", CTLTYPE_INT }, \
-	{ "log_interval", CTLTYPE_INT }, \
-	{ "hdrnestlimit", CTLTYPE_INT }, \
-	{ "dad_count", CTLTYPE_INT }, \
-	{ "auto_flowlabel", CTLTYPE_INT }, \
-	{ "defmcasthlim", CTLTYPE_INT }, \
-	{ "gifhlim", CTLTYPE_INT }, \
-	{ 0, 0 }, \
-	{ "use_deprecated", CTLTYPE_INT }, \
-	{ "rr_prune", CTLTYPE_INT }, \
-	{ "mapped_addr", CTLTYPE_INT }, \
-}
-
-#define	IPV6CTL_VARS { \
-	0, \
-	&ip6_forwarding, \
-	&ip6_sendredirects, \
-	&ip6_defhlim, \
-	0, \
-	&ip6_forward_srcrt, \
-	0, \
-	0, \
-	0, \
-	&ip6_maxfragpackets, \
-	&ip6_sourcecheck, \
-	&ip6_sourcecheck_interval, \
-	&ip6_accept_rtadv, \
-	&ip6_keepfaith, \
-	&ip6_log_interval, \
-	&ip6_hdrnestlimit, \
-	&ip6_dad_count, \
-	&ip6_auto_flowlabel, \
-	&ip6_defmcasthlim, \
-	&ip6_gif_hlim, \
-	0, \
-	&ip6_use_deprecated, \
-	&ip6_rr_prune, \
-	&ip6_mapped_addr_on, \
-}
 #endif /* !_XOPEN_SOURCE */
 
 /*
@@ -633,9 +574,6 @@ extern struct	cmsghdr *inet6_rthdr_init __P((void *, int));
 extern int	 inet6_rthdr_add __P((struct cmsghdr *, const struct in6_addr *,
 				      u_int));
 extern int	 inet6_rthdr_lasthop __P((struct cmsghdr *, u_int));
-#if 0 /* not implemented yet */
-extern int	 inet6_rthdr_reverse __P((const struct cmsghdr *, struct cmsghdr *));
-#endif
 extern int	 inet6_rthdr_segments __P((const struct cmsghdr *));
 extern struct	 in6_addr *inet6_rthdr_getaddr __P((struct cmsghdr *, int));
 extern int	 inet6_rthdr_getflags __P((const struct cmsghdr *, int));

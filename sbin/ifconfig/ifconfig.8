@@ -109,6 +109,7 @@ with different naming schemes, specifying the address family is recommended.
 The address or protocol families currently
 supported are
 .Dq inet ,
+.Dq inet6 ,
 .Dq atalk ,
 .\" .Dq iso ,
 and
@@ -135,6 +136,13 @@ This is sometimes useful when changing network numbers, and
 one wishes to accept packets addressed to the old interface.
 If the alias is on the same subnet as the first network adress
 for this interface, a netmask of 0xffffffff has to be specified.
+.It Cm anycast
+(Inet6 only)
+Specify that the address configured is an anycast address.
+Based on the current specification,
+only routers may configure anycast addresses.
+Anycast address will not be used as source address of any of outgoing
+IPv6 packets.
 .It Cm arp
 Enable the use of the Address Resolution Protocol in mapping
 between network level addresses and link level addresses (default).
@@ -279,6 +287,16 @@ and 0's for the host part.
 The mask should contain at least the standard network portion,
 and the subnet field should be contiguous with the network
 portion.
+.It Cm prefixlen Ar len
+(Inet6 only)
+Specify that
+.Ar len
+bits are reserved for subdividing networks into sub-networks.
+The
+.Ar len
+must be integer, and for syntactical reason it must be between 0 to 128.
+It is almost always 64 under the current IPv6 assignment rule.
+If the parameter is ommitted, 64 is used.
 .\" see 
 .\" Xr eon 5 .
 .\" .It Cm nsellength Ar n
@@ -345,6 +363,11 @@ will report only the details specific to that protocol family.
 If the driver does supports the media selection system, the supported
 media list will be included in the output.
 .Pp
+If
+.Fl L
+flag is supplied, address lifetime is dislayed for IPv6 addresses,
+as time offset string.
+.Pp
 Optionally, the
 .Fl a
 flag may be used instead of an interface name.  This flag instructs
@@ -375,6 +398,12 @@ it (or have need for it).
 Messages indicating the specified interface does not exist, the
 requested address is unknown, or the user is not privileged and
 tried to alter an interface's configuration.
+.Sh BUGS
+IPv6 link-local addresses are required for several basic communication
+between IPv6 node. If they are deleted by
+.Nm ifconfig
+manually, the kernel might show very strange behavior.
+So, such manuall deletions are strongly discouraged.
 .Sh SEE ALSO
 .Xr netstat 1 ,
 .Xr netintro 4 ,

@@ -36,6 +36,7 @@
 
 #include "opt_atalk.h"
 #include "opt_inet.h"
+#include "opt_inet6.h"
 #include "opt_ipx.h"
 #include "opt_bdg.h"
 #include "opt_netgraph.h"
