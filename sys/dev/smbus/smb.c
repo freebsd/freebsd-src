@@ -89,19 +89,13 @@ static	d_ioctl_t	smbioctl;
 
 #define CDEV_MAJOR 106
 static struct cdevsw smb_cdevsw = {
-	/* open */	smbopen,
-	/* close */	smbclose,
-	/* read */	smbread,
-	/* write */	smbwrite,
-	/* ioctl */	smbioctl,
-	/* poll */	nopoll,
-	/* mmap */	nommap,
-	/* strategy */	nostrategy,
-	/* name */	"smb",
-	/* maj */	CDEV_MAJOR,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	0,
+	.d_open =	smbopen,
+	.d_close =	smbclose,
+	.d_read =	smbread,
+	.d_write =	smbwrite,
+	.d_ioctl =	smbioctl,
+	.d_name =	"smb",
+	.d_maj =	CDEV_MAJOR,
 };
 
 static void

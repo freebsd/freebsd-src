@@ -226,19 +226,13 @@ static	d_poll_t	twpoll;
 
 #define CDEV_MAJOR 19
 static struct cdevsw tw_cdevsw = {
-	/* open */	twopen,
-	/* close */	twclose,
-	/* read */	twread,
-	/* write */	twwrite,
-	/* ioctl */	noioctl,
-	/* poll */	twpoll,
-	/* mmap */	nommap,
-	/* strategy */	nostrategy,
-	/* name */	"tw",
-	/* maj */	CDEV_MAJOR,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	0,
+	.d_open =	twopen,
+	.d_close =	twclose,
+	.d_read =	twread,
+	.d_write =	twwrite,
+	.d_poll =	twpoll,
+	.d_name =	"tw",
+	.d_maj =	CDEV_MAJOR,
 };
 
 /*

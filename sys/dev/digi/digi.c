@@ -143,20 +143,16 @@ const struct digi_control_signals digi_normal_signals = {
 };
 
 static struct cdevsw digi_sw = {
-	/* open */	digiopen,
-	/* close */	digiclose,
-	/* read */	digiread,
-	/* write */	digiwrite,
-	/* ioctl */	digiioctl,
-	/* poll */	ttypoll,
-	/* mmap */	nommap,	
-	/* strategy */	nostrategy,
-	/* name */	driver_name,
-	/* maj */	CDEV_MAJOR,
-	/* dump */	nodump,	
-	/* psize */	nopsize,
-	/* flags */	D_TTY | D_KQFILTER,
-	/* kqfilter */	ttykqfilter
+	.d_open =	digiopen,
+	.d_close =	digiclose,
+	.d_read =	digiread,
+	.d_write =	digiwrite,
+	.d_ioctl =	digiioctl,
+	.d_poll =	ttypoll,
+	.d_name =	driver_name,
+	.d_maj =	CDEV_MAJOR,
+	.d_flags =	D_TTY | D_KQFILTER,
+	.d_kqfilter =	ttykqfilter
 };
 
 static void

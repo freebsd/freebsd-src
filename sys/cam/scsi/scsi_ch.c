@@ -211,19 +211,11 @@ static struct periph_driver chdriver =
 PERIPHDRIVER_DECLARE(ch, chdriver);
 
 static struct cdevsw ch_cdevsw = {
-	/* open */	chopen,
-	/* close */	chclose,
-	/* read */	noread,
-	/* write */	nowrite,
-	/* ioctl */	chioctl,
-	/* poll */	nopoll,
-	/* mmap */	nommap,
-	/* strategy */	nostrategy,
-	/* name */	"ch",
-	/* maj */	CH_CDEV_MAJOR,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	0,
+	.d_open =	chopen,
+	.d_close =	chclose,
+	.d_ioctl =	chioctl,
+	.d_name =	"ch",
+	.d_maj =	CH_CDEV_MAJOR,
 };
 
 static void

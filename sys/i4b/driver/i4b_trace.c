@@ -76,19 +76,13 @@ static d_poll_t i4btrcpoll;
 #define CDEV_MAJOR 59
 
 static struct cdevsw i4btrc_cdevsw = {
-	/* open */      i4btrcopen,
-        /* close */     i4btrcclose,
-        /* read */      i4btrcread,
-        /* write */     nowrite,
-        /* ioctl */     i4btrcioctl,
-        /* poll */      i4btrcpoll,
-        /* mmap */      nommap,
-        /* strategy */  nostrategy,
-        /* name */      "i4btrc",
-        /* maj */       CDEV_MAJOR,
-        /* dump */      nodump,
-        /* psize */     nopsize,
-        /* flags */     0,
+	.d_open =	i4btrcopen,
+	.d_close =	i4btrcclose,
+	.d_read =	i4btrcread,
+	.d_ioctl =	i4btrcioctl,
+	.d_poll =	i4btrcpoll,
+	.d_name =	"i4btrc",
+	.d_maj =	CDEV_MAJOR,
 };
 
 static void i4btrcattach(void *);

@@ -116,19 +116,13 @@ d_ioctl_t urioioctl;
 #define URIO_CDEV_MAJOR	143
 
 Static struct cdevsw urio_cdevsw = {
-	/* open */	urioopen,
-	/* close */	urioclose,
-	/* read */	urioread,
-	/* write */	uriowrite,
- 	/* ioctl */	urioioctl,
-	/* poll */	nopoll,
-	/* mmap */	nommap,
-	/* strategy */	nostrategy,
- 	/* name */	"urio",
-	/* maj */	URIO_CDEV_MAJOR,
-	/* dump */	nodump,
-	/* psize */	nopsize,
- 	/* flags */	0,
+	.d_open =	urioopen,
+	.d_close =	urioclose,
+	.d_read =	urioread,
+	.d_write =	uriowrite,
+	.d_ioctl =	urioioctl,
+	.d_name =	"urio",
+	.d_maj =	URIO_CDEV_MAJOR,
 #if __FreeBSD_version < 500014
  	-1
 #endif

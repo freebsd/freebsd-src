@@ -622,19 +622,12 @@ struct	isa_driver lorandriver = {
 COMPAT_ISA_DRIVER(loran, lorandriver);
 
 static struct cdevsw loran_cdevsw = {
-	/* open */	loranopen,
-	/* close */	loranclose,
-	/* read */	loranread,
-	/* write */	loranwrite,
-	/* ioctl */	noioctl,
-	/* poll */	nopoll,
-	/* mmap */	nommap,
-	/* strategy */	nostrategy,
-	/* name */	"loran",
-	/* maj */	MAJOR_AUTO,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	0,
+	.d_open =	loranopen,
+	.d_close =	loranclose,
+	.d_read =	loranread,
+	.d_write =	loranwrite,
+	.d_name =	"loran",
+	.d_maj =	MAJOR_AUTO,
 };
 
 #endif /* _KERNEL */

@@ -66,19 +66,14 @@
 #define VC_DEV_NO      93
 
 static struct cdevsw codadevsw = {
-	/* open */	vc_nb_open,
-	/* close */	vc_nb_close,
-	/* read */	vc_nb_read,
-	/* write */	vc_nb_write,
-	/* ioctl */	vc_nb_ioctl,
-	/* poll */	vc_nb_poll,
-	/* mmap */	nommap,
-	/* strategy */	nostrategy,
-	/* name */	"Coda",
-	/* maj */	VC_DEV_NO,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	0,
+	.d_open =	vc_nb_open,
+	.d_close =	vc_nb_close,
+	.d_read =	vc_nb_read,
+	.d_write =	vc_nb_write,
+	.d_ioctl =	vc_nb_ioctl,
+	.d_poll =	vc_nb_poll,
+	.d_name =	"Coda",
+	.d_maj =	VC_DEV_NO,
 };
 
 int     vcdebug = 1;

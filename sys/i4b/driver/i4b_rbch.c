@@ -113,19 +113,14 @@ static 	d_poll_t	i4brbchpoll;
 #define CDEV_MAJOR 57
 
 static struct cdevsw i4brbch_cdevsw = {
-	/* open */      i4brbchopen,
-	/* close */     i4brbchclose,
-	/* read */      i4brbchread,
-	/* write */     i4brbchwrite,
-	/* ioctl */     i4brbchioctl,
-	/* poll */      i4brbchpoll,
-	/* mmap */      nommap,
-	/* strategy */  nostrategy,
-	/* name */      "i4brbch",
-	/* maj */       CDEV_MAJOR,
-	/* dump */      nodump,
-	/* psize */     nopsize,
-	/* flags */     0,
+	.d_open =	i4brbchopen,
+	.d_close =	i4brbchclose,
+	.d_read =	i4brbchread,
+	.d_write =	i4brbchwrite,
+	.d_ioctl =	i4brbchioctl,
+	.d_poll =	i4brbchpoll,
+	.d_name =	"i4brbch",
+	.d_maj =	CDEV_MAJOR,
 };
 
 static void i4brbchattach(void *);

@@ -176,19 +176,11 @@ PERIPHDRIVER_DECLARE(ses, sesdriver);
 
 static struct cdevsw ses_cdevsw = 
 {
-	/* open */	sesopen,
-	/* close */	sesclose,
-	/* read */	noread,
-	/* write */	nowrite,
-	/* ioctl */	sesioctl,
-	/* poll */	nopoll,
-	/* mmap */	nommap,
-	/* strategy */	nostrategy,
-	/* name */	"ses",
-	/* maj */	SES_CDEV_MAJOR,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	0,
+	.d_open =	sesopen,
+	.d_close =	sesclose,
+	.d_ioctl =	sesioctl,
+	.d_name =	"ses",
+	.d_maj =	SES_CDEV_MAJOR,
 };
 
 static void

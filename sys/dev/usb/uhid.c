@@ -149,19 +149,14 @@ d_poll_t	uhidpoll;
 #define		UHID_CDEV_MAJOR 122
 
 Static struct cdevsw uhid_cdevsw = {
-	/* open */	uhidopen,
-	/* close */	uhidclose,
-	/* read */	uhidread,
-	/* write */	uhidwrite,
-	/* ioctl */	uhidioctl,
-	/* poll */	uhidpoll,
-	/* mmap */	nommap,
-	/* strategy */	nostrategy,
-	/* name */	"uhid",
-	/* maj */	UHID_CDEV_MAJOR,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	0,
+	.d_open =	uhidopen,
+	.d_close =	uhidclose,
+	.d_read =	uhidread,
+	.d_write =	uhidwrite,
+	.d_ioctl =	uhidioctl,
+	.d_poll =	uhidpoll,
+	.d_name =	"uhid",
+	.d_maj =	UHID_CDEV_MAJOR,
 #if __FreeBSD_version < 500014
 	/* bmaj */	-1
 #endif

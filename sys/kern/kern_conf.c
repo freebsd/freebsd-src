@@ -95,20 +95,18 @@ dead_strategy(struct bio *bp)
 #define dead_kqfilter	(d_kqfilter_t *)enxio
 
 static struct cdevsw dead_cdevsw = {
-	/* open */	dead_open,
-	/* close */	dead_close,
-	/* read */	dead_read,
-	/* write */	dead_write,
-	/* ioctl */	dead_ioctl,
-	/* poll */	dead_poll,
-	/* mmap */	dead_mmap,
-	/* strategy */	dead_strategy,
-	/* name */	"dead",
-	/* maj */	255,
-	/* dump */	dead_dump,
-	/* psize */	nopsize,
-	/* flags */	0,
-	/* kqfilter */	dead_kqfilter
+	.d_open =	dead_open,
+	.d_close =	dead_close,
+	.d_read =	dead_read,
+	.d_write =	dead_write,
+	.d_ioctl =	dead_ioctl,
+	.d_poll =	dead_poll,
+	.d_mmap =	dead_mmap,
+	.d_strategy =	dead_strategy,
+	.d_name =	"dead",
+	.d_maj =	255,
+	.d_dump =	dead_dump,
+	.d_kqfilter =	dead_kqfilter
 };
 
 

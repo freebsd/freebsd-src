@@ -425,19 +425,14 @@ static d_poll_t		genkbdpoll;
 #define CDEV_MAJOR	112
 
 static struct cdevsw kbd_cdevsw = {
-	/* open */	genkbdopen,
-	/* close */	genkbdclose,
-	/* read */	genkbdread,
-	/* write */	genkbdwrite,
-	/* ioctl */	genkbdioctl,
-	/* poll */	genkbdpoll,
-	/* mmap */	nommap,
-	/* strategy */	nostrategy,
-	/* name */	"kbd",
-	/* maj */	CDEV_MAJOR,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	0,
+	.d_open =	genkbdopen,
+	.d_close =	genkbdclose,
+	.d_read =	genkbdread,
+	.d_write =	genkbdwrite,
+	.d_ioctl =	genkbdioctl,
+	.d_poll =	genkbdpoll,
+	.d_name =	"kbd",
+	.d_maj =	CDEV_MAJOR,
 };
 
 int

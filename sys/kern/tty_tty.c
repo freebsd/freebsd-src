@@ -37,19 +37,11 @@ static	d_open_t	cttyopen;
 #define	CDEV_MAJOR	1
 
 static struct cdevsw ctty_cdevsw = {
-	/* open */	cttyopen,
-	/* close */	nullclose,
-	/* read */	noread,
-	/* write */	nowrite,
-	/* ioctl */	noioctl,
-	/* poll */	nopoll,
-	/* mmap */	nommap,
-	/* strategy */	nostrategy,
-	/* name */	"ctty",
-	/* maj */	CDEV_MAJOR,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	D_TTY,
+	.d_open =	cttyopen,
+	.d_close =	nullclose,
+	.d_name =	"ctty",
+	.d_maj =	CDEV_MAJOR,
+	.d_flags =	D_TTY,
 };
 
 static dev_t ctty;

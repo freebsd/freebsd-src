@@ -59,20 +59,15 @@ static d_strategy_t	g_dev_strategy;
 static d_ioctl_t	g_dev_ioctl;
 
 static struct cdevsw g_dev_cdevsw = {
-	/* open */      g_dev_open,
-	/* close */     g_dev_close,
-	/* read */      physread,
-	/* write */     physwrite,
-	/* ioctl */     g_dev_ioctl,
-	/* poll */      nopoll,
-	/* mmap */      nommap,
-	/* strategy */  g_dev_strategy,
-	/* name */      "g_dev",
-	/* maj */       GEOM_MAJOR,
-	/* dump */      nodump,
-	/* psize */     nopsize,
-	/* flags */     D_DISK | D_TRACKCLOSE,
-	/* kqfilter */	nokqfilter
+	.d_open =	g_dev_open,
+	.d_close =	g_dev_close,
+	.d_read =	physread,
+	.d_write =	physwrite,
+	.d_ioctl =	g_dev_ioctl,
+	.d_strategy =	g_dev_strategy,
+	.d_name =	"g_dev",
+	.d_maj =	GEOM_MAJOR,
+	.d_flags =	D_DISK | D_TRACKCLOSE,
 };
 
 static g_taste_t g_dev_taste;

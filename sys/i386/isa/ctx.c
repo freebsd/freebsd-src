@@ -151,19 +151,13 @@ static	d_ioctl_t	ctxioctl;
 #define CDEV_MAJOR 40
 
 static struct cdevsw ctx_cdevsw = {
-	/* open */	ctxopen,
-	/* close */	ctxclose,
-	/* read */	ctxread,
-	/* write */	ctxwrite,
-	/* ioctl */	ctxioctl,
-	/* poll */	nopoll,
-	/* mmap */	nommap,
-	/* strategy */	nostrategy,
-	/* name */	"ctx",
-	/* maj */	CDEV_MAJOR,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	0,
+	.d_open =	ctxopen,
+	.d_close =	ctxclose,
+	.d_read =	ctxread,
+	.d_write =	ctxwrite,
+	.d_ioctl =	ctxioctl,
+	.d_name =	"ctx",
+	.d_maj =	CDEV_MAJOR,
 };
 
 

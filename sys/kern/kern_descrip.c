@@ -83,19 +83,9 @@ static	 d_open_t  fdopen;
 
 #define	CDEV_MAJOR 22
 static struct cdevsw fildesc_cdevsw = {
-	/* open */	fdopen,
-	/* close */	noclose,
-	/* read */	noread,
-	/* write */	nowrite,
-	/* ioctl */	noioctl,
-	/* poll */	nopoll,
-	/* mmap */	nommap,
-	/* strategy */	nostrategy,
-	/* name */	"FD",
-	/* maj */	CDEV_MAJOR,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	0,
+	.d_open =	fdopen,
+	.d_name =	"FD",
+	.d_maj =	CDEV_MAJOR,
 };
 
 /* How to treat 'new' parameter when allocating a fd for do_dup(). */

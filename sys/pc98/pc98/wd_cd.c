@@ -51,19 +51,15 @@ static d_strategy_t	acdstrategy;
 #define CDEV_MAJOR 69
 
 static struct cdevsw acd_cdevsw = {
-	/* open */	acdopen,
-	/* close */	acdclose,
-	/* read */	physread,
-	/* write */	physwrite,
-	/* ioctl */	acdioctl,
-	/* poll */	nopoll,
-	/* mmap */	nommap,
-	/* strategy */	acdstrategy,
-	/* name */	"wcd",
-	/* maj */	CDEV_MAJOR,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	D_DISK,
+	.d_open =	acdopen,
+	.d_close =	acdclose,
+	.d_read =	physread,
+	.d_write =	physwrite,
+	.d_ioctl =	acdioctl,
+	.d_strategy =	acdstrategy,
+	.d_name =	"wcd",
+	.d_maj =	CDEV_MAJOR,
+	.d_flags =	D_DISK,
 };
 
 #define NUNIT	16		/* Max # of devices */

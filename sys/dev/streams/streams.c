@@ -105,19 +105,9 @@ static struct fileops svr4_netops = {
  
 #define CDEV_MAJOR 103
 static struct cdevsw streams_cdevsw = {
-	/* open */	streamsopen,
-	/* close */	noclose,
-	/* read */	noread,
-	/* write */	nowrite,
-	/* ioctl */	noioctl,
-	/* poll */	nopoll,
-	/* mmap */	nommap,
-	/* strategy */	nostrategy,
-	/* name */	"streams",
-	/* maj */	CDEV_MAJOR,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	0,
+	.d_open =	streamsopen,
+	.d_name =	"streams",
+	.d_maj =	CDEV_MAJOR,
 };
  
 struct streams_softc {

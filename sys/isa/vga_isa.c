@@ -69,19 +69,14 @@ static d_ioctl_t	isavga_ioctl;
 static d_mmap_t		isavga_mmap;
 
 static struct cdevsw isavga_cdevsw = {
-	/* open */	isavga_open,
-	/* close */	isavga_close,
-	/* read */	isavga_read,
-	/* write */	isavga_write,
-	/* ioctl */	isavga_ioctl,
-	/* poll */	nopoll,
-	/* mmap */	isavga_mmap,
-	/* strategy */	nostrategy,
-	/* name */	VGA_DRIVER_NAME,
-	/* maj */	-1,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	0,
+	.d_open =	isavga_open,
+	.d_close =	isavga_close,
+	.d_read =	isavga_read,
+	.d_write =	isavga_write,
+	.d_ioctl =	isavga_ioctl,
+	.d_mmap =	isavga_mmap,
+	.d_name =	VGA_DRIVER_NAME,
+	.d_maj =	-1,
 };
 
 #endif /* FB_INSTALL_CDEV */

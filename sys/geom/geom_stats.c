@@ -106,19 +106,11 @@ g_stat_delete(struct g_stat *gsp)
 static d_mmap_t g_stat_mmap;
 
 static struct cdevsw geom_stats_cdevsw = {
-	/* open */	nullopen,
-	/* close */	nullclose,
-	/* read */	noread,
-	/* write */	nowrite,
-	/* ioctl */	noioctl,
-	/* poll */	nopoll,
-	/* mmap */	g_stat_mmap,
-	/* strtegy */	nostrategy,
-	/* name */	"g_stats",
-	/* maj */	GEOM_MAJOR,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	0,
+	.d_open =	nullopen,
+	.d_close =	nullclose,
+	.d_mmap =	g_stat_mmap,
+	.d_name =	"g_stats",
+	.d_maj =	GEOM_MAJOR,
 };
 
 static int

@@ -84,19 +84,14 @@ static	d_poll_t	crdpoll;
 #define CDEV_MAJOR MAJOR_AUTO
 #endif
 static struct cdevsw crd_cdevsw = {
-	/* open */	crdopen,
-	/* close */	crdclose,
-	/* read */	crdread,
-	/* write */	crdwrite,
-	/* ioctl */	crdioctl,
-	/* poll */	crdpoll,
-	/* mmap */	nommap,
-	/* strategy */	nostrategy,
-	/* name */	"crd",
-	/* maj */	CDEV_MAJOR,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	0,
+	.d_open =	crdopen,
+	.d_close =	crdclose,
+	.d_read =	crdread,
+	.d_write =	crdwrite,
+	.d_ioctl =	crdioctl,
+	.d_poll =	crdpoll,
+	.d_name =	"crd",
+	.d_maj =	CDEV_MAJOR,
 };
 
 /*

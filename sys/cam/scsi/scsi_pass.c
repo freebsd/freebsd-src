@@ -105,19 +105,11 @@ static struct periph_driver passdriver =
 PERIPHDRIVER_DECLARE(pass, passdriver);
 
 static struct cdevsw pass_cdevsw = {
-	/* open */	passopen,
-	/* close */	passclose,
-	/* read */	noread,
-	/* write */	nowrite,
-	/* ioctl */	passioctl,
-	/* poll */	nopoll,
-	/* mmap */	nommap,
-	/* strategy */	nostrategy,
-	/* name */	"pass",
-	/* maj */	PASS_CDEV_MAJOR,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	0,
+	.d_open =	passopen,
+	.d_close =	passclose,
+	.d_ioctl =	passioctl,
+	.d_name =	"pass",
+	.d_maj =	PASS_CDEV_MAJOR,
 };
 
 static void

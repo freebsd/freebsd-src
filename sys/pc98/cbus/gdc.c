@@ -102,19 +102,14 @@ static d_ioctl_t	gdcioctl;
 static d_mmap_t		gdcmmap;
 
 static struct cdevsw gdc_cdevsw = {
-	/* open */	gdcopen,
-	/* close */	gdcclose,
-	/* read */	gdcread,
-	/* write */	gdcwrite,
-	/* ioctl */	gdcioctl,
-	/* poll */	nopoll,
-	/* mmap */	gdcmmap,
-	/* strategy */	nostrategy,
-	/* name */	DRIVER_NAME,
-	/* maj */	-1,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	0,
+	.d_open =	gdcopen,
+	.d_close =	gdcclose,
+	.d_read =	gdcread,
+	.d_write =	gdcwrite,
+	.d_ioctl =	gdcioctl,
+	.d_mmap =	gdcmmap,
+	.d_name =	DRIVER_NAME,
+	.d_maj =	-1,
 };
 
 #endif /* FB_INSTALL_CDEV */

@@ -53,19 +53,14 @@ static d_ioctl_t	ofw_dev_ioctl;
 #define	CDEV_MAJOR	97
 
 static struct cdevsw ofw_cdevsw = {
-	/* open */	ofw_dev_open,
-	/* close */	ofw_dev_close,
-	/* read */	ttyread,
-	/* write */	ttywrite,
-	/* ioctl */	ofw_dev_ioctl,
-	/* poll */	ttypoll,
-	/* mmap */	nommap,
-	/* strategy */	nostrategy,
-	/* name */	"ofw",
-	/* major */	CDEV_MAJOR,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	0,
+	.d_open =	ofw_dev_open,
+	.d_close =	ofw_dev_close,
+	.d_read =	ttyread,
+	.d_write =	ttywrite,
+	.d_ioctl =	ofw_dev_ioctl,
+	.d_poll =	ttypoll,
+	.d_name =	"ofw",
+	.d_maj =	CDEV_MAJOR,
 };
 
 static struct tty		*ofw_tp = NULL;

@@ -217,19 +217,13 @@ static d_poll_t		devpoll;
 
 #define CDEV_MAJOR 173
 static struct cdevsw dev_cdevsw = {
-	/* open */	devopen,
-	/* close */	devclose,
-	/* read */	devread,
-	/* write */	nowrite,
-	/* ioctl */	devioctl,
-	/* poll */	devpoll,
-	/* mmap */	nommap,
-	/* strategy */	nostrategy,
-	/* name */	"devctl",
-	/* maj */	CDEV_MAJOR,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	0,
+	.d_open =	devopen,
+	.d_close =	devclose,
+	.d_read =	devread,
+	.d_ioctl =	devioctl,
+	.d_poll =	devpoll,
+	.d_name =	"devctl",
+	.d_maj =	CDEV_MAJOR,
 };
 
 struct dev_event_info

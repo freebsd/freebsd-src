@@ -84,19 +84,13 @@ static d_ioctl_t	spicioctl;
 static d_poll_t		spicpoll;
 
 static struct cdevsw spic_cdevsw = {
-        /* open */      spicopen,
-        /* close */     spicclose,
-        /* read */      spicread,
-        /* write */     nowrite,
-        /* ioctl */     spicioctl,
-        /* poll */      spicpoll,
-        /* mmap */      nommap,
-        /* strategy */  nostrategy,
-        /* name */      "spic",
-        /* maj */       CDEV_MAJOR,
-        /* dump */      nodump,
-        /* psize */     nopsize,
-        /* flags */     0,
+	.d_open =	spicopen,
+	.d_close =	spicclose,
+	.d_read =	spicread,
+	.d_ioctl =	spicioctl,
+	.d_poll =	spicpoll,
+	.d_name =	"spic",
+	.d_maj =	CDEV_MAJOR,
 };
 
 #define SCBUFLEN 128

@@ -62,19 +62,11 @@ static	d_ioctl_t	ppsioctl;
 
 #define CDEV_MAJOR 89
 static struct cdevsw pps_cdevsw = {
-	/* open */	ppsopen,
-	/* close */	ppsclose,
-	/* read */	noread,
-	/* write */	nowrite,
-	/* ioctl */	ppsioctl,
-	/* poll */	nopoll,
-	/* mmap */	nommap,
-	/* strategy */	nostrategy,
-	/* name */	PPS_NAME,
-	/* maj */	CDEV_MAJOR,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	0,
+	.d_open =	ppsopen,
+	.d_close =	ppsclose,
+	.d_ioctl =	ppsioctl,
+	.d_name =	PPS_NAME,
+	.d_maj =	CDEV_MAJOR,
 };
 
 static void

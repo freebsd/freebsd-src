@@ -146,20 +146,16 @@ static	d_ioctl_t	rcioctl;
 
 #define	CDEV_MAJOR	63
 static struct cdevsw rc_cdevsw = {
-	/* open */	rcopen,
-	/* close */	rcclose,
-	/* read */	ttyread,
-	/* write */	ttywrite,
-	/* ioctl */	rcioctl,
-	/* poll */	ttypoll,
-	/* mmap */	nommap,
-	/* strategy */	nostrategy,
-	/* name */	"rc",
-	/* maj */	CDEV_MAJOR,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	D_TTY | D_KQFILTER,
-	/* kqfilter */	ttykqfilter,
+	.d_open =	rcopen,
+	.d_close =	rcclose,
+	.d_read =	ttyread,
+	.d_write =	ttywrite,
+	.d_ioctl =	rcioctl,
+	.d_poll =	ttypoll,
+	.d_name =	"rc",
+	.d_maj =	CDEV_MAJOR,
+	.d_flags =	D_TTY | D_KQFILTER,
+	.d_kqfilter =	ttykqfilter,
 };
 
 static devclass_t rc_devclass;

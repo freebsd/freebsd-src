@@ -119,16 +119,11 @@ static dev_t	status_dev = 0;
 static d_ioctl_t mdctlioctl;
 
 static struct cdevsw mdctl_cdevsw = {
-        /* open */      nullopen,
-        /* close */     nullclose,
-        /* read */      noread,
-        /* write */     nowrite,
-        /* ioctl */     mdctlioctl,
-        /* poll */      nopoll,
-        /* mmap */      nommap,
-        /* strategy */  nostrategy,
-        /* name */      MD_NAME,
-        /* maj */       CDEV_MAJOR
+	.d_open =	nullopen,
+	.d_close =	nullclose,
+	.d_ioctl =	mdctlioctl,
+	.d_name =	MD_NAME,
+	.d_maj =	CDEV_MAJOR
 };
 
 

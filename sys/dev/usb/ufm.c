@@ -90,19 +90,11 @@ d_ioctl_t ufmioctl;
 #define UFM_CDEV_MAJOR	MAJOR_AUTO
 
 Static struct cdevsw ufm_cdevsw = {
-	/* open */	ufmopen,	
-	/* close */	ufmclose,	
-	/* read */	noread,	
-	/* write */	nowrite,
- 	/* ioctl */	ufmioctl,	
-	/* poll */	nopoll,	
-	/* mmap */	nommap,	
-	/* strategy */	nostrategy,
- 	/* name */	"ufm",
-	/* maj */	UFM_CDEV_MAJOR,
-	/* dump */	nodump,
-	/* psize */	nopsize,
- 	/* flags */	0,
+	.d_open =	ufmopen,	
+	.d_close =	ufmclose,	
+	.d_ioctl =	ufmioctl,	
+	.d_name =	"ufm",
+	.d_maj =	UFM_CDEV_MAJOR,
 #if (__FreeBSD_version < 500014)
  	-1
 #endif

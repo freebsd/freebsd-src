@@ -77,38 +77,30 @@ static	d_poll_t	ptcpoll;
 
 #define	CDEV_MAJOR_S	5
 static struct cdevsw pts_cdevsw = {
-	/* open */	ptsopen,
-	/* close */	ptsclose,
-	/* read */	ptsread,
-	/* write */	ptswrite,
-	/* ioctl */	ptyioctl,
-	/* poll */	ttypoll,
-	/* mmap */	nommap,
-	/* strategy */	nostrategy,
-	/* name */	"pts",
-	/* maj */	CDEV_MAJOR_S,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	D_TTY | D_KQFILTER,
-	/* kqfilter */	ttykqfilter,
+	.d_open =	ptsopen,
+	.d_close =	ptsclose,
+	.d_read =	ptsread,
+	.d_write =	ptswrite,
+	.d_ioctl =	ptyioctl,
+	.d_poll =	ttypoll,
+	.d_name =	"pts",
+	.d_maj =	CDEV_MAJOR_S,
+	.d_flags =	D_TTY | D_KQFILTER,
+	.d_kqfilter =	ttykqfilter,
 };
 
 #define	CDEV_MAJOR_C	6
 static struct cdevsw ptc_cdevsw = {
-	/* open */	ptcopen,
-	/* close */	ptcclose,
-	/* read */	ptcread,
-	/* write */	ptcwrite,
-	/* ioctl */	ptyioctl,
-	/* poll */	ptcpoll,
-	/* mmap */	nommap,
-	/* strategy */	nostrategy,
-	/* name */	"ptc",
-	/* maj */	CDEV_MAJOR_C,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	D_TTY | D_KQFILTER,
-	/* kqfilter */	ttykqfilter,
+	.d_open =	ptcopen,
+	.d_close =	ptcclose,
+	.d_read =	ptcread,
+	.d_write =	ptcwrite,
+	.d_ioctl =	ptyioctl,
+	.d_poll =	ptcpoll,
+	.d_name =	"ptc",
+	.d_maj =	CDEV_MAJOR_C,
+	.d_flags =	D_TTY | D_KQFILTER,
+	.d_kqfilter =	ttykqfilter,
 };
 
 #define BUFSIZ 100		/* Chunk size iomoved to/from user */

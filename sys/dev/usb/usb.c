@@ -136,19 +136,13 @@ d_ioctl_t usbioctl;
 d_poll_t usbpoll;
 
 struct cdevsw usb_cdevsw = {
-	/* open */      usbopen,
-	/* close */     usbclose,
-	/* read */      usbread,
-	/* write */     nowrite,
-	/* ioctl */     usbioctl,
-	/* poll */      usbpoll,
-	/* mmap */      nommap,
-	/* strategy */  nostrategy,
-	/* name */      "usb",
-	/* maj */       USB_CDEV_MAJOR,
-	/* dump */      nodump,
-	/* psize */     nopsize,
-	/* flags */     0,
+	.d_open =	usbopen,
+	.d_close =	usbclose,
+	.d_read =	usbread,
+	.d_ioctl =	usbioctl,
+	.d_poll =	usbpoll,
+	.d_name =	"usb",
+	.d_maj =	USB_CDEV_MAJOR,
 #if __FreeBSD_version < 500014
 	/* bmaj */      -1
 #endif

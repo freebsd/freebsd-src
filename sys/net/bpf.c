@@ -121,19 +121,14 @@ static	d_poll_t	bpfpoll;
 
 #define CDEV_MAJOR 23
 static struct cdevsw bpf_cdevsw = {
-	/* open */	bpfopen,
-	/* close */	bpfclose,
-	/* read */	bpfread,
-	/* write */	bpfwrite,
-	/* ioctl */	bpfioctl,
-	/* poll */	bpfpoll,
-	/* mmap */	nommap,
-	/* strategy */	nostrategy,
-	/* name */	"bpf",
-	/* maj */	CDEV_MAJOR,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	0,
+	.d_open =	bpfopen,
+	.d_close =	bpfclose,
+	.d_read =	bpfread,
+	.d_write =	bpfwrite,
+	.d_ioctl =	bpfioctl,
+	.d_poll =	bpfpoll,
+	.d_name =	"bpf",
+	.d_maj =	CDEV_MAJOR,
 };
 
 

@@ -105,20 +105,16 @@ static struct filterops targread_filtops =
 
 #define TARG_CDEV_MAJOR 65
 static struct cdevsw targ_cdevsw = {
-	/* open */	targopen,
-	/* close */	targclose,
-	/* read */	targread,
-	/* write */	targwrite,
-	/* ioctl */	targioctl,
-	/* poll */	targpoll,
-	/* mmap */	nommap,
-	/* strategy */	nostrategy,
-	/* name */	"targ",
-	/* maj */	TARG_CDEV_MAJOR,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	D_KQFILTER,
-	/* kqfilter */	targkqfilter
+	.d_open =	targopen,
+	.d_close =	targclose,
+	.d_read =	targread,
+	.d_write =	targwrite,
+	.d_ioctl =	targioctl,
+	.d_poll =	targpoll,
+	.d_name =	"targ",
+	.d_maj =	TARG_CDEV_MAJOR,
+	.d_flags =	D_KQFILTER,
+	.d_kqfilter =	targkqfilter
 };
 
 static cam_status	targendislun(struct cam_path *path, int enable,

@@ -536,20 +536,16 @@ COMPAT_PCI_DRIVER (stlpci, stlpcidriver);
 
 #define	CDEV_MAJOR	72
 static struct cdevsw stl_cdevsw = {
-	/* open */	stlopen,
-	/* close */	stlclose,
-	/* read */	ttyread,
-	/* write */	ttywrite,
-	/* ioctl */	stlioctl,
-	/* poll */	ttypoll,
-	/* mmap */	nommap,
-	/* strategy */	nostrategy,
-	/* name */	"stl",
-	/* maj */	CDEV_MAJOR,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	D_TTY | D_KQFILTER,
-	/* kqfilter */	ttykqfilter,
+	.d_open =	stlopen,
+	.d_close =	stlclose,
+	.d_read =	ttyread,
+	.d_write =	ttywrite,
+	.d_ioctl =	stlioctl,
+	.d_poll =	ttypoll,
+	.d_name =	"stl",
+	.d_maj =	CDEV_MAJOR,
+	.d_flags =	D_TTY | D_KQFILTER,
+	.d_kqfilter =	ttykqfilter,
 };
 
 #endif

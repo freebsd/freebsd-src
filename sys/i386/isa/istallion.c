@@ -642,20 +642,16 @@ COMPAT_ISA_DRIVER(stli, stlidriver);
 
 #define	CDEV_MAJOR	75
 static struct cdevsw stli_cdevsw = {
-	/* open */	stliopen,
-	/* close */	stliclose,
-	/* read */	stliread,
-	/* write */	stliwrite,
-	/* ioctl */	stliioctl,
-	/* poll */	ttypoll,
-	/* mmap */	nommap,
-	/* strategy */	nostrategy,
-	/* name */	stli_drvname,
-	/* maj */	CDEV_MAJOR,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	D_TTY | D_KQFILTER,
-	/* kqfilter */	ttykqfilter,
+	.d_open =	stliopen,
+	.d_close =	stliclose,
+	.d_read =	stliread,
+	.d_write =	stliwrite,
+	.d_ioctl =	stliioctl,
+	.d_poll =	ttypoll,
+	.d_name =	stli_drvname,
+	.d_maj =	CDEV_MAJOR,
+	.d_flags =	D_TTY | D_KQFILTER,
+	.d_kqfilter =	ttykqfilter,
 };
 
 #endif

@@ -171,19 +171,13 @@ static d_mmap_t elan_mmap;
 
 #define CDEV_MAJOR 100			/* Share with xrpu */
 static struct cdevsw elan_cdevsw = {
-	/* open */	nullopen,
-	/* close */	nullclose,
-	/* read */	noread,
-	/* write */	elan_write,
-	/* ioctl */	elan_ioctl,
-	/* poll */	nopoll,
-	/* mmap */	elan_mmap,
-	/* strategy */	nostrategy,
-	/* name */	"elan",
-	/* maj */	CDEV_MAJOR,
-	/* dump */	nodump,
-	/* psize */	nopsize,
-	/* flags */	0,
+	.d_open =	nullopen,
+	.d_close =	nullclose,
+	.d_write =	elan_write,
+	.d_ioctl =	elan_ioctl,
+	.d_mmap =	elan_mmap,
+	.d_name =	"elan",
+	.d_maj =	CDEV_MAJOR,
 };
 
 static void
