@@ -1095,7 +1095,7 @@ send_pkt(struct ipfw_flow_id *id, u_int32_t seq, u_int32_t ack, int flags)
 static void
 send_reject(struct ip_fw_args *args, int code, int offset, int ip_len)
 {
-printf("+++ send reject\n");
+
 	if (code != ICMP_REJECT_RST) /* Send an ICMP unreach */
 		icmp_error(args->m, ICMP_UNREACH, code, 0L, 0);
 	else if (offset == 0 && args->f_id.proto == IPPROTO_TCP) {
