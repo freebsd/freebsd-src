@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: stage2.c,v 1.16.2.1 1994/11/21 03:12:16 phk Exp $
+ * $Id: stage2.c,v 1.20 1994/12/27 23:26:56 jkh Exp $
  *
  */
 
@@ -82,10 +82,10 @@ stage2()
 	MountUfs(p, dbuf, 1, 0);
     }
 
-    Mkdir("/mnt/etc");
-    Mkdir("/mnt/dev");
-    Mkdir("/mnt/mnt");
-    Mkdir("/mnt/stand");
+    Mkdir("/mnt/etc", TRUE);
+    Mkdir("/mnt/dev", TRUE);
+    Mkdir("/mnt/mnt", TRUE);
+    Mkdir("/mnt/stand", TRUE);
 
     TellEm("unzipping /stand/sysinstall onto hard disk");
     exec(4, "/stand/gzip", "zcat", 0 );
@@ -137,13 +137,17 @@ stage2()
 	Fatal("Couldn't open /mnt/etc/fstab for writing.");
 
     TellEm("Writing filesystems");
+    chdir("/mnt");
     for (j = 1; Fsize[j]; j++) {
 	if (!strcmp(Ftype[Fsize[j]],"swap"))
 	    fprintf(f1, "/dev/%s\t\tnone\tswap sw 0 0\n", Fname[Fsize[j]]);
-	else
+	else {
 	    fprintf(f1, "/dev/%s\t\t%s\t%s rw 1 1\n",
 		    Fname[Fsize[j]], Fmount[Fsize[j]], Ftype[Fsize[j]]);
+	    Mkdir(Fmount[Fsize[j]], FALSE);
+	}
     }
+    chdir("/");
     TellEm("Writing procfs");
     fprintf(f1,"proc\t\t/proc\tprocfs rw 0 0\n");
     fclose(f1);

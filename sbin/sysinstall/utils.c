@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: utils.c,v 1.30.2.1 1994/11/21 03:12:24 phk Exp $
+ * $Id: utils.c,v 1.34 1994/12/27 23:26:59 jkh Exp $
  *
  */
 
@@ -173,7 +173,7 @@ MountUfs(char *device, char *mountpoint, int do_mkdir, int flags)
 	memset(&ufsargs,0,sizeof ufsargs);
 
 	if(do_mkdir && access(mountpoint,R_OK)) {
-		Mkdir(mountpoint);
+		Mkdir(mountpoint, TRUE);
 	}
 
 	strcpy(dbuf,"/dev/");
@@ -188,7 +188,7 @@ MountUfs(char *device, char *mountpoint, int do_mkdir, int flags)
 }
 
 void
-Mkdir(char *ipath)
+Mkdir(char *ipath, int die)
 {
 	struct stat sb;
 	int final=0;
@@ -205,11 +205,12 @@ Mkdir(char *ipath)
 			continue;
 		*p = '\0';
 		if (stat(path, &sb)) {
-			if (errno != ENOENT)
+			if (errno != ENOENT && die)
 				Fatal("Couldn't stat directory %s: %s\n",
 					path,strerror(errno));
 			Debug("mkdir(%s..)",path);
-		        if (mkdir(path, S_IRWXU | S_IRWXG | S_IRWXO) < 0) 
+		        if (mkdir(path, S_IRWXU | S_IRWXG | S_IRWXO) < 0 &&
+			    die)
 				Fatal("Couldn't create directory %s: %s\n",
 					path,strerror(errno));
 		}
