@@ -748,6 +748,7 @@ dev/uart/uart_dev_i8251.c	optional	uart
 dev/uart/uart_dev_ns8250.c	optional	uart
 dev/uart/uart_dev_sab82532.c	optional	uart
 dev/uart/uart_dev_z8530.c	optional	uart
+dev/uart/uart_subr.c		optional	uart
 dev/uart/uart_tty.c		optional	uart
 dev/ubsec/ubsec.c	optional ubsec
 #
