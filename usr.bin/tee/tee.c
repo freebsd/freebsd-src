@@ -93,7 +93,7 @@ main(argc, argv)
 	argv += optind;
 	argc -= optind;
 
-	if ((buf = malloc((u_int)BSIZE)) == NULL)
+	if ((buf = malloc(BSIZE)) == NULL)
 		errx(1, "malloc");
 
 	add(STDOUT_FILENO, "stdout");
@@ -121,7 +121,7 @@ main(argc, argv)
 		}
 	if (rval < 0)
 		err(1, "read");
-	exit(exitval);
+	return (exitval);
 }
 
 static void
@@ -138,7 +138,7 @@ add(fd, name)
 {
 	LIST *p;
 
-	if ((p = malloc((u_int)sizeof(LIST))) == NULL)
+	if ((p = malloc(sizeof(LIST))) == NULL)
 		errx(1, "malloc");
 	p->fd = fd;
 	p->name = name;
