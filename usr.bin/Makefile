@@ -8,6 +8,7 @@
 # Moved to secure: bdes
 #
 SUBDIR=	apply \
+	asa \
 	at \
 	awk \
 	banner \
