@@ -40,7 +40,7 @@
 struct psycho_softc {
 	device_t			sc_dev;
 	/*
-	 * PSYCHO register.  we record the base physical address of these 
+	 * PSYCHO register.  we record the base physical address of these
 	 * also as it is the base of the entire PSYCHO
 	 */
 	struct psychoreg		*sc_regs;
@@ -51,7 +51,8 @@ struct psycho_softc {
 
 	/* our tags (from parent) */
 	bus_space_tag_t			sc_bustag;
-	bus_dma_tag_t			sc_dmatag;	
+	bus_space_handle_t		sc_bushandle;
+	bus_dma_tag_t			sc_dmatag;
 
 	int				sc_clockfreq;
 	phandle_t			sc_node;	/* prom node */
@@ -61,7 +62,8 @@ struct psycho_softc {
 
 	struct iommu_state		*sc_is;
 
-	struct resource			*sc_irq[6];
+	struct resource			*sc_mem_res;
+	struct resource			*sc_irq_res[6];
 	void				*sc_ihand[6];
 
 	/*
