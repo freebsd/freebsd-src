@@ -1596,7 +1596,8 @@ vm_page_set_dirty(vm_page_t m, int base, int size)
 void
 vm_page_clear_dirty(vm_page_t m, int base, int size)
 {
-	GIANT_REQUIRED;
+
+	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	m->dirty &= ~vm_page_bits(base, size);
 }
 
@@ -1613,8 +1614,8 @@ vm_page_set_invalid(vm_page_t m, int base, int size)
 {
 	int bits;
 
-	GIANT_REQUIRED;
 	bits = vm_page_bits(base, size);
+	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	m->valid &= ~bits;
 	m->dirty &= ~bits;
 	m->object->generation++;
