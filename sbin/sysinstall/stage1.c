@@ -200,7 +200,7 @@ select_disk()
 
 	if (dialog_menu("FreeBSD Installation", scratch, -1, -1, 5, no_disks,
 			options, selection)) {
-	    dialog_clear();
+	    dialog_clear_norefresh();
 	    sprintf(scratch,"\n\n\nYou did not select a valid disk.\n\n");
 	    AskAbort(scratch);
 	    valid = 0;
@@ -234,7 +234,7 @@ select_partition(int disk)
 	if (dialog_menu(TITLE,
 			scratch, -1, -1, 5, 5, options, selection)) {
 	    sprintf(scratch,"You did not select a valid partition");
-	    dialog_clear();
+	    dialog_clear_norefresh();
 	    AskAbort(scratch);
 	    valid = 0;
 	}
@@ -388,7 +388,7 @@ leave:
 		    if (!dialog_yesno(TITLE,
 				      "Are you sure you wish to proceed?",
 				      -1, -1)) {
-			dialog_clear();
+			dialog_clear_norefresh();
 			if (clear_mbr(mbr, boot1) == -1) {
 			    sprintf(scratch, "\n\nCouldn't create new master boot record.\n\n%s", errmsg);
 			    Fatal(scratch);;
@@ -401,11 +401,11 @@ leave:
 	    if (custom_install) 
 		if (!dialog_yesno(TITLE, "Do you wish to edit the DOS partition table?",
 				  -1, -1)) {
-		    dialog_clear();
+		    dialog_clear_norefresh();
 		    edit_mbr(mbr, &avail_disklabels[inst_disk]);
 		}
 
-	    dialog_clear();
+	    dialog_clear_norefresh();
 	    inst_part = select_partition(inst_disk);
 
 	    ok = 0;
@@ -416,10 +416,10 @@ leave:
 		} else {
 		    sprintf(scratch, "The DOS partition table is inconsistent.\n\n%s\nDo you wish to edit it by hand?", errmsg);
 		    if (!dialog_yesno(TITLE, scratch, -1, -1)) {
-			dialog_clear();
+			dialog_clear_norefresh();
 			edit_mbr(mbr, &avail_disklabels[inst_disk]);
 		    } else {
-			dialog_clear();
+			dialog_clear_norefresh();
 			AskAbort("Installation cannot proceed without\na valid master boot record\n");
 			ok = 1;
 			ready = 0;
@@ -433,7 +433,7 @@ leave:
 				  mbr->dospart[inst_part].dp_size,
 				  mbr->dospart[inst_part].dp_start);
 		dialog_msgbox(TITLE, "This is an experimental disklabel configuration\nmenu. It doesn't perform any validation of the entries\nas yet so BE SURE YOU TYPE THINGS CORRECTLY.\n\n    Hit escape to quit the editor.\n\nThere may be some delay exiting because of a dialog bug", -1,-1,1);
-		dialog_clear();
+		dialog_clear_norefresh();
 		edit_disklabel(&avail_disklabels[inst_disk]);
 
 		build_disklabel(&avail_disklabels[inst_disk]);
@@ -444,7 +444,7 @@ leave:
 	    /* ready could have been reset above */
 	    if (ready) {
 		if (dialog_yesno(TITLE, "We are now ready to format the hard disk for FreeBSD.\n\nSome or all of the disk will be overwritten during this process.\n\nAre you sure you wish to proceed ?", -1, -1)) {
-		    dialog_clear();
+		    dialog_clear_norefresh();
 		    AskAbort("Do you want to quit?");
 		    ready = 0;
 		}
