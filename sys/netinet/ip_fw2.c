@@ -2372,8 +2372,8 @@ check_ipfw_struct(struct ip_fw *rule, int size)
 
 		case O_MAC_TYPE:
 		case O_IP_SRCPORT:
-		case O_IP_DSTPORT: /* XXX artificial limit, 15 port pairs */
-			if (cmdlen < 2 || cmdlen > 15)
+		case O_IP_DSTPORT: /* XXX artificial limit, 30 port pairs */
+			if (cmdlen < 2 || cmdlen > 31)
 				goto bad_size;
 			break;
 
@@ -2692,14 +2692,13 @@ ipfw_init(void)
 	add_rule(&layer3_chain, &default_rule);
 
 	ip_fw_default_rule = layer3_chain;
-	printf("IP packet filtering initialized, divert %s, "
-		"rule-based forwarding %s, default to %s, logging ",
+	printf("ipfw2 initialized, divert %s, "
+		"rule-based forwarding enabled, default to %s, logging ",
 #ifdef IPDIVERT
 		"enabled",
 #else
 		"disabled",
 #endif
-		"enabled",
 		default_rule.cmd[0].opcode == O_ACCEPT ? "accept" : "deny");
 
 #ifdef IPFIREWALL_VERBOSE
@@ -2708,7 +2707,6 @@ ipfw_init(void)
 #ifdef IPFIREWALL_VERBOSE_LIMIT
 	verbose_limit = IPFIREWALL_VERBOSE_LIMIT;
 #endif
-	printf("logging ");
 	if (fw_verbose == 0)
 		printf("disabled\n");
 	else if (verbose_limit == 0)
