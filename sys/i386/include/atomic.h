@@ -172,13 +172,14 @@ atomic_cmpset_int(volatile u_int *dst, u_int exp, u_int src)
 
 #if defined(__GNUC__) || defined(__INTEL_COMPILER)
 
-#if defined(I386_CPU)
+#if defined(_KERNEL) && !defined(SMP)
 
 /*
- * We assume that a = b will do atomic loads and stores.
- *
- * XXX: This is _NOT_ safe on a P6 or higher because it does not guarantee
- * memory ordering.  These should only be used on a 386.
+ * We assume that a = b will do atomic loads and stores.  However, on a
+ * PentiumPro or higher, reads may pass writes, so for that case we have
+ * to use a serializing instruction (i.e. with LOCK) to do the load in
+ * SMP kernels.  For UP kernels, however, the cache of the single processor
+ * is always consistent, so we don't need any memory barriers.
  */
 #define ATOMIC_STORE_LOAD(TYPE, LOP, SOP)		\
 static __inline u_##TYPE				\
@@ -191,11 +192,10 @@ static __inline void					\
 atomic_store_rel_##TYPE(volatile u_##TYPE *p, u_##TYPE v)\
 {							\
 	*p = v;						\
-	__asm __volatile("" : : : "memory");		\
 }							\
 struct __hack
 
-#else /* !defined(I386_CPU) */
+#else /* defined(SMP) */
 
 #define ATOMIC_STORE_LOAD(TYPE, LOP, SOP)		\
 static __inline u_##TYPE				\
@@ -224,7 +224,7 @@ atomic_store_rel_##TYPE(volatile u_##TYPE *p, u_##TYPE v)\
 }							\
 struct __hack
 
-#endif	/* defined(I386_CPU) */
+#endif	/* !defined(SMP) */
 
 #else /* !(defined(__GNUC__) || defined(__INTEL_COMPILER)) */
 
