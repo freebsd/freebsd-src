@@ -63,27 +63,25 @@ static int fe_pccard_match(device_t);
 
 static const struct fe_pccard_product {
         struct pccard_product mpp_product;
-        uint32_t mpp_ioalign;                  /* required alignment */
-        int mpp_enet_maddr;
 	int mpp_flags;
 #define MPP_MBH10302 1
 } fe_pccard_products[] = {
 	/* These need to be first */
-	{ PCMCIA_CARD(FUJITSU2, FMV_J181, 0), 0, -1, MPP_MBH10302},
-	{ PCMCIA_CARD(FUJITSU2, FMV_J182, 0), 0, 0xf2c},
-	{ PCMCIA_CARD(FUJITSU2, FMV_J182A, 0), 0, 0x1cc},
-	{ PCMCIA_CARD(FUJITSU2, ITCFJ182A, 0), 0, 0x1cc},
+	{ PCMCIA_CARD(FUJITSU2, FMV_J181, 0), MPP_MBH10302 },
+	{ PCMCIA_CARD(FUJITSU2, FMV_J182, 0), 0 },
+	{ PCMCIA_CARD(FUJITSU2, FMV_J182A, 0), 0 },
+	{ PCMCIA_CARD(FUJITSU2, ITCFJ182A, 0), 0 },
 	/* These need to be second */
-        { PCMCIA_CARD(TDK, LAK_CD021BX, 0), 0, -1 }, 
-        { PCMCIA_CARD(TDK, LAK_CF010, 0), 0, -1 }, 
+        { PCMCIA_CARD(TDK, LAK_CD021BX, 0), 0 }, 
+        { PCMCIA_CARD(TDK, LAK_CF010, 0), 0 }, 
 #if 0 /* XXX 86960-based? */
-        { PCMCIA_CARD(TDK, LAK_DFL9610, 1), 0, -1 }, 
+        { PCMCIA_CARD(TDK, LAK_DFL9610, 1), 0 }, 
 #endif
-        { PCMCIA_CARD(CONTEC, CNETPC, 0), 0, -1 },
-	{ PCMCIA_CARD(FUJITSU, LA501, 0), 0x20, -1 },
-	{ PCMCIA_CARD(FUJITSU, LA10S, 0), 0, -1 },
-	{ PCMCIA_CARD(FUJITSU, NE200T, 0), 0, -1, MPP_MBH10302},/* Sold by Eagle */
-	{ PCMCIA_CARD(RATOC, REX_R280, 0), 0, 0x1fc },
+        { PCMCIA_CARD(CONTEC, CNETPC, 0), 0 },
+	{ PCMCIA_CARD(FUJITSU, LA501, 0), 0 },
+	{ PCMCIA_CARD(FUJITSU, LA10S, 0), 0 },
+	{ PCMCIA_CARD(FUJITSU, NE200T, 0), MPP_MBH10302 },/* Sold by Eagle */
+	{ PCMCIA_CARD(RATOC, REX_R280, 0), 0 },
         { { NULL } }
 };
 
