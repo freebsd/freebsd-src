@@ -10,6 +10,7 @@ SUBDIR=	ac \
 	ancontrol \
 	${_apm} \
 	${_apmd} \
+	${_arlconfig} \
 	arp \
 	${_asf} \
 	${_atm} \
@@ -241,6 +242,7 @@ _acpi=		acpi
 .endif
 _apm=		apm
 _apmd=		apmd
+_arlconfig=	arlconfig
 _asf=		asf
 .if !defined(NO_BLUETOOTH)
 _bluetooth=	bluetooth

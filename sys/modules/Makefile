@@ -20,6 +20,7 @@ SUBDIR=	${_3dfx} \
 	${_aout} \
 	${_apm} \
 	${_ar} \
+	${_arl} \
 	${_arcnet} \
 	${_asr} \
 	ath \
@@ -284,6 +285,7 @@ _amd=		amd
 _aout=		aout
 _apm=		apm
 _ar=		ar
+_arl=		arl
 _arcnet=	arcnet
 _ath_hal=	ath_hal
 _awi=		awi
