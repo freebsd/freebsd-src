@@ -255,9 +255,9 @@ reseed(u_int fastslow)
 u_int
 read_random_real(void *buf, u_int count)
 {
-	static u_int64_t genval;
 	static int cur = 0;
 	static int gate = 1;
+	static u_char genval[KEYSIZE];
 	u_int i;
 	u_int retval;
 
@@ -274,8 +274,8 @@ read_random_real(void *buf, u_int count)
 		for (i = 0; i < count; i += sizeof(random_state.counter)) {
 			random_state.counter[0]++;
 			yarrow_encrypt(&random_state.key, random_state.counter,
-				&genval);
-			memcpy((char *)buf + i, &genval,
+				genval);
+			memcpy((char *)buf + i, genval,
 				sizeof(random_state.counter));
 			if (++random_state.outputblocks >=
 				random_state.gengateinterval) {
@@ -289,8 +289,8 @@ read_random_real(void *buf, u_int count)
 		if (!cur) {
 			random_state.counter[0]++;
 			yarrow_encrypt(&random_state.key, random_state.counter,
-				&genval);
-			memcpy(buf, &genval, count);
+				genval);
+			memcpy(buf, genval, count);
 			cur = sizeof(random_state.counter) - count;
 			if (++random_state.outputblocks >=
 				random_state.gengateinterval) {
@@ -301,9 +301,7 @@ read_random_real(void *buf, u_int count)
 		}
 		else {
 			retval = cur < count ? cur : count;
-			memcpy(buf,
-				(char *)&genval +
-					(sizeof(random_state.counter) - cur),
+			memcpy(buf, &genval[sizeof(random_state.counter) - cur],
 				retval);
 			cur -= retval;
 		}
