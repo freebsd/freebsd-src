@@ -151,7 +151,7 @@ extern pt_entry_t PTmap[], APTmap[];
 extern pd_entry_t PTD[], APTD[];
 extern pd_entry_t PTDpde, APTDpde;
 
-extern pd_entry_t IdlePTD;	/* physical address of "Idle" state directory */
+extern pd_entry_t *IdlePTD;	/* physical address of "Idle" state directory */
 #endif
 
 #ifdef _KERNEL
@@ -253,14 +253,15 @@ extern char *ptvmmap;		/* poor name! */
 extern vm_offset_t virtual_avail;
 extern vm_offset_t virtual_end;
 
-void	pmap_bootstrap( vm_offset_t, vm_offset_t);
+void	pmap_bootstrap(vm_offset_t, vm_offset_t);
 void	*pmap_mapdev(vm_offset_t, vm_size_t);
 void	pmap_unmapdev(vm_offset_t, vm_size_t);
 pt_entry_t *pmap_pte(pmap_t, vm_offset_t) __pure2;
 vm_page_t pmap_use_pt(pmap_t, vm_offset_t);
-#ifdef SMP
 void	pmap_set_opt(void);
-#endif
+void	pmap_invalidate_page(pmap_t, vm_offset_t);
+void	pmap_invalidate_range(pmap_t, vm_offset_t, vm_offset_t);
+void	pmap_invalidate_all(pmap_t);
 
 #endif /* _KERNEL */
 

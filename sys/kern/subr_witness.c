@@ -223,6 +223,9 @@ static struct witness_order_list_entry order_lists[] = {
 	{ "icu", &lock_class_mtx_spin },
 #ifdef SMP
 	{ "smp rendezvous", &lock_class_mtx_spin },
+#if defined(__i386__) && defined(APIC_IO)
+	{ "tlb", &lock_class_mtx_spin },
+#endif
 #endif
 	{ "clk", &lock_class_mtx_spin },
 	{ "mutex profiling lock", &lock_class_mtx_spin },
