@@ -29,6 +29,8 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ *		$Id$
  */
 
 #ifndef lint
@@ -494,13 +496,14 @@ main(argc, argv)
 static void
 usage()
 {
-	fprintf(stderr, "usage: dump [-0123456789ac"
+	fprintf(stderr,
+		"usage: dump [-0123456789ac"
 #ifdef KERBEROS
 		"k"
 #endif
 		"nu] [-B records] [-b blocksize] [-d density] [-f file]\n"
-		"		[-h level] [-s feet] [-T date] filesystem\n"
-		"	dump [-W | -w]\n");
+		"            [-h level] [-s feet] [-T date] filesystem\n"
+		"       dump [-W | -w]\n");
 	exit(1);
 }
 
