@@ -5,6 +5,12 @@ here, and it only starts on Novemeber 18, 1998.  If you have an
 earlier version of FreeBSD, you are on your own to get to November 18,
 1998.
 
+19980106:
+	When updating to ELF, make sure that you have updated your
+	/etc/rc files which have different ldconfig invocations for
+	elf and aout.  Otherwise things like X will stop working with
+	messages about being unable to find library files.
+
 19990104:
 	Information about ELF day (see 19981230) can be found in
 	  http://www.freebsd.org/~peter/elfday.html
@@ -53,4 +59,4 @@ earlier version of FreeBSD, you are on your own to get to November 18,
 YYYYMMDD:
 	What happened and what you need to do.
 
-$Id: UPDATING,v 1.5 1999/01/05 05:46:37 imp Exp $
+$Id: UPDATING,v 1.6 1999/01/05 07:45:10 imp Exp $
