@@ -345,9 +345,9 @@ alter(name)
 
 	if (stat(name, &sb))
 		return;
-	tv[0].tv_sec = time((time_t *)0) + 1;
-	tv[1].tv_sec = sb.st_mtime;
-	tv[0].tv_usec = tv[1].tv_usec = 0;
+	(void)gettimeofday(&tv[0], (struct timezone *)NULL);
+	tv[0].tv_sec++;
+	TIMESPEC_TO_TIMEVAL(&tv[1], &sb.st_mtimespec);
 	(void)utimes(name, tv);
 }
 

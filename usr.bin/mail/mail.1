@@ -29,14 +29,15 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	@(#)mail.1	8.2 (Berkeley) 12/30/93
+.\"	@(#)mail.1	8.8 (Berkeley) 4/28/95
 .\" $FreeBSD$
 .\"
-.Dd December 30, 1993
+.Dd April 28, 1995
 .Dt MAIL 1
 .Os
 .Sh NAME
-.Nm mail
+.Nm mail ,
+.Nm Mail
 .Nd send and receive mail
 .Sh SYNOPSIS
 .Nm
@@ -174,7 +175,7 @@ and
 moving backwards and forwards, and
 simple numbers.
 .Pp
-.Ss Disposing of mail.
+.Ss Disposing of mail
 After examining a message you can
 .Ic delete
 .Pq Ic d
@@ -219,7 +220,7 @@ which prints the first few lines of a message could be used in
 .Dq Li top \&*
 to print the first few lines of all messages.
 .Pp
-.Ss Replying to or originating mail.
+.Ss Replying to or originating mail
 You can use the
 .Ic reply
 command to
@@ -245,7 +246,7 @@ message or to a shell to run some commands.
 (These options
 are given in the summary below.)
 .Pp
-.Ss Ending a mail processing session.
+.Ss Ending a mail processing session
 You can end a
 .Nm
 session with the
@@ -260,7 +261,7 @@ Unexamined messages go back to the post office.
 .Fl f
 option above).
 .Pp
-.Ss Personal and system wide distribution lists.
+.Ss Personal and system wide distribution lists
 It is also possible to create a personal distribution lists so that,
 for instance, you can send mail to
 .Dq Li cohorts
@@ -293,7 +294,7 @@ System wide
 are not expanded when the mail is sent,
 but any reply returned to the machine will have the system wide
 alias expanded as all mail goes through
-.Xr sendmail  .
+.Xr sendmail 8 .
 .Pp
 .Ss Network mail (ARPA, UUCP, Berknet)
 See
@@ -392,7 +393,7 @@ listed on the
 list.
 If the
 .Ic alternates
-command is given with no argument, the current set of alternate
+command is given with no argument, the current set of alternative
 names is displayed.
 .It Ic chdir
 .Pq Ic c
@@ -505,13 +506,17 @@ If
 .Ic ignore
 is executed with no arguments, it lists the current set of
 ignored fields.
+.It Ic inc
+Incorporate any new messages that have arrived while mail
+is being read.
+The new messages are added to the end of the message list,
+and the current message is reset to be the first new mail message.
+This does not renumber the existing message list, nor does
+does it cause any changes made so far to be saved.
 .It Ic mail
 .Pq Ic m
 Takes as argument login names and distribution group names and sends
 mail to those people.
-.It Ic more
-.Pq Ic \&mo
-Takes a list of messages and invokes the pager on that list.
 .It Ic mbox
 Indicate that a list of messages be sent to
 .Ic mbox
@@ -522,10 +527,12 @@ action for messages if you do
 have the
 .Ic hold
 option set.
+.It Ic more
+.Pq Ic \&mo
+Takes a list of messages and invokes the pager on that list.
 .It Ic next
-.Pq Ic n
+.Ic ( n ,
 like
-(
 .Ic \&+
 or
 .Tn CR )
@@ -572,14 +579,14 @@ A synonym for
 .Ic reply  .
 .It Ic retain
 Add the list of header fields named to the
-.Ar retained list
-Only the header fields in the retain list
+.Em "retained list" .
+Only the header fields in the retained list
 are shown on your terminal when you print a message.
 All other header fields are suppressed.
 The
-.Ic Type
+.Ic type
 and
-.Ic Print
+.Ic print
 commands can be used to print a message in its entirety.
 If
 .Ic retain
@@ -788,11 +795,11 @@ Cause the named string to become the current subject field.
 .It Ic \&~\&t Ns Ar name ...
 Add the given names to the direct recipient list.
 .It Ic \&~\&v
-Invoke an alternate editor (defined by the
+Invoke an alternative editor (defined by the
 .Ev VISUAL
 option) on the
 message collected so far.
-Usually, the alternate editor will be a
+Usually, the alternative editor will be a
 screen editor.
 After you quit the editor, you may resume appending
 text to the end of your message.
@@ -838,17 +845,28 @@ to be appended to the end rather than prepended.
 This should always be set (preferably in one of the system-wide
 .Pa mail.rc
 files).
-.It Ar ask
+.It Ar ask , asksub
 Causes
 .Nm
 to prompt you for the subject of each message you send.
 If
 you respond with simply a newline, no subject field will be sent.
+.It Ar askbcc
+Causes you to be prompted for additional blind carbon copy recipients at the
+end of each message.
+Responding with a newline indicates your
+satisfaction with the current list.
 .It Ar askcc
 Causes you to be prompted for additional carbon copy recipients at the
 end of each message.
 Responding with a newline indicates your
 satisfaction with the current list.
+.It Ar autoinc
+Causes new mail to be automatically incorporated when it arrives.
+Setting this is similar to issuing the
+.Ic inc
+command at each prompt, except that the current message is not
+reset when new mail arrives.
 .It Ar autoprint
 Causes the
 .Ic delete
@@ -921,9 +939,38 @@ commands.
 .It Ar quiet
 Suppresses the printing of the version when first invoked.
 .It Ar searchheaders
-If this option is set, then a message-list specifier in the form ``/x:y''
-will expand to all messages containing the substring ``y'' in the header
-field ``x''.  The string search is case insensitive.
+If this option is set, then a message-list specifier in the form
+.Dq Li / Ns Ar x Ns Li : Ns Ar y
+will expand to all messages containing the substring
+.Dq Ar y
+in the header field
+.Dq Ar x .
+The string search is case insensitive.
+If
+.Dq Ar x
+is ommitted, it will default to the
+.Dq Li Subject
+header field.
+The form
+.Dq Li /to: Ns Ar y
+is a special case, and will expand
+to all messages containing the substring
+.Dq Ar y
+in the
+.Dq Li To ,
+.Dq Li Cc
+or
+.Dq Li Bcc
+header fields.
+The check for
+.Qq Li "to"
+is case sensitive, so that
+.Dq Li /to: Ns Ar y
+can be used to limit the search for
+.Dq Ar y
+to just the
+.Dq Li To:
+field.
 .It Ar verbose
 Setting the option
 .Ar verbose
@@ -963,7 +1010,7 @@ If set, will be used to initialize the Reply-To field for outgoing
 messages.
 .It Ev SHELL
 Pathname of the shell to use in the
-.Ic !\&
+.Ic \&!
 command and the
 .Ic \&~!
 escape.
@@ -1040,6 +1087,9 @@ Post office.
 User's old mail.
 .It Pa ~/.mailrc
 File giving initial mail commands.
+This can be overridden by setting the
+.Ev MAILRC
+environment variable.
 .It Pa /tmp/R*
 Temporary files.
 .It Pa /usr/share/misc/mail.*help
@@ -1081,3 +1131,9 @@ Usually,
 is just a link to
 .Nm Mail  ,
 which can be confusing.
+.Pp
+The name of the
+.Ic alternates
+list is incorrect English (it should be
+.Dq alternatives ) ,
+but is retained for compatibility.
