@@ -79,7 +79,7 @@ struct ar_softc {
     int			offset;		/* offset from start of disk */
     u_int64_t		lock_start;	/* start of locked area for rebuild */
     u_int64_t		lock_end;	/* end of locked area for rebuild */
-    struct disk		disk;		/* disklabel/slice stuff */
+    struct disk		*disk;		/* disklabel/slice stuff */
     struct proc		*pid;		/* rebuilder process id */
 };
 

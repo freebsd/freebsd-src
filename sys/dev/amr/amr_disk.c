@@ -134,10 +134,10 @@ amrd_open(struct disk *dp)
     label->d_secpercyl  = sc->amrd_drive->al_sectors * sc->amrd_drive->al_heads;
     label->d_secperunit = sc->amrd_drive->al_size;
 #else
-    sc->amrd_disk.d_sectorsize = AMR_BLKSIZE;
-    sc->amrd_disk.d_mediasize = (off_t)sc->amrd_drive->al_size * AMR_BLKSIZE;
-    sc->amrd_disk.d_fwsectors = sc->amrd_drive->al_sectors;
-    sc->amrd_disk.d_fwheads = sc->amrd_drive->al_heads;
+    sc->amrd_disk->d_sectorsize = AMR_BLKSIZE;
+    sc->amrd_disk->d_mediasize = (off_t)sc->amrd_drive->al_size * AMR_BLKSIZE;
+    sc->amrd_disk->d_fwsectors = sc->amrd_drive->al_sectors;
+    sc->amrd_disk->d_fwheads = sc->amrd_drive->al_heads;
 #endif
 
     return (0);
@@ -247,13 +247,16 @@ amrd_attach(device_t dev)
 		  sc->amrd_drive->al_size, sc->amrd_drive->al_properties & AMR_DRV_RAID_MASK, 
 		  amr_describe_code(amr_table_drvstate, AMR_DRV_CURSTATE(sc->amrd_drive->al_state)));
 
-    sc->amrd_disk.d_drv1 = sc;
-    sc->amrd_disk.d_maxsize = (AMR_NSEG - 1) * PAGE_SIZE;
-    sc->amrd_disk.d_open = amrd_open;
-    sc->amrd_disk.d_strategy = amrd_strategy;
-    sc->amrd_disk.d_name = "amrd";
-    sc->amrd_disk.d_dump = (dumper_t *)amrd_dump;
-    disk_create(sc->amrd_unit, &sc->amrd_disk, 0, NULL, NULL);
+    sc->amrd_disk = disk_alloc();
+    sc->amrd_disk->d_drv1 = sc;
+    sc->amrd_disk->d_maxsize = (AMR_NSEG - 1) * PAGE_SIZE;
+    sc->amrd_disk->d_open = amrd_open;
+    sc->amrd_disk->d_strategy = amrd_strategy;
+    sc->amrd_disk->d_name = "amrd";
+    sc->amrd_disk->d_dump = (dumper_t *)amrd_dump;
+    sc->amrd_disk->d_unit = sc->amrd_unit;
+    sc->amrd_disk->d_flags = DISKFLAG_NEEDSGIANT;
+    disk_create(sc->amrd_disk, DISK_VERSION);
 #ifdef FREEBSD_4
     disks_registered++;
 #endif
@@ -268,14 +271,14 @@ amrd_detach(device_t dev)
 
     debug_called(1);
 
-    if (sc->amrd_disk.d_flags & DISKFLAG_OPEN)
+    if (sc->amrd_disk->d_flags & DISKFLAG_OPEN)
 	return(EBUSY);
 
 #ifdef FREEBSD_4
     if (--disks_registered == 0)
 	cdevsw_remove(&amrddisk_cdevsw);
 #else
-    disk_destroy(&sc->amrd_disk);
+    disk_destroy(sc->amrd_disk);
 #endif
     return(0);
 }

@@ -125,7 +125,7 @@ struct aac_disk
 	device_t			ad_dev;
 	struct aac_softc		*ad_controller;
 	struct aac_container		*ad_container;
-	struct disk			ad_disk;
+	struct disk			*ad_disk;
 	int				ad_flags;
 #define AAC_DISK_OPEN	(1<<0)
 	int				ad_cylinders;

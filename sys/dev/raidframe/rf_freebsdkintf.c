@@ -252,7 +252,7 @@ struct raid_softc {
 	int	sc_busycount;	/* How many times are we opened? */
 	size_t  sc_size;	/* size of the raid device */
 	dev_t	sc_parent;	/* Parent device */
-	struct disk		sc_disk;	/* generic disk device info */
+	struct disk		*sc_disk;	/* generic disk device info */
  	uma_zone_t		sc_cbufpool;	/* component buffer pool */
 	RF_Raid_t		*raidPtr;	/* Raid information struct */
 	struct bio_queue_head	bio_queue;	/* used for the device queue */
@@ -599,7 +599,7 @@ out:
 		retcode = rf_Shutdown(sc->raidPtr);
 		RF_THREADGROUP_WAIT_STOP(&sc->raidPtr->engine_tg);
 
-		disk_destroy(&sc->sc_disk);
+		disk_destroy(sc->sc_disk);
 		raidunlock(sc);
 
 		/* XXX Need to be able to destroy the zone */
@@ -631,7 +631,7 @@ raidopen(struct disk *dp)
 
 	if ((error = raidlock(sc)) != 0)
 		return (error);
-	dp = &sc->sc_disk;
+	dp = sc->sc_disk;
 
 	rf_printf(1, "Opening raid device %s%d\n", dp->d_name, dp->d_unit);
 
@@ -1276,14 +1276,17 @@ raidinit(raidPtr)
 	sc->sc_size = raidPtr->totalSectors;
 
 	/* Create the disk device */
-	sc->sc_disk.d_open = raidopen;
-	sc->sc_disk.d_close = raidclose;
-	sc->sc_disk.d_ioctl = raidioctl;
-	sc->sc_disk.d_strategy = raidstrategy;
-	sc->sc_disk.d_drv1 = sc;
-	sc->sc_disk.d_maxsize = DFLTPHYS;
-	sc->sc_disk.d_name = "raid";
-	disk_create(raidPtr->raidid, &sc->sc_disk, 0, NULL, NULL);
+	sc->sc_disk = disk_alloc();
+	sc->sc_disk->d_open = raidopen;
+	sc->sc_disk->d_close = raidclose;
+	sc->sc_disk->d_ioctl = raidioctl;
+	sc->sc_disk->d_strategy = raidstrategy;
+	sc->sc_disk->d_drv1 = sc;
+	sc->sc_disk->d_maxsize = DFLTPHYS;
+	sc->sc_disk->d_name = "raid";
+	sc->sc_disk->d_unit = raidPtr->raidid;
+	sc->sc_disk->d_flags = DISKFLAG_NEEDSGIANT;
+	disk_create(sc->sc_disk, DISK_VERSION);
 	raidPtr->sc = sc;
 
 	return (sc);
@@ -1467,7 +1470,7 @@ rf_DispatchKernelIO(queue, req)
 
 	sc = queue->raidPtr->sc;
 
-	rf_printf(3, "DispatchKernelIO %s\n", sc->sc_disk.d_name);
+	rf_printf(3, "DispatchKernelIO %s\n", sc->sc_disk->d_name);
 
 	bp = req->bp;
 #if 1
@@ -1533,8 +1536,8 @@ rf_DispatchKernelIO(queue, req)
 		queue->curPriority = req->priority;
 
 		rf_printf(3, "Going for %c to %s%d row %d col %d\n",
-			req->type, sc->sc_disk.d_name, 
-			sc->sc_disk.d_unit, queue->row, queue->col);
+			req->type, sc->sc_disk->d_name, 
+			sc->sc_disk->d_unit, queue->row, queue->col);
 		rf_printf(3, "sector %d count %d (%d bytes) %d\n",
 			(int) req->sectorOffset, (int) req->numSector,
 			(int) (req->numSector <<
@@ -1609,7 +1612,7 @@ KernelWakeupFunc(vbp)
 		if (queue->raidPtr->Disks[queue->row][queue->col].status ==
 		    rf_ds_optimal) {
 			rf_printf(0, "%s%d: IO Error.  Marking %s as "
-			    "failed.\n", sc->sc_disk.d_name, sc->sc_disk.d_unit,
+			    "failed.\n", sc->sc_disk->d_name, sc->sc_disk->d_unit,
 			    queue->raidPtr->Disks[queue->row][queue->col].devname);
 			queue->raidPtr->Disks[queue->row][queue->col].status =
 			    rf_ds_failed;

@@ -57,6 +57,7 @@ struct disk {
 	/* Fields which are private to geom_disk */
 	struct g_geom		*d_geom;
 	struct devstat		*d_devstat;
+	int			d_destroyed;
 
 	/* Shared fields */
 	u_int			d_flags;
@@ -85,13 +86,16 @@ struct disk {
 	void			*d_drv1;
 };
 
-#define DISKFLAG_NOGIANT	0x1
+#define DISKFLAG_NEEDSGIANT	0x1
 #define DISKFLAG_OPEN		0x2
 #define DISKFLAG_CANDELETE	0x4
 
-void disk_create(int unit, struct disk *disk, int flags, void *unused, void *unused2);
+struct disk *disk_alloc(void);
+void disk_create(struct disk *disk, int version);
 void disk_destroy(struct disk *disk);
 
+#define DISK_VERSION_00		0x58561059
+#define DISK_VERSION		DISK_VERSION_00
 
 #endif /* _KERNEL */
 #endif /* _GEOM_GEOM_DISK_H_ */
