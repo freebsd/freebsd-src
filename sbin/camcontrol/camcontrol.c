@@ -279,7 +279,8 @@ static int
 getdevtree(void)
 {
 	union ccb ccb;
-	int bufsize, i, fd;
+	int bufsize, fd;
+	unsigned int i;
 	int need_close = 0;
 	int error = 0;
 	int skip_device = 0;
@@ -1089,7 +1090,7 @@ rescan_or_reset_bus(int bus, int rescan)
 	matchccb.cdm.patterns[0].pattern.bus_pattern.flags = BUS_MATCH_ANY;
 
 	do {
-		int i;
+		unsigned int i;
 
 		if (ioctl(fd, CAMIOCOMMAND, &matchccb) == -1) {
 			warn("CAMIOCOMMAND ioctl failed");
@@ -1119,7 +1120,7 @@ rescan_or_reset_bus(int bus, int rescan)
 			 * We don't want to rescan or reset the xpt bus.
 			 * See above.
 			 */
-			if (bus_result->path_id == -1)
+			if ((int)bus_result->path_id == -1)
 				continue;
 
 			ccb.ccb_h.func_code = rescan ? XPT_SCAN_BUS :
@@ -1272,7 +1273,7 @@ readdefects(struct cam_device *device, int argc, char **argv,
 	u_int32_t returned_length = 0;
 	u_int32_t num_returned = 0;
 	u_int8_t returned_format;
-	int i;
+	unsigned int i;
 	int c, error = 0;
 	int lists_specified = 0;
 
@@ -1851,7 +1852,7 @@ scsicmd(struct cam_device *device, int argc, char **argv, char *combinedopt,
 	 * read the data the user wants written from stdin.
 	 */
 	if ((fd_data == 1) && (arglist & CAM_ARG_CMD_OUT)) {
-		size_t amt_read;
+		ssize_t amt_read;
 		int amt_to_read = data_bytes;
 		u_int8_t *buf_ptr = data_ptr;
 
@@ -1952,7 +1953,7 @@ scsicmd(struct cam_device *device, int argc, char **argv, char *combinedopt,
 					  arg_put, NULL);
 			fprintf(stdout, "\n");
 		} else {
-			size_t amt_written;
+			ssize_t amt_written;
 			int amt_to_write = data_bytes;
 			u_int8_t *buf_ptr = data_ptr;
 
