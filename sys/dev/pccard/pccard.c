@@ -759,7 +759,7 @@ pccard_compat_do_attach(device_t bus, device_t dev)
 	int err;
 
 	err = CARD_COMPAT_PROBE(dev);
-	if (err == 0)
+	if (err <= 0)
 		err = CARD_COMPAT_ATTACH(dev);
 	return (err);
 }
