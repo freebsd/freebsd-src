@@ -30,7 +30,13 @@ maxusers	10
 
 #
 # The `makeoptions' parameter allows variables to be passed to the
-# generated Makefile in the build area.  DEBUG happens to be magic.
+# generated Makefile in the build area.
+#
+# CONF_CFLAGS gives some extra compiler flags that are added to ${CFLAGS}
+# after most other flags.  Here we use it to inhibit use of non-optimal
+# gcc builtin functions (e.g., memcmp).
+#
+# DEBUG happens to be magic.
 # The following is equivalent to 'config -g KERNELNAME' and creates
 # 'kernel.debug' compiled with -g debugging as well as a normal
 # 'kernel'.  Use 'make install.debug' to install the debug kernel
@@ -40,6 +46,7 @@ maxusers	10
 # KERNEL can be overridden so that you can change the default name of your
 # kernel.
 #
+makeoptions	CONF_CFLAGS=-fno-builtin  #Don't allow use of memcmp, etc.
 #makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
 #makeoptions	KERNEL=foo		#Build kernel "foo" and install "/foo"
 
