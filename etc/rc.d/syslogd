@@ -37,7 +37,7 @@ syslogd_precmd()
 {
 	#	Transitional symlink for old binaries
 	#
-	if [ ! -h /dev/log ]; then
+	if [ ! -L /dev/log ]; then
 		ln -sf /var/run/log /dev/log
 	fi
 	rm -f /var/run/log
