@@ -402,7 +402,9 @@ main(argc, argv)
 		syslog(LOG_NOTICE|LOG_AUTH, "%s to %s%s",
 		    username, user, ontty());
 
+#ifdef LOGIN_CAP
 	login_close(lc);
+#endif
 
 	execv(shell, np);
 	err(1, "%s", shell);
