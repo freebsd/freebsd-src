@@ -370,7 +370,7 @@ BIO *PKCS7_dataDecode(PKCS7 *p7, EVP_PKEY *pkey, BIO *in_bio, X509 *pcert)
 		if (ri == NULL) {
 			PKCS7err(PKCS7_F_PKCS7_DATADECODE,
 				 PKCS7_R_NO_RECIPIENT_MATCHES_CERTIFICATE);
-			return(NULL);
+			goto err;
 		}
 
 		jj=EVP_PKEY_size(pkey);
@@ -393,7 +393,7 @@ BIO *PKCS7_dataDecode(PKCS7 *p7, EVP_PKEY *pkey, BIO *in_bio, X509 *pcert)
 		BIO_get_cipher_ctx(etmp,&evp_ctx);
 		EVP_CipherInit(evp_ctx,evp_cipher,NULL,NULL,0);
 		if (EVP_CIPHER_asn1_to_param(evp_ctx,enc_alg->parameter) < 0)
-			return(NULL);
+			goto err;
 
 		if (jj != EVP_CIPHER_CTX_key_length(evp_ctx)) {
 			/* Some S/MIME clients don't use the same key
@@ -588,8 +588,10 @@ int PKCS7_dataFinal(PKCS7 *p7, BIO *bio)
 				pp=NULL;
 				}
 
+#ifndef NO_DSA
 			if (si->pkey->type == EVP_PKEY_DSA)
 				ctx_tmp.digest=EVP_dss1();
+#endif
 
 			if (!EVP_SignFinal(&ctx_tmp,(unsigned char *)buf->data,
 				(unsigned int *)&buf->length,si->pkey))
@@ -783,7 +785,14 @@ for (ii=0; ii<md_len; ii++) printf("%02X",md_dat[ii]); printf(" calc\n");
 
 	os=si->enc_digest;
 	pkey = X509_get_pubkey(x509);
+	if (!pkey)
+		{
+		ret = -1;
+		goto err;
+		}
+#ifndef NO_DSA
 	if(pkey->type == EVP_PKEY_DSA) mdc_tmp.digest=EVP_dss1();
+#endif
 
 	i=EVP_VerifyFinal(&mdc_tmp,os->data,os->length, pkey);
 	EVP_PKEY_free(pkey);

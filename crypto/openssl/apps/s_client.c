@@ -79,6 +79,7 @@ typedef unsigned int u_int;
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 #include <openssl/pem.h>
+#include <openssl/rand.h>
 #include "s_apps.h"
 
 #ifdef WINDOWS
@@ -152,6 +153,7 @@ static void sc_usage(void)
 	BIO_printf(bio_err," -bugs         - Switch on all SSL implementation bug workarounds\n");
 	BIO_printf(bio_err," -cipher       - preferred cipher to use, use the 'openssl ciphers'\n");
 	BIO_printf(bio_err,"                 command to see what is available\n");
+	BIO_printf(bio_err," -rand file%cfile%c...\n", LIST_SEPARATOR_CHAR, LIST_SEPARATOR_CHAR);
 
 	}
 
@@ -179,6 +181,7 @@ int MAIN(int argc, char **argv)
 	int prexit = 0;
 	SSL_METHOD *meth=NULL;
 	BIO *sbio;
+	char *inrand=NULL;
 #ifdef WINDOWS
 	struct timeval tv;
 #endif
@@ -316,6 +319,11 @@ int MAIN(int argc, char **argv)
 		else if (strcmp(*argv,"-nbio") == 0)
 			{ c_nbio=1; }
 #endif
+		else if (strcmp(*argv,"-rand") == 0)
+			{
+			if (--argc < 1) goto bad;
+			inrand= *(++argv);
+			}
 		else
 			{
 			BIO_printf(bio_err,"unknown option %s\n",*argv);
@@ -332,7 +340,14 @@ bad:
 		goto end;
 		}
 
-	app_RAND_load_file(NULL, bio_err, 0);
+	if (!app_RAND_load_file(NULL, bio_err, 1) && inrand == NULL
+		&& !RAND_status())
+		{
+		BIO_printf(bio_err,"warning, not much extra random data, consider using the -rand option\n");
+		}
+	if (inrand != NULL)
+		BIO_printf(bio_err,"%ld semi-random bytes loaded\n",
+			app_RAND_load_files(inrand));
 
 	if (bio_c_out == NULL)
 		{
