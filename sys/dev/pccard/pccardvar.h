@@ -203,9 +203,6 @@ struct pccard_softc {
 	int		sc_enabled_count;	/* num functions enabled */
 };
 
-void
-pccardbus_if_setup(struct pccard_softc*);
-
 struct pccard_cis_quirk {
 	int32_t manufacturer;
 	int32_t product;
@@ -286,7 +283,8 @@ int	pccard_scan_cis(device_t,
 #define	PCCARD_SPACE_MEMORY	1
 #define	PCCARD_SPACE_IO		2
 
-#define	pccard_mfc(sc)	(STAILQ_FIRST(&(sc)->card.pf_head) &&		\
+#define	pccard_mfc(sc)							\
+		(STAILQ_FIRST(&(sc)->card.pf_head) &&			\
 		 STAILQ_NEXT(STAILQ_FIRST(&(sc)->card.pf_head),pf_list))
 
 #define	pccard_io_alloc(pf, start, size, align, pciop)			\

@@ -208,6 +208,23 @@ static struct pccard_cis_quirk pccard_cis_quirks[] = {
 static int n_pccard_cis_quirks =
 	sizeof(pccard_cis_quirks)/sizeof(pccard_cis_quirks[0]);
 
+static int
+pccard_cis_quirk_match(struct pccard_softc *sc, struct pccard_cis_quirk *q)
+{
+	if ((sc->card.manufacturer == q->manufacturer) &&
+		(sc->card.product == q->product) &&
+		(((sc->card.manufacturer != PCMCIA_VENDOR_INVALID) &&
+		  (sc->card.product != PCMCIA_PRODUCT_INVALID)) ||
+		 ((sc->card.manufacturer == PCMCIA_VENDOR_INVALID) &&
+		  (sc->card.product == PCMCIA_PRODUCT_INVALID) &&
+		  sc->card.cis1_info[0] &&
+		  (strcmp(sc->card.cis1_info[0], q->cis1_info[0]) == 0) &&
+		  sc->card.cis1_info[1] &&
+		  (strcmp(sc->card.cis1_info[1], q->cis1_info[1]) == 0))))
+		return (1);
+	return (0);
+}
+
 void pccard_check_cis_quirks(device_t dev)
 {
 	struct pccard_softc *sc = PCCARD_SOFTC(dev);
@@ -215,69 +232,56 @@ void pccard_check_cis_quirks(device_t dev)
 	int i, j;
 	struct pccard_function *pf, *pf_next, *pf_last;
 	struct pccard_config_entry *cfe, *cfe_next;
+	struct pccard_cis_quirk *q;
 
 	pf = NULL;
 	pf_last = NULL;
 
 	for (i=0; i<n_pccard_cis_quirks; i++) {
-		if ((sc->card.manufacturer == pccard_cis_quirks[i].manufacturer) &&
-			(sc->card.product == pccard_cis_quirks[i].product) &&
-			(((sc->card.manufacturer != PCMCIA_VENDOR_INVALID) &&
-			  (sc->card.product != PCMCIA_PRODUCT_INVALID)) ||
-			 ((sc->card.manufacturer == PCMCIA_VENDOR_INVALID) &&
-			  (sc->card.product == PCMCIA_PRODUCT_INVALID) &&
-			  sc->card.cis1_info[0] &&
-			  (strcmp(sc->card.cis1_info[0],
-					  pccard_cis_quirks[i].cis1_info[0]) == 0) &&
-			  sc->card.cis1_info[1] &&
-			  (strcmp(sc->card.cis1_info[1],
-					  pccard_cis_quirks[i].cis1_info[1]) == 0)))) {
-			if (!wiped) {
-				if (bootverbose) {
-					device_printf(dev, "using CIS quirks for ");
-					for (j = 0; j < 4; j++) {
-						if (sc->card.cis1_info[j] == NULL)
-							break;
-						if (j)
-							printf(", ");
-						printf("%s", sc->card.cis1_info[j]);
-					}
-					printf("\n");
+		q = &pccard_cis_quirks[i];
+		if (!pccard_cis_quirk_match(sc, q))
+			continue;
+		if (!wiped) {
+			if (bootverbose) {
+				device_printf(dev, "using CIS quirks for ");
+				for (j = 0; j < 4; j++) {
+					if (sc->card.cis1_info[j] == NULL)
+						break;
+					if (j)
+						printf(", ");
+					printf("%s", sc->card.cis1_info[j]);
 				}
-
-				for (pf = STAILQ_FIRST(&sc->card.pf_head); pf != NULL;
-				     pf = pf_next) {
-					for (cfe = STAILQ_FIRST(&pf->cfe_head); cfe != NULL;
-					     cfe = cfe_next) {
-						cfe_next = STAILQ_NEXT(cfe, cfe_list);
-						free(cfe, M_DEVBUF);
-					}
-					pf_next = STAILQ_NEXT(pf, pf_list);
-					free(pf, M_DEVBUF);
-				}
-
-				STAILQ_INIT(&sc->card.pf_head);
-				wiped = 1;
+				printf("\n");
 			}
 
-			if (pf_last == pccard_cis_quirks[i].pf) {
-				cfe = malloc(sizeof(*cfe), M_DEVBUF, M_NOWAIT);
-				*cfe = *pccard_cis_quirks[i].cfe;
-
-				STAILQ_INSERT_TAIL(&pf->cfe_head, cfe, cfe_list);
-			} else {
-				pf = malloc(sizeof(*pf), M_DEVBUF, M_NOWAIT);
-				*pf = *pccard_cis_quirks[i].pf;
-				STAILQ_INIT(&pf->cfe_head);
-
-				cfe = malloc(sizeof(*cfe), M_DEVBUF, M_NOWAIT);
-				*cfe = *pccard_cis_quirks[i].cfe;
-
-				STAILQ_INSERT_TAIL(&pf->cfe_head, cfe, cfe_list);
-				STAILQ_INSERT_TAIL(&sc->card.pf_head, pf, pf_list);
-
-				pf_last = pccard_cis_quirks[i].pf;
+			for (pf = STAILQ_FIRST(&sc->card.pf_head); pf != NULL;
+			     pf = pf_next) {
+				for (cfe = STAILQ_FIRST(&pf->cfe_head); cfe != NULL;
+				     cfe = cfe_next) {
+					cfe_next = STAILQ_NEXT(cfe, cfe_list);
+					free(cfe, M_DEVBUF);
+				}
+				pf_next = STAILQ_NEXT(pf, pf_list);
+				free(pf, M_DEVBUF);
 			}
+
+			STAILQ_INIT(&sc->card.pf_head);
+			wiped = 1;
+		}
+
+		if (pf_last == q->pf) {
+			cfe = malloc(sizeof(*cfe), M_DEVBUF, M_NOWAIT);
+			*cfe = *q->cfe;
+			STAILQ_INSERT_TAIL(&pf->cfe_head, cfe, cfe_list);
+		} else {
+			pf = malloc(sizeof(*pf), M_DEVBUF, M_NOWAIT);
+			*pf = *q->pf;
+			STAILQ_INIT(&pf->cfe_head);
+			cfe = malloc(sizeof(*cfe), M_DEVBUF, M_NOWAIT);
+			*cfe = *q->cfe;
+			STAILQ_INSERT_TAIL(&pf->cfe_head, cfe, cfe_list);
+			STAILQ_INSERT_TAIL(&sc->card.pf_head, pf, pf_list);
+			pf_last = q->pf;
 		}
 	}
 }
