@@ -1,3 +1,4 @@
+.\" $FreeBSD$
 .\" Copyright (c) 1991, 1992, 1993 Free Software Foundation       \-*-Text-*-
 .\" See section COPYING for conditions for redistribution
 .TH cpp 1 "April 30, 1993" "FreeBSD" "GNU Tools"
@@ -624,21 +625,14 @@ This option is available only when you call \c
 .B \-$
 Forbid the use of `\|\c
 .B $\c
-\&\|' in identifiers.  This is required for ANSI
-conformance.  \c
+\&\|' in identifiers.  This was formerly required for strict conformance
+to the C Standard before the standard was corrected.  \c
+
+This option is available only when you call \c
+.B cpp\c
+\& directly;
 .B gcc\c
-\& automatically supplies this option to the
-preprocessor if you specify `\|\c
-.B \-ansi\c
-\&\|', but \c
-.B gcc\c
-\& doesn't
-recognize the `\|\c
-.B \-$\c
-\&\|' option itself\(em\&to use it without the other
-effects of `\|\c
-.B \-ansi\c
-\&\|', you must call the preprocessor directly.
+\& will not pass it from its command line.
 .SH "SEE ALSO"
 .RB "`\|" Cpp "\|'"
 entry in
