@@ -158,7 +158,7 @@ udp6_input(mp, offp, proto)
 	struct  mbuf *opts = NULL;
 	int off = *offp;
 	int plen, ulen;
-	struct sockaddr_in6 udp_in6;
+	struct sockaddr_in6 fromsa;
 
 	IP6_EXTHDR_CHECK(m, off, sizeof(struct udphdr), IPPROTO_DONE);
 
@@ -223,8 +223,8 @@ udp6_input(mp, offp, proto)
 		/*
 		 * Construct sockaddr format source address.
 		 */
-		init_sin6(&udp_in6, m); /* general init */
-		udp_in6.sin6_port = uh->uh_sport;
+		init_sin6(&fromsa, m); /* general init */
+		fromsa.sin6_port = uh->uh_sport;
 		/*
 		 * KAME note: traditionally we dropped udpiphdr from mbuf here.
 		 * We need udphdr for IPsec processing so we do that later.
@@ -288,7 +288,7 @@ udp6_input(mp, offp, proto)
 
 					m_adj(n, off + sizeof(struct udphdr));
 					if (sbappendaddr(&last->in6p_socket->so_rcv,
-							(struct sockaddr *)&udp_in6,
+							 (struct sockaddr *)&fromsa,
 							n, opts) == 0) {
 						m_freem(n);
 						if (opts)
@@ -346,7 +346,7 @@ udp6_input(mp, offp, proto)
 
 		m_adj(m, off + sizeof(struct udphdr));
 		if (sbappendaddr(&last->in6p_socket->so_rcv,
-				(struct sockaddr *)&udp_in6,
+				(struct sockaddr *)&fromsa,
 				m, opts) == 0) {
 			udpstat.udps_fullsock++;
 			goto bad;
@@ -401,14 +401,14 @@ udp6_input(mp, offp, proto)
 	 * Construct sockaddr format source address.
 	 * Stuff source address and datagram in user buffer.
 	 */
-	init_sin6(&udp_in6, m); /* general init */
-	udp_in6.sin6_port = uh->uh_sport;
+	init_sin6(&fromsa, m); /* general init */
+	fromsa.sin6_port = uh->uh_sport;
 	if (in6p->in6p_flags & IN6P_CONTROLOPTS
 	    || in6p->in6p_socket->so_options & SO_TIMESTAMP)
 		ip6_savecontrol(in6p, m, &opts);
 	m_adj(m, off + sizeof(struct udphdr));
 	if (sbappendaddr(&in6p->in6p_socket->so_rcv,
-			(struct sockaddr *)&udp_in6,
+			(struct sockaddr *)&fromsa,
 			m, opts) == 0) {
 		udpstat.udps_fullsock++;
 		goto bad;
