@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)su.c	8.3 (Berkeley) 4/2/94";
 */
 static const char rcsid[] =
-	"$Id: su.c,v 1.18 1997/02/24 20:32:24 guido Exp $";
+	"$Id: su.c,v 1.19 1997/03/29 04:32:40 imp Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -206,7 +206,7 @@ main(argc, argv)
 		errx(1, "unknown login: %s", user);
 	}
 #ifdef LOGIN_CAP
-	lc = login_getclass(pwd);
+	lc = login_getpwclass(pwd);
 #endif
 
 #ifdef WHEELSU

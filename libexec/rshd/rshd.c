@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: rshd.c,v 1.15 1997/03/29 12:35:06 peter Exp $
+ *	$Id: rshd.c,v 1.16 1997/04/23 03:06:47 davidn Exp $
  */
 
 #ifndef lint
@@ -448,7 +448,7 @@ doit(fromp)
 		goto fail;
 	}
 #ifdef	LOGIN_CAP
-	lc = login_getclass(pwd);
+	lc = login_getpwclass(pwd);
 #endif
 	if (chdir(pwd->pw_dir) < 0) {
 #ifdef	LOGIN_CAP

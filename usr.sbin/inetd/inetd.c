@@ -40,7 +40,7 @@ static char copyright[] __attribute__ ((unused)) =
 #ifndef lint
 /* from: @(#)inetd.c	8.4 (Berkeley) 4/13/94"; */
 static char inetd_c_rcsid[] __attribute__ ((unused)) =
-	"$Id: inetd.c,v 1.22 1997/03/31 05:10:10 imp Exp $";
+	"$Id: inetd.c,v 1.23 1997/04/28 13:55:07 wollman Exp $";
 #endif /* not lint */
 
 /*
@@ -128,7 +128,6 @@ static char inetd_c_rcsid[] __attribute__ ((unused)) =
 #include <sysexits.h>
 
 #ifdef LOGIN_CAP
-#undef AUTH_NONE	/* conflicts with rpc stuff */
 #include <login_cap.h>
 #endif
 
@@ -516,7 +515,7 @@ main(argc, argv, envp)
 				 * Establish the class now, falls back to
 				 * the "default" if unavailable.
 				 */
-				lc = login_getclass(pwd);
+				lc = login_getpwclass(pwd);
 #endif
 				if (setsid() < 0) {
 					syslog(LOG_ERR,

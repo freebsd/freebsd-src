@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ftpd.c,v 1.37 1997/04/27 08:29:21 davidn Exp $
+ *	$Id: ftpd.c,v 1.38 1997/04/29 12:42:07 davidn Exp $
  */
 
 #if 0
@@ -967,7 +967,7 @@ skip:
 	/* May be overridden by login.conf */
 	(void) umask(defumask);
 #ifdef	LOGIN_CAP
-	if ((lc = login_getclass(pw)) != NULL) {
+	if ((lc = login_getpwclass(pw)) != NULL) {
 		char	remote_ip[MAXHOSTNAMELEN];
 
 		strncpy(remote_ip, inet_ntoa(his_addr.sin_addr),
