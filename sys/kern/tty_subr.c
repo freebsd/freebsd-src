@@ -92,8 +92,10 @@ cblock_alloc_cblocks(number)
 
 	for (i = 0; i < number; ++i) {
 		tmp = malloc(sizeof(struct cblock), M_TTYS, M_NOWAIT);
-		if (!tmp)
-			panic("clist_init: could not allocate cblock");
+		if (!tmp) {
+			printf("cblock_alloc_cblocks: could not malloc cblock");
+			break;
+		}
 		bzero((char *)tmp, sizeof(struct cblock));
 		cblock_free(tmp);
 	}
