@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_sr.c,v 1.2 1996/09/06 23:07:44 phk Exp $
+ * $Id: if_sr.c,v 1.3 1996/10/29 03:52:51 jhay Exp $
  */
 
 /*
@@ -60,27 +60,22 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/mbuf.h>
-#include <sys/ioctl.h>
+#include <sys/sockio.h>
 #include <sys/socket.h>
-#include <sys/conf.h>
-#include <sys/errno.h>
-#include <sys/malloc.h>
-#include <sys/syslog.h>
 
 #include <net/if.h>
-#include <net/if_types.h>
 #include <net/if_sppp.h>
 
 #if NBPFILTER > 0
 #include <net/bpf.h>
-#include <net/bpfdesc.h>
 #endif
 
-#include <machine/clock.h>
 #include <machine/md_var.h>
 
 #include <i386/isa/if_srregs.h>
 #include <i386/isa/ic/hd64570.h>
+
+#include "ioconf.h"
 
 /* #define USE_MODEMCK */
 
@@ -2915,8 +2910,7 @@ sr_modemck(void *arg)
 	/*
 	 * OK, now set up for the next modem signal checking pass...
 	 */
-	ticks = 1 * hz;		/* use 1 second granularity */
-	timeout(sr_modemck, (caddr_t)0, ticks);
+	timeout(sr_modemck, NULL, hz);
 
 	splx(s);
 }
