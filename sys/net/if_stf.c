@@ -1,5 +1,5 @@
 /*	$FreeBSD$	*/
-/*	$KAME: if_stf.c,v 1.40 2000/06/20 19:44:42 itojun Exp $	*/
+/*	$KAME: if_stf.c,v 1.42 2000/08/15 07:24:23 itojun Exp $	*/
 
 /*
  * Copyright (C) 2000 WIDE Project.
@@ -408,7 +408,7 @@ stf_checkaddr4(in, ifp)
 	 * reject packets with the following address:
 	 * 224.0.0.0/4 0.0.0.0/8 127.0.0.0/8 255.0.0.0/8
 	 */
-	if (IN_MULTICAST(in->s_addr))
+	if (IN_MULTICAST(ntohl(in->s_addr)))
 		return -1;
 	switch ((ntohl(in->s_addr) & 0xff000000) >> 24) {
 	case 0: case 127: case 255:
