@@ -155,7 +155,8 @@ smbfs_mount(struct mount *mp, char *path, caddr_t data,
 #ifdef SMBFS_USEZONE
 	smp = zalloc(smbfsmount_zone);
 #else
-        MALLOC(smp, struct smbmount*, sizeof(*smp), M_SMBFSDATA, M_USE_RESERVE);
+	MALLOC(smp, struct smbmount*, sizeof(*smp), M_SMBFSDATA,
+	    M_WAITOK|M_USE_RESERVE);
 #endif
         if (smp == NULL) {
                 printf("could not alloc smbmount\n");
