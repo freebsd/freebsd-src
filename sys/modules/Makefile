@@ -41,7 +41,6 @@ SUBDIR=	3dfx \
 	if_vlan \
 	ip6fw \
 	ip_mroute_mod \
-	ipfilter \
 	ipfw \
 	ispfw \
 	joy \
@@ -113,6 +112,10 @@ SUBDIR=	3dfx \
 	vx \
 	wb \
 	xl
+
+.if !defined(NO_IPFILTER)
+SUBDIR+=ipfilter
+.endif
 
 #removed while KSE settles in:
 #	ncp \

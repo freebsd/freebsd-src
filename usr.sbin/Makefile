@@ -38,9 +38,6 @@ SUBDIR=	IPXrouted \
 	ifmcstat \
 	inetd \
 	iostat \
-	ipresend \
-	ipsend \
-	iptest \
 	jail \
 	kbdcontrol \
 	kbdmap \
@@ -126,6 +123,13 @@ SUBDIR=	IPXrouted \
 	ypserv \
 	ypset \
 	zic
+
+.if !defined(NO_IPFILTER)
+SUBDIR+=ipftest \
+	ipresend \
+	ipsend \
+	iptest
+.endif
 
 .if !defined(NOLIBC_R) && ${MACHINE_ARCH} != "ia64"
 SUBDIR+=pppctl
