@@ -1,3 +1,5 @@
+#	$Id$
+#
 # Makefile for NETBOOT
 #
 # Options:
@@ -10,52 +12,61 @@
 #	-DNE_BASE	- Base I/O address for NE1000/NE2000
 #	-DWD_DEFAULT_MEM- Default memory location for WD/SMC cards
 #
+
+PROG=	netboot.com
+# Order is very important on the SRCS line for this prog
+SRCS=	start2.S main.c misc.c ether.c bootmenu.c rpc.c
+
+BINDIR=		/usr/mdec
+BINMODE=	555
+CFLAGS=		-O2 -DNFS -DROMSIZE=${ROMSIZE} -DRELOC=${RELOCADDR}
+CFLAGS+=	-DINCLUDE_WD -DWD_DEFAULT_MEM=0xD0000
+#CFLAGS+=	-DINCLUDE_NE -DNE_BASE=0x320
+CLEANFILES+=	netboot.com.nohdr netboot.com.strip
+CLEANFILES+=	netboot.rom.nohdr netboot.rom.strip netboot.rom
+CLEANFILES+=	makerom start2.ro
+LDFLAGS+=	-N -T ${RELOCADDR} -e _start -nostdlib
+NOSHARED=	YES
+NOMAN=
+STRIP=
+
 ROMSIZE=16384
 RELOCADDR=0x90000
-#CFLAGS=	-O2 -DNFS -DINCLUDE_WD -DINCLUDE_NE -DROMSIZE=$(ROMSIZE) \
-#	-DRELOC=$(RELOCADDR) -DNE_BASE=0x320 -DWD_DEFAULT_MEM=0xD0000
-CFLAGS=	-O2 -DNFS -DINCLUDE_WD -DROMSIZE=$(ROMSIZE) \
-	-DRELOC=$(RELOCADDR) -DNE_BASE=0x320 -DWD_DEFAULT_MEM=0xD0000
 
-HDRS=netboot.h
-COBJS=main.o misc.o ether.o bootmenu.o rpc.o
-SSRCS=start2.S
-SOBJS=start2.o
+.SUFFIXES:	.ro
 
-.SUFFIXES:	.c .S .s .o
+.S.ro:
+	${CC} ${CFLAGS} -DBOOTROM -o ${.TARGET} -c ${.IMPSRC}
 
-all:	netboot.com netboot.rom
+makerom: makerom.c
+	${CC} -o ${.TARGET} -DROMSIZE=${ROMSIZE} ${.CURDIR}/makerom.c
 
-makerom:	makerom.c
-	cc -o makerom -DROMSIZE=$(ROMSIZE) makerom.c
+netboot.rom:	makerom start2.ro ${OBJS}
+	${LD} ${LDFLAGS} -o ${.TARGET} ${OBJS:S/start2.o/start2.ro/}
 
-netboot.com:	$(COBJS) $(SSRCS)
-	cc -c $(CFLAGS) $(SSRCS)
-	ld -e _start -T $(RELOCADDR) -N $(SOBJS) $(COBJS)
-	strip a.out
-	size a.out
-	dd ibs=32 skip=1 <a.out >netboot.com
+netboot.rom.strip:	netboot.rom
+	cp -p netboot.rom ${.TARGET}
+	strip ${.TARGET}
+	size ${.TARGET}
 
-netboot.rom:	$(COBJS) $(SSRCS) makerom
-	cc -c $(CFLAGS) -DBOOTROM $(SSRCS)
-	ld -e _start -T $(RELOCADDR) -N $(SOBJS) $(COBJS)
-	strip a.out
-	size a.out
-	dd ibs=32 skip=1 <a.out >netboot.rom
-	./makerom netboot.rom
+netboot.rom.nohdr:	netboot.rom.strip
+	dd ibs=32 skip=1 if=netboot.rom.strip of=${.TARGET}
+	${.OBJDIR}/makerom ${.TARGET}
 
-test:	netboot.com
-	mount -t pcfs /dev/fd0a /msdos
-	cp netboot.com /msdos/netboot.com
-	cp netboot.rom /msdos/netboot.rom
-	umount /msdos
-clean:
-	rm -f $(COBJS) $(SOBJS) *.s netboot.com netboot.rom a.out makerom
+netboot.com.strip:	netboot.com
+	cp -p netboot.com ${.TARGET}
+	strip ${.TARGET}
+	size ${.TARGET}
 
-.c.o:	Makefile $(HDRS)
-	cc $(CFLAGS) -c $<
+netboot.com.nohdr:	netboot.com.strip
+	dd ibs=32 skip=1 if=netboot.com.strip of=${.TARGET}
 
-.c.s:	Makefile $(HDRS)
-	cc $(CFLAGS) -S $<
+all:	netboot.com.nohdr netboot.rom.nohdr
 
+install:
+	install ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE}\
+		netboot.com.nohdr ${DESTDIR}${BINDIR}/netboot.com
+	install ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE}\
+		netboot.rom.nohdr ${DESTDIR}${BINDIR}/netboot.rom
 
+.include <bsd.prog.mk>
