@@ -1,4 +1,4 @@
-/*	$Id$	*/
+/*	$Id: util.c,v 1.3 1997/12/13 20:38:21 pst Exp $	*/
 /*	$NetBSD: util.c,v 1.16.2.1 1997/11/18 01:02:33 mellon Exp $	*/
 
 /*
@@ -36,7 +36,7 @@
 
 #include <sys/cdefs.h>
 #ifndef lint
-__RCSID("$Id$");
+__RCSID("$Id: util.c,v 1.3 1997/12/13 20:38:21 pst Exp $");
 __RCSID_SOURCE("$NetBSD: util.c,v 1.16.2.1 1997/11/18 01:02:33 mellon Exp $");
 #endif /* not lint */
 
@@ -489,7 +489,7 @@ remotesize(file, noisy)
 		if (cp != NULL) {
 			cp++;
 			size = strtoq(cp, &ep, 10);
-			if (*ep != '\0' && !isspace(*ep))
+			if (*ep != '\0' && !isspace((unsigned char)*ep))
 				size = -1;
 		}
 	} else if (noisy && debug == 0)
