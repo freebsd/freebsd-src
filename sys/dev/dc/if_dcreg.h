@@ -953,6 +953,7 @@ struct dc_softc {
  * Abocom device IDs.
  */
 #define DC_DEVICEID_FE2500	0xAB02
+#define DC_DEVICEID_FE2500MX	0xab08
 
 /*
  * Conexant vendor ID.
