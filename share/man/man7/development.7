@@ -380,6 +380,13 @@ Since the main
 .Fx
 tree is based on CVS, the former is convenient.
 .Pp
+First, you need to modify your cvsup environment to avoid it modifying
+the local changes you have committed to the repository.
+It is important to remove the "delete" keyword from your supfile and to
+add the CVSROOT subdirectory to your refuse file.
+For more information, see
+.Xr cvsup 1 .
+.Pp
 The
 .Fx
 version of CVS examines a custom environmental variable,
@@ -400,6 +407,23 @@ After this, you can check out a copy from your local repository using the
 new tag and begin making changes and committing them.
 For more information on using cvs, see
 .Xr cvs 1 .
+.Pp
+.Sy WARNING!
+The cvsup utility may blow away changes made on a local branch in
+some situations.
+This has been reported to occur when the master CVS repository is
+directly manipulated or an RCS file is changed.
+At this point, cvsup notices that the client and server have entirely
+different RCS files, so it does a full replace instead of trying to
+send just deltas.
+Ideally this situation should never arise, but in the real world it
+happens all the time.
+.Pp
+While this is the only scenario where the problem should crop up,
+there have been some suspicious-sounding reports of
+CVS_LOCAL_BRANCH_NUM lossage that can't be explained by this alone.
+Bottom line is, if you value your local branch then you
+should back it up before every update.
 .Sh UPDATING VIA CVS
 The advantage of using cvsup to maintain an updated copy of the CVS
 repository instead of using it to maintain source trees directly is that you
