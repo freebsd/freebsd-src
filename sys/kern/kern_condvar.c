@@ -36,6 +36,7 @@
 #include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/condvar.h>
+#include <sys/sched.h>
 #include <sys/signalvar.h>
 #include <sys/resourcevar.h>
 #ifdef KTRACE
@@ -173,11 +174,10 @@ cv_waitq_add(struct cv *cvp, struct thread *td)
 	TD_SET_ON_SLEEPQ(td);
 	td->td_wchan = cvp;
 	td->td_wmesg = cvp->cv_description;
-	td->td_ksegrp->kg_slptime = 0; /* XXXKSE */
-	td->td_base_pri = td->td_priority;
 	CTR3(KTR_PROC, "cv_waitq_add: thread %p (pid %d, %s)", td,
 	    td->td_proc->p_pid, td->td_proc->p_comm);
 	TAILQ_INSERT_TAIL(&cvp->cv_waitq, td, td_slpq);
+	sched_sleep(td, td->td_priority);
 }
 
 /*
