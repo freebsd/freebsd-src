@@ -41,13 +41,18 @@
  * The kernel defines the format of directory entries returned by
  * the getdirentries(2) system call.
  */
+#include <sys/cdefs.h>
 #include <sys/dirent.h>
 
-#ifdef _POSIX_SOURCE
-typedef void *	DIR;
-#else
+#if __BSD_VISIBLE || __XSI_VISIBLE
+/*
+ * XXX this is probably illegal in the __XSI_VISIBLE case, but brings us closer
+ * to the specification.
+ */
+#define	d_ino		d_fileno	/* backward and XSI compatibility */
+#endif
 
-#define	d_ino		d_fileno	/* backward compatibility */
+#if __BSD_VISIBLE
 
 /* definitions for library routines operating on directories. */
 #define	DIRBLKSIZ	1024
@@ -80,29 +85,37 @@ typedef struct _dirdesc {
 #define	NULL	0
 #endif
 
-#endif /* _POSIX_SOURCE */
+#else /* !__BSD_VISIBLE */
+
+typedef	void *	DIR;
+
+#endif /* __BSD_VISIBLE */
 
 #ifndef _KERNEL
 
-#include <sys/cdefs.h>
-
 __BEGIN_DECLS
-DIR	*opendir(const char *);
-struct dirent *
-	 readdir(DIR *);
-void	 rewinddir(DIR *);
-int	 closedir(DIR *);
-#ifndef _POSIX_SOURCE
+#if __BSD_VISIBLE
 DIR	*__opendir2(const char *, int);
-long	 telldir(DIR *);
-void	 seekdir(DIR *, long);
-int	 scandir(const char *, struct dirent ***,
-	    int (*)(struct dirent *), int (*)(const void *, const void *));
 int	 alphasort(const void *, const void *);
 int	 getdents(int, char *, int);
 int	 getdirentries(int, char *, int, long *);
+#endif
+DIR	*opendir(const char *);
+struct dirent *
+	 readdir(DIR *);
+#if __POSIX_VISIBLE >= 199506 || __XSI_VISIBLE >= 500
 int	 readdir_r(DIR *, struct dirent *, struct dirent **);
-#endif /* not POSIX */
+#endif
+void	 rewinddir(DIR *);
+#if __BSD_VISIBLE
+int	 scandir(const char *, struct dirent ***,
+	    int (*)(struct dirent *), int (*)(const void *, const void *));
+#endif
+#if __XSI_VISIBLE
+void	 seekdir(DIR *, long);
+long	 telldir(DIR *);
+#endif
+int	 closedir(DIR *);
 __END_DECLS
 
 #endif /* !_KERNEL */
