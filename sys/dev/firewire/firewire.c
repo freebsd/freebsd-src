@@ -1047,7 +1047,9 @@ fw_phy_config(struct firewire_comm *fc, int root_node, int gap_count)
 
 	fc->status = FWBUSPHYCONF;
 
+#if 0
 	DELAY(100000);
+#endif
 	xfer = fw_xfer_alloc();
 	xfer->send.len = 12;
 	xfer->send.off = 0;
