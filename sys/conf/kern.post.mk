@@ -60,9 +60,6 @@ kernel-clobber:
 lint: ${CFILES}
 	${LINT} ${LINTKERNFLAGS} ${CFLAGS:M-[DILU]*} ${.ALLSRC}
 
-locore.o: $S/$M/$M/locore.s assym.s
-	${NORMAL_S}
-
 # This is a hack.  BFD "optimizes" away dynamic mode if there are no
 # dynamic references.  We could probably do a '-Bforcedynamic' mode like
 # in the a.out ld.  For now, this works.

@@ -45,6 +45,9 @@ MKMODULESENV+=	MACHINE=pc98
 
 %CLEAN
 
+locore.o: $S/$M/$M/locore.s assym.s
+	${NORMAL_S}
+
 %RULES
 
 .include "$S/conf/kern.post.mk"
