@@ -329,7 +329,7 @@ ata_cbussub_probe(device_t dev)
     ch->r_io[ATA_ALTSTAT].offset = 0;
 
     /* initialize softc for this channel */
-    ch->flags |= ATA_USE_16BIT | ATA_USE_PC98GEOM;
+    ch->flags |= ATA_USE_16BIT;
     ch->locking = ctlr->locking;
     ch->device[MASTER].setmode = ctlr->setmode;
     ch->device[SLAVE].setmode = ctlr->setmode;
