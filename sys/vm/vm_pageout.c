@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.45 1995/04/09 06:03:53 davidg Exp $
+ * $Id: vm_pageout.c,v 1.46 1995/04/16 12:56:22 davidg Exp $
  */
 
 /*
@@ -85,24 +85,20 @@
 #include <vm/vm.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pageout.h>
+#include <vm/vm_kern.h>
 #include <vm/swap_pager.h>
 #include <vm/vnode_pager.h>
 
-extern vm_map_t kmem_map;
 int vm_pages_needed;		/* Event on which pageout daemon sleeps */
-int vm_pagescanner;		/* Event on which pagescanner sleeps */
 
 int vm_pageout_pages_needed;	/* flag saying that the pageout daemon needs pages */
-int vm_page_pagesfreed;
 
 extern int npendingio;
-int vm_pageout_proc_limit;
-int vm_pageout_req_swapout;
+int vm_pageout_req_swapout;	/* XXX */
 int vm_daemon_needed;
 extern int nswiodone;
 extern int swap_pager_full;
 extern int vm_swap_size;
-extern int swap_pager_ready();
 extern int vfs_update_wakeup;
 
 #define MAXSCAN 1024		/* maximum number of pages to scan in queues */
@@ -111,7 +107,6 @@ extern int vfs_update_wakeup;
 
 #define VM_PAGEOUT_PAGE_COUNT 8
 int vm_pageout_page_count = VM_PAGEOUT_PAGE_COUNT;
-int vm_pageout_req_do_stats;
 
 int vm_page_max_wired;		/* XXX max # of wired pages system-wide */
 
@@ -810,7 +805,6 @@ rescan1:
 			wakeup((caddr_t) &cnt.v_free_count);
 		}
 	}
-	vm_page_pagesfreed += pages_freed;
 	return force_wakeup;
 }
 
