@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.87 1997/06/10 02:48:08 davidg Exp $
+ * $Id: vfs_subr.c,v 1.88 1997/06/22 03:00:21 dyson Exp $
  */
 
 /*
@@ -61,6 +61,7 @@
 #include <sys/malloc.h>
 #include <sys/domain.h>
 #include <sys/mbuf.h>
+#include <sys/dirent.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -107,6 +108,7 @@ static struct simplelock mntid_slock;
 struct simplelock mntvnode_slock;
 struct simplelock vnode_free_list_slock;
 static struct simplelock spechash_slock;
+struct nfs_public nfs_pub;	/* publicly exported FS */
 
 int desiredvnodes;
 SYSCTL_INT(_kern, KERN_MAXVNODES, maxvnodes, CTLFLAG_RW, &desiredvnodes, 0, "");
@@ -2033,14 +2035,104 @@ vfs_export(mp, nep, argp)
 	int error;
 
 	if (argp->ex_flags & MNT_DELEXPORT) {
+		if (mp->mnt_flag & MNT_EXPUBLIC) {
+			vfs_setpublicfs(NULL, NULL, NULL);
+			mp->mnt_flag &= ~MNT_EXPUBLIC;
+		}
 		vfs_free_addrlist(nep);
 		mp->mnt_flag &= ~(MNT_EXPORTED | MNT_DEFEXPORTED);
 	}
 	if (argp->ex_flags & MNT_EXPORTED) {
+		if (argp->ex_flags & MNT_EXPUBLIC) {
+			if ((error = vfs_setpublicfs(mp, nep, argp)) != 0)
+				return (error);
+			mp->mnt_flag |= MNT_EXPUBLIC;
+		}
 		if ((error = vfs_hang_addrlist(mp, nep, argp)))
 			return (error);
 		mp->mnt_flag |= MNT_EXPORTED;
 	}
+	return (0);
+}
+
+
+/*
+ * Set the publicly exported filesystem (WebNFS). Currently, only
+ * one public filesystem is possible in the spec (RFC 2054 and 2055)
+ */
+int
+vfs_setpublicfs(mp, nep, argp)
+	struct mount *mp;
+	struct netexport *nep;
+	struct export_args *argp;
+{
+	int error;
+	struct vnode *rvp;
+	char *cp;
+
+	/*
+	 * mp == NULL -> invalidate the current info, the FS is
+	 * no longer exported. May be called from either vfs_export
+	 * or unmount, so check if it hasn't already been done.
+	 */
+	if (mp == NULL) {
+		if (nfs_pub.np_valid) {
+			nfs_pub.np_valid = 0;
+			if (nfs_pub.np_index != NULL) {
+				FREE(nfs_pub.np_index, M_TEMP);
+				nfs_pub.np_index = NULL;
+			}
+		}
+		return (0);
+	}
+
+	/*
+	 * Only one allowed at a time.
+	 */
+	if (nfs_pub.np_valid != 0 && mp != nfs_pub.np_mount)
+		return (EBUSY);
+
+	/*
+	 * Get real filehandle for root of exported FS.
+	 */
+	bzero((caddr_t)&nfs_pub.np_handle, sizeof(nfs_pub.np_handle));
+	nfs_pub.np_handle.fh_fsid = mp->mnt_stat.f_fsid;
+
+	if ((error = VFS_ROOT(mp, &rvp)))
+		return (error);
+
+	if ((error = VFS_VPTOFH(rvp, &nfs_pub.np_handle.fh_fid)))
+		return (error);
+
+	vput(rvp);
+
+	/*
+	 * If an indexfile was specified, pull it in.
+	 */
+	if (argp->ex_indexfile != NULL) {
+		MALLOC(nfs_pub.np_index, char *, MAXNAMLEN + 1, M_TEMP,
+		    M_WAITOK);
+		error = copyinstr(argp->ex_indexfile, nfs_pub.np_index,
+		    MAXNAMLEN, (size_t *)0);
+		if (!error) {
+			/*
+			 * Check for illegal filenames.
+			 */
+			for (cp = nfs_pub.np_index; *cp; cp++) {
+				if (*cp == '/') {
+					error = EINVAL;
+					break;
+				}
+			}
+		}
+		if (error) {
+			FREE(nfs_pub.np_index, M_TEMP);
+			return (error);
+		}
+	}
+
+	nfs_pub.np_mount = mp;
+	nfs_pub.np_valid = 1;
 	return (0);
 }
 
