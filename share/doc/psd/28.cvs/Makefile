@@ -1,10 +1,10 @@
 # $FreeBSD$
 
-VOLUME= psd/28.cvs
-MACROS= -ms
-SRCDIR= ${.CURDIR}/../../../../contrib/cvs/doc
-SRCS=	cvs-paper.ms
-USE_PIC=	yes
-USE_TBL=	yes
+VOLUME=		psd/28.cvs
+SRCS=		cvs-paper.ms
+MACROS=		-ms
+USE_PIC=	YES
+USE_TBL=	YES
+SRCDIR=		${.CURDIR}/../../../../contrib/cvs/doc
 
 .include <bsd.doc.mk>

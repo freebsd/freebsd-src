@@ -1,11 +1,11 @@
 #	From: @(#)Makefile	8.1 (Berkeley) 6/8/93
 # $FreeBSD$
 
-VOLUME=	usd/11.edit
-SRCS=	edittut.ms
-MACROS=	-ms
-SRCDIR=	${.CURDIR}/../../../../contrib/nvi/docs/USD.doc/edit
-USE_TBL=	yes
+VOLUME=		usd/11.edit
+SRCS=		edittut.ms
+MACROS=		-ms
+USE_TBL=	YES
+SRCDIR=		${.CURDIR}/../../../../contrib/nvi/docs/USD.doc/edit
 
 # index for versatec is different from the one in edit.tut
 # because the fonts are different and entries reference page

@@ -1,16 +1,15 @@
 #	From: @(#)Makefile	8.1 (Berkeley) 8/14/93
 # $FreeBSD$
 
-VOLUME=	psd/18.gprof
-SRCS=	header.me abstract.me intro.me profiling.me gathering.me \
-	postp.me present.me refs.me
-EXTRA=	postp1.pic postp2.pic postp3.pic pres1.pic pres2.pic
-MACROS=	-me
-SRCDIR=	${.CURDIR}/../../../../usr.bin/gprof/PSD.doc
-
-USE_SOELIM=	yes
-USE_PIC=	yes
-USE_TBL=	yes
-USE_EQN=	yes
+VOLUME=		psd/18.gprof
+SRCS=		header.me abstract.me intro.me profiling.me gathering.me \
+		postp.me present.me refs.me
+EXTRA=		postp1.pic postp2.pic postp3.pic pres1.pic pres2.pic
+MACROS=		-me
+USE_SOELIM=	YES
+USE_PIC=	YES
+USE_TBL=	YES
+USE_EQN=	YES
+SRCDIR=		${.CURDIR}/../../../../usr.bin/gprof/PSD.doc
 
 .include <bsd.doc.mk>
