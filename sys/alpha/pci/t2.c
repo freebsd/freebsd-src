@@ -118,14 +118,14 @@ t2_set_hae_mem(void *arg, u_int32_t pa)
 		msb = pa & 0xf8000000;
 		pa -= msb;
 		msb >>= 27;	/* t2 puts high bits in the bottom of the register */
-		s = splhigh();
+		s = critical_enter();
 		if (msb != t2_hae_mem[hose]) {
 			t2_hae_mem[hose] = msb;
 			t2_csr[hose]->hae0_1 = t2_hae_mem[hose];
 			alpha_mb();
 			t2_hae_mem[hose] = t2_csr[hose]->hae0_1;
 		}
-		splx(s);
+		critical_exit(s);
 	}
 	return pa;
 }
