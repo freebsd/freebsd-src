@@ -290,6 +290,14 @@ sysconf(name)
 		goto yesno;
 #endif /* _P1003_1B_VISIBLE */
 
+#if defined(_SC_NPROCESSORS_CONF) && defined(_SC_NPROCESSORS_ONLN)
+	case _SC_NPROCESSORS_CONF:
+	case _SC_NPROCESSORS_ONLN:
+		mib[0] = CTL_HW;
+		mib[1] = HW_NCPU;
+		break;
+#endif
+
 #ifdef _SC_IOV_MAX
 	case _SC_IOV_MAX:
 		mib[0] = CTL_KERN;
