@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: isa.c,v 1.99 1997/07/29 05:24:36 msmith Exp $
+ *	$Id: isa.c,v 1.2 1997/08/21 04:51:00 smp Exp smp $
  */
 
 /*
@@ -55,7 +55,6 @@
 #include <machine/md_var.h>
 #ifdef APIC_IO
 #include <machine/smp.h>
-#include <machine/apic.h>
 #endif /* APIC_IO */
 #include <vm/vm.h>
 #include <vm/vm_param.h>

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: exception.s,v 1.38 1997/08/10 21:18:01 fsmp Exp $
+ *	$Id: exception.s,v 1.12 1997/08/21 04:53:27 smp Exp smp $
  */
 
 #include "npx.h"				/* NNPX */
@@ -39,48 +39,7 @@
 #include <machine/psl.h>			/* PSL_I */
 #include <machine/trap.h>			/* trap codes */
 #include <machine/asmacros.h>			/* miscellaneous macros */
-
-#ifdef SMP
-
-#define	MPLOCKED	lock ;
-
-#define FPU_LOCK	call	_get_fpu_lock
-#define ALIGN_LOCK	call	_get_align_lock
-#define SYSCALL_LOCK	call	_get_syscall_lock
-#define ALTSYSCALL_LOCK	call	_get_altsyscall_lock
-
-/* protects the IO APIC and apic_imen as a critical region */
-#define IMASK_LOCK							\
-	pushl	$_imen_lock ;			/* address of lock */	\
-	call	_s_lock ;			/* MP-safe */		\
-	addl	$4,%esp
-
-#define IMASK_UNLOCK							\
-	pushl	$_imen_lock ;			/* address of lock */	\
-	call	_s_unlock ;			/* MP-safe */		\
-	addl	$4,%esp
-
-/* protects cpl updates as a critical region */
-#define CPL_LOCK							\
-	pushl	$_cpl_lock ;			/* address of lock */	\
-	call	_s_lock ;			/* MP-safe */		\
-	addl	$4,%esp
-
-#define CPL_UNLOCK							\
-	pushl	$_cpl_lock ;			/* address of lock */	\
-	call	_s_unlock ;			/* MP-safe */		\
-	addl	$4,%esp
-
-#else  /* SMP */
-
-#define	MPLOCKED				/* NOP */
-
-#define FPU_LOCK				/* NOP */
-#define ALIGN_LOCK				/* NOP */
-#define SYSCALL_LOCK				/* NOP */
-#define ALTSYSCALL_LOCK				/* NOP */
-
-#endif  /* SMP */
+#include <machine/param.h>
 
 #define	KCSEL		0x08			/* kernel code selector */
 #define	KDSEL		0x10			/* kernel data selector */
