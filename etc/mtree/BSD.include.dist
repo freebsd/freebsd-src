@@ -1,52 +1,52 @@
-#	$Id$
+#	$Id: BSD.include.dist,v 1.1 1995/03/18 07:02:10 rgrimes Exp $
 #
 
 /set type=dir uname=bin gname=bin mode=0755
-.              
-    arpa           
+.
+    arpa
     ..
-    g++            
+    g++
     ..
-    kerberosIV     
+    kerberosIV
     ..
-    machine        
+    machine
     ..
-    net            
+    net
     ..
-    netccitt       
+    netccitt
     ..
-    netinet        
+    netinet
     ..
-    netiso         
+    netiso
     ..
-    netns          
+    netns
     ..
-    nfs            
+    nfs
     ..
-    objc           
+    objc
     ..
-    protocols      
+    protocols
     ..
-    readline       
+    readline
     ..
-    rpc            
+    rpc
     ..
-    rpcsvc         
+    rpcsvc
     ..
-    ss             
+    ss
     ..
-    sys            
+    sys
     ..
-    ufs            
-        ffs            
+    ufs
+        ffs
         ..
-        lfs            
+        lfs
         ..
-        mfs            
+        mfs
         ..
-        ufs            
+        ufs
         ..
     ..
-    vm             
+    vm
     ..
 ..
