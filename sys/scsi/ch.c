@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: ch.c,v 1.46 1998/06/07 17:12:47 dfr Exp $
+ *      $Id: ch.c,v 1.47 1998/06/17 14:13:13 bde Exp $
  */
 
 #include "opt_devfs.h"
@@ -544,7 +544,7 @@ ch_usergetelemstatus(sc, chet, uptr)
 		goto done;
 
 	st_hdr = (struct read_element_status_header *)data;
-	pg_hdr = (struct read_element_status_page_header *)((u_long)st_hdr +
+	pg_hdr = (struct read_element_status_page_header *)((char *)st_hdr +
 	    sizeof(struct read_element_status_header));
 	desclen = scsi_2btou(pg_hdr->edl);
 
@@ -583,12 +583,13 @@ ch_usergetelemstatus(sc, chet, uptr)
 
 	user_data = (u_int8_t *)malloc(avail, M_DEVBUF, M_WAITOK);
 
-	desc = (struct read_element_status_descriptor *)((u_long)data +
+	desc = (struct read_element_status_descriptor *)((char *)data +
 	    sizeof(struct read_element_status_header) +
 	    sizeof(struct read_element_status_page_header));
 	for (i = 0; i < avail; ++i) {
 		user_data[i] = desc->flags1;
-		(u_long)desc += desclen;
+		desc = (struct read_element_status_descriptor *)
+		    ((char *)desc + desclen);
 	}
 
 	/* Copy flags array out to userspace. */
