@@ -228,7 +228,7 @@ syncache_init(void)
 	/* Allocate the hash table. */
 	MALLOC(tcp_syncache.hashbase, struct syncache_head *,
 	    tcp_syncache.hashsize * sizeof(struct syncache_head),
-	    M_SYNCACHE, M_WAITOK);
+	    M_SYNCACHE, M_WAITOK | M_ZERO);
 
 	/* Initialize the hash buckets. */
 	for (i = 0; i < tcp_syncache.hashsize; i++) {
@@ -596,10 +596,9 @@ syncache_socket(sc, lso)
 		sc->sc_route6.ro_rt = NULL;
 
 		MALLOC(sin6, struct sockaddr_in6 *, sizeof *sin6,
-		    M_SONAME, M_NOWAIT);
+		    M_SONAME, M_NOWAIT | M_ZERO);
 		if (sin6 == NULL)
 			goto abort;
-		bzero(sin6, sizeof(*sin6));
 		sin6->sin6_family = AF_INET6;
 		sin6->sin6_len = sizeof(*sin6);
 		sin6->sin6_addr = sc->sc_inc.inc6_faddr;
@@ -628,7 +627,7 @@ syncache_socket(sc, lso)
 		sc->sc_route.ro_rt = NULL;
 
 		MALLOC(sin, struct sockaddr_in *, sizeof *sin,
-		    M_SONAME, M_NOWAIT);
+		    M_SONAME, M_NOWAIT | M_ZERO);
 		if (sin == NULL)
 			goto abort;
 		sin->sin_family = AF_INET;
@@ -855,6 +854,7 @@ syncache_add(inc, to, th, sop, m)
 	/*
 	 * Fill in the syncache values.
 	 */
+	bzero(sc, sizeof(*sc));
 	sc->sc_tp = tp;
 	sc->sc_inp_gencnt = tp->t_inpcb->inp_gencnt;
 	sc->sc_ipopts = ipopts;
