@@ -839,7 +839,7 @@ ncr53c9x_action(struct cam_sim *sim, union ccb *ccb)
 		return;
 	case XPT_CALC_GEOMETRY:
 		mtx_unlock(&sc->sc_lock);
-		cam_calc_geometry(&ccb->ccg, 0);	/* XXX Extended? */
+		cam_calc_geometry(&ccb->ccg, sc->sc_extended_geom);
 		xpt_done(ccb);
 		return;
 	case XPT_PATH_INQ:
