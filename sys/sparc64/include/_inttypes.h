@@ -58,7 +58,7 @@
 #define	PRIdFAST16	"d"	/* int_fast16_t */
 #define	PRIdFAST32	"d"	/* int_fast32_t */
 #define	PRIdFAST64	"ld"	/* int_fast64_t */
-#define	PRIdMAX		"ld"	/* intmax_t */
+#define	PRIdMAX		"jd"	/* intmax_t */
 #define	PRIdPTR		"ld"	/* intptr_t */
 
 #define	PRIi8		"i"	/* int8_t */
@@ -73,7 +73,7 @@
 #define	PRIiFAST16	"i"	/* int_fast16_t */
 #define	PRIiFAST32	"i"	/* int_fast32_t */
 #define	PRIiFAST64	"li"	/* int_fast64_t */
-#define	PRIiMAX		"li"	/* intmax_t */
+#define	PRIiMAX		"ji"	/* intmax_t */
 #define	PRIiPTR		"li"	/* intptr_t */
 
 /* fprintf(3) macros for unsigned integers. */
@@ -90,7 +90,7 @@
 #define	PRIoFAST16	"o"	/* uint_fast16_t */
 #define	PRIoFAST32	"o"	/* uint_fast32_t */
 #define	PRIoFAST64	"lo"	/* uint_fast64_t */
-#define	PRIoMAX		"lo"	/* uintmax_t */
+#define	PRIoMAX		"jo"	/* uintmax_t */
 #define	PRIoPTR		"lo"	/* uintptr_t */
 
 #define	PRIu8		"u"	/* uint8_t */
@@ -105,7 +105,7 @@
 #define	PRIuFAST16	"u"	/* uint_fast16_t */
 #define	PRIuFAST32	"u"	/* uint_fast32_t */
 #define	PRIuFAST64	"lu"	/* uint_fast64_t */
-#define	PRIuMAX		"lu"	/* uintmax_t */
+#define	PRIuMAX		"ju"	/* uintmax_t */
 #define	PRIuPTR		"lu"	/* uintptr_t */
 
 #define	PRIx8		"x"	/* uint8_t */
@@ -120,7 +120,7 @@
 #define	PRIxFAST16	"x"	/* uint_fast16_t */
 #define	PRIxFAST32	"x"	/* uint_fast32_t */
 #define	PRIxFAST64	"lx"	/* uint_fast64_t */
-#define	PRIxMAX		"lx"	/* uintmax_t */
+#define	PRIxMAX		"jx"	/* uintmax_t */
 #define	PRIxPTR		"lx"	/* uintptr_t */
 
 #define	PRIX8		"X"	/* uint8_t */
@@ -135,7 +135,7 @@
 #define	PRIXFAST16	"X"	/* uint_fast16_t */
 #define	PRIXFAST32	"X"	/* uint_fast32_t */
 #define	PRIXFAST64	"lX"	/* uint_fast64_t */
-#define	PRIXMAX		"lX"	/* uintmax_t */
+#define	PRIXMAX		"jX"	/* uintmax_t */
 #define	PRIXPTR		"lX"	/* uintptr_t */
 
 /* fscanf(3) macros for signed integers. */
@@ -152,7 +152,7 @@
 #define	SCNdFAST16	"d"	/* int_fast16_t */
 #define	SCNdFAST32	"d"	/* int_fast32_t */
 #define	SCNdFAST64	"ld"	/* int_fast64_t */
-#define	SCNdMAX		"ld"	/* intmax_t */
+#define	SCNdMAX		"jd"	/* intmax_t */
 #define	SCNdPTR		"ld"	/* intptr_t */
 
 #define	SCNi8		"hhi"	/* int8_t */
@@ -167,7 +167,7 @@
 #define	SCNiFAST16	"i"	/* int_fast16_t */
 #define	SCNiFAST32	"i"	/* int_fast32_t */
 #define	SCNiFAST64	"li"	/* int_fast64_t */
-#define	SCNiMAX		"li"	/* intmax_t */
+#define	SCNiMAX		"ji"	/* intmax_t */
 #define	SCNiPTR		"li"	/* intptr_t */
 
 /* fscanf(3) macros for unsigned integers. */
@@ -184,7 +184,7 @@
 #define	SCNoFAST16	"o"	/* uint_fast16_t */
 #define	SCNoFAST32	"o"	/* uint_fast32_t */
 #define	SCNoFAST64	"lo"	/* uint_fast64_t */
-#define	SCNoMAX		"lo"	/* uintmax_t */
+#define	SCNoMAX		"jo"	/* uintmax_t */
 #define	SCNoPTR		"lo"	/* uintptr_t */
 
 #define	SCNu8		"hhu"	/* uint8_t */
@@ -199,7 +199,7 @@
 #define	SCNuFAST16	"u"	/* uint_fast16_t */
 #define	SCNuFAST32	"u"	/* uint_fast32_t */
 #define	SCNuFAST64	"lu"	/* uint_fast64_t */
-#define	SCNuMAX		"lu"	/* uintmax_t */
+#define	SCNuMAX		"ju"	/* uintmax_t */
 #define	SCNuPTR		"lu"	/* uintptr_t */
 
 #define	SCNx8		"hhx"	/* uint8_t */
@@ -214,7 +214,7 @@
 #define	SCNxFAST16	"x"	/* uint_fast16_t */
 #define	SCNxFAST32	"x"	/* uint_fast32_t */
 #define	SCNxFAST64	"lx"	/* uint_fast64_t */
-#define	SCNxMAX		"lx"	/* uintmax_t */
+#define	SCNxMAX		"jx"	/* uintmax_t */
 #define	SCNxPTR		"lx"	/* uintptr_t */
 
 #endif /* !_MACHINE_INTTYPES_H_ */
