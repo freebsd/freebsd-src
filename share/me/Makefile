@@ -10,8 +10,7 @@ TMSRCS=	tmac.orig_me
 FILES=	${MESRCS:S/$/.tmp/} ${TMSRCS:S/$/.tmp/} revisions
 CLEANFILES+=	${MESRCS:S/$/.tmp/} ${TMSRCS:S/$/.tmp/}
 
-# XXX use groff version
-# MAN=	me.7
+MAN=	orig_me.7
 
 .for file in ${MESRCS} ${TMSRCS}
 ${file}.tmp: ${file}
