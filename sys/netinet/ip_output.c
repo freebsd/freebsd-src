@@ -141,7 +141,6 @@ ip_output(m0, opt, ro, flags, imo)
 	int rv;
 #endif /* PFIL_HOOKS */
 
-	len = 0;
 	args.eh = NULL;
 	args.rule = NULL;
 	args.next_hop = NULL;
@@ -199,8 +198,9 @@ ip_output(m0, opt, ro, flags, imo)
 	}
 
 	if (opt) {
+		len = 0;
 		m = ip_insertoptions(m, opt, &len);
-		if (len >= sizeof(struct ip))
+		if (len != 0)
 			hlen = len;
 	}
 	ip = mtod(m, struct ip *);
@@ -1136,14 +1136,18 @@ ip_insertoptions(m, opt, phlen)
 	unsigned optlen;
 
 	optlen = opt->m_len - sizeof(p->ipopt_dst);
-	if (optlen + (u_short)ip->ip_len > IP_MAXPACKET)
+	if (optlen + (u_short)ip->ip_len > IP_MAXPACKET) {
+		*phlen = 0;
 		return (m);		/* XXX should fail */
+	}
 	if (p->ipopt_dst.s_addr)
 		ip->ip_dst = p->ipopt_dst;
 	if (m->m_flags & M_EXT || m->m_data - optlen < m->m_pktdat) {
 		MGETHDR(n, M_DONTWAIT, MT_HEADER);
-		if (n == 0)
+		if (n == 0) {
+			*phlen = 0;
 			return (m);
+		}
 		n->m_pkthdr.rcvif = (struct ifnet *)0;
 #ifdef MAC
 		mac_create_mbuf_from_mbuf(m, n);
