@@ -757,6 +757,11 @@ umass_match_proto(struct umass_softc *sc, usbd_interface_handle iface,
 		sc->proto = UMASS_PROTO_SCSI | UMASS_PROTO_BBB;
 		sc->quirks |= IGNORE_RESIDUE;
 	}
+	if (UGETW(dd->idVendor) == USB_VENDOR_WESTERN &&
+	    UGETW(dd->idProduct) == USB_PRODUCT_WESTERN_EXTHDD) {
+		sc->proto = UMASS_PROTO_SCSI | UMASS_PROTO_BBB;
+		sc->quirks |= FORCE_SHORT_INQUIRY | NO_START_STOP | IGNORE_RESIDUE;
+	}
 
 	switch (id->bInterfaceSubClass) {
 	case UISUBCLASS_SCSI:
