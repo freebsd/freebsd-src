@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.404 1998/10/07 22:54:04 jkh Exp $
+#	$Id: Makefile,v 1.405 1998/10/07 22:58:22 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -732,8 +732,6 @@ doMFSKERN:
 .if defined(_MFSKERN)
 	./write_mfs_in_kernel ${RD}/boot.${FSIMAGE}/kernel \
 		fs-image.${FSIMAGE}
-.else
-	cp fs-image.${FSIMAGE} ${RD}/floppies/mfs_root.flp
 .endif
 	kzip -v ${RD}/boot.${FSIMAGE}/kernel
 	@mv ${RD}/boot.${FSIMAGE}/kernel ${RD}/kernels/MFSKERNEL.${FSIMAGE}
