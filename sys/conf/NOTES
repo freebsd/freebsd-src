@@ -1550,6 +1550,10 @@ device		miibus
 #       Olicom PCI token-ring adapters OC-3136, OC-3137, OC-3139, OC-3140,
 #       OC-3141, OC-3540, OC-3250
 # rdp:  RealTek RTL 8002-based pocket ethernet adapters
+# pcn:	Support for PCI fast ethernet adapters based on the AMD Am79c97x
+#	chipsets, including the PCnet/FAST, PCnet/FAST+, PCnet/PRO and
+#	PCnet/Home. These were previously handled by the lnc driver (and
+#	still will be if you leave this driver out of the kernel).
 # rl:   Support for PCI fast ethernet adapters based on the RealTek 8129/8139
 #       chipset.  Note that the RealTek driver defaults to using programmed
 #       I/O to do register accesses because memory mapped mode seems to cause
@@ -1691,6 +1695,7 @@ hint.oltr.0.at="isa"
 # PCI Ethernet NICs that use the common MII bus controller code.
 device		dc		# DEC/Intel 21143 and various workalikes
 device		rl		# RealTek 8129/8139
+device		pcn		# AMD Am79C79x PCI 10/100 NICs
 device		sf		# Adaptec AIC-6915 (``Starfire'')
 device		sis		# Silicon Integrated Systems SiS 900/SiS 7016
 device		ste		# Sundance ST201 (D-Link DFE-550TX)
