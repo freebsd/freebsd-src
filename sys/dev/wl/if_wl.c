@@ -389,7 +389,7 @@ wlprobe(device_t device)
     short		base;
     char		*str = "wl%d: board out of range [0..%d]\n";
     u_char		inbuf[100];
-    unsigned long	junk, sirq;
+    unsigned long	junk, oldpri, sirq;
     int			error, irq;
 
     error = ISA_PNP_PROBE(device_get_parent(device), device, wl_ids);
@@ -408,10 +408,12 @@ wlprobe(device_t device)
      */
 #define PCMD(base, hacr) outw((base), (hacr))
 
+    oldpri = splimp();
     PCMD(base, HACR_RESET);			/* reset the board */
     DELAY(DELAYCONST);				/* >> 4 clocks at 6MHz */
     PCMD(base, HACR_RESET);			/* reset the board */
     DELAY(DELAYCONST);	                	/* >> 4 clocks at 6MHz */
+    splx(oldpri);
 
     /* clear reset command and set PIO#1 in autoincrement mode */
     PCMD(base, HACR_DEFAULT);
@@ -798,6 +800,7 @@ wlinit(void *xsc)
     struct wl_softc	*sc = xsc;
     struct ifnet	*ifp = &sc->wl_if;
     int			stat;
+    u_long		oldpri;
 
 #ifdef WLDEBUG
     if (sc->wl_if.if_flags & IFF_DEBUG)
@@ -805,6 +808,7 @@ wlinit(void *xsc)
 #endif
     if (TAILQ_FIRST(&ifp->if_addrhead) == (struct ifaddr *)0)
 	return;
+    oldpri = splimp();
     if ((stat = wlhwrst(sc)) == TRUE) {
 	sc->wl_if.if_flags |= IFF_RUNNING;   /* same as DSF_RUNNING */
 	/* 
@@ -821,6 +825,7 @@ wlinit(void *xsc)
     } else {
 	printf("wl%d init(): trouble resetting board.\n", sc->unit);
     }
+    splx(oldpri);
 }
 
 /*
@@ -1222,7 +1227,7 @@ wlioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
     struct wl_softc	*sc = ifp->if_softc;
     short		base = sc->base;
     short		mode = 0;
-    int			error = 0;
+    int			opri, error = 0;
     struct thread	*td = curthread;	/* XXX */
     int			irq, irqval, i, isroot;
     caddr_t		up;
@@ -1236,6 +1241,7 @@ wlioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
     if (sc->wl_if.if_flags & IFF_DEBUG)
 	printf("wl%d: entered wlioctl()\n",unit);
 #endif
+    opri = splimp();
     switch (cmd) {
     case SIOCSIFFLAGS:
 	if (ifp->if_flags & IFF_ALLMULTI) {
@@ -1444,6 +1450,7 @@ wlioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
         error = ether_ioctl(ifp, cmd, data);
 	break;
     }
+    splx(opri);
     WL_UNLOCK(sc);
     return (error);
 }
@@ -2393,7 +2400,7 @@ static void
 wlsetpsa(struct wl_softc *sc)
 {
     short	base = sc->base;
-    int		i;
+    int		i, oldpri;
     u_short	crc;
 
     crc = wlpsacrc(sc->psa);	/* calculate CRC of PSA */
@@ -2401,6 +2408,8 @@ wlsetpsa(struct wl_softc *sc)
     sc->psa[WLPSA_CRCHIGH] = (crc >> 8) & 0xff;
     sc->psa[WLPSA_CRCOK] = 0x55;	/* default to 'bad' until programming complete */
 
+    oldpri = splimp();		/* ick, long pause */
+    
     PCMD(base, HACR_DEFAULT & ~HACR_16BITS);
     PCMD(base, HACR_DEFAULT & ~HACR_16BITS);
     
@@ -2419,6 +2428,8 @@ wlsetpsa(struct wl_softc *sc)
     
     PCMD(base, HACR_DEFAULT);
     PCMD(base, HACR_DEFAULT);
+    
+    splx(oldpri);
 }
 
 /* 
