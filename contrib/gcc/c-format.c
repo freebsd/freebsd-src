@@ -85,7 +85,6 @@ typedef struct function_format_info
   enum format_type format_type;	/* type of format (printf, scanf, etc.) */
   unsigned HOST_WIDE_INT format_num;	/* number of format argument */
   unsigned HOST_WIDE_INT first_arg_num;	/* number of first arg (zero for varargs) */
-  int null_format_ok;			/* TRUE if the format string may be NULL */
 } function_format_info;
 
 static bool decode_format_attr		PARAMS ((tree,
@@ -940,14 +939,6 @@ static const format_flag_spec *get_flag_spec	PARAMS ((const format_flag_spec *,
 
 static void check_format_types	PARAMS ((int *, format_wanted_type *));
 
-
-inline static int get_null_fmt_ok (fmttype)
-	enum format_type fmttype;
-{
-  return format_types[(int)fmttype].null_format_ok;
-}
-
-
 /* Decode a format type from a string, returning the type, or
    format_type_error if not valid, in which case the caller should print an
    error message.  */
@@ -1506,7 +1497,8 @@ check_format_info_recurse (status, res, info, format_tree, params, arg_num)
 	 specially if info == NULL and add a res->number_null entry for
 	 that case, or maybe add a function pointer to be called at
 	 the end instead of hardcoding check_format_info_main.  */
-      if (!info->null_format_ok) status_warning (status, "null format string");
+      if (!format_types[info->format_type].null_format_ok)
+	status_warning (status, "null format string");
 
       /* Skip to first argument to check, so we can see if this format
 	 has any arguments (it shouldn't).  */
