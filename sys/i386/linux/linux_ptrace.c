@@ -48,13 +48,6 @@
 #include <i386/linux/linux.h>
 #include <i386/linux/linux_proto.h>
 
-#if !defined(CPU_ENABLE_SSE) && defined(I686_CPU)
-#define CPU_ENABLE_SSE
-#endif
-#if defined(CPU_DISABLE_SSE)
-#undef CPU_ENABLE_SSE
-#endif
-
 /*
  *   Linux ptrace requests numbers. Mostly identical to FreeBSD,
  *   except for MD ones and PT_ATTACH/PT_DETACH.
