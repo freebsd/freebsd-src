@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_exec.c,v 1.25 1995/11/06 12:52:32 davidg Exp $
+ *	$Id: kern_exec.c,v 1.26 1995/11/12 06:42:53 bde Exp $
  */
 
 #include <sys/param.h>
@@ -105,15 +105,8 @@ execve(p, uap, retval)
 	 * Allocate temporary demand zeroed space for argument and
 	 *	environment strings
 	 */
-	imgp->stringbase = (char *)vm_map_min(exec_map);
-	error = vm_map_find(exec_map, NULL, 0, (vm_offset_t *)&imgp->stringbase,
-	    ARG_MAX, TRUE);
-	if (error) {
-		log(LOG_WARNING, "execve: failed to allocate string space\n");
-		return (error);
-	}
-
-	if (!imgp->stringbase) {
+	imgp->stringbase = (char *)kmem_alloc_pageable(exec_map, ARG_MAX);
+	if (imgp->stringbase == NULL) {
 		error = ENOMEM;
 		goto exec_fail;
 	}
@@ -132,8 +125,7 @@ interpret:
 
 	error = namei(ndp);
 	if (error) {
-		vm_map_remove(exec_map, (vm_offset_t)imgp->stringbase,
-		    (vm_offset_t)imgp->stringbase + ARG_MAX);
+		kmem_free(exec_map, (vm_offset_t)imgp->stringbase, ARG_MAX);
 		goto exec_fail;
 	}
 
@@ -308,9 +300,7 @@ interpret:
 	/*
 	 * free various allocated resources
 	 */
-	if (vm_map_remove(exec_map, (vm_offset_t)imgp->stringbase,
-	    (vm_offset_t)imgp->stringbase + ARG_MAX))
-		panic("execve: string buffer dealloc failed (1)");
+	kmem_free(exec_map, (vm_offset_t)imgp->stringbase, ARG_MAX);
 	if (vm_map_remove(kernel_map, (vm_offset_t)imgp->image_header,
 	    (vm_offset_t)imgp->image_header + PAGE_SIZE))
 		panic("execve: header dealloc failed (2)");
@@ -320,10 +310,8 @@ interpret:
 	return (0);
 
 exec_fail_dealloc:
-	if (imgp->stringbase && imgp->stringbase != (char *)-1)
-		if (vm_map_remove(exec_map, (vm_offset_t)imgp->stringbase,
-		    (vm_offset_t)imgp->stringbase + ARG_MAX))
-			panic("execve: string buffer dealloc failed (2)");
+	if (imgp->stringbase != NULL)
+		kmem_free(exec_map, (vm_offset_t)imgp->stringbase, ARG_MAX);
 	if (imgp->image_header && imgp->image_header != (char *)-1)
 		if (vm_map_remove(kernel_map, (vm_offset_t)imgp->image_header,
 		    (vm_offset_t)imgp->image_header + PAGE_SIZE))
