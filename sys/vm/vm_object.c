@@ -571,7 +571,6 @@ void
 vm_object_terminate(vm_object_t object)
 {
 	vm_page_t p;
-	int s;
 
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 
@@ -615,7 +614,6 @@ vm_object_terminate(vm_object_t object)
 	 * removes them from paging queues. Don't free wired pages, just
 	 * remove them from the object. 
 	 */
-	s = splvm();
 	vm_page_lock_queues();
 	while ((p = TAILQ_FIRST(&object->memq)) != NULL) {
 		KASSERT(!p->busy && (p->flags & PG_BUSY) == 0,
@@ -631,7 +629,6 @@ vm_object_terminate(vm_object_t object)
 		}
 	}
 	vm_page_unlock_queues();
-	splx(s);
 
 	/*
 	 * Let the pager know object is dead.
@@ -861,7 +858,6 @@ static int
 vm_object_page_collect_flush(vm_object_t object, vm_page_t p, int curgeneration, int pagerflags)
 {
 	int runlen;
-	int s;
 	int maxf;
 	int chkb;
 	int maxb;
@@ -871,13 +867,11 @@ vm_object_page_collect_flush(vm_object_t object, vm_page_t p, int curgeneration,
 	vm_page_t mab[vm_pageout_page_count];
 	vm_page_t ma[vm_pageout_page_count];
 
-	s = splvm();
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	pi = p->pindex;
 	while (vm_page_sleep_if_busy(p, TRUE, "vpcwai")) {
 		vm_page_lock_queues();
 		if (object->generation != curgeneration) {
-			splx(s);
 			return(0);
 		}
 	}
@@ -950,7 +944,6 @@ vm_object_page_collect_flush(vm_object_t object, vm_page_t p, int curgeneration,
 	}
 	runlen = maxb + maxf + 1;
 
-	splx(s);
 	vm_pageout_flush(ma, runlen, pagerflags);
 	for (i = 0; i < runlen; i++) {
 		if (ma[i]->valid & ma[i]->dirty) {
@@ -1344,13 +1337,11 @@ vm_object_split(vm_map_entry_t entry)
 static int
 vm_object_backing_scan(vm_object_t object, int op)
 {
-	int s;
 	int r = 1;
 	vm_page_t p;
 	vm_object_t backing_object;
 	vm_pindex_t backing_offset_index;
 
-	s = splvm();
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 	VM_OBJECT_LOCK_ASSERT(object->backing_object, MA_OWNED);
 
@@ -1371,7 +1362,6 @@ vm_object_backing_scan(vm_object_t object, int op)
 		 * shadow test may succeed! XXX
 		 */
 		if (backing_object->type != OBJT_DEFAULT) {
-			splx(s);
 			return (0);
 		}
 	}
@@ -1537,7 +1527,6 @@ vm_object_backing_scan(vm_object_t object, int op)
 		}
 		p = next;
 	}
-	splx(s);
 	return (r);
 }
 
