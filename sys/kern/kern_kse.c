@@ -64,13 +64,21 @@ static uma_zone_t thread_zone;
 
 /* DEBUG ONLY */
 SYSCTL_NODE(_kern, OID_AUTO, threads, CTLFLAG_RW, 0, "thread allocation");
-static int oiks_debug = 1;	/* 0 disable, 1 printf, 2 enter debugger */
+static int oiks_debug = 0;	/* 0 disable, 1 printf, 2 enter debugger */
 SYSCTL_INT(_kern_threads, OID_AUTO, oiks, CTLFLAG_RW,
 	&oiks_debug, 0, "OIKS thread debug");
 
-static int max_threads_per_proc = 10;
-SYSCTL_INT(_kern_threads, OID_AUTO, max_per_proc, CTLFLAG_RW,
+static int oiks_max_threads_per_proc = 10;
+SYSCTL_INT(_kern_threads, OID_AUTO, oiks_max_per_proc, CTLFLAG_RW,
+	&oiks_max_threads_per_proc, 0, "Debug limit on threads per proc");
+
+static int max_threads_per_proc = 30;
+SYSCTL_INT(_kern_threads, OID_AUTO, max_threads_per_proc, CTLFLAG_RW,
 	&max_threads_per_proc, 0, "Limit on threads per proc");
+
+static int max_groups_per_proc = 5;
+SYSCTL_INT(_kern_threads, OID_AUTO, max_groups_per_proc, CTLFLAG_RW,
+	&max_groups_per_proc, 0, "Limit on thread groups per proc");
 
 #define RANGEOF(type, start, end) (offsetof(type, end) - offsetof(type, start))
 
@@ -449,6 +457,8 @@ kse_create(struct thread *td, struct kse_create_args *uap)
 	p->p_flag |= P_KSES; /* easier to just set it than to test and set */
 	kg = td->td_ksegrp;
 	if (uap->newgroup) {
+		if (p->p_numksegrps >= max_groups_per_proc) 
+			return (EPROCLIM);
 		/* 
 		 * If we want a new KSEGRP it doesn't matter whether
 		 * we have already fired up KSE mode before or not.
@@ -483,12 +493,12 @@ kse_create(struct thread *td, struct kse_create_args *uap)
 		 * which is safe.
 		 */
 		if ((td->td_flags & TDF_UNBOUND) || td->td_kse->ke_mailbox) {
-#if 0  /* while debugging */
+			if (oiks_debug == 0) {
 #ifdef SMP
 			if (kg->kg_kses > mp_ncpus)
 #endif
 				return (EPROCLIM);
-#endif
+			}
 			newke = kse_alloc();
 		} else {
 			newke = NULL;
@@ -507,8 +517,15 @@ kse_create(struct thread *td, struct kse_create_args *uap)
 			td->td_standin = thread_alloc();
 		}
 		mtx_lock_spin(&sched_lock);
-		if (newkg)
+		if (newkg) {
+			if (p->p_numksegrps >= max_groups_per_proc) {
+				mtx_unlock_spin(&sched_lock);
+				ksegrp_free(newkg); 
+				kse_free(newke);
+				return (EPROCLIM);
+			}
 			ksegrp_link(newkg, p);
+		}
 		else
 			newkg = kg;
 		kse_link(newke, newkg);
@@ -980,6 +997,7 @@ thread_exit(void)
 		} else {
 			kse_reassign(ke);
 		}
+#if 0
 		if (ke->ke_bound) {
 			/*
 			 * WE are a borrower..
@@ -990,12 +1008,15 @@ thread_exit(void)
 			}
 			ke->ke_bound->td_standin = td;
 		} else {
+#endif
 			if (ke->ke_tdspare != NULL) {
 				thread_stash(ke->ke_tdspare);
 				ke->ke_tdspare = NULL;
 			}
 			ke->ke_tdspare = td;
+#if 0
 		}
+#endif
 		PROC_UNLOCK(p);
 		td->td_state	= TDS_INACTIVE;
 		td->td_proc	= NULL;
@@ -1034,7 +1055,7 @@ thread_link(struct thread *td, struct ksegrp *kg)
 	TAILQ_INSERT_HEAD(&kg->kg_threads, td, td_kglist);
 	p->p_numthreads++;
 	kg->kg_numthreads++;
-	if (oiks_debug && p->p_numthreads > max_threads_per_proc) {
+	if (oiks_debug && (p->p_numthreads > oiks_max_threads_per_proc)) {
 		printf("OIKS %d\n", p->p_numthreads);
 		if (oiks_debug > 1)
 			Debugger("OIKS");
@@ -1245,7 +1266,8 @@ thread_user_enter(struct proc *p, struct thread *td)
 		    (void *)fuword( (void *)&ke->ke_mailbox->km_curthread);
 #endif
 		if ((td->td_mailbox == NULL) ||
-		    (td->td_mailbox == (void *)-1)) {
+		    (td->td_mailbox == (void *)-1) ||
+		    (p->p_numthreads > max_threads_per_proc)) {
 			td->td_mailbox = NULL;	/* single thread it.. */
 			td->td_flags &= ~TDF_UNBOUND;
 		} else {
