@@ -26,7 +26,7 @@
 
 SUBDIR+=	pam_cleartext_pass_ok
 SUBDIR+=	pam_deny
-.if defined(MAKE_KERBEROS4)
+.if defined(MAKE_KERBEROS4) && !defined(NOCRYPT)
 SUBDIR+=	pam_kerberosIV
 .endif
 SUBDIR+=	pam_permit
