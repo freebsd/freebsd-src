@@ -390,7 +390,7 @@ maninstall:
 
 .include <bsd.dep.mk>
 
-.if !exists(${DEPENDFILE})
+.if !exists(${.OBJDIR}/${DEPENDFILE})
 ${OBJS} ${STATICOBJS} ${POBJS} ${SOBJS}: ${SRCS:M*.h}
 .endif
 

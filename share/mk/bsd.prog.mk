@@ -240,7 +240,7 @@ regress:
 
 .include <bsd.dep.mk>
 
-.if defined(PROG) && !exists(${DEPENDFILE})
+.if defined(PROG) && !exists(${.OBJDIR}/${DEPENDFILE})
 ${OBJS}: ${SRCS:M*.h}
 .endif
 
