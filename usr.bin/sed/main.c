@@ -274,8 +274,7 @@ mf_fgets(sp, spflag)
 					err(FATAL, "%s: %s",
 					    fname, strerror(errno));
 			}
-			if ((c = getc(f)) != EOF) {
-				(void)ungetc(c, f);
+			if (!feof(f)) {
 				break;
 			}
 			(void)fclose(f);
@@ -289,8 +288,6 @@ mf_fgets(sp, spflag)
 
 	/*
 	 * Use fgetln so that we can handle essentially infinite input data.
-	 * Can't use the pointer into the stdio buffer as the process space
-	 * because the ungetc() can cause it to move.
 	 */
 	p = fgetln(f, &len);
 	if (ferror(f))
@@ -299,7 +296,7 @@ mf_fgets(sp, spflag)
 
 	linenum++;
 	/* Advance to next non-empty file */
-	while ((c = getc(f)) == EOF) {
+	while (feof(f)) {
 		(void)fclose(f);
 		files = files->next;
 		if (files == NULL) {
@@ -315,7 +312,6 @@ mf_fgets(sp, spflag)
 				err(FATAL, "%s: %s", fname, strerror(errno));
 		}
 	}
-	(void)ungetc(c, f);
 	return (1);
 }
 
