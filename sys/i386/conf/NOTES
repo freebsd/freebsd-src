@@ -245,8 +245,8 @@ options 	CLK_USE_TSC_CALIBRATION
 # MISCELLANEOUS DEVICES AND OPTIONS
 
 device		speaker		#Play IBM BASIC-style noises out your speaker
-hint.atspeaker.0.at="isa"
-hint.atspeaker.0.port="0x61"
+hint.speaker.0.at="isa"
+hint.speaker.0.port="0x61"
 device		gzip		#Exec gzipped a.out's. REQUIRES COMPAT_AOUT!
 device		apm_saver	# Requires APM
 

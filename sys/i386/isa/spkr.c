@@ -3,6 +3,7 @@
  *
  * v1.4 by Eric S. Raymond (esr@snark.thyrsus.com) Aug 1993
  * modified for FreeBSD by Andrew A. Chernov <ache@astral.msk.su>
+ * modified for PC98 by Kakefuda
  *
  * $FreeBSD$
  */
@@ -17,7 +18,11 @@
 #include <sys/ctype.h>
 #include <sys/malloc.h>
 #include <isa/isavar.h>
+#ifdef PC98
+#include <pc98/pc98/pc98.h>
+#else
 #include <i386/isa/isa.h>
+#endif
 #include <i386/isa/timerreg.h>
 #include <machine/clock.h>
 #include <machine/speaker.h>
@@ -60,10 +65,32 @@ static MALLOC_DEFINE(M_SPKR, "spkr", "Speaker buffer");
  */
 
 /*
- * PPI control values.
- * XXX should be in a header and used in clock.c.
+ * XXX PPI control values should be in a header and used in clock.c.
  */
+#ifdef PC98
+#define	PPI_SPKR	0x08	/* turn these PPI bits on to pass sound */
+#define	PIT_COUNT	0x3fdb	/* PIT count address */
+
+#define	SPEAKER_ON	outb(IO_PPI, inb(IO_PPI) & ~PPI_SPKR)
+#define	SPEAKER_OFF	outb(IO_PPI, inb(IO_PPI) | PPI_SPKR)
+#define	TIMER_ACQUIRE	acquire_timer1(TIMER_SEL1 | TIMER_SQWAVE | TIMER_16BIT)
+#define	TIMER_RELEASE	release_timer1()
+#define	SPEAKER_WRITE(val)	{ \
+					outb(PIT_COUNT, (val & 0xff)); \
+					outb(PIT_COUNT, (val >> 8)); \
+				}
+#else
 #define PPI_SPKR	0x03	/* turn these PPI bits on to pass sound */
+
+#define	SPEAKER_ON	outb(IO_PPI, inb(IO_PPI) | PPI_SPKR)
+#define	SPEAKER_OFF	outb(IO_PPI, inb(IO_PPI) & ~PPI_SPKR)
+#define	TIMER_ACQUIRE	acquire_timer2(TIMER_SEL2 | TIMER_SQWAVE | TIMER_16BIT)
+#define	TIMER_RELEASE	release_timer2()
+#define	SPEAKER_WRITE(val)	{ \
+					outb(TIMER_CNTR2, (val & 0xff)); \
+    					outb(TIMER_CNTR2, (val >> 8)); \
+				}
+#endif
 
 #define SPKRPRI PSOCK
 static char endtone, endrest;
@@ -95,19 +122,18 @@ tone(thz, ticks)
     /* set timer to generate clicks at given frequency in Hertz */
     sps = splclock();
 
-    if (acquire_timer2(TIMER_SEL2 | TIMER_SQWAVE | TIMER_16BIT)) {
+    if (TIMER_ACQUIRE) {
 	/* enter list of waiting procs ??? */
 	splx(sps);
 	return;
     }
     splx(sps);
     disable_intr();
-    outb(TIMER_CNTR2, (divisor & 0xff));	/* send lo byte */
-    outb(TIMER_CNTR2, (divisor >> 8));	/* send hi byte */
+    SPEAKER_WRITE(divisor);
     enable_intr();
 
     /* turn the speaker on */
-    outb(IO_PPI, inb(IO_PPI) | PPI_SPKR);
+    SPEAKER_ON;
 
     /*
      * Set timeout to endtone function, then give up the timeslice.
@@ -116,9 +142,9 @@ tone(thz, ticks)
      */
     if (ticks > 0)
 	tsleep((caddr_t)&endtone, SPKRPRI | PCATCH, "spkrtn", ticks);
-    outb(IO_PPI, inb(IO_PPI) & ~PPI_SPKR);
+    SPEAKER_OFF;
     sps = splclock();
-    release_timer2();
+    TIMER_RELEASE;
     splx(sps);
 }
 
@@ -592,19 +618,21 @@ spkrioctl(dev, cmd, cmdarg, flags, td)
  * Install placeholder to claim the resources owned by the
  * AT tone generator.
  */
-static struct isa_pnp_id atspeaker_ids[] = {
-	{ 0x0008d041 /* PNP0800 */, "AT speaker" },
+static struct isa_pnp_id speaker_ids[] = {
+#ifndef PC98
+	{ 0x0008d041 /* PNP0800 */, "PC speaker" },
+#endif
 	{ 0 }
 };
 
-static dev_t atspeaker_dev;
+static dev_t speaker_dev;
 
 static int
-atspeaker_probe(device_t dev)
+speaker_probe(device_t dev)
 {
 	int	error;
 
-	error = ISA_PNP_PROBE(device_get_parent(dev), dev, atspeaker_ids);
+	error = ISA_PNP_PROBE(device_get_parent(dev), dev, speaker_ids);
 	
 	/* PnP match */
 	if (error == 0)
@@ -615,55 +643,57 @@ atspeaker_probe(device_t dev)
 		return (ENXIO);
 
 	/* Not configured by hints. */
-	if (strncmp(device_get_name(dev), "atspeaker", 9))
+	if (strncmp(device_get_name(dev), "speaker", 9))
 		return (ENXIO);
 
-	device_set_desc(dev, "AT speaker");
+	device_set_desc(dev, "PC speaker");
 
 	return (0);
 }
 
 static int
-atspeaker_attach(device_t dev)
+speaker_attach(device_t dev)
 {
 
-	if (atspeaker_dev) {
+	if (speaker_dev) {
 		device_printf(dev, "Already attached!\n");
 		return (ENXIO);
 	}
 
-	atspeaker_dev = make_dev(&spkr_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600,
+	speaker_dev = make_dev(&spkr_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600,
 	    "speaker");
 	return (0);
 }
 
 static int
-atspeaker_detach(device_t dev)
+speaker_detach(device_t dev)
 {
-	destroy_dev(atspeaker_dev);
+	destroy_dev(speaker_dev);
 	return (0);
 }
 
-static device_method_t atspeaker_methods[] = {
+static device_method_t speaker_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		atspeaker_probe),
-	DEVMETHOD(device_attach,	atspeaker_attach),
-	DEVMETHOD(device_detach,	atspeaker_detach),
+	DEVMETHOD(device_probe,		speaker_probe),
+	DEVMETHOD(device_attach,	speaker_attach),
+	DEVMETHOD(device_detach,	speaker_detach),
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
 	DEVMETHOD(device_suspend,	bus_generic_suspend),
 	DEVMETHOD(device_resume,	bus_generic_resume),
 	{ 0, 0 }
 };
 
-static driver_t atspeaker_driver = {
-	"atspeaker",
-	atspeaker_methods,
+static driver_t speaker_driver = {
+	"speaker",
+	speaker_methods,
 	1,		/* no softc */
 };
 
-static devclass_t atspeaker_devclass;
+static devclass_t speaker_devclass;
 
-DRIVER_MODULE(atspeaker, isa, atspeaker_driver, atspeaker_devclass, 0, 0);
-DRIVER_MODULE(atspeaker, acpi, atspeaker_driver, atspeaker_devclass, 0, 0);
+DRIVER_MODULE(speaker, isa, speaker_driver, speaker_devclass, 0, 0);
+#ifndef PC98
+DRIVER_MODULE(speaker, acpi, speaker_driver, speaker_devclass, 0, 0);
+#endif
 
 /* spkr.c ends here */
