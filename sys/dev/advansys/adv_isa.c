@@ -49,12 +49,10 @@
 
 #include <sys/param.h>
 #include <sys/systm.h> 
-#include <sys/malloc.h>
 
 #include <machine/bus_pio.h>
 #include <machine/bus.h>
 
-#include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
 
 #include <dev/advansys/advansys.h>
