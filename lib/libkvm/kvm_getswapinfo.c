@@ -14,7 +14,7 @@ static const char copyright[] =
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: kvm_getswapinfo.c,v 1.38 1999/01/21 08:08:55 dillon Exp $";
+	"$Id: kvm_getswapinfo.c,v 1.1 1999/01/22 10:36:04 dillon Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -198,7 +198,8 @@ kvm_getswapinfo(
 					snprintf(
 					    swap_ary[i].ksw_devname,
 					    sizeof(swap_ary[i].ksw_devname),
-					    "%s",
+					    "%s%s",
+					    ((flags & SWIF_DEV_PREFIX) ? "/dev/" : ""),
 					    devname(swinfo.sw_dev, S_IFBLK)
 					);
 				}
