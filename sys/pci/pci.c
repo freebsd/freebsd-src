@@ -1032,7 +1032,7 @@ pci_add_resources(device_t dev, pcicfgregs* cfg)
 #endif
 		if (type == SYS_RES_IOPORT && !pci_porten(cfg))
 			continue;
-		if (type == SYS_RES_IOPORT && !pci_memen(cfg))
+		if (type == SYS_RES_MEMORY && !pci_memen(cfg))
 			continue;
 
 		resource_list_add(rl, type, reg,
