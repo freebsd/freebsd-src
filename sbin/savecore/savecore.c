@@ -478,7 +478,8 @@ closefd:
 static void
 usage(void)
 {
-	fprintf(stderr, "usage: savecore [-Cv|-cfkv] [directory [device...]]\n");
+	fprintf(stderr,
+	    "usage: savecore [-Cv|-cfkvz] [directory [device...]]\n");
 	exit (1);
 }
 
