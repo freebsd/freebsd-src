@@ -166,6 +166,13 @@ child_process(e, u)
 		Debug(DPROC, ("[%d] grandchild process Vfork()'ed\n",
 			      getpid()))
 
+		if (e->uid == ROOT_UID)
+			Jitter = RootJitter;
+		if (Jitter != 0) {
+			srandom(getpid());
+			sleep(random() % Jitter);
+		}
+
 		/* write a log message.  we've waited this long to do it
 		 * because it was not until now that we knew the PID that
 		 * the actual user command shell was going to get and the
