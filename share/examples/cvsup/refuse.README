@@ -46,6 +46,7 @@ foreign-language documentation or ports, use the following patterns:
     ports/hungarian
     ports/japanese
     ports/korean
+    ports/polish
     ports/portuguese
     ports/russian
     ports/ukrainian
