@@ -175,7 +175,7 @@ The available mbuf types are defined as follows:
 If the
 .Dv M_PKTHDR
 flag is set, a
-.Fa struct pkthdr m_pkthdr
+.Li struct pkthdr m_pkthdr
 is added to the mbuf header.
 It contains a pointer to the interface
 the packet has been received from
@@ -187,7 +187,7 @@ If small enough, data is stored in the mbuf's internal data buffer.
 If the data is sufficiently large, another mbuf may be added to the chain,
 or external storage may be associated with the mbuf.
 .Dv MHLEN
-bytes of data can fit into a mbuf with the
+bytes of data can fit into an mbuf with the
 .Dv M_PKTHDR
 flag set,
 .Dv MLEN
@@ -195,7 +195,7 @@ bytes can otherwise.
 .Pp
 If external storage is being associated with an mbuf, the
 .Dv m_ext 
-header is added at the cost of loosing the internal data buffer.
+header is added at the cost of losing the internal data buffer.
 It includes a pointer to external storage, the size of the storage,
 a pointer to a function used for freeing the storage,
 a pointer to an optional argument that can be passed to the function,
@@ -255,7 +255,7 @@ See
 for details.
 .It Fn MGET mbuf how type
 Allocate an mbuf and initialize it to contain internal data.
-.Fa Mbuf
+.Fa mbuf
 will point to the allocated mbuf on success, or be set to
 .Dv NULL
 on failure.
@@ -265,13 +265,19 @@ argument is to be set to
 .Dv M_WAIT
 or
 .Dv M_DONTWAIT .
-It specifies if the caller is willing to block if necessary.
+It specifies whether the caller is willing to block if necessary.
 If 
 .Fa how
-is set to M_WAIT, a failed allocation will result in the caller being put
+is set to
+.Dv M_WAIT ,
+a failed allocation will result in the caller being put
 to sleep for a designated
-.Fa kern.ipc.mbuf_wait
-(sysctl tunable) number of ticks.
+kern.ipc.mbuf_wait
+.Po
+.Xr sysctl 8
+tunable
+.Pc
+number of ticks.
 A number of other mbuf-related
 functions and macros have the same argument because they may
 at some point need to allocate new mbufs.
@@ -322,7 +328,7 @@ storage.
 .It Fn m_adj mbuf len
 Trim
 .Fa len
-bytes from the head of a mbuf chain if
+bytes from the head of an mbuf chain if
 .Fa len
 is positive, from the tail otherwise.
 .\"
@@ -343,7 +349,7 @@ depending on the
 .It Fn m_pullup mbuf len
 Arrange that the first
 .Fa len
-bytes of a mbuf chain are contiguous and lay in the data area of
+bytes of an mbuf chain are contiguous and lay in the data area of
 .Fa mbuf ,
 so they are accessible with
 .Fn mtod mbuf type .
@@ -388,7 +394,7 @@ Use this instead of
 when you need a writable copy of an mbuf chain.
 .\"
 .It Fn m_copydata mbuf offset len buf
-Copy data from a mbuf chain starting
+Copy data from an mbuf chain starting
 .Fa off
 bytes from the beginning, continuing for
 .Fa len
@@ -414,7 +420,7 @@ space.
 .It Fn m_devget buf len offset ifp copy
 Copy data from a device local memory pointed to by
 .Fa buf
-to a mbuf chain.
+to an mbuf chain.
 The copy is done using a specified copy routine
 .Fa copy ,
 or
