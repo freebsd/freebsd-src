@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.138 1995/09/03 05:43:02 julian Exp $
+ *	$Id: machdep.c,v 1.139 1995/09/06 16:13:31 wpaul Exp $
  */
 
 #include "npx.h"
@@ -136,7 +136,6 @@ SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL)
 
 
 static void identifycpu(void);
-static void initcpu(void);
 
 char machine[] = "i386";
 char cpu_model[128];
@@ -228,7 +227,7 @@ caddr_t		udata;	/* not used*/
 	printf(version);
 	startrtclock();
 	identifycpu();
-	printf("real memory  = %d (%d pages)\n", ptoa(physmem), physmem);
+	printf("real memory  = %d (%dK bytes)\n", ptoa(Maxmem), ptoa(Maxmem) / 1024);
 	/*
 	 * Display any holes after the first chunk of extended memory.
 	 */
@@ -378,7 +377,6 @@ again:
 
         if (boothowto & RB_CONFIG)
 		userconfig();
-	printf("avail memory = %d (%d pages)\n", ptoa(cnt.v_free_count), cnt.v_free_count);
 
 #ifdef BOUNCE_BUFFERS
 	/*
@@ -386,11 +384,8 @@ again:
 	 */
 	vm_bounce_init();
 #endif
-
-	/*
-	 * Set up CPU-specific registers, cache, etc.
-	 */
-	initcpu();
+	printf("avail memory = %d (%dK bytes)\n", ptoa(cnt.v_free_count),
+	    ptoa(cnt.v_free_count) / 1024);
 
 	/*
 	 * Set up buffers, so they can be used to read disk labels.
@@ -957,11 +952,6 @@ dumpsys()
 		printf("succeeded\n");
 		break;
 	}
-}
-
-static void
-initcpu()
-{
 }
 
 /*
