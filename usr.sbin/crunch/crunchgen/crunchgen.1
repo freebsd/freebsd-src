@@ -31,6 +31,7 @@
 .Nm crunchgen
 .Nd generates build environment for a crunched binary
 .Sh SYNOPSIS
+.Bk -words
 .Nm crunchgen
 .Op Fl foql
 .Op Fl h Ar makefile-header-name
@@ -39,6 +40,7 @@
 .Op Fl c Ar c-file-name
 .Op Fl e Ar exec-file-name
 .Op Ar conf-file
+.Ek
 .Sh DESCRIPTION
 A crunched binary is a program made up of many other programs linked
 together into a single executable.
@@ -113,12 +115,12 @@ The options are as follows:
 Set output C file name to
 .Ar c-file-name .
 The default name is
-.Dq <conf-name>.c .
+.Pa <conf-name>.c .
 .It Fl e Ar exec-file-name
 Set crunched binary executable file name to
 .Ar exec-file-name .
 The default name is
-.Dq <conf-name> .
+.Pa <conf-name> .
 .It Fl f
 Flush cache.
 Forces the recalculation of cached parameters.
@@ -141,21 +143,21 @@ Set output
 name to
 .Ar makefile-name .
 The default name is
-.Dq <conf-name>.mk .
+.Pa <conf-name>.mk .
 .It Fl o
 Add
 .Dq Li make obj
 rules to each program make target.
 .It Fl p Ar obj-prefix
 Set the pathname to be prepended to the
-.Dq srcdir
+.Ic srcdir
 when computing the
-.Dq objdir .
+.Ic objdir .
 If this option is not present, then the prefix used
 is the content of the
-.Dq MAKEOBJDIRPREFIX
+.Ev MAKEOBJDIRPREFIX
 environment variable, or
-.Dq /usr/obj .
+.Pa /usr/obj .
 .It Fl q
 Quiet operation.
 Status messages are suppressed.
@@ -185,7 +187,7 @@ A list of source trees in which the source directories of the
 component programs can be found.
 These dirs are searched using the
 .Bx
-.Dq <source-dir>/<progname>/
+.Dq Pa <source-dir>/<progname>/
 convention.
 Multiple
 .Ic srcdirs
@@ -232,19 +234,21 @@ for a directory named
 .Ar progname .
 .It Ic special Ar progname Ic objdir Ar pathname
 Set the
-.Dq obj
+.Pa obj
 directory for
 .Ar progname .
 The
-.Dq obj
+.Pa obj
 directory is normally calculated by looking for a directory
 whose name is that of the source directory prepended by
 one of the following components, in order of priority:
-the -p argument passed to the command line; or,
+the
+.Fl p
+argument passed to the command line; or,
 the value of the
-.Dq MAKEOBJDIRPREFIX
+.Ev MAKEOBJDIRPREFIX
 environment variable, or
-.Dq /usr/obj .
+.Pa /usr/obj .
 If the directory is not found, the
 .Ic srcdir
 itself becomes the
@@ -353,14 +357,14 @@ libs -lutil -lcrypt
 .Pp
 This conf file specifies a small crunched binary consisting of some
 basic system utilities plus a homegrown install program
-.Dq myinstall ,
+.Dq Pa myinstall ,
 for which no source directory is specified, but its object file is
 specified directly with the
 .Ic special
 line.
 .Pp
 Additionally when
-.Dq anotherprog
+.Dq Pa anotherprog
 is built the arguments
 .Pp
 .Dl -DNO_FOO WITHOUT_BAR=YES
@@ -368,7 +372,7 @@ is built the arguments
 are added to all build targets.
 .Pp
 The crunched binary
-.Dq kcopy
+.Dq Pa kcopy
 can be built as follows:
 .Pp
 .Bd -literal -offset indent
@@ -380,7 +384,7 @@ $			# it works!
 .Ed
 .Pp
 At this point the binary
-.Dq kcopy
+.Dq Pa kcopy
 can be copied onto an install floppy
 and hard-linked to the names of the component programs.
 .Sh SEE ALSO
