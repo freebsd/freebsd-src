@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: ctm_pass3.c,v 1.7 1994/12/04 04:47:31 phk Exp $
+ * $Id: ctm_pass3.c,v 1.8 1995/02/04 19:20:49 phk Exp $
  *
  */
 
@@ -89,7 +89,7 @@ Pass3(FILE *fd)
 
 	fprintf(stderr,"> %s %s\n",sp->Key,name);
 	if(!strcmp(sp->Key,"FM") || !strcmp(sp->Key, "FS")) {
-	    i = open(name,O_WRONLY|O_CREAT|O_TRUNC,0644);
+	    i = open(name,O_WRONLY|O_CREAT|O_TRUNC,0666);
 	    if(i < 0) {
 		perror(name);
 		WRONG
@@ -147,7 +147,7 @@ Pass3(FILE *fd)
 	    continue;
 	}
 	if(!strcmp(sp->Key,"DM")) {
-	    if(0 > mkdir(name,0755)) {
+	    if(0 > mkdir(name,0777)) {
 		sprintf(buf,"mkdir -p %s",name);
 		system(buf);
 	    }
