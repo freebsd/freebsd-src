@@ -1029,7 +1029,7 @@ ng_l2tp_seq_failure(priv_p priv)
 	NG_MKMESSAGE(msg, NGM_L2TP_COOKIE, NGM_L2TP_ACK_FAILURE, 0, M_NOWAIT);
 	if (msg == NULL)
 		return;
-	NG_SEND_MSG_ID(error, priv->node, msg, priv->ftarget, NULL);
+	NG_SEND_MSG_ID(error, priv->node, msg, priv->ftarget, 0);
 }
 
 /************************************************************************
