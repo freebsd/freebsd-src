@@ -361,7 +361,7 @@ fatal(f, msg)
 {
 	char buf[BUFSIZ];
 
-	(void) sprintf(buf, "telnetd: %s.\r\n", msg);
+	(void) snprintf(buf, sizeof(buf), "telnetd: %s.\r\n", msg);
 #ifdef	ENCRYPTION
 	if (encrypt_output) {
 		/*
@@ -384,7 +384,7 @@ fatalperror(f, msg)
 {
 	char buf[BUFSIZ], *strerror();
 
-	(void) sprintf(buf, "%s: %s", msg, strerror(errno));
+	(void) snprintf(buf, sizeof(buf), "%s: %s", msg, strerror(errno));
 	fatal(f, buf);
 }
 
