@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)print.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-	"$Id: print.c,v 1.6 1997/12/02 12:33:17 charnier Exp $";
+	"$Id: print.c,v 1.7 1997/12/24 19:39:57 imp Exp $";
 #endif /* not lint */
 
 /* debug print routines */
@@ -67,7 +67,7 @@ print_request(cp, mp)
 		tp = tbuf;
 	} else
 		tp = types[mp->type];
-	syslog(LOG_DEBUG, "%s: %s: id %d, l_user %s, r_user %s, r_tty %s",
+	syslog(LOG_DEBUG, "%s: %s: id %lu, l_user %s, r_user %s, r_tty %s",
 	    cp, tp, mp->id_num, mp->l_name, mp->r_name, mp->r_tty);
 }
 
