@@ -1,6 +1,6 @@
 <!--
   $FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/relnotes/common/new.sgml,v 1.149 2002/11/09 23:18:59 ue Exp $
-  basiert auf: 1.450
+  basiert auf: 1.451
 -->
 <articleinfo>
   <title>&os;/&arch; &release.current; Release Notes</title>
@@ -2459,6 +2459,24 @@ options HZ=1000 # nicht Pflicht, aber dringend empfohlen</programlisting>
       Datei-Handles nach au&szlig;en weiterleiten konnten.  Weitere
       Informationen finden Sie in <ulink
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:39.libkvm.asc">FreeBSD-SA-02:39</ulink>
+      &merged;</para>
+
+    <para>In kadmind(8) und k5admin wurden Puffer-&Uuml;berl&auml;ufe
+      beseitigt.  Weitere Informationen finden Sie in <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:40.kadmind.asc">FreeBSD-SA-02:40</ulink>.
+      &merged;</para>
+
+    <para>In &man.smrsh.8; wurden Fehler beseitigt, durch die es einem
+      Benutzer m&ouml;glich gewesen w&auml;re, die Einschr&auml;nkung
+      auf bestimmte Programme zu umgehen.  Weitere Informationen
+      finden Sie in <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:41.smrsh.asc">FreeBSD-SA-02:41</ulink>
+      &merged;</para>
+
+    <para>In &man.resolver.3; wurden Puffer-&Uuml;berl&auml;ufe
+      beseitigt, die zu Programm-Fehlern f&uuml;hren konnten.  Weitere
+      Informationen finden Sie in <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:42.resolv.asc">FreeBSD-SA-02:42</ulink>.
       &merged;</para>
   </sect2>
 
