@@ -14,7 +14,7 @@ LDADD=	-larchive -lbz2 -lz
 CFLAGS+=	-DPACKAGE_VERSION=\"${VERSION}\"
 
 .if !defined(WITH_GTAR)
-SYMLINKS=	${BINDIR}/bsdtar ${BINDIR}/tar
+SYMLINKS=	bsdtar ${BINDIR}/tar
 MLINKS=	bsdtar.1 tar.1
 .endif
 
