@@ -120,6 +120,11 @@ options 	ROOTDEVNAME=\"ufs:da0s2e\"
 # Mandatory:
 options 	SMP			# Symmetric MultiProcessor Kernel
 
+# ADAPTIVE_MUTEXES changes the behavior of blocking mutexes to spin
+# if the thread that currently owns the mutex is executing on another
+# CPU.
+options 	ADAPTIVE_MUTEXES
+
 # SMP Debugging Options:
 #
 # MUTEX_DEBUG enables various extra assertions in the mutex code.
