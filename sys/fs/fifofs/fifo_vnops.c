@@ -211,7 +211,9 @@ fail1:
 		}
 		fip->fi_readers = fip->fi_writers = 0;
 		wso->so_snd.sb_lowat = PIPE_BUF;
+		SOCKBUF_LOCK(&rso->so_rcv);
 		rso->so_rcv.sb_state |= SBS_CANTRCVMORE;
+		SOCKBUF_UNLOCK(&rso->so_rcv);
 		vp->v_fifoinfo = fip;
 	}
 
@@ -229,7 +231,9 @@ fail1:
 	if (ap->a_mode & FREAD) {
 		fip->fi_readers++;
 		if (fip->fi_readers == 1) {
+			SOCKBUF_LOCK(&fip->fi_writesock->so_snd);
 			fip->fi_writesock->so_snd.sb_state &= ~SBS_CANTSENDMORE;
+			SOCKBUF_UNLOCK(&fip->fi_writesock->so_snd);
 			if (fip->fi_writers > 0) {
 				wakeup(&fip->fi_writers);
 				sowwakeup(fip->fi_writesock);
@@ -243,7 +247,9 @@ fail1:
 		}
 		fip->fi_writers++;
 		if (fip->fi_writers == 1) {
+			SOCKBUF_LOCK(&fip->fi_writesock->so_rcv);
 			fip->fi_readsock->so_rcv.sb_state &= ~SBS_CANTRCVMORE;
+			SOCKBUF_UNLOCK(&fip->fi_writesock->so_rcv);
 			if (fip->fi_readers > 0) {
 				wakeup(&fip->fi_readers);
 				sorwakeup(fip->fi_writesock);

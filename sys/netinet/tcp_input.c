@@ -2249,8 +2249,11 @@ step6:
 			tp->rcv_up = th->th_seq + th->th_urp;
 			so->so_oobmark = so->so_rcv.sb_cc +
 			    (tp->rcv_up - tp->rcv_nxt) - 1;
-			if (so->so_oobmark == 0)
+			if (so->so_oobmark == 0) {
+				SOCKBUF_LOCK(&so->so_rcv);
 				so->so_rcv.sb_state |= SBS_RCVATMARK;
+				SOCKBUF_UNLOCK(&so->so_rcv);
+			}
 			sohasoutofband(so);
 			tp->t_oobflags &= ~(TCPOOB_HAVEDATA | TCPOOB_HADDATA);
 		}
