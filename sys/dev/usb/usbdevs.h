@@ -64,6 +64,7 @@
 #define	USB_VENDOR_CONNECTIX	0x0478		/* Connectix */
 #define	USB_VENDOR_ACER	0x04a5		/* Acer Peripherals */
 #define	USB_VENDOR_CYPRESS	0x04b4		/* Cypress Semiconductor */
+#define USB_VENDOR_LUCENT	0x04b8		/* Lucent Technologies */
 #define	USB_VENDOR_3COM	0x04c1		/* 3Com */
 #define	USB_VENDOR_KONICA	0x04c8		/* Konica Corporation */
 #define	USB_VENDOR_SHUTTLE	0x04e6		/* Shuttle Technology */
@@ -132,6 +133,9 @@
 
 /* Cypress Semiconduuctor products */
 #define	USB_PRODUCT_CYPRESS_MOUSE	0x0001		/* mouse */
+
+/* Lucent Technologies products */
+#define USB_PRODUCT_LUCENT_1284_BRIDGE	0x0003		/* printer adapter */
 
 /* 3Com products */
 #define	USB_PRODUCT_3COM_USR56K	0x3021		/* U.S.Robotics 56000 Voice USB Modem */
