@@ -8,8 +8,6 @@
     bin
     ..
     games
-        hide            gname=games mode=0550
-        ..
     ..
     include
     ..
@@ -176,10 +174,6 @@
                 ..
                 22.trofftut
                 ..
-                30.rogue
-                ..
-                31.trek
-                ..
             ..
         ..
         examples
@@ -305,13 +299,7 @@
             ..
         ..
         games
-            atc
-            ..
             fortune
-            ..
-            larn
-            ..
-            quiz.db
             ..
         ..
         groff_font
