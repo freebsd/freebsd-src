@@ -39,7 +39,6 @@
 DUMMY(stat);
 DUMMY(mount);
 DUMMY(stime);
-DUMMY(ptrace);
 DUMMY(fstat);
 DUMMY(olduname);
 DUMMY(syslog);

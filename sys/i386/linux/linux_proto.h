@@ -99,7 +99,10 @@ struct	linux_stime_args {
 	register_t dummy;
 };
 struct	linux_ptrace_args {
-	register_t dummy;
+	l_long	req;	char req_[PAD_(l_long)];
+	l_long	pid;	char pid_[PAD_(l_long)];
+	l_long	addr;	char addr_[PAD_(l_long)];
+	l_long	data;	char data_[PAD_(l_long)];
 };
 struct	linux_alarm_args {
 	l_uint	secs;	char secs_[PAD_(l_uint)];
