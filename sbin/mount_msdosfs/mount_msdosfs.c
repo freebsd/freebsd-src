@@ -331,7 +331,7 @@ load_ultable (pargs, name)
 	int i;
 
 	if (setlocale(LC_CTYPE, name) == NULL)
-		err(EX_CONFIG, name);
+		err(EX_CONFIG, "%s", name);
 	for (i = 0; i < 128; i++) {
 		pargs->ul[i] = tolower(i | 0x80);
 		pargs->lu[i] = toupper(i | 0x80);
