@@ -6,9 +6,7 @@ ITANIUM2		opt_global.h
 
 IA32			opt_global.h
 
-PAGE_SIZE_4K		opt_global.h
-PAGE_SIZE_8K		opt_global.h
-PAGE_SIZE_16K		opt_global.h
+PAGE_SHIFT		opt_global.h
 
 UWX_TRACE_ENABLE	opt_global.h
 
