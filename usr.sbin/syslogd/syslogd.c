@@ -548,7 +548,7 @@ usage()
 {
 
 	fprintf(stderr, "%s\n%s\n%s\n",
-		"usage: syslogd [-drsuv] [-a allowed_peer] [-f config_file]",
+		"usage: syslogd [-dnsuv] [-a allowed_peer] [-f config_file]",
 		"               [-m mark_interval] [-p log_socket]",
 		"               [-l log_socket]");
 	exit(1);
