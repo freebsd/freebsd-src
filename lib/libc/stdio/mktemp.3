@@ -186,9 +186,12 @@ See
 .Xr gcc 1
 for more information.
 .Sh BUGS
-An attacker can guess the filenames produced by
-.Fn mktemp .
-Whenever it is possible
+This family of functions produces filenames which can be guessed.
+This makes the race in
+.Fn mktemp ,
+between testing for a file's existence and opening it for use,
+particularly dangerous from a security perspective.
+Whenever it is possible,
 .Fn mkstemp
 should be used instead.
 .Sh SEE ALSO
