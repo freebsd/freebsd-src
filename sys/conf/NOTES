@@ -1678,12 +1678,15 @@ options 	MSIZE=512	# mbuf size in bytes
 # NATM enables the netnatm protocol family that can be used to
 # bypass TCP/IP.
 #
+# utopia provides the access to the ATM PHY chips and is required for en
+#
 # the current driver supports only PVC operations (no atm-arp, no multicast).
 # for more details, please read the original documents at
 # http://www.ccrc.wustl.edu/pub/chuck/tech/bsdatm/bsdatm.html
 #
 device		atm
 device		en
+device		utopia			#ATM PHY driver
 options 	NATM			#native ATM
 
 #

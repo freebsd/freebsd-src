@@ -211,6 +211,10 @@ struct en_softc {
 	/* memory zones */
 	uma_zone_t map_zone;
 
+	/* media and phy */
+	struct ifmedia media;
+	struct utopia utopia;
+
 #ifdef EN_DEBUG
 	/* debugging */
 	u_int debug;
