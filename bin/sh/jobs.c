@@ -1085,6 +1085,8 @@ until:
 		p = ">&";  i = 1;  goto redir;
 	case NFROM:
 		p = "<";  i = 0;  goto redir;
+	case NFROMTO:
+		p = "<>";  i = 0;  goto redir;
 	case NFROMFD:
 		p = "<&";  i = 0;  goto redir;
 redir:
