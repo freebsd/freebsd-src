@@ -61,11 +61,11 @@ __FBSDID("$FreeBSD$");
 
 #include <netnatm/natm.h>
 
-static u_long natm5_sendspace = 16*1024;
-static u_long natm5_recvspace = 16*1024;
+static const u_long natm5_sendspace = 16*1024;
+static const u_long natm5_recvspace = 16*1024;
 
-static u_long natm0_sendspace = 16*1024;
-static u_long natm0_recvspace = 16*1024;
+static const u_long natm0_sendspace = 16*1024;
+static const u_long natm0_recvspace = 16*1024;
 
 /*
  * user requests
