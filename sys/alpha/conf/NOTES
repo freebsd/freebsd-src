@@ -11,7 +11,7 @@
 # device lines is present in the ./LINT configuration file. If you are 
 # in doubt as to the purpose or necessity of a line, check first in LINT.
 #
-#	$Id: GENERIC,v 1.20 1999/04/19 08:56:38 dfr Exp $
+#	$Id: GENERIC,v 1.21 1999/05/09 11:42:19 dfr Exp $
 
 machine		"alpha"
 cpu		"EV4"
@@ -44,8 +44,6 @@ options		"COMPAT_43"		#Compatible with BSD 4.3 [KEEP THIS!]
 options		SCSI_DELAY=15000	#Be pessimistic about Joe SCSI device
 options		UCONSOLE		#Allow users to grab the console
 options		FAILSAFE		#Be conservative
-
-config		kernel	root on da0
 
 # Platform chipsets
 controller	cia0
