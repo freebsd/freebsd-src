@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.88 1998/06/22 08:05:12 kato Exp $
+ *	$Id: machdep.c,v 1.89 1998/07/02 12:39:32 kato Exp $
  */
 
 #include "apm.h"
@@ -278,8 +278,9 @@ cpu_startup(dummy)
 		for (indx = 0; phys_avail[indx + 1] != 0; indx += 2) {
 			int size1 = phys_avail[indx + 1] - phys_avail[indx];
 
-			printf("0x%08lx - 0x%08lx, %d bytes (%d pages)\n", phys_avail[indx],
-			    phys_avail[indx + 1] - 1, size1, size1 / PAGE_SIZE);
+			printf("0x%08x - 0x%08x, %d bytes (%d pages)\n",
+			    phys_avail[indx], phys_avail[indx + 1] - 1, size1,
+			    size1 / PAGE_SIZE);
 		}
 	}
 
@@ -1355,7 +1356,7 @@ init386(first)
 			vm_offset_t pa;
 
 			printf(
-	"BIOS basemem (%ldK) != RTC basemem (%dK), setting to BIOS value\n",
+	"BIOS basemem (%uK) != RTC basemem (%uK), setting to BIOS value\n",
 			       bootinfo.bi_basemem, biosbasemem);
 			biosbasemem = bootinfo.bi_basemem;
 
@@ -1388,7 +1389,7 @@ init386(first)
 			}
 		}
 		if (bootinfo.bi_extmem != biosextmem)
-			printf("BIOS extmem (%ldK) != RTC extmem (%dK)\n",
+			printf("BIOS extmem (%uK) != RTC extmem (%uK)\n",
 			       bootinfo.bi_extmem, biosextmem);
 	}
 #endif
