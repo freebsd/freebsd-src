@@ -103,6 +103,4 @@ bios_addsmapdata(struct preloaded_file *kfp)
 		return;
 	len = smaplen * sizeof(*smapbase);
 	file_addmetadata(kfp, MODINFOMD_SMAP, len, smapbase);
-	/* Temporary compatability with older development kernels */
-	file_addmetadata(kfp, 0x0009, len, smapbase);
 }
