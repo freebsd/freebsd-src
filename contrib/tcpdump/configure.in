@@ -1,6 +1,6 @@
-dnl @(#) $Header: configure.in,v 1.58 96/11/29 15:37:31 leres Exp $ (LBL)
+dnl @(#) $Header: configure.in,v 1.71 97/07/27 22:17:59 leres Exp $ (LBL)
 dnl
-dnl Copyright (c) 1994, 1995, 1996
+dnl Copyright (c) 1994, 1995, 1996, 1997
 dnl	The Regents of the University of California.  All rights reserved.
 dnl
 dnl Process this file with autoconf to produce a configure script.
@@ -18,39 +18,45 @@ fi
 
 AC_LBL_C_INIT(V_CCOPT, V_INCLS)
 
-AC_CHECK_HEADERS(fcntl.h net/slip.h rpc/rpcent.h)
+AC_CHECK_HEADERS(fcntl.h malloc.h memory.h rpc/rpcent.h)
 AC_HEADER_TIME
+
+case "$target_os" in
+
+linux*)
+	AC_MSG_CHECKING(Linux kernel version)
+	AC_CACHE_VAL(ac_cv_linux_vers,
+	    ac_cv_linux_vers=`uname -r 2>&1 | \
+		sed -n -e '$s/.* //' -e '$s/\..*//p'`)
+	AC_MSG_RESULT($ac_cv_linux_vers)
+	if test $ac_cv_linux_vers -lt 2 ; then
+		AC_MSG_ERROR(version 2 or higher required; see the INSTALL doc for more info)
+	fi
+	AC_DEFINE(HAVE_NET_SLIP_H)
+	;;
+
+*)
+	AC_CHECK_HEADERS(net/slip.h)
+	;;
+esac
 
 AC_REPLACE_FUNCS(vfprintf strcasecmp)
 AC_CHECK_FUNCS(ether_ntoa setlinebuf)
 
-dnl The following generates a warning...
+dnl The following generates a warning from autoconf...
 AC_C_BIGENDIAN
 
 AC_CHECK_LIB(dnet, main)
 AC_CHECK_LIB(rpc, main)
-AC_CHECK_LIB(nsl, main)
-AC_CHECK_LIB(str, main)
 
-dnl -lsocket is broken for snoop under IRIX 5.2 and earlier
-case "$target_os" in
-irix5.0*)
-	;;
-
-irix5.1*)
-	;;
-
-irix5.2*)
-	;;
-
-*)
-	AC_CHECK_LIB(socket, main)
-	;;
-esac
+AC_LBL_TYPE_SIGNAL
 
 AC_LBL_LIBPCAP(V_PCAPDEP, V_INCLS)
 
 V_GROUP=0
+if test -f /etc/group -a ! -z "`grep '^wheel:' /etc/group`" ; then
+	V_GROUP=wheel
+fi
 case "$target_os" in
 
 aix*)
@@ -62,29 +68,18 @@ irix*)
 	V_GROUP=sys
 	;;
 
+linux*)
+	V_INCLS="$V_INCLS -Ilinux-include"
+	;;
+
 osf*)
 	V_GROUP=system
-	case "$target_os" in
-
-	osf1*)
-		;;
-
-	osf2*)
-		;;
-
-	*)
-		dnl Workaround around ip_hl vs. ip_vhl problem in netinet/ip.h
-		AC_DEFINE(__STDC__,2)
-		;;
-	esac
+	dnl Workaround around ip_hl vs. ip_vhl problem in netinet/ip.h
+	AC_DEFINE(__STDC__,2)
 	;;
 
 solaris*)
 	V_GROUP=sys
-	;;
-
-linux*)
-	V_INCLS="$V_INCLS -Ilinux-include"
 	;;
 esac
 
@@ -92,12 +87,11 @@ if test -f /dev/bpf0 ; then
 	V_GROUP=bpf
 fi
 
-AC_CHECK_TYPE(int32_t, int)
-AC_CHECK_TYPE(u_int32_t, u_int)
+AC_LBL_CHECK_TYPE(int32_t, int)
+AC_LBL_CHECK_TYPE(u_int32_t, u_int)
 
 AC_LBL_DEVEL(V_CCOPT)
 
-AC_LBL_TYPE_SIGNAL
 AC_LBL_SOCKADDR_SA_LEN
 
 AC_MSG_CHECKING(if ether_header uses ether_addr structs)
@@ -176,9 +170,15 @@ fi
 
 AC_LBL_UNALIGNED_ACCESS
 
-if test -r lbl/gnuc.h ; then
+if test "${srcdir}" = "." ; then
+	srcdirprefix=""
+else
+	srcdirprefix="./"
+fi
+
+if test -r ${srcdirprefix}lbl/gnuc.h ; then
 	rm -f gnuc.h
-	ln -s lbl/gnuc.h gnuc.h
+	ln -s ${srcdirprefix}lbl/gnuc.h gnuc.h
 fi
 
 AC_SUBST(V_CCOPT)

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996
+ * Copyright (c) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -21,7 +21,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: print-udp.c,v 1.58 96/12/10 23:22:07 leres Exp $ (LBL)";
+    "@(#) $Header: print-udp.c,v 1.60 97/07/27 21:58:48 leres Exp $ (LBL)";
 #endif
 
 #include <sys/param.h>
@@ -35,9 +35,16 @@ static const char rcsid[] =
 #include <netinet/udp.h>
 #include <netinet/udp_var.h>
 
+#ifdef NOERROR
 #undef NOERROR					/* Solaris sucks */
+#endif
+#ifdef T_UNSPEC
 #undef T_UNSPEC					/* SINIX does too */
+#endif
 #include <arpa/nameser.h>
+#ifdef SEGSIZE
+#undef SEGSIZE
+#endif
 #include <arpa/tftp.h>
 
 #include <rpc/rpc.h>

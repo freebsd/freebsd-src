@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996
+ * Copyright (c) 1988, 1989, 1990, 1991, 1992, 1993, 1994, 1995, 1996, 1997
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -21,7 +21,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: print-tcp.c,v 1.52 96/12/03 10:59:55 vern Exp $ (LBL)";
+    "@(#) $Header: print-tcp.c,v 1.55 97/06/15 13:20:28 leres Exp $ (LBL)";
 #endif
 
 #include <sys/param.h>
@@ -34,6 +34,9 @@ static const char rcsid[] =
 #include <netinet/tcp.h>
 #include <netinet/tcpip.h>
 
+#ifdef HAVE_MEMORY_H
+#include <memory.h>
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

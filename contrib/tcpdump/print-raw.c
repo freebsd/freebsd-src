@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1991, 1993, 1994, 1995, 1996, 1997
+ * Copyright (c) 1996
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -21,7 +21,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: print-null.c,v 1.24 97/05/28 12:52:47 leres Exp $ (LBL)";
+    "@(#) $Header: print-raw.c,v 1.22 96/12/10 23:18:58 leres Locked $ (LBL)";
 #endif
 
 #include <sys/param.h>
@@ -50,52 +50,22 @@ struct rtentry;
 #include <stdio.h>
 #include <string.h>
 
-#include "interface.h"
 #include "addrtoname.h"
+#include "interface.h"
 
 #ifndef AF_NS
 #define AF_NS		6		/* XEROX NS protocols */
 #endif
 
 /*
- * The DLT_NULL packet header is 4 bytes long. It contains a network
- * order 32 bit integer that specifies the family, e.g. AF_INET
+ * The DLT_RAW packet has no header. It contains a raw IP packet.
  */
-#define	NULL_HDRLEN 4
-
-static void
-null_print(const u_char *p, const struct ip *ip, u_int length)
-{
-	u_int family;
-
-	memcpy((char *)&family, (char *)p, sizeof(family));
-
-	if (nflag) {
-		/* XXX just dump the header */
-		return;
-	}
-	switch (family) {
-
-	case AF_INET:
-		printf("ip: ");
-		break;
-
-	case AF_NS:
-		printf("ns: ");
-		break;
-
-	default:
-		printf("AF %d: ", family);
-		break;
-	}
-}
 
 void
-null_if_print(u_char *user, const struct pcap_pkthdr *h, const u_char *p)
+raw_if_print(u_char *user, const struct pcap_pkthdr *h, const u_char *p)
 {
 	u_int length = h->len;
 	u_int caplen = h->caplen;
-	const struct ip *ip;
 
 	ts_print(&h->ts);
 
@@ -107,17 +77,12 @@ null_if_print(u_char *user, const struct pcap_pkthdr *h, const u_char *p)
 	packetp = p;
 	snapend = p + caplen;
 
-	length -= NULL_HDRLEN;
-
-	ip = (struct ip *)(p + NULL_HDRLEN);
-
 	if (eflag)
-		null_print(p, ip, length);
+		printf("ip: ");
 
-	ip_print((const u_char *)ip, length);
+	ip_print(p, length);
 
 	if (xflag)
-		default_print((const u_char *)ip, caplen - NULL_HDRLEN);
+		default_print(p, caplen);
 	putchar('\n');
 }
-

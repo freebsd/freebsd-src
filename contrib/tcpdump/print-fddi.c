@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1991, 1992, 1993, 1994, 1995, 1996
+ * Copyright (c) 1991, 1992, 1993, 1994, 1995, 1996, 1997
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -21,7 +21,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: print-fddi.c,v 1.33 96/12/10 23:20:49 leres Exp $ (LBL)";
+    "@(#) $Header: print-fddi.c,v 1.36 97/05/26 17:13:35 leres Exp $ (LBL)";
 #endif
 
 #ifdef HAVE_FDDI
@@ -45,7 +45,6 @@ struct rtentry;
 #include <ctype.h>
 #include <netdb.h>
 #include <pcap.h>
-#include <signal.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -58,7 +57,7 @@ struct rtentry;
 /*
  * Some FDDI interfaces use bit-swapped addresses.
  */
-#if defined(ultrix) || defined(__alpha)
+#if defined(ultrix) || defined(__alpha) || defined(__bsdi)
 int	fddi_bitswap = 0;
 #else
 int	fddi_bitswap = 1;

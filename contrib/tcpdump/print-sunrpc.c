@@ -21,7 +21,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: print-sunrpc.c,v 1.25 96/09/26 23:36:49 leres Exp $ (LBL)";
+    "@(#) $Header: print-sunrpc.c,v 1.26 96/12/31 21:27:43 leres Exp $ (LBL)";
 #endif
 
 #include <sys/param.h>
@@ -119,7 +119,7 @@ progstr(prog)
 {
 	register struct rpcent *rp;
 	static char buf[32];
-	static lastprog = 0;
+	static int lastprog = 0;
 
 	if (lastprog != 0 && prog == lastprog)
 		return (buf);
