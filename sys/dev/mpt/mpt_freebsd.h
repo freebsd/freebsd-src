@@ -327,6 +327,7 @@ mpt_read(mpt_softc_t *mpt, int offset)
 void mpt_cam_attach(mpt_softc_t *);
 void mpt_cam_detach(mpt_softc_t *);
 void mpt_done(mpt_softc_t *, u_int32_t);
+void mpt_prt(mpt_softc_t *, const char *, ...);
 void mpt_set_config_regs(mpt_softc_t *);
 
 #ifdef	RELENG_4
