@@ -689,10 +689,10 @@
       <para>The link state change notification of Ethernet media
 	support has been added to the routing socket.</para>
 
-      <para>The LQM, Link Quality Monitoring support of &man.ppp.8;
-	has been reimplemented.  The LQM, which is described
-	in RFC 1989 allows PPP to keep track of the quality
-	of a running connection.</para>
+      <para>Link Quality Monitoring (LQM) support in &man.ppp.8;
+	has been reimplemented.  LQM, which is described
+	in RFC 1989, allows PPP to keep track of the quality
+	of a running connection. &merged;</para>
 
       <para>The following TCP features are now enabled by default: RFC
 	3042 (Limited Retransmit), RFC 3390 (increased initial
@@ -956,7 +956,8 @@
 
     <para>The <command>doscmd</command> utility has been
       removed from the &os; base system.  It is now available
-      the &os; Ports Collection instead.</para>
+      via the <filename role="package">emulators/doscmd</filename>
+      port in the &os; Ports Collection.</para>
 
     <para>&man.dump.8; and &man.restore.8; now support
       a <option>-P</option> option to specify backup methods
@@ -1103,13 +1104,13 @@
       file.</para>
 
     <para>&man.newsyslog.8; now uses a new order when processing
-      files to rotate.  The order first rotate all files that need
-      to be rotated, and then send a single signal to each process
-      which needs to be signaled, and finally it will compress
-      all the files which were rotated.</para>
+      files to rotate.  It first rotates all files that need
+      to be rotated, then sends a single signal to each process
+      which needs to be signaled, and finally compresses
+      all the files that were rotated.</para>
 
-    <para>&man.nextwctype.3; function to iterate over all characters
-      in a particular character class,
+    <para>A &man.nextwctype.3; function to iterate over all characters
+      in a particular character class
       has been added.</para>
 
     <para>Initial support for UTF-8 versions of all the currently
@@ -1139,7 +1140,7 @@
        &man.syslogd.8;.</para>
 
     <para>&man.nologin.8; has been moved from <filename>/sbin/nologin</filename>
-       to <filename>/usr/sbin/nologin</filename>, and
+       to <filename>/usr/sbin/nologin</filename>.
        <filename>/sbin/nologin</filename> remains as a symbolic link
        for backward compatibility.</para>
 
@@ -1158,7 +1159,7 @@
       and a <option>-N</option> option to extract the name list from
       the specified system instead of the default kernel.</para>
 
-    <para>The &man.ppp.8; now support a <quote>set rad_alive
+    <para>The userland &man.ppp.8; implementation now supports a <quote>set rad_alive
 	<replaceable>N</replaceable></quote> command
       to enable periodic RADIUS accounting information
       being sent to the RADIUS server.</para>
@@ -1222,10 +1223,12 @@
     <para>&man.sed.1; <literal>y</literal> (translate) command
       now supports multibyte characters.</para>
 
-    <para>&man.sha1.1; and &man.rmd160.1; utility have been added.
+    <para>The &man.sha1.1; and &man.rmd160.1; utilities have been added.
+      Similar to &man.md5.1;, they calculate a message digest of their
+      inputs.
       &merged;</para>
 
-    <para>&man.smbmsg.8;, a small utility to send/receive SMBus messages
+    <para>&man.smbmsg.8;, a small utility to send/receive SMBus messages,
       has been added.</para>
 
     <para arch="sparc64">&man.sunlabel.8; now supports two new flags:
@@ -1377,13 +1380,18 @@
 
     <para><application>pf</application>, OpenBSD's packet filter as of
       OpenBSD 3.5, has been imported into &os; source tree and is now installed
-      by default.  A new user <username>proxy</username>, and two new
-      groups <username>authpf</username> and <username>proxy</username>,
-      which <application>pf</application> needs, are added as well.</para>
+      by default.  Two new users (<username>proxy</username> and
+      <username>_pflogd</username>) and three new
+      groups (<username>authpf</username>, <username>proxy</username>,
+      and <username>_pflogd</username>),
+      which <application>pf</application> needs, have been added as well.</para>
 
       <note>
-	<para>On upgrading from the source, these user accounts must be
-	  added in advance.  The <varname>NO_PF</varname> variable
+	<para>On upgrading from source, these user accounts must be
+	  added in advance.  <literal>mergemaster -p</literal> can be
+	  used to assist in creating the proper entries in the
+	  &man.passwd.5; and &man.group.5; files.
+	  The <varname>NO_PF</varname> variable
 	  in <filename>make.conf</filename> can be used to prevent
 	  <application>pf</application> from building.</para>
       </note>
