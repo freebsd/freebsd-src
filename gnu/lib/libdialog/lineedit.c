@@ -28,7 +28,7 @@
  */
 int line_edit(WINDOW* dialog, int box_y, int box_x, int flen, int box_width, chtype attr, int first, unsigned char *result)
 {
-  int i, key;
+  int i, key, len;
   chtype old_attr;
   static int input_x, scroll;
   static unsigned char instr[MAX_LEN+1];
@@ -39,7 +39,6 @@ int line_edit(WINDOW* dialog, int box_y, int box_x, int flen, int box_width, cht
 #endif
 
   old_attr = getattrs(dialog);
-  wattrset(dialog, attr);
   keypad(dialog, TRUE);
 
   if (first) {
@@ -50,8 +49,16 @@ int line_edit(WINDOW* dialog, int box_y, int box_x, int flen, int box_width, cht
     scroll = i - input_x;
   }
   wmove(dialog, box_y, box_x);
-  for (i = 0; i < box_width; i++)
+  wattrset(dialog, attr);
+  len = flen >= 0 ? MIN(flen,box_width) : box_width;
+  for (i = 0; i < len; i++)
     waddch(dialog, instr[scroll+i] ? instr[scroll+i] : ' ');
+  wattrset(dialog, old_attr);
+  len = strlen(instr);
+  len = MIN(len,box_width);
+  for ( ; i < len; i++)
+    waddch(dialog, instr[scroll+i]);
+  wattrset(dialog, attr);
 
   wmove(dialog, box_y, box_x + input_x);
   for (;;) {
@@ -186,8 +193,10 @@ int line_edit(WINDOW* dialog, int box_y, int box_x, int flen, int box_width, cht
 ret:
     wattrset(dialog, old_attr);
     wmove(dialog, box_y, box_x);
-    for (i = 0; i < box_width; i++)
-      waddch(dialog, instr[scroll+i] ? instr[scroll+i] : ' ');
+    len = strlen(instr);
+    len = MIN(len,box_width);
+    for (i = 0; i < len; i++)
+      waddch(dialog, instr[scroll+i]);
     wmove(dialog, box_y, input_x + box_x);
     wrefresh(dialog);
     strcpy(result, instr);
