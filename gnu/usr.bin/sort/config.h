@@ -1231,13 +1231,13 @@
 #define PACKAGE_NAME "GNU coreutils"
 
 /* Define to the full name and version of this package. */
-#define PACKAGE_STRING "GNU coreutils 5.2.1"
+#define PACKAGE_STRING "GNU coreutils 5.3.0-20040812-FreeBSD"
 
 /* Define to the one symbol short name of this package. */
 #define PACKAGE_TARNAME "coreutils"
 
 /* Define to the version of this package. */
-#define PACKAGE_VERSION "5.2.1"
+#define PACKAGE_VERSION "5.3.0-20040812-FreeBSD"
 
 /* the number of pending output bytes on stream `fp' */
 #define PENDING_OUTPUT_N_BYTES fp->_p - fp->_bf._base
@@ -1338,7 +1338,7 @@
 /* #undef UMAX4_3 */
 
 /* Version number of package */
-#define VERSION "5.2.1"
+#define VERSION "5.3.0-20040812-FreeBSD"
 
 /* Define if sys/ptem.h is required for struct winsize. */
 /* #undef WINSIZE_IN_PTEM */
