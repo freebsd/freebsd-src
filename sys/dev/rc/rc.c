@@ -33,7 +33,6 @@
 #include "rc.h"
 
 #if NRC > 0
-
 #include "opt_devfs.h"
 
 /*#define RCDEBUG*/
@@ -58,7 +57,6 @@
 
 #include <i386/isa/ic/cd180.h>
 #include <i386/isa/rcreg.h>
-
 
 /* Prototypes */
 static int     rcprobe         __P((struct isa_device *));
@@ -213,10 +211,6 @@ rcprobe(dvp)
 {
 	int             irq = ffs(dvp->id_irq) - 1;
 	register int    nec = dvp->id_iobase;
-	static int once;
-
-	if (!once++)
-		cdevsw_add(&rc_cdevsw);
 
 	if (dvp->id_unit > NRC)
 		return 0;
@@ -291,9 +285,10 @@ rcattach(dvp)
 	}
 	rcb->rcb_probed = RC_ATTACHED;
 	if (!rc_started) {
+		cdevsw_add(&rc_cdevsw);
 		register_swi(SWI_TTY, rcpoll);
 		rc_wakeup((void *)NULL);
-		rc_started = 0;
+		rc_started = 1;
 	}
 	return 1;
 }
