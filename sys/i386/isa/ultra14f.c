@@ -18,7 +18,7 @@
  * commenced: Sun Sep 27 18:14:01 PDT 1992
  * slight mod to make work with 34F as well: Wed Jun  2 18:05:48 WST 1993
  *
- *	$Id: ultra14f.c,v 1.5 93/08/26 21:12:28 julian Exp Locker: julian $
+ *	$Id: ultra14f.c,v 1.8 1993/08/28 03:07:44 rgrimes Exp $
  */
  
 #include <sys/types.h>
@@ -86,7 +86,6 @@ extern physaddr kvtophys();
 #endif MACH
 
 #ifdef        __386BSD__
-#define PHYSTOKV(x)   (x | 0xFE000000)
 #define KVTOPHYS(x)   vtophys(x)
 #endif        __386BSD__
 
