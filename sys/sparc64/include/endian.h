@@ -43,8 +43,8 @@
 /*
  * Define the order of 32-bit words in 64-bit words.
  */
-#define _QUAD_HIGHWORD 0
-#define _QUAD_LOWWORD 1
+#define	_QUAD_HIGHWORD 0
+#define	_QUAD_LOWWORD 1
 
 /*
  * Definitions for byte order, according to byte significance from low
