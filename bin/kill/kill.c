@@ -103,7 +103,7 @@ main(int argc, char *argv[])
 		} else
 			numsig = 0;
 		argc--, argv++;
-	} else if (**argv == '-') {
+	} else if (**argv == '-' && *(*argv + 1) != '-') {
 		++*argv;
 		if (isalpha(**argv)) {
 			if ((numsig = signame_to_signum(*argv)) < 0)
@@ -118,6 +118,9 @@ main(int argc, char *argv[])
 			nosig(*argv);
 		argc--, argv++;
 	}
+
+	if (argc > 0 && strncmp(*argv, "--", 2) == 0)
+		argc--, argv++;
 
 	if (argc == 0)
 		usage();
