@@ -3,7 +3,7 @@
 
     $FreeBSD$
 
-    Original revision: 1.575
+    Original revision: 1.580
 -->
 
 <articleinfo>
@@ -138,7 +138,9 @@
   <sect2 id="kernel">
     <title>カーネルの変更点</title>
 
-    <para></para>
+    <para>カーネルにソフトウェアウォッチドッグ機能が実装されました。
+      詳しくは &man.watchdog.4; と
+      &man.watchdogd.8; をご覧ください。</para>
 
     <!-- Above this line, sort kernel changes by manpage/keyword-->
 
@@ -149,6 +151,9 @@
         常に PCI 割り込みが使われるようになりました。
         これにより、今まで使用できなかった (特にラップトップの) PCI
         カードが使用できるようになっています。</para>
+
+      <para arch="i386">PAE 機能をある特定の量のメモリを搭載しているマシンで有効にした場合に、
+        カーネルがパニックさせる原因となる整数演算のオーバフローが修正されました。</para>
     </sect3>
 
     <sect3 id="boot">
@@ -163,7 +168,15 @@
     <sect3 id="net-if">
       <title>ネットワークインターフェイスの対応状況</title>
 
-      <para></para>
+      <para>&man.ath.4; および &man.ath.hal.4; ドライバが新しく追加されました。
+        これは、AR5210, AR5211, AR5212 ベースの
+        802.11a/b/g デバイスに対応しています。</para>
+
+      <para>&man.bge.4; にあったバグが修正され、
+        10Mbps で正常に動作するようになりました。</para>
+
+      <para>802.11 対応レイヤが、
+        拡張や新機能の追加が可能なように書き直されました。</para>
     </sect3>
 
     <sect3 id="net-proto">
@@ -187,6 +200,12 @@
 	<filename>geom_vol_ffs</filename>
         といった、さまざまある &man.geom.4; モジュールが、
         カーネルモジュールとして読み込み可能になりました。</para>
+ 
+      <para>マルチパスストレージデバイスの検出や、アクセスパス選択を可能にする
+        <literal>GEOM_FOX</literal> モジュールが追加されました。</para>
+
+      <para arch="i386">松下 CR-562 および CR-563 CD ドライブに対応した
+        &man.matcd.4; ドライバが、再び使えるようになりました。</para>
     </sect3>
 
     <sect3 id="fs">
@@ -210,6 +229,8 @@
       設定にはそれぞれ、<option>-u</option>, <option>-g</option>,
       <option>-G</option> オプションを使います。</para>
 
+    <para>devfs が必須となったため、dev_db ユーティリティは削除されました。</para>
+
     <para><filename>libcipher</filename> DES
       暗号ライブラリが削除されました。
       これらの機能はすべて <filename>libcrypto</filename> ライブラリで
@@ -221,17 +242,35 @@
     <para arch="i386,ia64"><filename>libthr</filename> 1:1
       スレッドライブラリがデフォルトで構築されるようになりました。</para>
 
+    <para>&man.locale.1; ユーティリティが再実装され、POSIX
+      標準に準拠しました。</para>
+
     <para>ゲストログインに対応する
       &man.pam.guest.8; PAM モジュールが追加されました。
       これは pam_ftp(8) モジュールを置き換えるものです。</para>
+
+    <para>&man.ps.1; に、各プロセスのカーネルスレッドを表示する
+      <option>-H</option> オプションが追加されました。</para>
   </sect2>
 
   <sect2 id="contrib">
     <title>寄贈ソフトウェア</title>
 
+    <para><application>BIND</application> がバージョン 8.3.4
+      から、バージョン 8.3.6 に更新されました。</para>
+
+    <para><application>lukemftp</application> がバージョン
+      1.6beta2 から、NetBSD の 2003 年 6 月 15
+      日時点のスナップショットに更新されました。</para>
+
     <para><application>OpenPAM</application> が
-      <quote>Digitalis</quote> リリースに更新されました。</para>
+      <quote>Dianthus</quote> リリースに更新されました。</para>
+
+    <para><application>texinfo</application> がバージョン 4.5
+      から、バージョン 4.6 に更新されました。
+      &merged;</para>
   </sect2>
+
 
   <sect2 id="ports">
     <title>Ports/Packages Collection インフラストラクチャ</title>
