@@ -129,7 +129,7 @@ fw_tbuf_update(struct firewire_comm *fc, int sub, int flag){
 	struct fw_xferq *it;
 	int s, err = 0, i, j, chtag;
 	struct fw_pkt *fp;
-	u_int64_t tmpsync, dvsync;
+	u_int64_t cycle, dvsync;
 
 	it = fc->it[sub];
 	
@@ -193,17 +193,27 @@ dvloop:
 		}else{
 			return err;
 		}
-/*
- * Insert least significant 12 bits timestamp value by computation. 
- * Highest significant 4 bits is insert at just before packet sending.
- */
-		fp = (struct fw_pkt *)(it->stproc->buf);
-/* XXX: Parameter relies on NTSC type DV video */
-		tmpsync = (u_int64_t)3072 * 8000 * 100 / 2997;
-		tmpsync *= it->dvsync;
-		dvsync = tmpsync;
-		dvsync %= 0xc00;
-		fp->mode.ld[2] = htonl(0x80000000 | (dvsync % 0xc00));
+#if 1
+#define DVSEC 100
+#define DVFRAC 2997	/* NTSC: 29.97 Hz (2997 = 29.97 * 100) */
+#define DVDIFF 203	/* 203 = (8000/250 - 29.97) * 100 */
+#else
+#define DVSEC 3
+#define DVFRAC 75	/* PAL: 25 Hz (1875 = 25 * 3) */
+#define DVDIFF 5	/* 125 = (8000/300 - 25) * 3 */
+#endif
+#define	CYCLEFRAC 0xc00
+		cycle = (u_int64_t) 8000 * DVSEC * it->dvsync;
+		/* least significant 12 bits */
+		dvsync = (cycle * CYCLEFRAC / DVFRAC) % CYCLEFRAC;
+		/* most significat 4 bits */
+		cycle = (cycle / DVFRAC + it->dvoffset) & 0xf;
+		fp = (struct fw_pkt *)(it->dvdma->buf);
+#if 1
+		fp->mode.ld[2] = htonl(0x80000000 | (cycle << 12) | dvsync);
+#else
+		fp->mode.ld[2] = htonl(0x80000000 | dvsync);
+#endif
 		it->dvsync ++;
 		it->dvsync %= 2997;
 
@@ -219,14 +229,6 @@ dvloop:
 			it->dvdbc %= 256;
 			it->queued ++;
 			j++;
-/* XXX: Parameter relies on NTSC type DV video */
-#if 1
-#define DVDIFF 203
-#define DVFRAC 2997
-#else
-#define DVDIFF 127
-#define DVFRAC 1875
-#endif
 			it->dvdiff += DVDIFF;
 			if(it->dvdiff >= DVFRAC){
 				it->dvdiff %= DVFRAC;
