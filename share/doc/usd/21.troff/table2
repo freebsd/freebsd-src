@@ -72,8 +72,10 @@ Non-\s-1ASCII\s+1 characters and \fIminus\fP on the standard fonts.
 .sp
 .ft R
 .de cl
-.ie \\n+(cl<2 \{.po +3.0i
-.rt \}
+.ie \\n+(cl<2 \{\
+.po +3.0i
+.rt
+.\}
 .el .sc
 ..
 .de sc
@@ -141,11 +143,6 @@ insulate the appearance of equations from the choice of standard fonts.
 .nf
 .ps 10
 .sp
-.de sc
-.po 26i/27u
-.nr cl 0
-'bp
-..
 .ch cl \nmu-\n(.vu-1u
 .mx
 .lg 0

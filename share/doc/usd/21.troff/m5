@@ -458,3 +458,5 @@ If it is desired that another page be started, the end-macro
 .x2
 will deposit a null partial word,
 and effect another last page.
+.1C
+'bp
