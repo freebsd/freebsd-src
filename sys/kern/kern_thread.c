@@ -384,7 +384,8 @@ proc_linkup(struct proc *p, struct ksegrp *kg,
 /*
 struct kse_thr_interrupt_args {
 	struct kse_thr_mailbox * tmbx;
-	int sig;
+	int cmd;
+	long data;
 };
 */
 int
@@ -392,47 +393,63 @@ kse_thr_interrupt(struct thread *td, struct kse_thr_interrupt_args *uap)
 {
 	struct proc *p;
 	struct thread *td2;
-	int sig = uap->sig;
 
 	p = td->td_proc;
-	if (!(p->p_flag & P_SA) || (uap->tmbx == NULL) ||
-	    (sig < -2) || (sig > _SIG_MAXSIG))
+	if (!(p->p_flag & P_SA))
 		return (EINVAL);
 
-	PROC_LOCK(p);
-	mtx_lock_spin(&sched_lock);
-	FOREACH_THREAD_IN_PROC(p, td2) {
-		if (td2->td_mailbox == uap->tmbx)
-			break;
-	}
-	if (td2 == NULL) {
-		mtx_unlock_spin(&sched_lock);
-		PROC_UNLOCK(p);
-		return (ESRCH);
-	}
-	if (sig > 0) {
-		td2->td_flags &= ~TDF_INTERRUPT;
-		mtx_unlock_spin(&sched_lock);
-		tdsignal(td2, sig, SIGTARGET_TD);
-	} else if (sig == 0) {
-		mtx_unlock_spin(&sched_lock);
-	} else {
-		td2->td_flags |= TDF_INTERRUPT | TDF_ASTPENDING;
-		if (TD_CAN_UNBIND(td2))
-			td2->td_upcall->ku_flags |= KUF_DOUPCALL;
-		if (sig == -1)
-			td2->td_intrval = EINTR;
-		else if (sig == -2)
-			td2->td_intrval = ERESTART;
-		if (TD_ON_SLEEPQ(td2) && (td2->td_flags & TDF_SINTR)) {
-			if (td2->td_flags & TDF_CVWAITQ)
-				cv_abort(td2);
-			else
-				abortsleep(td2);
+	switch (uap->cmd) {
+	case KSE_INTR_SENDSIG:
+		if (uap->data < 0 || uap->data > _SIG_MAXSIG)
+			return (EINVAL);
+	case KSE_INTR_INTERRUPT:
+	case KSE_INTR_RESTART:
+		PROC_LOCK(p);
+		mtx_lock_spin(&sched_lock);
+		FOREACH_THREAD_IN_PROC(p, td2) {
+			if (td2->td_mailbox == uap->tmbx)
+				break;
 		}
-		mtx_unlock_spin(&sched_lock);
+		if (td2 == NULL) {
+			mtx_unlock_spin(&sched_lock);
+			PROC_UNLOCK(p);
+			return (ESRCH);
+		}
+		if (uap->cmd == KSE_INTR_SENDSIG) {
+			if (uap->data > 0) {
+				td2->td_flags &= ~TDF_INTERRUPT;
+				mtx_unlock_spin(&sched_lock);
+				tdsignal(td2, (int)uap->data, SIGTARGET_TD);
+			} else {
+				mtx_unlock_spin(&sched_lock);
+			}
+		} else {
+			td2->td_flags |= TDF_INTERRUPT | TDF_ASTPENDING;
+			if (TD_CAN_UNBIND(td2))
+				td2->td_upcall->ku_flags |= KUF_DOUPCALL;
+			if (uap->cmd == KSE_INTR_INTERRUPT)
+				td2->td_intrval = EINTR;
+			else
+				td2->td_intrval = ERESTART;
+			if (TD_ON_SLEEPQ(td2) && (td2->td_flags & TDF_SINTR)) {
+				if (td2->td_flags & TDF_CVWAITQ)
+					cv_abort(td2);
+				else
+					abortsleep(td2);
+			}
+			mtx_unlock_spin(&sched_lock);
+		}
+		PROC_UNLOCK(p);
+		break;
+	case KSE_INTR_SIGEXIT:
+		if (uap->data < 1 || uap->data > _SIG_MAXSIG)
+			return (EINVAL);
+		PROC_LOCK(p);
+		sigexit(td, (int)uap->data);
+		break;
+	default:
+		return (EINVAL);
 	}
-	PROC_UNLOCK(p);
 	return (0);
 }
 
@@ -991,7 +1008,7 @@ thread_free(struct thread *td)
  * The list is anchored in the ksegrp structure.
  */
 int
-thread_export_context(struct thread *td)
+thread_export_context(struct thread *td, int willexit)
 {
 	struct proc *p;
 	struct ksegrp *kg;
@@ -1023,17 +1040,19 @@ thread_export_context(struct thread *td)
 	 * For sync signal, it is only possible when the signal is not
 	 * caught by userland or process is being debugged.
 	 */
+	PROC_LOCK(p);
 	if (td->td_flags & TDF_NEEDSIGCHK) {
 		mtx_lock_spin(&sched_lock);
 		td->td_flags &= ~TDF_NEEDSIGCHK;
 		mtx_unlock_spin(&sched_lock);
-		PROC_LOCK(p);
 		mtx_lock(&p->p_sigacts->ps_mtx);
 		while ((sig = cursig(td)) != 0)
 			postsig(sig);
 		mtx_unlock(&p->p_sigacts->ps_mtx);
-		PROC_UNLOCK(p);
 	}
+	if (willexit)
+		SIGFILLSET(td->td_sigmask);
+	PROC_UNLOCK(p);
 
 	/* Get address in latest mbox of list pointer */
 	addr = (void *)(&td->td_mailbox->tm_next);
@@ -1067,11 +1086,7 @@ thread_export_context(struct thread *td)
 
 bad:
 	PROC_LOCK(p);
-	psignal(p, SIGSEGV);
-	PROC_UNLOCK(p);
-	/* The mailbox is bad, don't use it */
-	td->td_mailbox = NULL;
-	td->td_usticks = 0;
+	sigexit(td, SIGILL);
 	return (error);
 }
 
@@ -1665,15 +1680,7 @@ thread_userret(struct thread *td, struct trapframe *frame)
 			return (0);
 		}
 		mtx_unlock_spin(&sched_lock);
-		error = thread_export_context(td);
-		if (error) {
-			/*
-			 * Failing to do the KSE operation just defaults
-			 * back to synchonous operation, so just return from
-			 * the syscall.
-			 */
-			goto out;
-		}
+		thread_export_context(td, 0);
 		/*
 		 * There is something to report, and we own an upcall
 		 * strucuture, we can go to userland.
@@ -1681,22 +1688,14 @@ thread_userret(struct thread *td, struct trapframe *frame)
 		 */
 		td->td_pflags |= TDP_UPCALLING;
 	} else if (td->td_mailbox && (ku == NULL)) {
-		/* 
-		 * Because we are exiting, SIGKILL and SIGSTOP shouldn't
-		 * be posted to us anymore, otherwise they will be lost.
-		 */
-		mtx_lock_spin(&sched_lock);
-		td->td_flags |= TDF_NOSIGPOST;
-		mtx_unlock_spin(&sched_lock);
-		error = thread_export_context(td);
-		/* possibly upcall with error? */
+		thread_export_context(td, 1);
 		PROC_LOCK(p);
 		/*
 		 * There are upcall threads waiting for
 		 * work to do, wake one of them up.
 		 * XXXKSE Maybe wake all of them up. 
 		 */
-		if (!error && kg->kg_upsleeps)
+		if (kg->kg_upsleeps)
 			wakeup_one(&kg->kg_completed);
 		mtx_lock_spin(&sched_lock);
 		thread_stopped(p);
