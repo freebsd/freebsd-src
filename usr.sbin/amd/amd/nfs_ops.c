@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: nfs_ops.c,v 1.4.2.2 1998/03/09 10:08:07 jkh Exp $
  */
 
 #ifndef lint
@@ -178,6 +178,15 @@ int done;
 #ifdef DEBUG
 				dlog("mount version 3 refused, retrying with version 1");
 #endif
+				/*
+				 * At this point, fp->fh_error is meaningless
+				 * since we are already fixing the problem
+				 * We don't want it to get back to the caller!
+				 * Mount is now still "in progress"
+				 *
+				 */
+
+				fp->fh_error = -1;
 				fp->fh_id = FHID_ALLOC();
 				fp->fh_mountres.mr_version = MOUNTVERS;
 				call_mountd(fp, MOUNTPROC_MNT, MOUNTVERS, got_nfs_fh, fp->fh_wchan);

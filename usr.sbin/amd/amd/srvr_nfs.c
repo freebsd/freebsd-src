@@ -37,7 +37,7 @@
  *
  *	@(#)srvr_nfs.c	8.1 (Berkeley) 6/6/93
  *
- * $Id: srvr_nfs.c,v 1.1.1.1 1994/05/26 05:22:02 rgrimes Exp $
+ * $Id: srvr_nfs.c,v 1.2 1995/05/30 03:45:58 rgrimes Exp $
  *
  */
 
@@ -591,6 +591,9 @@ int pingval;
 	}
 }
 
+
+extern unsigned long mysubnet;
+
 /*
  * Find an nfs server for a host.
  */
@@ -653,13 +656,41 @@ mntfs *mf;
 	 * Get here if we can't find an entry
 	 */
 	if (hp) {
+	        int i, j;
+		unsigned long tmpaddr;
+
 		switch (hp->h_addrtype) {
 		case AF_INET:
 			ip = ALLOC(sockaddr_in);
 			bzero((voidp) ip, sizeof(*ip));
 			ip->sin_family = AF_INET;
-			bcopy((voidp) hp->h_addr, (voidp) &ip->sin_addr, sizeof(ip->sin_addr));
-
+			/*
+			 * pick host address that is on the same subnet
+			 * as mysubnet if possible; otherwise, pick the first
+			 * one.
+			 */
+			for (i=0; hp->h_addr_list[i]; i++) {
+			  bcopy ((voidp)hp->h_addr_list[i], (voidp)&tmpaddr,
+				 sizeof(tmpaddr));
+			  for (j=0; j < 4; j++) {
+			    if ((0xff & (mysubnet >> 8*j)) == 0) continue;
+			    if ((0xff & (mysubnet >> 8*j)) !=
+				(0xff & (tmpaddr >> 8*j))) break;
+			  }
+			  if (j == 4) {
+			    
+			    /* we found a matching subnet address */
+			    break;
+			  }
+			}
+			if (!hp->h_addr_list[i]) {
+			  /* no interface matching current subnet; pick one */
+			  bcopy((voidp) hp->h_addr, (voidp) &ip->sin_addr, sizeof(ip->sin_addr));
+			}
+			else {
+			  /* we found a matching subnet interface */
+			  bcopy((voidp) hp->h_addr_list[i], (voidp) &ip->sin_addr, sizeof(ip->sin_addr));
+			}
 			ip->sin_port = htons(NFS_PORT);
 			break;
 
