@@ -39,7 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bio.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
-
+#include <sys/diskmbr.h>
 #include <sys/endian.h>
 #include <sys/sbuf.h>
 #include <sys/uuid.h>
@@ -78,6 +78,26 @@ is_gpt_hdr(struct gpt_hdr *hdr)
 }
 
 static int
+is_pmbr(char *mbr)
+{
+	struct dos_partition *part;
+	int i;
+	uint16_t magic;
+
+	magic = le16toh(*(uint16_t *)(uintptr_t)(mbr + DOSMAGICOFFSET));
+	if (magic != DOSMAGIC)
+		return (0);
+
+	part = (struct dos_partition *)(uintptr_t)(mbr + DOSPARTOFF);
+	for (i = 0; i < 4; i++) {
+		if (part[i].dp_typ != 0 && part[i].dp_typ != DOSPTYP_PMBR)
+			return (0);
+	}
+
+	return (1);
+}
+
+static int
 g_gpt_start(struct bio *bp)
 {
 
@@ -107,7 +127,7 @@ g_gpt_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 }
 
 static struct g_geom *
-g_gpt_taste(struct g_class *mp, struct g_provider *pp, int insist)
+g_gpt_taste(struct g_class *mp, struct g_provider *pp, int insist __unused)
 {
 	struct uuid tmp;
 	struct g_consumer *cp;
@@ -138,9 +158,6 @@ g_gpt_taste(struct g_class *mp, struct g_provider *pp, int insist)
 	do {
 		mbr = NULL;
 
-		if (gp->rank != 2 && insist == 0)
-			break;
-
 		secsz = cp->provider->sectorsize;
 		if (secsz < 512)
 			break;
@@ -151,19 +168,10 @@ g_gpt_taste(struct g_class *mp, struct g_provider *pp, int insist)
 		mbr = g_read_data(cp, 0, 2 * secsz, &error);
 		if (mbr == NULL || error != 0)
 			break;
-#if 0
-		/*
-		 * XXX: we should ignore the GPT if there's a MBR and the MBR
-		 * is not a PMBR (Protective MBR). I believe this is what the
-		 * EFI spec is going to say eventually (this is hearsay :-)
-		 * Currently EFI (version 1.02) accepts and uses the GPT even
-		 * though there's a valid MBR. We do this too, because it
-		 * allows us to test this code without first nuking the only
-		 * partitioning scheme we grok until this is working.
-		 */
-		if (!is_pmbr((void*)mbr))
+
+		if (!is_pmbr(mbr))
 			break;
-#endif
+
 		hdr = (void*)(mbr + secsz);
 
 		/*
