@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: ftp_strat.c,v 1.6.2.1 1995/06/01 05:41:47 jkh Exp $
+ * $Id: ftp_strat.c,v 1.6.2.2 1995/06/01 21:03:57 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -86,21 +86,28 @@ mediaInitFTP(Device *dev)
     if (ftpInitted)
 	return TRUE;
 
-    if (netDevice->init)
+    if (netDevice->init) {
+	if (isDebug())
+	    msgDebug("InitFTP: Calling network init routine\n");
 	if (!(*netDevice->init)(netDevice))
 	    return FALSE;
+    }
 
     if ((ftp = FtpInit()) == NULL) {
 	msgConfirm("FTP initialisation failed!");
 	return FALSE;
     }
+    if (isDebug())
+	msgDebug("Initialized FTP library.\n");
 
     cp = getenv("ftp");
     if (!cp)
 	return FALSE;
+    if (isDebug())
+	msgDebug("Attempting to open connection for: %s\n", cp);
     hostname = getenv(VAR_HOSTNAME);
     if (strncmp("ftp://", cp, 6) != NULL) {
-	msgConfirm("Invalid URL `%s' passed to FTP routines!\n(must start with `ftp://')", cp);
+	msgConfirm("Invalid URL: %s\n(A URL must start with `ftp://' here)", cp);
 	return FALSE;
     }
     strncpy(url, cp, BUFSIZ);
