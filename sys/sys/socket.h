@@ -364,11 +364,6 @@ struct cmsgcred {
 	gid_t	cmcred_groups[CMGROUP_MAX];	/* groups */
 };
 
-struct cmessage {
-        struct cmsghdr cmsg;
-        struct cmsgcred cmcred;
-};
-
 /* given pointer to struct cmsghdr, return pointer to data */
 #define	CMSG_DATA(cmsg)		((u_char *)(cmsg) + \
 				 _ALIGN(sizeof(struct cmsghdr)))

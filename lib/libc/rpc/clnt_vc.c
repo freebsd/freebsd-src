@@ -81,6 +81,11 @@ static char sccsid[] = "@(#)clnt_vc.c 1.19 89/03/16 Copyr 1988 Sun Micro";
 
 #define MCALL_MSG_SIZE 24
 
+struct cmessage {
+        struct cmsghdr cmsg;
+        struct cmsgcred cmcred;
+};
+
 static enum clnt_stat clnt_vc_call __P((CLIENT *, rpcproc_t, xdrproc_t, caddr_t,
     xdrproc_t, caddr_t, struct timeval));
 static void clnt_vc_geterr __P((CLIENT *, struct rpc_err *));
