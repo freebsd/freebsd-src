@@ -136,12 +136,12 @@ To support two host interfaces, change the file so it reads:
 
 (If you want to support up to three or four host interfaces, add
 additional entries).
-
+.if n .bp
+.if t .sp
 Note that the kernel configuration does not need to be modified to support
 up to four drives on a single host interface.  It is also not necessary to 
 have four drives on a single interface before adding a second interface.
-.if n .bp
-.if t .sp
+
 By default,
 .Nm matcd
 searches for the CD-ROM host interface adapters by using a table of known I/O
@@ -218,12 +218,11 @@ are found in products from Creative Labs, including SoundBlaster sound
 cards.   There are numerous models of SoundBlaster sound cards, and most
 of the newer cards provide the appropriate interface, sometimes labeled as
 the "Creative/Panasonic" interface.
-.if n .sp
-.if t .bp
+
 The following host interface adapters are known to work with the
 .Nm matcd
 driver:
-.Bl -tag -width MEDIAXVISION -compact -offset indent
+.Bl -tag -width LONGNAME -compact -offset indent
 .It Creative
 Sound Blaster Pro (SBPRO) (CT1330A)
 .It Creative 
@@ -242,10 +241,6 @@ Sound Blaster 16 Value (SB16) - 2-layer, cost-reduced (CT2770)
 PhoneBlaster SB16 + Sierra 14.4K Voice/FAX/Data/Speakerphone modem combo (CT3100)
 .It Reveal
 (SC400)
-.It Media Vision
-Jazz 16 (59-XP672SE)
-.It Crystal
-(CRD4231)
 .El
 
 Caution: Some of these sound boards can be optionally manufactured to not
@@ -402,7 +397,7 @@ numbers are always contiguous.
 .Sh SEE ALSO
 .Pa /usr/include/sys/cdio.h
 .Sh AUTHOR
-The driver and documentation were written by Frank Durda IV.
+The driver and documentation was written by Frank Durda IV.
 .br
 Program and Documentation are Copyright 1994, 1995, 
 All rights reserved.  
