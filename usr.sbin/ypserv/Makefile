@@ -29,10 +29,10 @@ yp.h: yp.x
 	${RPCGEN} -h -o ${.TARGET} ${RPCDIR}/yp.x
 
 afterinstall:
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 \
+	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 444 \
 		${.CURDIR}/Makefile.yp \
 		${DESTDIR}/var/yp/Makefile.dist
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 555 \
+	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 555 \
 		${.CURDIR}/ypinit.sh ${DESTDIR}${BINDIR}/ypinit
 	@if [ ! -f ${DESTDIR}/var/yp/Makefile.dist ]; then \
 		ln -s	${DESTDIR}/var/yp/Makefile.dist \
