@@ -119,6 +119,7 @@ struct _keywords keywords[] =
     keypair(driveoffset),
     keypair(length),
     keypair(len),
+    keypair(size),
     keypair(state),
     keypair(round),
     keypair(prefer),
@@ -131,6 +132,7 @@ struct _keywords keywords[] =
     keypair(attach),
     keypair(detach),
     keypair(printconfig),
+    keypair(saveconfig),
     keypair(replace),
     keypair(create),
     keypair(read),
@@ -154,6 +156,7 @@ struct _keywords keywords[] =
     keypair(quit),
     keypair(setdaemon),
     keypair(getdaemon),
+    keypair(max),
     keypair(resetstats)
 #endif
 };
@@ -213,8 +216,10 @@ get_keyword(char *name, struct keywordset *keywordset)
 {
     int i;
     struct _keywords *keywords = keywordset->k;		    /* point to the keywords */
-    for (i = 0; i < keywordset->size; i++)
-	if (!strcmp(name, keywords[i].name))
-	    return (enum keyword) keywords[i].keyword;
+    if (name != NULL) {					    /* parameter exists */
+	for (i = 0; i < keywordset->size; i++)
+	    if (!strcmp(name, keywords[i].name))
+		return (enum keyword) keywords[i].keyword;
+    }
     return kw_invalid_keyword;
 }
