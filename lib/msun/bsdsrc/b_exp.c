@@ -137,12 +137,11 @@ double x;
 double __exp__D(x, c)
 double x, c;
 {
-	double  z,hi,lo, t;
+	double  z,hi,lo;
 	int k;
 
-#if !defined(vax)&&!defined(tahoe)
-	if (x!=x) return(x);	/* x is NaN */
-#endif	/* !defined(vax)&&!defined(tahoe) */
+	if (x != x)	/* x is NaN */
+		return(x);
 	if ( x <= lnhuge ) {
 		if ( x >= lntiny ) {
 
