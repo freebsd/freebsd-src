@@ -13,7 +13,4 @@ FILES+=	sys.mk
 NOOBJ=	noobj
 FILESDIR=	${BINDIR}/mk
 
-beforeinstall:
-	date '+%Y%m%d' > ${DESTDIR}/var/db/port.mkversion
-
 .include <bsd.prog.mk>
