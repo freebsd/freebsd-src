@@ -1,6 +1,13 @@
 /*-
  * Copyright (c) 1980, 1991, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
+ * Copyright (c) 2002 Networks Associates Technologies, Inc.
+ * All rights reserved.
+ *
+ * Portions of this software were developed for the FreeBSD Project by
+ * ThinkSec AS and NAI Labs, the Security Research Division of Network
+ * Associates, Inc.  under DARPA/SPAWAR contract N66001-01-C-8035
+ * ("CBOSS"), as part of the DARPA CHATS research program.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -96,26 +103,6 @@ static kvm_t	*kd;
 
 static char	*usagestr;
 
-#define	SVAR(var) __STRING(var)	/* to force expansion */
-#define	KGET(idx, var)							\
-	KGET1(idx, &var, sizeof(var), SVAR(var))
-#define	KGET1(idx, p, s, msg)						\
-	KGET2(nl[idx].n_value, p, s, msg)
-#define	KGET2(addr, p, s, msg)						\
-	if (kvm_read(kd, (u_long)(addr), p, s) != s)			\
-		warnx("cannot read %s: %s", msg, kvm_geterr(kd))
-#define	KGETN(idx, var)							\
-	KGET1N(idx, &var, sizeof(var), SVAR(var))
-#define	KGET1N(idx, p, s, msg)						\
-	KGET2N(nl[idx].n_value, p, s, msg)
-#define	KGET2N(addr, p, s, msg)						\
-	((kvm_read(kd, (u_long)(addr), p, s) == s) ? 1 : 0)
-#define	KGETRET(addr, p, s, msg)					\
-	if (kvm_read(kd, (u_long)(addr), p, s) != s) {			\
-		warnx("cannot read %s: %s", msg, kvm_geterr(kd));	\
-		return (0);						\
-	}
-
 static void	filemode(void);
 static int	getfiles(char **, size_t *);
 static void	swapmode(void);
@@ -133,12 +120,12 @@ main(int argc, char *argv[])
 	fileflag = swapflag = ttyflag = 0;
 
 	/* We will behave like good old swapinfo if thus invoked */
-	opts = strrchr(argv[0],'/');
+	opts = strrchr(argv[0], '/');
 	if (opts)
 		opts++;
 	else
 		opts = argv[0];
-	if (!strcmp(opts,"swapinfo")) {
+	if (!strcmp(opts, "swapinfo")) {
 		swapflag = 1;
 		opts = "kM:N:";
 		usagestr = "swapinfo [-k] [-M core] [-N system]";
@@ -391,24 +378,25 @@ filemode(void)
 	struct file *fp;
 	struct file *addr;
 	char *buf, flagbuf[16], *fbp;
-	int maxfile, nfiles;
+	int maxf, openf;
 	size_t len;
 	static char *dtypes[] = { "???", "inode", "socket" };
 
 	if (kd != NULL) {
-		KGET(NL_MAXFILES, maxfile);
-		KGET(NL_NFILES, nfiles);
+		if (kvm_read(kd, nl[NL_MAXFILES].n_value,
+			&maxf, sizeof maxf) != sizeof maxf ||
+		    kvm_read(kd, nl[NL_NFILES].n_value,
+			&openf, sizeof openf) != sizeof openf)
+			errx(1, "kvm_read(): %s", kvm_geterr(kd));
 	} else {
-		len = sizeof maxfile;
-		if (sysctlbyname("kern.maxfiles", &maxfile, &len, 0, 0) == -1)
-			err(1, "sysctlbyname()");
-		len = sizeof nfiles;
-		if (sysctlbyname("kern.openfiles", &nfiles, &len, 0, 0) == -1)
+		len = sizeof(int);
+		if (sysctlbyname("kern.maxfiles", &maxf, &len, 0, 0) == -1 ||
+		    sysctlbyname("kern.openfiles", &openf, &len, 0, 0) == -1)
 			err(1, "sysctlbyname()");
 	}
 
 	if (totalflag) {
-		(void)printf("%3d/%3d files\n", nfiles, maxfile);
+		(void)printf("%3d/%3d files\n", openf, maxf);
 		return;
 	}
 	if (getfiles(&buf, &len) == -1)
@@ -420,9 +408,9 @@ filemode(void)
 	 */
 	addr = LIST_FIRST((struct filelist *)buf);
 	fp = (struct file *)(buf + sizeof(struct filelist));
-	nfiles = (len - sizeof(struct filelist)) / sizeof(struct file);
+	openf = (len - sizeof(struct filelist)) / sizeof(struct file);
 
-	(void)printf("%d/%d open files\n", nfiles, maxfile);
+	(void)printf("%d/%d open files\n", openf, maxf);
 	(void)printf("   LOC   TYPE    FLG     CNT  MSG    DATA    OFFSET\n");
 	for (; (char *)fp < buf + len; addr = LIST_NEXT(fp, f_list), fp++) {
 		if ((unsigned)fp->f_type > DTYPE_SOCKET)
