@@ -243,18 +243,25 @@
     <para>On many modern hosts, PCCARD devices can be configured to
     route their interrupts via either the ISA or PCI interrupt paths.
     The &man.pcic.4; driver has been updated to support both interrupt
-    paths (formerly, only routing via ISA was supported).  In most
+    paths (formerly, only routing via ISA was supported).  &merged; In most
     cases, configuration of PCMCIA devices in laptops is simpler and
     more flexible.  In addition, various Cardbus bridge PCI cards
     (such as those used by Orinoco PCI NICs) are now supported.  Some
     hosts may experience problems, such as hangs or panics, with PCI
     interrupt routing; they can frequently be made to work by forcing
     the older-style ISA interrupt routing.  The following lines,
-    placed in <filename>/boot/loader.conf</filename> or typed to the
-    boot loader may fix the problem. &merged;</para>
+    placed in <filename>/boot/loader.conf</filename>, may fix the
+    problem:</para>
 
-    <screen><userinput>hw.pcic.intr_path=1</userinput>
-<userinput>hw.pcic.irq=0</userinput></screen>
+    <programlisting>hw.pcic.intr_path="1"
+hw.pcic.irq="0"</programlisting>
+
+    <para>When installing &os; on such a system, typing the following
+    lines to the boot loader may be helpful in starting up &os; for
+    the first time:<para>
+
+    <screen><prompt>ok</prompt> <userinput>set hw.pcic.intr_path="1"</userinput>
+<prompt>ok</prompt> <userinput>set hw.pcic.irq="0"</userinput></screen>
 
     <sect3>
       <title>Processor/Motherboard Support</title>
