@@ -12,6 +12,8 @@ To install DOS on a pseudo hard disk under doscmd:
 	your system.  This example will cause the HD drive to be tried
 	first and the DD drive second.
 
+	[ For FreeBSD the A: drive devices are /dev/rfd0.1440 and /dev/rfd0.720 ]
+
 	Note that you should only use raw devices or files at this point,
 	do not use a cooked device!  (Well, it would probably be okay
 	for a hard disk, but certainly not the floppy)
