@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: ctm_pass3.c,v 1.13 1996/04/29 21:02:32 phk Exp $
+ * $Id: ctm_pass3.c,v 1.14 1996/08/30 10:20:58 phk Exp $
  *
  */
 
@@ -22,7 +22,7 @@ settime(const char *name, const struct timeval *times)
 {
 	if (SetTime)
 	    if (utimes(name,times)) {
-		fprintf(stderr, "  utimes(): %s: %s\n", name, strerror(errno));
+		warn("utimes(): %s", name);
 		return -1;
 	    }
 	return 0;
@@ -178,11 +178,11 @@ Pass3(FILE *fd)
 	if(!strcmp(sp->Key,"FM") || !strcmp(sp->Key, "FS")) {
 	    i = open(name,O_WRONLY|O_CREAT|O_TRUNC,0666);
 	    if(i < 0) {
-		perror(name);
+		warn("%s", name);
 		WRONG
 	    }
 	    if(cnt != write(i,trash,cnt)) {
-		perror(name);
+		warn("%s", name);
 		WRONG
 	    }
 	    close(i);
@@ -201,13 +201,13 @@ Pass3(FILE *fd)
 	    }
 	    fprintf(ed,"e %s\n",name);
 	    if(cnt != fwrite(trash,1,cnt,ed)) {
-		perror(name);
+		warn("%s", name);
 		pclose(ed);
 		WRONG
 	    }
 	    fprintf(ed,"w %s\n",name);
 	    if(pclose(ed)) {
-		perror("ed");
+		warn("ed");
 		WRONG
 	    }
 	    if(strcmp(md5,MD5File(name,md5_1))) {

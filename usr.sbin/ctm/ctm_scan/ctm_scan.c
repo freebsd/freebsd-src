@@ -6,13 +6,14 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: ctm_scan.c,v 1.12 1995/07/13 15:33:42 phk Exp $
+ * $Id: ctm_scan.c,v 1.13 1996/03/19 15:17:34 bde Exp $
  *
  */
+#include <err.h>
 #include <stdio.h>
-#include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/file.h>
@@ -45,7 +46,7 @@ Do(char *path)
     npde = 1;
     pde = malloc(sizeof *pde * (npde+1));
     d = opendir(path);
-    if(!d) { perror(path); return 2; }
+    if(!d) { warn("%s", path); return 2; }
     if(!strcmp(path,".")) {
 	*buf = 0;
     } else {
@@ -163,7 +164,7 @@ main(int argc, char **argv)
      */
     if (argc > 1) {
 	if(chdir(argv[1])) {
-	    perror(argv[1]);
+	    warn("%s", argv[1]);
 	    return 2;
 	}
 	argc--;

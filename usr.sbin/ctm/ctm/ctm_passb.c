@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Joseph Koshy
  * ----------------------------------------------------------------------------
  *
- * $Id$
+ * $Id: ctm_passb.c,v 1.1 1996/08/30 10:21:00 phk Exp $
  *
  */
 
@@ -38,7 +38,7 @@ PassB(FILE *fd)
     MD5Init (&ctx);
     sprintf(buf, TarCmd, BackupFile);
     b=popen(buf, "w");
-    if(!b) { perror(buf); return Exit_Garbage; }
+    if(!b) { warn("%s", buf); return Exit_Garbage; }
 
     GETFIELD(p,' '); if(strcmp("CTM_BEGIN",p)) WRONG
     GETFIELD(p,' '); if(strcmp(Version,p)) WRONG
@@ -117,7 +117,7 @@ PassB(FILE *fd)
 	    /* send name to the archiver for a backup */
 	    cnt = strlen(name);
 	    if (cnt != fwrite(name,1,cnt,b) || EOF == fputc('\n',b)) {
-		perror(name);
+		warn("%s", name);
 		pclose(b);
 		WRONG;
 	    }

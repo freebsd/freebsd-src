@@ -53,10 +53,9 @@ u_long 			s_sub_files,	s_sub_bytes;
 void
 Usage(void)
 {
-	fprintf(stderr, "Usage:\n");
-	fprintf(stderr, "\tmkctm [-options] name number timestamp prefix");
-	fprintf(stderr, " dir1 dir2");
-	fprintf(stderr, "Options:\n");
+	fprintf(stderr,
+		"usage: mkctm [-options] name number timestamp prefix dir1 dir2\n");
+	fprintf(stderr, "options:\n");
 	fprintf(stderr, "\t\t-B bogus_regexp\n");
 	fprintf(stderr, "\t\t-D damage_limit\n");
 	fprintf(stderr, "\t\t-I ignore_regexp\n");
@@ -105,7 +104,7 @@ static __inline struct stat *
 StatFile(char *name)
 {
 	if (lstat(name, &st) < 0) 
-		err(1, "Couldn't stat %s\n", name);
+		err(1, "couldn't stat %s", name);
 	return &st;
 }
 
@@ -160,13 +159,13 @@ Equ(const char *dir1, const char *dir2, const char *name, struct dirent *de)
 			strcat(buf1, "/"); strcat(buf1, name);
 			strcat(buf1, "/"); strcat(buf1, de->d_name);
 		fd1 = open(buf1, O_RDONLY);
-		if(fd1 < 0) { perror(buf1); exit(3); }
+		if(fd1 < 0) { err(3, "%s", buf1); }
 		fstat(fd1, &s1);
 		strcpy(buf2, dir2); 
 			strcat(buf2, "/"); strcat(buf2, name);
 			strcat(buf2, "/"); strcat(buf2, de->d_name);
 		fd2 = open(buf2, O_RDONLY);
-		if(fd2 < 0) { perror(buf2); exit(3); }
+		if(fd2 < 0) { err(3, "%s", buf2); }
 		fstat(fd2, &s2);
 #if 0
 		/* XXX if we could just trust the size to change... */
@@ -179,11 +178,11 @@ Equ(const char *dir1, const char *dir2, const char *name, struct dirent *de)
 		}
 #endif
 		p1=mmap(0, s1.st_size, PROT_READ, MAP_PRIVATE, fd1, 0);
-		if ((int)p1 == -1) { perror(buf1); exit(3); }
+		if ((int)p1 == -1) { err(3, "%s", buf1); }
 		close(fd1);
 
 		p2=mmap(0, s2.st_size, PROT_READ, MAP_PRIVATE, fd2, 0);
-		if ((int)p2 == -1) { perror(buf2); exit(3); }
+		if ((int)p2 == -1) { err(3, "%s", buf2); }
 		close(fd2);
 
 		/* If identical, we're done. */
@@ -319,10 +318,10 @@ Add(const char *dir1, const char *dir2, const char *name, struct dirent *de)
 			strcat(buf2, "/"); strcat(buf2, name);
 			strcat(buf2, "/"); strcat(buf2, de->d_name);
 		fd1 = open(buf2, O_RDONLY);
-		if (fd1 < 0) {perror(buf2); exit (3); }
+		if (fd1 < 0) { err(3, "%s", buf2); }
 		fstat(fd1, &st);
 		p1=mmap(0, st.st_size, PROT_READ, MAP_PRIVATE, fd1, 0);
-		if ((int)p1 == -1) { perror(buf2); exit(3); }
+		if ((int)p1 == -1) { err(3, "%s", buf2); }
 		close(fd1);
 		m2 = MD5Data(p1, st.st_size, md5_2);
 		name_stat("CTMFM", dir2, name, de);
@@ -501,12 +500,12 @@ main(int argc, char **argv)
 #if 0
 	if (regcomp(&reg_bogus, DEFAULT_BOGUS, REG_EXTENDED | REG_NEWLINE))
 		/* XXX use regerror to explain it */
-		errx(1, "Default regular expression argument to -B is botched");
+		errx(1, "default regular expression argument to -B is botched");
 	flag_bogus = 1;
 
 	if (regcomp(&reg_ignore, DEFAULT_IGNORE, REG_EXTENDED | REG_NEWLINE))
 		/* XXX use regerror to explain it */
-		errx(1, "Default regular expression argument to -I is botched");
+		errx(1, "default regular expression argument to -I is botched");
 	flag_ignore = 1;
 #endif
 
@@ -515,7 +514,7 @@ main(int argc, char **argv)
 		case 'D':
 			damage_limit = strtol(optarg, 0, 0);
 			if (damage_limit < 0)
-				errx(1, "Damage limit must be positive");
+				errx(1, "damage limit must be positive");
 			break;
 		case 'I':
 			if (flag_ignore)
@@ -526,7 +525,7 @@ main(int argc, char **argv)
 			if (regcomp(&reg_ignore, optarg,
 			    REG_EXTENDED | REG_NEWLINE))
 				/* XXX use regerror to explain it */
-				errx(1, "Regular expression argument to -I is botched");
+				errx(1, "regular expression argument to -I is botched");
 			flag_ignore = 1;
 			break;
 		case 'B':
@@ -538,13 +537,13 @@ main(int argc, char **argv)
 			if (regcomp(&reg_bogus, optarg,
 			    REG_EXTENDED | REG_NEWLINE))
 				/* XXX use regerror to explain it */
-				errx(1, "Regular expression argument to -B is botched");
+				errx(1, "regular expression argument to -B is botched");
 			flag_bogus = 1;
 			break;
 		case 'l':
 			logf = fopen(optarg, "w");
 			if (!logf)
-				err(1, optarg);
+				err(1, "%s", optarg);
 			break;
 		case 'q':
 			verbose--;
@@ -581,10 +580,10 @@ main(int argc, char **argv)
 	DoDir(argv[4], argv[5], "");
 	if (damage_limit && damage > damage_limit) {
 		print_stat(stderr, "DAMAGE: ");
-		errx(1, "Damage of %d would exceed %d files", 
+		errx(1, "damage of %d would exceed %d files", 
 			damage, damage_limit);
 	} else if (change < 2) {
-		errx(4, "No changes");
+		errx(4, "no changes");
 	} else {
 		printf("CTM_END ");
 		fprintf(logf, "CTM_END\n");
