@@ -135,9 +135,9 @@ static const char rcsid[] =
 
 static struct ti_type ti_devs[] = {
 	{ ALT_VENDORID,	ALT_DEVICEID_ACENIC,
-		"Alteon AceNIC Gigabit Ethernet" },
+		"Alteon AceNIC 1000baseSX Gigabit Ethernet" },
 	{ ALT_VENDORID,	ALT_DEVICEID_ACENIC_COPPER,
-		"Alteon AceNIC 1000baseTX Gigabit Ethernet" },
+		"Alteon AceNIC 1000baseT Gigabit Ethernet" },
 	{ TC_VENDORID,	TC_DEVICEID_3C985,
 		"3Com 3c985-SX Gigabit Ethernet" },
 	{ NG_VENDORID, NG_DEVICEID_GA620,
