@@ -1569,12 +1569,28 @@ _dns_ghbyaddr(const void *addr, int addrlen, int af, int *errp)
 	querybuf *buf;
 	char qbuf[MAXDNAME+1];
 	char *hlist[2];
+	char *tld6[] = { "ip6.arpa", "ip6.int", NULL };
+	char *tld4[] = { "in-addr.arpa", NULL };
+	char **tld;
 
 #ifdef INET6
 	/* XXX */
 	if (af == AF_INET6 && IN6_IS_ADDR_LINKLOCAL((struct in6_addr *)addr))
 		return NULL;
 #endif
+
+	switch (af) {
+#ifdef INET6
+	case AF_INET6:
+		tld = tld6;
+		break;
+#endif
+	case AF_INET:
+		tld = tld4;
+		break;
+	default:
+		return NULL;
+	}
 
 	if ((_res.options & RES_INIT) == 0) {
 		if (res_init() < 0) {
@@ -1588,66 +1604,70 @@ _dns_ghbyaddr(const void *addr, int addrlen, int af, int *errp)
 	hbuf.h_length = addrlen;
 	na = 0;
 
-	/* XXX assumes that MAXDNAME is big enough */
-	n = 0;
-	bp = qbuf;
-	cp = (u_char *)addr+addrlen-1;
-	switch (af) {
-#ifdef INET6
-	case AF_INET6:
-		for (; n < addrlen; n++, cp--) {
-			c = *cp;
-			*bp++ = hex[c & 0xf];
-			*bp++ = '.';
-			*bp++ = hex[c >> 4];
-			*bp++ = '.';
-		}
-		strcpy(bp, "ip6.int");
-		break;
-#endif
-	default:
-		for (; n < addrlen; n++, cp--) {
-			c = *cp;
-			if (c >= 100)
-				*bp++ = '0' + c / 100;
-			if (c >= 10)
-				*bp++ = '0' + (c % 100) / 10;
-			*bp++ = '0' + c % 10;
-			*bp++ = '.';
-		}
-		strcpy(bp, "in-addr.arpa");
-		break;
-	}
-
 	buf = malloc(sizeof(*buf));
 	if (buf == NULL) {
 		*errp = NETDB_INTERNAL;
 		return NULL;
 	}
-
-	n = res_query(qbuf, C_IN, T_PTR, buf->buf, sizeof buf->buf);
-	if (n < 0) {
-		free(buf);
-		*errp = h_errno;
-		return NULL;
-	} else if (n > sizeof(buf->buf)) {
-		free(buf);
-		*errp = NETDB_INTERNAL;
-#if 0
-		errno = ERANGE; /* XXX is it OK to set errno here? */
+	for (/* nothing */; *tld; tld++) {
+		/*
+		 * XXX assumes that MAXDNAME is big enough - error checks
+		 * has been made by callers
+		 */
+		n = 0;
+		bp = qbuf;
+		cp = (u_char *)addr+addrlen-1;
+		switch (af) {
+#ifdef INET6
+		case AF_INET6:
+			for (; n < addrlen; n++, cp--) {
+				c = *cp;
+				*bp++ = hex[c & 0xf];
+				*bp++ = '.';
+				*bp++ = hex[c >> 4];
+				*bp++ = '.';
+			}
+			strcpy(bp, *tld);
+			break;
 #endif
-		return NULL;
+		case AF_INET:
+			for (; n < addrlen; n++, cp--) {
+				c = *cp;
+				if (c >= 100)
+					*bp++ = '0' + c / 100;
+				if (c >= 10)
+					*bp++ = '0' + (c % 100) / 10;
+				*bp++ = '0' + c % 10;
+				*bp++ = '.';
+			}
+			strcpy(bp, *tld);
+			break;
+		}
+
+		n = res_query(qbuf, C_IN, T_PTR, buf->buf, sizeof buf->buf);
+		if (n < 0) {
+			*errp = h_errno;
+			continue;
+		} else if (n > sizeof(buf->buf)) {
+			*errp = NETDB_INTERNAL;
+#if 0
+			errno = ERANGE; /* XXX is it OK to set errno here? */
+#endif
+			continue;
+		}
+		hp = getanswer(buf, n, qbuf, T_PTR, &hbuf, errp);
+		if (!hp)
+			continue;
+		free(buf);
+		hbuf.h_addrtype = af;
+		hbuf.h_length = addrlen;
+		hbuf.h_addr_list = hlist;
+		hlist[0] = (char *)addr;
+		hlist[1] = NULL;
+		return _hpcopy(&hbuf, errp);
 	}
-	hp = getanswer(buf, n, qbuf, T_PTR, &hbuf, errp);
 	free(buf);
-	if (!hp)
-		return NULL;
-	hbuf.h_addrtype = af;
-	hbuf.h_length = addrlen;
-	hbuf.h_addr_list = hlist;
-	hlist[0] = (char *)addr;
-	hlist[1] = NULL;
-	return _hpcopy(&hbuf, errp);
+	return NULL;
 }
 
 static void
