@@ -275,8 +275,9 @@ read_plist(Package *pkg, FILE *fp)
 	}
 	cmd = plist_cmd(pline + 1, &cp);
 	if (cmd == FAIL) {
-	    cleanup(0);
-	    errx(2, "%s: bad command '%s'", __func__, pline);
+	    warnx("%s: unknown command '%s' (package tools out of date?)",
+		__func__, pline);
+	    goto bottom;
 	}
 	if (*cp == '\0') {
 	    cp = NULL;
