@@ -142,7 +142,7 @@
     <maketarget>buildworld</maketarget> is still required when
     upgrading across major releases, across
     <application>binutil</application> updates and when &man.config.8;
-    changes version.)
+    changes version.) &merged;
     </para>
 
     <para>The &man.random.4; device has been rewritten to use the
@@ -176,6 +176,8 @@
     re-initialise cards that have external port modules attached such as
     the PC/Xem.</para>
 
+    <para>The dgm driver has been removed in favor of the digi driver.</para>
+
     <para>The <literal>O_DIRECT</literal> flag has been added to
     &man.open.2; and &man.fcntl.2;.  Specifying this flag for open
     files will attempt to minimize the cache effects of reading and
@@ -198,8 +200,6 @@
 
     <para>Numerous SMP-friendly changes have been made to the kernel's
     mbuf allocator.</para>
-
-    <para>The dgm driver has been removed in favor of the digi driver.</para>
 
     <para>Network device cloning has been implemented, and the &man.gif.4;
     device has been modified to take advantage of it.
@@ -337,6 +337,9 @@
       Wired Equivalent Privacy (WEP) encryption, settable via
       &man.ancontrol.8;. &merged;</para>
 
+      <para>The &man.an.4; driver now supports the Cisco Aironet 350
+      series of adaptors. &merged;</para>
+
       <para arch="i386">The &man.el.4; driver can now be loaded as a
       module.</para>
 
@@ -352,7 +355,7 @@
       &man.ed.4; driver now require the addition of flag
       <literal>0x80000</literal> to their config line in
       &man.pccard.conf.5;.  This flag is not optional.  These Linksys
-      cards will not be recognized without it.</para>
+      cards will not be recognized without it. &merged;</para>
 
       <para>A bug in the &man.ed.4; driver that could cause panics with
       very short packets and BPF or bridging active has been
@@ -389,9 +392,6 @@
       chipsets). &merged;</para>
 
       <para>The &man.ti.4; driver correctly masks VLAN tags. &merged;</para>
-
-      <para>The &man.an.4; driver now supports the Cisco Aironet 350
-      series of adaptors.</para>
 
       <para>The &man.txp.4; driver has been added to support NICs
       based on the 3Com 3XP Typhoon/Sidewinder (3CR990) chipset. &merged;</para>
@@ -550,7 +550,7 @@
 
       <para arch="i386">Support for the Adaptec FSA family of PCI-SCSI
       RAID controllers has been added, in the form of the &man.aac.4;
-      driver.</para>
+      driver. &merged;</para>
 
       <para>The &man.ahc.4; driver has received numerous updates,
       bugfixes, and enhancements.  Among various improvements are
@@ -640,7 +640,7 @@
 
       <para>The ISO-9660 filesystem now has a hook that supports a loadable
       character conversion routine.  The
-      <filename>sysutils/cd9660_unicode</filename> port
+      <port>sysutils/cd9660_unicode</port> port
       contains a set of common conversions.</para>
 
       <para>&man.kernfs.5; is obsolete and has been retired.</para>
@@ -867,7 +867,7 @@
     been closed (see security advisory FreeBSD-SA-00:76). &merged;</para>
 
     <para>The &man.ssh.1; binary is no longer SUID root by
-    default.</para>
+    default. &merged;</para>
 
     <para>Some fixes were applied to the Kerberos
     IV implementation related to environment variables, a
@@ -1228,10 +1228,6 @@
     <para>The default root partition in &man.sysinstall.8; is now
     100MB on the i386 and 120MB on the alpha.</para>
 
-    <para>&man.xargs.1; gained a <option>-J</option> option which allows
-    the user to specify exactly where in the command line the input should
-    be retrofitted. &merged;</para>
-
     <para>Shortly after the receipt of a <literal>SIGINFO</literal>
     signal (normally control-T from the controlling tty), &man.fsck.ffs.8;
     will now output a line indicating the current phase number and
@@ -1308,7 +1304,7 @@
 
     <para>&man.passwd.1; and &man.pw.8; now select the password hash
     algorithm at run time.  See the <literal>passwd_format</literal>
-    attribute in <filename>/etc/login.conf</filename>.</para>
+    attribute in <filename>/etc/login.conf</filename>. &merged;</para>
 
     <para>In preparation for meeting SUSv2/POSIX
     <filename>&lt;sys/select.h&gt;</filename> requirements,
@@ -1517,7 +1513,7 @@
 
     <para>&man.rc.8; now deletes all non-directory files in
     <filename>/var/run</filename> and
-    <filename>/var/spool/lock</filename> at boot time.</para>
+    <filename>/var/spool/lock</filename> at boot time. &merged;</para>
 
     <para>The &man.setfacl.1; and &man.getfacl.1; commands have been
     added to manage file system Access Control Lists.</para>
@@ -1561,7 +1557,7 @@
     devices, has been added.</para>
 
     <para>&man.fmtcheck.3;, a function for checking consistency of
-    format string arguments, has been added.</para>
+    format string arguments, has been added. &merged;</para>
 
     <para>&man.nl.1;, a line numbering filter program, has been added.</para>
 
@@ -1590,7 +1586,7 @@
     <replaceable>replstr</replaceable> option that allows the user to
     tell &man.xargs.1; to insert the data read from standard input at
     a specific point in the command line arguments rather than at the
-    end.</para>
+    end. &merged;</para>
 
     <para>&man.apmd.8; now supports monitoring of the battery state via the
     <literal>apm_battery</literal> configuration directive.</para>
@@ -1845,8 +1841,8 @@
 
         <para>&man.pim6dd.8; and &man.pim6sd.8; have been removed due to
         restrictive licensing conditions.  These programs are available
-        in the ports collection as <filename>net/pim6dd</filename> and
-        <filename>net/pim6sd</filename>. &merged;</para>
+        in the ports collection as <port>net/pim6dd</port> and
+        <port>net/pim6sd</port>. &merged;</para>
 
 	<para>&man.route6d.8; now supports a <option>-n</option> flag
 	to avoid updating the kernel forwarding table. &merged;</para>
@@ -1906,11 +1902,11 @@
 
         <para>&man.sshd.8; <literal>X11Forwarding</literal> is now turned
         on by default on the server (any risk is to the client, where it
-        is already disabled by default).</para>
+        is already disabled by default). &merged;</para>
 
 	<para>In <filename>/etc/ssh/sshd_config</filename>, the
 	<literal>ConnectionsPerPeriod</literal> parameter has been
-	deprecated in favor of <literal>MaxStartups</literal>.</para>
+	deprecated in favor of <literal>MaxStartups</literal>. &merged;</para>
 
 	<para><application>OpenSSH</application> now has a
 	<literal>VersionAddendum</literal> configuration setting for
