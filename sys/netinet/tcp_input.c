@@ -1092,12 +1092,10 @@ trimthenstep6:
 	 *   valid if its sequence number is in the window.
 	 * Note: this does not take into account delayed ACKs, so
 	 *   we should test against last_ack_sent instead of rcv_nxt.
-	 *   Also, it does not make sense to allow reset segments with
-	 *   sequence numbers greater than last_ack_sent to be processed
-	 *   since these sequence numbers are just the acknowledgement
-	 *   numbers in our outgoing packets being echoed back at us,
-	 *   and these acknowledgement numbers are monotonically
-	 *   increasing.
+	 *   The sequence number in the reset segment is normally an
+	 *   echo of our outgoing acknowlegement numbers, but some hosts
+	 *   send a reset with the sequence number at the rightmost edge
+	 *   of our receive window, and we have to handle this case.
 	 * If we have multiple segments in flight, the intial reset
 	 * segment sequence numbers will be to the left of last_ack_sent,
 	 * but they will eventually catch up.
@@ -1127,7 +1125,8 @@ trimthenstep6:
 	 *      RFC 1337.
 	 */
 	if (tiflags & TH_RST) {
-		if (tp->last_ack_sent == ti->ti_seq) {
+		if (ti->ti_seq >= tp->last_ack_sent &&
+		    ti->ti_seq < tp->last_ack_sent + tp->rcv_wnd) {
 			switch (tp->t_state) {
 
 			case TCPS_SYN_RECEIVED:
