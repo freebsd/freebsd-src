@@ -79,12 +79,7 @@ The load address of the kld file.
 The size of the file.
 .El
 .Sh RETURN VALUES
-The function
-.Fn kldstat
-returns 0 on success.
-It returns -1 on failure, and sets
-.Va errno
-to indicate the error.
+.Rv -std kldstat
 .Sh ERRORS
 The information for the file referred to by
 .Fa fileid
