@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ps.c,v 1.2 1994/09/24 02:56:47 davidg Exp $
+ *	$Id: ps.c,v 1.3 1994/10/02 08:19:13 davidg Exp $
  */
 
 #ifndef lint
@@ -44,11 +44,10 @@ static char sccsid[] = "@(#)ps.c	8.4 (Berkeley) 4/2/94";
 #endif /* not lint */
 
 #include <sys/param.h>
+#include <sys/user.h>
 #include <sys/time.h>
 #include <sys/resource.h>
-#include <sys/rtprio.h>
 #include <sys/proc.h>
-#include <sys/user.h>
 #include <sys/stat.h>
 #include <sys/ioctl.h>
 #include <sys/sysctl.h>
