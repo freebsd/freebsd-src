@@ -66,7 +66,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_fault.c,v 1.102 1999/05/02 23:57:11 alc Exp $
+ * $Id: vm_fault.c,v 1.103 1999/07/20 05:46:56 alc Exp $
  */
 
 /*
@@ -385,8 +385,9 @@ readrest:
 			int rv;
 			int reqpage;
 			int ahead, behind;
+			u_char behavior = vm_map_entry_behavior(fs.entry);
 
-			if (fs.first_object->behavior == OBJ_RANDOM) {
+			if (behavior == MAP_ENTRY_BEHAV_RANDOM) {
 				ahead = 0;
 				behind = 0;
 			} else {
@@ -400,7 +401,7 @@ readrest:
 			}
 
 			if ((fs.first_object->type != OBJT_DEVICE) &&
-				(fs.first_object->behavior == OBJ_SEQUENTIAL)) {
+			    (behavior == MAP_ENTRY_BEHAV_SEQUENTIAL)) {
 				vm_pindex_t firstpindex, tmppindex;
 				if (fs.first_pindex <
 					2*(VM_FAULT_READ_BEHIND + VM_FAULT_READ_AHEAD + 1))

@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.172 1999/07/11 18:30:31 alc Exp $
+ * $Id: vm_map.c,v 1.173 1999/07/21 18:02:27 alc Exp $
  */
 
 /*
@@ -1050,14 +1050,14 @@ vm_map_madvise(map, start, end, advise)
 		}
 
 		switch (advise) {
-	case MADV_NORMAL:
-			current->object.vm_object->behavior = OBJ_NORMAL;
+		case MADV_NORMAL:
+			vm_map_entry_set_behavior(current, MAP_ENTRY_BEHAV_NORMAL);
 			break;
-	case MADV_SEQUENTIAL:
-			current->object.vm_object->behavior = OBJ_SEQUENTIAL;
+		case MADV_SEQUENTIAL:
+			vm_map_entry_set_behavior(current, MAP_ENTRY_BEHAV_SEQUENTIAL);
 			break;
-	case MADV_RANDOM:
-			current->object.vm_object->behavior = OBJ_RANDOM;
+		case MADV_RANDOM:
+			vm_map_entry_set_behavior(current, MAP_ENTRY_BEHAV_RANDOM);
 			break;
 	/*
 	 * Right now, we could handle DONTNEED and WILLNEED with common code.
