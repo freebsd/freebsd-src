@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.11 1995/05/07 23:37:34 jkh Exp $
+ * $Id: sysinstall.h,v 1.12 1995/05/08 06:06:28 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -199,7 +199,7 @@ extern Boolean		OnVTY;    /* On a syscons VTY?			*/
 extern Variable		*VarHead; /* The head of the variable chain	*/
 extern unsigned int	Dists;    /* Which distributions we want        */
 extern unsigned int	SrcDists; /* Which src distributions we want    */
-
+extern struct disk	*Disks[]; /* The disks we're working on		*/
 
 /*** Prototypes ***/
 
@@ -209,13 +209,18 @@ extern void	command_sort(void);
 extern void	command_execute(void);
 extern void	command_add(char *key, char *fmt, ...);
 
-/* globals.c */
-extern void	globalsInit(void);
+/* devices.c */
+extern struct disk	*device_slice_disk(struct disk *d);
+extern DMenu *device_create_disk_menu(DMenu *menu, Device **rdevs, int (*hook)());
 
-/* install.c */
-extern int	installCustom(char *str);
-extern int	installExpress(char *str);
-extern int	installMaint(char *str);
+/* disks.c */
+extern void	partition_disks(void);
+extern int	write_disks(void);
+extern void	make_filesystems(void);
+extern void	cpio_extract(void);
+extern void	extract_dists(void);
+extern void	install_configuration_files(void);
+extern void	do_final_setup(void);
 
 /* dist.c */
 extern int	distSetDeveloper(char *str);
@@ -225,79 +230,17 @@ extern int	distSetXUser(char *str);
 extern int	distSetMinimum(char *str);
 extern int	distSetEverything(char *str);
 
-/* system.c */
-extern void	systemInitialize(int argc, char **argv);
-extern void	systemShutdown(void);
-extern void	systemWelcome(void);
-extern int	systemExecute(char *cmd);
-extern int	systemShellEscape(void);
-extern int	systemDisplayFile(char *file);
-extern char	*systemHelpFile(char *file, char *buf);
-extern void	systemChangeFont(const u_char font[]);
-extern void	systemChangeLang(char *lang);
-extern void	systemChangeTerminal(char *color, const u_char c_termcap[],
-				     char *mono, const u_char m_termcap[]);
-extern void	systemChangeScreenmap(const u_char newmap[]);
-extern int	vsystem(char *fmt, ...);
-
-/* disks.c */
-extern void	partition_disks(struct disk **disks);
-extern int	write_disks(struct disk **disks);
-extern void	make_filesystems(struct disk **disks);
-extern void	cpio_extract(void);
-extern void	extract_dists(struct disk **disks);
-extern void	install_configuration_files(struct disk **disks);
-extern void	do_final_setup(struct disk **disks);
-
 /* dmenu.c */
 extern void	dmenuOpen(DMenu *menu, int *choice, int *scroll,
 			  int *curr, int *max);
 
-/* misc.c */
-extern Boolean	file_readable(char *fname);
-extern Boolean	file_executable(char *fname);
-extern char	*string_concat(char *p1, char *p2);
-extern char	*string_prune(char *str);
-extern char	*string_skipwhite(char *str);
-extern void	safe_free(void *ptr);
-extern void	*safe_malloc(size_t size);
-extern char	**item_add(char **list, char *item, int *curr, int *max);
-extern char	**item_add_pair(char **list, char *item1, char *item2,
-				int *curr, int *max);
-extern void	items_free(char **list, int *curr, int *max);
+/* globals.c */
+extern void	globalsInit(void);
 
-/* termcap.c */
-extern int	set_termcap(void);
-
-/* msg.c */
-extern void	msgInfo(char *fmt, ...);
-extern void	msgYap(char *fmt, ...);
-extern void	msgWarn(char *fmt, ...);
-extern void	msgDebug(char *fmt, ...);
-extern void	msgError(char *fmt, ...);
-extern void	msgFatal(char *fmt, ...);
-extern void	msgConfirm(char *fmt, ...);
-extern void	msgNotify(char *fmt, ...);
-extern int	msgYesNo(char *fmt, ...);
-extern char	*msgGetInput(char *buf, char *fmt, ...);
-
-/* media.c */
-extern int	mediaSetCDROM(char *str);
-extern int	mediaSetFloppy(char *str);
-extern int	mediaSetDOS(char *str);
-extern int	mediaSetTape(char *str);
-extern int	mediaSetFTP(char *str);
-extern int	mediaSetFS(char *str);
-
-/* devices.c */
-extern Device	*device_get_all(DeviceType type, int *ndevs);
-extern struct disk *device_slice_disk(struct disk *d);
-extern DMenu	*device_create_disk_menu(DMenu *menu, Device **rdevs,
-					 int (*func)());
-
-/* variables.c */
-extern void	variable_set(char *var);
-extern void	variable_set2(char *name, char *value);
+/* install.c */
+extern int	installCustom(char *str);
+extern int	installExpress(char *str);
+extern int	installMaint(char *str);
 
 /* lang.c */
 extern void	lang_set_Danish(char *str);
@@ -324,6 +267,61 @@ extern const u_char font_iso_8x14[];
 extern const u_char font_cp850_8x14[];
 extern const u_char font_koi8_r_8x14[];
 extern const u_char koi8_r2cp866[];
+
+/* media.c */
+extern int	mediaSetCDROM(char *str);
+extern int	mediaSetFloppy(char *str);
+extern int	mediaSetDOS(char *str);
+extern int	mediaSetTape(char *str);
+extern int	mediaSetFTP(char *str);
+extern int	mediaSetFS(char *str);
+
+/* misc.c */
+extern Boolean	file_readable(char *fname);
+extern Boolean	file_executable(char *fname);
+extern char	*string_concat(char *p1, char *p2);
+extern char	*string_prune(char *str);
+extern char	*string_skipwhite(char *str);
+extern void	safe_free(void *ptr);
+extern void	*safe_malloc(size_t size);
+extern char	**item_add(char **list, char *item, int *curr, int *max);
+extern char	**item_add_pair(char **list, char *item1, char *item2,
+				int *curr, int *max);
+extern void	items_free(char **list, int *curr, int *max);
+
+/* msg.c */
+extern void	msgInfo(char *fmt, ...);
+extern void	msgYap(char *fmt, ...);
+extern void	msgWarn(char *fmt, ...);
+extern void	msgDebug(char *fmt, ...);
+extern void	msgError(char *fmt, ...);
+extern void	msgFatal(char *fmt, ...);
+extern void	msgConfirm(char *fmt, ...);
+extern void	msgNotify(char *fmt, ...);
+extern int	msgYesNo(char *fmt, ...);
+extern char	*msgGetInput(char *buf, char *fmt, ...);
+
+/* system.c */
+extern void	systemInitialize(int argc, char **argv);
+extern void	systemShutdown(void);
+extern void	systemWelcome(void);
+extern int	systemExecute(char *cmd);
+extern int	systemShellEscape(void);
+extern int	systemDisplayFile(char *file);
+extern char	*systemHelpFile(char *file, char *buf);
+extern void	systemChangeFont(const u_char font[]);
+extern void	systemChangeLang(char *lang);
+extern void	systemChangeTerminal(char *color, const u_char c_termcap[],
+				     char *mono, const u_char m_termcap[]);
+extern void	systemChangeScreenmap(const u_char newmap[]);
+extern int	vsystem(char *fmt, ...);
+
+/* termcap.c */
+extern int	set_termcap(void);
+
+/* variables.c */
+extern void	variable_set(char *var);
+extern void	variable_set2(char *name, char *value);
 
 /* wizard.c */
 extern void	slice_wizard(struct disk *d);

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.10 1995/05/08 00:56:28 jkh Exp $
+ * $Id: disks.c,v 1.11 1995/05/08 01:27:07 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -151,29 +151,29 @@ space_free(struct chunk *c)
 }
 
 static void
-record_fbsd_chunks(struct disk **disks)
+record_fbsd_chunks()
 {
     int i, j, p;
     struct chunk *c1, *c2;
 
     j = p = 0;
-    for (i = 0; disks[i]; i++) {
-	if (!disks[i]->chunks)
-	    msgFatal("No chunk list found for %s!", disks[i]->name);
+    for (i = 0; Disks[i]; i++) {
+	if (!Disks[i]->chunks)
+	    msgFatal("No chunk list found for %s!", Disks[i]->name);
 
 	/* Put the freebsd chunks first */
-	for (c1 = disks[i]->chunks->part; c1; c1 = c1->next) {
+	for (c1 = Disks[i]->chunks->part; c1; c1 = c1->next) {
 	    if (c1->type == freebsd) {
 		fbsd_chunk_info[j].type = PART_SLICE;
-		fbsd_chunk_info[j].d = disks[i];
+		fbsd_chunk_info[j].d = Disks[i];
 		fbsd_chunk_info[j].c = c1;
 		++j;
 	    }
 	}
     }
-    for (i = 0; disks[i]; i++) {
+    for (i = 0; Disks[i]; i++) {
 	/* Then buzz through and pick up the partitions */
-	for (c1 = disks[i]->chunks->part; c1; c1 = c1->next) {
+	for (c1 = Disks[i]->chunks->part; c1; c1 = c1->next) {
 	    if (c1->type == freebsd) {
 		for (c2 = c1->part; c2; c2 = c2->next) {
 		    if (c2->type == part) {
@@ -181,7 +181,7 @@ record_fbsd_chunks(struct disk **disks)
 			    fbsd_chunk_info[j].type = PART_SWAP;
 			else
 			    fbsd_chunk_info[j].type = PART_FILESYSTEM;
-			fbsd_chunk_info[j].d = disks[i];
+			fbsd_chunk_info[j].d = Disks[i];
 			fbsd_chunk_info[j].c = c2;
 			++j;
 		    }
@@ -393,7 +393,7 @@ print_command_summary()
 }
 
 void
-partition_disks(struct disk **disks)
+partition_disks(void)
 {
     int sz, key = 0;
     Boolean partitioning;
@@ -404,7 +404,7 @@ partition_disks(struct disk **disks)
     dialog_clear();
     partitioning = TRUE;
     keypad(stdscr, TRUE);
-    record_fbsd_chunks(disks);
+    record_fbsd_chunks();
 
     while (partitioning) {
 	clear();
@@ -495,7 +495,7 @@ partition_disks(struct disk **disks)
 		    else {
 			tmp->private = p;
 			tmp->private_free = safe_free;
-			record_fbsd_chunks(disks);
+			record_fbsd_chunks();
 		    }
 		}
 	    }
@@ -508,7 +508,7 @@ partition_disks(struct disk **disks)
 	    }
 	    Delete_Chunk(fbsd_chunk_info[current_chunk].d,
 			 fbsd_chunk_info[current_chunk].c);
-	    record_fbsd_chunks(disks);
+	    record_fbsd_chunks();
 	    break;
 
 	case 'M':	/* mount */
@@ -525,7 +525,7 @@ partition_disks(struct disk **disks)
 		p = get_mountpoint(fbsd_chunk_info[current_chunk].c);
 		if (p) {
 		    p->newfs = FALSE;
-		    record_fbsd_chunks(disks);
+		    record_fbsd_chunks();
 		}
 		break;
 
@@ -558,12 +558,12 @@ partition_disks(struct disk **disks)
 		dialog_clear();
 		end_dialog();
 		DialogActive = FALSE;
-		for (i = 0; disks[i]; i++)
-		    slice_wizard(disks[i]);
+		for (i = 0; Disks[i]; i++)
+		    slice_wizard(Disks[i]);
 		clear();
 		dialog_clear();
 		DialogActive = TRUE;
-		record_fbsd_chunks(disks);
+		record_fbsd_chunks();
 	    }
 	    else
 		msg = "A most prudent choice!";
@@ -582,27 +582,27 @@ partition_disks(struct disk **disks)
 }
 
 int
-write_disks(struct disk **disks)
+write_disks(void)
 {
     int i;
     extern u_char boot1[], boot2[];
     extern u_char mbr[], bteasy17[];
 
     dialog_clear();
-    for (i = 0; disks[i]; i++) {
-	if (contains_root_partition(disks[i]))
-	    Set_Boot_Blocks(disks[i], boot1, boot2);
+    for (i = 0; Disks[i]; i++) {
+	if (contains_root_partition(Disks[i]))
+	    Set_Boot_Blocks(Disks[i], boot1, boot2);
 	dialog_clear();
 	if (i == 0 && !msgYesNo("Would you like to install a boot manager?\n\nThis will allow you to easily select between other operating systems\non the first disk, or boot from a disk other than the first."))
-	    Set_Boot_Mgr(disks[i], bteasy17);
+	    Set_Boot_Mgr(Disks[i], bteasy17);
 	else {
 	    dialog_clear();
 	    if (i == 0 && !msgYesNo("Would you like to remove an existing boot manager?"))
-		Set_Boot_Mgr(disks[i], mbr);
+		Set_Boot_Mgr(Disks[i], mbr);
 	}
 	dialog_clear();
 	if (!msgYesNo("Last Chance!  Are you sure you want to write out\nall these changes to disk?")) {
-	    Write_Disk(disks[i]);
+	    /* Write_Disk(Disks[i]); */
 	    return 0;
 	}
     }

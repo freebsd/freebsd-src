@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.10 1995/05/07 23:37:33 jkh Exp $
+ * $Id: install.c,v 1.11 1995/05/08 06:06:25 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -48,12 +48,13 @@
 #include <unistd.h>
 
 Boolean SystemWasInstalled;
+struct disk *Disks[100];	/* some ridiculously large number */
 
 static int
 installHook(char *str)
 {
     int i;
-    struct disk *disks[100];	/* some ridiculously large number */
+    extern DMenu MenuInstall;
 
     i = 0;
     /* Clip garbage off the ends */
@@ -70,37 +71,41 @@ installHook(char *str)
 	    beep();
 	    return 0;
 	}
-	disks[i] = Open_Disk(str);
-	if (!disks[i])
+	Disks[i] = Open_Disk(str);
+	if (!Disks[i])
 	    msgFatal("Unable to open disk %s!", str);
 	++i;
 	str = cp;
     }
-    disks[i] = NULL;
+    Disks[i] = NULL;
     if (!i)
 	return 0;
 
     while (1) {
 	/* Now go set up all the MBR partition information */
-	for (i = 0; disks[i]; i++)
-	    disks[i] = device_slice_disk(disks[i]);
+	for (i = 0; Disks[i]; i++)
+	    Disks[i] = device_slice_disk(Disks[i]);
 
-	partition_disks(disks);
+	partition_disks();
 
-	if (!write_disks(disks)) {
-	    make_filesystems(disks);
+	if (!write_disks()) {
+	    int scroll, choice, curr, max;
+
+	    make_filesystems();
+	    scroll = choice = curr = max = 0;
+	    dmenuOpen(&MenuInstall, &choice, &scroll, &curr, &max);
 	    cpio_extract();
-	    extract_dists(disks);
-	    install_configuration_files(disks);
-	    do_final_setup(disks);
+	    extract_dists();
+	    install_configuration_files();
+	    do_final_setup();
 	    SystemWasInstalled = TRUE;
 	    break;
 	}
 	else {
 	    dialog_clear();
 	    if (msgYesNo("Would you like to go back to the Master Partition Editor?")) {
-		for (i = 0; disks[i]; i++)
-		    Free_Disk(disks[i]);
+		for (i = 0; Disks[i]; i++)
+		    Free_Disk(Disks[i]);
 		break;
 	    }
 	}
@@ -155,17 +160,17 @@ installMaint(char *str)
 
 /* Go newfs and/or mount all the filesystems we've been asked to */
 void
-make_filesystems(struct disk **disks)
+make_filesystems(void)
 {
     int i;
 
     command_clear();
-    for (i = 0; disks[i]; i++) {
+    for (i = 0; Disks[i]; i++) {
 	struct chunk *c1;
 
-	if (!disks[i]->chunks)
-	    msgFatal("No chunk list found for %s!", disks[i]->name);
-	c1 = disks[i]->chunks->part;
+	if (!Disks[i]->chunks)
+	    msgFatal("No chunk list found for %s!", Disks[i]->name);
+	c1 = Disks[i]->chunks->part;
 	while (c1) {
 	    if (c1->type == freebsd) {
 		struct chunk *c2 = c1->part;
@@ -238,17 +243,17 @@ cpio_extract(void)
 }
 
 void
-extract_dists(struct disk **disks)
+extract_dists(void)
 {
 }
 
 void
-install_configuration_files(struct disk **disks)
+install_configuration_files(void)
 {
 }
 
 void
-do_final_setup(struct disk **disks)
+do_final_setup(void)
 {
 }
 
