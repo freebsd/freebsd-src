@@ -16,7 +16,7 @@
  */
 
 /*
- * $Id: named.h,v 8.27 2000/04/21 06:54:04 vixie Exp $
+ * $Id: named.h,v 8.28 2001/02/12 05:56:15 marka Exp $
  */
 
 /* Options. Change them at your peril. */
@@ -44,6 +44,7 @@
 #define ALLOW_LONG_TXT_RDATA
 #define STRICT_RFC2308
 #undef BIND_ZXFR
+#undef LOG_TSIG_BUG
 
 #include <isc/assertions.h>
 #include <isc/list.h>

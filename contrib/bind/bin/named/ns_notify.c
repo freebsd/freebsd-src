@@ -1,5 +1,5 @@
 #if !defined(lint) && !defined(SABER)
-static const char rcsid[] = "$Id: ns_notify.c,v 8.12 2000/12/23 08:14:40 vixie Exp $";
+static const char rcsid[] = "$Id: ns_notify.c,v 8.14 2001/04/01 18:38:36 vixie Exp $";
 #endif /* not lint */
 
 /*
@@ -138,7 +138,7 @@ ns_notify(const char *dname, ns_class class, ns_type type) {
 	}
 
 	/* Delay notification for from five seconds up to fifteen minutes. */
-	max_delay = MIN(nzones/5, 895);
+	max_delay = MIN(nzones, 895);
 	max_delay = MAX(max_delay, 25);
 	delay = 5 + (rand() % max_delay);
 	if (evSetTimer(ev, notify_timer, ni,
@@ -352,6 +352,7 @@ sysnotify_ns(const char *dname, const char *aname,
 	struct in_addr nss[NSMAX];
 	struct hashbuf *htp;
 	int is_us, nsc;
+	int cname = 0;
 
 	htp = hashtab;
 	anp = nlookup(aname, &htp, &fname, 0);
@@ -361,6 +362,15 @@ sysnotify_ns(const char *dname, const char *aname,
 		for (adp = anp->n_data; adp; adp = adp->d_next) {
 			struct in_addr ina;
 
+			if (match(adp, class, T_CNAME)) {
+				cname = 1;
+				ns_error(ns_log_notify,
+					 "NS '%s' for '%s/%s' is a CNAME",
+					 *aname ? aname : ".",
+					 *dname ? dname : ".",
+					 p_class(class));
+				break;
+			}
 			if (!match(adp, class, T_A))
 				continue;
 			if (adp->d_type == ns_t_sig)
@@ -374,7 +384,7 @@ sysnotify_ns(const char *dname, const char *aname,
 				nss[nsc++] = ina;
 		} /*next A*/
 	if (nsc == 0) {
-		if (!is_us && !NS_OPTION_P(OPTION_NOFETCHGLUE)) {
+		if (!is_us && !cname && !NS_OPTION_P(OPTION_NOFETCHGLUE)) {
 			struct qinfo *qp;
 
 			qp = sysquery(aname, class, ns_t_a, 0, 0, ns_port,

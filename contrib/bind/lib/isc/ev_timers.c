@@ -20,7 +20,7 @@
  */
 
 #if !defined(LINT) && !defined(CODECENTER)
-static const char rcsid[] = "$Id: ev_timers.c,v 1.26 2000/07/17 07:36:54 vixie Exp $";
+static const char rcsid[] = "$Id: ev_timers.c,v 1.30 2001/02/12 23:13:48 marka Exp $";
 #endif
 
 /* Import. */
@@ -38,6 +38,7 @@ static const char rcsid[] = "$Id: ev_timers.c,v 1.26 2000/07/17 07:36:54 vixie E
 
 /* Constants. */
 
+#define	MILLION 1000000
 #define BILLION 1000000000
 
 /* Forward. */
