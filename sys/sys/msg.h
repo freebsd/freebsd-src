@@ -42,11 +42,6 @@ typedef	__pid_t		pid_t;
 #define	_PID_T_DECLARED
 #endif
 
-#ifndef _TIME_T_DECLARED
-typedef	__time_t	time_t;
-#define	_TIME_T_DECLARED
-#endif
-
 #ifndef _SIZE_T_DECLARED
 typedef	__size_t	size_t;
 #define	_SIZE_T_DECLARED
@@ -57,8 +52,16 @@ typedef	__ssize_t	ssize_t;
 #define	_SSIZE_T_DECLARED
 #endif
 
-/* XXX namespace pollution. */
-struct msg;
+#ifndef _TIME_T_DECLARED
+typedef	__time_t	time_t;
+#define	_TIME_T_DECLARED
+#endif
+
+/*
+ * XXX there seems to be no prefix reserved for this header, so the name
+ * "msg" in "struct msg" and the names of all of the nonstandard members
+ * (mainly "msg_pad*) are namespace pollution.
+ */
 
 struct msqid_ds {
 	struct	ipc_perm msg_perm;	/* msg queue permission bits */
@@ -116,9 +119,8 @@ struct msginfo {
 		msgseg;		/* number of message segments */
 };
 extern struct msginfo	msginfo;
-#endif
 
-#ifndef _KERNEL
+#else /* !_KERNEL */
 
 __BEGIN_DECLS
 int msgctl(int, int, struct msqid_ds *);
@@ -132,6 +134,6 @@ int msgsys(int, ...);
 #endif
 __END_DECLS
 
-#endif
+#endif /* _KERNEL */
 
 #endif /* !_SYS_MSG_H_ */
