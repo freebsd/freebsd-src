@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vfsops.c,v 1.47 1999/08/13 10:29:26 phk Exp $ */
+/*	$Id: msdosfs_vfsops.c,v 1.48 1999/08/23 21:07:13 bde Exp $ */
 /*	$NetBSD: msdosfs_vfsops.c,v 1.51 1997/11/17 15:36:58 ws Exp $	*/
 
 /*-
@@ -293,13 +293,9 @@ msdosfs_mount(mp, path, data, ndp, p)
 		return (error);
 	devvp = ndp->ni_vp;
 
-	if (devvp->v_type != VBLK) {
+	if (!vn_isdisk(devvp)) {
 		vrele(devvp);
 		return (ENOTBLK);
-	}
-	if (devsw(devvp->v_rdev) == NULL) {
-		vrele(devvp);
-		return (ENXIO);
 	}
 	/*
 	 * If mount by non-root, then verify that user has necessary

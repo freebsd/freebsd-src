@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.218 1999/08/22 00:15:04 jdp Exp $
+ * $Id: vfs_subr.c,v 1.219 1999/08/25 04:55:17 julian Exp $
  */
 
 /*
@@ -860,10 +860,7 @@ bgetvp(vp, bp)
 
 	vhold(vp);
 	bp->b_vp = vp;
-	if (vp->v_type == VBLK || vp->v_type == VCHR)
-		bp->b_dev = vp->v_rdev;
-	else
-		bp->b_dev = NODEV;
+	bp->b_dev = vn_todev(vp);
 	/*
 	 * Insert onto list for new vnode.
 	 */
@@ -1095,10 +1092,7 @@ pbgetvp(vp, bp)
 
 	bp->b_vp = vp;
 	bp->b_flags |= B_PAGING;
-	if (vp->v_type == VBLK || vp->v_type == VCHR)
-		bp->b_dev = vp->v_rdev;
-	else
-		bp->b_dev = NODEV;
+	bp->b_dev = vn_todev(vp);
 }
 
 /*
@@ -3015,3 +3009,20 @@ vn_todev(vp)
 		return (NODEV);
 	return (vp->v_rdev);
 }
+
+/*
+ * Check if vnode represents a disk device
+ */
+int
+vn_isdisk(vp)
+	struct vnode *vp;
+{
+	if (vp->v_type != VBLK)
+		return (0);
+	if (!devsw(vp->v_rdev))
+		return (0);
+	if (!(devsw(vp->v_rdev)->d_flags & D_DISK))
+		return (0);
+	return (1);
+}
+
