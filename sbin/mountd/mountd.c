@@ -56,9 +56,6 @@ static const char rcsid[] =
 
 #include <rpc/rpc.h>
 #include <rpc/pmap_clnt.h>
-#ifdef ISO
-#include <netiso/iso.h>
-#endif
 #include <nfs/rpcv2.h>
 #include <nfs/nfsproto.h>
 #include <nfs/nfs.h>
@@ -127,9 +124,6 @@ struct netmsk {
 union grouptypes {
 	struct hostent *gt_hostent;
 	struct netmsk	gt_net;
-#ifdef ISO
-	struct sockaddr_iso *gt_isoaddr;
-#endif
 };
 
 struct grouplist {
@@ -141,7 +135,6 @@ struct grouplist {
 #define	GT_NULL		0x0
 #define	GT_HOST		0x1
 #define	GT_NET		0x2
-#define	GT_ISO		0x4
 #define GT_IGNORE	0x5
 
 struct hostlist {
@@ -193,8 +186,6 @@ void	out_of_mem __P((void));
 void	parsecred __P((char *, struct ucred *));
 int	put_exlist __P((struct dirlist *, XDR *, struct dirlist *, int *));
 int	scan_tree __P((struct dirlist *, u_int32_t));
-void	send_umntall __P((void));
-int	umntall_each __P((caddr_t, struct sockaddr_in *));
 static void usage __P((void));
 int	xdr_dir __P((XDR *, char *));
 int	xdr_explist __P((XDR *, caddr_t));
@@ -205,10 +196,6 @@ int	xdr_mlist __P((XDR *, caddr_t));
 int	getnetgrent();
 void	endnetgrent();
 void	setnetgrent();
-
-#ifdef ISO
-struct iso_addr *iso_addr();
-#endif
 
 struct exportlist *exphead;
 struct mountlist *mlhead;
@@ -231,7 +218,6 @@ int opt_flags;
 #define	OP_KERB		0x04
 #define	OP_MASK		0x08
 #define	OP_NET		0x10
-#define	OP_ISO		0x20
 #define	OP_ALLDIRS	0x40
 
 #ifdef DEBUG
@@ -313,7 +299,6 @@ main(argc, argv)
 		signal(SIGQUIT, SIG_IGN);
 	}
 	signal(SIGHUP, (void (*) __P((int))) get_exportlist);
-	signal(SIGTERM, (void (*) __P((int))) send_umntall);
 	{ FILE *pidfile = fopen(_PATH_MOUNTDPID, "w");
 	  if (pidfile != NULL) {
 		fprintf(pidfile, "%d\n", getpid());
@@ -1423,16 +1408,6 @@ do_opt(cpp, endcpp, ep, grp, has_hostp, exflagsp, cr)
 			opt_flags |= OP_MAPALL;
 		} else if (cpoptarg && !strcmp(cpopt, "index")) {
 			ep->ex_indexfile = strdup(cpoptarg);
-#ifdef ISO
-		} else if (cpoptarg && !strcmp(cpopt, "iso")) {
-			if (get_isoaddr(cpoptarg, grp)) {
-				syslog(LOG_ERR, "bad iso addr: %s", cpoptarg);
-				return (1);
-			}
-			*has_hostp = 1;
-			usedarg++;
-			opt_flags |= OP_ISO;
-#endif /* ISO */
 		} else {
 			syslog(LOG_ERR, "bad opt %s", cpopt);
 			return (1);
@@ -1593,36 +1568,6 @@ get_ht()
 	return (hp);
 }
 
-#ifdef ISO
-/*
- * Translate an iso address.
- */
-get_isoaddr(cp, grp)
-	char *cp;
-	struct grouplist *grp;
-{
-	struct iso_addr *isop;
-	struct sockaddr_iso *isoaddr;
-
-	if (grp->gr_type != GT_NULL)
-		return (1);
-	if ((isop = iso_addr(cp)) == NULL) {
-		syslog(LOG_ERR, "iso_addr failed, ignored");
-		return (1);
-	}
-	isoaddr = (struct sockaddr_iso *)malloc(sizeof (struct sockaddr_iso));
-	if (isoaddr == (struct sockaddr_iso *)NULL)
-		out_of_mem();
-	memset(isoaddr, 0, sizeof(struct sockaddr_iso));
-	memmove(&isoaddr->siso_addr, isop, sizeof(struct iso_addr));
-	isoaddr->siso_len = sizeof(struct sockaddr_iso);
-	isoaddr->siso_family = AF_ISO;
-	grp->gr_type = GT_ISO;
-	grp->gr_ptr.gt_isoaddr = isoaddr;
-	return (0);
-}
-#endif	/* ISO */
-
 /*
  * Out of memory, fatal
  */
@@ -1710,15 +1655,6 @@ do_mount(ep, grp, exflags, anoncrp, dirp, dirplen, fsb)
 			args.ua.export.ex_mask = (struct sockaddr *)&imask;
 			args.ua.export.ex_masklen = sizeof (imask);
 			break;
-#ifdef ISO
-		case GT_ISO:
-			args.ua.export.ex_addr =
-				(struct sockaddr *)grp->gr_ptr.gt_isoaddr;
-			args.ua.export.ex_addrlen =
-				sizeof(struct sockaddr_iso);
-			args.ua.export.ex_masklen = 0;
-			break;
-#endif	/* ISO */
 		case GT_IGNORE:
 			return(0);
 			break;
@@ -1990,8 +1926,12 @@ get_mountlist()
 	FILE *mlfile;
 
 	if ((mlfile = fopen(_PATH_RMOUNTLIST, "r")) == NULL) {
-		syslog(LOG_ERR, "can't open %s", _PATH_RMOUNTLIST);
-		return;
+		if (errno == ENOENT)
+			return;
+		else {
+			syslog(LOG_ERR, "can't open %s", _PATH_RMOUNTLIST);
+			return;
+		}
 	}
 	mlpp = &mlhead;
 	while (fgets(str, STRSIZ, mlfile) != NULL) {
@@ -2084,26 +2024,6 @@ add_mlist(hostp, dirp)
 }
 
 /*
- * This function is called via. SIGTERM when the system is going down.
- * It sends a broadcast RPCMNT_UMNTALL.
- */
-void
-send_umntall()
-{
-	(void) clnt_broadcast(RPCPROG_MNT, RPCMNT_VER1, RPCMNT_UMNTALL,
-		xdr_void, (caddr_t)0, xdr_void, (caddr_t)0, umntall_each);
-	exit(0);
-}
-
-int
-umntall_each(resultsp, raddr)
-	caddr_t resultsp;
-	struct sockaddr_in *raddr;
-{
-	return (1);
-}
-
-/*
  * Free up a group list.
  */
 void
@@ -2125,10 +2045,6 @@ free_grp(grp)
 		if (grp->gr_ptr.gt_net.nt_name)
 			free(grp->gr_ptr.gt_net.nt_name);
 	}
-#ifdef ISO
-	else if (grp->gr_type == GT_ISO)
-		free((caddr_t)grp->gr_ptr.gt_isoaddr);
-#endif
 	free((caddr_t)grp);
 }
 
@@ -2162,10 +2078,6 @@ check_options(dp)
 	}
 	if ((opt_flags & OP_MASK) && (opt_flags & OP_NET) == 0) {
 	    syslog(LOG_ERR, "-mask requires -net");
-	    return (1);
-	}
-	if ((opt_flags & (OP_NET | OP_ISO)) == (OP_NET | OP_ISO)) {
-	    syslog(LOG_ERR, "-net and -iso mutually exclusive");
 	    return (1);
 	}
 	if ((opt_flags & OP_ALLDIRS) && dp->dp_left) {
