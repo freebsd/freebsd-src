@@ -67,6 +67,8 @@
 __RCSID("@(#) $FreeBSD$");
 #endif
 
+extern u_char pca200e_microcode[];
+extern int pca200e_microcode_size;
 
 #ifdef sun
 #define	DEV_NAME "/dev/sbus%d"
@@ -663,6 +665,107 @@ char *filename;
 
 
 int
+loadmicrocode ( ucode, size, ram )
+u_char *ucode;
+int size;
+u_char *ram;
+{
+	struct {
+		u_long	Id;
+		u_long	fver;
+		u_long	start;
+		u_long	entry;
+	} binhdr;
+#ifdef sun
+	union {
+		u_long	w;
+		char	c[4];
+	} w1, w2;
+#endif
+	int	n;
+	int	cnt = 0;
+	u_char	*bufp;
+	u_long	*lp;
+
+
+	/*
+	 * Check that we understand this header
+	 */
+	memcpy(&binhdr, ucode, sizeof(binhdr));
+	if ( strncmp ( (caddr_t)&binhdr.Id, "fore", 4 ) != 0 ) {
+		fprintf ( stderr, "Unrecognized format in micorcode file." );
+		return ( -1 );
+	}
+
+#ifdef	sun
+	/*
+	 * We always swap the SunOS microcode file...
+	 */
+	endian = 1;
+
+	/*
+	 * We need to swap the header start/entry words...
+	 */
+	w1.w = binhdr.start;
+	for ( n = 0; n < sizeof(u_long); n++ )
+		w2.c[3-n] = w1.c[n];
+	binhdr.start = w2.w;
+	w1.w = binhdr.entry;
+	for ( n = 0; n < sizeof(u_long); n++ )
+		w2.c[3-n] = w1.c[n];
+	binhdr.entry = w2.w;
+#endif	/* sun */
+
+	/*
+	 * Set pointer to RAM load location
+	 */
+	bufp = (ram + binhdr.start);
+
+	/*
+	 * Load file
+	 */
+	if ( endian ) {
+		int	i;
+
+		lp = (u_long *) ucode;
+		/* Swap buffer */
+		for ( i = 0; i < size / sizeof(long); i++ )
+#ifndef	sun
+			lp[i] = CP_WRITE(lp[i]);
+#else
+		{
+			int	j;
+
+			w1.w = lp[i];
+			for ( j = 0; j < 4; j++ )
+				w2.c[3-j] = w1.c[j];
+			lp[i] = w2.w;
+		}
+#endif
+	}
+	bcopy ( (caddr_t)ucode, bufp, size );
+
+	/*
+	 * With .bin extension, we need to specify start address on 'go'
+	 * command.
+	 */
+	{
+		char	cmd[80];
+
+		sprintf ( cmd, "go %lx\r\n", binhdr.entry );
+
+		xmit_to_i960 ( cmd, strlen ( cmd ), 0 );
+
+		while ( strncmp ( line, cmd, strlen(cmd) - 3 ) != 0 )
+			getline ( verbose );
+
+		if ( verbose )
+			printf("\n");
+	}
+	return ( 0 );
+}
+
+int
 sendbinfile ( fname, ram )
 char *fname;
 u_char *ram;
@@ -829,7 +932,9 @@ char *argv[];
 	char	*devname = "\0";	/* Device to download */
 	char	*dirname = NULL;	/* Directory path to objd files */
 	char	*objfile = NULL;	/* Command line object filename */
-	char	*sndfile;		/* Object filename to download */
+	u_char	*ucode = NULL;		/* Pointer to microcode */
+	int	ucode_size = 0;		/* Length of microcode */
+	char	*sndfile = NULL;	/* Object filename to download */
 	char	filename[64];		/* Constructed object filename */
 	char	base[64];		/* sba200/sba200e/pca200e basename */
 	int	ext = 0;		/* 0 == bin 1 == objd */
@@ -1195,15 +1300,9 @@ char *argv[];
 					sndfile = filename;
 				    break;
 				case DEV_FORE_PCA200E:
-				    sprintf ( filename, "%s.bin", base );
-				    if ( stat ( filename, &sbuf ) == -1 ) {
-					sprintf ( filename, "%s/%s.bin",
-					    dirname, base );
-					if ( stat ( filename, &sbuf ) != -1 ) {
-						sndfile = filename;
-					}
-				    } else
-					sndfile = filename;
+				    /* Use compiled in microcode */
+				    ucode = pca200e_microcode;
+				    ucode_size = pca200e_microcode_size;
 				    break;
 				default:
 				    break;
@@ -1213,8 +1312,10 @@ char *argv[];
 
 			    if ( ext && !binary )
 				err = xmitfile ( sndfile );
-			    else
+			    else if (sndfile != NULL) 
 				err = sendbinfile ( sndfile, ram );
+			    else 
+				err = loadmicrocode( ucode, ucode_size, ram );
 
 			    if ( err ) {
 				fprintf(stderr, "%s download failed\n",
