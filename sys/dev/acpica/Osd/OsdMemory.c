@@ -42,7 +42,7 @@
 static MALLOC_DEFINE(M_ACPICA, "acpica", "ACPI CA memory pool");
 
 void *
-AcpiOsAllocate(UINT32 Size)
+AcpiOsAllocate(ACPI_SIZE Size)
 {
     return(malloc(Size, M_ACPICA, M_NOWAIT));
 }
@@ -54,7 +54,7 @@ AcpiOsFree (void *Memory)
 }
 
 ACPI_STATUS
-AcpiOsMapMemory (ACPI_PHYSICAL_ADDRESS PhysicalAddress, UINT32 Length, void **LogicalAddress)
+AcpiOsMapMemory (ACPI_PHYSICAL_ADDRESS PhysicalAddress, ACPI_SIZE Length, void **LogicalAddress)
 {
     *LogicalAddress = pmap_mapdev((vm_offset_t)PhysicalAddress, Length);
     if (*LogicalAddress == NULL)
@@ -63,7 +63,7 @@ AcpiOsMapMemory (ACPI_PHYSICAL_ADDRESS PhysicalAddress, UINT32 Length, void **Lo
 }
 
 void
-AcpiOsUnmapMemory (void *LogicalAddress, UINT32 Length)
+AcpiOsUnmapMemory (void *LogicalAddress, ACPI_SIZE Length)
 {
     pmap_unmapdev((vm_offset_t)LogicalAddress, Length);
 }
