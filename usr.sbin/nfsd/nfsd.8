@@ -133,9 +133,7 @@ is not loaded in the running kernel, it will attempt
 to load a loadable kernel module containing
 .Tn NFS
 support using
-.Xr kldload 8
-by way of
-.Xr vfsload 3 .
+.Xr kldload 2 .
 If this fails, or no
 .Tn NFS
 KLD is available,
@@ -178,9 +176,9 @@ just do a
 .Ex -std
 .Sh SEE ALSO
 .Xr nfsstat 1 ,
+.Xr kldload 2 ,
 .Xr nfssvc 2 ,
 .Xr ipfw 8 ,
-.Xr kldload 8 ,
 .Xr mountd 8 ,
 .Xr nfsiod 8 ,
 .Xr rpcbind 8
