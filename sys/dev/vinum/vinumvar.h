@@ -378,8 +378,8 @@ struct drive {
     int freelist_size;					    /* number of entries alloced in free list */
     int freelist_entries;				    /* number of entries used in free list */
     struct drive_freelist {				    /* sorted list of free space on drive */
-	u_int64_t offset;
-	long sectors;
+	u_int64_t offset;				    /* offset of entry */
+	u_int64_t sectors;				    /* and length in sectors */
     } *freelist;
 #ifdef VINUMDEBUG
     char lockfilename[16];				    /* name of file from which we were locked */
