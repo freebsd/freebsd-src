@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)init_main.c	8.9 (Berkeley) 1/21/94
- * $Id: init_main.c,v 1.82 1998/02/04 22:32:30 eivind Exp $
+ * $Id: init_main.c,v 1.83 1998/02/06 12:13:21 eivind Exp $
  */
 
 #include "opt_devfs.h"
@@ -498,7 +498,7 @@ xxx_vfs_root_fdtab(dummy)
 	fdp->fd_fd.fd_cdir = rootvnode;
 	VREF(fdp->fd_fd.fd_cdir);
 	VOP_UNLOCK(rootvnode, 0, &proc0);
-	fdp->fd_fd.fd_rdir = NULL;
+	fdp->fd_fd.fd_rdir = rootvnode;
 }
 SYSINIT(retrofit, SI_SUB_ROOT_FDTAB, SI_ORDER_FIRST, xxx_vfs_root_fdtab, NULL)
 
