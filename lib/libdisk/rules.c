@@ -25,7 +25,7 @@ __FBSDID("$FreeBSD$");
 #include "libdisk.h"
 
 int
-Track_Aligned(struct disk *d, u_long offset)
+Track_Aligned(const struct disk *d, u_long offset)
 {
 	if (!d->bios_sect)
 		return 1;
@@ -35,7 +35,7 @@ Track_Aligned(struct disk *d, u_long offset)
 }
 
 u_long
-Prev_Track_Aligned(struct disk *d, u_long offset)
+Prev_Track_Aligned(const struct disk *d, u_long offset)
 {
 	if (!d->bios_sect)
 		return offset;
@@ -43,15 +43,15 @@ Prev_Track_Aligned(struct disk *d, u_long offset)
 }
 
 u_long
-Next_Track_Aligned(struct disk *d, u_long offset)
+Next_Track_Aligned(const struct disk *d, u_long offset)
 {
 	if (!d->bios_sect)
 		return offset;
 	return Prev_Track_Aligned(d, offset + d->bios_sect-1);
 }
 
-int
-Cyl_Aligned(struct disk *d, u_long offset)
+static int
+Cyl_Aligned(const struct disk *d, u_long offset)
 {
 	if (!d->bios_sect || !d->bios_hd)
 		return 1;
@@ -61,7 +61,7 @@ Cyl_Aligned(struct disk *d, u_long offset)
 }
 
 u_long
-Prev_Cyl_Aligned(struct disk *d, u_long offset)
+Prev_Cyl_Aligned(const struct disk *d, u_long offset)
 {
 	if (!d->bios_sect || !d->bios_hd)
 		return offset;
@@ -69,7 +69,7 @@ Prev_Cyl_Aligned(struct disk *d, u_long offset)
 }
 
 u_long
-Next_Cyl_Aligned(struct disk *d, u_long offset)
+Next_Cyl_Aligned(const struct disk *d, u_long offset)
 {
 	if (!d->bios_sect || !d->bios_hd)
 		return offset;
@@ -81,8 +81,8 @@ Next_Cyl_Aligned(struct disk *d, u_long offset)
  *	Chunks of type 'whole' can have max NDOSPART children.
  *	Only one of them can have the "active" flag
  */
-void
-Rule_000(struct disk *d, struct chunk *c, char *msg)
+static void
+Rule_000(const struct disk *d, const struct chunk *c, char *msg)
 {
 #ifdef PC98
 	int i=0;
@@ -117,15 +117,14 @@ Rule_000(struct disk *d, struct chunk *c, char *msg)
  *	All children of 'whole' and 'extended'  must be track-aligned.
  *	Exception: the end can be unaligned if it matches the end of 'whole'
  */
-void
-Rule_001(struct disk *d, struct chunk *c, char *msg)
+static void
+Rule_001(const struct disk *d, const struct chunk *c, char *msg)
 {
-	int i;
 	struct chunk *c1;
 
 	if (c->type != whole && c->type != extended)
 		return;
-	for (i = 0, c1 = c->part; c1; c1 = c1->next) {
+	for (c1 = c->part; c1; c1 = c1->next) {
 		if (c1->type == unused) continue;
 		c1->flags |= CHUNK_ALIGN;
 #ifdef PC98
@@ -154,8 +153,8 @@ Rule_001(struct disk *d, struct chunk *c, char *msg)
  * Rule#2:
  *	Max one 'fat' as child of 'whole'
  */
-void
-Rule_002(struct disk *d, struct chunk *c, char *msg)
+static void
+Rule_002(const struct disk *d, const struct chunk *c, char *msg)
 {
 #ifndef PC98
 	int i;
@@ -179,8 +178,8 @@ Rule_002(struct disk *d, struct chunk *c, char *msg)
  * Rule#3:
  *	Max one extended as child of 'whole'
  */
-void
-Rule_003(struct disk *d, struct chunk *c, char *msg)
+static void
+Rule_003(const struct disk *d, const struct chunk *c, char *msg)
 {
 #ifndef PC98
 	int i;
@@ -205,8 +204,8 @@ Rule_003(struct disk *d, struct chunk *c, char *msg)
  *	Max seven 'part' as children of 'freebsd'
  *	Max one CHUNK_IS_ROOT child per 'freebsd'
  */
-void
-Rule_004(struct disk *d, struct chunk *c, char *msg)
+static void
+Rule_004(const struct disk *d, const struct chunk *c, char *msg)
 {
 	int i=0,k=0;
 	struct chunk *c1;
@@ -231,8 +230,8 @@ Rule_004(struct disk *d, struct chunk *c, char *msg)
 	}
 }
 
-void
-Check_Chunk(struct disk *d, struct chunk *c, char *msg)
+static void
+Check_Chunk(const struct disk *d, const struct chunk *c, char *msg)
 {
 	Rule_000(d, c, msg);
 	Rule_001(d, c, msg);
@@ -246,7 +245,7 @@ Check_Chunk(struct disk *d, struct chunk *c, char *msg)
 }
 
 char *
-CheckRules(struct disk *d)
+CheckRules(const struct disk *d)
 {
 	char msg[BUFSIZ];
 
@@ -255,39 +254,4 @@ CheckRules(struct disk *d)
 	if (*msg)
 		return strdup(msg);
 	return 0;
-}
-
-char *
-ChunkCanBeRoot(struct chunk *c)
-{
-	struct chunk *c1;
-	struct disk *d = c->disk;
-	char msg[BUFSIZ];
-
-	*msg = '\0';
-	for (c1 = d->chunks->part; ; ) {
-		for (; c1; c1 = c1->next)
-			if (c1->offset <= c->offset && c1->end >= c->end)
-				break;
-		if (!c1) {
-			strcat(msg,
-"Internal trouble, cannot find this chunk in the chunk-tree\n");
-			return strdup(msg);
-		}
-		if (c1->type == freebsd)
-			break;
-		c1 = c1->part;
-	}
-
-#ifndef PC98
-	if (c1->type != freebsd) {
-		strcat(msg,
-"The root partition must be in a FreeBSD slice, otherwise\n");
-		strcat(msg,
-"the kernel cannot be booted from it\n");
-		return strdup(msg);
-	}
-#endif
-
-	return NULL;
 }
