@@ -1,3 +1,4 @@
+/* $FreeBSD$ */
 /*
  * Sun RPC is a product of Sun Microsystems, Inc. and is provided for
  * unrestricted use provided that this legend is included on all tape
@@ -299,6 +300,20 @@ pfreeprocdef(char * name, char *vers, int mode)
 }
 
 static void
+pdispatch(char * name, char *vers, int mode)
+{
+
+	f_print(fout, "void ");
+	pvname(name, vers);
+	if (mode == 1)
+		f_print(fout,
+		    "(struct svc_req *rqstp, register SVCXPRT *transp);\n");
+	else
+		f_print(fout,"();\n");
+	
+}
+
+static void
 pprogramdef(def)
 	definition *def;
 {
@@ -328,6 +343,8 @@ pprogramdef(def)
 
 		if(!Cflag){
 			ext = "extern  ";
+			f_print(fout, "%s", ext);
+			pdispatch(def->def_name, vers->vers_num, 2);
 			for (proc = vers->procs; proc != NULL;
 			     proc = proc->next) {
 				if (!define_printed(proc,
@@ -355,6 +372,8 @@ pprogramdef(def)
 					ext = "extern  ";
 				}
 
+				f_print(fout, "%s", ext);
+				pdispatch(def->def_name, vers->vers_num, i);
 				for (proc = vers->procs; proc != NULL;
 				     proc = proc->next) {
 					if (!define_printed(proc,
