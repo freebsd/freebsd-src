@@ -20,7 +20,7 @@ SRCS=	ssh.c sshconnect.c log-client.c readconf.c clientloop.c
 .include <bsd.own.mk> # for AFS
 
 .if (${KERBEROS} == "yes")
-CFLAGS+= -DKRB4 -I/usr/include/kerberosIV
+CFLAGS+= -DKRB4 -I${DESTDIR}/usr/include/kerberosIV
 LDADD+=	 -lkrb
 DPADD+=	 ${LIBKRB}
 .if (${AFS} == "yes")

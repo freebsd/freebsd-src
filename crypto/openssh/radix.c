@@ -213,7 +213,7 @@ creds_to_radix(CREDENTIALS *creds, unsigned char *buf)
 	p += creds->ticket_st.length;
 	len = p - temp;
 
-	return (uuencode(temp, len, buf));
+	return (uuencode((unsigned char *)temp, len, (char *)buf));
 }
 
 int 
@@ -225,7 +225,7 @@ radix_to_creds(const char *buf, CREDENTIALS *creds)
 	char version;
 	char temp[2048];
 
-	if (!(len = uudecode(buf, temp, sizeof(temp))))
+	if (!(len = uudecode(buf, (unsigned char *)temp, sizeof(temp))))
 		return 0;
 
 	p = temp;
