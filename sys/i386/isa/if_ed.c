@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ed.c,v 1.145 1998/09/13 22:15:44 eivind Exp $
+ *	$Id: if_ed.c,v 1.146 1998/10/22 05:58:38 bde Exp $
  */
 
 /*
@@ -3468,7 +3468,7 @@ edpnp_attach(u_long csn, u_long vend_id, char *name, struct isa_device *dev)
 
 	dev->id_iobase = d.port[0];
 	dev->id_irq = (1 << d.irq[0]);
-	dev->id_intr = edintr;
+	dev->id_ointr = edintr;
 	dev->id_drq = -1;
 
 	if (dev->id_driver == NULL) {
