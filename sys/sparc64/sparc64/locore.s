@@ -28,8 +28,10 @@
 
 #include <sys/syscall.h>
 
+#include <machine/asi.h>
 #include <machine/asmacros.h>
 #include <machine/pstate.h>
+#include <machine/upa.h>
 
 #include "assym.s"
 
@@ -39,29 +41,143 @@
 	.set	kernbase,KERNBASE
 
 /*
- * void _start(caddr_t metadata, u_long o1, u_long o2, u_long o3, 
+ * void _start(caddr_t metadata, u_int *state, u_int mid, u_int bootmid,
  *	       u_long ofw_vec)
+ *
+ * XXX: in am smp system the other cpus are started in the loader, but since
+ * there's no way to look up a symbol there, we need to use the same entry
+ * point.  So if the module id is not equal to bootcpu, jump to _mp_start.
  */
 ENTRY(_start)
-	wrpr	%g0, PSTATE_IE | PSTATE_PRIV | PSTATE_PEF, %pstate
-	mov	%o0, %g1
-	mov	%o4, %g2
+	/*
+	 * Initialize misc state to known values.  Interrupts disabled, normal
+	 * globals, windows flushed (cr = 0, cs = nwindows - 1), no clean
+	 * windows, pil 0, and floating point disabled.
+	 */
+	wrpr	%g0, PSTATE_NORMAL, %pstate
 	flushw
-	wrpr	%g0, 1, %cwp
 	wrpr	%g0, 0, %cleanwin
 	wrpr	%g0, 0, %pil
 	wr	%g0, 0, %fprs
 
-	SET(kstack0 + KSTACK_PAGES * PAGE_SIZE - PCB_SIZEOF, %l0, %o0)
-	sub	%o0, SPOFF + CCFSZ, %sp
+#ifdef SMP
+	/*
+	 * If we're not the boot processor, go do other stuff.
+	 */
+	cmp	%o2, %o3
+	be	%xcc, 1f
+	 nop
+	call	_mp_start
+	 nop
+	sir
+1:
+#endif
 
-	mov	%g1, %o0
+	/*
+	 * Get onto our per-cpu panic stack, which precedes the struct pcpu in
+	 * the per-cpu page.
+	 */
+	SET(pcpu0 + PAGE_SIZE - PC_SIZEOF, %l1, %l0)
+	sub	%l0, SPOFF + CCFSZ, %sp
+
+	/*
+	 * Enable interrupts.
+	 */
+	wrpr	%g0, PSTATE_KERNEL, %pstate
+
+	/*
+	 * Do initial bootstrap to setup pmap and thread0.
+	 */
 	call	sparc64_init
-	 mov	%g2, %o1
+	 nop
+
+	/*
+	 * Get onto thread0's kstack.
+	 */
+	sub	PCB_REG, SPOFF + CCFSZ, %sp
+
+	/*
+	 * And away we go.  This doesn't return.
+	 */
 	call	mi_startup
 	 nop
+	sir
 	! NOTREACHED
 END(_start)
+
+/*
+ * void cpu_setregs(struct pcpu *pc)
+ */
+ENTRY(cpu_setregs)
+	ldx	[%o0 + PC_CURTHREAD], %o1
+	ldx	[%o1 + TD_PCB], %o1
+
+	/*
+	 * Disable interrupts, normal globals.
+	 */
+	wrpr	%g0, PSTATE_NORMAL, %pstate
+
+	/*
+	 * Normal %g6 points to the current thread's pcb, and %g7 points to
+	 * the per-cpu data structure.
+	 */
+	mov	%o1, PCB_REG
+	mov	%o0, PCPU_REG
+
+	/*
+	 * Alternate globals.
+	 */
+	wrpr	%g0, PSTATE_ALT, %pstate
+
+	/*
+	 * Alternate %g5 points to a per-cpu panic stack, %g6 points to the
+	 * current thread's pcb, and %g7 points to the per-cpu data structure.
+	 */
+	mov	%o0, ASP_REG
+	mov	%o1, PCB_REG
+	mov	%o0, PCPU_REG
+
+	/*
+	 * Interrupt globals.
+	 */
+	wrpr	%g0, PSTATE_INTR, %pstate
+
+	/*
+	 * Interrupt %g7 points to the per-cpu data structure.
+	 */
+	mov	%o0, PCPU_REG
+
+	/*
+	 * MMU globals.
+	 */
+	wrpr	%g0, PSTATE_MMU, %pstate
+
+	/*
+	 * MMU %g7 points to the user tsb.  Initialize it to something sane
+	 * here to catch invalid use.
+	 */
+	mov	%g0, TSB_REG
+
+	/*
+	 * Normal globals again.
+	 */
+	wrpr	%g0, PSTATE_NORMAL, %pstate
+
+	/*
+	 * Force trap level 1 and take over the trap table.
+	 */
+	SET(tl0_base, %o2, %o1)
+	wrpr	%g0, 1, %tl
+	wrpr	%o1, 0, %tba
+
+	/*
+	 * Re-enable interrupts.
+	 */
+	wrpr	%g0, PSTATE_KERNEL, %pstate
+
+	retl
+	 nop
+END(cpu_setregs)
 
 /*
  * Signal trampoline, copied out to user stack.  Must be 16 byte aligned or

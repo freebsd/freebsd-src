@@ -106,33 +106,20 @@
 
 typedef int ofw_vec_t(void *);
 
-extern char tl0_base[];
-
-extern char _end[];
-
 int physmem;
 int cold = 1;
 long dumplo;
 int Maxmem;
 
-u_long debug_mask;
-
 struct mtx Giant;
 struct mtx sched_lock;
 
-static struct pcpu __pcpu;
-/*
- * This needs not be aligned as the other user areas, provided that process 0
- * does not have an fp state (which it doesn't normally).
- * This constraint is only here for debugging.
- */
-char kstack0[KSTACK_PAGES * PAGE_SIZE] __attribute__((aligned(64)));
-static char uarea0[UAREA_PAGES * PAGE_SIZE] __attribute__((aligned(64)));
-static struct trapframe frame0;
-struct user *proc0uarea;
-vm_offset_t proc0kstack;
+char pcpu0[PAGE_SIZE];
+char uarea0[UAREA_PAGES * PAGE_SIZE];
+struct trapframe frame0;
 
-char panic_stack[PANIC_STACK_PAGES * PAGE_SIZE];
+vm_offset_t kstack0;
+vm_offset_t kstack0_phys;
 
 struct kva_md_info kmi;
 
@@ -142,11 +129,14 @@ u_long ofw_tba;
 static struct timecounter tick_tc;
 
 static timecounter_get_t tick_get_timecount;
-void sparc64_init(caddr_t mdp, ofw_vec_t *vec);
+void sparc64_init(caddr_t mdp, u_int *state, u_int mid, u_int bootmid,
+		  ofw_vec_t *vec);
 void sparc64_shutdown_final(void *dummy, int howto);
 
 static void cpu_startup(void *);
 SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL);
+
+CTASSERT(sizeof(struct pcpu) <= (PAGE_SIZE / 2));
 
 static void
 cpu_startup(void *arg)
@@ -199,12 +189,13 @@ tick_get_timecount(struct timecounter *tc)
 }
 
 void
-sparc64_init(caddr_t mdp, ofw_vec_t *vec)
+sparc64_init(caddr_t mdp, u_int *state, u_int mid, u_int bootmid,
+	     ofw_vec_t *vec)
 {
+	struct pcpu *pc;
 	vm_offset_t end;
 	vm_offset_t off;
 	caddr_t kmdp;
-	u_long ps;
 
 	end = 0;
 	kmdp = NULL;
@@ -276,20 +267,20 @@ sparc64_init(caddr_t mdp, ofw_vec_t *vec)
 	 */
 	tick_stop();
 
-	/* Initialize the interrupt tables. */
+	/*
+	 * Initialize the interrupt tables.
+	 */
 	intr_init();
 
-	proc_linkup(&proc0);
 	/*
 	 * Initialize proc0 stuff (p_contested needs to be done early).
 	 */
-	proc0uarea = (struct user *)uarea0;
-	proc0kstack = (vm_offset_t)kstack0;
+	proc_linkup(&proc0);
 	proc0.p_md.md_utrap = NULL;
-	proc0.p_uarea = proc0uarea;
+	proc0.p_uarea = (struct user *)uarea0;
 	proc0.p_stats = &proc0.p_uarea->u_stats;
 	thread0 = &proc0.p_thread;
-	thread0->td_kstack = proc0kstack;
+	thread0->td_kstack = kstack0;
 	thread0->td_pcb = (struct pcb *)
 	    (thread0->td_kstack + KSTACK_PAGES * PAGE_SIZE) - 1;
 	frame0.tf_tstate = TSTATE_IE | TSTATE_PEF;
@@ -297,46 +288,20 @@ sparc64_init(caddr_t mdp, ofw_vec_t *vec)
 	LIST_INIT(&thread0->td_contested);
 
 	/*
-	 * Force trap level 1 and take over the trap table.
+	 * Prime our per-cpu data page for use.  Note, we are using it for our
+	 * stack, so don't pass the real size (PAGE_SIZE) to pcpu_init or
+	 * it'll zero it out from under us.
 	 */
-	ps = rdpr(pstate);
-	wrpr(pstate, ps, PSTATE_IE);
-	wrpr(tl, 0, 1);
-	wrpr(tba, tl0_base, 0);
+	pc = (struct pcpu *)(pcpu0 + PAGE_SIZE) - 1;
+	pcpu_init(pc, 0, sizeof(struct pcpu));
+	pc->pc_curthread = thread0;
+	pc->pc_curpcb = thread0->td_pcb;
+	pc->pc_mid = mid;
 
 	/*
-	 * Setup preloaded globals.
-	 * Normal %g7 points to the per-cpu data structure.
+	 * Initialize global registers.
 	 */
-	__asm __volatile("mov %0, %%g7" : : "r" (&__pcpu));
-
-	/*
-	 * Alternate %g5 points to a per-cpu stack for saving alternate
-	 * globals, %g6 points to the current thread's pcb, and %g7 points
-	 * to the per-cpu data structure.
-	 */
-	wrpr(pstate, ps, PSTATE_AG | PSTATE_IE);
-	__asm __volatile("mov %0, %%g5" : : "r"
-	    (&__pcpu.pc_alt_stack[ALT_STACK_SIZE - 1]));
-	__asm __volatile("mov %0, %%g6" : : "r" (thread0->td_pcb));
-	__asm __volatile("mov %0, %%g7" : : "r" (&__pcpu));
-
-	/*
-	 * Interrupt %g6 points to a per-cpu interrupt queue, %g7 points to
-	 * the interrupt vector table.
-	 */
-	wrpr(pstate, ps, PSTATE_IG | PSTATE_IE);
-	__asm __volatile("mov %0, %%g6" : : "r" (&__pcpu.pc_iq));
-	__asm __volatile("mov %0, %%g7" : : "r" (&intr_vectors));
-
-	/*
-	 * MMU %g7 points to the user tsb.  Initialize it to something sane
-	 * here to catch invalid use.
-	 */
-	wrpr(pstate, ps, PSTATE_MG | PSTATE_IE);
-	__asm __volatile("mov %%g0, %%g7" : :);
-
-	wrpr(pstate, ps, 0);
+	cpu_setregs(pc);
 
 	/*
 	 * Map and initialize the message buffer (after setting trap table).
@@ -344,13 +309,6 @@ sparc64_init(caddr_t mdp, ofw_vec_t *vec)
 	for (off = 0; off < round_page(MSGBUF_SIZE); off += PAGE_SIZE)
 		pmap_kenter((vm_offset_t)msgbufp + off, msgbuf_phys + off);
 	msgbufinit(msgbufp, MSGBUF_SIZE);
-
-	/*
-	 * Initialize curthread so that mutexes work.
-	 */
-	pcpu_init(pcpup, 0, sizeof(struct pcpu));
-	PCPU_SET(curthread, thread0);
-	PCPU_SET(curpcb, thread0->td_pcb);
 
 	/*
 	 * Initialize mutexes.
