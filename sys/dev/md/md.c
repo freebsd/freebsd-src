@@ -1057,6 +1057,8 @@ mdcreate_swap(struct md_ioctl *mdio, struct thread *td)
 	}
 	error = mdsetcred(sc, td->td_ucred);
 	if (error) {
+		vm_object_deallocate(sc->object);
+		sc->object = NULL;
 		mddestroy(sc, td);
 		return (error);
 	}
