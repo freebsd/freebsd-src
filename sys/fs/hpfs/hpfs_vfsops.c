@@ -88,8 +88,6 @@ static int	hpfs_mount __P((struct mount *, char *, caddr_t,
 				struct nameidata *, struct proc *));
 static int	hpfs_init __P((struct vfsconf *));
 static int	hpfs_uninit __P((struct vfsconf *));
-static int	hpfs_checkexp __P((struct mount *, struct sockaddr *,
-				   int *, struct ucred **));
 #else /* defined(__NetBSD__) */
 static int	hpfs_mount __P((struct mount *, const char *, void *,
 				struct nameidata *, struct proc *));
@@ -101,20 +99,14 @@ static int	hpfs_checkexp __P((struct mount *, struct mbuf *,
 				   int *, struct ucred **));
 #endif
 
+#if !defined(__FreeBSD__)
 /*ARGSUSED*/
 static int
 hpfs_checkexp(mp, nam, exflagsp, credanonp)
-#if defined(__FreeBSD__)
-	register struct mount *mp;
-	struct sockaddr *nam;
-	int *exflagsp;
-	struct ucred **credanonp;
-#else /* defined(__NetBSD__) */
 	register struct mount *mp;
 	struct mbuf *nam;
 	int *exflagsp;
 	struct ucred **credanonp;
-#endif
 {
 	register struct netcred *np;
 	register struct hpfsmount *hpm = VFSTOHPFS(mp);
@@ -130,6 +122,7 @@ hpfs_checkexp(mp, nam, exflagsp, credanonp)
 	*credanonp = &np->netc_anon;
 	return (0);
 }
+#endif
 
 #if !defined(__FreeBSD__)
 /*ARGSUSED*/
@@ -222,7 +215,11 @@ hpfs_mount (
 
 		if (args.fspec == 0) {
 			dprintf(("export 0x%x\n",args.export.ex_flags));
+#if defined(__FreeBSD__)
+			err = vfs_export(mp, &args.export);
+#else /* defined(__NetBSD__) */
 			err = vfs_export(mp, &hpmp->hpm_export, &args.export);
+#endif
 			if (err) {
 				printf("hpfs_mount: vfs_export failed %d\n",
 					err);
@@ -741,7 +738,7 @@ static struct vfsops hpfs_vfsops = {
 	vfs_stdsync,
 	hpfs_vget,
 	hpfs_fhtovp,
-	hpfs_checkexp,
+	vfs_stdcheckexp,
 	hpfs_vptofh,
 	hpfs_init,
 	hpfs_uninit,

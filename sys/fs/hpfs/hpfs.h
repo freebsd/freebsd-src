@@ -310,7 +310,9 @@ struct cpisec {
 struct hpfsmount {
 	struct sublock	hpm_su;
 	struct spblock	hpm_sp;
+#if !defined(__FreeBSD__)
 	struct netexport hpm_export;
+#endif
 	struct mount *	hpm_mp;
 	struct vnode *	hpm_devvp;
 	dev_t		hpm_dev;

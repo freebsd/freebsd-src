@@ -99,8 +99,6 @@ struct sockaddr;
 static int	ntfs_mount __P((struct mount *, char *, caddr_t,
 				struct nameidata *, struct proc *));
 static int	ntfs_init __P((struct vfsconf *));
-static int	ntfs_checkexp __P((struct mount *, struct sockaddr *,
-				   int *, struct ucred **));
 #elif defined(__NetBSD__)
 static int	ntfs_mount __P((struct mount *, const char *, void *,
 				struct nameidata *, struct proc *));
@@ -116,19 +114,13 @@ static int	ntfs_checkexp __P((struct mount *, struct mbuf *,
  * Verify a remote client has export rights and return these rights via.
  * exflagsp and credanonp.
  */
+#if !defined(__FreeBSD__)
 static int
 ntfs_checkexp(mp, nam, exflagsp, credanonp)
-#if defined(__FreeBSD__)
-	register struct mount *mp;
-	struct sockaddr *nam;
-	int *exflagsp;
-	struct ucred **credanonp;
-#else /* defined(__NetBSD__) */
 	register struct mount *mp;
 	struct mbuf *nam;
 	int *exflagsp;
 	struct ucred **credanonp;
-#endif
 {
 	register struct netcred *np;
 	register struct ntfsmount *ntm = VFSTONTFS(mp);
@@ -139,11 +131,11 @@ ntfs_checkexp(mp, nam, exflagsp, credanonp)
 	np = vfs_export_lookup(mp, &ntm->ntm_export, nam);
 	if (np == NULL)
 		return (EACCES);
-
 	*exflagsp = np->netc_exflags;
 	*credanonp = &np->netc_anon;
 	return (0);
 }
+#endif
 
 #if defined(__NetBSD__)
 /*ARGSUSED*/
@@ -306,8 +298,12 @@ ntfs_mount (
 			 * Process export requests.  Jumping to "success"
 			 * will return the vfs_export() error code.
 			 */
+#if defined(__FreeBSD__)
+			err = vfs_export(mp, &args.export);
+#else /* defined(__NetBSD__) */
 			struct ntfsmount *ntm = VFSTONTFS(mp);
 			err = vfs_export(mp, &ntm->ntm_export, &args.export);
+#endif
 			goto success;
 		}
 
@@ -1007,7 +1003,7 @@ static struct vfsops ntfs_vfsops = {
 	vfs_stdsync,
 	ntfs_vget,
 	ntfs_fhtovp,
-	ntfs_checkexp,
+	vfs_stdcheckexp,
 	ntfs_vptofh,
 	ntfs_init,
 	ntfs_uninit,
