@@ -94,7 +94,7 @@ Both the program and the interaction between the
 program and the operator are described.
 .sp 2
 .LP
-Revised July 16, 1985
+Revised October 7, 1996
 .AE
 .LP
 .bp

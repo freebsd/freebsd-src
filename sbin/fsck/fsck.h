@@ -180,6 +180,7 @@ int	fsmodified;		/* 1 => write done to file system */
 int	fsreadfd;		/* file descriptor for reading file system */
 int	fswritefd;		/* file descriptor for writing file system */
 int	returntosingle;		/* return to single user mode */
+int	rerun;			/* rerun fsck. Only used in non-preen mode */
 
 daddr_t	maxfsblock;		/* number of blocks in the file system */
 char	*blockmap;		/* ptr to primary blk allocation map */
