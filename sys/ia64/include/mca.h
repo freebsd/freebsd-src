@@ -129,6 +129,45 @@ struct mca_cpu_psi {
 	uint64_t	cpu_psi_fr[256];	/* 16 bytes per register! */
 };
 
+struct mca_mem_record {
+	uint64_t	mem_flags;
+#define	MCA_MEM_FLAGS_STATUS		(1ULL << 0)
+#define	MCA_MEM_FLAGS_ADDR		(1ULL << 1)
+#define	MCA_MEM_FLAGS_ADDRMASK		(1ULL << 2)
+#define	MCA_MEM_FLAGS_NODE		(1ULL << 3)
+#define	MCA_MEM_FLAGS_CARD		(1ULL << 4)
+#define	MCA_MEM_FLAGS_MODULE		(1ULL << 5)
+#define	MCA_MEM_FLAGS_BANK		(1ULL << 6)
+#define	MCA_MEM_FLAGS_DEVICE		(1ULL << 7)
+#define	MCA_MEM_FLAGS_ROW		(1ULL << 8)
+#define	MCA_MEM_FLAGS_COLUMN		(1ULL << 9)
+#define	MCA_MEM_FLAGS_BITPOS		(1ULL << 10)
+#define	MCA_MEM_FLAGS_REQID		(1ULL << 11)
+#define	MCA_MEM_FLAGS_RSPID		(1ULL << 12)
+#define	MCA_MEM_FLAGS_TGTID		(1ULL << 13)
+#define	MCA_MEM_FLAGS_BUSDATA		(1ULL << 14)
+#define	MCA_MEM_FLAGS_PLATFORM_ID	(1ULL << 15)
+#define	MCA_MEM_FLAGS_OEM_DATA		(1ULL << 16)
+	uint64_t	mem_status;
+	uint64_t	mem_addr;
+	uint64_t	mem_addrmask;
+	uint16_t	mem_node;
+	uint16_t	mem_card;
+	uint16_t	mem_module;
+	uint16_t	mem_bank;
+	uint16_t	mem_device;
+	uint16_t	mem_row;
+	uint16_t	mem_column;
+	uint16_t	mem_bitpos;
+	uint64_t	mem_reqid;
+	uint64_t	mem_rspid;
+	uint64_t	mem_tgtid;
+	uint64_t	mem_busdata;
+	struct mca_guid	mem_platform;		/* XXX not really a GUID. */
+	uint16_t	mem_oem_length;		/* Size of OEM data. */
+	/* N bytes of OEM platform data */
+};
+
 #define	MCA_GUID_CPU		\
 	{0xe429faf1,0x3cb7,0x11d4,{0xbc,0xa7,0x00,0x80,0xc7,0x3c,0x88,0x81}}
 #define	MCA_GUID_MEMORY		\
