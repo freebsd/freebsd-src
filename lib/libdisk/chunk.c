@@ -252,6 +252,7 @@ Add_Chunk(struct disk *d, daddr_t offset, daddr_t size, const char *name,
 	case p_amd64:
 		switch (type) {
 		case fat:
+		case gpt:
 		case mbr:
 		case extended:
 		case freebsd:
