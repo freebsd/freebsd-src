@@ -493,6 +493,31 @@ configSecurityFascist(dialogMenuItem *self)
     /* More fascist stuff should go here */
 
     if (self)
+	msgConfirm("Extreme security settings have been selected.\n\n"
+	    "This means that all \"popular\" network services and\n"
+	    "mechanisms like inetd(8) have been DISABLED by default.\n\n"
+	    "PLEASE NOTE that this still does not save you from having\n"
+	    "to properly secure your system in other ways or exercise\n"
+	    "due diligence in your administration, this simply picks\n"
+	    "a more secure set of out-of-box defaults to start with.\n\n"
+	    "To change any of these settings later, edit /etc/rc.conf");
+
+    restorescr(w);
+    return DITEM_SUCCESS;
+}
+
+int
+configSecurityHigh(dialogMenuItem *self)
+{
+    WINDOW *w = savescr();
+
+    variable_set2("inetd_enable", "NO", 1);
+    variable_set2("sendmail_enable", "YES", 1);
+    variable_set2("sshd_enable", "YES", 1);
+    variable_set2("portmap_enable", "NO", 1);
+    variable_set2("nfs_server_enable", "NO", 1);
+
+    if (self)
 	msgConfirm("High security settings have been selected.\n\n"
 	    "This means that most \"popular\" network services and\n"
 	    "mechanisms like inetd(8) have been DISABLED by default.\n\n"
