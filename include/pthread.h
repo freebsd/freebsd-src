@@ -274,23 +274,18 @@ int		pthread_mutexattr_setpshared __P((pthread_mutexattr_t *,
 			int pshared));
 #endif
 
-#if defined(_POSIX_THREAD_PRIO_PROTECT)
 int		pthread_mutexattr_getprioceiling __P((pthread_mutexattr_t *,
 			int *));
 int		pthread_mutexattr_setprioceiling __P((pthread_mutexattr_t *,
 			int));
 int		pthread_mutex_getprioceiling __P((pthread_mutex_t *, int *));
 int		pthread_mutex_setprioceiling __P((pthread_mutex_t *, int, int *));
-#endif
 
-#if defined(_POSIX_THREAD_PRIO_PROTECT) || defined (_POSIX_THREAD_PRIO_INHERIT)
 int		pthread_mutexattr_getprotocol __P((pthread_mutexattr_t *,
 			int *));
 int		pthread_mutexattr_setprotocol __P((pthread_mutexattr_t *,
 			int));
-#endif
 
-#if defined(_POSIX_THREAD_PRIORITY_SCHEDULING)
 int		pthread_attr_getinheritsched __P((const pthread_attr_t *, int *));
 int		pthread_attr_getschedparam __P((const pthread_attr_t *,
 			struct sched_param *));
@@ -305,7 +300,6 @@ int		pthread_getschedparam __P((pthread_t pthread, int *,
 			struct sched_param *));
 int		pthread_setschedparam __P((pthread_t, int,
 			const struct sched_param *));
-#endif
 
 int		pthread_attr_setfloatstate __P((pthread_attr_t *, int));
 int		pthread_attr_getfloatstate __P((pthread_attr_t *, int *));
