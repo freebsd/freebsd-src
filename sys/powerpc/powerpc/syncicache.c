@@ -94,5 +94,5 @@ __syncicache(void *from, int len)
 		__asm __volatile ("icbi 0,%0" :: "r"(p));
 		p += CACHELINESIZE;
 	} while ((len -= CACHELINESIZE) > 0);
-	__asm __volatile ("isync");
+	__asm __volatile ("sync; isync");
 }
