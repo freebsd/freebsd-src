@@ -86,7 +86,7 @@ main(int argc, char **argv)
 	if (errs || argc < 1)
 		usage();
 
-	if ((fd = open(devname, O_RDONLY, 0)) == -1)
+	if ((fd = open(devname, O_RDONLY | O_NONBLOCK, 0)) == -1)
 		err(EX_NOINPUT, "open(%s)", devname);
 
 	if (eq(argv[0], "select")) {
