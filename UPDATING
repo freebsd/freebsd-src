@@ -8,6 +8,10 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.  Important recent entries: 20040724 (default X changes).
 
+20041118:	p1	FreeBSD-SA-04:16.fetch
+	Correct a buffer overflow in fetch(1) which could allow a
+	mallicious server to execute arbitrary code on the client.
+
 20041104:
 	FreeBSD 5.3-RELEASE
 
