@@ -274,14 +274,3 @@ eunlink(const char *file)
 	return (unlink(file));
 }
 
-/*
- * Printaddr --
- * 	Print the address of a node, used as an interative function.
- */
-int
-PrintAddr(void *a, void *b __unused)
-{
-
-    printf("%p ", a);
-    return (0);
-}

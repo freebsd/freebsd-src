@@ -79,7 +79,6 @@ void Error(const char *, ...);
 void Fatal(const char *, ...);
 void Punt(const char *, ...);
 void DieHorribly(void);
-int PrintAddr(void *, void *);
 void Finish(int);
 char *estrdup(const char *);
 void *emalloc(size_t);
