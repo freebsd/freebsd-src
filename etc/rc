@@ -258,7 +258,7 @@ case ${swapfile} in
 *)
 	if [ -w "${swapfile}" -a -c /dev/vn0b ]; then
 		echo "Adding ${swapfile} as additional swap"
-		vnconfig /dev/vn0b ${swapfile} && swapon /dev/vn0b
+		vnconfig -e /dev/vn0b ${swapfile} swap
 	fi
 	;;
 esac
