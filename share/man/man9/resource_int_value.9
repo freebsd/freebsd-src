@@ -47,23 +47,23 @@ These functions fetch a value from the
 .Dq hints
 mechanism.
 .Pp
-They take the following arguments:
+The functions take the following arguments:
 .Bl -tag -width "resname"
 .It Fa name
-name of the device to get the resource value from.
+The name of the device to get the resource value from.
 .It Fa unit
-unit number of the device.
+The unit number of the device.
 \-1 is special and is used for wildcard entries.
 .It Fa resname
-resource name.
+The resource name.
 .It Fa result
-pointer to a memory in which to store the resource value.
+A pointer to memory in which to store the resource value.
 .El
 .Sh RETURN VALUES
-If successful, functions return 0.
+If successful, the functions return 0.
 Otherwise, a non\-zero error code is returned.
 .Sh ERRORS
-Functions will fail if:
+The functions will fail if:
 .Bl -tag -width Er
 .It Bq Er ENOENT
 The resource could not be found.
