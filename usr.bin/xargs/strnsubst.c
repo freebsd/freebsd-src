@@ -38,6 +38,11 @@ strnsubst(char **str, const char *match, const char *replstr, size_t maxsize)
 	if (s2 == NULL)
 		err(1, "calloc");
 
+	if (match == NULL || replstr == NULL || maxsize == strlen(*str)) {
+		strlcpy(s2, s1, maxsize);
+		goto done;
+	}
+
 	for (;;) {
 		char *this;
 
