@@ -1,4 +1,4 @@
-#	$Id: BSD.usr.dist,v 1.139 1998/12/16 05:01:44 dillon Exp $
+#	$Id: BSD.usr.dist,v 1.140 1998/12/16 05:47:53 peter Exp $
 #
 
 /set type=dir uname=root gname=wheel mode=0755
@@ -296,6 +296,8 @@
             atapi
             ..
             atm
+            ..
+            bootforth
             ..
             cvs
                 contrib
