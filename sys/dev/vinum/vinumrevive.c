@@ -37,7 +37,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumrevive.c,v 1.10 2000/01/03 03:40:54 grog Exp grog $
+ * $Id: vinumrevive.c,v 1.14 2000/12/21 01:55:11 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -82,13 +82,9 @@ revive_block(int sdno)
 	vol = NULL;
 
     if ((sd->revive_blocksize == 0)			    /* no block size */
-    ||(sd->revive_blocksize & ((1 << DEV_BSHIFT) - 1))) {   /* or invalid block size */
-	if (plex->stripesize != 0)			    /* we're striped, don't revive more than */
-	    sd->revive_blocksize = min(DEFAULT_REVIVE_BLOCKSIZE, /* one block at a time */
-		plex->stripesize << DEV_BSHIFT);
-	else
-	    sd->revive_blocksize = DEFAULT_REVIVE_BLOCKSIZE;
-    } else if (sd->revive_blocksize > MAX_REVIVE_BLOCKSIZE)
+    ||(sd->revive_blocksize & ((1 << DEV_BSHIFT) - 1)))	    /* or invalid block size */
+	sd->revive_blocksize = DEFAULT_REVIVE_BLOCKSIZE;
+    else if (sd->revive_blocksize > MAX_REVIVE_BLOCKSIZE)
 	sd->revive_blocksize = MAX_REVIVE_BLOCKSIZE;
     size = min(sd->revive_blocksize >> DEV_BSHIFT, sd->sectors - sd->revived) << DEV_BSHIFT;
     sd->reviver = curproc->p_pid;			    /* note who last had a bash at it */
@@ -113,7 +109,7 @@ revive_block(int sdno)
 	stripeoffset = sd->revived % plex->stripesize;	    /* offset from beginning of stripe */
 	plexblkno = sd->plexoffset			    /* base */
 	    + (sd->revived - stripeoffset) * (plex->subdisks - 1) /* offset to beginning of stripe */
-	    + stripeoffset;				    /* offset from beginning of stripe */
+	    +stripeoffset;				    /* offset from beginning of stripe */
 	stripe = (sd->revived / plex->stripesize);	    /* stripe number */
 
 	/* Make sure we don't go beyond the end of the band. */
@@ -159,8 +155,8 @@ revive_block(int sdno)
 	    lock = lockrange(plexblkno << DEV_BSHIFT, bp, plex); /* lock it */
 	if (vol != NULL)				    /* it's part of a volume, */
 	    /*
-	     * First, read the data from the volume.  We
-	     * don't care which plex, that's bre's job.
+	       * First, read the data from the volume.  We
+	       * don't care which plex, that's bre's job.
 	     */
 	    bp->b_dev = VINUMDEV(plex->volno, 0, 0, VINUM_VOLUME_TYPE);	/* create the device number */
 	else						    /* it's an unattached plex */
@@ -178,8 +174,6 @@ revive_block(int sdno)
     {
 	bp->b_dev = VINUM_SD(sdno);			    /* create the device number */
 	bp->b_flags = B_ORDERED | B_WRITE;		    /* and make this an ordered write */
-	BUF_LOCKINIT(bp);				    /* get a lock for the buffer */
-	BUF_LOCK(bp, LK_EXCLUSIVE);			    /* and lock it */
 	bp->b_resid = bp->b_bcount;
 	bp->b_blkno = sd->revived;			    /* write it to here */
 	sdio(bp);					    /* perform the I/O */
@@ -297,8 +291,6 @@ parityops(struct vinum_ioctl_msg *data)
 	    || (op == rebuildandcheckparity)) {
 	    pbp->b_flags &= ~B_READ;
 	    pbp->b_resid = pbp->b_bcount;
-	    BUF_LOCKINIT(pbp);				    /* get a lock for the buffer */
-	    BUF_LOCK(pbp, LK_EXCLUSIVE);		    /* and lock it */
 	    sdio(pbp);					    /* write the parity block */
 	    biowait(pbp);
 	}
@@ -444,8 +436,6 @@ parityrebuild(struct plex *plex,
      */
     for (sdno = 0; sdno < plex->subdisks; sdno++) {	    /* for each real subdisk */
 	if ((sdno != psd) || (op != rebuildparity)) {
-	    BUF_LOCKINIT(bpp[sdno]);			    /* get a lock for the buffer */
-	    BUF_LOCK(bpp[sdno], LK_EXCLUSIVE);		    /* and lock it */
 	    sdio(bpp[sdno]);
 	}
     }
@@ -559,8 +549,6 @@ initsd(int sdno, int verify)
 	bp->b_blkno = sd->initialized;			    /* write it to here */
 	bzero(bp->b_data, bp->b_bcount);
 	bp->b_dev = VINUM_SD(sdno);			    /* create the device number */
-	BUF_LOCKINIT(bp);				    /* get a lock for the buffer */
-	BUF_LOCK(bp, LK_EXCLUSIVE);			    /* and lock it */
 	bp->b_flags &= ~B_READ;
 	sdio(bp);					    /* perform the I/O */
 	biowait(bp);
@@ -584,8 +572,6 @@ initsd(int sdno, int verify)
 		bp->b_dev = VINUM_SD(sdno);		    /* create the device number */
 		bp->b_flags |= B_READ;			    /* read it back */
 		splx(s);
-		BUF_LOCKINIT(bp);			    /* get a lock for the buffer */
-		BUF_LOCK(bp, LK_EXCLUSIVE);		    /* and lock it */
 		sdio(bp);
 		biowait(bp);
 		/*

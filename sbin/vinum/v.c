@@ -36,7 +36,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: v.c,v 1.30 2000/05/07 04:20:53 grog Exp grog $
+ * $Id: v.c,v 1.31 2000/09/03 01:29:26 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -44,7 +44,6 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <sys/mman.h>
-#include <libutil.h>
 #include <netdb.h>
 #include <setjmp.h>
 #include <signal.h>

@@ -187,6 +187,7 @@ int
 give_plex_to_volume(int volno, int plexno)
 {
     struct volume *vol;
+    int i;
 
     /*
      * It's not an error for the plex to already
@@ -209,6 +210,9 @@ give_plex_to_volume(int volno, int plexno)
     vol->plexes++;					    /* add another plex */
     PLEX[plexno].volno = volno;				    /* note the number of our volume */
 
+    /* Find out how big our volume is */
+    for (i = 0; i < vol->plexes; i++)
+	vol->size = max(vol->size, PLEX[vol->plex[i]].length);
     return vol->plexes - 1;				    /* and return its index */
 }
 
@@ -487,7 +491,7 @@ find_drive(const char *name, int create)
 	for (driveno = 0; driveno < vinum_conf.drives_allocated; driveno++) {
 	    drive = &DRIVE[driveno];			    /* point to drive */
 	    if ((drive->label.name[0] != '\0')		    /* it has a name */
-&&(strcmp(drive->label.name, name) == 0)		    /* and it's this one */
+	    &&(strcmp(drive->label.name, name) == 0)	    /* and it's this one */
 	    &&(drive->state > drive_unallocated))	    /* and it's a real one: found */
 		return driveno;
 	}
@@ -640,7 +644,7 @@ return_drive_space(int driveno, int64_t offset, int length)
 	 * with a higher offset than the subdisk, or both.
 	 */
 	if ((fe > 1)					    /* not the first entry */
-&&((fe == drive->freelist_entries)			    /* gone past the end */
+	&&((fe == drive->freelist_entries)		    /* gone past the end */
 	||(drive->freelist[fe].offset > offset)))	    /* or past the block were looking for */
 	    fe--;					    /* point to the block before */
 	dend = drive->freelist[fe].offset + drive->freelist[fe].sectors; /* end of the entry */
@@ -908,7 +912,7 @@ config_drive(int update)
     if (drive->state != drive_referenced) {		    /* we already know this drive */
 	/*
 	 * XXX Check which definition is more up-to-date.  Give
-	 * preference for the definition on its own drive
+	 * preference for the definition on its own drive.
 	 */
 	return;						    /* XXX */
     }
@@ -970,8 +974,6 @@ config_drive(int update)
 		break;
 
 	    case DL_DELETED_LABEL:			    /* it was a drive, but we deleted it */
-		break;
-
 	    case DL_NOT_OURS:				    /* nothing to do with the rest */
 	    case DL_OURS:
 		break;
@@ -1372,6 +1374,9 @@ config_plex(int update)
 	}
     }
 
+    if (plex->organization == plex_disorg)
+	throw_rude_remark(EINVAL, "No plex organization specified");
+
     if ((plex->volno < 0)				    /* we don't have a volume */
     &&(!detached))					    /* and we wouldn't object */
 	plex->volno = current_volume;
@@ -1390,6 +1395,12 @@ config_plex(int update)
 	    throw_rude_remark(EINVAL, "Unnamed plex is not associated with a volume");
 	sprintf(plexsuffix, ".p%d", pindex);		    /* form the suffix */
 	strcat(plex->name, plexsuffix);			    /* and add it to the name */
+    }
+    if (isparity(plex)) {
+	plex->lock = (struct rangelock *)
+	    Malloc(PLEX_LOCKS * sizeof(struct rangelock));
+	CHECKALLOC(plex->lock, "vinum: Can't allocate lock table\n");
+	bzero((char *) plex->lock, PLEX_LOCKS * sizeof(struct rangelock));
     }
     /* Note the last plex we configured */
     current_plex = plexno;

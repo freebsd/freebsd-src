@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: request.h,v 1.17 1999/12/27 02:18:05 grog Exp grog $
+ * $Id: request.h,v 1.19 2000/11/24 03:41:51 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -54,6 +54,7 @@ enum xferinfo {
     XFR_PHASE2 = 0x800,					    /* documentation only: 2nd phase write */
 #endif
     XFR_REVIVECONFLICT = 0x1000,			    /* possible conflict with a revive operation */
+    XFR_BUFLOCKED = 0x2000,				    /* BUF_LOCK performed on this buffer */
     /* operations that need a parity block */
     XFR_PARITYOP = (XFR_NORMAL_WRITE | XFR_RECOVERY_READ | XFR_DEGRADED_WRITE),
     /* operations that use the group parameters */

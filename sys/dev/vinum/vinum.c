@@ -35,7 +35,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinum.c,v 1.32 2000/05/10 07:54:29 grog Exp grog $
+ * $Id: vinum.c,v 1.33 2001/01/09 06:19:15 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -64,9 +64,7 @@ STATIC struct cdevsw vinum_cdevsw =
 /* Called by main() during pseudo-device attachment. */
 STATIC void vinumattach(void *);
 
-#ifndef ACTUALLY_LKM_NOT_KERNEL
 STATIC int vinum_modevent(module_t mod, modeventtype_t type, void *unused);
-#endif
 
 struct _vinum_conf vinum_conf;				    /* configuration information */
 
@@ -78,7 +76,6 @@ struct _vinum_conf vinum_conf;				    /* configuration information */
 void
 vinumattach(void *dummy)
 {
-
     /* modload should prevent multiple loads, so this is worth a panic */
     if ((vinum_conf.flags & VF_LOADED) != 0)
 	panic("vinum: already loaded");

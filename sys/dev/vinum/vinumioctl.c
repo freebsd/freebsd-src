@@ -41,7 +41,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumioctl.c,v 1.12 2000/02/29 02:20:31 grog Exp grog $
+ * $Id: vinumioctl.c,v 1.14 2000/10/27 03:07:53 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -666,7 +666,7 @@ detachobject(struct vinum_ioctl_msg *msg)
 	} else {					    /* valid plex number */
 	    plex = &PLEX[sd->plexno];
 	    if ((!msg->force)				    /* don't force things */
-&&((plex->state == plex_up)				    /* and the plex is up */
+	    &&((plex->state == plex_up)			    /* and the plex is up */
 	    ||((plex->state == plex_flaky) && sd->state == sd_up))) { /* or flaky with this sd up */
 		reply->error = EBUSY;			    /* we need this sd */
 		reply->msg[0] = '\0';
@@ -688,10 +688,12 @@ detachobject(struct vinum_ioctl_msg *msg)
 			(plex->subdisks - 1 - sdno) * sizeof(int));
 	    }
 	    plex->subdisks--;
-	    if (!bcmp(plex->name, sd->name, strlen(plex->name))) { /* this subdisk is named after the plex */
+	    if (!bcmp(plex->name, sd->name, strlen(plex->name) + 1))
+		/* this subdisk is named after the plex */
+	    {
 		bcopy(sd->name,
 		    &sd->name[3],
-		    min(strlen(sd->name), MAXSDNAME - 3));
+		    min(strlen(sd->name) + 1, MAXSDNAME - 3));
 		bcopy("ex-", sd->name, 3);
 		sd->name[MAXSDNAME - 1] = '\0';
 	    }
@@ -714,7 +716,7 @@ detachobject(struct vinum_ioctl_msg *msg)
 
 	    vol = &VOL[volno];
 	    if ((!msg->force)				    /* don't force things */
-&&((vol->state == volume_up)				    /* and the volume is up */
+	    &&((vol->state == volume_up)		    /* and the volume is up */
 	    &&(vol->plexes == 1))) {			    /* and this is the last plex */
 		/*
 		   * XXX As elsewhere, check whether we will lose
@@ -735,7 +737,9 @@ detachobject(struct vinum_ioctl_msg *msg)
 		    (vol->plexes - 1 - plexno) * sizeof(int));
 	    vol->plexes--;
 	    vol->last_plex_read = 0;			    /* don't go beyond the end */
-	    if (!bcmp(vol->name, plex->name, strlen(vol->name))) { /* this plex is named after the volume */
+	    if (!bcmp(vol->name, plex->name, strlen(vol->name) + 1))
+		/* this plex is named after the volume */
+	    {
 		/* First, check if the subdisks are the same */
 		if (msg->recurse) {
 		    int sdno;
@@ -743,14 +747,20 @@ detachobject(struct vinum_ioctl_msg *msg)
 		    for (sdno = 0; sdno < plex->subdisks; sdno++) {
 			struct sd *sd = &SD[plex->sdnos[sdno]];
 
-			if (!bcmp(plex->name, sd->name, strlen(plex->name))) { /* subdisk is named after the plex */
-			    bcopy(sd->name, &sd->name[3], min(strlen(sd->name), MAXSDNAME - 3));
+			if (!bcmp(plex->name, sd->name, strlen(plex->name) + 1))
+							    /* subdisk is named after the plex */
+			{
+			    bcopy(sd->name,
+				&sd->name[3],
+				min(strlen(sd->name) + 1, MAXSDNAME - 3));
 			    bcopy("ex-", sd->name, 3);
 			    sd->name[MAXSDNAME - 1] = '\0';
 			}
 		    }
 		}
-		bcopy(plex->name, &plex->name[3], min(strlen(plex->name), MAXPLEXNAME - 3));
+		bcopy(plex->name,
+		    &plex->name[3],
+		    min(strlen(plex->name) + 1, MAXPLEXNAME - 3));
 		bcopy("ex-", plex->name, 3);
 		plex->name[MAXPLEXNAME - 1] = '\0';
 	    }

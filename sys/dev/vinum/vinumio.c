@@ -55,6 +55,7 @@ open_drive(struct drive *drive, struct proc *p, int verbose)
     int devminor;					    /* minor devs for disk device */
     int unit;
     char *dname;
+    struct cdevsw *dsw;					    /* pointer to cdevsw entry */
 
     if (bcmp(drive->devicename, "/dev/", 5))		    /* device name doesn't start with /dev */
 	return ENOENT;					    /* give up */
@@ -83,7 +84,13 @@ open_drive(struct drive *drive, struct proc *p, int verbose)
 	devmajor = 43;
     else if (bcmp(dname, "md", 2) == 0)
 	devmajor = 95;
-    else
+    else if (bcmp(dname, "amrd", 4) == 0) {
+	devmajor = 133;
+	dname += 2;
+    } else if (bcmp(dname, "idad", 4) == 0) {
+	devmajor = 109;
+	dname += 2;
+    } else
 	return ENODEV;
     dname += 2;						    /* point past */
 
@@ -106,22 +113,31 @@ open_drive(struct drive *drive, struct proc *p, int verbose)
 	if (((dname[1] < '1') || (dname[1] > '4'))	    /* invalid slice */
 	||((dname[2] < 'a') || (dname[2] > 'h')))	    /* or invalid partition */
 	    return ENODEV;
-	devminor = (unit << 3)				    /* unit */
-+(dname[2] - 'a')					    /* partition */
-	+((dname[1] - '0' + 1) << 16);			    /* slice */
+	devminor = ((unit & 31) << 3)			    /* unit */
+	+(dname[2] - 'a')				    /* partition */
+	+((dname[1] - '0' + 1) << 16)			    /* slice */
+	+((unit & ~31) << 16);				    /* high-order unit bits */
     } else {						    /* compatibility partition */
 	if ((*dname < 'a') || (*dname > 'h'))		    /* or invalid partition */
 	    return ENODEV;
 	devminor = (*dname - 'a')			    /* partition */
-	+(unit << 3);					    /* unit */
+	+((unit & 31) << 3)				    /* unit */
+	+((unit & ~31) << 16);				    /* high-order unit bits */
     }
+
+    if ((devminor & 7) == 2)				    /* partition c */
+	return ENOTTY;					    /* not buying that */
 
     drive->dev = makedev(devmajor, devminor);		    /* find the device */
     if (drive->dev == NULL)				    /* didn't find anything */
 	return ENODEV;
 
     drive->dev->si_iosize_max = DFLTPHYS;
-    drive->lasterror = (*devsw(drive->dev)->d_open) (drive->dev, FWRITE, 0, NULL);
+    dsw = devsw(drive->dev);
+    if (dsw == NULL)
+	drive->lasterror = ENOENT;
+    else
+	drive->lasterror = (dsw->d_open) (drive->dev, FWRITE, 0, NULL);
 
     if (drive->lasterror != 0) {			    /* failed */
 	drive->state = drive_down;			    /* just force it down */
@@ -190,31 +206,28 @@ set_drive_parms(struct drive *drive)
 int
 init_drive(struct drive *drive, int verbose)
 {
-    int error;
-
     if (drive->devicename[0] != '/') {
 	drive->lasterror = EINVAL;
 	log(LOG_ERR, "vinum: Can't open drive without drive name\n");
 	return EINVAL;
     }
-    error = open_drive(drive, curproc, verbose);	    /* open the drive */
-    if (error)
-	return error;
+    drive->lasterror = open_drive(drive, curproc, verbose); /* open the drive */
+    if (drive->lasterror)
+	return drive->lasterror;
 
-    error = (*devsw(drive->dev)->d_ioctl) (drive->dev,
+    drive->lasterror = (*devsw(drive->dev)->d_ioctl) (drive->dev,
 	DIOCGPART,
 	(caddr_t) & drive->partinfo,
 	FREAD,
 	curproc);
-    if (error) {
+    if (drive->lasterror) {
 	if (verbose)
 	    log(LOG_WARNING,
-		"vinum open_drive %s: Can't get partition information, error %d\n",
+		"vinum open_drive %s: Can't get partition information, drive->lasterror %d\n",
 		drive->devicename,
-		error);
+		drive->lasterror);
 	close_drive(drive);
-	drive->lasterror = error;
-	return error;
+	return drive->lasterror;
     }
     if (drive->partinfo.part->p_fstype != FS_VINUM) {	    /* not Vinum */
 	drive->lasterror = EFTYPE;
@@ -356,16 +369,16 @@ read_drive_label(struct drive *drive, int verbose)
     vhdr = (struct vinum_hdr *) Malloc(VINUMHEADERLEN);	    /* allocate buffers */
     CHECKALLOC(vhdr, "Can't allocate memory");
 
+    drive->state = drive_up;				    /* be optimistic */
     error = read_drive(drive, (void *) vhdr, VINUMHEADERLEN, VINUM_LABEL_OFFSET);
     if (vhdr->magic == VINUM_MAGIC) {			    /* ours! */
 	if (drive->label.name[0]			    /* we have a name for this drive */
 	&&(strcmp(drive->label.name, vhdr->label.name))) {  /* but it doesn't match the real name */
 	    drive->lasterror = EINVAL;
 	    result = DL_WRONG_DRIVE;			    /* it's the wrong drive */
-	} else {
-	    drive->state = drive_up;			    /* it's OK by us */
+	    drive->state = drive_unallocated;		    /* put it back, it's not ours */
+	} else
 	    result = DL_OURS;
-	}
 	/*
 	 * We copy the drive anyway so that we have
 	 * the correct name in the drive info.  This
@@ -400,7 +413,7 @@ check_drive(char *devicename)
     if (read_drive_label(drive, 0) == DL_OURS) {	    /* one of ours */
 	for (i = 0; i < vinum_conf.drives_allocated; i++) { /* see if the name already exists */
 	    if ((i != driveno)				    /* not this drive */
-&&(DRIVE[i].state != drive_unallocated)			    /* and it's allocated */
+	    &&(DRIVE[i].state != drive_unallocated)	    /* and it's allocated */
 	    &&(strcmp(DRIVE[i].label.name,
 			DRIVE[driveno].label.name) == 0)) { /* and it has the same name */
 		struct drive *mydrive = &DRIVE[i];
@@ -521,17 +534,30 @@ format_config(char *config, int len)
     /* And finally the subdisk configuration */
     for (i = 0; i < vinum_conf.subdisks_allocated; i++) {
 	struct sd *sd;
+	char *drivename;
 
 	sd = &SD[i];
 	if ((sd->state != sd_referenced)
 	    && (sd->state != sd_unallocated)
 	    && (sd->name[0] != '\0')) {			    /* paranoia */
+	    drivename = vinum_conf.drive[sd->driveno].label.name;
+	    /*
+	     * XXX We've seen cases of dead subdisks
+	     * which don't have a drive.  If we let them
+	     * through here, the drive name is null, so
+	     * they get the drive named 'plex'.
+	     *
+	     * This is a breakage limiter, not a fix.
+	     */
+	    if (drivename[0] == '\0')
+		drivename = "*invalid*";
 	    if (sd->plexno >= 0)
 		snprintf(s,
 		    configend - s,
-		    "sd name %s drive %s plex %s state %s len %llus driveoffset %llus plexoffset %llds\n",
+		    "sd name %s drive %s plex %s state %s "
+		    "len %llus driveoffset %llus plexoffset %llds\n",
 		    sd->name,
-		    vinum_conf.drive[sd->driveno].label.name,
+		    drivename,
 		    vinum_conf.plex[sd->plexno].name,
 		    sd_state(sd->state),
 		    (unsigned long long) sd->sectors,
@@ -540,15 +566,15 @@ format_config(char *config, int len)
 	    else
 		snprintf(s,
 		    configend - s,
-		    "sd name %s drive %s state %s len %llus driveoffset %llus detached\n",
+		    "sd name %s drive %s state %s "
+		    "len %llus driveoffset %llus detached\n",
 		    sd->name,
-		    vinum_conf.drive[sd->driveno].label.name,
+		    drivename,
 		    sd_state(sd->state),
 		    (unsigned long long) sd->sectors,
 		    (unsigned long long) sd->driveoffset);
 	    while (*s)
 		s++;					    /* find the end */
-
 	}
     }
     if (s > &config[len - 2])
@@ -832,7 +858,8 @@ vinum_scandisk(char *devicename[], int drives)
 			slice,
 			part);
 		    drive = check_drive(partname);	    /* try to open it */
-		    if (drive->lasterror != 0)		    /* didn't work, */
+		    if ((drive->lasterror != 0)		    /* didn't work, */
+		    ||(drive->state != drive_up))
 			free_drive(drive);		    /* get rid of it */
 		    else if (drive->flags & VF_CONFIGURED)  /* already read this config, */
 			log(LOG_WARNING,
@@ -872,7 +899,10 @@ vinum_scandisk(char *devicename[], int drives)
     }
 
     if (gooddrives == 0) {
-	log(LOG_WARNING, "vinum: no drives found\n");
+	if (firsttime)
+	    log(LOG_WARNING, "vinum: no drives found\n");
+	else
+	    log(LOG_INFO, "vinum: no additional drives found\n");
 	return ENOENT;
     }
     /*
