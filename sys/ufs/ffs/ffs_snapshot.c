@@ -911,10 +911,15 @@ indiracct_ufs1(snapvp, cancelvp, level, blkno, lbn, rlbn, remblks,
 	ufs1_daddr_t last, *bap;
 	struct buf *bp;
 
+	if (blkno == 0) {
+		if (expungetype == BLK_NOCOPY)
+			return (0);
+		panic("indiracct_ufs1: missing indir");
+	}
 	if ((error = ufs_getlbns(cancelvp, rlbn, indirs, &num)) != 0)
 		return (error);
-	if (lbn != indirs[num - 1 - level].in_lbn || blkno == 0 || num < 2)
-		panic("indiracct: botched params");
+	if (lbn != indirs[num - 1 - level].in_lbn || num < 2)
+		panic("indiracct_ufs1: botched params");
 	/*
 	 * We have to expand bread here since it will deadlock looking
 	 * up the block number for any blocks that are not in the cache.
@@ -1020,7 +1025,7 @@ snapacct_ufs1(vp, oldblkp, lastblkp, fs, lblkno, expungetype)
 				brelse(ibp);
 		} else {
 			if (*blkp != 0)
-				panic("snapacct: bad block");
+				panic("snapacct_ufs1: bad block");
 			*blkp = expungetype;
 			if (lbn >= NDADDR)
 				bdwrite(ibp);
@@ -1186,10 +1191,15 @@ indiracct_ufs2(snapvp, cancelvp, level, blkno, lbn, rlbn, remblks,
 	ufs2_daddr_t last, *bap;
 	struct buf *bp;
 
+	if (blkno == 0) {
+		if (expungetype == BLK_NOCOPY)
+			return (0);
+		panic("indiracct_ufs2: missing indir");
+	}
 	if ((error = ufs_getlbns(cancelvp, rlbn, indirs, &num)) != 0)
 		return (error);
-	if (lbn != indirs[num - 1 - level].in_lbn || blkno == 0 || num < 2)
-		panic("indiracct: botched params");
+	if (lbn != indirs[num - 1 - level].in_lbn || num < 2)
+		panic("indiracct_ufs2: botched params");
 	/*
 	 * We have to expand bread here since it will deadlock looking
 	 * up the block number for any blocks that are not in the cache.
@@ -1295,7 +1305,7 @@ snapacct_ufs2(vp, oldblkp, lastblkp, fs, lblkno, expungetype)
 				brelse(ibp);
 		} else {
 			if (*blkp != 0)
-				panic("snapacct: bad block");
+				panic("snapacct_ufs2: bad block");
 			*blkp = expungetype;
 			if (lbn >= NDADDR)
 				bdwrite(ibp);
