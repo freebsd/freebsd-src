@@ -298,9 +298,8 @@ mediaSetFTP(dialogMenuItem *self)
     SAFE_STRCPY(ftpDevice.name, cp);
 
     dialog_clear_norefresh();
-    if (RunningAsInit &&
-	(network_init || msgYesNo("You've already done the network configuration once,\n"
-				  "would you like to skip over it now?") != 0)) {
+    if (RunningAsInit && (network_init || msgYesNo("You've already done the network configuration once,\n"
+						   "would you like to skip over it now?") != 0)) {
 	if (mediaDevice)
 	    mediaDevice->shutdown(mediaDevice);
 	if (!tcpDeviceSelect()) {
@@ -348,7 +347,7 @@ mediaSetFTP(dialogMenuItem *self)
     ftpDevice.init = mediaInitFTP;
     ftpDevice.get = mediaGetFTP;
     ftpDevice.shutdown = mediaShutdownFTP;
-    ftpDevice.private = mediaDevice; /* Set to network device by tcpDeviceSelect() */
+    ftpDevice.private = RunningAsInit ? mediaDevice : NULL; /* Set to network device by tcpDeviceSelect() */
     mediaDevice = &ftpDevice;
     return DITEM_SUCCESS | DITEM_LEAVE_MENU | what;
 }
@@ -392,6 +391,7 @@ int
 mediaSetNFS(dialogMenuItem *self)
 {
     static Device nfsDevice;
+    static int network_init = 1;
     char *cp, *idx;
 
     dialog_clear_norefresh();
@@ -406,16 +406,19 @@ mediaSetNFS(dialogMenuItem *self)
 	return DITEM_FAILURE;
     }
     SAFE_STRCPY(nfsDevice.name, cp);
-    /* str == NULL means we were just called to change NFS paths, not network interfaces */
-    if (!tcpDeviceSelect())
-	return DITEM_FAILURE;
-    if (!mediaDevice || !mediaDevice->init(mediaDevice)) {
-	if (isDebug())
-	    msgDebug("mediaSetNFS: Net device init failed\n");
-	return DITEM_FAILURE;
-    }
     *idx = '\0';
-    if (variable_get(VAR_NAMESERVER)) {
+    if (RunningAsInit && (network_init || msgYesNo("You've already done the network configuration once,\n"
+						   "would you like to skip over it now?") != 0)) {
+	if (!tcpDeviceSelect())
+	    return DITEM_FAILURE;
+	if (!mediaDevice || !mediaDevice->init(mediaDevice)) {
+	    if (isDebug())
+		msgDebug("mediaSetNFS: Net device init failed\n");
+	    return DITEM_FAILURE;
+	}
+    }
+    network_init = 0;
+    if (!RunningAsInit || variable_get(VAR_NAMESERVER)) {
 	if ((gethostbyname(cp) == NULL) && (inet_addr(cp) == INADDR_NONE)) {
 	    msgConfirm("Cannot resolve hostname `%s'!  Are you sure that your\n"
 		       "name server, gateway and network interface are correctly configured?", cp);
@@ -423,14 +426,13 @@ mediaSetNFS(dialogMenuItem *self)
 	}
 	else
 	    msgNotify("Found DNS entry for %s successfully..", cp);
-
     }
     variable_set2(VAR_NFS_HOST, cp);
     nfsDevice.type = DEVICE_TYPE_NFS;
     nfsDevice.init = mediaInitNFS;
     nfsDevice.get = mediaGetNFS;
     nfsDevice.shutdown = mediaShutdownNFS;
-    nfsDevice.private = mediaDevice;
+    nfsDevice.private = RunningAsInit ? mediaDevice : NULL;
     mediaDevice = &nfsDevice;
     return DITEM_LEAVE_MENU;
 }
@@ -522,6 +524,19 @@ media_timeout(int sig)
     AlarmWentOff = TRUE;
 }
 
+/* Return the timeout interval */
+int
+mediaTimeout(void)
+{
+    char *cp;
+    int t;
+
+    cp = getenv(VAR_MEDIA_TIMEOUT);
+    if (!cp || !(t = atoi(cp)))
+	t = MEDIA_TIMEOUT;
+    return t;
+}
+
 Boolean
 mediaExtractDist(char *dir, char *dist, FILE *fp)
 {
@@ -595,7 +610,7 @@ mediaExtractDist(char *dir, char *dist, FILE *fp)
     new.sa_mask = 0;
     sigaction(SIGINT, &new, &old);
 
-    alarm_set(MEDIA_TIMEOUT, media_timeout);
+    alarm_set(mediaTimeout(), media_timeout);
     while ((i = fread(buf, 1, BUFSIZ, fp)) > 0) {
 	alarm_clear();
 	if (AlarmWentOff) {
@@ -619,7 +634,7 @@ mediaExtractDist(char *dir, char *dist, FILE *fp)
 	    msgInfo("%10d bytes read from %s dist @ %.1f KB/sec.",
 		    total, dist, (total / seconds) / 1024.0);
 	}
-	alarm_set(MEDIA_TIMEOUT, media_timeout);
+	alarm_set(mediaTimeout(), media_timeout);
     }
     alarm_clear();
     sigaction(SIGINT, &old, NULL);	/* restore sigint */
