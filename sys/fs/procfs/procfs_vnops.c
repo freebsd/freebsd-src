@@ -159,7 +159,7 @@ procfs_open(ap)
 		p1 = ap->a_td->td_proc;
 		error = p_candebug(p1, p2);
 		if (error)
-			return (error);
+			goto out;
 
 		if (ap->a_mode & FWRITE)
 			pfs->pfs_flags = ap->a_mode & (FWRITE|O_EXCL);
