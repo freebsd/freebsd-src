@@ -847,6 +847,9 @@ installFixupBase(dialogMenuItem *self)
 	/* BOGON #5: aliases database not build for bin */
 	vsystem("newaliases");
 
+	/* BOGON #6: Remove /stand (finally) */
+	vsystem("rm -rf /stand");
+
 	/* Now run all the mtree stuff to fix things up */
         vsystem("mtree -deU -f /etc/mtree/BSD.root.dist -p /");
         vsystem("mtree -deU -f /etc/mtree/BSD.var.dist -p /var");
