@@ -117,6 +117,7 @@ struct alpha_macro {
 #define O_gprelhigh	O_md9	/* !gprelhigh relocation */
 #define O_gprellow	O_md10	/* !gprellow relocation */
 #define O_gprel		O_md11	/* !gprel relocation */
+#define O_samegp	O_md12	/* !samegp relocation */
 
 #define DUMMY_RELOC_LITUSE_ADDR		(BFD_RELOC_UNUSED + 1)
 #define DUMMY_RELOC_LITUSE_BASE		(BFD_RELOC_UNUSED + 2)
@@ -128,7 +129,7 @@ struct alpha_macro {
 #define LITUSE_BYTOFF	2
 #define LITUSE_JSR	3
 
-#define USER_RELOC_P(R) ((R) >= O_literal && (R) <= O_gprel)
+#define USER_RELOC_P(R) ((R) >= O_literal && (R) <= O_samegp)
 
 /* Macros for extracting the type and number of encoded register tokens */
 
@@ -498,7 +499,8 @@ static const struct alpha_reloc_op_tag {
   DEF(gpdisp, BFD_RELOC_ALPHA_GPDISP, 1, 1),
   DEF(gprelhigh, BFD_RELOC_ALPHA_GPREL_HI16, 0, 0),
   DEF(gprellow, BFD_RELOC_ALPHA_GPREL_LO16, 0, 0),
-  DEF(gprel, BFD_RELOC_GPREL16, 0, 0)
+  DEF(gprel, BFD_RELOC_GPREL16, 0, 0),
+  DEF(samegp, BFD_RELOC_ALPHA_BRSGP, 0, 0)
 };
 
 #undef DEF
@@ -1219,6 +1221,11 @@ md_apply_fix3 (fixP, valP, seg)
 	}
       return;
 
+#ifdef OBJ_ELF
+    case BFD_RELOC_ALPHA_BRSGP:
+      return;
+#endif
+
 #ifdef OBJ_ECOFF
     case BFD_RELOC_ALPHA_LITERAL:
       md_number_to_chars (fixpos, value, 2);
@@ -1364,6 +1371,49 @@ alpha_define_label (sym)
   alpha_insn_label = sym;
 }
 
+/* If we have a BRSGP reloc to a local symbol, adjust it to BRADDR and
+   let it get resolved at assembly time.  */
+
+void
+alpha_validate_fix (f)
+     fixS *f;
+{
+#ifdef OBJ_ELF
+  int offset = 0;
+  const char *name;
+
+  if (f->fx_r_type != BFD_RELOC_ALPHA_BRSGP)
+    return;
+
+  if (! S_IS_DEFINED (f->fx_addsy))
+    return;
+
+  switch (S_GET_OTHER (f->fx_addsy) & STO_ALPHA_STD_GPLOAD)
+    {
+    case STO_ALPHA_NOPV:
+      break;
+    case STO_ALPHA_STD_GPLOAD:
+      offset = 8;
+      break;
+    default:
+      if (S_IS_LOCAL (f->fx_addsy))
+	name = "<local>";
+      else
+	name = S_GET_NAME (f->fx_addsy);
+      as_bad_where (f->fx_file, f->fx_line,
+		    _("!samegp reloc against symbol without .prologue: %s"),
+		    name);
+      break;
+    }
+
+  if (! (S_IS_EXTERN (f->fx_addsy) || S_IS_WEAK (f->fx_addsy)))
+    {
+      f->fx_r_type = BFD_RELOC_23_PCREL_S2;
+      f->fx_offset += offset;
+    }
+#endif
+}
+
 /* Return true if we must always emit a reloc for a type and false if
    there is some hope of resolving it at assembly time.  */
 
@@ -1388,6 +1438,7 @@ alpha_force_relocation (f)
     case BFD_RELOC_ALPHA_GPREL_LO16:
     case BFD_RELOC_ALPHA_LINKAGE:
     case BFD_RELOC_ALPHA_CODEADDR:
+    case BFD_RELOC_ALPHA_BRSGP:
     case BFD_RELOC_VTABLE_INHERIT:
     case BFD_RELOC_VTABLE_ENTRY:
       return 1;
@@ -1399,8 +1450,6 @@ alpha_force_relocation (f)
       return 0;
 
     default:
-      assert ((int) f->fx_r_type < 0
-	      && -(int) f->fx_r_type < (int) alpha_num_operands);
       return 0;
     }
 }
@@ -1424,6 +1473,7 @@ alpha_fix_adjustable (f)
     case BFD_RELOC_ALPHA_GPDISP_HI16:
     case BFD_RELOC_ALPHA_GPDISP_LO16:
     case BFD_RELOC_ALPHA_GPDISP:
+    case BFD_RELOC_ALPHA_BRSGP:
       return 0;
 
     case BFD_RELOC_ALPHA_LITERAL:
@@ -1448,8 +1498,6 @@ alpha_fix_adjustable (f)
       return 1;
 
     default:
-      assert ((int) f->fx_r_type < 0
-	      && - (int) f->fx_r_type < (int) alpha_num_operands);
       return 1;
     }
   /*NOTREACHED*/
@@ -1767,6 +1815,7 @@ debug_exp (tok, ntok)
 	case O_pregister:		name = "O_pregister";		break;
 	case O_cpregister:		name = "O_cpregister";		break;
 	case O_literal:			name = "O_literal";		break;
+	case O_lituse_addr:		name = "O_lituse_addr";		break;
 	case O_lituse_base:		name = "O_lituse_base";		break;
 	case O_lituse_bytoff:		name = "O_lituse_bytoff";	break;
 	case O_lituse_jsr:		name = "O_lituse_jsr";		break;
@@ -1774,8 +1823,7 @@ debug_exp (tok, ntok)
 	case O_gprelhigh:		name = "O_gprelhigh";		break;
 	case O_gprellow:		name = "O_gprellow";		break;
 	case O_gprel:			name = "O_gprel";		break;
-	case O_md11:			name = "O_md11";		break;
-	case O_md12:			name = "O_md12";		break;
+	case O_samegp:			name = "O_samegp";		break;
 	case O_md13:			name = "O_md13";		break;
 	case O_md14:			name = "O_md14";		break;
 	case O_md15:			name = "O_md15";		break;
@@ -2170,6 +2218,7 @@ find_macro_match (first_macro, tok, pntok)
 		case O_gprelhigh:
 		case O_gprellow:
 		case O_gprel:
+		case O_samegp:
 		  goto match_failed;
 
 		default:

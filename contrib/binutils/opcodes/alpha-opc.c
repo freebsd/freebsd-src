@@ -539,7 +539,9 @@ const struct alpha_opcode alpha_opcodes[] = {
   { "call_pal",		PCD(0x00), BASE, ARG_PCD },
   { "pal",		PCD(0x00), BASE, ARG_PCD },		/* alias */
 
+  { "lda",		MEM(0x08), BASE, { RA, MDISP, ZB } },	/* pseudo */
   { "lda",		MEM(0x08), BASE, ARG_MEM },
+  { "ldah",		MEM(0x09), BASE, { RA, MDISP, ZB } },	/* pseudo */
   { "ldah",		MEM(0x09), BASE, ARG_MEM },
   { "ldbu",		MEM(0x0A), BWX, ARG_MEM },
   { "unop",		MEM_(0x0B) | (30 << 16),
@@ -1118,8 +1120,12 @@ const struct alpha_opcode alpha_opcodes[] = {
   { "hw_mfpr/pai",	OPR(0x19,0x07), EV4, ARG_EV4HWMPR },
   { "pal19",		PCD(0x19), BASE, ARG_PCD },
 
+  { "jmp",		MBR_(0x1A,0), MBR_MASK | 0x3FFF,	/* pseudo */
+			BASE, { ZA, CPRB } },
   { "jmp",		MBR(0x1A,0), BASE, { RA, CPRB, JMPHINT } },
   { "jsr",		MBR(0x1A,1), BASE, { RA, CPRB, JMPHINT } },
+  { "ret",		MBR_(0x1A,2) | (31 << 21) | (26 << 16) | 1,/* pseudo */
+			0xFFFFFFFF, BASE, { 0 } },
   { "ret",		MBR(0x1A,2), BASE, { RA, CPRB, RETHINT } },
   { "jcr",		MBR(0x1A,3), BASE, { RA, CPRB, RETHINT } }, /* alias */
   { "jsr_coroutine",	MBR(0x1A,3), BASE, { RA, CPRB, RETHINT } },

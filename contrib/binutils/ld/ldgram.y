@@ -1112,11 +1112,11 @@ vers_tag:
 vers_defns:
 		VERS_IDENTIFIER
 		{
-		  $$ = lang_new_vers_regex (NULL, $1, ldgram_vers_current_lang);
+		  $$ = lang_new_vers_pattern (NULL, $1, ldgram_vers_current_lang);
 		}
 	|	vers_defns ';' VERS_IDENTIFIER
 		{
-		  $$ = lang_new_vers_regex ($1, $3, ldgram_vers_current_lang);
+		  $$ = lang_new_vers_pattern ($1, $3, ldgram_vers_current_lang);
 		}
 	|	EXTERN NAME '{'
 			{

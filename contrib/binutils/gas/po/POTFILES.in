@@ -96,6 +96,8 @@ config/tc-ns32k.c
 config/tc-ns32k.h
 config/tc-openrisc.c
 config/tc-openrisc.h
+config/tc-or32.c
+config/tc-or32.h
 config/tc-pdp11.c
 config/tc-pdp11.h
 config/tc-pj.c
@@ -106,6 +108,8 @@ config/tc-s390.c
 config/tc-s390.h
 config/tc-sh.c
 config/tc-sh.h
+config/tc-sh64.c
+config/tc-sh64.h
 config/tc-sparc.c
 config/tc-sparc.h
 config/tc-tahoe.c

@@ -196,7 +196,7 @@ changequote([,])dnl
 	COREFILE=
 	;;
 changequote(,)dnl
-  i[3456]86-*-bsd* | i[34567]86-*-freebsd[1234] | i[34567]86-*-freebsd[1234]\.* | i[34567]86-*-freebsd*aout*)
+  i[3456]86-*-bsd* | i[34567]86-*-freebsd[123] | i[34567]86-*-freebsd[123]\.* | i[34567]86-*-freebsd4\.[01234]* | i[34567]86-*-freebsd*aout*)
 changequote([,])dnl
 	COREFILE=trad-core.lo
 	TRAD_HEADER='"hosts/i386bsd.h"'
@@ -515,6 +515,17 @@ do
     # This list is alphabetized to make it easy to compare
     # with the two vector lists in targets.c.  For the same reason,
     # use one entry per line, even though this leads to long lines.
+    # FIXME: We include cofflink.lo not because it's needed for
+    # bfd_elf32_sh64[l]_vec, but because we include bfd_elf32_sh[l]_vec
+    # which needs it but does not list it.  Should be fixed in right place.
+    bfd_elf32_sh64_vec)		tb="$tb elf32-sh64.lo elf32.lo $elf cofflink.lo"
+				target_size=64 ;;
+    bfd_elf32_sh64l_vec)	tb="$tb elf32-sh64.lo elf32.lo $elf cofflink.lo"
+				target_size=64 ;;
+    bfd_elf64_sh64_vec)		tb="$tb elf64-sh64.lo elf64.lo $elf"
+				target_size=64 ;;
+    bfd_elf64_sh64l_vec)	tb="$tb elf64-sh64.lo elf64.lo $elf"
+				target_size=64 ;;
     a29kcoff_big_vec)		tb="$tb coff-a29k.lo cofflink.lo" ;;
     a_out_adobe_vec)		tb="$tb aout-adobe.lo aout32.lo" ;;
     aout0_big_vec)		tb="$tb aout0.lo aout32.lo" ;;
@@ -573,6 +584,7 @@ do
     bfd_elf32_mn10200_vec)	tb="$tb elf-m10200.lo elf32.lo $elf" ;;
     bfd_elf32_mn10300_vec)	tb="$tb elf-m10300.lo elf32.lo $elf" ;;
     bfd_elf32_openrisc_vec)	tb="$tb elf32-openrisc.lo elf32.lo $elf" ;;
+    bfd_elf32_or32_big_vec)	tb="$tb elf32-or32.lo elf32.lo $elf" ;;
     bfd_elf32_pj_vec)           tb="$tb elf32-pj.lo elf32.lo $elf";;
     bfd_elf32_pjl_vec)          tb="$tb elf32-pj.lo elf32.lo $elf";;
     bfd_elf32_powerpc_vec)	tb="$tb elf32-ppc.lo elf32.lo $elf" ;;
@@ -669,6 +681,7 @@ do
     nlm32_i386_vec)		tb="$tb nlm32-i386.lo nlm32.lo nlm.lo" ;;
     nlm32_powerpc_vec)		tb="$tb nlm32-ppc.lo nlm32.lo nlm.lo" ;;
     nlm32_sparc_vec)		tb="$tb nlm32-sparc.lo nlm32.lo nlm.lo" ;;
+    or32coff_big_vec)		tb="$tb coff-or32.lo cofflink.lo" ;;
     pc532machaout_vec)		tb="$tb pc532-mach.lo aout-ns32k.lo" ;;
     pc532netbsd_vec)		tb="$tb ns32knetbsd.lo aout-ns32k.lo" ;;
     pdp11_aout_vec)		tb="$tb pdp11.lo" ;;

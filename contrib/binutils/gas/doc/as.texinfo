@@ -1,6 +1,6 @@
 \input texinfo @c                               -*-Texinfo-*-
 @c  Copyright 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000,
-@c  2001
+@c  2001, 2002
 @c  Free Software Foundation, Inc.
 @c UPDATE!!  On future updates--
 @c   (1)   check for new machine-dep cmdline options in
@@ -29,8 +29,10 @@
 @set TARGET TARGET
 @set GENERIC
 @set A29K
+@set ALPHA
 @set ARC
 @set ARM
+@set CRIS
 @set D10V
 @set D30V
 @set H8/300
@@ -116,6 +118,7 @@
 @format
 START-INFO-DIR-ENTRY
 * As: (as).                     The GNU assembler.
+* Gas: (as).                    The GNU assembler.
 END-INFO-DIR-ENTRY
 @end format
 @end ifinfo
@@ -127,7 +130,7 @@ END-INFO-DIR-ENTRY
 This file documents the GNU Assembler "@value{AS}".
 
 @c man begin COPYRIGHT
-Copyright (C) 1991, 92, 93, 94, 95, 96, 97, 98, 99, 2000, 2001 Free Software Foundation, Inc.
+Copyright (C) 1991, 92, 93, 94, 95, 96, 97, 98, 99, 2000, 2001, 2002 Free Software Foundation, Inc.
 
 Permission is granted to copy, distribute and/or modify this document
 under the terms of the GNU Free Documentation License, Version 1.1
@@ -180,7 +183,7 @@ done.
 @end tex
 
 @vskip 0pt plus 1filll
-Copyright @copyright{} 1991, 92, 93, 94, 95, 96, 97, 98, 99, 2000, 2001 Free Software Foundation, Inc.
+Copyright @copyright{} 1991, 92, 93, 94, 95, 96, 97, 98, 99, 2000, 2001, 2002 Free Software Foundation, Inc.
 
       Permission is granted to copy, distribute and/or modify this document
       under the terms of the GNU Free Documentation License, Version 1.1
@@ -265,6 +268,14 @@ gcc(1), ld(1), and the Info entries for @file{binutils} and @file{ld}.
 @ifset A29K
 @c am29k has no machine-dependent assembler options
 @end ifset
+@ifset ALPHA
+
+@emph{Target Alpha options:}
+   [@b{-m@var{cpu}}]
+   [@b{-mdebug} | @b{-no-mdebug}]
+   [@b{-relax}] [@b{-g}] [@b{-G@var{size}}]
+   [@b{-F}] [@b{-32addr}]
+@end ifset
 @ifset ARC
 
 @emph{Target ARC options:}
@@ -283,6 +294,15 @@ gcc(1), ld(1), and the Info entries for @file{binutils} and @file{ld}.
    [@b{-mapcs-32}|@b{-mapcs-26}|@b{-mapcs-float}|
     @b{-mapcs-reentrant}]
    [@b{-mthumb-interwork}] [@b{-moabi}] [@b{-k}]
+@end ifset
+@ifset CRIS
+
+@emph{Target CRIS options:}
+   [@b{--underscore} | @b{--no-underscore}]
+   [@b{--pic}] [@b{-N}]
+   [@b{--emulation=criself} | @b{--emulation=crisaout}]
+@c Deprecated -- deliberately not documented.
+@c [@b{-h}] [@b{-H}]
 @end ifset
 @ifset D10V
 
@@ -354,6 +374,7 @@ gcc(1), ld(1), and the Info entries for @file{binutils} and @file{ld}.
    [@b{--fixed-special-register-names}] [@b{--globalize-symbols}]
    [@b{--gnu-syntax}] [@b{--relax}] [@b{--no-predefined-symbols}]
    [@b{--no-expand}] [@b{--no-merge-gregs}] [@b{-x}]
+   [@b{--linker-allocated-gregs}]
 @end ifset
 @ifset PDP11
 
@@ -579,6 +600,10 @@ ARM code in mind.
 @item -k
 Specify that PIC code has been generated.
 @end table
+@end ifset
+
+@ifset CRIS
+See the info pages for documentation of the CRIS-specific options.
 @end ifset
 
 @ifset D10V
@@ -5571,11 +5596,17 @@ subject, see the hardware manufacturer's manual.
 @ifset A29K
 * AMD29K-Dependent::            AMD 29K Dependent Features
 @end ifset
+@ifset ALPHA
+* Alpha-Dependent::		Alpha Dependent Features
+@end ifset
 @ifset ARC
 * ARC-Dependent::               ARC Dependent Features
 @end ifset
 @ifset ARM
 * ARM-Dependent::               ARM Dependent Features
+@end ifset
+@ifset CRIS
+* CRIS-Dependent::              CRIS Dependent Features
 @end ifset
 @ifset D10V
 * D10V-Dependent::              D10V Dependent Features
@@ -5624,6 +5655,7 @@ subject, see the hardware manufacturer's manual.
 @end ifset
 @ifset SH
 * SH-Dependent::                Hitachi SH Dependent Features
+* SH64-Dependent::              Hitachi SH64 Dependent Features
 @end ifset
 @ifset PDP11
 * PDP-11-Dependent::            PDP-11 Dependent Features
@@ -5662,16 +5694,24 @@ subject, see the hardware manufacturer's manual.
 @c node and sectioning commands; hence the repetition of @chapter BLAH
 @c in both conditional blocks.
 
-@ifset ARC
-@include c-arc.texi
-@end ifset
-
 @ifset A29K
 @include c-a29k.texi
 @end ifset
 
+@ifset ALPHA
+@include c-alpha.texi
+@end ifset
+
+@ifset ARC
+@include c-arc.texi
+@end ifset
+
 @ifset ARM
 @include c-arm.texi
+@end ifset
+
+@ifset CRIS
+@include c-cris.texi
 @end ifset
 
 @ifset Hitachi-all
@@ -5771,6 +5811,7 @@ family.
 
 @ifset SH
 @include c-sh.texi
+@include c-sh64.texi
 @end ifset
 
 @ifset SPARC

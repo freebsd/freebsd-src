@@ -25,9 +25,11 @@ asconfig.texi: $(CONFIG).texi
 
 CPU_DOCS = \
 	c-a29k.texi \
+	c-alpha.texi \
 	c-arc.texi \
 	c-arm.texi \
 	c-d10v.texi \
+	c-cris.texi \
 	c-h8300.texi \
 	c-h8500.texi \
 	c-hppa.texi \
@@ -46,6 +48,7 @@ CPU_DOCS = \
 	c-pj.texi \
 	c-ppc.texi \
 	c-sh.texi \
+	c-sh64.texi \
 	c-sparc.texi \
         c-tic54x.texi \
 	c-vax.texi \
@@ -58,6 +61,10 @@ gasver.texi: Makefile
 
 as.info: $(srcdir)/as.texinfo asconfig.texi gasver.texi $(CPU_DOCS)
 as.dvi: $(srcdir)/as.texinfo asconfig.texi gasver.texi $(CPU_DOCS)
+
+# We want install to imply install-info as per GNU standards, despite the
+# cygnus option.
+install: install-info
 
 # This one isn't ready for prime time yet.  Not even a little bit.
 

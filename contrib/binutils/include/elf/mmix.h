@@ -1,5 +1,5 @@
 /* MMIX support for BFD.
-   Copyright (C) 2001 Free Software Foundation, Inc.
+   Copyright (C) 2001, 2002 Free Software Foundation, Inc.
 
 This file is part of BFD, the Binary File Descriptor library.
 
@@ -82,7 +82,10 @@ START_RELOC_NUMBERS (elf_mmix_reloc_type)
   /* A general register. */
   RELOC_NUMBER (R_MMIX_REG, 33)
 
-  /* A global register and an offset, equivalent of the expression.  */
+  /* A global register and an offset, the global register (allocated at
+     link time) contents plus the offset made equivalent to the relocation
+     expression at link time.  The relocation must point at the Y field of
+     an instruction.  */
   RELOC_NUMBER (R_MMIX_BASE_PLUS_OFFSET, 34)
 
   /* A LOCAL assertion.  */
@@ -106,6 +109,11 @@ END_RELOC_NUMBERS (R_MMIX_max)
    upper bound of 253*8 or lower as specified in the (currently
    unspecified) ABI.  */
 #define MMIX_REG_CONTENTS_SECTION_NAME ".MMIX.reg_contents"
+
+/* At link time, a section by this name is created, expected to be
+   included in MMIX_REG_CONTENTS_SECTION_NAME in the output.  */
+#define MMIX_LD_ALLOCATED_REG_CONTENTS_SECTION_NAME \
+ ".MMIX.reg_contents.linker_allocated"
 
 /* This is a faked section holding symbols with SHN_REGISTER.  Don't
    confuse it with MMIX_REG_CONTENTS_SECTION_NAME; this one has no
@@ -147,5 +155,14 @@ END_RELOC_NUMBERS (R_MMIX_max)
 #define MMO_SEC_NEVER_LOAD 0x400
 #define MMO_SEC_IS_COMMON 0x8000
 #define MMO_SEC_DEBUGGING 0x10000
+
+#ifdef BFD_ARCH_SIZE
+extern boolean _bfd_mmix_prepare_linker_allocated_gregs
+ PARAMS ((bfd *, struct bfd_link_info *));
+extern boolean _bfd_mmix_finalize_linker_allocated_gregs
+ PARAMS ((bfd *, struct bfd_link_info *));
+extern boolean _bfd_mmix_check_all_relocs
+ PARAMS ((bfd *, struct bfd_link_info *));
+#endif
 
 #endif /* ELF_MMIX_H */

@@ -1,3 +1,79 @@
+2002-02-15  Hans-Peter Nilsson  <hp@bitrange.com>
+
+	* NEWS: Mention support for MMIX.
+
+2002-02-13  Matt Fredette  <fredette@netbsd.org>
+
+	* readelf.c (get_machine_flags): Recognize EF_M68000.
+
+2002-02-12  Alexandre Oliva  <aoliva@redhat.com>
+
+	* MAINTAINERS: Added self as MN10300 co-maintainer.
+
+2002-02-12  Alan Modra  <amodra@bigpond.net.au>
+
+	* readelf.c (get_ppc64_dynamic_type): Handle DT_PPC64_OPD and
+	DT_PPC64_OPDSZ.
+
+2002-02-11  Daniel Jacobowitz  <drow@mvista.com>
+
+	* MAINTAINERS: List myself as branch maintainer.
+
+2002-02-11  Alan Modra  <amodra@bigpond.net.au>
+
+	* objcopy.c (MKDIR): Define.
+	(copy_archive): Make name_list.name const.  Use MKDIR.
+	Handle duplicate files in archives by making more temp dirs.
+
+2002-02-10  Daniel Jacobowitz  <drow@mvista.com>
+
+	* nlmconv.c: Back out localtime PARAMS change.
+
+2002-02-10  Daniel Jacobowitz  <drow@mvista.com>
+
+	* coffdump.c: Include "getopt.h" after "bucomm.h"
+	so that macros are defined correctly.
+	* nlmconv.c: Add PARAMS ((const time_t *)) to localtime
+	prototype.  Prototype main.
+	* nlmheader.y: Add PARAMS ((int)) to strerror prototype.
+
+2002-02-06  Alexandre Oliva  <aoliva@redhat.com>
+
+	* MAINTAINERS: Added self as SH co-maintainer.
+
+2002-02-05  Nick Clifton <nickc@redhat.com>
+
+	* po/tr.po: Updated translation.
+
+2002-02-01  Alan Modra  <amodra@bigpond.net.au>
+
+	* Makefile.am: Run "make dep-am"
+	* Makefile.in: Regenerate.
+
+2002-01-29  Daniel Jacobowitz  <drow@mvista.com>
+
+	* nm.c (print_value): Mark abfd unused.
+
+2002-01-29  Daniel Jacobowitz  <drow@mvista.com>
+
+	* unwind-ia64.c (unw_decoder): Change second argument
+	to unsigned int, to match function prototypes.
+
+2002-01-29  Daniel Jacobowitz  <drow@mvista.com>
+
+	* objdump.c: Include "getopt.h" after "bucomm.h" so that
+	__GNU_LIBRARY__ will be defined.
+	* size.c: Likewise.
+
+2002-01-27  Daniel Jacobowitz  <drow@mvista.com>
+
+	* configure: Regenerated.
+
+2002-01-26  Hans-Peter Nilsson  <hp@bitrange.com>
+
+	* doc/Makefile.am (install): Depend on install-info.
+	* doc/Makefile.in: Regenerate.
+
 2002-01-25  Jason R. Thorpe <thorpej@wasabisystems.com>
 
 	* objcopy.c (strip_usage): Document -d as an alias

@@ -1,6 +1,6 @@
 /* Parse options for the GNU linker.
    Copyright 1991, 1992, 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2000,
-   2001
+   2001, 2002
    Free Software Foundation, Inc.
 
 This file is part of GLD, the Gnu Linker.
@@ -52,10 +52,6 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 #if !defined(S_ISDIR) && defined(S_IFDIR)
 #define	S_ISDIR(m) (((m) & S_IFMT) == S_IFDIR)
 #endif
-
-/* Omit args to avoid the possibility of clashing with a system header
-   that might disagree about consts.  */
-unsigned long strtoul ();
 
 static int is_num PARAMS ((const char *, int, int, int));
 static void set_default_dirlist PARAMS ((char *dirlist_ptr));
