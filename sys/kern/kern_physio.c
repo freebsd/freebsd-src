@@ -16,7 +16,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: kern_physio.c,v 1.4 1994/08/06 09:15:28 davidg Exp $
+ * $Id: kern_physio.c,v 1.5 1994/08/07 13:10:31 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -120,6 +120,9 @@ physio(strategy, bp, dev, rw, minp, uio)
 			 */
 			{ 
 				int iolen = bp->b_bcount - bp->b_resid;
+
+				if (iolen == 0 && !(bp->b_flags & B_ERROR))
+					goto doerror;	/* EOF */
 				uio->uio_iov[i].iov_len -= iolen;
 				uio->uio_iov[i].iov_base += iolen;
 				uio->uio_resid -= iolen;
