@@ -63,7 +63,7 @@ procfs_dodbregs(curp, p, pfs, uio)
 	char *kv;
 	int kl;
 
-	if (!CHECKIO(curp, p))
+	if (p_trespass(curp, p))
 		return (EPERM);
 	kl = sizeof(r);
 	kv = (char *) &r;
