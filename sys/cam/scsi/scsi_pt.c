@@ -76,7 +76,7 @@ typedef enum {
 
 struct pt_softc {
 	struct	 bio_queue_head bio_queue;
-	struct	 devstat device_stats;
+	struct	 devstat *device_stats;
 	LIST_HEAD(, ccb_hdr) pending_ccbs;
 	pt_state state;
 	pt_flags flags;	
@@ -316,7 +316,7 @@ ptctor(struct cam_periph *periph, void *arg)
 
 	periph->softc = softc;
 	
-	devstat_add_entry(&softc->device_stats, "pt",
+	softc->device_stats = devstat_new_entry("pt",
 			  periph->unit_number, 0,
 			  DEVSTAT_NO_BLOCKSIZE,
 			  SID_TYPE(&cgd->inq_data) | DEVSTAT_TYPE_IF_SCSI,
@@ -402,7 +402,7 @@ ptdtor(struct cam_periph *periph)
 
 	softc = (struct pt_softc *)periph->softc;
 
-	devstat_remove_entry(&softc->device_stats);
+	devstat_remove_entry(softc->device_stats);
 
 	destroy_dev(softc->dev);
 
@@ -502,7 +502,7 @@ ptstart(struct cam_periph *periph, union ccb *start_ccb)
 
 		bioq_remove(&softc->bio_queue, bp);
 
-		devstat_start_transaction(&softc->device_stats);
+		devstat_start_transaction(softc->device_stats);
 
 		scsi_send_receive(&start_ccb->csio,
 				  /*retries*/4,
@@ -631,7 +631,7 @@ ptdone(struct cam_periph *periph, union ccb *done_ccb)
 		LIST_REMOVE(&done_ccb->ccb_h, periph_links.le);
 		splx(oldspl);
 
-		biofinish(bp, &softc->device_stats, 0);
+		biofinish(bp, softc->device_stats, 0);
 		break;
 	}
 	case PT_CCB_WAITING:
