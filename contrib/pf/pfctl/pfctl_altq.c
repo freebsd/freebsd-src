@@ -165,7 +165,7 @@ void
 print_altq(const struct pf_altq *a, unsigned level, struct node_queue_bw *bw,
 	struct node_queue_opt *qopts)
 {
-	if (a->qname[0] != NULL) {
+	if (a->qname[0] != '\0') {
 		print_queue(a, level, bw, 0, qopts);
 		return;
 	}
