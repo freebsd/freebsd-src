@@ -2345,6 +2345,16 @@ passive()
 		    goto pasv_error;
 	}
 #endif
+#ifdef IPV6_PORTRANGE
+	if (ctrl_addr.su_family == AF_INET6) {
+	    int on = restricted_data_ports ? IPV6_PORTRANGE_HIGH
+					   : IPV6_PORTRANGE_DEFAULT;
+
+	    if (setsockopt(pdata, IPPROTO_IPV6, IPV6_PORTRANGE,
+			    (char *)&on, sizeof(on)) < 0)
+		    goto pasv_error;
+	}
+#endif
 
 	pasv_addr = ctrl_addr;
 	pasv_addr.su_port = 0;
@@ -2437,6 +2447,27 @@ long_passive(cmd, pf)
 	pasv_addr = ctrl_addr;
 	pasv_addr.su_port = 0;
 	len = pasv_addr.su_len;
+
+#ifdef IP_PORTRANGE
+	if (ctrl_addr.su_family == AF_INET) {
+	    int on = restricted_data_ports ? IP_PORTRANGE_HIGH
+					   : IP_PORTRANGE_DEFAULT;
+
+	    if (setsockopt(pdata, IPPROTO_IP, IP_PORTRANGE,
+			    (char *)&on, sizeof(on)) < 0)
+		    goto pasv_error;
+	}
+#endif
+#ifdef IPV6_PORTRANGE
+	if (ctrl_addr.su_family == AF_INET6) {
+	    int on = restricted_data_ports ? IPV6_PORTRANGE_HIGH
+					   : IPV6_PORTRANGE_DEFAULT;
+
+	    if (setsockopt(pdata, IPPROTO_IPV6, IPV6_PORTRANGE,
+			    (char *)&on, sizeof(on)) < 0)
+		    goto pasv_error;
+	}
+#endif
 
 	if (bind(pdata, (struct sockaddr *)&pasv_addr, len) < 0)
 		goto pasv_error;
