@@ -46,8 +46,9 @@ entry is composed of four colon-separated fields, that none of them
 contains whitespace, and that the third field (the group ID) is
 numeric.
 .Sh FILES
-.Bl -tag -width /dev/null -compact
+.Bl -tag -width /etc/group -compact
 .It Pa /etc/group
+group database file
 .El
 .Sh SEE ALSO
 .Xr getgrent 3 ,
@@ -62,8 +63,12 @@ output is produced.
 .Pp
 The
 .Nm
-utility returns EX_DATAERR if errors were found in the group file,
-and EX_OK otherwise.
+utility returns
+.Dv EX_DATAERR
+if errors were found in the group file,
+and
+.Dv EX_OK
+otherwise.
 .Sh HISTORY
 The
 .Nm
