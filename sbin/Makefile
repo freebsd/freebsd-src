@@ -100,6 +100,7 @@ SUBDIR+=fdisk
 
 .if ${MACHINE_ARCH} == "ia64"
 SUBDIR+=fdisk \
+	disklabel \
 	gpt \
 	mca
 .endif
