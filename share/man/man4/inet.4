@@ -297,6 +297,8 @@ incremented by 1 with each packet generated.
 This closes a minor information leak which allows remote observers to
 determine the rate of packet generation on the machine by watching the
 counter.
+In the same time, on high-speed links, it can decrease the ID reuse
+cycle greatly.
 Default is 0 (sequential IP IDs).
 IPv6 flow IDs and fragment IDs are always random.
 .El
