@@ -37,8 +37,10 @@
 .Sh SYNOPSIS
 .Fd #include <sys/param.h>
 .Fd #include <sys/bus.h>
+.Pp
+.Fd #include <machine/bus.h>
 .Fd #include <sys/rman.h>
-.Fd #include <sys/resource.h>
+.Fd #include <machine/resource.h>
 .Ft struct resource *
 .Fn bus_alloc_resource "device_t dev" "int type" "int *rid" "u_long start" "u_long end" "u_long count" "u_int flags"
 .Sh DESCRIPTION
@@ -53,7 +55,7 @@ Its arguments are as follows:
 .It
 .Fa dev
 is the device that requests ownership of the resource.
-Before allocation, the device is owned by the parent bus.
+Before allocation, the resource is owned by the parent bus.
 .It
 .Fa type
 is the type of resource you want to allocate.
