@@ -208,6 +208,67 @@ vga_txtcursor_shape(scr_stat *scp, int base, int height, int blink)
 }
 
 static void
+draw_txtcharcursor(scr_stat *scp, int at, u_short c, u_short a, int flip)
+{
+	sc_softc_t *sc;
+
+	sc = scp->sc;
+	scp->cursor_saveunder_char = c;
+	scp->cursor_saveunder_attr = a;
+
+#ifndef SC_NO_FONT_LOADING
+	if (sc->flags & SC_CHAR_CURSOR) {
+		unsigned char *font;
+		int h;
+		int i;
+
+		if (scp->font_size < 14) {
+			font = sc->font_8;
+			h = 8;
+		} else if (scp->font_size >= 16) {
+			font = sc->font_16;
+			h = 16;
+		} else {
+			font = sc->font_14;
+			h = 14;
+		}
+		if (scp->cursor_base >= h)
+			return;
+		if (flip)
+			a = (a & 0x8800)
+				| ((a & 0x7000) >> 4) | ((a & 0x0700) << 4);
+		bcopy(font + c*h, font + sc->cursor_char*h, h);
+		font = font + sc->cursor_char*h;
+		for (i = imax(h - scp->cursor_base - scp->cursor_height, 0);
+			i < h - scp->cursor_base; ++i) {
+			font[i] ^= 0xff;
+		}
+		sc->font_loading_in_progress = TRUE;
+		/* XXX */
+		(*vidsw[sc->adapter]->load_font)(sc->adp, 0, h, font,
+						 sc->cursor_char, 1);
+		sc->font_loading_in_progress = FALSE;
+		sc_vtb_putc(&scp->scr, at, sc->cursor_char, a);
+	} else
+#endif /* SC_NO_FONT_LOADING */
+	{
+		if ((a & 0x7000) == 0x7000) {
+			a &= 0x8f00;
+			if ((a & 0x0700) == 0)
+				a |= 0x0700;
+		} else {
+			a |= 0x7000;
+			if ((a & 0x0700) == 0x0700)
+				a &= 0xf000;
+		}
+		if (flip)
+			a = (a & 0x8800)
+				| ((a & 0x7000) >> 4) | ((a & 0x0700) << 4);
+		sc_vtb_putc(&scp->scr, at, c, a);
+	}
+}
+
+static void
 vga_txtcursor(scr_stat *scp, int at, int blink, int on, int flip)
 {
 	video_adapter_t *adp;
@@ -234,25 +295,10 @@ vga_txtcursor(scr_stat *scp, int at, int blink, int on, int flip)
 		scp->status &= ~VR_CURSOR_BLINK;
 		if (on) {
 			scp->status |= VR_CURSOR_ON;
-			cursor_attr = sc_vtb_geta(&scp->vtb, at);
-			scp->cursor_saveunder_char = sc_vtb_getc(&scp->scr, at);
-			scp->cursor_saveunder_attr = cursor_attr;
-			if ((cursor_attr & 0x7000) == 0x7000) {
-				cursor_attr &= 0x8f00;
-				if ((cursor_attr & 0x0700) == 0)
-					cursor_attr |= 0x0700;
-			} else {
-				cursor_attr |= 0x7000;
-				if ((cursor_attr & 0x0700) == 0x0700)
-					cursor_attr &= 0xf000;
-			}
-			if (flip)
-				cursor_attr = (cursor_attr & 0x8800)
-					| ((cursor_attr & 0x7000) >> 4)
-					| ((cursor_attr & 0x0700) << 4);
-			sc_vtb_putc(&scp->scr, at,
-				    sc_vtb_getc(&scp->scr, at),
-				    cursor_attr);
+			draw_txtcharcursor(scp, at,
+					   sc_vtb_getc(&scp->scr, at),
+					   sc_vtb_geta(&scp->scr, at),
+					   flip);
 		} else {
 			cursor_attr = scp->cursor_saveunder_attr;
 			if (flip)
@@ -289,15 +335,15 @@ draw_txtmouse(scr_stat *scp, int x, int y)
 
 	/* prepare mousepointer char's bitmaps */
 	pos = (y/scp->font_size - scp->yoff)*scp->xsize + x/8 - scp->xoff;
-	bcopy(scp->font + sc_vtb_getc(&scp->vtb, pos)*scp->font_size,
+	bcopy(scp->font + sc_vtb_getc(&scp->scr, pos)*scp->font_size,
 	      &font_buf[0], scp->font_size);
-	bcopy(scp->font + sc_vtb_getc(&scp->vtb, pos + 1)*scp->font_size,
+	bcopy(scp->font + sc_vtb_getc(&scp->scr, pos + 1)*scp->font_size,
 	      &font_buf[32], scp->font_size);
 	bcopy(scp->font 
-		 + sc_vtb_getc(&scp->vtb, pos + scp->xsize)*scp->font_size,
+		 + sc_vtb_getc(&scp->scr, pos + scp->xsize)*scp->font_size,
 	      &font_buf[64], scp->font_size);
 	bcopy(scp->font
-		 + sc_vtb_getc(&scp->vtb, pos + scp->xsize + 1)*scp->font_size,
+		 + sc_vtb_getc(&scp->scr, pos + scp->xsize + 1)*scp->font_size,
 	      &font_buf[96], scp->font_size);
 	for (i = 0; i < scp->font_size; ++i) {
 		cursor[i] = font_buf[i]<<8 | font_buf[i+32];
