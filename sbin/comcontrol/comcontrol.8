@@ -1,47 +1,30 @@
-.Dd December 10, 1993
+.Dd May 15, 1994
 .Dt COMCONTROL 8
 .Os FreeBSD
 .Sh NAME
 .Nm comcontrol
-.Nd "control the bidirectional status of a sio port and waiting time after DTR drop"
+.Nd control an sio device.
 .Sh SYNOPSIS
 .Nm comcontrol
 .Ar sio_special_device
-.Op Cm bidir | Fl bidir
-.Op Cm dtrwait Ar ticks
+.Op options
 .Sh DESCRIPTION
 .Nm Comcontrol
-is used to examine and modify the bidirectional status
-of a specified
-sio communications port
-and its waiting time after DTR drop.
-By default (if
-.Ar sio_special_device
-only specified),
-.Nm comcontrol
-will print the current port state
-(if kernel was built with
-.Cm options COM_BIDIR )
-as either
-.Cm bidir
-to indicate that bidirectional operation is enabled or
-.Fl bidir
-to indicate that it is disabled, string
-.Cm dtrwait
-and current waiting time in ticks
-after DTR drop.
-To modify the status of the port or waiting time, simply
-specify the desired new state
-and/or new waiting time
-on the command line.  All users with
-read access to the
-.Ar sio_special_device
-can use
-.Nm comcontrol
-to get the port's status and current waiting time.
-Only root can set a port's status and waiting time.
-By default, each port is initially unidirectional, waiting time is
-2 seconds.
+is used to examine and modify some of the special characterstics
+of the specified sio device.
+If no arguments other than the device are specified,
+it prints the settings of all controllable characteristics.
+This usage requires only read access on the device.
+Only the superuser can change the settings.
+.Pp
+The following options are available:
+.Bl -tag -width Fl
+.It Cm dtrwait Ar number
+Set the time to wait after dropping DTR
+to the given number.
+The units are hundredths of a second.
+The default is 300 hundredths, i.e., 3 seconds.
+.El
 .Pp
 The standard way to use
 .Nm comcontrol
@@ -50,25 +33,21 @@ is to put invocations of it in the
 startup script.
 .Sh SEE ALSO
 .Xr sio 4
+.Xr stty 1 .
 .Sh FILES
 .Bl -tag -width Pa
 .It Pa /dev/ttyd?
-.Sh DIAGNOSTICS
-.Cm TIOCMSBIDIR: Inappropriate ioctl for device.
-.Pp
-This indicates attempt to change port status on
-a non-sio special device file,
-or the kernel has not been built with
-.Cm options COM_BIDIR .
-For more information concerning reconfiguration
-of your kernel see
-.Ar /usr/src/sys/i386/doc/config_options.doc.
+dialin devices.
+.It Pa /dev/cua0?
+dialout devices.
 .Sh AUTHOR
 Christopher G. Demetriou
 .Sh BUGS
-It is strongly recommended that you do *not*
-change the bidirectional status of a port while there are programs
-using the port.  Read that as: if you do, and it breaks, don't yell
-at me; that's a really weird thing to do.
+.Nm comcontrol
+should be named
+.Nm siocontrol .
+.
 .Sh HISTORY
 Originally part of cgd's com package patches, version 0.2.1, to 386BSD 0.1.
+Once controlled bidirectional capabilities.  Little is left to control now
+that these capabilities are standard.
