@@ -44,7 +44,7 @@ static const char copyright[] =
 #ifdef __IDSTRING
 __IDSTRING(Berkeley, "@(#)unifdef.c	8.1 (Berkeley) 6/6/93");
 __IDSTRING(NetBSD, "$NetBSD: unifdef.c,v 1.8 2000/07/03 02:51:36 matt Exp $");
-__IDSTRING(dotat, "$dotat: things/unifdef.c,v 1.73 2002/05/21 17:33:41 fanf Exp $");
+__IDSTRING(dotat, "$dotat: things/unifdef.c,v 1.75 2002/09/24 19:16:29 fanf2 Exp $");
 #endif
 #ifdef __FBSDID
 __FBSDID("$FreeBSD$");
@@ -184,6 +184,7 @@ const char     *filename;
 int             linenum;	/* current line number */
 int             stifline;	/* start of current #if */
 int             stqcline;	/* start of current coment or quote */
+bool            keepthis;	/* ignore this #if's value 'cause it's const */
 
 #define MAXLINE 1024
 #define KWSIZE 8
@@ -193,6 +194,7 @@ char   *keyword;        	/* used for editing #elif's */
 
 bool            complement;	/* -c option in effect: do the complement */
 bool            debugging;	/* -d option in effect: debugging reports */
+bool            killconsts;	/* -k option in effect: eval constant #ifs */
 bool            lnblank;	/* -l option in effect: blank deleted lines */
 bool            symlist;	/* -s option in effect: output symbol list */
 bool            text;		/* -t option in effect: this is a text file */
@@ -222,6 +224,7 @@ int             findsym(const char *);
 void            flushline(bool);
 int             getline(char *, int, FILE *, bool);
 Linetype        ifeval(const char **);
+int             main(int, char **);
 const char     *skipcomment(const char *);
 const char     *skipquote(const char *, Quote_state);
 const char     *skipsym(const char *);
@@ -234,7 +237,7 @@ main(int argc, char *argv[])
 {
 	int opt;
 
-	while ((opt = getopt(argc, argv, "i:D:U:I:cdlst")) != -1)
+	while ((opt = getopt(argc, argv, "i:D:U:I:cdklst")) != -1)
 		switch (opt) {
 		case 'i': /* treat stuff controlled by these symbols as text */
 			/*
@@ -261,6 +264,9 @@ main(int argc, char *argv[])
 			break;
 		case 'c': /* treat -D as -U and vice versa */
 			complement = true;
+			break;
+		case 'k': /* process constant #ifs */
+			killconsts = true;
 			break;
 		case 'd':
 			debugging = true;
@@ -305,7 +311,7 @@ void
 usage(void)
 {
 	fprintf (stderr, "usage: %s",
-"unifdef [-cdlst] [[-Dsym[=val]] [-Usym] [-iDsym[=val]] [-iUsym]] ... [file]\n");
+"unifdef [-cdklst] [[-Dsym[=val]] [-Usym] [-iDsym[=val]] [-iUsym]] ... [file]\n");
 	exit (2);
 }
 
@@ -535,20 +541,20 @@ checkline(int *cursym)
 	} else if (strcmp(kw, "if") == 0) {
 		retval = ifeval(&cp);
 		cp = skipcomment(cp);
-		if (*cp != '\n')
+		if (*cp != '\n' || keepthis)
 			retval = LT_IF;
 		*cursym = 0;
 	} else if (strcmp(kw, "elif") == 0) {
 		retval = ifeval(&cp);
 		cp = skipcomment(cp);
+		if (*cp != '\n' || keepthis)
+			retval = LT_ELIF;
 		if (retval == LT_IF)
 			retval = LT_ELIF;
 		if (retval == LT_TRUE)
 			retval = LT_ELTRUE;
 		if (retval == LT_FALSE)
 			retval = LT_ELFALSE;
-		if (*cp != '\n')
-			retval = LT_ELIF;
 		*cursym = 0;
 	} else if (strcmp(kw, "else") == 0)
 		retval = LT_ELSE;
@@ -605,6 +611,7 @@ elif2endif(void)
 /*
  * Function for evaluating the innermost parts of expressions,
  * viz. !expr (expr) defined(symbol) symbol number
+ * We reset the keepthis flag when we find a non-constant subexpression.
  */
 Linetype
 eval_unary(struct ops *ops, int *valp, const char **cpp)
@@ -646,6 +653,7 @@ eval_unary(struct ops *ops, int *valp, const char **cpp)
 		cp = skipcomment(cp);
 		if (*cp++ != ')')
 			return LT_IF;
+		keepthis = false;
 	} else if (!endsym(*cp)) {
 		debug("eval%d symbol", ops - eval_ops);
 		sym = findsym(cp);
@@ -659,6 +667,7 @@ eval_unary(struct ops *ops, int *valp, const char **cpp)
 				return LT_IF;
 		}
 		cp = skipsym(cp);
+		keepthis = false;
 	} else
 		return LT_IF;
 
@@ -703,13 +712,15 @@ eval_table(struct ops *ops, int *valp, const char **cpp)
 /*
  * Evaluate the expression on a #if or #elif line. If we can work out
  * the result we return LT_TRUE or LT_FALSE accordingly, otherwise we
- * return just a generic LT_IF.
+ * return just a generic LT_IF. If the expression is constant and
+ * we are not processing constant #ifs then the keepthis flag is true.
  */
 Linetype
 ifeval(const char **cpp)
 {
 	int val;
 	debug("eval %s", *cpp);
+	keepthis = killconsts ? false : true;
 	return eval_table(eval_ops, &val, cpp);
 }
 
