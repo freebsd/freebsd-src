@@ -338,6 +338,9 @@ isa_setup_intr(device_t dev, device_t child,
 		return platform.isa_setup_intr(dev, child, irq, flags, 
 			intr, arg, cookiep);	
 
+	if (irq == NULL)
+		return ENODEV;
+
 	error = rman_activate_resource(irq);
 	if (error)
 		return error;
