@@ -245,15 +245,23 @@ g_dev_ioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
 	switch (cmd) {
 	case DIOCGSECTORSIZE:
 		error = g_io_getattr("GEOM::sectorsize", cp, &i, data);
+		if (error == 0 && *(u_int *)data == 0)
+			error = ENOENT;
 		break;
 	case DIOCGMEDIASIZE:
 		error = g_io_getattr("GEOM::mediasize", cp, &i, data);
+		if (error == 0 && *(u_int *)data == 0)
+			error = ENOENT;
 		break;
 	case DIOCGFWSECTORS:
 		error = g_io_getattr("GEOM::fwsectors", cp, &i, data);
+		if (error == 0 && *(u_int *)data == 0)
+			error = ENOENT;
 		break;
 	case DIOCGFWHEADS:
 		error = g_io_getattr("GEOM::fwheads", cp, &i, data);
+		if (error == 0 && *(u_int *)data == 0)
+			error = ENOENT;
 		break;
 	case DIOCGFRONTSTUFF:
 		error = g_io_getattr("GEOM::frontstuff", cp, &i, data);
