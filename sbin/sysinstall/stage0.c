@@ -52,7 +52,7 @@ evil_goto:
     case 1:	/* View readme */
 	if (!access(README_FILE, R_OK)) {
 	    dialog_clear();
-	    dialog_textbox("READ ME FIRST", README_FILE, 24, 80);
+	    dialog_textbox("READ ME FIRST", README_FILE, LINES-1, COLS);
 	    dialog_clear();
 	}
 	goto evil_goto;
@@ -61,7 +61,7 @@ evil_goto:
     case 2:	/* View copyrights */
 	if (!access(COPYRIGHT_FILE, R_OK)) {
 	    dialog_clear();
-	    dialog_textbox("COPYRIGHT", COPYRIGHT_FILE, 24, 80);
+	    dialog_textbox("COPYRIGHT", COPYRIGHT_FILE, LINES-1, COLS);
 	    dialog_clear();
 	}
 	goto evil_goto;
