@@ -38,11 +38,11 @@
 .In sys/queue.h
 .In vm/uma.h
 .Ft void *
-.Fn uma_zalloc "vm_zone_t z"
+.Fn uma_zalloc "uma_zone_t zone, int wait"
 .Ft void
-.Fn uma_zfree "vm_zone_t z" "void *item"
+.Fn uma_zfree "uma_zone_t zone" "void *item"
 .Ft void
-.Fn uma_zdestroy "vm_zone_t z"
+.Fn uma_zdestroy "uma_zone_t zone"
 .Sh DESCRIPTION
 The zone allocator provides an efficient interface for managing
 dynamically-sized collections of items of similar size.
