@@ -109,6 +109,7 @@ setalias(name, val)
 	ap->val[len+1] = '\0';
 	}
 #endif
+	ap->flag = 0;
 	ap->next = *app;
 	*app = ap;
 	INTON;
