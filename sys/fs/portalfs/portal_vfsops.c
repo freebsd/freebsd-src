@@ -35,7 +35,7 @@
  *
  *	@(#)portal_vfsops.c	8.6 (Berkeley) 1/21/94
  *
- * $Id: portal_vfsops.c,v 1.9 1995/11/16 11:24:06 bde Exp $
+ * $Id: portal_vfsops.c,v 1.10 1995/12/11 09:24:43 phk Exp $
  */
 
 /*
@@ -105,6 +105,7 @@ portal_mount(mp, path, data, ndp, p)
 	struct portalmount *fmp;
 	struct socket *so;
 	struct vnode *rvp;
+	struct portalnode *pn;
 	u_int size;
 	int error;
 
@@ -125,14 +126,20 @@ portal_mount(mp, path, data, ndp, p)
 	if (so->so_proto->pr_domain->dom_family != AF_UNIX)
 		return (ESOCKTNOSUPPORT);
 
-	error = getnewvnode(VT_PORTAL, mp, portal_vnodeop_p, &rvp); /* XXX */
-	if (error)
-		return (error);
-	MALLOC(rvp->v_data, void *, sizeof(struct portalnode),
+	MALLOC(pn, struct portalnode *, sizeof(struct portalnode),
 		M_TEMP, M_WAITOK);
 
-	fmp = (struct portalmount *) malloc(sizeof(struct portalmount),
-				 M_UFSMNT, M_WAITOK);	/* XXX */
+	MALLOC(fmp, struct portalmount *, sizeof(struct portalmount),
+		M_UFSMNT, M_WAITOK);	/* XXX */
+
+	error = getnewvnode(VT_PORTAL, mp, portal_vnodeop_p, &rvp); /* XXX */
+	if (error) {
+		FREE(fmp, M_UFSMNT);
+		FREE(pn, M_TEMP);
+		return (error);
+	}
+
+	rvp->v_data = pn;
 	rvp->v_type = VDIR;
 	rvp->v_flag |= VROOT;
 	VTOPORTAL(rvp)->pt_arg = 0;

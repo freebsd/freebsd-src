@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernfs_vfsops.c	8.4 (Berkeley) 1/21/94
- * $Id: kernfs_vfsops.c,v 1.12 1995/12/13 15:13:28 julian Exp $
+ * $Id: kernfs_vfsops.c,v 1.13 1995/12/14 18:26:55 julian Exp $
  */
 
 /*
@@ -165,12 +165,15 @@ kernfs_mount(mp, path, data, ndp, p)
 	if (mp->mnt_flag & MNT_UPDATE)
 		return (EOPNOTSUPP);
 
-	error = getnewvnode(VT_KERNFS, mp, kernfs_vnodeop_p, &rvp);	/* XXX */
-	if (error)
-		return (error);
-
 	MALLOC(fmp, struct kernfs_mount *, sizeof(struct kernfs_mount),
 				M_UFSMNT, M_WAITOK);	/* XXX */
+
+	error = getnewvnode(VT_KERNFS, mp, kernfs_vnodeop_p, &rvp);	/* XXX */
+	if (error) {
+		FREE(fmp, M_UFSMNT);
+		return (error);
+	}
+
 	rvp->v_type = VDIR;
 	rvp->v_flag |= VROOT;
 #ifdef KERNFS_DIAGNOSTIC
