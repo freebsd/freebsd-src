@@ -1,11 +1,14 @@
 /* 
  * Copyright (c) 1995 Wolfram Schneider. Public domain.
  *
- * $Id: ostern.c,v 1.1 1996/02/02 06:02:40 wosch Exp $
+ * $Id: ostern.c,v 1.2 1996/05/10 16:29:42 ache Exp $
 */
 
 #include <string.h>
 #include <stdlib.h>
+#include <stdio.h>
+
+#include "calendar.h"
 
 /* return year day for Easter */
 
@@ -62,12 +65,18 @@ geteaster(s, year)
         int year;
 {
 	register int offset = 0;
+	extern struct fixs neaster;
 
 #define EASTER "easter"
 #define EASTERNAMELEN (sizeof(EASTER) - 1)
 
-	/* no easter */
-	if (strncasecmp(s, EASTER, EASTERNAMELEN))
+	if (strncasecmp(s, EASTER, EASTERNAMELEN) == 0)
+	    s += EASTERNAMELEN;
+	else if (   neaster.name != NULL
+		 && strncasecmp(s, neaster.name, neaster.len) == 0
+		)
+	    s += neaster.len;
+	else
 	    return(0);
 
 #if DEBUG
@@ -77,14 +86,11 @@ geteaster(s, year)
 	/* Easter+1  or Easter-2
 	 *       ^            ^   */
 
-	switch(*(s + EASTERNAMELEN)) {
+	switch(*s) {
 
 	case '-':
-	    offset = -(atoi(s + EASTERNAMELEN + 1));
-	    break;
-
 	case '+':
-	    offset = atoi(s + EASTERNAMELEN + 1);
+	    offset = atoi(s);
 	    break;
 
 	default:

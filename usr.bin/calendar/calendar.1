@@ -75,9 +75,14 @@ as default calendar file.
 .Pp
 To handle calendars in your national code table you can specify
 .Dq LANG=<locale_name>
-in the calendar file as early as possible.
+in the calendar file as early as possible. To handle national Easter
+names
+.Dq Easter=<national_name>
+(for Catholic Easter) or
+.Dq Paskha=<national_name>
+(for Orthodox Easter) can be used.
 .Pp
-Lines should begin with a month and day.
+Other lines should begin with a month and day.
 They may be entered in almost any format, either numeric or as character
 strings.
 A single asterisk (``*'') matches every month.
@@ -113,6 +118,8 @@ are ignored.
 Some possible calendar entries:
 .Bd -unfilled -offset indent
 LANG=C
+Easter=Oster
+
 #include        <calendar.usholiday>
 #include        <calendar.birthday>
 
