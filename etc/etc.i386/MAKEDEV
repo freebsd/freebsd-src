@@ -37,6 +37,7 @@
 #
 # Disks:
 #	wd*	"Winchester" disk drives (ST506,IDE,ESDI,RLL,...)
+#	wfd*	"IDE floppy" disk drives (LS-120)
 #	fd*	"floppy" disk drives (3 1/2", 5 1/4")
 #	sd*	"SCSI disks"
 #	cd*	"SCSI CD-ROM disks"
@@ -106,7 +107,7 @@
 #	perfmon	CPU performance-monitoring counters
 #	pci	PCI configuration-space access from user mode
 #
-#	$Id: MAKEDEV,v 1.148 1998/01/03 11:53:52 jkh Exp $
+#	$Id: MAKEDEV,v 1.149 1998/01/09 18:32:51 steve Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:$PATH
@@ -260,17 +261,27 @@ wt*)
 	;;
 
 # Individual slices.
-od*s*|sd*s*|vn*s*|wd*s*)
+od*s*|sd*s*|vn*s*|wd*s*|wfd*s*)
 	umask $disk_umask
 	case $i in
 	od*s*) name=od; blk=20; chr=70;;
 	sd*s*) name=sd; blk=4;  chr=13;;
 	wd*s*) name=wd; blk=0;  chr=3;;
 	vn*s*) name=vn; blk=15; chr=43;;
+	wfd*s*) name=wfd; blk=24; chr=87;;
 	esac
-	unit=`expr $i : '..\([0-9]*\)s'`
-	slice=`expr $i : '..[0-9]*s\([0-9]*\)'`
-	part=`expr $i : '..[0-9]*s[0-9]*\(.*\)'`
+	case $i in
+	wfd*s*)
+		unit=`expr $i : '...\([0-9]*\)s'`
+		slice=`expr $i : '...[0-9]*s\([0-9]*\)'`
+		part=`expr $i : '...[0-9]*s[0-9]*\(.*\)'`
+		;;
+	*)
+		unit=`expr $i : '..\([0-9]*\)s'`
+		slice=`expr $i : '..[0-9]*s\([0-9]*\)'`
+		part=`expr $i : '..[0-9]*s[0-9]*\(.*\)'`
+		;;
+	esac
 	case $unit in
 	[0-9]|[0-9][0-9]|[0-4][0-9][0-9]|50[0-9]|51[0-1])
 		case $slice in
@@ -419,15 +430,23 @@ ft*)
 	umask 77
 	;;
 
-od*|sd*|vn*|wd*)
+od*|sd*|vn*|wd*|wfd*)
 	umask $disk_umask
 	case $i in
 	od*) name=od; blk=20; chr=70;;
 	sd*) name=sd; blk=4;  chr=13;;
 	vn*) name=vn; blk=15; chr=43;;
 	wd*) name=wd; blk=0;  chr=3;;
+	wfd*) name=wfd; blk=24; chr=87;;
 	esac
-	unit=`expr $i : '..\(.*\)'`
+	case $i in
+	wfd*)
+		unit=`expr $i : '...\(.*\)'`
+		;;
+	*)
+		unit=`expr $i : '..\(.*\)'`
+		;;
+	esac
 	case $unit in
 	[0-9]|[0-9][0-9]|[0-4][0-9][0-9]|50[0-9]|51[0-1])
 		for slicepartname in s0h s1 s2 s3 s4

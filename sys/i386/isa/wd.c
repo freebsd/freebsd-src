@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.145 1997/12/02 21:06:32 phk Exp $
+ *	$Id: wd.c,v 1.146 1997/12/06 14:27:20 bde Exp $
  */
 
 /* TODO:
@@ -357,7 +357,7 @@ reset_ok:
 	 * drive 2.  (This seems to contradict the ATA spec.)
 	 */
 	du->dk_error = inb(du->dk_port + wd_error);
-	if(du->dk_error != 0x01) {
+	if(du->dk_error != 0x01 && du->dk_error != 0) {
 		if(du->dk_error & 0x80) { /* drive 1 failure */
 
 			/* first set the DRV bit */
