@@ -31,7 +31,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
  * EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Begemot: libunimsg/netnatm/api/cc_user.c,v 1.2 2004/07/08 09:17:18 brandt Exp $
+ * $Begemot: libunimsg/netnatm/api/cc_user.c,v 1.3 2004/07/16 18:46:55 brandt Exp $
  *
  * ATM API as defined per af-saa-0108
  *
@@ -1297,6 +1297,7 @@ cc_user_sig_handle(struct ccuser *user, enum user_sig sig,
 			/* connection has disappeared. Send an ok
 			 * to the user and lock whether there is another
 			 * connection at this endpoint */
+			uni_msg_destroy(msg);
 			cc_user_ok(user, ATMRESP_NONE, NULL, 0);
 
 			set_state(user, USER_IN_WAITING);
@@ -1359,6 +1360,7 @@ cc_user_sig_handle(struct ccuser *user, enum user_sig sig,
 			/* connection has disappeared. Send an error
 			 * to the user and lock whether there is another
 			 * connection at this endpoint */
+			uni_msg_destroy(msg);
 			cc_user_err(user, ATMERR_PREVIOUSLY_ABORTED);
 
 			set_state(user, USER_IN_WAITING);
@@ -1370,15 +1372,14 @@ cc_user_sig_handle(struct ccuser *user, enum user_sig sig,
 		LIST_FOREACH(newep, &user->cc->user_list, node_link)
 			if (strcmp(acc->newep, newep->name) == 0)
 				break;
+		uni_msg_destroy(msg);
 
 		if (newep == NULL) {
-			uni_msg_destroy(msg);
 			cc_user_err(user, ATMERR_BAD_ENDPOINT);
 			return;
 		}
 
 		if (newep->state != USER_NULL || newep->accepted != NULL) {
-			uni_msg_destroy(msg);
 			cc_user_err(user, ATMERR_BAD_STATE);
 			return;
 		}
