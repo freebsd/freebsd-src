@@ -86,7 +86,7 @@ struct open_disk {
 #endif
     struct disklabel		od_disklabel;
     int				od_nslices;	/* slice count */
-    struct pc98_partition	od_slicetab[NEXTDOSPART];
+    struct pc98_partition	od_slicetab[NDOSPART];
 };
 
 /*
@@ -778,7 +778,7 @@ bd_checkextended(struct open_disk *od, int slicenum)
 	for (i = 0; i < NDOSPART; i++, dp++) {
 		if (dp->dp_size == 0)
 			continue;
-		if (od->od_nslices == NEXTDOSPART)
+		if (od->od_nslices == NDOSPART)
 			goto done;
 		dp->dp_start += base;
 		bcopy(dp, &od->od_slicetab[od->od_nslices], sizeof(*dp));
