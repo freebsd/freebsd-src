@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.94 1997/08/26 04:36:17 dyson Exp $
+ * $Id: vfs_subr.c,v 1.95 1997/08/26 11:59:20 bde Exp $
  */
 
 /*
@@ -103,6 +103,7 @@ int vttoif_tab[9] = {
 }
 TAILQ_HEAD(freelst, vnode) vnode_free_list;	/* vnode free list */
 static u_long freevnodes = 0;
+SYSCTL_INT(_debug, OID_AUTO, freevnodes, CTLFLAG_RD, &freevnodes, 0, "");
 
 struct mntlist mountlist;	/* mounted filesystem list */
 struct simplelock mountlist_slock;
@@ -380,11 +381,11 @@ getnewvnode(tag, mp, vops, vpp)
 	}
 
 	if (vp) {
+		vp->v_flag |= VDOOMED;
 		TAILQ_REMOVE(&vnode_free_list, vp, v_freelist);
 		freevnodes--;
-		/* see comment on why 0xdeadb is set at end of vgone (below) */
-		vp->v_freelist.tqe_prev = (struct vnode **) 0xdeadb;
 		simple_unlock(&vnode_free_list_slock);
+		cache_purge(vp);
 		vp->v_lease = NULL;
 		if (vp->v_type != VBAD)
 			vgonel(vp, p);
@@ -418,13 +419,13 @@ getnewvnode(tag, mp, vops, vpp)
 		    M_VNODE, M_WAITOK);
 		bzero((char *) vp, sizeof *vp);
 		vp->v_dd = vp;
+		cache_purge(vp);
 		LIST_INIT(&vp->v_cache_src);
 		TAILQ_INIT(&vp->v_cache_dst);
 		numvnodes++;
 	}
 
 	vp->v_type = VNON;
-	cache_purge(vp);
 	vp->v_tag = tag;
 	vp->v_op = vops;
 	insmntque(vp, mp);
@@ -582,7 +583,7 @@ bgetvp(vp, bp)
 
 	if (bp->b_vp)
 		panic("bgetvp: not free");
-	VHOLD(vp);
+	vhold(vp);
 	bp->b_vp = vp;
 	if (vp->v_type == VBLK || vp->v_type == VCHR)
 		bp->b_dev = vp->v_rdev;
@@ -618,7 +619,7 @@ brelvp(bp)
 
 	vp = bp->b_vp;
 	bp->b_vp = (struct vnode *) 0;
-	HOLDRELE(vp);
+	vdrop(vp);
 }
 
 /*
@@ -678,8 +679,10 @@ reassignbuf(bp, newvp)
 	/*
 	 * Delete from old vnode list, if on one.
 	 */
-	if (bp->b_vnbufs.le_next != NOLIST)
+	if (bp->b_vnbufs.le_next != NOLIST) {
 		bufremvn(bp);
+		vdrop(bp->b_vp);
+	}
 	/*
 	 * If dirty, put on list of dirty buffers; otherwise insert onto list
 	 * of clean buffers.
@@ -700,6 +703,8 @@ reassignbuf(bp, newvp)
 	} else {
 		bufinsvn(bp, &newvp->v_cleanblkhd);
 	}
+	bp->b_vp = newvp;
+	vhold(bp->b_vp);
 	splx(s);
 }
 
@@ -836,13 +841,9 @@ vget(vp, flags, p)
 		tsleep((caddr_t)vp, PINOD, "vget", 0);
 		return (ENOENT);
 	}
-	if (vp->v_usecount == 0) {
-		simple_lock(&vnode_free_list_slock);
-		TAILQ_REMOVE(&vnode_free_list, vp, v_freelist);
-		simple_unlock(&vnode_free_list_slock);
-		freevnodes--;
-	}
 	vp->v_usecount++;
+	if (VSHOULDBUSY(vp))
+		vbusy(vp);
 	/*
 	 * Create the VM object, if needed
 	 */
@@ -1089,11 +1090,11 @@ vputrele(vp, put)
 		panic("vputrele: null vp");
 #endif
 	simple_lock(&vp->v_interlock);
-	vp->v_usecount--;
 
-	if ((vp->v_usecount == 1) &&
+	if ((vp->v_usecount == 2) &&
 		vp->v_object &&
 		(vp->v_object->flags & OBJ_VFS_REF)) {
+		vp->v_usecount--;
 		vp->v_object->flags &= ~OBJ_VFS_REF;
 		if (put) {
 			VOP_UNLOCK(vp, LK_INTERLOCK, p);
@@ -1104,7 +1105,8 @@ vputrele(vp, put)
 		return;
 	}
 
-	if (vp->v_usecount > 0) {
+	if (vp->v_usecount > 1) {
+		vp->v_usecount--;
 		if (put) {
 			VOP_UNLOCK(vp, LK_INTERLOCK, p);
 		} else {
@@ -1113,23 +1115,14 @@ vputrele(vp, put)
 		return;
 	}
 
-	if (vp->v_usecount < 0) {
+	if (vp->v_usecount < 1) {
 #ifdef DIAGNOSTIC
 		vprint("vputrele: negative ref count", vp);
 #endif
 		panic("vputrele: negative ref cnt");
 	}
-	simple_lock(&vnode_free_list_slock);
-	if (vp->v_flag & VAGE) {
-		vp->v_flag &= ~VAGE;
-		if(vp->v_tag != VT_TFS)
-			TAILQ_INSERT_HEAD(&vnode_free_list, vp, v_freelist);
-	} else {
-		if(vp->v_tag != VT_TFS)
-			TAILQ_INSERT_TAIL(&vnode_free_list, vp, v_freelist);
-	}
-	freevnodes++;
-	simple_unlock(&vnode_free_list_slock);
+
+	vp->v_holdcnt++; 	/* Make sure vnode isn't recycled */
 
 	/*
 	 * If we are doing a vput, the node is already locked, and we must
@@ -1139,8 +1132,18 @@ vputrele(vp, put)
 	if (put) {
 		simple_unlock(&vp->v_interlock);
 		VOP_INACTIVE(vp, p);
+		simple_lock(&vp->v_interlock);
+		vp->v_usecount--;
+		vp->v_holdcnt--;
+		if (VSHOULDFREE(vp))
+			vfree(vp);
+		simple_unlock(&vp->v_interlock);
 	} else if (vn_lock(vp, LK_EXCLUSIVE | LK_INTERLOCK, p) == 0) {
 		VOP_INACTIVE(vp, p);
+		vp->v_usecount--;
+		vp->v_holdcnt--;
+		if (VSHOULDFREE(vp))
+			vfree(vp);
 	}
 }
 
@@ -1161,9 +1164,8 @@ vrele(vp)
 	vputrele(vp, 0);
 }
 
-#ifdef DIAGNOSTIC
 /*
- * Page or buffer structure gets a reference.
+ * Somebody doesn't want the vnode recycled.
  */
 void
 vhold(vp)
@@ -1172,14 +1174,16 @@ vhold(vp)
 
 	simple_lock(&vp->v_interlock);
 	vp->v_holdcnt++;
+	if (VSHOULDBUSY(vp))
+		vbusy(vp);
 	simple_unlock(&vp->v_interlock);
 }
 
 /*
- * Page or buffer structure frees a reference.
+ * One less who cares about this vnode.
  */
 void
-holdrele(vp)
+vdrop(vp)
 	register struct vnode *vp;
 {
 
@@ -1187,9 +1191,10 @@ holdrele(vp)
 	if (vp->v_holdcnt <= 0)
 		panic("holdrele: holdcnt");
 	vp->v_holdcnt--;
+	if (VSHOULDFREE(vp))
+		vfree(vp);
 	simple_unlock(&vp->v_interlock);
 }
-#endif /* DIAGNOSTIC */
 
 /*
  * Remove any vnodes in the vnode table belonging to mount point mp.
@@ -1572,17 +1577,11 @@ vgonel(vp, p)
 	 * after calling vgone. If the reference count were
 	 * incremented first, vgone would (incorrectly) try to
 	 * close the previous instance of the underlying object.
-	 * So, the back pointer is explicitly set to `0xdeadb' in
-	 * getnewvnode after removing it from the freelist to ensure
-	 * that we do not try to move it here.
 	 */
-	if (vp->v_usecount == 0) {
+	if (vp->v_usecount == 0 && !(vp->v_flag & VDOOMED)) {
 		simple_lock(&vnode_free_list_slock);
-		if ((vp->v_freelist.tqe_prev != (struct vnode **)0xdeadb) &&
-			vnode_free_list.tqh_first != vp) {
-			TAILQ_REMOVE(&vnode_free_list, vp, v_freelist);
-			TAILQ_INSERT_HEAD(&vnode_free_list, vp, v_freelist);
-		}
+		TAILQ_REMOVE(&vnode_free_list, vp, v_freelist);
+		TAILQ_INSERT_HEAD(&vnode_free_list, vp, v_freelist);
 		simple_unlock(&vnode_free_list_slock);
 	}
 
@@ -1680,6 +1679,10 @@ vprint(label, vp)
 		strcat(buf, "|VBWAIT");
 	if (vp->v_flag & VALIASED)
 		strcat(buf, "|VALIASED");
+	if (vp->v_flag & VDOOMED)
+		strcat(buf, "|VDOOMED");
+	if (vp->v_flag & VFREE)
+		strcat(buf, "|VFREE");
 	if (buf[0] != '\0')
 		printf(" flags (%s)", &buf[1]);
 	if (vp->v_data == NULL) {
@@ -2255,20 +2258,28 @@ retn:
 }
 
 void
-vtouch(vp)
+vfree(vp)
 	struct vnode *vp;
 {
-	simple_lock(&vp->v_interlock);
-	if (vp->v_usecount) {
-		simple_unlock(&vp->v_interlock);
-		return;
+	simple_lock(&vnode_free_list_slock);
+	if (vp->v_flag & VAGE) {
+		TAILQ_INSERT_HEAD(&vnode_free_list, vp, v_freelist);
+	} else {
+		TAILQ_INSERT_TAIL(&vnode_free_list, vp, v_freelist);
 	}
-	if (simple_lock_try(&vnode_free_list_slock)) {
-		if (vp->v_freelist.tqe_prev != (struct vnode **)0xdeadb) {
-			TAILQ_REMOVE(&vnode_free_list, vp, v_freelist);
-			TAILQ_INSERT_TAIL(&vnode_free_list, vp, v_freelist);
-		}
-		simple_unlock(&vnode_free_list_slock);
-	}
-	simple_unlock(&vp->v_interlock);
+	freevnodes++;
+	simple_unlock(&vnode_free_list_slock);
+	vp->v_flag &= ~VAGE;
+	vp->v_flag |= VFREE;
+}
+
+void
+vbusy(vp)
+	struct vnode *vp;
+{
+	simple_lock(&vnode_free_list_slock);
+	TAILQ_REMOVE(&vnode_free_list, vp, v_freelist);
+	freevnodes--;
+	simple_unlock(&vnode_free_list_slock);
+	vp->v_flag &= ~VFREE;
 }
