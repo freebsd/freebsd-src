@@ -422,6 +422,7 @@ void	if_attach(struct ifnet *);
 int	if_delmulti(struct ifnet *, struct sockaddr *);
 void	if_detach(struct ifnet *);
 void	if_down(struct ifnet *);
+int	if_printf(struct ifnet *, const char *, ...) __printflike(2, 3);
 void	if_route(struct ifnet *, int flag, int fam);
 int	if_setlladdr(struct ifnet *, const u_char *, int);
 void	if_unroute(struct ifnet *, int flag, int fam);
