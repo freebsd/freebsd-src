@@ -195,6 +195,7 @@ SYSCTL_INT(_net_inet_ip, OID_AUTO, stealth, CTLFLAG_RW,
 /* Firewall hooks */
 ip_fw_chk_t *ip_fw_chk_ptr;
 int fw_enable = 1 ;
+int fw_one_pass = 1;
 
 /* Dummynet hooks */
 ip_dn_io_t *ip_dn_io_ptr;
