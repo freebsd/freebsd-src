@@ -1,7 +1,11 @@
 # $FreeBSD$
 
-ETCFILES	 = default.rc releng_4.rc releng_5.rc stable.rc current.rc
-ETCFILES	+= update_stable.rc update_current.rc
+ETCFILES	 =
+ETCFILES	+= default.rc
+ETCFILES	+= releng_4.rc update_releng_4.rc
+ETCFILES	+= releng_5.rc update_releng_5.rc
+ETCFILES	+= stable.rc update_stable.rc
+ETCFILES	+= current.rc update_current.rc
 ETCDIR		?= ${HOME}/etc
 ETCOWN		?= ${USER}
 ETCGRP		?= ${USER}
