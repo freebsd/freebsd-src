@@ -131,16 +131,16 @@ void
 sscop_lower(cmd, tok, arg1, arg2)
 	int	cmd;
 	void	*tok;
-	int	arg1;
-	int	arg2;
+	intptr_t	arg1;
+	intptr_t	arg2;
 {
 	struct sscop	*sop = (struct sscop *)tok;
-	void		(**stab)(struct sscop *, int, int);
-	void		(*func)(struct sscop *, int, int);
+	void		(**stab)(struct sscop *, intptr_t, intptr_t);
+	void		(*func)(struct sscop *, intptr_t, intptr_t);
 	int		val;
 
-	ATM_DEBUG5("sscop_lower: cmd=0x%x, sop=%p, state=%d, arg1=0x%x, arg2=0x%x\n",
-		cmd, sop, sop->so_state, arg1, arg2);
+	ATM_DEBUG5("sscop_lower: cmd=0x%x, sop=%p, state=%d, arg1=%p, arg2=%p\n",
+		cmd, sop, sop->so_state, (void *)arg1, (void *)arg2);
 
 	/*
 	 * Validate stack command
@@ -214,8 +214,8 @@ sscop_lower(cmd, tok, arg1, arg2)
 void
 sscop_aa_noop_0(sop, arg1, arg2)
 	struct sscop	*sop;
-	int		arg1;
-	int		arg2;
+	intptr_t	arg1;
+	intptr_t	arg2;
 {
 	/*
 	 * Nothing to do
@@ -239,8 +239,8 @@ sscop_aa_noop_0(sop, arg1, arg2)
 void
 sscop_aa_noop_1(sop, arg1, arg2)
 	struct sscop	*sop;
-	int		arg1;
-	int		arg2;
+	intptr_t	arg1;
+	intptr_t	arg2;
 {
 
 	/*
@@ -268,8 +268,8 @@ sscop_aa_noop_1(sop, arg1, arg2)
 void
 sscop_init_inst(sop, arg1, arg2)
 	struct sscop	*sop;
-	int		arg1;
-	int		arg2;
+	intptr_t	arg1;
+	intptr_t	arg2;
 {
 	int		err;
 
@@ -330,8 +330,8 @@ sscop_init_inst(sop, arg1, arg2)
 void
 sscop_term_all(sop, arg1, arg2)
 	struct sscop	*sop;
-	int		arg1;
-	int		arg2;
+	intptr_t	arg1;
+	intptr_t	arg2;
 {
 	int		err;
 

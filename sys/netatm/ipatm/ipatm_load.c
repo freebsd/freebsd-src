@@ -460,7 +460,8 @@ ipatm_start()
 					break;
 			}
 			if (ia) {
-				err = ipatm_nifstat(NCM_SETADDR, nip, (int)ia);
+				err = ipatm_nifstat(NCM_SETADDR, nip,
+				    (intptr_t)ia);
 				if (err) {
 					(void) splx(s);
 					goto done;
@@ -523,7 +524,7 @@ ipatm_start()
 		/*
 		 * Now start listening
 		 */
-		if ((err = atm_cm_listen(&ipatm_endpt, (void *)i,
+		if ((err = atm_cm_listen(&ipatm_endpt, (void *)(intptr_t)i,
 				&ipatm_listeners[i].attr,
 				&ipatm_listeners[i].conn)) != 0)
 			goto done;

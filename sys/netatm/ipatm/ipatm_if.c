@@ -92,7 +92,7 @@ int
 ipatm_nifstat(cmd, nip, arg)
 	int		cmd;
 	struct atm_nif	*nip;
-	int		arg;
+	intptr_t	arg;
 {
 	struct in_ifaddr	*ia;
 	struct siginst		*sip;

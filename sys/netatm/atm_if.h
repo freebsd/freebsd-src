@@ -224,7 +224,7 @@ struct cmn_vcc {
 	struct cmn_vcc	*cv_next;	/* Next in list */
 	void		*cv_toku;	/* Upper layer's token */
 	void		(*cv_upper)	/* Upper layer's interface */
-				(int, void *, int, int);
+				(int, void *, intptr_t, intptr_t);
 	Atm_connvc	*cv_connvc;	/* Associated connection VCC */
 	u_char		cv_state;	/* VCC state (see below) */
 	u_char		cv_flags;	/* VCC flags (see below) */
@@ -305,7 +305,7 @@ struct atm_ncm {
 	int		(*ncm_ifoutput)	/* Interface if_output handler */
 				(struct ifnet *, KBuffer *, struct sockaddr *);
 	int		(*ncm_stat)	/* Network i/f status handler */
-				(int, struct atm_nif *, int);
+				(int, struct atm_nif *, intptr_t);
 };
 
 /*

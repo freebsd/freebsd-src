@@ -422,7 +422,7 @@ sscop_bgn_outconn(sop, m, trlr)
 	 * Notify user of connection establishment
 	 */
 	STACK_CALL(SSCOP_ESTABLISH_CNF, sop->so_upper, sop->so_toku, 
-		sop->so_connvc, (int)m, 0, err);
+		sop->so_connvc, (intptr_t)m, 0, err);
 	if (err) {
 		KB_FREEALL(m);
 		sscop_abort(sop, "stack memory\n");
@@ -499,7 +499,7 @@ sscop_bgn_inconn(sop, m, trlr)
 	 * Now, tell user of new connection establishment
 	 */
 	STACK_CALL(SSCOP_ESTABLISH_IND, sop->so_upper, sop->so_toku, 
-		sop->so_connvc, (int)m, 0, err);
+		sop->so_connvc, (intptr_t)m, 0, err);
 	if (err) {
 		KB_FREEALL(m);
 		sscop_abort(sop, "stack memory\n");
@@ -574,7 +574,7 @@ sscop_bgn_ready(sop, m, trlr)
 	 * Tell user of incoming connection
 	 */
 	STACK_CALL(SSCOP_ESTABLISH_IND, sop->so_upper, sop->so_toku,
-		sop->so_connvc, (int)m, 0, err);
+		sop->so_connvc, (intptr_t)m, 0, err);
 	if (err) {
 		KB_FREEALL(m);
 		sscop_abort(sop, "stack memory\n");
@@ -687,7 +687,7 @@ sscop_end_outrecov(sop, m, trlr)
 	 * Notify user of connection termination
 	 */
 	STACK_CALL(SSCOP_RELEASE_IND, sop->so_upper, sop->so_toku,
-		sop->so_connvc, (int)m, source, err);
+		sop->so_connvc, (intptr_t)m, source, err);
 	if (err) {
 		KB_FREEALL(m);
 		sscop_abort(sop, "stack memory\n");
@@ -754,7 +754,7 @@ sscop_end_ready(sop, m, trlr)
 	 * Notify user of connection termination
 	 */
 	STACK_CALL(SSCOP_RELEASE_IND, sop->so_upper, sop->so_toku,
-		sop->so_connvc, (int)m, source, err);
+		sop->so_connvc, (intptr_t)m, source, err);
 	if (err) {
 		KB_FREEALL(m);
 		sscop_abort(sop, "stack memory\n");
@@ -991,7 +991,7 @@ sscop_rs_outrecov(sop, m, trlr)
 	 * Notify user of connection resynchronization
 	 */
 	STACK_CALL(SSCOP_RESYNC_IND, sop->so_upper, sop->so_toku, 
-		sop->so_connvc, (int)m, 0, err);
+		sop->so_connvc, (intptr_t)m, 0, err);
 	if (err) {
 		KB_FREEALL(m);
 		sscop_abort(sop, "stack memory\n");
@@ -1060,7 +1060,7 @@ sscop_rs_ready(sop, m, trlr)
 	 * Notify user of connection resynchronization
 	 */
 	STACK_CALL(SSCOP_RESYNC_IND, sop->so_upper, sop->so_toku, 
-		sop->so_connvc, (int)m, 0, err);
+		sop->so_connvc, (intptr_t)m, 0, err);
 	if (err) {
 		KB_FREEALL(m);
 		sscop_abort(sop, "stack memory\n");
@@ -1549,7 +1549,7 @@ sscop_sd_ready(sop, m, trlr)
 	 */
 	if (ns == sop->so_rcvnext) {
 		STACK_CALL(SSCOP_DATA_IND, sop->so_upper, sop->so_toku,
-			sop->so_connvc, (int)m, ns, err);
+			sop->so_connvc, (intptr_t)m, ns, err);
 		if (err) {
 			KB_FREEALL(m);
 			return;
@@ -1591,8 +1591,8 @@ sscop_sd_ready(sop, m, trlr)
 			if (sop->so_recv_hd == NULL)
 				sop->so_recv_tl = NULL;
 			STACK_CALL(SSCOP_DATA_IND, sop->so_upper, sop->so_toku,
-				sop->so_connvc, (int)php->ph_buf, php->ph_ns,
-				err);
+				sop->so_connvc, (intptr_t)php->ph_buf,
+				php->ph_ns, err);
 			if (err) {
 				/*
 				 * Should never happen, but...

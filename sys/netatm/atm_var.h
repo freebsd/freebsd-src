@@ -105,7 +105,7 @@ int		atm_endpoint_deregister(Atm_endpoint *);
 
 	/* atm_device.c */
 int		atm_dev_inst(struct stack_defn **, Atm_connvc *);
-void		atm_dev_lower(int, void *, int, int);
+void		atm_dev_lower(int, void *, intptr_t, intptr_t);
 void *		atm_dev_alloc(u_int, u_int, u_int);
 void		atm_dev_free(volatile void *);
 KBuffer *	atm_dev_compress(KBuffer *);
@@ -145,7 +145,7 @@ int		atm_sigmgr_detach(struct atm_pif *);
 int		atm_stack_register(struct stack_defn *);
 int		atm_stack_deregister(struct stack_defn *);
 int		atm_create_stack(Atm_connvc *, struct stack_list *,
-			void (*)(int, void *, int, int) );
+			void (*)(int, void *, intptr_t, intptr_t) );
 
 	/* atm_socket.c */
 void		atm_sock_init(void);
@@ -170,8 +170,8 @@ void		atm_initialize(void);
 void		atm_timeout(struct atm_time *, int, 
 			void (*)(struct atm_time *) );
 int		atm_untimeout(struct atm_time *);
-int		atm_stack_enq(int, void (*)(int, void *, int, int), 
-			void *, Atm_connvc *, int, int);
+int		atm_stack_enq(int, void (*)(int, void *, intptr_t, intptr_t), 
+			void *, Atm_connvc *, intptr_t, intptr_t);
 void		atm_stack_drain(void);
 void		atm_intr(void);
 void		atm_pdu_print(KBuffer *, char *);

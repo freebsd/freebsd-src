@@ -2328,7 +2328,7 @@ usf_dec_ie_ident(usf, ie, tbl)
 		/*
 		 * Save final destination address
 		 */
-		dest = (void *)((int)ie + tbl[i].f_offs);
+		dest = (void *)((intptr_t)ie + tbl[i].f_offs);
 
 		/*
 		 * Get the field value
