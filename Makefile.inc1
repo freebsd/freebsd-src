@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile.inc1,v 1.58 1999/01/07 13:09:15 eivind Exp $
+#	$Id: Makefile.inc1,v 1.59 1999/01/20 05:45:57 markm Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include
@@ -648,12 +648,7 @@ _csu=lib/csu/i386-elf
 _csu=lib/csu/${MACHINE_ARCH}
 .endif
 
-.if !defined(NOSECURE) && !defined(NOCRYPT)
-_libcrypt=	secure/lib/libcrypt lib/libcrypt
-_secure_lib=	secure/lib
-.else
 _libcrypt=	lib/libcrypt
-.endif
 
 .if !defined(NOCRYPT) && defined(MAKE_KERBEROS4)
 _kerberosIV_lib=kerberosIV/lib
