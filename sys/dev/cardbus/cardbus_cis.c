@@ -595,23 +595,24 @@ cardbus_alloc_resources(device_t cbdev, device_t child)
 {
 	struct cardbus_devinfo *dinfo = device_get_ivars(child);
 	int count;
+	struct resource_list *rl = &dinfo->pci.resources;
 	struct resource_list_entry *rle;
 	struct resource_list_entry **barlist;
 	int tmp;
 	u_int32_t mem_psize = 0, mem_nsize = 0, io_size = 0;
 	struct resource *res;
-	u_int32_t start,end;
-	int rid, flags;
+	u_int32_t start, end;
+	int rid, flags, irq;
 
 	count = 0;
-	SLIST_FOREACH(rle, &dinfo->pci.resources, link)
+	SLIST_FOREACH(rle, rl, link)
 		count++;
 	if (count == 0)
 		return (0);
 	barlist = malloc(sizeof(struct resource_list_entry*) * count, M_DEVBUF,
 	    M_WAITOK);
 	count = 0;
-	SLIST_FOREACH(rle, &dinfo->pci.resources, link) {
+	SLIST_FOREACH(rle, rl, link) {
 		barlist[count] = rle;
 		if (rle->type == SYS_RES_IOPORT) {
 			io_size += rle->count;
@@ -840,10 +841,11 @@ cardbus_alloc_resources(device_t cbdev, device_t child)
 		device_printf(cbdev, "Unable to allocate IRQ\n");
 		return (ENOMEM);
 	}
-	resource_list_add(&dinfo->pci.resources, SYS_RES_IRQ, rid,
-	    rman_get_start(res), rman_get_end(res), 1);
-	dinfo->pci.cfg.intline = rman_get_start(res);
-	pci_write_config(child, PCIR_INTLINE, rman_get_start(res), 1);
+	irq = rman_get_start(res);
+	resource_list_add(rl, SYS_RES_IRQ, rid, irq, irq, 1);
+	dinfo->pci.cfg.intline = irq;
+	pci_write_config(child, PCIR_INTLINE, irq, 1);
+	printf("Allocating IRQ %d\n", irq);
 	bus_release_resource(cbdev, SYS_RES_IRQ, rid, res);
 
 	return (0);
@@ -857,15 +859,17 @@ static void
 cardbus_add_map(device_t cbdev, device_t child, int reg)
 {
 	struct cardbus_devinfo *dinfo = device_get_ivars(child);
-	struct resource_list_entry *rle;
+	struct resource_list *rl = &dinfo->pci.resources;
 	u_int32_t size;
 	u_int32_t testval;
 	int type;
 
-	SLIST_FOREACH(rle, &dinfo->pci.resources, link) {
-		if (rle->rid == reg)
-			return;
-	}
+	testval = pci_read_config(child, reg, 4);
+	type = (testval & 1) ? SYS_RES_IOPORT : SYS_RES_MEMORY;
+	if (resource_list_find(rl, type, reg) != NULL)
+		return;
+
+	/* XXX Should just be able to use pci_add_map */
 
 	if (reg == CARDBUS_ROM_REG)
 		testval = CARDBUS_ROM_ADDRMASK;
@@ -884,9 +888,9 @@ cardbus_add_map(device_t cbdev, device_t child, int reg)
 		type = SYS_RES_IOPORT;
 
 	size = CARDBUS_MAPREG_MEM_SIZE(testval);
-	device_printf(cbdev, "Resource not specified in CIS: id=%x, size=%x\n",
-	    reg, size);
-	resource_list_add(&dinfo->pci.resources, type, reg, 0UL, ~0UL, size);
+	device_printf(cbdev, "BAR not in CIS: type = %d, id=%x, size=%x\n",
+ 	    type, reg, size);
+	resource_list_add(rl, type, reg, 0UL, ~0UL, size);
 }
 
 static void

@@ -159,6 +159,7 @@ cardbus_attach_card(device_t cbdev)
 	int bus, slot, func;
 	struct cardbus_devinfo *dinfo;
 	int cardbusfunchigh = 0;
+	device_t kid;
 
 	cardbus_detach_card(cbdev, 0); /* detach existing cards */
 
@@ -181,25 +182,25 @@ cardbus_attach_card(device_t cbdev)
 		cardbusfunchigh = 0;
 		for (func = 0; func <= cardbusfunchigh; func++) {
 			dinfo = (struct cardbus_devinfo *)
-			    pci_read_device(brdev, bus, slot, func);
-
+			  pci_read_device(brdev, bus, slot, func,
+			  sizeof(struct cardbus_devinfo));
 			if (dinfo == NULL)
 				continue;
 			if (dinfo->pci.cfg.mfdev)
 				cardbusfunchigh = CARDBUS_FUNCMAX;
 			device_setup_regs(brdev, bus, slot, func,
 			    &dinfo->pci.cfg);
-			pci_print_verbose(&dinfo->pci);
-			dinfo->pci.cfg.dev = device_add_child(cbdev, NULL, -1);
-			if (!dinfo->pci.cfg.dev) {
+			kid = device_add_child(cbdev, NULL, -1);
+			if (kid == NULL) {
 				DEVPRINTF((cbdev, "Cannot add child!\n"));
 				pci_freecfg(&dinfo->pci);
 				continue;
 			}
-			resource_list_init(&dinfo->pci.resources);
-			device_set_ivars(dinfo->pci.cfg.dev, &dinfo->pci);
-			cardbus_do_cis(cbdev, dinfo->pci.cfg.dev);
-			if (device_probe_and_attach(dinfo->pci.cfg.dev) != 0) {
+			dinfo->pci.cfg.dev = kid;
+			device_set_ivars(kid, &dinfo->pci);
+			cardbus_do_cis(cbdev, kid);
+			pci_print_verbose(&dinfo->pci);
+			if (device_probe_and_attach(kid) != 0) {
 				/* when fail, release all resources */
 				cardbus_release_all_resources(cbdev, dinfo);
 			} else
@@ -245,12 +246,11 @@ cardbus_detach_card(device_t cbdev, int flags)
 			} else {
 				err++;
 			}
-			pci_freecfg(&dinfo->pci);
 		} else {
 			cardbus_release_all_resources(cbdev, dinfo);
 			device_delete_child(cbdev, devlist[tmp]);
-			pci_freecfg(&dinfo->pci);
 		}
+		pci_freecfg(&dinfo->pci);
 	}
 	if (err == 0)
 		POWER_DISABLE_SOCKET(device_get_parent(cbdev), cbdev);
@@ -304,29 +304,6 @@ cardbus_driver_added(device_t cbdev, driver_t *driver)
 static void
 cardbus_release_all_resources(device_t cbdev, struct cardbus_devinfo *dinfo)
 {
-	struct resource_list_entry *rle;
-
-	/* Free all allocated resources */
-	SLIST_FOREACH(rle, &dinfo->pci.resources, link) {
-		if (rle->res) {
-			if (rle->res->r_dev != cbdev)
-				device_printf(cbdev, "release_all_resource: "
-				    "Resource still owned by child, oops. "
-				    "(type=%d, rid=%d, addr=%lx)\n",
-				    rle->type, rle->rid,
-				    rman_get_start(rle->res));
-			BUS_RELEASE_RESOURCE(device_get_parent(cbdev),
-			    rle->res->r_dev,
-			    rle->type, rle->rid,
-			    rle->res);
-			rle->res = NULL;
-			/*
-			 * zero out config so the card won't acknowledge
-			 * access to the space anymore
-			 */
-			pci_write_config(dinfo->pci.cfg.dev, rle->rid, 0, 4);
-		}
-	}
 	resource_list_free(&dinfo->pci.resources);
 }
 
