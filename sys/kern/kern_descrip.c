@@ -2256,6 +2256,54 @@ dupfdopen(struct thread *td, struct filedesc *fdp, int indx, int dfd, int mode, 
 	/* NOTREACHED */
 }
 
+/*
+ * Scan all active processes to see if any of them have a current
+ * or root directory of `olddp'. If so, replace them with the new
+ * mount point.
+ */
+void
+mountcheckdirs(olddp, newdp)
+	struct vnode *olddp, *newdp;
+{
+	struct filedesc *fdp;
+	struct proc *p;
+	int nrele;
+
+	if (vrefcnt(olddp) == 1)
+		return;
+	sx_slock(&allproc_lock);
+	LIST_FOREACH(p, &allproc, p_list) {
+		mtx_lock(&fdesc_mtx);
+		fdp = p->p_fd;
+		if (fdp == NULL) {
+			mtx_unlock(&fdesc_mtx);
+			continue;
+		}
+		nrele = 0;
+		FILEDESC_LOCK_FAST(fdp);
+		if (fdp->fd_cdir == olddp) {
+			vref(newdp);
+			fdp->fd_cdir = newdp;
+			nrele++;
+		}
+		if (fdp->fd_rdir == olddp) {
+			vref(newdp);
+			fdp->fd_rdir = newdp;
+			nrele++;
+		}
+		FILEDESC_UNLOCK_FAST(fdp);
+		mtx_unlock(&fdesc_mtx);
+		while (nrele--)
+			vrele(olddp);
+	}
+	sx_sunlock(&allproc_lock);
+	if (rootvnode == olddp) {
+		vrele(rootvnode);
+		vref(newdp);
+		rootvnode = newdp;
+	}
+}
+
 struct filedesc_to_leader *
 filedesc_to_leader_alloc(struct filedesc_to_leader *old, struct filedesc *fdp, struct proc *leader)
 {
