@@ -636,8 +636,9 @@ ar_rebuild(void *arg)
 	rdp->lock_end = rdp->lock_start + size;
 	splx(s);
 	wakeup(rdp);
-	sprintf(rdp->pid->p_comm, "rebuilding ar%d %lld%%",
-		rdp->lun, 100*rdp->lock_start/(rdp->total_sectors/rdp->width));
+	sprintf(rdp->pid->p_comm, "rebuilding ar%d %lld%%", rdp->lun,
+		(unsigned long long)(100 * rdp->lock_start /
+				     (rdp->total_sectors / rdp->width)));
     }
     free(buffer, M_AR);
     for (disk = 0; disk < rdp->total_disks; disk++) {
