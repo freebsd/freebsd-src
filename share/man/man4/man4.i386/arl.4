@@ -53,11 +53,11 @@ By default, the
 driver configures the Aironet Arlan 655 card for TMA operation.
 .Pp
 To set up Radio Network parameters, use 
-.Xr arlconfig 8 .
+.Xr arlcontrol 8 .
 .Sh SEE ALSO
 .Xr arp 4 ,
 .Xr netintro 4 ,
-.Xr arlconfig 8 ,
+.Xr arlcontrol 8 ,
 .Xr ifconfig 8
 .Sh LIMITATIONS
 When using
@@ -74,7 +74,7 @@ for current
 only through
 .Xr ifconfig 8 . 
 You must use
-.Xr arlconfig 8 
+.Xr arlcontrol 8 
 for changing
 .Ar country .
 .Pp
@@ -91,7 +91,7 @@ The
 driver was initially written by
 .An Ivan Sharov Aq ivan.sharov@iname.com .
 .Aq ran@styx.aic.net 
-wrote the arlconfig utility and added ioctl support to the driver.
+wrote the arlcontrol utility and added ioctl support to the driver.
 .An Stanislav Svirid Aq count@riss-telecom.ru
 ported this driver to the new ISA architecture, merged some al driver changes, 
 fixed some bugs and made it a module.
