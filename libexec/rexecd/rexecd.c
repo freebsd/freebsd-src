@@ -29,18 +29,20 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id: rexecd.c,v 1.8.2.3 1997/02/09 04:40:52 imp Exp $
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1983, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)rexecd.c	8.1 (Berkeley) 6/4/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -51,20 +53,17 @@ static char sccsid[] = "@(#)rexecd.c	8.1 (Berkeley) 6/4/93";
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
-#include <errno.h>
+#include <err.h>
 #include <netdb.h>
 #include <paths.h>
 #include <pwd.h>
 #include <signal.h>
 #include <stdio.h>
+#include <skey.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
 #include <syslog.h>
-#include <netdb.h>
-
-/*VARARGS1*/
-int error();
+#include <unistd.h>
 
 char	username[MAXLOGNAME + 5 + 1] = "USER=";
 char	homedir[MAXPATHLEN + 5 + 1] = "HOME=";
@@ -77,6 +76,11 @@ char	*remote;
 
 struct	sockaddr_in asin = { AF_INET };
 
+void doit __P((int, struct sockaddr_in *));
+void getstr __P((char *, int, char *));
+/*VARARGS1*/
+void error __P(());
+
 /*
  * remote execute server:
  *	username\0
@@ -85,6 +89,7 @@ struct	sockaddr_in asin = { AF_INET };
  *	data
  */
 /*ARGSUSED*/
+int
 main(argc, argv)
 	int argc;
 	char **argv;
@@ -95,11 +100,8 @@ main(argc, argv)
 
 	openlog(argv[0], LOG_PID, LOG_AUTH);
 	fromlen = sizeof (from);
-	if (getpeername(0, (struct sockaddr *)&from, &fromlen) < 0) {
-		(void)fprintf(stderr,
-		    "rexecd: getpeername: %s\n", strerror(errno));
-		exit(1);
-	}
+	if (getpeername(0, (struct sockaddr *)&from, &fromlen) < 0)
+		err(1, "getpeername");
 
 	hp = gethostbyaddr((char *) &from.sin_addr, sizeof(from.sin_addr),
 			   from.sin_family);
@@ -107,8 +109,10 @@ main(argc, argv)
 	remote = (hp != NULL) ? hp->h_name : inet_ntoa(from.sin_addr);
 
 	doit(0, &from);
+	return(0);
 }
 
+void
 doit(f, fromp)
 	int f;
 	struct sockaddr_in *fromp;
@@ -116,7 +120,6 @@ doit(f, fromp)
 	FILE *fp;
 	char cmdbuf[NCARGS+1], *cp, *namep;
 #ifdef SKEY
-	char *skey_crypt();
 	char user[16], pass[100];
 #else /* SKEY */
 	char user[16], pass[16];
@@ -178,7 +181,7 @@ doit(f, fromp)
 	if (*pwd->pw_passwd != '\0') {
 #ifdef SKEY
 		namep = skey_crypt(pass, pwd->pw_passwd, pwd,
-				   skeyaccess(user, NULL, remote));
+				   skeyaccess(user, NULL, remote, NULL));
 #else /* SKEY */
 		namep = crypt(pass, pwd->pw_passwd);
 #endif /* SKEY */
@@ -277,11 +280,11 @@ doit(f, fromp)
 		exit(1);
 	}
 	execl(pwd->pw_shell, cp, "-c", cmdbuf, 0);
-	perror(pwd->pw_shell);
-	exit(1);
+	err(1, "%s", pwd->pw_shell);
 }
 
 /*VARARGS1*/
+void
 error(fmt, a1, a2, a3)
 	char *fmt;
 	int a1, a2, a3;
@@ -293,6 +296,7 @@ error(fmt, a1, a2, a3)
 	(void) write(2, buf, strlen(buf));
 }
 
+void
 getstr(buf, cnt, err)
 	char *buf;
 	int cnt;
