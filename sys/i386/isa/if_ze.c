@@ -436,8 +436,6 @@ static inline void ze_rint();
 static inline void ze_xmit();
 static inline char *ze_ring_copy();
 
-extern int ether_output();
-
 struct isa_driver zedriver = {
 	ze_probe,
 	ze_attach,
@@ -773,12 +771,12 @@ ze_attach(isa_dev)
 	ifp->if_watchdog = ze_watchdog;
 
 	/*
-	 * Set default state for LLC0 flag (used to disable the tranceiver
+	 * Set default state for IIF_LINK0 flag (used to disable the tranceiver
 	 *	for AUI operation), based on compile-time config option.
 	 */
 	if (isa_dev->id_flags & ZE_FLAGS_DISABLE_TRANCEIVER)
 		ifp->if_flags = (IFF_BROADCAST | IFF_SIMPLEX | IFF_NOTRAILERS
-			| IFF_LLC0);
+			| IFF_LINK0);
 	else
 		ifp->if_flags = (IFF_BROADCAST | IFF_SIMPLEX | IFF_NOTRAILERS);
 
@@ -817,7 +815,7 @@ ze_attach(isa_dev)
 	       isa_dev->id_unit,
 	       ether_sprintf(sc->arpcom.ac_enaddr), sc->type_str,
 	       sc->memwidth,
-	       (ifp->if_flags & IFF_LLC0 ? " [tranceiver disabled]" : ""),
+	       (ifp->if_flags & IFF_LINK0 ? " [tranceiver disabled]" : ""),
 	       sc->mau);
 
 	/*
@@ -1047,7 +1045,7 @@ ze_init(unit)
 	 *	(there is no settable hardware default).
 	 */
 	if (sc->vendor == ZE_VENDOR_3COM) {
-		if (ifp->if_flags & IFF_LLC0) {
+		if (ifp->if_flags & IFF_LINK0) {
 			outb(sc->asic_addr + ZE_3COM_CR, 0);
 		} else {
 			outb(sc->asic_addr + ZE_3COM_CR, ZE_3COM_CR_XSEL);
@@ -1705,7 +1703,7 @@ ze_ioctl(ifp, command, data)
 		 *	the tranceiver if set.
 		 */
 		if (sc->vendor == ZE_VENDOR_3COM) {
-			if (ifp->if_flags & IFF_LLC0) {
+			if (ifp->if_flags & IFF_LINK0) {
 				outb(sc->asic_addr + ZE_3COM_CR, 0);
 			} else {
 				outb(sc->asic_addr + ZE_3COM_CR, ZE_3COM_CR_XSEL);
