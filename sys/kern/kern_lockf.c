@@ -722,6 +722,7 @@ lf_wakelock(listhead)
 /*
  * Print out a lock.
  */
+void
 lf_print(tag, lock)
 	char *tag;
 	register struct lockf *lock;
@@ -746,6 +747,7 @@ lf_print(tag, lock)
 		printf("\n");
 }
 
+void
 lf_printlist(tag, lock)
 	char *tag;
 	struct lockf *lock;
