@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.150 1998/08/20 11:22:52 phk Exp $
+#	$Id: rc,v 1.151 1998/08/24 07:11:48 gpalmer Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -250,8 +250,8 @@ if [ -x /sbin/ldconfig ]; then
 			_LDC="${_LDC} $i"
 		fi
 	done
-	echo 'setting ldconfig path:' ${_LDC}
-	ldconfig ${_LDC}
+	echo 'setting a.out ldconfig path:' ${_LDC}
+	ldconfig -aout ${_LDC}
 fi
 
 # Now start up miscellaneous daemons that don't belong anywhere else
