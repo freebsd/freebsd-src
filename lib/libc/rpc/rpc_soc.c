@@ -332,7 +332,7 @@ get_myaddress(addr)
  */
 int
 callrpc(host, prognum, versnum, procnum, inproc, in, outproc, out)
-	char *host;
+	const char *host;
 	int prognum, versnum, procnum;
 	xdrproc_t inproc, outproc;
 	void *in, *out;
