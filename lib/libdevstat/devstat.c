@@ -47,6 +47,14 @@ __FBSDID("$FreeBSD$");
 
 #include "devstat.h"
 
+int
+compute_stats(struct devstat *current, struct devstat *previous,
+	      long double etime, u_int64_t *total_bytes,
+	      u_int64_t *total_transfers, u_int64_t *total_blocks,
+	      long double *kb_per_transfer, long double *transfers_per_second,
+	      long double *mb_per_second, long double *blocks_per_second,
+	      long double *ms_per_transaction);
+
 typedef enum {
 	DEVSTAT_ARG_NOTYPE,
 	DEVSTAT_ARG_UINT64,
