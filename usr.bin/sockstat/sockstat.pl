@@ -95,8 +95,10 @@ sub addr($) {
 #
 # Print information about Internet sockets
 #
-sub print_inet($) {
+sub print_inet($$$) {
     my $af = shift;		# Address family
+    my $conn = shift || 0;	# Show connected sockets
+    my $listen = shift || 0;	# Show listen sockets
 
     my $fsd;			# Fstat data
     my $nsd;			# Netstat data
@@ -106,6 +108,8 @@ sub print_inet($) {
     foreach $fsd (@{$fstat{$af}}) {
 	next unless defined($fsd->[7]);
 	$nsd = $netstat{$fsd->[7]} || $unknown;
+	next if (!$conn && $nsd->[5] ne '*.*');
+	next if (!$listen && $nsd->[5] eq '*.*');
 	printf($inet_fmt, $fsd->[0], $fsd->[1], $fsd->[2],
 	       substr($fsd->[3], 0, -1),
 	       $nsd->[1], addr($nsd->[4]), addr($nsd->[5]));
@@ -116,7 +120,9 @@ sub print_inet($) {
 #
 # Print information about Unix domain sockets
 #
-sub print_unix() {
+sub print_unix($$) {
+    my $conn = shift || 0;	# Show connected sockets
+    my $listen = shift || 0;	# Show listen sockets
 
     my %endpoint;		# Mad PCB to process/fd
     my $fsd;			# Fstat data
@@ -129,6 +135,8 @@ sub print_unix() {
     printf($unix_fmt, "USER", "COMMAND", "PID", "FD", "PROTO", "ADDRESS");
     foreach $fsd (@{$fstat{"local"}}) {
 	next unless defined($fsd->[6]);
+	next if (!$conn && defined($fsd->[8]));
+	next if (!$listen && !defined($fsd->[8]));
 	$nsd = $netstat{$fsd->[6]} || $unknown;
 	printf($unix_fmt, $fsd->[0], $fsd->[1], $fsd->[2],
 	       substr($fsd->[3], 0, -1), $fsd->[5],
@@ -141,14 +149,14 @@ sub print_unix() {
 # Print usage message and exit
 #
 sub usage() {
-    print(STDERR "Usage: sockstat [-46u]\n");
+    print(STDERR "Usage: sockstat [-46clu]\n");
     exit(1);
 }
 
 MAIN:{
     my %opts;			# Command-line options
 
-    getopts("46u", \%opts)
+    getopts("46clu", \%opts)
 	or usage();
 
     gather();
@@ -156,14 +164,17 @@ MAIN:{
     if (!$opts{'4'} && !$opts{'6'} && !$opts{'u'}) {
 	$opts{'4'} = $opts{'6'} = $opts{'u'} = 1;
     }
+    if (!$opts{'c'} && !$opts{'l'}) {
+	$opts{'c'} = $opts{'l'} = 1;
+    }
     if ($opts{'4'}) {
-	print_inet("internet");
+	print_inet("internet", $opts{'c'}, $opts{'l'});
     }
     if ($opts{'6'}) {
-	print_inet("internet6");
+	print_inet("internet6", $opts{'c'}, $opts{'l'});
     }
     if ($opts{'u'}) {
-	print_unix();
+	print_unix($opts{'c'}, $opts{'l'});
     }
     
     exit(0);
