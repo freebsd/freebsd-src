@@ -680,6 +680,9 @@ case ${local_startup} in
 *)
 	echo -n 'Local package initialization:'
 	slist=""
+	if [ -z "${script_name_sep}" ]; then
+		script_name_sep=" "
+	fi
 	for dir in ${local_startup}; do
 		if [ -d "${dir}" ]; then
 			for script in ${dir}/*.sh; do
