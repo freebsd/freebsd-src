@@ -8,7 +8,7 @@
  * file.
  * 
  * Written by Julian Elischer (julian@dialix.oz.au)
- *      $Id: scsi_base.c,v 2.4 93/10/16 00:58:43 julian Exp Locker: julian $
+ *      $Id: scsi_base.c,v 1.1 1993/11/18 05:02:51 rgrimes Exp $
  */
 
 #define SPLSD splbio
@@ -109,7 +109,8 @@ free_xs(xs, sc_link, flags)
 	SC_DEBUG(sc_link, SDEV_DB3, ("free_xs\n"));
 	/* if was 0 and someone waits, wake them up */
 	if ((!sc_link->opennings++) && (sc_link->flags & SDEV_WAITING)) {
-		wakeup(sc_link);
+		sc_link->flags &= ~SDEV_WAITING;
+		wakeup(sc_link); /* remember, it wakes them ALL up */
 	} else {
 		if (sc_link->device->start) {
 			SC_DEBUG(sc_link, SDEV_DB2, ("calling private start()\n"));
