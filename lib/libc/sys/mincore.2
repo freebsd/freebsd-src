@@ -57,14 +57,7 @@ in the character array
 with a value of 1 meaning
 that the page is in-core.
 .Sh RETURN VALUES
-Upon successful completion,
-.Fn mincore
-returns 0 and
-.Fa vec
-is updated to reflect the page status.  Otherwise a value of -1
-is returned and
-.Va errno
-is set to indicate the error.
+.Rv -std mincore
 .Sh ERRORS
 .Bl -tag -width Er
 .It Bq Er EINVAL
