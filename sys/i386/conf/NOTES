@@ -430,7 +430,7 @@ options 	ACPI_DEBUG
 # r128drm:   AGP ATI Rage 128
 # radeondrm: AGP ATI Radeon, including 7200 and 7500
 # DRM_LINUX: include linux compatibility, requires COMPAT_LINUX
-# DRM_DEBUG: inlcude debugging code, very slow
+# DRM_DEBUG: include debugging code, very slow
 #
 # mga, r128, and radeon require AGP in the kernel
 
