@@ -55,6 +55,7 @@
 #include <sys/namei.h>
 #include <sys/proc.h>
 #include <sys/time.h>
+#include <sys/unistd.h>
 #include <sys/vnode.h>
 
 #include <fs/devfs/devfs.h>
@@ -63,6 +64,7 @@ static int	devfs_access __P((struct vop_access_args *ap));
 static int	devfs_getattr __P((struct vop_getattr_args *ap));
 static int	devfs_lookupx __P((struct vop_lookup_args *ap));
 static int	devfs_mknod __P((struct vop_mknod_args *ap));
+static int	devfs_pathconf __P((struct vop_pathconf_args *ap));
 static int	devfs_print __P((struct vop_print_args *ap));
 static int	devfs_read __P((struct vop_read_args *ap));
 static int	devfs_readdir __P((struct vop_readdir_args *ap));
@@ -202,8 +204,12 @@ devfs_getattr(ap)
 	vap->va_mode = de->de_mode;
 	if (vp->v_type == VLNK) 
 		vap->va_size = de->de_dirent->d_namlen;
+	else if (vp->v_type == VDIR)
+		vap->va_size = vap->va_bytes = DEV_BSIZE;
 	else
 		vap->va_size = 0;
+	if (vp->v_type != VDIR)
+		vap->va_bytes = 0;
 	vap->va_blocksize = DEV_BSIZE;
 	vap->va_type = vp->v_type;
 
@@ -234,7 +240,6 @@ devfs_getattr(ap)
 	}
 	vap->va_gen = 0;
 	vap->va_flags = 0;
-	vap->va_bytes = 0;
 	vap->va_nlink = de->de_links;
 	vap->va_fileid = de->de_inode;
 
@@ -453,6 +458,28 @@ notfound:
 	return (error);
 }
 
+
+static int
+devfs_pathconf(ap)
+	struct vop_pathconf_args /* {
+		struct vnode *a_vp;
+		int a_name;
+		int *a_retval;
+	} */ *ap;
+{
+
+	switch (ap->a_name) {
+	case _PC_NAME_MAX:
+		*ap->a_retval = NAME_MAX;
+		return (0);
+	case _PC_PATH_MAX:
+		*ap->a_retval = PATH_MAX;
+		return (0);
+	default:
+		return (vop_stdpathconf(ap));
+	}
+	/* NOTREACHED */
+}
 
 /* ARGSUSED */
 static int
@@ -776,7 +803,7 @@ static struct vnodeopv_entry_desc devfs_vnodeop_entries[] = {
 	{ &vop_getattr_desc,		(vop_t *) devfs_getattr },
 	{ &vop_lookup_desc,		(vop_t *) devfs_lookup },
 	{ &vop_mknod_desc,		(vop_t *) devfs_mknod },
-	{ &vop_pathconf_desc,		(vop_t *) vop_stdpathconf },
+	{ &vop_pathconf_desc,		(vop_t *) devfs_pathconf },
 	{ &vop_print_desc,		(vop_t *) devfs_print },
 	{ &vop_read_desc,		(vop_t *) devfs_read },
 	{ &vop_readdir_desc,		(vop_t *) devfs_readdir },
