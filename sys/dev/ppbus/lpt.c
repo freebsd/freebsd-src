@@ -78,8 +78,7 @@
 #include <machine/resource.h>
 #include <sys/rman.h>
 
-#include <machine/lpt.h>
-
+#include <dev/ppbus/lptio.h>
 #include <dev/ppbus/ppbconf.h>
 #include <dev/ppbus/ppb_1284.h>
 #include <dev/ppbus/lpt.h>
