@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: label.c,v 1.53 1996/07/14 01:54:39 jkh Exp $
+ * $Id: label.c,v 1.54 1996/07/31 06:20:57 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -497,7 +497,9 @@ diskLabel(char *str)
 	    move(23, 0);
 	    clrtoeol();
 	}
-	key = toupper(getch());
+	key = getch();
+	if (islower(key))
+	    key = toupper(key);
 	switch (key) {
 	    int i;
 	    static char _msg[40];
@@ -554,7 +556,7 @@ diskLabel(char *str)
 		char *cp;
 		Chunk *rootdev, *swapdev, *usrdev, *vardev;
 
-		(void)checkLabels(&rootdev, &swapdev, &usrdev, &vardev);
+		(void)checkLabels(FALSE, &rootdev, &swapdev, &usrdev, &vardev);
 		if (!rootdev) {
 		    cp = variable_get(VAR_ROOT_SIZE);
 		    tmp = Create_Chunk_DWIM(label_chunk_info[here].c->disk, label_chunk_info[here].c,

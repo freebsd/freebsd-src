@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.75 1996/07/16 17:11:45 jkh Exp $
+ * $Id: sysinstall.h,v 1.76 1996/07/31 06:20:59 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -466,7 +466,7 @@ void		index_print(PkgNodePtr top, int level);
 int		index_extract(Device *dev, PkgNodePtr top, PkgNodePtr plist);
 
 /* install.c */
-extern Boolean	checkLabels(Chunk **rdev, Chunk **sdev, Chunk **udev, Chunk **vdev);
+extern Boolean	checkLabels(Boolean whinge, Chunk **rdev, Chunk **sdev, Chunk **udev, Chunk **vdev);
 extern int	installCommit(dialogMenuItem *self);
 extern int	installCustomCommit(dialogMenuItem *self);
 extern int	installExpress(dialogMenuItem *self);
