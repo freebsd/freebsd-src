@@ -78,15 +78,16 @@ pcm2, rec, igain, ogain, line1, line2, and line3.
 .Pp
 Not all mixer devices are available.
 .Pp
-When
+Without any arguments,
 .Nm
-is run without any arguments, all supported devices are displayed
-along with current values.
+displays the current settings for all supported devices, followed by information
+about the current recording input devices.
 If the
 .Ar dev
-argument is specified, the value for the
-.Ar dev
-device will be displayed.
+argument is specified, 
+.Nm
+displays only the value for that
+.Ar dev .
 .Pp
 To modify the mixer value
 .Ar dev ,
