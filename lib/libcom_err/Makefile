@@ -1,8 +1,7 @@
-#	$Id: Makefile,v 1.2 1995/08/06 12:23:28 bde Exp $
+#	$Id: Makefile,v 1.3 1996/08/30 01:45:45 peter Exp $
 
 LIB=	com_err
 SRCS=	com_err.c error_message.c et_name.c init_et.c
-CFLAGS+=	-I.
 MAN3=	com_err.3
 
 SUBDIR=	doc
