@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.483 1998/10/06 13:16:16 kato Exp $
+#	$Id: LINT,v 1.484 1998/10/07 03:42:44 gibbs Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -495,7 +495,7 @@ options		NFS			#Network File System
 
 # The rest are optional:
 # options	NFS_NOSERVER		#Disable the NFS-server code.
-options		CD9660			#ISO 9660 filesystem
+options		"CD9660"		#ISO 9660 filesystem
 options		FDESC			#File descriptor filesystem
 options		KERNFS			#Kernel filesystem
 options		MFS			#Memory File System
@@ -506,7 +506,7 @@ options		PROCFS			#Process filesystem
 options		UMAPFS			#UID map filesystem
 options		UNION			#Union filesystem
 # The xFS_ROOT options REQUIRE the associated ``options xFS''
-options		CD9660_ROOT		#CD-ROM usable as root device
+options		"CD9660_ROOT"		#CD-ROM usable as root device
 options		FFS_ROOT		#FFS usable as root device
 options		NFS_ROOT		#NFS usable as root device
 # This code is still experimental (e.g. doesn't handle disk slices well).
