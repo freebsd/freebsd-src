@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: periodic.8,v 1.2 1997/08/13 06:02:16 pst Exp $
+.\"	$Id: periodic.8,v 1.3 1997/08/13 16:27:59 ache Exp $
 .\"
 .Dd 13 August 1997
 .Os FreeBSD 3.0
@@ -74,12 +74,12 @@ directories, such as
 If executables are added which depend upon other path components, each
 executable must be responsible for configuring its own appropriate environment.
 .Sh FILES
-.Bl -tag -width /etc/crontab
+.Bl -tag -width /etc/periodic
 .It Pa /etc/crontab
 The
 .Nm
 program is typically called via entries in the system default cron table.
-.It Pa /etc/cron.d
+.It Pa /etc/periodic
 The top level directory containing
 .Pa daily ,
 .Pa weekly ,
@@ -93,9 +93,9 @@ system registry contains a variable
 .Va local_cron
 which may be configured to specify additional top level standard
 periodic directories, such as
-.Pa /usr/local/etc/cron.d
+.Pa /usr/local/etc/periodic
 and
-.Pa /usr/X11R6/etc/cron.d .
+.Pa /usr/X11R6/etc/periodic .
 .El
 .Sh EXAMPLES
 The system crontab should have entries for
@@ -110,7 +110,7 @@ similar to the following example:
 Additionally, the system registry will typically have a
 .Va local_cron
 variable reading:
-.Dl local_cron="/usr/local/etc/cron.d /usr/X11R6/etc/cron.d" # cron script dirs.
+.Dl local_cron="/usr/local/etc/periodic /usr/X11R6/etc/periodic" # cron script dirs.
 .Sh SEE ALSO
 .Xr cron 8 ,
 .Xr crontab 5 ,
