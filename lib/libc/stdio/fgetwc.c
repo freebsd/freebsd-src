@@ -36,28 +36,6 @@ __FBSDID("$FreeBSD$");
 #include "libc_private.h"
 #include "local.h"
 
-static __inline wint_t	__fgetwc_nbf(FILE *);
-
-/*
- * Non-MT-safe version.
- */
-wint_t
-__fgetwc(FILE *fp)
-{
-	wint_t wc;
-
-	if (MB_CUR_MAX == 1) {
-		/*
-		 * Assume we're using a single-byte locale. A safer test
-		 * might be to check _CurrentRuneLocale->encoding.
-		 */
-		wc = (wint_t)__sgetc(fp);
-	} else
-		wc = __fgetwc_nbf(fp);
-
-	return (wc);
-}
-
 /*
  * MT-safe version.
  */
@@ -74,14 +52,23 @@ fgetwc(FILE *fp)
 	return (r);
 }
 
-static __inline wint_t
-__fgetwc_nbf(FILE *fp)
+/*
+ * Non-MT-safe version.
+ */
+wint_t
+__fgetwc(FILE *fp)
 {
 	wchar_t wc;
 	size_t nconv;
 
 	if (fp->_r <= 0 && __srefill(fp))
 		return (WEOF);
+	if (MB_CUR_MAX == 1) {
+		/* Fast path for single-byte encodings. */
+		wc = *fp->_p++;
+		fp->_r--;
+		return (wc);
+	}
 	do {
 		nconv = mbrtowc(&wc, fp->_p, fp->_r, &fp->_extra->mbstate);
 		if (nconv == (size_t)-1)
