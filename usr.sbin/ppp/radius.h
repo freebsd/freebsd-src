@@ -41,7 +41,7 @@ struct radius {
   unsigned long mtu;            /* FRAMED MTU */
   struct sticky_route *routes;  /* FRAMED Routes */
   struct {
-    char file[MAXPATHLEN];	/* Radius config file */
+    char file[PATH_MAX];	/* Radius config file */
   } cfg;
 };
 

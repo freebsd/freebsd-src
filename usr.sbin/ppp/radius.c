@@ -373,7 +373,7 @@ radius_Authenticate(struct radius *r, struct authinfo *authp, const char *name,
   struct ttyent *ttyp;
   struct timeval tv;
   int got, slot;
-  char hostname[MAXHOSTNAMELEN];
+  char hostname[MAXHOSTNAMELEN + 1];
   struct hostent *hp;
   struct in_addr hostaddr;
 
@@ -493,7 +493,7 @@ radius_Account(struct radius *r, struct radacct *ac, struct datalink *dl,
   struct ttyent *ttyp;
   struct timeval tv;
   int got, slot;
-  char hostname[MAXHOSTNAMELEN];
+  char hostname[MAXHOSTNAMELEN + 1];
   struct hostent *hp;
   struct in_addr hostaddr;
 

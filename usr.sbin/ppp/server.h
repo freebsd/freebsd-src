@@ -35,7 +35,7 @@ struct server {
   struct {
     char passwd[50];
 
-    char sockname[MAXPATHLEN];		/* Points to local socket path */
+    char sockname[PATH_MAX];		/* Points to local socket path */
     mode_t mask;
 
     u_short port;			/* tcp socket */
