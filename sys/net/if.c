@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if.c	8.3 (Berkeley) 1/4/94
- *	$Id: if.c,v 1.48 1997/05/03 21:07:13 peter Exp $
+ *	$Id: if.c,v 1.49 1997/07/07 17:36:06 julian Exp $
  */
 
 #include <sys/param.h>
@@ -235,32 +235,64 @@ ifa_ifwithnet(addr)
 	u_int af = addr->sa_family;
 	char *addr_data = addr->sa_data, *cplim;
 
+	/*
+	 * AF_LINK addresses can be looked up directly by their index number,
+	 * so do that if we can.
+	 */
 	if (af == AF_LINK) {
 	    register struct sockaddr_dl *sdl = (struct sockaddr_dl *)addr;
 	    if (sdl->sdl_index && sdl->sdl_index <= if_index)
 		return (ifnet_addrs[sdl->sdl_index - 1]);
 	}
+
+	/* 
+	 * Scan though each interface, looking for ones that have
+	 * addresses in this address family.
+	 */
 	for (ifp = ifnet.tqh_first; ifp; ifp = ifp->if_link.tqe_next) {
 		for (ifa = ifp->if_addrhead.tqh_first; ifa;
 		     ifa = ifa->ifa_link.tqe_next) {
 			register char *cp, *cp2, *cp3;
 
 			if (ifa->ifa_addr->sa_family != af)
-				next: continue;
+next:				continue;
 			if (ifp->if_flags & IFF_POINTOPOINT) {
+				/*
+				 * This is a bit broken as it doesn't 
+				 * take into account that the remote end may 
+				 * be a single node in the network we are
+				 * looking for.
+				 * The trouble is that we don't know the 
+				 * netmask for the remote end.
+				 */
 				if (ifa->ifa_dstaddr != 0
 				    && equal(addr, ifa->ifa_dstaddr))
  					return (ifa);
 			} else {
+				/*
+				 * Scan all the bits in the ifa's address.
+				 * If a bit dissagrees with what we are
+				 * looking for, mask it with the netmask
+				 * to see if it really matters.
+				 * (A byte at a time)
+				 */
 				if (ifa->ifa_netmask == 0)
 					continue;
 				cp = addr_data;
 				cp2 = ifa->ifa_addr->sa_data;
 				cp3 = ifa->ifa_netmask->sa_data;
-				cplim = ifa->ifa_netmask->sa_len + (char *)ifa->ifa_netmask;
+				cplim = ifa->ifa_netmask->sa_len
+					+ (char *)ifa->ifa_netmask;
 				while (cp3 < cplim)
 					if ((*cp++ ^ *cp2++) & *cp3++)
-						goto next;
+						goto next; /* next address! */
+				/*
+				 * If the netmask of what we just found
+				 * is more specific than what we had before
+				 * (if we had one) then remember the new one
+				 * before continuing to search
+				 * for an even better one.
+				 */
 				if (ifa_maybe == 0 ||
 				    rn_refines((caddr_t)ifa->ifa_netmask,
 				    (caddr_t)ifa_maybe->ifa_netmask))
