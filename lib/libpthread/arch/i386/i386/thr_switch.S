@@ -54,8 +54,8 @@ ENTRY(_thread_switch)
 	je	2f
 	movl	$-1, %eax		/* bzzzt, invalid context */
 	jmp	5f
-2:	movl	8(%esp), %eax		/* get address of curthreadp */
-	movl	%edx, (%eax)		/* we're now the current thread */
+2:	movl	8(%esp), %ecx		/* get address of curthreadp */
+	movl	%edx, %ebx		/* save the pointer for later */
 	/*
 	 * From here on, we don't touch the old stack.
 	 */
@@ -78,12 +78,19 @@ ENTRY(_thread_switch)
 	jmp	4f
 3:	fninit
 	fldcw	MC_FP_CW_OFFSET(%edx)
-4:	movl	48(%edx), %eax		/* restore ax, bx, cx */
-	movl	36(%edx), %ebx
-	movl	44(%edx), %ecx
+4:	movl	48(%edx), %eax		/* restore ax, bx, cx, dx */
 	pushl	68(%edx)		/* flags on stack */
-	pushl	40(%edx)		/* %edx on stack  */
+	pushl	36(%edx)		/* %ebx on stack */
+	pushl	44(%edx)		/* %ecx on stack */
+	pushl	40(%edx)		/* %edx on stack */
+	/* 
+	 * all registers are now moved out of mailbox 
+	 * it's now safe to set current thread pointer
+	 */
+	movl	%ebx,(%ecx)
 	popl	%edx			/* %edx off stack */
+	popl	%ecx			/* %ecx off stack */
+	popl	%ebx			/* %ebx off stack */
 	popf				/* flags off stack */
 5:	ret				/* %eip off stack */
 
