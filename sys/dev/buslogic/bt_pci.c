@@ -173,14 +173,18 @@ bt_pci_attach(device_t dev)
 
 	/* Allocate a dmatag for our CCB DMA maps */
 	/* XXX Should be a child of the PCI bus dma tag */
-	if (bus_dma_tag_create(/*parent*/NULL, /*alignemnt*/1, /*boundary*/0,
-			       /*lowaddr*/BUS_SPACE_MAXADDR_32BIT,
-			       /*highaddr*/BUS_SPACE_MAXADDR,
-			       /*filter*/NULL, /*filterarg*/NULL,
-			       /*maxsize*/BUS_SPACE_MAXSIZE_32BIT,
-			       /*nsegments*/~0,
-			       /*maxsegsz*/BUS_SPACE_MAXSIZE_32BIT,
-			       /*flags*/0, &bt->parent_dmat) != 0) {
+	if (bus_dma_tag_create(	/* parent	*/ NULL,
+				/* alignemnt	*/ 1,
+				/* boundary	*/ 0,
+				/* lowaddr	*/ BUS_SPACE_MAXADDR_32BIT,
+				/* highaddr	*/ BUS_SPACE_MAXADDR,
+				/* filter	*/ NULL,
+				/* filterarg	*/ NULL,
+				/* maxsize	*/ BUS_SPACE_MAXSIZE_32BIT,
+				/* nsegments	*/ ~0,
+				/* maxsegsz	*/ BUS_SPACE_MAXSIZE_32BIT,
+				/* flags	*/ 0,
+				&bt->parent_dmat) != 0) {
 		bt_pci_release_resources(dev);
 		return (ENOMEM);
 	}

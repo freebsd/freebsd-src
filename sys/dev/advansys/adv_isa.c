@@ -218,18 +218,19 @@ adv_isa_probe(device_t dev)
 		 * by the MI portions of the advansys driver
 		 */
 		/* XXX Should be a child of the ISA bus dma tag */ 
-		error = bus_dma_tag_create(/*parent*/NULL,
-					   /*alignemnt*/1,
-					   /*boundary*/0,
-					   lowaddr,
-					   /*highaddr*/BUS_SPACE_MAXADDR,
-					   /*filter*/NULL,
-					   /*filterarg*/NULL,
-					   maxsize,
-					   /*nsegs*/~0,
-					   maxsegsz,
-					   /*flags*/0,
-					   &adv->parent_dmat); 
+		error = bus_dma_tag_create(
+				/* parent	*/ NULL,
+				/* alignemnt	*/ 1,
+				/* boundary	*/ 0,
+				/* lowaddr	*/ lowaddr,
+				/* highaddr	*/ BUS_SPACE_MAXADDR,
+				/* filter	*/ NULL,
+				/* filterarg	*/ NULL,
+				/* maxsize	*/ maxsize,
+				/* nsegments	*/ ~0,
+				/* maxsegsz	*/ maxsegsz,
+				/* flags	*/ 0,
+				&adv->parent_dmat); 
 
 		if (error != 0) {
 			printf("%s: Could not allocate DMA tag - error %d\n",
@@ -243,18 +244,19 @@ adv_isa_probe(device_t dev)
 
 		if (overrun_buf == NULL) {
 			/* Need to allocate our overrun buffer */
-			if (bus_dma_tag_create(adv->parent_dmat,
-					       /*alignment*/8,
-					       /*boundary*/0,
-					       ADV_ISA_MAX_DMA_ADDR,
-					       BUS_SPACE_MAXADDR,
-					       /*filter*/NULL,
-					       /*filterarg*/NULL,
-					       ADV_OVERRUN_BSIZE,
-					       /*nsegments*/1,
-					       BUS_SPACE_MAXSIZE_32BIT,
-					       /*flags*/0,
-					       &overrun_dmat) != 0) {
+			if (bus_dma_tag_create(
+				/* parent	*/ adv->parent_dmat,
+				/* alignment	*/ 8,
+				/* boundary	*/ 0,
+				/* lowaddr	*/ ADV_ISA_MAX_DMA_ADDR,
+				/* highaddr	*/ BUS_SPACE_MAXADDR,
+				/* filter	*/ NULL,
+				/* filterarg	*/ NULL,
+				/* maxsize	*/ ADV_OVERRUN_BSIZE,
+				/* nsegments	*/ 1,
+				/* maxsegsz	*/ BUS_SPACE_MAXSIZE_32BIT,
+				/* flags	*/ 0,
+				&overrun_dmat) != 0) {
 				adv_free(adv);
 				bus_release_resource(dev, SYS_RES_IOPORT, 0,
 						     iores);

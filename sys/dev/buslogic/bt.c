@@ -705,28 +705,37 @@ bt_init(device_t dev)
 	 */
 
 	/* DMA tag for mapping buffers into device visible space. */
-	if (bus_dma_tag_create(bt->parent_dmat, /*alignment*/1, /*boundary*/0,
-			       /*lowaddr*/BUS_SPACE_MAXADDR,
-			       /*highaddr*/BUS_SPACE_MAXADDR,
-			       /*filter*/NULL, /*filterarg*/NULL,
-			       /*maxsize*/MAXBSIZE, /*nsegments*/BT_NSEG,
-			       /*maxsegsz*/BUS_SPACE_MAXSIZE_32BIT,
-			       /*flags*/BUS_DMA_ALLOCNOW,
-			       &bt->buffer_dmat) != 0) {
+	if (bus_dma_tag_create( /* parent	*/ bt->parent_dmat,
+				/* alignment	*/ 1,
+				/* boundary	*/ 0,
+				/* lowaddr	*/ BUS_SPACE_MAXADDR,
+				/* highaddr	*/ BUS_SPACE_MAXADDR,
+				/* filter	*/ NULL,
+				/* filterarg	*/ NULL,
+				/* maxsize	*/ MAXBSIZE,
+				/* nsegments	*/ BT_NSEG,
+				/* maxsegsz	*/ BUS_SPACE_MAXSIZE_32BIT,
+				/* flags	*/ BUS_DMA_ALLOCNOW,
+				&bt->buffer_dmat) != 0) {
 		goto error_exit;
 	}
 
 	bt->init_level++;
 	/* DMA tag for our mailboxes */
-	if (bus_dma_tag_create(bt->parent_dmat, /*alignment*/1, /*boundary*/0,
-			       /*lowaddr*/bt->mailbox_addrlimit,
-			       /*highaddr*/BUS_SPACE_MAXADDR,
-			       /*filter*/NULL, /*filterarg*/NULL,
-			       bt->num_boxes * (sizeof(bt_mbox_in_t)
-					      + sizeof(bt_mbox_out_t)),
-			       /*nsegments*/1,
-			       /*maxsegsz*/BUS_SPACE_MAXSIZE_32BIT,
-			       /*flags*/0, &bt->mailbox_dmat) != 0) {
+	if (bus_dma_tag_create(	/* parent	*/ bt->parent_dmat,
+				/* alignment	*/ 1,
+				/* boundary	*/ 0,
+				/* lowaddr	*/ bt->mailbox_addrlimit,
+				/* highaddr	*/ BUS_SPACE_MAXADDR,
+				/* filter	*/ NULL,
+				/* filterarg	*/ NULL,
+				/* maxsize	*/ bt->num_boxes *
+						   (sizeof(bt_mbox_in_t) +
+						    sizeof(bt_mbox_out_t)),
+				/* nsegments	*/ 1,
+				/* maxsegsz	*/ BUS_SPACE_MAXSIZE_32BIT,
+				/* flags	*/ 0,
+				&bt->mailbox_dmat) != 0) {
 		goto error_exit;
         }
 
@@ -754,14 +763,19 @@ bt_init(device_t dev)
 	btinitmboxes(bt);
 
 	/* DMA tag for our ccb structures */
-	if (bus_dma_tag_create(bt->parent_dmat, /*alignment*/1, /*boundary*/0,
-			       /*lowaddr*/BUS_SPACE_MAXADDR,
-			       /*highaddr*/BUS_SPACE_MAXADDR,
-			       /*filter*/NULL, /*filterarg*/NULL,
-			       bt->max_ccbs * sizeof(struct bt_ccb),
-			       /*nsegments*/1,
-			       /*maxsegsz*/BUS_SPACE_MAXSIZE_32BIT,
-			       /*flags*/0, &bt->ccb_dmat) != 0) {
+	if (bus_dma_tag_create(	/* parent	*/ bt->parent_dmat,
+				/* alignment	*/ 1,
+				/* boundary	*/ 0,
+				/* lowaddr	*/ BUS_SPACE_MAXADDR,
+				/* highaddr	*/ BUS_SPACE_MAXADDR,
+				/* filter	*/ NULL,
+				/* filterarg	*/ NULL,
+				/* maxsize	*/ bt->max_ccbs *
+						   sizeof(struct bt_ccb),
+				/* nsegments	*/ 1,
+				/* maxsegsz	*/ BUS_SPACE_MAXSIZE_32BIT,
+				/* flags	*/ 0,
+				&bt->ccb_dmat) != 0) {
 		goto error_exit;
         }
 
@@ -784,13 +798,18 @@ bt_init(device_t dev)
 	bt->init_level++;
 
 	/* DMA tag for our S/G structures.  We allocate in page sized chunks */
-	if (bus_dma_tag_create(bt->parent_dmat, /*alignment*/1, /*boundary*/0,
-			       /*lowaddr*/BUS_SPACE_MAXADDR,
-			       /*highaddr*/BUS_SPACE_MAXADDR,
-			       /*filter*/NULL, /*filterarg*/NULL,
-			       PAGE_SIZE, /*nsegments*/1,
-			       /*maxsegsz*/BUS_SPACE_MAXSIZE_32BIT,
-			       /*flags*/0, &bt->sg_dmat) != 0) {
+	if (bus_dma_tag_create(	/* parent	*/ bt->parent_dmat,
+				/* alignment	*/ 1,
+				/* boundary	*/ 0,
+				/* lowaddr	*/ BUS_SPACE_MAXADDR,
+				/* highaddr	*/ BUS_SPACE_MAXADDR,
+				/* filter	*/ NULL,
+				/* filterarg	*/ NULL,
+				/* maxsize	*/ PAGE_SIZE,
+				/* nsegments	*/ 1,
+				/* maxsegsz	*/ BUS_SPACE_MAXSIZE_32BIT,
+				/* flags	*/ 0,
+				&bt->sg_dmat) != 0) {
 		goto error_exit;
         }
 

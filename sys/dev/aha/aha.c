@@ -481,28 +481,37 @@ aha_init(struct aha_softc* aha)
 	 */
 
 	/* DMA tag for mapping buffers into device visible space. */
-	if (bus_dma_tag_create(aha->parent_dmat, /*alignment*/1, /*boundary*/0,
-			       /*lowaddr*/BUS_SPACE_MAXADDR,
-			       /*highaddr*/BUS_SPACE_MAXADDR,
-			       /*filter*/NULL, /*filterarg*/NULL,
-			       /*maxsize*/MAXBSIZE, /*nsegments*/AHA_NSEG,
-			       /*maxsegsz*/BUS_SPACE_MAXSIZE_24BIT,
-			       /*flags*/BUS_DMA_ALLOCNOW,
-			       &aha->buffer_dmat) != 0) {
+	if (bus_dma_tag_create(	/* parent	*/ aha->parent_dmat,
+				/* alignment	*/ 1,
+				/* boundary	*/ 0,
+				/* lowaddr	*/ BUS_SPACE_MAXADDR,
+				/* highaddr	*/ BUS_SPACE_MAXADDR,
+				/* filter	*/ NULL,
+				/* filterarg	*/ NULL,
+				/* maxsize	*/ MAXBSIZE,
+				/* nsegments	*/ AHA_NSEG,
+				/* maxsegsz	*/ BUS_SPACE_MAXSIZE_24BIT,
+				/* flags	*/ BUS_DMA_ALLOCNOW,
+				&aha->buffer_dmat) != 0) {
 		goto error_exit;
 	}
 
 	aha->init_level++;
 	/* DMA tag for our mailboxes */
-	if (bus_dma_tag_create(aha->parent_dmat, /*alignment*/1, /*boundary*/0,
-			       /*lowaddr*/BUS_SPACE_MAXADDR,
-			       /*highaddr*/BUS_SPACE_MAXADDR,
-			       /*filter*/NULL, /*filterarg*/NULL,
-			       aha->num_boxes * (sizeof(aha_mbox_in_t)
-					       + sizeof(aha_mbox_out_t)),
-			       /*nsegments*/1,
-			       /*maxsegsz*/BUS_SPACE_MAXSIZE_24BIT,
-			       /*flags*/0, &aha->mailbox_dmat) != 0) {
+	if (bus_dma_tag_create(	/* parent	*/ aha->parent_dmat,
+				/* alignment	*/ 1,
+				/* boundary	*/ 0,
+				/* lowaddr	*/ BUS_SPACE_MAXADDR,
+				/* highaddr	*/ BUS_SPACE_MAXADDR,
+				/* filter	*/ NULL,
+				/* filterarg	*/ NULL,
+				/* maxsize	*/ aha->num_boxes *
+						   (sizeof(aha_mbox_in_t) +
+						    sizeof(aha_mbox_out_t)),
+				/* nsegments	*/ 1,
+				/* maxsegsz	*/ BUS_SPACE_MAXSIZE_24BIT,
+				/* flags	*/ 0,
+				&aha->mailbox_dmat) != 0) {
 		goto error_exit;
         }
 
@@ -530,14 +539,19 @@ aha_init(struct aha_softc* aha)
 	ahainitmboxes(aha);
 
 	/* DMA tag for our ccb structures */
-	if (bus_dma_tag_create(aha->parent_dmat, /*alignment*/1, /*boundary*/0,
-			       /*lowaddr*/BUS_SPACE_MAXADDR,
-			       /*highaddr*/BUS_SPACE_MAXADDR,
-			       /*filter*/NULL, /*filterarg*/NULL,
-			       aha->max_ccbs * sizeof(struct aha_ccb),
-			       /*nsegments*/1,
-			       /*maxsegsz*/BUS_SPACE_MAXSIZE_24BIT,
-			       /*flags*/0, &aha->ccb_dmat) != 0) {
+	if (bus_dma_tag_create(	/* parent	*/ aha->parent_dmat,
+				/* alignment	*/ 1,
+				/* boundary	*/ 0,
+				/* lowaddr	*/ BUS_SPACE_MAXADDR,
+				/* highaddr	*/ BUS_SPACE_MAXADDR,
+				/* filter	*/ NULL,
+				/* filterarg	*/ NULL,
+				/* maxsize	*/ aha->max_ccbs *
+						   sizeof(struct aha_ccb),
+				/* nsegments	*/ 1,
+				/* maxsegsz	*/ BUS_SPACE_MAXSIZE_24BIT,
+				/* flags	*/ 0,
+				&aha->ccb_dmat) != 0) {
 		goto error_exit;
         }
 
@@ -560,13 +574,18 @@ aha_init(struct aha_softc* aha)
 	aha->init_level++;
 
 	/* DMA tag for our S/G structures.  We allocate in page sized chunks */
-	if (bus_dma_tag_create(aha->parent_dmat, /*alignment*/1, /*boundary*/0,
-			       /*lowaddr*/BUS_SPACE_MAXADDR,
-			       /*highaddr*/BUS_SPACE_MAXADDR,
-			       /*filter*/NULL, /*filterarg*/NULL,
-			       PAGE_SIZE, /*nsegments*/1,
-			       /*maxsegsz*/BUS_SPACE_MAXSIZE_24BIT,
-			       /*flags*/0, &aha->sg_dmat) != 0) {
+	if (bus_dma_tag_create(	/* parent	*/ aha->parent_dmat,
+				/* alignment	*/ 1,
+				/* boundary	*/ 0,
+				/* lowaddr	*/ BUS_SPACE_MAXADDR,
+				/* highaddr	*/ BUS_SPACE_MAXADDR,
+				/* filter	*/ NULL,
+				/* filterarg	*/ NULL,
+				/* maxsize	*/ PAGE_SIZE,
+				/* nsegments	*/ 1,
+				/* maxsegsz	*/ BUS_SPACE_MAXSIZE_24BIT,
+				/* flags	*/ 0,
+				&aha->sg_dmat) != 0) {
 		goto error_exit;
         }
 
