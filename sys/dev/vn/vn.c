@@ -38,7 +38,7 @@
  * from: Utah Hdr: vn.c 1.13 94/04/02
  *
  *	from: @(#)vn.c	8.6 (Berkeley) 4/1/94
- *	$Id: vn.c,v 1.60 1998/06/07 17:09:50 dfr Exp $
+ *	$Id: vn.c,v 1.61 1998/06/07 20:10:53 dfr Exp $
  */
 
 /*
@@ -327,6 +327,8 @@ vnstrategy(struct buf *bp)
 		struct buf *nbp;
 
 		nbp = getvnbuf();
+		bzero(nbp, sizeof(struct buf));
+		LIST_INIT(&nbp->b_dep);
 		byten = dbtob(bn);
 		bsize = vn->sc_vp->v_mount->mnt_stat.f_iosize;
 		addr = bp->b_data;
@@ -497,6 +499,8 @@ nvsIOreq(void *private ,struct buf *bp)
 		struct buf *nbp;
 
 		nbp = getvnbuf();
+		bzero(nbp, sizeof(struct buf));
+		LIST_INIT(&nbp->b_dep);
 		byten = dbtob(bn);
 		/* This is probably the only time this is RIGHT */
 		bsize = vn->sc_vp->v_mount->mnt_stat.f_iosize;
