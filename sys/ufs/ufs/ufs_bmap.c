@@ -232,8 +232,9 @@ ufs_bmaparray(vp, bn, bnp, runp, runb)
 			bn = ap->in_off;
 			if (runb && bn) {
 				for(--bn; bn >= 0 && *runb < maxrun &&
-			    		is_sequential(ump, ((daddr_t *)bp->b_data)[bn],
-					    ((daddr_t *)bp->b_data)[bn+1]);
+			    	    is_sequential(ump,
+				    ((ufs_daddr_t *)bp->b_data)[bn],
+				    ((ufs_daddr_t *)bp->b_data)[bn+1]);
 			    		--bn, ++*runb);
 			}
 		}
