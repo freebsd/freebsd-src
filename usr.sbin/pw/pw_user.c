@@ -123,10 +123,12 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 		0,
 		"",
 		"User &",
+		"/nonexistent",
 		"/bin/sh",
-		0,
-		0,
 		0
+#if defined(__FreeBSD__)
+		,0
+#endif
 	};
 
 
@@ -396,7 +398,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 			if (rc == -1)
 				err(EX_IOERR, "user '%s' does not exist", pwd->pw_name);
 			else if (rc != 0) {
-				warnc(rc, "passwd update");
+				warn("passwd update");
 				return EX_IOERR;
 			}
 
@@ -405,7 +407,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 				if (rc == -1)
 					warnx("WARNING: user '%s' does not exist in NIS passwd", pwd->pw_name);
 				else if (rc != 0)
-					warnc(rc, "WARNING: NIS passwd update");
+					warn("WARNING: NIS passwd update");
 				/* non-fatal */
 			}
 
@@ -640,7 +642,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 			warnx("user '%s' already exists", pwd->pw_name);
 			return EX_IOERR;
 		} else if (rc != 0) {
-			warnc(rc, "passwd file update");
+			warn("passwd file update");
 			return EX_IOERR;
 		}
 		if (cnf->nispasswd && *cnf->nispasswd=='/') {
@@ -648,7 +650,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 			if (rc == -1)
 				warnx("User '%s' already exists in NIS passwd", pwd->pw_name);
 			else
-				warnc(rc, "NIS passwd update");
+				warn("NIS passwd update");
 			/* NOTE: we treat NIS-only update errors as non-fatal */
 		}
 	} else if (mode == M_UPDATE || mode == M_LOCK || mode == M_UNLOCK) {
@@ -658,7 +660,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 				warnx("user '%s' does not exist (NIS?)", pwd->pw_name);
 				return EX_IOERR;
 			} else if (rc != 0) {
-				warnc(rc, "passwd file update");
+				warn("passwd file update");
 				return EX_IOERR;
 			}
 			if ( cnf->nispasswd && *cnf->nispasswd=='/') {
@@ -666,7 +668,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 				if (rc == -1)
 					warn("User '%s' not found in NIS passwd", pwd->pw_name);
 				else
-					warnc(rc, "NIS passwd update");
+					warn("NIS passwd update");
 				/* NOTE: NIS-only update errors are not fatal */
 			}
 		}
@@ -1136,9 +1138,9 @@ print_user(struct passwd * pwd, int pretty, int v7)
 			*p = (char) toupper(*p);
 		}
 		if (pwd->pw_expire > (time_t)0 && (tptr = localtime(&pwd->pw_expire)) != NULL)
-		  strftime(acexpire, sizeof acexpire, "%c", tptr);
+		  strftime(acexpire, sizeof acexpire, "%e-%b-%Y %T", tptr);
 		if (pwd->pw_change > (time_t)9 && (tptr = localtime(&pwd->pw_change)) != NULL)
-		  strftime(pwexpire, sizeof pwexpire, "%c", tptr);
+		  strftime(pwexpire, sizeof pwexpire, "%e-%b-%Y %T", tptr);
 		printf("Login Name: %-15s   #%-12ld Group: %-15s   #%ld\n"
 		       " Full Name: %s\n"
 		       "      Home: %-26.26s      Class: %s\n"
