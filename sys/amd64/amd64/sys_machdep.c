@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)sys_machdep.c	5.5 (Berkeley) 1/19/91
- *	$Id: sys_machdep.c,v 1.21 1997/02/22 09:32:53 peter Exp $
+ *	$Id: sys_machdep.c,v 1.22 1997/07/20 08:37:23 bde Exp $
  *
  */
 
@@ -51,6 +51,7 @@
 
 #include <machine/cpu.h>
 #include <machine/sysarch.h>
+#include <machine/pcb_ext.h>
 
 #include <vm/vm_kern.h>		/* for kernel_map */
 
@@ -65,6 +66,12 @@ void set_user_ldt	__P((struct pcb *pcb));
 #ifdef USER_LDT
 static int i386_get_ldt	__P((struct proc *, char *, int *));
 static int i386_set_ldt	__P((struct proc *, char *, int *));
+#endif
+#ifdef VM86
+static int i386_get_ioperm	__P((struct proc *, char *, int *));
+static int i386_set_ioperm	__P((struct proc *, char *, int *));
+int i386_extend_pcb	__P((struct proc *));
+int (*vm86_sysarch) __P((struct proc *, char *, int *));
 #endif
 
 #ifndef _SYS_SYSPROTO_H_
@@ -92,12 +99,160 @@ sysarch(p, uap, retval)
 		error = i386_set_ldt(p, uap->parms, retval);
 		break;
 #endif
+#ifdef VM86
+	case I386_GET_IOPERM:
+		error = i386_get_ioperm(p, uap->parms, retval);
+		break;
+	case I386_SET_IOPERM:
+		error = i386_set_ioperm(p, uap->parms, retval);
+		break;
+	case I386_VM86:
+		if (vm86_sysarch) {
+			error = (*vm86_sysarch)(p, uap->parms, retval);
+			break;
+		}
+		/* FALL THROUGH */
+#endif
 	default:
 		error = EINVAL;
 		break;
 	}
-	return(error);
+	return (error);
 }
+
+#ifdef VM86
+int
+i386_extend_pcb(struct proc *p)
+{
+	int i, offset;
+	u_long *addr;
+	struct pcb_ext *ext;
+	struct segment_descriptor sd;
+	struct soft_segment_descriptor ssd = {
+		0,			/* segment base address (overwritten) */
+		ctob(IOPAGES + 1) - 1,	/* length */
+		SDT_SYS386TSS,		/* segment type */
+		0,			/* priority level */
+		1,			/* descriptor present */
+		0, 0,
+		0,			/* default 32 size */
+		0			/* granularity */
+	};
+
+	ext = (struct pcb_ext *)kmem_alloc(kernel_map, ctob(IOPAGES+1));
+	if (ext == 0)
+		return (ENOMEM);
+	p->p_addr->u_pcb.pcb_ext = ext;
+	bzero(&ext->ext_tss, sizeof(struct i386tss)); 
+	ext->ext_tss.tss_esp0 = (unsigned)p->p_addr + ctob(UPAGES) - 16;
+        ext->ext_tss.tss_ss0 = GSEL(GDATA_SEL, SEL_KPL);
+	/*
+	 * The last byte of the i/o map must be followed by an 0xff byte.
+	 * We arbitrarily allocate 16 bytes here, to keep the starting
+	 * address on a doubleword boundary.
+	 */
+	offset = PAGE_SIZE - 16;
+	ext->ext_tss.tss_ioopt = 
+	    (offset - ((unsigned)&ext->ext_tss - (unsigned)ext)) << 16;
+	ext->ext_iomap = (caddr_t)ext + offset;
+	ext->ext_vm86.vm86_intmap = (caddr_t)ext + offset - 32;
+	ext->ext_vm86.vm86_inited = 0;
+
+	addr = (u_long *)ext->ext_vm86.vm86_intmap;
+	for (i = 0; i < (ctob(IOPAGES) + 32 + 16) / sizeof(u_long); i++)
+		*addr++ = ~0;
+
+	ssd.ssd_base = (unsigned)&ext->ext_tss;
+	ssd.ssd_limit -= ((unsigned)&ext->ext_tss - (unsigned)ext);
+	ssdtosd(&ssd, &ext->ext_tssd);
+	
+	/* switch to the new TSS after syscall completes */
+	need_resched();
+
+	return 0;
+}
+
+struct i386_ioperm_args {
+	u_short start;
+	u_short length;
+	u_char enable;
+};
+
+static int
+i386_set_ioperm(p, args, retval)
+	struct proc *p;
+	char *args;
+	int *retval;
+{
+	int i, error = 0;
+	struct i386_ioperm_args ua;
+	char *iomap;
+
+	if (error = copyin(args, &ua, sizeof(struct i386_ioperm_args)))
+		return (error);
+
+        /* Only root can do this */
+        if (error = suser(p->p_ucred, &p->p_acflag))
+                return (error);
+	/*
+	 * XXX 
+	 * While this is restricted to root, we should probably figure out
+	 * whether any other driver is using this i/o address, as so not to
+	 * cause confusion.  This probably requires a global 'usage registry'.
+	 */
+
+	if (p->p_addr->u_pcb.pcb_ext == 0)
+		if (error = i386_extend_pcb(p))
+			return (error);
+	iomap = (char *)p->p_addr->u_pcb.pcb_ext->ext_iomap;
+
+	if ((int)(ua.start + ua.length) > 0xffff)
+		return (EINVAL);
+
+	for (i = ua.start; i < (int)(ua.start + ua.length) + 1; i++) {
+		if (ua.enable) 
+			iomap[i >> 3] &= ~(1 << (i & 7));
+		else
+			iomap[i >> 3] |= (1 << (i & 7));
+	}
+	return (error);
+}
+
+static int
+i386_get_ioperm(p, args, retval)
+	struct proc *p;
+	char *args;
+	int *retval;
+{
+	int i, state, error = 0;
+	struct i386_ioperm_args ua;
+	char *iomap;
+
+	if (error = copyin(args, &ua, sizeof(struct i386_ioperm_args)))
+		return (error);
+
+	if (p->p_addr->u_pcb.pcb_ext == 0) {
+		ua.length = 0;
+		goto done;
+	}
+
+	iomap = (char *)p->p_addr->u_pcb.pcb_ext->ext_iomap;
+
+	state = (iomap[i >> 3] >> (i & 7)) & 1;
+	ua.enable = !state;
+	ua.length = 1;
+
+	for (i = ua.start + 1; i < 0x10000; i++) {
+		if (state != ((iomap[i >> 3] >> (i & 7)) & 1))
+			break;
+		ua.length++;
+	}
+			
+done:
+	error = copyout(&ua, args, sizeof(struct i386_ioperm_args));
+	return (error);
+}
+#endif /* VM86 */
 
 #ifdef USER_LDT
 /*

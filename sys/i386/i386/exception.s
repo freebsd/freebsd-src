@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: exception.s,v 1.3 1997/07/30 22:51:11 smp Exp smp $
+ *	$Id: exception.s,v 1.34 1997/07/31 05:43:02 fsmp Exp $
  */
 
 #include "npx.h"				/* NNPX */
@@ -220,6 +220,10 @@ calltrap:
 	subl	%eax,%eax
 	testb	$SEL_RPL_MASK,TRAPF_CS_OFF(%esp)
 	jne	1f
+#ifdef VM86
+	testl	$PSL_VM,TF_EFLAGS(%esp)
+	jne	1f
+#endif /* VM86 */
 	movl	_cpl,%eax
 1:
 	/*

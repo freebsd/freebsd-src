@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: sysarch.h,v 1.6 1997/02/22 09:35:18 peter Exp $
  */
 
 /*
@@ -43,6 +43,11 @@
 
 #define I386_GET_LDT	0
 #define I386_SET_LDT	1
+				/* I386_IOPL */
+#define I386_GET_IOPERM	3
+#define I386_SET_IOPERM	4
+				/* xxxxx */
+#define I386_VM86	6
 
 #ifdef KERNEL
 /* nothing here yet... */

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.92 1997/07/17 19:44:53 dyson Exp $
+ *	$Id: locore.s,v 1.93 1997/07/20 08:37:18 bde Exp $
  *
  *		originally from: locore.s, by William F. Jolitz
  *
@@ -334,6 +334,18 @@ _pc98_system_parameter:
 #endif
 
 	call	create_pagetables
+
+#ifdef VM86
+/*
+ * If the CPU has support for VME, turn it on.
+ */ 
+	testl	$CPUID_VME, R(_cpu_feature)
+	jz	1f
+	movl	%cr4, %eax
+	orl	$CR4_VME, %eax
+	movl	%eax, %cr4
+1:
+#endif /* VM86 */
 
 #ifdef BDE_DEBUGGER
 /*
