@@ -33,7 +33,7 @@ Scan_Disk(Disk *d)
     u_long l;
     int i,j,fd;
 
-    strcpy(device,"/dev/r");
+    strcpy(device,"/dev/");
     strcat(device,d->name);
 
     fd = open(device,O_RDWR);
