@@ -2,7 +2,9 @@
 
 .PATH: ${.CURDIR}/../../dev/aac
 
+.if ${MACHINE_ARCH} == "i386"
 SUBDIR= aac_linux
+.endif
 
 KMOD=	aac
 SRCS=	aac.c aac_pci.c aac_disk.c aac_cam.c
