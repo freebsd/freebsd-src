@@ -79,12 +79,12 @@ Specify output file.
 Besides the keywords which will be listed below,
 the following are valid tokens in
 .Ar src-file :
-.Bl -tag -width literal
+.Bl -tag -width ".Ar literal"
 .It Dv RUNE
 A
 .Dv RUNE
 may be any of the following:
-.Bl -tag -width 0x[0-9a-z]*
+.Bl -tag -width ".Ar 0x[0-9a-z]*"
 .It Ar 'x'
 The ASCII character
 .Ar x .
@@ -119,7 +119,7 @@ or
 Used to indicate ranges.
 .It Ar literal
 The follow characters are taken literally:
-.Bl -tag -width "<\|\|(\|\|["
+.Bl -tag -width ".Dv <\|\|(\|\|["
 .It Dv "<\|(\|["
 Used to start a mapping.  All are equivalent.
 .It Dv ">\|\^)\|]"
@@ -130,13 +130,13 @@ Used as a delimiter in mappings.
 .El
 .Pp
 Key words which should only appear once are:
-.Bl -tag -width PHONOGRAM
+.Bl -tag -width ".Dv PHONOGRAM"
 .It Dv ENCODING
 Followed by a
 .Dv STRING
 which indicates the encoding mechanism to be used for this locale.
 The current encodings are:
-.Bl -tag -width MSKanji
+.Bl -tag -width ".Dv MSKanji"
 .It Dv BIG5
 The
 .Dq Big5
@@ -158,7 +158,7 @@ and
 No translation and the default.
 .It Dv UTF2
 (deprecated)
-.Dv "Universal character set Transformation Format"
+.Dq "Universal character set Transformation Format"
 adopted from
 .Tn "Plan 9 from Bell Labs" .
 .It Dv UTF-8
@@ -186,7 +186,7 @@ follows and is used as the invalid rune for this locale.
 .Pp
 The following keywords may appear multiple times and have the following
 format for data:
-.Bl -tag -width "<RUNE1 THRU RUNEn : RUNE2>" -offset indent
+.Bl -tag -width ".Dv <RUNE1 THRU RUNEn : RUNE2>" -offset indent
 .It Dv <RUNE1 RUNE2>
 .Dv RUNE1
 is mapped to
@@ -202,7 +202,7 @@ through
 .Dv RUNE2
 + n-1.
 .El
-.Bl -tag -width PHONOGRAM
+.Bl -tag -width ".Dv PHONOGRAM"
 .It Dv MAPLOWER
 Defines the tolower mappings.
 .Dv RUNE2
@@ -227,7 +227,7 @@ are allowed.
 .Pp
 The following keywords may appear multiple times and have the following
 format for data:
-.Bl -tag -width "RUNE1 THRU RUNEn" -offset indent
+.Bl -tag -width ".Dv RUNE1 THRU RUNEn" -offset indent
 .It Dv RUNE
 This rune has the property defined by the keyword.
 .It Dv "RUNE1 THRU RUNEn"
@@ -237,7 +237,7 @@ and
 .Dv RUNEn
 have the property defined by the keyword.
 .El
-.Bl -tag -width PHONOGRAM
+.Bl -tag -width ".Dv PHONOGRAM"
 .It Dv ALPHA
 Defines runes which are alphabetic, printable and graphic.
 .It Dv CONTROL
