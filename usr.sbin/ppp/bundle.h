@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.h,v 1.9 1998/06/27 14:17:24 brian Exp $
+ *	$Id: bundle.h,v 1.10 1998/07/28 21:54:51 brian Exp $
  */
 
 #define	PHASE_DEAD		0	/* Link is dead */
@@ -142,7 +142,7 @@ extern int bundle_SetRoute(struct bundle *, int, struct in_addr,
                            struct in_addr, struct in_addr, int, int);
 extern void bundle_Close(struct bundle *, const char *, int);
 extern void bundle_Down(struct bundle *, int);
-extern void bundle_Open(struct bundle *, const char *, int);
+extern void bundle_Open(struct bundle *, const char *, int, int);
 extern void bundle_LinkClosed(struct bundle *, struct datalink *);
 
 extern int bundle_FillQueues(struct bundle *);
