@@ -449,30 +449,30 @@
 311	MNOPROTO BSD	{ int setresuid(uid_t ruid, uid_t euid, uid_t suid); }
 312	MNOPROTO BSD	{ int setresgid(gid_t rgid, gid_t egid, gid_t sgid); }
 313	OBSOL	NOHIDE	signanosleep
-314     UNIMPL  NOHIDE     aio_return
-315     UNIMPL	NOHIDE     aio_suspend
-316     UNIMPL	NOHIDE     aio_cancel
-317     UNIMPL	NOHIDE     aio_error
-318     UNIMPL	NOHIDE     aio_read
-319     UNIMPL	NOHIDE     aio_write
-320     UNIMPL	NOHIDE     lio_listio
-321     MNOPROTO BSD     { int yield(void); }
+314	UNIMPL	NOHIDE	aio_return
+315	UNIMPL	NOHIDE	aio_suspend
+316	UNIMPL	NOHIDE	aio_cancel
+317	UNIMPL	NOHIDE	aio_error
+318	UNIMPL	NOHIDE	aio_read
+319	UNIMPL	NOHIDE	aio_write
+320	UNIMPL	NOHIDE	lio_listio
+321	MNOPROTO BSD	{ int yield(void); }
 322	OBSOL	NOHIDE	thr_sleep
 323	OBSOL	NOHIDE	thr_wakeup
-324     MNOPROTO BSD     { int mlockall(int how); }
-325     MNOPROTO BSD     { int munlockall(void); }
-326     NOPROTO     BSD     { int __getcwd(u_char *buf, u_int buflen); }
+324	MNOPROTO BSD	{ int mlockall(int how); }
+325	MNOPROTO BSD	{ int munlockall(void); }
+326	NOPROTO	BSD	{ int __getcwd(u_char *buf, u_int buflen); }
 
-327     MNOPROTO     POSIX   { int sched_setparam (pid_t pid, const struct sched_param *param); }
-328     MNOPROTO     POSIX   { int sched_getparam (pid_t pid, struct sched_param *param); }
+327	MNOPROTO POSIX	{ int sched_setparam (pid_t pid, const struct sched_param *param); }
+328	MNOPROTO POSIX	{ int sched_getparam (pid_t pid, struct sched_param *param); }
 
-329     MNOPROTO     POSIX   { int sched_setscheduler (pid_t pid, int policy, const struct sched_param *param); }
-330     MNOPROTO     POSIX   { int sched_getscheduler (pid_t pid); }
+329	MNOPROTO POSIX	{ int sched_setscheduler (pid_t pid, int policy, const struct sched_param *param); }
+330	MNOPROTO POSIX	{ int sched_getscheduler (pid_t pid); }
 
-331     MNOPROTO     POSIX   { int sched_yield (void); }
-332     MNOPROTO     POSIX   { int sched_get_priority_max (int policy); }
-333     MNOPROTO     POSIX   { int sched_get_priority_min (int policy); }
-334     MNOPROTO     POSIX   { int sched_rr_get_interval (pid_t pid, struct timespec *interval); }
+331	MNOPROTO POSIX	{ int sched_yield (void); }
+332	MNOPROTO POSIX	{ int sched_get_priority_max (int policy); }
+333	MNOPROTO POSIX	{ int sched_get_priority_min (int policy); }
+334	MNOPROTO POSIX	{ int sched_rr_get_interval (pid_t pid, struct timespec *interval); }
 335	NOPROTO	BSD	{ int utrace(const void *addr, size_t len); }
 ; XXX note - bigendian is different
 336	MSTD BSD	{ int ia32_sendfile(int fd, int s, u_int32_t offsetlo, \
