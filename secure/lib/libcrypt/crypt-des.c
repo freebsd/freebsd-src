@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: crypt.c,v 1.4 1994/05/01 08:16:38 g89r4222 Exp $
+ *	$Id: crypt.c,v 1.2 1994/08/08 17:28:52 csgr Exp $
  *
  * This is an original implementation of the DES and the crypt(3) interfaces
  * by David Burren <davidb@werj.com.au>.
@@ -362,7 +362,7 @@ setup_salt(long salt)
 	}
 }
 
-static int
+int
 des_setkey(const char *key)
 {
 	u_long	k0, k1, rawkey0, rawkey1;
@@ -559,7 +559,7 @@ do_des(	u_long l_in, u_long r_in, u_long *l_out, u_long *r_out, int count)
 	return(0);
 }
 
-static int
+int
 des_cipher(const char *in, char *out, long salt, int count)
 {
 	u_long	l_out, r_out, rawl, rawr;
