@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.16 1997/04/12 14:34:02 peter Exp $
+# $Id: Makefile,v 1.17 1997/04/18 23:44:54 jkh Exp $
 #
 # This has most of the glue needed to compile tknvi and the perl hooks,
 # but not all.
@@ -77,7 +77,7 @@ CFLAGS+=	-I/usr/local/include -I/usr/X11R6/include
 .PATH:		${SRCDIR}/tcl_api
 DPADD+=		${LIBTCL} ${LIBM}
 LDADD+=		-ltcl -lm
-CFLAGS+=	-DHAVE_TCL_INTERP
+CFLAGS+=	-DHAVE_TCL_INTERP -I/usr/include/tcl
 .endif
 
 .if defined(PERLINTERP)
