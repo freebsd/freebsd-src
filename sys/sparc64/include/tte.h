@@ -68,6 +68,8 @@
 #define	TD_NFO		(1UL << 60)
 #define	TD_IE		(1UL << 59)
 #define	TD_PA(pa)	((pa) & (TD_PA_MASK << TD_PA_SHIFT))
+/* NOTE: bit 6 of TD_SOFT will be sign-extended if used as an immediate. */
+#define	TD_FAKE		((1UL << 5) << TD_SOFT_SHIFT)
 #define	TD_EXEC		((1UL << 4) << TD_SOFT_SHIFT)
 #define	TD_REF		((1UL << 3) << TD_SOFT_SHIFT)
 #define	TD_PV		((1UL << 2) << TD_SOFT_SHIFT)
