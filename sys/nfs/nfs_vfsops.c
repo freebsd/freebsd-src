@@ -807,6 +807,8 @@ nfs_mount(mp, path, data, ndp, p)
 		nfs_decode_args(nmp, &args);
 		return (0);
 	}
+	if (args.fhsize < 0 || args.fhsize > NFSX_V3FHMAX)
+		return (EINVAL);
 	error = copyin((caddr_t)args.fh, (caddr_t)nfh, args.fhsize);
 	if (error)
 		return (error);
