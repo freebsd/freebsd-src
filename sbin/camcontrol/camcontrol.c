@@ -1798,11 +1798,11 @@ camdebug(int argc, char **argv, char *combinedopt)
 			arglist |= CAM_ARG_DEBUG_INFO;
 			ccb.cdbg.flags |= CAM_DEBUG_INFO;
 			break;
-		case 'S':
+		case 'T':
 			arglist |= CAM_ARG_DEBUG_TRACE;
 			ccb.cdbg.flags |= CAM_DEBUG_TRACE;
 			break;
-		case 'T':
+		case 'S':
 			arglist |= CAM_ARG_DEBUG_SUBTRACE;
 			ccb.cdbg.flags |= CAM_DEBUG_SUBTRACE;
 			break;
