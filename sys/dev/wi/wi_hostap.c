@@ -1120,13 +1120,18 @@ wihap_ioctl(struct wi_softc *sc, u_long command, caddr_t data)
 	struct hostap_sta	reqsta;
 	struct hostap_sta	stabuf;
 	int			s, error = 0, n, flag;
+#if __FreeBSD_version >= 500000
+	struct thread		*td = curthread;
+#else
+	struct proc		*td = curproc;		/* Little white lie */
+#endif
 
 	if (!(sc->arpcom.ac_if.if_flags & IFF_RUNNING))
 		return ENODEV;
 
 	switch (command) {
 	case SIOCHOSTAP_DEL:
-		if ((error = suser(curthread)))
+		if ((error = suser(td)))
 			break;
 		if ((error = copyin(ifr->ifr_data, &reqsta, sizeof(reqsta))))
 			break;
@@ -1170,7 +1175,7 @@ wihap_ioctl(struct wi_softc *sc, u_long command, caddr_t data)
 		break;
 
 	case SIOCHOSTAP_ADD:
-		if ((error = suser(curthread)))
+		if ((error = suser(td)))
 			break;
 		if ((error = copyin(ifr->ifr_data, &reqsta, sizeof(reqsta))))
 			break;
@@ -1194,7 +1199,7 @@ wihap_ioctl(struct wi_softc *sc, u_long command, caddr_t data)
 		break;
 
 	case SIOCHOSTAP_SFLAGS:
-		if ((error = suser(curthread)))
+		if ((error = suser(td)))
 			break;
 		if ((error = copyin(ifr->ifr_data, &flag, sizeof(int))))
 			break;
