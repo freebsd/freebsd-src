@@ -2850,8 +2850,10 @@ get_palette(video_adapter_t *adp, int base, int count,
     r = malloc(count*3, M_DEVBUF, M_WAITOK);
     g = r + count;
     b = g + count;
-    if (vga_save_palette2(adp, base, count, r, g, b))
+    if (vga_save_palette2(adp, base, count, r, g, b)) {
+	free(r, M_DEVBUF);
 	return ENODEV;
+    }
     copyout(r, red, count);
     copyout(g, green, count);
     copyout(b, blue, count);
