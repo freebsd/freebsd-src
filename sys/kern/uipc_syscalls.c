@@ -1129,7 +1129,7 @@ getsockname1(p, uap, retval, compat)
 #else   /* COMPAT_OLDSOCK */
 /* ARGSUSED */
 int
-getsockname1(p, uap, retval)
+getsockname(p, uap, retval)
 	struct proc *p;
 	register struct getsockname_args *uap;
 	int *retval;
@@ -1208,7 +1208,7 @@ getpeername1(p, uap, retval, compat)
 #else   /* COMPAT_OLDSOCK */
 /* ARGSUSED */
 int
-getpeername1(p, uap, retval)
+getpeername(p, uap, retval)
 	struct proc *p;
 	register struct getpeername_args *uap;
 	int *retval;
