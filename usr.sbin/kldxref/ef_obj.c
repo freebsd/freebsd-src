@@ -331,6 +331,7 @@ ef_obj_open(const char *filename, struct elf_file *efile, int verbose)
 	Elf_Shdr *shdr;
 	Elf_Sym *es;
 	char *mapbase;
+	void *vtmp;
 	size_t mapsize;
 	int alignmask, error, fd, pb, ra, res, rl;
 	int i, j, nbytes, nsym, shstrindex, symstrindex, symtabindex;
@@ -374,11 +375,11 @@ ef_obj_open(const char *filename, struct elf_file *efile, int verbose)
 	    hdr->e_shentsize != sizeof(Elf_Shdr))
 		goto out;
 
-	if (ef_obj_read_entry(ef, hdr->e_shoff, nbytes, (void**)&shdr) != 0) {
+	if (ef_obj_read_entry(ef, hdr->e_shoff, nbytes, &vtmp) != 0) {
 		printf("ef_read_entry failed\n");
 		goto out;
 	}
-	ef->e_shdr = shdr;
+	ef->e_shdr = shdr = vtmp;
 
 	/* Scan the section header for information and table sizing. */
 	nsym = 0;
