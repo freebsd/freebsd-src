@@ -1,4 +1,3 @@
-/* $Id: freebsd.h,v 1.18 1999/08/19 09:16:22 obrien Exp $ */
 /* Base configuration file for all FreeBSD targets.
    Copyright (C) 1999 Free Software Foundation, Inc.
 
@@ -24,6 +23,8 @@ Boston, MA 02111-1307, USA.  */
    their commonalities.
    Adapted from /usr/src/contrib/gcc/config/i386/freebsd.h & 
    egcs/gcc/config/i386/freebsd-elf.h version by David O'Brien  */
+
+/* $FreeBSD$ */
 
 
 /* Don't assume anything about the header files.  */
