@@ -202,6 +202,9 @@ u_int g_mirror_ndisks(struct g_mirror_softc *sc, int state);
 int g_mirror_destroy(struct g_mirror_softc *sc, boolean_t force);
 int g_mirror_event_send(void *arg, int state, int flags);
 struct g_mirror_metadata;
+int g_mirror_add_disk(struct g_mirror_softc *sc, struct g_provider *pp,
+    struct g_mirror_metadata *md);
+int g_mirror_read_metadata(struct g_consumer *cp, struct g_mirror_metadata *md);
 void g_mirror_fill_metadata(struct g_mirror_softc *sc,
     struct g_mirror_disk *disk, struct g_mirror_metadata *md);
 void g_mirror_update_metadata(struct g_mirror_disk *disk);

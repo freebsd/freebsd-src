@@ -2320,7 +2320,7 @@ again:
 }
 #undef	DISK_STATE_CHANGED
 
-static int
+int
 g_mirror_read_metadata(struct g_consumer *cp, struct g_mirror_metadata *md)
 {
 	struct g_provider *pp;
@@ -2434,7 +2434,7 @@ g_mirror_check_metadata(struct g_mirror_softc *sc, struct g_provider *pp,
 	return (0);
 }
 
-static int
+int
 g_mirror_add_disk(struct g_mirror_softc *sc, struct g_provider *pp,
     struct g_mirror_metadata *md)
 {
