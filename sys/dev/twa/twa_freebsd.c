@@ -584,7 +584,7 @@ twa_alloc_req_pkts(struct twa_softc *sc, int num_reqs)
 				TWA_ALIGNMENT,		/* alignment */
 				0,			/* boundary */
 				BUS_SPACE_MAXADDR,	/* lowaddr */
-				BUS_SPACE_MAXADDR + 1, 	/* highaddr */
+				BUS_SPACE_MAXADDR, 	/* highaddr */
 				NULL, NULL, 		/* filter, filterarg */
 				TWA_Q_LENGTH *
 				(sizeof(struct twa_command_packet)),/* maxsize */
