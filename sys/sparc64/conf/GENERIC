@@ -28,6 +28,7 @@ ident		GENERIC
 #hints		"GENERIC.hints"		#Default places to look for devices.
 
 makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
+makeoptions	NO_MODULES=yes
 
 # Platforms supported
 #	At this time all platforms are supported, as-is.
@@ -116,13 +117,6 @@ device		ses		# SCSI Environmental Services (and SAF-TE)
 # RAID controllers
 #device		amr		# AMI MegaRAID
 #device		mlx		# Mylex DAC960 family
-
-# atkbdc0 controls both the keyboard and the PS/2 mouse
-#device		atkbdc		# AT keyboard controller
-#device		atkbd		# AT keyboard
-#device		psm		# PS/2 mouse
-
-#device		vga		# VGA video card driver
 
 #device		splash		# Splash screen and screen saver support
 
