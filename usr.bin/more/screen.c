@@ -36,6 +36,11 @@
 static char sccsid[] = "@(#)screen.c	8.2 (Berkeley) 4/20/94";
 #endif /* not lint */
 
+#ifndef lint
+static const char rcsid[] =
+  "$FreeBSD$";
+#endif /* not lint */
+
 /*
  * Routines which deal with the characteristics of the terminal.
  * Uses termcap to be as terminal-independent as possible.
@@ -44,8 +49,12 @@ static char sccsid[] = "@(#)screen.c	8.2 (Berkeley) 4/20/94";
  */
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
-#include <less.h>
+#include <termcap.h>
+#include <unistd.h>
+
+#include "less.h"
 
 #define TERMIOS 1
 
@@ -94,7 +103,9 @@ static char
 	*sc_b_out,		/* Exit bold mode */
 	*sc_backspace,		/* Backspace cursor */
 	*sc_init,		/* Startup terminal initialization */
-	*sc_deinit;		/* Exit terminal de-intialization */
+	*sc_deinit,		/* Exit terminal de-intialization */
+	*sc_keypad_on,		/* Enter keypad mode */
+	*sc_keypad_off;		/* Exit keypad mode */
 
 int auto_wrap;			/* Terminal does \r\n when write past margin */
 int ignaw;			/* Terminal ignores \n immediately after wrap */
@@ -116,12 +127,10 @@ int mode_flags = 0;
  * and needed by, the termcap library.
  * It may be necessary on some systems to declare them extern here.
  */
-/*extern*/ short ospeed;	/* Terminal output baud rate */
+/*extern*/ speed_t ospeed;	/* Terminal output baud rate */
 /*extern*/ char PC;		/* Pad character */
 
 extern int back_scroll;
-char *tgetstr();
-char *tgoto();
 
 /*
  * Change terminal to "raw mode", or restore to "normal" mode.
@@ -189,9 +198,9 @@ raw_mode(on)
 		s = save_term;
 	}
 #if TERMIO
-	(void)ioctl(2, TCSETAW, &s);
+	(void)ioctl(STDERR_FILENO, TCSETAW, &s);
 #else
-	tcsetattr(2, TCSADRAIN, &s);
+	tcsetattr(STDERR_FILENO, TCSADRAIN, &s);
 #endif
 #else
 	struct sgttyb s;
@@ -203,8 +212,8 @@ raw_mode(on)
 		/*
 		 * Get terminal modes.
 		 */
-		(void)ioctl(2, TIOCGETP, &s);
-		(void)ioctl(2, TIOCGLTC, &l);
+		(void)ioctl(STDERR_FILENO, TIOCGETP, &s);
+		(void)ioctl(STDERR_FILENO, TIOCGLTC, &l);
 
 		/*
 		 * Save modes and set certain variables dependent on modes.
@@ -227,7 +236,7 @@ raw_mode(on)
 		 */
 		s = save_term;
 	}
-	(void)ioctl(2, TIOCSETN, &s);
+	(void)ioctl(STDERR_FILENO, TIOCSETN, &s);
 #endif
 }
 
@@ -249,8 +258,6 @@ get_term()
 #endif
 	static char sbuf[1024];
 
-	char *getenv(), *strcpy();
-
 	/*
 	 * Find out what kind of terminal this is.
 	 */
@@ -263,12 +270,12 @@ get_term()
 	 * Get size of the screen.
 	 */
 #ifdef TIOCGWINSZ
-	if (ioctl(2, TIOCGWINSZ, &w) == 0 && w.ws_row > 0)
+	if (ioctl(STDERR_FILENO, TIOCGWINSZ, &w) == 0 && w.ws_row > 0)
 		sc_height = w.ws_row;
 	else
 #else
 #ifdef WIOCGETD
-	if (ioctl(2, WIOCGETD, &w) == 0 && w.uw_height > 0)
+	if (ioctl(STDERR_FILENO, WIOCGETD, &w) == 0 && w.uw_height > 0)
 		sc_height = w.uw_height/w.uw_vs;
 	else
 #endif
@@ -281,18 +288,18 @@ get_term()
 	}
 
 #ifdef TIOCGWINSZ
- 	if (ioctl(2, TIOCGWINSZ, &w) == 0 && w.ws_col > 0)
+ 	if (ioctl(STDERR_FILENO, TIOCGWINSZ, &w) == 0 && w.ws_col > 0)
 		sc_width = w.ws_col;
 	else
 #ifdef WIOCGETD
-	if (ioctl(2, WIOCGETD, &w) == 0 && w.uw_width > 0)
+	if (ioctl(STDERR_FILENO, WIOCGETD, &w) == 0 && w.uw_width > 0)
 		sc_width = w.uw_width/w.uw_hs;
 	else
 #endif
 #endif
  		sc_width = tgetnum("co");
  	if (sc_width < 0)
-  		sc_width = 80;
+		sc_width = 80;
 	(void) setvari("_sc_height", (long) sc_height - 1);
 	(void) setvari("_sc_width", (long) sc_width);
 
@@ -323,9 +330,17 @@ get_term()
 	if (sc_init == NULL)
 		sc_init = "";
 
-	sc_deinit= tgetstr("te", &sp);
+	sc_deinit = tgetstr("te", &sp);
 	if (sc_deinit == NULL)
 		sc_deinit = "";
+
+	sc_keypad_on = tgetstr("ks", &sp);
+	if (sc_keypad_on == NULL)
+		sc_keypad_on = "";
+
+	sc_keypad_off = tgetstr("ke", &sp);
+	if (sc_keypad_off == NULL)
+		sc_keypad_off = "";
 
 	sc_eol_clear = tgetstr("ce", &sp);
 	if (hard || sc_eol_clear == NULL || *sc_eol_clear == '\0')
@@ -446,6 +461,38 @@ get_term()
 	}
 }
 
+/*
+ * Retrieves string (if any) associated with tcap from the termcap.  If the
+ * capability is not a string capability, an ascii approximation of the
+ * capability will be returned.  Returns NULL if tcap cannot be found.
+ * The returned string is valid until the next call to gettermcap().
+ */
+const char *
+gettermcap(tcap)
+	char *tcap;
+{
+	char termbuf[2048];
+	char *term;
+	static char sbuf[1024];
+	char *sp = sbuf;
+	int i;
+
+	/*
+	 * Find out what kind of terminal this is.
+	 */
+ 	if ((term = getenv("TERM")) == NULL)
+ 		term = "unknown";
+ 	if (tgetent(termbuf, term) <= 0)
+ 		(void)strcpy(termbuf, "dumb:co#80:hc:");
+
+	sp = tgetstr(tcap, &sp);
+	if (sp == NULL || !*sp) {
+		sprintf (sbuf, "%d", i=tgetnum(tcap));
+		if (i == -1)
+			sprintf (sbuf, "%d", tgetflag(tcap));
+	}
+	return sbuf;
+}
 
 /*
  * Below are the functions which perform all the
@@ -460,6 +507,7 @@ int putchr();
 init()
 {
 	tputs(sc_init, sc_height, putchr);
+	tputs(sc_keypad_on, 1, putchr);
 }
 
 /*
@@ -468,6 +516,7 @@ init()
 deinit()
 {
 	tputs(sc_deinit, sc_height, putchr);
+	tputs(sc_keypad_off, 1, putchr);
 }
 
 /*
