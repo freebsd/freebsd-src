@@ -39,7 +39,7 @@
  * from: Utah $Hdr: swap_pager.c 1.4 91/04/30$
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
- * $Id: swap_pager.c,v 1.68 1996/06/10 04:58:48 dyson Exp $
+ * $Id: swap_pager.c,v 1.69 1996/07/27 03:23:51 dyson Exp $
  */
 
 /*
@@ -1078,7 +1078,7 @@ swap_pager_getpages(object, m, count, reqpage)
 			pagedaemon_wakeup();
 		swap_pager_needflags &= ~(SWAP_FREE_NEEDED|SWAP_FREE_NEEDED_BY_PAGEOUT);
 		if (rv == VM_PAGER_OK) {
-			pmap_tc_modified(m[reqpage]);
+			pmap_clear_modify(VM_PAGE_TO_PHYS(m[reqpage]));
 			m[reqpage]->valid = VM_PAGE_BITS_ALL;
 			m[reqpage]->dirty = 0;
 		}
@@ -1092,7 +1092,7 @@ swap_pager_getpages(object, m, count, reqpage)
 		 */
 		if (rv == VM_PAGER_OK) {
 			for (i = 0; i < count; i++) {
-				pmap_tc_modified(m[i]);
+				pmap_clear_modify(VM_PAGE_TO_PHYS(m[i]));
 				m[i]->dirty = 0;
 				m[i]->flags &= ~PG_ZERO;
 				if (i != reqpage) {
@@ -1469,7 +1469,7 @@ retryfree:
 	if (rv == VM_PAGER_OK) {
 		for (i = 0; i < count; i++) {
 			if (rtvals[i] == VM_PAGER_OK) {
-				pmap_tc_modified(m[i]);
+				pmap_clear_modify(VM_PAGE_TO_PHYS(m[i]));
 				m[i]->dirty = 0;
 				/*
 				 * optimization, if a page has been read
@@ -1477,7 +1477,7 @@ retryfree:
 				 */
 				if ((m[i]->queue != PQ_ACTIVE) &&
 				    ((m[i]->flags & (PG_WANTED|PG_REFERENCED)) ||
-				    pmap_tc_referenced(VM_PAGE_TO_PHYS(m[i])))) {
+				    pmap_is_referenced(VM_PAGE_TO_PHYS(m[i])))) {
 					vm_page_activate(m[i]);
 				}
 			}
@@ -1580,21 +1580,12 @@ swap_pager_finish(spc)
 			    (u_long) VM_PAGE_TO_PHYS(spc->spc_m[i]));
 		}
 	} else {
-		int pagewanted = 0;
 		for (i = 0; i < spc->spc_count; i++) {
-			if (spc->spc_m[i]->flags & (PG_WANTED | PG_REFERENCED)) {
-				pagewanted = 1;
-				break;
-			}
-		}
-		for (i = 0; i < spc->spc_count; i++) {
-			pmap_tc_modified(spc->spc_m[i]);
+			pmap_clear_modify(VM_PAGE_TO_PHYS(spc->spc_m[i]));
 			spc->spc_m[i]->dirty = 0;
-			if (pagewanted) {
-				if (spc->spc_m[i]->queue != PQ_ACTIVE)
-					vm_page_activate(spc->spc_m[i]);
-				spc->spc_m[i]->flags |= PG_REFERENCED;
-			}
+			if ((spc->spc_m[i]->queue != PQ_ACTIVE) &&
+			    ((spc->spc_m[i]->flags & PG_WANTED) || pmap_is_referenced(VM_PAGE_TO_PHYS(spc->spc_m[i]))))
+				vm_page_activate(spc->spc_m[i]);
 		}
 	}
 
@@ -1634,7 +1625,9 @@ swap_pager_iodone(bp)
 	if (bp->b_vp)
 		pbrelvp(bp);
 
+/*
 	if (bp->b_flags & B_WANTED)
+*/
 		wakeup(bp);
 
 	if (bp->b_rcred != NOCRED)

@@ -66,7 +66,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_fault.c,v 1.54 1996/07/27 03:23:52 dyson Exp $
+ * $Id: vm_fault.c,v 1.55 1996/07/28 01:14:01 dyson Exp $
  */
 
 /*
@@ -102,6 +102,10 @@ int vm_fault_additional_pages __P((vm_page_t, int, int, vm_page_t *, int *));
 #define VM_FAULT_READ_AHEAD 4
 #define VM_FAULT_READ_BEHIND 3
 #define VM_FAULT_READ (VM_FAULT_READ_AHEAD+VM_FAULT_READ_BEHIND+1)
+
+int vm_fault_free_1;
+int vm_fault_copy_save_1;
+int vm_fault_copy_save_2;
 
 /*
  *	vm_fault:
@@ -278,7 +282,7 @@ RetryFault:;
 			}
 
 			queue = m->queue;
-			vm_page_unqueue(m,0);
+			vm_page_unqueue_nowakeup(m);
 
 			/*
 			 * Mark page busy for other processes, and the pagedaemon.
@@ -561,6 +565,7 @@ readrest:
 				first_m = m;
 				m->dirty = VM_PAGE_BITS_ALL;
 				m = NULL;
+				++vm_fault_copy_save_1;
 			} else {
 				/*
 				 * Oh, well, lets copy it.
@@ -634,6 +639,7 @@ readrest:
 								PAGE_WAKEUP(m);
 								vm_page_free(m);
 								m = NULL;
+								++vm_fault_free_1;
 								tm->dirty = VM_PAGE_BITS_ALL;
 								first_m->dirty = VM_PAGE_BITS_ALL;
 							}
@@ -645,6 +651,7 @@ readrest:
 							vm_page_rename(m, other_object, other_pindex);
 							m->dirty = VM_PAGE_BITS_ALL;
 							m->valid = VM_PAGE_BITS_ALL;
+							++vm_fault_copy_save_2;
 						}
 					}
 				}
@@ -653,9 +660,9 @@ readrest:
 			if (m) {
 				if (m->queue != PQ_ACTIVE)
 					vm_page_activate(m);
-				/*
-				 * We no longer need the old page or object.
-				 */
+			/*
+			 * We no longer need the old page or object.
+			 */
 				PAGE_WAKEUP(m);
 			}
 
@@ -1084,7 +1091,7 @@ vm_fault_additional_pages(m, rbehind, rahead, marray, reqpage)
 	endpindex = pindex + (rahead + 1);
 	if (endpindex > object->size)
 		endpindex = object->size;
-	while (tpindex < endpindex) {
+	while (tpindex <  endpindex) {
 		if ( vm_page_lookup(object, tpindex)) {
 			break;
 		}	

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.60 1996/06/26 05:39:25 dyson Exp $
+ *	$Id: vm_page.c,v 1.61 1996/07/27 03:24:05 dyson Exp $
  */
 
 /*
@@ -385,7 +385,7 @@ vm_page_hash(object, pindex)
  *	The object and page must be locked, and must be splhigh.
  */
 
-void
+__inline void
 vm_page_insert(m, object, pindex)
 	register vm_page_t m;
 	register vm_object_t object;
@@ -434,7 +434,7 @@ vm_page_insert(m, object, pindex)
  *	The object and page must be locked, and at splhigh.
  */
 
-void
+__inline void
 vm_page_remove(m)
 	register vm_page_t m;
 {
@@ -523,19 +523,34 @@ vm_page_rename(m, new_object, new_pindex)
 }
 
 /*
- * vm_page_unqueue must be called at splhigh();
+ * vm_page_unqueue without any wakeup
  */
 __inline void
-vm_page_unqueue(m, wakeup)
+vm_page_unqueue_nowakeup(m)
 	vm_page_t m;
-	int wakeup;
 {
 	int queue = m->queue;
 	if (queue != PQ_NONE) {
 		m->queue = PQ_NONE;
 		TAILQ_REMOVE(vm_page_queues[queue].pl, m, pageq);
 		--(*vm_page_queues[queue].cnt);
-		if ((queue == PQ_CACHE) && wakeup) {
+	}
+}
+	
+
+/*
+ * vm_page_unqueue must be called at splhigh();
+ */
+__inline void
+vm_page_unqueue(m)
+	vm_page_t m;
+{
+	int queue = m->queue;
+	if (queue != PQ_NONE) {
+		m->queue = PQ_NONE;
+		TAILQ_REMOVE(vm_page_queues[queue].pl, m, pageq);
+		--(*vm_page_queues[queue].cnt);
+		if (queue == PQ_CACHE) {
 			if ((cnt.v_cache_count + cnt.v_free_count) <
 				(cnt.v_free_reserved + cnt.v_cache_min))
 				pagedaemon_wakeup();
@@ -721,7 +736,7 @@ vm_page_activate(m)
 	if (m->queue == PQ_CACHE)
 		cnt.v_reactivated++;
 
-	vm_page_unqueue(m, 1);
+	vm_page_unqueue(m);
 
 	if (m->wire_count == 0) {
 		TAILQ_INSERT_TAIL(&vm_page_queue_active, m, pageq);
@@ -736,7 +751,7 @@ vm_page_activate(m)
 /*
  * helper routine for vm_page_free and vm_page_free_zero
  */
-__inline static int
+static int
 vm_page_freechk_and_unqueue(m)
 	vm_page_t m;
 {
@@ -754,7 +769,7 @@ vm_page_freechk_and_unqueue(m)
 	}
 
 	vm_page_remove(m);
-	vm_page_unqueue(m,0);
+	vm_page_unqueue_nowakeup(m);
 	if ((m->flags & PG_FICTITIOUS) != 0) {
 		return 0;
 	}
@@ -773,7 +788,7 @@ vm_page_freechk_and_unqueue(m)
 /*
  * helper routine for vm_page_free and vm_page_free_zero
  */
-__inline static void
+static __inline void
 vm_page_free_wakeup()
 {
 	
@@ -880,7 +895,7 @@ vm_page_wire(m)
 
 	if (m->wire_count == 0) {
 		s = splvm();
-		vm_page_unqueue(m,1);
+		vm_page_unqueue(m);
 		splx(s);
 		cnt.v_wire_count++;
 	}
@@ -946,7 +961,7 @@ vm_page_deactivate(m)
 	if (m->wire_count == 0 && m->hold_count == 0) {
 		if (m->queue == PQ_CACHE)
 			cnt.v_reactivated++;
-		vm_page_unqueue(m,1);
+		vm_page_unqueue(m);
 		TAILQ_INSERT_TAIL(&vm_page_queue_inactive, m, pageq);
 		m->queue = PQ_INACTIVE;
 		cnt.v_inactive_count++;
@@ -977,7 +992,7 @@ vm_page_cache(m)
 		panic("vm_page_cache: caching a dirty page, pindex: %d", m->pindex);
 	}
 	s = splvm();
-	vm_page_unqueue(m,0);
+	vm_page_unqueue_nowakeup(m);
 	TAILQ_INSERT_TAIL(&vm_page_queue_cache, m, pageq);
 	m->queue = PQ_CACHE;
 	cnt.v_cache_count++;
@@ -1016,7 +1031,7 @@ vm_page_set_validclean(m, base, size)
 	m->valid |= pagebits;
 	m->dirty &= ~pagebits;
 	if( base == 0 && size == PAGE_SIZE)
-		pmap_tc_modified(m);
+		pmap_clear_modify(VM_PAGE_TO_PHYS(m));
 }
 
 /*
@@ -1056,8 +1071,10 @@ void
 vm_page_test_dirty(m)
 	vm_page_t m;
 {
-	if (m->dirty != VM_PAGE_BITS_ALL)
-		pmap_tc_modified(m);
+	if ((m->dirty != VM_PAGE_BITS_ALL) &&
+	    pmap_is_modified(VM_PAGE_TO_PHYS(m))) {
+		m->dirty = VM_PAGE_BITS_ALL;
+	}
 }
 
 /*

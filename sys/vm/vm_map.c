@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.52 1996/07/07 03:27:41 davidg Exp $
+ * $Id: vm_map.c,v 1.53 1996/07/27 03:23:56 dyson Exp $
  */
 
 /*
@@ -172,8 +172,6 @@ static void vm_map_entry_unwire __P((vm_map_t, vm_map_entry_t));
 static void vm_map_copy_entry __P((vm_map_t, vm_map_t, vm_map_entry_t,
 		vm_map_entry_t));
 static void vm_map_simplify_entry __P((vm_map_t, vm_map_entry_t));
-static __pure int vm_map_simplify_okay __P((vm_map_entry_t entry1,
-		vm_map_entry_t entry2));
 
 void
 vm_map_startup()
@@ -232,6 +230,7 @@ vmspace_alloc(min, max, pageable)
 	vm_map_init(&vm->vm_map, min, max, pageable);
 	pmap_pinit(&vm->vm_pmap);
 	vm->vm_map.pmap = &vm->vm_pmap;		/* XXX */
+	vm->vm_pmap.pm_map = &vm->vm_map;
 	vm->vm_refcnt = 1;
 	return (vm);
 }
@@ -635,8 +634,8 @@ vm_map_insert(map, object, offset, start, end, prot, max, cow)
 		return (KERN_NO_SPACE);
 
 	if ((prev_entry != &map->header) &&
-		(object == NULL) &&
 		(prev_entry->end == start) &&
+		((object == NULL) || (prev_entry->object.vm_object == object)) &&
 		(prev_entry->is_a_map == FALSE) &&
 		(prev_entry->is_sub_map == FALSE) &&
 		(prev_entry->inheritance == VM_INHERIT_DEFAULT) &&
@@ -649,22 +648,24 @@ vm_map_insert(map, object, offset, start, end, prot, max, cow)
 	 * See if we can avoid creating a new entry by extending one of our
 	 * neighbors.
 	 */
-		if (vm_object_coalesce(prev_entry->object.vm_object,
-			OFF_TO_IDX(prev_entry->offset),
-			(vm_size_t) (prev_entry->end
-			    - prev_entry->start),
-			(vm_size_t) (end - prev_entry->end))) {
+		if (object == NULL) {
+			if (vm_object_coalesce(prev_entry->object.vm_object,
+				OFF_TO_IDX(prev_entry->offset),
+				(vm_size_t) (prev_entry->end
+				    - prev_entry->start),
+				(vm_size_t) (end - prev_entry->end))) {
 
-			/*
-			 * Coalesced the two objects - can extend the
-			 * previous map entry to include the new
-			 * range.
-			 */
-			map->size += (end - prev_entry->end);
-			prev_entry->end = end;
-			prev_object = prev_entry->object.vm_object;
-			default_pager_convert_to_swapq(prev_object);
-			return (KERN_SUCCESS);
+				/*
+				 * Coalesced the two objects - can extend the
+				 * previous map entry to include the new
+				 * range.
+				 */
+				map->size += (end - prev_entry->end);
+				prev_entry->end = end;
+				prev_object = prev_entry->object.vm_object;
+				default_pager_convert_to_swapq(prev_object);
+				return (KERN_SUCCESS);
+			}
 		}
 	}
 	/*
@@ -706,10 +707,9 @@ vm_map_insert(map, object, offset, start, end, prot, max, cow)
 	/*
 	 * Update the free space hint
 	 */
-	if (map->first_free == prev_entry) {
-		if (prev_entry->end == new_entry->start)
-			map->first_free = new_entry;
-	}
+	if ((map->first_free == prev_entry) &&
+		(prev_entry->end >= new_entry->start))
+		map->first_free = new_entry;
 
 	default_pager_convert_to_swapq(object);
 	return (KERN_SUCCESS);
@@ -739,9 +739,8 @@ vm_map_findspace(map, start, length, addr)
 	 * at this address, we have to start after it.
 	 */
 	if (start == map->min_offset) {
-		if ((entry = map->first_free) != &map->header) {
+		if ((entry = map->first_free) != &map->header)
 			start = entry->end;
-		}
 	} else {
 		vm_map_entry_t tmp;
 
@@ -822,39 +821,12 @@ vm_map_find(map, object, offset, addr, length, find_space, prot, max, cow)
 	return (result);
 }
 
-static __pure int
-vm_map_simplify_okay(entry1, entry2)
-	vm_map_entry_t entry1, entry2;
-{
-	if ((entry1->end != entry2->start) ||
-		(entry1->object.vm_object != entry2->object.vm_object))
-		return 0;
-	if (entry1->object.vm_object) {
-		if (entry1->object.vm_object->behavior !=
-			entry2->object.vm_object->behavior)
-			return 0;
-		if (entry1->offset + (entry1->end - entry1->start) !=
-			entry2->offset)
-			return 0;
-	}
-	if ((entry1->needs_copy != entry2->needs_copy) ||
-		(entry1->copy_on_write != entry2->copy_on_write) ||
-		(entry1->protection != entry2->protection) ||
-		(entry1->max_protection != entry2->max_protection) ||
-		(entry1->inheritance != entry2->inheritance) ||
-		(entry1->is_sub_map != FALSE) ||
-		(entry1->is_a_map != FALSE) ||
-		(entry1->wired_count != 0) ||
-		(entry2->is_sub_map != FALSE) ||
-		(entry2->is_a_map != FALSE) ||
-		(entry2->wired_count != 0))
-		return 0;
-
-	return 1;
-}
-	
 /*
  *	vm_map_simplify_entry:	[ internal use only ]
+ *
+ *	Simplify the given map entry by:
+ *		removing extra sharing maps
+ *		[XXX maybe later] merging with a neighbor
  */
 static void
 vm_map_simplify_entry(map, entry)
@@ -862,13 +834,34 @@ vm_map_simplify_entry(map, entry)
 	vm_map_entry_t entry;
 {
 	vm_map_entry_t next, prev;
+	vm_size_t nextsize, prevsize, esize;
 
-	if (entry->is_a_map || entry->is_sub_map || entry->wired_count)
+	/*
+	 * If this entry corresponds to a sharing map, then see if we can
+	 * remove the level of indirection. If it's not a sharing map, then it
+	 * points to a VM object, so see if we can merge with either of our
+	 * neighbors.
+	 */
+
+	if (entry->is_sub_map || entry->is_a_map || entry->wired_count)
 		return;
 
 	prev = entry->prev;
 	if (prev != &map->header) {
-		if ( vm_map_simplify_okay(prev, entry)) {
+		prevsize = prev->end - prev->start;
+		if ( (prev->end == entry->start) &&
+		     (prev->object.vm_object == entry->object.vm_object) &&
+		     (!prev->object.vm_object || (prev->object.vm_object->behavior == entry->object.vm_object->behavior)) &&
+		     (!prev->object.vm_object ||
+			(prev->offset + prevsize == entry->offset)) &&
+		     (prev->needs_copy == entry->needs_copy) &&
+		     (prev->copy_on_write == entry->copy_on_write) &&
+		     (prev->protection == entry->protection) &&
+		     (prev->max_protection == entry->max_protection) &&
+		     (prev->inheritance == entry->inheritance) &&
+		     (prev->is_a_map == FALSE) &&
+		     (prev->is_sub_map == FALSE) &&
+		     (prev->wired_count == 0)) {
 			if (map->first_free == prev)
 				map->first_free = entry;
 			if (map->hint == prev)
@@ -884,7 +877,21 @@ vm_map_simplify_entry(map, entry)
 
 	next = entry->next;
 	if (next != &map->header) {
-		if ( vm_map_simplify_okay(entry, next)) {
+		nextsize = next->end - next->start;
+		esize = entry->end - entry->start;
+		if ((entry->end == next->start) &&
+		    (next->object.vm_object == entry->object.vm_object) &&
+		    (!next->object.vm_object || (next->object.vm_object->behavior == entry->object.vm_object->behavior)) &&
+		     (!entry->object.vm_object ||
+			(entry->offset + esize == next->offset)) &&
+		    (next->needs_copy == entry->needs_copy) &&
+		    (next->copy_on_write == entry->copy_on_write) &&
+		    (next->protection == entry->protection) &&
+		    (next->max_protection == entry->max_protection) &&
+		    (next->inheritance == entry->inheritance) &&
+		    (next->is_a_map == FALSE) &&
+		    (next->is_sub_map == FALSE) &&
+		    (next->wired_count == 0)) {
 			if (map->first_free == next)
 				map->first_free = entry;
 			if (map->hint == next)
@@ -897,7 +904,6 @@ vm_map_simplify_entry(map, entry)
 	        }
 	}
 }
-
 /*
  *	vm_map_clip_start:	[ internal use only ]
  *
@@ -1835,21 +1841,6 @@ vm_map_remove(map, start, end)
 }
 
 /*
- *	vm_map_remove_userspace:
- *		Removes the user portion of the address space.
- */
-void
-vm_map_remove_userspace(map)
-	register vm_map_t map;
-{
-	vm_map_lock(map);
-	pmap_remove_pages(map->pmap, VM_MIN_ADDRESS, VM_MAXUSER_ADDRESS);
-	vm_map_delete(map, VM_MIN_ADDRESS, VM_MAXUSER_ADDRESS);
-	vm_map_unlock(map);
-	return;
-}
-
-/*
  *	vm_map_check_protection:
  *
  *	Assert that the target map allows the specified
@@ -2266,8 +2257,8 @@ RetryLookup:;
 		lock_write_to_read(&share_map->lock);
 	}
 
-	default_pager_convert_to_swapq(entry->object.vm_object);
-
+	if (entry->object.vm_object != NULL)
+		default_pager_convert_to_swapq(entry->object.vm_object);
 	/*
 	 * Return the object/offset from this entry.  If the entry was
 	 * copy-on-write or empty, it has been fixed up.
