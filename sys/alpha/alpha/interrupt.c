@@ -283,6 +283,7 @@ badaddr_read(addr, size, rptr)
 		panic("badaddr: invalid size (%ld)\n", size);
 	}
 	alpha_mb();
+	alpha_mb(); /* magic for ev5 2100A  & maybe more */
 
 	/* Make sure we took the machine check, if we caused one. */
 	alpha_pal_draina();
