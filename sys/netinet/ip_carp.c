@@ -205,6 +205,7 @@ static int	carp_del_addr6(struct carp_softc *, struct sockaddr_in6 *);
 #endif
 
 static LIST_HEAD(, carp_softc) carpif_list;
+static struct mtx carp_mtx;
 IFC_SIMPLE_DECLARE(carp, 0);
 
 static __inline u_int16_t
@@ -355,8 +356,10 @@ carp_clone_create(struct if_clone *ifc, int unit)
 	ifp->if_snd.ifq_maxlen = ifqmaxlen;
 	ifp->if_hdrlen = 0;
 	if_attach(ifp);
-	LIST_INSERT_HEAD(&carpif_list, sc, sc_next);
 	bpfattach(&sc->sc_if, DLT_NULL, sizeof(u_int32_t));
+	mtx_lock(&carp_mtx);
+	LIST_INSERT_HEAD(&carpif_list, sc, sc_next);
+	mtx_unlock(&carp_mtx);
 	return (0);
 }
 
@@ -404,9 +407,11 @@ carp_clone_destroy(struct ifnet *ifp)
 		}
 	}
 
+	mtx_lock(&carp_mtx);
+	LIST_REMOVE(sc, sc_next);
+	mtx_unlock(&carp_mtx);
 	bpfdetach(ifp);
 	if_detach(ifp);
-	LIST_REMOVE(sc, sc_next);
 	free(sc, M_CARP);
 }
 
@@ -770,23 +775,19 @@ carp_prepare_ad(struct mbuf *m, struct carp_softc *sc, struct carp_header *ch)
 static void
 carp_send_ad_all(void)
 {
-	struct ifnet *ifp;
-	struct carp_if *cif;
-	struct carp_softc *vh;
+	struct carp_softc *sc;
 
-	TAILQ_FOREACH(ifp, &ifnet, if_list) {
-		if (ifp->if_carp == NULL || ifp->if_type == IFT_CARP)
+	mtx_lock(&carp_mtx);
+	LIST_FOREACH(sc, &carpif_list, sc_next) {
+		if (sc->sc_carpdev == NULL)
 			continue;
-
-		cif = (struct carp_if *)ifp->if_carp;
-		CARP_LOCK(cif);
-		TAILQ_FOREACH(vh, &cif->vhif_vrs, sc_list) {
-			if ((vh->sc_ac.ac_if.if_flags & (IFF_UP|IFF_RUNNING)) &&
-			     vh->sc_state == MASTER)
-				carp_send_ad(vh);
-		}
-		CARP_UNLOCK(cif);
+		CARP_SCLOCK(sc);
+		if ((sc->sc_if.if_flags & (IFF_UP|IFF_RUNNING)) &&
+		     sc->sc_state == MASTER)
+			carp_send_ad(sc);
+		CARP_SCUNLOCK(sc);
 	}
+	mtx_unlock(&carp_mtx);
 }
 
 static void
@@ -2008,6 +2009,7 @@ carp_modevent(module_t mod, int type, void *data)
 
 	switch (type) {
 	case MOD_LOAD:
+		mtx_init(&carp_mtx, "carp_mtx", NULL, MTX_DEF);
 		LIST_INIT(&carpif_list);
 		if_clone_attach(&carp_cloner);
 		break;
@@ -2015,8 +2017,8 @@ carp_modevent(module_t mod, int type, void *data)
 	case MOD_UNLOAD:
 		if_clone_detach(&carp_cloner);
 		while (!LIST_EMPTY(&carpif_list))
-			carp_clone_destroy(
-				&LIST_FIRST(&carpif_list)->sc_if);
+			carp_clone_destroy(&LIST_FIRST(&carpif_list)->sc_if);
+		mtx_destroy(&carp_mtx);
 		break;
 
 	default:
