@@ -1,4 +1,4 @@
-<!-- $Id: mirrors.sgml,v 1.36 1996/08/04 22:41:09 wosch Exp $ -->
+<!-- $Id: mirrors.sgml,v 1.37 1996/08/17 23:51:45 wosch Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -533,3 +533,11 @@ In case of problems, please contact Poul-Henning Kamp
 </itemize>
 
 </descrip>
+
+
+If you did not find a mirror near to you or the mirror is incomplete,
+try 
+<htmlurl url="http://ftpsearch.ntnu.no/" name="FTP search"> at
+<htmlurl url="http://ftpsearch.ntnu.no/ftpsearch/"
+	name="http://ftpsearch.ntnu.no/ftpsearch">. 
+FTP search is a great free archie server in Trondheim, Norway.
