@@ -31,13 +31,17 @@
  *  Author: Thomas E. Dickey <dickey@clark.net> 1997                        *
  ****************************************************************************/
 /*
- * $Id: ncurses_cfg.hin,v 1.2 1998/02/11 12:13:46 tom Exp $
+ * $Id: ncurses_cfg.hin,v 1.3 2000/09/02 17:13:32 tom Exp $
  *
  * This is a template-file used to generate the "ncurses_cfg.h" file.
  *
- * Rather than list every definition, the configuration script substitutes
- * the definitions that it finds using 'sed'.  You need a patch (971222)
- * to autoconf 2.12 to do this.
+ * Rather than list every definition, the configuration script substitutes the
+ * definitions that it finds using 'sed'.  You need a patch (original date
+ * 971222) to autoconf 2.12 or 2.13 to do this.
+ *
+ * See:
+ *	http://dickey.his.com/autoconf/
+ *	ftp://dickey.his.com/autoconf/
  */
 
 /* $FreeBSD$ */
@@ -48,23 +52,25 @@
 #define BSD_TPUTS 1
 #define CC_HAS_INLINE_FUNCS 1
 #define CC_HAS_PROTOS 1
-#define CPP_HAS_PARAM_INIT 1
-#define ETIP_NEEDS_MATH_H 1
 #define GCC_NORETURN __dead2
 #define GCC_PRINTF 1
 #define GCC_SCANF 1
 #define GCC_UNUSED __unused
 #define HAVE_BIG_CORE 1
 #define HAVE_BSD_CGETENT 1
+#define HAVE_CURSES_VERSION 1
 #define HAVE_DIRENT_H 1
 #define HAVE_ERRNO 1
 #define HAVE_FCNTL_H 1
 #define HAVE_FORM_H 1
 #define HAVE_GETCWD 1
+#define HAVE_GETEGID 1
+#define HAVE_GETEUID 1
 #define HAVE_GETTIMEOFDAY 1
 #define HAVE_GETTTYNAM 1
 #define HAVE_HAS_KEY 1
 #define HAVE_ISASCII 1
+#define HAVE_ISSETUGID 1
 #define HAVE_LIBFORM 1
 #define HAVE_LIBMENU 1
 #define HAVE_LIBPANEL 1
@@ -106,26 +112,32 @@
 #define HAVE_TERMIOS_H 1
 #define HAVE_TIMES 1
 #define HAVE_TTYENT_H 1
-#define HAVE_TYPEINFO 1
+#define HAVE_UNISTD_H 1
 #define HAVE_UNISTD_H 1
 #define HAVE_UNLINK 1
 #define HAVE_USE_DEFAULT_COLORS 1
 #define HAVE_VSNPRINTF 1
 #define HAVE_VSSCANF 1
-#define NCURSES_EXT_FUNCS 1
 #define HAVE_WORKING_POLL 1
 #define HAVE_WRESIZE 1
+#define MIXEDCASE_FILENAMES 1
+#define NCURSES_EXT_FUNCS 1
 #define NCURSES_NO_PADDING 1
 #define NDEBUG 1
 #define RETSIGTYPE void
 #define STDC_HEADERS 1
 #define SYSTEM_NAME "FreeBSD"
+#define TERMINFO "/usr/share/misc/terminfo"
 #define TERMINFO_DIRS "/usr/share/misc/terminfo"
 #define TYPEOF_CHTYPE long
+#define USE_ASSUMED_COLOR 1
+#define USE_COLORFGBG 1
 #define USE_DATABASE 1
 #define USE_GETCAP 1
 #define USE_HASHMAP 1
 #define USE_SIGWINCH 1
+
+#include <ncurses_def.h>
 
 	/* The C compiler may not treat these properly but C++ has to */
 #ifdef __cplusplus
