@@ -29,6 +29,12 @@ BUILDNAME?=${BASE}-${DATE}-SNAP
 # If this is a -stable snapshot, then set
 #RELEASETAG=RELENG_4
 #
+# To test a release with a source tree containing patches and
+# other work. This tree will get copied instead of getting the
+# src/ tree from a CVS checkout. For "rerelease", this will NOT
+# be copied; cvs update will be used instead.
+#EXTSRCDIR=/usr/src
+#
 # To add other options to the CVS subcommands (co,up), set
 #CVSCMDARGS="-D '01/01/2002 00:00:00 UTC'"
 #
@@ -37,6 +43,9 @@ BUILDNAME?=${BASE}-${DATE}-SNAP
 #
 # To prefix the cvs command
 #CVSPREFIX="/usr/bin/time"
+#
+# Where the CVS repository is
+#CVSROOT="/home/ncvs"
 #
 # Non-zero if ${RELEASETAG} is in the form "RELENG_ver_RELEASE"; we
 # are building an official release.  Otherwise, we are building for
@@ -232,14 +241,9 @@ ZIPNSPLIT=		gzip --no-name -9 -c | split -b 1423k -
 
 # Things that need to be compiled without crypto support in releases
 .if !defined(FIXCRYPTO)
-FIXCRYPTO!=	cd ${.CURDIR}/../kerberos5; ${MAKE} -V KPROGS
-FIXCRYPTO+=	bin/ed usr.sbin/ppp usr.sbin/pppd usr.sbin/tcpdump/tcpdump \
-		lib/libfetch usr.bin/fetch
-.if !defined(NO_SENDMAIL)
-FIXCRYPTO+=	usr.sbin/sendmail
+FIXCRYPTO!=	cd ${.CURDIR}/../kerberos5; ${MAKE} -V KPROGS; \
+		cd ${.CURDIR}/../secure; ${MAKE} -V SPROGS
 .endif
-.endif
-
 
 # Things which may get you into trouble if you change them
 MTREEFILES=		${.CURDIR}/../etc/mtree
