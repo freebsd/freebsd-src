@@ -28,7 +28,7 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif
 
-static char Options[] = "acdDe:fhiIkl:LmpqrRst:v";
+static char Options[] = "acdDe:fhiIkl:LmopqrRst:v";
 
 int	Flags		= 0;
 Boolean AllInstalled	= FALSE;
@@ -116,6 +116,10 @@ main(int argc, char **argv)
             Flags |= SHOW_SIZE;
             break;
 
+	case 'o':
+	    Flags |= SHOW_ORIGIN;
+	    break;
+
 	case 'l':
 	    InfoPrefix = optarg;
 	    break;
@@ -175,7 +179,7 @@ static void
 usage()
 {
     fprintf(stderr, "%s\n%s\n%s\n",
-	"usage: pkg_info [-cdDfikrRpLqImv] [-e package] [-l prefix]",
+	"usage: pkg_info [-cdDfikorRpLqImv] [-e package] [-l prefix]",
 	"                [-t template] [pkg-name ...]",
 	"       pkg_info -a [flags]");
     exit(1);
