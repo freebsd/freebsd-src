@@ -46,13 +46,13 @@ DOS 6.xx "DEFRAG" utility or the Norton Disk tools, then run FIPS.  It
 will prompt you for the rest of the information it needs.  Afterwards,
 you can reboot and install FreeBSD on the new partition.  Also note
 that FIPS will create the second partition as a "clone" of the first,
-so you'll actually see that you now have two DOS Primary partitions where
-you formerly had one.  Don't be alarmed!  You can simply delete the extra
-DOS Primary parititon (making sure it's the right one by examining its size! :)
+so you'll actually see that you now have two DOS Primary partitions
+where you formerly had one.  Don't be alarmed!  You can simply delete
+the extra DOS Primary parititon (making sure it's the right one by
+examining its size! :)
 
-See the
-Distributions menu for an estimation of how much free space you'll
-need for the kind of installation you want.
+See the Distributions menu for an estimation of how much free space
+you'll need for the kind of installation you want.
 
 
 1.2     Can I use compressed DOS filesystems from FreeBSD?
