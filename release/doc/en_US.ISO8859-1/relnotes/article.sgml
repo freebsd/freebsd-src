@@ -164,6 +164,24 @@
       This change fixes the <quote>bad Vcc</quote> error of CardBus
       bridges (&man.pccbb.4;). &merged;</para>
 
+    <para>The generic &man.tty.4; driver interface has been added
+      and many device drivers including
+      &man.cx.4; (<literal>{tty,cua}x</literal>),
+      &man.cy.4; (<literal>{tty,cua}c</literal>),
+      &man.digi.4; (<literal>{tty,cua}D</literal>),
+      &man.rc.4; (<literal>{tty,cua}m</literal>),
+      &man.rp.4; (<literal>{tty,cua}R</literal>),
+      &man.sab.4; (<literal>{tty,cua}z</literal>),
+      &man.si.4; (<literal>{tty,cua}A</literal>),
+      &man.sio.4; (<literal>{tty,cua}d</literal>),
+      sx (<literal>{tty,cua}G</literal>),
+      &man.uart.4; (<literal>{tty,cua}u</literal>),
+      &man.ubser.4; (<literal>{tty,cua}y</literal>),
+      &man.ucom.4; (<literal>{tty,cua}U</literal>), and
+      &man.ucycom.4; (<literal>{tty,cua}y</literal>)
+      have been rewritten to use it.  Note that <filename>/etc/remote</filename>
+      and <filename>/etc/ttys</filename> have been updated as well.</para>
+
     <!-- Above this line, sort kernel changes by manpage/keyword-->
 
     <sect3 id="boot">
@@ -320,6 +338,12 @@
 	multiple hosts to share an IP address, providing
 	high availability and load balancing.
 	For more information, see &man.carp.4; manual page.</para>
+
+      <para>&man.ipfw.4; <literal>IPDIVERT</literal> option has been
+	available as a kernel loadable module.
+	If this module is not loaded, &man.ipfw.4; will refuse to
+	install <literal>divert</literal> rules and &man.natd.8;
+	will put an error message <quote>protocol not supported</quote>.</para>
 
       <para>&man.ipfw.8; now supports classification and tagging
 	of the &man.altq.4;, packets via a divert socket,
@@ -512,6 +536,9 @@
       a string for being an affirmative or negative response in the
       current locale.</para>
 
+    <para>The rune(3) non-standard multibyte and wide character support
+      interface has been removed.</para>
+
     <para>The &man.telnet.1; and &man.telnetd.8; programs now support
       the <option>-S</option> option for specifying a numeric TOS
       byte.</para>
@@ -527,6 +554,11 @@
       which hold details of IP address allocations within
       Korea. &merged;</para>
 
+    <para>The <option>-I</option> of the &man.xargs.1; command
+      has been changed to confirm IEEE Std 1003.1-2004.
+      The standard requires that the constructed
+      arguments cannot grow larger than 255 bytes.</para>
+
     <sect3 id="rc-scripts">
       <title><filename>/etc/rc.d</filename> Scripts</title>
 
@@ -539,6 +571,9 @@
 
     <para><application>FILE</application> has been updated from 4.10
       to 4.12.</para>
+
+    <para><application>GNU readline</application> has been updated from
+      version 4.3 to version 5.0.</para>
 
     <para><application>lukemftp</application> has been updated from a
       26 April 2004 snapshot from OpenBSD's sources to a snapshot as
@@ -566,7 +601,9 @@
   <sect2 id="ports">
     <title>Ports/Packages Collection Infrastructure</title>
 
-    <para></para>
+    <para>The &man.pkg.version.1; utility now supports a
+      <option>-q</option> flag to suppress the output of <literal>&lt;</literal>,
+      <literal>=</literal>, <literal>&gt;</literal>.</para>
   </sect2>
 
   <sect2 id="releng">
