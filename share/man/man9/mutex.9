@@ -30,6 +30,7 @@
 .\"
 .Dd April 20, 1998
 .Dt MUTEX 9
+.Os
 .Sh NAME
 .Nm mutex ,
 .Nm mtx_init ,
@@ -204,25 +205,21 @@ If the assertions are not true and the kernel is compiled with
 .Dv INVARIANTS
 then the kernel will panic.
 Currently the following assertions are supported:
-.Bl -enum
-.It
-.Dv MA_OWNED
+.Bl -tag -width MA_NOTRECURSED
+.It Dv MA_OWNED
 Assert that the current thread
 holds the mutex
 pointed to by the first argument.
-.It
-.Dv MA_NOTOWNED
+.It Dv MA_NOTOWNED
 Assert that the current thread
 does not hold the mutex
 pointed to by the first argument.
-.It
-.Dv MA_RECURSED
+.It Dv MA_RECURSED
 Assert that the current thread has recursed on the mutex
 pointed to by the first argument.
 This assertion is only valid in conjuction with
 .Dv MA_OWNED .
-.It
-.Dv MA_NOTRECURSED
+.It Dv MA_NOTRECURSED
 Assert that the current thread has not recursed on the mutex
 pointed to by the first argument.
 This assertion is only valid in conjuction with
@@ -236,7 +233,7 @@ macro is used to declare a mutex that is initialized before
 is operating.
 Unfortunately, mutex initialization may require
 .Xr malloc 9 .
-However, some mutexes are intialized and used before
+However, some mutexes are initialized and used before
 .Xr malloc 9
 can be used.
 Declaring these mutexes with the
@@ -415,5 +412,7 @@ This can be used to trim superfluous logging messages for debugging purposes.
 .El
 .Sh HISTORY
 These
-functions appeared in BSD/OS 4.1 and
+functions appeared in
+.Tn BSD/OS
+4.1 and
 .Fx 5.0 .
