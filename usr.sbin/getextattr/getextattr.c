@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1999, 2000 Robert N. M. Watson
+ * Copyright (c) 1999, 2000, 2001 Robert N. M. Watson
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ * $FreeBSD$
  */
 /*
  * TrustedBSD Project - extended attribute support
@@ -32,6 +32,7 @@
 #include <sys/uio.h>
 #include <sys/extattr.h>
 
+#include <libutil.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <vis.h>
@@ -40,7 +41,8 @@ void
 usage(void)
 {
 
-	fprintf(stderr, "getextattr [-s] [attrname] [filename ...]\n");
+	fprintf(stderr, "getextattr [-s] [namespace] [attrname] "
+	    "[filename ...]\n");
 	exit(-1);
 }
 
@@ -56,7 +58,7 @@ main(int argc, char *argv[])
 	char	*attrname;
 	char	buf[BUFSIZE];
 	char	visbuf[BUFSIZE*4];
-	int	error, i, arg_counter;
+	int	error, i, arg_counter, namespace;
 	int	ch;
 
 	int	flag_as_string = 0;
@@ -78,10 +80,15 @@ main(int argc, char *argv[])
 	argc -= optind;
 	argv += optind;
 
-	if (argc <= 1)
+	if (argc < 3)
 		usage();
 
-	attrname = argv[0];
+	error = extattr_string_to_namespace(argv[0], &namespace);
+	if (error) {
+		perror(argv[0]);
+		return (-1);
+	}
+	attrname = argv[1];
 
 	argc--;
 	argv++;
@@ -89,8 +96,8 @@ main(int argc, char *argv[])
 	iov_buf.iov_base = buf;
 	iov_buf.iov_len = BUFSIZE;
 
-	for (arg_counter = 0; arg_counter < argc; arg_counter++) {
-		error = extattr_get_file(argv[arg_counter], attrname,
+	for (arg_counter = 1; arg_counter < argc; arg_counter++) {
+		error = extattr_get_file(argv[arg_counter], namespace, attrname,
 		    &iov_buf, 1);
 
 		if (error == -1)
