@@ -67,6 +67,78 @@ The available values are as follows:
 .Pp
 .Bl -tag -width 6n
 .Pp
+.It Li _SC_ARG_MAX
+The maximum bytes of argument to
+.Xr execve 2 .
+.It Li _SC_CHILD_MAX
+The maximum number of simultaneous processes per user id.
+.It Li _SC_CLK_TCK
+The frequency of the statistics clock in ticks per second.
+.It Li _SC_IOV_MAX
+The maximum number of elements in the I/O vector used by
+.Xr readv 2 ,
+.Xr writev 2 ,
+.Xr recvmsg 2 ,
+and
+.Xr sendmsg 2 .
+.It Li _SC_NGROUPS_MAX
+The maximum number of supplemental groups.
+.It Li _SC_NPROCESSORS_CONF
+The number of processors configured.
+.It Li _SC_NPROCESSORS_ONLN
+The number of processors currently online.
+.It Li _SC_OPEN_MAX
+The maximum number of open files per user id.
+.It Li _SC_STREAM_MAX
+The minimum maximum number of streams that a process may have open
+at any one time.
+.It Li _SC_TZNAME_MAX
+The minimum maximum number of types supported for the name of a
+timezone.
+.It Li _SC_JOB_CONTROL
+Return 1 if job control is available on this system, otherwise \-1.
+.It Li _SC_SAVED_IDS
+Returns 1 if saved set-group and saved set-user ID is available,
+otherwise \-1.
+.It Li _SC_VERSION
+The version of
+.St -p1003.1
+with which the system
+attempts to comply.
+.It Li _SC_BC_BASE_MAX
+The maximum ibase/obase values in the
+.Xr bc 1
+utility.
+.It Li _SC_BC_DIM_MAX
+The maximum array size in the
+.Xr bc 1
+utility.
+.It Li _SC_BC_SCALE_MAX
+The maximum scale value in the
+.Xr bc 1
+utility.
+.It Li _SC_BC_STRING_MAX
+The maximum string length in the
+.Xr bc 1
+utility.
+.It Li _SC_COLL_WEIGHTS_MAX
+The maximum number of weights that can be assigned to any entry of
+the LC_COLLATE order keyword in the locale definition file.
+.It Li _SC_EXPR_NEST_MAX
+The maximum number of expressions that can be nested within
+parenthesis by the
+.Xr expr 1
+utility.
+.It Li _SC_LINE_MAX
+The maximum length in bytes of a text-processing utility's input
+line.
+.It Li _SC_RE_DUP_MAX
+The maximum number of repeated occurrences of a regular expression
+permitted when using interval notation.
+.It Li _SC_2_VERSION
+The version of
+.St -p1003.2
+with which the system attempts to comply.
 .It Li _SC_2_C_BIND
 Return 1 if the system's C-language development facilities support the
 C-Language Bindings Option, otherwise \-1.
@@ -92,144 +164,6 @@ otherwise \-1.
 .It Li _SC_2_UPE
 Return 1 if the system supports the User Portability Utilities Option,
 otherwise \-1.
-.It Li _SC_2_VERSION
-The version of
-.St -p1003.2
-with which the system attempts to comply.
-.It Li _SC_AIO_LISTIO_MAX
-The maximum number of POSIX asynchronous I/O operations supported.
-.It Li _SC_AIO_MAX
-The maximum number of outstanding asynchronous I/O operations supported.
-.It Li _SC_AIO_PRIO_DELTA_MAX
-The maximum amount by which a process can decrease its asynchronous
-I/O priority level from its own scheduling priority.
-.It Li _SC_ARG_MAX
-The maximum bytes of argument to
-.Xr execve 2 .
-.It Li _SC_ASYNCHRONOUS_IO
-Return 1 if the system supports Asynchronous I/O facilities as described in
-.St -p1003.1 ,
-otherwise \-1.
-.It Li _SC_ATEXIT_MAX
-The maximum number of functions that a process may register with the
-.Fn atexit
-function.
-.It Li _SC_BC_BASE_MAX
-The maximum ibase/obase values in the
-.Xr bc 1
-utility.
-.It Li _SC_BC_DIM_MAX
-The maximum array size in the
-.Xr bc 1
-utility.
-.It Li _SC_BC_SCALE_MAX
-The maximum scale value in the
-.Xr bc 1
-utility.
-.It Li _SC_BC_STRING_MAX
-The maximum string length in the
-.Xr bc 1
-utility.
-.It Li _SC_CHILD_MAX
-The maximum number of simultaneous processes per user id.
-.It Li _SC_CLK_TCK
-The frequency of the statistics clock in ticks per second.
-.It Li _SC_COLL_WEIGHTS_MAX
-The maximum number of weights that can be assigned to any entry of
-the LC_COLLATE order keyword in the locale definition file.
-.It Li _SC_DELAYTIMER_MAX
-The maximum number of timer expiration overruns permitted for each process.
-.It Li _SC_EXPR_NEST_MAX
-The maximum number of expressions that can be nested within
-parenthesis by the
-.Xr expr 1
-utility.
-.It Li _SC_FSYNC
-Return 1 if the system supports file synchronization, otherwise \-1.
-.It Li _SC_IOV_MAX
-The maximum number of iovec structures that one process may use with the
-.Fn readv
-and
-.Fn writev
-functions.
-.It Li _SC_IPV6
-Return 1 if the system supports Internet Protocol version 6, otherwise \-1.
-.It Li _SC_JOB_CONTROL
-Return 1 if job control is available on this system, otherwise \-1.
-.It Li _SC_LINE_MAX
-The maximum length in bytes of a text-processing utility's input
-line.
-.It Li _SC_MAPPED_FILES
-Return 1 if the system supports memory mapped files, otherwise \-1.
-.It Li _SC_MEMLOCK
-Return 1 if the system supports process memory locking, otherwise \-1.
-.It Li _SC_MEMLOCK_RANGE
-Return 1 if the system supports range memory locking, otherwise \-1.
-.It Li _SC_MEMORY_PROTECTION
-Return 1 if the system supports memory protection, otherwise \-1.
-.It Li _SC_MESSAGE_PASSING
-Return 1 if the system supports POSIX message queues, otherwise \-1.
-.It Li _SC_MQ_OPEN_MAX
-The maximum number of open POSIX message queues which a process may hold.
-.It Li _SC_NGROUPS_MAX
-The maximum number of supplemental groups.
-.It Li _SC_NPROCESSORS_CONF
-The number of processors configured.
-.It Li _SC_NPROCESSORS_ONLN
-The number of processors currently online.
-.It Li _SC_OPEN_MAX
-The maximum number of open files per user id.
-.It Li _SC_PAGE_SIZE
-This is a synonym for
-.Dv _SC_PAGESIZE .
-.It Li _SC_PAGESIZE
-The system memory page size.
-.It Li _SC_PRIORITIZED_IO
-Return 1 if the system supports POSIX prioritized I/O, otherwise \-1.
-.It Li _SC_PRIORITY_SCHEDULING
-Return 1 if the system supports POSIX priority scheduling, otherwise \-1.
-.It Li _SC_RAW_SOCKETS
-Return 1 if the system supports
-.Dv SOCK_RAW
-style raw sockets, otherwise \-1.
-.It Li _SC_RE_DUP_MAX
-The maximum number of repeated occurrences of a regular expression
-permitted when using interval notation.
-.It Li _SC_REALTIME_SIGNALS
-Return 1 if the system supports POSIX realtime signals, otherwise \-1.
-.It Li _SC_RTSIG_MAX
-The number of the highest POSIX realtime signal supported.
-.It Li _SC_SAVED_IDS
-Returns 1 if saved set-group and saved set-user ID is available,
-otherwise \-1.
-.It Li _SC_SEM_NSEMS_MAX
-The maximum number of POSIX semaphores that a process may have.
-.It Li _SC_SEM_VALUE_MAX
-The maximum value that a POSIX semaphore may have.
-.It Li _SC_SEMAPHORES
-Return 1 if the system supports POSIX semaphores, otherwise \-1.
-.It Li _SC_SHARED_MEMORY_OBJECTS
-Return 1 if the system supports POSIX shared memory objects, otherwise \-1.
-.It Li _SC_SIGQUEUE_MAX
-The maximum number of POSIX queued signals that a process may send and
-have pending at receiver(s) at any given time.
-.It Li _SC_STREAM_MAX
-The minimum maximum number of streams that a process may have open
-at any one time.
-.It Li _SC_SYNCHRONIZED_IO
-Return 1 if the system supports POSIX synchronized I/O, otherwise \-1.
-.It Li _SC_TIMER_MAX
-The maximum number of POSIX timers that a process may request.
-.It Li _SC_TIMERS
-Return 1 if the system supports POSIX timers, otherwise \-1.
-.It Li _SC_TZNAME_MAX
-The minimum maximum number of types supported for the name of a
-timezone.
-.It Li _SC_VERSION
-The version of
-.St -p1003.1
-with which the system
-attempts to comply.
 .El
 .Sh RETURN VALUES
 If the call to
