@@ -51,7 +51,7 @@ all: ${PROG} scriptdump
 
 SRCS+=y.tab.h
 y.tab.h: parse.y
-CFLAGS+=-DIPSEC_DEBUG -DINET6 -DYY_NO_UNPUT -I${.OBJDIR}
+CFLAGS+=-DIPSEC_DEBUG -DINET6 -DYY_NO_UNPUT -I.
 DPADD+=	${LIBIPSEC}
 LDADD+=	-lipsec
 CLEANFILES+=	scriptdump y.tab.h
