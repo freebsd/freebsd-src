@@ -400,10 +400,12 @@ fetch(char *URL, char *path)
  signal:
     if (sigalrm)
 	warnx("transfer timed out");
-    if (sigint)
+    if (sigint) {
 	warnx("transfer interrupted");
+	goto failure;
+    }
     
-    if (!sigalrm && !sigint) {
+    if (!sigalrm) {
 	/* check the status of our files */
 	if (ferror(f))
 	    warn("%s", URL);
