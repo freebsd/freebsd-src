@@ -626,15 +626,10 @@ p_rtentry(struct rtentry *rt)
 
 			if ((expire_time =
 			    rt->rt_rmx.rmx_expire - time((time_t *)0)) > 0)
-				printf(" %6d%s", (int)expire_time,
-				    rt->rt_nodes[0].rn_dupedkey ? " =>" : "");
-			else
-			    goto ifandkey;
-		} else if (rt->rt_nodes[0].rn_dupedkey) {
-ifandkey:;
-			printf(" =>");
+				printf(" %6d", (int)expire_time);
 		}
-
+		if (rt->rt_nodes[0].rn_dupedkey)
+			printf(" =>");
 	}
 	putchar('\n');
 }
