@@ -14,6 +14,7 @@ SRCS=	afs_ops.c am_ops.c clock.c util.c xutil.c \
 	amq_subr.c umount_fs.c host_ops.c nfsx_ops.c \
 	ufs_ops.c ifs_ops.c amd.c get_args.c restart.c wire.c
 OBJS+=	vers.${PROG}.o
+CFLAGS+=-I${.OBJDIR}
 CFLAGS+=-I${.CURDIR}/../rpcx
 CFLAGS+=-I${.CURDIR}/../config
 CFLAGS+=-I${.CURDIR}/../include
@@ -24,9 +25,32 @@ CFLAGS+=${CONFIG}
 LDADD= ${XLIBDIR} ${RESOLV}
 CLEANFILES+=vers.${PROG}.c vers.${PROG}.o version.amd
 
+CLEANFILES+=mount.h mount_xdr.c nfs_prot.h nfs_prot_xdr.c nfs_prot_svc.c
+RPCCOM = rpcgen
+MOUNT_X= /usr/include/rpcsvc/mount.x
+NFS_PROT_X= /usr/include/rpcsvc/nfs_prot.x
 vers.${PROG}.c: ${SRCS:.c=.o}
 	@d=${.CURDIR}/ sh ${.CURDIR}/../config/newvers.sh ${PROG} ${MACHINE} ${OS}
 
+
+afs_ops.o host_ops.o nfs_ops.o srvr_nfs.o: mount.h
+
+mount.h: ${MOUNT_X}
+	${RPCCOM} -h -DWANT_NFS3 ${MOUNT_X} -o ${.TARGET}
+
+mount_xdr.c: mount.h ${MOUNT_X}
+	${RPCCOM} -c -DWANT_NFS3 ${MOUNT_X} -o ${.TARGET}
+
+${OBJS} beforedepend: nfs_prot.h
+
+nfs_prot.h: ${NFS_PROT_X}
+	${RPCCOM} -h ${NFS_PROT_X} -o ${.TARGET}
+
+nfs_prot_xdr.c: ${NFS_PROT_X}
+	${RPCCOM} -c ${NFS_PROT_X} -o ${.TARGET}
+
+nfs_prot_svc.c: ${NFS_PROT_X}
+	${RPCCOM} -m ${NFS_PROT_X} -o ${.TARGET}
 .PATH: ${.CURDIR}/../rpcx ${.CURDIR}/../config
 .include "Makefile.config"
 .include "../../Makefile.inc"

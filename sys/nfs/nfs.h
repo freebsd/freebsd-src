@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs.h	8.1 (Berkeley) 6/10/93
- * $Id: nfs.h,v 1.18.2.1 1996/11/09 21:10:44 phk Exp $
+ * $Id: nfs.h,v 1.18.2.2 1997/03/27 20:04:00 guido Exp $
  */
 
 #ifndef _NFS_NFS_H_
@@ -597,6 +597,23 @@ int	nfsrv_symlink __P((struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 int	nfsrv_write __P((struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 			 struct proc *procp, struct mbuf **mrq));
 
+#ifdef NFS_DEBUG
+
+extern int nfs_debug;
+#define NFS_DEBUG_ASYNCIO	1 /* asynchronous i/o */
+#define NFS_DEBUG_WG		2 /* server write gathering */
+#define NFS_DEBUG_RC		4 /* server request caching */
+
+#define NFS_DPF(cat, args)					\
+	do {							\
+		if (nfs_debug & NFS_DEBUG_##cat) printf args;	\
+	} while (0)
+
+#else
+
+#define NFS_DPF(cat, args)
+
+#endif
 
 #endif	/* KERNEL */
 

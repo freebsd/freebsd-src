@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_bio.c	8.5 (Berkeley) 1/4/94
- * $Id: nfs_bio.c,v 1.28.2.2 1996/11/12 09:09:27 phk Exp $
+ * $Id: nfs_bio.c,v 1.28.2.3 1997/03/04 17:59:41 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -305,6 +305,10 @@ again:
 		break;
 	    case VDIR:
 		nfsstats.biocache_readdirs++;
+		if (np->n_direofoffset
+		    && uio->uio_offset >= np->n_direofoffset) {
+		    return (0);
+		}
 		lbn = uio->uio_offset / NFS_DIRBLKSIZ;
 		on = uio->uio_offset & (NFS_DIRBLKSIZ - 1);
 		bp = nfs_getcacheblk(vp, lbn, NFS_DIRBLKSIZ, p);
@@ -327,6 +331,9 @@ again:
 			     * offset cookies.
 			     */
 			    for (i = 0; i <= lbn && !error; i++) {
+				if (np->n_direofoffset
+				    && (i * NFS_DIRBLKSIZ) >= np->n_direofoffset)
+				    return (0);
 				bp = nfs_getcacheblk(vp, i, NFS_DIRBLKSIZ, p);
 				if (!bp)
 				    return (EINTR);
@@ -511,6 +518,7 @@ nfs_write(ap)
 again:
 		if (uio->uio_offset + n > np->n_size) {
 			np->n_size = uio->uio_offset + n;
+			np->n_flag |= NMODIFIED;
 			vnode_pager_setsize(vp, (u_long)np->n_size);
 		}
 		bufsize = biosize;
@@ -756,6 +764,7 @@ again:
 			nmp->nm_bufqiods++;
 			wakeup((caddr_t)&nfs_iodwant[i]);
 			gotiod = TRUE;
+			break;
 		}
 
 	/*
@@ -971,9 +980,12 @@ nfs_doio(bp, cr, p)
 		    iomode = NFSV3WRITE_FILESYNC;
 		bp->b_flags |= B_WRITEINPROG;
 		error = nfs_writerpc(vp, uiop, cr, &iomode, &must_commit);
-		if (!error && iomode == NFSV3WRITE_UNSTABLE)
-		    bp->b_flags |= B_NEEDCOMMIT | B_CLUSTEROK;
-		else
+		if (!error && iomode == NFSV3WRITE_UNSTABLE) {
+		    bp->b_flags |= B_NEEDCOMMIT;
+		    if (bp->b_dirtyoff == 0
+			&& bp->b_dirtyend == bp->b_bufsize)
+			bp->b_flags |= B_CLUSTEROK;
+		} else
 		    bp->b_flags &= ~B_NEEDCOMMIT;
 		bp->b_flags &= ~B_WRITEINPROG;
 

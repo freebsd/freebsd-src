@@ -43,7 +43,7 @@ static char copyright[] =
 #ifndef lint
 /*static char sccsid[] = "From: @(#)mountd.c	8.8 (Berkeley) 2/20/94";*/
 static const char rcsid[] =
-	"$Id: mountd.c,v 1.11.2.4 1997/04/23 11:04:58 msmith Exp $";
+	"$Id: mountd.c,v 1.11.2.5 1997/04/30 18:41:22 pst Exp $";
 #endif /*not lint*/
 
 #include <sys/param.h>
@@ -217,6 +217,7 @@ struct ucred def_anon = {
 	1,
 	{ (gid_t) -2 }
 };
+int force_v2 = 0;
 int resvport_only = 1;
 int dir_only = 1;
 int opt_flags;
@@ -267,8 +268,11 @@ main(argc, argv)
 	}
 #endif	/* __FreeBSD__ */
 
-	while ((c = getopt(argc, argv, "dnr")) != EOF)
+	while ((c = getopt(argc, argv, "2dnr")) != EOF)
 		switch (c) {
+		case '2':
+			force_v2 = 1;
+			break;
 		case 'n':
 			resvport_only = 0;
 			break;
@@ -333,10 +337,14 @@ main(argc, argv)
 	}
 	pmap_unset(RPCPROG_MNT, 1);
 	pmap_unset(RPCPROG_MNT, 3);
+	if (!force_v2)
+		if (!svc_register(udptransp, RPCPROG_MNT, 3, mntsrv, IPPROTO_UDP) ||
+		    !svc_register(tcptransp, RPCPROG_MNT, 3, mntsrv, IPPROTO_TCP)) {
+			syslog(LOG_ERR, "Can't register mount");
+			exit(1);
+		}
 	if (!svc_register(udptransp, RPCPROG_MNT, 1, mntsrv, IPPROTO_UDP) ||
-	    !svc_register(udptransp, RPCPROG_MNT, 3, mntsrv, IPPROTO_UDP) ||
-	    !svc_register(tcptransp, RPCPROG_MNT, 1, mntsrv, IPPROTO_TCP) ||
-	    !svc_register(tcptransp, RPCPROG_MNT, 3, mntsrv, IPPROTO_TCP)) {
+	    !svc_register(tcptransp, RPCPROG_MNT, 1, mntsrv, IPPROTO_TCP)) {
 		syslog(LOG_ERR, "Can't register mount");
 		exit(1);
 	}

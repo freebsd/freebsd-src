@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_serv.c	8.3 (Berkeley) 1/12/94
- * $Id: nfs_serv.c,v 1.33 1996/09/05 07:58:04 davidg Exp $
+ * $Id: nfs_serv.c,v 1.34 1996/09/19 18:20:56 nate Exp $
  */
 
 /*
@@ -97,6 +97,7 @@ extern enum vtype nv3tov_type[8];
 extern struct nfsstats nfsstats;
 
 int nfsrvw_procrastinate = NFS_GATHERDELAY * 1000;
+int nfsrvw_procrastinate_v3 = 0;
 
 int nfs_async;
 SYSCTL_INT(_vfs_nfs, OID_AUTO, async, CTLFLAG_RW, &nfs_async, 0, "");
@@ -930,7 +931,8 @@ nfsrv_writegather(ndp, slp, procp, mrq)
 	    nfsd->nd_mreq = NULL;
 	    nfsd->nd_stable = NFSV3WRITE_FILESYNC;
 	    cur_usec = (u_quad_t)time.tv_sec * 1000000 + (u_quad_t)time.tv_usec;
-	    nfsd->nd_time = cur_usec + nfsrvw_procrastinate;
+	    nfsd->nd_time = cur_usec +
+		(v3 ? nfsrvw_procrastinate_v3 : nfsrvw_procrastinate);
     
 	    /*
 	     * Now, get the write header..
@@ -1000,6 +1002,7 @@ nfsmout:
 		owp = wp;
 		wp = wp->nd_tq.le_next;
 	    }
+	    NFS_DPF(WG, ("Q%03x", nfsd->nd_retxid & 0xfff));
 	    if (owp) {
 		LIST_INSERT_AFTER(owp, nfsd, nd_tq);
 	    } else {
@@ -1051,6 +1054,7 @@ loop1:
 		    break;
 		if (nfsd->nd_mreq)
 		    continue;
+		NFS_DPF(WG, ("P%03x", nfsd->nd_retxid & 0xfff));
 		LIST_REMOVE(nfsd, nd_tq);
 		LIST_REMOVE(nfsd, nd_hash);
 		splx(s);
@@ -1127,6 +1131,7 @@ loop1:
 		 */
 		swp = nfsd;
 		do {
+		    NFS_DPF(WG, ("R%03x", nfsd->nd_retxid & 0xfff));
 		    if (error) {
 			nfsm_writereply(NFSX_WCCDATA(v3), v3);
 			if (v3) {
@@ -1186,6 +1191,7 @@ loop1:
 	s = splsoftclock();
 	for (nfsd = slp->ns_tq.lh_first; nfsd; nfsd = nfsd->nd_tq.le_next)
 		if (nfsd->nd_mreq) {
+		    NFS_DPF(WG, ("X%03x", nfsd->nd_retxid & 0xfff));
 		    LIST_REMOVE(nfsd, nd_tq);
 		    *mrq = nfsd->nd_mreq;
 		    *ndp = nfsd;
@@ -1210,7 +1216,10 @@ nfsrvw_coalesce(owp, nfsd)
 {
         register int overlap;
         register struct mbuf *mp;
+	struct nfsrv_descript *p;
 
+	NFS_DPF(WG, ("C%03x-%03x",
+		     nfsd->nd_retxid & 0xfff, owp->nd_retxid & 0xfff));
         LIST_REMOVE(nfsd, nd_hash);
         LIST_REMOVE(nfsd, nd_tq);
         if (owp->nd_eoff < nfsd->nd_eoff) {
@@ -1233,6 +1242,16 @@ nfsrvw_coalesce(owp, nfsd)
             owp->nd_stable == NFSV3WRITE_UNSTABLE)
             owp->nd_stable = NFSV3WRITE_DATASYNC;
         LIST_INSERT_HEAD(&owp->nd_coalesce, nfsd, nd_tq);
+
+	/*
+	 * If nfsd had anything else coalesced into it, transfer them
+	 * to owp, otherwise their replies will never get sent.
+	 */
+	for (p = nfsd->nd_coalesce.lh_first; p;
+	     p = nfsd->nd_coalesce.lh_first) {
+	    LIST_REMOVE(p, nd_tq);
+	    LIST_INSERT_HEAD(&owp->nd_coalesce, p, nd_tq);
+	}
 }
 
 /*
