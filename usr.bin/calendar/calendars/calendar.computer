@@ -1,7 +1,7 @@
 /*
  * Computer
  *
- * $Id$
+ * $Id: calendar.computer,v 1.4 1997/02/22 19:28:19 peter Exp $
  */
 
 #ifndef _calendar_computer_
@@ -38,6 +38,7 @@
 05/06	EDSAC demonstrated, 1949
 05/01	First BASIC program run at Dartmouth, 1964
 05/16	First report on SNOBOL distributed (within BTL), 1963
+05/19	UNIX is 10000 days old, 1997
 05/21	DEC announces PDP-8
 05/22	Ethernet first described, 1973
 05/27	First joint meeting of U.S. and European ALGOL definition cte., 1958
