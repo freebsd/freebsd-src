@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:35:03  rpd
- *	$Id: boot.h,v 1.9 1995/04/21 16:50:32 bde Exp $
+ *	$Id: boot.h,v 1.10 1995/05/30 07:58:29 rgrimes Exp $
  */
 
 #include <sys/types.h>
@@ -34,7 +34,8 @@
 #include <ufs/ffs/fs.h>
 #include <ufs/ufs/inode.h>
 
-extern char *devs[], *name, *iodest;
+extern char *devs[], *iodest;
+extern char *name, dflname[];
 extern struct fs *fs;
 extern struct inode inode;
 extern int dosdev, unit, slice, part, maj, boff, poff, bnum, cnt;
@@ -74,7 +75,7 @@ int badsect(int dosdev, int sector);
 
 /* io.c */
 void gateA20(void);
-int printf(const char *format, ...);
+void printf(const char *format, ...);
 void putchar(int c);
 int getchar(int in_buf);
 void delay1ms(void);
@@ -93,7 +94,7 @@ int serial_ischar(void);
 void init_serial(void);
 
 /* sys.c */
-int xread(char *addr, int size);
+void xread(char *addr, int size);
 void read(char *buffer, int count);
 int find(char *path);
 int block_map(int file_block);
