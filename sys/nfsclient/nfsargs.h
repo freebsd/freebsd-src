@@ -271,6 +271,8 @@ struct nfsstats {
 	int	srvnqnfs_maxleases;
 	int	srvnqnfs_getleases;
 	int	srvvop_writes;
+	int	accesscache_hits;
+	int	accesscache_misses;
 };
 #endif
 
