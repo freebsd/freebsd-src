@@ -52,6 +52,7 @@ static struct _word {
 } resWords[] = {
     { "configAnonFTP",		configAnonFTP		},
     { "configRouter",		configRouter		},
+    { "configInetd",		configInetd		},
     { "configNFSServer",	configNFSServer		},
     { "configNTP",		configNTP		},
     { "configPCNFSD",		configPCNFSD		},

@@ -447,6 +447,7 @@ extern int	configXSetup(dialogMenuItem *self);
 extern int	configXDesktop(dialogMenuItem *self);
 extern int	configRouter(dialogMenuItem *self);
 extern int	configPCNFSD(dialogMenuItem *self);
+extern int	configInetd(dialogMenuItem *self);
 extern int	configNFSServer(dialogMenuItem *self);
 extern int	configWriteRC_conf(dialogMenuItem *self);
 extern int	configSecurityProfile(dialogMenuItem *self);
