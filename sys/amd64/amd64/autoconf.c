@@ -161,11 +161,6 @@ configure(dummy)
         enable_intr();
         INTREN(IRQ_SLAVE);
 
-#if NCRD > 0
-	/* Before isa_configure to avoid ISA drivers finding our cards */
-	pccard_configure();
-#endif
-
 #if NEISA > 0
 	eisa_configure();
 #endif
@@ -176,6 +171,11 @@ configure(dummy)
 
 #if NISA > 0
 	isa_configure();
+#endif
+
+#if NCRD > 0
+	/* After everyone else has a chance at grabbing resources */
+	pccard_configure();
 #endif
 
 	if (setdumpdev(dumpdev) != 0)
@@ -227,14 +227,6 @@ configure(dummy)
 	}
 #endif
 
-#ifdef NFS
-	if (!mountrootfsname && nfs_diskless_valid) {
-		if (bootverbose)
-			printf("Considering NFS root f/s.\n");
-		mountrootfsname = "nfs";
-	}
-#endif /* NFS */
-
 #ifdef MFS_ROOT
 	if (!mountrootfsname) {
 		if (bootverbose)
@@ -252,6 +244,15 @@ configure(dummy)
 			setroot();
 	}
 #endif
+
+#ifdef NFS
+	if (!mountrootfsname && nfs_diskless_valid) {
+		if (bootverbose)
+			printf("Considering NFS root f/s.\n");
+		mountrootfsname = "nfs";
+	}
+#endif /* NFS */
+
 #ifdef FFS
 	if (!mountrootfsname) {
 		mountrootfsname = "ufs";
@@ -269,6 +270,7 @@ configure(dummy)
 			setroot();
 	}
 #endif
+
 #ifdef LFS
 	if (!mountrootfsname) {
 		if (bootverbose)
@@ -286,6 +288,7 @@ configure(dummy)
 			setroot();
 	}
 #endif
+
 	if (!mountrootfsname) {
 		panic("Nobody wants to mount my root for me");
 	}
@@ -397,4 +400,4 @@ sysctl_kern_dumpdev SYSCTL_HANDLER_ARGS
 }
 
 SYSCTL_PROC(_kern, KERN_DUMPDEV, dumpdev, CTLTYPE_OPAQUE|CTLFLAG_RW,
-	0, sizeof dumpdev, sysctl_kern_dumpdev, "I", "");
+	0, sizeof dumpdev, sysctl_kern_dumpdev, "T,dev_t", "");
