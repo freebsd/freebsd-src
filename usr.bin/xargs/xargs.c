@@ -272,13 +272,20 @@ parse_input(int argc, char *argv[])
 			goto addch;
 		goto arg2;
 	case '\0':
-		if (zflag)
+		if (zflag) {
+			/*
+			 * Increment 'count', so that nulls will be treated
+			 * as end-of-line, as well as end-of-argument.  This
+			 * is needed so -0 works properly with -I and -L.
+			 */
+			count++;
 			goto arg2;
+		}
 		goto addch;
 	case '\n':
-		count++;
 		if (zflag)
 			goto addch;
+		count++;	    /* Indicate end-of-line (used by -L) */
 
 		/* Quotes do not escape newlines. */
 arg1:		if (insingle || indouble)
