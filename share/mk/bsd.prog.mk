@@ -1,5 +1,5 @@
 #	from: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-#	$Id: bsd.prog.mk,v 1.19 1995/01/24 17:50:30 jkh Exp $
+#	$Id: bsd.prog.mk,v 1.20 1995/01/25 20:24:01 ache Exp $
 
 .if exists(${.CURDIR}/../Makefile.inc)
 .include "${.CURDIR}/../Makefile.inc"
@@ -168,7 +168,7 @@ realinstall: _PROGSUBDIR
 		shift; \
 		${ECHO} $$t -\> $$l; \
 		rm -f $$t; \
-		ln $$l $$t; \
+		ln ${LN_FLAGS} $$l $$t; \
 	done; true
 .endif
 
