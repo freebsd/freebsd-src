@@ -1,11 +1,3 @@
-substitute "-" with ""
-substitute "\xad" with ""
-substitute "\x27" with ""
-substitute "\xe6" with "ae"
-substitute "\xc6" with "AE"
-substitute "\xdf" with "ss"
-substitute "\xff" with "ij"
-
 order \
 # controls
 	\x01;...;\x1f;\x7f;...;\x9f;\
@@ -18,10 +10,10 @@ order \
 	E;\xc8;...;\xcb;f;F;g;G;h;H;i;\xec;...;\xef;I;\xcc;...;\xcf;j;J;k;K;\
 	l;L;m;M;n;\xf1;N;\xd1;o;\xf2;...;\xf6;\xf8;O;\xd2;...;\xd6;\xd8;\
 	p;P;q;Q;r;R;s;S;t;T;u;\xf9;...;\xfc;U;\xd9;...;\xdc;v;V;w;W;x;X;y;\
-	\xfd;Y;\xdd;z;Z;\xf0;\xd0;\xfe;\xde;\
+	\xfd;Y;\xdd;z;Z;\xf0;\xd0;\xfe;\xde;\xe6;\xc6;\xdf;\xff;\
 # digits
 	0;...;9;\
 # remains
 	\";...;&;\
-	\(;...;+;/;\<;...;\>;@;[;...;`;\{;...;~;\xa2;...;\xac;\xae;...;\xbe;\
+	\(;...;+;/;\<;...;\>;@;[;...;`;\{;...;~;\xa2;...;\xbe;\
 	\xd7;\xf7
