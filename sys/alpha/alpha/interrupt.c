@@ -93,6 +93,7 @@ interrupt(a0, a1, a2, framep)
 		struct proc* p = curproc;
 		if (!p) p = &proc0;
 		if ((caddr_t) framep < (caddr_t) p->p_addr + 1024) {
+			mtx_enter(&Giant, MTX_DEF);
 			panic("possible stack overflow\n");
 		}
 	}
@@ -113,6 +114,7 @@ interrupt(a0, a1, a2, framep)
 			return;
 		}
 			
+		mtx_enter(&Giant, MTX_DEF);
 		cnt.v_intr++;
 #ifdef EVCNT_COUNTERS
 		clock_intr_evcnt.ev_count++;
@@ -125,24 +127,31 @@ interrupt(a0, a1, a2, framep)
 			if((++schedclk2 & 0x7) == 0)
 				statclock((struct clockframe *)framep);
 		}
+		mtx_exit(&Giant, MTX_DEF);
 		break;
 
 	case  ALPHA_INTR_ERROR:	/* Machine Check or Correctable Error */
+		mtx_enter(&Giant, MTX_DEF);
 		a0 = alpha_pal_rdmces();
 		if (platform.mcheck_handler)
 			(*platform.mcheck_handler)(a0, framep, a1, a2);
 		else
 			machine_check(a0, framep, a1, a2);
+		mtx_exit(&Giant, MTX_DEF);
 		break;
 
 	case ALPHA_INTR_DEVICE:	/* I/O device interrupt */
+		mtx_enter(&Giant, MTX_DEF);
 		cnt.v_intr++;
 		if (platform.iointr)
 			(*platform.iointr)(framep, a1);
+		mtx_exit(&Giant, MTX_DEF);
 		break;
 
 	case ALPHA_INTR_PERF:	/* interprocessor interrupt */
+		mtx_enter(&Giant, MTX_DEF);
 		perf_irq(a1, framep);
+		mtx_exit(&Giant, MTX_DEF);
 		break;
 
 	case ALPHA_INTR_PASSIVE:
@@ -152,6 +161,7 @@ interrupt(a0, a1, a2, framep)
 		break;
 
 	default:
+		mtx_enter(&Giant, MTX_DEF);
 		panic("unexpected interrupt: type 0x%lx vec 0x%lx a2 0x%lx\n",
 		    a0, a1, a2);
 		/* NOTREACHED */
