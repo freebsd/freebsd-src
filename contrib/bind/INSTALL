@@ -60,7 +60,7 @@ Building
 
 		make depend
 
-	NOTE: "make depend" is a NO-OP for these platforms: AIX, HPUX and NeXT.
+	NOTE: "make depend" is a NO-OP for some platforms, but always harmless.
 
 	Finally,
 
@@ -137,12 +137,27 @@ Operating System Notes
 
 		Build problems have been reported with the AIX "make".
 		We recommend using GNU "make" instead.
+
+	AIX4 with Linux Compatibility API
+
+		May need to define HAVE_STRNDUP in
+		port/aix4/include/port_after.h.
 	
 	FreeBSD, NetBSD, OpenBSD and BSDI
+
 		The kit should compile even if you have intalled the KAME
 		IPv6 kit.
 
+	HPUX
+
+		If you are using gcc you may have to remove the '-ansi'
+		flag.  This is gcc version dependent.
+
+		HPUX 10.20 early versions of the HP C/ANSI C compiler do
+		not work, version B.10.20.15 in known to work.
+
 	IRIX
+
 		build problems have been reported w/ IRIX 6.3, res_debug.c
 		and #include <stdlib.h>.  You may need to comment out
 		the #include <stdlib.h> and declare

@@ -47,6 +47,11 @@ It is recommended that the
 permissions be restricted to administrative personnel only, or else any
 user on the system might be able to manage the local name server.</P>
 
+<P>On Solaris and SunOS machines the permissions and ownerships are applied
+to the containing directory.
+This is done because these operating systems
+do not honour the permission on the UNIX domain socket.
+
 <P>An <CODE>inet</CODE> control channel is a TCP/IP socket accessible
 to the Internet, created at the specified <VAR>ip_port</VAR> on the
 specified <VAR>ip_addr</VAR>.
@@ -64,7 +69,7 @@ server.</P>
 
 <HR>
 <ADDRESS>
-Last Updated: $Id: controls.html,v 1.4 1999/09/15 20:28:01 cyarnell Exp $
+Last Updated: $Id: controls.html,v 1.5 2001/02/01 04:27:11 marka Exp $
 </ADDRESS>
 </BODY>
 </HTML>
