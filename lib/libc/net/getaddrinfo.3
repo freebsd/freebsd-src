@@ -107,9 +107,7 @@ A
 .Pf non Dv -NULL
 .Fa nodename
 string can be either a node name or a numeric host address string
-.Po
-i.e., a dotted-decimal IPv4 address or an IPv6 hex address
-.Pc .
+(i.e., a dotted-decimal IPv4 address or an IPv6 hex address).
 A
 .Pf non Dv -NULL
 .Fa servname
@@ -226,13 +224,13 @@ member of the
 structure, then the returned socket address structure will be ready for a
 call to
 .Fn connect
-.Pq for a connection-oriented protocol
+(for a connection-oriented protocol)
 or either
 .Fn connect ,
 .Fn sendto ,
 or
 .Fn sendmsg
-.Pq for a connectionless protocol .
+(for a connectionless protocol).
 In this case, if the
 .Fa nodename
 argument is a
@@ -379,10 +377,8 @@ and allows cut-and-paste input of scoped addresses.
 At the moment the code supports only link-local addresses in this format.
 The scope identifier is hardcoded to name of hardware interface associated
 with the link,
-.Po
-such as
-.Li ne0
-.Pc .
+(such as
+.Li ne0 ) .
 For example,
 .Dq Li fe80::1%ne0 ,
 which means
@@ -566,8 +562,8 @@ values, the function still returns a pointer to a string whose contents
 indicate an unknown error.
 .\"
 .Sh SEE ALSO
-.Xr getnameinfo 3 ,
 .Xr gethostbyname 3 ,
+.Xr getnameinfo 3 ,
 .Xr getservbyname 3 ,
 .Xr hosts 5 ,
 .Xr services 5 ,
@@ -608,7 +604,7 @@ function is defined in
 .St -p1003.1g-2000 ,
 and documented in
 .Dq Basic Socket Interface Extensions for IPv6
-.Pq RFC2553 .
+(RFC2553).
 .\"
 .Sh BUGS
 The current implementation is not thread-safe.

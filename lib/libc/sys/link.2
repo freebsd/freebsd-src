@@ -34,7 +34,7 @@
 .\"
 .Dd March 5, 1999
 .Dt LINK 2
-.Os BSD 4
+.Os
 .Sh NAME
 .Nm link
 .Nd make a hard file link
@@ -80,10 +80,7 @@ must be in the same file system.
 .Fa name1
 may not be a directory.
 .Sh RETURN VALUES
-Upon successful completion, a value of 0 is returned.  Otherwise,
-a value of -1 is returned and
-.Va errno
-is set to indicate the error.
+.Rv -std link
 .Sh ERRORS
 .Fn Link
 will fail and no link will be created if:

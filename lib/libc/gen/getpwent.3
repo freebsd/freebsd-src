@@ -53,7 +53,7 @@
 .Ft struct passwd *
 .Fn getpwnam "const char *login"
 .Ft struct passwd *
-.Fn getpwuid "uid_t uid" 
+.Fn getpwuid "uid_t uid"
 .Ft int
 .Fn setpassent "int  stayopen"
 .Ft void
@@ -131,7 +131,7 @@ The
 function
 closes any open files.
 .Pp
-These routines have been written to ``shadow'' the password file, e.g.
+These routines have been written to ``shadow'' the password file, e.g.\&
 allow only certain programs to have access to the encrypted password.
 If the process which calls them has an effective uid of 0, the encrypted
 password will be returned, otherwise, the password field of the returned

@@ -34,7 +34,7 @@
 .\"
 .Dd March 25, 1994
 .Dt SELECT 2
-.Os BSD 4.2
+.Os
 .Sh NAME
 .Nm select
 .Nd synchronous I/O multiplexing
@@ -170,8 +170,8 @@ The default size of
 is currently 1024.
 In order to accommodate programs which might potentially
 use a larger number of open files with
-.Fn select
-, it is possible
+.Fn select ,
+it is possible
 to increase this size by having the program define
 .Dv FD_SETSIZE
 before the inclusion of any header which includes

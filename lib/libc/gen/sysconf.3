@@ -34,7 +34,7 @@
 .\"
 .Dd April 19, 1994
 .Dt SYSCONF 3
-.Os BSD 4
+.Os
 .Sh NAME
 .Nm sysconf
 .Nd get configurable system variables
@@ -58,7 +58,7 @@ The
 .Fa name
 argument specifies the system variable to be queried.
 Symbolic constants for each name value are found in the include file
-.Li <unistd.h> .
+.Aq Pa unistd.h .
 .Pp
 The available values are as follows:
 .Pp
@@ -167,7 +167,7 @@ The
 .Fn sysconf
 function may fail and set
 .Va errno
-for any of the errors specified for the library functions
+for any of the errors specified for the library function
 .Xr sysctl 3 .
 In addition, the following error may be reported:
 .Bl -tag -width Er

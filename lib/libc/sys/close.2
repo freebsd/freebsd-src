@@ -34,7 +34,7 @@
 .\"
 .Dd April 19, 1994
 .Dt CLOSE 2
-.Os BSD 4
+.Os
 .Sh NAME
 .Nm close
 .Nd delete a descriptor
@@ -123,10 +123,7 @@ Before returning,
 unlocks
 .Fa d .
 .Sh RETURN VALUES
-Upon successful completion, a value of 0 is returned.
-Otherwise, a value of -1 is returned and the global integer variable
-.Va errno
-is set to indicate the error.
+.Rv -std close
 .Sh ERRORS
 .Fn Close
 will fail if:

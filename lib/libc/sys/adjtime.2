@@ -34,7 +34,7 @@
 .\"
 .Dd June 4, 1993
 .Dt ADJTIME 2
-.Os BSD 4.3
+.Os
 .Sh NAME
 .Nm adjtime
 .Nd "correct the time to allow synchronization of the system clock"
@@ -84,10 +84,7 @@ The call
 .Fn adjtime
 is restricted to the super-user.
 .Sh RETURN VALUES
-A return value of 0 indicates that the call succeeded.
-A return value of -1 indicates that an error occurred, and in this
-case an error code is stored in the global variable
-.Va errno .
+.Rv -std adjtime
 .Sh ERRORS
 .Fn Adjtime
 will fail if:

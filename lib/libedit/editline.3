@@ -36,7 +36,7 @@
 .\" $FreeBSD$
 .\"
 .Dd January 11, 1997
-.Os BSD 4.4
+.Os
 .Dt EDITLINE 3
 .Sh NAME
 .Nm editline ,
@@ -207,9 +207,7 @@ The colon between
 and the command,
 .Ar command ,
 will be replaced with a NUL
-.Po
-.Dq \e0
-.Pc .
+.Pq Dq \e0 .
 .It Fn el_set
 Set
 .Nm

@@ -27,7 +27,7 @@
 .\"
 .Dd April 13, 2000
 .Dt LIBALIAS 3
-.Os FreeBSD
+.Os
 .Sh NAME
 .Nm libalias
 .Nd packet aliasing library for masquerading and network address translation
@@ -170,12 +170,10 @@ Mainly useful for debugging when the log file is viewed continuously with
 .It Dv PKT_ALIAS_DENY_INCOMING
 If this mode bit is set, all incoming packets associated with new TCP
 connections or new UDP transactions will be marked for being ignored
-.Po
-.Fn PacketAliasIn
+.Fn ( PacketAliasIn
 returns
 .Dv PKT_ALIAS_IGNORED
-code
-.Pc
+code)
 by the calling program.
 Response packets to connections or transactions initiated from the packet
 aliasing host or local network will be unaffected.

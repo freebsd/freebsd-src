@@ -27,7 +27,7 @@
 .\"
 .Dd March 3, 1999
 .Dt KLDSTAT 2
-.Os FreeBSD
+.Os
 .Sh NAME
 .Nm kldstat
 .Nd get status of kld file
@@ -79,12 +79,7 @@ The load address of the kld file.
 The size of the file.
 .El
 .Sh RETURN VALUES
-The function
-.Fn kldstat
-returns 0 on success.
-It returns -1 on failure, and sets
-.Va errno
-to indicate the error.
+.Rv -std kldstat
 .Sh ERRORS
 The information for the file referred to by
 .Fa fileid
@@ -114,8 +109,10 @@ function.
 .Xr kldfirstmod 2 ,
 .Xr kldload 2 ,
 .Xr kldnext 2 ,
+.Xr kldsym 2 ,
 .Xr kldunload 2 ,
 .Xr modfind 2 ,
+.Xr modfnext 2 ,
 .Xr modnext 2 ,
 .Xr modstat 2 ,
 .Xr kld 4 ,

@@ -34,7 +34,7 @@
 .\"
 .Dd June 4, 1993
 .Dt PIPE 2
-.Os BSD 4
+.Os
 .Sh NAME
 .Nm pipe
 .Nd create descriptor pair for interprocess communication
@@ -88,12 +88,7 @@ portable to older systems, so it is recommended to use the convention
 for using the endpoints in the traditional manner when using a
 pipe in one direction.
 .Sh RETURN VALUES
-On successful creation of the pipe, zero is returned.
-Otherwise,
-a value of -1 is returned and the variable
-.Va errno
-set to indicate the
-error.
+.Rv -std pipe
 .Sh ERRORS
 The
 .Fn pipe

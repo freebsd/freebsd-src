@@ -25,7 +25,7 @@
 .\"
 .Dd March 12, 1998
 .Dt SCHED_SETPARAM 2
-.Os BSD 4
+.Os
 .Sh NAME
 .Nm sched_setparam ,
 .Nm sched_getparam
@@ -159,9 +159,9 @@ is outside the range defined for the scheduling policy of the specified
 .Fa pid .
 .El
 .Sh SEE ALSO
+.Xr sched_getscheduler 2 ,
 .Xr sched_get_priority_max 2 ,
 .Xr sched_get_priority_min 2 ,
-.Xr sched_getscheduler 2 ,
 .Xr sched_rr_get_interval 2 ,
 .Xr sched_setscheduler 2 ,
 .Xr sched_yield 2

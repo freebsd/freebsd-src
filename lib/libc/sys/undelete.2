@@ -35,7 +35,7 @@
 .\"
 .Dd October 18, 1994
 .Dt UNDELETE 2
-.Os BSD 4
+.Os
 .Sh NAME
 .Nm undelete
 .Nd attempt to recover a deleted file
@@ -61,10 +61,7 @@ Eventually, the
 functionality may be expanded to other filesystems able to recover
 deleted files such as the log-structured filesystem.
 .Sh RETURN VALUES
-Upon successful completion, a value of 0 is returned.
-Otherwise, a value of -1 is returned and
-.Va errno
-is set to indicate the error.
+.Rv -std undelete
 .Sh ERRORS
 The
 .Fn undelete
@@ -103,4 +100,5 @@ points outside the process's allocated address space.
 .Sh HISTORY
 An
 .Fn undelete
-function call first appeared in 4.4BSD-Lite.
+function call first appeared in
+.Bx 4.4 Lite .

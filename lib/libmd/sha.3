@@ -11,7 +11,7 @@
 .\"
 .Dd February 25, 1999
 .Dt SHA 3
-.Os FreeBSD
+.Os
 .Sh NAME
 .Nm SHA_Init ,
 .Nm SHA_Update ,
@@ -68,7 +68,8 @@ a ``fingerprint'' of the input-data, which doesn't disclose the actual
 input.
 .Pp
 .Tn SHA
-.Pq \&or Tn SHA-0
+(or
+.Tn SHA-0 )
 is the original Secure Hash Algorithm specified in
 .Tn FIPS
 160.  It was quickly proven insecure, and has been superseded by
@@ -112,7 +113,7 @@ When using
 or
 .Fn SHA1_Data ,
 the
-.Ar buf
+.Fa buf
 argument can be a null pointer, in which case the returned string
 is allocated with
 .Xr malloc 3
@@ -120,7 +121,7 @@ and subsequently must be explicitly deallocated using
 .Xr free 3
 after use.
 If the
-.Ar buf
+.Fa buf
 argument is non-null it must point to at least 41 characters of buffer space.
 .Sh SEE ALSO
 .Xr md2 3 ,

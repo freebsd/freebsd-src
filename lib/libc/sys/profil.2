@@ -91,19 +91,7 @@ A
 .Fa scale
 value of 0 disables profiling.
 .Sh RETURN VALUES
-If the
-.Fa scale
-value is nonzero and the buffer
-.Fa samples
-contains an illegal address,
-.Fn profil
-returns \-1,
-profiling is terminated and
-.Va errno
-is set appropriately.
-Otherwise
-.Fn profil
-returns 0.
+.Rv -std profil
 .Sh FILES
 .Bl -tag -width /usr/lib/gcrt0.o -compact
 .It Pa /usr/lib/gcrt0.o

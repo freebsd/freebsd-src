@@ -34,7 +34,7 @@
 .\"
 .Dd June 4, 1993
 .Dt GETUSERSHELL 3
-.Os BSD 4.3
+.Os
 .Sh NAME
 .Nm getusershell ,
 .Nm setusershell ,
@@ -55,9 +55,9 @@ The
 .Fn getusershell
 function
 returns a pointer to a legal user shell as defined by the
-system manager in the file 
+system manager in the file
 .Pa /etc/shells .
-If 
+If
 .Pa /etc/shells
 is unreadable or does not exist,
 .Fn getusershell
@@ -90,7 +90,7 @@ returns a null pointer (0) on
 .Sh HISTORY
 The
 .Fn getusershell
-function appeared in 
+function appeared in
 .Bx 4.3 .
 .Sh BUGS
 The

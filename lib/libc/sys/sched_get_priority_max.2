@@ -25,12 +25,12 @@
 .\"
 .Dd March 12, 1998
 .Dt SCHED_GET_PRIORITY_MAX 2
-.Os BSD 4
+.Os
 .Sh NAME
 .Nm sched_get_priority_max ,
 .Nm sched_get_priority_min ,
 .Nm sched_rr_get_interval
-.Nd Get scheduling parameter limits
+.Nd get scheduling parameter limits
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
@@ -112,10 +112,10 @@ No process can be found corresponding to that specified by
 .Fa pid .
 .El
 .Sh SEE ALSO
-.Xr sched_get_scheduler 2 ,
 .Xr sched_getparam 2 ,
-.Xr sched_set_scheduler 2 ,
-.Xr sched_setparam 2 
+.Xr sched_getscheduler 2 ,
+.Xr sched_setparam 2 ,
+.Xr sched_setscheduler 2
 .Sh STANDARDS
 The
 .Fn sched_setscheduler

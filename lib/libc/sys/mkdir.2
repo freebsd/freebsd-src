@@ -34,7 +34,7 @@
 .\"
 .Dd December 11, 1993
 .Dt MKDIR 2
-.Os BSD 4.2
+.Os
 .Sh NAME
 .Nm mkdir
 .Nd make a directory file
@@ -58,9 +58,7 @@ The directory's owner ID is set to the process's effective user ID.
 The directory's group ID is set to that of the parent directory in
 which it is created.
 .Sh RETURN VALUES
-A 0 return value indicates success.  A -1 return value
-indicates an error, and an error code is stored in
-.Va errno .
+.Rv -std mkdir
 .Sh ERRORS
 .Fn Mkdir
 will fail and no directory will be created if:

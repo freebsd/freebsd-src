@@ -442,7 +442,7 @@ is first ORed with
 the
 .Dq message
 that results is the printable name of the error code,
-e.g.
+e.g.\&
 .Dq Dv REG_NOMATCH ,
 rather than an explanation thereof.
 If
@@ -533,12 +533,10 @@ The endpoint of one range cannot begin another.
 the limit on repetition counts in bounded repetitions, is 255.
 .Pp
 A repetition operator
-.Po
-.Ql ?\& ,
+.Ql ( ?\& ,
 .Ql *\& ,
 .Ql +\& ,
-or bounds
-.Pc
+or bounds)
 cannot follow another
 repetition operator.
 A repetition operator cannot begin an expression or subexpression

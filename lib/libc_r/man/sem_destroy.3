@@ -1,4 +1,4 @@
-.\" Copyright (C) 2000 Jason Evans <jasone@freebsd.org>.
+.\" Copyright (C) 2000 Jason Evans <jasone@FreeBSD.org>.
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -49,12 +49,7 @@ After a successful call to
 is unuseable until re-initialized by another call to
 .Fn sem_init .
 .Sh RETURN VALUES
-If successful,
-.Fn sem_destroy
-returns 0.  Otherwise, -1 is returned and
-.Va errno
-is set to indicate the type of
-error.
+.Rv -std sem_destroy
 .Sh ERRORS
 .Fn sem_destroy
 will fail if:

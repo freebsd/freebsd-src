@@ -34,7 +34,7 @@
 .\"
 .Dd April 19, 1994
 .Dt UALARM 3
-.Os BSD 4.3
+.Os
 .Sh NAME
 .Nm ualarm
 .Nd schedule signal after specified time
@@ -46,7 +46,8 @@
 .Fn ualarm "u_int microseconds" "u_int interval"
 .Sh DESCRIPTION
 .Bf -symbolic
-This is a simplified interface to setitimer(2).
+This is a simplified interface to
+.Xr setitimer 2 .
 .Ef
 .Pp
 The

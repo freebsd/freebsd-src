@@ -1,4 +1,4 @@
-.\" Copyright (C) 2000 Jason Evans <jasone@freebsd.org>.
+.\" Copyright (C) 2000 Jason Evans <jasone@FreeBSD.org>.
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -52,12 +52,7 @@ the semaphore will be allowed to return from
 .Fn sem_post
 is signal-reentrant and may be called within signal handlers.
 .Sh RETURN VALUES
-If successful,
-.Fn sem_post
-returns 0.  Otherwise, -1 is returned and
-.Va errno
-is set to indicate the type of
-error.
+.Rv -std sem_post
 .Sh ERRORS
 .Fn sem_post
 will fail if:

@@ -77,7 +77,8 @@ Multibyte characters are used for input and output
 and code each basic element as a sequence of C
 .Va char Ns s .
 Individual basic elements may map into one or more
-.Pq up to Dv MB_CHAR_MAX
+(up to
+.Dv MB_CHAR_MAX )
 bytes in a multibyte character.
 .Pp
 The current locale
@@ -128,10 +129,10 @@ categories.
 .Pp
 For convenience in processing,
 the wide character with value 0
-.Pq the null wide character
+(the null wide character)
 is recognized as the wide character string terminator,
 and the character with value 0
-.Pq the null byte
+(the null byte)
 is recognized as the multibyte character string terminator.
 Null bytes are not permitted within multibyte characters.
 .Pp

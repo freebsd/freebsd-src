@@ -34,7 +34,7 @@
 .\"
 .Dd June 4, 1993
 .Dt RENAME 2
-.Os BSD 4.2
+.Os
 .Sh NAME
 .Nm rename
 .Nd change the name of a file
@@ -98,11 +98,7 @@ not the file or directory to which it points.
 .\"Hard links to directories should be
 .\"replaced by symbolic links by the system administrator.
 .Sh RETURN VALUES
-A 0 value is returned if the operation succeeds, otherwise
-.Fn rename
-returns -1 and the global variable
-.Va errno
-indicates the reason for the failure.
+.Rv -std rename
 .Sh ERRORS
 .Fn Rename
 will fail and neither of the argument files will be

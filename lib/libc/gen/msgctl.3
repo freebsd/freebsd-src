@@ -33,7 +33,7 @@
 .\"/
 .Dd November 24, 1997
 .Dt MSGCTL 3
-.Os FreeBSD
+.Os
 .Sh NAME
 .Nm msgctl
 .Nd message control operations
@@ -166,11 +166,7 @@ effective gid can match either
 or
 .Va msg_perm.gid .
 .Sh RETURN VALUES
-Upon successful completion, a value of 0 is returned.
-Otherwise, -1 is
-returned and the global variable
-.Va errno
-is set to indicate the error.
+.Rv -std msgctl
 .Sh ERRORS
 .Fn msgctl
 will fail if:

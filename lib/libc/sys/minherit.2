@@ -56,11 +56,7 @@ Not all implementations will guarantee that the inheritance characteristic
 can be set on a page basis;
 the granularity of changes may be as large as an entire region.
 .Sh RETURN VALUES
-Upon successful completion,
-.Fn minherit
-returns 0.  Otherwise, a value of -1 is returned and
-.Va errno
-is set to indicate the error.
+.Rv -std minherit
 .Sh ERRORS
 The
 .Fn minherit
@@ -93,4 +89,5 @@ arguments.
 .Sh HISTORY
 The
 .Fn minherit
-function first appeared in OpenBSD.
+function first appeared in
+.Ox .

@@ -52,7 +52,7 @@
 .\"
 .Dd November 27, 1998
 .Dt STRTOK 3
-.Os FreeBSD
+.Os
 .Sh NAME
 .Nm strtok , strtok_r
 .Nd string tokens
@@ -66,7 +66,8 @@
 .Fn strtok_r "char *str" "const char *sep" "char **last"
 .Sh DESCRIPTION
 .Bf -symbolic
-This interface is obsoleted by strsep(3).
+This interface is obsoleted by
+.Xr strsep 3 .
 .Ef
 .Pp
 The

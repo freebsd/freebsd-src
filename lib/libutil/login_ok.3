@@ -20,7 +20,7 @@
 .\" $FreeBSD$
 .\"
 .Dd January 2, 1997
-.Os FreeBSD
+.Os
 .Dt LOGIN_OK 3
 .Sh NAME
 .Nm auth_ttyok ,
@@ -93,7 +93,7 @@ is in its canonical form.
 No hostname or address lookups are attempted.
 .Pp
 It is possible to call this function with either the hostname or
-the IP address missing (i.e.
+the IP address missing (i.e.\&
 .Dv NULL )
 and matching will be performed
 only on the basis of the parameter given.

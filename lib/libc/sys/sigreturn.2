@@ -34,7 +34,7 @@
 .\"
 .Dd June 4, 1993
 .Dt SIGRETURN 2
-.Os BSD 4.3
+.Os
 .Sh NAME
 .Nm sigreturn
 .Nd return from signal
@@ -85,7 +85,7 @@ This system call is used by the trampoline code and
 when returning from a signal to the previously executing program.
 .Sh NOTES
 This system call is not available in 4.2
-.Tn BSD
+.Bx
 hence it should not be used if backward compatibility is needed.
 .Sh RETURN VALUES
 If successful, the system call does not return.

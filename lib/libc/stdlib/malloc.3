@@ -38,7 +38,7 @@
 .\"
 .Dd August 27, 1996
 .Dt MALLOC 3
-.Os FreeBSD
+.Os
 .Sh NAME
 .Nm malloc , calloc , realloc , free , reallocf
 .Nd general purpose memory allocation functions
@@ -73,7 +73,9 @@ bytes in length (see
 the returned memory will be page boundary aligned as well.
 If
 .Fn malloc
-fails, a NULL pointer is returned.
+fails, a
+.Dv NULL
+pointer is returned.
 .Pp
 Note that
 .Fn malloc
@@ -107,13 +109,17 @@ The contents of the memory are unchanged up to the lesser of the new and
 old sizes.
 If the new size is larger,
 the value of the newly allocated portion of the memory is undefined.
-If the requested memory cannot be allocated, NULL is returned and
+If the requested memory cannot be allocated,
+.Dv NULL
+is returned and
 the memory referenced by
 .Fa ptr
 is valid and unchanged.
 If
 .Fa ptr
-is NULL, the
+is
+.Dv NULL ,
+the
 .Fn realloc
 function behaves identically to
 .Fn malloc
@@ -135,7 +141,9 @@ function causes the allocated memory referenced by
 to be made available for future allocations.
 If
 .Fa ptr
-is NULL, no action occurs.
+is
+.Dv NULL ,
+no action occurs.
 .Sh TUNING
 Once, when the first call is made to one of these memory allocation
 routines, various flags will be set or reset, which affect the
@@ -195,7 +203,9 @@ entries for
 for all operations.
 Consult the source for details on this option.
 .It V
-Attempting to allocate zero bytes will return a NULL pointer instead of
+Attempting to allocate zero bytes will return a
+.Dv NULL
+pointer instead of
 a valid pointer.
 (The default behavior is to make a minimal allocation and return a
 pointer to it.)
@@ -255,7 +265,7 @@ malloc_options = "X";
 .Sh ENVIRONMENT
 The following environment variables affect the execution of the allocation
 functions:
-.Bl -tag -width MMM
+.Bl -tag -width ".Ev MALLOC_OPTIONS"
 .It Ev MALLOC_OPTIONS
 If the environment variable
 .Ev MALLOC_OPTIONS
@@ -268,7 +278,9 @@ The
 and
 .Fn calloc
 functions return a pointer to the allocated memory if successful; otherwise
-a NULL pointer is returned and
+a
+.Dv NULL
+pointer is returned and
 .Va errno
 is set to
 .Er ENOMEM .
@@ -280,7 +292,9 @@ and
 functions return a pointer, possibly identical to
 .Fa ptr ,
 to the allocated memory
-if successful; otherwise a NULL pointer is returned, in which case the
+if successful; otherwise a
+.Dv NULL
+pointer is returned, in which case the
 memory referenced by
 .Fa ptr
 is still available and intact.
@@ -367,55 +381,54 @@ option is set, all warnings are treated as errors.
 The following is a brief description of possible error messages and
 their meanings:
 .Pp
-.Bl -tag -width indent
-.It "(ES): mumble mumble mumble
+.Bl -diag
+.It "(ES): mumble mumble mumble"
 The allocation functions were compiled with
 .Dq EXTRA_SANITY
 defined, and an error was found during the additional error checking.
 Consult the source code for further information.
-.It "mmap(2) failed, check limits
+.It "mmap(2) failed, check limits"
 This most likely means that the system is dangerously overloaded or that
 the process' limits are incorrectly specified.
-.It "freelist is destroyed
+.It "freelist is destroyed"
 The internal free-list has been corrupted.
+.It "out of memory"
+The
+.Dq X
+option was specified and an allocation of memory failed.
 .El
 .Pp
-.Bl -tag -width indent
 The following is a brief description of possible warning messages and
 their meanings:
-.Pp
-.It "chunk/page is already free
+.Bl -diag
+.It "chunk/page is already free"
 The process attempted to
 .Fn free
 memory which had already been freed.
-.It "junk pointer ...
+.It "junk pointer, ..."
 A pointer specified to one of the allocation functions points outside the
 bounds of the memory of which they are aware.
-.It "malloc() has never been called
+.It "malloc() has never been called"
 No memory has been allocated,
 yet something is being freed or
 realloc'ed.
-.It "modified (chunk-/page-) pointer
+.It "modified (chunk-/page-) pointer"
 The pointer passed to
 .Fn free
 or
 .Fn realloc
 has been modified.
-.It "pointer to wrong page
+.It "pointer to wrong page"
 The pointer that
 .Fn malloc
 or
 .Fn calloc
 is trying to free does not reference a possible page.
-.It "recursive call
+.It "recursive call"
 A process has attempted to call an allocation function recursively.
 This is not permitted.  In particular, signal handlers should not
 attempt to allocate memory.
-.It "out of memory
-The
-.Dq X
-option was specified and an allocation of memory failed.
-.It "unknown char in MALLOC_OPTIONS
+.It "unknown char in MALLOC_OPTIONS"
 An unknown option was specified.
 Even with the
 .Dq A
@@ -423,6 +436,7 @@ option set, this warning is still only a warning.
 .El
 .Sh SEE ALSO
 .Xr brk 2 ,
+.Xr mmap 2 ,
 .Xr alloca 3 ,
 .Xr getpagesize 3 ,
 .Xr memory 3
@@ -436,12 +450,6 @@ and
 .Fn free
 functions conform to
 .St -isoC .
-.Sh BUGS
-The messages printed in case of problems provide no detail about the
-actual values.
-.Pp
-It can be argued that returning a null pointer when asked to
-allocate zero bytes is a silly response to a silly question.
 .Sh HISTORY
 The present allocation implementation started out as a filesystem for a
 drum attached to a 20bit binary challenged computer which was built
@@ -456,3 +464,11 @@ function first appeared in
 .Fx 3.0 .
 .Sh AUTHORS
 .An Poul-Henning Kamp Aq phk@FreeBSD.org
+.Sh BUGS
+The messages printed in case of problems provide no detail about the
+actual values.
+.Pp
+It can be argued that returning a
+.Dv NULL
+pointer when asked to
+allocate zero bytes is a silly response to a silly question.

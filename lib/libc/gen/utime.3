@@ -34,7 +34,7 @@
 .\"
 .Dd June 4, 1993
 .Dt UTIME 3
-.Os BSD 4
+.Os
 .Sh NAME
 .Nm utime
 .Nd set file times
@@ -47,7 +47,8 @@
 .Fn utime "const char *file" "const struct utimbuf *timep"
 .Sh DESCRIPTION
 .Bf -symbolic
-This interface is obsoleted by utimes(2) .
+This interface is obsoleted by
+.Xr utimes 2 .
 .Ef
 .Pp
 The

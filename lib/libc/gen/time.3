@@ -38,7 +38,7 @@
 .\"
 .Dd June 4, 1993
 .Dt TIME 3
-.Os BSD 4
+.Os
 .Sh NAME
 .Nm time
 .Nd get time of day
@@ -66,9 +66,7 @@ Upon successful completion,
 .Fn time
 returns the value of time.
 Otherwise a value of
-.Po
-.Po Fa time_t Pc \-1
-.Pc
+.Pq Po Vt time_t Pc \-1
 is returned and the global variable
 .Va errno
 is set to indicate the error.

@@ -34,7 +34,7 @@
 .\"
 .Dd November 3, 1995
 .Dt LISTEN 2
-.Os BSD 4.2
+.Os
 .Sh NAME
 .Nm listen
 .Nd listen for connections on a socket
@@ -107,7 +107,7 @@ Before returning,
 unlocks
 .Fa s .
 .Sh RETURN VALUES
-A 0 return value indicates success; -1 indicates an error.
+.Rv -std listen
 .Sh ERRORS
 .Fn Listen
 will fail if:

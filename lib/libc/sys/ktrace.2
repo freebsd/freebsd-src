@@ -34,7 +34,7 @@
 .\"
 .Dd June 4, 1993
 .Dt KTRACE 2
-.Os BSD 4
+.Os
 .Sh NAME
 .Nm ktrace
 .Nd process tracing
@@ -135,10 +135,7 @@ The type specific records are defined in the
 .Aq Pa sys/ktrace.h
 include file.
 .Sh RETURN VALUES
-On successful completion a value of 0 is returned.
-Otherwise, a value of -1 is returned and
-.Va errno
-is set to show the error.
+.Rv -std ktrace
 .Sh ERRORS
 .Fn Ktrace
 will fail if:

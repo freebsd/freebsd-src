@@ -34,7 +34,7 @@
 .\"
 .Dd June 4, 1993
 .Dt FSYNC 2
-.Os BSD 4.2
+.Os
 .Sh NAME
 .Nm fsync
 .Nd "synchronise changes to a file"
@@ -78,8 +78,7 @@ Before returning,
 unlocks
 .Fa fd .
 .Sh RETURN VALUES
-A 0 value is returned on success.  A -1 value indicates
-an error.
+.Rv -std fsync
 .Sh ERRORS
 The
 .Fn fsync

@@ -33,7 +33,7 @@
 .\"
 .Dd January 19, 1997
 .Dt CRYPT 3
-.Os "FreeSec 1.0"
+.Os
 .Sh NAME
 .Nm crypt
 .Nd Trapdoor encryption
@@ -244,7 +244,7 @@ Otherwise, a value of 0 is returned.
 .Xr cipher 3 ,
 .Xr getpass 3 ,
 .Xr auth.conf 5 ,
-.Xr passwd 5 ,
+.Xr passwd 5
 .Sh BUGS
 The
 .Fn crypt
@@ -269,8 +269,6 @@ section of the code (FreeSec 1.0) was developed outside the United
 States of America as an unencumbered replacement for the U.S.-only
 .Nx
 libcrypt encryption library.
-Users should be aware that this code (and programs staticly linked with it)
-may not be exported from the U.S., although it apparently can be imported.
 .Sh AUTHORS
 .An -nosplit
 Originally written by

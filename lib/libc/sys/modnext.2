@@ -27,7 +27,7 @@
 .\"
 .Dd September 28, 2000
 .Dt MODNEXT 2
-.Os FreeBSD
+.Os
 .Sh NAME
 .Nm modnext
 .Nd return the modid of the next kernel module
@@ -74,11 +74,14 @@ refers to a kernel module that does not exist (isn't loaded).
 .Xr kldfind 2 ,
 .Xr kldfirstmod 2 ,
 .Xr kldload 2 ,
+.Xr kldnext 2 ,
 .Xr kldstat 2 ,
+.Xr kldsym 2 ,
 .Xr kldunload 2 ,
 .Xr modfind 2 ,
 .Xr modstat 2 ,
-.Xr kld 4
+.Xr kld 4 ,
+.Xr kldstat 8
 .Sh HISTORY
 The
 .Nm kld

@@ -73,10 +73,7 @@ device files.
 It is normally used to prepare a terminal device for a new login session,
 preventing any access by a previous user of the terminal.
 .Sh RETURN VALUES
-A 0 value indicated that the call succeeded.  A \-1 return value
-indicates an error occurred and
-.Va errno
-is set to indicated the reason.
+.Rv -std revoke
 .Sh ERRORS
 Access to the named file is revoked unless one of the following:
 .Bl -tag -width Er

@@ -27,7 +27,7 @@
 .\"
 .Dd September 28, 2000
 .Dt MODSTAT 2
-.Os FreeBSD
+.Os
 .Sh NAME
 .Nm modstat
 .Nd get status of kernel module
@@ -112,10 +112,12 @@ function.
 .Xr kldfirstmod 2 ,
 .Xr kldload 2 ,
 .Xr kldnext 2 ,
+.Xr kldstat 2 ,
+.Xr kldsym 2 ,
 .Xr kldunload 2 ,
-.Xr modnext 2 ,
 .Xr modfind 2 ,
 .Xr modfnext 2 ,
+.Xr modnext 2 ,
 .Xr kld 4 ,
 .Xr kldstat 8
 .Sh HISTORY

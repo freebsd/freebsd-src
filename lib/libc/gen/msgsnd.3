@@ -33,7 +33,7 @@
 .\"
 .Dd November 24, 1997
 .Dt MSGSND 3
-.Os FreeBSD
+.Os
 .Sh NAME
 .Nm msgsnd
 .Nd send a message to a message queue
@@ -121,10 +121,7 @@ is set to the pid of the calling process.
 is set to the current time.
 .El
 .Sh RETURN VALUES
-Upon successful completion, 0 is returned.
-Otherwise, -1 is returned and
-.Va errno
-is set to indicate the error.
+.Rv -std msgsnd
 .Sh ERRORS
 .Fn msgsnd
 will fail if:
@@ -159,7 +156,7 @@ points to an invalid address.
 The system call was interrupted by the delivery of a signal.
 .El
 .Sh BUGS
-.Tn NetBSD
+.Nx
 and
 .Fx
 do not define the

@@ -34,7 +34,7 @@
 .\"
 .Dd June 4, 1993
 .Dt CONFSTR 3
-.Os BSD 4
+.Os
 .Sh NAME
 .Nm confstr
 .Nd get string-valued configurable variables
@@ -59,7 +59,7 @@ The
 .Fa name
 argument specifies the system variable to be queried.
 Symbolic constants for each name value are found in the include file
-.Li <unistd.h> .
+.Aq Pa unistd.h .
 The
 .Fa len
 argument specifies the size of the buffer referenced by the
@@ -107,7 +107,7 @@ was truncated.
 The
 .Fn confstr
 function may fail and set
-.Va error
+.Va errno
 for any of the errors specified for the library functions
 .Xr malloc 3
 and

@@ -37,7 +37,7 @@
 .\"
 .Dd April 17, 1997
 .Dt NANOSLEEP 2
-.Os 
+.Os
 .Sh NAME
 .Nm nanosleep
 .Nd suspend process execution for an interval measured in nanoseconds
@@ -71,12 +71,10 @@ is
 .Pf non- Dv NULL ,
 the timespec structure it references is updated to contain the
 unslept amount (the request time minus the time actually slept).
-.Pp
-If any of the following conditions occur, the
+.Sh ERRORS
+The
 .Fn nanosleep
-function shall return -1 and set
-.Va errno
-to the corresponding value:
+call fails if:
 .Bl -tag -width Er
 .It Bq Er EFAULT
 Either

@@ -11,7 +11,7 @@
 .\"
 .Dd February 26, 1999
 .Dt RIPEMD 3
-.Os FreeBSD
+.Os
 .Sh NAME
 .Nm RIPEMD160_Init ,
 .Nm RIPEMD160_Update ,
@@ -83,7 +83,7 @@ When using
 or
 .Fn RIPEMD160_Data ,
 the
-.Ar buf
+.Fa buf
 argument can be a null pointer, in which case the returned string
 is allocated with
 .Xr malloc 3
@@ -91,7 +91,7 @@ and subsequently must be explicitly deallocated using
 .Xr free 3
 after use.
 If the
-.Ar buf
+.Fa buf
 argument is non-null it must point to at least 41 characters of buffer space.
 .Sh SEE ALSO
 .Xr md2 3 ,

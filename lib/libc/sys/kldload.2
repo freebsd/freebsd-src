@@ -27,7 +27,7 @@
 .\"
 .Dd March 3, 1999
 .Dt KLDLOAD 2
-.Os FreeBSD
+.Os
 .Sh NAME
 .Nm kldload
 .Nd load KLD files into the kernel
@@ -45,8 +45,8 @@ loads a kld file into the kernel using the kernel linker.
 .Sh RETURN VALUES
 The function
 .Fn kldload
-returns the fileid of the kld file which was loaded into the kernel.  If
-an error occurs,
+returns the fileid of the kld file which was loaded into the kernel.
+If an error occurs,
 .Fn kldload
 will return -1 and set
 .Va errno
@@ -55,8 +55,8 @@ to indicate the error.
 The named file is loaded unless:
 .Bl -tag -width Er
 .It Bq Er EPERM
-You do not have access to read the file or link it with the kernel.  You should
-be the root user to be able to use the
+You do not have access to read the file or link it with the kernel.
+You should be the root user to be able to use the
 .Nm kld
 functions.
 .It Bq Er EFAULT
@@ -75,8 +75,10 @@ was unrecognized.
 .Xr kldfirstmod 2 ,
 .Xr kldnext 2 ,
 .Xr kldstat 2 ,
+.Xr kldsym 2 ,
 .Xr kldunload 2 ,
 .Xr modfind 2 ,
+.Xr modfnext 2 ,
 .Xr modnext 2 ,
 .Xr modstat 2 ,
 .Xr kld 4 ,

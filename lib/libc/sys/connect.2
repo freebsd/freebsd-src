@@ -34,7 +34,7 @@
 .\"
 .Dd June 4, 1993
 .Dt CONNECT 2
-.Os BSD 4.2
+.Os
 .Sh NAME
 .Nm connect
 .Nd initiate a connection on a socket
@@ -96,10 +96,7 @@ Before returning,
 unlocks
 .Va s .
 .Sh RETURN VALUES
-If the connection or binding succeeds, 0 is returned.
-Otherwise a -1 is returned, and a more specific error
-code is stored in
-.Va errno .
+.Rv -std connect
 .Sh ERRORS
 The
 .Fn connect

@@ -34,7 +34,7 @@
 .\"
 .Dd June 4, 1993
 .Dt UNLINK 2
-.Os BSD 4
+.Os
 .Sh NAME
 .Nm unlink
 .Nd remove directory entry
@@ -62,10 +62,7 @@ all references to it have been closed.
 .Fa path
 may not be a directory.
 .Sh RETURN VALUES
-Upon successful completion, a value of 0 is returned.
-Otherwise, a value of -1 is returned and
-.Va errno
-is set to indicate the error.
+.Rv -std unlink
 .Sh ERRORS
 The
 .Fn unlink

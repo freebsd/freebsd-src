@@ -34,7 +34,7 @@
 .\"
 .Dd April 16, 1994
 .Dt SETREGID 2
-.Os BSD 4.2
+.Os
 .Sh NAME
 .Nm setregid
 .Nd set real and effective group ID
@@ -71,10 +71,7 @@ the standard
 .Fn setgid
 function is preferred.
 .Sh RETURN VALUES
-Upon successful completion, a value of 0 is returned.  Otherwise,
-a value of -1 is returned and
-.Va errno
-is set to indicate the error.
+.Rv -std setregid
 .Sh ERRORS
 .Bl -tag -width Er
 .It Bq Er EPERM

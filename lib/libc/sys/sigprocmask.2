@@ -96,10 +96,7 @@ or
 .Dv SIGSTOP
 to be blocked.
 .Sh RETURN VALUES
-A 0 value indicated that the call succeeded.  A -1 return value
-indicates an error occurred and
-.Va errno
-is set to indicated the reason.
+.Rv -std sigprocmask
 .Sh ERRORS
 The
 .Fn sigprocmask

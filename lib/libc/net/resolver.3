@@ -34,7 +34,7 @@
 .\"
 .Dd June 4, 1993
 .Dt RESOLVER 3
-.Os BSD 4.3
+.Os
 .Sh NAME
 .Nm res_query ,
 .Nm res_search ,
@@ -179,7 +179,10 @@ environment variable.  Network daemons should set this option.
 .It Dv RES_USE_INET6
 Enables support for IPv6-only applications.
 This causes IPv4 addresses to be returned as an IPv4 mapped address.
-For example, 10.1.1.1 will be returned as ::ffff:10.1.1.1.
+For example,
+.Li 10.1.1.1
+will be returned as
+.Li ::ffff:10.1.1.1 .
 The option is meaningful with certain kernel configuration only.
 .It Dv RES_USE_EDNS0
 Enables support for OPT pseudo-RR for EDNS0 extension.
@@ -211,7 +214,7 @@ tokens if you wish to override the
 on a per-process basis.  This is similar to the
 .Em search
 command in the configuration file.
-Another environment variable (
+Another environment variable
 .Dq Ev RES_OPTIONS
 can be set to
 override certain internal resolver options which are otherwise
