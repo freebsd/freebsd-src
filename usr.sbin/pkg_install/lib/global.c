@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id$";
+static const char *rcsid = "$Id: global.c,v 1.1.1.1 1993/08/26 01:19:55 jkh Exp $";
 #endif
 
 /*
@@ -25,7 +25,9 @@ static const char *rcsid = "$Id$";
 
 #include "lib.h"
 
-/* These two are global for all utils */
+/* These are global for all utils */
 Boolean	Verbose		= FALSE;
 Boolean	Fake		= FALSE;
+int AutoAnswer		= FALSE;
+
 
