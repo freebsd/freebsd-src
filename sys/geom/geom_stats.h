@@ -34,25 +34,53 @@
 #define GEOM_STATS_DEVICE	"geom.stats"
 
 /*
- * A g_stat contains the statistics we collect on consumers and
- * providers.
+ * A g_stat contains the statistics the kernel collect on consumers and
+ * providers.  See libgeom(3) for how to get hold of these.
  */
 struct g_stat {
-	void		*id;
-	uint64_t	nop;
-	uint64_t	nend;
-	struct bintime	it;
-	struct bintime	wentidle;
+	int			updating;
+				/*
+				 * If non-zero, the structure is being
+				 * updated by the kernel and the contents
+				 * should not be used.
+				 */
+
+	void			*id;
+				/* GEOM-identifier for the consumer/provider */
+
+	uint64_t		nop;
+				/* Number of requests started */
+
+	uint64_t		nend;
+				/* Number of requests completed */
+
+	struct bintime		bt;
+				/* Accumulated busy time */
+
+	struct bintime		wentbusy;
+				/* Busy time accounted for until here */
 	struct {
 		uint64_t	nop;
+				/* Number of requests completed */
+
 		uint64_t	nbyte;
+				/* Number of bytes completed */
+
 		uint64_t	nmem;
+				/* Number of ENOMEM request errors */
+
 		uint64_t	nerr;
+				/* Number of other request errors */
+
 		struct bintime	dt;
+				/* Accumulated request processing time */
+
 	} ops[3];
+
 #define G_STAT_IDX_READ		0
 #define G_STAT_IDX_WRITE	1
 #define G_STAT_IDX_DELETE	2
+
 };
 
 #endif /* _GEOM_GEOM_STATS_H_ */
