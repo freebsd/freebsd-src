@@ -87,7 +87,7 @@ CDROM_SET_1="${CDROM_SET_1} print/apsfilter"
 CDROM_SET_1="${CDROM_SET_1} print/ghostscript6-nox11"
 CDROM_SET_1="${CDROM_SET_1} print/psutils-letter"
 
-# VERY common build dependancies
+# VERY common build dependencies
 CDROM_SET_1="${CDROM_SET_1} devel/gmake"
 CDROM_SET_1="${CDROM_SET_1} archivers/bzip2"
 CDROM_SET_1="${CDROM_SET_1} graphics/png"
