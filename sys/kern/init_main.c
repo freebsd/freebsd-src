@@ -683,6 +683,7 @@ create_init(const void *udata __unused)
 	error = fork1(&thread0, RFFDG | RFPROC | RFSTOPPED, 0, &initproc);
 	if (error)
 		panic("cannot fork init: %d\n", error);
+	KASSERT(initproc->p_pid == 1, ("create_init: initproc->p_pid != 1"));
 	/* divorce init's credentials from the kernel's */
 	newcred = crget();
 	PROC_LOCK(initproc);
