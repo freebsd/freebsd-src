@@ -5,14 +5,14 @@
 .PATH: ${GCCDIR}
  
 PROG=	cc1
-SRCS=	main.c c-parse+%DIKED.c c-lang.c c-decl.c c-opts.c
+SRCS=	main.c c-parse+%DIKED.c c-lang.c stub-objc.c
 BINDIR=	/usr/libexec
 NOMAN=	1
 NOSHARED?=yes
 
 CFLAGS+= -I.
 
-DPADD=	${LIBCC_INT} 
+DPADD=	${LIBCC_INT}
 LDADD=	${LIBCC_INT}
 
 #-----------------------------------------------------------------------
@@ -23,9 +23,8 @@ c-parse+%DIKED.c: c-parse.c
 	    ${.ALLSRC} > ${.TARGET}
 
 c-parse.y: c-parse.in
-	sed -e "/^ifobjc$$/,/^end ifobjc$$/d" \
-	    -e "/^ifc$$/d" \
-	    -e "/^end ifc$$/d" \
+	sed -e "/^@@ifobjc.*/,/^@@end_ifobjc.*/d" \
+	    -e "/^@@ifc.*/d" -e "/^@@end_ifc.*/d" \
 	    ${.ALLSRC} > ${.TARGET}
 
 CLEANFILES=	c-parse+%DIKED.c c-parse.c c-parse.y
