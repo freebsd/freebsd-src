@@ -248,7 +248,7 @@ reread_mbr:
 	if (bp->b_bcount < 1024)
 		bp->b_bcount = 1024;
 #endif
-	BUF_STRATEGY(bp, 1);
+	DEV_STRATEGY(bp, 1);
 	if (biowait(bp) != 0) {
 		diskerr(bp, "reading primary partition table: error",
 		    LOG_PRINTF, 0, (struct disklabel *)NULL);

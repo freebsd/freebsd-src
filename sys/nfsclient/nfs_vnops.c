@@ -2986,7 +2986,7 @@ loop:
 		else
 		    bp->b_flags |= B_ASYNC | B_WRITEINPROG;
 		splx(s);
-		VOP_BWRITE(bp->b_vp, bp);
+		BUF_WRITE(bp);
 		goto loop;
 	}
 	splx(s);
@@ -3127,7 +3127,7 @@ nfs_writebp(bp, force, procp)
 	if (force)
 		bp->b_flags |= B_WRITEINPROG;
 	BUF_KERNPROC(bp);
-	VOP_STRATEGY(bp->b_vp, bp);
+	BUF_STRATEGY(bp);
 
 	if( (oldflags & B_ASYNC) == 0) {
 		int rtval = biowait(bp);

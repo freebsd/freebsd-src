@@ -678,7 +678,7 @@ bwrite(struct buf * bp)
 	splx(s);
 	if (oldflags & B_ASYNC)
 		BUF_KERNPROC(bp);
-	VOP_STRATEGY(bp->b_vp, bp);
+	BUF_STRATEGY(bp);
 
 	if ((oldflags & B_ASYNC) == 0) {
 		int rtval = biowait(bp);
@@ -886,7 +886,7 @@ void
 bawrite(struct buf * bp)
 {
 	bp->b_flags |= B_ASYNC;
-	(void) VOP_BWRITE(bp->b_vp, bp);
+	(void) BUF_WRITE(bp);
 }
 
 /*
@@ -901,7 +901,7 @@ int
 bowrite(struct buf * bp)
 {
 	bp->b_flags |= B_ORDERED | B_ASYNC;
-	return (VOP_BWRITE(bp->b_vp, bp));
+	return (BUF_WRITE(bp));
 }
 
 /*
@@ -1426,7 +1426,7 @@ vfs_bio_awrite(struct buf * bp)
 	 * XXX returns b_bufsize instead of b_bcount for nwritten?
 	 */
 	nwritten = bp->b_bufsize;
-	(void) VOP_BWRITE(bp->b_vp, bp);
+	(void) BUF_WRITE(bp);
 
 	return nwritten;
 }
@@ -2164,7 +2164,7 @@ loop:
 			    (size > bp->b_kvasize)) {
 				if (bp->b_flags & B_DELWRI) {
 					bp->b_flags |= B_NOCACHE;
-					VOP_BWRITE(bp->b_vp, bp);
+					BUF_WRITE(bp);
 				} else {
 					if ((bp->b_flags & B_VMIO) &&
 					   (LIST_FIRST(&bp->b_dep) == NULL)) {
@@ -2172,7 +2172,7 @@ loop:
 						brelse(bp);
 					} else {
 						bp->b_flags |= B_NOCACHE;
-						VOP_BWRITE(bp->b_vp, bp);
+						BUF_WRITE(bp);
 					}
 				}
 				goto loop;
@@ -2209,7 +2209,7 @@ loop:
 		 */
 
 		if ((bp->b_flags & (B_CACHE|B_DELWRI)) == B_DELWRI) {
-			VOP_BWRITE(bp->b_vp, bp);
+			BUF_WRITE(bp);
 			goto loop;
 		}
 

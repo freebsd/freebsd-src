@@ -109,7 +109,7 @@ physio(dev_t dev, struct uio *uio, int ioflag)
 				vmapbuf(bp);
 			}
 
-			BUF_STRATEGY(bp, 0);
+			DEV_STRATEGY(bp, 0);
 			spl = splbio();
 			while ((bp->b_flags & B_DONE) == 0)
 				tsleep((caddr_t)bp, PRIBIO, "physstr", 0);

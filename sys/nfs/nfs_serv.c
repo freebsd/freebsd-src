@@ -3668,7 +3668,7 @@ nfsrv_commit(nfsd, slp, procp, mrq)
 				}
 				bremfree(bp);
 				bp->b_flags &= ~B_ASYNC;
-				VOP_BWRITE(bp->b_vp, bp);
+				BUF_WRITE(bp);
 				++nfs_commit_miss;
 			}
 			++nfs_commit_blks;

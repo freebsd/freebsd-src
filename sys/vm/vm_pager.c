@@ -567,7 +567,7 @@ flushchainbuf(struct buf *nbp)
 		if (nbp->b_iocmd == BIO_WRITE)
 			nbp->b_dirtyend = nbp->b_bcount;
 		BUF_KERNPROC(nbp);
-		VOP_STRATEGY(nbp->b_vp, nbp);
+		BUF_STRATEGY(nbp);
 	} else {
 		biodone(nbp);
 	}

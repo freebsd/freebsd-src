@@ -150,7 +150,7 @@ swapdev_strategy(ap)
 	}
 	pbreassignbuf(bp, sp->sw_vp);
 	splx(s);
-	VOP_STRATEGY(bp->b_vp, bp);
+	BUF_STRATEGY(bp);
 	return 0;
 }
 

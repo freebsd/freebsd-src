@@ -425,7 +425,7 @@ vnode_pager_input_smlfs(object, m)
 			bp->b_bufsize = bsize;
 
 			/* do the input */
-			VOP_STRATEGY(bp->b_vp, bp);
+			BUF_STRATEGY(bp);
 
 			/* we definitely need to be at splvm here */
 
@@ -746,7 +746,7 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 	cnt.v_vnodepgsin += count;
 
 	/* do the input */
-	VOP_STRATEGY(bp->b_vp, bp);
+	BUF_STRATEGY(bp);
 
 	s = splvm();
 	/* we definitely need to be at splvm here */
