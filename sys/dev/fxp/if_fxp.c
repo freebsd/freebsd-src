@@ -136,6 +136,7 @@ static u_char fxp_cb_config_template[] = {
 
 struct fxp_ident {
 	u_int16_t	devid;
+	int16_t		revid;		/* -1 matches anything */
 	char 		*name;
 };
 
@@ -146,28 +147,42 @@ struct fxp_ident {
  * them.
  */
 static struct fxp_ident fxp_ident_table[] = {
-    { 0x1029,		"Intel 82559 PCI/CardBus Pro/100" },
-    { 0x1030,		"Intel 82559 Pro/100 Ethernet" },
-    { 0x1031,		"Intel 82801CAM (ICH3) Pro/100 VE Ethernet" },
-    { 0x1032,		"Intel 82801CAM (ICH3) Pro/100 VE Ethernet" },
-    { 0x1033,		"Intel 82801CAM (ICH3) Pro/100 VM Ethernet" },
-    { 0x1034,		"Intel 82801CAM (ICH3) Pro/100 VM Ethernet" },
-    { 0x1035,		"Intel 82801CAM (ICH3) Pro/100 Ethernet" },
-    { 0x1036,		"Intel 82801CAM (ICH3) Pro/100 Ethernet" },
-    { 0x1037,		"Intel 82801CAM (ICH3) Pro/100 Ethernet" },
-    { 0x1038,		"Intel 82801CAM (ICH3) Pro/100 VM Ethernet" },
-    { 0x1039,		"Intel 82801DB (ICH4) Pro/100 VE Ethernet" },
-    { 0x103A,		"Intel 82801DB (ICH4) Pro/100 Ethernet" },
-    { 0x103B,		"Intel 82801DB (ICH4) Pro/100 VM Ethernet" },
-    { 0x103C,		"Intel 82801DB (ICH4) Pro/100 Ethernet" },
-    { 0x103D,		"Intel 82801DB (ICH4) Pro/100 VE Ethernet" },
-    { 0x103E,		"Intel 82801DB (ICH4) Pro/100 VM Ethernet" },
-    { 0x1050,		"Intel 82801BA (D865) Pro/100 VE Ethernet" },
-    { 0x1059,		"Intel 82551QM Pro/100 M Mobile Connection" },
-    { 0x1209,		"Intel 82559ER Embedded 10/100 Ethernet" },
-    { 0x1229,		"Intel 82557/8/9 EtherExpress Pro/100(B) Ethernet" },
-    { 0x2449,		"Intel 82801BA/CAM (ICH2/3) Pro/100 Ethernet" },
-    { 0,		NULL },
+    { 0x1029,	-1,	"Intel 82559 PCI/CardBus Pro/100" },
+    { 0x1030,	-1,	"Intel 82559 Pro/100 Ethernet" },
+    { 0x1031,	-1,	"Intel 82801CAM (ICH3) Pro/100 VE Ethernet" },
+    { 0x1032,	-1,	"Intel 82801CAM (ICH3) Pro/100 VE Ethernet" },
+    { 0x1033,	-1,	"Intel 82801CAM (ICH3) Pro/100 VM Ethernet" },
+    { 0x1034,	-1,	"Intel 82801CAM (ICH3) Pro/100 VM Ethernet" },
+    { 0x1035,	-1,	"Intel 82801CAM (ICH3) Pro/100 Ethernet" },
+    { 0x1036,	-1,	"Intel 82801CAM (ICH3) Pro/100 Ethernet" },
+    { 0x1037,	-1,	"Intel 82801CAM (ICH3) Pro/100 Ethernet" },
+    { 0x1038,	-1,	"Intel 82801CAM (ICH3) Pro/100 VM Ethernet" },
+    { 0x1039,	-1,	"Intel 82801DB (ICH4) Pro/100 VE Ethernet" },
+    { 0x103A,	-1,	"Intel 82801DB (ICH4) Pro/100 Ethernet" },
+    { 0x103B,	-1,	"Intel 82801DB (ICH4) Pro/100 VM Ethernet" },
+    { 0x103C,	-1,	"Intel 82801DB (ICH4) Pro/100 Ethernet" },
+    { 0x103D,	-1,	"Intel 82801DB (ICH4) Pro/100 VE Ethernet" },
+    { 0x103E,	-1,	"Intel 82801DB (ICH4) Pro/100 VM Ethernet" },
+    { 0x1050,	-1,	"Intel 82801BA (D865) Pro/100 VE Ethernet" },
+    { 0x1059,	-1,	"Intel 82551QM Pro/100 M Mobile Connection" },
+    { 0x1209,	-1,	"Intel 82559ER Embedded 10/100 Ethernet" },
+    { 0x1229,	0x01,	"Intel 82557 Pro/100 Ethernet" },
+    { 0x1229,	0x02,	"Intel 82557 Pro/100 Ethernet" },
+    { 0x1229,	0x03,	"Intel 82557 Pro/100 Ethernet" },
+    { 0x1229,	0x04,	"Intel 82558 Pro/100 Ethernet" },
+    { 0x1229,	0x05,	"Intel 82558 Pro/100 Ethernet" },
+    { 0x1229,	0x06,	"Intel 82559 Pro/100 Ethernet" },
+    { 0x1229,	0x07,	"Intel 82559 Pro/100 Ethernet" },
+    { 0x1229,	0x08,	"Intel 82559 Pro/100 Ethernet" },
+    { 0x1229,	0x09,	"Intel 82559ER Pro/100 Ethernet" },
+    { 0x1229,	0x0c,	"Intel 82550 Pro/100 Ethernet" },
+    { 0x1229,	0x0d,	"Intel 82550 Pro/100 Ethernet" },
+    { 0x1229,	0x0e,	"Intel 82550 Pro/100 Ethernet" },
+    { 0x1229,	0x0f,	"Intel 82551 Pro/100 Ethernet" },
+    { 0x1229,	0x10,	"Intel 82551 Pro/100 Ethernet" },
+    { 0x1229,	-1,	"Intel 82557/8/9 Pro/100 Ethernet" },
+    { 0x2449,	-1,	"Intel 82801BA/CAM (ICH2/3) Pro/100 Ethernet" },
+    { 0,	-1,	NULL },
 };
 
 static int		fxp_probe(device_t dev);
@@ -319,12 +334,15 @@ static int
 fxp_probe(device_t dev)
 {
 	u_int16_t devid;
+	u_int8_t revid;
 	struct fxp_ident *ident;
 
 	if (pci_get_vendor(dev) == FXP_VENDORID_INTEL) {
 		devid = pci_get_device(dev);
+		revid = pci_get_revid(dev);
 		for (ident = fxp_ident_table; ident->name != NULL; ident++) {
-			if (ident->devid == devid) {
+			if (ident->devid == devid &&
+			    (ident->revid == revid || ident->revid == -1)) {
 				device_set_desc(dev, ident->name);
 				return (0);
 			}
