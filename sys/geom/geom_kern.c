@@ -57,6 +57,7 @@ struct sx topology_lock;
 static struct proc *g_up_proc;
 
 int g_debugflags;
+int g_collectstats;
 
 /*
  * G_UP and G_DOWN are the two threads which push I/O through the
@@ -230,6 +231,9 @@ SYSCTL_PROC(_kern_geom, OID_AUTO, conftxt, CTLTYPE_STRING|CTLFLAG_RD,
 SYSCTL_INT(_kern_geom, OID_AUTO, debugflags, CTLFLAG_RW,
 	&g_debugflags, 0, "");
 
+SYSCTL_INT(_kern_geom, OID_AUTO, collectstats, CTLFLAG_RW,
+	&g_collectstats, 0, "");
+
 SYSCTL_INT(_debug_sizeof, OID_AUTO, g_class, CTLFLAG_RD,
 	0, sizeof(struct g_class), "");
 SYSCTL_INT(_debug_sizeof, OID_AUTO, g_geom, CTLFLAG_RD,
@@ -242,3 +246,5 @@ SYSCTL_INT(_debug_sizeof, OID_AUTO, g_bioq, CTLFLAG_RD,
 	0, sizeof(struct g_bioq), "");
 SYSCTL_INT(_debug_sizeof, OID_AUTO, g_event, CTLFLAG_RD,
 	0, sizeof(struct g_event), "");
+SYSCTL_INT(_debug_sizeof, OID_AUTO, g_stat, CTLFLAG_RD,
+	0, sizeof(struct g_stat), "");
