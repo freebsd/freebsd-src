@@ -161,7 +161,7 @@ outqstr(const char *p, struct output *file)
 	out1c('\'');
 }
 
-char out_junk[16];
+STATIC char out_junk[16];
 
 void
 emptyoutbuf(struct output *dest)

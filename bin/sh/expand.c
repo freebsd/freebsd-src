@@ -90,11 +90,11 @@ struct ifsregion {
 };
 
 
-char *expdest;			/* output of current string */
-struct nodelist *argbackq;	/* list of back quote expressions */
-struct ifsregion ifsfirst;	/* first struct in list of ifs regions */
-struct ifsregion *ifslastp;	/* last struct in list */
-struct arglist exparg;		/* holds expanded arg list */
+STATIC char *expdest;			/* output of current string */
+STATIC struct nodelist *argbackq;	/* list of back quote expressions */
+STATIC struct ifsregion ifsfirst;	/* first struct in list of ifs regions */
+STATIC struct ifsregion *ifslastp;	/* last struct in list */
+STATIC struct arglist exparg;		/* holds expanded arg list */
 
 STATIC void argstr(char *, int);
 STATIC char *exptilde(char *, int);
@@ -1055,7 +1055,7 @@ ifsbreakup(char *string, struct arglist *arglist)
  * should be escapes.  The results are stored in the list exparg.
  */
 
-char *expdir;
+STATIC char *expdir;
 
 
 STATIC void

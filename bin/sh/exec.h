@@ -64,7 +64,6 @@ int find_builtin(char *);
 void hashcd(void);
 void changepath(const char *);
 void deletefuncs(void);
-void getcmdentry(char *, struct cmdentry *);
 void addcmdentry(char *, struct cmdentry *);
 void defun(char *, union node *);
 int unsetfunc(char *);
