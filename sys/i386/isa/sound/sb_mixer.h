@@ -29,7 +29,6 @@
  *	Hunyue Yau	Jan 6 1994
  *	Added defines for the Sound Galaxy NX Pro mixer.
  * 
- * $Id: sb_mixer.h,v 1.3 1994/08/02 07:40:48 davidg Exp $
  */
 
 #define SBPRO_RECORDING_DEVICES	(SOUND_MASK_LINE | SOUND_MASK_MIC | SOUND_MASK_CD)

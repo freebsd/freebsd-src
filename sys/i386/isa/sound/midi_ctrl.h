@@ -1,6 +1,3 @@
-/*
- * $Id: midi_ctrl.c,v 1.7 1994/09/27 17:58:24 davidg Exp $
- */
 static unsigned char ctrl_def_values[128] =
 {
 	0x00,0x00,0x00,0x00,  0x00,0x00,0x00,0x00,	/*   0 to   7 */

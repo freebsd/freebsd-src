@@ -25,19 +25,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: gus_wave.c,v 1.10 1994/10/01 02:16:42 swallace Exp $
  */
 
 #include "sound_config.h"
-#ifdef __FreeBSD__
 #include <machine/ultrasound.h>
-#else
-#include "ultrasound.h"
-#endif
 #include "gus_hw.h"
-
-#undef	OUTB
-#define	OUTB(val, port)	outb(port, val)
 
 #if defined(CONFIGURE_SOUNDCARD) && !defined(EXCLUDE_GUS)
 
@@ -789,7 +781,7 @@ gus_initialize (void)
 
   gus_select_voice (0);		/* This disables writes to IRQ/DMA reg */
 
-  gusintr (0);			/* Serve pending interrupts */
+  gusintr (0,NULL);		/* Serve pending interrupts */
   RESTORE_INTR (flags);
 }
 
@@ -2546,7 +2538,7 @@ guswave_patchmgr (int dev, struct patmgr_info *rec)
 					 */
 
 	offs += sample_ptrs[sample];	/*
-					 * Begin offsess + offset to DRAM
+					 * Begin offset + offset to DRAM
 					 */
 
 	for (n = 0; n < l; n++)
@@ -2591,7 +2583,7 @@ guswave_patchmgr (int dev, struct patmgr_info *rec)
 					 */
 
 	offs += sample_ptrs[sample];	/*
-					 * Begin offsess + offset to DRAM
+					 * Begin offset + offset to DRAM
 					 */
 
 	for (n = 0; n < l; n++)
@@ -2944,11 +2936,7 @@ gus_wave_init (long mem_start, int irq, int dma)
     }
 
 
-#ifdef __FreeBSD__
-  printk ("snd4: <Gravis UltraSound %s (%dk)>", model_num, (int) gus_mem_size / 1024);
-#else /* __FreeBSD__ */
   printk (" <Gravis UltraSound %s (%dk)>", model_num, (int) gus_mem_size / 1024);
-#endif /* __FreeBSD__ */
 
 #ifndef SCO
   sprintf (gus_info.name, "Gravis UltraSound %s (%dk)", model_num, (int) gus_mem_size / 1024);
@@ -2988,12 +2976,7 @@ gus_wave_init (long mem_start, int irq, int dma)
     {
       audio_devs[gus_devnum = num_audiodevs++] = &gus_sampling_operations;
       audio_devs[gus_devnum]->dmachan = dma;
-#ifndef NO_AUTODMA
       audio_devs[gus_devnum]->buffcount = 1;
-#else
-      audio_devs[gus_devnum]->flags &= ~DMA_AUTOMODE;
-      audio_devs[gus_devnum]->buffcount = DSP_BUFFCOUNT;
-#endif
       audio_devs[gus_devnum]->buffsize = DSP_BUFFSIZE;
     }
   else
@@ -3069,7 +3052,6 @@ do_loop_irq (int voice)
       pcm_active = 0;		/* Signal to the play_next_pcm_block routine */
     case LMODE_PCM:
       {
-	int             orig_qlen = pcm_qlen;
 	int             flag;	/* 0 or 2 */
 
 	pcm_qlen--;
@@ -3085,7 +3067,7 @@ do_loop_irq (int voice)
 	    pcm_active = 0;
 	  }
 
-	/*
+/*
  * If the queue was full before this interrupt, the DMA transfer was
  * suspended. Let it continue now.
  */

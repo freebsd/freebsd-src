@@ -52,7 +52,7 @@ Since 2.4
 - MIDI recording for SB and SB Pro. (Untested).
 - Some other fixes.
 - SB16 MIDI and DSP drivers only initialized if SB16 actually installed.
-- Implemented better detection for OPL-3. This should be usefull if you
+- Implemented better detection for OPL-3. This should be useful if you
   have an old SB Pro (the non-OPL-3 one) or a SB 2.0 clone which has a OPL-3.
 - SVR4.2 support by Ian Hartas. Initial ALPHA TEST version (untested).
 

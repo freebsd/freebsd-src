@@ -1,6 +1,4 @@
-/*
- * $Id$
- */
+
 /*
  * I/O addresses
  */

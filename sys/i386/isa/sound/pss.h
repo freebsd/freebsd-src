@@ -7,9 +7,6 @@
 	Copyright (c) 1993 Analog Devices Inc. All rights reserved
 
 ******************************************************************************/
-/*
- * $Id: $
- */
 /* Port offsets from base port for Sound Blaster DSP */
 #define DSP_PORT_CMSD0      0x00  /* C/MS music voice 1-6 data port, write only */
 #define DSP_PORT_CMSR0      0x01  /* C/MS music voice 1-6 register port, write only */
