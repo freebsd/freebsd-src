@@ -264,13 +264,6 @@ slcreate()
 	struct mbuf *m;
 
 	MALLOC(sc, struct sl_softc *, sizeof(*sc), M_SL, M_WAITOK | M_ZERO);
-	if (!sc)
-		return (NULL);
-	MALLOC(sc->bpfbuf, u_char *, SLTMAX + SLIP_HDRLEN, M_SL, M_NOWAIT);
-	if (!sc->bpfbuf) {
-		FREE(sc, M_SL);
-		return (NULL);
-	}
 
 	m = m_gethdr(M_TRYWAIT, MT_DATA);
 	if (m != NULL) {
@@ -283,7 +276,6 @@ slcreate()
 
 	if (m == NULL) {
 		printf("sl: can't allocate buffer\n");
-		FREE(sc->bpfbuf, M_SL);
 		FREE(sc, M_SL);
 		return (NULL);
 	}
@@ -394,7 +386,8 @@ sldestroy(struct sl_softc *sc)
 	LIST_REMOVE(sc, sl_next);
 	m_free(sc->sc_mbuf);
 	mtx_destroy(&sc->sc_fastq.ifq_mtx);
-	FREE(sc->bpfbuf, M_SL);
+	if (sc->bpfbuf)
+		FREE(sc->bpfbuf, M_SL);
 	FREE(sc, M_SL);
 }
 
@@ -661,16 +654,23 @@ slstart(tp)
 			 * to the packet transmission time).
 			 */
 			register struct mbuf *m1 = m;
-			register u_char *cp = sc->bpfbuf + SLIP_HDRLEN;
+			register u_char *cp;
 
-			len = 0;
-			do {
-				register int mlen = m1->m_len;
+			if (sc->bpfbuf == NULL)
+				MALLOC(sc->bpfbuf, u_char *,
+				    SLTMAX + SLIP_HDRLEN, M_SL, M_NOWAIT);
 
-				bcopy(mtod(m1, caddr_t), cp, mlen);
-				cp += mlen;
-				len += mlen;
-			} while ((m1 = m1->m_next) != NULL);
+			if (sc->bpfbuf) {
+				cp = sc->bpfbuf + SLIP_HDRLEN;
+				len = 0;
+				do {
+					register int mlen = m1->m_len;
+
+					bcopy(mtod(m1, caddr_t), cp, mlen);
+					cp += mlen;
+					len += mlen;
+				} while ((m1 = m1->m_next) != NULL);
+			}
 		}
 		ip = mtod(m, struct ip *);
 		if (ip->ip_v == IPVERSION && ip->ip_p == IPPROTO_TCP) {
@@ -678,7 +678,7 @@ slstart(tp)
 				*mtod(m, u_char *) |= sl_compress_tcp(m, ip,
 				    &sc->sc_comp, 1);
 		}
-		if (sc->sc_if.if_bpf) {
+		if (sc->sc_if.if_bpf && sc->bpfbuf) {
 			/*
 			 * Put the SLIP pseudo-"link header" in place.  The
 			 * compressed header is now at the beginning of the
