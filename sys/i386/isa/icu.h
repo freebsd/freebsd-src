@@ -60,8 +60,6 @@
 
 void	INTREN			__P((u_int));
 void	INTRDIS			__P((u_int));
-#define	INTRMASK(msk,s)		(msk |= (s))
-#define INTRUNMASK(msk,s)	(msk &= ~(s))
 
 #else /* APIC_IO */
 
@@ -72,8 +70,6 @@ extern	unsigned imen;		/* interrupt mask enable */
 
 #define	INTREN(s)		(imen &= ~(s), SET_ICUS())
 #define	INTRDIS(s)		(imen |= (s), SET_ICUS())
-#define	INTRMASK(msk,s)		(msk |= (s))
-#define INTRUNMASK(msk,s)	(msk &= ~(s))
 
 #if 0
 #ifdef PC98
