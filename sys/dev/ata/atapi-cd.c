@@ -1000,6 +1000,11 @@ acd_geom_start(struct bio *bp)
 	return;
     }
 
+    if (bp->bio_cmd == BIO_READ && cdp->disk_size == -1) {
+	g_io_deliver(bp, EIO);
+	return;
+    }
+
     /* GEOM classes must do their own request limiting */
     if (bp->bio_length <= cdp->iomax) {
 	mtx_lock(&cdp->queue_mtx);
