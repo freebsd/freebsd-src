@@ -213,7 +213,7 @@ main(argc, argv)
 	struct iovec iov;
 	struct msghdr msg;
 	struct sockaddr_in from;
-	char ctrl[sizeof(struct cmsghdr) + sizeof(struct timeval)];
+	char ctrl[CMSG_SPACE(sizeof(struct timeval))];
 #ifdef IPSEC_POLICY_IPSEC
 	char *policy_in = NULL;
 	char *policy_out = NULL;
