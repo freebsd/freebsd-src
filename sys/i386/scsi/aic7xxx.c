@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aic7xxx.c,v 1.63 1996/04/23 04:22:41 gibbs Exp $
+ *      $Id: aic7xxx.c,v 1.64 1996/04/23 04:47:02 gibbs Exp $
  */
 /*
  * TODO:
@@ -81,8 +81,8 @@
  *	waiting_scbs - SCBs that are active, don't have an assigned hardware
  *		    slot assigned to them and are waiting for either a
  *		    disconnection or a command complete to free up a slot.
- *	assigned_scbs - SCBs were in the waiting_scbs queue, but were assigned
- *		    a slot by ahc_free_scb.
+ *	assigned_scbs - SCBs that were in the waiting_scbs queue, but were
+ *		    assigned a slot by ahc_free_scb.
  *
  * 2) When a new request comes in, an SCB is allocated from the free_scbs or
  *    page_scbs queue with preference to SCBs on the free_scbs queue.
@@ -537,14 +537,10 @@ ahc_fetch_scb(ahc, scb)
 
 	outb(SCBCNT + iobase, 0x80);     /* SCBAUTO */
 
-	if( ahc->type == AHC_284 || (ahc->type & AHC_AIC7850))
-		/* Can only do 8bit PIO */
-		insb(SCBARRAY+iobase, scb, SCB_PIO_TRANSFER_SIZE);
-	else
-		insl(SCBARRAY+iobase, scb, 
-		      (SCB_PIO_TRANSFER_SIZE + 3) / 4);
+	/* Can only do 8bit PIO for reads */
+	insb(SCBARRAY+iobase, scb, SCB_PIO_TRANSFER_SIZE);
 
-        outb(SCBCNT + iobase, 0);
+	outb(SCBCNT + iobase, 0);
 }
 
 /*
@@ -597,11 +593,15 @@ ahc_run_waiting_queues(ahc)
 		STAILQ_REMOVE_HEAD(&ahc->assigned_scbs, links);
 		outb(SCBPTR + iobase, scb->position);
 		ahc_send_scb(ahc, scb);
+
+		/* Mark this as an active command */
+		scb->flags = SCB_ACTIVE;
+
+		outb(QINFIFO + iobase, scb->position);
 		if (!(scb->xs->flags & SCSI_NOMASK)) {
 			timeout(ahc_timeout, (caddr_t)scb,
 				(scb->xs->timeout * hz) / 1000);
 		}
-		outb(QINFIFO + iobase, scb->position);
 		SC_DEBUG(scb->xs->sc_link, SDEV_DB3, ("cmd_sent\n"));
 	}
 	/* Now deal with SCBs that require paging */
@@ -653,6 +653,9 @@ ahc_run_waiting_queues(ahc)
 
 				/* Do the page out */
 				ahc_page_scb(ahc, out_scbp, scb);
+
+				/* Mark this as an active command */
+				scb->flags = SCB_ACTIVE;
 
 				/* Queue the command */
 				outb(QINFIFO + iobase, scb->position);
@@ -799,7 +802,8 @@ ahc_intr(arg)
 				u_char arg_1 = inb(ARG_1 + iobase);
 				if(arg_1 == SCB_LIST_NULL) {
 					/* Non-tagged command */
-					int index = target | (scb->tcl&SELBUSB);
+					int index = target |
+						(channel == 'B' ? SELBUSB : 0);
 					scb = ahc->pagedout_ntscbs[index];
 				}
 				else
@@ -807,7 +811,8 @@ ahc_intr(arg)
 
 				/*
 				 * Now to pick the SCB to page out.
-				 * Either take a free SCB or the first
+				 * Either take a free SCB, an assigned SCB,
+				 * an SCB that just completed or the first
 				 * one on the disconnected SCB list.
 				 */
 				if(ahc->free_scbs.stqh_first) {
@@ -822,10 +827,51 @@ ahc_intr(arg)
 					ahc_send_scb(ahc, scb);
 					scb->flags &= ~SCB_PAGED_OUT;
 				}
+				else if(ahc->assigned_scbs.stqh_first) {
+					outscb = ahc->assigned_scbs.stqh_first; 
+					STAILQ_REMOVE_HEAD(&ahc->assigned_scbs,
+							   links);
+					scb->position = outscb->position;
+					outscb->position = SCB_LIST_NULL;
+					STAILQ_INSERT_HEAD(&ahc->waiting_scbs,
+							   outscb, links);
+					outscb->flags = SCB_WAITINGQ;
+					outb(SCBPTR + iobase, scb->position);
+					ahc_send_scb(ahc, scb);
+					scb->flags &= ~SCB_PAGED_OUT;
+				}
+				else if(intstat & CMDCMPLT) {
+					int   scb_index;
+
+					printf("PIC\n");
+					outb(CLRINT + iobase, CLRCMDINT);
+					scb_index = inb(QOUTFIFO + iobase);
+					if(!(inb(QOUTCNT + iobase) & ahc->qcntmask))
+						intstat &= ~CMDCMPLT;
+
+					outscb = ahc->scbarray[scb_index];
+					if (!outscb || !(outscb->flags & SCB_ACTIVE)) {
+						printf("ahc%d: WARNING "
+						       "no command for scb %d (cmdcmplt)\n",
+							ahc->unit, scb_index );
+						goto use_disconnected_scb;
+					}
+					else {
+						scb->position = outscb->position;
+						outscb->position = SCB_LIST_NULL;
+						outb(SCBPTR + iobase, scb->position);
+						ahc_send_scb(ahc, scb);
+						scb->flags &= ~SCB_PAGED_OUT;
+						untimeout(ahc_timeout, (caddr_t)outscb);
+						ahc_done(ahc, outscb);
+					}
+				}
 				else {
 					u_char tag;
 					u_char next;
-					u_char disc_scb =
+					u_char disc_scb;
+use_disconnected_scb:
+					disc_scb =
 						inb(DISCONNECTED_SCBH + iobase);
 					if(disc_scb == SCB_LIST_NULL)
 						panic("Page-in request with no "
@@ -1186,6 +1232,7 @@ ahc_intr(arg)
 				 */
 				sc_print_addr(xs->sc_link);
 				printf("Queue Full\n");
+				scb->flags = SCB_ASSIGNEDQ;
 				STAILQ_INSERT_TAIL(&ahc->assigned_scbs,
 						   scb, links);
 				break;
@@ -1279,6 +1326,7 @@ ahc_intr(arg)
 				outb(MSG0 + iobase,
 					MSG_BUS_DEVICE_RESET);
 				outb(MSG_LEN + iobase, 1);
+				printf("Bus Device Reset Message Sent\n");
 			}
 			else
 				panic("ahc_intr: AWAITING_MSG for an SCB that "
@@ -1498,12 +1546,12 @@ clear:
 				outb(CLRINT + iobase, CLRCMDINT);
 				continue;
 			}
-
 			outb(CLRINT + iobase, CLRCMDINT);
 			untimeout(ahc_timeout, (caddr_t)scb);
 			ahc_done(ahc, scb);
 
 		} while (inb(QOUTCNT + iobase) & ahc->qcntmask);
+
 		ahc_run_waiting_queues(ahc);
 	}
 }
@@ -1527,11 +1575,14 @@ ahc_done(ahc, scb)
 	 */
 	if(scb->flags & SCB_SENSE)
 		xs->error = XS_SENSE;
+	if(scb->flags & SCB_SENTORDEREDTAG)
+		ahc->in_timeout = FALSE;
 	if ((xs->flags & SCSI_ERR_OK) && !(xs->error == XS_SENSE)) {
 		/* All went correctly  OR errors expected */
 		xs->error = XS_NOERROR;
 	}
 	xs->flags |= ITSDONE;
+#ifdef AHC_TAGENABLE
 	if(xs->cmd->opcode == 0x12 && xs->error == XS_NOERROR)
 	{
 		struct scsi_inquiry_data *inq_data;
@@ -1566,6 +1617,7 @@ ahc_done(ahc, scb)
 			}
 		}
 	}
+#endif
 	ahc_free_scb(ahc, scb, xs->flags);
 	scsi_done(xs);
 }
@@ -1786,6 +1838,7 @@ ahc_init(ahc)
 	ahc->sdtrpending = 0;
 	ahc->wdtrpending = 0;
 	ahc->tagenable = 0;
+	ahc->orderedtag = 0;
 
 #ifdef AHC_DEBUG
 	/* How did we do? */
@@ -1913,8 +1966,14 @@ ahc_scsi_cmd(xs)
          * Put all the arguments for the xfer in the scb
          */
 
-	if(ahc->tagenable & mask)
+	if(ahc->tagenable & mask) {
 		scb->control |= TAG_ENB;
+		if(ahc->orderedtag & mask) {
+			printf("Ordered Tag sent\n");
+			scb->control |= 0x02;
+			ahc->orderedtag &= ~mask;
+		}
+	}
 	if(ahc->discenable & mask)
 		scb->control |= DISCENB;
 	if((ahc->needwdtr & mask) && !(ahc->wdtrpending & mask))
@@ -2031,6 +2090,7 @@ ahc_scsi_cmd(xs)
 		outb(SCBPTR + iobase, curscb);
 		outb(QINFIFO + iobase, scb->position);
 		UNPAUSE_SEQUENCER(ahc);
+		scb->flags = SCB_ACTIVE;
 		if (!(flags & SCSI_NOMASK)) {
 			timeout(ahc_timeout, (caddr_t)scb,
 				(xs->timeout * hz) / 1000);
@@ -2038,6 +2098,7 @@ ahc_scsi_cmd(xs)
 		SC_DEBUG(xs->sc_link, SDEV_DB3, ("cmd_sent\n"));
 	}
 	else {
+		scb->flags = SCB_WAITINGQ;
 		STAILQ_INSERT_TAIL(&ahc->waiting_scbs, scb, links);
 		ahc_run_waiting_queues(ahc);
 	}
@@ -2097,7 +2158,8 @@ ahc_free_scb(ahc, scb, flags)
 	else if((wscb = ahc->waiting_scbs.stqh_first) != NULL) {
 		wscb->position = scb->position;
 		STAILQ_REMOVE_HEAD(&ahc->waiting_scbs, links);
-		STAILQ_INSERT_TAIL(&ahc->assigned_scbs, wscb, links);
+		STAILQ_INSERT_HEAD(&ahc->assigned_scbs, wscb, links);
+		wscb->flags = SCB_ASSIGNEDQ;
 
 		/* 
 		 * The "freed" SCB will need to be assigned a slot
@@ -2188,7 +2250,7 @@ ahc_get_scb(ahc, flags)
 	if (scbp) {
 		scbp->control = 0;
 		scbp->status = 0;
-		scbp->flags = SCB_ACTIVE;
+		scbp->flags = 0;
 #ifdef AHC_DEBUG
 		ahc->activescbs++;
 		if((ahc_debug & AHC_SHOWSCBCNT)
@@ -2366,6 +2428,19 @@ ahc_timeout(arg)
 		       "%d SCBs aborted\n", ahc->unit, channel, found);
 		ahc->in_timeout = FALSE;
 	}
+	else if(scb->control & TAG_ENB) {
+		/*
+		 * We could be starving this command
+		 * try sending an ordered tag command
+		 * to the target we come from.
+		 */
+		scb->flags |= SCB_ABORTED|SCB_SENTORDEREDTAG;
+		ahc->orderedtag |= 0xFF;
+		timeout(ahc_timeout, (caddr_t)scb, (5 * hz));
+		UNPAUSE_SEQUENCER(ahc);
+		printf("Ordered Tag queued\n");
+		goto done;
+	}
 	else {
 		/*
 		 * Send a Bus Device Reset Message:
@@ -2393,12 +2468,39 @@ ahc_timeout(arg)
 			u_char active_scb;
 			struct scb *active_scbp;
 
-			active_scb = inb(SCB_TAG + iobase);
-			active_scbp = ahc->scbarray[active_scb];
+			active_scb = inb(SCBPTR + iobase);
+			active_scbp = ahc->scbarray[inb(SCB_TAG + iobase)];
 			outb(SCBPTR + iobase, scb->position);
 
 			if(inb(SCB_CONTROL + iobase) & DISCONNECTED) {
+				if(ahc->flags & AHC_PAGESCBS) {
+					/*
+					 * Pull this SCB out of the 
+					 * disconnected list.
+					 */
+					u_char prev = inb(SCB_PREV + iobase);
+					u_char next = inb(SCB_NEXT + iobase);
+					if(prev == SCB_LIST_NULL) {
+						/* At the head */
+						outb(DISCONNECTED_SCBH + iobase,
+						     next );
+					}
+					else {
+						outb(SCBPTR + iobase, prev);
+						outb(SCB_NEXT + iobase, next);
+						if(next != SCB_LIST_NULL) {
+							outb(SCBPTR + iobase,
+							     next);
+							outb(SCB_PREV + iobase,
+							     prev);
+						}
+						outb(SCBPTR + iobase,
+						     scb->position);
+					}
+				}
 				scb->flags |= SCB_DEVICE_RESET|SCB_ABORTED;
+				scb->control &= DISCENB;
+				scb->cmdlen = 0;
 				scb->SG_segment_count = 0;
 				scb->SG_list_pointer = 0;
 				scb->data = 0;
@@ -2438,7 +2540,7 @@ ahc_timeout(arg)
 		}
 		/*
 		 * No active target or a paged out SCB.
-		 * Try reseting the bus
+		 * Try reseting the bus.
 		 */
 		channel = (scb->tcl & SELBUSB) ? 'B': 'A';	
 		found = ahc_reset_channel(ahc, channel, scb->tag, 
