@@ -65,6 +65,7 @@ int main(argc, argv)
 	long offset, utcsec, localsec, diff;
 	time_t initial_sec, final_sec;
 	int ch, init = -1, verbose = 0;
+	int disrtcset, need_restore = 0;
 
 	while ((ch = getopt(argc, argv, "aiv")) != EOF)
 		switch((char)ch) {
@@ -181,17 +182,6 @@ int main(argc, argv)
 	else
 		stv = NULL;
 
-	if (kern_offset != offset) {
-		kern_offset = offset;
-		mib[0] = CTL_MACHDEP;
-		mib[1] = CPU_ADJKERNTZ;
-		len = sizeof(kern_offset);
-		if (sysctl(mib, 2, NULL, NULL, &kern_offset, len) == -1) {
-			perror("sysctl(update_offset)");
-			return 1;
-		}
-	}
-
 	if (tz.tz_dsttime != 0 || tz.tz_minuteswest != 0) {
 		tz.tz_dsttime = tz.tz_minuteswest = 0;  /* zone info is garbage */
 		stz = &tz;
@@ -200,8 +190,6 @@ int main(argc, argv)
 		stz = NULL;
 
 	if (stz != NULL || stv != NULL) {
-		int disrtcset, need_restore = 0;
-
 		if (init && stv != NULL) {
 			mib[0] = CTL_MACHDEP;
 			mib[1] = CPU_DISRTCSET;
@@ -219,16 +207,28 @@ int main(argc, argv)
 				}
 			}
 		}
-		if (settimeofday(stv, stz)) {
+		if ((init || stv == NULL) && settimeofday(stv, stz)) {
 			perror("settimeofday");
 			return 1;
 		}
-		if (need_restore) {
-			disrtcset = 0;
-			if (sysctl(mib, 2, NULL, NULL, &disrtcset, len) == -1) {
-				perror("sysctl(restore_disrtcset)");
-				return 1;
-			}
+	}
+
+	if (kern_offset != offset) {
+		kern_offset = offset;
+		mib[0] = CTL_MACHDEP;
+		mib[1] = CPU_ADJKERNTZ;
+		len = sizeof(kern_offset);
+		if (sysctl(mib, 2, NULL, NULL, &kern_offset, len) == -1) {
+			perror("sysctl(update_offset)");
+			return 1;
+		}
+	}
+
+	if (need_restore) {
+		disrtcset = 0;
+		if (sysctl(mib, 2, NULL, NULL, &disrtcset, len) == -1) {
+			perror("sysctl(restore_disrtcset)");
+			return 1;
 		}
 	}
 
