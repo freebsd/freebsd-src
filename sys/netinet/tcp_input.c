@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_input.c	8.5 (Berkeley) 4/10/94
- * $Id: tcp_input.c,v 1.6 1994/08/18 22:35:32 wollman Exp $
+ * $Id: tcp_input.c,v 1.7 1994/08/26 22:27:16 wollman Exp $
  */
 
 #ifndef TUBA_INCLUDE
@@ -58,10 +58,12 @@
 #include <netinet/tcp_timer.h>
 #include <netinet/tcp_var.h>
 #include <netinet/tcpip.h>
+#ifdef TCPDEBUG
 #include <netinet/tcp_debug.h>
+struct	tcpiphdr tcp_saveti;
+#endif
 
 int	tcprexmtthresh = 3;
-struct	tcpiphdr tcp_saveti;
 struct	inpcb *tcp_last_inpcb = &tcb;
 
 #endif /* TUBA_INCLUDE */
@@ -222,12 +224,14 @@ tcp_input(m, iphlen)
 	register int tiflags;
 	struct socket *so = 0;
 	int todrop, acked, ourfinisacked, needoutput = 0;
-	short ostate = 0;
 	struct in_addr laddr;
 	int dropsocket = 0;
 	int iss = 0;
 	u_long tiwin, ts_val, ts_ecr;
 	int ts_present = 0;
+#ifdef TCPDEBUG
+	short ostate = 0;
+#endif
 
 	tcpstat.tcps_rcvtotal++;
 	/*
@@ -347,10 +351,12 @@ findpcb:
 
 	so = inp->inp_socket;
 	if (so->so_options & (SO_DEBUG|SO_ACCEPTCONN)) {
+#ifdef TCPDEBUG
 		if (so->so_options & SO_DEBUG) {
 			ostate = tp->t_state;
 			tcp_saveti = *ti;
 		}
+#endif
 		if (so->so_options & SO_ACCEPTCONN) {
 			so = sonewconn(so, 0);
 			if (so == 0)
@@ -1269,8 +1275,10 @@ dodata:							/* XXX */
 			break;
 		}
 	}
+#ifdef TCPDEBUG
 	if (so->so_options & SO_DEBUG)
 		tcp_trace(TA_INPUT, ostate, tp, &tcp_saveti, 0);
+#endif
 
 	/*
 	 * If this is a small packet, then ACK now - with Nagel
@@ -1325,8 +1333,10 @@ drop:
 	/*
 	 * Drop space held by incoming segment and return.
 	 */
+#ifdef TCPDEBUG
 	if (tp && (tp->t_inpcb->inp_socket->so_options & SO_DEBUG))
 		tcp_trace(TA_DROP, ostate, tp, &tcp_saveti, 0);
+#endif
 	m_freem(m);
 	/* destroy temporarily created socket */
 	if (dropsocket)
