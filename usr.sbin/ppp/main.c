@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.14 1996/01/30 11:08:41 dfr Exp $
+ * $Id: main.c,v 1.15 1996/03/08 09:03:05 ache Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -396,7 +396,16 @@ char **argv;
 #endif
       TtyInit();
     } else {
+      int fd;
+
       setsid();			/* detach control tty */
+      if ((fd = open(_PATH_DEVNULL, O_RDWR, 0)) != -1) {
+	(void)dup2(fd, STDIN_FILENO);
+	(void)dup2(fd, STDOUT_FILENO);
+	(void)dup2(fd, STDERR_FILENO);
+	if (fd > 2)
+		(void)close (fd);
+      }
     }
   } else {
     server = -1;
