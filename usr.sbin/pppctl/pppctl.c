@@ -1,5 +1,5 @@
 /*
- * $Id: pppctl.c,v 1.10 1997/11/18 00:22:07 brian Exp $
+ * $Id: pppctl.c,v 1.11 1997/12/17 00:26:58 brian Exp $
  */
 
 #include <sys/types.h>
@@ -364,7 +364,7 @@ main(int argc, char **argv)
                         write(1, Buffer, strlen(Buffer));
                     write(fd, Buffer, strlen(Buffer));
                     if (Receive(fd, verbose | REC_SHOW) != 0) {
-                        fprintf(stderr, "No reply from ppp\n");
+                        fprintf(stderr, "Connection closed\n");
                         break;
                     }
                     if (next)
