@@ -580,7 +580,7 @@ void ParseTag PROTO((char **tagp, char **datep, int *nonbranchp));
 void WriteTag PROTO ((const char *dir, const char *tag, const char *date,
                       int nonbranch, const char *update_dir,
                       const char *repository));
-void WriteTemplate PROTO ((char *dir, char *update_dir));
+void WriteTemplate PROTO ((const char *dir, const char *update_dir));
 void cat_module PROTO((int status));
 void check_entries PROTO((char *dir));
 void close_module PROTO((DBM * db));
