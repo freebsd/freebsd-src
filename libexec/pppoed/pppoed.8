@@ -32,11 +32,12 @@
 .Nm pppoed
 .Nd handle incoming PPP over Ethernet connections
 .Sh SYNOPSIS
-.Nm pppoed
+.Nm
 .Op Fl Fd
 .Op Fl P Ar pidfile
 .Op Fl a Ar name
 .Op Fl e Ar exec
+.Op Fl n Ar ngdebug
 .Op Fl p Ar provider
 .Ar interface
 .Sh DESCRIPTION
@@ -121,6 +122,12 @@ If the
 flag is given, additional diagnostics are provided (see the
 .Sx DIAGNOSTICS
 section below).
+If the
+.Fl n
+flag is given,
+.Fn NgSetDebug
+is called with an argument of
+.Ar ngdebug .
 .Pp
 If
 .Ar pidfile
@@ -142,6 +149,10 @@ will report on the child processes creation of a new netgraph socket, it's
 service offer and the invocation of the
 .Em PPP
 program.
+If the
+.Fl n
+option is given, netgraph diagnostic messages are also redirected to
+.Xr syslogd 8 .
 .Pp
 It is sometimes useful to add the following to
 .Pa /etc/syslog.conf :
@@ -155,8 +166,10 @@ and the following to
 .Dl /var/log/pppoed.log			640  3	   100	*     Z
 .Pp
 .Sh SEE ALSO
+.Xr NgSetDebug 3 ,
 .Xr netgraph 4 ,
 .Xr syslog.conf 5 ,
+.Xr ng_ether 8 ,
 .Xr ng_pppoe 8 ,
 .Xr ng_socket 8 ,
 .Xr ppp 8 ,
