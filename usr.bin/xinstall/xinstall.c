@@ -715,7 +715,7 @@ strip(to_name)
 		if (stripbin == NULL)
 			stripbin = "strip";
 		execlp(stripbin, stripbin, to_name, (char *)NULL);
-		err(EX_OSERR, "exec(strip)");
+		err(EX_OSERR, "exec(%s)", stripbin);
 	default:
 		if (wait(&status) == -1 || status) {
 			(void)unlink(to_name);
