@@ -1,5 +1,5 @@
 .\"
-.\" $Id: ipfw.8,v 1.50 1999/04/28 02:49:29 ghelmer Exp $
+.\" $Id: ipfw.8,v 1.51 1999/04/29 19:14:17 ghelmer Exp $
 .\"
 .Dd July 20, 1996
 .Dt IPFW 8 SMM
@@ -15,7 +15,7 @@
 .Op Fl D Ar macro Ns Op Ns =value
 .Op Fl U Ar macro
 .Oc
-file
+.Ar file
 .Nm ipfw
 .Oo
 .Fl f
@@ -254,7 +254,7 @@ activated in particular circumstances, such as if you use the firewall
 system as an on-demand denial-of-service filter that is normally wide open.
 .Pp
 The following options are available:
-.Bl -tag -width flag
+.Bl -tag -width indent
 .It Fl a
 While listing, show counter values.  See also 
 .Dq show
@@ -265,7 +265,8 @@ Don't ask for confirmation for commands that can cause problems if misused
 .Ar Note ,
 if there is no tty associated with the process, this is implied.
 .It Fl q
-While adding, zeroing or flushing, be quiet about actions (implies '-f'). 
+While adding, zeroing or flushing, be quiet about actions (implies
+.Fl f Ns ).
 This is useful for adjusting rules by executing multiple
 .Nm
 commands in a script
@@ -352,7 +353,7 @@ Send a copy of packets matching this rule to the
 .Xr divert 4
 socket bound to port
 .Ar port .
-The search continues with the next rule. This feature is not yet implemeted.
+The search continues with the next rule. This feature is not yet implemented.
 .It Ar fwd ipaddr Op ,port
 Change the next-hop on matching packets to
 .Ar ipaddr ,
@@ -376,7 +377,7 @@ also map addresses to local ports when packets are generated locally.
 The search terminates if this rule matches. If the port number is not 
 given then the port number in the packet is used, so that a packet for
 an external machine port Y would be forwarded to local port Y. The kernel
-must have been compiled with optiions IPFIREWALL_FORWARD.
+must have been compiled with options IPFIREWALL_FORWARD.
 .It Ar skipto number
 Skip all subsequent rules numbered less than
 .Ar number .
@@ -529,7 +530,7 @@ interface can only be tested on outgoing packets. So
 .Ar out
 is required (and
 .Ar in
-invalid) whenver
+invalid) whenever
 .Ar xmit
 is used. Specifying
 .Ar via
@@ -547,18 +548,18 @@ Additional
 .Ar options :
 .Bl -hang -offset flag -width 1234567890123456
 .It frag
-Matches if the packet is a fragment and this is not the first fragment
+Match if the packet is a fragment and this is not the first fragment
 of the datagram.
 .Ar frag
 may not be used in conjunction with either
 .Ar tcpflags
 or TCP/UDP port specifications.
 .It in
-Matches if this packet was on the way in.
+Match if this packet was on the way in.
 .It out
-Matches if this packet was on the way out.
+Match if this packet was on the way out.
 .It ipoptions Ar spec
-Matches if the IP header contains the comma separated list of 
+Match if the IP header contains the comma separated list of 
 options specified in
 .Ar spec .
 The supported IP options are:
@@ -574,13 +575,13 @@ The absence of a particular option may be denoted
 with a
 .Dq ! .
 .It established
-Matches packets that have the RST or ACK bits set.
+Match packets that have the RST or ACK bits set.
 TCP packets only.
 .It setup
-Matches packets that have the SYN bit set but no ACK bit.
+Match packets that have the SYN bit set but no ACK bit.
 TCP packets only.
 .It tcpflags Ar spec
-Matches if the TCP header contains the comma separated list of
+Match if the TCP header contains the comma separated list of
 flags specified in
 .Ar spec .
 The supported TCP flags are:
@@ -601,7 +602,7 @@ a non-zero offset.  See the
 .Ar frag
 option for details on matching fragmented packets.
 .It icmptypes Ar types
-Matches if the ICMP type is in the list
+Match if the ICMP type is in the list
 .Ar types .
 The list may be specified as any combination of ranges
 or individual types separated by commas.
@@ -728,6 +729,6 @@ API based upon code written by
 .An Daniel Boulet
 for BSDI.
 .Sh HISTORY
-.Nm
+.Nm Ipfw
 first appeared in
 .Fx 2.0 .
