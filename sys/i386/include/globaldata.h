@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: globaldata.h,v 1.7 1999/02/22 15:13:34 bde Exp $
+ * $Id: globaldata.h,v 1.8 1999/04/28 01:04:00 luoqi Exp $
  */
 
 /*
@@ -48,6 +48,7 @@ struct globaldata {
 	int		gd_switchticks;
 #ifdef VM86
 	struct segment_descriptor gd_common_tssd;
+	struct segment_descriptor *gd_tss_gdt;
 #endif
 #ifdef USER_LDT
 	int		gd_currentldt;

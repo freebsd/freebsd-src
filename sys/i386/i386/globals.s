@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: globals.s,v 1.9 1999/02/22 15:13:34 bde Exp $
+ * $Id: globals.s,v 1.10 1999/04/28 01:03:19 luoqi Exp $
  */
 
 #include "opt_vm86.h"
@@ -72,8 +72,9 @@ globaldata:
 	.set	gd_switchticks,globaldata + GD_SWITCHTICKS
 
 #ifdef VM86
-	.globl	gd_common_tssd
+	.globl	gd_common_tssd, gd_tss_gdt
 	.set	gd_common_tssd,globaldata + GD_COMMON_TSSD
+	.set	gd_tss_gdt,globaldata + GD_TSS_GDT
 #endif
 
 #ifdef USER_LDT
@@ -92,8 +93,9 @@ globaldata:
 	.set	_switchticks,globaldata + GD_SWITCHTICKS
 
 #ifdef VM86
-	.globl	_common_tssd
+	.globl	_common_tssd, _tss_gdt
 	.set	_common_tssd,globaldata + GD_COMMON_TSSD
+	.set	_tss_gdt,globaldata + GD_TSS_GDT
 #endif
 
 #ifdef USER_LDT

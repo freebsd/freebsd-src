@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.115 1999/05/06 00:39:00 luoqi Exp $
+ *	$Id: machdep.c,v 1.116 1999/05/06 00:54:54 luoqi Exp $
  */
 
 #include "apm.h"
@@ -917,7 +917,7 @@ struct region_descriptor r_gdt, r_idt;
 
 #ifdef VM86
 #ifndef SMP
-extern struct segment_descriptor common_tssd;
+extern struct segment_descriptor common_tssd, *tss_gdt;
 #endif
 int private_tss;			/* flag indicating private tss */
 #endif /* VM86 */
@@ -1317,7 +1317,8 @@ init386(first)
 	ltr(gsel_tss);
 #ifdef VM86
 	private_tss = 0;
-	common_tssd = gdt[GPROC0_SEL].sd;
+	tss_gdt = &gdt[GPROC0_SEL].sd;
+	common_tssd = *tss_gdt;
 #endif
 
 	dblfault_tss.tss_esp = dblfault_tss.tss_esp0 = dblfault_tss.tss_esp1 =
