@@ -35,6 +35,8 @@
 
 /*
  * Functions to provide access to special i386 instructions.
+ * This in included in sys/systm.h, and that file should be
+ * used in preference to this.
  */
 
 #ifndef _MACHINE_CPUFUNC_H_
