@@ -24,6 +24,7 @@
 
 #include "includes.h"
 RCSID("$OpenBSD: auth2-kbdint.c,v 1.2 2002/05/31 11:35:15 markus Exp $");
+RCSID("$FreeBSD$");
 
 #include "packet.h"
 #include "auth.h"
@@ -49,10 +50,6 @@ userauth_kbdint(Authctxt *authctxt)
 	if (options.challenge_response_authentication)
 		authenticated = auth2_challenge(authctxt, devs);
 
-#ifdef USE_PAM
-	if (authenticated == 0 && options.pam_authentication_via_kbd_int)
-		authenticated = auth2_pam(authctxt);
-#endif
 	xfree(devs);
 	xfree(lang);
 #ifdef HAVE_CYGWIN
