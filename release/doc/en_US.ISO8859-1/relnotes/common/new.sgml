@@ -480,6 +480,12 @@
       <para>A number of fixes and updates to the IPv6 and IPSec code
 	have been imported from the KAME Project.</para>
 
+      <para>&new.521; Some bugs in the IPsec implementation from the KAME
+	Project have been fixed.  These bugs were related to freeing
+	memory objects before all references to them were removed, and
+	could cause erratic behavior or kernel panics after flushing
+	the Security Policy Database (SPD).</para>
+
       <para>Support for the IPv6 Advanced Sockets API now conforms to
         RFC 3542 (also known as RFC 2292bis), rather than RFC 2292.
         Applications using this API have been updated
@@ -533,6 +539,11 @@
 	<literal>device ataraid</literal> in their kernel
 	configuration files, as it is no longer automatically implied
 	by <literal>device atadisk</literal>.</para>
+
+      <para>&new.521; A number of bugs in the &man.ata.4; driver have been
+	fixed.  Most notably, master/slave device detection should
+	work better, and some problems with timeouts should be
+	resolved.</para>
 
       <para>&man.ccd.4; can now operate on raw disks and other
 	&man.geom.4; providers.</para>
