@@ -96,6 +96,9 @@ static void ad_drvinit(void);
 static int32_t adnlun = 0;			/* number of config'd drives */
 static struct intr_config_hook *ad_attach_hook;
 
+/* defines */
+#define	AD_MAX_RETRIES	5
+
 static __inline int
 apiomode(struct ata_params *ap)
 {
@@ -615,6 +618,19 @@ ad_timeout(struct ad_request *request)
     if (request->flags & AR_F_DMA_USED)
 	ata_dmadone(adp->controller, adp->unit);
 
+    if (request->retries < AD_MAX_RETRIES) {
+	/* reinject this request */
+	request->retries++;
+	TAILQ_INSERT_HEAD(&adp->controller->ata_queue, request, chain);
+    }
+    else {
+	/* retries all used up, return error */
+	request->bp->b_error = EIO;
+	request->bp->b_flags |= B_ERROR;
+	devstat_end_transaction_buf(&adp->stats, request->bp);
+	biodone(request->bp);
+	free(request, M_DEVBUF);
+    }
     ata_reinit(adp->controller);
 }
 

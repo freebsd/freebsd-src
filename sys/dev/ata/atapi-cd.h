@@ -248,12 +248,12 @@ struct write_param {
 #define CDR_DB_VS_7		0x7	/* vendor specific */
 #define CDR_DB_ROM_MODE1	0x8	/* 2048 bytes Mode 1 (ISO/IEC 10149) */
 #define CDR_DB_ROM_MODE2	0x9	/* 2336 bytes Mode 2 (ISO/IEC 10149) */
-#define CDR_DB_XA_MODE1		0x10	/* 2048 bytes Mode 1 (CD-ROM XA 1) */
-#define CDR_DB_XA_MODE2_F1	0x11	/* 2056 bytes Mode 2 (CD-ROM XA 1) */
-#define CDR_DB_XA_MODE2_F2	0x12	/* 2324 bytes Mode 2 (CD-ROM XA 2) */
-#define CDR_DB_XA_MODE2_MIX	0x13	/* 2332 bytes Mode 2 (CD-ROM XA 1/2) */
-#define CDR_DB_RES_14		0x14	/* reserved */
-#define CDR_DB_VS_15		0x15	/* vendor specific */
+#define CDR_DB_XA_MODE1		0xa	/* 2048 bytes Mode 1 (CD-ROM XA 1) */
+#define CDR_DB_XA_MODE2_F1	0xb	/* 2056 bytes Mode 2 (CD-ROM XA 1) */
+#define CDR_DB_XA_MODE2_F2	0xc	/* 2324 bytes Mode 2 (CD-ROM XA 2) */
+#define CDR_DB_XA_MODE2_MIX	0xd	/* 2332 bytes Mode 2 (CD-ROM XA 1/2) */
+#define CDR_DB_RES_14		0xe	/* reserved */
+#define CDR_DB_VS_15		0xf	/* vendor specific */
 
     u_int8_t	reserved4_4567	:4;
     u_int8_t	reserved5;
