@@ -124,8 +124,13 @@ int	bus_space_map(bus_space_tag_t t, bus_addr_t addr, bus_size_t size,
  * Unmap a region of device bus space.
  */
 
-void	bus_space_unmap(bus_space_tag_t t, bus_space_handle_t bsh,
-			bus_size_t size);
+static __inline void bus_space_unmap(bus_space_tag_t t, bus_space_handle_t bsh,
+				     bus_size_t size);
+
+static __inline void
+bus_space_unmap(bus_space_tag_t t, bus_space_handle_t bsh, bus_size_t size)
+{
+}
 
 /*
  * Get a new handle for a subregion of an already-mapped area of bus space.
@@ -159,8 +164,14 @@ int	bus_space_alloc(bus_space_tag_t t, bus_addr_t rstart,
  * Free a region of bus space accessible memory.
  */
 
-void	bus_space_free(bus_space_tag_t t, bus_space_handle_t bsh,
-		       bus_size_t size);
+static __inline void bus_space_free(bus_space_tag_t t, bus_space_handle_t bsh,
+				    bus_size_t size);
+
+static __inline void
+bus_space_free(bus_space_tag_t t, bus_space_handle_t bsh, bus_size_t size)
+{
+}
+
 
 #if defined(_I386_BUS_PIO_H_) || defined(_I386_BUS_MEMIO_H_)
 
