@@ -37,7 +37,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aic7xxx.h,v 1.41 1997/06/27 19:39:20 gibbs Exp $
+ *	$Id: aic7xxx.h,v 1.42 1997/08/13 17:02:47 gibbs Exp $
  */
 
 #ifndef _AIC7XXX_H_
@@ -256,8 +256,6 @@ struct ahc_softc {
 #endif
 	volatile u_int8_t *maddr;
 	struct	scb_data *scb_data;
-	struct	ahc_busreset_args	busreset_args;
-	struct	ahc_busreset_args	busreset_args_b;
 	struct	scsi_link sc_link;
 	struct	scsi_link sc_link_b;	/* Second bus for Twin channel cards */
 	STAILQ_HEAD(, scb) waiting_scbs;/*
@@ -301,9 +299,6 @@ struct ahc_softc {
 	u_int8_t	unpause;
 	u_int8_t	pause;
 	u_int8_t	in_timeout;
-	u_int8_t	in_reset;
-#define	CHANNEL_A_RESET		0x01
-#define	CHANNEL_B_RESET		0x02
 };
 
 struct full_ahc_softc {
