@@ -42,6 +42,8 @@ SYSCTL_STRUCT(_kern, KERN_BOOTTIME, boottime, CTLFLAG_RD,
 
 SYSCTL_NODE(_kern, OID_AUTO, timecounter, CTLFLAG_RW, 0, "");
 
+static unsigned nbintime;
+static unsigned nbinuptime;
 static unsigned nmicrotime;
 static unsigned nnanotime;
 static unsigned ngetmicrotime;
@@ -50,6 +52,8 @@ static unsigned nmicrouptime;
 static unsigned nnanouptime;
 static unsigned ngetmicrouptime;
 static unsigned ngetnanouptime;
+SYSCTL_INT(_kern_timecounter, OID_AUTO, nbintime, CTLFLAG_RD, &nbintime, 0, "");
+SYSCTL_INT(_kern_timecounter, OID_AUTO, nbinuptime, CTLFLAG_RD, &nbinuptime, 0, "");
 SYSCTL_INT(_kern_timecounter, OID_AUTO, nmicrotime, CTLFLAG_RD, &nmicrotime, 0, "");
 SYSCTL_INT(_kern_timecounter, OID_AUTO, nnanotime, CTLFLAG_RD, &nnanotime, 0, "");
 SYSCTL_INT(_kern_timecounter, OID_AUTO, nmicrouptime, CTLFLAG_RD, &nmicrouptime, 0, "");
@@ -70,6 +74,8 @@ dummy_get_timecount(struct timecounter *tc)
 {
 	static unsigned now;
 
+	if (tc->tc_generation == 0)
+		tc->tc_generation++;
 	return (++now);
 }
 
@@ -106,16 +112,22 @@ void
 binuptime(struct bintime *bt)
 {
 	struct timecounter *tc;
+	unsigned gen;
 
-	tc = timecounter;
-	*bt = tc->tc_offset;
-	bintime_addx(bt, tc->tc_scale * tco_delta(tc));
+	nbinuptime++;
+	do {
+		tc = timecounter;
+		gen = tc->tc_generation;
+		*bt = tc->tc_offset;
+		bintime_addx(bt, tc->tc_scale * tco_delta(tc));
+	} while (gen == 0 || gen != tc->tc_generation);
 }
 
 void
 bintime(struct bintime *bt)
 {
 
+	nbintime++;
 	binuptime(bt);
 	bintime_add(bt, &boottimebin);
 }
@@ -124,20 +136,28 @@ void
 getmicrotime(struct timeval *tvp)
 {
 	struct timecounter *tc;
+	unsigned gen;
 
 	ngetmicrotime++;
-	tc = timecounter;
-	*tvp = tc->tc_microtime;
+	do {
+		tc = timecounter;
+		gen = tc->tc_generation;
+		*tvp = tc->tc_microtime;
+	} while (gen == 0 || gen != tc->tc_generation);
 }
 
 void
 getnanotime(struct timespec *tsp)
 {
 	struct timecounter *tc;
+	unsigned gen;
 
 	ngetnanotime++;
-	tc = timecounter;
-	*tsp = tc->tc_nanotime;
+	do {
+		tc = timecounter;
+		gen = tc->tc_generation;
+		*tsp = tc->tc_nanotime;
+	} while (gen == 0 || gen != tc->tc_generation);
 }
 
 void
@@ -164,20 +184,28 @@ void
 getmicrouptime(struct timeval *tvp)
 {
 	struct timecounter *tc;
+	unsigned gen;
 
 	ngetmicrouptime++;
-	tc = timecounter;
-	bintime2timeval(&tc->tc_offset, tvp);
+	do {
+		tc = timecounter;
+		gen = tc->tc_generation;
+		bintime2timeval(&tc->tc_offset, tvp);
+	} while (gen == 0 || gen != tc->tc_generation);
 }
 
 void
 getnanouptime(struct timespec *tsp)
 {
 	struct timecounter *tc;
+	unsigned gen;
 
 	ngetnanouptime++;
-	tc = timecounter;
-	bintime2timespec(&tc->tc_offset, tsp);
+	do {
+		tc = timecounter;
+		gen = tc->tc_generation;
+		bintime2timespec(&tc->tc_offset, tsp);
+	} while (gen == 0 || gen != tc->tc_generation);
 }
 
 void
@@ -240,19 +268,19 @@ tc_init(struct timecounter *tc)
 		tc->tc_avail = timecounter->tc_tweak->tc_avail;
 		timecounter->tc_tweak->tc_avail = tc;
 	}
-	MALLOC(t1, struct timecounter *, sizeof *t1, M_TIMECOUNTER, M_WAITOK);
-	tc->tc_other = t1;
+	MALLOC(t1, struct timecounter *, sizeof *t1, M_TIMECOUNTER, M_WAITOK | M_ZERO);
+	tc->tc_next = t1;
 	*t1 = *tc;
 	t2 = t1;
 	t3 = NULL;
 	for (i = 1; i < NTIMECOUNTER; i++) {
 		MALLOC(t3, struct timecounter *, sizeof *t3,
-		    M_TIMECOUNTER, M_WAITOK);
+		    M_TIMECOUNTER, M_WAITOK | M_ZERO);
 		*t3 = *tc;
-		t3->tc_other = t2;
+		t3->tc_next = t2;
 		t2 = t3;
 	}
-	t1->tc_other = t3;
+	t1->tc_next = t3;
 	tc = t1;
 
 	printf("Timecounter \"%s\"  frequency %lu Hz\n", 
@@ -262,6 +290,7 @@ tc_init(struct timecounter *tc)
 	tc->tc_offset_count = tc->tc_get_timecount(tc);
 	binuptime(&tc->tc_offset);
 	timecounter = tc;
+	tc_windup();
 }
 
 void
@@ -293,30 +322,14 @@ switch_timecounter(struct timecounter *newtc)
 		splx(s);
 		return;
 	}
-	newtc = newtc->tc_tweak->tc_other;
+	newtc = newtc->tc_tweak->tc_next;
 	binuptime(&newtc->tc_offset);
 	newtc->tc_offset_count = newtc->tc_get_timecount(newtc);
 	tco_setscales(newtc);
+	newtc->tc_generation = 0;
 	timecounter = newtc;
+	tc_windup();
 	splx(s);
-}
-
-static struct timecounter *
-sync_other_counter(void)
-{
-	struct timecounter *tc, *tcn, *tco;
-	unsigned delta;
-
-	tco = timecounter;
-	tc = tco->tc_other;
-	tcn = tc->tc_other;
-	*tc = *tco;
-	tc->tc_other = tcn;
-	delta = tco_delta(tc);
-	tc->tc_offset_count += delta;
-	tc->tc_offset_count &= tc->tc_counter_mask;
-	bintime_addx(&tc->tc_offset, tc->tc_scale * delta);
-	return (tc);
 }
 
 void
@@ -325,10 +338,18 @@ tc_windup(void)
 	struct timecounter *tc, *tco;
 	struct bintime bt;
 	struct timeval tvt;
+	unsigned ogen, delta;
 	int i;
 
 	tco = timecounter;
-	tc = sync_other_counter();
+	tc = tco->tc_next;
+	ogen = tc->tc_generation;
+	tc->tc_generation = 0;
+	bcopy(tco, tc, __offsetof(struct timecounter, tc_generation));
+	delta = tco_delta(tc);
+	tc->tc_offset_count += delta;
+	tc->tc_offset_count &= tc->tc_counter_mask;
+	bintime_addx(&tc->tc_offset, tc->tc_scale * delta);
 	/*
 	 * We may be inducing a tiny error here, the tc_poll_pps() may
 	 * process a latched count which happens after the tco_delta()
@@ -363,6 +384,10 @@ tc_windup(void)
 	bintime_add(&bt, &boottimebin);
 	bintime2timeval(&bt, &tc->tc_microtime);
 	bintime2timespec(&bt, &tc->tc_nanotime);
+	ogen++;
+	if (ogen == 0)
+		ogen++;
+	tc->tc_generation = ogen;
 	time_second = tc->tc_microtime.tv_sec;
 	timecounter = tc;
 }
