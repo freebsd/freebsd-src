@@ -34,6 +34,7 @@ SUBDIR=	IPXrouted \
 	fdformat \
 	fdread \
 	fdwrite \
+	fwcontrol \
 	getfmac \
 	getpmac \
 	ifmcstat \
