@@ -30,11 +30,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)time.h	8.1 (Berkeley) 6/2/93
+ *	@(#)time.h	8.5 (Berkeley) 5/4/95
  */
 
 #ifndef _SYS_TIME_H_
 #define _SYS_TIME_H_
+
+#include <sys/types.h>
 
 /*
  * Structure returned by gettimeofday(2) system call,
@@ -49,7 +51,7 @@ struct timeval {
  * Structure defined by POSIX.4 to be like a timeval.
  */
 struct timespec {
-	long	ts_sec;		/* seconds */
+	time_t	ts_sec;		/* seconds */
 	long	ts_nsec;	/* and nanoseconds */
 };
 
@@ -105,7 +107,11 @@ struct clockinfo {
 	int	profhz;		/* profiling clock frequency */
 };
 
-#ifndef KERNEL
+#ifdef KERNEL
+int	itimerfix __P((struct timeval *tv));
+int	itimerdecr __P((struct itimerval *itp, int usec));
+void	microtime __P((struct timeval *tv));
+#else /* !KERNEL */
 #include <time.h>
 
 #ifndef _POSIX_SOURCE

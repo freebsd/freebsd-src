@@ -44,7 +44,7 @@
  * Ioctl definitions for file (vnode) disk pseudo-device.
  */
 
-#define _PATH_VNTAB	"/etc/vntab"	/* default config file */
+#define FDISKFILE	"/etc/fdisks"	/* default config file */
 
 struct vn_ioctl {
 	char	*vn_file;	/* pathname of file to mount */

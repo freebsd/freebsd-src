@@ -30,13 +30,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)tablet.h	8.3 (Berkeley) 1/4/94
+ *	@(#)tablet.h	8.4 (Berkeley) 7/10/94
  */
 
 #ifndef _SYS_TABLET_H_
 #define	_SYS_TABLET_H_
 
-/*
  * Tablet line discipline.
  */
 #include <sys/ioctl.h>
@@ -49,25 +48,25 @@
  * the information.
  */
 struct	tbpos {
-	int	xpos, ypos;	/* raw x-y coordinates */
-	short	status;		/* buttons/pen down */
+	int32_t	xpos, ypos;	/* raw x-y coordinates */
+	int16_t	status;		/* buttons/pen down */
 #define	TBINPROX	0100000		/* pen in proximity of tablet */
-	short	scount;		/* sample count */
+	int16_t	scount;		/* sample count */
 };
 
 struct	gtcopos {
-	int	xpos, ypos;	/* raw x-y coordinates */
-	short	status;		/* as above */
-	short	scount;		/* sample count */
-	short	xtilt, ytilt;	/* raw tilt */
-	short	pressure;
-	short	pad;		/* pad to longword boundary */
+	int32_t	xpos, ypos;	/* raw x-y coordinates */
+	int16_t	status;		/* as above */
+	int16_t	scount;		/* sample count */
+	int16_t	xtilt, ytilt;	/* raw tilt */
+	int16_t	pressure;
+	int16_t	pad;		/* pad to longword boundary */
 };
 
 struct	polpos {
-	short	p_x, p_y, p_z;	/* raw 3-space coordinates */
-	short	p_azi, p_pit, p_rol;	/* azimuth, pitch, and roll */
-	short	p_stat;		/* status, as above */
+	int16_t	p_x, p_y, p_z;	/* raw 3-space coordinates */
+	int16_t	p_azi, p_pit, p_rol;	/* azimuth, pitch, and roll */
+	int16_t	p_stat;		/* status, as above */
 	char	p_key;		/* calculator input keyboard */
 };
 

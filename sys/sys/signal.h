@@ -35,17 +35,17 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)signal.h	8.2 (Berkeley) 1/21/94
+ *	@(#)signal.h	8.4 (Berkeley) 5/4/95
  */
 
 #ifndef	_SYS_SIGNAL_H_
 #define	_SYS_SIGNAL_H_
 
+#if !defined(_ANSI_SOURCE) && !defined(_POSIX_SOURCE)
 #define NSIG	32		/* counting 0; could be 33 (mask is 1-32) */
-
-#ifndef _ANSI_SOURCE
-#include <machine/signal.h>	/* sigcontext; codes for SIGILL, SIGFPE */
 #endif
+
+#include <machine/signal.h>	/* sigcontext; codes for SIGILL, SIGFPE */
 
 #define	SIGHUP	1	/* hangup */
 #define	SIGINT	2	/* interrupt */
@@ -113,7 +113,7 @@ typedef unsigned int sigset_t;
  * Signal vector "template" used in sigaction call.
  */
 struct	sigaction {
-	void	(*sa_handler)();	/* signal handler */
+	void	(*sa_handler)(int);	/* signal handler */
 	sigset_t sa_mask;		/* signal mask to apply */
 	int	sa_flags;		/* see signal options below */
 };
@@ -134,7 +134,7 @@ struct	sigaction {
 #define	SIG_UNBLOCK	2	/* unblock specified signal set */
 #define	SIG_SETMASK	3	/* set specified signal set */
 
-#ifndef _POSIX_SOURCE
+#if !defined(_ANSI_SOURCE) && !defined(_POSIX_SOURCE)
 #ifndef KERNEL
 #include <sys/cdefs.h>
 #endif
@@ -156,7 +156,7 @@ struct	sigaltstack {
  * Signal vector "template" used in sigvec call.
  */
 struct	sigvec {
-	void	(*sv_handler)();	/* signal handler */
+	void	(*sv_handler)(int);	/* signal handler */
 	int	sv_mask;		/* signal mask to apply */
 	int	sv_flags;		/* see signal options below */
 };

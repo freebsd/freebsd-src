@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)ktrace.h	8.1 (Berkeley) 6/2/93
+ *	@(#)ktrace.h	8.2 (Berkeley) 2/19/95
  */
 
 /*
@@ -72,10 +72,10 @@ struct ktr_header {
  */
 #define KTR_SYSCALL	1
 struct ktr_syscall {
-	short	ktr_code;		/* syscall number */
-	short	ktr_narg;		/* number of arguments */
+	int	ktr_code;		/* syscall number */
+	int	ktr_argsize;		/* size of arguments */
 	/*
-	 * followed by ktr_narg ints
+	 * followed by ktr_argsize/sizeof(register_t) 'register_t's
 	 */
 };
 

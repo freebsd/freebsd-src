@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)resourcevar.h	8.3 (Berkeley) 2/22/94
+ *	@(#)resourcevar.h	8.4 (Berkeley) 1/9/95
  */
 
 #ifndef	_SYS_RESOURCEVAR_H_
@@ -84,7 +84,10 @@ struct plimit {
 #ifdef KERNEL
 void	 addupc_intr __P((struct proc *p, u_long pc, u_int ticks));
 void	 addupc_task __P((struct proc *p, u_long pc, u_int ticks));
+void	 calcru __P((struct proc *p, struct timeval *up, struct timeval *sp,
+	    struct timeval *ip));
 struct plimit
 	*limcopy __P((struct plimit *lim));
+void	 ruadd __P((struct rusage *ru, struct rusage *ru2));
 #endif
 #endif	/* !_SYS_RESOURCEVAR_H_ */

@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)systm.h	8.4 (Berkeley) 2/23/94
+ *	@(#)systm.h	8.7 (Berkeley) 3/29/95
  */
 
 /*
@@ -92,9 +92,12 @@ extern dev_t swapdev;		/* swapping device */
 extern struct vnode *swapdev_vp;/* vnode equivalent to above */
 
 extern struct sysent {		/* system call table */
-	int	sy_narg;	/* number of arguments */
+	short	sy_narg;	/* number of args */
+	short	sy_argsize;	/* total size of arguments */
 	int	(*sy_call)();	/* implementing function */
 } sysent[];
+extern int nsysent;
+#define	SCARG(p,k)	((p)->k.datum)	/* get arg from args pointer */
 
 extern int boothowto;		/* reboot flags, from console subsystem */
 
@@ -110,8 +113,10 @@ int	enodev __P((void));
 int	enoioctl __P((void));
 int	enxio __P((void));
 int	eopnotsupp __P((void));
+int	einval __P((void));
 int	seltrue __P((dev_t dev, int which, struct proc *p));
 void	*hashinit __P((int count, int type, u_long *hashmask));
+int	nosys __P((struct proc *, void *, register_t *));
 
 #ifdef __GNUC__
 volatile void	panic __P((const char *, ...));

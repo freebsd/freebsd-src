@@ -40,7 +40,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)ipc.h	8.3 (Berkeley) 1/21/94
+ *	@(#)ipc.h	8.4 (Berkeley) 2/19/95
  */
 
 /*
@@ -48,8 +48,6 @@
  */
 #ifndef _SYS_IPC_H_
 #define _SYS_IPC_H_
-
-typedef	long	key_t;	/* XXX should be in types.h */
 
 struct ipc_perm {
 	ushort	cuid;	/* creator user id */

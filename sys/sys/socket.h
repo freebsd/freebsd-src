@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)socket.h	8.4 (Berkeley) 2/21/94
+ *	@(#)socket.h	8.6 (Berkeley) 5/3/95
  */
 
 #ifndef _SYS_SOCKET_H_
@@ -80,7 +80,7 @@
  */
 struct	linger {
 	int	l_onoff;		/* option on/off */
-	int	l_linger;		/* linger time */
+	int	l_linger;		/* linger time in seconds */
 };
 
 /*
@@ -187,7 +187,7 @@ struct sockproto {
 
 #define CTL_NET_NAMES { \
 	{ 0, 0 }, \
-	{ "unix", CTLTYPE_NODE }, \
+	{ "local", CTLTYPE_NODE }, \
 	{ "inet", CTLTYPE_NODE }, \
 	{ "implink", CTLTYPE_NODE }, \
 	{ "pup", CTLTYPE_NODE }, \

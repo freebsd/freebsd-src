@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)resource.h	8.2 (Berkeley) 1/4/94
+ *	@(#)resource.h	8.4 (Berkeley) 1/9/95
  */
 
 #ifndef _SYS_RESOURCE_H_
@@ -92,8 +92,8 @@ struct	rusage {
 #define	RLIM_INFINITY	(((u_quad_t)1 << 63) - 1)
 
 struct orlimit {
-	long	rlim_cur;		/* current (soft) limit */
-	long	rlim_max;		/* maximum value for rlim_cur */
+	int32_t	rlim_cur;		/* current (soft) limit */
+	int32_t	rlim_max;		/* maximum value for rlim_cur */
 };
 
 struct rlimit {
@@ -103,8 +103,8 @@ struct rlimit {
 
 /* Load average structure. */
 struct loadavg {
-	fixpt_t ldavg[3];
-	long fscale;
+	fixpt_t	ldavg[3];
+	long	fscale;
 };
 
 #ifdef KERNEL

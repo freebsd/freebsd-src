@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)buf.h	8.7 (Berkeley) 1/21/94
+ *	@(#)buf.h	8.9 (Berkeley) 3/30/95
  */
 
 #ifndef _SYS_BUF_H_
@@ -68,7 +68,8 @@ struct buf {
 					/* Function to call upon completion. */
 	void	(*b_iodone) __P((struct buf *));
 	struct	vnode *b_vp;		/* Device vnode. */
-	int	b_pfcent;		/* Center page when swapping cluster. */
+	long	b_pfcent;		/* Center page when swapping cluster. */
+					/* XXX pfcent should be int; overld. */
 	int	b_dirtyoff;		/* Offset in buffer of dirty region. */
 	int	b_dirtyend;		/* Offset of end of dirty region. */
 	struct	ucred *b_rcred;		/* Read credentials reference. */
@@ -88,7 +89,7 @@ struct buf {
  * These flags are kept in b_flags.
  */
 #define	B_AGE		0x00000001	/* Move to age queue when I/O done. */
-#define	B_APPENDWRITE	0x00000002	/* Append-write in progress. */
+#define	B_NEEDCOMMIT	0x00000002	/* Append-write in progress. */
 #define	B_ASYNC		0x00000004	/* Start I/O, do not wait. */
 #define	B_BAD		0x00000008	/* Bad block revectoring in progress. */
 #define	B_BUSY		0x00000010	/* I/O in progress. */
@@ -133,7 +134,7 @@ struct cluster_save {
  * Zero out the buffer's data area.
  */
 #define	clrbuf(bp) {							\
-	blkclr((bp)->b_data, (u_int)(bp)->b_bcount);			\
+	bzero((bp)->b_data, (u_int)(bp)->b_bcount);			\
 	(bp)->b_resid = 0;						\
 }
 
@@ -153,15 +154,15 @@ struct	buf *bclnlist;		/* Head of cleaned page list. */
 
 __BEGIN_DECLS
 int	allocbuf __P((struct buf *, int));
-int	bawrite __P((struct buf *));
-int	bdwrite __P((struct buf *));
+void	bawrite __P((struct buf *));
+void	bdwrite __P((struct buf *));
 void	biodone __P((struct buf *));
 int	biowait __P((struct buf *));
 int	bread __P((struct vnode *, daddr_t, int,
 	    struct ucred *, struct buf **));
 int	breadn __P((struct vnode *, daddr_t, int, daddr_t *, int *, int,
 	    struct ucred *, struct buf **));
-int	brelse __P((struct buf *));
+void	brelse __P((struct buf *));
 void	bufinit __P((void));
 int	bwrite __P((struct buf *));
 void	cluster_callback __P((struct buf *));
