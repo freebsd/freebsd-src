@@ -234,13 +234,23 @@ int (*softdep_process_worklist_hook)(struct mount *);
 #ifdef DEBUG_VFS_LOCKS
 /* Print lock violations */
 int vfs_badlock_print = 1;
+
 /* Panic on violation */
 int vfs_badlock_panic = 1;
+
+/* Check for interlock across VOPs */
+int vfs_badlock_mutex = 0;
 
 void
 vop_rename_pre(void *ap)
 {
 	struct vop_rename_args *a = ap;
+
+	if (a->a_tvp)
+		ASSERT_VI_UNLOCKED(a->a_tvp);
+	ASSERT_VI_UNLOCKED(a->a_tdvp);
+	ASSERT_VI_UNLOCKED(a->a_fvp);
+	ASSERT_VI_UNLOCKED(a->a_fdvp);
 
 	/* Check the source (from) */
 	if (a->a_tdvp != a->a_fdvp)
@@ -285,6 +295,7 @@ vop_lookup_pre(void *ap)
 
 	dvp = a->a_dvp;
 
+	ASSERT_VI_UNLOCKED(dvp);
 	ASSERT_VOP_LOCKED(dvp, "VOP_LOOKUP");
 }
 
@@ -303,6 +314,7 @@ vop_lookup_post(void *ap, int rc)
 	flags = cnp->cn_flags;
 
 
+	ASSERT_VI_UNLOCKED(dvp);
 	/*
 	 * If this is the last path component for this lookup and LOCPARENT
 	 * is set, OR if there is an error the directory has to be locked.
@@ -317,8 +329,49 @@ vop_lookup_post(void *ap, int rc)
 	if (flags & PDIRUNLOCK)
 		ASSERT_VOP_UNLOCKED(dvp, "VOP_LOOKUP (PDIRUNLOCK)");
 
-	if (rc == 0)
+	if (rc == 0) {
+		ASSERT_VI_UNLOCKED(vp);
 		ASSERT_VOP_LOCKED(vp, "VOP_LOOKUP (vpp)");
+	}
+}
+
+void
+vop_unlock_pre(void *ap)
+{
+	struct vop_unlock_args *a = ap;
+
+	if ((a->a_flags & LK_INTERLOCK) == 0)
+		ASSERT_VI_UNLOCKED(a->a_vp);
+	else
+		ASSERT_VI_LOCKED(a->a_vp);
+}
+
+void
+vop_unlock_post(void *ap, int rc)
+{
+	struct vop_unlock_args *a = ap;
+
+	ASSERT_VI_UNLOCKED(a->a_vp);
+}
+
+void
+vop_lock_pre(void *ap)
+{
+	struct vop_lock_args *a = ap;
+
+	if ((a->a_flags & LK_INTERLOCK) == 0)
+		ASSERT_VI_UNLOCKED(a->a_vp);
+	else
+		ASSERT_VI_LOCKED(a->a_vp);
+}
+
+void
+vop_lock_post(void *ap, int rc)
+{
+	struct vop_lock_args *a = ap;
+
+	ASSERT_VI_UNLOCKED(a->a_vp);
+	ASSERT_VOP_LOCKED(a->a_vp, "VOP_LOCK");
 }
 
 #endif	/* DEBUG_VFS_LOCKS */
@@ -1478,7 +1531,7 @@ vn_syncer_add_to_worklist(struct vnode *vp, int delay)
 	int s, slot;
 
 	s = splbio();
-	mtx_assert(VI_MTX(vp), MA_OWNED);
+	ASSERT_VI_LOCKED(vp);
 
 	if (vp->v_iflag & VI_ONWORKLST)
 		LIST_REMOVE(vp, v_synclist);
@@ -2242,7 +2295,7 @@ vclean(vp, flags, td)
 {
 	int active;
 
-	mtx_assert(VI_MTX(vp), MA_OWNED);
+	ASSERT_VI_LOCKED(vp);
 	/*
 	 * Check to see if the vnode is in use. If so we have to reference it
 	 * before we clean it out so that its count cannot fall to zero and
@@ -2440,7 +2493,7 @@ vgonel(vp, td)
 	 * If a vgone (or vclean) is already in progress,
 	 * wait until it is done and return.
 	 */
-	mtx_assert(VI_MTX(vp), MA_OWNED);
+	ASSERT_VI_LOCKED(vp);
 	if (vp->v_iflag & VI_XLOCK) {
 		vp->v_iflag |= VI_XWANT;
 		VI_UNLOCK(vp);
@@ -2980,7 +3033,7 @@ vfree(vp)
 {
 	int s;
 
-	mtx_assert(VI_MTX(vp), MA_OWNED);
+	ASSERT_VI_LOCKED(vp);
 	s = splbio();
 	mtx_lock(&vnode_free_list_mtx);
 	KASSERT((vp->v_iflag & VI_FREE) == 0, ("vnode already free"));
@@ -3006,7 +3059,7 @@ vbusy(vp)
 	int s;
 
 	s = splbio();
-	mtx_assert(VI_MTX(vp), MA_OWNED);
+	ASSERT_VI_LOCKED(vp);
 	mtx_lock(&vnode_free_list_mtx);
 	KASSERT((vp->v_iflag & VI_FREE) != 0, ("vnode not free"));
 	TAILQ_REMOVE(&vnode_free_list, vp, v_freelist);
