@@ -87,9 +87,9 @@
 #define SET_RETURN_ADDR_JB(jb, ra)	(jb)[0]._jb[0] = (int)(ra)
 #elif	defined(__alpha__)
 #include <machine/reg.h>
-#define	GET_STACK_JB(jb, stk)	((unsigned long)((jb)[0]._jb[R_SP + 4]))
-#define	GET_STACK_SJB(sjb, stk)	((unsigned long)((sjb)[0]._sjb[R_SP + 4]))
-#define	GET_STACK_UC(ucp, stk)	((ucp)->uc_mcontext.mc_regs[R_SP])
+#define	GET_STACK_JB(jb)	((unsigned long)((jb)[0]._jb[R_SP + 4]))
+#define	GET_STACK_SJB(sjb)	((unsigned long)((sjb)[0]._sjb[R_SP + 4]))
+#define	GET_STACK_UC(ucp)	((ucp)->uc_mcontext.mc_regs[R_SP])
 #define	SET_STACK_JB(jb, stk)	(jb)[0]._jb[R_SP + 4] = (long)(stk)
 #define	SET_STACK_SJB(sjb, stk)	(sjb)[0]._sjb[R_SP + 4] = (long)(stk)
 #define	SET_STACK_UC(ucp, stk)	(ucp)->uc_mcontext.mc_regs[R_SP] = (unsigned long)(stk)
