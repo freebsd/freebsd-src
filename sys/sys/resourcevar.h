@@ -47,9 +47,6 @@ struct pstats {
 #define	pstat_startzero	p_ru
 	struct	rusage p_ru;		/* stats for this proc */
 	struct	rusage p_cru;		/* sum of stats for reaped children */
-	u_int64_t p_uu;			/* previous user time (us) */
-	u_int64_t p_su;			/* previous system time (us) */
-	u_int64_t p_iu;			/* previous interrupt time (us) */
 #define	pstat_endzero	pstat_startcopy
 
 #define	pstat_startcopy	p_timer
