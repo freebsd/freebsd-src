@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.70.2.12 1995/06/02 00:05:33 jkh Exp $
+ * $Id: install.c,v 1.70.2.13 1995/06/02 02:38:18 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -364,6 +364,8 @@ make_filesystems(void)
 		    }
 		}
 	    }
+	    else if (c1->type == fat && c1->private)
+		Mkdir(((PartInfo *)c1->private)->mountpoint, NULL);
 	}
     }
     command_sort();
