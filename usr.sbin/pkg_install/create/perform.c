@@ -99,10 +99,6 @@ pkg_perform(char **pkgs)
     }
     plist.head = plist.tail = NULL;
 
-    /* Add the origin if asked, at the top */
-    if (Origin)
-	add_plist(&plist, PLIST_COMMENT, strconcat("ORIGIN:", Origin));
-
     /* Stick the dependencies, if any, at the top */
     if (Pkgdeps) {
 	char **deps;
@@ -160,6 +156,11 @@ pkg_perform(char **pkgs)
     /* Prefix should add an @cwd to the packing list */
     if (Prefix)
 	add_plist_top(&plist, PLIST_CWD, Prefix);
+
+    /* Add the origin if asked, at the top */
+    if (Origin)
+	add_plist_top(&plist, PLIST_ORIGIN, Origin);
+
     /*
      * Run down the list and see if we've named it, if not stick in a name
      * at the top.
