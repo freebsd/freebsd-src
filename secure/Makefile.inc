@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-DISTRIBUTION=des
+DISTRIBUTION?=crypto
 
 TELNETDIR=	${.CURDIR}/../../../crypto/telnet
 
