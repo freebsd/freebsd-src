@@ -1343,7 +1343,7 @@ print_transmeta_info()
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
-u_char *elan_mmcr;
+uint16_t *elan_mmcr;
 
 void
 init_AMD_Elan_sc520(void)
