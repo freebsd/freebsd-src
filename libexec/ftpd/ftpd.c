@@ -2553,7 +2553,7 @@ pwd(void)
 {
 	char *s, path[MAXPATHLEN + 1];
 
-	if (getwd(path) == NULL)
+	if (getcwd(path, sizeof(path)) == NULL)
 		reply(550, "%s.", path);
 	else {
 		if ((s = doublequote(path)) == NULL)
@@ -3130,7 +3130,7 @@ out:
 void
 reapchild(int signo)
 {
-	while (wait3(NULL, WNOHANG, NULL) > 0);
+	while (waitpid(-1, NULL, WNOHANG) > 0);
 }
 
 #ifdef OLD_SETPROCTITLE
