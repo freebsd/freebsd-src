@@ -476,7 +476,7 @@ login_getcapsize(login_cap_t *lc, const char *cap, rlim_t def, rlim_t error) {
     rlim_t val = STRTOV(res, &ep, 0);
     if ((res == NULL) || (res == ep) || errno)
       return error;
-    switch (*ep) {
+    switch (*ep++) {
     case 0:	/* end of string */
       ep--;
       mult = 1;
@@ -496,6 +496,7 @@ login_getcapsize(login_cap_t *lc, const char *cap, rlim_t def, rlim_t error) {
     default:
       return error;
     }
+    res = ep;
     tot += (val * mult);
   }
   return tot;
