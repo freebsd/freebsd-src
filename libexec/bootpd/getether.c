@@ -6,6 +6,8 @@
  *
  * If you figure out how to do this on another system,
  * please let me know.  <gwr@mc.com>
+ *
+ *	$Id$
  */
 
 #include <sys/types.h>

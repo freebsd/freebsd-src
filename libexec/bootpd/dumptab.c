@@ -1,5 +1,7 @@
 /*
  * dumptab.c - handles dumping the database
+ *
+ *	$Id$
  */
 
 #include <sys/types.h>

@@ -1,3 +1,5 @@
+#	$Id$
+
 .PATH:	${.CURDIR}/../../sys/i386/isa
 KMOD	= joy_mod
 SRCS	= joy.c joy.h

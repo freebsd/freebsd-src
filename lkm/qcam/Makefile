@@ -1,3 +1,5 @@
+#	$Id$
+
 .PATH:	${.CURDIR}/../../sys/i386/isa
 KMOD	= qcam_mod
 SRCS	= qcam.c qcamio.c qcam.h

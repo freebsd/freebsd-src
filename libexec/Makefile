@@ -1,4 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 6/4/93
+#	$Id$
 
 SUBDIR=	atrun bootpd comsat fingerd ftpd getNAME getty lfs_cleanerd \
 	mail.local makekey mknetid named-xfer revnetgroup rexecd rlogind \

@@ -1,3 +1,5 @@
+#	$Id$
+
 The files in this directory with suffixes `.t', `.d', `.r' and `.err' are
 used for testing ed.  To run the tests, set the ED variable in the Makefile
 for the path name of the program to be tested (e.g., /bin/ed), and type
