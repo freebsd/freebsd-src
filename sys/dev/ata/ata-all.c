@@ -34,6 +34,7 @@
 #include "atapicd.h"
 #include "atapifd.h"
 #include "atapist.h"
+#include "atapicam.h"
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/ata.h>
@@ -97,6 +98,10 @@ devclass_t ata_devclass;
 /* local vars */
 static struct intr_config_hook *ata_delayed_attach = NULL;
 static MALLOC_DEFINE(M_ATA, "ATA generic", "ATA driver generic layer");
+
+/* misc defines */
+#define DEV_ATAPIALL	NATAPICD > 0 || NATAPIFD > 0 || \
+			NATAPIST > 0 || NATAPICAM > 0
 
 int
 ata_probe(device_t dev)
@@ -207,11 +212,14 @@ ata_attach(device_t dev)
 	if (ch->devices & ATA_ATA_SLAVE)
 	    ad_attach(&ch->device[SLAVE]);
 #endif
-#if NATAPICD > 0 || NATAPIFD > 0 || NATAPIST > 0
+#if DEV_ATAPIALL
 	if (ch->devices & ATA_ATAPI_MASTER)
 	    atapi_attach(&ch->device[MASTER]);
 	if (ch->devices & ATA_ATAPI_SLAVE)
 	    atapi_attach(&ch->device[SLAVE]);
+#endif
+#if NATAPICAM > 0
+	atapi_cam_attach_bus(ch);
 #endif
 	splx(s);
     }
@@ -238,11 +246,14 @@ ata_detach(device_t dev)
     if (ch->devices & ATA_ATA_SLAVE && ch->device[SLAVE].driver)
 	ad_detach(&ch->device[SLAVE], 1);
 #endif
-#if NATAPICD > 0 || NATAPIFD > 0 || NATAPIST > 0
+#if DEV_ATAPIALL
     if (ch->devices & ATA_ATAPI_MASTER && ch->device[MASTER].driver)
 	atapi_detach(&ch->device[MASTER]);
     if (ch->devices & ATA_ATAPI_SLAVE && ch->device[SLAVE].driver)
 	atapi_detach(&ch->device[SLAVE]);
+#endif
+#if NATAPICAM > 0
+    atapi_cam_detach_bus(ch);
 #endif
     splx(s);
 
@@ -432,7 +443,7 @@ ataioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
 	case ATARAIDSTATUS:
 	    return ata_raid_status(iocmd->channel, &iocmd->u.raid_status);
 #endif
-#if NATAPICD > 0 || NATAPIFD > 0 || NATAPIST > 0
+#if DEV_ATAPIALL
 	case ATAPICMD: {
 	    struct ata_device *atadev;
 	    caddr_t buf;
@@ -571,7 +582,7 @@ ata_boot_attach(void)
     }
     ata_raid_attach();
 #endif
-#if NATAPICD > 0 || NATAPIFD > 0 || NATAPIST > 0
+#if DEV_ATAPIALL
     /* then the atapi devices */
     for (ctlr=0; ctlr<devclass_get_maxunit(ata_devclass); ctlr++) {
 	if (!(ch = devclass_get_softc(ata_devclass, ctlr)))
@@ -580,8 +591,11 @@ ata_boot_attach(void)
 	    atapi_attach(&ch->device[MASTER]);
 	if (ch->devices & ATA_ATAPI_SLAVE)
 	    atapi_attach(&ch->device[SLAVE]);
-    }
 #endif
+#if NATAPICAM > 0
+	atapi_cam_attach_bus(ch);
+#endif
+    }
     splx(s);
 }
 
@@ -618,7 +632,7 @@ ata_intr(void *data)
 	    return;
 	break;
 #endif
-#if NATAPICD > 0 || NATAPIFD > 0 || NATAPIST > 0
+#if DEV_ATAPIALL
     case ATA_ACTIVE_ATAPI:
 	if (!ch->running || atapi_interrupt(ch->running) == ATA_OP_CONTINUES)
 	    return;
@@ -667,7 +681,7 @@ ata_start(struct ata_channel *ch)
 #ifdef NATADISK
     struct ad_request *ad_request; 
 #endif
-#if NATAPICD > 0 || NATAPIFD > 0 || NATAPIST > 0
+#if DEV_ATAPIALL
     struct atapi_request *atapi_request;
 #endif
     int s;
@@ -695,7 +709,7 @@ ata_start(struct ata_channel *ch)
     }
 
 #endif
-#if NATAPICD > 0 || NATAPIFD > 0 || NATAPIST > 0
+#if DEV_ATAPIALL
     /* find & call the responsible driver if anything on the ATAPI queue */
     if (TAILQ_EMPTY(&ch->atapi_queue)) {
 	if (ch->devices & (ATA_ATAPI_MASTER) && ch->device[MASTER].driver)
@@ -870,7 +884,7 @@ ata_reinit(struct ata_channel *ch)
 	if (misdev & ATA_ATA_SLAVE && ch->device[SLAVE].driver)
 	    ad_detach(&ch->device[SLAVE], 0);
 #endif
-#if NATAPICD > 0 || NATAPIFD > 0 || NATAPIST > 0
+#if DEV_ATAPIALL
 	if (misdev & ATA_ATAPI_MASTER && ch->device[MASTER].driver)
 	    atapi_detach(&ch->device[MASTER]);
 	if (misdev & ATA_ATAPI_SLAVE && ch->device[SLAVE].driver)
@@ -917,7 +931,7 @@ ata_reinit(struct ata_channel *ch)
 	ad_reinit(&ch->device[SLAVE]);
     }
 #endif
-#if NATAPICD > 0 || NATAPIFD > 0 || NATAPIST > 0
+#if DEV_ATAPIALL
     if (newdev & ATA_ATAPI_MASTER && !ch->device[MASTER].driver)
 	atapi_attach(&ch->device[MASTER]);
     else if (ch->devices & (ATA_ATAPI_MASTER) && ch->device[MASTER].driver) {
@@ -930,6 +944,10 @@ ata_reinit(struct ata_channel *ch)
 	ata_getparam(&ch->device[SLAVE], ATA_C_ATAPI_IDENTIFY);
 	atapi_reinit(&ch->device[SLAVE]);
     }
+#endif
+#if NATAPICAM > 0
+    if (ch->devices & (ATA_ATAPI_MASTER | ATA_ATAPI_SLAVE))
+	atapi_cam_reinit_bus(ch);
 #endif
     printf("done\n");
     ATA_UNLOCK_CH(ch);
