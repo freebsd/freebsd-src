@@ -228,7 +228,7 @@ ctl_freeinf(struct cjobinfo *cjinf)
 	cpriv = cjinf->cji_priv;
 	if ((cpriv == NULL) || (cpriv != cpriv->pub.cji_priv)) {
 		syslog(LOG_ERR, "in ctl_freeinf(%p): invalid cjinf (cpriv %p)",
-		    cjinf, cpriv);
+		    (void *)cjinf, (void *)cpriv);
 		return;
 	}
 
@@ -306,8 +306,9 @@ ctl_readcf(const char *ptrname, const char *cfname)
 		ctl_dbgfile = fopen(DEBUGREADCF_FNAME, "a");
 		if (ctl_dbgfile != NULL) {
 			fprintf(ctl_dbgfile, "%s: s=%p r=%ld e=%p %p->%s\n",
-			    ptrname, cpriv, (long)sroom, cpriv->cji_eobuff,
-			    cpriv->pub.cji_fname, cpriv->pub.cji_fname);
+			    ptrname, (void *)cpriv, (long)sroom,
+			    cpriv->cji_eobuff, cpriv->pub.cji_fname,
+			    cpriv->pub.cji_fname);
 		}
 	}
 #endif
@@ -705,7 +706,7 @@ ctl_rewindcf(struct cjobinfo *cjinf)
 	cpriv = cjinf->cji_priv;
 	if ((cpriv == NULL) || (cpriv != cpriv->pub.cji_priv)) {
 		syslog(LOG_ERR, "in ctl_rewindcf(%p): invalid cjinf (cpriv %p)",
-		    cjinf, cpriv);
+		    (void *)cjinf, (void *)cpriv);
 		return;
 	}
 	
@@ -776,7 +777,7 @@ ctl_dumpcji(FILE *dbg_stream, const char *heading, struct cjobinfo *cjinf)
 	cpriv = cjinf->cji_priv;
 
 	fprintf(dbg_stream, "ctl_dumpcji: Dump '%s' of cjobinfo at %p->%p\n",
-	    heading, cjinf, cpriv->cji_buff);
+	    heading, (void *)cjinf, cpriv->cji_buff);
 
 	PRINTSTR("accthost.H", cpriv->pub.cji_accthost);
 	PRINTSTR("acctuser.P", cpriv->pub.cji_acctuser);
@@ -792,7 +793,7 @@ ctl_dumpcji(FILE *dbg_stream, const char *heading, struct cjobinfo *cjinf)
 	if (cpriv->pub.cji_priv == NULL)
 		fprintf(dbg_stream, "NULL !!\n");
 	else
-		fprintf(dbg_stream, "%p\n", cpriv->pub.cji_priv);
+		fprintf(dbg_stream, "%p\n", (void *)cpriv->pub.cji_priv);
 
 	fprintf(dbg_stream, "|- - - - --> Dump '%s' complete\n", heading);
 
@@ -822,7 +823,7 @@ ctl_getline(struct cjobinfo *cjinf)
 	cpriv = cjinf->cji_priv;
 	if ((cpriv == NULL) || (cpriv != cpriv->pub.cji_priv)) {
 		syslog(LOG_ERR, "in ctl_getline(%p): invalid cjinf (cpriv %p)",
-		    cjinf, cpriv);
+		    (void *)cjinf, (void *)cpriv);
 		return NULL;
 	}
 
