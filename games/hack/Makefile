@@ -22,11 +22,9 @@ CLEANFILES+= hack.onames.h makedefs
 
 #
 # Need to be suid for created savefiles and bones, they must not be
-# altered by user
+# altered by user and can't be pre-created
 #
-BINOWN=         games
-BINMODE=        4550
-INSTALLFLAGS+=  -fschg
+SUIDGAME=suidgame
 
 .depend: hack.onames.h
 
