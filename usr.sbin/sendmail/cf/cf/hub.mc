@@ -40,7 +40,7 @@ divert(-1)
 
 divert(0)dnl
 include(../m4/cf.m4)
-VERSIONID(`$Id: hub.mc,v 1.5 1997/11/30 23:28:26 jmb Exp $')
+VERSIONID(`$Id: hub.mc,v 1.1.2.4 1998/01/15 17:35:59 jmb Exp $')
 
 OSTYPE(bsd4.4)dnl
 DOMAIN(generic)dnl
@@ -55,29 +55,38 @@ define(`ALIAS_FILE', `/etc/aliases,/etc/majordomo.aliases')dnl
 define(`UUCP_RELAY', uunet.uu.net)dnl
 define(`BITNET_RELAY', mailhost.Berkeley.EDU)dnl
 define(`CSNET_RELAY', mailhost.Berkeley.EDU)dnl
-define(`confCW_FILE', `-o /etc/sendmail.cw')dnl
-define(`confCHECKPOINT_INTERVAL', `4')dnl
+define(`confCW_FILE', `/etc/sendmail.cw')dnl
+define(`confCHECKPOINT_INTERVAL', `10')dnl
 define(`confAUTO_REBUILD', `True')dnl
 define(`confMIN_FREE_BLOCKS', `1024')dnl
 define(`confSMTP_MAILER', `smtp8')dnl
 define(`confME_TOO', `True')dnl
-define(`confMCI_CACHE_TIMEOUT', `10m')dnl
+define(`confMCI_CACHE_SIZE', `10')dnl
+define(`confMCI_CACHE_TIMEOUT', `1h')dnl
 define(`confTO_QUEUEWARN', `1d')dnl
 define(`confTO_QUEUEWARN_NORMAL', `1d')dnl
-define(`confTO_RCPT', `10m')dnl
+define(`confTO_INITIAL', `1m')dnl
+define(`confTO_CONNECT', `1m')dnl
+define(`confTO_ICONNECT', `30s')dnl
+define(`confTO_HELO', `2m')dnl
+define(`confTO_MAIL', `4m')dnl
+define(`confTO_RCPT', `4m')dnl
+define(`confTO_DATAINIT', `2m')dnl
 define(`confTO_DATABLOCK', `10m')dnl
 define(`confTO_DATAFINAL', `10m')dnl
-define(`confTO_COMMAND', `10m')dnl
+define(`confTO_RSET', `1m')dnl
+define(`confTO_COMMAND', `5m')dnl
 define(`confTO_HOSTSTATUS', `30m')dnl
 define(`confMIN_QUEUE_AGE', `30m')dnl
+define(`confMAX_QUEUE_RUN_SIZE', `100')dnl
 define(`confNO_RCPT_ACTION', `add-to-undisclosed')dnl
 define(`confTRUSTED_USERS', `majordom')dnl
 define(`confRECEIVED_HEADER', `$?sfrom $s $.$?_($?s$|from $.$_)
           $.by $j ($v/$Z)$?r with $r$. id $i$?u
           for $u; $|;
           $.$b$?g
-          (envelope-from $g)$.')dnl$|;$.
-define(`confHOST_STATUS_DIRECTORY', `.hoststat')dnl
+          (envelope-from $g)$.')dnl
+define(`confHOST_STATUS_DIRECTORY', `/var/spool/.hoststat')dnl
 define(`confMAX_DAEMON_CHILDREN', `8')dnl
 define(`confCONNECTION_THROTTLE_RATE', `1')dnl
 define(`confFORWARD_PATH', `/var/forward/$u')dnl
@@ -94,7 +103,7 @@ Kspamsites hash -o -a.REJECT /etc/mail/spamsites.db
 #
 Scheck_rbl
 # lookup up an ip address in the Realtime Blackhole List.
-R$-.$-.$-.$-	$: $(host $4.$3.$2.$1.rbl.maps.vix.com $:OK $)
+R$-.$-.$-.$-	$: $(host $4.$3.$2.$1.rbl.maps.vix.com. $:OK $)
 
 Sxlat						# for sendmail -bt
 # sendmail treats "$" and "|" as two distinct tokens
@@ -125,6 +134,11 @@ R<$*> $*		$: $1
 R$* $| $*		$: $1 $| $(denyip $2 $)
 R$* $| $*.REJECT	$#error $: "521 blocked. contact postmaster@FreeBSD.ORG"
 # ip address must NOT be in the "denyip" database--END
+# ip address must NOT be in Paul Vixie's RBL--BEGIN
+R$* $| $*		$: <$1 $| $2> $>check_rbl $2
+R$*.com.		$#error $: "550 Mail refused, see http://maps.vix.com/rbl"
+R<$*> $*		$: $1
+# ip address must NOT be in Paul Vixie's RBL--END
 R$*			$@ OK
 
 Scheck_mail
@@ -133,7 +147,6 @@ Scheck_mail
 #	may or may not have "<" ">"
 # the groups of rules in this ruleset ARE NOT independent.
 # "remove all RFC-822 comments" must come first
-# "Connecting Host" and "Paul Vixie's RBL" must be last
 #
 # use the ones that you want comment out the rest
 # each group is preceded and followed by a comment
@@ -159,11 +172,6 @@ R$*			$: $1 $: $(dequote "" $&{client_name} $)
 R$*			$: $>3 foo@$1
 R<$*> $*<@$*>		$#error $: "451 Domain does not resolve"
 # Connecting Host must resolve--END
-# ip address must NOT be in Paul Vixie's RBL--BEGIN
-R$*			$: $1 $: $(dequote "" $&{client_addr} $)
-R$*			$: $>check_rbl $1
-R$*.com.		$#error $: "550 Mail refused, see http://maps.vix.com/rbl"
-# ip address must NOT be in Paul Vixie's RBL--END
 R$*			$@ OK
 
 Scheck_rcpt
@@ -177,7 +185,7 @@ R<$*> $+ < @ $+ >	$: <$1> $(fakenames $2 $: OK $)
 R$+.REJECT		$#error $: 521 $1
 R<$*> $*		$: $1
 # mail must NOT be addressed "fakenames"--END
-# mail must come from or go to this machine or machines we allow to relay--BEGIN
+# mail must come from or go to this mahcine or machines we allow to relay--BEGIN
 # R$*			$: $>Parse0 $>3 $1
 # R$+ < @ $* . > $*	$: $1 < @ $2 >
 # R<$+ @ $=w>		$@ OK
@@ -187,6 +195,6 @@ R<$*> $*		$: $1
 # R$* $=R			$@ OK
 # R$@			$@ OK
 # R$*			$#error $: "550 Relaying Denied"
-# mail must come from or go to this machine or machines we allow to relay--BEGIN
+# mail must come from or go to this mahcine or machines we allow to relay--BEGIN
 R$*			$@ OK
 
