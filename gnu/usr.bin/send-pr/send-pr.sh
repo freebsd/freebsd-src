@@ -56,7 +56,7 @@ GNATS_SITE=freefall
 
 # What mailer to use.  This must come after the config file, since it is
 # host-dependent.
-MAIL_AGENT="/usr/sbin/sendmail -oi -t"
+MAIL_AGENT="${MAIL_AGENT:-/usr/sbin/sendmail -oi -t}"
 
 ECHON=bsd
 
@@ -240,7 +240,7 @@ CONFIDENTIAL_C='<[ yes | no ] (one line)>'
 SYNOPSIS_C='<Synopsis of the problem (one line)>'
 SEVERITY_C='<[ non-critical | serious | critical ] (one line)>'
 PRIORITY_C='<[ low | medium | high ] (one line)>'
-CLASS_C='<[ sw-bug | doc-bug | change-request | wish ] (one line)>'
+CLASS_C='<[ sw-bug | doc-bug | change-request ] (one line)>'
 RELEASE_C='<Release number or tag (one line)>'
 ENVIRONMENT_C='<Relevant environment information (multiple lines)>'
 DESCRIPTION_C='<Precise description of the problem (multiple lines)>'
@@ -450,7 +450,7 @@ while [ -z "$REQUEST_ID" ]; do
   PATTERN=">Class:"
   CLASS=`eval sed -n -e "\"/$PATTERN/$SED_CMD\"" $TEMP`
   case "$CLASS" in
-    ""|sw-bug|doc-bug|change-request|wish) CNT=`expr $CNT + 1` ;;
+    ""|sw-bug|doc-bug|change-request) CNT=`expr $CNT + 1` ;;
     *)  echo "$COMMAND: \`$CLASS' is not a valid value for \`Class'."
   esac
 
