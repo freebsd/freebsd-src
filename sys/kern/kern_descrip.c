@@ -601,9 +601,7 @@ funsetownlst(sigiolst)
 			PGRP_UNLOCK(pg);
 			SIGIO_UNLOCK();
 			crfree(sigio->sio_ucred);
-			mtx_lock(&Giant);
 			FREE(sigio, M_SIGIO);
-			mtx_unlock(&Giant);
 			SIGIO_LOCK();
 			PGRP_LOCK(pg);
 		} else /* if (p != NULL) */ {
@@ -613,9 +611,7 @@ funsetownlst(sigiolst)
 			PROC_UNLOCK(p);
 			SIGIO_UNLOCK();
 			crfree(sigio->sio_ucred);
-			mtx_lock(&Giant);
 			FREE(sigio, M_SIGIO);
-			mtx_unlock(&Giant);
 			SIGIO_LOCK();
 			PROC_LOCK(p);
 		}
