@@ -337,8 +337,7 @@ ieee80211_end_scan(struct ifnet *ifp)
 			fail |= 0x08;
 		if (ic->ic_des_esslen != 0 &&
 		    (ni->ni_esslen != ic->ic_des_esslen ||
-		     memcmp(ni->ni_essid, ic->ic_des_essid,
-		     ic->ic_des_esslen != 0)))
+		     memcmp(ni->ni_essid, ic->ic_des_essid, ic->ic_des_esslen) != 0))
 			fail |= 0x10;
 		if ((ic->ic_flags & IEEE80211_F_DESBSSID) &&
 		    !IEEE80211_ADDR_EQ(ic->ic_des_bssid, ni->ni_bssid))
