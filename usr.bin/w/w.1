@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)w.1	8.1 (Berkeley) 6/6/93
-.\"	$Id: w.1,v 1.2.8.3 1997/08/26 06:47:43 charnier Exp $
+.\"	$Id: w.1,v 1.2.8.4 1998/01/12 00:49:26 steve Exp $
 .\"
 .Dd June 6, 1993
 .Dt W 1
@@ -40,7 +40,7 @@
 .Nd present who users are and what they are doing
 .Sh SYNOPSIS
 .Nm w
-.Op Fl hin
+.Op Fl dhin
 .Op Fl M Ar core
 .Op Fl N Ar system
 .Op Ar user
@@ -62,6 +62,9 @@ and the name and arguments of the current process.
 .Pp
 The options are as follows:
 .Bl -tag -width Ds
+.It Fl d
+dumps out the entire process list on a per controlling
+tty basis, instead of just the top level process.
 .It Fl h
 Suppress the heading.
 .It Fl i
