@@ -1,4 +1,4 @@
-This file attempts to describe what you're seeing here.  Here is a typical
+This file attempts to describe what you are seeing here.  Here is a typical
 distribution tree:
 
 HARDWARE.TXT    bin             dict            manpages        tools
@@ -7,77 +7,76 @@ README.TXT      compat20        floppies        ports
 RELNOTES.TXT    compat21        games           proflibs
 XF8632          info            src
 
-The *.TXT files are, obviously, documentation.  The XF8632 directory contains
-the XFree86 project's 3.2 release and consists of a series of gzip'd tar
-files which contain each component of the XFree86 distribution.
+The *.TXT files obviously contain documentation (README.TXT being a good
+start).  The XF8632 directory contains the XFree86 project's 3.2 release
+and consists of a series of gzip'd tar files which contain each component
+of the XFree86 distribution.
 
-The compat1x, compat20 and compat21 directories contain compatibility
-distributions for older releases and are also distributed as single gzip'd
-tar files - they can be installed during release time or later by running
-their `install.sh' scripts.
+The compat1x, compat20 and compat21 directories contain distributions for
+compatibility with older releases and are distributed as gzip'd tar files -
+they can be installed during release time or later by running their
+`install.sh' scripts.
 
-The bin, dict, des, doc, games, info, manpages, proflibs and src directories
+The bin, dict, des, doc, games, info, manpages, proflibs, and src directories
 contain the primary distribution components of FreeBSD itself and are split
-into smaller files for ease of distribution on floppy (should such be
-necessary).  A typical distribution (we'll use the info distribution
-as an example) looks like this:
+into smaller files for easy packing onto floppies (should that be necessary).
+
+A typical distribution (we'll use the info distribution as an example) looks
+like this:
 
 CHECKSUM.MD5    info.ab         info.ad         info.inf        install.sh
 info.aa         info.ac         info.ae         info.mtree
 
 The CHECKSUM.MD5 file contains MD5 signatures for each file, should
 data corruption be suspected, and is purely for reference - it is not
-used by the actual installation.  The info.a* files are split, gzip'd
-tar files, the contents of which could be viewed by doing:
+used by the actual installation and does not need to be copied with the
+rest of the distribution files.  The info.a* files are split, gzip'd
+tar files, the contents of which can be viewed by doing:
 
 	cat info.a* | tar tvzf -
 
-They are automatically concatenated and extracted during the installation
-procedure, assuming that the info distribution was selected in the
-distributions menu.
+During installation, they are automatically concatenated and extracted by
+the installation procedure.
 
-The info.inf file is also a necessary component and is read by the
-installation program in order to figure out how many pieces to look for
-when fetching and concatenating the distribution.  When putting a distribution
-onto floppies, this file must occupy the first floppy of the set.
+The info.inf file is also necessary since it is read by the installation
+program in order to figure out how many pieces to look for when fetching and
+concatenating the distribution.  When putting distributions onto floppies,
+the .inf file MUST occupy the first floppy of each distribution set!
 
-The info.mtree file is another non-essential file which is provided purely
+The info.mtree file is another non-essential file which is provided
 for user reference.  It contains the MD5 signatures of the *unpacked*
-distribution and can be used later as fodder for the mtree(1) program
-in verifying the permissions and checksums of the distribution against
-whatever is installed on your system.  When used with the bin distribution,
-this can be an excellent way of detecting trojan horse attacks on your
-system.
+distribution files and can be later used with the mtree(1) program
+to verify the installation permissions and checksums against any possible
+modifications to the file.  When used with the bin distribution, this can
+be an excellent way of detecting trojan horse attacks on your system.
 
-Finally, the install.sh file is for use by those who'd like to install the
-distribution *after* installation time, e.g. some time after the system
-is already installed and working.  To install the info distribution from
-CDROM after your system was installed, for example, you'd do:
+Finally, the install.sh file is for use by those who want to install the
+distribution after installation time.  To install the info distribution from
+CDROM after a system was installed, for example, you'd do:
 
 		cd /cdrom/info
 		sh install.sh
 
-And that's all there is to it!  This also works for the other distributions,
-including the compat* ones.
+And that's all there is to it!  Each distribution contains its own
+install.sh file for this.
 
 
-The floppies subdirectory contains the floppy installation images.
-The floppies/README.TXT file should be referred to for more information
-about them.
+The floppies subdirectory contains the floppy installation images and
+the floppies/README.TXT file should be read for further information
+on them.
 
 The packages and ports directories contain the FreeBSD packages and
-ports collections, respectively.  The packages may be installed using
-the package menu in /stand/sysinstall (the utility which runs when you
-first install FreeBSD) or individually with the pkg_add(1) command.
+ports collections.   Packages may be installed from the packages directory
+by running the /stand/sysinstall utility with the argument ``configPackages''
+or by feeding the individual filenames to the pkg_add(1) command.
 
-The ports tree should be copied to your hard disk or linked to with
-the lndir command, which comes with the XFree86 distribution.  More
-information on it can be obtained from http://www.freebsd.org/ports
-or locally from file:/usr/share/doc/handbook if you've installed
-the doc distribution.
+The ports tree should be copied or linked (with the ``lndir'' command)
+to a directory on your hard disk.  lndir comes with the XFree86 distribution
+and is recommended if you can live with mounting your CDROM whenever you wish
+to use the ports collection.  More information on the ports collection may be
+obtained from http://www.freebsd.org/ports or locally from
+file:/usr/share/doc/handbook if you've installed the doc distribution.
 
 Last of all, the tools directory contains various DOS tools for
 discovering disk geometries, installing boot managers and the like.
-It is purely optional and provided merely for user convenience.
-
-					Jordan
+It is purely optional and provided only for user convenience.
