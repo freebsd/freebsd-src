@@ -677,6 +677,7 @@ sioprobe(dev)
 	if (COM_LLCONSOLE(flags)) {
 		printf("sio%d: reserved for low-level i/o\n",
 		       device_get_unit(dev));
+		bus_release_resource(dev, SYS_RES_IOPORT, rid, port);
 		return (ENXIO);
 	}
 
@@ -1048,7 +1049,13 @@ sioattach(dev)
 	if (siosetwater(com, com->it_in.c_ispeed) != 0) {
 		enable_intr();
 		free(com, M_DEVBUF);
-		return (ENXIO);
+		/*
+		 * Leave i/o resources allocated if this is a `cn'-level
+		 * console, so that other devices can't snarf them.
+		 */
+		if (iobase != siocniobase)
+			bus_release_resource(dev, SYS_RES_IOPORT, rid, port);
+		return (ENOMEM);
 	}
 	enable_intr();
 	termioschars(&com->it_in);
