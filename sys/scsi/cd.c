@@ -14,12 +14,11 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *      $Id: cd.c,v 1.29 1994/11/15 14:49:12 bde Exp $
+ *      $Id: cd.c,v 1.30 1994/12/03 22:52:55 phk Exp $
  */
 
 #define SPLCD splbio
 #define ESUCCESS 0
-#include <cd.h>
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/dkbad.h>
@@ -175,13 +174,6 @@ cdattach(sc_link)
 	SC_DEBUG(sc_link, SDEV_DB2, ("cdattach "));
 
 	/*
-	 * Fill out any more info in the
-	 * Link structure that we can
-	 */
-	unit = next_cd_unit++;
-	sc_link->device = &cd_switch;
-	sc_link->dev_unit = unit;
-	/*
 	 * allocate the resources for another drive
 	 * if we have already allocate a cd_data pointer we must
 	 * copy the old pointers into a new region that is
@@ -193,6 +185,7 @@ cdattach(sc_link)
 	 * done by changing the malloc to be (next_cd_unit * x) and
 	 * the cd_driver.size++ to be +x
 	 */
+	unit = next_cd_unit++;
 	if (unit >= cd_driver.size) {
 		cdrealloc =
 		    malloc(sizeof(cd_driver.cd_data) * next_cd_unit,
