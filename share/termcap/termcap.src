@@ -1956,11 +1956,13 @@ c100-rv-s|concept-rv-s|concept100-rv-s|c100rvs|slow reverse concept 100:\
 	:vb=\EK\200\Ek:pt:dC@:dN@:tc=c100-rv:
 # for syscons
 cons25|ansi|ansi80x25:\
+	:ac=l\332m\300k\277j\331u\264t\303v\301w\302q\304x\263n\305o~s_`^Da\260f\370g\361~\371,^P+^Q.^Y-^Xh\261i^U0\333y\363z\362:\
         :al=\E[L:am:bs:cd=\E[J:ce=\E[K:cl=\E[2J\E[H:cm=\E[%i%d;%dH:co#80:\
         :dc=\E[P:dl=\E[M:do=\E[B:bt=\E[Z:ei=:ho=\E[H:ic=\E[@:im=:li#25:\
 	:ms:nd=\E[C:pt:rs=\E[x\E[m\Ec:so=\E[7m:se=\E[m:us=\E[4m:ue=\E[m:up=\E[A:\
-        :k1=\E[M:k2=\E[N:k3=\E[O:k4=\E[P:k5=\E[Q:k6=\E[R:\
-        :k7=\E[S:k8=\E[T:k9=\E[U:k0=\E[V:k10=\E[V:k11=\E[W:k12=\E[X:\
+	:pa#64:Co#8:Sf=\E[=%dF:Sb=\E[=%dG:op=\E[x:\
+	:k1=\E[M:k2=\E[N:k3=\E[O:k4=\E[P:k5=\E[Q:k6=\E[R:k7=\E[S:k8=\E[T:\
+	:k9=\E[U:k;=\E[V:F1=\E[W:F2=\E[X:\
 	:kb=^h:ku=\E[A:kd=\E[B:kl=\E[D:kr=\E[C:le=^H:eo:sf=\E[S:sr=\E[T:\
 	:IC=\E[%d@:DC=\E[%dP:SF=\E[%dS:SR=\E[%dT:AL=\E[%dL:DL=\E[%dM:\
 	:DO=\E[%dB:LE=\E[%dD:RI=\E[%dC:UP=\E[%dA:\
@@ -1968,9 +1970,6 @@ cons25|ansi|ansi80x25:\
 cons50|ansil|ansi80x50:\
         :li#50:tc=cons25:
 # Syscons console with koi8-r russian code table.
-# Some non-standard termcap extentions added at the end (after 'ac')
-# for compatibility with current russian software.
-# You might need to add correct filename to Ct entry
 pc3r|ibmpc3r|FreeBSD console for syscons koi8-r code table:\
 	:li#25:co#80:am:bs:bw:eo:cu=\222:\
 	:UP=\E[%dA:DO=\E[%dB:RI=\E[%dC:LE=\E[%dD:AL=\E[%dL:DL=\E[%dM:\
@@ -1979,16 +1978,12 @@ pc3r|ibmpc3r|FreeBSD console for syscons koi8-r code table:\
 	:so=\E[7m:se=\E[m:ms:rs=\E[x\E[m\Ec:pt:\
 	:mb=\E[5m:mr=\E[7m:md=\E[1m:mh=\E[30m\E[1m:me=\E[m:\
 	:kb=^H:kh=\E[H:ku=\E[A:kd=\E[B:kl=\E[D:kr=\E[C:\
-	:kN=\E[G:kP=\E[I:kH=\E[F:kI=\E[L:kD=\E[K:kB=\E[Z:\
+	:kN=\E[G:kP=\E[I:kH=\E[F:kI=\E[L:kD=\E[K:kB=\E[Z:kC=\E[E:\
 	:k1=\E[M:k2=\E[N:k3=\E[O:k4=\E[P:k5=\E[Q:k6=\E[R:k7=\E[S:k8=\E[T:\
-	:k9=\E[U:k0=\E[V:k.=\E[W:k-=\E[X:ko=k.,k-:kC=\E[E:\
+	:k9=\E[U:k;=\E[V:F1=\E[W:F2=\E[X:\
 	:sr=\E[T:sf=\E[S:SR=\E[%dT:SF=\E[%dS:\
-	:ac=q\200x\201m\204v\211j\205t\206n\212u\207l\202w\210k\203y\230z\231f\234~\225a\221:\
-	:Nf#16:Nb#8:Cf=\E[=%dF:Cb=\E[=%dG:\
-	:gs=:ge=:g1=\200\201\204\211\205\206\212\207\202\210\203:\
-	:g2=\240\241\253\273\256\261\276\265\245\270\250:\
-	:f1=\E[M:f2=\E[N:f3=\E[O:f4=\E[P:f5=\E[Q:f6=\E[R:f7=\E[S:f8=\E[T:\
-	:f9=\E[U:f0=\E[V:f.=\E[W:f-=\E[X:CY:Cs=:Ce=:Ct=:
+	:ac=q\200x\201m\204v\211j\205t\206n\212u\207l\202w\210k\203y\230z\231f\234~\225a\220h\221o~s_`^D,^P+^Q.^Y-^Xi^U0\215:\
+	:pa#64:Co#8:Sf=\E[=%dF:Sb=\E[=%dG:op=\E[x:
 dosansi|ANSI.SYS standard crt:\
         :am:bs:ce=\E[K:cl=\E[2J:cm=\E[%i%d;%dH:co#80:\
         :do=\E[B:li#25:mi:nd=\E[C:\
@@ -3374,16 +3369,70 @@ pc|ibmpc|ibm pc PC/IX:\
 	:li#24:co#80:am:bs:bw:eo:\
 	:cd=\E[J:ce=\E[K:cl=\Ec:cm=\E[%i%2;%2H:do=\E[B:ho=\E[;H:\
 	:nd=\E[C:up=\E[A:so=\E[7m:se=\E[0m:us=\E[4m:ue=\E[0m:
-# by "Alex R.N. Wetmore" <aw2t+@andrew.cmu.edu>
 pc3|ibmpc3|IBM PC 386BSD Console:\
-	:li#25:co#80:am:bs:bw:eo:\
-	:ac=l\332q\304k\277x\263j\331m\300w\302u\264v\301t\303n\305:\
-	:kh=\E[Y:ku=\E[A:kd=\E[B:kl=\E[D:kr=\E[C:\
-	:sr=\E[T:sf=\E[S:\
-	:cd=\E[J:ce=\E[K:cl=\Ec:cm=\E[%i%2;%2H:do=\E[B:ho=\E[;H:\
-	:nd=\E[C:up=\E[A:so=\E[1;7x\E[2;0x:se=\E[1;0x\E[2;7x:\
-	:us=\E[1;7x\E[2;0x:ue=\E[1;0x\E[2;7x:\
-	:md=\E[7m:me=\E[0m\E[1;0x\E[2;7x:
+	:Co#8:\
+	:DO=\E[%dB:\
+	:F1=\E[W:\
+	:F2=\E[X:\
+	:K1=\E[H:\
+	:K2=\E[I:\
+	:K3=\E[E:\
+	:K4=\E[F:\
+	:K5=\E[G:\
+	:LE=\E[%dD:\
+	:RI=\E[%dC:\
+	:Sb=\E[1;%dx:\
+	:Sf=\E[2;%dx:\
+	:UP=\E[%dA:\
+	:ac=l\332m\300k\277j\331u\264t\303v\301w\302q\304x\263n\305o~s_`^Da\260f\370g\361~\371,^P+^Q.^Y-^Xh\261i^U0\333y\363z\362:\
+	:am:\
+	:bl=^G:\
+	:bs:\
+	:cb=\E[1K:\
+	:cd=\E[J:\
+	:ce=\E[K:\
+	:cl=\E[H\E[J:\
+	:cm=\E[%i%d;%dH:\
+	:co#80:\
+	:cr=^M:\
+	:do=^J:\
+	:ho=\E[H:\
+	:is=\E[m:\
+	:k;=\E[V:\
+	:k1=\E[M:\
+	:k2=\E[N:\
+	:k3=\E[O:\
+	:k4=\E[P:\
+	:k5=\E[Q:\
+	:k6=\E[R:\
+	:k7=\E[S:\
+	:k8=\E[T:\
+	:k9=\E[U:\
+	:kD=\177:\
+	:kH=\E[F:\
+	:kN=\E[G:\
+	:kP=\E[I:\
+	:kb=\177:\
+	:kd=\E[B:\
+	:kh=\E[H:\
+	:kl=\E[D:\
+	:kr=\E[C:\
+	:ku=\E[A:\
+	:le=^H:\
+	:li#25:\
+	:ms:\
+	:nd=\E[C:\
+	:op=\E[x:\
+	:pa#64:\
+	:rs=\E[m:\
+	:se=\E[m:\
+	:sf=\E[S:\
+	:so=\E[7;1r\E[7m:\
+	:sr=\E[T:\
+	:ta=^I:\
+	:te=\E[m:\
+	:ti=\E[m:\
+	:up=\E[A:
 ibmx|ibmpcx|IBM PC xenix console display:\
 	:al=\E[L:am:bs:cd=\E[J:ce=\E[K:cl=^L:cm=\E[%d;%dH:co#80:\
 	:dc=\E[P:dl=\E[M:do=\E[B:ei=:ho=\E[H:ic=\E[@:im=:li#25:\
