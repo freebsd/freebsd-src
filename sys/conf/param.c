@@ -36,24 +36,13 @@
  * SUCH DAMAGE.
  *
  *	@(#)param.c	8.3 (Berkeley) 8/20/94
- * $Id$
+ * $Id: param.c,v 1.24 1997/02/22 09:28:15 peter Exp $
  */
 
 #include "opt_sysvipc.h"
 #include "opt_param.h"
 
 #include <sys/param.h>
-#include <sys/systm.h>
-#include <sys/socket.h>
-#include <sys/proc.h>
-#include <sys/vnode.h>
-#include <sys/file.h>
-#include <sys/callout.h>
-#include <sys/clist.h>
-#include <sys/mbuf.h>
-#include <sys/kernel.h>
-
-#include <ufs/ufs/quota.h>
 
 #ifdef SYSVSHM
 #include <machine/vmparam.h>
