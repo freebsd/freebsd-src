@@ -154,6 +154,12 @@ struct usb_knowndev usb_knowndevs[] = {
 	    "mouse",
 	},
 	{
+	    USB_VENDOR_LUCENT, USB_PRODUCT_LUCENT_1284_BRIDGE,
+	    0,
+	    "Lucent Technologies",
+	    "USB Smart Cable",
+	},
+	{
 	    USB_VENDOR_3COM, USB_PRODUCT_3COM_USR56K,
 	    0,
 	    "3Com",
