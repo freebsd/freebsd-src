@@ -93,9 +93,9 @@ static struct exit_list_head exit_list = TAILQ_HEAD_INITIALIZER(exit_list);
  *	Death of process.
  */
 void
-exit(p, uap)
+sys_exit(p, uap)
 	struct proc *p;
-	struct rexit_args /* {
+	struct sys_exit_args /* {
 		int	rval;
 	} */ *uap;
 {
