@@ -1,6 +1,6 @@
-#	$FreeBSD$
+#	$Id$
 #
-OPIE_DIST?=../../contrib/opie
+OPIE_DIST?=	${.CURDIR}/../../contrib/opie
 
 PROG=	opiepasswd
 SRCS=	opiepasswd.c
