@@ -1001,12 +1001,6 @@ ste_attach(dev)
 		goto fail;
 	}
 
-	/*
-	 * A Sundance chip was detected. Inform the world.
-	 */
-	printf("ste%d: Ethernet address: %6D\n", unit,
-	    sc->arpcom.ac_enaddr, ":");
-
 	sc->ste_unit = unit;
 
 	/* Allocate the descriptor queues. */

@@ -2309,12 +2309,6 @@ bge_attach(dev)
 		goto fail;
 	}
 
-	/*
-	 * A Broadcom chip was detected. Inform the world.
-	 */
-	printf("bge%d: Ethernet address: %6D\n", unit,
-	    sc->arpcom.ac_enaddr, ":");
-
 	/* Save ASIC rev. */
 
 	sc->bge_chipid =

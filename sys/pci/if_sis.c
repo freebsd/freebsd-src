@@ -1234,11 +1234,6 @@ sis_attach(dev)
 		break;
 	}
 
-	/*
-	 * A SiS chip was detected. Inform the world.
-	 */
-	printf("sis%d: Ethernet address: %6D\n", unit, eaddr, ":");
-
 	sc->sis_unit = unit;
 	callout_init(&sc->sis_stat_ch, CALLOUT_MPSAFE);
 	bcopy(eaddr, (char *)&sc->arpcom.ac_enaddr, ETHER_ADDR_LEN);

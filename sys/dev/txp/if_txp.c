@@ -334,9 +334,6 @@ txp_attach(dev)
 	sc->sc_arpcom.ac_enaddr[4] = ((u_int8_t *)&p2)[1];
 	sc->sc_arpcom.ac_enaddr[5] = ((u_int8_t *)&p2)[0];
 
-	printf("txp%d: Ethernet address %6D\n", unit,
-	    sc->sc_arpcom.ac_enaddr, ":");
-
 	sc->sc_cold = 0;
 
 	ifmedia_init(&sc->sc_ifmedia, 0, txp_ifmedia_upd, txp_ifmedia_sts);

@@ -569,8 +569,7 @@ wlattach(device_t device)
     ether_ifattach(ifp, &sc->wl_addr[0]);
 
     bcopy(&sc->wl_addr[0], sc->wl_ac.ac_enaddr, WAVELAN_ADDR_SIZE);
-    printf("%s: address %6D, NWID 0x%02x%02x", ifp->if_xname,
-           sc->wl_ac.ac_enaddr, ":", sc->nwid[0], sc->nwid[1]);
+    if_printf(ifp, "NWID 0x%02x%02x", sc->nwid[0], sc->nwid[1]);
     if (sc->freq24) 
 	printf(", Freq %d MHz",sc->freq24); 		/* 2.4 Gz       */
     printf("\n");                                       /* 2.4 Gz       */

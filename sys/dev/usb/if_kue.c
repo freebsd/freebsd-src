@@ -475,12 +475,6 @@ USB_ATTACH(kue)
 	sc->kue_mcfilters = malloc(KUE_MCFILTCNT(sc) * ETHER_ADDR_LEN,
 	    M_USBDEV, M_NOWAIT);
 
-	/*
-	 * A KLSI chip was detected. Inform the world.
-	 */
-	printf("kue%d: Ethernet address: %6D\n", sc->kue_unit,
-	    sc->kue_desc.kue_macaddr, ":");
-
 	bcopy(sc->kue_desc.kue_macaddr,
 	    (char *)&sc->arpcom.ac_enaddr, ETHER_ADDR_LEN);
 

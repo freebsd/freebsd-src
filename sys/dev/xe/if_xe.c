@@ -297,7 +297,6 @@ xe_attach (device_t dev)
     XE_SELECT_PAGE(0x45);
     DEVPRINTF(1, (dev, "CE2 version = 0x%#02x\n", XE_INB(XE_REV)));
   }
-  device_printf(dev, "Ethernet address %6D\n", scp->arpcom.ac_enaddr, ":");
 
   /* Attach the interface */
   ether_ifattach(scp->ifp, scp->arpcom.ac_enaddr);

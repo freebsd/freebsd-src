@@ -319,9 +319,6 @@ ie_attach(device_t dev)
 		EVENTHANDLER_REGISTER(shutdown_post_sync, ee16_shutdown,
 				      sc, SHUTDOWN_PRI_DEFAULT);
 
-	device_printf(sc->dev, "Ethernet address %6D\n",
-		      sc->arpcom.ac_enaddr, ":");
-
 	ether_ifattach(ifp, sc->arpcom.ac_enaddr);
 	return (0);
 }

@@ -580,12 +580,6 @@ pcn_attach(dev)
 	eaddr[1] = CSR_READ_4(sc, PCN_IO32_APROM01);
 	bcopy(eaddr, (char *)&sc->arpcom.ac_enaddr, ETHER_ADDR_LEN);
 
-	/*
-	 * An AMD chip was detected. Inform the world.
-	 */
-	printf("pcn%d: Ethernet address: %6D\n", unit,
-	    sc->arpcom.ac_enaddr, ":");
-
 	sc->pcn_unit = unit;
 	callout_handle_init(&sc->pcn_stat_ch);
 

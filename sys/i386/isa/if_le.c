@@ -352,10 +352,6 @@ le_attach(
     ifp->if_init = sc->if_init;
     ifp->if_snd.ifq_maxlen = IFQ_MAXLEN;
 
-    if_printf(ifp, "%s ethernet address %6D\n",
-	sc->le_prodname,
-	sc->le_ac.ac_enaddr, ":");
-
     ether_ifattach(ifp, sc->le_ac.ac_enaddr);
 
     return 1;

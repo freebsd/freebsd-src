@@ -572,11 +572,6 @@ lge_attach(dev)
 	lge_read_eeprom(sc, (caddr_t)&eaddr[2], LGE_EE_NODEADDR_1, 1, 0);
 	lge_read_eeprom(sc, (caddr_t)&eaddr[4], LGE_EE_NODEADDR_2, 1, 0);
 
-	/*
-	 * A Level 1 chip was detected. Inform the world.
-	 */
-	printf("lge%d: Ethernet address: %6D\n", unit, eaddr, ":");
-
 	sc->lge_unit = unit;
 	callout_handle_init(&sc->lge_stat_ch);
 	bcopy(eaddr, (char *)&sc->arpcom.ac_enaddr, ETHER_ADDR_LEN);

@@ -749,9 +749,6 @@ an_attach(sc, unit, flags)
 	bcopy((char *)&sc->an_caps.an_oemaddr,
 	   (char *)&sc->arpcom.ac_enaddr, ETHER_ADDR_LEN);
 
-	printf("an%d: Ethernet address: %6D\n", sc->an_unit,
-	    sc->arpcom.ac_enaddr, ":");
-
 	ifp->if_softc = sc;
 	sc->an_unit = unit;
 	if_initname(ifp, device_get_name(sc->an_dev),
