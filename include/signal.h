@@ -38,8 +38,8 @@
 
 #include <sys/cdefs.h>
 #include <sys/_posix.h>
-#include <sys/signal.h>
 #include <machine/ansi.h>
+#include <sys/signal.h>
 
 #if !defined(_ANSI_SOURCE) && !defined(_POSIX_SOURCE)
 extern __const char *__const sys_signame[NSIG];
