@@ -206,122 +206,6 @@ exception_exit:
  *	look like direct entry from the vector.
  */
 ASENTRY_NP(undefined_entry)
-#ifdef IPKDB
-/*
- * IPKDB must be hooked in at the earliest possible entry point.
- *
- */
-/*
- * Make room for all registers saving real r0-r7 and r15.
- * The remaining registers are updated later.
- */
-	stmfd	sp!, {r0,r1}		/* psr & spsr */
-	stmfd	sp!, {lr}		/* pc */
-	stmfd	sp!, {r0-r14}		/* r0-r7, r8-r14 */
-/*
- * Get previous psr.
- */
-	mrs	r7, cpsr_all
-	mrs	r0, spsr_all
-	str	r0, [sp, #(16*4)]
-/*
- * Test for user mode.
- */
-	tst	r0, #0xf
-	bne	.Lprenotuser_push
-	add	r1, sp, #(8*4)
-	stmia	r1,{r8-r14}^		/* store user mode r8-r14*/
-	b	.Lgoipkdb
-/*
- * Switch to previous mode to get r8-r13.
- */
-.Lprenotuser_push:
-	orr	r0, r0, #(I32_bit) /* disable interrupts */
-	msr	cpsr_all, r0
-	mov	r1, r8
-	mov	r2, r9
-	mov	r3, r10
-	mov	r4, r11
-	mov	r5, r12
-	mov	r6, r13
-	msr	cpsr_all, r7		/* back to undefined mode */
-	add	r8, sp, #(8*4)
-	stmia	r8, {r1-r6}		/* r8-r13 */
-/*
- * Now back to previous mode to get r14 and spsr.
- */
-	msr	cpsr_all, r0
-	mov	r1, r14
-	mrs	r2, spsr
-	msr	cpsr_all, r7		/* back to undefined mode */
-	str	r1, [sp, #(14*4)]	/* r14 */
-	str	r2, [sp, #(17*4)]	/* spsr */
-/*
- * Now to IPKDB.
- */
-.Lgoipkdb:
-	mov	r0, sp
-	bl	_C_LABEL(ipkdb_trap_glue)
-	ldr	r1, .Lipkdb_trap_return
-	str	r0,[r1]
-
-/*
- * Have to load all registers from the stack.
- *
- * Start with spsr and pc.
- */
-	ldr	r0, [sp, #(16*4)]	/* spsr */
-	ldr	r1, [sp, #(15*4)]	/* r15 */
-	msr	spsr_all, r0
-	mov	r14, r1
-/*
- * Test for user mode.
- */
-	tst	r0, #0xf
-	bne	.Lprenotuser_pull
-	add	r1, sp, #(8*4)
-	ldmia	r1, {r8-r14}^		/* load user mode r8-r14 */
-	b	.Lpull_r0r7
-.Lprenotuser_pull:
-/*
- * Now previous mode spsr and r14.
- */
-	ldr	r1, [sp, #(17*4)]		/* spsr */
-	ldr	r2, [sp, #(14*4)]		/* r14 */
-	orr	r0, r0, #(I32_bit)
-	msr	cpsr_all, r0			/* switch to previous mode */
-	msr	spsr_all, r1
-	mov	r14, r2
-	msr	cpsr_all, r7			/* back to undefined mode */
-/*
- * Now r8-r13.
- */
-	add	r8, sp, #(8*4)
-	ldmia	r8, {r1-r6}		/* r8-r13 */
-	msr	cpsr_all, r0
-	mov	r8, r1
-	mov	r9, r2
-	mov	r10, r3
-	mov	r11, r4
-	mov	r12, r5
-	mov	r13, r6
-	msr	cpsr_all, r7
-.Lpull_r0r7:
-/*
- * Now the rest of the registers.
- */
-	ldr	r1,Lipkdb_trap_return
-	ldr	r0,[r1]
-	tst	r0,r0
-	ldmfd	sp!, {r0-r7}		/* r0-r7 */
-	add	sp, sp, #(10*4)		/* adjust sp */
-
-/*
- * Did IPKDB handle it?
- */
-	movnes	pc, lr			/* return */
-
-#endif
 	stmfd	sp!, {r0, r1}
 	ldr	r0, Lundefined_handler_indirection
 	ldr	r1, [sp], #0x0004
@@ -330,10 +214,6 @@ ASENTRY_NP(undefined_entry)
 	str	r1, [r0, #0x0004]
 	ldmia	r0, {r0, r1, pc}
 
-#ifdef IPKDB
-Lipkdb_trap_return:
-	.word	Lipkdb_trap_return_data
-#endif
 
 Lundefined_handler_indirection:
 	.word	Lundefined_handler_indirection_data
