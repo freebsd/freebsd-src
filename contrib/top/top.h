@@ -8,7 +8,7 @@
 #define VERSION		3
 
 /* Number of lines of header information on the standard screen */
-#define Header_lines	6
+#define Header_lines	7
 
 /* Maximum number of columns allowed for display */
 #define MAX_COLS	128

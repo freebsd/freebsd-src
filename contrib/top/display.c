@@ -63,14 +63,17 @@ char *screenbuf = NULL;
 static char **procstate_names;
 static char **cpustate_names;
 static char **memory_names;
+static char **swap_names;
 
 static int num_procstates;
 static int num_cpustates;
 static int num_memory;
+static int num_swap;
 
 static int *lprocstates;
 static int *lcpustates;
 static int *lmemory;
+static int *lswap;
 
 static int *cpustate_columns;
 static int cpustate_total_length;
@@ -140,6 +143,10 @@ struct statics *statics;
 	lprocstates = (int *)malloc(num_procstates * sizeof(int));
 
 	cpustate_names = statics->cpustate_names;
+
+	swap_names = statics->swap_names;
+	num_swap = string_count(swap_names);
+	lswap = (int *)malloc(num_swap * sizeof(int));
 	num_cpustates = string_count(cpustate_names);
 	lcpustates = (int *)malloc(num_cpustates * sizeof(int));
 	cpustate_columns = (int *)malloc(num_cpustates * sizeof(int));
@@ -511,7 +518,7 @@ i_memory(stats)
 int *stats;
 
 {
-    fputs("\nMemory: ", stdout);
+    fputs("\nMem: ", stdout);
     lastline++;
 
     /* format and print the memory summary */
@@ -529,6 +536,40 @@ int *stats;
     /* format the new line */
     summary_format(new, stats, memory_names);
     line_update(memory_buffer, new, x_mem, y_mem);
+}
+
+/*
+ *  *_swap(stats) - print "Swap: " followed by the swap summary string
+ *
+ *  Assumptions:  cursor is on "lastline"
+ *                for i_swap ONLY: cursor is on the previous line
+ */
+
+char swap_buffer[MAX_COLS];
+
+i_swap(stats)
+
+int *stats;
+
+{
+    fputs("\nSwap: ", stdout);
+    lastline++;
+
+    /* format and print the swap summary */
+    summary_format(swap_buffer, stats, swap_names);
+    fputs(swap_buffer, stdout);
+}
+
+u_swap(stats)
+
+int *stats;
+
+{
+    static char new[MAX_COLS];
+
+    /* format the new line */
+    summary_format(new, stats, swap_names);
+    line_update(swap_buffer, new, x_swap, y_swap);
 }
 
 /*
@@ -845,7 +886,7 @@ int  numeric;
     while ((fflush(stdout), read(0, ptr, 1) > 0))
     {
 	/* newline means we are done */
-	if ((ch = *ptr) == '\n')
+	if ((ch = *ptr) == '\n' || ch == '\r')
 	{
 	    break;
 	}

@@ -308,9 +308,13 @@ long *diffs;
 
     /* calculate percentages based on overall change, rounding up */
     half_total = total_change / 2l;
-    for (i = 0; i < cnt; i++)
-    {
-	*out++ = (int)((*diffs++ * 1000 + half_total) / total_change);
+
+    /* Do not divide by 0. Causes Floating point exception */
+    if(total_change) {
+        for (i = 0; i < cnt; i++)
+        {
+          *out++ = (int)((*diffs++ * 1000 + half_total) / total_change);
+        }
     }
 
     /* return the total in case the caller wants to use it */
@@ -329,9 +333,6 @@ long *diffs;
 
 /* externs referenced by errmsg */
 
-extern char *sys_errlist[];
-extern int sys_nerr;
-
 char *errmsg(errnum)
 
 int errnum;
@@ -339,7 +340,7 @@ int errnum;
 {
     if (errnum > 0 && errnum < sys_nerr)
     {
-	return(sys_errlist[errnum]);
+	return((char *)sys_errlist[errnum]);
     }
     return("No error");
 }
@@ -439,6 +440,38 @@ int amt;
 	amt = (amt + 512) / 1024;
 	tag = 'M';
 	if (amt >= 10000)
+	{
+	    amt = (amt + 512) / 1024;
+	    tag = 'G';
+	}
+    }
+
+    p = strecpy(p, itoa(amt));
+    *p++ = tag;
+    *p = '\0';
+
+    return(ret);
+}
+
+char *format_k2(amt)
+
+int amt;
+
+{
+    static char retarray[NUM_STRINGS][16];
+    static int index = 0;
+    register char *p;
+    register char *ret;
+    register char tag = 'K';
+
+    p = ret = retarray[index];
+    index = (index + 1) % NUM_STRINGS;
+
+    if (amt >= 100000)
+    {
+	amt = (amt + 512) / 1024;
+	tag = 'M';
+	if (amt >= 100000)
 	{
 	    amt = (amt + 512) / 1024;
 	    tag = 'G';
