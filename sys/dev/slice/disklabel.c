@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- *	$Id: disklabel.c,v 1.3 1998/04/22 19:27:51 julian Exp $
+ *	$Id: disklabel.c,v 1.4 1998/05/06 22:14:31 julian Exp $
  */
 #define BAD144
 
@@ -932,5 +932,9 @@ RR;
 	pd = sdp->pd;
 	slice = pd->slice_down;
 	blkoff += sdp->offset;
-	return (*slice->handler_down->dump)(slice->private_down, blkoff, blkcnt);
+	if(slice->handler_down->dump) {
+		return (*slice->handler_down->dump)(slice->private_down,
+				blkoff, blkcnt);
+	}
+	return(ENXIO);
 }
