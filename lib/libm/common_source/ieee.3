@@ -46,15 +46,15 @@
 .Lb libm
 .Sh SYNOPSIS
 .Fd #include <math.h>
-.Ft double 
+.Ft double
 .Fn copysign "double x" "double y"
-.Ft double 
+.Ft double
 .Fn drem "double x" "double y"
-.Ft int 
+.Ft int
 .Fn finite "double x"
-.Ft double 
+.Ft double
 .Fn logb "double x"
-.Ft double 
+.Ft double
 .Fn scalb "double x" "int n"
 .Sh DESCRIPTION
 These functions are required for, or recommended by the
@@ -167,11 +167,11 @@ and
 .Fn drem \\*(If y
 to be invalid operations that produce a \*(Na.
 On the
-.Tn VAX , 
+.Tn VAX ,
 .Fn drem x 0
 generates a reserved operand fault.  No \*(If
 exists on a
-.Tn VAX . 
+.Tn VAX .
 .Pp
 .Tn IEEE
 754 defines
@@ -182,17 +182,17 @@ exists on a
 = \-\*(If, and
 requires the latter to signal Division\-by\-Zero.
 But on a
-.Tn VAX , 
+.Tn VAX ,
 .Fn logb 0
 = 1.0 \- 2.0**31 = \-2,147,483,647.0.
 And if the correct value of
 .Fn scalb
 would overflow on a
-.Tn VAX , 
+.Tn VAX ,
 it generates a reserved operand fault and sets the global variable
 .Va errno
 to
-.Er ERANGE . 
+.Er ERANGE .
 .Sh SEE ALSO
 .Xr floor 3 ,
 .Xr infnan 3 ,
@@ -200,7 +200,7 @@ to
 .Sh HISTORY
 The
 .Nm ieee
-functions appeared in 
+functions appeared in
 .Bx 4.3 .
 .Sh BUGS
 Should
@@ -209,7 +209,7 @@ and
 .Fn logb 0
 on a
 .Tn VAX
-signal invalidity 
+signal invalidity
 by setting
 .Va errno No = Er EDOM ?
 Should
@@ -221,12 +221,12 @@ return  \-1.7e38?
 .Fn logb "denormalized no.\&"
 =
 .Fn logb "tiniest normalized no. > 0"
-but the consensus has changed to the specification in the new 
+but the consensus has changed to the specification in the new
 proposed
 .Tn IEEE
 standard p854, namely that
 .Fn logb x
-satisfy 
+satisfy
 .Bd -ragged -offset indent
 1 \(<=
 .Fn scalb \\*(Bax\\*(Ba \-logb(x)
@@ -237,7 +237,7 @@ for
 754
 .Ed
 .Pp
-for every x except 0, 
+for every x except 0,
 \*(If
 and \*(Na.
 Almost every program that assumes 754's specification will work
@@ -260,7 +260,7 @@ similar in spirit to the
 .Tn VAX Ns 's
 reserved operand, but very
 different in important details.  Since the sign bit of a
-reserved operand makes it look negative,  
+reserved operand makes it look negative,
 .Bd -ragged -offset indent
 .Fn copysign x "reserved operand"
 =

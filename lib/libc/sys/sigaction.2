@@ -58,10 +58,10 @@ struct  sigaction {
 .Sh DESCRIPTION
 The system defines a set of signals that may be delivered to a process.
 Signal delivery resembles the occurrence of a hardware interrupt:
-the signal is normally blocked from further occurrence, the current process 
+the signal is normally blocked from further occurrence, the current process
 context is saved, and a new one is built.  A process may specify a
 .Em handler
-to which a signal is delivered, or specify that a signal is to be 
+to which a signal is delivered, or specify that a signal is to be
 .Em ignored .
 A process may also specify that a default action is to be taken
 by the system when a signal occurs.
@@ -80,7 +80,7 @@ Signal routines normally execute with the signal that caused their
 invocation
 .Em blocked ,
 but other signals may yet occur.
-A global 
+A global
 .Em "signal mask"
 defines the set of signals currently blocked from delivery
 to a process.  The signal mask for a process is initialized
@@ -107,7 +107,7 @@ The set of pending signals is returned by the
 function.
 When a caught signal
 is delivered, the current state of the process is saved,
-a new signal mask is calculated (as described below), 
+a new signal mask is calculated (as described below),
 and the signal handler is invoked.  The call to the handler
 is arranged so that if the signal handling routine returns
 normally the process will resume execution in the context
@@ -121,7 +121,7 @@ installed for the duration of the process' signal handler
 .Xr sigprocmask
 call is made).
 This mask is formed by taking the union of the current signal mask set,
-the signal to be delivered, and 
+the signal to be delivered, and
 the signal mask associated with the handler to be invoked.
 .Pp
 .Fn Sigaction
@@ -135,7 +135,7 @@ specifies an action
 .Dv SIG_IGN ,
 or a handler routine) and mask
 to be used when delivering the specified signal.
-If 
+If
 .Fa oact
 is non-zero, the previous handling information for the signal
 is returned to the user.
@@ -143,7 +143,7 @@ is returned to the user.
 Once a signal handler is installed, it normally remains installed
 until another
 .Fn sigaction
-call is made, or an 
+call is made, or an
 .Xr execve 2
 is performed.
 A signal-specific default action may be reset by
@@ -212,11 +212,11 @@ See paragraph below.
 If this bit is set, the handler function is assumed to be pointed to
 by the sa_sigaction member of struct sigaction and should match the
 prototype shown above or as below in
-.Sx EXAMPLES .                      
-This bit should not be set when assigning 
-.Dv SIG_DFL                              
-or                                       
-.Dv SIG_IGN .                            
+.Sx EXAMPLES .
+This bit should not be set when assigning
+.Dv SIG_DFL
+or
+.Dv SIG_IGN .
 .El
 .Pp
 If a signal is caught during the system calls listed below,
@@ -311,7 +311,7 @@ is possible on a descriptor (see
 .Sh NOTE
 The
 .Fa sa_mask
-field specified in 
+field specified in
 .Fa act
 is not allowed to block
 .Dv SIGKILL
@@ -322,7 +322,7 @@ Any attempt to do so will be silently ignored.
 The following functions are either reentrant or not interruptible
 by signals and are async-signal safe.
 Therefore applications may
-invoke them, without restriction, from signal-catching functions: 
+invoke them, without restriction, from signal-catching functions:
 .Pp
 Base Interfaces:
 .Pp
@@ -462,14 +462,14 @@ The
 .Dv sa_handler
 member declaration in
 .Fx
-include files is that of ANSI C (as required by POSIX), 
+include files is that of ANSI C (as required by POSIX),
 so a function pointer of a BSD-style function needs to be casted to
 compile without warning.
 The traditional BSD style is not portable and since its capabilities
 are a full subset of a SA_SIGINFO handler,
 its use is deprecated.
 .Pp
-The 
+The
 .Fa sig
 argument is the signal number, one of the
 .Dv SIG...
@@ -506,7 +506,7 @@ of the following occurs:
 .It Bq Er EFAULT
 Either
 .Fa act
-or 
+or
 .Fa oact
 points to memory that is not a valid part of the process
 address space.
@@ -522,7 +522,7 @@ or
 .Sh STANDARDS
 The
 .Fn sigaction
-function call is expected to conform to 
+function call is expected to conform to
 .St -p1003.1-90 .
 The
 .Dv SA_ONSTACK

@@ -72,7 +72,7 @@ Available options:
 .It Fl d
 Debugging information is written to the syslog using LOG_FTP.
 .It Fl l
-Each successful and failed 
+Each successful and failed
 .Xr ftp 1
 session is logged using syslog with a facility of LOG_FTP.
 If this option is specified twice, the retrieve (get), store (put), append,
@@ -100,7 +100,7 @@ will revert to historical behavior with regard to security checks on
 user operations and restrictions on PORT requests.
 Currently,
 .Nm
-will only honor PORT commands directed to unprivileged ports on the 
+will only honor PORT commands directed to unprivileged ports on the
 remote user's host (which violates the FTP protocol specification but
 closes some security holes).
 .It Fl S
@@ -172,7 +172,7 @@ If the file
 .Pa /etc/ftpwelcome
 exists,
 .Nm
-prints it before issuing the 
+prints it before issuing the
 .Dq ready
 message.
 If the file
@@ -186,7 +186,7 @@ in the anonymous user's case.
 .Pp
 The ftp server currently supports the following ftp requests.
 The case of the requests is ignored.  Requests marked [RW] are
-disabled if 
+disabled if
 .Fl r
 is specified.
 .Bl -column "Request" -offset indent
@@ -277,7 +277,7 @@ This allows users to utilize the metacharacters
 .Dq Li \&*?[]{}~ .
 .Pp
 .Nm Ftpd
-authenticates users according to six rules. 
+authenticates users according to six rules.
 .Pp
 .Bl -enum -offset indent
 .It
@@ -305,7 +305,7 @@ Entries in this file interpreted as group names are prefixed by an "at"
 .Ql \&@
 sign.
 .It
-The user must have a standard shell returned by 
+The user must have a standard shell returned by
 .Xr getusershell 3 .
 .It
 If the user name appears in the file
@@ -344,10 +344,10 @@ When the
 option is set, all transfers are logged as well.
 .El
 .Pp
-In the last case, 
+In the last case,
 .Nm
 takes special measures to restrict the client's access privileges.
-The server performs a 
+The server performs a
 .Xr chroot 2
 to the home directory of the
 .Dq ftp
@@ -369,7 +369,7 @@ The files pwd.db (see
 .Xr passwd 5 )
 and
 .Xr group 5
-must be present for the 
+must be present for the
 .Xr ls
 command to be able to produce owner names rather than numbers.
 The password field in
@@ -423,7 +423,7 @@ It defaults to
 .Pa /etc/ftpmotd .
 .El
 .Pp
-Lines beginning with a '#' are ignored and can be used to include 
+Lines beginning with a '#' are ignored and can be used to include
 comments.
 .Pp
 Defining a virtual host for the primary IP address or hostname

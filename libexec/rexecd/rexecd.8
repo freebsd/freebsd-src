@@ -43,7 +43,7 @@
 .Op Fl i
 .Sh DESCRIPTION
 .Nm Rexecd
-is the server for the 
+is the server for the
 .Xr rexec 3
 routine.  The server provides remote execution facilities
 with authentication based on user names and
@@ -64,10 +64,10 @@ byte.  The resultant string is
 interpreted as an
 .Tn ASCII
 number, base 10.
-.It 
+.It
 If the number received in step 1 is non-zero,
 it is interpreted as the port number of a secondary
-stream to be used for the 
+stream to be used for the
 .Em stderr .
 A second connection is then created to the specified
 port on the client's machine.
@@ -76,12 +76,12 @@ A NUL terminated user name of at most 16 characters
 is retrieved on the initial socket.
 .It
 A NUL terminated, unencrypted password of at most
-16 characters is retrieved on the initial socket.  
+16 characters is retrieved on the initial socket.
 .It
 A NUL terminated command to be passed to a
 shell is retrieved on the initial socket.  The length of
 the command is limited by the upper bound on the size of
-the system's argument list.  
+the system's argument list.
 .It
 .Nm Rexecd
 then validates the user as is done at login time
@@ -134,7 +134,7 @@ No password file entry for the user name existed.
 .It Sy Password incorrect.
 The wrong password was supplied.
 .It Sy \&No remote directory.
-The 
+The
 .Xr chdir
 command to the home directory failed.
 .It Sy Try again.

@@ -51,9 +51,9 @@ the call returns.  If the request could not be enqueued, generally due
 to invalid arguments, the call returns without having enqueued the
 request.
 .Pp
-If 
-.Dv O_APPEND 
-is set for 
+If
+.Dv O_APPEND
+is set for
 .Fa iocb->aio_fildes ,
 .Fn aio_write
 operations append to the file in the same order as the calls were
@@ -64,7 +64,7 @@ the absolute position from the beginning of the file plus
 .Fa iocb->aio_offset .
 .Pp
 If
-.Dv _POSIX_PRIORITIZED_IO 
+.Dv _POSIX_PRIORITIZED_IO
 is defined, and the descriptor supports it, then the enqueued
 operation is submitted at a priority equal to that of the calling
 process minus
@@ -91,7 +91,7 @@ and the buffer that the
 member of that structure references must remain valid until the
 operation has completed.  For this reason, use of auto (stack) variables
 for these objects is discouraged.
-.Pp 
+.Pp
 The asynchronous I/O control buffer
 .Fa iocb
 should be zeroed before the

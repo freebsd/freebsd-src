@@ -182,7 +182,7 @@
 .Nm Pax
 will read, write, and list the members of an archive file,
 and will copy directory hierarchies.
-.Nm Pax 
+.Nm Pax
 operation is independent of the specific archive format,
 and supports a wide variety of different archive formats.
 A list of supported archive formats can be found under the description of the
@@ -216,7 +216,7 @@ and is written using single line buffering.
 .Nm Pax
 extracts the members of the archive file read from the
 .Dv standard input ,
-with pathnames matching the specified 
+with pathnames matching the specified
 .Ar patterns .
 The archive format and blocking is automatically determined on input.
 When an extracted file is a directory, the entire file hierarchy
@@ -229,16 +229,16 @@ option.
 .It Fl w
 .Em Write .
 .Nm Pax
-writes an archive containing the 
+writes an archive containing the
 .Ar file
 operands to
 .Dv standard output
 using the specified archive format.
-When no 
+When no
 .Ar file
-operands are specified, a list of files to copy with one per line is read from 
+operands are specified, a list of files to copy with one per line is read from
 .Dv standard input .
-When a 
+When a
 .Ar file
 operand is also a directory, the entire file hierarchy rooted
 at that directory will be included.
@@ -249,7 +249,7 @@ copies the
 .Ar file
 operands to the destination
 .Ar directory .
-When no 
+When no
 .Ar file
 operands are specified, a list of files to copy with one per line is read from
 the
@@ -306,10 +306,10 @@ operand is used to select one or more pathnames of archive members.
 Archive members are selected using the pattern matching notation described
 by
 .Xr fnmatch 3 .
-When the 
+When the
 .Ar pattern
 operand is not supplied, all members of the archive will be selected.
-When a 
+When a
 .Ar pattern
 matches a directory, the entire file hierarchy rooted at that directory will
 be selected.
@@ -347,11 +347,11 @@ If any intermediate directories are needed in order to extract an archive
 member, these directories will be created as if
 .Xr mkdir 2
 was called with the bitwise inclusive
-.Dv OR 
+.Dv OR
 of
 .Dv S_IRWXU , S_IRWXG ,
 and
-.Dv S_IRWXO 
+.Dv S_IRWXO
 as the mode argument.
 When the selected archive format supports the specification of linked
 files and these files cannot be linked while the archive is being extracted,
@@ -378,7 +378,7 @@ If an archive format is not specified with a
 .Fl x
 option, the format currently being used in the archive will be selected.
 Any attempt to append to an archive in a format different from the
-format already used in the archive will cause 
+format already used in the archive will cause
 .Nm
 to exit immediately
 with a non-zero exit status.
@@ -419,7 +419,7 @@ can be separated by
 to indicate a product.
 A specific archive device may impose additional restrictions on the size
 of blocking it will support.
-When blocking is not specified, the default 
+When blocking is not specified, the default
 .Ar blocksize
 is dependent on the specific archive format being used (see the
 .Fl x
@@ -473,7 +473,7 @@ If this line consists of a single period, the
 file or archive member is processed with no modification to its name.
 Otherwise, its name is replaced with the contents of the line.
 .Nm Pax
-will immediately exit with a non-zero exit status if 
+will immediately exit with a non-zero exit status if
 .Dv <EOF>
 is encountered when reading a response or if
 .Pa /dev/tty
@@ -498,7 +498,7 @@ No more than one archive member is matched for each
 .Ar pattern .
 When members of type directory are matched, the file hierarchy rooted at that
 directory is also matched (unless
-.Fl d 
+.Fl d
 is also specified).
 .It Fl o Ar options
 Information to modify the algorithm for extracting or writing archive files
@@ -520,7 +520,7 @@ and
 .Cm p .
 Multiple characteristics can be concatenated within the same string
 and multiple
-.Fl p 
+.Fl p
 options can be specified.
 The meaning of the specification characters are as follows:
 .Bl -tag -width 2n
@@ -535,10 +535,10 @@ This is intended to be used by
 .Em root ,
 someone with all the appropriate privileges, in order to preserve all
 aspects of the files as they are recorded in the archive.
-The 
+The
 .Cm e
 flag is the sum of the
-.Cm o 
+.Cm o
 and
 .Cm p
 flags.
@@ -551,7 +551,7 @@ Preserve the user ID and group ID.
 .Sq Preserve
 the file mode bits.
 This intended to be used by a
-.Em user 
+.Em user
 with regular privileges who wants to preserve all aspects of the file other
 than the ownership.
 The file times are preserved by default, but two other flags are offered to
@@ -565,7 +565,7 @@ extracted file, subject to the permissions of the invoking
 process.
 Otherwise the attribute of the extracted file is determined as
 part of the normal file creation action.
-If neither the 
+If neither the
 .Cm e
 nor the
 .Cm o
@@ -573,7 +573,7 @@ specification character is specified, or the user ID and group ID are not
 preserved for any reason,
 .Nm
 will not set the
-.Dv S_ISUID 
+.Dv S_ISUID
 .Em ( setuid )
 and
 .Dv S_ISGID
@@ -671,7 +671,7 @@ the output has the format:
 .Dl <ls -l listing> == <link name>
 For pathnames representing a symbolic link, the output has the format:
 .Dl <ls -l listing> => <link name>
-Where <ls -l listing> is the output format specified by the 
+Where <ls -l listing> is the output format specified by the
 .Xr ls 1
 utility when used with the
 .Fl l
@@ -783,7 +783,7 @@ to indicate a product.
 .Em Warning :
 Only use this option when writing an archive to a device which supports
 an end of file read condition based on last (or largest) write offset
-(such as a regular file or a tape drive). 
+(such as a regular file or a tape drive).
 The use of this option with a floppy or hard disk is not recommended.
 .It Fl D
 This option is the same as the
@@ -814,7 +814,7 @@ of
 will cause
 .Nm
 to attempt to recover from read errors forever.
-The default 
+The default
 .Ar limit
 is a small positive number of retries.
 .Pp
@@ -832,7 +832,7 @@ name, or when starting with a
 a numeric gid.
 A '\\' can be used to escape the
 .Cm # .
-Multiple 
+Multiple
 .Fl G
 options may be supplied and checking stops with the first match.
 .It Fl H
@@ -845,12 +845,12 @@ Do not follow symbolic links, perform a physical file system traversal.
 This is the default mode.
 .It Fl T Ar [from_date][,to_date][/[c][m]]
 Allow files to be selected based on a file modification or inode change
-time falling within a specified time range of 
+time falling within a specified time range of
 .Ar from_date
 to
 .Ar to_date
 (the dates are inclusive).
-If only a 
+If only a
 .Ar from_date
 is supplied, all files with a modification or inode change time
 equal to or younger are selected.
@@ -858,7 +858,7 @@ If only a
 .Ar to_date
 is supplied, all files with a modification or inode change time
 equal to or older will be selected.
-When the 
+When the
 .Ar from_date
 is equal to the
 .Ar to_date ,
@@ -867,7 +867,7 @@ time will be selected.
 .Pp
 When
 .Nm
-is in the 
+is in the
 .Em write
 or
 .Em copy
@@ -884,7 +884,7 @@ The
 .Ar c
 specifies the comparison of inode change time (the time when the file
 inode was last changed; e.g. a change of owner, group, mode, etc).
-When 
+When
 .Ar c
 and
 .Ar m
@@ -925,14 +925,14 @@ The minute field
 is required, while the other fields are optional and must be added in the
 following order:
 .Dl Cm hh , dd , mm , yy .
-The 
+The
 .Cm ss
 field may be added independently of the other fields.
 Time ranges are relative to the current time, so
 .Dl Fl T Ar 1234/cm
 would select all files with a modification or inode change time
 of 12:34 PM today or later.
-Multiple 
+Multiple
 .Fl T
 time range can be supplied and checking stops with the first match.
 .It Fl U Ar user
@@ -943,14 +943,14 @@ name, or when starting with a
 a numeric uid.
 A '\\' can be used to escape the
 .Cm # .
-Multiple 
+Multiple
 .Fl U
 options may be supplied and checking stops with the first match.
 .It Fl X
 When traversing the file hierarchy specified by a pathname,
 do not descend into directories that have a different device ID.
 See the
-.Li st_dev 
+.Li st_dev
 field as described in
 .Xr stat 2
 for more information about device ID's.
@@ -1005,7 +1005,7 @@ Then the
 and
 .Fl Z
 options will be applied based on the final pathname.
-Finally the 
+Finally the
 .Fl v
 option will write the names resulting from these modifications.
 .Pp
@@ -1021,13 +1021,13 @@ based only on the user specified pathnames as modified by the
 .Fl D ,
 .Fl G ,
 .Fl T ,
-and 
+and
 .Fl U
 options (the
 .Fl D
 option only applies during a copy operation).
 Then any
-.Fl s 
+.Fl s
 and
 .Fl i
 options will modify in that order, the names of these selected files.
@@ -1072,7 +1072,7 @@ directory hierarchy to
 .Pp
 The command:
 .Dl pax -r -s ',^//*usr//*,,' -f a.pax
-reads the archive 
+reads the archive
 .Pa a.pax ,
 with all files rooted in ``/usr'' into the archive extracted relative to the
 current directory.
@@ -1148,7 +1148,7 @@ will exit with one of the following values:
 .Bl -tag -width 2n
 .It 0
 All files were processed successfully.
-.It 1 
+.It 1
 An error occurred.
 .El
 .Pp

@@ -77,7 +77,7 @@ The new position, measured in bytes, is obtained by adding
 .Fa offset
 bytes to the position specified by
 .Fa whence .
-If 
+If
 .Fa whence
 is set to
 .Dv SEEK_SET ,
@@ -143,7 +143,7 @@ and
 (with whence set to
 .Dv SEEK_SET ) ,
 setting and storing the current value of
-the file offset into or from the object referenced by 
+the file offset into or from the object referenced by
 .Fa pos .
 On some
 .Pq non- Ns Tn UNIX
@@ -180,7 +180,7 @@ is not a seekable stream.
 .It Bq Er EINVAL
 The
 .Fa whence
-argument to 
+argument to
 .Fn fseek
 was not
 .Dv SEEK_SET ,
@@ -188,7 +188,7 @@ was not
 or
 .Dv SEEK_CUR .
 .It Bq Er EOVERFLOW
-For 
+For
 .Fn ftell ,
 the resulting file offset would be a value which
 cannot be represented correctly in an object of type long.
@@ -208,7 +208,7 @@ for any of the errors specified for the routines
 .Xr fflush 3 ,
 .Xr fstat 2 ,
 .Xr lseek 2 ,
-and 
+and
 .Xr malloc 3 .
 .Sh SEE ALSO
 .Xr lseek 2
@@ -225,7 +225,7 @@ conform to
 .St -isoC .
 .Pp
 The
-.Fn fseeko 
+.Fn fseeko
 and
 .Fn ftello
 functions conform to

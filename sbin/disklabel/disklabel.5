@@ -84,7 +84,7 @@ A copy of the in-core label for a disk can be obtained with the
 .Xr ioctl 2 ;
 this works with a file descriptor for a block or character (``raw'') device
 for any partition of the disk.
-The in-core copy of the label is set by the 
+The in-core copy of the label is set by the
 .Dv DIOCSDINFO
 .Xr ioctl 2 .
 The offset of a partition cannot generally be changed while it is open,
@@ -92,7 +92,7 @@ nor can it be made smaller while it is open.
 One exception is that any change is allowed if no label was found
 on the disk, and the driver was able to construct only a skeletal label
 without partition information.
-Finally, the 
+Finally, the
 .Dv DIOCWDINFO
 .Xr ioctl 2
 operation sets the in-core label and then updates the on-disk label;
@@ -162,7 +162,7 @@ struct disklabel {
 	u_int16_t d_subtype;		/* controller/d_type specific */
 	char	  d_typename[16];	/* type name, e.g. "eagle" */
 
-	/* 
+	/*
 	 * d_packname contains the pack identifier and is returned when
 	 * the disklabel is read off the disk or in-core copy.
 	 * d_boot0 and d_boot1 are the (optional) names of the
@@ -412,7 +412,7 @@ struct dos_partition {
     	unsigned char	dp_mid;
 #define DOSMID_386BSD		(0x14|0x80) /* 386bsd|bootable */
 	unsigned char	dp_sid;
-#define DOSSID_386BSD		(0x44|0x80) /* 386bsd|active */	
+#define DOSSID_386BSD		(0x44|0x80) /* 386bsd|active */
 	unsigned char	dp_dum1;
 	unsigned char	dp_dum2;
 	unsigned char	dp_ipl_sct;

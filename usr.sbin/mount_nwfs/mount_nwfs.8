@@ -41,14 +41,14 @@ possible to create connection without any mounts (but use it for them) with
 .Pp
 Note two forms of command line.
 In the first form, server and user specified
-via 
+via
 .Fl S
 and
 .Fl U
 options respectively.
 In the second form server and user specified in
 .Ar special
-part of 
+part of
 .Xr mount 8
 command line arguments (the
 .Fl S ,
@@ -84,22 +84,22 @@ before
 Path to mount volume.
 .It Fl c Ar case
 Select a
-.Ar case 
+.Ar case
 option which affects on name representation.
-.Ar Case 
+.Ar Case
 can be one of the following:
 .Bl -tag -width "ValueXX"
 .It Em Value
 .Em Meaning
 .It l
-All existing file names converted to lower case. 
+All existing file names converted to lower case.
 Newly created file gets a lower case under OS2 name space.
 This is the default when mounting volumes with DOS name space.
 .It L
 Same as 'l' but file system tries to be case insensitive.
 May not work well.
 .It n
-No case conversion is performed. 
+No case conversion is performed.
 .Em Warning !
 Use this option with DOS name space only as a last resort,
 because creating a lower case name in the DOS name space
@@ -120,7 +120,7 @@ is taken from mount point, default value for the dir mode adds execute
 permission where the file mode gives read permission.
 .Pp
 Note that these permissions can differ from the rights granted by NetWare
-server. 
+server.
 .It Fl n Ar namespace
 Don't use
 .Ar namespace .
@@ -141,21 +141,21 @@ tries to use an environment variable
 .Ev LC_* .
 .It Fl w Ar scheme
 Select a
-.Ar scheme 
+.Ar scheme
 used to convert file names between NetWare and
 .Fx .
-Currently only 
-.Ar koi2cp866 
-and 
-.Ar asis 
+Currently only
+.Ar koi2cp866
+and
+.Ar asis
 can be here.
-Please note, that scheme should be enabled at compile 
+Please note, that scheme should be enabled at compile
 time in
 .Pa config.mk
 file.
 .It Fl M Ar mode
-See 
-.Xr ncplogin 1 
+See
+.Xr ncplogin 1
 for details.
 If this option is omitted, connection permissions
 assumed the same as directory mode

@@ -64,7 +64,7 @@ The server is normally started by
 The use of
 .Xr tftp 1
 does not require an account or password on the remote system.
-Due to the lack of authentication information, 
+Due to the lack of authentication information,
 .Nm
 will allow only publicly readable files to be
 accessed.
@@ -86,12 +86,12 @@ as server program arguments in
 .Pa /etc/inetd.conf .
 In this case access is restricted to files whose
 names are prefixed by the one of the given directories.
-The given directories are also treated as a search path for 
+The given directories are also treated as a search path for
 relative filename requests.
 .Pp
-The 
+The
 .Fl s
-option provides additional security by changing 
+option provides additional security by changing
 .Nm Ns No 's
 root directory, thereby prohibiting accesses outside of the specified
 .Ar directory .
@@ -122,7 +122,7 @@ The
 .Fl s
 option is required for
 .Fl c
-and the specified 
+and the specified
 .Ar directory
 is used as a base.
 .It Fl C
@@ -134,8 +134,8 @@ except it falls back to
 if a directory does not exist for the client's IP.
 .It Fl l
 Log all requests using
-.Xr syslog 3 
-with the facility of 
+.Xr syslog 3
+with the facility of
 .Dv LOG_FTP .
 Note: Logging of
 .Dv LOG_FTP
