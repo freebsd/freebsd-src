@@ -163,7 +163,7 @@ extern ACPI_STATUS	acpi_SetSleepState(struct acpi_softc *sc, int state);
 extern ACPI_STATUS	acpi_Enable(struct acpi_softc *sc);
 extern ACPI_STATUS	acpi_Disable(struct acpi_softc *sc);
 extern BOOLEAN		acpi_DeviceIsPresent(device_t dev);
-extern ACPI_STATUS	acpi_EvaluateNumber(ACPI_HANDLE handle, char *path, int *number);
+extern ACPI_STATUS	acpi_EvaluateInteger(ACPI_HANDLE handle, char *path, int *number);
 
 struct acpi_parse_resource_set {
     void	(* set_init)(device_t dev, void **context);

@@ -64,7 +64,7 @@ acpi_acad_get_status(void *context)
 	struct acpi_acad_softc *sc = device_get_softc(dev);
 	ACPI_HANDLE h = acpi_get_handle(dev);
 
-	if (acpi_EvaluateNumber(h, "_PSR", &sc->status) != AE_OK)
+	if (acpi_EvaluateInteger(h, "_PSR", &sc->status) != AE_OK)
 		return;
 	device_printf(dev,"%s\n",(sc->status) ? "On Line" : "Off Line");
 }
