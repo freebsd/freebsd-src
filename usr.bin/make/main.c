@@ -556,7 +556,7 @@ main(argc, argv)
 
 	if (!machine_arch) {
 #ifndef MACHINE_ARCH
-		machine_arch = "unknown";
+		machine_arch = "i386";
 #else
 		machine_arch = MACHINE_ARCH;
 #endif
