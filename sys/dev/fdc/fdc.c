@@ -985,8 +985,10 @@ fdc_add_child(device_t dev, const char *name, int unit)
 	if (resource_int_value(name, unit, "drive", &ivar->fdunit) != 0)
 		ivar->fdunit = 0;
 	child = device_add_child(dev, name, unit);
-	if (child == NULL)
+	if (child == NULL) {
+		free(ivar, M_DEVBUF);
 		return;
+	}
 	device_set_ivars(child, ivar);
 	if (resource_int_value(name, unit, "flags", &flags) == 0)
 		 device_set_flags(child, flags);
