@@ -872,10 +872,8 @@ thread_alloc_spare(struct thread *td, struct thread *spare)
 
 	if (td->td_standin)
 		return;
-	if (spare == NULL) {
+	if (spare == NULL)
 		spare = thread_alloc();
-		spare->td_tid = thread_new_tid();
-	}
 	td->td_standin = spare;
 	bzero(&spare->td_startzero,
 	    (unsigned)RANGEOF(struct thread, td_startzero, td_endzero));
