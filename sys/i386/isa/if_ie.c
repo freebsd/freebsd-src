@@ -39,7 +39,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ie.c,v 1.8 1994/08/12 06:06:19 davidg Exp $
+ *	$Id: if_ie.c,v 1.9 1994/08/13 03:50:05 wollman Exp $
  */
 
 /*
@@ -137,6 +137,8 @@ iomem, and to make 16-pointers, we subtract iomem and and with 0xffff.
 #include <i386/isa/ic/i82586.h>
 #include <i386/isa/if_iereg.h>
 #include <i386/isa/icu.h>
+#include <i386/isa/if_ie507.h>
+#include <i386/isa/elink.h>
 
 #include <vm/vm.h>
 
@@ -173,6 +175,8 @@ static int ieattach(struct isa_device *dvp);
 static void ieinit(int unit);
 static int ieioctl(struct ifnet *ifp, int command, caddr_t data);
 static void iestart(struct ifnet *ifp);
+static void el_reset_586(int unit);
+static void el_chan_attn(int unit);
 static void sl_reset_586(int unit);
 static void sl_chan_attn(int unit);
 static void iereset(int unit);
@@ -211,6 +215,7 @@ enum ie_hardware {
   IE_STARLAN10,
   IE_EN100,
   IE_SLFIBER,
+  IE_3C507,
   IE_UNKNOWN
 };
 
@@ -218,6 +223,7 @@ const char *ie_hardware_names[] = {
   "StarLAN 10",
   "EN100",
   "StarLAN Fiber",
+  "3C507",
   "Unknown"
 };
 
@@ -293,9 +299,21 @@ struct ie_softc {
 #define PORT ie_softc[unit].port
 #define MEM ie_softc[unit].iomem
 
+static int sl_probe(struct isa_device *);
+static int el_probe(struct isa_device *);
 
 int ieprobe(dvp)
      struct isa_device *dvp;
+{
+	int ret;
+
+	ret = sl_probe(dvp);
+	if(!ret) ret = el_probe(dvp);
+	return(ret);
+}
+
+static int sl_probe(dvp)
+	struct isa_device *dvp;
 {
   int unit = dvp->id_unit;
   u_char c;
@@ -358,6 +376,95 @@ int ieprobe(dvp)
   return 1;
 }
 
+static int el_probe(dvp)
+	struct isa_device *dvp;
+{
+	struct ie_softc *sc = &ie_softc[dvp->id_unit];
+	u_char c;
+	int i;
+	u_char signature[] = "*3COM*";
+	int unit = dvp->id_unit;
+
+	sc->port = dvp->id_iobase;
+	sc->iomembot = dvp->id_maddr;
+
+	/* Need this for part of the probe. */
+	sc->ie_reset_586 = el_reset_586;
+	sc->ie_chan_attn = el_chan_attn;
+
+	/* Reset and put card in CONFIG state without changing address. */
+	elink_reset();
+	outb(ELINK_ID_PORT, 0x00);
+	elink_idseq(ELINK_507_POLY);
+	elink_idseq(ELINK_507_POLY);
+	outb(ELINK_ID_PORT, 0xff);
+
+	c = inb(PORT + IE507_MADDR);
+	if(c & 0x20) {
+		printf("ie%d: can't map 3C507 RAM in high memory\n", unit);
+		return 0;
+	}
+
+	/* go to RUN state */
+	outb(ELINK_ID_PORT, 0x00);
+	elink_idseq(ELINK_507_POLY);
+	outb(ELINK_ID_PORT, 0x00);
+
+	outb(PORT + IE507_CTRL, EL_CTRL_NRST);
+
+	for (i = 0; i < 6; i++)
+		if (inb(PORT + i) != signature[i])
+		return 0;
+
+	c = inb(PORT + IE507_IRQ) & 0x0f;
+
+	if (dvp->id_irq != (1 << c)) {
+		printf("ie%d: kernel configured irq %d doesn't match board configured irq %d\n",
+		unit, ffs(dvp->id_irq) - 1, c);
+		return 0;
+	}
+
+	c = (inb(PORT + IE507_MADDR) & 0x1c) + 0xc0;
+
+	if (kvtop(dvp->id_maddr) != ((int)c << 12)) {
+		printf("ie%d: kernel configured maddr %x doesn't match board configured maddr %x\n",
+			unit, kvtop(dvp->id_maddr),(int)c << 12);
+		return 0;
+	}
+
+	outb(PORT + IE507_CTRL, EL_CTRL_NORMAL);
+
+	sc->hard_type = IE_3C507;
+	sc->hard_vers = 0;	/* 3C507 has no version number. */
+
+	/*
+	 * Divine memory size on-board the card.
+	 */
+	find_ie_mem_size(dvp->id_unit);
+
+	if (!sc->iosize) {
+		printf("ie%d: can't find shared memory\n", unit);
+		outb(PORT + IE507_CTRL, EL_CTRL_NRST);
+		return 0;
+	}
+
+	if(!dvp->id_msize)
+		dvp->id_msize = sc->iosize;
+	else if (dvp->id_msize != sc->iosize) {
+		printf("ie%d: kernel configured msize %d doesn't match board configured msize %d\n",
+			unit, dvp->id_msize, sc->iosize);
+		outb(PORT + IE507_CTRL, EL_CTRL_NRST);
+		return 0;
+	}
+
+	sl_read_ether(unit, ie_softc[unit].arpcom.ac_enaddr);
+
+	/* Clear the interrupt latch just in case. */
+	outb(PORT + IE507_ICTRL, 1);
+
+	return 16;
+}
+
 /*
  * Taken almost exactly from Bill's if_is.c, then modified beyond recognition.
  */
@@ -372,7 +479,7 @@ ieattach(dvp)
   ifp->if_unit = unit;
   ifp->if_name = iedriver.name;
   ifp->if_mtu = ETHERMTU;
-  printf("<%s R%d> ethernet address %s", 
+  printf("<%s R%d> ethernet address %s\n", 
 	 ie_hardware_names[ie_softc[unit].hard_type],
 	 ie_softc[unit].hard_vers + 1,
 	 ether_sprintf(ie->arpcom.ac_enaddr));
@@ -392,7 +499,6 @@ ieattach(dvp)
   ifp->if_hdrlen = 14;
   
 #if NBPFILTER > 0
-  printf("\n");
   bpfattach(&ie_softc[unit].ie_bpf, ifp, DLT_EN10MB,
 	    sizeof(struct ether_header));
 #endif
@@ -426,6 +532,13 @@ int ieintr(unit)
   register u_short status;
 
   status = ie->scb->ie_status;
+
+  if ((status & IE_ST_WHENCE) == 0) {
+	/* Clear the interrupt latch on the 3C507. */
+	if (ie->hard_type == IE_3C507 &&
+		(inb(PORT + IE507_CTRL) & EL_CTRL_INTL))
+			outb(PORT + IE507_ICTRL, 1);
+  }
 
 loop:
   if(status & (IE_ST_RECV | IE_ST_RNR)) {
@@ -471,6 +584,10 @@ loop:
 
   if((status = ie->scb->ie_status) & IE_ST_WHENCE)
     goto loop;
+
+  /* Clear the interrupt latch on the 3C507. */
+  if (ie->hard_type == IE_3C507)
+	outb(PORT + IE507_ICTRL, 1);
 
   return unit;
 }
@@ -1257,10 +1374,25 @@ static void find_ie_mem_size(unit)
   return;
 }
 
+void el_reset_586(unit)
+	int unit;
+{
+	outb(PORT + IE507_CTRL, EL_CTRL_RESET);
+	DELAY(100);
+	outb(PORT + IE507_CTRL, EL_CTRL_NORMAL);
+	DELAY(100);
+}
+
 void sl_reset_586(unit)
      int unit;
 {
   outb(PORT + IEATT_RESET, 0);
+}
+
+void el_chan_attn(unit)
+	int unit;
+{
+	 outb(PORT + IE507_ATTN, 1);
 }
 
 void sl_chan_attn(unit)
