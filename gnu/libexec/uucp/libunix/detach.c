@@ -1,7 +1,7 @@
 /* detach.c
    Detach from the controlling terminal.
 
-   Copyright (C) 1992 Ian Lance Taylor
+   Copyright (C) 1992, 1993 Ian Lance Taylor
 
    This file is part of the Taylor UUCP package.
 
@@ -54,6 +54,11 @@
 #define O_WRONLY 1
 #define O_RDWR 2
 #endif
+
+#if HAVE_BROKEN_SETSID
+#undef HAVE_SETSID
+#define HAVE_SETSID 0
+#endif
 
 /* Detach from the controlling terminal.  This is called by uucico if
    it is calling out to another system, so that it can receive SIGHUP
@@ -64,14 +69,9 @@
 void
 usysdep_detach ()
 {
-#if ! HAVE_BSD_PGRP || ! HAVE_TIOCNOTTY
-
   pid_t igrp;
 
-  /* First make sure we are not a process group leader.  If we have
-     TIOCNOTTY, this doesn't matter, since TIOCNOTTY sets our process
-     group to 0 anyhow.  */
-
+  /* Make sure we are not a process group leader.  */
 #if HAVE_BSD_PGRP
   igrp = getpgrp (0);
 #else
@@ -107,15 +107,14 @@ usysdep_detach ()
 	usset_signal (SIGHUP, ussignal, TRUE, (boolean *) NULL);
     }
 
-#endif /* ! HAVE_BSD_PGRP || ! HAVE_TIOCNOTTY */
-
-#if HAVE_TIOCNOTTY
-  /* Lose the original controlling terminal.  If standard input has
-     been reopened to /dev/null, this will do no harm.  If another
-     port has been opened to become the controlling terminal, it
-     should have been detached when it was closed.  */
+#if ! HAVE_SETSID && HAVE_TIOCNOTTY
+  /* Lose the original controlling terminal as well as our process
+     group.  If standard input has been reopened to /dev/null, this
+     will do no harm.  If another port has been opened to become the
+     controlling terminal, it should have been detached when it was
+     closed.  */
   (void) ioctl (0, TIOCNOTTY, (char *) NULL);
-#endif
+#endif /* ! HAVE_SETSID && HAVE_TIOCNOTTY */
 
   /* Close stdin, stdout and stderr and reopen them on /dev/null, to
      make sure we have no connection at all to the terminal.  */
@@ -127,58 +126,38 @@ usysdep_detach ()
       || open ((char *) "/dev/null", O_WRONLY) != 2)
     ulog (LOG_FATAL, "open (/dev/null): %s", strerror (errno));
 
-#if HAVE_BSD_PGRP
-
-  /* Make sure our process group ID is set to 0.  On BSD TIOCNOTTY
-     should already have set it 0, so this will do no harm.  On System
-     V we presumably did not execute the TIOCNOTTY call, but the
-     System V setpgrp will detach the controlling terminal anyhow.
-     This lets us use the same code on both BSD and System V, provided
-     it compiles correctly, which life easier for the configure
-     script.  We don't output an error if we got EPERM because some
-     BSD variants don't permit this usage of setpgrp (which means they
-     don't provide any way to pick up a new controlling terminal).  */
-
-  if (setpgrp (0, 0) < 0)
-    {
-      if (errno != EPERM)
-	ulog (LOG_ERROR, "setpgrp: %s", strerror (errno));
-    }
-
-#else /* ! HAVE_BSD_PGRP */
-
 #if HAVE_SETSID
 
   /* Under POSIX the setsid call creates a new session for which we
      are the process group leader.  It also detaches us from our
-     controlling terminal.  I'm using the BSD setpgrp call first
-     because they should be equivalent for my purposes, but it turns
-     out that on Ultrix 4.0 setsid prevents us from ever acquiring
-     another controlling terminal (it does not change our process
-     group, and Ultrix 4.0 prevents us from setting our process group
-     to 0).  */
-  (void) setsid ();
+     controlling terminal.  */
+  if (setsid () < 0)
+    ulog (LOG_ERROR, "setsid: %s", strerror (errno));
 
 #else /* ! HAVE_SETSID */
 
-#if HAVE_SETPGRP
+#if ! HAVE_SETPGRP
+ #error Cannot detach from controlling terminal
+#endif
 
-  /* Now we assume we have the System V setpgrp, which takes no
-     arguments, and we couldn't compile the HAVE_BSD_PGRP code above
-     because there was a prototype somewhere in scope.  On System V
-     setpgrp makes us the leader of a new process group and also
-     detaches the controlling terminal.  */
-
+  /* If we don't have setsid, we must use setpgrp.  On an old System V
+     system setpgrp will make us the leader of a new process group and
+     detach the controlling terminal.  On an old BSD system the call
+     setpgrp (0, 0) will set our process group to 0 so that we can
+     acquire a new controlling terminal (TIOCNOTTY may or may not have
+     already done that anyhow).  */
+#if HAVE_BSD_SETPGRP
+  if (setpgrp (0, 0) < 0)
+#else
   if (setpgrp () < 0)
-    ulog (LOG_ERROR, "setpgrp: %s", strerror (errno));
+#endif
+    {
+      /* Some systems seem to give EPERM errors inappropriately.  */
+      if (errno != EPERM)
+	ulog (LOG_ERROR, "setpgrp: %s", strerror (errno));
+    }
 
-#else /* ! HAVE_SETPGRP */
-
- #error Must detach from controlling terminal
-
-#endif /* HAVE_SETPGRP */
 #endif /* ! HAVE_SETSID */
-#endif /* ! HAVE_BSD_PGRP */
 
   /* At this point we have completely detached from our controlling
      terminal.  The next terminal device we open will probably become
