@@ -1,0 +1,40 @@
+.\" $Id$
+.\"
+.Dd August 14, 1995
+.Dt SICONTROL 8
+.Sh NAME
+.Nm sicontrol
+.Nd Specialix SI/XIO driver controller
+.Sh SYNOPSIS
+.Nm sicontrol
+device_name
+.Ar argument Op Cm Ar parameter ...
+.Sh DESCRIPTION
+.Nm Sicontrol
+is used to manage the SI/XIO driver .
+.sp
+Ask Peter Wemm <peter@haywire.dialix.com> for details.
+.Sh FILES
+.Bl -tag -width /dev/si_control -compact
+.It Pa /dev/si_control
+driver control interface - used by
+.Xr sicontrol 8
+.It Pa /dev/ttyA*
+ports
+.It Pa /dev/cuaA*
+callout ports
+.It Pa /dev/ttyiA*
+initial termios flags device
+.It Pa /dev/ttylA*
+locked termios flags device
+.Sh SEE ALSO
+.Xr tty 4 ,
+.Xr termios 4 ,
+.Xr comcontrol 8 ,
+.Xr stty 1 ,
+.Xr si 4 ,
+(to be written)
+.Sh DIAGNOSTICS
+Many and various.
+.Sh BUGS
+I'd say this manpage is one.. :-)
