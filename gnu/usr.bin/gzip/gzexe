@@ -22,7 +22,7 @@ if test $# = 0; then
   exit 1
 fi
 
-tmp=`/usr/bin/mktemp gzXXXXXXXXXX` || exit 1
+tmp=`/usr/bin/mktemp -t gz` || exit 1
 trap "rm -f $tmp; exit 1" 1 2 3 5 10 13 15
 
 decomp=0
@@ -33,8 +33,8 @@ if test "x$1" = "x-d"; then
   shift
 fi
 
-zfoo1=`/usr/bin/mktemp zfoo1XXXXXXXXXX` || exit 1
-zfoo2=`/usr/bin/mktemp zfoo2XXXXXXXXXX` || exit 1
+zfoo1=`/usr/bin/mktemp -t zfoo1` || exit 1
+zfoo2=`/usr/bin/mktemp -t zfoo2` || exit 1
 echo hi > $zfoo1
 echo hi > $zfoo2
 if test -z "`(${CPMOD-cpmod} $zfoo1 $zfoo2) 2>&1`"; then
@@ -94,18 +94,18 @@ for i do
     sed 1q $0 > $tmp
     sed "s|^if tail|if $tail|" >> $tmp <<'EOF'
 skip=22
-gztmp=`/usr/bin/mktemp /tmp/gztmpXXXXXXXXXX` || exit 1
+gztmp=`/usr/bin/mktemp -t gztmp` || exit 1
 if tail +$skip $0 | gzip -cd > $gztmp; then
   chmod 700 $gztmp
   prog="`echo $0 | sed 's|^.*/||'`"
-  progtmp=`/usr/bin/mktemp /tmp/${prog}XXXXXXXXXX` || exit 1
+  progtmp=`/usr/bin/mktemp -t ${prog}` || exit 1
   if /bin/ln $gztmp $progtmp 2>/dev/null; then
     trap '/bin/rm -f $gztmp $progtmp; exit $res' 0
     (/bin/sleep 5; /bin/rm -f $gztmp $progtmp) 2>/dev/null &
     /tmp/"$prog" ${1+"$@"}; res=$?
   else
-    trap '/bin/rm -f $gztmp exit $res' 0
-    (/bin/sleep 5; /bin/rm -f $gztmp) 2>/dev/null &
+    trap '/bin/rm -f $progtmp $gztmp exit $res' 0
+    (/bin/sleep 5; /bin/rm -f $progtmp $gztmp) 2>/dev/null &
     $gztmp ${1+"$@"}; res=$?
   fi
 else
