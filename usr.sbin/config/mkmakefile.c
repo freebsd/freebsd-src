@@ -150,9 +150,9 @@ makefile()
 		perror(line);
 		exit(1);
 	}
-	ofp = fopen(path("Makefile"), "w");
+	ofp = fopen(path("Makefile.new"), "w");
 	if (ofp == 0) {
-		perror(path("Makefile"));
+		perror(path("Makefile.new"));
 		exit(1);
 	}
 	fprintf(ofp, "KERN_IDENT=%s\n", raise(ident));
@@ -234,6 +234,7 @@ makefile()
 	}
 	(void) fclose(ifp);
 	(void) fclose(ofp);
+	moveifchanged(path("Makefile.new"), path("Makefile"));
 #ifdef notyet
 	if (warn_make_clean) {
 		printf("WARNING: Unknown options used (not in ../../conf/options or ./options.%s).\n", machinename);

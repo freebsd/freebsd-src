@@ -66,6 +66,7 @@ do_swap(fl)
 	register struct file_list *fl;
 {
 	FILE *fp;
+	char  newswapname[80];
 	char  swapname[80];
 	register struct file_list *swap;
 	dev_t dev;
@@ -75,9 +76,10 @@ do_swap(fl)
 		return (fl->f_next);
 	}
 	(void) sprintf(swapname, "swap%s.c", fl->f_fn);
-	fp = fopen(path(swapname), "w");
+	(void) sprintf(newswapname, "swap%s.c.new", fl->f_fn);
+	fp = fopen(path(newswapname), "w");
 	if (fp == 0) {
-		perror(path(swapname));
+		perror(path(newswapname));
 		exit(1);
 	}
 	fprintf(fp, "#include <sys/param.h>\n");
@@ -90,7 +92,7 @@ do_swap(fl)
 	 */
 	swap = fl->f_next;
 	if (swap == 0 || swap->f_type != SWAPSPEC) {
-		(void) unlink(path(swapname));
+		(void) unlink(path(newswapname));
 		fclose(fp);
 		return (swap);
 	}
@@ -107,6 +109,7 @@ do_swap(fl)
 	fprintf(fp, "\n");
 	fprintf(fp, "void\nsetconf()\n{\n}\n");
 	fclose(fp);
+	moveifchanged(path(newswapname), path(swapname));
 	return (swap);
 }
 

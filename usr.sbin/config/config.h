@@ -192,6 +192,7 @@ char	*get_word();
 char	*get_quoted_word();
 char	*path();
 char	*raise();
+void	moveifchanged();
 
 int	do_trace;
 
