@@ -469,7 +469,7 @@ if [ -x /sbin/ldconfig ]; then
 	esac
 
 	# Legacy aout support for i386 only
-	case `sysctl -n hw.machine` in
+	case `sysctl -n hw.machine_arch` in
 	i386)
 		# Default the a.out ldconfig path.
 		: ${ldconfig_paths_aout=${ldconfig_paths}}
@@ -610,7 +610,7 @@ esac
 
 # Configure implementation specific stuff
 #
-arch=`uname -m`
+arch=`uname -p`
 if [ -r /etc/rc.${arch} ]; then
 	. /etc/rc.${arch}
 fi
