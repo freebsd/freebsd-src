@@ -357,10 +357,10 @@ vpo_action(struct cam_sim *sim, union ccb *ccb)
 		ccg = &ccb->ccg;
 
 #ifdef VP0_DEBUG
-		printf("vpo%d: XPT_CALC_GEOMETRY (bs=%d,vs=%d,c=%d,h=%d,spt=%d) request\n",
+		printf("vpo%d: XPT_CALC_GEOMETRY (bs=%d,vs=%jd,c=%d,h=%d,spt=%d) request\n",
 			vpo->vpo_unit,
 			ccg->block_size,
-			ccg->volume_size,
+			(intmax_t)ccg->volume_size,
 			ccg->cylinders,
 			ccg->heads,
 			ccg->secs_per_track);
