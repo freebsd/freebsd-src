@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_page.h,v 1.14 1995/02/14 06:10:24 phk Exp $
+ * $Id: vm_page.h,v 1.15 1995/02/20 23:35:43 davidg Exp $
  */
 
 /*
@@ -71,6 +71,7 @@
 #ifndef	_VM_PAGE_
 #define	_VM_PAGE_
 
+#include <vm/pmap.h>
 /*
  *	Management of resident (logical) pages.
  *
@@ -130,6 +131,9 @@ struct vm_page {
 #define	PG_TABLED	0x0040		/* page is in VP table (O) */
 #define	PG_COPYONWRITE	0x0080		/* must copy page before changing (O) */
 #define	PG_FICTITIOUS	0x0100		/* physical page doesn't exist (O) */
+#define	PG_WRITEABLE		0x0200		/* page is mapped writeable */
+#define PG_MAPPED		0x400		/* page is mapped */
+
 #define	PG_DIRTY	0x0800		/* client flag to set when dirty */
 #define PG_REFERENCED	0x1000		/* page has been referenced */
 #define	PG_CACHE	0x4000		/* On VMIO cache */
@@ -245,9 +249,8 @@ void vm_page_set_valid __P((vm_page_t, int, int));
 void vm_page_set_invalid __P((vm_page_t, int, int));
 int vm_page_is_valid __P((vm_page_t, int, int));
 void vm_page_test_dirty __P((vm_page_t));
-int vm_page_unqueue __P((vm_page_t ));
+void vm_page_unqueue __P((vm_page_t ));
 int vm_page_bits __P((int, int));
-
 
 
 /*
@@ -256,7 +259,7 @@ int vm_page_bits __P((int, int));
  * overhead and should be used only for *very* temporary
  * holding ("wiring").
  */
-static __inline void
+static inline void
 vm_page_hold(vm_page_t mem)
 {
 	mem->hold_count++;
@@ -266,7 +269,7 @@ vm_page_hold(vm_page_t mem)
 #include <sys/systm.h>		/* make GCC shut up */
 #endif
 
-static __inline void
+static inline void
 vm_page_unhold(vm_page_t mem)
 {
 #ifdef DIAGNOSTIC
@@ -276,6 +279,21 @@ vm_page_unhold(vm_page_t mem)
 	--mem->hold_count;
 #endif
 }
+
+static inline void
+vm_page_protect(vm_page_t mem, int prot)
+{
+	if (prot == VM_PROT_NONE) {
+		if (mem->flags & (PG_WRITEABLE|PG_MAPPED)) {
+			pmap_page_protect(VM_PAGE_TO_PHYS(mem), prot);
+			mem->flags &= ~(PG_WRITEABLE|PG_MAPPED);
+		}
+	} else if ((prot == VM_PROT_READ) && (mem->flags & PG_WRITEABLE)) {
+		pmap_page_protect(VM_PAGE_TO_PHYS(mem), prot);
+		mem->flags &= ~PG_WRITEABLE;
+	}
+}
+
 
 #endif				/* KERNEL */
 
