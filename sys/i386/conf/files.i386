@@ -1,11 +1,11 @@
 # This file tells config what files go into building a kernel,
 # files marked standard are always included.
 #
-#	$Id: files.i386,v 1.98.4.12 1996/11/04 22:15:55 guido Exp $
+#	$Id: files.i386,v 1.98.4.13 1997/03/18 19:27:44 gibbs Exp $
 #
 aic7xxx_asm			optional	ahc	device-driver	   \
 	dependency 	"$S/dev/aic7xxx/*.[chyl]"			   \
-	compile-with	"cd $S/dev/aic7xxx; make BINDIR=${.CURDIR} all install" \
+	compile-with	"cd $S/dev/aic7xxx; make obj; make BINDIR=${.CURDIR} all install" \
 	no-obj no-implicit-rule						   \
 	clean		"aic7xxx_asm"
 #
