@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)cons.h	7.2 (Berkeley) 5/9/91
- *	$Id: cons.h,v 1.17 1997/07/01 00:54:37 bde Exp $
+ *	$Id: cons.h,v 1.1 1998/06/10 10:54:42 dfr Exp $
  */
 
 #ifndef _MACHINE_CONS_H_
@@ -54,18 +54,6 @@ typedef	void	cn_putc_t __P((dev_t, int));
  * XXX public functions in drivers should be declared in headers produced
  * by `config', not here.
  */
-cn_probe_t	pccnprobe;
-cn_init_t	pccninit;
-cn_getc_t	pccngetc;
-cn_checkc_t	pccncheckc;
-cn_putc_t	pccnputc;
-
-cn_probe_t	sccnprobe;
-cn_init_t	sccninit;
-cn_getc_t	sccngetc;
-cn_checkc_t	sccncheckc;
-cn_putc_t	sccnputc;
-
 cn_probe_t	siocnprobe;
 cn_init_t	siocninit;
 cn_getc_t	siocngetc;

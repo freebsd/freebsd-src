@@ -1,7 +1,7 @@
 # This file tells config what files go into building a kernel,
 # files marked standard are always included.
 #
-#	$Id: files.alpha,v 1.14 1998/12/04 10:52:47 dfr Exp $
+#	$Id: files.alpha,v 1.15 1999/01/18 20:26:50 gallatin Exp $
 #
 # The long compile-with and dependency lines are required because of
 # limitations in config: backslash-newline doesn't work in strings, and
@@ -138,9 +138,18 @@ libkern/alpha/htons.S		standard
 libkern/alpha/ntohl.S		standard
 libkern/alpha/ntohs.S		standard
 isa/sio.c			optional	sio device-driver
-isa/kbdio.c			optional        psm     device-driver
+dev/fb/fb.c			optional	fb	device-driver
+dev/fb/fb.c			optional	vga	device-driver
+isa/vga_isa.c			optional	vga	device-driver
+dev/fb/splash.c			optional	splash
+dev/kbd/atkbd.c			optional	atkbd	device-driver
+isa/atkbd_isa.c			optional	atkbd	device-driver
+dev/kbd/atkbdc.c		optional	atkbdc	device-driver
+isa/atkbdc_isa.c		optional	atkbdc	device-driver
+dev/kbd/kbd.c			optional	atkbd	device-driver
+dev/kbd/kbd.c			optional	kbd	device-driver
+#dev/kbd/kbd.c			optional	ukbd	device-driver
+dev/syscons/syscons.c		optional	sc	device-driver
+dev/syscons/scvidctl.c		optional	sc	device-driver
+isa/syscons_isa.c		optional	sc	device-driver
 isa/psm.c			optional	psm	device-driver
-isa/kbdio.c			optional        sc      device-driver
-isa/videoio.c			optional	sc	device-driver
-isa/syscons.c			optional	sc	device-driver
-isa/scvidctl.c			optional	sc	device-driver
