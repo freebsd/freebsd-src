@@ -695,12 +695,27 @@ case ${sendmail_enable} in
 *)
 	case ${sendmail_outbound_enable} in
 	[Yy][Ee][Ss])
-		echo -n ' sendmail'
+		echo -n ' sendmail-outbound'
 		/usr/sbin/sendmail ${sendmail_outbound_flags}
+		;;
+	esac
+	case ${sendmail_submit_enable} in
+	[Yy][Ee][Ss])
+		echo -n ' sendmail-submit'
+		/usr/sbin/sendmail ${sendmail_submit_flags}
 		;;
 	esac
 	;;
 esac
+
+if [ -r /etc/mail/submit.cf ]; then
+	case ${sendmail_msp_queue_enable} in
+	[Yy][Ee][Ss])
+		echo -n ' sendmail-clientmqueue'
+		/usr/sbin/sendmail ${sendmail_msp_queue_flags}
+		;;
+	esac
+fi
 
 echo '.'
 
