@@ -59,6 +59,7 @@ struct kse_thr_mailbox {
 	void			*tm_udata;	/* For use by the UTS */
 	unsigned int		tm_uticks;
 	unsigned int		tm_sticks;
+	int			tm_slices;
 	int			tm_spare[8];
 };
 
