@@ -53,7 +53,7 @@ extern struct mc malloced[];
 #endif
 #include <dev/vinum/request.h>
 
-STATIC struct cdevsw vinum_cdevsw =
+struct cdevsw vinum_cdevsw =
 {
     vinumopen, vinumclose, physread, physwrite,
     vinumioctl, seltrue, nommap, vinumstrategy,
@@ -67,6 +67,9 @@ STATIC void vinumattach(void *);
 STATIC int vinum_modevent(module_t mod, modeventtype_t type, void *unused);
 
 struct _vinum_conf vinum_conf;				    /* configuration information */
+
+dev_t vinum_daemon_dev;
+dev_t vinum_super_dev;
 
 /*
  * Called by main() during pseudo-device attachment.  All we need
@@ -88,6 +91,10 @@ vinumattach(void *dummy)
     dqend = NULL;
 
     cdevsw_add(&vinum_cdevsw);				    /* add the cdevsw entry */
+    vinum_daemon_dev = make_dev(&vinum_cdevsw, VINUM_DAEMON_DEV,
+	UID_ROOT, GID_WHEEL, S_IRUSR|S_IWUSR, VINUM_DAEMON_DEV_NAME);               /* daemon device */
+    vinum_super_dev = make_dev(&vinum_cdevsw, VINUM_SUPERDEV,
+	UID_ROOT, GID_WHEEL, S_IRUSR|S_IWUSR, VINUM_SUPERDEV_NAME);               /* daemon device */
 
     /* allocate space: drives... */
     DRIVE = (struct drive *) Malloc(sizeof(struct drive) * INITIAL_DRIVES);
@@ -174,21 +181,33 @@ free_vinum(int cleardrive)
 	queue_daemon_request(daemonrq_return, (union daemoninfo) 0); /* stop the daemon */
 	tsleep(&vinumclose, PUSER, "vstop", 1);		    /* and wait for it */
     }
-    if (SD != NULL)
+    if (SD != NULL) {
+	for (i = 0; i < vinum_conf.subdisks_allocated; i++) {
+	    struct sd *sd = &vinum_conf.sd[i];
+
+	    if (sd->state != sd_unallocated)
+		free_sd(i);
+	}
 	Free(SD);
+    }
     if (PLEX != NULL) {
 	for (i = 0; i < vinum_conf.plexes_allocated; i++) {
 	    struct plex *plex = &vinum_conf.plex[i];
 
-	    if (plex->state != plex_unallocated) {	    /* we have real data there */
-		if (plex->sdnos)
-		    Free(plex->sdnos);
-	    }
+	    if (plex->state != plex_unallocated)	    /* we have real data there */
+		free_plex(i);
 	}
 	Free(PLEX);
     }
-    if (VOL != NULL)
+    if (VOL != NULL) {
+	for (i = 0; i < vinum_conf.volumes_allocated; i++) {
+	    struct volume *volume = &vinum_conf.volume[i];
+
+	    if (volume->state != volume_unallocated)
+		free_volume(i);
+	}
 	Free(VOL);
+    }
     bzero(&vinum_conf, sizeof(vinum_conf));
 }
 
@@ -236,6 +255,8 @@ vinum_modevent(module_t mod, modeventtype_t type, void *unused)
 	    }
 	}
 #endif
+	destroy_dev(vinum_daemon_dev);               /* daemon device */
+	destroy_dev(vinum_super_dev);
 	cdevsw_remove(&vinum_cdevsw);
 	log(LOG_INFO, "vinum: unloaded\n");		    /* tell the world */
 	return 0;
