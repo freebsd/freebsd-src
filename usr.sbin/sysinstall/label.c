@@ -679,7 +679,7 @@ clear_wins(void)
     print_label_chunks();
 }
 
-#if defined(__alpha__) || defined(__sparc64__)
+#if defined(__alpha__)
 
 /*
  * If there isn't a freebsd chunk already (i.e. there is no label),
@@ -712,7 +712,7 @@ diskLabel(Device *dev)
     PartInfo *p, *oldp;
     PartType type;
     Device **devs;
-#if defined(__alpha__) || defined(__sparc64__)
+#if defined(__alpha__)
     int i;
 #endif
     WINDOW *w = savescr();
@@ -729,7 +729,7 @@ diskLabel(Device *dev)
     }
     labeling = TRUE;
     keypad(stdscr, TRUE);
-#if defined(__alpha__) || defined(__sparc64__)
+#if defined(__alpha__)
     for (i = 0; devs[i]; i++) {
 	maybe_dedicate((Disk*) devs[i]->private);
     }
@@ -1381,7 +1381,7 @@ diskLabelNonInteractive(Device *dev)
 	d = dev->private;
     else
 	d = devs[0]->private;
-#if defined(__alpha__) || defined(__sparc64__)
+#if defined(__alpha__)
     maybe_dedicate(d);
 #endif
     record_label_chunks(devs, dev);
