@@ -29,7 +29,7 @@
 #include <dev/sound/pcm/sound.h>
 #include <dev/sound/pcm/ac97.h>
 #include <gnu/dev/sound/pci/emu10k1.h>
-#include <gnu/dev/sound/pci/emu10k1-alsa%diked.h>
+#include "emu10k1-alsa%diked.h"
 
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
