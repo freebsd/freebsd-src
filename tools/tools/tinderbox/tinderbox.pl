@@ -305,6 +305,7 @@ MAIN:{
     $jobs = 0;
     $repository = "/home/ncvs";
     $sandbox = "/tmp/tinderbox";
+    $timeout = 0;
 
     # Get options
     {Getopt::Long::Configure("auto_abbrev", "bundling");}
