@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.121 1995/03/22 20:37:53 phk Exp $
+#	$Id: Makefile,v 1.122 1995/03/24 02:05:32 phk Exp $
 #
 # How to roll a release:
 #
@@ -240,6 +240,13 @@ release.7:
 	@cd ${.CURDIR} ; $(MAKE) ckRELEASEDIR
 	cd ${RD}/trees/bin ; ls ${CPIO1} | cpio -dump ${RD}/cpiofd/stand
 	cd ${.CURDIR} ; ls ${CPIO2} | cpio -dumpv ${RD}/cpiofd/stand
+	( JUST_TELL_ME=please ; . ${.CURDIR}/../sys/conf/newvers.sh ; \
+	sed "/DISTNAME=/s/FOOBAR/$$DISTNAME/" \
+		< ${RD}/cpiofd/stand/scripts/miscfuncs.sh \
+		> ${RD}/cpiofd/stand/scripts/tmp ;\
+	)
+	mv ${RD}/cpiofd/stand/scripts/tmp \
+		${RD}/cpiofd/stand/scripts/miscfuncs.sh
 	chmod 755 ${RD}/cpiofd/stand/scripts/*
 	cp ${RD}/trees/bin/usr/sbin/tzsetup ${RD}/cpiofd/stand
 	( cd ${RD}/cpiofd ; \
@@ -259,7 +266,7 @@ release.8:
 		if [ -d ${RD}/trees/$${i} ] ; then \
 			cd ${.CURDIR} ; \
 				$(MAKE) doTARBALL SD=${RD}/trees/$${i} \
-					TD=$$i ARG="." ; \
+					TN=$$i TD=$$i ARG="." ; \
 			( cd ${RD}/dists/$${i}; \
 			sh -e ${.CURDIR}/scripts/mkchecksums.sh ) ; \
 			cp ${.CURDIR}/scripts/extract_$${i}.sh \
@@ -273,13 +280,13 @@ release.8:
 # Make source dists
 release.9:
 	@cd ${.CURDIR} ; $(MAKE) ckRELEASEDIR
-	@cd ${.CURDIR} ; $(MAKE) doTARBALL SD=/usr/src TD=src/base ARG="[A-Z]*"
-	@for i in bin etc games gnu include lib libexec release sbin \
-		secure lkm eBones share sys usrbin usrsbin ; do \
-		if [ -d /usr/src/$$i ] ; then \
+	@cd ${.CURDIR} ; $(MAKE) doTARBALL SD=/usr/src \
+		TD=src TN=srcbase ARG="[A-Z]*"
+	@for i in `cd /usr/src ; echo *` ; do \
+		if [ -d /usr/src/$$i -a "$$i" != "CVS" ] ; then \
 			cd ${.CURDIR} ; \
 				$(MAKE) doTARBALL SD=/usr/src \
-					TD=src ARG="$$i" ; \
+					TN=src$$i TD=src ARG="$$i" ; \
 		fi ; \
 	done
 	( cd ${RD}/dists/src; \
@@ -340,12 +347,12 @@ doTARBALL:
 .if !defined(ARG)
 	@echo "ARG undefined in doTARBALL" ; exit 1
 .endif               
-	rm -rf ${RD}/dists/${TD}
+	rm -rf ${RD}/dists/${TD}/${TN}*
 	mkdir -p ${RD}/dists/${TD}
 	( cd ${SD} ; \
-		echo rolling ${TD} tarball ;\
+		echo rolling ${TD}/${TN} tarball ;\
 		tar --exclude CVS --exclude obj -cf - ${ARG} | \
-		${ZIPNSPLIT} ${RD}/dists/${TD}/`basename ${TD}`. )
+		${ZIPNSPLIT} ${RD}/dists/${TD}/${TN}. )
 
 doRELEASE:  release.1 release.2 release.3 release.4 release.5 release.6 \
 		release.7 release.8 release.9 release.10
