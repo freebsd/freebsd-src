@@ -328,7 +328,7 @@ kdb_trap(int vector, struct trapframe *regs)
 	 * XXX Should switch to DDB's own stack, here.
 	 */
 
-	s = cpu_critical_enter();
+	s = intr_disable();
 
 #ifdef SMP
 #ifdef CPUSTOP_ON_DDBBREAK
@@ -394,7 +394,7 @@ kdb_trap(int vector, struct trapframe *regs)
 
 	*regs = ddb_regs;
 
-	cpu_critical_exit(s);
+	intr_enable(s);
 
 
 	/*

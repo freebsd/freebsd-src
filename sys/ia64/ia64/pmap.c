@@ -601,7 +601,7 @@ pmap_invalidate_all_1(void *arg)
 	int i, j;
 	critical_t psr;
 
-	psr = cpu_critical_enter();
+	psr = intr_disable();
 	addr = pmap_ptc_e_base;
 	for (i = 0; i < pmap_ptc_e_count1; i++) {
 		for (j = 0; j < pmap_ptc_e_count2; j++) {
@@ -610,7 +610,7 @@ pmap_invalidate_all_1(void *arg)
 		}
 		addr += pmap_ptc_e_stride1;
 	}
-	cpu_critical_exit(psr);
+	intr_enable(psr);
 }
 
 static void
@@ -2590,15 +2590,14 @@ pmap_t
 pmap_install(pmap_t pmap)
 {
 	pmap_t oldpmap;
-	critical_t c;
 	int i;
 
-	c = cpu_critical_enter();
+	critical_enter();
 
 	oldpmap = PCPU_GET(current_pmap);
 
 	if (pmap == oldpmap || pmap == kernel_pmap) {
-		cpu_critical_exit(c);
+		critical_exit();
 		return pmap;
 	}
 
@@ -2617,7 +2616,7 @@ pmap_install(pmap_t pmap)
 		ia64_set_rr(IA64_RR_BASE(2), (2 << 8)|(PAGE_SHIFT << 2)|1);
 		ia64_set_rr(IA64_RR_BASE(3), (3 << 8)|(PAGE_SHIFT << 2)|1);
 		ia64_set_rr(IA64_RR_BASE(4), (4 << 8)|(PAGE_SHIFT << 2)|1);
-		cpu_critical_exit(c);
+		critical_exit();
 		return oldpmap;
 	}
 
@@ -2627,7 +2626,7 @@ pmap_install(pmap_t pmap)
 		ia64_set_rr(IA64_RR_BASE(i),
 			    (pmap->pm_rid[i] << 8)|(PAGE_SHIFT << 2)|1);
 
-	cpu_critical_exit(c);
+	critical_exit();
 	return oldpmap;
 }
 
