@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)socketvar.h	8.3 (Berkeley) 2/19/95
- * $Id: socketvar.h,v 1.15 1996/10/07 04:32:41 pst Exp $
+ * $Id: socketvar.h,v 1.15.2.1 1996/11/12 11:29:17 phk Exp $
  */
 
 #ifndef _SYS_SOCKETVAR_H_
@@ -102,6 +102,7 @@ struct socket {
 	caddr_t	so_tpcb;		/* Wisc. protocol control block XXX */
 	void	(*so_upcall) __P((struct socket *so, caddr_t arg, int waitf));
 	caddr_t	so_upcallarg;		/* Arg for above */
+	uid_t	so_uid;			/* who opened the socket */
 };
 
 /*
