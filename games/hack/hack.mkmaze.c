@@ -14,7 +14,7 @@ struct permonst hell_hound =
 makemaz()
 {
 	int x,y;
-	zx,zy;
+	int zx,zy;
 	coord mm;
 	boolean al = (dlevel >= 30 && !flags.made_amulet);
 

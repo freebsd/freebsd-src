@@ -405,7 +405,7 @@ not_recovered:
 }
 
 glo(foo)
-foo;
+int foo;
 {
 	/* construct the string  xlock.n  */
 	char *tf;
@@ -480,7 +480,7 @@ boolean wr;
 	/* perhaps we should also test whether . is writable */
 	/* unfortunately the access systemcall is worthless */
 	if(wr) {
-	    fd;
+	    int fd;
 
 	    if(dir == NULL)
 		dir = ".";

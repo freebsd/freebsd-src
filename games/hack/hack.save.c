@@ -32,7 +32,7 @@ hangup(){
 
 /* returns 1 if save successful */
 dosave0(hu) int hu; {
-	fd, ofd;
+	int fd, ofd;
 	int tmp;		/* not ! */
 
 	(void) signal(SIGHUP, SIG_IGN);
@@ -89,9 +89,9 @@ dosave0(hu) int hu; {
 }
 
 dorecover(fd)
-fd;
+int fd;
 {
-	nfd;
+	int nfd;
 	int tmp;		/* not a ! */
 	unsigned mid;		/* idem */
 	struct obj *otmp;
@@ -172,7 +172,7 @@ fd;
 
 struct obj *
 restobjchn(fd)
-fd;
+int fd;
 {
 	struct obj *otmp, *otmp2;
 	struct obj *first = 0;
@@ -200,7 +200,7 @@ fd;
 
 struct monst *
 restmonchn(fd)
-fd;
+int fd;
 {
 	struct monst *mtmp, *mtmp2;
 	struct monst *first = 0;

@@ -37,7 +37,7 @@ static int gdlevel;
 static
 restfakecorr()
 {
-	fcx,fcy,fcbeg;
+	int fcx,fcy,fcbeg;
 	struct rm *crm;
 
 	while((fcbeg = EGD->fcbeg) < EGD->fcend) {
@@ -79,14 +79,14 @@ struct monst *mtmp;
 }
 
 invault(){
-tmp = inroom(u.ux, u.uy);
+int tmp = inroom(u.ux, u.uy);
     if(tmp < 0 || rooms[tmp].rtype != VAULT) {
 	u.uinvault = 0;
 	return;
     }
     if(++u.uinvault % 50 == 0 && (!guard || gdlevel != dlevel)) {
 	char buf[BUFSZ];
-	x,y,dd,gx,gy;
+	int x,y,dd,gx,gy;
 
 	/* first find the goal for the guard */
 	for(dd = 1; (dd < ROWNO || dd < COLNO); dd++) {

@@ -6,27 +6,27 @@
 #define RND(x)  (random() % x)
 
 rn1(x,y)
-x,y;
+int x,y;
 {
 	return(RND(x)+y);
 }
 
 rn2(x)
-x;
+int x;
 {
 	return(RND(x));
 }
 
 rnd(x)
-x;
+int x;
 {
 	return(RND(x)+1);
 }
 
 d(n,x)
-n,x;
+int n,x;
 {
-	tmp = n;
+	int tmp = n;
 
 	while(n--) tmp += RND(x);
 	return(tmp);

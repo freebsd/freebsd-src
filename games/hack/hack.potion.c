@@ -191,7 +191,7 @@ use_it:
 
 pluslvl()
 {
-	num;
+	int num;
 
 	pline("You feel more experienced.");
 	num = rnd(10);

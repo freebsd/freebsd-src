@@ -17,7 +17,7 @@ extern boolean hmon();
 	3. when walking out of a lit room
  */
 unsee() {
-	x,y;
+	int x,y;
 	struct rm *lev;
 
 /*
@@ -53,7 +53,7 @@ unsee() {
  */
 seeoff(mode)	/* 1 to redo @, 0 to leave them */
 {	/* 1 means misc movement, 0 means blindness */
-	x,y;
+	int x,y;
 	struct rm *lev;
 
 	if(u.udispl && mode){
@@ -466,7 +466,7 @@ pickup(all)
 /* turn around a corner if that is the only way we can proceed */
 /* do not turn left or right twice */
 lookaround(){
-x,y,i,x0,y0,m0,i0 = 9;
+int x,y,i,x0,y0,m0,i0 = 9;
 int corrct = 0, noturn = 0;
 struct monst *mtmp;
 #ifdef lint
@@ -649,7 +649,7 @@ setsee()
 
 setsee()
 {
-	x,y;
+	int x,y;
 
 	if(Blind) {
 		pru();
@@ -681,7 +681,7 @@ setsee()
 #endif QUEST
 
 nomul(nval)
-nval;
+int nval;
 {
 	if(multi < 0) return;
 	multi = nval;
@@ -712,7 +712,7 @@ dbon()
 }
 
 losestr(num)	/* may kill you; cause may be poison or monster like 'A' */
-num;
+int num;
 {
 	u.ustr -= num;
 	while(u.ustr < 3) {
@@ -724,7 +724,7 @@ num;
 }
 
 losehp(n,knam)
-n;
+int n;
 char *knam;
 {
 	u.uhp -= n;
@@ -738,7 +738,7 @@ char *knam;
 }
 
 losehp_m(n,mtmp)
-n;
+int n;
 struct monst *mtmp;
 {
 	u.uhp -= n;
@@ -749,7 +749,7 @@ struct monst *mtmp;
 
 losexp()	/* hit by V or W */
 {
-	num;
+	int num;
 	extern long newuexp();
 
 	if(u.ulevel > 1)
