@@ -1,5 +1,5 @@
 # Makefile for libobjc
-# $Id: Makefile,v 1.6 1999/03/17 00:10:22 obrien Exp $
+# $Id: Makefile,v 1.5 1999/04/04 16:36:30 obrien Exp $
 
 GCCDIR=	${.CURDIR}/../../../contrib/egcs/gcc
 
@@ -21,7 +21,7 @@ CFLAGS+= -I${GCCDIR}/objc -I${GCCDIR}
 
 beforeinstall:
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
-		${HDRS:S;^;${GCCDIR}/objc/;} ${DESTDIR}/usr/include/objc
+	    ${HDRS:S;^;${GCCDIR}/objc/;} ${DESTDIR}/usr/include/objc
 
 my_objects.c:	objects.c
 	sed -e '/\.\.\/tconfig.h/d' < ${GCCDIR}/objc/objects.c > my_objects.c
@@ -33,8 +33,8 @@ my_archive.c:	archive.c
 	sed -e '/config.h/d' < ${GCCDIR}/objc/archive.c > my_archive.c
 
 runtime-info.h:
-	`${CC} --print-prog-name=cc1obj` -print-objc-runtime-info /dev/null \
-		>${.TARGET}
+	`${CC} --print-prog-name=cc1obj` -print-objc-runtime-info \
+	    < /dev/null > ${.TARGET}
 
 CLEANFILES+= my_objects.c my_sendmsg.c my_archive.c runtime-info.h
 
