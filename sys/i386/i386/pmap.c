@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.131 1996/11/11 04:20:19 dyson Exp $
+ *	$Id: pmap.c,v 1.132 1996/12/29 02:27:07 dyson Exp $
  */
 
 /*
@@ -2789,51 +2789,6 @@ pmap_phys_address(ppn)
 }
 
 /*
- *	pmap_is_referenced:
- *
- *	Return whether or not the specified physical page was referenced
- *	by any physical maps.
- */
-boolean_t
-pmap_is_referenced(vm_offset_t pa)
-{
-	register pv_entry_t pv;
-	pv_table_t *ppv;
-	unsigned *pte;
-	int s;
-
-	if (!pmap_is_managed(pa))
-		return FALSE;
-
-	ppv = pa_to_pvh(pa);
-
-	s = splvm();
-	/*
-	 * Not found, check current mappings returning immediately if found.
-	 */
-	for (pv = TAILQ_FIRST(&ppv->pv_list);
-		pv;
-		pv = TAILQ_NEXT(pv, pv_list)) {
-
-		/*
-		 * if the bit being tested is the modified bit, then
-		 * mark clean_map and ptes as never
-		 * modified.
-		 */
-		if (!pmap_track_modified(pv->pv_va))
-			continue;
-
-		pte = pmap_pte_quick(pv->pv_pmap, pv->pv_va);
-		if ((int) *pte & PG_A) {
-			splx(s);
-			return TRUE;
-		}
-	}
-	splx(s);
-	return (FALSE);
-}
-
-/*
  *	pmap_ts_referenced:
  *
  *	Return the count of reference bits for a page, clearing all of them.
@@ -3031,8 +2986,10 @@ pmap_mincore(pmap, addr)
 		 * Referenced by someone
 		 */
 		else if ((PHYS_TO_VM_PAGE(pa)->flags & PG_REFERENCED) ||
-			pmap_is_referenced(pa))
+			pmap_ts_referenced(pa)) {
 			val |= MINCORE_REFERENCED_OTHER;
+			PHYS_TO_VM_PAGE(pa)->flags |= PG_REFERENCED;
+		}
 	} 
 	return val;
 }
