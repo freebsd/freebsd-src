@@ -71,6 +71,7 @@ struct job {
 	char state;		/* true if job is finished */
 	char used;		/* true if this entry is in used */
 	char changed;		/* true if status has changed */
+	char foreground;	/* true if running in the foreground */
 #if JOBS
 	char jobctl;		/* job running under job control */
 	struct job *next;	/* job used after this one */
