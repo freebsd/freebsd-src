@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: linux.h,v 1.33 1999/08/14 17:28:46 marcel Exp $
+ *	$Id: linux.h,v 1.34 1999/08/15 17:28:39 marcel Exp $
  */
 
 #ifndef _I386_LINUX_LINUX_H_
@@ -67,6 +67,15 @@ typedef struct {
     linux_new_sigset_t lsa_mask;
 } linux_new_sigaction_t;
 
+#define LINUX_MAX_UTSNAME	65
+struct linux_new_utsname {
+    char sysname[LINUX_MAX_UTSNAME];
+    char nodename[LINUX_MAX_UTSNAME];
+    char release[LINUX_MAX_UTSNAME];
+    char version[LINUX_MAX_UTSNAME];
+    char machine[LINUX_MAX_UTSNAME];
+    char domainname[LINUX_MAX_UTSNAME];
+};
 
 /*
  * The Linux sigcontext, pretty much a standard 386 trapframe.
