@@ -236,6 +236,7 @@ static driver_t stg_pccard_driver = {
 
 static devclass_t stg_devclass;
 
+MODULE_DEPEND(stg, scsi_low, 1, 1, 1);
 DRIVER_MODULE(stg, pccard, stg_pccard_driver, stg_devclass, 0, 0);
 
 static	void

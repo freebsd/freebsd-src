@@ -238,6 +238,7 @@ static driver_t nsp_pccard_driver = {
 
 static devclass_t nsp_devclass;
 
+MODULE_DEPEND(nsp, scsi_low, 1, 1, 1);
 DRIVER_MODULE(nsp, pccard, nsp_pccard_driver, nsp_devclass, 0, 0);
 
 static	void

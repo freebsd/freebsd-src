@@ -126,6 +126,7 @@ scsi_low_notify_pisa(dh, ev)
 #include <sys/buf.h>
 #include <sys/queue.h>
 #include <sys/device_port.h>
+#include <sys/module.h>
 
 #include <cam/scsi/scsi_low.h>
 #include <cam/scsi/scsi_low_pisa.h>
@@ -153,4 +154,14 @@ scsi_low_activate_pisa(sc, flags)
 		return EBUSY;
 	return 0;
 }
+
+static moduledata_t scsi_low_moduledata = {
+	"scsi_low",
+	NULL,
+	NULL
+};
+
+DECLARE_MODULE(scsi_low, scsi_low_moduledata, SI_SUB_DRIVERS, SI_ORDER_MIDDLE);
+MODULE_VERSION(scsi_low, 1);
+MODULE_DEPEND(scsi_low, cam, 1, 1, 1);
 #endif	/* __FreeBSD__ */
