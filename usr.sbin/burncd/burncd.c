@@ -58,7 +58,7 @@ static struct track_info tracks[100];
 static int fd, quiet, verbose, saved_block_size, notracks;
 
 void add_track(char *, int, int);
-void do_DAO(void);
+void do_DAO(int);
 void do_TAO(int, int);
 int write_file(struct track_info *);
 int roundup_blocks(struct track_info *);
@@ -245,7 +245,7 @@ main(int argc, char **argv)
 			cdopen = 1;
 		}
 		if (dao) 
-			do_DAO();
+			do_DAO(test_write);
 		else
 			do_TAO(test_write, preemp);
 	}
@@ -308,7 +308,7 @@ add_track(char *name, int block_size, int block_type)
 }
 
 void
-do_DAO(void)
+do_DAO(int test_write)
 {
 	struct cdr_cuesheet sheet;
 	struct cdr_cue_entry cue[100];
@@ -390,6 +390,7 @@ do_DAO(void)
 
 	sheet.len = j * 8;
 	sheet.entries = cue;
+	sheet.test_write = test_write;
 	if (verbose) {
 		u_int8_t *ptr = (u_int8_t *)sheet.entries;
 		
@@ -404,9 +405,10 @@ do_DAO(void)
 	
 	if (ioctl(fd, CDRIOCSENDCUE, &sheet) < 0)
 		err(EX_IOERR, "ioctl(CDRIOCSENDCUE)");
-
+#if 0
 	if (ioctl(fd, CDRIOCNEXTWRITEABLEADDR, &addr) < 0) 
 		err(EX_IOERR, "ioctl(CDRIOCNEXTWRITEABLEADDR)");
+#endif
 	for (i = 0; i < notracks; i++) {
 		if (write_file(&tracks[i]))
 			err(EX_IOERR, "write_file");
