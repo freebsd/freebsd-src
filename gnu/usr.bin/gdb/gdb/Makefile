@@ -68,5 +68,7 @@ LDADD+=   -L${.CURDIR}/../mmalloc/ -lmmalloc
 DPADD+=   ${.CURDIR}/../mmalloc/libmmalloc.a
 .endif
 
-LDADD+=	-lcompat
+LDADD+=   -lcompat
+DPADD+=   ${LIBCOMPAT}
+
 .include <bsd.prog.mk>
