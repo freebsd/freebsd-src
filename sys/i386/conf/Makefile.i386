@@ -1,7 +1,7 @@
 # Makefile.i386 -- with config changes.
 # Copyright 1990 W. Jolitz
 #	from: @(#)Makefile.i386	7.1 5/10/91
-#	$Id: Makefile.i386,v 1.131 1998/12/20 16:25:21 bde Exp $
+#	$Id: Makefile.i386,v 1.132 1998/12/21 10:29:09 msmith Exp $
 #
 # Makefile for FreeBSD
 #
@@ -19,7 +19,7 @@
 # Which version of config(8) is required.
 %VERSREQ=	300009
 
-KERNFORMAT?=	aout
+KERNFORMAT?=	elf
 
 STD8X16FONT?=	iso
 
@@ -211,6 +211,16 @@ install:
 		echo "You must first build your kernel before trying to install." ; \
 		exit 1 ; \
 	fi
+.if ${KERNFORMAT} == "elf" && !defined(FORCE)
+	@if [ -f /kernel -a "`file /kernel 2>/dev/null | grep ELF`" = "" ]; then \
+		echo "WARNING: You are about to install an ELF kernel for the first time!" ; \
+		echo "Please be sure you have upgraded your bootblocks and/or /boot/loader so" ; \
+		echo "that you can boot it.  Old bootblocks WILL NOT WORK!  Please read:" ; \
+		echo "http://www.freebsd.org/~peter/elfday.html for information." ; \
+		echo "If you are satisfied you can boot an ELF kernel, type:  make -DFORCE install" ; \
+		exit 1 ; \
+	fi
+.endif
 .if exists(${DESTDIR}/kernel)
 	chflags noschg ${DESTDIR}/kernel
 	mv ${DESTDIR}/kernel ${DESTDIR}/kernel.old
