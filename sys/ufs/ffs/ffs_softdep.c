@@ -4892,11 +4892,9 @@ softdep_fsync_mountdev(vp)
 		/* 
 		 * If it is already scheduled, skip to the next buffer.
 		 */
-		if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT | LK_INTERLOCK,
-		    VI_MTX(vp))) {
-			VI_LOCK(vp);
+		if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT, NULL))
 			continue;
-		}
+
 		if ((bp->b_flags & B_DELWRI) == 0) {
 			FREE_LOCK(&lk);
 			panic("softdep_fsync_mountdev: not dirty");
@@ -4907,11 +4905,11 @@ softdep_fsync_mountdev(vp)
 		 */
 		if ((wk = LIST_FIRST(&bp->b_dep)) == NULL ||
 		    wk->wk_type != D_BMSAFEMAP ||
-		    (bp->b_xflags & BX_BKGRDINPROG)) {
+		    (bp->b_vflags & BV_BKGRDINPROG)) {
 			BUF_UNLOCK(bp);
-			VI_LOCK(vp);
 			continue;
 		}
+		VI_UNLOCK(vp);
 		bremfree(bp);
 		FREE_LOCK(&lk);
 		(void) bawrite(bp);
@@ -5803,21 +5801,31 @@ getdirtybuf(bpp, waitfor)
 	struct buf *bp;
 	int error;
 
+	/*
+	 * XXX This code and the code that calls it need to be reviewed to
+	 * verify its use of the vnode interlock.
+	 */
+
 	for (;;) {
 		if ((bp = *bpp) == NULL)
 			return (0);
-		/* XXX Probably needs interlock */
+		VI_LOCK(bp->b_vp);
 		if (BUF_LOCK(bp, LK_EXCLUSIVE | LK_NOWAIT, NULL) == 0) {
-			if ((bp->b_xflags & BX_BKGRDINPROG) == 0)
+			if ((bp->b_vflags & BV_BKGRDINPROG) == 0) {
+				VI_UNLOCK(bp->b_vp);
 				break;
+			}
 			BUF_UNLOCK(bp);
-			if (waitfor != MNT_WAIT)
+			if (waitfor != MNT_WAIT) {
+				VI_UNLOCK(bp->b_vp);
 				return (0);
-			bp->b_xflags |= BX_BKGRDWAIT;
-			interlocked_sleep(&lk, SLEEP, &bp->b_xflags, NULL,
-			    PRIBIO, "getbuf", 0);
+			}
+			bp->b_vflags |= BV_BKGRDWAIT;
+			interlocked_sleep(&lk, SLEEP, &bp->b_xflags,
+			    VI_MTX(bp->b_vp), PRIBIO|PDROP, "getbuf", 0);
 			continue;
 		}
+		VI_UNLOCK(bp->b_vp);
 		if (waitfor != MNT_WAIT)
 			return (0);
 		error = interlocked_sleep(&lk, LOCKBUF, bp, NULL, 
