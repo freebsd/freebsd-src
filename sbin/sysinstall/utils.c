@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: utils.c,v 1.10 1994/10/22 02:37:24 ache Exp $
+ * $Id: utils.c,v 1.11 1994/10/24 03:55:25 ache Exp $
  *
  */
 
@@ -18,6 +18,7 @@
 #include <dialog.h>
 #include <errno.h>
 
+#include <sys/file.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -134,33 +135,25 @@ StrAlloc(char *str)
 }
 
 void
-MountUfs(char *device, char *prefix, char *mountpoint, int do_mkdir)
+MountUfs(char *device, char *mountpoint, int do_mkdir, int flags)
 {
 	struct ufs_args ufsargs;
 	char dbuf[90];
-	char pbuf[90];
 
 	memset(&ufsargs,0,sizeof ufsargs);
 
-	if (prefix)
-		strcpy(pbuf,prefix);
-	else
-		strcpy(pbuf,"");
-
-	strcat(pbuf,mountpoint);
-
-	if(do_mkdir && access(pbuf,R_OK)) {
-		Mkdir(pbuf);
+	if(do_mkdir && access(mountpoint,R_OK)) {
+		Mkdir(mountpoint);
 	}
 
 	strcpy(dbuf,"/dev/");
 	strcat(dbuf,device);
 	
-	TellEm("mount /dev/%s /mnt%s",dbuf,pbuf); 
+	TellEm("mount %s %s",dbuf,mountpoint); 
 	ufsargs.fspec = dbuf;
-	if (mount(MOUNT_UFS,pbuf, 0, (caddr_t) &ufsargs) == -1) {
+	if (mount(MOUNT_UFS, mountpoint, flags, (caddr_t) &ufsargs) == -1) {
 		Fatal("Error mounting %s on %s : %s\n",
-			dbuf, pbuf, strerror(errno));
+			dbuf, mountpoint, strerror(errno));
 	}
 }
 
@@ -172,4 +165,34 @@ Mkdir(char *path)
 		Fatal("Couldn't create directory %s: %s\n",
 			path,strerror(errno));
 	}
+}
+
+void
+CopyFile(char *p1, char *p2)
+{
+	char buf[BUFSIZ];
+	int fd1,fd2;
+	int i;
+	struct stat st;
+
+	TellEm("Copy %s to %s",p1,p2);
+	fd1 = open(p1,O_RDONLY);
+	if (fd1 < 0) Fatal("Couldn't open %s: %s\n",p1,strerror(errno));
+	fd2 = open(p2,O_TRUNC|O_CREAT|O_WRONLY,0200);
+	if (fd2 < 0) Fatal("Couldn't open %s: %s\n",p2,strerror(errno));
+	for(;;) {
+		i = read(fd1,buf,sizeof buf);
+		if (i > 0)
+			if (i != write(fd2,buf,i)) {
+				Fatal("Write errror on %s: %s\n",
+					p2,strerror(errno));
+			}
+		if (i != sizeof buf)
+			break;
+	}
+	fstat(fd1,&st);
+	fchmod(fd2,st.st_mode & 07777);
+	fchown(fd2,st.st_uid,st.st_gid);
+	close(fd1);
+	close(fd2);
 }
