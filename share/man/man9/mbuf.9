@@ -90,6 +90,8 @@
 .Ss Mbuf utility functions
 .Ft void
 .Fn m_adj "struct mbuf *mbuf" "int len"
+.Ft int
+.Fn m_append "struct mbuf *mbuf" "int len" "c_caddr_t cp"
 .Ft struct mbuf *
 .Fn m_prepend "struct mbuf *mbuf" "int len" "int how"
 .Ft struct mbuf *
@@ -580,6 +582,16 @@ bytes from the head of an
 if
 .Fa len
 is positive, from the tail otherwise.
+.\"
+.It Fn m_append mbuf len cp
+Append
+.Vt len
+bytes of data
+.Vt cp
+to the
+.Vt mbuf chain .
+Extend the mbuf chain if the new data does not fit in
+existing space.
 .\"
 .It Fn m_prepend mbuf len how
 Allocate a new
