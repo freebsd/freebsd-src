@@ -46,11 +46,11 @@
  * function of...") that I cannot set false expectations for lawyerly
  * readers.
  */
-#ifdef _KERNEL
+#if defined(__KERNEL__) || defined(_KERNEL)
 #ifndef DLT_IEEE802_11_RADIO
 #define	DLT_IEEE802_11_RADIO	127	/* 802.11 plus WLAN header */
 #endif
-#endif /* _KERNEL */
+#endif /* defined(__KERNEL__) || defined(_KERNEL) */
 
 /* The radio capture header precedes the 802.11 header. */
 struct ieee80211_radiotap_header {
