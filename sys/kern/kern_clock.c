@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_clock.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_clock.c,v 1.33 1997/03/22 06:52:56 bde Exp $
+ * $Id: kern_clock.c,v 1.34 1997/03/22 16:52:19 mpp Exp $
  */
 
 /* Portions of this software are covered by the following: */
@@ -805,7 +805,7 @@ gettime(struct timeval *tvp)
 	int s;
 
 	s = splclock();
-	/* XXX should use microtime() if tv_usec is used. */
+	/* XXX should use microtime() iff tv_usec is used. */
 	*tvp = time;
 	splx(s);
 }
