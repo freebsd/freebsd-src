@@ -248,7 +248,7 @@ pr_rthdr(af)
 
 	if (Aflag)
 		printf("%-8.8s ","Address");
-	if (lflag)
+	if (af == AF_INET || lflag)
 		printf("%-*.*s %-*.*s %-6.6s  %6.6s%8.8s  %8.8s %6s\n",
 			WID_DST(af), WID_DST(af), "Destination",
 			WID_GW(af), WID_GW(af), "Gateway",
