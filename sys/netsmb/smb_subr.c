@@ -34,13 +34,19 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
+#include <sys/kthread.h>
 #include <sys/malloc.h>
+#include <sys/mbuf.h>
 #include <sys/proc.h>
 #include <sys/lock.h>
+#include <sys/resourcevar.h>
 #include <sys/sysctl.h>
 #include <sys/socket.h>
 #include <sys/signalvar.h>
-#include <sys/mbuf.h>
+#include <sys/wait.h>
+#include <sys/unistd.h>
+
+#include <machine/stdarg.h>
 
 #include <sys/iconv.h>
 
@@ -70,13 +76,6 @@ smb_makescred(struct smb_cred *scred, struct proc *p, struct ucred *cred)
 int
 smb_proc_intr(struct proc *p)
 {
-#if __FreeBSD_version < 400009
-
-	if (p && p->p_siglist &&
-	    (((p->p_siglist & ~p->p_sigmask) & ~p->p_sigignore) & SMB_SIGMASK))
-		return EINTR;
-	return 0;
-#else
 	sigset_t tmpset;
 
 	if (p == NULL)
@@ -87,7 +86,6 @@ smb_proc_intr(struct proc *p)
 	if (SIGNOTEMPTY(p->p_siglist) && SMB_SIGMASK(tmpset))
                 return EINTR;
 	return 0;
-#endif
 }
 
 char *
@@ -356,4 +354,81 @@ smb_put_asunistring(struct smb_rq *rqp, const char *src)
 			return error;
 	}
 	return mb_put_uint16le(mbp, 0);
+}
+
+int
+smb_checksmp(void)
+{
+	int name[2];
+	int olen, ncpu, plen, error;
+
+	name[0] = CTL_HW;
+	name[1] = HW_NCPU;
+	error = kernel_sysctl(curproc, name, 2, &ncpu, &olen, NULL, 0, &plen);
+	if (error)
+		return error;
+#ifndef	SMP
+	if (ncpu > 1) {
+		printf("error: module compiled without SMP support\n");
+		return EPERM;
+	}
+#else
+	if (ncpu < 2) {
+		printf("warning: only one CPU active on in SMP kernel ?\n");
+	}
+#endif
+	return 0;
+}
+
+/*
+ * Create a kernel process/thread/whatever.  It shares it's address space
+ * with proc0 - ie: kernel only.
+ */
+int
+kthread_create2(void (*func)(void *), void *arg,
+    struct proc **newpp, int flags, const char *fmt, ...)
+{
+	int error;
+	va_list ap;
+	struct proc *p2;
+
+	if (!proc0.p_stats || proc0.p_stats->p_start.tv_sec == 0) {
+		panic("kthread_create called too soon");
+	}
+
+	error = fork1(&proc0, RFMEM | RFFDG | RFPROC | flags, &p2);
+	if (error)
+		return error;
+
+	/* save a global descriptor, if desired */
+	if (newpp != NULL)
+		*newpp = p2;
+
+	/* this is a non-swapped system process */
+	p2->p_flag |= P_INMEM | P_SYSTEM;
+	p2->p_procsig->ps_flag |= PS_NOCLDWAIT;
+	PHOLD(p2);
+
+	/* set up arg0 for 'ps', et al */
+	va_start(ap, fmt);
+	vsnprintf(p2->p_comm, sizeof(p2->p_comm), fmt, ap);
+	va_end(ap);
+
+	/* call the processes' main()... */
+	cpu_set_fork_handler(p2, func, arg);
+
+	return 0;
+}
+
+int
+msleep(void *chan, struct simplelock *mtx, int pri, const char *wmesg, int timo)
+{
+	int error;
+
+	if (mtx)
+		simple_unlock(mtx);
+	error = tsleep(chan, pri, wmesg, timo);
+	if ((pri & PDROP) == 0 && mtx)
+		simple_lock(mtx);
+	return error;
 }

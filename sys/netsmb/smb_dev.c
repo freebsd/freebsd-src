@@ -37,10 +37,8 @@
 #include <sys/conf.h>
 #include <sys/fcntl.h>
 #include <sys/ioccom.h>
-#include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/file.h>		/* Must come after sys/malloc.h */
-#include <sys/mbuf.h>
 #include <sys/poll.h>
 #include <sys/proc.h>
 #include <sys/select.h>
@@ -70,8 +68,9 @@ static d_write_t nsmb_dev_write;
 static d_ioctl_t nsmb_dev_ioctl;
 static d_poll_t	 nsmb_dev_poll;
 
-MODULE_DEPEND(netsmb, libiconv, 1, 1, 1);
 MODULE_VERSION(netsmb, NSMB_VERSION);
+
+#define	SI_NAMED	0
 
 static int smb_version = NSMB_VERSION;
 
@@ -100,24 +99,9 @@ static struct cdevsw nsmb_cdevsw = {
 	/* dump */	nodump,
 	/* psize */	nopsize,
 	/* flags */	0,
-#ifndef FB_CURRENT
 	/* bmaj */	-1
-#endif
 };
 
-static eventhandler_tag nsmb_dev_tag;
-
-static void
-nsmb_dev_clone(void *arg, char *name, int namelen, dev_t *dev)
-{
-	int min;
-
-	if (*dev != NODEV)
-		return;
-	if (dev_stdclone(name, NULL, NSMB_NAME, &min) != 1)
-		return;
-	*dev = make_dev(&nsmb_cdevsw, min, 0, 0, 0600, NSMB_NAME"%d", min);
-}
 
 static int
 nsmb_dev_open(dev_t dev, int oflags, int devtype, struct proc *p)
@@ -139,7 +123,7 @@ nsmb_dev_open(dev_t dev, int oflags, int devtype, struct proc *p)
 	 */
 	if ((dev->si_flags & SI_NAMED) == 0)
 		make_dev(&nsmb_cdevsw, minor(dev), cred->cr_uid, cred->cr_gid, 0700,
-		    NSMB_NAME"%d", dev2unit(dev));
+		    NSMB_NAME"%d", lminor(dev));
 	bzero(sdp, sizeof(*sdp));
 /*
 	STAILQ_INIT(&sdp->sd_rqlist);
@@ -179,13 +163,9 @@ nsmb_dev_close(dev_t dev, int flag, int fmt, struct proc *p)
 	smb_flushq(&sdp->sd_rqlist);
 	smb_flushq(&sdp->sd_rplist);
 */
-#if __FreeBSD_version > 400001
 	dev->si_drv1 = NULL;
 	free(sdp, M_NSMBDEV);
 	destroy_dev(dev);
-#else
-	sdp->sd_flags &= ~NSMBFL_OPEN;
-#endif
 	splx(s);
 	return 0;
 }
@@ -360,6 +340,9 @@ nsmb_dev_load(module_t mod, int cmd, void *arg)
 
 	switch (cmd) {
 	    case MOD_LOAD:
+		error = smb_checksmp();
+		if (error)
+			break;
 		error = smb_sm_init();
 		if (error)
 			break;
@@ -368,24 +351,14 @@ nsmb_dev_load(module_t mod, int cmd, void *arg)
 			smb_sm_done();
 			break;
 		}
-#if __FreeBSD_version > 400001
 		cdevsw_add(&nsmb_cdevsw);
-#endif
-#if __FreeBSD_version > 500000
-		nsmb_dev_tag = EVENTHANDLER_REGISTER(dev_clone, nsmb_dev_clone, 0, 1000);
-#endif
 		printf("netsmb_dev: loaded\n");
 		break;
 	    case MOD_UNLOAD:
 		smb_iod_done();
 		error = smb_sm_done();
 		error = 0;
-#if __FreeBSD_version > 500000
-		EVENTHANDLER_DEREGISTER(dev_clone, nsmb_dev_tag);
-#endif
-#if __FreeBSD_version > 400001
 		cdevsw_remove(&nsmb_cdevsw);
-#endif
 		printf("netsmb_dev: unloaded\n");
 		break;
 	    default:
@@ -395,11 +368,7 @@ nsmb_dev_load(module_t mod, int cmd, void *arg)
 	return error;
 }
 
-#if __FreeBSD_version > 400000
 DEV_MODULE (dev_netsmb, nsmb_dev_load, 0);
-#else
-CDEV_MODULE(dev_netsmb, NSMB_MAJOR, nsmb_cdevsw, nsmb_dev_load, 0);
-#endif
 
 
 /*
