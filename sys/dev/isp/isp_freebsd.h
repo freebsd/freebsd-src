@@ -185,6 +185,9 @@ struct isposinfo {
 	isp->isp_mboxbsy = 0
 #define	MBOX_RELEASE(isp)
 
+#define	FC_SCRATCH_ACQUIRE(isp)
+#define	FC_SCRATCH_RELEASE(isp)
+
 #ifndef	SCSI_GOOD
 #define	SCSI_GOOD	SCSI_STATUS_OK
 #endif
@@ -378,9 +381,10 @@ static INLINE void
 isp_mbox_wait_complete(struct ispsoftc *isp)
 {
 	if (isp->isp_osinfo.intsok) {
+		int lim = ((isp->isp_mbxwrk0)? 120 : 20) * hz;
 		isp->isp_osinfo.mboxwaiting = 1;
 		(void) tsleep(&isp->isp_osinfo.mboxwaiting, PRIBIO,
-		    "isp_mboxwaiting", 10 * hz);
+		    "isp_mboxwaiting", lim);
 		if (isp->isp_mboxbsy != 0) {
 			isp_prt(isp, ISP_LOGWARN,
 			    "Interrupting Mailbox Command (0x%x) Timeout",
@@ -389,8 +393,9 @@ isp_mbox_wait_complete(struct ispsoftc *isp)
 		}
 		isp->isp_osinfo.mboxwaiting = 0;
 	} else {
+		int lim = ((isp->isp_mbxwrk0)? 240 : 60) * 10000;
 		int j;
-		for (j = 0; j < 60 * 10000; j++) {
+		for (j = 0; j < lim; j++) {
 			u_int16_t isr, sema, mbox;
 			if (isp->isp_mboxbsy == 0) {
 				break;

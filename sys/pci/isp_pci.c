@@ -482,10 +482,16 @@ isp_pci_attach(device_t dev)
 		pcs->pci_poff[MBOX_BLOCK >> _BLK_REG_SHFT] =
 		    PCI_MBOX_REGS2100_OFF;
 	}
-	if (pci_get_devid(dev) == PCI_QLOGIC_ISP2300 ||
-	    pci_get_devid(dev) == PCI_QLOGIC_ISP2312) {
+	if (pci_get_devid(dev) == PCI_QLOGIC_ISP2300) {
 		mdvp = &mdvec_2300;
 		basetype = ISP_HA_FC_2300;
+		psize = sizeof (fcparam);
+		pcs->pci_poff[MBOX_BLOCK >> _BLK_REG_SHFT] =
+		    PCI_MBOX_REGS2300_OFF;
+	}
+	if (pci_get_devid(dev) == PCI_QLOGIC_ISP2312) {
+		mdvp = &mdvec_2300;
+		basetype = ISP_HA_FC_2312;
 		psize = sizeof (fcparam);
 		pcs->pci_poff[MBOX_BLOCK >> _BLK_REG_SHFT] =
 		    PCI_MBOX_REGS2300_OFF;
@@ -527,6 +533,9 @@ isp_pci_attach(device_t dev)
 	 */
 	cmd |= PCIM_CMD_SEREN | PCIM_CMD_PERRESPEN |
 		PCIM_CMD_BUSMASTEREN | PCIM_CMD_INVEN;
+	if (IS_2300(isp)) {	/* per QLogic errata */
+		cmd &= ~PCIM_CMD_INVEN;
+	}
 	pci_write_config(dev, PCIR_COMMAND, cmd, 1);
 
 	/*
@@ -613,7 +622,7 @@ isp_pci_attach(device_t dev)
 	 */
 	if (getenv_quad("isp_portwwn", &wwn)) {
 		isp->isp_osinfo.default_port_wwn = wwn;
-		isp->isp_confopts |= ISP_CFG_OWNWWN;
+		isp->isp_confopts |= ISP_CFG_OWNWWPN;
 	}
 	if (isp->isp_osinfo.default_port_wwn == 0) {
 		isp->isp_osinfo.default_port_wwn = 0x400000007F000009ull;
@@ -621,7 +630,7 @@ isp_pci_attach(device_t dev)
 
 	if (getenv_quad("isp_nodewwn", &wwn)) {
 		isp->isp_osinfo.default_node_wwn = wwn;
-		isp->isp_confopts |= ISP_CFG_OWNWWN;
+		isp->isp_confopts |= ISP_CFG_OWNWWNN;
 	}
 	if (isp->isp_osinfo.default_node_wwn == 0) {
 		isp->isp_osinfo.default_node_wwn = 0x400000007F000009ull;
@@ -633,6 +642,32 @@ isp_pci_attach(device_t dev)
 	    isp, &pcs->ih)) {
 		device_printf(dev, "could not setup interrupt\n");
 		goto bad;
+	}
+
+#ifdef	ISP_FW_CRASH_DUMP
+	bitmap = 0;
+	if (getenv_int("isp_fw_dump_enable", &bitmap)) {
+		if (bitmap & (1 << unit) {
+			size_t amt = 0;
+			if (IS_2200(isp)) {
+				amt = QLA2200_RISC_IMAGE_DUMP_SIZE;
+			} else if (IS_23XX(isp)) {
+				amt = QLA2300_RISC_IMAGE_DUMP_SIZE;
+			}
+			if (amt) {
+				FCPARAM(isp)->isp_dump_data =
+				    malloc(amt, M_DEVBUF, M_WAITOK);
+				bzero(FCPARAM(isp)->isp_dump_data, amt);
+			} else {
+				device_printf(dev,
+				    "f/w crash dumps not supported for card\n");
+			}
+		}
+	}
+#endif
+
+	if (IS_2312(isp)) {
+		isp->isp_port = pci_get_function(dev);
 	}
 
 	/*
@@ -818,6 +853,7 @@ isp_pci_rd_isr_2300(struct ispsoftc *isp, u_int16_t *isrp,
 	case ISPR2HST_MBX_OK:
 	case ISPR2HST_MBX_FAIL:
 	case ISPR2HST_ASYNC_EVENT:
+	case ISPR2HST_RIO_16:
 	case ISPR2HST_FPOST:
 	case ISPR2HST_FPOST_CTIO:
 		*isrp = r2hisr & 0xffff;
@@ -999,12 +1035,11 @@ isp_pci_mbxdma(struct ispsoftc *isp)
 	}
 
 	len = sizeof (XS_T **) * isp->isp_maxcmds;
-	isp->isp_xflist = (XS_T **) malloc(len, M_DEVBUF, M_WAITOK);
+	isp->isp_xflist = (XS_T **) malloc(len, M_DEVBUF, M_WAITOK | M_ZERO);
 	if (isp->isp_xflist == NULL) {
 		isp_prt(isp, ISP_LOGERR, "cannot alloc xflist array");
 		return (1);
 	}
-	bzero(isp->isp_xflist, len);
 	len = sizeof (bus_dmamap_t) * isp->isp_maxcmds;
 	pci->dmaps = (bus_dmamap_t *) malloc(len, M_DEVBUF,  M_WAITOK);
 	if (pci->dmaps == NULL) {
@@ -1942,6 +1977,7 @@ isp_pci_dmateardown(struct ispsoftc *isp, XS_T *xs, u_int16_t handle)
 	}
 	bus_dmamap_unload(pci->parent_dmat, *dp);
 }
+
 
 static void
 isp_pci_reset1(struct ispsoftc *isp)

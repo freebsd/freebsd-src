@@ -280,8 +280,9 @@ typedef struct {
 	u_int8_t	at_execodes;
 	u_int8_t	at_cdb[ATIO2_CDBLEN];	/* received CDB */
 	u_int32_t	at_datalen;		/* allocated data len */
-	u_int16_t	at_scclun;	/* SCC Lun or reserved */
-	u_int16_t	at_reserved2[10];
+	u_int16_t	at_scclun;		/* SCC Lun or reserved */
+	u_int16_t	at_wwpn[4];		/* WWPN of initiator */
+	u_int16_t	at_reserved2[6];
 	u_int16_t	at_oxid;
 } at2_entry_t;
 
