@@ -203,6 +203,7 @@ snpin(snp, buf, n)
 		printf("Snoop: more data to down interface.\n");
 		return 0;
 	}
+
 	if (snp->snp_flags & SNOOP_OFLOW) {
 		printf("Snoop: buffer overflow.\n");
 		/*
@@ -212,13 +213,7 @@ snpin(snp, buf, n)
 		 * snooping and retry...
 		 */
 
-		snp->snp_blen = SNOOP_MINLEN;
-		free(snp->snp_buf, M_TTYS);
-		snp->snp_buf = malloc(SNOOP_MINLEN, M_TTYS, M_WAITOK);
-		snp->snp_flags |= SNOOP_DOWN;
-		snp->snp_flags &= ~SNOOP_OFLOW;
-
-		return (snp_detach(snp));
+		return (snpdown(snp));
 	}
 	s_tail = snp->snp_blen - (snp->snp_len + snp->snp_base);
 	s_free = snp->snp_blen - snp->snp_len;
@@ -323,7 +318,7 @@ snp_detach(snp)
 	 */
 
 	if (snp->snp_unit == -1)
-		goto destroy_notty;
+		goto detach_notty;
 
 
 	l_tty = &tty_tabs[snp->snp_type];
@@ -338,7 +333,7 @@ snp_detach(snp)
 
 	snp->snp_unit = -1;
 
-destroy_notty:
+detach_notty:
 	selwakeup(&snp->snp_sel);
 	snp->snp_sel.si_pid = 0;
 
@@ -360,7 +355,17 @@ snpclose(dev, flag)
 	return (snp_detach(snp));
 }
 
+int
+snpdown(snp)
+	struct snoop	*snp;
+{
+	snp->snp_blen = SNOOP_MINLEN;
+	free(snp->snp_buf, M_TTYS);
+	snp->snp_buf = malloc(SNOOP_MINLEN, M_TTYS, M_WAITOK);
+	snp->snp_flags |= SNOOP_DOWN;
 
+	return (snp_detach(snp));
+}
 
 
 int
@@ -380,6 +385,9 @@ snpioctl(dev, cmd, data, flag)
 	case SNPSTTY:
 		tunit = ((struct snptty *) data)->st_unit;
 		ttype = ((struct snptty *) data)->st_type;
+
+		if (ttype == -1 || tunit == -1)
+			return (snpdown(snp));
 
 		if (ttype < 0 || ttype > ST_MAXTYPE)
 			return (EINVAL);
@@ -409,6 +417,11 @@ snpioctl(dev, cmd, data, flag)
 		tp->t_state |= TS_SNOOP;
 		snp->snp_unit = tunit;
 		snp->snp_type = ttype;
+		/*
+		 * Clean overflow and down flags -
+		 * we'll have a chance to get them in the future :)))
+		 */
+		snp->snp_flags &= ~SNOOP_OFLOW;
 		snp->snp_flags &= ~SNOOP_DOWN;
 		splx(s);
 
@@ -434,10 +447,15 @@ snpioctl(dev, cmd, data, flag)
 		s = spltty();
 		if (snp->snp_unit != -1)
 			*(int *) data = snp->snp_len;
-		else if (snp->snp_flags & SNOOP_DOWN)
-			*(int *) data = -1;
-		else
-			*(int *) data = 0;
+		else 
+			if (snp->snp_flags&SNOOP_DOWN) {
+				if (snp->snp_flags&SNOOP_OFLOW)
+					*(int *) data = SNP_OFLOW;
+				else
+					*(int *) data = SNP_TTYCLOSE;
+			} else {
+				*(int *) data = SNP_DETACH;
+			}
 		splx(s);
 		break;
 	default:
