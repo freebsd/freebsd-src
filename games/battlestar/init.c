@@ -56,7 +56,7 @@ initialize(startup)
 	wordinit();
 	if (startup) {
 		direction = NORTH;
-		time = 0;
+		gtime = 0;
 		snooze = CYCLE * 1.5;
 		position = 22;
 		setbit(wear, PAJAMAS);
@@ -121,7 +121,7 @@ checkout(uname)
 			if (location != NULL) {
 				CUMBER = 3;
 				WEIGHT = 9;     /* that'll get him! */
-				clock = 10;
+				gclock = 10;
 				setbit(location[7].objects, WOODSMAN);  /* viper room */
 				setbit(location[20].objects, WOODSMAN); /* laser " */
 				setbit(location[13].objects, DARK);     /* amulet " */

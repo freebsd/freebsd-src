@@ -33,16 +33,19 @@
  *	@(#)externs.h	8.1 (Berkeley) 5/31/93
  */
 
+#include <sys/param.h>
 #include <sys/signal.h>
 #include <stdio.h>
 
-#define BITS (8 * sizeof (int))
+#define BITS (8)
 
 #define OUTSIDE		(position > 68 && position < 246 && position != 218)
 #define rnd(x)		(rand() % (x))
 #define max(a,b)	((a) < (b) ? (b) : (a))
 #define testbit(array, index)	(array[index/BITS] & (1 << (index % BITS)))
+#ifndef setbit
 #define setbit(array, index)	(array[index/BITS] |= (1 << (index % BITS)))
+#endif
 #define clearbit(array, index)	(array[index/BITS] &= ~(1 << (index % BITS)))
 
 	/* well known rooms */
@@ -224,7 +227,7 @@ struct room {
 #define down	link[6]
 #define flyhere	link[7]
 	char *desc;
-	unsigned int objects[NUMOFWORDS];
+	int objects[NUMOFWORDS];
 };
 struct room dayfile[];
 struct room nightfile[];
@@ -248,11 +251,11 @@ char *truedirec(), *rate();
 char *getcom(), *getword();
 
 	/* state of the game */
-int time;
+int gtime;
 int position;
 int direction;
 int left, right, ahead, back;
-int clock, fuel, torps;
+int gclock, fuel, torps;
 int carrying, encumber;
 int rythmn;
 int followfight;
@@ -271,12 +274,12 @@ int pleasure, power, ego;
 int WEIGHT;
 int CUMBER;
 int notes[NUMOFNOTES];
-unsigned int inven[NUMOFWORDS];
-unsigned int wear[NUMOFWORDS];
+int inven[NUMOFWORDS];
+int wear[NUMOFWORDS];
 char beenthere[NUMOFROOMS+1];
 char injuries[NUMOFINJURIES];
 
-char uname[9];
+char uname[MAXLOGNAME];
 
 struct wlist {
 	char *string;
