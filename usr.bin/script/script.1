@@ -30,6 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)script.1	8.1 (Berkeley) 6/6/93
+.\"	$Id$
 .\"
 .Dd June 6, 1993
 .Dt SCRIPT 1
@@ -40,7 +41,9 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl a
+.Op Fl q
 .Op Ar file
+.Op Ar command ...
 .Sh DESCRIPTION
 .Nm Script
 makes a typescript of everything printed on your terminal.
@@ -58,6 +61,13 @@ saves all dialogue in
 If no file name is given, the typescript is saved in the file
 .Pa typescript  .
 .Pp
+If the argument
+.Ar command ...
+is given,
+.Nm
+will run the specified command with an optional argument vector 
+instead of an interactive shell.
+.Pp
 Option:
 .Bl -tag -width Ds
 .It Fl a
@@ -66,9 +76,11 @@ Append the output to
 or
 .Pa typescript ,
 retaining the prior contents.
+.It Fl q
+Run in quiet mode, omit the start and stop status messages.
 .El
 .Pp
-The script ends when the forked shell exits (a
+The script ends when the forked shell (or command) exits (a
 .Em control-D
 to exit
 the Bourne shell
@@ -121,3 +133,6 @@ places
 .Sy everything
 in the log file, including linefeeds and backspaces.
 This is not what the naive user expects.
+.Pp
+It is not possible to specify a command without also naming the script file
+because of argument parsing compatability issues.
