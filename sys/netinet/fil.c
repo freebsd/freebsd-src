@@ -273,13 +273,19 @@ getports:
 		break;
 	}
 
-
-	for (s = (u_char *)(ip + 1), hlen -= sizeof(*ip); hlen; ) {
-		if (!(opt = *s))
+	for (s = (u_char *)(ip + 1), hlen -= (int)sizeof(*ip); hlen > 0; ) {
+		opt = *s;
+		if (opt == '\0')
 			break;
-		ol = (opt == IPOPT_NOP) ? 1 : (int)*(s+1);
-		if (opt > 1 && (ol < 2 || ol > hlen))
-			break;
+		else if (opt == IPOPT_NOP)
+			ol = 1;
+		else {
+			if (hlen < 2)
+				break;
+			ol = (int)*(s + 1);
+			if (ol < 2 || ol > hlen)
+				break;
+		}
 		for (i = 9, mv = 4; mv >= 0; ) {
 			op = ipopts + i;
 			if (opt == (u_char)op->ol_val) {
