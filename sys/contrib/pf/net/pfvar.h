@@ -49,16 +49,6 @@
 
 #ifdef __FreeBSD__
 #include <netinet/in.h>
-/*
- * XXX
- *  If we include <netipsec/keydb.h>, we need _KERNEL definition.
- *  This makes pfctl compilation difficult.
- */
-union sockaddr_union {
-	struct sockaddr		sa;
-	struct sockaddr_in	sin;
-	struct sockaddr_in6	sin6;
-};
 #endif
 
 #include <netinet/tcp_fsm.h>
@@ -830,6 +820,15 @@ struct pfr_tstats {
 };
 #define	pfrts_name	pfrts_t.pfrt_name
 #define pfrts_flags	pfrts_t.pfrt_flags
+
+#ifndef _SOCKADDR_UNION_DEFINED
+#define	_SOCKADDR_UNION_DEFINED
+union sockaddr_union {
+	struct sockaddr		sa;
+	struct sockaddr_in	sin;
+	struct sockaddr_in6	sin6;
+};
+#endif /* _SOCKADDR_UNION_DEFINED */
 
 SLIST_HEAD(pfr_kentryworkq, pfr_kentry);
 struct pfr_kentry {
