@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.14 1996/03/08 12:34:40 ache Exp $
+ * $Id: modem.c,v 1.15 1996/03/09 08:18:39 ache Exp $
  *
  *  TODO:
  */
@@ -214,19 +214,11 @@ DownConnection()
 {
   LogPrintf(LOG_PHASE, "Disconnected!\n");
   LogPrintf(LOG_PHASE, "Connect time: %d secs\n", time(NULL) - uptime);
-  CloseModem();
-  LcpDown();
-  connect_time = 0;
-  if (TermMode) {
-    modem = OpenModem(mode);
-    if (modem < 0) {
-      printf("failed to open modem.\n");
-      modem = 0;
-      TtyCommandMode(1);
-      return;
-    }
-    TtyTermMode();
+  if (!TermMode) {
+    CloseModem();
+    LcpDown();
   }
+  connect_time = 0;
 }
 
 /*
