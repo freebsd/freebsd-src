@@ -93,7 +93,6 @@ atapi_attach(struct ata_softc *scp, int32_t device)
 			 (ata_wmode(ATP_PARAM) < 0) ? 
 			  (ATP_PARAM->dmaflag ? 2 : 0) : ata_wmode(ATP_PARAM),
 			 ata_umode(ATP_PARAM)))
-	    atp->flags |= ATAPI_F_DMA_ENABLED;
     }
     else
 #endif
@@ -208,7 +207,7 @@ atapi_transfer(struct atapi_request *request)
 	atp->flags &= ~ATAPI_F_DSC_USED;
 
     /* if DMA enabled setup DMA hardware */
-    if ((atp->flags & ATAPI_F_DMA_ENABLED) &&
+    if ((atp->controller->mode[ATA_DEV(atp->unit)] >= ATA_DMA) &&
 	(request->ccb[0] == ATAPI_READ ||
 	 request->ccb[0] == ATAPI_READ_BIG ||
 	 ((request->ccb[0] == ATAPI_WRITE ||

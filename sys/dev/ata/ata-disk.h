@@ -42,8 +42,7 @@ struct ad_softc {
 #define		AD_F_LABELLING		0x0001		
 #define		AD_F_LBA_ENABLED	0x0002
 #define		AD_F_32B_ENABLED	0x0004
-#define		AD_F_DMA_ENABLED	0x0008
-#define		AD_F_TAG_ENABLED	0x0010
+#define		AD_F_TAG_ENABLED	0x0008
 
     struct buf_queue_head	queue;		/* head of request queue */
     struct devstat		stats;		/* devstat entry */
