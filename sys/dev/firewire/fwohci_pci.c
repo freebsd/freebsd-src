@@ -55,8 +55,13 @@
 #include <machine/clock.h>		/* for DELAY() */
 #endif
 
+#if __FreeBSD_version < 500000
+#include <pci/pcivar.h>
+#include <pci/pcireg.h>
+#else
 #include <dev/pci/pcivar.h>
 #include <dev/pci/pcireg.h>
+#endif
 
 #include <dev/firewire/firewire.h>
 #include <dev/firewire/firewirereg.h>
