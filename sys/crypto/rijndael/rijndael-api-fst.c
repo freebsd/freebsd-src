@@ -225,7 +225,7 @@ int rijndael_padEncrypt(cipherInstance *cipher, keyInstance *key,
 			outBuffer += 16;
 		}
 		padLen = 16 - (inputOctets - 16*numBlocks);
-		if (padLen > 0 && padLen <= 16)
+		if (padLen <= 0 || padLen > 16)
 			return BAD_CIPHER_STATE;
 		bcopy(input, block, 16 - padLen);
 		for (cp = block + 16 - padLen; cp < block + 16; cp++)
