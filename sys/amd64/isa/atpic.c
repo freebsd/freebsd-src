@@ -95,7 +95,6 @@ __FBSDID("$FreeBSD$");
 static void	atpic_init(void *dummy);
 
 unsigned int imen;	/* XXX */
-static int using_elcr;
 
 inthand_t
 	IDTVEC(atpic_intr0), IDTVEC(atpic_intr1), IDTVEC(atpic_intr2),
@@ -293,7 +292,7 @@ atpic_resume(struct intsrc *isrc)
 
 	if (ai->at_irq == 0) {
 		i8259_init(ap, ap == &atpics[SLAVE]);
-		if (ap == &atpics[SLAVE] && using_elcr)
+		if (ap == &atpics[SLAVE] && elcr_found)
 			elcr_resume();
 	}
 }
@@ -337,7 +336,7 @@ atpic_config_intr(struct intsrc *isrc, enum intr_trigger trig,
 			    vector);
 		return (EINVAL);
 	}
-	if (!using_elcr) {
+	if (!elcr_found) {
 		if (bootverbose)
 			printf("atpic: No ELCR to configure IRQ%u as %s\n",
 			    vector, trig == INTR_TRIGGER_EDGE ? "edge/high" :
@@ -428,8 +427,7 @@ atpic_startup(void)
 	 * assume level trigger for any interrupt that we aren't sure is
 	 * edge triggered.
 	 */
-	if (elcr_probe() == 0) {
-		using_elcr = 1;
+	if (elcr_found) {
 		for (i = 0, ai = atintrs; i < NUM_ISA_IRQS; i++, ai++)
 			ai->at_trigger = elcr_read_trigger(i);
 	} else {

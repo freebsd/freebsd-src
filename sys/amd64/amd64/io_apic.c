@@ -424,7 +424,7 @@ ioapic_config_intr(struct intsrc *isrc, enum intr_trigger trig,
 	 * them to be set to active low.
 	 *
 	 * XXX: Should we write to the ELCR if the trigger mode changes for
-	 * an EISA IRQ?
+	 * an EISA IRQ or an ISA IRQ with the ELCR present?
 	 */
 	if (intpin->io_bus == APIC_BUS_EISA)
 		pol = INTR_POLARITY_HIGH;
