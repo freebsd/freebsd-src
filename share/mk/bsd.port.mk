@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.183 1995/10/11 09:25:58 asami Exp $
+# $Id: bsd.port.mk,v 1.186 1995/10/17 20:58:08 asami Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -312,7 +312,7 @@ PKG_ARGS+=		-k ${PKGDIR}/DEINSTALL
 .if exists(${PKGDIR}/REQ)
 PKG_ARGS+=		-r ${PKGDIR}/REQ
 .endif
-.if !defined(USE_X11) && !defined(USE_IMAKE) && defined(MTREE_LOCAL)
+.if !defined(NO_MTREE) && defined(MTREE_LOCAL)
 PKG_ARGS+=		-m ${MTREE_LOCAL}
 .endif
 .endif
