@@ -108,7 +108,7 @@
 	</listitem>
 	<listitem arch="i386">
 	  <para>Adaptec 174x series EISA SCSI controller in standard
-	  and enhanced mode (&man.aha.4; and &man.ahb.4; dirver)</para>
+	  and enhanced mode (&man.aha.4; and &man.ahb.4; driver)</para>
 	</listitem>
 	<listitem>
 	  <para>Adaptec 19160/274x/284x/291x/2920/2930/2940/2950/29160/3940/3950/3960/39160/398x/494x
