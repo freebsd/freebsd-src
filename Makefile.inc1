@@ -818,8 +818,8 @@ _generic_libs+=	kerberos5/lib
 
 _prebuild_libs+= lib/libcom_err lib/libcrypt lib/libexpat \
 		lib/libkvm lib/libmd \
-		lib/libncurses lib/libopie lib/libpam lib/libradius \
-		lib/librpcsvc \
+		lib/libncurses lib/libnetgraph lib/libopie lib/libpam \
+		lib/libradius lib/librpcsvc \
 		lib/libsbuf lib/libtacplus lib/libutil lib/libypclnt \
 		lib/libz lib/msun
 
