@@ -106,9 +106,23 @@ static void 	 nm_wr(struct sc_info *, int, u_int32_t, int);
 static u_int32_t nm_rdbuf(struct sc_info *, int, int);
 static void 	 nm_wrbuf(struct sc_info *, int, u_int32_t, int);
 
+static u_int32_t badcards[] = {
+	0x0007103c,
+	0x008f1028,
+};
+#define NUM_BADCARDS (sizeof(badcards) / sizeof(u_int32_t))
+
 /* The actual rates supported by the card. */
 static int samplerates[9] = {
-    8000, 11025, 16000, 22050, 24000, 32000, 44100, 48000, 99999999
+	8000,
+	11025,
+	16000,
+	22050,
+	24000,
+	32000,
+	44100,
+	48000,
+	99999999
 };
 
 /* -------------------------------------------------------------------- */
@@ -534,10 +548,18 @@ static int
 nm_pci_probe(device_t dev)
 {
 	char *s = NULL;
+	u_int32_t subdev, i;
 
+	subdev = (pci_get_subdevice(dev) << 16) | pci_get_subvendor(dev);
 	switch (pci_get_devid(dev)) {
 	case NM256AV_PCI_ID:
-		s = "NeoMagic 256AV";
+		i = 0;
+		while ((i < NUM_BADCARDS) && (badcards[i] != subdev))
+			i++;
+		if (i == NUM_BADCARDS)
+			s = "NeoMagic 256AV";
+		else
+			device_printf(dev, "this is a non-ac97 NM256AV, not attaching\n");
 		break;
 
 	case NM256ZX_PCI_ID:
