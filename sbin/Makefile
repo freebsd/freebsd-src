@@ -50,11 +50,13 @@ SUBDIR=	adjkerntz \
 	nologin \
 	nos-tun \
 	ping \
+	ping6 \
 	quotacheck \
 	reboot \
 	restore \
 	route \
 	routed \
+	rtsol \
 	savecore \
 	shutdown \
 	slattach \

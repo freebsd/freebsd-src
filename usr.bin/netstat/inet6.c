@@ -390,23 +390,14 @@ ip6_stats(off, name)
 	printf("\tMbuf statistics:\n");
 	printf("\t\t%lu one mbuf\n", ip6stat.ip6s_m1);
 	for (first = 1, i = 0; i < 32; i++) {
+		char ifbuf[IFNAMSIZ];
 		if (ip6stat.ip6s_m2m[i] != 0) {		
 			if (first) {
 				printf("\t\ttwo or more mbuf:\n");
 				first = 0;
 			}
-			printf("\t\t\t"
-#ifdef notyet
-			       "%s"
-#else
-			       "if%d"
-#endif
-			       "= %ld\n",
-#ifdef notyet
+			printf("\t\t\t%s= %ld\n",
 			       if_indextoname(i, ifbuf),
-#else
-			       i,
-#endif
 			       ip6stat.ip6s_m2m[i]);
 		}
 	}
