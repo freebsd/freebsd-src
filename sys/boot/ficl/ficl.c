@@ -373,11 +373,11 @@ int ficlExecFD(FICL_VM *pVM, int fd)
 		break;
 	    continue;
 	}
-        if ((rval = ficlExec(pVM, cp, i)) >= VM_ERREXIT)
+        rval = ficlExec(pVM, cp, i);
+	if(rval != VM_QUIT && rval != VM_USEREXIT && rval != VM_OUTOFTEXT)
         {
             pVM->sourceID = id;
-            vmThrowErr(pVM, "ficlExecFD: Error at line %d", nLine);
-            break; 
+            return rval; 
         }
     }
     /*
