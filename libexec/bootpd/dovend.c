@@ -29,11 +29,7 @@
 #include "report.h"
 #include "dovend.h"
 
-#ifdef	__STDC__
 #define P(args) args
-#else
-#define P(args) ()
-#endif
 
 PRIVATE int insert_generic P((struct shared_bindata *, byte **, int *));
 
