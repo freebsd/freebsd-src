@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.h,v 1.25 1995/12/11 04:58:23 dyson Exp $
+ * $Id: vm_object.h,v 1.26 1995/12/14 09:55:05 phk Exp $
  */
 
 /*
@@ -93,6 +93,7 @@ struct vm_object {
 	objtype_t type;			/* type of pager */
 	vm_size_t size;			/* Object size */
 	int ref_count;			/* How many refs?? */
+	int shadow_count;		/* how many objects that this is a shadow for */
 	u_short flags;			/* see below */
 	u_short paging_in_progress;	/* Paging (in or out) so don't collapse or destroy */
 	int resident_page_count;	/* number of resident pages */

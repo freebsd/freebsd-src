@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.c,v 1.32 1996/01/19 03:59:52 dyson Exp $
+ * $Id: vm_map.c,v 1.33 1996/02/11 22:03:49 dyson Exp $
  */
 
 /*
@@ -824,7 +824,6 @@ vm_map_find(map, object, offset, addr, length, find_space, prot, max, cow)
 	return (result);
 }
 
-#ifdef notyet
 /*
  *	vm_map_simplify_entry:	[ internal use only ]
  *
@@ -837,9 +836,8 @@ vm_map_simplify_entry(map, entry)
 	vm_map_t map;
 	vm_map_entry_t entry;
 {
-#ifdef	lint
-	map++;
-#endif
+	vm_map_entry_t prev, next;
+	vm_size_t prevsize, nextsize, esize;
 
 	/*
 	 * If this entry corresponds to a sharing map, then see if we can
@@ -851,39 +849,55 @@ vm_map_simplify_entry(map, entry)
 	if (entry->is_sub_map)
 		return;
 	if (entry->is_a_map) {
-#if	0
-		vm_map_t my_share_map;
-		int count;
-
-		my_share_map = entry->object.share_map;
-		count = my_share_map->ref_count;
-
-		if (count == 1) {
-			/*
-			 * Can move the region from entry->start to entry->end
-			 * (+ entry->offset) in my_share_map into place of
-			 * entry. Later.
-			 */
-		}
-#endif
+		return;
 	} else {
-		/*
-		 * Try to merge with our neighbors.
-		 *
-		 * Conditions for merge are:
-		 *
-		 * 1.  entries are adjacent. 2.  both entries point to objects
-		 * with null pagers.
-		 *
-		 * If a merge is possible, we replace the two entries with a
-		 * single entry, then merge the two objects into a single
-		 * object.
-		 *
-		 * Now, all that is left to do is write the code!
-		 */
+		if (entry->wired_count)
+			return;
+
+		prev = entry->prev;
+		prevsize = prev->end - prev->start;
+		next = entry->next;
+		nextsize = next->end - next->start;
+		esize = entry->end - entry->start;
+
+		if (prev != &map->header &&
+			prev->end == entry->start &&
+			prev->is_a_map == FALSE &&
+			prev->is_sub_map == FALSE &&
+			prev->object.vm_object == entry->object.vm_object &&
+			prev->protection == entry->protection &&
+			prev->max_protection == entry->max_protection &&
+			prev->inheritance == entry->inheritance &&
+			prev->needs_copy == entry->needs_copy &&
+			prev->copy_on_write == entry->copy_on_write &&
+			prev->offset + prevsize == entry->offset &&
+			prev->wired_count == 0) {
+				vm_map_entry_unlink(map, prev);
+				entry->start = prev->start;
+				vm_object_deallocate(prev->object.vm_object);
+				vm_map_entry_dispose(map, prev);
+				esize = entry->end - entry->start;
+		}
+
+		if (next != &map->header &&
+			entry->end == next->start &&
+			next->is_a_map == FALSE &&
+			next->is_sub_map == FALSE &&
+			next->object.vm_object == entry->object.vm_object &&
+			next->protection == entry->protection &&
+			next->max_protection == entry->max_protection &&
+			next->inheritance == entry->inheritance &&
+			next->needs_copy == entry->needs_copy &&
+			next->copy_on_write == entry->copy_on_write &&
+			entry->offset + esize == next->offset &&
+			next->wired_count == 0) {
+				vm_map_entry_unlink(map, next);
+				entry->end = next->end;
+				vm_object_deallocate(next->object.vm_object);
+				vm_map_entry_dispose(map, next);
+		}
 	}
 }
-#endif
 
 /*
  *	vm_map_clip_start:	[ internal use only ]
@@ -914,7 +928,7 @@ _vm_map_clip_start(map, entry, start)
 	 * See if we can simplify this entry first
 	 */
 
-	/* vm_map_simplify_entry(map, entry); */
+	vm_map_simplify_entry(map, entry);
 
 	/*
 	 * Split off the front portion -- note that we must insert the new
@@ -1806,21 +1820,17 @@ vm_map_copy_entry(src_map, dst_map, src_entry, dst_entry)
 			if (!(su = src_map->is_main_map)) {
 				su = (src_map->ref_count == 1);
 			}
-#ifdef VM_MAP_OLD 
 			if (su) {
 				pmap_protect(src_map->pmap,
 				    src_entry->start,
 				    src_entry->end,
 				    src_entry->protection & ~VM_PROT_WRITE);
 			} else {
-#endif
 				vm_object_pmap_copy(src_entry->object.vm_object,
 				    OFF_TO_IDX(src_entry->offset),
 				    OFF_TO_IDX(src_entry->offset + (src_entry->end
 					- src_entry->start)));
-#ifdef VM_MAP_OLD
 			}
-#endif
 		}
 		/*
 		 * Make a copy of the object.
@@ -1883,6 +1893,8 @@ vmspace_fork(vm1)
 	vm_map_entry_t old_entry;
 	vm_map_entry_t new_entry;
 	pmap_t new_pmap;
+	vm_object_t object;
+	vm_page_t p;
 
 	vm_map_lock(old_map);
 
@@ -1910,7 +1922,8 @@ vmspace_fork(vm1)
 			new_entry = vm_map_entry_create(new_map);
 			*new_entry = *old_entry;
 			new_entry->wired_count = 0;
-			++new_entry->object.vm_object->ref_count;
+			object = new_entry->object.vm_object;
+			++object->ref_count;
 
 			/*
 			 * Insert the entry into the new map -- we know we're
