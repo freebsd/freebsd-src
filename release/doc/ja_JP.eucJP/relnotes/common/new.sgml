@@ -3,7 +3,7 @@
 
     $FreeBSD$
 
-    Original revision: 1.22.2.184
+    Original revision: 1.22.2.188
 -->
 
 <articleinfo>
@@ -544,6 +544,11 @@
       あるプロセスが一度放棄したスーパユーザ権限を再び得ることができる可能性のあるバグが修正されました
       (セキュリティ勧告
       <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:07.k5su.asc">FreeBSD-SA-02:07</ulink> 参照).</para>
+
+    <para>&man.exec.3; システムコールに含まれていた,
+      ローカルユーザが不正に高い権限を得ることができる可能性のある競合状態が修正されました
+      (セキュリティ勧告
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:08.exec.asc">FreeBSD-SA-02:08</ulink> 参照).</para>
   </sect2>
 
   <sect2 id="userland">
@@ -806,8 +811,22 @@
        </note>
       </para>
 
-      <para><application>tcsh</application>
-        がバージョン 6.11 に更新されました.</para>
+      <para><filename>/etc/master.passwd</filename> に
+        <username>smmsp</username> ユーザおよび
+        <username>mailnull</username> ユーザが追加されました.
+        <application>sendmail</application> は
+        <literal>confDEF_USER_ID</literal> が設定されていない場合,
+        セキュリティを確保する目的に標準で
+        <username>mailnull</username> というユーザを使用します.
+        以前のように <username>mailnull</username> というユーザが存在しない場合には
+        <username>daemon</username> というユーザが使われていました.
+        この変更により, ファイルや (<port>mail/majordomo</port> のような)
+        プログラムにメールを送信する際に許可属性の問題が起こることがあります.
+        その場合は, 
+        システムの <filename><replaceable>*</replaceable>.mc</filename>
+        設定ファイルに
+        <programlisting>define(`confDEF_USER_ID', `daemon')</programlisting>
+        という行を追加すると, 以前と同じ動作に設定することが可能です.</para>
 
       <para arch="i386"><application>smbfs</application>
         ユーザランドユーティリティのバージョン 1.4.3 が統合されました.
@@ -817,6 +836,9 @@
         <literal>LIBICONV</literal> がカーネルに組み込まれていなくとも,
         自動的に <filename>smbfs.ko</filename>
         モジュールをカーネルにロードすることに注意してください.</para>
+
+      <para><application>tcsh</application>
+        がバージョン 6.11 に更新されました.</para>
 
       <para>タイムゾーンデータベースが
         <filename>tzdata2001d</filename>
@@ -849,6 +871,21 @@
       <para>&man.pkg.delete.1; に新しく <option>-r</option>
         オプションが追加されました.
         これは package の再帰的な削除を行ないます.</para>
+
+      <para>&os; 4.5-RELEASE のリリースの数日前に
+        <application>XFree86</application> バージョン 4.2.0
+        がリリースされましたが, &os; 4.5-RELEASE には
+        <application>XFree86</application> 4.1.0 の package
+        が含まれることになりました.
+        これは今回のリリースにそれを収録するための試験を行なう時間がなかったためです.
+        最新の (リリース後の) &os; Ports Collection を用いることで,
+        新しいバージョンの <application>XFree86</application>
+        をインストールすることが可能です.  詳しい手順は
+        <ulink url="http://www.FreeBSD.org/handbook/">FreeBSD
+          ハンドブック</ulink>の
+        <ulink url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/ports-using.html">
+          Ports Collection を使うには</ulink>
+        の章をご覧ください.</para>
     </sect3>
   </sect2>
 </sect1>
