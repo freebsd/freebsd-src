@@ -10,7 +10,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: instdist.sh,v 1.1 1994/11/16 07:51:42 jkh Exp $
+# $Id: instdist.sh,v 1.2 1994/11/17 11:53:13 jkh Exp $
 
 if [ "$_INSTINST_SH_LOADED_" = "yes" ]; then
 	return 0
@@ -42,6 +42,7 @@ media_set_defaults() {
 	tmp_dir="/usr/tmp"
 	ftp_path="ftp://ftp.freebsd.org/pub/FreeBSD/2.0-ALPHA"
 	nfs_path=""
+	nfs_options=""
 	serial_interface="/dev/tty00"
 	serial_speed="38400"
 }
@@ -100,9 +101,10 @@ in order to more evenly distribute network load and increase \n\
 its availability users who might be far from the main ftp sites \n\
 or unable to get a connection.  Please select the site closest \n\
 to you or select \"other\" if you'd like to specify your own \n\
-choice.\n\n" 20 76 4 \
+choice.\n\n" 20 76 7 \
 "Please select one of the following:" 20 76 6 \
    "ftp://ftp.freebsd.org/pub/FreeBSD/${DISTNAME}" "Primary U.S. ftp site" \
+   "ftp://ftp.dataplex.net/pub/FreeBSD/${DISTNAME}" "United States" \
    "ftp://netbsd.csie.nctu.edu.tw/pub/FreeBSD/${DISTNAME}" "Taiwan" \
    "ftp://ftp.physics.usyd.edu.au/FreeBSD/${DISTNAME}" "Australia" \
    "ftp://ftp.ibp.fr/pub/freeBSD/${DISTNAME}" "France" \
@@ -395,9 +397,18 @@ distribution you wish to load.  This must be in machine:dir
 format (e.g. zooey:/a/FreeBSD/${DISTNAME}).  The remote
 directory *must* be be exported to your machine (or globally)
 for this to work!\n\n"; then continue; fi
+		default_value=""
+		if input \
+"Do you wish to specify any options to NFS?  If you're installing
+from a Sun 4.1.x system, you may wish to specify resvport to allow
+installation over a priviledged port.  When using a slow ethernet
+card or network link, rsize=4096,wsize=4096 may also prove helpful.
+Options, if any, should be separated by commas."; then
+			nfs_options="-o $answer"
+		fi
 		media_type=nfs
 		nfs_path=$answer
-		if ! mount_nfs $nfs_path ${MNT} > /dev/ttyv1 2>&1; then
+		if ! mount_nfs $nfs_options $nfs_path ${MNT} > /dev/ttyv1 2>&1; then
 			error "Unable to mount $nfs_path"
 		else
 			message "$nfs_path mounted successfully"
