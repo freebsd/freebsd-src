@@ -383,7 +383,7 @@ mdstrategy(struct bio *bp)
 	int error;
 
 	if (md_debug > 1)
-		printf("mdstrategy(%p) %s %x, %d, %ld, %p)\n",
+		printf("mdstrategy(%p) %s %x, %lld, %ld, %p)\n",
 		    bp, devtoname(bp->bio_dev), bp->bio_flags, bp->bio_blkno,
 		    bp->bio_bcount / DEV_BSIZE, bp->bio_data);
 

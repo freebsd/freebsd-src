@@ -378,9 +378,9 @@ vop_unlock {
 #
 vop_bmap {
 	IN struct vnode *vp;
-	IN daddr_t bn;
+	IN daddr64_t bn;
 	OUT struct vnode **vpp;
-	IN daddr_t *bnp;
+	IN daddr64_t *bnp;
 	OUT int *runp;
 	OUT int *runb;
 };

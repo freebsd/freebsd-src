@@ -3349,7 +3349,7 @@ vm_hold_free_pages(struct buf * bp, vm_offset_t from, vm_offset_t to)
 		p = bp->b_pages[index];
 		if (p && (index < bp->b_npages)) {
 			if (p->busy) {
-				printf("vm_hold_free_pages: blkno: %d, lblkno: %d\n",
+				printf("vm_hold_free_pages: blkno: %lld, lblkno: %lld\n",
 					bp->b_blkno, bp->b_lblkno);
 			}
 			bp->b_pages[index] = NULL;
@@ -3381,7 +3381,7 @@ DB_SHOW_COMMAND(buffer, db_show_buffer)
 	db_printf("b_flags = 0x%b\n", (u_int)bp->b_flags, PRINT_BUF_FLAGS);
 	db_printf("b_error = %d, b_bufsize = %ld, b_bcount = %ld, "
 		  "b_resid = %ld\nb_dev = (%d,%d), b_data = %p, "
-		  "b_blkno = %d, b_pblkno = %d\n",
+		  "b_blkno = %lld, b_pblkno = %lld\n",
 		  bp->b_error, bp->b_bufsize, bp->b_bcount, bp->b_resid,
 		  major(bp->b_dev), minor(bp->b_dev),
 		  bp->b_data, bp->b_blkno, bp->b_pblkno);

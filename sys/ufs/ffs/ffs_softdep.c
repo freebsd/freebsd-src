@@ -1654,6 +1654,7 @@ setup_allocindir_phase2(bp, ip, aip)
 	struct allocindir *oldaip;
 	struct freefrag *freefrag;
 	struct newblk *newblk;
+	daddr_t blkno;
 
 	if (bp->b_lblkno >= 0)
 		panic("setup_allocindir_phase2: not indir blk");
@@ -1733,8 +1734,10 @@ setup_allocindir_phase2(bp, ip, aip)
 		newindirdep->ir_state = ATTACHED;
 		LIST_INIT(&newindirdep->ir_deplisthd);
 		LIST_INIT(&newindirdep->ir_donehd);
-		if (bp->b_blkno == bp->b_lblkno)
-			ufs_bmaparray(bp->b_vp, bp->b_lblkno, &bp->b_blkno, NULL, NULL);
+		if (bp->b_blkno == bp->b_lblkno) {
+			ufs_bmaparray(bp->b_vp, bp->b_lblkno, &blkno, NULL, NULL);
+			bp->b_blkno = blkno;
+		}
 		newindirdep->ir_savebp =
 		    getblk(ip->i_devvp, bp->b_blkno, bp->b_bcount, 0, 0);
 		BUF_KERNPROC(newindirdep->ir_savebp);
