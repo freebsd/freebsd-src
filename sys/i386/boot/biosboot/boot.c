@@ -24,11 +24,17 @@
  * 
  * any improvements or extensions that they make and grant Carnegie Mellon
  * the rights to redistribute these changes.
+ *
+ *	$Id$
  */
 
 /*
  * HISTORY
  * $Log: boot.c,v $
+ * Revision 1.5  1993/10/09  08:31:39  chmr
+ * Changed the "Insert filesystem floppy" prompt to give the user a choice in
+ * which drive he wants the root file system (A or B).
+ *
  * Revision 1.4  1993/10/08  20:19:23  rgrimes
  * Remove the ``loader overlaps bss, kernel must bzero'' printf since that
  * is so often reported as an error condition when it is not.  We print the
@@ -143,8 +149,8 @@ int drive;
 		ouraddr,
 		argv[7] = memsize(0),
 		argv[8] = memsize(1),
-		"$Revision: 1.4 $");
-	printf("use options hd(1,...... to boot sd0 when wd0 is also installed\n");
+		"$Revision: 1.5 $");
+	printf("use hd(1,a)/386bsd to boot sd0 when wd0 is also installed\n");
 	gateA20();
 loadstart:
 	/***************************************************************\
