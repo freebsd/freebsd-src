@@ -45,7 +45,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)ping.c	8.1 (Berkeley) 6/5/93";
 */
 static const char rcsid[] =
-	"$Id: ping.c,v 1.26 1997/07/20 06:09:55 bde Exp $";
+	"$Id: ping.c,v 1.27 1997/08/07 02:41:15 julian Exp $";
 #endif /* not lint */
 
 /*
@@ -992,7 +992,7 @@ pr_icmph(icp)
 			break;
 		case ICMP_UNREACH_NEEDFRAG:
 			(void)printf("frag needed and DF set (MTU %d)\n",
-					icp->icmp_nextmtu);
+					ntohs(icp->icmp_nextmtu));
 			break;
 		case ICMP_UNREACH_SRCFAIL:
 			(void)printf("Source Route Failed\n");
@@ -1038,7 +1038,7 @@ pr_icmph(icp)
 			(void)printf("Redirect, Bad Code: %d", icp->icmp_code);
 			break;
 		}
-		(void)printf("(New addr: 0x%08lx)\n", icp->icmp_gwaddr.s_addr);
+		(void)printf("(New addr: %s)\n", inet_ntoa(icp->icmp_gwaddr));
 #ifndef icmp_data
 		pr_retip(&icp->icmp_ip);
 #else
