@@ -27,7 +27,7 @@ ASM=	access.o acct.o adjtime.o chdir.o chflags.o chmod.o \
 	setpgid.o setpriority.o setregid.o setreuid.o setrlimit.o \
 	setsid.o settimeofday.o setuid.o shmsys.o stat.o statfs.o \
 	swapon.o symlink.o sync.o sysarch.o umask.o unlink.o \
-	unmount.o utimes.o vadvise.o __syscall.o __sysctl.o
+	unmount.o utimes.o utrace.o vadvise.o __syscall.o __sysctl.o
 
 # Syscalls renamed as _thread_sys_{syscall}.
 THREADASM=	accept.o bind.o close.o connect.o dup.o dup2.o \
