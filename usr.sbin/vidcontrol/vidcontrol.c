@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: vidcontrol.c,v 1.7 1995/02/07 11:56:21 sos Exp $
+ *	$Id: vidcontrol.c,v 1.8 1995/02/08 01:07:16 dima Exp $
  */
 
 #include <ctype.h>
@@ -34,18 +34,43 @@
 #include <sys/errno.h>
 #include "path.h"
 
-
 char 	legal_colors[16][16] = {
 	"black", "blue", "green", "cyan",
 	"red", "magenta", "brown", "white",
 	"grey", "lightblue", "lightgreen", "lightcyan",
 	"lightred", "lightmagenta", "yellow", "lightwhite"
-	};
+};
 int 	hex = 0;
 int 	number;
 char 	letter;
 struct 	vid_info info;
 
+
+void
+usage()
+{
+	fprintf(stderr,
+"Usage: vidcontrol mode             (available modes: VGA_40x25, VGA_80x25,\n"
+"                                                     VGA_80x50, VGA_320x200,\n"
+"                                                     EGA_80x25, EGA_80x43)\n"
+"                                   (experimental)    VGA_80x30, VGA_80x60)\n"
+"\n"
+"                  show             (show available colors)\n"
+"                  fgcol bgcol      (set fore- & background colors)\n"
+"                  -r fgcol bgcol   (set reverse fore- & background colors)\n"
+"                  -b color         (set border color)\n"
+"                  -c normal        (set cursor to inverting block)\n"
+"                  -c blink         (set cursor to blinking inverted block)\n"
+"                  -c destructive   (set cursor to blinking destructive char)\n"
+"                  -d               (dump screenmap to stdout)\n"
+"                  -l filename      (load srceenmap file filename)\n"
+"                  -L               (load default screenmap)\n"
+"                  -f DxL filename  (load font, D dots wide & L lines high)\n"
+"                  -s saver | help  (set screensaver type or help for a list)\n"
+"                  -t N             (set screensaver timeout in seconds)\n"
+"                  -x               (use hex numbers for output)\n"
+	);
+}
 
 char *
 nextarg(int ac, char **av, int *indp, int oc)
@@ -58,14 +83,12 @@ nextarg(int ac, char **av, int *indp, int oc)
 	return("");
 }
 
-
 char *
 mkfullname(const char *s1, const char *s2, const char *s3)
 {
-static char	*buf = NULL;
-static int	bufl = 0;
-int		f;
-
+	static char *buf = NULL;
+	static int bufl = 0;
+	int f;
 
 	f = strlen(s1) + strlen(s2) + strlen(s3) + 1;
 	if (f > bufl)
@@ -84,7 +107,6 @@ int		f;
 	strcat(buf, s3);
 	return(buf);
 }
-
 
 void
 load_scrnmap(char *filename)
@@ -119,19 +141,17 @@ load_scrnmap(char *filename)
 	close(fd);
 }
 
-
 void
 load_default_scrnmap()
 {
-	int i;
 	scrmap_t scrnmap;
+	int i;
 
 	for (i=0; i<256; i++)
 		*((char*)&scrnmap + i) = i;
 	if (ioctl(0, PIO_SCRNMAP, &scrnmap) < 0)
 		perror("can't load default screenmap");
 }
-
 
 void
 print_scrnmap()
@@ -154,7 +174,6 @@ print_scrnmap()
 	fprintf(stdout, "\n");
 
 }
-
 
 void 
 load_font(char *type, char *filename)
@@ -207,7 +226,6 @@ load_font(char *type, char *filename)
 	free(fontmap);
 }
 
-
 void
 set_screensaver_timeout(char *arg)
 {
@@ -224,44 +242,6 @@ set_screensaver_timeout(char *arg)
 	}
 	if (ioctl(0, CONS_BLANKTIME, &nsec) == -1)
 		perror("setting screensaver period");
-}
-
-
-void
-set_screensaver_type(char *type)
-{
-	ssaver_t saver;
-	int i, e;
-
-	if (!strcmp(type, "help")) {
-		i = 0;
-		printf("available screen saver types:\n");
-		do {
-			saver.num = i;
-			e = ioctl(0, CONS_GSAVER, &saver);
-			i ++;
-			if (e == 0)
-				printf("\t%s\n", saver.name);
-		} while (e == 0);
-		if (e == -1 && errno != EIO)
-			perror("getting screensaver info");
-	} else {
-		i = 0;
-		do {
-			saver.num = i;
-			e = ioctl(0, CONS_GSAVER, &saver);
-			i ++;
-			if (e == 0 && !strcmp(type, saver.name)) {
-				if (ioctl(0, CONS_SSAVER, &saver) == -1)
-					perror("setting screensaver type");
-				return;
-			}
-		} while (e == 0);
-		if (e == -1 && errno != EIO)
-			perror("getting screensaver info");
-		else
-			fprintf(stderr, "%s: No such screensaver\n", type);
-	}
 }
 
 void
@@ -282,7 +262,6 @@ set_cursor_type(char *appearence)
 	}
 	ioctl(0, CONS_CURSORTYPE, &type);
 }
-
 
 int
 video_mode(int argc, char **argv, int *index)
@@ -315,7 +294,6 @@ video_mode(int argc, char **argv, int *index)
 	return;
 }
 		
-
 int
 get_color_number(char *color)
 {
@@ -326,7 +304,6 @@ get_color_number(char *color)
 			return i;
 	return -1;
 }
-
 
 int
 set_normal_colors(int argc, char **argv, int *index)
@@ -345,7 +322,6 @@ set_normal_colors(int argc, char **argv, int *index)
 	}
 }
 
-
 set_reverse_colors(int argc, char **argv, int *index)
 {
 	int color;
@@ -361,7 +337,6 @@ set_reverse_colors(int argc, char **argv, int *index)
 	}
 }
 
-
 set_border_color(char *arg)
 {
 	int color;
@@ -372,7 +347,6 @@ set_border_color(char *arg)
 	else
 		usage(); 
 }
-
 
 test_frame()
 {
@@ -391,33 +365,6 @@ test_frame()
 		info.mv_rev.fore, info.mv_rev.back);
 }
 
-
-usage()
-{
-	fprintf(stderr,
-"Usage: vidcontrol mode             (available modes: VGA_40x25, VGA_80x25,\n"
-"                                                     VGA_80x50, VGA_320x200,\n"
-"                                                     EGA_80x25, EGA_80x43)\n"
-"                                   (experimental)    VGA_80x30, VGA_80x60)\n"
-"\n"
-"                  show             (show available colors)\n"
-"                  fgcol bgcol      (set fore- & background colors)\n"
-"                  -r fgcol bgcol   (set reverse fore- & background colors)\n"
-"                  -b color         (set border color)\n"
-"                  -c normal        (set cursor to inverting block)\n"
-"                  -c blink         (set cursor to blinking inverted block)\n"
-"                  -c destructive   (set cursor to blinking destructive char)\n"
-"                  -d               (dump screenmap to stdout)\n"
-"                  -l filename      (load srceenmap file filename)\n"
-"                  -L               (load default screenmap)\n"
-"                  -f DxL filename  (load font, D dots wide & L lines high)\n"
-"                  -s saver | help  (set screensaver type or help for a list)\n"
-"                  -t N             (set screensaver timeout in seconds)\n"
-"                  -x               (use hex numbers for output)\n"
-	);
-}
-
-
 void
 main(int argc, char **argv)
 {
@@ -428,10 +375,10 @@ main(int argc, char **argv)
 	
 	info.size = sizeof(info);
 	if (ioctl(0, CONS_GETINFO, &info) < 0) {
-		perror("Must be on a vrtual console");
+		perror("Must be on a virtual console");
 		exit(1);
 	}
-	while((opt = getopt(argc, argv, "b:c:df:l:Lr:s:t:x")) != -1)
+	while((opt = getopt(argc, argv, "b:c:df:l:Lr:t:x")) != -1)
 		switch(opt) {
 			case 'c':
 				set_cursor_type(optarg);
@@ -454,9 +401,6 @@ main(int argc, char **argv)
 				break;
 			case 'r':
 				set_reverse_colors(argc, argv, &optind);
-				break;
-			case 's':
-				set_screensaver_type(optarg);
 				break;
 			case 't':
 				set_screensaver_timeout(optarg);
