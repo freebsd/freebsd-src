@@ -278,10 +278,18 @@ main(int argc, char **argv)
 	 * sigwork_entry's, so we can not free the entries here.
 	 */
 	if (!SLIST_EMPTY(&swhead)) {
-		if (noaction)
+		if (noaction || verbose)
 			printf("Signal all daemon process(es)...\n");
 		SLIST_FOREACH(stmp, &swhead, sw_nextp)
 			do_sigwork(stmp);
+		if (noaction)
+			printf("\tsleep 10\n");
+		else {
+			if (verbose)
+				printf("Pause 10 seconds to allow daemon(s)"
+				    " to close log file(s)\n");
+			sleep(10);
+		}
 	}
 	/*
 	 * Compress all files that we're expected to compress, now
@@ -289,7 +297,7 @@ main(int argc, char **argv)
 	 * have been rotated.
 	 */
 	if (!SLIST_EMPTY(&zwhead)) {
-		if (noaction)
+		if (noaction || verbose)
 			printf("Compress all rotated log file(s)...\n");
 		while (!SLIST_EMPTY(&zwhead)) {
 			ztmp = SLIST_FIRST(&zwhead);
@@ -1658,7 +1666,8 @@ do_rotate(const struct conf_entry *ent)
 static void
 do_sigwork(struct sigwork_entry *swork)
 {
-	int kres;
+	struct sigwork_entry *nextsig;
+	int kres, secs;
 
 	if (!(swork->sw_pidok) || swork->sw_pid == 0)
 		return;			/* no work to do... */
@@ -1679,9 +1688,25 @@ do_sigwork(struct sigwork_entry *swork)
 		return;
 	}
 
+	/*
+	 * Compute the pause between consecutive signals.  Use a longer
+	 * sleep time if we will be sending two signals to the same
+	 * deamon or process-group.
+	 */
+	secs = 0;
+	nextsig = SLIST_NEXT(swork, sw_nextp);
+	if (nextsig != NULL) {
+		if (swork->sw_pid == nextsig->sw_pid)
+			secs = 10;
+		else
+			secs = 1;
+	}
+
 	if (noaction) {
-		printf("\tkill -%d %d\n", swork->sw_signum, (int)swork->sw_pid);
-		printf("\tsleep 10\n");
+		printf("\tkill -%d %d \t\t# %s\n", swork->sw_signum,
+		    (int)swork->sw_pid, swork->sw_fname);
+		if (secs > 0)
+			printf("\tsleep %d\n", secs);
 		return;
 	}
 
@@ -1699,12 +1724,15 @@ do_sigwork(struct sigwork_entry *swork)
 		warn("can't notify %s, pid %d", swork->sw_pidtype,
 		    (int)swork->sw_pid);
 	} else {
-		if (verbose) {
-			printf("%s pid %d notified\n", swork->sw_pidtype,
-			    (int)swork->sw_pid);
-			printf("pause to allow daemon(s) to close log(s)\n");
+		if (verbose)
+			printf("Notified %s pid %d = %s\n", swork->sw_pidtype,
+			    (int)swork->sw_pid, swork->sw_fname);
+		if (secs > 0) {
+			if (verbose)
+				printf("Pause %d second(s) between signals\n",
+				    secs);
+			sleep(secs);
 		}
-		sleep(10);
 	}
 }
 
