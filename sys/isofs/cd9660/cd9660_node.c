@@ -78,6 +78,16 @@ cd9660_init(vfsp)
 	return (0);
 }
 
+int
+cd9660_uninit(vfsp)
+	struct vfsconf *vfsp;
+{
+
+	if (isohashtbl != NULL)
+		free(isohashtbl, M_ISOFSMNT);
+	return (0);
+}
+
 
 /*
  * Use the device/inum pair to find the incore inode, and return a pointer
