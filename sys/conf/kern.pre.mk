@@ -47,8 +47,7 @@ ASM_CFLAGS= -x assembler-with-cpp -DLOCORE ${CFLAGS}
 CFLAGS+=	-DGPROF -falign-functions=16
 .if ${PROFLEVEL} >= 2
 CFLAGS+=	-DGPROF4 -DGUPROF
-# XXX -Wno-inline is to break some warnings.
-PROF=	-finstrument-functions -Wno-inline
+PROF=	-finstrument-functions
 .else
 PROF=	-pg
 .endif
