@@ -37,6 +37,9 @@ MAN3+=	pthread_cancel.3 \
 	pthread_rwlockattr_init.3 \
 	pthread_rwlockattr_setpshared.3 \
 	pthread_self.3 \
+
+MLINKS+=pthread_rwlock_wrlock.3 pthread_rwlock_trywrlock.3
+MLINKS+=pthread_rwlock_rdlock.3 pthread_rwlock_tryrdlock.3
 	pthread_setspecific.3 \
 	pthread_testcancel.3 \
 	sem_destroy.3 \
