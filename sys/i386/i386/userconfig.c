@@ -46,7 +46,7 @@
  ** (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  ** THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **
- **      $Id$
+ **      $Id: userconfig.c,v 1.33 1995/09/20 06:48:54 jkh Exp $
  **/
 
 /**
@@ -1976,6 +1976,7 @@ visuserconfig(void)
 			masterhelp("  [!bTAB!n]   Change fields           [!bQ!n]   Save device parameters");
 			editparams(dp);
 			masterhelp("  [!bTAB!n]   Change fields           [!bQ!n]   Save and Exit");
+			putxy(0,17,lines);
 			conflicts = findconflict(active);	/* update conflict tags */
 
 		    }else{				/* DO on comment = zoom */
@@ -2142,7 +2143,7 @@ visuserconfig(void)
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: userconfig.c,v 1.28.4.1 1995/08/23 09:37:28 davidg Exp $
+ *      $Id: userconfig.c,v 1.33 1995/09/20 06:48:54 jkh Exp $
  */
 
 
@@ -2470,6 +2471,7 @@ helpfunc(CmdParm *parms)
     printf("disable <devname>\tDisable device (will not be probed)\n");
     printf("quit\t\t\tExit this configuration utility\n");
     printf("reset\t\t\tReset CPU\n");
+    printf("visual\t\t\tGo to fullscreen mode.\n");
     printf("help\t\t\tThis message\n\n");
     printf("Commands may be abbreviated to a unique prefix\n");
     return 0;
