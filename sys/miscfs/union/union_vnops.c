@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)union_vnops.c	8.32 (Berkeley) 6/23/95
- * $Id: union_vnops.c,v 1.47 1998/01/18 07:56:41 kato Exp $
+ * $Id: union_vnops.c,v 1.48 1998/01/18 08:17:48 kato Exp $
  */
 
 #include <sys/param.h>
@@ -57,9 +57,6 @@
 		union_fixup(un, p); \
 	} \
 }
-
-#define	SETKLOCK(un)	(un)->un_flags |= UN_KLOCK
-#define	CLEARKLOCK(un)	(un)->un_flags &= ~UN_KLOCK
 
 static int	union_abortop __P((struct vop_abortop_args *ap));
 static int	union_access __P((struct vop_access_args *ap));
@@ -1548,11 +1545,13 @@ start:
 	un = VTOUNION(vp);
 
 	if (un->un_uppervp != NULLVP) {
-		if (((un->un_flags & (UN_ULOCK | UN_KLOCK)) == 0) &&
+		if (((un->un_flags & UN_ULOCK) == 0) &&
 		    (vp->v_usecount != 0)) {
-			error = vn_lock(un->un_uppervp, flags, p);
-			if (error)
-				return (error);
+			if ((un->un_flags & UN_KLOCK) == 0) {
+				error = vn_lock(un->un_uppervp, flags, p);
+				if (error)
+					return (error);
+			}
 			un->un_flags |= UN_ULOCK;
 		}
 	}
@@ -1589,6 +1588,10 @@ start:
  * is left to do with the upper vnode, and ensures that it gets unlocked.
  *
  * If UN_KLOCK isn't set, then the upper vnode is unlocked here.
+ */
+/*
+ * FreeBSD:  Do not cleark UN_KLOCK flag.  UN_KLOCK flag is tested
+ * in union_lock().
  */
 static int
 union_unlock(ap)
