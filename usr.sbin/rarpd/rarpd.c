@@ -224,6 +224,7 @@ main(argc, argv)
 		}
 	}
 	rarp_loop();
+	return(0);
 }
 
 /*
