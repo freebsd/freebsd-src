@@ -42,18 +42,6 @@ driver claims to support the
 (now Adaptec) ServeRAID series
 .Tn SCSI
 controller cards.
-Some supported devices include:
-.Pp
-.Bl -bullet -compact
-.It
-IBM ServeRAID 3H
-.It
-ServeRAID 4L/4M/4H
-.It
-ServeRAID Series 5
-.It
-ServeRAID 6i/6M
-.El
 .Pp
 These cards come with a built in configuration utility stored in
 the firmware known as the
@@ -74,6 +62,21 @@ To avoid these difficulties, set the
 .Va hw.ips.0.disable
 tunable to 1.
 It will prevent the driver from attaching.
+.Sh HARDWARE
+Controllers supported by the
+.Nm
+driver include:
+.Pp
+.Bl -bullet -compact
+.It
+IBM ServeRAID 3H
+.It
+ServeRAID 4L/4M/4H
+.It
+ServeRAID Series 5
+.It
+ServeRAID 6i/6M
+.El
 .Sh DIAGNOSTICS
 Several error codes may be shown when the card initializes the
 .Tn IBM

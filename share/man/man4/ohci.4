@@ -39,18 +39,30 @@
 The
 .Nm
 driver provides support for OHCI-type PCI based USB controllers.
-This
-includes
-.Bl -tag -width xxxxx
-.It AcerLabs M5237 (Aladdin-V)
-.It AMD-756
-.It OPTi 82C861 (FireLink)
-.It NEC uPD 9210
-.It CMD Tech 670 (USB0670)
-.It CMD Tech 673 (USB0673)
+.Sh HARDWARE
+Controllers supported by the
+.Nm
+driver include:
+.Pp
+.Bl -bullet -compact
+.It
+AcerLabs M5237 (Aladdin-V)
+.It
+AMD-756
+.It
+OPTi 82C861 (FireLink)
+.It
+NEC uPD 9210
+.It
+CMD Tech 670 (USB0670)
+.It
+CMD Tech 673 (USB0673)
+.It
+NVIDIA nForce3
+.It
+All other OHCI v1.0 compliant controllers.
 .El
 .Pp
-or any other OHCI v1.0 compliant controller.
 .Sh SEE ALSO
 .Xr uhci 4
 .Sh HISTORY
