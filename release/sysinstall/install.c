@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.121 1996/10/01 14:08:15 jkh Exp $
+ * $Id: install.c,v 1.122 1996/10/02 08:25:09 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -404,6 +404,8 @@ installNovice(dialogMenuItem *self)
 		   "prompt and go back into the installation menus to try and retry\n"
 		   "whichever operations have failed.");
 	mediaDevice->shutdown(mediaDevice);
+	if (mediaDevice->type == DEVICE_TYPE_FTP)
+	    variable_unset(VAR_FTP_PATH);
 	return i | DITEM_RECREATE;
 
     }
