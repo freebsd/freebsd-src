@@ -33,10 +33,10 @@
 
 #ifndef lint
 #if 0
-static char sccsid[] = "from: @(#)nlist.c	8.1 (Berkeley) 6/6/93";
-#else
-static char *rcsid = "$Id$";
+static char sccsid[] = "@(#)from: nlist.c	8.1 (Berkeley) 6/6/93";
 #endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -172,6 +172,7 @@ __aout_knlist(name, db)
 			data.size = sizeof(NLIST);
 		}
 	}
+	return(0);
 }
 
 
