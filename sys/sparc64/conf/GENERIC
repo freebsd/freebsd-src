@@ -75,6 +75,14 @@ device		sbus
 device		central
 device		fhc
 
+# New OpenFirmware PCI framework. This fixes a number of interrupt-
+# routing problems and changes the device enumeration to be hopefully
+# closer to Solaris. Be aware that, because of the latter, enabling or
+# disabling this option may require reconfiguration, and can even
+# cause the machine to not boot without manual intervention before the
+# fstab is adjusted.
+#options 	OFW_NEWPCI
+
 # Floppy drives
 #device		fdc
 
