@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 #include <libgen.h>
+#include <libutil.h>
 #include <inttypes.h>
 #include <dlfcn.h>
 #include <assert.h>
@@ -586,10 +587,13 @@ static void
 show_one(struct gprovider *pp)
 {
 	struct gconfig *conf;
+	char buf[5];
 
 	printf("       NAME: %s\n", pp->lg_name);
 	printf("  geom name: %s\n", pp->lg_geom->lg_name);
-	printf("  mediasize: %jd\n", (intmax_t)pp->lg_mediasize);
+	humanize_number(buf, sizeof(buf), (int64_t)pp->lg_mediasize, "",
+	    HN_AUTOSCALE, HN_B | HN_NOSPACE | HN_DECIMAL);
+	printf("  mediasize: %jd (%s)\n", (intmax_t)pp->lg_mediasize, buf);
 	printf(" sectorsize: %u\n", pp->lg_sectorsize);
 	printf("       mode: %s\n", pp->lg_mode);
 	LIST_FOREACH(conf, &pp->lg_config, lg_config) {
