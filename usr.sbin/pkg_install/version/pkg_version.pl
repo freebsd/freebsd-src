@@ -284,15 +284,15 @@ foreach $packageString (sort keys %currentPackages) {
 	chdir "$PortsDirectory/$origin" or next;
 
 	open PKGNAME, "$GetPkgNameCommand|";
-	$portversion = <PKGNAME>;
+	$pkgname = <PKGNAME>;
 	close PKGNAME;
 
-	$pkgname =~ /(.+)-(.+)/;
-	$portversion = $2;
+	if ($pkgname ne "") {
+	    chomp $pkgname;
 
-	if ($portversion ne "") {
-	    chomp $portversion;
-
+	    $pkgname =~ /(.+)-(.+)/;
+	    $portversion = $2;
+	    
 	    $currentPackages{$packageString}{'origin'} = $origin;
 	    $currentPackages{$packageString}{'portversion'} = $portversion;
 	}
