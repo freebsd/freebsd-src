@@ -799,27 +799,13 @@ pipe_write(fp, uio, cred, flags, p)
 		space = wpipe->pipe_buffer.size - wpipe->pipe_buffer.cnt;
 
 		/* Writes of size <= PIPE_BUF must be atomic. */
-		/* XXX perhaps they need to be contiguous to be atomic? */
 		if ((space < uio->uio_resid) && (orig_resid <= PIPE_BUF))
 			space = 0;
 
 		if (space > 0 && (wpipe->pipe_buffer.cnt < PIPE_SIZE)) {
-			/*
-			 * This set the maximum transfer as a segment of
-			 * the buffer.
-			 */
-			int size = wpipe->pipe_buffer.size - wpipe->pipe_buffer.in;
-			/*
-			 * space is the size left in the buffer
-			 */
-			if (size > space)
-				size = space;
-			/*
-			 * now limit it to the size of the uio transfer
-			 */
-			if (size > uio->uio_resid)
-				size = uio->uio_resid;
 			if ((error = pipelock(wpipe,1)) == 0) {
+				int size;	/* Transfer size */
+				int segsize;	/* first segment to transfer */
 				/*
 				 * It is possible for a direct write to
 				 * slip in on us... handle it here...
@@ -828,18 +814,73 @@ pipe_write(fp, uio, cred, flags, p)
 					pipeunlock(wpipe);
 					goto retrywrite;
 				}
-				error = uiomove( &wpipe->pipe_buffer.buffer[wpipe->pipe_buffer.in], 
-					size, uio);
+				/* 
+				 * If a process blocked in uiomove, our
+				 * value for space might be bad.
+				 */
+				if (space > wpipe->pipe_buffer.size - 
+				    wpipe->pipe_buffer.cnt) {
+					pipeunlock(wpipe);
+					goto retrywrite;
+				}
+
+				/*
+				 * Transfer size is minimum of uio transfer
+				 * and free space in pipe buffer.
+				 */
+				if (space > uio->uio_resid)
+					size = uio->uio_resid;
+				else
+					size = space;
+				/*
+				 * First segment to transfer is minimum of 
+				 * transfer size and contiguous space in
+				 * pipe buffer.  If first segment to transfer
+				 * is less than the transfer size, we've got
+				 * a wraparound in the buffer.
+				 */
+				segsize = wpipe->pipe_buffer.size - 
+					wpipe->pipe_buffer.in;
+				if (segsize > size)
+					segsize = size;
+				
+				/* Transfer first segment */
+
+				error = uiomove(&wpipe->pipe_buffer.buffer[wpipe->pipe_buffer.in], 
+						segsize, uio);
+				
+				if (error == 0 && segsize < size) {
+					/* 
+					 * Transfer remaining part now, to
+					 * support atomic writes.  Wraparound
+					 * happened.
+					 */
+					if (wpipe->pipe_buffer.in + segsize != 
+					    wpipe->pipe_buffer.size)
+						panic("Expected pipe buffer wraparound disappeared");
+						
+					error = uiomove(&wpipe->pipe_buffer.buffer[0],
+							size - segsize, uio);
+				}
+				if (error == 0) {
+					wpipe->pipe_buffer.in += size;
+					if (wpipe->pipe_buffer.in >=
+					    wpipe->pipe_buffer.size) {
+						if (wpipe->pipe_buffer.in != size - segsize + wpipe->pipe_buffer.size)
+							panic("Expected wraparound bad");
+						wpipe->pipe_buffer.in = size - segsize;
+					}
+				
+					wpipe->pipe_buffer.cnt += size;
+					if (wpipe->pipe_buffer.cnt > wpipe->pipe_buffer.size)
+						panic("Pipe buffer overflow");
+				
+				}
 				pipeunlock(wpipe);
 			}
 			if (error)
 				break;
 
-			wpipe->pipe_buffer.in += size;
-			if (wpipe->pipe_buffer.in >= wpipe->pipe_buffer.size)
-				wpipe->pipe_buffer.in = 0;
-
-			wpipe->pipe_buffer.cnt += size;
 		} else {
 			/*
 			 * If the "read-side" has been blocked, wake it up now.
