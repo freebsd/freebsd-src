@@ -31,10 +31,10 @@
  * SUCH DAMAGE.
  *
  *	@(#)pathnames.h	8.1 (Berkeley) 6/5/93
+ * $FreeBSD$
  */
 
 #include <paths.h>
 
 #define	_PATH_BOOTDIR	"/boot"
-#undef _PATH_TMP
-#define	_PATH_TMP	"/tmp/EdDk.aXXXXXX"
+#define	PATH_TMPFILE	"/tmp/EdDk.XXXXXXXXXX"
