@@ -31,21 +31,22 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+
+__FBSDID("$FreeBSD$");
+
 #ifndef lint
 static const char copyright[] =
 "@(#) Copyright (c) 1980, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
-#endif /* not lint */
+#endif
 
 #ifndef lint
-#if 0
-static char sccsid[] = "@(#)xstr.c	8.1 (Berkeley) 6/9/93";
+static const char sccsid[] = "@(#)xstr.c	8.1 (Berkeley) 6/9/93";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
 
 #include <sys/types.h>
+
 #include <ctype.h>
 #include <err.h>
 #include <stdio.h>
@@ -53,6 +54,7 @@ static const char rcsid[] =
 #include <signal.h>
 #include <string.h>
 #include <unistd.h>
+
 #include "pathnames.h"
 
 /*
@@ -65,30 +67,34 @@ static const char rcsid[] =
 #define	ignore(a)	((void) a)
 
 off_t	tellpt;
-off_t	hashit();
-void	onintr();
-char	*savestr();
-off_t	yankstr();
 
 off_t	mesgpt;
-char	*strings =	"strings";
+char	cstrings[] =	"strings";
+char	*strings =	cstrings;
 
 int	cflg;
 int	vflg;
 int	readstd;
 
-static void usage __P((void));
-int istail __P((char *, char *));
 char lastchr __P((char *));
-void xsdotc __P((void));
-void prstr __P((char *));
-void found __P((int, off_t, char *));
-void flushsh __P((void));
-int xgetc __P((FILE *));
+
 int fgetNUL __P((char *, int, FILE *));
-void inithash __P((void));
+int istail __P((char *, char *));
 int octdigit __P((char));
-void process __P((char *));
+int xgetc __P((FILE *));
+
+off_t hashit __P((char *, int));
+off_t yankstr __P((char **));
+
+static void usage __P((void));
+
+void flushsh __P((void));
+void found __P((int, off_t, char *));
+void inithash __P((void));
+void onintr __P((int));
+void process __P((const char *));
+void prstr __P((char *));
+void xsdotc __P((void));
 
 int
 main(argc, argv)
@@ -150,11 +156,11 @@ char linebuf[BUFSIZ];
 
 void
 process(name)
-	char *name;
+	const char *name;
 {
 	char *cp;
-	register int c;
-	register int incomm = 0;
+	int c;
+	int incomm = 0;
 	int ret;
 
 	printf("extern char\txstr[];\n");
@@ -214,18 +220,19 @@ def:
 	}
 out:
 	if (ferror(stdout))
-		warn("x.c"), onintr();
+		warn("x.c"), onintr(0);
 }
 
 off_t
 yankstr(cpp)
-	register char **cpp;
+	char **cpp;
 {
-	register char *cp = *cpp;
-	register int c, ch;
+	char *cp = *cpp;
+	int c, ch;
 	char dbuf[BUFSIZ];
-	register char *dp = dbuf;
-	register char *tp;
+	char *dp = dbuf;
+	char *tp;
+	static char tmp[] = "b\bt\tr\rn\nf\f\\\\\"\"";
 
 	while ((c = *cp++)) {
 		switch (c) {
@@ -248,7 +255,7 @@ yankstr(cpp)
 				cp = linebuf;
 				continue;
 			}
-			for (tp = "b\bt\tr\rn\nf\f\\\\\"\""; (ch = *tp++); tp++)
+			for (tp = tmp; (ch = *tp++); tp++)
 				if (c == ch) {
 					c = *tp;
 					goto gotc;
@@ -286,7 +293,7 @@ void
 inithash()
 {
 	char buf[BUFSIZ];
-	register FILE *mesgread = fopen(strings, "r");
+	FILE *mesgread = fopen(strings, "r");
 
 	if (mesgread == NULL)
 		return;
@@ -302,11 +309,11 @@ inithash()
 int
 fgetNUL(obuf, rmdr, file)
 	char *obuf;
-	register int rmdr;
+	int rmdr;
 	FILE *file;
 {
-	register c;
-	register char *buf = obuf;
+	int c;
+	char *buf = obuf;
 
 	while (--rmdr > 0 && (c = xgetc(file)) != 0 && c != EOF)
 		*buf++ = c;
@@ -338,7 +345,7 @@ hashit(str, new)
 	int new;
 {
 	int i;
-	register struct hash *hp, *hp0;
+	struct hash *hp, *hp0;
 
 	hp = hp0 = &bucket[lastchr(str) & 0177];
 	while (hp->hnext) {
@@ -362,10 +369,10 @@ hashit(str, new)
 void
 flushsh()
 {
-	register int i;
-	register struct hash *hp;
-	register FILE *mesgwrit;
-	register int old = 0, new = 0;
+	int i;
+	struct hash *hp;
+	FILE *mesgwrit;
+	int old = 0, new = 0;
 
 	for (i = 0; i < BUCKETS; i++)
 		for (hp = bucket[i].hnext; hp != NULL; hp = hp->hnext)
@@ -410,9 +417,9 @@ found(new, off, str)
 
 void
 prstr(cp)
-	register char *cp;
+	char *cp;
 {
-	register int c;
+	int c;
 
 	while ((c = (*cp++ & 0377)))
 		if (c < ' ')
@@ -428,8 +435,8 @@ prstr(cp)
 void
 xsdotc()
 {
-	register FILE *strf = fopen(strings, "r");
-	register FILE *xdotcf;
+	FILE *strf = fopen(strings, "r");
+	FILE *xdotcf;
 
 	if (strf == NULL)
 		err(5, "%s", strings);
@@ -438,13 +445,13 @@ xsdotc()
 		err(6, "xs.c");
 	fprintf(xdotcf, "char\txstr[] = {\n");
 	for (;;) {
-		register int i, c;
+		int i, c;
 
 		for (i = 0; i < 8; i++) {
 			c = getc(strf);
 			if (ferror(strf)) {
 				warn("%s", strings);
-				onintr();
+				onintr(0);
 			}
 			if (feof(strf)) {
 				fprintf(xdotcf, "\n");
@@ -462,7 +469,7 @@ out:
 
 char
 lastchr(cp)
-	register char *cp;
+	char *cp;
 {
 
 	while (cp[0] && cp[1])
@@ -472,9 +479,9 @@ lastchr(cp)
 
 int
 istail(str, of)
-	register char *str, *of;
+	char *str, *of;
 {
-	register int d = strlen(of) - strlen(str);
+	int d = strlen(of) - strlen(str);
 
 	if (d < 0 || strcmp(&of[d], str) != 0)
 		return (-1);
@@ -482,7 +489,8 @@ istail(str, of)
 }
 
 void
-onintr()
+onintr(dummy)
+	int dummy __unused;
 {
 
 	ignore(signal(SIGINT, SIG_IGN));
