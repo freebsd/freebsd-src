@@ -1,3 +1,108 @@
+2002-07-19  GDB Administrator  <gdbadmin@sourceware.cygnus.com>
+
+	GDB 5.2.1 released.
+	* version.in: Bump to version 5.2.1
+	* README, NEWS: Update to refer to GDB 5.2.1.
+
+2002-07-19  Andrew Cagney  <ac131313@redhat.com>
+
+	* Makefile.in (x86-64-tdep.o): Add $(objfiles_h).
+	* x86-64-tdep.c: Include "objfiles.h".
+	(x86_64_gdbarch_init): Set in_solib_call_trampoline to
+	in_plt_section.  From 2002-07-18 Michal Ludvig <mludvig@suse.cz>.
+
+2002-07-15  Andrew Cagney  <ac131313@redhat.com>
+
+	From Gerhard Tonn <TON@de.ibm.com>:
+	* s390-nat.c (fill_fpregset, fill_gregset): Use regcache_collect
+	instead of supply_register.
+
+2002-07-15  Andrew Cagney  <ac131313@redhat.com>
+
+	* dwarf2cfi.c: Replace __func__ with "?func?".
+
+2002-07-09  David O'Brien  <obrien@FreeBSD.org>
+
+	Merge from mainline:
+	* gdbserver/gdbreplay.c: Include needed system headers.
+	(remote_open): Conditional strchr prototype.
+	(perror_with_name, remote_close, remote_open, expect, play): Static.
+
+2002-07-09  Michal Ludvig  <mludvig@suse.cz>
+
+	* NEWS: Note about dwarf2cfi improvements.
+
+2002-07-09  Pierre Muller  <muller@ics.u-strasbg.fr>
+
+	Merge from mainline:
+
+	2002-07-04  Pierre Muller  <muller@ics.u-strasbg.fr>
+	* i386-nat.c (child_post_startup_inferior): New function
+	calling i386_cleanup_dregs if
+	I386_USE_GENERIC_WATCHPOINTS is defined.
+	* config/i386/nm-i386.h: define CHILD_POST_STARTUP_INFERIOR
+	conditional to acknowledge that i386-nat.c has its
+	own child_post_startup_inferior function.
+
+2002-07-03  Michal Ludvig  <mludvig@suse.cz>
+
+	Merge from mainline:
+
+	2002-06-21  Michal Ludvig  <mludvig@suse.cz>
+	* dwarf2cfi.c (read_encoded_pointer): Don't handle pointer 
+	encoding anymore.
+	(pointer_encoding, enum ptr_encoding): New.
+	(execute_cfa_program): Take care about pointer encoding.	
+	(dwarf2_build_frame_info): Only call parse_frame_info for 
+	.debug_frame and .eh_frame.
+	(parse_frame_info): New, derived from former dwarf2_build_frame_info.
+	fixed augmentation handling, added relative addressing, 
+	ignore duplicate FDEs. Added comments.
+	* dwarf2cfi.c: Reindented.
+	
+	2002-06-20  Michal Ludvig  <mludvig@suse.cz>
+	* x86-64-tdep.c (x86_64_register_nr2name): Rename to 
+	x86_64_register_name. Return type changed to 'const char *'.
+	(x86_64_register_name2nr): Rename to x86_64_register_number.
+	(x86_64_gdbarch_init): Update to reflect the change.
+	* x86-64-tdep.h: Ditto.
+	* x86-64-linux-nat.c (x86_64_fxsave_offset)
+	(supply_fpregset): Ditto.
+
+	2002-06-11  Michal Ludvig  <mludvig@suse.cz>
+	* dwarf2cfi.c (unwind_tmp_obstack_init): New.
+	(unwind_tmp_obstack_free, parse_frame_info)
+	(update_context, cfi_read_fp, cfi_write_fp)
+	(cfi_frame_chain, cfi_init_extra_frame_info)
+	(cfi_virtual_frame_pointer): Use the above function.
+	* x86-64-tdep.c (x86_64_skip_prologue): Fix to work on functions
+	without debug information too.
+
+	2002-06-07  Michal Ludvig  <mludvig@suse.cz>
+	* x86-64-linux-nat.c (x86_64_fxsave_offset): New.
+	(supply_fpregset, fill_fpregset): Don't call i387_*_fxsave,
+	better do the things actually here.
+	* x86-64-tdep.c (x86_64_register_name2nr): New.
+	(x86_64_register_name): Renamed to x86_64_register_nr2name.
+	(x86_64_gdbarch_init): Respect the above change.
+	* x86-64-tdep.h (x86_64_register_name2nr)
+	(x86_64_register_nr2name): Add prototypes.
+	* config/i386/x86-64linux.mt (TDEPFILES): Remove i387-tdep.o.
+
+2002-06-28  Andrew Cagney  <ac131313@redhat.com>
+
+	* Makefile.in (objfiles_h): Add $(bcache_h).
+	* objfiles.h: Include "bcache.h".
+
+	* Makefile.in (symtab_h): Remove $(bcache_h).
+	* symtab.h: Do not include "bcache.h".
+
+2002-06-28  David O'Brien  <obrien@FreeBSD.org>
+
+	Merge from mainline:
+	* config/i386/nm-fbsd.h: Include <sys/param.h>.
+	* config/i386/tm-fbsd.h: Likewise.
+
 2002-06-22  Andrew Cagney  <ac131313@redhat.com>
 
 	* NEWS: Mention below.
