@@ -56,7 +56,6 @@
 
 #define LOG_ASYNC	0x04
 #define LOG_RDWAIT	0x08
-#define LOG_NEEDWAKEUP	0x10
 
 static	d_open_t	logopen;
 static	d_close_t	logclose;
@@ -186,22 +185,13 @@ logpoll(dev_t dev, int events, struct proc *p)
 	return (revents);
 }
 
-void
-logwakeup(void)
-{
-
-	if (!log_open)
-		return;
-	logsoftc.sc_state |= LOG_NEEDWAKEUP;
-}
-
 static void
 logtimeout(void *arg)
 {
 
-	if ((logsoftc.sc_state & LOG_NEEDWAKEUP) == 0)
+	if (msgbuftrigger == 0)
 		return;
-	logsoftc.sc_state &= ~LOG_NEEDWAKEUP;
+	msgbuftrigger = 0;
 	if (!log_open)
 		return;
 	selwakeup(&logsoftc.sc_selp);
