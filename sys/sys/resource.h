@@ -87,8 +87,9 @@ struct	rusage {
 #define	RLIMIT_MEMLOCK	6		/* locked-in-memory address space */
 #define	RLIMIT_NPROC	7		/* number of processes */
 #define	RLIMIT_NOFILE	8		/* number of open files */
+#define	RLIMIT_SBSIZE	9		/* maximum size of all socket buffers */
 
-#define	RLIM_NLIMITS	9		/* number of resource limits */
+#define	RLIM_NLIMITS	10		/* number of resource limits */
 
 #define	RLIM_INFINITY	((rlim_t)(((u_quad_t)1 << 63) - 1))
 
@@ -108,6 +109,7 @@ static char *rlimit_ident[] = {
 	"memlock",
 	"nproc",
 	"nofile",
+	"sbsize",
 };
 #endif
 

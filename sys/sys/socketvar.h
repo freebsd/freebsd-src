@@ -319,8 +319,9 @@ void	sbdrop __P((struct sockbuf *sb, int len));
 void	sbdroprecord __P((struct sockbuf *sb));
 void	sbflush __P((struct sockbuf *sb));
 void	sbinsertoob __P((struct sockbuf *sb, struct mbuf *m0));
-void	sbrelease __P((struct sockbuf *sb));
-int	sbreserve __P((struct sockbuf *sb, u_long cc));
+void	sbrelease __P((struct sockbuf *sb, struct socket *so));
+int	sbreserve __P((struct sockbuf *sb, u_long cc, struct socket *so,
+		       struct proc *p));
 void	sbtoxsockbuf __P((struct sockbuf *sb, struct xsockbuf *xsb));
 int	sbwait __P((struct sockbuf *sb));
 int	sb_lock __P((struct sockbuf *sb));
