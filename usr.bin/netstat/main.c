@@ -177,7 +177,7 @@ struct protox {
 	void	(*pr_stats)(u_long, char *, int);
 					/* statistics printing routine */
 	void	(*pr_istats)(char *);	/* per/if statistics printing routine */
-	char	*pr_name;		/* well-known name */
+	const char	*pr_name;		/* well-known name */
 	int	pr_usesysctl;		/* true if we use sysctl, not kvm */
 } protox[] = {
 	{ -1,		-1,		1,	protopr,
@@ -308,7 +308,7 @@ struct protox *protoprotox[] = {
 #endif
 					 NULL };
 
-static void printproto (struct protox *, char *);
+static void printproto (struct protox *, const char *);
 static void usage (void);
 static struct protox *name2protox (char *);
 static struct protox *knownname (char *);
@@ -612,7 +612,7 @@ main(argc, argv)
 static void
 printproto(tp, name)
 	register struct protox *tp;
-	char *name;
+	const char *name;
 {
 	void (*pr)(u_long, char *, int);
 	u_long off;
