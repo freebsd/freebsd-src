@@ -963,8 +963,10 @@ ata_dmainit(struct ata_device *atadev, int apiomode, int wdmamode, int udmamode)
 	atadev->mode = ATA_PIO0 + apiomode;
 	return;
 
+    case 0x02131166:	/* ServerWorks CSB6 ATA 100 controller (chan 0+1) */
     case 0x02121166:	/* ServerWorks CSB5 ATA66/100 controller */
-	if (udmamode >= 5 && chiprev >= 0x92) {
+	if (udmamode >= 5 && (chiptype == 0x02131166 ||
+			      (chiptype == 0x02121166 && chiprev >= 0x92))) {
 	    error = ata_command(atadev, ATA_C_SETFEATURES, 0,
 				ATA_UDMA5, ATA_C_F_SETXFER, ATA_WAIT_READY);
 	    if (bootverbose)
@@ -984,6 +986,9 @@ ata_dmainit(struct ata_device *atadev, int apiomode, int wdmamode, int udmamode)
 		return;
 	    }
 	}
+	/* FALLTHROUGH */
+
+    case 0x02171166:	/* ServerWorks CSB6 ATA 66 controller (chan 2) */
 	if (udmamode >= 4) {
 	    error = ata_command(atadev, ATA_C_SETFEATURES, 0,
 				ATA_UDMA4, ATA_C_F_SETXFER, ATA_WAIT_READY);
