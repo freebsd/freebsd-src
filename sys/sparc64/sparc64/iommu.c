@@ -793,7 +793,7 @@ iommu_dvmamem_alloc(bus_dma_tag_t dt, void **vaddr, int flags,
     bus_dmamap_t *mapp)
 {
 	struct iommu_state *is = dt->dt_cookie;
-	int error;
+	int error, mflags;
 
 	/*
 	 * XXX: This will break for 32 bit transfers on machines with more than
@@ -801,8 +801,15 @@ iommu_dvmamem_alloc(bus_dma_tag_t dt, void **vaddr, int flags,
 	 */
 	if ((error = sparc64_dma_alloc_map(dt, mapp)) != 0)
 		return (error);
-	if ((*vaddr = malloc(dt->dt_maxsize, M_IOMMU,
-	    (flags & BUS_DMA_NOWAIT) ? M_NOWAIT : M_WAITOK)) == NULL) {
+
+	if ((flags & BUS_DMA_NOWAIT) != 0)
+		mflags = M_NOWAIT;
+	else
+		mflags = M_WAITOK;
+	if ((flags & BUS_DMA_ZERO) != 0)
+		mflags |= M_ZERO;
+
+	if ((*vaddr = malloc(dt->dt_maxsize, M_IOMMU, mflags)) == NULL) {
 		error = ENOMEM;
 		sparc64_dma_free_map(dt, *mapp);
 		return (error);
