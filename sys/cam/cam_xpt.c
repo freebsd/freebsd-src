@@ -1544,6 +1544,14 @@ xpt_announce_periph(struct cam_periph *periph, char *announce_string)
 		if ((spi->valid & CTS_SPI_VALID_BUS_WIDTH) != 0)
 			speed *= (0x01 << spi->bus_width);
 	}
+	if (cts.ccb_h.status == CAM_REQ_CMP
+	 && cts.transport == XPORT_FC) {
+		struct	ccb_trans_settings_fc *fc;
+
+		fc = &cts.xport_specific.fc;
+		speed = fc->bitrate;
+	}
+		
 
 	mb = speed / 1000;
 	if (mb > 0)
@@ -1577,6 +1585,18 @@ xpt_announce_periph(struct cam_periph *periph, char *announce_string)
 		} else if (freq != 0) {
 			printf(")");
 		}
+	}
+	if (cts.ccb_h.status == CAM_REQ_CMP
+	 && cts.transport == XPORT_FC) {
+		struct	ccb_trans_settings_fc *fc;
+
+		fc = &cts.xport_specific.fc;
+		if (fc->wwnn)
+			printf(" WWNN %q", (quad_t) fc->wwnn);
+		if (fc->wwpn)
+			printf(" WWPN %q", (quad_t) fc->wwpn);
+		if (fc->port)
+			printf(" PortID %u", fc->port);
 	}
 
 	if (path->device->inq_flags & SID_CmdQue
