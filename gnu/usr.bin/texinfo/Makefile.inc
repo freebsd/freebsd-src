@@ -1,0 +1,7 @@
+#
+#
+#
+
+
+INFODIR= /usr/share/info
+
