@@ -1,5 +1,5 @@
 /*
- * $Id: log.h,v 1.14 1997/10/26 01:03:06 brian Exp $
+ * $Id: log.h,v 1.15 1997/11/04 01:17:01 brian Exp $
  */
 
 #define LogMIN		(1)
@@ -11,18 +11,19 @@
 #define LogCONNECT	(6)
 #define LogDEBUG	(7)	/* syslog(LOG_DEBUG, ....)	 */
 #define LogHDLC		(8)
-#define LogIPCP		(9)
-#define LogLCP		(10)
-#define LogLINK		(11)
-#define LogLQM		(12)
-#define LogPHASE	(13)
-#define LogTCPIP	(14)
-#define LogTUN		(15)	/* If set, tun%d is output with each message */
-#define LogMAXCONF	(15)
-#define LogWARN		(16)	/* Sent to VarTerm else syslog(LOG_WARNING, ) */
-#define LogERROR	(17)	/* syslog(LOG_ERR, ....), + sent to VarTerm */
-#define LogALERT	(18)	/* syslog(LOG_ALERT, ....)	 */
-#define LogMAX		(18)
+#define LogID0		(9)
+#define LogIPCP		(10)
+#define LogLCP		(11)
+#define LogLINK		(12)
+#define LogLQM		(13)
+#define LogPHASE	(14)
+#define LogTCPIP	(15)
+#define LogTUN		(16)	/* If set, tun%d is output with each message */
+#define LogMAXCONF	(16)
+#define LogWARN		(17)	/* Sent to VarTerm else syslog(LOG_WARNING, ) */
+#define LogERROR	(18)	/* syslog(LOG_ERR, ....), + sent to VarTerm */
+#define LogALERT	(19)	/* syslog(LOG_ALERT, ....)	 */
+#define LogMAX		(19)
 
 /* The first int arg for all of the following is one of the above values */
 extern const char *LogName(int);

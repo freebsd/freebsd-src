@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.72 1997/11/06 00:25:33 brian Exp $
+.\" $Id: ppp.8,v 1.73 1997/11/08 12:37:33 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -1366,6 +1366,7 @@ or directly to the screen:
 .It Li Connect	Generate complete Chat log
 .It Li Debug	Log (very verbose) debug information
 .It Li HDLC	Dump HDLC packet in hex
+.It Li ID0	Log all function calls specifically made as user id 0.
 .It Li IPCP	Generate an IPCP packet trace
 .It Li LCP	Generate an LCP packet trace
 .It Li Link	Log address assignments and link up/down events

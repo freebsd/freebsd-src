@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: route.c,v 1.21 1997/11/08 00:28:11 brian Exp $
+ * $Id: route.c,v 1.22 1997/11/09 03:22:49 brian Exp $
  *
  */
 
@@ -44,6 +44,7 @@
 #include "loadalias.h"
 #include "command.h"
 #include "vars.h"
+#include "id.h"
 #include "route.h"
 
 static int IfIndex;
@@ -63,11 +64,12 @@ OsSetRoute(int cmd,
 {
   struct rtmsg rtmes;
   int s, nb, wb;
-  char *cp;
+  char *cp, *cmdstr;
   u_long *lp;
   struct sockaddr_in rtdata;
 
-  s = socket(PF_ROUTE, SOCK_RAW, 0);
+  cmdstr = (cmd == RTM_ADD ? "Add" : "Delete");
+  s = ID0socket(PF_ROUTE, SOCK_RAW, 0);
   if (s < 0) {
     LogPrintf(LogERROR, "OsSetRoute: socket(): %s\n", strerror(errno));
     return;
@@ -122,15 +124,18 @@ OsSetRoute(int cmd,
     case ESRCH:
       LogPrintf(LogTCPIP, "Del route failed: Non-existent\n");
       break;
+    case 0:
+      LogPrintf(LogTCPIP, "%s route failed: %s\n", cmdstr, strerror(errno));
+      break;
     case ENOBUFS:
     default:
-      LogPrintf(LogTCPIP, "Add/Del route failed: %s\n",
-		strerror(rtmes.m_rtm.rtm_errno));
+      LogPrintf(LogTCPIP, "%s route failed: %s\n",
+		cmdstr, strerror(rtmes.m_rtm.rtm_errno));
       break;
     }
   }
-  LogPrintf(LogDEBUG, "wrote %d: dst = %x, gateway = %x\n", nb,
-	    dst.s_addr, gateway.s_addr);
+  LogPrintf(LogDEBUG, "wrote %d: cmd = %s, dst = %x, gateway = %x\n",
+            wb, cmdstr, dst.s_addr, gateway.s_addr);
   close(s);
 }
 

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: os.c,v 1.29 1997/10/29 01:19:47 brian Exp $
+ * $Id: os.c,v 1.30 1997/11/08 00:28:10 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -41,6 +41,7 @@
 
 #include "mbuf.h"
 #include "log.h"
+#include "id.h"
 #include "defs.h"
 #include "timer.h"
 #include "fsm.h"
@@ -73,7 +74,7 @@ SetIpDevice(struct in_addr myaddr,
   int changeaddr = 0;
   u_long mask, addr;
 
-  s = socket(AF_INET, SOCK_DGRAM, 0);
+  s = ID0socket(AF_INET, SOCK_DGRAM, 0);
   if (s < 0) {
     LogPrintf(LogERROR, "SetIpDevice: socket(): %s\n", strerror(errno));
     return (-1);
@@ -88,7 +89,7 @@ SetIpDevice(struct in_addr myaddr,
     memset(&ifra.ifra_addr, '\0', sizeof(ifra.ifra_addr));
     memset(&ifra.ifra_broadaddr, '\0', sizeof(ifra.ifra_addr));
     memset(&ifra.ifra_mask, '\0', sizeof(ifra.ifra_addr));
-    if (ioctl(s, SIOCDIFADDR, &ifra) < 0) {
+    if (ID0ioctl(s, SIOCDIFADDR, &ifra) < 0) {
       LogPrintf(LogERROR, "SetIpDevice: ioctl(SIOCDIFADDR): %s\n",
 		strerror(errno));
       close(s);
@@ -155,20 +156,20 @@ SetIpDevice(struct in_addr myaddr,
        * Interface already exists. Just change the address.
        */
       memcpy(&ifrq.ifr_addr, &ifra.ifra_addr, sizeof(struct sockaddr));
-      if (ioctl(s, SIOCSIFADDR, &ifra) < 0)
+      if (ID0ioctl(s, SIOCSIFADDR, &ifra) < 0)
 	LogPrintf(LogERROR, "SetIpDevice: ioctl(SIFADDR): %s\n",
 		  strerror(errno));
       memcpy(&ifrq.ifr_dstaddr, &ifra.ifra_broadaddr, sizeof(struct sockaddr));
-      if (ioctl(s, SIOCSIFDSTADDR, &ifrq) < 0)
+      if (ID0ioctl(s, SIOCSIFDSTADDR, &ifrq) < 0)
 	LogPrintf(LogERROR, "SetIpDevice: ioctl(SIFDSTADDR): %s\n",
 		  strerror(errno));
 #ifdef notdef
       memcpy(&ifrq.ifr_broadaddr, &ifra.ifra_mask, sizeof(struct sockaddr));
-      if (ioctl(s, SIOCSIFBRDADDR, &ifrq) < 0)
+      if (ID0ioctl(s, SIOCSIFBRDADDR, &ifrq) < 0)
 	LogPrintf(LogERROR, "SetIpDevice: ioctl(SIFBRDADDR): %s\n",
 		  strerror(errno));
 #endif
-    } else if (ioctl(s, SIOCAIFADDR, &ifra) < 0) {
+    } else if (ID0ioctl(s, SIOCAIFADDR, &ifra) < 0) {
       LogPrintf(LogERROR, "SetIpDevice: ioctl(SIOCAIFADDR): %s\n",
 		strerror(errno));
       close(s);
@@ -275,7 +276,7 @@ OsInterfaceDown(int final)
     return (-1);
   }
   ifrq.ifr_flags &= ~IFF_UP;
-  if (ioctl(s, SIOCSIFFLAGS, &ifrq) < 0) {
+  if (ID0ioctl(s, SIOCSIFFLAGS, &ifrq) < 0) {
     LogPrintf(LogERROR, "OsInterfaceDown: ioctl(SIOCSIFFLAGS): %s\n",
 	      strerror(errno));
     close(s);
@@ -324,7 +325,7 @@ OpenTunnel(int *ptun)
   err = ENOENT;
   for (unit = 0; unit <= MAX_TUN; unit++) {
     snprintf(devname, sizeof(devname), "/dev/tun%d", unit);
-    tun_out = open(devname, O_RDWR);
+    tun_out = ID0open(devname, O_RDWR);
     if (tun_out >= 0)
       break;
     if (errno == ENXIO) {
@@ -373,7 +374,7 @@ OpenTunnel(int *ptun)
     return (-1);
   }
   ifrq.ifr_flags |= IFF_UP;
-  if (ioctl(s, SIOCSIFFLAGS, &ifrq) < 0) {
+  if (ID0ioctl(s, SIOCSIFFLAGS, &ifrq) < 0) {
     LogPrintf(LogERROR, "OpenTunnel: ioctl(SIOCSIFFLAGS): %s\n",
 	      strerror(errno));
     close(s);
