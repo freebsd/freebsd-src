@@ -1,4 +1,4 @@
-<!-- 
+<!--
 	FreeBSD errata document.  Unlike some of the other RELNOTESng
 	files, this file should remain as a single SGML file, so that
 	the dollar FreeBSD dollar header has a meaningful modification
@@ -8,8 +8,8 @@
 	(If we didn't do this, then the file with the datestamp might
 	not be the one that received the last change in the document.)
 
-	$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/errata/article.sgml,v 1.17 2003/01/18 16:52:05 ue Exp $
-	basiert auf: 1.18
+	$FreeBSDde: de-docproj/relnotes/de_DE.ISO8859-1/errata/article.sgml,v 1.18 2003/01/20 07:16:58 ue Exp $
+	basiert auf: 1.19
 -->
 
 <!DOCTYPE ARTICLE PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
@@ -29,7 +29,12 @@
   <articleinfo>
 
     <title>&os;
-    &release.next;
+<![ %release.type.snapshot [
+    &release.prev;
+]]>
+<![ %release.type.release [
+    &release.current;
+]]>
     Errata</title>
 
     <authorgroup>
@@ -60,7 +65,12 @@
 
   <abstract>
     <para>Dieses Dokument enth&auml;lt die Errata f&uuml;r &os;
-      &release.next;,
+<![ %release.type.snapshot [
+      &release.prev;,
+]]>
+<![ %release.type.release [
+      &release.current;,
+]]>
       also wichtige Informationen, die erst nach
       der Ver&ouml;ffentlichung bekannt wurden.  Dazu geh&ouml;ren
       Ratschl&auml;ge zur Sicherheit sowie &Auml;nderungen in der
@@ -70,7 +80,12 @@
       Version von &os; installieren.</para>
 
     <para>Diese Errata f&uuml;r &os;
-      &release.next;
+<![ %release.type.snapshot [
+      &release.prev;
+]]>
+<![ %release.type.release [
+      &release.current;
+]]>
       werden bis zum
       Erscheinen von &os; 5.1-RELEASE weiter aktualisiert
       werden.</para>
@@ -81,7 +96,12 @@
 
     <para>Diese Errata enthalten <quote>brandhei&szlig;e</quote>
       Informationen &uuml;ber &os;
-      &release.next;.
+<![ %release.type.snapshot [
+      &release.prev;.
+]]>
+<![ %release.type.release [
+      &release.current;.
+]]>
       Bevor Sie diese
       Version installieren, sollten Sie auf jeden Fall dieses Dokument
       lesen, um &uuml;ber Probleme informiert zu werden, die erst nach
@@ -181,7 +201,7 @@
 
     <para>In einigen F&auml;llen wurde die Dokumentation (wie zum
       Beispiel die FAQ und das Handbuch) nicht aktualisiert und geht
-      nicht auf die Neuerungen in &os; &release.current; ein.  Zum
+      nicht auf die Neuerungen in &os; &release.prev; ein.  Zum
       Beispiel fehlt noch Dokumentation zu &man.gbde.8; und den neuen
       <quote>fast IPsec</quote> Routinen.</para>
 
@@ -190,12 +210,12 @@
       busy</errorname>, obwohl das Share nicht benutzt wird.  Die
       einzige L&ouml;sung f&uuml;r dieses Problem ist, die Operation
       so lange zu wiederholen, bis die Verbindung getrennt wird.
-      Dieser Fehler wurde in 5.0-CURRENT bereits behoben.</para>
+      Dieser Fehler wurde in &release.current; bereits behoben.</para>
 
     <para>Der Versuch, die Trennung der Verbindung zu einem SMBFS
      Share mit <command>umount -f</command> zu erzwingen, kann zu
      einer Kernel Panic f&uuml;hren.  Dieser Fehler wurde in
-     5.0-CURRENT bereits behoben.</para>
+     &release.current; bereits behoben.</para>
 
     <para>Wird &man.fstat.2; auf einen Socket angewendet, f&uuml;r den
       bereits eine Verbindung besteht, sollte es die Anzahl der zum
@@ -203,7 +223,7 @@
       <varname>st_size</varname> der Struktur <varname>struct
       stat</varname>.  Leider wird bei TCP Sockets immer ein
       <varname>st_size</varname> von <literal>0</literal> gemeldet.
-      Dieser Fehler wurde in 5.0-CURRENT bereits behoben.</para>
+      Dieser Fehler wurde in &release.current; bereits behoben.</para>
 
     <para>Der zu &man.kqueue.2; geh&ouml;rende Filter
       <literal>EVFILT_READ</literal> meldet f&auml;lschlicherweise
@@ -212,18 +232,18 @@
       Zeichen zum Lesen verf&uuml;gbar sind.  Die bei
       <literal>EVFILT_READ</literal> verf&uuml;gbare Option
       <literal>NOTE_LOWAT</literal> arbeitet bei TCP Sockets ebenfalls
-      fehlerhaft.  Dieser Fehler wurde in 5.0-CURRENT bereits
+      fehlerhaft.  Dieser Fehler wurde in &release.current; bereits
       behoben.</para>
 
-    <para>Eine der Neuerungen in &os; 5.0-RELEASE ist die
+    <para>Eine der Neuerungen in &os; &release.prev; ist die
       Unterst&uuml;tzung f&uuml;r Named Semaphores nach POSIX.  Die
       Routinen enthalten leider einen Fehler, durch den sich
       &man.sem.open.3; falsch verhalten kann, wenn eine Sempahore von
       einem Prozess mehrfach ge&ouml;ffnet wird und durch
       &man.sem.close.3; zum Absturz des Programms f&uuml;hren kann.
-      Dieser Fehler wurde in 5.0-CURRENT bereits behoben.</para>
+      Dieser Fehler wurde in &release.current; bereits behoben.</para>
 
-    <para>&os; 5.0-RELEASE enth&auml;lt einen kleinen Fehler im
+    <para>&os; &release.prev; enth&auml;lt einen kleinen Fehler im
       Bereich der Berechtigungen von <filename>/dev/tty</filename>.
       Dieser Fehler tritt auf, wenn sich ein Benutzer einloggt, der
       weder <username>root</username> noch Mitglied der Gruppe
@@ -232,7 +252,7 @@
       weder <username>root</username> noch Mitglied der Gruppe
       <groupname>tty</groupname> ist, kann er &man.ssh.1; nicht
       nutzen, da es <filename>/dev/tty</filename> nicht &ouml;ffnen
-      kann.  Dieser Fehler wurde in 5.0-CURRENT bereits
+      kann.  Dieser Fehler wurde in &release.current; bereits
       behoben.</para>
 
     <para>&man.growfs.8; funktioniert auf &man.vinum.4; Partitionen
