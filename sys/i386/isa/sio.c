@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
- *	$Id: sio.c,v 1.84 1995/04/02 01:47:06 ache Exp $
+ *	$Id: sio.c,v 1.85 1995/04/02 04:21:09 ache Exp $
  */
 
 #include "sio.h"
@@ -1249,88 +1249,14 @@ sioioctl(dev, cmd, data, flag, p)
 	int		mcr;
 	int		msr;
 	int		mynor;
-	int             s, tiocset;
+	int             s;
 	int		tiocm_xxx;
 	struct tty	*tp;
-	struct termios term;
 
 	mynor = minor(dev);
 	com = com_addr(MINOR_TO_UNIT(mynor));
 	iobase = com->iobase;
-
 	tp = com->tp;
-#if defined(COMPAT_43) || defined(COMPAT_SUNOS)
-	if (cmd == TIOCSETP || cmd == TIOCSETN) {
-#define MAX_SPEED	17
-		register struct sgttyb *sg = (struct sgttyb *)data;
-		int speed;
-		extern int compatspcodes[];
-		extern void ttcompatsetflags    __P((struct tty *tp, struct termios *t));
-
-		term = tp->t_termios;
-		if ((speed = sg->sg_ispeed) > MAX_SPEED || speed < 0)
-			return (EINVAL);
-		else
-			term.c_ispeed = compatspcodes[speed];
-		if ((speed = sg->sg_ospeed) > MAX_SPEED || speed < 0)
-			return (EINVAL);
-		else
-			term.c_ospeed = compatspcodes[speed];
-		term.c_cc[VERASE] = sg->sg_erase;
-		term.c_cc[VKILL] = sg->sg_kill;
-		tp->t_flags = (tp->t_flags&0xffff0000) | (sg->sg_flags&0xffff);
-		ttcompatsetflags(tp, &term);
-		cmd = (cmd == TIOCSETP ? TIOCSETAF : TIOCSETA);
-	} else if (cmd == TIOCLBIS || cmd == TIOCLBIC || cmd == TIOCLSET) {
-		extern int ttcompatgetflags     __P((struct tty *tp));
-		extern void ttcompatsetlflags   __P((struct tty *tp, struct termios *t));
-
-		term = tp->t_termios;
-		if (cmd == TIOCLSET)
-			tp->t_flags = (tp->t_flags&0xffff) | *(int *)data<<16;
-		else {
-			tp->t_flags = 
-			 (ttcompatgetflags(tp)&0xffff0000)|(tp->t_flags&0xffff);
-			if (cmd == TIOCLBIS)
-				tp->t_flags |= *(int *)data<<16;
-			else
-				tp->t_flags &= ~(*(int *)data<<16);
-		}
-		ttcompatsetlflags(tp, &term);
-		cmd = TIOCSETA;
-	} else if (cmd == TIOCSETC) {
-		struct tchars *tc = (struct tchars *)data;
-		register cc_t *cc;
-
-		term = tp->t_termios;
-		cc = term.c_cc;
-		cc[VINTR] = tc->t_intrc;
-		cc[VQUIT] = tc->t_quitc;
-		cc[VSTART] = tc->t_startc;
-		cc[VSTOP] = tc->t_stopc;
-		cc[VEOF] = tc->t_eofc;
-		cc[VEOL] = tc->t_brkc;
-		if (tc->t_brkc == -1)
-			cc[VEOL2] = _POSIX_VDISABLE;
-		cmd = TIOCSETA;
-	} else if (cmd == TIOCSLTC) {
-		struct ltchars *ltc = (struct ltchars *)data;
-		register cc_t *cc;
-
-		term = tp->t_termios;
-		cc = term.c_cc;
-		cc[VSUSP] = ltc->t_suspc;
-		cc[VDSUSP] = ltc->t_dsuspc;
-		cc[VREPRINT] = ltc->t_rprntc;
-		cc[VDISCARD] = ltc->t_flushc;
-		cc[VWERASE] = ltc->t_werasc;
-		cc[VLNEXT] = ltc->t_lnextc;
-		cmd = TIOCSETA;
-	} else
-#endif  /* 43 or SunOS */
-	if (cmd == TIOCSETA || cmd == TIOCSETAW || cmd == TIOCSETAF)
-		term = *(struct termios *)data;
-
 	if (mynor & CONTROL_MASK) {
 		struct termios *ct;
 
@@ -1349,7 +1275,7 @@ sioioctl(dev, cmd, data, flag, p)
 			error = suser(p->p_ucred, &p->p_acflag);
 			if (error != 0)
 				return (error);
-			*ct = term;
+			*ct = *(struct termios *)data;
 			return (0);
 		case TIOCGETA:
 			*(struct termios *)data = *ct;
@@ -1392,10 +1318,9 @@ sioioctl(dev, cmd, data, flag, p)
 			return (ENOTTY);
 		}
 	}
-	tiocset = 0;
 	if (cmd == TIOCSETA || cmd == TIOCSETAW || cmd == TIOCSETAF) {
 		int	cc;
-		struct termios *dt = &term;
+		struct termios *dt = (struct termios *)data;
 		struct termios *lt = mynor & CALLOUT_MASK
 				     ? &com->lt_out : &com->lt_in;
 
@@ -1414,13 +1339,12 @@ sioioctl(dev, cmd, data, flag, p)
 			dt->c_ispeed = tp->t_ispeed;
 		if (lt->c_ospeed != 0)
 			dt->c_ospeed = tp->t_ospeed;
-		tiocset = 1;
 	}
-	error = (*linesw[tp->t_line].l_ioctl)(tp, cmd, tiocset ? (caddr_t) &term : data, flag, p);
+	error = (*linesw[tp->t_line].l_ioctl)(tp, cmd, data, flag, p);
 	if (error >= 0)
 		return (error);
 	s = spltty();
-	error = ttioctl(tp, cmd, tiocset ? (caddr_t) &term : data, flag);
+	error = ttioctl(tp, cmd, data, flag);
 	set_bypass(tp, &(tp->t_termios));
 	if (error >= 0) {
 		splx(s);
@@ -1693,7 +1617,7 @@ comparam(tp, t)
 	struct termios	*t;
 {
 	u_int		cfcr;
-	int             cflag, iflag, lflag;
+	int             cflag;
 	struct com_s	*com;
 	int		divisor;
 	int		error;
@@ -1718,8 +1642,6 @@ comparam(tp, t)
 	else
 		commctl(com, MCR_DTR, DMBIS);
 	cflag = t->c_cflag;
-	iflag = t->c_iflag;
-	lflag = t->c_lflag;
 	switch (cflag & CSIZE) {
 	case CS5:
 		cfcr = CFCR_5BITS;
