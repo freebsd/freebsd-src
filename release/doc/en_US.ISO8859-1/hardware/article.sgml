@@ -3017,10 +3017,19 @@
 	  <para>GoHubs GoCOM232 (ubsa driver)</para>
         </listitem>
         <listitem>
+	  <para>HP USB-Serial adapter (&man.uftdi.4; driver)</para>
+        </listitem>
+        <listitem>
+	  <para>Inland UAS111 (&man.uftdi.4; driver)</para>
+        </listitem>
+        <listitem>
 	  <para>Peracom single port serial adapter (ubsa driver)</para>
         </listitem>
         <listitem>
 	  <para>Prolific PL-2303 serial adapter (&man.uplcom.4; driver)</para>
+        </listitem>
+        <listitem>
+	  <para>QVS USC-1000 (&man.uftdi.4; driver)</para>
         </listitem>
         <listitem>
 	  <para>SUNTAC Slipper U VS-10U (&man.uvscom.4; driver)</para>
