@@ -38,7 +38,7 @@
  * from: Utah Hdr: vn.c 1.13 94/04/02
  *
  *	from: @(#)vn.c	8.6 (Berkeley) 4/1/94
- *	$Id: vn.c,v 1.64 1998/07/04 22:30:14 julian Exp $
+ *	$Id: vn.c,v 1.65 1998/07/11 07:45:22 bde Exp $
  */
 
 /*
@@ -729,9 +729,7 @@ vnioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 		 * We have a media to read/write.
 		 * Try identify it.
 		 */
-		if ((tp = slice_probeall(vn->slice)) != NULL) {
-			(*tp->constructor)(vn->slice);
-		}
+		slice_start_probe(vn->slice); /* this happens asynchronously */
 #else
 		IFOPT(vn, VN_LABELS) {
 			/*
@@ -921,7 +919,6 @@ vn_drvinit(void *unused)
 				vn,
 				&vn->limit,
  				&vn->slice,
-				NULL,
 				namebuf);
 		/* Allow full probing */
 		vn->slice->probeinfo.typespecific = NULL;

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- *	$Id: slice.h,v 1.2 1998/05/06 22:14:33 julian Exp $
+ *	$Id: slice.h,v 1.3 1998/06/07 19:40:32 dfr Exp $
  */
 
 typedef struct slice_handler *sh_p;
@@ -62,6 +62,7 @@ struct ide_geom {
  *    needed.
  */
 struct probehints {
+	sh_p     trial_handler;	/* methods of handler being probed */
 	char	*type;		/* don't probe, just use this type */
 	void	*typespecific;	/* the lower layer specifies this */
 };
@@ -109,6 +110,13 @@ struct slice {
 #define		SLF_INVALID	0x00000100	/* Everything aborts */
 #define		SLF_LOCKED	0x00000200	/* Hold off, It's busy */
 #define		SLF_WANTED	0x00000400	/* I held off, wake me up */
+#define		SLF_PROBING	0x00000800	/* Probe state machine active */
+#define		SLF_PROBE_SEL	0x00001000	/* Probe selecting */
+#define		SLF_DONT_ARGUE	0x00002000	/* an assign, not a probe */
+
+#define		SLF_WAIT_READ	0x00008000	/* waiting for a probe read */
+#define		SLF_WAIT_WRITE	0x0000C000	/* waiting for a probe read */
+#define		SLF_PROBE_STATE	0x0000C000	/* Present probe state */
 
 /*
  * prototypes for slice methods
@@ -116,12 +124,11 @@ struct slice {
 typedef void	sl_h_IO_req_t(void *private, struct buf * buf);
 typedef int	sl_h_ioctl_t(void *private, u_long cmd, caddr_t data,
 	     			int fflag, struct proc * p);
-typedef int	sl_h_constructor_t(sl_p slice);
+typedef int	sl_h_done_t(sl_p slice, struct buf *bp);
 typedef int	sl_h_open_t(void *private, int flags, int mode, struct proc * p);
 typedef void	sl_h_close_t(void *private, int flags, int mode, struct proc * p);
 typedef int	sl_h_revoke_t(void *private);
-typedef int	sl_h_claim_t(struct slice * slice, struct slice * lower,
-	     		void *ID);		/* eg ID=165 for BSD */
+typedef int	sl_h_claim_t(struct slice * slice);
 typedef int	sl_h_verify_t(struct slice *slice);
 typedef int	sl_h_upconfig_t(struct slice *slice, int cmd, caddr_t data,
 	     			int fflag, struct proc *p);
@@ -132,7 +139,7 @@ struct slice_handler {
 	int		version;/* the version of this handler */
 	struct slice_handler *next;	/* next registered type */
 	int             refs;	/* references to this type */
-	sl_h_constructor_t *constructor;	/* make new instantiation */
+	sl_h_done_t    *done;	/* return after async request */
 	sl_h_IO_req_t  *IOreq;	/* IO req downward (to device) */
 	sl_h_ioctl_t   *ioctl;	/* ioctl downward (to device) */
 	sl_h_open_t    *open;	/* downwards travelling open */
@@ -149,15 +156,18 @@ struct slice_handler {
  */
 int	sl_make_slice(sh_p handler_down, void *private_down,
 	      		struct slicelimits *limits,
-	      		sl_p *slicepp, char *type, char *name);
+	      		sl_p *slicepp, char *name);
 void	sl_rmslice(sl_p slice);
 int	sl_newtype(sh_p tp);
 sh_p	sl_findtype(char *type);
-sh_p	slice_probeall(sl_p slice);
-int	lockslice(sl_p slice);
-int	unlockslice(sl_p slice);
-int	slice_readblock(struct slice *slice, int blkno, struct buf **bpp);
-int	slice_writeblock(struct slice *slice, int blkno, struct buf *bp);
+void	slice_start_probe(sl_p slice);
+int	slice_lock(sl_p slice);
+int	slice_unlock(sl_p slice);
+int	slice_request_block(struct slice *slice, int blkno);
+int	slice_writeblock(struct slice * slice, int blkno,
+			void (*iodone )(struct buf *),
+			caddr_t data, int len);
+void	slice_probe_next(sl_p slice);
 
 /*
  * Definitions for "SLICE" utilities. (handler or device acting on a slice).
