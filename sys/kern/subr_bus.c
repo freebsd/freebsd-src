@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: subr_bus.c,v 1.31 1999/07/24 09:34:12 dfr Exp $
+ *	$Id: subr_bus.c,v 1.32 1999/07/29 01:02:58 mdodd Exp $
  */
 
 #include <sys/param.h>
@@ -1866,7 +1866,7 @@ bus_print_child_header (device_t dev, device_t child)
 		retval += device_printf(child, "<%s>",
 				       device_get_desc(child));      
 	} else {
-		retval += printf("%s", device_get_nameunit(child))
+		retval += printf("%s", device_get_nameunit(child));
 	}
 
 	return (retval);
