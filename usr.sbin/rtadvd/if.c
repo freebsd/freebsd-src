@@ -1,3 +1,4 @@
+/*	$FreeBSD$	*/
 /*	$KAME: if.c,v 1.14 2000/10/25 04:28:34 jinmei Exp $	*/
 
 /*
@@ -27,8 +28,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 #include <sys/param.h>
