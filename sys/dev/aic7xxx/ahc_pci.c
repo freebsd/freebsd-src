@@ -102,11 +102,20 @@ ahc_pci_attach(device_t dev)
 
 	ahc_set_unit(ahc, device_get_unit(dev));
 
+	/*
+	 * Should we bother disabling 39Bit addressing
+	 * based on installed memory?
+	 */
+	if (sizeof(bus_addr_t) > 4)
+                ahc->flags |= AHC_39BIT_ADDRESSING;
+
 	/* Allocate a dmatag for our SCB DMA maps */
 	/* XXX Should be a child of the PCI bus dma tag */
 	error = bus_dma_tag_create(/*parent*/NULL, /*alignment*/1,
 				   /*boundary*/0,
-				   /*lowaddr*/BUS_SPACE_MAXADDR_32BIT,
+				   (ahc->flags & AHC_39BIT_ADDRESSING)
+				   ? 0x7FFFFFFFFF
+				   : BUS_SPACE_MAXADDR_32BIT,
 				   /*highaddr*/BUS_SPACE_MAXADDR,
 				   /*filter*/NULL, /*filterarg*/NULL,
 				   /*maxsize*/MAXBSIZE, /*nsegments*/AHC_NSEG,
@@ -182,7 +191,7 @@ ahc_pci_map_registers(struct ahc_softc *ahc)
 		regs_id = AHC_PCI_IOADDR;
 		regs = bus_alloc_resource(ahc->dev_softc, regs_type,
 					  &regs_id, 0, ~0, 1, RF_ACTIVE);
-		if (regs) {
+		if (regs != NULL) {
 			ahc->tag = rman_get_bustag(regs);
 			ahc->bsh = rman_get_bushandle(regs);
 			command &= ~PCIM_CMD_MEMEN;
@@ -190,15 +199,14 @@ ahc_pci_map_registers(struct ahc_softc *ahc)
 					     command, /*bytes*/1);
 		}
 	}
-	ahc->platform_data->regs_res_type = regs_type;
-	ahc->platform_data->regs_res_id = regs_id;
-	ahc->platform_data->regs = regs;
- 
 	if (regs == NULL) {
 		device_printf(ahc->dev_softc,
 			      "can't allocate register resources\n");
 		return (ENOMEM);
 	}
+	ahc->platform_data->regs_res_type = regs_type;
+	ahc->platform_data->regs_res_id = regs_id;
+	ahc->platform_data->regs = regs;
 	return (0);
 }
 

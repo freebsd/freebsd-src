@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: //depot/src/aic7xxx/aic7xxx_pci.c#24 $
+ * $Id: //depot/src/aic7xxx/aic7xxx_pci.c#27 $
  *
  * $FreeBSD$
  */
@@ -628,9 +628,10 @@ const u_int ahc_num_pci_devs = NUM_ELEMENTS(ahc_pci_ident_table);
 #define	DEVCONFIG		0x40
 #define		SCBSIZE32	0x00010000ul	/* aic789X only */
 #define		REXTVALID	0x00001000ul	/* ultra cards only */
-#define		MPORTMODE	0x00000400ul	/* aic7870 only */
-#define		RAMPSM		0x00000200ul	/* aic7870 only */
+#define		MPORTMODE	0x00000400ul	/* aic7870+ only */
+#define		RAMPSM		0x00000200ul	/* aic7870+ only */
 #define		VOLSENSE	0x00000100ul
+#define		PCI64BIT	0x00000080ul	/* 64Bit PCI bus (Ultra2 Only)*/
 #define		SCBRAMSEL	0x00000080ul
 #define		MRDCEN		0x00000040ul
 #define		EXTSCBTIME	0x00000020ul	/* aic7870 only */
@@ -693,9 +694,16 @@ ahc_find_pci_device(ahc_dev_softc_t pci)
 				 subdevice,
 				 subvendor);
 
-	/* If the second function is not hooked up, ignore it. */
+	/*
+	 * If the second function is not hooked up, ignore it.
+	 * Unfortunately, not all MB vendors implement the
+	 * subdevice ID as per the Adaptec spec, so do our best
+	 * to sanity check it prior to accepting the subdevice
+	 * ID as valid.
+	 */
 	if (ahc_get_pci_function(pci) > 0
 	 && subvendor == 0x9005
+	 && subdevice != device
 	 && SUBID_9005_TYPE_KNOWN(subdevice) != 0
 	 && SUBID_9005_MFUNCENB(subdevice) == 0)
 		return (NULL);
@@ -715,7 +723,6 @@ ahc_find_pci_device(ahc_dev_softc_t pci)
 int
 ahc_pci_config(struct ahc_softc *ahc, struct ahc_pci_identity *entry)
 {
-	struct		 ahc_probe_config probe_config;
 	struct scb_data *shared_scb_data;
 	u_int		 command;
 	u_int		 our_id = 0;
@@ -726,12 +733,11 @@ ahc_pci_config(struct ahc_softc *ahc, struct ahc_pci_identity *entry)
 	uint8_t		 sblkctl;
 
 	shared_scb_data = NULL;
-	ahc_init_probe_config(&probe_config);
-	error = entry->setup(ahc->dev_softc, &probe_config);
+	error = entry->setup(ahc);
 	if (error != 0)
 		return (error);
-	probe_config.chip |= AHC_PCI;
-	probe_config.description = entry->name;
+	ahc->chip |= AHC_PCI;
+	ahc->description = entry->name;
 
 	error = ahc_pci_map_registers(ahc);
 	if (error != 0)
@@ -739,15 +745,34 @@ ahc_pci_config(struct ahc_softc *ahc, struct ahc_pci_identity *entry)
 
 	ahc_power_state_change(ahc, AHC_POWER_STATE_D0);
 
+	/*
+	 * If we need to support high memory, enable dual
+	 * address cycles.  This bit must be set to enable
+	 * high address bit generation even if we are on a
+	 * 64bit bus (PCI64BIT set in devconfig).
+	 */
+	if ((ahc->flags & AHC_39BIT_ADDRESSING) != 0) {
+		uint32_t devconfig;
+
+		if (bootverbose)
+			printf("%s: Enabling 39Bit Addressing\n",
+			       ahc_name(ahc));
+		devconfig = ahc_pci_read_config(ahc->dev_softc,
+						DEVCONFIG, /*bytes*/4);
+		devconfig |= DACEN;
+		ahc_pci_write_config(ahc->dev_softc, DEVCONFIG,
+				     devconfig, /*bytes*/4);
+	}
+	
 	/* Ensure busmastering is enabled */
 	command = ahc_pci_read_config(ahc->dev_softc, PCIR_COMMAND, /*bytes*/1);
 	command |= PCIM_CMD_BUSMASTEREN;
 	ahc_pci_write_config(ahc->dev_softc, PCIR_COMMAND, command, /*bytes*/1);
 
 	/* On all PCI adapters, we allow SCB paging */
-	probe_config.flags |= AHC_PAGESCBS;
+	ahc->flags |= AHC_PAGESCBS;
 
-	error = ahc_softc_init(ahc, &probe_config);
+	error = ahc_softc_init(ahc);
 	if (error != 0)
 		return (error);
 
@@ -1764,14 +1789,15 @@ ahc_pci_intr(struct ahc_softc *ahc)
 		printf("%s: Data Parity Error has been reported via PERR#\n",
 		       ahc_name(ahc));
 	}
-	if ((status1 & (DPE|SSE|RMA|RTA|STA|DPR)) == 0) {
-		printf("%s: Latched PCIERR interrupt with "
-		       "no status bits set\n", ahc_name(ahc)); 
-	}
+
+	/* Clear latched errors. */
 	ahc_pci_write_config(ahc->dev_softc, PCIR_STATUS + 1,
 			     status1, /*bytes*/1);
 
-	if (status1 & (DPR|RMA|RTA)) {
+	if ((status1 & (DPE|SSE|RMA|RTA|STA|DPR)) == 0) {
+		printf("%s: Latched PCIERR interrupt with "
+		       "no status bits set\n", ahc_name(ahc)); 
+	} else {
 		ahc_outb(ahc, CLRINT, CLRPARERR);
 	}
 
@@ -1779,187 +1805,204 @@ ahc_pci_intr(struct ahc_softc *ahc)
 }
 
 static int
-ahc_aic785X_setup(ahc_dev_softc_t pci, struct ahc_probe_config *probe_config)
+ahc_aic785X_setup(struct ahc_softc *ahc)
 {
+	ahc_dev_softc_t pci;
 	uint8_t rev;
 
-	probe_config->channel = 'A';
-	probe_config->chip = AHC_AIC7850;
-	probe_config->features = AHC_AIC7850_FE;
-	probe_config->bugs |= AHC_TMODE_WIDEODD_BUG|AHC_CACHETHEN_BUG
-			   |  AHC_PCI_MWI_BUG;
+	pci = ahc->dev_softc;
+	ahc->channel = 'A';
+	ahc->chip = AHC_AIC7850;
+	ahc->features = AHC_AIC7850_FE;
+	ahc->bugs |= AHC_TMODE_WIDEODD_BUG|AHC_CACHETHEN_BUG|AHC_PCI_MWI_BUG;
 	rev = ahc_pci_read_config(pci, PCIR_REVID, /*bytes*/1);
 	if (rev >= 1)
-		probe_config->bugs |= AHC_PCI_2_1_RETRY_BUG;
+		ahc->bugs |= AHC_PCI_2_1_RETRY_BUG;
 	return (0);
 }
 
 static int
-ahc_aic7860_setup(ahc_dev_softc_t pci, struct ahc_probe_config *probe_config)
+ahc_aic7860_setup(struct ahc_softc *ahc)
 {
+	ahc_dev_softc_t pci;
 	uint8_t rev;
 
-	probe_config->channel = 'A';
-	probe_config->chip = AHC_AIC7860;
-	probe_config->features = AHC_AIC7860_FE;
-	probe_config->bugs |= AHC_TMODE_WIDEODD_BUG|AHC_CACHETHEN_BUG
-			   |  AHC_PCI_MWI_BUG;
+	pci = ahc->dev_softc;
+	ahc->channel = 'A';
+	ahc->chip = AHC_AIC7860;
+	ahc->features = AHC_AIC7860_FE;
+	ahc->bugs |= AHC_TMODE_WIDEODD_BUG|AHC_CACHETHEN_BUG|AHC_PCI_MWI_BUG;
 	rev = ahc_pci_read_config(pci, PCIR_REVID, /*bytes*/1);
 	if (rev >= 1)
-		probe_config->bugs |= AHC_PCI_2_1_RETRY_BUG;
+		ahc->bugs |= AHC_PCI_2_1_RETRY_BUG;
 	return (0);
 }
 
 static int
-ahc_apa1480_setup(ahc_dev_softc_t pci, struct ahc_probe_config *probe_config)
+ahc_apa1480_setup(struct ahc_softc *ahc)
 {
+	ahc_dev_softc_t pci;
 	int error;
 
-	error = ahc_aic7860_setup(pci, probe_config);
+	pci = ahc->dev_softc;
+	error = ahc_aic7860_setup(ahc);
 	if (error != 0)
 		return (error);
-	probe_config->features |= AHC_REMOVABLE;
+	ahc->features |= AHC_REMOVABLE;
 	return (0);
 }
 
 static int
-ahc_aic7870_setup(ahc_dev_softc_t pci, struct ahc_probe_config *probe_config)
+ahc_aic7870_setup(struct ahc_softc *ahc)
 {
-	probe_config->channel = 'A';
-	probe_config->chip = AHC_AIC7870;
-	probe_config->features = AHC_AIC7870_FE;
-	probe_config->bugs |= AHC_TMODE_WIDEODD_BUG|AHC_CACHETHEN_BUG
-			   |  AHC_PCI_MWI_BUG;
+	ahc_dev_softc_t pci;
+
+	pci = ahc->dev_softc;
+	ahc->channel = 'A';
+	ahc->chip = AHC_AIC7870;
+	ahc->features = AHC_AIC7870_FE;
+	ahc->bugs |= AHC_TMODE_WIDEODD_BUG|AHC_CACHETHEN_BUG|AHC_PCI_MWI_BUG;
 	return (0);
 }
 
 static int
-ahc_aha394X_setup(ahc_dev_softc_t pci, struct ahc_probe_config *probe_config)
+ahc_aha394X_setup(struct ahc_softc *ahc)
 {
 	int error;
 
-	error = ahc_aic7870_setup(pci, probe_config);
+	error = ahc_aic7870_setup(ahc);
 	if (error == 0)
-		error = ahc_aha394XX_setup(pci, probe_config);
+		error = ahc_aha394XX_setup(ahc);
 	return (error);
 }
 
 static int
-ahc_aha398X_setup(ahc_dev_softc_t pci, struct ahc_probe_config *probe_config)
+ahc_aha398X_setup(struct ahc_softc *ahc)
 {
 	int error;
 
-	error = ahc_aic7870_setup(pci, probe_config);
+	error = ahc_aic7870_setup(ahc);
 	if (error == 0)
-		error = ahc_aha398XX_setup(pci, probe_config);
+		error = ahc_aha398XX_setup(ahc);
 	return (error);
 }
 
 static int
-ahc_aha494X_setup(ahc_dev_softc_t pci, struct ahc_probe_config *probe_config)
+ahc_aha494X_setup(struct ahc_softc *ahc)
 {
 	int error;
 
-	error = ahc_aic7870_setup(pci, probe_config);
+	error = ahc_aic7870_setup(ahc);
 	if (error == 0)
-		error = ahc_aha494XX_setup(pci, probe_config);
+		error = ahc_aha494XX_setup(ahc);
 	return (error);
 }
 
 static int
-ahc_aic7880_setup(ahc_dev_softc_t pci, struct ahc_probe_config *probe_config)
+ahc_aic7880_setup(struct ahc_softc *ahc)
 {
+	ahc_dev_softc_t pci;
 	uint8_t rev;
 
-	probe_config->channel = 'A';
-	probe_config->chip = AHC_AIC7880;
-	probe_config->features = AHC_AIC7880_FE;
-	probe_config->bugs |= AHC_TMODE_WIDEODD_BUG;
+	pci = ahc->dev_softc;
+	ahc->channel = 'A';
+	ahc->chip = AHC_AIC7880;
+	ahc->features = AHC_AIC7880_FE;
+	ahc->bugs |= AHC_TMODE_WIDEODD_BUG;
 	rev = ahc_pci_read_config(pci, PCIR_REVID, /*bytes*/1);
 	if (rev >= 1) {
-		probe_config->bugs |= AHC_PCI_2_1_RETRY_BUG;
+		ahc->bugs |= AHC_PCI_2_1_RETRY_BUG;
 	} else {
-		probe_config->bugs |= AHC_CACHETHEN_BUG|AHC_PCI_MWI_BUG;
+		ahc->bugs |= AHC_CACHETHEN_BUG|AHC_PCI_MWI_BUG;
 	}
 	return (0);
 }
 
 static int
-ahc_aha2940Pro_setup(ahc_dev_softc_t pci, struct ahc_probe_config *probe_config)
+ahc_aha2940Pro_setup(struct ahc_softc *ahc)
 {
+	ahc_dev_softc_t pci;
 	int error;
 
-	probe_config->flags |= AHC_INT50_SPEEDFLEX;
-	error = ahc_aic7880_setup(pci, probe_config);
+	pci = ahc->dev_softc;
+	ahc->flags |= AHC_INT50_SPEEDFLEX;
+	error = ahc_aic7880_setup(ahc);
 	return (0);
 }
 
 static int
-ahc_aha394XU_setup(ahc_dev_softc_t pci, struct ahc_probe_config *probe_config)
+ahc_aha394XU_setup(struct ahc_softc *ahc)
 {
 	int error;
 
-	error = ahc_aic7880_setup(pci, probe_config);
+	error = ahc_aic7880_setup(ahc);
 	if (error == 0)
-		error = ahc_aha394XX_setup(pci, probe_config);
+		error = ahc_aha394XX_setup(ahc);
 	return (error);
 }
 
 static int
-ahc_aha398XU_setup(ahc_dev_softc_t pci, struct ahc_probe_config *probe_config)
+ahc_aha398XU_setup(struct ahc_softc *ahc)
 {
 	int error;
 
-	error = ahc_aic7880_setup(pci, probe_config);
+	error = ahc_aic7880_setup(ahc);
 	if (error == 0)
-		error = ahc_aha398XX_setup(pci, probe_config);
+		error = ahc_aha398XX_setup(ahc);
 	return (error);
 }
 
 static int
-ahc_aic7890_setup(ahc_dev_softc_t pci, struct ahc_probe_config *probe_config)
+ahc_aic7890_setup(struct ahc_softc *ahc)
 {
+	ahc_dev_softc_t pci;
 	uint8_t rev;
 
-	probe_config->channel = 'A';
-	probe_config->chip = AHC_AIC7890;
-	probe_config->features = AHC_AIC7890_FE;
-	probe_config->flags |= AHC_NEWEEPROM_FMT;
+	pci = ahc->dev_softc;
+	ahc->channel = 'A';
+	ahc->chip = AHC_AIC7890;
+	ahc->features = AHC_AIC7890_FE;
+	ahc->flags |= AHC_NEWEEPROM_FMT;
 	rev = ahc_pci_read_config(pci, PCIR_REVID, /*bytes*/1);
 	if (rev == 0)
-		probe_config->bugs |= AHC_AUTOFLUSH_BUG|AHC_CACHETHEN_BUG;
+		ahc->bugs |= AHC_AUTOFLUSH_BUG|AHC_CACHETHEN_BUG;
 	return (0);
 }
 
 static int
-ahc_aic7892_setup(ahc_dev_softc_t pci, struct ahc_probe_config *probe_config)
+ahc_aic7892_setup(struct ahc_softc *ahc)
 {
-	probe_config->channel = 'A';
-	probe_config->chip = AHC_AIC7892;
-	probe_config->features = AHC_AIC7892_FE;
-	probe_config->flags |= AHC_NEWEEPROM_FMT;
-	probe_config->bugs |= AHC_SCBCHAN_UPLOAD_BUG;
+	ahc_dev_softc_t pci;
+
+	pci = ahc->dev_softc;
+	ahc->channel = 'A';
+	ahc->chip = AHC_AIC7892;
+	ahc->features = AHC_AIC7892_FE;
+	ahc->flags |= AHC_NEWEEPROM_FMT;
+	ahc->bugs |= AHC_SCBCHAN_UPLOAD_BUG;
 	return (0);
 }
 
 static int
-ahc_aic7895_setup(ahc_dev_softc_t pci, struct ahc_probe_config *probe_config)
+ahc_aic7895_setup(struct ahc_softc *ahc)
 {
+	ahc_dev_softc_t pci;
 	uint8_t rev;
 
-	probe_config->channel = ahc_get_pci_function(pci) == 1 ? 'B' : 'A';
+	pci = ahc->dev_softc;
+	ahc->channel = ahc_get_pci_function(pci) == 1 ? 'B' : 'A';
 	/*
 	 * The 'C' revision of the aic7895 has a few additional features.
 	 */
 	rev = ahc_pci_read_config(pci, PCIR_REVID, /*bytes*/1);
 	if (rev >= 4) {
-		probe_config->chip = AHC_AIC7895C;
-		probe_config->features = AHC_AIC7895C_FE;
+		ahc->chip = AHC_AIC7895C;
+		ahc->features = AHC_AIC7895C_FE;
 	} else  {
 		u_int command;
 
-		probe_config->chip = AHC_AIC7895;
-		probe_config->features = AHC_AIC7895_FE;
+		ahc->chip = AHC_AIC7895;
+		ahc->features = AHC_AIC7895_FE;
 
 		/*
 		 * The BIOS disables the use of MWI transactions
@@ -1970,14 +2013,14 @@ ahc_aic7895_setup(ahc_dev_softc_t pci, struct ahc_probe_config *probe_config)
 		command = ahc_pci_read_config(pci, PCIR_COMMAND, /*bytes*/1);
 		command |= PCIM_CMD_MWRICEN;
 		ahc_pci_write_config(pci, PCIR_COMMAND, command, /*bytes*/1);
-		probe_config->bugs |= AHC_PCI_MWI_BUG;
+		ahc->bugs |= AHC_PCI_MWI_BUG;
 	}
 	/*
 	 * XXX Does CACHETHEN really not work???  What about PCI retry?
 	 * on C level chips.  Need to test, but for now, play it safe.
 	 */
-	probe_config->bugs |= AHC_TMODE_WIDEODD_BUG|AHC_PCI_2_1_RETRY_BUG
-			   |  AHC_CACHETHEN_BUG;
+	ahc->bugs |= AHC_TMODE_WIDEODD_BUG|AHC_PCI_2_1_RETRY_BUG
+		  |  AHC_CACHETHEN_BUG;
 
 #if 0
 	uint32_t devconfig;
@@ -1991,116 +2034,131 @@ ahc_aic7895_setup(ahc_dev_softc_t pci, struct ahc_probe_config *probe_config)
 	devconfig |= MRDCEN;
 	ahc_pci_write_config(pci, DEVCONFIG, devconfig, /*bytes*/1);
 #endif
-	probe_config->flags |= AHC_NEWEEPROM_FMT;
+	ahc->flags |= AHC_NEWEEPROM_FMT;
 	return (0);
 }
 
 static int
-ahc_aic7896_setup(ahc_dev_softc_t pci, struct ahc_probe_config *probe_config)
+ahc_aic7896_setup(struct ahc_softc *ahc)
 {
-	probe_config->channel = ahc_get_pci_function(pci) == 1 ? 'B' : 'A';
-	probe_config->chip = AHC_AIC7896;
-	probe_config->features = AHC_AIC7896_FE;
-	probe_config->flags |= AHC_NEWEEPROM_FMT;
-	probe_config->bugs |= AHC_CACHETHEN_DIS_BUG;
+	ahc_dev_softc_t pci;
+
+	pci = ahc->dev_softc;
+	ahc->channel = ahc_get_pci_function(pci) == 1 ? 'B' : 'A';
+	ahc->chip = AHC_AIC7896;
+	ahc->features = AHC_AIC7896_FE;
+	ahc->flags |= AHC_NEWEEPROM_FMT;
+	ahc->bugs |= AHC_CACHETHEN_DIS_BUG;
 	return (0);
 }
 
 static int
-ahc_aic7899_setup(ahc_dev_softc_t pci, struct ahc_probe_config *probe_config)
+ahc_aic7899_setup(struct ahc_softc *ahc)
 {
-	probe_config->channel = ahc_get_pci_function(pci) == 1 ? 'B' : 'A';
-	probe_config->chip = AHC_AIC7899;
-	probe_config->features = AHC_AIC7899_FE;
-	probe_config->flags |= AHC_NEWEEPROM_FMT;
-	probe_config->bugs |= AHC_SCBCHAN_UPLOAD_BUG;
+	ahc_dev_softc_t pci;
+
+	pci = ahc->dev_softc;
+	ahc->channel = ahc_get_pci_function(pci) == 1 ? 'B' : 'A';
+	ahc->chip = AHC_AIC7899;
+	ahc->features = AHC_AIC7899_FE;
+	ahc->flags |= AHC_NEWEEPROM_FMT;
+	ahc->bugs |= AHC_SCBCHAN_UPLOAD_BUG;
 	return (0);
 }
 
 static int
-ahc_aha29160C_setup(ahc_dev_softc_t pci, struct ahc_probe_config *probe_config)
+ahc_aha29160C_setup(struct ahc_softc *ahc)
 {
 	int error;
 
-	error = ahc_aic7899_setup(pci, probe_config);
+	error = ahc_aic7899_setup(ahc);
 	if (error != 0)
 		return (error);
-	probe_config->features |= AHC_REMOVABLE;
+	ahc->features |= AHC_REMOVABLE;
 	return (0);
 }
 
 static int
-ahc_raid_setup(ahc_dev_softc_t pci, struct ahc_probe_config *probe_config)
+ahc_raid_setup(struct ahc_softc *ahc)
 {
 	printf("RAID functionality unsupported\n");
 	return (ENXIO);
 }
 
 static int
-ahc_aha394XX_setup(ahc_dev_softc_t pci, struct ahc_probe_config *probe_config)
+ahc_aha394XX_setup(struct ahc_softc *ahc)
 {
+	ahc_dev_softc_t pci;
+
+	pci = ahc->dev_softc;
 	switch (ahc_get_pci_slot(pci)) {
 	case AHC_394X_SLOT_CHANNEL_A:
-		probe_config->channel = 'A';
+		ahc->channel = 'A';
 		break;
 	case AHC_394X_SLOT_CHANNEL_B:
-		probe_config->channel = 'B';
+		ahc->channel = 'B';
 		break;
 	default:
 		printf("adapter at unexpected slot %d\n"
 		       "unable to map to a channel\n",
 		       ahc_get_pci_slot(pci));
-		probe_config->channel = 'A';
+		ahc->channel = 'A';
 	}
 	return (0);
 }
 
 static int
-ahc_aha398XX_setup(ahc_dev_softc_t pci, struct ahc_probe_config *probe_config)
+ahc_aha398XX_setup(struct ahc_softc *ahc)
 {
+	ahc_dev_softc_t pci;
+
+	pci = ahc->dev_softc;
 	switch (ahc_get_pci_slot(pci)) {
 	case AHC_398X_SLOT_CHANNEL_A:
-		probe_config->channel = 'A';
+		ahc->channel = 'A';
 		break;
 	case AHC_398X_SLOT_CHANNEL_B:
-		probe_config->channel = 'B';
+		ahc->channel = 'B';
 		break;
 	case AHC_398X_SLOT_CHANNEL_C:
-		probe_config->channel = 'C';
+		ahc->channel = 'C';
 		break;
 	default:
 		printf("adapter at unexpected slot %d\n"
 		       "unable to map to a channel\n",
 		       ahc_get_pci_slot(pci));
-		probe_config->channel = 'A';
+		ahc->channel = 'A';
 		break;
 	}
-	probe_config->flags |= AHC_LARGE_SEEPROM;
+	ahc->flags |= AHC_LARGE_SEEPROM;
 	return (0);
 }
 
 static int
-ahc_aha494XX_setup(ahc_dev_softc_t pci, struct ahc_probe_config *probe_config)
+ahc_aha494XX_setup(struct ahc_softc *ahc)
 {
+	ahc_dev_softc_t pci;
+
+	pci = ahc->dev_softc;
 	switch (ahc_get_pci_slot(pci)) {
 	case AHC_494X_SLOT_CHANNEL_A:
-		probe_config->channel = 'A';
+		ahc->channel = 'A';
 		break;
 	case AHC_494X_SLOT_CHANNEL_B:
-		probe_config->channel = 'B';
+		ahc->channel = 'B';
 		break;
 	case AHC_494X_SLOT_CHANNEL_C:
-		probe_config->channel = 'C';
+		ahc->channel = 'C';
 		break;
 	case AHC_494X_SLOT_CHANNEL_D:
-		probe_config->channel = 'D';
+		ahc->channel = 'D';
 		break;
 	default:
 		printf("adapter at unexpected slot %d\n"
 		       "unable to map to a channel\n",
 		       ahc_get_pci_slot(pci));
-		probe_config->channel = 'A';
+		ahc->channel = 'A';
 	}
-	probe_config->flags |= AHC_LARGE_SEEPROM;
+	ahc->flags |= AHC_LARGE_SEEPROM;
 	return (0);
 }
