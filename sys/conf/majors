@@ -19,7 +19,6 @@
 # the CVS tree.
 # 
 #maj 	name		comments
-1	*ctty		/dev/tty
 4	*geom		GEOMetry
 19	*tw		X-10 power interface
 22	*fd		(/dev/stdin etc)
