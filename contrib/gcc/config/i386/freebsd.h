@@ -259,12 +259,14 @@ Boston, MA 02111-1307, USA.  */
 
 #undef  ASM_OUTPUT_ALIGN
 #define ASM_OUTPUT_ALIGN(FILE, LOG)      				\
+  do {									\
   if ((LOG)!=0) {							\
     if (in_text_section())						\
       fprintf ((FILE), "\t.p2align %d,0x90\n", (LOG));			\
     else								\
       fprintf ((FILE), "\t.p2align %d\n", (LOG));			\
-  }
+  }									\
+  } while (0)
 
 #undef  ASM_OUTPUT_ALIGNED_COMMON
 #define ASM_OUTPUT_ALIGNED_COMMON(FILE, NAME, SIZE, ALIGN)		\
@@ -361,7 +363,7 @@ Boston, MA 02111-1307, USA.  */
 
 #ifdef HAVE_GAS_MAX_SKIP_P2ALIGN
 #define ASM_OUTPUT_MAX_SKIP_ALIGN(FILE, LOG, MAX_SKIP)			\
-do {									\
+  do {									\
   if ((LOG) != 0) {							\
     if (TARGET_AOUT)							\
       ASM_OUTPUT_ALIGN ((FILE), (LOG));					\
@@ -370,7 +372,7 @@ do {									\
     else								\
       fprintf ((FILE), "\t.p2align %d,,%d\n", (LOG), (MAX_SKIP));	\
   }									\
-} while (0)
+  } while (0)
 #endif
 
 
