@@ -360,3 +360,8 @@ pseudo-device	bpf		#Berkeley packet filter
 #device		aue		# ADMtek USB ethernet
 #device		cue		# CATC USB ethernet
 #device		kue		# Kawasaki LSI USB ethernet
+
+# FireWire support
+#device		firewire	# FireWire bus code
+#device		sbp		# SCSI over FireWire (Requires scbus and da)
+#device		fwe		# Ethernet over FireWire (non-standard!)
