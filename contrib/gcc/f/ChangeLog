@@ -1,3 +1,18 @@
+2003-02-05  Release Manager
+
+	* GCC 3.2.2 Released.
+
+2003-01-28  Christian Cornelssen  <ccorn@cs.tu-berlin.de>
+
+	* Make-lang.in (f77.install-common, f77.install-info)
+	(f77.install-man, f77.uninstall): Prepend $(DESTDIR) to
+	destination paths in all (un)installation commands.
+
+2002-11-22  Toon Moene  <toon@moene.indiv.nluug.nl>
+
+	* invoke.texi: Explain the purpose of -fmove-all-movables,
+	-freduce-all-givs and -frerun-loop-opts better.
+
 2002-11-19  Release Manager
 
 	* GCC 3.2.1 Released.

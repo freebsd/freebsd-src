@@ -1,3 +1,530 @@
+2003-02-05  Release Manager
+
+	* GCC 3.2.2 Released.
+
+2003-02-03  Chris Lingard <chris@stockwith.co.uk>
+	    Dan Osterrath <do3@mail.inf.tu-dresden.de>
+
+	* configure.in: Handle binutils versions with 4 dot separated
+	numbers.
+	* configure: Rebuilt.
+
+2003-02-03  Franz Sirl  <Franz.Sirl-kernel@lauterbach.com>
+
+	Backport following patch:
+
+	2002-08-01  Richard Henderson  <rth@redhat.com>
+
+	* integrate.c (copy_rtx_and_substitute): Squash MEM_EXPR when it
+	refers to a subroutine parameter.
+
+2003-02-03  Eric Botcazou  <ebotcazou@libertysurf.fr>
+
+	PR ice-on-legal-code/9493
+	* cfgcleanup.c (try_forward_edges): Check for null insn.
+
+2003-02-03  Franz Sirl  <Franz.Sirl-kernel@lauterbach.com>
+	Eric Botcazou  <ebotcazou@libertysurf.fr>
+
+	PR wrong-code/9492
+	Backport following patches:
+
+	2002-09-16  Richard Henderson  <rth@redhat.com>
+
+        * emit-rtl.c (set_mem_attributes_minus_bitpos): Adjust SIZE
+        as well as OFFSET for BITPOS.
+
+	2002-09-08  Jan Hubicka  <jh@suse.cz>
+
+        * emit-rtl.c (set_mem_attributes_minus_bitpos): Fix array_ref
+        handling.
+
+	2002-07-29  Richard Henderson  <rth@redhat.com>
+
+        * emit-rtl.c (set_mem_attributes_minus_bitpos): Rename from
+        set_mem_attributes and add BITPOS argument.  Subtract it from
+        OFFSET when same is adjusted.
+        (set_mem_attributes): New wrapper function.
+        * expr.c (expand_assignment): Use set_mem_attributes_minus_bitpos;
+        remove offset adjustment hack.
+        * expr.h (set_mem_attributes_minus_bitpos): Declare.
+
+	2002-07-25  Richard Henderson  <rth@redhat.com>
+
+        * emit-rtl.c (set_mem_attributes): Fix size and alignment thinkos
+        in ARRAY_REF of DECL_P case.
+
+	2002-07-21  Richard Henderson  <rth@redhat.com>
+
+        * emit-rtl.c (set_mem_attributes): Preserve indirection of PARM_DECL
+        when flag_argument_noalias == 2.
+        * alias.c (nonoverlapping_memrefs_p): Handle that.
+        * print-rtl.c (print_mem_expr): Likewise.
+
+	2002-06-03  Dan Nicolaescu  <dann@godzilla.ics.uci.edu>
+
+        * alias.c (nonoverlapping_memrefs_p): Fix off by one error.
+
+2003-02-03  Steve Ellcey  <sje@cup.hp.com>
+
+        * config/pa/pa64-hpux.h (INIT_ENVIRONMENT): New.
+
+2003-02-01  Jakub Jelinek  <jakub@redhat.com>
+
+	PR preprocessor/9465
+	* tradcpp.c (fixup_newlines): Use memchr instead of strchr.
+
+2003-01-31  John David Anglin  <dave.anglin@nrc-cnrc.gc.ca>
+
+	* pa.c (pa_output_function_prologue, pa_output_function_epilogue): Move
+	updating of total_code_bytes from prologue to epilogue.
+	(get_last_nonnote_insn): New function.
+
+2003-01-31  Jan Hubicka  <jh@suse.cz>
+
+	PR c/9506
+	* i386.c (override_options): Use DEFAULT_PCC_STRUCT_RETURN.
+
+2003-01-30  Andreas Schwab  <schwab@suse.de>
+
+	* config/m68k/m68k.md (tablejump+2): Don't sign extend an address
+	register.
+        * config/m68k/apollo68.h (ASM_RETURN_CASE_JUMP): Likewise.
+        * config/m68k/coff.h (ASM_RETURN_CASE_JUMP): Likewise.
+        * config/m68k/linux.h (ASM_RETURN_CASE_JUMP): Likewise.
+        * config/m68k/m68kelf.h (ASM_RETURN_CASE_JUMP): Likewise.
+        * config/m68k/mot3300.h (ASM_RETURN_CASE_JUMP): Likewise.
+        * config/m68k/netbsd-elf.h (ASM_RETURN_CASE_JUMP): Likewise.
+        * config/m68k/pbb.h (ASM_RETURN_CASE_JUMP): Likewise.
+
+2003-01-30  Ralf Corsepius  <corsepiu@faw.uni-ulm.de>
+
+	PR target/9316 
+	* config/rs6000/rtems.h: Add CPP_OS_DEFAULT_SPEC.
+	* config/rs6000/sysv4.h: Add CPP_OS_RTEMS_SPEC.
+	* config/rs6000/t-rtems: New file. multilib variants to match OS.
+	* config.gcc (powerpc-*-rtems*): Use rs6000/t-rtems instead of
+	rs6000/t-ppcgas so we get the desired multilibs.
+
+2003-01-29  Joel Sherrill  <joel@OARcorp.com>
+
+	PR bootstrap/9296
+	* gthr-rtems.h: Define __GTHREAD_MUTEX_INIT.  Apparently no code
+	depended on it being defined until now.
+
+2003-01-29  Joel Sherrill  <joel@OARcorp.com>
+
+	PR target/9295
+	* config/mips/rtems.h: Predefine __USE_INIT_FINI__ so generic
+	RTEMS code knows which C++ initialization style the toolset
+	configuration is using.
+
+2003-01-29  Joel Sherrill  <joel@OARcorp.com>
+
+	PR bootstrap/9293
+	* config/m68k/t-crtstuff: Replace spaces with tabs, add 
+	 $(MULTILIB_CFLAGS) as compiler option and multilib crtbegin/end.o.
+
+2003-01-29  Joel Sherrill  <joel@OARcorp.com>
+
+	PR bootstrap/9292
+	* config.gcc (hppa1.1-rtems):  Did not include t-rtems nor enable
+	RTEMS threads.
+	* config/pa/rtems.h (LIB_SPEC): Use -N when linking.
+
+2003-01-28  Christian Cornelssen  <ccorn@cs.tu-berlin.de>
+
+	* doc/install.texi: Add documentation for installation into
+	tooldirs and with DESTDIR.
+
+	* Makefile.in (ORDINARY_FLAGS_TO_PASS): Also pass DESTDIR.
+	(install-cpp, uninstall-cpp, installdirs, install-common)
+	(install-driver, install-info, install-man)
+	(install-headers, install-include-dir, install-headers-tar)
+	(install-headers-cpio, install-headers-cp, install-collect2)
+	(uninstall): Prepend $(DESTDIR) to destination paths in all
+	(un)installation commands.
+	(install-driver): Rewrite $(LN) commands to support DESTDIR
+	with "ln" as well as with "ln -s".
+	(installdirs): Simply use mkinstalldirs.
+	(install-libgcc, install-multilib): Also pass DESTDIR.
+	* mklibgcc.in: Prepend $(DESTDIR) to $(libsubdir) in the
+	installation destination variable ldir.
+	* config/alpha/t-osf4 (SHLIB_INSTALL): Prepend $$(DESTDIR)
+	to $$(slibdir) in the installation commands.
+	* config/arm/t-netbsd (SHLIB_INSTALL): Likewise.
+	* config/mips/t-iris6 (SHLIB_INSTALL): Likewise.
+	* config/pa/t-hpux-shlib (SHLIB_INSTALL): Likewise.
+	* config/rs6000/t-aix43 (SHLIB_INSTALL): Likewise.
+	* config/t-slibgcc-elf-ver (SHLIB_INSTALL): Likewise.
+	* config/t-slibgcc-sld (SHLIB_INSTALL): Likewise.
+	* config/arc/t-arc (install-multilib-arc): Prepend $(DESTDIR) to
+	$(libsubdir) in the installation commands.
+
+2003-01-28  Gerald Pfeifer <pfeifer@dbai.tuwien.ac.at>	
+	Backport patches
+	
+  2002-10-04  Loren J. Rittle  <ljrittle@acm.org>
+
+	  * gcc/ginclude/stddef.h: Support the FreeBSD 5 typedef system.
+
+  2002-08-01  Stan Shebs  <shebs@apple.com>
+	      Andreas Tobler  <toa@pop.agri.ch>
+
+	  * ginclude/stddef.h (_BSD_SIZE_T_DEFINED_): Define if not defined,
+	  plays nice with Darwin headers.
+	  (_BSD_RUNE_T_DEFINED_): Likewise.
+	
+2003-01-27  Gabriel Dos_Reis  <gdosreis@sophia.inria.fr>
+	
+	PR objc/9267
+	* c-parse.in: Remove '%expect 31' directive in objc mode.
+
+2003-01-27  Richard Earnshaw <rearnsha@arm.com>
+	
+        * function.c (purge_addressof_1): After pushing anaddressed register
+         onto the stack, simplify the result.
+	
+2003-01-25  Eric Botcazou  <ebotcazou@libertysurf.fr>
+
+	* combine.c (nonzero_bits): Revert 2003-01-25 change.
+	(num_sign_bit_copies): Likewise.
+
+2003-01-27  Volker Reichelt  <reichelt@igpm.rwth-aachen.de>
+
+	* doc/passes.texi: Fix typo.
+
+2003-01-25  Bruce Korb  <bkorb@gnu.org>
+
+	* fixinc/fixfixes.c(wrap_fix): the wrapper guard must be a function
+	of *both* the file name and the fix name.
+
+2003-01-25  Eric Botcazou  <ebotcazou@libertysurf.fr>
+            Christian Ehrhardt  <ehrhardt@mathematik.uni-ulm.de>
+
+	PR optimization/9279
+
+	Merge from mainline:
+
+	2002-07-10  Roger Sayle  <roger@eyesopen.com>
+
+	PR c/2454
+	* combine.c (nonzero_bits): LOAD_EXTEND_OP should only apply
+	to SUBREGs of MEMs.  (num_sign_bit_copies): Likewise.
+
+2003-01-25  Jan Hubicka  <jh@suse.cz>
+
+	PR fortran/9258
+	* global.c (struct allocno): Add no_stack_reg. 
+	(global_conflicts): Set no_stack_reg.
+	(find_reg): Use it.
+
+2003-01-24  Volker Reichelt  <reichelt@igpm.rwth-aachen.de>
+
+	* doc/passes.texi: Fix typo.
+
+2003-01-24  John David Anglin  <dave.anglin@nrc-cnrc.gc.ca>
+
+	* pa.md (call_internal_reg, call_value_internal_reg): If TARGET_GAS and
+	not TARGET_SOM, use $PIC_pcrel$0 rather than symbol difference for long
+	PIC calls to $$dyncall.
+	* pa.c (output_call): Likewise.
+
+2003-01-23  Franz Sirl  <Franz.Sirl-kernel@lauterbach.com>
+
+	PR java/6748
+	* config/rs6000/linux.h (MD_FALLBACK_FRAME_STATE_FOR): Don't destroy
+	regs->nip. Fix rt_sigreturn frame layout. Add support for newer
+	kernels.
+
+	* config/rs6000/rs6000.c (rs6000_binds_local_p): New functiion.
+	(rs6000_encode_section_info): Use it.
+
+2003-01-23  Volker Reichelt  <reichelt@igpm.rwth-aachen.de>
+
+	PR other/7341
+	* invoke.texi (ftest-coverage): Fix broken cross-reference.
+	Change @code to @command for gcov command.
+
+	* gcc.texi: Adjust title of gcov section.
+	* gcov.texi: Likewise.
+
+2003-01-23  Volker Reichelt  <reichelt@igpm.rwth-aachen.de>
+
+	PR other/7448
+	* doc/passes.texi (fssa-ccp): Remove misplaced line.
+
+2003-01-21  Christian Ehrhardt  <ehrhardt@mathematik.uni-ulm.de>
+
+	PR opt/7507
+	* calls.c (fix_unsafe_tree): Split out from ...
+	(expand_call): ... here.  Use it on the function address too.
+
+2003-01-19  Roger Sayle  <roger@eyesopen.com>
+
+	* config/pa/pa.md (muldi3): Avoid invalid sharing of SUBREG RTXs.
+
+2003-01-19  John David Anglin  <dave.anglin@nrc-cnrc.gc.ca>
+
+	* pa-linux.h (DWARF2_UNWIND_INFO, INCOMING_RETURN_ADDR_RTX,
+	DWARF_FRAME_RETURN_COLUMN): Delete defines.
+	(FUNCTION_OK_FOR_SIBCALL): Define to 1.
+
+2003-01-17  Jim Wilson  <wilson@redhat.com>
+
+	* dbxout.c (dbxout_fptype_value): New.
+	(dbxout_type, case COMPLEX_TYPE): Call it.  Use 'R' instead of 'r'.
+
+2003-01-15  Stephane Carrez  <stcarrez@nerim.fr>
+
+	* config/m68hc11/m68hc11.md ("return"): Use emit_jump_insn to emit
+	the return code.
+
+2003-01-12  Alan Modra  <amodra@bigpond.net.au>
+
+	* expr.c (expand_expr <RDIV_EXPR>): Correct recursive call args.
+
+2003-01-10  Josef Zlomek  <zlomekj@suse.cz>
+
+	* jump.c (next_nonnote_insn_in_loop): New function.
+	(copy_loop_headers): Use next_nonnote_insn_in_loop instead of
+	next_nonnote_insn.
+	(duplicate_loop_exit_test). Likewise.
+
+2003-01-10  Josef Zlomek <zlomj9am@artax.karlin.mff.cuni.cz>
+
+	* Makefile.in (optabs.o): Add dependencies on basic-block.h and
+	hard-reg-set.h.
+	* basic-block.h (control_flow_insn_p): Fuction was exported.
+	* cfgbuild.c (control_flow_insn_p): Fuction was made non-static.
+	* optabs.c (emit_libcall_block): Emit REG_LIBCALL and REG_RETVAL
+	notes only when the region is contained in a single basic block.
+
+2003-01-09  Eric Botcazou  <ebotcazou@libertysurf.fr>
+
+	PR inline-asm/8832
+	* tree.h (expand_asm): New prototype.
+	* stmt.c (expand_asm): Set the MEM_VOLATILE_P flag if instructed
+	to do so.
+	* c-semantics (genrtl_asm_stmt): Pass the RID_VOLATILE qualifier
+	down to expand_asm.
+	* c-typeck.c (simple_asm_stmt): Set the RID_VOLATILE qualifier.
+	* rtlanal.c (volatile_insn_p) [ASM_INPUT]: Test the MEM_VOLATILE_P flag.
+	(volatile_refs_p) [ASM_INPUT]: Likewise.
+	(side_effects_p) [ASM_INPUT]: Likewise.
+
+2003-01-09  Eric Botcazou  <ebotcazou@libertysurf.fr>
+
+	PR c/8032
+	* c-typeck.c (process_init_element) [RECORD_TYPE]: For
+	an empty element, do not advance the pointer to unfilled
+	fields if there are pending initializers.
+
+2003-01-07  Janis Johnson  <janis187@us.ibm.com>
+
+	PR other/8947
+	* doc/invoke.texi (-malign-double): Explain that the option breaks
+	binary compatibility.
+
+2003-01-07  Benjamin Kosnik  <bkoz@redhat.com>
+            Sunil Davasam  <sunil.k.davasam@intel.com>
+
+	PR libstdc++/9076 
+	* unwind-dw2.c (execute_cfa_program): DW_CFA_undefined,
+	DW_CFA_same_value, read next and ignore.
+
+2003-01-07  Richard Henderson  <rth@redhat.com>
+
+	* cfganal.c (flow_call_edges_add): Don't crash on noreturn call.
+
+2003-01-01  Neil Booth  <neil@daikokuya.co.uk>
+
+	PR preprocessor/8880
+	* gcc.c (cpp_unique_options): Handle -fshort-wchar later so it
+	overrides any target CPU specs.
+
+2002-12-28  John David Anglin  <dave.anglin@nrc.ca>
+
+	* pa.h (TARGET_SOM): Define if not defined.
+	* som.h (OBJ_SOM): Rename to TARGET_SOM.
+	* pa.c (pa_output_function_prologue): Don't accumulate the total code
+	bytes in the translation unit when using gas, som and not the portable
+	runtime, or when using function sections.
+
+2002-12-21  Eric Botcazou  <ebotcazou@libertysurf.fr>
+
+	PR optimization/8599
+	* doloop.c (doloop_modify_runtime): Fix loop count computation
+	for preconditioned unrolled loops.
+
+2002-12-21  Eric Botcazou  <ebotcazou@libertysurf.fr>
+
+	PR optimization/8599
+	* doloop.c (doloop_modify_runtime): Revert 2002-11-22 change.
+	* loop.c (loop_invariant_p): Likewise.
+
+2002-12-19  Eric Botcazou  <ebotcazou@libertysurf.fr>
+
+	PR optimization/8988
+	* loop.c (maybe_eliminate_biv): Kill REG_EQUAL notes mentioning
+	the biv when eliminating.
+
+2002-12-17  Jakub Jelinek  <jakub@redhat.com>
+
+	PR opt/8794
+	* combine.c (force_to_mode) [MINUS]: Only replace with (not Y) if all
+	bits in fuller_mask (not just mask) are set in C.
+
+2002-12-12  John David Anglin  <dave@hiauly1.hia.nrc.ca>
+
+	* pa.h (BIGGEST_ALIGNMENT): Change 32-bit value to 64 bits.
+	(MAX_PARM_BOUNDARY, STACK_BOUNDARY): Express in terms of
+	BIGGEST_ALIGNMENT.
+	(PREFERRED_STACK_BOUNDARY): Express in terms of STACK_BOUNDARY.
+	(FUNCTION_BOUNDARY): Express in terms of BITS_PER_WORD.
+
+2002-12-10  Janis Johnson  <janis187@us.ibm.com>
+
+	PR other/8882
+	* doc/tm.texi (PUSH_ARGS): Remove misplaced line.
+
+2002-12-05  Dale Johannesen  <dalej@apple.com>
+
+	* tree.c (unsafe_for_reeval):  Consider callee child of CALL_EXPR.
+
+2002-12-05  Danny Smith  <dannysmith@users.sourceforge.net>
+
+	* config/i386/cygwin.h (SUBTARGET_PROLOGUE): Replace with
+	PROFILE_HOOK.
+	* config/i386/mingw32.h (SUBTARGET_PROLOGUE): Don't undef.
+
+2002-12-05  Nick Clifton  <nickc@redhat.com>
+
+	* config/fr30/fr30.h (GO_IF_LEGITIMATE_ADDRESS): Check for frame
+	pointer and arg pointer by examining the register number.
+
+2002-12-05  Matthias Klose  <doko@debian.org>
+
+	* doc/invoke.texi: Remove last reference to -a.
+
+2002-12-04  Eric Botcazou  <ebotcazou@libertysurf.fr>
+
+	PR c/7622
+	* c-semantics (genrtl_scope_stmt): Do not output inlined
+	nested functions that contain no code.
+
+2002-12-04  Jakub Jelinek  <jakub@redhat.com>
+
+	* fold-const.c (associate_trees): Only optimize NEGATE_EXPR in one
+	of the operands into MINUS_EXPR if code is PLUS_EXPR.
+
+2002-12-02  Bob Wilson  <bob.wilson@acm.org>
+
+	* config/xtensa/xtensa.c (xtensa_emit_call): Use a static buffer.
+	* config/xtensa/xtensa.h (MAX_WCHAR_TYPE_SIZE): Delete.
+
+2002-12-01  Mark Mitchell  <mark@codesourcery.com>
+
+	* builtin-types.def (BT_SIZE): Use size_type_node.
+	* builtins.c (fold_builtin): Make the builtin strlen returns a
+	size_t, not a sizetype.
+	* c-common.c (c_alignof): Use size_type_node, not c_size_type_node.
+	(c_alignof_expr): Likewise.
+	(c_common_nodes_and_builtins): Likewise.
+	* c-common.h (CTI_C_SIZE_TYPE): Remove.
+	(c_size_type_node): Likewise.
+	* c-format.c (T_ST): Use size_type_node, not c_size_type_node.
+	* tree.h (TI_SIZE_TYPE): New enumeral.
+	(size_type_node): Likewise.
+	
+2002-11-26  Neil Booth  <neil@daikokuya.co.uk>
+
+	PR preprocessor/8524
+	* cpplib.c (run_directive): Remove previous kludge to _Pragma.
+	Add a new one in its place, which hopefully works.
+	(skip_rest_of_line): Change test for bottom-of-context-stack.
+
+2002-11-26  David Edelsohn  <edelsohn@gnu.org>
+
+	* config/rs6000/rs6000.c (rs6000_flag_pic): New variable.
+	(rs6000_override_options): Save original flag_pic value.
+	(rs6000_encode_section_info): More accurate test for "local" symbol.
+
+	PR 8362
+	* config/rs6000/rs6000.c (rs6000_outout_load_multiple): New function.
+	* config/rs6000/rs6000.md (ldmsi[3-8]): New patterns.
+
+2002-11-25  Christian Ehrhardt  <ehrhardt@mathematik.uni-ulm.de>
+
+	PR c/8639
+	* fold-const.c (extract_muldiv): Don't propagate division unless
+	both arguments are multiples of C.
+
+2002-11-24  Eric Botcazou  <ebotcazou@libertysurf.fr>
+
+	PR optimization/8275
+
+	Merge from mainline:
+	2002-09-19  Dale Johannesen <dalej@apple.com>
+
+	* combine.c (make_extraction): Don't create
+	invalid subreg.
+
+2002-11-23  Marek Michalkiewicz  <marekm@amelek.gda.pl>
+
+	2002-09-26  Theodore A. Roth  <troth@verinet.com>
+	* config/avr/avr.c: Eliminate use of _PC_ in pc relative insns.
+	* config/avr/avr.md: Ditto.
+
+2002-11-23  Eric Botcazou  <ebotcazou@libertysurf.fr>
+
+	PR c/8588
+	* optabs.c (expand_binop): Convert CONST_INTs in shift
+	operations too.
+
+2002-11-23  Eric Botcazou  <ebotcazou@libertysurf.fr>
+
+	PR c/8518
+	* c-decl.c (duplicate_decls): Outline the second definition
+	of an extern inline function in all cases.
+
+2002-11-22  Eric Botcazou  <ebotcazou@libertysurf.fr>
+
+	PR c/8439
+	* recog.c (validate_replace_rtx_1) [PLUS]: Simplify only
+	if there is something new to be simplified.
+
+2002-11-22  Toon Moene  <toon@moene.indiv.nluug.nl>
+
+	* c-decl.c (c_init_decl_processing): Move generation of
+	decls for g77_integer_type_node and friends from here ...
+	* c-common.c (c_common_nodes_and_builtins): ... to here.
+
+2002-11-22  Eric Botcazou  <ebotcazou@libertysurf.fr>
+
+	PR optimization/8599
+
+	Merge from mainline:
+	2002-11-04  Dale Johannesen  <dalej@apple.com>
+
+	* doloop.c (doloop_modify_runtime):  Fix loop count computation
+	for unrolled loops.
+	* loop.c (loop_invariant_p):  Support calling from unroller.
+
+2002-11-22  Daniel Jacobowitz  <drow@mvista.com>
+
+	* config/sh/sh.md (ashrdi3+1, ashrdi3+2): Predicate on
+	reload_completed.
+
+2002-11-21  Bob Wilson  <bob.wilson@acm.org>
+
+	* config/xtensa/xtensa-protos.h (xtensa_copy_incoming_a7): Declare.
+	* config/xtensa/xtensa.c (struct machine_function): Add
+	incoming_a7_copied flag.
+	(xtensa_copy_incoming_a7): Define.
+	(xtensa_emit_move_sequence): Use xtensa_copy_incoming_a7.
+	* config/xtensa/xtensa.md (movdi, movsf, movdf): Ditto.
+
 2002-11-19  Release Manager
 
 	* GCC 3.2.1 Released.
@@ -170,6 +697,7 @@ Thu Oct 31 18:31:22 CET 2002  Jan Hubicka  <jh@suse.cz>
 
 2002-10-29  Eric Botcazou  <ebotcazou@libertysurf.fr>
 
+	PR optimization/8334
 	* expr.c (expand_expr) [PLUS]: Don't use simplify_binary_operation;
 	check for zero operands explicitly.
 

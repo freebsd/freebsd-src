@@ -1583,30 +1583,32 @@ grokfield (declarator, declspecs, init, asmspec_tree, attrlist)
 	      else
 		init = digest_init (TREE_TYPE (value), init, (tree *)0);
 	    }
-	  
-	  if (TREE_CODE (init) == CONST_DECL)
-	    init = DECL_INITIAL (init);
-	  else if (TREE_READONLY_DECL_P (init))
-	    init = decl_constant_value (init);
-	  else if (TREE_CODE (init) == CONSTRUCTOR)
-	    init = digest_init (TREE_TYPE (value), init, (tree *)0);
-	  if (init == error_mark_node)
-	    /* We must make this look different than `error_mark_node'
-	       because `decl_const_value' would mis-interpret it
-	       as only meaning that this VAR_DECL is defined.  */
-	    init = build1 (NOP_EXPR, TREE_TYPE (value), init);
-	  else if (processing_template_decl)
-	    ;
-	  else if (! TREE_CONSTANT (init))
+
+	  if (!processing_template_decl)
 	    {
-	      /* We can allow references to things that are effectively
-		 static, since references are initialized with the address.  */
-	      if (TREE_CODE (TREE_TYPE (value)) != REFERENCE_TYPE
-		  || (TREE_STATIC (init) == 0
-		      && (!DECL_P (init) || DECL_EXTERNAL (init) == 0)))
+	      if (TREE_CODE (init) == CONST_DECL)
+		init = DECL_INITIAL (init);
+	      else if (TREE_READONLY_DECL_P (init))
+		init = decl_constant_value (init);
+	      else if (TREE_CODE (init) == CONSTRUCTOR)
+		init = digest_init (TREE_TYPE (value), init, (tree *)0);
+	      if (init == error_mark_node)
+		/* We must make this look different than `error_mark_node'
+		   because `decl_const_value' would mis-interpret it
+		   as only meaning that this VAR_DECL is defined.  */
+		init = build1 (NOP_EXPR, TREE_TYPE (value), init);
+	      else if (! TREE_CONSTANT (init))
 		{
-		  error ("field initializer is not constant");
-		  init = error_mark_node;
+		  /* We can allow references to things that are effectively
+		     static, since references are initialized with the
+		     address.  */
+		  if (TREE_CODE (TREE_TYPE (value)) != REFERENCE_TYPE
+		      || (TREE_STATIC (init) == 0
+			  && (!DECL_P (init) || DECL_EXTERNAL (init) == 0)))
+		    {
+		      error ("field initializer is not constant");
+		      init = error_mark_node;
+		    }
 		}
 	    }
 	}
@@ -2062,17 +2064,17 @@ coerce_new_type (type)
     e = 1, error ("`operator new' must return type `%T'", ptr_type_node);
 
   if (!args || args == void_list_node
-      || !same_type_p (TREE_VALUE (args), c_size_type_node))
+      || !same_type_p (TREE_VALUE (args), size_type_node))
     {
       e = 2;
       if (args && args != void_list_node)
         args = TREE_CHAIN (args);
-      pedwarn ("`operator new' takes type `size_t' (`%T') as first parameter", c_size_type_node);
+      pedwarn ("`operator new' takes type `size_t' (`%T') as first parameter", size_type_node);
     }
   switch (e)
   {
     case 2:
-      args = tree_cons (NULL_TREE, c_size_type_node, args);
+      args = tree_cons (NULL_TREE, size_type_node, args);
       /* FALLTHROUGH */
     case 1:
       type = build_exception_variant
@@ -5239,6 +5241,7 @@ handle_class_head (aggr, scope, id, defn_p, new_type_p)
      int *new_type_p;
 {
   tree decl = NULL_TREE;
+  tree type;
   tree current = current_scope ();
   bool xrefd_p = false;
   
@@ -5287,12 +5290,28 @@ handle_class_head (aggr, scope, id, defn_p, new_type_p)
       xrefd_p = true;
     }
 
-  if (!TYPE_BINFO (TREE_TYPE (decl)))
+  type = TREE_TYPE (decl);
+
+  if (!TYPE_BINFO (type))
     {
       error ("`%T' is not a class or union type", decl);
       return error_mark_node;
     }
-  
+
+  /* When `A' is a template class, using `class A' without template
+     argument is invalid unless
+     - we are inside the scope of the template class `A' or one of its
+       specialization.
+     - we are declaring the template class `A' itself.  */
+  if (TREE_CODE (type) == RECORD_TYPE
+      && CLASSTYPE_IS_TEMPLATE (type)
+      && processing_template_decl <= template_class_depth (current)
+      && ! is_base_of_enclosing_class (type, current_class_type))
+    {
+      error ("template argument is required for `%T'", type);
+      return error_mark_node;
+    }
+
   if (defn_p)
     {
       /* For a definition, we want to enter the containing scope
