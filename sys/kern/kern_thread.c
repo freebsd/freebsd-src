@@ -1641,7 +1641,7 @@ thread_userret(struct thread *td, struct trapframe *frame)
 		if ((td->td_flags & TDF_NEEDSIGCHK) == 0 &&
 		    (kg->kg_completed == NULL) &&
 		    (ku->ku_flags & KUF_DOUPCALL) == 0 &&
-		    (kg->kg_upquantum && ticks >= kg->kg_nextupcall)) {
+		    (kg->kg_upquantum && ticks < kg->kg_nextupcall)) {
 			mtx_unlock_spin(&sched_lock);
 			thread_update_usr_ticks(td, 0);
 			nanotime(&ts);
