@@ -3,7 +3,7 @@
 
     $FreeBSD$
 
-    Original revision: 1.22.2.275
+    Original revision: 1.22.2.277
 -->
 
 <articleinfo>
@@ -109,6 +109,16 @@
       制限は &man.login.conf.5; に追加された
       <varname>vmemoryuse</varname> 変数によって設定することができます。</para>
 
+    <para>USB モデム、USB シリアルデバイスを
+      tty を使うプログラムに対応させるための
+      &man.ucom.4; デバイスドライバが追加されました。
+      また、&man.uplcom.4;、&man.uvscom.4; ドライバはそれぞれ、
+      Prolific PL-2303 シリアルアダプタと
+      SUNTAC Slipper U VS-10U に対応しています。</para>
+
+    <para>Handspring Visors を USB 経由で接続できるようにするための
+      uvisor ドライバが追加されました。</para>
+
 <!-- Above this line, kernel changes ordered by manpage/variable name -->
 
     <sect3>
@@ -144,8 +154,30 @@
     <sect3>
       <title>ネットワークプロトコル</title>
 
-      <para></para>
+      <para>新しいバージョンの &man.ipfw.4; (<quote>IPFW2</quote>
+        と呼ばれています) が追加され、
+        オプション機能として選択できるようになりました。
+        &man.ipfw.4; は、カーネル内で &man.bpf.4;
+        命令に似た可変長ルール表現を使っています。
+        &man.ipfw.8; に、マッチフィールド連結子 <literal>or</literal>
+        が新しく追加されていますが、(&man.ipfw.8; に記載されている)
+        外部に見える部分の動作のほとんどは、変更されていません。
+        新しいバージョンの &man.ipfw.4; は、デフォルトでは
+        <emphasis>有効になっていません</emphasis>。
+        有効にするには、次のようにします。</para>
 
+      <procedure>
+	<step>
+	  <para>カーネルコンフィグファイルに
+            <literal>options IPFW2</literal> オプション
+            (文書化されていません) を追加する。</para>
+	</step>
+
+	<step>
+	  <para>&man.make.1; に <option>-DIPFW2</option> オプションを付けて
+            <filename>libalias</filename> をコンパイル・インストールする。
+	</step>
+      </procedure>
     </sect3>
 
     <sect3>
@@ -450,6 +482,9 @@
       <para><application>GNU tar</application> がバージョン
         1.13.25 に更新されました。</para>
 
+      <para><application>texinfo</application> がバージョン
+	4.2 に更新されました。</para>
+
       <para><application>tcpdump</application> がバージョン
         3.7.1 に更新されました。</para>
     </sect3>
@@ -468,6 +503,13 @@
     <para>新規インストール時に
       <filename>/usr/share/examples</filename>
       が展開されないというバグが修正されました。</para>
+
+    <para>&os; 4-STABLE ホスト上での &os; 5-CURRENT
+      の make release、および &os; 5-CURRENT ホスト上での
+      &os; 4-STABLE の make release ができるようになりました。
+      クロスアーキテクチャのリリース構築 (ホストと異なるアーキテクチャの
+      リリースを構築すること)も可能になっています。
+      詳しくは &man.release.7; をご覧ください。</para>
   </sect2>
 </sect1>
 
