@@ -264,7 +264,10 @@ The
 and
 .Fn calloc
 functions return a pointer to the allocated memory if successful; otherwise
-a NULL pointer is returned.
+a NULL pointer is returned and
+.Va errno
+is set to
+.Er ENOMEM .
 .Pp
 The
 .Fn realloc
@@ -277,6 +280,10 @@ if successful; otherwise a NULL pointer is returned, in which case the
 memory referenced by
 .Fa ptr
 is still available and intact.
+In the case of memory allocation failure,
+.Va errno
+is set to
+.Er ENOMEM .
 .Pp
 The
 .Fn free
