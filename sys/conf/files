@@ -6,11 +6,11 @@
 #
 aicasm				optional ahc				   \
 	dependency 	"$S/dev/aic7xxx/*.[chyl]"			   \
-	compile-with	"${MAKE} -f $S/dev/aic7xxx/Makefile MAKESRCPATH=$S/dev/aic7xxx" \
+	compile-with	"${MAKE} -f $S/dev/aic7xxx/aicasm/Makefile MAKESRCPATH=$S/dev/aic7xxx/aicasm" \
 	no-obj no-implicit-rule						   \
 	clean		"aicasm aicasm_gram.c aicasm_scan.c y.tab.h"
 aic7xxx_{seq,reg}.h		optional ahc				   \
-	compile-with	"./aicasm ${INCLUDES} -o aic7xxx_seq.h -r aic7xxx_reg.h $S/dev/aic7xxx/aic7xxx.seq"   \
+	compile-with	"./aicasm ${INCLUDES} -I$S/cam/scsi -I$S/dev/aic7xxx -o aic7xxx_seq.h -r aic7xxx_reg.h $S/dev/aic7xxx/aic7xxx.seq"   \
 	no-obj no-implicit-rule before-depend				   \
 	clean		"aic7xxx_seq.h aic7xxx_reg.h"			   \
 	dependency	"$S/dev/aic7xxx/aic7xxx.{reg,seq} $S/cam/scsi/scsi_message.h aicasm"
@@ -117,13 +117,14 @@ dev/aha/aha_mca.c	optional aha mca
 dev/ahb/ahb.c		optional ahb eisa
 dev/aic/aic.c		optional aic
 dev/aic/aic_pccard.c	optional aic card
-dev/aic7xxx/ahc_eisa.c	optional ahc eisa	\
-	dependency	"aic7xxx_reg.h $S/dev/aic7xxx/ahc_eisa.c"
-dev/aic7xxx/ahc_pci.c	optional ahc pci	\
-	dependency	"aic7xxx_reg.h $S/dev/aic7xxx/ahc_pci.c"
-dev/aic7xxx/aic7xxx.c	optional ahc		\
-	dependency	"aic7xxx_{reg,seq}.h"
-dev/aic7xxx/93cx6.c	optional ahc
+dev/aic7xxx/aic7770.c	optional ahc eisa
+dev/aic7xxx/ahc_eisa.c	optional ahc eisa
+#dev/aic7xxx/ahc_isa.c	optional ahc isa
+dev/aic7xxx/ahc_pci.c	optional ahc pci
+dev/aic7xxx/aic7xxx.c	optional ahc
+dev/aic7xxx/aic7xxx_93cx6.c	optional ahc
+dev/aic7xxx/aic7xxx_freebsd.c	optional ahc 
+dev/aic7xxx/aic7xxx_pci.c	optional ahc pci
 dev/buslogic/bt.c	optional bt
 dev/buslogic/bt_isa.c	optional bt isa
 dev/buslogic/bt_mca.c	optional bt mca
