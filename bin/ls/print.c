@@ -142,8 +142,10 @@ printlong(const DISPLAY *dp)
 	int haveacls;
 	dev_t prevdev;
 
-	if (dp->list->fts_level != FTS_ROOTLEVEL && (f_longform || f_size))
+	if ((dp->list == NULL || dp->list->fts_level != FTS_ROOTLEVEL) &&
+	    (f_longform || f_size)) {
 		(void)printf("total %lu\n", howmany(dp->btotal, blocksize));
+	}
 
 	haveacls = 1;
 	prevdev = (dev_t)-1;
@@ -294,8 +296,10 @@ printcol(const DISPLAY *dp)
 	if (num % numcols)
 		++numrows;
 
-	if (dp->list->fts_level != FTS_ROOTLEVEL && (f_longform || f_size))
+	if ((dp->list == NULL || dp->list->fts_level != FTS_ROOTLEVEL) &&
+	    (f_longform || f_size)) {
 		(void)printf("total %lu\n", howmany(dp->btotal, blocksize));
+	}
 
 	base = 0;
 	for (row = 0; row < numrows; ++row) {
