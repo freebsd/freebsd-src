@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: exfield - ACPI AML (p-code) execution - field manipulation
- *              $Revision: 108 $
+ *              $Revision: 112 $
  *
  *****************************************************************************/
 
@@ -120,10 +120,6 @@
 #include "acpi.h"
 #include "acdispat.h"
 #include "acinterp.h"
-#include "amlcode.h"
-#include "acnamesp.h"
-#include "achware.h"
-#include "acevents.h"
 
 
 #define _COMPONENT          ACPI_EXECUTER
@@ -154,7 +150,6 @@ AcpiExReadDataFromField (
     ACPI_STATUS             Status;
     ACPI_OPERAND_OBJECT     *BufferDesc;
     UINT32                  Length;
-    UINT32                  IntegerSize;
     void                    *Buffer;
     BOOLEAN                 Locked;
 
@@ -169,7 +164,7 @@ AcpiExReadDataFromField (
         return_ACPI_STATUS (AE_AML_NO_OPERAND);
     }
 
-    if (ObjDesc->Common.Type == ACPI_TYPE_BUFFER_FIELD)
+    if (ACPI_GET_OBJECT_TYPE (ObjDesc) == ACPI_TYPE_BUFFER_FIELD)
     {
         /*
          * If the BufferField arguments have not been previously evaluated,
@@ -196,20 +191,7 @@ AcpiExReadDataFromField (
      * Note: Field.length is in bits.
      */
     Length = ACPI_ROUND_BITS_UP_TO_BYTES (ObjDesc->Field.BitLength);
-
-    /* Handle both ACPI 1.0 and ACPI 2.0 Integer widths */
-
-    IntegerSize = sizeof (ACPI_INTEGER);
-    if (WalkState->MethodNode->Flags & ANOBJ_DATA_WIDTH_32)
-    {
-        /*
-         * We are running a method that exists in a 32-bit ACPI table.
-         * Integer size is 4.
-         */
-        IntegerSize = sizeof (UINT32);
-    }
-
-    if (Length > IntegerSize)
+    if (Length > AcpiGbl_IntegerByteWidth)
     {
         /* Field is too large for an Integer, create a Buffer instead */
 
@@ -228,6 +210,8 @@ AcpiExReadDataFromField (
             return_ACPI_STATUS (AE_NO_MEMORY);
         }
 
+        /* Complete the buffer object initialization */
+
         BufferDesc->Common.Flags = AOPOBJ_DATA_VALID;
         BufferDesc->Buffer.Length = Length;
         Buffer = BufferDesc->Buffer.Pointer;
@@ -242,14 +226,14 @@ AcpiExReadDataFromField (
             return_ACPI_STATUS (AE_NO_MEMORY);
         }
 
-        Length = IntegerSize;
+        Length = AcpiGbl_IntegerByteWidth;
         BufferDesc->Integer.Value = 0;
         Buffer = &BufferDesc->Integer.Value;
     }
 
     ACPI_DEBUG_PRINT ((ACPI_DB_BFIELD,
         "Obj=%p Type=%X Buf=%p Len=%X\n",
-        ObjDesc, ObjDesc->Common.Type, Buffer, Length));
+        ObjDesc, ACPI_GET_OBJECT_TYPE (ObjDesc), Buffer, Length));
     ACPI_DEBUG_PRINT ((ACPI_DB_BFIELD,
         "FieldWrite: BitLen=%X BitOff=%X ByteOff=%X\n",
         ObjDesc->CommonField.BitLength,
@@ -316,7 +300,7 @@ AcpiExWriteDataToField (
         return_ACPI_STATUS (AE_AML_NO_OPERAND);
     }
 
-    if (ObjDesc->Common.Type == ACPI_TYPE_BUFFER_FIELD)
+    if (ACPI_GET_OBJECT_TYPE (ObjDesc) == ACPI_TYPE_BUFFER_FIELD)
     {
         /*
          * If the BufferField arguments have not been previously evaluated,
@@ -335,7 +319,7 @@ AcpiExWriteDataToField (
     /*
      * Get a pointer to the data to be written
      */
-    switch (SourceDesc->Common.Type)
+    switch (ACPI_GET_OBJECT_TYPE (SourceDesc))
     {
     case ACPI_TYPE_INTEGER:
         Buffer = &SourceDesc->Integer.Value;
@@ -387,7 +371,7 @@ AcpiExWriteDataToField (
 
     ACPI_DEBUG_PRINT ((ACPI_DB_BFIELD,
         "Obj=%p Type=%X Buf=%p Len=%X\n",
-        ObjDesc, ObjDesc->Common.Type, Buffer, Length));
+        ObjDesc, ACPI_GET_OBJECT_TYPE (ObjDesc), Buffer, Length));
     ACPI_DEBUG_PRINT ((ACPI_DB_BFIELD,
         "FieldRead: BitLen=%X BitOff=%X ByteOff=%X\n",
         ObjDesc->CommonField.BitLength,

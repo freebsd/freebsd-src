@@ -3,7 +3,7 @@
  * Name: amlcode.h - Definitions for AML, as included in "definition blocks"
  *                   Declarations and definitions contained herein are derived
  *                   directly from the ACPI specification.
- *       $Revision: 67 $
+ *       $Revision: 68 $
  *
  *****************************************************************************/
 
@@ -118,7 +118,6 @@
 
 #ifndef __AMLCODE_H__
 #define __AMLCODE_H__
-
 
 /* primary opcodes */
 
@@ -381,6 +380,7 @@
 #define AML_CREATE                  0x0004
 #define AML_MATH                    0x0002
 #define AML_LOGICAL                 0x0001
+#define AML_CONSTANT                0x1000
 
 /* Convenient flag groupings */
 

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acexcep.h - Exception codes returned by the ACPI subsystem
- *       $Revision: 59 $
+ *       $Revision: 63 $
  *
  *****************************************************************************/
 
@@ -193,8 +193,9 @@
 #define AE_BAD_CHECKSUM                 (ACPI_STATUS) (0x0003 | AE_CODE_ACPI_TABLES)
 #define AE_BAD_VALUE                    (ACPI_STATUS) (0x0004 | AE_CODE_ACPI_TABLES)
 #define AE_TABLE_NOT_SUPPORTED          (ACPI_STATUS) (0x0005 | AE_CODE_ACPI_TABLES)
+#define AE_INVALID_TABLE_LENGTH         (ACPI_STATUS) (0x0006 | AE_CODE_ACPI_TABLES)
 
-#define AE_CODE_TBL_MAX                 0x0005
+#define AE_CODE_TBL_MAX                 0x0006
 
 
 /*
@@ -229,8 +230,11 @@
 #define AE_AML_INVALID_INDEX            (ACPI_STATUS) (0x001A | AE_CODE_AML)
 #define AE_AML_REGISTER_LIMIT           (ACPI_STATUS) (0x001B | AE_CODE_AML)
 #define AE_AML_NO_WHILE                 (ACPI_STATUS) (0x001C | AE_CODE_AML)
+#define AE_AML_ALIGNMENT                (ACPI_STATUS) (0x001D | AE_CODE_AML)
+#define AE_AML_NO_RESOURCE_END_TAG      (ACPI_STATUS) (0x001E | AE_CODE_AML)
+#define AE_AML_BAD_RESOURCE_VALUE       (ACPI_STATUS) (0x001F | AE_CODE_AML)
 
-#define AE_CODE_AML_MAX                 0x001C
+#define AE_CODE_AML_MAX                 0x001F
 
 /*
  * Internal exceptions used for control
@@ -306,7 +310,8 @@ NATIVE_CHAR const   *AcpiGbl_ExceptionNames_Tbl[] =
     "AE_BAD_HEADER",
     "AE_BAD_CHECKSUM",
     "AE_BAD_VALUE",
-    "AE_TABLE_NOT_SUPPORTED"
+    "AE_TABLE_NOT_SUPPORTED",
+    "AE_INVALID_TABLE_LENGTH"
 };
 
 NATIVE_CHAR const   *AcpiGbl_ExceptionNames_Aml[] =
@@ -338,7 +343,10 @@ NATIVE_CHAR const   *AcpiGbl_ExceptionNames_Aml[] =
     "AE_AML_INVALID_RESOURCE_TYPE",
     "AE_AML_INVALID_INDEX",
     "AE_AML_REGISTER_LIMIT",
-    "AE_AML_NO_WHILE"
+    "AE_AML_NO_WHILE",
+    "AE_AML_ALIGNMENT",
+    "AE_AML_NO_RESOURCE_END_TAG",
+    "AE_AML_BAD_RESOURCE_VALUE"
 };
 
 NATIVE_CHAR const   *AcpiGbl_ExceptionNames_Ctrl[] =

@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: evxfevnt - External Interfaces, ACPI event disable/enable
- *              $Revision: 51 $
+ *              $Revision: 55 $
  *
  *****************************************************************************/
 
@@ -118,11 +118,7 @@
 #define __EVXFEVNT_C__
 
 #include "acpi.h"
-#include "achware.h"
-#include "acnamesp.h"
 #include "acevents.h"
-#include "amlcode.h"
-#include "acinterp.h"
 
 #define _COMPONENT          ACPI_EVENTS
         ACPI_MODULE_NAME    ("evxfevnt")
@@ -217,7 +213,7 @@ AcpiDisable (void)
 
     /* Unload the SCI interrupt handler  */
 
-    AcpiEvRemoveSciHandler ();
+    Status = AcpiEvRemoveSciHandler ();
     return_ACPI_STATUS (Status);
 }
 
@@ -243,6 +239,7 @@ AcpiEnableEvent (
     UINT32                  Flags)
 {
     ACPI_STATUS             Status = AE_OK;
+    UINT32                  Value;
 
 
     ACPI_FUNCTION_TRACE ("AcpiEnableEvent");
@@ -256,7 +253,7 @@ AcpiEnableEvent (
 
         /* Decode the Fixed Event */
 
-        if (Event > ACPI_NUM_FIXED_EVENTS)
+        if (Event > ACPI_EVENT_MAX)
         {
             return_ACPI_STATUS (AE_BAD_PARAMETER);
         }
@@ -265,13 +262,23 @@ AcpiEnableEvent (
          * Enable the requested fixed event (by writing a one to the
          * enable register bit)
          */
-        AcpiHwBitRegisterWrite (AcpiGbl_FixedEventInfo[Event].EnableRegisterId,
-                1, ACPI_MTX_LOCK);
+        Status = AcpiSetRegister (AcpiGbl_FixedEventInfo[Event].EnableRegisterId,
+                    1, ACPI_MTX_LOCK);
+        if (ACPI_FAILURE (Status))
+        {
+            return_ACPI_STATUS (Status);
+        }
 
         /* Make sure that the hardware responded */
 
-        if (1 != AcpiHwBitRegisterRead (AcpiGbl_FixedEventInfo[Event].EnableRegisterId,
-                        ACPI_MTX_LOCK))
+        Status = AcpiGetRegister (AcpiGbl_FixedEventInfo[Event].EnableRegisterId,
+                        &Value, ACPI_MTX_LOCK);
+        if (ACPI_FAILURE (Status))
+        {
+            return_ACPI_STATUS (Status);
+        }
+
+        if (Value != 1)
         {
             ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
                 "Could not enable %s event\n", AcpiUtGetEventName (Event)));
@@ -291,7 +298,11 @@ AcpiEnableEvent (
 
         /* Enable the requested GPE number */
 
-        AcpiHwEnableGpe (Event);
+        Status = AcpiHwEnableGpe (Event);
+        if (ACPI_FAILURE (Status))
+        {
+            return_ACPI_STATUS (Status);
+        }
 
         if (Flags & ACPI_EVENT_WAKE_ENABLE)
         {
@@ -330,6 +341,7 @@ AcpiDisableEvent (
     UINT32                  Flags)
 {
     ACPI_STATUS             Status = AE_OK;
+    UINT32                  Value;
 
 
     ACPI_FUNCTION_TRACE ("AcpiDisableEvent");
@@ -343,7 +355,7 @@ AcpiDisableEvent (
 
         /* Decode the Fixed Event */
 
-        if (Event > ACPI_NUM_FIXED_EVENTS)
+        if (Event > ACPI_EVENT_MAX)
         {
             return_ACPI_STATUS (AE_BAD_PARAMETER);
         }
@@ -352,11 +364,21 @@ AcpiDisableEvent (
          * Disable the requested fixed event (by writing a zero to the
          * enable register bit)
          */
-        AcpiHwBitRegisterWrite (AcpiGbl_FixedEventInfo[Event].EnableRegisterId,
-                0, ACPI_MTX_LOCK);
+        Status = AcpiSetRegister (AcpiGbl_FixedEventInfo[Event].EnableRegisterId,
+                    0, ACPI_MTX_LOCK);
+        if (ACPI_FAILURE (Status))
+        {
+            return_ACPI_STATUS (Status);
+        }
 
-        if (0 != AcpiHwBitRegisterRead (AcpiGbl_FixedEventInfo[Event].EnableRegisterId,
-                    ACPI_MTX_LOCK))
+        Status = AcpiGetRegister (AcpiGbl_FixedEventInfo[Event].EnableRegisterId,
+                    &Value, ACPI_MTX_LOCK);
+        if (ACPI_FAILURE (Status))
+        {
+            return_ACPI_STATUS (Status);
+        }
+
+        if (Value != 0)
         {
             ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
                 "Could not disable %s events\n", AcpiUtGetEventName (Event)));
@@ -385,7 +407,7 @@ AcpiDisableEvent (
         }
         else
         {
-            AcpiHwDisableGpe (Event);
+            Status = AcpiHwDisableGpe (Event);
         }
         break;
 
@@ -430,7 +452,7 @@ AcpiClearEvent (
 
         /* Decode the Fixed Event */
 
-        if (Event > ACPI_NUM_FIXED_EVENTS)
+        if (Event > ACPI_EVENT_MAX)
         {
             return_ACPI_STATUS (AE_BAD_PARAMETER);
         }
@@ -439,7 +461,7 @@ AcpiClearEvent (
          * Clear the requested fixed event (By writing a one to the
          * status register bit)
          */
-        AcpiHwBitRegisterWrite (AcpiGbl_FixedEventInfo[Event].StatusRegisterId,
+        Status = AcpiSetRegister (AcpiGbl_FixedEventInfo[Event].StatusRegisterId,
                 1, ACPI_MTX_LOCK);
         break;
 
@@ -453,7 +475,7 @@ AcpiClearEvent (
             return_ACPI_STATUS (AE_BAD_PARAMETER);
         }
 
-        AcpiHwClearGpe (Event);
+        Status = AcpiHwClearGpe (Event);
         break;
 
 
@@ -508,15 +530,15 @@ AcpiGetEventStatus (
 
         /* Decode the Fixed Event */
 
-        if (Event > ACPI_NUM_FIXED_EVENTS)
+        if (Event > ACPI_EVENT_MAX)
         {
             return_ACPI_STATUS (AE_BAD_PARAMETER);
         }
 
         /* Get the status of the requested fixed event */
 
-        *EventStatus = AcpiHwBitRegisterRead (AcpiGbl_FixedEventInfo[Event].StatusRegisterId,
-                            ACPI_MTX_LOCK);
+        Status = AcpiGetRegister (AcpiGbl_FixedEventInfo[Event].StatusRegisterId,
+                        EventStatus, ACPI_MTX_LOCK);
         break;
 
 
@@ -531,7 +553,7 @@ AcpiGetEventStatus (
 
         /* Obtain status on the requested GPE number */
 
-        AcpiHwGetGpeStatus (Event, EventStatus);
+        Status = AcpiHwGetGpeStatus (Event, EventStatus);
         break;
 
 

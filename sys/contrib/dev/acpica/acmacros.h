@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acmacros.h - C macros for the entire subsystem.
- *       $Revision: 115 $
+ *       $Revision: 124 $
  *
  *****************************************************************************/
 
@@ -122,22 +122,23 @@
  * Data manipulation macros
  */
 
-#define ACPI_LOWORD(l)                  ((UINT16)(NATIVE_UINT)(l))
-#define ACPI_HIWORD(l)                  ((UINT16)((((NATIVE_UINT)(l)) >> 16) & 0xFFFF))
+#define ACPI_LOWORD(l)                  ((UINT16)(UINT32)(l))
+#define ACPI_HIWORD(l)                  ((UINT16)((((UINT32)(l)) >> 16) & 0xFFFF))
 #define ACPI_LOBYTE(l)                  ((UINT8)(UINT16)(l))
 #define ACPI_HIBYTE(l)                  ((UINT8)((((UINT16)(l)) >> 8) & 0xFF))
 
 
-#ifdef _IA16
+#if ACPI_MACHINE_WIDTH == 16
+
 /*
  * For 16-bit addresses, we have to assume that the upper 32 bits
  * are zero.
  */
-#define ACPI_LODWORD(l)                 (l)
-#define ACPI_HIDWORD(l)                 (0)
+#define ACPI_LODWORD(l)                 ((UINT32)(l))
+#define ACPI_HIDWORD(l)                 ((UINT32)(0))
 
 #define ACPI_GET_ADDRESS(a)             ((a).Lo)
-#define ACPI_STORE_ADDRESS(a,b)         {(a).Hi=0;(a).Lo=(b);}
+#define ACPI_STORE_ADDRESS(a,b)         {(a).Hi=0;(a).Lo=(UINT32)(b);}
 #define ACPI_VALID_ADDRESS(a)           ((a).Hi | (a).Lo)
 
 #else
@@ -146,7 +147,7 @@
  * ACPI_INTEGER is 32-bits, no 64-bit support on this platform
  */
 #define ACPI_LODWORD(l)                 ((UINT32)(l))
-#define ACPI_HIDWORD(l)                 (0)
+#define ACPI_HIDWORD(l)                 ((UINT32)(0))
 
 #define ACPI_GET_ADDRESS(a)             (a)
 #define ACPI_STORE_ADDRESS(a,b)         ((a)=(b))
@@ -158,10 +159,10 @@
  * Full 64-bit address/integer on both 32-bit and 64-bit platforms
  */
 #define ACPI_LODWORD(l)                 ((UINT32)(UINT64)(l))
-#define ACPI_HIDWORD(l)                 ((UINT32)(((*(UINT64_STRUCT *)(&l))).Hi))
+#define ACPI_HIDWORD(l)                 ((UINT32)(((*(UINT64_STRUCT *)(void *)(&l))).Hi))
 
 #define ACPI_GET_ADDRESS(a)             (a)
-#define ACPI_STORE_ADDRESS(a,b)         ((a)=(b))
+#define ACPI_STORE_ADDRESS(a,b)         ((a)=(ACPI_PHYSICAL_ADDRESS)(b))
 #define ACPI_VALID_ADDRESS(a)           (a)
 #endif
 #endif
@@ -174,20 +175,23 @@
 
 /* Pointer arithmetic */
 
-#define ACPI_PTR_ADD(t,a,b)             (t *) ((char *)(a) + (b))
+#define ACPI_PTR_ADD(t,a,b)             (t *) (void *)((char *)(a) + (NATIVE_UINT)(b))
 #define ACPI_PTR_DIFF(a,b)              (NATIVE_UINT) ((char *)(a) - (char *)(b))
 
 /* Pointer/Integer type conversions */
 
-#define ACPI_TO_POINTER(i)              ACPI_PTR_ADD (void,NULL,(NATIVE_UINT)i)
-#define ACPI_TO_INTEGER(p)              ACPI_PTR_DIFF (p,NULL)
-#define ACPI_OFFSET(d,o)                ((ACPI_SIZE) ACPI_TO_INTEGER (&(((d *)0)->o)))
-#define ACPI_FADT_OFFSET(o)             ACPI_OFFSET (FADT_DESCRIPTOR, o)
+#define ACPI_TO_POINTER(i)              ACPI_PTR_ADD (void, (void *) NULL,(NATIVE_UINT)i)
+#define ACPI_TO_INTEGER(p)              ACPI_PTR_DIFF (p,(void *) NULL)
+#define ACPI_OFFSET(d,f)                (ACPI_SIZE) ACPI_PTR_DIFF (&(((d *)0)->f),(void *) NULL) 
+#define ACPI_FADT_OFFSET(f)             ACPI_OFFSET (FADT_DESCRIPTOR, f)
 
+#define ACPI_CAST_PTR(t, p)             ((t *)(void *)(p))
+#define ACPI_CAST_INDIRECT_PTR(t, p)    ((t **)(void *)(p))
 
-#ifdef _IA16
+#if ACPI_MACHINE_WIDTH == 16
+#define ACPI_STORE_POINTER(d,s)         ACPI_MOVE_UNALIGNED32_TO_32(d,s)
 #define ACPI_PHYSADDR_TO_PTR(i)         (void *)(i)
-#define ACPI_PTR_TO_PHYSADDR(i)         (char *)(i)
+#define ACPI_PTR_TO_PHYSADDR(i)         (UINT32) (char *)(i)
 #else
 #define ACPI_PHYSADDR_TO_PTR(i)         ACPI_TO_POINTER(i)
 #define ACPI_PTR_TO_PHYSADDR(i)         ACPI_TO_INTEGER(i)
@@ -203,10 +207,10 @@
 
 /* The hardware supports unaligned transfers, just do the move */
 
-#define ACPI_MOVE_UNALIGNED16_TO_16(d,s)    *(UINT16 *)(d) = *(UINT16 *)(s)
-#define ACPI_MOVE_UNALIGNED32_TO_32(d,s)    *(UINT32 *)(d) = *(UINT32 *)(s)
-#define ACPI_MOVE_UNALIGNED16_TO_32(d,s)    *(UINT32 *)(d) = *(UINT16 *)(s)
-#define ACPI_MOVE_UNALIGNED64_TO_64(d,s)    *(UINT64 *)(d) = *(UINT64 *)(s)
+#define ACPI_MOVE_UNALIGNED16_TO_16(d,s)    *(UINT16 *)(void *)(d) = *(UINT16 *)(void *)(s)
+#define ACPI_MOVE_UNALIGNED32_TO_32(d,s)    *(UINT32 *)(void *)(d) = *(UINT32 *)(void *)(s)
+#define ACPI_MOVE_UNALIGNED16_TO_32(d,s)    *(UINT32 *)(void *)(d) = *(UINT16 *)(void *)(s)
+#define ACPI_MOVE_UNALIGNED64_TO_64(d,s)    *(UINT64 *)(void *)(d) = *(UINT64 *)(void *)(s)
 
 #else
 /*
@@ -215,24 +219,24 @@
  * the destination (or both) is/are unaligned.
  */
 
-#define ACPI_MOVE_UNALIGNED16_TO_16(d,s)    {((UINT8 *)(d))[0] = ((UINT8 *)(s))[0];\
-                                             ((UINT8 *)(d))[1] = ((UINT8 *)(s))[1];}
+#define ACPI_MOVE_UNALIGNED16_TO_16(d,s)    {((UINT8 *)(void *)(d))[0] = ((UINT8 *)(void *)(s))[0];\
+                                             ((UINT8 *)(void *)(d))[1] = ((UINT8 *)(void *)(s))[1];}
 
-#define ACPI_MOVE_UNALIGNED32_TO_32(d,s)    {((UINT8 *)(d))[0] = ((UINT8 *)(s))[0];\
-                                             ((UINT8 *)(d))[1] = ((UINT8 *)(s))[1];\
-                                             ((UINT8 *)(d))[2] = ((UINT8 *)(s))[2];\
-                                             ((UINT8 *)(d))[3] = ((UINT8 *)(s))[3];}
+#define ACPI_MOVE_UNALIGNED32_TO_32(d,s)    {((UINT8 *)(void *)(d))[0] = ((UINT8 *)(void *)(s))[0];\
+                                             ((UINT8 *)(void *)(d))[1] = ((UINT8 *)(void *)(s))[1];\
+                                             ((UINT8 *)(void *)(d))[2] = ((UINT8 *)(void *)(s))[2];\
+                                             ((UINT8 *)(void *)(d))[3] = ((UINT8 *)(void *)(s))[3];}
 
-#define ACPI_MOVE_UNALIGNED16_TO_32(d,s)    {(*(UINT32*)(d)) = 0; ACPI_MOVE_UNALIGNED16_TO_16(d,s);}
+#define ACPI_MOVE_UNALIGNED16_TO_32(d,s)    {(*(UINT32*)(void *)(d)) = 0; ACPI_MOVE_UNALIGNED16_TO_16(d,s);}
 
-#define ACPI_MOVE_UNALIGNED64_TO_64(d,s)    {((UINT8 *)(d))[0] = ((UINT8 *)(s))[0];\
-                                             ((UINT8 *)(d))[1] = ((UINT8 *)(s))[1];\
-                                             ((UINT8 *)(d))[2] = ((UINT8 *)(s))[2];\
-                                             ((UINT8 *)(d))[3] = ((UINT8 *)(s))[3];\
-                                             ((UINT8 *)(d))[4] = ((UINT8 *)(s))[4];\
-                                             ((UINT8 *)(d))[5] = ((UINT8 *)(s))[5];\
-                                             ((UINT8 *)(d))[6] = ((UINT8 *)(s))[6];\
-                                             ((UINT8 *)(d))[7] = ((UINT8 *)(s))[7];}
+#define ACPI_MOVE_UNALIGNED64_TO_64(d,s)    {((UINT8 *)(void *)(d))[0] = ((UINT8 *)(void *)(s))[0];\
+                                             ((UINT8 *)(void *)(d))[1] = ((UINT8 *)(void *)(s))[1];\
+                                             ((UINT8 *)(void *)(d))[2] = ((UINT8 *)(void *)(s))[2];\
+                                             ((UINT8 *)(void *)(d))[3] = ((UINT8 *)(void *)(s))[3];\
+                                             ((UINT8 *)(void *)(d))[4] = ((UINT8 *)(void *)(s))[4];\
+                                             ((UINT8 *)(void *)(d))[5] = ((UINT8 *)(void *)(s))[5];\
+                                             ((UINT8 *)(void *)(d))[6] = ((UINT8 *)(void *)(s))[6];\
+                                             ((UINT8 *)(void *)(d))[7] = ((UINT8 *)(void *)(s))[7];}
 
 #endif
 
@@ -265,8 +269,8 @@
 /*
  * Rounding macros (Power of two boundaries only)
  */
-#define ACPI_ROUND_DOWN(value,boundary)      (((NATIVE_UINT)(value)) & (~((boundary)-1)))
-#define ACPI_ROUND_UP(value,boundary)        ((((NATIVE_UINT)(value)) + ((boundary)-1)) & (~((boundary)-1)))
+#define ACPI_ROUND_DOWN(value,boundary)      (((NATIVE_UINT)(value)) & (~(((NATIVE_UINT) boundary)-1)))
+#define ACPI_ROUND_UP(value,boundary)        ((((NATIVE_UINT)(value)) + (((NATIVE_UINT) boundary)-1)) & (~(((NATIVE_UINT) boundary)-1)))
 
 #define ACPI_ROUND_DOWN_TO_32_BITS(a)        ACPI_ROUND_DOWN(a,4)
 #define ACPI_ROUND_DOWN_TO_64_BITS(a)        ACPI_ROUND_DOWN(a,8)
@@ -292,22 +296,33 @@
  * MASK_BITS_ABOVE creates a mask starting AT the position and above
  * MASK_BITS_BELOW creates a mask starting one bit BELOW the position
  */
-#define ACPI_MASK_BITS_ABOVE(position)       (~(((ACPI_INTEGER)(-1)) << ((UINT32) (position))))
-#define ACPI_MASK_BITS_BELOW(position)       (((ACPI_INTEGER)(-1)) << ((UINT32) (position)))
+#define ACPI_MASK_BITS_ABOVE(position)       (~((ACPI_INTEGER_MAX) << ((UINT32) (position))))
+#define ACPI_MASK_BITS_BELOW(position)       ((ACPI_INTEGER_MAX) << ((UINT32) (position)))
 
 #define ACPI_IS_OCTAL_DIGIT(d)               (((char)(d) >= '0') && ((char)(d) <= '7'))
 
 /* Macros for GAS addressing */
 
-#ifndef _IA16
+#if ACPI_MACHINE_WIDTH != 16
 
 #define ACPI_PCI_DEVICE_MASK            (UINT64) 0x0000FFFF00000000
 #define ACPI_PCI_FUNCTION_MASK          (UINT64) 0x00000000FFFF0000
 #define ACPI_PCI_REGISTER_MASK          (UINT64) 0x000000000000FFFF
 
-#define ACPI_PCI_FUNCTION(a)            (UINT16) ((((a) & ACPI_PCI_FUNCTION_MASK) >> 16))
-#define ACPI_PCI_DEVICE(a)              (UINT16) ((((a) & ACPI_PCI_DEVICE_MASK) >> 32))
-#define ACPI_PCI_REGISTER(a)            (UINT16) (((a) & ACPI_PCI_REGISTER_MASK))
+/*
+ * Obsolete
+ */
+
+/*
+#define ACPI_PCI_FUNCTION(a)            (UINT16) ((((UINT64)((UINT64)(a) & ACPI_PCI_FUNCTION_MASK)) >> 16))
+#define ACPI_PCI_DEVICE(a)              (UINT16) ((((UINT64)((UINT64)(a) & ACPI_PCI_DEVICE_MASK)) >> 32))
+#define ACPI_PCI_REGISTER(a)            (UINT16) (((UINT64)((UINT64)(a) & ACPI_PCI_REGISTER_MASK)))
+*/
+
+
+#define ACPI_PCI_DEVICE(a)              (UINT16) ((ACPI_HIDWORD ((a))) & 0x0000FFFF)
+#define ACPI_PCI_FUNCTION(a)            (UINT16) ((ACPI_LODWORD ((a))) >> 16)
+#define ACPI_PCI_REGISTER(a)            (UINT16) ((ACPI_LODWORD ((a))) & 0x0000FFFF)
 
 #else
 
@@ -332,13 +347,13 @@
  *
  * The "Descriptor" field is the first field in both structures.
  */
-#define ACPI_GET_DESCRIPTOR_TYPE(d)     (((ACPI_NAMESPACE_NODE *)d)->Descriptor)
-#define ACPI_SET_DESCRIPTOR_TYPE(d,t)   (((ACPI_NAMESPACE_NODE *)d)->Descriptor = t)
+#define ACPI_GET_DESCRIPTOR_TYPE(d)     (((ACPI_DESCRIPTOR *)(void *)(d))->DescriptorId)
+#define ACPI_SET_DESCRIPTOR_TYPE(d,t)   (((ACPI_DESCRIPTOR *)(void *)(d))->DescriptorId = t)
 
 
 /* Macro to test the object type */
 
-#define ACPI_GET_OBJECT_TYPE(d)         (((ACPI_OPERAND_OBJECT *)d)->Common.Type)
+#define ACPI_GET_OBJECT_TYPE(d)         (((ACPI_OPERAND_OBJECT *)(void *)(d))->Common.Type)
 
 /* Macro to check the table flags for SINGLE or MULTIPLE tables are allowed */
 
@@ -350,7 +365,7 @@
  * as a pointer to an ACPI_TABLE_HEADER.  (b+1) then points past the header,
  * and ((UINT8 *)b+b->Length) points one byte past the end of the table.
  */
-#ifndef _IA16
+#if ACPI_MACHINE_WIDTH != 16
 #define ACPI_IS_IN_ACPI_TABLE(a,b)      (((UINT8 *)(a) >= (UINT8 *)(b + 1)) &&\
                                          ((UINT8 *)(a) < ((UINT8 *)b + b->Length)))
 
@@ -363,7 +378,7 @@
 /*
  * Macros for the master AML opcode table
  */
-#ifdef ACPI_DEBUG
+#if defined(ACPI_DEBUG) || defined(ENABLE_DEBUGGER)
 #define ACPI_OP(Name,PArgs,IArgs,ObjType,Class,Type,Flags)     {Name,PArgs,IArgs,Flags,ObjType,Class,Type}
 #else
 #define ACPI_OP(Name,PArgs,IArgs,ObjType,Class,Type,Flags)     {PArgs,IArgs,Flags,ObjType,Class,Type}
@@ -408,7 +423,7 @@
                                              a.RegisterBitWidth = (UINT8) ACPI_MUL_8 (b);\
                                              a.RegisterBitOffset = 0;\
                                              a.Reserved = 0;\
-                                             ACPI_STORE_ADDRESS (a.Address,c);}
+                                             ACPI_STORE_ADDRESS (a.Address,(ACPI_PHYSICAL_ADDRESS) c);}
 
 /* ACPI V1.0 entries -- address space is always I/O */
 
@@ -493,11 +508,16 @@
  * One of the FUNCTION_TRACE macros above must be used in conjunction with these macros
  * so that "_ProcName" is defined.
  */
-#define return_VOID                     {AcpiUtExit(__LINE__,&_Dbg);return;}
-#define return_ACPI_STATUS(s)           {AcpiUtStatusExit(__LINE__,&_Dbg,s);return(s);}
-#define return_VALUE(s)                 {AcpiUtValueExit(__LINE__,&_Dbg,s);return(s);}
-#define return_PTR(s)                   {AcpiUtPtrExit(__LINE__,&_Dbg,(UINT8 *)s);return(s);}
+#ifdef ACPI_USE_DO_WHILE_0
+#define ACPI_DO_WHILE0(a)               do a while(0)
+#else
+#define ACPI_DO_WHILE0(a)               a
+#endif
 
+#define return_VOID                     ACPI_DO_WHILE0 ({AcpiUtExit(__LINE__,&_Dbg);return;})
+#define return_ACPI_STATUS(s)           ACPI_DO_WHILE0 ({AcpiUtStatusExit(__LINE__,&_Dbg,(s));return((s));})
+#define return_VALUE(s)                 ACPI_DO_WHILE0 ({AcpiUtValueExit(__LINE__,&_Dbg,(ACPI_INTEGER)(s));return((s));})
+#define return_PTR(s)                   ACPI_DO_WHILE0 ({AcpiUtPtrExit(__LINE__,&_Dbg,(UINT8 *)(s));return((s));})
 
 /* Conditional execution */
 
@@ -518,7 +538,7 @@
 
 #define ACPI_DUMP_ENTRY(a,b)            AcpiNsDumpEntry (a,b)
 #define ACPI_DUMP_TABLES(a,b)           AcpiNsDumpTables(a,b)
-#define ACPI_DUMP_PATHNAME(a,b,c,d)     AcpiNsDumpPathname(a,b,c,d)
+#define ACPI_DUMP_PATHNAME(a,b,c,d)     (void) AcpiNsDumpPathname(a,b,c,d)
 #define ACPI_DUMP_RESOURCE_LIST(a)      AcpiRsDumpResourceList(a)
 #define ACPI_DUMP_BUFFER(a,b)           AcpiUtDumpBuffer((UINT8 *)a,b,DB_BYTE_DISPLAY,_COMPONENT)
 #define ACPI_BREAK_MSG(a)               AcpiOsSignal (ACPI_SIGNAL_BREAKPOINT,(a))
@@ -586,6 +606,10 @@
 #define return_VALUE(s)                 return(s)
 #define return_PTR(s)                   return(s)
 
+#ifdef ENABLE_DEBUGGER
+#define _OPCODE_NAMES
+#endif
+
 #endif
 
 /*
@@ -604,7 +628,7 @@
  * For 16-bit code, we want to shrink some things even though
  * we are using ACPI_DEBUG to get the debug output
  */
-#ifdef _IA16
+#if ACPI_MACHINE_WIDTH == 16
 #undef ACPI_DEBUG_ONLY_MEMBERS
 #undef _VERBOSE_STRUCTURES
 #define ACPI_DEBUG_ONLY_MEMBERS(a)
@@ -632,8 +656,8 @@
 
 /* Memory allocation */
 
-#define ACPI_MEM_ALLOCATE(a)            AcpiUtAllocate(a,_COMPONENT,_THIS_MODULE,__LINE__)
-#define ACPI_MEM_CALLOCATE(a)           AcpiUtCallocate(a, _COMPONENT,_THIS_MODULE,__LINE__)
+#define ACPI_MEM_ALLOCATE(a)            AcpiUtAllocate((ACPI_SIZE)(a),_COMPONENT,_THIS_MODULE,__LINE__)
+#define ACPI_MEM_CALLOCATE(a)           AcpiUtCallocate((ACPI_SIZE)(a), _COMPONENT,_THIS_MODULE,__LINE__)
 #define ACPI_MEM_FREE(a)                AcpiOsFree(a)
 #define ACPI_MEM_TRACKING(a)
 
@@ -642,8 +666,8 @@
 
 /* Memory allocation */
 
-#define ACPI_MEM_ALLOCATE(a)            AcpiUtAllocateAndTrack(a,_COMPONENT,_THIS_MODULE,__LINE__)
-#define ACPI_MEM_CALLOCATE(a)           AcpiUtCallocateAndTrack(a, _COMPONENT,_THIS_MODULE,__LINE__)
+#define ACPI_MEM_ALLOCATE(a)            AcpiUtAllocateAndTrack((ACPI_SIZE)(a),_COMPONENT,_THIS_MODULE,__LINE__)
+#define ACPI_MEM_CALLOCATE(a)           AcpiUtCallocateAndTrack((ACPI_SIZE)(a), _COMPONENT,_THIS_MODULE,__LINE__)
 #define ACPI_MEM_FREE(a)                AcpiUtFreeAndTrack(a,_COMPONENT,_THIS_MODULE,__LINE__)
 #define ACPI_MEM_TRACKING(a)            a
 

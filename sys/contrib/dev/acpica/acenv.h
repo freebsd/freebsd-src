@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acenv.h - Generation environment specific items
- *       $Revision: 86 $
+ *       $Revision: 95 $
  *
  *****************************************************************************/
 
@@ -142,19 +142,8 @@
 #ifdef _ACPI_ASL_COMPILER
 #define ACPI_DEBUG
 #define ACPI_APPLICATION
-#define ENABLE_DEBUGGER
+/* #define ENABLE_DEBUGGER */
 #define ACPI_USE_SYSTEM_CLIBRARY
-#endif
-
-/*
- * Memory allocation tracking.  Used only if
- * 1) This is the debug version
- * 2) This is NOT a 16-bit version of the code (not enough real-mode memory)
- */
-#ifdef ACPI_DEBUG
-#ifndef _IA16
-#define ACPI_DBG_TRACK_ALLOCATIONS
-#endif
 #endif
 
 /*
@@ -202,14 +191,14 @@
 #elif defined(_AED_EFI)
 #include "acefi.h"
 
-#elif defined(MSDOS)
-#include "acdos16.h"
-
 #elif defined(WIN32)
 #include "acwin.h"
 
 #elif defined(WIN64)
 #include "acwin64.h"
+
+#elif defined(MSDOS)        /* Must appear after WIN32 and WIN64 check */
+#include "acdos16.h"
 
 #elif defined(__FreeBSD__)
 #include "acfreebsd.h"
@@ -226,6 +215,10 @@
 
 #define ACPI_USE_STANDARD_HEADERS
 
+#define COMPILER_DEPENDENT_INT64   long long
+#define COMPILER_DEPENDENT_UINT64  unsigned long long
+
+
 /* Name of host operating system (returned by the _OS_ namespace object) */
 
 #define ACPI_OS_NAME         "Intel ACPI/CA Core Subsystem"
@@ -238,7 +231,38 @@
 
 #endif
 
+/*
+ * Memory allocation tracking.  Used only if
+ * 1) This is the debug version
+ * 2) This is NOT a 16-bit version of the code (not enough real-mode memory)
+ */
+#ifdef ACPI_DEBUG
+#if ACPI_MACHINE_WIDTH != 16
+#define ACPI_DBG_TRACK_ALLOCATIONS
+#endif
+#endif
+
 /*! [End] no source code translation !*/
+
+
+/*
+ * Debugger threading model
+ * Use single threaded if the entire subsystem is contained in an application
+ * Use multiple threaded when the subsystem is running in the kernel.
+ *
+ * By default the model is single threaded if ACPI_APPLICATION is set,
+ * multi-threaded if ACPI_APPLICATION is not set.
+ */
+#define DEBUGGER_SINGLE_THREADED    0
+#define DEBUGGER_MULTI_THREADED     1
+
+#ifdef ACPI_APPLICATION
+#define DEBUGGER_THREADING          DEBUGGER_SINGLE_THREADED
+
+#else
+#define DEBUGGER_THREADING          DEBUGGER_MULTI_THREADED
+#endif
+
 
 /******************************************************************************
  *
@@ -269,20 +293,23 @@
  */
 
 #define ACPI_STRSTR(s1,s2)      strstr((s1), (s2))
-#define ACPI_STRUPR(s)          AcpiUtStrupr  ((s))
-#define ACPI_STRLEN(s)          (UINT32) strlen((s))
-#define ACPI_STRCPY(d,s)        strcpy((d), (s))
-#define ACPI_STRNCPY(d,s,n)     strncpy((d), (s), (NATIVE_INT)(n))
-#define ACPI_STRNCMP(d,s,n)     strncmp((d), (s), (NATIVE_INT)(n))
+#define ACPI_STRUPR(s)          (void) AcpiUtStrupr ((s))
+#define ACPI_STRLEN(s)          (ACPI_SIZE) strlen((s))
+#define ACPI_STRCPY(d,s)        (void) strcpy((d), (s))
+#define ACPI_STRNCPY(d,s,n)     (void) strncpy((d), (s), (ACPI_SIZE)(n))
+#define ACPI_STRNCMP(d,s,n)     strncmp((d), (s), (ACPI_SIZE)(n))
 #define ACPI_STRCMP(d,s)        strcmp((d), (s))
-#define ACPI_STRCAT(d,s)        strcat((d), (s))
-#define ACPI_STRNCAT(d,s,n)     strncat((d), (s), (NATIVE_INT)(n))
-#define ACPI_STRTOUL(d,s,n)     strtoul((d), (s), (NATIVE_INT)(n))
-#define ACPI_MEMCPY(d,s,n)      (void) memcpy((d), (s), (NATIVE_INT)(n))
-#define ACPI_MEMSET(d,s,n)      (void) memset((d), (s), (NATIVE_INT)(n))
+#define ACPI_STRCAT(d,s)        (void) strcat((d), (s))
+#define ACPI_STRNCAT(d,s,n)     strncat((d), (s), (ACPI_SIZE)(n))
+#define ACPI_STRTOUL(d,s,n)     strtoul((d), (s), (ACPI_SIZE)(n))
+#define ACPI_MEMCPY(d,s,n)      (void) memcpy((d), (s), (ACPI_SIZE)(n))
+#define ACPI_MEMSET(d,s,n)      (void) memset((d), (s), (ACPI_SIZE)(n))
 #define ACPI_TOUPPER            toupper
 #define ACPI_TOLOWER            tolower
 #define ACPI_IS_XDIGIT          isxdigit
+#define ACPI_IS_DIGIT           isdigit
+#define ACPI_IS_SPACE           isspace
+#define ACPI_IS_UPPER           isupper
 
 /******************************************************************************
  *
@@ -325,17 +352,17 @@ typedef char *va_list;
 
 
 #define ACPI_STRSTR(s1,s2)      AcpiUtStrstr  ((s1), (s2))
-#define ACPI_STRUPR(s)          AcpiUtStrupr  ((s))
-#define ACPI_STRLEN(s)          AcpiUtStrlen  ((s))
-#define ACPI_STRCPY(d,s)        AcpiUtStrcpy  ((d), (s))
-#define ACPI_STRNCPY(d,s,n)     AcpiUtStrncpy ((d), (s), (n))
-#define ACPI_STRNCMP(d,s,n)     AcpiUtStrncmp ((d), (s), (n))
+#define ACPI_STRUPR(s)          (void) AcpiUtStrupr ((s))
+#define ACPI_STRLEN(s)          (ACPI_SIZE) AcpiUtStrlen  ((s))
+#define ACPI_STRCPY(d,s)        (void) AcpiUtStrcpy  ((d), (s))
+#define ACPI_STRNCPY(d,s,n)     (void) AcpiUtStrncpy ((d), (s), (ACPI_SIZE)(n))
+#define ACPI_STRNCMP(d,s,n)     AcpiUtStrncmp ((d), (s), (ACPI_SIZE)(n))
 #define ACPI_STRCMP(d,s)        AcpiUtStrcmp  ((d), (s))
-#define ACPI_STRCAT(d,s)        AcpiUtStrcat  ((d), (s))
-#define ACPI_STRNCAT(d,s,n)     AcpiUtStrncat ((d), (s), (n))
-#define ACPI_STRTOUL(d,s,n)     AcpiUtStrtoul ((d), (s),(n))
-#define ACPI_MEMCPY(d,s,n)      (void) AcpiUtMemcpy  ((d), (s), (n))
-#define ACPI_MEMSET(d,v,n)      (void) AcpiUtMemset  ((d), (v), (n))
+#define ACPI_STRCAT(d,s)        (void) AcpiUtStrcat  ((d), (s))
+#define ACPI_STRNCAT(d,s,n)     AcpiUtStrncat ((d), (s), (ACPI_SIZE)(n))
+#define ACPI_STRTOUL(d,s,n)     AcpiUtStrtoul ((d), (s), (ACPI_SIZE)(n))
+#define ACPI_MEMCPY(d,s,n)      (void) AcpiUtMemcpy  ((d), (s), (ACPI_SIZE)(n))
+#define ACPI_MEMSET(d,v,n)      (void) AcpiUtMemset  ((d), (v), (ACPI_SIZE)(n))
 #define ACPI_TOUPPER            AcpiUtToUpper
 #define ACPI_TOLOWER            AcpiUtToLower
 

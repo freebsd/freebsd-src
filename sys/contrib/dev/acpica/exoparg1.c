@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exoparg1 - AML execution - opcodes with 1 argument
- *              $Revision: 135 $
+ *              $Revision: 139 $
  *
  *****************************************************************************/
 
@@ -306,7 +306,8 @@ AcpiExOpcode_1A_1T_1R (
     ACPI_FUNCTION_TRACE_STR ("ExOpcode_1A_1T_1R", AcpiPsGetOpcodeName (WalkState->Opcode));
 
 
-    /* Create a return object of type Integer for most opcodes */
+
+    /* Examine the AML opcode */
 
     switch (WalkState->Opcode)
     {
@@ -317,6 +318,8 @@ AcpiExOpcode_1A_1T_1R (
     case AML_TO_BCD_OP:
     case AML_COND_REF_OF_OP:
 
+        /* Create a return object of type Integer for these opcodes */
+
         ReturnDesc = AcpiUtCreateInternalObject (ACPI_TYPE_INTEGER);
         if (!ReturnDesc)
         {
@@ -324,163 +327,164 @@ AcpiExOpcode_1A_1T_1R (
             goto Cleanup;
         }
 
-        break;
-    }
-
-    /* Examine the AML opcode */
-
-    switch (WalkState->Opcode)
-    {
-
-    case AML_BIT_NOT_OP:            /* Not (Operand, Result)  */
-
-        ReturnDesc->Integer.Value = ~Operand[0]->Integer.Value;
-        break;
-
-
-    case AML_FIND_SET_LEFT_BIT_OP:  /* FindSetLeftBit (Operand, Result) */
-
-        ReturnDesc->Integer.Value = Operand[0]->Integer.Value;
-
-        /*
-         * Acpi specification describes Integer type as a little
-         * endian unsigned value, so this boundary condition is valid.
-         */
-        for (Temp32 = 0; ReturnDesc->Integer.Value && Temp32 < ACPI_INTEGER_BIT_SIZE; ++Temp32)
+        switch (WalkState->Opcode)
         {
-            ReturnDesc->Integer.Value >>= 1;
-        }
+        case AML_BIT_NOT_OP:            /* Not (Operand, Result)  */
 
-        ReturnDesc->Integer.Value = Temp32;
-        break;
-
-
-    case AML_FIND_SET_RIGHT_BIT_OP: /* FindSetRightBit (Operand, Result)  */
-
-        ReturnDesc->Integer.Value = Operand[0]->Integer.Value;
-
-        /*
-         * The Acpi specification describes Integer type as a little
-         * endian unsigned value, so this boundary condition is valid.
-         */
-        for (Temp32 = 0; ReturnDesc->Integer.Value && Temp32 < ACPI_INTEGER_BIT_SIZE; ++Temp32)
-        {
-            ReturnDesc->Integer.Value <<= 1;
-        }
-
-        /* Since the bit position is one-based, subtract from 33 (65) */
-
-        ReturnDesc->Integer.Value = Temp32 == 0 ? 0 : (ACPI_INTEGER_BIT_SIZE + 1) - Temp32;
-        break;
+            ReturnDesc->Integer.Value = ~Operand[0]->Integer.Value;
+            break;
 
 
-    case AML_FROM_BCD_OP:           /* FromBcd (BCDValue, Result)  */
+        case AML_FIND_SET_LEFT_BIT_OP:  /* FindSetLeftBit (Operand, Result) */
 
-        /*
-         * The 64-bit ACPI integer can hold 16 4-bit BCD integers
-         */
-        ReturnDesc->Integer.Value = 0;
-        for (i = 0; i < ACPI_MAX_BCD_DIGITS; i++)
-        {
-            /* Get one BCD digit */
+            ReturnDesc->Integer.Value = Operand[0]->Integer.Value;
 
-            Digit = (ACPI_INTEGER) ((Operand[0]->Integer.Value >> (i * 4)) & 0xF);
-
-            /* Check the range of the digit */
-
-            if (Digit > 9)
+            /*
+             * Acpi specification describes Integer type as a little
+             * endian unsigned value, so this boundary condition is valid.
+             */
+            for (Temp32 = 0; ReturnDesc->Integer.Value && Temp32 < ACPI_INTEGER_BIT_SIZE; ++Temp32)
             {
-                ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "BCD digit too large: %d\n",
-                    (UINT32) Digit));
+                ReturnDesc->Integer.Value >>= 1;
+            }
+
+            ReturnDesc->Integer.Value = Temp32;
+            break;
+
+
+        case AML_FIND_SET_RIGHT_BIT_OP: /* FindSetRightBit (Operand, Result)  */
+
+            ReturnDesc->Integer.Value = Operand[0]->Integer.Value;
+
+            /*
+             * The Acpi specification describes Integer type as a little
+             * endian unsigned value, so this boundary condition is valid.
+             */
+            for (Temp32 = 0; ReturnDesc->Integer.Value && Temp32 < ACPI_INTEGER_BIT_SIZE; ++Temp32)
+            {
+                ReturnDesc->Integer.Value <<= 1;
+            }
+
+            /* Since the bit position is one-based, subtract from 33 (65) */
+
+            ReturnDesc->Integer.Value = Temp32 == 0 ? 0 : (ACPI_INTEGER_BIT_SIZE + 1) - Temp32;
+            break;
+
+
+        case AML_FROM_BCD_OP:           /* FromBcd (BCDValue, Result)  */
+
+            /*
+             * The 64-bit ACPI integer can hold 16 4-bit BCD integers
+             */
+            ReturnDesc->Integer.Value = 0;
+            for (i = 0; i < ACPI_MAX_BCD_DIGITS; i++)
+            {
+                /* Get one BCD digit */
+
+                Digit = (ACPI_INTEGER) ((Operand[0]->Integer.Value >> (i * 4)) & 0xF);
+
+                /* Check the range of the digit */
+
+                if (Digit > 9)
+                {
+                    ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "BCD digit too large: %d\n",
+                        (UINT32) Digit));
+                    Status = AE_AML_NUMERIC_OVERFLOW;
+                    goto Cleanup;
+                }
+
+                if (Digit > 0)
+                {
+                    /* Sum into the result with the appropriate power of 10 */
+
+                    for (j = 0; j < i; j++)
+                    {
+                        Digit *= 10;
+                    }
+
+                    ReturnDesc->Integer.Value += Digit;
+                }
+            }
+            break;
+
+
+        case AML_TO_BCD_OP:             /* ToBcd (Operand, Result)  */
+
+            if (Operand[0]->Integer.Value > ACPI_MAX_BCD_VALUE)
+            {
+                ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "BCD overflow: %8.8X%8.8X\n",
+                    ACPI_HIDWORD(Operand[0]->Integer.Value),
+                    ACPI_LODWORD(Operand[0]->Integer.Value)));
                 Status = AE_AML_NUMERIC_OVERFLOW;
                 goto Cleanup;
             }
 
-            if (Digit > 0)
+            ReturnDesc->Integer.Value = 0;
+            for (i = 0; i < ACPI_MAX_BCD_DIGITS; i++)
             {
-                /* Sum into the result with the appropriate power of 10 */
+                /* Divide by nth factor of 10 */
 
+                Temp32 = 0;
+                Digit = Operand[0]->Integer.Value;
                 for (j = 0; j < i; j++)
                 {
-                    Digit *= 10;
+                    (void) AcpiUtShortDivide (&Digit, 10, &Digit, &Temp32);
                 }
 
-                ReturnDesc->Integer.Value += Digit;
+                /* Create the BCD digit from the remainder above */
+
+                if (Digit > 0)
+                {
+                    ReturnDesc->Integer.Value += ((ACPI_INTEGER) Temp32 << (i * 4));
+                }
             }
-        }
-        break;
+            break;
 
 
-    case AML_TO_BCD_OP:             /* ToBcd (Operand, Result)  */
-
-        if (Operand[0]->Integer.Value > ACPI_MAX_BCD_VALUE)
-        {
-            ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "BCD overflow: %8.8X%8.8X\n",
-                ACPI_HIDWORD(Operand[0]->Integer.Value),
-                ACPI_LODWORD(Operand[0]->Integer.Value)));
-            Status = AE_AML_NUMERIC_OVERFLOW;
-            goto Cleanup;
-        }
-
-        ReturnDesc->Integer.Value = 0;
-        for (i = 0; i < ACPI_MAX_BCD_DIGITS; i++)
-        {
-            /* Divide by nth factor of 10 */
-
-            Temp32 = 0;
-            Digit = Operand[0]->Integer.Value;
-            for (j = 0; j < i; j++)
-            {
-                AcpiUtShortDivide (&Digit, 10, &Digit, &Temp32);
-            }
-
-            /* Create the BCD digit from the remainder above */
-
-            if (Digit > 0)
-            {
-                ReturnDesc->Integer.Value += ((ACPI_INTEGER) Temp32 << (i * 4));
-            }
-        }
-        break;
-
-
-    case AML_COND_REF_OF_OP:        /* CondRefOf (SourceObject, Result)  */
-
-        /*
-         * This op is a little strange because the internal return value is
-         * different than the return value stored in the result descriptor
-         * (There are really two return values)
-         */
-        if ((ACPI_NAMESPACE_NODE *) Operand[0] == AcpiGbl_RootNode)
-        {
-            /*
-             * This means that the object does not exist in the namespace,
-             * return FALSE
-             */
-            ReturnDesc->Integer.Value = 0;
+        case AML_COND_REF_OF_OP:        /* CondRefOf (SourceObject, Result)  */
 
             /*
-             * Must delete the result descriptor since there is no reference
-             * being returned
+             * This op is a little strange because the internal return value is
+             * different than the return value stored in the result descriptor
+             * (There are really two return values)
              */
-            AcpiUtRemoveReference (Operand[1]);
+            if ((ACPI_NAMESPACE_NODE *) Operand[0] == AcpiGbl_RootNode)
+            {
+                /*
+                 * This means that the object does not exist in the namespace,
+                 * return FALSE
+                 */
+                ReturnDesc->Integer.Value = 0;
+
+                /*
+                 * Must delete the result descriptor since there is no reference
+                 * being returned
+                 */
+                AcpiUtRemoveReference (Operand[1]);
+                goto Cleanup;
+            }
+
+            /* Get the object reference and store it */
+
+            Status = AcpiExGetObjectReference (Operand[0], &ReturnDesc2, WalkState);
+            if (ACPI_FAILURE (Status))
+            {
+                goto Cleanup;
+            }
+
+            Status = AcpiExStore (ReturnDesc2, Operand[1], WalkState);
+
+            /* The object exists in the namespace, return TRUE */
+
+            ReturnDesc->Integer.Value = ACPI_INTEGER_MAX;
             goto Cleanup;
+
+
+        default:
+            /* No other opcodes get here */
+            break;
         }
-
-        /* Get the object reference and store it */
-
-        Status = AcpiExGetObjectReference (Operand[0], &ReturnDesc2, WalkState);
-        if (ACPI_FAILURE (Status))
-        {
-            goto Cleanup;
-        }
-
-        Status = AcpiExStore (ReturnDesc2, Operand[1], WalkState);
-
-        /* The object exists in the namespace, return TRUE */
-
-        ReturnDesc->Integer.Value = ACPI_INTEGER_MAX;
-        goto Cleanup;
+        break;
 
 
     case AML_STORE_OP:              /* Store (Source, Target) */
@@ -633,7 +637,7 @@ AcpiExOpcode_1A_0T_1R (
          * can be either a NS Node or an internal object.
          */
         ReturnDesc = Operand[0];
-        if (ACPI_GET_DESCRIPTOR_TYPE (Operand[0]) == ACPI_DESC_TYPE_INTERNAL)
+        if (ACPI_GET_DESCRIPTOR_TYPE (Operand[0]) == ACPI_DESC_TYPE_OPERAND)
         {
             /* Internal reference object - prevent deletion */
 
@@ -674,7 +678,7 @@ AcpiExOpcode_1A_0T_1R (
 
     case AML_TYPE_OP:               /* ObjectType (SourceObject) */
 
-        if (INTERNAL_TYPE_REFERENCE == Operand[0]->Common.Type)
+        if (ACPI_GET_OBJECT_TYPE (Operand[0]) == INTERNAL_TYPE_REFERENCE)
         {
             /*
              * Not a Name -- an indirect name pointer would have
@@ -682,17 +686,6 @@ AcpiExOpcode_1A_0T_1R (
              */
             switch (Operand[0]->Reference.Opcode)
             {
-            case AML_ZERO_OP:
-            case AML_ONE_OP:
-            case AML_ONES_OP:
-            case AML_REVISION_OP:
-
-                /* Constants are of type Integer */
-
-                Type = ACPI_TYPE_INTEGER;
-                break;
-
-
             case AML_DEBUG_OP:
 
                 /* The Debug Object is of type "DebugObject" */
@@ -713,7 +706,7 @@ AcpiExOpcode_1A_0T_1R (
                      * of the individual package element that is referenced by
                      * the index.
                      */
-                    Type = (*(Operand[0]->Reference.Where))->Common.Type;
+                    Type = ACPI_GET_OBJECT_TYPE (*(Operand[0]->Reference.Where));
                 }
                 break;
 
@@ -728,7 +721,7 @@ AcpiExOpcode_1A_0T_1R (
 
             default:
 
-                ACPI_REPORT_ERROR (("AcpiExOpcode_1A_0T_1R/TypeOp: Internal error - Unknown Reference subtype %X\n",
+                ACPI_REPORT_ERROR (("AcpiExOpcode_1A_0T_1R/TypeOp: Unknown Reference subtype %X\n",
                     Operand[0]->Reference.Opcode));
                 Status = AE_AML_INTERNAL;
                 goto Cleanup;
@@ -750,6 +743,11 @@ AcpiExOpcode_1A_0T_1R (
             case INTERNAL_TYPE_INDEX_FIELD:
 
                 Type = ACPI_TYPE_FIELD_UNIT;
+                break;
+
+            default:
+                /* No change to Type required */
+                break;
             }
 
         }
@@ -786,7 +784,7 @@ AcpiExOpcode_1A_0T_1R (
              * point (even if the original operand was an object reference, it
              * will be resolved and typechecked during operand resolution.)
              */
-            switch (TempDesc->Common.Type)
+            switch (ACPI_GET_OBJECT_TYPE (TempDesc))
             {
             case ACPI_TYPE_BUFFER:
                 Value = TempDesc->Buffer.Length;
@@ -802,7 +800,7 @@ AcpiExOpcode_1A_0T_1R (
 
             default:
                 ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "SizeOf, Not Buf/Str/Pkg - found type %s\n",
-                    AcpiUtGetTypeName (TempDesc->Common.Type)));
+                    AcpiUtGetObjectTypeName (TempDesc)));
                 Status = AE_AML_OPERAND_TYPE;
                 goto Cleanup;
             }
@@ -854,8 +852,12 @@ AcpiExOpcode_1A_0T_1R (
 
                     /* Set Operand[0] to the value of the local/arg */
 
-                    AcpiDsMethodDataGetValue (Operand[0]->Reference.Opcode,
-                            Operand[0]->Reference.Offset, WalkState, &TempDesc);
+                    Status = AcpiDsMethodDataGetValue (Operand[0]->Reference.Opcode,
+                                Operand[0]->Reference.Offset, WalkState, &TempDesc);
+                    if (ACPI_FAILURE (Status))
+                    {
+                        goto Cleanup;
+                    }
 
                     /*
                      * Delete our reference to the input object and
@@ -882,14 +884,16 @@ AcpiExOpcode_1A_0T_1R (
                  * 2) Dereference the node to an actual object.  Could be a Field, so we nee
                  *    to resolve the node to a value.
                  */
-                Status = AcpiNsGetNodeByPath (Operand[0]->String.Pointer, WalkState->ScopeInfo->Scope.Node,
-                                ACPI_NS_SEARCH_PARENT, (ACPI_NAMESPACE_NODE **) &ReturnDesc);
+                Status = AcpiNsGetNodeByPath (Operand[0]->String.Pointer, 
+                                WalkState->ScopeInfo->Scope.Node, ACPI_NS_SEARCH_PARENT, 
+                                ACPI_CAST_INDIRECT_PTR (ACPI_NAMESPACE_NODE, &ReturnDesc));
                 if (ACPI_FAILURE (Status))
                 {
                     goto Cleanup;
                 }
 
-                Status = AcpiExResolveNodeToValue ((ACPI_NAMESPACE_NODE **) &ReturnDesc, WalkState);
+                Status = AcpiExResolveNodeToValue (
+                                ACPI_CAST_INDIRECT_PTR (ACPI_NAMESPACE_NODE, &ReturnDesc), WalkState);
                 goto Cleanup;
 
 
