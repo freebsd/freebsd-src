@@ -44,6 +44,7 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/cons.h>
+#include <sys/cpu.h>
 #include <sys/imgact.h>
 #include <sys/kdb.h>
 #include <sys/kernel.h>
@@ -667,6 +668,14 @@ cpu_shutdown(void *args)
 	cpu_mp_shutdown();
 #endif
 	openfirmware_exit(args);
+}
+
+/* Get current clock frequency for the given cpu id. */
+int
+cpu_est_clockrate(int cpu_id, uint64_t *rate)
+{
+
+	return (ENXIO);
 }
 
 /*

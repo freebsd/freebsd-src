@@ -48,6 +48,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/cpu.h>
 #include <sys/sysproto.h>
 #include <sys/signalvar.h>
 #include <sys/imgact.h>
@@ -235,6 +236,14 @@ cpu_startup(void *dummy)
 }
 
 SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL)
+
+/* Get current clock frequency for the given cpu id. */
+int
+cpu_est_clockrate(int cpu_id, uint64_t *rate)
+{
+
+	return (ENXIO);
+}
 
 void
 cpu_idle(void)

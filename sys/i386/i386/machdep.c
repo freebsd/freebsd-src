@@ -56,8 +56,12 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/sysproto.h>
-#include <sys/signalvar.h>
+#include <sys/bio.h>
+#include <sys/buf.h>
+#include <sys/bus.h>
+#include <sys/callout.h>
+#include <sys/cpu.h>
+#include <sys/eventhandler.h>
 #include <sys/imgact.h>
 #include <sys/kdb.h>
 #include <sys/kernel.h>
@@ -66,21 +70,18 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/memrange.h>
+#include <sys/msgbuf.h>
 #include <sys/mutex.h>
 #include <sys/pcpu.h>
 #include <sys/proc.h>
-#include <sys/bio.h>
-#include <sys/buf.h>
 #include <sys/reboot.h>
-#include <sys/callout.h>
-#include <sys/msgbuf.h>
 #include <sys/sched.h>
-#include <sys/sysent.h>
+#include <sys/signalvar.h>
 #include <sys/sysctl.h>
+#include <sys/sysent.h>
+#include <sys/sysproto.h>
 #include <sys/ucontext.h>
 #include <sys/vmmeter.h>
-#include <sys/bus.h>
-#include <sys/eventhandler.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -104,6 +105,7 @@ __FBSDID("$FreeBSD$");
 
 #include <net/netisr.h>
 
+#include <machine/clock.h>
 #include <machine/cpu.h>
 #include <machine/cputypes.h>
 #include <machine/reg.h>
@@ -1020,6 +1022,46 @@ sigreturn(td, uap)
 void
 cpu_boot(int howto)
 {
+}
+
+/* Get current clock frequency for the given cpu id. */
+int
+cpu_est_clockrate(int cpu_id, uint64_t *rate)
+{
+	uint64_t tsc1, tsc2;
+
+	if (pcpu_find(cpu_id) == NULL || rate == NULL)
+		return (EINVAL);
+	if (!tsc_present)
+		return (EOPNOTSUPP);
+
+	/* If we're booting, trust the rate calibrated moments ago. */
+	if (cold) {
+		*rate = tsc_freq;
+		return (0);
+	}
+
+#ifdef SMP
+	/* Schedule ourselves on the indicated cpu. */
+	mtx_lock_spin(&sched_lock);
+	sched_bind(curthread, cpu_id);
+	mtx_unlock_spin(&sched_lock);
+#endif
+
+	/* Calibrate by measuring a short delay. */
+	tsc1 = rdtsc();
+	DELAY(1000);
+	tsc2 = rdtsc();
+
+#ifdef SMP
+	mtx_lock_spin(&sched_lock);
+	sched_unbind(curthread);
+	mtx_unlock_spin(&sched_lock);
+#endif
+
+	tsc_freq = (tsc2 - tsc1) * 1000;
+	*rate = tsc_freq;
+	return (0);
 }
 
 /*
