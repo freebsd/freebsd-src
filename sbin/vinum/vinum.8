@@ -34,11 +34,11 @@
 .\" otherwise) arising in any way out of the use of this software, even if
 .\" advised of the possibility of such damage.
 .\"
-.\" $Id: vinum.8,v 1.48 2001/01/15 22:15:05 grog Exp $
+.\" $Id: vinum.8,v 1.15 2001/05/14 01:10:37 grog Exp grog $
 .\" $FreeBSD$
 .\"
 .Dd December 20, 2000
-.Dt VINUM 8
+.Dt vinum 8
 .Os
 .Sh NAME
 .Nm vinum
@@ -266,10 +266,8 @@ Create a striped volume from the specified drives.
 .El
 .Sh DESCRIPTION
 .Nm
-is a utility program to communicate with the
-.Xr vinum 4
-logical volume
-manager.
+is a utility program to communicate with the kernel component of the Vinum
+logical volume manager.
 .Nm
 is designed either for interactive use, when started without command line
 arguments, or to execute a single command if the command is supplied on the
@@ -911,7 +909,7 @@ If the
 .Fl s
 option is provided,
 .Ic mirror
-builds striped plexes with a stripe size of 256 kB.  The size of the subdisks in
+builds striped plexes with a stripe size of 279 kB.  The size of the subdisks in
 each plex is the size of the smallest contiguous storage available on any of the
 drives which form the plex.  Again, the plexes may differ in size.
 .Pp
@@ -1323,7 +1321,7 @@ If no parameters are specified,
 .Ic stop
 removes the
 .Nm
-KLD and stops
+kld and stops
 .Xr vinum 4 .
 This can only be done if no objects are active.  In particular, the
 .Fl f
@@ -1341,7 +1339,7 @@ The
 .Ic stop
 command can only work if
 .Nm
-has been loaded as a KLD, since it is not possible to unload a statically
+has been loaded as a kld, since it is not possible to unload a statically
 configured driver.
 .Nm Ic stop
 will fail if
@@ -1350,7 +1348,7 @@ is statically configured.
 .Pp
 If object names are specified,
 .Ic stop
-disables access to the objects.  If the objects have subordinate objects, they
+disables access to the objects.  If the objects have subordinate objects, the
 subordinate objects must either already be inactive (stopped or in error), or
 the
 .Fl r
@@ -1385,7 +1383,7 @@ command provides a simplified alternative to the
 .Ic create
 command for creating volumes with a single striped plex.  The size of the
 subdisks is the size of the largest contiguous space available on all the
-specified drives.  The stripe size is fixed at 256 kB.
+specified drives.  The stripe size is fixed at 279 kB.
 .Pp
 Normally, the
 .Ic stripe
@@ -1462,10 +1460,10 @@ drive vinumdrive3 device /dev/da4h
     sd name vinum0.p0.s3 drive vinumdrive3 size 0
 V vinum0                State: up       Plexes:       1 Size:       2134 MB
 P vinum0.p0           C State: up       Subdisks:     4 Size:       2134 MB
-S vinum0.p0.s0          State: up       PO:        0  B Size:        414 MB
-S vinum0.p0.s1          State: up       PO:      414 MB Size:        573 MB
-S vinum0.p0.s2          State: up       PO:      988 MB Size:        573 MB
-S vinum0.p0.s3          State: up       PO:     1561 MB Size:        573 MB
+S vinum0.p0.s0          State: up       D: vinumdrive0  Size:        414 MB
+S vinum0.p0.s1          State: up       D: vinumdrive1  Size:        573 MB
+S vinum0.p0.s2          State: up       D: vinumdrive2  Size:        573 MB
+S vinum0.p0.s3          State: up       D: vinumdrive3  Size:        573 MB
 .Ed
 .Pp
 In this case, the complete space on all four disks was used, giving a volume
@@ -1481,17 +1479,17 @@ drive vinumdrive1 device /dev/da2h
 drive vinumdrive2 device /dev/da3h
 drive vinumdrive3 device /dev/da4h
 volume vinum0
-  plex name vinum0.p0 org striped 256k
+  plex name vinum0.p0 org striped 279k
     sd name vinum0.p0.s0 drive vinumdrive0 size 849825b
     sd name vinum0.p0.s1 drive vinumdrive1 size 849825b
     sd name vinum0.p0.s2 drive vinumdrive2 size 849825b
     sd name vinum0.p0.s3 drive vinumdrive3 size 849825b
 V vinum0                State: up       Plexes:       1 Size:       1659 MB
 P vinum0.p0           S State: up       Subdisks:     4 Size:       1659 MB
-S vinum0.p0.s0          State: up       PO:        0  B Size:        414 MB
-S vinum0.p0.s1          State: up       PO:      256 kB Size:        414 MB
-S vinum0.p0.s2          State: up       PO:      512 kB Size:        414 MB
-S vinum0.p0.s3          State: up       PO:      768 kB Size:        414 MB
+S vinum0.p0.s0          State: up       D: vinumdrive0  Size:        414 MB
+S vinum0.p0.s1          State: up       D: vinumdrive1  Size:        414 MB
+S vinum0.p0.s2          State: up       D: vinumdrive2  Size:        414 MB
+S vinum0.p0.s3          State: up       D: vinumdrive3  Size:        414 MB
 .Ed
 .Pp
 In this case, the size of the subdisks has been limited to the smallest
@@ -1514,10 +1512,10 @@ volume mirror setupstate
 V mirror                State: up       Plexes:       2 Size:       1146 MB
 P mirror.p0           C State: up       Subdisks:     2 Size:        988 MB
 P mirror.p1           C State: up       Subdisks:     2 Size:       1146 MB
-S mirror.p0.s0          State: up       PO:        0  B Size:        414 MB
-S mirror.p0.s1          State: up       PO:      414 MB Size:        573 MB
-S mirror.p1.s0          State: up       PO:        0  B Size:        573 MB
-S mirror.p1.s1          State: up       PO:      573 MB Size:        573 MB
+S vinum0.p0.s0          State: up       D: vinumdrive0  Size:        414 MB
+S vinum0.p0.s2          State: up       D: vinumdrive2  Size:        414 MB
+S vinum0.p0.s1          State: up       D: vinumdrive1  Size:        414 MB
+S vinum0.p0.s3          State: up       D: vinumdrive3  Size:        414 MB
 .Ed
 .Pp
 This example specifies the name of the volume,
@@ -1538,19 +1536,19 @@ drive vinumdrive1 device /dev/da2h
 drive vinumdrive2 device /dev/da3h
 drive vinumdrive3 device /dev/da4h
 volume raid10 setupstate
-  plex name raid10.p0 org striped 256k
+  plex name raid10.p0 org striped 279k
     sd name raid10.p0.s0 drive vinumdrive0 size 849825b
     sd name raid10.p0.s1 drive vinumdrive2 size 849825b
-  plex name raid10.p1 org striped 256k
+  plex name raid10.p1 org striped 279k
     sd name raid10.p1.s0 drive vinumdrive1 size 1173665b
     sd name raid10.p1.s1 drive vinumdrive3 size 1173665b
 V raid10                State: up       Plexes:       2 Size:       1146 MB
 P raid10.p0           S State: up       Subdisks:     2 Size:        829 MB
 P raid10.p1           S State: up       Subdisks:     2 Size:       1146 MB
 S raid10.p0.s0          State: up       PO:        0  B Size:        414 MB
-S raid10.p0.s1          State: up       PO:      256 kB Size:        414 MB
+S raid10.p0.s1          State: up       PO:      279 kB Size:        414 MB
 S raid10.p1.s0          State: up       PO:        0  B Size:        573 MB
-S raid10.p1.s1          State: up       PO:      256 kB Size:        573 MB
+S raid10.p1.s1          State: up       PO:      279 kB Size:        573 MB
 .Ed
 .Pp
 In this case, the usable part of the volume is even smaller, since the first
@@ -1581,8 +1579,8 @@ is used for compatibility with
 It stands for blocks of 512 bytes.
 This abbreviation is confusing, since the word
 .Dq block
-is used in different
-meanings, and its use is deprecated.
+is used in different meanings, and its use is deprecated.  Use the keyword 's'
+instead.
 .El
 .Pp
 For example, the value 16777216 bytes can also be written as
@@ -1676,8 +1674,8 @@ command with RAID-5 plexes: otherwise extreme data corruption will result if one
 subdisk fails.
 .El
 .It Ic plex Op Ar options
-Define a plex.  Unlike a volume, a plex does not need a name.  The options may
-be:
+Define a plex.  Unlike a volume, you do not need to specify a name for a plex.
+The options may be:
 .Bl -tag -width 18n
 .It Cm name Ar plexname
 Specify the name of the plex.  Note that you must use the keyword
@@ -1713,7 +1711,9 @@ individual requests over multiple disks.  The performance improvement due to the
 increased number of concurrent transfers caused by this mapping will not make up
 for the performance drop due to the increase in latency.  A good guideline for
 stripe size is between 256 kB and 512 kB.  Avoid powers of 2, however: they tend
-to cause all superblocks to be placed on the first subdisk.
+to cause all superblocks to be placed on the first subdisk.  The simplified
+commands use a stripe size of 279 kB, which shows a reasonable distribution of
+superblocks.
 .Pp
 A striped plex must have at least two subdisks (otherwise it is a concatenated
 plex), and each must be the same size.  A RAID-5 plex must have at least three
@@ -1733,7 +1733,7 @@ Define a subdisk.  Options may be:
 .Bl -hang -width 18n
 .It Cm name Ar name
 Specify the name of a subdisk.  It is not necessary to specify a name for a
-subdisk, see
+subdisk\(emsee
 .Sx OBJECT NAMING
 above.  Note that you must specify the keyword
 .Cm name
@@ -1764,6 +1764,11 @@ to the last plex specified.
 .It Cm drive Ar drive
 Specify the drive on which the subdisk resides.  By default, the subdisk resides
 on the last drive specified.
+.It Cm retryerrors
+Specify that the subdisk should not be taken down if an unrecoverable error
+occurs.  Normally
+.Nm
+responds to an unrecoverable error by making the entire subdisk inaccessible.
 .El
 .El
 .Sh EXAMPLE CONFIGURATION FILE
@@ -1779,11 +1784,11 @@ drive drive5 device /dev/da5h
 drive drive6 device /dev/da6h
 # A volume with one striped plex
 volume tinyvol
- plex org striped 512b
+ plex org striped 279k
   sd length 64m drive drive2
   sd length 64m drive drive4
 volume stripe
- plex org striped 512b
+ plex org striped 279k
   sd length 512m drive drive2
   sd length 512m drive drive4
 # Two plexes
@@ -1795,7 +1800,7 @@ volume concat
   sd length 150m drive drive4
 # A volume with one striped plex and one concatenated plex
 volume strcon
- plex org striped 512b
+ plex org striped 279k
   sd length 100m drive drive2
   sd length 100m drive drive4
  plex org concat
@@ -2461,9 +2466,7 @@ drives are
 .Ux
 disk partitions and must have the partition type
 .Em vinum .
-This is different from
-.Xr ccd 4 ,
-which expects partitions of type
+This is different from ccd, which expects partitions of type
 .Em 4.2BSD .
 This behaviour of
 .Nm ccd
@@ -2556,14 +2559,8 @@ option, you must also build
 with the
 .Fl D Ns Dv VINUMDEBUG
 option, since the size of some data objects used by both components depends on
-this option.  If you don't do so, commands will fail with the message
-.Sy Invalid argument ,
-and a console message will be logged such as
-.Bl -diag
-.It "vinumioctl: invalid ioctl from process 247 (vinum): c0e44642"
-.El
-.Pp
-This error may also occur if you use old versions of KLD or userland program.
+this option.  If you don't do so, commands will fail with a corresponding error
+message.
 .It
 The
 .Nm Ic read
