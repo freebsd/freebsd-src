@@ -6,6 +6,7 @@
 
 LIB=	iberty
 SRCS=	argv.c choose-temp.c concat.c cp-demangle.c cplus-dem.c \
+	cp-demint.c lrealpath.c make-relative-prefix.c \
 	dyn-string.c getpwd.c getruntime.c \
 	hex.c floatformat.c hashtab.c lbasename.c make-temp-file.c \
 	objalloc.c obstack.c safe-ctype.c xatexit.c xexit.c xmalloc.c \

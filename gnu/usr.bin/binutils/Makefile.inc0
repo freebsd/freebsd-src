@@ -4,10 +4,15 @@
 # use the normal "Makefile.inc" mechanism, because we need some of these
 # definitions before the sub-Makefile is processed.
 
-VERSION=	"2.13.2 [FreeBSD] 2002-11-27"
-VERSION_DATE=	20021127
+VERSION=	"2.15 [FreeBSD] 2004-05-23"
 
 TARGET_ARCH?=	${MACHINE_ARCH}
+.if ${TARGET_ARCH} == "amd64"
+BINUTILS_ARCH=x86_64
+.else
+BINUTILS_ARCH=${TARGET_ARCH}
+.endif
+TARGET_TUPLE?=	${BINUTILS_ARCH}-obrien-freebsd
 
 # RELTOP is the relative path to this point in the source or object
 # tree, from any subdirectory of same.  It gets extra "../" prefixes
@@ -17,13 +22,13 @@ RELTOP:= ..
 RELSRC=	${RELTOP}/../../../contrib/binutils
 SRCDIR=	${.CURDIR}/${RELSRC}
 
-CFLAGS+= -D_GNU_SOURCE
 CFLAGS+= -I.
 .if exists(${.CURDIR}/${TARGET_ARCH})
 CFLAGS+= -I${.CURDIR}/${TARGET_ARCH}
 .endif
 CFLAGS+= -I${.CURDIR}
 CFLAGS+= -I${.CURDIR}/${RELTOP}/libbfd/${TARGET_ARCH}
+CFLAGS+= -I${.OBJDIR}/${RELTOP}/libbfd
 CFLAGS+= -I${SRCDIR}/include
 
 .if exists(${.CURDIR}/${TARGET_ARCH})

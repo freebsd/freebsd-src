@@ -73,6 +73,9 @@
 /* Define if you have the putenv function.  */
 #define HAVE_PUTENV 1
 
+/* Define if you have the realpath function.  */
+#define HAVE_REALPATH 1
+
 /* Define if you have the sbrk function.  */
 #define HAVE_SBRK 1
 
@@ -130,12 +133,6 @@
 /* Define if you have the <sys/param.h> header file.  */
 #define HAVE_SYS_PARAM_H 1
 
-/* Define if you have the <sys/stat.h> header file.  */
-#define HAVE_SYS_STAT_H 1
-
-/* Define if you have the <sys/types.h> header file.  */
-#define HAVE_SYS_TYPES_H 1
-
 /* Define if you have the <unistd.h> header file.  */
 #define HAVE_UNISTD_H 1
 
@@ -146,7 +143,7 @@
 #define PACKAGE "ld"
 
 /* Version number of package */
-/* #define VERSION "2.13.2" */
+/* #define VERSION "2.15" */
 
 /* Define if you have the stpcpy function */
 #define HAVE_STPCPY 1

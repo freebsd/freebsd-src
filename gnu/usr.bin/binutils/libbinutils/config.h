@@ -34,9 +34,6 @@
 /* Define to `long' if <sys/types.h> doesn't define.  */
 /* #undef off_t */
 
-/* Define if you need to in order for stat and other things to work.  */
-/* #undef _POSIX_SOURCE */
-
 /* Define to `unsigned' if <sys/types.h> doesn't define.  */
 /* #undef size_t */
 
@@ -68,7 +65,7 @@
 /* #undef HAVE_DCGETTEXT */
 
 /* Define if you have the getc_unlocked function.  */
-/* #undef HAVE_GETC_UNLOCKED */
+#define HAVE_GETC_UNLOCKED 1
 
 /* Define if you have the getcwd function.  */
 #define HAVE_GETCWD 1
@@ -142,12 +139,6 @@
 /* Define if you have the <sys/param.h> header file.  */
 #define HAVE_SYS_PARAM_H 1
 
-/* Define if you have the <sys/stat.h> header file.  */
-#define HAVE_SYS_STAT_H 1
-
-/* Define if you have the <sys/types.h> header file.  */
-#define HAVE_SYS_TYPES_H 1
-
 /* Define if you have the <unistd.h> header file.  */
 #define HAVE_UNISTD_H 1
 
@@ -158,7 +149,7 @@
 #define PACKAGE "binutils"
 
 /* Version number of package */
-/* #define VERSION "2.13.2" */
+/* #define VERSION "2.15" */
 
 /* Define if you have the stpcpy function */
 #define HAVE_STPCPY 1
@@ -212,5 +203,8 @@
 /* #undef USE_BINARY_FOPEN */
 
 /* Configured target name. */
-/* #define TARGET "alpha-obrien-freebsd5.0" */
+/* #define TARGET "amd64-unknown-freebsd5.2" */
+
+/* Define to 1 if user symbol names have a leading underscore, 0 if not. */
+#define TARGET_PREPENDS_UNDERSCORE 0
 

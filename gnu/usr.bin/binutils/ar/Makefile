@@ -6,6 +6,7 @@
 
 PROG=	ar
 SRCS=	ar.c not-ranlib.c
+CFLAGS+= -D_GNU_SOURCE
 CFLAGS+= -I${.CURDIR}/${RELTOP}/libbinutils
 CFLAGS+= -I${SRCDIR}/binutils
 CFLAGS+= -I${SRCDIR}/bfd
