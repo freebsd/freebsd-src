@@ -165,6 +165,14 @@ printjob(struct printer *pp)
 	setgid(getegid());
 	pid = getpid();				/* for use with lprm */
 	setpgrp(0, pid);
+
+	/*
+	 * At initial lpd startup, printjob may be called with various
+	 * signal handlers in effect.  After that initial startup, any
+	 * calls to printjob will have a *different* set of signal-handlers
+	 * in effect.  Make sure all handlers are the ones we want.
+	 */
+	signal(SIGCHLD, SIG_DFL);
 	signal(SIGHUP, abortpr);
 	signal(SIGINT, abortpr);
 	signal(SIGQUIT, abortpr);
@@ -284,6 +292,9 @@ again:
 				(void) close(ofd);
 				while ((i = wait(NULL)) > 0 && i != ofilter)
 					;
+				if (i < 0)
+					syslog(LOG_WARNING, "%s: after kill(of=%d), wait() returned: %m",
+					    pp->printer, ofilter);
 				ofilter = 0;
 			}
 			(void) close(pfd);	/* close printer */
@@ -755,12 +766,15 @@ print(struct printer *pp, int format, char *file)
 		while ((pid =
 		    wait3((int *)&status, WUNTRACED, 0)) > 0 && pid != ofilter)
 			;
-		if (status.w_stopval != WSTOPPED) {
+		if (pid < 0)
+			syslog(LOG_WARNING, "%s: after stopping 'of', wait3() returned: %m",
+			    pp->printer);
+		else if (status.w_stopval != WSTOPPED) {
 			(void) close(fi);
 			syslog(LOG_WARNING,
 			       "%s: output filter died "
-			       "(retcode=%d termsig=%d)",
-				pp->printer, status.w_retcode,
+			       "(pid=%d retcode=%d termsig=%d)",
+				pp->printer, ofilter, status.w_retcode,
 			       status.w_termsig);
 			return(REPRINT);
 		}
@@ -784,9 +798,15 @@ start:
 	(void) close(fi);
 	if (child < 0)
 		status.w_retcode = 100;
-	else
+	else {
 		while ((pid = wait((int *)&status)) > 0 && pid != child)
 			;
+		if (pid < 0) {
+			status.w_retcode = 100;
+			syslog(LOG_WARNING, "%s: after execv(%s), wait() returned: %m",
+			    pp->printer, prog);
+		}
+	}
 	child = 0;
 	prchild = 0;
 	if (stopped) {		/* restart output filter */
@@ -1024,10 +1044,16 @@ sendfile(struct printer *pp, int type, char *file, char format)
 			(void) close(f);
 			if (ifilter < 0)
 				status.w_retcode = 100;
-			else
+			else {
 				while ((pid = wait((int *)&status)) > 0 &&
 					pid != ifilter)
 					;
+				if (pid < 0) {
+					status.w_retcode = 100;
+					syslog(LOG_WARNING, "%s: after execv(%s), wait() returned: %m",
+					    pp->printer, pp->filters[LPF_INPUT]);
+				}
+			}
 			/* Copy the filter's output to "lf" logfile */
 			if ((fp = fopen(tempstderr, "r"))) {
 				while (fgets(buf, sizeof(buf), fp))
@@ -1083,6 +1109,9 @@ sendfile(struct printer *pp, int type, char *file, char format)
 			close(f);
 			while ((i = wait(NULL)) > 0 && i != ofilter)
 				;
+			if (i < 0)
+				syslog(LOG_WARNING, "%s: after closing 'of', wait() returned: %m",
+				    pp->printer);
 			ofilter = 0;
 			statrc = fstat(tfd, &stb);   /* to find size of tfile */
 			if (statrc < 0)	{
