@@ -521,8 +521,7 @@ pmap_init(vm_offset_t phys_start, vm_offset_t phys_end)
 		vm_page_t m;
 
 		m = &vm_page_array[i];
-		TAILQ_INIT(&m->md.pv_list);
-		m->md.pv_list_count = 0;
+		STAILQ_INIT(&m->md.tte_list);
 	}
 
 	for (i = 0; i < translations_size; i++) {
@@ -536,10 +535,6 @@ pmap_init(vm_offset_t phys_start, vm_offset_t phys_end)
 			panic("pmap_init: vm_map_find");
 	}
 
-	pvzone = uma_zcreate("PV ENTRY", sizeof (struct pv_entry),
-	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
-	uma_zone_set_allocf(pvzone, pv_allocf);
-	uma_prealloc(pvzone, vm_page_array_size);
 	pmap_initialized = TRUE;
 }
 
@@ -551,13 +546,6 @@ pmap_init(vm_offset_t phys_start, vm_offset_t phys_end)
 void
 pmap_init2(void)
 {
-	int shpgperproc;
-
-	shpgperproc = PMAP_SHPGPERPROC;
-	TUNABLE_INT_FETCH("vm.pmap.shpgperproc", &shpgperproc);
-	pv_entry_max = shpgperproc * maxproc + vm_page_array_size;
-	pv_entry_high_water = 9 * (pv_entry_max / 10);
-	uma_zone_set_obj(pvzone, &pvzone_obj, pv_entry_max);
 }
 
 /*
@@ -597,10 +585,7 @@ int
 pmap_cache_enter(vm_page_t m, vm_offset_t va)
 {
 	struct tte *tp;
-	vm_offset_t pa;
-	pv_entry_t pv;
-	int c;
-	int i;
+	int c, i;
 
 	CTR2(KTR_PMAP, "pmap_cache_enter: m=%p va=%#lx", m, va);
 	PMAP_STATS_INC(pmap_ncache_enter);
@@ -619,15 +604,12 @@ pmap_cache_enter(vm_page_t m, vm_offset_t va)
 		return (0);
 	}
 	CTR0(KTR_PMAP, "pmap_cache_enter: marking uncacheable");
-	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
-		if ((tp = tsb_tte_lookup(pv->pv_pmap, pv->pv_va)) != NULL) {
-			atomic_clear_long(&tp->tte_data, TD_CV);
-			tlb_page_demap(TLB_DTLB | TLB_ITLB, pv->pv_pmap,
-			    pv->pv_va);
-		}
+	STAILQ_FOREACH(tp, &m->md.tte_list, tte_link) {
+		tp->tte_data &= ~TD_CV;
+		tlb_page_demap(TLB_DTLB | TLB_ITLB, TTE_GET_PMAP(tp),
+		    TTE_GET_VA(tp));
 	}
-	pa = VM_PAGE_TO_PHYS(m);
-	dcache_page_inval(pa);
+	dcache_page_inval(VM_PAGE_TO_PHYS(m));
 	return (0);
 }
 
@@ -700,9 +682,8 @@ pmap_kremove(vm_offset_t va)
 	tp = tsb_kvtotte(va);
 	CTR3(KTR_PMAP, "pmap_kremove: va=%#lx tp=%p data=%#lx", va, tp,
 	    tp->tte_data);
-	atomic_clear_long(&tp->tte_data, TD_V);
-	tp->tte_vpn = 0;
 	tp->tte_data = 0;
+	tp->tte_vpn = 0;
 }
 
 /*
@@ -1202,23 +1183,6 @@ pmap_growkernel(vm_offset_t addr)
 void
 pmap_collect(void)
 {
-	static int warningdone;
-	vm_page_t m;
-	int i;
-
-	if (pmap_pagedaemon_waken == 0)
-		return;
-	if (warningdone++ < 5)
-		printf("pmap_collect: collecting pv entries -- suggest"
-		    "increasing PMAP_SHPGPERPROC\n");
-	for (i = 0; i < vm_page_array_size; i++) {
-		m = &vm_page_array[i];
-		if (m->wire_count || m->hold_count || m->busy ||
-		    (m->flags & (PG_BUSY | PG_UNMANAGED)))
-			continue;
-		pv_remove_all(m);
-	}
-	pmap_pagedaemon_waken = 0;
 }
 
 static int
@@ -1236,12 +1200,10 @@ pmap_remove_tte(struct pmap *pm, struct pmap *pm2, struct tte *tp,
 			vm_page_dirty(m);
 		if ((tp->tte_data & TD_REF) != 0)
 			vm_page_flag_set(m, PG_REFERENCED);
-		pv_remove(pm, m, va);
+		pv_remove(pm, m, tp);
 		pmap_cache_remove(m, va);
 	}
-	atomic_clear_long(&tp->tte_data, TD_V);
-	tp->tte_vpn = 0;
-	tp->tte_data = 0;
+	TTE_ZERO(tp);
 	if (PMAP_REMOVE_DONE(pm))
 		return (0);
 	return (1);
@@ -1411,7 +1373,7 @@ pmap_enter(pmap_t pm, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 			CTR0(KTR_PMAP, "pmap_enter: replace");
 			PMAP_STATS_INC(pmap_enter_nreplace);
 			pmap_remove_tte(pm, NULL, tp, va);
-			tlb_tte_demap(tp, pm);
+			tlb_page_demap(TLB_DTLB | TLB_ITLB, pm, va);
 		} else {
 			CTR0(KTR_PMAP, "pmap_enter: new");
 			PMAP_STATS_INC(pmap_enter_nnew);
@@ -1440,17 +1402,6 @@ pmap_enter(pmap_t pm, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 			data |= TD_REF | TD_WIRED;
 			if ((prot & VM_PROT_WRITE) != 0)
 				data |= TD_W;
-		}
-
-		/*
-		 * Enter on the pv list if part of our managed memory.
-		 */
-		if (pmap_initialized &&
-		    (m->flags & (PG_FICTITIOUS|PG_UNMANAGED)) == 0) {
-			pv_insert(pm, m, va);
-			data |= TD_PV;
-			if (pmap_cache_enter(m, va) != 0)
-				data |= TD_CV;
 		}
 
 		tsb_tte_enter(pm, m, va, data);
@@ -1502,14 +1453,6 @@ pmap_copy_tte(pmap_t src_pmap, pmap_t dst_pmap, struct tte *tp, vm_offset_t va)
 		data = tp->tte_data &
 		    ~(TD_PV | TD_REF | TD_SW | TD_CV | TD_W);
 		m = PHYS_TO_VM_PAGE(TTE_GET_PA(tp));
-		if ((tp->tte_data & TD_PV) != 0) {
-			KASSERT((m->flags & (PG_FICTITIOUS|PG_UNMANAGED)) == 0,
-			    ("pmap_enter: unmanaged pv page"));
-			pv_insert(dst_pmap, m, va);
-			data |= TD_PV;
-			if (pmap_cache_enter(m, va) != 0)
-				data |= TD_CV;
-		}
 		tsb_tte_enter(dst_pmap, m, va, data);
 	}
 	return (1);

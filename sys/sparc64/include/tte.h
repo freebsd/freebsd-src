@@ -32,7 +32,7 @@
 #ifndef	_MACHINE_TTE_H_
 #define	_MACHINE_TTE_H_
 
-#define	TTE_SHIFT	(4)
+#define	TTE_SHIFT	(5)
 
 #define	TD_SIZE_SHIFT	(61)
 #define	TD_SOFT2_SHIFT	(50)
@@ -98,10 +98,16 @@
 	(((tp)->tte_data & TD_EXEC) ? (TLB_DTLB | TLB_ITLB) : TLB_DTLB)
 #define	TTE_GET_VA(tp) \
 	((tp)->tte_vpn << PAGE_SHIFT)
+#define	TTE_GET_PMAP(tp) \
+	((tp)->tte_pmap)
+#define	TTE_ZERO(tp) \
+	bzero(tp, sizeof(*tp))
 
 struct tte {
 	u_long	tte_vpn;
 	u_long	tte_data;
+	STAILQ_ENTRY(tte) tte_link;
+	struct	pmap *tte_pmap;
 };
 
 static __inline int
