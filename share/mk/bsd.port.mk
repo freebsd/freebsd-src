@@ -1,7 +1,7 @@
 #-*- mode: Fundamental; tab-width: 4; -*-
 # ex:ts=4
 #
-#	$Id: bsd.port.mk,v 1.296 1998/11/11 05:21:27 asami Exp $
+#	$Id: bsd.port.mk,v 1.297 1998/11/14 09:45:09 asami Exp $
 #	$NetBSD: $
 #
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
@@ -171,6 +171,9 @@ OpenBSD_MAINTAINER=	imp@OpenBSD.ORG
 # LOCALBASE		- Where non-X11 ports install things (default: /usr/local).
 # PREFIX		- Where *this* port installs its files (default: ${X11BASE}
 #				  if USE_X_PREFIX is set, otherwise ${LOCALBASE}).
+# MASTERDIR		- Where the port finds patches, package files, etc.  Define
+#				  this is you have two or more ports that share most of the
+#				  files (default: ${.CURDIR}).
 # PORTSDIR		- The root of the ports tree.  Defaults:
 #					FreeBSD/OpenBSD: /usr/ports
 #					NetBSD:          /usr/opt
@@ -190,13 +193,13 @@ OpenBSD_MAINTAINER=	imp@OpenBSD.ORG
 #				  else.
 # PATCHDIR 		- A directory containing any additional patches you made
 #				  to port this software to FreeBSD (default:
-#				  ${.CURDIR}/patches)
+#				  ${MASTERDIR}/patches)
 # SCRIPTDIR 	- A directory containing any auxiliary scripts
-#				  (default: ${.CURDIR}/scripts)
+#				  (default: ${MASTERDIR}/scripts)
 # FILESDIR 		- A directory containing any miscellaneous additional files.
-#				  (default: ${.CURDIR}/files)
+#				  (default: ${MASTERDIR}/files)
 # PKGDIR 		- A direction containing any package creation files.
-#				  (default: ${.CURDIR}/pkg)
+#				  (default: ${MASTERDIR}/pkg)
 #
 # Motif support:
 #
@@ -246,18 +249,6 @@ OpenBSD_MAINTAINER=	imp@OpenBSD.ORG
 #				  NOMANCOMPRESS.  The default is "yes" if USE_IMAKE
 #				  is set and NO_INSTALL_MANPAGES is not set, and
 #				  "no" otherwise.
-#
-# If your port wants the package to be built with several options,
-# set the following variables.
-#
-# LOOP_VAR		- The name of the variable.
-# LOOP_OPTIONS	- The value of the options.
-#
-# If they are set, there will be a target "package-loop" which will
-# iterate several times, each time cleaning up afterwards, with the
-# value of ${LOOP_VAR} set to one of ${LOOP_OPTIONS}.  In addition,
-# the "describe" target will print out multiple lines with the variable
-# set accordingly.
 #
 # Default targets and their behaviors:
 #
@@ -398,13 +389,13 @@ OpenBSD_MAINTAINER=	imp@OpenBSD.ORG
 .if !defined(AFTERPORTMK)
 
 # Get the architecture
-ARCH!=	uname -m
+ARCH!=	/usr/bin/uname -m
 
 # Get the operating system type
-OPSYS!=	uname -s
+OPSYS!=	/usr/bin/uname -s
 
 # Get the operating system revision
-OSREL!=	uname -r | sed -e 's/[-(].*//'
+OSREL!=	/usr/bin/uname -r | sed -e 's/[-(].*//'
 
 # Get __FreeBSD_version
 OSVERSION!=	sysctl -n kern.osreldate
@@ -412,23 +403,25 @@ OSVERSION!=	sysctl -n kern.osreldate
 # Get the object format.
 PORTOBJFORMAT!=	test -x /usr/bin/objformat && /usr/bin/objformat || echo aout
 
+MASTERDIR?=	${.CURDIR}
+
 # If they exist, include Makefile.inc, then architecture/operating
 # system specific Makefiles, then local Makefile.local.
 
-.if exists(${.CURDIR}/../Makefile.inc)
-.include "${.CURDIR}/../Makefile.inc"
+.if exists(${MASTERDIR}/../Makefile.inc)
+.include "${MASTERDIR}/../Makefile.inc"
 .endif
 
-.if exists(${.CURDIR}/Makefile.${ARCH}-${OPSYS})
-.include "${.CURDIR}/Makefile.${ARCH}-${OPSYS}"
-.elif exists(${.CURDIR}/Makefile.${OPSYS})
-.include "${.CURDIR}/Makefile.${OPSYS}"
-.elif exists(${.CURDIR}/Makefile.${ARCH})
-.include "${.CURDIR}/Makefile.${ARCH}"
+.if exists(${MASTERDIR}/Makefile.${ARCH}-${OPSYS})
+.include "${MASTERDIR}/Makefile.${ARCH}-${OPSYS}"
+.elif exists(${MASTERDIR}/Makefile.${OPSYS})
+.include "${MASTERDIR}/Makefile.${OPSYS}"
+.elif exists(${MASTERDIR}/Makefile.${ARCH})
+.include "${MASTERDIR}/Makefile.${ARCH}"
 .endif
 
-.if exists(${.CURDIR}/Makefile.local)
-.include "${.CURDIR}/Makefile.local"
+.if exists(${MASTERDIR}/Makefile.local)
+.include "${MASTERDIR}/Makefile.local"
 .endif
 
 # These need to be absolute since we don't know how deep in the ports
@@ -446,44 +439,44 @@ _DISTDIR?=		${DISTDIR}/${DIST_SUBDIR}
 PACKAGES?=		${PORTSDIR}/packages
 TEMPLATES?=		${PORTSDIR}/templates
 
-.if exists(${.CURDIR}/patches.${ARCH}-${OPSYS})
-PATCHDIR?=		${.CURDIR}/patches.${ARCH}-${OPSYS}
-.elif exists(${.CURDIR}/patches.${OPSYS})
-PATCHDIR?=		${.CURDIR}/patches.${OPSYS}
-.elif exists(${.CURDIR}/patches.${ARCH})
-PATCHDIR?=		${.CURDIR}/patches.${ARCH}
+.if exists(${MASTERDIR}/patches.${ARCH}-${OPSYS})
+PATCHDIR?=		${MASTERDIR}/patches.${ARCH}-${OPSYS}
+.elif exists(${MASTERDIR}/patches.${OPSYS})
+PATCHDIR?=		${MASTERDIR}/patches.${OPSYS}
+.elif exists(${MASTERDIR}/patches.${ARCH})
+PATCHDIR?=		${MASTERDIR}/patches.${ARCH}
 .else
-PATCHDIR?=		${.CURDIR}/patches
+PATCHDIR?=		${MASTERDIR}/patches
 .endif
 
-.if exists(${.CURDIR}/scripts.${ARCH}-${OPSYS})
-SCRIPTDIR?=		${.CURDIR}/scripts.${ARCH}-${OPSYS}
-.elif exists(${.CURDIR}/scripts.${OPSYS})
-SCRIPTDIR?=		${.CURDIR}/scripts.${OPSYS}
-.elif exists(${.CURDIR}/scripts.${ARCH})
-SCRIPTDIR?=		${.CURDIR}/scripts.${ARCH}
+.if exists(${MASTERDIR}/scripts.${ARCH}-${OPSYS})
+SCRIPTDIR?=		${MASTERDIR}/scripts.${ARCH}-${OPSYS}
+.elif exists(${MASTERDIR}/scripts.${OPSYS})
+SCRIPTDIR?=		${MASTERDIR}/scripts.${OPSYS}
+.elif exists(${MASTERDIR}/scripts.${ARCH})
+SCRIPTDIR?=		${MASTERDIR}/scripts.${ARCH}
 .else
-SCRIPTDIR?=		${.CURDIR}/scripts
+SCRIPTDIR?=		${MASTERDIR}/scripts
 .endif
 
-.if exists(${.CURDIR}/files.${ARCH}-${OPSYS})
-FILESDIR?=		${.CURDIR}/files.${ARCH}-${OPSYS}
-.elif exists(${.CURDIR}/files.${OPSYS})
-FILESDIR?=		${.CURDIR}/files.${OPSYS}
-.elif exists(${.CURDIR}/files.${ARCH})
-FILESDIR?=		${.CURDIR}/files.${ARCH}
+.if exists(${MASTERDIR}/files.${ARCH}-${OPSYS})
+FILESDIR?=		${MASTERDIR}/files.${ARCH}-${OPSYS}
+.elif exists(${MASTERDIR}/files.${OPSYS})
+FILESDIR?=		${MASTERDIR}/files.${OPSYS}
+.elif exists(${MASTERDIR}/files.${ARCH})
+FILESDIR?=		${MASTERDIR}/files.${ARCH}
 .else
-FILESDIR?=		${.CURDIR}/files
+FILESDIR?=		${MASTERDIR}/files
 .endif
 
-.if exists(${.CURDIR}/pkg.${ARCH}-${OPSYS})
-PKGDIR?=		${.CURDIR}/pkg.${ARCH}-${OPSYS}
-.elif exists(${.CURDIR}/pkg.${OPSYS})
-PKGDIR?=		${.CURDIR}/pkg.${OPSYS}
-.elif exists(${.CURDIR}/pkg.${ARCH})
-PKGDIR?=		${.CURDIR}/pkg.${ARCH}
+.if exists(${MASTERDIR}/pkg.${ARCH}-${OPSYS})
+PKGDIR?=		${MASTERDIR}/pkg.${ARCH}-${OPSYS}
+.elif exists(${MASTERDIR}/pkg.${OPSYS})
+PKGDIR?=		${MASTERDIR}/pkg.${OPSYS}
+.elif exists(${MASTERDIR}/pkg.${ARCH})
+PKGDIR?=		${MASTERDIR}/pkg.${ARCH}
 .else
-PKGDIR?=		${.CURDIR}/pkg
+PKGDIR?=		${MASTERDIR}/pkg
 .endif
 
 .if defined(USE_IMAKE)
@@ -605,7 +598,7 @@ MD5?=			/usr/bin/md5
 .else
 MD5?=			md5
 .endif
-MD5_FILE?=		${FILESDIR}/md5
+MD5_FILE=		${FILESDIR}/md5
 
 MAKE_FLAGS?=	-f
 MAKEFILE?=		Makefile
@@ -912,7 +905,7 @@ HAS_CONFIGURE=		yes
 .endif
 
 # Passed to most of script invocations
-SCRIPTS_ENV+=	CURDIR=${.CURDIR} DISTDIR=${DISTDIR} \
+SCRIPTS_ENV+=	CURDIR=${MASTERDIR} DISTDIR=${DISTDIR} \
 		  WRKDIR=${WRKDIR} WRKSRC=${WRKSRC} PATCHDIR=${PATCHDIR} \
 		  SCRIPTDIR=${SCRIPTDIR} FILESDIR=${FILESDIR} \
 		  PORTSDIR=${PORTSDIR} DEPENDS="${DEPENDS}" \
@@ -1817,26 +1810,6 @@ package-noinstall:
 	-@${RMDIR} ${WRKDIR}
 .endif
 
-# Loop through several options for package building
-
-.if !target(package-loop)
-.if defined(LOOP_VAR)
-package-loop:
-.if !exists(${PACKAGE_COOKIE})
-.for option in ${LOOP_OPTIONS}
-	@cd ${.CURDIR} && ${SETENV} ${LOOP_VAR}=${option} LOOP=yes \
-		${MAKE} ${.MAKEFLAGS} clean
-	@cd ${.CURDIR} && ${SETENV} ${LOOP_VAR}=${option} LOOP=yes \
-		${MAKE} ${.MAKEFLAGS} package
-.endfor
-.else
-	@${DO_NADA}
-.endif
-.else
-package-loop: package
-.endif
-.endif
-
 ################################################################
 # Dependency checking
 ################################################################
@@ -2009,23 +1982,9 @@ depends-list:
 #
 # distribution-name|port-path|installation-prefix|comment| \
 #  description-file|maintainer|categories|build deps|run deps
-#
-# If LOOP_VAR is set, multiple lines will be printed with the
-# variable set to each value of LOOP_OPTIONS.
 
 .if !target(describe)
 describe:
-.if !defined(LOOP_VAR)
-	@cd ${.CURDIR} && ${MAKE} do-describe
-.else
-.for option in ${LOOP_OPTIONS}
-	@cd ${.CURDIR} && ${SETENV} ${LOOP_VAR}=${option} ${MAKE} do-describe
-.endfor
-.endif
-.endif
-
-.if !target(do-describe)
-do-describe:
 	@${ECHO} -n "${PKGNAME}|${.CURDIR}|"; \
 	${ECHO} -n "${PREFIX}|"; \
 	if [ -f ${COMMENT} ]; then \
