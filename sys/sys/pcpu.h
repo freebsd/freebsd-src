@@ -31,14 +31,19 @@
  */
 
 #ifndef _SYS_PCPU_H_
-#define _SYS_PCPU_H_
+#define	_SYS_PCPU_H_
 
-#ifdef _KERNEL
+#ifndef _KERNEL
+#error "no user-serviceable parts inside"
+#endif
+
+#ifdef LOCORE
+#error "no assembler-serviceable parts inside"
+#endif
+
 #include <sys/queue.h>
 #include <sys/vmmeter.h>
 #include <machine/pcpu.h>
-
-#ifndef LOCORE
 
 struct pcb;
 struct thread;
@@ -73,21 +78,21 @@ SLIST_HEAD(cpuhead, pcpu);
 
 extern struct cpuhead cpuhead;
 
-#define	curthread	PCPU_GET(curthread)
 #define	CURPROC		(curthread->td_proc)
-#define	curproc		(curthread->td_proc)
-#define	curksegrp	(curthread->td_ksegrp)
 #define	curkse		(curthread->td_kse)
+#define	curksegrp	(curthread->td_ksegrp)
+#define	curproc		(curthread->td_proc)
+#define	curthread	PCPU_GET(curthread)
 
 /*
  * MI PCPU support functions
  *
  * PCPU_LAZY_INC() -	Lazily increment a per-cpu stats counter, without
- *			guarenteeing atomicy or even necessarily consistency.
+ *			guarenteeing atomicity or even necessarily consistency.
  *
  *			XXX we need to create MD primitives to support
  *			this to guarentee at least some level of consistency,
- *			i.e. to prevent us from totally corrupting the 
+ *			i.e., to prevent us from totally corrupting the 
  *			counters due to preemption in a multi-instruction
  *			increment sequence for architectures that do not
  *			support single-instruction memory increments.
@@ -107,6 +112,4 @@ void	pcpu_destroy(struct pcpu *pcpu);
 struct	pcpu *pcpu_find(u_int cpuid);
 void	pcpu_init(struct pcpu *pcpu, int cpuid, size_t size);
 
-#endif /* !LOCORE */
-#endif /* _KERNEL */
-#endif /* _SYS_PCPU_H_ */
+#endif /* !_SYS_PCPU_H_ */
