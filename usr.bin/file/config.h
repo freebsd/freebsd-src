@@ -60,6 +60,9 @@
    standard headers don't define.  */
 /* #undef uint64_t */
 
+/* Define to `int' if standard headers don't define.  */
+/* #undef int32_t */
+
 /* The number of bytes in a uint8_t.  */
 #define SIZEOF_UINT8_T 1
 
@@ -91,10 +94,10 @@
 #define HAVE_FCNTL_H 1
 
 /* Define if you have the <getopt.h> header file.  */
-#define HAVE_GETOPT_H
+#define HAVE_GETOPT_H 1
 
 /* Define if you have the <inttypes.h> header file.  */
-#define HAVE_INTTYPES_H
+#define HAVE_INTTYPES_H 1
 
 /* Define if you have the <locale.h> header file.  */
 #define HAVE_LOCALE_H 1
@@ -123,7 +126,7 @@
 #define PACKAGE "file"
 
 /* Version number of package */
-#define VERSION "3.40"
+#define VERSION "3.41"
 
 /* HAVE_TM_ZONE */
 #define HAVE_TM_ZONE 1
