@@ -5,6 +5,5 @@
 
 PROG=	chat
 MAN=	chat.8
-CFLAGS+=-Dlogf=logit
 
 .include <bsd.prog.mk>
