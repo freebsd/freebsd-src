@@ -280,13 +280,15 @@ tlsb_add_child(struct tlsb_softc *tlsb, struct tlsb_device *tdev)
 		cpuproto += 2;
 		break;
 	default:
+		printf("tlsb_add_child: unknown TLSB node type 0x%x\n", dtype);
 		return;
 	}
 
 	for (i = 0; i < units; i++, unit++) {
 		cd = device_add_child_ordered(tlsb->tlsb_dev, ordr, dn, unit);
-		if (cd == NULL)
+		if (cd == NULL) {
 			return;
+		}
 		device_set_ivars(cd, tdev);
 		device_set_desc(cd, tlsb_node_type_str(dtype));
 	}
