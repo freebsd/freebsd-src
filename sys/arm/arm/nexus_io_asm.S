@@ -47,17 +47,17 @@ __FBSDID("$FreeBSD$");
 
 ENTRY(nexus_bs_r_1)
 	ldrb	r0, [r1, r2, lsl #2]
-	mov	pc, lr
+	RET
 
 ENTRY(nexus_bs_r_2)
 	ldr	r0, [r1, r2, lsl #2]
 	bic	r0, r0, #0xff000000
 	bic	r0, r0, #0x00ff0000
-	mov	pc, lr
+	RET
 
 ENTRY(nexus_bs_r_4)
 	ldr	r0, [r1, r2, lsl #2]
-	mov	pc, lr
+	RET
 
 /*
  * write single
@@ -65,17 +65,17 @@ ENTRY(nexus_bs_r_4)
 
 ENTRY(nexus_bs_w_1)
 	strb	r3, [r1, r2, lsl #2]
-	mov	pc, lr
+	RET
 
 ENTRY(nexus_bs_w_2)
 	mov	r3, r3, lsl #16
 	orr	r3, r3, r3, lsr #16
 	str	r3, [r1, r2, lsl #2]
-	mov	pc, lr
+	RET
 
 ENTRY(nexus_bs_w_4)
 	str	r3, [r1, r2, lsl #2]
-	mov	pc, lr
+	RET
 
 /*
  * read multiple
@@ -105,7 +105,7 @@ nexus_wm_1_loop:
 	subs	r2, r2, #0x00000001
 	bgt	nexus_wm_1_loop
 
-	mov	pc, lr
+	RET
 
 ENTRY(nexus_bs_wm_2)
 	add	r0, r1, r2, lsl #2

@@ -65,7 +65,7 @@ ENTRY_NP(SetCPSR)
 
         mov	r0, r3			/* Return the old CPSR */
 
-	mov	pc, lr
+	RET
 
 
 /* Gets the CPSR register
@@ -76,5 +76,5 @@ ENTRY_NP(SetCPSR)
 ENTRY_NP(GetCPSR)
         mrs     r0, cpsr		/* Get the CPSR */
 
-	mov	pc, lr
+	RET
 

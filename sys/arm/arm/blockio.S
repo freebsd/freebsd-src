@@ -92,7 +92,7 @@ ENTRY(read_multi_1)
 .Lrm1_l4:
 	adds	r2, r2, #4			/* r2 = length again */
 	ldmeqdb	fp, {fp, sp, pc}
-	moveq	pc, r14
+	RETeq
 	cmp	r2, #2
 	ldrb	r3, [r0]
 	strb	r3, [r1], #1
@@ -182,7 +182,7 @@ ENTRY(insw)
 	strb	r3, [r1], #0x0001
 	bgt	.Linswloop
 
-	mov	pc, lr
+	RET
 
 /* Word aligned insw */
 
@@ -198,7 +198,7 @@ ENTRY(insw)
 	subs	r2, r2, #0x00000002	/* Next */
 	bgt	.Lfastinswloop
 
-	mov	pc, lr
+	RET
 
 
 /*
@@ -231,7 +231,7 @@ ENTRY(outsw)
 	str	r3, [r0]
 	bgt	.Loutswloop
 
-	mov	pc, lr
+	RET
 
 /* Word aligned outsw */
 
@@ -259,7 +259,7 @@ ENTRY(outsw)
 
 	bgt	.Lfastoutswloop
 
-	mov	pc, lr
+	RET
 
 /*
  * reads short ints (16 bits) from an I/O address into a block of memory

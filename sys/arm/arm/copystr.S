@@ -87,7 +87,7 @@ ENTRY(copystr)
 	strne	r5, [r3]
 
 	ldmfd	sp!, {r4-r5}			/* stack is 8 byte aligned */
-	mov	pc, lr
+	RET
 
 #define SAVE_REGS	stmfd	sp!, {r4-r6}
 #define RESTORE_REGS	ldmfd	sp!, {r4-r6}
@@ -147,7 +147,7 @@ ENTRY(copyinstr)
 	strne	r6, [r3]
 
 	RESTORE_REGS
-	mov	pc, lr
+	RET
 
 /*
  * r0 - kernel space address
@@ -204,14 +204,14 @@ ENTRY(copyoutstr)
 	strne	r6, [r3]
 
 	RESTORE_REGS
-	mov	pc, lr
+	RET
 
 /* A fault occurred during the copy */
 .Lcopystrfault:
 	mov	r1, #0x00000000
 	str	r1, [r4, #PCB_ONFAULT]
 	RESTORE_REGS
-	mov	pc, lr
+	RET
 
 #ifdef DIAGNOSTIC
 .Lcopystrpcbfault:

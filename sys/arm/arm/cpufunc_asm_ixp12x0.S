@@ -60,11 +60,11 @@ ENTRY(ixp12x0_context_switch)
 	/* Make sure that pipeline is emptied */
 	mov	r0, r0
 	mov	r0, r0
-	mov	pc, lr
+	RET
 
 ENTRY(ixp12x0_drain_readbuf)
 	mcr	p15, 0, r0, c9, c0, 0		/* drain read buffer */
-	mov	pc, lr
+	RET
 
 /*
  * Information for the IXP12X0 cache clean/purge functions:
