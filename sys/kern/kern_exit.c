@@ -36,11 +36,12 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_exit.c	8.7 (Berkeley) 2/12/94
- * $Id: kern_exit.c,v 1.15 1995/05/30 08:05:25 rgrimes Exp $
+ * $Id: kern_exit.c,v 1.17 1995/10/08 00:06:03 swallace Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/sysproto.h>
 #include <sys/sysent.h>
 #include <sys/ioctl.h>
 #include <sys/proc.h>
@@ -69,17 +70,18 @@
 #include <vm/vm.h>
 #include <vm/vm_kern.h>
 
+static int wait1 __P((struct proc *, struct wait_args *, int [], int));
+
 /*
  * exit --
  *	Death of process.
  */
-struct rexit_args {
-	int	rval;
-};
 __dead void
 exit(p, uap, retval)
 	struct proc *p;
-	struct rexit_args *uap;
+	struct rexit_args /* {
+		int	rval;
+	} */ *uap;
 	int *retval;
 {
 
@@ -281,13 +283,6 @@ done:
 	cpu_exit(p);
 }
 
-struct wait_args {
-        int pid;
-        int *status;
-        int options;
-        struct rusage *rusage;
-};
-
 #if defined(COMPAT_43) || defined(COMPAT_IBCS2)
 #if defined(hp300) || defined(luna68k)
 #include <machine/frame.h>
@@ -296,16 +291,12 @@ struct wait_args {
 #define GETPS(rp)	(rp)[PS]
 #endif
 
-static int wait1(struct proc *, struct wait_args *, int [], int);
-
-struct owait_args {
-        int     dummy;
-};
-
 int
 owait(p, uap, retval)
 	struct proc *p;
-	register struct owait_args *uap;
+	register struct owait_args /* {
+		int     dummy;
+	} */ *uap;
 	int *retval;
 {
 	struct wait_args w;
@@ -326,6 +317,7 @@ owait(p, uap, retval)
 	w.status = NULL;
 	return (wait1(p, &w, retval, 1));
 }
+#endif /* defined(COMPAT_43) || defined(COMPAT_IBCS2) */
 
 int
 wait4(p, uap, retval)
@@ -333,23 +325,21 @@ wait4(p, uap, retval)
 	struct wait_args *uap;
 	int *retval;
 {
+
 	return (wait1(p, uap, retval, 0));
 }
 
 static int
 wait1(q, uap, retval, compat)
 	register struct proc *q;
-	register struct wait_args *uap;
+	register struct wait_args /* {
+		int pid;
+		int *status;
+		int options;
+		struct rusage *rusage;
+	} */ *uap;
 	int retval[];
 	int compat;
-#else
-int
-wait4(q, uap, retval)
-	register struct proc *q;
-	register struct wait_args *uap;
-	int retval[];
-#endif
-
 {
 	register int nfound;
 	register struct proc *p, *t;
