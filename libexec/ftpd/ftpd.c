@@ -503,6 +503,7 @@ main(int argc, char *argv[], char **envp)
 					fd = accept(ctl_sock[i],
 					    (struct sockaddr *)&his_addr,
 					    &addrlen);
+					if (fd >= 0) {
 					if ((pid = fork()) == 0) {
 						/* child */
 						(void) dup2(fd, 0);
@@ -510,6 +511,7 @@ main(int argc, char *argv[], char **envp)
 						close(ctl_sock[i]);
 					} else
 						close(fd);
+					}
 				}
 			if (pid == 0)
 				break;
