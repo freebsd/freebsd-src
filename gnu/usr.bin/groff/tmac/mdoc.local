@@ -59,5 +59,7 @@
 .ds doc-operating-system FreeBSD\~5.0
 .
 .
-.\" KOI8-R locale support
-.if "\*[.T]"koi8-r" .mso mdoc/koi8-r
+.\" Locale support
+.if d doc-lang \{\
+.  if "\*[doc-lang]"ru.KOI8-R" .mso mdoc/koi8-r
+.\}
