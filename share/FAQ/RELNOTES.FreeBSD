@@ -407,12 +407,12 @@ valued - please do not hesitate to report any problems you may find
 (preferably with a fix attached if you can!).
 
 The preferred method to submit bug reports from a machine with internet
-mail connectivity is to use the sendbug command.  Bug reports will be
+mail connectivity is to use the send-pr command.  Bug reports will be
 dutifully filed by our faithful bugfiler program and you can be sure
 that we'll do our best to respond to all reported bugs as soon as
 possible.
 
-If, for some reason, you are unable to use the sendbug command to
+If, for some reason, you are unable to use the send-pr command to
 submit a bug report, you can try to send it to:
 
 		bugs@FreeBSD.org
@@ -511,4 +511,4 @@ hope you enjoy this release of FreeBSD!
 
 			The FreeBSD Core Team
 
-$Id: RELNOTES.FreeBSD,v 1.10 1994/11/13 09:19:04 nate Exp $
+$Id: RELNOTES.FreeBSD,v 1.11 1994/11/13 21:17:38 nate Exp $
