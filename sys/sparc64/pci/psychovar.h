@@ -43,7 +43,7 @@ struct psycho_softc {
 	 * PSYCHO register.  we record the base physical address of these
 	 * also as it is the base of the entire PSYCHO
 	 */
-	vm_offset_t			sc_basepaddr;
+	vm_paddr_t			sc_basepaddr;
 
 	/* Interrupt Group Number for this device */
 	int				sc_ign;

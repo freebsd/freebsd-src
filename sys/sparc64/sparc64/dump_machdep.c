@@ -120,7 +120,7 @@ buf_flush(struct dumperinfo *di)
 }
 
 static int
-reg_write(struct dumperinfo *di, vm_offset_t pa, vm_size_t size)
+reg_write(struct dumperinfo *di, vm_paddr_t pa, vm_size_t size)
 {
 	struct sparc64_dump_reg r;
 
@@ -132,7 +132,7 @@ reg_write(struct dumperinfo *di, vm_offset_t pa, vm_size_t size)
 }
 
 static int
-blk_dump(struct dumperinfo *di, vm_offset_t pa, vm_size_t size)
+blk_dump(struct dumperinfo *di, vm_paddr_t pa, vm_size_t size)
 {
 	vm_size_t pos, rsz;
 	vm_offset_t va;

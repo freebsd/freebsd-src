@@ -48,9 +48,9 @@
  * Flush a physical page from the data cache.
  */
 void
-cheetah_dcache_page_inval(vm_offset_t spa)
+cheetah_dcache_page_inval(vm_paddr_t spa)
 {
-	vm_offset_t pa;
+	vm_paddr_t pa;
 	void *cookie;
 
 	KASSERT((spa & PAGE_MASK) == 0,
@@ -66,6 +66,6 @@ cheetah_dcache_page_inval(vm_offset_t spa)
  * consistency is maintained by hardware.
  */
 void
-cheetah_icache_page_inval(vm_offset_t pa)
+cheetah_icache_page_inval(vm_paddr_t pa)
 {
 }
