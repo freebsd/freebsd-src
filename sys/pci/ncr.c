@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncr.c,v 1.141.2.1 1999/05/07 00:43:45 ken Exp $
+**  $Id: ncr.c,v 1.141.2.2 1999/05/21 22:03:34 ken Exp $
 **
 **  Device driver for the   NCR 53C8XX   PCI-SCSI-Controller Family.
 **
@@ -1233,7 +1233,7 @@ struct script {
 	ncrcmd	skip		[  8];
 	ncrcmd	skip2		[  3];
 	ncrcmd  idle		[  2];
-	ncrcmd	select		[ 22];
+	ncrcmd	select		[ 18];
 	ncrcmd	prepare		[  4];
 	ncrcmd	loadpos		[ 14];
 	ncrcmd	prepare2	[ 24];
@@ -1285,11 +1285,11 @@ struct scripth {
 	ncrcmd  getcc		[  4];
 	ncrcmd  getcc1		[  5];
 #ifdef NCR_GETCC_WITHMSG
-	ncrcmd	getcc2		[ 33];
+	ncrcmd	getcc2		[ 29];
 #else
 	ncrcmd	getcc2		[ 14];
 #endif
-	ncrcmd	getcc3		[ 10];
+	ncrcmd	getcc3		[  6];
 	ncrcmd	aborttag	[  4];
 	ncrcmd	abort		[ 22];
 	ncrcmd	snooptest	[  9];
@@ -1357,7 +1357,7 @@ static	void	ncr_attach	(pcici_t tag, int unit);
 
 #if !defined(lint)
 static const char ident[] =
-	"\n$Id: ncr.c,v 1.141.2.1 1999/05/07 00:43:45 ken Exp $\n";
+	"\n$Id: ncr.c,v 1.141.2.2 1999/05/21 22:03:34 ken Exp $\n";
 #endif
 
 static const u_long	ncr_version = NCR_VERSION	* 11
@@ -1623,14 +1623,6 @@ static	struct script script0 = {
 	SCR_JUMPR ^ IFTRUE (WHEN (SCR_MSG_IN)),
 		0,
 
-	/*
-	**	Save target id to ctest0 register
-	*/
-
-	SCR_FROM_REG (sdid),
-		0,
-	SCR_TO_REG (ctest0),
-		0,
 	/*
 	**	Send the IDENTIFY and SIMPLE_TAG messages
 	**	(and the MSG_EXT_SDTR message)
@@ -2304,7 +2296,7 @@ static	struct script script0 = {
 	*/
 	SCR_REG_SFBR (ssid, SCR_AND, 0x8F),
 		0,
-	SCR_TO_REG (ctest0),
+	SCR_TO_REG (sdid),
 		0,
 	SCR_JUMP,
 		NADDR (jump_tcb),
@@ -2885,13 +2877,6 @@ static	struct scripth scripth0 = {
 	SCR_SEL_TBL_ATN ^ offsetof (struct dsb, select),
 		PADDR(badgetcc),
 	/*
-	**	save target id.
-	*/
-	SCR_FROM_REG (sdid),
-		0,
-	SCR_TO_REG (ctest0),
-		0,
-	/*
 	**	Send the IDENTIFY message.
 	**	In case of short transfer, remove ATN.
 	*/
@@ -2921,13 +2906,6 @@ static	struct scripth scripth0 = {
 	*/
 	SCR_SEL_TBL ^ offsetof (struct dsb, select),
 		PADDR(badgetcc),
-	/*
-	**	save target id.
-	*/
-	SCR_FROM_REG (sdid),
-		0,
-	SCR_TO_REG (ctest0),
-		0,
 	/*
 	**	Force error if selection timeout
 	*/
@@ -4988,7 +4966,7 @@ ncr_setsync(ncb_p np, nccb_p cp, u_char scntl3, u_char sxfer, u_char period)
 	struct	ccb_trans_settings neg;	
 	tcb_p	tp;
 	int	div;
-	u_int	target = INB (nc_ctest0) & 0x0f;
+	u_int	target = INB (nc_sdid) & 0x0f;
 	u_int	period_10ns;
 
 	assert (cp);
@@ -5082,7 +5060,7 @@ static void ncr_setwide (ncb_p np, nccb_p cp, u_char wide, u_char ack)
 {
 	union	ccb *ccb;
 	struct	ccb_trans_settings neg;		
-	u_int	target = INB (nc_ctest0) & 0x0f;
+	u_int	target = INB (nc_sdid) & 0x0f;
 	tcb_p	tp;
 	u_char	scntl3;
 	u_char	sxfer;
@@ -5324,7 +5302,7 @@ static void ncr_log_hard_error(ncb_p np, u_short sist, u_char dstat)
 	}
 
 	printf ("%s:%d: ERROR (%x:%x) (%x-%x-%x) (%x/%x) @ (%s %x:%08x).\n",
-		ncr_name (np), (unsigned)INB (nc_ctest0)&0x0f, dstat, sist,
+		ncr_name (np), (unsigned)INB (nc_sdid)&0x0f, dstat, sist,
 		(unsigned)INB (nc_socl), (unsigned)INB (nc_sbcl), (unsigned)INB (nc_sbdl),
 		(unsigned)INB (nc_sxfer),(unsigned)INB (nc_scntl3), script_name, script_ofs,
 		(unsigned)INL (nc_dbc));
@@ -5549,7 +5527,7 @@ void ncr_exception (ncb_p np)
 			return;
 		};
 		printf ("%s: target %d doesn't release the bus.\n",
-			ncr_name (np), INB (nc_ctest0)&0x0f);
+			ncr_name (np), INB (nc_sdid)&0x0f);
 		/*
 		**	return without restarting the NCR.
 		**	timeout will do the real work.
@@ -5924,7 +5902,7 @@ void ncr_int_sir (ncb_p np)
 	u_char num = INB (nc_dsps);
 	nccb_p	cp=0;
 	u_long	dsa;
-	u_int	target = INB (nc_ctest0) & 0x0f;
+	u_int	target = INB (nc_sdid) & 0x0f;
 	tcb_p	tp     = &np->target[target];
 	int     i;
 	if (DEBUG_FLAGS & DEBUG_TINY) printf ("I#%d", num);
