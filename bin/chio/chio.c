@@ -47,6 +47,7 @@ static const char rcsid[] =
 #include <err.h>
 #include <fcntl.h>
 #include <stdio.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -65,7 +66,7 @@ static	int parse_special(char *);
 static	int is_special(char *);
 static	const char *bits_to_string(ces_status_flags, const char *);
 
-static	void find_element(char *, u_int16_t *, u_int16_t *);
+static	void find_element(char *, uint16_t *, uint16_t *);
 static	struct changer_element_status *get_element_status
 	   (unsigned int, unsigned int);
 
@@ -943,7 +944,7 @@ do_return(const char *cname, int argc, char **argv)
 {
 	struct changer_element_status *ces;
 	struct changer_move cmd;
-	u_int16_t	type, element;
+	uint16_t	type, element;
 
 	++argv; --argc;
 
@@ -1015,8 +1016,8 @@ get_element_status(unsigned int type, unsigned int element)
 
 	(void)memset(&cesr, 0, sizeof(cesr));
 
-	cesr.cesr_element_type = (u_int16_t)type;
-	cesr.cesr_element_base = (u_int16_t)element;
+	cesr.cesr_element_type = (uint16_t)type;
+	cesr.cesr_element_base = (uint16_t)element;
 	cesr.cesr_element_count = 1;		/* Only this one element */
 	cesr.cesr_flags |= CESR_VOLTAGS;	/* Grab voltags as well */
 	cesr.cesr_element_status = ces;
@@ -1039,7 +1040,7 @@ get_element_status(unsigned int type, unsigned int element)
  * and iterate until we find a match, or crap out.
  */
 static void
-find_element(char *voltag, u_int16_t *et, u_int16_t *eu)
+find_element(char *voltag, uint16_t *et, uint16_t *eu)
 {
 	struct changer_params cp;
 	struct changer_element_status_request cesr;
