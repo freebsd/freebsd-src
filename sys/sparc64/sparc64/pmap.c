@@ -1161,7 +1161,7 @@ pmap_protect_tte(struct pmap *pm, struct pmap *pm2, struct tte *tp,
 		if ((data & TD_W) != 0 && pmap_track_modified(pm, va))
 			vm_page_dirty(m);
 	}
-	return (0);
+	return (1);
 }
 
 /*
