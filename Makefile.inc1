@@ -59,6 +59,10 @@ SUBDIR+= gnu
     !defined(NOCRYPT) && defined(MAKE_KERBEROS4)
 SUBDIR+= kerberosIV
 .endif
+.if exists(${.CURDIR}/kerberos5) && exists(${.CURDIR}/crypto) && \
+    !defined(NOCRYPT) && defined(MAKE_KERBEROS5)
+SUBDIR+= kerberos5
+.endif
 .if exists(${.CURDIR}/libexec)
 SUBDIR+= libexec
 .endif
@@ -505,12 +509,17 @@ _fortran= gnu/usr.bin/cc/f771
 
 .if exists(${.CURDIR}/kerberosIV) && exists(${.CURDIR}/crypto) && \
     !defined(NOCRYPT) && defined(MAKE_KERBEROS4)
-_libroken= kerberosIV/lib/libroken
+_libroken4= kerberosIV/lib/libroken
+.endif
+
+.if exists(${.CURDIR}/kerberos5) && exists(${.CURDIR}/crypto) && \
+    !defined(NOCRYPT) && defined(MAKE_KERBEROS5)
+_libroken5= kerberos5/lib/libroken
 .endif
 
 build-tools:
 .for _tool in bin/sh ${_games} gnu/usr.bin/cc/cc_tools ${_fortran} \
-    ${_libroken} lib/libncurses ${_share}
+    ${_libroken4} ${_libroken5} lib/libncurses ${_share}
 	cd ${.CURDIR}/${_tool}; ${MAKE} build-tools
 .endfor
 
@@ -591,6 +600,16 @@ includes:
 .else
 	cd ${.CURDIR}/lib/libtelnet;		${MAKE} beforeinstall
 .endif
+.if exists(${.CURDIR}/kerberos5) && !defined(NOCRYPT) && \
+    defined(MAKE_KERBEROS5)
+	cd ${.CURDIR}/kerberos5/lib/libasn1;		${MAKE} beforeinstall
+	cd ${.CURDIR}/kerberos5/lib/libhdb;		${MAKE} beforeinstall
+	cd ${.CURDIR}/kerberos5/lib/libkadm5clnt;	${MAKE} beforeinstall
+	cd ${.CURDIR}/kerberos5/lib/libkadm5srv;	${MAKE} beforeinstall
+	cd ${.CURDIR}/kerberos5/lib/libkafs5;		${MAKE} beforeinstall
+	cd ${.CURDIR}/kerberos5/lib/libkrb5;		${MAKE} beforeinstall
+	cd ${.CURDIR}/kerberos5/lib/libsl;		${MAKE} beforeinstall
+.endif
 .if exists(${.CURDIR}/lib/csu/${MACHINE_ARCH})
 	cd ${.CURDIR}/lib/csu/${MACHINE_ARCH};	${MAKE} beforeinstall
 .endif
@@ -652,7 +671,7 @@ includes:
 # Across directories this comes down to (rougly):
 #
 # gnu/lib: lib/libm lib/libncurses
-# kerberosIV/lib: lib/libcrypt
+# kerberosIV/lib kerberos5/lib: lib/libcrypt
 # lib/libpam: secure/lib/libdes kerberosIV/lib/libkrb gnu/lib/libgcc
 # secure/lib: lib/libmd
 #
@@ -672,6 +691,10 @@ _secure_lib=	secure/lib
 _kerberosIV_lib=	kerberosIV/lib
 .endif
 
+.if !defined(NOCRYPT) && defined(MAKE_KERBEROS5)
+_kerberos5_lib=	kerberos5/lib
+.endif
+
 .if defined(WANT_CSRG_LIBM)
 _libm=	lib/libm
 .else
@@ -688,9 +711,9 @@ _libkeycap=	usr.sbin/pcvt/keycap
 
 libraries:
 .for _lib in ${_csu} lib/libmd lib/libcrypt ${_secure_lib} ${_kerberosIV_lib} \
-    gnu/lib/libgcc lib/libcom_err ${_libm} lib/libncurses lib/libradius \
-    lib/libskey lib/libtacplus lib/libutil lib gnu/lib ${_libperl} \
-    usr.bin/lex/lib ${_libkeycap}
+    ${_kerberos5_lib} gnu/lib/libgcc lib/libcom_err ${_libm} lib/libncurses \
+    lib/libradius lib/libskey lib/libtacplus lib/libutil lib gnu/lib \
+    ${_libperl} usr.bin/lex/lib ${_libkeycap}
 .if exists(${.CURDIR}/${_lib})
 	cd ${.CURDIR}/${_lib}; \
 		${MAKE} depend; \
