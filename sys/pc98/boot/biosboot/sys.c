@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:36:34  rpd
- *	$Id: sys.c,v 1.6 1996/10/29 08:36:11 asami Exp $
+ *	$Id: sys.c,v 1.6.2.1 1996/11/09 21:12:13 phk Exp $
  */
 
 /*
@@ -46,7 +46,7 @@ static char biosdrivedigit;
 
 #define BUFSIZE 8192
 #define MAPBUFSIZE BUFSIZE
-char buf[BUFSIZE], fsbuf[BUFSIZE], iobuf[BUFSIZE]; 
+char buf[BUFSIZE], fsbuf[BUFSIZE], iobuf[BUFSIZE];
 
 char mapbuf[MAPBUFSIZE];
 int mapblock;
@@ -271,8 +271,8 @@ openrd(void)
 	}
 	switch(maj)
 	{
-	case 4: /* sd */
 #ifdef PC98
+	case 4: /* sd */
 		dosdev_copy = unit | 0xa0;
 		disk_equips = *(unsigned char *)V(0xA1482);
 		sdunit = unit;
@@ -280,18 +280,21 @@ openrd(void)
 		for (i = 0; i < sdunit; i++)
 			unit += ((disk_equips >> i) & 0x01);
 #else	/* IBM-PC */
+	case 0:
+	case 4:
 		dosdev_copy = biosdrive | 0x80;
 #endif
 		break;
+#ifdef PC98
 	case 0:
 	case 2:
-#ifdef PC98
 		dosdev_copy = (maj << 3) | unit | 0x80;
 #else
+	case 2:
 		dosdev_copy = biosdrive;
 #endif
 		break;
-	case 3:
+	default:
 		printf("Unknown device\n");
 		return 1;
 	}
