@@ -204,7 +204,7 @@ forward(fp, style, off, sbp)
 				n++;
 			}
 			EV_SET(&ev[n], fileno(fp), EVFILT_READ,
-			    EV_ADD | EV_ENABLE, 0, 0, 0);
+			    EV_ADD | EV_ENABLE | EV_CLEAR, 0, 0, 0);
 			n++;
 
 			if (kevent(kq, ev, n, NULL, 0, &ts) < 0) {
@@ -251,6 +251,8 @@ forward(fp, style, off, sbp)
 					*sbp = sb2;
 					if (kq != -1)
 						action = ADD_EVENTS;
+				} else if (kq != -1) {
+					action = USE_KQUEUE;
 				}
 			}
 			break;
