@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.135 1999/08/22 23:44:33 green Exp $
+ *	$Id: autoconf.c,v 1.136 1999/08/22 23:49:00 peter Exp $
  */
 
 /*
@@ -382,15 +382,14 @@ setroot()
 		return;
 	}
 	if ((bootdev & B_MAGICMASK) != B_DEVMAGIC) {
-		printf("No B_DEVMAGIC\n");
+		printf("no B_DEVMAGIC (bootdev=%#lx)\n", bootdev);
 		setconf();
 		return;
 	}
 	majdev = B_TYPE(bootdev);
 	dev = makebdev(majdev, 0);
 	if (devsw(dev) == NULL) {
-		printf("No bdevsw (majdev=%d bootdev=%p)\n", majdev,
-		    (void *)bootdev);
+		printf("no devsw (majdev=%d bootdev=%#lx)\n", majdev, bootdev);
 		setconf();
 		return;
 	}
