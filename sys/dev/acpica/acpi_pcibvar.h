@@ -31,42 +31,16 @@
 #define	_ACPI_PCIBVAR_H_
 
 int	acpi_pcib_attach(device_t bus, ACPI_BUFFER *prt, int busno);
-int	acpi_pcib_route_interrupt(device_t pcib, device_t dev, int pin);
+int	acpi_pcib_route_interrupt(device_t pcib, device_t dev, int pin,
+    ACPI_BUFFER *prtbuf);
 int	acpi_pcib_resume(device_t dev);
 
 #define MAX_POSSIBLE_INTERRUPTS	16
 #define MAX_ISA_INTERRUPTS	16
 #define MAX_ACPI_INTERRUPTS	255
 
-struct acpi_pci_link_entry {
-	TAILQ_ENTRY(acpi_pci_link_entry) links;
-	ACPI_HANDLE	handle;
-	UINT8		current_irq;
-	UINT8		initial_irq;
-	ACPI_RESOURCE	possible_resources;
-	UINT8		number_of_interrupts;
-	UINT8		interrupts[MAX_POSSIBLE_INTERRUPTS];
-	UINT8		sorted_irq[MAX_POSSIBLE_INTERRUPTS];
-	int		references;
-	int		priority; 
-	int		flags;
-#define ACPI_LINK_NONE		0
-#define ACPI_LINK_ROUTED	(1 << 0)
-};
-
-struct acpi_prt_entry {
-	TAILQ_ENTRY(acpi_prt_entry) links;
-	device_t	pcidev;
-	int		busno;
-	ACPI_PCI_ROUTING_TABLE prt;
-	ACPI_HANDLE	prt_source;
-	struct acpi_pci_link_entry *pci_link;
-};
-
-int	acpi_pci_link_config(device_t pcib, ACPI_BUFFER *prt, int busno);
-int	acpi_pci_link_resume(device_t pcib);
-struct	acpi_prt_entry *acpi_pci_find_prt(device_t pcibdev, device_t dev,
-	    int pin);
-int	acpi_pci_link_route(device_t dev, struct acpi_prt_entry *prt);
+void	acpi_pci_link_add_reference(device_t dev, int index, device_t pcib,
+    int slot, int pin);
+int	acpi_pci_link_route_interrupt(device_t dev, int index);
 
 #endif

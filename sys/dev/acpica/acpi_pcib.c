@@ -51,6 +51,73 @@ ACPI_SERIAL_DECL(pcib, "ACPI PCI bus methods");
  * For locking, we assume the caller is not concurrent since this is
  * triggered by newbus methods.
  */
+
+struct prt_lookup_request {
+    ACPI_PCI_ROUTING_TABLE *pr_entry;
+    u_int	pr_pin;
+    u_int	pr_slot;
+};
+	
+typedef	void prt_entry_handler(ACPI_PCI_ROUTING_TABLE *entry, void *arg);
+
+static void	prt_attach_devices(ACPI_PCI_ROUTING_TABLE *entry, void *arg);
+static void	prt_lookup_device(ACPI_PCI_ROUTING_TABLE *entry, void *arg);
+static void	prt_walk_table(ACPI_BUFFER *prt, prt_entry_handler *handler,
+		    void *arg);
+
+static void
+prt_walk_table(ACPI_BUFFER *prt, prt_entry_handler *handler, void *arg)
+{
+    ACPI_PCI_ROUTING_TABLE *entry;
+    char *prtptr;
+
+    /* First check to see if there is a table to walk. */
+    if (prt == NULL || prt->Pointer == NULL)
+	return;
+
+    /* Walk the table executing the handler function for each entry. */
+    prtptr = prt->Pointer;
+    entry = (ACPI_PCI_ROUTING_TABLE *)prtptr;
+    while (entry->Length != 0) {
+	handler(entry, arg);
+	prtptr += entry->Length;
+	entry = (ACPI_PCI_ROUTING_TABLE *)prtptr;
+    }
+}
+
+static void
+prt_attach_devices(ACPI_PCI_ROUTING_TABLE *entry, void *arg)
+{
+    ACPI_HANDLE handle;
+    device_t child, pcib;
+    int error;
+
+    /* We only care about entries that reference a link device. */
+    if (entry->Source == NULL || entry->Source[0] == '\0')
+	return;
+
+    /* Lookup the associated handle and device. */
+    pcib = (device_t)arg;
+    if (ACPI_FAILURE(AcpiGetHandle(acpi_get_handle(pcib), entry->Source,
+	&handle)))
+	return;
+    child = acpi_get_device(handle);
+    if (child == NULL)
+	return;
+
+    /* If the device hasn't been probed yet, force it to do so. */
+    error = device_probe_and_attach(child);
+    if (error != 0) {
+	device_printf((device_t)arg, "failed to force attach of %s\n",
+	    acpi_name(handle));
+	return;
+    }
+
+    /* Add a reference for a specific bus/device/pin tuple. */
+    acpi_pci_link_add_reference(child, entry->SourceIndex, pcib,
+	ACPI_ADR_PCI_SLOT(entry->Address), entry->Pin);
+}
+
 int
 acpi_pcib_attach(device_t dev, ACPI_BUFFER *prt, int busno)
 {
@@ -92,7 +159,7 @@ acpi_pcib_attach(device_t dev, ACPI_BUFFER *prt, int busno)
     /*
      * Now go scan the bus.
      */
-    acpi_pci_link_config(dev, prt, busno);
+    prt_walk_table(prt, prt_attach_devices, dev);
 
     return_VALUE (bus_generic_attach(dev));
 }
@@ -100,20 +167,43 @@ acpi_pcib_attach(device_t dev, ACPI_BUFFER *prt, int busno)
 int
 acpi_pcib_resume(device_t dev)
 {
-    acpi_pci_link_resume(dev);
+
     return (bus_generic_resume(dev));
+}
+
+static void
+prt_lookup_device(ACPI_PCI_ROUTING_TABLE *entry, void *arg)
+{
+    struct prt_lookup_request *pr;
+
+    pr = (struct prt_lookup_request *)arg;
+    if (pr->pr_entry != NULL)
+	return;
+
+    /*
+     * Compare the slot number (high word of Address) and pin number
+     * (note that ACPI uses 0 for INTA) to check for a match.
+     *
+     * Note that the low word of the Address field (function number)
+     * is required by the specification to be 0xffff.  We don't risk
+     * checking it here.
+     */
+    if (ACPI_ADR_PCI_SLOT(entry->Address) == pr->pr_slot &&
+	entry->Pin == pr->pr_pin)
+	    pr->pr_entry = entry;
 }
 
 /*
  * Route an interrupt for a child of the bridge.
  */
 int
-acpi_pcib_route_interrupt(device_t pcib, device_t dev, int pin)
+acpi_pcib_route_interrupt(device_t pcib, device_t dev, int pin,
+    ACPI_BUFFER *prtbuf)
 {
-    struct acpi_prt_entry	*entry;
-    int				i, interrupt;
-    struct acpi_pci_link_entry	*link;
-    ACPI_PCI_ROUTING_TABLE	*prt;
+    ACPI_PCI_ROUTING_TABLE *prt;
+    struct prt_lookup_request pr;
+    ACPI_HANDLE lnkdev;
+    int interrupt;
 
     ACPI_FUNCTION_TRACE((char *)(uintptr_t)__func__);
 
@@ -124,20 +214,20 @@ acpi_pcib_route_interrupt(device_t pcib, device_t dev, int pin)
 
     ACPI_SERIAL_BEGIN(pcib);
 
-    /* Look up the PRT entry for this device. */
-    entry = acpi_pci_find_prt(pcib, dev, pin);
-    if (entry == NULL) {
-	device_printf(pcib, "no PRT entry for %d.%d.INT%c\n", pci_get_bus(dev),
-	    pci_get_slot(dev), 'A' + pin);
-	goto out;
-    }
-    prt = &entry->prt;
-    link = entry->pci_link;
+    /* Search for a matching entry in the routing table. */
+    pr.pr_entry = NULL;
+    pr.pr_pin = pin;
+    pr.pr_slot = pci_get_slot(dev);
+    prt_walk_table(prtbuf, prt_lookup_device, &pr);
+    if (pr.pr_entry == NULL)
+	return (PCI_INVALID_IRQ);
+    prt = pr.pr_entry;
+    
     if (bootverbose) {
 	device_printf(pcib, "matched entry for %d.%d.INT%c",
 	    pci_get_bus(dev), pci_get_slot(dev), 'A' + pin);
-	if (prt->Source[0] != '\0')
-	    printf(" (src %s)", acpi_name(entry->prt_source));
+	if (prt->Source != NULL && prt->Source[0] != '\0')
+		printf(" (src %s:%u)", prt->Source, prt->SourceIndex);
 	printf("\n");
     }
 
@@ -156,48 +246,20 @@ acpi_pcib_route_interrupt(device_t pcib, device_t dev, int pin)
 	goto out;
     }
 
-    /* XXX Support for multiple resources must be added to the link code. */
-    if (prt->SourceIndex) {
-	device_printf(pcib, "src index %d not yet supported\n",
-	    prt->SourceIndex);
-	goto out;
-    }
-
-    /* There has to be at least one interrupt available. */
-    if (link->number_of_interrupts == 0) {
-	device_printf(pcib, "device has no interrupts\n");
-	goto out;
-    }
-
-    /* 
-     * If the current interrupt has been routed, we're done.  This is the
-     * case when the BIOS initializes it and we didn't disable it.
-     */
-    if (link->flags & ACPI_LINK_ROUTED) {
-	interrupt = link->current_irq;
-	if (bootverbose)
-	    device_printf(pcib, "slot %d INT%c is already routed to irq %d\n",
-		pci_get_slot(dev), 'A' + pin, interrupt);
-	goto out;
-    }
-
-    if (bootverbose) {
-	device_printf(pcib, "possible interrupts:");
-	for (i = 0; i < link->number_of_interrupts; i++)
-	    printf("%3d", link->interrupts[i]);
-	printf("\n");
-    }
-
     /*
-     * Perform the link routing.  The link code will pick the best IRQ
-     * for this pin and configure it.
+     * We have to find the source device (PCI interrupt link device).
      */
-    interrupt = acpi_pci_link_route(dev, entry);
+    if (ACPI_FAILURE(AcpiGetHandle(ACPI_ROOT_OBJECT, prt->Source, &lnkdev))) {
+	device_printf(pcib, "couldn't find PCI interrupt link device %s\n",
+	    prt->Source);
+	goto out;
+    }
+    interrupt = acpi_pci_link_route_interrupt(acpi_get_device(lnkdev),
+	prt->SourceIndex);
 
     if (bootverbose && PCI_INTERRUPT_VALID(interrupt))
 	device_printf(pcib, "slot %d INT%c routed to irq %d via %s\n",
-	    pci_get_slot(dev), 'A' + pin, interrupt,
-	    acpi_name(entry->prt_source));
+	    pci_get_slot(dev), 'A' + pin, interrupt, acpi_name(lnkdev));
 
 out:
     ACPI_SERIAL_END(pcib);
