@@ -24,24 +24,24 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 26, 1997
+.Dd Jul 3, 2000
 .Dt RC.CONF 5
-.Os FreeBSD 2.2.2
+.Os
 .Sh NAME
 .Nm rc.conf
 .Nd system configuration information.
 .Sh DESCRIPTION
 The file
-.Nm rc.conf
+.Nm
 contains descriptive information about the local host name, configuration
 details for any potential network interfaces and which services should be
 started up at system initial boot time.  In new installations, the
-.Nm rc.conf
+.Nm
 file is generally initialized by the system installation utility:
 .Pa /stand/sysinstall .
 .Pp
 The purpose of
-.Nm rc.conf
+.Nm
 is not to run commands or perform system startup actions
 directly.  Instead, it is included by the
 various generic startup scripts in
@@ -113,7 +113,7 @@ for a fixed address or "DHCP" for a DHCP client).
 (str) Path to the configuration file for the
 .Xr pccardd 8
 daemon (e.g. 
-.Ar /etc/pccard.conf.sample ) .
+.Pa /etc/pccard.conf.sample ) .
 .It Ar pccardd_flags
 (str) If 
 .Ar pccard_enable 
@@ -135,8 +135,12 @@ to set your hostname via DHCP, this variable should be set to an empty string.
 .Ar NO
 if you are not running NIS.
 .It Ar dhcp_program
-(str) Path to the DHCP client progam (/sbin/dhclient, the ISC DHCP client,
-is the default).
+(str) Path to the DHCP client program
+.Po
+.Pa /sbin/dhclient ,
+the ISC DHCP client,
+is the default
+.Pc .
 .It Ar dhcp_flags
 (str) Additional flags to pass to the DHCP client program.
 For the ISC DHCP client, see the
@@ -176,6 +180,11 @@ must be given.
 (bool) Set to 
 .Ar YES
 to disable the display of ipfw rules on the console during boot.
+.It Ar firewall_logging
+(bool) Set to
+.Ar YES
+to enable ipfw event logging.
+This is equivalent to the IPFIREWALL_VERBOSE kernel option.
 .It Ar natd_program
 (str) path to
 .Xr natd 8 .
@@ -330,7 +339,11 @@ allows hosts on private network addresses access to the Internet using
 this host as a network address translating router.
 .It Ar ppp_profile
 (str) The name of the profile to use from
-.Ar /etc/ppp/ppp.conf .
+.Pa /etc/ppp/ppp.conf .
+.It Ar ppp_user
+(str) The name of the user under which ppp should be started. By
+default, ppp is started as
+.Ar root .
 .It Ar rc_conf_files
 (str) This option is used to specify a list of files that will override
 the settings in
@@ -1171,16 +1184,30 @@ on system operation.
 if you want to start
 .Xr vinum 8
 at system boot time.
+.It Ar sshd_program
+(str) Path to the SSH server program
+.Po
+.Pa /usr/sbin/sshd
+is the default
+.Pc .
+.It Ar sshd_enable
+(bool) Set to
+.Ar YES
+if you want to start
+.Xr sshd 8
+at system boot time.
+.It Ar sshd_flags
+(str) If
+.Ar sshd_enable
+is set to
+.Ar YES ,
+these are the flags to pass to the
+.Xr sshd 8
+daemon.
 .Sh FILES
 .Bl -tag -width /etc/defaults/rc.conf -compact
 .It Pa /etc/defaults/rc.conf
-.El
-.Pp
-.Bl -tag -width /etc/rc.conf -compact
 .It Pa /etc/rc.conf
-.El
-.Pp
-.Bl -tag -width /etc/rc.conf.local -compact
 .It Pa /etc/rc.conf.local
 .El
 .Sh SEE ALSO
@@ -1218,6 +1245,7 @@ at system boot time.
 .Xr rwhod 8 ,
 .Xr savecore 8 ,
 .Xr sendmail 8 ,
+.Xr sshd 8 ,
 .Xr sysctl 8 ,
 .Xr syslogd 8 ,
 .Xr swapon 8 ,
