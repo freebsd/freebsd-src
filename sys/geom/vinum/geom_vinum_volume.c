@@ -62,7 +62,8 @@ gv_volume_orphan(struct g_consumer *cp)
 	if (!LIST_EMPTY(&gp->consumer))
 		return;
 	v = gp->softc;
-	v->geom = NULL;
+	if (v != NULL)
+		v->geom = NULL;
 	gp->softc = NULL;
 	g_wither_geom(gp, error);
 }
@@ -243,11 +244,7 @@ gv_volume_destroy_geom(struct gctl_req *req, struct g_class *mp,
 {
 	g_trace(G_T_TOPOLOGY, "gv_volume_destroy_geom: %s", gp->name);
 	g_topology_assert();
-/*
-	if (gp->softc != NULL)
-		g_free(gp->softc);
-	gp->softc = NULL;
-*/
+
 	g_wither_geom(gp, ENXIO);
 	return (0);
 }
