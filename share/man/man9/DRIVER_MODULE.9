@@ -35,7 +35,8 @@
 .Nm DRIVER_MODULE
 .Nd kernel driver declaration macro
 .Sh SYNOPSIS
-.In sys/types.h
+.In sys/param.h
+.In sys/kernel.h
 .In sys/bus.h
 .In sys/module.h
 .Fn DRIVER_MODULE name busname "driver_t driver" "devclass_t devclass" "modeventhand_t evh" "void *arg"

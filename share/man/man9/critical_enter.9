@@ -34,10 +34,10 @@
 .Sh SYNOPSIS
 .In sys/types.h
 .In sys/systm.h
-.Ft critical_t
+.Ft void
 .Fn critical_enter "void"
 .Ft void
-.Fn critical_exit "critical_t savecrit"
+.Fn critical_exit "void"
 .Sh DESCRIPTION
 These functions are used to prevent preemption in a critcal region of code.
 All that is guaranteed is that the current CPU will not be preempted by an

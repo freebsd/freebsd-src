@@ -39,7 +39,7 @@
 .In sys/mount.h
 .In sys/vnode.h
 .Ft int
-.Fn VFS_QUOTACTL "struct mount *mp" "int cmds" "uid_t uid" "caddr_t arg" "struct proc *p"
+.Fn VFS_QUOTACTL "struct mount *mp" "int cmds" "uid_t uid" "caddr_t arg" "struct thread *td"
 .Sh DESCRIPTION
 Implement filesystem quotas.  See
 .Xr quotactl 2

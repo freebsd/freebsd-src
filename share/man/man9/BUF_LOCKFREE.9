@@ -34,6 +34,9 @@
 .Nd "destroys a buffer's lock"
 .Sh SYNOPSIS
 .In sys/param.h
+.In sys/systm.h
+.In sys/uio.h
+.In sys/bio.h
 .In sys/buf.h
 .Ft void
 .Fn BUF_LOCKFREE "struct buf *bp"

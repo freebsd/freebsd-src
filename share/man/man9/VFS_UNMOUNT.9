@@ -39,7 +39,7 @@
 .In sys/mount.h
 .In sys/vnode.h
 .Ft int
-.Fn VFS_UNMOUNT "struct mount *mp" "int mntflags" "struct proc *p"
+.Fn VFS_UNMOUNT "struct mount *mp" "int mntflags" "struct thread *td"
 .Sh DESCRIPTION
 Unmount a filesystem.
 .Pp
@@ -49,8 +49,8 @@ Its arguments are:
 The filesystem.
 .It Ar mntflags
 Various flags.
-.It Ar p
-Process which is unmounting the filesystem.
+.It Ar td
+Thread which is unmounting the filesystem.
 .El
 .Pp
 If the

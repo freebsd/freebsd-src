@@ -49,7 +49,7 @@
 .Fn kobj_init "kobj_t obj" "kobj_class_t cls"
 .Ft void
 .Fn kobj_delete "kobj_t obj" "struct malloc_type *mtype"
-.Fn DEFINE_CLASS name methods size
+.Fn DEFINE_CLASS name "kobj_method_t *methods" "size_t size"
 .Sh DESCRIPTION
 The kernel object system implements an object-oriented programming
 system in the
