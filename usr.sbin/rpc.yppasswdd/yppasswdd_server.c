@@ -363,7 +363,8 @@ update_inplace(struct passwd *pw, char *domain)
 							strlen(pw->pw_name))) {
 				yp_error("warning: found entry for UID %d \
 in map %s@%s with wrong name (%.*s)", pw->pw_uid, maps[i], domain,
-				    ptr - (char *)data.data, (char *)data.data);
+				    (int)(ptr - (char *)data.data),
+				    (char *)data.data);
 				yp_error("there may be more than one user \
 with the same UID - continuing");
 				continue;
