@@ -9,7 +9,7 @@
  * Modified by Bill Fenner, PARC, April 1995
  *
  * MROUTING Revision: 3.5
- * $Id: ip_mroute.c,v 1.30 1996/03/11 17:11:23 fenner Exp $
+ * $Id: ip_mroute.c,v 1.31 1996/03/26 19:16:44 fenner Exp $
  */
 
 #include "opt_mrouting.h"
@@ -1906,11 +1906,12 @@ tbf_send_packet(vifp, m)
 {
     struct ip_moptions imo;
     int error;
+    static struct route ro;
     int s = splnet();
 
     if (vifp->v_flags & VIFF_TUNNEL) {
 	/* If tunnel options */
-	ip_output(m, (struct mbuf *)0, (struct route *)0,
+	ip_output(m, (struct mbuf *)0, &vifp->v_route,
 		  IP_FORWARDING, (struct ip_moptions *)0);
     } else {
 	imo.imo_multicast_ifp  = vifp->v_ifp;
@@ -1918,7 +1919,13 @@ tbf_send_packet(vifp, m)
 	imo.imo_multicast_loop = 1;
 	imo.imo_multicast_vif  = -1;
 
-	error = ip_output(m, (struct mbuf *)0, (struct route *)0,
+	/*
+	 * Re-entrancy should not be a problem here, because
+	 * the packets that we send out and are looped back at us
+	 * should get rejected because they appear to come from
+	 * the loopback interface, thus preventing looping.
+	 */
+	error = ip_output(m, (struct mbuf *)0, &ro,
 			  IP_FORWARDING, &imo);
 
 	if (mrtdebug & DEBUG_XMIT)
