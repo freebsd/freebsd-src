@@ -157,8 +157,8 @@ struct part_type
 	,{0x17, "OS/2 BM: hidden IFS (e.g. HPFS)"}
 	,{0x18, "AST Windows swapfile"}
 	,{0x24, "NEC DOS"}
-	,{0x3C, "PartitionMagic recovery"}
 	,{0x39, "plan9"}
+	,{0x3C, "PartitionMagic recovery"}
 	,{0x40, "VENIX 286"}
 	,{0x41, "Linux/MINIX (sharing disk with DRDOS)"}
 	,{0x42, "SFS or Linux swap (sharing disk with DRDOS)"}
