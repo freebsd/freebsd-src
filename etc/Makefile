@@ -8,7 +8,7 @@ BINOWN= root
 BINGRP= wheel
 BIN1=	aliases csh.cshrc csh.login csh.logout dm.conf \
 	ftpusers gettytab group hosts host.conf hosts.equiv hosts.lpd \
-	inetd.conf motd myname netstart phones \
+	inetd.conf motd myname netstart networks phones \
 	printcap protocols rc rc.local remote security services shells \
 	syslog.conf ttys etc.${MACHINE}/disktab rpc
 
