@@ -1431,6 +1431,12 @@ scratch_ram {
 		mask	HSCSIID		0x07	/* our SCSI ID */
 		mask	HWSCSIID	0x0f	/* our SCSI ID if Wide Bus */
 	}
+	INTDEF {
+		address		0x05c
+		size		1
+		bit	EDGE_TRIG	0x80
+		mask	VECTOR		0x0f
+	}
 	HOSTCONF {
 		address		0x05d
 		size		1
