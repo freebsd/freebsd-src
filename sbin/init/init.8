@@ -107,9 +107,10 @@ Secure mode \- the system immutable and system append-only flags may not
 be turned off;
 disks for mounted file systems,
 .Pa /dev/mem ,
-and
 .Pa /dev/kmem
-may not be opened for writing;
+and
+.Pa /dev/io
+(if your platform has it) may not be opened for writing;
 kernel modules (see
 .Xr kld 4 )
 may not be loaded or unloaded.
