@@ -21,17 +21,22 @@ RM=	rm -f
 
 .mc.cf:
 	$(RM) $@
-	(cd ${.CURDIR} && $(M4) ${CFDIR}/m4/cf.m4 ${@:R}.mc > $@)
+	(cd ${.CURDIR} && $(M4) ${CFDIR}/m4/cf.m4 ${@:R}.mc) > $@
 	$(CHMOD) $(ROMODE) $@
 
-ALL=	generic-bsd4.4.cf generic-hpux9.cf generic-hpux10.cf \
-		generic-osf1.cf generic-solaris2.cf \
-		generic-sunos4.1.cf generic-ultrix4.cf \
-	cs-hpux9.cf cs-osf1.cf cs-solaris2.cf \
-		cs-sunos4.1.cf cs-ultrix4.cf \
-	s2k-osf1.cf s2k-ultrix4.cf \
-	chez.cs.cf huginn.cs.cf mail.cs.cf mail.eecs.cf mailspool.cs.cf \
-		python.cs.cf ucbarpa.cf ucbvax.cf vangogh.cs.cf
+ALL=	freebsd.cf freefall.cf
+CLEANFILES+=$(ALL)
+
+#We dont build the generic stuff...
+#Use `make generic-bsd4.4.cf' if you want one..
+#ALL=	generic-bsd4.4.cf generic-hpux9.cf generic-hpux10.cf \
+#		generic-osf1.cf generic-solaris2.cf \
+#		generic-sunos4.1.cf generic-ultrix4.cf \
+#	cs-hpux9.cf cs-osf1.cf cs-solaris2.cf \
+#		cs-sunos4.1.cf cs-ultrix4.cf \
+#	s2k-osf1.cf s2k-ultrix4.cf \
+#	chez.cs.cf huginn.cs.cf mail.cs.cf mail.eecs.cf mailspool.cs.cf \
+#		python.cs.cf ucbarpa.cf ucbvax.cf vangogh.cs.cf
 
 all: $(ALL)
 
@@ -39,6 +44,7 @@ depend install:
 
 # this is overkill, but....
 M4FILES=\
+	${CFDIR}/domain/generic.m4 \
 	${CFDIR}/domain/Berkeley.EDU.m4 \
 	${CFDIR}/domain/CS.Berkeley.EDU.m4 \
 	${CFDIR}/domain/EECS.Berkeley.EDU.m4 \
