@@ -433,11 +433,11 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 
 	/* Save user context. */
 	bzero(&sf, sizeof(sf));
+	get_mcontext(td, &sf.sf_uc.uc_mcontext, 0);
 	sf.sf_uc.uc_sigmask = *mask;
 	sf.sf_uc.uc_stack = p->p_sigstk;
 	sf.sf_uc.uc_stack.ss_flags = (p->p_flag & P_ALTSTACK)
 	    ? ((oonstack) ? SS_ONSTACK : 0) : SS_DISABLE;
-	bcopy(tf, &sf.sf_uc.uc_mcontext, sizeof(*tf));
 
 	/* Allocate and validate space for the signal handler context. */
 	if ((p->p_flag & P_ALTSTACK) != 0 && !oonstack &&
@@ -520,10 +520,9 @@ struct sigreturn_args {
 int
 sigreturn(struct thread *td, struct sigreturn_args *uap)
 {
-	struct trapframe *tf;
 	struct proc *p;
-	mcontext_t *mc;
 	ucontext_t uc;
+	int error;
 
 	p = td->td_proc;
 	if (rwindow_save(td)) {
@@ -537,12 +536,9 @@ sigreturn(struct thread *td, struct sigreturn_args *uap)
 		return (EFAULT);
 	}
 
-	mc = &uc.uc_mcontext;
-	tf = td->td_frame;
-	if (!TSTATE_SECURE(mc->mc_tstate))
-		return (EINVAL);
-	mc->mc_wstate = tf->tf_wstate;
-	bcopy(mc, tf, sizeof(*tf));
+	error = set_mcontext(td, &uc.uc_mcontext);
+	if (error != 0)
+		return (error);
 
 	PROC_LOCK(p);
 	td->td_sigmask = uc.uc_sigmask;
