@@ -1,32 +1,9 @@
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-
-/*
-  if (we have termios.h)
-    define TERMIOS
-  else if (we have termio.h)
-    define TERMIO
-*/
-#ifdef HAVE_TERMIOS_H
-
-#define TERMIOS
-
-#else /* !HAVE_TERMIOS_H */
-
-#ifdef HAVE_TERMIO_H
-#define TERMIO
-#endif
-
-#endif /* !HAVE_TERMIOS_H */
-
-#endif /* HAVE_CONFIG_H */
-
 /* crypto/des/des_locl.h */
-/* Copyright (C) 1995-1997 Eric Young (eay@mincom.oz.au)
+/* Copyright (C) 1995-1997 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
  * This package is an SSL implementation written
- * by Eric Young (eay@mincom.oz.au).
+ * by Eric Young (eay@cryptsoft.com).
  * The implementation was written so as to conform with Netscapes SSL.
  * 
  * This library is free for commercial and non-commercial use as long as
@@ -34,7 +11,7 @@
  * apply to all code found in this distribution, be it the RC4, RSA,
  * lhash, DES, etc., code; not just the SSL code.  The SSL documentation
  * included with this distribution is covered by the same copyright terms
- * except that the holder is Tim Hudson (tjh@mincom.oz.au).
+ * except that the holder is Tim Hudson (tjh@cryptsoft.com).
  * 
  * Copyright remains Eric Young's, and as such any Copyright notices in
  * the code are not to be removed.
@@ -54,12 +31,12 @@
  * 3. All advertising materials mentioning features or use of this software
  *    must display the following acknowledgement:
  *    "This product includes cryptographic software written by
- *     Eric Young (eay@mincom.oz.au)"
+ *     Eric Young (eay@cryptsoft.com)"
  *    The word 'cryptographic' can be left out if the rouines from the library
  *    being used are not cryptographic related :-).
  * 4. If you include any Windows specific code (or a derivative thereof) from 
  *    the apps directory (application code) you must include an acknowledgement:
- *    "This product includes software written by Tim Hudson (tjh@mincom.oz.au)"
+ *    "This product includes software written by Tim Hudson (tjh@cryptsoft.com)"
  * 
  * THIS SOFTWARE IS PROVIDED BY ERIC YOUNG ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -79,14 +56,6 @@
  * [including the GNU Public Licence.]
  */
 
-/* WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING
- *
- * Always modify des_locl.org since des_locl.h is automatically generated from
- * it during SSLeay configuration.
- *
- * WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING
- */
-
 #ifndef HEADER_DES_LOCL_H
 #define HEADER_DES_LOCL_H
 
@@ -98,124 +67,26 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#ifdef HAVE_UNISTD_H
-#include <unistd.h>
-#endif
-#ifdef HAVE_IO_H
-#include <io.h>
-#endif
-#include "des.h"
 
-#ifndef DES_DEFAULT_OPTIONS
-/* the following is tweaked from a config script, that is why it is a
- * protected undef/define */
-#ifndef DES_PTR
-#undef DES_PTR
-#endif
+#include <openssl/opensslconf.h>
 
-/* This helps C compiler generate the correct code for multiple functional
- * units.  It reduces register dependancies at the expense of 2 more
- * registers */
-#ifndef DES_RISC1
-#undef DES_RISC1
+#ifndef MSDOS
+#if !defined(VMS) || defined(__DECC)
+#include OPENSSL_UNISTD
+#include <math.h>
 #endif
-
-#ifndef DES_RISC2
-#undef DES_RISC2
 #endif
-
-#if defined(DES_RISC1) && defined(DES_RISC2)
-YOU SHOULD NOT HAVE BOTH DES_RISC1 AND DES_RISC2 DEFINED!!!!!
-#endif
-
-/* Unroll the inner loop, this sometimes helps, sometimes hinders.
- * Very mucy CPU dependant */
-#ifndef DES_UNROLL
-#undef DES_UNROLL
-#endif
-
-/* These default values were supplied by
- * Peter Gutman <pgut001@cs.auckland.ac.nz>
- * They are only used if nothing else has been defined */
-#if !defined(DES_PTR) && !defined(DES_RISC1) && !defined(DES_RISC2) && !defined(DES_UNROLL)
-/* Special defines which change the way the code is built depending on the
-   CPU and OS.  For SGI machines you can use _MIPS_SZLONG (32 or 64) to find
-   even newer MIPS CPU's, but at the moment one size fits all for
-   optimization options.  Older Sparc's work better with only UNROLL, but
-   there's no way to tell at compile time what it is you're running on */
- 
-#if defined( sun )		/* Newer Sparc's */
-  #define DES_PTR
-  #define DES_RISC1
-  #define DES_UNROLL
-#elif defined( __ultrix )	/* Older MIPS */
-  #define DES_PTR
-  #define DES_RISC2
-  #define DES_UNROLL
-#elif defined( __osf1__ )	/* Alpha */
-  #define DES_PTR
-  #define DES_RISC2
-#elif defined ( _AIX )		/* RS6000 */
-  /* Unknown */
-#elif defined( __hpux )		/* HP-PA */
-  #define DES_UNROLL
-#elif defined( __aux )		/* 68K */
-  /* Unknown */
-#elif defined( __dgux )		/* 88K (but P6 in latest boxes) */
-  #define DES_UNROLL
-#elif defined( __sgi )		/* Newer MIPS */
-  #define DES_PTR
-  #define DES_RISC2
-  #define DES_UNROLL
-#elif defined( i386 )		/* x86 boxes, should be gcc */
-  #define DES_PTR
-  #define DES_RISC1
-  #define DES_UNROLL
-#endif /* Systems-specific speed defines */
-#endif
-
-#endif /* DES_DEFAULT_OPTIONS */
+#include <openssl/des.h>
 
 #ifdef MSDOS		/* Visual C++ 2.1 (Windows NT/95) */
 #include <stdlib.h>
 #include <errno.h>
 #include <time.h>
 #include <io.h>
-#ifndef RAND
-#define RAND
-#endif
-#undef NOPROTO
 #endif
 
-#if defined(__STDC__) || defined(VMS) || defined(M_XENIX) || defined(MSDOS) || defined(WIN32)
+#if defined(__STDC__) || defined(VMS) || defined(M_XENIX) || defined(MSDOS)
 #include <string.h>
-#endif
-
-#ifndef RAND
-#define RAND
-#endif
-
-#ifdef linux
-#undef RAND
-#endif
-
-#ifdef MSDOS
-#define getpid() 2
-#define RAND
-#undef NOPROTO
-#endif
-
-#if defined(NOCONST)
-#define const
-#endif
-
-#ifdef __STDC__
-#undef NOPROTO
-#endif
-
-#ifdef RAND
-#define srandom(s) srand(s)
-#define random rand
 #endif
 
 #define ITERATIONS 16
@@ -328,24 +199,24 @@ YOU SHOULD NOT HAVE BOTH DES_RISC1 AND DES_RISC2 DEFINED!!!!!
 	u2&=0xfc; \
 	t=ROTATE(t,4); \
 	u>>=16L; \
-	LL^= *(DES_LONG *)((unsigned char *)des_SP      +u1); \
-	LL^= *(DES_LONG *)((unsigned char *)des_SP+0x200+u2); \
+	LL^= *(const DES_LONG *)(des_SP      +u1); \
+	LL^= *(const DES_LONG *)(des_SP+0x200+u2); \
 	u3=(int)(u>>8L); \
 	u1=(int)u&0xfc; \
 	u3&=0xfc; \
-	LL^= *(DES_LONG *)((unsigned char *)des_SP+0x400+u1); \
-	LL^= *(DES_LONG *)((unsigned char *)des_SP+0x600+u3); \
+	LL^= *(const DES_LONG *)(des_SP+0x400+u1); \
+	LL^= *(const DES_LONG *)(des_SP+0x600+u3); \
 	u2=(int)t>>8L; \
 	u1=(int)t&0xfc; \
 	u2&=0xfc; \
 	t>>=16L; \
-	LL^= *(DES_LONG *)((unsigned char *)des_SP+0x100+u1); \
-	LL^= *(DES_LONG *)((unsigned char *)des_SP+0x300+u2); \
+	LL^= *(const DES_LONG *)(des_SP+0x100+u1); \
+	LL^= *(const DES_LONG *)(des_SP+0x300+u2); \
 	u3=(int)t>>8L; \
 	u1=(int)t&0xfc; \
 	u3&=0xfc; \
-	LL^= *(DES_LONG *)((unsigned char *)des_SP+0x500+u1); \
-	LL^= *(DES_LONG *)((unsigned char *)des_SP+0x700+u3); }
+	LL^= *(const DES_LONG *)(des_SP+0x500+u1); \
+	LL^= *(const DES_LONG *)(des_SP+0x700+u3); }
 #endif
 #ifdef DES_RISC2
 #define D_ENCRYPT(LL,R,S) { \
@@ -355,39 +226,39 @@ YOU SHOULD NOT HAVE BOTH DES_RISC1 AND DES_RISC2 DEFINED!!!!!
 	u1=(int)u&0xfc; \
 	u2&=0xfc; \
 	t=ROTATE(t,4); \
-	LL^= *(DES_LONG *)((unsigned char *)des_SP      +u1); \
-	LL^= *(DES_LONG *)((unsigned char *)des_SP+0x200+u2); \
+	LL^= *(const DES_LONG *)(des_SP      +u1); \
+	LL^= *(const DES_LONG *)(des_SP+0x200+u2); \
 	s1=(int)(u>>16L); \
 	s2=(int)(u>>24L); \
 	s1&=0xfc; \
 	s2&=0xfc; \
-	LL^= *(DES_LONG *)((unsigned char *)des_SP+0x400+s1); \
-	LL^= *(DES_LONG *)((unsigned char *)des_SP+0x600+s2); \
+	LL^= *(const DES_LONG *)(des_SP+0x400+s1); \
+	LL^= *(const DES_LONG *)(des_SP+0x600+s2); \
 	u2=(int)t>>8L; \
 	u1=(int)t&0xfc; \
 	u2&=0xfc; \
-	LL^= *(DES_LONG *)((unsigned char *)des_SP+0x100+u1); \
-	LL^= *(DES_LONG *)((unsigned char *)des_SP+0x300+u2); \
+	LL^= *(const DES_LONG *)(des_SP+0x100+u1); \
+	LL^= *(const DES_LONG *)(des_SP+0x300+u2); \
 	s1=(int)(t>>16L); \
 	s2=(int)(t>>24L); \
 	s1&=0xfc; \
 	s2&=0xfc; \
-	LL^= *(DES_LONG *)((unsigned char *)des_SP+0x500+s1); \
-	LL^= *(DES_LONG *)((unsigned char *)des_SP+0x700+s2); }
+	LL^= *(const DES_LONG *)(des_SP+0x500+s1); \
+	LL^= *(const DES_LONG *)(des_SP+0x700+s2); }
 #endif
 #else
 #define D_ENCRYPT(LL,R,S) { \
 	LOAD_DATA_tmp(R,S,u,t,E0,E1); \
 	t=ROTATE(t,4); \
 	LL^= \
-	*(DES_LONG *)((unsigned char *)des_SP      +((u     )&0xfc))^ \
-	*(DES_LONG *)((unsigned char *)des_SP+0x200+((u>> 8L)&0xfc))^ \
-	*(DES_LONG *)((unsigned char *)des_SP+0x400+((u>>16L)&0xfc))^ \
-	*(DES_LONG *)((unsigned char *)des_SP+0x600+((u>>24L)&0xfc))^ \
-	*(DES_LONG *)((unsigned char *)des_SP+0x100+((t     )&0xfc))^ \
-	*(DES_LONG *)((unsigned char *)des_SP+0x300+((t>> 8L)&0xfc))^ \
-	*(DES_LONG *)((unsigned char *)des_SP+0x500+((t>>16L)&0xfc))^ \
-	*(DES_LONG *)((unsigned char *)des_SP+0x700+((t>>24L)&0xfc)); }
+	*(const DES_LONG *)(des_SP      +((u     )&0xfc))^ \
+	*(const DES_LONG *)(des_SP+0x200+((u>> 8L)&0xfc))^ \
+	*(const DES_LONG *)(des_SP+0x400+((u>>16L)&0xfc))^ \
+	*(const DES_LONG *)(des_SP+0x600+((u>>24L)&0xfc))^ \
+	*(const DES_LONG *)(des_SP+0x100+((t     )&0xfc))^ \
+	*(const DES_LONG *)(des_SP+0x300+((t>> 8L)&0xfc))^ \
+	*(const DES_LONG *)(des_SP+0x500+((t>>16L)&0xfc))^ \
+	*(const DES_LONG *)(des_SP+0x700+((t>>24L)&0xfc)); }
 #endif
 
 #else /* original version */
@@ -530,6 +401,8 @@ YOU SHOULD NOT HAVE BOTH DES_RISC1 AND DES_RISC2 DEFINED!!!!!
 	PERM_OP(l,r,tt, 4,0x0f0f0f0fL); \
 	}
 
-extern const DES_LONG des_SPtrans[8][64];
+OPENSSL_EXTERN const DES_LONG des_SPtrans[8][64];
 
+void fcrypt_body(DES_LONG *out,des_key_schedule ks,
+	DES_LONG Eswap0, DES_LONG Eswap1);
 #endif

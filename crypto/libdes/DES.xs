@@ -168,7 +168,7 @@ CODE:
 	{
 	des_cblock c;
 
-	des_3ecb_encrypt((des_cblock *)input,(des_cblock *)&c,
+	des_ecb3_encrypt((des_cblock *)input,(des_cblock *)&c,
 		*ks1,*ks2,encrypt);
 	RETVAL= &c;
 	}

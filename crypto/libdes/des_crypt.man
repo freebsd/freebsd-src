@@ -3,7 +3,7 @@
 des_read_password, des_read_2password,
 des_string_to_key, des_string_to_2key, des_read_pw_string,
 des_random_key, des_set_key,
-des_key_sched, des_ecb_encrypt, des_3ecb_encrypt, des_cbc_encrypt,
+des_key_sched, des_ecb_encrypt, des_ecb3_encrypt, des_cbc_encrypt,
 des_3cbc_encrypt,
 des_pcbc_encrypt, des_cfb_encrypt, des_ofb_encrypt,
 des_cbc_cksum, des_quad_cksum,
@@ -56,7 +56,7 @@ des_cblock *output;
 des_key_schedule schedule;
 int encrypt;
 .PP
-.B int des_3ecb_encrypt(input,output,ks1,ks2,encrypt)
+.B int des_ecb3_encrypt(input,output,ks1,ks2,encrypt)
 des_cblock *input;
 des_cblock *output;
 des_key_schedule ks1,ks2;
@@ -206,7 +206,7 @@ converts a string into a valid des key.
 .I des_string_to_2key
 converts a string into 2 valid des keys.
 This routine is best suited for used to generate keys for use with
-.I des_3ecb_encrypt.
+.I des_ecb3_encrypt.
 .PP
 .I des_random_key
 returns a random key that is made of a combination of process id,
@@ -274,7 +274,7 @@ is decrypted into the
 Input and output may overlap.
 No meaningful value is returned.
 .PP
-.I des_3ecb_encrypt
+.I des_ecb3_encrypt
 encrypts/decrypts the
 .I input
 block by using triple ecb DES encryption.
@@ -505,4 +505,4 @@ general cryptographic library that amonst other things implements
 netscapes SSL protocoll.  The most recent version can be found in
 SSLeay distributions.
 .SH AUTHOR
-Eric Young (eay@mincom.oz.au or eay@psych.psy.uq.oz.au)
+Eric Young (eay@cryptsoft.com)

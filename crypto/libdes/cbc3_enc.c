@@ -1,9 +1,9 @@
 /* crypto/des/cbc3_enc.c */
-/* Copyright (C) 1995-1997 Eric Young (eay@mincom.oz.au)
+/* Copyright (C) 1995-1998 Eric Young (eay@cryptsoft.com)
  * All rights reserved.
  *
  * This package is an SSL implementation written
- * by Eric Young (eay@mincom.oz.au).
+ * by Eric Young (eay@cryptsoft.com).
  * The implementation was written so as to conform with Netscapes SSL.
  * 
  * This library is free for commercial and non-commercial use as long as
@@ -11,7 +11,7 @@
  * apply to all code found in this distribution, be it the RC4, RSA,
  * lhash, DES, etc., code; not just the SSL code.  The SSL documentation
  * included with this distribution is covered by the same copyright terms
- * except that the holder is Tim Hudson (tjh@mincom.oz.au).
+ * except that the holder is Tim Hudson (tjh@cryptsoft.com).
  * 
  * Copyright remains Eric Young's, and as such any Copyright notices in
  * the code are not to be removed.
@@ -31,12 +31,12 @@
  * 3. All advertising materials mentioning features or use of this software
  *    must display the following acknowledgement:
  *    "This product includes cryptographic software written by
- *     Eric Young (eay@mincom.oz.au)"
+ *     Eric Young (eay@cryptsoft.com)"
  *    The word 'cryptographic' can be left out if the rouines from the library
  *    being used are not cryptographic related :-).
  * 4. If you include any Windows specific code (or a derivative thereof) from 
  *    the apps directory (application code) you must include an acknowledgement:
- *    "This product includes software written by Tim Hudson (tjh@mincom.oz.au)"
+ *    "This product includes software written by Tim Hudson (tjh@cryptsoft.com)"
  * 
  * THIS SOFTWARE IS PROVIDED BY ERIC YOUNG ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
@@ -58,28 +58,22 @@
 
 #include "des_locl.h"
 
-/* HAS BUGS? DON'T USE */
-void des_3cbc_encrypt(input, output, length, ks1, ks2, iv1, iv2, encrypt)
-des_cblock (*input);
-des_cblock (*output);
-long length;
-des_key_schedule ks1;
-des_key_schedule ks2;
-des_cblock (*iv1);
-des_cblock (*iv2);
-int encrypt;
+/* HAS BUGS? DON'T USE - this is only present for use in des.c */
+void des_3cbc_encrypt(des_cblock *input, des_cblock *output, long length,
+	     des_key_schedule ks1, des_key_schedule ks2, des_cblock *iv1,
+	     des_cblock *iv2, int enc)
 	{
 	int off=((int)length-1)/8;
 	long l8=((length+7)/8)*8;
 	des_cblock niv1,niv2;
 
-	if (encrypt == DES_ENCRYPT)
+	if (enc == DES_ENCRYPT)
 		{
-		des_cbc_encrypt(input,output,length,ks1,iv1,encrypt);
+		des_cbc_encrypt(input,output,length,ks1,iv1,enc);
 		if (length >= sizeof(des_cblock))
 			memcpy(niv1,output[off],sizeof(des_cblock));
-		des_cbc_encrypt(output,output,l8,ks2,iv1,!encrypt);
-		des_cbc_encrypt(output,output,l8,ks1,iv2, encrypt);
+		des_cbc_encrypt(output,output,l8,ks2,iv1,!enc);
+		des_cbc_encrypt(output,output,l8,ks1,iv2, enc);
 		if (length >= sizeof(des_cblock))
 			memcpy(niv2,output[off],sizeof(des_cblock));
 		}
@@ -87,11 +81,11 @@ int encrypt;
 		{
 		if (length >= sizeof(des_cblock))
 			memcpy(niv2,input[off],sizeof(des_cblock));
-		des_cbc_encrypt(input,output,l8,ks1,iv2,encrypt);
-		des_cbc_encrypt(output,output,l8,ks2,iv1,!encrypt);
+		des_cbc_encrypt(input,output,l8,ks1,iv2,enc);
+		des_cbc_encrypt(output,output,l8,ks2,iv1,!enc);
 		if (length >= sizeof(des_cblock))
 			memcpy(niv1,output[off],sizeof(des_cblock));
-		des_cbc_encrypt(output,output,length,ks1,iv1, encrypt);
+		des_cbc_encrypt(output,output,length,ks1,iv1, enc);
 		}
 	memcpy(*iv1,niv1,sizeof(des_cblock));
 	memcpy(*iv2,niv2,sizeof(des_cblock));
