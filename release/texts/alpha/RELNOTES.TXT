@@ -380,6 +380,10 @@ OpenSSL.
 OpenSSL now has support for machine-dependent ASM optimizations,
 activated by the new CPUTYPE/MACHINE_CPU Makefile variables.
 
+The dreaded 'going nowhere without my init' bug that manifested itself
+while installing on hardware that had labeled disks connected (e.g.
+with Tru64 on it) has been fixed. 
+
 2. Supported Configurations
 ---------------------------
 
