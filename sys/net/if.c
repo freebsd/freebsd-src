@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if.c	8.3 (Berkeley) 1/4/94
- * $Id: if.c,v 1.19 1995/09/09 18:10:20 davidg Exp $
+ * $Id: if.c,v 1.20 1995/09/22 17:57:46 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -669,7 +669,7 @@ ifpromisc(ifp, pswitch)
 		if (ifp->if_pcount++ != 0)
 			return (0);
 		ifp->if_flags |= IFF_PROMISC;
-		log(LOG_NOTICE, "%s%d: promiscuous mode enabled",
+		log(LOG_INFO, "%s%d: promiscuous mode enabled\n",
 		    ifp->if_name, ifp->if_unit);
 	} else {
 		if (--ifp->if_pcount > 0)
