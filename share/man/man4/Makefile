@@ -33,6 +33,8 @@ MAN=	aac.4 \
 	cue.4 \
 	da.4 \
 	dc.4 \
+	dcons.4 \
+	dcons_crom.4 \
 	ddb.4 \
 	de.4 \
 	disc.4 \
@@ -154,6 +156,7 @@ MAN=	aac.4 \
 	safe.4 \
 	sbc.4 \
 	sbp.4 \
+	sbp_targ.4 \
 	sbsh.4 \
 	screen.4 \
 	scsi.4 \
