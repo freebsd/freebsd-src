@@ -54,7 +54,7 @@
 #include <sys/errno.h>
 #include <geom/geom.h>
 #include <geom/geom_int.h>
-#include <geom/geom_stats.h>
+#include <sys/devicestat.h>
 
 static struct g_bioq g_bio_run_down;
 static struct g_bioq g_bio_run_up;
@@ -264,7 +264,6 @@ void
 g_io_request(struct bio *bp, struct g_consumer *cp)
 {
 	struct g_provider *pp;
-	struct bintime bt;
 
 	pp = cp->provider;
 	KASSERT(cp != NULL, ("NULL cp in g_io_request"));
@@ -278,14 +277,8 @@ g_io_request(struct bio *bp, struct g_consumer *cp)
 	bp->bio_completed = 0;
 
 	if (g_collectstats) {
-		binuptime(&bt);
-		bp->bio_t0 = bt;
-		if (cp->nstart == cp->nend)
-			cp->stat->wentbusy = bt; /* Consumer is idle */
-		if (pp->nstart == pp->nend)
-			pp->stat->wentbusy = bt; /* Provider is idle */
-		cp->stat->nop++;
-		pp->stat->nop++;
+		devstat_start_transaction_bio(cp->stat, bp);
+		devstat_start_transaction_bio(pp->stat, bp);
 	}
 	cp->nstart++;
 	pp->nstart++;
@@ -302,8 +295,6 @@ g_io_deliver(struct bio *bp, int error)
 {
 	struct g_consumer *cp;
 	struct g_provider *pp;
-	struct bintime t1, dt;
-	int idx;
 
 	cp = bp->bio_from;
 	pp = bp->bio_to;
@@ -317,56 +308,11 @@ g_io_deliver(struct bio *bp, int error)
 	    bp, cp, cp->geom->name, pp, pp->name, bp->bio_cmd, error,
 	    (intmax_t)bp->bio_offset, (intmax_t)bp->bio_length);
 
+	bp->bio_bcount = bp->bio_length;
 	if (g_collectstats) {
-		switch (bp->bio_cmd) {
-		case BIO_READ:    idx =  G_STAT_IDX_READ;    break;
-		case BIO_WRITE:   idx =  G_STAT_IDX_WRITE;   break;
-		case BIO_DELETE:  idx =  G_STAT_IDX_DELETE;  break;
-		case BIO_GETATTR: idx =  -1; break;
-		case BIO_SETATTR: idx =  -1; break;
-		default:
-			panic("unknown bio_cmd in g_io_deliver");
-			break;
-		}
-		binuptime(&t1);
-		/* Raise the "inconsistent" flag for userland */
-		atomic_add_acq_int(&cp->stat->seq0, 1);
-		atomic_add_acq_int(&pp->stat->seq0, 1);
-		if (idx >= 0) {
-			/* Account the service time */
-			dt = t1;
-			bintime_sub(&dt, &bp->bio_t0);
-			bintime_add(&cp->stat->ops[idx].dt, &dt);
-			bintime_add(&pp->stat->ops[idx].dt, &dt);
-			/* ... and the metrics */
-			pp->stat->ops[idx].nbyte += bp->bio_completed;
-			cp->stat->ops[idx].nbyte += bp->bio_completed;
-			pp->stat->ops[idx].nop++;
-			cp->stat->ops[idx].nop++;
-			/* ... and any errors */
-			if (error == ENOMEM) {
-				cp->stat->ops[idx].nmem++;
-				pp->stat->ops[idx].nmem++;
-			} else if (error != 0) {
-				cp->stat->ops[idx].nerr++;
-				pp->stat->ops[idx].nerr++;
-			}
-		}
-		/* Account for busy time on the consumer */
-		dt = t1;
-		bintime_sub(&dt, &cp->stat->wentbusy);
-		bintime_add(&cp->stat->bt, &dt);
-		cp->stat->wentbusy = t1;
-		/* Account for busy time on the provider */
-		dt = t1;
-		bintime_sub(&dt, &pp->stat->wentbusy);
-		bintime_add(&pp->stat->bt, &dt);
-		pp->stat->wentbusy = t1;
-		/* Mark the structures as consistent again */
-		atomic_add_acq_int(&cp->stat->seq1, 1);
-		atomic_add_acq_int(&pp->stat->seq1, 1);
-		cp->stat->nend++;
-		pp->stat->nend++;
+		bp->bio_resid = bp->bio_bcount - bp->bio_completed;
+		devstat_end_transaction_bio(cp->stat, bp);
+		devstat_end_transaction_bio(pp->stat, bp);
 	}
 	cp->nend++;
 	pp->nend++;

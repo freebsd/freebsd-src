@@ -49,7 +49,6 @@
 #include <sys/sbuf.h>
 #include <geom/geom.h>
 #include <geom/geom_int.h>
-#include <geom/geom_stats.h>
 
 MALLOC_DEFINE(M_GEOM, "GEOM", "Geom data structures");
 
@@ -144,7 +143,6 @@ void
 g_init(void)
 {
 	sx_init(&topology_lock, "GEOM topology");
-	g_stat_init();
 	g_io_init();
 	g_event_init();
 	mtx_lock(&Giant);
@@ -237,5 +235,3 @@ SYSCTL_INT(_debug_sizeof, OID_AUTO, g_bioq, CTLFLAG_RD,
 	0, sizeof(struct g_bioq), "");
 SYSCTL_INT(_debug_sizeof, OID_AUTO, g_event, CTLFLAG_RD,
 	0, sizeof(struct g_event), "");
-SYSCTL_INT(_debug_sizeof, OID_AUTO, g_stat, CTLFLAG_RD,
-	0, sizeof(struct g_stat), "");
