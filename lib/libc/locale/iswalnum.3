@@ -44,21 +44,28 @@
 .Sh NAME
 .Nm iswalnum ,
 .Nm iswalpha ,
+.Nm iswascii ,
 .Nm iswblank ,
 .Nm iswcntrl ,
 .Nm iswdigit ,
 .Nm iswgraph ,
+.Nm iswhexnumber ,
+.Nm iswideogram ,
 .Nm iswlower ,
+.Nm iswnumber ,
+.Nm iswphonogram ,
 .Nm iswprint ,
 .Nm iswpunct ,
+.Nm iswrune ,
 .Nm iswspace ,
+.Nm iswspecial ,
 .Nm iswupper ,
 .Nm iswxdigit
 .Nd wide character classification utilities
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
-.Fd #include \*[Lt]wctype.h\*[Gt]
+.In wctype.h
 .Ft int
 .Fn iswalnum "wint_t wc"
 .Ft int
@@ -100,19 +107,39 @@ return non-zero if the character tests true.
 .Sh SEE ALSO
 .Xr isalnum 3 ,
 .Xr isalpha 3 ,
+.Xr isascii 3 ,
 .Xr isblank 3 ,
 .Xr iscntrl 3 ,
 .Xr isdigit 3 ,
 .Xr isgraph 3 ,
+.Xr ishexnumber 3 ,
+.Xr isideogram 3 ,
 .Xr islower 3 ,
+.Xr isnumber 3 ,
+.Xr isphonogram 3 ,
 .Xr isprint 3 ,
 .Xr ispunct 3 ,
+.Xr isrune 3 ,
 .Xr isspace 3 ,
+.Xr isspecial 3 ,
 .Xr isupper 3 ,
-.Xr isxdigit 3
+.Xr isxdigit 3 ,
+.Xr wctype 3
 .Sh STANDARDS
-The functions conform to
-.St -isoC99 .
+These functions conform to
+.St -p1003.1-2001 ,
+except
+.Fn iswascii ,
+.Fn iswhexnumber ,
+.Fn iswideogram ,
+.Fn iswnumber ,
+.Fn iswphonogram ,
+.Fn iswrune
+and
+.Fn iswspecial ,
+which are
+.Fx
+extensions.
 .Sh CAVEATS
 The argument to these functions must be WEOF or valid wchar_t
 value with current locale; otherwise, the result is undefined.
