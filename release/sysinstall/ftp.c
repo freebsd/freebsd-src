@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: ftp.c,v 1.18.2.7 1997/01/29 21:46:08 jkh Exp $
+ * $Id: ftp.c,v 1.18.2.8 1997/01/29 22:35:00 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -49,7 +49,7 @@ int FtpPort;
 
 /* Brings up attached network device, if any - takes FTP device as arg */
 static Boolean
-netup(Device *dev)
+netUp(Device *dev)
 {
     Device *netdev = (Device *)dev->private;
 
