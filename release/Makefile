@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.284 1997/03/12 02:42:55 jkh Exp $
+#	$Id: Makefile,v 1.285 1997/03/12 18:09:15 joerg Exp $
 #
 # How to roll a release:
 #
@@ -485,13 +485,11 @@ cdrom.1:
 # NOTE: Both ftp.1 and cdrom.1 must be run before this target or it will die
 #       a quick and gruesome death.  We also expect the release engineer to
 #       manually populate ports/distfiles on the 2nd CDROM.
-+
 ports.1:
 	tar -cBf - -C /usr ports | tar xBpf - -C ${CD_DISC2} && \
 		mkdir -p ${CD_DISC1}/ports && tar -czf ${CD_DISC1}/ports/ports.tgz -C /usr ports && \
-		cp ${.CURDIR}/scripts/ports-install.sh ${CD_DISC1}/ports/install
-.sh && \
-		(cd ${CD_DISC1}/ports; md5 * > CHECKSUM.MD5) &&
+		cp ${.CURDIR}/scripts/ports-install.sh ${CD_DISC1}/ports/install.sh && \
+		(cd ${CD_DISC1}/ports; md5 * > CHECKSUM.MD5) && \
 		tar -cBf - -C ${CD_DISC1} ports | tar -xBf - -C ${FD}
 
 
