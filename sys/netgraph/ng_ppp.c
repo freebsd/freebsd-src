@@ -561,12 +561,8 @@ ng_ppp_rcvmsg(node_p node, struct ng_mesg *msg,
 		if ((error = ng_path2node(node, raddr, &origNode, NULL)) != 0)
 			ERROUT(error);
 		snprintf(path, sizeof(path), "[%lx]:%s",
-		    (long)node, NG_PPP_HOOK_VJC_IP);
+		    (long)node->ID, NG_PPP_HOOK_VJC_IP);
 		return ng_send_msg(origNode, msg, path, NULL, NULL, rptr);
-/* XXX Archie, looks like you are using the wrong value for the ID here..
- you can't use a node address as a node-ID any more.. 
-But it may be that you can use the new 'hook' arg for ng_send_msg()
-to achieve a more efficient resuld than an ID anyhow. */
 	    }
 	default:
 		error = EINVAL;
