@@ -96,7 +96,7 @@
   <sect2 id="kernel">
     <title>Kernel Changes</title>
 
-    <para arch="pc98">Support for the CanBE power management
+    <para arch="pc98">Support for the CanBe power management
       controller has been added.</para>
 
     <para>&man.devfs.5; is now mandatory; the
