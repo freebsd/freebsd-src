@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_signal.c,v 1.9 1997/07/20 16:06:03 bde Exp $
+ *  $Id: linux_signal.c,v 1.10 1997/11/06 19:29:00 phk Exp $
  */
 
 #include <sys/param.h>
@@ -113,8 +113,8 @@ linux_sigaction(struct proc *p, struct linux_sigaction_args *args)
     caddr_t sg = stackgap_init();
     
 #ifdef DEBUG
-    printf("Linux-emul(%d): sigaction(%d, %08x, %08x)\n", p->p_pid, args->sig,
-	args->nsa, args->osa);
+    printf("Linux-emul(%ld): sigaction(%d, %p, %p)\n",
+	(long)p->p_pid, args->sig, (void *)args->nsa, (void *)args->osa);
 #endif
 
     if (args->osa)
@@ -153,8 +153,8 @@ linux_signal(struct proc *p, struct linux_signal_args *args)
     int error;
 
 #ifdef DEBUG
-    printf("Linux-emul(%d): signal(%d, %08x)\n", p->p_pid,
-	    args->sig, args->handler);
+    printf("Linux-emul(%ld): signal(%d, %p)\n",
+	(long)p->p_pid, args->sig, (void *)args->handler);
 #endif
     sg = stackgap_init();
     nsa = stackgap_alloc(&sg, sizeof *nsa);
@@ -241,7 +241,8 @@ linux_sigsetmask(struct proc *p, struct linux_sigsetmask_args *args)
     sigset_t mask;
 
 #ifdef DEBUG
-    printf("Linux-emul(%d): sigsetmask(%08x)\n", p->p_pid, args->mask);
+    printf("Linux-emul(%ld): sigsetmask(%p)\n",
+	(long)p->p_pid, (void *)args->mask);
 #endif
     p->p_retval[0] = bsd_to_linux_sigset(p->p_sigmask);
 
@@ -275,7 +276,8 @@ linux_sigsuspend(struct proc *p, struct linux_sigsuspend_args *args)
     struct sigsuspend_args tmp;
 
 #ifdef DEBUG
-    printf("Linux-emul(%d): sigsuspend(%08x)\n", p->p_pid, args->mask);
+    printf("Linux-emul(%ld): sigsuspend(%p)\n",
+	(long)p->p_pid, (void *)args->mask);
 #endif
     tmp.mask = linux_to_bsd_sigset(args->mask);
     return sigsuspend(p, &tmp);
