@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1982, 1986, 1993
+ * Copyright (c) 1982, 1986, 1993, 1995
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,8 +30,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)tcp_seq.h	8.1 (Berkeley) 6/10/93
- * $Id: tcp_seq.h,v 1.4 1995/02/08 20:18:46 wollman Exp $
+ *	@(#)tcp_seq.h	8.3 (Berkeley) 6/21/95
+ *	$Id: tcp_seq.h,v 1.5 1995/02/14 02:35:17 wollman Exp $
  */
 
 #ifndef _NETINET_TCP_SEQ_H_
@@ -75,13 +75,28 @@
 	(tp)->snd_una = (tp)->snd_nxt = (tp)->snd_max = (tp)->snd_up = \
 	    (tp)->iss
 
-#define	TCP_ISSINCR	(125*1024)	/* increment for tcp_iss each second */
-
 #define TCP_PAWS_IDLE	(24 * 24 * 60 * 60 * PR_SLOWHZ)
 					/* timestamp wrap-around time */
 
 #ifdef KERNEL
-extern tcp_seq	tcp_iss;		/* tcp initial send seq # */
 extern tcp_cc	tcp_ccgen;		/* global connection count */
+
+/*
+ * Increment for tcp_iss each second.
+ * This is designed to increment at the standard 250 KB/s,
+ * but with a random component averaging 128 KB.
+ * We also increment tcp_iss by a quarter of this amount
+ * each time we use the value for a new connection.
+ * If defined, the tcp_random18() macro should produce a
+ * number in the range [0-0x3ffff] that is hard to predict.
+ */
+#ifndef tcp_random18
+#define	tcp_random18()	((random() >> 14) & 0x3ffff)
 #endif
-#endif
+#define	TCP_ISSINCR	(122*1024 + tcp_random18())
+
+extern tcp_seq	tcp_iss;		/* tcp initial send seq # */
+#else
+#define	TCP_ISSINCR	(250*1024)	/* increment for tcp_iss each second */
+#endif /* KERNEL */
+#endif /* _NETINET_TCP_SEQ_H_ */

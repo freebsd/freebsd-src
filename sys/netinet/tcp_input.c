@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1982, 1986, 1988, 1990, 1993, 1994
+ * Copyright (c) 1982, 1986, 1988, 1990, 1993, 1994, 1995
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,8 +30,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	From: @(#)tcp_input.c	8.5 (Berkeley) 4/10/94
- *	$Id: tcp_input.c,v 1.27 1995/07/10 15:39:13 wollman Exp $
+ *	@(#)tcp_input.c	8.12 (Berkeley) 5/24/95
+ *	$Id: tcp_input.c,v 1.28 1995/07/31 10:24:22 olah Exp $
  */
 
 #ifndef TUBA_INCLUDE
@@ -44,6 +44,8 @@
 #include <sys/socketvar.h>
 #include <sys/errno.h>
 #include <sys/queue.h>
+
+#include <machine/cpu.h>	/* before tcp_seq.h, for tcp_random18() */
 
 #include <net/if.h>
 #include <net/route.h>
@@ -243,7 +245,7 @@ tcp_input(m, iphlen)
 {
 	register struct tcpiphdr *ti;
 	register struct inpcb *inp;
-	caddr_t optp = NULL;
+	u_char *optp = NULL;
 	int optlen = 0;
 	int len, tlen, off;
 	register struct tcpcb *tp = 0;
@@ -315,7 +317,7 @@ tcp_input(m, iphlen)
 			ti = mtod(m, struct tcpiphdr *);
 		}
 		optlen = off - sizeof (struct tcphdr);
-		optp = mtod(m, caddr_t) + sizeof (struct tcpiphdr);
+		optp = mtod(m, u_char *) + sizeof (struct tcpiphdr);
 		/*
 		 * Do quick retrieval of timestamp options ("options
 		 * prediction?").  If timestamp is the only option and it's
@@ -650,7 +652,7 @@ findpcb:
 			tp->iss = iss;
 		else
 			tp->iss = tcp_iss;
-		tcp_iss += TCP_ISSINCR/2;
+		tcp_iss += TCP_ISSINCR/4;
 		tp->irs = ti->ti_seq;
 		tcp_sendseqinit(tp);
 		tcp_rcvseqinit(tp);

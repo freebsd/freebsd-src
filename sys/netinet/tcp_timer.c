@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1982, 1986, 1988, 1990, 1993
+ * Copyright (c) 1982, 1986, 1988, 1990, 1993, 1995
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,8 +30,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)tcp_timer.c	8.1 (Berkeley) 6/10/93
- * $Id: tcp_timer.c,v 1.7 1995/05/30 08:09:59 rgrimes Exp $
+ *	@(#)tcp_timer.c	8.2 (Berkeley) 5/24/95
+ *	$Id: tcp_timer.c,v 1.8 1995/07/29 18:48:43 davidg Exp $
  */
 
 #ifndef TUBA_INCLUDE
@@ -44,6 +44,8 @@
 #include <sys/protosw.h>
 #include <sys/errno.h>
 #include <sys/queue.h>
+
+#include <machine/cpu.h>	/* before tcp_seq.h, for tcp_random18() */
 
 #include <net/if.h>
 #include <net/route.h>
@@ -62,10 +64,14 @@
 
 int	tcp_keepidle = TCPTV_KEEP_IDLE;
 int	tcp_keepintvl = TCPTV_KEEPINTVL;
+int	tcp_keepcnt = TCPTV_KEEPCNT;		/* max idle probes */
+int	tcp_maxpersistidle = TCPTV_KEEP_IDLE;	/* max idle time in persist */
 int	tcp_maxidle;
-int	tcp_maxpersistidle = TCPTV_KEEP_IDLE;
-int	tcp_totbackoff = 511;
+#else /* TUBA_INCLUDE */
+
+extern	int tcp_maxpersistidle;
 #endif /* TUBA_INCLUDE */
+
 /*
  * Fast timeout routine for processing delayed acks
  */
@@ -105,7 +111,7 @@ tcp_slowtimo()
 
 	s = splnet();
 
-	tcp_maxidle = TCPTV_KEEPCNT * tcp_keepintvl;
+	tcp_maxidle = tcp_keepcnt * tcp_keepintvl;
 
 	ip = tcb.lh_first;
 	if (ip == NULL) {
@@ -118,7 +124,7 @@ tcp_slowtimo()
 	for (; ip != NULL; ip = ipnxt) {
 		ipnxt = ip->inp_list.le_next;
 		tp = intotcpcb(ip);
-		if (tp == 0)
+		if (tp == 0 || tp->t_state == TCPS_LISTEN)
 			continue;
 		for (i = 0; i < TCPT_NTIMERS; i++) {
 			if (tp->t_timer[i] && --tp->t_timer[i] == 0) {
@@ -138,7 +144,7 @@ tpgone:
 	tcp_iss += TCP_ISSINCR/PR_SLOWHZ;		/* increment iss */
 #ifdef TCP_COMPAT_42
 	if ((int)tcp_iss < 0)
-		tcp_iss = 0;				/* XXX */
+		tcp_iss = TCP_ISSINCR;			/* XXX */
 #endif
 	tcp_now++;					/* for timestamps */
 	splx(s);
@@ -160,6 +166,8 @@ tcp_canceltimers(tp)
 
 int	tcp_backoff[TCP_MAXRXTSHIFT + 1] =
     { 1, 2, 4, 8, 16, 32, 64, 64, 64, 64, 64, 64, 64 };
+
+int tcp_totbackoff = 511;	/* sum of tcp_backoff[] */
 
 /*
  * TCP timer processing.
