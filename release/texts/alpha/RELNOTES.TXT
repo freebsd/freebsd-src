@@ -326,6 +326,20 @@ A bug in crontab(8) that could allow users to read any file on the
 system in valid crontab(5) syntax has been fixed (see security
 advisory FreeBSD-SA-01:09).  [MERGED]
 
+A vulnerability in inetd(8) that could allow read-access to the
+initial 16 bytes of wheel-accessible files has been fixed (see
+security advisory FreeBSD-SA-01:11). [MERGED]
+
+A bug in periodic(8) that used insecure temporary files has been
+corrected (see security advisory FreeBSD-SA-01:12). [MERGED]
+
+A bug in sort(1) in which an attacker might be able to cause it to
+abort processing has been fixed (see security advisory
+FreeBSD-SA-01:13). [MERGED]
+
+To fix a remotely-exploitable buffer overflow, BIND has been updated
+to 8.2.3. [MERGED]
+
 
 1.3. USERLAND CHANGES
 ---------------------
@@ -523,8 +537,6 @@ The compiler chain now uses the FSF-supplied C/C++ runtime
 initialization code.  This change brings about better compatability
 with code generated from the various egcs and gcc ports, as well as
 the stock public FSF source. [MERGED]
-
-BIND has been updated to v8.2.3-T6B.
 
 The threads library has gained some signal handling changes, bug
 fixes, and performance enhancements (including zero system call thread
