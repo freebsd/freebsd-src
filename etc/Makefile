@@ -186,7 +186,7 @@ distrib-dirs:
 .endif
 	mtree -deU ${MTREE_FOLLOWS_SYMLINKS} -f ${.CURDIR}/mtree/BIND.chroot.dist \
 	    -p ${DESTDIR}/var/named
-	ln -fhs ${DESTDIR}/var/named/etc/namedb ${DESTDIR}/etc/namedb
+	ln -fhs /var/named/etc/namedb ${DESTDIR}/etc/namedb
 .endif
 .if !defined(NO_SENDMAIL)
 	mtree -deU ${MTREE_FOLLOWS_SYMLINKS} -f ${.CURDIR}/mtree/BSD.sendmail.dist -p ${DESTDIR}/
