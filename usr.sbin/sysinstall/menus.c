@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.192 1999/03/09 12:36:28 jkh Exp $
+ * $Id: menus.c,v 1.193 1999/03/19 10:54:37 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -764,6 +764,10 @@ DMenu MenuSubDistributions = {
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_COMPAT21 },
       { "compat22",	"FreeBSD 2.2.x and 3.0 a.out binary compatibility",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_COMPAT22 },
+#if __FreeBSD__ > 3
+      { "compat3x",	"FreeBSD 3.x binary compatibility",
+	dmenuFlagCheck,	dmenuSetFlag, NULL, &Dists, '[', 'X', ']', DIST_COMPAT3X },
+#endif
       { "DES",		"DES encryption code - NOT FOR EXPORT!",
 	DESFlagCheck,	distSetDES },
       { "dict",		"Spelling checker dictionary files",
