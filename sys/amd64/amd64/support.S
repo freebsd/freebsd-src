@@ -1192,12 +1192,11 @@ ENTRY(casuptr)
 #endif	/* !SMP */
 
 	/*
-	 * We store the current value regardless of the success of the
-	 * cmpxchg.  Calling code checks for new == return to determine
-	 * success.
+	 * The old value is in %eax.  If the store succeeded it will be the
+	 * value we expected (old) from before the store, otherwise it will
+	 * be the current value.
 	 */
-	movl	(%edx), %eax
-	
+
 	movl	PCPU(CURPCB),%ecx
 	movl	$fusufault,PCB_ONFAULT(%ecx)
 	movl	$0,PCB_ONFAULT(%ecx)
