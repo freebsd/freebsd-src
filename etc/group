@@ -14,5 +14,5 @@ uucp:*:66:
 ingres:*:74:ingres
 xten:*:100:xten
 dialer:*:117:
-nogroup:*:32766:
+nogroup:*:65533:
 nobody:*:65534:
