@@ -1,8 +1,8 @@
 # $FreeBSD$
 
 PROG?=		ld-elf.so.1
-SRCS=		rtld_start.S rtld.c rtld_lock.c map_object.c malloc.c \
-		xmalloc.c debug.c reloc.c libmap.c
+SRCS=		reloc.c rtld.c rtld_start.S rtld_lock.c map_object.c \
+		malloc.c xmalloc.c debug.c libmap.c
 MAN=		rtld.1
 CSTD?=		gnu99
 CFLAGS+=	-Wall -DFREEBSD_ELF -DIN_RTLD
