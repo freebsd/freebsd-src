@@ -71,6 +71,11 @@
 #define DEVICEID_SK_V2		0x4320
 
 /*
+ * Belkin F5D5005
+ */
+#define DEVICEID_BELKIN_5005	0x5005
+
+/*
  * 3Com PCI vendor ID
  */
 #define VENDORID_3COM		0x10b7
