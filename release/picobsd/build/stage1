@@ -1,6 +1,6 @@
 #! /bin/sh -
 
-#	$Id: stage1,v 1.9 1999/08/22 21:42:32 dwhite Exp $
+#	$Id: stage1,v 1.10 1999/08/23 08:33:08 luigi Exp $
 #
 # stage1 -- this script fills the mfs for the picobsd kernel
 
@@ -183,7 +183,7 @@ if [ -f ${excl} ] ; then
     excl="--exclude-from ${excl}"
     echo "Exclude following files from ${excl}:\n==="
     cat ${excl}
-    echo "===
+    echo "==="
 else
     excl=""
 fi
