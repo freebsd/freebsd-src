@@ -71,7 +71,7 @@
 <![ %release.type.release [
       &release.current;
 ]]>
-      will be maintained until the release of &os; 5.1-RELEASE.</para>
+      will be maintained until the release of &os; &release.next;.</para>
   </abstract>
 
   <sect1 id="intro">
