@@ -80,6 +80,14 @@ ENTRY(cpu_switch)
 	mfcr	%r4			/* Save the condition register */
 	stw	%r4,PCB_CR(%r3)
 
+	lwz	%r29,PCB_FLAGS(%r3)
+	andi.	%r9, %r29, 1		/* XXX - don't hard code */
+	beq	.L1
+	mr	%r29, %r3		/* Save the PCB pointer */
+	bl	save_fpu
+	mr	%r3, %r29		/* and restore it */
+
+.L1:
 	bl	choosethread		/* Find a new thread to run */
 
 	mr	%r14,%r3		/* Save off the (struct thread *) */
@@ -91,6 +99,14 @@ ENTRY(cpu_switch)
 	stw	%r14,GD_CURTHREAD(%r4)	/* Store new current thread */
 	lwz	%r4,TD_PCB(%r14)	/* Grab the new PCB */
 
+	lwz	%r29, PCB_FLAGS(%r4)	/* Restore FPU regs if needed */
+	andi.	%r9, %r29, 1
+	beq	.L2
+	mr	%r29, %r4
+	bl	enable_fpu
+	mr	%r4, %r29
+
+.L2:
 	lmw	%r14,PCB_CONTEXT(%r4)	/* Load the non-volatile GP regs */
 	lwz	%r5,PCB_CR(%r4)		/* Load the condition register */
 	mtcr	%r5
