@@ -176,9 +176,7 @@ typedef	struct fd_data *fd_p;
 typedef struct fdc_data *fdc_p;
 typedef enum fdc_type fdc_t;
 
-#define FDUNIT(s)	(((s) >> 6) & 3)
 #define FDNUMTOUNIT(n)	(((n) & 3) << 6)
-#define FDTYPE(s)	((s) & 0x3f)
 
 /*
  * fdc maintains a set (1!) of ivars per child of each controller.
@@ -227,13 +225,6 @@ FDC_ACCESSOR(fdunit,	FDUNIT,	int)
 
 /*
  * Number of subdevices that can be used for different density types.
- * By now, the lower 6 bit of the minor number are reserved for this,
- * allowing for up to 64 subdevices, but we only use 16 out of this.
- * Density #0 is used for automatic format detection, the other
- * densities are available as programmable densities (for assignment
- * by fdcontrol(8)).
- * The upper 2 bits of the minor number are reserved for the subunit
- * (drive #) per controller.
  */
 #define NUMDENS		16
 
@@ -317,10 +308,6 @@ struct fd_data {
 	struct	callout_handle tohandle;
 	struct	devstat *device_stats;
 	dev_t	masterdev;
-#ifdef GONE_IN_5
-	eventhandler_tag clonetag;
-	dev_t	clonedevs[NUMDENS - 1];
-#endif
 	device_t dev;
 	fdu_t	fdu;
 };
@@ -388,9 +375,6 @@ static int fdc_detach(device_t dev);
 static void fdc_add_child(device_t, const char *, int);
 static int fdc_attach(device_t);
 static int fdc_print_child(device_t, device_t);
-#ifdef GONE_IN_5
-static void fd_clone (void *, char *, int, dev_t *);
-#endif
 static int fd_probe(device_t);
 static int fd_attach(device_t);
 static int fd_detach(device_t);
@@ -1154,62 +1138,6 @@ DRIVER_MODULE(fdc, pccard, fdc_pccard_driver, fdc_devclass, 0, 0);
 
 #endif /* NCARD > 0 */
 
-#ifdef GONE_IN_5
-/*
- * Create a clone device upon request by devfs.
- */
-static void
-fd_clone(void *arg, char *name, int namelen, dev_t *dev)
-{
-	struct	fd_data *fd;
-	int i, u;
-	char *n;
-	size_t l;
-
-	fd = (struct fd_data *)arg;
-	if (*dev != NODEV)
-		return;
-	if (dev_stdclone(name, &n, "fd", &u) != 2)
-		return;
-	if (u != fd->fdu)
-		/* unit # mismatch */
-		return;
-	l = strlen(n);
-	if (l == 1 && *n >= 'a' && *n <= 'h') {
-		/*
-		 * Trailing letters a through h denote
-		 * pseudo-partitions.  We don't support true
-		 * (UFS-style) partitions, so we just implement them
-		 * as symlinks if someone asks us nicely.
-		 */
-		*dev = make_dev_alias(fd->masterdev, name);
-		return;
-	}
-	if (l >= 2 && l <= 5 && *n == '.') {
-		/*
-		 * Trailing numbers, preceded by a dot, denote
-		 * subdevices for different densities.  Historically,
-		 * they have been named by density (like fd0.1440),
-		 * but we allow arbitrary numbers between 1 and 4
-		 * digits, so fd0.1 through fd0.15 are possible as
-		 * well.
-		 */
-		for (i = 1; i < l; i++)
-			if (n[i] < '0' || n[i] > '9')
-				return;
-		for (i = 0; i < NUMDENS - 1; i++)
-			if (fd->clonedevs[i] == NODEV) {
-				*dev = make_dev(&fd_cdevsw,
-						FDNUMTOUNIT(u) + i + 1,
-						UID_ROOT, GID_OPERATOR, 0640,
-						name);
-				fd->clonedevs[i] = *dev;
-				fd->clonedevs[i]->si_drv1 = fd;
-				return;
-			}
-	}
-}
-#endif
 
 /*
  * Configuration/initialization, per drive.
@@ -1365,19 +1293,9 @@ fd_attach(device_t dev)
 	struct	fd_data *fd;
 
 	fd = device_get_softc(dev);
-#ifdef GONE_IN_5
-	fd->clonetag = EVENTHANDLER_REGISTER(dev_clone, fd_clone, fd, 1000);
-#endif
-	fd->masterdev = make_dev(&fd_cdevsw, fd->fdu << 6,
+	fd->masterdev = make_dev(&fd_cdevsw, fd->fdu,
 				 UID_ROOT, GID_OPERATOR, 0640, "fd%d", fd->fdu);
 	fd->masterdev->si_drv1 = fd;
-#ifdef GONE_IN_5
-	{
-	int i;
-	for (i = 0; i < NUMDENS - 1; i++)
-		fd->clonedevs[i] = NODEV;
-	}
-#endif
 	fd->device_stats = devstat_new_entry(device_get_name(dev), 
 			  device_get_unit(dev), 0, DEVSTAT_NO_ORDERED_TAGS,
 			  DEVSTAT_TYPE_FLOPPY | DEVSTAT_TYPE_IF_OTHER,
@@ -1394,15 +1312,6 @@ fd_detach(device_t dev)
 	untimeout(fd_turnoff, fd, fd->toffhandle);
 	devstat_remove_entry(fd->device_stats);
 	destroy_dev(fd->masterdev);
-#ifdef GONE_IN_5
-	{
-	int i;
-	for (i = 0; i < NUMDENS - 1; i++)
-		if (fd->clonedevs[i] != NODEV)
-			destroy_dev(fd->clonedevs[i]);
-	EVENTHANDLER_DEREGISTER(dev_clone, fd->clonetag);
-	}
-#endif
 
 	return (0);
 }
@@ -1597,7 +1506,6 @@ out_fdc(struct fdc_data *fdc, int x)
 static int
 fdopen(dev_t dev, int flags, int mode, struct thread *td)
 {
-	int type = FDTYPE(minor(dev));
 	fd_p	fd;
 	fdc_p	fdc;
  	int rv, unitattn, dflags;
@@ -1607,8 +1515,6 @@ fdopen(dev_t dev, int flags, int mode, struct thread *td)
 		return (ENXIO);
 	fdc = fd->fdc;
 	if ((fdc == NULL) || (fd->type == FDT_NONE))
-		return (ENXIO);
-	if (type > NUMDENS)
 		return (ENXIO);
 	dflags = device_get_flags(fd->dev);
 	/*
@@ -1622,62 +1528,58 @@ fdopen(dev_t dev, int flags, int mode, struct thread *td)
 	if (fd->flags & FD_OPEN)
 		return (EBUSY);
 
-	if (type == 0) {
-		if (flags & FNONBLOCK) {
-			/*
-			 * Unfortunately, physio(9) discards its ioflag
-			 * argument, thus preventing us from seeing the
-			 * IO_NDELAY bit.  So we need to keep track
-			 * ourselves.
-			 */
-			fd->flags |= FD_NONBLOCK;
-			fd->ft = 0;
-		} else {
-			/*
-			 * Figure out a unit attention condition.
-			 *
-			 * If UA has been forced, proceed.
-			 *
-			 * If the drive has no changeline support,
-			 * or if the drive parameters have been lost
-			 * due to previous non-blocking access,
-			 * assume a forced UA condition.
-			 *
-			 * If motor is off, turn it on for a moment
-			 * and select our drive, in order to read the
-			 * UA hardware signal.
-			 *
-			 * If motor is on, and our drive is currently
-			 * selected, just read the hardware bit.
-			 *
-			 * If motor is on, but active for another
-			 * drive on that controller, we are lost.  We
-			 * cannot risk to deselect the other drive, so
-			 * we just assume a forced UA condition to be
-			 * on the safe side.
-			 */
-			unitattn = 0;
-			if ((dflags & FD_NO_CHLINE) != 0 ||
-			    (fd->flags & FD_UA) != 0 ||
-			    fd->ft == 0) {
-				unitattn = 1;
-				fd->flags &= ~FD_UA;
-			} else if (fdc->fdout & (FDO_MOEN0 | FDO_MOEN1 |
-						 FDO_MOEN2 | FDO_MOEN3)) {
-				if ((fdc->fdout & FDO_FDSEL) == fd->fdsu)
-					unitattn = fdin_rd(fdc) & FDI_DCHG;
-				else
-					unitattn = 1;
-			} else {
-				set_motor(fdc, fd->fdsu, TURNON);
-				unitattn = fdin_rd(fdc) & FDI_DCHG;
-				set_motor(fdc, fd->fdsu, TURNOFF);
-			}
-			if (unitattn && (rv = fdautoselect(dev)) != 0)
-				return (rv);
-		}
+	if (flags & FNONBLOCK) {
+		/*
+		 * Unfortunately, physio(9) discards its ioflag
+		 * argument, thus preventing us from seeing the
+		 * IO_NDELAY bit.  So we need to keep track
+		 * ourselves.
+		 */
+		fd->flags |= FD_NONBLOCK;
+		fd->ft = 0;
 	} else {
-		fd->ft = fd->fts + type;
+		/*
+		 * Figure out a unit attention condition.
+		 *
+		 * If UA has been forced, proceed.
+		 *
+		 * If the drive has no changeline support,
+		 * or if the drive parameters have been lost
+		 * due to previous non-blocking access,
+		 * assume a forced UA condition.
+		 *
+		 * If motor is off, turn it on for a moment
+		 * and select our drive, in order to read the
+		 * UA hardware signal.
+		 *
+		 * If motor is on, and our drive is currently
+		 * selected, just read the hardware bit.
+		 *
+		 * If motor is on, but active for another
+		 * drive on that controller, we are lost.  We
+		 * cannot risk to deselect the other drive, so
+		 * we just assume a forced UA condition to be
+		 * on the safe side.
+		 */
+		unitattn = 0;
+		if ((dflags & FD_NO_CHLINE) != 0 ||
+		    (fd->flags & FD_UA) != 0 ||
+		    fd->ft == 0) {
+			unitattn = 1;
+			fd->flags &= ~FD_UA;
+		} else if (fdc->fdout & (FDO_MOEN0 | FDO_MOEN1 |
+					 FDO_MOEN2 | FDO_MOEN3)) {
+			if ((fdc->fdout & FDO_FDSEL) == fd->fdsu)
+				unitattn = fdin_rd(fdc) & FDI_DCHG;
+			else
+				unitattn = 1;
+		} else {
+			set_motor(fdc, fd->fdsu, TURNON);
+			unitattn = fdin_rd(fdc) & FDI_DCHG;
+			set_motor(fdc, fd->fdsu, TURNOFF);
+		}
+		if (unitattn && (rv = fdautoselect(dev)) != 0)
+			return (rv);
 	}
 	fd->flags |= FD_OPEN;
 	/*
@@ -1718,11 +1620,8 @@ fdstrategy(struct bio *bp)
  	fd_p	fd;
 	size_t	fdblk;
 
- 	fdu = FDUNIT(minor(bp->bio_dev));
 	fd = bp->bio_dev->si_drv1;
-	if (fd == NULL)
-		panic("fdstrategy: buf for nonexistent device (%#lx, %#lx)",
-		      (u_long)major(bp->bio_dev), (u_long)minor(bp->bio_dev));
+ 	fdu = fd->fdu;
 	fdc = fd->fdc;
 	bp->bio_resid = bp->bio_bcount;
 	if (fd->type == FDT_NONE || fd->ft == 0) {
@@ -1906,13 +1805,11 @@ fdcpio(fdc_p fdc, long flags, caddr_t addr, u_int count)
 static int
 fdautoselect(dev_t dev)
 {
-	fdu_t fdu;
  	fd_p fd;
 	struct fd_type *fdtp;
 	struct fdc_readid id;
 	int i, n, oopts, rv;
 
- 	fdu = FDUNIT(minor(dev));
 	fd = dev->si_drv1;
 
 	switch (fd->type) {
@@ -2039,8 +1936,8 @@ fdstate(fdc_p fdc)
 		TRACE1("[fdc%d IDLE]", fdc->fdcu);
  		return (0);
 	}
-	fdu = FDUNIT(minor(bp->bio_dev));
 	fd = bp->bio_dev->si_drv1;
+	fdu = fd->fdu;
 	fdblk = 128 << fd->ft->secsize;
 	if (fdc->fd && (fd != fdc->fd))
 		device_printf(fd->dev, "confused fd pointers\n");
@@ -2542,8 +2439,8 @@ retrier(struct fdc_data *fdc)
 	bp = fdc->bp;
 
 	/* XXX shouldn't this be cached somewhere?  */
-	fdu = FDUNIT(minor(bp->bio_dev));
 	fd = bp->bio_dev->si_drv1;
+	fdu = fd->fdu;
 	if (fd->options & FDOPT_NORETRY)
 		goto fail;
 
@@ -2613,8 +2510,8 @@ fdmisccmd(dev_t dev, u_int cmd, void *data)
 	size_t fdblk;
 	int error;
 
- 	fdu = FDUNIT(minor(dev));
 	fd = dev->si_drv1;
+ 	fdu = fd->fdu;
 	fdblk = 128 << fd->ft->secsize;
 	finfo = (struct fd_formb *)data;
 	idfield = (struct fdc_readid *)data;
@@ -2660,11 +2557,10 @@ fdioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
  	fd_p fd;
 	struct fdc_status *fsp;
 	struct fdc_readid *rid;
-	int error, type;
+	int error;
 
- 	fdu = FDUNIT(minor(dev));
-	type = FDTYPE(minor(dev));
  	fd = dev->si_drv1;
+ 	fdu = fd->fdu;
 
 	/*
 	 * First, handle everything that could be done with
@@ -2712,30 +2608,13 @@ fdioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 		return (0);
 
 	case FD_STYPE:                  /* set drive type */
-		if (type == 0) {
-			/*
-			 * Allow setting drive type temporarily iff
-			 * currently unset.  Used for fdformat so any
-			 * user can set it, and then start formatting.
-			 */
-			if (fd->ft)
-				return (EINVAL); /* already set */
-			fd->ft = fd->fts;
-			*fd->ft = *(struct fd_type *)addr;
-			fd->flags |= FD_UA;
-		} else {
-			/*
-			 * Set density definition permanently.  Only
-			 * allow for superuser.
-			 */
-			if (suser(td) != 0)
-				return (EPERM);
-			fd->fts[type] = *(struct fd_type *)addr;
-		}
+		if (suser(td) != 0)
+			return (EPERM);
+		fd->fts[0] = *(struct fd_type *)addr;
 		return (0);
 
 	case FD_GOPTS:			/* get drive options */
-		*(int *)addr = fd->options + (type == 0? FDOPT_AUTOSEL: 0);
+		*(int *)addr = fd->options + FDOPT_AUTOSEL;
 		return (0);
 
 	case FD_SOPTS:			/* set drive options */
