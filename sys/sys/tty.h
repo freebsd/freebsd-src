@@ -74,11 +74,7 @@ struct tty {
 	struct	clist t_outq;		/* Device output queue. */
 	long	t_outcc;		/* Output queue statistics. */
 	int	t_line;			/* Interface to device drivers. */
-	union {
-		dev_t	t_kdev;		/* Device. */
-		udev_t	t_udev;		/* Userland (sysctl) instance. */
-		void	*t_devp;	/* Keep user/kernel size in sync. */
-	} ttyu;
+	dev_t	t_dev;			/* Device. */
 	int	t_state;		/* Device and driver (TS*) state. */
 	int	t_flags;		/* Tty flags. */
 	int     t_timeout;              /* Timeout for ttywait() */
@@ -111,7 +107,6 @@ struct tty {
 
 #define	t_cc		t_termios.c_cc
 #define	t_cflag		t_termios.c_cflag
-#define	t_dev		ttyu.t_kdev
 #define	t_iflag		t_termios.c_iflag
 #define	t_ispeed	t_termios.c_ispeed
 #define	t_lflag		t_termios.c_lflag
@@ -122,6 +117,34 @@ struct tty {
 
 #define	TTIPRI		(PSOCK + 1)	/* Sleep priority for tty reads. */
 #define	TTOPRI		(PSOCK + 2)	/* Sleep priority for tty writes. */
+
+/*
+ * Userland version of struct tty, for sysctl
+ */
+struct xtty {
+	size_t	xt_size;		/* Structure size */
+	long	xt_rawcc;		/* Raw input queue statistics. */
+	long	xt_cancc;		/* Canonical queue statistics. */
+	long	xt_outcc;		/* Output queue statistics. */
+	int	xt_line;		/* Interface to device drivers. */
+	udev_t	xt_dev;			/* Userland (sysctl) instance. */
+	int	xt_state;		/* Device and driver (TS*) state. */
+	int	xt_flags;		/* Tty flags. */
+	int     xt_timeout;		/* Timeout for ttywait() */
+	pid_t	xt_pgid;		/* Process group ID */
+	pid_t	xt_sid;			/* Session ID */
+	struct	termios xt_termios;	/* Termios state. */
+	struct	winsize xt_winsize;	/* Window size. */
+	int	xt_column;		/* Tty output column. */
+	int	xt_rocount, xt_rocol;	/* Tty. */
+	int	xt_ififosize;		/* Total size of upstream fifos. */
+	int	xt_ihiwat;		/* High water mark for input. */
+	int	xt_ilowat;		/* Low water mark for input. */
+	speed_t	xt_ispeedwat;		/* t_ispeed override for watermarks. */
+	int	xt_ohiwat;		/* High water mark for output. */
+	int	xt_olowat;		/* Low water mark for output. */
+	speed_t	xt_ospeedwat;		/* t_ospeed override for watermarks. */
+};
 
 /*
  * User data unfortunately has to be copied through buffers on the way to
