@@ -229,10 +229,6 @@ atapi_queue_cmd(struct atapi_softc *atp, int8_t *ccb, caddr_t data,
     error = request->error;
     if (error)
 	 atp->sense = request->sense;
-#ifdef ATAPI_DEBUG
-    ata_printf(atp->controller, atp->unit, "finished %s\n", 
-	       atapi_cmd2str(request->ccb[0]));
-#endif
     if (request->dmatab)
 	free(request->dmatab, M_DEVBUF);
     free(request, M_ATAPI);
@@ -334,9 +330,9 @@ atapi_transfer(struct atapi_request *request)
 	DELAY(20);
     }
     if (timout <= 0) {
-	request->result = ATA_INB(atp->controller->r_io, ATA_ERROR);
 	ata_printf(atp->controller, atp->unit,
 		   "failure to execute ATAPI packet command\n");
+	untimeout((timeout_t *)atapi_timeout, request, request->timeout_handle);
 	request->error = EIO;
         atapi_finish(request);	
 	return ATA_OP_FINISHED;
@@ -362,10 +358,13 @@ atapi_interrupt(struct atapi_request *request)
 
     if (reason == ATAPI_P_CMDOUT) {
 	if (!(atp->controller->status & ATA_S_DRQ)) {
-	    request->result = ATA_INB(atp->controller->r_io, ATA_ERROR);
 	    ata_printf(atp->controller, atp->unit,
 		       "command interrupt without DRQ\n");
-	    goto op_finished;
+	    untimeout((timeout_t *)atapi_timeout,
+		      request, request->timeout_handle);
+	    request->error = EIO;
+            atapi_finish(request);	
+	    return ATA_OP_FINISHED;
 	}
 	ATA_OUTSW(atp->controller->r_io, ATA_DATA, (int16_t *)request->ccb,
 		  request->ccbsize / sizeof(int16_t));
@@ -434,8 +433,6 @@ atapi_interrupt(struct atapi_request *request)
 		       "unknown transfer phase %d\n", reason);
 	}
     }
-
-op_finished:
     untimeout((timeout_t *)atapi_timeout, request, request->timeout_handle);
 
     /* check for error, if valid sense key, queue a request sense cmd */
@@ -493,11 +490,6 @@ op_finished:
 	}
 	else
 	    request->error = 0;
-#ifdef ATAPI_DEBUG
-	if (request->callback)
-	    ata_printf(atp->controller, atp->unit, "finished %s (callback)\n", 
-		       atapi_cmd2str(request->ccb[0]));
-#endif
         atapi_finish(request);	
     }
     return ATA_OP_FINISHED;
@@ -618,6 +610,11 @@ atapi_write(struct atapi_request *request, int length)
 static void
 atapi_finish(struct atapi_request *request)
 {
+#ifdef ATAPI_DEBUG
+    ata_printf(atp->controller, atp->unit, "finished %s%s\n", 
+	       request->callback ? "callback " : "",
+	       atapi_cmd2str(request->ccb[0]));
+#endif
     if (request->callback) {
 	if (!((request->callback)(request))) {
 	    if (request->dmatab)
