@@ -274,7 +274,7 @@ db_symbol_values(sym, namep, valuep)
  * then we just print the value in hex.  Small values might get
  * bogus symbol associations, e.g. 3 might get some absolute
  * value like _INCLUDE_VERSION or something, therefore we do
- * not accept symbols whose value is zero (and use plain hex).
+ * not accept symbols whose value is "small" (and use plain hex).
  */
 
 unsigned int	db_maxoff = 0x10000;
@@ -293,7 +293,13 @@ db_printsym(off, strategy)
 
 	cursym = db_search_symbol(off, strategy, &d);
 	db_symbol_values(cursym, &name, &value);
-	if (name == 0 || d >= db_maxoff || value == 0) {
+	if (name == 0)
+		value = off;
+	if (value >= DB_SMALL_VALUE_MIN && value <= DB_SMALL_VALUE_MAX) {
+		db_printf("%+#n", off);
+		return;
+	}
+	if (name == 0 || d >= db_maxoff) {
 		db_printf("%#n", off);
 		return;
 	}
