@@ -1,0 +1,731 @@
+/*
+ * Copyright (c) 1998 Robert Nordier
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms are freely
+ * permitted provided that the above copyright notice and this
+ * paragraph and the following disclaimer are duplicated in all
+ * such forms.
+ *
+ * This software is provided "AS IS" and without any express or
+ * implied warranties, including, without limitation, the implied
+ * warranties of merchantability and fitness for a particular
+ * purpose.
+ */
+
+/*
+ *	$Id:$
+ */
+
+#include <sys/param.h>
+#include <sys/reboot.h>
+#include <sys/diskslice.h>
+#include <sys/disklabel.h>
+#include <sys/dirent.h>
+#include <machine/bootinfo.h>
+
+#include <ufs/ffs/fs.h>
+#include <ufs/ufs/dinode.h>
+
+#include <stdarg.h>
+
+#include <a.out.h>
+#include <elf.h>
+
+#include <btxv86.h>
+
+#define RBX_ASKNAME	0x0	/* -a */
+#define RBX_SINGLE	0x1	/* -s */
+#define RBX_DFLTROOT	0x5	/* -r */
+#define RBX_KDB 	0x6	/* -d */
+#define RBX_CONFIG	0xa	/* -c */
+#define RBX_VERBOSE	0xb	/* -v */
+#define RBX_CDROM	0xd	/* -C */
+#define RBX_GDB 	0xf	/* -g */
+
+#define PATH_CONFIG	"/boot.config"
+#define PATH_BOOT3	"/boot/loader"
+#define PATH_KERNEL	"/kernel"
+#define PATH_HELP	"boot.help"
+
+#define ARGS		0x800
+#define NOPT		8
+#define BSIZEMAX	8192
+#define NDEV		3
+#define MEM_BASE	0x12
+#define MEM_EXT 	0x15
+#define V86_CY(x)	((x) & 1)
+#define V86_ZR(x)	((x) & 0x40)
+
+extern uint32_t _end;
+
+static const char optstr[NOPT] = "aCcdgrsv";
+static const unsigned char flags[NOPT] = {
+    RBX_ASKNAME,
+    RBX_CDROM,
+    RBX_CONFIG,
+    RBX_KDB,
+    RBX_GDB,
+    RBX_DFLTROOT,
+    RBX_SINGLE,
+    RBX_VERBOSE
+};
+
+static const char *const dev_nm[] = {"fd", "wd", "da"};
+static const uint8_t dev_bios[] = {0, 0x80, 0x82};
+static const uint8_t dev_bsd[] = {2, 0, 4};
+
+static struct dsk {
+    unsigned drive;
+    unsigned type;
+    unsigned unit;
+    unsigned slice;
+    unsigned part;
+    int meta;
+} dsk;
+static char cmd[512];
+static char kname[1024];
+static char help[2048];
+static uint32_t opts;
+static struct bootinfo bootinfo;
+static int ls;
+static uint32_t fs_off;
+
+void exit(int);
+static void load(const char *);
+static int parse(char *);
+static void readfile(const char *, void *, size_t);
+static ino_t lookup(const char *);
+static int fsfind(const char *, ino_t *);
+static ssize_t fsread(ino_t, void *, size_t);
+static int dskread(void *, unsigned, unsigned);
+static int printf(const char *,...);
+static void getstr(char *, int);
+static int putchar(int);
+static int getchar(void);
+static void *memcpy(void *, const void *, size_t);
+static int strcmp(const char *, const char *);
+static void *malloc(size_t);
+static uint32_t memsize(int);
+static uint32_t drvinfo(int);
+static int drvread(void *, unsigned, unsigned);
+static int keyhit(unsigned);
+static int putch(int);
+static int getch(void);
+
+int
+main(void)
+{
+    int autoboot, helpon, i;
+
+    dsk.drive = *(uint8_t *)PTOV(ARGS);
+    for (dsk.type = NDEV - 1;
+	 (i = dsk.drive - dev_bios[dsk.type]) < 0;
+	 dsk.type--);
+    dsk.unit = i;
+    dsk.slice = *(uint8_t *)PTOV(ARGS + 1) + 1;
+    bootinfo.bi_version = BOOTINFO_VERSION;
+    bootinfo.bi_size = sizeof(bootinfo);
+    bootinfo.bi_basemem = memsize(MEM_BASE);
+    bootinfo.bi_extmem = memsize(MEM_EXT);
+    bootinfo.bi_memsizes_valid++;
+    for (i = 0; i < N_BIOS_GEOM; i++)
+	bootinfo.bi_bios_geom[i] = drvinfo(i);
+    autoboot = 2;
+    helpon = 1;
+    readfile(PATH_CONFIG, cmd, sizeof(cmd));
+    if (parse(cmd))
+	autoboot = 0;
+    else if (!*kname) {
+	if (autoboot == 2) {
+	    memcpy(kname, PATH_BOOT3, sizeof(PATH_BOOT3));
+	    if (!keyhit(0x37)) {
+		load(kname);
+		autoboot = 1;
+	    }
+	}
+	if (autoboot == 1)
+	    memcpy(kname, PATH_KERNEL, sizeof(PATH_KERNEL));
+    }
+    readfile(PATH_HELP, help, sizeof(help));
+    for (;;) {
+	printf(" \n>> FreeBSD/i386 BOOT\n"
+	       "Default: %u:%s(%u,%c)%s\n"
+	       "%s"
+	       "boot: ",
+	       dsk.drive & 0x7f, dev_nm[dsk.type], dsk.unit,
+	       'a' + dsk.part, kname, helpon ? help : "");
+	if (!autoboot || keyhit(0x5a))
+	    getstr(cmd, sizeof(cmd));
+	autoboot = helpon = 0;
+	if (parse(cmd))
+	    helpon = 1;
+	else
+	    load(kname);
+    }
+}
+
+void
+exit(int x)
+{
+}
+
+static void
+load(const char *fname)
+{
+    union {
+	struct exec ex;
+	Elf32_Ehdr eh;
+    } hdr;
+    Elf32_Phdr ep[2];
+    Elf32_Shdr es[2];
+    caddr_t p;
+    ino_t ino;
+    uint32_t addr, x;
+    int fmt, i, j;
+
+    if (!(ino = lookup(fname)) && !ls) {
+	printf("No `%s'\n", fname);
+	return;
+    }
+    if (fsread(ino, &hdr, sizeof(hdr)) != sizeof(hdr))
+	return;
+    if (N_GETMAGIC(hdr.ex) == ZMAGIC)
+	fmt = 0;
+    else if (IS_ELF(hdr.eh))
+	fmt = 1;
+    else {
+	printf("Invalid %s\n", "format");
+	return;
+    }
+    if (fmt == 0) {
+	addr = hdr.ex.a_entry & 0xffffff;
+	p = PTOV(addr);
+	printf("%s=0x%x ", "text", (unsigned)hdr.ex.a_text);
+	fs_off = PAGE_SIZE;
+	if (fsread(ino, p, hdr.ex.a_text) != hdr.ex.a_text)
+	    return;
+	p += roundup2(hdr.ex.a_text, PAGE_SIZE);
+	printf("%s=0x%x ", "data", (unsigned)hdr.ex.a_data);
+	if (fsread(ino, p, hdr.ex.a_data) != hdr.ex.a_data)
+	    return;
+	p += hdr.ex.a_data;
+	printf("%s=0x%x ", "bss", (unsigned)hdr.ex.a_bss);
+	p += roundup2(hdr.ex.a_bss, PAGE_SIZE);
+	bootinfo.bi_symtab = VTOP(p);
+	memcpy(p, &hdr.ex.a_syms, sizeof(hdr.ex.a_syms));
+	p += sizeof(hdr.ex.a_syms);
+	printf("symbols=[");
+	printf("+0x%x", (unsigned)hdr.ex.a_syms);
+	if (hdr.ex.a_syms) {
+	    if (fsread(ino, p, hdr.ex.a_syms) != hdr.ex.a_syms)
+		return;
+	    p += hdr.ex.a_syms;
+	    if (fsread(ino, p, sizeof(int)) != sizeof(int))
+		return;
+	    x = *(uint32_t *)p;
+	    p += sizeof(int);
+	    x -= sizeof(int);
+	    printf("+0x%x", x);
+	    if (fsread(ino, p, x) != x)
+		return;
+	    p += x;
+	}
+    } else {
+	fs_off = hdr.eh.e_phoff;
+	for (j = i = 0; i < hdr.eh.e_phoff && j < 2; i++) {
+	    if (fsread(ino, ep + j, sizeof(ep[0])) != sizeof(ep[0]))
+		return;
+	    if (ep[j].p_type == PT_LOAD)
+		j++;
+	}
+	for (i = 0; i < 2; i++) {
+	    p = PTOV(ep[i].p_paddr & 0xffffff);
+	    printf("%s=0x%x ", !i ? "text" : "data", ep[i].p_filesz);
+	    fs_off = ep[i].p_offset;
+	    if (fsread(ino, p, ep[i].p_filesz) != ep[i].p_filesz)
+		return;
+	}
+	printf("%s=0x%x ", "bss", ep[1].p_memsz - ep[1].p_filesz);
+	p += roundup2(ep[1].p_memsz, PAGE_SIZE);
+	bootinfo.bi_symtab = VTOP(p);
+	printf("symbols=[");
+	if (hdr.eh.e_shnum == hdr.eh.e_shstrndx + 3) {
+	    fs_off = hdr.eh.e_shoff + sizeof(es[0]) *
+		(hdr.eh.e_shstrndx + 1);
+	    if (fsread(ino, &es, sizeof(es)) != sizeof(es))
+		return;
+	    for (i = 0; i < 2; i++) {
+		memcpy(p, &es[i].sh_size, sizeof(es[i].sh_size));
+		p += sizeof(es[i].sh_size);
+		printf("+0x%x", es[i].sh_size);
+		fs_off = es[i].sh_offset;
+		if (fsread(ino, p, es[i].sh_size) != es[i].sh_size)
+		    return;
+		p += es[i].sh_size;
+	    }
+	}
+	addr = hdr.eh.e_entry & 0xffffff;
+    }
+    bootinfo.bi_esymtab = VTOP(p);
+    printf("]\nentry=0x%x\n", addr);
+    bootinfo.bi_kernelname = VTOP(fname);
+    __exec((caddr_t)addr, RB_BOOTINFO | opts,
+	   MAKEBOOTDEV(dev_bsd[dsk.type], 0, dsk.slice, dsk.unit,
+		       dsk.part), 0, 0, 0, VTOP(&bootinfo));
+}
+
+static int
+parse(char *arg)
+{
+    char *p, *q;
+    int drv, c, i;
+
+    while ((c = *arg++)) {
+	if (c == ' ')
+	    continue;
+	for (p = arg; *p && *p != '\n' && *p != ' '; p++);
+	if (*p)
+	    *p++ = 0;
+	if (c == '-')
+	    while ((c = *arg++)) {
+		for (i = 0; c != optstr[i]; i++)
+		    if (i == NOPT - 1)
+			return -1;
+		opts |= 1 << flags[i];
+	    }
+	else {
+	    for (q = arg--; *q && *q != '('; q++);
+	    if (*q) {
+		drv = -1;
+		if (arg[1] == ':') {
+		    if (*arg < '0' || *arg > '9')
+			return -1;
+		    drv = *arg - '0';
+		    arg += 2;
+		}
+		if (q - arg != 2)
+		    return -1;
+		for (i = 0; arg[0] != dev_nm[i][0] ||
+		     arg[1] != dev_nm[i][1]; i++)
+		    if (i == NDEV - 1)
+			return -1;
+		dsk.type = i;
+		arg += 3;
+		if (arg[1] != ',' || *arg < '0' || *arg > '9')
+		    return -1;
+		dsk.unit = *arg - '0';
+		arg += 2;
+		if (arg[1] == ',') {
+		    if (*arg < '0' || *arg > '4')
+			return -1;
+		    if ((dsk.slice = *arg - '0'))
+			dsk.slice++;
+		    arg += 2;
+		}
+		if (arg[1] != ')' || *arg < 'a' || *arg > 'p')
+		    return -1;
+		dsk.part = *arg - 'a';
+		arg += 2;
+		if (drv == -1)
+		    dsk.drive = dev_bios[dsk.type] + dsk.unit;
+		else
+		    dsk.drive = (dsk.type ? 0x80 : 0) + drv;
+		dsk.meta = 0;
+	    }
+	    if ((i = p - arg - !*(p - 1))) {
+		if (i >= sizeof(kname))
+		    return -1;
+		memcpy(kname, arg, i + 1);
+	    }
+	}
+	arg = p;
+    }
+    return 0;
+}
+
+static void
+readfile(const char *fname, void *buf, size_t size)
+{
+    ino_t ino;
+
+    if ((ino = lookup(fname)))
+	fsread(ino, buf, size);
+}
+
+static ino_t
+lookup(const char *path)
+{
+    char name[MAXNAMLEN + 1];
+    const char *s;
+    ino_t ino;
+    ssize_t n;
+    int dt;
+
+    ino = ROOTINO;
+    dt = DT_DIR;
+    for (;;) {
+	if (*path == '/')
+	    path++;
+	if (!*path)
+	    break;
+	for (s = path; *s && *s != '/'; s++);
+	if ((n = s - path) > MAXNAMLEN)
+	    return 0;
+	ls = *path == '?' && n == 1 && !*s;
+	memcpy(name, path, n);
+	name[n] = 0;
+	if ((dt = fsfind(name, &ino)) <= 0)
+	    break;
+	path = s;
+    }
+    return dt == DT_REG ? ino : 0;
+}
+
+static int
+fsfind(const char *name, ino_t * ino)
+{
+    char buf[DEV_BSIZE];
+    struct dirent *d;
+    char *s;
+    ssize_t n;
+
+    fs_off = 0;
+    while ((n = fsread(*ino, buf, DEV_BSIZE)) > 0)
+	for (s = buf; s < buf + DEV_BSIZE;) {
+	    d = (void *)s;
+	    if (ls)
+		printf("%s ", d->d_name);
+	    else if (!strcmp(name, d->d_name)) {
+		*ino = d->d_fileno;
+		return d->d_type;
+	    }
+	    s += d->d_reclen;
+	}
+    if (n != -1 && ls)
+	putchar('\n');
+    return 0;
+}
+
+static ssize_t
+fsread(ino_t inode, void *buf, size_t nbyte)
+{
+    static struct fs fs;
+    static struct dinode din;
+    static char *blkbuf;
+    static ufs_daddr_t *indbuf;
+    static ino_t inomap;
+    static ufs_daddr_t blkmap, indmap;
+    static unsigned fsblks;
+    char *s;
+    ufs_daddr_t lbn, addr;
+    size_t n, nb, off;
+
+    if (!dsk.meta) {
+	if (!blkbuf)
+	    blkbuf = malloc(BSIZEMAX);
+	inomap = 0;
+	if (dskread(blkbuf, SBOFF / DEV_BSIZE, SBSIZE / DEV_BSIZE))
+	    return -1;
+	memcpy(&fs, blkbuf, sizeof(fs));
+	if (fs.fs_magic != FS_MAGIC) {
+	    printf("Not ufs\n");
+	    return -1;
+	}
+	fsblks = fs.fs_bsize >> DEV_BSHIFT;
+	dsk.meta = 1;
+    }
+    if (inomap != inode) {
+	if (dskread(blkbuf, fsbtodb(&fs, ino_to_fsba(&fs, inode)),
+		    fsblks))
+	    return -1;
+	din = ((struct dinode *)blkbuf)[inode % INOPB(&fs)];
+	inomap = inode;
+	fs_off = 0;
+	blkmap = indmap = 0;
+    }
+    s = buf;
+    if (nbyte > (n = din.di_size - fs_off))
+	nbyte = n;
+    nb = nbyte;
+    while (nb) {
+	lbn = lblkno(&fs, fs_off);
+	if (lbn < NDADDR)
+	    addr = din.di_db[lbn];
+	else {
+	    if (indmap != din.di_ib[0]) {
+		if (!indbuf)
+		    indbuf = malloc(BSIZEMAX);
+		if (dskread(indbuf, fsbtodb(&fs, din.di_ib[0]),
+			    fsblks))
+		    return -1;
+		indmap = din.di_ib[0];
+	    }
+	    addr = indbuf[(lbn - NDADDR) % NINDIR(&fs)];
+	}
+	n = dblksize(&fs, &din, lbn);
+	if (blkmap != addr) {
+	    if (dskread(blkbuf, fsbtodb(&fs, addr), n >> DEV_BSHIFT))
+		return -1;
+	    blkmap = addr;
+	}
+	off = blkoff(&fs, fs_off);
+	n -= off;
+	if (n > nb)
+	    n = nb;
+	memcpy(s, blkbuf + off, n);
+	s += n;
+	fs_off += n;
+	nb -= n;
+    }
+    return nbyte;
+}
+
+static int
+dskread(void *buf, unsigned lba, unsigned nblk)
+{
+    static char *sec;
+    static unsigned hidden;
+    struct dos_partition *dp;
+    struct disklabel *d;
+    unsigned sl, i;
+
+    if (!dsk.meta) {
+	if (!sec)
+	    sec = malloc(DEV_BSIZE);
+	hidden = 0;
+	sl = dsk.slice;
+	if (sl != WHOLE_DISK_SLICE) {
+	    if (drvread(sec, DOSBBSECTOR, 1))
+		return -1;
+	    dp = (void *)(sec + DOSPARTOFF);
+	    if (sl == COMPATIBILITY_SLICE)
+		for (i = 0; i < NDOSPART; i++)
+		    if (dp[i].dp_typ == DOSPTYP_386BSD &&
+			(dp[i].dp_flag & 0x80 ||
+			 sl == COMPATIBILITY_SLICE))
+			sl = BASE_SLICE + i;
+	    if (sl != COMPATIBILITY_SLICE)
+		dp += sl - BASE_SLICE;
+	    if (dp->dp_typ != DOSPTYP_386BSD) {
+		printf("Invalid %s\n", "slice");
+		return -1;
+	    }
+	    hidden = dp->dp_start;
+	}
+	if (dsk.part != RAW_PART) {
+	    if (drvread(sec, hidden + LABELSECTOR, 1))
+		return -1;
+	    d = (void *)(sec + LABELOFFSET);
+	    if (d->d_magic != DISKMAGIC || d->d_magic2 != DISKMAGIC) {
+		printf("Invalid %s\n", "label");
+		return -1;
+	    }
+	    if (dsk.part >= d->d_npartitions) {
+		printf("Invalid %s\n", "partition");
+		return -1;
+	    }
+	    hidden = d->d_partitions[dsk.part].p_offset;
+	}
+    }
+    return drvread(buf, hidden + lba, nblk);
+}
+
+static int
+printf(const char *fmt,...)
+{
+    static const char digits[16] = "0123456789abcdef";
+    va_list ap;
+    char buf[10];
+    char *s;
+    unsigned r, u;
+    int c;
+
+    va_start(ap, fmt);
+    while ((c = *fmt++)) {
+	if (c == '%') {
+	    c = *fmt++;
+	    switch (c) {
+	    case 'c':
+		putchar(va_arg(ap, int));
+		continue;
+	    case 's':
+		for (s = va_arg(ap, char *); *s; s++)
+		    putchar(*s);
+		continue;
+	    case 'u':
+	    case 'x':
+		r = c == 'u' ? 10U : 16U;
+		u = va_arg(ap, unsigned);
+		s = buf;
+		do
+		    *s++ = digits[u % r];
+		while (u /= r);
+		while (--s >= buf)
+		    putchar(*s);
+		continue;
+	    }
+	}
+	putchar(c);
+    }
+    va_end(ap);
+    return 0;
+}
+
+static void
+getstr(char *str, int size)
+{
+    char *s;
+    int c;
+
+    s = str;
+    do {
+	switch (c = getchar()) {
+	case '\b':
+	    if (s > str)
+		s--;
+	    break;
+	case '\n':
+	    *s = 0;
+	    break;
+	default:
+	    if (s - str < size - 1)
+		*s++ = c;
+	}
+	putchar(c);
+    } while (c != '\n');
+}
+
+static int
+putchar(int c)
+{
+    if (c == '\n')
+	putch('\r');
+    return putch(c);
+}
+
+static int
+getchar(void)
+{
+    int c;
+
+    c = getch();
+    if (c == '\r')
+	c = '\n';
+    return c;
+}
+
+static void *
+memcpy(void *dst, const void *src, size_t size)
+{
+    const char *s;
+    char *d;
+
+    for (d = dst, s = src; size; size--)
+	*d++ = *s++;
+    return dst;
+}
+
+static int
+strcmp(const char *s1, const char *s2)
+{
+    for (; *s1 == *s2 && *s1; s1++, s2++);
+    return (u_char)*s1 - (u_char)*s2;
+}
+
+static void *
+malloc(size_t size)
+{
+    static uint32_t next;
+    void *p;
+
+    if (!next)
+	next = roundup2(__base + _end, 0x10000) - __base;
+    p = (void *)next;
+    next += size;
+    return p;
+}
+
+static uint32_t
+memsize(int type)
+{
+    v86.ctl = V86_FLAGS;
+    v86.addr = type;
+    v86.eax = 0x8800;
+    v86int();
+    return v86.eax;
+}
+
+static uint32_t
+drvinfo(int drive)
+{
+    v86.addr = 0x13;
+    v86.eax = 0x800;
+    v86.edx = 0x80 + drive;
+    v86int();
+    if (V86_CY(v86.efl))
+	return 0x4f010f;
+    return ((v86.ecx & 0xc0) << 18) | ((v86.ecx & 0xff00) << 8) |
+	   (v86.edx & 0xff00) | (v86.ecx & 0x3f);
+}
+
+static int
+drvread(void *buf, unsigned lba, unsigned nblk)
+{
+    v86.ctl = V86_ADDR | V86_CALLF | V86_FLAGS;
+    v86.addr = 0x604;
+    v86.eax = nblk;
+    v86.ebx = VTOPSEG(buf) << 16 | VTOPOFF(buf);
+    v86.ecx = lba;
+    v86.edx = dsk.drive;
+    v86int();
+    v86.ctl = V86_FLAGS;
+    if (V86_CY(v86.efl)) {
+	printf("Disk error 0x%x (lba=0x%x)\n", v86.eax >> 8 & 0xff,
+	       lba);
+	return -1;
+    }
+    return 0;
+}
+
+static int
+keyhit(unsigned ticks)
+{
+    uint32_t x;
+
+    x = 0;
+    for (;;) {
+	v86.addr = 0x16;
+	v86.eax = 0x100;
+	v86int();
+	if (!V86_ZR(v86.efl))
+	    return 1;
+	v86.addr = 0x1a;
+	v86.eax = 0;
+	v86.edx = 0;
+	v86int();
+	if (!x)
+	    x = v86.edx;
+	else if (v86.edx < x || v86.edx > x + ticks)
+	    return 0;
+    }
+}
+
+static int
+putch(int c)
+{
+    v86.addr = 0x10;
+    v86.eax = 0xe00 | (c & 0xff);
+    v86.ebx = 0x7;
+    v86int();
+    return c;
+}
+
+static int
+getch(void)
+{
+    v86.addr = 0x16;
+    v86.eax = 0;
+    v86int();
+    return v86.eax & 0xff;
+}
