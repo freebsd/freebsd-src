@@ -1,4 +1,4 @@
-#     $Id: BSD.local.dist,v 1.45 1999/06/05 03:03:52 julian Exp $
+#     $Id: BSD.local.dist,v 1.44.2.1 1999/06/05 03:15:37 julian Exp $
 #
 
 /set type=dir uname=root gname=wheel mode=0755
@@ -253,7 +253,7 @@
             ..
 	    zh_CN.EUC
             ..
-            zh_TW.BIG5
+            zh_TW.Big5
             ..
         ..
         skel
