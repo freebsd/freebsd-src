@@ -51,6 +51,8 @@ __FBSDID("$FreeBSD$");
 #include <netatm/atm_pcb.h>
 #include <netatm/atm_var.h>
 
+NET_NEEDS_GIANT("netatm");
+
 struct protosw atmsw[] = {
 {	SOCK_DGRAM,				/* ioctl()-only */
 	&atmdomain,
