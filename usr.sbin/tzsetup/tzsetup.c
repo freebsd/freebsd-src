@@ -34,7 +34,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: tzsetup.c,v 1.12 1999/02/02 20:26:31 wollman Exp $";
+	"$Id: tzsetup.c,v 1.14 1999/08/05 11:48:47 ru Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -510,8 +510,8 @@ install_zone_file(const char *filename)
 
 			unlink(_PATH_LOCALTIME);
 			fd2 = open(_PATH_LOCALTIME, 
-				   O_CREAT | O_EXCL | O_WRONLY,
-				   0444);
+				   O_CREAT|O_EXCL|O_WRONLY,
+				   S_IRUSR|S_IRGRP|S_IROTH);
 			if (fd2 < 0) {
 				asprintf(&msg, "Could not open "
 					 _PATH_LOCALTIME ": %s", 
@@ -527,7 +527,7 @@ install_zone_file(const char *filename)
 			if (len == -1) {
 				asprintf(&msg, "Error copying %s to "
 					 _PATH_LOCALTIME ": %s",
-					 strerror(errno));
+					 filename, strerror(errno));
 				dialog_mesgbox("Error", msg, 8, 72);
 				free(msg);
 				/* Better to leave none than a corrupt one. */
@@ -647,6 +647,9 @@ main(int argc, char **argv)
 	if (argc - optind > 1)
 		usage();
 
+	/* Override the user-supplied umask. */
+	(void)umask(S_IWGRP|S_IWOTH);
+
 	read_iso3166_table();
 	read_zones();
 	sort_countries();
@@ -655,13 +658,14 @@ main(int argc, char **argv)
 	init_dialog();
 	if (!dialog_yesno("Select local or UTC (Greenwich Mean Time) clock",
 			  "Is this machine's CMOS clock set to UTC?  If it is set to local time,\n"
-			  "please choose NO here!", 7, 72)) {
+			  "or you don't know, please choose NO here!", 7, 72)) {
 		if (reallydoit)
 			unlink(_PATH_WALL_CMOS_CLOCK);
 	} else {
 		if (reallydoit) {
 			fd = open(_PATH_WALL_CMOS_CLOCK,
-				  O_WRONLY|O_CREAT|O_TRUNC, 0666);
+				  O_WRONLY|O_CREAT|O_TRUNC,
+				  S_IRUSR|S_IRGRP|S_IROTH);
 			if (fd < 0)
 				err(1, "create %s", _PATH_WALL_CMOS_CLOCK);
 			close(fd);
