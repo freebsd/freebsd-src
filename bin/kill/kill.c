@@ -53,10 +53,10 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 
-void nosig(char *);
-void printsignals(FILE *);
-int signame_to_signum(char *);
-void usage(void);
+static void nosig(const char *);
+static void printsignals(FILE *);
+static int signame_to_signum(const char *);
+static void usage(void);
 
 int
 main(int argc, char *argv[])
@@ -139,8 +139,8 @@ main(int argc, char *argv[])
 	exit(errors);
 }
 
-int
-signame_to_signum(char *sig)
+static int
+signame_to_signum(const char *sig)
 {
 	int n;
 
@@ -153,8 +153,8 @@ signame_to_signum(char *sig)
 	return (-1);
 }
 
-void
-nosig(char *name)
+static void
+nosig(const char *name)
 {
 
 	warnx("unknown signal %s; valid signals:", name);
@@ -162,7 +162,7 @@ nosig(char *name)
 	exit(1);
 }
 
-void
+static void
 printsignals(FILE *fp)
 {
 	int n;
@@ -176,7 +176,7 @@ printsignals(FILE *fp)
 	}
 }
 
-void
+static void
 usage(void)
 {
 
