@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile.inc0,v 1.12 1998/12/16 11:45:51 ache Exp $
+#	$Id: Makefile.inc0,v 1.13 1998/12/20 14:30:08 jhay Exp $
 #
 # This makefile ensures that the object directory is set according to the
 # object format to avoid mixing aout and elf formatted files during the
@@ -18,7 +18,9 @@ MAKEOBJDIRPREFIX?=/usr/obj
 # Variables passed to make work better if they are set as environment
 # variables instead of command line options.
 #
+.if	${MACHINE_ARCH} == "i386" && ${OBJFORMAT} == "aout"
 MK_ENV=	MAKEOBJDIRPREFIX=${MAKEOBJDIRPREFIX}/${OBJFORMAT}
+.endif
 
 #
 # We should always use the current set of mk files, not the installed ones.
@@ -51,7 +53,7 @@ ${RELTGTS} :
 #
 # Temporary path and environment for the legacy build.
 #
-ELFTMP=		${MAKEOBJDIRPREFIX}/elf${.CURDIR}/tmp
+ELFTMP=		${MAKEOBJDIRPREFIX}${.CURDIR}/tmp
 ELFTMPPATH=	${ELFTMP}/sbin:${ELFTMP}/bin:${ELFTMP}/usr/sbin:${ELFTMP}/usr/bin:${ELFTMP}/usr/games
 LEGACY_ENV=	PATH=${ELFTMPPATH} OBJFORMAT=aout NOTOOLS=1 TOOLROOT=${ELFTMP} \
 		MAKEOBJDIRPREFIX=${MAKEOBJDIRPREFIX}/aout
