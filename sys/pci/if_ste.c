@@ -916,10 +916,13 @@ static int ste_attach(dev)
 	sc->ste_dev = dev;
 
 	/*
-	 * Only use the first PHY since this chip reports multiple
+	 * Only use one PHY since this chip reports multiple
+	 * Note on the DFE-550 the PHY is at 1 on the DFE-580
+	 * it is at 0 & 1.  It is rev 0x12.
 	 */
 	if (pci_get_vendor(dev) == DL_VENDORID &&
-	    pci_get_device(dev) == DL_DEVICEID_550TX )
+	    pci_get_device(dev) == DL_DEVICEID_550TX &&
+	    pci_get_revid(dev) == 0x12 )
 		sc->ste_one_phy = 1;
 
 	/*
@@ -1439,7 +1442,6 @@ static int ste_ioctl(ifp, command, data)
 				    STE_RXMODE_PROMISC);
 			} 
 			if (!(ifp->if_flags & IFF_RUNNING)) {
-				sc->ste_tx_thresh = STE_MIN_FRAMELEN * 2;
 				sc->ste_tx_thresh = STE_TXSTART_THRESH;
 				ste_init(sc);
 			}
@@ -1484,6 +1486,7 @@ static int ste_encap(sc, c, m_head)
 	d = c->ste_ptr;
 	d->ste_ctl = 0;
 
+encap_retry:
 	for (m = m_head, frag = 0; m != NULL; m = m->m_next) {
 		if (m->m_len != 0) {
 			if (frag == STE_MAXFRAGS)
@@ -1494,6 +1497,35 @@ static int ste_encap(sc, c, m_head)
 			f->ste_len = m->m_len;
 			frag++;
 		}
+	}
+
+	if (m != NULL) {
+		struct mbuf *mn;
+
+		/*
+		 * We ran out of segments. We have to recopy this
+		 * mbuf chain first. Bail out if we can't get the
+		 * new buffers.  Code borrowed from if_fxp.c.
+		 */
+		MGETHDR(mn, M_DONTWAIT, MT_DATA);
+		if (mn == NULL) {
+			m_freem(m_head);
+			return ENOMEM;
+		}
+		if (m_head->m_pkthdr.len > MHLEN) {
+			MCLGET(mn, M_DONTWAIT);
+			if ((mn->m_flags & M_EXT) == 0) {
+				m_freem(mn);
+				m_freem(m_head);
+				return ENOMEM;
+			}
+		}
+		m_copydata(m_head, 0, m_head->m_pkthdr.len,
+		    mtod(mn, caddr_t));
+		mn->m_pkthdr.len = mn->m_len = m_head->m_pkthdr.len;
+		m_freem(m_head);
+		m_head = mn;
+		goto encap_retry;
 	}
 
 	c->ste_mbuf = m_head;
@@ -1534,7 +1566,8 @@ static void ste_start(ifp)
 
 		cur_tx = &sc->ste_cdata.ste_tx_chain[idx];
 
-		ste_encap(sc, cur_tx, m_head);
+		if (ste_encap(sc, cur_tx, m_head) != 0)
+			break;
 
 		cur_tx->ste_ptr->ste_next = 0;
 
@@ -1551,9 +1584,7 @@ static void ste_start(ifp)
 			CSR_WRITE_1(sc, STE_TX_DMAPOLL_PERIOD, 64);
 		  
 			STE_SETBIT4(sc, STE_DMACTL, STE_DMACTL_TXDMA_UNSTALL);
-			STE_SETBIT4(sc, STE_DMACTL, STE_DMACTL_TXDMA_UNSTALL);
 			ste_wait(sc);
-
 		}else{
 			cur_tx->ste_ptr->ste_ctl = STE_TXCTL_DMAINTR | 1;
 			sc->ste_cdata.ste_tx_chain[
