@@ -2,7 +2,5 @@
 # $FreeBSD$
 
 PROG=	pwd
-LINKS=	${BINDIR}/pwd ${BINDIR}/realpath
-MAN=	pwd.1 realpath.1
 
 .include <bsd.prog.mk>
