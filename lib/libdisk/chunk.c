@@ -322,9 +322,6 @@ ShowChunkFlags(struct chunk *c)
 	if (c->flags & CHUNK_BSD_COMPAT)	ret[i++] = 'C';
 	if (c->flags & CHUNK_ACTIVE)		ret[i++] = 'A';
 	if (c->flags & CHUNK_ALIGN)		ret[i++] = '=';
-#ifndef PC98
-	if (c->flags & CHUNK_PAST_1024)		ret[i++] = '>';
-#endif
 	if (c->flags & CHUNK_IS_ROOT)		ret[i++] = 'R';
 	ret[i++] = '\0';
 	return ret;
@@ -358,22 +355,6 @@ Debug_Chunk(struct chunk *c1)
 {
 	Print_Chunk(c1,2);
 }
-
-#ifndef PC98
-void
-Bios_Limit_Chunk(struct chunk *c1, u_long limit)
-{
-	if (c1->part)
-		Bios_Limit_Chunk(c1->part,limit);
-	if (c1->next)
-		Bios_Limit_Chunk(c1->next,limit);
-	if (c1->end >= limit) {
-		c1->flags |= CHUNK_PAST_1024;
-	} else {
-		c1->flags &= ~CHUNK_PAST_1024;
-	}
-}
-#endif
 
 int
 Delete_Chunk(struct disk *d, struct chunk *c)
