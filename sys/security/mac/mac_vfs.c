@@ -108,6 +108,11 @@ static unsigned int mac_policy_offsets_free = (1 << MAC_MAX_POLICIES) - 1;
 SYSCTL_UINT(_security_mac, OID_AUTO, max_policies, CTLFLAG_RD,
     &mac_max_policies, 0, "");
 
+/*
+ * Has the kernel started generating labeled objects yet?  All read/write
+ * access to this variable is serialized during the boot process.  Following
+ * the end of serialization, we don't update this flag; no locking.
+ */
 static int	mac_late = 0;
 
 static int	mac_enforce_fs = 1;
@@ -2614,7 +2619,7 @@ mac_check_vnode_swapon(struct ucred *cred, struct vnode *vp)
 
 	ASSERT_VOP_LOCKED(vp, "mac_check_vnode_swapon");
 
-	if (!mac_enforce_fs)  
+	if (!mac_enforce_fs)
 		return (0);
 
 	error = vn_refreshlabel(vp, cred);
