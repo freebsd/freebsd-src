@@ -31,9 +31,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  * 
  * $FreeBSD$
- *
  */
-#include "opt_bus.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
