@@ -732,7 +732,7 @@ done_probe:
 	(MID_IS_SABRE(reg)) ? "sabre controller, " : "",
 	(MID_IS_SUNI(reg)) ? "SUNI" : "Utopia",
 	(!MID_IS_SUNI(reg) && MID_IS_UPIPE(reg)) ? " (pipelined)" : "",
-	sc->en_obmemsz / 1024);
+	(long)(sc->en_obmemsz / 1024));
 
   if (sc->is_adaptec) {
     if (sc->bestburstlen == 64 && sc->alburst == 0)
@@ -3339,21 +3339,24 @@ int unit, level;
 
     if (level & END_MREGS) {
       printf("mregs:\n");
-      printf("resid = 0x%x\n", EN_READ(sc, MID_RESID));
+      printf("resid = 0x%lx\n", (u_long)EN_READ(sc, MID_RESID));
       printf("interrupt status = 0x%b\n", 
-				EN_READ(sc, MID_INTSTAT), MID_INTBITS);
+				(int)EN_READ(sc, MID_INTSTAT), MID_INTBITS);
       printf("interrupt enable = 0x%b\n", 
-				EN_READ(sc, MID_INTENA), MID_INTBITS);
-      printf("mcsr = 0x%b\n", EN_READ(sc, MID_MAST_CSR), MID_MCSRBITS);
-      printf("serv_write = [chip=%d] [us=%d]\n", EN_READ(sc, MID_SERV_WRITE),
+				(int)EN_READ(sc, MID_INTENA), MID_INTBITS);
+      printf("mcsr = 0x%b\n", (int)EN_READ(sc, MID_MAST_CSR), MID_MCSRBITS);
+      printf("serv_write = [chip=%ld] [us=%d]\n",
+			(long)EN_READ(sc, MID_SERV_WRITE),
 			MID_SL_A2REG(sc->hwslistp));
-      printf("dma addr = 0x%x\n", EN_READ(sc, MID_DMA_ADDR));
-      printf("DRQ: chip[rd=0x%x,wr=0x%x], sc[chip=0x%x,us=0x%x]\n",
-	MID_DRQ_REG2A(EN_READ(sc, MID_DMA_RDRX)), 
-	MID_DRQ_REG2A(EN_READ(sc, MID_DMA_WRRX)), sc->drq_chip, sc->drq_us);
-      printf("DTQ: chip[rd=0x%x,wr=0x%x], sc[chip=0x%x,us=0x%x]\n",
-	MID_DTQ_REG2A(EN_READ(sc, MID_DMA_RDTX)), 
-	MID_DTQ_REG2A(EN_READ(sc, MID_DMA_WRTX)), sc->dtq_chip, sc->dtq_us);
+      printf("dma addr = 0x%lx\n", (u_long)EN_READ(sc, MID_DMA_ADDR));
+      printf("DRQ: chip[rd=0x%lx,wr=0x%lx], sc[chip=0x%x,us=0x%x]\n",
+	(u_long)MID_DRQ_REG2A(EN_READ(sc, MID_DMA_RDRX)), 
+	(u_long)MID_DRQ_REG2A(EN_READ(sc, MID_DMA_WRRX)),
+	sc->drq_chip, sc->drq_us);
+      printf("DTQ: chip[rd=0x%lx,wr=0x%lx], sc[chip=0x%x,us=0x%x]\n",
+	(u_long)MID_DTQ_REG2A(EN_READ(sc, MID_DMA_RDTX)), 
+	(u_long)MID_DTQ_REG2A(EN_READ(sc, MID_DMA_WRTX)),
+	sc->dtq_chip, sc->dtq_us);
 
       printf("  unusal txspeeds: ");
       for (cnt = 0 ; cnt < MID_N_VC ; cnt++)
@@ -3377,10 +3380,11 @@ int unit, level;
 		(sc->txslot[slot].cur - sc->txslot[slot].start)/4);
 	printf("mbsize=%d, bfree=%d\n", sc->txslot[slot].mbsize,
 		sc->txslot[slot].bfree);
-        printf("txhw: base_address=0x%x, size=%d, read=%d, descstart=%d\n",
-	  MIDX_BASE(EN_READ(sc, MIDX_PLACE(slot))), 
-	  MIDX_SZ(EN_READ(sc, MIDX_PLACE(slot))),
-	  EN_READ(sc, MIDX_READPTR(slot)), EN_READ(sc, MIDX_DESCSTART(slot)));
+        printf("txhw: base_address=0x%lx, size=%ld, read=%ld, descstart=%ld\n",
+	  (u_long)MIDX_BASE(EN_READ(sc, MIDX_PLACE(slot))), 
+	  (u_long)MIDX_SZ(EN_READ(sc, MIDX_PLACE(slot))),
+	  (long)EN_READ(sc, MIDX_READPTR(slot)),
+	  (long)EN_READ(sc, MIDX_DESCSTART(slot)));
       }
     }
 
@@ -3393,10 +3397,10 @@ int unit, level;
 	printf("mode=0x%x, atm_flags=0x%x, oth_flags=0x%x\n", 
 	sc->rxslot[slot].mode, sc->rxslot[slot].atm_flags, 
 		sc->rxslot[slot].oth_flags);
-        printf("RXHW: mode=0x%x, DST_RP=0x%x, WP_ST_CNT=0x%x\n",
-	  EN_READ(sc, MID_VC(sc->rxslot[slot].atm_vci)),
-	  EN_READ(sc, MID_DST_RP(sc->rxslot[slot].atm_vci)),
-	  EN_READ(sc, MID_WP_ST_CNT(sc->rxslot[slot].atm_vci)));
+        printf("RXHW: mode=0x%lx, DST_RP=0x%lx, WP_ST_CNT=0x%lx\n",
+	  (u_long)EN_READ(sc, MID_VC(sc->rxslot[slot].atm_vci)),
+	  (u_long)EN_READ(sc, MID_DST_RP(sc->rxslot[slot].atm_vci)),
+	  (u_long)EN_READ(sc, MID_WP_ST_CNT(sc->rxslot[slot].atm_vci)));
       }
     }
 
@@ -3406,9 +3410,10 @@ int unit, level;
       ptr = sc->dtq_chip;
       while (ptr != sc->dtq_us) {
         reg = EN_READ(sc, ptr);
-        printf("\t0x%x=[cnt=%d, chan=%d, end=%d, type=%d @ 0x%x]\n", 
+        printf("\t0x%x=[cnt=%d, chan=%d, end=%d, type=%d @ 0x%lx]\n", 
 	    sc->dtq[MID_DTQ_A2REG(ptr)], MID_DMA_CNT(reg), MID_DMA_TXCHAN(reg),
-	    (reg & MID_DMA_END) != 0, MID_DMA_TYPE(reg), EN_READ(sc, ptr+4));
+	    (reg & MID_DMA_END) != 0, MID_DMA_TYPE(reg),
+	    (u_long)EN_READ(sc, ptr+4));
         EN_WRAPADD(MID_DTQOFF, MID_DTQEND, ptr, 8);
       }
     }
@@ -3419,9 +3424,10 @@ int unit, level;
       ptr = sc->drq_chip;
       while (ptr != sc->drq_us) {
         reg = EN_READ(sc, ptr);
-	printf("\t0x%x=[cnt=%d, chan=%d, end=%d, type=%d @ 0x%x]\n", 
+	printf("\t0x%x=[cnt=%d, chan=%d, end=%d, type=%d @ 0x%lx]\n", 
 	  sc->drq[MID_DRQ_A2REG(ptr)], MID_DMA_CNT(reg), MID_DMA_RXVCI(reg),
-	  (reg & MID_DMA_END) != 0, MID_DMA_TYPE(reg), EN_READ(sc, ptr+4));
+	  (reg & MID_DMA_END) != 0, MID_DMA_TYPE(reg),
+	  (u_long)EN_READ(sc, ptr+4));
 	EN_WRAPADD(MID_DRQOFF, MID_DRQEND, ptr, 8);
       }
     }
