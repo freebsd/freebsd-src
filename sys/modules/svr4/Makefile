@@ -14,14 +14,12 @@ CFLAGS+= -DKERNEL
 MAINTAINER=	newton@freebsd.org
 
 EXPORT_SYMS=_svr4_mod
-CLEANFILES= svr4_assym.h svr4_genassym svr4_genassym.o opt_svr4.h
-
-build-tools: svr4_genassym
+CLEANFILES= svr4_assym.h svr4_genassym.o opt_svr4.h
 
 svr4.h:	opt_global.h opt_svr4.h
 
-svr4_assym.h:	svr4_genassym
-	./svr4_genassym > svr4_assym.h
+svr4_assym.h:	svr4_genassym.o
+	genassym -o ${.TARGET} ${.ALLSRC}
 
 svr4_locore.o:	svr4_locore.s svr4_assym.h
 	${CC} -c -x assembler-with-cpp -DLOCORE -DKERNEL ${CFLAGS} \
@@ -29,9 +27,6 @@ svr4_locore.o:	svr4_locore.s svr4_assym.h
 
 svr4_genassym.o:	svr4_genassym.c svr4.h @ machine
 	${CC} -c ${CFLAGS} -UKERNEL ${.IMPSRC}
-
-svr4_genassym:	svr4_genassym.o
-	${CC} -static ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${.ALLSRC}
 
 opt_compat.h:
 	echo "#define COMPAT_43 1" > opt_compat.h
