@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bus.h,v 1.14 1999/05/08 21:59:43 dfr Exp $
+ *	$Id: bus.h,v 1.15 1999/05/09 13:00:49 phk Exp $
  */
 
 #ifndef _SYS_BUS_H_
@@ -108,6 +108,7 @@ int	bus_generic_deactivate_resource(device_t dev, device_t child, int type,
 int	bus_generic_detach(device_t dev);
 void	bus_generic_driver_added(device_t dev, driver_t *driver);
 void	bus_generic_print_child(device_t dev, device_t child);
+int	bus_generic_probe(device_t dev);
 int	bus_generic_read_ivar(device_t dev, device_t child, int which,
 			      uintptr_t *result);
 int	bus_generic_release_resource(device_t bus, device_t child,
