@@ -71,12 +71,7 @@ COMMON ITEMS:
 	make buildkernel KERNEL=<YOUR_KERNEL_HERE>
 	make installkernel  KERNEL=<YOUR_KERNEL_HERE>
 	# Verify that the new kernel works, it will be installed as
-	# /YOUR_KERNEL_HERE
-	chflags noschg /kernel
-	chflags noschg /YOUR_KERNEL_HERE
-	mv /kernel /kernel.old
-	mv /YOUR_KERNEL_HERE /kernel
-	chflags schg /kernel
+	# /kernel
 
 	To rebuild disk /dev entries
 	----------------------------
@@ -126,7 +121,9 @@ COMMON ITEMS:
 	reboot
 	<multi-user>
 
-	[1] You may need to switch from wd to ad ala 19991210
+	[1] You may need to switch from wd to ad ala 19991210.  In
+	addition, you should disable any third party modules such as
+	vmware so that you don't crash your system on reboot.
 	[2] If you have any of the following in your /etc/make.conf,
 	please comment them out before following these instructions
 	and then do a make buildworld + make installworld after you
@@ -143,6 +140,25 @@ COMMON ITEMS:
 	[5] If you get warnings from ld-elf.so that it cannot load
 	libc.so, run 'ldconfig -R /usr/obj/usr/src/lib/libc' and repeat
 	the installworld target.
+
+	To update from 4.0-RELEASE or later to the most current
+	4.x-STABLE
+	----------
+	make buildworld
+	make buildkernel KERNEL=YOUR_KERNEL_HERE
+	make installkernel KERNEL=YOUR_KERNEL_HERE
+	reboot	(in single user) [1]
+	make installworld
+	reboot
+
+	[1] You can often get away without doing this step as the
+	system will be properly updated.  During the running of the
+	installworld, however, system components may break and other
+	oddities may happen.  Don't do this on systems that aren't
+	otherwise quiet as unpredictable results may happen.  If in
+	doubt, reboot into single user.  For remote installs, keep
+	a separate kernel around and use a serial console if at all
+	possible.
 
 What follows are older entries for those people upgrading from earlier
 versions of -stable/-current.
