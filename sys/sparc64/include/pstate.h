@@ -56,4 +56,6 @@
 
 #define	PSTATE_KERNEL		(PSTATE_NORMAL | PSTATE_IE)
 
+#define	PSTATE_SECURE(pstate)	(1)	/* XXX */
+
 #endif /* !_MACHINE_PSTATE_H_ */
