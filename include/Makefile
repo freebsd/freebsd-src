@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.2 (Berkeley) 1/4/94
-#	$Id: Makefile,v 1.59 1997/06/25 08:04:51 msmith Exp $
+#	$Id: Makefile,v 1.60 1997/07/31 11:32:25 asami Exp $
 #
 # Doing a make install builds /usr/include
 #
@@ -64,7 +64,9 @@ all:
 		>> osreldate.h
 .endif
 
-beforeinstall: ${SHARED}
+beforeinstall: installhdrs ${SHARED}
+
+installhdrs:
 	cd ${.CURDIR}; \
 		${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
 		${FILES} ${DESTDIR}/usr/include
