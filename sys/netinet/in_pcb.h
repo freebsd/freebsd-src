@@ -174,6 +174,8 @@ struct inpcb {
 	LIST_ENTRY(inpcb) inp_portlist;
 	struct	inpcbport *inp_phd;	/* head of this list */
 	inp_gen_t	inp_gencnt;	/* generation count of this instance */
+	struct mtx	inp_mtx;
+
 #define	in6p_faddr	inp_inc.inc6_faddr
 #define	in6p_laddr	inp_inc.inc6_laddr
 #define	in6p_route	inp_inc.inc6_route
@@ -239,7 +241,21 @@ struct inpcbinfo {		/* XXX documentation, prefixes */
 	uma_zone_t ipi_zone; /* zone to allocate pcbs from */
 	u_int	ipi_count;	/* number of pcbs in this list */
 	u_quad_t ipi_gencnt;	/* current generation count */
+	struct	mtx ipi_mtx;
 };
+
+#define INP_LOCK_INIT(inp, d) \
+	mtx_init(&(inp)->inp_mtx, (d), NULL, MTX_DEF | MTX_RECURSE)
+#define INP_LOCK_DESTROY(inp)	mtx_destroy(&(inp)->inp_mtx)
+#define INP_LOCK(inp)		mtx_lock(&(inp)->inp_mtx)
+#define INP_UNLOCK(inp)		mtx_unlock(&(inp)->inp_mtx)
+
+#define INP_INFO_LOCK_INIT(ipi, d) \
+	mtx_init(&(ipi)->ipi_mtx, (d), NULL, MTX_DEF | MTX_RECURSE)
+#define INP_INFO_RLOCK(ipi)	mtx_lock(&(ipi)->ipi_mtx)
+#define INP_INFO_WLOCK(ipi)	mtx_lock(&(ipi)->ipi_mtx)
+#define INP_INFO_RUNLOCK(ipi)	mtx_unlock(&(ipi)->ipi_mtx)
+#define INP_INFO_WUNLOCK(ipi)	mtx_unlock(&(ipi)->ipi_mtx)
 
 #define INP_PCBHASH(faddr, lport, fport, mask) \
 	(((faddr) ^ ((faddr) >> 16) ^ ntohs((lport) ^ (fport))) & (mask))
@@ -306,7 +322,7 @@ extern int	ipport_lastauto;
 extern int	ipport_hifirstauto;
 extern int	ipport_hilastauto;
 
-void	in_pcbpurgeif0(struct inpcb *, struct ifnet *);
+void	in_pcbpurgeif0(struct inpcbinfo *, struct ifnet *);
 void	in_losing(struct inpcb *);
 void	in_rtchange(struct inpcb *, int);
 int	in_pcballoc(struct socket *, struct inpcbinfo *, struct thread *);
@@ -323,11 +339,11 @@ struct inpcb *
 struct inpcb *
 	in_pcblookup_hash(struct inpcbinfo *, struct in_addr, u_int,
 	    struct in_addr, u_int, int, struct ifnet *);
-void	in_pcbnotifyall(struct inpcbhead *, struct in_addr,
+void	in_pcbnotifyall(struct inpcbinfo *pcbinfo, struct in_addr,
 	    int, void (*)(struct inpcb *, int));
 void	in_pcbrehash(struct inpcb *);
-int	in_setpeeraddr(struct socket *so, struct sockaddr **nam);
-int	in_setsockaddr(struct socket *so, struct sockaddr **nam);
+int	in_setpeeraddr(struct socket *so, struct sockaddr **nam, struct inpcbinfo *pcbinfo);
+int	in_setsockaddr(struct socket *so, struct sockaddr **nam, struct inpcbinfo *pcbinfo);;
 void	in_pcbremlists(struct inpcb *inp);
 int	prison_xinpcb(struct thread *td, struct inpcb *inp);
 #endif /* _KERNEL */

@@ -160,15 +160,22 @@ static int tcp_totbackoff = 511;	/* sum of tcp_backoff[] */
 /*
  * TCP timer processing.
  */
+
 void
 tcp_timer_delack(xtp)
 	void *xtp;
 {
 	struct tcpcb *tp = xtp;
 	int s;
+	struct inpcb *inp;
 
 	s = splnet();
+	INP_INFO_RLOCK(&tcbinfo);
+	inp = tp->t_inpcb;
+	INP_LOCK(inp);
+	INP_INFO_RUNLOCK(&tcbinfo);
 	if (callout_pending(tp->tt_delack) || !callout_active(tp->tt_delack)) {
+		INP_UNLOCK(inp);
 		splx(s);
 		return;
 	}
@@ -177,6 +184,7 @@ tcp_timer_delack(xtp)
 	tp->t_flags |= TF_ACKNOW;
 	tcpstat.tcps_delack++;
 	(void) tcp_output(tp);
+	INP_UNLOCK(inp);
 	splx(s);
 }
 
@@ -186,13 +194,19 @@ tcp_timer_2msl(xtp)
 {
 	struct tcpcb *tp = xtp;
 	int s;
+	struct inpcb *inp;
 #ifdef TCPDEBUG
 	int ostate;
 
 	ostate = tp->t_state;
 #endif
 	s = splnet();
+	INP_INFO_WLOCK(&tcbinfo);
+	inp = tp->t_inpcb;
+	INP_LOCK(inp);
 	if (callout_pending(tp->tt_2msl) || !callout_active(tp->tt_2msl)) {
+		INP_UNLOCK(tp->t_inpcb);
+		INP_INFO_WUNLOCK(&tcbinfo);
 		splx(s);
 		return;
 	}
@@ -215,6 +229,9 @@ tcp_timer_2msl(xtp)
 		tcp_trace(TA_USER, ostate, tp, (void *)0, (struct tcphdr *)0,
 			  PRU_SLOWTIMO);
 #endif
+	if (tp)
+		INP_UNLOCK(inp);
+	INP_INFO_WUNLOCK(&tcbinfo);
 	splx(s);
 }
 
@@ -225,13 +242,19 @@ tcp_timer_keep(xtp)
 	struct tcpcb *tp = xtp;
 	struct tcptemp *t_template;
 	int s;
+	struct inpcb *inp;
 #ifdef TCPDEBUG
 	int ostate;
 
 	ostate = tp->t_state;
 #endif
 	s = splnet();
+	INP_INFO_WLOCK(&tcbinfo);
+	inp = tp->t_inpcb;
+	INP_LOCK(inp);
 	if (callout_pending(tp->tt_keep) || !callout_active(tp->tt_keep)) {
+		INP_UNLOCK(inp);
+		INP_INFO_WUNLOCK(&tcbinfo);
 		splx(s);
 		return;
 	}
@@ -277,6 +300,8 @@ tcp_timer_keep(xtp)
 		tcp_trace(TA_USER, ostate, tp, (void *)0, (struct tcphdr *)0,
 			  PRU_SLOWTIMO);
 #endif
+	INP_UNLOCK(inp);
+	INP_INFO_WUNLOCK(&tcbinfo);
 	splx(s);
 	return;
 
@@ -289,6 +314,9 @@ dropit:
 		tcp_trace(TA_USER, ostate, tp, (void *)0, (struct tcphdr *)0,
 			  PRU_SLOWTIMO);
 #endif
+	if (tp)
+		INP_UNLOCK(tp->t_inpcb);
+	INP_INFO_WUNLOCK(&tcbinfo);
 	splx(s);
 }
 
@@ -298,13 +326,19 @@ tcp_timer_persist(xtp)
 {
 	struct tcpcb *tp = xtp;
 	int s;
+	struct inpcb *inp;
 #ifdef TCPDEBUG
 	int ostate;
 
 	ostate = tp->t_state;
 #endif
 	s = splnet();
+	INP_INFO_WLOCK(&tcbinfo);
+	inp = tp->t_inpcb;
+	INP_LOCK(inp);
 	if (callout_pending(tp->tt_persist) || !callout_active(tp->tt_persist)){
+		INP_UNLOCK(inp);
+		INP_INFO_WUNLOCK(&tcbinfo);
 		splx(s);
 		return;
 	}
@@ -339,6 +373,9 @@ out:
 		tcp_trace(TA_USER, ostate, tp, (void *)0, (struct tcphdr *)0,
 			  PRU_SLOWTIMO);
 #endif
+	if (tp)
+		INP_UNLOCK(inp);
+	INP_INFO_WUNLOCK(&tcbinfo);
 	splx(s);
 }
 
@@ -349,13 +386,21 @@ tcp_timer_rexmt(xtp)
 	struct tcpcb *tp = xtp;
 	int s;
 	int rexmt;
+	int headlocked;
+	struct inpcb *inp;
 #ifdef TCPDEBUG
 	int ostate;
 
 	ostate = tp->t_state;
 #endif
 	s = splnet();
+	INP_INFO_WLOCK(&tcbinfo);
+	headlocked = 1;
+	inp = tp->t_inpcb;
+	INP_LOCK(inp);
 	if (callout_pending(tp->tt_rexmt) || !callout_active(tp->tt_rexmt)) {
+		INP_UNLOCK(inp);
+		INP_INFO_WUNLOCK(&tcbinfo);
 		splx(s);
 		return;
 	}
@@ -372,6 +417,8 @@ tcp_timer_rexmt(xtp)
 			      tp->t_softerror : ETIMEDOUT);
 		goto out;
 	}
+	INP_INFO_WUNLOCK(&tcbinfo);
+	headlocked = 0;
 	if (tp->t_rxtshift == 1) {
 		/*
 		 * first retransmit; record ssthresh and cwnd so they can
@@ -474,5 +521,9 @@ out:
 		tcp_trace(TA_USER, ostate, tp, (void *)0, (struct tcphdr *)0,
 			  PRU_SLOWTIMO);
 #endif
+	if (tp)
+		INP_UNLOCK(inp);
+	if (headlocked)
+		INP_INFO_WUNLOCK(&tcbinfo);
 	splx(s);
 }
