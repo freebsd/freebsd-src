@@ -39,7 +39,7 @@
 .\" SUCH DAMAGE.
 .\" 
 .\"
-.\"	$Id: scsi.8,v 1.6.2.1 1997/03/03 07:01:49 mpp Exp $
+.\"	$Id: scsi.8,v 1.6.2.2 1997/06/19 14:25:04 charnier Exp $
 .\"
 .Dd October 11, 1993
 .Dt SCSI 8
@@ -170,7 +170,12 @@ sets the command timeout in seconds.  The default is two seconds.
 specifies the command as described in
 .Xr scsi 3 "."
 The additional arguments provide values for any variables
-specified in the command format.
+specified in the command format.  Note that the arguments to the
+.Fl c
+option are hexadecimal numbers, while all normal arguments on the
+command-line are subject to the common
+.Dq C
+number notation.
 .Pp
 .Fr "-o count out_fmt arg0 ... argn"
 indicates that this is a data out command (i.e., data will be sent from
@@ -199,21 +204,27 @@ can be specified as a hyphen ("-") to indicate that the
 bytes of data input should be written to the standard output.
 .in -.25i
 .Sh EXAMPLES
-To verify that the device type for the disk /dev/rsd0c is 0
-(direct access device):
-.Bd -literal -offset
-root# scsi -f /dev/rsd0c -c "12 0 0 0 64 0" -i 64 "*b3 b5"
+To verify that the device type for the disk
+.Pa /dev/rsd0c
+is 0 (direct access device):
+.Bd -literal
+root# scsi -f /dev/rsd0c -c "12 0 0 0 40 0" -i 64 "*b3 b5"
 0
 .Ed
 .Pp
-To do an inquiry to /dev/rsd2c:
-.Bd -literal -offset
-root# scsi -f /dev/rsd2c -c "12 0 0 0 64 0" -i 64 "s8 z8 z16 z4"
+To do an inquiry to
+.Pa /dev/rsd2c :
+.Bd -literal
+root# scsi -f /dev/rsd2c -c "12 0 0 0 v 0" 0x40 -i 64 "s8 z8 z16 z4"
 FUJITSU M2654S-512 010P
+.Ed
 .Pp
-To edit mode page 1 on /dev/rsd2c, and store it permanently on the
+To edit mode page 1 (the Read-Write Error Recovery Page)
+on
+.Pa /dev/rsd2c ,
+and store it permanently on the
 drive:
-.Bd -literal -offset
+.Bd -literal
 root# scsi -f /dev/rsd2c -m 1 -e -P 3
 .Ed
 .Pp
