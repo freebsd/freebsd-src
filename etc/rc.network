@@ -289,12 +289,11 @@ network_pass1() {
 
 	# Re-Sync ipfilter so it picks up any new network interfaces
 	#
-	case ${ipfilter_active} in
+	case ${ipfilter_enable} in
 	[Yy][Ee][Ss])
 		${ipfilter_program:-/sbin/ipf} -y ${ipfilter_flags} >/dev/null
 		;;
 	esac
-	unset ipfilter_active
 
 	# Initialize IP filtering using ipfw
 	#
