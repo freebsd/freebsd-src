@@ -354,10 +354,6 @@
   <sect2 id="userland">
     <title>Userland Changes</title>
 
-    <para>The configuration files used by the &man.resolver.3; now
-      support the <literal>timeout:</literal> and
-      <literal>attempts:</literal> keywords.</para>
-
     <para>&man.indent.1; now supports a <option>-ldi</option> option
       to control indentation of local variables.  A number of other
       tunings were made to this utility.</para>
@@ -371,6 +367,10 @@
     <para>&man.ipfw.8; now supports a <option>-b</option> flag to
       print only the action and comment for each rule, thus omitting
       the rule body.</para>
+
+    <para>&man.killall.1; now supports a <option>-e</option> flag to
+      make the <option>-u</option> operate on effective, rather than
+      real, user ids. &merged;</para>
 
     <para>&man.libalias.3; now has support (and a new API) for
       multiple aliasing instances in a single process.  The existing
@@ -412,10 +412,6 @@
       </note>
     <para>
 
-    <para>&man.killall.1; now supports a <option>-e</option> flag to
-      make the <option>-u</option> operate on effective, rather than
-      real, user ids. &merged;</para>
-
     <para>&man.newfs.8; and &man.mdmfs.8; now support a
       <option>-l</option> flag to enable them to set the MAC
       multilabel flag on new filesystems without requiring the use of
@@ -428,6 +424,10 @@
 
     <para>&man.pw.8; now supports a <option>-H</option> option, which
       accepts an encrypted password on a file descriptor. &merged;</para>
+
+    <para>The configuration files used by the &man.resolver.3; now
+      support the <literal>timeout:</literal> and
+      <literal>attempts:</literal> keywords.</para>
 
     <para>The &man.resolver.3; and associated interfaces are now much
       more reentrant and thread-safe.  Multiple DNS lookups can now be
