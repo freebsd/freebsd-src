@@ -874,7 +874,7 @@ again:
 	if (clnt_call(clnt, YPPROC_ALL,
 		xdr_ypreq_nokey, &yprnk,
 		xdr_ypresp_all_seq, &status, tv) != RPC_SUCCESS) {
-			clnt_perror(ysd->dom_client, "yp_next: clnt_call");
+			clnt_perror(ysd->dom_client, "yp_all: clnt_call");
 			clnt_destroy(clnt);
 			_yp_unbind(ysd);
 			goto again;
