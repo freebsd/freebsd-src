@@ -267,7 +267,7 @@ GetLabel(char *line, const char *filename, int linenum)
 {
   char *wp;
 
-  if ((wp = findblank(line, 0, 1)) != NULL) {
+  if ((wp = findblank(line, 1)) != NULL) {
     while (issep(*wp))
       *wp++ = '\0';
     if (*wp == '#')
