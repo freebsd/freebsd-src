@@ -136,6 +136,7 @@ enum ipfw_opcodes {		/* arguments (4 byte each)	*/
 	O_JAIL,			/* u32 = id			*/
 	O_ALTQ,			/* u32 = altq classif. qid	*/
 	O_DIVERTED,		/* arg1=bitmap (1:loop, 2:out)	*/
+	O_TCPDATALEN,		/* arg1 = tcp data len		*/
 
 	O_LAST_OPCODE		/* not an opcode!		*/
 };

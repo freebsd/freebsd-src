@@ -2203,6 +2203,28 @@ check_body:
 				    flags_match(cmd, ip->ip_tos));
 				break;
 
+			case O_TCPDATALEN:
+				if (proto == IPPROTO_TCP && offset == 0) {
+				    struct tcphdr *tcp;
+				    uint16_t x;
+				    uint16_t *p;
+				    int i;
+
+				    tcp = L3HDR(struct tcphdr,ip);
+				    x = ip_len -
+					((ip->ip_hl + tcp->th_off) << 2);
+				    if (cmdlen == 1) {
+					match = (cmd->arg1 == x);
+					break;
+				    }
+				    /* otherwise we have ranges */
+				    p = ((ipfw_insn_u16 *)cmd)->ports;
+				    i = cmdlen - 1;
+				    for (; !match && i>0; i--, p += 2)
+					match = (x >= p[0] && x <= p[1]);
+				}
+				break;
+
 			case O_TCPFLAGS:
 				match = (proto == IPPROTO_TCP && offset == 0 &&
 				    flags_match(cmd,
@@ -3014,6 +3036,7 @@ check_ipfw_struct(struct ip_fw *rule, int size)
 		case O_IPID:
 		case O_IPTTL:
 		case O_IPLEN:
+		case O_TCPDATALEN:
 			if (cmdlen < 1 || cmdlen > 31)
 				goto bad_size;
 			break;

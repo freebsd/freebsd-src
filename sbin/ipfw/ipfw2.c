@@ -233,6 +233,7 @@ enum tokens {
 	TOK_IPVER,
 	TOK_ESTAB,
 	TOK_SETUP,
+	TOK_TCPDATALEN,
 	TOK_TCPFLAGS,
 	TOK_TCPOPTS,
 	TOK_TCPSEQ,
@@ -348,6 +349,7 @@ struct _s_x rule_options[] = {
 	{ "estab",		TOK_ESTAB },
 	{ "established",	TOK_ESTAB },
 	{ "setup",		TOK_SETUP },
+	{ "tcpdatalen",		TOK_TCPDATALEN },
 	{ "tcpflags",		TOK_TCPFLAGS },
 	{ "tcpflgs",		TOK_TCPFLAGS },
 	{ "tcpoptions",		TOK_TCPOPTS },
@@ -481,6 +483,7 @@ struct _s_x _port_name[] = {
 	{"iplen",	O_IPLEN},
 	{"ipttl",	O_IPTTL},
 	{"mac-type",	O_MAC_TYPE},
+	{"tcpdatalen",	O_TCPDATALEN},
 	{NULL,		0}
 };
 
@@ -1395,6 +1398,14 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 				printf(" established");
 				break;
 
+			case O_TCPDATALEN:
+				if (F_LEN(cmd) == 1)
+				    printf(" tcpdatalen %u", cmd->arg1 );
+				else
+				    print_newports((ipfw_insn_u16 *)cmd, 0,
+					O_TCPDATALEN);
+				break;
+
 			case O_TCPFLAGS:
 				print_flags("tcpflags", cmd, f_tcpflags);
 				break;
@@ -2072,6 +2083,7 @@ help(void)
 "	mac ... | mac-type LIST | proto LIST | {recv|xmit|via} {IF|IPADDR} |\n"
 "	setup | {tcpack|tcpseq|tcpwin} NN | tcpflags SPEC | tcpoptions SPEC |\n"
 "	verrevpath | versrcreach | antispoof\n"
+"	tcpdatalen LIST | verrevpath | versrcreach | antispoof\n"
 );
 exit(0);
 }
@@ -3540,6 +3552,17 @@ read_options:
 		case TOK_SETUP:
 			fill_cmd(cmd, O_TCPFLAGS, 0,
 				(TH_SYN) | ( (TH_ACK) & 0xff) <<8 );
+			break;
+
+		case TOK_TCPDATALEN:
+			NEED1("tcpdatalen requires length");
+			if (strpbrk(*av, "-,")) {
+			    if (!add_ports(cmd, *av, 0, O_TCPDATALEN))
+				errx(EX_DATAERR, "invalid tcpdata len %s", *av);
+			} else
+			    fill_cmd(cmd, O_TCPDATALEN, 0,
+				    strtoul(*av, NULL, 0));
+			ac--; av++;
 			break;
 
 		case TOK_TCPOPTS:
