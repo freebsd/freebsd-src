@@ -137,9 +137,9 @@ struct buf {
 #define	b_iodone	b_io.bio_done
 #define	b_iodone_chain	b_io.bio_done_chain
 #define	b_ioflags	b_io.bio_flags
-#define	b_offset	b_io.bio_offset
 #define	b_pblkno	b_io.bio_pblkno
 #define	b_resid		b_io.bio_resid
+	off_t	b_offset;		/* Offset into file. */
 	LIST_ENTRY(buf) b_hash;		/* Hash chain. */
 	TAILQ_ENTRY(buf) b_vnbufs;	/* Buffer's associated vnode. */
 	TAILQ_ENTRY(buf) b_freelist;	/* Free list position if not active. */
