@@ -264,6 +264,26 @@ _thread_signal(pthread_t pthread, int sig)
 		break;
 
 	/*
+	 * The wait state is a special case due to the handling of
+	 * SIGCHLD signals.
+	 */
+	case PS_WAIT_WAIT:
+		/*
+		 * Check for signals other than the death of a child
+		 * process:
+		 */
+		if (sig != SIGCHLD)
+			/* Flag the operation as interrupted: */
+			pthread->interrupted = 1;
+
+		/* Change the state of the thread to run: */
+		PTHREAD_NEW_STATE(pthread,PS_RUNNING);
+
+		/* Return the signal number: */
+		pthread->signo = sig;
+		break;
+
+	/*
 	 * States that are interrupted by the occurrence of a signal
 	 * other than the scheduling alarm: 
 	 */
@@ -271,7 +291,6 @@ _thread_signal(pthread_t pthread, int sig)
 	case PS_FDW_WAIT:
 	case PS_SLEEP_WAIT:
 	case PS_SIGWAIT:
-	case PS_WAIT_WAIT:
 	case PS_SELECT_WAIT:
 		/* Flag the operation as interrupted: */
 		pthread->interrupted = 1;
