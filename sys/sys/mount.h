@@ -38,13 +38,6 @@
 #define _SYS_MOUNT_H_
 
 #include <sys/ucred.h>
-
-#ifndef _KERNEL
-#if !defined(_POSIX_C_SOURCE) && !defined(_XOPEN_SOURCE)
-#include <sys/stat.h>
-#endif /* !_POSIX_C_SOURCE */
-#endif /* !_KERNEL */
-
 #include <sys/queue.h>
 #include <sys/lock.h>
 
@@ -463,7 +456,12 @@ int	softdep_fsync __P((struct vnode *));
 
 #include <sys/cdefs.h>
 
+struct stat;
+
 __BEGIN_DECLS
+int	fhopen __P((const struct fhandle *, int));
+int	fhstat __P((const struct fhandle *, struct stat *));
+int	fhstatfs __P((const struct fhandle *, struct statfs *));
 int	fstatfs __P((int, struct statfs *));
 int	getfh __P((const char *, fhandle_t *));
 int	getfsstat __P((struct statfs *, long, int));
@@ -471,9 +469,6 @@ int	getmntinfo __P((struct statfs **, int));
 int	mount __P((const char *, const char *, int, void *));
 int	statfs __P((const char *, struct statfs *));
 int	unmount __P((const char *, int));
-int	fhopen __P((const struct fhandle *, int));
-int	fhstat __P((const struct fhandle *, struct stat *));
-int	fhstatfs __P((const struct fhandle *, struct statfs *));
 
 /* C library stuff */
 void	endvfsent __P((void));
