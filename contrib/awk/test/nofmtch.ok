@@ -1,2 +1,0 @@
-gawk: nofmtch.awk:1: warning: printf format specifier does not have control letter
-%3
