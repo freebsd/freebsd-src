@@ -13,7 +13,7 @@
  * the author assume any responsibility for damages incurred with
  * its use.
  *
- * $FreeBSD$
+ * $FreeBSD: src/gnu/lib/libdialog/TESTS/radio2.c,v 1.7 2000/01/10 11:52:09 phantom Exp $
  */
 
 #include <stdio.h>

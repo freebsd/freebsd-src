@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/an/if_an_pccard.c,v 1.1.2.5 2001/09/26 01:02:01 brooks Exp $
  */
 
 /*
@@ -66,7 +66,7 @@
 
 #ifndef lint
 static const char rcsid[] =
- "$FreeBSD$";
+ "$FreeBSD: src/sys/dev/an/if_an_pccard.c,v 1.1.2.5 2001/09/26 01:02:01 brooks Exp $";
 #endif
 
 #include <dev/an/if_aironet_ieee.h>

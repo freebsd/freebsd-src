@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/fdformat/Makefile,v 1.5.14.1 2001/04/25 12:09:33 ru Exp $
 
 PROG=	fdformat
 

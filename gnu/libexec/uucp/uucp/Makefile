@@ -1,5 +1,5 @@
 # Makefile for uucp
-# $FreeBSD$
+# $FreeBSD: src/gnu/libexec/uucp/uucp/Makefile,v 1.6.2.2 2002/07/17 13:25:19 ru Exp $
 
 PROG=		uucp
 SRCS=		uucp.c util.c log.c copy.c

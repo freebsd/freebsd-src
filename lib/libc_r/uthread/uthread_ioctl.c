@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc_r/uthread/uthread_ioctl.c,v 1.9.2.1 2002/08/31 22:02:15 archie Exp $
  */
 #include <stdarg.h>
 #include <sys/ioctl.h>

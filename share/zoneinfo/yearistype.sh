@@ -1,6 +1,6 @@
 #! /bin/sh
 
-# $FreeBSD$
+# $FreeBSD: src/share/zoneinfo/yearistype.sh,v 1.1.2.3.8.1 2000/10/25 19:44:09 wollman Exp $
 
 : '@(#)yearistype.sh	7.7'
 

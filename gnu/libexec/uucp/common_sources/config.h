@@ -1,7 +1,7 @@
 /* config.h.  Generated automatically by configure.  */
 /* Configuration header file for Taylor UUCP.  -*- C -*-  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/gnu/libexec/uucp/common_sources/config.h,v 1.5.8.1 2000/06/03 17:18:09 ume Exp $ */
 
 /* If your compiler does not use const correctly, then undefine it
    here.  This #undef is commented out by the configure script if it

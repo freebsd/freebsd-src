@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/lib/csu/alpha/Makefile,v 1.11.2.4 2002/08/07 16:31:47 ru Exp $
 #
 
 SRCS=		crt1.c crti.S crtn.S

@@ -45,7 +45,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)mountd.c	8.15 (Berkeley) 5/1/95";
 #endif
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/sbin/mountd/mountd.c,v 1.39.2.5 2002/09/13 15:57:43 joerg Exp $";
 #endif /*not lint*/
 
 #include <sys/param.h>

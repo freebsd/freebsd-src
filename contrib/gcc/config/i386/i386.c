@@ -18,7 +18,7 @@ along with GNU CC; see the file COPYING.  If not, write to
 the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA. */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/gcc/config/i386/i386.c,v 1.7 2000/01/29 13:06:33 obrien Exp $ */
 
 #include <setjmp.h>
 #include "config.h"

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/etc/mtree/BSD.var.dist,v 1.43.2.9 2002/06/30 17:57:17 des Exp $
 #
 # Please see the file src/etc/mtree/README before making changes to this file.
 #

@@ -3,7 +3,7 @@
 ** 
 */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/boot/ficl/testmain.c,v 1.5.2.1 2000/07/06 23:51:45 obrien Exp $ */
 
 #include <stdlib.h>
 #include <stdio.h>

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/groff/font/devdvi/Makefile,v 1.1.2.1 2001/04/26 17:08:04 ru Exp $
 
 DEV=		dvi
 DEVFILES=	DESC R I B BI CW CWI MI S EX H HI HB SA SB \

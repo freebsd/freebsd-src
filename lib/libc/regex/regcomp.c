@@ -36,7 +36,7 @@
  *
  *	@(#)regcomp.c	8.5 (Berkeley) 3/20/94
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/regex/regcomp.c,v 1.13.2.2 2002/03/20 13:13:15 dcs Exp $
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/mk/bsd.dep.mk,v 1.27.2.2 2002/07/17 19:08:23 ru Exp $
 #
 # The include file <bsd.dep.mk> handles Makefile dependencies.
 #

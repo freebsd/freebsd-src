@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/lib/libpam/modules/pam_cleartext_pass_ok/pam_cleartext_pass_ok.c,v 1.2 1999/01/20 21:55:24 jdp Exp $
  */
 
 #include <stdio.h>

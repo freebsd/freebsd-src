@@ -22,7 +22,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $FreeBSD$
+# $FreeBSD: src/lib/libpam/modules/pam_cleartext_pass_ok/Makefile,v 1.2.6.6 2002/07/03 21:41:29 des Exp $
 
 
 LIB=		pam_cleartext_pass_ok

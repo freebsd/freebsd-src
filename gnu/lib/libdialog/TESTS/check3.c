@@ -13,7 +13,7 @@
  * the author assume any responsibility for damages incurred with
  * its use.
  *
- * $FreeBSD$
+ * $FreeBSD: src/gnu/lib/libdialog/TESTS/check3.c,v 1.6 2000/01/10 11:52:03 phantom Exp $
  *
  */
 

@@ -1,5 +1,5 @@
 #	$NetBSD: files.pcmcia,v 1.14 1999/01/01 19:30:03 christos Exp $
-# $FreeBSD$
+# $FreeBSD: src/sys/dev/pccard/files.pccard,v 1.1 1999/10/26 06:52:29 imp Exp $
 #
 # Config.new file and device description for machine-independent PCMCIA code.
 # Included by ports that need it.

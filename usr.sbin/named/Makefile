@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/named/Makefile,v 1.25.2.5 2002/07/07 08:17:07 dougb Exp $
 
 USE_LIBBIND=	true
 .include "${.CURDIR}/Makefile.inc"

@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $FreeBSD$
+ *	@(#) $FreeBSD: src/sys/netatm/port.h,v 1.2.2.1 2002/02/13 00:43:11 dillon Exp $
  *
  */
 

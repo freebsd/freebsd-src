@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/pkg_install/info/Makefile,v 1.11.2.3 2002/08/31 19:33:55 obrien Exp $
 
 PROG=	pkg_info
 SRCS=	main.c perform.c show.c

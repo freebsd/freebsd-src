@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/an/Makefile,v 1.2 2000/01/28 11:26:26 bde Exp $
 
 .PATH:	${.CURDIR}/../../dev/an
 KMOD	= if_an

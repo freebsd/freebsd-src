@@ -27,7 +27,7 @@
 /* note that we do need config info.  xoxorich. */
 
 #ifndef lint
-static char rcsid[] = "$FreeBSD$";
+static char rcsid[] = "$FreeBSD: src/gnu/usr.bin/as/output-file.c,v 1.6 1999/08/27 23:34:20 peter Exp $";
 #endif
 
 #include <stdio.h>

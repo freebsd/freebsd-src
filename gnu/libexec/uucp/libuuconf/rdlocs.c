@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_rdlocs_rcsid[] = "$FreeBSD$";
+const char _uuconf_rdlocs_rcsid[] = "$FreeBSD: src/gnu/libexec/uucp/libuuconf/rdlocs.c,v 1.7 1999/08/27 23:33:28 peter Exp $";
 #endif
 
 #include <errno.h>

@@ -1,5 +1,5 @@
 /*	$NetBSD: usb_subr.c,v 1.76 2000/04/27 15:26:50 augustss Exp $	*/
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/dev/usb/usb_subr.c,v 1.23.2.4 2002/02/24 14:23:15 alfred Exp $	*/
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.

@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/share/examples/netgraph/ether.bridge,v 1.1.2.2 2001/07/19 05:45:03 dd Exp $
 
 # This script sets up an Ethernet bridging network across multiple
 # Ethernet interfaces using the ng_bridge(4) and ng_ether(4) netgraph

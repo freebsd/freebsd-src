@@ -20,7 +20,7 @@
 **	included in the next release.
 */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/sendmail/src/conf.h,v 1.6.2.11 2002/09/03 01:50:16 gshapiro Exp $ */
 
 #ifndef CONF_H
 #define CONF_H 1

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/release/sysinstall/Makefile,v 1.92.2.21 2002/07/25 09:33:17 ru Exp $
 
 PROG=	sysinstall
 MAN=	sysinstall.8

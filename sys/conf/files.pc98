@@ -3,7 +3,7 @@
 #
 # modified for PC-9801
 #
-# $FreeBSD$
+# $FreeBSD: src/sys/conf/files.pc98,v 1.140.2.40 2002/10/05 18:31:47 scottl Exp $
 #
 # The long compile-with and dependency lines are required because of
 # limitations in config: backslash-newline doesn't work in strings, and

@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/boot/arc/lib/arcconsole.c,v 1.2 1999/08/28 00:39:36 peter Exp $ */
 /* $NetBSD: prom.c,v 1.3 1997/09/06 14:03:58 drochner Exp $ */
 
 /*  

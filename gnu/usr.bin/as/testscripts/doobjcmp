@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/as/testscripts/doobjcmp,v 1.4 1999/08/27 23:34:35 peter Exp $
 # compare two object files, in depth.
 
 x=$1

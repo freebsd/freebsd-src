@@ -1,5 +1,5 @@
 # Makefile for uupick
-# $FreeBSD$
+# $FreeBSD: src/gnu/libexec/uucp/uupick/Makefile,v 1.5 1999/08/27 23:34:00 peter Exp $
 
 BINDIR=		$(bindir)
 

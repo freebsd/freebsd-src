@@ -9,7 +9,7 @@
  * forth in the LICENSE file which can be found at the top level of
  * the sendmail distribution.
  *
- * $FreeBSD$
+ * $FreeBSD: src/contrib/sendmail/praliases/praliases.c,v 1.3.6.6 2002/09/03 01:50:09 gshapiro Exp $
  *
  */
 

@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/ct/ct_isa.c,v 1.3.2.2 2001/10/17 14:00:34 nyan Exp $ */
 /*	$NecBSD: ct_isa.c,v 1.6 1999/07/26 06:32:01 honda Exp $	*/
 /*	$NetBSD$	*/
 

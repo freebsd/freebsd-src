@@ -22,7 +22,7 @@
  * this is a drop in replacement for crypt();
  *
  * Andy Phillips <atp@mssl.ucl.ac.uk>
- * $FreeBSD$
+ * $FreeBSD: src/contrib/libpam/modules/pam_unix/bigcrypt.c,v 1.1.1.1.2.2 2001/06/11 15:28:30 markm Exp $
  */
 
 #include <string.h>

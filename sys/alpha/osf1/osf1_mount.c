@@ -29,7 +29,7 @@
 
 /*
  * Additional Copyright (c) 1999 by Andrew Gallatin
- * $FreeBSD$
+ * $FreeBSD: src/sys/alpha/osf1/osf1_mount.c,v 1.2 2000/02/13 03:55:16 peter Exp $
  */
 
 #include "opt_nfs.h"

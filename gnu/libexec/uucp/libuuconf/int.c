@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_int_rcsid[] = "$FreeBSD$";
+const char _uuconf_int_rcsid[] = "$FreeBSD: src/gnu/libexec/uucp/libuuconf/int.c,v 1.6 1999/08/27 23:33:24 peter Exp $";
 #endif
 
 /* Parse a string into a variable.  This is called by uuconf_cmd_args,

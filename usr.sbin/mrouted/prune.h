@@ -7,7 +7,7 @@
  * Leland Stanford Junior University.
  *
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/mrouted/prune.h,v 1.10 1999/08/28 01:17:08 peter Exp $
  * prune.h,v 3.8.4.5 1998/02/27 22:45:43 fenner Exp
  */
 

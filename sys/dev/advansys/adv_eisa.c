@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/advansys/adv_eisa.c,v 1.9.2.1 2000/04/14 13:32:44 nyan Exp $
  */
 
 #include <sys/param.h>

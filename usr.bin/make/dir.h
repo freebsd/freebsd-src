@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)dir.h	8.1 (Berkeley) 6/6/93
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/make/dir.h,v 1.7 1999/08/28 01:03:29 peter Exp $
  */
 
 /* dir.h --

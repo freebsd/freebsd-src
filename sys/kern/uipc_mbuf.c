@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_mbuf.c	8.2 (Berkeley) 1/4/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/kern/uipc_mbuf.c,v 1.51.2.20 2002/08/12 22:09:12 luigi Exp $
  */
 
 #include "opt_param.h"

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/pkg_install/Makefile,v 1.5.2.6 2002/08/31 18:39:08 obrien Exp $
 
 SUBDIR=	lib add create delete info update version
 

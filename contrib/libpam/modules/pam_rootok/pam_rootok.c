@@ -2,7 +2,7 @@
 
 /*
  * $Id: pam_rootok.c,v 1.1.1.1 2000/06/20 22:11:56 agmorgan Exp $
- * $FreeBSD$
+ * $FreeBSD: src/contrib/libpam/modules/pam_rootok/pam_rootok.c,v 1.3.2.2 2001/06/11 15:28:25 markm Exp $
  *
  * Written by Andrew Morgan <morgan@linux.kernel.org> 1996/3/11
  */

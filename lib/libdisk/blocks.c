@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libdisk/blocks.c,v 1.7.2.3 2001/05/13 21:01:37 jkh Exp $
  *
  */
 

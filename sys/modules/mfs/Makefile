@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/mfs/Makefile,v 1.8 1999/12/12 16:47:26 peter Exp $
 
 .PATH:	${.CURDIR}/../../ufs/mfs
 KMOD=	mfs

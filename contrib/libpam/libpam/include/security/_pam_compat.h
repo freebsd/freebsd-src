@@ -7,7 +7,7 @@
  * A number of operating systems have started to implement PAM.
  * unfortunately, they have a different set of numeric values for
  * certain constants.  This file is included for compatibility's sake.
- * $FreeBSD$
+ * $FreeBSD: src/contrib/libpam/libpam/include/security/_pam_compat.h,v 1.1.1.1.6.2 2001/06/11 15:28:14 markm Exp $
  */
 
 /* Solaris uses different constants. We redefine to those here */

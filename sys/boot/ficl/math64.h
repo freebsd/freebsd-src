@@ -30,7 +30,7 @@
 **
 */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/boot/ficl/math64.h,v 1.2 1999/09/29 04:43:06 dcs Exp $ */
 
 #if !defined (__MATH64_H__)
 #define __MATH64_H__

@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)version.c	8.1 (Berkeley) 5/31/93";
 #endif
 static const char rcsid[] =
- "$FreeBSD$";
+ "$FreeBSD: src/games/backgammon/backgammon/version.c,v 1.3 1999/11/30 03:48:23 billf Exp $";
 #endif /* not lint */
 
 const char	*const message[] = {

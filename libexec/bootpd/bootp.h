@@ -23,7 +23,7 @@ SOFTWARE.
 /*
  * Bootstrap Protocol (BOOTP).  RFC951 and RFC1395.
  *
- * $FreeBSD$
+ * $FreeBSD: src/libexec/bootpd/bootp.h,v 1.5.2.1 2001/10/14 21:20:12 iedowse Exp $
  *
  *
  * This file specifies the "implementation-independent" BOOTP protocol

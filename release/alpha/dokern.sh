@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/release/alpha/dokern.sh,v 1.56.2.2 2002/09/05 11:14:21 murray Exp $
 #
 
 sed	\

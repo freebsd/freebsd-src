@@ -27,7 +27,7 @@
  * SUCH DAMAGE.
  *
  * 	$Id: ng_eiface.h,v 1.4 2000/03/06 09:46:14 vitaly Exp $
- * $FreeBSD$
+ * $FreeBSD: src/sys/netgraph/ng_eiface.h,v 1.2.2.2 2002/07/02 23:44:02 archie Exp $
  */
 
 #ifndef _NETGRAPH_EIFACE_H_

@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/binutils/libbinutils/Makefile.mips,v 1.2.2.1 2000/07/06 22:16:08 obrien Exp $
 #
 
 TARGET=		${MACHINE_ARCH}-unknown-freebsdelf

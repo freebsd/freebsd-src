@@ -1,5 +1,5 @@
 /* SHADRIVER.C - test driver for SHA-1 (and SHA-0)
- * $FreeBSD$
+ * $FreeBSD: src/lib/libmd/shadriver.c,v 1.2 1999/08/28 00:05:09 peter Exp $
  */
 
 /* Copyright (C) 1990-2, RSA Data Security, Inc. Created 1990. All

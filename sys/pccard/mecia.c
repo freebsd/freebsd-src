@@ -24,7 +24,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/pccard/mecia.c,v 1.2.2.4 2001/08/14 23:36:18 imp Exp $
  *
  * Based heavily on the FreeBSD pcic driver's pcic98 support, derived
  * from PAO3 tree.  This copyright notice likely needs modification for

@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/libpam/modules/pam_unix/md5.h,v 1.1.1.1.2.2 2001/06/11 15:28:30 markm Exp $ */
 
 #ifndef MD5_H
 #define MD5_H

@@ -31,7 +31,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/wi/if_wivar.h,v 1.8.2.3 2002/08/02 07:11:34 imp Exp $
  */
 
 #define WICACHE			/* turn on signal strength cache code */  

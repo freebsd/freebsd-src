@@ -26,7 +26,7 @@
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char spool_rcsid[] = "$FreeBSD$";
+const char spool_rcsid[] = "$FreeBSD: src/gnu/libexec/uucp/libunix/spool.c,v 1.7 1999/08/27 23:33:09 peter Exp $";
 #endif
 
 #include "uudefs.h"

@@ -28,7 +28,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/sbin/camcontrol/modeedit.c,v 1.5.2.1 2000/08/14 05:42:32 kbyanc Exp $";
 #endif /* not lint */
 
 #include <sys/queue.h>

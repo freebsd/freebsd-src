@@ -23,7 +23,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$FreeBSD$";
+static char rcsid[] = "$FreeBSD: src/gnu/usr.bin/as/hex-value.c,v 1.6 1999/08/27 23:34:17 peter Exp $";
 #endif
 
 #define __ (42)			/* blatently illegal digit value */

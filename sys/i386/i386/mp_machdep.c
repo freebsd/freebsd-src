@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/i386/mp_machdep.c,v 1.115.2.12 2002/04/28 18:18:17 tegge Exp $
  */
 
 #include "opt_cpu.h"

@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/find/operator.c,v 1.5.6.1 2001/05/06 09:53:22 phk Exp $
  */
 
 #ifndef lint

@@ -1,7 +1,7 @@
 /*
  * Pathnames for files used by xtend
  *
- * $FreeBSD$
+ * $FreeBSD: src/libexec/xtend/paths.h,v 1.6 1999/08/28 00:10:30 peter Exp $
  */
 
 #define X10DIR		"/var/spool/xten"

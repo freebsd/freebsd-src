@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)readmsg.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.sbin/timed/timed/readmsg.c,v 1.5.2.3 2001/08/31 08:02:05 kris Exp $";
 #endif /* not lint */
 
 #include "globals.h"

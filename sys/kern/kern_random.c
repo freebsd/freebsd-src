@@ -1,7 +1,7 @@
 /*
  * kern_random.c -- A strong random number generator
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/kern/kern_random.c,v 1.36.2.4 2002/09/17 17:11:57 sam Exp $
  *
  * Version 0.95, last modified 18-Oct-95
  * 

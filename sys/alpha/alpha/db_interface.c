@@ -1,5 +1,5 @@
 /* $NetBSD: db_interface.c,v 1.2 1997/09/16 19:07:19 thorpej Exp $ */
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/alpha/alpha/db_interface.c,v 1.7 2000/01/11 14:53:47 yokota Exp $ */
 
 /* 
  * Mach Operating System

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/systat/devs.h,v 1.3 1999/08/28 01:06:00 peter Exp $
  */
 
 int dsinit(int, struct statinfo *, struct statinfo *, struct statinfo *);

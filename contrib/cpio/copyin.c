@@ -15,7 +15,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
 
-$FreeBSD$
+$FreeBSD: src/contrib/cpio/copyin.c,v 1.6.6.1 2002/03/12 19:10:14 phantom Exp $
 */
 
 #include <stdio.h>

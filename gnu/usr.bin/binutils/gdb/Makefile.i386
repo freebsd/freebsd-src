@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/binutils/gdb/Makefile.i386,v 1.2 1999/08/27 23:34:49 peter Exp $
 #
 
 XSRCS+= freebsd-nat.c i386-tdep.c i387-tdep.c kvm-fbsd.c

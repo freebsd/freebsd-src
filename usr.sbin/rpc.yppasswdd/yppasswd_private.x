@@ -33,7 +33,7 @@
 #ifndef RPC_HDR
 %#ifndef lint
 %static const char rcsid[] =
-%	"$FreeBSD$";
+%	"$FreeBSD: src/usr.sbin/rpc.yppasswdd/yppasswd_private.x,v 1.6 1999/08/28 01:19:41 peter Exp $";
 %#endif /* not lint */
 #endif
 

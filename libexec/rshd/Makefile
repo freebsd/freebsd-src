@@ -1,5 +1,5 @@
 # From:	@(#)Makefile	8.1 (Berkeley) 6/4/93
-# $FreeBSD$
+# $FreeBSD: src/libexec/rshd/Makefile,v 1.15.2.3 2001/04/25 10:40:59 ru Exp $
 
 PROG=	rshd
 SRCS=	rshd.c

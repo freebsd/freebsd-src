@@ -1,6 +1,6 @@
 /*
  * $Id: help_env.c,v 1.2 1997/01/04 20:19:20 morgan Exp morgan $
- * $FreeBSD$
+ * $FreeBSD: src/contrib/libpam/libpam_misc/help_env.c,v 1.1.1.1.6.2 2001/06/11 15:28:15 markm Exp $
  *
  * This file was written by Andrew G. Morgan <morgan@parc.power.net>
  *

@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	5.3 (Berkeley) 6/8/93
-# $FreeBSD$
+# $FreeBSD: src/share/doc/papers/px/Makefile,v 1.7.2.1 2000/11/30 17:13:59 ru Exp $
 
 VOLUME=	papers
 DOC=	px

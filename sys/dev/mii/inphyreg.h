@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/sys/dev/mii/inphyreg.h,v 1.1.2.1 2001/05/13 00:16:08 jlemon Exp $
  */
 
 #define MII_INPHY_SCR           0x10    /* status and control register */

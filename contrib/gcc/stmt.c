@@ -19,7 +19,7 @@ along with GNU CC; see the file COPYING.  If not, write to
 the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/gcc/stmt.c,v 1.1.1.4.2.2 2002/05/01 19:57:46 obrien Exp $ */
 
 
 /* This file handles the generation of rtl code from tree structure

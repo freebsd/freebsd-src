@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/include/smptests.h,v 1.33.2.1 2000/05/16 06:58:10 dillon Exp $
  */
 
 #ifndef _MACHINE_SMPTESTS_H_

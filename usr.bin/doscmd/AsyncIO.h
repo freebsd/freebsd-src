@@ -29,7 +29,7 @@
  *
  *	BSDI AsyncIO.h,v 2.2 1996/04/08 19:32:12 bostic Exp
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/doscmd/AsyncIO.h,v 1.1.6.1 2002/04/25 11:04:50 tg Exp $
  */
 
 #if defined(__cplusplus)

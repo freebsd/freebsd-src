@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/sys/endian.h,v 1.2.2.1 2002/09/09 05:45:04 imp Exp $
  */
 
 #ifndef _SYS_ENDIAN_H_

@@ -5,7 +5,7 @@
  *    You may distribute under the terms of either the GNU General Public
  *    License or the Artistic License, as specified in the README file.
  *
- * $FreeBSD$
+ * $FreeBSD: src/contrib/perl5/pp.c,v 1.2 1999/12/13 19:11:53 ache Exp $
  */
 
 /*

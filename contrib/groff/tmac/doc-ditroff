@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)doc-ditroff	8.1 (Berkeley) 06/08/93
-.\"	$FreeBSD$
+.\"	$FreeBSD: src/contrib/groff/tmac/doc-ditroff,v 1.1.1.1.8.4 2001/04/26 17:35:37 ru Exp $
 .\"
 .\"     %beginstrip%
 .

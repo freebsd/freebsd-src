@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/texinfo/info/funs.h,v 1.3.2.1 2002/03/30 17:09:18 ru Exp $ */
 /* funs.h -- Generated declarations for Info commands. */
 
 /* Functions declared in "./session.c". */

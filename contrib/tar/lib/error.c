@@ -19,7 +19,7 @@
 
 /* Written by David MacKenzie <djm@gnu.ai.mit.edu>.  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/tar/lib/error.c,v 1.2.2.1 2002/07/14 13:19:40 sobomax Exp $ */
 
 #ifdef HAVE_CONFIG_H
 # include <config.h>

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/sound/driver/vibes/Makefile,v 1.3.2.1 2001/04/23 22:58:26 orion Exp $
 
 .PATH:		${.CURDIR}/../../../../dev/sound/pci
 KMOD		= snd_vibes

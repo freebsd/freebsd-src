@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/sr/if_sr_pci.c,v 1.15.2.1 2002/06/17 15:10:58 jhay Exp $
  */
 
 

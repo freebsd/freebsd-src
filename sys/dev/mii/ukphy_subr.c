@@ -59,7 +59,7 @@
 
 #if !defined(lint)
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/sys/dev/mii/ukphy_subr.c,v 1.2 1999/08/28 00:42:16 peter Exp $";
 #endif
 
 /*

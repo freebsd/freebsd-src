@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libalias/alias_proxy.c,v 1.4.2.5 2001/11/03 11:34:33 brian Exp $
  */
 
 /* file: alias_proxy.c

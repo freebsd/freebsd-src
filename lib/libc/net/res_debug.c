@@ -95,7 +95,7 @@
 
 #if defined(LIBC_SCCS) && !defined(lint)
 static char sccsid[] = "@(#)res_debug.c	8.1 (Berkeley) 6/4/93";
-static char rcsid[] = "$FreeBSD$";
+static char rcsid[] = "$FreeBSD: src/lib/libc/net/res_debug.c,v 1.18.2.1 2001/06/15 22:08:28 ume Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <sys/types.h>

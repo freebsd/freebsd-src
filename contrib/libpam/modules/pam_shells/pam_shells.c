@@ -6,7 +6,7 @@
  * by Erik Troan <ewt@redhat.com>, Red Hat Software.
  * August 5, 1996.
  * This code shamelessly ripped from the pam_securetty module.
- * $FreeBSD$
+ * $FreeBSD: src/contrib/libpam/modules/pam_shells/pam_shells.c,v 1.3.2.2 2001/06/11 15:28:28 markm Exp $
  */
 
 #define _BSD_SOURCE

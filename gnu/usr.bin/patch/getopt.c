@@ -22,7 +22,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/gnu/usr.bin/patch/getopt.c,v 1.4.6.2 2002/04/30 20:40:02 gad Exp $");
 /* NOTE!!!  AIX requires this to be the first thing in the file.
    Do not put ANYTHING before it!  */
 #if !defined (__GNUC__) && defined (_AIX)

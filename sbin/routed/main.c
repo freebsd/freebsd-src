@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sbin/routed/main.c,v 1.11.2.1 2000/08/14 17:00:03 sheldonh Exp $
  */
 
 #include "defs.h"
@@ -52,7 +52,7 @@ __RCSID("$NetBSD$");
 __COPYRIGHT("@(#) Copyright (c) 1983, 1988, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n");
 #endif
-#ident "$FreeBSD$"
+#ident "$FreeBSD: src/sbin/routed/main.c,v 1.11.2.1 2000/08/14 17:00:03 sheldonh Exp $"
 
 
 pid_t	mypid;

@@ -9,7 +9,7 @@
  * forth in the LICENSE file which can be found at the top level of
  * the sendmail distribution.
  *
- * $FreeBSD$
+ * $FreeBSD: src/contrib/sendmail/mailstats/mailstats.c,v 1.5.2.7 2002/09/03 01:50:05 gshapiro Exp $
  *
  */
 

@@ -35,7 +35,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/vinum/statetexts.h,v 1.9 2000/02/29 06:07:01 grog Exp $
  */
 
 /* Drive state texts */

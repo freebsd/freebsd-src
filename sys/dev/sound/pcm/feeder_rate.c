@@ -28,7 +28,7 @@
 
 #include "feeder_if.h"
 
-SND_DECLARE_FILE("$FreeBSD$");
+SND_DECLARE_FILE("$FreeBSD: src/sys/dev/sound/pcm/feeder_rate.c,v 1.2.2.2 2002/04/22 15:49:36 cg Exp $");
 
 MALLOC_DEFINE(M_RATEFEEDER, "ratefeed", "pcm rate feeder");
 

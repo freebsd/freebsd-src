@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/rndcontrol/Makefile,v 1.2.10.1 2001/04/25 12:10:44 ru Exp $
 
 PROG=		rndcontrol
 CFLAGS+=	-Wall

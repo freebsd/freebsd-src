@@ -29,7 +29,7 @@
  *
  *	BSDI video.h,v 2.2 1996/04/08 19:33:12 bostic Exp
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/doscmd/video.h,v 1.2.2.1 2002/04/25 11:04:51 tg Exp $
  */
 
 /*

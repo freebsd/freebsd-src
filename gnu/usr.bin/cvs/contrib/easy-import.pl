@@ -8,7 +8,7 @@
 #
 # Written by Jörg Wunsch, 95/03/07, and placed in the public domain.
 #
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/cvs/contrib/easy-import.pl,v 1.16 1999/09/05 17:35:31 peter Exp $
 
 require "complete.pl";
 require "getopts.pl";
@@ -22,7 +22,7 @@ sub scan_opts
 
     $dont_do_it = "-n" if $opt_n;
     if($opt_v) {
-	print STDERR '$FreeBSD$' . "\n"; # 'emacs kludge
+	print STDERR '$FreeBSD: src/gnu/usr.bin/cvs/contrib/easy-import.pl,v 1.16 1999/09/05 17:35:31 peter Exp $' . "\n"; # 'emacs kludge
 	exit 0;
     }
     die "usage: $0 [-v] [-n] [moduledir]\n" .

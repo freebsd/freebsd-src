@@ -26,7 +26,7 @@
 #include "uucp.h"
 
 #if USE_RCS_ID
-const char uuxqt_rcsid[] = "$FreeBSD$";
+const char uuxqt_rcsid[] = "$FreeBSD: src/gnu/libexec/uucp/uuxqt/uuxqt.c,v 1.8 1999/08/27 23:34:07 peter Exp $";
 #endif
 
 #include <errno.h>

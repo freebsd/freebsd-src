@@ -32,7 +32,7 @@
  *
  *	@(#)glob.h	8.1 (Berkeley) 6/6/93
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/mail/glob.h,v 1.1.1.1.14.2 2002/03/15 19:46:31 mikeh Exp $
  */
 
 /*

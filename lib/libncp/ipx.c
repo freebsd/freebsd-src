@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libncp/ipx.c,v 1.1 1999/10/12 11:56:37 bp Exp $
  */
 #include <sys/param.h>
 #include <sys/ioctl.h>

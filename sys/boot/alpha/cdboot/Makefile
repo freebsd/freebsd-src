@@ -1,4 +1,4 @@
-#	$FreeBSD$
+#	$FreeBSD: src/sys/boot/alpha/cdboot/Makefile,v 1.3.2.2 2001/08/01 20:52:58 mjacob Exp $
 
 BASE= 		cdboot
 PROG= 		${BASE}

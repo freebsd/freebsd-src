@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/cam/scsi/scsi_all.c,v 1.14.2.8 2002/08/30 17:21:41 gibbs Exp $
  */
 
 #include <sys/param.h>

@@ -36,7 +36,7 @@
 %/*static char sccsid[] = "from: @(#)rex.x 1.3 87/09/18 Copyr 1987 Sun Micro";*/
 %/*static char sccsid[] = "from: @(#)rex.x	2.1 88/08/01 4.0 RPCSRC";*/
 %static const char rcsid[] =
-%  "$FreeBSD$";
+%  "$FreeBSD: src/include/rpcsvc/rex.x,v 1.6 1999/08/27 23:45:10 peter Exp $";
 %#endif /* not lint */
 #endif
 

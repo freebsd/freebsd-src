@@ -4,7 +4,7 @@
 
 #ifndef lint
 static const char rcsid[] = 
-  "$FreeBSD$";
+  "$FreeBSD: src/lib/libz/zopen.c,v 1.2.2.1 2001/09/30 22:53:01 kris Exp $";
 #endif /* not lint */
 
 #include <stdio.h>

@@ -9,7 +9,7 @@
  * forth in the LICENSE file which can be found at the top level of
  * the sendmail distribution.
  *
- * $FreeBSD$
+ * $FreeBSD: src/contrib/sendmail/makemap/makemap.c,v 1.3.6.5 2002/09/03 01:50:08 gshapiro Exp $
  *
  */
 

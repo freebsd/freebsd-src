@@ -13,7 +13,7 @@
  *
  * Version 1.9, Wed Oct  4 18:58:15 MSK 1995
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/include/cronyx.h,v 1.9 1999/12/29 04:33:00 peter Exp $
  */
 /*
  * Asynchronous channel mode -------------------------------------------------

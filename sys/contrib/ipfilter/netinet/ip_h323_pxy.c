@@ -11,7 +11,7 @@
  *
  * For more details, see QNX_OCL.txt provided with this distribution.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/contrib/ipfilter/netinet/ip_h323_pxy.c,v 1.2.2.2 2002/08/31 16:24:52 darrenr Exp $
  */
 
 /*

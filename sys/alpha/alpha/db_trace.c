@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/alpha/alpha/db_trace.c,v 1.3.2.4 2001/07/25 01:00:08 bsd Exp $ */
 /* $NetBSD: db_trace.c,v 1.9 2000/12/13 03:16:36 mycroft Exp $ */
 
 /*-

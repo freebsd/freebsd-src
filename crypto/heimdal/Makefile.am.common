@@ -1,4 +1,0 @@
-# $Id: Makefile.am.common,v 1.5 2002/05/19 18:35:37 joda Exp $
-
-include $(top_srcdir)/cf/Makefile.am.common
-

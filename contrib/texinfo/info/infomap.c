@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/texinfo/info/infomap.c,v 1.4.2.1 2002/03/30 17:09:19 ru Exp $ */
 /* infomap.c -- keymaps for Info.
    $Id: infomap.c,v 1.28 2002/02/08 23:02:53 karl Exp $
 

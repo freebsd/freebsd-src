@@ -20,7 +20,7 @@
 /*"input_file.c":Operating-system dependant functions to read source files.*/
 
 /*
- * $FreeBSD$
+ * $FreeBSD: src/gnu/usr.bin/as/input-file.h,v 1.6 1999/08/27 23:34:18 peter Exp $
  */
 
 

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/etc/locale.alias,v 1.7.2.6 2002/04/15 00:44:13 dougb Exp $
 
 ASCII                   en_US.US-ASCII
 US-ASCII                en_US.US-ASCII

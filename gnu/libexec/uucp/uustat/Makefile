@@ -1,5 +1,5 @@
 # Makefile for uustat
-# $FreeBSD$
+# $FreeBSD: src/gnu/libexec/uucp/uustat/Makefile,v 1.5.2.2 2002/07/17 13:25:20 ru Exp $
 
 PROG=		uustat
 SRCS=		uustat.c util.c log.c copy.c

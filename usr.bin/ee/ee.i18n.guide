@@ -1,4 +1,4 @@
-$FreeBSD$
+$FreeBSD: src/usr.bin/ee/ee.i18n.guide,v 1.1.1.1.8.1 2001/06/10 11:06:06 sobomax Exp $
 
 Easy Editor ("ee") provides the ability to translate the messages 
 displayed to the user and the commands entered.  This is done via message 

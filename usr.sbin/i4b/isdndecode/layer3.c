@@ -29,7 +29,7 @@
  *
  *	$Id: layer3.c,v 1.9 2000/02/21 15:17:17 hm Exp $
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/i4b/isdndecode/layer3.c,v 1.6.2.2 2001/08/01 17:45:05 obrien Exp $
  *
  *      last edit-date: [Mon Feb 21 15:54:58 2000]
  *

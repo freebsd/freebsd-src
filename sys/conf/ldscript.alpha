@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/conf/ldscript.alpha,v 1.4.2.1 2001/09/20 09:29:23 peter Exp $ */
 OUTPUT_FORMAT("elf64-alpha", "elf64-alpha", "elf64-alpha")
 OUTPUT_ARCH(alpha)
 ENTRY(__start)

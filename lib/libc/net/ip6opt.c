@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/net/ip6opt.c,v 1.1 1999/12/16 18:32:01 shin Exp $
  */
 
 #include <sys/param.h>

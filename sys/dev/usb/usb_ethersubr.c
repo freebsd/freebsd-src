@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/usb/usb_ethersubr.c,v 1.4.2.3 2000/05/24 01:47:50 archie Exp $
  */
 
 /*
@@ -69,7 +69,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/sys/dev/usb/usb_ethersubr.c,v 1.4.2.3 2000/05/24 01:47:50 archie Exp $";
 #endif
 
 Static struct ifqueue usbq_rx;

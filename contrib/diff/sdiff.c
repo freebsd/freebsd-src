@@ -20,7 +20,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 /* GNU SDIFF was written by Thomas Lord. */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/contrib/diff/sdiff.c,v 1.1.1.1.6.1 2002/01/28 01:21:38 nectar Exp $");
 
 #include "system.h"
 #include <stdio.h>

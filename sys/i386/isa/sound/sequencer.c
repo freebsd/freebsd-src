@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/isa/sound/sequencer.c,v 1.25.2.1 2001/06/10 02:02:05 dd Exp $
  */
 
 #define SEQUENCER_C

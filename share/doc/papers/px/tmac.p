@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)tmac.p	5.2 (Berkeley) 4/17/91
-.\" $FreeBSD$
+.\" $FreeBSD: src/share/doc/papers/px/tmac.p,v 1.2.12.1 2000/11/30 17:13:59 ru Exp $
 .\"
 .if n .nr FM 1.2i
 .if t .tr *\(**=\(eq/\(sl+\(pl

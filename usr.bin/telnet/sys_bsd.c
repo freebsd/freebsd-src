@@ -35,7 +35,7 @@
 #include <stdlib.h>
 #include <err.h>
 
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/usr.bin/telnet/sys_bsd.c,v 1.5.6.1 2002/04/13 11:07:13 markm Exp $");
 
 #ifndef lint
 static const char sccsid[] = "@(#)sys_bsd.c	8.4 (Berkeley) 5/30/95";

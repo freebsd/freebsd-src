@@ -26,7 +26,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/buslogic/bt_eisa.c,v 1.12 2000/01/29 14:27:26 peter Exp $
  */
 
 #include <sys/param.h>

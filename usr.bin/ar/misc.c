@@ -37,7 +37,7 @@
 #ifndef lint
 static const char sccsid[] = "@(#)misc.c	8.3 (Berkeley) 4/2/94";
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.bin/ar/misc.c,v 1.6.6.1 2001/08/02 00:51:00 obrien Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>

@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_lckdir_rcsid[] = "$FreeBSD$";
+const char _uuconf_lckdir_rcsid[] = "$FreeBSD: src/gnu/libexec/uucp/libuuconf/lckdir.c,v 1.6 1999/08/27 23:33:24 peter Exp $";
 #endif
 
 /* Get the name of the UUCP lock directory.  */

@@ -33,7 +33,7 @@
  * SUCH DAMAGE.
  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/lib/libc/i386/string/bcopy.S,v 1.6.6.1 2002/06/28 17:34:12 silby Exp $ */
 
 #include <machine/asm.h>
 

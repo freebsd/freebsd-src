@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/libpam/libpam_misc/xstrdup.c,v 1.2.6.2 2001/06/11 15:28:15 markm Exp $ */
 /* $Header: /home/morgan/pam/Linux-PAM-0.53/libpam_misc/RCS/xstrdup.c,v 1.4 1996/11/10 20:10:56 morgan Exp $ */
 
 /*

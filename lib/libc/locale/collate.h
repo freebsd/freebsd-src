@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/locale/collate.h,v 1.9.2.2 2002/08/17 18:48:10 ache Exp $
  */
 
 #ifndef _COLLATE_H_

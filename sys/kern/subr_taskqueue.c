@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/sys/kern/subr_taskqueue.c,v 1.1.2.2 2001/03/31 03:33:44 hsu Exp $
  */
 
 #include <sys/param.h>

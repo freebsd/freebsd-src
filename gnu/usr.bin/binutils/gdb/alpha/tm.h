@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/gnu/usr.bin/binutils/gdb/alpha/tm.h,v 1.2.2.1 2000/07/06 22:08:07 obrien Exp $ */
 /* Definitions to make GDB run on an Alpha box under FreeBSD.  The
    definitions here are used when the _target_ system is running Linux.
    Copyright 1996 Free Software Foundation, Inc.

@@ -35,7 +35,7 @@
  */
 
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+__FBSDID("$FreeBSD: src/lib/libc/locale/setrunelocale.c,v 1.14.6.3 2002/08/12 11:17:38 ache Exp $");
 
 #include <rune.h>
 #include <errno.h>

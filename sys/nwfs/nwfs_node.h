@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/nwfs/nwfs_node.h,v 1.3.2.2 2000/10/25 02:28:42 bp Exp $
  */
 #ifndef _NWFS_NODE_H_
 #define _NWFS_NODE_H_

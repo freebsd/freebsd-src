@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/nullfs/Makefile,v 1.10 1999/12/12 16:47:29 peter Exp $
 
 .PATH:	${.CURDIR}/../../miscfs/nullfs
 KMOD=	null

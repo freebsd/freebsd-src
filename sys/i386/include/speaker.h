@@ -4,7 +4,7 @@
  * v1.4 by Eric S. Raymond (esr@snark.thyrsus.com) Aug 1993
  *      modified for FreeBSD by Andrew A. Chernov <ache@astral.msk.su>
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/include/speaker.h,v 1.6 1999/08/28 00:44:26 peter Exp $
  */
 
 #ifndef	_MACHINE_SPEAKER_H_

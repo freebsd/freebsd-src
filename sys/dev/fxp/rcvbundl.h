@@ -29,7 +29,7 @@ NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE,
 EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. 
 */
 /*
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/fxp/rcvbundl.h,v 1.1.2.1 2001/11/02 16:50:42 jlemon Exp $
  */
 /*
 rcvbundl.h

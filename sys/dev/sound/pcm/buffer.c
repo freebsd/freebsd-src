@@ -28,7 +28,7 @@
 
 #include "feeder_if.h"
 
-SND_DECLARE_FILE("$FreeBSD$");
+SND_DECLARE_FILE("$FreeBSD: src/sys/dev/sound/pcm/buffer.c,v 1.1.2.4 2002/04/22 15:49:35 cg Exp $");
 
 #define	MIN(x, y) (((x) < (y))? (x) : (y))
 

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/alpha/alpha/autoconf.c,v 1.37 1999/12/27 07:51:05 peter Exp $
  */
 
 #include "opt_bootp.h"
