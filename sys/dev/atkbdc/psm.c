@@ -2176,8 +2176,8 @@ psmsoftintr(void *arg)
 	MOUSE_BUTTON1DOWN,
 	MOUSE_BUTTON1DOWN | MOUSE_BUTTON3DOWN
     };
-    static int touchpad_buttons = 0;
-    static int guest_buttons = 0;
+    static int touchpad_buttons;
+    static int guest_buttons;
     register struct psm_softc *sc = arg;
     mousestatus_t ms;
     int w, x, y, z;
