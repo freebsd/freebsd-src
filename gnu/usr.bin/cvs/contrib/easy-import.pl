@@ -8,7 +8,7 @@
 #
 # Written by Jörg Wunsch, 95/03/07, and placed in the public domain.
 #
-# $Id: easy-import.pl,v 1.7 1996/04/28 12:32:43 joerg Exp $
+# $Id: easy-import.pl,v 1.8 1996/08/20 20:37:47 joerg Exp $
 
 require "complete.pl";
 require "getopts.pl";
@@ -22,7 +22,7 @@ sub scan_opts
 
     $dont_do_it = "-n" if $opt_n;
     if($opt_v) {
-	print STDERR '$Source: /home/ncvs/src/gnu/usr.bin/cvs/contrib/easy-import.pl,v $ $Revision: 1.7 $' . "\n"; # 'emacs kludge
+	print STDERR '$Source: /home/ncvs/src/gnu/usr.bin/cvs/contrib/easy-import.pl,v $ $Revision: 1.8 $' . "\n"; # 'emacs kludge
 	exit 0;
     }
     die "usage: $0 [-v] [-n] [moduledir]\n" .
@@ -272,8 +272,8 @@ for(;;) {
 	next;
     }
     last if !$cvsmods{$modname};
-    print "\a${us}This module name does already exist;\n" .
-	"do you intend to create a vendor-branch import?${ue}: ";
+    print "\a${us}This module name does already exist; do you intend to\n" .
+	"perform a vendor-branch import to the existing sources?${ue}: ";
     $rep = <>;
     if ($rep =~ /\s*[yY]/) {
 	($area,$modpath) = split(/\//,$cvsmods{$modname},2);
