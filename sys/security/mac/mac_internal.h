@@ -65,7 +65,6 @@ extern int				mac_late;
 extern int				mac_enforce_network;
 extern int				mac_enforce_process;
 extern int				mac_enforce_socket;
-extern int				mac_enforce_sysv;
 extern int				mac_enforce_vm;
 #ifndef MAC_ALWAYS_LABEL_MBUF
 extern int				mac_labelmbufs;
