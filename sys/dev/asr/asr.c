@@ -3879,7 +3879,7 @@ asr_open(
         s = splcam ();
         if (ASR_ctlr_held) {
                 error = EBUSY;
-        } else if ((error = suser(td->td_proc)) == 0) {
+        } else if ((error = suser(td)) == 0) {
                 ++ASR_ctlr_held;
         }
         splx(s);

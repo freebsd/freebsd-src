@@ -630,7 +630,7 @@ acdioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
             			0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0);
 
     case CDIOCRESET:
-        error = suser_td(td);
+        error = suser(td);
         if (error)
             return (error);
         return acd_request_wait(cdp, ATAPI_TEST_UNIT_READY,

@@ -300,7 +300,7 @@ ntp_adjtime(struct thread *td, struct ntp_adjtime_args *uap)
 	mtx_lock(&Giant);
 	modes = ntv.modes;
 	if (modes)
-		error = suser_td(td);
+		error = suser(td);
 	if (error)
 		goto done2;
 	s = splclock();

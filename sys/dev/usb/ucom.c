@@ -257,7 +257,7 @@ ucomopen(dev_t dev, int flag, int mode, usb_proc_ptr p)
 
 	if (ISSET(tp->t_state, TS_ISOPEN) &&
 	    ISSET(tp->t_state, TS_XCLUDE) &&
-	    suser_td(p))
+	    suser(p))
 		return (EBUSY);
 
 	/*

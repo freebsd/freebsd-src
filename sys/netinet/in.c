@@ -204,7 +204,7 @@ in_control(so, cmd, data, ifp, td)
 	switch (cmd) {
 	case SIOCALIFADDR:
 	case SIOCDLIFADDR:
-		if (td && (error = suser_td(td)) != 0)
+		if (td && (error = suser(td)) != 0)
 			return error;
 		/*fall through*/
 	case SIOCGLIFADDR:
@@ -263,7 +263,7 @@ in_control(so, cmd, data, ifp, td)
 	case SIOCSIFADDR:
 	case SIOCSIFNETMASK:
 	case SIOCSIFDSTADDR:
-		if (td && (error = suser_td(td)) != 0)
+		if (td && (error = suser(td)) != 0)
 			return error;
 
 		if (ifp == 0)
@@ -301,7 +301,7 @@ in_control(so, cmd, data, ifp, td)
 		break;
 
 	case SIOCSIFBRDADDR:
-		if (td && (error = suser_td(td)) != 0)
+		if (td && (error = suser(td)) != 0)
 			return error;
 		/* FALLTHROUGH */
 

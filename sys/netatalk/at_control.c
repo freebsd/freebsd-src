@@ -99,7 +99,7 @@ at_control(struct socket *so, u_long cmd, caddr_t data,
 	/* 
 	 * If we are not superuser, then we don't get to do these ops.
 	 */
-	if ( suser_td(td) ) {
+	if ( suser(td) ) {
 	    return( EPERM );
 	}
 

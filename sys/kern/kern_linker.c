@@ -703,7 +703,7 @@ kldload(struct thread *td, struct kldload_args *uap)
 	if ((error = securelevel_gt(td->td_ucred, 0)) != 0)
 		goto out;
 
-	if ((error = suser_xxx(td->td_ucred, NULL, 0)) != 0)
+	if ((error = suser(td)) != 0)
 		goto out;
 
 	pathname = malloc(MAXPATHLEN, M_TEMP, M_WAITOK);
@@ -750,7 +750,7 @@ kldunload(struct thread *td, struct kldunload_args *uap)
 	if ((error = securelevel_gt(td->td_ucred, 0)) != 0)
 		goto out;
 
-	if ((error = suser_xxx(td->td_ucred, NULL, 0)) != 0)
+	if ((error = suser(td)) != 0)
 		goto out;
 
 	lf = linker_find_file_by_id(SCARG(uap, fileid));

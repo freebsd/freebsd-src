@@ -192,7 +192,7 @@ atm_dgram_control(so, cmd, data, ifp, td)
 		struct atmcfgreq	*acp = (struct atmcfgreq *)data;
 		struct atm_pif		*pip;
 
-		if (td && (suser_td(td) != 0))
+		if (td && (suser(td) != 0))
 			ATM_RETERR(EPERM);
 
 		switch (acp->acr_opcode) {
@@ -225,7 +225,7 @@ atm_dgram_control(so, cmd, data, ifp, td)
 		struct atmaddreq	*aap = (struct atmaddreq *)data;
 		Atm_endpoint		*epp;
 
-		if (td && (suser_td(td) != 0))
+		if (td && (suser(td) != 0))
 			ATM_RETERR(EPERM);
 
 		switch (aap->aar_opcode) {
@@ -275,7 +275,7 @@ atm_dgram_control(so, cmd, data, ifp, td)
 		struct sigmgr		*smp;
 		Atm_endpoint		*epp;
 
-		if (td && (suser_td(td) != 0))
+		if (td && (suser(td) != 0))
 			ATM_RETERR(EPERM);
 
 		switch (adp->adr_opcode) {
@@ -328,7 +328,7 @@ atm_dgram_control(so, cmd, data, ifp, td)
 		struct sigmgr		*smp;
 		struct ifnet		*ifp2;
 
-		if (td && (suser_td(td) != 0))
+		if (td && (suser(td) != 0))
 			ATM_RETERR(EPERM);
 
 		switch (asp->asr_opcode) {

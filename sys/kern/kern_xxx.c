@@ -97,7 +97,7 @@ osethostname(td, uap)
 	name[0] = CTL_KERN;
 	name[1] = KERN_HOSTNAME;
 	mtx_lock(&Giant);
-	if ((error = suser_xxx(0, td->td_proc, PRISON_ROOT)) == 0) {
+	if ((error = suser_cred(td->td_ucred, PRISON_ROOT)) == 0) {
 		error = userland_sysctl(td, name, 2, 0, 0, 0,
 		    uap->hostname, uap->len, 0);
 	}
@@ -143,7 +143,7 @@ osethostid(td, uap)
 	int error;
 
 	mtx_lock(&Giant);
-	if ((error = suser_td(td)))
+	if ((error = suser(td)))
 		hostid = uap->hostid;
 	mtx_unlock(&Giant);
 	return (error);
@@ -298,7 +298,7 @@ setdomainname(td, uap)
         int error, domainnamelen;
 
 	mtx_lock(&Giant);
-        if ((error = suser_td(td)))
+        if ((error = suser(td)))
 		goto done2;
         if ((u_int)uap->len > sizeof (domainname) - 1) {
 		error = EINVAL;

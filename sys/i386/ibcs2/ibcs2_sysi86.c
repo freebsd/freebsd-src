@@ -73,7 +73,7 @@ ibcs2_sysi86(struct thread *td, struct ibcs2_sysi86_args *args)
 	        int name[2];
 	        int error;
 
-		if ((error = suser_td(td)))
+		if ((error = suser(td)))
 		  return (error);
 		name[0] = CTL_KERN;
 		name[1] = KERN_HOSTNAME;

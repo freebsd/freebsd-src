@@ -602,7 +602,7 @@ ripx_attach(so, proto, td)
 	int s;
 	struct ipxpcb *ipxp = sotoipxpcb(so);
 
-	if (td != NULL && (error = suser_td(td)) != 0)
+	if (td != NULL && (error = suser(td)) != 0)
 		return (error);
 	s = splnet();
 	error = ipx_pcballoc(so, &ipxrawpcb, td);

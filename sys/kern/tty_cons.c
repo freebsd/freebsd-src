@@ -456,7 +456,7 @@ cnioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct thread *td)
 	 * output from the "virtual" console.
 	 */
 	if (cmd == TIOCCONS && constty) {
-		error = suser_td(td);
+		error = suser(td);
 		if (error)
 			return (error);
 		constty = NULL;

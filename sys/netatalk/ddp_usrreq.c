@@ -254,7 +254,7 @@ at_pcbsetaddr(struct ddpcb *ddp, struct sockaddr *addr, struct thread *td)
 		return( EINVAL );
 	    }
 	    if ( sat->sat_port < ATPORT_RESERVED &&
-		 suser_td(td) ) {
+		 suser(td) ) {
 		return( EACCES );
 	    }
 	}

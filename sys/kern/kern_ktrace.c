@@ -594,7 +594,7 @@ ktrcanset(callp, targetp)
 {
 
 	if (targetp->p_traceflag & KTRFAC_ROOT &&
-	    suser_xxx(NULL, callp, PRISON_ROOT))
+	    suser_cred(callp->p_ucred, PRISON_ROOT))
 		return (0);
 
 	if (p_candebug(callp, targetp) != 0)

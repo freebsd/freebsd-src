@@ -718,8 +718,7 @@ devfs_setattr(ap)
 	if (uid != de->de_uid || gid != de->de_gid) {
 		if (((ap->a_cred->cr_uid != de->de_uid) || uid != de->de_uid ||
 		    (gid != de->de_gid && !groupmember(gid, ap->a_cred))) &&
-		    (error = suser_xxx(NULL, ap->a_td->td_proc,
-		    PRISON_ROOT)) != 0)
+		    (error = suser_cred(ap->a_td->td_ucred, PRISON_ROOT)) != 0)
 			return (error);
 		de->de_uid = uid;
 		de->de_gid = gid;
@@ -736,21 +735,21 @@ devfs_setattr(ap)
 
 	if (vap->va_mode != (mode_t)VNOVAL) {
 		if ((ap->a_cred->cr_uid != de->de_uid) &&
-		    (error = suser_xxx(NULL, ap->a_td->td_proc, PRISON_ROOT)))
+		    (error = suser_cred(ap->a_td->td_ucred, PRISON_ROOT)))
 			return (error);
 		de->de_mode = vap->va_mode;
 		c = 1;
 	}
 	if (vap->va_atime.tv_sec != VNOVAL) {
 		if ((ap->a_cred->cr_uid != de->de_uid) &&
-		    (error = suser_xxx(NULL, ap->a_td->td_proc, PRISON_ROOT)))
+		    (error = suser_cred(ap->a_td->td_ucred, PRISON_ROOT)))
 			return (error);
 		de->de_atime = vap->va_atime;
 		c = 1;
 	}
 	if (vap->va_mtime.tv_sec != VNOVAL) {
 		if ((ap->a_cred->cr_uid != de->de_uid) &&
-		    (error = suser_xxx(NULL, ap->a_td->td_proc, PRISON_ROOT)))
+		    (error = suser_cred(ap->a_td->td_ucred, PRISON_ROOT)))
 			return (error);
 		de->de_mtime = vap->va_mtime;
 		c = 1;
@@ -776,7 +775,7 @@ devfs_symlink(ap)
 	struct devfs_dirent *de;
 	struct devfs_mount *dmp;
 
-	error = suser(ap->a_cnp->cn_thread->td_proc);
+	error = suser(ap->a_cnp->cn_thread);
 	if (error)
 		return(error);
 	dmp = VFSTODEVFS(ap->a_dvp->v_mount);

@@ -566,7 +566,7 @@ WRITE(ap)
 	 * tampering.
 	 */
 	if (resid > uio->uio_resid && ap->a_cred && 
-	    suser_xxx(ap->a_cred, NULL, PRISON_ROOT))
+	    suser_cred(ap->a_cred, PRISON_ROOT))
 		ip->i_mode &= ~(ISUID | ISGID);
 	if (resid > uio->uio_resid)
 		VN_KNOTE(vp, NOTE_WRITE | (extended ? NOTE_EXTEND : 0));

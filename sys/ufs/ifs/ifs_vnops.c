@@ -269,7 +269,7 @@ ifs_makeinode(mode, dvp, vpp, cnp)
 	if (DOINGSOFTDEP(tvp))
 		softdep_change_linkcnt(ip);
 	if ((ip->i_mode & ISGID) && !groupmember(ip->i_gid, cnp->cn_cred) &&
-	    suser_xxx(cnp->cn_cred, 0, 0))
+	    suser_cred(cnp->cn_cred, 0))
 		ip->i_mode &= ~ISGID;
 
 	if (cnp->cn_flags & ISWHITEOUT)

@@ -1214,7 +1214,7 @@ wlioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	/* pointer to buffer in user space */
 	up = (void *)ifr->ifr_data;
 	/* work out if they're root */
-	isroot = (suser_td(td) == 0);
+	isroot = (suser(td) == 0);
 	
 	for (i = 0; i < 0x40; i++) {
 	    /* don't hand the DES key out to non-root users */
@@ -1229,7 +1229,7 @@ wlioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	/* copy the PSA in from the caller; we only copy _some_ values */
     case SIOCSWLPSA:
 	/* root only */
-	if ((error = suser_td(td)))
+	if ((error = suser(td)))
 	    break;
 	error = EINVAL;	/* assume the worst */
 	/* pointer to buffer in user space containing data */
@@ -1283,7 +1283,7 @@ wlioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	 */
     case SIOCSWLCNWID:
 	/* root only */
-	if ((error = suser_td(td)))
+	if ((error = suser(td)))
 	    break;
 	if (!(ifp->if_flags & IFF_UP)) {
 	    error = EIO;	/* only allowed while up */
@@ -1301,7 +1301,7 @@ wlioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	/* copy the EEPROM in 2.4 Gz WaveMODEM  out to the caller */
     case SIOCGWLEEPROM:
 	/* root only */
-	if ((error = suser_td(td)))
+	if ((error = suser(td)))
 	    break;
 	/* pointer to buffer in user space */
 	up = (void *)ifr->ifr_data;
@@ -1324,7 +1324,7 @@ wlioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	/* zero (Delete) the wl cache */
     case SIOCDWLCACHE:
 	/* root only */
-	if ((error = suser_td(td)))
+	if ((error = suser(td)))
 	    break;
 	wl_cache_zero(unit);
 	break;

@@ -374,7 +374,7 @@ vfs_nmount(td, fsflags, fsoptions)
 	}
 
 	if (usermount == 0) {
-		error = suser_td(td);
+	       	error = suser(td);
 		if (error)
 			goto bad;
 	}
@@ -382,14 +382,14 @@ vfs_nmount(td, fsflags, fsoptions)
 	 * Do not allow NFS export by non-root users.
 	 */
 	if (fsflags & MNT_EXPORTED) {
-		error = suser_td(td);
+		error = suser(td);
 		if (error)
 			goto bad;
 	}
 	/*
 	 * Silently enforce MNT_NOSUID and MNT_NODEV for non-root users.
 	 */
-	if (suser_xxx(td->td_ucred, NULL, 0) != 0) 
+	if (suser(td)) 
 		fsflags |= MNT_NOSUID | MNT_NODEV;
 	/*
 	 * Get vnode to be covered
@@ -423,7 +423,7 @@ vfs_nmount(td, fsflags, fsoptions)
 		 * permitted to update it.
 		 */
 		if (mp->mnt_stat.f_owner != td->td_ucred->cr_uid) {
-			error = suser_td(td);
+			error = suser(td);
 			if (error) {
 				vput(vp);
 				goto bad;
@@ -460,7 +460,7 @@ vfs_nmount(td, fsflags, fsoptions)
 		goto bad;
 	}
 	if (va.va_uid != td->td_ucred->cr_uid) {
-		error = suser_td(td);
+		error = suser(td);
 		if (error) {
 			vput(vp);
 			goto bad;
@@ -480,7 +480,7 @@ vfs_nmount(td, fsflags, fsoptions)
 			break;
 	if (vfsp == NULL) {
 		/* Only load modules for root (very important!). */
-		error = suser_td(td);
+		error = suser(td);
 		if (error) {
 			vput(vp);
 			goto bad;
@@ -722,7 +722,7 @@ vfs_mount(td, fstype, fspath, fsflags, fsdata)
 		return (ENAMETOOLONG);
 
 	if (usermount == 0) {
-		error = suser_td(td);
+		error = suser(td);
 		if (error)
 			return (error);
 	}
@@ -730,14 +730,14 @@ vfs_mount(td, fstype, fspath, fsflags, fsdata)
 	 * Do not allow NFS export by non-root users.
 	 */
 	if (fsflags & MNT_EXPORTED) {
-		error = suser_td(td);
+		error = suser(td);
 		if (error)
 			return (error);
 	}
 	/*
 	 * Silently enforce MNT_NOSUID and MNT_NODEV for non-root users.
 	 */
-	if (suser_xxx(td->td_ucred, NULL, 0) != 0) 
+	if (suser(td)) 
 		fsflags |= MNT_NOSUID | MNT_NODEV;
 	/*
 	 * Get vnode to be covered
@@ -769,7 +769,7 @@ vfs_mount(td, fstype, fspath, fsflags, fsdata)
 		 * permitted to update it.
 		 */
 		if (mp->mnt_stat.f_owner != td->td_ucred->cr_uid) {
-			error = suser_td(td);
+			error = suser(td);
 			if (error) {
 				vput(vp);
 				return (error);
@@ -803,7 +803,7 @@ vfs_mount(td, fstype, fspath, fsflags, fsdata)
 		return (error);
 	}
 	if (va.va_uid != td->td_ucred->cr_uid) {
-		error = suser_td(td);
+		error = suser(td);
 		if (error) {
 			vput(vp);
 			return (error);
@@ -822,7 +822,7 @@ vfs_mount(td, fstype, fspath, fsflags, fsdata)
 			break;
 	if (vfsp == NULL) {
 		/* Only load modules for root (very important!). */
-		error = suser_td(td);
+		error = suser(td);
 		if (error) {
 			vput(vp);
 			return (error);
@@ -1056,7 +1056,7 @@ unmount(td, uap)
 	 * permitted to unmount this filesystem.
 	 */
 	if (mp->mnt_stat.f_owner != td->td_ucred->cr_uid) {
-		error = suser_td(td);
+		error = suser(td);
 		if (error) {
 			vput(vp);
 			return (error);
@@ -1313,7 +1313,7 @@ statfs(td, uap)
 	if (error)
 		return (error);
 	sp->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
-	if (suser_xxx(td->td_ucred, 0, 0)) {
+	if (suser(td)) {
 		bcopy((caddr_t)sp, (caddr_t)&sb, sizeof(sb));
 		sb.f_fsid.val[0] = sb.f_fsid.val[1] = 0;
 		sp = &sb;
@@ -1356,7 +1356,7 @@ fstatfs(td, uap)
 	if (error)
 		return (error);
 	sp->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
-	if (suser_xxx(td->td_ucred, 0, 0)) {
+	if (suser(td)) {
 		bcopy((caddr_t)sp, (caddr_t)&sb, sizeof(sb));
 		sb.f_fsid.val[0] = sb.f_fsid.val[1] = 0;
 		sp = &sb;
@@ -1585,7 +1585,7 @@ chroot(td, uap)
 	struct nameidata nd;
 	struct vnode *vp;
 
-	error = suser_xxx(0, td->td_proc, PRISON_ROOT);
+	error = suser_cred(td->td_ucred, PRISON_ROOT);
 	if (error)
 		return (error);
 	FILEDESC_LOCK(fdp);
@@ -1868,10 +1868,10 @@ mknod(td, uap)
 	switch (SCARG(uap, mode) & S_IFMT) {
 	case S_IFCHR:
 	case S_IFBLK:
-		error = suser_td(td);
+		error = suser(td);
 		break;
 	default:
-		error = suser_xxx(0, td->td_proc, PRISON_ROOT);
+		error = suser_cred(td->td_ucred, PRISON_ROOT);
 		break;
 	}
 	if (error)
@@ -2831,7 +2831,7 @@ setfflags(td, vp, flags)
 	 * chown can't fail when done as root.
 	 */
 	if (vp->v_type == VCHR || vp->v_type == VBLK) {
-		error = suser_xxx(td->td_ucred, td->td_proc, PRISON_ROOT);
+		error = suser_cred(td->td_ucred, PRISON_ROOT);
 		if (error)
 			return (error);
 	}
@@ -4089,7 +4089,7 @@ revoke(td, uap)
 	}
 	VOP_UNLOCK(vp, 0, td);
 	if (td->td_ucred->cr_uid != vattr.va_uid) {
-		error = suser_xxx(0, td->td_proc, PRISON_ROOT);
+		error = suser_cred(td->td_ucred, PRISON_ROOT);
 		if (error)
 			goto out;
 	}
@@ -4158,7 +4158,7 @@ getfh(td, uap)
 	/*
 	 * Must be super user
 	 */
-	error = suser_td(td);
+	error = suser(td);
 	if (error)
 		return (error);
 	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF, UIO_USERSPACE, uap->fname, td);
@@ -4214,7 +4214,7 @@ fhopen(td, uap)
 	/*
 	 * Must be super user
 	 */
-	error = suser_td(td);
+	error = suser(td);
 	if (error)
 		return (error);
 
@@ -4390,7 +4390,7 @@ fhstat(td, uap)
 	/*
 	 * Must be super user
 	 */
-	error = suser_td(td);
+	error = suser(td);
 	if (error)
 		return (error);
 	
@@ -4437,7 +4437,7 @@ fhstatfs(td, uap)
 	/*
 	 * Must be super user
 	 */
-	error = suser_td(td);
+	error = suser(td);
 	if (error)
 		return (error);
 
@@ -4454,7 +4454,7 @@ fhstatfs(td, uap)
 	if ((error = VFS_STATFS(mp, sp, td)) != 0)
 		return (error);
 	sp->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
-	if (suser_xxx(td->td_ucred, 0, 0)) {
+	if (suser(td)) {
 		bcopy((caddr_t)sp, (caddr_t)&sb, sizeof(sb));
 		sb.f_fsid.val[0] = sb.f_fsid.val[1] = 0;
 		sp = &sb;

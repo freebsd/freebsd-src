@@ -1013,7 +1013,7 @@ ibcs2_plock(td, uap)
 #define IBCS2_DATALOCK	4
 
 	
-        if ((error = suser_td(td)) != 0)
+        if ((error = suser(td)) != 0)
                 return EPERM;
 	switch(SCARG(uap, cmd)) {
 	case IBCS2_UNLOCK:
@@ -1048,7 +1048,7 @@ ibcs2_uadmin(td, uap)
 #define SCO_AD_GETBMAJ      0
 #define SCO_AD_GETCMAJ      1
 
-        if (suser_td(td))
+        if (suser(td))
                 return EPERM;
 
 	switch(SCARG(uap, cmd)) {

@@ -345,7 +345,7 @@ div_attach(struct socket *so, int proto, struct thread *td)
 	inp  = sotoinpcb(so);
 	if (inp)
 		panic("div_attach");
-	if (td && (error = suser_td(td)) != 0)
+	if (td && (error = suser(td)) != 0)
 		return error;
 
 	error = soreserve(so, div_sendspace, div_recvspace);

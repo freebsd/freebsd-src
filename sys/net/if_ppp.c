@@ -376,7 +376,7 @@ pppioctl(sc, cmd, data, flag, td)
 	break;
 
     case PPPIOCSFLAGS:
-	if ((error = suser(p)) != 0)
+	if ((error = suser(td)) != 0)
 	    break;
 	flags = *(int *)data & SC_MASK;
 	s = splsoftnet();
@@ -390,7 +390,7 @@ pppioctl(sc, cmd, data, flag, td)
 	break;
 
     case PPPIOCSMRU:
-	if ((error = suser(p)) != 0)
+	if ((error = suser(td)) != 0)
 	    return (error);
 	mru = *(int *)data;
 	if (mru >= PPP_MRU && mru <= PPP_MAXMRU)
@@ -403,7 +403,7 @@ pppioctl(sc, cmd, data, flag, td)
 
 #ifdef VJC
     case PPPIOCSMAXCID:
-	if ((error = suser(p)) != 0)
+	if ((error = suser(td)) != 0)
 	    break;
 	if (sc->sc_comp) {
 	    s = splsoftnet();
@@ -414,14 +414,14 @@ pppioctl(sc, cmd, data, flag, td)
 #endif
 
     case PPPIOCXFERUNIT:
-	if ((error = suser(p)) != 0)
+	if ((error = suser(td)) != 0)
 	    break;
 	sc->sc_xfer = p->p_pid;
 	break;
 
 #ifdef PPP_COMPRESS
     case PPPIOCSCOMPRESS:
-	if ((error = suser(p)) != 0)
+	if ((error = suser(td)) != 0)
 	    break;
 	odp = (struct ppp_option_data *) data;
 	nb = odp->length;
@@ -497,7 +497,7 @@ pppioctl(sc, cmd, data, flag, td)
 	if (cmd == PPPIOCGNPMODE) {
 	    npi->mode = sc->sc_npmode[npx];
 	} else {
-	    if ((error = suser(p)) != 0)
+	    if ((error = suser(td)) != 0)
 		break;
 	    if (npi->mode != sc->sc_npmode[npx]) {
 		s = splsoftnet();
@@ -573,7 +573,7 @@ pppsioctl(ifp, cmd, data)
     u_long cmd;
     caddr_t data;
 {
-    struct proc *p = curproc;	/* XXX */
+    struct thread *td = curthread;	/* XXX */
     register struct ppp_softc *sc = &ppp_softc[ifp->if_unit];
     register struct ifaddr *ifa = (struct ifaddr *)data;
     register struct ifreq *ifr = (struct ifreq *)data;
@@ -623,7 +623,7 @@ pppsioctl(ifp, cmd, data)
 	break;
 
     case SIOCSIFMTU:
-	if ((error = suser(p)) != 0)
+	if ((error = suser(td)) != 0)
 	    break;
 	if (ifr->ifr_mtu > PPP_MAXMTU)
 	    error = EINVAL;

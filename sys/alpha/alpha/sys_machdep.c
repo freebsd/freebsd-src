@@ -118,7 +118,7 @@ alpha_sethae(struct thread *td, char *args)
 	if (error)
 		return (error);
 
-	error = suser(td->td_proc);
+	error = suser(td);
 	if (error)
 		return (error);
 

@@ -718,7 +718,7 @@ open_top:
 			}
 		}
 		if (tp->t_state & TS_XCLUDE &&
-		    suser_td(td)) {
+		    suser(td)) {
 			error = EBUSY;
 			goto out;
 		}
@@ -1637,7 +1637,7 @@ sioioctl(dev, cmd, data, flag, td)
 		}
 		switch (cmd) {
 		case TIOCSETA:
-			error = suser_td(td);
+			error = suser(td);
 			if (error != 0)
 				return (error);
 			*ct = *(struct termios *)data;
@@ -1736,7 +1736,7 @@ sioioctl(dev, cmd, data, flag, td)
 		break;
 	case TIOCMSDTRWAIT:
 		/* must be root since the wait applies to following logins */
-		error = suser_td(td);
+		error = suser(td);
 		if (error != 0) {
 			splx(s);
 			return (error);

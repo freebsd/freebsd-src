@@ -233,7 +233,7 @@ kldload(struct thread* td, struct kldload_args* uap)
 
     mtx_lock(&Giant);
 
-    if ((error = suser_td(td)) != 0)
+    if ((error = suser(td)) != 0)
 	goto out;
 
     pathname = malloc(MAXPATHLEN, M_TEMP, M_WAITOK);
@@ -384,7 +384,7 @@ unmount(td, uap)
 	if (!mediate_subject_at_level("unmount", td->td_proc,
 	    LOMAC_HIGHEST_LEVEL) ||
 	    ((mp->mnt_stat.f_owner != td->td_ucred->cr_uid) &&
-	    (error = suser_td(td)))) {
+	    (error = suser(td)))) {
 		vput(vp);
 		return (error);
 	}
