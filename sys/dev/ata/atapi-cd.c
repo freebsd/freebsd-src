@@ -483,9 +483,17 @@ msf2lba(u_int8_t m, u_int8_t s, u_int8_t f)
 static int
 acdopen(dev_t dev, int32_t flags, int32_t fmt, struct proc *p)
 {
-    struct acd_softc *cdp = dev->si_drv1;
+    struct acd_softc *cdp;
+    int track = (dev->si_udev & 0x00ff0000) >> 16;
 
-    if (!cdp)
+    if (track) {
+	dev_t dev1 = makedev(major(dev), (dev->si_udev & 0xff0000ff));
+
+	if (track < ((struct acd_softc *)(dev1->si_drv1))->toc.hdr.ending_track)
+	    dev->si_drv1 = dev1->si_drv1;
+    }
+
+    if (!(cdp = dev->si_drv1))
 	return ENXIO;
 
     if (flags & FWRITE) {
@@ -513,6 +521,9 @@ acdclose(dev_t dev, int32_t flags, int32_t fmt, struct proc *p)
 {
     struct acd_softc *cdp = dev->si_drv1;
     
+    if (!cdp)
+	return ENXIO;
+
     if (count_dev(dev) == 1) {
 	if (cdp->changer_info && cdp->slot != cdp->changer_info->current_slot) {
 	    acd_select_slot(cdp);
@@ -529,6 +540,9 @@ acdioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flags, struct proc *p)
 {
     struct acd_softc *cdp = dev->si_drv1;
     int32_t error = 0;
+
+    if (!cdp)
+	return ENXIO;
 
     if (cdp->changer_info && cdp->slot != cdp->changer_info->current_slot) {
 	acd_select_slot(cdp);
@@ -1079,6 +1093,7 @@ acd_start(struct atapi_softc *atp)
     struct bio *bp = bioq_first(&cdp->bio_queue);
     u_int32_t lba, count;
     int8_t ccb[16];
+    int track, blocksize;
 
     if (cdp->changer_info) {
 	int i;
@@ -1111,8 +1126,18 @@ acd_start(struct atapi_softc *atp)
     }
 
     bzero(ccb, sizeof(ccb));
-    count = (bp->bio_bcount + (cdp->block_size - 1)) / cdp->block_size;
+
     lba = bp->bio_offset / cdp->block_size;
+    track = ((bp->bio_dev->si_udev & 0x00ff0000) >> 16) - 1;
+
+    if (track) {
+	lba += ntohl(cdp->toc.tab[track].addr.lba);
+	blocksize = (cdp->toc.tab[track].control & 4) ? 2048 : 2352;
+    }
+    else
+	blocksize = cdp->block_size;
+
+    count = (bp->bio_bcount + (blocksize - 1)) / blocksize;
 
     if (bp->bio_cmd == BIO_READ) {
 	/* if transfer goes beyond EOM adjust it to be within limits */
@@ -1124,7 +1149,7 @@ acd_start(struct atapi_softc *atp)
 		return;
 	    }
 	}
-	if (cdp->block_size == 2048)
+	if (blocksize == 2048)
 	    ccb[0] = ATAPI_READ_BIG;
 	else {
 	    ccb[0] = ATAPI_READ_CD;
@@ -1144,7 +1169,7 @@ acd_start(struct atapi_softc *atp)
 
     devstat_start_transaction(cdp->stats);
 
-    atapi_queue_cmd(cdp->atp, ccb, bp->bio_data, count * cdp->block_size,
+    atapi_queue_cmd(cdp->atp, ccb, bp->bio_data, count * blocksize,
 		    bp->bio_cmd == BIO_READ ? ATPR_F_READ : 0, 30, acd_done,bp);
 }
 
@@ -1215,6 +1240,7 @@ acd_read_toc(struct acd_softc *cdp)
 
     cdp->info.volsize = ntohl(cdp->info.volsize);
     cdp->info.blksize = ntohl(cdp->info.blksize);
+    cdp->block_size = (cdp->toc.tab[0].control & 4) ? 2048 : 2352;
 
 #ifdef ACD_DEBUG
     if (cdp->info.volsize && cdp->toc.hdr.ending_track) {
