@@ -65,6 +65,7 @@ device		atkbd
 device		vga			# VGA screen
 
 # syscons is the default console driver, resembling an SCO console
+
 device		sc	1
 
 # Floating point support - do not disable.
@@ -94,12 +95,12 @@ device	miibus
 #device		de		# DEC/Intel DC21x4x (``Tulip'')
 device		lnc
 device		fxp		# Intel EtherExpress PRO/100B (82557, 82558)
-device		xl		# 3Com
+#device		xl		# 3Com
 device		rl		# RealTek 8129/8139
-device		vx		# 3Com 3c590, 3c595 (``Vortex'')
+#device		vx		# 3Com 3c590, 3c595 (``Vortex'')
 #device		wx		# Intel Gigabit Ethernet Card (``Wiseman'')
 device		dc		# DEC/Intel 21143 and various workalikes
-device		ed
+#device		ed
 
 device		loop		# Network loopback
 device		ether		# Ethernet support
