@@ -7,4 +7,5 @@ CFLAGS+=	-I${X11BASE}/include
 LDDESTDIR+=	-L${X11BASE}/lib
 LDADD+=		-lX11 -lm
 
+.include "../../Makefile.inc"
 .include <bsd.prog.mk>
