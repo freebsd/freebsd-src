@@ -140,7 +140,7 @@ sharedstatedir = @sharedstatedir@
 sysconfdir = @sysconfdir@
 target_alias = @target_alias@
 
-man_MANS = cvs.1 cvs.5 cvsbug.8
+man_MANS = cvs.5 cvsbug.8
 EXTRA_DIST = \
 	.cvsignore \
 	$(man_MANS)
@@ -164,53 +164,6 @@ $(srcdir)/Makefile.in: @MAINTAINER_MODE_TRUE@ Makefile.am  $(top_srcdir)/configu
 Makefile: @MAINTAINER_MODE_TRUE@ $(srcdir)/Makefile.in  $(top_builddir)/config.status
 	cd $(top_builddir) && $(SHELL) ./config.status $(subdir)/$@ $(am__depfiles_maybe)
 uninstall-info-am:
-
-man1dir = $(mandir)/man1
-install-man1: $(man1_MANS) $(man_MANS)
-	@$(NORMAL_INSTALL)
-	$(mkinstalldirs) $(DESTDIR)$(man1dir)
-	@list='$(man1_MANS) $(dist_man1_MANS) $(nodist_man1_MANS)'; \
-	l2='$(man_MANS) $(dist_man_MANS) $(nodist_man_MANS)'; \
-	for i in $$l2; do \
-	  case "$$i" in \
-	    *.1*) list="$$list $$i" ;; \
-	  esac; \
-	done; \
-	for i in $$list; do \
-	  if test -f $(srcdir)/$$i; then file=$(srcdir)/$$i; \
-	  else file=$$i; fi; \
-	  ext=`echo $$i | sed -e 's/^.*\\.//'`; \
-	  case "$$ext" in \
-	    1*) ;; \
-	    *) ext='1' ;; \
-	  esac; \
-	  inst=`echo $$i | sed -e 's/\\.[0-9a-z]*$$//'`; \
-	  inst=`echo $$inst | sed -e 's/^.*\///'`; \
-	  inst=`echo $$inst | sed '$(transform)'`.$$ext; \
-	  echo " $(INSTALL_DATA) $$file $(DESTDIR)$(man1dir)/$$inst"; \
-	  $(INSTALL_DATA) $$file $(DESTDIR)$(man1dir)/$$inst; \
-	done
-uninstall-man1:
-	@$(NORMAL_UNINSTALL)
-	@list='$(man1_MANS) $(dist_man1_MANS) $(nodist_man1_MANS)'; \
-	l2='$(man_MANS) $(dist_man_MANS) $(nodist_man_MANS)'; \
-	for i in $$l2; do \
-	  case "$$i" in \
-	    *.1*) list="$$list $$i" ;; \
-	  esac; \
-	done; \
-	for i in $$list; do \
-	  ext=`echo $$i | sed -e 's/^.*\\.//'`; \
-	  case "$$ext" in \
-	    1*) ;; \
-	    *) ext='1' ;; \
-	  esac; \
-	  inst=`echo $$i | sed -e 's/\\.[0-9a-z]*$$//'`; \
-	  inst=`echo $$inst | sed -e 's/^.*\///'`; \
-	  inst=`echo $$inst | sed '$(transform)'`.$$ext; \
-	  echo " rm -f $(DESTDIR)$(man1dir)/$$inst"; \
-	  rm -f $(DESTDIR)$(man1dir)/$$inst; \
-	done
 
 man5dir = $(mandir)/man5
 install-man5: $(man5_MANS) $(man_MANS)
@@ -348,7 +301,7 @@ check: check-am
 all-am: Makefile $(MANS)
 
 installdirs:
-	$(mkinstalldirs) $(DESTDIR)$(man1dir) $(DESTDIR)$(man5dir) $(DESTDIR)$(man8dir)
+	$(mkinstalldirs) $(DESTDIR)$(man5dir) $(DESTDIR)$(man8dir)
 install: install-am
 install-exec: install-exec-am
 install-data: install-data-am
@@ -395,7 +348,7 @@ install-exec-am:
 
 install-info: install-info-am
 
-install-man: install-man1 install-man5 install-man8
+install-man: install-man5 install-man8
 
 installcheck-am:
 
@@ -417,17 +370,17 @@ ps-am:
 
 uninstall-am: uninstall-info-am uninstall-man
 
-uninstall-man: uninstall-man1 uninstall-man5 uninstall-man8
+uninstall-man: uninstall-man5 uninstall-man8
 
 .PHONY: all all-am check check-am clean clean-generic distclean \
 	distclean-generic distdir dvi dvi-am info info-am install \
 	install-am install-data install-data-am install-exec \
 	install-exec-am install-info install-info-am install-man \
-	install-man1 install-man5 install-man8 install-strip \
-	installcheck installcheck-am installdirs maintainer-clean \
+	install-man5 install-man8 install-strip installcheck \
+	installcheck-am installdirs maintainer-clean \
 	maintainer-clean-generic mostlyclean mostlyclean-generic pdf \
 	pdf-am ps ps-am uninstall uninstall-am uninstall-info-am \
-	uninstall-man uninstall-man1 uninstall-man5 uninstall-man8
+	uninstall-man uninstall-man5 uninstall-man8
 
 
 # for backwards compatibility with the old makefiles

@@ -1,3 +1,31 @@
+2004-05-28  Derek Price  <derek@ximbiot.com>
+
+	* xsize.h: New file from GNULIB.
+	* Makefile.am (libcvs_a_SOURCES): Add xsize.h.
+
+2004-05-15  Derek Price  <derek@ximbiot.com>
+
+	* libcvs.dsp: Header file list updated.
+	* libcvs.dep: Regenerated for "libcvs.dsp" changes.
+	* libcvs.mak: Regenerated for "libcvs.dsp" changes.
+	(Patch from Conrad Pino <conrad@pino.com>.)
+
+2004-05-13  Derek Price  <derek@ximbiot.com>
+
+	* .cvsignore: Changed for "libcvs.dsp" changes.
+	* libcvs.dsp: Added for "../cvsnt.dsw" changes.
+	* libcvs.dep: Added for "libcvs.dsp" addition.
+	* libcvs.mak: Added for "libcvs.dsp" addition.
+	(Patch from Conrad Pino <conrad@pino.com>.)
+
+2004-04-20  Derek Price  <derek@ximbiot.com>
+
+	* system.h: Correct comments.
+
+2004-04-19  Derek Price  <derek@ximbiot.com>
+
+	* system.h: Gratuitous reformatting.
+
 2004-04-07  Derek Price  <derek@ximbiot.com>
 
 	* regex.c: Revise "FREE_VAR" macro to eliminate C4090/C4022 warnings
