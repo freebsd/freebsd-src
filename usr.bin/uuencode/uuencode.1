@@ -32,7 +32,7 @@
 .\"     @(#)uuencode.1	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd June 6, 1993
+.Dd January 27, 2002
 .Dt UUENCODE 1
 .Os
 .Sh NAME
@@ -41,11 +41,17 @@
 .Nd encode/decode a binary file
 .Sh SYNOPSIS
 .Nm
+.Op Fl m
+.Op Fl o Ar output_file
 .Op Ar file
 .Ar name
 .Nm uudecode
 .Op Fl cips
 .Op Ar
+.Nm uudecode
+.Op Fl i
+.Fl o Ar output_file
+.Op Ar file
 .Sh DESCRIPTION
 .Nm Uuencode
 and
@@ -59,7 +65,9 @@ data.
 reads
 .Ar file
 (or by default the standard input) and writes an encoded version
-to the standard output.
+to the standard output, or
+.Ar output_file
+if one has been specified.
 The encoding uses only printing
 .Tn ASCII
 characters and includes the
@@ -72,12 +80,28 @@ for use by
 transforms
 .Em uuencoded
 files (or by default, the standard input) into the original form.
-The resulting file is named
+The resulting file is named either
 .Ar name
+or (depending on options passed to
+.Nm uudecode )
+.Ar output_file
 and will have the mode of the original file except that setuid
 and execute bits are not retained.
 .Nm Uudecode
 ignores any leading and trailing lines.
+.Pp
+The following options are available for
+.Nm :
+.Bl -tag -width ident
+.It Fl m
+Use the Base64 method of encoding, rather than the traditional
+.Nm
+algorithm.
+.It Fl o Ar output_file
+Output to
+.Ar output_file
+instead of standard output.
+.El
 .Pp
 The following options are available for
 .Nm uudecode :
@@ -88,6 +112,10 @@ Decode more than one uuencode'd file from
 if possible.
 .It Fl i
 Do not overwrite files.
+.It Fl o Ar output_file
+Output to
+.Ar output_file
+instead of any pathname contained in the input data.
 .It Fl p
 Decode
 .Ar file
@@ -124,7 +152,7 @@ The following example extract a compress'ed tar
 archive from your mailbox
 .Pp
 .Bd -literal -offset indent -compact
-uudecode -p < $MAIL | zcat | tar xfv -
+uudecode -o /dev/stdout < $MAIL | zcat | tar xfv -
 .Ed
 .Sh SEE ALSO
 .Xr basename 1 ,
