@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)lfs_vfsops.c	8.20 (Berkeley) 6/10/95
- * $Id: lfs_vfsops.c,v 1.23 1997/10/10 18:17:21 phk Exp $
+ * $Id: lfs_vfsops.c,v 1.24 1997/10/12 20:26:17 phk Exp $
  */
 
 #include "opt_quota.h"
@@ -115,7 +115,7 @@ lfs_mountroot()
 		return (error);
 	}
 	simple_lock(&mountlist_slock);
-	CIRCLEQ_INSERT_TAIL(&mountlist, mp, mnt_list);
+	CIRCLEQ_INSERT_HEAD(&mountlist, mp, mnt_list);
 	simple_unlock(&mountlist_slock);
 	(void)lfs_statfs(mp, &mp->mnt_stat, p);
 	vfs_unbusy(mp, p);

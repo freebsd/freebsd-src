@@ -166,7 +166,7 @@ ext2_mountroot()
 		return (error);
 	}
 #if defined(__FreeBSD__)
-	CIRCLEQ_INSERT_TAIL(&mountlist, mp, mnt_list);
+	CIRCLEQ_INSERT_HEAD(&mountlist, mp, mnt_list);
 #else
 	TAILQ_INSERT_TAIL(&mountlist, mp, mnt_list);
 #endif
