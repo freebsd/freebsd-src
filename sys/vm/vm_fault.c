@@ -66,7 +66,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_fault.c,v 1.21 1995/03/27 02:41:00 davidg Exp $
+ * $Id: vm_fault.c,v 1.22 1995/04/09 06:03:48 davidg Exp $
  */
 
 /*
@@ -92,7 +92,6 @@ int vm_fault_additional_pages __P((vm_object_t, vm_offset_t, vm_page_t, int, int
 #define VM_FAULT_READ_BEHIND 3
 #define VM_FAULT_READ (VM_FAULT_READ_AHEAD+VM_FAULT_READ_BEHIND+1)
 extern int swap_pager_full;
-extern int vm_pageout_proc_limit;
 
 struct vnode *vnode_pager_lock __P((vm_object_t object));
 void vnode_pager_unlock __P((struct vnode *));
