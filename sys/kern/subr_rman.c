@@ -122,11 +122,8 @@ rman_manage_region(struct rman *rm, u_long start, u_long end)
 	r = malloc(sizeof *r, M_RMAN, M_NOWAIT | M_ZERO);
 	if (r == 0)
 		return ENOMEM;
-	r->r_sharehead = 0;
 	r->r_start = start;
 	r->r_end = end;
-	r->r_flags = 0;
-	r->r_dev = 0;
 	r->r_rm = rm;
 
 	mtx_lock(rm->rm_mtx);
@@ -253,7 +250,6 @@ rman_reserve_resource(struct rman *rm, u_long start, u_long end, u_long count,
 			rv->r_end = rstart + count - 1;
 			rv->r_flags = flags | RF_ALLOCATED;
 			rv->r_dev = dev;
-			rv->r_sharehead = 0;
 			rv->r_rm = rm;
 			
 			if (s->r_start < rv->r_start && s->r_end > rv->r_end) {
@@ -274,8 +270,6 @@ rman_reserve_resource(struct rman *rm, u_long start, u_long end, u_long count,
 				r->r_start = rv->r_end + 1;
 				r->r_end = s->r_end;
 				r->r_flags = s->r_flags;
-				r->r_dev = 0;
-				r->r_sharehead = 0;
 				r->r_rm = rm;
 				s->r_end = rv->r_start - 1;
 				TAILQ_INSERT_AFTER(&rm->rm_list, s, rv,
