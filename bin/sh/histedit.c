@@ -208,6 +208,7 @@ histcmd(int argc, char **argv)
 		error("missing history argument");
 
 	optreset = 1; optind = 1; /* initialize getopt */
+	opterr = 0;
 	while (not_fcnumber(argv[optind]) &&
 	      (ch = getopt(argc, argv, ":e:lnrs")) != -1)
 		switch ((char)ch) {
