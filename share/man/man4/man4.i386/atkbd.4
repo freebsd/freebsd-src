@@ -1,0 +1,104 @@
+.\"
+.\" Copyright (c) 1999
+.\" Kazutaka YOKOTA <yokota@zodiac.mech.utsunomiya-u.ac.jp>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer as
+.\"    the first lines of this file unmodified.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+.\" IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+.\" OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+.\" IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+.\" INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+.\" NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+.\" DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+.\" THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+.\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+.\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $Id: $
+.\"
+.Dd February 6, 1999
+.Dt ATKBD 4 i386
+.Os FreeBSD
+.Sh NAME
+.Nm atkbd
+.Nd
+the AT keyboard interface
+.Sh SYNOPSIS
+.Cd "device atkbd0 at isa? tty irq 1"
+.Sh DESCRIPTION
+The
+.Nm
+driver, together with the
+.Nm atkbdc
+driver, provides access to the AT 84 keyboard or the AT enhanced keyboard
+which is connected to the AT keyboard controller.
+.Pp
+This driver is required for the console drivers
+.Xr syscons 4 
+and 
+.Xr pcvt 4 .
+.Pp
+There can be only one 
+.Nm
+device in the system and the keyboard controller
+.Nm atkbdc
+must be configured in the kernel too.
+.Sh DRIVER CONFIGURATION
+.\".Ss Kernel Configuration Options
+.Ss Driver Flags
+The
+.Nm
+driver accepts the following driver flags. Set them in the 
+kernel configuration file or in the User Configuration Menu at
+the boot time 
+.Pq see Xr boot 8 .
+.Bl -tag -width MOUSE
+.It bit 0 FAIL_IF_NO_KBD
+By default the
+.Nm
+driver will install even if a keyboard is not actually connected to the
+system.
+This option makes the driver not install in such situation.
+.It bit 1 NO_RESET
+When this option is given, the
+.Nm
+driver will not reset the keyboard when initializing it.
+It may be useful for laptop computers whose function keys
+have special features and these features are somewhat lost when the
+keyboard is reset.
+.It bit 2 ALT_SCANCODESET
+Certain keyboards, such as those on some ThinkPad models, behave 
+like the old XT keyboard and require this option.
+.El
+.\".Sh FILES
+.\".Sh EXAMPLE
+.\".Sh DIAGNOSTICS
+.\".Sh CAVEATS
+.\".Sh BUGS
+.Sh SEE ALSO
+.Xr atkbdc 4 ,
+.Xr pcvt 4 ,
+.Xr psm 4 .
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 3.1 .
+.Sh AUTHORS
+The
+.Nm
+driver is based on keyboard I/O routines in the console driver
+code written by
+.An Søren Schmidt Aq sos@FreeBSD.org .
+This manual page was written by
+.An Kazutaka Yokota Aq yokota@FreeBSD.org .
