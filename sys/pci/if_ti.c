@@ -120,6 +120,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sockio.h>
 #include <sys/uio.h>
 #include <sys/lock.h>
+#include <sys/sf_buf.h>
 #include <vm/vm_extern.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
@@ -131,7 +132,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_object.h>
 #include <vm/vm_kern.h>
 #include <sys/proc.h>
-#include <sys/jumbo.h>
 #endif /* !TI_PRIVATE_JUMBOS */
 
 #include <dev/pci/pcireg.h>
@@ -1251,8 +1251,9 @@ ti_newbuf_jumbo(sc, idx, m_old)
 	struct mbuf		*m[3] = {NULL, NULL, NULL};
 	struct ti_rx_desc_ext	*r;
 	vm_page_t		frame;
+	static int		color;
 				/* 1 extra buf to make nobufs easy*/
-	caddr_t			buf[3] = {NULL, NULL, NULL};
+	struct sf_buf		*sf[3] = {NULL, NULL, NULL};
 	int			i;
 
 	if (m_old != NULL) {
@@ -1291,20 +1292,33 @@ ti_newbuf_jumbo(sc, idx, m_old)
 				       "-- packet dropped!\n", sc->ti_unit);
 				goto nobufs;
 			}
-			if (!(frame = jumbo_pg_alloc())){
+			frame = vm_page_alloc(NULL, color++,
+			    VM_ALLOC_INTERRUPT | VM_ALLOC_NOOBJ |
+			    VM_ALLOC_WIRED);
+			if (frame == NULL) {
 				printf("ti%d: buffer allocation failed "
 				       "-- packet dropped!\n", sc->ti_unit);
 				printf("      index %d page %d\n", idx, i);
 				goto nobufs;
 			}
-			buf[i] = jumbo_phys_to_kva(VM_PAGE_TO_PHYS(frame));
+			sf[i] = sf_buf_alloc(frame, SFB_NOWAIT);
+			if (sf[i] == NULL) {
+				vm_page_lock_queues();
+				vm_page_unwire(frame, 0);
+				vm_page_free(frame);
+				vm_page_unlock_queues();
+				printf("ti%d: buffer allocation failed "
+				       "-- packet dropped!\n", sc->ti_unit);
+				printf("      index %d page %d\n", idx, i);
+				goto nobufs;
+			}
 		}
 		for (i = 0; i < NPAYLOAD; i++){
 		/* Attach the buffer to the mbuf. */
-			m[i]->m_data = (void *)buf[i];
+			m[i]->m_data = (void *)sf_buf_kva(sf[i]);
 			m[i]->m_len = PAGE_SIZE;
-			MEXTADD(m[i], (void *)buf[i], PAGE_SIZE,
-				jumbo_freem, NULL, 0, EXT_DISPOSABLE);
+			MEXTADD(m[i], sf_buf_kva(sf[i]), PAGE_SIZE,
+			    sf_buf_mext, sf[i], 0, EXT_DISPOSABLE);
 			m[i]->m_next = m[i+1];
 		}
 		/* link the buffers to the header */
@@ -1360,8 +1374,8 @@ nobufs:
 	for (i = 0; i < 3; i++) {
 		if (m[i])
 			m_freem(m[i]);
-		if (buf[i])
-			jumbo_pg_free((vm_offset_t)buf[i]);
+		if (sf[i])
+			sf_buf_mext((void *)sf_buf_kva(sf[i]), sf[i]);
 	}
 	return (ENOBUFS);
 }
@@ -2114,12 +2128,6 @@ ti_attach(dev)
 	if (ti_alloc_jumbo_mem(sc)) {
 		printf("ti%d: jumbo buffer allocation failed\n", sc->ti_unit);
 		error = ENXIO;
-		goto fail;
-	}
-#else
-	if (!jumbo_vm_init()) {
-		printf("ti%d: VM initialization failed!\n", sc->ti_unit);
-		error = ENOMEM;
 		goto fail;
 	}
 #endif
