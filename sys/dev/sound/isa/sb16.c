@@ -209,7 +209,7 @@ sb_cmd2(struct sb_info *sb, u_char cmd, int val)
 #if 0
     	printf("sb_cmd2: %x, %x\n", cmd, val);
 #endif
-	sb_lock(sb);
+	sb_lockassert(sb);
 	r = 0;
     	if (sb_dspwr(sb, cmd)) {
 		if (sb_dspwr(sb, val & 0xff)) {
@@ -218,7 +218,6 @@ sb_cmd2(struct sb_info *sb, u_char cmd, int val)
 			}
 		}
     	}
-	sb_unlock(sb);
 
 	return r;
 }
@@ -243,12 +242,11 @@ sb_getmixer(struct sb_info *sb, u_int port)
 {
     	int val;
 
-	sb_lock(sb);
+    	sb_lockassert(sb);
     	sb_wr(sb, SB_MIX_ADDR, (u_char) (port & 0xff)); /* Select register */
     	DELAY(10);
     	val = sb_rd(sb, SB_MIX_DATA);
     	DELAY(10);
-	sb_unlock(sb);
 
     	return val;
 }
