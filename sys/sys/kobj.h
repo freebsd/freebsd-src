@@ -105,6 +105,12 @@ struct kobj_class name ## _class = {		\
 void		kobj_class_compile(kobj_class_t cls);
 
 /*
+ * Compile the method table, with the caller providing the space for
+ * the ops table.(for use before malloc is initialised).
+ */
+void		kobj_class_compile_static(kobj_class_t cls, kobj_ops_t ops);
+
+/*
  * Free the compiled method table in a class.
  */
 void		kobj_class_free(kobj_class_t cls);
