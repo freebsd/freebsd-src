@@ -1994,6 +1994,11 @@ done:
 		vrele(vp);
 	if (so)
 		fputsock(so);
+
 	mtx_unlock(&Giant);
+
+	if (error == ERESTART)
+		error = EINTR;
+
 	return (error);
 }
