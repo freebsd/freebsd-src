@@ -257,6 +257,12 @@ pmap_bootstrap(vm_offset_t skpa, vm_offset_t ekva)
 	virtual_avail += PAGE_SIZE;
 	CADDR2 = virtual_avail;
 	virtual_avail += PAGE_SIZE;
+
+	/*
+	 * Set the secondary context to be the kernel context (needed for
+	 * fp block operations in the kernel).
+	 */
+	stxa(AA_DMMU_SCXR, ASI_DMMU, TLB_CTX_KERNEL);
 }
 
 /*

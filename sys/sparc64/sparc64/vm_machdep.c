@@ -58,10 +58,13 @@ cpu_fork(struct proc *p1, struct proc *p2, int flags)
 
 	if ((flags & RFPROC) == 0)
 		return;
-	if (PCPU_GET(fpcurproc) == p1)
-		panic("cpu_fork: save fp state\n");
 
 	pcb = &p2->p_addr->u_pcb;
+	if ((p1->p_frame->tf_tstate & TSTATE_PEF) != 0) {
+		mtx_lock_spin(&sched_lock);
+		savefpctx(&p1->p_addr->u_pcb.pcb_fpstate);
+		mtx_unlock_spin(&sched_lock);
+	}
 	bcopy(&p1->p_addr->u_pcb, pcb, sizeof(*pcb));
 
 	tf = (struct trapframe *)((caddr_t)pcb + UPAGES * PAGE_SIZE) - 1;
