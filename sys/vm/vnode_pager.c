@@ -38,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vnode_pager.c	7.5 (Berkeley) 4/20/91
- *	$Id: vnode_pager.c,v 1.78 1997/12/29 00:25:11 dyson Exp $
+ *	$Id: vnode_pager.c,v 1.79 1998/01/06 05:26:17 dyson Exp $
  */
 
 /*
@@ -178,7 +178,6 @@ vnode_pager_dealloc(object)
 		splx(s);
 	}
 
-	object->flags |= OBJ_DEAD;
 	object->handle = NULL;
 	object->type = OBJT_DEFAULT;
 	vp->v_object = NULL;
@@ -199,6 +198,9 @@ vnode_pager_haspage(object, pindex, before, after)
 	int poff;
 	int bsize;
 	int pagesperblock, blocksperpage;
+
+	if ((vp == NULL) || (vp->v_flag & VDOOMED))
+		return FALSE;
 
 	/*
 	 * If filesystem no longer mounted or offset beyond end of file we do
@@ -892,9 +894,13 @@ vnode_pager_lock(object)
 	for (; object != NULL; object = object->backing_object) {
 		if (object->type != OBJT_VNODE)
 			continue;
+		if (object->flags & OBJ_DEAD)
+			return NULL;
 
-		vn_lock(object->handle,
-			LK_NOPAUSE | LK_SHARED | LK_RETRY | LK_CANRECURSE, p);
+		while (vget(object->handle,
+			LK_NOPAUSE | LK_SHARED | LK_RETRY | LK_CANRECURSE, p)) {
+			printf("vnode_pager_lock: retrying\n");
+		}
 		return object->handle;
 	}
 	return NULL;

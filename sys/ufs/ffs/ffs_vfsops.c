@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vfsops.c	8.31 (Berkeley) 5/20/95
- * $Id: ffs_vfsops.c,v 1.63 1997/12/29 00:24:28 dyson Exp $
+ * $Id: ffs_vfsops.c,v 1.64 1998/01/06 05:23:41 dyson Exp $
  */
 
 #include "opt_quota.h"
@@ -747,9 +747,6 @@ ffs_unmount(mp, mntflags, p)
 	ump->um_devvp->v_specflags &= ~SI_MOUNTEDON;
 
 	vinvalbuf(ump->um_devvp, V_SAVE, NOCRED, p, 0, 0);
-	if (ump->um_devvp->v_object)
-		vm_object_terminate(ump->um_devvp->v_object);
-
 	error = VOP_CLOSE(ump->um_devvp, fs->fs_ronly ? FREAD : FREAD|FWRITE,
 		NOCRED, p);
 

@@ -66,7 +66,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_fault.c,v 1.73 1998/01/06 05:25:54 dyson Exp $
+ * $Id: vm_fault.c,v 1.74 1998/01/12 01:44:25 dyson Exp $
  */
 
 /*
@@ -96,8 +96,8 @@
 
 int vm_fault_additional_pages __P((vm_page_t, int, int, vm_page_t *, int *));
 
-#define VM_FAULT_READ_AHEAD 4
-#define VM_FAULT_READ_BEHIND 3
+#define VM_FAULT_READ_AHEAD 8
+#define VM_FAULT_READ_BEHIND 7
 #define VM_FAULT_READ (VM_FAULT_READ_AHEAD+VM_FAULT_READ_BEHIND+1)
 
 /*
@@ -151,7 +151,10 @@ vm_fault(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type, int fault_flags)
 
 #define	RELEASE_PAGE(m)	{				\
 	PAGE_WAKEUP(m);					\
-	if (m->queue != PQ_ACTIVE) vm_page_activate(m);		\
+	if (m->queue != PQ_ACTIVE) { \
+		vm_page_activate(m);		\
+		m->act_count = 0; \
+	} \
 }
 
 #define	UNLOCK_MAP	{				\
@@ -168,7 +171,10 @@ vm_fault(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type, int fault_flags)
 		vm_object_pip_wakeup(first_object); \
 	}						\
 	UNLOCK_MAP;					\
-	if (vp != NULL) VOP_UNLOCK(vp, 0, p);		\
+	if (vp != NULL) { \
+		vput(vp);		\
+		vp = NULL; \
+	} \
 }
 
 #define	UNLOCK_AND_DEALLOCATE	{			\
@@ -183,43 +189,40 @@ RetryFault:;
 	 * Find the backing store object and offset into it to begin the
 	 * search.
 	 */
-
 	if ((result = vm_map_lookup(&map, vaddr,
 		fault_type, &entry, &first_object,
 		&first_pindex, &prot, &wired, &su)) != KERN_SUCCESS) {
-		return (result);
+		if ((result != KERN_PROTECTION_FAILURE) ||
+			((fault_flags & VM_FAULT_WIRE_MASK) != VM_FAULT_USER_WIRE)) {
+			return result;
+		}
+
+		/*
+   		 * If we are user-wiring a r/w segment, and it is COW, then
+   		 * we need to do the COW operation.  Note that we don't COW
+   		 * currently RO sections now, because it is NOT desirable
+   		 * to COW .text.  We simply keep .text from ever being COW'ed
+   		 * and take the heat that one cannot debug wired .text sections.
+   		 */
+		result = vm_map_lookup(&map, vaddr,
+			VM_PROT_READ|VM_PROT_WRITE|VM_PROT_OVERRIDE_WRITE,
+			&entry, &first_object, &first_pindex, &prot, &wired, &su);
+		if (result != KERN_SUCCESS) {
+			return result;
+		}
+
+		/*
+		 * If we don't COW now, on a user wire, the user will never
+		 * be able to write to the mapping.  If we don't make this
+		 * restriction, the bookkeeping would be nearly impossible.
+		 */
+		if ((entry->protection & VM_PROT_WRITE) == 0)
+			entry->max_protection &= ~VM_PROT_WRITE;
 	}
 
 	if (entry->eflags & MAP_ENTRY_NOFAULT) {
 		panic("vm_fault: fault on nofault entry, addr: %lx",
 			vaddr);
-	}
-
-	/*
-	 * If we are user-wiring a r/w segment, and it is COW, then
-	 * we need to do the COW operation.  Note that we don't COW
-	 * currently RO sections now, because it is NOT desirable
-	 * to COW .text.  We simply keep .text from ever being COW'ed
-	 * and take the heat that one cannot debug wired .text sections.
-	 */
-	if (((fault_flags & VM_FAULT_WIRE_MASK) == VM_FAULT_USER_WIRE) &&
-		(entry->eflags & MAP_ENTRY_NEEDS_COPY)) {
-		if(entry->protection & VM_PROT_WRITE) {
-			int tresult;
-			vm_map_lookup_done(map, entry);
-
-			tresult = vm_map_lookup(&map, vaddr, VM_PROT_READ|VM_PROT_WRITE,
-				&entry, &first_object, &first_pindex, &prot, &wired, &su);
-			if (tresult != KERN_SUCCESS)
-				return tresult;
-		} else {
-			/*
-			 * If we don't COW now, on a user wire, the user will never
-			 * be able to write to the mapping.  If we don't make this
-			 * restriction, the bookkeeping would be nearly impossible.
-			 */
-			entry->max_protection &= ~VM_PROT_WRITE;
-		}
 	}
 
 	/*
@@ -284,6 +287,12 @@ RetryFault:;
 	 */
 
 	while (TRUE) {
+
+		if (object->flags & OBJ_DEAD) {
+			UNLOCK_AND_DEALLOCATE;
+			return (KERN_PROTECTION_FAILURE);
+		}
+			
 		m = vm_page_lookup(object, pindex);
 		if (m != NULL) {
 			int queue;
@@ -322,14 +331,14 @@ RetryFault:;
 
 			m->flags |= PG_BUSY;
 
-			if (/*m->valid && */
-				((m->valid & VM_PAGE_BITS_ALL) != VM_PAGE_BITS_ALL) &&
+			if (((m->valid & VM_PAGE_BITS_ALL) != VM_PAGE_BITS_ALL) &&
 				m->object != kernel_object && m->object != kmem_object) {
 				goto readrest;
 			}
 			break;
 		}
-		if (((object->type != OBJT_DEFAULT) && (((fault_flags & VM_FAULT_WIRE_MASK) == 0) || wired))
+		if (((object->type != OBJT_DEFAULT) &&
+				(((fault_flags & VM_FAULT_WIRE_MASK) == 0) || wired))
 		    || (object == first_object)) {
 
 			if (pindex >= object->size) {
@@ -341,7 +350,7 @@ RetryFault:;
 			 * Allocate a new page for this object/offset pair.
 			 */
 			m = vm_page_alloc(object, pindex,
-				(vp || object->backing_object)?VM_ALLOC_NORMAL:VM_ALLOC_ZERO);
+				(vp || object->backing_object)? VM_ALLOC_NORMAL: VM_ALLOC_ZERO);
 
 			if (m == NULL) {
 				UNLOCK_AND_DEALLOCATE;
@@ -349,8 +358,10 @@ RetryFault:;
 				goto RetryFault;
 			}
 		}
+
 readrest:
-		if (object->type != OBJT_DEFAULT && (((fault_flags & VM_FAULT_WIRE_MASK) == 0) || wired)) {
+		if (object->type != OBJT_DEFAULT &&
+			(((fault_flags & VM_FAULT_WIRE_MASK) == 0) || wired)) {
 			int rv;
 			int faultcount;
 			int reqpage;
@@ -469,7 +480,8 @@ readrest:
 			 * around having the machine panic on a kernel space
 			 * fault w/ I/O error.
 			 */
-			if (((map != kernel_map) && (rv == VM_PAGER_ERROR)) || (rv == VM_PAGER_BAD)) {
+			if (((map != kernel_map) && (rv == VM_PAGER_ERROR)) ||
+				(rv == VM_PAGER_BAD)) {
 				FREE_PAGE(m);
 				UNLOCK_AND_DEALLOCATE;
 				return ((rv == VM_PAGER_ERROR) ? KERN_FAILURE : KERN_PROTECTION_FAILURE);

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vnode.h	8.7 (Berkeley) 2/4/94
- * $Id: vnode.h,v 1.63 1998/01/06 05:23:04 dyson Exp $
+ * $Id: vnode.h,v 1.64 1998/01/12 01:44:08 dyson Exp $
  */
 
 #ifndef _SYS_VNODE_H_
@@ -281,7 +281,7 @@ extern void	(*lease_updatetime) __P((int deltat));
 	  !((vp)->v_object->ref_count || (vp)->v_object->resident_page_count)))
 
 #define VSHOULDBUSY(vp)	\
-	(((vp)->v_flag & VFREE) && \
+	(((vp)->v_flag & (VFREE|VTBFREE)) && \
 	 ((vp)->v_holdcnt || (vp)->v_usecount))
 
 #endif /* KERNEL */
@@ -525,6 +525,7 @@ struct vnode *
 void 	vput __P((struct vnode *vp));
 void 	vrele __P((struct vnode *vp));
 void	vref __P((struct vnode *vp));
+void	vbusy __P((struct vnode *vp));
 
 extern	vop_t	**default_vnodeop_p;
 
