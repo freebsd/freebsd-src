@@ -69,8 +69,11 @@ If the package contains a
 .B require
 file (see 
 .B pkg_create
-), then this is executed first with the flag
-.B DEINSTALL
+), then this is executed first with the flags
+.PP
+.B <script>
+.I pkg-name DEINSTALL
+.PP
 to see whether or not de-installation should continue (a non-zero exit
 status means no).
 .PP
