@@ -54,7 +54,6 @@
 #define CS4610_PCI_ID 0x60011013
 #define CS4614_PCI_ID 0x60031013
 #define CS4615_PCI_ID 0x60041013
-#define CS4281_PCI_ID 0x60051013
 
 /* Here is the parameter structure per a device. */
 struct csa_softc {
@@ -149,27 +148,27 @@ clkrun_hack(int run)
 }
 
 static struct csa_card cards_4610[] = {
-	{0, 0, "Unknown/invalid SSID (CS4610)", NULL, NULL, NULL },
+	{0, 0, "Unknown/invalid SSID (CS4610)", NULL, NULL, NULL, 0},
 };
 
 static struct csa_card cards_4614[] = {
-	{0x1489, 0x7001, "Genius Soundmaker 128 value", amp_none, NULL, NULL},
-	{0x5053, 0x3357, "Turtle Beach Santa Cruz", amp_voyetra, NULL, NULL},
-	{0x1071, 0x6003, "Mitac MI6020/21", amp_voyetra, NULL, NULL},
-	{0x14AF, 0x0050, "Hercules Game Theatre XP", NULL, NULL, NULL},
-	{0x1681, 0x0050, "Hercules Game Theatre XP", NULL, NULL, NULL},
+	{0x1489, 0x7001, "Genius Soundmaker 128 value", amp_none, NULL, NULL, 0},
+	{0x5053, 0x3357, "Turtle Beach Santa Cruz", amp_voyetra, NULL, NULL, 1},
+	{0x1071, 0x6003, "Mitac MI6020/21", amp_voyetra, NULL, NULL, 0},
+	{0x14AF, 0x0050, "Hercules Game Theatre XP", NULL, NULL, NULL, 0},
+	{0x1681, 0x0050, "Hercules Game Theatre XP", NULL, NULL, NULL, 0},
 	/* Not sure if the 570 needs the clkrun hack */
-	{0x1014, 0x0132, "Thinkpad 570", amp_none, NULL, clkrun_hack},
-	{0x1014, 0x0153, "Thinkpad 600X/A20/T20", amp_none, NULL, clkrun_hack},
-	{0x1014, 0x1010, "Thinkpad 600E (unsupported)", NULL, NULL, NULL},
-	{0, 0, "Unknown/invalid SSID (CS4614)", NULL, NULL, NULL },
+	{0x1014, 0x0132, "Thinkpad 570", amp_none, NULL, clkrun_hack, 0},
+	{0x1014, 0x0153, "Thinkpad 600X/A20/T20", amp_none, NULL, clkrun_hack, 0},
+	{0x1014, 0x1010, "Thinkpad 600E (unsupported)", NULL, NULL, NULL, 0},
+	{0, 0, "Unknown/invalid SSID (CS4614)", NULL, NULL, NULL, 0},
 };
 
 static struct csa_card cards_4615[] = {
-	{0, 0, "Unknown/invalid SSID (CS4615)", NULL, NULL, NULL },
+	{0, 0, "Unknown/invalid SSID (CS4615)", NULL, NULL, NULL, 0},
 };
 
-static struct csa_card nocard = {0, 0, "unknown", NULL, NULL, NULL };
+static struct csa_card nocard = {0, 0, "unknown", NULL, NULL, NULL, 0};
 
 struct card_type {
 	u_int32_t devid;
