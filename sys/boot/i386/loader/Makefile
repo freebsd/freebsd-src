@@ -13,6 +13,7 @@ LOADER_AOUT_SUPPORT=	yes
 # architecture-specific loader code
 SRCS=		main.c conf.c
 
+CFLAGS+=	-ffreestanding
 # Enable PXE TFTP or NFS support, not both.
 .if defined(LOADER_TFTP_SUPPORT)
 CFLAGS+=	-DLOADER_TFTP_SUPPORT
