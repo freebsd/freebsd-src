@@ -109,8 +109,6 @@ static vop_symlink_t	ufs_symlink;
 static vop_whiteout_t	ufs_whiteout;
 static vop_close_t	ufsfifo_close;
 static vop_kqfilter_t	ufsfifo_kqfilter;
-static vop_read_t	ufsfifo_read;
-static vop_write_t	ufsfifo_write;
 static int filt_ufsread(struct knote *kn, long hint);
 static int filt_ufswrite(struct knote *kn, long hint);
 static int filt_ufsvnode(struct knote *kn, long hint);
@@ -2003,57 +2001,6 @@ ufs_print(ap)
 }
 
 /*
- * Read wrapper for fifos.
- */
-static int
-ufsfifo_read(ap)
-	struct vop_read_args /* {
-		struct vnode *a_vp;
-		struct uio *a_uio;
-		int  a_ioflag;
-		struct ucred *a_cred;
-	} */ *ap;
-{
-	int error, resid;
-	struct inode *ip;
-	struct uio *uio;
-
-	uio = ap->a_uio;
-	resid = uio->uio_resid;
-	error = fifo_specops.vop_read(ap);
-	ip = VTOI(ap->a_vp);
-	if ((ap->a_vp->v_mount->mnt_flag & MNT_NOATIME) == 0 && ip != NULL &&
-	    (uio->uio_resid != resid || (error == 0 && resid != 0)))
-		ip->i_flag |= IN_ACCESS;
-	return (error);
-}
-
-/*
- * Write wrapper for fifos.
- */
-static int
-ufsfifo_write(ap)
-	struct vop_write_args /* {
-		struct vnode *a_vp;
-		struct uio *a_uio;
-		int  a_ioflag;
-		struct ucred *a_cred;
-	} */ *ap;
-{
-	int error, resid;
-	struct inode *ip;
-	struct uio *uio;
-
-	uio = ap->a_uio;
-	resid = uio->uio_resid;
-	error = fifo_specops.vop_write(ap);
-	ip = VTOI(ap->a_vp);
-	if (ip != NULL && (uio->uio_resid != resid || (error == 0 && resid != 0)))
-		ip->i_flag |= IN_CHANGE | IN_UPDATE;
-	return (error);
-}
-
-/*
  * Close wrapper for fifos.
  *
  * Update the times on the inode then do device close.
@@ -2612,9 +2559,9 @@ struct vop_vector ufs_vnodeops = {
 	.vop_symlink =		ufs_symlink,
 	.vop_whiteout =		ufs_whiteout,
 #ifdef UFS_EXTATTR
-	.vop_getextattr =		ufs_getextattr,
-	.vop_deleteextattr =		ufs_deleteextattr,
-	.vop_setextattr =		ufs_setextattr,
+	.vop_getextattr =	ufs_getextattr,
+	.vop_deleteextattr =	ufs_deleteextattr,
+	.vop_setextattr =	ufs_setextattr,
 #endif
 #ifdef UFS_ACL
 	.vop_getacl =		ufs_getacl,
@@ -2632,17 +2579,17 @@ struct vop_vector ufs_fifoops = {
 	.vop_inactive =		ufs_inactive,
 	.vop_kqfilter =		ufsfifo_kqfilter,
 	.vop_print =		ufs_print,
-	.vop_read =		ufsfifo_read,
+	.vop_read =		VOP_PANIC,
 	.vop_reclaim =		ufs_reclaim,
 	.vop_setattr =		ufs_setattr,
 #ifdef MAC
 	.vop_setlabel =		vop_stdsetlabel_ea,
 #endif
-	.vop_write =		ufsfifo_write,
+	.vop_write =		VOP_PANIC,
 #ifdef UFS_EXTATTR
-	.vop_getextattr =		ufs_getextattr,
-	.vop_deleteextattr =		ufs_deleteextattr,
-	.vop_setextattr =		ufs_setextattr,
+	.vop_getextattr =	ufs_getextattr,
+	.vop_deleteextattr =	ufs_deleteextattr,
+	.vop_setextattr =	ufs_setextattr,
 #endif
 #ifdef UFS_ACL
 	.vop_getacl =		ufs_getacl,

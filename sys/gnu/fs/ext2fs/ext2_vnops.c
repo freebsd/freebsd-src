@@ -108,8 +108,6 @@ static vop_symlink_t	ext2_symlink;
 static vop_write_t	ext2_write;
 static vop_close_t	ext2fifo_close;
 static vop_kqfilter_t	ext2fifo_kqfilter;
-static vop_read_t	ext2fifo_read;
-static vop_write_t	ext2fifo_write;
 static int filt_ext2read(struct knote *kn, long hint);
 static int filt_ext2write(struct knote *kn, long hint);
 static int filt_ext2vnode(struct knote *kn, long hint);
@@ -159,10 +157,10 @@ struct vop_vector ext2_fifoops = {
 	.vop_inactive =		ext2_inactive,
 	.vop_kqfilter =		ext2fifo_kqfilter,
 	.vop_print =		ext2_print,
-	.vop_read =		ext2fifo_read,
+	.vop_read =		VOP_PANIC,
 	.vop_reclaim =		ext2_reclaim,
 	.vop_setattr =		ext2_setattr,
-	.vop_write =		ext2fifo_write,
+	.vop_write =		VOP_PANIC,
 };
 
 #include <gnu/ext2fs/ext2_readwrite.c>
@@ -1456,57 +1454,6 @@ ext2_print(ap)
 		fifo_printinfo(vp);
 	printf("\n");
 	return (0);
-}
-
-/*
- * Read wrapper for fifos.
- */
-static int
-ext2fifo_read(ap)
-	struct vop_read_args /* {
-		struct vnode *a_vp;
-		struct uio *a_uio;
-		int  a_ioflag;
-		struct ucred *a_cred;
-	} */ *ap;
-{
-	int error, resid;
-	struct inode *ip;
-	struct uio *uio;
-
-	uio = ap->a_uio;
-	resid = uio->uio_resid;
-	error = fifo_specops.vop_read(ap);
-	ip = VTOI(ap->a_vp);
-	if ((ap->a_vp->v_mount->mnt_flag & MNT_NOATIME) == 0 && ip != NULL &&
-	    (uio->uio_resid != resid || (error == 0 && resid != 0)))
-		VTOI(ap->a_vp)->i_flag |= IN_ACCESS;
-	return (error);
-}
-
-/*
- * Write wrapper for fifos.
- */
-static int
-ext2fifo_write(ap)
-	struct vop_write_args /* {
-		struct vnode *a_vp;
-		struct uio *a_uio;
-		int  a_ioflag;
-		struct ucred *a_cred;
-	} */ *ap;
-{
-	int error, resid;
-	struct inode *ip;
-	struct uio *uio;
-
-	uio = ap->a_uio;
-	resid = uio->uio_resid;
-	error = fifo_specops.vop_write(ap);
-	ip = VTOI(ap->a_vp);
-	if (ip != NULL && (uio->uio_resid != resid || (error == 0 && resid != 0)))
-		VTOI(ap->a_vp)->i_flag |= IN_CHANGE | IN_UPDATE;
-	return (error);
 }
 
 /*
