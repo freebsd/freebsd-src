@@ -31,13 +31,11 @@
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
-#include <sys/conf.h>
-#include <sys/tty.h>
 #include <sys/bus.h>
-#include <machine/bus.h>
-#include <sys/rman.h>
 
+#include <machine/bus.h>
 #include <machine/resource.h>
+#include <sys/rman.h>
 
 #include <dev/kbd/kbdreg.h>
 #include <dev/kbd/atkbdreg.h>
@@ -45,6 +43,11 @@
 
 #include <isa/isareg.h>
 #include <isa/isavar.h>
+
+typedef struct {
+	struct resource	*intr;
+	void		*ih;
+} atkbd_softc_t;
 
 devclass_t	atkbd_devclass;
 
@@ -61,52 +64,54 @@ static device_method_t atkbd_methods[] = {
 static driver_t atkbd_driver = {
 	ATKBD_DRIVER_NAME,
 	atkbd_methods,
-	1,
+	sizeof(atkbd_softc_t),
 };
 
 static int
 atkbdprobe(device_t dev)
 {
-	uintptr_t port;
 	uintptr_t irq;
 	uintptr_t flags;
 
 	device_set_desc(dev, "AT Keyboard");
 
 	/* obtain parameters */
-	BUS_READ_IVAR(device_get_parent(dev), dev, KBDC_IVAR_PORT, &port);
 	BUS_READ_IVAR(device_get_parent(dev), dev, KBDC_IVAR_IRQ, &irq);
 	BUS_READ_IVAR(device_get_parent(dev), dev, KBDC_IVAR_FLAGS, &flags);
 
 	/* probe the device */
-	return atkbd_probe_unit(device_get_unit(dev), port, irq, flags);
+	return atkbd_probe_unit(device_get_unit(dev),
+				device_get_unit(device_get_parent(dev)),
+				irq, flags);
 }
 
 static int
 atkbdattach(device_t dev)
 {
+	atkbd_softc_t *sc;
 	keyboard_t *kbd;
-	uintptr_t port;
 	uintptr_t irq;
 	uintptr_t flags;
-	struct resource *res;
-	void *ih;
-	int zero = 0;
+	int rid;
 	int error;
 
-	BUS_READ_IVAR(device_get_parent(dev), dev, KBDC_IVAR_PORT, &port);
+	sc = device_get_softc(dev);
+
 	BUS_READ_IVAR(device_get_parent(dev), dev, KBDC_IVAR_IRQ, &irq);
 	BUS_READ_IVAR(device_get_parent(dev), dev, KBDC_IVAR_FLAGS, &flags);
 
-	error = atkbd_attach_unit(device_get_unit(dev), &kbd, port, irq, flags);
+	error = atkbd_attach_unit(device_get_unit(dev), &kbd,
+				  device_get_unit(device_get_parent(dev)),
+				  irq, flags);
 	if (error)
 		return error;
 
 	/* declare our interrupt handler */
-	res = bus_alloc_resource(dev, SYS_RES_IRQ, &zero, irq, irq, 1,
-				 RF_SHAREABLE | RF_ACTIVE);
-	BUS_SETUP_INTR(device_get_parent(dev), dev, res, INTR_TYPE_TTY,
-		       atkbd_isa_intr, kbd, &ih);
+	rid = 0;
+	sc->intr = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, irq, irq, 1,
+				      RF_SHAREABLE | RF_ACTIVE);
+	BUS_SETUP_INTR(device_get_parent(dev), dev, sc->intr, INTR_TYPE_TTY,
+		       atkbd_isa_intr, kbd, &sc->ih);
 
 	return 0;
 }
