@@ -191,7 +191,7 @@ kvm_getswapinfo(
 					    sizeof(swap_ary[i].ksw_devname),
 					    "%s%s",
 					    ((flags & SWIF_DEV_PREFIX) ? "/dev/" : ""),
-					    devname(swinfo.sw_dev, S_IFBLK)
+					    devname(swinfo.sw_dev, S_IFCHR)
 					);
 				}
 			}

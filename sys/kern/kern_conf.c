@@ -251,15 +251,6 @@ dev2udev(dev_t x)
 	return (x->si_udev);
 }
 
-udev_t
-dev2budev(dev_t x)
-{
-	if (x == NODEV)
-		return NOUDEV;
-	else
-		return makeudev(devsw(x)->d_bmaj, minor(x));
-}
-
 dev_t
 udev2dev(udev_t x, int b)
 {
