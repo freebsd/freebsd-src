@@ -205,7 +205,8 @@ main(argc, argv)
 			++p;
 		else
 			p = shell;
-		iscsh = strcmp(p, "csh") ? NO : YES;
+		if ((iscsh = strcmp(p, "csh") ? NO : YES) == NO)
+		    iscsh = strcmp(p, "tcsh") ? NO : YES;
 	}
 
 	/* set permissions */
