@@ -655,4 +655,10 @@ extern char *strnames[], *strcodes[], *strfnames[];
 #define ERR (-1)
 #endif
 
+/* Compatibility */
+#define Filedes fd
+#define Ottyb shell_mode
+#define Nttyb prog_mode
+#define TTY struct termios
+
 #endif /* _TERM_H_ */
