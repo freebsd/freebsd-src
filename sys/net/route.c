@@ -56,6 +56,21 @@ static void rt_maskedcopy(struct sockaddr *,
 	    struct sockaddr *, struct sockaddr *);
 static void rtable_init(void **);
 
+/* compare two sockaddr structures */
+#define	sa_equal(a1, a2) (bcmp((a1), (a2), (a1)->sa_len) == 0)
+
+/*
+ * Convert a 'struct radix_node *' to a 'struct rtentry *'.
+ * The operation can be done safely (in this code) because a
+ * 'struct rtentry' starts with two 'struct radix_node''s, the first
+ * one representing leaf nodes in the routing tree, which is
+ * what the code in radix.c passes us as a 'struct radix_node'.
+ *
+ * But because there are a lot of assumptions in this conversion,
+ * do not cast explicitly, but always use the macro below.
+ */
+#define RNTORT(p)	((struct rtentry *)(p))
+
 static void
 rtable_init(void **table)
 {
@@ -131,7 +146,7 @@ rtalloc1(struct sockaddr *dst, int report, u_long ignflags)
 		 * If we find it and it's not the root node, then
 		 * get a refernce on the rtentry associated.
 		 */
-		newrt = rt = (struct rtentry *)rn;
+		newrt = rt = RNTORT(rn);
 		nflags = rt->rt_flags & ~ignflags;
 		if (report && (nflags & RTF_CLONING)) {
 			/*
@@ -284,8 +299,6 @@ done:
 	RT_UNLOCK(rt);
 }
 
-/* compare two sockaddr structures */
-#define	sa_equal(a1, a2) (bcmp((a1), (a2), (a1)->sa_len) == 0)
 
 /*
  * Force a routing table entry to the specified
@@ -569,7 +582,7 @@ rtexpunge(struct rtentry *rt)
 	}
 	KASSERT((rn->rn_flags & (RNF_ACTIVE | RNF_ROOT)) == 0,
 		("unexpected flags 0x%x", rn->rn_flags));
-	KASSERT(rt == (struct rtentry *)rn,
+	KASSERT(rt == RNTORT(rn),
 		("lookup mismatch, rt %p rn %p", rt, rn));
 
 	rt->rt_flags &= ~RTF_UP;
@@ -588,8 +601,7 @@ rtexpunge(struct rtentry *rt)
 	 * we held its last reference.
 	 */
 	if (rt->rt_gwroute) {
-		struct rtentry *gwrt = rt->rt_gwroute;
-		RTFREE(gwrt);
+		RTFREE(rt->rt_gwroute);
 		rt->rt_gwroute = NULL;
 	}
 
@@ -654,7 +666,7 @@ rtrequest1(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt)
 			senderr(ESRCH);
 		if (rn->rn_flags & (RNF_ACTIVE | RNF_ROOT))
 			panic ("rtrequest delete");
-		rt = (struct rtentry *)rn;
+		rt = RNTORT(rn);
 		RT_LOCK(rt);
 		RT_ADDREF(rt);
 		rt->rt_flags &= ~RTF_UP;
@@ -675,8 +687,7 @@ rtrequest1(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt)
 		 * we held its last reference.
 		 */
 		if (rt->rt_gwroute) {
-			struct rtentry *gwrt = rt->rt_gwroute;
-			RTFREE(gwrt);
+			RTFREE(rt->rt_gwroute);
 			rt->rt_gwroute = NULL;
 		}
 
@@ -687,8 +698,9 @@ rtrequest1(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt)
 			ifa->ifa_rtrequest(RTM_DELETE, rt, info);
 
 		/*
-		 * one more rtentry floating around that is not
-		 * linked to the routing table.
+		 * One more rtentry floating around that is not
+		 * linked to the routing table. rttrash will be decremented
+		 * when RTFREE(rt) is eventually called.
 		 */
 		rttrash++;
 
@@ -886,8 +898,7 @@ bad:
 static int
 rt_fixdelete(struct radix_node *rn, void *vp)
 {
-	/* The cast is safe because *rt starts with a struct radix_node. */
-	struct rtentry *rt = (struct rtentry *)rn;
+	struct rtentry *rt = RNTORT(rn);
 	struct rtentry *rt0 = vp;
 
 	if (rt->rt_parent == rt0 &&
@@ -915,8 +926,7 @@ rt_fixdelete(struct radix_node *rn, void *vp)
 static int
 rt_fixchange(struct radix_node *rn, void *vp)
 {
-	/* The cast is safe because *rt starts with a struct radix_node. */
-	struct rtentry *rt = (struct rtentry *)rn;
+	struct rtentry *rt = RNTORT(rn);
 	struct rtfc_arg *ap = vp;
 	struct rtentry *rt0 = ap->rt0;
 	struct radix_node_head *rnh = ap->rnh;
@@ -1048,7 +1058,7 @@ rt_setgate(struct rtentry *rt, struct sockaddr *dst, struct sockaddr *gate)
 		rt->rt_gwroute = gwrt;
 		if (rt->rt_gwroute == rt) {
 			RTFREE_LOCKED(rt->rt_gwroute);
-			rt->rt_gwroute = 0;
+			rt->rt_gwroute = NULL;
 			return EDQUOT; /* failure */
 		}
 		if (rt->rt_gwroute != NULL)
@@ -1148,7 +1158,7 @@ rtinit(struct ifaddr *ifa, int cmd, int flags)
 		RADIX_NODE_HEAD_LOCK(rnh);
 		error = ((rn = rnh->rnh_lookup(dst, netmask, rnh)) == NULL ||
 		    (rn->rn_flags & RNF_ROOT) ||
-		    ((struct rtentry *)rn)->rt_ifa != ifa ||
+		    RNTORT(rn)->rt_ifa != ifa ||
 		    !sa_equal((struct sockaddr *)rn->rn_key, dst));
 		RADIX_NODE_HEAD_UNLOCK(rnh);
 		if (error) {
