@@ -37,12 +37,6 @@
 
 #include <net/if.h>
 #include <netinet/in.h>
-#if defined(__FreeBSD__)
-#include <inttypes.h>
-#include <net/route.h>
-#else
-#define	PRIu64	"llu"
-#endif
 #include <net/pfvar.h>
 #include <arpa/inet.h>
 #include <altq/altq.h>
@@ -201,7 +195,7 @@ pfctl_enable(int dev, int opts)
 	if (ioctl(dev, DIOCSTART)) {
 		if (errno == EEXIST)
 			errx(1, "pf already enabled");
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 		else if (errno == ESRCH)
 			errx(1, "pfil registeration failed");
 #endif
@@ -554,10 +548,11 @@ pfctl_print_rule_counters(struct pf_rule *rule, int opts)
 		    rule->qname, rule->qid, rule->pqname, rule->pqid);
 	}
 	if (opts & PF_OPT_VERBOSE)
-		printf("  [ Evaluations: %-8"PRIu64"  Packets: %-8"PRIu64"  "
-			    "Bytes: %-10"PRIu64"  States: %-6u]\n",
-			    rule->evaluations, rule->packets,
-			    rule->bytes, rule->states);
+		printf("  [ Evaluations: %-8llu  Packets: %-8llu  "
+			    "Bytes: %-10llu  States: %-6u]\n",
+			    (unsigned long long)rule->evaluations,
+			    (unsigned long long)rule->packets,
+			    (unsigned long long)rule->bytes, rule->states);
 }
 
 int
@@ -619,9 +614,10 @@ pfctl_show_rules(int dev, int opts, int format, char *anchorname,
 		case 1:
 			if (pr.rule.label[0]) {
 				printf("%s ", pr.rule.label);
-				printf("%"PRIu64" %"PRIu64" %"PRIu64"\n",
-				    pr.rule.evaluations, pr.rule.packets,
-				    pr.rule.bytes);
+				printf("%llu %llu %llu\n",
+				    (unsigned long long)pr.rule.evaluations,
+				    (unsigned long long)pr.rule.packets,
+				    (unsigned long long)pr.rule.bytes);
 			}
 			break;
 		default:
@@ -651,9 +647,10 @@ pfctl_show_rules(int dev, int opts, int format, char *anchorname,
 		case 1:
 			if (pr.rule.label[0]) {
 				printf("%s ", pr.rule.label);
-				printf("%"PRIu64" %"PRIu64" %"PRIu64"\n",
-				    pr.rule.evaluations, pr.rule.packets,
-				    pr.rule.bytes);
+				printf("%llu %llu %llu\n",
+				    (unsigned long long)pr.rule.evaluations,
+				    (unsigned long long)pr.rule.packets,
+				    (unsigned long long)pr.rule.bytes);
 			}
 			break;
 		default:

@@ -26,7 +26,7 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/types.h>
+#include <sys/param.h>
 #include <sys/file.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
@@ -50,9 +50,6 @@
 
 #include "pathnames.h"
 
-#if defined(__FreeBSD__)
-#define __dead		__volatile
-#endif
 extern int	symset(const char *, const char *, int);
 
 static int	read_config(FILE *);
@@ -77,7 +74,11 @@ struct timeval	Tstart, Tend;	/* start and end times of session */
 
 volatile sig_atomic_t	want_death;
 static void		need_death(int signo);
+#ifdef __FreeBSD__
+static __dead2 void	do_death(int);
+#else
 static __dead void	do_death(int);
+#endif
 
 /*
  * User shell for authenticating gateways. Sole purpose is to allow
@@ -289,9 +290,8 @@ dogdeath:
 	sleep(180); /* them lusers read reaaaaal slow */
 die:
 	do_death(0);
-#if defined(__FreeBSD__)
-	return 0;	/* gcc hack to prevent warning */
-#endif
+
+	/* NOTREACHED */
 }
 
 /*
@@ -730,7 +730,11 @@ need_death(int signo)
 /*
  * function that removes our stuff when we go away.
  */
+#ifdef __FreeBSD__
+static __dead2 void
+#else
 static __dead void
+#endif
 do_death(int active)
 {
 	int	ret = 0;

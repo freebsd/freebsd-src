@@ -49,6 +49,7 @@
 #include <string.h>
 #include <ctype.h>
 #include <err.h>
+#include <limits.h>
 #include <pwd.h>
 #include <grp.h>
 #include <md5.h>
@@ -56,7 +57,7 @@
 #include "pfctl_parser.h"
 #include "pfctl.h"
 
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 #define	HTONL(x)	(x) = htonl((__uint32_t)(x))
 #endif
 

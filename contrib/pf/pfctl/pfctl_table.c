@@ -49,12 +49,6 @@
 #include <string.h>
 #include <time.h>
 
-#if defined(__FreeBSD__)
-#include <inttypes.h>
-#else
-#define	PRIu64	"llu"
-#endif
-
 #include "pfctl_parser.h"
 #include "pfctl.h"
 
@@ -354,14 +348,15 @@ print_tstats(struct pfr_tstats *ts, int debug)
 	printf("\tReferences:  [ Anchors: %-18d Rules: %-18d ]\n",
 	    ts->pfrts_refcnt[PFR_REFCNT_ANCHOR],
 	    ts->pfrts_refcnt[PFR_REFCNT_RULE]);
-	printf("\tEvaluations: [ NoMatch: %-18"PRIu64" Match: %-18"PRIu64" ]\n",
-	    ts->pfrts_nomatch, ts->pfrts_match);
+	printf("\tEvaluations: [ NoMatch: %-18llu Match: %-18llu ]\n",
+	    (unsigned long long)ts->pfrts_nomatch,
+	    (unsigned long long)ts->pfrts_match);
 	for (dir = 0; dir < PFR_DIR_MAX; dir++)
 		for (op = 0; op < PFR_OP_TABLE_MAX; op++)
-			printf("\t%-12s [ Packets: %-18"PRIu64" Bytes: %-18"PRIu64" ]\n",
+			printf("\t%-12s [ Packets: %-18llu Bytes: %-18llu ]\n",
 			    stats_text[dir][op],
-			    ts->pfrts_packets[dir][op],
-			    ts->pfrts_bytes[dir][op]);
+			    (unsigned long long)ts->pfrts_packets[dir][op],
+			    (unsigned long long)ts->pfrts_bytes[dir][op]);
 }
 
 int
@@ -436,10 +431,10 @@ print_astats(struct pfr_astats *as, int dns)
 	printf("\tCleared:     %s", ctime(&time));
 	for (dir = 0; dir < PFR_DIR_MAX; dir++)
 		for (op = 0; op < PFR_OP_ADDR_MAX; op++)
-			printf("\t%-12s [ Packets: %-18"PRIu64" Bytes: %-18"PRIu64" ]\n",
+			printf("\t%-12s [ Packets: %-18llu Bytes: %-18llu ]\n",
 			    stats_text[dir][op],
-			    as->pfras_packets[dir][op],
-			    as->pfras_bytes[dir][op]);
+			    (unsigned long long)as->pfras_packets[dir][op],
+			    (unsigned long long)as->pfras_bytes[dir][op]);
 }
 
 void

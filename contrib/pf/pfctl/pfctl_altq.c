@@ -19,12 +19,9 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#include <sys/types.h>
+#include <sys/param.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
-#if !defined(__FreeBSD__)
-#include <sys/limits.h>
-#endif
 
 #include <net/if.h>
 #include <netinet/in.h>
@@ -32,6 +29,7 @@
 
 #include <err.h>
 #include <errno.h>
+#include <limits.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -77,7 +75,7 @@ static int		 gsc_add_seg(struct gen_sc *, double, double, double,
 			     double);
 static double		 sc_x2y(struct service_curve *, double);
 
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 u_int32_t	 getifspeed(int, char *);
 #else
 u_int32_t	 getifspeed(char *);
@@ -246,7 +244,7 @@ eval_pfaltq(struct pfctl *pf, struct pf_altq *pa, struct node_queue_bw *bw,
 	if (bw->bw_absolute > 0)
 		pa->ifbandwidth = bw->bw_absolute;
 	else
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 		if ((rate = getifspeed(pf->dev, pa->ifname)) == 0) {
 #else
 		if ((rate = getifspeed(pa->ifname)) == 0) {
@@ -880,12 +878,7 @@ print_hfsc_opts(const struct pf_altq *a, const struct node_queue_opt *qopts)
 /*
  * admission control using generalized service curve
  */
-#if defined(__FreeBSD__)
-#if defined(INFINITY)
-#undef INFINITY
-#endif
-#define	INFINITY	HUGE_VAL  /* positive infinity defined in <math.h> */
-#else
+#ifndef INFINITY
 #define	INFINITY	HUGE_VAL  /* positive infinity defined in <math.h> */
 #endif
 
@@ -1088,10 +1081,10 @@ rate2str(double rate)
 	return (buf);
 }
 
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 /*
  * XXX
- * FreeBSD do not have SIOCGIFDATA.
+ * FreeBSD does not have SIOCGIFDATA.
  * To emulate this, DIOCGIFSPEED ioctl added to pf.
  */
 u_int32_t

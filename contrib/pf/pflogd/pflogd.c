@@ -45,14 +45,10 @@
 #include <errno.h>
 #include <stdarg.h>
 #include <fcntl.h>
-#if defined(__FreeBSD__)
+#ifdef __FreeBSD__
 #include "pidfile.h"
 #else
 #include <util.h>
-#endif
-
-#if defined(__FreeBSD__)
-#define __dead		__volatile
 #endif
 
 #define DEF_SNAPLEN 116		/* default plus allow for larger header of pflog */
@@ -88,11 +84,7 @@ int   reset_dump(void);
 void  sig_alrm(int);
 void  sig_close(int);
 void  sig_hup(int);
-#if defined(__FreeBSD__)
-__volatile void  usage(void);
-#else
 void  usage(void);
-#endif
 
 
 char *
@@ -135,7 +127,11 @@ logmsg(int pri, const char *message, ...)
 	va_end(ap);
 }
 
+#ifdef __FreeBSD__
+__dead2 void
+#else
 __dead void
+#endif
 usage(void)
 {
 	fprintf(stderr, "usage: pflogd [-D] [-d delay] [-f filename] ");
