@@ -8,10 +8,6 @@ _cryptodev=	cryptodev
 _random=	random
 .endif
 
-# Removed while KSE settles in:
-#	ncp \
-#	nwfs \
-
 SUBDIR=	accf_data \
 	accf_http \
 	aha \
@@ -176,9 +172,11 @@ SUBDIR+=3dfx \
 	linprocfs \
 	linux \
 	lnc \
+	ncp \
 	ncv \
 	netgraph \
 	nsp \
+	nwfs \
 	oltr \
 	pccard \
 	pecoff \
