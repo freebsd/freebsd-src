@@ -127,8 +127,8 @@ int	fsi, fso;
 int     randinit;
 #endif
 daddr_t	alloc();
-static int charsperline();
 long	calcipg();
+static int charsperline();
 
 mkfs(pp, fsys, fi, fo)
 	struct partition *pp;
@@ -311,8 +311,6 @@ mkfs(pp, fsys, fi, fo)
 		sizepb *= NINDIR(&sblock);
 		sblock.fs_maxfilesize += sizepb;
 	}
-	/* XXX - hack to prevent overflow of a 32bit block number */
-	sblock.fs_maxfilesize = MIN(sblock.fs_maxfilesize, (u_quad_t) 1 << 39);
 	/*
 	 * Validate specified/determined secpercyl
 	 * and calculate minimum cylinders per group.
