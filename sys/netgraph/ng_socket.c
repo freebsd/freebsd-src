@@ -947,6 +947,11 @@ ngs_shutdown(node_p node)
 	return (0);
 }
 
+static	int
+dummy_disconnect(struct socket *so)
+{
+	return (0);
+}
 /*
  * Control and data socket type descriptors
  */
@@ -960,7 +965,7 @@ static struct pr_usrreqs ngc_usrreqs = {
 	pru_connect2_notsupp,
 	pru_control_notsupp,
 	ngc_detach,
-	NULL,			/* disconnect */
+	dummy_disconnect,	/* disconnect */
 	pru_listen_notsupp,
 	NULL,			/* setpeeraddr */
 	pru_rcvd_notsupp,
@@ -983,7 +988,7 @@ static struct pr_usrreqs ngd_usrreqs = {
 	pru_connect2_notsupp,
 	pru_control_notsupp,
 	ngd_detach,
-	NULL,			/* disconnect */
+	dummy_disconnect,	/* disconnect */
 	pru_listen_notsupp,
 	NULL,			/* setpeeraddr */
 	pru_rcvd_notsupp,
