@@ -193,7 +193,7 @@ vlan_start(struct ifnet *ifp)
 	struct ifvlan *ifv;
 	struct ifnet *p;
 	struct ether_vlan_header *evl;
-	struct mbuf *m, *m0;
+	struct mbuf *m;
 
 	ifv = ifp->if_softc;
 	p = ifv->ifv_p;
@@ -236,14 +236,12 @@ vlan_start(struct ifnet *ifp)
 			}
 			/* M_PREPEND takes care of m_len, m_pkthdr.len for us */
 
-			m0 = m_pullup(m, ETHER_HDR_LEN + EVL_ENCAPLEN);
-			if (m0 == NULL) {
+			m = m_pullup(m, ETHER_HDR_LEN + EVL_ENCAPLEN);
+			if (m == NULL) {
 				printf("vlan%d: m_pullup failed", ifp->if_unit);
 				ifp->if_ierrors++;
-				m_freem(m);
 				continue;
 			}
-			m = m0;
 
 			/*
 			 * Transform the Ethernet header into an Ethernet header
