@@ -50,31 +50,11 @@ static device_method_t ahd_pci_device_methods[] = {
 	{ 0, 0 }
 };
 
-#if __FreeBSD_version >= 500027
-
-DEVINTERFACE(ahd_pci_device, ahd_pci_device_methods, device);
-
-static device_interface_t *ahd_pci_interfaces[] = {
-	&ahd_pci_device_interface,
-
-	NULL
-};
-
-static driver_t ahd_pci_driver = {
-	"ahd",
-	ahd_pci_interfaces,
-	sizeof(struct ahd_softc)
-};
-
-#else /* FreeBSD 4.X */
-
 static driver_t ahd_pci_driver = {
 	"ahd",
 	ahd_pci_device_methods,
 	sizeof(struct ahd_softc)
 };
-
-#endif /* __FreeBSD_version */
 
 static devclass_t ahd_devclass;
 
