@@ -27,10 +27,12 @@ makeoptions	DEBUG=-g	# Build kernel with debug information.
 makeoptions	NO_MODULES=yes	# Don't build any modules.
 
 options 	COMPAT_43	# Compatible with BSD 4.3 [KEEP THIS!]
-options 	DDB		# Enable the kernel debugger
+options 	DDB		# Support DDB
 options 	FFS		# Berkeley Fast Filesystem
+options 	GDB		# Support remote GDB
 options 	INET		# InterNETworking
 options 	INET6		# IPv6 communications protocols
+options 	KDB		# Enable kernel debugger support
 options 	KTRACE		# ktrace(1) syscall trace support
 options 	MD_ROOT		# MD usable as root device
 options 	PFIL_HOOKS	# pfil(9) framework
