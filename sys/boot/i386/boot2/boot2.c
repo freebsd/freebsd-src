@@ -14,7 +14,7 @@
  */
 
 /*
- *	$Id: boot2.c,v 1.7 1998/10/15 20:04:21 rnordier Exp $
+ *	$Id: boot2.c,v 1.8 1998/10/17 09:01:13 rnordier Exp $
  */
 
 #include <sys/param.h>
@@ -157,9 +157,12 @@ main(void)
     helpon = 1;
     readfile(PATH_HELP, help, sizeof(help));
     readfile(PATH_CONFIG, cmd, sizeof(cmd));
-    if (parse(cmd))
-	autoboot = 0;
-    else if (!*kname) {
+    if (*cmd) {
+	printf("%s: %s", PATH_CONFIG, cmd);
+	if (parse(cmd))
+	    autoboot = 0;
+    }
+    if (autoboot && !*kname) {
 	if (autoboot == 2) {
 	    memcpy(kname, PATH_BOOT3, sizeof(PATH_BOOT3));
 	    if (!keyhit(0x37)) {
