@@ -9,12 +9,12 @@ SMTP.  A group writable client mail queue (/var/spool/client-mqueue/ by
 default) holds the mail if an MTA can not be contacted.
 
 To accomplish this, under the default setup, an MTA must be listening on
-localhost port 25.  If the rc.conf sendmail_enable option is set to false,
+localhost port 25.  If the rc.conf sendmail_enable option is set to "NO",
 a sendmail daemon will still be started and bound only to the localhost
 interface in order to accept command line submitted mail.  If this is not
 a desirable solution, it can be disabled using the sendmail_submit_enable
 rc.conf option.  However, if both sendmail_enable and sendmail_submit_enable
-are turned off, you must do one of two things for command line submitted
+are set to "NO", you must do one of two things for command line submitted
 mail:
 
 1. Designate an alternative MTA for the submission agent to contact
