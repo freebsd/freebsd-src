@@ -50,7 +50,7 @@ static const char rcsid[] =
 # include	<signal.h>
 # ifdef attron
 #	include	<term.h>
-# endif	attron
+# endif	/* attron */
 
 /*
  * @(#)mille.c	1.3 (Berkeley) 5/10/83

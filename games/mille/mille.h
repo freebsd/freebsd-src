@@ -167,7 +167,7 @@
 #	define	erasechar()	_tty.sg_erase
 #	define	killchar()	_tty.sg_kill
 # endif
-# endif	SYSV
+# endif	/* SYSV */
 
 typedef struct {
 	bool	coups[NUM_SAFE];
