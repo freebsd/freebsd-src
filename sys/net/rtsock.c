@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)rtsock.c	8.5 (Berkeley) 11/2/94
- *	$Id: rtsock.c,v 1.20.2.3 1997/07/16 14:58:03 julian Exp $
+ *	$Id: rtsock.c,v 1.20.2.4 1997/07/17 09:24:29 msmith Exp $
  */
 
 #include <sys/param.h>
@@ -52,6 +52,7 @@
 
 static struct	sockaddr route_dst = { 2, PF_ROUTE, };
 static struct	sockaddr route_src = { 2, PF_ROUTE, };
+static struct	sockaddr sa_zero   = { sizeof(sa_zero), AF_INET, };
 static struct	sockproto route_proto = { PF_ROUTE, };
 
 struct walkarg {
@@ -65,7 +66,7 @@ static struct mbuf *
 		rt_msg1 __P((int, struct rt_addrinfo *));
 static int	rt_msg2 __P((int,
 		    struct rt_addrinfo *, caddr_t, struct walkarg *));
-static void	rt_xaddrs __P((caddr_t, caddr_t, struct rt_addrinfo *));
+static int	rt_xaddrs __P((caddr_t, caddr_t, struct rt_addrinfo *));
 static int	sysctl_dumpentry __P((struct radix_node *rn, void *vw));
 static int	sysctl_iflist __P((int af, struct walkarg *w));
 static int	 route_output __P((struct mbuf *, struct socket *));
@@ -177,7 +178,10 @@ route_output(m, so)
 	}
 	rtm->rtm_pid = curproc->p_pid;
 	info.rti_addrs = rtm->rtm_addrs;
-	rt_xaddrs((caddr_t)(rtm + 1), len + (caddr_t)rtm, &info);
+	if (rt_xaddrs((caddr_t)(rtm + 1), len + (caddr_t)rtm, &info)) {
+		dst = 0;
+		senderr(EINVAL);
+	}
 	if (dst == 0 || (dst->sa_family >= AF_MAX)
 	    || (gate != 0 && (gate->sa_family >= AF_MAX)))
 		senderr(EINVAL);
@@ -378,12 +382,13 @@ rt_setmetrics(which, in, out)
 	((a) > 0 ? (1 + (((a) - 1) | (sizeof(long) - 1))) : sizeof(long))
 #define ADVANCE(x, n) (x += ROUNDUP((n)->sa_len))
 
+
 /*
- * extract the addresses of the passed sockaddrs.
- * Do a little sanity checking so as to avoid bad memory references later
- * as we have not checked this user-land derived data yet.
+ * Extract the addresses of the passed sockaddrs.
+ * Do a little sanity checking so as to avoid bad memory references.
+ * This data is derived straight from userland.
  */
-static void
+static int
 rt_xaddrs(cp, cplim, rtinfo)
 	register caddr_t cp, cplim;
 	register struct rt_addrinfo *rtinfo;
@@ -392,30 +397,34 @@ rt_xaddrs(cp, cplim, rtinfo)
 	register int i;
 
 	bzero(rtinfo->rti_info, sizeof(rtinfo->rti_info));
-	for (i = 0; i < RTAX_MAX; i++) {
+	for (i = 0; (i < RTAX_MAX) && (cp < cplim); i++) {
 		if ((rtinfo->rti_addrs & (1 << i)) == 0)
 			continue;
 		sa = (struct sockaddr *)cp;
 		/*
-		 * It won't fit. Pretend it doesn't exist.
-		 * Would return EINVAL if not void
+		 * It won't fit.
 		 */
-		if ( (cp + sa->sa_len) > cplim )
-			return;
-
-		/* accept it */
-		rtinfo->rti_info[i] = sa;
-		ADVANCE(cp, sa);
+		if ( (cp + sa->sa_len) > cplim ) {
+			return (EINVAL);
+		}
 
 		/*
 		 * there are no more.. quit now
 		 * If there are more bits, they are in error.
 		 * I've seen this. route(1) can evidently generate these. 
 		 * This causes kernel to core dump.
+		 * for compatibility, If we see this, point to a safe address.
 		 */
-		if (sa->sa_len == 0)
-			return;
+		if (sa->sa_len == 0) {
+			rtinfo->rti_info[i] = &sa_zero;
+			return (0); /* should be EINVAL but for compat */
+		}
+
+		/* accept it */
+		rtinfo->rti_info[i] = sa;
+		ADVANCE(cp, sa);
 	}
+	return (0);
 }
 
 static struct mbuf *
