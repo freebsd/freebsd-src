@@ -69,11 +69,10 @@ __FBSDID("$FreeBSD$");
  *-----------------------------------------------------------------------
  */
 LstNode
-Lst_Next (l)
-    Lst	    	  l;
+Lst_Next(Lst l)
 {
-    register ListNode	tln;
-    register List 	list = (List)l;
+    ListNode	tln;
+    List 	list = (List)l;
 
     if ((LstValid (l) == FALSE) ||
 	(list->isOpen == FALSE)) {
@@ -114,4 +113,3 @@ Lst_Next (l)
 
     return ((LstNode)tln);
 }
-

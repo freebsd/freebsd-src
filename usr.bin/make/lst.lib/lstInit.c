@@ -56,16 +56,18 @@ __FBSDID("$FreeBSD$");
  * Results:
  *	The created list.
  *
+ * Arguments:
+ *	 circ	TRUE if the list should be made circular
+ *
  * Side Effects:
  *	A list is created, what else?
  *
  *-----------------------------------------------------------------------
  */
 Lst
-Lst_Init(circ)
-    Boolean		circ;	/* TRUE if the list should be made circular */
+Lst_Init(Boolean circ)
 {
-    register List	nList;
+    List	nList;
 
     PAlloc (nList, List);
 

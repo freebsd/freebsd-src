@@ -69,9 +69,9 @@ __FBSDID("$FreeBSD$");
  *-----------------------------------------------------------------------
  */
 ReturnStatus
-Lst_Open (l)
-	register Lst	l;
+Lst_Open(Lst l)
 {
+
 	if (LstValid (l) == FALSE) {
 		return (FAILURE);
 	}
@@ -81,4 +81,3 @@ Lst_Open (l)
 
 	return (SUCCESS);
 }
-

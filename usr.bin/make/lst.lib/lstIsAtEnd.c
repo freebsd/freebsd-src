@@ -73,12 +73,10 @@ __FBSDID("$FreeBSD$");
  *-----------------------------------------------------------------------
  */
 Boolean
-Lst_IsAtEnd (l)
-    Lst	    l;
+Lst_IsAtEnd(Lst l)
 {
-    register List list = (List) l;
+    List list = (List) l;
 
     return (!LstValid (l) || !list->isOpen ||
 	    (list->atEnd == Head) || (list->atEnd == Tail));
 }
-

@@ -64,13 +64,12 @@ __FBSDID("$FreeBSD$");
  *-----------------------------------------------------------------------
  */
 LstNode
-Lst_Succ (ln)
-    LstNode	ln;
+Lst_Succ(LstNode ln)
 {
+
     if (ln == NULL) {
 	return (NULL);
     } else {
 	return ((LstNode) ((ListNode) ln)->nextPtr);
     }
 }
-

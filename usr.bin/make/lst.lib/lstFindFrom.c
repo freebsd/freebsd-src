@@ -64,14 +64,10 @@ __FBSDID("$FreeBSD$");
  *-----------------------------------------------------------------------
  */
 LstNode
-Lst_FindFrom (l, ln, d, cProc)
-    Lst		      	l;
-    register LstNode    ln;
-    register void * d;
-    register int	(*cProc)(void *, void *);
+Lst_FindFrom(Lst l, LstNode ln, void *d, int (*cProc)(void *, void *))
 {
-    register ListNode	tln;
-    Boolean		found = FALSE;
+    ListNode	tln;
+    Boolean	found = FALSE;
 
     if (!LstValid (l) || LstIsEmpty (l) || !LstNodeValid (ln, l)) {
 	return (NULL);
@@ -94,4 +90,3 @@ Lst_FindFrom (l, ln, d, cProc)
 	return (NULL);
     }
 }
-

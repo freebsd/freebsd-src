@@ -64,9 +64,8 @@ __FBSDID("$FreeBSD$");
  *-----------------------------------------------------------------------
  */
 Boolean
-Lst_IsEmpty (l)
-    Lst	l;
+Lst_IsEmpty(Lst l)
 {
+
     return ( ! LstValid (l) || LstIsEmpty(l));
 }
-
