@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2003 Alan L. Cox <alc@cs.rice.edu>
+ * Copyright (c) 2003, 2005 Alan L. Cox <alc@cs.rice.edu>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -39,6 +39,9 @@ struct sf_buf {
 	struct		vm_page *m;	/* currently mapped page */
 	vm_offset_t	kva;		/* va of mapping */
 	int		ref_count;	/* usage of this mapping */
+#ifdef SMP
+	cpumask_t	cpumask;	/* cpus on which mapping is valid */
+#endif
 };
 
 static __inline vm_offset_t
