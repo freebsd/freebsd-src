@@ -878,7 +878,7 @@ semop(td, uap)
 	struct sem *semptr = 0;
 	struct sem_undo *suptr;
 	struct mtx *sema_mtxp;
-	size_t i, j;
+	size_t i, j, k;
 	int error;
 	int do_wakeup, do_undos;
 
@@ -1086,14 +1086,15 @@ done:
 			 * we applied them.  This guarantees that we won't run
 			 * out of space as we roll things back out.
 			 */
-			for (j = i - 1; j >= 0; j--) {
-				if ((sops[j].sem_flg & SEM_UNDO) == 0)
+			for (j = 0; j < i; j++) {
+				k = i - j - 1;
+				if ((sops[k].sem_flg & SEM_UNDO) == 0)
 					continue;
-				adjval = sops[j].sem_op;
+				adjval = sops[k].sem_op;
 				if (adjval == 0)
 					continue;
 				if (semundo_adjust(td, &suptr, semid,
-				    sops[j].sem_num, adjval) != 0)
+				    sops[k].sem_num, adjval) != 0)
 					panic("semop - can't undo undos");
 			}
 
