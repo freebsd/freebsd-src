@@ -1673,7 +1673,9 @@ elf64_alpha_relax_section (abfd, sec, link_info, again)
 
 #define MAX_GOT_ENTRIES		(64*1024 / 8)
 
-#define ELF_DYNAMIC_INTERPRETER "/usr/libexec/ld-elf.so.1"
+#ifndef ELF_DYNAMIC_INTERPRETER
+#define ELF_DYNAMIC_INTERPRETER "/usr/lib/ld.so"
+#endif
 
 /* Handle an Alpha specific section when reading an object file.  This
    is called when elfcode.h finds a section with an unknown type.
@@ -3477,14 +3479,17 @@ elf64_alpha_relocate_section (output_bfd, info, input_bfd, input_section,
 	    }
 	  else if (h->root.root.type == bfd_link_hash_undefweak)
 	    relocation = 0;
-	  else if (info->shared && !info->symbolic && !info->no_undefined)
+	  else if (info->shared && !info->symbolic
+		   && !info->no_undefined
+		   && ELF_ST_VISIBILITY (h->root.other) == STV_DEFAULT)
 	    relocation = 0;
 	  else
 	    {
 	      if (!((*info->callbacks->undefined_symbol)
 		    (info, h->root.root.root.string, input_bfd,
 		     input_section, rel->r_offset,
-		     (!info->shared || info->no_undefined))))
+		     (!info->shared || info->no_undefined
+		      || ELF_ST_VISIBILITY (h->root.other)))))
 		return false;
 	      relocation = 0;
 	    }
