@@ -145,9 +145,9 @@ If
 is set, its value is used to determine the set of preprocessors run
 before running nroff or troff.  By default, pages are passed through
 the table preprocessor before nroff.
-.It Ev MANSEC
+.It Ev MANSECT
 If
-.Ev MANSEC
+.Ev MANSECT
 is set, its value is used to determine which manual sections to search.
 .It Ev PAGER
 If
