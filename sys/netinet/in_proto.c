@@ -89,6 +89,12 @@ int	tp_ctloutput(), tp_usrreq();
 void	eoninput(), eonctlinput(), eonprotoinit();
 #endif /* EON */
 
+#ifdef        IPFILTER
+void	iplinit();
+#define	ip_init	iplinit
+#endif
+
+
 extern	struct domain inetdomain;
 
 struct protosw inetsw[] = {
