@@ -462,46 +462,35 @@ struct ioctl_args {
  */
 /* ARGSUSED */
 int
-ioctl(td, uap)
-	struct thread *td;
-	register struct ioctl_args *uap;
+ioctl(struct thread *td, struct ioctl_args *uap)
 {
 	struct file *fp;
-	register struct filedesc *fdp;
-	register u_long com;
+	struct filedesc *fdp;
+	u_long com;
 	int error = 0;
-	register u_int size;
+	u_int size;
 	caddr_t data, memp;
 	int tmp;
-#define STK_PARAMS	128
-	union {
-	    char stkbuf[STK_PARAMS];
-	    long align;
-	} ubuf;
 
 	if ((error = fget(td, uap->fd, &fp)) != 0)
 		return (error);
-	mtx_lock(&Giant);
 	if ((fp->f_flag & (FREAD | FWRITE)) == 0) {
 		fdrop(fp, td);
-		mtx_unlock(&Giant);
 		return (EBADF);
 	}
 	fdp = td->td_proc->p_fd;
 	switch (com = uap->com) {
 	case FIONCLEX:
-		FILEDESC_LOCK(fdp);
+		FILEDESC_LOCK_FAST(fdp);
 		fdp->fd_ofileflags[uap->fd] &= ~UF_EXCLOSE;
-		FILEDESC_UNLOCK(fdp);
+		FILEDESC_UNLOCK_FAST(fdp);
 		fdrop(fp, td);
-		mtx_unlock(&Giant);
 		return (0);
 	case FIOCLEX:
-		FILEDESC_LOCK(fdp);
+		FILEDESC_LOCK_FAST(fdp);
 		fdp->fd_ofileflags[uap->fd] |= UF_EXCLOSE;
-		FILEDESC_UNLOCK(fdp);
+		FILEDESC_UNLOCK_FAST(fdp);
 		fdrop(fp, td);
-		mtx_unlock(&Giant);
 		return (0);
 	}
 
@@ -510,78 +499,62 @@ ioctl(td, uap)
 	 * copied to/from the user's address space.
 	 */
 	size = IOCPARM_LEN(com);
-	if (size > IOCPARM_MAX) {
+	if ((size > IOCPARM_MAX) ||
+	    ((com & (IOC_VOID  | IOC_IN | IOC_OUT)) == 0) ||
+	    ((com & IOC_VOID) && size > 0) ||
+	    ((com & (IOC_IN | IOC_OUT)) && size == 0)) {
 		fdrop(fp, td);
-		mtx_unlock(&Giant);
 		return (ENOTTY);
 	}
 
-	memp = NULL;
-	if (size > sizeof (ubuf.stkbuf)) {
+	if (size > 0) {
 		memp = malloc((u_long)size, M_IOCTLOPS, M_WAITOK);
 		data = memp;
 	} else {
-		data = ubuf.stkbuf;
+		memp = NULL;
+		data = (void *)&uap->data;
 	}
-	if (com&IOC_IN) {
-		if (size) {
-			error = copyin(uap->data, data, (u_int)size);
-			if (error) {
-				if (memp)
-					free(memp, M_IOCTLOPS);
-				fdrop(fp, td);
-				goto done;
-			}
-		} else {
-			*(caddr_t *)data = uap->data;
+	if (com & IOC_IN) {
+		error = copyin(uap->data, data, (u_int)size);
+		if (error) {
+			free(memp, M_IOCTLOPS);
+			fdrop(fp, td);
+			return (error);
 		}
-	} else if ((com&IOC_OUT) && size) {
+	} else if (com & IOC_OUT) {
 		/*
 		 * Zero the buffer so the user always
 		 * gets back something deterministic.
 		 */
 		bzero(data, size);
-	} else if (com&IOC_VOID) {
-		*(caddr_t *)data = uap->data;
 	}
 
-	switch (com) {
-
-	case FIONBIO:
+	if (com == FIONBIO) {
 		FILE_LOCK(fp);
 		if ((tmp = *(int *)data))
 			fp->f_flag |= FNONBLOCK;
 		else
 			fp->f_flag &= ~FNONBLOCK;
 		FILE_UNLOCK(fp);
-		error = fo_ioctl(fp, FIONBIO, &tmp, td->td_ucred, td);
-		break;
-
-	case FIOASYNC:
+		data = (void *)&tmp;
+	} else if (com == FIOASYNC) {
 		FILE_LOCK(fp);
 		if ((tmp = *(int *)data))
 			fp->f_flag |= FASYNC;
 		else
 			fp->f_flag &= ~FASYNC;
 		FILE_UNLOCK(fp);
-		error = fo_ioctl(fp, FIOASYNC, &tmp, td->td_ucred, td);
-		break;
-
-	default:
-		error = fo_ioctl(fp, com, data, td->td_ucred, td);
-		/*
-		 * Copy any data to user, size was
-		 * already set and checked above.
-		 */
-		if (error == 0 && (com&IOC_OUT) && size)
-			error = copyout(data, uap->data, (u_int)size);
-		break;
+		data = (void *)&tmp;
 	}
-	if (memp)
+
+	error = fo_ioctl(fp, com, data, td->td_ucred, td);
+
+	if (error == 0 && (com & IOC_OUT))
+		error = copyout(data, uap->data, (u_int)size);
+
+	if (memp != NULL)
 		free(memp, M_IOCTLOPS);
 	fdrop(fp, td);
-done:
-	mtx_unlock(&Giant);
 	return (error);
 }
 
@@ -645,16 +618,12 @@ kern_select(struct thread *td, int nd, fd_set *fd_in, fd_set *fd_ou,
 	if (nd < 0)
 		return (EINVAL);
 	fdp = td->td_proc->p_fd;
-	/*
-	 * XXX: kern_select() currently requires that we acquire Giant
-	 * even if none of the file descriptors we poll requires Giant.
-	 */
-	mtx_lock(&Giant);
-	FILEDESC_LOCK(fdp);
+	
+	FILEDESC_LOCK_FAST(fdp);
 
 	if (nd > td->td_proc->p_fd->fd_nfiles)
 		nd = td->td_proc->p_fd->fd_nfiles;   /* forgiving; slightly wrong */
-	FILEDESC_UNLOCK(fdp);
+	FILEDESC_UNLOCK_FAST(fdp);
 
 	/*
 	 * Allocate just enough bits for the non-null fd_sets.  Use the
@@ -784,7 +753,6 @@ done_nosellock:
 	if (selbits != &s_selbits[0])
 		free(selbits, M_SELECT);
 
-	mtx_unlock(&Giant);
 	return (error);
 }
 
@@ -857,11 +825,6 @@ poll(td, uap)
 
 	nfds = uap->nfds;
 
-	/*
-	 * XXX: poll() currently requires that we acquire Giant even if
-	 * none of the file descriptors we poll requires Giant.
-	 */
-	mtx_lock(&Giant);
 	/*
 	 * This is kinda bogus.  We have fd limits, but that is not
 	 * really related to the size of the pollfd array.  Make sure
@@ -963,7 +926,6 @@ out:
 	if (ni > sizeof(smallbits))
 		free(bits, M_TEMP);
 done2:
-	mtx_unlock(&Giant);
 	return (error);
 }
 
