@@ -908,10 +908,11 @@ provide NFS services only on a secure port.
 .It Va nfs_bufpackets
 .Pq Vt int
 If set to a number, indicates the number of packets worth of
-socket buffer space to reserve on an NFS client.  If set to
-.Dq DEFAULT ,
-the kernel default is used (typically 4).  Using a higher number may be
-useful on gigabit networks to improve performance.  The minimum value is
+socket buffer space to reserve on an NFS client.
+The kernel default is typically 4.
+Using a higher number may be
+useful on gigabit networks to improve performance.
+The minimum value is
 2 and the maximum is 64.
 .It Va rpc_lockd_enable
 .Pq Vt bool
