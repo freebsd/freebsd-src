@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1983, 1995, 1996 Eric P. Allman
+ * Copyright (c) 1983, 1995-1997 Eric P. Allman
  * Copyright (c) 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
@@ -33,7 +33,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)deliver.c	8.266 (Berkeley) 1/17/97";
+static char sccsid[] = "@(#)deliver.c	8.282 (Berkeley) 6/11/97";
 #endif /* not lint */
 
 #include "sendmail.h"
@@ -76,7 +76,7 @@ sendall(e, mode)
 	int otherowners;
 	register ENVELOPE *ee;
 	ENVELOPE *splitenv = NULL;
-	bool oldverbose = Verbose;
+	int oldverbose = Verbose;
 	bool somedeliveries = FALSE;
 	pid_t pid;
 	extern void sendenvelope();
@@ -96,7 +96,6 @@ sendall(e, mode)
 	}
 
 	/* determine actual delivery mode */
-	CurrentLA = getla();
 	if (mode == SM_DEFAULT)
 	{
 		mode = e->e_sendmode;
@@ -295,6 +294,7 @@ sendall(e, mode)
 		{
 			extern HDR *copyheader();
 			extern ADDRESS *copyqueue();
+			extern void dup_queue_file __P((ENVELOPE *, ENVELOPE *, int));
 
 			/*
 			**  Split this envelope into two.
@@ -360,42 +360,12 @@ sendall(e, mode)
 			}
 
 			if (mode != SM_VERIFY && bitset(EF_HAS_DF, e->e_flags))
-			{
-				char df1buf[20], df2buf[20];
-
-				ee->e_dfp = NULL;
-				snprintf(df1buf, sizeof df1buf, "%s",
-					queuename(e, 'd'));
-				snprintf(df2buf, sizeof df2buf, "%s",
-					queuename(ee, 'd'));
-				if (link(df1buf, df2buf) < 0)
-				{
-					int saverrno = errno;
-
-					syserr("sendall: link(%s, %s)",
-						df1buf, df2buf);
-					if (saverrno == EEXIST)
-					{
-						if (unlink(df2buf) < 0)
-						{
-							syserr("!sendall: unlink(%s): permanent",
-								df2buf);
-							/*NOTREACHED*/
-						}
-						if (link(df1buf, df2buf) < 0)
-						{
-							syserr("!sendall: link(%s, %s): permanent",
-								df1buf, df2buf);
-							/*NOTREACHED*/
-						}
-					}
-				}
-			}
-#ifdef LOG
+				dup_queue_file(e, ee, 'd');
+			openxscript(ee);
 			if (LogLevel > 4)
-				syslog(LOG_INFO, "%s: clone %s, owner=%s",
-					ee->e_id, e->e_id, owner);
-#endif
+				sm_syslog(LOG_INFO, ee->e_id,
+					"clone %s, owner=%s",
+					e->e_id, owner);
 		}
 	}
 
@@ -420,6 +390,15 @@ sendall(e, mode)
 		if (tTd(13, 29))
 			printf("No deliveries: auto-queuing\n");
 		mode = SM_QUEUE;
+
+		/* treat this as a delivery in terms of counting tries */
+		e->e_dtime = curtime();
+		e->e_ntries++;
+		for (ee = splitenv; ee != NULL; ee = ee->e_sibling)
+		{
+			ee->e_dtime = curtime();
+			ee->e_ntries++;
+		}
 	}
 
 # if QUEUE
@@ -462,7 +441,7 @@ sendall(e, mode)
 	switch (mode)
 	{
 	  case SM_VERIFY:
-		Verbose = TRUE;
+		Verbose = 2;
 		break;
 
 	  case SM_QUEUE:
@@ -563,6 +542,9 @@ sendall(e, mode)
 			finis();
 		}
 
+		/* be sure to give error messages in child */
+		QuickAbort = OnlyOneError = FALSE;
+
 		/*
 		**  Close any cached connections.
 		**
@@ -619,12 +601,10 @@ sendenvelope(e, mode)
 		printf("sendenvelope(%s) e_flags=0x%lx\n",
 			e->e_id == NULL ? "[NOQUEUE]" : e->e_id,
 			e->e_flags);
-#ifdef LOG
 	if (LogLevel > 80)
-		syslog(LOG_DEBUG, "%s: sendenvelope, flags=0x%x",
-			e->e_id == NULL ? "[NOQUEUE]" : e->e_id,
+		sm_syslog(LOG_DEBUG, e->e_id,
+			"sendenvelope, flags=0x%x",
 			e->e_flags);
-#endif
 
 	/*
 	**  If we have had global, fatal errors, don't bother sending
@@ -707,6 +687,51 @@ sendenvelope(e, mode)
 #if XDEBUG
 	checkfd012("end of sendenvelope");
 #endif
+}
+/*
+**  DUP_QUEUE_FILE -- duplicate a queue file into a split queue
+**
+**	Parameters:
+**		e -- the existing envelope
+**		ee -- the new envelope
+**		type -- the queue file type (e.g., 'd')
+**
+**	Returns:
+**		none
+*/
+
+void
+dup_queue_file(e, ee, type)
+	struct envelope *e, *ee;
+	int type;
+{
+	char f1buf[MAXQFNAME], f2buf[MAXQFNAME];
+
+	ee->e_dfp = NULL;
+	ee->e_xfp = NULL;
+	snprintf(f1buf, sizeof f1buf, "%s", queuename(e, type));
+	snprintf(f2buf, sizeof f2buf, "%s", queuename(ee, type));
+	if (link(f1buf, f2buf) < 0)
+	{
+		int saverrno = errno;
+
+		syserr("sendall: link(%s, %s)", f1buf, f2buf);
+		if (saverrno == EEXIST)
+		{
+			if (unlink(f2buf) < 0)
+			{
+				syserr("!sendall: unlink(%s): permanent",
+					f2buf);
+				/*NOTREACHED*/
+			}
+			if (link(f1buf, f2buf) < 0)
+			{
+				syserr("!sendall: link(%s, %s): permanent",
+					f1buf, f2buf);
+				/*NOTREACHED*/
+			}
+		}
+	}
 }
 /*
 **  DOFORK -- do a fork, retrying a couple of times on failure.
@@ -826,6 +851,7 @@ deliver(e, firstto)
 	time_t xstart;
 	bool suidwarn;
 	bool anyok;			/* at least one address was OK */
+	bool goodmxfound = FALSE;	/* at least one MX was OK */
 	int mpvect[2];
 	int rpvect[2];
 	char *pv[MAXPV+1];
@@ -1018,6 +1044,7 @@ deliver(e, firstto)
 			e->e_flags |= EF_NO_BODY_RETN;
 			to->q_status = "5.2.3";
 			usrerr("552 Message is too large; %ld bytes max", m->m_maxsize);
+			markfailure(e, to, NULL, EX_UNAVAILABLE);
 			giveresponse(EX_UNAVAILABLE, m, NULL, ctladdr, xstart, e);
 			continue;
 		}
@@ -1294,8 +1321,11 @@ tryhost:
 				curhost++;
 				continue;
 			}
-			strncpy(hostbuf, curhost, p - curhost);
-			hostbuf[p - curhost] = '\0';
+			i = p - curhost;
+			if (i >= sizeof hostbuf)
+				i = sizeof hostbuf - 1;
+			strncpy(hostbuf, curhost, i);
+			hostbuf[i] = '\0';
 			if (*p != '\0')
 				p++;
 			curhost = p;
@@ -1318,11 +1348,16 @@ tryhost:
 			}
 			mci->mci_mailer = m;
 			if (mci->mci_exitstat != EX_OK)
+			{
+				if (mci->mci_exitstat == EX_TEMPFAIL)
+					goodmxfound = TRUE;
 				continue;
+			}
 
 			if (mci_lock_host(mci) != EX_OK)
 			{
 				mci_setstat(mci, EX_TEMPFAIL, "4.4.5", NULL);
+				goodmxfound = TRUE;
 				continue;
 			}
 
@@ -1343,6 +1378,7 @@ tryhost:
 #endif
 			if (i == EX_OK)
 			{
+				goodmxfound = TRUE;
 				mci->mci_state = MCIS_OPENING;
 				mci_cache(mci);
 				if (TrafficLogFile != NULL)
@@ -1355,6 +1391,8 @@ tryhost:
 			    	if (tTd(11, 1))
 					printf("openmailer: makeconnection => stat=%d, errno=%d\n",
 						i, errno);
+				if (i == EX_TEMPFAIL)
+					goodmxfound = TRUE;
 				mci_unlock_host(mci);
 			}
 
@@ -1863,7 +1901,12 @@ tryhost:
 			for (to = tochain; to != NULL; to = to->q_tchain)
 			{
 				e->e_to = to->q_paddr;
-				if ((i = smtprcpt(to, m, mci, e)) != EX_OK)
+				if (strlen(to->q_paddr) + (t - tobuf) + 2 >= sizeof tobuf)
+				{
+					/* not enough room */
+					continue;
+				}
+				else if ((i = smtprcpt(to, m, mci, e)) != EX_OK)
 				{
 					markfailure(e, to, mci, i);
 					giveresponse(i, m, mci, ctladdr, xstart, e);
@@ -1948,8 +1991,15 @@ tryhost:
 			rcode = smtpgetstat(m, mci, e);
 			if (rcode == EX_OK)
 			{
-				strcat(tobuf, ",");
-				strcat(tobuf, to->q_paddr);
+				if (strlen(to->q_paddr) + strlen(tobuf) + 2 >= sizeof tobuf)
+				{
+					syserr("LMTP tobuf overflow");
+				}
+				else
+				{
+					strcat(tobuf, ",");
+					strcat(tobuf, to->q_paddr);
+				}
 				anyok = TRUE;
 			}
 			else
@@ -1968,6 +2018,8 @@ tryhost:
 			/* mark bad addresses */
 			if (rcode != EX_OK)
 			{
+				if (goodmxfound && rcode == EX_NOHOST)
+					rcode = EX_TEMPFAIL;
 				markfailure(e, to, mci, rcode);
 				continue;
 			}
@@ -2084,6 +2136,7 @@ markfailure(e, q, mci, rcode)
 	  case EX_IOERR:
 	  case EX_OSERR:
 		q->q_flags |= QQUEUEUP;
+		q->q_flags &= ~QDONTSEND;
 		break;
 
 	  default:
@@ -2203,7 +2256,7 @@ endmailer(mci, e, pv)
 	if (mci->mci_pid == 0)
 		return (EX_OK);
 
-#ifdef _FFR_TIMEOUT_WAIT
+#if _FFR_TIMEOUT_WAIT
 	put a timeout around the wait
 #endif
 
@@ -2428,7 +2481,6 @@ logdelivery(m, mci, stat, ctladdr, xstart, e)
 	time_t xstart;
 	register ENVELOPE *e;
 {
-# ifdef LOG
 	register char *bp;
 	register char *p;
 	int l;
@@ -2533,11 +2585,12 @@ logdelivery(m, mci, stat, ctladdr, xstart, e)
 
 		if (q == NULL)
 			break;
-		syslog(LOG_INFO, "%s: to=%.*s [more]%s",
-			e->e_id, ++q - p, p, buf);
+		sm_syslog(LOG_INFO, e->e_id,
+			"to=%.*s [more]%s",
+			++q - p, p, buf);
 		p = q;
 	}
-	syslog(LOG_INFO, "%s: to=%s%s", e->e_id, p, buf);
+	sm_syslog(LOG_INFO, e->e_id, "to=%s%s", p, buf);
 
 #  else		/* we have a very short log buffer size */
 
@@ -2549,11 +2602,12 @@ logdelivery(m, mci, stat, ctladdr, xstart, e)
 
 		if (q == NULL)
 			break;
-		syslog(LOG_INFO, "%s: to=%.*s [more]",
-			e->e_id, ++q - p, p);
+		sm_syslog(LOG_INFO, e->e_id,
+			"to=%.*s [more]",
+			++q - p, p);
 		p = q;
 	}
-	syslog(LOG_INFO, "%s: to=%s", e->e_id, p);
+	sm_syslog(LOG_INFO, e->e_id, "to=%s", p);
 
 	if (ctladdr != NULL)
 	{
@@ -2567,7 +2621,7 @@ logdelivery(m, mci, stat, ctladdr, xstart, e)
 					ctladdr->q_uid, ctladdr->q_gid);
 			bp += strlen(bp);
 		}
-		syslog(LOG_INFO, "%s: %s", e->e_id, buf);
+		sm_syslog(LOG_INFO, e->e_id, "%s", buf);
 	}
 	bp = buf;
 	snprintf(bp, SPACELEFT(buf, bp), "delay=%s",
@@ -2585,7 +2639,7 @@ logdelivery(m, mci, stat, ctladdr, xstart, e)
 		snprintf(bp, SPACELEFT(buf, bp), ", mailer=%s", m->m_name);
 		bp += strlen(bp);
 	}
-	syslog(LOG_INFO, "%s: %.1000s", e->e_id, buf);
+	sm_syslog(LOG_INFO, e->e_id, "%.1000s", buf);
 
 	buf[0] = '\0';
 	bp = buf;
@@ -2612,11 +2666,10 @@ logdelivery(m, mci, stat, ctladdr, xstart, e)
 			snprintf(buf, sizeof buf, "relay=%.100s", p);
 	}
 	if (buf[0] != '\0')
-		syslog(LOG_INFO, "%s: %.1000s", e->e_id, buf);
+		sm_syslog(LOG_INFO, e->e_id, "%.1000s", buf);
 
-	syslog(LOG_INFO, "%s: stat=%s", e->e_id, shortenstring(stat, 63));
+	sm_syslog(LOG_INFO, e->e_id, "stat=%s", shortenstring(stat, 63));
 #  endif /* short log buffer */
-# endif /* LOG */
 }
 /*
 **  PUTFROMLINE -- output a UNIX-style from line (or whatever)
@@ -2688,7 +2741,7 @@ putfromline(mci, e)
 		}
 	}
 	expand(template, buf, sizeof buf, e);
-	putxline(buf, mci, PXLF_NOTHINGSPECIAL);
+	putxline(buf, strlen(buf), mci, PXLF_NOTHINGSPECIAL);
 }
 /*
 **  PUTBODY -- put the body of a message.
@@ -2828,7 +2881,7 @@ putbody(mci, e, separator)
 			switch (ostate)
 			{
 			  case OS_HEAD:
-#ifdef _FFR_NONULLS
+#if _FFR_NONULLS
 				if (c == '\0' &&
 				    bitnset(M_NONULLS, mci->mci_mailer->m_flags))
 					break;
@@ -2933,7 +2986,7 @@ putbody(mci, e, separator)
 					ostate = OS_CR;
 					continue;
 				}
-#ifdef _FFR_NONULLS
+#if _FFR_NONULLS
 				if (c == '\0' &&
 				    bitnset(M_NONULLS, mci->mci_mailer->m_flags))
 					break;
@@ -3214,7 +3267,7 @@ mailfile(filename, ctladdr, sfflags, e)
 		if (setuid(RealUid) < 0 && suidwarn)
 			syserr("mailfile: setuid(%ld) failed", (long) RealUid);
 
-		sfflags |= SFF_NOPATHCHECK;
+		sfflags |= SFF_NOPATHCHECK|SFF_NOLINK;
 		sfflags &= ~SFF_OPENASROOT;
 		f = safefopen(filename, oflags, FileMode, sfflags);
 		if (f == NULL)
@@ -3252,6 +3305,7 @@ mailfile(filename, ctladdr, sfflags, e)
 #endif
 		(void) xfclose(f, "mailfile", filename);
 		(void) fflush(stdout);
+		setuid(RealUid);
 		exit(ExitStat);
 		/*NOTREACHED*/
 	}
