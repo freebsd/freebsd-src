@@ -26,9 +26,11 @@ PANIC_REBOOT_WAIT_TIME	opt_panic.h
 
 MAXCONS			opt_syscons.h
 SC_ALT_MOUSE_IMAGE	opt_syscons.h
+SC_CUT_SPACES2TABS	opt_syscons.h
+SC_CUT_SEPCHARS		opt_syscons.h
 SC_DEBUG_LEVEL		opt_syscons.h
 SC_DFLT_FONT		opt_syscons.h
-SC_DISABLE_DDB		opt_syscons.h
+SC_DISABLE_DDBKEY	opt_syscons.h
 SC_DISABLE_REBOOT	opt_syscons.h
 SC_HISTORY_SIZE		opt_syscons.h
 SC_KERNEL_CONS_ATTR	opt_syscons.h
