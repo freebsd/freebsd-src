@@ -52,6 +52,7 @@
 #include <errno.h>
 #include <err.h>
 #include <md4.h>
+#include <ctype.h>
 
 #if !defined(lint)
 static const char copyright[] = "@(#) Copyright (c) 1997, 1998, 1999\
@@ -60,7 +61,7 @@ static const char rcsid[] =
   "@(#) $FreeBSD$";
 #endif
 
-static void an_getval		__P((const char *, struct an_req *));
+static int an_getval		__P((const char *, struct an_req *));
 static void an_setval		__P((const char *, struct an_req *));
 static void an_printwords	__P((u_int16_t *, int));
 static void an_printspeeds	__P((u_int8_t*, int));
@@ -88,6 +89,7 @@ static void an_setkeys		__P((const char *, char *, int));
 static void an_enable_tx_key	__P((const char *, char *));
 static void an_enable_leap_mode __P((const char *, char *));
 static void usage		__P((char *));
+static void 			__P(an_dumprssimap(const char *));
 int main			__P((int, char **));
 
 #define ACT_DUMPSTATS 1
@@ -132,12 +134,14 @@ int main			__P((int, char **));
 #define ACT_SET_MONITOR_MODE 37
 #define ACT_SET_LEAP_MODE 38
 
-static void an_getval(iface, areq)
+#define ACT_DUMPRSSIMAP 39
+
+static int an_getval(iface, areq)
 	const char		*iface;
 	struct an_req		*areq;
 {
 	struct ifreq		ifr;
-	int			s;
+	int			s, okay = 1;
 
 	bzero((char *)&ifr, sizeof(ifr));
 
@@ -149,12 +153,14 @@ static void an_getval(iface, areq)
 	if (s == -1)
 		err(1, "socket");
 
-	if (ioctl(s, SIOCGAIRONET, &ifr) == -1)
+	if (ioctl(s, SIOCGAIRONET, &ifr) == -1) {
+		okay = 0;
 		err(1, "SIOCGAIRONET");
+	}
 
 	close(s);
 
-	return;
+	return okay;
 }
 
 static void an_setval(iface, areq)
@@ -261,6 +267,21 @@ static void an_dumpstatus(iface)
 {
 	struct an_ltv_status	*sts;
 	struct an_req		areq;
+	struct an_ltv_rssi_map	an_rssimap;
+	int rssimap_valid = 0;
+
+	/*
+	 * Try to get RSSI to percent and dBM table
+	 */
+
+	an_rssimap.an_len = sizeof(an_rssimap);
+	an_rssimap.an_type = AN_RID_RSSI_MAP;
+	rssimap_valid = an_getval(iface, (struct an_req*)&an_rssimap);	
+
+	if (rssimap_valid)
+		printf("RSSI table:\t\t[ present ]\n");
+	else
+		printf("RSSI table:\t\t[ not available ]\n");
 
 	areq.an_len = sizeof(areq);
 	areq.an_type = AN_RID_STATUS;
@@ -289,10 +310,22 @@ static void an_dumpstatus(iface)
 	printf("]\n");
 	printf("Error code:\t\t");
 	an_printhex((char *)&sts->an_errcode, 1);
-	printf("\nSignal quality:\t\t");
-	an_printhex((char *)&sts->an_cur_signal_quality, 1);
-	printf("\nSignal strength:\t[ %d%% ]",sts->an_normalized_rssi);
-	printf("\nMax Noise:\t\t[ %d%% ]",sts->an_avg_noise_prev_min);
+	if (rssimap_valid)
+		printf("\nSignal strength:\t[ %d%% ]",
+		    an_rssimap.an_entries[
+			sts->an_normalized_strength].an_rss_pct);
+	else 
+		printf("\nSignal strength:\t[ %d%% ]",
+		    sts->an_normalized_strength);
+	printf("\nAverage Noise:\t\t[ %d%% ]",sts->an_avg_noise_prev_min_pc);
+	if (rssimap_valid)
+		printf("\nSignal quality:\t\t[ %d%% ]", 
+		    an_rssimap.an_entries[
+			sts->an_cur_signal_quality].an_rss_pct);
+	else 
+		printf("\nSignal quality:\t\t[ %d ]", 
+		    sts->an_cur_signal_quality);
+	printf("\nMax Noise:\t\t[ %d%% ]",sts->an_max_noise_prev_min_pc);
 	/*
 	 * XXX: This uses the old definition of the rate field (units of
 	 * 500kbps).  Technically the new definition is that this field
@@ -379,7 +412,9 @@ static void an_dumpcaps(iface)
 	printf("\nSupported speeds:\t");
 	an_printspeeds(caps->an_rates, 8);
 	printf("\nRX Diversity:\t\t[ ");
-	if (caps->an_rx_diversity == AN_DIVERSITY_ANTENNA_1_ONLY)
+	if (caps->an_rx_diversity == AN_DIVERSITY_FACTORY_DEFAULT)
+		printf("factory default");
+	else if (caps->an_rx_diversity == AN_DIVERSITY_ANTENNA_1_ONLY)
 		printf("antenna 1 only");
 	else if (caps->an_rx_diversity == AN_DIVERSITY_ANTENNA_2_ONLY)
 		printf("antenna 2 only");
@@ -387,11 +422,13 @@ static void an_dumpcaps(iface)
 		printf("antenna 1 and 2");
 	printf(" ]");
 	printf("\nTX Diversity:\t\t[ ");
-	if (caps->an_rx_diversity == AN_DIVERSITY_ANTENNA_1_ONLY)
+	if (caps->an_tx_diversity == AN_DIVERSITY_FACTORY_DEFAULT)
+		printf("factory default");
+	else if (caps->an_tx_diversity == AN_DIVERSITY_ANTENNA_1_ONLY)
 		printf("antenna 1 only");
-	else if (caps->an_rx_diversity == AN_DIVERSITY_ANTENNA_2_ONLY)
+	else if (caps->an_tx_diversity == AN_DIVERSITY_ANTENNA_2_ONLY)
 		printf("antenna 2 only");
-	else if (caps->an_rx_diversity == AN_DIVERSITY_ANTENNA_1_AND_2)
+	else if (caps->an_tx_diversity == AN_DIVERSITY_ANTENNA_1_AND_2)
 		printf("antenna 1 and 2");
 	printf(" ]");
 	printf("\nSupported power levels:\t");
@@ -787,7 +824,9 @@ static void an_dumpconfig(iface)
 	printf(" ]");
 	printf("\nRX Diversity:\t\t\t\t[ ");
 	diversity = cfg->an_diversity & 0xFF;
-	if (diversity == AN_DIVERSITY_ANTENNA_1_ONLY)
+	if (diversity == AN_DIVERSITY_FACTORY_DEFAULT)
+		printf("factory default");
+	else if (diversity == AN_DIVERSITY_ANTENNA_1_ONLY)
 		printf("antenna 1 only");
 	else if (diversity == AN_DIVERSITY_ANTENNA_2_ONLY)
 		printf("antenna 2 only");
@@ -796,7 +835,9 @@ static void an_dumpconfig(iface)
 	printf(" ]");
 	printf("\nTX Diversity:\t\t\t\t[ ");
 	diversity = (cfg->an_diversity >> 8) & 0xFF;
-	if (diversity == AN_DIVERSITY_ANTENNA_1_ONLY)
+	if (diversity == AN_DIVERSITY_FACTORY_DEFAULT)
+		printf("factory default");
+	else if (diversity == AN_DIVERSITY_ANTENNA_1_ONLY)
 		printf("antenna 1 only");
 	else if (diversity == AN_DIVERSITY_ANTENNA_2_ONLY)
 		printf("antenna 2 only");
@@ -829,6 +870,34 @@ static void an_dumpconfig(iface)
 	return;
 }
 
+static void an_dumprssimap(iface)
+	const char		*iface;
+{
+	struct an_ltv_rssi_map	*rssi;
+	struct an_req		areq;
+	int                     i;
+
+	areq.an_len = sizeof(areq);
+	areq.an_type = AN_RID_RSSI_MAP;
+
+	an_getval(iface, &areq);
+
+	rssi = (struct an_ltv_rssi_map *)&areq;
+
+	printf("idx\tpct\t dBm\n");
+
+	for (i = 0; i < 0xFF; i++) {
+		/* 
+		 * negate the dBm value: it's the only way the power 
+		 * level makes sense 
+		 */
+		printf("%3d\t%3d\t%4d\n", i, 
+			rssi->an_entries[i].an_rss_pct,
+			- rssi->an_entries[i].an_rss_dbm);
+	}
+
+	return;
+}
 
 static void usage(p)
 	char			*p;
@@ -839,6 +908,7 @@ static void usage(p)
 	fprintf(stderr, "\t%s -i iface -I (show NIC capabilities)\n", p);
 	fprintf(stderr, "\t%s -i iface -T (show stats counters)\n", p);
 	fprintf(stderr, "\t%s -i iface -C (show current config)\n", p);
+	fprintf(stderr, "\t%s -i iface -R (show RSSI map)\n", p);
 	fprintf(stderr, "\t%s -i iface -t 0-4 (set TX speed)\n", p);
 	fprintf(stderr, "\t%s -i iface -s 0-3 (set power save mode)\n", p);
 	fprintf(stderr, "\t%s -i iface [-v 1-4] -a AP (specify AP)\n", p);
@@ -925,12 +995,12 @@ static void an_setconfig(iface, act, arg)
 			errx(1, "bad diversity setting: %d", diversity);
 			break;
 		}
-		if (atoi(arg) == ACT_SET_DIVERSITY_RX) {
-			cfg->an_diversity &= 0x00FF;
-			cfg->an_diversity |= (diversity << 8);
-		} else {
+		if (act == ACT_SET_DIVERSITY_RX) {
 			cfg->an_diversity &= 0xFF00;
 			cfg->an_diversity |= diversity;
+		} else {
+			cfg->an_diversity &= 0x00FF;
+			cfg->an_diversity |= (diversity << 8);
 		}
 		break;
 	case ACT_SET_TXPWR:
@@ -1520,7 +1590,7 @@ int main(argc, argv)
 	opterr = 1;
 
 	while ((ch = getopt(argc, argv,
-	    "ANISCTht:a:e:o:s:n:v:d:j:b:c:r:p:w:m:l:k:K:W:QZM:L:")) != -1) {
+	    "ANISCTRht:a:e:o:s:n:v:d:j:b:c:r:p:w:m:l:k:K:W:QZM:L:")) != -1) {
 		switch(ch) {
 		case 'Z':
 #ifdef ANCACHE
@@ -1553,6 +1623,9 @@ int main(argc, argv)
 			break;
 		case 'C':
 			act = ACT_DUMPCONFIG;
+			break;
+		case 'R':
+			act = ACT_DUMPRSSIMAP;
 			break;
 		case 't':
 			act = ACT_SET_TXRATE;
@@ -1606,8 +1679,12 @@ int main(argc, argv)
 				act = ACT_SET_DIVERSITY_TX;
 				break;
 			default:
-				errx(1, "must specift RX or TX diversity");
+				errx(1, "must specify RX or TX diversity");
 				break;
+			}
+			if (!isdigit(*optarg)) {
+				errx(1, "%s is not numeric", optarg);
+				exit(1);
 			}
 			arg = optarg;
 			break;
@@ -1718,6 +1795,9 @@ int main(argc, argv)
 		break;
 	case ACT_DUMPAP:
 		an_dumpap(iface);
+		break;
+	case ACT_DUMPRSSIMAP:
+		an_dumprssimap(iface);
 		break;
 	case ACT_SET_SSID1:
 	case ACT_SET_SSID2:

@@ -160,4 +160,3 @@ an_pccard_attach(device_t dev)
 	error = an_attach(sc, device_get_unit(dev), flags);
 	return (error);
 }
-
