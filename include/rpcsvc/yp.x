@@ -34,7 +34,7 @@
 #ifndef RPC_HDR
 %#ifndef lint
 %/*static char sccsid[] = "from: @(#)yp.x	2.1 88/08/01 4.0 RPCSRC";*/
-%static char rcsid[] = "$Id: yp.x,v 1.3 1995/12/09 08:34:04 wpaul Exp $";
+%static char rcsid[] = "$Id: yp.x,v 1.3 1995/12/07 03:50:27 wpaul Exp wpaul $";
 %#endif /* not lint */
 #endif
 
@@ -223,11 +223,80 @@ struct ypbind_setdom {
 	unsigned ypsetdom_vers;
 };
 
+
+/*
+ * NIS v1 support for backwards compatibility
+ */
+enum ypreqtype {
+	YPREQ_KEY = 1,
+	YPREQ_NOKEY = 2,
+	YPREQ_MAP_PARMS = 3
+};
+
+enum ypresptype {
+	YPRESP_VAL = 1,
+	YPRESP_KEY_VAL = 2,
+	YPRESP_MAP_PARMS = 3
+};
+
+union yprequest switch (ypreqtype yp_reqtype) {
+case YPREQ_KEY:
+	ypreq_key yp_req_keytype;
+case YPREQ_NOKEY:
+	ypreq_nokey yp_req_nokeytype;
+case YPREQ_MAP_PARMS:
+	ypmap_parms yp_req_map_parmstype;
+};
+
+union ypresponse switch (ypresptype yp_resptype) {
+case YPRESP_VAL:
+	ypresp_val yp_resp_valtype;
+case YPRESP_KEY_VAL:
+	ypresp_key_val yp_resp_key_valtype;
+case YPRESP_MAP_PARMS:
+	ypmap_parms yp_resp_map_parmstype;
+};
+
 #if !defined(YPBIND_ONLY) && !defined(YPPUSH_ONLY)
 /*
  * YP access protocol
  */
 program YPPROG {
+/*
+ * NIS v1 support for backwards compatibility
+ */
+	version YPOLDVERS {
+		void
+		YPOLDPROC_NULL(void) = 0;
+
+		bool
+		YPOLDPROC_DOMAIN(domainname) = 1;
+
+		bool
+		YPOLDPROC_DOMAIN_NONACK(domainname) = 2;
+
+		ypresponse
+		YPOLDPROC_MATCH(yprequest) = 3;
+
+		ypresponse
+		YPOLDPROC_FIRST(yprequest) = 4;
+
+		ypresponse
+		YPOLDPROC_NEXT(yprequest) = 5;
+
+		ypresponse
+		YPOLDPROC_POLL(yprequest) = 6;
+
+		ypresponse
+		YPOLDPROC_PUSH(yprequest) = 7;
+
+		ypresponse
+		YPOLDPROC_PULL(yprequest) = 8;
+
+		ypresponse
+		YPOLDPROC_GET(yprequest) = 9;
+	} = 1;
+
 	version YPVERS {
 		void 
 		YPPROC_NULL(void) = 0;
@@ -282,7 +351,7 @@ program YPPUSH_XFRRESPPROG {
 		yppushresp_xfr	
 		YPPUSHPROC_XFRRESP(void) = 1;
 #else
-		void	
+		void
 		YPPUSHPROC_XFRRESP(yppushresp_xfr) = 1;
 #endif
 	} = 1;
