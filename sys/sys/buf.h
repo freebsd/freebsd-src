@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)buf.h	8.7 (Berkeley) 1/21/94
- * $Id: buf.h,v 1.8 1994/10/05 09:48:38 davidg Exp $
+ * $Id: buf.h,v 1.9 1994/10/10 00:58:31 phk Exp $
  */
 
 #ifndef _SYS_BUF_H_
@@ -190,7 +190,6 @@ extern int	bufpages;		/* Number of memory pages in the buffer pool. */
 extern struct	buf *swbuf;		/* Swap I/O buffer headers. */
 extern int	nswbuf;			/* Number of swap I/O buffer headers. */
 extern TAILQ_HEAD(swqueue, buf) bswlist;
-extern struct	buf *bclnlist;		/* Head of cleaned page list. */
 
 __BEGIN_DECLS
 void	bufinit __P((void));
