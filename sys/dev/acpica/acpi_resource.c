@@ -539,7 +539,7 @@ acpi_reslist_add(device_t dev, int type, int rid, u_long start, u_long count)
 	    } else if (start >= rle->start && start <= rle->end) {
 		if (end > rle->end) {
 		    start = rle->end + 1;
-		    count = end - rle->end + 1;
+		    count = end - start + 1;
 		    break;
 		} else 
 		    return (EEXIST);
