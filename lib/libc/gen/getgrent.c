@@ -55,10 +55,22 @@ static int _getypgroup(struct group *, const char *, char *);
 static int _nextypgroup(struct group *);
 #endif
 
-#define	MAXGRP		200
-static char *members[MAXGRP];
-#define	MAXLINELENGTH	1024
-static char line[MAXLINELENGTH];
+/* initial size for malloc and increase steps for realloc */
+#define	MAXGRP		64
+#define	MAXLINELENGTH	256
+
+static char **members; 		/* list of group members */
+static int maxgrp;              /* current length of **mebers */
+static char *line;		/* temp buffer for group line */
+static int maxlinelength;       /* current length of *line */
+
+/* 
+ * Lines longer than MAXLINELENGTHLIMIT will be count as an error.
+ * <= 0 disable check for maximum line length
+ * 256K is enough for 64,000 uids
+ */
+#define MAXLINELENGTHLIMIT	(256 * 1024)
+
 
 struct group *
 getgrent()
@@ -176,6 +188,21 @@ start_gr()
 		rewind(_gr_fp);
 	}
 #endif
+
+	if (maxlinelength == 0) {
+		if ((line = (char *)malloc(sizeof(char) * 
+					   MAXLINELENGTH)) == NULL)
+			return(0);
+		maxlinelength += MAXLINELENGTH;
+	}
+
+	if (maxgrp == 0) {
+		if ((members = (char **)malloc(sizeof(char **) * 
+					       MAXGRP)) == NULL)
+			return(0);
+		maxgrp += MAXGRP;
+	}
+
 	return 1;
 }
 
@@ -217,24 +244,55 @@ grscan(search, gid, name)
 {
 	register char *cp, **m;
 	char *bp;
+
+
 #ifdef YP
 	int _ypfound;
-#endif;
+#endif
 	for (;;) {
 #ifdef YP
 		_ypfound = 0;
 #endif
-		if (!fgets(line, sizeof(line), _gr_fp))
+		if (fgets(line, maxlinelength, _gr_fp) == NULL)
 			return(0);
-		bp = line;
-		/* skip lines that are too big */
-		if (!index(line, '\n')) {
-			int ch;
 
-			while ((ch = getc(_gr_fp)) != '\n' && ch != EOF)
-				;
-			continue;
+		if (!index(line, '\n')) {
+			do {
+				if (feof(_gr_fp))
+					return(0);
+			
+				/* don't allocate infinite memory */
+				if (MAXLINELENGTHLIMIT > 0 && 
+				    maxlinelength >= MAXLINELENGTHLIMIT)
+					return(0);
+
+				if ((line = (char *)realloc(line, 
+				     sizeof(char) * 
+				     (maxlinelength + MAXLINELENGTH))) == NULL)
+					return(0);
+			
+				if (fgets(line + maxlinelength - 1, 
+					  MAXLINELENGTH + 1, _gr_fp) == NULL)
+					return(0);
+
+				maxlinelength += MAXLINELENGTH;
+			} while (!index(line + maxlinelength - 
+				       MAXLINELENGTH - 1, '\n'));
 		}
+
+#ifdef GROUP_IGNORE_COMMENTS
+		/* 
+		 * Ignore comments: ^[ \t]*#
+		 */
+		for (cp = line; *cp != '\0'; cp++)
+			if (*cp != ' ' && *cp != '\t')
+				break;
+		if (*cp == '#')
+			continue;
+#endif
+
+		bp = line;
+
 		if ((_gr_group.gr_name = strsep(&bp, ":\n")) == NULL)
 			break;
 #ifdef YP
@@ -320,9 +378,16 @@ grscan(search, gid, name)
 		bp = cp;
 		cp = NULL;
 #endif
-		for (m = _gr_group.gr_mem = members;; bp++) {
-			if (m == &members[MAXGRP - 1])
-				break;
+		for (m = members; ; bp++) {
+			if (m == (members + maxgrp - 1)) {
+				if ((members = (char **)
+				     realloc(members, 
+					     sizeof(char **) * 
+					     (maxgrp + MAXGRP))) == NULL)
+					return(0);
+				m = members + maxgrp - 1;
+				maxgrp += MAXGRP;
+			}
 			if (*bp == ',') {
 				if (cp) {
 					*bp = '\0';
@@ -333,11 +398,13 @@ grscan(search, gid, name)
 				if (cp) {
 					*bp = '\0';
 					*m++ = cp;
-			}
+				}
 				break;
 			} else if (cp == NULL)
 				cp = bp;
+			
 		}
+		_gr_group.gr_mem = members;
 		*m = NULL;
 		return(1);
 	}
@@ -370,9 +437,13 @@ _gr_breakout_yp(struct group *gr, char *result)
 	if ((s = result) == NULL) return 0;
 	cp = 0;
 
-	for (m = _gr_group.gr_mem = members; /**/; s++) {
-		if (m == &members[MAXGRP - 1]) {
-			break;
+	for (m = members; ; s++) {
+		if (m == members + maxgrp - 1) {
+			if ((members = (char **)realloc(members, 
+			     sizeof(char **) * (maxgrp + MAXGRP))) == NULL)
+				return(0);
+			m = members + maxgrp - 1;
+			maxgrp += MAXGRP;
 		}
 		if (*s == ',') {
 			if (cp) {
@@ -390,6 +461,7 @@ _gr_breakout_yp(struct group *gr, char *result)
 			cp = s;
 		}
 	}
+	_gr_group.gr_mem = members;
 	*m = NULL;
 
 	return 1;
