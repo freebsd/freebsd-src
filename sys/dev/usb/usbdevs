@@ -501,8 +501,9 @@ product BELKIN2 F5U002		0x0002	F5U002 Parallel printer adapter
 product BELKIN USB2LAN		0x0121	USB to LAN Converter
 product BELKIN F5U103		0x0103	F5U103 Serial adapter
 product BELKIN F5U109		0x0109	F5U109 Serial adapter
-product BELKIN F5U120		0x1203	F5U120-PC Hub
 product BELKIN F5U208		0x0208	F5U208 VideoBus II
+product BELKIN F5U409		0x0409	F5U409 Serial adapter
+product BELKIN F5U120		0x1203	F5U120-PC Hub
 
 /* Billionton products */
 product BILLIONTON USB100	0x0986	USB100N 10/100 FastEthernet Adapter
