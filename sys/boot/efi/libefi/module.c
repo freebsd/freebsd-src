@@ -22,14 +22,12 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
-/*
- * alpha-specific module functionality.
- *
- */
+#ifndef lint
+static const char rcsid[] =
+  "$FreeBSD$";
+#endif /* not lint */
 
 #include <stand.h>
 
@@ -39,6 +37,6 @@
 int
 efi_autoload(void)
 {
-    /* XXX use PnP to locate stuff here */
-    return(0);
+	/* XXX use PnP to locate stuff here */
+	return (0);
 }

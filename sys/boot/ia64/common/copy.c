@@ -22,9 +22,13 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+
+#ifndef lint
+static const char rcsid[] =
+  "$FreeBSD$";
+#endif /* not lint */
+
 /*
  * MD primitives supporting placement of module data 
  *
@@ -39,21 +43,19 @@
 int
 efi_copyin(void *src, vm_offset_t dest, size_t len)
 {
-    bcopy(src, (void*) dest, len);
-    return(len);
+	bcopy(src, (void*) dest, len);
+	return (len);
 }
 
 int
 efi_copyout(vm_offset_t src, void *dest, size_t len)
 {
-    bcopy((void*) src, dest, len);
-    return(len);
+	bcopy((void*) src, dest, len);
+	return (len);
 }
 
 int
 efi_readin(int fd, vm_offset_t dest, size_t len)
 {
-    return(read(fd, (void*) dest, len));
+	return (read(fd, (void*) dest, len));
 }
-
-    
