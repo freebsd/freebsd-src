@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.106 1995/02/10 07:17:46 davidg Exp $
+ *	$Id: machdep.c,v 1.107 1995/02/10 07:44:03 davidg Exp $
  */
 
 #include "npx.h"
@@ -377,7 +377,7 @@ struct cpu_nameclass i386_cpus[] = {
 static void
 identifycpu()
 {
-	extern u_long cpu_id;
+	extern u_long cpu_id, cpu_high, cpu_feature;
 	extern char cpu_vendor[];
 	printf("CPU: ");
 	if (cpu >= 0 
@@ -413,11 +413,50 @@ identifycpu()
 		printf(" %d MHz", pentium_mhz);
 	}
 #endif
-	if(cpu_id)
-		printf("  Id = 0x%lx",cpu_id);
 	if(*cpu_vendor)
 		printf("  Origin = \"%s\"",cpu_vendor);
+	if(cpu_id)
+		printf("  Id = 0x%lx",cpu_id);
 	printf("\n");	/* cpu speed would be nice, but how? */
+	if (!strcmp(cpu_vendor,"GenuineIntel")) {
+		printf("  This is a");
+		if ((cpu_id & 0xf00) > 3) {
+			switch (cpu_id & 0x3000) {
+			    case 0x1000: printf("Overdrive "); break;
+			    case 0x2000: printf("Dual "); break;
+			}
+			if ((cpu_id & 0xf00) == 0x400) 
+			    printf("n i486");
+			else if ((cpu_id & 0xf00) == 0x500) 
+			    printf(" Pentium ");
+			else
+			    printf(" unknown CPU");
+			switch (cpu_id & 0xff0) {
+			    case 0x400: printf("DX"); break;
+			    case 0x410: printf("DX"); break;
+			    case 0x420: printf("SX"); break;
+			    case 0x430: printf("DX2"); break;
+			    case 0x440: printf("SL"); break;
+			    case 0x450: printf("SX2"); break;
+			    case 0x470: printf("DX2 Write-Back Enhanced");
+				break;
+			    case 0x480: printf("DX4"); break;
+			    case 0x510: printf("510\\60 or 567\\66"); break;
+			    case 0x520: printf("735\\90 or 815\\100"); break;
+			}
+		}
+		printf("  Stepping=%d", cpu_id & 0xf);
+		if (cpu_high > 0) {
+			printf("  Features=0x%lx",cpu_feature);
+			if (cpu_feature & 0x1) printf(" FPU"); 
+			if (cpu_feature & 0x2) printf(" VME"); 
+			if (cpu_feature & 0x8) printf(" PSE"); 
+			if (cpu_feature & 0x80) printf(" MCE");
+			if (cpu_feature & 0x100) printf(" CX8");
+			if (cpu_feature & 0x200) printf(" APIC");
+		}
+		printf("\n");
+	}
 
 	/*
 	 * Now that we have told the user what they have,
