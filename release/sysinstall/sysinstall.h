@@ -328,6 +328,7 @@ extern DMenu		MenuFTPOptions;		/* FTP Installation options			*/
 extern DMenu		MenuOptions;		/* Installation options				*/
 extern DMenu		MenuOptionsLanguage;	/* Language options menu			*/
 extern DMenu		MenuMedia;		/* Media type menu				*/
+extern DMenu		MenuMouse;		/* Mouse type menu				*/
 extern DMenu		MenuMediaCDROM;		/* CDROM media menu				*/
 extern DMenu		MenuMediaDOS;		/* DOS media menu				*/
 extern DMenu		MenuMediaFloppy;	/* Floppy media menu				*/

@@ -111,6 +111,33 @@ consult the README file.",
   { NULL } },
 };
 
+DMenu MenuMouse = {
+DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
+"Choose a Mouse type",
+"There are many different types of mice currently on the market,\n\
+but this configuration menu should at least narrow down the choices\n\
+somewhat.  Once you've selected one of the below, you can specify\n\
+/dev/mouse as your mouse device when running the XFree86 configuration\n\
+utility (see Configuration menu).  Please note that for PS/2 mice,\n\
+a kernel recompile is also required!  See the handbook for more details\n\
+on building a kernel.",
+"For more information, visit the Documentation menu",
+NULL,
+{ { "COM1",		"Serial mouse on COM1",
+	DMENU_SYSTEM_COMMAND,	"ln -fs /dev/cuaa0 /dev/mouse", 0, 0	},
+  { "COM2",		"Serial mouse on COM2",
+	DMENU_SYSTEM_COMMAND,	"ln -fs /dev/cuaa1 /dev/mouse", 0, 0	},
+  { "COM3",		"Serial mouse on COM3",
+	DMENU_SYSTEM_COMMAND,	"ln -fs /dev/cuaa2 /dev/mouse", 0, 0	},
+  { "COM4",		"Serial mouse on COM4",
+	DMENU_SYSTEM_COMMAND,	"ln -fs /dev/cuaa3 /dev/mouse", 0, 0	},
+  { "BusMouse",		"Logitech or ATI bus mouse",
+	DMENU_SYSTEM_COMMAND,	"ln -fs /dev/mse0 /dev/mouse", 0, 0	},
+  { "PS/2",		"PS/2 style mouse (requires new kernel)",
+	DMENU_SYSTEM_COMMAND,	"ln -fs /dev/psm0 /dev/mouse", 0, 0	},
+  { NULL } },
+};
+
 DMenu MenuMediaCDROM = {
 DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
 "Choose a CDROM type",
@@ -683,6 +710,8 @@ software not provided in the base distributions.",
 	DMENU_SYSTEM_COMMAND,	"rm -f /etc/wall_cmos_clock /etc/localtime; tzsetup", 0, 0 },
       { "Media",		"Change the installation media type",
 	DMENU_SUBMENU,		&MenuMedia, 0, 0			},
+      { "Mouse",		"Select the type of mouse you have",
+	DMENU_SUBMENU,		&MenuMouse, 0, 0			},
       { "Networking",		"Configure additional network services",
 	DMENU_CALL, 		configNetworking, 0, 0			},
       { "Options",		"Go to options editor.",
@@ -693,6 +722,8 @@ software not provided in the base distributions.",
 	DMENU_CALL,		configPorts, 0, 1			},
       { "Root Password",	"Set the system manager's password",
 	DMENU_SYSTEM_COMMAND,	"passwd root", 0, 0			},
+      { "WEB",			"Go to the HTML documentation menu (post-install).",
+	DMENU_CALL,		docBrowser, 0, 0			},
       { "XFree86",		"Configure XFree86 (if installed)",
 	DMENU_SYSTEM_COMMAND,	"/usr/X11R6/bin/xf86config", 0, 0	},
       { "Exit",			"Exit this menu (returning to previous)",
