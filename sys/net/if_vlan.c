@@ -355,7 +355,7 @@ vlan_start(struct ifnet *ifp)
 			 * with 802.1Q encapsulation.
 			 */
 			bcopy(mtod(m, char *) + ifv->ifv_encaplen,
-			      mtod(m, char *), sizeof(struct ether_header));
+			      mtod(m, char *), ETHER_HDR_LEN);
 			evl = mtod(m, struct ether_vlan_header *);
 			evl->evl_proto = evl->evl_encap_proto;
 			evl->evl_encap_proto = htons(ETHERTYPE_VLAN);
@@ -446,7 +446,7 @@ vlan_input(struct ifnet *ifp, struct mbuf *m)
 		 */
 		bcopy(mtod(m, caddr_t),
 		      mtod(m, caddr_t) + ETHER_VLAN_ENCAP_LEN,
-		      sizeof (struct ether_header));
+		      ETHER_HDR_LEN);
 		m_adj(m, ETHER_VLAN_ENCAP_LEN);
 	}
 

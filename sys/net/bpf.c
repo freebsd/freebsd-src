@@ -168,7 +168,7 @@ bpf_movein(uio, linktype, mp, sockp, datlen)
 	case DLT_EN10MB:
 		sockp->sa_family = AF_UNSPEC;
 		/* XXX Would MAXLINKHDR be better? */
-		hlen = sizeof(struct ether_header);
+		hlen = ETHER_HDR_LEN;
 		break;
 
 	case DLT_FDDI:
