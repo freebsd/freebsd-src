@@ -174,7 +174,7 @@ BIGBOOTLABEL=		minimum2
 .elif ${MACHINE_ARCH} == "alpha"
 BOOTSIZE=		1440
 FIXITSIZE=		2880
-MFSSIZE=		3200
+MFSSIZE=		4320
 BIGBOOTSIZE=		2880
 BOOTINODE=		80000
 FIXITINODE=		4000
@@ -625,7 +625,9 @@ release.8:
 		ln -sf /stand $$dir; \
 	  done )
 	cp /sbin/dhclient-script ${RD}/mfsfd/stand
+.if ${MACHINE_ARCH} == "i386"
 	cp ${.CURDIR}/../etc/defaults/pccard.conf ${RD}/mfsfd/etc/defaults/pccard.conf
+.endif
 	cp ${.CURDIR}/../etc/usbd.conf ${RD}/mfsfd/etc/usbd.conf
 	cd ${RD}/trees/bin && ls ${BOOT1} | cpio -dump ${RD}/mfsfd/stand
 	echo "nameserver      42/tcp name"	> ${RD}/mfsfd/stand/etc/services
