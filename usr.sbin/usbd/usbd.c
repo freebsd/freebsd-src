@@ -60,6 +60,7 @@
 #include <sys/errno.h>
 #include <sys/queue.h>
 #include <sys/wait.h>
+#include <regex.h>
 
 #include <dev/usb/usb.h>
 
@@ -121,6 +122,7 @@ event_name_t event_names[] = {
 #define CLASS_FIELD		4
 #define SUBCLASS_FIELD		5
 #define PROTOCOL_FIELD		6
+#define DEVNAME_FIELD		7
 
 #define ATTACH_FIELD		8	/* command fields */
 #define DETACH_FIELD		9
@@ -135,6 +137,8 @@ typedef struct action_s {
 	int	class;
 	int	subclass;
 	int	protocol;
+	char 	*devname;
+	regex_t	devname_regex;
 
 	char	*attach;	/* commands to execute */
 	char	*detach;
@@ -143,6 +147,11 @@ typedef struct action_s {
 } action_t;
 
 STAILQ_HEAD(action_list, action_s) actions = STAILQ_HEAD_INITIALIZER(actions);
+
+typedef struct action_match_s {
+	action_t *action;
+	char	*devname;
+} action_match_t;
 
 
 /* the function returns 0 for failure, 1 for all arguments found and 2 for
@@ -158,6 +167,7 @@ int set_release_field(action_t *action, char *args, char **trail);
 int set_class_field(action_t *action, char *args, char **trail);
 int set_subclass_field(action_t *action, char *args, char **trail);
 int set_protocol_field(action_t *action, char *args, char **trail);
+int set_devname_field(action_t *action, char *args, char **trail);
 int set_attach_field(action_t *action, char *args, char **trail);
 int set_detach_field(action_t *action, char *args, char **trail);
 
@@ -177,6 +187,7 @@ config_field_t config_fields[] = {
 	{CLASS_FIELD,		"class",	set_class_field},
 	{SUBCLASS_FIELD,	"subclass",	set_subclass_field},
 	{PROTOCOL_FIELD,	"protocol",	set_protocol_field},
+	{DEVNAME_FIELD,		"devname",	set_devname_field},
 
 	{ATTACH_FIELD,		"attach",	set_attach_field},
 	{DETACH_FIELD,		"detach",	set_detach_field},
@@ -189,7 +200,8 @@ config_field_t config_fields[] = {
 void print_event	__P((struct usb_event *event));
 void print_action	__P((action_t *action, int i));
 void print_actions	__P((void));
-action_t *find_action	__P((struct usb_device_info *devinfo));
+int  find_action	__P((struct usb_device_info *devinfo,
+			action_match_t *action_match));
 
 
 void
@@ -354,6 +366,38 @@ set_protocol_field(action_t *action, char *args, char **trail)
 	return(get_integer(args, &action->protocol, trail));
 }
 int
+set_devname_field(action_t *action, char *args, char **trail)
+{
+	int match = get_string(args, &action->devname, trail);
+	int len;
+	int error;
+	char *string;
+#	define ERRSTR_SIZE	100
+	char errstr[ERRSTR_SIZE];
+
+	if (match == 0)
+		return(0);
+
+	len = strlen(action->devname);
+	string = malloc(len + 14);
+	if (string == NULL)
+		return(0);
+
+	bcopy(action->devname, string+7, len);	/* make some space for */
+	bcopy("[[:<:]]", string, 7);		/*   beginning of word */
+	bcopy("[[:>:]]", string+7+len, 7);	/*   and end of word   */
+
+	error = regcomp(&action->devname_regex, string, REG_NOSUB|REG_EXTENDED);
+	if (error) {
+		errstr[0] = '\0';
+		regerror(error, &action->devname_regex, errstr, ERRSTR_SIZE);
+		fprintf(stderr, "%s:%d: %s\n", configfile, lineno, errstr);
+		return(0);
+	}
+
+	return(match);
+}
+int
 set_attach_field(action_t *action, char *args, char **trail)
 {
 	return(get_string(args, &action->attach, trail));
@@ -468,6 +512,7 @@ read_configuration(void)
 			action->class = WILDCARD_INT;
 			action->subclass = WILDCARD_INT;
 			action->protocol = WILDCARD_INT;
+			action->devname = WILDCARD_STRING;
 
 			/* Add it to the end of the list to preserve order */
 			STAILQ_INSERT_TAIL(&actions, action, next);
@@ -534,6 +579,20 @@ print_event(struct usb_event *event)
 	       "clss=0x%04x subclss=0x%04x prtcl=0x%04x\n",
 	       devinfo->vendorNo, devinfo->productNo, devinfo->releaseNo,
 	       devinfo->class, devinfo->subclass, devinfo->protocol);
+
+	if (devinfo->devnames[0][0] != '\0') {
+		char c = ' ';
+
+		printf("  device names:");
+		for (i = 0; i < MAXDEVNAMES; i++) {
+			if (devinfo->devnames[i][0] == '\0')
+				break;
+
+			printf("%c%s", c, devinfo->devnames[i]);
+			c = ',';
+		}
+		printf("\n");
+	}
 }
 
 void
@@ -571,13 +630,15 @@ print_action(action_t *action, int i)
 	    action->subclass != WILDCARD_INT ||
 	    action->protocol != WILDCARD_INT)
 		printf("\n");
+	if (action->devname != WILDCARD_STRING)
+		printf("  devname: %s\n", action->devname);
 
 	if (action->attach != NULL)
-		printf("%s:    attach='%s'\n",
-			__progname, action->attach);
+		printf("  attach='%s'\n",
+			action->attach);
 	if (action->detach != NULL)
-		printf("%s:    detach='%s'\n",
-			__progname, action->detach);
+		printf("  detach='%s'\n",
+			action->detach);
 }
 
 void
@@ -592,10 +653,38 @@ print_actions()
 	printf("%s: %d action%s\n", __progname, i, (i == 1? "":"s"));
 }
 
-action_t *
-find_action(struct usb_device_info *devinfo)
+
+int
+match_devname(action_t *action, struct usb_device_info *devinfo)
+{
+	int i;
+	regmatch_t match;
+	int error;
+
+	for (i = 0; i < MAXDEVNAMES; i++) {
+		if (devinfo->devnames[i][0] == '\0')
+			break;
+
+		error = regexec(&action->devname_regex, devinfo->devnames[i],
+				1, &match, 0);
+		if (error == 0) {
+			if (verbose >= 2)
+				printf("%s: %s matches %s\n", __progname,
+					devinfo->devnames[i], action->devname);
+			return(i);
+		}
+	}
+	
+	return(-1);
+}
+
+
+int
+find_action(struct usb_device_info *devinfo, action_match_t *action_match)
 {
 	action_t *action;
+	char *devname = NULL;
+	int match = -1;
 
 	STAILQ_FOREACH(action, &actions, next) {
 		if ((action->vendor == WILDCARD_INT ||
@@ -609,24 +698,40 @@ find_action(struct usb_device_info *devinfo)
 		    (action->subclass == WILDCARD_INT ||
 		     action->subclass == devinfo->subclass) &&
 		    (action->protocol == WILDCARD_INT ||
-		     action->protocol == devinfo->protocol)) {
+		     action->protocol == devinfo->protocol) &&
+		    (action->devname == WILDCARD_STRING ||
+		     (match = match_devname(action, devinfo)) != -1)) {
 			/* found match !*/
-			if (verbose)
-				printf("%s: Found action '%s' for %s, %s\n",
+			if (match != -1)
+				devname = devinfo->devnames[match];
+			else if (devinfo->devnames[0][0] != '\0' &&
+				 devinfo->devnames[1][0] == '\0')
+				/* if we have exactly 1 device name */
+				devname = devinfo->devnames[0];
+
+			if (verbose) {
+				printf("%s: Found action '%s' for %s, %s",
 					__progname, action->name,
 					devinfo->product, devinfo->vendor);
-			return(action);
+				if (devname)
+					printf(" at %s", devname);
+				printf("\n");
+			}
+
+			action_match->action = action;
+			action_match->devname = devname;
+
+			return(1);
 		}
 	}
 
-	return NULL;
+	return(0);
 }
 
 void
 execute_command(char *cmd)
 {
 	pid_t pid;
-	int pstat;
 	struct sigaction ign, intact, quitact;
 	sigset_t newsigblock, oldsigblock;
 	int status;
@@ -671,11 +776,12 @@ execute_command(char *cmd)
 
 		execl(_PATH_BSHELL, "sh", "-c", cmd, (char *)NULL);
 
+		/* should only be reached in case of error */
 		exit(127);
 	} else {
 		/* parent here */
 		do {
-			pid = waitpid(pid, &pstat, 0);
+			pid = waitpid(pid, &status, 0);
 		} while (pid == -1 && errno == EINTR);
 	}
 	(void) sigaction(SIGINT, &intact, NULL);
@@ -701,8 +807,8 @@ execute_command(char *cmd)
 		} else if (WIFSIGNALED(status)) {
 			fprintf(stderr, "%s: '%s' caught signal %d\n",
 				__progname, cmd, WTERMSIG(status));
-		} else if (verbose) {
-			printf("%s: '%s' is done\n", __progname, cmd);
+		} else if (verbose >= 2) {
+			printf("%s: '%s' is ok\n", __progname, cmd);
 		}
 	}
 }
@@ -711,8 +817,9 @@ void
 process_event_queue(int fd)
 {
 	struct usb_event event;
+	int error;
 	int len;
-	action_t *action;
+	action_match_t action_match;
 
 	for (;;) {
 		len = read(fd, &event, sizeof(event));
@@ -742,16 +849,28 @@ process_event_queue(int fd)
 		switch (event.ue_type) {
 		case USB_EVENT_ATTACH:
 		case USB_EVENT_DETACH:
-			action = find_action(&event.ue_device);
-			if (action == NULL)
+			if (find_action(&event.ue_device, &action_match) == 0)
+				/* nothing found */
 				break;
-			else if (verbose >= 2)
-				print_action(action, 0);
 
-			if (event.ue_type == USB_EVENT_ATTACH && action->attach)
-				execute_command(action->attach);
-			if (event.ue_type == USB_EVENT_DETACH && action->detach)
-				execute_command(action->detach);
+			if (verbose >= 2)
+				print_action(action_match.action, 0);
+
+			if (action_match.devname) {
+				if (verbose >= 2)
+					printf("%s: Setting DEVNAME='%s'\n",
+						__progname, action_match.devname);
+
+				error = setenv("DEVNAME", action_match.devname, 1);
+				if (error)
+					fprintf(stderr, "%s: setenv(\"DEVNAME\", \"%s\",1) failed, %s\n",
+						__progname, action_match.devname, strerror(errno));
+			}
+
+			if (event.ue_type == USB_EVENT_ATTACH && action_match.action->attach)
+				execute_command(action_match.action->attach);
+			if (event.ue_type == USB_EVENT_DETACH && action_match.action->detach)
+				execute_command(action_match.action->detach);
 
 			break;
 		default:
