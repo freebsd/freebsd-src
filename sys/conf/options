@@ -404,6 +404,9 @@ NETGRAPH_ATM_ATMPIF	opt_netgraph.h
 
 # NgATM options
 NGATM_ATM		opt_netgraph.h
+NGATM_ATMBASE		opt_netgraph.h
+NGATM_SSCOP		opt_netgraph.h
+NGATM_SSCFU		opt_netgraph.h
 
 # DRM options
 DRM_DEBUG		opt_drm.h

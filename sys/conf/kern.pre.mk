@@ -35,6 +35,9 @@ INCLUDES+= -I$S/contrib/ipfilter
 # ... and the same for Atheros HAL
 INCLUDES+= -I$S/contrib/dev/ath -I$S/contrib/dev/ath/freebsd
 
+# ... and the same for the NgATM stuff
+INCLUDES+= -I$S/contrib/ngatm
+
 COPTS=	${INCLUDES} -D_KERNEL -include opt_global.h
 CFLAGS=	${COPTFLAGS} ${CWARNFLAGS} ${DEBUG} ${COPTS} -fno-common
 
