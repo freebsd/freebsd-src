@@ -23,7 +23,7 @@ echo '| You might want to symlink /mnt/etc/*pwd.db and /mnt/etc/group |'
 echo '| to /etc after mounting a root filesystem from your disk.      |'
 echo '| tar(1) will not restore all permissions correctly otherwise!  |'
 echo '|                                                               |'
-echo '| Note: you might use the arrow keys to browse through the      |'
+echo '| Note: you can use the arrow keys to browse through the        |'
 echo '| command history of this shell.                                |'
 echo '+---------------------------------------------------------------+'
 echo
