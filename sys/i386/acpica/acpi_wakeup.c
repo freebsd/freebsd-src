@@ -239,7 +239,7 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 		if ((status = AcpiEnterSleepState(state)) != AE_OK) {
 			device_printf(sc->acpi_dev,
 				"AcpiEnterSleepState failed - %s\n",
-				acpi_strerror(status));
+				AcpiFormatException(status));
 			ret = -1;
 			goto out;
 		}
