@@ -3,7 +3,7 @@
 #
 # modified for PC-9801
 #
-#	$Id: files.pc98,v 1.39 1997/09/22 12:18:52 kato Exp $
+#	$Id: files.pc98,v 1.40 1997/09/24 16:41:18 kato Exp $
 #
 #
 # The long compile-with and dependency lines are required because of
@@ -143,7 +143,7 @@ pc98/pc98/lpt.c			optional	lpt	device-driver
 i386/isa/mcd.c			optional	mcd	device-driver
 pc98/pc98/mse.c			optional	mse	device-driver
 i386/isa/ncr5380.c		optional	nca	device-driver
-pc98/pc98/npx.c			optional	npx	device-driver
+pc98/pc98/npx.c			mandatory	npx	device-driver
 pc98/pc98/pcaudio.c		optional	pca	device-driver
 i386/isa/matcd/matcd.c		optional	matcd	device-driver
 i386/isa/pcibus.c		optional	pci	device-driver
