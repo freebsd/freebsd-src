@@ -40,8 +40,8 @@
 #include <sys/mman.h>
 #include <sys/time.h>
 #include <sys/types.h>
+#include <sys/devicestat.h>
 
-#include <geom/geom_stats.h>
 
 /************************************************************/
 static uint npages, pagesize, spp;
@@ -85,11 +85,11 @@ geom_stats_open(void)
 
 	if (statsfd != -1)
 		return (EBUSY);
-	statsfd = open(_PATH_DEV GEOM_STATS_DEVICE, O_RDONLY);
+	statsfd = open(_PATH_DEV DEVSTAT_DEVICE_NAME, O_RDONLY);
 	if (statsfd < 0)
 		return (errno);
 	pagesize = getpagesize();
-	spp = pagesize / sizeof(struct g_stat);
+	spp = pagesize / sizeof(struct devstat);
 	p = mmap(NULL, pagesize, PROT_READ, 0, statsfd, 0);
 	if (p == MAP_FAILED) {
 		error = errno;
@@ -166,14 +166,14 @@ geom_stats_snapshot_reset(void *arg)
 	sp->u = sp->v = 0;
 }
 
-struct g_stat *
+struct devstat *
 geom_stats_snapshot_next(void *arg)
 {
-	struct g_stat *gsp;
+	struct devstat *gsp;
 	struct snapshot *sp;
 
 	sp = arg;
-	gsp = (struct g_stat *)
+	gsp = (struct devstat *)
 	    (sp->ptr + sp->u * pagesize + sp->v * sizeof *gsp);
 	if (++sp->v >= sp->perpage) {
 		if (++sp->u >= sp->pages)
