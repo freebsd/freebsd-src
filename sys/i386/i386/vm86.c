@@ -483,10 +483,10 @@ vm86_addpage(struct vm86context *vmc, int pagenum, vm_offset_t kva)
 
 	for (i = 0; i < vmc->npages; i++)
 		if (vmc->pmap[i].pte_num == pagenum)
-			goto bad;
+			goto overlap;
 
 	if (vmc->npages == VM86_PMAPSIZE)
-		goto bad;			/* XXX grow map? */
+		goto full;			/* XXX grow map? */
 
 	if (kva == 0) {
 		kva = (vm_offset_t)malloc(PAGE_SIZE, M_TEMP, M_WAITOK);
@@ -498,8 +498,10 @@ vm86_addpage(struct vm86context *vmc, int pagenum, vm_offset_t kva)
 	vmc->pmap[i].kva = kva;
 	vmc->pmap[i].pte_num = pagenum;
 	return (kva);
-bad:
-	panic("vm86_addpage: not enough room, or overlap");
+overlap:
+	panic("vm86_addpage: overlap");
+full:
+	panic("vm86_addpage: not enough room");
 }
 
 static void
