@@ -71,10 +71,10 @@ This example shows how to invoke a sendmail-workalike like Postfix in
 place of sendmail.
 .Bd -literal
 # Emulate sendmail using postfix
-sendmail	/usr/libexec/postfix/sendmail
-send-mail	/usr/libexec/postfix/sendmail
-mailq		/usr/libexec/postfix/sendmail
-newaliases	/usr/libexec/postfix/sendmail
+sendmail	/usr/local/sbin/sendmail
+send-mail	/usr/local/sbin/sendmail
+mailq		/usr/local/sbin/sendmail
+newaliases	/usr/local/sbin/sendmail
 .Ed
 .Sh FILES
 /etc/mail/mailer.conf
