@@ -40,14 +40,7 @@ struct cardbus_devinfo {
 	u_int		funcid;		/* function id */
 	union {
 		struct {
-			u_int		type;		/* UART type */
-		} sio;
-		struct {
 			uint8_t	nid[6];		/* MAC address */
-			uint8_t	tech;		/* technology */
-			uint8_t	contype;	/* connector type */
-			uint32_t	speed[3];	/* available speeds */
-			uint8_t	media[4];	/* media types */
 		} lan;
 	} funce;
 	uint32_t	fepresent;	/* bit mask of funce values present */
