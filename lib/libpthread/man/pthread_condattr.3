@@ -61,15 +61,17 @@ function destroys a condition attribute object.
 If successful, these functions return 0.
 Otherwise, an error number is returned to indicate the error.
 .Sh ERRORS
+The
 .Fn pthread_condattr_init
-will fail if:
+function will fail if:
 .Bl -tag -width Er
 .It Bq Er ENOMEM
 Out of memory.
 .El
 .Pp
+The
 .Fn pthread_condattr_destroy
-will fail if:
+function will fail if:
 .Bl -tag -width Er
 .It Bq Er EINVAL
 Invalid value for
@@ -78,8 +80,9 @@ Invalid value for
 .Sh SEE ALSO
 .Xr pthread_cond_init 3
 .Sh STANDARDS
+The
 .Fn pthread_condattr_init
 and
 .Fn pthread_condattr_destroy
-conform to
+functions conform to
 .St -p1003.1-96
