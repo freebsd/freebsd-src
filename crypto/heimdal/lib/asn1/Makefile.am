@@ -1,11 +1,11 @@
-# $Id: Makefile.am,v 1.69.2.1 2003/05/12 15:20:44 joda Exp $
+# $Id: Makefile.am,v 1.69.2.2 2003/10/14 16:13:13 joda Exp $
 
 include $(top_srcdir)/Makefile.am.common
 
 YFLAGS = -d
 
 lib_LTLIBRARIES = libasn1.la
-libasn1_la_LDFLAGS = -version-info 6:1:0
+libasn1_la_LDFLAGS = -version-info 6:2:0
 
 libasn1_la_LIBADD = @LIB_com_err@
 

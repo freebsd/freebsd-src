@@ -32,7 +32,7 @@
  */
 
 /* 
- * $Id: kdc_locl.h,v 1.58 2003/03/18 00:23:06 lha Exp $ 
+ * $Id: kdc_locl.h,v 1.58.2.2 2003/10/27 11:07:16 joda Exp $ 
  */
 
 #ifndef __KDC_LOCL_H__
@@ -62,6 +62,10 @@ extern krb5_boolean encode_as_rep_as_tgs_rep;
 extern krb5_boolean check_ticket_addresses;
 extern krb5_boolean allow_null_ticket_addresses;
 extern krb5_boolean allow_anonymous;
+enum { TRPOLICY_ALWAYS_CHECK,
+       TRPOLICY_ALLOW_PER_PRINCIPAL, 
+       TRPOLICY_ALWAYS_HONOUR_REQUEST };
+extern int trpolicy;
 extern int enable_524;
 extern int enable_v4_cross_realm;
 

@@ -31,7 +31,7 @@
  * SUCH DAMAGE. 
  */
 
-/* $Id: der_locl.h,v 1.4 2001/09/27 16:21:47 assar Exp $ */
+/* $Id: der_locl.h,v 1.4.6.1 2004/02/09 17:54:05 lha Exp $ */
 
 #ifndef __DER_LOCL_H__
 #define __DER_LOCL_H__
@@ -52,5 +52,8 @@
 #include <asn1-common.h>
 #include <asn1_err.h>
 #include <der.h>
+
+size_t _heim_len_unsigned (unsigned);
+size_t _heim_len_int (int);
 
 #endif /* __DER_LOCL_H__ */

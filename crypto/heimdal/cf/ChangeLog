@@ -1,3 +1,8 @@
+2003-08-15  Love  <lha@stacken.kth.se>
+
+	* check-compile-et.m4: 1.7->1.8: check if compile_et support
+	``error_table N M'' also, don't be overly aggressivly reset CFLAGS
+	
 2003-05-08  Johan Danielsson  <joda@pdc.kth.se>
 
 	* Makefile.am.common: change install-data-local to

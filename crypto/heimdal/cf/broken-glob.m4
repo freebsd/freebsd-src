@@ -1,8 +1,8 @@
-dnl $Id: broken-glob.m4,v 1.4 2001/06/19 09:59:46 assar Exp $
+dnl $Id: broken-glob.m4,v 1.4.12.1 2004/04/01 07:27:32 joda Exp $
 dnl
 dnl check for glob(3)
 dnl
-AC_DEFUN(AC_BROKEN_GLOB,[
+AC_DEFUN([AC_BROKEN_GLOB],[
 AC_CACHE_CHECK(for working glob, ac_cv_func_glob_working,
 ac_cv_func_glob_working=yes
 AC_TRY_LINK([

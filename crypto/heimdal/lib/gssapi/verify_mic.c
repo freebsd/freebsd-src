@@ -33,7 +33,7 @@
 
 #include "gssapi_locl.h"
 
-RCSID("$Id: verify_mic.c,v 1.18.2.2 2003/05/05 18:59:42 lha Exp $");
+RCSID("$Id: verify_mic.c,v 1.18.2.4 2003/09/18 22:05:34 lha Exp $");
 
 static OM_uint32
 verify_mic_des
@@ -59,10 +59,8 @@ verify_mic_des
   ret = gssapi_krb5_verify_header (&p,
 				   token_buffer->length,
 				   type);
-  if (ret) {
-      *minor_status = 0;
+  if (ret)
       return ret;
-  }
 
   if (memcmp(p, "\x00\x00", 2) != 0)
       return GSS_S_BAD_SIG;
@@ -88,7 +86,6 @@ verify_mic_des
   if (memcmp (p - 8, hash, 8) != 0) {
     memset (deskey, 0, sizeof(deskey));
     memset (schedule, 0, sizeof(schedule));
-    *minor_status = 0;
     return GSS_S_BAD_MIC;
   }
 
@@ -114,7 +111,6 @@ verify_mic_des
   memset (schedule, 0, sizeof(schedule));
 
   if (memcmp (p, seq_data, 8) != 0) {
-    *minor_status = 0;
     return GSS_S_BAD_MIC;
   }
 
@@ -122,7 +118,6 @@ verify_mic_des
 				context_handle->auth_context,
 				++seq_number);
 
-  *minor_status = 0;
   return GSS_S_COMPLETE;
 }
 
@@ -152,10 +147,8 @@ verify_mic_des3
   ret = gssapi_krb5_verify_header (&p,
 				   token_buffer->length,
 				   type);
-  if (ret) {
-      *minor_status = 0;
+  if (ret)
       return ret;
-  }
 
   if (memcmp(p, "\x04\x00", 2) != 0) /* SGN_ALG = HMAC SHA1 DES3-KD */
       return GSS_S_BAD_SIG;
@@ -256,7 +249,6 @@ retry:
 				++seq_number);
 
   krb5_crypto_destroy (gssapi_krb5_context, crypto);
-  *minor_status = 0;
   return GSS_S_COMPLETE;
 }
 
@@ -280,6 +272,7 @@ gss_verify_mic_internal
 	*minor_status = ret;
 	return GSS_S_FAILURE;
     }
+    *minor_status = 0;
     krb5_enctype_to_keytype (gssapi_krb5_context, key->keytype, &keytype);
     switch (keytype) {
     case KEYTYPE_DES :
@@ -291,6 +284,11 @@ gss_verify_mic_internal
 	ret = verify_mic_des3 (minor_status, context_handle,
 			       message_buffer, token_buffer, qop_state, key,
 			       type);
+	break;
+    case KEYTYPE_ARCFOUR :
+	ret = _gssapi_verify_mic_arcfour (minor_status, context_handle,
+					  message_buffer, token_buffer,
+					  qop_state, key, type);
 	break;
     default :
 	*minor_status = KRB5_PROG_ETYPE_NOSUPP;

@@ -1,10 +1,10 @@
-dnl $Id: roken-frag.m4,v 1.45 2002/12/18 17:34:25 joda Exp $
+dnl $Id: roken-frag.m4,v 1.45.2.1 2004/04/01 07:27:35 joda Exp $
 dnl
 dnl some code to get roken working
 dnl
 dnl rk_ROKEN(subdir)
 dnl
-AC_DEFUN(rk_ROKEN, [
+AC_DEFUN([rk_ROKEN], [
 
 AC_REQUIRE([rk_CONFIG_HEADER])
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997-2002 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997-2004 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -33,11 +33,12 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: mcache.c,v 1.15 2002/04/18 09:40:33 joda Exp $");
+RCSID("$Id: mcache.c,v 1.15.6.1 2004/03/06 16:57:16 lha Exp $");
 
 typedef struct krb5_mcache {
     char *name;
     unsigned int refcnt;
+    int dead;
     krb5_principal primary_principal;
     struct link {
 	krb5_creds cred;
@@ -50,7 +51,7 @@ static struct krb5_mcache *mcc_head;
 
 #define	MCACHE(X)	((krb5_mcache *)(X)->data.data)
 
-#define MISDEAD(X)	((X)->primary_principal == NULL)
+#define MISDEAD(X)	((X)->dead)
 
 #define MCC_CURSOR(C) ((struct link*)(C))
 
@@ -77,6 +78,7 @@ mcc_alloc(const char *name)
 	free(m);
 	return NULL;
     }
+    m->dead = 0;
     m->refcnt = 1;
     m->primary_principal = NULL;
     m->creds = NULL;
@@ -137,9 +139,11 @@ mcc_initialize(krb5_context context,
 	       krb5_ccache id,
 	       krb5_principal primary_principal)
 {
+    krb5_mcache *m = MCACHE(id);
+    m->dead = 0;
     return krb5_copy_principal (context,
 				primary_principal,
-				&MCACHE(id)->primary_principal);
+				&m->primary_principal);
 }
 
 static krb5_error_code
@@ -178,9 +182,12 @@ mcc_destroy(krb5_context context,
 		break;
 	    }
 	}
-	krb5_free_principal (context, m->primary_principal);
-	m->primary_principal = NULL;
-	
+	if (m->primary_principal != NULL) {
+	    krb5_free_principal (context, m->primary_principal);
+	    m->primary_principal = NULL;
+	}
+	m->dead = 1;
+
 	l = m->creds;
 	while (l != NULL) {
 	    struct link *old;
@@ -231,9 +238,8 @@ mcc_get_principal(krb5_context context,
 {
     krb5_mcache *m = MCACHE(id);
 
-    if (MISDEAD(m))
+    if (MISDEAD(m) || m->primary_principal == NULL)
 	return ENOENT;
-
     return krb5_copy_principal (context,
 				m->primary_principal,
 				principal);

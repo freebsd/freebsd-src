@@ -33,11 +33,17 @@
 
 #include "hdb_locl.h"
 
-RCSID("$Id: db3.c,v 1.8 2001/08/09 08:41:48 assar Exp $");
+RCSID("$Id: db3.c,v 1.8.6.1 2003/08/29 16:59:39 lha Exp $");
 
 #if HAVE_DB3
 
+#ifdef HAVE_DB4_DB_H
+#include <db4/db.h>
+#elif defined(HAVE_DB3_DB_H)
+#include <db3/db.h>
+#else
 #include <db.h>
+#endif
 
 static krb5_error_code
 DB_close(krb5_context context, HDB *db)
@@ -87,7 +93,6 @@ static krb5_error_code
 DB_seq(krb5_context context, HDB *db,
        unsigned flags, hdb_entry *entry, int flag)
 {
-    DB *d = (DB*)db->db;
     DBT key, value;
     DBC *dbcp = db->dbc;
     krb5_data key_data, data;
@@ -262,10 +267,18 @@ DB_open(krb5_context context, HDB *db, int flags, mode_t mode)
     }
     db_create(&d, NULL, 0);
     db->db = d;
+#if (DB_VERSION_MAJOR > 3) && (DB_VERSION_MINOR > 0)
+    if ((ret = d->open(db->db, NULL, fn, NULL, DB_BTREE, myflags, mode))) {
+#else
     if ((ret = d->open(db->db, fn, NULL, DB_BTREE, myflags, mode))) {
+#endif
       if(ret == ENOENT)
 	/* try to open without .db extension */
+#if (DB_VERSION_MAJOR > 3) && (DB_VERSION_MINOR > 0)
+	if (d->open(db->db, NULL, db->name, NULL, DB_BTREE, myflags, mode)) {
+#else
 	if (d->open(db->db, db->name, NULL, DB_BTREE, myflags, mode)) {
+#endif
 	  free(fn);
 	  krb5_set_error_string(context, "opening %s: %s",
 				db->name, strerror(ret));

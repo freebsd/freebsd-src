@@ -33,7 +33,7 @@
 
 #include "gssapi_locl.h"
 
-RCSID("$Id: init_sec_context.c,v 1.36 2003/03/16 18:00:00 lha Exp $");
+RCSID("$Id: init_sec_context.c,v 1.36.2.1 2003/08/15 14:21:18 lha Exp $");
 
 /*
  * copy the addresses from `input_chan_bindings' (if any) to
@@ -193,6 +193,7 @@ init_auth
     Checksum cksum;
     krb5_enctype enctype;
     krb5_data fwd_data;
+    OM_uint32 lifetime_rec;
 
     krb5_data_zero(&outbuf);
     krb5_data_zero(&fwd_data);
@@ -292,7 +293,7 @@ init_auth
     } else
 	this_cred.times.endtime   = 0;
     this_cred.session.keytype = 0;
-  
+
     kret = krb5_get_credentials (gssapi_krb5_context,
 				 KRB5_TC_MATCH_KEYTYPE,
 				 ccache,
@@ -308,10 +309,23 @@ init_auth
 
     (*context_handle)->lifetime = cred->times.endtime;
 
+    ret = gssapi_lifetime_left(minor_status,
+			       (*context_handle)->lifetime,
+			       &lifetime_rec);
+    if (ret) {
+	goto failure;
+    }
+
+    if (lifetime_rec == 0) {
+	*minor_status = 0;
+	ret = GSS_S_CONTEXT_EXPIRED;
+	goto failure;
+    }
+
     krb5_auth_con_setkey(gssapi_krb5_context, 
 			 (*context_handle)->auth_context, 
 			 &cred->session);
-  
+
     kret = krb5_auth_con_generatelocalsubkey(gssapi_krb5_context, 
 					     (*context_handle)->auth_context,
 					     &cred->session);
@@ -321,13 +335,13 @@ init_auth
 	ret = GSS_S_FAILURE;
 	goto failure;
     }
-
+    
     flags = 0;
     ap_options = 0;
     if (req_flags & GSS_C_DELEG_FLAG)
 	do_delegation ((*context_handle)->auth_context,
 		       ccache, cred, target_name, &fwd_data, &flags);
-       
+    
     if (req_flags & GSS_C_MUTUAL_FLAG) {
 	flags |= GSS_C_MUTUAL_FLAG;
 	ap_options |= AP_OPTS_MUTUAL_REQUIRED;
@@ -413,7 +427,7 @@ init_auth
 	return GSS_S_CONTINUE_NEEDED;
     } else {
 	if (time_rec)
-	    *time_rec = (*context_handle)->lifetime;
+	    *time_rec = lifetime_rec;
 
 	(*context_handle)->more_flags |= OPEN;
 	return GSS_S_COMPLETE;
@@ -479,16 +493,21 @@ repl_mutual
     }
     krb5_free_ap_rep_enc_part (gssapi_krb5_context,
 			       repl);
-
-    (*context_handle)->more_flags |= OPEN;
     
-    if (time_rec)
-	*time_rec = (*context_handle)->lifetime;
+    (*context_handle)->more_flags |= OPEN;
+
+    *minor_status = 0;
+    if (time_rec) {
+	ret = gssapi_lifetime_left(minor_status,
+				   (*context_handle)->lifetime,
+				   time_rec);
+    } else {
+	ret = GSS_S_COMPLETE;
+    }
     if (ret_flags)
 	*ret_flags = (*context_handle)->flags;
 
-    *minor_status = 0;
-    return GSS_S_COMPLETE;
+    return ret;
 }
 
 /*

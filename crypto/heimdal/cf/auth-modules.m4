@@ -1,10 +1,10 @@
-dnl $Id: auth-modules.m4,v 1.5 2002/09/09 13:31:45 joda Exp $
+dnl $Id: auth-modules.m4,v 1.5.6.1 2004/04/01 07:27:32 joda Exp $
 dnl
 dnl Figure what authentication modules should be built
 dnl
 dnl rk_AUTH_MODULES(module-list)
 
-AC_DEFUN(rk_AUTH_MODULES,[
+AC_DEFUN([rk_AUTH_MODULES],[
 AC_MSG_CHECKING([which authentication modules should be built])
 
 z='m4_ifval([$1], $1, [sia pam afskauthlib])'

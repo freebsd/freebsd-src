@@ -33,7 +33,7 @@
 
 #include "krb5_locl.h"
 
-RCSID("$Id: ticket.c,v 1.5 2001/05/14 06:14:51 assar Exp $");
+RCSID("$Id: ticket.c,v 1.5.8.1 2003/09/18 21:01:57 lha Exp $");
 
 krb5_error_code
 krb5_free_ticket(krb5_context context,
@@ -51,7 +51,10 @@ krb5_copy_ticket(krb5_context context,
 		 krb5_ticket **to)
 {
     krb5_error_code ret;
-    krb5_ticket *tmp = malloc(sizeof(*tmp));
+    krb5_ticket *tmp;
+
+    *to = NULL;
+    tmp = malloc(sizeof(*tmp));
     if(tmp == NULL) {
 	krb5_set_error_string (context, "malloc: out of memory");
 	return ENOMEM;
@@ -63,12 +66,14 @@ krb5_copy_ticket(krb5_context context,
     ret = krb5_copy_principal(context, from->client, &tmp->client);
     if(ret){
 	free_EncTicketPart(&tmp->ticket);
+	free(tmp);
 	return ret;
     }
-    ret = krb5_copy_principal(context, from->server, &(*to)->server);
+    ret = krb5_copy_principal(context, from->server, &tmp->server);
     if(ret){
 	krb5_free_principal(context, tmp->client);
 	free_EncTicketPart(&tmp->ticket);
+	free(tmp);
 	return ret;
     }
     *to = tmp;

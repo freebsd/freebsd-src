@@ -33,10 +33,10 @@
 
 #include "der_locl.h"
 
-RCSID("$Id: der_length.c,v 1.12 2001/09/25 13:39:26 assar Exp $");
+RCSID("$Id: der_length.c,v 1.12.6.2 2004/02/12 18:45:51 joda Exp $");
 
-static size_t
-len_unsigned (unsigned val)
+size_t
+_heim_len_unsigned (unsigned val)
 {
   size_t ret = 0;
 
@@ -47,24 +47,31 @@ len_unsigned (unsigned val)
   return ret;
 }
 
-static size_t
-len_int (int val)
+size_t
+_heim_len_int (int val)
 {
-  size_t ret = 0;
+    unsigned char q;
+    size_t ret = 0;
 
-  if (val == 0)
-    return 1;
-  while (val > 255 || val < -255) {
-    ++ret;
-    val /= 256;
-  }
-  if (val != 0) {
-    ++ret;
-    if ((signed char)val != val)
-      ++ret;
-    val /= 256;
-  }
-  return ret;
+    if (val >= 0) {
+	do {
+	    q = val % 256;
+	    ret++;
+	    val /= 256;
+	} while(val);
+	if(q >= 128)
+	    ret++;
+    } else {
+	val = ~val;
+	do {
+	    q = ~(val % 256);
+	    ret++;
+	    val /= 256;
+	} while(val);
+	if(q < 128)
+	    ret++;
+    }
+    return ret;
 }
 
 static size_t
@@ -89,16 +96,16 @@ len_oid (const oid *oid)
 size_t
 length_len (size_t len)
 {
-  if (len < 128)
-    return 1;
-  else
-    return len_unsigned (len) + 1;
+    if (len < 128)
+	return 1;
+    else
+	return _heim_len_unsigned (len) + 1;
 }
 
 size_t
 length_integer (const int *data)
 {
-  size_t len = len_int (*data);
+    size_t len = _heim_len_int (*data);
 
   return 1 + length_len(len) + len;
 }
@@ -106,7 +113,7 @@ length_integer (const int *data)
 size_t
 length_unsigned (const unsigned *data)
 {
-  size_t len = len_unsigned (*data);
+  size_t len = _heim_len_unsigned (*data);
 
   return 1 + length_len(len) + len;
 }
@@ -114,7 +121,7 @@ length_unsigned (const unsigned *data)
 size_t
 length_enumerated (const unsigned *data)
 {
-  size_t len = len_int (*data);
+    size_t len = _heim_len_int (*data);
 
   return 1 + length_len(len) + len;
 }

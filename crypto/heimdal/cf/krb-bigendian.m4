@@ -1,5 +1,5 @@
 dnl
-dnl $Id: krb-bigendian.m4,v 1.8 2002/08/28 19:20:19 joda Exp $
+dnl $Id: krb-bigendian.m4,v 1.8.6.1 2004/04/01 07:27:33 joda Exp $
 dnl
 
 dnl check if this computer is little or big-endian
@@ -7,7 +7,7 @@ dnl if we can figure it out at compile-time then don't define the cpp symbol
 dnl otherwise test for it and define it.  also allow options for overriding
 dnl it when cross-compiling
 
-AC_DEFUN(KRB_C_BIGENDIAN, [
+AC_DEFUN([KRB_C_BIGENDIAN], [
 AC_ARG_ENABLE(bigendian,
 	AC_HELP_STRING([--enable-bigendian],[the target is big endian]),
 krb_cv_c_bigendian=yes)
