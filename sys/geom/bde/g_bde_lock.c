@@ -367,7 +367,7 @@ g_bde_decrypt_lockx(struct g_bde_softc *sc, u_char *meta, off_t mediasize, u_int
 	if (error)
 		return (error);
 
-	/* If it points ito thin blue air, forget it */
+	/* If it points into thin blue air, forget it */
 	if (off + G_BDE_LOCKSIZE > (uint64_t)mediasize) {
 		off = 0;
 		return (EINVAL);
