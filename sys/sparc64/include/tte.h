@@ -108,7 +108,7 @@
 	 (kernel_pmap) : \
 	 (PHYS_TO_VM_PAGE(pmap_kextract((vm_offset_t)(tp)))->md.pmap))
 #define	TTE_ZERO(tp) \
-	__builtin_memset(tp, 0, sizeof(*tp))
+	memset(tp, 0, sizeof(*tp))
 
 struct pmap;
 
