@@ -108,7 +108,7 @@ static char *orb_fun_name[] = {
 
 static int debug = 0;
 static int auto_login = 1;
-static int max_speed = 2;
+static int max_speed = -1;
 static int sbp_cold = 1;
 static int ex_login = 1;
 static int login_delay = 1000;	/* msec */
@@ -216,30 +216,32 @@ struct sbp_softc {
 	struct fw_bind fwb;
 	bus_dma_tag_t	dmat;
 	struct timeval last_busreset;
+#define SIMQ_FREEZED 1
+	int flags;
 };
 
-static void sbp_post_explore __P((void *));
-static void sbp_recv __P((struct fw_xfer *));
-static void sbp_mgm_callback __P((struct fw_xfer *));
+static void sbp_post_explore (void *);
+static void sbp_recv (struct fw_xfer *);
+static void sbp_mgm_callback (struct fw_xfer *);
 #if 0
-static void sbp_cmd_callback __P((struct fw_xfer *));
+static void sbp_cmd_callback (struct fw_xfer *);
 #endif
-static void sbp_orb_pointer __P((struct sbp_dev *, struct sbp_ocb *));
-static void sbp_execute_ocb __P((void *,  bus_dma_segment_t *, int, int));
-static void sbp_free_ocb __P((struct sbp_dev *, struct sbp_ocb *));
-static void sbp_abort_ocb __P((struct sbp_ocb *, int));
-static void sbp_abort_all_ocbs __P((struct sbp_dev *, int));
-static struct fw_xfer * sbp_write_cmd __P((struct sbp_dev *, int, int));
-static struct sbp_ocb * sbp_get_ocb __P((struct sbp_dev *));
-static struct sbp_ocb * sbp_enqueue_ocb __P((struct sbp_dev *, struct sbp_ocb *));
-static struct sbp_ocb * sbp_dequeue_ocb __P((struct sbp_dev *, struct sbp_status *));
+static void sbp_orb_pointer (struct sbp_dev *, struct sbp_ocb *);
+static void sbp_execute_ocb (void *,  bus_dma_segment_t *, int, int);
+static void sbp_free_ocb (struct sbp_dev *, struct sbp_ocb *);
+static void sbp_abort_ocb (struct sbp_ocb *, int);
+static void sbp_abort_all_ocbs (struct sbp_dev *, int);
+static struct fw_xfer * sbp_write_cmd (struct sbp_dev *, int, int);
+static struct sbp_ocb * sbp_get_ocb (struct sbp_dev *);
+static struct sbp_ocb * sbp_enqueue_ocb (struct sbp_dev *, struct sbp_ocb *);
+static struct sbp_ocb * sbp_dequeue_ocb (struct sbp_dev *, struct sbp_status *);
 static void sbp_cam_detach_sdev(struct sbp_dev *);
 static void sbp_free_sdev(struct sbp_dev *);
-static void sbp_cam_detach_target __P((struct sbp_target *));
-static void sbp_free_target __P((struct sbp_target *));
-static void sbp_mgm_timeout __P((void *arg));
-static void sbp_timeout __P((void *arg));
-static void sbp_mgm_orb __P((struct sbp_dev *, int, struct sbp_ocb *));
+static void sbp_cam_detach_target (struct sbp_target *);
+static void sbp_free_target (struct sbp_target *);
+static void sbp_mgm_timeout (void *arg);
+static void sbp_timeout (void *arg);
+static void sbp_mgm_orb (struct sbp_dev *, int, struct sbp_ocb *);
 
 MALLOC_DEFINE(M_SBP, "sbp", "SBP-II/FireWire");
 
@@ -764,6 +766,10 @@ sbp_post_busreset(void *arg)
 SBP_DEBUG(0)
 	printf("sbp_post_busreset\n");
 END_DEBUG
+	if ((sbp->sim->flags & SIMQ_FREEZED) == 0) {
+		xpt_freeze_simq(sbp->sim, /*count*/1);
+		sbp->sim->flags |= SIMQ_FREEZED;
+	}
 	microtime(&sbp->last_busreset);
 }
 
@@ -833,6 +839,8 @@ END_DEBUG
 		if (target->num_lun == 0)
 			sbp_free_target(target);
 	}
+	xpt_release_simq(sbp->sim, /*run queue*/TRUE);
+	sbp->sim->flags &= ~SIMQ_FREEZED;
 }
 
 #if NEED_RESPONSE
@@ -1871,6 +1879,10 @@ END_DEBUG
 	bzero(sbp, sizeof(struct sbp_softc));
 	sbp->fd.dev = dev;
 	sbp->fd.fc = device_get_ivars(dev);
+
+	if (max_speed < 0)
+		max_speed = sbp->fd.fc->speed;
+
 	error = bus_dma_tag_create(/*parent*/sbp->fd.fc->dmat,
 				/* XXX shoud be 4 for sane backend? */
 				/*alignment*/1,

@@ -80,28 +80,28 @@ MALLOC_DEFINE(M_FWXFER, "fw_xfer", "XFER/FireWire");
 
 devclass_t firewire_devclass;
 
-static int firewire_match      __P((device_t));
-static int firewire_attach      __P((device_t));
-static int firewire_detach      __P((device_t));
-static int firewire_resume      __P((device_t));
+static int firewire_match      (device_t);
+static int firewire_attach      (device_t);
+static int firewire_detach      (device_t);
+static int firewire_resume      (device_t);
 #if 0
-static int firewire_shutdown    __P((device_t));
+static int firewire_shutdown    (device_t);
 #endif
-static device_t firewire_add_child   __P((device_t, int, const char *, int));
-static void fw_try_bmr __P((void *));
-static void fw_try_bmr_callback __P((struct fw_xfer *));
-static void fw_asystart __P((struct fw_xfer *));
-static int fw_get_tlabel __P((struct firewire_comm *, struct fw_xfer *));
-static void fw_bus_probe __P((struct firewire_comm *));
-static void fw_bus_explore __P((struct firewire_comm *));
-static void fw_bus_explore_callback __P((struct fw_xfer *));
-static void fw_attach_dev __P((struct firewire_comm *));
+static device_t firewire_add_child   (device_t, int, const char *, int);
+static void fw_try_bmr (void *);
+static void fw_try_bmr_callback (struct fw_xfer *);
+static void fw_asystart (struct fw_xfer *);
+static int fw_get_tlabel (struct firewire_comm *, struct fw_xfer *);
+static void fw_bus_probe (struct firewire_comm *);
+static void fw_bus_explore (struct firewire_comm *);
+static void fw_bus_explore_callback (struct fw_xfer *);
+static void fw_attach_dev (struct firewire_comm *);
 #ifdef FW_VMACCESS
-static void fw_vmaccess __P((struct fw_xfer *));
+static void fw_vmaccess (struct fw_xfer *);
 #endif
-struct fw_xfer *asyreqq __P((struct firewire_comm *, u_int8_t, u_int8_t, u_int8_t,
-	u_int32_t, u_int32_t, void (*)__P((struct fw_xfer *))));
-static int fw_bmr __P((struct firewire_comm *));
+struct fw_xfer *asyreqq (struct firewire_comm *, u_int8_t, u_int8_t, u_int8_t,
+	u_int32_t, u_int32_t, void (*)(struct fw_xfer *));
+static int fw_bmr (struct firewire_comm *);
 
 static device_method_t firewire_methods[] = {
 	/* Device interface */
@@ -118,7 +118,17 @@ static device_method_t firewire_methods[] = {
 
 	{ 0, 0 }
 };
-char linkspeed[7][0x10]={"S100","S200","S400","S800","S1600","S3200","Unknown"};
+char *linkspeed[] = {
+	"S100", "S200", "S400", "S800",
+	"S1600", "S3200", "undef", "undef"
+};
+
+static char *tcode_str[] = {
+	"WREQQ", "WREQB", "WRES",   "undef",
+	"RREQQ", "RREQB", "RRESQ",  "RRESB",
+	"CYCS",  "LREQ",  "STREAM", "LRES",
+	"undef", "undef", "PHY",    "undef"
+};
 
 /* IEEE-1394a Table C-2 Gap count as a function of hops*/
 #define MAX_GAPHOP 15
@@ -192,7 +202,7 @@ fw_asyreq(struct firewire_comm *fc, int sub, struct fw_xfer *xfer)
 	tcode = fp->mode.common.tcode & 0xf;
 	info = &fc->tcode[tcode];
 	if (info->flag == 0) {
-		printf("invalid tcode=%d\n", tcode);
+		printf("invalid tcode=%x\n", tcode);
 		return EINVAL;
 	}
 	if (info->flag & FWTI_REQ)
@@ -211,8 +221,8 @@ fw_asyreq(struct firewire_comm *fc, int sub, struct fw_xfer *xfer)
 	else
 		len = 0;
 	if (len != xfer->send.pay_len){
-		printf("len(%d) != send.pay_len(%d) (tcode=%d)\n",
-				len, xfer->send.pay_len, tcode);
+		printf("len(%d) != send.pay_len(%d) %s(%x)\n",
+		    len, xfer->send.pay_len, tcode_str[tcode], tcode);
 		return EINVAL; 
 	}
 
@@ -258,7 +268,9 @@ void fw_asybusy(struct fw_xfer *xfer){
 /*
 	xfer->ch =  timeout((timeout_t *)fw_asystart, (void *)xfer, 20000);
 */
+#if 0
 	DELAY(20000);
+#endif
 	fw_asystart(xfer);
 	return;
 }
@@ -326,6 +338,9 @@ firewire_xfer_timeout(struct firewire_comm *fc)
 			xfer = tl->xfer;
 			if (timevalcmp(&xfer->tv, &tv, >))
 				/* the rests are newer than this */
+				break;
+			if (xfer->state == FWXF_START)
+				/* not sent yet */
 				break;
 			device_printf(fc->bdev,
 				"split transaction timeout dst=0x%x tl=0x%x state=%d\n",
@@ -734,7 +749,6 @@ void fw_init(struct firewire_comm *fc)
 	CSRARC(fc, SPED_MAP + 4) = 1;
 
 	STAILQ_INIT(&fc->devices);
-	STAILQ_INIT(&fc->pending);
 
 /* Initialize csr ROM work space */
 	SLIST_INIT(&fc->ongocsr);
@@ -987,12 +1001,7 @@ fw_xfer_done(struct fw_xfer *xfer)
 	if (xfer->fc == NULL)
 		panic("fw_xfer_done: why xfer->fc is NULL?");
 
-	if (xfer->fc->status != FWBUSRESET)
-		xfer->act.hand(xfer);
-	else {
-		printf("fw_xfer_done: pending\n");
-		STAILQ_INSERT_TAIL(&xfer->fc->pending, xfer, link);
-	}
+	xfer->act.hand(xfer);
 }
 
 void
@@ -1394,7 +1403,7 @@ done:
 struct fw_xfer *
 asyreqq(struct firewire_comm *fc, u_int8_t spd, u_int8_t tl, u_int8_t rt,
 	u_int32_t addr_hi, u_int32_t addr_lo,
-	void (*hand) __P((struct fw_xfer*)))
+	void (*hand) (struct fw_xfer*))
 {
 	struct fw_xfer *xfer;
 	struct fw_pkt *fp;
@@ -1597,7 +1606,6 @@ static void
 fw_attach_dev(struct firewire_comm *fc)
 {
 	struct fw_device *fwdev, *next;
-	struct fw_xfer *xfer;
 	int i, err;
 	device_t *devlistp;
 	int devcnt;
@@ -1633,16 +1641,6 @@ fw_attach_dev(struct firewire_comm *fc)
 	}
 	free(devlistp, M_TEMP);
 
-	/* call pending handlers */
-	i = 0;
-	while ((xfer = STAILQ_FIRST(&fc->pending))) {
-		STAILQ_REMOVE_HEAD(&fc->pending, link);
-		i++;
-		if (xfer->act.hand)
-			xfer->act.hand(xfer);
-	}
-	if (i > 0)
-		printf("fw_attach_dev: %d pending handlers called\n", i);
 	if (fc->retry_count > 0) {
 		printf("probe failed for %d node\n", fc->retry_count);
 #if 0
@@ -1782,12 +1780,12 @@ fw_rcv(struct fw_rcv_buf *rb)
 					fp->mode.hdr.tlrt >> 2);
 		if(rb->xfer == NULL) {
 			printf("fw_rcv: unknown response "
-					"tcode=%d src=0x%x tl=0x%x rt=%d data=0x%x\n",
-					tcode,
-					fp->mode.hdr.src,
-					fp->mode.hdr.tlrt >> 2,
-					fp->mode.hdr.tlrt & 3,
-					fp->mode.rresq.data);
+			    "%s(%x) src=0x%x tl=0x%x rt=%d data=0x%x\n",
+			    tcode_str[tcode], tcode,
+			    fp->mode.hdr.src,
+			    fp->mode.hdr.tlrt >> 2,
+			    fp->mode.hdr.tlrt & 3,
+			    fp->mode.rresq.data);
 #if 1
 			printf("try ad-hoc work around!!\n");
 			rb->xfer = fw_tl2xfer(rb->fc, fp->mode.hdr.src,
@@ -1830,16 +1828,15 @@ fw_rcv(struct fw_rcv_buf *rb)
 		bind = fw_bindlookup(rb->fc, fp->mode.rreqq.dest_hi,
 			fp->mode.rreqq.dest_lo);
 		if(bind == NULL){
+			printf("Unknown service addr 0x%04x:0x%08x %s(%x)"
 #if __FreeBSD_version >= 500000
-			printf("Unknown service addr 0x%04x:0x%08x tcode=%x src=0x%x data=%x\n",
+			    " src=0x%x data=%x\n",
 #else
-			printf("Unknown service addr 0x%04x:0x%08x tcode=%x src=0x%x data=%lx\n",
+			    " src=0x%x data=%lx\n",
 #endif
-				fp->mode.wreqq.dest_hi,
-				fp->mode.wreqq.dest_lo,
-				tcode,
-				fp->mode.hdr.src,
-				ntohl(fp->mode.wreqq.data));
+			    fp->mode.wreqq.dest_hi, fp->mode.wreqq.dest_lo,
+			    tcode_str[tcode], tcode,
+			    fp->mode.hdr.src, ntohl(fp->mode.wreqq.data));
 			if (rb->fc->status == FWBUSRESET) {
 				printf("fw_rcv: cannot respond(bus reset)!\n");
 				goto err;
@@ -1895,11 +1892,7 @@ fw_rcv(struct fw_rcv_buf *rb)
 			}
 			STAILQ_REMOVE_HEAD(&bind->xferlist, link);
 			fw_rcv_copy(rb);
-			if (rb->fc->status != FWBUSRESET)
-				rb->xfer->act.hand(rb->xfer);
-			else
-				STAILQ_INSERT_TAIL(&rb->fc->pending,
-				    rb->xfer, link);
+			rb->xfer->act.hand(rb->xfer);
 			return;
 			break;
 		case FWACT_CH:
