@@ -112,13 +112,10 @@ extern int nswdev;
 extern int vm_swap_size;	/* number of free swap blocks, in pages */
 
 void swap_pager_putpages(vm_object_t, vm_page_t *, int, boolean_t, int *);
-boolean_t swap_pager_haspage(vm_object_t object, vm_pindex_t pindex, int *before, int *after);
 void swap_pager_swapoff(int devidx, int *sw_used);
 
-int swap_pager_swp_alloc(vm_object_t, int);
 void swap_pager_copy(vm_object_t, vm_object_t, vm_pindex_t, int);
 void swap_pager_freespace(vm_object_t, vm_pindex_t, vm_size_t);
-void swap_pager_dmzspace(vm_object_t, vm_pindex_t, vm_size_t);
 void swap_pager_swap_init(void);
 int swap_pager_isswapped(vm_object_t, int);
 int swap_pager_reserve(vm_object_t, vm_pindex_t, vm_size_t);
@@ -127,7 +124,6 @@ int swap_pager_reserve(vm_object_t, vm_pindex_t, vm_size_t);
  * newswap functions
  */
 
-void swap_pager_page_removed(vm_page_t, vm_object_t);
 
 #endif				/* _KERNEL */
 #endif				/* _VM_SWAP_PAGER_H_ */
