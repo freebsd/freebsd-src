@@ -915,8 +915,8 @@ thread_single(int force_exit)
 int
 thread_suspend_check(int return_instead)
 {
-	struct thread *td = curthread;
-	struct proc *p = td->td_proc;
+	struct thread *td;
+	struct proc *p;
 
 	td = curthread;
 	p = td->td_proc;
