@@ -17,7 +17,6 @@ SUBDIR=	accf_data \
 	cue \
 	dc \
 	dummynet \
-	em \
 	fdesc \
 	fxp \
 	gx \
@@ -95,6 +94,7 @@ SUBDIR+=aac \
 	bktr \
 	ciss \
 	coff \
+	em \
 	fpu \
 	gnufpu \
 	ibcs2 \
