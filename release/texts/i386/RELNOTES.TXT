@@ -57,6 +57,9 @@ The twe(4) driver for 3Ware Escalade controllers has been updated.
 The an(4) driver for Cisco Aironet cards now supports Wired Equivalent
 Privacy (WEP) encryption, settable via ancontrol(8).
 
+The wi(4) and an(4) drivers now default to BSS (infrastructure) mode;
+previously the default was ad-hoc mode.
+
 The ray(4) driver, which supports the Webgear Aviator wireless network
 cards, has been committed.  The operation of ray(4) interfaces can be
 modified by raycontrol(8).
@@ -75,6 +78,14 @@ packets and BPF or bridging active has been fixed.
 A bug in FFS that could cause superblock corruption on very large
 filesystems has been corrected.
 
+The ISO-9660 filesystem now has a hook that supports a loadable
+character conversion routine.  The sysutils/cd9660_unicode port
+contains a set of common conversions.
+
+A new NFS hash function (based on the Fowler/Noll/Vo hash algorithm)
+has been implemented to improve NFS performance by increasing the
+efficiency of the nfsnode hash tables.
+
 The cs(4) driver has been updated.
 
 bridge(4) and dummynet(4) have received some enhancements and bug fixes.
@@ -87,7 +98,7 @@ controllers.
 
 The cd(4) driver now has support for write operations.  This allows
 writing to DVD-RAM, PD and similar drives that probe as CD devices.
-Note that change affects only random-access writeable devices, not
+Note that this change affects only random-access writeable devices, not
 sequential-only writeable devices such as CD-R drives, which are
 supported by cdrecord(1).
 
@@ -110,6 +121,12 @@ this driver, add the following line to /boot/loader.conf:
 
 	maestro3_load="YES"
 
+The pcm(4) driver now supports the CMedia CMI8338/CMI8738 sound chips,
+as well as the CS4281 sound chip.
+
+When sound modules are built, one can now load all the drivers and
+infrastructure by "kldload snd".
+
 The isp(4) driver has been updated.
 
 ipfilter has been updated to 3.4.16.
@@ -125,6 +142,10 @@ net.inet.tcp.newreno sysctl variable.
 
 TCP now uses a more aggressive timeout for initial SYN segments; this
 allows initial connection attempts to be dropped much faster.
+
+ICMP UNREACH_FILTER_PROHIB messages can now RST TCP connections in the
+SYN_SENT state if the correct sequence numbers are sent back, as
+controlled by the net.inet.tcp.icmp_may_rst sysctl.
 
 A new sysctl net.inet.ip.check_interface, which is off by default,
 causes IP to verify that an incoming packet arrives on an interface
@@ -142,35 +163,14 @@ chipsets.
 kqueue(2) has been extended to the device layer, and has also received
 some bug fixes.
 
-The pcm(4) driver now supports the CMedia CMI8338/CMI8738 sound chips,
-as well as the CS4281 sound chip.
-
-When sound modules are built, one can now load all the drivers and
-infrastructure by "kldload snd".
-
 Some signal-handling fixes for Linux have been added, which improves
 compatibility with signal-intensive programs running under Linux
 emulation.
 
-The ISO-9660 filesystem now has a hook that supports a loadable
-character conversion routine.  The sysutils/cd9660_unicode port
-contains a set of common conversions.
-
-ICMP UNREACH_FILTER_PROHIB messages can now RST TCP connections in the
-SYN_SENT state if the correct sequence numbers are sent back, as
-controlled by the net.inet.tcp.icmp_may_rst sysctl.
-
 The ida disk driver now has crashdump support.
-
-The wi(4) and an(4) drivers now default to BSS (infrastructure) mode;
-previously the default was ad-hoc mode.
 
 The mly(4) driver has received some changes in queueing, concurrency
 improvements, and stability fixes.
-
-A new NFS hash function (based on the Fowler/Noll/Vo hash algorithm)
-has been implemented to improve NFS performance by increasing the
-efficiency of the nfsnode hash tables.
 
 Several minor bugs have been fixed in the VLAN networking code.
 
@@ -212,11 +212,6 @@ connection limits) an attack that can lead to guessing the server key
 (not host key) by regenerating the server key when an RSA failure is
 detected (see security advisory FreeBSD-SA-01:24).
 
-A number of programs have had output formatting strings corrected so
-as to reduce the risk of vulnerabilities.
-
-A number of programs that use temporary files now do so more securely.
-
 A bug in ICMP that could cause an attacker to disrupt TCP and UDP
 "sessions" has been corrected.
 
@@ -239,6 +234,12 @@ security advisory FreeBSD-SA-01:31).
 
 A security hole in IPFilter's fragment cache has been closed.
 
+A number of programs have had output formatting strings corrected so
+as to reduce the risk of vulnerabilities.
+
+A number of programs that use temporary files now do so more securely.
+
+
 
 1.3. USERLAND CHANGES
 ---------------------
@@ -252,6 +253,9 @@ Binutils have been upgraded to 2.10.1.
 
 OpenSSL has been upgraded to 0.9.6.
 
+OpenSSL now has support for machine-dependent ASM optimizations,
+activated by the new CPUTYPE/MACHINE_CPU Makefile variables.
+
 file(1) has been contribify-ed, and imported as version 3.33.
 
 groff(1) and its related utilities have been updated to FSF version
@@ -259,8 +263,13 @@ groff(1) and its related utilities have been updated to FSF version
 
 indent(1) has gained some new formatting options.
 
-sysinstall now uses some more intuitive defaults thanks to some new
+sysinstall(8) now uses some more intuitive defaults thanks to some new
 dialog support functions.
+
+sysinstall(8) now properly preserves /etc/mail during a binary
+upgrade.
+
+The default root partition in sysinstall(8) is now 100MB.
 
 libdisk can now do install-time configuration of the i386 boot0 boot
 loader.
@@ -290,6 +299,39 @@ All packages and ports now contain an "origin" directive, which makes
 it easier for programs like pkg_version(1) to determine the directory
 from which a package was built.
 
+pkg_info(1) can now accept a -g flag for verifying an installed
+package against its recorded checksums (to see if it's been modified
+post-installation).  Naturally, this mechanism is only as secure as
+the contents of /var/db/pkg if it's to be used for auditing
+purposes.
+
+pkg_create(1) and pkg_add(1) can now work with packages that have
+been compressed using bzip2(1).  pkg_add(1) will use the
+PACKAGEROOT environment variable to determine a mirror site for new
+packages.
+
+pkg_info(1) now supports globbing against names of installed packages.
+The -G option disables this behavior, and the -x option causes regular
+expression matching instead of shell globbing.
+
+pkg_sign(1) and pkg_check(1) have been added to digitally sign and
+verify the signatures on binary package files.
+
+pkg_update(1), a utility to update installed packages and update their
+dependencies, has been added.
+
+pkg_delete(1) now can perform glob/regexp matching of package names.
+In addition, it supports the -a option for removing all packages and
+the -i option for rm(1)-style interactive confirmation.
+
+pkg_create(1) now records dependencies in dependency order rather than
+in the order specified on the command line.  This improves the
+functioning of "pkg_add -r".
+
+pkg_version(1) now has a version number comparison routine that
+corresponds to the Porters Handbook.  It also has a -t option for
+testing address comparisons.
+
 awk has been upgraded from gawk-3.0.4 to gawk-3.0.6.  This fixes a number
 of non-critical bugs and includes a few performance tweaks.
 
@@ -301,12 +343,14 @@ phase.
 pwd(1) can now double as realpath(1), a program to resolve pathnames
 to their underlying physical paths.
 
-gcc now uses a unified libgcc rather than a separate one for threaded
+gcc(1) has been updated to 2.95.3.
+
+gcc(1) now uses a unified libgcc rather than a separate one for threaded
 and non-threaded programs.  /usr/lib/libgcc_r.a can be removed.
 
 config(8) is now better about converting various warnings that should
 have been errors into actual fatal errors with an exit code.  This
-ensures that that 'make buildkernel' doesn't quietly ignore them and
+ensures that that "make buildkernel" doesn't quietly ignore them and
 build a bogus kernel without a human to read the errors.
 
 In /etc/ssh/sshd_config, the ConnectionsPerPeriod parameter has been
@@ -335,12 +379,6 @@ option; the ability to build .cf files from .mc files; generalized map
 rebuilding; rebuilding the aliases file; and the ability to stop, start,
 and restart sendmail.
 
-pkg_info(1) can now accept a -g flag for verifying an installed
-package against its recorded checksums (to see if it's been modified
-post-installation).  Naturally, this mechanism is only as secure as
-the contents of /var/db/pkg if it's to be used for auditing
-purposes.
-
 vidcontrol(1) now accepts a -g parameter to select custom text
 geometry in the VESA_800x600 raster text mode.
 
@@ -353,28 +391,16 @@ present in FreeBSD 3.5.1-RELEASE.
 
 gperf has been updated to 2.7.2.
 
-pkg_create(1) and pkg_add(1) can now work with packages that have
-been compressed using bzip2(1).  pkg_add(1) will use the
-PACKAGEROOT environment variable to determine a mirror site for new
-packages.
-
 Catching up with most other network utilities in the base system,
 lpr(1), lpd(8), syslogd(8), and logger(1) are now all IPv6-capable.
-
-sysinstall(8) now properly preserves /etc/mail during a binary
-upgrade.
 
 When requested to delete multiple packages, pkg_delete(1) will now
 attempt to remove them in dependency order rather than the order
 specified on the command line.
 
-pkg_info(1) now supports globbing against names of installed packages.
-The -G option disables this behavior, and the -x option causes regular
-expression matching instead of shell globbing.
-
 burncd(8) now supports a -m option for multisession mode (the default
 behavior now is to close disks as single-session).  A -l option to
-take a list of image files from a filename was also added; '-' can be
+take a list of image files from a filename was also added; "-" can be
 used as a filename for stdin.
 
 tar(1) now supports the TAR_RSH variable, principally to enable the
@@ -384,6 +410,10 @@ Bugs in make(1), among which include broken null suffix behavior, bad
 assumptions about current directory permissions, and potential buffer
 overflows, have been fixed.
 
+The new CPUTYPE make.conf variable controls the compilation of
+processor-specific optimizations in various pieces of code such as
+OpenSSL.
+
 Boot-time syscons configuration was moved to a machine-independent
 rc.syscons.
 
@@ -391,9 +421,6 @@ login(1) now exports environment variables set by PAM modules.
 
 ipfstat(8) now supports the -t option to turn on a top(1)-like
 display.
-
-pkg_sign(1) and pkg_check(1) have been added to digitally sign and
-verify the signatures on binary package files.
 
 tftpd(8) now takes the -c and -C options, which allow the server to
 chroot(2) based on the IP address of the connecting client.  tftp(1)
@@ -407,9 +434,6 @@ graphic.
 
 bc has been updated from 1.04 to 1.06.
 
-pkg_update(1), a utility to update installed packages and update their
-dependencies, has been added.
-
 savecore(8) now supports a -k option to prevent clearing a crash dump
 after saving it.  It also attempts to avoid writing large stretches of
 zeros to crash dump files to save space and time.
@@ -419,23 +443,12 @@ tcsh has been updated to version 6.10.
 The default value for the CVS_RSH variable (used by cvs(1)) is now
 ssh, rather than rsh.
 
-pkg_delete(1) now can perform glob/regexp matching of package names.
-In addition, it supports the -a option for removing all packages and
-the -i option for rm(1)-style interactive confirmation.
-
 disklabel(8) now supports partition sizes expressed in kilobytes,
 megabytes, or gigabytes, in addition to sectors.
 
 Kerberos IV has been updated to 1.0.5.
 
 Heimdal has been updated to 0.3e.
-
-The new CPUTYPE make.conf variable controls the compilation of
-processor-specific optimizations in various pieces of code such as
-OpenSSL.
-
-OpenSSL now has support for machine-dependent ASM optimizations,
-activated by the new CPUTYPE/MACHINE_CPU Makefile variables.
 
 dump(8) now supports inheritance of the "nodump" flag down a
 hierarchy.
@@ -461,10 +474,6 @@ listening sockets, respectively.
 Many manual pages were improved, both in terms of their formatting
 markup and in their content.
 
-pkg_create(1) now records dependencies in dependency order rather than
-in the order specified on the command line.  This improves the
-functioning of "pkg_add -r".
-
 "lprm -" now works for remote printer queues.
 
 mergemaster(8) now sources an /etc/mergemaster.rc file and also
@@ -482,20 +491,11 @@ The default TCP port range used by libfetch for passive FTP retrievals
 has changed; this affects the behavior of fetch(1), which has gained the
 -U option to restore the old behavior.
 
-pkg_version(1) now has a version number comparison routine that
-corresponds to the Porters Handbook.  It also has a -t option for
-testing address comparisons.
-
 portmap(8) now takes a -h option to indicate the IP addresses to which
 it should bind.  This option may be specified multiple times and is
 typically necessary for multi-homed hosts.
 
 GNATS has been updated to 3.113.
-
-gcc has been updated to 2.95.3.
-
-The default root partition in sysinstall(8) is now 100MB on the i386 and
-110MB on the alpha.
 
 
 2. Supported Configurations
