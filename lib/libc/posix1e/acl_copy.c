@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2001 Chris D. Faulhaber
+ * Copyright (c) 2001-2002 Chris D. Faulhaber
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -42,16 +42,16 @@ int
 acl_copy_entry(acl_entry_t dest_d, acl_entry_t src_d)
 {
 
-	if (!src_d || !dest_d || (src_d == dest_d)) {
+	if (src_d == NULL || dest_d == NULL || src_d == dest_d) {
 		errno = EINVAL;
-		return -1;
+		return (-1);
 	}
 
 	dest_d->ae_tag  = src_d->ae_tag;
 	dest_d->ae_id   = src_d->ae_id;
 	dest_d->ae_perm = src_d->ae_perm;
 
-	return 0;
+	return (0);
 }
 
 ssize_t
@@ -59,7 +59,7 @@ acl_copy_ext(void *buf_p, acl_t acl, ssize_t size)
 {
 
 	errno = ENOSYS;
-	return -1;
+	return (-1);
 }
 
 acl_t
@@ -67,5 +67,5 @@ acl_copy_int(const void *buf_p)
 {
 
 	errno = ENOSYS;
-	return NULL;
+	return (NULL);
 }
