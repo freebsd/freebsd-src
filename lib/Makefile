@@ -2,7 +2,7 @@
 
 # XXX MISSING:		libmp libplot
 SUBDIR=	libc libcompat libcurses libedit libkvm libm libmd \
-	libresolv libtelnet libterm libutil liby
+	libresolv librpcsvc libtelnet libterm libutil liby
 
 .if	${MACHINE} == "tahoe"
 SUBDIR+=csu/tahoe.pcc
