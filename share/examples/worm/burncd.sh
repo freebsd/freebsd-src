@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/share/examples/worm/burncd.sh,v 1.6.6.1 2000/07/01 11:33:41 ps Exp $
 #
 # usage: burncd input-file
 #

@@ -57,7 +57,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/advansys/adv_pci.c,v 1.11.2.1 2000/04/14 13:32:47 nyan Exp $
  */
 
 #include <sys/param.h>

@@ -32,7 +32,7 @@
  *
  *	$Id: rc_scan.l,v 1.27 1999/12/13 21:25:25 hm Exp $ 
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/i4b/isdnd/rc_scan.l,v 1.6 1999/12/14 21:07:32 hm Exp $
  *
  *      last edit-date: [Mon Dec 13 21:48:57 1999]
  *

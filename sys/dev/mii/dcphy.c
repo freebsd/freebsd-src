@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/mii/dcphy.c,v 1.2.2.1 2000/06/07 17:11:23 wpaul Exp $
  */
 
 /*
@@ -72,7 +72,7 @@
 
 #if !defined(lint)
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/sys/dev/mii/dcphy.c,v 1.2.2.1 2000/06/07 17:11:23 wpaul Exp $";
 #endif
 
 #define DC_SETBIT(sc, reg, x)                           \

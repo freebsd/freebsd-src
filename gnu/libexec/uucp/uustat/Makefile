@@ -1,5 +1,5 @@
 # Makefile for uustat
-# $FreeBSD$
+# $FreeBSD: src/gnu/libexec/uucp/uustat/Makefile,v 1.5 1999/08/27 23:34:02 peter Exp $
 
 BINDIR=		$(bindir)
 BINOWN=		$(owner)

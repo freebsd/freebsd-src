@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/binutils/ld/Makefile.powerpc,v 1.3.2.1 2000/07/06 22:15:52 obrien Exp $
 #
 
 .if	${TARGET_ARCH} == "powerpc"

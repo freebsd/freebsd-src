@@ -20,7 +20,7 @@
  *
  * Original code by Matt Thomas, Digital Equipment Corporation
  *
- * $FreeBSD$
+ * $FreeBSD: src/contrib/tcpdump/print-isoclns.c,v 1.8 2000/01/30 01:00:53 fenner Exp $
  */
 
 #ifndef lint

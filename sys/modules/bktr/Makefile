@@ -9,7 +9,7 @@
 # Note - as the driver requires contiguous memory, loading the driver once
 # memory has filled or become fragmented may fail.
 
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/bktr/Makefile,v 1.9 1999/11/28 18:52:39 bde Exp $
 
 .PATH:  ${.CURDIR}/../../dev/bktr
 KMOD=	bktr 

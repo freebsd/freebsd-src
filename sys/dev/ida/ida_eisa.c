@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/ida/ida_eisa.c,v 1.1.2.1 2000/04/16 14:14:29 mdodd Exp $
  */
 
 #include <sys/param.h>

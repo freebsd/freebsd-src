@@ -35,7 +35,7 @@ eval 'exec /usr/bin/perl -S $0 ${1+"$@"}'
 # SUCH DAMAGE.
 #
 #	@(#)vnode_if.sh	8.1 (Berkeley) 6/10/93
-# $FreeBSD$
+# $FreeBSD: src/sys/kern/vnode_if.pl,v 1.21 1999/12/12 16:43:05 peter Exp $
 #
 # Script to produce VFS front-end sugar.
 #

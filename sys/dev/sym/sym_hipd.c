@@ -55,7 +55,7 @@
  * SUCH DAMAGE.
  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/sym/sym_hipd.c,v 1.6.2.3 2000/07/05 20:37:53 groudier Exp $ */
 
 #define SYM_DRIVER_NAME	"sym-1.6.4-20000701"
 

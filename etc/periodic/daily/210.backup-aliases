@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/periodic/daily/210.backup-aliases,v 1.3 1999/12/28 21:38:12 obrien Exp $
 #
 bak=/var/backups
 

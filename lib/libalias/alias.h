@@ -7,7 +7,7 @@
     This software is placed into the public domain with no restrictions
     on its distribution.
 
- $FreeBSD$
+ $FreeBSD: src/lib/libalias/alias.h,v 1.12.2.1 2000/06/27 16:29:31 ru Exp $
 */
 
 

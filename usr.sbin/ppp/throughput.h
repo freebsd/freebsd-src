@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/ppp/throughput.h,v 1.8 1999/08/28 01:18:47 peter Exp $
  */
 
 #define SAMPLE_PERIOD 5		/* Default sample period */

@@ -41,7 +41,7 @@
 
     See HISTORY file for record of revisions.
 
-    $FreeBSD$
+    $FreeBSD: src/lib/libalias/alias_ftp.c,v 1.5.2.1 2000/06/27 16:29:31 ru Exp $
 */
 
 /* Includes */

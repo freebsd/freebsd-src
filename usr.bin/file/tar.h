@@ -5,7 +5,7 @@
  *
  * Created 25 August 1985 by John Gilmore, ihnp4!hoptoad!gnu.
  *
- * $FreeBSD$ # checkin only
+ * $FreeBSD: src/usr.bin/file/tar.h,v 1.4 1999/08/28 01:01:03 peter Exp $ # checkin only
  */
 
 /*

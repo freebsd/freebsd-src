@@ -1,6 +1,6 @@
 Copyright (c) Ian F. Darwin 1986, 1987, 1989, 1990, 1991, 1992, 1994, 1995.
 Software written by Ian F. Darwin and others; maintained by Christos Zoulas.
-$FreeBSD$
+$FreeBSD: src/usr.bin/file/LEGAL.NOTICE,v 1.4 1999/08/28 01:00:53 peter Exp $
 
 This software (or derivative software) may not be made subject to any 
 license which denies anyone permission to alter it and redistribute it 

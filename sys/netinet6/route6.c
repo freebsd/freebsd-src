@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/netinet6/route6.c,v 1.1.2.1 2000/07/15 07:14:38 kris Exp $	*/
 /*	$KAME: route6.c,v 1.15 2000/06/23 16:18:20 itojun Exp $	*/
 
 /*

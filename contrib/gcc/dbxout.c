@@ -18,7 +18,7 @@ along with GNU CC; see the file COPYING.  If not, write to
 the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/gcc/dbxout.c,v 1.4 1999/10/26 08:47:58 obrien Exp $ */
 
 
 /* Output dbx-format symbol table data.

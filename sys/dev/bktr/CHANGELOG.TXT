@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/bktr/CHANGELOG.TXT,v 1.8.2.1 2000/04/18 12:50:29 roger Exp $ */
 /*
  * MAINTAINER = Roger Hardiman <roger@freebsd.org>
  */

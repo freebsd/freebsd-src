@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.suspend,v 1.3 1999/09/13 15:44:18 sheldonh Exp $
 #
 # sample run command file for APM Suspend Event
 

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/boot/alpha/libalpha/alpha_copy.c,v 1.4 1999/08/28 00:39:25 peter Exp $
  */
 /*
  * MD primitives supporting placement of module data 

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/examples/cvsup/refuse,v 1.1.2.2 2000/07/16 20:35:44 ben Exp $
 #
 #This is an example "refuse file".  CVSup will not touch anything listed
 #in the refuse file.

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/etc/periodic/weekly/Makefile,v 1.4 1999/08/27 23:24:07 peter Exp $
 
 BIN=	120.clean-kvmdb \
 	300.uucp \

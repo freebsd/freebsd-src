@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.5 (Berkeley) 5/11/90
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/rtprio/Makefile,v 1.6 1999/08/28 01:19:48 peter Exp $
 
 BINDIR=/usr/sbin
 PROG=	rtprio

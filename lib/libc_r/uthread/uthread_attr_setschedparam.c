@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc_r/uthread/uthread_attr_setschedparam.c,v 1.4 2000/01/10 04:13:21 deischen Exp $
  */
 #include <errno.h>
 #ifdef _THREAD_SAFE

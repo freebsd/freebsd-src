@@ -1,5 +1,5 @@
 # @(#)antarctica	7.18
-# $FreeBSD$
+# $FreeBSD: src/share/zoneinfo/antarctica,v 1.1.2.6.2.1 2000/04/05 18:19:27 ru Exp $
 
 # From Paul Eggert (1999-11-15):
 # To keep things manageable, we list only locations occupied year-round; see

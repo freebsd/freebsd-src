@@ -1,4 +1,4 @@
-/* $FreeBSD$
+/* $FreeBSD: src/libexec/bootpd/bptypes.h,v 1.2 1999/11/12 10:11:48 marcel Exp $
  */
 
 #ifndef	BPTYPES_H

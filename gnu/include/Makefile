@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/include/Makefile,v 1.8 1999/08/27 23:32:36 peter Exp $
 
 NOOBJ=	noobj
 

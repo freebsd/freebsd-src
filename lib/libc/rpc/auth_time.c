@@ -29,7 +29,7 @@
  * NOTE: This code has had the crap beaten out it in order to convert
  *       it from TI-RPC back to TD-RPC for use on FreeBSD.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/rpc/auth_time.c,v 1.4 2000/01/27 23:06:35 jasone Exp $
  */
 #include <stdio.h>
 #include <syslog.h>

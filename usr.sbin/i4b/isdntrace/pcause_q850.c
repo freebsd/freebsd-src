@@ -29,7 +29,7 @@
  *
  *	$Id: pcause_q850.c,v 1.6 1999/12/13 21:25:26 hm Exp $
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/i4b/isdntrace/pcause_q850.c,v 1.6 1999/12/14 21:07:50 hm Exp $
  *
  *	last edit-date: [Mon Dec 13 21:56:18 1999]
  *

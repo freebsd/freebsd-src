@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/boot/dosboot/bootinfo.h,v 1.5 1999/08/28 00:43:20 peter Exp $
  */
 
 #ifndef	_MACHINE_BOOTINFO_H_

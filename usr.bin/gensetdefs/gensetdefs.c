@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/gensetdefs/gensetdefs.c,v 1.4 1999/12/12 21:16:46 marcel Exp $
  */
 
 #include <sys/types.h>

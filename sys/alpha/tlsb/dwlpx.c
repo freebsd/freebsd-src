@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/alpha/tlsb/dwlpx.c,v 1.11.2.2 2000/07/10 03:26:19 mjacob Exp $ */
 /*-
  * Copyright (c) 1998 Doug Rabson
  * All rights reserved.

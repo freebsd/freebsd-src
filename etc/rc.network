@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.network,v 1.74.2.3 2000/06/24 20:51:27 dillon Exp $
 #	From: @(#)netstart	5.9 (Berkeley) 3/30/91
 
 # Note that almost all of the user-configurable behavior is no longer in

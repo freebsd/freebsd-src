@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/stdio/tmpnam.c,v 1.3 1999/10/24 11:57:24 ache Exp $
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)

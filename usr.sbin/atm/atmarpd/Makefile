@@ -23,7 +23,7 @@
 # Copies of this Software may be made, however, the above copyright
 # notice must be reproduced on all copies.
 #
-#	@(#) $FreeBSD$
+#	@(#) $FreeBSD: src/usr.sbin/atm/atmarpd/Makefile,v 1.4 1999/08/28 01:15:28 peter Exp $
 #
 #
 

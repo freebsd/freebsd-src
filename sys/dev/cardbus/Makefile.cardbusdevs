@@ -1,5 +1,5 @@
 #	$Id: Makefile.cardbusdevs,v 1.1.2.1 1999/02/16 16:46:06 haya Exp $
-# $FreeBSD$
+# $FreeBSD: src/sys/dev/cardbus/Makefile.cardbusdevs,v 1.1 1999/11/18 07:21:50 imp Exp $
 
 AWK=	awk
 

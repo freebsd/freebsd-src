@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)cpu.h	5.4 (Berkeley) 5/9/91
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/include/cpu.h,v 1.43.2.1 2000/05/16 06:58:10 dillon Exp $
  */
 
 #ifndef _MACHINE_CPU_H_

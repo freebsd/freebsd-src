@@ -36,7 +36,7 @@
  *
  *	@(#)ipl.s
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/isa/ipl.s,v 1.32.2.2 2000/07/07 00:38:48 obrien Exp $
  */
 
 

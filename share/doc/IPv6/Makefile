@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/doc/IPv6/Makefile,v 1.1 2000/03/02 10:34:11 shin Exp $
 
 FILES=  IMPLEMENTATION
 

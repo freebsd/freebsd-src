@@ -33,7 +33,7 @@
  */
 
 /*
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/dpt/dpt_eisa.c,v 1.12 2000/01/29 14:31:57 peter Exp $
  */
 
 #include "opt_dpt.h"

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/netstat/Makefile,v 1.14.2.1 2000/07/15 07:29:29 kris Exp $
 #	@(#)Makefile	8.1 (Berkeley) 6/12/93
 
 PROG=	netstat

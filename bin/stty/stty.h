@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)stty.h	8.1 (Berkeley) 5/31/93
- * $FreeBSD$
+ * $FreeBSD: src/bin/stty/stty.h,v 1.5 1999/08/27 23:15:43 peter Exp $
  */
 
 #include <sys/ioctl.h>

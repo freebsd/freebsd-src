@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_fork.c	8.6 (Berkeley) 4/8/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/kern/kern_fork.c,v 1.72.2.1 2000/05/05 03:49:54 jlemon Exp $
  */
 
 #include "opt_ktrace.h"

@@ -23,7 +23,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\" 
-.\" $FreeBSD$
+.\" $FreeBSD: src/contrib/groff/tmac/locale/koi8-r,v 1.1.4.1 2000/05/04 18:21:53 phantom Exp $
 .\"
 .\" This file is addition to groff package. It allows to translate Section
 .\" Headers (.Sh) and correctly display man page header and footer. It

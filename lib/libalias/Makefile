@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libalias/Makefile,v 1.13.2.1 2000/06/27 16:29:31 ru Exp $
 
 LIB=		alias
 SHLIB_MAJOR=	4

@@ -29,7 +29,7 @@
  *
  *	$Id: i4b_ioctl.h,v 1.150 1999/12/13 21:25:28 hm Exp $ 
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/include/i4b_ioctl.h,v 1.6 1999/12/14 20:54:37 hm Exp $
  *
  *      last edit-date: [Mon Dec 13 22:12:16 1999]
  *

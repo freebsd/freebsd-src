@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/boot/pc98/btx/lib/Makefile,v 1.2 1999/08/28 00:40:32 peter Exp $
 
 OBJS=		btxcsu.o btxsys.o btxv86.o
 AFLAGS+=	-elf

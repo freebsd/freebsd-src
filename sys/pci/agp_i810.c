@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/sys/pci/agp_i810.c,v 1.1.2.1 2000/07/19 09:48:04 ru Exp $
  */
 
 #include "opt_bus.h"

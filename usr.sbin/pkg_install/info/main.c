@@ -25,7 +25,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.sbin/pkg_install/info/main.c,v 1.22.2.1 2000/07/18 10:12:30 sobomax Exp $";
 #endif
 
 static char Options[] = "acdDe:fhiIkl:LmpqrRst:v";

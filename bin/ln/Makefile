@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.2 (Berkeley) 5/31/93
-# $FreeBSD$
+# $FreeBSD: src/bin/ln/Makefile,v 1.7 1999/12/20 16:13:45 sheldonh Exp $
 
 PROG=	ln
 MAN1=	ln.1

@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	1.8 (Berkeley) 6/8/93
-# $FreeBSD$
+# $FreeBSD: src/share/doc/papers/memfs/Makefile,v 1.9 1999/08/28 00:18:12 peter Exp $
 
 VOLUME=	papers
 DOC=	memfs

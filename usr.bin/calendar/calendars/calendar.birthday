@@ -1,7 +1,7 @@
 /*
  * Birthday
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/calendar/calendars/calendar.birthday,v 1.12 1999/10/08 21:34:15 charnier Exp $
  */
 
 #ifndef _calendar_birthday_

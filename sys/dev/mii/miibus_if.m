@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/dev/mii/miibus_if.m,v 1.2 1999/08/28 00:42:14 peter Exp $
 
 INTERFACE miibus;
 

@@ -29,7 +29,7 @@
 
 /*
  * Additional Copyright (c) 1999 by Andrew Gallatin
- * $FreeBSD$
+ * $FreeBSD: src/sys/alpha/osf1/osf1_misc.c,v 1.3 2000/01/29 06:31:27 gallatin Exp $
  */
 
 

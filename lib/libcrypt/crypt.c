@@ -23,12 +23,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libcrypt/crypt.c,v 1.14 2000/01/07 06:33:54 kris Exp $
  *
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static char rcsid[] = "$FreeBSD$";
+static char rcsid[] = "$FreeBSD: src/lib/libcrypt/crypt.c,v 1.14 2000/01/07 06:33:54 kris Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <string.h>

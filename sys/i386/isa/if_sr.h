@@ -4,7 +4,7 @@
  * Copyright (C) 1997-1999 Whistle Communications Inc.
  * All rights reserved.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i386/isa/if_sr.h,v 1.2 2000/01/21 01:39:40 archie Exp $
  */
 
 #ifndef _I386_ISA_IF_SR_H_

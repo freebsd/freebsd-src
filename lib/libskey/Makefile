@@ -1,5 +1,5 @@
 #	@(#)Makefile	5.4 (Berkeley) 5/7/91
-#	$FreeBSD$
+#	$FreeBSD: src/lib/libskey/Makefile,v 1.15 2000/01/14 07:57:40 rgrimes Exp $
 
 LIB=	skey
 SRCS=	skeyaccess.c put.c skey_crypt.c skey_getpass.c skeylogin.c skeysubr.c

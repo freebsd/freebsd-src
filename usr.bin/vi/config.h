@@ -1,6 +1,6 @@
 /* config.h.  Generated automatically by configure.  */
 /* config.h.in.  Generated automatically from configure.in by autoheader.  */
-/* $FreeBSD$ */
+/* $FreeBSD: src/usr.bin/vi/config.h,v 1.2.6.1 2000/05/06 02:31:49 jlemon Exp $ */
 
 /* Define to empty if the keyword does not work.  */
 /* #undef const */

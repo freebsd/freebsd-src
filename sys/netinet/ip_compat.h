@@ -7,7 +7,7 @@
  *
  * @(#)ip_compat.h	1.8 1/14/96
  * $Id: ip_compat.h,v 2.1.2.3 1999/11/18 13:55:26 darrenr Exp $
- * $FreeBSD$
+ * $FreeBSD: src/sys/netinet/ip_compat.h,v 1.8.2.1 2000/07/19 23:27:54 darrenr Exp $
  */
 
 #ifndef	__IP_COMPAT_H__

@@ -1,7 +1,7 @@
 /* 
 ** No copyright?!
 **
-** $FreeBSD$
+** $FreeBSD: src/usr.bin/doscmd/callback.h,v 1.2 1999/08/28 01:00:05 peter Exp $
 */
 typedef void		(*callback_t)(regcontext_t *REGS);
 

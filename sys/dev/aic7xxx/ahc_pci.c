@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/aic7xxx/ahc_pci.c,v 1.29.2.1 2000/03/18 22:57:48 gibbs Exp $
  */
 
 #include <sys/param.h>

@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sysctl.c	8.4 (Berkeley) 4/14/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/kern/kern_mib.c,v 1.29.2.1 2000/05/16 06:58:11 dillon Exp $
  */
 
 #include <sys/param.h>

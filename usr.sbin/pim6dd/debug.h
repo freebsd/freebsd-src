@@ -44,7 +44,7 @@
  * The mrouted program is COPYRIGHT 1989 by The Board of Trustees of
  * Leland Stanford Junior University.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/pim6dd/debug.h,v 1.1.2.1 2000/07/15 07:36:29 kris Exp $
  */
 
 extern unsigned long	debug;

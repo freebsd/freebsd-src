@@ -1,4 +1,4 @@
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/alpha/tlsb/zs_tlsb.c,v 1.25.2.1 2000/03/27 18:32:52 mjacob Exp $ */
 /*-
  * Copyright (c) 1998 Doug Rabson
  * All rights reserved.

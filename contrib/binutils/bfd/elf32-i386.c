@@ -17,7 +17,7 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/binutils/bfd/elf32-i386.c,v 1.4.2.3 2000/07/07 05:33:10 obrien Exp $ */
 
 #include "bfd.h"
 #include "sysdep.h"

@@ -6,7 +6,7 @@
  * to the original author and the contributors.
  *
  * $Id: ip_proxy.h,v 2.1.2.1 1999/09/19 12:18:20 darrenr Exp $
- * $FreeBSD$
+ * $FreeBSD: src/sys/netinet/ip_proxy.h,v 1.7.2.1 2000/07/19 23:27:55 darrenr Exp $
  */
 
 #ifndef	__IP_PROXY_H__

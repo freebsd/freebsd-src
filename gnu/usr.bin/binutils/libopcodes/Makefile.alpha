@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/binutils/libopcodes/Makefile.alpha,v 1.3.2.1 2000/07/06 22:16:09 obrien Exp $
 #
 
 SRCS+=		alpha-dis.c alpha-opc.c

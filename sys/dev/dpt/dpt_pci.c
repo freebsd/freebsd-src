@@ -32,7 +32,7 @@
  *  dptpci.c:  PCI Bus Attachment for DPT SCSI HBAs
  */
 
-#ident "$FreeBSD$"
+#ident "$FreeBSD: src/sys/dev/dpt/dpt_pci.c,v 1.17 1999/10/09 03:46:28 mdodd Exp $"
 
 #include "opt_dpt.h"
 

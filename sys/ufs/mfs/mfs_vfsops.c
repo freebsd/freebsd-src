@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mfs_vfsops.c	8.11 (Berkeley) 6/19/95
- * $FreeBSD$
+ * $FreeBSD: src/sys/ufs/mfs/mfs_vfsops.c,v 1.81 1999/12/19 06:08:07 rwatson Exp $
  */
 
 

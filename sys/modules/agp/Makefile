@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/agp/Makefile,v 1.2.2.3 2000/07/19 12:35:41 ru Exp $
 
 .PATH:	${.CURDIR}/../../pci
 KMOD	= agp

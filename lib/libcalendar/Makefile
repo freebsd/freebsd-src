@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/lib/libcalendar/Makefile,v 1.4 2000/01/14 07:57:23 rgrimes Exp $
 
 LIB=	calendar
 

@@ -21,4 +21,4 @@ Brendan Kehoe of Cygnus Support suggested rlog's -N option.
 Paul D. Smith of Data General suggested improvements in option
 and error processing.  Adam Hammer of Purdue QAed.
 
-$FreeBSD$
+$FreeBSD: src/gnu/usr.bin/rcs/CREDITS,v 1.5 1999/08/27 23:36:36 peter Exp $

@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libio/bwx.c,v 1.4 2000/02/12 14:57:00 dfr Exp $
  */
 
 #include <sys/param.h>

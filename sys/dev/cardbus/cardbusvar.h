@@ -30,7 +30,7 @@
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/cardbus/cardbusvar.h,v 1.1 1999/11/18 07:21:51 imp Exp $ */
 
 #if !defined SYS_DEV_PCCARD_CARDBUSVAR_H
 #define SYS_DEV_PCCARD_CARDBUSVAR_H

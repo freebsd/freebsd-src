@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/etc/mail/Makefile,v 1.9 2000/03/12 22:08:34 rwatson Exp $
 
 all: access.db mailertable.db virtusertable.db	\
 # /etc/aliases.db

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/mail/lex.c,v 1.5.6.1 2000/07/01 12:24:21 ps Exp $
  */
 
 #ifndef lint

@@ -29,7 +29,7 @@
  *
  *	BSDI signal.c,v 2.2 1996/04/08 19:33:06 bostic Exp
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/doscmd/signal.c,v 1.6 1999/10/08 09:02:38 marcel Exp $
  */
 
 #include "doscmd.h"

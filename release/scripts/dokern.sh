@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# $FreeBSD$
+# $FreeBSD: src/release/scripts/dokern.sh,v 1.23.2.2 2000/07/16 06:40:42 obrien Exp $
 
 ARCH="`uname -m`"
 

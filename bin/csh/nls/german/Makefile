@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/bin/csh/nls/german/Makefile,v 1.4.2.1 2000/07/04 05:29:27 obrien Exp $
 
 NL=     german
 DL=     de_DE.ISO_8859-1

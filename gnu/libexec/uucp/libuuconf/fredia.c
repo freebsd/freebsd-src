@@ -26,7 +26,7 @@
 #include "uucnfi.h"
 
 #if USE_RCS_ID
-const char _uuconf_fredia_rcsid[] = "$FreeBSD$";
+const char _uuconf_fredia_rcsid[] = "$FreeBSD: src/gnu/libexec/uucp/libuuconf/fredia.c,v 1.6 1999/08/27 23:33:19 peter Exp $";
 #endif
 
 /* Free the memory allocated for a dialer.  */

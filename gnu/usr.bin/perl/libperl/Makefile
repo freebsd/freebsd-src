@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/perl/libperl/Makefile,v 1.9 2000/03/08 15:45:11 markm Exp $
 #
 
 LIB=	perl

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/ncplogin/Makefile,v 1.2 1999/11/01 02:44:09 bp Exp $
 
 PROG=	ncplogin
 MAN1=	ncplogin.1 ncplogout.1

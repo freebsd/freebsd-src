@@ -25,7 +25,7 @@ Boston, MA 02111-1307, USA.  */
    /usr/src/contrib/gcc/config/svr4.h & 
    egcs/gcc/config/i386/freebsd-elf.h version by David O'Brien  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/gcc/config/freebsd.h,v 1.25.2.3 2000/07/19 00:30:53 obrien Exp $ */
 
 
 /* Cpp, assembler, linker, library, and startfile spec's.  */

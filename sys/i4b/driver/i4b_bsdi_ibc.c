@@ -32,7 +32,7 @@
  *
  *	$Id: i4b_bsdi_ibc.c,v 1.1 1999/04/23 08:35:07 hm Exp $
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i4b/driver/i4b_bsdi_ibc.c,v 1.3 1999/12/14 20:48:12 hm Exp $
  *
  *	last edit-date: [Tue Dec 14 21:55:37 1999]
  *

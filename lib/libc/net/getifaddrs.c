@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/lib/libc/net/getifaddrs.c,v 1.1.2.1 2000/07/15 07:24:03 kris Exp $	*/
 
 /*
  * Copyright (c) 1995, 1999

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/libexec/pppoed/Makefile,v 1.1 1999/11/21 23:39:13 brian Exp $
 
 PROG=	pppoed
 SRCS=	pppoed.c

@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.bin/tail/forward.c,v 1.11.6.1 2000/07/18 21:49:41 jlemon Exp $
  */
 
 #ifndef lint

@@ -37,7 +37,7 @@
  *	@(#)procfs_status.c	8.4 (Berkeley) 6/15/94
  *
  * From:
- * $FreeBSD$
+ * $FreeBSD: src/sys/miscfs/procfs/procfs_status.c,v 1.20 1999/12/27 16:03:38 peter Exp $
  */
 
 #include <sys/param.h>

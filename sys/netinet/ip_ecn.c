@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/netinet/ip_ecn.c,v 1.1.2.1 2000/07/15 07:14:30 kris Exp $	*/
 /*	$KAME: ip_ecn.c,v 1.7 2000/05/05 11:00:56 sumikawa Exp $	*/
 
 /*

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/share/doc/psd/23.rpc/Makefile,v 1.4 1999/08/28 00:18:28 peter Exp $
 
 VOLUME=	psd/23.rpc
 SRCS=	rpc.prog.ms

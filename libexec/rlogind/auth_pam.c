@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$FreeBSD$
+ *	$FreeBSD: src/libexec/rlogind/auth_pam.c,v 1.1 1999/09/19 22:05:30 markm Exp $
  */
 
 #include <sys/param.h>

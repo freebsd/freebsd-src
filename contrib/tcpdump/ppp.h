@@ -15,7 +15,7 @@
  * suitability of this software for any purpose.  It is provided "as is"
  * without express or implied warranty.
  *
- * $FreeBSD$
+ * $FreeBSD: src/contrib/tcpdump/ppp.h,v 1.3 2000/01/30 01:00:50 fenner Exp $
  */
 #undef PPP_ADDRESS
 #define PPP_ADDRESS	0xff	/* The address byte value */

@@ -493,7 +493,7 @@ X                  not scan the uucico log.
 X
 X
 #if !defined(lint)
-static char rcsid[] = "$FreeBSD$";
+static char rcsid[] = "$FreeBSD: src/gnu/libexec/uucp/contrib/uupoll.shar,v 1.6 1999/08/28 04:58:21 peter Exp $";
 #endif /* not lint */
 X
 X/* Log: uupoll.shar,v
@@ -1628,7 +1628,7 @@ sed 's/^X//' << 'SHAR_EOF' > 'uupoll/conf.h' &&
 #ifndef CONF
 X  #define CONF
 X
-X/* $FreeBSD$ */
+X/* $FreeBSD: src/gnu/libexec/uucp/contrib/uupoll.shar,v 1.6 1999/08/28 04:58:21 peter Exp $ */
 X/* Log: uupoll.shar,v
 X * Revision 1.9  1994/04/14  17:24:58  kdburg
 X * added comment to the AT_OPTION
@@ -1986,7 +1986,7 @@ X                - No alias expansion is done on the given names.
 */
 X
 #if !defined(lint)
-static char rcsid[] = "$FreeBSD$";
+static char rcsid[] = "$FreeBSD: src/gnu/libexec/uucp/contrib/uupoll.shar,v 1.6 1999/08/28 04:58:21 peter Exp $";
 #endif /* not lint */
 X
 X/* Log: uupoll.shar,v

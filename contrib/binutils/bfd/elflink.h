@@ -17,7 +17,7 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/binutils/bfd/elflink.h,v 1.2.6.2 2000/07/07 05:33:13 obrien Exp $ */
 
 /* ELF linker code.  */
 

@@ -1,5 +1,5 @@
 #!/bin/sh
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.shutdown,v 1.4 1999/11/22 04:23:08 dillon Exp $
 
 # Site-specific closing actions for daemons run by init on shutdown,
 # or before going single-user from multi-user.

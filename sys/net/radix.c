@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)radix.c	8.4 (Berkeley) 11/2/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/net/radix.c,v 1.20.2.1 2000/05/03 19:17:11 wollman Exp $
  */
 
 /*

@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc_r/uthread/uthread_sigwait.c,v 1.13.2.1 2000/07/12 04:47:27 jasone Exp $
  */
 #include <signal.h>
 #include <sys/param.h>

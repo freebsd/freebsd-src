@@ -19,7 +19,7 @@
    David MacKenzie <djm@gnu.ai.mit.edu>,
    and John Oleynick <juo@klinzhai.rutgers.edu>.  */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/cpio/main.c,v 1.3 1999/09/15 01:47:13 peter Exp $ */
 
 #include <stdio.h>
 #include <getopt.h>

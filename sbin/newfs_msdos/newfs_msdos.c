@@ -27,7 +27,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/sbin/newfs_msdos/newfs_msdos.c,v 1.9.2.2 2000/07/01 08:07:49 ps Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>

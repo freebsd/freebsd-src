@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * From: scsi.c,v 1.8 1997/02/22 15:07:54 peter Exp $
- * $FreeBSD$
+ * $FreeBSD: src/lib/libcam/scsi_cmdparse.c,v 1.3 1999/08/28 00:04:06 peter Exp $
  */
 #include <stdlib.h>
 #include <stdio.h>

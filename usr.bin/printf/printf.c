@@ -42,7 +42,7 @@ static char const copyright[] =
 #ifndef lint
 static char const sccsid[] = "@(#)printf.c	8.1 (Berkeley) 7/20/93";
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.bin/printf/printf.c,v 1.12.6.2 2000/07/22 11:49:25 se Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>

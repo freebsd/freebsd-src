@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/ppp/bundle.h,v 1.33.2.3 2000/06/15 17:08:27 brian Exp $
  */
 
 #define	PHASE_DEAD		0	/* Link is dead */

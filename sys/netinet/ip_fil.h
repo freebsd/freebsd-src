@@ -7,7 +7,7 @@
  *
  * @(#)ip_fil.h	1.35 6/5/96
  * $Id: ip_fil.h,v 2.29.2.3 2000/06/05 13:12:42 darrenr Exp $
- * $FreeBSD$
+ * $FreeBSD: src/sys/netinet/ip_fil.h,v 1.13.2.2 2000/07/19 23:27:55 darrenr Exp $
  */
 
 #ifndef	__IP_FIL_H__

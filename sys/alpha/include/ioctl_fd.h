@@ -24,7 +24,7 @@
  * USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH
  * DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/alpha/include/ioctl_fd.h,v 1.3 1999/12/29 04:27:58 peter Exp $
  * from: ioctl_fd.h,v 1.11
  */
 

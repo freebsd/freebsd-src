@@ -18,7 +18,7 @@
    the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
 
 /*
- * $FreeBSD$
+ * $FreeBSD: src/gnu/usr.bin/as/listing.h,v 1.5 1999/08/27 23:34:18 peter Exp $
  */
 
 #ifndef __listing_h__

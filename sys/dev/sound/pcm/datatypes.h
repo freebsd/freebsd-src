@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/sound/pcm/datatypes.h,v 1.8.2.2 2000/07/19 21:18:46 cg Exp $
  */
 
 typedef struct _snd_mixer snd_mixer;

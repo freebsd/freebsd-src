@@ -43,7 +43,7 @@
  *
  *	@(#)ufs_vnops.c 8.27 (Berkeley) 5/27/95
  *	@(#)ext2_vnops.c	8.7 (Berkeley) 2/3/94
- * $FreeBSD$
+ * $FreeBSD: src/sys/gnu/ext2fs/ext2_vnops.c,v 1.51 2000/03/03 08:00:27 bde Exp $
  */
 
 #include "opt_quota.h"

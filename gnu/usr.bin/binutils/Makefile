@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/binutils/Makefile,v 1.11.2.1 2000/07/06 22:15:40 obrien Exp $
 #
 
 SUBDIR=		libiberty libbfd libopcodes libbinutils \

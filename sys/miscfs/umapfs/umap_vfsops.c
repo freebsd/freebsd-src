@@ -35,7 +35,7 @@
  *
  *	@(#)umap_vfsops.c	8.8 (Berkeley) 5/14/95
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/miscfs/umapfs/umap_vfsops.c,v 1.31 2000/01/19 06:07:32 rwatson Exp $
  */
 
 /*

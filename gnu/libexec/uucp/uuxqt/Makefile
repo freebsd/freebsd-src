@@ -1,5 +1,5 @@
 # Makefile for uuxqt
-# $FreeBSD$
+# $FreeBSD: src/gnu/libexec/uucp/uuxqt/Makefile,v 1.10 1999/08/27 23:34:07 peter Exp $
 
 BINDIR=         $(libxdir)
 BINOWN=		$(owner)

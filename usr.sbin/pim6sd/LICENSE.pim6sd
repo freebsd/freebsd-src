@@ -30,7 +30,7 @@
  *  Questions concerning this software should be directed to
  *  Mickael Hoerdt (hoerdt@clarinet.u-strasbg.fr) LSIIT Strasbourg. 
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/pim6sd/LICENSE.pim6sd,v 1.1.2.1 2000/07/15 07:36:34 kris Exp $
  */
 /*
  * This program has been derived from pim6dd.

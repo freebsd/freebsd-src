@@ -39,7 +39,7 @@
  *
  *	$Id: i4b_isic_pnp.c,v 1.5 1999/12/13 21:25:26 hm Exp $
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i4b/layer1/i4b_isic_pnp.c,v 1.9 1999/12/14 20:48:22 hm Exp $
  *
  *      last edit-date: [Mon Dec 13 22:01:48 1999]
  *

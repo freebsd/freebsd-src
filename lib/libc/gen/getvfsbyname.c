@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)kvm_getvfsbyname.c	8.1 (Berkeley) 4/3/95";
 #endif
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/lib/libc/gen/getvfsbyname.c,v 1.5 1999/08/27 23:58:45 peter Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>

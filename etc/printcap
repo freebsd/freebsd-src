@@ -1,5 +1,5 @@
 #	@(#)printcap	5.3 (Berkeley) 6/30/90
-# $FreeBSD$
+# $FreeBSD: src/etc/printcap,v 1.10 1999/08/27 23:23:43 peter Exp $
 
 #
 # This enables a simple local "raw" printer, hooked up to the first

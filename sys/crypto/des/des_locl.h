@@ -1,4 +1,4 @@
-/*	$FreeBSD$	*/
+/*	$FreeBSD: src/sys/crypto/des/des_locl.h,v 1.2.2.1 2000/07/15 07:14:21 kris Exp $	*/
 /*	$KAME: des_locl.h,v 1.4 2000/03/27 04:43:46 sumikawa Exp $	*/
 
 /* lib/des/des_locl.h */

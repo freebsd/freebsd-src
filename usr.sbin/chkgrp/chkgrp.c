@@ -28,7 +28,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/usr.sbin/chkgrp/chkgrp.c,v 1.3.2.1 2000/06/13 09:13:43 ru Exp $";
 #endif /* not lint */
 
 #include <err.h>

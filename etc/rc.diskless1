@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/etc/rc.diskless1,v 1.5 2000/01/06 18:17:38 luigi Exp $
 #
 # /etc/rc.diskless1 - general BOOTP startup
 #

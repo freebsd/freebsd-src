@@ -31,7 +31,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 /* FreeBSD/newconfig version. UCHIYAMA Yasushi 1999 */
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/cardbus/cardbus.c,v 1.1 1999/11/18 07:21:50 imp Exp $ */
 #define CARDBUS_DEBUG
 
 #include <sys/types.h>

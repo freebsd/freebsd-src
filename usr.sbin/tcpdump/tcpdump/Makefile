@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/tcpdump/tcpdump/Makefile,v 1.25.2.1 2000/03/16 08:47:03 kris Exp $
 
 PROG=	tcpdump
 CFLAGS+=-DHAVE_CONFIG_H -I${.CURDIR}

@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/dev/mii/amphy.c,v 1.2 1999/09/19 21:56:08 wpaul Exp $
  */
 
 /*
@@ -58,7 +58,7 @@
 
 #if !defined(lint)
 static const char rcsid[] =
-  "$FreeBSD$";
+  "$FreeBSD: src/sys/dev/mii/amphy.c,v 1.2 1999/09/19 21:56:08 wpaul Exp $";
 #endif
 
 static int amphy_probe		__P((device_t));

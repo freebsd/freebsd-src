@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)device_pager.c	8.1 (Berkeley) 6/11/93
- * $FreeBSD$
+ * $FreeBSD: src/sys/vm/device_pager.c,v 1.46 1999/11/07 20:03:53 alc Exp $
  */
 
 #include <sys/param.h>

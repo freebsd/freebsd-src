@@ -29,7 +29,7 @@
 /*
  * Copyright (c) 1986-1991 by Sun Microsystems Inc. 
  *
- * $FreeBSD$
+ * $FreeBSD: src/lib/libc/rpc/key_call.c,v 1.3 2000/01/27 23:06:39 jasone Exp $
  */
 
 #ident	"@(#)key_call.c	1.25	94/04/24 SMI"

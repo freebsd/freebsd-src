@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/perl/Makefile,v 1.9 1999/08/27 23:36:14 peter Exp $
 
 .if !defined(NOSUIDPERL)
 _suidperl=	suidperl

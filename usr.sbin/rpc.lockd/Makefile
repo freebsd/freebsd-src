@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/usr.sbin/rpc.lockd/Makefile,v 1.8 1999/08/28 01:19:34 peter Exp $
 
 PROG =	rpc.lockd
 SRCS =	nlm_prot_svc.c nlm_prot.h lockd.c procs.c

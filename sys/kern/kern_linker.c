@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/kern/kern_linker.c,v 1.41.2.2 2000/07/16 13:13:32 bp Exp $
  */
 
 #include "opt_ddb.h"

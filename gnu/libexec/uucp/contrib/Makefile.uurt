@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/gnu/libexec/uucp/contrib/Makefile.uurt,v 1.6 1999/08/28 04:58:21 peter Exp $
 # Makefile for uurate 1.10
 #
 

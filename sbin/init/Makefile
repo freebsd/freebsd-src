@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.1 (Berkeley) 7/19/93
-# $FreeBSD$
+# $FreeBSD: src/sbin/init/Makefile,v 1.20 2000/02/29 11:40:57 markm Exp $
 
 PROG=	init
 MAN8=	init.8

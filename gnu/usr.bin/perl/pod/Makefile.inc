@@ -1,5 +1,5 @@
 #
-# $FreeBSD$
+# $FreeBSD: src/gnu/usr.bin/perl/pod/Makefile.inc,v 1.2 1999/08/27 23:36:19 peter Exp $
 #
 
 PERL5SRC?=	${.CURDIR}/../../../../../contrib/perl5

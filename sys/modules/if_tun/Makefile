@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/if_tun/Makefile,v 1.19 2000/01/29 01:11:03 brian Exp $
 
 .PATH:  ${.CURDIR}/../../net
 KMOD=   if_tun

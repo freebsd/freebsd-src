@@ -26,7 +26,7 @@
 #
 # killall - kill processes by name
 #
-# $FreeBSD$
+# $FreeBSD: src/usr.bin/killall/killall.pl,v 1.12 1999/08/28 01:02:31 peter Exp $
 
 
 $ENV{'PATH'} = '/bin:/usr/bin'; # security

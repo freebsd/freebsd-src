@@ -1,5 +1,5 @@
 #	@(#)Makefile	5.12 (Berkeley) 5/30/93
-# $FreeBSD$
+# $FreeBSD: src/games/larn/Makefile,v 1.6 1999/12/10 21:13:38 billf Exp $
 
 # EXTRA
 #	Incorporates code to gather additional performance statistics

@@ -22,7 +22,7 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
    This was taken from the NetBSD configuration, and modified
    for FreeBSD/Alpha by Hidetoshi Shimokawa <simokawa@FreeBSD.ORG> */
 
-/* $FreeBSD$ */
+/* $FreeBSD: src/contrib/gcc/config/alpha/freebsd.h,v 1.9.2.1 2000/07/04 05:51:04 obrien Exp $ */
 
 
 /* Names to predefine in the preprocessor for this target machine.

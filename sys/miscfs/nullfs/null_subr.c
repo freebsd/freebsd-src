@@ -35,7 +35,7 @@
  *
  *	@(#)null_subr.c	8.7 (Berkeley) 5/14/95
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/miscfs/nullfs/null_subr.c,v 1.21 1999/09/04 12:35:07 bde Exp $
  */
 
 #include <sys/param.h>

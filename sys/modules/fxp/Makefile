@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: src/sys/modules/fxp/Makefile,v 1.9 2000/01/28 11:26:29 bde Exp $
 
 .PATH:	${.CURDIR}/../../pci
 KMOD	= if_fxp

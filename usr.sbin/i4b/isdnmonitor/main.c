@@ -35,7 +35,7 @@
  *
  *	$Id: main.c,v 1.34 1999/12/13 21:25:26 hm Exp $
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/i4b/isdnmonitor/main.c,v 1.7 1999/12/14 21:07:41 hm Exp $
  *
  *      last edit-date: [Mon Dec 13 21:52:11 1999]
  *

@@ -1,4 +1,4 @@
- $FreeBSD$
+ $FreeBSD: src/sys/i386/ibcs2/syscalls.isc,v 1.5 1999/08/28 00:44:01 peter Exp $
 
 #include <sys/param.h>
 #include <sys/sysent.h>

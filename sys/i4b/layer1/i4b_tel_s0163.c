@@ -39,7 +39,7 @@
  *
  *	$Id: i4b_tel_s0163.c,v 1.2 1999/12/13 21:25:27 hm Exp $ 
  *
- * $FreeBSD$
+ * $FreeBSD: src/sys/i4b/layer1/i4b_tel_s0163.c,v 1.7 2000/03/09 20:57:47 hm Exp $
  *
  *      last edit-date: [Mon Dec 13 22:02:55 1999]
  *

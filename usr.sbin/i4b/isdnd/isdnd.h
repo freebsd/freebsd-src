@@ -29,7 +29,7 @@
  *
  *	$Id: isdnd.h,v 1.72 1999/12/13 21:25:24 hm Exp $ 
  *
- * $FreeBSD$
+ * $FreeBSD: src/usr.sbin/i4b/isdnd/isdnd.h,v 1.6 1999/12/14 21:07:27 hm Exp $
  *
  *      last edit-date: [Mon Dec 13 21:46:50 1999]
  *

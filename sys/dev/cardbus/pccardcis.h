@@ -1,5 +1,5 @@
 /*	$Id: pccardcis.h,v 1.1.2.1 1999/02/16 16:44:36 haya Exp $	*/
-/* $FreeBSD$ */
+/* $FreeBSD: src/sys/dev/cardbus/pccardcis.h,v 1.1 1999/11/18 07:21:51 imp Exp $ */
 
 /*
  * Copyright (c) 1997 and 1998

@@ -2,7 +2,7 @@
 \ ** ANS conditional compile directives [if] [else] [then]
 \ ** Requires ficl 2.0 or greater...
 
-\ $FreeBSD$
+\ $FreeBSD: src/sys/boot/ficl/softwords/ifbrack.fr,v 1.1 1999/09/29 04:43:16 dcs Exp $
 
 hidden dup >search ficl-set-current
 

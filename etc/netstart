@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-# $FreeBSD$
+# $FreeBSD: src/etc/netstart,v 1.54.2.1 2000/05/28 19:17:15 asmodai Exp $
 #	From: @(#)netstart	5.9 (Berkeley) 3/30/91
 
 # This file is NOT called by any of the other scripts - it has been

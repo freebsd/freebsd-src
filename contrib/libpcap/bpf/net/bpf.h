@@ -37,7 +37,7 @@
  *
  *      @(#)bpf.h       7.1 (Berkeley) 5/7/91
  *
- * $FreeBSD$
+ * $FreeBSD: src/contrib/libpcap/bpf/net/bpf.h,v 1.2 2000/01/30 00:43:38 fenner Exp $
  * @(#) $Header: bpf.h,v 1.36 97/06/12 14:29:53 leres Exp $ (LBL)
  */
 
