@@ -1519,7 +1519,7 @@ static size_t
 UTF8_mbrtowc(wchar_t *pwc, const char *s, size_t n)
 {
         int ch, i, len, mask;
-        int lbound, wch;
+        unsigned long lbound, wch;
 
         if (s == NULL)
                 /* Reset to initial shift state (no-op) */
