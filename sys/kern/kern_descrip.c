@@ -969,6 +969,12 @@ fpathconf(td, uap)
 
 	if ((error = fget(td, uap->fd, &fp)) != 0)
 		return (error);
+
+	/* If asynchronous I/O is available, it works for all descriptors. */
+	if (uap->name == _PC_ASYNC_IO) {
+		td->td_retval[0] = async_io_version;
+		goto out;
+	}
 	switch (fp->f_type) {
 	case DTYPE_PIPE:
 	case DTYPE_SOCKET:
@@ -990,6 +996,7 @@ fpathconf(td, uap)
 		error = EOPNOTSUPP;
 		break;
 	}
+out:
 	fdrop(fp, td);
 	return (error);
 }

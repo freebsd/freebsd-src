@@ -93,6 +93,14 @@ int (*union_dircheckp)(struct thread *td, struct vnode **, struct file *);
 int (*softdep_fsync_hook)(struct vnode *);
 
 /*
+ * The module initialization routine for POSIX asynchronous I/O will
+ * set this to the version of AIO that it implements.  (Zero means
+ * that it is not implemented.)  This value is used here by pathconf()
+ * and in kern_descrip.c by fpathconf().
+ */
+int async_io_version;
+
+/*
  * Sync each mounted filesystem.
  */
 #ifndef _SYS_SYSPROTO_H_
@@ -1823,7 +1831,12 @@ pathconf(td, uap)
 	if ((error = namei(&nd)) != 0)
 		return (error);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
-	error = VOP_PATHCONF(nd.ni_vp, SCARG(uap, name), td->td_retval);
+
+	/* If asynchronous I/O is available, it works for all files. */
+	if (uap->name == _PC_ASYNC_IO)
+		td->td_retval[0] = async_io_version;
+	else
+		error = VOP_PATHCONF(nd.ni_vp, uap->name, td->td_retval);
 	vput(nd.ni_vp);
 	return (error);
 }

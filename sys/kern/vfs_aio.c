@@ -348,6 +348,7 @@ aio_onceonly(void)
 	aiod_timeout = AIOD_TIMEOUT_DEFAULT;
 	aiod_lifetime = AIOD_LIFETIME_DEFAULT;
 	jobrefid = 1;
+	async_io_version = _POSIX_VERSION;
 }
 
 /*
@@ -365,6 +366,7 @@ aio_unload(void)
 	if (!unloadable)
 		return (EOPNOTSUPP);
 
+	async_io_version = 0;
 	aio_swake = NULL;
 	rm_at_exit(aio_proc_rundown);
 	rm_at_exec(aio_proc_rundown);
