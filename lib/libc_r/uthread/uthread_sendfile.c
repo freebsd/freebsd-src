@@ -42,6 +42,7 @@ int
 sendfile(int fd, int s, off_t offset, size_t nbytes, struct sf_hdtr *hdtr,
     off_t *sbytes, int flags)
 {
+	struct pthread	*curthread = _get_curthread();
 	int	type, blocking;
 	int	ret = 0;
 	ssize_t wvret, num = 0;
@@ -146,16 +147,16 @@ sendfile(int fd, int s, off_t offset, size_t nbytes, struct sf_hdtr *hdtr,
 			/*
 			 * Otherwise wait on the fd.
 			 */
-			_thread_run->data.fd.fd = fd;
+			curthread->data.fd.fd = fd;
 			_thread_kern_set_timeout(NULL);
 
 			/* Reset the interrupted operation flag. */
-			_thread_run->interrupted = 0;
+			curthread->interrupted = 0;
 
 			_thread_kern_sched_state(PS_FDW_WAIT, __FILE__,
 			    __LINE__);
 
-			if (_thread_run->interrupted) {
+			if (curthread->interrupted) {
 				/* Interrupted by a signal.  Return an error. */
 				break;
 			}

@@ -42,21 +42,22 @@
 ssize_t
 _recvmsg(int fd, struct msghdr *msg, int flags)
 {
+	struct pthread	*curthread = _get_curthread();
 	int             ret;
 
 	if ((ret = _FD_LOCK(fd, FD_READ, NULL)) == 0) {
 		while ((ret = __sys_recvmsg(fd, msg, flags)) < 0) {
 			if (((_thread_fd_getflags(fd) & O_NONBLOCK) == 0)
 			    && ((errno == EWOULDBLOCK) || (errno == EAGAIN))) {
-				_thread_run->data.fd.fd = fd;
+				curthread->data.fd.fd = fd;
 
 				/* Set the timeout: */
 				_thread_kern_set_timeout(NULL);
-				_thread_run->interrupted = 0;
+				curthread->interrupted = 0;
 				_thread_kern_sched_state(PS_FDR_WAIT, __FILE__, __LINE__);
 
 				/* Check if the wait was interrupted: */
-				if (_thread_run->interrupted) {
+				if (curthread->interrupted) {
 					/* Return an error status: */
 					errno = EINTR;
 					ret = -1;

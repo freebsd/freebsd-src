@@ -44,13 +44,15 @@
 #include "pthread_private.h"
 
 /* Prototypes: */
-static void	thread_sig_add(pthread_t pthread, int sig, int has_args);
-static void	thread_sig_check_state(pthread_t pthread, int sig);
-static pthread_t thread_sig_find(int sig);
+static void	thread_sig_add(struct pthread *pthread, int sig, int has_args);
+static void	thread_sig_check_state(struct pthread *pthread, int sig);
+static struct pthread *thread_sig_find(int sig);
 static void	thread_sig_handle_special(int sig);
-static void	thread_sig_savecontext(pthread_t pthread, ucontext_t *ucp);
-static void	thread_sigframe_add(pthread_t thread, int sig, int has_args);
-static void	thread_sigframe_save(pthread_t thread, struct pthread_signal_frame *psf);
+static void	thread_sig_savecontext(struct pthread *pthread, ucontext_t *ucp);
+static void	thread_sigframe_add(struct pthread *thread, int sig,
+		    int has_args);
+static void	thread_sigframe_save(struct pthread *thread,
+		    struct pthread_signal_frame *psf);
 
 /* #define DEBUG_SIGNAL */
 #ifdef DEBUG_SIGNAL
@@ -70,14 +72,15 @@ static void	thread_sigframe_save(pthread_t thread, struct pthread_signal_frame *
 void
 _thread_sig_handler(int sig, siginfo_t *info, ucontext_t *ucp)
 {
-	pthread_t	pthread, pthread_h;
+	struct pthread	*curthread = _get_curthread();
+	struct pthread	*pthread, *pthread_h;
 	void		*stackp;
 	int		in_sched = 0;
 	char		c;
 
 	if (ucp == NULL)
 		PANIC("Thread signal handler received null context");
-	DBG_MSG("Got signal %d, current thread %p\n", sig, _thread_run);
+	DBG_MSG("Got signal %d, current thread %p\n", sig, curthread);
 
 	if (_thread_kern_in_sched != 0)
 		in_sched = 1;
@@ -104,13 +107,13 @@ _thread_sig_handler(int sig, siginfo_t *info, ucontext_t *ucp)
 		 * the currently running thread has deferred thread
 		 * signals.
 		 */
-		else if (_thread_run->sig_defer_count > 0)
-			_thread_run->yield_on_sig_undefer = 1;
+		else if (curthread->sig_defer_count > 0)
+			curthread->yield_on_sig_undefer = 1;
 		else {
 			/*
 			 * Save the context of the currently running thread:
 			 */
-			thread_sig_savecontext(_thread_run, ucp);
+			thread_sig_savecontext(curthread, ucp);
 
 			/*
 			 * Schedule the next thread. This function is not
@@ -131,7 +134,7 @@ _thread_sig_handler(int sig, siginfo_t *info, ucontext_t *ucp)
 	 * is accessing the scheduling queues or if there is a currently
 	 * running thread that has deferred signals.
 	 */
-	else if ((in_sched != 0) || (_thread_run->sig_defer_count > 0)) {
+	else if ((in_sched != 0) || (curthread->sig_defer_count > 0)) {
 		/* Cast the signal number to a character variable: */
 		c = sig;
 
@@ -221,7 +224,7 @@ _thread_sig_handler(int sig, siginfo_t *info, ucontext_t *ucp)
 			 * This also applies if the current thread is the
 			 * thread to be signaled.
 			 */
-			thread_sig_savecontext(_thread_run, ucp);
+			thread_sig_savecontext(curthread, ucp);
 
 			/* Setup the target thread to receive the signal: */
 			thread_sig_add(pthread, sig, /*has_args*/ 1);
@@ -241,8 +244,8 @@ _thread_sig_handler(int sig, siginfo_t *info, ucontext_t *ucp)
 		 * signal and the currently running thread is not in a
 		 * signal handler.
 		 */
-		if ((pthread == _thread_run) || ((pthread_h != NULL) &&
-		    (pthread_h->active_priority > _thread_run->active_priority))) {
+		if ((pthread == curthread) || ((pthread_h != NULL) &&
+		    (pthread_h->active_priority > curthread->active_priority))) {
 			/* Enter the kernel scheduler: */
 			_thread_kern_sched(ucp);
 		}
@@ -255,7 +258,7 @@ _thread_sig_handler(int sig, siginfo_t *info, ucontext_t *ucp)
 }
 
 static void
-thread_sig_savecontext(pthread_t pthread, ucontext_t *ucp)
+thread_sig_savecontext(struct pthread *pthread, ucontext_t *ucp)
 {
 	memcpy(&pthread->ctx.uc, ucp, sizeof(*ucp));
 
@@ -269,12 +272,13 @@ thread_sig_savecontext(pthread_t pthread, ucontext_t *ucp)
 /*
  * Find a thread that can handle the signal.
  */
-pthread_t
+struct pthread *
 thread_sig_find(int sig)
 {
+	struct pthread	*curthread = _get_curthread();
 	int		handler_installed;
-	pthread_t	pthread, pthread_next;
-	pthread_t	suspended_thread, signaled_thread;
+	struct pthread	*pthread, *pthread_next;
+	struct pthread	*suspended_thread, *signaled_thread;
 
 	DBG_MSG("Looking for thread to handle signal %d\n", sig);
 	/* Check if the signal requires a dump of thread information: */
@@ -302,9 +306,9 @@ thread_sig_find(int sig)
 		 * installed, the signal only affects threads in sigwait.
 		 */
 		suspended_thread = NULL;
-		if ((_thread_run != &_thread_kern_thread) &&
-		    !sigismember(&_thread_run->sigmask, sig))
-			signaled_thread = _thread_run;
+		if ((curthread != &_thread_kern_thread) &&
+		    !sigismember(&curthread->sigmask, sig))
+			signaled_thread = curthread;
 		else
 			signaled_thread = NULL;
 		if ((_thread_sigact[sig - 1].sa_handler == SIG_IGN) ||
@@ -415,7 +419,7 @@ thread_sig_find(int sig)
 }
 
 void
-_thread_sig_check_pending(pthread_t pthread)
+_thread_sig_check_pending(struct pthread *pthread)
 {
 	sigset_t	sigset;
 	int		i;
@@ -451,7 +455,7 @@ _thread_sig_check_pending(pthread_t pthread)
 void
 _thread_sig_handle_pending(void)
 {
-	pthread_t	pthread;
+	struct pthread	*pthread;
 	int		i, sig;
 
 	PTHREAD_ASSERT(_thread_kern_in_sched != 0,
@@ -492,7 +496,7 @@ _thread_sig_handle_pending(void)
 static void
 thread_sig_handle_special(int sig)
 {
-	pthread_t	pthread, pthread_next;
+	struct pthread	*pthread, *pthread_next;
 	int		i;
 
 	switch (sig) {
@@ -566,7 +570,7 @@ thread_sig_handle_special(int sig)
  * unmasked.
  */
 static void
-thread_sig_add(pthread_t pthread, int sig, int has_args)
+thread_sig_add(struct pthread *pthread, int sig, int has_args)
 {
 	int	restart;
 	int	suppress_handler = 0;
@@ -774,7 +778,7 @@ thread_sig_add(pthread_t pthread, int sig, int has_args)
 }
 
 static void
-thread_sig_check_state(pthread_t pthread, int sig)
+thread_sig_check_state(struct pthread *pthread, int sig)
 {
 	/*
 	 * Process according to thread state:
@@ -864,8 +868,10 @@ thread_sig_check_state(pthread_t pthread, int sig)
  * Send a signal to a specific thread (ala pthread_kill):
  */
 void
-_thread_sig_send(pthread_t pthread, int sig)
+_thread_sig_send(struct pthread *pthread, int sig)
 {
+	struct pthread	*curthread = _get_curthread();
+
 	/* Check for signals whose actions are SIG_DFL: */
 	if (_thread_sigact[sig - 1].sa_handler == SIG_DFL) {
 		/*
@@ -895,7 +901,7 @@ _thread_sig_send(pthread_t pthread, int sig)
 	
 			/* Return the signal number: */
 			pthread->signo = sig;
-		} else if (pthread == _thread_run) {
+		} else if (pthread == curthread) {
 			/* Add the signal to the pending set: */
 			sigaddset(&pthread->sigpend, sig);
 			if (!sigismember(&pthread->sigmask, sig)) {
@@ -932,9 +938,7 @@ _thread_sig_wrapper(void)
 {
 	void (*sigfunc)(int, siginfo_t *, void *);
 	struct pthread_signal_frame *psf;
-	pthread_t	thread;
-
-	thread = _thread_run;
+	struct pthread	*thread = _get_curthread();
 
 	/* Get the current frame and state: */
 	psf = thread->curframe;
@@ -1027,7 +1031,7 @@ _thread_sig_wrapper(void)
 }
 
 static void
-thread_sigframe_add(pthread_t thread, int sig, int has_args)
+thread_sigframe_add(struct pthread *thread, int sig, int has_args)
 {
 	struct pthread_signal_frame *psf = NULL;
 	unsigned long	stackp = 0;
@@ -1095,7 +1099,8 @@ thread_sigframe_add(pthread_t thread, int sig, int has_args)
 }
 
 void
-_thread_sigframe_restore(pthread_t thread, struct pthread_signal_frame *psf)
+_thread_sigframe_restore(struct pthread *thread,
+    struct pthread_signal_frame *psf)
 {
 	thread->ctxtype = psf->ctxtype;
 	memcpy(&thread->ctx.uc, &psf->ctx.uc, sizeof(thread->ctx.uc));
@@ -1117,7 +1122,7 @@ _thread_sigframe_restore(pthread_t thread, struct pthread_signal_frame *psf)
 }
 
 static void
-thread_sigframe_save(pthread_t thread, struct pthread_signal_frame *psf)
+thread_sigframe_save(struct pthread *thread, struct pthread_signal_frame *psf)
 {
 	psf->ctxtype = thread->ctxtype;
 	memcpy(&psf->ctx.uc, &thread->ctx.uc, sizeof(thread->ctx.uc));

@@ -599,7 +599,7 @@ struct pthread_state_data {
 
 struct join_status {
 	struct pthread	*thread;
-	int		ret;
+	void		*ret;
 	int		error;
 };
 
@@ -1222,8 +1222,10 @@ char    *ttyname_r(int, char *, size_t);
 void	_cond_wait_backout(pthread_t);
 void	_fd_lock_backout(pthread_t);
 int     _find_thread(pthread_t);
-void	_flockfile_backout(pthread_t);
-void    _funlock_owned(pthread_t);
+struct pthread *_get_curthread(void);
+void	_set_curthread(struct pthread *);
+void	_flockfile_backout(struct pthread *);
+void    _funlock_owned(struct pthread *);
 int     _thread_create(pthread_t *,const pthread_attr_t *,void *(*start_routine)(void *),void *,pthread_t);
 int	_mutex_cv_lock(pthread_mutex_t *);
 int	_mutex_cv_unlock(pthread_mutex_t *);
@@ -1269,11 +1271,12 @@ void    _thread_kern_set_timeout(const struct timespec *);
 void    _thread_kern_sig_defer(void);
 void    _thread_kern_sig_undefer(void);
 void    _thread_sig_handler(int, siginfo_t *, ucontext_t *);
-void    _thread_sig_check_pending(pthread_t pthread);
+void    _thread_sig_check_pending(struct pthread *pthread);
 void    _thread_sig_handle_pending(void);
-void	_thread_sig_send(pthread_t pthread, int sig);
+void	_thread_sig_send(struct pthread *pthread, int sig);
 void	_thread_sig_wrapper(void);
-void	_thread_sigframe_restore(pthread_t thread, struct pthread_signal_frame *psf);
+void	_thread_sigframe_restore(struct pthread *thread,
+	    struct pthread_signal_frame *psf);
 void    _thread_start(void);
 void	_thread_seterrno(pthread_t, int);
 pthread_addr_t _thread_gc(pthread_addr_t);
@@ -1310,15 +1313,15 @@ int	__sys_getpeername(int, struct sockaddr *, socklen_t *);
 int	__sys_getsockname(int, struct sockaddr *, socklen_t *);
 int	__sys_getsockopt(int, int, int, void *, socklen_t *);
 int	__sys_listen(int, int);
+ssize_t	__sys_recvfrom(int, void *, size_t, int, struct sockaddr *, socklen_t *);
+ssize_t	__sys_recvmsg(int, struct msghdr *, int);
 int	__sys_sendfile(int, int, off_t, size_t, struct sf_hdtr *, off_t *, int);
+ssize_t	__sys_sendmsg(int, const struct msghdr *, int);
+ssize_t	__sys_sendto(int, const void *,size_t, int, const struct sockaddr *, socklen_t);
 int	__sys_setsockopt(int, int, int, const void *, socklen_t);
 int	__sys_shutdown(int, int);
 int	__sys_socket(int, int, int);
 int	__sys_socketpair(int, int, int, int *);
-ssize_t	__sys_recvfrom(int, void *, size_t, int, struct sockaddr *, socklen_t *);
-ssize_t	__sys_recvmsg(int, struct msghdr *, int);
-ssize_t	__sys_sendmsg(int, const struct msghdr *, int);
-ssize_t	__sys_sendto(int, const void *,size_t, int, const struct sockaddr *, socklen_t);
 #endif
 
 /* #include <sys/stat.h> */
@@ -1358,11 +1361,7 @@ int	__sys_open(const char *, int, ...);
 
 /* #include <poll.h> */
 #ifdef _SYS_POLL_H_
-int 	__sys_poll(struct pollfd *, unsigned, int);
-#endif
-
-/* #include <sched.h> */
-#ifdef _SCHED_H_
+int	__sys_poll(struct pollfd *, unsigned, int);
 #endif
 
 /* #include <signal.h> */

@@ -39,7 +39,7 @@
 int pthread_single_np()
 {
 	/* Enter single-threaded (non-POSIX) scheduling mode: */
-	_thread_single = _thread_run;
+	_thread_single = _get_curthread();
 	return(0);
 }
 #endif

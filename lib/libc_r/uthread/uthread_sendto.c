@@ -43,21 +43,22 @@ ssize_t
 _sendto(int fd, const void *msg, size_t len, int flags, const struct
     sockaddr * to, socklen_t to_len)
 {
+	struct pthread	*curthread = _get_curthread();
 	int             ret;
 
 	if ((ret = _FD_LOCK(fd, FD_WRITE, NULL)) == 0) {
 		while ((ret = __sys_sendto(fd, msg, len, flags, to, to_len)) < 0) {
 			if (((_thread_fd_getflags(fd) & O_NONBLOCK) == 0)
 			    && ((errno == EWOULDBLOCK) || (errno == EAGAIN))) {
-				_thread_run->data.fd.fd = fd;
+				curthread->data.fd.fd = fd;
 
 				/* Set the timeout: */
 				_thread_kern_set_timeout(NULL);
-				_thread_run->interrupted = 0;
+				curthread->interrupted = 0;
 				_thread_kern_sched_state(PS_FDW_WAIT, __FILE__, __LINE__);
 
 				/* Check if the operation was interrupted: */
-				if (_thread_run->interrupted) {
+				if (curthread->interrupted) {
 					errno = EINTR;
 					ret = -1;
 					break;

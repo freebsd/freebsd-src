@@ -116,6 +116,8 @@ _thread_exit(char *fname, int lineno, char *string)
 void
 _thread_exit_cleanup(void)
 {
+	struct pthread	*curthread = _get_curthread();
+
 	/*
 	 * POSIX states that cancellation/termination of a thread should
 	 * not release any visible resources (such as mutexes) and that
@@ -124,13 +126,13 @@ _thread_exit_cleanup(void)
 	 * are not visible to the application and need to be released.
 	 */
 	/* Unlock all owned fd locks: */
-	_thread_fd_unlock_owned(_thread_run);
+	_thread_fd_unlock_owned(curthread);
 
 	/* Unlock all owned file locks: */
-	_funlock_owned(_thread_run);
+	_funlock_owned(curthread);
 
 	/* Unlock all private mutexes: */
-	_mutex_unlock_private(_thread_run);
+	_mutex_unlock_private(curthread);
 
 	/*
 	 * This still isn't quite correct because we don't account
@@ -141,37 +143,38 @@ _thread_exit_cleanup(void)
 void
 pthread_exit(void *status)
 {
+	struct pthread	*curthread = _get_curthread();
 	pthread_t pthread;
 
 	/* Check if this thread is already in the process of exiting: */
-	if ((_thread_run->flags & PTHREAD_EXITING) != 0) {
+	if ((curthread->flags & PTHREAD_EXITING) != 0) {
 		char msg[128];
-		snprintf(msg, sizeof(msg), "Thread %p has called pthread_exit() from a destructor. POSIX 1003.1 1996 s16.2.5.2 does not allow this!",_thread_run);
+		snprintf(msg, sizeof(msg), "Thread %p has called pthread_exit() from a destructor. POSIX 1003.1 1996 s16.2.5.2 does not allow this!",curthread);
 		PANIC(msg);
 	}
 
 	/* Flag this thread as exiting: */
-	_thread_run->flags |= PTHREAD_EXITING;
+	curthread->flags |= PTHREAD_EXITING;
 
 	/* Save the return value: */
-	_thread_run->ret = status;
+	curthread->ret = status;
 
-	while (_thread_run->cleanup != NULL) {
+	while (curthread->cleanup != NULL) {
 		pthread_cleanup_pop(1);
 	}
-	if (_thread_run->attr.cleanup_attr != NULL) {
-		_thread_run->attr.cleanup_attr(_thread_run->attr.arg_attr);
+	if (curthread->attr.cleanup_attr != NULL) {
+		curthread->attr.cleanup_attr(curthread->attr.arg_attr);
 	}
 	/* Check if there is thread specific data: */
-	if (_thread_run->specific_data != NULL) {
+	if (curthread->specific_data != NULL) {
 		/* Run the thread-specific data destructors: */
 		_thread_cleanupspecific();
 	}
 
 	/* Free thread-specific poll_data structure, if allocated: */
-	if (_thread_run->poll_data.fds != NULL) {
-		free(_thread_run->poll_data.fds);
-		_thread_run->poll_data.fds = NULL;
+	if (curthread->poll_data.fds != NULL) {
+		free(curthread->poll_data.fds);
+		curthread->poll_data.fds = NULL;
 	}
 
 	/*
@@ -182,7 +185,7 @@ pthread_exit(void *status)
 		PANIC("Cannot lock gc mutex");
 
 	/* Add this thread to the list of dead threads. */
-	TAILQ_INSERT_HEAD(&_dead_list, _thread_run, dle);
+	TAILQ_INSERT_HEAD(&_dead_list, curthread, dle);
 
 	/*
 	 * Signal the garbage collector thread that there is something
@@ -200,12 +203,12 @@ pthread_exit(void *status)
 
 	/* Unlock the garbage collector mutex: */
 	if (pthread_mutex_unlock(&_gc_mutex) != 0)
-		PANIC("Cannot lock gc mutex");
+		PANIC("Cannot unlock gc mutex");
 
 	/* Check if there is a thread joining this one: */
-	if (_thread_run->joiner != NULL) {
-		pthread = _thread_run->joiner;
-		_thread_run->joiner = NULL;
+	if (curthread->joiner != NULL) {
+		pthread = curthread->joiner;
+		curthread->joiner = NULL;
 
 		switch (pthread->suspended) {
 		case SUSP_JOIN:
@@ -225,18 +228,18 @@ pthread_exit(void *status)
 		}
 
 		/* Set the return value for the joining thread: */
-		pthread->join_status.ret = _thread_run->ret;
+		pthread->join_status.ret = curthread->ret;
 		pthread->join_status.error = 0;
 		pthread->join_status.thread = NULL;
 
 		/* Make this thread collectable by the garbage collector. */
-		PTHREAD_ASSERT(((_thread_run->attr.flags & PTHREAD_DETACHED) ==
+		PTHREAD_ASSERT(((curthread->attr.flags & PTHREAD_DETACHED) ==
 		    0), "Cannot join a detached thread");
-		_thread_run->attr.flags |= PTHREAD_DETACHED;
+		curthread->attr.flags |= PTHREAD_DETACHED;
 	}
 
 	/* Remove this thread from the thread list: */
-	TAILQ_REMOVE(&_thread_list, _thread_run, tle);
+	TAILQ_REMOVE(&_thread_list, curthread, tle);
 
 	/* This thread will never be re-scheduled. */
 	_thread_kern_sched_state(PS_DEAD, __FILE__, __LINE__);

@@ -304,7 +304,7 @@ _thread_init(void)
 		_thread_initial->error = 0;
 		TAILQ_INIT(&_thread_list);
 		TAILQ_INSERT_HEAD(&_thread_list, _thread_initial, tle);
-		_thread_run = _thread_initial;
+		_set_curthread(_thread_initial);
 
 		/* Initialise the global signal action structure: */
 		sigfillset(&act.sa_mask);
