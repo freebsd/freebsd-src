@@ -101,7 +101,8 @@ physio(dev_t dev, struct uio *uio, int ioflag)
 
 			if (uio->uio_segflg == UIO_USERSPACE) {
 				if (!useracc(bp->b_data, bp->b_bufsize,
-				    bp->b_flags & B_READ)) {
+				    bp->b_flags & B_READ ?
+				    VM_PROT_WRITE : VM_PROT_READ)) {
 					error = EFAULT;
 					goto doerror;
 				}

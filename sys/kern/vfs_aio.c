@@ -916,7 +916,6 @@ aio_qphysio(p, aiocbe)
 	struct aiocb *cb;
 	struct file *fp;
 	struct buf *bp;
-	int bflags;
 	struct vnode *vp;
 	struct kaioinfo *ki;
 	struct filedesc *fdp;
@@ -924,7 +923,6 @@ aio_qphysio(p, aiocbe)
 	int fd;
 	int s;
 	int cnt;
-	int rw;
 	struct cdevsw *cdev;
 
 	cb = &aiocbe->uaiocb;
@@ -996,29 +994,26 @@ aio_qphysio(p, aiocbe)
 	bp->b_dev = vp->v_rdev;
 	error = bp->b_error = 0;
 
-	if (cb->aio_lio_opcode == LIO_WRITE) {
-		rw = 0;
-		bflags = B_WRITE;
-	} else {
-		rw = 1;
-		bflags = B_READ;
-	}
-	
 	bp->b_bcount = cb->aio_nbytes;
 	bp->b_bufsize = cb->aio_nbytes;
-	bp->b_flags = B_PHYS | B_CALL | bflags;
+	bp->b_flags = B_PHYS | B_CALL;
 	bp->b_iodone = aio_physwakeup;
 	bp->b_saveaddr = bp->b_data;
 	bp->b_data = (void *) cb->aio_buf;
 	bp->b_blkno = btodb(cb->aio_offset);
 
-	if (rw && !useracc(bp->b_data, bp->b_bufsize, B_WRITE)) {
-		error = EFAULT;
-		goto doerror;
-	}
-	if (!rw && !useracc(bp->b_data, bp->b_bufsize, B_READ)) {
-		error = EFAULT;
-		goto doerror;
+	if (cb->aio_lio_opcode == LIO_WRITE) {
+		bp->b_flags |= B_WRITE;
+		if (!useracc(bp->b_data, bp->b_bufsize, VM_PROT_READ)) {
+			error = EFAULT;
+			goto doerror;
+		}
+	} else {
+		bp->b_flags |= B_READ;
+		if (!useracc(bp->b_data, bp->b_bufsize, VM_PROT_WRITE)) {
+			error = EFAULT;
+			goto doerror;
+		}
 	}
 
 	/* bring buffer into kernel space */
