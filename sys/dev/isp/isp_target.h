@@ -36,11 +36,8 @@
 #ifndef	_ISP_TARGET_H
 #define	_ISP_TARGET_H
 
-/*
- * Defines for all entry types
- */
+#define	QLTM_SENSELEN	18	/* non-FC cards only */
 #define QLTM_SVALID	0x80
-#define	QLTM_SENSELEN	18
 
 /*
  * Structure for Enable Lun and Modify Lun queue entries
@@ -141,20 +138,23 @@ typedef struct {
 /*
  * Values for the in_task_flags field- should only get one at a time!
  */
-#define	TASK_FLAGS_ABORT_TASK		(1<<9)
-#define	TASK_FLAGS_CLEAR_TASK_SET	(1<<10)
-#define	TASK_FLAGS_TARGET_RESET		(1<<13)
 #define	TASK_FLAGS_CLEAR_ACA		(1<<14)
-#define	TASK_FLAGS_TERMINATE_TASK	(1<<15)
+#define	TASK_FLAGS_TARGET_RESET		(1<<13)
+#define	TASK_FLAGS_LUN_RESET		(1<<12)
+#define	TASK_FLAGS_CLEAR_TASK_SET	(1<<10)
+#define	TASK_FLAGS_ABORT_TASK_SET	(1<<9)
 
+#ifndef	MSG_ABORT
+#define	MSG_ABORT		0x06
+#endif
+#ifndef	MSG_BUS_DEV_RESET
+#define	MSG_BUS_DEV_RESET	0x0c
+#endif
 #ifndef	MSG_ABORT_TAG
-#define	MSG_ABORT_TAG		0x06
+#define	MSG_ABORT_TAG		0x0d
 #endif
 #ifndef	MSG_CLEAR_QUEUE
 #define	MSG_CLEAR_QUEUE		0x0e
-#endif
-#ifndef	MSG_BUS_DEV_RESET
-#define	MSG_BUS_DEV_RESET	0x0b
 #endif
 #ifndef	MSG_REL_RECOVERY
 #define	MSG_REL_RECOVERY	0x10
@@ -162,7 +162,9 @@ typedef struct {
 #ifndef	MSG_TERM_IO_PROC
 #define	MSG_TERM_IO_PROC	0x11
 #endif
-
+#ifndef	MSG_LUN_RESET
+#define	MSG_LUN_RESET		0x17
+#endif
 
 /*
  * Notify Acknowledge Entry structure
@@ -274,7 +276,7 @@ typedef struct {
 	u_int16_t	at_rxid; 	/* response ID */
 	u_int16_t	at_flags;
 	u_int16_t	at_status;	/* firmware status */
-	u_int8_t	at_reserved1;
+	u_int8_t	at_crn;		/* command reference number */
 	u_int8_t	at_taskcodes;
 	u_int8_t	at_taskflags;
 	u_int8_t	at_execodes;
@@ -295,6 +297,9 @@ typedef struct {
 #define	ATIO2_TC_ATTR_ORDERED	2
 #define	ATIO2_TC_ATTR_ACAQ	4
 #define	ATIO2_TC_ATTR_UNTAGGED	5
+
+#define	ATIO2_EX_WRITE		0x1
+#define	ATIO2_EX_READ		0x2
 
 /*
  * Continue Target I/O Entry structure
@@ -461,14 +466,6 @@ typedef struct {
 			u_int32_t ct_datalen;
 			ispds_t ct_fcp_rsp_iudata;
 		} m2;
-		/*
-		 * CTIO2 returned from F/W...
-		 */
-		struct {
-			u_int32_t _reserved[4];
-			u_int16_t ct_scsi_status;
-			u_int8_t  ct_sense[QLTM_SENSELEN];
-		} fw;
 	} rsp;
 } ct2_entry_t;
 
@@ -485,6 +482,7 @@ typedef struct {
 #define CT2_DATAMASK	CT_DATAMASK
 #define	CT2_CCINCR	0x0100
 #define	CT2_FASTPOST	0x0200
+#define	CT2_TERMINATE	0x4000
 #define CT2_SENDSTATUS	0x8000
 
 /*
