@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_axreg.h,v 1.4 1999/01/16 20:33:34 wpaul Exp $
+ *	$Id: if_axreg.h,v 1.5 1999/02/23 01:44:20 wpaul Exp $
  */
 
 /*
@@ -391,6 +391,13 @@ struct ax_softc {
 #define AX_DEVICEID_AX88140A	0x1400
 
 /*
+ * The ASIX AX88140 and ASIX AX88141 have the same vendor and
+ * device IDs but different revision values.
+ */
+#define AX_REVISION_88140	0x00
+#define AX_REVISION_88141	0x10
+
+/*
  * Texas Instruments PHY identifiers
  */
 #define TI_PHY_VENDORID		0x4000
@@ -446,10 +453,10 @@ struct ax_softc {
 #define AX_PCI_EEPROM_DATA	0x4C
 
 /* power management registers */
-#define AX_PCI_CAPID		0xDC /* 8 bits */
-#define AX_PCI_NEXTPTR		0xDD /* 8 bits */
-#define AX_PCI_PWRMGMTCAP	0xDE /* 16 bits */
-#define AX_PCI_PWRMGMTCTRL	0xE0 /* 16 bits */
+#define AX_PCI_CAPID		0x44 /* 8 bits */
+#define AX_PCI_NEXTPTR		0x55 /* 8 bits */
+#define AX_PCI_PWRMGMTCAP	0x46 /* 16 bits */
+#define AX_PCI_PWRMGMTCTRL	0x48 /* 16 bits */
 
 #define AX_PSTATE_MASK		0x0003
 #define AX_PSTATE_D0		0x0000
