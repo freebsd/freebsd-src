@@ -669,7 +669,7 @@ ohci_free_sitd(ohci_softc_t *sc, ohci_soft_itd_t *sitd)
 
 #ifdef DIAGNOSTIC
 	if (!sitd->isdone) {
-		panic("ohci_free_sitd: sitd=%p not done\n", sitd);
+		panic("ohci_free_sitd: sitd=%p not done", sitd);
 		return;
 	}
 #endif
@@ -1302,7 +1302,7 @@ ohci_add_done(ohci_softc_t *sc, ohci_physaddr_t done)
 			DPRINTFN(5,("add ITD %p\n", sitd));
 			continue;
 		}
-		panic("ohci_add_done: addr 0x%08lx not found\n", (u_long)done);
+		panic("ohci_add_done: addr 0x%08lx not found", (u_long)done);
 	}
 
 	/* sdone & sidone now hold the done lists. */
@@ -1487,7 +1487,7 @@ ohci_device_ctrl_done(usbd_xfer_handle xfer)
 
 #ifdef DIAGNOSTIC
 	if (!(xfer->rqflags & URQ_REQUEST)) {
-		panic("ohci_ctrl_done: not a request\n");
+		panic("ohci_ctrl_done: not a request");
 	}
 #endif
 	xfer->hcpriv = NULL;
@@ -1820,7 +1820,7 @@ ohci_rem_ed(ohci_soft_ed_t *sed, ohci_soft_ed_t *head)
 	for (p = head; p != NULL && p->next != sed; p = p->next)
 		;
 	if (p == NULL)
-		panic("ohci_rem_ed: ED not found\n");
+		panic("ohci_rem_ed: ED not found");
 	p->next = sed->next;
 	p->ed.ed_nexted = sed->ed.ed_nexted;
 }
@@ -2220,7 +2220,7 @@ ohci_abort_xfer(usbd_xfer_handle xfer, usbd_status status)
 	}
 
 	if (xfer->device->bus->intr_context || !curproc)
-		panic("ohci_abort_xfer: not in process context\n");
+		panic("ohci_abort_xfer: not in process context");
 
 	/*
 	 * Step 1: Make interrupt routine and hardware ignore xfer.
@@ -3013,7 +3013,7 @@ ohci_device_intr_start(usbd_xfer_handle xfer)
 
 #ifdef DIAGNOSTIC
 	if (xfer->rqflags & URQ_REQUEST)
-		panic("ohci_device_intr_transfer: a request\n");
+		panic("ohci_device_intr_transfer: a request");
 #endif
 
 	len = xfer->length;
@@ -3104,7 +3104,7 @@ ohci_device_intr_close(usbd_pipe_handle pipe)
 #ifdef DIAGNOSTIC
 	if ((le32toh(sed->ed.ed_tailp) & OHCI_HEADMASK) !=
 	    (le32toh(sed->ed.ed_headp) & OHCI_HEADMASK))
-		panic("%s: Intr pipe %p still has TDs queued\n",
+		panic("%s: Intr pipe %p still has TDs queued",
 			USBDEVNAME(sc->sc_bus.bdev), pipe);
 #endif
 
@@ -3112,7 +3112,7 @@ ohci_device_intr_close(usbd_pipe_handle pipe)
 		;
 #ifdef DIAGNOSTIC
 	if (p == NULL)
-		panic("ohci_device_intr_close: ED not found\n");
+		panic("ohci_device_intr_close: ED not found");
 #endif
 	p->next = sed->next;
 	p->ed.ed_nexted = sed->ed.ed_nexted;

@@ -1525,7 +1525,7 @@ uhci_waitintr(uhci_softc_t *sc, usbd_xfer_handle xfer)
 		;
 #ifdef DIAGNOSTIC
 	if (ii == NULL)
-		panic("uhci_waitintr: lost intr_info\n");
+		panic("uhci_waitintr: lost intr_info");
 #endif
 	uhci_idone(ii);
 }
@@ -1808,7 +1808,7 @@ uhci_device_bulk_start(usbd_xfer_handle xfer)
 
 #ifdef DIAGNOSTIC
 	if (xfer->rqflags & URQ_REQUEST)
-		panic("uhci_device_bulk_transfer: a request\n");
+		panic("uhci_device_bulk_transfer: a request");
 #endif
 
 	len = xfer->length;
@@ -1910,7 +1910,7 @@ uhci_abort_xfer(usbd_xfer_handle xfer, usbd_status status)
 	}
 
 	if (xfer->device->bus->intr_context || !curproc)
-		panic("uhci_abort_xfer: not in process context\n");
+		panic("uhci_abort_xfer: not in process context");
 
 	/*
 	 * Step 1: Make interrupt routine and hardware ignore xfer.
@@ -1993,7 +1993,7 @@ uhci_device_ctrl_start(usbd_xfer_handle xfer)
 
 #ifdef DIAGNOSTIC
 	if (!(xfer->rqflags & URQ_REQUEST))
-		panic("uhci_device_ctrl_transfer: not a request\n");
+		panic("uhci_device_ctrl_transfer: not a request");
 #endif
 
 	err = uhci_device_request(xfer);
@@ -2043,7 +2043,7 @@ uhci_device_intr_start(usbd_xfer_handle xfer)
 
 #ifdef DIAGNOSTIC
 	if (xfer->rqflags & URQ_REQUEST)
-		panic("uhci_device_intr_transfer: a request\n");
+		panic("uhci_device_intr_transfer: a request");
 #endif
 
 	endpt = upipe->pipe.endpoint->edesc->bEndpointAddress;
@@ -2689,7 +2689,7 @@ uhci_device_ctrl_done(usbd_xfer_handle xfer)
 
 #ifdef DIAGNOSTIC
 	if (!(xfer->rqflags & URQ_REQUEST))
-		panic("uhci_ctrl_done: not a request\n");
+		panic("uhci_ctrl_done: not a request");
 #endif
 
 	uhci_del_intr_info(ii);	/* remove from active list */
@@ -3011,7 +3011,7 @@ uhci_root_ctrl_start(usbd_xfer_handle xfer)
 
 #ifdef DIAGNOSTIC
 	if (!(xfer->rqflags & URQ_REQUEST))
-		panic("uhci_root_ctrl_transfer: not a request\n");
+		panic("uhci_root_ctrl_transfer: not a request");
 #endif
 	req = &xfer->request;
 
