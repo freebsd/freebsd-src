@@ -1,5 +1,5 @@
 /*
- * $Id: shlib.c,v 1.2 1993/11/09 04:19:03 paul Exp $
+ * $Id: shlib.c,v 1.4 1993/12/02 00:56:40 jkh Exp $
  */
 
 #include <sys/param.h>
@@ -132,10 +132,9 @@ int	n1, n2;
 #undef minor
 
 char *
-findshlib(name, majorp, minorp, do_dot_a)
+findshlib(name, majorp, minorp)
 char	*name;
 int	*majorp, *minorp;
-int	do_dot_a;
 {
 	int		dewey[MAXDEWEY];
 	int		ndewey;
@@ -155,23 +154,12 @@ int	do_dot_a;
 	for (i = 0; i < n_search_dirs; i++) {
 		DIR		*dd = opendir(search_dirs[i]);
 		struct dirent	*dp;
-		int		found_dot_a = 0;
 
 		if (dd == NULL)
 			continue;
 
 		while ((dp = readdir(dd)) != NULL) {
 			int	n, j, might_take_it = 0;
-
-			if (do_dot_a && path == NULL &&
-					dp->d_namlen == len + 2 &&
-					strncmp(dp->d_name, lname, len) == 0 &&
-					(dp->d_name+len)[0] == '.' &&
-					(dp->d_name+len)[1] == 'a') {
-
-				path = concat(search_dirs[i], "/", dp->d_name);
-				found_dot_a = 1;
-			}
 
 			if (dp->d_namlen < len + 4)
 				continue;
@@ -182,12 +170,6 @@ int	do_dot_a;
 
 			if ((n = getdewey(tmp, dp->d_name+len+4)) == 0)
 				continue;
-
-			if (major != -1 && found_dot_a) { /* XXX */
-				free(path);
-				path = NULL;
-				found_dot_a = 0;
-			}
 
 			if (major == -1 && minor == -1) {
 				might_take_it = 1;
@@ -210,19 +192,12 @@ int	do_dot_a;
 			if (path)
 				free(path);
 			path = concat(search_dirs[i], "/", dp->d_name);
-			found_dot_a = 0;
 			bcopy(tmp, dewey, sizeof(dewey));
 			ndewey = n;
 			*majorp = dewey[0];
 			*minorp = dewey[1];
 		}
 		closedir(dd);
-
-		if (found_dot_a)
-			/*
-			 * There's a .a archive here.
-			 */
-			return path;
 	}
 
 	return path;

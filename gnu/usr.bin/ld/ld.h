@@ -1,4 +1,4 @@
-/*	$Id: ld.h,v 1.5 1993/11/10 21:53:42 pk Exp $	*/
+/*	$Id: ld.h,v 1.6 1993/12/02 00:56:37 jkh Exp $	*/
 /*-
  * This code is derived from software copyrighted by the Free Software
  * Foundation.
@@ -678,11 +678,6 @@ struct file_entry {
 	/* For library member, points to next entry for next member.  */
 	struct file_entry *chain;
 
-#ifdef SUN_COMPAT
-	/* For shared libraries which have a .sa companion */
-	struct file_entry *silly_archive;
-#endif
-
 	/* 1 if file is a library. */
 	char            library_flag;
 
@@ -727,8 +722,7 @@ int number_of_files;
 #define FORCEARCHIVE	4		/* Force inclusion of all members
 					   of archives */
 #define SHAREABLE	8		/* Build a shared object */
-#define SILLYARCHIVE	16		/* Process .sa companions, if any */
-int	link_mode;
+int link_mode;
 
 /*
  * Runtime Relocation Section (RRS).
@@ -875,7 +869,7 @@ void	read_shared_object __P((int, struct file_entry *));
 int	findlib __P((struct file_entry *));
 
 /* In shlib.c: */
-char	*findshlib __P((char *, int *, int *, int));
+char	*findshlib __P((char *, int *, int *));
 void	add_search_dir __P((char *));
 void	std_search_dirs __P((char *));
 
