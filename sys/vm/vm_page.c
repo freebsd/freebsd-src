@@ -1292,7 +1292,7 @@ vm_page_try_to_cache(vm_page_t m)
 	    (m->flags & (PG_BUSY|PG_UNMANAGED))) {
 		return (0);
 	}
-	vm_page_test_dirty(m);
+	pmap_remove_all(m);
 	if (m->dirty)
 		return (0);
 	vm_page_cache(m);
