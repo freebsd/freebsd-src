@@ -285,8 +285,8 @@ ask_dev(char *dbuf, const char *msg)
 int
 main(int ac, char *av[])
 {
-	int             res, idata, rv;
-	size_t		nread, b_size = MIN_SIZE;
+	int             res, rv, nread;
+	size_t		b_size = MIN_SIZE;
 	char            ch, *buf, chb[READB_LEN];
 	fd_set          fd_s;
 
@@ -362,7 +362,7 @@ main(int ac, char *av[])
 			if (nread > READB_LEN)
 				nread = READB_LEN;
 			rv = read(std_in, chb, nread);
-			if (rv == -1 || (unsigned)rv != nread)
+			if (rv == -1 || rv != nread)
 				fatal(EX_IOERR, "read (stdin) failed");
 
 			switch (chb[0]) {
@@ -379,7 +379,7 @@ main(int ac, char *av[])
 			default:
 				if (opt_write) {
 					rv = write(snp_io, chb, nread);
-					if (rv == -1 || (unsigned)rv != nread) {
+					if (rv == -1 || rv != nread) {
 						detach_snp();
 						if (opt_no_switch)
 							fatal(EX_IOERR,
@@ -394,10 +394,10 @@ main(int ac, char *av[])
 		if (!FD_ISSET(snp_io, &fd_s))
 			continue;
 
-		if ((res = ioctl(snp_io, FIONREAD, &idata)) != 0)
+		if ((res = ioctl(snp_io, FIONREAD, &nread)) != 0)
 			fatal(EX_OSERR, "ioctl(FIONREAD)");
 
-		switch (idata) {
+		switch (nread) {
 		case SNP_OFLOW:
 			if (opt_reconn_oflow)
 				attach_snp();
@@ -418,7 +418,6 @@ main(int ac, char *av[])
 				cleanup(-1);
 			break;
 		default:
-			nread = (unsigned)idata;
 			if (nread < (b_size / 2) && (b_size / 2) > MIN_SIZE) {
 				free(buf);
 				if (!(buf = (char *) malloc(b_size / 2)))
@@ -432,10 +431,10 @@ main(int ac, char *av[])
 					fatal(EX_UNAVAILABLE, "malloc failed");
 			}
 			rv = read(snp_io, buf, nread);
-			if (rv == -1 || (unsigned)rv != nread)
+			if (rv == -1 || rv != nread)
 				fatal(EX_IOERR, "read failed");
 			rv = write(std_out, buf, nread);
-			if (rv == -1 || (unsigned)rv != nread)
+			if (rv == -1 || rv != nread)
 				fatal(EX_IOERR, "write failed");
 		}
 	}			/* While */
