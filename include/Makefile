@@ -162,10 +162,14 @@ copies:
 	    ${DESTDIR}${INCLUDEDIR}/machine/pc
 .endif
 .if defined(_MARCH)
+	${INSTALL} -d -o ${BINOWN} -g ${BINGRP} -m 755 \
+	    ${DESTDIR}${INCLUDEDIR}/${_MARCH}; \
 	cd ${.CURDIR}/../sys/${_MARCH}/include; \
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 *.h \
 	    ${DESTDIR}${INCLUDEDIR}/${_MARCH}
 .if exists(${.CURDIR}/../sys/${_MARCH}/include/pc)
+	${INSTALL} -d -o ${BINOWN} -g ${BINGRP} -m 755 \
+	    ${DESTDIR}${INCLUDEDIR}/${_MARCH}/pc; \
 	cd ${.CURDIR}/../sys/${_MARCH}/include/pc; \
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 *.h \
 	    ${DESTDIR}${INCLUDEDIR}/${_MARCH}/pc
@@ -240,12 +244,16 @@ symlinks:
 	done
 .endif
 .if defined(_MARCH)
+	${INSTALL} -d -o ${BINOWN} -g ${BINGRP} -m 755 \
+	    ${DESTDIR}${INCLUDEDIR}/${_MARCH}; \
 	cd ${.CURDIR}/../sys/${_MARCH}/include; \
 	for h in *.h; do \
 		ln -fs ../../../sys/${_MARCH}/include/$$h \
 		    ${DESTDIR}${INCLUDEDIR}/${_MARCH}; \
 	done
 .if exists(${.CURDIR}/../sys/${_MARCH}/include/pc)
+	${INSTALL} -d -o ${BINOWN} -g ${BINGRP} -m 755 \
+	    ${DESTDIR}${INCLUDEDIR}/${_MARCH}/pc; \
 	cd ${.CURDIR}/../sys/${_MARCH}/include/pc; \
 	for h in *.h; do \
 		ln -fs ../../../../sys/${_MARCH}/include/pc/$$h \
