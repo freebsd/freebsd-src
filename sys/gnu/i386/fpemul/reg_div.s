@@ -60,7 +60,7 @@
  * W. Metzenthen   June 1994.
  *
  * 
- *      $Id$
+ *      $Id: reg_div.s,v 1.6 1997/02/22 09:29:22 peter Exp $
  *
  */
 
@@ -69,10 +69,7 @@
 #include <gnu/i386/fpemul/control_w.h>
 
 .text
-	.align 2
-
-.globl	_reg_div
-_reg_div:
+ENTRY(reg_div)
 	pushl	%ebp
 	movl	%esp,%ebp
 

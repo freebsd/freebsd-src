@@ -57,7 +57,7 @@
  * W. Metzenthen   June 1994.
  *
  * 
- *     $Id$
+ *     $Id: div_small.s,v 1.6 1997/02/22 09:29:00 peter Exp $
  *
  */
 
@@ -68,11 +68,7 @@
 #include <gnu/i386/fpemul/fpu_asm.h>
 
 .text
-	.align 2,144
-
-.globl _div_small
-
-_div_small:
+ENTRY(div_small)
 	pushl	%ebp
 	movl	%esp,%ebp
 

@@ -1,0 +1,251 @@
+/*-
+ * Copyright (c) 1997 John D. Polstra
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
+ * $Id$
+ */
+
+#ifndef _MACHINE_ASNAMES_H_
+#define _MACHINE_ASNAMES_H_
+
+/*
+ * This file is used by the kernel assembly language sources to provide
+ * the proper mapping between the global names used in assembly language
+ * code and the corresponding C symbols.  By convention, all C symbols
+ * that are referenced from assembly language are prefixed with `_'.
+ * That happens to be the same prefix that the a.out compiler attaches
+ * to each C symbol.
+ *
+ * When using the ELF compiler, C symbols are identical to the corresponding
+ * assembly language symbols.  Thus the extra underscores cause problems.
+ * The defines in this file map the underscore names back to the proper
+ * unadorned names.
+ *
+ * Every global symbol that is referenced from both C source and assembly
+ * language source must have an entry in this file, or the kernel will
+ * not build properly using the ELF compiler.
+ *
+ * This file is included by <machine/asmacros.h>, and it is OK to rely
+ * on that.
+ */
+
+#ifdef __ELF__
+
+#define _APTD				APTD
+#define _APTDpde			APTDpde
+#define _APTmap				APTmap
+#define _CONST_QNaN			CONST_QNaN
+#define _IdlePTD			IdlePTD
+#define _PTD				PTD
+#define _PTDpde				PTDpde
+#define _PTmap				PTmap
+#define _Xalign				Xalign
+#define _Xbnd				Xbnd
+#define _Xbpt				Xbpt
+#define _Xdbg				Xdbg
+#define _Xdiv				Xdiv
+#define _Xdna				Xdna
+#define _Xfastintr0			Xfastintr0
+#define _Xfastintr1			Xfastintr1
+#define _Xfastintr10			Xfastintr10
+#define _Xfastintr11			Xfastintr11
+#define _Xfastintr12			Xfastintr12
+#define _Xfastintr13			Xfastintr13
+#define _Xfastintr14			Xfastintr14
+#define _Xfastintr15			Xfastintr15
+#define _Xfastintr2			Xfastintr2
+#define _Xfastintr3			Xfastintr3
+#define _Xfastintr4			Xfastintr4
+#define _Xfastintr5			Xfastintr5
+#define _Xfastintr6			Xfastintr6
+#define _Xfastintr7			Xfastintr7
+#define _Xfastintr8			Xfastintr8
+#define _Xfastintr9			Xfastintr9
+#define _Xfpu				Xfpu
+#define _Xfpusegm			Xfpusegm
+#define _Xill				Xill
+#define _Xint0x80_syscall		Xint0x80_syscall
+#define _Xintr0				Xintr0
+#define _Xintr1				Xintr1
+#define _Xintr10			Xintr10
+#define _Xintr11			Xintr11
+#define _Xintr12			Xintr12
+#define _Xintr13			Xintr13
+#define _Xintr14			Xintr14
+#define _Xintr15			Xintr15
+#define _Xintr2				Xintr2
+#define _Xintr3				Xintr3
+#define _Xintr4				Xintr4
+#define _Xintr5				Xintr5
+#define _Xintr6				Xintr6
+#define _Xintr7				Xintr7
+#define _Xintr8				Xintr8
+#define _Xintr9				Xintr9
+#define _Xmchk				Xmchk
+#define _Xmissing			Xmissing
+#define _Xnmi				Xnmi
+#define _Xofl				Xofl
+#define _Xpage				Xpage
+#define _Xprot				Xprot
+#define _Xrsvd				Xrsvd
+#define _Xstk				Xstk
+#define _Xsyscall			Xsyscall
+#define _Xtss				Xtss
+#define __default_ldt			_default_ldt
+#define __ucodesel			_ucodesel
+#define __udatasel			_udatasel
+#define _alltraps			alltraps
+#define _apm_addr			apm_addr
+#define _apm_bios_call			apm_bios_call
+#define _apm_cs16_base			apm_cs16_base
+#define _apm_cs32_base			apm_cs32_base
+#define _apm_cs_entry			apm_cs_entry
+#define _apm_cs_limit			apm_cs_limit
+#define _apm_current_gdt_pdesc		apm_current_gdt_pdesc
+#define _apm_ds_base			apm_ds_base
+#define _apm_ds_limit			apm_ds_limit
+#define _apm_flags			apm_flags
+#define _apm_init_image			apm_init_image
+#define _apm_init_image_size		apm_init_image_size
+#define _apm_setup			apm_setup
+#define _apm_version			apm_version
+#define _arith_invalid			arith_invalid
+#define _arith_overflow			arith_overflow
+#define _arith_underflow		arith_underflow
+#define _bcopy				bcopy
+#define _bcopy_vector			bcopy_vector
+#define _bio_imask			bio_imask
+#define _bluetrap			bluetrap
+#define _bootdev			bootdev
+#define _boothowto			boothowto
+#define _bootinfo			bootinfo
+#define _bootstrap_gdt			bootstrap_gdt
+#define _bzero				bzero
+#define _cnt				cnt
+#define _copyin_vector			copyin_vector
+#define _copyout_vector			copyout_vector
+#define _cpl				cpl
+#define _cpu				cpu
+#define _cpu_class			cpu_class
+#define _cpu_feature			cpu_feature
+#define _cpu_high			cpu_high
+#define _cpu_id				cpu_id
+#define _cpu_vendor			cpu_vendor
+#define _curpcb				curpcb
+#define _curproc			curproc
+#define _currentldt			currentldt
+#define _cypoll				cypoll
+#define _denormal_operand		denormal_operand
+#define _div_small			div_small
+#define _divide_by_zero			divide_by_zero
+#define _divide_kernel			divide_kernel
+#define _edata				edata
+#define _eintrcnt			eintrcnt
+#define _eintrnames			eintrnames
+#define _end				end
+#define _etext				etext
+#define _exception			exception
+#define _fastmove			fastmove
+#define _generic_bcopy			generic_bcopy
+#define _generic_bzero			generic_bzero
+#define _generic_copyin			generic_copyin
+#define _generic_copyout		generic_copyout
+#define _i586_ctr_bias			i586_ctr_bias
+#define _i586_ctr_freq			i586_ctr_freq
+#define _i586_ctr_multiplier		i586_ctr_multiplier
+#define _idqs				idqs
+#define _imen				imen
+#define _init386			init386
+#define _intr_countp			intr_countp
+#define _intr_handler			intr_handler
+#define _intr_mask			intr_mask
+#define _intr_nesting_level		intr_nesting_level
+#define _intr_unit			intr_unit
+#define _intrcnt			intrcnt
+#define _intrnames			intrnames
+#define _ipending			ipending
+#define _kernelname			kernelname
+#define _kstack				kstack
+#define _linux_sigcode			linux_sigcode
+#define _linux_szsigcode		linux_szsigcode
+#define _main				main
+#define _mul64				mul64
+#define _net_imask			net_imask
+#define _netisr				netisr
+#define _netisrs			netisrs
+#define _nfs_diskless			nfs_diskless
+#define _nfs_diskless_valid		nfs_diskless_valid
+#define _normalize			normalize
+#define _normalize_nuo			normalize_nuo
+#define _npx_intrs_while_probing	npx_intrs_while_probing
+#define _npx_traps_while_probing	npx_traps_while_probing
+#define _npxintr			npxintr
+#define _npxproc			npxproc
+#define _npxsave			npxsave
+#define _ovbcopy_vector			ovbcopy_vector
+#define _panic				panic
+#define _poly_div16			poly_div16
+#define _poly_div2			poly_div2
+#define _poly_div4			poly_div4
+#define _polynomial			polynomial
+#define _probeintr			probeintr
+#define _probetrap			probetrap
+#define _proc0paddr			proc0paddr
+#define _qs				qs
+#define _rcpoll				rcpoll
+#define _real_2op_NaN			real_2op_NaN
+#define _reg_div			reg_div
+#define _reg_u_add			reg_u_add
+#define _reg_u_div			reg_u_div
+#define _reg_u_mul			reg_u_mul
+#define _reg_u_sub			reg_u_sub
+#define _round_reg			round_reg
+#define _rtqs				rtqs
+#define _set_precision_flag_down	set_precision_flag_down
+#define _set_precision_flag_up		set_precision_flag_up
+#define _set_user_ldt			set_user_ldt
+#define _shrx				shrx
+#define _shrxs				shrxs
+#define _sigcode			sigcode
+#define _siopoll			siopoll
+#define _softclock			softclock
+#define _splz				splz
+#define _syscall			syscall
+#define _szsigcode			szsigcode
+#define _time				time
+#define _timer0_max_count		timer0_max_count
+#define _timer0_overflow_threshold	timer0_overflow_threshold
+#define _timer0_prescaler_count		timer0_prescaler_count
+#define _trap				trap
+#define _trap_by_wrmsr			trap_by_wrmsr
+#define _trapwrite			trapwrite
+#define _tty_imask			tty_imask
+#define _userconfig_from_boot		userconfig_from_boot
+#define _vm_page_zero_idle		vm_page_zero_idle
+#define _want_resched			want_resched
+#define _wm_sqrt			wm_sqrt
+
+#endif /* __ELF__ */
+
+#endif /* !_MACHINE_ASNAMES_H_ */

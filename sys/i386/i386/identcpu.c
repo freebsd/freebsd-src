@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: Id: machdep.c,v 1.193 1996/06/18 01:22:04 bde Exp
- *	$Id: identcpu.c,v 1.13 1997/02/22 09:32:19 peter Exp $
+ *	$Id: identcpu.c,v 1.14 1997/03/22 18:51:57 kato Exp $
  */
 
 #include "opt_cpu.h"
@@ -47,6 +47,7 @@
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
 
+#include <machine/asmacros.h>
 #include <machine/cpu.h>
 #include <machine/reg.h>
 #include <machine/psl.h>
@@ -426,9 +427,10 @@ inthand_t	bluetrap;
 asm
 ("
 	.text
-_bluetrap:
+	.p2align 2,0x90
+" __XSTRING(CNAME(bluetrap)) ":
 	ss
-	movl	$0xa8c1d, _trap_by_wrmsr  # Don't ask meaning of the number :-).
+	movl	$0xa8c1d," __XSTRING(CNAME(trap_by_wrmsr)) " # Don't ask meaning of the number :-).
 	addl	$2, (%esp)				  # I know wrmsr is a 2-bytes instruction.
 	iret
 ");
