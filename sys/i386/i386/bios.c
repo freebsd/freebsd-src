@@ -478,9 +478,10 @@ struct pnp_sysdev
 #define PNPATTR_BOOTABLE	(1<<4)	/* can be booted from */
 #define PNPATTR_DOCK		(1<<5)	/* is a docking station */
 #define PNPATTR_REMOVEABLE	(1<<6)	/* device is removeable */
-#define PNPATTR_CONFIG_STATIC	0x00
-#define PNPATTR_CONFIG_DYNAMIC	0x07
-#define PNPATTR_CONFIG_DYNONLY	0x17
+#define PNPATTR_CONFIG_STATIC	(0)
+#define PNPATTR_CONFIG_DYNAMIC	(1)
+#define PNPATTR_CONFIG_DYNONLY	(3)
+#define PNPATTR_CONFIG(a)	(((a) >> 7) & 0x3)
     /* device-specific data comes here */
     u_int8_t	devdata[0];
 } __attribute__ ((packed));
@@ -581,10 +582,25 @@ pnpbios_identify(driver_t *driver, device_t parent)
 	dev = BUS_ADD_CHILD(parent, ISA_ORDER_PNP, NULL, -1);
 	isa_set_vendorid(dev, pd->devid);
 	isa_set_logicalid(dev, pd->devid);
+	/*
+	 * It appears that some PnP BIOS doesn't allow us to re-enable
+	 * the embedded system device once it is disabled.  We shall
+	 * mark all system device nodes as "cannot be disabled", regardless
+	 * of actual settings in the device attribute byte.
+	 * XXX
+	isa_set_configattr(dev, 
+	    ((pd->attrib & PNPATTR_NODISABLE) ?  0 : ISACFGATTR_CANDISABLE) |
+	    ((!(pd->attrib & PNPATTR_NOCONFIG) && 
+		PNPATTR_CONFIG(pd->attrib) != PNPATTR_CONFIG_STATIC)
+		? ISACFGATTR_DYNAMIC : 0));
+	 */
+	isa_set_configattr(dev, 
+	    (!(pd->attrib & PNPATTR_NOCONFIG) && 
+		PNPATTR_CONFIG(pd->attrib) != PNPATTR_CONFIG_STATIC)
+		? ISACFGATTR_DYNAMIC : 0);
 	ISA_SET_CONFIG_CALLBACK(parent, dev, pnpbios_set_config, 0);
 	pnp_parse_resources(dev, &pd->devdata[0],
-			    pd->size - sizeof(struct pnp_sysdev),
-			    isa_get_vendorid(dev), isa_get_logicalid(dev), 0);
+			    pd->size - sizeof(struct pnp_sysdev), 0);
 	if (!device_get_desc(dev))
 	    device_set_desc_copy(dev, pnp_eisaformat(pd->devid));
 
