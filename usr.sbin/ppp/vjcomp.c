@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: vjcomp.c,v 1.16.2.8 1998/03/16 22:52:54 brian Exp $
+ * $Id: vjcomp.c,v 1.16.2.9 1998/03/16 22:54:32 brian Exp $
  *
  *  TODO:
  */
@@ -46,6 +46,7 @@
 #include "ccp.h"
 #include "link.h"
 #include "filter.h"
+#include "descriptor.h"
 #include "bundle.h"
 #include "vjcomp.h"
 

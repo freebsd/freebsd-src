@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.77.2.38 1998/03/18 21:53:48 brian Exp $
+ * $Id: modem.c,v 1.77.2.39 1998/03/20 19:47:19 brian Exp $
  *
  *  TODO:
  */
@@ -65,9 +65,9 @@
 #include "slcompress.h"
 #include "ipcp.h"
 #include "filter.h"
+#include "descriptor.h"
 #include "bundle.h"
 #include "link.h"
-#include "descriptor.h"
 #include "physical.h"
 #include "prompt.h"
 #include "chat.h"

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ccp.c,v 1.30.2.25 1998/03/18 23:16:05 brian Exp $
+ * $Id: ccp.c,v 1.30.2.26 1998/03/20 19:46:41 brian Exp $
  *
  *	TODO:
  *		o Support other compression protocols
@@ -50,8 +50,8 @@
 #include "slcompress.h"
 #include "ipcp.h"
 #include "filter.h"
-#include "bundle.h"
 #include "descriptor.h"
+#include "bundle.h"
 #include "prompt.h"
 #include "lqr.h"
 #include "hdlc.h"

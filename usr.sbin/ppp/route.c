@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: route.c,v 1.42.2.11 1998/03/16 22:52:50 brian Exp $
+ * $Id: route.c,v 1.42.2.12 1998/03/16 22:54:23 brian Exp $
  *
  */
 
@@ -60,9 +60,9 @@
 #include "slcompress.h"
 #include "ipcp.h"
 #include "filter.h"
+#include "descriptor.h"
 #include "bundle.h"
 #include "route.h"
-#include "descriptor.h"
 #include "prompt.h"
 
 static void

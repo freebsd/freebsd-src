@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: descriptor.h,v 1.1.2.6 1998/02/16 00:00:03 brian Exp $
+ *	$Id: descriptor.h,v 1.1.2.7 1998/02/23 00:38:28 brian Exp $
  */
 
 #define PHYSICAL_DESCRIPTOR (1)
@@ -31,13 +31,14 @@
 #define PROMPT_DESCRIPTOR (3)
 #define CHAT_DESCRIPTOR (4)
 #define DATALINK_DESCRIPTOR (5)
+#define BUNDLE_DESCRIPTOR (6)
 
 struct descriptor {
   int type;
   struct descriptor *next;
 
   int (*UpdateSet)(struct descriptor *, fd_set *, fd_set *, fd_set *, int *);
-  int (*IsSet)(struct descriptor *, fd_set *);
+  int (*IsSet)(struct descriptor *, const fd_set *);
   void (*Read)(struct descriptor *, struct bundle *, const fd_set *);
   void (*Write)(struct descriptor *, struct bundle *, const fd_set *);
 };

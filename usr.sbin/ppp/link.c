@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *  $Id: link.c,v 1.1.2.12 1998/03/16 22:52:24 brian Exp $
+ *  $Id: link.c,v 1.1.2.13 1998/03/16 22:54:05 brian Exp $
  *
  */
 
@@ -52,8 +52,8 @@
 #include "slcompress.h"
 #include "ipcp.h"
 #include "filter.h"
-#include "bundle.h"
 #include "descriptor.h"
+#include "bundle.h"
 #include "prompt.h"
 
 void

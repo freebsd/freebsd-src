@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.131.2.40 1998/03/16 22:53:38 brian Exp $
+ * $Id: command.c,v 1.131.2.41 1998/03/17 22:29:05 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -66,6 +66,7 @@
 #include "vars.h"
 #include "systems.h"
 #include "filter.h"
+#include "descriptor.h"
 #include "bundle.h"
 #include "main.h"
 #include "route.h"
@@ -74,7 +75,6 @@
 #include "auth.h"
 #include "async.h"
 #include "link.h"
-#include "descriptor.h"
 #include "physical.h"
 #include "server.h"
 #include "prompt.h"

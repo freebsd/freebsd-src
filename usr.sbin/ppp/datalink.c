@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: datalink.c,v 1.1.2.25 1998/03/18 21:53:56 brian Exp $
+ *	$Id: datalink.c,v 1.1.2.26 1998/03/18 21:54:03 brian Exp $
  */
 
 #include <sys/param.h>
@@ -278,7 +278,7 @@ datalink_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e,
 }
 
 static int
-datalink_IsSet(struct descriptor *d, fd_set *fdset)
+datalink_IsSet(struct descriptor *d, const fd_set *fdset)
 {
   struct datalink *dl = descriptor2datalink(d);
 

@@ -16,7 +16,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- *  $Id: physical.c,v 1.1.2.17 1998/03/16 22:52:38 brian Exp $
+ *  $Id: physical.c,v 1.1.2.18 1998/03/16 22:54:18 brian Exp $
  *
  */
 
@@ -221,7 +221,7 @@ Physical_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e,
 }
 
 int
-Physical_IsSet(struct descriptor *d, fd_set *fdset)
+Physical_IsSet(struct descriptor *d, const fd_set *fdset)
 {
   struct physical *p = descriptor2physical(d);
 

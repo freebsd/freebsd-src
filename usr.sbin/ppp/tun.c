@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: tun.c,v 1.6.4.7 1998/03/16 22:52:52 brian Exp $
+ *	$Id: tun.c,v 1.6.4.8 1998/03/16 22:54:28 brian Exp $
  */
 
 #include <sys/param.h>
@@ -56,6 +56,7 @@
 #include "slcompress.h"
 #include "ipcp.h"
 #include "filter.h"
+#include "descriptor.h"
 #include "bundle.h"
 #include "tun.h"
 

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ip.c,v 1.38.2.13 1998/03/16 22:52:17 brian Exp $
+ * $Id: ip.c,v 1.38.2.14 1998/03/16 22:53:51 brian Exp $
  *
  *	TODO:
  *		o Return ICMP message for filterd packet
@@ -62,6 +62,7 @@
 #include "slcompress.h"
 #include "ipcp.h"
 #include "filter.h"
+#include "descriptor.h"
 #include "bundle.h"
 #include "vjcomp.h"
 #include "lcp.h"

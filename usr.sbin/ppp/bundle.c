@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.1.2.29 1998/03/18 23:15:29 brian Exp $
+ *	$Id: bundle.c,v 1.1.2.30 1998/03/19 22:25:44 brian Exp $
  */
 
 #include <sys/param.h>
@@ -60,6 +60,7 @@
 #include "ipcp.h"
 #include "link.h"
 #include "filter.h"
+#include "descriptor.h"
 #include "bundle.h"
 #include "loadalias.h"
 #include "vars.h"
@@ -69,7 +70,6 @@
 #include "lcp.h"
 #include "ccp.h"
 #include "async.h"
-#include "descriptor.h"
 #include "physical.h"
 #include "modem.h"
 #include "main.h"
@@ -296,9 +296,55 @@ bundle_Close(struct bundle *bundle, const char *name, int staydown)
   }
 }
 
-/*
- *  Open tunnel device and returns its descriptor
- */
+static int
+bundle_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e, int *n)
+{
+  struct bundle *bundle = descriptor2bundle(d);
+  struct datalink *dl;
+  int result;
+
+  result = 0;
+  for (dl = bundle->links; dl; dl = dl->next)
+    result += descriptor_UpdateSet(&dl->desc, r, w, e, n);
+
+  return result;
+}
+
+static int
+bundle_IsSet(struct descriptor *d, const fd_set *fdset)
+{
+  struct bundle *bundle = descriptor2bundle(d);
+  struct datalink *dl;
+
+  for (dl = bundle->links; dl; dl = dl->next)
+    if (descriptor_IsSet(&dl->desc, fdset))
+      return 1;
+
+  return 0;
+}
+
+static void
+bundle_DescriptorRead(struct descriptor *d, struct bundle *bundle,
+                      const fd_set *fdset)
+{
+  struct datalink *dl;
+
+  for (dl = bundle->links; dl; dl = dl->next)
+    if (descriptor_IsSet(&dl->desc, fdset))
+      descriptor_Read(&dl->desc, bundle, fdset);
+}
+
+static void
+bundle_DescriptorWrite(struct descriptor *d, struct bundle *bundle,
+                       const fd_set *fdset)
+{
+  struct datalink *dl;
+
+  for (dl = bundle->links; dl; dl = dl->next)
+    if (descriptor_IsSet(&dl->desc, fdset))
+      descriptor_Write(&dl->desc, bundle, fdset);
+}
+
 
 #define MAX_TUN 256
 /*
@@ -412,6 +458,13 @@ bundle_Create(const char *prefix)
     bundle.ifname = NULL;
     return NULL;
   }
+
+  bundle.desc.type = BUNDLE_DESCRIPTOR;
+  bundle.desc.next = NULL;
+  bundle.desc.UpdateSet = bundle_UpdateSet;
+  bundle.desc.IsSet = bundle_IsSet;
+  bundle.desc.Read = bundle_DescriptorRead;
+  bundle.desc.Write = bundle_DescriptorWrite;
 
   ipcp_Init(&bundle.ncp.ipcp, &bundle, &bundle.links->physical->link,
             &bundle.fsm);
@@ -727,19 +780,6 @@ bundle2link(struct bundle *bundle, const char *name)
 {
   struct physical *physical = bundle2physical(bundle, name);
   return physical ? &physical->link : NULL;
-}
-
-int
-bundle_UpdateSet(struct bundle *bundle, fd_set *r, fd_set *w, fd_set *e, int *n)
-{
-  struct datalink *dl;
-  int result;
-
-  result = 0;
-  for (dl = bundle->links; dl; dl = dl->next)
-    result += descriptor_UpdateSet(&dl->desc, r, w, e, n);
-
-  return result;
 }
 
 int

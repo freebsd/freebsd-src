@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: server.c,v 1.16.2.7 1998/02/18 20:39:08 brian Exp $
+ *	$Id: server.c,v 1.16.2.8 1998/02/23 00:38:42 brian Exp $
  */
 
 #include <sys/param.h>
@@ -69,7 +69,7 @@ server_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e, int *n)
 }
 
 static int
-server_IsSet(struct descriptor *d, fd_set *fdset)
+server_IsSet(struct descriptor *d, const fd_set *fdset)
 {
   struct server *s = descriptor2server(d);
 

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.c,v 1.55.2.30 1998/03/16 22:54:02 brian Exp $
+ * $Id: lcp.c,v 1.55.2.31 1998/03/20 19:46:55 brian Exp $
  *
  * TODO:
  *	o Limit data field length by MRU
@@ -55,6 +55,7 @@
 #include "ipcp.h"
 #include "lcpproto.h"
 #include "filter.h"
+#include "descriptor.h"
 #include "bundle.h"
 #include "lqr.h"
 #include "hdlc.h"
@@ -70,7 +71,6 @@
 #include "modem.h"
 #include "tun.h"
 #include "link.h"
-#include "descriptor.h"
 #include "physical.h"
 #include "prompt.h"
 #include "chat.h"

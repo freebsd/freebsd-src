@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.121.2.34 1998/03/16 22:53:11 brian Exp $
+ * $Id: main.c,v 1.121.2.35 1998/03/16 22:54:10 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -63,6 +63,7 @@
 #include "slcompress.h"
 #include "ipcp.h"
 #include "filter.h"
+#include "descriptor.h"
 #include "bundle.h"
 #include "loadalias.h"
 #include "vars.h"
@@ -77,7 +78,6 @@
 #include "tun.h"
 #include "route.h"
 #include "link.h"
-#include "descriptor.h"
 #include "physical.h"
 #include "server.h"
 #include "prompt.h"
@@ -521,7 +521,7 @@ DoLoop(struct bundle *bundle)
 
     handle_signals();
 
-    bundle_UpdateSet(bundle, &rfds, &wfds, &efds, &nfds);
+    descriptor_UpdateSet(&bundle->desc, &rfds, &wfds, &efds, &nfds);
     descriptor_UpdateSet(&server.desc, &rfds, &wfds, &efds, &nfds);
 
     /* If there are aren't many packets queued, look for some more. */
@@ -563,11 +563,11 @@ DoLoop(struct bundle *bundle)
     if (descriptor_IsSet(&prompt.desc, &rfds))
       descriptor_Read(&prompt.desc, bundle, &rfds);
 
-    /* XXX FIX ME ! */
-    if (descriptor_IsSet(&bundle2datalink(bundle, NULL)->desc, &wfds))
-      descriptor_Write(&bundle2datalink(bundle, NULL)->desc, bundle, &wfds);
-    if (descriptor_IsSet(&bundle2datalink(bundle, NULL)->desc, &rfds))
-      descriptor_Read(&bundle2datalink(bundle, NULL)->desc, bundle, &rfds);
+    if (descriptor_IsSet(&bundle->desc, &wfds))
+      descriptor_Write(&bundle->desc, bundle, &wfds);
+
+    if (descriptor_IsSet(&bundle->desc, &rfds))
+      descriptor_Read(&bundle->desc, bundle, &rfds);
 
     if (bundle->tun_fd >= 0 && FD_ISSET(bundle->tun_fd, &rfds)) {
       /* something to read from tun */

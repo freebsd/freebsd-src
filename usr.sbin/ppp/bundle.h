@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.h,v 1.1.2.18 1998/03/16 22:53:06 brian Exp $
+ *	$Id: bundle.h,v 1.1.2.19 1998/03/18 23:15:31 brian Exp $
  */
 
 #define	PHASE_DEAD		0	/* Link is dead */
@@ -38,6 +38,7 @@ struct physical;
 struct link;
 
 struct bundle {
+  struct descriptor desc;     /* really all our datalinks */
   int unit;                   /* The tun number */
   int ifIndex;                /* The interface number */
   int tun_fd;                 /* The /dev/tunX descriptor */
@@ -72,6 +73,9 @@ struct bundle {
   } idle;
 };
 
+#define descriptor2bundle(d) \
+  ((d)->type == BUNDLE_DESCRIPTOR ? (struct bundle *)(d) : NULL)
+
 extern struct bundle *bundle_Create(const char *);
 extern void bundle_Destroy(struct bundle *);
 extern const char *bundle_PhaseName(struct bundle *);
@@ -85,8 +89,6 @@ extern void bundle_Close(struct bundle *, const char *, int);
 extern void bundle_Open(struct bundle *, const char *name);
 extern void bundle_LinkClosed(struct bundle *, struct datalink *);
 
-extern int bundle_UpdateSet(struct bundle *, fd_set *, fd_set *, fd_set *,
-                            int *);
 extern int bundle_FillQueues(struct bundle *);
 extern int bundle_ShowLinks(struct cmdargs const *);
 extern void bundle_StartIdleTimer(struct bundle *);
