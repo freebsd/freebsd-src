@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_wbreg.h,v 1.2 1999/01/16 06:25:59 wpaul Exp $
+ *	$Id: if_wbreg.h,v 1.3 1999/05/06 15:32:52 wpaul Exp $
  */
 
 /*
@@ -269,6 +269,7 @@ struct wb_desc {
 #define WB_RX_LIST_CNT		64
 #define WB_TX_LIST_CNT		128
 #define WB_MIN_FRAMELEN		60
+#define ETHER_ALIGN		2
 
 /*
  * A transmit 'super descriptor' is actually WB_MAXFRAGS regular
@@ -581,3 +582,8 @@ struct wb_softc {
 #define PHY_BMSR_LINKSTAT		0x0004
 #define PHY_BMSR_JABBER			0x0002
 #define PHY_BMSR_EXTENDED		0x0001
+
+#ifdef __alpha__
+#undef vtophys
+#define vtophys(va)		alpha_XXX_dmamap((vm_offset_t)va)
+#endif
