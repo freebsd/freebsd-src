@@ -1779,7 +1779,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
     <para>If the first argument to &man.ancontrol.8; or
       &man.wicontrol.8; doesn't start with a <literal>-</literal>, it
-      is assumed to be an interface.</para>
+      is assumed to be an interface. &merged;</para>
 
     <para>&man.apmd.8; now has the ability to monitor battery levels
       and execute commands based on percentage or minutes of battery
@@ -1943,7 +1943,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       process title, useful for monitoring automated
       backups. &merged;</para>
 
-    <para>&man.dump.8; now supports a new <option>-S</option> to allow
+    <para>&man.dump.8; now supports a new <option>-S</option> flag to allow
       it to just print out the dump size estimates and exit.</para>
 
     <para>&man.edquota.8; now takes a <option>-f</option> option to
@@ -2018,7 +2018,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       format string arguments, has been added. &merged;</para>
 
     <para>&man.fold.1; now supports a <option>-b</option> flag to
-      break at byte positions and a <option>-s</option> to break at
+      break at byte positions and a <option>-s</option> flag to break at
       word boundaries.</para>
 
     <para>&man.fsdb.8; now supports a <literal>blocks</literal>
@@ -2558,7 +2558,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       &man.cpio.1; functionality, &man.tar.1; compatibility
       enhancements, <option>-z</option> and <option>-Z</option> flags
       for &man.gzip.1; and &man.compress.1; functionality, and a
-      number of bug fixes.</para>
+      number of bug fixes. &merged;</para>
 
     <para>&man.pciconf.8; now supports a <option>-v</option> option to
       display the vendor/device information of configured devices, in
@@ -2584,7 +2584,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       that the maximum receive segment size is no larger than allowed
       by the interface MTU. &merged;</para>
 
-    <para>&man.ppp.8; now supports IPv6.</para>
+    <para>&man.ppp.8; now supports IPv6. &merged;</para>
 
     <para>&man.pppd.8; (the control program for kernel-level PPP) is
       now installed mode <literal>4550</literal> and
@@ -2777,7 +2777,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       producing output that can be fed back to
       &man.sysctl.8;. &merged;</para>
 
-    <para>&man.sysctl.8; now accepts a <option>-d</option> to print
+    <para>&man.sysctl.8; now accepts a <option>-d</option> flag to print
       the descriptions of variables.</para>
 
     <para>&man.sysinstall.8; now properly preserves
@@ -2847,7 +2847,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       transport. &merged;</para>
 
     <para>&man.telnet.1; now does autologin and encryption by default;
-      a new <option>-y</option> option turns off encryption.</para>
+      a new <option>-y</option> option turns off encryption. &merged;</para>
 
     <para>&man.telnet.1; now supports a <option>-u</option> flag to
       allow connections to UNIX-domain (<literal>AF_UNIX</literal>)
@@ -3346,7 +3346,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	  <literal>VersionAddendum</literal> configuration setting for
 	  &man.sshd.8; to allow changing the part of the
 	  <application>OpenSSH</application> version string after the
-	  main version number.</para>
+	  main version number. &merged;</para>
       </sect4>
 
       <sect4>
