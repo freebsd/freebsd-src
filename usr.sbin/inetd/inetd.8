@@ -79,7 +79,7 @@ The following options are available:
 .It Fl d
 Turn on debugging.
 .It Fl l
-Turn on logging.
+Turn on logging of successful connections.
 .It Fl w
 Turn on TCP Wrapping for external services.
 See the
@@ -517,6 +517,16 @@ option
 .Nm
 will log an entry to syslog each time a connection is accepted, noting the
 service selected and the IP-number of the remote requestor if available.
+Unless otherwise specified in the configuration file,
+and in the absence of the
+.Fl W
+and
+.Fl w
+options,
+.Nm
+will log to the
+.Dq daemon
+facility.
 .Pp
 The
 .Nm
@@ -549,13 +559,16 @@ option is given, such
 services will be wrapped.
 If both options are given, wrapping for both
 internal and external services will be enabled.
-.Pp
-If the
+Either wrapping option
+will cause failed connections to be logged to the
+.Dq auth
+syslog facility.
+Adding the
 .Fl l
-option is specified, all connection attempts are logged, whether they are
-allowed, denied or not wrapped at all.
-Otherwise, only denied requests will
-be logged.
+flag to the wrapping options will include successful connections in the
+logging to the
+.Dq auth
+facility.
 .Pp
 Note that
 .Nm
