@@ -1,6 +1,6 @@
 #!/bin/sh -
 #
-#	$Id: netstart,v 1.42 1996/02/11 04:07:25 jkh Exp $
+#	$Id: netstart,v 1.43 1996/04/03 17:13:58 phk Exp $
 #	From: @(#)netstart	5.9 (Berkeley) 3/30/91
 
 # Note that almost all the user-configurable behavior is no longer in
@@ -24,7 +24,7 @@ if [ -n "$defaultdomainname" -a "x$defaultdomainname" != "xNO" ] ; then
 fi
 
 # If IP filtering
-if [ -n "$firewall" -a "x$firewall" != "xNO" -f /etc/rc.firewall ] ; then
+if [ -n "$firewall" -a "x$firewall" != "xNO" -a -f /etc/rc.firewall ] ; then
 	sh /etc/rc.firewall
 fi
 
