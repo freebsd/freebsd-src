@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.11 (Berkeley) 5/21/91
-#	$Id: Makefile,v 1.71 1994/06/22 08:37:28 jkh Exp $
+#	$Id: Makefile,v 1.73 1994/06/24 22:18:46 jkh Exp $
 
 # disktab may be wrong -- hcx9 is a tahoe, but gets its own.
 # -rw-r--r--
@@ -190,7 +190,7 @@ distribution: distrib-dirs
 	(cd ${.CURDIR}/..; NOCRYPT=nocrypt; export NOCRYPT; ${MAKE} install)
 .else
 	(cd ${.CURDIR}; ${MAKE} crypt)
-	(cd ${.CURDIR}/..; ${MAKE} install
+	(cd ${.CURDIR}/..; ${MAKE} install)
 .endif
 	(cd ${.CURDIR}/../usr.sbin/sendmail/src; \
 	    ${MAKE} install; \
