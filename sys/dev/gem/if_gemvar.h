@@ -60,6 +60,12 @@
 #define	GEM_NEXTRX(x)		((x + 1) & GEM_NRXDESC_MASK)
 
 /*
+ * How many ticks to wait until to retry on a RX descriptor that is still owned
+ * by the hardware.
+ */
+#define	GEM_RXOWN_TICKS		(hz / 50)
+
+/*
  * Control structures are DMA'd to the GEM chip.  We allocate them in
  * a single clump that maps to a single DMA segment to make several things
  * easier.
@@ -132,6 +138,7 @@ struct gem_softc {
 	struct mii_data	*sc_mii;	/* MII media control */
 	device_t	sc_dev;		/* generic device information */
 	struct callout	sc_tick_ch;	/* tick callout */
+	struct callout	sc_rx_ch;	/* delayed rx callout */
 
 	/* The following bus handles are to be provided by the bus front-end */
 	bus_space_tag_t	sc_bustag;	/* bus tag */
