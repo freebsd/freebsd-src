@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.53 1999/03/14 20:40:15 julian Exp $
+#	$Id: Makefile,v 1.54 1999/03/14 20:43:09 julian Exp $
 
 # XXX present but broken: ip_mroute_mod
 # XXX not yet completed porting: acd
@@ -9,7 +9,7 @@ SUBDIR=	ccd cd9660 coda fdesc if_disc if_ppp if_sl if_tun ipfw kernfs \
 
 # XXX some of these can move to the general case when de-i386'ed
 .if ${MACHINE_ARCH} == "i386"
-SUBDIR+=atapi coff fpu gnufpu ibcs2 joy linux lkm pcic splash streams \
+SUBDIR+=coff fpu gnufpu ibcs2 joy linux lkm pcic splash streams \
 	syscons vesa svr4
 .endif
 
