@@ -17,11 +17,21 @@
 #	receive operations
 # tc	to continue a capability
 
+# Systems definitions
+netcom|Netcom Unix Access:\
+	:pn=@:tc=unix1200:
+omen|Omen BBS:\
+	:pn=@:tc=dos1200:
+
 # UNIX system definitions
 unix1200|1200 Baud dial-out to another UNIX system:\
 	:el=^U^C^R^O^D^S^Q:ie=%$:oe=^D:tc=dial1200:
 unix300|300 Baud dial-out to another UNIX system:\
 	:el=^U^C^R^O^D^S^Q:ie=%$:oe=^D:tc=dial300:
+
+# DOS system definitions
+dos1200|1200 Baud dial-out to a DOS system:\
+	:el=^U^C^R^O^D^S^Q:ie=%$:oe=^Z:pa=none:tc=dial1200:
 
 # General dialer definitions used below
 #
@@ -31,9 +41,9 @@ unix300|300 Baud dial-out to another UNIX system:\
 # Rackmount:	U U D U D U D D U D
 #
 dial2400|2400 Baud Hayes attributes:\
-        :dv=/dev/tty19:br#2400:cu=/dev/tty19:at=hayes:du:
+        :dv=/dev/com00:br#2400:cu=/dev/com00:at=hayes:du:
 dial1200|1200 Baud Hayes attributes:\
-        :dv=/dev/tty19:br#1200:cu=/dev/tty19:at=hayes:du:
+        :dv=/dev/com00:br#1200:cu=/dev/com00:at=hayes:du:
 
 # Hardwired line
 com00c|com0c:dv=/dev/com00:br#9600
