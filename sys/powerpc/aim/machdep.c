@@ -114,9 +114,6 @@ static const char rcsid[] =
 int physmem = 0;
 int cold = 1;
 
-struct mtx	sched_lock;
-struct mtx	Giant;
-
 char		pcpu0[PAGE_SIZE];
 char		uarea0[UAREA_PAGES * PAGE_SIZE];
 struct		trapframe frame0;
@@ -373,7 +370,6 @@ powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, char *args)
 	proc0.p_uarea = (struct user *)uarea0;
 	proc0.p_stats = &proc0.p_uarea->u_stats;
 	thread0.td_frame = &frame0;
-	LIST_INIT(&thread0.td_contested);
 
 	/*
 	 * Set up per-cpu data.
@@ -387,13 +383,7 @@ powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, char *args)
 
 	__asm __volatile("mtsprg 0, %0" :: "r"(pc));
 
-	/*
-	 * Initialize mutexes.
-	 */
-	mtx_init(&sched_lock, "sched lock", MTX_SPIN | MTX_RECURSE);
-	mtx_init(&Giant, "Giant", MTX_DEF | MTX_RECURSE);
-	mtx_init(&proc0.p_mtx, "process lock", MTX_DEF|MTX_DUPOK);
-	mtx_lock(&Giant);
+	mutex_init();
 
 	/*
 	 * Initialise virtual memory.
@@ -514,24 +504,14 @@ powerpc_init(u_int startkernel, u_int endkernel, u_int basekernel, char *args)
 	init_param1();
 	init_param2(physmem);
 
-	/* setup curproc so the mutexes work */
-
 	PCPU_SET(curthread, &thread0);
-
-	LIST_INIT(&thread0.td_contested);
 
 /* XXX: NetBSDism I _think_.  Not sure yet. */
 #if 0
 	curpm = PCPU_GET(curpcb)->pcb_pmreal = PCPU_GET(curpcb)->pcb_pm = kernel_pmap;
 #endif
-	
-	/*
-	 * Initialise some mutexes.
-	 */
-	mtx_init(&Giant, "Giant", MTX_DEF | MTX_RECURSE);
-	mtx_init(&sched_lock, "sched lock", MTX_SPIN | MTX_RECURSE);
-	mtx_init(&proc0.p_mtx, "process lock", MTX_DEF);
-	mtx_lock(&Giant);
+
+	mutex_init();
 
 	/*
 	 * Initialise console.
