@@ -1,4 +1,4 @@
-/* $Id: mcclock.c,v 1.1 1998/06/10 10:56:23 dfr Exp $ */
+/* $Id: mcclock.c,v 1.2 1998/06/14 13:45:41 dfr Exp $ */
 /* $NetBSD: mcclock.c,v 1.11 1998/04/19 07:50:25 jonathan Exp $ */
 
 /*
@@ -110,4 +110,30 @@ mcclock_set(device_t dev, struct clocktime *ct)
 	s = splclock();
 	MC146818_PUTTOD(dev, &regs);
 	splx(s);
+}
+
+int
+mcclock_getsecs(device_t dev, int *secp)
+{
+	int timeout = 100000000;
+	int sec;
+	int s;
+
+	s = splclock();
+	for (;;) {
+		if (!(MCCLOCK_READ(dev, MC_REGA) & MC_REGA_UIP)) {
+			sec = MCCLOCK_READ(dev, MC_SEC);
+			break;
+		}
+		if (--timeout == 0)
+			goto fail;
+	}
+
+	splx(s);
+	*secp = sec;
+	return 0;
+
+ fail:
+	splx(s);
+	return ETIMEDOUT;
 }
