@@ -1141,10 +1141,10 @@ checkdirs(olddp, newdp)
 		return;
 	sx_slock(&allproc_lock);
 	LIST_FOREACH(p, &allproc, p_list) {
-		PROC_LOCK(p);
+		mtx_lock(&fdesc_mtx);
 		fdp = p->p_fd;
 		if (fdp == NULL) {
-			PROC_UNLOCK(p);
+			mtx_unlock(&fdesc_mtx);
 			continue;
 		}
 		nrele = 0;
@@ -1160,7 +1160,7 @@ checkdirs(olddp, newdp)
 			nrele++;
 		}
 		FILEDESC_UNLOCK(fdp);
-		PROC_UNLOCK(p);
+		mtx_unlock(&fdesc_mtx);
 		while (nrele--)
 			vrele(olddp);
 	}
