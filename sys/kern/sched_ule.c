@@ -182,9 +182,8 @@ struct td_sched *thread0_sched = &td_sched;
 #define	SCHED_INTERACTIVE(kg)						\
     (sched_interact_score(kg) < SCHED_INTERACT_THRESH)
 #define	SCHED_CURR(kg, ke)						\
-    (ke->ke_thread->td_priority < PRI_MIN_TIMESHARE ||			\
-    SCHED_INTERACTIVE(kg) ||						\
-    mtx_ownedby(&Giant, (ke)->ke_thread))
+    (ke->ke_thread->td_priority != kg->kg_user_pri ||			\
+    SCHED_INTERACTIVE(kg))
 
 /*
  * Cpu percentage computation macros and defines.
@@ -1152,14 +1151,21 @@ void
 sched_userret(struct thread *td)
 {
 	struct ksegrp *kg;
+#if 0
 	struct kseq *kseq;
 	struct kse *ke;
+#endif
 	
 	kg = td->td_ksegrp;
 
 	if (td->td_priority != kg->kg_user_pri) {
 		mtx_lock_spin(&sched_lock);
 		td->td_priority = kg->kg_user_pri;
+		/*
+		 * This optimization is temporarily disabled because it
+		 * breaks priority propagation.
+		 */
+#if 0
 		kseq = KSEQ_SELF();
 		if (td->td_ksegrp->kg_pri_class == PRI_TIMESHARE &&
 #ifdef SMP
@@ -1169,6 +1175,7 @@ sched_userret(struct thread *td)
 #endif
 		    (ke = kseq_choose(kseq, 0)) != NULL &&
 		    ke->ke_thread->td_priority < td->td_priority)
+#endif
 			curthread->td_flags |= TDF_NEEDRESCHED;
 		mtx_unlock_spin(&sched_lock);
 	}
