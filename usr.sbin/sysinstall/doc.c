@@ -105,12 +105,12 @@ docShowDocument(dialogMenuItem *self)
     else if (strstr(str, "FAQ")) {
 	where = strcpy(target, "/usr/share/doc/faq/index.html");
 	if (!file_readable(target))
-	    where = strcpy(target, "http://www.freebsd.org/FAQ");
+	    where = strcpy(target, "http://www.freebsd.org/doc/en_US.ISO8859-1/books/faq");
     }
     else if (strstr(str, "Handbook")) {
 	where = strcpy(target, "/usr/share/doc/handbook/index.html");
 	if (!file_readable(target))
-	    where = strcpy(target, "http://www.freebsd.org/handbook");
+	    where = strcpy(target, "http://www.freebsd.org/doc/en_US.ISO8859-1/books/handbook");
     }
     if (where) {
 	sprintf(tmp, "%s %s", browser, target);
