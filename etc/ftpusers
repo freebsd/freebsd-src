@@ -2,4 +2,12 @@
 # read by ftpd(8).
 root
 toor
+daemon
+operator
+bin
+games
+news
+man
 uucp
+xten
+nobody
