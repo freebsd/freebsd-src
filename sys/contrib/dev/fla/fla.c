@@ -120,7 +120,7 @@ static struct fla_s {
 	struct devstat stats;
 	struct disk disk;
 	dev_t dev;
-} softc[NFLA];
+} softc[8];
 
 static int
 flaopen(dev_t dev, int flag, int fmt, struct proc *p)
@@ -263,6 +263,8 @@ flaprobe (device_t dev)
 	int i;
 
 	unit = device_get_unit(dev);
+	if (unit >= 8)
+		return (ENXIO);
 	sc = &softc[unit];
 
 	/* This is slightly ugly */
