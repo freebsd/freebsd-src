@@ -3,7 +3,7 @@
    Subroutines for dealing with message objects. */
 
 /*
- * Copyright (c) 1999-2000 Internet Software Consortium.
+ * Copyright (c) 1999-2003 Internet Software Consortium.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -327,6 +327,7 @@ isc_result_t omapi_message_unregister (omapi_object_t *mo)
 		omapi_object_reference ((omapi_object_t **)&n,
 					(omapi_object_t *)m -> next, MDL);
 		omapi_object_dereference ((omapi_object_t **)&m -> next, MDL);
+		omapi_object_dereference ((omapi_object_t **)&n -> prev, MDL);
 	}
 	if (m -> prev) {
 		omapi_message_object_t *tmp = (omapi_message_object_t *)0;
@@ -707,10 +708,12 @@ omapi_message_process_internal (omapi_object_t *mo, omapi_object_t *po)
 			status = omapi_protocol_send_status
 				(po, message -> id_object, ISC_R_SUCCESS,
 				 message -> id, (char *)0);
-		if (m)
+		if (m) {
 			omapi_signal ((omapi_object_t *)m,
 				      "status", ISC_R_SUCCESS,
 				      (omapi_typed_data_t *)0);
+			omapi_message_unregister ((omapi_object_t *)m);
+		}
 
 		omapi_object_dereference (&object, MDL);
 
@@ -743,6 +746,9 @@ omapi_message_process_internal (omapi_object_t *mo, omapi_object_t *po)
 		omapi_signal ((omapi_object_t *)m, "status", waitstatus, tv);
 		if (status == ISC_R_SUCCESS)
 			omapi_value_dereference (&tv, MDL);
+
+		omapi_message_unregister((omapi_object_t *)m);
+
 		return ISC_R_SUCCESS;
 
 	      case OMAPI_OP_DELETE:

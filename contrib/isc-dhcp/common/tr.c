@@ -4,7 +4,7 @@
    Contributed in May of 1999 by Andrew Chittenden */
 
 /*
- * Copyright (c) 1996-2000 Internet Software Consortium.
+ * Copyright (c) 1996-2002 Internet Software Consortium.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,7 +37,7 @@
 
 #ifndef lint
 static char copyright[] =
-"$Id: tr.c,v 1.7 2001/04/27 22:23:02 mellon Exp $ Copyright (c) 1996-2000 The Internet Software Consortium.  All rights reserved.\n";
+"$Id: tr.c,v 1.7.2.1 2002/11/17 02:27:00 dhankins Exp $ Copyright (c) 1996-2002 The Internet Software Consortium.  All rights reserved.\n";
 #endif /* not lint */
 
 #include "dhcpd.h"

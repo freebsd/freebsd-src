@@ -3,7 +3,7 @@
    BPF socket interface code, originally contributed by Archie Cobbs. */
 
 /*
- * Copyright (c) 1996-2000 Internet Software Consortium.
+ * Copyright (c) 1996-2002 Internet Software Consortium.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -47,7 +47,7 @@
 
 #ifndef lint
 static char copyright[] =
-"$Id: bpf.c,v 1.48.2.2 2002/06/08 09:29:16 murray Exp $ Copyright (c) 1995-2000 The Internet Software Consortium.  All rights reserved.\n";
+"$Id: bpf.c,v 1.48.2.3 2002/11/17 02:26:56 dhankins Exp $ Copyright (c) 1995-2002 The Internet Software Consortium.  All rights reserved.\n";
 #endif /* not lint */
 
 #include "dhcpd.h"
