@@ -1053,9 +1053,13 @@ trytofreespace:
 		 * Certain layered filesystems can recursively re-enter the vfs_bio
 		 * code, due to delayed writes.  This helps keep the system from
 		 * deadlocking.
+		 * This hack to avoid premature panic is courtesy of alfred
+		 *   (alfred@freebsd.org)
 		 */
 		if (writerecursion > 0) {
 			if (writerecursion > 5) {
+				int loop = 0;
+norecurse:
 				bp = TAILQ_FIRST(&bufqueues[QUEUE_AGE]);
 				while (bp) {
 					if ((bp->b_flags & B_DELWRI) == 0)
@@ -1070,8 +1074,17 @@ trytofreespace:
 						bp = TAILQ_NEXT(bp, b_freelist);
 					}
 				}
-				if (bp == NULL)
-					panic("getnewbuf: cannot get buffer, infinite recursion failure");
+				if (bp == NULL) {
+					needsbuffer |= VFS_BIO_NEED_ANY;
+					if (tsleep(&needsbuffer, 
+						(PRIBIO + 4) | slpflag, 
+						"nbufhack", slptimeo+1))
+							return (NULL);
+					if (loop++ < 5)
+						goto norecurse;
+					else
+						goto start;
+				}
 			} else {
 				bremfree(bp);
 				bp->b_flags |= B_BUSY | B_AGE | B_ASYNC;
