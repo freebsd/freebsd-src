@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: hdlc.c,v 1.28 1998/01/21 02:15:15 brian Exp $
+ * $Id: hdlc.c,v 1.28.2.1 1998/01/29 00:49:21 brian Exp $
  *
  *	TODO:
  */
@@ -36,6 +36,8 @@
 #include "fsm.h"
 #include "hdlc.h"
 #include "lcpproto.h"
+#include "iplist.h"
+#include "throughput.h"
 #include "ipcp.h"
 #include "ip.h"
 #include "vjcomp.h"

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: lcp.c,v 1.55 1998/01/21 02:15:18 brian Exp $
+ * $Id: lcp.c,v 1.55.2.1 1998/01/29 00:49:24 brian Exp $
  *
  * TODO:
  *      o Validate magic number received from peer.
@@ -47,6 +47,8 @@
 #include "timer.h"
 #include "fsm.h"
 #include "lcp.h"
+#include "iplist.h"
+#include "throughput.h"
 #include "ipcp.h"
 #include "lcpproto.h"
 #include "os.h"

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: slcompress.c,v 1.14 1997/11/22 03:37:50 brian Exp $
+ * $Id: slcompress.c,v 1.15 1997/12/24 09:29:17 brian Exp $
  *
  *	Van Jacobson (van@helios.ee.lbl.gov), Dec 31, 1989:
  *	- Initial distribution.
@@ -414,7 +414,7 @@ sl_uncompress_tcp(u_char ** bufp,
 
   case TYPE_UNCOMPRESSED_TCP:
     ip = (struct ip *) * bufp;
-    if (ip->ip_p >= MAX_STATES)
+    if (ip->ip_p >= MAX_VJ_STATES)
       goto bad;
     cs = &comp->rstate[comp->last_recv = ip->ip_p];
     comp->flags &= ~SLF_TOSS;
@@ -454,7 +454,7 @@ sl_uncompress_tcp(u_char ** bufp,
      * Make sure the state index is in range, then grab the state. If we have
      * a good state index, clear the 'discard' flag.
      */
-    if (*cp >= MAX_STATES || comp->last_recv == 255)
+    if (*cp >= MAX_VJ_STATES || comp->last_recv == 255)
       goto bad;
 
     comp->flags &= ~SLF_TOSS;

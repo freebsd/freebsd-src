@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: auth.c,v 1.27 1998/01/21 02:15:09 brian Exp $
+ * $Id: auth.c,v 1.27.2.1 1998/01/29 00:49:11 brian Exp $
  *
  *	TODO:
  *		o Implement check against with registered IP addresses.
@@ -35,6 +35,8 @@
 #include "defs.h"
 #include "timer.h"
 #include "fsm.h"
+#include "iplist.h"
+#include "throughput.h"
 #include "ipcp.h"
 #include "loadalias.h"
 #include "vars.h"
@@ -160,9 +162,8 @@ AuthGetSecret(const char *fname, const char *system, int len, int setaddr,
       continue;
     if (strlen(vector[0]) == len && strncmp(vector[0], system, len) == 0) {
       ExpandString(vector[1], passwd, sizeof passwd, 0);
-      if (setaddr) {
-	memset(&DefHisAddress, '\0', sizeof DefHisAddress);
-      }
+      if (setaddr)
+	memset(&IpcpInfo.DefHisAddress, '\0', sizeof IpcpInfo.DefHisAddress);
       if (n > 2 && setaddr)
 	if (UseHisaddr(vector[2], 1))
           IpcpInit(physical);

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.121 1998/01/29 00:42:05 brian Exp $
+ * $Id: main.c,v 1.121.2.1 1998/01/29 00:49:26 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -58,6 +58,8 @@
 #include "hdlc.h"
 #include "lcp.h"
 #include "ccp.h"
+#include "iplist.h"
+#include "throughput.h"
 #include "ipcp.h"
 #include "loadalias.h"
 #include "vars.h"
@@ -466,7 +468,7 @@ main(int argc, char **argv)
      */
     SetLabel(label);
     if (mode & MODE_OUTGOING_DAEMON &&
-	DefHisAddress.ipaddr.s_addr == INADDR_ANY) {
+	IpcpInfo.DefHisAddress.ipaddr.s_addr == INADDR_ANY) {
       LogPrintf(LogWARN, "You must \"set ifaddr\" in label %s for"
 		" auto, background or ddial mode.\n", label);
       Cleanup(EX_START);

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.c,v 1.50 1998/01/21 02:15:17 brian Exp $
+ * $Id: ipcp.c,v 1.50.2.1 1998/01/29 00:49:23 brian Exp $
  *
  *	TODO:
  *		o More RFC1772 backwoard compatibility
@@ -44,6 +44,7 @@
 #include "lcpproto.h"
 #include "lcp.h"
 #include "iplist.h"
+#include "throughput.h"
 #include "ipcp.h"
 #include "slcompress.h"
 #include "os.h"
@@ -52,22 +53,17 @@
 #include "vars.h"
 #include "vjcomp.h"
 #include "ip.h"
-#include "throughput.h"
 #include "route.h"
 #include "filter.h"
 #include "physical.h"
 
-#ifndef NOMSEXT
-struct in_addr ns_entries[2];
-struct in_addr nbns_entries[2];
-#endif
+struct compreq {
+  u_short proto;
+  u_char slots;
+  u_char compcid;
+};
 
-struct ipcpstate IpcpInfo;
-struct in_range  DefMyAddress;
-struct in_range  DefHisAddress;
-struct iplist    DefHisChoice;
-struct in_addr   TriggerAddress;
-int HaveTriggerAddress;
+struct ipcpstate IpcpInfo = { MAX_VJ_STATES, 1 };
 
 static void IpcpSendConfigReq(struct fsm *);
 static void IpcpSendTerminateAck(struct fsm *);
@@ -126,18 +122,16 @@ static const char *cftypes128[] = {
 
 #define NCFTYPES128 (sizeof cftypes128/sizeof cftypes128[0])
 
-static struct pppThroughput throughput;
-
 void
 IpcpAddInOctets(int n)
 {
-  throughput_addin(&throughput, n);
+  throughput_addin(&IpcpInfo.throughput, n);
 }
 
 void
 IpcpAddOutOctets(int n)
 {
-  throughput_addout(&throughput, n);
+  throughput_addout(&IpcpInfo.throughput, n);
 }
 
 int
@@ -157,19 +151,21 @@ ReportIpcpStatus(struct cmdargs const *arg)
 
   fprintf(VarTerm, "Defaults:\n");
   fprintf(VarTerm, " My Address:  %s/%d\n",
-	  inet_ntoa(DefMyAddress.ipaddr), DefMyAddress.width);
-  if (iplist_isvalid(&DefHisChoice))
-    fprintf(VarTerm, " His Address: %s\n", DefHisChoice.src);
+	  inet_ntoa(IpcpInfo.DefMyAddress.ipaddr), IpcpInfo.DefMyAddress.width);
+  if (iplist_isvalid(&IpcpInfo.DefHisChoice))
+    fprintf(VarTerm, " His Address: %s\n", IpcpInfo.DefHisChoice.src);
   else
     fprintf(VarTerm, " His Address: %s/%d\n",
-	  inet_ntoa(DefHisAddress.ipaddr), DefHisAddress.width);
-  if (HaveTriggerAddress)
-    fprintf(VarTerm, " Negotiation(trigger): %s\n", inet_ntoa(TriggerAddress));
+	  inet_ntoa(IpcpInfo.DefHisAddress.ipaddr),
+          IpcpInfo.DefHisAddress.width);
+  if (IpcpInfo.HaveTriggerAddress)
+    fprintf(VarTerm, " Negotiation(trigger): %s\n",
+            inet_ntoa(IpcpInfo.TriggerAddress));
   else
     fprintf(VarTerm, " Negotiation(trigger): MYADDR\n");
 
   fprintf(VarTerm, "\n");
-  throughput_disp(&throughput, VarTerm);
+  throughput_disp(&IpcpInfo.throughput, VarTerm);
 
   return 0;
 }
@@ -180,20 +176,15 @@ IpcpDefAddress()
   struct hostent *hp;
   char name[200];
 
-  memset(&DefMyAddress, '\0', sizeof DefMyAddress);
-  memset(&DefHisAddress, '\0', sizeof DefHisAddress);
-  TriggerAddress.s_addr = 0;
-  HaveTriggerAddress = 0;
+  memset(&IpcpInfo.DefMyAddress, '\0', sizeof IpcpInfo.DefMyAddress);
+  memset(&IpcpInfo.DefHisAddress, '\0', sizeof IpcpInfo.DefHisAddress);
+  IpcpInfo.HaveTriggerAddress = 0;
   if (gethostname(name, sizeof name) == 0) {
     hp = gethostbyname(name);
-    if (hp && hp->h_addrtype == AF_INET) {
-      memcpy(&DefMyAddress.ipaddr.s_addr, hp->h_addr, hp->h_length);
-    }
+    if (hp && hp->h_addrtype == AF_INET)
+      memcpy(&IpcpInfo.DefMyAddress.ipaddr.s_addr, hp->h_addr, hp->h_length);
   }
 }
-
-static int VJInitSlots = MAX_STATES;
-static int VJInitComp = 1;
 
 int
 SetInitVJ(struct cmdargs const *args)
@@ -206,13 +197,13 @@ SetInitVJ(struct cmdargs const *args)
     slots = atoi(args->argv[1]);
     if (slots < 4 || slots > 16)
       return 1;
-    VJInitSlots = slots;
+    IpcpInfo.VJInitSlots = slots;
     return 0;
   } else if (!strcasecmp(args->argv[0], "slotcomp")) {
     if (!strcasecmp(args->argv[1], "on"))
-      VJInitComp = 1;
+      IpcpInfo.VJInitComp = 1;
     else if (!strcasecmp(args->argv[1], "off"))
-      VJInitComp = 0;
+      IpcpInfo.VJInitComp = 0;
     else
       return 2;
     return 0;
@@ -224,8 +215,9 @@ int
 ShowInitVJ(struct cmdargs const *args)
 {
   if (VarTerm) {
-    fprintf(VarTerm, "Initial slots: %d\n", VJInitSlots);
-    fprintf(VarTerm, "Initial compression: %s\n", VJInitComp ? "on" : "off");
+    fprintf(VarTerm, "Initial slots: %d\n", IpcpInfo.VJInitSlots);
+    fprintf(VarTerm, "Initial compression: %s\n",
+            IpcpInfo.VJInitComp ? "on" : "off");
   }
   return 0;
 }
@@ -233,15 +225,18 @@ ShowInitVJ(struct cmdargs const *args)
 void
 IpcpInit(struct physical *physical)
 {
-  if (iplist_isvalid(&DefHisChoice))
-    iplist_setrandpos(&DefHisChoice);
+  if (iplist_isvalid(&IpcpInfo.DefHisChoice))
+    iplist_setrandpos(&IpcpInfo.DefHisChoice);
   FsmInit(&IpcpFsm, physical);
-  memset(&IpcpInfo, '\0', sizeof IpcpInfo);
+  IpcpInfo.his_compproto = 0;
+  IpcpInfo.his_reject = IpcpInfo.my_reject = 0;
+
   if ((mode & MODE_DEDICATED) && !GetLabel()) {
-    IpcpInfo.want_ipaddr.s_addr = IpcpInfo.his_ipaddr.s_addr = 0;
+    IpcpInfo.want_ipaddr.s_addr = IpcpInfo.his_ipaddr.s_addr = INADDR_ANY;
+    IpcpInfo.his_ipaddr.s_addr = INADDR_ANY;
   } else {
-    IpcpInfo.want_ipaddr.s_addr = DefMyAddress.ipaddr.s_addr;
-    IpcpInfo.his_ipaddr.s_addr = DefHisAddress.ipaddr.s_addr;
+    IpcpInfo.want_ipaddr.s_addr = IpcpInfo.DefMyAddress.ipaddr.s_addr;
+    IpcpInfo.his_ipaddr.s_addr = IpcpInfo.DefHisAddress.ipaddr.s_addr;
   }
 
   /*
@@ -249,18 +244,22 @@ IpcpInit(struct physical *physical)
    * *special* value as our address, even though the rfc specifies
    * full negotiation (e.g. "0.0.0.0" or Not "0.0.0.0").
    */
-  if (HaveTriggerAddress) {
-    IpcpInfo.want_ipaddr.s_addr = TriggerAddress.s_addr;
-    LogPrintf(LogIPCP, "Using trigger address %s\n", inet_ntoa(TriggerAddress));
+  if (IpcpInfo.HaveTriggerAddress) {
+    IpcpInfo.want_ipaddr.s_addr = IpcpInfo.TriggerAddress.s_addr;
+    LogPrintf(LogIPCP, "Using trigger address %s\n",
+              inet_ntoa(IpcpInfo.TriggerAddress));
   }
+
   if (Enabled(ConfVjcomp))
-    IpcpInfo.want_compproto = (PROTO_VJCOMP << 16) | ((VJInitSlots - 1) << 8) |
-                              VJInitComp;
+    IpcpInfo.want_compproto = (PROTO_VJCOMP << 16) +
+                              ((IpcpInfo.VJInitSlots - 1) << 8) +
+                              IpcpInfo.VJInitComp;
   else
     IpcpInfo.want_compproto = 0;
+
   IpcpInfo.heis1172 = 0;
   IpcpFsm.maxconfig = 10;
-  throughput_init(&throughput);
+  throughput_init(&IpcpInfo.throughput);
 }
 
 static void
@@ -306,7 +305,7 @@ IpcpSendConfigReq(struct fsm * fp)
 static void
 IpcpSendTerminateReq(struct fsm * fp)
 {
-  /* XXX: No code yet */
+  /* Fsm has just send a terminate request */
 }
 
 static void
@@ -335,8 +334,8 @@ static void
 IpcpLayerDown(struct fsm * fp)
 {
   LogPrintf(LogIPCP, "IpcpLayerDown.\n");
-  throughput_stop(&throughput);
-  throughput_log(&throughput, LogIPCP, NULL);
+  throughput_stop(&IpcpInfo.throughput);
+  throughput_log(&IpcpInfo.throughput, LogIPCP, NULL);
 }
 
 /*
@@ -367,7 +366,7 @@ IpcpLayerUp(struct fsm * fp)
     VarPacketAliasSetAddress(IpcpInfo.want_ipaddr);
 #endif
   OsLinkup();
-  throughput_start(&throughput);
+  throughput_start(&IpcpInfo.throughput);
   StartIdleTimer();
 }
 
@@ -428,13 +427,13 @@ IpcpDecodeConfig(u_char * cp, int plen, int mode_type)
 
       switch (mode_type) {
       case MODE_REQ:
-        if (iplist_isvalid(&DefHisChoice)) {
+        if (iplist_isvalid(&IpcpInfo.DefHisChoice)) {
           if (ipaddr.s_addr == INADDR_ANY ||
-              iplist_ip2pos(&DefHisChoice, ipaddr) < 0 ||
-              OsTrySetIpaddress(DefMyAddress.ipaddr, ipaddr) != 0) {
+              iplist_ip2pos(&IpcpInfo.DefHisChoice, ipaddr) < 0 ||
+              OsTrySetIpaddress(IpcpInfo.DefMyAddress.ipaddr, ipaddr) != 0) {
             LogPrintf(LogIPCP, "%s: Address invalid or already in use\n",
                       inet_ntoa(ipaddr));
-            IpcpInfo.his_ipaddr = ChooseHisAddr(DefMyAddress.ipaddr);
+            IpcpInfo.his_ipaddr = ChooseHisAddr(IpcpInfo.DefMyAddress.ipaddr);
             if (IpcpInfo.his_ipaddr.s_addr == INADDR_ANY) {
 	      memcpy(rejp, cp, length);
 	      rejp += length;
@@ -445,7 +444,7 @@ IpcpDecodeConfig(u_char * cp, int plen, int mode_type)
             }
 	    break;
           }
-	} else if (!AcceptableAddr(&DefHisAddress, ipaddr)) {
+	} else if (!AcceptableAddr(&IpcpInfo.DefHisAddress, ipaddr)) {
 	  /*
 	   * If destination address is not acceptable, insist to use what we
 	   * want to use.
@@ -460,7 +459,7 @@ IpcpDecodeConfig(u_char * cp, int plen, int mode_type)
 	ackp += length;
 	break;
       case MODE_NAK:
-	if (AcceptableAddr(&DefMyAddress, ipaddr)) {
+	if (AcceptableAddr(&IpcpInfo.DefMyAddress, ipaddr)) {
 	  /* Use address suggested by peer */
 	  snprintf(tbuff2, sizeof tbuff2, "%s changing address: %s ", tbuff,
 		   inet_ntoa(IpcpInfo.want_ipaddr));
@@ -505,7 +504,7 @@ IpcpDecodeConfig(u_char * cp, int plen, int mode_type)
 	    break;
 	  case 6:		/* RFC1332 */
 	    if (ntohs(pcomp->proto) == PROTO_VJCOMP
-		&& pcomp->slots < MAX_STATES && pcomp->slots > 2) {
+		&& pcomp->slots < MAX_VJ_STATES && pcomp->slots > 2) {
 	      IpcpInfo.his_compproto = compproto;
 	      IpcpInfo.heis1172 = 0;
 	      memcpy(ackp, cp, length);
@@ -513,7 +512,7 @@ IpcpDecodeConfig(u_char * cp, int plen, int mode_type)
 	    } else {
 	      memcpy(nakp, cp, 2);
 	      pcomp->proto = htons(PROTO_VJCOMP);
-	      pcomp->slots = MAX_STATES - 1;
+	      pcomp->slots = MAX_VJ_STATES - 1;
 	      pcomp->compcid = 0;
 	      memcpy(nakp+2, &pcomp, sizeof pcomp);
 	      nakp += length;
@@ -582,7 +581,8 @@ IpcpDecodeConfig(u_char * cp, int plen, int mode_type)
       case MODE_REQ:
 	lp = (u_long *) (cp + 2);
 	dnsstuff.s_addr = *lp;
-	ms_info_req.s_addr = ns_entries[((type - TY_PRIMARY_DNS) ? 1 : 0)].s_addr;
+	ms_info_req.s_addr = IpcpInfo.ns_entries
+          [(type - TY_PRIMARY_DNS) ? 1 : 0].s_addr;
 	if (dnsstuff.s_addr != ms_info_req.s_addr) {
 
 	  /*
@@ -631,7 +631,8 @@ IpcpDecodeConfig(u_char * cp, int plen, int mode_type)
       case MODE_REQ:
 	lp = (u_long *) (cp + 2);
 	dnsstuff.s_addr = *lp;
-	ms_info_req.s_addr = nbns_entries[((type - TY_PRIMARY_NBNS) ? 1 : 0)].s_addr;
+	ms_info_req.s_addr = IpcpInfo.nbns_entries
+          [(type - TY_PRIMARY_NBNS) ? 1 : 0].s_addr;
 	if (dnsstuff.s_addr != ms_info_req.s_addr) {
 	  memcpy(nakp, cp, 2);
 	  memcpy(nakp+2, &ms_info_req.s_addr, length);
@@ -679,31 +680,33 @@ IpcpInput(struct mbuf * bp)
 int
 UseHisaddr(const char *hisaddr, int setaddr)
 {
-  memset(&DefHisAddress, '\0', sizeof DefHisAddress);
-  iplist_reset(&DefHisChoice);
+  memset(&IpcpInfo.DefHisAddress, '\0', sizeof IpcpInfo.DefHisAddress);
+  iplist_reset(&IpcpInfo.DefHisChoice);
   if (strpbrk(hisaddr, ",-")) {
-    iplist_setsrc(&DefHisChoice, hisaddr);
-    if (iplist_isvalid(&DefHisChoice)) {
-      iplist_setrandpos(&DefHisChoice);
+    iplist_setsrc(&IpcpInfo.DefHisChoice, hisaddr);
+    if (iplist_isvalid(&IpcpInfo.DefHisChoice)) {
+      iplist_setrandpos(&IpcpInfo.DefHisChoice);
       IpcpInfo.his_ipaddr = ChooseHisAddr(IpcpInfo.want_ipaddr);
       if (IpcpInfo.his_ipaddr.s_addr == INADDR_ANY) {
-        LogPrintf(LogWARN, "%s: None available !\n", DefHisChoice.src);
+        LogPrintf(LogWARN, "%s: None available !\n", IpcpInfo.DefHisChoice.src);
         return(0);
       }
-      DefHisAddress.ipaddr.s_addr = IpcpInfo.his_ipaddr.s_addr;
-      DefHisAddress.mask.s_addr = 0xffffffff;
-      DefHisAddress.width = 32;
+      IpcpInfo.DefHisAddress.ipaddr.s_addr = IpcpInfo.his_ipaddr.s_addr;
+      IpcpInfo.DefHisAddress.mask.s_addr = INADDR_BROADCAST;
+      IpcpInfo.DefHisAddress.width = 32;
     } else {
       LogPrintf(LogWARN, "%s: Invalid range !\n", hisaddr);
       return 0;
     }
-  } else if (ParseAddr(1, &hisaddr, &DefHisAddress.ipaddr,
-		       &DefHisAddress.mask, &DefHisAddress.width) != 0) {
-    IpcpInfo.his_ipaddr.s_addr = DefHisAddress.ipaddr.s_addr;
+  } else if (ParseAddr(1, &hisaddr, &IpcpInfo.DefHisAddress.ipaddr,
+		       &IpcpInfo.DefHisAddress.mask,
+                       &IpcpInfo.DefHisAddress.width) != 0) {
+    IpcpInfo.his_ipaddr.s_addr = IpcpInfo.DefHisAddress.ipaddr.s_addr;
 
     if (setaddr && OsSetIpaddress
-	(DefMyAddress.ipaddr, DefHisAddress.ipaddr) < 0) {
-      DefMyAddress.ipaddr.s_addr = DefHisAddress.ipaddr.s_addr = 0L;
+	(IpcpInfo.DefMyAddress.ipaddr, IpcpInfo.DefHisAddress.ipaddr) < 0) {
+      IpcpInfo.DefMyAddress.ipaddr.s_addr = INADDR_ANY;
+      IpcpInfo.DefHisAddress.ipaddr.s_addr = INADDR_ANY;
       return 0;
     }
   } else

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.131 1998/01/27 23:14:49 brian Exp $
+ * $Id: command.c,v 1.131.2.1 1998/01/29 00:49:15 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -54,6 +54,7 @@
 #include "phase.h"
 #include "lcp.h"
 #include "iplist.h"
+#include "throughput.h"
 #include "ipcp.h"
 #include "modem.h"
 #include "filter.h"
@@ -586,10 +587,14 @@ ShowMSExt(struct cmdargs const *arg)
 {
   if (VarTerm) {
     fprintf(VarTerm, " MS PPP extention values \n");
-    fprintf(VarTerm, "   Primary NS     : %s\n", inet_ntoa(ns_entries[0]));
-    fprintf(VarTerm, "   Secondary NS   : %s\n", inet_ntoa(ns_entries[1]));
-    fprintf(VarTerm, "   Primary NBNS   : %s\n", inet_ntoa(nbns_entries[0]));
-    fprintf(VarTerm, "   Secondary NBNS : %s\n", inet_ntoa(nbns_entries[1]));
+    fprintf(VarTerm, "   Primary NS     : %s\n",
+            inet_ntoa(IpcpInfo.ns_entries[0]));
+    fprintf(VarTerm, "   Secondary NS   : %s\n",
+            inet_ntoa(IpcpInfo.ns_entries[1]));
+    fprintf(VarTerm, "   Primary NBNS   : %s\n",
+            inet_ntoa(IpcpInfo.nbns_entries[0]));
+    fprintf(VarTerm, "   Secondary NBNS : %s\n",
+            inet_ntoa(IpcpInfo.nbns_entries[1]));
   }
   return 0;
 }
@@ -1242,26 +1247,27 @@ SetInterfaceAddr(struct cmdargs const *arg)
   const char *hisaddr;
 
   hisaddr = NULL;
-  DefMyAddress.ipaddr.s_addr = DefHisAddress.ipaddr.s_addr = 0L;
+  IpcpInfo.DefMyAddress.ipaddr.s_addr = INADDR_ANY;
+  IpcpInfo.DefHisAddress.ipaddr.s_addr = INADDR_ANY;
 
   if (arg->argc > 4)
     return -1;
 
-  HaveTriggerAddress = 0;
+  IpcpInfo.HaveTriggerAddress = 0;
   ifnetmask.s_addr = 0;
-  iplist_reset(&DefHisChoice);
+  iplist_reset(&IpcpInfo.DefHisChoice);
 
   if (arg->argc > 0) {
-    if (!ParseAddr(arg->argc, arg->argv, &DefMyAddress.ipaddr,
-		   &DefMyAddress.mask, &DefMyAddress.width))
+    if (!ParseAddr(arg->argc, arg->argv, &IpcpInfo.DefMyAddress.ipaddr,
+		   &IpcpInfo.DefMyAddress.mask, &IpcpInfo.DefMyAddress.width))
       return 1;
     if (arg->argc > 1) {
       hisaddr = arg->argv[1];
       if (arg->argc > 2) {
 	ifnetmask = GetIpAddr(arg->argv[2]);
 	if (arg->argc > 3) {
-	  TriggerAddress = GetIpAddr(arg->argv[3]);
-	  HaveTriggerAddress = 1;
+	  IpcpInfo.TriggerAddress = GetIpAddr(arg->argv[3]);
+	  IpcpInfo.HaveTriggerAddress = 1;
 	}
       }
     }
@@ -1270,14 +1276,15 @@ SetInterfaceAddr(struct cmdargs const *arg)
   /*
    * For backwards compatibility, 0.0.0.0 means any address.
    */
-  if (DefMyAddress.ipaddr.s_addr == 0) {
-    DefMyAddress.mask.s_addr = 0;
-    DefMyAddress.width = 0;
+  if (IpcpInfo.DefMyAddress.ipaddr.s_addr == INADDR_ANY) {
+    IpcpInfo.DefMyAddress.mask.s_addr = INADDR_ANY;
+    IpcpInfo.DefMyAddress.width = 0;
   }
-  IpcpInfo.want_ipaddr.s_addr = DefMyAddress.ipaddr.s_addr;
-  if (DefHisAddress.ipaddr.s_addr == 0) {
-    DefHisAddress.mask.s_addr = 0;
-    DefHisAddress.width = 0;
+  IpcpInfo.want_ipaddr.s_addr = IpcpInfo.DefMyAddress.ipaddr.s_addr;
+
+  if (IpcpInfo.DefHisAddress.ipaddr.s_addr == INADDR_ANY) {
+    IpcpInfo.DefHisAddress.mask.s_addr = INADDR_ANY;
+    IpcpInfo.DefHisAddress.width = 0;
   }
 
   if (hisaddr && !UseHisaddr(hisaddr, mode & MODE_AUTO))
@@ -1319,14 +1326,16 @@ SetMSEXT(struct in_addr * pri_addr,
 static int
 SetNS(struct cmdargs const *arg)
 {
-  SetMSEXT(&ns_entries[0], &ns_entries[1], arg->argc, arg->argv);
+  SetMSEXT(&IpcpInfo.ns_entries[0], &IpcpInfo.ns_entries[1],
+           arg->argc, arg->argv);
   return 0;
 }
 
 static int
 SetNBNS(struct cmdargs const *arg)
 {
-  SetMSEXT(&nbns_entries[0], &nbns_entries[1], arg->argc, arg->argv);
+  SetMSEXT(&IpcpInfo.nbns_entries[0], &IpcpInfo.nbns_entries[1],
+           arg->argc, arg->argv);
   return 0;
 }
 

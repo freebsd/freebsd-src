@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: filter.c,v 1.21 1997/12/24 09:28:57 brian Exp $
+ * $Id: filter.c,v 1.22 1998/01/21 02:15:14 brian Exp $
  *
  *	TODO: Shoud send ICMP error message when we discard packets.
  */
@@ -37,6 +37,9 @@
 #include "loadalias.h"
 #include "defs.h"
 #include "vars.h"
+#include "iplist.h"
+#include "timer.h"
+#include "throughput.h"
 #include "ipcp.h"
 #include "filter.h"
 
@@ -76,7 +79,7 @@ ParseAddr(int argc,
   }
 
   if (pmask)
-    pmask->s_addr = 0xffffffff;	/* Assume 255.255.255.255 as default */
+    pmask->s_addr = INADDR_BROADCAST;	/* Assume 255.255.255.255 as default */
 
   cp = pmask || pwidth ? strchr(*argv, '/') : NULL;
   len = cp ? cp - *argv : strlen(*argv);

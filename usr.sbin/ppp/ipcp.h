@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ipcp.h,v 1.18 1998/01/18 20:49:19 brian Exp $
+ * $Id: ipcp.h,v 1.18.2.1 1998/01/29 00:49:24 brian Exp $
  *
  *	TODO:
  */
@@ -26,40 +26,48 @@
 #define	TY_COMPPROTO	2
 #define	TY_IPADDR	3
 
-/* MS PPP NameServer and NetBIOS NameServer stuff */
+/* Domain NameServer and NetBIOS NameServer options */
 
-#ifndef NOMSEXT
 #define TY_PRIMARY_DNS		129
 #define TY_PRIMARY_NBNS		130
 #define TY_SECONDARY_DNS	131
 #define TY_SECONDARY_NBNS	132
 
-extern struct in_addr ns_entries[2];
-extern struct in_addr nbns_entries[2];
-#endif
-
-struct ipcpstate {
-  struct in_addr his_ipaddr;	/* IP address he is willing to use */
-  u_int32_t his_compproto;
-
-  struct in_addr want_ipaddr;	/* IP address I'm willing to use */
-  u_int32_t want_compproto;
-
-  u_int32_t his_reject;		/* Request codes rejected by peer */
-  u_int32_t my_reject;		/* Request codes I have rejected */
-  int heis1172;			/* True if he is speaking rfc1172 */
-};
-
-struct compreq {
-  u_short proto;
-  u_char slots;
-  u_char compcid;
-};
-
 struct in_range {
   struct in_addr ipaddr;
   struct in_addr mask;
   int width;
+};
+
+struct ipcpstate {
+  int VJInitSlots;			/* Maximum VJ slots */
+  int VJInitComp : 1;			/* Slot compression */
+
+  int heis1172 : 1;			/* True if he is speaking rfc1172 */
+
+  struct in_addr his_ipaddr;		/* IP address he's willing to use */
+  u_int32_t his_compproto;		/* VJ params he's willing to use */
+
+  struct in_addr want_ipaddr;		/* IP address I'm willing to use */
+  u_int32_t want_compproto;		/* VJ params I'm willing to use */
+
+  u_int32_t his_reject;			/* Request codes rejected by peer */
+  u_int32_t my_reject;			/* Request codes I have rejected */
+
+#ifndef NOMSEXT
+  struct in_addr ns_entries[2];		/* DNS addresses offered */
+  struct in_addr nbns_entries[2];	/* NetBIOS NS addresses offered */
+#endif
+
+  struct in_range  DefMyAddress;	/* MYADDR spec */
+
+  struct in_range  DefHisAddress;	/* HISADDR spec */
+  struct iplist    DefHisChoice;	/* Ranges of HISADDR values */
+
+  struct in_addr   TriggerAddress;	/* Address to suggest in REQ */
+  int HaveTriggerAddress : 1;		/* Trigger address specified */
+
+  struct pppThroughput throughput;	/* throughput statistics */
 };
 
 extern struct ipcpstate IpcpInfo;

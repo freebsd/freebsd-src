@@ -1,7 +1,7 @@
 /*
  * Definitions for tcp compression routines.
  *
- * $Header: /home/ncvs/src/usr.sbin/ppp/slcompress.h,v 1.9 1997/10/26 01:03:46 brian Exp $
+ * $Header: /home/ncvs/src/usr.sbin/ppp/slcompress.h,v 1.10 1997/11/22 03:37:50 brian Exp $
  *
  * Copyright (c) 1989 Regents of the University of California.
  * All rights reserved.
@@ -18,13 +18,13 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: slcompress.h,v 1.9 1997/10/26 01:03:46 brian Exp $
+ * $Id: slcompress.h,v 1.10 1997/11/22 03:37:50 brian Exp $
  *
  *	Van Jacobson (van@helios.ee.lbl.gov), Dec 31, 1989:
  *	- Initial distribution.
  */
 
-#define MAX_STATES 16		/* must be > 2 and < 256 */
+#define MAX_VJ_STATES 16		/* must be > 2 and < 256 */
 #define MAX_HDR 128		/* XXX 4bsd-ism: should really be 128 */
 
 /*
@@ -120,8 +120,8 @@ struct slcompress {
   u_char last_recv;		/* last rcvd conn. id */
   u_char last_xmit;		/* last sent conn. id */
   u_short flags;
-  struct cstate tstate[MAX_STATES];	/* xmit connection states */
-  struct cstate rstate[MAX_STATES];	/* receive connection states */
+  struct cstate tstate[MAX_VJ_STATES];	/* xmit connection states */
+  struct cstate rstate[MAX_VJ_STATES];	/* receive connection states */
 };
 
 /* flag values */

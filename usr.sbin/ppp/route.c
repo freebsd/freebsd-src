@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: route.c,v 1.41 1998/01/19 02:59:33 brian Exp $
+ * $Id: route.c,v 1.42 1998/01/21 02:15:26 brian Exp $
  *
  */
 
@@ -48,8 +48,10 @@
 #include "vars.h"
 #include "id.h"
 #include "os.h"
-#include "ipcp.h"
 #include "iplist.h"
+#include "timer.h"
+#include "throughput.h"
+#include "ipcp.h"
 #include "route.h"
 
 static int IfIndex;
@@ -557,8 +559,8 @@ ChooseHisAddr(const struct in_addr gw)
   struct in_addr try;
   int f;
 
-  for (f = 0; f < DefHisChoice.nItems; f++) {
-    try = iplist_next(&DefHisChoice);
+  for (f = 0; f < IpcpInfo.DefHisChoice.nItems; f++) {
+    try = iplist_next(&IpcpInfo.DefHisChoice);
     LogPrintf(LogDEBUG, "ChooseHisAddr: Check item %d (%s)\n",
               f, inet_ntoa(try));
     if (OsTrySetIpaddress(gw, try) == 0) {
@@ -568,7 +570,7 @@ ChooseHisAddr(const struct in_addr gw)
     }
   }
 
-  if (f == DefHisChoice.nItems) {
+  if (f == IpcpInfo.DefHisChoice.nItems) {
     LogPrintf(LogDEBUG, "ChooseHisAddr: All addresses in use !\n");
     try.s_addr = INADDR_ANY;
   }

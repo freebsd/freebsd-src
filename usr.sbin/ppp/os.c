@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: os.c,v 1.41 1998/01/19 02:59:33 brian Exp $
+ * $Id: os.c,v 1.42 1998/01/21 02:15:23 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -42,6 +42,8 @@
 #include "defs.h"
 #include "timer.h"
 #include "fsm.h"
+#include "iplist.h"
+#include "throughput.h"
 #include "ipcp.h"
 #include "os.h"
 #include "loadalias.h"
@@ -79,7 +81,7 @@ SetIpDevice(struct in_addr myaddr,
   if (how == SET_DOWN) {
     if (Enabled(ConfProxy))
       cifproxyarp(s, oldhis);
-    if (oldmine.s_addr == 0 && oldhis.s_addr == 0) {
+    if (oldmine.s_addr == INADDR_ANY && oldhis.s_addr == INADDR_ANY) {
       close(s);
       return (0);
     }
@@ -92,7 +94,7 @@ SetIpDevice(struct in_addr myaddr,
       close(s);
       return (-1);
     }
-    oldmine.s_addr = oldhis.s_addr = 0;
+    oldmine.s_addr = oldhis.s_addr = INADDR_ANY;
   } else {
     /* If given addresses are alreay set, then ignore this request */
     if (oldmine.s_addr == myaddr.s_addr && oldhis.s_addr == hisaddr.s_addr) {
@@ -299,7 +301,7 @@ OsInterfaceDown(int final)
     close(s);
     return (-1);
   }
-  zeroaddr.s_addr = 0;
+  zeroaddr.s_addr = INADDR_ANY;
   SetIpDevice(zeroaddr, zeroaddr, zeroaddr, SET_DOWN);
 
   close(s);

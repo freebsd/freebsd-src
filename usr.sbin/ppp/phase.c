@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: phase.c,v 1.6 1997/12/21 12:11:07 brian Exp $
+ *	$Id: phase.c,v 1.6.4.1 1998/01/29 00:49:28 brian Exp $
  */
 
 #include <sys/param.h>
@@ -41,6 +41,8 @@
 #include "pap.h"
 #include "chap.h"
 #include "defs.h"
+#include "iplist.h"
+#include "throughput.h"
 #include "ipcp.h"
 #include "ccp.h"
 #include "main.h"

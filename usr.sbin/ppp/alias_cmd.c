@@ -2,7 +2,7 @@
  * The code in this file was written by Eivind Eklund <perhaps@yes.no>,
  * who places it in the public domain without restriction.
  *
- *	$Id: alias_cmd.c,v 1.11 1997/12/24 10:28:37 brian Exp $
+ *	$Id: alias_cmd.c,v 1.12 1998/01/21 02:15:07 brian Exp $
  */
 
 #include <sys/param.h>
@@ -76,7 +76,7 @@ AliasRedirectPort(struct cmdargs const *arg)
       }
       return 1;
     }
-    null_addr.s_addr = 0;
+    null_addr.s_addr = INADDR_ANY;
 
     link = VarPacketAliasRedirectPort(local_addr, local_port,
 				      null_addr, 0,

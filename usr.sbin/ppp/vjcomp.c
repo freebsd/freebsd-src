@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: vjcomp.c,v 1.16 1998/01/21 02:15:33 brian Exp $
+ * $Id: vjcomp.c,v 1.16.2.1 1998/01/29 00:49:32 brian Exp $
  *
  *  TODO:
  */
@@ -37,6 +37,9 @@
 #include "lcpproto.h"
 #include "slcompress.h"
 #include "hdlc.h"
+#include "defs.h"
+#include "iplist.h"
+#include "throughput.h"
 #include "ipcp.h"
 #include "vjcomp.h"
 
