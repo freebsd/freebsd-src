@@ -73,12 +73,14 @@ MINUSLPAM+=	-lkrb5 -lasn1 -lroken
 LIBPAM+=	${LIBCOM_ERR}
 MINUSLPAM+=	-lcom_err
 .endif
-LIBPAM+=	
-LIBPAM+=	${LIBRADIUS} ${LIBRPCSVC} ${LIBTACPLUS} \
-		${LIBSSH} ${LIBCRYPTO} ${LIBCRYPT} \
-		${LIBUTIL} ${LIBOPIE} ${LIBMD} ${LIBZ}
-MINUSLPAM+=	-lradius -lrpcsvc -ltacplus -lssh -lcrypto -lcrypt \
-		-lutil -lopie -lmd -lz
+LIBPAM+=	${LIBRADIUS} ${LIBRPCSVC} ${LIBTACPLUS} ${LIBCRYPT} \
+		${LIBUTIL} ${LIBOPIE} ${LIBMD}
+MINUSLPAM+=	-lradius -lrpcsvc -ltacplus -lcrypt \
+		-lutil -lopie -lmd
+.if !defined(NOCRYPT) && !defined(NO_OPENSSL) && !defined(NO_OPENSSH)
+LIBPAM+=	${LIBSSH} ${LIBCRYPTO}
+MINUSLPAM+=	-lssh -lcrypto
+.endif
 .endif
 
 LIBPANEL?=	${DESTDIR}${LIBDIR}/libpanel.a
@@ -93,6 +95,7 @@ LIBROKEN?=	${DESTDIR}${LIBDIR}/libroken.a	# XXX in secure dist, not base
 LIBRPCSVC?=	${DESTDIR}${LIBDIR}/librpcsvc.a
 LIBSBUF?=	${DESTDIR}${LIBDIR}/libsbuf.a
 LIBSMB?=	${DESTDIR}${LIBDIR}/libsmb.a
+LIBSSH?=	${DESTDIR}${LIBDIR}/libssh.a	# XXX in secure dist, not base
 LIBSSL?=	${DESTDIR}${LIBDIR}/libssl.a	# XXX in secure dist, not base
 LIBSTDCPLUSPLUS?= ${DESTDIR}${LIBDIR}/libstdc++.a
 LIBTACPLUS?=	${DESTDIR}${LIBDIR}/libtacplus.a
