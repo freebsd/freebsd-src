@@ -93,6 +93,10 @@ __FBSDID("$FreeBSD$");
 #define	SLAVE_MODE		BASE_SLAVE_MODE
 #endif
 
+#define	IMEN_MASK(ai)		(1 << (ai)->at_irq)
+
+#define	NUM_ISA_IRQS		16
+
 static void	atpic_init(void *dummy);
 
 unsigned int imen;	/* XXX */
@@ -166,6 +170,8 @@ static struct atpic_intsrc atintrs[] = {
 	INTSRC(15),
 };
 
+CTASSERT(sizeof(atintrs) / sizeof(struct atpic_intsrc) == NUM_ISA_IRQS);
+
 static void
 atpic_enable_source(struct intsrc *isrc)
 {
@@ -173,8 +179,10 @@ atpic_enable_source(struct intsrc *isrc)
 	struct atpic *ap = (struct atpic *)isrc->is_pic;
 
 	mtx_lock_spin(&icu_lock);
-	*ap->at_imen &= ~(1 << ai->at_irq);
-	outb(ap->at_ioaddr + ICU_IMR_OFFSET, *ap->at_imen);
+	if (*ap->at_imen & IMEN_MASK(ai)) {
+		*ap->at_imen &= ~IMEN_MASK(ai);
+		outb(ap->at_ioaddr + ICU_IMR_OFFSET, *ap->at_imen);
+	}
 	mtx_unlock_spin(&icu_lock);
 }
 
@@ -185,7 +193,7 @@ atpic_disable_source(struct intsrc *isrc)
 	struct atpic *ap = (struct atpic *)isrc->is_pic;
 
 	mtx_lock_spin(&icu_lock);
-	*ap->at_imen |= (1 << ai->at_irq);
+	*ap->at_imen |= IMEN_MASK(ai);
 	outb(ap->at_ioaddr + ICU_IMR_OFFSET, *ap->at_imen);
 	mtx_unlock_spin(&icu_lock);
 }
@@ -243,7 +251,7 @@ atpic_source_pending(struct intsrc *isrc)
 	struct atpic_intsrc *ai = (struct atpic_intsrc *)isrc;
 	struct atpic *ap = (struct atpic *)isrc->is_pic;
 
-	return (inb(ap->at_ioaddr) & (1 << ai->at_irq));
+	return (inb(ap->at_ioaddr) & IMEN_MASK(ai));
 }
 
 static void
@@ -318,10 +326,9 @@ atpic_startup(void)
 	atpic_enable_source((struct intsrc *)&atintrs[ICU_SLAVEID]);
 
 	/* Install low-level interrupt handlers for all of our IRQs. */
-	for (i = 0; i < sizeof(atintrs) / sizeof(struct atpic_intsrc); i++) {
+	for (i = 0, ai = atintrs; i < NUM_ISA_IRQS; i++, ai++) {
 		if (i == ICU_SLAVEID)
 			continue;
-		ai = &atintrs[i];
 		ai->at_intsrc.is_count = &ai->at_count;
 		ai->at_intsrc.is_straycount = &ai->at_straycount;
 		setidt(((struct atpic *)ai->at_intsrc.is_pic)->at_intbase +
@@ -333,13 +340,14 @@ atpic_startup(void)
 static void
 atpic_init(void *dummy __unused)
 {
+	struct atpic_intsrc *ai;
 	int i;
 
 	/* Loop through all interrupt sources and add them. */
-	for (i = 0; i < sizeof(atintrs) / sizeof(struct atpic_intsrc); i++) {
+	for (i = 0, ai = atintrs; i < NUM_ISA_IRQS; i++, ai++) {
 		if (i == ICU_SLAVEID)
 			continue;
-		intr_register_source(&atintrs[i].at_intsrc);
+		intr_register_source(&ai->at_intsrc);
 	}
 }
 SYSINIT(atpic_init, SI_SUB_INTR, SI_ORDER_SECOND + 1, atpic_init, NULL)
