@@ -166,15 +166,7 @@ typedef int l_rint_t(int c, struct tty *tp);
 typedef int l_start_t(struct tty *tp);
 typedef int l_modem_t(struct tty *tp, int flag);
 
-/*
- * XXX: The dummy argument can be used to do what strategy1() never
- * did anywhere:  Create a per device flag to lock the device during
- * label/slice surgery, all calls with a dummy == 0 gets stalled on
- * a queue somewhere, whereas dummy == 1 are let through.  Once out
- * of surgery, reset the flag and restart all the stuff on the stall
- * queue.
- */
-#define BIO_STRATEGY(bp, dummy)						\
+#define BIO_STRATEGY(bp)						\
 	do {								\
 	if ((!(bp)->bio_cmd) || ((bp)->bio_cmd & ((bp)->bio_cmd - 1)))	\
 		Debugger("bio_cmd botch");				\
@@ -189,7 +181,7 @@ typedef int l_modem_t(struct tty *tp, int flag);
 		(bp)->b_io.bio_offset = dbtob((bp)->b_blkno);		\
 	(bp)->b_io.bio_done = bufdonebio;				\
 	(bp)->b_io.bio_caller2 = (bp);					\
-	BIO_STRATEGY(&(bp)->b_io, dummy);				\
+	BIO_STRATEGY(&(bp)->b_io);					\
 	} while (0)
 
 #endif /* _KERNEL */
