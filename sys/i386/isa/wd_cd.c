@@ -25,15 +25,15 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: atapi-cd.c,v 1.10 1999/01/31 23:08:47 sos Exp $
+ *	$Id: atapi-cd.c,v 1.11 1999/02/10 00:03:32 ken Exp $
  */
 
 #include "wdc.h"
-#include "acd.h"
+#include "wcd.h"
 #include "opt_atapi.h"
 #include "opt_devfs.h"
 
-#if NACD > 0 && NWDC > 0 && defined(ATAPI)
+#if NWCD > 0 && NWDC > 0 && defined(ATAPI)
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -66,7 +66,7 @@ static d_strategy_t	acdstrategy;
 static struct cdevsw acd_cdevsw = {
     acdopen,	acdclose,	acdread,	acdwrite,	
     acdioctl,	nostop,		nullreset,	nodevtotty,
-    seltrue,	nommap,		acdstrategy,	"acd",
+    seltrue,	nommap,		acdstrategy,	"wcd",
     NULL,	-1,		nodump,		nopsize,
     D_DISK,	0,		-1
 };
@@ -141,19 +141,19 @@ acd_init_lun(struct atapi *ata, int unit, struct atapi_params *ap, int lun,
     ptr->ra_devfs_token =
         devfs_add_devswf(&acd_cdevsw, dkmakeminor(lun, 0, 0),
         DV_CHR, UID_ROOT, GID_OPERATOR, 0640,
-        "racd%da", lun);
+        "rwcd%da", lun);
     ptr->rc_devfs_token =
-        devfs_add_devswf(&acd_cdevsw, dkmakeminor(lun, 0, RAW_PART),
+        devfs_add_devswf(&wcd_cdevsw, dkmakeminor(lun, 0, RAW_PART),
         DV_CHR, UID_ROOT, GID_OPERATOR, 0640,
-        "racd%dc", lun);
+        "rwcd%dc", lun);
     ptr->a_devfs_token =
-        devfs_add_devswf(&acd_cdevsw, dkmakeminor(lun, 0, 0),
+        devfs_add_devswf(&wcd_cdevsw, dkmakeminor(lun, 0, 0),
         DV_BLK, UID_ROOT, GID_OPERATOR, 0640,
-        "acd%da", lun);
+        "wcd%da", lun);
     ptr->c_devfs_token =
-        devfs_add_devswf(&acd_cdevsw, dkmakeminor(lun, 0, RAW_PART),
+        devfs_add_devswf(&wcd_cdevsw, dkmakeminor(lun, 0, RAW_PART),
         DV_BLK, UID_ROOT, GID_OPERATOR, 0640,
-        "acd%dc", lun);
+        "wcd%dc", lun);
 #endif
     return ptr;
 }
@@ -170,15 +170,15 @@ acdattach(struct atapi *ata, int unit, struct atapi_params *ap, int debug)
     int i, count;
 
     if (acdnlun >= NUNIT) {
-        printf("acd: too many units\n");
+        printf("wcd: too many units\n");
         return 0;
     }
     if (!atapi_request_immediate) {
-        printf("acd: configuration error, ATAPI code not present!\n");
+        printf("wcd: configuration error, ATAPI code not present!\n");
         return 0;
     }
     if ((cdp = acd_init_lun(ata, unit, ap, acdnlun, NULL)) == NULL) {
-        printf("acd: out of memory\n");
+        printf("wcd: out of memory\n");
         return 0;
     }
     acdtab[acdnlun] = cdp;
@@ -222,7 +222,7 @@ acdattach(struct atapi *ata, int unit, struct atapi_params *ap, int debug)
 
         chp = malloc(sizeof(struct changer), M_TEMP, M_NOWAIT);
         if (chp == NULL) {
-            printf("acd: out of memory\n");
+            printf("wcd: out of memory\n");
             return 0;
         }
         bzero(chp, sizeof(struct changer));
@@ -247,22 +247,22 @@ acdattach(struct atapi *ata, int unit, struct atapi_params *ap, int debug)
                     tmpcdp = acd_init_lun(ata, unit, ap, acdnlun, 
 					  cdp->device_stats);
 		    if (!tmpcdp) {
-                        printf("acd: out of memory\n");
+                        printf("wcd: out of memory\n");
                         return 0;
                     }
                 }
                 tmpcdp->slot = i;
                 tmpcdp->changer_info = chp;
-                printf("acd%d: changer slot %d %s\n", acdnlun, i,
+                printf("wcd%d: changer slot %d %s\n", acdnlun, i,
 		       (chp->slot[i].present ? "disk present" : "no disk"));
                 acdtab[acdnlun++] = tmpcdp;
             }
             if (acdnlun >= NUNIT) {
-                printf("acd: too many units\n");
+                printf("wcd: too many units\n");
                 return 0;
             }
         }
-	sprintf(string, "acd%d-", cdp->lun);
+	sprintf(string, "wcd%d-", cdp->lun);
         devstat_add_entry(cdp->device_stats, string, tmpcdp->lun, DEV_BSIZE,
                           DEVSTAT_NO_ORDERED_TAGS,
                           DEVSTAT_TYPE_CDROM | DEVSTAT_TYPE_IF_IDE,
@@ -270,7 +270,7 @@ acdattach(struct atapi *ata, int unit, struct atapi_params *ap, int debug)
     }
     else {
         acdnlun++;
-        devstat_add_entry(cdp->device_stats, "acd", cdp->lun, DEV_BSIZE,
+        devstat_add_entry(cdp->device_stats, "wcd", cdp->lun, DEV_BSIZE,
                           DEVSTAT_NO_ORDERED_TAGS,
                           DEVSTAT_TYPE_CDROM | DEVSTAT_TYPE_IF_IDE,
 			  DEVSTAT_PRIORITY_WCD);
@@ -284,14 +284,14 @@ acd_describe(struct acd *cdp)
     int comma;
     char *mechanism;
 
-    printf("acd%d: drive speed ", cdp->lun);
+    printf("wcd%d: drive speed ", cdp->lun);
     if (cdp->cap.cur_speed != cdp->cap.max_speed)
         printf("%d - ", cdp->cap.cur_speed * 1000 / 1024);
     printf("%dKB/sec", cdp->cap.max_speed * 1000 / 1024);
     if (cdp->cap.buf_size)
         printf(", %dKB cache\n", cdp->cap.buf_size);
 
-    printf("acd%d: supported read types:", cdp->lun);
+    printf("wcd%d: supported read types:", cdp->lun);
     comma = 0;
     if (cdp->cap.read_cdr) {
         printf(" CD-R"); comma = 1;
@@ -305,7 +305,7 @@ acd_describe(struct acd *cdp)
     if (cdp->cap.method2)
         printf("%s packet track", comma ? "," : "");
     if (cdp->cap.write_cdr || cdp->cap.write_cdrw) {
-    	printf("\nacd%d: supported write types:", cdp->lun);
+    	printf("\nwcd%d: supported write types:", cdp->lun);
         comma = 0;
     	if (cdp->cap.write_cdr) {
             printf(" CD-R" ); comma = 1;
@@ -318,13 +318,13 @@ acd_describe(struct acd *cdp)
 	}
     }
     if (cdp->cap.audio_play) {
-    	printf("\nacd%d: Audio: ", cdp->lun);
+    	printf("\nwcd%d: Audio: ", cdp->lun);
     	if (cdp->cap.audio_play)
             printf("play");
     	if (cdp->cap.max_vol_levels)
             printf(", %d volume levels", cdp->cap.max_vol_levels);
     }
-    printf("\nacd%d: Mechanism: ", cdp->lun);
+    printf("\nwcd%d: Mechanism: ", cdp->lun);
     switch (cdp->cap.mech) {
     case MST_MECH_CADDY:
         mechanism = "caddy"; break;
@@ -345,7 +345,7 @@ acd_describe(struct acd *cdp)
         printf("ejectable");
 
     if (cdp->cap.mech != MST_MECH_CHANGER) {
-        printf("\nacd%d: Medium: ", cdp->lun);
+        printf("\nwcd%d: Medium: ", cdp->lun);
         switch (cdp->cap.medium_type & MST_TYPE_MASK_HIGH) {
         case MST_CDROM:
             printf("CD-ROM "); break;
@@ -424,13 +424,13 @@ acdopen(dev_t dev, int flags, int fmt, struct proc *p)
         if ((flags & FWRITE) != 0) {
             /* read/write */
             if (acd_rezero_unit(cdp)) {
-                printf("acd%d: rezero failed\n", lun);
+                printf("wcd%d: rezero failed\n", lun);
                 return EIO;
             }
         } else {
             /* read only */
             if (acd_read_toc(cdp) != 0) {
-                printf("acd%d: read_toc failed\n", lun);
+                printf("wcd%d: read_toc failed\n", lun);
                 /* return EIO; */
             }
         }
@@ -535,7 +535,7 @@ acd_start(struct acd *cdp)
     if ((bp->b_flags & B_READ) == B_WRITE) {
         if ((cdp->flags & F_TRACK_PREPED) == 0) {
             if ((cdp->flags & F_TRACK_PREP) == 0) {
-                printf("acd%d: sequence error\n", cdp->lun);
+                printf("wcd%d: sequence error\n", cdp->lun);
                 bp->b_error = EIO;
                 bp->b_flags |= B_ERROR;
                 biodone(bp);
@@ -1064,7 +1064,7 @@ acdioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
                 error = EINVAL;
             else if ((cdp->flags & F_DISK_PREPED) == 0) {
                 error = EINVAL;
-                printf("acd%d: sequence error (PREP_TRACK)\n", cdp->lun);
+                printf("wcd%d: sequence error (PREP_TRACK)\n", cdp->lun);
             } else {
                 cdp->flags |= F_TRACK_PREP;
                 cdp->preptrack = *w;
@@ -1175,7 +1175,7 @@ acd_read_toc(struct acd *cdp)
 
     if (cdp->info.volsize && cdp->toc.hdr.ending_track
         && (cdp->flags & F_DEBUG)) {
-        printf("acd%d: ", cdp->lun);
+        printf("wcd%d: ", cdp->lun);
         if (cdp->toc.tab[0].control & 4)
             printf("%ldMB ", cdp->info.volsize / 512);
         else
@@ -1254,8 +1254,8 @@ acd_eject(struct acd *cdp, int close)
     if (close)
         return 0;
 
-    tsleep((caddr_t) &lbolt, PRIBIO, "acdej1", 0);
-    tsleep((caddr_t) &lbolt, PRIBIO, "acdej2", 0);
+    tsleep((caddr_t) &lbolt, PRIBIO, "wcdej1", 0);
+    tsleep((caddr_t) &lbolt, PRIBIO, "wcdej2", 0);
 
     acd_request_wait(cdp, ATAPI_PREVENT_ALLOW, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
     cdp->flags &= ~F_LOCKED;
@@ -1524,7 +1524,7 @@ atapi_dump(int ctrlr, int lun, char *label, void *data, int len)
 	printf ("\n");
 }
 
-#ifdef ACD_MODULE
+#ifdef WCD_MODULE
 #include <sys/exec.h>
 #include <sys/sysent.h>
 #include <sys/lkm.h>
@@ -1596,7 +1596,7 @@ acd_mod(struct lkm_table *lkmtp, int cmd, int ver)
     return lkmdispatch(lkmtp, cmd);
 }
 
-#endif /* ACD_MODULE */
+#endif /* WCD_MODULE */
 
 static acd_devsw_installed = 0;
 
@@ -1610,4 +1610,4 @@ acd_drvinit(void *unused)
 }
 
 SYSINIT(acddev, SI_SUB_DRIVERS, SI_ORDER_MIDDLE + CDEV_MAJOR, acd_drvinit, NULL)
-#endif /* NACD && NWDC && ATAPI */
+#endif /* NWCD && NWDC && ATAPI */

@@ -121,7 +121,7 @@
 #	ipl	ipfilter control devices (ipl, ipnat, ipstate, ipauth)
 #	kbd	keyboard devices
 #
-#	$Id: MAKEDEV,v 1.191 1999/03/02 16:04:27 roger Exp $
+#	$Id: MAKEDEV,v 1.192 1999/03/05 23:08:45 gibbs Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:$PATH
@@ -211,7 +211,7 @@ all)
 	sh MAKEDEV od0					# bdev, optical disk
 	sh MAKEDEV wfd0					# bdev, LS-120 floppy
 	sh MAKEDEV vn0					# bdev, virtual disk
-	sh MAKEDEV cd0 matcd0 mcd0 scd0 acd0		# bdev, cdrom
+	sh MAKEDEV cd0 matcd0 mcd0 scd0 wcd0		# bdev, cdrom
 	sh MAKEDEV ft0 sa0 wt0 wst0			# bdev, tape
 	sh MAKEDEV vty4					# cdev, virtual tty
 	sh MAKEDEV cuaa0 cuaa1 cuaa2 cuaa3		# cdev, serial tty
@@ -290,9 +290,11 @@ wt*)
 	;;
 
 # Individual slices.
-od*s*|sd*s*|da*s*|vn*s*|wd*s*|wfd*s*|fla*s*)
+ad*s*|od*s*|sd*s*|da*s*|vn*s*|wd*s*|afd*s*|wfd*s*|fla*s*)
 	umask $disk_umask
 	case $i in
+	ad*s*) name=ad; blk=30; chr=116;;
+	afd*s*) name=afd; blk=32; chr=118;;
 	fla*s*) name=fla; blk=28; chr=101;;
 	od*s*) name=od; blk=4;  chr=13;;
 	sd*s*) name=sd; blk=4;  chr=13;;
@@ -302,7 +304,7 @@ od*s*|sd*s*|da*s*|vn*s*|wd*s*|wfd*s*|fla*s*)
 	wfd*s*) name=wfd; blk=1; chr=87;;
 	esac
 	case $i in
-	fla*s*|wfd*s*)
+	afd*s*|fla*s*|wfd*s*)
 		unit=`expr $i : '...\([0-9]*\)s'`
 		slice=`expr $i : '...[0-9]*s\([0-9]*\)'`
 		part=`expr $i : '...[0-9]*s[0-9]*\(.*\)'`
@@ -461,9 +463,11 @@ ft*)
 	umask 77
 	;;
 
-sd*|od*|da*|vn*|wd*|wfd*|fla*)
+ad*|sd*|od*|da*|vn*|wd*|afd*|wfd*|fla*)
 	umask $disk_umask
 	case $i in
+	ad*) name=ad; blk=30; chr=116;;
+	afd*) name=afd; blk=32; chr=118;;
 	fla*) name=fla; blk=28; chr=101;;
 	sd*) name=sd; blk=4; chr=13;;
 	od*) name=od; blk=4; chr=13;;
@@ -473,7 +477,7 @@ sd*|od*|da*|vn*|wd*|wfd*|fla*)
 	wfd*) name=wfd; blk=1; chr=87;;
 	esac
 	case $i in
-	fla*|wfd*)
+	afd*|fla*|wfd*)
 		unit=`expr $i : '...\(.*\)'`
 		;;
 	*)
@@ -659,9 +663,27 @@ ch*)
 	umask 77
 	;;
 
-cd*|mcd*|scd*)
+ast*)
+	umask 2 ;
+	unit=`expr $i : '...\(.*\)'`
+	chr=119
+	case $unit in
+	0|1|2|3)
+		mknod rast${unit} c $chr `expr $unit '*' 8 + 0`
+		chgrp operator rast${unit}
+		chmod 640 rast${unit}
+		;;
+	*)
+		echo bad unit for tape in: $i
+		;;
+	esac
+	umask 77
+	;;
+
+acd*|cd*|mcd*|scd*)
 	umask $disk_umask
 	case $i in
+	acd*) units=`expr $i : '...\(.*\)'`; name=acd; blk=31; chr=117;;
 	cd*) units=`expr $i : '..\(.*\)'`; name=cd; blk=6; chr=15;;
 	mcd*) units=`expr $i : '...\(.*\)'`; name=mcd; blk=7; chr=29;;
 	scd*) units=`expr $i : '...\(.*\)'`; name=scd; blk=16; chr=45;;
@@ -720,23 +742,19 @@ matcd*)
 	umask 77
 	;;
 
-acd?|wcd?)
+wcd?)
 	umask 2 ;
 	unit=`expr $i : '...\(.*\)'`
 	blk=19
 	chr=69
 	case $unit in
 	0|1|2|3|4|5|6|7)
-		mknod acd${unit}a  b $blk `expr $unit '*' 8 + 0`
-		ln -fs acd${unit}a wcd${unit}a 
-		mknod racd${unit}a c $chr `expr $unit '*' 8 + 0`
-		ln -fs racd${unit}a rwcd${unit}a
-		mknod acd${unit}c  b $blk `expr $unit '*' 8 + 2`
-		ln -fs acd${unit}c wcd${unit}c
-		mknod racd${unit}c c $chr `expr $unit '*' 8 + 2`
-		ln -fs racd${unit}c rwcd${unit}c
-		chgrp operator acd${unit}[a-h] racd${unit}[a-h]
-		chmod 640 acd${unit}[a-h] racd${unit}[a-h]
+		mknod wcd${unit}a  b $blk `expr $unit '*' 8 + 0`
+		mknod rwcd${unit}a c $chr `expr $unit '*' 8 + 0`
+		mknod wcd${unit}c  b $blk `expr $unit '*' 8 + 2`
+		mknod rwcd${unit}c c $chr `expr $unit '*' 8 + 2`
+		chgrp operator wcd${unit}[a-h] rwcd${unit}[a-h]
+		chmod 640 wcd${unit}[a-h] rwcd${unit}[a-h]
 		;;
 	*)
 		echo bad unit for disk in: $i

@@ -103,7 +103,7 @@
 #include "opt_atapi.h"
 
 #ifndef ATAPI_MODULE
-# include "acd.h"
+# include "wcd.h"
 # include "wfd.h"
 # include "wst.h"
 /* # include "wmd.h" -- add your driver here */
@@ -293,7 +293,7 @@ int atapi_attach (int ctlr, int unit, int port)
 		}
 #endif
 	case AT_TYPE_CDROM:             /* CD-ROM device */
-#if NACD > 0
+#if NWCD > 0
 		/* ATAPI CD-ROM & CD-R/RW drives */
 		if (acdattach (ata, unit, ap, ata->debug) < 0)
 			break;
