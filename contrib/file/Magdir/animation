@@ -118,6 +118,12 @@
 #>3     byte&0x03       1               \b, Emphasis 5
 #>3     byte&0x03       3               \b, Emphasis c
 
+#From: Johan Gade <jgade@diku.dk>
+
+# MPEG-4 Advanced Audio Coding (AAC) file (perhaps also MPEG-2 ACC?)
+16	string		M4A		MPEG-4 Advanced Audio Coding file (AAC)
+
+
 # FLI animation format
 4	leshort		0xAF11			FLI file
 >6	leshort		x			- %d frames,
@@ -157,10 +163,19 @@
 # \003.  Most of them start with non-null values at hex offset 0x34 or so.
 #0	string	\3\0\0\0\0\0\0\0\0\0\0\0	DL version 3
 
-# SGI and Apple formats
+# SGI formats
 0	string		MOVI		Silicon Graphics movie file
+
+# Apple Quicktime: Scan for all known top-level QT atom markers
 4	string		moov		Apple QuickTime movie file (moov)
 4	string		mdat		Apple QuickTime movie file (mdat)
+4	string		ftyp		Apple QuickTime movie file (ftyp)
+4	string		free		Apple QuickTime movie file (free)
+4	string		junk		Apple QuickTime movie file (junk)
+4	string		pnot		Apple QuickTime movie file (pnot)
+4	string		skip		Apple QuickTime movie file (skip)
+4	string		wide		Apple QuickTime movie file (wide)
+4	string		pict		Apple QuickTime movie file (pict)
 
 # iso 13818 transport stream
 #
@@ -194,3 +209,32 @@
 0	string			\x8aMNG		MNG video data,
 >4	belong			!0x0d0a1a0a	CORRUPTED,
 >4	belong			0x0d0a1a0a
+>>16    belong	x				%ld x
+>>20    belong	x				%ld
+
+# JNG Video Format, <URL:http://www.libpng.org/pub/mng/spec/>
+0	string			\x8bJNG		JNG video data,
+>4	belong			!0x0d0a1a0a	CORRUPTED,
+>4	belong			0x0d0a1a0a
+>>16    belong	x				%ld x
+>>20    belong	x				%ld
+
+# Vivo video (Wolfram Kleff)
+3	string		\x0D\x0AVersion:Vivo	Vivo video data
+
+# VRML (Virtual Reality Modelling Language)
+0       string/b        #VRML\ V1.0\ ascii	VRML 1 file
+0	string/b	#VRML\ V2.0\ utf8	ISO/IEC 14772 VRML 97 file
+
+#---------------------------------------------------------------------------
+# HVQM4: compressed movie format designed by Hudson for Nintendo GameCube
+# From Mark Sheppard <msheppard@climax.co.uk>, 2002-10-03
+#
+0	string		HVQM4		%s
+>6	string		>\0		v%s
+>0	byte		x		GameCube movie,
+>0x34	ubeshort	x		%d x
+>0x36	ubeshort	x		%d,
+>0x26	ubeshort	x		%dµs,
+>0x42	ubeshort	0		no audio
+>0x42	ubeshort	>0		%dHz audio

@@ -4,7 +4,7 @@
 #
 
 # .BAT files (Daniel Quinlan, quinlan@yggdrasil.com)
-0	string	@echo\ off	MS-DOS batch file text
+0	string/c	@echo\ off	MS-DOS batch file text
 
 # XXX - according to Microsoft's spec, at an offset of 0x3c in a
 # PE-format executable is the offset in the file of the PE header;
@@ -144,9 +144,10 @@
 #
 
 #
-# Windows NT Registry files.
+# Windows Registry files.
 #
-0	string		regf		Windows NT Registry file
+0	string		regf		Windows NT registry file
+0	string		CREG		Windows 95 registry file
 
 # Popular applications
 2080	string	Microsoft\ Word\ 6.0\ Document	%s
@@ -159,13 +160,17 @@
 0       string  PO^Q`				Microsoft Word 6.0 Document
 #
 0	string	\376\067\0\043			Microsoft Office Document
-0	string	\320\317\021\340\241\261	Microsoft Office Document
+0	string	\320\317\021\340\241\261\032\341	Microsoft Office Document
 0	string	\333\245-\0\0\0			Microsoft Office Document
 #
 2080	string	Microsoft\ Excel\ 5.0\ Worksheet	%s
+2080	string	Foglio\ di\ lavoro\ Microsoft\ Exce	%s
 #
 # Pawel Wiecek <coven@i17linuxb.ists.pwr.wroc.pl> (for polish Excel)
 2114	string	Biff5		Microsoft Excel 5.0 Worksheet
+# Italian MS-Excel
+2121	string	Biff5		Microsoft Excel 5.0 Worksheet
+0	string	\x09\x04\x06\x00\x00\x00\x10\x00	Microsoft Excel Worksheet
 #
 0	belong	0x00001a00	Lotus 1-2-3
 >4	belong	0x00100400	wk3 document data
@@ -179,9 +184,6 @@
 
 # Help files
 0	string	?_\3\0		MS Windows Help Data
-
-# Microsoft CAB distribution format  Dale Worley <root@dworley.ny.mediaone.net>
-0	string		MSCF\000\000\000\000	Microsoft CAB file
 
 #  DeIsL1.isu what this is I don't know
 0	string	\161\250\000\000\001\002	DeIsL1.isu whatever that is
@@ -238,11 +240,6 @@
 >>8	byte	>0			\b, %d-colors
 
 
-# True Type fonts currently misidentified as raw G3 data
-
-0	string	\000\001\000\000\000 MS-Windows true type font .ttf
-
-
 # .chr files
 0	string	PK\010\010BGI	Borland font 
 >4	string	>\0	%s
@@ -263,9 +260,9 @@
 # Acroread or something  files wrongly identified as G3  .pfm
 # these have the form \000 \001 any? \002 \000 \000
 # or \000 \001 any? \022 \000 \000
-0	string  \000\001 pfm?
->3	string  \022\000\000Copyright\  yes
->3	string  \002\000\000Copyright\  yes
+#0	string  \000\001 pfm?
+#>3	string  \022\000\000Copyright\  yes
+#>3	string  \002\000\000Copyright\  yes
 #>3	string  >\0     oops, not a font file. Cancel that.
 #it clashes with ttf files so put it lower down.
 
@@ -278,7 +275,8 @@
 0	string		DCU1		Borland Delphi .DCU file
 0	string		!<spell>	MKS Spell hash list (old format)
 0	string		!<spell2>	MKS Spell hash list
-0	string		AH		Halo(TM) bitmapped font file
+# Too simple - MPi
+#0	string		AH		Halo(TM) bitmapped font file
 0	lelong		0x08086b70	TurboC BGI file
 0	lelong		0x08084b50	TurboC Font file
 
@@ -309,3 +307,70 @@
 
 # TNEF magic From "Joomy" <joomy@se-ed.net> 
 0	leshort		0x223e9f78	TNEF
+
+# HtmlHelp files (.chm)
+0	string  ITSF\003\000\000\000\x60\000\000\000\001\000\000\000	MS Windows HtmlHelp Data
+
+# GFA-BASIC (Wolfram Kleff)
+2	string		GFA-BASIC3	GFA-BASIC 3 data
+
+# DJGPP compiled files
+# v >2, uses DPMI & small(2k) stub (Robert vd Boon, rjvdboon@europe.com)
+0x200	string		go32stub	DOS-executable compiled w/DJGPP
+>0x20c	string		>0		(stub v%.4s)
+>>0x8b2	string		djp		[compressed w/%s
+>>>&1	string		>\0		%.4s]
+>>0x8ad	string		UPX		[compressed w/%s
+>>>&1	string		>\0		%.4s]
+>>0x1c	string		pmodedj		stubbed with %s
+
+# QDOS
+4	belong		0x4AFB		QDOS executable
+>9	pstring		x		'%s'
+0	beshort		0xFB01		QDOS object
+>2	pstring		x		'%s'
+
+#------------------------------------------------------------------------------
+# From Stuart Caie <kyzer@4u.net> (developer of cabextract)
+# Microsoft Cabinet files
+0	string		MSCF\0\0\0\0	Microsoft Cabinet file
+>8	lelong		x		\b, %u bytes
+>28	leshort		1		\b, 1 file
+>28	leshort		>1		\b, %u files
+
+# InstallShield Cabinet files
+0	string		ISc(		InstallShield Cabinet file
+>5	byte&0xf0	=0x60 		version 6,
+>5	byte&0xf0	!0x60 		version 4/5,
+>(12.l+40)	lelong	x		%u files
+
+# Windows CE package files
+0	string		MSCE\0\0\0\0	Microsoft WinCE install header
+>20	lelong		0		\b, architecture-independent
+>20	lelong		103		\b, Hitachi SH3
+>20	lelong		104		\b, Hitachi SH4
+>20	lelong		0xA11		\b, StrongARM
+>20	lelong		4000		\b, MIPS R4000
+>20	lelong		10003		\b, Hitachi SH3
+>20	lelong		10004		\b, Hitachi SH3E
+>20	lelong		10005		\b, Hitachi SH4
+>20	lelong		70001		\b, ARM 7TDMI
+>52	leshort		1 		\b, 1 file
+>52	leshort		>1 		\b, %u files
+>56	leshort		1 		\b, 1 registry entry
+>56	leshort		>1 		\b, %u registry entries
+
+# Outlook Personal Folders
+0	lelong	0x4E444221	Microsoft Outlook binary email folder
+
+# From: Dirk Jagdmann <doj@cubic.org>
+0	lelong	0x00035f3f	Windows 3.x help file
+
+# Christophe Monniez
+0	string	Client\ UrlCache\ MMF 	Microsoft Internet Explorer Cache File
+>20	string	>\0			Version %s
+0	string	\xCF\xAD\x12\xFE	Microsoft Outlook Express DBX File
+>4	byte	=0xC5			Message database
+>4	byte	=0xC6			Folder database
+>4	byte	=0xC7			Accounts informations
+>4	byte	=0x30			Offline database

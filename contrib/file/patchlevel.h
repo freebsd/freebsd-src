@@ -1,11 +1,54 @@
-#define	FILE_VERSION_MAJOR	3
-#define	patchlevel		41
+#define	FILE_VERSION_MAJOR	4
+#define	patchlevel		10
 
 /*
  * Patchlevel file for Ian Darwin's MAGIC command.
- * $Id: patchlevel.h,v 1.41 2003/02/27 20:53:45 christos Exp $
+ * $Id: patchlevel.h,v 1.53 2004/07/24 20:40:46 christos Exp $
  *
  * $Log: patchlevel.h,v $
+ * Revision 1.53  2004/07/24 20:40:46  christos
+ * welcome to 4.10
+ *
+ * Revision 1.52  2004/04/07 00:32:25  christos
+ * welcome to 4.09
+ *
+ * Revision 1.51  2004/03/22 21:17:11  christos
+ * welcome to 4.08.
+ *
+ * Revision 1.50  2003/12/23 17:34:04  christos
+ * 4.07
+ *
+ * Revision 1.49  2003/10/15 02:08:27  christos
+ * welcome to 4.06
+ *
+ * Revision 1.48  2003/09/12 19:41:14  christos
+ * this is 4.04
+ *
+ * Revision 1.47  2003/05/23 21:38:21  christos
+ * welcome to 4.03
+ *
+ * Revision 1.46  2003/04/02 18:57:43  christos
+ * prepare for 4.02
+ *
+ * Revision 1.45  2003/03/26 15:37:25  christos
+ * - Pass lint
+ * - make NULL in magic_file mean stdin
+ * - Fix "-" argument to file to pass NULL to magic_file
+ * - avoid pointer casts by using memcpy
+ * - rename magic_buf -> magic_buffer
+ * - keep only the first error
+ * - manual page: new sentence, new line
+ * - fix typo in api function (magic_buf -> magic_buffer)
+ *
+ * Revision 1.44  2003/03/23 22:23:31  christos
+ * finish librarification.
+ *
+ * Revision 1.43  2003/03/23 21:16:26  christos
+ * update copyrights.
+ *
+ * Revision 1.42  2003/03/23 04:06:05  christos
+ * Library re-organization
+ *
  * Revision 1.41  2003/02/27 20:53:45  christos
  * - fix memory allocation problem (Jeff Johnson)
  * - fix stack overflow corruption (David Endler)

@@ -17,10 +17,16 @@
 # `tgatoppm' recognizes a superset (Index may be anything)
 1	belong&0xfff7ffff	0x01010000	Targa image data - Map
 >2	byte&8			8		- RLE
+>12	leshort			>0		%hd x
+>14	leshort			>0		%hd
 1	belong&0xfff7ffff	0x00020000	Targa image data - RGB
 >2	byte&8			8		- RLE
+>12	leshort			>0		%hd x
+>14	leshort			>0		%hd
 1	belong&0xfff7ffff	0x00030000	Targa image data - Mono
 >2	byte&8			8		- RLE
+>12	leshort			>0		%hd x
+>14	leshort			>0		%hd
 
 # PBMPLUS images
 # The next byte following the magic is always whitespace.
@@ -158,10 +164,11 @@
 >>18	lelong		x		\b, %d x
 >>22	lelong		x		%d x
 >>28	leshort		x		%d
-0	string		IC		PC icon data
-0	string		PI		PC pointer image data
-0	string		CI		PC color icon data
-0	string		CP		PC color pointer image data
+# Too simple - MPi
+#0	string		IC		PC icon data
+#0	string		PI		PC pointer image data
+#0	string		CI		PC color icon data
+#0	string		CP		PC color pointer image data
 # Conflicts with other entries [BABYL]
 #0	string		BA		PC bitmap array data
 
@@ -269,11 +276,11 @@
 # DICOM medical imaging data
 128	string	DICM			DICOM medical imaging data
 
-# XWD - X-Windows Dump file.
+# XWD - X Window Dump file.
 #   As described in /usr/X11R6/include/X11/XWDFile.h
 #   used by the xwd program.
 #   Bradford Castalia, idaeim, 1/01
-4	belong	7			XWD X-Windows Dump image data
+4	belong	7			XWD X Window Dump image data
 >100	string	>\0			\b, "%s"
 >16	belong	x			\b, %dx
 >20	belong	x			\b%dx
@@ -359,3 +366,156 @@
 >>14	leshort		x      %hd dpi,
 >2	byte		0	uncompressed
 >2	byte		1	RLE compressed
+
+# Adobe Photoshop
+0	string		8BPS Adobe Photoshop Image
+
+# XV thumbnail indicator (ThMO)
+0	string		P7\ 332		XV thumbnail image data
+
+# NITF is defined by United States MIL-STD-2500A
+0	string	NITF	National Imagery Transmission Format
+>25	string	>\0	dated %.14s
+
+# GEM Image: Version 1, Headerlen 8 (Wolfram Kleff)
+0	belong		0x00010008	GEM Image data
+>12	beshort		x		%d x
+>14	beshort		x		%d,
+>4	beshort		x		%d planes,
+>8	beshort		x		%d x
+>10	beshort		x		%d pixelsize
+
+# GEM Metafile (Wolfram Kleff)
+0	lelong		0x0018FFFF	GEM Metafile data
+>4	leshort		x		version %d
+
+#
+# SMJPEG. A custom Motion JPEG format used by Loki Entertainment
+# Software Torbjorn Andersson <d91tan@Update.UU.SE>.
+#
+0	string	\0\nSMJPEG	SMJPEG
+>8	belong	x		%d.x data
+# According to the specification you could find any number of _TXT
+# headers here, but I can't think of any way of handling that. None of
+# the SMJPEG files I tried it on used this feature. Even if such a
+# file is encountered the output should still be reasonable.
+>16	string	_SND		\b,
+>>24	beshort	>0		%d Hz
+>>26	byte	8		8-bit
+>>26	byte	16		16-bit
+>>28	string	NONE		uncompressed
+# >>28	string	APCM		ADPCM compressed
+>>27	byte	1		mono
+>>28	byte	2		stereo
+# Help! Isn't there any way to avoid writing this part twice?
+>>32	string	_VID		\b,
+# >>>48	string	JFIF		JPEG
+>>>40	belong	>0		%d frames
+>>>44	beshort	>0		(%d x
+>>>46	beshort	>0		%d)
+>16	string	_VID		\b,
+# >>32	string	JFIF		JPEG
+>>24	belong	>0		%d frames
+>>28	beshort	>0		(%d x
+>>30	beshort	>0		%d)
+
+0	string	Paint\ Shop\ Pro\ Image\ File	Paint Shop Pro Image File
+
+# "thumbnail file" (icon)
+# descended from "xv", but in use by other applications as well (Wolfram Kleff)
+0       string          P7\ 332         XV "thumbnail file" (icon) data
+
+# taken from fkiss: (<yav@mte.biglobe.ne.jp> ?)
+0       string          KiSS            KISS/GS
+>4      byte            16              color
+>>5     byte            x               %d bit
+>>8     leshort         x               %d colors
+>>10    leshort         x               %d groups
+>4      byte            32              cell
+>>5     byte            x               %d bit
+>>8     leshort         x               %d x
+>>10    leshort         x               %d
+>>12    leshort         x               +%d
+>>14    leshort         x               +%d
+
+# Webshots (www.webshots.com), by John Harrison
+0       string          C\253\221g\230\0\0\0 Webshots Desktop .wbz file
+
+# Hercules DASD image files
+# From Jan Jaeger <jj@septa.nl>
+0       string  CKD_P370        Hercules CKD DASD image file
+>8      long    x               \b, %d heads per cylinder
+>12     long    x               \b, track size %d bytes
+>16     byte    x               \b, device type 33%2.2X
+
+0       string  CKD_C370        Hercules compressed CKD DASD image file
+>8      long    x               \b, %d heads per cylinder
+>12     long    x               \b, track size %d bytes
+>16     byte    x               \b, device type 33%2.2X
+
+0       string  CKD_S370        Hercules CKD DASD shadow file
+>8      long    x               \b, %d heads per cylinder
+>12     long    x               \b, track size %d bytes
+>16     byte    x               \b, device type 33%2.2X
+
+# Squeak images and - etoffi@softhome.net
+0 string \146\031\0\0  Squeak image data
+0 string 'From\040Squeak  Squeak program text
+
+# partimage: file(1) magic for PartImage files (experimental, incomplete)
+# Author: Hans-Joachim Baader <hjb@pro-linux.de>
+0		string	PaRtImAgE-VoLuMe	PartImage
+>0x0020		string	0.6.1		file version %s
+>>0x0060	lelong	>-1		volume %ld
+#>>0x0064 8 byte identifier
+#>>0x007c reserved
+>>0x0200	string	>\0		type %s
+>>0x1400	string	>\0		device %s,
+>>0x1600	string	>\0		original filename %s,
+# Some fields omitted
+>>0x2744	lelong	0		not compressed
+>>0x2744	lelong	1		gzip compressed
+>>0x2744	lelong	2		bzip2 compressed
+>>0x2744	lelong	>2		compressed with unknown algorithm
+>0x0020		string	>0.6.1		file version %s
+>0x0020		string	<0.6.1		file version %s
+
+# DCX is multi-page PCX, using a simple header of up to 1024
+# offsets for the respective PCX components.
+# From: Joerg Wunsch <joerg_wunsch@uriah.heep.sax.de>
+0	lelong	987654321	DCX multi-page PCX image data
+
+# Simon Walton <simonw@matteworld.com>
+# Kodak Cineon format for scanned negatives
+# http://www.kodak.com/US/en/motion/support/dlad/
+0	lelong  0xd75f2a80	Cineon image data
+>200	belong  >0		\b, %ld x
+>204	belong  >0		%ld
+
+
+# Bio-Rad .PIC is an image format used by microscope control systems
+# and related image processing software used by biologists.
+# From: Vebjorn Ljosa <vebjorn@ljosa.com>
+54	leshort 12345		Bio-Rad .PIC Image File
+>0	leshort >0		%hd x
+>2	leshort >0		%hd,
+>4	leshort =1		1 image in file
+>4	leshort >1		%hd images in file
+
+# From Jan "Yenya" Kasprzak <kas@fi.muni.cz>
+# The description of *.mrw format can be found at
+# http://www.dalibor.cz/minolta/raw_file_format.htm
+0	string	\000MRM			Minolta Dimage camera raw image data
+
+# From: stephane.loeuillet@tiscali.f
+# http://www.djvuzone.org/
+0	string	AT&TFORM		DjVu Image file
+
+# From: Jason Bacon <bacon@smithers.neuro.mcw.edu>
+0	beshort	0x3020			character Computer Graphics Metafile
+
+
+
+# From: Tom Hilinski <tom.hilinski@comcast.net>
+# http://www.unidata.ucar.edu/packages/netcdf/
+0	string	CDF\001			netcdf file

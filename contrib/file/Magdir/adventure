@@ -16,7 +16,7 @@
 # Infocom
 # (Note: to avoid false matches Z-machine version 1 and 2 are not
 # recognized since only the oldest Zork I and II used them.  Similarly
-# there are 4 Infocom games that use verion 4 that are not recognized.)
+# there are 4 Infocom games that use version 4 that are not recognized.)
 #0	byte	3	Infocom game data (Z-machine 3,
 #>2	beshort	<0x7fff	Release %3d,
 #>26	beshort >0	Size %d*2

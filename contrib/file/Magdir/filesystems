@@ -205,8 +205,8 @@
 
 # SGI XFS filesystem - Nathan Scott <nathans@debian.org>
 0	belong		0x58465342	SGI XFS filesystem data
->0x4	belong		x		(blksz=3D%d,
->0x68	beshort		x		inosz=3D%d,
+>0x4	belong		x		(blksz %d,
+>0x68	beshort		x		inosz %d,
 >0x64	beshort		^0x2004		v1 dirs)
 >0x64	beshort		&0x2004		v2 dirs)
 
@@ -276,5 +276,62 @@
 
 # CDROM Filesystems
 32769    string    CD001     ISO 9660 CD-ROM filesystem data
+# "application id" which appears to be used as a volume label
+>32808	 string    >\0       '%s'
+>34816	 string    \000CD001\001EL\ TORITO\ SPECIFICATION    (bootable)
 37633    string    CD001     ISO 9660 CD-ROM filesystem data (raw 2352 byte sectors)
 32776    string    CDROM     High Sierra CD-ROM filesystem data
+
+# cramfs filesystem - russell@coker.com.au
+0       lelong    0x28cd3d45      Linux Compressed ROM File System data, little endian
+>4      lelong  x size %d
+>8      lelong  &1 version #2
+>8      lelong  &2 sorted_dirs
+>8      lelong  &4 hole_support
+>32     lelong  x CRC 0x%x,
+>36     lelong  x edition %d,
+>40     lelong  x %d blocks,
+>44     lelong  x %d files
+
+0       belong    0x28cd3d45      Linux Compressed ROM File System data, big endian
+>4      belong  x size %d
+>8      belong  &1 version #2
+>8      belong  &2 sorted_dirs
+>8      belong  &4 hole_support
+>32     belong  x CRC 0x%x,
+>36     belong  x edition %d,
+>40     belong  x %d blocks,
+>44     belong  x %d files
+
+# reiserfs - russell@coker.com.au
+0x10034		string	ReIsErFs	ReiserFS V3.5
+0x10034		string	ReIsEr2Fs	ReiserFS V3.6
+>0x1002c 	leshort	x		block size %d
+>0x10032	leshort	&2		(mounted or unclean)
+>0x10000	lelong	x		num blocks %d
+>0x10040	lelong	1		tea hash
+>0x10040	lelong	2		yura hash
+>0x10040	lelong	3		r5 hash
+
+# JFFS - russell@coker.com.au
+0	lelong	0x34383931	Linux Journalled Flash File system, little endian
+0	belong	0x34383931	Linux Journalled Flash File system, big endian
+
+# EST flat binary format (which isn't, but anyway)
+# From: Mark Brown <broonie@sirena.org.uk>
+0	string	ESTFBINR	EST flat binary
+
+# Aculab VoIP firmware
+# From: Mark Brown <broonie@sirena.org.uk>
+0	string	VoIP\ Startup\ and	Aculab VoIP firmware
+>35	string	x	format %s
+
+# PPCBoot image file
+# From: Mark Brown <broonie@sirena.org.uk>
+0	belong	0x27051956	PPCBoot image
+>4	string  PPCBoot
+>>12	string  x		version %s
+
+# JFFS2 file system
+0       leshort         0x1984                  Linux old jffs2 filesystem data little endian
+0       lelong          0xe0011985              Linux jffs2 filesystem data little endian
