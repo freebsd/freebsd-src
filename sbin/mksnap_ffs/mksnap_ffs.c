@@ -49,11 +49,13 @@
 #include <sysexits.h>
 #include <unistd.h>
 
+void usage(void);
+
 void
 usage()
 {
 
-	fprintf(stderr, "usage: mksnap_ffs mountpoint file\n");
+	fprintf(stderr, "usage: mksnap_ffs mountpoint snapshot_name\n");
 	exit(EX_USAGE);
 }
 
