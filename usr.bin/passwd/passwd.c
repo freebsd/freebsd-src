@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)passwd.c	8.3 (Berkeley) 4/2/94";
 #endif
 static const char rcsid[] =
-	"$Id: passwd.c,v 1.12 1997/03/29 04:31:27 imp Exp $";
+	"$Id: passwd.c,v 1.13 1997/07/31 06:57:47 charnier Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -78,7 +78,9 @@ main(argc, argv)
 {
 	int ch;
 	char *uname;
+#ifdef KERBEROS
 	char *iflag = 0, *rflag = 0, *uflag = 0;
+#endif
 
 #ifdef YP
 #ifdef KERBEROS
