@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)signal.h	8.4 (Berkeley) 5/4/95
- * $Id: signal.h,v 1.12 1997/09/13 19:42:29 joerg Exp $
+ * $Id: signal.h,v 1.13 1998/03/28 11:50:43 dufault Exp $
  */
 
 #ifndef	_SYS_SIGNAL_H_
@@ -150,12 +150,17 @@ struct	sigaction {
 #ifndef _POSIX_SOURCE
 typedef	__sighandler_t	*sig_t;	/* type of pointer to a signal function */
 
+#ifdef	_BSD_SIZE_T_
+typedef	_BSD_SIZE_T_	size_t;
+#undef	_BSD_SIZE_T_
+#endif
+
 /*
  * Structure used in sigaltstack call.
  */
 struct	sigaltstack {
 	char	*ss_sp;			/* signal stack base */
-	int	ss_size;		/* signal stack length */
+	size_t	ss_size;		/* signal stack length */
 	int	ss_flags;		/* SS_DISABLE and/or SS_ONSTACK */
 };
 #define	SS_ONSTACK	0x0001	/* take signal on alternate stack */
