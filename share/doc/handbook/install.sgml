@@ -1,4 +1,4 @@
-<!-- $Id: install.sgml,v 1.2 1995/06/30 17:37:39 jfieber Exp $ -->
+<!-- $Id: install.sgml,v 1.3 1995/07/06 14:24:59 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -63,7 +63,7 @@
 
 
 
-    <sect>Supported Configurations
+    <sect>Supported Configurations<label id="install:hw">
 
       <p>FreeBSD currently runs on a wide variety of ISA, VLB,
 	EISA and PCI bus based PC's, ranging from 386sx to
