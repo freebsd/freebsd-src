@@ -53,6 +53,11 @@
 static int fe_isa_probe(device_t);
 static int fe_isa_attach(device_t);
 
+static struct isa_pnp_id fe_ids[] = {
+	{ 0x101ee0d,	NULL },		/* CON0101 - Contec C-NET(98)P2-T */
+	{ 0,		NULL }
+};
+
 static device_method_t fe_isa_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		fe_isa_probe),
@@ -85,23 +90,28 @@ static int fe_probe_ubn(device_t);
  * Determine if the device is present at a specified I/O address.  The
  * main entry to the driver.
  */
-
 static int
 fe_isa_probe(device_t dev)
 {
-	struct fe_softc * sc;
+	struct fe_softc *sc;
 	int error;
-
-	/* Check isapnp ids */
-	if (isa_get_vendorid(dev))
-		return (ENXIO);
 
 	/* Prepare for the softc struct.  */
 	sc = device_get_softc(dev);
 	sc->sc_unit = device_get_unit(dev);
 
+	/* Check isapnp ids */
+	error = ISA_PNP_PROBE(device_get_parent(dev), dev, fe_ids);
+
+	/* If the card had a PnP ID that didn't match any we know about */
+	if (error == ENXIO)
+		goto end;
+
+	/* If we had some other problem. */
+	if (!(error == 0 || error == ENOENT))
+		goto end;
+
 	/* Probe for supported boards.  */
-#ifdef PC98
 	if ((error = fe_probe_re1000(dev)) == 0)
 		goto end;
 	fe_release_resource(dev);
@@ -113,7 +123,6 @@ fe_isa_probe(device_t dev)
 	if ((error = fe_probe_rex(dev)) == 0)
 		goto end;
 	fe_release_resource(dev);
-#endif
 
 	if ((error = fe_probe_ssi(dev)) == 0)
 		goto end;
@@ -626,14 +635,17 @@ fe_probe_ssi(device_t dev)
 	/* Setup the board type.  */
         sc->typestr = "C-NET(98)P2";
 
-	/* Get IRQ configuration from EEPROM.  */
-	irq = irqmap[eeprom[FE_SSI_EEP_IRQ]];
-	if (irq == NO_IRQ) {
-		fe_irq_failure(sc->typestr, sc->sc_unit, irq,
-			       "3/5/6/9/10/12/13");
-		return ENXIO;
+	/* Non-PnP mode, set static resource from eeprom. */
+	if (!isa_get_vendorid(dev)) {
+		/* Get IRQ configuration from EEPROM.  */
+		irq = irqmap[eeprom[FE_SSI_EEP_IRQ]];
+		if (irq == NO_IRQ) {
+			fe_irq_failure(sc->typestr, sc->sc_unit, irq,
+				       "3/5/6/9/10/12/13");
+			return ENXIO;
+		}
+		bus_set_resource(dev, SYS_RES_IRQ, 0, irq, 1);
 	}
-	bus_set_resource(dev, SYS_RES_IRQ, 0, irq, 1);
 
 	/* Get Duplex-mode configuration from EEPROM.  */
 	sc->proto_dlcr4 |= (eeprom[FE_SSI_EEP_DUPLEX] & FE_D4_DSC);
