@@ -55,9 +55,8 @@
  * The first boot and super blocks are given in absolute disk addresses.
  * The byte-offset forms are preferred, as they don't imply a sector size.
  */
-#define BBSIZE		1024
 #define SBSIZE		1024
-#define	SBOFF		((off_t)(BBSIZE))
+#define SBLOCK		2
 
 /*
  * The path name on which the file system is mounted is maintained
