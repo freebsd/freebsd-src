@@ -136,8 +136,8 @@ network_pass1() {
 	if [ -z "${firewall_script}" ] ; then
 	    firewall_script="/etc/rc.firewall"
 	fi
-	if [ -f ${firewall_script} -a X"$firewall_enable" = X"YES" ]; then
-	    . ${firewall_script}
+	if [ -f "${firewall_script}" -a X"$firewall_enable" = X"YES" ]; then
+	    . "${firewall_script}"
 	    echo -n 'Firewall rules loaded, starting divert daemons:'
 
 	    # Network Address Translation daemon
