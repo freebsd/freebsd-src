@@ -95,6 +95,10 @@ cn_drvinit(void *unused)
 		    OF_getprop(options, "output-device", output,
 		    sizeof(output)) == -1)
 			return;
+		/*
+		 * XXX: This is a hack and it may result in two /dev/ttya
+		 * XXX: devices on platforms where the sab driver works.
+		 */
 		dev = make_dev(&ofw_cdevsw, 0, UID_ROOT, GID_WHEEL, 0600, "%s",
 		    output);
 		make_dev_alias(dev, "ofwcons");
@@ -117,7 +121,15 @@ ofw_dev_open(struct cdev *dev, int flag, int mode, struct thread *td)
 	setuptimeout = 0;
 	unit = minor(dev);
 
-	tp = ofw_tp = dev->si_tty = ttymalloc(ofw_tp);
+	/*
+	 * XXX: BAD, should happen at attach time
+	 */
+	if (dev->si_tty == NULL) {
+		ofw_tp = ttyalloc();
+		dev->si_tty = ofw_tp;
+		ofw_tp->t_dev = dev;
+	}
+	tp = dev->si_tty;
 
 	tp->t_oproc = ofw_tty_start;
 	tp->t_param = ofw_tty_param;
@@ -160,7 +172,7 @@ ofw_dev_close(struct cdev *dev, int flag, int mode, struct thread *td)
 	struct	tty *tp;
 
 	unit = minor(dev);
-	tp = ofw_tp;
+	tp = dev->si_tty;
 
 	if (unit != 0) {
 		return (ENXIO);
