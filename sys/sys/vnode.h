@@ -31,13 +31,14 @@
  * SUCH DAMAGE.
  *
  *	@(#)vnode.h	8.7 (Berkeley) 2/4/94
- * $Id: vnode.h,v 1.57 1997/11/22 08:35:43 bde Exp $
+ * $Id: vnode.h,v 1.58 1997/12/05 19:55:49 bde Exp $
  */
 
 #ifndef _SYS_VNODE_H_
 #define	_SYS_VNODE_H_
 
 #include <sys/queue.h>
+#include <sys/select.h>		/* needed for struct selinfo in vnodes */
 
 #include <machine/lock.h>
 
@@ -78,6 +79,7 @@ struct namecache;
  * v_mntvnodes is locked by the global mntvnodes simple lock.
  * v_flag, v_usecount, v_holdcount and v_writecount are
  *    locked by the v_interlock simple lock.
+ * v_pollinfo is locked by the lock contained inside it.
  */
 struct vnode {
 	u_long	v_flag;				/* vnode flags (see below) */
@@ -114,11 +116,23 @@ struct vnode {
 	TAILQ_HEAD(, namecache) v_cache_dst;	/* Cache entries to us */
 	struct	vnode *v_dd;			/* .. vnode */
 	u_long	v_ddid;				/* .. capability identifier */
+	struct	{
+		struct	simplelock vpi_lock;	/* lock to protect below */
+		struct	selinfo vpi_selinfo;	/* identity of poller(s) */
+		short	vpi_events;		/* what they are looking for */
+		short	vpi_revents;		/* what has happened */
+	} v_pollinfo;
 };
 #define	v_mountedhere	v_un.vu_mountedhere
 #define	v_socket	v_un.vu_socket
 #define	v_specinfo	v_un.vu_specinfo
 #define	v_fifoinfo	v_un.vu_fifoinfo
+
+#define	VN_POLLEVENT(vp, events)				\
+	do {							\
+		if ((vp)->v_pollinfo.vpi_events & (events))	\
+			vn_pollevent((vp), (events));		\
+	} while (0)
 
 /*
  * Vnode flags.
@@ -473,6 +487,9 @@ int 	vn_close __P((struct vnode *vp,
 	    int flags, struct ucred *cred, struct proc *p));
 int	vn_lock __P((struct vnode *vp, int flags, struct proc *p));
 int 	vn_open __P((struct nameidata *ndp, int fmode, int cmode));
+void	vn_pollevent __P((struct vnode *vp, int events));
+void	vn_pollgone __P((struct vnode *vp));
+int	vn_pollrecord __P((struct vnode *vp, struct proc *p, int events));
 int 	vn_rdwr __P((enum uio_rw rw, struct vnode *vp, caddr_t base,
 	    int len, off_t offset, enum uio_seg segflg, int ioflg,
 	    struct ucred *cred, int *aresid, struct proc *p));
@@ -490,6 +507,7 @@ int	vop_nolock __P((struct vop_lock_args *));
 int	vop_nopoll __P((struct vop_poll_args *));
 int	vop_nounlock __P((struct vop_unlock_args *));
 int	vop_stdpathconf __P((struct vop_pathconf_args *));
+int	vop_stdpoll __P((struct vop_poll_args *));
 int	vop_revoke __P((struct vop_revoke_args *));
 int	vop_sharedlock __P((struct vop_lock_args *));
 int	vop_eopnotsupp __P((struct vop_generic_args *ap));
