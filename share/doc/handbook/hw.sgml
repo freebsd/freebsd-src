@@ -1,5 +1,9 @@
-<!-- $Id: hw.sgml,v 1.1 1995/06/14 18:38:53 jfieber Exp $ -->
+<!-- $Id: hw.sgml,v 1.2 1995/06/20 16:29:54 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
+
+<!--
+<!DOCTYPE linuxdoc PUBLIC "-//FreeBSD//DTD linuxdoc//EN">
+-->
 
 <chapt><heading>PC Hardware compatibility<label id="hw"></heading>
 
@@ -28,13 +32,62 @@
     FreeBSD you are using and include as many details of your
     hardware as possible.
 
-<sect><heading>* Core/Processing<label id="hw:core"></heading>
+<sect><heading>Core/Processing<label id="hw:core"></heading>
 
-<sect1><heading>* Motherboards</heading>
+<sect1><heading>Motherboards, busses, and chipsets</heading>
   <sect2><heading>* ISA</heading>
   <sect2><heading>* EISA</heading>
   <sect2><heading>* VLB</heading>
-  <sect2><heading>* PCI</heading>
+  <sect2><heading>PCI</heading>
+
+	  <p><em>Contributed by &a.rgrimes;.<newline>25 April 1995.</em></p>
+
+	  <p>Of the Intel PCI chip sets the following is a list
+	    of brokenness from worst to best and a short
+	    description of brokenness.</p>
+
+	  <p><descrip>
+
+	      <tag>Mercury:</tag> Cache coherency problems,
+		especially if there are ISA bus masters behind
+		the ISA to PCI bridge chip.  Hardware flaw, only
+		known work around is to turn the cache
+		off.
+
+	      <tag>Saturn-I <em>(ie, 82424ZX at rev 0, 1 or
+		2)</em>:</tag> write back cache coherency
+		problems.  Hardware flaw, only known work around
+		is to set the external cache to write-through
+		mode.  Upgrade to Saturn-II.
+
+	      <tag>Saturn-II <em>(ie, 82424ZX at rev 3 or
+		4)</em>:</tag> Works fine, but many MB
+		manufactures leave out the external dirty bit
+		SRAM needed for write back operation.  Work
+		arounds are either run it in write through mode,
+		or get the dirty bit SRAM installed.  (I have
+		these for the ASUS PCI/I-486SP3G rev 1.6 and
+		later boards).
+
+	      <tag>Neptune:</tag> Can not run more than 2 bus
+		master devices.  Admitted Intel design flaw.
+		Workarounds include don't run more than 2 bus
+		masters, special hardware design to replace the
+		PCI bus arbiter (appears on Intel Altair board
+		and several other Intel server group MB's).  And
+		of course Intel's official answer, move to the
+		Triton chip set, we ``fixed it there''.
+
+	      <tag>Triton:</tag> No known cache coherency or bus
+		master problems, chip set does not implement
+		parity checking.  Workaround for parity issue.
+		Wait for Triton-II.
+
+	      <tag>Triton-II:</tag> Unknown, not yet shipping.
+
+	    </descrip>
+	  </p>
+
 <sect1><heading>* CPUs/FPUs</heading>
 <sect1><heading>* Memory</heading>
 <sect1><heading>* BIOS</heading>
