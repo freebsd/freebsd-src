@@ -1078,6 +1078,10 @@ ip_dooptions(m)
 		if (opt == IPOPT_NOP)
 			optlen = 1;
 		else {
+			if (cnt < IPOPT_OLEN + sizeof(*cp)) {
+				code = &cp[IPOPT_OLEN] - (u_char *)ip;
+				goto bad;
+			}
 			optlen = cp[IPOPT_OLEN];
 			if (optlen <= 0 || optlen > cnt) {
 				code = &cp[IPOPT_OLEN] - (u_char *)ip;
