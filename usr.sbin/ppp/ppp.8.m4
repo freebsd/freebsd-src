@@ -5280,7 +5280,18 @@ will request VJ compression during IPCP negotiations despite any
 .Dq disable vj
 configuration command.
 .It RAD_FILTER_ID
-This attribute is stored but not yet used.
+If this attribute is supplied,
+.Nm
+will attempt to use it as an additional label to load from the
+.Pa ppp.linkup
+and
+.Pa ppp.linkdown
+files.
+The load will be attempted before (and in addition to) the normal
+label search.
+If the label doesn't exist, no action is taken and
+.Nm
+proceeds to the normal load using the current label.
 .It RAD_FRAMED_ROUTE
 The received string is expected to be in the format
 .Ar dest Ns Op / Ns Ar bits
