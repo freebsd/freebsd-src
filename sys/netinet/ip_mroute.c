@@ -1899,7 +1899,7 @@ tbf_send_packet(vifp, m)
 
 	if (mrtdebug & DEBUG_XMIT)
 	    log(LOG_DEBUG, "phyint_send on vif %d err %d\n", 
-		vifp - viftable, error);
+		(int)(vifp - viftable), error);
     }
     splx(s);
 }
