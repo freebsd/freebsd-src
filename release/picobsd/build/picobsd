@@ -83,6 +83,8 @@ log() {
 }
 
 logverbose() {
+    local foo
+
     printf "\n*** %s\n" "$*"
     read -p "=== Press enter to continue" foo
 }
@@ -112,8 +114,7 @@ set_defaults() {
     c_startdir=`pwd`	# directory where we start
 			# used to lookup config and create BUILDDIR
 
-    c_boot=/boot/boot	# boot blocks (in case you want custom ones)
-    c_boot1=/boot/boot1
+    c_boot1=/boot/boot1		# boot blocks (in case you want custom ones)
     c_boot2=/boot/boot2
 
     c_reply=${c_reply:-`mktemp "/tmp/reply.XXXXXXXXXX"`}
@@ -132,7 +133,9 @@ set_defaults() {
 	*)
 	    l_vn="vn"
 	    l_makedev="/dev/MAKEDEV"
+	    ;;
     esac
+    l_newfs="-m 0 -o space -f 512 -b 4096"
     # Find a suitable vnode
     l_vnum=`mount | awk "/${l_vn}/ { num++ } END { printf \"%d\", num }"`
     l_vndev=${l_vn}${l_vnum}
@@ -156,21 +159,28 @@ create_includes_and_libraries2() {
 }
 
 create_includes_and_libraries() {
+    local e i
+
     log "create_includes_and_libraries() for ${SRC}"
     # Optionally creates include directory and libraries.
     mkdir -p ${l_usrtree}/include		# the include directory...
     mkdir -p ${l_usrtree}/share/misc	# a few things go here
     mkdir -p ${l_usrtree}/lib		# libraries
     mkdir -p ${l_usrtree}/sbin		# some binaries
-    (cd ${SRC}; INCOWN=`id -un`  BINOWN=`id -un` DESTDIR=${l_usrtree}/.. \
-		make -m ${SRC}/share/mk includes ) || fail $? includes
+    # override variables for ownershiip and destinations
+    # BINOWN:BINGRP are also used for include files
+    (cd ${SRC}; \
+	BINOWN=`id -un` BINGRP=`id -gn` \
+	DESTDIR=${l_usrtree}/.. \
+	make -m ${SRC}/share/mk includes ) || fail $? includes
     # Pick up the correct headers for libraries.
     CFLAGS="-nostdinc -I${l_usrtree}/include" ; export CFLAGS
 
     (cd ${SRC}
 	# $e is the invocation of make with correct environment
 	e="MAKEOBJDIRPREFIX=${l_objtree}/picobsd/libraries \
-	    INCOWN=`id -un` BINOWN=`id -un` DESTDIR=${l_usrtree}/.. \
+	    BINOWN=`id -un` BINGRP=`id -gn` \
+	    DESTDIR=${l_usrtree}/.. \
 	    make -m ${SRC}/share/mk \
 		-DNOHTML -DNOINFO -DNOMAN -DNOSHARE -DNOFSCHG "
 	log "do a 'make obj' in a few places."
@@ -194,7 +204,7 @@ create_includes_and_libraries() {
 # file. Also sets MY_TREE and BUILDDIR and SITE
 
 set_type() {
-    local a
+    local a i
 
     log "set_type()"
     THETYPE=$1
@@ -534,12 +544,11 @@ create_mfs() {		# OK
     # installed so you have more space on the disk...
     # For small image sizes, use std disktypes
     if [ ${MFS_SIZE} -lt 1024 ] ; then
-	disklabel -w ${l_vndev} fd${MFS_SIZE} || fail $? mfs_disklabel
+	disklabel -rw ${l_vndev} fd${MFS_SIZE} || fail $? mfs_disklabel
     else
-	disklabel -w ${l_vndev} auto || fail $? mfs_disklabel
+	disklabel -rw ${l_vndev} auto || fail $? mfs_disklabel
     fi
-    newfs -i ${mfs_inodes} -m 0 -o space -f 512 -b 4096 \
-	/dev/${l_vndev}c > /dev/null
+    newfs -i ${mfs_inodes} ${l_newfs} /dev/${l_vndev}c > /dev/null
     mount /dev/${l_vndev}c ${c_mnt} || fail $? no_mount
     log "`df /dev/${l_vndev}c`"
 }
@@ -610,7 +619,7 @@ populate_mfs_tree() {
 	    log "Using existing host key"
 	else
 	    log "Generating new host key" 
-	    ssh-keygen -f ${BUILDDIR}/floppy.tree/etc/ssh_host_key \
+	    ssh-keygen -t rsa1 -f ${BUILDDIR}/floppy.tree/etc/ssh_host_key \
 		 -N "" -C "root@picobsd"
 	    gzip -9 ${BUILDDIR}/floppy.tree/etc/ssh_host_key* || true
 	fi
@@ -792,11 +801,15 @@ fill_floppy_image() {
     init_fs_image ${BUILDDIR}/${c_img} ${blocks}
 
     log "Labeling floppy image"
-    b=${BUILDDIR}/boot # modified boot
-    perl -pne 's/\/boot\/loader/\/kernel\0\0\0\0\0/' ${c_boot} > ${b}
+    b2=${BUILDDIR}/boot2 # modified boot2
+    cp ${c_boot2} ${b2}
+    chmod 0644 ${b2}
+    set `strings -at d ${b2} | grep "/boot/loader"`
+    echo -e "/kernel\0\0\0\0\0" | dd of=${b2} obs=$1 oseek=1 conv=notrunc
+    chmod 0444 ${b2}
 
     # create a disklabel ...
-    disklabel -Bw -b ${b} ${l_vndev} auto || \
+    disklabel -Brw -b ${c_boot1} -s ${b2} ${l_vndev} auto || \
 	fail $?  floppy_disklabel
 
     # and copy partition c: into partition a: using some sed magic
@@ -804,8 +817,7 @@ fill_floppy_image() {
 	disklabel -R ${l_vndev} /dev/stdin
 
     log "Newfs floppy image"
-    newfs -i ${fd_inodes} -m 0 -o space -f 512 -b 4096 \
-	     /dev/${l_vndev}a > /dev/null
+    newfs -i ${fd_inodes} ${l_newfs} /dev/${l_vndev}a > /dev/null
 
     log "Mounting floppy image"
     mount /dev/${l_vndev}a ${dst}
