@@ -1,4 +1,4 @@
-# $Id: bsd.info.mk,v 1.17 1996/03/07 23:39:45 wosch Exp $
+# $Id: bsd.info.mk,v 1.18 1996/06/24 04:23:58 jkh Exp $
 
 BINMODE=        444
 BINDIR?=	/usr/share/info
@@ -53,14 +53,6 @@ clean: _SUBDIR
 	rm -f ${INFO:S/$/.info*/g} Errs errs mklog ${CLEANFILES}
 
 install: _SUBDIR
-	@if [ ! -d "${DESTDIR}${BINDIR}" ]; then \
-		/bin/rm -f ${DESTDIR}${BINDIR}  ; \
-		mkdir -p ${DESTDIR}${BINDIR}  ; \
-		chown root.wheel ${DESTDIR}${BINDIR}  ; \
-		chmod 755 ${DESTDIR}${BINDIR}  ; \
-        else \
-                true ; \
-        fi
 	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
 		${IFILES} ${DESTDIR}${BINDIR}
 
