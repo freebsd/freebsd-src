@@ -14,6 +14,7 @@ SRCS+=	article.sgml
 SRCS+=	proc-sparc64.sgml 
 SRCS+=	../common/hw.ent
 SRCS+=	../common/artheader.sgml
+SRCS+=	../common/dev.sgml
 
 .include "${RELN_ROOT}/share/mk/doc.relnotes.mk"
 .include "${DOC_PREFIX}/share/mk/doc.project.mk"
