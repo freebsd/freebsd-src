@@ -83,8 +83,115 @@
 #include <isa/isavar.h>
 #include <isa/isareg.h>
 #include <isa/fdreg.h>
-#include <isa/fdc.h>
 #include <isa/rtc.h>
+
+enum fdc_type
+{
+	FDC_NE765, FDC_I82077, FDC_NE72065, FDC_UNKNOWN = -1
+};
+
+enum fdc_states {
+	DEVIDLE,
+	FINDWORK,
+	DOSEEK,
+	SEEKCOMPLETE ,
+	IOCOMPLETE,
+	RECALCOMPLETE,
+	STARTRECAL,
+	RESETCTLR,
+	SEEKWAIT,
+	RECALWAIT,
+	MOTORWAIT,
+	IOTIMEDOUT,
+	RESETCOMPLETE,
+	PIOREAD
+};
+
+#ifdef	FDC_DEBUG
+static char const * const fdstates[] = {
+	"DEVIDLE",
+	"FINDWORK",
+	"DOSEEK",
+	"SEEKCOMPLETE",
+	"IOCOMPLETE",
+	"RECALCOMPLETE",
+	"STARTRECAL",
+	"RESETCTLR",
+	"SEEKWAIT",
+	"RECALWAIT",
+	"MOTORWAIT",
+	"IOTIMEDOUT",
+	"RESETCOMPLETE",
+	"PIOREAD"
+};
+#endif
+
+/*
+ * Per controller structure (softc).
+ */
+struct fdc_data
+{
+	int	fdcu;		/* our unit number */
+	int	dmachan;
+	int	flags;
+#define FDC_ATTACHED	0x01
+#define FDC_STAT_VALID	0x08
+#define FDC_HAS_FIFO	0x10
+#define FDC_NEEDS_RESET	0x20
+#define FDC_NODMA	0x40
+#define FDC_ISPNP	0x80
+#define FDC_ISPCMCIA	0x100
+	struct	fd_data *fd;
+	int	fdu;		/* the active drive	*/
+	enum	fdc_states state;
+	int	retry;
+	int	fdout;		/* mirror of the w/o digital output reg */
+	u_int	status[7];	/* copy of the registers */
+	enum	fdc_type fdct;	/* chip version of FDC */
+	int	fdc_errs;	/* number of logged errors */
+	int	dma_overruns;	/* number of DMA overruns */
+	struct	bio_queue_head head;
+	struct	bio *bp;	/* active buffer */
+	struct	resource *res_ioport, *res_ctl, *res_irq, *res_drq;
+	int	rid_ioport, rid_ctl, rid_irq, rid_drq;
+	int	port_off;
+	bus_space_tag_t portt;
+	bus_space_handle_t porth;
+	bus_space_tag_t ctlt;
+	bus_space_handle_t ctlh;
+	void	*fdc_intr;
+	struct	device *fdc_dev;
+	void	(*fdctl_wr)(struct fdc_data *fdc, u_int8_t v);
+};
+
+typedef int	fdu_t;
+typedef int	fdcu_t;
+typedef int	fdsu_t;
+typedef	struct fd_data *fd_p;
+typedef struct fdc_data *fdc_p;
+typedef enum fdc_type fdc_t;
+
+#define FDUNIT(s)	(((s) >> 6) & 3)
+#define FDTYPE(s)	((s) & 0x3f)
+
+/*
+ * fdc maintains a set (1!) of ivars per child of each controller.
+ */
+enum fdc_device_ivars {
+	FDC_IVAR_FDUNIT,
+};
+
+/*
+ * Simple access macros for the ivars.
+ */
+#define FDC_ACCESSOR(A, B, T)						\
+static __inline T fdc_get_ ## A(device_t dev)				\
+{									\
+	uintptr_t v;							\
+	BUS_READ_IVAR(device_get_parent(dev), dev, FDC_IVAR_ ## B, &v);	\
+	return (T) v;							\
+}
+FDC_ACCESSOR(fdunit,	FDUNIT,	int)
 
 /* configuration flags */
 #define FDC_PRETEND_D0	(1 << 0)	/* pretend drive 0 to be there */
@@ -108,7 +215,7 @@
 #define NUMTYPES 17
 #define NUMDENS  (NUMTYPES - 7)
 
-#define NO_TYPE		0	/* must match NO_TYPE in ft.c */
+#define NO_TYPE		0
 #define FD_1720         1
 #define FD_1480         2
 #define FD_1440         3
@@ -159,15 +266,11 @@ static struct fd_type fd_types[NUMTYPES] =
 				 * up to cyl 82 */
 #define MAX_HEAD	1
 
-/***********************************************************************\
-* Per controller structure.						*
-\***********************************************************************/
 static devclass_t fdc_devclass;
 
-/***********************************************************************\
-* Per drive structure.							*
-* N per controller  (DRVS_PER_CTLR)					*
-\***********************************************************************/
+/*
+ * Per drive structure (softc).
+ */
 struct fd_data {
 	struct	fdc_data *fdc;	/* pointer to controller structure */
 	int	fdsu;		/* this units number on this controller */
@@ -199,17 +302,57 @@ struct fdc_ivars {
 };
 static devclass_t fd_devclass;
 
-/***********************************************************************\
-* Throughout this file the following conventions will be used:		*
-* fd is a pointer to the fd_data struct for the drive in question	*
-* fdc is a pointer to the fdc_data struct for the controller		*
-* fdu is the floppy drive unit number					*
-* fdcu is the floppy controller unit number				*
-* fdsu is the floppy drive unit number on that controller. (sub-unit)	*
-\***********************************************************************/
+/*
+ * Throughout this file the following conventions will be used:
+ *
+ * fd is a pointer to the fd_data struct for the drive in question
+ * fdc is a pointer to the fdc_data struct for the controller
+ * fdu is the floppy drive unit number
+ * fdcu is the floppy controller unit number
+ * fdsu is the floppy drive unit number on that controller. (sub-unit)
+ */
 
-/* internal functions */
-static driver_intr_t fdc_intr;
+/*
+ * Function declarations, same (chaotic) order as they appear in the
+ * file.  Re-ordering is too late now, it would only obfuscate the
+ * diffs against old and offspring versions (like the PC98 one).
+ *
+ * Anyone adding functions here, please keep this sequence the same
+ * as below -- makes locating a particular function in the body much
+ * easier.
+ */
+static void fdout_wr(fdc_p, u_int8_t);
+static u_int8_t fdsts_rd(fdc_p);
+static void fddata_wr(fdc_p, u_int8_t);
+static u_int8_t fddata_rd(fdc_p);
+static void fdctl_wr_isa(fdc_p, u_int8_t);
+#if NCARD > 0
+static void fdctl_wr_pcmcia(fdc_p, u_int8_t);
+#endif
+#if 0
+static u_int8_t fdin_rd(fdc_p);
+#endif
+static int fdc_err(struct fdc_data *, const char *);
+static int fd_cmd(struct fdc_data *, int, ...);
+static int enable_fifo(fdc_p fdc);
+static int fd_sense_drive_status(fdc_p, int *);
+static int fd_sense_int(fdc_p, int *, int *);
+static int fd_read_status(fdc_p);
+static int fdc_alloc_resources(struct fdc_data *);
+static void fdc_release_resources(struct fdc_data *);
+static int fdc_read_ivar(device_t, device_t, int, uintptr_t *);
+static int fdc_probe(device_t);
+#if NCARD > 0
+static int fdc_pccard_probe(device_t);
+#endif
+static int fdc_detach(device_t dev);
+static void fdc_add_child(device_t, const char *, int);
+static int fdc_attach(device_t);
+static int fdc_print_child(device_t, device_t);
+static void fd_clone (void *, char *, int, dev_t *);
+static int fd_probe(device_t);
+static int fd_attach(device_t);
+static int fd_detach(device_t);
 static void set_motor(struct fdc_data *, int, int);
 #  define TURNON 1
 #  define TURNOFF 0
@@ -219,37 +362,27 @@ static void fd_turnon(struct fd_data *);
 static void fdc_reset(fdc_p);
 static int fd_in(struct fdc_data *, int *);
 static int out_fdc(struct fdc_data *, int);
+/*
+ * The open function is named Fdopen() to avoid confusion with fdopen()
+ * in fd(4).  The difference is now only meaningful for debuggers.
+ */
+static	d_open_t	Fdopen;
+static	d_close_t	fdclose;
+static	d_strategy_t	fdstrategy;
 static void fdstart(struct fdc_data *);
 static timeout_t fd_iotimeout;
 static timeout_t fd_pseudointr;
+static driver_intr_t fdc_intr;
+static int fdcpio(fdc_p, long, caddr_t, u_int);
 static int fdstate(struct fdc_data *);
 static int retrier(struct fdc_data *);
+static void fdbiodone(struct bio *);
 static int fdmisccmd(dev_t, u_int, void *);
-
-static int enable_fifo(fdc_p fdc);
-static void fd_clone (void *arg, char *name, int namelen, dev_t *dev);
+static	d_ioctl_t	fdioctl;
 
 static int fifo_threshold = 8;	/* XXX: should be accessible via sysctl */
 
 #ifdef	FDC_DEBUG
-static char const * const fdstates[] =
-{
-"DEVIDLE",
-"FINDWORK",
-"DOSEEK",
-"SEEKCOMPLETE",
-"IOCOMPLETE",
-"RECALCOMPLETE",
-"STARTRECAL",
-"RESETCTLR",
-"SEEKWAIT",
-"RECALWAIT",
-"MOTORWAIT",
-"IOTIMEDOUT",
-"RESETCOMPLETE",
-"PIOREAD",
-};
-
 /* CAUTION: fd_debug causes huge amounts of logging output */
 static int volatile fd_debug = 0;
 #define TRACE0(arg) do { if (fd_debug) printf(arg); } while (0)
@@ -259,6 +392,9 @@ static int volatile fd_debug = 0;
 #define TRACE1(arg1, arg2) do { } while (0)
 #endif /* FDC_DEBUG */
 
+/*
+ * Bus space handling (access to low-level IO).
+ */
 static void
 fdout_wr(fdc_p fdc, u_int8_t v)
 {
@@ -307,15 +443,6 @@ fdin_rd(fdc_p fdc)
 
 #endif
 
-/*
- * The open function is named Fdopen() to avoid confusion with fdopen()
- * in fd(4).  The difference is now only meaningful for debuggers.
- */
-static	d_open_t	Fdopen;
-static	d_close_t	fdclose;
-static	d_ioctl_t	fdioctl;
-static	d_strategy_t	fdstrategy;
-
 #define CDEV_MAJOR 9
 static struct cdevsw fd_cdevsw = {
 	/* open */	Fdopen,
@@ -333,6 +460,10 @@ static struct cdevsw fd_cdevsw = {
 	/* flags */	D_DISK,
 };
 
+/*
+ * Auxiliary functions.  Well, some only.  Others are scattered
+ * throughout the entire file.
+ */
 static int
 fdc_err(struct fdc_data *fdc, const char *s)
 {
@@ -486,7 +617,7 @@ fd_read_status(fdc_p fdc)
 {
 	int i, ret;
 
-	for (i = 0; i < 7; i++) {
+	for (i = ret = 0; i < 7; i++) {
 		/*
 		 * XXX types are poorly chosen.  Only bytes can be read
 		 * from the hardware, but fdc->status[] wants u_ints and
@@ -507,10 +638,6 @@ fd_read_status(fdc_p fdc)
 
 	return ret;
 }
-
-/****************************************************************************/
-/*                      autoconfiguration stuff                             */
-/****************************************************************************/
 
 static int
 fdc_alloc_resources(struct fdc_data *fdc)
@@ -650,9 +777,9 @@ fdc_release_resources(struct fdc_data *fdc)
 	}
 }
 
-/****************************************************************************/
-/*                      autoconfiguration stuff                             */
-/****************************************************************************/
+/*
+ * Configuration/initialization stuff, per controller.
+ */
 
 static struct isa_pnp_id fdc_ids[] = {
 	{0x0007d041, "PC standard floppy disk controller"}, /* PNP0700 */
@@ -675,9 +802,6 @@ fdc_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
 	return 0;
 }
 
-/*
- * fdc controller section.
- */
 static int
 fdc_probe(device_t dev)
 {
@@ -985,6 +1109,7 @@ static struct {
 	{ "h",		0,	1 },
 	{ 0, 0 }
 };
+
 static void
 fd_clone(void *arg, char *name, int namelen, dev_t *dev)
 {
@@ -1014,9 +1139,8 @@ fd_clone(void *arg, char *name, int namelen, dev_t *dev)
 	}
 }
 
-/******************************************************************/
 /*
- * devices attached to the controller section.  
+ * Configuration/initialization, per drive.
  */
 static int
 fd_probe(device_t dev)
@@ -1224,10 +1348,13 @@ static driver_t fd_driver = {
 
 DRIVER_MODULE(fd, fdc, fd_driver, fd_devclass, 0, 0);
 
-/****************************************************************************/
-/*                            motor control stuff                           */
-/*		remember to not deselect the drive we're working on         */
-/****************************************************************************/
+/*
+ * More auxiliary functions.
+ */
+/*
+ * Motor control stuff.
+ * Remember to not deselect the drive we're working on.
+ */
 static void
 set_motor(struct fdc_data *fdc, int fdsu, int turnon)
 {
@@ -1320,9 +1447,10 @@ fdc_reset(fdc_p fdc)
 		(void) enable_fifo(fdc);
 }
 
-/****************************************************************************/
-/*                             fdc in/out                                   */
-/****************************************************************************/
+/*
+ * FDC IO functions, take care of the main status register, timeout
+ * in case the desired status bits are never set.
+ */
 static int
 fd_in(struct fdc_data *fdc, int *ptr)
 {
@@ -1368,9 +1496,10 @@ out_fdc(struct fdc_data *fdc, int x)
 	return (0);
 }
 
-/****************************************************************************/
-/*                           fdopen/fdclose                                 */
-/****************************************************************************/
+/*
+ * Block device driver interface functions (interspersed with even more
+ * auxiliary functions).
+ */
 int
 Fdopen(dev_t dev, int flags, int mode, struct proc *p)
 {
@@ -1479,9 +1608,6 @@ fdclose(dev_t dev, int flags, int mode, struct proc *p)
 	return (0);
 }
 
-/****************************************************************************/
-/*                               fdstrategy                                 */
-/****************************************************************************/
 void
 fdstrategy(struct bio *bp)
 {
@@ -1560,15 +1686,17 @@ bad:
 	biodone(bp);
 }
 
-/***************************************************************\
-*				fdstart				*
-* We have just queued something.. if the controller is not busy	*
-* then simulate the case where it has just finished a command	*
-* So that it (the interrupt routine) looks on the queue for more*
-* work to do and picks up what we just added.			*
-* If the controller is already busy, we need do nothing, as it	*
-* will pick up our work when the present work completes		*
-\***************************************************************/
+/*
+ * fdstart
+ *
+ * We have just queued something.  If the controller is not busy
+ * then simulate the case where it has just finished a command
+ * So that it (the interrupt routine) looks on the queue for more
+ * work to do and picks up what we just added.
+ *
+ * If the controller is already busy, we need do nothing, as it
+ * will pick up our work when the present work completes.
+ */
 static void
 fdstart(struct fdc_data *fdc)
 {
@@ -1610,7 +1738,7 @@ fd_iotimeout(void *xfdc)
 	splx(s);
 }
 
-/* just ensure it has the right spl */
+/* Just ensure it has the right spl. */
 static void
 fd_pseudointr(void *xfdc)
 {
@@ -1621,11 +1749,12 @@ fd_pseudointr(void *xfdc)
 	splx(s);
 }
 
-/***********************************************************************\
-*                                 fdc_intr				*
-* keep calling the state machine until it returns a 0			*
-* ALWAYS called at SPLBIO 						*
-\***********************************************************************/
+/*
+ * fdc_intr
+ *
+ * Keep calling the state machine until it returns a 0.
+ * Always called at splbio.
+ */
 static void
 fdc_intr(void *xfdc)
 {
@@ -1635,8 +1764,8 @@ fdc_intr(void *xfdc)
 }
 
 /*
- * magic pseudo-DMA initialization for YE FDC. Sets count and
- * direction
+ * Magic pseudo-DMA initialization for YE FDC. Sets count and
+ * direction.
  */
 #define SET_BCDR(fdc,wr,cnt,port) \
 	bus_space_write_1(fdc->portt, fdc->porth, fdc->port_off + port,	 \
@@ -1645,7 +1774,7 @@ fdc_intr(void *xfdc)
 	    ((wr ? 0x80 : 0) | ((((cnt)-1) >> 8) & 0x7f)));
 
 /*
- * fdcpio(): perform programmed IO read/write for YE PCMCIA floppy
+ * fdcpio(): perform programmed IO read/write for YE PCMCIA floppy.
  */
 static int
 fdcpio(fdc_p fdc, long flags, caddr_t addr, u_int count)
@@ -1668,10 +1797,11 @@ fdcpio(fdc_p fdc, long flags, caddr_t addr, u_int count)
 	return(1);
 }
 
-/***********************************************************************\
-* The controller state machine.						*
-* if it returns a non zero value, it should be called again immediatly	*
-\***********************************************************************/
+/*
+ * The controller state machine.
+ *
+ * If it returns a non zero value, it should be called again immediately.
+ */
 static int
 fdstate(fdc_p fdc)
 {
@@ -1694,10 +1824,10 @@ fdstate(fdc_p fdc)
 		}
 	}
 	if (bp == NULL) {
-		/***********************************************\
-		* nothing left for this controller to do	*
-		* Force into the IDLE state,			*
-		\***********************************************/
+		/*
+		 * Nothing left for this controller to do,
+		 * force into the IDLE state.
+		 */
 		fdc->state = DEVIDLE;
 		if (fdc->fd) {
 			device_printf(fdc->fdc_dev,
@@ -1737,22 +1867,22 @@ fdstate(fdc_p fdc)
 		fdc->fdu = fdu;
 		fdc->fdctl_wr(fdc, fd->ft->trans);
 		TRACE1("[0x%x->FDCTL]", fd->ft->trans);
-		/*******************************************************\
-		* If the next drive has a motor startup pending, then	*
-		* it will start up in its own good time			*
-		\*******************************************************/
+		/*
+		 * If the next drive has a motor startup pending, then
+		 * it will start up in its own good time.
+		 */
 		if(fd->flags & FD_MOTOR_WAIT) {
 			fdc->state = MOTORWAIT;
-			return (0); /* come back later */
+			return (0); /* will return later */
 		}
-		/*******************************************************\
-		* Maybe if it's not starting, it SHOULD be starting	*
-		\*******************************************************/
+		/*
+		 * Maybe if it's not starting, it SHOULD be starting.
+		 */
 		if (!(fd->flags & FD_MOTOR))
 		{
 			fdc->state = MOTORWAIT;
 			fd_turnon(fd);
-			return (0);
+			return (0); /* will return later */
 		}
 		else	/* at least make sure we are selected */
 		{
@@ -1763,7 +1893,7 @@ fdstate(fdc_p fdc)
 			fdc->flags &= ~FDC_NEEDS_RESET;
 		} else
 			fdc->state = DOSEEK;
-		return (1);	/* come back immediately */
+		return (1);	/* will return immediately */
 
 	case DOSEEK:
 		blknum = bp->bio_pblkno + fd->skip / fdblk;
@@ -1771,14 +1901,14 @@ fdstate(fdc_p fdc)
 		if (cylinder == fd->track)
 		{
 			fdc->state = SEEKCOMPLETE;
-			return (1); /* come back immediately */
+			return (1); /* will return immediately */
 		}
 		if (fd_cmd(fdc, 3, NE7CMD_SEEK,
 			   fd->fdsu, cylinder * fd->ft->steptrac,
 			   0))
 		{
 			/*
-			 * seek command not accepted, looks like
+			 * Seek command not accepted, looks like
 			 * the FDC went off to the Saints...
 			 */
 			fdc->retry = 6;	/* try a reset */
@@ -1794,11 +1924,11 @@ fdstate(fdc_p fdc)
 		fdc->state = SEEKCOMPLETE;
 		return(0);	/* will return later */
 
-	case SEEKCOMPLETE : /* SEEK DONE, START DMA */
+	case SEEKCOMPLETE : /* seek done, start DMA */
 		blknum = bp->bio_pblkno + fd->skip / fdblk;
 		cylinder = blknum / (fd->ft->sectrac * fd->ft->heads);
 
-		/* Make sure seek really happened*/
+		/* Make sure seek really happened. */
 		if(fd->track == FD_NO_TRACK) {
 			int descyl = cylinder * fd->ft->steptrac;
 			do {
@@ -1825,10 +1955,10 @@ fdstate(fdc_p fdc)
 				 */
 				if (fd_sense_int(fdc, &st0, &cyl)
 				    == FD_NOT_VALID)
-					return 0;
+					return (0); /* will return later */
 				if(fdc->fdct == FDC_NE765
 				   && (st0 & NE7_ST0_IC) == NE7_ST0_IC_RC)
-					return 0; /* hope for a real intr */
+					return (0); /* hope for a real intr */
 			} while ((st0 & NE7_ST0_IC) == NE7_ST0_IC_RC);
 
 			if (0 == descyl) {
@@ -1908,7 +2038,7 @@ fdstate(fdc_p fdc)
 				fdc->status[5] = sec;
 				fdc->retry = 8;	/* break out immediately */
 				fdc->state = IOTIMEDOUT; /* not really... */
-				return (1);
+				return (1); /* will return immediately */
 			}
 		}
 
@@ -1958,14 +2088,14 @@ fdstate(fdc_p fdc)
 			/* read or write operation */
 			if (fdc->flags & FDC_NODMA) {
 				/*
-				 * this seems to be necessary even when
-				 * reading data
+				 * This seems to be necessary even when
+				 * reading data.
 				 */
 				SET_BCDR(fdc, 1, fdblk, 0);
 
 				/*
-				 * perform the write pseudo-DMA before
-				 * the WRITE command is sent
+				 * Perform the write pseudo-DMA before
+				 * the WRITE command is sent.
 				 */
 				if (!read)
 					(void)fdcpio(fdc,bp->bio_cmd,
@@ -1995,8 +2125,8 @@ fdstate(fdc_p fdc)
 		}
 		if (!rdsectid && (fdc->flags & FDC_NODMA))
 			/*
-			 * if this is a read, then simply await interrupt
-			 * before performing PIO
+			 * If this is a read, then simply await interrupt
+			 * before performing PIO.
 			 */
 			if (read && !fdcpio(fdc,bp->bio_cmd,
 			    bp->bio_data+fd->skip,fdblk)) {
@@ -2005,8 +2135,8 @@ fdstate(fdc_p fdc)
 			}
 
 		/*
-		 * write (or format) operation will fall through and
-		 * await completion interrupt
+		 * Write (or format) operation will fall through and
+		 * await completion interrupt.
 		 */
 		fdc->state = IOCOMPLETE;
 		fd->tohandle = timeout(fd_iotimeout, fdc, hz);
@@ -2014,13 +2144,13 @@ fdstate(fdc_p fdc)
 
 	case PIOREAD:
 		/* 
-		 * actually perform the PIO read.  The IOCOMPLETE case
-		 * removes the timeout for us.  
+		 * Actually perform the PIO read.  The IOCOMPLETE case
+		 * removes the timeout for us.
 		 */
 		(void)fdcpio(fdc,bp->bio_cmd,bp->bio_data+fd->skip,fdblk);
 		fdc->state = IOCOMPLETE;
 		/* FALLTHROUGH */
-	case IOCOMPLETE: /* IO DONE, post-analyze */
+	case IOCOMPLETE: /* IO done, post-analyze */
 		untimeout(fd_iotimeout, fdc, fd->tohandle);
 
 		if (fd_read_status(fdc)) {
@@ -2057,7 +2187,7 @@ fdstate(fdc_p fdc)
 				 */
 				if (fdc->dma_overruns++ < FDC_DMAOV_MAX) {
 					fdc->state = SEEKCOMPLETE;
-					return (1);
+					return (1);/* will return immediately */
 				} /* else fall through */
                         }
 			if((fdc->status[0] & NE7_ST0_IC) == NE7_ST0_IC_IV
@@ -2095,13 +2225,13 @@ fdstate(fdc_p fdc)
 			fdc->fdu = -1;
 			fdc->state = FINDWORK;
 		}
-		return (1);
+		return (1);	/* will return immediately */
 
 	case RESETCTLR:
 		fdc_reset(fdc);
 		fdc->retry++;
 		fdc->state = RESETCOMPLETE;
-		return (0);
+		return (0);	/* will return later */
 
 	case RESETCOMPLETE:
 		/*
@@ -2133,21 +2263,21 @@ fdstate(fdc_p fdc)
 			 * See SEEKCOMPLETE for a comment on this:
 			 */
 			if (fd_sense_int(fdc, &st0, &cyl) == FD_NOT_VALID)
-				return 0;
+				return (0); /* will return later */
 			if(fdc->fdct == FDC_NE765
 			   && (st0 & NE7_ST0_IC) == NE7_ST0_IC_RC)
-				return 0; /* hope for a real intr */
+				return (0); /* hope for a real intr */
 		} while ((st0 & NE7_ST0_IC) == NE7_ST0_IC_RC);
 		if ((st0 & NE7_ST0_IC) != NE7_ST0_IC_NT || cyl != 0)
 		{
 			if(fdc->retry > 3)
 				/*
-				 * a recalibrate from beyond cylinder 77
+				 * A recalibrate from beyond cylinder 77
 				 * will "fail" due to the FDC limitations;
 				 * since people used to complain much about
 				 * the failure message, try not logging
 				 * this one if it seems to be the first
-				 * time in a line
+				 * time in a line.
 				 */
 				printf("fd%d: recal failed ST0 %b cyl %d\n",
 				       fdu, st0, NE7_ST0BITS, cyl);
@@ -2157,7 +2287,7 @@ fdstate(fdc_p fdc)
 		fd->track = 0;
 		/* Seek (probably) necessary */
 		fdc->state = DOSEEK;
-		return (1);	/* will return immediatly */
+		return (1);	/* will return immediately */
 
 	case MOTORWAIT:
 		if(fd->flags & FD_MOTOR_WAIT)
@@ -2169,7 +2299,7 @@ fdstate(fdc_p fdc)
 			fdc->flags &= ~FDC_NEEDS_RESET;
 		} else
 			fdc->state = DOSEEK;
-		return (1);	/* will return immediatly */
+		return (1);	/* will return immediately */
 
 	default:
 		device_printf(fdc->fdc_dev, "unexpected FD int->");
@@ -2187,13 +2317,12 @@ fdstate(fdc_p fdc)
 		if (fd_sense_int(fdc, &st0, &cyl) != 0)
 		{
 			printf("[controller is dead now]\n");
-			return (0);
+			return (0); /* will return later */
 		}
 		printf("ST0 = %x, PCN = %x\n", st0, cyl);
-		return (0);
+		return (0);	/* will return later */
 	}
-	/* keep the compiler happy -- noone should ever get here */
-	return (999999);
+	/* noone should ever get here */
 }
 
 static int
