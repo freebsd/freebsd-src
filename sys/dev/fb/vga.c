@@ -962,28 +962,34 @@ probe_adapters(void)
      * type detected.
      */
 #ifndef VGA_NO_BIOS
-    switch ((rtcin(RTC_EQUIPMENT) >> 4) & 3) {	/* bit 4 and 5 */
-    case 0:
-	/* EGA/VGA */
+    if (*(u_int32_t *)BIOS_PADDRTOVADDR(0x4a8)) {
+	/* EGA/VGA BIOS is present */
 	fill_adapter_param(readb(BIOS_PADDRTOVADDR(0x488)) & 0x0f, 
 			   biosadapter);
-	break;
-    case 1:
-	/* CGA 40x25 */
-	/* FIXME: switch to the 80x25 mode? XXX */
-	biosadapter[V_ADP_PRIMARY] = adapter_init_value[DCC_CGA40];
-	biosadapter[V_ADP_SECONDARY] = adapter_init_value[DCC_MONO];
-	break;
-    case 2:
-	/* CGA 80x25 */
-	biosadapter[V_ADP_PRIMARY] = adapter_init_value[DCC_CGA80];
-	biosadapter[V_ADP_SECONDARY] = adapter_init_value[DCC_MONO];
-	break;
-    case 3:
-	/* MDA */
-	biosadapter[V_ADP_PRIMARY] = adapter_init_value[DCC_MONO];
-	biosadapter[V_ADP_SECONDARY] = adapter_init_value[DCC_CGA80];
-	break;
+    } else {
+	switch ((rtcin(RTC_EQUIPMENT) >> 4) & 3) {	/* bit 4 and 5 */
+	case 0:
+	    /* EGA/VGA: shouldn't be happening */
+	    fill_adapter_param(readb(BIOS_PADDRTOVADDR(0x488)) & 0x0f, 
+			       biosadapter);
+	    break;
+	case 1:
+	    /* CGA 40x25 */
+	    /* FIXME: switch to the 80x25 mode? XXX */
+	    biosadapter[V_ADP_PRIMARY] = adapter_init_value[DCC_CGA40];
+	    biosadapter[V_ADP_SECONDARY] = adapter_init_value[DCC_MONO];
+	    break;
+	case 2:
+	    /* CGA 80x25 */
+	    biosadapter[V_ADP_PRIMARY] = adapter_init_value[DCC_CGA80];
+	    biosadapter[V_ADP_SECONDARY] = adapter_init_value[DCC_MONO];
+	    break;
+	case 3:
+	    /* MDA */
+	    biosadapter[V_ADP_PRIMARY] = adapter_init_value[DCC_MONO];
+	    biosadapter[V_ADP_SECONDARY] = adapter_init_value[DCC_CGA80];
+	    break;
+	}
     }
 #else
     /* assume EGA/VGA? XXX */
