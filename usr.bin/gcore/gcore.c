@@ -83,7 +83,7 @@ SET_DECLARE(dumpset, struct dumpers);
 int
 main(int argc, char *argv[])
 {
-	int ch, cnt, efd, fd, sflag;
+	int ch, efd, fd, sflag;
 	char *binfile, *corefile;
 	char fname[MAXPATHLEN];
 	struct dumpers **d, *dumper;

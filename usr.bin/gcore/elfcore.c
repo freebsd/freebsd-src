@@ -80,11 +80,10 @@ static void readhdrinfo(pid_t, prstatus_t *, prfpregset_t *, prpsinfo_t *);
 static vm_map_entry_t readmap(pid_t);
 
 static int
-elf_ident(int efd, pid_t pid, char *binfile)
+elf_ident(int efd, pid_t pid __unused, char *binfile __unused)
 {
 	Elf_Ehdr hdr;
 	int cnt;
-	uid_t uid;
 
 	cnt = read(efd, &hdr, sizeof(hdr));
 	if (cnt != sizeof(hdr))
@@ -97,8 +96,8 @@ elf_ident(int efd, pid_t pid, char *binfile)
 /*
  * Write an ELF coredump for the given pid to the given fd.
  */
-void
-elf_coredump(int efd, int fd, pid_t pid)
+static void
+elf_coredump(int efd __unused, int fd, pid_t pid)
 {
 	vm_map_entry_t map;
 	struct sseg_closure seginfo;
