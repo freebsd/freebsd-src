@@ -1160,6 +1160,7 @@ daregister(struct cam_periph *periph, void *arg)
 	softc->dev = disk_create(periph->unit_number, &softc->disk, 0, 
 	    &da_cdevsw, &dadisk_cdevsw);
 	softc->dev->si_drv1 = periph;
+	softc->dev->si_iosize_max = DFLTPHYS;
 
 	/*
 	 * Add async callbacks for bus reset and
