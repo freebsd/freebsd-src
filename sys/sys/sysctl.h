@@ -81,6 +81,7 @@ struct ctlname {
 #define CTLFLAG_ANYBODY	0x10000000	/* All users can set this var */
 #define CTLFLAG_SECURE	0x08000000	/* Permit set only if securelevel<=0 */
 #define CTLFLAG_PRISON	0x04000000	/* Prisoned roots can fiddle */
+#define CTLFLAG_DYN	0x02000000	/* Dynamic oid - can be freed */
 
 /*
  * USE THIS instead of a hardwired number from the categories below
@@ -128,6 +129,7 @@ struct sysctl_oid {
 	const char	*oid_name;
 	int 		(*oid_handler)(SYSCTL_HANDLER_ARGS);
 	const char	*oid_fmt;
+	int		oid_refcnt;
 };
 
 #define SYSCTL_IN(r, p, l) (r->newfunc)(r, p, l)
@@ -145,9 +147,25 @@ int sysctl_handle_opaque(SYSCTL_HANDLER_ARGS);
 void sysctl_register_oid(struct sysctl_oid *oidp);
 void sysctl_unregister_oid(struct sysctl_oid *oidp);
 
-/* Declare an oid to allow child oids to be added to it. */
+/* Declare a static oid to allow child oids to be added to it. */
 #define SYSCTL_DECL(name)					\
 	extern struct sysctl_oid_list sysctl_##name##_children
+
+/* Hide these in macros */
+#define	SYSCTL_CHILDREN(oid_ptr) (struct sysctl_oid_list *) \
+	(oid_ptr)->oid_arg1
+#define	SYSCTL_STATIC_CHILDREN(oid_name) \
+	(&sysctl_##oid_name##_children)
+
+/* === Structs and macros related to context handling === */
+
+/* All dynamically created sysctls can be tracked in a context list. */
+struct sysctl_ctx_entry {
+	struct sysctl_oid *entry;
+	TAILQ_ENTRY(sysctl_ctx_entry) link;
+};
+
+TAILQ_HEAD(sysctl_ctx_list, sysctl_ctx_entry);
 
 /* This constructs a "raw" MIB oid. */
 #define SYSCTL_OID(parent, nbr, name, kind, a1, a2, handler, fmt, descr) \
@@ -156,6 +174,9 @@ void sysctl_unregister_oid(struct sysctl_oid *oidp);
 		nbr, kind, a1, a2, #name, handler, fmt };		 \
 	DATA_SET(sysctl_set, sysctl__##parent##_##name);
 
+#define SYSCTL_ADD_OID(ctx, parent, nbr, name, kind, a1, a2, handler, fmt, descr) \
+	sysctl_add_oid(ctx, parent, nbr, #name, kind, a1, a2, handler, fmt, descr);
+
 /* This constructs a node from which other oids can hang. */
 #define SYSCTL_NODE(parent, nbr, name, access, handler, descr)		    \
 	struct sysctl_oid_list sysctl_##parent##_##name##_children;	    \
@@ -163,35 +184,64 @@ void sysctl_unregister_oid(struct sysctl_oid *oidp);
 		   (void*)&sysctl_##parent##_##name##_children, 0, handler, \
 		   "N", descr);
 
+#define SYSCTL_ADD_NODE(ctx, parent, nbr, name, access, handler, descr)	    \
+	sysctl_add_oid(ctx, parent, nbr, #name, CTLTYPE_NODE|access,	    \
+	0, 0, handler, "N", descr);
+
 /* Oid for a string.  len can be 0 to indicate '\0' termination. */
 #define SYSCTL_STRING(parent, nbr, name, access, arg, len, descr) \
 	SYSCTL_OID(parent, nbr, name, CTLTYPE_STRING|access, \
 		arg, len, sysctl_handle_string, "A", descr)
+
+#define SYSCTL_ADD_STRING(ctx, parent, nbr, name, access, arg, len, descr)  \
+	sysctl_add_oid(ctx, parent, nbr, #name, CTLTYPE_STRING|access,	    \
+	arg, len, sysctl_handle_string, "A", descr);
 
 /* Oid for an int.  If ptr is NULL, val is returned. */
 #define SYSCTL_INT(parent, nbr, name, access, ptr, val, descr) \
 	SYSCTL_OID(parent, nbr, name, CTLTYPE_INT|access, \
 		ptr, val, sysctl_handle_int, "I", descr)
 
+#define SYSCTL_ADD_INT(ctx, parent, nbr, name, access, ptr, val, descr)	    \
+	sysctl_add_oid(ctx, parent, nbr, #name, CTLTYPE_INT|access,	    \
+	ptr, val, sysctl_handle_int, "I", descr);
+
 /* Oid for an unsigned int.  If ptr is NULL, val is returned. */
 #define SYSCTL_UINT(parent, nbr, name, access, ptr, val, descr) \
 	SYSCTL_OID(parent, nbr, name, CTLTYPE_INT|access, \
 		ptr, val, sysctl_handle_int, "IU", descr)
 
-/* Oid for a long.  If ptr is NULL, val is returned. */
+#define SYSCTL_ADD_UINT(ctx, parent, nbr, name, access, ptr, val, descr)    \
+	sysctl_add_oid(ctx, parent, nbr, #name, CTLTYPE_INT|access,	    \
+	ptr, val, sysctl_handle_int, "IU", descr);
+
+/* Oid for a long.  The pointer must be non NULL. */
 #define SYSCTL_LONG(parent, nbr, name, access, ptr, val, descr) \
 	SYSCTL_OID(parent, nbr, name, CTLTYPE_INT|access, \
 		ptr, val, sysctl_handle_long, "L", descr)
 
 /* Oid for an unsigned long.  If ptr is NULL, val is returned. */
+#define SYSCTL_ADD_LONG(ctx, parent, nbr, name, access, ptr, descr)	    \
+	sysctl_add_oid(ctx, parent, nbr, #name, CTLTYPE_INT|access,	    \
+	ptr, 0, sysctl_handle_long, "L", descr);
+
+/* Oid for a long.  The pointer must be non NULL. */
 #define SYSCTL_ULONG(parent, nbr, name, access, ptr, val, descr) \
         SYSCTL_OID(parent, nbr, name, CTLTYPE_INT|access, \
                 ptr, val, sysctl_handle_long, "LU", descr)
+
+#define SYSCTL_ADD_ULONG(ctx, parent, nbr, name, access, ptr, descr)	    \
+	sysctl_add_oid(ctx, parent, nbr, #name, CTLTYPE_INT|access,	    \
+	ptr, 0, sysctl_handle_long, "LU", descr);
 
 /* Oid for an opaque object.  Specified by a pointer and a length. */
 #define SYSCTL_OPAQUE(parent, nbr, name, access, ptr, len, fmt, descr) \
 	SYSCTL_OID(parent, nbr, name, CTLTYPE_OPAQUE|access, \
 		ptr, len, sysctl_handle_opaque, fmt, descr)
+
+#define SYSCTL_ADD_OPAQUE(ctx, parent, nbr, name, access, ptr, len, fmt, descr)\
+	sysctl_add_oid(ctx, parent, nbr, #name, CTLTYPE_OPAQUE|access,	    \
+	ptr, len, sysctl_handle_opaque, fmt, descr);
 
 /* Oid for a struct.  Specified by a pointer and a type. */
 #define SYSCTL_STRUCT(parent, nbr, name, access, ptr, type, descr) \
@@ -199,10 +249,19 @@ void sysctl_unregister_oid(struct sysctl_oid *oidp);
 		ptr, sizeof(struct type), sysctl_handle_opaque, \
 		"S," #type, descr)
 
+#define SYSCTL_ADD_STRUCT(ctx, parent, nbr, name, access, ptr, type, descr) \
+	sysctl_add_oid(ctx, parent, nbr, #name, CTLTYPE_OPAQUE|access,	    \
+	ptr, sizeof(struct type), sysctl_handle_opaque, "S," #type, descr);
+
 /* Oid for a procedure.  Specified by a pointer and an arg. */
 #define SYSCTL_PROC(parent, nbr, name, access, ptr, arg, handler, fmt, descr) \
 	SYSCTL_OID(parent, nbr, name, access, \
 		ptr, arg, handler, fmt, descr)
+
+#define SYSCTL_ADD_PROC(ctx, parent, nbr, name, access, ptr, arg, handler, fmt, descr) \
+	sysctl_add_oid(ctx, parent, nbr, #name, access,			    \
+	ptr, arg, handler, fmt, descr);
+
 #endif /* _KERNEL */
 
 /*
@@ -501,8 +560,26 @@ extern char	ostype[];
 
 struct linker_set;
 
+/* Dynamic oid handling */
+struct sysctl_oid *sysctl_add_oid(struct sysctl_ctx_list *clist,
+		struct sysctl_oid_list *parent, int nbr, char *name,
+		int kind, void *arg1, int arg2,
+		int (*handler) (SYSCTL_HANDLER_ARGS),
+		char *fmt, char *descr);
+int	sysctl_remove_oid(struct sysctl_oid *oidp, int del, int recurse);
+int	sysctl_ctx_init(struct sysctl_ctx_list *clist);
+int	sysctl_ctx_free(struct sysctl_ctx_list *clist);
+struct	sysctl_ctx_entry *sysctl_ctx_entry_add(struct sysctl_ctx_list *clist,
+		struct sysctl_oid *oidp);
+struct	sysctl_ctx_entry *sysctl_ctx_entry_find(struct sysctl_ctx_list *clist,
+		struct sysctl_oid *oidp);
+int	sysctl_ctx_entry_del(struct sysctl_ctx_list *clist,
+		struct sysctl_oid *oidp);
+
+/* Linker set based oid handling */
 void	sysctl_register_set(struct linker_set *lsp);
 void	sysctl_unregister_set(struct linker_set *lsp);
+
 int	kernel_sysctl(struct proc *p, int *name, u_int namelen, void *old,
 		      size_t *oldlenp, void *new, size_t newlen,
 		      size_t *retval);

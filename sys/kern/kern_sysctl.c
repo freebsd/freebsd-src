@@ -54,6 +54,7 @@
 #include <vm/vm_extern.h>
 
 static MALLOC_DEFINE(M_SYSCTL, "sysctl", "sysctl internal magic");
+static MALLOC_DEFINE(M_SYSCTLOID, "sysctloid", "sysctl dynamic oids");
 
 /*
  * Locking and stats
@@ -68,6 +69,19 @@ static int sysctl_root(SYSCTL_HANDLER_ARGS);
 
 struct sysctl_oid_list sysctl__children; /* root list */
 
+static struct sysctl_oid *
+sysctl_find_oidname(const char *name, struct sysctl_oid_list *list)
+{
+	struct sysctl_oid *oidp;
+
+	SLIST_FOREACH(oidp, list, oid_link) {
+		if (strcmp(oidp->oid_name, name) == 0) {
+			return (oidp);
+		}
+	}
+	return (NULL);
+}
+
 /*
  * Initialization of the MIB tree.
  *
@@ -81,6 +95,20 @@ void sysctl_register_oid(struct sysctl_oid *oidp)
 	struct sysctl_oid *q;
 	int n;
 
+	/*
+	 * First check if another oid with the same name already
+	 * exists in the parent's list.
+	 */
+	p = sysctl_find_oidname(oidp->oid_name, parent);
+	if (p != NULL) {
+		if ((p->oid_kind & CTLTYPE) == CTLTYPE_NODE) {
+			p->oid_refcnt++;
+			return;
+		} else {
+			printf("can't re-use a leaf (%s)!\n", p->oid_name);
+			return;
+		}
+	}
 	/*
 	 * If this oid has a number OID_AUTO, give it a number which
 	 * is greater than any current oid.  Make sure it is at least
@@ -114,6 +142,233 @@ void sysctl_register_oid(struct sysctl_oid *oidp)
 void sysctl_unregister_oid(struct sysctl_oid *oidp)
 {
 	SLIST_REMOVE(oidp->oid_parent, oidp, sysctl_oid, oid_link);
+}
+
+/* Initialize a new context to keep track of dynamically added sysctls. */
+int
+sysctl_ctx_init(struct sysctl_ctx_list *c)
+{
+
+	if (c == NULL) {
+		return (EINVAL);
+	}
+	TAILQ_INIT(c);
+	return (0);
+}
+
+/* Free the context, and destroy all dynamic oids registered in this context */
+int
+sysctl_ctx_free(struct sysctl_ctx_list *clist)
+{
+	struct sysctl_ctx_entry *e, *e1;
+	int error;
+
+	error = 0;
+	/*
+	 * First perform a "dry run" to check if it's ok to remove oids.
+	 * XXX FIXME
+	 * XXX This algorithm is a hack. But I don't know any
+	 * XXX better solution for now...
+	 */
+	TAILQ_FOREACH(e, clist, link) {
+		error = sysctl_remove_oid(e->entry, 0, 0);
+		if (error)
+			break;
+	}
+	/*
+	 * Restore deregistered entries, either from the end,
+	 * or from the place where error occured.
+	 * e contains the entry that was not unregistered
+	 */
+	if (error)
+		e1 = TAILQ_PREV(e, sysctl_ctx_list, link);
+	else
+		e1 = TAILQ_LAST(clist, sysctl_ctx_list);
+	while (e1 != NULL) {
+		sysctl_register_oid(e1->entry);
+		e1 = TAILQ_PREV(e1, sysctl_ctx_list, link);
+	}
+	if (error)
+		return(EBUSY);
+	/* Now really delete the entries */
+	e = TAILQ_FIRST(clist);
+	while (e != NULL) {
+		e1 = TAILQ_NEXT(e, link);
+		error = sysctl_remove_oid(e->entry, 1, 0);
+		if (error)
+			panic("sysctl_remove_oid: corrupt tree, entry: %s",
+			    e->entry->oid_name);
+		free(e, M_SYSCTLOID);
+		e = e1;
+	}
+	return (error);
+}
+
+/* Add an entry to the context */
+struct sysctl_ctx_entry *
+sysctl_ctx_entry_add(struct sysctl_ctx_list *clist, struct sysctl_oid *oidp)
+{
+	struct sysctl_ctx_entry *e;
+
+	if (clist == NULL || oidp == NULL)
+		return(NULL);
+	e = malloc(sizeof(struct sysctl_ctx_entry), M_SYSCTLOID, M_WAITOK);
+	e->entry = oidp;
+	TAILQ_INSERT_HEAD(clist, e, link);
+	return (e);
+}
+
+/* Find an entry in the context */
+struct sysctl_ctx_entry *
+sysctl_ctx_entry_find(struct sysctl_ctx_list *clist, struct sysctl_oid *oidp)
+{
+	struct sysctl_ctx_entry *e;
+
+	if (clist == NULL || oidp == NULL)
+		return(NULL);
+	for (e = TAILQ_FIRST(clist); e != NULL; e = TAILQ_NEXT(e, link)) {
+		if(e->entry == oidp)
+			return(e);
+	}
+	return (e);
+}
+
+/*
+ * Delete an entry from the context.
+ * NOTE: this function doesn't free oidp! You have to remove it
+ * with sysctl_remove_oid().
+ */
+int
+sysctl_ctx_entry_del(struct sysctl_ctx_list *clist, struct sysctl_oid *oidp)
+{
+	struct sysctl_ctx_entry *e;
+
+	if (clist == NULL || oidp == NULL)
+		return (EINVAL);
+	e = sysctl_ctx_entry_find(clist, oidp);
+	if (e != NULL) {
+		TAILQ_REMOVE(clist, e, link);
+		free(e, M_SYSCTLOID);
+		return (0);
+	} else
+		return (ENOENT);
+}
+
+/*
+ * Remove dynamically created sysctl trees.
+ * oidp - top of the tree to be removed
+ * del - if 0 - just deregister, otherwise free up entries as well
+ * recurse - if != 0 traverse the subtree to be deleted
+ */
+int
+sysctl_remove_oid(struct sysctl_oid *oidp, int del, int recurse)
+{
+	struct sysctl_oid *p;
+	int error;
+
+	if (oidp == NULL)
+		return(EINVAL);
+	if ((oidp->oid_kind & CTLFLAG_DYN) == 0) {
+		printf("can't remove non-dynamic nodes!\n");
+		return (EINVAL);
+	}
+	/*
+	 * WARNING: normal method to do this should be through
+	 * sysctl_ctx_free(). Use recursing as the last resort
+	 * method to purge your sysctl tree of leftovers...
+	 * However, if some other code still references these nodes,
+	 * it will panic.
+	 */
+	if ((oidp->oid_kind & CTLTYPE) == CTLTYPE_NODE) {
+		if (oidp->oid_refcnt == 1) {
+			SLIST_FOREACH(p, SYSCTL_CHILDREN(oidp), oid_link) {
+				if (!recurse)
+					return (ENOTEMPTY);
+				error = sysctl_remove_oid(p, del, recurse);
+				if (error)
+					return (error);
+			}
+			if (del)
+				free(SYSCTL_CHILDREN(oidp), M_SYSCTLOID);
+		}
+	}
+	if (oidp->oid_refcnt > 1 ) {
+		oidp->oid_refcnt--;
+	} else {
+		if (oidp->oid_refcnt == 0) {
+			printf("Warning: bad oid_refcnt=%u (%s)!\n",
+				oidp->oid_refcnt, oidp->oid_name);
+			return (EINVAL);
+		}
+		sysctl_unregister_oid(oidp);
+		if (del) {
+			free((void *)(uintptr_t)(const void *)oidp->oid_name,
+			     M_SYSCTLOID);
+			free(oidp, M_SYSCTLOID);
+		}
+	}
+	return (0);
+}
+
+/*
+ * Create new sysctls at run time.
+ * clist may point to a valid context initialized with sysctl_ctx_init().
+ */
+struct sysctl_oid *
+sysctl_add_oid(struct sysctl_ctx_list *clist, struct sysctl_oid_list *parent,
+	int number, char *name, int kind, void *arg1, int arg2,
+	int (*handler)(SYSCTL_HANDLER_ARGS), char *fmt, char *descr)
+{
+	struct sysctl_oid *oidp;
+	ssize_t len;
+	char *newname;
+
+	/* You have to hook up somewhere.. */
+	if (parent == NULL)
+		return(NULL);
+	/* Check if the node already exists, otherwise create it */
+	oidp = sysctl_find_oidname(name, parent);
+	if (oidp != NULL) {
+		if ((oidp->oid_kind & CTLTYPE) == CTLTYPE_NODE) {
+			oidp->oid_refcnt++;
+			/* Update the context */
+			if (clist != NULL)
+				sysctl_ctx_entry_add(clist, oidp);
+			return (oidp);
+		} else {
+			printf("can't re-use a leaf (%s)!\n", name);
+			return (NULL);
+		}
+	}
+	oidp = malloc(sizeof(struct sysctl_oid), M_SYSCTLOID, M_WAITOK);
+	bzero(oidp, sizeof(struct sysctl_oid));
+	oidp->oid_parent = parent;
+	SLIST_NEXT(oidp, oid_link) = NULL;
+	oidp->oid_number = number;
+	oidp->oid_refcnt = 1;
+	len = strlen(name);
+	newname = malloc(len + 1, M_SYSCTLOID, M_WAITOK);
+	bcopy(name, newname, len + 1);
+	newname[len] = '\0';
+	oidp->oid_name = newname;
+	oidp->oid_handler = handler;
+	oidp->oid_kind = CTLFLAG_DYN | kind;
+	if ((kind & CTLTYPE) == CTLTYPE_NODE) {
+		/* Allocate space for children */
+		SYSCTL_CHILDREN(oidp) = malloc(sizeof(struct sysctl_oid_list),
+		    M_SYSCTLOID, M_WAITOK);
+		SLIST_INIT(SYSCTL_CHILDREN(oidp));
+	} else {
+		oidp->oid_arg1 = arg1;
+		oidp->oid_arg2 = arg2;
+	}
+	oidp->oid_fmt = fmt;
+	/* Update the context, if used */
+	if (clist != NULL)
+		sysctl_ctx_entry_add(clist, oidp);
+	/* Register this oid */
+	sysctl_register_oid(oidp);
+	return (oidp);
 }
 
 /*
@@ -269,7 +524,7 @@ sysctl_sysctl_name(SYSCTL_HANDLER_ARGS)
 SYSCTL_NODE(_sysctl, 1, name, CTLFLAG_RD, sysctl_sysctl_name, "");
 
 static int
-sysctl_sysctl_next_ls (struct sysctl_oid_list *lsp, int *name, u_int namelen, 
+sysctl_sysctl_next_ls(struct sysctl_oid_list *lsp, int *name, u_int namelen, 
 	int *next, int *len, int level, struct sysctl_oid **oidpp)
 {
 	struct sysctl_oid *oidp;
@@ -286,7 +541,7 @@ sysctl_sysctl_next_ls (struct sysctl_oid_list *lsp, int *name, u_int namelen,
 				/* We really should call the handler here...*/
 				return 0;
 			lsp = (struct sysctl_oid_list *)oidp->oid_arg1;
-			if (!sysctl_sysctl_next_ls (lsp, 0, 0, next+1, 
+			if (!sysctl_sysctl_next_ls(lsp, 0, 0, next+1, 
 				len, level+1, oidpp))
 				return 0;
 			goto next;
@@ -301,7 +556,7 @@ sysctl_sysctl_next_ls (struct sysctl_oid_list *lsp, int *name, u_int namelen,
 			if (oidp->oid_handler)
 				return 0;
 			lsp = (struct sysctl_oid_list *)oidp->oid_arg1;
-			if (!sysctl_sysctl_next_ls (lsp, name+1, namelen-1, 
+			if (!sysctl_sysctl_next_ls(lsp, name+1, namelen-1, 
 				next+1, len, level+1, oidpp))
 				return (0);
 			goto next;
@@ -313,7 +568,7 @@ sysctl_sysctl_next_ls (struct sysctl_oid_list *lsp, int *name, u_int namelen,
 			continue;
 
 		lsp = (struct sysctl_oid_list *)oidp->oid_arg1;
-		if (!sysctl_sysctl_next_ls (lsp, name+1, namelen-1, next+1, 
+		if (!sysctl_sysctl_next_ls(lsp, name+1, namelen-1, next+1, 
 			len, level+1, oidpp))
 			return (0);
 	next:
@@ -333,7 +588,7 @@ sysctl_sysctl_next(SYSCTL_HANDLER_ARGS)
 	struct sysctl_oid_list *lsp = &sysctl__children;
 	int newoid[CTL_MAXNAME];
 
-	i = sysctl_sysctl_next_ls (lsp, name, namelen, newoid, &j, 1, &oid);
+	i = sysctl_sysctl_next_ls(lsp, name, namelen, newoid, &j, 1, &oid);
 	if (i)
 		return ENOENT;
 	error = SYSCTL_OUT(req, newoid, j * sizeof (int));

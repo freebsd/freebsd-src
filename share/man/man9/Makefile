@@ -37,7 +37,7 @@ MAN9+=	device.9 device_add_child.9 device_delete_child.9 device_enable.9 \
 	bus_generic_shutdown.9 \
 	bus_alloc_resource.9 bus_release_resource.9 \
 	VOP_ACLCHECK.9 VOP_GETACL.9 VOP_GETEXTATTR.9 VOP_SETACL.9 \
-	VOP_SETEXTATTR.9 acl.9 extattr.9
+	VOP_SETEXTATTR.9 acl.9 extattr.9 sysctl_add_oid.9 sysctl_ctx_init.9
 
 MLINKS+=MD5.9 MD5Init.9 MD5.9 MD5Transform.9
 MLINKS+=VOP_ATTRIB.9 VOP_GETATTR.9
@@ -105,5 +105,21 @@ MLINKS+=microtime.9 getmicrotime.9 microtime.9 nanotime.9
 MLINKS+=microtime.9 getnanotime.9
 MLINKS+=microuptime.9 getmicrouptime.9 microuptime.9 nanouptime.9
 MLINKS+=microuptime.9 getnanouptime.9
+
+MLINKS+=sysctl_add_oid.9 sysctl_remove_oid.9
+MLINKS+=sysctl_add_oid.9 SYSCTL_ADD_OID.9
+MLINKS+=sysctl_add_oid.9 SYSCTL_ADD_NODE.9
+MLINKS+=sysctl_add_oid.9 SYSCTL_ADD_STRING.9
+MLINKS+=sysctl_add_oid.9 SYSCTL_ADD_INT.9
+MLINKS+=sysctl_add_oid.9 SYSCTL_ADD_UINT.9
+MLINKS+=sysctl_add_oid.9 SYSCTL_ADD_LONG.9
+MLINKS+=sysctl_add_oid.9 SYSCTL_ADD_ULONG.9
+MLINKS+=sysctl_add_oid.9 SYSCTL_ADD_OPAQUE.9
+MLINKS+=sysctl_add_oid.9 SYSCTL_ADD_STRUCT.9
+MLINKS+=sysctl_add_oid.9 SYSCTL_ADD_PROC.9
+MLINKS+=sysctl_ctx_init.9 sysctl_ctx_free.9
+MLINKS+=sysctl_ctx_init.9 sysctl_ctx_entry_add.9
+MLINKS+=sysctl_ctx_init.9 sysctl_ctx_entry_del.9
+MLINKS+=sysctl_ctx_init.9 sysctl_ctx_entry_find.9
 
 .include <bsd.prog.mk>
