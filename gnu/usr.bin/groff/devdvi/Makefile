@@ -5,10 +5,7 @@ DEVGENFILES=	generate/CompileFonts generate/Makefile generate/msam.map\
 		generate/texi.map generate/texmi.map generate/texr.map \
 		generate/texsy.map generate/textt.map generate/cork.map
 
-NOOBJ=		noobj
-
-clean cleandir:
-	rm -f DESC
+CLEANFILES+=	DESC
 
 DESC:	DESC.in
 	cat ${.CURDIR}/DESC.in >DESC
