@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.217 1996/05/29 04:13:17 jkh Exp $
+#	$Id: Makefile,v 1.193.2.48 1996/06/06 22:53:21 jkh Exp $
 #
 # How to roll a release:
 #
@@ -36,10 +36,6 @@ MNT=			/mnt
 # other floppy parameters.
 FDSIZE=			1200
 FDLABEL=		fd1200
-FDINODE=		4300
-
-NEWFSARGS=		-c 80 -b 4096 -f 512 -i 4000 -m 0 -t 0 -u 0 \
-				-o space -T ${FDLABEL}
 
 ZIPNSPLIT=		gzip --no-name -9 -c | split -b 240640 -
 
@@ -370,6 +366,7 @@ release.8: write_mfs_in_kernel
 	echo "domain          53/udp          nameserver" >> ${RD}/mfsfd/stand/etc/services
 	install -c ${.CURDIR}/../COPYRIGHT ${RD}/mfsfd/stand/help/COPYRIGHT.hlp
 	# make the small bootfd
+	@echo "Making the small 4MB boot floppy."
 	sh -e ${.CURDIR}/doFS.sh ${RD} ${MNT} ${BOOTMFSSIZE} ${RD}/mfsfd \
 		${MFSINODE} minimum
 	mv fs-image fs-image.4
@@ -377,17 +374,14 @@ release.8: write_mfs_in_kernel
 	# add more stuff for the complete bootfd
 	tar --exclude CVS -cf - -C ${.CURDIR}/sysinstall help | \
 		tar xvf - -C ${RD}/mfsfd/stand
-	cp ${.CURDIR}/sysinstall/power.uu ${RD}/mfsfd/stand && \
-		cd ${RD}/mfsfd/stand && uudecode power.uu && rm power.uu
+	@echo "Making the regular boot floppy."
 	sh -e ${.CURDIR}/doFS.sh ${RD} ${MNT} ${BOOTMFSSIZE} ${RD}/mfsfd \
 		${MFSINODE} minimum
 	mv fs-image fs-image.std
 	mv fs-image.size fs-image.std.size
-	#rm -rf ${.CURDIR}/../sys/compile/BOOTMFS 
 	cd ${.CURDIR} && ${MAKE} doMFSKERN FSIMAGE=4
 	cd ${.CURDIR} && ${MAKE} doMFSKERN FSIMAGE=std
 	mv ${RD}/floppies/bootstd.flp ${RD}/floppies/boot.flp
-	#rm -rf ${.CURDIR}/../sys/compile/BOOTMFS 
 	touch release.8
 
 #
@@ -542,7 +536,7 @@ doMFSKERN:
 	  echo "options  NFS_NOSERVER" >> BOOTMFS && \
 	  echo 'options  "MAXCONS=4"' >> BOOTMFS && \
 	  echo "options \"MFS_ROOT=`cat fs-image.${FSIMAGE}.size`\"" >> BOOTMFS
-	${MAKE} doKERNEL KERNEL=BOOTMFS
+	cd ${.CURDIR} && ${MAKE} doKERNEL KERNEL=BOOTMFS
 	rm -rf ${RD}/boot.${FSIMAGE}
 	mkdir  ${RD}/boot.${FSIMAGE}
 	mv ${RD}/kernels/BOOTMFS ${RD}/kernels/BOOTMFS.${FSIMAGE}
