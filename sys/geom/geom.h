@@ -211,8 +211,8 @@ void g_silence(void);
 void g_waitidle(void);
 
 /* geom_subr.c */
-int g_access_abs(struct g_consumer *cp, int read, int write, int exclusive);
-int g_access_rel(struct g_consumer *cp, int read, int write, int exclusive);
+int g_access_abs(struct g_consumer *cp, int nread, int nwrite, int nexcl);
+int g_access_rel(struct g_consumer *cp, int nread, int nwrite, int nexcl);
 void g_add_class(struct g_class *mp);
 int g_attach(struct g_consumer *cp, struct g_provider *pp);
 void g_destroy_consumer(struct g_consumer *cp);
