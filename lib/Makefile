@@ -23,8 +23,8 @@
 # Otherwise, the SUBDIR list should be in alphabetical order.
 
 SUBDIR=	${_csu} libcom_err libcrypt libkvm msun libmd libncurses \
-	libnetgraph libradius librpcsvc libsbuf libtacplus libutil libypclnt \
-	${_compat} libalias libarchive ${_libatm} ${_libbind} \
+	libnetgraph libradius librpcsvc libsbuf libtacplus libutil \
+	${_libypclnt} ${_compat} libalias libarchive ${_libatm} ${_libbind} \
 	${_libbluetooth} libbsnmp libbz2 libc ${_libc_r} \
 	libcalendar libcam libcompat libdevinfo libdevstat ${_libdisk} \
 	libedit libexpat libfetch libform libftpio libgeom ${_libio} libipsec \
@@ -108,6 +108,10 @@ _libdisk=	libdisk
 
 .if !defined(NOCRYPT) && !defined(NO_OPENSSL)
 _libmp=		libmp
+.endif
+
+.if !defined(NO_YP_LIBC)
+_libypclnt=	libypclnt
 .endif
 
 .include <bsd.subdir.mk>
