@@ -38,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vnode_pager.c	7.5 (Berkeley) 4/20/91
- *	$Id: vnode_pager.c,v 1.94 1998/07/11 11:30:46 bde Exp $
+ *	$Id: vnode_pager.c,v 1.95 1998/08/24 08:39:38 dfr Exp $
  */
 
 /*
@@ -253,6 +253,7 @@ vnode_pager_setsize(vp, nsize)
 	struct vnode *vp;
 	vm_ooffset_t nsize;
 {
+	vm_pindex_t nobjsize;
 	vm_object_t object = vp->v_object;
 
 	if (object == NULL)
@@ -264,19 +265,16 @@ vnode_pager_setsize(vp, nsize)
 	if (nsize == object->un_pager.vnp.vnp_size)
 		return;
 
+	nobjsize = OFF_TO_IDX(nsize + PAGE_MASK);
+
 	/*
 	 * File has shrunk. Toss any cached pages beyond the new EOF.
 	 */
 	if (nsize < object->un_pager.vnp.vnp_size) {
-		vm_ooffset_t nsizerounded;
-		nsizerounded = IDX_TO_OFF(OFF_TO_IDX(nsize + PAGE_MASK));
-		if (nsizerounded < object->un_pager.vnp.vnp_size) {
-			vm_pindex_t st, end;
-			st = OFF_TO_IDX(nsize + PAGE_MASK);
-			end = OFF_TO_IDX(object->un_pager.vnp.vnp_size);
-
-			vm_freeze_copyopts(object, OFF_TO_IDX(nsize), object->size);
-			vm_object_page_remove(object, st, end, FALSE);
+		vm_freeze_copyopts(object, OFF_TO_IDX(nsize), object->size);
+		if (nobjsize < object->size) {
+			vm_object_page_remove(object, nobjsize, object->size,
+				FALSE);
 		}
 		/*
 		 * this gets rid of garbage at the end of a page that is now
@@ -296,7 +294,7 @@ vnode_pager_setsize(vp, nsize)
 		}
 	}
 	object->un_pager.vnp.vnp_size = nsize;
-	object->size = OFF_TO_IDX(nsize + PAGE_MASK);
+	object->size = nobjsize;
 }
 
 void
