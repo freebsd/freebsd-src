@@ -63,6 +63,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/consio.h>
 #include <err.h>
 #include <ctype.h>
+#include <errno.h>
 #include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -212,7 +213,7 @@ main(int argc, char **argv)
 		if (!fgets(s, sizeof(s), stdin)) {
 			clearerr(stdin);
 			hi(0);
-			continue;
+			goto tryagain;
 		}
 		if (usemine) {
 			s[strlen(s) - 1] = '\0';
@@ -226,7 +227,8 @@ main(int argc, char **argv)
 		if (getuid() == 0)
 	    	    syslog(LOG_NOTICE, "%d ROOT UNLOCK FAILURE%s (%s on %s)",
 			failures, failures > 1 ? "S": "", ttynam, hostname);
-		if (tcgetattr(0, &ntty))
+tryagain:
+		if (tcgetattr(0, &ntty) && (errno != EINTR))
 			exit(1);
 		sleep(1);		/* to discourage guessing */
 	}
