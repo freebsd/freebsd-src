@@ -2,6 +2,51 @@
  OpenSSL CHANGES
  _______________
 
+ Changes between 0.9.7c and 0.9.7d  [17 Mar 2004]
+
+  *) Fix null-pointer assignment in do_change_cipher_spec() revealed           
+     by using the Codenomicon TLS Test Tool (CAN-2004-0079)                    
+     [Joe Orton, Steve Henson]   
+
+  *) Fix flaw in SSL/TLS handshaking when using Kerberos ciphersuites
+     (CAN-2004-0112)
+     [Joe Orton, Steve Henson]   
+
+  *) Make it possible to have multiple active certificates with the same
+     subject in the CA index file.  This is done only if the keyword
+     'unique_subject' is set to 'no' in the main CA section (default
+     if 'CA_default') of the configuration file.  The value is saved
+     with the database itself in a separate index attribute file,
+     named like the index file with '.attr' appended to the name.
+     [Richard Levitte]
+
+  *) X509 verify fixes. Disable broken certificate workarounds when 
+     X509_V_FLAGS_X509_STRICT is set. Check CRL issuer has cRLSign set if
+     keyUsage extension present. Don't accept CRLs with unhandled critical
+     extensions: since verify currently doesn't process CRL extensions this
+     rejects a CRL with *any* critical extensions. Add new verify error codes
+     for these cases.
+     [Steve Henson]
+
+  *) When creating an OCSP nonce use an OCTET STRING inside the extnValue.
+     A clarification of RFC2560 will require the use of OCTET STRINGs and 
+     some implementations cannot handle the current raw format. Since OpenSSL
+     copies and compares OCSP nonces as opaque blobs without any attempt at
+     parsing them this should not create any compatibility issues.
+     [Steve Henson]
+
+  *) New md flag EVP_MD_CTX_FLAG_REUSE this allows md_data to be reused when
+     calling EVP_MD_CTX_copy_ex() to avoid calling OPENSSL_malloc(). Without
+     this HMAC (and other) operations are several times slower than OpenSSL
+     < 0.9.7.
+     [Steve Henson]
+
+  *) Print out GeneralizedTime and UTCTime in ASN1_STRING_print_ex().
+     [Peter Sylvester <Peter.Sylvester@EdelWeb.fr>]
+
+  *) Use the correct content when signing type "other".
+     [Steve Henson]
+
  Changes between 0.9.7b and 0.9.7c  [30 Sep 2003]
 
   *) Fix various bugs revealed by running the NISCC test suite:
