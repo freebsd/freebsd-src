@@ -142,7 +142,11 @@ __FBSDID("$FreeBSD$");
  */
 #define	MAX_TYPES	5		/* max number of types above */
 
-#define NSHUFF 100      /* to drop part of seed -> 1st value correlation */
+#ifdef  USE_WEAK_SEEDING
+#define NSHUFF 0
+#else   /* !USE_WEAK_SEEDING */
+#define NSHUFF 50       /* to drop some "seed -> 1st value" linearity */
+#endif  /* !USE_WEAK_SEEDING */
 
 static long degrees[MAX_TYPES] =	{ DEG_0, DEG_1, DEG_2, DEG_3, DEG_4 };
 static long seps [MAX_TYPES] =	{ SEP_0, SEP_1, SEP_2, SEP_3, SEP_4 };
