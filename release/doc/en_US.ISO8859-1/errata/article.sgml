@@ -113,6 +113,17 @@
 ]]>
 
 <![ %release.type.snapshot [
+    <para>&os; &release.prev; contains a fix for a bug described in
+      security advisory SA-02:23 (which
+      addressed the use of file descriptors by set-user-id or
+      set-group-id programs).  An error has been discovered in the
+      bugfix; it is still
+      possible for systems using &man.procfs.5; or &man.linprocfs.5;
+      to be exploited.  A revised
+      version of security advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:23.stdio.asc">FreeBSD-SA-02:23</ulink>
+      contains a corrected bugfix.</para>
+
     <para>A buffer overflow in the resolver could be exploited
       by a malicious domain name server or an attacker forging DNS
       messages.  This could potentially be used to force arbitrary
@@ -132,6 +143,24 @@
       had elevated privileges.  See security advisory <ulink
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:30.ktrace.asc">FreeBSD-SA-02:30</ulink>
       for a workaround and a fix.</para>
+
+    <para>A race condition in &man.pppd.8; can be used to
+      change the permissions of an arbitrary file.
+      For more details, a workaround, and bugfix information, see
+      security advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:32.pppd.asc">FreeBSD-SA-02:32</ulink>.</para>
+
+    <para>Multiple buffer overflows have been discovered in
+      <application>OpenSSL</application>.
+      More details (including workarounds and bugfixes) can be found
+      in security advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:33.openssl.asc">FreeBSD-SA-02:33</ulink>.</para>
+
+    <para>A bug in the XDR decoder (used by Sun RPC) could result in a
+      heap buffer overflow.
+      Security advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:34.rpc.asc">FreeBSD-SA-02:34</ulink>
+      contains workaround and bugfix information.</para>
 
 ]]>
   </sect1>
@@ -249,8 +278,8 @@ hw.ata.atapi_dma="1"</programlisting>
       </step>
     </procedure>
 
-    <para>As of this writing, this issue is under continuing
-      investigation.</para>
+    <para>This problem has been corrected in &os; &release.current
+      snapshots.</para>
 
     <para>Due to a bug in the release generation process, some of the
       directories under <filename>/usr/share/examples</filename> are
