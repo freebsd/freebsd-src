@@ -1021,7 +1021,8 @@ bge_chipinit(sc)
 	CSR_WRITE_4(sc, BGE_MODE_CTL, BGE_MODECTL_WORDSWAP_NONFRAME|
 	    BGE_MODECTL_BYTESWAP_DATA|BGE_MODECTL_WORDSWAP_DATA|
 	    BGE_MODECTL_MAC_ATTN_INTR|BGE_MODECTL_HOST_SEND_BDS|
-	    BGE_MODECTL_NO_RX_CRC|BGE_MODECTL_TX_NO_PHDR_CSUM);
+	    BGE_MODECTL_NO_RX_CRC|BGE_MODECTL_TX_NO_PHDR_CSUM|
+	    BGE_MODECTL_RX_NO_PHDR_CSUM);
 
 	/* Get cache line size. */
 	cachesize = pci_read_config(sc->bge_dev, BGE_PCI_CACHESZ, 1);
@@ -1896,8 +1897,7 @@ bge_rxeof(sc)
 			if (cur_rx->bge_flags & BGE_RXBDFLAG_TCP_UDP_CSUM) {
 				m->m_pkthdr.csum_data =
 				    cur_rx->bge_tcp_udp_csum;
-				m->m_pkthdr.csum_flags |=
-				    CSUM_DATA_VALID|CSUM_PSEUDO_HDR;
+				m->m_pkthdr.csum_flags |= CSUM_DATA_VALID;
 			}
 		}
 
