@@ -1,25 +1,28 @@
+# $FreeBSD$
 In this file i try to document the overall architecture of PicoBSD
-source tree.
+source tree (for RELENG_3).
 
-    build/
-	directory containing main build scripts and makefiles.
+    ./		Per-image directory-tree and generic trees.
+	
+    build/	Main build scripts and Makefiles.
 	build:	main build script
 	stage1:	invoked by build
 	clean:	to clean up previous compilations
 	Makefile.conf
 		makefile to edit config file and build kernel
+	Makefile.mfs
+		makefile to create the memory filesystem
+	mfs.mtree
+		mtree cmd -- structure of the mfs tree
 
     floppy.tree/
-	default files to fill the floppy and mfs trees.
+	Default files to fill the floppy and mfs trees.
 	Can be overridden by listing files to be removed in
 	${TYPE}/floppy.tree.exclude, and putting files to be replaced
 	in ${TYPE}/floppy.tree/
 
     doc/
 	documentation (unchanged from original)
-
-    forth/
-	load files for the boot loader (unchanged from original)
 
     help/
 	help files in various languages. The suffix is the two letter
@@ -30,122 +33,44 @@ source tree.
 	various small programs used instead of the corresponding
 	full-blown utilities.
 
-    tools/
-	couple of tools used during the build process.
-
-    dial, isp, net, router, custom ...
-	directories containing the source and config files for the
-	various image types.
-
+    $TYPE/	source and config files for the various image types.
 
 Structure of each image type is as follows:
 
     Makefile.mfs
-	makefile used to build/populate the MFS
+	Makefile used to build/populate the MFS. Only needs two
+	lines typically:
+
+	MY_DEVS=std ....
+	.include "../build/Makefile.mfs"
 
     PICOBSD
-	kernel config file
+	kernel config file. One line is required
+
+	    #PicoBSD  mfs_size init_name mfs_inodes floppy_inodes
+	e.g.
+	    #PicoBSD  2400	init	4096	32768
 
     crunch1/
 	directory with crunched config etc (unchanged from original)
+	crunc.conf	main config file for cruncgen
+	crunc.inc	include for Makefiles used by crunchgen.
+			Typically contains a list of Make variables
+			to be used during the build process
 
     floppy.tree/
-	local files to be put into the floppy/mfs trees.
+	local files to be put into the floppy/mfs trees instead
+	of the ones in ../build/floppy.tree
 
     floppy.tree.exclude
-	list of files in the default floppy.tree/ not to be copied
-	for this configuration (used by tar --exclude-from
-	floppy.tree.exclude)
+	list of files to be omitted in the copy from ../build/floppy.tree
+
+    floppy.tree.${SITE}/
+	site-specific files which update the ones taken from one
+	of the two places above. Typically they are passwd, hosts,
+	rc.conf, rc.firewall things to go in /etc
 
     lang/
 	language-dependant files (trimmed from the original one)
 
-    mfs.mtree
-	mtree structure used to populate the mfs image
-	MFS image, or on the floppy image in various phases.1G
-
-----
-
-Below a partly incomplete list of files used by the various
-picobsd types.
-
-Files for various systems
-
-=  base file
-x  missing
-X  missing, not needed with oinit
-D  different
-d  minor difference, merge candidate
-L  copied from LANG directory
-G  generated in stage3
-
-DIAL ISP  NET  ROUT  MY1  MY2  	File in floppy.tree
-------------------------------------------------------
- =    =    =    =               boot.config
- x    =    =    =               disktab
- x    =    x    x               etc/firewall
- =    =    =    =               etc/fstab
- =    =    =    =               etc/gettytab
- =    =    =    =               etc/group
- =    =    =    =               etc/host.conf
- L    L    L    L             L etc/hosts
- x    =    =    x               etc/inetd.conf
- =    =    =    =               etc/login.conf
- d    =    =    x               etc/master.passwd
- d    =    =    D               etc/mfs.rc
- L    L    L    L             L etc/motd
- D    =    =    =               etc/ppp/ppp.conf
- =    x    x    x               etc/ppp/ppp.conf.template
- =    =    =    =               etc/ppp/ppp.deny
- d    =    =    =               etc/ppp/ppp.linkup
- =    =    =    =               etc/ppp/ppp.secret.sample
- =    =    =    =               etc/profile
- =    =    =    =               etc/protocols
- D    =    d    D               etc/rc
- D    =    =    X               etc/rc.conf
- x    =    =    D               etc/rc.firewall
- =    =    =    D               etc/rc.network
- x    =    =    D               etc/rc.serial
- x    =    =    =               etc/remote
- L    =    =    X             L etc/resolv.conf
- =    =    =    =               etc/services
- x    =    =    =               etc/shells
- x    =    =    x               etc/snmpd.conf
- =    x    x    x             G etc/spwd.db
- =    x    x    x               etc/ssh_config
- =    =    =    =               etc/termcap
- D    =    =    =               etc/ttys
- =    =    =    =               kernel.config
- =    =    =    =             G kernel.gz
-
-DIAL ISP  NET  ROUT  MY1  MY2  	File in lang
-                                README.en
-				README.pl
-				boot.help.en
-				boot.help.pl
-				hosts.en
-				hosts.pl
-				mfs.rc.en	to floppy.tree
-				mfs.rc.pl
-				motd.en
-				motd.pl
-				rc.conf.en	to floppy.tree
-				rc.conf.pl	via
-				rc.en		to floppy.tree
-				rc.network.en	to floppy.tree
-				rc.network.pl	via
-				rc.pl		via
-				reboot.en
-				reboot.pl
-				resolv.conf.en	to floppy.tree
-				resolv.conf.pl	via
-				update.en
-				update.pl
-
-
-DIAL ISP  NET  ROUT  MY1  MY2  	File in mfs.tree
-
- D    =    d    d               Makefile
- =    x    x    x               login.conf
- D    =    D    D               mfs.tree
-
+--- (end of file) ---
