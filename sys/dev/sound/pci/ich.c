@@ -39,6 +39,7 @@ SND_DECLARE_FILE("$FreeBSD$");
 #define ICH_TIMEOUT 1000 /* semaphore timeout polling count */
 #define ICH_DTBL_LENGTH 32
 #define ICH_DEFAULT_BUFSZ 16384
+#define ICH_MAX_BUFSZ 65536
 
 /* buffer descriptor */
 struct ich_desc {
@@ -65,8 +66,8 @@ struct sc_chinfo {
 /* device private data */
 struct sc_info {
 	device_t dev;
-	int hasvra, hasvrm;
-	int chnum;
+	int hasvra, hasvrm, hasmic;
+	unsigned int chnum, bufsz;
 
 	struct resource *nambar, *nabmbar, *irq;
 	int nambarid, nabmbarid, irqid;
@@ -227,7 +228,7 @@ ichchan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *
 {
 	struct sc_info *sc = devinfo;
 	struct sc_chinfo *ch;
-	int num;
+	unsigned int num;
 
 	num = sc->chnum++;
 	ch = &sc->ch[num];
@@ -238,7 +239,7 @@ ichchan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *
 	ch->run = 0;
 	ch->dtbl = sc->dtbl + (ch->num * ICH_DTBL_LENGTH);
 	ch->blkcnt = 2;
-	ch->blksz = ICH_DEFAULT_BUFSZ / ch->blkcnt;
+	ch->blksz = sc->bufsz / ch->blkcnt;
 
 	switch(ch->num) {
 	case 0: /* play */
@@ -263,7 +264,7 @@ ichchan_init(kobj_t obj, void *devinfo, struct snd_dbuf *b, struct pcm_channel *
 		return NULL;
 	}
 
-	if (sndbuf_alloc(ch->buffer, sc->dmat, ICH_DEFAULT_BUFSZ))
+	if (sndbuf_alloc(ch->buffer, sc->dmat, sc->bufsz))
 		return NULL;
 
 	ich_wr(sc, ch->regbase + ICH_REG_X_BDBAR, (u_int32_t)vtophys(ch->dtbl), 4);
@@ -422,7 +423,9 @@ ich_init(struct sc_info *sc)
 
 	ich_wr(sc, ICH_REG_GLOB_CNT, ICH_GLOB_CTL_COLD | ICH_GLOB_CTL_PRES, 4);
 
-	if (ich_resetchan(sc, 0) || ich_resetchan(sc, 1) || ich_resetchan(sc, 2))
+	if (ich_resetchan(sc, 0) || ich_resetchan(sc, 1))
+		return ENXIO;
+	if (sc->hasmic && ich_resetchan(sc, 2))
 		return ENXIO;
 
 	if (bus_dmamem_alloc(sc->dmat, (void **)&sc->dtbl, BUS_DMA_NOWAIT, &sc->dtmap))
@@ -497,8 +500,9 @@ ich_pci_attach(device_t dev)
 	sc->nabmbart = rman_get_bustag(sc->nabmbar);
 	sc->nabmbarh = rman_get_bushandle(sc->nabmbar);
 
+	sc->bufsz = pcm_getbuffersize(dev, 4096, ICH_DEFAULT_BUFSZ, ICH_MAX_BUFSZ);
 	if (bus_dma_tag_create(NULL, 8, 0, BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR,
-			       NULL, NULL, ICH_DEFAULT_BUFSZ, 1, 0x3ffff, 0, &sc->dmat) != 0) {
+			       NULL, NULL, sc->bufsz, 1, 0x3ffff, 0, &sc->dmat) != 0) {
 		device_printf(dev, "unable to create dma tag\n");
 		goto bad;
 	}
@@ -518,6 +522,8 @@ ich_pci_attach(device_t dev)
 		sc->hasvra = 1;
 	if (ac97_setextmode(sc->codec, AC97_EXTCAP_VRM) == 0)
 		sc->hasvrm = 1;
+	if (ac97_getcaps(sc->codec) & AC97_CAP_MICCHANNEL)
+		sc->hasmic = 1;
 
 	sc->irqid = 0;
 	sc->irq = bus_alloc_resource(dev, SYS_RES_IRQ, &sc->irqid, 0, ~0, 1, RF_ACTIVE | RF_SHAREABLE);
@@ -529,9 +535,10 @@ ich_pci_attach(device_t dev)
 	if (pcm_register(dev, sc, 1, 2))
 		goto bad;
 
-	pcm_addchan(dev, PCMDIR_PLAY, &ichchan_class, sc);
-	pcm_addchan(dev, PCMDIR_REC, &ichchan_class, sc);
-	pcm_addchan(dev, PCMDIR_REC, &ichchan_class, sc);
+	pcm_addchan(dev, PCMDIR_PLAY, &ichchan_class, sc);		/* play */
+	pcm_addchan(dev, PCMDIR_REC, &ichchan_class, sc);		/* record */
+	if (sc->hasmic)
+		pcm_addchan(dev, PCMDIR_REC, &ichchan_class, sc);	/* record mic */
 
 	snprintf(status, SND_STATUSLEN, "at io 0x%lx, 0x%lx irq %ld",
 		 rman_get_start(sc->nambar), rman_get_start(sc->nabmbar), rman_get_start(sc->irq));
