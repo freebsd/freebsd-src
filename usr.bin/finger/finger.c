@@ -261,10 +261,8 @@ userlist(argc, argv)
 				    "finger: %s: no such user\n", *p);
 	else {
 		while (pw = getpwent()) {
-			if (hide (pw))
-				continue;
 			for (p = argv, ip = used; *p; ++p, ++ip)
-				if (match(pw, *p)) {
+				if (match(pw, *p) && !hide(pw)) {
 					enter_person(pw);
 					*ip = 1;
 				}
