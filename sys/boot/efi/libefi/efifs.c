@@ -129,7 +129,35 @@ efifs_read(struct open_file *f, void *buf, size_t size, size_t *resid)
 		size -= sz;
 		bufp += sz;
 	}
-	*resid = size;
+	if (resid)
+		*resid = size;
+	return 0;
+}
+
+static int
+efifs_write(struct open_file *f, void *buf, size_t size, size_t *resid)
+{
+	EFI_FILE *file = f->f_fsdata;
+	EFI_STATUS status;
+	UINTN sz = size;
+	char *bufp;
+
+	bufp = buf;
+	while (size > 0) {
+		sz = size;
+		if (sz > 8192)
+			sz = 8192;
+		status = file->Write(file, &sz, bufp);
+		twiddle();
+		if (EFI_ERROR(status))
+			return EIO;
+		if (sz == 0)
+			break;
+		size -= sz;
+		bufp += sz;
+	}
+	if (resid)
+		*resid = size;
 	return 0;
 }
 
@@ -246,7 +274,7 @@ struct fs_ops efi_fsops = {
 	efifs_open,
 	efifs_close,
 	efifs_read,
-	null_write,
+	efifs_write,
 	efifs_seek,
 	efifs_stat,
 	efifs_readdir
