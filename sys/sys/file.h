@@ -161,6 +161,20 @@ int fget_write(struct thread *td, int fd, struct file **fpp);
 int fdrop(struct file *fp, struct thread *td);
 int fdrop_locked(struct file *fp, struct thread *td);
 
+/*
+ * The socket operations are used a couple of places.
+ * XXX: This is wrong, they should go through the operations vector for
+ * XXX: sockets instead of going directly for the individual functions. /phk
+ */
+fo_rdwr_t soo_read;
+fo_rdwr_t soo_write;
+fo_ioctl_t soo_ioctl;
+fo_poll_t soo_poll;
+fo_kqfilter_t soo_kqfilter;
+fo_stat_t soo_stat;
+fo_close_t soo_close;
+extern	struct fileops socketops;
+
 /* Lock a file. */
 #define	FILE_LOCK(f)	mtx_lock((f)->f_mtxp)
 #define	FILE_UNLOCK(f)	mtx_unlock((f)->f_mtxp)
