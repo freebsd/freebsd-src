@@ -41,7 +41,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)conf.c	5.8 (Berkeley) 5/12/91
- *	$Id: conf.c,v 1.51 1995/01/09 09:36:48 phk Exp $
+ *	$Id: conf.c,v 1.52 1995/01/20 08:35:02 sos Exp $
  */
 
 #include <sys/param.h>
@@ -907,8 +907,6 @@ struct cdevsw	cdevsw[] =
 	  (d_mmap_t *)enxio, NULL },
 };
 int	nchrdev = sizeof (cdevsw) / sizeof (cdevsw[0]);
-
-int	mem_no = 2; 	/* major device number of memory special file */
 
 /*
  * Swapdev is a fake device implemented
