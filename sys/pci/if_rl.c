@@ -149,6 +149,8 @@ static struct rl_type rl_devs[] = {
 		"Delta Electronics 8139 10/100BaseTX" },
 	{ ADDTRON_VENDORID, ADDTRON_DEVICEID_8139,
 		"Addtron Technolgy 8139 10/100BaseTX" },
+	{ DLINK_VENDORID, DLINK_DEVICEID_530TXPLUS,
+		"D-Link DFE-530TX+ 10/100BaseTX" },
 	{ 0, 0, NULL }
 };
 
@@ -898,7 +900,8 @@ static int rl_attach(dev)
 	rl_read_eeprom(sc, (caddr_t)&rl_did, RL_EE_PCI_DID, 1, 0);
 
 	if (rl_did == RT_DEVICEID_8139 || rl_did == ACCTON_DEVICEID_5030 ||
-	    rl_did == DELTA_DEVICEID_8139 || rl_did == ADDTRON_DEVICEID_8139)
+	    rl_did == DELTA_DEVICEID_8139 || rl_did == ADDTRON_DEVICEID_8139 ||
+	    rl_did == DLINK_DEVICEID_530TXPLUS)
 		sc->rl_type = RL_8139;
 	else if (rl_did == RT_DEVICEID_8129)
 		sc->rl_type = RL_8129;
