@@ -137,7 +137,6 @@ extern struct mtx	com_mtx;
 #define	comspeed	cyspeed
 #define	comstart	cystart
 #define	comwakeup	cywakeup
-#define	nsio_tty	ncy_tty
 #define	p_com_addr	p_cy_addr
 #define	sioattach	cyattach
 #define	sioclose	cyclose
@@ -159,7 +158,6 @@ extern struct mtx	com_mtx;
 #define	sio_timeout	cy_timeout
 #define	sio_timeout_handle cy_timeout_handle
 #define	sio_timeouts_until_log	cy_timeouts_until_log
-#define	sio_tty		cy_tty
 
 #define	CY_MAX_PORTS		(CD1400_NO_OF_CHANNELS * CY_MAX_CD1400s)
 
@@ -418,12 +416,6 @@ static	int	sio_timeout;
 static	int	sio_timeouts_until_log;
 static	struct	callout_handle sio_timeout_handle
     = CALLOUT_HANDLE_INITIALIZER(&sio_timeout_handle);
-#if 0 /* XXX */
-static struct tty	*sio_tty[NSIO];
-#else
-static struct tty	sio_tty[NSIO];
-#endif
-static	const int	nsio_tty = NSIO;
 
 #ifdef CyDebug
 static	u_int	cd_inbs;
@@ -681,12 +673,7 @@ sioopen(dev, flag, mode, p)
 		return (ENXIO);
 	if (mynor & CONTROL_MASK)
 		return (0);
-#if 0 /* XXX */
-	tp = com->tp = sio_tty[unit] = ttymalloc(sio_tty[unit]);
-#else
-	tp = com->tp = &sio_tty[unit];
-#endif
-	dev->si_tty = tp;
+	tp = dev->si_tty = com->tp = ttymalloc(com->tp);
 	s = spltty();
 	/*
 	 * We jump to this label after all non-interrupted sleeps to pick
@@ -878,7 +865,7 @@ sioclose(dev, flag, mode, p)
 	splx(s);
 #ifdef broken /* session holds a ref to the tty; can't deallocate */
 	ttyfree(tp);
-	com->tp = sio_tty[unit] = NULL;
+	com->tp = NULL;
 #endif
 	return (0);
 }
