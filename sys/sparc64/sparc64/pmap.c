@@ -161,12 +161,12 @@ static vm_offset_t pmap_bootstrap_alloc(vm_size_t size);
 
 static vm_offset_t pmap_map_direct(vm_page_t m);
 
-extern int tl1_immu_miss_load_tsb[];
-extern int tl1_immu_miss_load_tsb_mask[];
-extern int tl1_dmmu_miss_load_tsb[];
-extern int tl1_dmmu_miss_load_tsb_mask[];
-extern int tl1_dmmu_prot_load_tsb[];
-extern int tl1_dmmu_prot_load_tsb_mask[];
+extern int tl1_immu_miss_patch_1[];
+extern int tl1_immu_miss_patch_2[];
+extern int tl1_dmmu_miss_patch_1[];
+extern int tl1_dmmu_miss_patch_2[];
+extern int tl1_dmmu_prot_patch_1[];
+extern int tl1_dmmu_prot_patch_2[];
 
 /*
  * If user pmap is processed with pmap_remove and with pmap_remove and the
@@ -337,34 +337,34 @@ pmap_bootstrap(vm_offset_t ekva)
 	/*
 	 * Patch the virtual address and the tsb mask into the trap table.
 	 */
-#define	SETHI_G4(x) \
-	EIF_OP(IOP_FORM2) | EIF_F2_RD(4) | EIF_F2_OP2(INS0_SETHI) | \
-	    EIF_IMM((x) >> 10, 22)
-#define	OR_G4_I_G4(x) \
-	EIF_OP(IOP_MISC) | EIF_F3_RD(4) | EIF_F3_OP3(INS2_OR) | \
-	    EIF_F3_RS1(4) | EIF_F3_I(1) | EIF_IMM(x, 10)
 
-	tl1_immu_miss_load_tsb[0] = SETHI_G4((vm_offset_t)tsb_kernel);
-	tl1_immu_miss_load_tsb_mask[0] = SETHI_G4(tsb_kernel_mask);
-	tl1_immu_miss_load_tsb_mask[1] = OR_G4_I_G4(tsb_kernel_mask);
-	flush(tl1_immu_miss_load_tsb);
-	flush(tl1_immu_miss_load_tsb_mask);
-	flush(tl1_immu_miss_load_tsb_mask + 1);
+#define	SETHI(rd, imm22) \
+	(EIF_OP(IOP_FORM2) | EIF_F2_RD(rd) | EIF_F2_OP2(INS0_SETHI) | \
+	    EIF_IMM((imm22) >> 10, 22))
+#define	OR_R_I_R(rd, imm13, rs1) \
+	(EIF_OP(IOP_MISC) | EIF_F3_RD(rd) | EIF_F3_OP3(INS2_OR) | \
+	    EIF_F3_RS1(rs1) | EIF_F3_I(1) | EIF_IMM(imm13, 13))
 
-	tl1_dmmu_miss_load_tsb[0] = SETHI_G4((vm_offset_t)tsb_kernel);
-	tl1_dmmu_miss_load_tsb_mask[0] = SETHI_G4(tsb_kernel_mask);
-	tl1_dmmu_miss_load_tsb_mask[1] = OR_G4_I_G4(tsb_kernel_mask);
-	flush(tl1_dmmu_miss_load_tsb);
-	flush(tl1_dmmu_miss_load_tsb_mask);
-	flush(tl1_dmmu_miss_load_tsb_mask + 1);
+#define	PATCH(addr) do { \
+	if (addr[0] != SETHI(IF_F2_RD(addr[0]), 0x0) || \
+	    addr[1] != OR_R_I_R(IF_F3_RD(addr[1]), 0x0, IF_F3_RS1(addr[1])) || \
+	    addr[2] != SETHI(IF_F2_RD(addr[2]), 0x0)) \
+		panic("pmap_boostrap: patched instructions have changed"); \
+	addr[0] |= EIF_IMM((tsb_kernel_mask) >> 10, 22); \
+	addr[1] |= EIF_IMM(tsb_kernel_mask, 10); \
+	addr[2] |= EIF_IMM(((vm_offset_t)tsb_kernel) >> 10, 22); \
+	flush(addr); \
+	flush(addr + 1); \
+	flush(addr + 2); \
+} while (0)
 
-	tl1_dmmu_prot_load_tsb[0] = SETHI_G4((vm_offset_t)tsb_kernel);
-	tl1_dmmu_prot_load_tsb_mask[0] = SETHI_G4(tsb_kernel_mask);
-	tl1_dmmu_prot_load_tsb_mask[1] = OR_G4_I_G4(tsb_kernel_mask);
-	flush(tl1_dmmu_prot_load_tsb);
-	flush(tl1_dmmu_prot_load_tsb_mask);
-	flush(tl1_dmmu_prot_load_tsb_mask + 1);
-
+	PATCH(tl1_immu_miss_patch_1);
+	PATCH(tl1_immu_miss_patch_2);
+	PATCH(tl1_dmmu_miss_patch_1);
+	PATCH(tl1_dmmu_miss_patch_2);
+	PATCH(tl1_dmmu_prot_patch_1);
+	PATCH(tl1_dmmu_prot_patch_2);
+	
 	/*
 	 * Lock it in the tlb.
 	 */
@@ -380,7 +380,7 @@ pmap_bootstrap(vm_offset_t ekva)
 		va = kernel_tlbs[i].te_va;
 		for (off = 0; off < PAGE_SIZE_4M; off += PAGE_SIZE) {
 			tp = tsb_kvtotte(va + off);
-			tp->tte_vpn = TV_VPN(va + off);
+			tp->tte_vpn = TV_VPN(va + off, TS_8K);
 			tp->tte_data = TD_V | TD_8K | TD_PA(pa + off) |
 			    TD_REF | TD_SW | TD_CP | TD_CV | TD_P | TD_W;
 		}
@@ -398,7 +398,7 @@ pmap_bootstrap(vm_offset_t ekva)
 		pa = kstack0_phys + i * PAGE_SIZE;
 		va = kstack0 + i * PAGE_SIZE;
 		tp = tsb_kvtotte(va);
-		tp->tte_vpn = TV_VPN(va);
+		tp->tte_vpn = TV_VPN(va, TS_8K);
 		tp->tte_data = TD_V | TD_8K | TD_PA(pa) | TD_REF | TD_SW |
 		    TD_CP | TD_CV | TD_P | TD_W;
 	}
@@ -436,7 +436,7 @@ pmap_bootstrap(vm_offset_t ekva)
 		    off += PAGE_SIZE) {
 			va = translations[i].om_start + off;
 			tp = tsb_kvtotte(va);
-			tp->tte_vpn = TV_VPN(va);
+			tp->tte_vpn = TV_VPN(va, TS_8K);
 			tp->tte_data = translations[i].om_tte + off;
 		}
 	}
@@ -783,7 +783,7 @@ pmap_kenter(vm_offset_t va, vm_offset_t pa)
 	data = TD_V | TD_8K | TD_PA(pa) | TD_REF | TD_SW | TD_CP | TD_P | TD_W;
 	if (pmap_cache_enter(m, va) != 0)
 		data |= TD_CV;
-	tp->tte_vpn = TV_VPN(va);
+	tp->tte_vpn = TV_VPN(va, TS_8K);
 	tp->tte_data = data;
 	STAILQ_INSERT_TAIL(&m->md.tte_list, tp, tte_link);
 	tp->tte_pmap = kernel_pmap;
@@ -804,7 +804,7 @@ pmap_kenter_flags(vm_offset_t va, vm_offset_t pa, u_long flags)
 	tp = tsb_kvtotte(va);
 	CTR4(KTR_PMAP, "pmap_kenter_flags: va=%#lx pa=%#lx tp=%p data=%#lx",
 	    va, pa, tp, tp->tte_data);
-	tp->tte_vpn = TV_VPN(va);
+	tp->tte_vpn = TV_VPN(va, TS_8K);
 	tp->tte_data = TD_V | TD_8K | TD_PA(pa) | TD_REF | TD_P | flags;
 }
 
@@ -873,7 +873,7 @@ pmap_map(vm_offset_t *virt, vm_offset_t pa_start, vm_offset_t pa_end, int prot)
 	va = sva;
 	for (; pa < pa_end; pa += PAGE_SIZE, va += PAGE_SIZE) {
 		tp = tsb_kvtotte(va);
-		tp->tte_vpn = TV_VPN(va);
+		tp->tte_vpn = TV_VPN(va, TS_8K);
 		tp->tte_data = TD_V | TD_8K | TD_PA(pa) | TD_REF | TD_SW |
 		    TD_CP | TD_CV | TD_P | TD_W;
 	}
@@ -1467,7 +1467,7 @@ pmap_enter(pmap_t pm, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 				data |= TD_W;
 		}
 
-		tsb_tte_enter(pm, m, va, data);
+		tsb_tte_enter(pm, m, va, TS_8K, data);
 	}
 }
 
@@ -1516,7 +1516,7 @@ pmap_copy_tte(pmap_t src_pmap, pmap_t dst_pmap, struct tte *tp, vm_offset_t va)
 		data = tp->tte_data &
 		    ~(TD_PV | TD_REF | TD_SW | TD_CV | TD_W);
 		m = PHYS_TO_VM_PAGE(TTE_GET_PA(tp));
-		tsb_tte_enter(dst_pmap, m, va, data);
+		tsb_tte_enter(dst_pmap, m, va, TS_8K, data);
 	}
 	return (1);
 }
@@ -1799,10 +1799,6 @@ pmap_activate(struct thread *td)
 	u_long context;
 	pmap_t pm;
 
-	/*
-	 * Load all the data we need up front to encourage the compiler to
-	 * not issue any loads while we have interrupts disable below.
-	 */
 	vm = td->td_proc->p_vmspace;
 	pm = &vm->vm_pmap;
 	tsb = (vm_offset_t)pm->pm_tsb;
@@ -1812,9 +1808,9 @@ pmap_activate(struct thread *td)
 	    ("pmap_activate: activating nucleus context?"));
 
 	mtx_lock_spin(&sched_lock);
-	wrpr(pstate, 0, PSTATE_MMU);
-	mov(tsb, TSB_REG);
-	wrpr(pstate, 0, PSTATE_KERNEL);
+	stxa(AA_DMMU_TSB, ASI_DMMU, tsb);
+	stxa(AA_IMMU_TSB, ASI_IMMU, tsb);
+	membar(Sync);
 	context = pmap_context_alloc();
 	pm->pm_context[PCPU_GET(cpuid)] = context;
 	pm->pm_active |= PCPU_GET(cpumask);

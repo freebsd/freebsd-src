@@ -243,13 +243,14 @@ ENTRY(cpu_switch)
 	stx	%o2, [PCPU(VMSPACE)]
 
 	/*
-	 * Load the address of the tsb, switch to mmu globals, and install
-	 * the preloaded tsb pointer.
+	 * Load the tsb registers.
 	 */
 	ldx	[%o2 + VM_PMAP + PM_TSB], %o3
-	wrpr	%g0, PSTATE_MMU, %pstate
-	mov	%o3, TSB_REG
-	wrpr	%g0, PSTATE_KERNEL, %pstate
+	mov	AA_DMMU_TSB, %o4
+	stxa	%o3, [%o4] ASI_DMMU
+	mov	AA_IMMU_TSB, %o4
+	stxa	%o3, [%o4] ASI_IMMU
+	membar	#Sync
 
 4:
 #if KTR_COMPILE & KTR_PROC

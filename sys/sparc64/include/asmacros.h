@@ -44,11 +44,6 @@
  */
 #define	ASP_REG		%g5
 
-/*
- * MMU %g7 points to the user tsb.
- */
-#define	TSB_REG		%g7
-
 #ifdef LOCORE
 
 /*

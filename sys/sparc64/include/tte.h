@@ -52,27 +52,27 @@
 #define	TD_PA_MASK	((1UL << TD_PA_BITS) - 1)
 #define	TD_SOFT_MASK	((1UL << TD_SOFT_BITS) - 1)
 
-#define	TD_SIZE_SPREAD	(3)
+#define	TS_8K		(0UL)
+#define	TS_64K		(1UL)
+#define	TS_512K		(2UL)
+#define	TS_4M		(3UL)
 
-#define	TS_EXEC		(1UL << 4)
-#define	TS_REF		(1UL << 3)
-#define	TS_PV		(1UL << 2)
-#define	TS_W		(1UL << 1)
-#define	TS_WIRED	(1UL << 0)
+#define	TS_MIN		TS_8K
+#define	TS_MAX		TS_4M
 
 #define	TD_V		(1UL << 63)
-#define	TD_8K		(0UL << TD_SIZE_SHIFT)
-#define	TD_64K		(1UL << TD_SIZE_SHIFT)
-#define	TD_512K		(2UL << TD_SIZE_SHIFT)
-#define	TD_4M		(3UL << TD_SIZE_SHIFT)
+#define	TD_8K		(TS_8K << TD_SIZE_SHIFT)
+#define	TD_64K		(TS_64K << TD_SIZE_SHIFT)
+#define	TD_512K		(TS_512K << TD_SIZE_SHIFT)
+#define	TD_4M		(TS_4M << TD_SIZE_SHIFT)
 #define	TD_NFO		(1UL << 60)
 #define	TD_IE		(1UL << 59)
 #define	TD_PA(pa)	((pa) & (TD_PA_MASK << TD_PA_SHIFT))
-#define	TD_EXEC		(TS_EXEC << TD_SOFT_SHIFT)
-#define	TD_REF		(TS_REF << TD_SOFT_SHIFT)
-#define	TD_PV		(TS_PV << TD_SOFT_SHIFT)
-#define	TD_SW		(TS_W << TD_SOFT_SHIFT)
-#define	TD_WIRED	(TS_WIRED << TD_SOFT_SHIFT)
+#define	TD_EXEC		((1UL << 4) << TD_SOFT_SHIFT)
+#define	TD_REF		((1UL << 3) << TD_SOFT_SHIFT)
+#define	TD_PV		((1UL << 2) << TD_SOFT_SHIFT)
+#define	TD_SW		((1UL << 1) << TD_SOFT_SHIFT)
+#define	TD_WIRED	((1UL << 0) << TD_SOFT_SHIFT)
 #define	TD_L		(1UL << 6)
 #define	TD_CP		(1UL << 5)
 #define	TD_CV		(1UL << 4)
@@ -81,12 +81,17 @@
 #define	TD_W		(1UL << 1)
 #define	TD_G		(1UL << 0)
 
-#define	TV_VPN(va)	((va) >> PAGE_SHIFT)
+#define	TV_SIZE_BITS	(TD_SIZE_BITS)
+#define	TV_VPN(va, sz)	((((va) >> TTE_PAGE_SHIFT(sz)) << TV_SIZE_BITS) | sz)
+
+#define	TTE_SIZE_SPREAD	(3)
+#define	TTE_PAGE_SHIFT(sz) \
+	(PAGE_SHIFT + ((sz) * TTE_SIZE_SPREAD))
 
 #define	TTE_GET_SIZE(tp) \
 	(((tp)->tte_data >> TD_SIZE_SHIFT) & TD_SIZE_MASK)
 #define	TTE_GET_PAGE_SHIFT(tp) \
-	(PAGE_SHIFT + (TTE_GET_SIZE(tp) * TD_SIZE_SPREAD))
+	TTE_PAGE_SHIFT(TTE_GET_SIZE(tp))
 #define	TTE_GET_PAGE_SIZE(tp) \
 	(1 << TTE_GET_PAGE_SHIFT(tp))
 #define	TTE_GET_PAGE_MASK(tp) \
@@ -94,12 +99,16 @@
 
 #define	TTE_GET_PA(tp) \
 	((tp)->tte_data & (TD_PA_MASK << TD_PA_SHIFT))
+#define	TTE_GET_VPN(tp) \
+	((tp)->tte_vpn >> TV_SIZE_BITS)
 #define	TTE_GET_VA(tp) \
-	((tp)->tte_vpn << PAGE_SHIFT)
+	(TTE_GET_VPN(tp) << TTE_GET_PAGE_SHIFT(tp))
 #define	TTE_GET_PMAP(tp) \
 	((tp)->tte_pmap)
 #define	TTE_ZERO(tp) \
 	bzero(tp, sizeof(*tp))
+
+struct pmap;
 
 struct tte {
 	u_long	tte_vpn;
@@ -109,15 +118,10 @@ struct tte {
 };
 
 static __inline int
-tte_match_vpn(struct tte *tp, vm_offset_t vpn)
-{
-	return ((tp->tte_data & TD_V) != 0 && tp->tte_vpn == vpn);
-}
-
-static __inline int
 tte_match(struct tte *tp, vm_offset_t va)
 {
-	return (tte_match_vpn(tp, va >> PAGE_SHIFT));
+	return (((tp->tte_data & TD_V) != 0) &&
+	    (tp->tte_vpn == TV_VPN(va, TTE_GET_SIZE(tp))));
 }
 
 #endif /* !_MACHINE_TTE_H_ */

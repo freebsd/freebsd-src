@@ -554,18 +554,41 @@ END(tl0_sfsr_trap)
 
 	.macro	immu_miss_user
 	/*
+	 * Initialize the page size walker.
+	 */
+	mov	TS_MIN, %g2
+
+	/*
+	 * Loop over all supported page sizes.
+	 */
+
+	/*
+	 * Compute the page shift for the page size we are currently looking
+	 * for.
+	 */
+1:	add	%g2, %g2, %g3
+	add	%g3, %g2, %g3
+	add	%g3, PAGE_SHIFT, %g3
+
+	/*
 	 * Extract the virtual page number from the contents of the tag
 	 * access register.
 	 */
-	srlx	%g2, TAR_VPN_SHIFT, %g3
+	srlx	%g1, %g3, %g3
 
 	/*
 	 * Compute the tte bucket address.
 	 */
-	set	(1 << TSB_BUCKET_ADDRESS_BITS) - 1, %g1
-	and	%g1, %g3, %g1
-	sllx	%g1, TSB_BUCKET_SHIFT + TTE_SHIFT, %g1
-	add	%g1, TSB_REG, %g1
+	ldxa	[%g0 + AA_IMMU_TSB] %asi, %g5
+	and	%g3, TSB_BUCKET_MASK, %g4
+	sllx	%g4, TSB_BUCKET_SHIFT + TTE_SHIFT, %g4
+	add	%g4, %g5, %g4
+
+	/*
+	 * Compute the tte tag target.
+	 */
+	sllx	%g3, TV_SIZE_BITS, %g3
+	or	%g3, %g2, %g3
 
 	/*
 	 * Loop over the ttes in this bucket
@@ -573,26 +596,20 @@ END(tl0_sfsr_trap)
 
 	/*
 	 * Load the tte.  Note that this instruction may fault, clobbering
-	 * the context of the tag access register (at least), and the contents
-	 * of %g3, %g4, %g5, and %g6.  Luckily we can recover %g3, and we do
-	 * not use %g4 or %g5 until this instruction completes successfully.
+	 * the contents of the tag access register, %g5, %g6, and %g7.  We
+	 * do not use %g5, and %g6 and %g7 are not used until this instruction
+	 * completes successfully.
 	 */
-1:	ldda	[%g1] ASI_NUCLEUS_QUAD_LDD, %g4 /*, %g5 */
+2:	ldda	[%g4] ASI_NUCLEUS_QUAD_LDD, %g6 /*, %g7 */
 
 	/*
-	 * Recover the virtual page number, which may have been clobbered.
+	 * Check that its valid and executable and that the tte tags match.
 	 */
-	srlx	%g2, TAR_VPN_SHIFT, %g3
-
-	/*
-	 * Check that its valid and executable and that the virtual page
-	 * numbers match.
-	 */
-	brgez,pn %g5, 2f
-	 andcc	%g5, TD_EXEC, %g0
-	bz,pn	%xcc, 2f
-	 cmp	%g3, %g4
-	bne,pn %xcc, 2f
+	brgez,pn %g7, 3f
+	 andcc	%g7, TD_EXEC, %g0
+	bz,pn	%xcc, 3f
+	 cmp	%g3, %g6
+	bne,pn	%xcc, 3f
 	 EMPTY
 
 	/*
@@ -602,43 +619,52 @@ END(tl0_sfsr_trap)
 	/*
 	 * Set the reference bit, if it's currently clear.
 	 */
-	 andcc	%g5, TD_REF, %g0
+	 andcc	%g7, TD_REF, %g0
 	bz,a,pn	%xcc, tl0_immu_miss_set_ref
 	 nop
 
 	/*
 	 * Load the tte tag and data into the tlb and retry the instruction.
 	 */
-	stxa	%g2, [%g0 + AA_IMMU_TAR] %asi
-	stxa	%g5, [%g0] ASI_ITLB_DATA_IN_REG
+	stxa	%g1, [%g0 + AA_IMMU_TAR] %asi
+	stxa	%g7, [%g0] ASI_ITLB_DATA_IN_REG
 	retry
 
 	/*
-	 * Check the low bits to see if we've finished the bucket.
+	 * Advance to the next tte in this bucket, and check the low bits
+	 * of the bucket pointer to see if we've finished the bucket.
 	 */
-2:	add	%g1, 1 << TTE_SHIFT, %g1
-	andcc	%g1, (1 << (TSB_BUCKET_SHIFT + TTE_SHIFT)) - 1, %g0
-	bnz,a,pt %xcc, 1b
-	 nop
+3:	add	%g4, 1 << TTE_SHIFT, %g4
+	andcc	%g4, (1 << (TSB_BUCKET_SHIFT + TTE_SHIFT)) - 1, %g0
+	bnz,pt	%xcc, 2b
+	 EMPTY
+
+	/*
+	 * See if we just checked the largest page size, and advance to the
+	 * next one if not.
+	 */
+	 cmp	%g2, TS_MAX
+	bne,pt	%xcc, 1b
+	 add	%g2, 1, %g2
 	.endm
 
 	.macro	tl0_immu_miss
-	/*
-	 * Force kernel store order.
-	 */
-	wrpr	%g0, PSTATE_MMU, %pstate
-
 	/*
 	 * Load the virtual page number and context from the tag access
 	 * register.  We ignore the context.
 	 */
 	wr	%g0, ASI_IMMU, %asi
-	ldxa	[%g0 + AA_IMMU_TAR] %asi, %g2
+	ldxa	[%g0 + AA_IMMU_TAR] %asi, %g1
 
+	/*
+	 * Try a fast inline lookup of the user tsb.
+	 */
 	immu_miss_user
 
-	b,a	%xcc, tl0_immu_miss_trap
-	 nop
+	/*
+	 * Not in user tsb, call c code.
+	 */
+	ba,a	%xcc, tl0_immu_miss_trap
 	.align	128
 	.endm
 
@@ -646,19 +672,19 @@ ENTRY(tl0_immu_miss_set_ref)
 	/*
 	 * Set the reference bit.
 	 */
-	TTE_SET_REF(%g1, %g4, %g5)
+	TTE_SET_REF(%g4, %g2, %g3)
 
 	/*
-	 * May have become invalid, in which case start over.
+	 * May have become invalid during casxa, in which case start over.
 	 */
-	brgez,pn %g4, 1f
-	 or	%g4, TD_REF, %g4
+	brgez,pn %g2, 1f
+	 nop
 
 	/*
 	 * Load the tte tag and data into the tlb and retry the instruction.
 	 */
-	stxa	%g2, [%g0 + AA_IMMU_TAR] %asi
-	stxa	%g4, [%g0] ASI_ITLB_DATA_IN_REG
+	stxa	%g1, [%g0 + AA_IMMU_TAR] %asi
+	stxa	%g2, [%g0] ASI_ITLB_DATA_IN_REG
 1:	retry
 END(tl0_immu_miss_set_ref)
 
@@ -667,7 +693,7 @@ ENTRY(tl0_immu_miss_trap)
 	 * Put back the contents of the tag access register, in case we
 	 * faulted.
 	 */
-	stxa	%g2, [%g0 + AA_IMMU_TAR] %asi
+	stxa	%g1, [%g0 + AA_IMMU_TAR] %asi
 	membar	#Sync
 
 	/*
@@ -691,18 +717,41 @@ END(tl0_immu_miss_trap)
 
 	.macro	dmmu_miss_user
 	/*
+	 * Initialize the page size walker.
+	 */
+	mov	TS_MIN, %g2
+
+	/*
+	 * Loop over all supported page sizes.
+	 */
+
+	/*
+	 * Compute the page shift for the page size we are currently looking
+	 * for.
+	 */
+1:	add	%g2, %g2, %g3
+	add	%g3, %g2, %g3
+	add	%g3, PAGE_SHIFT, %g3
+
+	/*
 	 * Extract the virtual page number from the contents of the tag
 	 * access register.
 	 */
-	srlx	%g2, TAR_VPN_SHIFT, %g3
+	srlx	%g1, %g3, %g3
 
 	/*
 	 * Compute the tte bucket address.
 	 */
-	set	(1 << TSB_BUCKET_ADDRESS_BITS) - 1, %g1
-	and	%g1, %g3, %g1
-	sllx	%g1, TSB_BUCKET_SHIFT + TTE_SHIFT, %g1
-	add	%g1, TSB_REG, %g1
+	ldxa	[%g0 + AA_DMMU_TSB] %asi, %g5
+	and	%g3, TSB_BUCKET_MASK, %g4
+	sllx	%g4, TSB_BUCKET_SHIFT + TTE_SHIFT, %g4
+	add	%g4, %g5, %g4
+
+	/*
+	 * Compute the tte tag target.
+	 */
+	sllx	%g3, TV_SIZE_BITS, %g3
+	or	%g3, %g2, %g3
 
 	/*
 	 * Loop over the ttes in this bucket
@@ -710,23 +759,18 @@ END(tl0_immu_miss_trap)
 
 	/*
 	 * Load the tte.  Note that this instruction may fault, clobbering
-	 * the contents of the tag access register (at least), and the contents
-	 * of %g3, %g4, %g5, and %g6.  Luckily we can recover %g3, and we do
-	 * not use %g4 or %g5 until this instruction completes successfully.
+	 * the contents of the tag access register, %g5, %g6, and %g7.  We
+	 * do not use %g5, and %g6 and %g7 are not used until this instruction
+	 * completes successfully.
 	 */
-1:	ldda	[%g1] ASI_NUCLEUS_QUAD_LDD, %g4 /*, %g5 */
-
-	/*
-	 * Recover the virtual page number, which may have been clobbered.
-	 */
-	srlx	%g2, TAR_VPN_SHIFT, %g3
+2:	ldda	[%g4] ASI_NUCLEUS_QUAD_LDD, %g6 /*, %g7 */
 
 	/*
 	 * Check that its valid and that the virtual page numbers match.
 	 */
-	brgez,pn %g5, 2f
-	 cmp	%g3, %g4
-	bne,pn %xcc, 2f
+	brgez,pn %g7, 3f
+	 cmp	%g3, %g6
+	bne,pn	%xcc, 3f
 	 EMPTY
 
 	/*
@@ -736,58 +780,62 @@ END(tl0_immu_miss_trap)
 	/*
 	 * Set the reference bit, if it's currently clear.
 	 */
-	 andcc	%g5, TD_REF, %g0
+	 andcc	%g7, TD_REF, %g0
 	bz,a,pn	%xcc, dmmu_miss_user_set_ref
 	 nop
 
 	/*
 	 * Load the tte tag and data into the tlb and retry the instruction.
 	 */
-	stxa	%g2, [%g0 + AA_DMMU_TAR] %asi
-	stxa	%g5, [%g0] ASI_DTLB_DATA_IN_REG
+	stxa	%g1, [%g0 + AA_DMMU_TAR] %asi
+	stxa	%g7, [%g0] ASI_DTLB_DATA_IN_REG
 	retry
 
 	/*
-	 * Check the low bits to see if we've finished the bucket.
+	 * Advance to the next tte in this bucket, and check the low bits
+	 * of the bucket pointer to see if we've finished the bucket.
 	 */
-2:	add	%g1, 1 << TTE_SHIFT, %g1
-	andcc	%g1, (1 << (TSB_BUCKET_SHIFT + TTE_SHIFT)) - 1, %g0
-	bnz,a,pt %xcc, 1b
-	 nop
+3:	add	%g4, 1 << TTE_SHIFT, %g4
+	andcc	%g4, (1 << (TSB_BUCKET_SHIFT + TTE_SHIFT)) - 1, %g0
+	bnz,pt	%xcc, 2b
+	 EMPTY
+
+	/*
+	 * See if we just checked the largest page size, and advance to the
+	 * next one if not.
+	 */
+	 cmp	%g2, TS_MAX
+	bne,pt	%xcc, 1b
+	 add	%g2, 1, %g2
 	.endm
 
 ENTRY(dmmu_miss_user_set_ref)
 	/*
 	 * Set the reference bit.
 	 */
-	TTE_SET_REF(%g1, %g4, %g5)
+	TTE_SET_REF(%g4, %g2, %g3)
 
 	/*
-	 * May have become invalid, in which case start over.
+	 * May have become invalid during casxa, in which case start over.
 	 */
-	brgez,pn %g4, 1f
-	 or	%g4, TD_REF, %g4
+	brgez,pn %g2, 1f
+	 nop
 
 	/*
 	 * Load the tte tag and data into the tlb and retry the instruction.
 	 */
-	stxa	%g2, [%g0 + AA_DMMU_TAR] %asi
-	stxa	%g4, [%g0] ASI_DTLB_DATA_IN_REG
+	stxa	%g1, [%g0 + AA_DMMU_TAR] %asi
+	stxa	%g2, [%g0] ASI_DTLB_DATA_IN_REG
 1:	retry
 END(dmmu_miss_user_set_ref)
 
 	.macro	tl0_dmmu_miss
 	/*
-	 * Force kernel store order.
-	 */
-	wrpr	%g0, PSTATE_MMU, %pstate
-
-	/*
 	 * Load the virtual page number and context from the tag access
 	 * register.  We ignore the context.
 	 */
 	wr	%g0, ASI_DMMU, %asi
-	ldxa	[%g0 + AA_DMMU_TAR] %asi, %g2
+	ldxa	[%g0 + AA_DMMU_TAR] %asi, %g1
 
 	/*
 	 * Try a fast inline lookup of the primary tsb.
@@ -795,10 +843,9 @@ END(dmmu_miss_user_set_ref)
 	dmmu_miss_user
 
 	/*
-	 * Not in primary tsb, call c code.  Not much else fits inline.
+	 * Not in user tsb, call c code.
 	 */
-	b,a	%xcc, tl0_dmmu_miss_trap
-	 nop
+	ba,a	%xcc, tl0_dmmu_miss_trap
 	.align	128
 	.endm
 
@@ -807,7 +854,7 @@ ENTRY(tl0_dmmu_miss_trap)
 	 * Put back the contents of the tag access register, in case we
 	 * faulted.
 	 */
-	stxa	%g2, [%g0 + AA_DMMU_TAR] %asi
+	stxa	%g1, [%g0 + AA_DMMU_TAR] %asi
 	membar	#Sync
 
 	/*
@@ -831,18 +878,41 @@ END(tl0_dmmu_miss_trap)
 
 	.macro	dmmu_prot_user
 	/*
+	 * Initialize the page size walker.
+	 */
+	mov	TS_MIN, %g2
+
+	/*
+	 * Loop over all supported page sizes.
+	 */
+
+	/*
+	 * Compute the page shift for the page size we are currently looking
+	 * for.
+	 */
+1:	add	%g2, %g2, %g3
+	add	%g3, %g2, %g3
+	add	%g3, PAGE_SHIFT, %g3
+
+	/*
 	 * Extract the virtual page number from the contents of the tag
 	 * access register.
 	 */
-	srlx	%g2, TAR_VPN_SHIFT, %g3
+	srlx	%g1, %g3, %g3
 
 	/*
 	 * Compute the tte bucket address.
 	 */
-	set	(1 << TSB_BUCKET_ADDRESS_BITS) - 1, %g1
-	and	%g1, %g3, %g1
-	sllx	%g1, TSB_BUCKET_SHIFT + TTE_SHIFT, %g1
-	add	%g1, TSB_REG, %g1
+	ldxa	[%g0 + AA_DMMU_TSB] %asi, %g5
+	and	%g3, TSB_BUCKET_MASK, %g4
+	sllx	%g4, TSB_BUCKET_SHIFT + TTE_SHIFT, %g4
+	add	%g4, %g5, %g4
+
+	/*
+	 * Compute the tte tag target.
+	 */
+	sllx	%g3, TV_SIZE_BITS, %g3
+	or	%g3, %g2, %g3
 
 	/*
 	 * Loop over the ttes in this bucket
@@ -850,55 +920,80 @@ END(tl0_dmmu_miss_trap)
 
 	/*
 	 * Load the tte.  Note that this instruction may fault, clobbering
-	 * the context of the tag access register (at least), and the contents
-	 * of %g3, %g4, %g5, and %g6.  Luckily we can recover %g3, and we do
-	 * not use %g4 or %g5 until this instruction completes successfully.
+	 * the contents of the tag access register, %g5, %g6, and %g7.  We
+	 * do not use %g5, and %g6 and %g7 are not used until this instruction
+	 * completes successfully.
 	 */
-1:	ldda	[%g1] ASI_NUCLEUS_QUAD_LDD, %g4 /*, %g5 */
-
-	/*
-	 * Recover the virtual page number, which may have been clobbered.
-	 */
-	srlx	%g2, TAR_VPN_SHIFT, %g3
+2:	ldda	[%g4] ASI_NUCLEUS_QUAD_LDD, %g6 /*, %g7 */
 
 	/*
 	 * Check that its valid and writable and that the virtual page
 	 * numbers match.
 	 */
-	brgez,pn %g5, 2f
-	 andcc	%g5, TD_SW, %g0
-	bz,pn	%xcc, 2f
-	 cmp	%g3, %g4
-	bne,pn %xcc, 2f
+	brgez,pn %g7, 4f
+	 andcc	%g7, TD_SW, %g0
+	bz,pn	%xcc, 4f
+	 cmp	%g3, %g6
+	bne,pn	%xcc, 4f
 	 nop
 
 	/*
 	 * Set the hardware write bit.
 	 */
-	b,a	%xcc, dmmu_prot_set_w
-	 nop
+	TTE_SET_W(%g4, %g2, %g3)
+
+	/*
+	 * Delete the old TLB entry and clear the sfsr.
+	 */
+	srlx	%g1, PAGE_SHIFT, %g3
+	sllx	%g3, PAGE_SHIFT, %g3
+	stxa	%g0, [%g3] ASI_DMMU_DEMAP
+	stxa	%g0, [%g0 + AA_DMMU_SFSR] %asi
+	membar	#Sync
+
+	/*
+	 * May have become invalid during casxa, in which case start over.
+	 */
+	brgez,pn %g2, 3f
+	 or	%g2, TD_W, %g2
+
+	/*
+	 * Load the tte data into the tlb and retry the instruction.
+	 */
+	stxa	%g1, [%g0 + AA_DMMU_TAR] %asi
+	stxa	%g2, [%g0] ASI_DTLB_DATA_IN_REG
+3:	retry
 
 	/*
 	 * Check the low bits to see if we've finished the bucket.
 	 */
-2:	add	%g1, 1 << TTE_SHIFT, %g1
-	andcc	%g1, (1 << (TSB_BUCKET_SHIFT + TTE_SHIFT)) - 1, %g0
-	bnz,a,pt %xcc, 1b
-	 nop
+4:	add	%g4, 1 << TTE_SHIFT, %g4
+	andcc	%g4, (1 << (TSB_BUCKET_SHIFT + TTE_SHIFT)) - 1, %g0
+	bnz,pt	%xcc, 2b
+	 EMPTY
+
+	/*
+	 * See if we just checked the largest page size, and advance to the
+	 * next one if not.
+	 */
+	 cmp	%g2, TS_MAX
+	bne,pt	%xcc, 1b
+	 add	%g2, 1, %g2
 	.endm
 
 	.macro	tl0_dmmu_prot
-	/*
-	 * Force kernel store order.
-	 */
-	wrpr	%g0, PSTATE_MMU, %pstate
+	ba,a	%xcc, tl0_dmmu_prot_1
+	 nop
+	.align	128
+	.endm
 
+ENTRY(tl0_dmmu_prot_1)
 	/*
 	 * Load the virtual page number and context from the tag access
 	 * register.  We ignore the context.
 	 */
 	wr	%g0, ASI_DMMU, %asi
-	ldxa	[%g0 + AA_DMMU_TAR] %asi, %g2
+	ldxa	[%g0 + AA_DMMU_TAR] %asi, %g1
 
 	/*
 	 * Try a fast inline lookup of the tsb.
@@ -906,47 +1001,18 @@ END(tl0_dmmu_miss_trap)
 	dmmu_prot_user
 
 	/*
-	 * Not in tsb.  Call c code.
+	 * Not in user tsb, call c code.
 	 */
 	b,a	%xcc, tl0_dmmu_prot_trap
 	 nop
-	.align	128
-	.endm
-
-ENTRY(dmmu_prot_set_w)
-	/*
-	 * Set the hardware write bit in the tte.
-	 */
-	TTE_SET_W(%g1, %g4, %g5)
-
-	/*
-	 * Delete the old TLB entry and clear the sfsr.
-	 */
-	sllx	%g3, TAR_VPN_SHIFT, %g3
-	stxa	%g0, [%g3] ASI_DMMU_DEMAP
-	stxa	%g0, [%g0 + AA_DMMU_SFSR] %asi
-	membar	#Sync
-
-	/*
-	 * May have become invalid in which case start over.
-	 */
-	brgez,pn %g4, 1f
-	 or	%g4, TD_W, %g4
-
-	/*
-	 * Load the tte data into the tlb and retry the instruction.
-	 */
-	stxa	%g2, [%g0 + AA_DMMU_TAR] %asi
-	stxa	%g4, [%g0] ASI_DTLB_DATA_IN_REG
-1:	retry
-END(dmmu_prot_set_w)
+END(tl0_dmmu_prot_1)
 
 ENTRY(tl0_dmmu_prot_trap)
 	/*
 	 * Put back the contents of the tag access register, in case we
 	 * faulted.
 	 */
-	stxa	%g2, [%g0 + AA_DMMU_TAR] %asi
+	stxa	%g1, [%g0 + AA_DMMU_TAR] %asi
 	membar	#Sync
 
 	/*
@@ -958,7 +1024,6 @@ ENTRY(tl0_dmmu_prot_trap)
 	 * Load the tar, sfar and sfsr.
 	 */
 	ldxa	[%g0 + AA_DMMU_TAR] %asi, %g2
-
 	ldxa	[%g0 + AA_DMMU_SFAR] %asi, %g3
 	ldxa	[%g0 + AA_DMMU_SFSR] %asi, %g4
 	stxa	%g0, [%g0 + AA_DMMU_SFSR] %asi
@@ -1356,71 +1421,87 @@ END(intr_enqueue)
 	 * register.  We ignore the context.
 	 */
 	wr	%g0, ASI_IMMU, %asi
-	ldxa	[%g0 + AA_IMMU_TAR] %asi, %g6
+	ldxa	[%g0 + AA_IMMU_TAR] %asi, %g5
 
 	/*
-	 * Extract the virtual page number from the contents of the tag access
-	 * register.
+	 * Compute the address of the tte.  The tsb mask and address of the
+	 * tsb are patched at startup.
 	 */
-	srlx	%g6, TAR_VPN_SHIFT, %g6
+	.globl	tl1_immu_miss_patch_1
+tl1_immu_miss_patch_1:
+	sethi	%hi(TSB_KERNEL_MASK), %g6
+	or	%g6, %lo(TSB_KERNEL_MASK), %g6
+	sethi	%hi(TSB_KERNEL), %g7
 
-	/*
-	 * Find the index into the kernel tsb.  The tsb mask gets patched at
-	 * startup.
-	 */
-	.globl	tl1_immu_miss_load_tsb_mask
-tl1_immu_miss_load_tsb_mask:
-	sethi	%hi(TSB_KERNEL_MASK), %g4
-	or	%g4, %lo(TSB_KERNEL_MASK), %g4
-	and	%g6, %g4, %g3
-
-	/*
-	 * Compute the tte address.  The address of the kernel tsb gets
-	 * patched at startup.
-	 */
-	.globl	tl1_immu_miss_load_tsb
-tl1_immu_miss_load_tsb:
-	sethi	%hi(TSB_KERNEL), %g4
-	sllx	%g3, TTE_SHIFT, %g3
-	add	%g3, %g4, %g3
+	srlx	%g5, TAR_VPN_SHIFT, %g5
+	and	%g5, %g6, %g6
+	sllx	%g6, TTE_SHIFT, %g6
+	add	%g6, %g7, %g6
 
 	/*
 	 * Load the tte.
 	 */
-	ldda	[%g3] ASI_NUCLEUS_QUAD_LDD, %g4 /*, %g5 */
+	ldda	[%g6] ASI_NUCLEUS_QUAD_LDD, %g6 /*, %g7 */
 
 	/*
 	 * Check that its valid and executable and that the virtual page
 	 * numbers match.
 	 */
-	brgez,pn %g5, tl1_immu_miss_trap
-	 andcc	%g5, TD_EXEC, %g0
+	brgez,pn %g7, tl1_immu_miss_trap
+	 andcc	%g7, TD_EXEC, %g0
 	bz,pn	%xcc, tl1_immu_miss_trap
-	 cmp	%g4, %g6
+	 srlx	%g6, TV_SIZE_BITS, %g6
+	cmp	%g5, %g6
 	bne,pn	%xcc, tl1_immu_miss_trap
 	 EMPTY
 
 	/*
 	 * Set the reference bit if its currently clear.
 	 */
-	 andcc	%g5, TD_REF, %g0
-	bnz,a,pt %xcc, 1f
+	 andcc	%g7, TD_REF, %g0
+	bz,a,pn	%xcc, tl1_immu_miss_set_ref
 	 nop
-	TTE_SET_REF(%g3, %g5, %g4)
-
-	/*
-	 * May have become invalid, in which case start over.
-	 */
-	brgez,pn %g5, 2f
-	 or	%g5, TD_REF, %g5
 
 	/*
 	 * Load the tte data into the TLB and retry the instruction.
 	 */
-1:	stxa	%g5, [%g0] ASI_ITLB_DATA_IN_REG
-2:	retry
+	stxa	%g7, [%g0] ASI_ITLB_DATA_IN_REG
+	retry
 	.align	128
 	.endm
+
+ENTRY(tl1_immu_miss_set_ref)
+	/*
+	 * Recompute the tte address, which we clobbered loading the tte.  The
+	 * tsb mask and address of the tsb are patched at startup.
+	 */
+	.globl	tl1_immu_miss_patch_2
+tl1_immu_miss_patch_2:
+	sethi	%hi(TSB_KERNEL_MASK), %g6
+	or	%g6, %lo(TSB_KERNEL_MASK), %g6
+	sethi	%hi(TSB_KERNEL), %g7
+
+	and	%g5, %g6, %g5
+	sllx	%g5, TTE_SHIFT, %g5
+	add	%g5, %g7, %g5
+
+	/*
+	 * Set the reference bit.
+	 */
+	TTE_SET_REF(%g5, %g6, %g7)
+
+	/*
+	 * May have become invalid during casxa, in which case start over.
+	 */
+	brgez,pn %g6, 1f
+	 nop
+
+	/*
+	 * Load the tte data into the TLB and retry the instruction.
+	 */
+	stxa	%g6, [%g0] ASI_ITLB_DATA_IN_REG
+1:	retry
+END(tl1_immu_miss_set_ref)
 
 ENTRY(tl1_immu_miss_trap)
 	/*
@@ -1442,79 +1523,100 @@ END(tl1_immu_miss_trap)
 	 * register.
 	 */
 	wr	%g0, ASI_DMMU, %asi
-	ldxa	[%g0 + AA_DMMU_TAR] %asi, %g6
+	ldxa	[%g0 + AA_DMMU_TAR] %asi, %g5
 
 	/*
 	 * Extract the context from the contents of the tag access register.
 	 * If its non-zero this is a fault on a user address.  Note that the
 	 * faulting address is passed in %g2.
 	 */
-	sllx	%g6, 64 - TAR_VPN_SHIFT, %g5
-	brnz,a,pn %g5, tl1_dmmu_miss_user
-	 mov	%g6, %g2
+	sllx	%g5, 64 - TAR_VPN_SHIFT, %g6
+	brnz,a,pn %g6, tl1_dmmu_miss_user
+	 mov	%g5, %g1
 
 	/*
 	 * Check for the direct mapped physical region.  These addresses have
 	 * the high bit set so they are negative.
 	 */
-	brlz,pn %g6, tl1_dmmu_miss_direct
+	brlz,pn %g5, tl1_dmmu_miss_direct
 	 EMPTY
 
 	/*
-	 * Find the index into the kernel tsb.  The tsb mask gets patched at
-	 * startup.
+	 * Compute the address of the tte.  The tsb mask and address of the
+	 * tsb are patched at startup.
 	 */
-	.globl	tl1_dmmu_miss_load_tsb_mask
-tl1_dmmu_miss_load_tsb_mask:
-	sethi	%hi(TSB_KERNEL_MASK), %g4
-	or	%g4, %lo(TSB_KERNEL_MASK), %g4
-	srlx	%g6, TAR_VPN_SHIFT, %g6
-	and	%g6, %g4, %g3
+	.globl	tl1_dmmu_miss_patch_1
+tl1_dmmu_miss_patch_1:
+	sethi	%hi(TSB_KERNEL_MASK), %g6
+	or	%g6, %lo(TSB_KERNEL_MASK), %g6
+	sethi	%hi(TSB_KERNEL), %g7
 
-	/*
-	 * Compute the tte address.  The address of the kernel tsb gets
-	 * patched at startup.
-	 */
-	.globl	tl1_dmmu_miss_load_tsb
-tl1_dmmu_miss_load_tsb:
-	sethi	%hi(TSB_KERNEL), %g4
-	sllx	%g3, TTE_SHIFT, %g3
-	add	%g3, %g4, %g3
+	srlx	%g5, TAR_VPN_SHIFT, %g5
+	and	%g5, %g6, %g6
+	sllx	%g6, TTE_SHIFT, %g6
+	add	%g6, %g7, %g6
 
 	/*
 	 * Load the tte.
 	 */
-	ldda	[%g3] ASI_NUCLEUS_QUAD_LDD, %g4 /*, %g5 */
+	ldda	[%g6] ASI_NUCLEUS_QUAD_LDD, %g6 /*, %g7 */
 
 	/*
 	 * Check that its valid and that the virtual page numbers match.
 	 */
-	brgez,pn %g5, tl1_dmmu_miss_trap
-	 cmp	%g4, %g6
+	brgez,pn %g7, tl1_dmmu_miss_trap
+	 srlx	%g6, TV_SIZE_BITS, %g6
+	cmp	%g5, %g6
 	bne,pn %xcc, tl1_dmmu_miss_trap
 	 EMPTY
 
 	/*
 	 * Set the reference bit if its currently clear.
 	 */
-	 andcc	%g5, TD_REF, %g0
-	bnz,a,pt %xcc, 1f
+	 andcc	%g7, TD_REF, %g0
+	bz,a,pt	%xcc, tl1_dmmu_miss_set_ref
 	 nop
-	TTE_SET_REF(%g3, %g5, %g4)
-
-	/*
-	 * May have become invalid, in which case start over.
-	 */
-	brgez,pn %g5, 2f
-	 or	%g5, TD_REF, %g5
 
 	/*
 	 * Load the tte data into the TLB and retry the instruction.
 	 */
-1:	stxa	%g5, [%g0] ASI_DTLB_DATA_IN_REG
-2:	retry
+	stxa	%g7, [%g0] ASI_DTLB_DATA_IN_REG
+	retry
 	.align	128
 	.endm
+
+ENTRY(tl1_dmmu_miss_set_ref)
+	/*
+	 * Recompute the tte address, which we clobbered loading the tte.  The
+	 * tsb mask and address of the tsb are patched at startup.
+	 */
+	.globl	tl1_dmmu_miss_patch_2
+tl1_dmmu_miss_patch_2:
+	sethi	%hi(TSB_KERNEL_MASK), %g6
+	or	%g6, %lo(TSB_KERNEL_MASK), %g6
+	sethi	%hi(TSB_KERNEL), %g7
+
+	and	%g5, %g6, %g5
+	sllx	%g5, TTE_SHIFT, %g5
+	add	%g5, %g7, %g5
+
+	/*
+	 * Set the reference bit.
+	 */
+	TTE_SET_REF(%g5, %g6, %g7)
+
+	/*
+	 * May have become invalid during casxa, in which case start over.
+	 */
+	brgez,pn %g6, 1f
+	 nop
+
+	/*
+	 * Load the tte data into the TLB and retry the instruction.
+	 */
+	stxa	%g6, [%g0] ASI_DTLB_DATA_IN_REG
+1:	retry
+END(tl1_dmmu_miss_set_ref)
 
 ENTRY(tl1_dmmu_miss_trap)
 	/*
@@ -1533,27 +1635,17 @@ ENTRY(tl1_dmmu_miss_trap)
 END(tl1_dmmu_miss_trap)
 
 ENTRY(tl1_dmmu_miss_direct)
-#if KTR_COMPILE & KTR_TRAP
-	CATR(KTR_TRAP, "tl1_dmmu_miss_direct: pc=%#lx sp=%#lx tar=%#lx"
-	    , %g1, %g2, %g3, 7, 8, 9)
-	rdpr	%tpc, %g2
-	stx	%g2, [%g1 + KTR_PARM1]
-	add	%sp, SPOFF, %g2
-	stx	%g2, [%g1 + KTR_PARM2]
-	stx	%g6, [%g1 + KTR_PARM3]
-9:
-#endif
-
 	/*
 	 * Check the cache bits in the virtual address to see if this mapping
 	 * is virtually cacheable.  We set this up so that the masks fit in
 	 * immediates...  Note that the arithmetic shift sign extends, keeping
 	 * all the top bits set.
 	 */
-	srax	%g6, TLB_DIRECT_SHIFT, %g6
-	andcc	%g6, TLB_DIRECT_UNCACHEABLE, %g0
-	mov	TD_CP | TD_CV | TD_W, %g1
-	movnz	%xcc, TD_CP | TD_W, %g1
+	srax	%g5, TLB_DIRECT_SHIFT, %g5
+	andcc	%g5, TLB_DIRECT_UNCACHEABLE, %g0
+	mov	TD_CP | TD_CV | TD_W, %g6
+	movnz	%xcc, TD_CP | TD_W, %g6
+	or	%g5, %g6, %g5
 
 	/*
 	 * Mask off the high bits of the virtual address to get the physical
@@ -1562,14 +1654,13 @@ ENTRY(tl1_dmmu_miss_direct)
 	 * we don't have to include it in the tte bits.  We ignore the cache
 	 * bits, since they get shifted into the soft tte bits anyway.
 	 */
-	setx	TLB_DIRECT_MASK & ~TD_V, %g3, %g2
-	andn	%g6, %g2, %g3
-	or	%g3, %g1, %g3
+	setx	TLB_DIRECT_MASK & ~TD_V, %g7, %g6
+	andn	%g5, %g6, %g5
 
 	/*
 	 * Load the tte data into the TLB and retry the instruction.
 	 */
-	stxa	%g3, [%g0] ASI_DTLB_DATA_IN_REG
+	stxa	%g5, [%g0] ASI_DTLB_DATA_IN_REG
 	retry
 END(tl1_dmmu_miss_direct)
 
@@ -1583,7 +1674,7 @@ ENTRY(tl1_dmmu_miss_user)
 	 * Put back the contents of the tag access register, in case we
 	 * faulted.
 	 */
-	stxa	%g2, [%g0 + AA_DMMU_TAR] %asi
+	stxa	%g1, [%g0 + AA_DMMU_TAR] %asi
 	membar	#Sync
 
 	/*
@@ -1608,86 +1699,100 @@ ENTRY(tl1_dmmu_miss_user)
 END(tl1_dmmu_miss_user)
 
 	.macro	tl1_dmmu_prot
+	ba,a	%xcc, tl1_dmmu_prot_1
+	 nop
+	.align	128
+	.endm
+
+ENTRY(tl1_dmmu_prot_1)
 	/*
 	 * Load the context and the virtual page number from the tag access
 	 * register.
 	 */
 	wr	%g0, ASI_DMMU, %asi
-	ldxa	[%g0 + AA_DMMU_TAR] %asi, %g6
+	ldxa	[%g0 + AA_DMMU_TAR] %asi, %g5
 
 	/*
 	 * Extract the context from the contents of the tag access register.
 	 * If its non-zero this is a fault on a user address, otherwise get
 	 * the virtual page number.
 	 */
-	sllx	%g6, 64 - TAR_VPN_SHIFT, %g5
-	brnz,a,pn %g5, tl1_dmmu_prot_user
-	 mov	%g6, %g2
+	sllx	%g5, 64 - TAR_VPN_SHIFT, %g6
+	brnz,a,pn %g6, tl1_dmmu_prot_user
+	 mov	%g5, %g1
 
 	/*
-	 * Find the index into the kernel tsb.  The tsb mask gets patched at
-	 * startup.
+	 * Compute the address of the tte.  The tsb mask and address of the
+	 * tsb are patched at startup.
 	 */
-	.globl	tl1_dmmu_prot_load_tsb_mask
-tl1_dmmu_prot_load_tsb_mask:
-	sethi	%hi(TSB_KERNEL_MASK), %g4
-	or	%g4, %lo(TSB_KERNEL_MASK), %g4
-	srlx	%g6, TAR_VPN_SHIFT, %g6
-	and	%g6, %g4, %g5
+	.globl	tl1_dmmu_prot_patch_1
+tl1_dmmu_prot_patch_1:
+	sethi	%hi(TSB_KERNEL_MASK), %g6
+	or	%g6, %lo(TSB_KERNEL_MASK), %g6
+	sethi	%hi(TSB_KERNEL), %g7
 
-	/*
-	 * Compute the tte address.  The address of the kernel tsb gets
-	 * patched at startup.
-	 */
-	.globl	tl1_dmmu_prot_load_tsb
-tl1_dmmu_prot_load_tsb:
-	sethi	%hi(TSB_KERNEL), %g4
-	sllx	%g5, TTE_SHIFT, %g5
-	add	%g4, %g5, %g3
+	srlx	%g5, TAR_VPN_SHIFT, %g5
+	and	%g5, %g6, %g6
+	sllx	%g6, TTE_SHIFT, %g6
+	add	%g6, %g7, %g6
 
 	/*
 	 * Load the tte.
 	 */
-	ldda	[%g3] ASI_NUCLEUS_QUAD_LDD, %g4 /*, %g5 */
+	ldda	[%g6] ASI_NUCLEUS_QUAD_LDD, %g6 /*, %g7 */
 
 	/*
 	 * Check that its valid and writeable and that the virtual page
 	 * numbers match.
 	 */
-	brgez,pn %g5, tl1_dmmu_prot_trap
-	 andcc	%g5, TD_SW, %g0
+	brgez,pn %g7, tl1_dmmu_prot_trap
+	 andcc	%g7, TD_SW, %g0
 	bz,pn	%xcc, tl1_dmmu_prot_trap
-	 cmp	%g4, %g6
+	 srlx	%g6, TV_SIZE_BITS, %g6
+	cmp	%g5, %g6
 	bne,pn	%xcc, tl1_dmmu_prot_trap
 	 EMPTY
 
 	/*
 	 * Delete the old TLB entry and clear the sfsr.
 	 */
-	 sllx	%g6, TAR_VPN_SHIFT, %g6
+	 sllx	%g5, TAR_VPN_SHIFT, %g6
 	or	%g6, TLB_DEMAP_NUCLEUS, %g6
 	stxa	%g0, [%g6] ASI_DMMU_DEMAP
 	stxa	%g0, [%g0 + AA_DMMU_SFSR] %asi
 	membar	#Sync
 
-	ba,a	%xcc, tl1_dmmu_prot_cont
-	 nop
-	.align	128
-	.endm
+	/*
+	 * Recompute the tte address, which we clobbered loading the tte.  The
+	 * tsb mask and address of the tsb are patched at startup.
+	 */
+	.globl	tl1_dmmu_prot_patch_2
+tl1_dmmu_prot_patch_2:
+	sethi	%hi(TSB_KERNEL_MASK), %g6
+	or	%g6, %lo(TSB_KERNEL_MASK), %g6
+	sethi	%hi(TSB_KERNEL), %g7
 
-ENTRY(tl1_dmmu_prot_cont)
+	and	%g5, %g6, %g5
+	sllx	%g5, TTE_SHIFT, %g5
+	add	%g5, %g7, %g5
+
 	/*
 	 * Set the hardware write bit.
 	 */
-	TTE_SET_W(%g3, %g5, %g6)
+	TTE_SET_W(%g5, %g6, %g7)
+
+	/*
+	 * May have become invalid during casxa, in which case start over.
+	 */
+	brgez,pn %g6, 1f
+	 or	%g6, TD_W, %g6
 
 	/*
 	 * Load the tte data into the TLB and retry the instruction.
 	 */
-	or	%g5, TD_W, %g5
-	stxa	%g5, [%g0] ASI_DTLB_DATA_IN_REG
-	retry
-END(tl1_dmmu_prot_cont)
+	stxa	%g6, [%g0] ASI_DTLB_DATA_IN_REG
+1:	retry
+END(tl1_dmmu_prot_1)
 
 ENTRY(tl1_dmmu_prot_user)
 	/*
@@ -1699,7 +1804,7 @@ ENTRY(tl1_dmmu_prot_user)
 	 * Put back the contents of the tag access register, in case we
 	 * faulted.
 	 */
-	stxa	%g2, [%g0 + AA_DMMU_TAR] %asi
+	stxa	%g1, [%g0 + AA_DMMU_TAR] %asi
 	membar	#Sync
 
 	/*
