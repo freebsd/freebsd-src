@@ -32,7 +32,6 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_compat.h"
-#include "cy.h"
 
 /*
  * TODO:
@@ -81,15 +80,17 @@ __FBSDID("$FreeBSD$");
 #include <sys/syslog.h>
 #include <sys/tty.h>
 
+#include <machine/bus.h>
 #include <machine/psl.h>
+#include <sys/rman.h>
+#include <machine/resource.h>
 
-#include <i386/isa/isa_device.h>
+#include <isa/isavar.h>
+
 #include <i386/isa/cyreg.h>
 #include <i386/isa/ic/cd1400.h>
 
-#ifndef COMPAT_OLDISA
-#error "The cy device requires the old isa compatibility shims"
-#endif
+#define	NCY 10			/* KLUDGE */
 
 /*
  * Dictionary so that I can name everything *sio* or *com* to compare with
@@ -117,7 +118,6 @@ __FBSDID("$FreeBSD$");
 #define	comstart	cystart
 #define	comwakeup	cywakeup
 #define	p_com_addr	p_cy_addr
-#define	sioattach	cyattach
 #define	sioclose	cyclose
 #define	siodriver	cydriver
 #define	siodtrwakeup	cydtrwakeup
@@ -126,7 +126,6 @@ __FBSDID("$FreeBSD$");
 #define	sioioctl	cyioctl
 #define	sioopen		cyopen
 #define	siopoll		cypoll
-#define	sioprobe	cyprobe
 #define	siosettimeout	cysettimeout
 #define	siosetwater	cysetwater
 #define	comstop		cystop
@@ -332,25 +331,26 @@ struct com_s {
 	u_char	obuf2[256];
 };
 
+devclass_t	cy_devclass;
+
 /* PCI driver entry points. */
 void	*cyattach_common(cy_addr cy_iobase, int cy_align);
 driver_intr_t	siointr1;
 
-static	ointhand2_t cyointr;
 static	int	cy_units(cy_addr cy_iobase, int cy_align);
-static	int	sioattach(struct isa_device *dev);
 static	void	cd1400_channel_cmd(struct com_s *com, int cmd);
 static	void	cd1400_channel_cmd_wait(struct com_s *com);
 static	void	cd_etc(struct com_s *com, int etc);
 static	int	cd_getreg(struct com_s *com, int reg);
 static	void	cd_setreg(struct com_s *com, int reg, int val);
+static	int	cy_isa_attach(device_t dev);
+static	int	cy_isa_probe(device_t dev);
 static	timeout_t siodtrwakeup;
 static	void	comhardclose(struct com_s *com);
 static	void	sioinput(struct com_s *com);
 static	int	commctl(struct com_s *com, int bits, int how);
 static	int	comparam(struct tty *tp, struct termios *t);
 static	void	siopoll(void *arg);
-static	int	sioprobe(struct isa_device *dev);
 static	void	siosettimeout(void);
 static	int	siosetwater(struct com_s *com, speed_t speed);
 static	int	comspeed(speed_t speed, u_long cy_clock, int *prescaler_io);
@@ -372,13 +372,21 @@ static int	sio_inited;
 static	struct com_s	*p_com_addr[NSIO];
 #define	com_addr(unit)	(p_com_addr[unit])
 
-struct isa_driver	siodriver = {
-	INTR_TYPE_TTY | INTR_FAST,
-	sioprobe,
-	sioattach,
-	driver_name
+static device_method_t cy_isa_methods[] = {
+	/* Device interface. */
+	DEVMETHOD(device_probe,		cy_isa_probe),
+	DEVMETHOD(device_attach,	cy_isa_attach),
+
+	{ 0, 0 }
 };
-COMPAT_ISA_DRIVER(cy, cydriver);	/* XXX */
+
+static driver_t cy_isa_driver = {
+	driver_name,
+	cy_isa_methods,
+	0,
+};
+
+DRIVER_MODULE(cy, isa, cy_isa_driver, cy_devclass, 0, 0);
 
 static	d_open_t	sioopen;
 static	d_close_t	sioclose;
@@ -423,12 +431,23 @@ static	int	cy_total_devices;
 static	int	volatile RxFifoThreshold = (CD1400_RX_FIFO_SIZE / 2);
 
 static int
-sioprobe(dev)
-	struct isa_device	*dev;
+cy_isa_probe(device_t dev)
 {
-	cy_addr	iobase;
+	struct resource *mem_res;
+	cy_addr iobase;
+	int mem_rid;
 
-	iobase = (cy_addr)dev->id_maddr;
+	if (isa_get_logicalid(dev) != 0)	/* skip PnP probes */
+		return (ENXIO);
+
+	mem_rid = 0;
+	mem_res = bus_alloc_resource(dev, SYS_RES_MEMORY, &mem_rid,
+	    0ul, ~0ul, 0ul, RF_ACTIVE);
+	if (mem_res == NULL) {
+		device_printf(dev, "ioport resource allocation failed\n");
+		return (ENXIO);
+	}
+	iobase = rman_get_virtual(mem_res);
 
 	/* Cyclom-16Y hardware reset (Cyclom-8Ys don't care) */
 	cy_inb(iobase, CY16_RESET, 0);	/* XXX? */
@@ -438,7 +457,8 @@ sioprobe(dev)
 	cy_outb(iobase, CY_CLEAR_INTR, 0, 0);
 	DELAY(500);
 
-	return (cy_units(iobase, 0) == 0 ? 0 : -1);
+	bus_release_resource(dev, SYS_RES_MEMORY, mem_rid, mem_res);
+	return (cy_units(iobase, 0) == 0 ? ENXIO : 0);
 }
 
 static int
@@ -494,29 +514,51 @@ cy_units(cy_iobase, cy_align)
 }
 
 static int
-sioattach(isdp)
-	struct isa_device	*isdp;
+cy_isa_attach(device_t dev)
 {
-	int		adapter;
-	struct com_s	*com;
+	struct resource *irq_res, *mem_res;
+	void *irq_cookie, *vaddr, *vsc;
+	int irq_rid, mem_rid;
 
-	com = cyattach_common((cy_addr) isdp->id_maddr, 0);
-	if (com == NULL)
-		return (0);
-	adapter = com->unit / CY_MAX_PORTS;
+	irq_res = NULL;
+	mem_res = NULL;
 
-	/*
-	 * XXX
-	 * This kludge is to allow ISA/PCI device specifications in the
-	 * kernel config file to be in any order.
-	 */
-	if (isdp->id_unit != adapter) {
-		printf("cy%d: attached as cy%d\n", isdp->id_unit, adapter);
-		isdp->id_unit = adapter;	/* XXX */
+	mem_rid = 0;
+	mem_res = bus_alloc_resource(dev, SYS_RES_MEMORY, &mem_rid,
+	    0ul, ~0ul, 0ul, RF_ACTIVE);
+	if (mem_res == NULL) {
+		device_printf(dev, "memory resource allocation failed\n");
+		goto fail;
+	}
+	vaddr = rman_get_virtual(mem_res);
+
+	vsc = cyattach_common(vaddr, 0);
+	if (vsc == NULL) {
+		device_printf(dev, "no ports found!\n");
+		goto fail;
 	}
 
-	isdp->id_ointr = cyointr;
-	return (1);
+	irq_rid = 0;
+	irq_res = bus_alloc_resource(dev, SYS_RES_IRQ, &irq_rid, 0ul, ~0ul, 0ul,
+	    RF_SHAREABLE | RF_ACTIVE);
+	if (irq_res == NULL) {
+		device_printf(dev, "interrupt resource allocation failed\n");
+		goto fail;
+	}
+	if (bus_setup_intr(dev, irq_res, INTR_TYPE_TTY | INTR_FAST, cyintr,
+	    vsc, &irq_cookie) != 0) {
+		device_printf(dev, "interrupt setup failed\n");
+		goto fail;
+	}
+
+	return (0);
+
+fail:
+	if (irq_res != NULL)
+		bus_release_resource(dev, SYS_RES_IRQ, irq_rid, irq_res);
+	if (mem_res != NULL)
+		bus_release_resource(dev, SYS_RES_MEMORY, mem_rid, mem_res);
+	return (ENXIO);
 }
 
 void *
@@ -1104,12 +1146,6 @@ sioinput(com)
 		cd_setreg(com, com->mcr_rts_reg,
 			  com->mcr_image |= com->mcr_rts);
 #endif
-}
-
-static void
-cyointr(int unit)
-{
-	siointr1(com_addr(unit * CY_MAX_PORTS));
 }
 
 void
