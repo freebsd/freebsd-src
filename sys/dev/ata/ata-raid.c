@@ -28,7 +28,6 @@
  * $FreeBSD$
  */
 
-#include "opt_global.h"
 #include "opt_ata.h"
 #include <sys/param.h>
 #include <sys/systm.h> 
@@ -77,13 +76,6 @@ static int ar_promise_read_conf(struct ad_softc *, struct ar_softc **);
 static int ar_promise_write_conf(struct ar_softc *);
 static int ar_rw(struct ad_softc *, u_int32_t, int, caddr_t, int);
 
-/* misc defines */
-#define AD_STRATEGY(x)	si_disk->d_devsw->d_strategy(x)
-#define AD_SOFTC(x)	((struct ad_softc *)(x.device->driver))
-#define AR_READ		0x01
-#define AR_WRITE	0x02
-#define AR_WAIT		0x04
-  
 /* internal vars */
 static struct ar_softc **ar_table = NULL;
 static MALLOC_DEFINE(M_AR, "AR driver", "ATA RAID driver");
@@ -353,7 +345,7 @@ arstrategy(struct bio *bp)
 		return;
 	    }
 	    buf1->bp.bio_dev = AD_SOFTC(rdp->disks[buf1->drive])->dev;
-	    buf1->bp.bio_dev->AD_STRATEGY((struct bio *)buf1);
+	    AR_STRATEGY((struct bio *)buf1);
 	    break;
 
 	case AR_F_RAID1:
@@ -407,7 +399,7 @@ arstrategy(struct bio *bp)
 			buf2->drive = buf1->drive + rdp->width;
 			buf2->bp.bio_dev =
 			    AD_SOFTC(rdp->disks[buf2->drive])->dev;
-			buf2->bp.bio_dev->AD_STRATEGY((struct bio *)buf2);
+			AR_STRATEGY((struct bio *)buf2);
 			rdp->disks[buf2->drive].last_lba =
 			    buf2->bp.bio_pblkno + chunk;
 		    }
@@ -416,7 +408,7 @@ arstrategy(struct bio *bp)
 		}
 	    }
 	    buf1->bp.bio_dev = AD_SOFTC(rdp->disks[buf1->drive])->dev;
-	    buf1->bp.bio_dev->AD_STRATEGY((struct bio *)buf1);
+	    AR_STRATEGY((struct bio *)buf1);
 	    rdp->disks[buf1->drive].last_lba = buf1->bp.bio_pblkno + chunk;
 	    break;
 
@@ -463,7 +455,7 @@ ar_done(struct bio *bp)
 		    buf->bp.bio_dev = AD_SOFTC(rdp->disks[buf->drive])->dev;
 		    buf->bp.bio_flags = buf->org->bio_flags;
 		    buf->bp.bio_error = 0;
-		    buf->bp.bio_dev->AD_STRATEGY((struct bio *)buf);
+		    AR_STRATEGY((struct bio *)buf);
 		    return;
 		}
 		if (buf->bp.bio_cmd == BIO_WRITE) {
@@ -561,7 +553,7 @@ static int
 ar_rebuild(struct ar_softc *rdp)
 {
     caddr_t buffer;
-    int count = 0;
+    int count = 0, error = 0;
     int disk;
 
     if ((rdp->flags & (AR_F_READY|AR_F_DEGRADED)) != (AR_F_READY|AR_F_DEGRADED))
@@ -592,7 +584,11 @@ ar_rebuild(struct ar_softc *rdp)
 
     /* now go copy entire disk(s) */
     while (rdp->lock_start < (rdp->total_sectors / rdp->width)) {
+	int size = min(256, (rdp->total_sectors / rdp->width) - rdp->lock_end);
+
 	for (disk = 0; disk < rdp->width; disk++) {
+	    struct ad_softc *adp;
+
 	    if (((rdp->disks[disk].flags & AR_DF_ONLINE) &&
 		 (rdp->disks[disk + rdp->width].flags & AR_DF_ONLINE)) ||
 		((rdp->disks[disk].flags & AR_DF_ONLINE) && 
@@ -600,23 +596,30 @@ ar_rebuild(struct ar_softc *rdp)
 		((rdp->disks[disk + rdp->width].flags & AR_DF_ONLINE) &&
 		 !(rdp->disks[disk].flags & AR_DF_SPARE)))
 		continue;
-	    if (rdp->disks[disk].flags & AR_DF_ONLINE)
-		ar_rw(AD_SOFTC(rdp->disks[disk]), rdp->lock_start,
-		      256 * DEV_BSIZE, buffer, AR_READ | AR_WAIT);
-	    else
-		ar_rw(AD_SOFTC(rdp->disks[disk + rdp->width]), rdp->lock_start,
-		      256 * DEV_BSIZE, buffer, AR_READ | AR_WAIT);
 
 	    if (rdp->disks[disk].flags & AR_DF_ONLINE)
-		ar_rw(AD_SOFTC(rdp->disks[disk + rdp->width]), rdp->lock_start,
-		      256 * DEV_BSIZE, buffer, AR_WRITE | AR_WAIT);
+		adp = AD_SOFTC(rdp->disks[disk]);
 	    else
-		ar_rw(AD_SOFTC(rdp->disks[disk]), rdp->lock_start,
-		      256 * DEV_BSIZE, buffer, AR_WRITE | AR_WAIT);
+		adp = AD_SOFTC(rdp->disks[disk + rdp->width]);
+	    if ((error = ar_rw(adp, rdp->lock_start,
+			       size * DEV_BSIZE, buffer, AR_READ | AR_WAIT)))
+		break;
+
+	    if (rdp->disks[disk].flags & AR_DF_ONLINE)
+		adp = AD_SOFTC(rdp->disks[disk + rdp->width]);
+	    else
+		adp = AD_SOFTC(rdp->disks[disk]);
+	    if ((error = ar_rw(adp, rdp->lock_start,
+			       size * DEV_BSIZE, buffer, AR_WRITE | AR_WAIT)))
+		break;
+	}
+	if (error) {
+	    wakeup(rdp);
+	    free(buffer, M_AR);
+	    return error;
 	}
 	rdp->lock_start = rdp->lock_end;
-	rdp->lock_end = rdp->lock_start + 
-	    min(256, (rdp->total_sectors / rdp->width) - rdp->lock_end);
+	rdp->lock_end = rdp->lock_start + size;
 	wakeup(rdp);
     }
     free(buffer, M_AR);
@@ -768,10 +771,10 @@ ar_highpoint_read_conf(struct ad_softc *adp, struct ar_softc **raidp)
 	    raid->width = info->array_width;
 	    raid->heads = 255;
 	    raid->sectors = 63;
-	    raid->cylinders = (info->total_sectors - HPT_LBA) / (63 * 255);
-	    raid->total_sectors = info->total_sectors - (HPT_LBA * raid->width);
-	    raid->offset = 10;
-	    raid->reserved = 10;
+	    raid->cylinders = info->total_sectors / (63 * 255);
+	    raid->total_sectors = info->total_sectors;
+	    raid->offset = HPT_LBA + 1;
+	    raid->reserved = HPT_LBA + 1;
 	    raid->disks[disk_number].disk_sectors =
 		info->total_sectors / info->array_width;
 	}
@@ -873,8 +876,7 @@ ar_highpoint_write_conf(struct ar_softc *rdp)
 	    if (ar_rw(AD_SOFTC(rdp->disks[disk]), HPT_LBA,
 		      sizeof(struct highpoint_raid_conf),
 		      (caddr_t)config, AR_WRITE)) {
-		if (bootverbose)
-		    printf("ar%d: Highpoint write conf failed\n", rdp->lun);
+		printf("ar%d: Highpoint write conf failed\n", rdp->lun);
 		return -1;
 	    }
 	}
@@ -1138,8 +1140,7 @@ ar_promise_write_conf(struct ar_softc *rdp)
 		      PR_LBA(AD_SOFTC(rdp->disks[disk])),
 		      sizeof(struct promise_raid_conf),
 		      (caddr_t)config, AR_WRITE)) {
-		if (bootverbose)
-		    printf("ar%d: Promise write conf failed\n", rdp->lun);
+		printf("ar%d: Promise write conf failed\n", rdp->lun);
 		return -1;
 	    }
 	}
@@ -1158,7 +1159,7 @@ static int
 ar_rw(struct ad_softc *adp, u_int32_t lba, int count, caddr_t data, int flags)
 {
     struct bio *bp;
-    int s;
+    int error = 0;
 
     if (!(bp = (struct bio *)malloc(sizeof(struct bio), M_AR, M_NOWAIT|M_ZERO)))
 	return 1;
@@ -1174,12 +1175,12 @@ ar_rw(struct ad_softc *adp, u_int32_t lba, int count, caddr_t data, int flags)
 	bp->bio_done = (void *)wakeup;
     else
         bp->bio_done = ar_rw_done;
-    s = splbio();
-    bp->bio_dev->AD_STRATEGY(bp);
-    splx(s);
+    AR_STRATEGY(bp);
     if (flags & AR_WAIT) {
-	tsleep(bp, PRIBIO, "arrw", 0);
+	error = tsleep(bp, PRIBIO, "arrw", 10 * hz);
+	if (!error && bp->b_flags & B_ERROR)
+	    error = bp->b_error;
 	free(bp, M_AR);
     }
-    return 0;
+    return error;
 }
