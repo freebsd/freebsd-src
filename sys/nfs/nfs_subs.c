@@ -1733,10 +1733,12 @@ nfsrv_fhtovp(fhp, lockflag, vpp, cred, slp, nam, rdonlyp, kerbflag)
 	if (exflags & MNT_EXKERB) {
 		if (!kerbflag) {
 			vput(*vpp);
+			*vpp = NULL;
 			return (NFSERR_AUTHERR | AUTH_TOOWEAK);
 		}
 	} else if (kerbflag) {
 		vput(*vpp);
+		*vpp = NULL;
 		return (NFSERR_AUTHERR | AUTH_TOOWEAK);
 	} else if (cred->cr_uid == 0 || (exflags & MNT_EXPORTANON)) {
 		cred->cr_uid = credanon->cr_uid;

@@ -754,8 +754,10 @@ nqnfsrv_getlease(nfsd, slp, procp, mrq)
 	nfsd->nd_duration = fxdr_unsigned(int, *tl);
 	error = nfsrv_fhtovp(fhp, 1, &vp, cred, slp, nam, &rdonly,
 		(nfsd->nd_flag & ND_KERBAUTH));
-	if (error)
+	if (error) {
 		nfsm_reply(0);
+		goto nfsmout;
+	}
 	if (rdonly && flags == ND_WRITE) {
 		error = EROFS;
 		vput(vp);
