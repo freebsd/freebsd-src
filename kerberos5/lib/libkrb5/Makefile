@@ -97,9 +97,10 @@ SRCS=	\
 	warn.c				\
 	write_message.c			\
 	krb5_err.c			\
+	krb5_err.h			\
 	k524_err.c			\
-	heim_err.c			\
 	k524_err.h			\
+	heim_err.c			\
 	heim_err.h
 
 CFLAGS+=-I${KRB5DIR}/lib/krb5		\
