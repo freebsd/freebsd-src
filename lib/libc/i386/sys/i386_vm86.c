@@ -32,18 +32,13 @@ static const char rcsid[] = "$FreeBSD$";
 
 #include <machine/sysarch.h>
 
-struct parms {
-	int	sub_op;
-	void 	*sub_args;
-};
-
 int
 i386_vm86(int fcn, void *data)
 {
-	struct parms p;
+	struct i386_vm86_args p;
 
 	p.sub_op = fcn;
-	p.sub_args = data;
+	p.sub_args = (char *)data;
 
 	return (sysarch(I386_VM86, (void *)&p));
 }
