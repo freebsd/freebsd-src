@@ -35,6 +35,8 @@
  * handled here.
  */
 
+#include "opt_mac.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/dirent.h>
@@ -43,6 +45,7 @@
 #include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
+#include <sys/mac.h>
 #include <sys/malloc.h>
 #include <sys/file.h>		/* Must come after sys/malloc.h */
 #include <sys/mman.h>
@@ -310,6 +313,12 @@ again:
 		cookies = NULL;
 	}
 
+#ifdef MAC
+	error = mac_check_vnode_readdir(td->td_ucred, vp);
+	if (error)
+		return (error);
+#endif
+
 	error = VOP_READDIR(vp, &auio, fp->f_cred, &eofflag,
 						&ncookies, &cookies);
 	if (error) {
@@ -462,6 +471,13 @@ again:
 	auio.uio_td = td;
 	auio.uio_resid = buflen;
 	auio.uio_offset = off;
+
+#ifdef MAC
+	error = mac_check_vnode_readdir(td->td_ucred, vp);
+	if (error)
+		goto out;
+#endif
+
 	/*
          * First we read into the malloc'ed buffer, then
          * we massage it into user space, one record at a time.

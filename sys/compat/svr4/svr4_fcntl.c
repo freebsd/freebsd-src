@@ -30,12 +30,16 @@
  * 
  * $FreeBSD$
  */
+
+#include "opt_mac.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/file.h>
 #include <sys/filedesc.h>
 /*#include <sys/ioctl.h>*/
 #include <sys/lock.h>
+#include <sys/mac.h>
 #include <sys/mount.h>
 #include <sys/mutex.h>
 #include <sys/namei.h>
@@ -259,6 +263,14 @@ fd_revoke(td, fd)
 		error = EINVAL;
 		goto out;
 	}
+
+#ifdef MAC
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY, td);
+	error = mac_check_vnode_revoke(td->td_ucred, vp);
+	VOP_UNLOCK(vp, 0, td);
+	if (error)
+		goto out;
+#endif
 
 	if ((error = VOP_GETATTR(vp, &vattr, td->td_ucred, td)) != 0)
 		goto out;
