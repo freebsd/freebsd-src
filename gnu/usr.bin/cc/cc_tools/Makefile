@@ -12,6 +12,7 @@
 # aliases of generated headers.
 
 CFLAGS+=	-I.
+WARNS=		0
 
 .include "../Makefile.inc"
 
@@ -101,10 +102,10 @@ COMMONHDRS=	config.h hconfig.h multilib.h options.h specs.h tconfig.h tm.h
 GENSRCS+=	${COMMONHDRS} gencheck.h
 
 config.h hconfig.h:
-	echo '#include "auto-host.h"'			> ${.TARGET}
-	echo '#include "gansidecl.h"'			>> ${.TARGET}
-	echo '#include "${GCC_ARCH}/xm-${GCC_ARCH}.h"'	>> ${.TARGET}
-	echo '#include "hwint.h"'			>> ${.TARGET}
+	echo '#include "auto-host.h"'				> ${.TARGET}
+	echo '#include "gansidecl.h"'				>> ${.TARGET}
+	echo '#include "${TARGET_ARCH}/xm-${TARGET_ARCH}.h"'	>> ${.TARGET}
+	echo '#include "hwint.h"'				>> ${.TARGET}
 
 gencheck.h:
 	echo '#include "cp/cp-tree.def"'		> ${.TARGET}
@@ -127,25 +128,25 @@ specs.h:
 	echo '#include "objc/lang-specs.h"'		>> ${.TARGET}
 
 tconfig.h:
-	echo '#include "gansidecl.h"'			> ${.TARGET}
-	echo '#include "${GCC_ARCH}/xm-${GCC_ARCH}.h"'	>> ${.TARGET}
+	echo '#include "gansidecl.h"'				> ${.TARGET}
+	echo '#include "${TARGET_ARCH}/xm-${TARGET_ARCH}.h"'	>> ${.TARGET}
 
 # KEEP THIS IN SYNC with src/gcc/lib/libgcc/Makefile !!
 tm.h:
-	echo '#include "${GCC_ARCH}/${GCC_ARCH}.h"'	> ${.TARGET}
-.if ${GCC_ARCH} == "i386"
-	echo '#include "${GCC_ARCH}/att.h"'		>> ${.TARGET}
+	echo '#include "${TARGET_ARCH}/${TARGET_ARCH}.h"'	> ${.TARGET}
+.if ${TARGET_ARCH} == "i386"
+	echo '#include "${TARGET_ARCH}/att.h"'			>> ${.TARGET}
 .endif
-	echo '#include <freebsd.h>'			>> ${.TARGET}
-	echo '#include "dbxelf.h"'			>> ${.TARGET}
-.if exists(${GCCDIR}/config/${GCC_ARCH}/elf.h)
-	echo '#include "${GCC_ARCH}/elf.h"'		>> ${.TARGET}
+	echo '#include <freebsd.h>'				>> ${.TARGET}
+	echo '#include "dbxelf.h"'				>> ${.TARGET}
+.if exists(${GCCDIR}/config/${TARGET_ARCH}/elf.h)
+	echo '#include "${TARGET_ARCH}/elf.h"'			>> ${.TARGET}
 .endif
-	echo '#include "${GCC_ARCH}/freebsd.h"'		>> ${.TARGET}
-.if ${GCC_ARCH} == "i386"
-	echo '#include "${GCC_ARCH}/perform.h"'		>> ${.TARGET}
+	echo '#include "${TARGET_ARCH}/freebsd.h"'		>> ${.TARGET}
+.if ${TARGET_ARCH} == "i386"
+	echo '#include "${TARGET_ARCH}/perform.h"'		>> ${.TARGET}
 .endif
-	echo '#include <freebsd-native.h>'		>> ${.TARGET}
+	echo '#include <freebsd-native.h>'			>> ${.TARGET}
 
 #-----------------------------------------------------------------------
 # General things.
