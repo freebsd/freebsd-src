@@ -73,9 +73,7 @@ char *capdb, *capname, buf[8 * 1024];
  * the correct record is stored.
  */
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	int c;
 
@@ -122,7 +120,7 @@ main(argc, argv)
 }
 
 void
-dounlink()
+dounlink(void)
 {
 	if (capname != NULL)
 		(void)unlink(capname);
@@ -141,8 +139,7 @@ dounlink()
  * details above.
  */
 void
-db_build(ifiles)
-	char **ifiles;
+db_build(char **ifiles)
 {
 	DBT key, data;
 	recno_t reccnt;
@@ -248,7 +245,7 @@ db_build(ifiles)
 }
 
 void
-usage()
+usage(void)
 {
 	(void)fprintf(stderr,
 	    "usage: cap_mkdb [-v] [-f outfile] file [file ...]\n");
