@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sysctl.h	8.1 (Berkeley) 6/2/93
- * $Id: sysctl.h,v 1.35 1995/11/20 12:42:39 phk Exp $
+ * $Id: sysctl.h,v 1.36 1995/12/02 20:40:20 phk Exp $
  */
 
 #ifndef _SYS_SYSCTL_H_
@@ -108,8 +108,9 @@ struct sysctl_oid {
 	int		oid_kind;
 	void		*oid_arg1;
 	int		oid_arg2;
-	char		*oid_name;
+	const char	*oid_name;
 	int 		(*oid_handler) SYSCTL_HANDLER_ARGS;
+	const char	*oid_fmt;
 };
 
 #define SYSCTL_IN(r, p, l) (r->newfunc)(r, p, l)
@@ -120,42 +121,43 @@ int sysctl_handle_string SYSCTL_HANDLER_ARGS;
 int sysctl_handle_opaque SYSCTL_HANDLER_ARGS;
 
 /* This is the "raw" function for a mib-oid */
-#define SYSCTL_OID(parent, number, name, kind, arg1, arg2, handler, descr) \
+#define SYSCTL_OID(parent, nbr, name, kind, a1, a2, handler, fmt, descr) \
 	static const struct sysctl_oid sysctl__##parent##_##name = { \
-		number, kind, arg1, arg2, #name, handler }; \
+		nbr, kind, a1, a2, #name, handler, fmt }; \
 	TEXT_SET(sysctl_##parent, sysctl__##parent##_##name);
 
 /* This makes a node from which other oids can hang */
-#define SYSCTL_NODE(parent, number, name, access, handler, descr) \
+#define SYSCTL_NODE(parent, nbr, name, access, handler, descr) \
 	extern struct linker_set sysctl_##parent##_##name; \
-	SYSCTL_OID(parent, number, name, CTLTYPE_NODE|access, \
-		(void*)&sysctl_##parent##_##name, 0, handler, descr); \
+	SYSCTL_OID(parent, nbr, name, CTLTYPE_NODE|access, \
+		(void*)&sysctl_##parent##_##name, 0, handler, "N", descr); \
 	TEXT_SET(sysctl_##parent##_##name, sysctl__##parent##_##name);
 
 /* This is a string len can be 0 to indicate '\0' termination */
-#define SYSCTL_STRING(parent, number, name, access, arg, len, descr) \
-	SYSCTL_OID(parent, number, name, CTLTYPE_STRING|access, \
-		arg, len, sysctl_handle_string, descr);
+#define SYSCTL_STRING(parent, nbr, name, access, arg, len, descr) \
+	SYSCTL_OID(parent, nbr, name, CTLTYPE_STRING|access, \
+		arg, len, sysctl_handle_string, "A", descr);
 
 /* This is a integer, if ptr is NULL, val is returned */
-#define SYSCTL_INT(parent, number, name, access, ptr, val, descr) \
-	SYSCTL_OID(parent, number, name, CTLTYPE_INT|access, \
-		ptr, val, sysctl_handle_int, descr);
+#define SYSCTL_INT(parent, nbr, name, access, ptr, val, descr) \
+	SYSCTL_OID(parent, nbr, name, CTLTYPE_INT|access, \
+		ptr, val, sysctl_handle_int, "I", descr);
 
 /* This is anything, specified by a pointer and a lenth */
-#define SYSCTL_OPAQUE(parent, number, name, access, ptr, len, descr) \
-	SYSCTL_OID(parent, number, name, CTLTYPE_OPAQUE|access, \
-		ptr, len, sysctl_handle_opaque, descr);
+#define SYSCTL_OPAQUE(parent, nbr, name, access, ptr, len, descr) \
+	SYSCTL_OID(parent, nbr, name, CTLTYPE_OPAQUE|access, \
+		ptr, len, sysctl_handle_opaque, "O", descr);
 
 /* This is a struct, specified by a pointer and type */
-#define SYSCTL_STRUCT(parent, number, name, access, ptr, type, descr) \
-	SYSCTL_OID(parent, number, name, CTLTYPE_OPAQUE|access, \
-		ptr, sizeof(struct type), sysctl_handle_opaque, descr);
+#define SYSCTL_STRUCT(parent, nbr, name, access, ptr, type, descr) \
+	SYSCTL_OID(parent, nbr, name, CTLTYPE_OPAQUE|access, \
+		ptr, sizeof(struct type), sysctl_handle_opaque, \
+		"S," #type, descr);
 
 /* Needs a proc.  Specify by pointer and arg */
-#define SYSCTL_PROC(parent, number, name, access, ptr, arg, handler, descr) \
-	SYSCTL_OID(parent, number, name, access, \
-		ptr, arg, handler, descr);
+#define SYSCTL_PROC(parent, nbr, name, access, ptr, arg, handler, fmt, descr) \
+	SYSCTL_OID(parent, nbr, name, access, \
+		ptr, arg, handler, fmt, descr);
 #endif /* KERNEL */
 
 /*

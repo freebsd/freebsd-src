@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_clock.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_clock.c,v 1.19 1995/11/12 19:51:48 phk Exp $
+ * $Id: kern_clock.c,v 1.20 1995/12/02 17:10:31 bde Exp $
  */
 
 /* Portions of this software are covered by the following: */
@@ -984,8 +984,8 @@ sysctl_kern_clockrate SYSCTL_HANDLER_ARGS
 	return (sysctl_handle_opaque(oidp, &clkinfo, sizeof clkinfo, req));
 }
 
-SYSCTL_OID(_kern, KERN_CLOCKRATE, clockrate,
-	CTLTYPE_STRUCT|CTLFLAG_RD, 0, 0, sysctl_kern_clockrate, "");
+SYSCTL_PROC(_kern, KERN_CLOCKRATE, clockrate, CTLTYPE_STRUCT|CTLFLAG_RD,
+	0, 0, sysctl_kern_clockrate, "S,clkinfo","");
 
 /*#ifdef PPS_SYNC*/
 #if 0
