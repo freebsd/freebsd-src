@@ -1,4 +1,4 @@
-#	$Id$
+#	$Id: Makefile,v 1.13 1997/02/22 15:45:20 peter Exp $
 
 .include "${.CURDIR}/../Makefile.inc"
 
@@ -15,7 +15,7 @@ CFLAGS+= -I${.CURDIR} -I${CVSDIR}/src -DHAVE_CONFIG_H
 
 SRCS =	argmatch.c getdate.y getline.c \
 	getopt.c getopt1.c savecwd.c \
-	sighandle.c strippath.c stripslash.c \
+	sighandle.c stripslash.c \
 	xgetwd.c yesno.c
 
 CLEANFILES+= getdate.c y.tab.h
