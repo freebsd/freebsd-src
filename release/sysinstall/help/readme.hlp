@@ -23,11 +23,24 @@ vehicles used by the project to periodically give testers or developers
 access to the latest -current technology.  They are not put through the
 same quality assurance mechanisms that full releases are!
                                                          
+For the latest errata information (security hole & fix information,
+bugs fixes, documentation updates, etc.), should there be any for this
+release, please see:
+
+	http://www.freebsd.org/releases/[releaseversion]/addendum.html
+
+Or the file:
+
+	ADDENDUM.TXT
+
+In the base directory of the distribution.
+
 
 ** Most files here are also in the Documentation Menu of the boot floppy **
 
 ROAD MAP:
 
+  ADDENDUM.TXT          Errata information for this release (optional file).
   README.TXT            This file.
   ABOUT.TXT             All about FreeBSD and the physical organization
                         of this distribution.
