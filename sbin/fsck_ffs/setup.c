@@ -461,6 +461,11 @@ calcsb(dev, devfd, fs)
 			fstypenames[pp->p_fstype] : "unknown");
 		return (0);
 	}
+	if (pp->p_fsize == 0 || pp->p_frag == 0) {
+		pfatal("%s: LABELED AS A %s FILE SYSTEM, BUT BLOCK SIZE IS 0\n",
+			dev, fstypenames[pp->p_fstype]);
+		return (0);
+	}
 	memset(fs, 0, sizeof(struct fs));
 	fs->fs_fsize = pp->p_fsize;
 	fs->fs_frag = pp->p_frag;
