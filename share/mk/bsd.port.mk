@@ -3,7 +3,7 @@
 #	bsd.port.mk - 940820 Jordan K. Hubbard.
 #	This file is in the public domain.
 #
-# $Id: bsd.port.mk,v 1.136 1995/04/09 15:00:56 jkh Exp $
+# $Id: bsd.port.mk,v 1.137 1995/04/10 08:09:21 jkh Exp $
 #
 # Please view me with 4 column tabs!
 
@@ -268,7 +268,7 @@ CATEGORIES?=	orphans
 CATEGORIES+=	all
 KEYWORDS+=		${CATEGORIES}
 
-PKGREPOSITORYSUBDIR?=	.package
+PKGREPOSITORYSUBDIR?=	.packages
 PKGREPOSITORY?=		${PACKAGES}/${PKGREPOSITORYSUBDIR}
 .if exists(${PACKAGES})
 PKGFILE?=		${PKGREPOSITORY}/${PKGNAME}${PKG_SUFX}
