@@ -34,9 +34,12 @@
  * function that does the actual tracing.
  */
 
+#include "opt_ddb.h"
 #include "opt_ktr.h"
 
+#include <sys/param.h>
 #include <sys/types.h>
+#include <sys/cons.h>
 #include <sys/time.h>
 #include <sys/ktr.h>
 #include <sys/libkern.h>
@@ -45,6 +48,8 @@
 #include <sys/systm.h>
 #include <machine/globals.h>
 #include <machine/stdarg.h>
+
+#include <ddb/ddb.h>
 
 #ifndef KTR_MASK
 #define	KTR_MASK	(KTR_GEN)
@@ -152,4 +157,96 @@ ktr_tracepoint(u_int mask, char *format, u_long arg1, u_long arg2, u_long arg3,
 	entry->ktr_parm5 = arg5;
 #endif
 }
+
+#ifdef DDB
+
+struct tstate {
+	int	cur;
+	int	first;
+};
+static	struct tstate tstate;
+static	int db_ktr_verbose;
+static	int db_mach_vtrace(void);
+
+DB_COMMAND(tbuf, db_mach_tbuf)
+{
+
+	tstate.cur = (ktr_idx - 1) & (KTR_ENTRIES - 1);
+	tstate.first = -1;
+	if (strcmp(modif, "v") == 0)
+		db_ktr_verbose = 1;
+	else
+		db_ktr_verbose = 0;
+	db_mach_vtrace();
+
+	return;
+}
+
+DB_COMMAND(tall, db_mach_tall)
+{
+	int	c;
+
+	db_mach_tbuf(addr, have_addr, count, modif);
+	while (db_mach_vtrace()) {
+		c = cncheckc();
+		if (c != -1)
+			break;
+	}
+
+	return;
+}
+
+DB_COMMAND(tnext, db_mach_tnext)
+{
+
+	if (strcmp(modif, "v") == 0)
+		db_ktr_verbose ^= 1;
+	db_mach_vtrace();
+}
+
+static int
+db_mach_vtrace(void)
+{
+	struct ktr_entry	*kp;
+
+	if (tstate.cur == tstate.first) {
+		db_printf("--- End of trace buffer ---\n");
+		return (0);
+	}
+	kp = &ktr_buf[tstate.cur];
+
+	/* Skip over unused entries. */
+#ifdef KTR_EXTEND
+	if (kp->ktr_desc[0] != '\0') {
+#else
+	if (kp->ktr_desc != NULL) {
+#endif
+		db_printf("%d: ", tstate.cur);
+		if (db_ktr_verbose)
+			db_printf("%4ld.%06ld ", kp->ktr_tv.tv_sec,
+			    kp->ktr_tv.tv_nsec / 1000);
+#ifdef KTR_EXTEND
+#ifdef SMP
+		db_printf("cpu%d ", kp->ktr_cpu);
+#endif
+		if (db_ktr_verbose)
+			db_printf("%s.%d\t", kp->ktr_filename, kp->ktr_line);
+		db_printf("%s", kp->ktr_desc);
+#else
+		db_printf(kp->ktr_desc, kp->ktr_parm1, kp->ktr_parm2,
+		    kp->ktr_parm3, kp->ktr_parm4, kp->ktr_parm5);
+#endif
+		db_printf("\n");
+	}
+
+	if (tstate.first == -1)
+		tstate.first = tstate.cur;
+
+	if (--tstate.cur < 0)
+		tstate.cur = KTR_ENTRIES - 1;
+
+	return (1);
+}
+
+#endif	/* DDB */
 #endif	/* KTR */
