@@ -1959,7 +1959,9 @@ vm_freeze_copyopts(vm_object_t object, vm_pindex_t froma, vm_pindex_t toa)
 						printf("vm_freeze_copyopts: cannot read page from file: %lx\n", (long)m_in->pindex);
 						continue;
 					}
+					vm_page_lock_queues();
 					vm_page_deactivate(m_in);
+					vm_page_unlock_queues();
 				}
 
 				vm_page_protect(m_in, VM_PROT_NONE);
