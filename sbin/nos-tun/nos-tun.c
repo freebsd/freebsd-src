@@ -251,8 +251,9 @@ int main (int argc, char **argv)
   char buf[0x2000];                 /* Packets buffer */
   struct ip *ip = (struct ip *)buf;
 
-  fd_set rfds, wfds, efds;          /* File descriptors for select() */
+  fd_set rfds;                      /* File descriptors for select() */
   int nfds;                         /* Return from select() */
+  int lastfd;                       /* highest fd we care about */
 
 
   while ((c = getopt(argc, argv, "d:s:t:p:")) != -1) {
@@ -335,12 +336,17 @@ int main (int argc, char **argv)
   (void)signal(SIGINT,Finish);
   (void)signal(SIGTERM,Finish);
 
+  if (tun > net)
+	lastfd = tun;
+  else
+	lastfd = net;
+
   for (;;) {
     /* Set file descriptors for select() */
-    FD_ZERO(&rfds); FD_ZERO(&wfds); FD_ZERO(&efds);
+    FD_ZERO(&rfds);
     FD_SET(tun,&rfds); FD_SET(net,&rfds);
 
-    nfds = select(net+10,&rfds,&wfds,&efds,NULL);
+    nfds = select(lastfd+1,&rfds,NULL,NULL,NULL);
     if(nfds < 0) {
       syslog(LOG_ERR,"interrupted select");
       close(net);
