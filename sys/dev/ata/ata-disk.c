@@ -252,8 +252,7 @@ adstrategy(struct buf *bp)
 
     s = splbio();
     bufqdisksort(&adp->queue, bp);
-    if (adp->controller->active == ATA_IDLE)
-	ad_start(adp);
+    ad_start(adp);
     splx(s);
 }
 
