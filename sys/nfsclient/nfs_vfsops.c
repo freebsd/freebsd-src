@@ -447,7 +447,6 @@ nfs_mountroot(struct mount *mp, struct thread *td)
 	 * is not set by the DHCP server.  Check also for a value of 0
 	 * to avoid panicking inappropriately in that situation.
 	 */
-	printf("gateway: %d bytes\n", nd->mygateway.sin_len);
 	if (nd->mygateway.sin_len != 0 &&
 	    nd->mygateway.sin_addr.s_addr != 0) {
 		struct sockaddr_in mask, sin;
