@@ -405,6 +405,7 @@ ntfs_ntlookup(
 	ip->i_mp = ntmp;
 
 	LIST_INIT(&ip->i_fnlist);
+	VREF(ip->i_devvp);
 
 	/* init lock and lock the newborn ntnode */
 	lockinit(&ip->i_lock, PINOD, "ntnode", 0, LK_EXCLUSIVE);
@@ -448,28 +449,27 @@ ntfs_ntput(ip)
 	}
 #endif
 
-	if (ip->i_usecount == 0) {
-		dprintf(("ntfs_ntput: deallocating ntnode: %d\n",
-			ip->i_number));
-
-		if (LIST_FIRST(&ip->i_fnlist))
-			panic("ntfs_ntput: ntnode has fnodes\n");
-
-		ntfs_nthashrem(ip);
-
-		while (LIST_FIRST(&ip->i_valist) != NULL) {
-			vap = LIST_FIRST(&ip->i_valist);
-			LIST_REMOVE(vap,va_list);
-			ntfs_freentvattr(vap);
-		}
-		mtx_unlock(&ip->i_interlock);
-		mtx_destroy(&ip->i_interlock);
-		lockdestroy(&ip->i_lock);
-
-		FREE(ip, M_NTFSNTNODE);
-	} else {
+	if (ip->i_usecount > 0) {
 		LOCKMGR(&ip->i_lock, LK_RELEASE|LK_INTERLOCK, &ip->i_interlock);
+		return;
 	}
+
+	dprintf(("ntfs_ntput: deallocating ntnode: %d\n", ip->i_number));
+
+	if (LIST_FIRST(&ip->i_fnlist))
+		panic("ntfs_ntput: ntnode has fnodes\n");
+
+	ntfs_nthashrem(ip);
+
+	while ((vap = LIST_FIRST(&ip->i_valist)) != NULL) {
+		LIST_REMOVE(vap,va_list);
+		ntfs_freentvattr(vap);
+	}
+	mtx_unlock(&ip->i_interlock);
+	mtx_destroy(&ip->i_interlock);
+	lockdestroy(&ip->i_lock);
+	vrele(ip->i_devvp);
+	FREE(ip, M_NTFSNTNODE);
 }
 
 /*
