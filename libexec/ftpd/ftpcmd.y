@@ -475,12 +475,11 @@ cmd
 			if ($2)
 				send_file_list(".");
 		}
-	| NLST check_login SP STRING CRLF
+	| NLST check_login SP pathstring CRLF
 		{
-			if ($2 && $4 != NULL)
+			if ($2)
 				send_file_list($4);
-			if ($4 != NULL)
-				free($4);
+			free($4);
 		}
 	| LIST check_login CRLF
 		{
@@ -489,10 +488,9 @@ cmd
 		}
 	| LIST check_login SP pathstring CRLF
 		{
-			if ($2 && $4 != NULL)
+			if ($2)
 				retrieve("/bin/ls -lgA %s", $4);
-			if ($4 != NULL)
-				free($4);
+			free($4);
 		}
 	| STAT check_login SP pathname CRLF
 		{
