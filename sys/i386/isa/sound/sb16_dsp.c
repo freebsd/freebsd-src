@@ -35,7 +35,7 @@
  * #define DEB_DMARES
  */
 #include <i386/isa/sound/sound_config.h>
-#include <i386/isa/sound/sb.h>
+#include <i386/isa/sound/sb_defs.h>
 #include <i386/isa/sound/sb_mixer.h>
 
 #if defined(CONFIGURE_SOUNDCARD) && !defined(EXCLUDE_SB16) && !defined(EXCLUDE_SB) && !defined(EXCLUDE_AUDIO) && !defined(EXCLUDE_SBPRO)
