@@ -30,7 +30,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)svc_auth_unix.c 1.28 88/02/08 Copyr 1984 Sun Micro";*/
 /*static char *sccsid = "from: @(#)svc_auth_unix.c	2.3 88/08/01 4.0 RPCSRC";*/
-static char *rcsid = "$Id: svc_auth_unix.c,v 1.2 1995/05/30 05:41:33 rgrimes Exp $";
+static char *rcsid = "$Id: svc_auth_unix.c,v 1.3 1995/10/22 14:51:35 phk Exp $";
 #endif
 
 /*
@@ -59,7 +59,7 @@ _svcauth_unix(rqst, msg)
 	register enum auth_stat stat;
 	XDR xdrs;
 	register struct authunix_parms *aup;
-	register long *buf;
+	register int32_t *buf;
 	struct area {
 		struct authunix_parms area_aup;
 		char area_machname[MAX_MACHINE_NAME+1];
@@ -83,10 +83,10 @@ _svcauth_unix(rqst, msg)
 			stat = AUTH_BADCRED;
 			goto done;
 		}
-		bcopy((caddr_t)buf, aup->aup_machname, (u_int)str_len);
+		memcpy(aup->aup_machname, (caddr_t)buf, (u_int)str_len);
 		aup->aup_machname[str_len] = 0;
 		str_len = RNDUP(str_len);
-		buf += str_len / sizeof (long);
+		buf += str_len / sizeof (int32_t);
 		aup->aup_uid = IXDR_GET_LONG(buf);
 		aup->aup_gid = IXDR_GET_LONG(buf);
 		gid_len = IXDR_GET_U_LONG(buf);
