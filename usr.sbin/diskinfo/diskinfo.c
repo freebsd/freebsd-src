@@ -44,7 +44,7 @@
 static void
 usage(void)
 {
-	fprintf(stderr, "usage: diskinfo [-tv] disk ...\n");
+	fprintf(stderr, "usage: diskinfo [-ctv] disk ...\n");
 	exit (1);
 }
 
