@@ -1749,9 +1749,9 @@ issignal(td)
 		 * Return the signal's number, or fall through
 		 * to clear it from the pending mask.
 		 */
-		switch ((int)(intptr_t)p->p_sigacts->ps_sigact[_SIG_IDX(sig)]) {
+		switch ((intptr_t)p->p_sigacts->ps_sigact[_SIG_IDX(sig)]) {
 
-		case (int)SIG_DFL:
+		case (intptr_t)SIG_DFL:
 			/*
 			 * Don't take default actions on system processes.
 			 */
@@ -1810,7 +1810,7 @@ issignal(td)
 				return (sig);
 			/*NOTREACHED*/
 
-		case (int)SIG_IGN:
+		case (intptr_t)SIG_IGN:
 			/*
 			 * Masking above should prevent us ever trying
 			 * to take action on an ignored signal other
