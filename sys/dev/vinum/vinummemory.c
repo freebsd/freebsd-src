@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinummemory.c,v 1.24 2000/02/24 07:25:51 grog Exp grog $
+ * $Id: vinummemory.c,v 1.26 2001/01/04 00:15:49 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -151,7 +151,9 @@ MMalloc(int size, char *file, int line)
 	return 0;					    /* can't continue */
     }
     /* Wait for malloc if we can */
-    result = malloc(size, M_DEVBUF, curproc->p_intr_nesting_level == 0 ? M_WAITOK : M_NOWAIT);
+    result = malloc(size,
+	M_DEVBUF,
+	curproc->p_intr_nesting_level == 0 ? M_WAITOK : M_NOWAIT);
     if (result == NULL)
 	log(LOG_ERR, "vinum: can't allocate %d bytes from %s:%d\n", size, file, line);
     else {
