@@ -236,7 +236,7 @@ setup()
 	if (stbuf.st_blksize >= TP_BSIZE && stbuf.st_blksize <= MAXBSIZE)
 		fssize = stbuf.st_blksize;
 	if (((fssize - 1) & fssize) != 0) {
-		fprintf(stderr, "bad block size %d\n", fssize);
+		fprintf(stderr, "bad block size %ld\n", fssize);
 		done(1);
 	}
 	if (spcl.c_volume != 1) {
@@ -244,7 +244,7 @@ setup()
 		done(1);
 	}
 	if (gethead(&spcl) == FAIL) {
-		dprintf(stdout, "header read failed at %d blocks\n", blksread);
+		dprintf(stdout, "header read failed at %ld blocks\n", blksread);
 		panic("no header after volume mark!\n");
 	}
 	findinode(&spcl);
@@ -330,7 +330,7 @@ again:
 			strcpy(buf, ": ");
 			for (i = 1; i < 32; i++)
 				if (tapesread & (1 << i)) {
-					fprintf(stderr, "%s%d", buf, i);
+					fprintf(stderr, "%s%ld", buf, i);
 					strcpy(buf, ", ");
 				}
 			fprintf(stderr, "\n");
@@ -353,7 +353,7 @@ again:
 		return;
 	}
 	closemt();
-	fprintf(stderr, "Mount tape volume %d\n", newvol);
+	fprintf(stderr, "Mount tape volume %ld\n", newvol);
 	fprintf(stderr, "Enter ``none'' if there are no more tapes\n");
 	fprintf(stderr, "otherwise enter tape name (default: %s) ", magtape);
 	(void) fflush(stderr);
@@ -385,13 +385,13 @@ gethdr:
 	setdumpnum();
 	FLUSHTAPEBUF();
 	if (gethead(&tmpbuf) == FAIL) {
-		dprintf(stdout, "header read failed at %d blocks\n", blksread);
+		dprintf(stdout, "header read failed at %ld blocks\n", blksread);
 		fprintf(stderr, "tape is not dump tape\n");
 		volno = 0;
 		goto again;
 	}
 	if (tmpbuf.c_volume != volno) {
-		fprintf(stderr, "Wrong volume (%d)\n", tmpbuf.c_volume);
+		fprintf(stderr, "Wrong volume (%ld)\n", tmpbuf.c_volume);
 		volno = 0;
 		goto again;
 	}
@@ -424,7 +424,7 @@ gethdr:
 			 * -1 since we've read the volume header
 			 */
  			i = tpblksread - tmpbuf.c_firstrec - 1;
-			dprintf(stderr, "Skipping %d duplicate record%s.\n",
+			dprintf(stderr, "Skipping %ld duplicate record%s.\n",
 				i, i > 1 ? "s" : "");
  			while (--i >= 0)
  				readtape(buf);
@@ -504,7 +504,7 @@ printdumpinfo()
 	    (spcl.c_ddate == 0) ? "the epoch\n" : ctime(&spcl.c_ddate));
 	if (spcl.c_host[0] == '\0')
 		return;
-	fprintf(stderr, "Level %d dump of %s on %s:%s\n",
+	fprintf(stderr, "Level %ld dump of %s on %s:%s\n",
 		spcl.c_level, spcl.c_filesys, spcl.c_host, spcl.c_dev);
 	fprintf(stderr, "Label: %s\n", spcl.c_label);
 }
@@ -706,7 +706,7 @@ loop:
 		if (spcl.c_type == TS_ADDR)
 			goto loop;
 		dprintf(stdout,
-			"Missing address (header) block for %s at %d blocks\n",
+			"Missing address (header) block for %s at %ld blocks\n",
 			curfile.name, blksread);
 	}
 	if (curblk > 0)
@@ -881,7 +881,7 @@ getmore:
 			 */
 			if (i % TP_BSIZE != 0)
 				vprintf(stdout,
-				    "partial block read: %d should be %d\n",
+				    "partial block read: %ld should be %ld\n",
 				    i, ntrec * TP_BSIZE);
 			numtrec = i / TP_BSIZE;
 		}
@@ -968,13 +968,13 @@ findtapeblksize()
 		done(1);
 	}
 	if (i % TP_BSIZE != 0) {
-		fprintf(stderr, "Tape block size (%d) %s (%d)\n",
+		fprintf(stderr, "Tape block size (%ld) %s (%d)\n",
 			i, "is not a multiple of dump block size", TP_BSIZE);
 		done(1);
 	}
 	ntrec = i / TP_BSIZE;
 	numtrec = ntrec;
-	vprintf(stdout, "Tape block size is %d\n", ntrec);
+	vprintf(stdout, "Tape block size is %ld\n", ntrec);
 }
 
 void
@@ -1154,7 +1154,7 @@ accthdr(header)
 		fprintf(stderr, "Volume header (%s inode format) ",
 		    oldinofmt ? "old" : "new");
  		if (header->c_firstrec)
- 			fprintf(stderr, "begins with record %d",
+ 			fprintf(stderr, "begins with record %ld",
  				header->c_firstrec);
  		fprintf(stderr, "\n");
 		previno = 0x7fffffff;
@@ -1180,7 +1180,7 @@ accthdr(header)
 		break;
 	}
 	if (predict != blksread - 1)
-		fprintf(stderr, "; predicted %d blocks, got %d blocks",
+		fprintf(stderr, "; predicted %ld blocks, got %ld blocks",
 			predict, blksread - 1);
 	fprintf(stderr, "\n");
 newcalc:
@@ -1260,7 +1260,8 @@ findinode(header)
 		}
 	} while (header->c_type == TS_ADDR);
 	if (skipcnt > 0)
-		fprintf(stderr, "resync restore, skipped %d blocks\n", skipcnt);
+		fprintf(stderr, "resync restore, skipped %ld blocks\n",
+		    skipcnt);
 	skipcnt = 0;
 }
 
