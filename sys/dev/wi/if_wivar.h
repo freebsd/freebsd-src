@@ -168,10 +168,12 @@ struct wi_softc	{
 		struct wi_tx_radiotap_header th;
 		u_int8_t	pad[64];
 	} u_tx_rt;
+	int			sc_tx_th_len;
 	union {
 		struct wi_rx_radiotap_header th;
 		u_int8_t	pad[64];
 	} u_rx_rt;
+	int			sc_rx_th_len;
 };
 #define	sc_if			sc_ic.ic_if
 #define	sc_tx_th		u_tx_rt.th
