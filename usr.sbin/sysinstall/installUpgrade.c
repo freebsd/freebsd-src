@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: installUpgrade.c,v 1.28 1996/07/05 08:35:57 jkh Exp $
+ * $Id: installUpgrade.c,v 1.29 1996/07/08 08:54:28 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -178,12 +178,6 @@ installUpgrade(dialogMenuItem *self)
     Boolean extractingBin = TRUE;
     struct termios foo;
 
-    if (!RunningAsInit) {
-	msgConfirm("You can only perform this procedure when booted off the installation\n"
-		   "floppy.");
-	return DITEM_FAILURE;
-    }
-
     variable_set2(SYSTEM_STATE, "upgrade");
     systemDisplayHelp("upgrade");
 
@@ -200,6 +194,7 @@ installUpgrade(dialogMenuItem *self)
 		   "system.");
 	if (!dmenuOpenSimple(&MenuDistributions, FALSE))
 	    return DITEM_FAILURE | DITEM_RECREATE;
+	dialog_clear();
     }
 
     /* No bin selected?  Not much of an upgrade.. */
@@ -208,7 +203,9 @@ installUpgrade(dialogMenuItem *self)
 		     "This one is pretty vital to a successful 2.1 upgrade.  Are you SURE you don't\n"
 		     "want to select the bin distribution?  Chose _No_ to bring up the Distributions\n"
 		     "menu.")) {
-	    (void)dmenuOpenSimple(&MenuDistributions, FALSE);
+	    if (!dmenuOpenSimple(&MenuDistributions, FALSE))
+		return DITEM_FAILURE | DITEM_RECREATE;
+	    dialog_clear();
 	}
     }
 
@@ -222,28 +219,49 @@ installUpgrade(dialogMenuItem *self)
 	    return DITEM_FAILURE | DITEM_RECREATE;
     }
 
-    msgConfirm("OK.  First, we're going to go to the disk label editor.  In this editor\n"
-	       "you will be expected to *Mount* any partitions you're interested in\n"
-	       "upgrading.  DO NOT set the Newfs flag to Y on anything in the label editor\n"
-	       "unless you're absolutely sure you know what you're doing!  In this\n"
-	       "instance, you'll be using the label editor as little more than a fancy\n"
-	       "screen-oriented way of labeling existing partitions.\n\n"
-	       "Once you're done in the label editor, press Q to return here for the next\n"
-	       "step.");
+    if (RunningAsInit) {
+	Device **devs;
+	int i, cnt;
+	char *cp;
 
-    if (DITEM_STATUS(diskLabelEditor(self)) == DITEM_FAILURE) {
-	msgConfirm("The disk label editor failed to work properly!  Upgrade operation\n"
-		   "aborted.");
-	return DITEM_FAILURE | DITEM_RECREATE;
-    }
+	cp = variable_get(VAR_DISK);
+	devs = deviceFind(cp, DEVICE_TYPE_DISK);
+	cnt = deviceCount(devs);
+	if (!cnt) {
+	    msgConfirm("No disks found!  Please verify that your disk controller is being\n"
+		       "properly probed at boot time.  See the Hardware Guide on the\n"
+		       "Documentation menu for clues on diagnosing this type of problem.");
+	    return DITEM_FAILURE;
+	}
+	else {
+	    /* Enable all the drives befor we start */
+	    for (i = 0; i < cnt; i++)
+		devs[i]->enabled = TRUE;
+	}
 
-    /* Don't write out MBR info */
-    variable_set2(DISK_PARTITIONED, "written");
-    if (DITEM_STATUS(diskLabelCommit(self)) == DITEM_FAILURE) {
-	msgConfirm("Not all file systems were properly mounted.  Upgrade operation\n"
-		   "aborted.");
-	variable_unset(DISK_PARTITIONED);
-	return DITEM_FAILURE | DITEM_RECREATE;
+	msgConfirm("OK.  First, we're going to go to the disk label editor.  In this editor\n"
+		   "you will be expected to *Mount* any partitions you're interested in\n"
+		   "upgrading.  DO NOT set the Newfs flag to Y on anything in the label editor\n"
+		   "unless you're absolutely sure you know what you're doing!  In this\n"
+		   "instance, you'll be using the label editor as little more than a fancy\n"
+		   "screen-oriented way of labeling existing partitions.\n\n"
+		   "Once you're done in the label editor, press Q to return here for the next\n"
+		   "step.");
+
+	if (DITEM_STATUS(diskLabelEditor(self)) == DITEM_FAILURE) {
+	    msgConfirm("The disk label editor failed to work properly!  Upgrade operation\n"
+		       "aborted.");
+	    return DITEM_FAILURE | DITEM_RECREATE;
+	}
+
+	/* Don't write out MBR info */
+	variable_set2(DISK_PARTITIONED, "written");
+	if (DITEM_STATUS(diskLabelCommit(self)) == DITEM_FAILURE) {
+	    msgConfirm("Not all file systems were properly mounted.  Upgrade operation\n"
+		       "aborted.");
+	    variable_unset(DISK_PARTITIONED);
+	    return DITEM_FAILURE | DITEM_RECREATE;
+	}
     }
 
     if (!copySelf()) {

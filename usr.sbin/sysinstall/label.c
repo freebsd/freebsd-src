@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: label.c,v 1.51 1996/07/09 03:07:51 jkh Exp $
+ * $Id: label.c,v 1.52 1996/07/12 15:24:49 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -239,7 +239,6 @@ static PartInfo *
 new_part(char *mpoint, Boolean newfs, u_long size)
 {
     PartInfo *ret;
-    u_long target, divisor;
 
     if (!mpoint)
 	mpoint = "/change_me";
