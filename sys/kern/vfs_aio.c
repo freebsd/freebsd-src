@@ -13,7 +13,7 @@
  * bad that happens because of using this software isn't the responsibility
  * of the author.  This software is distributed AS-IS.
  *
- * $Id: vfs_aio.c,v 1.42 1999/01/29 23:18:49 dillon Exp $
+ * $Id: vfs_aio.c,v 1.43 1999/02/19 14:25:35 luoqi Exp $
  */
 
 /*
@@ -22,6 +22,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/buf.h>
 #include <sys/sysproto.h>
 #include <sys/filedesc.h>
 #include <sys/kernel.h>
