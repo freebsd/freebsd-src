@@ -294,9 +294,10 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 			ret = _thr_schedule_add(curthread, new_thread);
 			if (ret != 0)
 				free_thread(curthread, new_thread);
-
-			/* Return a pointer to the thread structure: */
-			(*thread) = new_thread;
+			else {
+				/* Return a pointer to the thread structure: */
+				(*thread) = new_thread;
+			}
 		}
 	}
 
