@@ -125,7 +125,7 @@ usage()
 		children to exit when they have done their work.
 */
 
-static void handle_sigchld(int sig, int code, void *scp)
+static void handle_sigchld(int sig, int code, struct sigcontext *scp)
 {
   int pid, status;
   pid = wait4(-1, &status, WNOHANG, (struct rusage*)0);
