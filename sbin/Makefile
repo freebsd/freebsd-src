@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.5 (Berkeley) 3/31/94
-#	$Id: Makefile,v 1.64 1999/02/10 21:09:48 obrien Exp $
+#	$Id: Makefile,v 1.65 1999/02/27 02:25:06 jkh Exp $
 
 # XXX MISSING:		icheck ncheck
 
@@ -22,7 +22,6 @@ SUBDIR=	adjkerntz \
 	init \
 	ipf \
 	ipfw \
-	kget \
 	kldload \
 	kldstat \
 	kldunload \
@@ -63,6 +62,10 @@ SUBDIR=	adjkerntz \
 	tunefs \
 	umount \
 	vinum
+
+.if ${MACHINE_ARCH} == i386
+SUBDIR+=	kget
+.endif
 
 .if exists(${.CURDIR}/${MACHINE_ARCH})
 SUBDIR+= ${MACHINE_ARCH}
