@@ -34,6 +34,9 @@
  * SUCH DAMAGE.
  */
 
+/* setrunelocale() is obsolete in FreeBSD 6 -- use ANSI functions instead. */
+#define	OBSOLETE_IN_6
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -44,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include "ldpart.h"
 #include "setlocale.h"
 
 extern int		_none_init(_RuneLocale *);
@@ -55,8 +59,30 @@ extern int		_BIG5_init(_RuneLocale *);
 extern int		_MSKanji_init(_RuneLocale *);
 extern _RuneLocale	*_Read_RuneMagi(FILE *);
 
+static int		__setrunelocale(char *);
+
+__warn_references(setrunelocale, "warning: setrunelocale() is deprecated. See setrunelocale(3).");
 int
 setrunelocale(char *encoding)
+{
+	int ret;
+
+	if (!encoding || !*encoding || strlen(encoding) > ENCODING_LEN ||
+	    (encoding[0] == '.' &&
+	     (encoding[1] == '\0' ||
+	      (encoding[1] == '.' && encoding[2] == '\0'))) ||
+	    strchr(encoding, '/') != NULL)
+		return (EINVAL);
+
+	ret = __detect_path_locale();
+	if (ret != 0)
+		return (ret);
+
+	return (__setrunelocale(encoding));
+}
+
+static int
+__setrunelocale(char *encoding)
 {
 	FILE *fp;
 	char name[PATH_MAX];
@@ -65,13 +91,6 @@ setrunelocale(char *encoding)
 	static char ctype_encoding[ENCODING_LEN + 1];
 	static _RuneLocale *CachedRuneLocale;
 	static int Cached__mb_cur_max;
-
-	if (!encoding || !*encoding || strlen(encoding) > ENCODING_LEN ||
-	    (encoding[0] == '.' &&
-	     (encoding[1] == '\0' ||
-	      (encoding[1] == '.' && encoding[2] == '\0'))) ||
-	    strchr(encoding, '/') != NULL)
-		return (EINVAL);
 
 	/*
 	 * The "C" and "POSIX" locale are always here.
@@ -95,11 +114,8 @@ setrunelocale(char *encoding)
 	/*
 	 * Slurp the locale file into the cache.
 	 */
-	ret = __detect_path_locale();
-	if (ret != 0)
-		return (ret);
 
-	/* Range checking not needed, encoding length already checked above */
+	/* Range checking not needed, encoding length already checked before */
 	(void) strcpy(name, _PathLocale);
 	(void) strcat(name, "/");
 	(void) strcat(name, encoding);
@@ -145,5 +161,17 @@ setrunelocale(char *encoding)
 		free(rl);
 
 	return (ret);
+}
+
+int
+__wrap_setrunelocale(const char *locale)
+{
+	int ret = __setrunelocale((char *)locale);
+
+	if (ret != 0) {
+		errno = ret;
+		return (_LDP_ERROR);
+	}
+	return (_LDP_LOADED);
 }
 
