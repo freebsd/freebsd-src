@@ -122,7 +122,7 @@ device		sc0	at isa?
 
 # Enable this and PCVT_FREEBSD for pcvt vt220 compatible console driver
 #device		vt0	at isa?
-#options 	XSERVER			# support for X server
+#options 	XSERVER			# support for X server on a vt console
 #options 	FAT_CURSOR		# start with block cursor
 # If you have a ThinkPAD, uncomment this along with the rest of the PCVT lines
 #options 	PCVT_SCANSET=2		# IBM keyboards are non-std
