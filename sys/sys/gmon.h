@@ -48,8 +48,8 @@ struct gmonhdr {
 	int	ncnt;		/* size of sample buffer (plus this header) */
 	int	version;	/* version number */
 	int	profrate;	/* profiling clock rate */
-	int	spare[3];	/* reserved */
-	/* XXX should record counter size and density */
+	int	histcounter_type; /* size (in bits) and sign of HISTCOUNTER */
+	int	spare[2];	/* reserved */
 };
 #define GMONVERSION	0x00051879
 
@@ -180,6 +180,7 @@ struct gmonparam {
 	int		mexitcount_overhead;
 	int		mexitcount_post_overhead;
 	int		mexitcount_pre_overhead;
+	int		histcounter_type;
 };
 extern struct gmonparam _gmonparam;
 
