@@ -376,12 +376,13 @@ This assertion is only valid in conjunction with
 .Pp
 The
 .Fn MTX_SYSINIT
-macro is used to generate a call to the 
+macro is used to generate a call to the
 .Fn mtx_sysinit
-routine at system startup in order to initialize a given mutex lock.  The parameters are the same as
+routine at system startup in order to initialize a given mutex lock.
+The parameters are the same as
 .Fn mtx_init
 but with an additional argument,
-.Fa name,
+.Fa name ,
 that is used in generating unique variable names for the related structures associated with the lock and the sysinit routine.
 .Ss The Default Mutex Type
 Most kernel code should use the default lock type,
