@@ -175,7 +175,8 @@ acpi_bus_number(ACPI_HANDLE root, ACPI_HANDLE curr, ACPI_PCI_ID *PciId)
     /* Try to get the _BBN object of the root, otherwise assume it is 0 */
     bus = 0;
     if (root == curr) {
-        if (ACPI_FAILURE(acpi_EvaluateInteger(root, "_BBN", &bus)))
+        if (ACPI_FAILURE(acpi_EvaluateInteger(root, "_BBN", &bus)) &&
+          bootverbose)
             printf("acpi_bus_number: root bus has no _BBN, assuming 0\n");
 	return (bus);
     }
@@ -234,7 +235,8 @@ AcpiOsDerivePciId (
     /* Try to read _BBN for bus number if we're at the root */
     bus = 0;
     if (rhandle == chandle) {
-        if (ACPI_FAILURE(acpi_EvaluateInteger(rhandle, "_BBN", &bus)))
+        if (ACPI_FAILURE(acpi_EvaluateInteger(rhandle, "_BBN", &bus)) &&
+          bootverbose)
             printf("AcpiOsDerivePciId: root bus has no _BBN, assuming 0\n");
     }
     /*
