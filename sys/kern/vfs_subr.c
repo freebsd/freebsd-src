@@ -1468,7 +1468,6 @@ vrele(vp)
 	}
 
 	if (vp->v_usecount == 1) {
-
 		vp->v_usecount--;
 		if (VSHOULDFREE(vp))
 			vfree(vp);
@@ -1501,15 +1500,12 @@ vput(vp)
 	simple_lock(&vp->v_interlock);
 
 	if (vp->v_usecount > 1) {
-
 		vp->v_usecount--;
 		VOP_UNLOCK(vp, LK_INTERLOCK, p);
 		return;
-
 	}
 
 	if (vp->v_usecount == 1) {
-
 		vp->v_usecount--;
 		if (VSHOULDFREE(vp))
 			vfree(vp);
@@ -1943,8 +1939,9 @@ vgonel(vp, p)
 			TAILQ_REMOVE(&vnode_tobefree_list, vp, v_freelist);
 			vp->v_flag &= ~VTBFREE;
 			freevnodes++;
-		} else
+		} else {
 			freevnodes++;
+		}
 		vp->v_flag |= VFREE;
 		TAILQ_INSERT_HEAD(&vnode_free_list, vp, v_freelist);
 		simple_unlock(&vnode_free_list_slock);
