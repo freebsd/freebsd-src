@@ -321,6 +321,7 @@ _zzz=		zzz
 .if !defined(NO_ACPI)
 _acpi=		acpi
 .endif
+_kgmon=		kgmon
 .if !defined(NOLIBPTHREAD)
 _pppctl=	pppctl
 .endif
