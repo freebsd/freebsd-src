@@ -39,15 +39,16 @@ typedef void isa_config_cb(void *arg, struct isa_config *config, int enable);
 #ifdef _KERNEL
 
 /*
- * ISA devices are partially ordered to ensure that devices which are
- * sensitive to other driver probe routines are probed first. Plug and
- * Play devices are added after devices with speculative probes so that
- * the legacy hardware can claim resources allowing the Plug and Play
- * hardware to choose different resources.
+ * ISA devices are partially ordered.  This is to ensure that hardwired
+ * devices the BIOS tells us are there appear first, then speculative
+ * devices that are sensitive to the probe order, then devices that
+ * are hinted to be there, then the most flexible devices which support
+ * the ISA bus PNP standard.
  */
-#define ISA_ORDER_SENSITIVE	0 /* legacy sensitive hardware */
-#define ISA_ORDER_SPECULATIVE	1 /* legacy non-sensitive hardware */
-#define ISA_ORDER_PNP		2 /* plug-and-play hardware */
+#define ISA_ORDER_PNPBIOS	10 /* plug-and-play BIOS inflexible hardware */
+#define ISA_ORDER_SENSITIVE	20 /* legacy sensitive hardware */
+#define ISA_ORDER_SPECULATIVE	30 /* legacy non-sensitive hardware */
+#define ISA_ORDER_PNP		40 /* plug-and-play hardware */
 
 /*
  * Limits on resources that we can manage
