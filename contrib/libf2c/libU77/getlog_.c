@@ -41,14 +41,9 @@ Boston, MA 02111-1307, USA.  */
 
 /* SGI also has character*(*) function getlog() */
 
-#ifdef KR_headers
-extern VOID s_copy ();
-/* Subroutine */ int G77_getlog_0 (str, Lstr)
-     char *str; ftnlen Lstr;
-#else
-extern void s_copy(register char *a, register char *b, ftnlen la, ftnlen lb);
-/* Subroutine */ int G77_getlog_0 (char *str, const ftnlen Lstr)
-#endif
+extern void s_copy (register char *a, register char *b, ftnlen la, ftnlen lb);
+/* Subroutine */ int
+G77_getlog_0 (char *str, const ftnlen Lstr)
 {
   size_t i;
   char *p;
@@ -56,12 +51,15 @@ extern void s_copy(register char *a, register char *b, ftnlen la, ftnlen lb);
 
 #if defined (HAVE_GETLOGIN)
   p = getlogin ();
-  if (p != NULL) {
-    i = strlen (p);
-    s_copy (str, p, Lstr, i);
-  } else {
-    s_copy (str, " ", Lstr, 1);
-  }
+  if (p != NULL)
+    {
+      i = strlen (p);
+      s_copy (str, p, Lstr, i);
+    }
+  else
+    {
+      s_copy (str, " ", Lstr, 1);
+    }
   status = 0;
 #else
   errno = ENOSYS;

@@ -1,10 +1,7 @@
 #include "f2c.h"
 
-#ifdef KR_headers
-double r_dim(a,b) real *a, *b;
-#else
-double r_dim(real *a, real *b)
-#endif
+double
+r_dim (real * a, real * b)
 {
-return( *a > *b ? *a - *b : 0);
+  return (*a > *b ? *a - *b : 0);
 }

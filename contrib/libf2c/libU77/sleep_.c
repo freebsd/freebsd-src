@@ -25,12 +25,8 @@ Boston, MA 02111-1307, USA.  */
 #include "f2c.h"
 
 /* Subroutine */
-#ifdef KR_headers
-int G77_sleep_0 (seconds)
-     integer *seconds;
-#else
-int G77_sleep_0 (const integer *seconds)
-#endif
+int
+G77_sleep_0 (const integer * seconds)
 {
   (void) sleep ((unsigned int) *seconds);
   return 0;
