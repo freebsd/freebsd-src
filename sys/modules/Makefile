@@ -420,6 +420,7 @@ _gem=		gem
 .if ${MACHINE_ARCH} == "sparc64"
 _gem=		gem
 _hme=		hme
+_vinum=		vinum
 .endif
 
 .if defined(MODULES_OVERRIDE) && !defined(ALL_MODULES)
