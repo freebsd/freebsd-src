@@ -2,7 +2,7 @@
 
 MAINTAINER=	des@freebsd.org
 LIB=		fetch
-WARNS?=		2
+WARNS?=		4
 CFLAGS+=	-I.
 CFLAGS+=	-DINET6
 SRCS=		fetch.c common.c ftp.c http.c file.c \
