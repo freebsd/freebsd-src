@@ -774,7 +774,7 @@ static int sorted_state[] =
 
 
 #define ORDERKEY_PCTCPU(a, b) do { \
-	long diff = (b)->ki_pctcpu - (a)->ki_pctcpu; \
+	long diff = (long)(b)->ki_pctcpu - (long)(a)->ki_pctcpu; \
 	if (diff != 0) \
 		return (diff > 0 ? 1 : -1); \
 } while (0)
