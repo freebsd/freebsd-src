@@ -86,7 +86,7 @@ static int	 run(int *, const char *, ...) __printflike(2, 3);
 static void	 usage(void);
 
 int
-main(int ac, char **av)
+main(int argc, char **argv)
 {
 	struct mtpt_info mi;		/* Mountpoint info. */
 	char *mdconfig_arg, *newfs_arg,	/* Args to helper programs. */
@@ -115,7 +115,7 @@ main(int ac, char **av)
 	newfs_arg = strdup("");
 	mount_arg = strdup("");
 
-	while ((ch = getopt(ac, av,
+	while ((ch = getopt(argc, argv,
 	    "a:b:c:Dd:e:F:f:hi:LMm:Nn:O:o:p:Ss:t:w:X")) != -1)
 		switch (ch) {
 		case 'a':
@@ -198,13 +198,13 @@ main(int ac, char **av)
 		default:
 			usage();
 		}
-	ac -= optind;
-	av += optind;
-	if (ac < 2)
+	argc -= optind;
+	argv += optind;
+	if (argc < 2)
 		usage();
 
 	/* Derive 'unit' (global). */
-	unitstr = av[0];
+	unitstr = argv[0];
 	if (strncmp(unitstr, "/dev/", 5) == 0)
 		unitstr += 5;
 	if (strncmp(unitstr, mdname, mdnamelen) == 0)
@@ -218,7 +218,7 @@ main(int ac, char **av)
 			errx(1, "bad device unit: %s", unitstr);
 	}
 
-	mtpoint = av[1];
+	mtpoint = argv[1];
 	if (!have_mdtype)
 		mdtype = MD_SWAP;
 	if (softdep)
@@ -540,8 +540,8 @@ extract_ugid(const char *str, struct mtpt_info *mip)
 static int
 run(int *ofd, const char *cmdline, ...)
 {
-	char **av, **avp;		/* Result of splitting 'cmd'. */
-	int ac;
+	char **argv, **argvp;		/* Result of splitting 'cmd'. */
+	int argc;
 	char *cmd;			/* Expansion of 'cmdline'. */
 	int pid, status;		/* Child info. */
 	int pfd[2];			/* Pipe to the child. */
@@ -558,18 +558,18 @@ run(int *ofd, const char *cmdline, ...)
 		err(1, "vasprintf");
 	va_end(ap);
 
-	/* Split up 'cmd' into 'av' for use with execve. */
-	for (ac = 1, p = cmd; (p = strchr(p, ' ')) != NULL; p++)
-		ac++;		/* 'ac' generation loop. */
-	av = (char **)malloc(sizeof(*av) * (ac + 1));
-	assert(av != NULL);
-	for (p = cmd, avp = av; (*avp = strsep(&p, " ")) != NULL;)
-		if (**av != '\0')
-			if (++avp >= &av[ac]) {
-				*avp = NULL;
+	/* Split up 'cmd' into 'argv' for use with execve. */
+	for (argc = 1, p = cmd; (p = strchr(p, ' ')) != NULL; p++)
+		argc++;		/* 'argc' generation loop. */
+	argv = (char **)malloc(sizeof(*argv) * (argc + 1));
+	assert(argv != NULL);
+	for (p = cmd, argvp = argv; (*argvp = strsep(&p, " ")) != NULL;)
+		if (**argv != '\0')
+			if (++argvp >= &argv[argc]) {
+				*argvp = NULL;
 				break;
 			}
-	assert(*av);
+	assert(*argv);
 
 	/* Make sure the above loop works as expected. */
 	if (debug) {
@@ -583,8 +583,8 @@ run(int *ofd, const char *cmdline, ...)
 		 */
 		(void)fprintf(stderr, "DEBUG: running:");
 		/* Should be equivilent to 'cmd' (before strsep, of course). */
-		for (i = 0; av[i] != NULL; i++)
-			(void)fprintf(stderr, " %s", av[i]);
+		for (i = 0; argv[i] != NULL; i++)
+			(void)fprintf(stderr, " %s", argv[i]);
 		(void)fprintf(stderr, "\n");
 	}
 
@@ -617,15 +617,15 @@ run(int *ofd, const char *cmdline, ...)
 				err(1, "dup2");
 		}
 
-		(void)execv(av[0], av);
-		warn("exec: %s", av[0]);
+		(void)execv(argv[0], argv);
+		warn("exec: %s", argv[0]);
 		_exit(-1);
 	case -1:
 		err(1, "fork");
 	}
 
 	free(cmd);
-	free(av);
+	free(argv);
 	while (waitpid(pid, &status, 0) != pid)
 		;
 	return (WEXITSTATUS(status));
