@@ -102,6 +102,8 @@ __FBSDID("$FreeBSD$");
 #include "job.h"
 #include "pathnames.h"
 
+#define WANT_ENV_MKLVL	1
+
 #ifndef	DEFMAXLOCAL
 #define	DEFMAXLOCAL DEFMAXJOBS
 #endif	/* DEFMAXLOCAL */
@@ -454,6 +456,12 @@ main(argc, argv)
 	Boolean outOfDate = TRUE; 	/* FALSE if all targets up to date */
 	struct stat sa;
 	char *p, *p1, *path, *pathp;
+#ifdef WANT_ENV_MKLVL
+#define	MKLVL_MAXVAL	500
+#define	MKLVL_ENVVAR	"__MKLVL__"
+	int iMkLvl = 0;
+	char *szMkLvl = getenv(MKLVL_ENVVAR);
+#endif	/* WANT_ENV_MKLVL */
 	char mdpath[MAXPATHLEN];
 	char obpath[MAXPATHLEN];
 	char cdpath[MAXPATHLEN];
@@ -464,6 +472,19 @@ main(argc, argv)
 	char *cp = NULL, *start;
 					/* avoid faults on read-only strings */
 	static char syspath[] = _PATH_DEFSYSPATH;
+
+#ifdef WANT_ENV_MKLVL
+	if ((iMkLvl = szMkLvl ? atoi(szMkLvl) : 0) < 0) {
+	  iMkLvl = 0;
+	}
+	if (iMkLvl++ > MKLVL_MAXVAL) {
+	  errc(2, EAGAIN, 
+	       "Max recursion level (%d) exceeded.", MKLVL_MAXVAL);
+	}
+	bzero(szMkLvl = emalloc(32), 32);
+	sprintf(szMkLvl, "%d", iMkLvl);
+	setenv(MKLVL_ENVVAR, szMkLvl, 1);
+#endif /* WANT_ENV_MKLVL */
 
 #if DEFSHELL == 2
 	/*
