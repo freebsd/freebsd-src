@@ -13,6 +13,12 @@
 #include <string.h>
 #endif
 
+#if !defined(NOPAM)
+#include <security/pam_appl.h>
+#endif
+
+#include <ttyent.h>
+
 #include "auth.h"
 #include "misc.h"
 #include "encrypt.h"
@@ -24,6 +30,8 @@ DesData ck;
 IdeaData ik;
 
 extern int auth_debug_mode;
+extern char *line;
+
 static sra_valid = 0;
 static passwd_sent = 0;
 
@@ -82,9 +90,14 @@ int server;
 		str_data[3] = TELQUAL_IS;
 
 	user = (char *)malloc(256);
-	xuser = (char *)malloc(512);
+	xuser = (char *)malloc(513);
 	pass = (char *)malloc(256);
-	xpass = (char *)malloc(512);
+	xpass = (char *)malloc(513);
+
+	if (user == NULL || xuser == NULL || pass == NULL || xpass ==
+	NULL)
+		return 0; /* malloc failed */
+
 	passwd_sent = 0;
 	
 	genkeys(pka,ska);
@@ -119,7 +132,7 @@ int cnt;
 	Session_Key skey;
 
 	if (cnt-- < 1)
-		return;
+		goto bad;
 	switch (*data++) {
 
 	case SRA_KEY:
@@ -141,19 +154,23 @@ int cnt;
 		memcpy(pkb,data,HEXKEYBYTES);
 		pkb[HEXKEYBYTES] = '\0';
 		common_key(ska,pkb,&ik,&ck);
-		break;
+		return;
 
 	case SRA_USER:
 		/* decode KAB(u) */
+		if (cnt > 512) /* Attempted buffer overflow */
+			break;
 		memcpy(xuser,data,cnt);
 		xuser[cnt] = '\0';
 		pk_decode(xuser,user,&ck);
 		auth_encrypt_user(user);
 		Data(ap, SRA_CONTINUE, (void *)0, 0);
 
-		break;
+		return;
 
 	case SRA_PASS:
+		if (cnt > 512) /* Attempted buffer overflow */
+			break;
 		/* decode KAB(P) */
 		memcpy(xpass,data,cnt);
 		xpass[cnt] = '\0';
@@ -188,16 +205,16 @@ int cnt;
 				printf("SRA user failed\r\n");
 			}
 		}
-		break;
+		return;
 
 	default:
 		if (auth_debug_mode)
 			printf("Unknown SRA option %d\r\n", data[-1]);
-		Data(ap, SRA_REJECT, 0, 0);
-		sra_valid = 0;
-		auth_finished(ap, AUTH_REJECT);
-		break;
 	}
+bad:
+	Data(ap, SRA_REJECT, 0, 0);
+	sra_valid = 0;
+	auth_finished(ap, AUTH_REJECT);
 }
 
 extern char *getpass();
@@ -447,6 +464,27 @@ syslog(LOG_WARNING,"%s\n",save.pw_dir);
 	return (&save);
 }
 
+static int
+isroot(user)
+char *user;
+{
+	struct passwd *pw;
+
+	if ((pw=getpwnam(user))==NULL)
+		return 0;
+	return (!pw->pw_uid);
+}
+
+static int
+rootterm(ttyn)
+char *ttyn;
+{
+	struct ttyent *t;
+
+	return ((t = getttynam(ttyn)) && t->ty_status & TTY_SECURE);
+}
+
+#ifdef NOPAM
 char *crypt();
 
 int check_user(name, pass)
@@ -455,6 +493,12 @@ char *pass;
 {
 	register char *cp;
 	char *xpasswd, *salt;
+
+	if (isroot(name) && !rootterm(line))
+	{
+		crypt("AA","*"); /* Waste some time to simulate success */
+		return(0);
+	}
 
 	if (pw = sgetpwnam(name)) {
 		if (pw->pw_shell == NULL) {
@@ -474,7 +518,141 @@ char *pass;
 	}
 	return(0);
 }
+#else
 
+/*
+ * The following is stolen from ftpd, which stole it from the imap-uw
+ * PAM module and login.c. It is needed because we can't really
+ * "converse" with the user, having already gone to the trouble of
+ * getting their username and password through an encrypted channel.
+ */
+
+#define COPY_STRING(s) (s ? strdup(s):NULL)
+
+struct cred_t {
+	const char *uname;
+	const char *pass;
+};
+typedef struct cred_t cred_t;
+
+auth_conv(int num_msg, const struct pam_message **msg,
+	struct pam_response **resp, void *appdata)
+{
+	int i;
+	cred_t *cred = (cred_t *) appdata;
+	struct pam_response *reply =
+		malloc(sizeof(struct pam_response) * num_msg);
+
+	if (reply == NULL)
+		return PAM_BUF_ERR;
+
+	for (i = 0; i < num_msg; i++) {
+		switch (msg[i]->msg_style) {
+		case PAM_PROMPT_ECHO_ON:        /* assume want user name */
+			reply[i].resp_retcode = PAM_SUCCESS;
+			reply[i].resp = COPY_STRING(cred->uname);
+			/* PAM frees resp. */
+			break;
+		case PAM_PROMPT_ECHO_OFF:       /* assume want password */
+			reply[i].resp_retcode = PAM_SUCCESS;
+			reply[i].resp = COPY_STRING(cred->pass);
+			/* PAM frees resp. */
+			break;
+		case PAM_TEXT_INFO:
+		case PAM_ERROR_MSG:
+			reply[i].resp_retcode = PAM_SUCCESS;
+			reply[i].resp = NULL;
+			break;
+		default:                        /* unknown message style */
+			free(reply);
+			return PAM_CONV_ERR;
+		}
+	}
+
+	*resp = reply;
+	return PAM_SUCCESS;
+}
+
+/*
+ * The PAM version as a side effect may put a new username in *name.
+ */
+int check_user(const char *name, const char *pass)
+{
+	pam_handle_t *pamh = NULL;
+	const char *tmpl_user;
+	const void *item;
+	int rval;
+	int e;
+	cred_t auth_cred = { name, pass };
+	struct pam_conv conv = { &auth_conv, &auth_cred };
+
+	e = pam_start("telnetd", name, &conv, &pamh);
+	if (e != PAM_SUCCESS) {
+		syslog(LOG_ERR, "pam_start: %s", pam_strerror(pamh, e));
+		return 0;
+	}
+
+#if 0 /* Where can we find this value? */
+	e = pam_set_item(pamh, PAM_RHOST, remotehost);
+	if (e != PAM_SUCCESS) {
+		syslog(LOG_ERR, "pam_set_item(PAM_RHOST): %s",
+			pam_strerror(pamh, e));
+		return 0;
+	}
+#endif
+
+	e = pam_authenticate(pamh, 0);
+	switch (e) {
+	case PAM_SUCCESS:
+		/*
+		 * With PAM we support the concept of a "template"
+		 * user.  The user enters a login name which is
+		 * authenticated by PAM, usually via a remote service
+		 * such as RADIUS or TACACS+.  If authentication
+		 * succeeds, a different but related "template" name
+		 * is used for setting the credentials, shell, and
+		 * home directory.  The name the user enters need only
+		 * exist on the remote authentication server, but the
+		 * template name must be present in the local password
+		 * database.
+		 *
+		 * This is supported by two various mechanisms in the
+		 * individual modules.  However, from the application's
+		 * point of view, the template user is always passed
+		 * back as a changed value of the PAM_USER item.
+		 */
+		if ((e = pam_get_item(pamh, PAM_USER, &item)) ==
+		    PAM_SUCCESS) {
+			strcpy(name, (const char *) item);
+		} else
+			syslog(LOG_ERR, "Couldn't get PAM_USER: %s",
+			pam_strerror(pamh, e));
+		if (isroot(name) && !rootterm(line))
+			rval = 0;
+		else
+			rval = 1;
+		break;
+
+	case PAM_AUTH_ERR:
+	case PAM_USER_UNKNOWN:
+	case PAM_MAXTRIES:
+		rval = 0;
+	break;
+
+	default:
+		syslog(LOG_ERR, "auth_pam: %s", pam_strerror(pamh, e));
+		rval = 0;
+		break;
+	}
+
+	if ((e = pam_end(pamh, e)) != PAM_SUCCESS) {
+		syslog(LOG_ERR, "pam_end: %s", pam_strerror(pamh, e));
+		rval = 0;
+	}
+	return rval;
+}
+
+#endif
 
 #endif
 

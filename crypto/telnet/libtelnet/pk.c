@@ -117,6 +117,7 @@ void getseed(seed, seedsize)
         char *seed;
         int seedsize;
 {
+#if 0
         int i,f;
         int rseed;
         struct timeval tv;
@@ -140,6 +141,14 @@ void getseed(seed, seedsize)
         for (i = 0; i < seedsize; i++) {
                 seed[i] = (lrand48() & 0xff);
         }
+#else
+	int i;
+
+	srandomdev();
+	for (i = 0; i < seedsize; i++) {
+		seed[i] = random() & 0xff;
+	}
+#endif
 }
 
 
@@ -224,8 +233,7 @@ DesData *key;
 	memset(buf,0,sizeof(buf));
 	deslen = ((strlen(in) + 7)/8)*8;
 	des_key_sched(key, k);
-	des_cbc_encrypt((des_cblock *)in,(des_cblock *)buf,deslen,
-		k,&i,DES_ENCRYPT);
+	des_cbc_encrypt(in,buf,deslen, k,&i,DES_ENCRYPT);
 	for (l=0,op=0;l<deslen;l++) {
 		out[op++] = hextab[(buf[l] & 0xf0) >> 4];
 		out[op++] = hextab[(buf[l] & 0x0f)];
@@ -261,7 +269,6 @@ DesData *key;
 		buf[l] = n1*16 +n2;
 	}
 	des_key_sched(key, k);
-	des_cbc_encrypt((des_cblock *)buf,(des_cblock *)out,strlen(in)/2,
-		k,&i,DES_DECRYPT);
+	des_cbc_encrypt(buf,out,strlen(in)/2, k,&i,DES_DECRYPT);
 	out[strlen(in)/2] = '\0';
 }
