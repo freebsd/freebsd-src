@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)sys_generic.c	8.5 (Berkeley) 1/21/94
- * $Id: sys_generic.c,v 1.6 1994/09/25 19:33:48 phk Exp $
+ * $Id: sys_generic.c,v 1.7 1994/10/02 17:35:24 phk Exp $
  */
 
 #include <sys/param.h>
@@ -57,6 +57,8 @@
 #include <sys/ktrace.h>
 #endif
 #include <vm/vm.h>
+
+int	selscan __P((struct proc *, fd_set *, fd_set *, int, int *));
 
 /*
  * Read system call.

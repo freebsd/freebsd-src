@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_resource.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_resource.c,v 1.5 1994/09/25 19:33:42 phk Exp $
+ * $Id: kern_resource.c,v 1.6 1994/10/02 04:45:49 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -48,6 +48,9 @@
 #include <sys/proc.h>
 
 #include <vm/vm.h>
+
+int	donice __P((struct proc *, struct proc *, int));
+int	dosetrlimit __P((struct proc *, u_int, struct rlimit *));
 
 /*
  * Resource controls and accounting.
