@@ -153,7 +153,7 @@ extern struct ktr_entry ktr_buf[];
 	disable_intr();						\
 	do {							\
 		_ktr_saveidx = ktr_idx;				\
-		_ktr_newidx = (ktr_idx + 1) % KTR_ENTRIES;	\
+		_ktr_newidx = (ktr_idx + 1) & (KTR_ENTRIES - 1); \
 	} while (atomic_cmpset_int(&ktr_idx, _ktr_saveidx, _ktr_newidx) == 0); \
 	_ktrptr = &ktr_buf[_ktr_saveidx];			\
 	restore_intr(_tr_intrsave);				\
@@ -212,7 +212,7 @@ extern struct ktr_entry ktr_buf[];
 	int _ktr_newidx, _ktr_saveidx;				\
 	do {							\
 		_ktr_saveidx = ktr_idx;				\
-		_ktr_newidx = (ktr_idx + 1) % KTR_ENTRIES;	\
+		_ktr_newidx = (ktr_idx + 1) & (KTR_ENTRIES - 1); \
 	} while (atomic_cmpset_int(&ktr_idx, _ktr_saveidx, _ktr_newidx) == 0); \
 	_ktrptr = &ktr_buf[_ktr_saveidx];			\
 	nanotime(&_ktrptr->ktr_tv);				\
