@@ -54,11 +54,17 @@ static struct nlist namelist[] = {
 	{ "_dk_ndrive" },
 #define	X_DK_WPMS	1
 	{ "_dk_wpms" },
-#ifdef vax
-#define	X_MBDINIT	(X_DK_WPMS+1)
-	{ "_mbdinit" },
-#define	X_UBDINIT	(X_DK_WPMS+2)
-	{ "_ubdinit" },
+#if defined(hp300) || defined(luna68k)
+#define X_HPDINIT       (X_DK_WPMS+1)
+        { "_hp_dinit" }, 
+#endif
+#if defined(i386)
+#define X_ISA_BIO	(X_DK_WPMS+1)
+	{ "_isa_devtab_bio" },
+#endif
+#ifdef mips
+#define X_SCSI_DINIT	(X_DK_WPMS+1)
+	{ "_scsi_dinit" },
 #endif
 #ifdef sun
 #define	X_MBDINIT	(X_DK_WPMS+1)
@@ -68,13 +74,11 @@ static struct nlist namelist[] = {
 #define	X_VBDINIT	(X_DK_WPMS+1)
 	{ "_vbdinit" },
 #endif
-#if defined(hp300) || defined(luna68k)
-#define X_HPDINIT       (X_DK_WPMS+1)
-        { "_hp_dinit" }, 
-#endif
-#ifdef mips
-#define X_SCSI_DINIT	(X_DK_WPMS+1)
-	{ "_scsi_dinit" },
+#ifdef vax
+#define	X_MBDINIT	(X_DK_WPMS+1)
+	{ "_mbdinit" },
+#define	X_UBDINIT	(X_DK_WPMS+2)
+	{ "_ubdinit" },
 #endif
 	{ "" },
 };
