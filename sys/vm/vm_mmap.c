@@ -845,7 +845,6 @@ mincore(td, uap)
 	 */
 	vec = uap->vec;
 
-	mtx_lock(&Giant);
 	pmap = vmspace_pmap(td->td_proc->p_vmspace);
 
 	vm_map_lock_read(map);
@@ -891,7 +890,9 @@ RestartScan:
 			 * it can provide info as to whether we are the
 			 * one referencing or modifying the page.
 			 */
+			mtx_lock(&Giant);
 			mincoreinfo = pmap_mincore(pmap, addr);
+			mtx_unlock(&Giant);
 			if (!mincoreinfo) {
 				vm_pindex_t pindex;
 				vm_ooffset_t offset;
@@ -904,14 +905,13 @@ RestartScan:
 				VM_OBJECT_LOCK(current->object.vm_object);
 				m = vm_page_lookup(current->object.vm_object,
 					pindex);
-				VM_OBJECT_UNLOCK(current->object.vm_object);
-				vm_page_lock_queues();
 				/*
 				 * if the page is resident, then gather information about
 				 * it.
 				 */
 				if (m) {
 					mincoreinfo = MINCORE_INCORE;
+					vm_page_lock_queues();
 					if (m->dirty ||
 						pmap_is_modified(m))
 						mincoreinfo |= MINCORE_MODIFIED_OTHER;
@@ -920,8 +920,9 @@ RestartScan:
 						vm_page_flag_set(m, PG_REFERENCED);
 						mincoreinfo |= MINCORE_REFERENCED_OTHER;
 					}
+					vm_page_unlock_queues();
 				}
-				vm_page_unlock_queues();
+				VM_OBJECT_UNLOCK(current->object.vm_object);
 			}
 
 			/*
@@ -998,7 +999,6 @@ RestartScan:
 		goto RestartScan;
 	vm_map_unlock_read(map);
 done2:
-	mtx_unlock(&Giant);
 	return (error);
 }
 
