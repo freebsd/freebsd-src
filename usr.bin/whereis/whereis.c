@@ -119,6 +119,6 @@ void
 usage()
 {
 
-	(void)fprintf(stderr, "usage: whereis program [...]\n");
+	(void)fprintf(stderr, "usage: whereis program ...\n");
 	exit (1);
 }
