@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.16 (Berkeley) 5/27/95
- * $Id: nfs_vnops.c,v 1.117 1999/01/21 08:29:07 dillon Exp $
+ * $Id: nfs_vnops.c,v 1.118 1999/01/27 22:45:13 dillon Exp $
  */
 
 
@@ -411,7 +411,7 @@ nfs_access(ap)
 				aiov.iov_len = auio.uio_resid = NFS_DIRBLKSIZ;
 				error = nfs_readdirrpc(vp, &auio, ap->a_cred);
 				free(bp, M_TEMP);
-			} else if (vp->v_type = VLNK)
+			} else if (vp->v_type == VLNK)
 				error = nfs_readlinkrpc(vp, &auio, ap->a_cred);
 			else
 				error = EACCES;
