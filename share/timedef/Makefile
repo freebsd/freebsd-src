@@ -102,8 +102,8 @@ FR_LINKS=	fr_BE fr_CA fr_CH
 IT_LINKS=	it_CH
 LN_LINKS=	la_LN.US-ASCII la_LN.ISO8859-2 la_LN.ISO8859-4
 NL_LINKS=	nl_BE
-US_LINKS=	en_CA
-GB_LINKS=	en_AU en_NZ
+US_LINKS=
+GB_LINKS=	en_AU en_CA en_NZ
 
 .SUFFIXES: .src .out
 
