@@ -1,6 +1,6 @@
 #ifndef lint
 #ifndef NOID
-static char	elsieid[] = "@(#)zdump.c	7.20";
+static char	elsieid[] = "@(#)zdump.c	7.24";
 #endif /* !defined NOID */
 #endif /* !defined lint */
 
@@ -68,6 +68,11 @@ static char	elsieid[] = "@(#)zdump.c	7.20";
 #define isleap(y) ((((y) % 4) == 0 && ((y) % 100) != 0) || ((y) % 400) == 0)
 #endif /* !defined isleap */
 
+#if HAVE_GETTEXT - 0
+#include "locale.h"	/* for setlocale */
+#include "libintl.h"
+#endif /* HAVE_GETTEXT - 0 */
+
 #ifndef GNUC_or_lint
 #ifdef lint
 #define GNUC_or_lint
@@ -87,6 +92,24 @@ static char	elsieid[] = "@(#)zdump.c	7.20";
 #define INITIALIZE(x)
 #endif /* !defined GNUC_or_lint */
 #endif /* !defined INITIALIZE */
+
+/*
+** For the benefit of GNU folk...
+** `_(MSGID)' uses the current locale's message library string for MSGID.
+** The default is to use gettext if available, and use MSGID otherwise.
+*/
+
+#ifndef _
+#if HAVE_GETTEXT - 0
+#define _(msgid) gettext(msgid)
+#else /* !(HAVE_GETTEXT - 0) */
+#define _(msgid) msgid
+#endif /* !(HAVE_GETTEXT - 0) */
+#endif /* !defined _ */
+
+#ifndef TZ_DOMAIN
+#define TZ_DOMAIN "tz"
+#endif /* !defined TZ_DOMAIN */
 
 extern char **	environ;
 extern int	getopt();
@@ -122,6 +145,13 @@ char *	argv[];
 	struct tm		newtm;
 
 	INITIALIZE(cuttime);
+#if HAVE_GETTEXT - 0
+	(void) setlocale(LC_MESSAGES, "");
+#ifdef TZ_DOMAINDIR
+	(void) bindtextdomain(TZ_DOMAIN, TZ_DOMAINDIR);
+#endif /* defined(TEXTDOMAINDIR) */
+	(void) textdomain(TZ_DOMAIN);
+#endif /* HAVE_GETTEXT - 0 */
 	progname = argv[0];
 	vflag = 0;
 	cutoff = NULL;
@@ -132,7 +162,7 @@ char *	argv[];
 	if (c != EOF ||
 		(optind == argc - 1 && strcmp(argv[optind], "=") == 0)) {
 			(void) fprintf(stderr,
-"%s: usage is %s [ -v ] [ -c cutoff ] zonename ...\n",
+_("%s: usage is %s [ -v ] [ -c cutoff ] zonename ...\n"),
 				argv[0], argv[0]);
 			(void) exit(EXIT_FAILURE);
 	}
@@ -178,9 +208,10 @@ char *	argv[];
 		static char	buf[MAX_STRING_LENGTH];
 
 		(void) strcpy(&fakeenv[0][3], argv[i]);
-		show(argv[i], now, FALSE);
-		if (!vflag)
+		if (!vflag) {
+			show(argv[i], now, FALSE);
 			continue;
+		}
 		/*
 		** Get lowest value of t.
 		*/
@@ -224,9 +255,9 @@ char *	argv[];
 		show(argv[i], t, TRUE);
 	}
 	if (fflush(stdout) || ferror(stdout)) {
-		(void) fprintf(stderr, "%s: Error writing standard output ",
+		(void) fprintf(stderr, _("%s: Error writing standard output "),
 			argv[0]);
-		(void) perror("standard output");
+		(void) perror(_("standard output"));
 		(void) exit(EXIT_FAILURE);
 	}
 	exit(EXIT_SUCCESS);
