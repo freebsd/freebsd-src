@@ -214,7 +214,7 @@ initialize_ProSonic16(snddev_info *d)
 
     int             mpu_base, mpu_irq;
 
-    if ((mpu_config = NULL)) {
+    if (mpu_config != NULL) {
 	mpu_base = mpu_config->io_base;
 	mpu_irq = mpu_config->irq;
     } else {
