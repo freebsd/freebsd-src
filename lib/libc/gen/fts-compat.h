@@ -63,7 +63,6 @@ typedef struct {
 #define	FTS_STOP	0x200		/* (private) unrecoverable error */
 	int fts_options;		/* fts_open options, global flags */
 	void *fts_clientptr;		/* thunk for sort function */
-	struct _fts_private *fts_priv;	/* implementation data */
 } FTS;
 
 typedef struct _ftsent {
