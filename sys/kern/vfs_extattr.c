@@ -84,7 +84,7 @@ static int setfmode __P((struct thread *td, struct vnode *, int));
 static int setfflags __P((struct thread *td, struct vnode *, int));
 static int setutimes __P((struct thread *td, struct vnode *,
     const struct timespec *, int));
-static int vpaccess __P((struct vnode *vp, int user_flags, struct ucred *cred,
+static int vn_access __P((struct vnode *vp, int user_flags, struct ucred *cred,
     struct thread *td));
 
 static int	usermount = 0;	/* if 1, non-root can mount fs. */
@@ -1703,7 +1703,7 @@ olseek(td, uap)
  * Check access permissions using passed credentials.
  */
 static int
-vpaccess(vp, user_flags, cred, td)
+vn_access(vp, user_flags, cred, td)
 	struct vnode	*vp;
 	int		user_flags;
 	struct ucred	*cred;
@@ -1769,7 +1769,7 @@ access(td, uap)
 		goto out1;
 	vp = nd.ni_vp;
 
-	error = vpaccess(vp, SCARG(uap, flags), tmpcred, td);
+	error = vn_access(vp, SCARG(uap, flags), tmpcred, td);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vput(vp);
 out1:
@@ -1805,7 +1805,7 @@ eaccess(td, uap)
 		return (error);
 	vp = nd.ni_vp;
 
-	error = vpaccess(vp, SCARG(uap, flags), td->td_proc->p_ucred, td);
+	error = vn_access(vp, SCARG(uap, flags), td->td_proc->p_ucred, td);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vput(vp);
 	return (error);
