@@ -74,6 +74,10 @@ main(int argc, char *argv[])
     while (++n) {
 	if ((line = fgetln(gf, &len)) == NULL)
 	    break;
+	if (len > 0 && line[len - 1] != '\n') {
+	    warnx("%s: line %d: no newline character", gfn, n);
+	    e++;
+	}
 	while (len && isspace(line[len-1]))
 	    len--;
 
