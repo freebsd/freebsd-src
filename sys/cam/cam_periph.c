@@ -445,6 +445,10 @@ camperiphfree(struct cam_periph *periph)
 		if (strcmp((*p_drv)->driver_name, periph->periph_name) == 0)
 			break;
 	}
+	if (*p_drv == NULL) {
+		printf("camperiphfree: attempt to free non-existant periph\n");
+		return;
+	}
 	
 	if (periph->periph_dtor != NULL)
 		periph->periph_dtor(periph);
