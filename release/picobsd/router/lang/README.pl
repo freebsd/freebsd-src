@@ -36,4 +36,4 @@ Po dalsze szczegoly zajrzyj do oryginalnej dokumentacji.
 
 Milej zabawy!
   
-Andrzej Bialecki <abial@nask.pl>
+Andrzej Bialecki <abial@freebsd.org>

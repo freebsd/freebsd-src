@@ -30,4 +30,4 @@ Jakie sa minimalne wymagania?
 
 Milej zabawy!
   
-Andrzej Bialecki <abial@nask.pl>
+Andrzej Bialecki <abial@freebsd.org>

@@ -102,6 +102,6 @@ Mo¿na tam znale¼æ trochê wiêcej informacji, oraz poprawki i nowe wersje.
 
 Mi³ej zabawy!
   
-Andrzej Bia³ecki <abial@nask.pl>
+Andrzej Bia³ecki <abial@freebsd.org>
 
-$Id: README.pl,v 1.2 1998/09/26 17:27:19 abial Exp $
+$Id: README.pl,v 1.3 1998/10/15 21:40:00 abial Exp $

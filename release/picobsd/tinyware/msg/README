@@ -10,6 +10,6 @@ recently added to the kernel sources, so if you don't mind patching your
 kernel tree, contact me directly - the patches are very small and simple.
 
 Andrzej Bialecki
-<abial@nask.pl>
+<abial@freebsd.org>
 
-$Id$
+$Id: README,v 1.1 1998/09/15 07:35:58 abial Exp $
