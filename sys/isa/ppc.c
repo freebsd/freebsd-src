@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1997-2000 Nicolas Souchu
+ * Copyright (c) 2001 Alcove - Nicolas Souchu
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -154,7 +154,7 @@ ppc_ecp_sync(device_t dev) {
 	int i, r;
 	struct ppc_data *ppc = DEVTOSOFTC(dev);
 
-	if (!(ppc->ppc_avm & PPB_ECP))
+	if (!(ppc->ppc_avm & PPB_ECP) && !(ppc->ppc_dtm & PPB_ECP))
 		return;
 
 	r = r_ecr(ppc);
@@ -337,7 +337,7 @@ ppc_generic_setmode(struct ppc_data *ppc, int mode)
 		return (EINVAL);
 
 	/* if ECP mode, configure ecr register */
-	if (ppc->ppc_avm & PPB_ECP) {
+	if ((ppc->ppc_avm & PPB_ECP) || (ppc->ppc_dtm & PPB_ECP)) {
 		/* return to byte mode (keeping direction bit),
 		 * no interrupt, no DMA to be able to change to
 		 * ECP
@@ -382,7 +382,7 @@ ppc_smclike_setmode(struct ppc_data *ppc, int mode)
 		return (EINVAL);
 
 	/* if ECP mode, configure ecr register */
-	if (ppc->ppc_avm & PPB_ECP) {
+	if ((ppc->ppc_avm & PPB_ECP) || (ppc->ppc_dtm & PPB_ECP)) {
 		/* return to byte mode (keeping direction bit),
 		 * no interrupt, no DMA to be able to change to
 		 * ECP or EPP mode
@@ -1215,47 +1215,47 @@ ppc_generic_detect(struct ppc_data *ppc, int chipset_mode)
 	if (bootverbose)
 		printf("ppc%d:", ppc->ppc_unit);
 
-	if (!chipset_mode) {
-		/* first, check for ECP */
-		w_ecr(ppc, PPC_ECR_PS2);
-		if ((r_ecr(ppc) & 0xe0) == PPC_ECR_PS2) {
-			ppc->ppc_avm |= PPB_ECP | PPB_SPP;
-			if (bootverbose)
-				printf(" ECP SPP");
-
-			/* search for SMC style ECP+EPP mode */
-			w_ecr(ppc, PPC_ECR_EPP);
-		}
-
-		/* try to reset EPP timeout bit */
-		if (ppc_check_epp_timeout(ppc)) {
-			ppc->ppc_avm |= PPB_EPP;
-
-			if (ppc->ppc_avm & PPB_ECP) {
-				/* SMC like chipset found */
-				ppc->ppc_model = SMC_LIKE;
-				ppc->ppc_type = PPC_TYPE_SMCLIKE;
-
-				if (bootverbose)
-					printf(" ECP+EPP");
-			} else {
-				if (bootverbose)
-					printf(" EPP");
-			}
-		} else {
-			/* restore to standard mode */
-			w_ecr(ppc, PPC_ECR_STD);
-		}
-
-		/* XXX try to detect NIBBLE and PS2 modes */
-		ppc->ppc_avm |= PPB_NIBBLE;
-
+	/* first, check for ECP */
+	w_ecr(ppc, PPC_ECR_PS2);
+	if ((r_ecr(ppc) & 0xe0) == PPC_ECR_PS2) {
+		ppc->ppc_dtm |= PPB_ECP | PPB_SPP;
 		if (bootverbose)
-			printf(" SPP");
+			printf(" ECP SPP");
 
-	} else {
-		ppc->ppc_avm = chipset_mode;
+		/* search for SMC style ECP+EPP mode */
+		w_ecr(ppc, PPC_ECR_EPP);
 	}
+
+	/* try to reset EPP timeout bit */
+	if (ppc_check_epp_timeout(ppc)) {
+		ppc->ppc_dtm |= PPB_EPP;
+
+		if (ppc->ppc_dtm & PPB_ECP) {
+			/* SMC like chipset found */
+			ppc->ppc_model = SMC_LIKE;
+			ppc->ppc_type = PPC_TYPE_SMCLIKE;
+
+			if (bootverbose)
+				printf(" ECP+EPP");
+		} else {
+			if (bootverbose)
+				printf(" EPP");
+		}
+	} else {
+		/* restore to standard mode */
+		w_ecr(ppc, PPC_ECR_STD);
+	}
+
+	/* XXX try to detect NIBBLE and PS2 modes */
+	ppc->ppc_dtm |= PPB_NIBBLE;
+
+	if (bootverbose)
+		printf(" SPP");
+
+	if (chipset_mode)
+		ppc->ppc_avm = chipset_mode;
+	else
+		ppc->ppc_avm = ppc->ppc_dtm;
 
 	if (bootverbose)
 		printf("\n");
