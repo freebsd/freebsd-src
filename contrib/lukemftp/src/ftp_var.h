@@ -279,6 +279,7 @@ GLOBAL	int	unix_proxy;	/* proxy is unix, can use binary for ascii */
 GLOBAL	char	remotepwd[MAXPATHLEN];	/* remote dir */
 GLOBAL	char   *username;	/* name of user logged in as. (dynamic) */
 
+GLOBAL	sa_family_t family;	/* address family to use for connections */
 GLOBAL	char	*ftpport;	/* port number to use for FTP connections */
 GLOBAL	char	*httpport;	/* port number to use for HTTP connections */
 GLOBAL	char	*gateport;	/* port number to use for gateftp connections */

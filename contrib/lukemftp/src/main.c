@@ -171,6 +171,7 @@ main(int argc, char *argv[])
 	upload_path = NULL;
 	isupload = 0;
 	reply_callback = NULL;
+	family = AF_UNSPEC;
 
 	/*
 	 * Get the default socket buffer sizes if we don't already have them.
@@ -255,8 +256,16 @@ main(int argc, char *argv[])
 		}
 	}
 
-	while ((ch = getopt(argc, argv, "Aadefgino:pP:r:RtT:u:vV")) != -1) {
+	while ((ch = getopt(argc, argv, "46Aadefgino:pP:r:RtT:u:vV")) != -1) {
 		switch (ch) {
+		case '4':
+			family = AF_INET;
+			break;
+
+		case '6':
+			family = AF_INET6;
+			break;
+
 		case 'A':
 			activefallback = 0;
 			passivemode = 0;
@@ -956,7 +965,7 @@ void
 usage(void)
 {
 	(void)fprintf(stderr,
-"usage: %s [-AadefginpRtvV] [-o outfile] [-P port] [-r retry]\n"
+"usage: %s [-46AadefginpRtvV] [-o outfile] [-P port] [-r retry]\n"
 "           [-T dir,max[,inc][[user@]host [port]]] [host:path[/]]\n"
 "           [file:///file] [ftp://[user[:pass]@]host[:port]/path[/]]\n"
 "           [http://[user[:pass]@]host[:port]/path] [...]\n"
