@@ -313,6 +313,17 @@ cardbus_driver_added(device_t cbdev, driver_t *driver)
 
 	DEVICE_IDENTIFY(driver, cbdev);
 	device_get_children(cbdev, &devlist, &numdevs);
+	/*
+	 * If there are no drivers attached, but there are children,
+	 * then power the card up.
+	 */
+	for (i = 0; i < numdevs; i++) {
+		dev = devlist[i];
+		if (device_get_state(dev) != DS_NOTPRESENT)
+		    break;
+	}
+	if (i > 0 && i == numdevs)
+		POWER_ENABLE_SOCKET(device_get_parent(cbdev), cbdev);
 	for (i = 0; i < numdevs; i++) {
 		dev = devlist[i];
 		if (device_get_state(dev) != DS_NOTPRESENT)
