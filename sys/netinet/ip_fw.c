@@ -12,7 +12,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.c,v 1.48 1996/08/13 19:43:40 pst Exp $
+ *	$Id: ip_fw.c,v 1.49 1996/08/31 21:05:20 alex Exp $
  */
 
 /*
@@ -82,7 +82,7 @@ static int	port_match __P((u_short *portptr, int nports, u_short port,
 				int range_flag));
 static int	tcpflg_match __P((struct tcphdr *tcp, struct ip_fw *f));
 static int	icmptype_match __P((struct icmp *  icmp, struct ip_fw * f));
-static void	ipfw_report __P((char *txt, int rule, struct ip *ip, int counter));
+static void	ipfw_report __P((char *txt, int rule, struct ip *ip, int counter, struct ifnet *rif));
 
 #ifdef IPFIREWALL_MODULE
 static ip_fw_chk_t *old_chk_ptr;
@@ -214,7 +214,7 @@ ipopts_match(struct ip *ip, struct ip_fw *f)
 }
 
 static void
-ipfw_report(char *txt, int rule, struct ip *ip, int counter)
+ipfw_report(char *txt, int rule, struct ip *ip, int counter, struct ifnet *rif)
 {
 	struct tcphdr *tcp = (struct tcphdr *) ((u_long *) ip + ip->ip_hl);
 	struct udphdr *udp = (struct udphdr *) ((u_long *) ip + ip->ip_hl);
@@ -252,6 +252,7 @@ ipfw_report(char *txt, int rule, struct ip *ip, int counter)
 		print_ip(ip->ip_dst);
 		break;
 	}
+	printf(" via %s%d", rif->if_name, rif->if_unit);
 	if ((ip->ip_off & IP_OFFMASK)) 
 		printf(" Fragment = %d",ip->ip_off & IP_OFFMASK);
 	printf("\n");
@@ -383,7 +384,7 @@ ip_fw_chk(struct ip **pip, int hlen,
 			if (offset == 1) {
 				static int frag_counter = 0;
 				++frag_counter;
-				ipfw_report("Refuse", -1, ip, frag_counter);
+				ipfw_report("Refuse", -1, ip, frag_counter, rif);
 				m_freem(*m);
 				return -1;
 			}
@@ -425,19 +426,19 @@ got_match:
 		if (f->fw_flg & IP_FW_F_PRN) {
 			if ((f->fw_flg & IP_FW_F_COMMAND) == IP_FW_F_ACCEPT) {
 				ipfw_report("Allow",
-					f->fw_number, ip, f->fw_pcnt);
+					f->fw_number, ip, f->fw_pcnt, rif);
 			} else if ((f->fw_flg & IP_FW_F_COMMAND)
 			    == IP_FW_F_DIVERT) {
 				if (f->fw_divert_port != (dirport & 0xffff))
 					ipfw_report("Divert", f->fw_number,
-							ip, f->fw_pcnt);
+							ip, f->fw_pcnt, rif);
 			} else if ((f->fw_flg & IP_FW_F_COMMAND)
 			    == IP_FW_F_COUNT) {
 				ipfw_report("Count",
-					f->fw_number, ip, f->fw_pcnt);
+					f->fw_number, ip, f->fw_pcnt, rif);
 			} else {
 				ipfw_report("Deny",
-					f->fw_number, ip, f->fw_pcnt);
+					f->fw_number, ip, f->fw_pcnt, rif);
 			}
 		}
 
