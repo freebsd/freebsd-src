@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: systems.c,v 1.13 1997/06/25 19:30:05 brian Exp $
+ * $Id: systems.c,v 1.6.2.7 1997/08/25 00:34:40 brian Exp $
  *
  *  TODO:
  */
@@ -177,7 +177,7 @@ SelectSystem(char *name, char *file)
 	  if (*cp == ' ' || *cp == '\t') {
 	    n = strspn(cp, " \t");
 	    cp += n;
-	    LogPrintf(LogCOMMAND, "%s: %s", name, cp);
+	    LogPrintf(LogCOMMAND, "%s: %s\n", name, cp);
 	    SetPppId();
 	    olauth = VarLocalAuth;
 	    VarLocalAuth = LOCAL_AUTH;

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: arp.c,v 1.12 1997/06/09 03:27:11 brian Exp $
+ * $Id: arp.c,v 1.5.2.3 1997/08/25 00:34:19 brian Exp $
  *
  */
 
@@ -93,8 +93,7 @@ sifproxyarp(int unit, u_long hisaddr)
    */
   memset(&arpmsg, 0, sizeof(arpmsg));
   if (!get_ether_addr(unit, hisaddr, &arpmsg.hwa)) {
-    LogPrintf(LogERROR, "Cannot determine ethernet address"
-	      " for proxy ARP\n");
+    LogPrintf(LogERROR, "Cannot determine ethernet address for proxy ARP\n");
     return 0;
   }
   if ((routes = socket(PF_ROUTE, SOCK_RAW, AF_INET)) < 0) {
@@ -185,7 +184,7 @@ sifproxyarp(int unit, u_long hisaddr)
   ((struct sockaddr_in *) & arpreq.arp_pa)->sin_addr.s_addr = hisaddr;
   arpreq.arp_flags = ATF_PERM | ATF_PUBL;
   if (ioctl(unit, SIOCSARP, (caddr_t) & arpreq) < 0) {
-    LogPrintf(LogERROR, "sifproxyarp: ioctl(SIOCSARP): \n");
+    LogPrintf(LogERROR, "sifproxyarp: ioctl(SIOCSARP): %s\n", strerror(errno));
     return 0;
   }
   return 1;
@@ -203,7 +202,7 @@ cifproxyarp(int unit, u_long hisaddr)
   SET_SA_FAMILY(arpreq.arp_pa, AF_INET);
   ((struct sockaddr_in *) & arpreq.arp_pa)->sin_addr.s_addr = hisaddr;
   if (ioctl(unit, SIOCDARP, (caddr_t) & arpreq) < 0) {
-    LogPrintf(LogERROR, "cifproxyarp: ioctl(SIOCDARP): \n");
+    LogPrintf(LogERROR, "cifproxyarp: ioctl(SIOCDARP): %s\n", strerror(errno));
     return 0;
   }
   return 1;
@@ -231,7 +230,8 @@ get_ether_addr(int s, u_long ipaddr, struct sockaddr_dl * hwaddr)
   ifc.ifc_len = sizeof(ifs);
   ifc.ifc_req = ifs;
   if (ioctl(s, SIOCGIFCONF, &ifc) < 0) {
-    LogPrintf(LogERROR, "get_ether_addr: ioctl(SIOCGIFCONF): \n");
+    LogPrintf(LogERROR, "get_ether_addr: ioctl(SIOCGIFCONF): %s\n",
+	      strerror(errno));
     return 0;
   }
 

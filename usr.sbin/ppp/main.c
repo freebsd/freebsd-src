@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.22.2.33 1997/08/25 00:34:32 brian Exp $
+ * $Id: main.c,v 1.22.2.34 1997/08/25 01:53:45 brian Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -418,7 +418,7 @@ main(int argc, char **argv)
   if (!(mode & MODE_INTER)) {
     if (mode & MODE_BACKGROUND) {
       if (pipe(BGFiledes)) {
-	LogPrintf(LogERROR, "pipe: %s", strerror(errno));
+	LogPrintf(LogERROR, "pipe: %s\n", strerror(errno));
 	Cleanup(EX_SOCK);
       }
     }
@@ -431,7 +431,7 @@ main(int argc, char **argv)
 
       bgpid = fork();
       if (bgpid == -1) {
-	LogPrintf(LogERROR, "fork: %s", strerror(errno));
+	LogPrintf(LogERROR, "fork: %s\n", strerror(errno));
 	Cleanup(EX_SOCK);
       }
       if (bgpid) {
@@ -585,7 +585,7 @@ ReadTty()
    * We are in terminal mode, decode special sequences
    */
   n = read(fileno(VarTerm), &ch, 1);
-  LogPrintf(LogDEBUG, "Got %d bytes (reading from the terminal)", n);
+  LogPrintf(LogDEBUG, "Got %d bytes (reading from the terminal)\n", n);
 
   if (n > 0) {
     switch (ttystate) {
@@ -910,7 +910,7 @@ DoLoop()
 	handle_signals();
 	continue;
       }
-      LogPrintf(LogERROR, "select: %s", strerror(errno));
+      LogPrintf(LogERROR, "DoLoop: select(): %s\n", strerror(errno));
       break;
     }
     if ((netfd >= 0 && FD_ISSET(netfd, &efds)) || (modem >= 0 && FD_ISSET(modem, &efds))) {
@@ -921,7 +921,7 @@ DoLoop()
       LogPrintf(LogPHASE, "connected to client.\n");
       wfd = accept(server, (struct sockaddr *) & hisaddr, &ssize);
       if (wfd < 0) {
-	LogPrintf(LogERROR, "accept: %s", strerror(errno));
+	LogPrintf(LogERROR, "DoLoop: accept(): %s\n", strerror(errno));
 	continue;
       }
       if (netfd >= 0) {
@@ -998,7 +998,7 @@ DoLoop()
 							 * from tun */
       n = read(tun_in, rbuff, sizeof(rbuff));
       if (n < 0) {
-	LogPrintf(LogERROR, "read from tun: %s", strerror(errno));
+	LogPrintf(LogERROR, "read from tun: %s\n", strerror(errno));
 	continue;
       }
       if (((struct ip *) rbuff)->ip_dst.s_addr == IpcpInfo.want_ipaddr.s_addr) {
