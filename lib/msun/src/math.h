@@ -453,7 +453,7 @@ long double	fmaxl(long double, long double) __pure2;
 long double	fminl(long double, long double) __pure2;
 #if 0
 long double	fmodl(long double, long double);
-long double	frexpl(long double	value, int *);
+long double	frexpl(long double value, int *);
 long double	hypotl(long double, long double);
 #endif
 int		ilogbl(long double);
