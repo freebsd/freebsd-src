@@ -172,7 +172,7 @@ static void waitchainbuf(struct bio *bp, int count, int done);
 
 /*
  * dmmax is in page-sized chunks with the new swap system.  It was
- * dev-bsized chunks in the old.
+ * dev-bsized chunks in the old.  dmmax is always a power of 2.
  *
  * swap_*() routines are externally accessible.  swp_*() routines are
  * internal.
