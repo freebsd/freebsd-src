@@ -30,6 +30,7 @@ flush
 {zero|resetlog|delete}
 .Op Ar number ...
 .Nm ipfw
+.Op Fl s Op field
 .Op Fl aftN
 {list|show}
 .Op Ar number ...
@@ -83,7 +84,32 @@ or
 .Ar allow
 depending on how the kernel is configured.
 .Pp
-All rules have a few associated counters: a packet count and
+If the ruleset includes one or more rules with the
+.Ar keep-state
+option, then
+.Nm ipfw
+assumes a
+.Nm stateful
+behaviour, i.e. upon a match
+will create dynamic rules matching the exact parameters
+(addresses and ports) of the matching packet.
+.Pp
+These dynamic rules, which have a limited lifetime,
+are checked at the first occurrence of a
+.Ar check-state
+or
+.Ar keep-state
+rule, and are typically
+used to open the firewall on-demand to legitimate traffic
+only. See the
+.Xr options
+and
+.Xr EXAMPLES
+sections for more information on the stateful behaviour of
+.Nm ipfw
+.Pp
+All rules (including dynamic ones)
+have a few associated counters: a packet count and
 a byte count, a log count, and a timestamp indicating the time
 of the last match. Counters can be visualized or reset with
 .Nm
@@ -140,6 +166,9 @@ not processed.  Access to the console is required to recover.
 While listing, show last match timestamp.
 .It Fl N
 Try to resolve addresses and service names in output.
+.It Fl s Op field
+While listing pipes, sort according one of the four
+counters (total and current packets or bytes).
 .El
 .Pp
 To ease configuration, rules can be put into a file which is processed
@@ -281,6 +310,15 @@ The search terminates.
 .It Ar count
 Update counters for all packets that match rule.
 The search continues with the next rule.
+.It Ar check-state
+Checks the packet against the dynamic ruleset. If a match is
+found then the search terminates, otherwise we move to the
+next rule.
+If no
+.Ar check-state
+rule is found, the dynamic ruleset is checked at the first
+.Ar keep-state
+rule.
 .It Ar divert port
 Divert packets that match this rule to the
 .Xr divert 4
@@ -507,6 +545,30 @@ the local host have no transmit interface.
 .Pp
 .Ar options :
 .Bl -hang -offset flag -width 1234567890123456
+.It keep-state Op method
+Upon a match, the firewall will create a dynamic rule,
+whose default behaviour is to
+matching bidirectional traffic between source and destination
+IP/port using the same protocol. The rule has a limited lifetime
+(controlled by a set of
+.Nm sysctl
+variables), and the lifetime is refreshed every time a matching packet
+is found.
+.Pp
+The actual behaviour can be modified by specifying a different
+.Op method ,
+although at the moment only the default one is specified.
+.It bridged
+Matches only bridged packets. This can be useful for multicast
+or broadcast traffic, which would otherwise pass through the
+firewall twice: once during bridging, and a second time
+when the packet is delivered to the local stack.
+.Pp
+Apart from a small performance penalty, this would be a problem
+when using
+.Ar pipes
+because the same packet would be accounted for twice
+in terms of bandwidth, queue occupation, and also counters.
 .It frag
 Match if the packet is a fragment and this is not the first fragment
 of the datagram.
@@ -723,6 +785,51 @@ to that port; see
 .Xr divert 4 .
 If no socket is bound to the destination port, or if the kernel
 wasn't compiled with divert socket support, diverted packets are dropped.
+.Pp
+.Sh SYSCTL VARIABLES
+A set of
+.Nm sysctl
+variables controls the behaviour of the firewall. These are shown
+below together with their default value and meaning
+.Bl -tag -offset flag -width 1234567890
+.It "net.inet.ip.fw.debug: 1"
+Controls debugging messages produced by ipfw.
+.It "net.inet.ip.fw.one_pass: 1"
+When set, permits only one pass through the firewall.
+Otherwise, after a
+pipe or divert
+action, the packet is reinjected in the firewall starting from
+the next rule.
+.It net.inet.ip.fw.verbose: 1
+Enables verbose messages.
+.It net.inet.ip.fw.enable: 1
+Enables the firewall. Setting this variable to 0 lets you run your
+machine without firewall even if compiled in.
+.It net.inet.ip.fw.verbose_limit: 0
+Limits the number of messages produced by a verbose firewall.
+.It net.inet.ip.fw.dyn_buckets: 256
+.It net.inet.ip.fw.curr_dyn_buckets: 256
+The configured and current size of the hash table used to hold
+dynamic rules. This must be a power of 2. The table can only
+be resized when empty, so in order to resize it on the fly you
+will probably have to
+.Ar flush
+and reload the ruleset.
+.It net.inet.ip.fw.dyn_count: 3
+(readonly) current number of dynamic rules.
+.It net.inet.ip.fw.dyn_max: 1000
+Maximum number of dynamic rules. When you hit this limit,
+no more dynamic rules can be installed until old ones expire.
+.It net.inet.ip.fw.dyn_ack_lifetime: 300
+.It net.inet.ip.fw.dyn_syn_lifetime: 20
+.It net.inet.ip.fw.dyn_fin_lifetime: 20
+.It net.inet.ip.fw.dyn_rst_lifetime: 5
+.It net.inet.ip.fw.dyn_short_lifetime: 30
+These variable control the lifetime, in seconds, of dynamic rules.
+Upon the initial SYN exchange the lifetime is kept short,
+then increased after both SYN have been seen, then decreased
+again during the final FIN exchange or when a RST
+.El
 .Sh EXAMPLES
 This command adds an entry which denies all tcp packets from
 .Em cracker.evil.org
@@ -736,6 +843,54 @@ This one disallows any connection from the entire crackers network to
 my host:
 .Pp
 .Dl ipfw add deny all from 123.45.67.0/24 to my.host.org
+.Pp
+A first and efficient way to limit access (not using dynamic rules)
+is the use of the following rules
+.Pp
+.Dl "ipfw add allow tcp from any to any established"
+.Dl "ipfw add allow tcp from net1 portlist1 to net2 portlist2 setup"
+.Dl "ipfw add allow tcp from net3 portlist3 to net3 portlist3 setup"
+.Dl "..."
+.Dl "ipfw add deny tcp from any to any"
+.Pp
+The first rule will be a quick match for normal TCP packets, but
+it will not match the initial SYN packet, which will be
+matched by the
+.Ar setup
+rules only for selected source/destination pairs.
+All other SYN packets will be rejected by the final
+.Ar deny
+rule.
+.Pp
+In order to protect a site from flood attacks involving fake
+TCP packets, it is safer to use dynamic rules:
+.Pp
+.Dl "ipfw add check-state"
+.Dl "ipfw add deny tcp from any to any established"
+.Dl "ipfw add allow tcp from my-net to any setup keep-state"
+.Pp
+This will let the firewall install dynamic rules only for
+those connection which start with a regular SYN
+packet coming from the inside of our network. Dynamic rules
+are checked when encountering the first
+.Ar check-state
+or
+.Ar keep-state
+rule. A
+.Ar check-state
+rule should be usually placed near the beginning of the ruleset
+to minimize the amount of work scanning the ruleset. Your mileage
+may vary.
+.Pp
+BEWARE:
+stateful rules can be subject to denial-of-service attacks
+by a SYN-flood which opens a huge number of dynamic rules.
+The effects of such attacks can be partially limited by acting on
+a set of
+.Nm sysctl
+variables which control the operation of the firewall.
+.Pp
+There is a number of sysctl variables which controls the
 .Pp
 Here is a good usage of the
 .Ar list
@@ -882,4 +1037,7 @@ first appeared in
 .Fx 2.0 .
 .Nm dummynet
 was introduced in
-.Fx 2.2.8
+.Fx 2.2.8 .
+Stateful extensions were introduced in
+.Fx 4.0-RELEASE
+
