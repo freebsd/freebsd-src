@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)rm.c	8.5 (Berkeley) 4/18/94";
 #else
 static const char rcsid[] =
-	"$Id: rm.c,v 1.17 1997/08/07 15:37:47 steve Exp $";
+	"$Id: rm.c,v 1.18 1997/08/07 21:37:39 steve Exp $";
 #endif
 #endif /* not lint */
 
@@ -114,8 +114,11 @@ main(argc, argv)
 	argc -= optind;
 	argv += optind;
 
-	if (argc < 1)
+	if (argc < 1) {
+		if (fflag)
+			return 0;
 		usage();
+	}
 
 	checkdot(argv);
 	uid = geteuid();
