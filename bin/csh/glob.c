@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)glob.c	8.1 (Berkeley) 5/31/93";
 #else
 static const char rcsid[] =
-	"$Id: glob.c,v 1.8 1997/02/22 14:01:58 peter Exp $";
+	"$Id: glob.c,v 1.9 1997/08/07 21:42:09 steve Exp $";
 #endif
 #endif /* not lint */
 
@@ -557,7 +557,7 @@ ginit()
 void
 rscan(t, f)
     Char **t;
-    void    (*f) ();
+    void    (*f) __P((int));
 {
     Char *p;
 
