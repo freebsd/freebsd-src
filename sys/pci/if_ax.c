@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_ax.c,v 1.6 1999/01/08 19:40:59 wpaul Exp $
+ *	$Id: if_ax.c,v 1.7 1999/01/16 01:23:56 wpaul Exp $
  */
 
 /*
@@ -87,7 +87,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: if_ax.c,v 1.6 1999/01/08 19:40:59 wpaul Exp $";
+	"$Id: if_ax.c,v 1.7 1999/01/16 01:23:56 wpaul Exp $";
 #endif
 
 /*
@@ -1446,6 +1446,17 @@ static void ax_rxeof(sc)
 
 		total_len -= ETHER_CRC_LEN;
 
+		if (total_len < MINCLSIZE) {
+			m = m_devget(mtod(cur_rx->ax_mbuf, char *),
+				total_len, 0, ifp, NULL);
+			cur_rx->ax_ptr->ax_status = AX_RXSTAT;
+			cur_rx->ax_ptr->ax_ctl = (MCLBYTES - 1);
+			if (m == NULL) {
+				ifp->if_ierrors++;
+				continue;
+			}
+		} else {
+			m = cur_rx->ax_mbuf;
 		/*
 		 * Try to conjure up a new mbuf cluster. If that
 		 * fails, it means we have an out of memory condition and
@@ -1453,17 +1464,18 @@ static void ax_rxeof(sc)
 		 * result in a lost packet, but there's little else we
 		 * can do in this situation.
 		 */
-		if (ax_newbuf(sc, cur_rx) == ENOBUFS) {
-			ifp->if_ierrors++;
-			cur_rx->ax_ptr->ax_status = AX_RXSTAT;
-			cur_rx->ax_ptr->ax_ctl = (MCLBYTES - 1);
-			continue;
+			if (ax_newbuf(sc, cur_rx) == ENOBUFS) {
+				ifp->if_ierrors++;
+				cur_rx->ax_ptr->ax_status = AX_RXSTAT;
+				cur_rx->ax_ptr->ax_ctl = (MCLBYTES - 1);
+				continue;
+			}
+			m->m_pkthdr.rcvif = ifp;
+			m->m_pkthdr.len = m->m_len = total_len;
 		}
 
 		ifp->if_ipackets++;
 		eh = mtod(m, struct ether_header *);
-		m->m_pkthdr.rcvif = ifp;
-		m->m_pkthdr.len = m->m_len = total_len;
 #if NBPFILTER > 0
 		/*
 		 * Handle BPF listeners. Let the BPF user see the packet, but
@@ -1746,6 +1758,7 @@ static int ax_encap(sc, c, m_head)
 	c->ax_mbuf = m_head;
 	c->ax_lastdesc = frag - 1;
 	AX_TXCTL(c) |= AX_TXCTL_LASTFRAG|AX_TXCTL_FINT;
+	c->ax_ptr->ax_frag[0].ax_ctl |= AX_TXCTL_FINT;
 	AX_TXNEXT(c) = vtophys(&c->ax_nextdesc->ax_ptr->ax_frag[0]);
 	return(0);
 }
