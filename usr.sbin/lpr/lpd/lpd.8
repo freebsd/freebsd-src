@@ -39,7 +39,7 @@
 .Nd line printer spooler daemon
 .Sh SYNOPSIS
 .Nm lpd
-.Op Fl l
+.Op Fl dl
 .Op Ar port#
 .Sh DESCRIPTION
 .Nm Lpd
@@ -60,6 +60,11 @@ the request so the parent can continue to listen for more requests.
 .Pp
 Available options:
 .Bl -tag -width Ds
+.It Fl d
+Turn on
+.Dv SO_DEBUG
+on the Internet listening socket (see
+.Xr setsockopt 2 ) .
 .It Fl l
 The
 .Fl l
@@ -236,6 +241,7 @@ but not under same administrative control.
 .Xr lpq 1 ,
 .Xr lpr 1 ,
 .Xr lprm 1 ,
+.Xr setsockopt 2 ,
 .Xr syslog 3 ,
 .Xr hosts.lpd 5 ,
 .Xr printcap 5 ,
