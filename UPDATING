@@ -17,6 +17,11 @@ NOTE TO PEOPLE WHO THINK THAT 5.0-CURRENT IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20030711:
+	gcc was upgraded to 3.3.  You are advised to not build -DNOCLEAN
+	accross this point.  Further, it might be a good idea to remove
+	/usr/obj.  Finally, i386 kernels are currently panicing on boot.
+
 20030613: [retrospective]
 	There was a small window in which sed(1) was broken.  If you
 	happen to have sed(1) installed during that window, which is
