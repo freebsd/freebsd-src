@@ -63,11 +63,11 @@ static char sccsid[] = "@(#)main.c	8.1 (Berkeley) 6/6/93";
 #include "pathnames.h"
 
 ndptr hashtab[HASHSIZE];	/* hash table for macros etc.  */
-char buf[BUFSIZE];		/* push-back buffer	       */
-char *bufbase = buf;		/* the base for current ilevel */
-char *bbase[MAXINP];		/* the base for each ilevel    */
-char *bp = buf; 		/* first available character   */
-char *endpbb = buf+BUFSIZE;	/* end of push-back buffer     */
+unsigned char buf[BUFSIZE];              /* push-back buffer            */
+unsigned char *bufbase = buf;            /* the base for current ilevel */
+unsigned char *bbase[MAXINP];            /* the base for each ilevel    */
+unsigned char *bp = buf;                 /* first available character   */
+unsigned char *endpbb = buf+BUFSIZE;     /* end of push-back buffer     */
 stae mstack[STACKMAX+1]; 	/* stack of m4 machine         */
 char strspace[STRSPMAX+1];	/* string space for evaluation */
 char *ep = strspace;		/* first free char in strspace */
@@ -248,7 +248,7 @@ macro() {
 	register int  nlpar;
 
 	cycle {
-		if ((t = gpbc()) == '_' || isalpha(t)) {
+		if ((t = gpbc()) == '_' || (t != EOF && isalpha(t))) {
 			putback(t);
 			if ((p = inspect(s = token)) == nil) {
 				if (sp < 0)
@@ -327,7 +327,7 @@ macro() {
 		case LPAREN:
 			if (PARLEV > 0)
 				chrsave(t);
-			while (isspace(l = gpbc()))
+			while ((l = gpbc()) != EOF && isspace(l))
 				;		/* skip blank, tab, nl.. */
 			putback(l);
 			PARLEV++;
@@ -356,7 +356,7 @@ macro() {
 		case COMMA:
 			if (PARLEV == 1) {
 				chrsave(EOS);		/* new argument   */
-				while (isspace(l = gpbc()))
+				while ((l = gpbc()) != EOF && isspace(l))
 					;
 				putback(l);
 				pushs(ep);
@@ -380,13 +380,13 @@ ndptr
 inspect(tp) 
 register char *tp;
 {
-	register char c;
+	register int c;
 	register char *name = tp;
 	register char *etp = tp+MAXTOK;
 	register ndptr p;
 	register unsigned long h = 0;
 
-	while ((isalnum(c = gpbc()) || c == '_') && tp < etp)
+	while ((c = gpbc()) != EOF && (isalnum(c) || c == '_') && tp < etp)
 		h = (h << 5) + h + (*tp++ = c);
 	putback(c);
 	if (tp == etp)

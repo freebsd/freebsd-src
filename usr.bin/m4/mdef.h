@@ -142,7 +142,7 @@ typedef union {			/* stack structure */
  *      pushf() - push a call frame entry onto stack
  *      pushs() - push a string pointer onto stack
  */
-#define gpbc() 	 (bp > bufbase) ? *--bp : getc(infile[ilevel])
+#define gpbc()   (bp > bufbase) ? (*--bp ? *bp : EOF) : getc(infile[ilevel])
 #define pushf(x) if (sp < STACKMAX) mstack[++sp].sfra = (x)
 #define pushs(x) if (sp < STACKMAX) mstack[++sp].sstr = (x)
 

@@ -378,8 +378,8 @@ expand(argv, argc)
 register char *argv[];
 register int argc;
 {
-	register char *t;
-	register char *p;
+	register unsigned char *t;
+	register unsigned char *p;
 	register int n;
 	register int argno;
 
@@ -688,7 +688,7 @@ dosub(argv, argc)
 register char *argv[];
 register int argc;
 {
-	register char *ap, *fc, *k;
+	register unsigned char *ap, *fc, *k;
 	register int nc;
 
 	if (argc < 5)
