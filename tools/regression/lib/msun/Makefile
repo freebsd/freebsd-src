@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-TESTS=	test-fenv
+TESTS=	test-fenv test-ilogb
 CFLAGS+= -O0 -lm
 ARCH!=	uname -m
 .if ${ARCH} == "alpha"
