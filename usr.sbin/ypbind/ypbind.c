@@ -28,7 +28,7 @@
  */
 
 #ifndef LINT
-static char rcsid[] = "$Id: ypbind.c,v 1.16 1995/07/15 23:27:27 wpaul Exp $";
+static char rcsid[] = "$Id: ypbind.c,v 1.17 1995/07/20 22:32:59 wpaul Exp $";
 #endif
 
 #include <sys/param.h>
@@ -58,7 +58,8 @@ static char rcsid[] = "$Id: ypbind.c,v 1.16 1995/07/15 23:27:27 wpaul Exp $";
 #include <rpc/pmap_rmt.h>
 #include <unistd.h>
 #include <stdlib.h>
-#include <rpcsvc/yp_prot.h>
+#include <rpcsvc/yp.h>
+struct dom_binding{};
 #include <rpcsvc/ypclnt.h>
 
 #ifndef BINDINGDIR
@@ -102,7 +103,7 @@ void	terminate __P((int));
 void	yp_restricted_mode __P((char *));
 int	verify __P((struct in_addr));
 
-char *domainname;
+char *domain_name;
 struct _dom_binding *ypbindlist;
 static struct _dom_binding *broad_domain;
 
@@ -162,7 +163,7 @@ CLIENT *clnt;
 struct ypbind_resp *
 ypbindproc_domain_2(transp, argp, clnt)
 SVCXPRT *transp;
-char *argp;
+domainname *argp;
 CLIENT *clnt;
 {
 	static struct ypbind_resp res;
@@ -171,33 +172,33 @@ CLIENT *clnt;
 
 	bzero((char *)&res, sizeof res);
 	res.ypbind_status = YPBIND_FAIL_VAL;
-	res.ypbind_respbody.ypbind_error = YPBIND_ERR_NOSERV;
+	res.ypbind_resp_u.ypbind_error = YPBIND_ERR_NOSERV;
 
 	for(ypdb=ypbindlist; ypdb; ypdb=ypdb->dom_pnext) {
-		if( strcmp(ypdb->dom_domain, argp) == 0)
+		if( strcmp(ypdb->dom_domain, *argp) == 0)
 			break;
 		}
 
 	if(ypdb==NULL) {
 		if (yp_restricted) {
-			syslog(LOG_NOTICE, "Running in restricted mode -- request to bind domain \"%s\" rejected.\n", argp);
+			syslog(LOG_NOTICE, "Running in restricted mode -- request to bind domain \"%s\" rejected.\n", *argp);
 			return &res;
 		}
 
 		if (domains >= MAX_DOMAINS) {
 			syslog(LOG_WARNING, "domain limit (%d) exceeded",
 							MAX_DOMAINS);
-			res.ypbind_respbody.ypbind_error = YPBIND_ERR_RESC;
+			res.ypbind_resp_u.ypbind_error = YPBIND_ERR_RESC;
 			return &res;
 		}
 		ypdb = (struct _dom_binding *)malloc(sizeof *ypdb);
 		if (ypdb == NULL) {
 			syslog(LOG_WARNING, "malloc: %s", strerror(errno));
-			res.ypbind_respbody.ypbind_error = YPBIND_ERR_RESC;
+			res.ypbind_resp_u.ypbind_error = YPBIND_ERR_RESC;
 			return &res;
 		}
 		bzero((char *)ypdb, sizeof *ypdb);
-		strncpy(ypdb->dom_domain, argp, sizeof ypdb->dom_domain);
+		strncpy(ypdb->dom_domain, *argp, sizeof ypdb->dom_domain);
 		ypdb->dom_vers = YPVERS;
 		ypdb->dom_alive = 0;
 		ypdb->dom_default = 0;
@@ -215,10 +216,10 @@ CLIENT *clnt;
 	}
 
 	res.ypbind_status = YPBIND_SUCC_VAL;
-	res.ypbind_respbody.ypbind_error = 0; /* Success */
-	res.ypbind_respbody.ypbind_bindinfo.ypbind_binding_addr.s_addr =
+	res.ypbind_resp_u.ypbind_error = 0; /* Success */
+	*(u_long *)&res.ypbind_resp_u.ypbind_bindinfo.ypbind_binding_addr =
 		ypdb->dom_server_addr.sin_addr.s_addr;
-	res.ypbind_respbody.ypbind_bindinfo.ypbind_binding_port =
+	*(u_short *)&res.ypbind_resp_u.ypbind_bindinfo.ypbind_binding_port =
 		ypdb->dom_server_addr.sin_port;
 	/*printf("domain %s at %s/%d\n", ypdb->dom_domain,
 		inet_ntoa(ypdb->dom_server_addr.sin_addr),
@@ -229,7 +230,7 @@ CLIENT *clnt;
 void *
 ypbindproc_setdom_2(transp, argp, clnt)
 SVCXPRT *transp;
-struct ypbind_setdom *argp;
+ypbind_setdom *argp;
 CLIENT *clnt;
 {
 	struct sockaddr_in *fromsin, bindsin;
@@ -263,8 +264,8 @@ CLIENT *clnt;
 
 	bzero((char *)&bindsin, sizeof bindsin);
 	bindsin.sin_family = AF_INET;
-	bindsin.sin_addr.s_addr = argp->ypsetdom_addr.s_addr;
-	bindsin.sin_port = argp->ypsetdom_port;
+	bindsin.sin_addr.s_addr = *(u_long *)argp->ypsetdom_binding.ypbind_binding_addr;
+	bindsin.sin_port = *(u_short *)argp->ypsetdom_binding.ypbind_binding_port;
 	rpc_received(argp->ypsetdom_domain, &bindsin, 1);
 
 	return;
@@ -276,7 +277,7 @@ struct svc_req *rqstp;
 register SVCXPRT *transp;
 {
 	union {
-		char ypbindproc_domain_2_arg[MAXHOSTNAMELEN];
+		domainname ypbindproc_domain_2_arg;
 		struct ypbind_setdom ypbindproc_setdom_2_arg;
 	} argument;
 	struct authunix_parms *creds;
@@ -386,8 +387,8 @@ char **argv;
 	}
 
 	/* XXX domainname will be overriden if we use restricted mode */
-	yp_get_default_domain(&domainname);
-	if( domainname[0] == '\0') {
+	yp_get_default_domain(&domain_name);
+	if( domain_name[0] == '\0') {
 		fprintf(stderr, "domainname not set. Aborting.\n");
 		exit(1);
 	}
@@ -455,7 +456,7 @@ char **argv;
 		exit(1);
 	}
 	bzero((char *)ypbindlist, sizeof *ypbindlist);
-	strncpy(ypbindlist->dom_domain, domainname, sizeof ypbindlist->dom_domain);
+	strncpy(ypbindlist->dom_domain, domain_name, sizeof ypbindlist->dom_domain);
 	ypbindlist->dom_vers = YPVERS;
 	ypbindlist->dom_alive = 0;
 	ypbindlist->dom_lockfd = -1;
@@ -655,9 +656,14 @@ struct _dom_binding *ypdb;
 
 	retries = 0;
 
-	stat = clnt_broadcast(YPPROG, YPVERS, YPPROC_DOMAIN_NONACK,
-	    xdr_domainname, (char *)ypdb->dom_domain, xdr_bool, (char *)&out,
-	    broadcast_result);
+	{
+		char *ptr;
+
+		ptr = (char *)&ypdb->dom_domain;
+		stat = clnt_broadcast(YPPROG, YPVERS, YPPROC_DOMAIN_NONACK,
+	    		xdr_domainname, (char *)&ptr, xdr_bool, (char *)&out,
+	    		broadcast_result);
+	}
 
 	if (stat != RPC_SUCCESS) {
 		bzero((char *)&ypdb->dom_server_addr,
@@ -710,14 +716,20 @@ struct _dom_binding *ypdb;
 		return(1);
 	}
 
-	if ((stat = clnt_call(client_handle, YPPROC_DOMAIN,
-		xdr_domainname, (char *)ypdb->dom_domain, xdr_bool,
-		(char *)&out, timeout)) != RPC_SUCCESS || out == FALSE) {
-		ypdb->dom_alive = 0;
-		ypdb->dom_vers = -1;
-		clnt_destroy(client_handle);
-		broadcast(ypdb);
-		return(1);
+	{
+		char *ptr;
+
+		ptr = (char *)&ypdb->dom_domain;
+
+		if ((stat = clnt_call(client_handle, YPPROC_DOMAIN,
+			xdr_domainname, (char *)&ptr, xdr_bool, (char *)&out,
+			timeout)) != RPC_SUCCESS || out == FALSE) {
+			ypdb->dom_alive = 0;
+			ypdb->dom_vers = -1;
+			clnt_destroy(client_handle);
+			broadcast(ypdb);
+			return(1);
+		}
 	}
 
 	clnt_destroy(client_handle);
@@ -854,8 +866,8 @@ int force;
 
 	bzero(&ybr, sizeof ybr);
 	ybr.ypbind_status = YPBIND_SUCC_VAL;
-	ybr.ypbind_respbody.ypbind_bindinfo.ypbind_binding_addr = raddrp->sin_addr;
-	ybr.ypbind_respbody.ypbind_bindinfo.ypbind_binding_port = raddrp->sin_port;
+	*(u_long *)&ybr.ypbind_resp_u.ypbind_bindinfo.ypbind_binding_addr = raddrp->sin_addr.s_addr;
+	*(u_short *)&ybr.ypbind_resp_u.ypbind_bindinfo.ypbind_binding_port = raddrp->sin_port;
 
 	if( writev(ypdb->dom_lockfd, iov, 2) != iov[0].iov_len + iov[1].iov_len) {
 		syslog(LOG_WARNING, "write: %s", strerror(errno));
@@ -898,7 +910,7 @@ char *args;
 	/* Find the restricted domain. */
 	if ((s = strsep(&args, ",")) == NULL)
 		return;
-	domainname = s;
+	domain_name = s;
 
 	/* Get the addresses of the servers. */
 	while ((s = strsep(&args, ",")) != NULL && i < RESTRICTED_SERVERS) {

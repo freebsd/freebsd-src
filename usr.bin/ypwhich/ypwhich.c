@@ -39,7 +39,8 @@ static char rcsid[] = "ypwhich.c,v 1.2 1993/05/16 02:49:10 deraadt Exp";
 #include <netdb.h>
 #include <rpc/rpc.h>
 #include <rpc/xdr.h>
-#include <rpcsvc/yp_prot.h>
+#include <rpcsvc/yp.h>
+struct dom_binding{};
 #include <rpcsvc/ypclnt.h>
 
 #define ERR_USAGE	1	/* bad arguments - display 'usage' message */
@@ -100,7 +101,7 @@ struct sockaddr_in *sin;
 	tv.tv_sec = 5;
 	tv.tv_usec = 0;
 	r = clnt_call(client, YPBINDPROC_DOMAIN,
-		xdr_domainname, dom, xdr_ypbind_resp, &ypbr, tv);
+		xdr_domainname, &dom, xdr_ypbind_resp, &ypbr, tv);
 	if( r != RPC_SUCCESS) {
 		fprintf(stderr, "can't clnt_call: %s\n",
 			yperr_string(YPERR_YPBIND));
@@ -109,14 +110,14 @@ struct sockaddr_in *sin;
 	} else {
 		if (ypbr.ypbind_status != YPBIND_SUCC_VAL) {
 			fprintf(stderr, "can't yp_bind: Reason: %s\n",
-				ypbinderr_string(ypbr.ypbind_respbody.ypbind_error));
+				ypbinderr_string(ypbr.ypbind_resp_u.ypbind_error));
 			clnt_destroy(client);
 			return r;
 		}
 	}
 	clnt_destroy(client);
 
-	ss_addr = ypbr.ypbind_respbody.ypbind_bindinfo.ypbind_binding_addr.s_addr;
+	ss_addr = *(u_long *)ypbr.ypbind_resp_u.ypbind_bindinfo.ypbind_binding_addr;
 	/*printf("%08x\n", ss_addr);*/
 	hent = gethostbyaddr((char *)&ss_addr, sizeof(ss_addr), AF_INET);
 	if (hent)
@@ -227,19 +228,19 @@ char **argv;
 	case 0:
 		for(y=ypml; y; ) {
 			ypml = y;
-			r = yp_master(domainname, ypml->ypml_name, &master);
+			r = yp_master(domainname, ypml->map, &master);
 			switch(r) {
 			case 0:
-				printf("%s %s\n", ypml->ypml_name, master);
+				printf("%s %s\n", ypml->map, master);
 				free(master);
 				break;
 			default:
 				fprintf(stderr,
 					"YP: can't find the master of %s: Reason: %s\n",
-					ypml->ypml_name, yperr_string(r));
+					ypml->map, yperr_string(r));
 				break;
 			}
-			y = ypml->ypml_next;
+			y = ypml->next;
 			free(ypml);
 		}
 		break;
