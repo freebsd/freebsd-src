@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)errno.h	8.5 (Berkeley) 1/21/94
- * $Id: errno.h,v 1.10 1998/04/30 09:38:03 jb Exp $
+ * $Id: errno.h,v 1.11 1998/12/14 18:54:04 dt Exp $
  */
 
 #ifndef _SYS_ERRNO_H_
@@ -163,7 +163,7 @@ __END_DECLS
 #define	ENEEDAUTH	81		/* Need authenticator */
 #define	EIDRM		82		/* Identifier removed */
 #define	ENOMSG		83		/* No message of desired type */
-#define	EOVERFLOW	84		/* Value to large to be stored in data type */
+#define	EOVERFLOW	84		/* Value too large to be stored in data type */
 #define	ECANCELED	85		/* Operation canceled */
 #define	EILSEQ		86		/* Illegal byte sequence */
 #define	ELAST		86		/* Must be equal largest errno */
