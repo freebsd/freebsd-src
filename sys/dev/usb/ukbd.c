@@ -51,12 +51,10 @@
 #include <sys/module.h>
 #include <sys/bus.h>
 #include <machine/clock.h>
-#include <sys/tty.h>
 #include <sys/file.h>
 #include <sys/select.h>
 #include <sys/proc.h>
 #include <sys/vnode.h>
-#include <sys/poll.h>
 
 #include <dev/usb/usb.h>
 #include <dev/usb/usbhid.h>
@@ -66,7 +64,6 @@
 #include <dev/usb/usb_quirks.h>
 #include <dev/usb/hid.h>
 
-#include <sys/conf.h>
 #include <dev/kbd/kbdreg.h>
 
 #define UKBD_EMULATE_ATSCANCODE	1
@@ -115,6 +112,7 @@ typedef void usbd_intr_t(usbd_xfer_handle, usbd_private_handle, usbd_status);
 typedef void usbd_disco_t(void *);
 
 static usbd_intr_t	ukbd_intr;
+static int		ukbd_driver_load(module_t mod, int what, void *arg);
 
 USB_DECLARE_DRIVER(ukbd);
 
@@ -215,7 +213,7 @@ ukbd_intr(usbd_xfer_handle xfer, usbd_private_handle addr, usbd_status status)
 	(*kbdsw[kbd->kb_index]->intr)(kbd, (void *)status);
 }
 
-DRIVER_MODULE(ukbd, uhub, ukbd_driver, ukbd_devclass, usbd_driver_load, 0);
+DRIVER_MODULE(ukbd, uhub, ukbd_driver, ukbd_devclass, ukbd_driver_load, 0);
 
 #include <machine/limits.h>
 #include <machine/console.h>
@@ -1227,6 +1225,12 @@ ukbd_ioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 	default:
 		splx(s);
 		return genkbd_commonioctl(kbd, cmd, arg);
+
+#ifdef UKBD_DEBUG
+	case USB_SETDEBUG:
+		ukbddebug = *(int *)arg;
+		break;
+#endif
 	}
 
 	splx(s);
@@ -1426,3 +1430,17 @@ keycode2scancode(int keycode, int shift, int up)
 	return (scancode | (up ? SCAN_RELEASE : SCAN_PRESS));
 }
 #endif /* UKBD_EMULATE_ATSCANCODE */
+
+static int
+ukbd_driver_load(module_t mod, int what, void *arg)
+{
+	switch (what) {
+		case MOD_LOAD:
+			kbd_add_driver(&ukbd_kbd_driver);
+			break;
+		case MOD_UNLOAD:
+			kbd_delete_driver(&ukbd_kbd_driver);
+			break;
+	}
+	return usbd_driver_load(mod, what, 0);
+}
