@@ -31,7 +31,6 @@ options		IPFIREWALL_DEFAULT_TO_ACCEPT
 options		IPDIVERT
 options		PCI_QUIET
 options         COMPAT_OLDISA   #Use ISA shims and glue for old drivers
-options         COMPAT_OLDPCI   #Use PCI shims and glue for old drivers
 #options		DEVFS
 # Support for bridging and bandwidth limiting
 #options	DUMMYNET

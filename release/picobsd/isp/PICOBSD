@@ -112,5 +112,4 @@ device	md
 #device	gzip		# Exec gzipped a.out's
 
 options         COMPAT_OLDISA   #Use ISA shims and glue for old drivers
-options         COMPAT_OLDPCI   #Use PCI shims and glue for old drivers
 

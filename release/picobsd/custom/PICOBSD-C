@@ -58,7 +58,6 @@ device		isa
 device		eisa
 device		pci
 options 	COMPAT_OLDISA		# compatability shims for lnc, fe, le
-options 	COMPAT_OLDPCI		# compatability shims for lnc, vx
 
 # Floppy drives
 device		fdc
