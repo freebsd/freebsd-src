@@ -417,7 +417,8 @@ main(argc, argv)
 		}
 #endif /* SKEY */
 #else /* !KERBEROS */
-		rval = strcmp(ep, pwd->pw_passwd);
+		if (pwd)
+		    rval = strcmp(ep, pwd->pw_passwd);
 #endif /* KERBEROS */
 		/* clear entered password */
 		memset(p, 0, strlen(p));
