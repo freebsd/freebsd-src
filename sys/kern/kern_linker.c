@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_linker.c,v 1.12 1998/11/03 13:09:31 peter Exp $
+ *	$Id: kern_linker.c,v 1.13 1998/11/03 14:27:05 peter Exp $
  */
 
 #include "opt_ddb.h"
@@ -49,6 +49,7 @@
 
 MALLOC_DEFINE(M_LINKER, "kld", "kernel linker");
 linker_file_t linker_current_file;
+linker_file_t linker_kernel_file;
 
 static struct lock lock;	/* lock for the file list */
 static linker_class_list_t classes;
