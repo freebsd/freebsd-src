@@ -318,6 +318,7 @@ m_tag_alloc(u_int32_t cookie, int type, int len, int wait)
 {
 	struct m_tag *t;
 
+	MBUF_CHECKSLEEP(wait);
 	if (len < 0)
 		return NULL;
 	t = malloc(len + sizeof(struct m_tag), M_PACKET_TAGS, wait);
@@ -332,6 +333,7 @@ m_tag_alloc(u_int32_t cookie, int type, int len, int wait)
 void
 m_tag_delete(struct mbuf *m, struct m_tag *t)
 {
+
 	KASSERT(m && t, ("m_tag_delete: null argument, m %p t %p", m, t));
 	m_tag_unlink(m, t);
 	m_tag_free(t);
@@ -397,6 +399,7 @@ m_tag_copy(struct m_tag *t, int how)
 {
 	struct m_tag *p;
 
+	MBUF_CHECKSLEEP(how);
 	KASSERT(t, ("m_tag_copy: null tag"));
 	p = m_tag_alloc(t->m_tag_cookie, t->m_tag_id, t->m_tag_len, how);
 	if (p == NULL)
@@ -430,6 +433,7 @@ m_tag_copy_chain(struct mbuf *to, struct mbuf *from, int how)
 {
 	struct m_tag *p, *t, *tprev = NULL;
 
+	MBUF_CHECKSLEEP(how);
 	KASSERT(to && from,
 		("m_tag_copy_chain: null argument, to %p from %p", to, from));
 	m_tag_delete_chain(to, NULL);
