@@ -1,6 +1,6 @@
 PROG=	moused
 SRCS=	moused.c
-NOMAN=	moused
+MAN8=	moused.8
 
 #BINOWN=	root
 #BINMODE=4555
