@@ -38,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_lock.c	8.18 (Berkeley) 5/21/95
- * $Id: kern_lock.c,v 1.10 1997/08/19 00:27:07 dyson Exp $
+ * $Id: kern_lock.c,v 1.11 1997/08/22 07:16:46 phk Exp $
  */
 
 #include <sys/param.h>
@@ -70,7 +70,12 @@
 #define LOCK_INLINE inline
 #endif
 
+#define LK_ALL (LK_HAVE_EXCL | LK_WANT_EXCL | LK_WANT_UPGRADE | \
+	LK_SHARE_NONZERO | LK_WAIT_NONZERO)
+
 static int acquire(struct lock *lkp, int extflags, int wanted);
+static int apause(struct lock *lkp, int flags);
+static int acquiredrain(struct lock *lkp, int extflags) ;
 
 static LOCK_INLINE void
 sharelock(struct lock *lkp, int incr) {
@@ -94,6 +99,11 @@ shareunlock(struct lock *lkp, int decr) {
 		lkp->lk_flags &= ~LK_SHARE_NONZERO;
 }
 
+/*
+ * This is the waitloop optimization, and note for this to work
+ * simple_lock and simple_unlock should be subroutines to avoid
+ * optimization troubles.
+ */
 static int
 apause(struct lock *lkp, int flags) {
 	int lock_wait;
@@ -115,7 +125,6 @@ apause(struct lock *lkp, int flags) {
 	return 1;
 }
 
-
 static int
 acquire(struct lock *lkp, int extflags, int wanted) {
 	int error;
@@ -125,9 +134,11 @@ acquire(struct lock *lkp, int extflags, int wanted) {
 		return EBUSY;
 	}
 
-	error = apause(lkp, wanted);
-	if (error == 0)
-		return 0;
+	if (((lkp->lk_flags | extflags) & LK_NOPAUSE) == 0) {
+		error = apause(lkp, wanted);
+		if (error == 0)
+			return 0;
+	}
 
 	while ((lkp->lk_flags & wanted) != 0) {
 		lkp->lk_flags |= LK_WAIT_NONZERO;
@@ -145,78 +156,6 @@ acquire(struct lock *lkp, int extflags, int wanted) {
 		}
 	}
 	return 0;
-}
-
-#define LK_ALL (LK_HAVE_EXCL | LK_WANT_EXCL | LK_WANT_UPGRADE | \
-	LK_SHARE_NONZERO | LK_WAIT_NONZERO)
-
-static int
-acquiredrain(struct lock *lkp, int extflags) {
-	int error;
-	int lock_wait;
-
-	if ((extflags & LK_NOWAIT) && (lkp->lk_flags & LK_ALL)) {
-		return EBUSY;
-	}
-
-	error = apause(lkp, LK_ALL);
-	if (error == 0)
-		return 0;
-
-	while (lkp->lk_flags & LK_ALL) {
-		lkp->lk_flags |= LK_WAITDRAIN;
-		simple_unlock(&lkp->lk_interlock);
-		error = tsleep(&lkp->lk_flags, lkp->lk_prio,
-			lkp->lk_wmesg, lkp->lk_timo);
-		simple_lock(&lkp->lk_interlock);
-		if (error)
-			return error;
-		if (extflags & LK_SLEEPFAIL) {
-			return ENOLCK;
-		}
-	}
-	return 0;
-}
-
-/*
- * Initialize a lock; required before use.
- */
-void
-lockinit(lkp, prio, wmesg, timo, flags)
-	struct lock *lkp;
-	int prio;
-	char *wmesg;
-	int timo;
-	int flags;
-{
-
-	simple_lock_init(&lkp->lk_interlock);
-	lkp->lk_flags = (flags & LK_EXTFLG_MASK);
-	lkp->lk_sharecount = 0;
-	lkp->lk_waitcount = 0;
-	lkp->lk_exclusivecount = 0;
-	lkp->lk_prio = prio;
-	lkp->lk_wmesg = wmesg;
-	lkp->lk_timo = timo;
-	lkp->lk_lockholder = LK_NOPROC;
-}
-
-/*
- * Determine the status of a lock.
- */
-int
-lockstatus(lkp)
-	struct lock *lkp;
-{
-	int lock_type = 0;
-
-	simple_lock(&lkp->lk_interlock);
-	if (lkp->lk_exclusivecount != 0)
-		lock_type = LK_EXCLUSIVE;
-	else if (lkp->lk_sharecount != 0)
-		lock_type = LK_SHARED;
-	simple_unlock(&lkp->lk_interlock);
-	return (lock_type);
 }
 
 /*
@@ -439,6 +378,75 @@ lockmgr(lkp, flags, interlkp, p)
 	}
 	simple_unlock(&lkp->lk_interlock);
 	return (error);
+}
+
+static int
+acquiredrain(struct lock *lkp, int extflags) {
+	int error;
+	int lock_wait;
+
+	if ((extflags & LK_NOWAIT) && (lkp->lk_flags & LK_ALL)) {
+		return EBUSY;
+	}
+
+	error = apause(lkp, LK_ALL);
+	if (error == 0)
+		return 0;
+
+	while (lkp->lk_flags & LK_ALL) {
+		lkp->lk_flags |= LK_WAITDRAIN;
+		simple_unlock(&lkp->lk_interlock);
+		error = tsleep(&lkp->lk_flags, lkp->lk_prio,
+			lkp->lk_wmesg, lkp->lk_timo);
+		simple_lock(&lkp->lk_interlock);
+		if (error)
+			return error;
+		if (extflags & LK_SLEEPFAIL) {
+			return ENOLCK;
+		}
+	}
+	return 0;
+}
+
+/*
+ * Initialize a lock; required before use.
+ */
+void
+lockinit(lkp, prio, wmesg, timo, flags)
+	struct lock *lkp;
+	int prio;
+	char *wmesg;
+	int timo;
+	int flags;
+{
+
+	simple_lock_init(&lkp->lk_interlock);
+	lkp->lk_flags = (flags & LK_EXTFLG_MASK);
+	lkp->lk_sharecount = 0;
+	lkp->lk_waitcount = 0;
+	lkp->lk_exclusivecount = 0;
+	lkp->lk_prio = prio;
+	lkp->lk_wmesg = wmesg;
+	lkp->lk_timo = timo;
+	lkp->lk_lockholder = LK_NOPROC;
+}
+
+/*
+ * Determine the status of a lock.
+ */
+int
+lockstatus(lkp)
+	struct lock *lkp;
+{
+	int lock_type = 0;
+
+	simple_lock(&lkp->lk_interlock);
+	if (lkp->lk_exclusivecount != 0)
+		lock_type = LK_EXCLUSIVE;
+	else if (lkp->lk_sharecount != 0)
+		lock_type = LK_SHARED;
+	simple_unlock(&lkp->lk_interlock);
+	return (lock_type);
 }
 
 /*

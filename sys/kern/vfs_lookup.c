@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_lookup.c	8.4 (Berkeley) 2/16/94
- * $Id: vfs_lookup.c,v 1.18 1997/04/04 17:47:43 dfr Exp $
+ * $Id: vfs_lookup.c,v 1.19 1997/09/02 20:06:01 bde Exp $
  */
 
 #include "opt_ktrace.h"
@@ -103,7 +103,7 @@ namei(ndp)
 	 * name into the buffer.
 	 */
 	if ((cnp->cn_flags & HASBUF) == 0)
-		MALLOC(cnp->cn_pnbuf, caddr_t, MAXPATHLEN, M_NAMEI, M_WAITOK);
+		cnp->cn_pnbuf = zalloc(namei_zone);
 	if (ndp->ni_segflg == UIO_SYSSPACE)
 		error = copystr(ndp->ni_dirp, cnp->cn_pnbuf,
 			    MAXPATHLEN, (u_int *)&ndp->ni_pathlen);
@@ -118,7 +118,7 @@ namei(ndp)
 		error = ENOENT;
 
 	if (error) {
-		free(cnp->cn_pnbuf, M_NAMEI);
+		zfree(namei_zone, cnp->cn_pnbuf);
 		ndp->ni_vp = NULL;
 		return (error);
 	}
@@ -153,7 +153,7 @@ namei(ndp)
 		ndp->ni_startdir = dp;
 		error = lookup(ndp);
 		if (error) {
-			FREE(cnp->cn_pnbuf, M_NAMEI);
+			zfree(namei_zone, cnp->cn_pnbuf);
 			return (error);
 		}
 		/*
@@ -161,7 +161,7 @@ namei(ndp)
 		 */
 		if ((cnp->cn_flags & ISSYMLINK) == 0) {
 			if ((cnp->cn_flags & (SAVENAME | SAVESTART)) == 0)
-				FREE(cnp->cn_pnbuf, M_NAMEI);
+				zfree(namei_zone, cnp->cn_pnbuf);
 			else
 				cnp->cn_flags |= HASBUF;
 			return (0);
@@ -173,7 +173,7 @@ namei(ndp)
 			break;
 		}
 		if (ndp->ni_pathlen > 1)
-			MALLOC(cp, char *, MAXPATHLEN, M_NAMEI, M_WAITOK);
+			cp = zalloc(namei_zone);
 		else
 			cp = cnp->cn_pnbuf;
 		aiov.iov_base = cp;
@@ -188,19 +188,19 @@ namei(ndp)
 		error = VOP_READLINK(ndp->ni_vp, &auio, cnp->cn_cred);
 		if (error) {
 			if (ndp->ni_pathlen > 1)
-				free(cp, M_NAMEI);
+				zfree(namei_zone, cp);
 			break;
 		}
 		linklen = MAXPATHLEN - auio.uio_resid;
 		if (linklen + ndp->ni_pathlen >= MAXPATHLEN) {
 			if (ndp->ni_pathlen > 1)
-				free(cp, M_NAMEI);
+				zfree(namei_zone, cp);
 			error = ENAMETOOLONG;
 			break;
 		}
 		if (ndp->ni_pathlen > 1) {
 			bcopy(ndp->ni_next, cp + linklen, ndp->ni_pathlen);
-			FREE(cnp->cn_pnbuf, M_NAMEI);
+			zfree(namei_zone, cnp->cn_pnbuf);
 			cnp->cn_pnbuf = cp;
 		} else
 			cnp->cn_pnbuf[linklen] = '\0';
@@ -208,7 +208,7 @@ namei(ndp)
 		vput(ndp->ni_vp);
 		dp = ndp->ni_dvp;
 	}
-	FREE(cnp->cn_pnbuf, M_NAMEI);
+	zfree(namei_zone, cnp->cn_pnbuf);
 	vrele(ndp->ni_dvp);
 	vput(ndp->ni_vp);
 	ndp->ni_vp = NULL;

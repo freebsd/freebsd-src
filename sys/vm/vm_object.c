@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.96 1997/09/01 02:55:48 bde Exp $
+ * $Id: vm_object.c,v 1.97 1997/09/01 03:17:22 bde Exp $
  */
 
 /*
@@ -89,6 +89,7 @@
 #include <vm/swap_pager.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_extern.h>
+#include <vm/vm_zone.h>
 
 static void	vm_object_qcollapse __P((vm_object_t object));
 #ifdef not_used
@@ -138,6 +139,10 @@ extern int vm_pageout_page_count;
 static long object_collapses;
 static long object_bypasses;
 static int next_index;
+static vm_zone_t obj_zone;
+static struct vm_zone obj_zone_store;
+#define VM_OBJECTS_INIT 256
+struct vm_object vm_objects_init[VM_OBJECTS_INIT];
 
 void
 _vm_object_allocate(type, size, object)
@@ -145,6 +150,7 @@ _vm_object_allocate(type, size, object)
 	vm_size_t size;
 	register vm_object_t object;
 {
+	int incr;
 	TAILQ_INIT(&object->memq);
 	TAILQ_INIT(&object->shadow_head);
 
@@ -157,7 +163,11 @@ _vm_object_allocate(type, size, object)
 	object->resident_page_count = 0;
 	object->shadow_count = 0;
 	object->pg_color = next_index;
-	next_index = (next_index + PQ_PRIME1) & PQ_L2_MASK;
+	if ( size > (PQ_L2_SIZE / 3 + PQ_PRIME1))
+		incr = PQ_L2_SIZE / 3 + PQ_PRIME1;
+	else
+		incr = size;
+	next_index = (next_index + incr) & PQ_L2_MASK;
 	object->handle = NULL;
 	object->paging_offset = (vm_ooffset_t) 0;
 	object->backing_object = NULL;
@@ -194,6 +204,15 @@ vm_object_init()
 	kmem_object = &kmem_object_store;
 	_vm_object_allocate(OBJT_DEFAULT, OFF_TO_IDX(VM_MAX_KERNEL_ADDRESS - VM_MIN_KERNEL_ADDRESS),
 	    kmem_object);
+
+	obj_zone = &obj_zone_store;
+	zbootinit(obj_zone, "VM OBJECT", sizeof (struct vm_object),
+		vm_objects_init, VM_OBJECTS_INIT);
+}
+
+void
+vm_object_init2() {
+	zinitna(obj_zone, NULL, NULL, 0, 0, 0, 4);
 }
 
 /*
@@ -208,10 +227,7 @@ vm_object_allocate(type, size)
 	vm_size_t size;
 {
 	register vm_object_t result;
-
-	result = (vm_object_t)
-	    malloc((u_long) sizeof *result, M_VMOBJ, M_WAITOK);
-
+	result = (vm_object_t) zalloc(obj_zone);
 
 	_vm_object_allocate(type, size, result);
 
@@ -429,7 +445,7 @@ vm_object_terminate(object)
 	/*
 	 * Free the space for the object.
 	 */
-	free((caddr_t) object, M_VMOBJ);
+	zfree(obj_zone, object);
 }
 
 /*
@@ -1102,7 +1118,7 @@ vm_object_collapse(object)
 			    object_list);
 			vm_object_count--;
 
-			free((caddr_t) backing_object, M_VMOBJ);
+			zfree(obj_zone, backing_object);
 
 			object_collapses++;
 		} else {
