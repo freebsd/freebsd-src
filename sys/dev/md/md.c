@@ -168,6 +168,7 @@ struct md_s {
 
 	/* MD_SWAP related fields */
 	vm_object_t object;
+	unsigned npage;
 };
 
 static int mddestroy(struct md_s *sc, struct thread *td);
@@ -520,20 +521,34 @@ static int
 mdstart_swap(struct md_s *sc, struct bio *bp)
 {
 	{
-		int i, o, rv;
+		int i, rv;
+		int offs, len, lastp, lastend;
 		vm_page_t m;
 		u_char *p;
 		vm_offset_t kva;
 
 		p = bp->bio_data;
-		o = bp->bio_offset / sc->secsize;
+
+		/*
+		 * offs is the ofset at whih to start operating on the
+		 * next (ie, first) page.  lastp is the last page on
+		 * which we're going to operate.  lastend is the ending
+		 * position within that last page (ie, PAGE_SIZE if
+		 * we're operating on complete aligned pages).
+		 */
+		offs = bp->bio_offset % PAGE_SIZE;
+		lastp = (bp->bio_offset + bp->bio_length - 1) / PAGE_SIZE;
+		lastend = (bp->bio_offset + bp->bio_length - 1) % PAGE_SIZE + 1;
+
 		mtx_lock(&Giant);
-		kva = kmem_alloc_nofault(kernel_map, sc->secsize);
-		
+		kva = kmem_alloc_nofault(kernel_map, PAGE_SIZE);
+
 		VM_OBJECT_LOCK(sc->object);
 		vm_object_pip_add(sc->object, 1);
-		for (i = 0; i < bp->bio_length / sc->secsize; i++) {
-			m = vm_page_grab(sc->object, i + o,
+		for (i = bp->bio_offset / PAGE_SIZE; i <= lastp; i++) {
+			len = ((i == lastp) ? lastend : PAGE_SIZE) - offs;
+
+			m = vm_page_grab(sc->object, i,
 			    VM_ALLOC_NORMAL|VM_ALLOC_RETRY);
 			pmap_qenter(kva, &m, 1);
 			if (bp->bio_cmd == BIO_READ) {
@@ -541,13 +556,23 @@ mdstart_swap(struct md_s *sc, struct bio *bp)
 					rv = vm_pager_get_pages(sc->object,
 					    &m, 1, 0);
 				}
-				bcopy((void *)kva, p, sc->secsize);
+				bcopy((void *)(kva + offs), p, len);
 			} else if (bp->bio_cmd == BIO_WRITE) {
-				bcopy(p, (void *)kva, sc->secsize);
+				if (len != PAGE_SIZE && m->valid !=
+				    VM_PAGE_BITS_ALL) {
+					rv = vm_pager_get_pages(sc->object,
+					    &m, 1, 0);
+				}
+				bcopy(p, (void *)(kva + offs), len);
 				m->valid = VM_PAGE_BITS_ALL;
 #if 0
 			} else if (bp->bio_cmd == BIO_DELETE) {
-				bzero((void *)kva, sc->secsize);
+				if (len != PAGE_SIZE && m->valid !=
+				    VM_PAGE_BITS_ALL) {
+					rv = vm_pager_get_pages(sc->object,
+					    &m, 1, 0);
+				}
+				bzero((void *)(kva + offs), len);
 				vm_page_dirty(m);
 				m->valid = VM_PAGE_BITS_ALL;
 #endif
@@ -560,12 +585,15 @@ mdstart_swap(struct md_s *sc, struct bio *bp)
 				vm_page_dirty(m);
 			}
 			vm_page_unlock_queues();
-			p += sc->secsize;
+
+			/* Actions on further pages start at offset 0 */
+			p += PAGE_SIZE - offs;
+			offs = 0;
 #if 0
-if (bootverbose || o < 17)
+if (bootverbose || bp->bio_offset / PAGE_SIZE < 17)
 printf("wire_count %d busy %d flags %x hold_count %d act_count %d queue %d valid %d dirty %d @ %d\n",
     m->wire_count, m->busy, 
-    m->flags, m->hold_count, m->act_count, m->queue, m->valid, m->dirty, o + i);
+    m->flags, m->hold_count, m->act_count, m->queue, m->valid, m->dirty, i);
 #endif
 		}
 		vm_object_pip_subtract(sc->object, 1);
@@ -1013,18 +1041,20 @@ mdcreate_swap(struct md_ioctl *mdio, struct thread *td)
 	/*
 	 * Allocate an OBJT_SWAP object.
 	 *
-	 * sc_secsize is PAGE_SIZE'd
+	 * sc_nsect is in units of DEV_BSIZE.
+	 * sc_npage is in units of PAGE_SIZE.
 	 *
-	 * mdio->size is in DEV_BSIZE'd chunks.
 	 * Note the truncation.
 	 */
 
-	sc->secsize = PAGE_SIZE;
-	sc->nsect = mdio->md_size / (PAGE_SIZE / DEV_BSIZE);
-	sc->object = vm_pager_allocate(OBJT_SWAP, NULL, sc->secsize * (vm_offset_t)sc->nsect, VM_PROT_DEFAULT, 0);
+	sc->secsize = DEV_BSIZE;
+	sc->npage = mdio->md_size / (PAGE_SIZE / DEV_BSIZE);
+	sc->nsect = sc->npage * (PAGE_SIZE / DEV_BSIZE);
+	sc->object = vm_pager_allocate(OBJT_SWAP, NULL, PAGE_SIZE * 
+	    (vm_offset_t)sc->npage, VM_PROT_DEFAULT, 0);
 	sc->flags = mdio->md_options & MD_FORCE;
 	if (mdio->md_options & MD_RESERVE) {
-		if (swap_pager_reserve(sc->object, 0, sc->nsect) < 0) {
+		if (swap_pager_reserve(sc->object, 0, sc->npage) < 0) {
 			vm_object_deallocate(sc->object);
 			sc->object = NULL;
 			mddestroy(sc, td);
@@ -1122,7 +1152,7 @@ mdctlioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 			mdio->md_base = (uint64_t)(intptr_t)sc->pl_ptr;
 			break;
 		case MD_SWAP:
-			mdio->md_size = sc->nsect * (PAGE_SIZE / DEV_BSIZE);
+			mdio->md_size = sc->nsect;
 			break;
 		case MD_VNODE:
 			mdio->md_size = sc->nsect;
