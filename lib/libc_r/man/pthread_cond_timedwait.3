@@ -65,9 +65,10 @@ will fail if:
 .Bl -tag -width Er
 .It Bq Er EINVAL
 The value specified by
-.Fa cond
-or the value specified by
-.Fa attr
+.Fa cond ,
+.Fa mutex
+or
+.Fa abstime
 is invalid.
 .It Bq Er ETIMEDOUT
 The system time has reached or exceeded the time specified in
