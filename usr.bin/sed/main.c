@@ -36,17 +36,22 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1992, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)main.c	8.2 (Berkeley) 1/3/94";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/types.h>
 
+#include <err.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <locale.h>
@@ -101,6 +106,7 @@ int lastline;			/* TRUE on the last line of the last file */
 
 static void add_compunit __P((enum e_cut, char *));
 static void add_file __P((char *));
+static void usage __P((void));
 
 int
 main(argc, argv)
@@ -130,9 +136,7 @@ main(argc, argv)
 			break;
 		default:
 		case '?':
-			(void)fprintf(stderr,
-"usage:\tsed script [-an] [file ...]\n\tsed [-an] [-e script] ... [-f script_file] ... [file ...]\n");
-			exit(1);
+			usage();
 		}
 	argc -= optind;
 	argv += optind;
@@ -154,8 +158,17 @@ main(argc, argv)
 	process();
 	cfclose(prog, NULL);
 	if (fclose(stdout))
-		err(FATAL, "stdout: %s", strerror(errno));
+		err(1, "stdout");
 	exit (0);
+}
+
+static void
+usage()
+{
+	(void)fprintf(stderr, "%s\n%s\n",
+		"usage: sed script [-an] [file ...]",
+		"       sed [-an] [-e script] ... [-f script_file] ... [file ...]");
+	exit(1);
 }
 
 /*
@@ -182,8 +195,7 @@ again:
 		switch (script->type) {
 		case CU_FILE:
 			if ((f = fopen(script->s, "r")) == NULL)
-				err(FATAL,
-				    "%s: %s", script->s, strerror(errno));
+				err(1, "%s", script->s);
 			fname = script->s;
 			state = ST_FILE;
 			goto again;
@@ -243,6 +255,7 @@ again:
 		}
 	}
 	/* NOTREACHED */
+	return (NULL);
 }
 
 /*
@@ -272,8 +285,7 @@ mf_fgets(sp, spflag)
 			} else {
 				fname = files->fname;
 				if ((f = fopen(fname, "r")) == NULL)
-					err(FATAL, "%s: %s",
-					    fname, strerror(errno));
+					err(1, "%s", fname);
 			}
 			if ((c = getc(f)) != EOF) {
 				(void)ungetc(c, f);
@@ -295,7 +307,7 @@ mf_fgets(sp, spflag)
 	 */
 	p = fgetln(f, &len);
 	if (ferror(f))
-		err(FATAL, "%s: %s", fname, strerror(errno ? errno : EIO));
+		errx(1, "%s: %s", fname, strerror(errno ? errno : EIO));
 	cspace(sp, p, len, spflag);
 
 	linenum++;
@@ -313,7 +325,7 @@ mf_fgets(sp, spflag)
 		} else {
 			fname = files->fname;
 			if ((f = fopen(fname, "r")) == NULL)
-				err(FATAL, "%s: %s", fname, strerror(errno));
+				err(1, "%s", fname);
 		}
 	}
 	(void)ungetc(c, f);
