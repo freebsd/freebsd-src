@@ -101,12 +101,12 @@ static const char rcsid[] =
 #define	DEFDATALEN	(64 - PHDR_LEN)	/* default data length */
 #define	FLOOD_BACKOFF	20000		/* usecs to back off if F_FLOOD mode */
 					/* runs out of buffer space */
-#define	MAXIPLEN	60
-#define	MAXICMPLEN	76
-#define	MAXPACKET	(65536 - 60 - 8)/* max packet size */
+#define	MAXIPLEN	(sizeof(struct ip) + MAX_IPOPTLEN)
+#define	MAXICMPLEN	(ICMP_ADVLENMIN + MAX_IPOPTLEN)
+#define	MINICMPLEN	ICMP_MINLEN
+#define	MAXPAYLOAD	(IP_MAXPACKET - MAXIPLEN - MINICMPLEN)
 #define	MAXWAIT		10		/* max seconds to wait for response */
 #define	MAXALARM	(60 * 60)	/* max seconds for alarm timeout */
-#define	NROUTES		9		/* number of record route slots */
 
 #define	A(bit)		rcvd_tbl[(bit)>>3]	/* identify byte in array */
 #define	B(bit)		(1 << ((bit) & 0x07))	/* identify bit in byte */
@@ -150,7 +150,7 @@ char rcvd_tbl[MAX_DUP_CHK / 8];
 struct sockaddr_in whereto;	/* who to ping */
 int datalen = DEFDATALEN;
 int s;				/* socket file descriptor */
-u_char outpack[MAXPACKET];
+u_char outpack[MINICMPLEN + MAXPAYLOAD];
 char BSPACE = '\b';		/* characters written for flood */
 char BBELL = '\a';		/* characters written for MISSED and AUDIBLE */
 char DOT = '.';
@@ -208,7 +208,7 @@ main(argc, argv)
 	struct hostent *hp;
 	struct sockaddr_in *to;
 	double t;
-	u_char *datap, *packet;
+	u_char *datap, packet[IP_MAXPACKET];
 	char *ep, *source, *target;
 #ifdef IPSEC_POLICY_IPSEC
 	char *policy_in, *policy_out;
@@ -218,7 +218,7 @@ main(argc, argv)
 	char ctrl[CMSG_SPACE(sizeof(struct timeval))];
 	char hnamebuf[MAXHOSTNAMELEN], snamebuf[MAXHOSTNAMELEN];
 #ifdef IP_OPTIONS
-	char rspace[3 + 4 * NROUTES + 1];	/* record route space */
+	char rspace[MAX_IPOPTLEN];	/* record route space */
 #endif
 	unsigned char mttl, loop;
 
@@ -240,7 +240,7 @@ main(argc, argv)
 
 	alarmtimeout = preload = 0;
 
-	datap = &outpack[8 + PHDR_LEN];
+	datap = &outpack[MINICMPLEN + PHDR_LEN];
 	while ((ch = getopt(argc, argv,
 		"AI:LQRS:T:c:adfi:l:m:np:qrs:t:v"
 #ifdef IPSEC
@@ -342,10 +342,11 @@ main(argc, argv)
 				err(EX_NOPERM, "-s flag");
 			}
 			ultmp = strtoul(optarg, &ep, 0);
-			if (ultmp > MAXPACKET)
-				errx(EX_USAGE, "packet size too large: %lu",
-				    ultmp);
-			if (*ep || ep == optarg || !ultmp)
+			if (ultmp > MAXPAYLOAD)
+				errx(EX_USAGE,
+				    "packet size too large: %lu > %u",
+				    ultmp, MAXPAYLOAD);
+			if (*ep || ep == optarg)
 				errx(EX_USAGE, "invalid packet size: `%s'",
 				    optarg);
 			datalen = ultmp;
@@ -408,7 +409,8 @@ main(argc, argv)
 				    source, hstrerror(h_errno));
 
 			sin.sin_len = sizeof sin;
-			if (hp->h_length > sizeof(sin.sin_addr))
+			if (hp->h_length > sizeof(sin.sin_addr) ||
+			    hp->h_length < 0)
 				errx(1, "gethostbyname2: illegal address");
 			memcpy(&sin.sin_addr, hp->h_addr_list[0],
 			    sizeof(sin.sin_addr));
@@ -454,9 +456,8 @@ main(argc, argv)
 
 	if (datalen >= PHDR_LEN)	/* can we time transfer */
 		timing = 1;
-	packlen = datalen + MAXIPLEN + MAXICMPLEN;
-	if (!(packet = (u_char *)malloc((size_t)packlen)))
-		err(EX_UNAVAILABLE, "malloc");
+	packlen = MAXIPLEN + MAXICMPLEN + datalen;
+	packlen = packlen > IP_MAXPACKET ? IP_MAXPACKET : packlen;
 
 	if (!(options & F_PINGFILLED))
 		for (i = PHDR_LEN; i < datalen; ++i)
@@ -559,7 +560,12 @@ main(argc, argv)
 	 * /etc/ethers.  But beware: RFC 1122 allows hosts to ignore broadcast
 	 * or multicast pings if they wish.
 	 */
-	hold = 48 * 1024;
+
+	/*
+	 * XXX receive buffer needs undetermined space for mbuf overhead
+	 * as well.
+	 */
+	hold = IP_MAXPACKET + 128;
 	(void)setsockopt(s, SOL_SOCKET, SO_RCVBUF, (char *)&hold,
 	    sizeof(hold));
 
@@ -738,9 +744,9 @@ stopit(sig)
  * pinger --
  *	Compose and transmit an ICMP ECHO REQUEST packet.  The IP packet
  * will be added on by the kernel.  The ID field is our UNIX process ID,
- * and the sequence number is an ascending integer.  The first 8 bytes
- * of the data portion are used to hold a UNIX "timeval" struct in host
- * byte-order, to compute the round-trip time.
+ * and the sequence number is an ascending integer.  The first PHDR_LEN
+ * bytes of the data portion are used to hold a UNIX "timeval" struct in
+ * host byte-order, to compute the round-trip time.
  */
 static void
 pinger(void)
@@ -758,10 +764,10 @@ pinger(void)
 	CLR(ntransmitted % mx_dup_ck);
 
 	if (timing)
-		(void)gettimeofday((struct timeval *)&outpack[8],
+		(void)gettimeofday((struct timeval *)&outpack[MINICMPLEN],
 		    (struct timezone *)NULL);
 
-	cc = datalen + PHDR_LEN;		/* skips ICMP portion */
+	cc = MINICMPLEN + datalen;
 
 	/* compute ICMP checksum here */
 	icp->icmp_cksum = in_cksum((u_short *)icp, cc);
@@ -877,7 +883,7 @@ pr_pack(buf, cc, from, tv)
 				(void)write(STDOUT_FILENO, &BBELL, 1);
 			/* check the data */
 			cp = (u_char*)&icp->icmp_data[PHDR_LEN];
-			dp = &outpack[8 + PHDR_LEN];
+			dp = &outpack[MINICMPLEN + PHDR_LEN];
 			for (i = PHDR_LEN; i < datalen; ++i, ++cp, ++dp) {
 				if (*cp != *dp) {
 	(void)printf("\nwrong data byte #%d should be 0x%x but was 0x%x",
@@ -890,7 +896,7 @@ pr_pack(buf, cc, from, tv)
 						(void)printf("%x ", *cp);
 					}
 					(void)printf("\ndp:");
-					cp = &outpack[8];
+					cp = &outpack[MINICMPLEN];
 					for (i = 0; i < datalen; ++i, ++cp) {
 						if ((i % 32) == 8)
 							(void)printf("\n\t");
@@ -1403,7 +1409,7 @@ fill(bp, patp)
 {
 	char *cp;
 	int pat[16];
-	int ii, jj, kk;
+	u_int ii, jj, kk;
 
 	for (cp = patp; *cp; cp++) {
 		if (!isxdigit(*cp))
@@ -1418,9 +1424,7 @@ fill(bp, patp)
 	    &pat[13], &pat[14], &pat[15]);
 
 	if (ii > 0)
-		for (kk = 0;
-		    kk <= MAXPACKET - (8 + PHDR_LEN + ii);
-		    kk += ii)
+		for (kk = 0; kk <= MAXPAYLOAD - (PHDR_LEN + ii); kk += ii)
 			for (jj = 0; jj < ii; ++jj)
 				bp[jj + kk] = pat[jj];
 	if (!(options & F_QUIET)) {
