@@ -11,7 +11,7 @@ SUBDIR= arpa protocols rpcsvc rpc
 INCS=	a.out.h ar.h assert.h bitstring.h complex.h cpio.h ctype.h db.h \
 	dirent.h \
 	dlfcn.h elf.h elf-hints.h err.h fnmatch.h fmtmsg.h fstab.h \
-	fts.h glob.h grp.h \
+	fts.h getopt.h glob.h grp.h \
 	hesiod.h histedit.h ieeefp.h ifaddrs.h inttypes.h iso646.h kenv.h \
 	langinfo.h \
 	libgen.h limits.h link.h locale.h malloc.h memory.h monetary.h mpool.h \
