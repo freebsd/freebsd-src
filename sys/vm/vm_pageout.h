@@ -79,6 +79,7 @@ extern int vm_page_max_wired;
 extern int vm_pages_needed;	/* should be some "event" structure */
 extern int vm_pageout_pages_needed;
 extern int vm_pageout_deficit;
+extern int vm_pageout_page_count;
 
 /*
  * Swap out requests
