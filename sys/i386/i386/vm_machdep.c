@@ -38,7 +38,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.116 1999/01/29 08:36:42 dillon Exp $
+ *	$Id: vm_machdep.c,v 1.117 1999/02/08 00:37:35 dillon Exp $
  */
 
 #include "npx.h"
@@ -586,6 +586,10 @@ SYSCTL_INT(_vm_stats_misc, OID_AUTO,
  * Implement the pre-zeroed page mechanism.
  * This routine is called from the idle loop.
  */
+
+#define ZIDLE_LO(v)	((v) * 2 / 3)
+#define ZIDLE_HI(v)	((v) * 4 / 5)
+
 int
 vm_page_zero_idle()
 {
@@ -603,9 +607,9 @@ vm_page_zero_idle()
 	 * pages because doing so may flush our L1 and L2 caches too much.
 	 */
 
-	if (zero_state && vm_page_zero_count >= cnt.v_free_count / 3)
+	if (zero_state && vm_page_zero_count >= ZIDLE_LO(cnt.v_free_count))
 		return(0);
-	if (vm_page_zero_count >= cnt.v_free_count / 2)
+	if (vm_page_zero_count >= ZIDLE_HI(cnt.v_free_count))
 		return(0);
 
 #ifdef SMP
@@ -635,7 +639,7 @@ vm_page_zero_idle()
 			    pageq);
 			++vm_page_zero_count;
 			++cnt_prezero;
-			if (vm_page_zero_count >= cnt.v_free_count / 2)
+			if (vm_page_zero_count >= ZIDLE_HI(cnt.v_free_count))
 				zero_state = 1;
 		}
 		free_rover = (free_rover + PQ_PRIME3) & PQ_L2_MASK;
