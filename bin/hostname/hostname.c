@@ -83,8 +83,11 @@ main(int argc, char *argv[])
 	} else {
 		if (gethostname(hostname, (int)sizeof(hostname)))
 			err(1, "gethostname");
-		if (sflag && (p = strchr(hostname, '.')))
-			*p = '\0';
+		if (sflag) {
+			p = strchr(hostname, '.');
+			if (p != NULL)
+				*p = '\0';
+		}
 		(void)printf("%s\n", hostname);
 	}
 	exit(0);
