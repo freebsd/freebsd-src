@@ -665,9 +665,9 @@ unisig_vc_act06(usp, uvp, msg)
 		uvp->uv_vci = vci;
 	} else {
 		/*
-		 * No--VPI/VCI must have been specified earlier
+		 * No--VCI must have been specified earlier
 		 */
-		if (!uvp->uv_vpi || !uvp->uv_vci) {
+		if (!uvp->uv_vci) {
 			iep = (struct ie_generic *)atm_allocate(
 					&unisig_iepool);
 			if (!iep)
