@@ -178,3 +178,4 @@ static struct vfsops linprocfs_vfsops = {
 };
 
 VFS_SET(linprocfs_vfsops, linprocfs, VFCF_SYNTHETIC);
+MODULE_DEPEND(linprocfs, procfs, 1, 1, 1);
