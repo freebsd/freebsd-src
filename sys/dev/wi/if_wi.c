@@ -100,8 +100,13 @@
 
 #include <net/bpf.h>
 
+#include <dev/pccard/pccardvar.h>
+#include <dev/pccard/pccarddevs.h>
+
 #include <dev/wi/if_wavelan_ieee.h>
 #include <dev/wi/if_wireg.h>
+
+#include "card_if.h"
 
 #if !defined(lint)
 static const char rcsid[] =
@@ -143,6 +148,7 @@ void wi_cache_store __P((struct wi_softc *, struct ether_header *,
 	struct mbuf *, unsigned short));
 #endif
 
+static int wi_pccard_match	__P((device_t));
 static int wi_pccard_probe	__P((device_t));
 static int wi_pccard_attach	__P((device_t));
 static int wi_pccard_detach	__P((device_t));
@@ -153,10 +159,15 @@ static void wi_free		__P((device_t));
 
 static device_method_t wi_pccard_methods[] = {
 	/* Device interface */
-	DEVMETHOD(device_probe,		wi_pccard_probe),
-	DEVMETHOD(device_attach,	wi_pccard_attach),
+	DEVMETHOD(device_probe,		pccard_compat_probe),
+	DEVMETHOD(device_attach,	pccard_compat_attach),
 	DEVMETHOD(device_detach,	wi_pccard_detach),
 	DEVMETHOD(device_shutdown,	wi_shutdown),
+
+	/* Card interface */
+	DEVMETHOD(card_compat_match,	wi_pccard_match),
+	DEVMETHOD(card_compat_probe,	wi_pccard_probe),
+	DEVMETHOD(card_compat_attach,	wi_pccard_attach),
 
 	{ 0, 0 }
 };
@@ -170,6 +181,25 @@ static driver_t wi_pccard_driver = {
 static devclass_t wi_pccard_devclass;
 
 DRIVER_MODULE(if_wi, pccard, wi_pccard_driver, wi_pccard_devclass, 0, 0);
+
+static const struct pccard_product wi_pccard_products[] = {
+	{ PCCARD_STR_LUCENT_WAVELAN_IEEE,	PCCARD_VENDOR_LUCENT,
+	  PCCARD_PRODUCT_LUCENT_WAVELAN_IEEE,	0, NULL, NULL },
+	{ NULL }
+};
+
+static int wi_pccard_match(dev)
+	device_t	dev;
+{
+	const struct pccard_product *pp;
+
+	if ((pp = pccard_product_lookup(dev, wi_pccard_products,
+	    sizeof(wi_pccard_products[0]), NULL)) != NULL) {
+		device_set_desc(dev, pp->pp_name);
+		return 0;
+	}
+	return ENXIO;
+}
 
 static int wi_pccard_probe(dev)
 	device_t	dev;
