@@ -694,7 +694,7 @@ network_pass3() {
 			fi
 			;;
 		*)
-			case ${single_mountd_enable} in
+			case ${mountd_enable} in
 			[Yy][Ee][Ss])
 				if [ -r /etc/exports ]; then
 					echo -n ' mountd'
