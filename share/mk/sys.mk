@@ -109,6 +109,7 @@ YFLAGS		?=	-d
 MACHINE_ARCH	?=	i386
 
 .if defined(%POSIX)
+
 # Posix 1003.2 mandated rules
 #
 # Quoted directly from the Posix 1003.2 draft, only the macros
@@ -252,15 +253,16 @@ MACHINE_ARCH	?=	i386
 	${CC} ${CFLAGS} ${LDFLAGS} ${.PREFIX}.tmp.c ${LDLIBS} -ll -o ${.TARGET}
 	rm -f ${.PREFIX}.tmp.c
 
-.endif
-
+# FreeBSD build pollution.  Hide it in the non-POSIX part of the ifdef.
 __MAKE_CONF?=/etc/make.conf
 .if exists(${__MAKE_CONF})
 .include "${__MAKE_CONF}"
 .endif
 
-.include <bsd.cpu.mk>
-
 # Default executable format
 # XXX hint for bsd.port.mk
 OBJFORMAT?=	elf
+
+.endif
+
+.include <bsd.cpu.mk>
