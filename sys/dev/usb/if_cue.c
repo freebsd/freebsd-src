@@ -491,10 +491,10 @@ USB_ATTACH(cue)
 			sc->cue_ed[CUE_ENDPT_INTR] = ed->bEndpointAddress;
 		}
 	}
-#ifdef foo
+
+#ifdef notdef
 	/* Reset the adapter. */
 	cue_reset(sc);
-	printf("reset...\n");
 #endif
 	/*
 	 * Get station address.
@@ -795,10 +795,8 @@ static void cue_txeof(xfer, priv, status)
 		}
 		printf("cue%d: usb error on tx: %s\n", sc->cue_unit,
 		    usbd_errstr(status));
-#ifdef foo
 		if (status == USBD_STALLED)
 			usbd_clear_endpoint_stall(sc->cue_ep[CUE_ENDPT_TX]);
-#endif
 		splx(s);
 		return;
 	}
@@ -872,9 +870,7 @@ static int cue_encap(sc, m, idx)
 	c->cue_mbuf = m;
 
 	total_len = m->m_pkthdr.len + 2;
-#ifdef foo
-	total_len += 64 - (total_len % 64);
-#endif
+
 	/* The first two bytes are the frame length */
 	c->cue_buf[0] = (u_int8_t)m->m_pkthdr.len;
 	c->cue_buf[1] = (u_int8_t)(m->m_pkthdr.len >> 8);
