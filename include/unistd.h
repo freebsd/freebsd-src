@@ -199,6 +199,7 @@ int	 usleep __P((unsigned int));
 void	*valloc __P((size_t));			/* obsoleted by malloc() */
 pid_t	 vfork __P((void));
 
+extern optreset;			/* getopt(3) external variable */
 extern char *suboptarg;			/* getsubopt(3) external variable */
 int	 getsubopt __P((char **, char * const *, char **));
 #endif /* !_POSIX_SOURCE */
