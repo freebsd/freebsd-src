@@ -57,6 +57,8 @@ main(int argc, char **argv)
 	int	ch, error, fd, oflags;
 	char   *fname, *rname;
 
+	rsize = tsize = 0;
+	rname = NULL;
 	error = 0;
 	while ((ch = getopt(argc, argv, "cr:s:")) != -1)
 		switch (ch) {
