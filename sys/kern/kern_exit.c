@@ -133,7 +133,7 @@ exit1(td, rv)
 	GIANT_REQUIRED;
 
 	p = td->td_proc;
-	if (p->p_pid == 1) {
+	if (p == initproc) {
 		printf("init died (signal %d, exit %d)\n",
 		    WTERMSIG(rv), WEXITSTATUS(rv));
 		panic("Going nowhere without my init!");
