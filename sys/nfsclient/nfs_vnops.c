@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vnops.c	8.5 (Berkeley) 2/13/94
- * $Id: nfs_vnops.c,v 1.30 1995/11/21 15:51:39 bde Exp $
+ * $Id: nfs_vnops.c,v 1.31 1995/12/07 12:47:29 davidg Exp $
  */
 
 /*
@@ -2447,7 +2447,6 @@ nfsmout:
 	}
 	return (error);
 }
-static char hextoasc[] = "0123456789abcdef";
 
 /*
  * Silly rename. To make the NFS filesystem that is stateless look a little
@@ -2481,12 +2480,7 @@ nfs_sillyrename(dvp, vp, cnp)
 
 	/* Fudge together a funny name */
 	pid = cnp->cn_proc->p_pid;
-	bcopy(".nfsAxxxx4.4", sp->s_name, 13);
-	sp->s_namlen = 12;
-	sp->s_name[8] = hextoasc[pid & 0xf];
-	sp->s_name[7] = hextoasc[(pid >> 4) & 0xf];
-	sp->s_name[6] = hextoasc[(pid >> 8) & 0xf];
-	sp->s_name[5] = hextoasc[(pid >> 12) & 0xf];
+	sp->s_namelen = sprintf(sp->s_name, ".nfsA%04x4.4", pid);
 
 	/* Try lookitups until we get one that isn't there */
 	while (nfs_lookitup(dvp, sp->s_name, sp->s_namlen, sp->s_cred,

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if.c	8.3 (Berkeley) 1/4/94
- * $Id: if.c,v 1.24 1995/12/09 20:47:08 phk Exp $
+ * $Id: if.c,v 1.25 1995/12/20 21:53:38 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -62,7 +62,6 @@ static void ifinit __P((void *));
 static void if_qflush __P((struct ifqueue *));
 static void if_slowtimo __P((void *));
 static void link_rtrequest __P((int, struct rtentry *, struct sockaddr *));
-static char *sprint_d __P((u_int, char *, int));
 
 SYSINIT(interfaces, SI_SUB_PROTO_IF, SI_ORDER_FIRST, ifinit, NULL)
 
@@ -104,8 +103,8 @@ if_attach(ifp)
 	struct ifnet *ifp;
 {
 	unsigned socksize, ifasize;
-	int namelen, unitlen, masklen;
-	char workbuf[12], *unitname;
+	int namelen, masklen;
+	char workbuf[64];
 	register struct ifnet **p = &ifnet;
 	register struct sockaddr_dl *sdl;
 	register struct ifaddr *ifa;
@@ -130,12 +129,9 @@ if_attach(ifp)
 	/*
 	 * create a Link Level name for this device
 	 */
-	unitname = sprint_d((u_int)ifp->if_unit, workbuf, sizeof(workbuf));
-	namelen = strlen(ifp->if_name);
-	unitlen = strlen(unitname);
+	namelen = sprintf(workbuf, "%s%d", ifp->if_name, ifp->if_unit);
 #define _offsetof(t, m) ((int)((caddr_t)&((t *)0)->m))
-	masklen = _offsetof(struct sockaddr_dl, sdl_data[0]) +
-			       unitlen + namelen;
+	masklen = _offsetof(struct sockaddr_dl, sdl_data[0]) + namelen;
 	socksize = masklen + ifp->if_addrlen;
 #define ROUNDUP(a) (1 + (((a) - 1) | (sizeof(long) - 1)))
 	socksize = ROUNDUP(socksize);
@@ -148,9 +144,8 @@ if_attach(ifp)
 		sdl = (struct sockaddr_dl *)(ifa + 1);
 		sdl->sdl_len = socksize;
 		sdl->sdl_family = AF_LINK;
-		bcopy(ifp->if_name, sdl->sdl_data, namelen);
-		bcopy(unitname, namelen + (caddr_t)sdl->sdl_data, unitlen);
-		sdl->sdl_nlen = (namelen += unitlen);
+		bcopy(workbuf, sdl->sdl_data, namelen);
+		sdl->sdl_nlen = namelen;
 		sdl->sdl_index = ifp->if_index;
 		sdl->sdl_type = ifp->if_type;
 		ifnet_addrs[if_index - 1] = ifa;
@@ -159,6 +154,7 @@ if_attach(ifp)
 		ifa->ifa_rtrequest = link_rtrequest;
 		ifp->if_addrlist = ifa;
 		ifa->ifa_addr = (struct sockaddr *)sdl;
+
 		sdl = (struct sockaddr_dl *)(socksize + (caddr_t)sdl);
 		ifa->ifa_netmask = (struct sockaddr *)sdl;
 		sdl->sdl_len = masklen;
@@ -681,17 +677,14 @@ ifconf(cmd, data)
 
 	ifrp = ifc->ifc_req;
 	for (; space > sizeof (ifr) && ifp; ifp = ifp->if_next) {
-		char workbuf[12], *unitname;
-		int unitlen, ifnlen;
+		char workbuf[64];
+		int ifnlen;
 
-		unitname = sprint_d(ifp->if_unit, workbuf, sizeof workbuf);
-		unitlen = strlen(unitname);
-		ifnlen = strlen(ifp->if_name);
-		if(unitlen + ifnlen + 1 > sizeof ifr.ifr_name) {
+		ifnlen = sprintf(workbuf, "%s%d", ifp->if_name, ifp->if_unit);
+		if(ifnlen + 1 > sizeof ifr.ifr_name) {
 			error = ENAMETOOLONG;
 		} else {
-			strcpy(ifr.ifr_name, ifp->if_name);
-			strcpy(&ifr.ifr_name[ifnlen], unitname);
+			strcpy(ifr.ifr_name, workbuf);
 		}
 
 		if ((ifa = ifp->if_addrlist) == 0) {
@@ -739,23 +732,6 @@ ifconf(cmd, data)
 	}
 	ifc->ifc_len -= space;
 	return (error);
-}
-
-static char *
-sprint_d(n, buf, buflen)
-	u_int n;
-	char *buf;
-	int buflen;
-{
-	register char *cp = buf + buflen - 1;
-
-	*cp = 0;
-	do {
-		cp--;
-		*cp = "0123456789"[n % 10];
-		n /= 10;
-	} while (n != 0);
-	return (cp);
 }
 
 SYSCTL_NODE(_net, PF_LINK, link, CTLFLAG_RW, 0, "Link layers");

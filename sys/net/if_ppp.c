@@ -69,7 +69,7 @@
  * Paul Mackerras (paulus@cs.anu.edu.au).
  */
 
-/* $Id: if_ppp.c,v 1.28 1995/11/13 22:09:39 peter Exp $ */
+/* $Id: if_ppp.c,v 1.29 1995/12/14 09:53:13 phk Exp $ */
 /* from if_ppp.c,v 1.5 1995/08/16 01:36:38 paulus Exp */
 /* from if_sl.c,v 1.11 84/10/04 12:54:47 rick Exp */
 
@@ -1413,7 +1413,6 @@ pppdumpm(m0)
     char buf[3*MAX_DUMP_BYTES+4];
     char *bp = buf;
     struct mbuf *m;
-    static char digits[] = "0123456789abcdef";
 
     for (m = m0; m; m = m->m_next) {
 	int l = m->m_len;
@@ -1422,8 +1421,8 @@ pppdumpm(m0)
 	while (l--) {
 	    if (bp > buf + sizeof(buf) - 4)
 		goto done;
-	    *bp++ = digits[*rptr >> 4]; /* convert byte to ascii hex */
-	    *bp++ = digits[*rptr++ & 0xf];
+	    *bp++ = hex2ascii(*rptr >> 4);
+	    *bp++ = hex2ascii(*rptr++ & 0xf);
 	}
 
 	if (m->m_next) {
