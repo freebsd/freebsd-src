@@ -37,13 +37,14 @@ static const char copyright[] =
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
-#ifndef lint
 #if 0
+#ifndef lint
 static char sccsid[] = "@(#)uuencode.c	8.2 (Berkeley) 4/2/94";
-#endif
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* not lint */
+#endif
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * uuencode [input] output
@@ -57,6 +58,7 @@ static const char rcsid[] =
 #include <netinet/in.h>
 
 #include <err.h>
+#include <libgen.h>
 #include <resolv.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -72,9 +74,7 @@ int mode;
 char **av;
 
 int
-main(argc, argv)
-	int argc;
-	char *argv[];
+main(int argc, char *argv[])
 {
 	struct stat sb;
 	int base64;
@@ -83,6 +83,9 @@ main(argc, argv)
 
 	base64 = 0;
 	outfile = NULL;
+
+	if (strcmp(basename(argv[0]), "b64encode") == 0)
+		base64 = 1;
 
 	while ((ch = getopt(argc, argv, "mo:")) != -1) {
 		switch (ch) {
@@ -141,7 +144,7 @@ main(argc, argv)
  * Copy from in to out, encoding in base64 as you go along.
  */
 void
-base64_encode()
+base64_encode(void)
 {
 	/*
 	 * Output must fit into 80 columns, chunks come in 4, leave 1.
@@ -171,7 +174,7 @@ base64_encode()
  * Copy from in to out, encoding as you go along.
  */
 void
-encode()
+encode(void)
 {
 	register int ch, n;
 	register char *p;
@@ -215,8 +218,10 @@ encode()
 }
 
 static void
-usage()
+usage(void)
 {
-	(void)fprintf(stderr,"usage: uuencode [-m] [-o outfile] [infile] remotefile\n");
+	(void)fprintf(stderr,
+"usage: uuencode [-m] [-o outfile] [infile] remotefile\n"
+"       b64encode [-o outfile] [infile] remotefile\n");
 	exit(1);
 }
