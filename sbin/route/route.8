@@ -313,6 +313,16 @@ or
 .Fl ifa
 modifiers may be used to determine the interface or interface address.
 .Pp
+The optional
+.Fl proxy
+modifier specifies that the
+.Dv RTF_LLINFO
+routing table entry is the
+.Dq published Pq proxy-only
+.Tn ARP
+entry, as reported by
+.Xr arp 8 .
+.Pp
 All symbolic names specified for a
 .Ar destination
 or 
@@ -325,11 +335,9 @@ is then used to interpret the name as that of a network.
 .Pp
 .Nm Route
 uses a routing socket and the new message types
-RTM_ADD,
-RTM_DELETE,
-RTM_GET,
+.Dv RTM_ADD , RTM_DELETE , RTM_GET ,
 and
-RTM_CHANGE.
+.Dv RTM_CHANGE .
 As such, only the super-user may modify
 the routing tables.
 .Sh DIAGNOSTICS
@@ -377,6 +385,7 @@ utility exits 0 on success or >0 if an error occurred.
 .Xr netintro 4 ,
 .Xr route 4 ,
 .Xr IPXrouted 8 ,
+.Xr arp 8 ,
 .Xr routed 8
 .\" .Xr XNSrouted 8
 .\" Xr esis 4 ,
