@@ -1169,6 +1169,7 @@ ng_ksocket_check_accept(priv_p priv)
 		head->so_error = 0;
 		return error;
 	}
+	/* Unlocked read. */
 	if (TAILQ_EMPTY(&head->so_comp)) {
 		if (head->so_state & SS_CANTRCVMORE)
 			return ECONNABORTED;
@@ -1194,19 +1195,21 @@ ng_ksocket_finish_accept(priv_p priv)
 	int len;
 	int error;
 
+	ACCEPT_LOCK();
 	so = TAILQ_FIRST(&head->so_comp);
-	if (so == NULL)		/* Should never happen */
+	if (so == NULL) {	/* Should never happen */
+		ACCEPT_UNLOCK();
 		return;
+	}
 	TAILQ_REMOVE(&head->so_comp, so, so_list);
 	head->so_qlen--;
+	so->so_qstate &= ~SQ_COMP;
+	so->so_head = NULL;
+	soref(so);
+	so->so_state |= SS_NBIO;
+	ACCEPT_UNLOCK();
 
 	/* XXX KNOTE(&head->so_rcv.sb_sel.si_note, 0); */
-
-	soref(so);
-
-	so->so_qstate &= ~SQ_COMP;
-	so->so_state |= SS_NBIO;
-	so->so_head = NULL;
 
 	soaccept(so, &sa);
 
