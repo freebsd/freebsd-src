@@ -4,4 +4,5 @@ stty crt erase  kill  intr 
 export PATH
 HOME=/root
 export HOME
+TERM=pc3
 export TERM
