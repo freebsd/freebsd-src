@@ -80,9 +80,9 @@
 .Ft int
 .Fn archive_read_open "struct archive *" "void *client_data" "archive_open_archive_callback *" "archive_read_archive_callback *" "archive_close_archive_callback *"
 .Ft int
-.Fn archive_read_open_fd "struct archive *" "int fd"
+.Fn archive_read_open_fd "struct archive *" "int fd" "size_t block_size"
 .Ft int
-.Fn archive_read_open_file "struct archive *" "const char *filename"
+.Fn archive_read_open_file "struct archive *" "const char *filename" "size_t block_size"
 .Ft int
 .Fn archive_read_next_header "struct archive *" "struct archive_entry **"
 .Ft ssize_t
@@ -96,7 +96,7 @@
 .Ft int
 .Fn archive_read_data_into_fd "struct archive *" "int fd"
 .Ft int
-.Fn archive_read_extract "struct archive *" "int flags"
+.Fn archive_read_extract "struct archive *" "struct archive_entry *" "int flags"
 .Ft void
 .Fn archive_read_extract_set_progress_callback "struct archive *" "void (*func)(void *)" "void *user_data"
 .Ft int
@@ -146,7 +146,12 @@ Note that there is no default.
 Freeze the settings, open the archive, and prepare for reading entries.
 This is the most generic version of this call, which accepts
 three callback functions.
-The library invokes these client-provided functions to obtain
+Most clients will want to use
+.Fn archive_read_open_file
+or
+.Fn archive_read_open_fd
+instead.
+The library invokes the client-provided functions to obtain
 raw bytes from the archive.
 Note: The API permits a decompression method to fork and invoke the
 callbacks from another process.
@@ -159,14 +164,14 @@ communicate between the open/read/close callbacks and the mainline code.
 .It Fn archive_read_open_fd
 Like
 .Fn archive_read_open ,
-except that it accepts a file descriptor rather than
+except that it accepts a file descriptor and block size rather than
 a trio of function pointers.
 Note that the file descriptor will not be automatically closed at
 end-of-archive.
 .It Fn archive_read_open_file
 Like
 .Fn archive_read_open ,
-except that it accepts a simple filename.
+except that it accepts a simple filename and a block size.
 A NULL filename represents standard input.
 .It Fn archive_read_next_header
 Read the header for the next entry and return a pointer to
@@ -188,6 +193,9 @@ function avoids copying data and allows you to correctly handle
 sparse files, as supported by some archive formats.
 The library gaurantees that offsets will increase and that blocks
 will not overlap.
+Note that the blocks returned from this function can be much larger
+than the block size read from disk, due to compression
+and internal buffer optimizations.
 .It Fn archive_read_data_skip
 A convenience function that repeatedly calls
 .Fn archive_read_data_block
@@ -204,6 +212,10 @@ to copy the entire entry to the provided file descriptor.
 .It Fn archive_read_extract
 A convenience function that recreates the specified object on
 disk and reads the entry data into that object.
+The filename, permissions, and other critical information
+are taken from the provided
+.Va archive_entry
+object.
 The
 .Va flags
 argument modifies how the object is recreated.
@@ -227,7 +239,20 @@ Existing files on disk will be unlinked and recreated from scratch.
 By default, existing files are truncated and rewritten, but
 the file is not recreated.
 In particular, the default behavior does not break existing hard links.
+.It Cm ARCHIVE_EXTRACT_ACL
+Attempt to restore ACLs.
+By default, extended ACLs are ignored.
+.It Cm ARCHIVE_EXTRACT_FFLAGS
+Attempt to restore extended file flags.
+By default, file flags are ignored.
 .El
+Note that not all attributes are set immediately;
+some attributes are cached in memory and written to disk only
+when the archive is closed.
+(For example, read-only directories are initially created
+writable so that files within those directories can be
+restored.
+The final permissions are set when the archive is closed.)
 .It Fn archive_read_extract_set_progress_callback
 Sets a pointer to a user-defined callback that can be used
 for updating progress displays during extraction.
