@@ -140,7 +140,9 @@ iicbus_attach(device_t dev)
 #endif
   
 	/* attach any known device */
-	device_add_child(dev, NULL, -1);
+	device_add_child(dev, "ic", -1);
+	device_add_child(dev, "iic", -1);
+	device_add_child(dev, "iicsmb", -1);
 
 	bus_generic_attach(dev);
          
