@@ -1283,7 +1283,8 @@ scstart(struct tty *tp)
     u_char buf[PCBURST];
     scr_stat *scp = SC_STAT(tp->t_dev);
 
-    if (scp->status & SLKED || scp->sc->blink_in_progress)
+    if (scp->status & SLKED ||
+	(scp == scp->sc->cur_scp && scp->sc->blink_in_progress))
 	return;
     s = spltty();
     if (!(tp->t_state & (TS_TIMEOUT | TS_BUSY | TS_TTSTOP))) {
