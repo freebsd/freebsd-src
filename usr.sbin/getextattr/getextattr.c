@@ -46,8 +46,10 @@
 #include <libutil.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 #include <vis.h>
+#include <err.h>
 
 #define BUFSIZE	2048
 
@@ -67,7 +69,7 @@ main(int argc, char *argv[])
 {
 	size_t	 len;
 	char	*attrname;
-	char	*buf, *visbuf;
+	char	*buf, *visbuf, *p, *pe;
 	int	 ch, error, i, arg_counter, attrnamespace;
 
 	int	flag_as_string = 0;
@@ -93,10 +95,8 @@ main(int argc, char *argv[])
 		usage();
 
 	error = extattr_string_to_namespace(argv[0], &attrnamespace);
-	if (error) {
-		perror(argv[0]);
-		return (-1);
-	}
+	if (error)
+		err(-1, argv[0]);
 	attrname = argv[1];
 
 	argc--;
@@ -121,36 +121,54 @@ main(int argc, char *argv[])
 		}
 		error = extattr_get_file(argv[arg_counter], attrnamespace,
 		    attrname, buf, BUFSIZE);
-		if (error == -1)
+		if (error == -1) {
 			perror(argv[arg_counter]);
-		else {
-			if (flag_as_string) {
+			free(buf);
+			continue;
+		}
+		len = error;
+		if (strlen(attrname) == 0) {	/* looking for EA names */
+			visbuf = (char *)malloc(len*4);
+			p = buf;
+			pe = buf + len;
+			printf("%s:", argv[arg_counter]);
+			for (p = buf; p < pe; p += i + 1) {
+				i = *p;
+				strvisx(visbuf, p + 1, i,
+				    VIS_SAFE | VIS_WHITE);
+				printf(" \"%s\", visbuf);
+			}
+			free(visbuf);
+			printf("\n");
+		} else if (flag_as_string) {
+			if (len > 0) {
 				visbuf = (char *)malloc(len*4);
 				if (visbuf == NULL) {
 					perror("malloc");
 					return (-1);
 				}
-				strvisx(visbuf, buf, error, VIS_SAFE
-				    | VIS_WHITE);
-				if (flag_reverse) {
-					printf("%s ", visbuf);
-					printf("%s\n", argv[arg_counter]);
-				} else {
-					printf("%s:", argv[arg_counter]);
-					printf(" \"%s\"\n", visbuf);
-				}
-				free(visbuf);
+				strvisx(visbuf, buf, len, VIS_SAFE | VIS_WHITE);
+			} else {
+				visbuf = strdup("");
+			}
+			if (flag_reverse) {
+				printf("\"%s\" ", visbuf);
+				printf("%s\n", argv[arg_counter]);
 			} else {
 				printf("%s:", argv[arg_counter]);
-				for (i = 0; i < error; i++)
-					if (i % 16 == 0)
-						printf("\n  %02x ", buf[i]);
-					else if (i % 8 == 0)
-						printf("   %02x ", buf[i]);
-					else
-						printf("%02x ", buf[i]);
-				printf("\n");
+				printf(" \"%s\"\n", visbuf);
 			}
+			free(visbuf);
+		} else {
+			printf("%s:", argv[arg_counter]);
+			for (i = 0; i < len; i++)
+				if (i % 16 == 0)
+					printf("\n  %02x ", buf[i]);
+				else if (i % 8 == 0)
+					printf("   %02x ", buf[i]);
+				else
+					printf("%02x ", buf[i]);
+			printf("\n");
 		}
 		free(buf);
 	}
