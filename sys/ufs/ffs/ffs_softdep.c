@@ -1127,7 +1127,7 @@ softdep_initialize()
 
 	LIST_INIT(&mkdirlisthd);
 	LIST_INIT(&softdep_workitem_pending);
-	max_softdeps = desiredvnodes * 8;
+	max_softdeps = desiredvnodes * 4;
 	pagedep_hashtbl = hashinit(desiredvnodes / 5, M_PAGEDEP,
 	    &pagedep_hash);
 	sema_init(&pagedep_in_progress, "pagedep", PRIBIO, 0);
