@@ -82,7 +82,7 @@ Some drives may use a non-standard, vendor-specific encoding scheme for
 the timer value.
 In such a case the driver will log a message to that effect
 (timer value is vendor-specific);
-consult the drive's documentation for the value to use in the 
+consult the drive's documentation for the value to use in the
 tunable parameter.
 .El
 .Sh DESCRIPTION
@@ -178,9 +178,9 @@ at a later time when the system is up and running, see
 .Xr atacontrol 8 .
 .Pp
 The driver attempts to set the maximum performance transfer mode on your disk
-drives by selecting the highest possible DMA mode. However the 
+drives by selecting the highest possible DMA mode. However the
 .Nm
-driver sometimes issue the message 
+driver sometimes issue the message
 "DMA limited to UDMA33, non-ATA66 cable or device",
 if the cable is ATA66 (or above) compliant, it is because the other device
 on this channel states it can only accept upto UDMA2/ATA33 signals.

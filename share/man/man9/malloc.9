@@ -152,7 +152,7 @@ rather then block.
 Note that
 .Dv M_WAITOK
 is defined to be 0, meaning that blocking operation is the default.
-Also note that 
+Also note that
 .Dv M_NOWAIT
 is required when running in an interrupt context.
 .It Dv M_ASLEEP
@@ -232,7 +232,7 @@ MALLOC(buf, struct foo_buf *, sizeof *buf, M_FOOBUF, M_NOWAIT);
 .Fn malloc ,
 .Fn realloc ,
 and
-.Fn reallocf 
+.Fn reallocf
 return a kernel virtual address that is suitably aligned for storage of
 any type of object, or
 .Dv NULL
