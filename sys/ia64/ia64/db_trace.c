@@ -63,23 +63,38 @@ db_stack_trace_cmd(db_expr_t addr, boolean_t have_addr, db_expr_t count, char *m
 		db_expr_t	offset;
 		c_db_sym_t	sym;
 		u_int64_t	ar_pfs;
-
-		sym = db_search_symbol(callpc, DB_STGY_ANY, &offset);
-		db_symbol_values(sym, &name, NULL);
-
-		db_printf("%s() at ", name);
-		db_printsym(callpc, DB_STGY_PROC);
-		db_printf("\n");
+		u_int64_t	newpc;
+		int		newsof, newsol, i;
 
 		/*
 		 * XXX this assumes the simplistic stack frames used
 		 * by the old toolchain.
 		 */
 		ar_pfs = *db_rse_register_address(bsp, 32 + sol - 1);
-		callpc = *db_rse_register_address(bsp, 32 + sol - 2);
-		sof = ar_pfs & 0x7f;
-		sol = (ar_pfs >> 7) & 0x7f;
-		bsp = db_rse_previous_frame(bsp, sol);
+		newpc = *db_rse_register_address(bsp, 32 + sol - 2);
+		newsof = ar_pfs & 0x7f;
+		newsol = (ar_pfs >> 7) & 0x7f;
+
+		sym = db_search_symbol(callpc, DB_STGY_ANY, &offset);
+		db_symbol_values(sym, &name, NULL);
+
+		db_printf("%s(", name);
+
+		for (i = 0; i < newsof - newsol; i++) {
+			if (i > 0)
+				db_printf(", ");
+			db_printf("0x%lx",
+				  *db_rse_register_address(bsp, 32 + i));
+		}
+		db_printf(") at ");
+
+		db_printsym(callpc, DB_STGY_PROC);
+		db_printf("\n");
+
+		bsp = db_rse_previous_frame(bsp, newsol);
+		callpc = newpc;
+		sol = newsol;
+		sof = newsof;
 		if (!callpc)
 			break;
 	}
