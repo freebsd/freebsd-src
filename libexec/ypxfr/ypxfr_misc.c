@@ -29,8 +29,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ypxfr_misc.c,v 1.8 1996/06/02 05:12:00 wpaul Exp $
+ *	$Id: ypxfr_misc.c,v 1.9 1996/10/25 15:58:15 wpaul Exp $
  */
+#include <stdio.h>
+#include <string.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <sys/param.h>
@@ -41,7 +43,7 @@ struct dom_binding {};
 #include "ypxfr_extern.h"
 
 #ifndef lint
-static const char rcsid[] = "$Id: ypxfr_misc.c,v 1.8 1996/06/02 05:12:00 wpaul Exp $";
+static const char rcsid[] = "$Id: ypxfr_misc.c,v 1.9 1996/10/25 15:58:15 wpaul Exp $";
 #endif
 
 char *ypxfrerr_string(code)
@@ -256,4 +258,48 @@ failed"));
 		}
 		return(resp->ordernum);
 	}
+}
+
+int ypxfr_match(server, domain, map, key, keylen)
+	char *server;
+	char *domain;
+	char *map;
+	char *key;
+	unsigned long keylen;
+{
+	ypreq_key ypkey;
+	ypresp_val *ypval;
+	CLIENT *clnt;
+	static char buf[YPMAXRECORD + 2];
+
+	bzero((char *)buf, sizeof(buf));
+
+	if ((clnt = clnt_create(server, YPPROG,YPVERS,"udp")) == NULL) {
+		yp_error("failed to create UDP handle: %s",
+					clnt_spcreateerror(server));
+		return(0);
+	}
+
+	ypkey.domain = domain;
+	ypkey.map = map;
+	ypkey.key.keydat_len = keylen;
+	ypkey.key.keydat_val = key;
+
+	if ((ypval = ypproc_match_2(&ypkey, clnt)) == NULL) {
+		clnt_destroy(clnt);
+		yp_error("%s: %s", server,
+				clnt_sperror(clnt,"YPPROC_MATCH failed"));
+		return(0);
+	}
+
+	clnt_destroy(clnt);
+
+	if (ypval->stat != YP_TRUE) {
+		xdr_free(xdr_ypresp_val, (char *)ypval);
+		return(0);
+	}
+
+	xdr_free(xdr_ypresp_val, (char *)ypval);
+
+	return(1);
 }
