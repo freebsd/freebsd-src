@@ -1,9 +1,12 @@
-/* $Id: linux_genassym.c,v 1.4 1997/02/22 09:38:21 peter Exp $ */
+/* $Id: linux_genassym.c,v 1.5 1997/07/20 16:05:56 bde Exp $ */
+
 #include <stdio.h>
+
 #include <sys/param.h>
+
 #include <i386/linux/linux.h>
 
-extern int	main __P((void));
+int	main __P((void));
 
 int
 main()
