@@ -60,7 +60,16 @@ extern int snaplen;
 extern const u_char *packetp;
 extern const u_char *snapend;
 
-#define TCHECK2(var, l) if ((u_char *)&(var) > snapend - (l)) goto trunc
+/* True if  "l" bytes of "var" were captured */
+#define TTEST2(var, l) ((u_char *)&(var) <= snapend - (l))
+
+/* True if "var" was captured */
+#define TTEST(var) TTEST2(var, sizeof(var))
+
+/* Bail if "l" bytes of "var" were not captured */
+#define TCHECK2(var, l) if (!TTEST2(var, l)) goto trunc
+
+/* Bail if "var" was not captured */
 #define TCHECK(var) TCHECK2(var, sizeof(var))
 
 #ifdef __STDC__
