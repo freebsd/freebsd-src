@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id:$";
+	"$Id: btxld.c,v 1.1.1.1 1998/09/12 06:49:48 rnordier Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -100,6 +100,8 @@ static unsigned format; 	/* Output format */
 static uint32_t centry; 	/* Client entry address */
 static uint32_t lentry; 	/* Loader entry address */
 
+static int Eflag;		/* Client entry option */
+
 static int quiet;		/* Inhibit warnings */
 static int verbose;		/* Display information */
 
@@ -142,6 +144,7 @@ main(int argc, char *argv[])
 	    break;
 	case 'E':
 	    centry = optaddr(optarg);
+	    Eflag = 1;
 	    break;
 	case 'e':
 	    lentry = optaddr(optarg);
@@ -239,6 +242,7 @@ btxld(const char *iname)
 	    cwr++;
     }
     btx.btx_pgctl -= cwr;
+    btx.btx_entry = Eflag ? centry : ihdr.entry;
     if (snprintf(name, sizeof(name), "%s.tmp", oname) >= sizeof(name))
 	errx(2, "%s: Filename too long", oname);
     if ((fdo = open(name, O_CREAT | O_TRUNC | O_WRONLY, 0666)) == -1)
