@@ -182,7 +182,7 @@ thr_create(struct thread *td, struct thr_create_args *uap)
 
 	TD_SET_CAN_RUN(td0);
 	if ((uap->flags & THR_SUSPENDED) == 0)
-		setrunqueue(td0);
+		setrunqueue(td0, SRQ_BORING);
 
 	mtx_unlock_spin(&sched_lock);
 

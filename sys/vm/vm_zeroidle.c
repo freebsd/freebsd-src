@@ -187,7 +187,7 @@ pagezero_start(void __unused *arg)
 	pagezero_proc->p_flag |= P_NOLOAD;
 	PROC_UNLOCK(pagezero_proc);
 	mtx_lock_spin(&sched_lock);
-	setrunqueue(FIRST_THREAD_IN_PROC(pagezero_proc));
+	setrunqueue(FIRST_THREAD_IN_PROC(pagezero_proc), SRQ_BORING);
 	mtx_unlock_spin(&sched_lock);
 }
 SYSINIT(pagezero, SI_SUB_KTHREAD_VM, SI_ORDER_ANY, pagezero_start, NULL)

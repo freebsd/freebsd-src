@@ -716,6 +716,12 @@ struct proc {
 #define	SW_VOL		0x0001		/* Voluntary switch. */
 #define	SW_INVOL	0x0002		/* Involuntary switch. */
 
+/* flags for setrunqueue(). Why are we setting this thread on the run queue? */
+#define SRQ_BORING	0x0000		/* No special circumstances */
+#define SRQ_YIELDING	0x0001		/* we are yielding (from mi_switch) */
+#define SRQ_OURSELF	0x0002		/* it is ourself (from mi_switch) */
+#define SRQ_INTR	0x0004		/* it is probably urgent */
+
 /* How values for thread_single(). */
 #define	SINGLE_NO_EXIT	0
 #define	SINGLE_EXIT	1
@@ -905,7 +911,7 @@ void	proc_reparent(struct proc *child, struct proc *newparent);
 int	securelevel_ge(struct ucred *cr, int level);
 int	securelevel_gt(struct ucred *cr, int level);
 void	setrunnable(struct thread *);
-void	setrunqueue(struct thread *);
+void	setrunqueue(struct thread *, int flags);
 void	setsugid(struct proc *p);
 int	sigonstack(size_t sp);
 void	sleepinit(void);
