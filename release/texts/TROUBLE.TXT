@@ -263,16 +263,6 @@ A: This problem may occur in a system with a 3com 3c509 Ethernet adaptor.
    successfully boot FreeBSD.
 
 
-Q: My system hangs during boot, right after the "fd0: [my floppy drive]"
-   line.
-
-A: This is not actually a hang, simply a very LONG "wdc0" probe that
-   often takes a long time to complete on certain systems (where there
-   usually _isn't_ a WD controller).  Be patient, your system will boot!
-   To eliminate the problem, boot with the -c flag and eliminate the wdc0
-   device, or compile a custom kernel.
-
-
 Q: My system can not find my Intel EtherExpress 16 card.
 
 A: You must set your Intel EtherExpress 16 card to be memory mapped at
