@@ -1604,7 +1604,6 @@ endxfer() {
 					break;
 
 				case XFER_SUCCESSIXFR:
-					zp->z_flags |= Z_XFER_RUNNING;
 					zp->z_xferpid = XFER_ISIXFR;
 					ns_notice(ns_log_default,
 						  "IXFR Success %s",

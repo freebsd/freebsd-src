@@ -1452,8 +1452,6 @@ free_rrecp(ns_updque *updlist, int rcode, struct sockaddr_in from) {
 		rrecp->r_deldp = NULL;
 		while (dp != NULL) {
 			tmpdp = dp;
-			DRCNTDEC(tmpdp);
-			tmpdp->d_next = NULL;
 			dp = dp->d_next;
 			tmpdp->d_next = NULL;
 			if (rcode != NOERROR) {
@@ -1469,8 +1467,6 @@ free_rrecp(ns_updque *updlist, int rcode, struct sockaddr_in from) {
 				      "free_rrecp: added back databuf 0x%0x",
 						 tmpdp);
 				}
-				if (tmpdp->d_rcnt == 0)
-					db_freedata(tmpdp);
 			}
 			DRCNTDEC(tmpdp);
 			if (tmpdp->d_rcnt == 0)
