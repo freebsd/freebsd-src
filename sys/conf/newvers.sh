@@ -32,7 +32,7 @@
 # SUCH DAMAGE.
 #
 #	@(#)newvers.sh	8.1 (Berkeley) 4/20/94
-#	$Id: newvers.sh,v 1.22 1995/11/10 21:52:59 joerg Exp $
+#	$Id: newvers.sh,v 1.23 1996/07/12 11:21:57 peter Exp $
 
 TYPE="FreeBSD"
 REVISION="2.2"
@@ -46,6 +46,33 @@ VERSION="${TYPE} ${RELEASE}"
 
 RELDATE="199608"
 
+b=share/examples/etc/bsd-style-copyright
+year=`date '+%Y'`
+# look for copyright template
+for bsd_copyright in ../$b ../../$b ../../../$b /usr/src/$b /usr/$b
+do
+	if [ -r "$bsd_copyright" ]; then
+		COPYRIGHT=`sed -e "s/\[year\]/$year/" \
+			-e 's/\[your name here\]\. /FreeBSD Inc./' \
+			-e 's/\[your name\]/FreeBSD Inc./' $bsd_copyright`
+		break
+	fi
+done
+
+# no copyright found, use a dummy
+if [ X"$COPYRIGHT" = X ]; then
+	COPYRIGHT="/*
+ * Copyright (C) $year
+ *	FreeBSD Inc. All rights reserved.
+ *
+ */"
+fi
+
+# add newline
+COPYRIGHT="$COPYRIGHT
+
+"
+
 LC_TIME=; export LC_TIME
 if [ ! -r version ]
 then
@@ -54,7 +81,9 @@ fi
 
 touch version
 v=`cat version` u=${USER-root} d=`pwd` h=`hostname` t=`date`
-echo "char ostype[] = \"${TYPE}\";" > vers.c
+cat /dev/null > vers.c
+echo "$COPYRIGHT" >> vers.c
+echo "char ostype[] = \"${TYPE}\";" >> vers.c
 echo "char osrelease[] = \"${RELEASE}\";" >> vers.c
 echo "int osreldate = ${RELDATE};" >> vers.c
 echo "char sccs[4] = { '@', '(', '#', ')' };" >>vers.c
