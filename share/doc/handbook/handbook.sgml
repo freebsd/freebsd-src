@@ -1,4 +1,4 @@
-<!-- $Id: handbook.sgml,v 1.40 1996/02/11 00:16:14 jkh Exp $ -->
+<!-- $Id: handbook.sgml,v 1.41 1996/02/27 15:57:45 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!DOCTYPE linuxdoc PUBLIC "-//FreeBSD//DTD linuxdoc//EN" [
@@ -84,6 +84,8 @@ Web server">.
       &firewalls;
 
     &printing;
+
+    &quotas;
     <chapt><heading>The X-Window System</heading>
        <p>Pending the completion of this section, please refer to
          documentation supplied by the <url url="http://www.xfree86.org/"
