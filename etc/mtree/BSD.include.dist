@@ -11,6 +11,10 @@
         scsi
         ..
     ..
+    dev
+        usb
+        ..
+    ..
     g++
         std
         ..
