@@ -75,6 +75,7 @@
 #include <sys/mutex.h>
 #include <sys/pcpu.h>
 #include <sys/vmmeter.h>
+#include <sys/proc.h>
 
 #include <machine/frame.h>
 #include <machine/interruptvar.h>
@@ -89,18 +90,51 @@ static int	intr_initialized = 0;
 
 static u_int		intr_nirq;
 static struct		intr_handler *intr_handlers;
-static u_long		*intr_stray_count;
 
 static struct		mtx intr_table_lock;
 
 extern int	extint, extsize;
 extern u_long	extint_call;
 
+static int 		intrcnt_index;
 static ih_func_t	intr_stray_handler;
 static ih_func_t	sched_ithd;
 
 static void		(*irq_enable)(uintptr_t);
 static void		(*irq_disable)(uintptr_t);
+
+static void intrcnt_setname(const char *name, int index);
+static void intrcnt_updatename(struct intr_handler *ih);
+
+static void
+intrcnt_setname(const char *name, int index)
+{
+	snprintf(intrnames + (MAXCOMLEN + 1) * index, MAXCOMLEN + 1, "%-*s",
+	    MAXCOMLEN, name);
+}
+
+static void
+intrcnt_updatename(struct intr_handler *ih)
+{
+	intrcnt_setname(ih->ih_ithd->it_td->td_proc->p_comm, ih->ih_index);
+}
+
+static void
+intrcnt_register(struct intr_handler *ih)
+{
+	char straystr[MAXCOMLEN + 1];
+
+	KASSERT(ih->ih_ithd != NULL,
+		("%s: intr_handler with no ithread", __func__));
+
+	ih->ih_index = intrcnt_index;
+	intrcnt_index += 2;
+	snprintf(straystr, MAXCOMLEN + 1, "stray irq%d", ih->ih_irq);
+	intrcnt_updatename(ih);
+	ih->ih_count = &intrcnt[ih->ih_index];
+	intrcnt_setname(straystr, ih->ih_index + 1);
+	ih->ih_straycount = &intrcnt[ih->ih_index + 1];
+}
 
 void
 intr_init(void (*handler)(void), int nirq, void (*irq_e)(uintptr_t),
@@ -119,17 +153,18 @@ intr_init(void (*handler)(void), int nirq, void (*irq_e)(uintptr_t),
 	    M_NOWAIT|M_ZERO);
 	if (intr_handlers == NULL)
 		panic("intr_init: unable to allocate interrupt handler array");
-	intr_stray_count = malloc(nirq * sizeof(u_long), M_INTR,
-	    M_NOWAIT|M_ZERO);
-	if (intr_stray_count == NULL)
-		panic("intr_init: unable to allocate interrupt stray array");
 
 	for (i = 0; i < nirq; i++) {
 		intr_handlers[i].ih_func = intr_stray_handler;
 		intr_handlers[i].ih_arg = &intr_handlers[i];
 		intr_handlers[i].ih_irq = i;
 		intr_handlers[i].ih_flags = 0;
+		/* mux all initial stray irqs onto same count... */
+		intr_handlers[i].ih_straycount = &intrcnt[0];
 	}
+
+	intrcnt_setname("???", 0);
+	intrcnt_index = 1;
 
 	msr = mfmsr();
 	mtmsr(msr & ~PSL_EE);
@@ -211,7 +246,7 @@ inthand_add(const char *name, u_int irq, void (*handler)(void *), void *arg,
 	if (flags & INTR_FAST)
 		intr_setup(irq, handler, arg, flags);
 
-	intr_stray_count[irq] = 0;
+	intrcnt_register(ih);
 
 	return (0);
 }
@@ -244,8 +279,10 @@ inthand_remove(u_int irq, void *cookie)
 void
 intr_handle(u_int irq)
 {
-
+	atomic_add_long(intr_handlers[irq].ih_count, 1);
 	intr_handlers[irq].ih_func(intr_handlers[irq].ih_arg);
+
+	/* XXX wrong thing when using pre-emption ? */
 	if ((intr_handlers[irq].ih_flags & INTR_FAST) != 0)
 		irq_enable(irq);
 }
@@ -257,14 +294,13 @@ intr_stray_handler(void *cookie)
 
 	ih = (struct intr_handler *)cookie;
 
-	if (intr_stray_count[ih->ih_irq] < MAX_STRAY_LOG) {
+	if (*intr_handlers[ih->ih_irq].ih_straycount < MAX_STRAY_LOG) {
 		printf("stray irq %d\n", ih->ih_irq);
 
-		atomic_add_long(&intr_stray_count[ih->ih_irq], 1);
-
-		if (intr_stray_count[ih->ih_irq] >= MAX_STRAY_LOG)
+		atomic_add_long(intr_handlers[ih->ih_irq].ih_straycount, 1);
+		if (*intr_handlers[ih->ih_irq].ih_straycount >= MAX_STRAY_LOG)
 			printf("got %d stray irq %d's: not logging anymore\n",
-			    MAX_STRAY_LOG, ih->ih_irq);
+			       MAX_STRAY_LOG, ih->ih_irq);
 	}
 }
 
