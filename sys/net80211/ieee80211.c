@@ -60,6 +60,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_arp.h>
 #include <net/ethernet.h>
 #include <net/if_llc.h>
+#include <net/route.h>
 
 #include <net80211/ieee80211_var.h>
 
@@ -534,11 +535,15 @@ ieee80211_media_status(struct ifnet *ifp, struct ifmediareq *imr)
 {
 	struct ieee80211com *ic = (void *)ifp;
 	struct ieee80211_node *ni = NULL;
+	int old_status = imr->ifm_status;
 
 	imr->ifm_status = IFM_AVALID;
 	imr->ifm_active = IFM_IEEE80211;
-	if (ic->ic_state == IEEE80211_S_RUN)
+	if (ic->ic_state == IEEE80211_S_RUN) {
 		imr->ifm_status |= IFM_ACTIVE;
+		ifp->if_link_state = LINK_STATE_UP;
+	} else
+		ifp->if_link_state = LINK_STATE_DOWN;
 	imr->ifm_active |= IFM_AUTO;
 	switch (ic->ic_opmode) {
 	case IEEE80211_M_STA:
@@ -578,6 +583,10 @@ ieee80211_media_status(struct ifnet *ifp, struct ifmediareq *imr)
 				|  IFM_IEEE80211_TURBO;
 		break;
 	}
+
+	/* Notify that the link state has changed. */
+	if (imr->ifm_status != old_status)
+		rt_ifmsg(ifp);
 }
 
 void
