@@ -4,6 +4,9 @@ PROG=		objformat
 NOMAN=		not yet
 CFLAGS+=	-DMAIN -DROOTDIR=\"${DESTDIR}/usr/libexec/\"
 
+objformat:
+	@echo Compiles on install.
+
 beforeinstall:
 	$(CC) -DMAIN -DROOTDIR=\"${DESTDIR}/usr/libexec/\" \
 	${.CURDIR}/objformat.c -o ${.OBJDIR}/objformat
