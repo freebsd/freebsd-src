@@ -45,6 +45,7 @@
 #include "opt_ktrace.h"
 
 #include <sys/param.h>
+#include <sys/kernel.h>
 #include <sys/bus.h>
 #include <sys/interrupt.h>
 #include <sys/ktr.h>
@@ -55,6 +56,7 @@
 #include <sys/proc.h>
 #include <sys/smp.h>
 #include <sys/syscall.h>
+#include <sys/sysctl.h>
 #include <sys/sysent.h>
 #include <sys/user.h>
 #include <sys/vmmeter.h>
@@ -146,6 +148,10 @@ const char *trap_msg[] = {
 	"restore virtual watchpoint",
 	"kernel stack fault",
 };
+
+int debugger_on_signal = 0;
+SYSCTL_INT(_debug, OID_AUTO, debugger_on_signal, CTLFLAG_RW,
+    &debugger_on_signal, 0, "");
 
 void
 trap(struct trapframe *tf)
@@ -373,6 +379,8 @@ trapsig:
 	/* Translate fault for emulators. */
 	if (p->p_sysent->sv_transtrap != NULL)
 		sig = (p->p_sysent->sv_transtrap)(sig, type);
+	if (debugger_on_signal && (sig == 4 || sig == 10 || sig == 11))
+		Debugger("trapsig");
 	trapsignal(p, sig, ucode);
 user:
 	userret(td, tf, sticks);
