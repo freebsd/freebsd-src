@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_debug.c	8.1 (Berkeley) 6/10/93
- * $Id$
+ * $Id: tcp_debug.c,v 1.2 1994/08/02 07:48:54 davidg Exp $
  */
 
 #ifdef TCPDEBUG
@@ -102,7 +102,7 @@ tcp_trace(act, ostate, tp, ti, req)
 	if (tcpconsdebug == 0)
 		return;
 	if (tp)
-		printf("%x %s:", tp, tcpstates[ostate]);
+		printf("%p %s:", tp, tcpstates[ostate]);
 	else
 		printf("???????? ");
 	printf("%s ", tanames[act]);
@@ -130,11 +130,14 @@ tcp_trace(act, ostate, tp, ti, req)
 		printf("@%x, urp=%x", ack, ti->ti_urp);
 		flags = ti->ti_flags;
 		if (flags) {
-#ifndef lint
 			char *cp = "<";
-#define pf(f) { if (ti->ti_flags&TH_/**/f) { printf("%s%s", cp, "f"); cp = ","; } }
+#define pf(f) {					\
+	if (ti->ti_flags & TH_##f) {		\
+		printf("%s%s", cp, #f);		\
+		cp = ",";			\
+	}					\
+}
 			pf(SYN); pf(ACK); pf(FIN); pf(RST); pf(PUSH); pf(URG);
-#endif
 			printf(">");
 		}
 		break;

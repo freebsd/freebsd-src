@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_output.c	8.3 (Berkeley) 12/30/93
- * $Id: tcp_output.c,v 1.5 1995/01/24 08:03:22 davidg Exp $
+ * $Id: tcp_output.c,v 1.6 1995/01/26 03:56:20 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -66,8 +66,6 @@ extern struct mbuf *m_copypack();
 #endif
 
 
-#define MAX_TCPOPTLEN	32	/* max # bytes that go in options */
-
 /*
  * Tcp output routine: figure out what should be sent and send it.
  */
@@ -80,9 +78,13 @@ tcp_output(tp)
 	int off, flags, error;
 	register struct mbuf *m;
 	register struct tcpiphdr *ti;
-	u_char opt[MAX_TCPOPTLEN];
+	u_char opt[TCP_MAXOLEN];
 	unsigned optlen, hdrlen;
 	int idle, sendalot;
+#ifdef TTCP
+	struct rmxp_tao *taop;
+	struct rmxp_tao tao_noncached;
+#endif
 
 	/*
 	 * Determine length of data that should be transmitted,
@@ -104,6 +106,17 @@ again:
 	win = min(tp->snd_wnd, tp->snd_cwnd);
 
 	flags = tcp_outflags[tp->t_state];
+#ifdef TTCP
+	/*
+	 * Get standard flags, and add SYN or FIN if requested by 'hidden'
+	 * state flags.
+	 */
+	if (tp->t_flags & TF_NEEDFIN)
+		flags |= TH_FIN;
+	if (tp->t_flags & TF_NEEDSYN)
+		flags |= TH_SYN;
+#endif /* TTCP */
+
 	/*
 	 * If in persist timeout with window of 0, send 1 byte.
 	 * Otherwise, if window is small but nonzero
@@ -138,6 +151,26 @@ again:
 	}
 
 	len = min(so->so_snd.sb_cc, win) - off;
+
+#ifdef TTCP
+	if ((taop = tcp_gettaocache(tp->t_inpcb)) == NULL) {
+		taop = &tao_noncached;
+		bzero(taop, sizeof(*taop));
+	}
+
+	/*
+	 * Lop off SYN bit if it has already been sent.  However, if this
+	 * is SYN-SENT state and if segment contains data and if we don't
+	 * know that foreign host supports TAO, suppress sending segment.
+	 */
+	if ((flags & TH_SYN) && SEQ_GT(tp->snd_nxt, tp->snd_una)) {
+		flags &= ~TH_SYN;
+		off--, len++;
+		if (len > 0 && tp->t_state == TCPS_SYN_SENT &&
+		    taop->tao_ccsent == 0)
+			return 0;
+	}
+#endif /* TTCP */
 
 	if (len < 0) {
 		/*
@@ -179,11 +212,18 @@ again:
 		if (len == tp->t_maxseg)
 			goto send;
 		if ((idle || tp->t_flags & TF_NODELAY) &&
+#ifdef TTCP
+		    (tp->t_flags & TF_NOPUSH) == 0 &&
+#endif
 		    len + off >= so->so_snd.sb_cc)
 			goto send;
 		if (tp->t_force)
 			goto send;
+#ifdef TTCP
+		if (len >= tp->max_sndwnd / 2 && tp->max_sndwnd > 0)
+#else
 		if (len >= tp->max_sndwnd / 2)
+#endif
 			goto send;
 		if (SEQ_LT(tp->snd_nxt, tp->snd_max))
 			goto send;
@@ -216,7 +256,12 @@ again:
 	 */
 	if (tp->t_flags & TF_ACKNOW)
 		goto send;
+#ifdef TTCP
+	if ((flags & TH_RST) ||
+	    ((flags & TH_SYN) && (tp->t_flags & TF_NEEDSYN) == 0))
+#else
 	if (flags & (TH_SYN|TH_RST))
+#endif
 		goto send;
 	if (SEQ_GT(tp->snd_up, tp->snd_una))
 		goto send;
@@ -279,10 +324,10 @@ send:
 			u_short mss;
 
 			opt[0] = TCPOPT_MAXSEG;
-			opt[1] = 4;
-			mss = htons((u_short) tcp_mss(tp, 0));
+			opt[1] = TCPOLEN_MAXSEG;
+			mss = htons((u_short) tcp_mssopt(tp));
 			bcopy((caddr_t)&mss, (caddr_t)(opt + 2), sizeof(mss));
-			optlen = 4;
+			optlen = TCPOLEN_MAXSEG;
 	 
 			if ((tp->t_flags & TF_REQ_SCALE) &&
 			    ((flags & TH_ACK) == 0 ||
@@ -303,8 +348,12 @@ send:
 	 * and our peer have sent timestamps in our SYN's.
  	 */
  	if ((tp->t_flags & (TF_REQ_TSTMP|TF_NOOPT)) == TF_REQ_TSTMP &&
- 	     (flags & TH_RST) == 0 &&
+ 	    (flags & TH_RST) == 0 &&
+#ifdef TTCP
+	    ((flags & TH_ACK) == 0 ||
+#else
  	    ((flags & (TH_SYN|TH_ACK)) == TH_SYN ||
+#endif
 	     (tp->t_flags & TF_RCVD_TSTMP))) {
 		u_long *lp = (u_long *)(opt + optlen);
  
@@ -315,27 +364,108 @@ send:
  		optlen += TCPOLEN_TSTAMP_APPA;
  	}
 
+#ifdef TTCP
+ 	/*
+	 * Send `CC-family' options if our side wants to use them (TF_REQ_CC),
+	 * options are allowed (!TF_NOOPT) and it's not a RST.
+ 	 */
+ 	if ((tp->t_flags & (TF_REQ_CC|TF_NOOPT)) == TF_REQ_CC &&
+ 	     (flags & TH_RST) == 0) {
+		switch (flags & (TH_SYN|TH_ACK)) {
+		/*
+		 * This is a normal ACK, send CC if we received CC before
+		 * from our peer.
+		 */
+		case TH_ACK:
+			if (!(tp->t_flags & TF_RCVD_CC))
+				break;
+			/*FALLTHROUGH*/
+
+		/*
+		 * We can only get here in T/TCP's SYN_SENT* state, when
+		 * we're a sending a non-SYN segment without waiting for
+		 * the ACK of our SYN.  A check above assures that we only
+		 * do this if our peer understands T/TCP.
+		 */
+		case 0:
+			opt[optlen++] = TCPOPT_NOP;
+			opt[optlen++] = TCPOPT_NOP;
+			opt[optlen++] = TCPOPT_CC;
+			opt[optlen++] = TCPOLEN_CC;
+			*(u_int32_t *)&opt[optlen] = htonl(tp->cc_send);
+			
+			optlen += 4;
+			break;
+
+		/*
+		 * This is our initial SYN, check whether we have to use
+		 * CC or CC.new.
+		 */
+		case TH_SYN:
+			opt[optlen++] = TCPOPT_NOP;
+			opt[optlen++] = TCPOPT_NOP;
+
+			if (taop->tao_ccsent != 0 &&
+			    CC_GEQ(tp->cc_send, taop->tao_ccsent)) {
+				opt[optlen++] = TCPOPT_CC;
+				taop->tao_ccsent = tp->cc_send;
+			} else {
+				opt[optlen++] = TCPOPT_CCNEW;
+				taop->tao_ccsent = 0;
+			}
+			opt[optlen++] = TCPOLEN_CC;
+			*(u_int32_t *)&opt[optlen] = htonl(tp->cc_send);
+ 			optlen += 4;
+			break;
+
+		/*
+		 * This is a SYN,ACK; send CC and CC.echo if we received
+		 * CC from our peer.
+		 */
+		case (TH_SYN|TH_ACK):
+			if (tp->t_flags & TF_RCVD_CC) {
+				opt[optlen++] = TCPOPT_NOP;
+				opt[optlen++] = TCPOPT_NOP;
+				opt[optlen++] = TCPOPT_CC;
+				opt[optlen++] = TCPOLEN_CC;
+				*(u_int32_t *)&opt[optlen] = 
+					htonl(tp->cc_send);
+				optlen += 4;
+				opt[optlen++] = TCPOPT_NOP;
+				opt[optlen++] = TCPOPT_NOP;
+				opt[optlen++] = TCPOPT_CCECHO;
+				opt[optlen++] = TCPOLEN_CC;
+				*(u_int32_t *)&opt[optlen] =
+					htonl(tp->cc_recv);
+				optlen += 4;
+			}
+			break;
+		}
+ 	}
+#endif /* TTCP */
+
  	hdrlen += optlen;
  
 	/*
 	 * Adjust data length if insertion of options will
-	 * bump the packet length beyond the t_maxseg length.
+	 * bump the packet length beyond the t_maxopd length.
+	 * Clear the FIN bit because we cut off the tail of
+	 * the segment.
 	 */
-	 if (len > tp->t_maxseg - optlen) {
+	 if (len + optlen > tp->t_maxopd) {
 		/*
 		 * If there is still more to send, don't close the connection.
 		 */
 		flags &= ~TH_FIN;
 
-		len = tp->t_maxseg - optlen;
+		len = tp->t_maxopd - optlen;
 		sendalot = 1;
-	 }
+	}
 
-
-#ifdef DIAGNOSTIC
+/*#ifdef DIAGNOSTIC*/
  	if (max_linkhdr + hdrlen > MHLEN)
 		panic("tcphdr too big");
-#endif
+/*#endif*/
 
 	/*
 	 * Grab a header mbuf, attaching a copy of data to
