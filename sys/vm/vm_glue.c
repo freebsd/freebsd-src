@@ -59,7 +59,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_glue.c,v 1.33 1995/12/14 09:54:57 phk Exp $
+ * $Id: vm_glue.c,v 1.35 1996/01/04 21:13:14 wollman Exp $
  */
 
 #include "opt_sysvipc.h"
@@ -87,6 +87,8 @@
 #include <vm/vm_pageout.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_extern.h>
+#include <vm/vm_object.h>
+#include <vm/vm_pager.h>
 
 #include <sys/user.h>
 
@@ -213,9 +215,11 @@ vm_fork(p1, p2, isvfork)
 	int isvfork;
 {
 	register struct user *up;
-	vm_offset_t addr, ptaddr;
+	vm_offset_t addr, ptaddr, ptpa;
 	int error, i;
-	struct vm_map *vp;
+	vm_map_t vp;
+	pmap_t pvp;
+	vm_page_t stkm;
 
 	while ((cnt.v_free_count + cnt.v_cache_count) < cnt.v_free_min) {
 		VM_WAIT;
@@ -243,30 +247,48 @@ vm_fork(p1, p2, isvfork)
 	addr = (vm_offset_t) kstack;
 
 	vp = &p2->p_vmspace->vm_map;
+	pvp = &p2->p_vmspace->vm_pmap;
 
 	/* get new pagetables and kernel stack */
-	(void) vm_map_find(vp, NULL, 0, &addr, UPT_MAX_ADDRESS - addr, FALSE);
-
-	/* force in the page table encompassing the UPAGES */
-	ptaddr = trunc_page((u_int) vtopte(addr));
-	error = vm_map_pageable(vp, ptaddr, ptaddr + PAGE_SIZE, FALSE);
-	if (error)
-		panic("vm_fork: wire of PT failed. error=%d", error);
-
-	/* and force in (demand-zero) the UPAGES */
-	error = vm_map_pageable(vp, addr, addr + UPAGES * PAGE_SIZE, FALSE);
-	if (error)
-		panic("vm_fork: wire of UPAGES failed. error=%d", error);
+	(void) vm_map_find(vp, NULL, 0, &addr, UPT_MAX_ADDRESS - addr, FALSE,
+		VM_PROT_ALL, VM_PROT_ALL, 0);
 
 	/* get a kernel virtual address for the UPAGES for this proc */
 	up = (struct user *) kmem_alloc_pageable(u_map, UPAGES * PAGE_SIZE);
 	if (up == NULL)
 		panic("vm_fork: u_map allocation failed");
 
-	/* and force-map the upages into the kernel pmap */
-	for (i = 0; i < UPAGES; i++)
-		pmap_kenter(((vm_offset_t) up) + PAGE_SIZE * i,
-		    pmap_extract(vp->pmap, addr + PAGE_SIZE * i));
+	p2->p_vmspace->vm_upages_obj = vm_object_allocate( OBJT_DEFAULT,
+		UPAGES);
+
+	ptaddr = trunc_page((u_int) vtopte(kstack));
+	(void) vm_fault(vp, ptaddr, VM_PROT_READ|VM_PROT_WRITE, FALSE);
+	ptpa = pmap_extract(pvp, ptaddr);
+	if (ptpa == 0) {
+		panic("vm_fork: no pte for UPAGES");
+	}
+	stkm = PHYS_TO_VM_PAGE(ptpa);
+	vm_page_hold(stkm);
+
+	for(i=0;i<UPAGES;i++) {
+		vm_page_t m;
+
+		while ((m = vm_page_alloc(p2->p_vmspace->vm_upages_obj, i, VM_ALLOC_ZERO)) == NULL) {
+			VM_WAIT;
+		}
+
+		vm_page_wire(m);
+		m->flags &= ~PG_BUSY;
+		pmap_enter( pvp, (vm_offset_t) kstack + i * PAGE_SIZE,
+			VM_PAGE_TO_PHYS(m), VM_PROT_READ|VM_PROT_WRITE, 1);
+		pmap_kenter(((vm_offset_t) up) + i * PAGE_SIZE,
+			VM_PAGE_TO_PHYS(m));
+		if ((m->flags & PG_ZERO) == 0)
+			bzero(((caddr_t) up) + i * PAGE_SIZE, PAGE_SIZE);
+		m->flags &= ~PG_ZERO;
+		m->valid = VM_PAGE_BITS_ALL;
+	}
+	vm_page_unhold(stkm);
 
 	p2->p_addr = up;
 
@@ -334,37 +356,62 @@ faultin(p)
 	int s;
 
 	if ((p->p_flag & P_INMEM) == 0) {
-		vm_map_t map;
+		vm_map_t map = &p->p_vmspace->vm_map;
+		pmap_t pmap = &p->p_vmspace->vm_pmap;
+		vm_page_t stkm, m;
+		vm_offset_t ptpa;
 		int error;
 
 		++p->p_lock;
 
-		map = &p->p_vmspace->vm_map;
-		/* force the page table encompassing the kernel stack (upages) */
 		ptaddr = trunc_page((u_int) vtopte(kstack));
-		error = vm_map_pageable(map, ptaddr, ptaddr + PAGE_SIZE, FALSE);
-		if (error)
-			panic("faultin: wire of PT failed. error=%d", error);
-
-		/* wire in the UPAGES */
-		error = vm_map_pageable(map, (vm_offset_t) kstack,
-		    (vm_offset_t) kstack + UPAGES * PAGE_SIZE, FALSE);
-		if (error)
-			panic("faultin: wire of UPAGES failed. error=%d", error);
-
-		/* and map them nicely into the kernel pmap */
-		for (i = 0; i < UPAGES; i++) {
-			vm_offset_t off = i * PAGE_SIZE;
-			vm_offset_t pa = (vm_offset_t)
-				pmap_extract(&p->p_vmspace->vm_pmap,
-				    (vm_offset_t) kstack + off);
-
-			if (pa == 0) 
-				panic("faultin: missing page for UPAGES\n");
-				
-			pmap_kenter(((vm_offset_t) p->p_addr) + off, pa);
+		(void) vm_fault(map, ptaddr, VM_PROT_READ|VM_PROT_WRITE, FALSE);
+		ptpa = pmap_extract(&p->p_vmspace->vm_pmap, ptaddr);
+		if (ptpa == 0) {
+			panic("vm_fork: no pte for UPAGES");
 		}
+		stkm = PHYS_TO_VM_PAGE(ptpa);
+		vm_page_hold(stkm);
 
+		for(i=0;i<UPAGES;i++) {
+			int s;
+			s = splhigh();
+
+retry:
+			if ((m = vm_page_lookup(p->p_vmspace->vm_upages_obj, i)) == NULL) {
+				if ((m = vm_page_alloc(p->p_vmspace->vm_upages_obj, i, VM_ALLOC_NORMAL)) == NULL) {
+					VM_WAIT;
+					goto retry;
+				}
+			} else {
+				if ((m->flags & PG_BUSY) || m->busy) {
+					m->flags |= PG_WANTED;
+					tsleep(m, PVM, "swinuw",0);
+					goto retry;
+				}
+			}
+			vm_page_wire(m);
+			if (m->valid == VM_PAGE_BITS_ALL)
+				m->flags &= ~PG_BUSY;
+			splx(s);
+
+			pmap_enter( pmap, (vm_offset_t) kstack + i * PAGE_SIZE,
+				VM_PAGE_TO_PHYS(m), VM_PROT_READ|VM_PROT_WRITE, TRUE);
+			pmap_kenter(((vm_offset_t) p->p_addr) + i * PAGE_SIZE,
+				VM_PAGE_TO_PHYS(m));
+			if (m->valid != VM_PAGE_BITS_ALL) {
+				int rv;
+				rv = vm_pager_get_pages(p->p_vmspace->vm_upages_obj,
+					&m, 1, 0);
+				if (rv != VM_PAGER_OK)
+					panic("faultin: cannot get upages for proc: %d\n", p->p_pid);
+				m->valid = VM_PAGE_BITS_ALL;
+				m->flags &= ~PG_BUSY;
+			}
+		}
+		vm_page_unhold(stkm);
+
+		
 		s = splhigh();
 
 		if (p->p_stat == SRUN)
@@ -402,7 +449,8 @@ loop:
 	pp = NULL;
 	ppri = INT_MIN;
 	for (p = (struct proc *) allproc; p != NULL; p = p->p_next) {
-		if (p->p_stat == SRUN && (p->p_flag & (P_INMEM | P_SWAPPING)) == 0) {
+		if (p->p_stat == SRUN &&
+			(p->p_flag & (P_INMEM | P_SWAPPING)) == 0) {
 			int mempri;
 
 			pri = p->p_swtime + p->p_slptime - p->p_nice * 8;
@@ -515,6 +563,7 @@ swapout(p)
 	register struct proc *p;
 {
 	vm_map_t map = &p->p_vmspace->vm_map;
+	pmap_t pmap = &p->p_vmspace->vm_pmap;
 	vm_offset_t ptaddr;
 	int i;
 
@@ -535,14 +584,16 @@ swapout(p)
 	/*
 	 * let the upages be paged
 	 */
-	for(i=0;i<UPAGES;i++)
+	for(i=0;i<UPAGES;i++) {
+		vm_page_t m;
+		if ((m = vm_page_lookup(p->p_vmspace->vm_upages_obj, i)) == NULL)
+			panic("swapout: upage already missing???");
+		m->dirty = VM_PAGE_BITS_ALL;
+		vm_page_unwire(m);
 		pmap_kremove( (vm_offset_t) p->p_addr + PAGE_SIZE * i);
-
-	vm_map_pageable(map, (vm_offset_t) kstack,
-	    (vm_offset_t) kstack + UPAGES * PAGE_SIZE, TRUE);
-
-	ptaddr = trunc_page((u_int) vtopte(kstack));
-	vm_map_pageable(map, ptaddr, ptaddr + PAGE_SIZE, TRUE);
+	}
+	pmap_remove(pmap, (vm_offset_t) kstack,
+		(vm_offset_t) kstack + PAGE_SIZE * UPAGES);
 
 	p->p_flag &= ~P_SWAPPING;
 	p->p_swtime = 0;

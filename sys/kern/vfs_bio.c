@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.82 1996/01/06 23:23:02 davidg Exp $
+ * $Id: vfs_bio.c,v 1.83 1996/01/06 23:58:03 davidg Exp $
  */
 
 /*
@@ -78,6 +78,7 @@ static void vm_hold_load_pages(struct buf * bp, vm_offset_t from,
 		vm_offset_t to);
 static void vfs_clean_pages(struct buf * bp);
 static void vfs_setdirty(struct buf *bp);
+static void vfs_vmio_release(struct buf *bp);
 
 int needsbuffer;
 
@@ -107,6 +108,8 @@ static int bufspace, maxbufspace;
 
 static struct bufhashhdr bufhashtbl[BUFHSZ], invalhash;
 static struct bqueues bufqueues[BUFFER_QUEUES];
+
+extern int vm_swap_size;
 
 #define BUF_MAXUSE 8
 
@@ -363,7 +366,7 @@ bdwrite(struct buf * bp)
 	 * out on the next sync, or perhaps the cluster will be completed.
 	 */
 	vfs_clean_pages(bp);
-	brelse(bp);
+	bqrelse(bp);
 	return;
 }
 
@@ -412,8 +415,11 @@ brelse(struct buf * bp)
 	    (bp->b_bufsize <= 0)) {
 		bp->b_flags |= B_INVAL;
 		bp->b_flags &= ~(B_DELWRI | B_CACHE);
-		if (((bp->b_flags & B_VMIO) == 0) && bp->b_vp)
+		if (((bp->b_flags & B_VMIO) == 0) && bp->b_vp) {
+			if (bp->b_bufsize)
+				allocbuf(bp, 0);
 			brelvp(bp);
+		}
 	}
 
 	/*
@@ -470,57 +476,23 @@ brelse(struct buf * bp)
 								vm_page_protect(m, VM_PROT_NONE);
 						}
 					}
+					if (resid >= PAGE_SIZE) {
+						if ((m->valid & VM_PAGE_BITS_ALL) != VM_PAGE_BITS_ALL) {
+							bp->b_flags |= B_INVAL;
+						}
+					} else {
+						if (!vm_page_is_valid(m,
+							(((vm_offset_t) bp->b_data) & PAGE_MASK), resid)) {
+							bp->b_flags |= B_INVAL;
+						}
+					}
 				}
 				foff += resid;
 				iototal -= resid;
 			}
 		}
-
-		if (bp->b_flags & (B_INVAL | B_RELBUF)) {
-			for(i = 0; i < bp->b_npages; i++) {
-				m = bp->b_pages[i];
-				--m->bmapped;
-				if (m->bmapped == 0) {
-					if (m->flags & PG_WANTED) {
-						m->flags &= ~PG_WANTED;
-						wakeup(m);
-					}
-					if ((m->busy == 0) && ((m->flags & PG_BUSY) == 0)) {
-						if (m->object->flags & OBJ_MIGHTBEDIRTY) {
-							vm_page_test_dirty(m);
-						}
-						/*
-						 * if page isn't valid, no sense in keeping it around
-						 */
-						if (m->valid == 0) {
-							vm_page_protect(m, VM_PROT_NONE);
-							vm_page_free(m);
-						/*
-						 * if page isn't dirty and hasn't been referenced by
-						 * a process, then cache it
-						 */
-						} else if ((m->dirty & m->valid) == 0 &&
-						    (m->flags & PG_REFERENCED) == 0 &&
-						    !pmap_is_referenced(VM_PAGE_TO_PHYS(m))) {
-							vm_page_cache(m);
-						/*
-						 * otherwise activate it
-						 */
-						} else if ((m->flags & PG_ACTIVE) == 0) {
-							vm_page_activate(m);
-							m->act_count = 0;
-						}
-					}
-				}
-			}
-			bufspace -= bp->b_bufsize;
-			pmap_qremove(trunc_page((vm_offset_t) bp->b_data), bp->b_npages);
-			bp->b_npages = 0;
-			bp->b_bufsize = 0;
-			bp->b_flags &= ~B_VMIO;
-			if (bp->b_vp)
-				brelvp(bp);
-		}
+		if (bp->b_flags & (B_INVAL | B_RELBUF))
+			vfs_vmio_release(bp);
 	}
 	if (bp->b_qindex != QUEUE_NONE)
 		panic("brelse: free buffer onto another queue???");
@@ -557,6 +529,85 @@ brelse(struct buf * bp)
 	/* unlock */
 	bp->b_flags &= ~(B_WANTED | B_BUSY | B_ASYNC | B_NOCACHE | B_AGE | B_RELBUF);
 	splx(s);
+}
+
+/*
+ * Release a buffer.
+ */
+void
+bqrelse(struct buf * bp)
+{
+	int s;
+
+	s = splbio();
+
+	if (needsbuffer) {
+		needsbuffer = 0;
+		wakeup(&needsbuffer);
+	}
+
+	/* anyone need this block? */
+	if (bp->b_flags & B_WANTED) {
+		bp->b_flags &= ~(B_WANTED | B_AGE);
+		wakeup(bp);
+	} 
+
+	if (bp->b_qindex != QUEUE_NONE)
+		panic("bqrelse: free buffer onto another queue???");
+
+	if (bp->b_flags & B_LOCKED) {
+		bp->b_flags &= ~B_ERROR;
+		bp->b_qindex = QUEUE_LOCKED;
+		TAILQ_INSERT_TAIL(&bufqueues[QUEUE_LOCKED], bp, b_freelist);
+		/* buffers with stale but valid contents */
+	} else {
+		bp->b_qindex = QUEUE_LRU;
+		TAILQ_INSERT_TAIL(&bufqueues[QUEUE_LRU], bp, b_freelist);
+	}
+
+	/* unlock */
+	bp->b_flags &= ~(B_WANTED | B_BUSY | B_ASYNC | B_NOCACHE | B_AGE | B_RELBUF);
+	splx(s);
+}
+
+static void
+vfs_vmio_release(bp)
+	struct buf *bp;
+{
+	int i;
+	vm_page_t m;
+
+	for (i = 0; i < bp->b_npages; i++) {
+		m = bp->b_pages[i];
+		bp->b_pages[i] = NULL;
+		if (m->flags & PG_WANTED) {
+			m->flags &= ~PG_WANTED;
+			wakeup(m);
+		}
+		vm_page_unwire(m);
+		if (m->wire_count == 0) {
+			if (m->valid) {
+				/*
+				 * this keeps pressure off of the process memory
+				 */
+				if ((vm_swap_size == 0) ||
+					(cnt.v_free_count < cnt.v_free_min))
+					vm_page_cache(m);
+			} else if ((m->hold_count == 0) &&
+				((m->flags & PG_BUSY) == 0) &&
+				(m->busy == 0)) {
+				vm_page_protect(m, VM_PROT_NONE);
+				vm_page_free(m);
+			}
+		}
+	}
+	bufspace -= bp->b_bufsize;
+	pmap_qremove(trunc_page((vm_offset_t) bp->b_data), bp->b_npages);
+	bp->b_npages = 0;
+	bp->b_bufsize = 0;
+	bp->b_flags &= ~B_VMIO;
+	if (bp->b_vp)
+		brelvp(bp);
 }
 
 /*
@@ -666,6 +717,7 @@ start:
 		if (bp->b_qindex != QUEUE_EMPTY)
 			panic("getnewbuf: inconsistent EMPTY queue, qindex=%d",
 			    bp->b_qindex);
+		bp->b_flags |= B_BUSY;
 		bremfree(bp);
 		goto fillbuf;
 	}
@@ -717,12 +769,10 @@ trytofreespace:
 		wakeup(bp);
 	}
 	bremfree(bp);
+	bp->b_flags |= B_BUSY;
 
-	if (bp->b_flags & B_VMIO) {
-		bp->b_flags |= B_RELBUF | B_BUSY | B_DONE;
-		brelse(bp);
-		bremfree(bp);
-	}
+	if (bp->b_flags & B_VMIO)
+		vfs_vmio_release(bp);
 
 	if (bp->b_vp)
 		brelvp(bp);
@@ -737,7 +787,7 @@ fillbuf:
 		crfree(bp->b_wcred);
 		bp->b_wcred = NOCRED;
 	}
-	bp->b_flags |= B_BUSY;
+
 	LIST_REMOVE(bp, b_hash);
 	LIST_INSERT_HEAD(&invalhash, bp, b_hash);
 	splx(s);
@@ -776,19 +826,7 @@ incore(struct vnode * vp, daddr_t blkno)
 	struct bufhashhdr *bh;
 
 	int s = splbio();
-
-	bh = BUFHASH(vp, blkno);
-	bp = bh->lh_first;
-
-	/* Search hash chain */
-	while (bp != NULL) {
-		/* hit */
-		if (bp->b_vp == vp && bp->b_lblkno == blkno &&
-		    (bp->b_flags & B_INVAL) == 0) {
-			break;
-		}
-		bp = bp->b_hash.le_next;
-	}
+	bp = gbincore(vp, blkno);
 	splx(s);
 	return (bp);
 }
@@ -933,35 +971,6 @@ loop:
 			}
 		}
 
-		/*
-		 * make sure that all pages in the buffer are valid, if they
-		 * aren't, clear the cache flag.
-		 * ASSUMPTION:
-		 *  if the buffer is greater than 1 page in size, it is assumed
-		 *  that the buffer address starts on a page boundary...
-		 */
-		if (bp->b_flags & B_VMIO) {
-			int szleft, i;
-			szleft = size;
-			for (i=0;i<bp->b_npages;i++) {
-				if (szleft > PAGE_SIZE) {
-					if ((bp->b_pages[i]->valid & VM_PAGE_BITS_ALL) !=
-						VM_PAGE_BITS_ALL) {
-						bp->b_flags &= ~(B_CACHE|B_DONE);
-						break;
-					}
-					szleft -= PAGE_SIZE;
-				} else {
-					if (!vm_page_is_valid(bp->b_pages[i],
-						(((vm_offset_t) bp->b_data) & PAGE_MASK),
-						szleft)) {
-						bp->b_flags &= ~(B_CACHE|B_DONE);
-						break;
-					}
-					szleft = 0;
-				}
-			}
-		}
 		if (bp->b_usecount < BUF_MAXUSE)
 			++bp->b_usecount;
 		splx(s);
@@ -1035,6 +1044,7 @@ geteblk(int size)
 	return (bp);
 }
 
+
 /*
  * This code constitutes the buffer memory from either anonymous system
  * memory (in the case of non-VMIO operations) or from an associated
@@ -1084,9 +1094,11 @@ allocbuf(struct buf * bp, int size)
 
 		if (newbsize < bp->b_bufsize) {
 			if (desiredpages < bp->b_npages) {
-				pmap_qremove((vm_offset_t) trunc_page(bp->b_data) +
-				    (desiredpages << PAGE_SHIFT), (bp->b_npages - desiredpages));
 				for (i = desiredpages; i < bp->b_npages; i++) {
+					/*
+					 * the page is not freed here -- it
+					 * is the responsibility of vnode_pager_setsize
+					 */
 					m = bp->b_pages[i];
 					s = splhigh();
 					while ((m->flags & PG_BUSY) || (m->busy != 0)) {
@@ -1095,17 +1107,11 @@ allocbuf(struct buf * bp, int size)
 					}
 					splx(s);
 
-					if (m->bmapped == 0) {
-						printf("allocbuf: bmapped is zero for page %d\n", i);
-						panic("allocbuf: error");
-					}
-					--m->bmapped;
-					if (m->bmapped == 0) {
-						vm_page_protect(m, VM_PROT_NONE);
-						vm_page_free(m);
-					}
 					bp->b_pages[i] = NULL;
+					vm_page_unwire(m);
 				}
+				pmap_qremove((vm_offset_t) trunc_page(bp->b_data) +
+				    (desiredpages << PAGE_SHIFT), (bp->b_npages - desiredpages));
 				bp->b_npages = desiredpages;
 			}
 		} else if (newbsize > bp->b_bufsize) {
@@ -1141,19 +1147,18 @@ allocbuf(struct buf * bp, int size)
 					if (pageindex < curbpnpages) {
 
 						m = bp->b_pages[pageindex];
+#ifdef VFS_BIO_DIAG
 						if (m->pindex != objoff)
 							panic("allocbuf: page changed offset??!!!?");
+#endif
 						bytesinpage = tinc;
 						if (tinc > (newbsize - toff))
 							bytesinpage = newbsize - toff;
-						if (!vm_page_is_valid(m,
+						if ((bp->b_flags & B_CACHE) &&
+							!vm_page_is_valid(m,
 							(vm_offset_t) ((toff + off) & (PAGE_SIZE - 1)),
 							bytesinpage)) {
 							bp->b_flags &= ~B_CACHE;
-						}
-						if ((m->flags & PG_ACTIVE) == 0) {
-							vm_page_activate(m);
-							m->act_count = 0;
 						}
 						continue;
 					}
@@ -1161,26 +1166,20 @@ allocbuf(struct buf * bp, int size)
 					if (!m) {
 						m = vm_page_alloc(obj, objoff, VM_ALLOC_NORMAL);
 						if (!m) {
-							int j;
-
-							for (j = bp->b_npages; j < pageindex; j++) {
-								PAGE_WAKEUP(bp->b_pages[j]);
-							}
 							VM_WAIT;
 							goto doretry;
 						}
-						vm_page_activate(m);
-						m->act_count = 0;
-						m->valid = 0;
+						/*
+						 * Normally it is unwise to clear PG_BUSY without
+						 * PAGE_WAKEUP -- but it is okay here, as there is
+						 * no chance for blocking between here and vm_page_alloc
+						 */
+						m->flags &= ~PG_BUSY;
+						vm_page_wire(m);
 						bp->b_flags &= ~B_CACHE;
 					} else if (m->flags & PG_BUSY) {
-						int j;
 
-						for (j = bp->b_npages; j < pageindex; j++) {
-							PAGE_WAKEUP(bp->b_pages[j]);
-						}
-
-						s = splbio();
+						s = splhigh();
 						m->flags |= PG_WANTED;
 						tsleep(m, PVM, "pgtblk", 0);
 						splx(s);
@@ -1188,36 +1187,33 @@ allocbuf(struct buf * bp, int size)
 						goto doretry;
 					} else {
 						if ((curproc != pageproc) &&
-							(m->flags & PG_CACHE) &&
-						    (cnt.v_free_count + cnt.v_cache_count) < cnt.v_free_min) {
+							(m->queue == PQ_CACHE) &&
+						    ((cnt.v_free_count + cnt.v_cache_count) <
+								(cnt.v_free_min + cnt.v_cache_min))) {
 							pagedaemon_wakeup();
 						}
 						bytesinpage = tinc;
 						if (tinc > (newbsize - toff))
 							bytesinpage = newbsize - toff;
-						if (!vm_page_is_valid(m,
+						if ((bp->b_flags & B_CACHE) &&
+							!vm_page_is_valid(m,
 							(vm_offset_t) ((toff + off) & (PAGE_SIZE - 1)),
 							bytesinpage)) {
 							bp->b_flags &= ~B_CACHE;
 						}
-						if ((m->flags & PG_ACTIVE) == 0) {
-							vm_page_activate(m);
-							m->act_count = 0;
-						}
-						m->flags |= PG_BUSY;
+						vm_page_wire(m);
 					}
 					bp->b_pages[pageindex] = m;
 					curbpnpages = pageindex + 1;
 				}
-				for (i = bp->b_npages; i < curbpnpages; i++) {
-					m = bp->b_pages[i];
-					m->bmapped++;
-					PAGE_WAKEUP(m);
-				}
-				bp->b_npages = curbpnpages;
+/*
 				bp->b_data = buffers_kva + (bp - buf) * MAXBSIZE;
-				pmap_qenter((vm_offset_t) bp->b_data, bp->b_pages, bp->b_npages);
-				bp->b_data += off & (PAGE_SIZE - 1);
+*/
+				bp->b_data = (caddr_t) trunc_page(bp->b_data);
+				bp->b_npages = curbpnpages;
+				pmap_qenter((vm_offset_t) bp->b_data,
+					bp->b_pages, bp->b_npages);
+				((vm_offset_t) bp->b_data) |= off & (PAGE_SIZE - 1);
 			}
 		}
 	}
@@ -1363,8 +1359,8 @@ biodone(register struct buf * bp)
 					printf(" VDEV, lblkno: %d, flags: 0x%lx, npages: %d\n",
 					    (int) bp->b_lblkno,
 					    bp->b_flags, bp->b_npages);
-				printf(" valid: 0x%x, dirty: 0x%x, mapped: %d\n",
-				    m->valid, m->dirty, m->bmapped);
+				printf(" valid: 0x%x, dirty: 0x%x, wired: %d\n",
+				    m->valid, m->dirty, m->wire_count);
 				panic("biodone: page busy < 0\n");
 			}
 			--m->busy;
@@ -1389,7 +1385,10 @@ biodone(register struct buf * bp)
 	 */
 
 	if (bp->b_flags & B_ASYNC) {
-		brelse(bp);
+		if ((bp->b_flags & (B_NOCACHE | B_INVAL | B_ERROR | B_RELBUF)) != 0)
+			brelse(bp);
+		else
+			bqrelse(bp);
 	} else {
 		wakeup(bp);
 	}
@@ -1568,6 +1567,7 @@ vfs_clean_pages(struct buf * bp)
 void
 vfs_bio_clrbuf(struct buf *bp) {
 	int i;
+	int remapbuffer = 0;
 	if( bp->b_flags & B_VMIO) {
 		if( (bp->b_npages == 1) && (bp->b_bufsize < PAGE_SIZE)) {
 			int mask;
@@ -1585,8 +1585,9 @@ vfs_bio_clrbuf(struct buf *bp) {
 			if( bp->b_pages[i]->valid == VM_PAGE_BITS_ALL)
 				continue;
 			if( bp->b_pages[i]->valid == 0) {
-				if ((bp->b_pages[i]->flags & PG_ZERO) == 0)
+				if ((bp->b_pages[i]->flags & PG_ZERO) == 0) {
 					bzero(bp->b_data + (i << PAGE_SHIFT), PAGE_SIZE);
+				}
 			} else {
 				int j;
 				for(j=0;j<PAGE_SIZE/DEV_BSIZE;j++) {
@@ -1600,6 +1601,8 @@ vfs_bio_clrbuf(struct buf *bp) {
 	} else {
 		clrbuf(bp);
 	}
+	if (remapbuffer)
+			pmap_qenter(trunc_page(bp->b_data), bp->b_pages, bp->b_npages);
 }
 
 /*
@@ -1612,10 +1615,13 @@ vm_hold_load_pages(struct buf * bp, vm_offset_t from, vm_offset_t to)
 {
 	vm_offset_t pg;
 	vm_page_t p;
+	int index;
 
 	to = round_page(to);
+	from = round_page(from);
+	index = (from - trunc_page(bp->b_data)) >> PAGE_SHIFT;
 
-	for (pg = round_page(from); pg < to; pg += PAGE_SIZE) {
+	for (pg = from; pg < to; pg += PAGE_SIZE, index++) {
 
 tryagain:
 
@@ -1627,10 +1633,10 @@ tryagain:
 		}
 		vm_page_wire(p);
 		pmap_kenter(pg, VM_PAGE_TO_PHYS(p));
-		bp->b_pages[(pg - trunc_page(bp->b_data)) >> PAGE_SHIFT] = p;
+		bp->b_pages[index] = p;
 		PAGE_WAKEUP(p);
-		bp->b_npages++;
 	}
+	bp->b_npages = to >> PAGE_SHIFT;
 }
 
 void
@@ -1646,9 +1652,16 @@ vm_hold_free_pages(struct buf * bp, vm_offset_t from, vm_offset_t to)
 
 	for (pg = from; pg < to; pg += PAGE_SIZE, index++) {
 		p = bp->b_pages[index];
-		bp->b_pages[index] = 0;
-		pmap_kremove(pg);
-		vm_page_free(p);
-		--bp->b_npages;
+		if (p && (index < bp->b_npages)) {
+			if (p->busy) {
+				printf("vm_hold_free_pages: blkno: %d, lblkno: %d\n",
+					bp->b_blkno, bp->b_lblkno);
+			}
+			bp->b_pages[index] = NULL;
+			pmap_kremove(pg);
+			vm_page_unwire(p);
+			vm_page_free(p);
+		}
 	}
+	bp->b_npages = from >> PAGE_SHIFT;
 }

@@ -216,7 +216,6 @@ printf("ext2_truncate called %d to %d\n", VTOI(ovp)->i_number, ap->a_length);
 	if (error = getinoquota(oip))
 		return (error);
 #endif
-	vnode_pager_setsize(ovp, (u_long)length);
 	fs = oip->i_e2fs;
 	osize = oip->i_size;
 	ext2_discard_prealloc(oip);
@@ -231,6 +230,7 @@ printf("ext2_truncate called %d to %d\n", VTOI(ovp)->i_number, ap->a_length);
 		aflags = B_CLRBUF;
 		if (ap->a_flags & IO_SYNC)
 			aflags |= B_SYNC;
+		vnode_pager_setsize(ovp, length);
 		if (error = ext2_balloc(oip, lbn, offset + 1, ap->a_cred, &bp,
 		    aflags))
 			return (error);
@@ -405,6 +405,7 @@ done:
 	if (oip->i_blocks < 0)			/* sanity */
 		oip->i_blocks = 0;
 	oip->i_flag |= IN_CHANGE;
+	vnode_pager_setsize(ovp, length);
 #if QUOTA
 	(void) chkdq(oip, -blocksreleased, NOCRED, 0);
 #endif

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_subs.c	8.3 (Berkeley) 1/4/94
- * $Id: nfs_subs.c,v 1.26 1995/12/17 21:12:30 phk Exp $
+ * $Id: nfs_subs.c,v 1.27 1996/01/13 23:27:56 phk Exp $
  */
 
 /*
@@ -1941,7 +1941,7 @@ retry:
 		if (VOP_GETATTR(vp, &vat, p->p_ucred, p) != 0)
 			panic("nfsrv_vmio: VOP_GETATTR failed");
 
-		(void) vnode_pager_alloc(vp, vat.va_size, 0, 0);
+		(void) vnode_pager_alloc(vp, OFF_TO_IDX(round_page(vat.va_size)), 0, 0);
 
 		vp->v_flag |= VVMIO;
 	} else {

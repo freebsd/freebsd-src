@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.61 1996/01/04 18:32:31 davidg Exp $
+ * $Id: vm_object.c,v 1.62 1996/01/04 21:13:20 wollman Exp $
  */
 
 /*
@@ -442,11 +442,18 @@ vm_object_page_clean(object, start, end, syncio, lockflag)
 	boolean_t syncio;
 	boolean_t lockflag;
 {
-	register vm_page_t p;
+	register vm_page_t p, np, tp;
 	register vm_offset_t tstart, tend;
+	vm_pindex_t pi;
 	int s;
 	struct vnode *vp;
 	int runlen;
+	int maxf;
+	int chkb;
+	int maxb;
+	int i;
+	vm_page_t maf[vm_pageout_page_count];
+	vm_page_t mab[vm_pageout_page_count];
 	vm_page_t ma[vm_pageout_page_count];
 
 	if (object->type != OBJT_VNODE ||
@@ -468,62 +475,99 @@ vm_object_page_clean(object, start, end, syncio, lockflag)
 	if ((tstart == 0) && (tend == object->size)) {
 		object->flags &= ~(OBJ_WRITEABLE|OBJ_MIGHTBEDIRTY);
 	}
+	for(p = object->memq.tqh_first; p; p = p->listq.tqe_next)
+		p->flags |= PG_CLEANCHK;
 
-	runlen = 0;
-	for(;tstart < tend; tstart += 1) {
-relookup:
-		p = vm_page_lookup(object, tstart);
-		if (!p) {
-			if (runlen > 0) {
-				vm_pageout_flush(ma, runlen, syncio);
-				runlen = 0;
-			}
-			continue;
-		}
-		if ((p->valid == 0) || (p->flags & PG_CACHE)) {
-			if (runlen > 0) {
-				vm_pageout_flush(ma, runlen, syncio);
-				runlen = 0;
-			}
+rescan:
+	for(p = object->memq.tqh_first; p; p = np) {
+		np = p->listq.tqe_next;
+
+		pi = p->pindex;
+		if (((p->flags & PG_CLEANCHK) == 0) ||
+			(pi < tstart) || (pi >= tend) ||
+			(p->valid == 0) || (p->queue == PQ_CACHE)) {
+			p->flags &= ~PG_CLEANCHK;
 			continue;
 		}
 
-		vm_page_protect(p, VM_PROT_READ);
+		vm_page_test_dirty(p);
+		if ((p->dirty & p->valid) == 0) {
+			p->flags &= ~PG_CLEANCHK;
+			continue;
+		}
 
 		s = splhigh();
-		while ((p->flags & PG_BUSY) || p->busy) {
-			if (runlen > 0) {
-				splx(s);
-				vm_pageout_flush(ma, runlen, syncio);
-				runlen = 0;
-				goto relookup;
-			}
+		if ((p->flags & PG_BUSY) || p->busy) {
 			p->flags |= PG_WANTED|PG_REFERENCED;
 			tsleep(p, PVM, "vpcwai", 0);
 			splx(s);
-			goto relookup;
+			goto rescan;
 		}
 		splx(s);
-
-		if (p->dirty == 0)
-			vm_page_test_dirty(p);
-
-		if ((p->valid & p->dirty) != 0) {
-			ma[runlen] = p;
-			p->flags |= PG_BUSY;
-			runlen++;
-			if (runlen >= vm_pageout_page_count) {
-				vm_pageout_flush(ma, runlen, syncio);
-				runlen = 0;
-			}
-		} else if (runlen > 0) {
-			vm_pageout_flush(ma, runlen, syncio);
-			runlen = 0;
-		}
 			
-	}
-	if (runlen > 0) {
-		vm_pageout_flush(ma, runlen, syncio);
+		maxf = 0;
+		for(i=1;i<vm_pageout_page_count;i++) {
+			if (tp = vm_page_lookup(object, pi + i)) {
+				if ((tp->flags & PG_BUSY) ||
+					(tp->flags & PG_CLEANCHK) == 0)
+					break;
+				vm_page_test_dirty(tp);
+				if ((tp->dirty & tp->valid) == 0) {
+					tp->flags &= ~PG_CLEANCHK;
+					break;
+				}
+				maf[ i - 1 ] = tp;
+				maxf++;
+				continue;
+			}
+			break;
+		}
+
+		maxb = 0;
+		chkb = vm_pageout_page_count -  maxf;
+		if (chkb) {
+			for(i = 1; i < chkb;i++) {
+				if (tp = vm_page_lookup(object, pi - i)) {
+					if ((tp->flags & PG_BUSY) ||
+						(tp->flags & PG_CLEANCHK) == 0)
+						break;
+					vm_page_test_dirty(tp);
+					if ((tp->dirty & tp->valid) == 0) {
+						tp->flags &= ~PG_CLEANCHK;
+						break;
+					}
+					mab[ i - 1 ] = tp;
+					maxb++;
+					continue;
+				}
+				break;
+			}
+		}
+
+		for(i=0;i<maxb;i++) {
+			int index = (maxb - i) - 1;
+			ma[index] = mab[i];
+			ma[index]->flags |= PG_BUSY;
+			ma[index]->flags &= ~PG_CLEANCHK;
+			vm_page_protect(ma[index], VM_PROT_READ);
+		}
+		vm_page_protect(p, VM_PROT_READ);
+		p->flags |= PG_BUSY;
+		p->flags &= ~PG_CLEANCHK;
+		ma[maxb] = p;
+		for(i=0;i<maxf;i++) {
+			int index = (maxb + i) + 1;
+			ma[index] = maf[i];
+			ma[index]->flags |= PG_BUSY;
+			ma[index]->flags &= ~PG_CLEANCHK;
+			vm_page_protect(ma[index], VM_PROT_READ);
+		}
+		runlen = maxb + maxf + 1;
+/*
+		printf("maxb: %d, maxf: %d, runlen: %d, offset: %d\n", maxb, maxf, runlen, ma[0]->pindex);
+*/
+		vm_pageout_flush(ma, runlen, 0);
+		goto rescan;
 	}
 
 	VOP_FSYNC(vp, NULL, syncio, curproc);
@@ -619,7 +663,8 @@ vm_object_pmap_remove(object, start, end)
 	if (object == NULL)
 		return;
 	for (p = object->memq.tqh_first; p != NULL; p = p->listq.tqe_next) {
-		vm_page_protect(p, VM_PROT_NONE);
+		if (p->pindex >= start && p->pindex < end)
+			vm_page_protect(p, VM_PROT_NONE);
 	}
 }
 
@@ -763,8 +808,8 @@ vm_object_qcollapse(object)
 		vm_page_t next;
 
 		next = p->listq.tqe_next;
-		if ((p->flags & (PG_BUSY | PG_FICTITIOUS | PG_CACHE)) ||
-		    !p->valid || p->hold_count || p->wire_count || p->busy) {
+		if ((p->flags & (PG_BUSY | PG_FICTITIOUS)) ||
+		    (p->queue == PQ_CACHE) || !p->valid || p->hold_count || p->wire_count || p->busy) {
 			p = next;
 			continue;
 		}
@@ -1104,12 +1149,13 @@ again:
 	if (size > 4 || size >= object->size / 4) {
 		for (p = object->memq.tqh_first; p != NULL; p = next) {
 			next = p->listq.tqe_next;
+			if (p->wire_count != 0) {
+				vm_page_protect(p, VM_PROT_NONE);
+				p->valid = 0;
+				continue;
+			}
 			if ((start <= p->pindex) && (p->pindex < end)) {
 				s = splhigh();
-				if (p->bmapped) {
-					splx(s);
-					continue;
-				}
 				if ((p->flags & PG_BUSY) || p->busy) {
 					p->flags |= PG_WANTED;
 					tsleep(p, PVM, "vmopar", 0);
@@ -1129,12 +1175,15 @@ again:
 		}
 	} else {
 		while (size > 0) {
-			while ((p = vm_page_lookup(object, start)) != 0) {
-				s = splhigh();
-				if (p->bmapped) {
-					splx(s);
-					break;
+			if ((p = vm_page_lookup(object, start)) != 0) {
+				if (p->wire_count != 0) {
+					p->valid = 0;
+					vm_page_protect(p, VM_PROT_NONE);
+					start += 1;
+					size -= 1;
+					continue;
 				}
+				s = splhigh();
 				if ((p->flags & PG_BUSY) || p->busy) {
 					p->flags |= PG_WANTED;
 					tsleep(p, PVM, "vmopar", 0);
@@ -1144,8 +1193,11 @@ again:
 				splx(s);
 				if (clean_only) {
 					vm_page_test_dirty(p);
-					if (p->valid & p->dirty)
+					if (p->valid & p->dirty) {
+						start += 1;
+						size -= 1;
 						continue;
+					}
 				}
 				vm_page_protect(p, VM_PROT_NONE);
 				PAGE_WAKEUP(p);

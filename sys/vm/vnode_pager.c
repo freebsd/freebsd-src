@@ -38,7 +38,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vnode_pager.c	7.5 (Berkeley) 4/20/91
- *	$Id: vnode_pager.c,v 1.56 1995/12/14 09:55:14 phk Exp $
+ *	$Id: vnode_pager.c,v 1.57 1995/12/17 23:29:56 dyson Exp $
  */
 
 /*
@@ -133,7 +133,8 @@ vnode_pager_alloc(handle, size, prot, offset)
 	 * If the object is being terminated, wait for it to
 	 * go away.
 	 */
-	while (((object = vp->v_object) != NULL) && (object->flags & OBJ_DEAD)) {
+	while (((object = vp->v_object) != NULL) &&
+		(object->flags & OBJ_DEAD)) {
 		tsleep(object, PVM, "vadead", 0);
 	}
 

@@ -66,7 +66,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_fault.c,v 1.38 1995/12/07 12:48:10 davidg Exp $
+ * $Id: vm_fault.c,v 1.39 1995/12/11 04:58:06 dyson Exp $
  */
 
 /*
@@ -157,7 +157,7 @@ vm_fault(map, vaddr, fault_type, change_wiring)
 
 #define	RELEASE_PAGE(m)	{				\
 	PAGE_WAKEUP(m);					\
-	if ((m->flags & PG_ACTIVE) == 0) vm_page_activate(m);		\
+	if (m->queue != PQ_ACTIVE) vm_page_activate(m);		\
 }
 
 #define	UNLOCK_MAP	{				\
@@ -280,7 +280,7 @@ RetryFault:;
 			 * Mark page busy for other processes, and the pagedaemon.
 			 */
 			m->flags |= PG_BUSY;
-			if ((m->flags & PG_CACHE) &&
+			if ((m->queue == PQ_CACHE) &&
 			    (cnt.v_free_count + cnt.v_cache_count) < cnt.v_free_reserved) {
 				UNLOCK_AND_DEALLOCATE;
 				VM_WAIT;
@@ -288,8 +288,9 @@ RetryFault:;
 				goto RetryFault;
 			}
 
-			if (m->valid && ((m->valid & VM_PAGE_BITS_ALL) != VM_PAGE_BITS_ALL) &&
-				 m->object != kernel_object && m->object != kmem_object) {
+			if (m->valid &&
+				((m->valid & VM_PAGE_BITS_ALL) != VM_PAGE_BITS_ALL) &&
+				m->object != kernel_object && m->object != kmem_object) {
 				goto readrest;
 			}
 			break;
@@ -306,7 +307,7 @@ RetryFault:;
 			 * Allocate a new page for this object/offset pair.
 			 */
 			m = vm_page_alloc(object, pindex,
-				vp?VM_ALLOC_NORMAL:(VM_ALLOC_NORMAL|VM_ALLOC_ZERO));
+				vp?VM_ALLOC_NORMAL:VM_ALLOC_ZERO);
 
 			if (m == NULL) {
 				UNLOCK_AND_DEALLOCATE;
@@ -504,9 +505,8 @@ readrest:
 			 * call.
 			 */
 
-			if ((m->flags & PG_ACTIVE) == 0)
+			if (m->queue != PQ_ACTIVE)
 				vm_page_activate(m);
-			vm_page_protect(m, VM_PROT_NONE);
 
 			/*
 			 * We no longer need the old page or object.
@@ -642,7 +642,7 @@ readrest:
 		else
 			vm_page_unwire(m);
 	} else {
-		if ((m->flags & PG_ACTIVE) == 0)
+		if (m->queue != PQ_ACTIVE)
 			vm_page_activate(m);
 	}
 
@@ -654,8 +654,6 @@ readrest:
 		}
 	}
 
-	if ((m->flags & PG_BUSY) == 0)
-		printf("page not busy: %d\n", m->pindex);
 	/*
 	 * Unlock everything, and return
 	 */

@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.168 1996/01/04 21:10:53 wollman Exp $
+ *	$Id: machdep.c,v 1.169 1996/01/05 20:12:19 wollman Exp $
  */
 
 #include "npx.h"
@@ -1315,7 +1315,7 @@ init386(first)
 	 */
 	/*
 	 * XXX text protection is temporarily (?) disabled.  The limit was
-	 * i386_btop(i386_round_page(etext)) - 1.
+	 * i386_btop(round_page(etext)) - 1.
 	 */
 	gdt_segs[GCODE_SEL].ssd_limit = i386_btop(0) - 1;
 	gdt_segs[GDATA_SEL].ssd_limit = i386_btop(0) - 1;

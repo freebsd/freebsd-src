@@ -120,8 +120,11 @@ READ(ap)
 			    size, &nextlbn, &nextsize, 1, NOCRED, &bp);
 		} else
 			error = bread(vp, lbn, size, NOCRED, &bp);
-		if (error)
+		if (error) {
+			brelse(bp);
+			bp = NULL;
 			break;
+		}
 		vp->v_lastr = lbn;
 
 		/*
@@ -148,10 +151,10 @@ READ(ap)
 		    uio->uio_offset == ip->i_size))
 			bp->b_flags |= B_AGE;
 #endif
-		brelse(bp);
+		bqrelse(bp);
 	}
 	if (bp != NULL)
-		brelse(bp);
+		bqrelse(bp);
 	ip->i_flag |= IN_ACCESS;
 	return (error);
 }

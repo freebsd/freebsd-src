@@ -38,7 +38,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.49 1995/12/14 08:31:01 phk Exp $
+ *	$Id: vm_machdep.c,v 1.50 1996/01/05 20:12:23 wollman Exp $
  */
 
 #include "npx.h"
@@ -330,8 +330,8 @@ vm_bounce_alloc(bp)
 	vastart = (vm_offset_t) bp->b_data;
 	vaend = (vm_offset_t) bp->b_data + bp->b_bufsize;
 
-	vapstart = i386_trunc_page(vastart);
-	vapend = i386_round_page(vaend);
+	vapstart = trunc_page(vastart);
+	vapend = round_page(vaend);
 	countvmpg = (vapend - vapstart) / NBPG;
 
 /*
@@ -444,13 +444,13 @@ vm_bounce_free(bp)
 		vm_offset_t mybouncepa;
 		vm_offset_t copycount;
 
-		copycount = i386_round_page(bouncekva + 1) - bouncekva;
-		mybouncepa = pmap_kextract(i386_trunc_page(bouncekva));
+		copycount = round_page(bouncekva + 1) - bouncekva;
+		mybouncepa = pmap_kextract(trunc_page(bouncekva));
 
 /*
  * if this is a bounced pa, then process as one
  */
-		if ( mybouncepa != pmap_kextract( i386_trunc_page( origkva))) {
+		if ( mybouncepa != pmap_kextract( trunc_page( origkva))) {
 			vm_offset_t tocopy = copycount;
 			if (i + tocopy > bp->b_bufsize)
 				tocopy = bp->b_bufsize - i;
@@ -481,8 +481,8 @@ vm_bounce_free(bp)
  * add the old kva into the "to free" list
  */
 
-	bouncekva= i386_trunc_page((vm_offset_t) bp->b_data);
-	bouncekvaend= i386_round_page((vm_offset_t)bp->b_data + bp->b_bufsize);
+	bouncekva= trunc_page((vm_offset_t) bp->b_data);
+	bouncekvaend= round_page((vm_offset_t)bp->b_data + bp->b_bufsize);
 
 /*
 	printf("freeva: %d\n", (bouncekvaend - bouncekva) / NBPG);
@@ -614,12 +614,11 @@ cpu_exit(p)
 }
 
 void
-cpu_wait(p) struct proc *p; {
-/*	extern vm_map_t upages_map; */
-
+cpu_wait(p)
+	struct proc *p;
+{
 	/* drop per-process resources */
- 	pmap_remove(vm_map_pmap(u_map), (vm_offset_t) p->p_addr,
-		((vm_offset_t) p->p_addr) + ctob(UPAGES));
+	pmap_qremove((vm_offset_t) p->p_addr, UPAGES);
 	kmem_free(u_map, (vm_offset_t)p->p_addr, ctob(UPAGES));
 	vmspace_free(p->p_vmspace);
 }
@@ -841,7 +840,7 @@ grow(p, sp)
 			grow_amount = MAXSSIZ - (vm->vm_ssize << PAGE_SHIFT);
 		}
 		if ((grow_amount == 0) || (vm_map_find(&vm->vm_map, NULL, 0, (vm_offset_t *)&v,
-		    grow_amount, FALSE) != KERN_SUCCESS)) {
+		    grow_amount, FALSE, VM_PROT_ALL, VM_PROT_ALL, 0) != KERN_SUCCESS)) {
 			return (0);
 		}
 		vm->vm_ssize += grow_amount >> PAGE_SHIFT;
@@ -864,6 +863,7 @@ vm_page_zero_idle() {
 		pmap_zero_page(VM_PAGE_TO_PHYS(m));
 		disable_intr();
 		TAILQ_INSERT_HEAD(&vm_page_queue_zero, m, pageq);
+		m->queue = PQ_ZERO;
 		++vm_page_zero_count;
 		return 1;
 	}

@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_map.h,v 1.9 1995/12/11 04:58:14 dyson Exp $
+ * $Id: vm_map.h,v 1.10 1995/12/14 09:55:00 phk Exp $
  */
 
 /*
@@ -148,6 +148,7 @@ struct vmspace {
 	struct pmap vm_pmap;	/* private physical map */
 	int vm_refcnt;		/* number of references */
 	caddr_t vm_shm;		/* SYS5 shared memory private data XXX */
+	vm_object_t vm_upages_obj;	/* UPAGES object */
 /* we copy from vm_startcopy to the end of the structure on fork */
 #define vm_startcopy vm_rssize
 	segsz_t vm_rssize;	/* current resident set size in pages */
@@ -202,6 +203,12 @@ typedef struct {
 #define MAX_KMAP	10
 #define	MAX_KMAPENT	128
 
+/*
+ * Copy-on-write flags for vm_map operations
+ */
+#define MAP_COPY_NEEDED 0x1
+#define MAP_COPY_ON_WRITE 0x2
+
 #ifdef KERNEL
 extern vm_offset_t kentry_data;
 extern vm_size_t kentry_data_size;
@@ -212,11 +219,11 @@ struct pmap;
 vm_map_t vm_map_create __P((struct pmap *, vm_offset_t, vm_offset_t, boolean_t));
 void vm_map_deallocate __P((vm_map_t));
 int vm_map_delete __P((vm_map_t, vm_offset_t, vm_offset_t));
-int vm_map_find __P((vm_map_t, vm_object_t, vm_ooffset_t, vm_offset_t *, vm_size_t, boolean_t));
+int vm_map_find __P((vm_map_t, vm_object_t, vm_ooffset_t, vm_offset_t *, vm_size_t, boolean_t, vm_prot_t, vm_prot_t, int));
 int vm_map_findspace __P((vm_map_t, vm_offset_t, vm_size_t, vm_offset_t *));
 int vm_map_inherit __P((vm_map_t, vm_offset_t, vm_offset_t, vm_inherit_t));
 void vm_map_init __P((struct vm_map *, vm_offset_t, vm_offset_t, boolean_t));
-int vm_map_insert __P((vm_map_t, vm_object_t, vm_ooffset_t, vm_offset_t, vm_offset_t));
+int vm_map_insert __P((vm_map_t, vm_object_t, vm_ooffset_t, vm_offset_t, vm_offset_t, vm_prot_t, vm_prot_t, int));
 int vm_map_lookup __P((vm_map_t *, vm_offset_t, vm_prot_t, vm_map_entry_t *, vm_object_t *,
     vm_pindex_t *, vm_prot_t *, boolean_t *, boolean_t *));
 void vm_map_lookup_done __P((vm_map_t, vm_map_entry_t));
