@@ -595,8 +595,8 @@ shutdown_kproc(void *arg, int howto)
 
 	p = (struct proc *)arg;
 	printf("Waiting (max %d seconds) for system process `%s' to stop...",
-	    kproc_shutdown_wait * hz, p->p_comm);
-	error = suspend_kproc(p, kproc_shutdown_wait);
+	    kproc_shutdown_wait, p->p_comm);
+	error = suspend_kproc(p, kproc_shutdown_wait * hz);
 
 	if (error == EWOULDBLOCK)
 		printf("timed out\n");
