@@ -185,7 +185,6 @@ struct pccard_softc {
 	/* this stuff is for the card */
 	struct pccard_card card;
 	int		sc_enabled_count;	/* num functions enabled */
-	int		intr_handler_count;
 };
 
 void
@@ -238,7 +237,7 @@ int	pccard_scan_cis(device_t,
 	(pccard_cis_read_1((tuple), ((tuple)->ptr+(2+(idx1)))))
 
 #define	pccard_tuple_read_2(tuple, idx2)				\
-	(pccard_tuple_read_1((tuple), (idx2)) | 			\
+	(pccard_tuple_read_1((tuple), (idx2)) |				\
 	 (pccard_tuple_read_1((tuple), (idx2)+1)<<8))
 
 #define	pccard_tuple_read_3(tuple, idx3)				\
@@ -261,17 +260,8 @@ int	pccard_scan_cis(device_t,
 #define	PCCARD_SPACE_MEMORY	1
 #define	PCCARD_SPACE_IO		2
 
-int	pccard_ccr_read(struct pccard_function *, int);
-void	pccard_ccr_write(struct pccard_function *, int, int);
-
 #define	pccard_mfc(sc)	(STAILQ_FIRST(&(sc)->card.pf_head) &&		\
 		 STAILQ_NEXT(STAILQ_FIRST(&(sc)->card.pf_head),pf_list))
-
-/* The following is the vestages of the NetBSD driver api */
-
-void	pccard_function_init(struct pccard_function *);
-int	pccard_function_enable(struct pccard_function *);
-void	pccard_function_disable(struct pccard_function *);
 
 #define	pccard_io_alloc(pf, start, size, align, pciop)			\
 	(pccard_chip_io_alloc((pf)->sc->pct, pf->sc->pch, (start),	\
@@ -324,7 +314,7 @@ enum {
 __inline static int							\
 pccard_get_ ## A(device_t dev, T *t)					\
 {									\
-	return BUS_READ_IVAR(device_get_parent(dev), dev, 		\
+	return BUS_READ_IVAR(device_get_parent(dev), dev,		\
 	    PCCARD_IVAR_ ## B, (uintptr_t *) t);			\
 }
 

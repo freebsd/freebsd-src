@@ -42,6 +42,7 @@
 #define	RF_TIMESHARE	0x0008	/* resource permits time-division sharing */
 #define	RF_WANTED	0x0010	/* somebody is waiting for this resource */
 #define	RF_FIRSTSHARE	0x0020	/* first in sharing list */
+#define	RF_PREFETCHABLE	0x0040	/* resource is prefetchable */
 
 #define	RF_ALIGNMENT_SHIFT	10 /* alignment size bit starts bit 10 */
 #define	RF_ALIGNMENT_MASK	(0x003F << RF_ALIGNMENT_SHIFT)

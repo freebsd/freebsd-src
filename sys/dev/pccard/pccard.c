@@ -70,16 +70,61 @@ int	pccard_verbose = 1;
 int	pccard_verbose = 0;
 #endif
 
-int	pccard_print(void *, const char *);
+static int	pccard_ccr_read(struct pccard_function *pf, int ccr);
+static void	pccard_ccr_write(struct pccard_function *pf, int ccr, int val);
+static int	pccard_attach_card(device_t dev);
+static int	pccard_detach_card(device_t dev, int flags);
+static const struct pccard_product *pccard_product_lookup(device_t dev,
+		    const struct pccard_product *tab, size_t ent_size,
+		    pccard_product_match_fn matchfn);
+static int	pccard_card_gettype(device_t dev, int *type);
+static void	pccard_function_init(struct pccard_function *pf);
+static void	pccard_function_free(struct pccard_function *pf);
+static int	pccard_function_enable(struct pccard_function *pf);
+static void	pccard_function_disable(struct pccard_function *pf);
+static int	pccard_compat_do_probe(device_t bus, device_t dev);
+static int	pccard_compat_do_attach(device_t bus, device_t dev);
+static int	pccard_add_children(device_t dev, int busno);
+static int	pccard_probe(device_t dev);
+static int	pccard_attach(device_t dev);
+static int	pccard_detach(device_t dev);
+static void	pccard_print_resources(struct resource_list *rl,
+		    const char *name, int type, int count, const char *format);
+static int	pccard_print_child(device_t dev, device_t child);
+static int	pccard_set_resource(device_t dev, device_t child, int type,
+		    int rid, u_long start, u_long count);
+static int	pccard_get_resource(device_t dev, device_t child, int type,
+		    int rid, u_long *startp, u_long *countp);
+static void	pccard_delete_resource(device_t dev, device_t child, int type,
+		    int rid);
+static int	pccard_set_res_flags(device_t dev, device_t child, int type,
+		    int rid, u_int32_t flags);
+static int	pccard_set_memory_offset(device_t dev, device_t child, int rid,
+		    u_int32_t offset, u_int32_t *deltap);
+static int	pccard_read_ivar(device_t bus, device_t child, int which,
+		    u_char *result);
+static void	pccard_driver_added(device_t dev, driver_t *driver);
+static struct resource *pccard_alloc_resource(device_t dev,
+		    device_t child, int type, int *rid, u_long start,
+		    u_long end, u_long count, u_int flags);
+static int	pccard_release_resource(device_t dev, device_t child, int type,
+		    int rid, struct resource *r);
+static void	pccard_child_detached(device_t parent, device_t dev);
+static void	pccard_intr(void *arg);
+static int	pccard_setup_intr(device_t dev, device_t child,
+		    struct resource *irq, int flags, driver_intr_t *intr,
+		    void *arg, void **cookiep);
+static int	pccard_teardown_intr(device_t dev, device_t child,
+		    struct resource *r, void *cookie);
 
-int
+static int
 pccard_ccr_read(struct pccard_function *pf, int ccr)
 {
 	return (bus_space_read_1(pf->pf_ccrt, pf->pf_ccrh,
 	    pf->pf_ccr_offset + ccr));
 }
 
-void
+static void
 pccard_ccr_write(struct pccard_function *pf, int ccr, int val)
 {
 	if ((pf->ccr_mask) & (1 << (ccr / 2))) {
@@ -95,9 +140,7 @@ pccard_attach_card(device_t dev)
 	struct pccard_function *pf;
 	struct pccard_ivar *ivar;
 	device_t child;
-	int attached;
 
-	sc->intr_handler_count = 0;
 	/*
 	 * this is here so that when socket_enable calls gettype, trt happens
 	 */
@@ -129,8 +172,6 @@ pccard_attach_card(device_t dev)
 	if (1)
 		pccard_print_cis(dev);
 
-	attached = 0;
-
 	DEVPRINTF((dev, "functions scanning\n"));
 	STAILQ_FOREACH(pf, &sc->card.pf_head, pf_list) {
 		if (STAILQ_EMPTY(&pf->cfe_head))
@@ -140,10 +181,7 @@ pccard_attach_card(device_t dev)
 		pf->cfe = NULL;
 		pf->dev = NULL;
 	}
-#if 0
-	DEVPRINTF((dev, "chip_socket_disable\n"));
-	POWER_DISABLE_SOCKET(device_get_parent(dev), dev);
-#endif
+
 	STAILQ_FOREACH(pf, &sc->card.pf_head, pf_list) {
 		if (STAILQ_EMPTY(&pf->cfe_head))
 			continue;
@@ -173,10 +211,10 @@ pccard_attach_card(device_t dev)
 		 * XXX addresses illegal or broken).
 		 */
 		pccard_function_init(pf);
+		if (sc->sc_enabled_count == 0)
+			POWER_ENABLE_SOCKET(device_get_parent(dev), dev);
 		if (pccard_function_enable(pf) == 0 &&
 		    device_probe_and_attach(child) == 0) {
-			attached++;
-
 			DEVPRINTF((sc->dev, "function %d CCR at %d "
 			    "offset %x: %x %x %x %x, %x %x %x %x, %x\n",
 			    pf->number, pf->pf_ccr_window, pf->pf_ccr_offset,
@@ -186,9 +224,11 @@ pccard_attach_card(device_t dev)
 			pccard_ccr_read(pf, 0x0C), pccard_ccr_read(pf, 0x0E),
 			pccard_ccr_read(pf, 0x10), pccard_ccr_read(pf, 0x12)));
 		} else {
-			device_delete_child(dev, child);
+			pccard_function_disable(pf);
 		}
 	}
+	if (sc->sc_enabled_count == 0)
+		pccard_detach_card(dev, 0);
 	return (0);
 }
 
@@ -197,28 +237,37 @@ pccard_detach_card(device_t dev, int flags)
 {
 	struct pccard_softc *sc = PCCARD_SOFTC(dev);
 	struct pccard_function *pf;
+	struct pccard_config_entry *cfe;
 
 	/*
 	 * We are running on either the PCCARD socket's event thread
 	 * or in user context detaching a device by user request.
 	 */
 	STAILQ_FOREACH(pf, &sc->card.pf_head, pf_list) {
-		if (STAILQ_FIRST(&pf->cfe_head) == NULL)
-			continue;
+		int state = device_get_state(pf->dev);
 
+		if (state == DS_ATTACHED || state == DS_BUSY)
+			device_detach(pf->dev);
 		pccard_function_disable(pf);
-		/*
-		 * XXX must also actually delete resources created by
-		 * pccard_function_init().  If pccard_function_init
-		 * keeps things allocated it is a bug.
-		 */
+		pccard_function_free(pf);
 		if (pf->dev != NULL)
 			device_delete_child(dev, pf->dev);
+	}
+	if (sc->sc_enabled_count == 0)
+		POWER_DISABLE_SOCKET(device_get_parent(dev), dev);
+
+	while (NULL != (pf = STAILQ_FIRST(&sc->card.pf_head))) {
+		while (NULL != (cfe = STAILQ_FIRST(&pf->cfe_head))) {
+			STAILQ_REMOVE_HEAD(&pf->cfe_head, cfe_list);
+			free(cfe, M_DEVBUF);
+		}
+		STAILQ_REMOVE_HEAD(&sc->card.pf_head, pf_list);
+		free(pf, M_DEVBUF);
 	}
 	return (0);
 }
 
-const struct pccard_product *
+static const struct pccard_product *
 pccard_product_lookup(device_t dev, const struct pccard_product *tab,
     size_t ent_size, pccard_product_match_fn matchfn)
 {
@@ -245,9 +294,8 @@ pccard_product_lookup(device_t dev, const struct pccard_product *tab,
 		return (NULL);
 	if (pccard_get_product_str(dev, &prodstr))
 		return (NULL);
-        for (ent = tab; ent->pp_name != NULL;
-	     ent = (const struct pccard_product *)
-		 ((const char *) ent + ent_size)) {
+	for (ent = tab; ent->pp_name != NULL; ent =
+	    (const struct pccard_product *) ((const char *) ent + ent_size)) {
 		matches = 1;
 		if (matches && ent->pp_vendor != PCCARD_VENDOR_ANY &&
 		    vendor != ent->pp_vendor)
@@ -297,7 +345,7 @@ pccard_card_gettype(device_t dev, int *type)
  * Initialize a PCCARD function.  May be called as long as the function is
  * disabled.
  */
-void
+static void
 pccard_function_init(struct pccard_function *pf)
 {
 	struct pccard_config_entry *cfe;
@@ -369,7 +417,7 @@ pccard_function_init(struct pccard_function *pf)
 			if (cfe->iores[i] != NULL) {
 				bus_release_resource(bus, SYS_RES_IOPORT,
 				    cfe->iorid[i], cfe->iores[i]);
-				rle = resource_list_find(rl, SYS_RES_IOPORT, 
+				rle = resource_list_find(rl, SYS_RES_IOPORT,
 				    cfe->iorid[i]);
 				rle->res = NULL;
 				resource_list_delete(rl, SYS_RES_IOPORT,
@@ -389,8 +437,40 @@ pccard_function_init(struct pccard_function *pf)
 	}
 }
 
+/*
+ * Free resources allocated by pccard_function_init(), May be called as long
+ * as the function is disabled.
+ */
+static void
+pccard_function_free(struct pccard_function *pf)
+{
+	struct pccard_ivar *devi = PCCARD_IVAR(pf->dev);
+	struct resource_list_entry *rle;
+
+	if (pf->pf_flags & PFF_ENABLED) {
+		printf("pccard_function_init: function is enabled");
+		return;
+	}
+
+	SLIST_FOREACH(rle, &devi->resources, link) {
+		if (rle->res) {
+			if (rle->res->r_dev != pf->sc->dev)
+				device_printf(pf->sc->dev,
+				    "function_free: Resource still owned by "
+				    "child, oops. "
+				    "(type=%d, rid=%d, addr=%lx)\n",
+				    rle->type, rle->rid,
+				    rman_get_start(rle->res));
+			BUS_RELEASE_RESOURCE(device_get_parent(pf->sc->dev),
+			    rle->res->r_dev, rle->type, rle->rid, rle->res);
+			rle->res = NULL;
+		}
+	}
+	resource_list_free(&devi->resources);
+}
+
 /* Enable a PCCARD function */
-int
+static int
 pccard_function_enable(struct pccard_function *pf)
 {
 	struct pccard_function *tmp;
@@ -406,9 +486,7 @@ pccard_function_enable(struct pccard_function *pf)
 	 * Increase the reference count on the socket, enabling power, if
 	 * necessary.
 	 */
-	if (pf->sc->sc_enabled_count++ == 0)
-		POWER_ENABLE_SOCKET(device_get_parent(dev), dev);
-	DEVPRINTF((dev, "++enabled_count = %d\n", pf->sc->sc_enabled_count));
+	pf->sc->sc_enabled_count++;
 
 	if (pf->pf_flags & PFF_ENABLED) {
 		/*
@@ -425,8 +503,8 @@ pccard_function_enable(struct pccard_function *pf)
 		if ((tmp->pf_flags & PFF_ENABLED) &&
 		    (pf->ccr_base >= (tmp->ccr_base - tmp->pf_ccr_offset)) &&
 		    ((pf->ccr_base + PCCARD_CCR_SIZE) <=
-		     (tmp->ccr_base - tmp->pf_ccr_offset +
-		      tmp->pf_ccr_realsize))) {
+		    (tmp->ccr_base - tmp->pf_ccr_offset +
+		    tmp->pf_ccr_realsize))) {
 			pf->pf_ccrt = tmp->pf_ccrt;
 			pf->pf_ccrh = tmp->pf_ccrh;
 			pf->pf_ccr_realsize = tmp->pf_ccr_realsize;
@@ -530,15 +608,14 @@ pccard_function_enable(struct pccard_function *pf)
 	 * Decrement the reference count, and power down the socket, if
 	 * necessary.
 	 */
-	if (--pf->sc->sc_enabled_count == 0)
-		POWER_DISABLE_SOCKET(device_get_parent(dev), dev);
+	pf->sc->sc_enabled_count--;
 	DEVPRINTF((dev, "bad --enabled_count = %d\n", pf->sc->sc_enabled_count));
 
 	return (1);
 }
 
 /* Disable PCCARD function. */
-void
+static void
 pccard_function_disable(struct pccard_function *pf)
 {
 	struct pccard_function *tmp;
@@ -555,26 +632,11 @@ pccard_function_disable(struct pccard_function *pf)
 	}
 
 	if (pf->intr_handler != NULL) {
-		pf->intr_handler = NULL;
-		pf->intr_handler_arg = NULL;
-		pf->intr_handler_cookie = NULL;
-		pccard_ccr_write(pf, PCCARD_CCR_OPTION,
-				 pccard_ccr_read(pf, PCCARD_CCR_OPTION) &
-				 ~PCCARD_CCR_OPTION_IREQ_ENABLE);
-
-		if (pf->sc->intr_handler_count == 1) {
-			struct pccard_ivar *ivar = PCCARD_IVAR(pf->dev);
-			struct resource_list_entry *rle = NULL;
-
-			pf->sc->intr_handler_count--;
-			rle = resource_list_find(&ivar->resources, SYS_RES_IRQ,
-			    0);
-			if (rle == NULL)
-				panic("No IRQ for pccard?");
-
-			bus_teardown_intr(dev, rle->res,
-			    &pf->sc->intr_handler_count);
-		}
+		struct pccard_ivar *devi = PCCARD_IVAR(pf->dev);
+		struct resource_list_entry *rle =
+		    resource_list_find(&devi->resources, SYS_RES_IRQ, 0);
+		BUS_TEARDOWN_INTR(dev, pf->dev, rle->res,
+		    pf->intr_handler_cookie);
 	}
 
 	/*
@@ -588,7 +650,8 @@ pccard_function_disable(struct pccard_function *pf)
 		if ((tmp->pf_flags & PFF_ENABLED) &&
 		    (pf->ccr_base >= (tmp->ccr_base - tmp->pf_ccr_offset)) &&
 		    ((pf->ccr_base + PCCARD_CCR_SIZE) <=
-		(tmp->ccr_base - tmp->pf_ccr_offset + tmp->pf_ccr_realsize)))
+		    (tmp->ccr_base - tmp->pf_ccr_offset +
+		    tmp->pf_ccr_realsize)))
 			break;
 	}
 
@@ -603,9 +666,7 @@ pccard_function_disable(struct pccard_function *pf)
 	 * Decrement the reference count, and power down the socket, if
 	 * necessary.
 	 */
-	if (--pf->sc->sc_enabled_count == 0)
-		POWER_DISABLE_SOCKET(device_get_parent(dev), dev);
-	DEVPRINTF((dev, "--enabled_count = %d\n", pf->sc->sc_enabled_count));
+	pf->sc->sc_enabled_count--;
 }
 
 #if 0
@@ -723,6 +784,13 @@ pccard_attach(device_t dev)
 	return (bus_generic_attach(dev));
 }
 
+static int
+pccard_detach(device_t dev)
+{
+	pccard_detach_card(dev, 0);
+	return 0;
+}
+
 static void
 pccard_print_resources(struct resource_list *rl, const char *name, int type,
     int count, const char *format)
@@ -802,8 +870,11 @@ pccard_set_resource(device_t dev, device_t child, int type, int rid,
 		return (EINVAL);
 
 	resource_list_add(rl, type, rid, start, start + count - 1, count);
-
-	return (0);
+	if (NULL != resource_list_alloc(rl, device_get_parent(dev), dev,
+	    type, &rid, start, start + count - 1, count, 0))
+		return 0;
+	else
+		return ENOMEM;
 }
 
 static int
@@ -844,7 +915,7 @@ pccard_set_res_flags(device_t dev, device_t child, int type, int rid,
 
 static int
 pccard_set_memory_offset(device_t dev, device_t child, int rid,
-     u_int32_t offset, u_int32_t *deltap)
+    u_int32_t offset, u_int32_t *deltap)
 
 {
 	return (CARD_SET_MEMORY_OFFSET(device_get_parent(dev), child, rid,
@@ -899,123 +970,152 @@ pccard_read_ivar(device_t bus, device_t child, int which, u_char *result)
 static void
 pccard_driver_added(device_t dev, driver_t *driver)
 {
-	/*
-	 * XXX eventually we need to attach stuff when we know we
-	 * XXX have kids.  For now we do nothing because we normally
-	 * XXX add children ourselves.  We don't want to necessarily
-	 * XXX force a reprobe.
-	 */
+	struct pccard_softc *sc = PCCARD_SOFTC(dev);
+	struct pccard_function *pf;
+	device_t child;
+
+	if (sc->sc_enabled_count == 0) {
+		CARD_REPROBE_CARD(device_get_parent(dev), dev);
+		return;
+	}
+
+	STAILQ_FOREACH(pf, &sc->card.pf_head, pf_list) {
+		if (STAILQ_EMPTY(&pf->cfe_head))
+			continue;
+		child = pf->dev;
+		if (device_get_state(child) != DS_NOTPRESENT)
+			continue;
+		if (pccard_function_enable(pf) == 0 &&
+		    device_probe_and_attach(child) == 0) {
+			DEVPRINTF((sc->dev, "function %d CCR at %d "
+			    "offset %x: %x %x %x %x, %x %x %x %x, %x\n",
+			    pf->number, pf->pf_ccr_window, pf->pf_ccr_offset,
+			    pccard_ccr_read(pf, 0x00),
+			pccard_ccr_read(pf, 0x02), pccard_ccr_read(pf, 0x04),
+			pccard_ccr_read(pf, 0x06), pccard_ccr_read(pf, 0x0A),
+			pccard_ccr_read(pf, 0x0C), pccard_ccr_read(pf, 0x0E),
+			pccard_ccr_read(pf, 0x10), pccard_ccr_read(pf, 0x12)));
+		} else {
+			pccard_function_disable(pf);
+		}
+	}
+	return;
 }
 
 static struct resource *
 pccard_alloc_resource(device_t dev, device_t child, int type, int *rid,
     u_long start, u_long end, u_long count, u_int flags)
 {
-	struct resource_list_entry *rle = NULL;
+	struct pccard_ivar *dinfo;
+	struct resource_list_entry *rle = 0;
+	int passthrough = (device_get_parent(child) != dev);
 
-	/* XXX: This is an ugly way to fudge the resources. */
-
-	if (device_get_parent(child) == dev) {
-		struct pccard_ivar *devi = PCCARD_IVAR(child);
-		struct resource_list *rl = &devi->resources;
-
-		rle = resource_list_find(rl, type, *rid);
+	if (passthrough) {
+		return (BUS_ALLOC_RESOURCE(device_get_parent(dev), child,
+		    type, rid, start, end, count, flags));
 	}
 
-	if (rle != NULL) {
-		if (flags & RF_ACTIVE)
-			bus_activate_resource(dev, type, rle->rid, rle->res);
-		return (rle->res);
+	dinfo = device_get_ivars(child);
+	rle = resource_list_find(&dinfo->resources, type, *rid);
+
+	if (!rle)
+		return NULL;		/* no resource of that type/rid */
+
+	if (!rle->res) {
+		device_printf(dev, "WARNING: Resource not reserved by pccard bus\n");
+		return NULL;
+	} else {
+		if (rle->res->r_dev != dev) return NULL;
+		bus_release_resource(dev, type, *rid, rle->res);
+		rle->res = NULL;
+		switch(type) {
+		case SYS_RES_IOPORT:
+		case SYS_RES_MEMORY:
+			if (!(flags & RF_ALIGNMENT_MASK))
+				flags |= rman_make_alignment_flags(rle->count);
+			break;
+		case SYS_RES_IRQ:
+			flags |= RF_SHAREABLE;
+			break;
+		}
+		return resource_list_alloc(&dinfo->resources, dev, child, type,
+		    rid, rle->start, rle->end, rle->count, flags);
 	}
-	return (bus_generic_alloc_resource(dev, child, type, rid, start,
-	    end, count, flags));
 }
 
 static int
 pccard_release_resource(device_t dev, device_t child, int type, int rid,
     struct resource *r)
 {
-	struct resource_list_entry *rle = NULL;
+	struct pccard_ivar *dinfo;
+	int passthrough = (device_get_parent(child) != dev);
+	struct resource_list_entry *rle = 0;
+	int ret;
+	int flags;
 
-	if (device_get_parent(child) == dev) {
-		struct pccard_ivar *devi = PCCARD_IVAR(child);
-		struct resource_list *rl = &devi->resources;
+	if (passthrough)
+		return BUS_RELEASE_RESOURCE(device_get_parent(dev), child,
+		    type, rid, r);
 
-		rle = resource_list_find(rl, type, rid);
+	dinfo = device_get_ivars(child);
+
+	rle = resource_list_find(&dinfo->resources, type, rid);
+
+	if (!rle) {
+		device_printf(dev, "Allocated resource not found, "
+		    "%d %x %lx %lx\n",
+		    type, rid, rman_get_start(r), rman_get_size(r));
+		return ENOENT;
+	}
+	if (!rle->res) {
+		device_printf(dev, "Allocated resource not recorded\n");
+		return ENOENT;
 	}
 
-	if (rle != NULL) {
-		return (bus_deactivate_resource(dev, type, rle->rid, rle->res));
+	ret = BUS_RELEASE_RESOURCE(device_get_parent(dev), child,
+	    type, rid, r);
+	switch(type) {
+	case SYS_RES_IOPORT:
+	case SYS_RES_MEMORY:
+		flags = rman_make_alignment_flags(rle->count);
+		break;
+	case SYS_RES_IRQ:
+		flags = RF_SHAREABLE;
+		break;
+	default:
+		flags = 0;
 	}
-
-	return (bus_generic_release_resource(dev, child, type, rid, r));
-}
-
-static int
-pccard_activate_resource(device_t dev, device_t child, int type, int rid,
-    struct resource *r)
-{
-	/* XXX need to write to the COR to activate this for mf cards */
-	struct resource_list_entry *rle = NULL;
-
-	if (device_get_parent(child) == dev) {
-		struct pccard_ivar *devi = PCCARD_IVAR(child);
-		struct resource_list *rl = &devi->resources;
-
-		rle = resource_list_find(rl, type, rid);
-	}
-
-	if (rle != NULL) {
-		return (bus_activate_resource(dev, type, rle->rid, rle->res));
-	}
-
-	return (bus_generic_activate_resource(dev, child, type, rid, r));
-}
-
-static int
-pccard_deactivate_resource(device_t dev, device_t child, int type, int rid,
-    struct resource *r)
-{
-	/* XXX need to write to the COR to deactivate this for mf cards */
-	struct resource_list_entry *rle = NULL;
-
-	if (device_get_parent(child) == dev) {
-		struct pccard_ivar *devi = PCCARD_IVAR(child);
-		struct resource_list *rl = &devi->resources;
-
-		rle = resource_list_find(rl, type, rid);
-	}
-
-	if (rle != NULL) {
-		return (bus_deactivate_resource(dev, type, rle->rid, rle->res));
-	}
-
-	return (bus_generic_deactivate_resource(dev, child, type, rid, r));
+	rle->res = bus_alloc_resource(dev, type, &rid,
+	    rle->start, rle->end, rle->count, flags);
+	if (rle->res == NULL)
+		device_printf(dev, "release_resource: "
+		    "unable to reaquire resource\n");
+	return ret;
 }
 
 static void
 pccard_child_detached(device_t parent, device_t dev)
 {
 	struct pccard_ivar *ivar = PCCARD_IVAR(dev);
+	struct pccard_function *pf = ivar->fcn;
 
-	if (parent == device_get_parent(dev))
-		free(ivar, M_DEVBUF);
+	pccard_function_disable(pf);
 }
 
 static void
 pccard_intr(void *arg)
 {
-	struct pccard_softc *sc = (struct pccard_softc *) arg;
-	struct pccard_function *pf;
-	STAILQ_FOREACH(pf, &sc->card.pf_head, pf_list) {
-		if (pf->intr_handler != NULL) {
-			int reg = pccard_ccr_read(pf, PCCARD_CCR_STATUS);
-			if (reg & PCCARD_CCR_STATUS_INTR) {
-				pccard_ccr_write(pf, PCCARD_CCR_STATUS,
-				    reg & ~PCCARD_CCR_STATUS_INTR);
-				pf->intr_handler(pf->intr_handler_arg);
-			}
-		}
+	struct pccard_function *pf = (struct pccard_function*) arg;
+	int reg;
+
+	if (pf->intr_handler == NULL)
+		panic("Null interrupt handler?\n");
+
+	reg = pccard_ccr_read(pf, PCCARD_CCR_STATUS);
+	if (reg & PCCARD_CCR_STATUS_INTR) {
+		pccard_ccr_write(pf, PCCARD_CCR_STATUS,
+				 reg & ~PCCARD_CCR_STATUS_INTR);
+		pf->intr_handler(pf->intr_handler_arg);
 	}
 }
 
@@ -1025,31 +1125,19 @@ pccard_setup_intr(device_t dev, device_t child, struct resource *irq,
 {
 	struct pccard_ivar *ivar = PCCARD_IVAR(child);
 	struct pccard_function *func = ivar->fcn;
-	struct resource_list_entry *rle = NULL;
-	struct pccard_softc *sc = device_get_softc(dev);
 
 	if (func->intr_handler != NULL)
 		panic("Only one interrupt handler per function allowed\n");
 
-	rle = resource_list_find(&ivar->resources, SYS_RES_IRQ, 0);
-	if (rle == NULL || rle->res != irq)
-		panic("irq in setup_intr does not match allocated irq\n");
-
 	func->intr_handler = intr;
 	func->intr_handler_arg = arg;
-	func->intr_handler_cookie = *cookiep = func;
+	func->intr_handler_cookie = *cookiep;
 	pccard_ccr_write(func, PCCARD_CCR_OPTION,
-	    pccard_ccr_read(func, PCCARD_CCR_OPTION) | 
+	    pccard_ccr_read(func, PCCARD_CCR_OPTION) |
 	    PCCARD_CCR_OPTION_IREQ_ENABLE);
 
-	if (sc->intr_handler_count++ == 0) {
-		rle = resource_list_find(&ivar->resources, SYS_RES_IRQ, 0);
-		if (rle == NULL)
-			panic("No IRQ for pccard?");
-
-		bus_setup_intr(dev, rle->res, INTR_TYPE_TTY/* | INTR_FAST*/,
-		    pccard_intr, sc, (void*)&sc->intr_handler_count);
-	}
+	bus_setup_intr(dev, irq, INTR_TYPE_TTY/* | INTR_FAST*/,
+	    pccard_intr, func, cookiep);
 	return (0);
 }
 
@@ -1059,35 +1147,27 @@ pccard_teardown_intr(device_t dev, device_t child, struct resource *r,
 {
 	struct pccard_ivar *ivar = PCCARD_IVAR(child);
 	struct pccard_function *func = ivar->fcn;
-	struct pccard_softc *sc = device_get_softc(dev);
+	int ret;
 
-	if (func->intr_handler_cookie != cookie)
-		panic("pccard teardown of unknown interrupt handler\n");
-
-	func->intr_handler = NULL;
-	func->intr_handler_arg = NULL;
-	func->intr_handler_cookie = NULL;
 	pccard_ccr_write(func, PCCARD_CCR_OPTION,
 	    pccard_ccr_read(func, PCCARD_CCR_OPTION) &
 	    ~PCCARD_CCR_OPTION_IREQ_ENABLE);
 
-	if (--sc->intr_handler_count == 0) {
-		struct resource_list_entry *rle = NULL;
-
-		rle = resource_list_find(&ivar->resources, SYS_RES_IRQ, 0);
-		if (rle == NULL)
-			panic("No IRQ for pccard?");
-
-		bus_teardown_intr(dev, rle->res, &sc->intr_handler_count);
+	ret = bus_teardown_intr(dev, r, cookie);
+	if (ret == 0) {
+		func->intr_handler = NULL;
+		func->intr_handler_arg = NULL;
+		func->intr_handler_cookie = NULL;
 	}
-	return (0);
+
+	return (ret);
 }
 
 static device_method_t pccard_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		pccard_probe),
 	DEVMETHOD(device_attach,	pccard_attach),
-	DEVMETHOD(device_detach,	bus_generic_detach),
+	DEVMETHOD(device_detach,	pccard_detach),
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
 	DEVMETHOD(device_suspend,	bus_generic_suspend),
 	DEVMETHOD(device_resume,	bus_generic_resume),
@@ -1098,8 +1178,8 @@ static device_method_t pccard_methods[] = {
 	DEVMETHOD(bus_child_detached,	pccard_child_detached),
 	DEVMETHOD(bus_alloc_resource,	pccard_alloc_resource),
 	DEVMETHOD(bus_release_resource,	pccard_release_resource),
-	DEVMETHOD(bus_activate_resource, pccard_activate_resource),
-	DEVMETHOD(bus_deactivate_resource, pccard_deactivate_resource),
+	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
+	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
 	DEVMETHOD(bus_setup_intr,	pccard_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	pccard_teardown_intr),
 	DEVMETHOD(bus_set_resource,	pccard_set_resource),

@@ -88,6 +88,10 @@ void	cardbus_cis_free(device_t, struct cis_tupleinfo*, int*);
 /* BAR */
 #define	TPL_BAR_REG_ASI_MASK			0x07
 #define	TPL_BAR_REG_AS				0x10
+#define	TPL_BAR_REG_PREFETCHABLE_ONLY		0x20
+#define	TPL_BAR_REG_PREFETCHABLE_CACHEABLE	0x40
+#define	TPL_BAR_REG_PREFETCHABLE		0x60
+#define	TPL_BAR_REG_BELOW1MB			0x80
 
 /* CISTPL_FUNC */
 #define	TPL_FUNC_MF		0	/* multi function tuple */
