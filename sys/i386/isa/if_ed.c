@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ed.c,v 1.91 1995/12/15 00:54:07 bde Exp $
+ *	$Id: if_ed.c,v 1.92 1995/12/15 07:31:40 davidg Exp $
  */
 
 /*
@@ -1465,8 +1465,8 @@ ed_attach(isa_dev)
 	/*
 	 * Print additional info when attached
 	 */
-	printf("ed%d: address %s, ", isa_dev->id_unit,
-	       ether_sprintf(sc->arpcom.ac_enaddr));
+	printf("ed%d: address %6D, ", isa_dev->id_unit, 
+		sc->arpcom.ac_enaddr, ":");
 
 	if (sc->type_str && (*sc->type_str != 0))
 		printf("type %s ", sc->type_str);
