@@ -239,62 +239,96 @@ POD1+=	apps/CA.pl.pod apps/asn1parse.pod apps/ca.pod apps/ciphers.pod \
 	apps/dhparam.pod apps/dsa.pod apps/dsaparam.pod apps/enc.pod \
 	apps/gendsa.pod apps/genrsa.pod apps/nseq.pod apps/openssl.pod \
 	apps/passwd.pod apps/pkcs12.pod apps/pkcs7.pod apps/pkcs8.pod \
-	apps/req.pod apps/rsa.pod apps/s_client.pod apps/s_server.pod \
-	apps/sess_id.pod apps/smime.pod apps/speed.pod apps/spkac.pod \
-	apps/verify.pod apps/version.pod apps/x509.pod
+	apps/rand.pod apps/req.pod apps/rsa.pod apps/rsautl.pod \
+	apps/s_client.pod apps/s_server.pod apps/sess_id.pod \
+	apps/smime.pod apps/speed.pod apps/spkac.pod apps/verify.pod \
+	apps/version.pod apps/x509.pod
 
-POD3+=	crypto/BN_CTX_new.pod crypto/BN_CTX_start.pod crypto/BN_add.pod \
-	crypto/BN_add_word.pod crypto/BN_bn2bin.pod crypto/BN_cmp.pod \
-	crypto/BN_copy.pod crypto/BN_generate_prime.pod \
-	crypto/BN_mod_inverse.pod crypto/BN_mod_mul_montgomery.pod \
+POD3+=	crypto/BIO_ctrl.pod crypto/BIO_f_base64.pod \
+	crypto/BIO_f_buffer.pod crypto/BIO_f_cipher.pod \
+	crypto/BIO_f_md.pod crypto/BIO_f_null.pod crypto/BIO_f_ssl.pod \
+	crypto/BIO_find_type.pod crypto/BIO_new.pod \
+	crypto/BIO_new_bio_pair.pod crypto/BIO_push.pod \
+	crypto/BIO_read.pod crypto/BIO_s_accept.pod \
+	crypto/BIO_s_bio.pod crypto/BIO_s_connect.pod \
+	crypto/BIO_s_fd.pod crypto/BIO_s_file.pod crypto/BIO_s_mem.pod \
+	crypto/BIO_s_null.pod crypto/BIO_s_socket.pod \
+	crypto/BIO_set_callback.pod crypto/BIO_should_retry.pod \
+	crypto/BN_CTX_new.pod crypto/BN_CTX_start.pod \
+	crypto/BN_add.pod crypto/BN_add_word.pod crypto/BN_bn2bin.pod \
+	crypto/BN_cmp.pod crypto/BN_copy.pod \
+	crypto/BN_generate_prime.pod crypto/BN_mod_inverse.pod \
+	crypto/BN_mod_mul_montgomery.pod \
 	crypto/BN_mod_mul_reciprocal.pod crypto/BN_new.pod \
-	crypto/BN_num_bytes.pod crypto/BN_rand.pod crypto/BN_set_bit.pod \
-	crypto/BN_zero.pod crypto/CRYPTO_set_ex_data.pod \
-	crypto/DH_generate_key.pod crypto/DH_generate_parameters.pod \
+	crypto/BN_num_bytes.pod crypto/BN_rand.pod \
+	crypto/BN_set_bit.pod crypto/BN_zero.pod \
+	crypto/CRYPTO_set_ex_data.pod crypto/DH_generate_key.pod \
+	crypto/DH_generate_parameters.pod \
 	crypto/DH_get_ex_new_index.pod crypto/DH_new.pod \
-	crypto/DH_set_method.pod crypto/DH_size.pod crypto/DSA_SIG_new.pod \
-	crypto/DSA_do_sign.pod crypto/DSA_dup_DH.pod \
-	crypto/DSA_generate_key.pod crypto/DSA_generate_parameters.pod \
+	crypto/DH_set_method.pod crypto/DH_size.pod \
+	crypto/DSA_SIG_new.pod crypto/DSA_do_sign.pod \
+	crypto/DSA_dup_DH.pod crypto/DSA_generate_key.pod \
+	crypto/DSA_generate_parameters.pod \
 	crypto/DSA_get_ex_new_index.pod crypto/DSA_new.pod \
-	crypto/DSA_set_method.pod crypto/DSA_sign.pod crypto/DSA_size.pod \
-	crypto/ERR_GET_LIB.pod crypto/ERR_clear_error.pod \
-	crypto/ERR_error_string.pod crypto/ERR_get_error.pod \
-	crypto/ERR_load_crypto_strings.pod crypto/ERR_load_strings.pod \
-	crypto/ERR_print_errors.pod crypto/ERR_put_error.pod \
-	crypto/ERR_remove_state.pod crypto/EVP_DigestInit.pod \
-	crypto/EVP_EncryptInit.pod crypto/OPENSSL_VERSION_NUMBER.pod \
+	crypto/DSA_set_method.pod crypto/DSA_sign.pod \
+	crypto/DSA_size.pod crypto/ERR_GET_LIB.pod \
+	crypto/ERR_clear_error.pod crypto/ERR_error_string.pod \
+	crypto/ERR_get_error.pod crypto/ERR_load_crypto_strings.pod \
+	crypto/ERR_load_strings.pod crypto/ERR_print_errors.pod \
+	crypto/ERR_put_error.pod crypto/ERR_remove_state.pod \
+	crypto/EVP_DigestInit.pod crypto/EVP_EncryptInit.pod \
+	crypto/EVP_OpenInit.pod crypto/EVP_SealInit.pod \
+	crypto/EVP_SignInit.pod crypto/EVP_VerifyInit.pod \
+	crypto/OPENSSL_VERSION_NUMBER.pod \
 	crypto/OpenSSL_add_all_algorithms.pod crypto/RAND_add.pod \
-	crypto/RAND_bytes.pod crypto/RAND_cleanup.pod crypto/RAND_egd.pod \
-	crypto/RAND_load_file.pod crypto/RAND_set_rand_method.pod \
-	crypto/RSA_blinding_on.pod crypto/RSA_check_key.pod \
-	crypto/RSA_generate_key.pod crypto/RSA_get_ex_new_index.pod \
-	crypto/RSA_new.pod crypto/RSA_padding_add_PKCS1_type_1.pod \
-	crypto/RSA_print.pod crypto/RSA_private_encrypt.pod \
-	crypto/RSA_public_encrypt.pod crypto/RSA_set_method.pod \
-	crypto/RSA_sign.pod crypto/RSA_sign_ASN1_OCTET_STRING.pod \
-	crypto/RSA_size.pod crypto/blowfish.pod crypto/bn.pod \
+	crypto/RAND_bytes.pod crypto/RAND_cleanup.pod \
+	crypto/RAND_egd.pod crypto/RAND_load_file.pod \
+	crypto/RAND_set_rand_method.pod crypto/RSA_blinding_on.pod \
+	crypto/RSA_check_key.pod crypto/RSA_generate_key.pod \
+	crypto/RSA_get_ex_new_index.pod crypto/RSA_new.pod \
+	crypto/RSA_padding_add_PKCS1_type_1.pod crypto/RSA_print.pod \
+	crypto/RSA_private_encrypt.pod crypto/RSA_public_encrypt.pod \
+	crypto/RSA_set_method.pod crypto/RSA_sign.pod \
+	crypto/RSA_sign_ASN1_OCTET_STRING.pod crypto/RSA_size.pod \
+	crypto/bio.pod crypto/blowfish.pod crypto/bn.pod \
 	crypto/bn_internal.pod crypto/buffer.pod crypto/crypto.pod \
 	crypto/d2i_DHparams.pod crypto/d2i_RSAPublicKey.pod \
-	crypto/des_modes.pod crypto/dh.pod crypto/dsa.pod crypto/err.pod \
-	crypto/hmac.pod crypto/lh_stats.pod crypto/lhash.pod crypto/md5.pod \
-	crypto/mdc2.pod crypto/rand.pod crypto/rc4.pod crypto/ripemd.pod \
-	crypto/rsa.pod crypto/sha.pod crypto/threads.pod
+	crypto/des.pod crypto/des_modes.pod crypto/dh.pod \
+	crypto/dsa.pod crypto/err.pod crypto/evp.pod crypto/hmac.pod \
+	crypto/lh_stats.pod crypto/lhash.pod crypto/md5.pod \
+	crypto/mdc2.pod crypto/rand.pod crypto/rc4.pod \
+	crypto/ripemd.pod crypto/rsa.pod crypto/sha.pod \
+	crypto/threads.pod
 
-POD3+=	ssl/SSL_get_error.pod ssl/ssl.pod
+POD3+=	ssl/SSL_CIPHER_get_name.pod ssl/SSL_CTX_free.pod \
+	ssl/SSL_CTX_new.pod ssl/SSL_CTX_set_cipher_list.pod \
+	ssl/SSL_CTX_set_ssl_version.pod ssl/SSL_SESSION_free.pod \
+	ssl/SSL_accept.pod ssl/SSL_clear.pod ssl/SSL_connect.pod \
+	ssl/SSL_free.pod ssl/SSL_get_ciphers.pod \
+	ssl/SSL_get_current_cipher.pod ssl/SSL_get_error.pod \
+	ssl/SSL_get_fd.pod ssl/SSL_get_peer_cert_chain.pod \
+	ssl/SSL_get_peer_certificate.pod ssl/SSL_get_rbio.pod \
+	ssl/SSL_get_session.pod ssl/SSL_get_verify_result.pod \
+	ssl/SSL_library_init.pod ssl/SSL_new.pod ssl/SSL_pending.pod \
+	ssl/SSL_read.pod ssl/SSL_set_bio.pod ssl/SSL_set_fd.pod \
+	ssl/SSL_set_session.pod ssl/SSL_set_verify_result.pod \
+	ssl/SSL_shutdown.pod ssl/SSL_write.pod ssl/ssl.pod
 
-#.for section in 1 3
-#.for pod in ${POD${section}}
-#.for target in ${pod:T:S/.pod/.${section}/g}
-#MAN${section}+= ${target}
-#CLEANFILES+= ${target}
-#all-man: ${target}
-#${target}: ${LCRYPTO_SRC}/../doc/${pod}
-#	pod2man ${LCRYPTO_SRC}/../doc/${pod} > ${target}
-#.endfor
-#.endfor
-#.endfor
+.if defined(WANT_OPENSSL_MANPAGES)
+.for section in 1 3
+.for pod in ${POD${section}}
+.for target in ${pod:T:S/.pod/.${section}/g}
+MAN${section}+= ${target}
+CLEANFILES+= ${target}
+all-man: ${target}
+${target}: ${LCRYPTO_SRC}/../doc/${pod}
+	pod2man ${LCRYPTO_SRC}/../doc/${pod} > ${target}
+.endfor
+.endfor
+.endfor
+.endif
 
-MAN3=	des_crypt.3
+MAN3+=	des_crypt.3
 
 MLINKS= des_crypt.3 des_read_password.3 \
 	des_crypt.3 des_read_2password.3 des_crypt.3 des_string_to_key.3 \
