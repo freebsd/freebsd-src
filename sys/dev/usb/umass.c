@@ -288,7 +288,7 @@ umass_usb_transfer(usbd_interface_handle iface, usbd_pipe_handle pipe,
 		   void *buf, int buflen, int flags, int *xfer_size)
 {
 	usbd_device_handle dev;
-	usbd_request_handle reqh;
+	usbd_xfer_handle xfer;
 	usbd_private_handle priv;
 	void *buffer;
 	int size;
@@ -300,28 +300,28 @@ umass_usb_transfer(usbd_interface_handle iface, usbd_pipe_handle pipe,
 
 	usbd_interface2device_handle(iface, &dev);
 
-	reqh = usbd_alloc_request(dev);
-	if (!reqh) {
+	xfer = usbd_alloc_request(dev);
+	if (!xfer) {
 		DPRINTF(UDMASS_USB, ("Not enough memory\n"));
 		return USBD_NOMEM;
 	}
 
-	(void) usbd_setup_request(reqh, pipe, 0, buf, buflen,
+	(void) usbd_setup_request(xfer, pipe, 0, buf, buflen,
 				flags, 3000 /*ms*/, NULL);
-	err = usbd_sync_transfer(reqh);
+	err = usbd_sync_transfer(xfer);
 	if (err) {
 		DPRINTF(UDMASS_USB, ("transfer failed, %s\n",
 			usbd_errstr(err)));
-		usbd_free_request(reqh);
+		usbd_free_request(xfer);
 		return(err);
 	}
 
-	usbd_get_request_status(reqh, &priv, &buffer, &size, &err);
+	usbd_get_request_status(xfer, &priv, &buffer, &size, &err);
 
 	if (xfer_size)
 		*xfer_size = size;
 
-	usbd_free_request(reqh);
+	usbd_free_request(xfer);
 	return(USBD_NORMAL_COMPLETION);
 }
 

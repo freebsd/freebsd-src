@@ -1,4 +1,3 @@
-/*      $NetBSD: ukbd.c,v 1.22 1999/01/09 12:10:36 drochner Exp $        */
 /*	$FreeBSD$	*/
 
 /*
@@ -112,7 +111,7 @@ typedef struct ukbd_softc {
 #define	UKBD_CHUNK	128	/* chunk size for read */
 #define	UKBD_BSIZE	1020	/* buffer size */
 
-typedef void usbd_intr_t(usbd_request_handle, usbd_private_handle, usbd_status);
+typedef void usbd_intr_t(usbd_xfer_handle, usbd_private_handle, usbd_status);
 typedef void usbd_disco_t(void *);
 
 static usbd_intr_t	ukbd_intr;
@@ -209,7 +208,7 @@ ukbd_detach(device_t self)
 }
 
 void
-ukbd_intr(usbd_request_handle reqh, usbd_private_handle addr, usbd_status status)
+ukbd_intr(usbd_xfer_handle xfer, usbd_private_handle addr, usbd_status status)
 {
 	keyboard_t *kbd = (keyboard_t *)addr;
 
@@ -582,7 +581,7 @@ static int
 ukbd_enable_intr(keyboard_t *kbd, int on, usbd_intr_t *func)
 {
 	ukbd_state_t *state = (ukbd_state_t *)kbd->kb_data;
-	usbd_status r;
+	usbd_status err;
 
 	if (on) {
 		/* Set up interrupt pipe. */
@@ -590,12 +589,12 @@ ukbd_enable_intr(keyboard_t *kbd, int on, usbd_intr_t *func)
 			return EBUSY;
 		
 		state->ks_ifstate |= INTRENABLED;
-		r = usbd_open_pipe_intr(state->ks_iface, state->ks_ep_addr, 
+		err = usbd_open_pipe_intr(state->ks_iface, state->ks_ep_addr, 
 					USBD_SHORT_XFER_OK,
 					&state->ks_intrpipe, kbd,
 					&state->ks_ndata, 
 					sizeof(state->ks_ndata), func);
-		if (r != USBD_NORMAL_COMPLETION)
+		if (err)
 			return (EIO);
 	} else {
 		/* Disable interrupts. */
@@ -1333,7 +1332,7 @@ static int
 init_keyboard(ukbd_state_t *state, int *type, int flags)
 {
 	usb_endpoint_descriptor_t *ed;
-	usbd_status r;
+	usbd_status err;
 	
 	*type = KB_OTHER;
 
@@ -1360,9 +1359,9 @@ bLength=%d bDescriptorType=%d bEndpointAddress=%d-%s bmAttributes=%d wMaxPacketS
 	}
 
 	if ((usbd_get_quirks(state->ks_uaa->device)->uq_flags & UQ_NO_SET_PROTO) == 0) {
-		r = usbd_set_protocol(state->ks_iface, 0);
+		err = usbd_set_protocol(state->ks_iface, 0);
 		DPRINTFN(5, ("ukbd:init_keyboard: protocol set\n"));
-		if (r != USBD_NORMAL_COMPLETION) {
+		if (err) {
 			printf("ukbd: set protocol failed\n");
 			return EIO;
 		}

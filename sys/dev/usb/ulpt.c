@@ -1,4 +1,4 @@
-/*	$NetBSD: ulpt.c,v 1.23 1999/09/11 10:40:07 augustss Exp $	*/
+/*	$NetBSD: ulpt.c,v 1.27 1999/10/13 08:10:57 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -71,7 +71,7 @@
 #define	STEP		hz/4
 
 #define	LPTPRI		(PZERO+8)
-#define	ULPT_BSIZE	1024
+#define	ULPT_BSIZE	16384
 
 #ifdef ULPT_DEBUG
 #define DPRINTF(x)	if (ulptdebug) logprintf x
@@ -118,10 +118,7 @@ struct ulpt_softc {
 };
 
 #if defined(__NetBSD__) || defined(__OpenBSD__)
-int ulptopen __P((dev_t, int, int, struct proc *));
-int ulptclose __P((dev_t, int, int, struct proc *p));
-int ulptwrite __P((dev_t, struct uio *uio, int));
-int ulptioctl __P((dev_t, u_long, caddr_t, int, struct proc *));
+cdev_decl(ulpt);
 #elif defined(__FreeBSD__)
 static d_open_t ulptopen;
 static d_close_t ulptclose;
@@ -169,10 +166,10 @@ USB_MATCH(ulpt)
 	usb_interface_descriptor_t *id;
 	
 	DPRINTFN(10,("ulpt_match\n"));
-	if (!uaa->iface)
+	if (uaa->iface == NULL)
 		return (UMATCH_NONE);
 	id = usbd_get_interface_descriptor(uaa->iface);
-	if (id &&
+	if (id != NULL &&
 	    id->bInterfaceClass == UCLASS_PRINTER &&
 	    id->bInterfaceSubClass == USUBCLASS_PRINTER &&
 	    (id->bInterfaceProtocol == UPROTO_PRINTER_UNI ||
@@ -189,7 +186,7 @@ USB_ATTACH(ulpt)
 	usb_interface_descriptor_t *id = usbd_get_interface_descriptor(iface);
 	char devinfo[1024];
 	usb_endpoint_descriptor_t *ed;
-	usbd_status r;
+	usbd_status err;
 	
 	DPRINTFN(10,("ulpt_attach: sc=%p\n", sc));
 	usbd_devinfo(dev, 0, devinfo);
@@ -199,13 +196,13 @@ USB_ATTACH(ulpt)
 
 	/* Figure out which endpoint is the bulk out endpoint. */
 	ed = usbd_interface2endpoint_descriptor(iface, 0);
-	if (!ed)
+	if (ed == NULL)
 		goto nobulk;
 	if (UE_GET_DIR(ed->bEndpointAddress) != UE_DIR_OUT ||
 	    (ed->bmAttributes & UE_XFERTYPE) != UE_BULK) {
 		/* In case we are using a bidir protocol... */
 		ed = usbd_interface2endpoint_descriptor(iface, 1);
-		if (!ed)
+		if (ed == NULL)
 			goto nobulk;
 		if (UE_GET_DIR(ed->bEndpointAddress) != UE_DIR_OUT ||
 		    (ed->bmAttributes & UE_XFERTYPE) != UE_BULK)
@@ -215,8 +212,8 @@ USB_ATTACH(ulpt)
 	DPRINTFN(10, ("ulpt_attach: bulk=%d\n", sc->sc_bulk));
 
 	sc->sc_iface = iface;
-	r = usbd_interface2device_handle(iface, &sc->sc_udev);
-	if (r != USBD_NORMAL_COMPLETION) {
+	err = usbd_interface2device_handle(iface, &sc->sc_udev);
+	if (err) {
 		sc->sc_dying = 1;
 		USB_ATTACH_ERROR_RETURN;
 	}
@@ -238,8 +235,9 @@ USB_ATTACH(ulpt)
 	USETW(req.wValue, cd->bConfigurationValue);
 	USETW2(req.wIndex, id->bInterfaceNumber, id->bAlternateSetting);
 	USETW(req.wLength, sizeof devinfo - 1);
-	r = usbd_do_request_flags(dev, &req, devinfo,USBD_SHORT_XFER_OK,&alen);
-	if (r != USBD_NORMAL_COMPLETION) {
+	err = usbd_do_request_flags(dev, &req, devinfo, USBD_SHORT_XFER_OK,
+		  &alen);
+	if (err) {
 		printf("%s: cannot get device id\n", USBDEVNAME(sc->sc_dev));
 	} else if (alen <= 2) {
 		printf("%s: empty device id, no printer connected?\n",
@@ -307,7 +305,7 @@ USB_DETACH(ulpt)
 #endif
 
 	sc->sc_dying = 1;
-	if (sc->sc_bulkpipe)
+	if (sc->sc_bulkpipe != NULL)
 		usbd_abort_pipe(sc->sc_bulkpipe);
 
 	s = splusb();
@@ -342,7 +340,7 @@ ulpt_status(sc)
 	struct ulpt_softc *sc;
 {
 	usb_device_request_t req;
-	usbd_status r;
+	usbd_status err;
 	u_char status;
 
 	req.bmRequestType = UT_READ_CLASS_INTERFACE;
@@ -350,9 +348,9 @@ ulpt_status(sc)
 	USETW(req.wValue, 0);
 	USETW(req.wIndex, sc->sc_ifaceno);
 	USETW(req.wLength, 1);
-	r = usbd_do_request(sc->sc_udev, &req, &status);
-	DPRINTFN(1, ("ulpt_status: status=0x%02x r=%d\n", status, r));
-	if (r == USBD_NORMAL_COMPLETION)
+	err = usbd_do_request(sc->sc_udev, &req, &status);
+	DPRINTFN(1, ("ulpt_status: status=0x%02x err=%d\n", status, err));
+	if (!err)
 		return (status);
 	else
 		return (0);
@@ -384,11 +382,13 @@ ulptopen(dev, flag, mode, p)
 	struct proc *p;
 {
 	u_char flags = ULPTFLAGS(dev);
-	usbd_status r;
+	struct ulpt_softc *sc;
+	usbd_status err;
 	int spin, error;
+
 	USB_GET_SC_OPEN(ulpt, ULPTUNIT(dev), sc);
 
-	if (!sc || !sc->sc_iface || sc->sc_dying)
+	if (sc == NULL || sc->sc_iface == NULL || sc->sc_dying)
 		return (ENXIO);
 
 	if (sc->sc_state)
@@ -423,8 +423,8 @@ ulptopen(dev, flag, mode, p)
 		}
 	}
 
-	r = usbd_open_pipe(sc->sc_iface, sc->sc_bulk, 0, &sc->sc_bulkpipe);
-	if (r != USBD_NORMAL_COMPLETION) {
+	err = usbd_open_pipe(sc->sc_iface, sc->sc_bulk, 0, &sc->sc_bulkpipe);
+	if (err) {
 		sc->sc_state = 0;
 		return (EIO);
 	}
@@ -463,6 +463,8 @@ ulptclose(dev, flag, mode, p)
 	int mode;
 	struct proc *p;
 {
+	struct ulpt_softc *sc;
+
 	USB_GET_SC(ulpt, ULPTUNIT(dev), sc);
 
 	if (sc->sc_state != ULPT_OPEN)
@@ -487,16 +489,16 @@ ulpt_do_write(sc, uio, flags)
 	u_int32_t n;
 	int error = 0;
 	void *bufp;
-	usbd_request_handle reqh;
-	usbd_status r;
+	usbd_xfer_handle xfer;
+	usbd_status err;
 
 	DPRINTF(("ulptwrite\n"));
-	reqh = usbd_alloc_request(sc->sc_udev);
-	if (reqh == 0)
+	xfer = usbd_alloc_request(sc->sc_udev);
+	if (xfer == NULL)
 		return (ENOMEM);
-	bufp = usbd_alloc_buffer(reqh, ULPT_BSIZE);
-	if (bufp == 0) {
-		usbd_free_request(reqh);
+	bufp = usbd_alloc_buffer(xfer, ULPT_BSIZE);
+	if (bufp == NULL) {
+		usbd_free_request(xfer);
 		return (ENOMEM);
 	}
 	while ((n = min(ULPT_BSIZE, uio->uio_resid)) != 0) {
@@ -505,15 +507,15 @@ ulpt_do_write(sc, uio, flags)
 		if (error)
 			break;
 		DPRINTFN(1, ("ulptwrite: transfer %d bytes\n", n));
-		r = usbd_bulk_transfer(reqh, sc->sc_bulkpipe, 0, 
-				       USBD_NO_TIMEOUT, bufp, &n, "ulptwr");
-		if (r != USBD_NORMAL_COMPLETION) {
-			DPRINTF(("ulptwrite: error=%d\n", r));
+		err = usbd_bulk_transfer(xfer, sc->sc_bulkpipe, USBD_NO_COPY, 
+			  USBD_NO_TIMEOUT, bufp, &n, "ulptwr");
+		if (err) {
+			DPRINTF(("ulptwrite: error=%d\n", err));
 			error = EIO;
 			break;
 		}
 	}
-	usbd_free_request(reqh);
+	usbd_free_request(xfer);
 
 	return (error);
 }
@@ -524,8 +526,10 @@ ulptwrite(dev, uio, flags)
 	struct uio *uio;
 	int flags;
 {
-	USB_GET_SC(ulpt, ULPTUNIT(dev), sc);
+	struct ulpt_softc *sc;
 	int error;
+
+	USB_GET_SC(ulpt, ULPTUNIT(dev), sc);
 
 	if (sc->sc_dying)
 		return (EIO);
