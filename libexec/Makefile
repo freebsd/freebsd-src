@@ -22,6 +22,7 @@ SUBDIR=	atrun \
 	rpc.rwalld \
 	rpc.sprayd \
 	rshd \
+	save-entropy \
 	talkd \
 	tftpd \
 	xtend \

@@ -8,6 +8,9 @@ HOME=/var/log
 #
 #minute	hour	mday	month	wday	who	command
 #
+# save some entropy so that /dev/random can reseed on boot
+*/3	*	*	*	*	operator /usr/libexec/save-entropy
+#
 */5	*	*	*	*	root	/usr/libexec/atrun
 #
 # rotate log files every hour, if necessary
