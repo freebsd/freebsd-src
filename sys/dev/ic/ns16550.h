@@ -37,19 +37,6 @@
 /*
  * NS16550 UART registers
  */
-#ifdef PC98
-#define	com_data	0x000	/* data register (R/W) */
-#define	com_dlbl	0x000	/* divisor latch low (W) */
-#define	com_dlbh	0x100	/* divisor latch high (W) */
-#define	com_ier		0x100	/* interrupt enable (W) */
-#define	com_iir		0x200	/* interrupt identification (R) */
-#define	com_fifo	0x200	/* FIFO control (W) */
-#define	com_lctl	0x300	/* line control register (R/W) */
-#define	com_cfcr	0x300	/* line control register (R/W) */
-#define	com_mcr		0x400	/* modem control register (R/W) */
-#define	com_lsr		0x500	/* line status register (R/W) */
-#define	com_msr		0x600	/* modem status register (R/W) */
-#else /* IBM-PC */
 #define	com_data	0	/* data register (R/W) */
 #define	com_dlbl	0	/* divisor latch low (W) */
 #define	com_dlbh	1	/* divisor latch high (W) */
@@ -61,4 +48,3 @@
 #define	com_mcr		4	/* modem control register (R/W) */
 #define	com_lsr		5	/* line status register (R/W) */
 #define	com_msr		6	/* modem status register (R/W) */
-#endif /* PC98 */
