@@ -1,3 +1,0 @@
-# $FreeBSD$
-
-BINDIR?=	${SHAREDIR}/security
