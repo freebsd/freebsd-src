@@ -1131,7 +1131,7 @@ int wcd_load (struct lkm_table *lkmtp, int cmd)
 				/* Probing controller ata->ctrlr, unit u. */
 				if (ata->params[u] && ! ata->attached[u] &&
 				    wcdattach (ata, u, ata->params[u],
-				    ata->debug, ata->parent) >= 0)
+				    ata->debug) >= 0)
 				{
 					/* Drive found. */
 					ata->attached[u] = 1;
