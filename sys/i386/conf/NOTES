@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.497 1998/11/03 22:01:22 des Exp $
+#	$Id: LINT,v 1.498 1998/11/05 14:36:37 dg Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -1081,7 +1081,7 @@ options		"EXTRA_SIO=2"		#number of extra sio ports to allocate
 # ie: AT&T StarLAN 10 and EN100; 3Com 3C507; unknown NI5210; Intel EtherExpress
 # le: Digital Equipment EtherWorks 2 and EtherWorks 3 (DEPCA, DE100,
 #     DE101, DE200, DE201, DE202, DE203, DE204, DE205, DE422)
-# lnc: Lance/PCnet cards (Isolan, Novell NE2100, NE32-VL)
+# lnc: Lance/PCnet cards (Isolan, Novell NE2100, NE32-VL, AMD Am7990 & Am79C960)
 # sr: RISCom/N2 hdlc sync 1/2 port V.35/X.21 serial driver (requires sppp)
 # wl: Lucent Wavelan (ISA card only).
 # ze: IBM/National Semiconductor PCMCIA ethernet controller.
