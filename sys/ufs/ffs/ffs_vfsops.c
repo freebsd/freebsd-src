@@ -1062,9 +1062,6 @@ ffs_statfs(mp, sbp, td)
 	fs = ump->um_fs;
 	if (fs->fs_magic != FS_UFS1_MAGIC && fs->fs_magic != FS_UFS2_MAGIC)
 		panic("ffs_statfs");
-	if (fs->fs_magic == FS_UFS2_MAGIC)
-		bcopy((caddr_t)"ufs2",
-			(caddr_t)&sbp->f_fstypename[0], MFSNAMELEN);
 	sbp->f_version = STATFS_VERSION;
 	sbp->f_bsize = fs->fs_fsize;
 	sbp->f_iosize = fs->fs_bsize;
@@ -1085,12 +1082,8 @@ ffs_statfs(mp, sbp, td)
 		sbp->f_asyncreads = mp->mnt_stat.f_asyncreads;
 		sbp->f_owner = mp->mnt_stat.f_owner;
 		sbp->f_fsid = mp->mnt_stat.f_fsid;
-		if (fs->fs_magic == FS_UFS2_MAGIC)
-			bcopy((caddr_t)"ufs2",
-				(caddr_t)&sbp->f_fstypename[0], MFSNAMELEN);
-		else
-			bcopy((caddr_t)mp->mnt_stat.f_fstypename,
-				(caddr_t)&sbp->f_fstypename[0], MFSNAMELEN);
+		bcopy((caddr_t)mp->mnt_stat.f_fstypename,
+			(caddr_t)&sbp->f_fstypename[0], MFSNAMELEN);
 		bcopy((caddr_t)mp->mnt_stat.f_mntonname,
 			(caddr_t)&sbp->f_mntonname[0], MNAMELEN);
 		bcopy((caddr_t)mp->mnt_stat.f_mntfromname,
