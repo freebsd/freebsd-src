@@ -99,8 +99,6 @@
 
 #define IOPAGES	2		/* pages of i/o permission bitmap */
 #define UPAGES	2		/* pages of u-area */
-#define UPAGES_HOLE	2	/* pages of "hole" at top of user space where */
-				/* the upages used to be. DO NOT CHANGE! */
 
 /*
  * Constants related to network buffer management.
