@@ -39,18 +39,6 @@
 
 #include "opt_cpu.h"
 
-#ifdef DEC_3000_500
-extern void dec_3000_500_init(int);
-#else
-#define	dec_3000_500_init	platform_not_configured
-#endif
-
-#ifdef DEC_3000_300
-extern void dec_3000_300_init(int);
-#else
-#define	dec_3000_300_init	platform_not_configured
-#endif
-
 #ifdef DEC_AXPPCI_33
 extern void dec_axppci_33_init(int);
 #else
@@ -134,10 +122,10 @@ struct cpuinit cpuinit[] = {
 	cpu_notsupp("ST_ADU"),			     /*  1: ST_ADU */
 	cpu_notsupp("ST_DEC_4000"),		     /*  2: ST_DEC_4000 */
 	cpu_notsupp("ST_DEC_7000"),		     /*  3: ST_DEC_7000 */
-	cpu_init(dec_3000_500_init,"DEC_3000_500"),  /*  4: ST_DEC_3000_500 */
+	cpu_notsupp("DEC_3000_500"),		     /*  4: ST_DEC_3000_500 */
 	cpu_notsupp("???"),			     /*  5: ??? */
 	cpu_notsupp("ST_DEC_2000_300"),		     /*  6: ST_DEC_2000_300 */
-	cpu_init(dec_3000_300_init,"DEC_3000_300"),  /*  7: ST_DEC_3000_300 */
+	cpu_notsupp("DEC_3000_300"),  		     /*  7: ST_DEC_3000_300 */
 	cpu_init(avalon_a12_init,"ST_AVALON_A12"),   /*  8: ST_AVALON_A12 */
 	cpu_init(dec_2100_a500_init, "ST_DEC_2100_A500"),	/*  9: ST_DEC_2100_A500 */
 	cpu_notsupp("ST_DEC_APXVME_64"),	     /* 10: ST_DEC_APXVME_64 */
