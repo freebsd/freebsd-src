@@ -71,6 +71,10 @@ AHD_REG_PRETTY_PRINT	opt_aic79xx.h	# Print register bitfields in debug
 ADW_ALLOW_MEMIO		opt_adw.h	# Allow PCI devices to use memory
 					# mapped I/O
 
+# 3ware 9000 series RAID controller driver options
+TWA_DEBUG		opt_twa.h	# 0-10; 10 prints the most messages.
+TWA_FLASH_FIRMWARE	opt_twa.h	# firmware image bundled when defined.
+
 # Miscellaneous options.
 ADAPTIVE_MUTEXES
 ALQ
