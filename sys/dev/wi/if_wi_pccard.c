@@ -118,8 +118,6 @@ static const struct pccard_product wi_pccard_products[] = {
 	PCMCIA_CARD(INTERSIL, PRISM2, 0),
 	PCMCIA_CARD(IODATA2, WNB11PCM, 0),
 	PCMCIA_CARD(LINKSYS2, IWN, 0),
-	PCMCIA_CARD(NWN, WLAN_550, 0),
-	PCMCIA_CARD(NWN, WLAN_1148, 0),
 	/* Now that we do PRISM detection, I don't think we need these - imp */
 	PCMCIA_CARD2(LUCENT, WAVELAN_IEEE, NANOSPEED_PRISM2, 0),
 	PCMCIA_CARD2(LUCENT, WAVELAN_IEEE, NEC_CMZ_RT_WP, 0),
