@@ -238,27 +238,21 @@ tcpOpenDialog(Device *devp)
 reenter:
     cancelbutton = okbutton = 0;
     while (layoutDialogLoop(ds_win, layout, &obj, &n, max, &cancelbutton, &cancel)) {
-	if (n == LAYOUT_IPADDR) {
-	    /* Insert a default value for the netmask, 0xffffff00 is
-	       the most appropriate one (entire class C, or subnetted
-	       class A/B network). */
-	    if (netmask[0] == '\0') {
-		strcpy(netmask, "255.255.255.0");
-		RefreshStringObj(layout[LAYOUT_NETMASK].obj);
-	    }
+	/* Insert a default value for the netmask, 0xffffff00 is
+	   the most appropriate one (entire class C, or subnetted
+	   class A/B network). */
+	if (netmask[0] == '\0') {
+	    strcpy(netmask, "255.255.255.0");
+	    RefreshStringObj(layout[LAYOUT_NETMASK].obj);
 	}
-	else if (n == LAYOUT_DOMAINNAME) {
-	    if (!index(hostname, '.') && domainname[0]) {
-		strcat(hostname, ".");
-		strcat(hostname, domainname);
-		RefreshStringObj(layout[LAYOUT_HOSTNAME].obj);
-	    }
+	if (!index(hostname, '.') && domainname[0]) {
+	    strcat(hostname, ".");
+	    strcat(hostname, domainname);
+	    RefreshStringObj(layout[LAYOUT_HOSTNAME].obj);
 	}
-	else if (n == LAYOUT_HOSTNAME) {
-	    if (((tmp = index(hostname, '.')) != NULL) && !domainname[0]) {
-		SAFE_STRCPY(domainname, tmp + 1);
-		RefreshStringObj(layout[LAYOUT_DOMAINNAME].obj);
-	    }
+	else if (((tmp = index(hostname, '.')) != NULL) && !domainname[0]) {
+	    SAFE_STRCPY(domainname, tmp + 1);
+	    RefreshStringObj(layout[LAYOUT_DOMAINNAME].obj);
 	}
     }
     
