@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: subr_bus.c,v 1.7 1998/10/25 17:44:51 phk Exp $
+ *	$Id: subr_bus.c,v 1.8 1998/10/27 09:21:43 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -537,15 +537,23 @@ int
 device_delete_child(device_t dev, device_t child)
 {
     int error;
+    device_t grandchild;
 
     PDEBUG(("%s from %s", DEVICENAME(child), DEVICENAME(dev)));
+
+    /* remove children first */
+    while ( (grandchild = TAILQ_FIRST(&child->children)) ) {
+        error = device_delete_child(child, grandchild);
+	if (error)
+	    return error;
+    }
 
     if (error = device_detach(child))
 	return error;
     if (child->devclass)
 	devclass_delete_device(child->devclass, child);
     TAILQ_REMOVE(&dev->children, child, link);
-    free(dev, M_DEVBUF);
+    free(child, M_DEVBUF);
 
     return 0;
 }
