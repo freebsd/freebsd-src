@@ -32,7 +32,7 @@
 .\"     @(#)lpd.8	8.3 (Berkeley) 4/19/94
 .\" $FreeBSD$
 .\"
-.Dd April 19, 1994
+.Dd June 06, 2001
 .Dt LPD 8
 .Os BSD 4.2
 .Sh NAME
@@ -40,7 +40,7 @@
 .Nd line printer spooler daemon
 .Sh SYNOPSIS
 .Nm
-.Op Fl dlp46
+.Op Fl cdlpw46
 .Op Ar port#
 .Sh DESCRIPTION
 .Nm Lpd
@@ -62,6 +62,19 @@ the request so the parent can continue to listen for more requests.
 .Pp
 Available options:
 .Bl -tag -width Ds
+.It Fl c
+By default, if some remote host has a connection error while trying to
+send a print request to
+.Nm
+on a local host,
+.Nm
+will only send error message to that remote host.
+The
+.Fl c
+flag causes
+.Nm
+to also log all of those connection errors via
+.Xr syslog 3 .
 .It Fl d
 Turn on
 .Dv SO_DEBUG
@@ -81,6 +94,23 @@ The
 flag causes
 .Nm
 not to open an Internet listening socket.
+This means that
+.Nm
+will not accept any connections from any remote
+hosts, although it will still accept print requests
+from all local users.
+.It Fl w
+By default, the
+.Nm
+daemon will only accept connections which originate
+from a reserved-port (<1024) on the remote host.
+The
+.Fl w
+flag causes
+.Nm
+to accept connections coming from any port.
+This is can be useful when you want to accept print jobs
+from certain implementations of lpr written for Windows.
 .It Fl 4
 Inet only.
 .It Fl 6
