@@ -770,7 +770,7 @@ fdc_alloc_resources(struct fdc_data *fdc)
 	}
 
 	fdc->res_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ,
-					      &fdc->rid_irq, RF_ACTIVE);
+					      &fdc->rid_irq, RF_ACTIVE | RF_SHAREABLE);
 	if (fdc->res_irq == 0) {
 		device_printf(dev, "cannot reserve interrupt line\n");
 		return ENXIO;
@@ -782,9 +782,9 @@ fdc_alloc_resources(struct fdc_data *fdc)
 						      RF_ACTIVE);
 		if (fdc->res_drq == 0) {
 			device_printf(dev, "cannot reserve DMA request line\n");
-			return ENXIO;
-		}
-		fdc->dmachan = rman_get_start(fdc->res_drq);
+			fdc->flags |= FDC_NODMA;
+		} else
+			fdc->dmachan = rman_get_start(fdc->res_drq);
 	}
 
 	return 0;
