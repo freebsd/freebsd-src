@@ -604,7 +604,7 @@ release.9:
 	@cd ${.CURDIR} && $(MAKE) installCRUNCH CRUNCH=fixit \
 		DIR=${RD}/fixitfd/stand ZIP=false
 	@( cd ${RD}/fixitfd/dev && \
-		sed -e '/^PATH/s/^/#/' ${RD}/trees/bin/dev/MAKEDEV > MAKEDEV && \
+		cp ${RD}/trees/bin/dev/MAKEDEV MAKEDEV && \
 		chmod 755 MAKEDEV && \
 		sh MAKEDEV fixit )
 	@cp ${RD}/trees/bin/etc/spwd.db ${RD}/trees/bin/etc/group \
