@@ -254,7 +254,7 @@ main(int argc, char *argv[])
 			break;
 		case 'g':
 #if 0
-			/*
+			/*-
 			 * XXX - This SUSv3 behavior is still under debate
 			 *	since it conflicts with the (undocumented)
 			 *	`-g' option.  So we skip it for now.
@@ -320,7 +320,7 @@ main(int argc, char *argv[])
 			break;
 #if 0
 		case 'R':
-			/*
+			/*-
 			 * XXX - This un-standard option is still under
 			 *	debate.  This is what SUSv3 defines as
 			 *	the `-U' option, and while it would be
@@ -340,7 +340,7 @@ main(int argc, char *argv[])
 			break;
 #if 0
 		case 's':
-			/*
+			/*-
 			 * XXX - This non-standard option is still under
 			 *	debate.  This *is* supported on Solaris,
 			 *	Linux, and IRIX, but conflicts with `-s'
@@ -480,7 +480,7 @@ main(int argc, char *argv[])
 			flag = *ruidlist.uids;
 			nselectors = 0;
 #if 0
-		/*
+		/*-
 		 * XXX - KERN_PROC_SESSION causes error in kvm_getprocs?
 		 *	For now, always do sid-matching in this routine.
 		 */
@@ -670,7 +670,7 @@ addelem_gid(struct listinfo *inf, const char *elem)
 	return (1);
 }
 
-#define	BSD_PID_MAX	99999	/* Copy of PID_MAX from sys/proc.h. */
+#define	BSD_PID_MAX	99999		/* Copy of PID_MAX from sys/proc.h. */
 static int
 addelem_pid(struct listinfo *inf, const char *elem)
 {
@@ -814,7 +814,7 @@ add_list(struct listinfo *inf, const char *argp)
 			 */
 			inf->addelem(inf, elemcopy);
 #else
-			/*
+			/*-
 			 * This would add a simple non-standard-but-convienent
 			 * feature.
 			 *
