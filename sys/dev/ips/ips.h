@@ -39,6 +39,7 @@
 #include <sys/bio.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
+#include <sys/sema.h>
 #include <sys/time.h>
 
 #include <machine/bus_memio.h>
@@ -376,6 +377,7 @@ typedef struct ips_command{
 	bus_dmamap_t		command_dmamap;
 	void *			command_buffer;
 	u_int32_t		command_phys_addr;/*WARNING! must be changed if 64bit addressing ever used*/	
+	struct sema		cmd_sema;
 	ips_cmd_status_t	status;
 	SLIST_ENTRY(ips_command)	next;
 	bus_dma_tag_t		data_dmatag;
@@ -427,7 +429,9 @@ typedef struct ips_softc{
         void                    (* ips_adapter_intr)(void *sc);
 	void			(* ips_issue_cmd)(ips_command_t *command);
 	ips_copper_queue_t *	copper_queue;
-	struct mtx		cmd_mtx;
+	struct mtx		queue_mtx;
+	struct bio_queue_head	queue;
+
 }ips_softc_t;
 
 /* function defines from ips_ioctl.c */
@@ -438,7 +442,7 @@ extern void ipsd_finish(struct bio *iobuf);
 
 /* function defines from ips_commands.c */
 extern int ips_flush_cache(ips_softc_t *sc);
-extern void ips_start_io_request(ips_softc_t *sc, struct bio *iobuf);
+extern void ips_start_io_request(ips_softc_t *sc);
 extern int ips_get_drive_info(ips_softc_t *sc);
 extern int ips_get_adapter_info(ips_softc_t *sc);
 extern int ips_ffdc_reset(ips_softc_t *sc);
