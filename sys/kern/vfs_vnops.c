@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_vnops.c	8.2 (Berkeley) 1/21/94
- * $Id: vfs_vnops.c,v 1.17 1995/07/20 09:43:04 davidg Exp $
+ * $Id: vfs_vnops.c,v 1.18 1995/10/06 09:43:32 phk Exp $
  */
 
 #include <sys/param.h>
@@ -193,19 +193,6 @@ vn_writechk(vp)
 	register struct vnode *vp;
 {
 
-	/*
-	 * Disallow write attempts on read-only file systems;
-	 * unless the file is a socket or a block or character
-	 * device resident on the file system.
-	 */
-	if (vp->v_mount->mnt_flag & MNT_RDONLY) {
-		switch (vp->v_type) {
-		case VREG: case VDIR: case VLNK:
-			return (EROFS);
-		default:
-			break;
-		}
-	}
 	/*
 	 * If there's shared text associated with
 	 * the vnode, try to free it up once.  If
