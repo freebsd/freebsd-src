@@ -41,7 +41,7 @@ where_playpen(void)
 
 /* Find a good place to play. */
 static char *
-find_play_pen(char *pen, size_t sz)
+find_play_pen(char *pen, off_t sz)
 {
     char *cp;
     struct stat sb;
@@ -62,8 +62,8 @@ find_play_pen(char *pen, size_t sz)
 	cleanup(0);
 	errx(2, __FUNCTION__
 ": can't find enough temporary space to extract the files, please set your\n"
-"PKG_TMPDIR environment variable to a location with at least %d bytes\n"
-"free", sz);
+"PKG_TMPDIR environment variable to a location with at least %ld bytes\n"
+"free", (long)sz);
 	return NULL;
     }
     return pen;
@@ -74,7 +74,7 @@ static char *pstack[MAX_STACK];
 static int pdepth = -1;
 
 static void
-pushPen(char *pen)
+pushPen(const char *pen)
 {
     if (++pdepth == MAX_STACK)
 	errx(2, __FUNCTION__ ": stack overflow.\n");
@@ -97,7 +97,7 @@ popPen(char *pen)
  * pathname of previous working directory.
  */
 char *
-make_playpen(char *pen, size_t sz)
+make_playpen(char *pen, off_t sz)
 {
     if (!find_play_pen(pen, sz))
 	return NULL;
@@ -113,7 +113,7 @@ make_playpen(char *pen, size_t sz)
 
     if (Verbose) {
 	if (sz)
-	    fprintf(stderr, "Requested space: %d bytes, free space: %qd bytes in %s\n", (int)sz, min_free(pen), pen);
+	    fprintf(stderr, "Requested space: %d bytes, free space: %qd bytes in %s\n", (int)sz, (long long)min_free(pen), pen);
     }
 
     if (min_free(pen) < sz) {
@@ -165,7 +165,7 @@ leave_playpen()
 }
 
 off_t
-min_free(char *tmpdir)
+min_free(const char *tmpdir)
 {
     struct statfs buf;
 
