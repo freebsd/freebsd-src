@@ -685,7 +685,7 @@ umass_match_proto(struct umass_softc *sc, usbd_interface_handle iface,
 		 */
 		sc->quirks |= WRONG_CSWSIG;
 	}
-	
+
 	switch (id->bInterfaceSubClass) {
 	case USUBCLASS_SCSI:
 		sc->proto |= PROTO_SCSI;
@@ -734,6 +734,16 @@ umass_match_proto(struct umass_softc *sc, usbd_interface_handle iface,
 		DPRINTF(UDMASS_GEN, ("%s: Unsupported wire protocol %d\n",
 			USBDEVNAME(sc->sc_dev), id->bInterfaceProtocol));
 		return(UMATCH_NONE);
+	}
+
+	if (UGETW(dd->idVendor) == USB_VENDOR_SCANLOGIC
+	    && UGETW(dd->idProduct) == 0x0002) {
+		/* ScanLogic SL11R IDE adapter claims to support
+		 * SCSI, but really needs UFI.
+		 * Note also that these devices need firmware > 0.71
+		 */
+		sc->proto &= ~PROTO_SCSI;
+		sc->proto |= PROTO_UFI;
 	}
 
 	return(UMATCH_DEVCLASS_DEVSUBCLASS_DEVPROTO);
