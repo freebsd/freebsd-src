@@ -1,4 +1,4 @@
-/* $Id: clock.c,v 1.3 1998/07/22 08:16:34 dfr Exp $ */
+/* $Id: clock.c,v 1.4 1998/10/06 08:40:18 dfr Exp $ */
 /* $NetBSD: clock.c,v 1.20 1998/01/31 10:32:47 ross Exp $ */
 
 /*
@@ -77,7 +77,7 @@ extern int cycles_per_sec;
 static timecounter_get_t	alpha_get_timecount;
 static timecounter_pps_t	alpha_poll_pps;
 
-static struct timecounter alpha_timecounter[3] = {
+static struct timecounter alpha_timecounter = {
 	alpha_get_timecount,	/* get_timecount */
 	0,			/* no poll_pps */
  	~0u,			/* counter_mask */
@@ -86,7 +86,7 @@ static struct timecounter alpha_timecounter[3] = {
 };
 
 SYSCTL_OPAQUE(_debug, OID_AUTO, alpha_timecounter, CTLFLAG_RD, 
-	alpha_timecounter, sizeof(alpha_timecounter), "S,timecounter", "");
+	&alpha_timecounter, sizeof(alpha_timecounter), "S,timecounter", "");
 
 /* Values for timerX_state: */
 #define	RELEASED	0
@@ -178,8 +178,8 @@ cpu_initclocks()
 	scaled_ticks_per_cycle = ((u_int64_t)hz << FIX_SHIFT) / cycles_per_sec;
 	max_cycles_per_tick = 2*cycles_per_sec / hz;
 
-	alpha_timecounter[0].tc_frequency = cycles_per_sec;
-	init_timecounter(alpha_timecounter);
+	alpha_timecounter.tc_frequency = cycles_per_sec;
+	init_timecounter(&alpha_timecounter);
 
 	platform.clockintr = (void (*) __P((void *))) handleclock;
 
