@@ -26,7 +26,7 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: in_rmx.c,v 1.24 1996/04/26 18:31:41 wollman Exp $
+ * $Id: in_rmx.c,v 1.25 1996/05/06 17:42:12 wollman Exp $
  */
 
 /*
@@ -328,8 +328,10 @@ in_rtqtimo(void *rock)
 		}
 
 		last_adjusted_timeout = time.tv_sec;
+#ifdef DIAGNOSTIC
 		log(LOG_DEBUG, "in_rtqtimo: adjusted rtq_reallyold to %d\n",
 		    rtq_reallyold);
+#endif
 		arg.found = arg.killed = 0;
 		arg.updating = 1;
 		s = splnet();
