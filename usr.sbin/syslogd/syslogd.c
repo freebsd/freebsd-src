@@ -1664,7 +1664,7 @@ cfline(line, f, prog, host)
 				f->f_type = F_CONSOLE;
 			else
 				f->f_type = F_TTY;
-			(void)strlcpy(f->f_un.f_fname, p + sizeof(_PATH_DEV - 1),
+			(void)strlcpy(f->f_un.f_fname, p + sizeof(_PATH_DEV) - 1,
 			    sizeof(f->f_un.f_fname));
 		} else {
 			(void)strlcpy(f->f_un.f_fname, p, sizeof(f->f_un.f_fname));
