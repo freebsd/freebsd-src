@@ -1,5 +1,7 @@
 /* Utility to accept --help and --version options as unobtrusively as possible.
-   Copyright (C) 1993, 1994, 1998, 1999, 2000 Free Software Foundation, Inc.
+
+   Copyright (C) 1993, 1994, 1998, 1999, 2000, 2002, 2003, 2004 Free
+   Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -21,21 +23,15 @@
 # include <config.h>
 #endif
 
-#include <stdio.h>
-#include <getopt.h>
-#if HAVE_STDLIB_H
-# include <stdlib.h>
-#endif
-
+/* Specification.  */
 #include "long-options.h"
-#include "version-etc.h"
 
-#if ENABLE_NLS
-# include <libintl.h>
-# define _(Text) gettext (Text)
-#else
-# define _(Text) Text
-#endif
+#include <stdarg.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <getopt.h>
+
+#include "version-etc.h"
 
 static struct option const long_options[] =
 {
@@ -53,8 +49,8 @@ parse_long_options (int argc,
 		    const char *command_name,
 		    const char *package,
 		    const char *version,
-		    const char *authors,
-		    void (*usage_func)())
+		    void (*usage_func) (int),
+		    /* const char *author1, ...*/ ...)
 {
   int c;
   int saved_opterr;
@@ -70,11 +66,15 @@ parse_long_options (int argc,
       switch (c)
 	{
 	case 'h':
-	  (*usage_func) (0);
+	  (*usage_func) (EXIT_SUCCESS);
 
 	case 'v':
-	  version_etc (stdout, command_name, package, version, authors);
-	  exit (0);
+	  {
+	    va_list authors;
+	    va_start (authors, usage_func);
+	    version_etc_va (stdout, command_name, package, version, authors);
+	    exit (0);
+	  }
 
 	default:
 	  /* Don't process any other long-named options.  */

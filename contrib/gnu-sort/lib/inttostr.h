@@ -1,5 +1,6 @@
-/* xstrtoumax.c -- A more useful interface to strtoumax.
-   Copyright (C) 1999, 2003 Free Software Foundation, Inc.
+/* inttostr.h -- convert integers to printable strings
+
+   Copyright (C) 2001, 2002, 2003 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,7 +16,7 @@
    along with this program; if not, write to the Free Software Foundation,
    Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
-/* Written by Paul Eggert. */
+/* Written by Paul Eggert */
 
 #if HAVE_CONFIG_H
 # include <config.h>
@@ -23,15 +24,26 @@
 
 #if HAVE_INTTYPES_H
 # include <inttypes.h>
-#elif HAVE_STDINT_H
-# include <stdint.h>
 #endif
 
-#define __strtol strtoumax
-#define __strtol_t uintmax_t
-#define __xstrtol xstrtoumax
-#ifdef UINTMAX_MAX
-# define STRTOL_T_MINIMUM 0
-# define STRTOL_T_MAXIMUM UINTMAX_MAX
+#if HAVE_LIMITS_H
+# include <limits.h>
 #endif
-#include "xstrtol.c"
+#ifndef CHAR_BIT
+# define CHAR_BIT 8
+#endif
+
+#if HAVE_SYS_TYPES_H
+# include <sys/types.h>
+#endif
+
+/* Upper bound on the string length of an integer converted to string.
+   302 / 1000 is ceil (log10 (2.0)).  Subtract 1 for the sign bit;
+   add 1 for integer division truncation; add 1 more for a minus sign.  */
+#define INT_STRLEN_BOUND(t) ((sizeof (t) * CHAR_BIT - 1) * 302 / 1000 + 2)
+
+#define INT_BUFSIZE_BOUND(t) (INT_STRLEN_BOUND (t) + 1)
+
+char *offtostr (off_t, char *);
+char *imaxtostr (intmax_t, char *);
+char *umaxtostr (uintmax_t, char *);

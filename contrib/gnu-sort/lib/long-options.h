@@ -1,5 +1,5 @@
 /* long-options.h -- declaration for --help- and --version-handling function.
-   Copyright (C) 1993, 1994, 1998, 1999 Free Software Foundation, Inc.
+   Copyright (C) 1993, 1994, 1998, 1999, 2003 Free Software Foundation, Inc.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,19 +17,10 @@
 
 /* Written by Jim Meyering.  */
 
-#ifndef PARAMS
-# if defined PROTOTYPES || (defined __STDC__ && __STDC__)
-#  define PARAMS(Args) Args
-# else
-#  define PARAMS(Args) ()
-# endif
-#endif
-
-void
-  parse_long_options PARAMS ((int _argc,
-			      char **_argv,
-			      const char *_command_name,
-			      const char *_package,
-			      const char *_version,
-			      const char *_authors,
-			      void (*_usage) (int)));
+void parse_long_options (int _argc,
+			 char **_argv,
+			 const char *_command_name,
+			 const char *_package,
+			 const char *_version,
+			 void (*_usage) (int),
+			 /* const char *author1, ...*/ ...);

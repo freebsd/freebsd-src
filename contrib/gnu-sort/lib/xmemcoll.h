@@ -1,2 +1,2 @@
-extern int xmemcoll_exit_failure;
+#include <stddef.h>
 int xmemcoll (char *, size_t, char *, size_t);
