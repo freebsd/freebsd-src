@@ -154,24 +154,24 @@ should be set to MEMRANGE_SET_UPDATE to update an existing
 or establish a new range, or to MEMRANGE_SET_REMOVE to remove a range.
 .Pp
 .Sh RETURN VALUES
-.Bl -tag -width 10
-.It EOPNOTSUPP
+.Bl -tag -width Er
+.It Bq Er EOPNOTSUPP
 Memory range operations are not supported on this architecture.
-.It ENXIO
+.It Bq Er ENXIO
 No memory range descriptors are available (eg. firmware has not enabled
 any).
-.It EINVAL
+.It Bq Er EINVAL
 The memory range supplied as an argument is invalid or overlaps another
 range in a fashion not supported by this architecture.
-.It EBUSY
+.It Bq Er EBUSY
 An attempt to remove or update a range failed because the range is busy.
-.It ENOSPC
+.It Bq Er ENOSPC
 An attempt to create a new range failed due to a shortage of hardware
 resources (eg. descriptor slots).
-.It ENOENT
+.It Bq Er ENOENT
 An attempt to remove a range failed because no range matches the descriptor
 base/length supplued.
-.It EPERM
+.It Bq Er EPERM
 An attempt to remove a range failed because the range is permanently
 enabled.
 .El

@@ -116,7 +116,7 @@ value or at the end of the list if no tasks have a lower priority.
 Enqueueing a task does not perform any memory allocation which makes
 it suitable for calling from an interrupt handler.
 This function will return
-.Dv EPIPE
+.Er EPIPE
 if the queue is being freed.
 .Pp
 To execute all the tasks on a queue,
