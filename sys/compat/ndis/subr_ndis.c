@@ -1001,7 +1001,11 @@ ndis_cancel_timer(timer, cancelled)
 {
 	struct callout		*ch;
 
+	if (timer == NULL)
+		return;
 	ch = timer->nmt_dpc.nk_deferredctx;
+	if (ch == NULL)
+		return;
 	callout_stop(ch);
 	*cancelled = timer->nmt_ktimer.nk_header.dh_sigstate;
 
@@ -1102,7 +1106,7 @@ ndis_mapreg_cnt(bustype, cnt)
 	uint32_t		bustype;
 	uint32_t		*cnt;
 {
-	*cnt = 64;
+	*cnt = 8192;
 	return(NDIS_STATUS_SUCCESS);
 }
 
@@ -2376,6 +2380,8 @@ image_patch_table ndis_functbl[] = {
 	{ "NdisAllocatePacket",		(FUNC)ndis_alloc_packet },
 	{ "NdisFreePacket",		(FUNC)ndis_release_packet },
 	{ "NdisFreePacketPool",		(FUNC)ndis_free_packetpool },
+	{ "NdisDprAllocatePacket",	(FUNC)ndis_alloc_packet },
+	{ "NdisDprFreePacket",		(FUNC)ndis_release_packet },
 	{ "NdisAllocateBufferPool",	(FUNC)ndis_alloc_bufpool },
 	{ "NdisAllocateBuffer",		(FUNC)ndis_alloc_buf },
 	{ "NdisQueryBuffer",		(FUNC)ndis_query_buf },
