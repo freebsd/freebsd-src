@@ -158,9 +158,11 @@ This is all you really need to do.
 .El
 .Pp
 The following targets are not run during the normal install process.
-.Bl -tag -width ".Cm fetch-list"
+.Bl -tag -width ".Cm fetch-recursive"
 .It Cm fetch-list
 Show list of files needed to be fetched in order to build the port.
+.It Cm fetch-recursive
+Fetch the distfiles of the port and all its dependencies.
 .It Cm pretty-print-run-depends-list , pretty-print-build-depends-list
 Print a list of all the compile and run dependencies, and dependencies
 of those dependencies.
