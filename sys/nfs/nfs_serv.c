@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_serv.c	8.3 (Berkeley) 1/12/94
- * $Id: nfs_serv.c,v 1.16 1995/06/27 11:06:37 dfr Exp $
+ * $Id: nfs_serv.c,v 1.17 1995/06/28 07:06:50 davidg Exp $
  */
 
 /*
@@ -1714,11 +1714,11 @@ out:
 			nqsrv_getl(nd.ni_dvp, ND_WRITE);
 			nqsrv_getl(vp, ND_WRITE);
 
-			if ((vp->v_flag & VVMIO) && vp->v_vmdata)
+			if ((vp->v_flag & VVMIO) && vp->v_object)
 			    	deallocobj = 1;
 			error = VOP_REMOVE(nd.ni_dvp, nd.ni_vp, &nd.ni_cnd);
 			if (error == 0 && deallocobj)
-				vm_object_deallocate((vm_object_t) vp->v_vmdata);
+				vm_object_deallocate(vp->v_object);
 		} else {
 			VOP_ABORTOP(nd.ni_dvp, &nd.ni_cnd);
 			if (nd.ni_dvp == vp)
@@ -1891,17 +1891,17 @@ out:
 		nqsrv_getl(tdvp, ND_WRITE);
 		if (tvp) {
 			nqsrv_getl(tvp, ND_WRITE);
-			if ((tvp->v_flag & VVMIO) && tvp->v_vmdata)
+			if ((tvp->v_flag & VVMIO) && tvp->v_object)
 				deallocobjto = 1;
 		}
-		if ((fvp->v_flag & VVMIO) && fvp->v_vmdata)
+		if ((fvp->v_flag & VVMIO) && fvp->v_object)
 			deallocobjfrom = 1;
 		error = VOP_RENAME(fromnd.ni_dvp, fromnd.ni_vp, &fromnd.ni_cnd,
 				   tond.ni_dvp, tond.ni_vp, &tond.ni_cnd);
 		if (deallocobjfrom)
-			vm_object_deallocate((vm_object_t) fvp->v_vmdata);
+			vm_object_deallocate(fvp->v_object);
 		if (deallocobjto)
-			vm_object_deallocate((vm_object_t) tvp->v_vmdata);
+			vm_object_deallocate(tvp->v_object);
 
 	} else {
 		VOP_ABORTOP(tond.ni_dvp, &tond.ni_cnd);
@@ -2143,11 +2143,11 @@ nfsrv_symlink(nfsd, slp, procp, mrq)
 		goto out;
 	}
 	nqsrv_getl(nd.ni_dvp, ND_WRITE);
-	if ((ovp = nd.ni_vp) && (ovp->v_flag & VVMIO) && ovp->v_vmdata)
+	if ((ovp = nd.ni_vp) && (ovp->v_flag & VVMIO) && ovp->v_object)
 		deallocobj = 1;
 	error = VOP_SYMLINK(nd.ni_dvp, &nd.ni_vp, &nd.ni_cnd, vap, pathcp);
 	if (error == 0 && deallocobj)
-		vm_object_deallocate( (vm_object_t) ovp->v_vmdata);
+		vm_object_deallocate(ovp->v_object);
 	if (error)
 		nfsrv_vrele(nd.ni_startdir);
 	else {

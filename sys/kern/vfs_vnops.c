@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_vnops.c	8.2 (Berkeley) 1/21/94
- * $Id: vfs_vnops.c,v 1.10 1995/05/10 18:59:11 davidg Exp $
+ * $Id: vfs_vnops.c,v 1.11 1995/05/30 08:06:35 rgrimes Exp $
  */
 
 #include <sys/param.h>
@@ -161,15 +161,11 @@ vn_open(ndp, fmode, cmode)
 		vm_pager_t pager;
 retry:
 		if ((vp->v_flag & VVMIO) == 0) {
-			pager = (vm_pager_t) vnode_pager_alloc(vp, 0, 0, 0);
-			object = (vm_object_t) vp->v_vmdata;
-			if (object->pager != pager)
-				panic("vn_open: pager/object mismatch");
-			(void) vm_object_lookup(pager);
-			pager_cache(object, TRUE);
+			if (vnode_pager_alloc(vp, 0, 0, 0) == NULL)
+				panic("vn_open: failed to alloc pager");;
 			vp->v_flag |= VVMIO;
 		} else {
-			if ((object = (vm_object_t)vp->v_vmdata) &&
+			if ((object = vp->v_object) &&
 				(object->flags & OBJ_DEAD)) {
 				VOP_UNLOCK(vp);
 				tsleep(object, PVM, "vodead", 0);
@@ -244,9 +240,9 @@ vn_close(vp, flags, cred, p)
 	 */
 	if (vp->v_flag & VVMIO) {
 		vrele(vp);
-		if( vp->v_vmdata == NULL)
+		if (vp->v_object == NULL)
 			panic("vn_close: VMIO object missing");
-		vm_object_deallocate( (vm_object_t) vp->v_vmdata);
+		vm_object_deallocate(vp->v_object);
 	} else
 		vrele(vp);
 	return (error);
