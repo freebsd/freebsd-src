@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: ftp.c,v 1.13.2.6 1995/06/05 01:56:53 jkh Exp $
+ * $Id: ftp.c,v 1.13.2.7 1995/06/05 02:25:24 jkh Exp $
  *
  * Return values have been sanitized:
  *	-1	error, but you (still) have a session.
@@ -328,9 +328,13 @@ FtpGet(FTP_t ftp, char *file)
 	}
 	ftp->fd_xfer = s;
 	i = cmd(ftp,"RETR %s",file);
-	if (i < 0) 
+	if (i < 0)  {
+	    close(s);
 	    return zap(ftp);
-	if (i > 299) {
+	}
+	else if (i > 299) {
+	    if (isDebug())
+		msgDebug("FTP: No such file %s, moving on.\n", file);
 	    close(s);
 	    return -1;
 	}
@@ -368,6 +372,8 @@ FtpGet(FTP_t ftp, char *file)
 	    return zap(ftp);
 	}
 	else if (i > 299) {
+	    if (isDebug())
+		msgDebug("FTP: No such file %s, moving on.\n", file);
 	    close(s);
 	    return -1;
         }
