@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.50 1995/03/10 08:41:26 phk Exp $
+ *	$Id: locore.s,v 1.51 1995/03/11 03:49:46 phk Exp $
  */
 
 /*
@@ -154,13 +154,7 @@ _bdb_exists:	.long	0
  */
 NON_GPROF_ENTRY(btext)
 	movw	$0x1234,0x472			/* warm boot */
-	jmp	1f
-	/*
-	 * XXX now that we load at 1MB is this still really used?
-	 */
-	.org	0x500				/* space for BIOS variables */
 
-1:
 	/* Set up a real frame, some day we will be doing returns */
 	pushl	%ebp
 	movl	%esp, %ebp
