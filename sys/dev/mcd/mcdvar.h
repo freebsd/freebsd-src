@@ -8,7 +8,6 @@ struct mcd_mbx {
 	int		sz;
 	u_long		skip;
 	struct bio *	bp;
-	int		p_offset;
 	short		count;
 	short		mode;
 };
