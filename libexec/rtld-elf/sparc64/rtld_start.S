@@ -65,6 +65,7 @@ ENTRY(.rtld_start)
 	mov	%l1, %o3
 	jmp	%o0
 	 mov	%l0, %o0
+END(.rtld_start)
 
 	/*
 	 * We have two separate entry points to the runtime linker.
@@ -124,6 +125,7 @@ ENTRY(_rtld_bind_start_0)
 
 	jmp	%o0			/* return value == function address */
 	 restore			/* Dump our stack frame */
+END(_rtld_bind_start_0)
 	
 ENTRY(_rtld_bind_start_1)
 	srax	%o0, 15, %o2		/* %o0 is the index to our PLT slot */
@@ -140,4 +142,4 @@ ENTRY(_rtld_bind_start_1)
 
 	jmp	%o0			/* return value == function address */
 	 restore			/* Dump our stack frame */
-
+END(_rtld_bind_start_1)
