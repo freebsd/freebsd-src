@@ -4,6 +4,7 @@ NOMAN=YES
 CLEANFILES+= ${LOCALES:S/$/.out/g}
 
 LOCALES=	af_ZA.ISO8859-1 \
+		am_ET.UTF-8 \
 		bg_BG.CP1251 \
 		ca_ES.ISO8859-1 \
 		cs_CZ.ISO8859-2 \
