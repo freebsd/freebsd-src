@@ -180,9 +180,9 @@ usage(int is_setfmac)
 {
 
 	if (is_setfmac)
-		fprintf(stderr, "usage: setfmac [-Rh] label path [...]\n");
+		fprintf(stderr, "usage: setfmac [-Rh] label file ...\n");
 	else
-		fprintf(stderr, "usage: setfsmac [-evx] [-f specfile [...]] [-s specfile [...]] path [...]\n");
+		fprintf(stderr, "usage: setfsmac [-ehvx] [-f specfile [...]] [-s specfile [...]] file ...\n");
 	exit(1);
 }
 
