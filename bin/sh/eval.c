@@ -850,6 +850,7 @@ evalcommand(cmd, flags, backcmd)
 		exitstatus = (*builtinfunc[cmdentry.u.index])(argc, argv);
 		flushall();
 cmddone:
+		cmdenviron = NULL;
 		out1 = &output;
 		out2 = &errout;
 		freestdout();

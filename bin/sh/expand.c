@@ -667,7 +667,7 @@ again: /* jump here after setting a variable with ${var=text} */
 		set = varisset(var, varflags & VSNUL);
 		val = NULL;
 	} else {
-		val = lookupvar(var);
+		val = bltinlookup(var, 1);
 		if (val == NULL || ((varflags & VSNUL) && val[0] == '\0')) {
 			val = NULL;
 			set = 0;

@@ -82,7 +82,6 @@ extern volatile sig_atomic_t exception;
 
 extern volatile sig_atomic_t suppressint;
 extern volatile sig_atomic_t intpending;
-extern char *commandname;	/* name of command--printed on error */
 
 #define INTOFF suppressint++
 #define INTON { if (--suppressint == 0 && intpending) onint(); }

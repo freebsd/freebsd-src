@@ -168,8 +168,6 @@ histcmd(argc, argv)
 	int argc;
 	char **argv;
 {
-	extern char *optarg;
-	extern int optind, optopt, optreset;
 	int ch;
 	char *editor = NULL;
 	const HistEvent *he;
@@ -210,7 +208,7 @@ histcmd(argc, argv)
 	      (ch = getopt(argc, argv, ":e:lnrs")) != -1)
 		switch ((char)ch) {
 		case 'e':
-			editor = optarg;
+			editor = shoptarg;
 			break;
 		case 'l':
 			lflg = 1;
