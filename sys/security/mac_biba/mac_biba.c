@@ -1878,6 +1878,24 @@ mac_biba_check_socket_visible(struct ucred *cred, struct socket *socket,
 }
 
 static int
+mac_biba_check_sysarch_ioperm(struct ucred *cred)
+{
+	struct mac_biba *subj;
+	int error;
+
+	if (!mac_biba_enabled)
+		return (0);
+
+	subj = SLOT(&cred->cr_label);
+
+	error = mac_biba_subject_privileged(subj);
+	if (error)
+		return (error);
+
+	return (0);
+}
+
+static int
 mac_biba_check_system_acct(struct ucred *cred, struct vnode *vp,
     struct label *label)
 {
@@ -1940,6 +1958,26 @@ mac_biba_check_system_swapon(struct ucred *cred, struct vnode *vp,
 
 	if (!mac_biba_high_single(obj))
 		return (EACCES);
+
+	return (0);
+}
+
+static int
+mac_biba_check_system_swapoff(struct ucred *cred, struct vnode *vp,
+    struct label *label)
+{
+	struct mac_biba *subj, *obj;
+	int error;
+
+	if (!mac_biba_enabled)
+		return (0);
+
+	subj = SLOT(&cred->cr_label);
+	obj = SLOT(label);
+
+	error = mac_biba_subject_privileged(subj);
+	if (error)
+		return (error);
 
 	return (0);
 }
@@ -2674,9 +2712,11 @@ static struct mac_policy_ops mac_biba_ops =
 	.mpo_check_socket_deliver = mac_biba_check_socket_deliver,
 	.mpo_check_socket_relabel = mac_biba_check_socket_relabel,
 	.mpo_check_socket_visible = mac_biba_check_socket_visible,
+	.mpo_check_sysarch_ioperm = mac_biba_check_sysarch_ioperm,
 	.mpo_check_system_acct = mac_biba_check_system_acct,
 	.mpo_check_system_settime = mac_biba_check_system_settime,
 	.mpo_check_system_swapon = mac_biba_check_system_swapon,
+	.mpo_check_system_swapoff = mac_biba_check_system_swapoff,
 	.mpo_check_system_sysctl = mac_biba_check_system_sysctl,
 	.mpo_check_vnode_access = mac_biba_check_vnode_open,
 	.mpo_check_vnode_chdir = mac_biba_check_vnode_chdir,
