@@ -126,6 +126,7 @@ char	*getusershell __P((void));
 char	*getwd __P((char *));			/* obsoleted by getcwd() */
 int	 initgroups __P((const char *, int));
 int	 iruserok __P((unsigned long, int, const char *, const char *));
+int	 lchown __P((const char *, uid_t, gid_t));
 int	 mknod __P((const char *, mode_t, dev_t));
 int	 mkstemp __P((char *));
 char	*mktemp __P((char *));
