@@ -4,8 +4,6 @@
 # Date:		Mon Jul 10 01:18:20 2000
 # Version:	$FreeBSD$
 #
-# MAINTAINER:	jkh
-#
 # This script prints out the list of "minimum required packages" for
 # a given CDROM number, that numer currently referring to the 4 CD
 # "official set" published by BSDi.  If there is no minimum package
@@ -55,23 +53,6 @@ CDROM_SET_1="${CDROM_SET_1} emulators/osf1_base"
 else
 CDROM_SET_1="${CDROM_SET_1} emulators/linux_base"
 fi
-CDROM_SET_1="${CDROM_SET_1} x11/XFree86-4"
-CDROM_SET_1="${CDROM_SET_1} x11/XFree86-4-clients"
-CDROM_SET_1="${CDROM_SET_1} x11/XFree86-4-documents"
-CDROM_SET_1="${CDROM_SET_1} x11/XFree86-4-libraries"
-CDROM_SET_1="${CDROM_SET_1} x11/XFree86-4-manuals"
-CDROM_SET_1="${CDROM_SET_1} x11-fonts/XFree86-4-font100dpi"
-CDROM_SET_1="${CDROM_SET_1} x11-fonts/XFree86-4-font75dpi"
-CDROM_SET_1="${CDROM_SET_1} x11-fonts/XFree86-4-fontCyrillic"
-CDROM_SET_1="${CDROM_SET_1} x11-fonts/XFree86-4-fontDefaultBitmaps"
-CDROM_SET_1="${CDROM_SET_1} x11-fonts/XFree86-4-fontEncodings"
-CDROM_SET_1="${CDROM_SET_1} x11-fonts/XFree86-4-fontLatin2"
-CDROM_SET_1="${CDROM_SET_1} x11-fonts/XFree86-4-fontScalable"
-CDROM_SET_1="${CDROM_SET_1} x11-servers/XFree86-4-FontServer"
-CDROM_SET_1="${CDROM_SET_1} x11-servers/XFree86-4-NestServer"
-CDROM_SET_1="${CDROM_SET_1} x11-servers/XFree86-4-PrintServer"
-CDROM_SET_1="${CDROM_SET_1} x11-servers/XFree86-4-Server"
-CDROM_SET_1="${CDROM_SET_1} x11-servers/XFree86-4-VirtualFramebufferServer"
 CDROM_SET_1="${CDROM_SET_1} x11/kde2"
 CDROM_SET_1="${CDROM_SET_1} x11/gnome"
 CDROM_SET_1="${CDROM_SET_1} x11-wm/afterstep"
@@ -81,41 +62,23 @@ CDROM_SET_1="${CDROM_SET_1} net/pcnfsd"
 
 # This is the set of "people really want these" packages.  Please add to
 # this list.
-CDROM_SET_1="${CDROM_SET_1} net/cvsup-bin"
 if [ "X`uname -m`" = "Xi386" ]; then
 CDROM_SET_1="${CDROM_SET_1} shells/ksh93"
 fi
 CDROM_SET_1="${CDROM_SET_1} shells/bash2"
 CDROM_SET_1="${CDROM_SET_1} shells/pdksh"
-CDROM_SET_1="${CDROM_SET_1} shells/zsh"
-CDROM_SET_1="${CDROM_SET_1} editors/vim5"
 CDROM_SET_1="${CDROM_SET_1} editors/emacs20"
+CDROM_SET_1="${CDROM_SET_1} editors/vim5"
+CDROM_SET_1="${CDROM_SET_1} editors/vim-lite"
 CDROM_SET_1="${CDROM_SET_1} www/netscape-wrapper"
 CDROM_SET_1="${CDROM_SET_1} www/netscape-remote"
 CDROM_SET_1="${CDROM_SET_1} www/netscape47-communicator"
-CDROM_SET_1="${CDROM_SET_1} www/lynx"
+CDROM_SET_1="${CDROM_SET_1} www/netscape47-navigator"
 CDROM_SET_1="${CDROM_SET_1} print/acroread"
-CDROM_SET_1="${CDROM_SET_1} print/xpdf"
-CDROM_SET_1="${CDROM_SET_1} print/gv"
-CDROM_SET_1="${CDROM_SET_1} print/ghostview"
-CDROM_SET_1="${CDROM_SET_1} graphics/xv"
-CDROM_SET_1="${CDROM_SET_1} mail/fetchmail"
-CDROM_SET_1="${CDROM_SET_1} mail/mutt"
-CDROM_SET_1="${CDROM_SET_1} mail/pine"
-CDROM_SET_1="${CDROM_SET_1} mail/xfmail"
-CDROM_SET_1="${CDROM_SET_1} news/tin"
-CDROM_SET_1="${CDROM_SET_1} news/slrn"
-CDROM_SET_1="${CDROM_SET_1} ftp/ncftp"
-CDROM_SET_1="${CDROM_SET_1} irc/xchat"
-CDROM_SET_1="${CDROM_SET_1} emulators/mtools"
-CDROM_SET_1="${CDROM_SET_1} misc/screen"
-CDROM_SET_1="${CDROM_SET_1} x11/rxvt"
-CDROM_SET_1="${CDROM_SET_1} astro/xearth"
 
 # VERY common build dependancies
 CDROM_SET_1="${CDROM_SET_1} devel/gmake"
 CDROM_SET_1="${CDROM_SET_1} archivers/bzip2"
-CDROM_SET_1="${CDROM_SET_1} archivers/unzip"
 
 ## End of set for CDROM #1
 
