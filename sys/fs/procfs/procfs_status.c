@@ -37,7 +37,7 @@
  *	@(#)procfs_status.c	8.4 (Berkeley) 6/15/94
  *
  * From:
- *	$Id: procfs_status.c,v 1.12 1999/01/05 03:53:06 peter Exp $
+ *	$Id: procfs_status.c,v 1.13 1999/04/28 11:37:20 phk Exp $
  */
 
 #include <sys/param.h>
@@ -102,23 +102,17 @@ procfs_dostatus(curp, p, pfs, uio)
 	if (*sep != ',')
 		ps += sprintf(ps, "noflags");
 
-	if (p->p_flag & P_INMEM)
-		ps += sprintf(ps, " %ld,%ld",
-			p->p_stats->p_start.tv_sec,
-			p->p_stats->p_start.tv_usec);
-	else
-		ps += sprintf(ps, " -1,-1");
-
-	{
+	if (p->p_flag & P_INMEM) {
 		struct timeval ut, st;
 
-		calcru(p, &ut, &st, (void *) 0);
-		ps += sprintf(ps, " %ld,%ld %ld,%ld",
-			ut.tv_sec,
-			ut.tv_usec,
-			st.tv_sec,
-			st.tv_usec);
-	}
+		calcru(p, &ut, &st, (struct timeval *) NULL);
+		ps += sprintf(ps, " %ld,%ld %ld,%ld %ld,%ld",
+		    p->p_stats->p_start.tv_sec,
+		    p->p_stats->p_start.tv_usec,
+		    ut.tv_sec, ut.tv_usec,
+		    st.tv_sec, st.tv_usec);
+	} else
+		ps += sprintf(ps, " -1,-1 -1,-1 -1,-1");
 
 	ps += sprintf(ps, " %s",
 		(p->p_wchan && p->p_wmesg) ? p->p_wmesg : "nochan");
