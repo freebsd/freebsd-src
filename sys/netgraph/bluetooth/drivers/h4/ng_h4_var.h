@@ -92,7 +92,7 @@ typedef struct ng_h4_info {
 	u_int32_t		 want;	/* Number of bytes we want to receive */
 
 	hook_p			 hook;	/* Upstream hook */
-	struct callout_handle	 timo;	/* See man timeout(9) */
+	struct callout		 timo;	/* See man timeout(9) */
 } ng_h4_info_t;
 typedef ng_h4_info_t *		 ng_h4_info_p;
 
