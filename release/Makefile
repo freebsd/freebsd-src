@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.243 1996/10/05 10:43:33 jkh Exp $
+#	$Id: Makefile,v 1.244 1996/10/05 13:10:01 jkh Exp $
 #
 # How to roll a release:
 #
@@ -220,7 +220,7 @@ release.4:
 #
 release.5:
 	@cd ${.CURDIR} && $(MAKE) ckRELEASEDIR
-	# Handle some grief caused by the ammunition braindeadness.
+	# Handle some grief caused by the munition braindeadness.
 	for i in sbin/init bin/ed ; do \
 		( cd ${.CURDIR}/../$$i; \
 		  make -DNOCRYPT clean all distribute DISTDIR=${RD}/trees ) ; \
