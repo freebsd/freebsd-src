@@ -30,7 +30,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)svc_run.c 1.1 87/10/13 Copyr 1984 Sun Micro";*/
 /*static char *sccsid = "from: @(#)svc_run.c	2.1 88/07/29 4.0 RPCSRC";*/
-static char *rcsid = "$Id: svc_run.c,v 1.1 1994/08/07 18:36:09 wollman Exp $";
+static char *rcsid = "$Id: svc_run.c,v 1.2 1995/05/30 05:41:35 rgrimes Exp $";
 #endif
 
 /*
@@ -38,7 +38,13 @@ static char *rcsid = "$Id: svc_run.c,v 1.1 1994/08/07 18:36:09 wollman Exp $";
  * Wait for input, call server program.
  */
 #include <rpc/rpc.h>
+#include <stdio.h>
 #include <sys/errno.h>
+#include <sys/types.h>
+#include <sys/time.h>
+#include <unistd.h>
+
+int _rpc_dtablesize(void);
 
 void
 svc_run()
@@ -48,7 +54,6 @@ svc_run()
 #else
       int readfds;
 #endif /* def FD_SETSIZE */
-	extern int errno;
 
 	for (;;) {
 #ifdef FD_SETSIZE
@@ -56,7 +61,7 @@ svc_run()
 #else
 		readfds = svc_fds;
 #endif /* def FD_SETSIZE */
-		switch (select(_rpc_dtablesize(), &readfds, (int *)0, (int *)0,
+		switch (select(_rpc_dtablesize(), &readfds, NULL, NULL,
 			       (struct timeval *)0)) {
 		case -1:
 			if (errno == EINTR) {

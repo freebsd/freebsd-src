@@ -30,7 +30,7 @@
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)pmap_rmt.c 1.21 87/08/27 Copyr 1984 Sun Micro";*/
 /*static char *sccsid = "from: @(#)pmap_rmt.c	2.2 88/08/01 4.0 RPCSRC";*/
-static char *rcsid = "$Id: pmap_rmt.c,v 1.4 1995/12/07 12:50:55 bde Exp $";
+static char *rcsid = "$Id: pmap_rmt.c,v 1.5 1996/03/17 20:12:53 guido Exp $";
 #endif
 
 /*
@@ -55,9 +55,9 @@ static char *rcsid = "$Id: pmap_rmt.c,v 1.4 1995/12/07 12:50:55 bde Exp $";
 #include <arpa/inet.h>
 #define MAX_BROADCAST_SIZE 1400
 
-extern int errno;
 static struct timeval timeout = { 3, 0 };
 
++int _rpc_dtablesize(void);
 
 /*
  * pmapper remote-call-service interface.
