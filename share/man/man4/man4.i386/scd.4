@@ -42,19 +42,15 @@ driver provides a data interface to the Sony CDU31 and CDU33A CD-ROM
 drives.  The drive must be hooked to a Sony proprietary interface
 card or a compatible clone.
 .Sh FILES
-.Bl -tag -width /dev/(r)scd0a -compact
-.It Pa /dev/(r)scd0a
+.Bl -tag -width /dev/[r]scd0a -compact
+.It Pa /dev/[r]scd0a
 accesses BSD partition on the disc.
 Normally, there is only
 one file system on a CDROM disc.
-.It Pa /dev/(r)scd0c
+.It Pa /dev/[r]scd0c
 accesses the raw device.
-.Sh NOTES
-This driver was derived from mcd(4) driver, though the Linux driver was
-also used for reference during this process and thus placed this driver
-under the GPL (GNU Public License).
 .Sh SEE ALSO
-.Pa /sys/gnu/i386/isa/scd.c
+.Pa /sys/i386/isa/scd.c
 .Sh AUTHORS
 The driver was written by Mikael Hybsch with code contributed
 by Holger Veit and Brian Moore.
