@@ -29,6 +29,8 @@
  * $FreeBSD$
  */
 
+#include "opt_ofw_pci.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -57,8 +59,6 @@
 #include <sparc64/pci/ofw_pci.h>
 #include <sparc64/isa/ofw_isa.h>
 
-#include "sparcbus_if.h"
-
 /* There can be only one ISA bus, so it is safe to use globals. */
 bus_space_tag_t isa_io_bt = NULL;
 bus_space_handle_t isa_io_hdl;
@@ -73,7 +73,11 @@ u_int64_t isa_mem_limit;
 device_t isa_bus_device;
 
 static phandle_t isab_node;
-static u_int32_t isa_ino[8];
+static ofw_pci_intr_t isa_ino[8];
+
+#ifdef OFW_NEWPCI
+struct ofw_bus_iinfo isa_iinfo;
+#endif
 
 /*
  * XXX: This is really partly partly PCI-specific, but unfortunately is
@@ -98,9 +102,9 @@ isa_irq_pending(void)
 
 	/* XXX: Is this correct? */
 	for (i = 7, pending = 0; i >= 0; i--) {
-		pending <<= 1; 
-		if (isa_ino[i] != ORIR_NOTFOUND) {
-			pending |= (SPARCBUS_INTR_PENDING(isa_bus_device,
+		pending <<= 1;
+		if (isa_ino[i] != PCI_INVALID_IRQ) {
+			pending |= (OFW_PCI_INTR_PENDING(isa_bus_device,
 			    isa_ino[i]) == 0) ? 0 : 1;
 		}
 	}
@@ -112,29 +116,47 @@ isa_init(device_t dev)
 {
 	device_t bridge;
 	phandle_t node;
-	u_int32_t ino;
+	ofw_isa_intr_t ino;
+#ifndef OFW_NEWPCI
+	ofw_pci_intr_t rino;
+#endif
 	struct isa_ranges *br;
 	int nbr, i;
 
 	/* The parent of the bus must be a PCI-ISA bridge. */
 	bridge = device_get_parent(dev);
+#ifdef OFW_NEWPCI
+	isab_node = ofw_pci_get_node(bridge);
+#else
 	isab_node = ofw_pci_node(bridge);
+#endif
 	nbr = OF_getprop_alloc(isab_node, "ranges", sizeof(*br), (void **)&br);
 	if (nbr <= 0)
 		panic("isa_init: cannot get bridge range property");
+
+#ifdef OFW_NEWPCI
+	ofw_bus_setup_iinfo(isab_node, &isa_iinfo, sizeof(ofw_isa_intr_t));
+#endif
+
 	/*
-	 * This is really a bad kluge; however, it is needed to provide
-	 * isa_irq_pending().
+	 * This is really a bad kludge; however, it is needed to provide
+	 * isa_irq_pending(), which is unfortunately still used by some
+	 * drivers.
 	 */
 	for (i = 0; i < 8; i++)
-		isa_ino[i] = ORIR_NOTFOUND;
+		isa_ino[i] = PCI_INVALID_IRQ;
 	for (node = OF_child(isab_node); node != 0; node = OF_peer(node)) {
 		if (OF_getprop(node, "interrupts", &ino, sizeof(ino)) == -1)
 			continue;
 		if (ino > 7)
 			panic("isa_init: XXX: ino too large");
-		isa_ino[ino] = ofw_bus_route_intr(node, ino,
-		    ofw_pci_orb_callback, dev);
+#ifdef OFW_NEWPCI
+		isa_ino[ino] = ofw_isa_route_intr(bridge, node, &isa_iinfo,
+		    ino);
+#else
+		rino = ofw_bus_route_intr(node, ino, ofw_pci_orb_callback, dev);
+		isa_ino[ino] = rino == ORIR_NOTFOUND ? PCI_INVALID_IRQ : rino;
+#endif
 	}
 
 	for (nbr -= 1; nbr >= 0; nbr--) {
@@ -143,15 +165,15 @@ isa_init(device_t dev)
 			/* This is probably always 0. */
 			isa_io_base = ISAB_RANGE_PHYS(&br[nbr]);
 			isa_io_limit = br[nbr].size;
-			isa_io_hdl = SPARCBUS_GET_BUS_HANDLE(bridge, SBBT_IO,
-			    isa_io_base, &isa_io_bt);
+			isa_io_hdl = OFW_PCI_GET_BUS_HANDLE(bridge,
+			    SYS_RES_IOPORT, isa_io_base, &isa_io_bt);
 			break;
 		case ISAR_SPACE_MEM:
 			/* This is probably always 0. */
 			isa_mem_base = ISAB_RANGE_PHYS(&br[nbr]);
 			isa_mem_limit = br[nbr].size;
-			isa_mem_hdl = SPARCBUS_GET_BUS_HANDLE(bridge, SBBT_MEM,
-			    isa_mem_base, &isa_mem_bt);
+			isa_mem_hdl = OFW_PCI_GET_BUS_HANDLE(bridge,
+			    SYS_RES_MEMORY, isa_mem_base, &isa_mem_bt);
 			break;
 		}
 	}
@@ -170,7 +192,7 @@ isa_route_intr_res(device_t bus, u_long start, u_long end)
 	if (start > 7)
 		panic("isa_route_intr_res: start out of isa range");
 	res = isa_ino[start];
-	if (res == ORIR_NOTFOUND)
+	if (res == PCI_INVALID_IRQ)
 		device_printf(bus, "could not map interrupt %d\n", res);
 	return (res);
 }
@@ -244,7 +266,7 @@ isa_alloc_resource(device_t bus, device_t child, int type, int *rid,
 			    "irq allocation");
 		if (!isdefault) {
 			start = end = isa_route_intr_res(bus, start, end);
-			if (start == 255)
+			if (start == PCI_INVALID_IRQ)
 				return (NULL);
 		}
 		break;
@@ -255,7 +277,7 @@ isa_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		start = ulmin(start + base, limit);
 		end = ulmin(end + base, limit);
 	}
-			
+
 	/*
 	 * This inlines a modified resource_list_alloc(); this is needed
 	 * because the resources need to have offsets added to them, which
@@ -289,7 +311,7 @@ isa_alloc_resource(device_t bus, device_t child, int type, int *rid,
 			break;
 		case SYS_RES_IRQ:
 			start = end = isa_route_intr_res(bus, start, end);
-			if (start == 255)
+			if (start == PCI_INVALID_IRQ)
 				return (NULL);
 			break;
 		}
