@@ -37,6 +37,7 @@
 static char sccsid[] = "@(#)dol.c	8.1 (Berkeley) 5/31/93";
 #endif /* not lint */
 
+#include <sys/times.h>
 #include <sys/types.h>
 #include <fcntl.h>
 #include <errno.h>
@@ -847,13 +848,20 @@ heredoc(term)
     Char  **vp;
     bool    quoted;
     char   *tmp;
+    struct timeval tv;
 
-    if (creat(tmp = short2str(shtemp), 0600) < 0)
-	stderror(ERR_SYSTEM, tmp, strerror(errno));
-    (void) close(0);
-    if (open(tmp, O_RDWR) < 0) {
+again:
+    tmp = short2str(shtemp);
+    if (open(tmp, O_RDWR|O_CREAT|O_TRUNC|O_EXCL, 0600) < 0) {
 	int     oerrno = errno;
-
+	if (errno == EEXIST) {
+	    if (unlink(tmp) == -1) {
+		(void) gettimeofday(&tv, NULL);
+		shtemp = Strspl(STRtmpsh, putn((((int)tv.tv_sec) ^
+		    ((int)tv.tv_usec) ^ ((int)getpid())) & 0x00ffffff));
+	    }
+	    goto again;
+	}
 	(void) unlink(tmp);
 	errno = oerrno;
 	stderror(ERR_SYSTEM, tmp, strerror(errno));
