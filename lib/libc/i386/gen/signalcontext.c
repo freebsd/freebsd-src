@@ -69,7 +69,7 @@ __signalcontext(ucontext_t *ucp, int sig, __sighandler_t *func)
 	/*
 	 * Set up ucontext_t.
 	 */
-	ucp->uc_mcontext.mc_ebp = ucp->uc_mcontext.mc_esp - sizeof(int);
+	ucp->uc_mcontext.mc_esi = ucp->uc_mcontext.mc_esp - sizeof(int);
 	ucp->uc_mcontext.mc_esp = (register_t)(intptr_t)p;
 	ucp->uc_mcontext.mc_eip = (register_t)(intptr_t)_ctx_start;
 	ucp->uc_mcontext.mc_eflags &= ~PSL_T;
