@@ -35,7 +35,7 @@ SRCS=	scspd.c scsp_cafsm.c scsp_config.c scsp_config_lex.c \
 	scsp_timer.c
 MAN=	scspd.8
 
-CFLAGS+=	-I. -I${.CURDIR}
+CFLAGS+=	-I. -I${.CURDIR}/../../../sys -I${.CURDIR}
 LDADD+=		-latm -lmd
 DPADD+=		${LIBATM} ${LIBMD}
 
