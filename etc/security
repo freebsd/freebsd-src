@@ -1,7 +1,7 @@
 #!/bin/sh -
 #
 #	@(#)security	5.3 (Berkeley) 5/28/91
-#	$Id: security,v 1.4 1993/10/25 20:13:16 rgrimes Exp $
+#	$Id: security,v 1.5 1993/12/15 06:42:01 rich Exp $
 #
 PATH=/sbin:/bin:/usr/bin
 
@@ -21,22 +21,11 @@ echo "checking setuid files and devices:"
 #
 MP=`mount -t ufs | sed 's;/dev/;&r;' | awk '{ print $3 }'`
 set $MP
-ls -dlgT `while test $# -ge 1; do
+while test $# -ge 1; do
 	mount=$1
 	shift
 	find $mount -xdev -perm -u+s -or -perm -g+s | sort
-done` > $TMP
-
-#MP=`mount -t ufs | sed 's;/dev/;&r;' | awk '{ print $1 " " $3 }'`
-#set $MP
-#ls -lgT `while test $# -ge 2; do
-#	device=$1
-#	shift
-#	mount=$1
-#	shift
-#	ncheck -s $device | sed -e "/:$/d" -e "/\/dev\//d" \
-#	    -e "s;[^/]*;$mount;" -e "s;//;/;g" | sort
-#done` > $TMP
+done | xargs -n 20 ls -lgTd > $TMP
 
 if cmp $LOG/setuid.today $TMP >/dev/null; then :; else
 	echo "$host setuid/device diffs:"
