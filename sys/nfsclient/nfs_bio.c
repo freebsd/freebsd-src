@@ -131,6 +131,7 @@ nfs_getpages(struct vop_getpages_args *ap)
 	{
 		vm_page_t m = pages[ap->a_reqpage];
 
+		vm_page_lock_queues();
 		if (m->valid != 0) {
 			/* handled by vm_fault now	  */
 			/* vm_page_zero_invalid(m, TRUE); */
@@ -138,8 +139,10 @@ nfs_getpages(struct vop_getpages_args *ap)
 				if (i != ap->a_reqpage)
 					vm_page_free(pages[i]);
 			}
+			vm_page_unlock_queues();
 			return(0);
 		}
+		vm_page_unlock_queues();
 	}
 
 	/*
@@ -170,10 +173,12 @@ nfs_getpages(struct vop_getpages_args *ap)
 
 	if (error && (uio.uio_resid == count)) {
 		printf("nfs_getpages: error %d\n", error);
+		vm_page_lock_queues();
 		for (i = 0; i < npages; ++i) {
 			if (i != ap->a_reqpage)
 				vm_page_free(pages[i]);
 		}
+		vm_page_unlock_queues();
 		return VM_PAGER_ERROR;
 	}
 
@@ -184,7 +189,7 @@ nfs_getpages(struct vop_getpages_args *ap)
 	 */
 
 	size = count - uio.uio_resid;
-
+	vm_page_lock_queues();
 	for (i = 0, toff = 0; i < npages; i++, toff = nextoff) {
 		vm_page_t m;
 		nextoff = toff + PAGE_SIZE;
@@ -238,6 +243,7 @@ nfs_getpages(struct vop_getpages_args *ap)
 			}
 		}
 	}
+	vm_page_unlock_queues();
 	return 0;
 }
 
