@@ -119,6 +119,7 @@
 
 #include "acpi.h"
 #include "acnamesp.h"
+#include "amlcode.h"
 
 #define _COMPONENT          ACPI_UTILITIES
         ACPI_MODULE_NAME    ("utglobal")
@@ -240,7 +241,6 @@ UINT32                      AcpiGbl_NestingLevel = 0;
 
 BOOLEAN                     AcpiGbl_DbTerminateThreads = FALSE;
 BOOLEAN                     AcpiGbl_MethodExecuting = FALSE;
-NATIVE_CHAR                 *AcpiGbl_DbDisasmIndent = "....";
 
 /* System flags */
 
@@ -387,15 +387,15 @@ ACPI_TABLE_DESC             AcpiGbl_AcpiTables[NUM_ACPI_TABLES];
 
 ACPI_TABLE_SUPPORT          AcpiGbl_AcpiTableData[NUM_ACPI_TABLES] =
 {
-    /***********    Name,   Signature, Global typed pointer     Signature size,      How many allowed?,    Contains valid AML? */
+    /***********    Name,   Signature, Global typed pointer     Signature size,      Type                  How many allowed?,    Contains valid AML? */
 
-    /* RSDP 0 */ {RSDP_NAME, RSDP_SIG, NULL,                    sizeof (RSDP_SIG)-1, ACPI_TABLE_SINGLE},
-    /* DSDT 1 */ {DSDT_SIG,  DSDT_SIG, (void **) &AcpiGbl_DSDT, sizeof (DSDT_SIG)-1, ACPI_TABLE_SINGLE   | ACPI_TABLE_EXECUTABLE},
-    /* FADT 2 */ {FADT_SIG,  FADT_SIG, (void **) &AcpiGbl_FADT, sizeof (FADT_SIG)-1, ACPI_TABLE_SINGLE},
-    /* FACS 3 */ {FACS_SIG,  FACS_SIG, (void **) &AcpiGbl_FACS, sizeof (FACS_SIG)-1, ACPI_TABLE_SINGLE},
-    /* PSDT 4 */ {PSDT_SIG,  PSDT_SIG, NULL,                    sizeof (PSDT_SIG)-1, ACPI_TABLE_MULTIPLE | ACPI_TABLE_EXECUTABLE},
-    /* SSDT 5 */ {SSDT_SIG,  SSDT_SIG, NULL,                    sizeof (SSDT_SIG)-1, ACPI_TABLE_MULTIPLE | ACPI_TABLE_EXECUTABLE},
-    /* XSDT 6 */ {XSDT_SIG,  XSDT_SIG, NULL,                    sizeof (RSDT_SIG)-1, ACPI_TABLE_SINGLE},
+    /* RSDP 0 */ {RSDP_NAME, RSDP_SIG, NULL,                    sizeof (RSDP_SIG)-1, ACPI_TABLE_ROOT     | ACPI_TABLE_SINGLE},
+    /* DSDT 1 */ {DSDT_SIG,  DSDT_SIG, (void **) &AcpiGbl_DSDT, sizeof (DSDT_SIG)-1, ACPI_TABLE_SECONDARY| ACPI_TABLE_SINGLE   | ACPI_TABLE_EXECUTABLE},
+    /* FADT 2 */ {FADT_SIG,  FADT_SIG, (void **) &AcpiGbl_FADT, sizeof (FADT_SIG)-1, ACPI_TABLE_PRIMARY  | ACPI_TABLE_SINGLE},
+    /* FACS 3 */ {FACS_SIG,  FACS_SIG, (void **) &AcpiGbl_FACS, sizeof (FACS_SIG)-1, ACPI_TABLE_SECONDARY| ACPI_TABLE_SINGLE},
+    /* PSDT 4 */ {PSDT_SIG,  PSDT_SIG, NULL,                    sizeof (PSDT_SIG)-1, ACPI_TABLE_PRIMARY  | ACPI_TABLE_MULTIPLE | ACPI_TABLE_EXECUTABLE},
+    /* SSDT 5 */ {SSDT_SIG,  SSDT_SIG, NULL,                    sizeof (SSDT_SIG)-1, ACPI_TABLE_PRIMARY  | ACPI_TABLE_MULTIPLE | ACPI_TABLE_EXECUTABLE},
+    /* XSDT 6 */ {XSDT_SIG,  XSDT_SIG, NULL,                    sizeof (RSDT_SIG)-1, ACPI_TABLE_ROOT     | ACPI_TABLE_SINGLE},
 };
 
 
@@ -458,15 +458,15 @@ ACPI_FIXED_EVENT_INFO       AcpiGbl_FixedEventInfo[ACPI_NUM_FIXED_EVENTS] =
 
 /* Region type decoding */
 
-static const NATIVE_CHAR *AcpiGbl_RegionTypes[ACPI_NUM_PREDEFINED_REGIONS] =
+const NATIVE_CHAR *AcpiGbl_RegionTypes[ACPI_NUM_PREDEFINED_REGIONS] =
 {
     "SystemMemory",
     "SystemIO",
-    "PCIConfig",
+    "PCI_Config",
     "EmbeddedControl",
     "SMBus",
     "CMOS",
-    "PCIBarTarget",
+    "PCIBARTarget",
     "DataTable",
 };
 
@@ -526,42 +526,6 @@ AcpiUtGetEventName (
 
     return ((NATIVE_CHAR *) AcpiGbl_EventTypes[EventId]);
 }
-
-
-#if defined(ACPI_DEBUG) || defined(ENABLE_DEBUGGER)
-
-/*
- * Strings and procedures used for debug only
- *
- */
-
-
-/*****************************************************************************
- *
- * FUNCTION:    AcpiUtGetMutexName
- *
- * PARAMETERS:  None.
- *
- * RETURN:      Status
- *
- * DESCRIPTION: Translate a mutex ID into a name string (Debug only)
- *
- ****************************************************************************/
-
-NATIVE_CHAR *
-AcpiUtGetMutexName (
-    UINT32                  MutexId)
-{
-
-    if (MutexId > MAX_MTX)
-    {
-        return ("Invalid Mutex ID");
-    }
-
-    return (AcpiGbl_MutexNames[MutexId]);
-}
-
-#endif
 
 
 /*****************************************************************************
@@ -658,54 +622,41 @@ AcpiUtGetObjectTypeName (
 }
 
 
-/* Various strings for future use */
+#if defined(ACPI_DEBUG) || defined(ENABLE_DEBUGGER)
 
-#if 0
-#include "amlcode.h"
+/*
+ * Strings and procedures used for debug only
+ *
+ */
 
-/* Data used in keeping track of fields */
 
-static const NATIVE_CHAR *AcpiGbl_FENames[NUM_FIELD_NAMES] =
+/*****************************************************************************
+ *
+ * FUNCTION:    AcpiUtGetMutexName
+ *
+ * PARAMETERS:  None.
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Translate a mutex ID into a name string (Debug only)
+ *
+ ****************************************************************************/
+
+NATIVE_CHAR *
+AcpiUtGetMutexName (
+    UINT32                  MutexId)
 {
-    "skip",
-    "?access?"
-};              /* FE = Field Element */
+
+    if (MutexId > MAX_MTX)
+    {
+        return ("Invalid Mutex ID");
+    }
+
+    return (AcpiGbl_MutexNames[MutexId]);
+}
 
 
-static const NATIVE_CHAR *AcpiGbl_MatchOps[NUM_MATCH_OPS] =
-{
-    "Error",
-    "MTR",
-    "MEQ",
-    "MLE",
-    "MLT",
-    "MGE",
-    "MGT"
-};
-
-
-/* Access type decoding */
-
-static const NATIVE_CHAR *AcpiGbl_AccessTypes[NUM_ACCESS_TYPES] =
-{
-    "AnyAcc",
-    "ByteAcc",
-    "WordAcc",
-    "DWordAcc",
-    "QWordAcc",
-    "BufferAcc",
-};
-
-
-/* Update rule decoding */
-
-static const NATIVE_CHAR *AcpiGbl_UpdateRules[NUM_UPDATE_RULES] =
-{
-    "Preserve",
-    "WriteAsOnes",
-    "WriteAsZeros"
-};
-#endif /* Future use */
+#endif
 
 
 /*****************************************************************************

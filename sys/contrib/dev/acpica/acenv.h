@@ -123,11 +123,13 @@
  */
 
 #ifdef _ACPI_DUMP_APP
+#ifndef MSDOS
 #define ACPI_DEBUG
+#endif
 #define ACPI_APPLICATION
-#define ENABLE_DEBUGGER
+#define ACPI_DISASSEMBLER
+#define ACPI_NO_METHOD_EXECUTION
 #define ACPI_USE_SYSTEM_CLIBRARY
-#define PARSER_ONLY
 #endif
 
 #ifdef _ACPI_EXEC_APP
@@ -136,13 +138,15 @@
 #define ACPI_DEBUG
 #define ACPI_APPLICATION
 #define ENABLE_DEBUGGER
+#define ACPI_DISASSEMBLER
 #define ACPI_USE_SYSTEM_CLIBRARY
 #endif
 
 #ifdef _ACPI_ASL_COMPILER
 #define ACPI_DEBUG
 #define ACPI_APPLICATION
-/* #define ENABLE_DEBUGGER */
+#define ACPI_DISASSEMBLER
+#define ACPI_CONSTANT_EVAL_ONLY
 #define ACPI_USE_SYSTEM_CLIBRARY
 #endif
 
@@ -276,7 +280,6 @@
 /*
  * Use the standard C library headers.
  * We want to keep these to a minimum.
- *
  */
 
 #ifdef ACPI_USE_STANDARD_HEADERS
@@ -306,12 +309,16 @@
 #define ACPI_STRTOUL(d,s,n)     strtoul((d), (s), (ACPI_SIZE)(n))
 #define ACPI_MEMCPY(d,s,n)      (void) memcpy((d), (s), (ACPI_SIZE)(n))
 #define ACPI_MEMSET(d,s,n)      (void) memset((d), (s), (ACPI_SIZE)(n))
+
 #define ACPI_TOUPPER            toupper
 #define ACPI_TOLOWER            tolower
 #define ACPI_IS_XDIGIT          isxdigit
 #define ACPI_IS_DIGIT           isdigit
 #define ACPI_IS_SPACE           isspace
 #define ACPI_IS_UPPER           isupper
+#define ACPI_IS_PRINT           isprint
+#define ACPI_IS_ALPHA           isalpha
+#define ACPI_IS_ASCII           isascii
 
 /******************************************************************************
  *

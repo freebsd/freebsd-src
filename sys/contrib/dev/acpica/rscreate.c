@@ -132,7 +132,6 @@
  *
  * PARAMETERS:  ByteStreamBuffer        - Pointer to the resource byte stream
  *              OutputBuffer            - Pointer to the user's buffer
- *              OutputBufferLength      - Pointer to the size of OutputBuffer
  *
  * RETURN:      Status  - AE_OK if okay, else a valid ACPI_STATUS code
  *              If OutputBuffer is not large enough, OutputBufferLength
@@ -212,7 +211,6 @@ AcpiRsCreateResourceList (
  * PARAMETERS:  PackageObject           - Pointer to an ACPI_OPERAND_OBJECT
  *                                        package
  *              OutputBuffer            - Pointer to the user's buffer
- *              OutputBufferLength      - Size of OutputBuffer
  *
  * RETURN:      Status  AE_OK if okay, else a valid ACPI_STATUS code.
  *              If the OutputBuffer is too small, the error will be
@@ -349,7 +347,7 @@ AcpiRsCreatePciRoutingTable (
 
             if ((*SubObjectList)->Reference.Opcode != AML_INT_NAMEPATH_OP)
             {
-               ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Need name, found reference op %X\n",
+                ACPI_DEBUG_PRINT ((ACPI_DB_ERROR, "Need name, found reference op %X\n",
                     (*SubObjectList)->Reference.Opcode));
                 return_ACPI_STATUS (AE_BAD_DATA);
             }
