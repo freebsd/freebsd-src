@@ -1825,7 +1825,10 @@ _bfd_XX_print_private_bfd_data_common (abfd, vfile)
 #undef PF
 
   /* ctime implies '\n'.  */
-  fprintf (file, "\nTime/Date\t\t%s", ctime (&pe->coff.timestamp));
+  {
+    time_t t = pe->coff.timestamp;
+    fprintf (file, "\nTime/Date\t\t%s", ctime (&t));
+  }
   fprintf (file, "\nImageBase\t\t");
   fprintf_vma (file, i->ImageBase);
   fprintf (file, "\nSectionAlignment\t");

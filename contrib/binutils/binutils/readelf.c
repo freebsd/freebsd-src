@@ -5490,6 +5490,13 @@ display_debug_lines (section, start, file)
 
       /* Check the length of the block.  */
       info.li_length = BYTE_GET (external->li_length);
+
+      if (info.li_length == 0xffffffff)
+	{
+	  warn (_("64-bit DWARF line info is not supported yet.\n"));
+	  break;
+	}
+
       if (info.li_length + sizeof (external->li_length) > section->sh_size)
 	{
 	  warn
@@ -5717,6 +5724,12 @@ display_debug_pubnames (section, start, file)
 
       data   = start + sizeof (* external);
       start += pubnames.pn_length + sizeof (external->pn_length);
+
+      if (pubnames.pn_length == 0xffffffff)
+	{
+	  warn (_("64-bit DWARF pubnames are not supported yet.\n"));
+	  break;
+	}
 
       if (pubnames.pn_version != 2)
 	{
@@ -6818,6 +6831,12 @@ display_debug_info (section, start, file)
       compunit.cu_abbrev_offset = BYTE_GET (external->cu_abbrev_offset);
       compunit.cu_pointer_size  = BYTE_GET (external->cu_pointer_size);
 
+      if (compunit.cu_length == 0xffffffff)
+	{
+	  warn (_("64-bit DWARF debug info is not supported yet.\n"));
+	  break;
+	}
+
       tags = start + sizeof (* external);
       cu_offset = start - section_begin;
       start += compunit.cu_length + sizeof (external->cu_length);
@@ -6944,6 +6963,12 @@ display_debug_aranges (section, start, file)
       arange.ar_info_offset  = BYTE_GET (external->ar_info_offset);
       arange.ar_pointer_size = BYTE_GET (external->ar_pointer_size);
       arange.ar_segment_size = BYTE_GET (external->ar_segment_size);
+
+      if (arange.ar_length == 0xffffffff)
+	{
+	  warn (_("64-bit DWARF aranges are not supported yet.\n"));
+	  break;
+	}
 
       if (arange.ar_version != 2)
 	{
@@ -7156,6 +7181,12 @@ display_debug_frames (section, start, file)
       if (length == 0)
 	return 1;
 
+      if (length == 0xffffffff)
+	{
+	  warn (_("64-bit DWARF format frames are not supported yet.\n"));
+	  break;
+	}
+
       block_end = saved_start + length + 4;
       cie_id = byte_get (start, 4); start += 4;
 
@@ -7264,7 +7295,7 @@ display_debug_frames (section, start, file)
 
 	  look_for = is_eh ? start - 4 - cie_id : section_start + cie_id;
 
-	  for (cie=chunks; cie ; cie = cie->next)
+	  for (cie = chunks; cie ; cie = cie->next)
 	    if (cie->chunk_start == look_for)
 	      break;
 
@@ -7706,6 +7737,7 @@ debug_displays[] =
   { ".debug_frame",       display_debug_frames, NULL },
   { ".eh_frame",          display_debug_frames, NULL },
   { ".debug_macinfo",     display_debug_not_supported, NULL },
+  { ".debug_pubtypes",    display_debug_not_supported, NULL },
   { ".debug_str",         display_debug_not_supported, NULL },
   { ".debug_static_func", display_debug_not_supported, NULL },
   { ".debug_static_vars", display_debug_not_supported, NULL },

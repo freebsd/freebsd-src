@@ -1,6 +1,7 @@
 /* CGEN generic opcode support.
 
-   Copyright (C) 1996, 1997, 1998, 1999, 2000 Free Software Foundation, Inc.
+   Copyright 1996, 1997, 1998, 1999, 2000, 2001
+   Free Software Foundation, Inc.
 
    This file is part of the GNU Binutils and GDB, the GNU debugger.
 
@@ -26,6 +27,10 @@
 #include "bfd.h"
 #include "symcat.h"
 #include "opcode/cgen.h"
+
+#ifdef HAVE_ALLOCA_H
+#include <alloca.h>
+#endif
 
 static unsigned int hash_keyword_name
   PARAMS ((const CGEN_KEYWORD *, const char *, int));
@@ -263,7 +268,7 @@ cgen_hw_lookup_by_name (cd, name)
      CGEN_CPU_DESC cd;
      const char *name;
 {
-  int i;
+  unsigned int i;
   const CGEN_HW_ENTRY **hw = cd->hw_table.entries;
 
   for (i = 0; i < cd->hw_table.num_entries; ++i)
@@ -281,9 +286,9 @@ cgen_hw_lookup_by_name (cd, name)
 const CGEN_HW_ENTRY *
 cgen_hw_lookup_by_num (cd, hwnum)
      CGEN_CPU_DESC cd;
-     int hwnum;
+     unsigned int hwnum;
 {
-  int i;
+  unsigned int i;
   const CGEN_HW_ENTRY **hw = cd->hw_table.entries;
 
   /* ??? This can be speeded up.  */
@@ -305,7 +310,7 @@ cgen_operand_lookup_by_name (cd, name)
      CGEN_CPU_DESC cd;
      const char *name;
 {
-  int i;
+  unsigned int i;
   const CGEN_OPERAND **op = cd->operand_table.entries;
 
   for (i = 0; i < cd->operand_table.num_entries; ++i)
@@ -370,30 +375,7 @@ cgen_get_insn_value (cd, buf, length)
      unsigned char *buf;
      int length;
 {
-  CGEN_INSN_INT value;
-
-  switch (length)
-    {
-    case 8:
-      value = *buf;
-      break;
-    case 16:
-      if (cd->insn_endian == CGEN_ENDIAN_BIG)
-	value = bfd_getb16 (buf);
-      else
-	value = bfd_getl16 (buf);
-      break;
-    case 32:
-      if (cd->insn_endian == CGEN_ENDIAN_BIG)
-	value = bfd_getb32 (buf);
-      else
-	value = bfd_getl32 (buf);
-      break;
-    default:
-      abort ();
-    }
-
-  return value;
+  bfd_get_bits (buf, length, cd->insn_endian == CGEN_ENDIAN_BIG);
 }
 
 /* Cover function to store an insn value properly byteswapped.  */
@@ -405,26 +387,8 @@ cgen_put_insn_value (cd, buf, length, value)
      int length;
      CGEN_INSN_INT value;
 {
-  switch (length)
-    {
-    case 8:
-      buf[0] = value;
-      break;
-    case 16:
-      if (cd->insn_endian == CGEN_ENDIAN_BIG)
-	bfd_putb16 (value, buf);
-      else
-	bfd_putl16 (value, buf);
-      break;
-    case 32:
-      if (cd->insn_endian == CGEN_ENDIAN_BIG)
-	bfd_putb32 (value, buf);
-      else
-	bfd_putl32 (value, buf);
-      break;
-    default:
-      abort ();
-    }
+  bfd_put_bits ((bfd_vma) value, buf, length,
+		cd->insn_endian == CGEN_ENDIAN_BIG);
 }
 
 /* Look up instruction INSN_*_VALUE and extract its fields.

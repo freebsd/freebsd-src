@@ -1,3 +1,36 @@
+2001-10-17  Nick Clifton  <nickc@cambridge.redhat.com>
+
+	* addr2line.1: Remove .TP macro from SYNOPSIS section - it
+	prevents successful translation to DocBook format.
+	* nlmconv.1: As above.
+	* nm.1: As above.
+	* objdump.1: As above.
+	* size.1: As above.
+	* strings.1: As above.
+	* strip.1: As above.
+
+2001-10-02  Nick Clifton  <nickc@cambridge.redhat.com>
+
+	* readelf.c (display_debug_line, display_debug_pubnames,
+	display_debug_info, display_debug_frames): Detect and warn
+	about 64-bit format entries.
+	(display_debug_aranges): Reword 64-bit warning.
+	(debug_displays): Add .debug_pubtypes as a known, but not yet
+	supported, debug section.
+
+2001-10-01  Nick Clifton  <nickc@cambridge.redhat.com>
+
+	* readelf.c (display_debug_aranges): Warn about DWARF64 format
+	.debug_arange sections.
+
+2001-08-05  Philip Blundell  <philb@gnu.org>
+
+	* binutils.texi (objdump): Fix typos.  Use "Thumb" not "THUMB".
+
+2001-07-31  David O'Brien  <obrien@FreeBSD.org>
+
+	* readelf.1: New file.
+
 2001-06-29  James Cownie <jcownie@etnus.com>
 
 	* readelf.c: Support DWARF 2.1 attributes.
