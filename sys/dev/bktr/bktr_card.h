@@ -75,7 +75,8 @@
 #define CARD_VIDEO_HIGHWAY_XTREME	13
 #define CARD_ASKEY_DYNALINK_MAGIC_TVIEW	14
 #define CARD_LEADTEK		15
-#define Bt848_MAX_CARD		16
+#define CARD_TERRATVPLUS	16
+#define Bt848_MAX_CARD		17
 
 
 int	signCard( bktr_ptr_t bktr, int offset, int count, u_char* sig );

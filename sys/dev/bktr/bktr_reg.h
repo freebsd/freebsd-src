@@ -35,12 +35,20 @@
  */
 
 #ifdef __FreeBSD__
-#if (__FreeBSD_version >= 310000)
-#include <sys/bus.h>
-#include "smbus.h"
+#  if (__FreeBSD_version >= 310000)
+#    include <sys/bus.h>
+#    include "smbus.h"
+#  else
+#    define NSMBUS 0		/* FreeBSD before 3.1 does not have SMBUS */
+#  endif
 #else
-#define NSMBUS 0
+#  define NSMBUS 0		/* Non FreeBSD systems do not have SMBUS */
 #endif
+
+#ifdef __NetBSD__
+#include <machine/bus.h>		/* struct device */
+#include <sys/device.h>
+#include <sys/select.h>			/* struct selinfo */
 #endif
 
 #ifndef PCI_LATENCY_TIMER
@@ -172,7 +180,7 @@ struct bt848_registers {
 #define BT848_O_CONTROL_CON_MSB		(1<<2)
 #define BT848_O_CONTROL_SAT_U_MSB	(1<<1)
 #define BT848_O_CONTROL_SAT_V_MSB	(1<<0)
-    u_char	fillter1[16];
+    u_char	fillter4[16];
     BTBYTE (o_scloop);		/* c0, c1,c2,c3 */
 #define BT848_O_SCLOOP_RSVD1		(1<<7)
 #define BT848_O_SCLOOP_CAGC		(1<<6)
@@ -197,6 +205,10 @@ struct bt848_registers {
     bregister_t color_ctl_rgb_ded	:1;
     bregister_t color_ctl_color_bars	:1;
     bregister_t color_ctl_ext_frmrate	:1;
+#define BT848_COLOR_CTL_GAMMA		(1<<4)
+#define BT848_COLOR_CTL_RGB_DED		(1<<5)
+#define BT848_COLOR_CTL_COLOR_BARS	(1<<6)
+#define BT848_COLOR_CTL_EXT_FRMRATE     (1<<7)
     int		:24;		/* d9,da,db */
     BTBYTE (cap_ctl);		/* dc, dd,de,df */
 #define BT848_CAP_CTL_DITH_FRAME	(1<<4)
@@ -270,17 +282,12 @@ struct bt848_registers {
     BTLONG (gpio_data);		/* 200, 201,202,203 */	/* really 24 bits */
 };
 
-typedef volatile struct bt848_registers* bt848_ptr_t;
-
-
-#if 0
-/* force people to be aware of the new struct */
 
 #define BKTR_DSTATUS			0x000
 #define BKTR_IFORM			0x004
 #define BKTR_TDEC			0x008
-#define BKTR_EVEN_CROP			0x00C
-#define BKTR_ODD_CROP			0x08C
+#define BKTR_E_CROP			0x00C
+#define BKTR_O_CROP			0x08C
 #define BKTR_E_VDELAY_LO		0x010
 #define BKTR_O_VDELAY_LO		0x090
 #define BKTR_E_VACTIVE_LO		0x014
@@ -327,9 +334,11 @@ typedef volatile struct bt848_registers* bt848_ptr_t;
 #define BKTR_GPIO_OUT_EN		0x118
 #define BKTR_GPIO_REG_INP		0x11C
 #define BKTR_GPIO_DATA			0x200
-#define BKTR_I2C_CONTROL		0x110
-
-#endif /* 0 */
+#define BKTR_I2C_DATA_CTL		0x110
+#define BKTR_TGCTRL			0x084
+#define BKTR_PLL_F_LO			0x0F0 
+#define BKTR_PLL_F_HI			0x0F4 
+#define BKTR_PLL_F_XCI			0x0F8
 
 /*
  * device support for onboard tv tuners
@@ -400,6 +409,31 @@ struct bktr_i2c_softc {
 };
 #endif
 
+
+/* Bt848/878 register access
+ * The registers can either be access via a memory mapped structure
+ * or accessed via bus_space.
+ * bus_0pace access allows cross platform support, where as the
+ * memory mapped structure method only works on 32 bit processors
+ * with the right type of endianness.
+ */
+#if defined(__NetBSD__) || ( defined(__FreeBSD__) && (__FreeBSD_version >=300000) )
+#define INB(bktr,offset)	bus_space_read_1((bktr)->memt,(bktr)->memh,(offset))
+#define INW(bktr,offset)	bus_space_read_2((bktr)->memt,(bktr)->memh,(offset))
+#define INL(bktr,offset)	bus_space_read_4((bktr)->memt,(bktr)->memh,(offset))
+#define OUTB(bktr,offset,value) bus_space_write_1((bktr)->memt,(bktr)->memh,(offset),(value))
+#define OUTW(bktr,offset,value) bus_space_write_2((bktr)->memt,(bktr)->memh,(offset),(value))
+#define OUTL(bktr,offset,value) bus_space_write_4((bktr)->memt,(bktr)->memh,(offset),(value))
+#else
+#define INB(bktr,offset)	*(volatile unsigned char*) ((int)((bktr)->memh)+(offset))
+#define INW(bktr,offset)	*(volatile unsigned short*)((int)((bktr)->memh)+(offset))
+#define INL(bktr,offset)	*(volatile unsigned int*)  ((int)((bktr)->memh)+(offset))
+#define OUTB(bktr,offset,value)	*(volatile unsigned char*) ((int)((bktr)->memh)+(offset)) = (value)
+#define OUTW(bktr,offset,value)	*(volatile unsigned short*)((int)((bktr)->memh)+(offset)) = (value)
+#define OUTL(bktr,offset,value)	*(volatile unsigned int*)  ((int)((bktr)->memh)+(offset)) = (value)
+#endif
+
+
 typedef struct bktr_clip bktr_clip_t;
 
 /*
@@ -468,13 +502,17 @@ struct bktr_softc {
     struct resource *res_irq;	/* 4.x resource descriptor for interrupt */
     void            *res_ih;	/* 4.x newbus interrupt handler cookie */
     #endif
+    #if (__FreeBSD_version >= 310000)
+    bus_space_tag_t	memt;	/* Bus space register access functions */
+    bus_space_handle_t	memh;	/* Bus space register access functions */
+    bus_size_t		obmemsz;/* Size of card (bytes) */
+    #endif
     #if (NSMBUS > 0)
       struct bktr_i2c_softc i2c_sc;	/* bt848_i2c device */
     #endif
 #endif
 
     /* the following definitions are common over all platforms */
-    bt848_ptr_t base;		/* Bt848 register physical address */
     vm_offset_t bigbuf;		/* buffer that holds the captured image */
     int		alloc_pages;	/* number of pages in bigbuf */
 
@@ -585,7 +623,7 @@ struct bktr_softc {
     int                 yclip2;
     int                 max_clip_node;
     bktr_clip_t		clip_list[100];
-    int                 reverse_mute;
+    int                 reverse_mute;		/* Swap the GPIO values for Mute and TV Audio */
     int                 bt848_tuner;
     int                 bt848_card;
     u_long              id;
@@ -598,6 +636,8 @@ struct bktr_softc {
     int			msp_addr;	       /* MSP i2c address */
     char		dpl_version_string[9]; /* DPL version string 35xxx-xx */
     int			dpl_addr;	       /* DPL i2c address */
+    int                 slow_msp_audio;	       /* 0 = use fast MSP3410/3415 programming sequence */
+					       /* 1 = use slow MSP3410/3415 programming sequence */
 
 };
 
@@ -611,3 +651,24 @@ struct bt848_card_sig {
   int tuner;
   u_char signature[Bt848_MAX_SIGN];
 };
+
+
+/***********************************************************/
+/* ioctl_cmd_t int on old versions, u_long on new versions */
+/***********************************************************/
+
+#if (__FreeBSD__ == 2)
+typedef int ioctl_cmd_t;
+#endif
+
+#if defined(__FreeBSD__)
+#if (__FreeBSD_version >= 300000)
+typedef u_long ioctl_cmd_t;
+#endif
+#endif
+
+#if defined(__NetBSD__) || defined(__OpenBSD__)
+typedef u_long ioctl_cmd_t;
+#endif
+
+
