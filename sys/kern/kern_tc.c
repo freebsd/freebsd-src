@@ -15,8 +15,8 @@
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
-#include <sys/timetc.h>
 #include <sys/timepps.h>
+#include <sys/timetc.h>
 #include <sys/timex.h>
 
 /*
@@ -77,7 +77,7 @@ static struct timehands *volatile timehands = &th0;
 struct timecounter *timecounter = &dummy_timecounter;
 static struct timecounter *timecounters = &dummy_timecounter;
 
-time_t time_second;
+time_t time_second = 1;
 
 static struct bintime boottimebin;
 struct timeval boottime;
@@ -154,8 +154,6 @@ microuptime(struct timeval *tvp)
 	binuptime(&bt);
 	bintime2timeval(&bt, tvp);
 }
-
-#define SYNC_TIME
 
 void
 bintime(struct bintime *bt)
@@ -385,7 +383,7 @@ tc_windup(void)
 		th->th_offset_count = ncount;
 	}
 
-	/*-?
+	/*-
 	 * Recalculate the scaling factor.  We want the number of 1/2^64
 	 * fractions of a second per period of the hardware counter, taking
 	 * into account the th_adjustment factor which the NTP PLL/adjtime(2)
@@ -676,7 +674,7 @@ inittimecounter(void *dummy)
 	p = (tc_tick * 1000000) / hz;
 	printf("Timecounters tick every %d.%03u msec\n", p / 1000, p % 1000);
 
-	/* warm up new timecounter (again) and get rolling */
+	/* warm up new timecounter (again) and get rolling. */
 	(void)timecounter->tc_get_timecount(timecounter);
 	(void)timecounter->tc_get_timecount(timecounter);
 	tc_ticktock(NULL);
