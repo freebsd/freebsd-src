@@ -1,0 +1,13 @@
+.nr _C \n(.C
+.cp 0
+.ftr CW CR
+.ftr C CR
+.ftr CO CI
+.ftr H HR
+.ftr HO HI
+.ftr HX HBI
+.ftr Hr HNR
+.ftr Hi HNI
+.ftr Hb HNB
+.ftr Hx HNBI
+.cp \n(_C
