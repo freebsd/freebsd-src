@@ -330,9 +330,9 @@ cue_getmac(struct cue_softc *sc, void *buf)
 Static uint32_t
 cue_mchash(const uint8_t *addr)
 {
-	uint32_t	crc;
-	int		idx, bit;
-	uint8_t		data;
+	uint32_t crc;
+	int idx, bit;
+	uint8_t data;
 
 	/* Compute CRC for the address value. */
 	crc = 0xFFFFFFFF; /* initial value */

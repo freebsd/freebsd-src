@@ -142,7 +142,7 @@ static void     my_autoneg_mii(struct my_softc *, int, int);
 static void     my_setmode_mii(struct my_softc *, int);
 static void     my_getmode_mii(struct my_softc *);
 static void     my_setcfg(struct my_softc *, int);
-static u_int32_t my_mchash(caddr_t);
+static uint32_t my_mchash(const uint8_t *);
 static void     my_setmulti(struct my_softc *);
 static void     my_reset(struct my_softc *);
 static int      my_list_rx_init(struct my_softc *);
@@ -313,12 +313,12 @@ my_phy_writereg(struct my_softc * sc, int reg, int data)
 	return;
 }
 
-static u_int32_t
-my_mchash(caddr_t addr)
+static uint32_t
+my_mchash(const uint8_t *addr)
 {
-	u_int32_t       crc, carry;
-	int             idx, bit;
-	u_int8_t        data;
+	uint32_t crc, carry;
+	int idx, bit;
+	uint8_t data;
 
 	/* Compute CRC for the address value. */
 	crc = 0xFFFFFFFF;	/* initial value */

@@ -184,7 +184,7 @@ static int nge_miibus_writereg(device_t, int, int, int);
 static void nge_miibus_statchg(device_t);
 
 static void nge_setmulti(struct nge_softc *);
-static u_int32_t nge_mchash(caddr_t);
+static uint32_t nge_mchash(const uint8_t *);
 static void nge_reset(struct nge_softc *);
 static int nge_list_rx_init(struct nge_softc *);
 static int nge_list_tx_init(struct nge_softc *);
@@ -673,11 +673,11 @@ nge_miibus_statchg(dev)
 
 static u_int32_t
 nge_mchash(addr)
-	caddr_t		addr;
+	const uint8_t *addr;
 {
-	u_int32_t	crc, carry; 
-	int		idx, bit;
-	u_int8_t	data;
+	uint32_t crc, carry; 
+	int idx, bit;
+	uint8_t data;
 
 	/* Compute CRC for the address value. */
 	crc = 0xFFFFFFFF; /* initial value */
