@@ -26,7 +26,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: videoio.c,v 1.2 1998/09/23 09:59:00 yokota Exp $
+ * $Id: videoio.c,v 1.4 1998/09/25 11:55:46 yokota Exp $
  */
 
 #include "sc.h"
@@ -573,11 +573,11 @@ vid_init(void)
      * compatibility with the EGA BIOS by updating BIOSDATA_VIDEOSWITCH.
      */
 
-    /* check rtc and BIOS date area */
     /* 
-     * XXX: don't use BIOSDATA_EQUIPMENT, it is not a dead copy
-     * of RTC_EQUIPMENT. The bit 4 and 5 of the ETC_EQUIPMENT are
-     * zeros for EGA and VGA. However, the EGA/VGA BIOS will set 
+     * Check rtc and BIOS date area.
+     * XXX: we don't use BIOSDATA_EQUIPMENT, since it is not a dead
+     * copy of RTC_EQUIPMENT.  Bits 4 and 5 of the ETC_EQUIPMENT are
+     * zeros for EGA and VGA.  However, the EGA/VGA BIOS sets
      * these bits in BIOSDATA_EQUIPMENT according to the monitor
      * type detected.
      */
