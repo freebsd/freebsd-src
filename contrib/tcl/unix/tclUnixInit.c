@@ -213,7 +213,7 @@ TclPlatformInit(interp)
 	(void) signal(SIGPIPE, SIG_IGN);
 #endif /* SIGPIPE */
 
-#ifdef __FreeBSD__
+#if defined(__FreeBSD__) && defined(i386)
 	fpsetround(FP_RN);
 	fpsetmask(0L);
 #endif
