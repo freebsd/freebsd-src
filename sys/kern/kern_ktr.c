@@ -107,6 +107,8 @@ ktr_tracepoint(u_int mask, char *format, u_long arg1, u_long arg2, u_long arg3,
 	va_list ap;
 #endif
 
+	if (panicstr)
+		return;
 	if ((ktr_mask & mask) == 0)
 		return;
 #ifdef KTR_EXTEND
@@ -121,7 +123,7 @@ ktr_tracepoint(u_int mask, char *format, u_long arg1, u_long arg2, u_long arg3,
 	} while (atomic_cmpset_rel_int(&ktr_idx, saveindex, newindex) == 0);
 	entry = &ktr_buf[saveindex];
 	restore_intr(saveintr);
-	nanotime(&entry->ktr_tv);
+	getnanotime(&entry->ktr_tv);
 #ifdef KTR_EXTEND
 	strncpy(entry->ktr_filename, filename, KTRFILENAMESIZE - 1);
 	entry->ktr_filename[KTRFILENAMESIZE - 1] = '\0';
