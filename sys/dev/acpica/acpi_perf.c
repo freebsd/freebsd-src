@@ -401,7 +401,7 @@ acpi_px_settings(device_t dev, struct cf_setting *sets, int *count, int *type)
 	if (sets == NULL || count == NULL)
 		return (EINVAL);
 	if (*count < sc->px_count - sc->px_max_avail)
-		return (ENOMEM);
+		return (E2BIG);
 
 	/* Return a list of settings that are currently valid. */
 	y = 0;
