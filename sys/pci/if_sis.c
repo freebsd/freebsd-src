@@ -107,7 +107,7 @@ MODULE_DEPEND(sis, miibus, 1, 1, 1);
 static struct sis_type sis_devs[] = {
 	{ SIS_VENDORID, SIS_DEVICEID_900, "SiS 900 10/100BaseTX" },
 	{ SIS_VENDORID, SIS_DEVICEID_7016, "SiS 7016 10/100BaseTX" },
-	{ NS_VENDORID, NS_DEVICEID_DP83815, "NatSemi DP83815 10/100BaseTX" },
+	{ NS_VENDORID, NS_DEVICEID_DP83815, "NatSemi DP8381[56] 10/100BaseTX" },
 	{ 0, 0, NULL }
 };
 
@@ -1052,6 +1052,8 @@ sis_attach(dev)
 	sc = device_get_softc(dev);
 	unit = device_get_unit(dev);
 
+	sc->sis_self = dev;
+
 	mtx_init(&sc->sis_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
 	    MTX_DEF | MTX_RECURSE);
 
@@ -1131,6 +1133,18 @@ sis_attach(dev)
 	 */
 	switch (pci_get_vendor(dev)) {
 	case NS_VENDORID:
+		sc->sis_srr = CSR_READ_4(sc, NS_SRR);
+
+		/* We can't update the device description, so spew */
+		if (sc->sis_srr == NS_SRR_15C)
+			device_printf(dev, "Silicon Revision: DP83815C\n");
+		else if (sc->sis_srr == NS_SRR_15D)
+			device_printf(dev, "Silicon Revision: DP83815D\n");
+		else if (sc->sis_srr == NS_SRR_16A)
+			device_printf(dev, "Silicon Revision: DP83816A\n");
+		else
+			device_printf(dev, "Silicon Revision %x\n", sc->sis_srr);
+
 		/*
 		 * Reading the MAC address out of the EEPROM on
 		 * the NatSemi chip takes a bit more work than
@@ -2031,6 +2045,16 @@ sis_init(xsc)
 	 */
 	sis_stop(sc);
 
+#ifdef notyet
+	if (sc->sis_type == SIS_TYPE_83815 && sc->sis_srr >= NS_SRR_16A) {
+		/*
+		 * Configure 400usec of interrupt holdoff.  This is based
+		 * on emperical tests on a Soekris 4801.
+ 		 */
+		CSR_WRITE_4(sc, NS_IHR, 0x100 | 4);
+	}
+#endif
+
 	mii = device_get_softc(sc->sis_miibus);
 
 	/* Set MAC address */
@@ -2146,7 +2170,7 @@ sis_init(xsc)
 		SIS_CLRBIT(sc, SIS_RX_CFG, SIS_RXCFG_RX_TXPKTS);
 	}
 
-	if (sc->sis_type == SIS_TYPE_83815 &&
+	if (sc->sis_type == SIS_TYPE_83815 && sc->sis_srr < NS_SRR_16A &&
 	     IFM_SUBTYPE(mii->mii_media_active) == IFM_100_TX) {
 		uint32_t reg;
 
@@ -2163,6 +2187,7 @@ sis_init(xsc)
 		DELAY(100);
 		reg = CSR_READ_4(sc, NS_PHY_TDATA);
 		if ((reg & 0x0080) == 0 || (reg & 0xff) >= 0xd8) {
+			device_printf(sc->sis_self, "Applying short cable fix (reg=%x)\n", reg);
 			CSR_WRITE_4(sc, NS_PHY_TDATA, 0x00e8);
 			SIS_SETBIT(sc, NS_PHY_DSPCFG, 0x20);
 		}
