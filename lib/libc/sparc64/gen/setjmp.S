@@ -54,6 +54,9 @@
 
 #include "assym.s"
 
+	.register %g2,#ignore
+	.register %g3,#ignore
+
 /*
  * C library -- setjmp, longjmp
  *
@@ -65,25 +68,51 @@
  */
 
 ENTRY(setjmp)
-	save 	%sp, -CCFSZ, %sp
-	stx	%i6, [%i0 + UC_MC + MC_O6]
-	add	%i7, 8, %o0
-	stx	%o0, [%i0 + UC_MC + MC_TPC]
-	add	%i7, 12, %o0
-	stx	%o0, [%i0 + UC_MC + MC_TNPC]
+	save	%sp, -CCFSZ, %sp
+	mov	SIG_BLOCK, %o0
 	clr	%o1
 	call	CNAME(sigprocmask)
-	 add	%i0, UC_SIGMASK, %o2
-	ret
-	 restore %g0, 0, %o0
+	 add	%i0, _JB_SIGMASK, %o2
+	restore
+	stx	%sp, [%o0 + _JB_SP]
+	stx	%o7, [%o0 + _JB_PC]
+	stx	%fp, [%o0 + _JB_FP]
+	retl
+	 clr	%o0
 END(setjmp)
 
 	.weak	CNAME(longjmp)
 	.set	CNAME(longjmp),CNAME(__longjmp)
 ENTRY(__longjmp)
-	mov	1, %o2
-	movrnz	%o1, %o1, %o2
-	call	CNAME(sigreturn)
-	 stx	%o2, [%o0 + UC_MC + MC_O0]
+	save	%sp, -CCFSZ, %sp
+	mov	SIG_SETMASK, %o0
+	add	%i0, _JB_SIGMASK, %o1
+	call	CNAME(sigprocmask)
+	 clr	%o2
+	restore
+	mov	1, %g1
+	movrnz	%o1, %o1, %g1
+	mov	%o0, %g2
+	ldx	[%g2 + _JB_FP], %g3
+1:	cmp	%fp, %g3
+	bl,a	1b
+	 restore
+	be,a	2f
+	 ldx	[%g2 + _JB_SP], %o0
+
+.Lbotch:
+	call	CNAME(longjmperror)
+	 nop
+	call	CNAME(abort)
+	 nop
 	illtrap
+
+2:	cmp	%o0, %sp
+	bge,a	3f
+	 mov	%o0, %sp
+	b,a	.Lbotch
+	 nop
+3:	ldx	[%g2 + _JB_PC], %o7
+	retl
+	 mov	%g1, %o0
 END(__longjmp)
