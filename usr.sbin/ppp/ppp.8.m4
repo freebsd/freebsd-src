@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.144 1999/01/28 22:55:08 billf Exp $
+.\" $Id: ppp.8,v 1.145 1999/02/11 10:14:08 brian Exp $
 .Dd 20 September 1995
 .nr XX \w'\fC00'
 .Os FreeBSD
@@ -232,7 +232,7 @@ use when configuring the interface.  Something like
 is usually appropriate.  See the
 .Dq pmdemand
 system in
-.Pa /etc/ppp/ppp.conf.sample
+.Pa /usr/share/examples/ppp/ppp.conf.sample
 for an example.
 .It Fl background
 Here,
@@ -562,7 +562,7 @@ section for details on all available commands.
 .Sh AUTOMATIC DIALING
 To use automatic dialing, you must prepare some Dial and Login chat scripts.
 See the example definitions in
-.Pa /etc/ppp/ppp.conf.sample
+.Pa /usr/share/examples/ppp/ppp.conf.sample
 (the format of
 .Pa /etc/ppp/ppp.conf
 is pretty simple).
@@ -647,7 +647,7 @@ when the
 connection is established.  See the provided
 .Dq pmdemand
 example in
-.Pa /etc/ppp/ppp.conf.sample
+.Pa /usr/share/examples/ppp/ppp.conf.sample
 which runs a script in the background after the connection is established
 (refer to the
 .Dq shell
@@ -712,7 +712,7 @@ options.  You must also specify the destination label in
 to use.  It must contain the
 .Dq set ifaddr
 command to define the remote peers IP address. (refer to
-.Pa /etc/ppp/ppp.conf.sample )
+.Pa /usr/share/examples/ppp/ppp.conf.sample )
 .Bd -literal -offset indent
 # ppp -auto pmdemand
 .Ed
@@ -1313,7 +1313,7 @@ to flush all rules.
 .El
 .Pp
 See
-.Pa /etc/ppp/ppp.conf.sample .
+.Pa /usr/share/examples/ppp/ppp.conf.sample .
 .Sh SETTING THE IDLE TIMER
 To check/set the idle timer, use the
 .Dq show bundle
@@ -1713,9 +1713,9 @@ will simply circumvent its use by entering some nameserver lines in
 .El
 .Pp
 Please refer to
-.Pa /etc/ppp/ppp.conf.sample
+.Pa /usr/share/examples/ppp/ppp.conf.sample
 and
-.Pa /etc/ppp/ppp.linkup.sample
+.Pa /usr/share/examples/ppp/ppp.linkup.sample
 for some real examples.  The pmdemand label should be appropriate for most
 ISPs.
 .Sh LOGGING FACILITY
