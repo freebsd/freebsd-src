@@ -145,6 +145,12 @@ struct ktr_csw {
 #define KTR_USER	7
 
 /*
+ * KTR_DROP - If this bit is set in ktr_type, then at least one event
+ * between the previous record and this record was dropped.
+ */
+#define	KTR_DROP	0x8000
+
+/*
  * kernel trace points (in p_traceflag)
  */
 #define KTRFAC_MASK	0x00ffffff
@@ -160,6 +166,7 @@ struct ktr_csw {
  */
 #define KTRFAC_ROOT	0x80000000	/* root set this trace */
 #define KTRFAC_INHERIT	0x40000000	/* pass trace flags to children */
+#define	KTRFAC_DROP	0x20000000	/* last event was dropped */
 
 #ifdef	_KERNEL
 extern struct mtx ktrace_mtx;
