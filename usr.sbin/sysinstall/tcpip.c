@@ -1,5 +1,5 @@
 /*
- * $Id: tcpip.c,v 1.81 1999/07/18 02:20:56 jkh Exp $
+ * $Id: tcpip.c,v 1.82 1999/07/18 10:18:06 jkh Exp $
  *
  * Copyright (c) 1995
  *      Gary J Palmer. All rights reserved.
@@ -146,6 +146,55 @@ verifySettings(void)
     return 0;
 }
 
+static void
+dhcpGetInfo(Device *devp)
+{
+    /* If it fails, do it the old-fashioned way */
+    if (dhcpParseLeases("/var/db/dhclient.leases", hostname, domainname,
+			 nameserver, ipaddr, gateway, netmask) == -1) {
+	FILE *ifp;
+	char *cp, cmd[256], data[2048];
+	int i = 0, j = 0;
+
+	/* Bah, now we have to kludge getting the information from ifconfig */
+	snprintf(cmd, sizeof cmd, "ifconfig %s", devp->name);
+	ifp = popen(cmd, "r");
+	if (ifp) {
+	    while ((j = fread(data + i, 1, 512, ifp)) > 0)
+		i += j;
+	    fclose(ifp);
+	    data[i] = 0;
+	    if (isDebug())
+		msgDebug("DHCP configured interface returns %s\n", data);
+	    /* XXX This is gross as it assumes a certain ordering to
+	       ifconfig's output! XXX */
+	    if ((cp = strstr(data, "inet")) != NULL) {
+		i = 0;
+		cp += 5;	/* move over keyword */
+		while (*cp != ' ')
+		    ipaddr[i++] = *(cp++);
+		ipaddr[i] = '\0';
+		if (!strncmp(++cp, "netmask", 7)) {
+		    i = 0;
+		    cp += 8;
+		    while (*cp != ' ')
+			netmask[i++] = *(cp++);
+		    netmask[i] = '\0';
+		}
+	    }
+	}
+    }
+
+    /* If we didn't get a name server value, hunt for it in resolv.conf */
+    if (!nameserver[0] && file_readable("/etc/resolv.conf"))
+	configEnvironmentResolv("/etc/resolv.conf");
+
+    /* See if we have a hostname and can derive one if not */
+    if (!hostname[0] && ipaddr[0]) {
+    }
+    variable_set2(VAR_HOSTNAME, hostname, 1);
+}
+
 /* This is it - how to get TCP setup values */
 int
 tcpOpenDialog(Device *devp)
@@ -177,50 +226,14 @@ tcpOpenDialog(Device *devp)
 	    Mkdir("/tmp");
 	    msgNotify("Scanning for DHCP servers...");
 	    if (!vsystem("dhclient %s", devp->name)) {
-		FILE *ifp;
-		char cmd[256];
-
 		if (isDebug())
 		    msgDebug("Successful return from dhclient");
-		snprintf(cmd, sizeof cmd, "ifconfig %s", devp->name);
-		ifp = popen(cmd, "r");
-		if (ifp) {
-		    char *cp, data[1024];
-		    int i = 0, j = 0;
-
-		    while ((j = fread(data + i, 1, 512, ifp)) > 0)
-			i += j;
-		    fclose(ifp);
-		    data[i] = 0;
-		    if (isDebug())
-			msgDebug("DHCP configured interface returns %s\n", data);
-		    /* XXX This is gross as it assumes a certain ordering to
-		       ifconfig's output! XXX */
-		    if ((cp = strstr(data, "inet")) != NULL) {
-			i = 0;
-			cp += 5;	/* move over keyword */
-			while (*cp != ' ')
-			    ipaddr[i++] = *(cp++);
-			ipaddr[i] = '\0';
-			if (!strncmp(++cp, "netmask", 7)) {
-			    i = 0;
-			    cp += 8;
-			    while (*cp != ' ')
-				netmask[i++] = *(cp++);
-			    netmask[i] = '\0';
-			}
-			if (file_readable("/etc/resolv.conf"))
-			    configEnvironmentResolv("/etc/resolv.conf");
-			/* See if we have a hostname */
-			if (!gethostname(data, sizeof data - 1) && data[0])
-			    variable_set2(VAR_HOSTNAME, data, 1);
-			use_dhcp = TRUE;
-		    }
-		}
+		dhcpGetInfo(devp);
+		use_dhcp = TRUE;
 	    }
 	    else {
 		if (isDebug())
-		    msgConfirm("Unsuccessful return from dhclient");
+		    msgDebug("Unsuccessful return from dhclient");
 		use_dhcp = FALSE;
 	    }
 	}
@@ -253,26 +266,26 @@ tcpOpenDialog(Device *devp)
     }
 
     /* Look up values already recorded with the system, or blank the string variables ready to accept some new data */
-    tmp = variable_get(VAR_HOSTNAME);
-    if (tmp)
-	SAFE_STRCPY(hostname, tmp);
-    else
-	bzero(hostname, sizeof(hostname));
-    tmp = variable_get(VAR_DOMAINNAME);
-    if (tmp)
-	SAFE_STRCPY(domainname, tmp);
-    else
-	bzero(domainname, sizeof(domainname));
-    tmp = variable_get(VAR_GATEWAY);
-    if (tmp)
-	SAFE_STRCPY(gateway, tmp);
-    else
-	bzero(gateway, sizeof(gateway));
-    tmp = variable_get(VAR_NAMESERVER);
-    if (tmp)
-	SAFE_STRCPY(nameserver, tmp);
-    else
-	bzero(nameserver, sizeof(nameserver));
+    if (!hostname[0]) {
+	tmp = variable_get(VAR_HOSTNAME);
+	if (tmp)
+	    SAFE_STRCPY(hostname, tmp);
+    }
+    if (!domainname[0]) {
+	tmp = variable_get(VAR_DOMAINNAME);
+	if (tmp)
+	    SAFE_STRCPY(domainname, tmp);
+    }
+    if (!gateway[0]) {
+	tmp = variable_get(VAR_GATEWAY);
+	if (tmp)
+	    SAFE_STRCPY(gateway, tmp);
+    }
+    if (!nameserver[0]) {
+	tmp = variable_get(VAR_NAMESERVER);
+	if (tmp)
+	    SAFE_STRCPY(nameserver, tmp);
+    }
 
     save = savescr();
     /* If non-interactive, jump straight over the dialog crap and into config section */
@@ -353,8 +366,10 @@ netconfig:
 	char temp[512], ifn[255];
 	char *ifaces;
 
-	variable_set2(VAR_HOSTNAME, hostname, 1);
-	sethostname(hostname, strlen(hostname));
+	if (hostname[0]) {
+	    variable_set2(VAR_HOSTNAME, hostname, 1);
+	    sethostname(hostname, strlen(hostname));
+	}
 	if (domainname[0])
 	    variable_set2(VAR_DOMAINNAME, domainname, 0);
 	if (gateway[0])
@@ -386,7 +401,8 @@ netconfig:
 	}
 	if (ipaddr[0])
 	    variable_set2(VAR_IPADDR, ipaddr, 0);
-	configResolv(NULL);	/* XXX this will do it on the MFS copy XXX */
+	if (!use_dhcp)
+	    configResolv(NULL);	/* XXX this will do it on the MFS copy XXX */
 	ret = DITEM_SUCCESS;
     }
     else

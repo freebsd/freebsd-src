@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.169 1999/07/16 11:13:09 jkh Exp $
+ * $Id: sysinstall.h,v 1.170 1999/07/18 10:18:06 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -449,6 +449,10 @@ extern Device	*deviceRegister(char *name, char *desc, char *devname, DeviceType 
 extern Boolean	dummyInit(Device *dev);
 extern FILE	*dummyGet(Device *dev, char *dist, Boolean probe);
 extern void	dummyShutdown(Device *dev);
+
+/* dhcp.c */
+extern int	dhcpParseLeases(char *file, char *hostname, char *domain, char *nameserver,
+				char *ipaddr, char *gateway, char *netmask);
 
 /* disks.c */
 extern int	diskPartitionEditor(dialogMenuItem *self);

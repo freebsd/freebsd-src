@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.496 1999/07/06 13:07:47 hosokawa Exp $
+#	$Id: Makefile,v 1.497 1999/07/18 02:20:55 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -465,7 +465,7 @@ release.8: write_mfs_in_kernel
 		ls console tty ttyv0 ttyv1 ttyv2 ttyv3 null zero ${CARDDEV} | \
 	cpio -dump ${RD}/mfsfd/dev )
 	( cd ${RD}/mfsfd/dev && rm -f *[swo]d*[bdefgh] )
-	( cd ${RD}/mfsfd && mkdir -p bin sbin && ln -s stand/sh bin/sh )
+	( cd ${RD}/mfsfd && mkdir -p bin sbin && ln -s /stand/sh bin/sh )
 	cp /sbin/dhclient-script ${RD}/mfsfd/sbin
 .if ${PCCARD} == "YES"
 	cp ${.CURDIR}/../etc/pccard.conf.sample ${RD}/mfsfd/etc/pccard.conf
