@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.64 1994/09/16 01:00:38 ache Exp $
+ *	$Id: machdep.c,v 1.65 1994/09/16 05:46:54 phk Exp $
  */
 
 #include "npx.h"
@@ -723,7 +723,6 @@ boot(arghowto)
 		int iter, nbusy;
 
 		waittime = 0;
-		(void) splnet();
 		printf("\nsyncing disks... ");
 		/*
 		 * Release inodes held by texts before update.
