@@ -311,7 +311,7 @@ strip(to_name)
 		execl(_PATH_STRIP, "strip", to_name, NULL);
 		err("%s: %s", _PATH_STRIP, strerror(errno));
 	default:
-		if (wait(&status) == -1)
+		if (wait(&status) == -1 || status)
 			(void)unlink(to_name);
 	}
 }
