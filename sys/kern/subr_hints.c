@@ -312,7 +312,7 @@ resource_string_copy(const char *s, int len)
 }
 
 /*
- * err = resource_find_at(&anchor, &name, &unit, resname, value)
+ * err = resource_find_match(&anchor, &name, &unit, resname, value)
  * Iteratively fetch a list of devices wired "at" something
  * res and value are restrictions.  eg: "at", "scbus0".
  * For practical purposes, res = required, value = optional.
