@@ -78,7 +78,34 @@ static td_err_e
 libthr_db_ta_map_id2thr(const td_thragent_t *ta, thread_t tid,
     td_thrhandle_t *th)
 {
-	return (TD_ERR);
+	psaddr_t addr;
+	ps_err_e err;
+	thread_t lwpid;
+
+	th->th_ta = ta;
+
+	err = ps_pread(ta->ta_ph, ta->ta_thread_list, &th->th_thread,
+	    sizeof(th->th_thread));
+	if (err != PS_OK)
+		return (TD_ERR);
+	while (th->th_thread != NULL) {
+		addr = (psaddr_t)((uintptr_t)th->th_thread +
+		    ta->ta_ofs_thr_id);
+		err = ps_pread(ta->ta_ph, addr, &lwpid, sizeof(thread_t));
+		if (err != PS_OK)
+			return (TD_ERR);
+		if (tid == lwpid) {
+			th->th_tid = tid;
+			return (TD_OK);
+		}
+		addr = (psaddr_t)((uintptr_t)th->th_thread + ta->ta_ofs_next);
+		err = ps_pread(ta->ta_ph, addr, &th->th_thread,
+		    sizeof(th->th_thread));
+		if (err != PS_OK)
+			return (TD_ERR);
+	}
+
+	return (TD_NOTHR);
 }
 
 static td_err_e
@@ -101,15 +128,17 @@ libthr_db_ta_map_lwp2thr(const td_thragent_t *ta, lwpid_t lwpid,
 		err = ps_pread(ta->ta_ph, addr, &tid, sizeof(thread_t));
 		if (err != PS_OK)
 			return (TD_ERR);
-		if (tid == lwpid)
+		if (tid == lwpid) {
+			th->th_tid = tid;
 			return (TD_OK);
+		}
 		addr = (psaddr_t)((uintptr_t)th->th_thread + ta->ta_ofs_next);
 		err = ps_pread(ta->ta_ph, addr, &th->th_thread,
 		    sizeof(th->th_thread));
 		if (err != PS_OK)
 			return (TD_ERR);
 	}
-	return (TD_NOLWP);
+	return (TD_ERR);
 }
 
 static td_err_e
@@ -181,6 +210,11 @@ libthr_db_ta_thr_iter(const td_thragent_t *ta, td_thr_iter_f *cb, void *data,
 	if (err != PS_OK)
 		return (TD_ERR);
 	while (th.th_thread != NULL) {
+		addr = (psaddr_t)((uintptr_t)th.th_thread +
+		    ta->ta_ofs_thr_id);
+		err = ps_pread(ta->ta_ph, addr, &th.th_tid, sizeof(thread_t));
+		if (err != PS_OK)
+			return (TD_ERR);
 		if (cb(&th, data) != 0)
 			return (TD_OK);
 		addr = (psaddr_t)((uintptr_t)th.th_thread + ta->ta_ofs_next);
@@ -196,6 +230,24 @@ static td_err_e
 libthr_db_thr_clear_event(const td_thrhandle_t *th, td_thr_events_t *ev)
 {
 	return (TD_ERR);
+}
+
+static td_err_e
+libthr_dbresume(const td_thrhandle_t *th)
+{
+	ps_err_e err;
+
+	err = ps_lcontinue(th->th_ta->ta_ph, (lwpid_t)th->th_tid);
+	return ((err == PS_OK) ? TD_OK : TD_ERR);
+}
+
+static td_err_e
+libthr_dbsuspend(const td_thrhandle_t *th)
+{
+	ps_err_e err;
+
+	err = ps_lstop(th->th_ta->ta_ph, (lwpid_t)th->th_tid);
+	return ((err == PS_OK) ? TD_OK : TD_ERR);
 }
 
 static td_err_e
@@ -231,16 +283,10 @@ static td_err_e
 libthr_db_thr_getfpregs(const td_thrhandle_t *th, prfpregset_t *r)
 {
 	const td_thragent_t *ta;
-	psaddr_t addr;
-	thread_t tid;
 	ps_err_e err;
 
 	ta = th->th_ta;
-	addr = (psaddr_t)((uintptr_t)th->th_thread + ta->ta_ofs_thr_id);
-	err = ps_pread(ta->ta_ph, addr, &tid, sizeof(thread_t));
-	if (err != PS_OK)
-		return (TD_ERR);
-	err = ps_lgetfpregs(ta->ta_ph, tid, r);
+	err = ps_lgetfpregs(ta->ta_ph, (lwpid_t)th->th_tid, r);
 	return ((err == PS_OK) ? TD_OK : TD_ERR);
 }
 
@@ -249,15 +295,10 @@ libthr_db_thr_getgregs(const td_thrhandle_t *th, prgregset_t r)
 {
 	const td_thragent_t *ta;
 	psaddr_t addr;
-	thread_t tid;
 	ps_err_e err;
 
 	ta = th->th_ta;
-	addr = (psaddr_t)((uintptr_t)th->th_thread + ta->ta_ofs_thr_id);
-	err = ps_pread(ta->ta_ph, addr, &tid, sizeof(thread_t));
-	if (err != PS_OK)
-		return (TD_ERR);
-	err = ps_lgetregs(ta->ta_ph, tid, r);
+	err = ps_lgetregs(ta->ta_ph, (lwpid_t)th->th_tid, r);
 	return ((err == PS_OK) ? TD_OK : TD_ERR);
 }
 
@@ -270,19 +311,31 @@ libthr_db_thr_set_event(const td_thrhandle_t *th, td_thr_events_t *ev)
 static td_err_e
 libthr_db_thr_setfpregs(const td_thrhandle_t *th, const prfpregset_t *r)
 {
-	return (TD_ERR);
+	ps_err_e err;
+
+	err = ps_lsetfpregs(th->th_ta->ta_ph, (lwpid_t)th->th_tid, r);
+	return ((err == PS_OK) ? TD_OK : TD_ERR);
 }
 
 static td_err_e
 libthr_db_thr_setgregs(const td_thrhandle_t *th, const prgregset_t r)
 {
-	return (TD_ERR);
+	ps_err_e err;
+
+	err = ps_lsetregs(th->th_ta->ta_ph, (lwpid_t)th->th_tid, r);
+	return ((err == PS_OK) ? TD_OK : TD_ERR);
 }
 
 static td_err_e
 libthr_db_thr_validate(const td_thrhandle_t *th)
 {
 	return (TD_ERR);
+}
+
+static td_err_e
+libthr_db_sstep(const td_thrhandle_t *th, int step)
+{
+	return (TD_OK);
 }
 
 struct ta_ops libthr_db_ops = {
@@ -297,8 +350,9 @@ struct ta_ops libthr_db_ops = {
 	.to_ta_new		= libthr_db_ta_new,
 	.to_ta_set_event	= libthr_db_ta_set_event,
 	.to_ta_thr_iter		= libthr_db_ta_thr_iter,
-
 	.to_thr_clear_event     = libthr_db_thr_clear_event,
+	.to_thr_dbresume	= libthr_dbresume,
+	.to_thr_dbsuspend	= libthr_dbsuspend,
 	.to_thr_event_enable    = libthr_db_thr_event_enable,
 	.to_thr_event_getmsg	= libthr_db_thr_event_getmsg,
 	.to_thr_get_info        = libthr_db_thr_get_info,
@@ -307,5 +361,8 @@ struct ta_ops libthr_db_ops = {
 	.to_thr_set_event       = libthr_db_thr_set_event,
 	.to_thr_setfpregs       = libthr_db_thr_setfpregs,
 	.to_thr_setgregs        = libthr_db_thr_setgregs,
-	.to_thr_validate        = libthr_db_thr_validate
+	.to_thr_validate        = libthr_db_thr_validate,
+
+	/* FreeBSD specific extensions. */
+	.to_thr_sstep		= libthr_db_sstep
 };
