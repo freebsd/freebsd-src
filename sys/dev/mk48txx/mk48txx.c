@@ -50,7 +50,7 @@
 
 #include <machine/bus.h>
 
-#include <mk48txx/mk48txxreg.h>
+#include <dev/mk48txx/mk48txxreg.h>
 
 #include "clock_if.h"
 
