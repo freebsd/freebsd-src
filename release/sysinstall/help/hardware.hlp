@@ -1,4 +1,4 @@
-Hardware Documentation Guide:  $Id: hardware.hlp,v 1.9.2.3 1996/12/12 11:18:36 jkh Exp $
+ardware Documentation Guide:  $Id: hardware.hlp,v 1.13 1996/12/14 18:08:46 joerg Exp $
 
 Contents last changed:  July 4th, 1996
 
@@ -356,6 +356,16 @@ A: Make certain that the I/O port that the matcd driver is set to is
    The double-speed Matsushita CR-562 and CR-563 are the only drives
    that are supported.
    
+
+Q: I booted the install floppy on my IBM ThinkPad (tm) laptop, and the
+   keyboard is all messed up.
+
+A: Older IBM laptops use a non-standard keyboard controller, so you must
+   tell the console driver (sc0) to go into a special mode which works
+   on the ThinkPads.  Change the sc0 'Flags' to 0x10 in UserConfig and
+   it should work fine.  (Look in the Input Menu for 'Syscons Console
+   Driver'.)
+
 
 Q: I have a Matsushita/Panasonic CR-522, a Matsushita/Panasonic CR-523 or
    a TEAC CD55a drive, but it is not recognized even when the correct I/O
