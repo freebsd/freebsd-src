@@ -37,7 +37,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vnode_pager.c	7.5 (Berkeley) 4/20/91
- *	$Id: vnode_pager.c,v 1.29 1995/03/12 07:56:06 davidg Exp $
+ *	$Id: vnode_pager.c,v 1.30 1995/03/16 18:17:34 bde Exp $
  */
 
 /*
@@ -414,33 +414,36 @@ vnode_pager_umount(mp)
 	register vm_pager_t pager, npager;
 	struct vnode *vp;
 
-	pager = vnode_pager_list.tqh_first;
-	while (pager) {
-
+	for (pager = vnode_pager_list.tqh_first; pager != NULL; pager = npager) {
 		/*
 		 * Save the next pointer now since uncaching may terminate the
 		 * object and render pager invalid
 		 */
-		vp = ((vn_pager_t) pager->pg_data)->vnp_vp;
 		npager = pager->pg_list.tqe_next;
-		if (mp == (struct mount *) 0 || vp->v_mount == mp)
+		vp = ((vn_pager_t) pager->pg_data)->vnp_vp;
+		if (mp == (struct mount *) 0 || vp->v_mount == mp) {
+			VOP_LOCK(vp);
 			(void) vnode_pager_uncache(vp);
-		pager = npager;
+			VOP_UNLOCK(vp);
+		}
 	}
 }
 
 /*
  * Remove vnode associated object from the object cache.
+ * This routine must be called with the vnode locked.
  *
- * Note: this routine may be invoked as a result of a pager put
- * operation (possibly at object termination time), so we must be careful.
+ * XXX unlock the vnode.
+ * We must do this since uncaching the object may result in its
+ * destruction which may initiate paging activity which may necessitate
+ * re-locking the vnode.
  */
 boolean_t
 vnode_pager_uncache(vp)
 	register struct vnode *vp;
 {
 	register vm_object_t object;
-	boolean_t uncached, locked;
+	boolean_t uncached;
 	vm_pager_t pager;
 
 	/*
@@ -454,15 +457,14 @@ vnode_pager_uncache(vp)
 	if (pager == NULL)
 		return (TRUE);
 
-	/*
-	 * Unlock the vnode if it is currently locked. We do this since
-	 * uncaching the object may result in its destruction which may
-	 * initiate paging activity which may necessitate locking the vnode.
-	 */
-	locked = VOP_ISLOCKED(vp);
-	if (locked)
-		VOP_UNLOCK(vp);
+#ifdef DEBUG
+	if (!VOP_ISLOCKED(vp)) {
+		extern int (**nfsv2_vnodeop_p)();
 
+		if (vp->v_op != nfsv2_vnodeop_p)
+			panic("vnode_pager_uncache: vnode not locked!");
+	}
+#endif
 	/*
 	 * Must use vm_object_lookup() as it actually removes the object from
 	 * the cache list.
@@ -470,11 +472,11 @@ vnode_pager_uncache(vp)
 	object = vm_object_lookup(pager);
 	if (object) {
 		uncached = (object->ref_count <= 1);
+		VOP_UNLOCK(vp);
 		pager_cache(object, FALSE);
+		VOP_LOCK(vp);
 	} else
 		uncached = TRUE;
-	if (locked)
-		VOP_LOCK(vp);
 	return (uncached);
 }
 
