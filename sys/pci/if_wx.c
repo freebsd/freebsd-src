@@ -37,6 +37,12 @@
  */
 
 /*
+ * Many bug fixes gratefully acknowledged from:
+ *
+ *	The folks at Sitara Networks
+ */
+
+/*
  * Options
  */
 
@@ -254,11 +260,14 @@ wx_attach(device_t dev)
 		error = ENXIO;
 		goto out;
 	}
-	val = pci_read_config(dev, PCIR_CACHELNSZ, 1);
-	if (val != 0x10) {
-		pci_write_config(dev, PCIR_CACHELNSZ, 0x10, 1);
-	}
 
+	/*
+	 * Let the BIOS do it's job- but check for sanity.
+	 */
+	val = pci_read_config(dev, PCIR_CACHELNSZ, 1);
+	if (val < 4 || val > 32) {
+		pci_write_config(dev, PCIR_CACHELNSZ, 8, 1);
+	}
 
 	/*
 	 * Map control/status registers.
@@ -702,12 +711,12 @@ static void
 wx_start(struct ifnet *ifp)
 {
 	wx_softc_t *sc = SOFTC_IFP(ifp);
-	u_int16_t cidx, nactv;
+	u_int16_t widx = WX_MAX_TDESC, cidx, nactv;
 
 	WX_LOCK(sc);
 	DPRINTF(sc, ("%s: wx_start\n", sc->wx_name));
 	nactv = sc->tactive;
-	while (nactv < WX_MAX_TDESC) {
+	while (nactv < WX_MAX_TDESC - 1) {
 		int ndesc;
 		int gctried = 0;
 		struct mbuf *m, *mb_head;
@@ -827,13 +836,10 @@ wx_start(struct ifnet *ifp)
 			sc->tnxtfree = cidx;
 			sc->tactive = nactv;
 			ifp->if_timer = 10;
-			if (IS_WISEMAN(sc)) {
-				WRITE_CSR(sc, WXREG_TDT, cidx);
-			} else {
-				WRITE_CSR(sc, WXREG_TDT_LIVENGOOD, cidx);
-			}
 			if (ifp->if_bpf)
 				bpf_mtap(WX_BPFTAP_ARG(ifp), mb_head);
+			/* defer xmit until we've got them all */
+			widx = cidx;
 			continue;
 		}
 
@@ -883,7 +889,15 @@ wx_start(struct ifnet *ifp)
 		goto again;
 	}
 
-	if (sc->tactive == WX_MAX_TDESC) {
+	if (widx < WX_MAX_TDESC) {
+		if (IS_WISEMAN(sc)) {
+			WRITE_CSR(sc, WXREG_TDT, widx);
+		} else {
+			WRITE_CSR(sc, WXREG_TDT_LIVENGOOD, widx);
+		}
+	}
+
+	if (sc->tactive == WX_MAX_TDESC - 1) {
 		sc->wx_xmitblocked++;
 		ifp->if_flags |= IFF_OACTIVE;
 	}
@@ -918,6 +932,9 @@ wx_intr(void *arg)
 			wx_handle_link_intr(sc);
 		}
 		wx_handle_rxint(sc);
+		if (sc->wx_icr & WXISR_TXQE) {
+			wx_gc(sc);
+		}
 		if (sc->wx_if.if_snd.ifq_head != NULL) {
 			wx_start(&sc->wx_if);
 		}
@@ -1285,7 +1302,7 @@ wx_gc(wx_softc_t *sc)
 		sc->tbsyf = txpkt->next;
 		txpkt = sc->tbsyf;
 	}
-	if (sc->tactive < WX_MAX_TDESC) {
+	if (sc->tactive < WX_MAX_TDESC - 1) {
 		ifp->if_timer = 0;
 		ifp->if_flags &= ~IFF_OACTIVE;
 	}
@@ -1660,7 +1677,10 @@ wx_init(void *xsc)
 		WRITE_CSR(sc, WXREG_RDH0, 0);
 		WRITE_CSR(sc, WXREG_RDT0, (WX_MAX_RDESC - RXINCR));
 	} else {
-		WRITE_CSR(sc, WXREG_RDTR0_LIVENGOOD, WXRDTR_FPD);
+		/*
+		 * The delay should yield ~10us receive interrupt delay 
+		 */
+		WRITE_CSR(sc, WXREG_RDTR0_LIVENGOOD, WXRDTR_FPD | 0x40);
 		WRITE_CSR(sc, WXREG_RDBA0_LO_LIVENGOOD,
 		    vtophys((vm_offset_t)&sc->rdescriptors[0]));
 		WRITE_CSR(sc, WXREG_RDBA0_HI_LIVENGOOD, 0);
