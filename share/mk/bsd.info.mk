@@ -1,4 +1,4 @@
-# $Id: bsd.info.mk,v 1.11 1995/02/11 05:28:31 phk Exp $
+# $Id: bsd.info.mk,v 1.12 1995/02/25 20:51:11 phk Exp $
 
 BINMODE=        444
 BINDIR?=	/usr/share/info
@@ -70,3 +70,7 @@ install:
 	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \
 		${INFO:S/$/.info*/g} ${DESTDIR}${BINDIR}
 
+.if !target(maninstall)
+maninstall:
+
+.endif
