@@ -10,6 +10,7 @@ MAC Framework	rwatson	Pre-commit review requested.
 MAC Modules	rwatson	Pre-commit review requested.
 ATA/IDE		sos	Pre-commit review requested.
 ahc(4)		gibbs	Pre-commit review requested.
+ahd(4)		gibbs	Pre-commit review requested.
 NEWCARD		imp	Pre-commit review requested.
 OLDCARD		imp	Pre-commit review requested.
 wi		imp	Pre-commit review requested.
@@ -31,7 +32,6 @@ mlx		scottl	Pre-commit review requested.
 mly		scottl	Pre-commit review requested.
 maestro3	scottl	Pre-commit review requested.
 raidframe	scottl	Pre-commit review requested.
-powerpc		benno	Pre-commit review preferred.
 CAM		gibbs,
 		ken	Pre-commit review requested. send to scsi@freebsd.org
 devstat(9)	ken	Pre-commit review requested.
@@ -84,12 +84,14 @@ sppp(4)		joerg	Just keep me informed of changes, try not to break it.
 libc		nectar	Opportuntity for pre-commit review appreciated for
 			nsdispatch(3) and its consumers.
 unifdef(1)	fanf	Pre-commit review requested.
-ntp         roberto	Pre-commit review requested.
+ntp         	roberto	Pre-commit review requested.
 inetd		dwmalone	Recommends pre-commit review.
 nwfs		bp	In case of functional changes pre-commit review
 			requested.
 contrib/smbfs	bp	Open for in-tree committs. In case of functional
 			changes pre-commit review requested.
+binutils	obrien	Insists on BU blocked from unapproved commits
+
 
 Following are the entries from the Makefiles, and a few other sources.
 Please remove stale entries from both their origin, and this file.
