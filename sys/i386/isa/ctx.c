@@ -8,7 +8,7 @@
  *	of this software, nor does the author assume any responsibility
  *	for damages incurred with its use.
  *
- *	$Id: ctx.c,v 1.26 1998/01/24 02:54:17 eivind Exp $
+ *	$Id: ctx.c,v 1.27 1998/06/07 17:10:15 dfr Exp $
  */
 
 /*
@@ -281,8 +281,13 @@ ctxwrite(dev_t dev, struct uio * uio, int ioflag)
 	unit = UNIT(minor(dev));
 	sr = &(ctx_sr[unit]);
 
-	page = uio->uio_offset / PAGESIZE;
-	offset = uio->uio_offset % PAGESIZE;
+	if (uio->uio_offset < 0)
+		return (EINVAL);
+	if (uio->uio_offset >= 4 * PAGESIZE)
+		page = 4;	/* EOF */
+	else
+		page = (u_int)uio->uio_offset / PAGESIZE;
+	offset = (u_int)uio->uio_offset % PAGESIZE;
 	count = min(uio->uio_resid, PAGESIZE - offset);
 	while ((page >= 0) && (page <= 3) && (count > 0)) {
 		sr->cp0 &= ~3;
@@ -306,8 +311,8 @@ ctxwrite(dev_t dev, struct uio * uio, int ioflag)
 		outb(sr->iobase + ctx_cp1, sr->cp1);
 		enable_intr();
 
-		page = uio->uio_offset / PAGESIZE;
-		offset = uio->uio_offset % PAGESIZE;
+		page = (u_int)uio->uio_offset / PAGESIZE;
+		offset = (u_int)uio->uio_offset % PAGESIZE;
 		count = min(uio->uio_resid, PAGESIZE - offset);
 	}
 	if (uio->uio_resid > 0)
@@ -326,8 +331,13 @@ ctxread(dev_t dev, struct uio * uio, int ioflag)
 	unit = UNIT(minor(dev));
 	sr = &(ctx_sr[unit]);
 
-	page = uio->uio_offset / PAGESIZE;
-	offset = uio->uio_offset % PAGESIZE;
+	if (uio->uio_offset < 0)
+		return (EINVAL);
+	if (uio->uio_offset >= 4 * PAGESIZE)
+		page = 4;	/* EOF */
+	else
+		page = (u_int)uio->uio_offset / PAGESIZE;
+	offset = (u_int)uio->uio_offset % PAGESIZE;
 	count = min(uio->uio_resid, PAGESIZE - offset);
 	while ((page >= 0) && (page <= 3) && (count > 0)) {
 		sr->cp0 &= ~3;
@@ -349,8 +359,8 @@ ctxread(dev_t dev, struct uio * uio, int ioflag)
 		outb(sr->iobase + ctx_cp1, sr->cp1);
 		enable_intr();
 
-		page = uio->uio_offset / PAGESIZE;
-		offset = uio->uio_offset % PAGESIZE;
+		page = (u_int)uio->uio_offset / PAGESIZE;
+		offset = (u_int)uio->uio_offset % PAGESIZE;
 		count = min(uio->uio_resid, PAGESIZE - offset);
 	}
 	if (uio->uio_resid > 0)
