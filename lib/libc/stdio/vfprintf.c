@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)vfprintf.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-		"$Id: vfprintf.c,v 1.17 1998/01/04 22:28:47 ache Exp $";
+		"$Id: vfprintf.c,v 1.18 1998/04/11 07:40:47 jb Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 /*
@@ -1105,58 +1105,57 @@ done:
 
 	(*argtable) [0] = NULL;
 	for (n = 1; n <= tablemax; n++) {
-		(*argtable) [n] = ap;
 		switch (typetable [n]) {
 		    case T_UNUSED:
-			(void) va_arg (ap, int);
+			(*argtable) [n] = (void *) &va_arg (ap, int);
 			break;
 		    case T_SHORT:
-			(void) va_arg (ap, int);
+			(*argtable) [n] = (void *) &va_arg (ap, int);
 			break;
 		    case T_U_SHORT:
-			(void) va_arg (ap, int);
+			(*argtable) [n] = (void *) &va_arg (ap, int);
 			break;
 		    case TP_SHORT:
-			(void) va_arg (ap, short *);
+			(*argtable) [n] = (void *) &va_arg (ap, short *);
 			break;
 		    case T_INT:
-			(void) va_arg (ap, int);
+			(*argtable) [n] = (void *) &va_arg (ap, int);
 			break;
 		    case T_U_INT:
-			(void) va_arg (ap, unsigned int);
+			(*argtable) [n] = (void *) &va_arg (ap, unsigned int);
 			break;
 		    case TP_INT:
-			(void) va_arg (ap, int *);
+			(*argtable) [n] = (void *) &va_arg (ap, int *);
 			break;
 		    case T_LONG:
-			(void) va_arg (ap, long);
+			(*argtable) [n] = (void *) &va_arg (ap, long);
 			break;
 		    case T_U_LONG:
-			(void) va_arg (ap, unsigned long);
+			(*argtable) [n] = (void *) &va_arg (ap, unsigned long);
 			break;
 		    case TP_LONG:
-			(void) va_arg (ap, long *);
+			(*argtable) [n] = (void *) &va_arg (ap, long *);
 			break;
 		    case T_QUAD:
-			(void) va_arg (ap, quad_t);
+			(*argtable) [n] = (void *) &va_arg (ap, quad_t);
 			break;
 		    case T_U_QUAD:
-			(void) va_arg (ap, u_quad_t);
+			(*argtable) [n] = (void *) &va_arg (ap, u_quad_t);
 			break;
 		    case TP_QUAD:
-			(void) va_arg (ap, quad_t *);
+			(*argtable) [n] = (void *) &va_arg (ap, quad_t *);
 			break;
 		    case T_DOUBLE:
-			(void) va_arg (ap, double);
+			(*argtable) [n] = (void *) &va_arg (ap, double);
 			break;
 		    case T_LONG_DOUBLE:
-			(void) va_arg (ap, long double);
+			(*argtable) [n] = (void *) &va_arg (ap, long double);
 			break;
 		    case TP_CHAR:
-			(void) va_arg (ap, char *);
+			(*argtable) [n] = (void *) &va_arg (ap, char *);
 			break;
 		    case TP_VOID:
-			(void) va_arg (ap, void *);
+			(*argtable) [n] = (void *) &va_arg (ap, void *);
 			break;
 		}
 	}
