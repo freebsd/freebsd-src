@@ -44,7 +44,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.116 1998/07/11 06:35:37 bde Exp $
+ *	$Id: fd.c,v 1.117 1998/07/13 08:22:59 julian Exp $
  *
  */
 
@@ -217,7 +217,7 @@ int ftopen(dev_t, int);
 int ftintr(ftu_t ftu);
 int ftclose(dev_t, int);
 void ftstrategy(struct buf *);
-int ftioctl(dev_t, int, caddr_t, int, struct proc *);
+int ftioctl(dev_t, unsigned long, caddr_t, int, struct proc *);
 int ftdump(dev_t);
 int ftsize(dev_t);
 int ftattach(struct isa_device *, struct isa_device *, int);
