@@ -63,6 +63,7 @@
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/sysctl.h>
+#include <sys/syslog.h>
 #include <sys/vmmeter.h>
 #include <sys/vnode.h>
 
@@ -158,6 +159,9 @@ SYSCTL_INT(_kern, KERN_MAXVNODES, maxvnodes, CTLFLAG_RW,
 static int minvnodes;
 SYSCTL_INT(_kern, OID_AUTO, minvnodes, CTLFLAG_RW, 
     &minvnodes, 0, "Minimum number of vnodes");
+static int vnlru_nowhere = 0;
+SYSCTL_INT(_debug, OID_AUTO, vnlru_nowhere, CTLFLAG_RW, &vnlru_nowhere, 0,
+    "Number of times the vnlru process ran without success");
 
 static void	vfs_free_addrlist __P((struct netexport *nep));
 static int	vfs_free_netcred __P((struct radix_node *rn, void *w));
@@ -264,7 +268,7 @@ vfs_rootmountalloc(fstypename, devname, mpp)
 		return (ENODEV);
 	mp = malloc((u_long)sizeof(struct mount), M_MOUNT, M_WAITOK);
 	bzero((char *)mp, (u_long)sizeof(struct mount));
-	lockinit(&mp->mnt_lock, PVFS, "vfslock", 0, LK_NOPAUSE);
+	lockinit(&mp->mnt_lock, PVFS, "vfslock", VLKTIMEOUT, LK_NOPAUSE);
 	(void)vfs_busy(mp, LK_NOWAIT, 0, p);
 	TAILQ_INIT(&mp->mnt_nvnodelist);
 	TAILQ_INIT(&mp->mnt_reservedvnlist);
@@ -453,13 +457,15 @@ vattr_null(vap)
  * underlying files, or the vnode may be in active use.   It is not
  * desireable to reuse such vnodes.  These conditions may cause the
  * number of vnodes to reach some minimum value regardless of what
- * you set kern.maxvnodes to.  Do not set kernl.maxvnodes too low.
+ * you set kern.maxvnodes to.  Do not set kern.maxvnodes too low.
  */
-static void
+static int
 vlrureclaim(struct mount *mp, int count)
 {
 	struct vnode *vp;
+	int done;
 
+	done = 0;
 	simple_lock(&mntvnode_slock);
 	while (count && (vp = TAILQ_FIRST(&mp->mnt_nvnodelist)) != NULL) {
 		TAILQ_REMOVE(&mp->mnt_nvnodelist, vp, v_nmntvnodes);
@@ -473,6 +479,7 @@ vlrureclaim(struct mount *mp, int count)
 			simple_unlock(&mntvnode_slock);
 			if (VMIGHTFREE(vp)) {
 				vgonel(vp, curproc);
+				done++;
 			} else {
 				simple_unlock(&vp->v_interlock);
 			}
@@ -481,7 +488,63 @@ vlrureclaim(struct mount *mp, int count)
 		--count;
 	}
 	simple_unlock(&mntvnode_slock);
+	return done;
 }
+
+/*
+ * Attempt to recycle vnodes in a context that is always safe to block.
+ * Calling vlrurecycle() from the bowels of file system code has some
+ * interesting deadlock problems.
+ */
+static struct proc *vnlruproc;
+static int vnlruproc_sig;
+
+static void 
+vnlru_proc(void)
+{
+	struct mount *mp, *nmp;
+	int s;
+	int done;
+	struct proc *p = vnlruproc;
+
+	EVENTHANDLER_REGISTER(shutdown_pre_sync, shutdown_kproc, p,
+	    SHUTDOWN_PRI_FIRST);   
+
+	s = splbio();
+	for (;;) {
+		kproc_suspend_loop(p);
+		if (numvnodes - freevnodes <= desiredvnodes * 9 / 10) {
+			vnlruproc_sig = 0;
+			tsleep(vnlruproc, PVFS, "vlruwt", hz);
+			continue;
+		}
+		done = 0;
+		simple_lock(&mountlist_slock);
+		for (mp = TAILQ_FIRST(&mountlist); mp != NULL; mp = nmp) {
+			if (vfs_busy(mp, LK_NOWAIT, &mountlist_slock, p)) {
+				nmp = TAILQ_NEXT(mp, mnt_list);
+				continue;
+			}
+			done += vlrureclaim(mp, 10);
+			simple_lock(&mountlist_slock);
+			nmp = TAILQ_NEXT(mp, mnt_list);
+			vfs_unbusy(mp, p);
+		}
+		simple_unlock(&mountlist_slock);
+		if (done == 0) {
+			vnlru_nowhere++;
+			tsleep(vnlruproc, PPAUSE, "vlrup", hz * 3);
+		}
+	}
+	splx(s);
+}
+
+static struct kproc_desc vnlru_kp = {
+	"vnlru",
+	vnlru_proc,
+	&vnlruproc
+};
+SYSINIT(vnlru, SI_SUB_KTHREAD_UPDATE, SI_ORDER_FIRST, kproc_start, &vnlru_kp)
 
 /*
  * Routines having to do with the management of the vnode table.
@@ -507,12 +570,15 @@ getnewvnode(tag, mp, vops, vpp)
 
 	/*
 	 * Try to reuse vnodes if we hit the max.  This situation only
-	 * occurs in certain large-memory (2G+) situations.  For the 
-	 * algorithm to be stable we have to try to reuse at least 2.
-	 * No hysteresis should be necessary.
+	 * occurs in certain large-memory (2G+) situations.  We cannot
+	 * attempt to directly reclaim vnodes due to nasty recursion
+	 * problems.
 	 */
-	if (mp && numvnodes - freevnodes > desiredvnodes)
-		vlrureclaim(mp, 2);
+	if (vnlruproc_sig == 0 && numvnodes - freevnodes > desiredvnodes) {
+		vnlruproc_sig = 1;	/* avoid unnecessary wakeups */
+		wakeup(vnlruproc);
+	}
+
 
 	/*
 	 * Attempt to reuse a vnode already on the free list, allocating
@@ -1425,7 +1491,7 @@ vget(vp, flags, p)
 	}
 	if (vp->v_flag & VXLOCK) {
 		if (vp->v_vxproc == curproc) {
-			printf("VXLOCK interlock avoided\n");
+			log(LOG_INFO, "VXLOCK interlock avoided\n");
 		} else {
 			vp->v_flag |= VXWANT;
 			simple_unlock(&vp->v_interlock);
