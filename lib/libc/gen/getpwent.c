@@ -1321,6 +1321,7 @@ compat_redispatch(struct compat_state *st, enum nss_lookup_type how,
 	for (i = 0; i < sizeof(dtab)/sizeof(dtab[0]) - 1; i++)
 		dtab[i].mdata = (void *)lookup_how;
 more:
+	pwd_init(pwd);
 	switch (lookup_how) {
 	case nss_lt_all:
 		rv = _nsdispatch(&discard, dtab, NSDB_PASSWD_COMPAT,
