@@ -40,8 +40,8 @@
 .Dt STRTOUL 3
 .Os
 .Sh NAME
-.Nm strtoul, strtouq
-.Nd "convert a string to an unsigned long or uquad_t integer"
+.Nm strtoul , strtoull , strtouq
+.Nd "convert a string to an unsigned long, unsigned long long, or uquad_t integer"
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
@@ -49,6 +49,8 @@
 .Fd #include <limits.h>
 .Ft unsigned long
 .Fn strtoul "const char *nptr" "char **endptr" "int base"
+.Ft unsigned long long
+.Fn strtoull "const char *nptr" "char **endptr" "int base"
 .Fd #include <sys/types.h>
 .Fd #include <stdlib.h>
 .Fd #include <limits.h>
@@ -62,6 +64,14 @@ converts the string in
 .Fa nptr
 to an
 .Em unsigned long
+value.
+The
+.Fn strtoull
+function
+converts the string in
+.Fa nptr
+to an
+.Em unsigned long long
 value.
 The
 .Fn strtouq
@@ -143,10 +153,21 @@ unless the original (non-negated) value would overflow;
 in the latter case,
 .Fn strtoul
 returns
-.Dv ULONG_MAX
-and sets the global variable
+.Dv ULONG_MAX .
+The
+.Fn strtoull
+function
+returns either the result of the conversion
+or, if there was a leading minus sign,
+the negation of the result of the conversion,
+unless the original (non-negated) value would overflow;
+in the latter case,
+.Fn strtoull
+returns
+.Dv ULLONG_MAX .
+In all cases,
 .Va errno
-to
+is set to
 .Er ERANGE .
 .Sh ERRORS
 .Bl -tag -width Er
@@ -160,6 +181,15 @@ The
 .Fn strtoul
 function
 conforms to
-.St -ansiC .
+.St -isoC .
+The
+.Fn strtoull
+function
+conforms to
+.St -isoC-99 .
+The
+.Bx
+.Fn strtoq
+function is deprecated.
 .Sh BUGS
 Ignores the current locale.
