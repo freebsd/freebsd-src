@@ -50,7 +50,7 @@
 .Oc
 .Op Ar hostname | user@hostname
 .Op Ar command
-.Sh DESCRIPTION 
+.Sh DESCRIPTION
 .Nm
 (Secure Shell) is a program for logging into a remote machine and for
 executing commands on a remote machine.  It is intended to replace
@@ -59,7 +59,7 @@ two untrusted hosts over an insecure network.  X11 connections and
 arbitrary TCP/IP ports can also be forwarded over the secure channel.
 .Pp
 .Nm
-connects and logs into the specified 
+connects and logs into the specified
 .Ar hostname .
 The user must prove
 his/her identity to the remote machine using one of several methods.
@@ -70,7 +70,7 @@ or
 .Pa /etc/ssh/shosts.equiv
 on the remote machine, and the user names are
 the same on both sides, the user is immediately permitted to log in.
-Second, if 
+Second, if
 .Pa \&.rhosts
 or
 .Pa \&.shosts
@@ -92,7 +92,7 @@ means that if the login would be permitted by
 or
 .Pa /etc/ssh/shosts.equiv ,
 and if additionally the server can verify the client's
-host key (see 
+host key (see
 .Pa /etc/ssh/ssh_known_hosts
 and
 .Pa $HOME/.ssh/known_hosts
@@ -107,16 +107,16 @@ administrator:
 and the rlogin/rsh protocol in general, are inherently insecure and should be
 disabled if security is desired.]
 .Pp
-As a third authentication method, 
+As a third authentication method,
 .Nm
 supports RSA based authentication.
 The scheme is based on public-key cryptography: there are cryptosystems
 where encryption and decryption are done using separate keys, and it
 is not possible to derive the decryption key from the encryption key.
-RSA is one such system.  The idea is that each user creates a public/private 
+RSA is one such system.  The idea is that each user creates a public/private
 key pair for authentication purposes.  The
 server knows the public key, and only the user knows the private key.
-The file 
+The file
 .Pa $HOME/.ssh/authorized_keys
 lists the public keys that are permitted for logging
 in.  When the user logs in, the
@@ -135,18 +135,18 @@ key but without disclosing it to the server.
 implements the RSA authentication protocol automatically.  The user
 creates his/her RSA key pair by running
 .Xr ssh-keygen 1 .
-This stores the private key in 
+This stores the private key in
 .Pa \&.ssh/identity
 and the public key in
 .Pa \&.ssh/identity.pub
 in the user's home directory.  The user should then
-copy the 
+copy the
 .Pa identity.pub
-to 
+to
 .Pa \&.ssh/authorized_keys
-in his/her home directory on the remote machine (the 
+in his/her home directory on the remote machine (the
 .Pa authorized_keys
-file corresponds to the conventional 
+file corresponds to the conventional
 .Pa \&.rhosts
 file, and has one key
 per line, though the lines can be very long).  After this, the user
@@ -158,7 +158,7 @@ authentication agent.  See
 .Xr ssh-agent 1
 for more information.
 .Pp
-If other authentication methods fail, 
+If other authentication methods fail,
 .Nm
 prompts the user for a password.  The password is sent to the remote
 host for checking; however, since all communications are encrypted,
@@ -177,7 +177,7 @@ and suspend
 with
 .Ic ~^Z .
 All forwarded connections can be listed with
-.Ic ~# 
+.Ic ~#
 and if
 the session blocks waiting for forwarded X11 or TCP/IP
 connections to terminate, it can be backgrounded with
@@ -191,7 +191,7 @@ A single tilde character can be sent as
 (or by following the tilde by a character other than those described above).
 The escape character must always follow a newline to be interpreted as
 special.  The escape character can be changed in configuration files
-or on the command line.  
+or on the command line.
 .Pp
 If no pseudo tty has been allocated, the
 session is transparent and can be used to reliably transfer binary
@@ -217,7 +217,7 @@ Forwarding of X11 connections can be
 configured on the command line or in configuration files.
 .Pp
 The
-.Ev DISPLAY 
+.Ev DISPLAY
 value set by
 .Nm
 will point to the server machine, but with a display number greater
@@ -243,14 +243,14 @@ command line or in a configuration file.
 Forwarding of arbitrary TCP/IP connections over the secure channel can
 be specified either on command line or in a configuration file.  One
 possible application of TCP/IP forwarding is a secure connection to an
-electronic purse; another is going trough firewalls.
+electronic purse; another is going through firewalls.
 .Pp
 .Nm
 automatically maintains and checks a database containing RSA-based
 identifications for all hosts it has ever been used with.  The
-database is stored in 
+database is stored in
 .Pa \&.ssh/known_hosts
-in the user's home directory.  Additionally, the file 
+in the user's home directory.  Additionally, the file
 .Pa /etc/ssh/ssh_known_hosts
 is automatically checked for known hosts.  Any new hosts are
 automatically added to the user's file.  If a host's identification
@@ -266,12 +266,12 @@ host key is not known or has changed.
 .Sh OPTIONS
 .Bl -tag -width Ds
 .It Fl a
-Disables forwarding of the authentication agent connection. This may
+Disables forwarding of the authentication agent connection.  This may
 also be specified on a per-host basis in the configuration file.
 .It Fl c Ar blowfish|3des
-Selects the cipher to use for encrypting the session. 
+Selects the cipher to use for encrypting the session.
 .Ar 3des
-is used by default.  It is believed to be secure. 
+is used by default.  It is believed to be secure.
 .Ar 3des
 (triple-des) is an encrypt-decrypt-encrypt triple with three different keys.
 It is presumably more secure than the
@@ -279,7 +279,7 @@ It is presumably more secure than the
 cipher which is no longer supported in ssh.
 .Ar blowfish
 is a fast block cipher, it appears very secure and is much faster than
-.Ar 3des .  
+.Ar 3des .
 .It Fl e Ar ch|^ch|none
 Sets the escape character for sessions with a pty (default:
 .Ql ~ ) .
@@ -298,7 +298,7 @@ to go to background just before command execution.  This is useful
 if
 .Nm
 is going to ask for passwords or passphrases, but the user
-wants it in the background.  This implies 
+wants it in the background.  This implies
 .Fl n .
 The recommended way to start X11 programs at a remote site is with
 something like
@@ -306,8 +306,8 @@ something like
 .It Fl g
 Allows remote hosts to connect to local forwarded ports.
 .It Fl i Ar identity_file
-Selects the file from which the identity (private key) for 
-RSA authentication is read.  Default is 
+Selects the file from which the identity (private key) for
+RSA authentication is read.  Default is
 .Pa \&.ssh/identity
 in the user's home directory.  Identity files may also be specified on
 a per-host basis in the configuration file.  It is possible to have
@@ -316,7 +316,7 @@ multiple
 options (and multiple identities specified in
 configuration files).
 .It Fl k
-Disables forwarding of Kerberos tickets and AFS tokens. This may
+Disables forwarding of Kerberos tickets and AFS tokens.  This may
 also be specified on a per-host basis in the configuration file.
 .It Fl l Ar login_name
 Specifies the user to log in as on the remote machine.  This may also
@@ -475,7 +475,7 @@ defaults for all hosts.  The host is the
 argument given on the command line (i.e., the name is not converted to
 a canonicalized host name before matching).
 .It Cm AFSTokenPassing
-Specifies whether to pass AFS tokens to remote host. The argument to 
+Specifies whether to pass AFS tokens to remote host.  The argument to
 this keyword must be
 .Dq yes
 or
@@ -494,7 +494,7 @@ If this flag is set to
 .Dq yes ,
 ssh will additionally check the host ip address in the
 .Pa known_hosts
-file. This allows ssh to detect if a host key changed due to DNS spoofing.
+file.  This allows ssh to detect if a host key changed due to DNS spoofing.
 If the option is set to
 .Dq no ,
 the check will not be executed.
@@ -532,12 +532,12 @@ followed by a letter, or
 to disable the escape
 character entirely (making the connection transparent for binary
 data).
-.It Cm FallBackToRsh 
+.It Cm FallBackToRsh
 Specifies that if connecting via
 .Nm
 fails due to a connection refused error (there is no
 .Xr sshd 8
-listening on the remote host), 
+listening on the remote host),
 .Xr rsh 1
 should automatically be used instead (after a suitable warning about
 the session being unencrypted).  The argument must be
@@ -552,9 +552,9 @@ or
 .Dq no .
 .It Cm ForwardX11
 Specifies whether X11 connections will be automatically redirected
-over the secure channel and 
+over the secure channel and
 .Ev DISPLAY
-set.  The argument must be 
+set.  The argument must be
 .Dq yes
 or
 .Dq no .
@@ -570,7 +570,7 @@ or
 The default is
 .Dq no .
 .It Cm GlobalKnownHostsFile
-Specifies a file to use instead of 
+Specifies a file to use instead of
 .Pa /etc/ssh/ssh_known_hosts .
 .It Cm HostName
 Specifies the real host name to log into.  This can be used to specify
@@ -594,7 +594,7 @@ Specifies whether the system should send keepalive messages to the
 other side.  If they are sent, death of the connection or crash of one
 of the machines will be properly noticed.  However, this means that
 connections will die if the route is down temporarily, and some people
-find it annoying.  
+find it annoying.
 .Pp
 The default is
 .Dq yes
@@ -606,14 +606,14 @@ To disable keepalives, the value should be set to
 .Dq no
 in both the server and the client configuration files.
 .It Cm KerberosAuthentication
-Specifies whether Kerberos authentication will be used. The argument to 
+Specifies whether Kerberos authentication will be used.  The argument to
 this keyword must be
 .Dq yes
 or
 .Dq no .
 .It Cm KerberosTgtPassing
-Specifies whether a Kerberos TGT will be forwarded to the server. This
-will only work if the Kerberos server is actually an AFS kaserver. The
+Specifies whether a Kerberos TGT will be forwarded to the server.  This
+will only work if the Kerberos server is actually an AFS kaserver.  The
 argument to this keyword must be
 .Dq yes
 or
@@ -632,8 +632,8 @@ The possible values are:
 QUIET, FATAL, ERROR, INFO, CHAT and DEBUG.
 The default is INFO.
 .It Cm NumberOfPasswordPrompts
-Specifies the number of password prompts before giving up. The
-argument to this keyword must be an integer. Default is 3.
+Specifies the number of password prompts before giving up.  The
+argument to this keyword must be an integer.  Default is 3.
 .It Cm PasswordAuthentication
 Specifies whether to use password authentication.  The argument to
 this keyword must be
@@ -645,9 +645,14 @@ Specifies the port number to connect on the remote host.  Default is
 22.
 .It Cm ProxyCommand
 Specifies the command to use to connect to the server.  The command
-string extends to the end of the line, and is executed with /bin/sh.
-In the command string, %h will be substituted by the host name to
-connect and %p by the port.  The command can be basically anything,
+string extends to the end of the line, and is executed with
+.Pa /bin/sh .
+In the command string,
+.Dq %h
+will be substituted by the host name to
+connect and
+.Dq %p
+by the port.  The command can be basically anything,
 and should read from its stdin and write to its stdout.  It should
 eventually connect an
 .Xr sshd 8
@@ -706,7 +711,7 @@ The default is
 .Dq no .
 .It Cm StrictHostKeyChecking
 If this flag is set to
-.Dq yes , 
+.Dq yes ,
 .Nm
 ssh will never automatically add host keys to the
 .Pa $HOME/.ssh/known_hosts
@@ -750,7 +755,7 @@ possible that the host does not at all support the
 .Nm
 protocol.  This causes
 .Nm
-to immediately exec 
+to immediately exec
 .Xr rsh 1 .
 All other options (except
 .Cm HostName )
@@ -766,12 +771,12 @@ will normally set the following environment variables:
 The
 .Ev DISPLAY
 variable indicates the location of the X11 server.  It is
-automatically set by 
+automatically set by
 .Nm
 to point to a value of the form
 .Dq hostname:n
 where hostname indicates
-the host where the shell runs, and n is an integer >= 1.  Ssh uses
+the host where the shell runs, and n is an integer \*(>= 1.  Ssh uses
 this special value to forward X11 connections over the secure
 channel.  The user should normally not set DISPLAY explicitly, as that
 will render the X11 connection insecure (and will require the user to
@@ -808,10 +813,10 @@ on to new connections).
 Set to the name of the user logging in.
 .El
 .Pp
-Additionally, 
+Additionally,
 .Nm
-reads 
-.Pa $HOME/.ssh/environment , 
+reads
+.Pa $HOME/.ssh/environment ,
 and adds lines of the format
 .Dq VARNAME=value
 to the environment.
@@ -833,7 +838,7 @@ ignores this file if it is accessible by others.
 It is possible to specify a passphrase when
 generating the key; the passphrase will be used to encrypt the
 sensitive part of this file using 3DES.
-.It Pa $HOME/.ssh/identity.pub 
+.It Pa $HOME/.ssh/identity.pub
 Contains the public key for authentication (public part of the
 identity file in human-readable form).  The contents of this file
 should be added to
@@ -924,7 +929,8 @@ or
 .Xr rsh 1 .
 .It Pa /etc/hosts.equiv
 This file is used during
-.Pa \&.rhosts authentication.  It contains
+.Pa \&.rhosts
+authentication.  It contains
 canonical hosts names, one per line (the full format is described on
 the
 .Xr sshd 8
@@ -933,7 +939,7 @@ automatically permitted provided client and server user names are the
 same.  Additionally, successful RSA host authentication is normally
 required.  This file should only be writable by root.
 .It Pa /etc/ssh/shosts.equiv
-This file is processed exactly as 
+This file is processed exactly as
 .Pa /etc/hosts.equiv .
 This file may be useful to permit logins using
 .Nm
@@ -950,7 +956,7 @@ Commands in this file are executed by
 .Nm
 when the user logs in just before the user's shell (or command) is
 started.
-See the 
+See the
 .Xr sshd 8
 manual page for more information.
 .It Pa $HOME/.ssh/environment
@@ -978,7 +984,7 @@ external libraries.
 has been updated to support ssh protocol 1.5, making it compatible with
 all other ssh protocol 1 clients and servers.
 .It
-contains added support for 
+contains added support for
 .Xr kerberos 8
 authentication and ticket passing.
 .It
