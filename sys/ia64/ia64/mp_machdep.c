@@ -52,10 +52,7 @@
 #include <machine/smp.h>
 #include <machine/fpu.h>
 
-void cpu_mp_add(uint, uint, uint);
 void ia64_ap_startup(void);
-void map_pal_code(void);
-int ia64_count_aps(void);
 
 extern vm_offset_t vhpt_base, vhpt_size;
 
