@@ -54,11 +54,11 @@ Note that the
 .Sq raw
 partitions of the disks
 .Pa should not
-be combined.  Each component partition should be offset at least one
-cylinder from the beginning of the component disk.  This avoids potential
-conflicts between the compoent disk's disklabel and the
-.Nm ccd's
-disklabel.  The kernel will only allow component partitions of type FS_BSDFFS.
+be combined.  The kernel will only allow component partitions of type
+FS_BSDFFS (type
+.Dq 4.2BSD
+as shown as
+.Xr disklabel 8 ).
 .Pp
 In order to compile in support for the ccd, you must add a line similar
 to the following to your kernel configuration file:
@@ -85,8 +85,8 @@ other than DEV_BSIZE in order to calculate the correct interleave.
 The kernel will not allow an interleave factor less than the size
 of the largest component sector divided by DEV_BSIZE.
 .Pp
-Note that best performance is achieved if all compent disks have the same
-geometery and size.  Optimum striping cannot occur with different
+Note that best performance is achieved if all component disks have the same
+geometry and size.  Optimum striping cannot occur with different
 disk types.
 .Pp
 There is a run-time utility that is used for configuring
@@ -109,7 +109,7 @@ Utah.
 .Xr MAKEDEV 8 ,
 .Xr ccdconfig 8 ,
 .Xr config 8 ,
-.Xr config.old 8 ,
+.Xr disklabel 8 ,
 .Xr fsck 8 ,
 .Xr mount 8 ,
 .Xr newfs 8 .
