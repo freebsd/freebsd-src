@@ -100,6 +100,12 @@
       <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:01.telnet.asc">FreeBSD-SA-05:01.telnet</ulink>.
       </para>
 
+    <para>A information disclosure vulnerability in the
+      &man.sendfile.2; system call, which could permit it to transmit
+      random parts of kernel memory, has been fixed.  More details are
+      in security advisory
+      <ulink url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-05:02.sendfile.asc">FreeBSD-SA-05:02.sendfile</ulink>.
+      </para>
   </sect2>
 
   <sect2 id="kernel">
