@@ -142,21 +142,6 @@ static struct filterops pipe_rfiltops =
 static struct filterops pipe_wfiltops =
 	{ 1, NULL, filt_pipedetach, filt_pipewrite };
 
-#define PIPE_GET_GIANT(pipe)						\
-	do {								\
-		KASSERT(((pipe)->pipe_state & PIPE_LOCKFL) != 0,	\
-		    ("%s:%d PIPE_GET_GIANT: line pipe not locked",	\
-		     __FILE__, __LINE__));				\
-		PIPE_UNLOCK(pipe);					\
-		mtx_lock(&Giant);					\
-	} while (0)
-
-#define PIPE_DROP_GIANT(pipe)						\
-	do {								\
-		mtx_unlock(&Giant);					\
-		PIPE_LOCK(pipe);					\
-	} while (0)
-
 /*
  * Default pipe buffer size(s), this can be kind-of large now because pipe
  * space is pageable.  The pipe code will try to maintain locality of
@@ -655,46 +640,37 @@ pipe_build_write_buffer(wpipe, uio)
 	struct pipe *wpipe;
 	struct uio *uio;
 {
+	pmap_t pmap;
 	u_int size;
-	int i;
+	int i, j;
 	vm_offset_t addr, endaddr;
-	vm_paddr_t paddr;
 
-	GIANT_REQUIRED;
 	PIPE_LOCK_ASSERT(wpipe, MA_NOTOWNED);
 
 	size = (u_int) uio->uio_iov->iov_len;
 	if (size > wpipe->pipe_buffer.size)
 		size = wpipe->pipe_buffer.size;
 
+	pmap = vmspace_pmap(curproc->p_vmspace);
 	endaddr = round_page((vm_offset_t)uio->uio_iov->iov_base + size);
 	addr = trunc_page((vm_offset_t)uio->uio_iov->iov_base);
 	for (i = 0; addr < endaddr; addr += PAGE_SIZE, i++) {
-		vm_page_t m;
-
 		/*
 		 * vm_fault_quick() can sleep.  Consequently,
 		 * vm_page_lock_queue() and vm_page_unlock_queue()
 		 * should not be performed outside of this loop.
 		 */
-		if (vm_fault_quick((caddr_t)addr, VM_PROT_READ) < 0 ||
-		    (paddr = pmap_extract(vmspace_pmap(curproc->p_vmspace),
-		     addr)) == 0) {
-			int j;
-
+	race:
+		if (vm_fault_quick((caddr_t)addr, VM_PROT_READ) < 0) {
 			vm_page_lock_queues();
-			for (j = 0; j < i; j++) {
+			for (j = 0; j < i; j++)
 				vm_page_unhold(wpipe->pipe_map.ms[j]);
-			}
 			vm_page_unlock_queues();
 			return (EFAULT);
 		}
-
-		m = PHYS_TO_VM_PAGE(paddr);
-		vm_page_lock_queues();
-		vm_page_hold(m);
-		vm_page_unlock_queues();
-		wpipe->pipe_map.ms[i] = m;
+		wpipe->pipe_map.ms[i] = pmap_extract_and_hold(pmap, addr);
+		if (wpipe->pipe_map.ms[i] == NULL)
+			goto race;
 	}
 
 /*
@@ -846,9 +822,9 @@ retry:
 	wpipe->pipe_state |= PIPE_DIRECTW;
 
 	pipelock(wpipe, 0);
-	PIPE_GET_GIANT(wpipe);
+	PIPE_UNLOCK(wpipe);
 	error = pipe_build_write_buffer(wpipe, uio);
-	PIPE_DROP_GIANT(wpipe);
+	PIPE_LOCK(wpipe);
 	pipeunlock(wpipe);
 	if (error) {
 		wpipe->pipe_state &= ~PIPE_DIRECTW;
