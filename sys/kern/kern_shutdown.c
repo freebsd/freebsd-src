@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_shutdown.c	8.3 (Berkeley) 1/21/94
- * $Id: kern_shutdown.c,v 1.9 1996/10/30 21:40:22 julian Exp $
+ * $Id: kern_shutdown.c,v 1.10 1996/10/31 00:57:28 julian Exp $
  */
 
 #include "opt_ddb.h"
@@ -85,6 +85,17 @@ SYSCTL_INT(_debug, OID_AUTO, debugger_on_panic, CTLFLAG_RW,
 	&debugger_on_panic, 0, "");
 #endif
 
+
+#ifdef	HW_WDOG
+/*
+ * If there is a hardware watchdog, point this at the function needed to
+ * hold it off.
+ * It's needed when the kernel needs to do some lengthy operations.
+ * e.g. in wd.c when dumping core.. It's most annoying to have
+ * your precious core-dump only half written because the wdog kicked in.
+ */
+watchdog_tickle_fn wdog_tickler = NULL;
+#endif	/* HW_WDOG */
 
 /*
  * Variable panicstr contains argument to first call to panic; used as flag
@@ -165,12 +176,19 @@ boot(howto)
 {
 	sle_p ep;
 
+	/*
+	 * Do any callouts that should be done BEFORE syncing the filesystems.
+	 */
 	ep = shutdown_list1;
 	while (ep) {
 		shutdown_list1 = ep->next;
 		(*ep->function)(howto, ep->arg);
 		ep = ep->next;
 	}
+
+	/* 
+	 * Now sync filesystems
+	 */
 	if (!cold && (howto & RB_NOSYNC) == 0 && waittime < 0) {
 		register struct buf *bp;
 		int iter, nbusy;
@@ -218,6 +236,11 @@ boot(howto)
 		}
 		DELAY(100000);			/* wait for console output to finish */
 	}
+
+	/*
+	 * Ok, now do things that assume all filesystem activity has
+	 * been completed.
+	 */
 	ep = shutdown_list2;
 	while (ep) {
 		shutdown_list2 = ep->next;

@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.95.2.1 1997/01/29 14:20:16 bde Exp $
+ *      $Id: sd.c,v 1.95.2.2 1997/02/05 19:02:22 kato Exp $
  */
 
 #include "opt_bounce.h"
@@ -978,8 +978,17 @@ sddump(dev_t dev)
 			return (ENXIO);		/* we said not to sleep! */
 		}
 
-		if ((unsigned) addr % (1024 * 1024) == 0)
+		/*
+		 * If we are dumping core, it may take a while.
+		 * So reassure the user and hold off any watchdogs.
+		 */
+		if ((unsigned)addr % (1024 * 1024) == 0) {
+#ifdef	HW_WDOG
+			if (wdog_tickler)
+				(*wdog_tickler)();
+#endif /* HW_WDOG */
 			printf("%ld ", num / 2048);
+		}
 		/* update block count */
 		num -= blkcnt;
 		blknum += blkcnt;
