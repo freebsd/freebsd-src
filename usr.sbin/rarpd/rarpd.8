@@ -1,7 +1,7 @@
-.\" @(#) $Header: /home/ncvs/src/usr.sbin/rarpd/rarpd.8,v 1.2 1995/03/05 22:04:05 wpaul Exp $ (LBL)
+.\" @(#) $Header: rarpd.8,v 1.3 93/07/19 19:34:24 leres Exp $ (LBL)
 .\"
-.\" Copyright (c) 1988-1990 The Regents of the University of California.
-.\" All rights reserved.
+.\" Copyright (c) 1990, 1991, 1993 The Regents of the University of
+.\" California. All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that: (1) source code distributions
@@ -19,14 +19,14 @@
 .\" WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
 .\" MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
 .\"
-.TH RARPD 8 "26 Oct 1990"
+.TH RARPD 8 "19 Jul 1993"
 .SH NAME
 rarpd \- Reverse ARP Daemon
 .SH SYNOPSIS
 .na
 .B rarpd 
 [
-.B \-af
+.B \-afv
 ]
 [
 .I interface
@@ -46,14 +46,14 @@ must be present in both the
 and 
 .I hosts(5)
 databases.
-If a host does not exist in both databases, the translation cannot
+If a host does not exist in both databses, the translation cannot
 proceed and a reply will not be sent.
 
 Additionally, a request is honored only if the server
 (i.e., the host that rarpd is running on)
 can "boot" the target; that is, if the directory 
 /tftpboot/\fIipaddr\fP
-exists, where \fIipaddr\fP is the target IP address in hexadecimal.
+exists, where \fIipaddr\fP is the target IP address.
 
 In normal operation, 
 .I rarpd
@@ -70,6 +70,9 @@ If `-a' is omitted, an interface must be specified.
 .TP
 .B \-f
 Run in the foreground.
+.TP
+.B \-v
+Enable verbose sysloging.
 
 .SH FILES
 /etc/ethers
@@ -83,10 +86,7 @@ bpf(4)
 RFC 903: Finlayson, R.; Mann, T.; Mogul, J.C.; Theimer, M.  Reverse Address 
 Resolution Protocol.  1984 June; 4 p.
 .SH AUTHORS
-Craig Leres (leres@helios.ee.lbl.gov) and
-Steven McCanne (mccanne@helios.ee.lbl.gov).
+Craig Leres (leres@ee.lbl.gov) and
+Steven McCanne (mccanne@ee.lbl.gov).
 Lawrence Berkeley Laboratory, University of California, Berkeley, CA.
 .SH BUGS
-You must have the Berkeley Packet Filter configured into your kernel
-in order to use this program. This isn't really a bug, but it isn't
-exactly a feature either.
