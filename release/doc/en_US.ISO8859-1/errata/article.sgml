@@ -138,6 +138,11 @@
     host).  This behavior has been observed with
     <application>OpenSSH</application> 3.0.1 and 3.0.2 clients.</para>
 
+    <para>The release notes mentioned the new sbni device driver, but
+    gave an incorrect reference to the program in the &os; Ports
+    Collection used to configure the driver.  The correct filename for
+    the port is <port>sysutils/sbniconfig</port>.</para>
+
 ]]>
   </sect1>
 </article>
