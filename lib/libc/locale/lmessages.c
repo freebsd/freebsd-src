@@ -55,7 +55,7 @@ __messages_load_locale(const char *name)
 	int ret;
 
 	ret = __part_load_locale(name, &_messages_using_locale,
-		  _messages_locale_buf, "LC_MESSAGES",
+		  &_messages_locale_buf, "LC_MESSAGES",
 		  LCMESSAGES_SIZE_FULL, LCMESSAGES_SIZE_MIN,
 		  (const char **)&_messages_locale);
 	if (ret == _LDP_LOADED) {
