@@ -121,11 +121,6 @@ static char args[] = "M:P:S:adfhkm:p:w?";
 #endif
 #endif
 
-#ifdef SETUID
-uid_t ruid;
-uid_t euid;
-#endif
-
 int
 main (argc, argv)
      int argc;
@@ -162,12 +157,6 @@ main (argc, argv)
       if (tmp != NULL)
 	gripe_no_name (tmp);
     }
-
-#ifdef SETUID
-  ruid = getuid();
-  euid = geteuid();
-  seteuid(ruid);
-#endif
 
   while (optind < argc)
     {
@@ -1118,7 +1107,7 @@ restore_sigs()
  * 1 for success and 0 for failure.
  */
 int
-make_cat_file (path, man_file, cat_file, manid)
+make_cat_file (path, man_file, cat_file)
      register char *path;
      register char *man_file;
      register char *cat_file;
@@ -1159,29 +1148,16 @@ make_cat_file (path, man_file, cat_file, manid)
       if (debug)
 	fprintf (stderr, "\ntrying command: %s\n", command);
       else {
-
-#ifdef SETUID
-	if (manid)
-	  seteuid(ruid);
-#endif
 	if ((pp = popen(command, "r")) == NULL) {
 	  s = errno;
 	  fprintf(stderr, "Failed.\n");
 	  errno = s;
 	  perror("popen");
-#ifdef SETUID
-	  if (manid)
-	    seteuid(euid);
-#endif
 	  unlink(temp);
 	  restore_sigs();
 	  fclose(fp);
 	  return 0;
 	}
-#ifdef SETUID
-	if (manid)
-	  seteuid(euid);
-#endif
 
 	f = 0;
 	while ((s = getc(pp)) != EOF) {
@@ -1317,43 +1293,7 @@ format_and_display (path, man_file, cat_file)
 	    }
 	  else
 	    {
-
-#ifdef SETUID
-	      seteuid(euid);
-	      found = make_cat_file (path, man_file, cat_file, 1);
-	      seteuid(ruid);
-
-	      if (!found)
-	        {
-		  /* Try again as real user - see note below.
-		     By running with
-		       effective group (user) ID == real group (user) ID
-		     except for the call above, I believe the problems
-		     of reading private man pages is avoided.  */
-		  found = make_cat_file (path, man_file, cat_file, 0);
-	        }
-#else
-	      found = make_cat_file (path, man_file, cat_file, 0);
-#endif
-#ifdef SECURE_MAN_UID
-	      if (!found)
-		{
-		  /*
-		   * Try again as real user.  Note that for private
-		   * man pages, we won't even get this far unless the
-		   * effective user can read the real user's man page
-		   * source.  Also, if we are trying to find all the
-		   * man pages, this will probably make it impossible
-		   * to make cat files in the system directories if
-		   * the real user's man directories are searched
-		   * first, because there's no way to undo this (is
-		   * there?).  Yikes, am I missing something obvious?
-		   */
-		  setuid (getuid ());
-
-		  found = make_cat_file (path, man_file, cat_file, 0);
-		}
-#endif
+	      found = make_cat_file (path, man_file, cat_file);
 	      if (found)
 		{
 		  /*
