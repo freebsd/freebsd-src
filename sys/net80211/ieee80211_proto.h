@@ -1,0 +1,68 @@
+/*-
+ * Copyright (c) 2002, 2003 Sam Leffler, Errno Consulting
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
+ * $FreeBSD$
+ */
+#ifndef _NET80211_IEEE80211_PROTO_H_
+#define _NET80211_IEEE80211_PROTO_H_
+
+/*
+ * 802.11 protocol implementation definitions.
+ */
+
+enum ieee80211_state {
+	IEEE80211_S_INIT,		/* default state */
+	IEEE80211_S_SCAN,		/* scanning */
+	IEEE80211_S_AUTH,		/* try to authenticate */
+	IEEE80211_S_ASSOC,		/* try to assoc */
+	IEEE80211_S_RUN			/* associated */
+};
+
+#define	IEEE80211_SEND_MGMT(_ic,_ni,_type,_arg) \
+	((*(_ic)->ic_send_mgmt)(_ic, _ni, _type, _arg))
+
+extern	const char *ieee80211_mgt_subtype_name[];
+
+extern	void ieee80211_proto_attach(struct ifnet *);
+extern	void ieee80211_proto_detach(struct ifnet *);
+
+extern	void ieee80211_input(struct ifnet *, struct mbuf *,
+		int, u_int32_t, u_int);
+extern	void ieee80211_recv_mgmt(struct ieee80211com *, struct mbuf *, int,
+		int, u_int32_t, u_int);
+extern	int ieee80211_send_mgmt(struct ieee80211com *, struct ieee80211_node *,
+		int, int);
+extern	int ieee80211_mgmt_output(struct ifnet *, struct ieee80211_node *,
+		struct mbuf *, int);
+extern	struct mbuf *ieee80211_encap(struct ifnet *, struct mbuf *);
+extern	struct mbuf *ieee80211_decap(struct ifnet *, struct mbuf *);
+extern	u_int8_t *ieee80211_add_rates(u_int8_t *frm,
+		const struct ieee80211_rateset *);
+extern	u_int8_t *ieee80211_add_xrates(u_int8_t *frm,
+		const struct ieee80211_rateset *);
+extern	int ieee80211_new_state(struct ifnet *, enum ieee80211_state, int);
+extern	void ieee80211_print_essid(u_int8_t *, int);
+extern	void ieee80211_dump_pkt(u_int8_t *, int, int, int);
+#endif /* _NET80211_IEEE80211_PROTO_H_ */
