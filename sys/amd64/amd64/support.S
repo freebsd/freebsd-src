@@ -243,6 +243,16 @@ ENTRY(i586_bzero)
 	 */
 	cmpl	$0,PCPU(NPXPROC)
 	je	i586_bz1
+
+	/*
+	 * XXX don't use the FPU for cases 1 and 2, since preemptive
+	 * scheduling of ithreads broke these cases.  Note that we can
+	 * no longer get here from an interrupt handler, since the
+	 * context sitch to the interrupt handler will have saved the
+	 * FPU state.
+	 */
+	jmp	intreg_i586_bzero
+
 	cmpl	$256+184,%ecx		/* empirical; not quite 2*108 more */
 	jb	intreg_i586_bzero
 	sarb	$1,kernel_fpu_lock
@@ -295,6 +305,12 @@ fpureg_i586_bzero_loop:
 
 	cmpl	$0,PCPU(NPXPROC)
 	je	i586_bz3
+
+	/* XXX check that the condition for cases 1-2 stayed false. */
+i586_bzero_oops:
+	int	$3
+	jmp	i586_bzero_oops
+
 	frstor	0(%esp)
 	addl	$108,%esp
 	lmsw	%ax
@@ -503,6 +519,11 @@ ENTRY(i586_bcopy)
 	jc	small_i586_bcopy
 	cmpl	$0,PCPU(NPXPROC)
 	je	i586_bc1
+
+	/* XXX turn off handling of cases 1-2, as above. */
+	movb	$0xfe,kernel_fpu_lock
+	jmp	small_i586_bcopy
+
 	smsw	%dx
 	clts
 	subl	$108,%esp
@@ -574,6 +595,12 @@ large_i586_bcopy_loop:
 
 	cmpl	$0,PCPU(NPXPROC)
 	je	i586_bc2
+
+	/* XXX check that the condition for cases 1-2 stayed false. */
+i586_bcopy_oops:
+	int	$3
+	jmp	i586_bcopy_oops
+
 	frstor	0(%esp)
 	addl	$108,%esp
 i586_bc2:
@@ -961,6 +988,9 @@ ENTRY(fastmove)
 	testl	$7,%edi	/* check if dst addr is multiple of 8 */
 	jnz	fastmove_tail
 
+	/* XXX grab FPU context atomically. */
+	cli
+
 /* if (npxproc != NULL) { */
 	cmpl	$0,PCPU(NPXPROC)
 	je	6f
@@ -1000,6 +1030,10 @@ ENTRY(fastmove)
 	movl	PCPU(CURPROC),%eax
 	movl	%eax,PCPU(NPXPROC)
 	movl	PCPU(CURPCB),%eax
+
+	/* XXX end of atomic FPU context grab. */
+	sti
+
 	movl	$fastmove_fault,PCB_ONFAULT(%eax)
 4:
 	movl	%ecx,-12(%ebp)
@@ -1057,6 +1091,9 @@ fastmove_loop:
 	cmpl	$64,%ecx
 	jae	4b
 
+	/* XXX ungrab FPU context atomically. */
+	cli
+
 /* curpcb->pcb_savefpu = tmp; */
 	movl	%ecx,-12(%ebp)
 	movl	%esi,-8(%ebp)
@@ -1079,6 +1116,9 @@ fastmove_loop:
 /* npxproc = NULL; */
 	movl	$0,PCPU(NPXPROC)
 
+	/* XXX end of atomic FPU context ungrab. */
+	sti
+
 	ALIGN_TEXT
 fastmove_tail:
 	movl	PCPU(CURPCB),%eax
@@ -1100,6 +1140,9 @@ fastmove_tail:
 
 	ALIGN_TEXT
 fastmove_fault:
+	/* XXX ungrab FPU context atomically. */
+	cli
+
 	movl	PCPU(CURPCB),%edi
 	addl	$PCB_SAVEFPU,%edi
 	movl	%esp,%esi
@@ -1112,6 +1155,9 @@ fastmove_fault:
 	orb	$CR0_TS,%al
 	lmsw	%ax
 	movl	$0,PCPU(NPXPROC)
+
+	/* XXX end of atomic FPU context ungrab. */
+	sti
 
 fastmove_tail_fault:
 	movl	%ebp,%esp
