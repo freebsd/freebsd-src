@@ -76,6 +76,10 @@ struct _vinum_conf vinum_conf;				    /* configuration information */
 void
 vinumattach(void *dummy)
 {
+    char *cp, *cp1, *cp2, **drives;
+    int i, rv;
+    struct volume *vol;
+
     /* modload should prevent multiple loads, so this is worth a panic */
     if ((vinum_conf.flags & VF_LOADED) != 0)
 	panic("vinum: already loaded");
@@ -115,6 +119,41 @@ vinumattach(void *dummy)
     bzero(SD, sizeof(struct sd) * INITIAL_SUBDISKS);
     vinum_conf.subdisks_allocated = INITIAL_SUBDISKS;	    /* number of sd slots allocated */
     vinum_conf.subdisks_used = 0;			    /* and number in use */
+
+    /*
+     * See if the loader has passed us a disk to
+     * read the initial configuration from.
+     */
+    if ((cp = getenv("vinum.drives")) != NULL) {
+	for (cp1 = cp, i = 0, drives = 0; *cp1 != '\0'; i++) {
+	    cp2 = cp1;
+	    while (*cp1 != '\0' && *cp1 != ',' && *cp1 != ' ')
+		cp1++;
+	    if (*cp1 != '\0')
+		*cp1++ = '\0';
+	    drives = realloc(drives, (unsigned long)((i + 1) * sizeof(char *)),
+			     M_TEMP, M_WAITOK);
+	    drives[i] = cp2;
+	}
+	if (i == 0)
+	    goto bailout;
+	rv = vinum_scandisk(drives, i);
+	if (rv)
+	    log(LOG_NOTICE, "vinum_scandisk() returned %d", rv);
+    bailout:
+	free(drives, M_TEMP);
+    }
+    if ((cp = getenv("vinum.root")) != NULL) {
+	for (i = 0; i < vinum_conf.volumes_used; i++) {
+	    vol = &vinum_conf.volume[i];
+	    if ((vol->state == volume_up)
+		&& (strcmp (vol->name, cp) == 0) ) {
+		rootdev = makedev(VINUM_CDEV_MAJOR, i); 
+		log(LOG_INFO, "vinum: using volume %s for root device\n", cp);
+		break;
+	    }
+	}
+    }
 }
 
 /*
