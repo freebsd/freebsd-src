@@ -25,31 +25,27 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ibcs2.c,v 1.5 1995/10/28 12:35:03 peter Exp $
+ *	$Id: ibcs2.c,v 1.6 1995/11/13 07:18:27 bde Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/sysproto.h>
 #include <sys/conf.h>
 #include <sys/exec.h>
 #include <sys/sysent.h>
 #include <sys/lkm.h>
-#include <sys/errno.h>
 
-MOD_MISC("ibcs2_mod")
+MOD_MISC(ibcs2);
 
-int ibcs2_load   __P((struct lkm_table *, int));
-int ibcs2_unload __P((struct lkm_table *, int));
-int ibcs2_init   __P((struct lkm_table *, int, int));
-
-int
+static int
 ibcs2_load(struct lkm_table *lkmtp, int cmd)
 {
 	uprintf("ibcs2 emulator installed\n");
 	return 0;
 }
 
-int
+static int
 ibcs2_unload(struct lkm_table *lkmtp, int cmd)
 {
 	uprintf("ibcs2 emulator removed\n");

@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: green_saver.c,v 1.3 1995/10/28 12:35:11 peter Exp $
+ *	$Id: green_saver.c,v 1.4 1995/11/13 07:18:58 bde Exp $
  */
 
 #include <sys/param.h>
@@ -37,10 +37,10 @@
 #include <sys/errno.h>
 #include <saver.h>
 
-MOD_MISC("green_saver")
+MOD_MISC(green_saver);
 
-void (*current_saver)();
-void (*old_saver)();
+void (*current_saver)(int blank);
+void (*old_saver)(int blank);
 
 static void
 green_saver(int blank)
@@ -62,6 +62,7 @@ green_saver(int blank)
 	}
 }
 
+static int
 green_saver_load(struct lkm_table *lkmtp, int cmd)
 {
 	(*current_saver)(0);
@@ -71,6 +72,7 @@ green_saver_load(struct lkm_table *lkmtp, int cmd)
 	return 0;
 }
 
+static int
 green_saver_unload(struct lkm_table *lkmtp, int cmd)
 {
 	(*current_saver)(0);
@@ -79,6 +81,7 @@ green_saver_unload(struct lkm_table *lkmtp, int cmd)
 	return 0;
 }
 
+int
 green_saver_mod(struct lkm_table *lkmtp, int cmd, int ver)
 {
 	DISPATCH(lkmtp, cmd, ver, green_saver_load, green_saver_unload,
