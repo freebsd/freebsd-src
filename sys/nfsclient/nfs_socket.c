@@ -1099,12 +1099,9 @@ nfs_timer(void *arg)
 		 */
 		if ((rep->r_flags & R_TPRINTFMSG) == 0 &&
 		     rep->r_rexmit > nmp->nm_deadthresh) {
-			char buf[40];
-			sprintf(buf, "not responding %d > %d",
-			rep->r_rexmit, nmp->nm_deadthresh);
 			nfs_msg(rep->r_td,
 			    nmp->nm_mountp->mnt_stat.f_mntfromname,
-			    buf /* "not responding" */);
+			    "not responding");
 			rep->r_flags |= R_TPRINTFMSG;
 		}
 		if (rep->r_rexmit >= rep->r_retry) {	/* too many */
