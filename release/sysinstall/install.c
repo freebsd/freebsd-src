@@ -756,7 +756,7 @@ installFixupBin(dialogMenuItem *self)
 			    fprintf(fp, "# -- sysinstall generated deltas -- #\n");
 			    fprintf(fp, "userconfig_script_load=\"YES\"\n");
 			    if (!OnVTY)
-				fprintf(fp, "console=\"serial\"\n");
+				fprintf(fp, "console=\"comconsole\"\n");
 			    fclose(fp);
 			}
 		    }
