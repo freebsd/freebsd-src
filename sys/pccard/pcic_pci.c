@@ -1269,6 +1269,8 @@ pcic_pci_attach(device_t dev)
 			sp->revision = 0;
 			sc->flags = PCIC_CARDBUS_POWER;
 		}
+		/* All memory mapped cardbus bridges have these registers */
+		sc->flags |= PCIC_YENTA_HIGH_MEMORY;
 		sp->slt = (struct slot *) 1;
 		sc->csc_route = pcic_intr_path;
 		sc->func_route = pcic_intr_path;
