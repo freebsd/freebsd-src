@@ -120,6 +120,7 @@ SUBDIR+=aac \
 	asr \
 	atspeaker \
 	bktr \
+	ciss \
 	coff \
 	el \
 	fe \
@@ -139,7 +140,6 @@ SUBDIR+=aac \
 	streams \
 	vesa \
 	wi
-BROKEN=ciss
 .endif
 #removed while KSE settles in:
 #	smbfs \
