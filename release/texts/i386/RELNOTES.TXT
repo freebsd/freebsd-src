@@ -51,6 +51,22 @@ specifically marked as [MERGED] features.
 1.1. KERNEL CHANGES
 -------------------
 
+Added driver support for fast ethernet adapters based on the
+RealTek 8129/8139 and Accton MPX 5030/5038 chips.
+
+Added driver support for Lite-On PNIC-based fast ethernet cards
+including the LinkSys LNE100TX, NetGear FA310TX Rev. D1 and
+Matrox FastNIC 10.100.
+
+Added driver support for fast ethernet adapters based on the 
+Macronix 98713, 98713A, 98715, 98715A and 98725 chips.
+
+Added driver support for fast ethernet adapters based on the
+Winbond W89C840F chip.
+
+Added driver support for fast ethernet adapters based on the
+VIA Technologies VT3043 "Rhine I" and VT86C100A "Rhine II" chips.
+
 1.2. SECURITY FIXES
 -------------------
 
@@ -187,12 +203,32 @@ based clones.  SMC Elite Ultra.  SMC Etherpower II.
 
 RealTek 8129/8139 fast ethernet NICs including the following:
   Allied Telesyn AT2550
+  Allied Telesyn AT2500TX
   Genius GF100TXR (RTL8139)
   NDC Communications NE100TX-E
   OvisLink LEF-8129TX
   OvisLink LEF-8139TX
   Netronix Inc. EA-1210 NetEther 10/100
   KTX-9130TX 10/100 Fast Ethernet
+  Accton "Cheetah" EN1027D (MPX 5030/5038; RealTek 8139 clone?)
+
+Lite-On 82c168/82c169 PNIC fast ethernet NICs including the following:
+  LinkSys EtherFast LNE100TX
+  NetGear FA310-TX Rev. D1
+  Matrox FastNIC 10/100
+
+Macronix 98713, 98713A, 98715, 98715A and 98725 fast ethernet NICs
+  NDC Communications SFA100A (98713A)
+  CNet Pro120A (98713 or 98713A)
+  CNet Pro120B (98715)
+
+Winbond W89C840F fast ethernet NICs including the following:
+  Trendware TE100-PCIE
+
+VIA Technologies VT3043 "Rhine I" and VT86C100A "Rhine II" fast ethernet
+NICs including the following:
+  Hawking Technologies PN102TX
+  D-Link DFE530TX
 
 Texas Instruments ThunderLAN PCI NICs, including the following:
   Compaq Netelligent 10, 10/100, 10/100 Proliant, 10/100 Dual-Port
