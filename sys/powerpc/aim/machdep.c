@@ -355,49 +355,74 @@ again:
 void
 identifycpu()
 {
-	int pvr, cpu;
+	unsigned int pvr, version, revision;
 
 	/*
 	 * Find cpu type (Do it by OpenFirmware?)
 	 */
 	__asm ("mfpvr %0" : "=r"(pvr));
-	cpu = pvr >> 16;
-	switch (cpu) {
-	case 1:
+	version = pvr >> 16;
+	revision = pvr & 0xffff;
+	switch (version) {
+	case 0x0001:
 		sprintf(model, "601");
 		break;
-	case 3:
-		sprintf(model, "603");
+	case 0x0003:
+		sprintf(model, "603 (Wart)");
 		break;
-	case 4:
-		sprintf(model, "604");
+	case 0x0004:
+		sprintf(model, "604 (Zephyr)");
 		break;
-	case 5:
-		sprintf(model, "602");
+	case 0x0005:
+		sprintf(model, "602 (Galahad)");
 		break;
-	case 6:
-		sprintf(model, "603e");
+	case 0x0006:
+		sprintf(model, "603e (Stretch)");
 		break;
-	case 7:
-		sprintf(model, "603ev");
+	case 0x0007:
+		if ((revision && 0xf000) == 0x0000)
+			sprintf(model, "603ev (Valiant)");
+		else
+			sprintf(model, "603r (Goldeneye)");
 		break;
-	case 8:
-		sprintf(model, "750 (G3)");
+	case 0x0008:
+		if ((revision && 0xf000) == 0x0000)
+			sprintf(model, "G3 / 750 (Arthur)");
+		else
+			sprintf(model, "G3 / 755 (Goldfinger)");
 		break;
-	case 9:
-		sprintf(model, "604ev");
+	case 0x0009:
+		if ((revision && 0xf000) == 0x0000)
+			sprintf(model, "604e (Sirocco)");
+		else
+			sprintf(model, "604r (Mach V)");
 		break;
-	case 12:
-		sprintf(model, "7400 (G4)");
+	case 0x000a:
+		sprintf(model, "604r (Mach V)");
 		break;
-	case 20:
-		sprintf(model, "620");
+	case 0x000c:
+		sprintf(model, "G4 / 7400 (Max)");
+		break;
+	case 0x0014:
+		sprintf(model, "620 (Red October)");
+		break;
+	case 0x0081:
+		sprintf(model, "8240 (Kahlua)");
+		break;
+	case 0x8000:
+		sprintf(model, "G4 / 7450 (V'ger)");
+		break;
+	case 0x800c:
+		sprintf(model, "G4 / 7410 (Nitro)");
+		break;
+	case 0x8081:
+		sprintf(model, "8245 (Kahlua II)");
 		break;
 	default:
-		sprintf(model, "Version %x", cpu);
+		sprintf(model, "Version %x", version);
 		break;
 	}
-	sprintf(model + strlen(model), " (Revision %x)", pvr & 0xffff);
+	sprintf(model + strlen(model), " (Revision %x)", revision);
 	printf("CPU: PowerPC %s\n", model);
 }
 
