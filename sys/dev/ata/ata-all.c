@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998,1999,2000,2001 Søren Schmidt
+ * Copyright (c) 1998,1999,2000,2001 Søren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -447,7 +447,6 @@ static int
 ata_getparam(struct ata_softc *scp, int device, u_int8_t command)
 {
     struct ata_params *ata_parm;
-    int8_t buffer[DEV_BSIZE];
     int retry = 0;
 
     /* select drive */
@@ -472,14 +471,19 @@ ata_getparam(struct ata_softc *scp, int device, u_int8_t command)
 		      ((command == ATA_C_ATAPI_IDENTIFY) ?
 			ATA_S_DRQ : (ATA_S_READY | ATA_S_DSC | ATA_S_DRQ))));
 
-    ATA_INSW(scp->r_io, ATA_DATA, (int16_t *)buffer,
-	     sizeof(buffer)/sizeof(int16_t));
     ata_parm = malloc(sizeof(struct ata_params), M_ATA, M_NOWAIT);
     if (!ata_parm) {
+	int i;
+
+	for (i = 0; i < sizeof(struct ata_params)/sizeof(int16_t); i++)
+	    ATA_INW(scp->r_io, ATA_DATA);
 	ata_printf(scp, device, "malloc for identify data failed\n");
         return -1;
     }
-    bcopy(buffer, ata_parm, sizeof(struct ata_params));   
+
+    ATA_INSW(scp->r_io, ATA_DATA, (int16_t *)ata_parm,
+	     sizeof(struct ata_params)/sizeof(int16_t));
+
     if (command == ATA_C_ATA_IDENTIFY ||
 	!((ata_parm->model[0] == 'N' && ata_parm->model[1] == 'E') ||
           (ata_parm->model[0] == 'F' && ata_parm->model[1] == 'X')))
@@ -1050,11 +1054,11 @@ out:
 }
 
 void
-ata_set_name(struct ata_softc *scp, int device, char *name)
+ata_set_name(struct ata_softc *scp, int device, char *name, int lun)
 {
-    scp->dev_name[ATA_DEV(device)] = malloc(strlen(name) + 1, M_ATA, M_NOWAIT);
+    scp->dev_name[ATA_DEV(device)] = malloc(strlen(name) + 4, M_ATA, M_NOWAIT);
     if (scp->dev_name[ATA_DEV(device)])
-	strcpy(scp->dev_name[ATA_DEV(device)], name);
+	sprintf(scp->dev_name[ATA_DEV(device)], "%s%d", name, lun);
 }
 
 void

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998,1999,2000,2001 Søren Schmidt
+ * Copyright (c) 1998,1999,2000,2001 Søren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -112,7 +112,6 @@ ad_attach(struct ata_softc *scp, int device)
     struct ad_softc *adp;
     dev_t dev;
     int secsperint;
-    char name[16];
 
     if (!(adp = malloc(sizeof(struct ad_softc), M_AD, M_NOWAIT | M_ZERO))) {
 	ata_printf(scp, device, "failed to allocate driver storage\n");
@@ -125,8 +124,7 @@ ad_attach(struct ata_softc *scp, int device)
 #else
     adp->lun = ata_get_lun(&adp_lun_map);
 #endif
-    sprintf(name, "ad%d", adp->lun);
-    ata_set_name(scp, device, name);
+    ata_set_name(scp, device, "ad", adp->lun);
     adp->heads = AD_PARAM->heads;
     adp->sectors = AD_PARAM->sectors;
     adp->total_secs = AD_PARAM->cylinders * adp->heads * adp->sectors;	

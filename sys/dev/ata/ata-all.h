@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998,1999,2000,2001 Søren Schmidt
+ * Copyright (c) 1998,1999,2000,2001 Søren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -211,7 +211,7 @@ int ata_reinit(struct ata_softc *);
 int ata_wait(struct ata_softc *, int, u_int8_t);
 int ata_command(struct ata_softc *, int, u_int8_t, u_int16_t, u_int8_t, u_int8_t, u_int8_t, u_int8_t, int);
 int ata_printf(struct ata_softc *, int, const char *, ...) __printflike(3, 4);
-void ata_set_name(struct ata_softc *, int, char *);
+void ata_set_name(struct ata_softc *, int, char *, int);
 void ata_free_name(struct ata_softc *, int);
 int ata_get_lun(u_int32_t *);
 int ata_test_lun(u_int32_t *, int);

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998,1999,2000,2001 Søren Schmidt
+ * Copyright (c) 1998,1999,2000,2001 Søren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -83,7 +83,6 @@ afdattach(struct atapi_softc *atp)
 {
     struct afd_softc *fdp;
     dev_t dev;
-    char name[16];
 
     fdp = malloc(sizeof(struct afd_softc), M_AFD, M_NOWAIT | M_ZERO);
     if (!fdp) {
@@ -93,8 +92,7 @@ afdattach(struct atapi_softc *atp)
 
     fdp->atp = atp;
     fdp->lun = ata_get_lun(&afd_lun_map);
-    sprintf(name, "afd%d", fdp->lun);
-    ata_set_name(atp->controller, atp->unit, name);
+    ata_set_name(atp->controller, atp->unit, "afd", fdp->lun);
     bioq_init(&fdp->queue);
 
     if (afd_sense(fdp)) {
@@ -140,10 +138,9 @@ afddetach(struct atapi_softc *atp)
 static int 
 afd_sense(struct afd_softc *fdp)
 {
-    int8_t buffer[256];
     int8_t ccb[16] = { ATAPI_MODE_SENSE_BIG, 0, ATAPI_REWRITEABLE_CAP_PAGE,
-		       0, 0, 0, 0, sizeof(buffer)>>8, sizeof(buffer) & 0xff,
-		       0, 0, 0, 0, 0, 0, 0 };
+		       0, 0, 0, 0, sizeof(struct afd_cappage) >> 8,
+		       sizeof(struct afd_cappage) & 0xff, 0, 0, 0, 0, 0, 0, 0 };
     int count, error = 0;
 
     /* The IOMEGA Clik! doesn't support reading the cap page, fake it */
@@ -159,19 +156,14 @@ afd_sense(struct afd_softc *fdp)
 	return 0;
     }
 
-    bzero(buffer, sizeof(buffer));
     /* get drive capabilities, some drives needs this repeated */
     for (count = 0 ; count < 5 ; count++) {
-	if (!(error = atapi_queue_cmd(fdp->atp, ccb, buffer, sizeof(buffer),
+	if (!(error = atapi_queue_cmd(fdp->atp, ccb, (caddr_t)&fdp->cap,
+				      sizeof(struct afd_cappage),
 				      ATPR_F_READ, 30, NULL, NULL)))
 	    break;
     }
-    if (error)
-	return error;
-    bcopy(buffer, &fdp->header, sizeof(struct afd_header));
-    bcopy(buffer + sizeof(struct afd_header), &fdp->cap, 
-	  sizeof(struct afd_cappage));
-    if (fdp->cap.page_code != ATAPI_REWRITEABLE_CAP_PAGE)
+    if (error || fdp->cap.page_code != ATAPI_REWRITEABLE_CAP_PAGE)
 	return 1;   
     fdp->cap.cylinders = ntohs(fdp->cap.cylinders);
     fdp->cap.sector_size = ntohs(fdp->cap.sector_size);
@@ -202,9 +194,9 @@ afd_describe(struct afd_softc *fdp)
 	    printf(" transfer limit %d blks,", fdp->transfersize);
 	printf(" %s\n", ata_mode2str(fdp->atp->controller->mode[
 				 ATA_DEV(fdp->atp->unit)]));
-	if (fdp->header.medium_type) {
+	if (fdp->cap.medium_type) {
 	    ata_printf(fdp->atp->controller, fdp->atp->unit, "Medium: ");
-	    switch (fdp->header.medium_type) {
+	    switch (fdp->cap.medium_type) {
 	    case MFD_2DD:
 		printf("720KB DD disk"); break;
 
@@ -218,16 +210,16 @@ afd_describe(struct afd_softc *fdp)
 		printf("120MB UHD disk"); break;
 
 	    default:
-		printf("Unknown (0x%x)", fdp->header.medium_type);
+		printf("Unknown (0x%x)", fdp->cap.medium_type);
 	    }
-	    if (fdp->header.wp) printf(", writeprotected");
+	    if (fdp->cap.wp) printf(", writeprotected");
 	}
 	printf("\n");
     }
     else {
 	ata_printf(fdp->atp->controller, fdp->atp->unit,
 		   "%luMB <%.40s> [%d/%d/%d] at ata%d-%s %s\n",
-		   (fdp->cap.cylinders*fdp->cap.heads*fdp->cap.sectors) /
+		   (fdp->cap.cylinders * fdp->cap.heads * fdp->cap.sectors) /
 		       ((1024L * 1024L) / fdp->cap.sector_size),	
 		   ATA_PARAM(fdp->atp->controller, fdp->atp->unit)->model,
 		   fdp->cap.cylinders, fdp->cap.heads, fdp->cap.sectors,
