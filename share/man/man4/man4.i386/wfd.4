@@ -25,7 +25,7 @@
 .\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 .\" POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\"	$Id: wfd.4,v 1.5 1998/08/31 16:41:07 wosch Exp $
+.\"	$Id: wfd.4,v 1.8 1999/08/22 23:52:01 chris Exp $
 .\"
 .Dd January 16, 1998
 .Dt WFD 4
@@ -45,10 +45,7 @@ driver provides support for
 .Em ATAPI
 floppy disks, typically LS-120 style 120mb/1.4mb floppy drives.
 In general the interfaces are similar to those described by 
-.Xr wd 4
-.Xr sd 4
-and
-.Xr od 4 .
+.Xr wd 4 .
 .Pp
 As the IDE controllers are probed during boot, the 
 .Em IDE
@@ -62,7 +59,7 @@ driver.
 The first device found will be attached as
 .Em wfd0
 and the next, 
-.Em wfd0 ,
+.Em wfd1 ,
 and so on.
 .Pp
 When used with a LS-120 drive, this driver will read/write the following
@@ -126,7 +123,7 @@ Next, disklabel the disk:
 .Dl # disklabel -rw wfd0 fd120m
 
 Then newfs as usual:
-.Dl # newfs /dev/rfd0a
+.Dl # newfs /dev/rwfd0a
 .Fi
 
 To create a standard 1.44mb floppy in a LS-120 drive, do the same
