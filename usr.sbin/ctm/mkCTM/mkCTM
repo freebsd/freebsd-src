@@ -4,6 +4,7 @@ set CTMignoreCVS 0
 set CTMapply 1
 set CTMdont {^///}
 set CTMmail {}
+set CTMsuff {}
 
 source $argv
 
@@ -17,32 +18,40 @@ set foo $CTMdate
 set foo $CTMprefix
 set foo $CTMname
 
-####
-# Find CTM#
-for {set i 0} {1} {incr i} {
-    if {[file exists [format "%s/$CTMname.%04d" $dd $i]]} continue
-    if {[file exists [format "%s/$CTMname.%04d.gz" $dd $i]]} continue
-    break
+if { "$d1" != "" } {
+    ####
+    # Find CTM#
+    for {set i 0} {1} {incr i} {
+	if {[file exists [format "%s/$CTMname.%04d" $dd $i]]} continue
+	if {[file exists [format "%s/$CTMname.%04d.gz" $dd $i]]} continue
+	break
+    }
+    set CTMnbr $i
+
+    set fo [open $d2/.ctm_status w]
+    puts $fo "$CTMname $CTMnbr"
+    close $fo
+
+    puts "Doing CTMname $CTMname CTMnbr $CTMnbr CTMdate $CTMdate"
+
+    exec sh -x -c "rm -f ${tmp}.*" >&@ stdout
+
+    set f1 [open "| ./ctm_scan $d1"]
+    # set this to minus one, to compensate for .ctm_status
+    set changes -1
+} else {
+    set CTMnbr [lindex [exec cat $d2/.ctm_status] 1]
+    puts "Doing CTMname $CTMname CTMnbr $CTMnbr CTMdate $CTMdate"
+    exec sh -x -c "rm -f ${tmp}.*" >&@ stdout
+    set f1 [open /dev/null]
+    set changes 0
 }
-set CTMnbr $i
-
-set fo [open $d2/.ctm_status w]
-puts $fo "$CTMname $CTMnbr"
-close $fo
-
-puts "Doing CTMname $CTMname CTMnbr $CTMnbr CTMdate $CTMdate"
-
-exec sh -x -c "rm -f ${tmp}.*" >&@ stdout
-
-set f1 [open "| ./ctm_scan $d1"]
 set f2 [open "| ./ctm_scan $d2"]
 
 set fo_del   [open $tmp.del w]
 set fo_rmdir [open $tmp.rmdir w]
 set fo_mkdir [open $tmp.mkdir w]
 set fo_files [open $tmp.files w]
-# set this to minus one, to compensate for .ctm_status
-set changes -1
 
 #####
 # Type Name Mode User Group Barf Size Hash
@@ -164,10 +173,8 @@ while 1 {
 	}
     } 
     if {$ll1 < $ll2} {
-	    puts "<$ll1> < <$ll2>\n  <$l1>\n  <$l2>"
 	    eval CTMadd $l2 ; set l2 "" ; continue 
     } else {
-	    puts "<$ll1> > <$ll2>\n  <$l1>\n  <$l2>"
 	    eval CTMdel $l1 ; set l1 "" ; continue 
     }
 
@@ -191,7 +198,7 @@ if {!$changes} {
     exit 0
 }
 flush stdout
-set  nm [format "%s.%04d" $CTMname $CTMnbr]
+set  nm [format "%s.%04d%s" $CTMname $CTMnbr $CTMsuff]
 
 exec cat $tmp.begin $tmp.del $tmp.rmdir $tmp.mkdir $tmp.files $tmp.end \
 	| gzip -9 > ${tmp}:${nm}.gz 
