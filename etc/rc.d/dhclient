@@ -23,6 +23,9 @@ FreeBSD)
 	rcvar=
 	start_precmd="dhclient_prestart"
 	start_postcmd="dhclient_poststart"
+	stop_cmd="dhclient_stop"
+	stop_precmd="dhclient_prestop"
+	stop_postcmd="dhclient_poststop"
 	;;
 NetBSD)
 	rcvar=$name
@@ -30,29 +33,81 @@ NetBSD)
 	;;
 esac
 
-dhclient_prestart()
+dhclient_common()
 {
 	dhcp_list="`list_net_interfaces dhcp`"
 	if [ -z "$dhcp_list" ]; then
 		return 1
 	fi
 
-	for ifn in ${dhcp_list}; do
+	# Determine the scope of the command
+	#
+	_cooked_list="$dhcp_list"
+	if [ -n "$_cmdifn" ]; then
+		eval _cooked_list=\"`expr "$dhcp_list" : ".*\($_cmdifn\).*"`\"
+		if [ -z "$_cooked_list" ]; then
+			err "No such network interface: $_cmdifn"
+			return 1
+		fi
+	fi
+}
+
+dhclient_prestart()
+{
+	dhclient_common || return 1
+
+	for ifn in ${_cooked_list}; do
 		ifscript_up ${ifn}
 	done
 
-	rc_flags="${rc_flags} ${dhcp_list}"
+	rc_flags="${rc_flags} ${_cooked_list}"
 	return 0
 }
 
 dhclient_poststart()
 {
-	for ifn in ${dhcp_list}; do
+	for ifn in ${_cooked_list}; do
 		ifalias_up ${ifn}
 		ipx_up ${ifn}
 		ifconfig ${ifn}
 	done
 }
+
+dhclient_stop()
+{
+	echo -n "Releasing DHCP leases:"
+	for ifn in $_cooked_list ; do
+		${command} -r $ifn
+		if [ $? -eq 0 ]; then
+			echo -n " $ifn"
+		else
+			_fail="$_fail $ifn"
+		fi
+	done
+	echo '.'
+	debug "The following leases failed to release: $_fail"
+}
+
+dhclient_prestop()
+{
+	dhclient_common || return 1
+
+	for ifn in ${_cooked_list}; do
+		ipx_down ${ifn}
+		ifalias_down ${ifn}
+	done
+}
+
+dhclient_poststop()
+{
+	for ifn in ${_cooked_list}; do
+		ifscript_down ${ifn}
+	done
+}
+
+if [ -n "$2" ]; then
+	_cmdifn="$2"
+fi
 
 load_rc_config $name
 run_rc_command "$1"
