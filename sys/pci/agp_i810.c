@@ -446,9 +446,10 @@ agp_i810_unbind_page(device_t dev, int offset)
 		return EINVAL;
 
 	if ( sc->chiptype == CHIP_I830 ) {
-		if ( (offset >> AGP_PAGE_SHIFT) < sc->stolen )
+		if ( (offset >> AGP_PAGE_SHIFT) < sc->stolen ) {
 			device_printf(dev, "trying to unbind from stolen memory");
-		return EINVAL;
+			return EINVAL;
+		}
 	}
 
 	WRITE4(AGP_I810_GTT + (offset >> AGP_PAGE_SHIFT) * 4, 0);
@@ -570,11 +571,8 @@ agp_i810_bind_memory(device_t dev, struct agp_memory *mem,
 	if (mem->am_type != 1)
 		return agp_generic_bind_memory(dev, mem, offset);
 
-	if ( sc->chiptype == CHIP_I830 ) {
-		if ((offset >> AGP_PAGE_SHIFT) < sc->stolen)
-			device_printf(dev, "trying to bind into stolen memory");
+	if ( sc->chiptype == CHIP_I830 )
 		return EINVAL;
-	}
 
 	for (i = 0; i < mem->am_size; i += AGP_PAGE_SIZE) {
 		WRITE4(AGP_I810_GTT + (offset >> AGP_PAGE_SHIFT) * 4,
