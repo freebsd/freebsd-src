@@ -67,8 +67,8 @@ int     rcattach        __P((struct isa_device *));
  * regression tests :-(.
  *
  *
+ *
  */
-void    rcintr          __P((int));
 void    rcpoll          __P((void));
 
 #define rcin(port)      RC_IN  (nec, port)

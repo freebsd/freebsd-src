@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: syscons.h,v 1.10 1995/07/11 18:34:30 bde Exp $
+ *	$Id: syscons.h,v 1.11 1995/09/10 21:35:13 bde Exp $
  */
 
 #ifndef _I386_ISA_SYSCONS_H_
@@ -170,7 +170,6 @@ int scprobe(struct isa_device *dev);
 int scattach(struct isa_device *dev);
 int scparam(struct tty *tp, struct termios *t);
 void scstart(struct tty *tp);
-void scintr(int unit);
 static void scinit(void);
 static u_int scgetc(int noblock);
 static scr_stat *get_scr_stat(dev_t dev);

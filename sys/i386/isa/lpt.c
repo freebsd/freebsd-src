@@ -46,7 +46,7 @@
  * SUCH DAMAGE.
  *
  *	from: unknown origin, 386BSD 0.1
- *	$Id: lpt.c,v 1.34 1995/09/08 11:07:45 bde Exp $
+ *	$Id: lpt.c,v 1.35 1995/09/25 16:57:47 wollman Exp $
  */
 
 /*
@@ -239,7 +239,6 @@ struct lpt_softc {
 static void	lptout (struct lpt_softc * sc);
 int		lptprobe (struct isa_device *dvp);
 int		lptattach (struct isa_device *isdp);
-void		lptintr (int unit);
 
 #ifdef INET
 

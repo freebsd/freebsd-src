@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_eg.c,v 1.5 1995/10/13 19:47:42 wollman Exp $
+ * $Id: if_eg.c,v 1.6 1995/10/26 20:29:32 julian Exp $
  */
 
 /* To do:
@@ -145,7 +145,6 @@ eg_registerdev(struct isa_device *id, const char *descr)
         dev_attach(kdc);
 }
 
-void egintr (int);
 static void eginit __P((struct eg_softc *));
 static int egioctl (struct ifnet *, int, caddr_t);
 static void egrecv(struct eg_softc *);

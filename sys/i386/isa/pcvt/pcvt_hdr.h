@@ -1119,7 +1119,6 @@ extern int		vt_switch_pending;
 
 extern u_int		addr_6845;
 extern u_short		*Crtat;
-extern struct isa_driver vtdriver;
 extern u_char		do_initialization;
 extern u_char		pcvt_is_console;
 extern u_char		bgansitopc[];
@@ -1211,7 +1210,6 @@ extern void bcopyb(void *from, void *to, u_int length);
 extern void fillw(U_short value, void *addr, u_int length);
 #endif
 
-void	pcrint ( int );
 int	pcparam ( struct tty *tp, struct termios *t );
 
 /*
