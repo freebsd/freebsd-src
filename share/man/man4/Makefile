@@ -263,6 +263,7 @@ MAN=	aac.4 \
 	snd_ds1.4 \
 	snd_emu10k1.4 \
 	snd_es137x.4 \
+	snd_ess.4 \
 	snd_gusc.4 \
 	snd_maestro3.4 \
 	snd_sbc.4 \
