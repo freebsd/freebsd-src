@@ -482,324 +482,164 @@
         ..
         locale
             af_ZA.ISO8859-1
-                LC_MESSAGES
-                ..
             ..
             af_ZA.ISO8859-15
-                LC_MESSAGES
-                ..
             ..
             bg_BG.CP1251
-                LC_MESSAGES
-                ..
             ..
             cs_CZ.ISO8859-2
-                LC_MESSAGES
-                ..
             ..
             da_DK.ISO8859-1
-                LC_MESSAGES
-                ..
             ..
             da_DK.ISO8859-15
-                LC_MESSAGES
-                ..
             ..
             de_AT.ISO8859-1
-                LC_MESSAGES
-                ..
             ..
             de_AT.ISO8859-15
-                LC_MESSAGES
-                ..
             ..
             de_CH.ISO8859-1
-                LC_MESSAGES
-                ..
             ..
             de_CH.ISO8859-15
-                LC_MESSAGES
-                ..
             ..
             de_DE.ISO8859-1
-                LC_MESSAGES
-                ..
             ..
             de_DE.ISO8859-15
-                LC_MESSAGES
-                ..
             ..
             el_GR.ISO8859-7
-                LC_MESSAGES
-                ..
             ..
             en_AU.ISO8859-1
-                LC_MESSAGES
-                ..
             ..
             en_AU.ISO8859-15
-                LC_MESSAGES
-                ..
             ..
             en_AU.US-ASCII
-                LC_MESSAGES
-                ..
             ..
             en_CA.ISO8859-1
-                LC_MESSAGES
-                ..
             ..
             en_CA.ISO8859-15
-                LC_MESSAGES
-                ..
             ..
             en_CA.US-ASCII
-                LC_MESSAGES
-                ..
             ..
             en_GB.ISO8859-1
-                LC_MESSAGES
-                ..
             ..
             en_GB.ISO8859-15
-                LC_MESSAGES
-                ..
             ..
             en_GB.US-ASCII
-                LC_MESSAGES
-                ..
             ..
             en_NZ.ISO8859-1
-                LC_MESSAGES
-                ..
             ..
             en_NZ.ISO8859-15
-                LC_MESSAGES
-                ..
             ..
             en_NZ.US-ASCII
-                LC_MESSAGES
-                ..
             ..
             en_US.ISO8859-1
-                LC_MESSAGES
-                ..
             ..
             en_US.ISO8859-15
-                LC_MESSAGES
-                ..
             ..
             en_US.US-ASCII
-                LC_MESSAGES
-                ..
             ..
             es_ES.ISO8859-1
-                LC_MESSAGES
-                ..
             ..
             es_ES.ISO8859-15
-                LC_MESSAGES
-                ..
             ..
             et_EE.ISO8859-15
-                LC_MESSAGES
-                ..
             ..
             fi_FI.ISO8859-1
-                LC_MESSAGES
-                ..
             ..
             fi_FI.ISO8859-15
-                LC_MESSAGES
-                ..
             ..
             fr_BE.ISO8859-1
-                LC_MESSAGES
-                ..
             ..
             fr_BE.ISO8859-15
-                LC_MESSAGES
-                ..
             ..
             fr_CA.ISO8859-1
-                LC_MESSAGES
-                ..
             ..
             fr_CA.ISO8859-15
-                LC_MESSAGES
-                ..
             ..
             fr_CH.ISO8859-1
-                LC_MESSAGES
-                ..
             ..
             fr_CH.ISO8859-15
-                LC_MESSAGES
-                ..
             ..
             fr_FR.ISO8859-1
-                LC_MESSAGES
-                ..
             ..
             fr_FR.ISO8859-15
-                LC_MESSAGES
-                ..
             ..
             hi_IN.ISCII-DEV
-                LC_MESSAGES
-                ..
             ..
             hr_HR.ISO8859-2
-                LC_MESSAGES
-                ..
             ..
             hu_HU.ISO8859-2
-                LC_MESSAGES
-                ..
             ..
             is_IS.ISO8859-1
-                LC_MESSAGES
-                ..
             ..
             is_IS.ISO8859-15
-                LC_MESSAGES
-                ..
             ..
             it_CH.ISO8859-1
-                LC_MESSAGES
-                ..
             ..
             it_CH.ISO8859-15
-                LC_MESSAGES
-                ..
             ..
             it_IT.ISO8859-1
-                LC_MESSAGES
-                ..
             ..
             it_IT.ISO8859-15
-                LC_MESSAGES
-                ..
             ..
             ja_JP.SJIS
-                LC_MESSAGES
-                ..
             ..
             ja_JP.eucJP
-                LC_MESSAGES
-                ..
             ..
             ko_KR.eucKR
-                LC_MESSAGES
-                ..
             ..
             la_LN.ISO8859-1
-                LC_MESSAGES
-                ..
             ..
             la_LN.ISO8859-15
-                LC_MESSAGES
-                ..
             ..
             la_LN.ISO8859-2
-                LC_MESSAGES
-                ..
             ..
             la_LN.ISO8859-4
-                LC_MESSAGES
-                ..
             ..
             la_LN.US-ASCII
-                LC_MESSAGES
-                ..
             ..
             lt_LT.ISO8859-4
-                LC_MESSAGES
-                ..
             ..
             nl_BE.ISO8859-1
-                LC_MESSAGES
-                ..
             ..
             nl_BE.ISO8859-15
-                LC_MESSAGES
-                ..
             ..
             nl_NL.ISO8859-1
-                LC_MESSAGES
-                ..
             ..
             nl_NL.ISO8859-15
-                LC_MESSAGES
-                ..
             ..
             no_NO.ISO8859-1
-                LC_MESSAGES
-                ..
             ..
             no_NO.ISO8859-15
-                LC_MESSAGES
-                ..
             ..
             pl_PL.ISO8859-2
-                LC_MESSAGES
-                ..
             ..
             pt_PT.ISO8859-1
-                LC_MESSAGES
-                ..
             ..
             pt_PT.ISO8859-15
-                LC_MESSAGES
-                ..
             ..
             ru_RU.CP866
-                LC_MESSAGES
-                ..
             ..
             ru_RU.ISO8859-5
-                LC_MESSAGES
-                ..
             ..
             ru_RU.KOI8-R
-                LC_MESSAGES
-                ..
             ..
             sk_SK.ISO8859-2
-                LC_MESSAGES
-                ..
             ..
             sl_SI.ISO8859-2
-                LC_MESSAGES
-                ..
             ..
             sv_SE.ISO8859-1
-                LC_MESSAGES
-                ..
             ..
             sv_SE.ISO8859-15
-                LC_MESSAGES
-                ..
             ..
             tr_TR.ISO8859-9
-                LC_MESSAGES
-                ..
             ..
             uk_UA.ISO8859-5
-                LC_MESSAGES
-                ..
             ..
             uk_UA.KOI8-U
-                LC_MESSAGES
-                ..
             ..
             zh_CN.eucCN
-                LC_MESSAGES
-                ..
             ..
             zh_TW.Big5
-                LC_MESSAGES
-                ..
             ..
         ..
         man
