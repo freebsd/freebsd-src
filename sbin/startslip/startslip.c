@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: startslip.c,v 1.26 1997/12/21 15:35:22 eivind Exp $
+ * $Id: startslip.c,v 1.27 1997/12/22 13:46:08 eivind Exp $
  */
 
 #ifndef lint
@@ -126,6 +126,7 @@ main(argc, argv)
 	char *upscript = NULL, *downscript = NULL;
 	int first = 1, tries = 0;
 	time_t fintimeout;
+	long lpid;
 	pid_t pid;
 	struct termios t;
 
@@ -216,10 +217,11 @@ main(argc, argv)
 		dvname++;
 	sprintf(pidfile, PIDFILE, _PATH_VARRUN, dvname);
 	if ((pfd = fopen(pidfile, "r")) != NULL) {
-		pid = 0;
-		fscanf(pfd, "%ld\n", &pid);
-		if (pid > 0)
-			kill(pid, SIGTERM);
+		if (fscanf(pfd, "%ld\n", &lpid) == 1) {
+			pid = lpid;
+			if (pid == lpid && pid > 0)
+				kill(pid, SIGTERM);
+		}
 		fclose(pfd);
 		pfd = NULL;     /* not remove pidfile yet */
 		sleep(5);       /* allow down script to be completed */
@@ -280,9 +282,9 @@ restart:
 	}
 
 	pid = getpid();
-	printd("restart: pid %ld: ", pid);
+	printd("restart: pid %ld: ", (long)pid);
 	if ((pfd = fopen(pidfile, "w")) != NULL) {
-		fprintf(pfd, "%ld\n", pid);
+		fprintf(pfd, "%ld\n", (long)pid);
 		fclose(pfd);
 	}
 	printd("open");
