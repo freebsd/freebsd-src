@@ -1,5 +1,5 @@
-#	@(#)Makefile.inc	8.1 (Berkeley) 6/17/93
-#	$Id: Makefile.inc,v 1.20.2.2 1997/05/23 08:30:36 asami Exp $
+#	@(#)Makefile.inc	8.3 (Berkeley) 10/24/94
+#	$Id: Makefile.inc,v 1.29 1997/05/03 03:50:05 jb Exp $
 
 # sys sources
 .PATH: ${.CURDIR}/../libc/${MACHINE}/sys ${.CURDIR}/../libc/sys
@@ -13,71 +13,71 @@ SRCS+=	Ovfork.S brk.S cerror.S exect.S fork.S pipe.S ptrace.S reboot.S \
 SRCS+=	ftruncate.c lseek.c mmap.c truncate.c
 
 # modules with default implementations on all architectures:
-ASM=	accept.o access.o acct.o adjtime.o bind.o chdir.o chflags.o chmod.o \
-	chown.o chroot.o close.o connect.o dup.o dup2.o execve.o fchdir.o \
-	fchflags.o fchmod.o fchown.o fcntl.o flock.o fpathconf.o fstat.o \
-	fstatfs.o fsync.o getdirentries.o getdtablesize.o getegid.o \
+ASM=	access.o acct.o adjtime.o chdir.o chflags.o chmod.o \
+	chown.o chroot.o \
+	getdtablesize.o getegid.o \
 	geteuid.o getfh.o getfsstat.o getgid.o getgroups.o getitimer.o \
-	getpeername.o getpgrp.o getpid.o getppid.o getpriority.o \
-	getrlimit.o getrusage.o getsockname.o getsockopt.o gettimeofday.o \
-	getuid.o ioctl.o kill.o ktrace.o lchown.o lfs_bmapv.o lfs_markv.o \
-	lfs_segclean.o lfs_segwait.o link.o listen.o lstat.o \
-	madvise.o mincore.o minherit.o mkdir.o mkfifo.o mknod.o mlock.o \
+	getpgrp.o getpid.o getppid.o getpriority.o \
+	getrlimit.o getrusage.o gettimeofday.o \
+	getuid.o kill.o ktrace.o lchown.o \
+	lfs_bmapv.o lfs_markv.o \
+	lfs_segclean.o lfs_segwait.o link.o lstat.o \
+	madvise.o mincore.o minherit.o mkdir.o mlock.o \
 	mount.o \
-	mprotect.o msgsys.o msync.o munlock.o munmap.o nfssvc.o \
-	ntp_adjtime.o open.o pathconf.o profil.o quotactl.o read.o \
-	readlink.o readv.o recvfrom.o recvmsg.o rename.o revoke.o rmdir.o \
-	rtprio.o select.o semsys.o sendmsg.o sendto.o setegid.o seteuid.o \
+	mprotect.o msgsys.o msync.o munlock.o munmap.o \
+	ntp_adjtime.o pathconf.o profil.o quotactl.o \
+	readlink.o rename.o revoke.o rmdir.o \
+	rtprio.o semsys.o setegid.o seteuid.o \
 	setgid.o \
 	setgroups.o setitimer.o	setpgid.o setpriority.o	\
 	setregid.o setreuid.o setrlimit.o \
-	setsid.o setsockopt.o settimeofday.o setuid.o shmsys.o shutdown.o \
-	sigaction.o sigaltstack.o socket.o socketpair.o stat.o statfs.o \
+	setsid.o settimeofday.o setuid.o shmsys.o \
+	stat.o statfs.o \
 	swapon.o symlink.o sync.o sysarch.o \
 	umask.o unlink.o unmount.o utimes.o utrace.o \
-	vadvise.o wait4.o write.o writev.o __syscall.o __sysctl.o
+	vadvise.o __syscall.o __sysctl.o
 
-PSEUDO=	_exit.o _getlogin.o
+# Syscalls renamed as _thread_sys_{syscall} when building libc_r.
+ASMR=	accept.o bind.o close.o connect.o dup.o dup2.o \
+	execve.o fchdir.o fchflags.o fchmod.o fchown.o fcntl.o \
+	flock.o fpathconf.o fstat.o fstatfs.o fsync.o getdirentries.o \
+	getpeername.o getsockname.o getsockopt.o ioctl.o listen.o \
+	mkfifo.o mknod.o nfssvc.o open.o read.o readv.o recvfrom.o \
+	recvmsg.o select.o sendmsg.o sendto.o setsockopt.o \
+	shutdown.o sigaction.o sigaltstack.o socket.o socketpair.o \
+	wait4.o write.o writev.o
 
-OBJS+=	${ASM} ${PSEUDO}
+PSEUDO=	_getlogin.o
 
-${ASM}: ${.CURDIR}/../libc/${MACHINE}/SYS.h ${DESTDIR}/usr/include/sys/syscall.h
-	@${ECHO} creating ${.PREFIX}.o
-	@printf '#include "SYS.h"\nRSYSCALL(${.PREFIX})\n' | \
-	    ${CPP} ${CFLAGS:M-[ID]*} ${AINC} | ${AS} -o ${.PREFIX}.o
-	@${LD} -O ${.PREFIX}.o -x -r ${.PREFIX}.o
+# Pseudo syscalls that are renamed as _thread_sys_{pseudo} when
+# building libc_r.
+PSEUDOR=	_exit.o
 
-PASM=	${ASM:.o=.po}
-${PASM}: ${.CURDIR}/../libc/${MACHINE}/SYS.h ${DESTDIR}/usr/include/sys/syscall.h
-	@${ECHO} creating ${.PREFIX}.po
-	@printf '#include "SYS.h"\nRSYSCALL(${.PREFIX})\n' | \
-	    ${CPP} -DPROF ${CFLAGS:M-[ID]*} ${AINC} | ${AS} -o ${.PREFIX}.po
-	@${LD} -O ${.PREFIX}.po -x -r ${.PREFIX}.po
+OBJS+=	${ASM} ${ASMR} ${PSEUDO} ${PSEUDOR}
 
-SASM=	${ASM:.o=.so}
-${SASM}: ${.CURDIR}/../libc/${MACHINE}/SYS.h ${DESTDIR}/usr/include/sys/syscall.h
-	@${ECHO} creating ${.PREFIX}.so
-	@printf '#include "SYS.h"\nRSYSCALL(${.PREFIX})\n' | \
-	    ${CPP} -DPIC ${CFLAGS:M-[ID]*} ${AINC} | ${AS} -k -o ${.PREFIX}.so
+SASM=	${ASM:S/.o/.S/}
 
-${PSEUDO}: ${.CURDIR}/../libc/${MACHINE}/SYS.h ${DESTDIR}/usr/include/sys/syscall.h
-	@${ECHO} creating ${.PREFIX}.o
-	@printf '#include "SYS.h"\nPSEUDO(${.PREFIX},${.PREFIX:S/_//})\n' | \
-	    ${CPP} ${CFLAGS:M-[ID]*} ${AINC} | ${AS} -o ${.PREFIX}.o
-	@${LD} -O ${.PREFIX}.o -x -r ${.PREFIX}.o
+SASMR=	${ASMR:S/.o/.S/}
 
-PPSEUDO=${PSEUDO:.o=.po}
-${PPSEUDO}: ${.CURDIR}/../libc/${MACHINE}/SYS.h ${DESTDIR}/usr/include/sys/syscall.h
-	@${ECHO} creating ${.PREFIX}.po
-	@printf '#include "SYS.h"\nPSEUDO(${.PREFIX},${.PREFIX:S/_//})\n' | \
-	    ${CPP} -DPROF ${CFLAGS:M-[ID]*} ${AINC} | ${AS} -o ${.PREFIX}.po
-	@${LD} -O ${.PREFIX}.po -x -r ${.PREFIX}.po
+SPSEUDO= ${PSEUDO:S/.o/.S/}
 
-SPSEUDO=${PSEUDO:.o=.so}
-${SPSEUDO}: ${.CURDIR}/../libc/${MACHINE}/SYS.h ${DESTDIR}/usr/include/sys/syscall.h
-	@${ECHO} creating ${.PREFIX}.so
-	@printf '#include "SYS.h"\nPSEUDO(${.PREFIX},${.PREFIX:S/_//})\n' | \
-	    ${CPP} -DPIC ${CFLAGS:M-[ID]*} ${AINC} | ${AS} -k -o ${.PREFIX}.so
+SPSEUDOR= ${PSEUDOR:S/.o/.S/}
+
+SRCS+=	${SASM} ${SASMR} ${SPSEUDO} ${SPSEUDOR}
+
+${SASM}:
+	printf '#include "SYS.h"\nRSYSCALL(${.PREFIX})\n' > ${.TARGET}
+
+${SASMR}:
+	printf '#include "SYS.h"\nPRSYSCALL(${.PREFIX})\n' > ${.TARGET}
+
+${SPSEUDO}:
+	printf '#include "SYS.h"\nPSEUDO(${.PREFIX},${.PREFIX:S/_//})\n' \
+	    > ${.TARGET}
+
+${SPSEUDOR}:
+	printf '#include "SYS.h"\nPPSEUDO(${.PREFIX},${.PREFIX:S/_//})\n' \
+	    > ${.TARGET}
 
 # Only build man pages with libc.
 .if ${LIB} == "c"

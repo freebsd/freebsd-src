@@ -1,5 +1,5 @@
 #	From: @(#)Makefile.inc	8.3 (Berkeley) 4/16/94
-#	$Id: Makefile.inc,v 1.22.2.3 1997/05/10 21:16:37 davidn Exp $
+#	$Id: Makefile.inc,v 1.22.2.4 1997/06/24 03:51:30 julian Exp $
 
 # machine-independent gen sources
 .PATH: ${.CURDIR}/../libc/${MACHINE}/gen ${.CURDIR}/../libc/gen
@@ -19,7 +19,8 @@ SRCS+=	alarm.c assert.c clock.c closedir.c config.c confstr.c crypt.c \
 	sigsetops.c sleep.c sysconf.c sysctl.c syslog.c \
 	telldir.c termios.c time.c times.c timezone.c ttyname.c ttyslot.c \
 	ualarm.c uname.c unvis.c usleep.c utime.c valloc.c vis.c wait.c \
-	wait3.c waitpid.c _thread_init.c
+	wait3.c waitpid.c
+#	_thread_init.c
 
 # *rand48 family, from 1.1.5
 SRCS+=	_rand48.c drand48.c erand48.c jrand48.c lcong48.c lrand48.c \
