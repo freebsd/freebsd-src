@@ -54,7 +54,6 @@
 #include "rtld.h"
 #include "libmap.h"
 
-#define END_SYM		"_end"
 #define PATH_RTLD	"/libexec/ld-elf.so.1"
 
 /* Types. */
@@ -1229,18 +1228,12 @@ load_object(char *path)
 static Obj_Entry *
 obj_from_addr(const void *addr)
 {
-    unsigned long endhash;
     Obj_Entry *obj;
 
-    endhash = elf_hash(END_SYM);
     for (obj = obj_list;  obj != NULL;  obj = obj->next) {
-	const Elf_Sym *endsym;
-
 	if (addr < (void *) obj->mapbase)
 	    continue;
-	if ((endsym = symlook_obj(END_SYM, endhash, obj, true)) == NULL)
-	    continue;	/* No "end" symbol?! */
-	if (addr < (void *) (obj->relocbase + endsym->st_value))
+	if (addr < (void *) (obj->mapbase + obj->mapsize))
 	    return obj;
     }
     return NULL;
