@@ -1,0 +1,73 @@
+.\" $FreeBSD$
+.Dd Jun 24, 1999
+.Dt NCPLIST 1
+.Os FreeBSD 3.2
+.Sh NAME
+.Nm ncplist
+.Nd Displays various information about ncplib and NetWare servers
+.Sh SYNOPSIS
+.Nm ncplist
+.Ar command
+.Op Ar args
+.Sh DESCRIPTION
+The
+.Nm
+command used to display state of ncplib and NetWare servers. First argument
+are one letter
+.Ar command
+following by optional
+.Ar args
+.Pp
+The commands are:
+.Bl -tag -width indent
+.It b Ar server Ar type Op Ar pattern
+Lists bindery objects of
+.Ar type
+on a specified
+.Ar server.
+.Ar Type
+can be one of the following:
+.Bd -literal -offset indent
+Type	Meaning
+user	bindery users
+group	bindery groups
+pserver	bindery print servers
+tree	tree name hosted by given server.
+.Ed
+.Pp
+Please note that if you are not logged in to the specified server list can be
+incomplete or empty.
+.It c
+List active NCP connections on local machine.
+.It s Op Ar server
+Displays NetWare servers known to given
+.Ar server .
+If no server is specified nearest server will be used.
+.It u Ar server
+Displays a list of users logged-in on given
+.Ar server .
+If you are not logged in to the specified server list will be empty.
+.It q Ar server Op Ar pattern
+Displays bindery queues on given
+.Ar server .
+.It v Ar server
+Displays mounted volumes on given
+.Ar server .
+.El
+.Sh FILES
+.Bl -tag -width /var/log/wtmp -compact
+.It Pa ~/.nwfsrc
+keeps description for each connection. See
+.Xr nwfsrc 8
+for details.
+
+.Sh NOTES
+This utility provided mostly for educational purposes.
+
+.Sh BUGS
+to number a few
+
+.Sh AUTHOR
+.An Boris Popov Aq bp@butya.kz
+,
+.Aq rbp@chat.ru
