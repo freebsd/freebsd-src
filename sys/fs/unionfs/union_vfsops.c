@@ -89,6 +89,8 @@ union_mount(mp, td)
 	 */
 	mp->mnt_flag |= MNT_NOCLUSTERW;
 
+	if (mp->mnt_flag & MNT_ROOTFS)
+		return (EOPNOTSUPP);
 	/*
 	 * Update is a no-op
 	 */
