@@ -16,5 +16,8 @@ MLINKS+=ipfirewall.4 ipacct.4 ipfirewall.4 ipfw.4 ipfirewall.4 ipaccounting.4
 MLINKS+=fpa.4 fea.4
 # XXX NOT IMPORTED:	man4.hp300 man4.sparc man4.tahoe man4.vax
 SUBDIR=	man4.i386
+MANDEPEND=_PROGSUBDIR
+
+install: maninstall
 
 .include <bsd.prog.mk>
