@@ -12,7 +12,7 @@
  *
  * This software is provided ``AS IS'' without any warranties of any kind.
  *
- *	$Id: ip_fw.c,v 1.84 1998/05/25 10:37:44 julian Exp $
+ *	$Id: ip_fw.c,v 1.85 1998/06/05 22:39:53 julian Exp $
  */
 
 /*
@@ -994,6 +994,11 @@ static int
 ip_fw_ctl(int stage, struct mbuf **mm)
 {
 	int error;
+	/* 
+	 * If we have any number of rules, then it's worth while
+	 * using clusters for this. The smaller case is rare.
+	 * Note that using clusters for setsockopt is only in 3.0 at this time.
+	 */
 	struct mbuf *m;
 
 	if (stage == IP_FW_GET) {
