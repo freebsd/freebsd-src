@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_kern.h,v 1.12 1997/02/22 09:48:21 peter Exp $
+ * $Id: vm_kern.h,v 1.13 1997/03/31 11:11:26 davidg Exp $
  */
 
 #ifndef _VM_VM_KERN_H_
@@ -78,6 +78,7 @@ extern vm_map_t clean_map;
 extern vm_map_t phys_map;
 extern vm_map_t exec_map;
 extern vm_map_t u_map;
+extern vm_map_t ppage_map;
 
 extern vm_offset_t kernel_vm_end;
 /* XXX - elsewhere? */

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.84 1997/04/07 08:38:19 peter Exp $
+ *	$Id: locore.s,v 1.85 1997/04/22 06:55:24 jdp Exp $
  *
  *		originally from: locore.s, by William F. Jolitz
  *
@@ -47,6 +47,9 @@
 #include "opt_cpu.h"
 #include "opt_ddb.h"
 #include "opt_userconfig.h"
+#include "opt_smp.h"
+#include "opt_smp_privpages.h"
+#include "opt_serial.h"
 
 #include <sys/errno.h>
 #include <sys/syscall.h>
@@ -57,6 +60,10 @@
 #include <machine/psl.h>
 #include <machine/pmap.h>
 #include <machine/specialreg.h>
+
+#if defined(SMP) && defined(SMP_PRIVPAGES)
+#include <machine/apic.h>
+#endif /* SMP && PRIVPAGES */
 
 #include "assym.s"
 
@@ -110,6 +117,15 @@ _bootinfo:	.space	BOOTINFO_SIZE		/* bootinfo that we can handle */
 
 _KERNend:	.long	0			/* phys addr end of kernel (just after bss) */
 physfree:	.long	0			/* phys addr of next free page */
+
+#if defined(SMP) && defined(SMP_PRIVPAGES)
+cpu0pp:		.long	0			/* phys addr cpu0 private pg */
+cpu0pt:		.long	0			/* phys addr cpu0 private pt */
+
+		.globl	_cpu0prvpage,_cpu0prvpt
+_cpu0prvpage:	.long	0			/* relocated version */
+_cpu0prvpt:	.long	0			/* relocated version */
+#endif /* SMP && PRIVPAGES */
 
 	.globl	_IdlePTD
 _IdlePTD:	.long	0			/* phys addr of kernel PTD */
@@ -752,6 +768,20 @@ over_symalloc:
 	addl	$KERNBASE, %esi
 	movl	%esi, R(_proc0paddr)
 
+#if defined(SMP) && defined(SMP_PRIVPAGES)
+/* Allocate cpu0's private data page */
+	ALLOCPAGES(1)
+	movl	%esi,R(cpu0pp)
+	addl	$KERNBASE, %esi
+	movl	%esi, R(_cpu0prvpage)	/* relocated to KVM space */
+
+/* Allocate cpu0's private page table for mapping priv page, apic, etc */
+	ALLOCPAGES(1)
+	movl	%esi,R(cpu0pt)
+	addl	$KERNBASE, %esi
+	movl	%esi, R(_cpu0prvpt)	/* relocated to KVM space */
+#endif	/* SMP && SMP_PRIVPAGES */
+
 /* Map read-only from zero to the end of the kernel text section */
 	xorl	%eax, %eax
 #ifdef BDE_DEBUGGER
@@ -798,6 +828,42 @@ map_read_write:
 	movl	$ISA_HOLE_START, %eax
 	movl	$ISA_HOLE_LENGTH>>PAGE_SHIFT, %ecx
 	fillkptphys($PG_RW)
+
+#if defined(SMP) && defined(SMP_PRIVPAGES)
+/* Map cpu0's private page into global KVM */
+	movl	R(cpu0pp), %eax
+	movl	$1, %ecx
+	fillkptphys($PG_RW)
+
+/* Map cpu0's private page table into global KVM */
+	movl	R(cpu0pt), %eax
+	movl	$1, %ecx
+	fillkptphys($PG_RW)
+
+/* Map the private page into the private page table (4K @ 0xff80000) */
+	movl	R(cpu0pp), %eax
+	movl	$0, %ebx		/* pte offset = 0 */
+	movl	$1, %ecx		/* one private page coming right up */
+	fillkpt(R(cpu0pt), $PG_RW)
+
+/* Map the default Local APIC address (4K @ 0xff801000) */
+	movl	$DEFAULT_APIC_BASE, %eax	/* XXX just testing.. */
+	movl	$1, %ebx		/* pte offset = 1 */
+	movl	$1, %ecx		/* Bing! Local APIC appears */
+	fillkpt(R(cpu0pt), $PG_RW|PG_N)
+
+/* Map the default IO APIC address (4K @ 0xff802000) */
+	movl	$DEFAULT_IO_APIC_BASE, %eax	/* XXX just testing.. */
+	movl	$2, %ebx		/* pte offset = 2 */
+	movl	$1, %ecx		/* Bing! Local APIC appears */
+	fillkpt(R(cpu0pt), $PG_RW|PG_N)
+
+/* ... and put the page table in the pde. */
+	movl	R(cpu0pt), %eax
+	movl	$MPPTDI, %ebx
+	movl	$1, %ecx
+	fillkpt(R(_IdlePTD), $PG_RW)
+#endif	/* SMP && SMP_PRIVPAGES */
 
 /* install a pde for temporary double map of bottom of VA */
 	movl	R(_KPTphys), %eax

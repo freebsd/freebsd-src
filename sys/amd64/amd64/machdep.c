@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.237 1997/04/13 04:07:24 dyson Exp $
+ *	$Id: machdep.c,v 1.238 1997/04/22 06:55:26 jdp Exp $
  */
 
 #include "npx.h"
@@ -44,6 +44,7 @@
 #include "opt_bounce.h"
 #include "opt_machdep.h"
 #include "opt_perfmon.h"
+#include "opt_smp.h"
 #include "opt_userconfig.h"
 
 #include <sys/param.h>
@@ -107,6 +108,9 @@
 #include <machine/cons.h>
 #include <machine/bootinfo.h>
 #include <machine/md_var.h>
+#ifdef SMP
+#include <machine/smp.h>
+#endif
 #ifdef PERFMON
 #include <machine/perfmon.h>
 #endif
@@ -209,6 +213,9 @@ cpu_startup(dummy)
 	 * Good {morning,afternoon,evening,night}.
 	 */
 	printf(version);
+#ifdef SMP
+	mp_announce();
+#endif
 	earlysetcpuclass();
 	startrtclock();
 	printcpuinfo();
@@ -343,6 +350,23 @@ again:
 				(16*ARG_MAX), TRUE);
 	u_map = kmem_suballoc(kernel_map, &minaddr, &maxaddr,
 				(maxproc*UPAGES*PAGE_SIZE), FALSE);
+
+#if defined(SMP) && defined(SMP_PRIVPAGES)
+	/* Per-cpu pages.. (the story so far is... subject to change)
+	 * ========= For the per-cpu data page ========
+	 * 1 private data page
+	 * 1 PDE	(per-cpu PTD entry page)
+	 * 1 PT		(per-cpu page table page)
+	 * ============ For the idle loop =============
+	 * 2 UPAGEs	(per-cpu idle procs)
+	 * 1 PTD	(for per-cpu equiv of IdlePTD)
+	 * ============================================
+	 * = total of 6 pages per cpu.  The BSP reuses the ones allocated
+	 * by locore.s during boot to remove special cases at runtime.
+	 */
+	ppage_map = kmem_suballoc(kernel_map, &minaddr, &maxaddr,
+				(NCPU*6*PAGE_SIZE), FALSE);
+#endif
 
 	/*
 	 * Finally, allocate mbuf pool.  Since mclrefcnt is an off-size
@@ -748,10 +772,24 @@ SYSCTL_INT(_machdep, CPU_WALLCLOCK, wall_cmos_clock,
 
 int currentldt;
 int _default_ldt;
+#ifdef SMP
+union descriptor gdt[NGDT + NCPU];		/* global descriptor table */
+#else
 union descriptor gdt[NGDT];		/* global descriptor table */
+#endif
 struct gate_descriptor idt[NIDT];	/* interrupt descriptor table */
 union descriptor ldt[NLDT];		/* local descriptor table */
+#ifdef SMP
+/* table descriptors - used to load tables by microp */
+struct region_descriptor r_gdt, r_idt;
+#endif
+
+#ifdef SMP
+struct i386tss SMPcommon_tss[NCPU];	/* One tss per cpu */
+struct i386tss *SMPcommon_tss_ptr[NCPU]; /* for the benefit of asmp code */
+#else
 struct i386tss common_tss;
+#endif
 
 static struct i386tss dblfault_tss;
 static char dblfault_stack[PAGE_SIZE];
@@ -764,7 +802,11 @@ int gsel_tss;
 #endif
 
 /* software prototypes -- in more palatable form */
-struct soft_segment_descriptor gdt_segs[] = {
+struct soft_segment_descriptor gdt_segs[
+#ifdef SMP
+					NGDT + NCPU
+#endif
+						   ] = {
 /* GNULL_SEL	0 Null Descriptor */
 {	0x0,			/* segment base address  */
 	0x0,			/* length */
@@ -820,7 +862,12 @@ struct soft_segment_descriptor gdt_segs[] = {
 	0,			/* unused - default 32 vs 16 bit size */
 	0  			/* limit granularity (byte/page units)*/ },
 /* GPROC0_SEL	6 Proc 0 Tss Descriptor */
-{	(int) &common_tss,	/* segment base address */
+{
+#ifdef SMP
+	(int) &SMPcommon_tss[0],/* segment base address */
+#else
+	(int) &common_tss,	/* segment base address */
+#endif
 	sizeof(struct i386tss)-1,/* length - all address space */
 	SDT_SYS386TSS,		/* segment type */
 	0,			/* segment descriptor priority level */
@@ -968,8 +1015,10 @@ init386(first)
 	int gsel_tss;
 #endif
 	struct isa_device *idp;
+#ifndef SMP
 	/* table descriptors - used to load tables by microp */
 	struct region_descriptor r_gdt, r_idt;
+#endif
 	int	pagesinbase, pagesinext;
 	int	target_page, pa_indx;
 	int	off;
@@ -1001,6 +1050,18 @@ init386(first)
 	gdt_segs[GDATA_SEL].ssd_limit = i386_btop(0) - 1;
 	for (x = 0; x < NGDT; x++)
 		ssdtosd(&gdt_segs[x], &gdt[x].sd);
+
+#ifdef SMP
+	/*
+	 * Oh puke!
+	 */
+	for (x = 0; x < NCPU; x++) {
+		SMPcommon_tss_ptr[x] = &SMPcommon_tss[x];
+		gdt_segs[NGDT + x] = gdt_segs[GPROC0_SEL];
+		gdt_segs[NGDT + x].ssd_base = (int) SMPcommon_tss_ptr[x];
+		ssdtosd(&gdt_segs[NGDT + x], &gdt[NGDT + x].sd);
+	}
+#endif
 
 	/* make ldt memory segments */
 	/*
@@ -1152,7 +1213,13 @@ init386(first)
 			       bootinfo.bi_extmem, biosextmem);
 	}
 
+#ifdef SMP
+	/* make hole for AP bootstrap code */
+	pagesinbase = mp_bootaddress(biosbasemem) / PAGE_SIZE;
+#else
 	pagesinbase = biosbasemem * 1024 / PAGE_SIZE;
+#endif
+
 	pagesinext = biosextmem * 1024 / PAGE_SIZE;
 
 	/*
@@ -1188,6 +1255,11 @@ init386(first)
 
 	/* call pmap initialization to make new kernel address space */
 	pmap_bootstrap (first, 0);
+
+#ifdef SMP
+	/* fire up the APs and APICs */
+	mp_start();
+#endif
 
 	/*
 	 * Size up each available chunk of physical memory.
@@ -1315,12 +1387,23 @@ init386(first)
 			   avail_end + off, VM_PROT_ALL, TRUE);
 	msgbufmapped = 1;
 
+#ifdef SMP
+	for(x = 0; x < NCPU; x++) {
+	/* make an initial tss so cpu can get interrupt stack on syscall! */
+		SMPcommon_tss[x].tss_esp0 = (int) proc0.p_addr + UPAGES*PAGE_SIZE;
+		SMPcommon_tss[x].tss_ss0 = GSEL(GDATA_SEL, SEL_KPL) ;
+		SMPcommon_tss[x].tss_ioopt = (sizeof SMPcommon_tss[x]) << 16;
+	}
+	gsel_tss = GSEL(NGDT + cpunumber(), SEL_KPL);
+	ltr(gsel_tss);
+#else
 	/* make an initial tss so cpu can get interrupt stack on syscall! */
 	common_tss.tss_esp0 = (int) proc0.p_addr + UPAGES*PAGE_SIZE;
 	common_tss.tss_ss0 = GSEL(GDATA_SEL, SEL_KPL) ;
 	common_tss.tss_ioopt = (sizeof common_tss) << 16;
 	gsel_tss = GSEL(GPROC0_SEL, SEL_KPL);
 	ltr(gsel_tss);
+#endif
 
 	dblfault_tss.tss_esp = dblfault_tss.tss_esp0 = dblfault_tss.tss_esp1 =
 	    dblfault_tss.tss_esp2 = (int) &dblfault_stack[sizeof(dblfault_stack)];
@@ -1361,6 +1444,7 @@ init386(first)
 	/* setup proc 0's pcb */
 	proc0.p_addr->u_pcb.pcb_flags = 0;
 	proc0.p_addr->u_pcb.pcb_cr3 = IdlePTD;
+	proc0.p_addr->u_pcb.pcb_mpnest = 1;
 }
 
 /*

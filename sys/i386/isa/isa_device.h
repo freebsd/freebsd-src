@@ -31,11 +31,13 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa_device.h	7.1 (Berkeley) 5/9/91
- *	$Id$
+ *	$Id: isa_device.h,v 1.35 1997/02/22 09:36:42 peter Exp $
  */
 
 #ifndef _I386_ISA_ISA_DEVICE_H_
 #define	_I386_ISA_ISA_DEVICE_H_
+
+#include "opt_smp.h"
 
 /*
  * ISA Bus Autoconfiguration
@@ -67,7 +69,11 @@ struct isa_device {
 	int	id_id;		/* device id */
 	struct	isa_driver *id_driver;
 	int	id_iobase;	/* base i/o address */
+#if defined(APIC_IO)
+	u_int	id_irq;		/* interrupt request */
+#else
 	u_short	id_irq;		/* interrupt request */
+#endif /* APIC_IO */
 	short	id_drq;		/* DMA request */
 	caddr_t id_maddr;	/* physical i/o memory address on bus (if any)*/
 	int	id_msize;	/* size of i/o memory */
@@ -142,6 +148,21 @@ inthand_t
 	IDTVEC(intr4), IDTVEC(intr5), IDTVEC(intr6), IDTVEC(intr7),
 	IDTVEC(intr8), IDTVEC(intr9), IDTVEC(intr10), IDTVEC(intr11),
 	IDTVEC(intr12), IDTVEC(intr13), IDTVEC(intr14), IDTVEC(intr15);
+#if defined(APIC_IO)
+inthand_t
+	IDTVEC(fastintr16), IDTVEC(fastintr17),
+	IDTVEC(fastintr18), IDTVEC(fastintr19),
+	IDTVEC(fastintr20), IDTVEC(fastintr21),
+	IDTVEC(fastintr22), IDTVEC(fastintr23);
+inthand_t
+	IDTVEC(intr16), IDTVEC(intr17), IDTVEC(intr18), IDTVEC(intr19),
+	IDTVEC(intr20), IDTVEC(intr21), IDTVEC(intr22), IDTVEC(intr23);
+#include <machine/apic.h>
+#if defined(IPI_INTS)
+inthand_t
+	IDTVEC(ipi24), IDTVEC(ipi25), IDTVEC(ipi26), IDTVEC(ipi27);
+#endif /* IPI_INTS */
+#endif /* APIC_IO */
 struct isa_device *
 	find_display __P((void));
 struct isa_device *
@@ -157,6 +178,9 @@ void	isa_dmastart __P((int flags, caddr_t addr, u_int nbytes, int chan));
 int	isa_dma_acquire __P((int chan));
 void	isa_dma_release __P((int chan));
 int	isa_irq_pending __P((struct isa_device *dvp));
+#if defined(APIC_IO)
+int	icu_irq_pending __P((struct isa_device *dvp));
+#endif /* APIC_IO */
 int	isa_nmi __P((int cd));
 void	reconfig_isadev __P((struct isa_device *isdp, u_int *mp));
 int	register_intr __P((int intr, int device_id, u_int flags,

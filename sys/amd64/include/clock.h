@@ -3,13 +3,13 @@
  * Garrett Wollman, September 1994.
  * This file is in the public domain.
  *
- *	$Id$
+ *	$Id: clock.h,v 1.24 1997/02/22 09:33:59 peter Exp $
  */
 
 #ifndef _MACHINE_CLOCK_H_
 #define	_MACHINE_CLOCK_H_
 
-#if defined(I586_CPU) || defined(I686_CPU)
+#if (defined(I586_CPU) || defined(I686_CPU)) && !defined(SMP)
 #define CPU_CLOCKUPDATE(otime, ntime)	cpu_clockupdate((otime), (ntime))
 #else
 #define CPU_CLOCKUPDATE(otime, ntime)	(*(otime) = *(ntime))
@@ -28,7 +28,7 @@
  */
 extern int	adjkerntz;
 extern int	disable_rtc_set;
-#if defined(I586_CPU) || defined(I686_CPU)
+#if (defined(I586_CPU) || defined(I686_CPU)) && !defined(SMP)
 extern u_int	i586_ctr_bias;
 extern u_int	i586_ctr_comultiplier;
 extern u_int	i586_ctr_freq;
@@ -81,7 +81,7 @@ clock_latency(void)
 		- ((high << 8) | low));
 }
 
-#if defined(I586_CPU) || defined(I686_CPU)
+#if (defined(I586_CPU) || defined(I686_CPU)) && !defined(SMP)
 /*
  * When we update `time', on i586's we also update `i586_ctr_bias'
  * atomically.  `i586_ctr_bias' is the best available approximation to

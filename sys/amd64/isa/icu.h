@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)icu.h	5.6 (Berkeley) 5/9/91
- *	$Id$
+ *	$Id: icu.h,v 1.10 1997/02/22 09:36:13 peter Exp $
  */
 
 /*
@@ -47,15 +47,62 @@
 
 #ifndef	LOCORE
 
+#include "opt_smp.h" /* so we dont have to change EVERY file including icu.h */
+
 /*
  * Interrupt "level" mechanism variables, masks, and macros
  */
 extern	unsigned imen;		/* interrupt mask enable */
 
+#if defined(APIC_IO)
+
+# if !defined(_MACHINE_SMP_H_)
+/** XXX what a hack, its this or include <machine/smp.h>! */
+void write_io_apic_mask24 __P((int, u_int32_t)); /* i386/i386/mpapic.c */
+# endif /* _MACHINE_SMP_H_ */
+
+#if defined(MULTIPLE_IOAPICS)
+#error MULTIPLE_IOAPICSXXX: cannot assume apic #0 in the following functions.
+#endif /* MULTIPLE_IOAPICS */
+
+static __inline u_int32_t
+INTRGET( void )
+{
+	return (imen & 0x00ffffff);		/* return our global copy */
+}
+
+static __inline void
+INTRSET( unsigned s )
+{
+	write_io_apic_mask24( 0, s );
+	imen = s;
+}
+
+static __inline void
+INTREN( unsigned s )
+{
+	write_io_apic_mask24( 0, imen & ~s );
+	imen &= ~s;
+}
+
+static __inline void
+INTRDIS( unsigned s )
+{
+	write_io_apic_mask24( 0, imen | s );
+	imen |= s;
+}
+
+
+#define	INTRMASK(msk,s)		(msk |= (s))
+#define INTRUNMASK(msk,s)	(msk &= ~(s))
+
+#else /* APIC_IO */
+
 #define	INTREN(s)		(imen &= ~(s), SET_ICUS())
 #define	INTRDIS(s)		(imen |= (s), SET_ICUS())
 #define	INTRMASK(msk,s)		(msk |= (s))
 #define INTRUNMASK(msk,s)	(msk &= ~(s))
+
 #if 0
 #ifdef PC98
 #define	SET_ICUS()	(outb(IO_ICU1 + 2, imen), outb(IU_ICU2 + 2, imen >> 8))
@@ -73,6 +120,8 @@ extern	unsigned imen;		/* interrupt mask enable */
 #define	SET_ICUS()	(outb(0x21, imen), outb(0xa1, imen >> 8))
 #endif
 #endif
+
+#endif /* APIC_IO */
 
 #endif /* LOCORE */
 
@@ -108,6 +157,22 @@ extern	unsigned imen;		/* interrupt mask enable */
  * Interrupt Control offset into Interrupt descriptor table (IDT)
  */
 #define	ICU_OFFSET	32		/* 0-31 are processor exceptions */
+
+#if defined(APIC_IO)
+
+#include <machine/apic.h>
+#if defined(IPI_INTS)
+/* 32-47: ISA IRQ0-IRQ15, 48-55: IO APIC IRQ16-IRQ23, 56-59: LOCAL APIC IPI */
+#define	ICU_LEN		28
+#else
+/* 32-47: ISA IRQ0-IRQ15, 48-55: IO APIC IRQ16-IRQ23 */
+#define	ICU_LEN		24
+#endif /* IPI_INTS */
+
+#else
+
 #define	ICU_LEN		16		/* 32-47 are ISA interrupts */
+
+#endif /* APIC_IO */
 
 #endif /* !_I386_ISA_ICU_H_ */

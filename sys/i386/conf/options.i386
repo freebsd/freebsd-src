@@ -1,4 +1,4 @@
-#	$Id: options.i386,v 1.38 1997/03/22 18:51:32 kato Exp $
+#	$Id: options.i386,v 1.39 1997/04/05 13:21:08 bde Exp $
 BOUNCEPAGES		opt_bounce.h
 USER_LDT
 MATH_EMULATE		opt_math_emulate.h
@@ -27,6 +27,23 @@ FAT_CURSOR		opt_pcvt.h
 PCVT_FREEBSD		opt_pcvt.h
 PCVT_SCANSET		opt_pcvt.h
 XSERVER			opt_pcvt.h
+
+SMP			opt_smp.h
+APIC_IO			opt_smp.h
+NCPU			opt_smp.h
+NBUS			opt_smp.h
+NAPIC			opt_smp.h
+NINTR			opt_smp.h
+SMP_TIMER_NC		opt_smp.h
+
+# Should be working.  When one cpu flushes it's TLB, it's propagated to all.
+SMP_INVLTLB		opt_smp_invltlb.h
+
+# These three are known to be broken, don't enable them.
+SMP_PRIVPAGES		opt_smp_privpages.h
+SMP_AUTOSTART		opt_smp_autostart.h
+
+SERIAL_DEBUG		opt_serial.h
 
 AHC_TAGENABLE		opt_aic7xxx.h
 AHC_SCBPAGING_ENABLE	opt_aic7xxx.h

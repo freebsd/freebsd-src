@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)pmap.c	7.7 (Berkeley)	5/12/91
- *	$Id: pmap.c,v 1.140 1997/04/13 01:48:08 dyson Exp $
+ *	$Id: pmap.c,v 1.141 1997/04/13 03:35:30 dyson Exp $
  */
 
 /*
@@ -68,6 +68,7 @@
  *	and to when physical maps must be made correct.
  */
 
+#include "opt_smp.h"
 #include "opt_cpu.h"
 
 #define PMAP_LOCK 1
@@ -96,10 +97,16 @@
 
 #include <sys/user.h>
 
+#include <machine/cpu.h>
 #include <machine/pcb.h>
 #include <machine/cputypes.h>
 #include <machine/md_var.h>
 #include <machine/specialreg.h>
+#if defined(SMP) || defined(APIC_IO)
+#include <machine/smp.h>
+#include <machine/apic.h>
+#include <machine/smptests.h>
+#endif /* SMP || APIC_IO */
 
 #define PMAP_KEEP_PDIRS
 #define PMAP_SHPGPERPROC 200
@@ -159,7 +166,6 @@ static vm_page_t nkpg;
 vm_offset_t kernel_vm_end;
 
 extern vm_offset_t clean_sva, clean_eva;
-extern int cpu_class;
 
 #define PV_FREELIST_MIN ((PAGE_SIZE / sizeof (struct pv_entry)) / 2)
 
@@ -181,6 +187,14 @@ caddr_t CADDR1 = 0, ptvmmap = 0;
 static caddr_t CADDR2;
 static pt_entry_t *msgbufmap;
 struct msgbuf *msgbufp=0;
+
+#if defined(SMP) || defined(APIC_IO)
+static pt_entry_t *apic_map;
+#endif /* SMP || APIC_IO */
+
+#if defined(APIC_IO)
+static pt_entry_t *io_apic_map;
+#endif /* APIC_IO */
 
 pt_entry_t *PMAP1 = 0;
 unsigned *PADDR1 = 0;
@@ -297,6 +311,20 @@ pmap_bootstrap(firstaddr, loadaddr)
 	va = virtual_avail;
 	pte = (pt_entry_t *) pmap_pte(kernel_pmap, va);
 
+#if defined(SMP) || defined(APIC_IO)
+	/*
+	 * apic_map is the pt for where the local (CPU) apic is mapped in.
+	 */
+	SYSMAP(unsigned int *, apic_map, apic_base, 1)
+#endif /* SMP || APIC_IO */
+
+#if defined(APIC_IO)
+	/*
+	 * io_apic_map is the pt for where the I/O apic is mapped in.
+	 */
+	SYSMAP(unsigned int *, io_apic_map, io_apic_base, 1)
+#endif /* APIC_IO */
+
 	/*
 	 * CMAP1/CMAP2 are used for zeroing and copying pages.
 	 */
@@ -323,14 +351,50 @@ pmap_bootstrap(firstaddr, loadaddr)
 
 	virtual_avail = va;
 
-	*(int *) CMAP1 = *(int *) CMAP2 = *(int *) PTD = 0;
+	*(int *) CMAP1 = *(int *) CMAP2 = 0;
+
 	invltlb();
+
+#if !defined(SMP)
 	if (cpu_feature & CPUID_PGE)
 		pgeflag = PG_G;
 	else
+#endif /* !SMP */
 		pgeflag = 0;
-
 }
+
+#if defined(SMP) || defined(APIC_IO)
+void
+pmap_bootstrap_apics()
+{
+	if (cpu_apic_address == 0) {
+		printf("pmap: BSP APIC address NOT found!\n");
+		panic("pmap_bootstrap_apics: no apic");
+	}
+
+	*(int*)apic_map = PG_V | PG_RW | ((u_long)cpu_apic_address & PG_FRAME);
+
+#if defined(APIC_IO)
+#if defined(MULTIPLE_IOAPICS)
+#error MULTIPLE_IOAPICSXXX
+#else
+	*(int*)io_apic_map = PG_V | PG_RW
+	    | ((u_long)io_apic_address[0] & PG_FRAME);
+#endif /* MULTIPLE_IOAPICS */
+#endif /* APIC_IO */
+
+	invltlb();
+}
+#endif /* SMP || APIC_IO */
+
+#ifdef SMP
+void
+pmap_bootstrap2()
+{
+	*(int *) PTD = 0;
+	invltlb();
+}
+#endif
 
 /*
  *	Initialize the pmap module.
