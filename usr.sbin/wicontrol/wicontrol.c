@@ -56,7 +56,7 @@
 static const char copyright[] = "@(#) Copyright (c) 1997, 1998, 1999\
 	Bill Paul. All rights reserved.";
 static const char rcsid[] =
-	"@(#) $FreeBSD$"
+	"@(#) $FreeBSD$";
 #endif
 
 static void wi_getval		__P((char *, struct wi_req *));
