@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id$
+ * $Id: file.c,v 1.4 1996/04/18 04:25:13 nate Exp $
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -37,13 +37,13 @@ static int lineno;
 static char *filename;
 
 static char *keys[] = {
-	"io",			/* 1 */
-	"irq",			/* 2 */
-	"memory",		/* 3 */
-	"card",			/* 4 */
-	"device",		/* 5 */
-	"config",		/* 6 */
-	"__EOF__",		/* 7 */
+	"__EOF__",		/* 1 */
+	"io",			/* 2 */
+	"irq",			/* 3 */
+	"memory",		/* 4 */
+	"card",			/* 5 */
+	"device",		/* 6 */
+	"config",		/* 7 */
 	"reset",		/* 8 */
 	"ether",		/* 9 */
 	"insert",		/* 10 */
@@ -106,13 +106,10 @@ parsefile(void)
 	lineno = 1;
 	for (;;)
 		switch (keyword(next_tok())) {
-		default:
-			error("Syntax error");
-			pusht = 0;
-			break;
-		case 7:
-			return;
 		case 1:
+			/* EOF */
+			return;
+		case 2:
 			/* reserved I/O blocks */
 			while ((bp = ioblk_tok(0)) != 0) {
 				if (bp->size == 0 || bp->addr == 0) {
@@ -125,13 +122,13 @@ parsefile(void)
 			}
 			pusht = 1;
 			break;
-		case 2:
+		case 3:
 			/* reserved irqs */
 			while ((i = irq_tok(0)) > 0)
 				pool_irq[i] = 1;
 			pusht = 1;
 			break;
-		case 3:
+		case 4:
 			/* reserved memory blocks. */
 			while ((bp = memblk_tok(0)) != 0) {
 				if (bp->size == 0 || bp->addr == 0) {
@@ -145,16 +142,14 @@ parsefile(void)
 			}
 			pusht = 1;
 			break;
-		case 4:
+		case 5:
 			/* Card definition. */
 			parse_card();
 			break;
-#if 0
-		case 5:
-			/* Device description */
-			parse_device();
+		default:
+			error("Syntax error");
+			pusht = 0;
 			break;
-#endif
 		}
 }
 
@@ -179,18 +174,8 @@ parse_card(void)
 	cards = cp;
 	for (;;) {
 		switch (keyword(next_tok())) {
-		default:
-			pusht = 1;
-			return;
-		case 8:
-			i = num_tok();
-			if (i == -1) {
-				error("Illegal card reset time");
-				break;
-			}
-			cp->reset_time = i;
-			break;
-		case 6:
+		case 7:
+			/* config */
 			i = num_tok();
 			if (i == -1) {
 				error("Illegal card config index");
@@ -226,7 +211,17 @@ parse_card(void)
 			} else
 				free(confp);
 			break;
+		case 8:
+			/* reset */
+			i = num_tok();
+			if (i == -1) {
+				error("Illegal card reset time");
+				break;
+			}
+			cp->reset_time = i;
+			break;
 		case 9:
+			/* ether */
 			cp->ether = num_tok();
 			if (cp->ether == -1) {
 				error("Illegal ether address offset");
@@ -234,11 +229,16 @@ parse_card(void)
 			}
 			break;
 		case 10:
+			/* insert */
 			addcmd(&cp->insert);
 			break;
 		case 11:
+			/* remove */
 			addcmd(&cp->remove);
 			break;
+		default:
+			pusht = 1;
+			return;
 		}
 	}
 }
@@ -275,204 +275,6 @@ new_driver(char *name)
 	return (drvp);
 }
 
-#if 0
-/*
- *	Parse the device description.
- */
-parse_device(void)
-{
-	enum drvclass type = drvclass_tok();
-	struct device *dp;
-	static struct device *lastp;
-
-	if (type == drv_none) {
-		error("Unknown driver class");
-		return;
-	}
-	dp = xmalloc(sizeof(*dp));
-	dp->type = type;
-	if (devlist == 0)
-		devlist = dp;
-	else
-		lastp->next = dp;
-	lastp = dp;
-	for (;;)
-		switch (keyword(next_tok())) {
-		default:
-			pusht = 1;
-			return;
-		case 10:
-			addcmd(&dp->insert);
-			break;
-		case 11:
-			addcmd(&dp->remove);
-			break;
-		}
-}
-
-/*
- *	Parse the driver description.
- */
-parse_driver(void)
-{
-	char   *name, *dev, *p;
-	struct driver *dp;
-	static struct driver *lastp;
-	int     i;
-	struct allocblk *bp;
-	static struct flags io_flags[] = {
-		{"ws", 0x01},
-		{"16bit", 0x02},
-		{"cs16", 0x04},
-		{"zerows", 0x08},
-		{0, 0}
-	};
-	static struct flags mem_flags[] = {
-		{"16bit", 0x01},
-		{"zerows", 0x02},
-		{"ws0", 0x04},
-		{"ws1", 0x08},
-		{0, 0}
-	};
-
-	name = newstr(next_tok());
-	dev = newstr(next_tok());
-	type = drvclass_tok();
-	if (type == drv_none) {
-		error("Unknown driver class");
-		return;
-	}
-	dp = xmalloc(sizeof(*dp));
-	dp->name = name;
-	dp->kernel = dev;
-	dp->type = type;
-	dp->unit = -1;
-	dp->irq = -1;
-
-	/* Check for unit number in driver name. */
-	p = dev;
-	while (*p++)
-		if (*p >= '0' && *p <= '9') {
-			dp->unit = atoi(p);
-			*p = 0;
-			break;
-		}
-	if (dp->unit < 0)
-		error("Illegal kernel driver unit");
-
-	/* Place at end of list. */
-	if (lastp == 0)
-		drivers = dp;
-	else
-		lastp->next = dp;
-	lastp = dp;
-	for (;;)
-		switch (keyword(next_tok())) {
-		default:
-			pusht = 1;
-			return;
-		case 1:
-			bp = ioblk_tok(1);
-			if (bp) {
-				setflags(io_flags, &bp->flags);
-				if (dp->io) {
-					error("Duplicate I/O spec");
-					free(bp);
-				} else {
-					bit_nclear(io_avail, bp->addr,
-					    bp->addr + bp->size - 1);
-					dp->io = bp;
-				}
-			}
-			break;
-		case 2:
-			dp->irq = irq_tok(1);
-			if (dp->irq > 0)
-				pool_irq[i] = 0;
-			break;
-		case 3:
-			bp = memblk_tok(1);
-			if (bp) {
-				setflags(mem_flags, &bp->flags);
-				if (dp->mem) {
-					error("Duplicate memory spec");
-					free(bp);
-				} else {
-					bit_nclear(mem_avail,
-					    MEM2BIT(bp->addr),
-					    MEM2BIT(bp->addr + bp->size) - 1);
-					dp->mem = bp;
-				}
-			}
-			break;
-		case 10:
-			addcmd(&dp->insert);
-			break;
-		case 11:
-			addcmd(&dp->remove);
-			break;
-		case 12:
-			/*
-			 * iosize - Don't allocate an I/O port, but specify
-			 * a size for the range of ports. The actual port
-			 * number will be allocated dynamically.
-			 */
-			i = num_tok();
-			if (i <= 0 || i > 128)
-				error("Illegal iosize");
-			else {
-				int     flags = 0;
-				setflags(io_flags, &flags);
-				if (dp->io)
-					error("Duplicate I/O spec");
-				else {
-					dp->io = xmalloc(sizeof(*dp->io));
-					dp->io->flags = flags;
-					dp->io->size = i;
-				}
-			}
-			break;
-		case 13:
-			i = num_tok();
-			if (i <= 0 || i > 256 * 1024)
-				error("Illegal memsize");
-			else {
-				int     flags = 0;
-				setflags(mem_flags, &flags);
-				if (dp->mem)
-					error("Duplicate memory spec");
-				else {
-					dp->mem = xmalloc(sizeof(*dp->mem));
-					dp->mem->flags = flags;
-					dp->mem->size = i;
-				}
-			}
-			break;
-		}
-}
-/*
- *	drvclass_tok - next token is expected to
- *	be a driver class.
- */
-enum drvclass
-drvclass_tok(void)
-{
-	char   *s = next_tok();
-
-	if (strcmp(s, "tty") == 0)
-		return (drv_tty);
-	else
-		if (strcmp(s, "net") == 0)
-			return (drv_net);
-		else
-			if (strcmp(s, "bio") == 0)
-				return (drv_bio);
-			else
-				if (strcmp(s, "null") == 0)
-					return (drv_null);
-	return (drv_none);
-}
-#endif	/* 0 */
 
 /*
  *	Parse one I/O block.
