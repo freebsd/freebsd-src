@@ -38,7 +38,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.93 1997/12/27 02:28:28 peter Exp $
+ *	$Id: vm_machdep.c,v 1.94 1998/01/15 07:32:21 gibbs Exp $
  */
 
 #include "npx.h"
@@ -941,6 +941,7 @@ vm_page_zero_idle()
 	if (m != NULL) {
 		--(*vm_page_queues[m->queue].lcnt);
 		TAILQ_REMOVE(vm_page_queues[m->queue].pl, m, pageq);
+		m->queue = PQ_NONE;
 		splx(s);
 #ifdef SMP
 		rel_mplock();
