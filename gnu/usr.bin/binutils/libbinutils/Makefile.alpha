@@ -2,4 +2,4 @@
 # $FreeBSD$
 #
 
-TARGET=		alpha-unknown-freebsdelf
+TARGET=		alpha-unknown-freebsd
