@@ -202,7 +202,6 @@ static struct ng_type ng_source_typestruct = {
 	NULL,					/* findhook */
 	NULL,
 	ng_source_rcvdata,			/* rcvdata */
-	ng_source_rcvdata,			/* rcvdataq */
 	ng_source_disconnect,
 	ng_source_cmds
 };
@@ -212,24 +211,20 @@ NETGRAPH_INIT(source, &ng_source_typestruct);
  * Node constructor
  */
 static int
-ng_source_constructor(node_p *nodep)
+ng_source_constructor(node_p node)
 {
 	sc_p sc;
-	int error = 0;
 
 	MALLOC(sc, sc_p, sizeof(*sc), M_NETGRAPH, M_NOWAIT);
 	if (sc == NULL)
 		return (ENOMEM);
 	bzero(sc, sizeof(*sc));
 
-	if ((error = ng_make_node_common(&ng_source_typestruct, nodep))) {
-		FREE(sc, M_NETGRAPH);
-		return (error);
-	}
-	(*nodep)->private = sc;
-	sc->node = *nodep;
+	NG_NODE_SET_PRIVATE(node, sc);
+	sc->node = node;
 	sc->snd_queue.ifq_maxlen = 2048;	/* XXX not checked */
-	callout_handle_init(&sc->intr_ch);
+	callout_handle_init(&sc->intr_ch);   /* XXX fix.. will
+						cause problems. */
 	return (0);
 }
 
@@ -239,15 +234,16 @@ ng_source_constructor(node_p *nodep)
 static int
 ng_source_newhook(node_p node, hook_p hook, const char *name)
 {
-	const sc_p sc = node->private;
+	sc_p sc;
 
+	sc = NG_NODE_PRIVATE(node);
 	KASSERT(sc != NULL, ("%s: null node private", __FUNCTION__));
 	if (strcmp(name, NG_SOURCE_HOOK_INPUT) == 0) {
 		sc->input.hook = hook;
-		hook->private = &sc->input;
+		NG_HOOK_SET_PRIVATE(hook, &sc->input);
 	} else if (strcmp(name, NG_SOURCE_HOOK_OUTPUT) == 0) {
 		sc->output.hook = hook;
-		hook->private = &sc->output;
+		NG_HOOK_SET_PRIVATE(hook, &sc->output);
 		sc->output_ifp = 0;
 		bzero(&sc->stats, sizeof(sc->stats));
 	} else
@@ -259,13 +255,15 @@ ng_source_newhook(node_p node, hook_p hook, const char *name)
  * Receive a control message
  */
 static int
-ng_source_rcvmsg(node_p node, struct ng_mesg *msg, const char *retaddr,
-	   struct ng_mesg **rptr)
+ng_source_rcvmsg(node_p node, item_p item, hook_p lasthook)
 {
-	const sc_p sc = node->private;
+	sc_p sc;
 	struct ng_mesg *resp = NULL;
 	int error = 0;
+	struct ng_mesg *msg;
 
+	sc = NG_NODE_PRIVATE(node);
+	NGI_GET_MSG(item, msg);
 	KASSERT(sc != NULL, ("%s: null node private", __FUNCTION__));
 	switch (msg->header.typecookie) {
 	case NGM_SOURCE_COOKIE:
@@ -285,7 +283,7 @@ ng_source_rcvmsg(node_p node, struct ng_mesg *msg, const char *retaddr,
 				}
 				sc->stats.queueOctets = sc->queueOctets;
 				sc->stats.queueFrames = sc->snd_queue.ifq_len;
-				if ((sc->node->flags & NG_SOURCE_ACTIVE)
+				if ((sc->node->nd_flags & NG_SOURCE_ACTIVE)
 				    && !timevalisset(&sc->stats.endTime)) {
 					getmicrotime(&sc->stats.elapsedTime);
 					timevalsub(&sc->stats.elapsedTime,
@@ -327,13 +325,12 @@ ng_source_rcvmsg(node_p node, struct ng_mesg *msg, const char *retaddr,
 		error = EINVAL;
 		break;
 	}
-	if (rptr)
-		*rptr = resp;
-	else if (resp)
-		FREE(resp, M_NETGRAPH);
 
 done:
-	FREE(msg, M_NETGRAPH);
+	/* Take care of synchronous response, if any */
+	NG_RESPOND_MSG(error, node, item, resp);
+	/* Free the message and return */
+	NG_FREE_MSG(msg);
 	return (error);
 }
 
@@ -344,32 +341,33 @@ done:
  * If data comes in the output hook, discard it.
  */
 static int
-ng_source_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
+ng_source_rcvdata(hook_p hook, item_p item)
 {
-	const sc_p sc = hook->node->private;
-	struct source_hookinfo *const hinfo;
+	sc_p sc;
+	struct source_hookinfo *hinfo;
 	int error = 0;
+	struct mbuf *m;
 
-	hinfo = (struct source_hookinfo *) hook->private;
+	sc = NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
+	NGI_GET_M(item, m);
+	NG_FREE_ITEM(item);
+	hinfo = NG_HOOK_PRIVATE(hook);
 	KASSERT(sc != NULL, ("%s: null node private", __FUNCTION__));
 	KASSERT(hinfo != NULL, ("%s: null hook info", __FUNCTION__));
 
 	/* Which hook? */
 	if (hinfo == &sc->output) {
 		/* discard */
-		NG_FREE_DATA(m, meta);
+		NG_FREE_M(m);
 		return (error);
 	}
 	KASSERT(hinfo == &sc->input, ("%s: no hook!", __FUNCTION__));
 
 	if ((m->m_flags & M_PKTHDR) == 0) {
 		printf("%s: mbuf without PKTHDR\n", __FUNCTION__);
-		NG_FREE_DATA(m, meta);
+		NG_FREE_M(m);
 		return (EINVAL);
 	}
-
-	/* XXX we discard the meta data for now */
-	NG_FREE_META(meta);
 
 	/* enque packet */
 	/* XXX should we check IF_QFULL() ? */
@@ -385,16 +383,15 @@ ng_source_rcvdata(hook_p hook, struct mbuf *m, meta_p meta)
 static int
 ng_source_rmnode(node_p node)
 {
-	const sc_p sc = node->private;
+	sc_p sc;
 
+	sc = NG_NODE_PRIVATE(node);
 	KASSERT(sc != NULL, ("%s: null node private", __FUNCTION__));
-	node->flags |= NG_INVALID;
+	node->nd_flags |= NG_INVALID;
 	ng_source_stop(sc);
-	ng_cutlinks(node);
 	ng_source_clr_data(sc);
-	ng_unname(node);
-	node->private = NULL;
-	ng_unref(sc->node);
+	NG_NODE_SET_PRIVATE(node, NULL);
+	NG_NODE_UNREF(node);
 	FREE(sc, M_NETGRAPH);
 	return (0);
 }
@@ -405,15 +402,15 @@ ng_source_rmnode(node_p node)
 static int
 ng_source_disconnect(hook_p hook)
 {
-	struct source_hookinfo *const hinfo;
+	struct source_hookinfo *hinfo;
 	sc_p sc;
 
-	hinfo = (struct source_hookinfo *) hook->private;
-	sc = (sc_p) hinfo->hook->node->private;
+	hinfo = NG_HOOK_PRIVATE(hook);
+	sc = NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
 	KASSERT(sc != NULL, ("%s: null node private", __FUNCTION__));
 	hinfo->hook = NULL;
-	if (hook->node->numhooks == 0 || hinfo == &sc->output)
-		ng_rmnode(hook->node);
+	if (NG_NODE_NUMHOOKS(NG_HOOK_NODE(hook)) == 0 || hinfo == &sc->output)
+		ng_rmnode_self(NG_HOOK_NODE(hook));
 	return (0);
 }
 
@@ -437,7 +434,9 @@ ng_source_get_output_ifp(sc_p sc)
 	if (msg == NULL)
 		return (ENOBUFS);
 
-	error = ng_send_msg(sc->node, msg, NG_SOURCE_HOOK_OUTPUT, &rsp);
+	NG_SEND_MSG_HOOK(error, sc->node, msg, sc->output.hook, NULL);
+	/* error = ng_send_msg(sc->node, msg, NG_SOURCE_HOOK_OUTPUT, &rsp); */
+#warn "oiks"
 	if (error != 0)
 		return (error);
 
@@ -496,7 +495,7 @@ ng_source_set_autosrc(sc_p sc, u_int32_t flag)
 		return(ENOBUFS);
 
 	*(u_int32_t *)msg->data = flag;
-	error = ng_send_msg(sc->node, msg, NG_SOURCE_HOOK_OUTPUT, NULL);
+	NG_SEND_MSG_HOOK(error, sc->node, msg, sc->output.hook, NULL);
 	return (error);
 }
 
@@ -508,7 +507,6 @@ ng_source_clr_data (sc_p sc)
 {
 	struct mbuf *m;
 
-	SPLASSERT(net, __FUNCTION__);
 	for (;;) {
 		IF_DEQUEUE(&sc->snd_queue, m);
 		if (m == NULL)
@@ -524,14 +522,13 @@ ng_source_clr_data (sc_p sc)
 static void
 ng_source_start (sc_p sc)
 {
-	SPLASSERT(net, __FUNCTION__);
 	KASSERT(sc->output.hook != NULL,
 			("%s: output hook unconnected", __FUNCTION__));
-	if ((sc->node->flags & NG_SOURCE_ACTIVE) == 0) {
+	if ((sc->node->nd_flags & NG_SOURCE_ACTIVE) == 0) {
 		if (sc->output_ifp == NULL && ng_source_get_output_ifp(sc) != 0)
 			return;
 		ng_source_set_autosrc(sc, 0);
-		sc->node->flags |= NG_SOURCE_ACTIVE;
+		sc->node->nd_flags |= NG_SOURCE_ACTIVE;
 		timevalclear(&sc->stats.elapsedTime);
 		timevalclear(&sc->stats.endTime);
 		getmicrotime(&sc->stats.startTime);
@@ -545,10 +542,9 @@ ng_source_start (sc_p sc)
 static void
 ng_source_stop (sc_p sc)
 {
-	SPLASSERT(net, __FUNCTION__);
-	if (sc->node->flags & NG_SOURCE_ACTIVE) {
+	if (sc->node->nd_flags & NG_SOURCE_ACTIVE) {
 		untimeout(ng_source_intr, sc, sc->intr_ch);
-		sc->node->flags &= ~NG_SOURCE_ACTIVE;
+		sc->node->nd_flags &= ~NG_SOURCE_ACTIVE;
 		getmicrotime(&sc->stats.endTime);
 		sc->stats.elapsedTime = sc->stats.endTime;
 		timevalsub(&sc->stats.elapsedTime, &sc->stats.startTime);
@@ -565,7 +561,7 @@ ng_source_stop (sc_p sc)
 static void
 ng_source_intr (void *arg)
 {
-	const sc_p sc = (sc_p) arg;
+	sc_p sc = (sc_p) arg;
 	struct ifqueue *ifq;
 	int packets;
 
@@ -573,7 +569,7 @@ ng_source_intr (void *arg)
 
 	callout_handle_init(&sc->intr_ch);
 	if (sc->packets == 0 || sc->output.hook == NULL
-	    || (sc->node->flags & NG_SOURCE_ACTIVE) == 0) {
+	    || (sc->node->nd_flags & NG_SOURCE_ACTIVE) == 0) {
 		ng_source_stop(sc);
 		return;
 	}
@@ -603,7 +599,7 @@ ng_source_send (sc_p sc, int tosend, int *sent_p)
 
 	KASSERT(sc != NULL, ("%s: null node private", __FUNCTION__));
 	KASSERT(tosend >= 0, ("%s: negative tosend param", __FUNCTION__));
-	KASSERT(sc->node->flags & NG_SOURCE_ACTIVE,
+	KASSERT(sc->node->nd_flags & NG_SOURCE_ACTIVE,
 			("%s: inactive node", __FUNCTION__));
 
 	if ((u_int64_t)tosend > sc->packets)
