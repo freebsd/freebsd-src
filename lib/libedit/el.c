@@ -77,7 +77,7 @@ el_init(prog, fin, fout)
     el->el_prog = strdup(prog);
 
 #ifdef DEBUG
-    if ((tty = getenv("DEBUGTTY")) != NULL) {
+    if (issetugid() == 0 && (tty = getenv("DEBUGTTY")) != NULL) {
 	el->el_errfile = fopen(tty, "w");
 	if (el->el_errfile == NULL) {
 		extern errno;
@@ -291,7 +291,7 @@ el_source(el, fname)
     if (fname == NULL) {
 	fname = &elpath[1];
 	if ((fp = fopen(fname, "r")) == NULL) {
-	    if ((ptr = getenv("HOME")) == NULL)
+	    if (issetugid() != 0 || (ptr = getenv("HOME")) == NULL)
 		return -1;
 	    (void)snprintf(path, sizeof(path), "%s%s", ptr, elpath);
 	    fname = path;

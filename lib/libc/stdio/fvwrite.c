@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)fvwrite.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-		"$Id: fvwrite.c,v 1.7 1997/12/24 23:23:18 ache Exp $";
+		"$Id: fvwrite.c,v 1.8 1998/07/08 00:44:54 peter Exp $";
 #endif /* LIBC_SCCS and not lint */
 
 #include <stdio.h>
@@ -123,7 +123,7 @@ __sfvwrite(fp, uio)
 				fp->_w = len + 128;
 				fp->_bf._size = blen + len + 128;
 				fp->_bf._base =
-				    realloc(fp->_bf._base, fp->_bf._size + 1);
+				    reallocf(fp->_bf._base, fp->_bf._size + 1);
 				if (fp->_bf._base == NULL)
 					goto err;
 				fp->_p = fp->_bf._base + blen;

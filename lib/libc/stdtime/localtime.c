@@ -273,6 +273,11 @@ register struct state * const	sp;
 	register int		i;
 	register int		fid;
 
+	/* XXX The following is from OpenBSD, and I'm not sure it is correct */
+	if (name != NULL && issetugid() != 0)
+		if ((name[0] == ':' && name[1] == '/') || 
+		    name[0] == '/' || strchr(name, '.'))
+			name = NULL;
 	if (name == NULL && (name = TZDEFAULT) == NULL)
 		return -1;
 	{
@@ -293,7 +298,7 @@ register struct state * const	sp;
 		if (!doaccess) {
 			if ((p = TZDIR) == NULL)
 				return -1;
-			if ((strlen(p) + strlen(name) + 1) >= sizeof fullname)
+			if ((strlen(p) + 1 + strlen(name) + 1) >= sizeof fullname)
 				return -1;
 			(void) strcpy(fullname, p);
 			(void) strcat(fullname, "/");
@@ -306,7 +311,7 @@ register struct state * const	sp;
 			name = fullname;
 		}
 		if (doaccess && access(name, R_OK) != 0)
-			return -1;
+		     	return -1;
 		if ((fid = open(name, OPEN_MODE)) == -1)
 			return -1;
 		if ((fstat(fid, &stab) < 0) || !S_ISREG(stab.st_mode))

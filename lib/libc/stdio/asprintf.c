@@ -28,7 +28,7 @@
  */
 
 #if defined(LIBC_RCS) && !defined(lint)
-static char rcsid[] = "$Id: asprintf.c,v 1.3 1997/02/22 15:01:45 peter Exp $";
+static char rcsid[] = "$Id: asprintf.c,v 1.4 1998/07/08 00:44:51 peter Exp $";
 #endif /* LIBC_RCS and not lint */
 
 #include <stdio.h>
@@ -71,7 +71,7 @@ asprintf(str, fmt, va_alist)
 	ret = vfprintf(&f, fmt, ap);
 	*f._p = '\0';
 	va_end(ap);
-	f._bf._base = realloc(f._bf._base, f._bf._size + 1);
+	f._bf._base = reallocf(f._bf._base, f._bf._size + 1);
 	if (f._bf._base == NULL) {
 		errno = ENOMEM;
 		ret = -1;

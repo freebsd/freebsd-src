@@ -1380,9 +1380,9 @@ map_addfunc(el, name, help, func)
 	return -1;
 
     el->el_map.func = (el_func_t *)
-		el_realloc(el->el_map.func, nf * sizeof(el_func_t));
+		el_reallocf(el->el_map.func, nf * sizeof(el_func_t));
     el->el_map.help = (el_bindings_t *)
-		el_realloc(el->el_map.help, nf * sizeof(el_bindings_t));
+		el_reallocf(el->el_map.help, nf * sizeof(el_bindings_t));
 
     nf = el->el_map.nfunc;
     el->el_map.func[nf] = func;

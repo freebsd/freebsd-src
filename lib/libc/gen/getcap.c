@@ -344,7 +344,7 @@ getent(cap, len, db_array, fd, name, depth, nfield)
 
 					pos = rp - record;
 					newsize = r_end - record + BFRAG;
-					record = realloc(record, newsize);
+					record = reallocf(record, newsize);
 					if (record == NULL) {
 						errno = ENOMEM;
 						if (myfd)
@@ -484,7 +484,7 @@ tc_exp:	{
 				newsize = r_end - record + diff + BFRAG;
 				tcpos = tcstart - record;
 				tcposend = tcend - record;
-				record = realloc(record, newsize);
+				record = reallocf(record, newsize);
 				if (record == NULL) {
 					errno = ENOMEM;
 					if (myfd)
@@ -524,7 +524,7 @@ tc_exp:	{
 	*len = rp - record - 1;	/* don't count NUL */
 	if (r_end > rp)
 		if ((record =
-		     realloc(record, (size_t)(rp - record))) == NULL) {
+		     reallocf(record, (size_t)(rp - record))) == NULL) {
 			errno = ENOMEM;
 			return (-2);
 		}
@@ -867,7 +867,7 @@ cgetstr(buf, cap, str)
 		if (m_room == 0) {
 			size_t size = mp - mem;
 
-			if ((mem = realloc(mem, size + SFRAG)) == NULL)
+			if ((mem = reallocf(mem, size + SFRAG)) == NULL)
 				return (-2);
 			m_room = SFRAG;
 			mp = mem + size;
@@ -881,7 +881,7 @@ cgetstr(buf, cap, str)
 	 * Give back any extra memory and return value and success.
 	 */
 	if (m_room != 0)
-		if ((mem = realloc(mem, (size_t)(mp - mem))) == NULL)
+		if ((mem = reallocf(mem, (size_t)(mp - mem))) == NULL)
 			return (-2);
 	*str = mem;
 	return (len);
@@ -940,7 +940,7 @@ cgetustr(buf, cap, str)
 		if (m_room == 0) {
 			size_t size = mp - mem;
 
-			if ((mem = realloc(mem, size + SFRAG)) == NULL)
+			if ((mem = reallocf(mem, size + SFRAG)) == NULL)
 				return (-2);
 			m_room = SFRAG;
 			mp = mem + size;
@@ -954,7 +954,7 @@ cgetustr(buf, cap, str)
 	 * Give back any extra memory and return value and success.
 	 */
 	if (m_room != 0)
-		if ((mem = realloc(mem, (size_t)(mp - mem))) == NULL)
+		if ((mem = reallocf(mem, (size_t)(mp - mem))) == NULL)
 			return (-2);
 	*str = mem;
 	return (len);
