@@ -1,5 +1,5 @@
 /*	$NetBSD: usbdi.c,v 1.9 1998/08/02 22:30:53 augustss Exp $	*/
-/*	FreeBSD $Id: usbdi.c,v 1.3 1998/12/14 09:32:24 n_hibma Exp $ */
+/*	FreeBSD $Id: usbdi.c,v 1.4 1999/01/03 16:48:03 n_hibma Exp $ */
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -84,7 +84,7 @@ void usbd_do_request_async_cb
 static SIMPLEQ_HEAD(, usbd_request) usbd_free_requests;
 
 #if defined(__FreeBSD__)
-#define USB_CDEV_MAJOR	110
+#define USB_CDEV_MAJOR	108
 
 extern struct cdevsw usb_cdevsw;
 #endif
