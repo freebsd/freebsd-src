@@ -299,10 +299,6 @@ acpi_cpu_attach(device_t dev)
 				SYSCTL_CHILDREN(acpi_sc->acpi_sysctl_tree),
 				OID_AUTO, "cpu", CTLFLAG_RD, 0, "");
 
-    /* If this is the first device probed, check for quirks. */
-    if (device_get_unit(dev) == 0)
-	acpi_cpu_quirks(sc);
-
     /*
      * Probe for throttling and Cx state support.
      * If none of these is present, free up unused resources.
@@ -674,6 +670,10 @@ acpi_cpu_startup(void *arg)
     /* Get set of CPU devices */
     devclass_get_devices(acpi_cpu_devclass, &cpu_devices, &cpu_ndevices);
 
+    /* Check for quirks via the first CPU device. */
+    sc = device_get_softc(cpu_devices[0]);
+    acpi_cpu_quirks(sc);
+
     /*
      * Make sure all the processors' Cx counts match.  We should probably
      * also check the contents of each.  However, no known systems have
@@ -701,6 +701,10 @@ acpi_cpu_startup(void *arg)
 static void
 acpi_cpu_startup_throttling()
 {
+
+    /* If throttling is not usable, don't initialize it. */
+    if (cpu_quirks & CPU_QUIRK_NO_THROTTLE)
+	return;
 
     /* Initialise throttling states */
     cpu_throttle_max = CPU_MAX_SPEED;
@@ -737,13 +741,22 @@ static void
 acpi_cpu_startup_cx()
 {
     struct acpi_cpu_softc *sc;
-    struct sbuf		 sb;
+    struct sbuf sb;
     int i;
 
+    /*
+     * Set up the list of Cx states, eliminating C3 states by truncating
+     * cpu_cx_count if quirks indicate C3 is not usable.
+     */
     sc = device_get_softc(cpu_devices[0]);
     sbuf_new(&sb, cpu_cx_supported, sizeof(cpu_cx_supported), SBUF_FIXEDLEN);
-    for (i = 0; i < cpu_cx_count; i++)
-	sbuf_printf(&sb, "C%d/%d ", i + 1, sc->cpu_cx_states[i].trans_lat);
+    for (i = 0; i < cpu_cx_count; i++) {
+	if ((cpu_quirks & CPU_QUIRK_NO_C3) == 0 ||
+	    sc->cpu_cx_states[i].type != ACPI_STATE_C3)
+	    sbuf_printf(&sb, "C%d/%d ", i + 1, sc->cpu_cx_states[i].trans_lat);
+	else
+	    cpu_cx_count = i;
+    }
     sbuf_trim(&sb);
     sbuf_finish(&sb);
     SYSCTL_ADD_STRING(&acpi_cpu_sysctl_ctx,
@@ -966,6 +979,7 @@ acpi_cpu_notify(ACPI_HANDLE h, UINT32 notify, void *context)
 static int
 acpi_cpu_quirks(struct acpi_cpu_softc *sc)
 {
+    device_t acpi_dev;
 
     /*
      * C3 on multiple CPUs requires using the expensive flush cache
@@ -974,7 +988,6 @@ acpi_cpu_quirks(struct acpi_cpu_softc *sc)
     if (mp_ncpus > 1)
 	cpu_quirks |= CPU_QUIRK_NO_BM_CTRL;
 
-#ifdef notyet
     /* Look for various quirks of the PIIX4 part. */
     acpi_dev = pci_find_device(PCI_VENDOR_INTEL, PCI_DEVICE_82371AB_3);
     if (acpi_dev != NULL) {
@@ -1011,7 +1024,6 @@ acpi_cpu_quirks(struct acpi_cpu_softc *sc)
 	    break;
 	}
     }
-#endif
 
     return (0);
 }
