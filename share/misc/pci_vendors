@@ -21,7 +21,7 @@
 	1702	IS64PH ISDN Adapter
 0815	LinTech GmbH
 	0002	ELKA SO-PCI
-0871	Berkom (Scitel??)
+0871	Berkom
 	FFA1	A1T HCF-PCI card
 	FFA2	T-Concept HCF-PCI card
 	FFA4	A4T
@@ -31,6 +31,8 @@
 	0001	PCI to EISA Bridge
 	0002	PCI to ISA Bridge
 	000F	CPQB1A9 StorageWorks Library Adapter (HVD)
+	0049	NC7132 Gigabit Upgrade Module
+	004A	NC6136 Gigabit Server Adapter
 	00C0	AIC-7899G 64-bit, 66MHz Dual Channel Wide Ultra3 SCSI Controller
 	0508	Netelligent 4/16 TR PCI UTP/STP Controller
 	1000	Triflex/Pentium Bridge, Model 1000
@@ -45,7 +47,7 @@
 	A0F0	Advanced System Management Controller
 	A0F3	Triflex PCI to ISA PnP Bridge
 	A0F7	PCI Hot Plug Controller
-	A0F8	USB Open Host Controller
+	A0F8	ZFMicro USB Open Host Controller
 	A0FC	HPFC-5166A Tachyon TL 64-bit/66MHz Fibre Channel Adapter
 	AE10	Smart-2 Array Controller
 	AE29	MIS-L PCI to ISA Bridge
@@ -63,15 +65,31 @@
 	AE6D	NorthStar CPU to PCI Bridge
 	B011	Dual Port Netelligent 10/100 TX
 	B012	Netelligent 10 T/2
-	B030	Netelligent 10/100 TX UTP/Coax
+	B01E	NC3120 Fast Ethernet NIC
+	B01F	NC3122 Fast Ethernet NIC
+	B02F	NC1120 Ethernet NIC
+	B030	Netelligent WS 1500 10/100 TX UTP/Coax
 	B04A	10/100TX WOL UTP Controller
 	B060	CISS SMART2 Array Controller
-	B0C6	10/100TX Embedded WOL UTP Controller
-	B0D7	NC3121 (Rev A & B)
+	B0C6	NC3161 Fast Ethernet Embedded Controller with WOL
+	B0C7	NC3160 Fast Ethernet NIC
+	B0D7	NC3121 Fast Ethernet NIC (Rev A & B)
+	B0DD	NC3131 Fast Ethernet NIC
+	B0DE	NC3132 Fast Ethernet Module
+	B0DF	NC6132 Gigabit Module
+	B0E0	NC6133 Gigabit Module
+	B0E1	NC3133 Fast Ethernet Module
+	B123	NC6134 Gigabit NIC
+	B134	NC3163 Fast Ethernet NIC
+	B13C	NC3162 Fast Ethernet NIC
+	B144	NC3123 Fast Ethernet NIC
+	B163	NC3134 Fast Ethernet NIC
+	B164	NC3135 Fast Ethernet Upgrade Module
 	B178	CISSB SMART2 Array Controller
 	B196	Conexant SoftK56 Modem
-	F130	ThunderLAN / NetFlex-3/P
-	F150	NetFlex-3/P with BNC
+	B1A4	NC7131 Gigabit Server Adapter
+	F130	ThunderLAN 1.0 NetFlex-3/P
+	F150	ThunderLAN 2.3 NetFlex-3/P with BNC
 	F700	LP7000 Compaq/Emulex Fibre Channel HBA
 	F800	LP8000 64-bit Compaq/Emulex Fibre Channel HBA
 1000	Symbios Logic (NCR) (LSI Logic)
@@ -94,13 +112,14 @@
 	0030	53C1030 PCI-X SCSI Controller
 	0031	53C1030ZC PCI-X SCSI Controller
 	0035	53C1035 PCI-X SCSI Controller
+	0040	53C1035
 	008F	53C875J Ultra Wide SCSI
 	0621	LSIFC909 Fibre Channel I/O Processor
 	0622	LSIFC929 Dual Channel Fibre Channel I/O Processor (1st Channel)
 	0623	LSIFC929 Dual Channel Fibre Channel I/O Processor (2nd Channel)
 	0624	LSIFC919 Fibre Channel I/O Processor (1st Channel)
 	0625	LSIFC919 Fibre Channel I/O Processor (2nd Channel)
-	0701	53C885 10/100 MBit Ethernet
+	0701	53C885 NT50 DigitalScape Fast Ethernet Adapter
 	0702	Yellowfin G-NIC Gigabit Ethernet Controller
 	0901	61C102 USB Controller
 	1000	63C815 Fast SCSI Controller
@@ -115,6 +134,7 @@
 	0017	ispLSI1032E PROTO-3 PCI, digital I/O with chipselect
 1002	ATI Technologies
 	4158	Mach32 (68800AX)
+	4242	Radeon 8500 DV
 	4354	Mach64 CT (215CT222)
 	4358	210888CX Mach64 CX
 	4554	Mach64 ET
@@ -132,16 +152,17 @@
 	4752	Rage XL PCI
 	4753	Rage XC PCI
 	4754	Mach 64 GT Rage 3D II Graphics Accelerator
-	4755	Rage 3D II+
-	4756	Rage 3D IIC PCI Graphics Accelerator
+	4755	Rage 3D II+ [Mach64 GTB]
+	4756	Rage 3D IIC PCI [Mach64 GT IIC] (PQFP Package)
 	4757	Rage 3D IIC AGP (BGA Package)
 	4758	210888GX Mach 64 GX (WinTurbo)
 	4759	Rage 3D IIC
 	475A	Rage 3D IIC AGP (PQFP Package)
 	4C42	Rage 3D LT Pro AGP 133MHz (BGA-312 Package)
 	4C44	Rage 3D LT Pro AGP 66MHz (BGA-312 Package)
-	4C46	Mobility M3 AGP 2x
-	4C47	Rage 3D LT-G
+	4C45	Rage Mobility M3 AGP
+	4C46	Rage Mobility M3 AGP 2x
+	4C47	Rage 3D LT-G (215LG)
 	4C49	Rage 3D LT Pro PCI (BGA-312 Package)
 	4C4D	Rage P/M Mobility AGP 2x
 	4C4E	Rage L Mobility AGP 2x
@@ -149,51 +170,61 @@
 	4C51	Rage 3D LT Pro PCI (BGA-256 Package, Limited 3D)
 	4C52	Rage P/M Mobility PCI
 	4C53	Rage L Mobility PCI
-	4C54	Mach 64 LT
-	4C59	Mobility 6
+	4C54	Mach64 LT (264LT)
+	4C57	Radeon Mobility M6 LW
+	4C59	Radeon Mobility M6 LY
+	4C5A	Radeon Mobility M6 LZ
 	4D46	Rage Mobility 128 AGP 4x
+	4D4C	Rage Mobility 128 AGP
 	5041	Rage 128 Pro PA PCI
 	5042	Rage 128 Pro PB AGP 2x
 	5043	Rage 128 Pro PC AGP 4x
-	5044	Rage 128 Pro PCI (TMDS)
-	5045	Rage 128 Pro AGP 2x (TMDS)
-	5046	Rage 128 Pro AGP 4x (TMDS)
+	5044	Rage 128 PD/Pro PCI (TMDS)
+	5045	Rage 128 PE/Pro AGP 2x (TMDS)
+	5046	Rage 128 PF/Pro AGP 4x (TMDS)
 	5047	Rage 128 Pro PG PCI
-	5048	Rage 128 Pro PH AGP
-	5049	Rage 128 Pro PI AGP
-	504A	Rage 128 Pro PCI (TMDS)
-	504B	Rage 128 Pro AGP 2x (TMDS)
-	504C	Rage 128 Pro AGP 4x (TMDS)
+	5048	Rage 128 PH/Pro AGP 2x
+	5049	Rage 128 PI/Pro AGP 4x
+	504A	Rage 128 PJ/Pro PCI (TMDS)
+	504B	Rage 128 PK/Pro AGP 2x (TMDS)
+	504C	Rage 128 PL/Pro AGP 4x (TMDS)
 	504D	Rage 128 Pro PM PCI
-	504E	Rage 128 Pro PN AGP
-	504F	Rage 128 Pro PO AGP
-	5050	Rage 128 Pro PP PCI TMDS
-	5051	Rage 128 Pro AGP 2x (TMDS)
-	5052	Rage 128 Pro AGP 4x (TMDS)
+	504E	Rage 128 PN/Pro AGP 2x
+	504F	Rage 128 PO/Pro AGP 4x
+	5050	Rage 128 PP/Pro PCI (TMDS)
+	5051	Rage 128 PQ/Pro AGP 2x (TMDS)
+	5052	Rage 128 PR/Pro AGP 4x (TMDS)
 	5053	Rage 128 Pro PS PCI
-	5054	Rage 128 Pro PT AGP
-	5055	Rage 128 Pro PU AGP
-	5056	Rage 128 Pro PV PCI TMDS
-	5057	Rage 128 Pro AGP 2x (TMDS)
-	5058	Rage 128 Pro AGP 4x (TMDS)
-	5144	Radeon DDR/SDR
+	5054	Rage 128 PT/Pro AGP 2x
+	5055	Rage 128 PU/Pro AGP 4x
+	5056	Rage 128 PV/Pro PCI (TMDS)
+	5057	Rage 128 PW/Pro AGP 2x (TMDS)
+	5058	Rage 128 PX/Pro AGP 4x (TMDS)
+	5144	Radeon QD DDR/SDR
+	5145	Radeon QE
+	5146	Radeon QF
+	5147	Radeon QG
 	514C	R200 Radeon 2 - AGP
 	5157	RV200 graphics device
-	5159	Radeon VE
+	5159	Radeon VE QY
+	515A	Radeon VE QZ
 	5245	Rage 128 GL PCI
 	5246	Rage 128 GL AGP 2x
-	524B	Rage 128 VR PCI
-	524C	Rage 128 VR AGP 2x
-	5345	Rage 128 SE PCI
-	5346	Rage 128 SF AGP 2x
-	5347	Rage 128 SG AGP 4x
+	5247	Rage 128 RG
+	524B	Rage 128 RK/VR PCI
+	524C	Rage 128 RL/VR AGP 2x
+	5345	Rage 128 SE/4x PCI
+	5346	Rage 128 SF/4x AGP 2x
+	5347	Rage 128 SG/4x AGP 4x
 	5348	Rage 128 SH
-	534B	Rage 128 SK PCI
-	534C	Rage 128 SL AGP 2x
-	534D	Rage 128 SM AGP 4x
+	534B	Rage 128 SK/4x PCI
+	534C	Rage 128 SL/4x AGP 2x
+	534D	Rage 128 SM/4x AGP 4x
 	534E	Rage 128 4x
 	5354	Mach 64 ST
 	5446	Rage 128 Pro AGP 4x
+	544C	Rage 128 Pro TL
+	5452	Rage 128 Pro TR
 	5654	215VT222 Mach 64 VT VIDEO XPRESSION
 	5655	Mach 64 VT3
 	5656	Mach64 VT4 PCI (PQFP Package)
@@ -253,8 +284,9 @@
 100D	AST Research
 100E	Weitek
 	9000	P9000 WeitekPower GUI Accelerator
-	9001	P9000 GUI Accelerator
-	9100	P9100 GUI Accelerator
+	9001	WeitekPower P9000 Viper
+	9002	WeitekPower P9000 Viper
+	9100	WeitekPower P9100 Viper
 1010	Video Logic Ltd.
 1011	Digital Equipment Corporation
 	0001	DecChip 21050 PCI to PCI Bridge
@@ -265,7 +297,7 @@
 	0009	DecChip 21140 Fast Ethernet Adapter
 	000A	DecChip 21230 Video Codec
 	000C	DC21130 PCI Integrated Graphics & Video Accel
-	000D	DecChip TGA2
+	000D	DecChip TGA2 PDXGB
 	000F	FDDI "DEFPA"
 	0014	DecChip 21041 "Tulip Plus" Ethernet Adapter
 	0016	ATM-Controller "DGLPB"
@@ -279,7 +311,7 @@
 	0034	Modem56 CardBus
 	0045	DC21553 PCI to PCI Bridge
 	0046	21554 PCI-to-PCI Bridge
-	1065	21285 SA-110 Microprocessor (RAID Controller)
+	1065	StrongARM DC21285 SA-110 Microprocessor (RAID Controller)
 1012	Micronics Computers Inc.
 1013	Cirrus Logic
 	0038	CL-GD7548 GUI-Accelerated XGA/SVGA LCD Controller
@@ -317,8 +349,9 @@
 	0007	Alta MP CPU Bridge
 	000A	Fire Coral PCI to ISA Bridge with PnP Port
 	0017	CPU Bridge CPU Bridge
-	0018	Auto LANStreamer
+	0018	TR Auto LANStreamer
 	001B	GXT-150P Graphics Adapter
+	001C	Carrera
 	001D	82G2675
 	0020	PCI to MCA Bridge
 	0022	82351/2 PCI to PCI Bridge
@@ -332,6 +365,7 @@
 	0046	MPIC Interrupt Controller
 	0047	PCI to PCI Bridge
 	0048	PCI to PCI Bridge
+	0049	Warhead SCSI Controller
 	004E	ATM Controller (14104E00)
 	004F	ATM Controller (14104F00)
 	0050	ATM Controller (14105000)
@@ -343,6 +377,7 @@
 	007D	3780IDSP MPEG-2 Decoder
 	0090	GXT-3000P
 	0095	20H2999 PCI Docking Bridge
+	0096	Chukar chipset SCSI Controller
 	00A1	PowerNP NPr2.7 ATM support device
 	00A5	ATM Controller (1410A500)
 	00A6	ATM 155MBPS MM Controller (1410A600)
@@ -358,6 +393,11 @@
 	0170	RC1000 Rasterizer/IBM GT1000 Geometr(FireGL2/3/4)
 	01A7	IBM 133 PCI-X Bridge R1.1
 	01BD	ServeRAID 4x Morpheus SCSI RAID Controller
+	01BE	ServeRAID 4M SCSI RAID Controller
+	01BF	ServeRAID 4L SCSI RAID Controller
+	0208	ServeRAID 4Mx SCSI RAID Controller
+	020E	ServeRAID 4Lx SCSI RAID Controller
+	022E	ServeRAID 4H SCSI RAID Controller
 	FFFF	MPIC 2 Interrupt Controller
 1015	LSI Logic Corp of Canada
 1016	Fujitsu ICL Personal Systems
@@ -380,37 +420,37 @@
 	4296	WD34C294 Wide Fast-20 SCSI Host Adapter
 	9710	Pipeline 9710
 	9712	Pipeline 9712
-	C24A	90C ??
+	C24A	90C (??)
 101E	American Megatrends Inc.
 	1960	80960RP i960RP Microprocessor
-	9010	MegaRAID Fast Wide SCSI RAID-Adapter
+	9010	MegaRAID 428 Ultra Fast Wide SCSI RAID Controller
 	9030	EIDE Controller
 	9031	EIDE Controller
 	9032	EIDE & SCSI Controller
 	9033	SCSI Controller
 	9040	Multimedia card
-	9060	MegaRAID RAID Controller
+	9060	MegaRaid 434 Ultra GT RAID Controller
 101F	PictureTel Corp.
 1020	Hitachi Computer Electronics
 1021	Oki Electric Industry
 1022	Advanced Micro Devices (AMD)
-	2000	Am79C970/1/3/5 PCnet PCI Ethernet Controller
+	2000	AM79C970/1/2/3/5 Ethernet Adapter [PCnet LANCE]
 	2001	AM79C978 PCnet Single Chip Home Networking Controller 1/10Mbps
 	2020	AM53C974 SCSI Bridge (AKA Qlogic Fast!SCSI Basic, Tekram DC-390)
 	2040	AM79C974 Ethernet & SCSI Bridge
-	7004	AMD-751 CPU to PCI Bridge (SMP chipset)
+	7004	AMD-751 (Irongate) CPU to PCI Bridge (SMP Chipset)
 	7006	AMD-751 Processor-to-PCI Bridge / Memory Ctrlr
 	7007	AMD-751 AGP and PCI-to-PCI Bridge (1x/2x AGP)
 	700C	AMD-762 CPU to PCI Bridge (SMP chipset)
 	700D	AMD-762 CPU to PCI Bridge (AGP 4x)
 	700E	AMD-761 CPU to PCI Bridge
 	700F	AMD-761 CPU to AGP Bridge  (AGP 4x)
-	7400	AMD-755 PCI to ISA Bridge
-	7401	AMD-755 (Cobra) Bus Master IDE Controller
+	7400	AMD-755 (Cobra) PCI to ISA Bridge
+	7401	AMD-755 Bus Master IDE Controller
 	7403	AMD-755 Power Management Controller
 	7404	AMD-755 PCI to USB Open Host Controller
-	7408	AMD-756 PCI to ISA Bridge
-	7409	AMD-756 (Viper) Bus Master IDE Controller
+	7408	AMD-756 (Viper) PCI to ISA Bridge
+	7409	AMD-756 EIDE Controller
 	740B	AMD-756 Power Management Controller
 	740C	AMD-756 USB Open Host Controller
 	7410	AMD-766 PCI to ISA/LPC Bridge
@@ -418,6 +458,11 @@
 	7412	AMD-766 USB Controller
 	7413	AMD-766 Power Management Controller
 	7414	AMD-766 OpenHCD USB Host Controller
+	7440	AMD-768 ISA
+	7441	AMD-768 IDE
+	7443	AMD-768 ACPI
+	7448	AMD-768 PCI
+	7449	AMD-768 USB
 1023	Trident Microsystems
 	0194	82C194 CardBus Controller
 	2000	4DWAVE-DX advanced PCI DirectSound accelerator
@@ -427,8 +472,9 @@
 	8500	CyberBlade i1 AGP 51
 	8520	CyberBlade i1 AGP
 	8620	CyberBlade-A i1 AGP
+	8820	CyberBlade XPAi1
 	9320	TGUI9320 32-bit GUI Accelerator
-	9350	32-bit GUI Accelerator
+	9350	TGUI9350 GUI Accelerator
 	9360	Flat panel GUI Accelerator
 	9382	Cyber9382 Reference Design
 	9383	Cyber9383 Reference Design
@@ -459,6 +505,7 @@
 	9850	3D Image 9850 AGP
 	9880	Blade 3D PCI/AGP
 	9910	CyberBlade XP
+	9930	CyberBlade/XPm
 1024	Zenith Data Systems
 	1024	R6785-61 HCF 56k PCI Modem
 1025	Acer Incorporated
@@ -519,6 +566,7 @@
 	0005	PowerEdge 3/Di Expandable RAID Controller
 	0006	PowerEdge 3/Di Expandable RAID Controller
 	0008	PowerEdge 3/Di Expandable RAID Controller
+	000A	PowerEdge Expandable RAID Controller 3/Di
 1029	Siemens Nixdorf AG
 102A	LSI Logic, Headland Division
 	0000	HYDRA Pentium PCI Chipset (MPI)
@@ -534,14 +582,14 @@
 	051F	MGA2164WA-B Matrox Millenium II AGP
 	0520	MGA-G200B Millennium/Mystique G200 AGP
 	0521	MGA-G200 Millennium/Mystique G200 AGP
-	0525	MGA-G400 Chipset
+	0525	MGA-G400/450 Chipset
 	0D10	MGA-I Ultima/Impression GUI accelerator
 	1000	MGA-G100 Productiva G100 Multi-Monitor
 	1001	MGA-G100 Chipset AGP
 	1525	Fusion G450 AGP
 	1527	Fusion Plus G800 AGP
 	2007	Mistral GUI+3D Accelerator
-	2527	MGA-G800 Chipset
+	2527	MGA-G550 Chipset AGP
 	4536	Meteor 2/MC Video Capture Card
 	6573	Shark 10/100 Multiport Switch NIC
 102C	Chips And Technologies
@@ -600,7 +648,6 @@
 	00CE	uPD72871/2 IEEE1394 1-Chip OHCI Host Controller
 	00E0	PCI to USB Enhanced Host Controller
 1034	Burndy/Framatome Connectors USA Ltd
-	1008	Donner GFX
 1035	Computer&Communication Research Lab
 1036	Future Domain Corp
 	0000	TMC-18XX/TMC-3260 SCSI-2 Controller (36c70)
@@ -669,8 +716,9 @@
 103A	Seiko Epson Corporation
 103B	Tatung Corp. Of America
 103C	Hewlett-Packard Company
+	1005	A4977A Visualize EG
 	1008	Donner GFX
-	1028	Tachyon Fibre Channel Adapter
+	1028	Tachyon TL Fibre Channel Adapter
 	1029	HPFC-5200B Tachyon XL2 Fibre Channel Adapter
 	1030	J2585A DeskDirect 10/100VG LAN Adapter
 	1031	DeskDirect 10/100 NIC
@@ -752,7 +800,7 @@
 	3000	QuickStep 3000
 	8901	ELSA GLoria XL
 1049	Fountain Technology
-104A	SGS Thomson Microelectric
+104A	SGS Thomson Microelectronics
 	0008	STG 2000X
 	0009	STG 1764X
 	0010	STG4000 PowerVR series 3 graphics processor
@@ -812,8 +860,8 @@
 	FE00	FireWire Host Controller
 	FE03	12C01A FireWire Host Controller
 104D	Sony Corporation
-	8009	CXD1947A IEEE1394 link layer / PCI bridge
-	8039	CXD3222 OHCI i.LINK (IEEE 1394) PCI Host Controller
+	8009	CXD1947 i.LINK FireWire PCI Host Controller
+	8039	CXD3222 OHCI i.LINK (IEEE 1394) PCI Host Ctrlr
 	8056	Rockwell HCF 56K Modem
 	808A	Memory Stick Controller
 104E	Oak Technology Inc
@@ -871,10 +919,12 @@
 1059	Teknor Microsystems
 105A	Promise Technology
 	0D30	PDC20265 FastTrak100 Lite/Ultra100 EIDE Controller
-	4D30	PDC20267 Ultra100 EIDE Controller
+	0D38	PDC20263 FastTrak66 EIDE Controller
+	4D30	PDC20267 FastTrack100/Ultra100 EIDE Controller
 	4D33	PDC20246 FastTrak/Ultra33 EIDE Controller
 	4D38	PDC20262 FastTrak66/Ultra66 EIDE Controller
-	4D68	PDC20268 Ultra100 EIDE Controller
+	4D68	PDC20268 Ultra100 TX2 EIDE Controller
+	4D69	PDC20269 EIDE Controller
 	5300	DC5300 EIDE Controller
 	6268	PDC20268R FastTrak100 TX2/TX4 EIDE controller
 105B	Foxconn International
@@ -940,17 +990,26 @@
 	BA56	eXtremeRAID Disk Array
 106A	Aten Research Inc.
 106B	Apple Computer Inc.
-	0001	Bandit Host-PCI bridge
+	0001	Bandit PowerPC Host Bridge
 	0002	Grand Central I/O Controller
 	0003	Control Video
 	0004	PlanB Video-in
 	0007	O'Hare I/O
-	000E	Hydra
+	000E	Hydra Mac I/O
 	0010	Heathrow Mac I/O
 	0017	Paddington Mac I/O
+	0018	UniNorth FireWire
+	0019	KeyLargo USB
+	001E	UniNorth PCI
 	001F	UniNorth Host-PCI bridge
 	0020	UniNorth AGP interface
+	0021	UniNorth GMAC
+	0022	Keylargo Mac I/O Controller
+	0024	GMAC Ethernet Controller
+	0025	Pangea I/O Controller
 	0027	Pangea AGP interface
+	0028	Pangea CPU to PCI Bridge
+	0029	Pangea CPU to PCI Bridge
 106C	Hyundai Electronics America
 	8801	Dual Pentium ISA/PCI Motherboard
 	8802	PowerPC ISA/PCI Motherboard
@@ -977,6 +1036,7 @@
 	0010	YMF744B DS-1S PCI audio controller
 	0012	YMF754B DS-1E PCI Audio Controller
 	0020	DS-1 Audio
+	2000	DS2416 Digital Mixing Card
 1074	Nexgen Microsysteme
 	4E78	82C500/1 Nx586 Chipset
 1075	Advanced Integration Research
@@ -989,10 +1049,11 @@
 	1216	ISP12160 Dual Channel Ultra3 SCSI Processor
 	1240	ISP1240 SCSI Host Adapter
 	1280	ISP1280 SCSI Host Adapter
-	2020	ISP2020 Fast!SCSI Basic Adapter
+	2020	ISP2020A Fast!SCSI Basic Adapter
 	2100	QLA2100 64-bit Fibre Channel Adapter
 	2200	ISP2200
-	2300	ISP 2300 PCI FC-AL Adapter
+	2300	QLA2300 64-bit FC-AL Adapter
+	2312	QLA2312 Fibre Channel Adapter
 1078	Cyrix Corporation
 	0000	Cx5520 ISA Bridge Rev.0
 	0001	MediaGXm MMX Cyrix Integrated CPU
@@ -1002,6 +1063,10 @@
 	0102	5530 Kahula/Geode IDE Controller
 	0103	5530 Kahula/Geode Audio
 	0104	Cx5530 Video Controller
+	0400	ZFMicro CPU to PCI Bridge
+	0401	ZFMicro Power Management Controller
+	0402	ZFMicro IDE Controller
+	0403	ZFMicro Expansion Bus
 1079	I-Bus
 107A	Networth
 107B	Gateway 2000
@@ -1009,11 +1074,22 @@
 107D	Leadtek Research
 	0000	S3-805/P86C850 GUI Accelerator
 107E	Interphase Corporation
-	0001	ATM interface card
+	0001	5515 ATM Interface card
 	0002	100 VG amylan Controller
-	0004	5526
-	0005	55x6
-	0008	5575 155 MBit ATM controller
+	0004	5526 Fibre Channel Host Adapter
+	0005	x526 Fibre Channel Host Adapter
+	0008	5525/5575 155 Mbit ATM Controller
+	9003	5535-4P-BRI-ST
+	9007	5535-4P-BRI-U
+	9008	5535-1P-SR
+	900C	5535-1P-SR-ST
+	900E	5535-1P-SR-U
+	9011	5535-1P-PRI
+	9013	5535-2P-PRI
+	9023	5536-4P-BRI-ST
+	9027	5536-4P-BRI-U
+	9031	5536-1P-PRI
+	9033	5536-2P-PRI
 107F	Data Technology Corporation
 	0802	SL82c105 PCI EIDE Controller
 	0803	EIDE Bus Master Controller
@@ -1024,7 +1100,7 @@
 	0600	82C596/9 CPU to PCI & PCI to ISA Bridge
 	C691	Cypress CY82C691
 	C693	82C693 PCI to ISA Bridge
-1081	Radius Inc/Supermac Technology Inc
+1081	Supermac Technology Inc.
 	0D47	Radius PCI to NuBUS Bridge
 1082	EFA Corporation Of America
 1083	Forex Computer Corporation
@@ -1055,16 +1131,22 @@
 	0013	OC-2183/2185 PCI/II Ethernet Controller
 	0014	OC-2326 Ethernet PCI/II 10/100 Controller
 	0019	OC-2327/50 10/100 Ethernet Controller
-	0021	OC-6151/6152 ATM Adapter
+	0021	OC-6151/6152 155 ATM Adapter
 	0022	ATM Adapter
 108E	Sun Microsystems
 	0001	SPARC EBUS
-	1000	PCIO PCI Input/Output Controller
+	1000	SPARC EBUS PCIO PCI I/O Controller
 	1001	PCIO Happy Meal Ethernet
+	1100	RIO EBUS
+	1101	RIO GEM
+	1102	RIO 1394
+	1103	RIO USB
+	2BAD	GEM
 	5000	SME2411 UltraSPARC-IIi Advanced PCI Bridge
 	5043	SunPCI Co-processor
 	8000	STP2223BGA UPA to PCI Bus Interface Module (U2P)
 	A000	UltraSPARC III PCI
+	A001	UltraSPARC IIe
 108F	Systemsoft Corporation
 1090	Encore Computer Corporation
 1091	Intergraph Corporation
@@ -1082,6 +1164,7 @@
 	0172	FireGL 2
 	0173	FireGL 3
 	0174	FireGL 4
+	0550	Viper V550
 	08D4	Supra 2260 Modem
 	09C8	SUP2760 SupraExpress 56i Pro VCC
 	1092	Viper V330
@@ -1218,12 +1301,12 @@
 	0103	sl82c103 PCI-ide mode 4.5 Cntrlr
 	0105	sl82c105 - bus master PCI-ide mode 4.5 Cntrlr
 	0150	EIDE Controller
-	0565	W83C553 PCI EIDE Controller?
+	0565	W83C553 PCI EIDE Controller (??)
 10AE	Cornerstone Technology
 	0002	Graphics Controller
 10AF	Micro Computer Systems Inc.
 	0001	IDE Controller
-10B0	Gainward (Cardexpert Technology?)
+10B0	Gainward (CardExpert Technology??)
 10B1	Cabletron Systems Inc.
 10B2	Raytheon Company
 10B3	Databook Inc.
@@ -1264,7 +1347,8 @@
 	9080	PCI 9080 High performance PCI to Local Bus chip
 	9610	PCI9610 64 bit 66MHz PCI Master I/O Accelerator
 	9656	PCI9656 64 bit 66MHz PCI I/O Accelerator
-	C001	Cronyx Omega-PCI 8-port asynchronous adapter
+	A001	GTEK Jetport II 2 port serial adapter
+	C001	GTEK/Cronyx Omega-PCI 8/16/32 port serial adapter
 	C860	cPCI 9054RDK-860 CompactPCI Reference Design Kit for PCI 9054
 10B6	Madge Networks
 	0001	Smart 16/4 Ringnode (PCI1b)
@@ -1440,7 +1524,7 @@
 	2500	ASC38C0800/1600 PCI Ultra 80/160 SCSI Controllers
 	4000	ASC30c0400 FireWire OHCI Single-Chip Controller
 10CE	Radius Inc.
-10CF	Fujitsu Ltd.
+10CF	Fujitsu Ltd (Citicorp TTI??)
 	2001	MB86605 PCI SCSI Host Adapter (Fast Wide SCSI II)
 	2002	MB86606 Fast Wide SCSI Controller
 	2005	MB86974 10/100 Fast Ethernet Adapter
@@ -1507,7 +1591,17 @@
 	0151	GeForce2 GTS DDR [NV15DDR]
 	0152	GeForce2 Ultra (BladeRunner) [NV15BR]
 	0153	NV15 GL GeForce2 GTS GL (Quadro2 Pro)
-	01A0	Crush11 Integrated graphics
+	0170	NV17
+	0171	NV17
+	0172	NV17
+	0173	NV17
+	0174	NV17M
+	0175	NV17M
+	0178	NV17GL
+	017A	NV17GL
+	017B	NV17GL
+	017C	NV17M-GL
+	01A0	GeForce2 [Crush11] Integrated Graphics
 	01A4	nForce AGP Controller
 	01A5	nForce AGP Controller
 	01A6	nForce AGP Controller
@@ -1520,11 +1614,15 @@
 	01B0	nForce MCP Audio Processing Unit (Dolby Digital)
 	01B1	Audio Codec Interface
 	01B4	nForce SMBus Controller
+	01B7	nForce AGP Host to PCI Bridge
 	01C3	nForce MCP Networking Adapter
 	0200	GeForce3 [NV20]
-	0202	NV20BR GeForce3 Ti 500
-	0203	NV20GL Quadro DCC
-	02A0	NV2A GeForce 3 Integrated (Xbox)
+	0201	GeForce3 Ti 200 [NV20DDR]
+	0202	GeForce3 Ti 500 [NV20BR]
+	0203	Quadro DCC [NV20GL]
+	0250	NV25
+	0258	NV25GL
+	02A0	XBOX GeForce3 Integrated GPU [NV2A]
 10DF	Emulex Corporation
 	10DF	Light Pulse Fibre Channel Adapter
 	1AE5	LP6000 Fibre Channel Host Adapter
@@ -1543,7 +1641,7 @@
 	DC20	DC-290 EIDE Controller
 	DC29	DC-290
 10E2	Aptix Corporation
-10E3	Tundra Semiconductor (Newbridge Microsystems??)
+10E3	Tundra Semiconductor Corp.
 	0000	CA91C042/142 Universe/II VMEbus Bridge
 	0513	Tsi320 Dual-Mode PCI-to-PCI Bus Bridge
 	0850	Tsi850 Power PC Dual PCI Host Bridge
@@ -1584,7 +1682,7 @@
 	2010	CyberPro 20xx/2000A
 	5000	CyberPro 5000
 	5050	CyberPro 5050
-10EB	H+K Mebsysteme GmbH (Artists Graphics?)
+10EB	H+K Mebsysteme GmbH (Artists Graphics??)
 	0101	3GA 64 bit graphics processor
 	8111	Twist3 Frame Grabber
 10EC	Realtek Semiconductor
@@ -1728,20 +1826,22 @@
 	3116	CPU-to-PCI Bridge
 	3128	P4X266 CPU to PCI Bridge
 	3133	VT3133 CPU to PCI Bridge
+	3147	VT8233 PCI to ISA Bridge
 	3148	P4M266 CPU to PCI Bridge
-	3156	CPU-to-PCI Bridge
+	3156	P/KN266 CPU to PCI Bridge
 	3158	CPU-to-PCI Bridge
+	3177	VT8233A PCI to ISA Bridge
 	5030	VT82C596 Apollo Pro ACPI Power Management Ctrlr
 	6010	VT86C100A Rhine II Fast Etheenet Adapter (Error??)
 	6100	VT86C100A Rhine II PCI Fast Ethernet Controller
 	8231	VT8231 PCI to ISA Bridge
-	8235	Power Management Controller
-	8305	VT8363 KT133 PCI to AGP Bridge
+	8235	VT8235 Power Management Controller
+	8305	VT8363/8365 KT133/KM133 PCI to AGP Bridge
 	8391	VT8371 KX133 PCI to AGP Bridge
 	8501	VT8501 MVP4 PCI to AGP Bridge
-	8596	VT82C596 PCI to AGP Bridge
+	8596	VT82C596 Apollo Pro PCI to AGP Bridge
 	8597	VT82C597 PCI-to-PCI Bridge (AGP)
-	8598	VT82C598MVP PCI-to-PCI Bridge (AGP)
+	8598	VT82C598MVP/694x MVP3/Pro133x PCI to AGP Bridge
 	8601	VT82C601 PM601 CPU to AGP Bridge
 	8602	CPU to AGP Bridge
 	8605	VT8605 PM133 CPU to AGP Bridge
@@ -1802,7 +1902,7 @@
 	6037	Firepower Powerized SMP I/O ASIC
 	6073	Firepower Powerized SMP I/O ASIC
 1111	Santa Cruz Operation
-1112	Osicom Technologies Inc.
+1112	Rockwell International (RNS ??)
 	2200	FDDI adapter
 	2300	fast ethernet adapter
 	2340	4 Port FEN Adapter 4 10/100 UTP Fast Ethernet Adapter
@@ -1864,10 +1964,34 @@
 	0123	GDT6557RP2
 	0124	GDT6111RP2/6511RP2
 	0125	GDT6127RP2/6527RP2
+	0136	GDT 6113RS/6513RS
+	0137	GDT 6123RS/6523RS
+	0138	GDT 6118RS/6518RS/6618RS
+	0139	GDT 6128RS/6528RS/6628RS
+	013A	GDT 6538RS/6638RS
+	013B	GDT 6558RS/6658RS
+	013C	GDT 6533RS/6633RS
+	013D	GDT 6543RS/6643RS
+	013E	GDT 6553RS/6653RS
+	013F	GDT 6563RS/6663RS
+	0166	GDT 7113RN/7513RN/7613RN
+	0167	GDT 7123RN/7523RN/7623RN
 	0168	GDT7x18RN 64-bit PCI Wide Untra2 SCSI HBA
 	0169	GDT7x28RN 64-bit PCI Wide Ultra2 SCSI HBA
 	016A	GDT7538RN/7638RN 64-bit PCI Wide Ultra2 SCSI HBA
 	016B	GDT7558RN/7658RN 64-bit PCI Wide Ultra2 SCSI HBA
+	016C	GDT 7533RN/7633RN
+	016D	GDT 7543RN/7643RN
+	016E	GDT 7553RN/7653RN
+	016F	GDT 7563RN/7663RN
+	01D6	GDT 4x13RZ
+	01D7	GDT 4x23RZ
+	01F6	GDT 8x13RZ
+	01F7	GDT 8x23RZ
+	01FC	GDT 8x33RZ
+	01FD	GDT 8x43RZ
+	01FE	GDT 8x53RZ
+	01FF	GDT 8x63RZ
 	0210	GDT6519RD/6619RD Fibre Channel HBA
 	0211	GDT6529RD/6629RD Fibre Channel HBA
 	0260	GDT7519RN/7619RN 64-bit PCI Fibre Channel HBA
@@ -1877,13 +2001,14 @@
 	0000	155P-MF1 (FPGA)
 	0002	155P-MF1 (ASCI)
 	0003	ENI-25P ATM Adapter
-	0005	ENI-25P ATM Adapter
+	0005	SpeedStream ENI-30x0 ATM Adapter
 	0007	SpeedStream ADSL
 111B	Teledyne Electronic Systems
 111C	Tricord Systems Inc.
 	0001	Powerbus Bridge
 111D	Integrated Device Technology Inc.
 	0001	IDT77201/211 NICStAR ATM Adapter
+	0003	IDT77252 ATM Adapter
 111E	Eldec Corp.
 111F	Precision Digital Images
 	4A47	Precision MX Video engine interface
@@ -1910,7 +2035,7 @@
 112E	Infomedia Microelectronics
 	0000	EIDE/hdd and IDE/cd-rom Ctrlr
 	000B	EIDE/hdd and IDE/cd-rom Ctrlr
-112F	IMAGING TECHNLOGY Inc
+112F	Imaging Technlogy Inc
 	0000	MVC IC-PCI
 	0001	Video Frame Grabber / Processor
 	0007	? PCVisionPlus Image Capture Device
@@ -1955,7 +2080,7 @@
 	0001	VGA Compatable 3D Graphics
 113A	FWB  Inc
 113B	Network Computing Devices
-113C	Cyclone Microsystems
+113C	Cyclone Microsystems Inc
 	0000	PCI9060 i960 Bridge
 	0001	PCI9060 i960 Bridge / Evaluation Platform
 	0911	PCI911 i960Jx I/O Controller
@@ -1988,13 +2113,13 @@
 1143	Netpower Inc
 1144	Vickers Inc/Cincinnati Milacron
 	0001	Noservo Controller
-1145	Sony (Workbit Corp??)
+1145	Workbit Corp
 	F020	CardBus ATAPI Host Adapter
 1146	Force Computers
 1147	Interface Corp
 1148	Syskonnect (Schneider & Koch)
 	4000	SK-NET FDDI adapter
-	4200	Token Ring
+	4200	Token Ring Adapter
 	4300	SK-984x SK-NET Gigabit Ethernet Adapter
 1149	Win System Corporation
 114A	VMIC
@@ -2073,11 +2198,11 @@
 1162	OA Laboratory Co Ltd
 1163	Rendition Inc
 	0001	Verite 1000 3D Blaster
-	2000	Verite 2000
+	2000	Verite 2000/2100/2200
 1164	Advanced Peripherals Tech
 1165	Imagraph Corporation
 	0001	Motion JPEG Recorder/Player with Audio
-1166	Reliance Computer Corp (ServerWorks??)
+1166	Reliance Computer Corp./ServerWorks
 	0005	NB6536 (CNB20HE) PCI to PCI Bridge, bus/dev/func 0/0/1
 	0006	NB6536 (CNB20HE) Host Bridge, function 2 and function 3
 	0007	NB6635 (CNB20-LE) CPU to PCI Bridge
@@ -2154,13 +2279,15 @@
 1181	Telmatics International
 1183	Fujikura Ltd
 1184	Forks Inc
-1185	Dataworld
+1185	Dataworld International Ltd
 	8929	EIDE Controller
 1186	D-Link System Inc
 	0100	DC21041 Ethernet Adapter
 	1002	DFE-550TX Fast Ethernet Adapter
 	1100	Fast Ethernet Adapter
 	1300	DFE-530TX+ Fast Ethernet Adapter (DL 10038C Chipset)
+	1340	DFE-690TXD CardBus PC Card
+	4000	DL2K Ethernet
 1187	Advanced Technology Laboratories
 1188	Shima Seiki Manufacturing Ltd.
 1189	Matsushita Electronics Co
@@ -2169,7 +2296,7 @@
 118B	Hypertec Pty Ltd
 118C	Corollary Inc
 	0014	PCIB C-bus II to PCI bus host bridge chip
-	1117	MAC-94C201B3 Corollary/Intel Memory Controller Chip
+	1117	MAC-94C201B3 Profusion Memory Controller Chip [Xeon 8-way SMP]
 118D	BitFlow Inc
 	0001	n/a Raptor-PCI framegrabber
 	0012	Model 12 Road Runner Frame Grabber
@@ -2321,7 +2448,8 @@
 	0459	LT Winmodem
 	045A	LT Winmodem
 	045C	LT Winmodem
-	0462	56K/ADSL Wild Wire Modem
+	0461	V90 Wildfire Modem
+	0462	56k.V90/ADSL Wildfire Modem
 	0464	Riptide Audio PCI Legacy Resources
 	0480	Venus WinModem (V90, 56KFlex)
 	5400	OR3TP12 FPSC FPGA with 32/64bit, 33/66MHz core
@@ -2359,6 +2487,8 @@
 11D3	Trancell Systems Inc
 11D4	Analog Devices
 	1805	Motorola SM56 PCI Speakerphone Modem
+	1807	56k Winmodem Chip
+	1889	AD1889 Sound Chip
 	2192	ADSP-2192 DSP Microcomputer (Function 0)
 	219A	ADSP-2192 DSP Microcomputer (Function 1)
 	219E	ADSP-2192 DSP Microcomputer (Function 2)
@@ -2408,8 +2538,9 @@
 11F4	Kinetic Systems Corporation
 	2915	2915
 11F5	Computing Devices International
-11F6	Compex / Powermatic Data Systems Ltd
+11F6	Powermatic Data Systems Ltd
 	0112	ReadyLink ENET100-VG4
+	0113	FreedomLine 100
 	1401	ReadyLink RL2000 Ethernet Adapter (Winbond W89C940)
 	2011	RL100-ATX 10/100 Fast Ethernet Adapter
 	2201	ReadyLink 100TX (Winbond W89C840)
@@ -2458,6 +2589,10 @@
 	0105	Cyclom-8Y Multiport Serial Card
 	0200	Cyclom-Z below 1Mb Intelligent Serial Card
 	0201	Cyclom-Z above 1Mb Intelligent Serial Card
+	0300	PC300 RX 2
+	0301	PC300 RX 1
+	0310	PC300 TE 2
+	0311	PC300 TE 1
 120F	Essential Communications
 	0001	Roadrunner
 1210	Hyperparallel Technologies
@@ -2482,6 +2617,7 @@
 	0001	Voodoo Voodoo 3D Acceleration Chip
 	0002	Voodoo2 Voodoo 2 3D Accelerator
 	0003	Voodoo Banshee Voodoo Banshee
+	0004	VooDoo Banshee [Velocity 100]
 	0005	Voodoo3 All Voodoo3 chips, 3000
 	0007	Voodoo4
 	0009	Voodoo4/5
@@ -2552,9 +2688,12 @@
 	4643	FCI-1063 Fibre Channel Adapter
 1243	Delphax
 1244	AVM AUDIOVISUELLES MKTG & Computer GmbH
-	0700	AVM B1 ISDN Controller
-	0A00	FRITZ!Card ISDN Controller
-	1200	AVM T1 ISDN Controller
+	0700	B1 ISDN controller
+	0800	V4 ISDN Controller
+	0A00	FRITZ!Card A1 ISDN Controller
+	0E00	Fritz!PCI v2.0 ISDN Controller
+	1100	C2 ISDN Controller
+	1200	T1 ISDN Controller
 1245	A.P.D., S.A.
 1246	Dipix Technologies Inc
 1247	Xylon Research Inc.
@@ -2653,6 +2792,7 @@
 1276	Switched Network Technologies Inc.
 1277	Comstream
 1278	Transtech Parallel Systems Ltd
+	0701	TPE3/TM3 PowerPC Node
 1279	Transmeta Corp.
 	0295	Virtual Northbridge
 	0395	LongRun Northbridge
@@ -2663,17 +2803,23 @@
 	1003	HCF 56k V.90 Modem
 	1004	HCF 56k V.90 Modem
 	1005	r6793-21 HCF 56k V.90 Speakerphone Modem
-	1023	V.90 Modem
+	1022	HCF V.90 Modem
+	1023	HCF V.90 Data/Fax Modem
 	1024	R6785-61 HCF 56k PCI Modem
 	1025	1456VQH-R1 HCF 56k PCI Modem
 	1026	R6785-61 HCF 56k V.90 Speakerphone Modem
+	1032	HCF 56k PCI Modem
+	1033	HCF 56k PCI Modem
+	1034	HCF 56k PCI Modem
 	1035	RH56D/SP-PCI HCF 56k PCI Speakerphone Modem
+	1036	HCF 56k PCI Modem
 	1085	r6793-11 Volcano SoftK56 Data,Fax,Speak PCI Modem
 	2004	SoftK56VB2.1V2.08.02 K56 modem
 	2005	RS56/SP-PCI11P1 Conexant SoftK56 Speakerphone Modem
 	2013	Conexant SoftK56 Modem
 	2014	RS56 SP-PCi Conexant SoftK56 Modem
 	2015	r6793-11 Conexant SoftK56 Speakerphone Modem
+	2016	HSF 56k Data/Fax/Voice/Speakerphone Modem
 	2114	R6793-12 Cnxnt Soft 56K Data, Fax, PCI modem
 	4310	Master Riptide PCI Audio Device
 	4311	V1456VQH-R6 Conexant PCI Modem Enumerator
@@ -2709,7 +2855,7 @@
 1285	Platform Technologies Inc.
 	0100	ES1849 Maestro-1 AudioDrive
 1286	Mazet GmbH
-1287	LuxSonor Inc (M-Pact Inc??)
+1287	LuxSonor Inc.
 	001E	LS220D DVD Decoder
 	001F	LS220C DVD Decoder
 	0020	LS242 MPEG/DVD video decoder
@@ -2790,6 +2936,8 @@
 12C1	GMM Research Corp.
 12C2	Mentec Ltd.
 12C3	Holtek Microelectronics Inc.
+	0058	NE2K Ethernet
+	5598	NE2K Ethernet
 12C4	Connect Tech Inc.
 	0001	Blue Heat PCI/8 RS-232
 	0002	Blue Heat PCI/4 RS-232
@@ -2866,8 +3014,8 @@
 12E9	GE Spacenet
 12EA	Zuken
 12EB	Aureal Semiconductor
-	0001	AU8820 Vortex Digital Audio Processor
-	0002	AU8830 Vortex 3D Digital Audio Processor
+	0001	AU8820 Vortex 1 Digital Audio Processor
+	0002	AU8830 Vortex 2 3D Digital Audio Processor
 	0003	AU8810 Vortex Digital Audio Processor
 	8803	Vortex 56k Software Modem
 12EC	3A International Inc.
@@ -2958,8 +3106,8 @@
 1318	Packet Engines, Inc.
 	0911	G-NIC II 1000BT Network Interface Card
 1319	Forte Media, Inc.
-	0801	FM801 PCI audio controller
-	0802	FM801 PCI Joystick
+	0801	Xwave FM801 PCI Audio Device
+	0802	Xwave FM801 PCI Joystick
 	1000	FM801 PCI Audio Device
 	1001	FM801 PCI Joystick
 131A	Finisar Corp
@@ -3119,6 +3267,9 @@
 1384	Reality Simulation Systems Inc
 1385	Netgear
 	620A	GA620
+	622A	GA622
+	630A	GA630
+	F311	FA311
 1386	Video Domain Technologies
 1387	Systran Corp
 1388	Hitachi Information Technology Co Ltd
@@ -3134,7 +3285,11 @@
 1391	Development Concepts Inc
 1392	Medialight Inc
 1393	Moxa Technologies Co Ltd
-	1680	C168H
+	1040	Smartio C104H/PCI
+	1680	Smartio C168H/PCI
+	2040	Intellio CP-204J
+	2180	Intellio C218 Turbo PCI
+	3200	Intellio C320 Turbo PCI
 1394	Level One Communications
 1395	Ambicom Inc
 1396	Cipher Systems Inc
@@ -3160,7 +3315,11 @@
 13A0	Crystal Group Inc
 13A1	Kawasaki Heavy Industries Ltd
 13A2	Ositech Communications Inc
-13A3	HI-FN
+13A3	HI-FN Inc
+	0005	7751 Security Processor
+	0006	6500 Public Key Processor
+	0007	7811 Security Processor
+	0012	7951 Security Processor
 13A4	Rascom Inc
 13A5	Audio Digital Imaging Inc
 13A6	Videonics Inc
@@ -3275,6 +3434,14 @@
 1405	Excalibur Systems Inc
 1406	Oce' Printing Systems GmbH
 1407	Lava Computer Manufacturing Inc
+	0100	Lava Dual Serial
+	0101	Lava Quatro A
+	0102	Lava Quatro B
+	0200	Lava Port Plus
+	0201	Lava Quad A
+	0202	Lava Quad B
+	0500	Lava Single Serial
+	0600	Lava Port 650
 	0A00	LavaPort PCI COM Port Accelerator
 	8000	Lava Parallel
 	8001	Lava Dual Parallel port A
@@ -3528,6 +3695,9 @@
 	A003	VScom PCI-400H 4 x RS-232 Controller
 	A004	VScom PCI-400HF1 4 x RS-232 Controller
 	A005	VScom PCI-200H 2 x RS-232 Controller
+	E001	VScom PCI-010HV2 1 x Printer Controler
+	E010	VScom PCI-100HV2 1 x RS-232 Controller
+	E020	VScom PCI-200HV2 2 x RS-232 Controller
 14D3	Cirtech (UK) Ltd
 14D4	Panacom Technology Corporation
 	0400	Panacom 7 Interface chip
@@ -3586,8 +3756,11 @@
 14E3	Amtelco
 14E4	Broadcom Corporation
 	1644	BCM5700/1 Gigabit Ethernet Controller
+	1645	NetXtreme BCM5701 Gigabit Ethernet
+	1647	NetXtreme BCM5703 Gigabit Ethernet
 	4211	BCM HPNA 10Mb/s NIC
 	4212	BCM V.90 56k Modem
+	5820	BCM 5820 Crypto Accelerator
 14E5	Pixelfusion Ltd
 14E6	Shining Technology Inc
 14E7	3CX
@@ -3602,11 +3775,43 @@
 14EF	Carry Computer Engineering Co Ltd
 14F0	Canon Reseach Centre France
 14F1	Conexant Systems, Inc.
-	1033	56K Winmodem
+	1002	HCF 56k Modem
+	1003	HCF 56k Modem
+	1004	HCF 56k Modem
+	1005	HCF 56k Modem
+	1006	HCF 56k Modem
+	1022	HCF 56k Modem
+	1023	HCF 56k Modem
+	1024	HCF 56k Modem
+	1025	HCF 56k Modem
+	1026	HCF 56k Modem
+	1032	HCF 56k Modem
+	1033	HCF 56K Winmodem
+	1034	HCF 56k DFVS Modem
 	1035	PCI Modem Enumerator
 	1036	PCI Modem Enumerator
-	1053	K56FLEX
+	1052	HCF 56k Data/Fax Modem (Worldwide)
+	1053	HCF 56k Data/Fax Modem (Worldwide)
+	1054	HCF 56k Data/Fax/Voice Modem (Worldwide)
+	1055	HCF 56k Data/Fax/Voice/Spkp (w/Handset) Modem (Worldwide)
+	1056	HCF 56k Data/Fax/Voice/Spkp Modem (Worldwide)
+	1057	HCF 56k Data/Fax/Voice/Spkp Modem (Worldwide)
+	1059	HCF 56k Data/Fax/Voice Modem (Worldwide)
+	1063	HCF 56k Data/Fax Modem
+	1064	HCF 56k Data/Fax/Voice Modem
+	1065	HCF 56k Data/Fax/Voice/Spkp (w/Handset) Modem
+	1066	HCF 56k Data/Fax/Voice/Spkp Modem
 	1085	CX11250 SmartHSF Mobile Modem host side device
+	1433	HCF 56k Data/Fax Modem
+	1434	HCF 56k Data/Fax/Voice Modem
+	1435	HCF 56k Data/Fax/Voice/Spkp (w/Handset) Modem
+	1436	HCF 56k Data/Fax Modem
+	1453	HCF 56k Data/Fax Modem
+	1454	HCF 56k Data/Fax/Voice Modem
+	1455	HCF 56k Data/Fax/Voice/Spkp (w/Handset) Modem
+	1456	HCF 56k Data/Fax/Voice/Spkp Modem
+	1803	HCF 56k Modem
+	1815	HCF 56k Modem
 	2003	SoftK56 Winmodem
 	2004	SoftK56 RemoteTAM Winmodem
 	2005	SoftK56 Speakerphone Winmodem
@@ -3615,7 +3820,40 @@
 	2014	SoftK56 RemoteTAM Winmodem
 	2015	SoftK56 Speakerphone Winmodem
 	2016	SoftK56 Speakerphone Winmodem
-	2045	SoftK56 Modem Controller
+	2043	HSF 56k Data/Fax Modem (WorldW SmartDAA)
+	2044	HSF 56k Data/Fax/Voice Modem (WorldW SmartDAA)
+	2045	HSF 56k Data/Fax/Voice/Spkp (w/Handset) Modem (WorldW SmartDAA)
+	2046	HSF 56k Data/Fax/Voice/Spkp Modem (WorldW SmartDAA)
+	2063	HSF 56k Data/Fax Modem (SmartDAA)
+	2064	HSF 56k Data/Fax/Voice Modem (SmartDAA)
+	2065	HSF 56k Data/Fax/Voice/Spkp (w/Handset) Modem (SmartDAA)
+	2066	HSF 56k Data/Fax/Voice/Spkp Modem (SmartDAA)
+	2093	HSF 56k Modem
+	2143	HSF 56k Data/Fax/Cell Modem (Mob WorldW SmartDAA)
+	2144	HSF 56k Data/Fax/Voice/Cell Modem (Mob WorldW SmartDAA)
+	2145	HSF 56k Data/Fax/Voice/Spkp (w/HS)/Cell Modem (Mob WorldW SmartDAA)
+	2146	HSF 56k Data/Fax/Voice/Spkp/Cell Modem (Mob WorldW SmartDAA)
+	2163	HSF 56k Data/Fax/Cell Modem (Mob SmartDAA)
+	2164	HSF 56k Data/Fax/Voice/Cell Modem (Mob SmartDAA)
+	2165	HSF 56k Data/Fax/Voice/Spkp (w/HS)/Cell Modem (Mob SmartDAA)
+	2166	HSF 56k Data/Fax/Voice/Spkp/Cell Modem (Mob SmartDAA)
+	2343	HSF 56k Data/Fax CardBus Modem (Mob WorldW SmartDAA)
+	2344	HSF 56k Data/Fax/Voice CardBus Modem (Mob WorldW SmartDAA)
+	2345	HSF 56k Data/Fax/Voice/Spkp (w/HS) CardBus Modem (Mob WorldW SmartDAA)
+	2346	HSF 56k Data/Fax/Voice/Spkp CardBus Modem (Mob WorldW SmartDAA)
+	2363	HSF 56k Data/Fax CardBus Modem (Mob SmartDAA)
+	2364	HSF 56k Data/Fax/Voice CardBus Modem (Mob SmartDAA)
+	2365	HSF 56k Data/Fax/Voice/Spkp (w/HS) CardBus Modem (Mob SmartDAA)
+	2366	HSF 56k Data/Fax/Voice/Spkp CardBus Modem (Mob SmartDAA)
+	2443	HSF 56k Data/Fax Modem (Mob WorldW SmartDAA)
+	2444	HSF 56k Data/Fax/Voice Modem (Mob WorldW SmartDAA)
+	2445	HSF 56k Data/Fax/Voice/Spkp (w/HS) Modem (Mob WorldW SmartDAA)
+	2446	HSF 56k Data/Fax/Voice/Spkp Modem (Mob WorldW SmartDAA)
+	2463	HSF 56k Data/Fax Modem (Mob SmartDAA)
+	2464	HSF 56k Data/Fax/Voice Modem (Mob SmartDAA)
+	2465	HSF 56k Data/Fax/Voice/Spkp (w/HS) Modem (Mob SmartDAA)
+	2466	HSF 56k Data/Fax/Voice/Spkp Modem (Mob SmartDAA)
+	2F00	HSF 56k HSFi Modem
 	8237	CN8237 ATM OC2 ServiceSAR+ controller with BR Traffic Management
 	8471	CN8471A 32-channel HDLC Controller
 	8472	CN8472A 64-channel HDLC Controller
@@ -3688,6 +3926,7 @@
 151D	Fujitsu Computer Products Of America
 151E	Matrix Corp.
 151F	Topic Semiconductor Corp
+	0000	TP560 D/F/V 56k Modem
 1520	Chaplet System Inc
 1521	Bell Corporation
 1522	Mainpine Limited
@@ -4107,7 +4346,6 @@
 270B	Xantel Corporation
 270F	ChainTech Computer Co. Ltd.
 2711	AVID Technology Inc
-2A15	3D Vision(??)
 2EC1	Zenic Inc
 3000	Hansol Electronics Inc.
 3030	C-Net
@@ -4135,7 +4373,7 @@
 	0100	Permedia II 2D+3D Accelerator
 	1004	Permedia 3D+3D Accelerator
 	3D04	Permedia 2D+3D Accelerator
-	FFFF	GLint VGA
+	FFFF	Glint VGA (Error??)
 4005	Avance Logic Inc.
 	0300	ALS300 PCI Audio Device
 	0308	ALS300+ PCI Audio Device
@@ -4150,14 +4388,15 @@
 	2464	ALG2464 GUI Accelerator
 	2501	ALG2564A/25128A GUI Accelerator
 	4000	ALS4000 Audio Chipset
-4033	Delta Networks Inc (Addtron Technology Co Inc??)
+4033	Addtron Technology Co., Inc.
 	1300	SIS900 10/100Mbps Fast Ethernet Controller
 	1320	VT86C100A 10/100M PCI Fast Ethernet Controller
 	1360	RTL8139A 10/100 Mbps PCI Fast Ethernet Controller
 	1380	DEC 21143PD 10/100M PCI Fast Ethernet Controller
 4143	Digital Equipment Corp.
-414C	Avance(??)
 416C	Aladdin Knowledge Systems
+	0100	AladdinCARD
+	0200	CPC
 4444	ICompression Inc.
 	0002	iTVC12 MPEG Encoder Card
 4468	Bridgeport Machines
@@ -4189,7 +4428,6 @@
 4DDC	ILC Data Device Corp.
 5053	TBS / Voyetra Technologies
 	2010	Daytona Audio Adapter
-50B2	Terratec(??)
 5136	S S Technologies
 5143	Qualcomm Inc.
 5145	Ensoniq (Old ID)
@@ -4269,6 +4507,8 @@
 	8C2D	86C573 SuperSavage/IX DDR
 	8C2E	86C583 SuperSavage/IXC SDR
 	8C2F	86C594 SuperSavage/IXC DDR
+	8D01	Twister
+	8D02	Twister-K
 	9102	86C410 Savage 2000
 	CA00	86C617 SonicVibes PCI Audio Accelerator
 5349	??Unknown?? (Seen on Intel 810 Motherboard AC'97 Modem Device!)
@@ -4276,6 +4516,8 @@
 5455	Technische Universtiaet Berlin
 	4458	S5933 PCI to MyBus Bridge
 5519	Cnet Technoliges, Inc.
+5544	Dunord Technologies
+	0001	I-30xx Scanner Interface
 5555	Genroco Inc.
 	0003	TURBOstor HFP-832 HiPPI NIC
 5700	Netpower
@@ -4346,6 +4588,12 @@
 	1008	82544EI/82544GC Gigabit Ethernet Controller
 	1029	PRO/100 PCI Ethernet Adapter
 	1030	82559 PCI Networking device
+	1031	PRO/100 VE Network Connection
+	1032	PRO/100 VE Network Connection
+	1033	PRO/100 VM Network Connection
+	1034	PRO/100 VM Network Connection
+	1035	82562EH based Phoneline Network Connection
+	1036	82562EH based Phoneline Network Connection
 	1038	82559 Networking device
 	1100	82815 815/E (Solano) Host to I/O Hub Bridge with 100MHz DRAM Controller
 	1101	82815 815/E (Solano) PCI to AGP Bridge
@@ -4385,6 +4633,8 @@
 	1250	82439HX System Controller (TXC)
 	1360	82806AA Hub Interface to PCI Bridge
 	1361	82806AA PCI64 Hub Controller (HRes), APIC
+	1460	P64H2 PCI Bridge
+	1462	P64H2 PCI HotPlug Controller
 	1960	80960RP i960RP Microprocessor
 	1A10	Celeron(tm) Processor to I/O Controller
 	1A11	Celeron(tm) Processor to I/O Controller
@@ -4451,6 +4701,7 @@
 	2536	82860 (860) PCI Bridge
 	2537	82850/82860 (850/860) ??? Controller
 	2539	82860 (Quad Processor Mode)
+	3092	SRCU32 I2O 1.5 RAID Controller
 	3575	82830[MP] Host-Hub I/F Bridge / SDRAM Controller
 	3576	82830[MP] Host-AGP Bridge
 	3577	82830 Integrated Graphics Device
@@ -4618,9 +4869,10 @@
 	0081	19160 AIC-7892B Ultra160 SCSI Adapter
 	0083	AIC-7892D Ultra160 SCSI Controller
 	008F	AIC-7892 Ultra160 SCSI Host Adapter
-	00C0	39160 (AIC-7899A) Ultra160 SCSI Host Adapter
-	00C1	AIC-7899B Ultra160 SCSI Controller
-	00C3	AIC-7899D Ultra160 SCSI Controller
+	00C0	AHA-39160 (AIC-7899A) Ultra160 SCSI Host Adapter
+	00C1	AIC-7899B Ultra160 SCSI Host Adapter
+	00C3	AIC-7899D Ultra160 SCSI Host Adapter
+	00C5	RAID Subsystem HBA
 	00CF	AIC-7899 Ultra160 SCSI Host Adapter
 907F	Atronics
 	2015	IDE-2015PL EIDE Controller
