@@ -129,11 +129,9 @@ u_long	vn_options;
 int	vnclose __P((dev_t dev, int flags, int mode, struct proc *p));
 int	vnopen __P((dev_t dev, int flags, int mode, struct proc *p));
 void	vnstrategy __P((struct buf *bp));
-void	vnstart __P((struct vn_softc *vn));
-void	vniodone __P((struct buf *bp));
 int	vnioctl __P((dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p));
+void	vniodone __P((struct buf *bp));
 int	vnsetcred __P((struct vn_softc *vn, struct ucred *cred));
-void	vnthrottle __P((struct vn_softc *vn, struct vnode *vp));
 void	vnshutdown __P((void));
 void	vnclear __P((struct vn_softc *vn));
 size_t	vnsize __P((dev_t dev));
@@ -202,19 +200,24 @@ vnopen(dev_t dev, int flags, int mode, struct proc *p)
 }
 
 /*
- * Break the request into bsize pieces and submit using VOP_BMAP/VOP_STRATEGY.
- * Note that this driver can only be used for swapping over NFS on the hp
- * since nfs_strategy on the vax cannot handle u-areas and page tables.
+ * this code does I/O calls through the appropriate VOP entry point...
+ * unless a swap_pager I/O request is being done.  This strategy (-))
+ * allows for coherency with mmap except in the case of paging.  This
+ * is necessary, because the VOP calls use lots of memory (and actually
+ * are not extremely efficient -- but we want to keep semantics correct),
+ * and the pageout daemon gets really unhappy (and so does the rest of the
+ * system) when it runs out of memory.
  */
 void
 vnstrategy(struct buf *bp)
 {
 	int unit = vnunit(bp->b_dev);
 	register struct vn_softc *vn = vn_softc[unit];
-	register struct buf *nbp;
-	register int bn, bsize, resid;
-	register caddr_t addr;
-	int sz, flags, error;
+	register daddr_t bn;
+	int error;
+	int sz;
+	struct uio auio;
+	struct iovec aiov;
 
 	IFOPT(vn, VN_DEBUG)
 		printf("vnstrategy(%p): unit %d\n", bp, unit);
@@ -246,150 +249,130 @@ vnstrategy(struct buf *bp)
 			return;
 		}
 	}
-	bn = dbtob(bn);
-	bsize = vn->sc_vp->v_mount->mnt_stat.f_iosize;
-	addr = bp->b_data;
-	flags = bp->b_flags | B_CALL;
-	for (resid = bp->b_resid; resid; resid -= sz) {
-		struct vnode *vp;
-		daddr_t nbn;			/* YYY - bn was int !? */
-		int off, s, nra;
 
-		nra = 0;
-		error = VOP_BMAP(vn->sc_vp, bn / bsize, &vp, &nbn, &nra);
-		if (error == 0 && (long)nbn == -1)
-			error = EIO;
-
-		IFOPT(vn, VN_DONTCLUSTER)
-			nra = 0;
-
-		off = bn % bsize;
-		if (off)
-			sz = bsize - off;
+	if( (bp->b_flags & B_PAGING) == 0) {
+		aiov.iov_base = bp->b_data;
+		aiov.iov_len = bp->b_bcount;
+		auio.uio_iov = &aiov;
+		auio.uio_iovcnt = 1;
+		auio.uio_offset = bn*DEV_BSIZE;
+		auio.uio_segflg = UIO_SYSSPACE;
+		if( bp->b_flags & B_READ)
+			auio.uio_rw = UIO_READ;
 		else
-			sz = (1 + nra) * bsize;
-		if (resid < sz)
-			sz = resid;
+			auio.uio_rw = UIO_WRITE;
+		auio.uio_resid = bp->b_bcount;
+		auio.uio_procp = curproc;
+		if( bp->b_flags & B_READ)
+			error = VOP_READ(vn->sc_vp, &auio, 0, vn->sc_cred);
+		else
+			error = VOP_WRITE(vn->sc_vp, &auio, 0, vn->sc_cred);
 
-		IFOPT(vn,VN_IO)
-			printf("vnstrategy: vp %p/%p bn 0x%x/0x%lx sz 0x%x\n",
-			       vn->sc_vp, vp, bn, nbn, sz);
+		bp->b_resid = auio.uio_resid;
 
+		if( error )
+			bp->b_flags |= B_ERROR;
+		biodone(bp);
+	} else {
+		daddr_t bsize;
+		int flags, resid;
+		caddr_t addr;
+		
+		struct buf *nbp;
+		
 		nbp = getvnbuf();
-		nbp->b_flags = flags;
-		nbp->b_bcount = sz;
-		nbp->b_bufsize = sz;
-		nbp->b_error = 0;
-		if (vp->v_type == VBLK || vp->v_type == VCHR)
-			nbp->b_dev = vp->v_rdev;
-		else
-			nbp->b_dev = NODEV;
-		nbp->b_data = addr;
-		nbp->b_blkno = nbn + btodb(off);
-		nbp->b_proc = bp->b_proc;
-		nbp->b_iodone = vniodone;
-		nbp->b_vp = vp;
-		nbp->b_pfcent = (int) bp;	/* XXX */
-		nbp->b_rcred = vn->sc_cred;	/* XXX crdup? */
-		nbp->b_wcred = vn->sc_cred;	/* XXX crdup? */
-		nbp->b_dirtyoff = bp->b_dirtyoff;
-		nbp->b_dirtyend = bp->b_dirtyend;
-		nbp->b_validoff = bp->b_validoff;
-		nbp->b_validend = bp->b_validend;
-		/*
-		 * If there was an error or a hole in the file...punt.
-		 * Note that we deal with this after the nbp allocation.
-		 * This ensures that we properly clean up any operations
-		 * that we have already fired off.
-		 *
-		 * XXX we could deal with holes here but it would be
-		 * a hassle (in the write case).
-		 */
-		if (error) {
-			nbp->b_error = error;
-			nbp->b_flags |= B_ERROR;
-			bp->b_resid -= (resid - sz);
-			biodone(nbp);
-			return;
+
+		bn = dbtob(bn);
+		bsize = vn->sc_vp->v_mount->mnt_stat.f_iosize;
+		addr = bp->b_data;
+		flags = bp->b_flags | B_CALL;
+		for (resid = bp->b_resid; resid; ) {
+			struct vnode *vp;
+			daddr_t nbn;
+			int off, s, nra;
+
+			nra = 0;
+			error = VOP_BMAP(vn->sc_vp, bn / bsize, &vp, &nbn, &nra);
+			if (error == 0 && (long)nbn == -1)
+				error = EIO;
+
+			IFOPT(vn, VN_DONTCLUSTER)
+				nra = 0;
+
+			off = bn % bsize;
+			if (off)
+				sz = bsize - off;
+			else
+				sz = (1 + nra) * bsize;
+			if (resid < sz)
+				sz = resid;
+
+			if (error) {
+				bp->b_resid -= (resid - sz);
+				bp->b_flags |= B_ERROR;
+				biodone(bp);
+				putvnbuf(nbp);
+				return;
+			}
+
+			IFOPT(vn,VN_IO)
+				printf("vnstrategy: vp %p/%p bn 0x%x/0x%lx sz 0x%x\n",
+				       vn->sc_vp, vp, bn, nbn, sz);
+
+			nbp->b_flags = flags;
+			nbp->b_bcount = sz;
+			nbp->b_bufsize = sz;
+			nbp->b_error = 0;
+			if (vp->v_type == VBLK || vp->v_type == VCHR)
+				nbp->b_dev = vp->v_rdev;
+			else
+				nbp->b_dev = NODEV;
+			nbp->b_data = addr;
+			nbp->b_blkno = nbn + btodb(off);
+			nbp->b_proc = bp->b_proc;
+			nbp->b_iodone = vniodone;
+			nbp->b_vp = vp;
+			nbp->b_pfcent = (int) bp;	/* XXX */
+			nbp->b_rcred = vn->sc_cred;	/* XXX crdup? */
+			nbp->b_wcred = vn->sc_cred;	/* XXX crdup? */
+			nbp->b_dirtyoff = bp->b_dirtyoff;
+			nbp->b_dirtyend = bp->b_dirtyend;
+			nbp->b_validoff = bp->b_validoff;
+			nbp->b_validend = bp->b_validend;
+
+			if ((nbp->b_flags & B_READ) == 0)
+				nbp->b_vp->v_numoutput++;
+
+			VOP_STRATEGY(nbp);
+
+			s = splbio();
+			while ((nbp->b_flags & B_DONE) == 0) {
+				nbp->b_flags |= B_WANTED;
+				tsleep(nbp, PRIBIO, "vnwait", 0);
+			}
+			splx(s);
+
+			if( nbp->b_flags & B_ERROR) {
+				bp->b_flags |= B_ERROR;
+				bp->b_resid -= (resid - sz);
+				biodone(bp);
+				putvnbuf(nbp);
+				return;
+			}
+				
+			bn += sz;
+			addr += sz;
+			resid -= sz;
 		}
-		/*
-		 * Just sort by block number
-		 */
-		/*
-		 * XXX sort at all?  The lowest layer should repeat the sort.
-		 */
-#define	b_cylinder	b_resid		/* XXX */
-		nbp->b_cylinder = nbp->b_blkno;
-		s = splbio();
-		disksort(&vn->sc_tab, nbp);
-		if (vn->sc_tab.b_active < vn->sc_maxactive) {
-			vn->sc_tab.b_active++;
-			vnstart(vn);
-		}
-		splx(s);
-		bn += sz;
-		addr += sz;
+		biodone(bp);
+		putvnbuf(nbp);
 	}
 }
 
-/*
- * Feed requests sequentially.
- * We do it this way to keep from flooding NFS servers if we are connected
- * to an NFS file.  This places the burden on the client rather than the
- * server.
- */
 void
-vnstart(struct vn_softc *vn)
-{
-	register struct buf *bp;
-
-	/*
-	 * Dequeue now since lower level strategy routine might
-	 * queue using same links
-	 */
-	bp = vn->sc_tab.b_actf;
-	vn->sc_tab.b_actf = bp->b_actf;
-	IFOPT(vn, VN_IO)
-		printf("vnstart(%d): bp %p vp %p blkno 0x%lx addr %p cnt 0x%lx\n",
-		       0, bp, bp->b_vp, bp->b_blkno, bp->b_data,
-		       bp->b_bcount);
-	if ((bp->b_flags & B_READ) == 0)
-		bp->b_vp->v_numoutput++;
-	VOP_STRATEGY(bp);
-}
-
-void
-vniodone(struct buf *bp)
-{
-	register struct buf *pbp = (struct buf *)bp->b_pfcent;	/* XXX */
-	register struct vn_softc *vn = vn_softc[vnunit(pbp->b_dev)];
-	int s;
-
-	s = splbio();
-
-	IFOPT(vn, VN_IO)
-		printf("vniodone(%d): bp %p vp %p blkno 0x%lx addr %p cnt 0x%lx\n",
-		       0, bp, bp->b_vp, bp->b_blkno, bp->b_data,
-		       bp->b_bcount);
-
-	if (bp->b_error) {
-		IFOPT(vn, VN_IO)
-			printf("vniodone: bp %p error %d\n", bp, bp->b_error);
-		pbp->b_flags |= B_ERROR;
-		pbp->b_error = biowait(bp);
-	}
-	pbp->b_resid -= bp->b_bcount;
-	putvnbuf(bp);
-	if (pbp->b_resid == 0) {
-		IFOPT(vn, VN_IO)
-			printf("vniodone: pbp %p iodone\n", pbp);
-		biodone(pbp);
-	}
-	if (vn->sc_tab.b_actf)
-		vnstart(vn);
-	else
-		vn->sc_tab.b_active--;
-	splx(s);
+vniodone( struct buf *bp) {
+	bp->b_flags |= B_DONE;
+	wakeup((caddr_t) bp);
 }
 
 /* ARGSUSED */
@@ -467,7 +450,6 @@ vnioctl(dev_t dev, u_long cmd, caddr_t data, int flag, struct proc *p)
 			(void) vn_close(nd.ni_vp, FREAD|FWRITE, p->p_ucred, p);
 			return(error);
 		}
-		vnthrottle(vn, vn->sc_vp);
 		vio->vn_size = dbtob(vn->sc_size);
 		vn->sc_flags |= VNF_INITED;
 		IFOPT(vn, VN_LABELS) {
@@ -559,25 +541,6 @@ vnsetcred(struct vn_softc *vn, struct ucred *cred)
 
 	free(tmpbuf, M_TEMP);
 	return (error);
-}
-
-/*
- * Set maxactive based on FS type
- */
-void
-vnthrottle(struct vn_softc *vn, struct vnode *vp)
-{
-#if 0
-	extern int (**nfsv2_vnodeop_p)();
-
-	if (vp->v_op == nfsv2_vnodeop_p)
-		vn->sc_maxactive = 2;
-	else
-#endif
-		vn->sc_maxactive = 8;
-
-	if (vn->sc_maxactive < 1)
-		vn->sc_maxactive = 1;
 }
 
 void
