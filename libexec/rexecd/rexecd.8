@@ -30,6 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)rexecd.8	8.2 (Berkeley) 12/11/93
+.\"	$Id: rexecd.8,v 1.4 1996/11/19 18:03:16 pst Exp $
 .\"
 .Dd September 23, 1994
 .Dt REXECD 8
@@ -98,8 +99,11 @@ by
 .El
 .Sh CAVEATS
 .Nm Rexecd
-will no longer allow root logins, access for users listed in /etc/ftpusers,
-or access for users with no passwords, which were all serious security holes.
+will no longer allow root logins,
+access for users listed in /etc/ftpusers,
+access for users with no passwords,
+or reverse connections to privileged ports,
+which were all serious security holes.
 The entire concept of rexec/rexecd is a major security hole and an example
 of how not to do things.
 .Nm Rexecd
