@@ -1,4 +1,4 @@
-<!-- $Id: eresources.sgml,v 1.22 1996/05/11 09:24:45 jkh Exp $ -->
+<!-- $Id: eresources.sgml,v 1.23 1996/05/16 23:17:55 mpp Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt>
@@ -357,6 +357,21 @@ User Groups.
         <heading>World Wide Web servers<label id="eresources:web"></heading>
 
         <p><itemize> 
-            <item><url url="http://www.FreeBSD.ORG/"></item>
+            <item><url url="http://www.FreeBSD.ORG/">                    <bf>- Central Server</bf>.</item>
+	    <item><url url="http://www.au.freebsd.org/FreeBSD/">         <bf>- Australia</bf>.</item>
+	    <item><url url="http://www.br.freebsd.org/">                 <bf>- Brazil</bf>.</item>
+	    <item><url url="http://www.ca.freebsd.org/">                 <bf>- Canada</bf>.</item>
+	    <item><url url="http://sunsite.mff.cuni.cz/www.freebsd.org/"><bf>- Czech Republic</bf>.</item>
+	    <item><url url="http://sunsite.auc.dk/www.freebsd.org/">     <bf>- Denmark</bf>.</item>
+	    <item><url url="http://www.ee.freebsd.org/">                 <bf>- Estonia</bf>.</item>
+	    <item><url url="http://www.fi.freebsd.org/">                 <bf>- Finland</bf>.</item>
+	    <item><url url="http://www.de.freebsd.org/">                 <bf>- Germany</bf>.</item>
+	    <item><url url="http://www.ie.freebsd.org/">                 <bf>- Ireland</bf>.</item>
+	    <item><url url="http://www.jp.freebsd.org/">                 <bf>- Japan</bf>.</item>
+	    <item><url url="http://www.kr.freebsd.org/">                 <bf>- Korea</bf>.</item>
+	    <item><url url="http://www.nl.freebsd.org/">                 <bf>- Netherlands</bf>.</item>
+	    <item><url url="http://www.pt.freebsd.org/">                 <bf>- Portugal</bf>.</item>
+	    <item><url url="http://www.se.freebsd.org/www.freebsd.org/"> <bf>- Sweden</bf>.</item>
+	    <item><url url="http://www.tw.freebsd.org/freebsd.html">     <bf>- Taiwan</bf>.</item>
           </itemize>
     </sect>
