@@ -984,6 +984,22 @@ sysctl_kern_proc(SYSCTL_HANDLER_ARGS)
 				}
 				break;
 
+			case KERN_PROC_RGID:
+				if (p->p_ucred == NULL ||
+				    p->p_ucred->cr_rgid != (gid_t)name[0]) {
+					PROC_UNLOCK(p);
+					continue;
+				}
+				break;
+
+			case KERN_PROC_SESSION:
+				if (p->p_session == NULL ||
+				    p->p_session->s_sid != (pid_t)name[0]) {
+					PROC_UNLOCK(p);
+					continue;
+				}
+				break;
+
 			case KERN_PROC_TTY:
 				if ((p->p_flag & P_CONTROLT) == 0 ||
 				    p->p_session == NULL) {
@@ -1171,6 +1187,12 @@ SYSCTL_PROC(_kern_proc, KERN_PROC_ALL, all, CTLFLAG_RD|CTLTYPE_STRUCT,
 SYSCTL_NODE(_kern_proc, KERN_PROC_PGRP, pgrp, CTLFLAG_RD, 
 	sysctl_kern_proc, "Process table");
 
+SYSCTL_NODE(_kern_proc, KERN_PROC_RGID, rgid, CTLFLAG_RD,
+	sysctl_kern_proc, "Process table");
+
+SYSCTL_NODE(_kern_proc, KERN_PROC_SESSION, sid, CTLFLAG_RD,
+	sysctl_kern_proc, "Process table");
+
 SYSCTL_NODE(_kern_proc, KERN_PROC_TTY, tty, CTLFLAG_RD, 
 	sysctl_kern_proc, "Process table");
 
@@ -1193,6 +1215,12 @@ SYSCTL_NODE(_kern_proc, KERN_PROC_SV_NAME, sv_name, CTLFLAG_RD,
 	sysctl_kern_proc_sv_name, "Process syscall vector name (ABI type)");
 
 SYSCTL_NODE(_kern_proc, (KERN_PROC_PGRP | KERN_PROC_INC_THREAD), pgrp_td,
+	CTLFLAG_RD, sysctl_kern_proc, "Process table");
+
+SYSCTL_NODE(_kern_proc, (KERN_PROC_RGID | KERN_PROC_INC_THREAD), rgid_td,
+	CTLFLAG_RD, sysctl_kern_proc, "Process table");
+
+SYSCTL_NODE(_kern_proc, (KERN_PROC_SESSION | KERN_PROC_INC_THREAD), sid_td,
 	CTLFLAG_RD, sysctl_kern_proc, "Process table");
 
 SYSCTL_NODE(_kern_proc, (KERN_PROC_TTY | KERN_PROC_INC_THREAD), tty_td,
