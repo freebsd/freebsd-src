@@ -39,7 +39,7 @@
 static char sccsid[] = "@(#)cmp.c	8.1 (Berkeley) 5/31/93";
 #else
 static const char rcsid[] =
-	"$Id: cmp.c,v 1.7 1997/08/07 15:33:45 steve Exp $";
+  "$FreeBSD$";
 #endif
 #endif /* not lint */
 

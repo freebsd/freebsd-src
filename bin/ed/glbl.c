@@ -31,7 +31,7 @@
 static char * const rcsid = "@(#)glob.c,v 1.1 1994/02/01 00:34:40 alm Exp";
 #else
 static char * const rcsid =
-	"$Id: glbl.c,v 1.7 1997/02/22 14:03:15 peter Exp $";
+  "$FreeBSD$";
 #endif
 #endif /* not lint */
 

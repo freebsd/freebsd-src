@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.15 1997/02/22 14:03:08 peter Exp $
+# $FreeBSD$
 
 PROG=	ed
 SRCS=	buf.c cbc.c glbl.c io.c main.c re.c sub.c undo.c

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)exec.h	8.3 (Berkeley) 6/8/95
- *	$Id: exec.h,v 1.6 1997/02/22 13:58:25 peter Exp $
+ * $FreeBSD$
  */
 
 /* values of cmdtype */

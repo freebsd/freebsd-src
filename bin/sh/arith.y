@@ -88,7 +88,7 @@ expr:	ARITH_LPAREN expr ARITH_RPAREN = { $$ = $2; }
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: arith.y,v 1.8 1998/08/24 10:20:36 cracauer Exp $
+ * $FreeBSD$
  */
 
 #ifndef lint
@@ -96,7 +96,7 @@ expr:	ARITH_LPAREN expr ARITH_RPAREN = { $$ = $2; }
 static char sccsid[] = "@(#)arith.y	8.3 (Berkeley) 5/4/95";
 #endif
 static const char rcsid[] =
-	"$Id$";
+  "$FreeBSD$";
 #endif /* not lint */
 
 #include "shell.h"

@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)proc.c	8.1 (Berkeley) 5/31/93";
 #else
 static const char rcsid[] =
-	"$Id: proc.c,v 1.9 1998/05/06 06:50:58 charnier Exp $";
+  "$FreeBSD$";
 #endif
 #endif /* not lint */
 

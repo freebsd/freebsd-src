@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.10 1997/08/13 17:35:00 steve Exp $
+# $FreeBSD$
 #	@(#)Makefile	8.1 (Berkeley) 6/2/93
 
 PROG=	ps
