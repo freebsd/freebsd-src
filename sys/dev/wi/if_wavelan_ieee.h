@@ -319,5 +319,363 @@ struct wi_ltv_keys {
 #define WI_RID_MAC_PROC_DELAY	0xFDC5 /* MAC processing delay time */
 #define WI_RID_DATA_RATES	0xFDC6 /* supported data rates */
 
+/*
+ * bsd-airtools v0.2 - source-mods v0.2 [common.h]
+ * by h1kari - (c) Dachb0den Labs 2001
+ */
+
+/*
+ * Copyright (c) 2001 Dachb0den Labs.
+ *      David Hulton <h1kari@dachb0den.com>.  All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. All advertising materials mentioning features or use of this software
+ *    must display the following acknowledgement:
+ *      This product includes software developed by David Hulton.
+ * 4. Neither the name of the author nor the names of any co-contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY David Hulton AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL David Hulton OR THE VOICES IN HIS HEAD
+ * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+ * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+ * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+ * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+ * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+ * THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
+/*
+ * standard hermes recieve frame used by wavelan/prism2 cards
+ */
+struct wi_rx_frame {
+	/*
+	 * hermes prefix header. supplies information on the current status of
+	 * the network and various other statistics gathered from the
+	 * management/control frames as used internally.
+	 */
+	u_int16_t	wi_status;
+	u_int16_t	wi_ts0;
+	u_int16_t	wi_ts1;
+	u_int8_t	wi_silence;
+	u_int8_t	wi_signal;
+	u_int8_t	wi_rate;
+	u_int8_t	wi_rx_flow;
+	u_int16_t	wi_rsvd0;
+	u_int16_t	wi_rsvd1;
+	/*
+	 * standard 80211 frame header. all packets have to use this header as
+	 * per the AN9900 from intersil, even management/control. for
+	 * management packets, they just threw the header into the data field,
+	 * but for control packets the headers are lost in translation and
+	 * therefore not all control packet info can be displayed.
+	 */
+	u_int16_t	wi_frame_ctl;
+	u_int16_t	wi_id;
+	u_int8_t	wi_addr1[6];
+	u_int8_t	wi_addr2[6];
+	u_int8_t	wi_addr3[6];
+	u_int16_t	wi_seq_ctl;
+	u_int8_t	wi_addr4[6];
+	u_int16_t	wi_dat_len;
+	/*
+	 * another wierdity with the drivers. they append a 802.3 header which
+	 * is somewhat redundant, since all the same data is provided in the
+	 * 802.11 header.
+	 */
+	u_int8_t	wi_dst_addr[6];
+	u_int8_t	wi_src_addr[6];
+	u_int16_t	wi_len;
+};
+#define WI_DATA_HDRLEN		WI_802_11_OFFSET
+#define WI_MGMT_HDRLEN		WI_802_11_OFFSET_RAW
+#define WI_CTL_HDRLEN		WI_802_11_OFFSET_RAW
+
+
+/*
+ * all data packets have a snap (sub-network access protocol) header that
+ * isn't entirely definied, but added for ethernet compatibility.
+ */
+struct wi_snap_frame {
+	u_int16_t	wi_dat[3];
+	u_int16_t	wi_type;
+};
+
+
+/*
+ * management frame headers
+ * note: all management frames consist of a static header and variable length
+ * fields.
+ */
+
+/*
+ * variable length field structure
+ */
+struct wi_mgmt_var_hdr {
+	u_int8_t	wi_code;
+	u_int8_t	wi_len;
+	u_int8_t	wi_data[256];
+};
+
+/*
+ * management beacon frame prefix
+ */
+struct wi_mgmt_beacon_hdr {
+	u_int32_t	wi_ts0;
+	u_int32_t	wi_ts1;
+	u_int16_t	wi_interval;
+	u_int16_t	wi_capinfo;
+};
+
+/*
+ * ibss announcement traffic indication message (atim) frame
+ * note: no parameters
+ */
+
+/*
+ * management disassociation frame
+ */
+struct wi_mgmt_disas_hdr {
+	u_int16_t	wi_reason;
+};
+
+/*
+ * management association request frame prefix
+ */
+struct wi_mgmt_asreq_hdr {
+	u_int16_t	wi_capinfo;
+	u_int16_t	wi_interval;
+};
+
+/*
+ * management association response frame prefix
+ */
+struct wi_mgmt_asresp_hdr {
+	u_int16_t	wi_capinfo;
+	u_int16_t	wi_status;
+	u_int16_t	wi_aid;
+};
+
+/*
+ * management reassociation request frame prefix
+ */
+struct wi_mgmt_reasreq_hdr {
+	u_int16_t	wi_capinfo;
+	u_int16_t	wi_interval;
+	u_int8_t	wi_currap[6];
+};
+
+/*
+ * management reassociation response frame prefix
+ */
+struct wi_mgmt_reasresp_hdr {
+	u_int16_t	wi_capinfo;
+	u_int16_t	wi_status;
+	u_int16_t	wi_aid;
+};
+
+/*
+ * management probe request frame prefix
+ * note: no static parameters, only variable length
+ */
+
+/*
+ * management probe response frame prefix
+ */
+struct wi_mgmt_proberesp_hdr {
+	u_int32_t	wi_ts0;
+	u_int32_t	wi_ts1;
+	u_int16_t	wi_interval;
+	u_int16_t	wi_capinfo;
+};
+
+/*
+ * management authentication frame prefix
+ */
+struct wi_mgmt_auth_hdr {
+	u_int16_t	wi_algo;
+	u_int16_t	wi_seq;
+	u_int16_t	wi_status;
+};
+
+/*
+ * management deauthentication frame
+ */
+struct wi_mgmt_deauth_hdr {
+	u_int16_t	wi_reason;
+};
+
+
+/*
+ * rid configuration register definitions
+ */
+#define WI_RID_SCAN_REQ		0xFCE1 /* scan request information */
+#define WI_RID_SCAN_RES		0xFD88 /* scan result information */
+
+#define WI_RID_PROCFRAME	0x3137 /* Return full frame information */
+#define WI_RID_PRISM2		0x3138 /* tell if we're a prism2 card or not */
+
+
+/*
+ * 802.11 definitions
+ */
+#define WI_STAT_BADCRC		0x0001
+#define WI_STAT_UNDECRYPTABLE	0x0002
+#define WI_STAT_ERRSTAT		0x0003
+#define WI_STAT_MAC_PORT	0x0700
+#define WI_STAT_1042		0x2000
+#define WI_STAT_TUNNEL		0x4000
+#define WI_STAT_WMP_MSG		0x6000
+#define WI_RXSTAT_MSG_TYPE	0xE000
+
+#define WI_FCTL_OPT_MASK	0xFF00
+#define WI_AID_SET		0xC000
+#define WI_AID_MASK		0x3FFF
+#define WI_SCTL_FRAGNUM_MASK	0x000F
+#define WI_SCTL_SEQNUM_MASK	0xFFF0
+
+#define WI_STAT_UNSPEC_FAIL	1
+#define WI_STAT_CAPINFO_FAIL	10
+#define WI_STAT_REAS_DENY	11
+#define WI_STAT_ASSOC_DENY	12
+#define WI_STAT_ALGO_FAIL	13
+#define WI_STAT_SEQ_FAIL	14
+#define WI_STAT_CHAL_FAIL	15
+#define WI_STAT_TOUT_FAIL	16
+#define WI_STAT_OVERL_DENY	17
+#define WI_STAT_RATE_DENY	18
+
+#define WI_FTYPE_MGMT		0x0000
+#define WI_FTYPE_CTL		0x0004
+#define WI_FTYPE_DATA		0x0008
+
+#define WI_FCTL_VERS		0x0002
+#define WI_FCTL_FTYPE		0x000C
+#define WI_FCTL_STYPE		0x00F0
+#define WI_FCTL_TODS		0x0100
+#define WI_FCTL_FROMDS		0x0200
+#define WI_FCTL_MOREFRAGS	0x0400
+#define WI_FCTL_RETRY		0x0800
+#define WI_FCTL_PM		0x1000
+#define WI_FCTL_MOREDATA	0x2000
+#define WI_FCTL_WEP		0x4000
+#define WI_FCTL_ORDER		0x8000
+
+#define WI_FCS_LEN		0x4 /* checksum length */
+
+
+/*
+ * management definitions
+ */
+#define WI_STYPE_MGMT_ASREQ	0x0000
+#define WI_STYPE_MGMT_ASRESP	0x0010
+#define WI_STYPE_MGMT_REASREQ	0x0020
+#define WI_STYPE_MGMT_REASRESP	0x0030
+#define WI_STYPE_MGMT_PROBEREQ	0x0040
+#define WI_STYPE_MGMT_PROBERESP	0x0050
+#define WI_STYPE_MGMT_BEACON	0x0080
+#define WI_STYPE_MGMT_ATIM	0x0090
+#define WI_STYPE_MGMT_DISAS	0x00A0
+#define WI_STYPE_MGMT_AUTH	0x00B0
+#define WI_STYPE_MGMT_DEAUTH	0x00C0
+
+#define WI_CAPINFO_ESS		0x01
+#define WI_CAPINFO_IBSS		0x02
+#define WI_CAPINFO_CFPOLL	0x04
+#define WI_CAPINFO_CFPOLLREQ	0x08
+#define WI_CAPINFO_PRIV		0x10
+
+#define WI_REASON_UNSPEC	1
+#define WI_REASON_AUTH_INVALID	2
+#define WI_REASON_DEAUTH_LEAVE	3
+#define WI_REASON_DISAS_INACT	4
+#define WI_REASON_DISAS_OVERL	5
+#define WI_REASON_CLASS2	6
+#define WI_REASON_CLASS3	7
+#define WI_REASON_DISAS_LEAVE	8
+#define WI_REASON_NOAUTH	9
+
+#define WI_VAR_SSID		0
+#define WI_VAR_SRATES		1
+#define WI_VAR_FH		2
+#define WI_VAR_DS		3
+#define WI_VAR_CF		4
+#define WI_VAR_TIM		5
+#define WI_VAR_IBSS		6
+#define WI_VAR_CHAL		16
+
+#define WI_VAR_SRATES_MASK	0x7F
+
+
+/*
+ * control definitions
+ */
+#define WI_STYPE_CTL_PSPOLL	0x00A0
+#define WI_STYPE_CTL_RTS	0x00B0
+#define WI_STYPE_CTL_CTS	0x00C0
+#define WI_STYPE_CTL_ACK	0x00D0
+#define WI_STYPE_CTL_CFEND	0x00E0
+#define WI_STYPE_CTL_CFENDCFACK	0x00F0
+
+
+/*
+ * ap scanning structures
+ */
+struct wi_scan_res {
+	u_int16_t	wi_chan;
+	u_int16_t	wi_noise;
+	u_int16_t	wi_signal;
+	u_int8_t	wi_bssid[6];
+	u_int16_t	wi_interval;
+	u_int16_t	wi_capinfo;
+	u_int16_t	wi_ssid_len;
+	u_int8_t	wi_ssid[32];
+	u_int8_t	wi_srates[10];
+	u_int8_t	wi_rate;
+	u_int8_t	wi_rsvd;
+};
+#define WI_WAVELAN_RES_SIZE	50
+
+struct wi_scan_p2_hdr {
+	u_int16_t	wi_rsvd;
+	u_int16_t	wi_reason;
+};
+#define WI_PRISM2_RES_SIZE	62
+
+
+/*
+ * prism2 debug mode definitions
+ */
+#define SIOCSPRISM2DEBUG	_IOW('i', 137, struct ifreq)
+#define SIOCGPRISM2DEBUG	_IOWR('i', 138, struct ifreq)
+
+#define WI_CMD_DEBUG		0x0038 /* prism2 debug */
+
+#define WI_DEBUG_RESET		0x00
+#define WI_DEBUG_INIT		0x01
+#define WI_DEBUG_SLEEP		0x02
+#define WI_DEBUG_WAKE		0x03
+#define WI_DEBUG_CHAN		0x08
+#define WI_DEBUG_DELAYSUPP	0x09
+#define WI_DEBUG_TXSUPP		0x0A
+#define WI_DEBUG_MONITOR	0x0B
+#define WI_DEBUG_LEDTEST	0x0C
+#define WI_DEBUG_CONTTX		0x0E
+#define WI_DEBUG_STOPTEST	0x0F
+#define WI_DEBUG_CONTRX		0x10
+#define WI_DEBUG_SIGSTATE	0x11
+#define WI_DEBUG_CALENABLE	0x13
+#define WI_DEBUG_CONFBITS	0x15
 
 #endif
