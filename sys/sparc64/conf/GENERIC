@@ -192,7 +192,6 @@ device		bpf		#Berkeley packet filter
 
 # Tempary things until things are farther along.
 makeoptions	NO_MODULES=true
-options 	PCI_ENABLE_IO_MODES	# Enable all PCI resources
 
 options 	KTR
 options 	KTR_COMPILE=0xffffffff
