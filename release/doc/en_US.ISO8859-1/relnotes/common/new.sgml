@@ -220,6 +220,7 @@
 	the asc driver for GI1904-based hand scanners,
 	the ctx driver for CORTEX-I Frame Grabber,
 	the gp driver for National Instruments AT-GPIB and AT-GPIB/TNT boards,
+	the gsc driver for the Genius GS-4500 hand scanner,
 	the le driver for DEC EtherWORKS II and III ethernet controllers,
 	the rdp driver for RealTek RTL 8002-based pocket ethernet adapters,
 	the spigot driver for the Creative Labs Video Spigot video-acquisition board,
@@ -227,8 +228,8 @@
 	controllers, and the wt driver for Archive/Wangtek cartridge tapes.
 	They are currently non-functional, and would require a considerable
 	amount of work to make them work under the new API in 5-CURRENT.
-	The userland support such as related ioctls and the sasc
-	utility have also been removed.</para>
+	The userland support such as related ioctls and utilities including
+	sasc and sgsc has also been removed.</para>
     </sect3>
 
     <sect3 id="boot">
