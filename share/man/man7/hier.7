@@ -174,8 +174,23 @@ The USB subsystem
 .El
 .It Pa fs/
 .Bl -tag -width "kerberosIV/" -compact
+.It Pa fdescfs/
+per-process file descriptors file system
+.It Pa fifofs/
+.St -p1003.1
+FIFOs file system
+.It Pa nullfs/
+loopback file system
+.It Pa portalfs/
+portal file system
+.It Pa procfs/
+process file system
 .It Pa smbfs/
 SMB/CIFS filesystem
+.It Pa umapfs/
+alternate uid/gid mappings file system
+.It Pa unionfs
+union file system
 .El
 .It Pa g++/
 GNU C++ include files
