@@ -467,6 +467,7 @@ delete(host)
 			goto delete;
 		}
 	}
+	return 0;
 delete:
 	if (sdl->sdl_family != AF_LINK) {
 		printf("cannot locate %s\n", host);
