@@ -103,7 +103,7 @@ as a decimal number, a hexadecimal number, a comma-separated list
 of strings, or the word
 .Dq none .
 The flags are as follows:
-.Bd -unfilled -offset indent
+.Bd -literal -offset indent
 CCDF_UNIFORM	0x02		Use uniform interleave
 CCDF_MIRROR	0x04		Support mirroring
 .Ed
@@ -113,12 +113,12 @@ configuration file appears exactly as if it were entered on the command line.
 Note that on the command line and in the configuration file, the
 .Pa flags
 argument is optional.
-.Bd -unfilled -offset indent
+.Bd -literal -offset indent
 #
 # /etc/ccd.conf
 # Configuration file for concatenated disk devices
 #
-.Pp
+
 # ccd           ileave  flags   component devices
 ccd0            16      none    /dev/da2s1 /dev/da3s1
 .Ed
@@ -150,7 +150,7 @@ mirror.
 The 2nd slice of /dev/da8 is mirrored with the 3rd slice of /dev/da9
 and assigned to ccd0.
 .Pp
-.Bd -unfilled -offset
+.Bd -literal
 # ccdconfig ccd0 64 none /dev/da0s1 /dev/da1s1 /dev/da2s1 /dev/da3s1
 # ccdconfig ccd0 128 CCDF_MIRROR /dev/da4 /dev/da5 /dev/da6 /dev/da7
 # ccdconfig ccd0 128 CCDF_MIRROR /dev/da8s2 /dev/da9s3
@@ -176,7 +176,7 @@ For example, if
 you have A ccd disk with 10000 sectors you might create a 'd' partition
 with offset 16 and size 9984.
 .Pp
-.Bd -unfilled -offset
+.Bd -literal
 # disklabel ccd0 > /tmp/disklabel.ccd0
 # disklabel -Rr ccd0 /tmp/disklabel.ccd0
 # disklabel -e ccd0
