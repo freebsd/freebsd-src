@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: main.c,v 1.22 1996/10/12 16:20:32 jkh Exp $
+ * $Id: main.c,v 1.22.2.1 1996/12/13 11:30:42 jkh Exp $
  *
  *	TODO:
  *		o Add commands for traffic summary, version display, etc.
@@ -881,8 +881,8 @@ DoLoop()
 	pri = PacketCheck(rbuff, n, FL_DIAL);
 	if (pri >= 0) {
 	  if (mode & MODE_ALIAS) {
-	    PacketAliasOut(rbuff);
-	    n = ntohs(((struct ip *) rbuff)->ip_len);
+	    PacketAliasOut((struct ip *)rbuff);
+	    n = ntohs(((struct ip *)rbuff)->ip_len);
 	  }
 	  IpEnqueue(pri, rbuff, n);
 	  dial_up = TRUE;		/* XXX */
@@ -892,8 +892,8 @@ DoLoop()
       pri = PacketCheck(rbuff, n, FL_OUT);
       if (pri >= 0) {
         if (mode & MODE_ALIAS) {
-          PacketAliasOut(rbuff);
-          n = ntohs(((struct ip *) rbuff)->ip_len);
+          PacketAliasOut((struct ip *)rbuff);
+          n = ntohs(((struct ip *)rbuff)->ip_len);
         }
 	IpEnqueue(pri, rbuff, n);
       }
