@@ -740,7 +740,6 @@ null_createvobject(struct vop_createvobject_args *ap)
 	error = VOP_CREATEVOBJECT(lowervp, ap->a_cred, ap->a_td);
 	if (error)
 		return (error);
-	vp->v_vflag |= VV_OBJBUF;
 	return (0);
 }
 
@@ -752,7 +751,7 @@ null_destroyvobject(struct vop_destroyvobject_args *ap)
 {
 	struct vnode *vp = ap->a_vp;
 
-	vp->v_vflag &= ~VV_OBJBUF;
+	vp->v_object = NULL;
 	return (0);
 }
 
