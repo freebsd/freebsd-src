@@ -92,7 +92,7 @@
 .Nd Matsushita (Panasonic) CD-ROM driver
 .Sh SYNOPSIS
 .Pp
-.Cd "controller matcd[0-4] at isa? port [?| addr]"
+.Cd "device matcd[0-4] at isa? port [?| addr]"
 .br
 .Cd "/dev/[r]matcd[0-15][a|c]
 .br
@@ -127,13 +127,13 @@ to support and delete the device entries that you don't want.
 
 In this file, you will find an entry like:
 
-	controller  matcd0  at  isa?  port  ?  bio
+	device  matcd0  at  isa?  port  ?  bio
 
 To support two host interfaces, change the file so it reads:
 
-	controller  matcd0  at  isa?  port  ?  bio
+	device  matcd0  at  isa?  port  ?  bio
 .br
-	controller  matcd1  at  isa?  port  ?  bio
+	device  matcd1  at  isa?  port  ?  bio
 .br
 
 (If you want to support up to three or four host interfaces, add
@@ -173,7 +173,7 @@ If you recompile the kernel, you can change the entry in the kernel
 configuration file to specify a specific address by changing an entry
 like this:
 
-	controller  matcd0  at  isa?  port  0x230  bio
+	device  matcd0  at  isa?  port  0x230  bio
 
 With this change, the
 .Nm matcd
