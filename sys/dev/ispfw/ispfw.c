@@ -32,7 +32,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/bio.h>
+#include <sys/buf.h>
 #include <sys/disk.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
@@ -150,5 +150,3 @@ static moduledata_t ispfw_mod = {
 	"ispfw", isp_module_handler, NULL
 };
 DECLARE_MODULE(ispfw, ispfw_mod, SI_SUB_DRIVERS, SI_ORDER_THIRD);
-MODULE_VERSION(ispfw, ISPFW_VERSION);
-MODULE_DEPEND(ispfw, isp, 1, 1, 1);
