@@ -41,8 +41,8 @@ fi
 
 for i
 do
-	if [ ! -e $i ]; then
-		echo "$i does not exist" 1>&2
+	if [ ! \( -d $i -o -r $i \) ]; then
+		echo "$i inaccessible or not exist" 1>&2
 		exit 66		# EX_NOINPUT
 	fi
 done
@@ -72,7 +72,7 @@ do
 	else
 		echo "echo x - $i"
 		echo "sed 's/^X//' >$i << 'END-of-$i'"
-		sed 's/^/X/' $i
+		sed 's/^/X/' $i || exit
 		echo "END-of-$i"
 	fi
 done
