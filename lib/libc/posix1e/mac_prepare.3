@@ -1,4 +1,4 @@
-.\" Copyright (c) 2002 Networks Associates Technology, Inc.
+.\" Copyright (c) 2002, 2003 Networks Associates Technology, Inc.
 .\" All rights reserved.
 .\"
 .\" This software was developed for the FreeBSD Project by Chris
@@ -30,18 +30,20 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 12, 2002
+.Dd August 22, 2003
 .Os
 .Dt MAC_PREPARE 3
 .Sh NAME
-.Nm mac_prepare , mac_prepare_file_label ,
+.Nm mac_prepare , mac_prepare_type ,  mac_prepare_file_label ,
 .Nm mac_prepare_ifnet_label , mac_prepare_process_label
 .Nd allocate appropriate storage for
 .Vt mac_t
 .Sh SYNOPSIS
 .In sys/mac.h
 .Ft int
-.Fn mac_prepare "mac_t *mac" "char *elements"
+.Fn mac_prepare "mac_t *mac" "const char *elements"
+.Ft int
+.Fn mac_prepare_type "mac_t *mac" "const char *name"
 .Ft int
 .Fn mac_prepare_file_label "mac_t *mac"
 .Ft int
@@ -55,21 +57,46 @@ family of functions allocates the appropriate amount of storage and initializes
 .Fa *mac
 for use by
 .Xr mac_get 3 .
+When the resulting label is passed into the
+.Xr mac_get 3
+functions, the kernel will attempt to fill in the label elements specified
+when the label was prepared.
+Elements are specified in a nul-terminate string, using commas to
+delimit fields.
+Element names may be prefixed with the
+.Dv ?
+character to indicate that a failure by the kernel to retrieve that
+element should not be considered fatal.
 .Pp
 The
 .Fn mac_prepare
 function accepts a list of policy names as a parameter, and allocates the
 storage to fit those label elements accordingly.
+The remaining functions in the family make use of system defaults defined
+in
+.Xr mac.conf 5
+instead of an explicit
+.Va elements
+argument, deriving the default from the specified object type.
 .Pp
+.Fn mac_prepare_type
+allocates the storage to fit an object label of the type specified by
+the
+.Va name
+argument.
 The
 .Fn mac_prepare_file_label ,
 .Fn mac_prepare_ifnet_label ,
 and
 .Fn mac_prepare_process_label
-functions allocate the storage to fit file, network interface,
-and process labels, respectively.
-The default label elements employed by these APIs is configured in
-.Xr mac.conf 5 .
+functions are equivilent to invocations of
+.Fn mac_prepare_type
+with arguments of
+.Qq file ,
+.Qq ifnet ,
+and
+.Qq process
+respectively.
 .Sh RETURN VALUES
 .Rv -std
 .Sh SEE ALSO
@@ -89,3 +116,11 @@ To join this list, see the
 .Fx
 POSIX.1e implementation page
 for more information.
+.Sh HISTORY
+Support for Mandatory Access Control was introduced in
+.Fx 5.0
+as part of the
+.Tn TrustedBSD
+Project.
+Support for generic object types first appeared in
+.Fx 5.2 .
