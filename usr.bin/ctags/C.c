@@ -46,10 +46,10 @@ __FBSDID("$FreeBSD$");
 
 #include "ctags.h"
 
-static int	func_entry __P((void));
-static void	hash_entry __P((void));
-static void	skip_string __P((int));
-static int	str_entry __P((int));
+static int	func_entry(void);
+static void	hash_entry(void);
+static void	skip_string(int);
+static int	str_entry(int);
 
 /*
  * c_entries --

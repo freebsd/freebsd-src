@@ -65,13 +65,13 @@ __FBSDID("$FreeBSD$");
 
 #include "zopen.h"
 
-void	compress __P((const char *, const char *, int));
-void	cwarn __P((const char *, ...)) __printflike(1, 2);
-void	cwarnx __P((const char *, ...)) __printflike(1, 2);
-void	decompress __P((const char *, const char *, int));
-int	permission __P((const char *));
-void	setfile __P((const char *, struct stat *));
-void	usage __P((int));
+void	compress(const char *, const char *, int);
+void	cwarn(const char *, ...) __printflike(1, 2);
+void	cwarnx(const char *, ...) __printflike(1, 2);
+void	decompress(const char *, const char *, int);
+int	permission(const char *);
+void	setfile(const char *, struct stat *);
+void	usage(int);
 
 int eval, force, verbose;
 

@@ -31,6 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)chpass.h	8.4 (Berkeley) 4/2/94
+ * $FreeBSD$
  */
 
 struct passwd;
@@ -52,20 +53,20 @@ typedef struct _entry {
 extern ENTRY list[];
 extern uid_t uid;
 
-int	 atot __P((char *, time_t *));
-void	 display __P((int, struct passwd *));
-void	 edit __P((struct passwd *));
-char    *ok_shell __P((char *));
-int	 p_change __P((char *, struct passwd *, ENTRY *));
-int	 p_class __P((char *, struct passwd *, ENTRY *));
-int	 p_expire __P((char *, struct passwd *, ENTRY *));
-int	 p_gecos __P((char *, struct passwd *, ENTRY *));
-int	 p_gid __P((char *, struct passwd *, ENTRY *));
-int	 p_hdir __P((char *, struct passwd *, ENTRY *));
-int	 p_login __P((char *, struct passwd *, ENTRY *));
-int	 p_login __P((char *, struct passwd *, ENTRY *));
-int	 p_passwd __P((char *, struct passwd *, ENTRY *));
-int	 p_shell __P((char *, struct passwd *, ENTRY *));
-int	 p_uid __P((char *, struct passwd *, ENTRY *));
-char    *ttoa __P((time_t));
-int	 verify __P((struct passwd *));
+int	 atot(char *, time_t *);
+void	 display(int, struct passwd *);
+void	 edit(struct passwd *);
+char    *ok_shell(char *);
+int	 p_change(char *, struct passwd *, ENTRY *);
+int	 p_class(char *, struct passwd *, ENTRY *);
+int	 p_expire(char *, struct passwd *, ENTRY *);
+int	 p_gecos(char *, struct passwd *, ENTRY *);
+int	 p_gid(char *, struct passwd *, ENTRY *);
+int	 p_hdir(char *, struct passwd *, ENTRY *);
+int	 p_login(char *, struct passwd *, ENTRY *);
+int	 p_login(char *, struct passwd *, ENTRY *);
+int	 p_passwd(char *, struct passwd *, ENTRY *);
+int	 p_shell(char *, struct passwd *, ENTRY *);
+int	 p_uid(char *, struct passwd *, ENTRY *);
+char    *ttoa(time_t);
+int	 verify(struct passwd *);

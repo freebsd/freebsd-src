@@ -32,7 +32,7 @@ static const char rcsid[] =
 #include <string.h>
 #include <unistd.h>
 
-int	main __P((int, char **));
+int	main(int, char **);
 extern char *__progname;
 
 int 

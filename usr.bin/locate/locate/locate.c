@@ -96,13 +96,6 @@ static const char rcsid[] =
 #endif
 
 
-#ifdef sun
-#include <netinet/in.h> /* SunOS byteorder(3) htohl(3) */
-#ifndef __P
-#define __P(x) x
-#endif
-#endif
-
 #include "locate.h"
 #include "pathnames.h"
 
@@ -121,23 +114,23 @@ int f_limit;            /* limit number of output lines, 0 == infinite */
 u_int counter;          /* counter for matches [-c] */
 
 
-void    usage __P((void));
-void    statistic __P((FILE *, char *));
-void    fastfind __P((FILE *, char *, char *));
-void    fastfind_icase __P((FILE *, char *, char *));
-void    fastfind_mmap __P((char *, caddr_t, int, char *));
-void    fastfind_mmap_icase __P((char *, caddr_t, int, char *));
-void	search_mmap __P((char *, char **));
-void	search_fopen __P((char *, char **));
-unsigned long cputime __P((void));
+void    usage(void);
+void    statistic(FILE *, char *);
+void    fastfind(FILE *, char *, char *);
+void    fastfind_icase(FILE *, char *, char *);
+void    fastfind_mmap(char *, caddr_t, int, char *);
+void    fastfind_mmap_icase(char *, caddr_t, int, char *);
+void	search_mmap(char *, char **);
+void	search_fopen(char *, char **);
+unsigned long cputime(void);
 
-extern char     **colon __P((char **, char*, char*));
-extern void     print_matches __P((u_int));
-extern int      getwm __P((caddr_t));
-extern int      getwf __P((FILE *));
-extern u_char   *tolower_word __P((u_char *));
-extern int	check_bigram_char __P((int));
-extern char 	*patprep __P((char *));
+extern char     **colon(char **, char*, char*);
+extern void     print_matches(u_int);
+extern int      getwm(caddr_t);
+extern int      getwf(FILE *);
+extern u_char   *tolower_word(u_char *);
+extern int	check_bigram_char(int);
+extern char 	*patprep(char *);
 
 int
 main(argc, argv)

@@ -57,8 +57,8 @@ static const char rcsid[] =
 int	nstops;
 int	tabstops[100];
 
-static void getstops __P((char *));
-static void usage __P((void));
+static void getstops(char *);
+static void usage(void);
 
 int
 main(argc, argv)

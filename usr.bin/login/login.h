@@ -25,6 +25,6 @@
  * $FreeBSD$
  */
 
-void	login_fbtab __P((char *, uid_t, gid_t));
+void	login_fbtab(char *, uid_t, gid_t);
 
 extern	char **environ;

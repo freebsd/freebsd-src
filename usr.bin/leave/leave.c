@@ -53,8 +53,8 @@ static const char rcsid[] =
 #include <time.h>
 #include <unistd.h>
 
-void doalarm __P((u_int));
-static void usage __P((void));
+void doalarm(u_int);
+static void usage(void);
 
 /*
  * leave [[+]hhmm]

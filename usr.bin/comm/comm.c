@@ -62,10 +62,10 @@ __FBSDID("$FreeBSD$");
 
 const char *tabs[] = { "", "\t", "\t\t" };
 
-FILE   *file __P((char *));
-void	show __P((FILE *, const char *, char *));
-int     stricoll __P((char *, char *));
-static void	usage __P((void));
+FILE   *file(char *);
+void	show(FILE *, const char *, char *);
+int     stricoll(char *, char *);
+static void	usage(void);
 
 int
 main(argc, argv)

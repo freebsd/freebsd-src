@@ -52,11 +52,11 @@ static const char rcsid[] =
 
 int signaled;
 
-void usage __P((void));
-int msgrm __P((key_t, int));
-int shmrm __P((key_t, int));
-int semrm __P((key_t, int));
-void not_configured __P((int));
+void usage(void);
+int msgrm(key_t, int);
+int shmrm(key_t, int);
+int semrm(key_t, int);
+void not_configured(int);
 
 void usage()
 {

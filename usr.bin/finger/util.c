@@ -60,9 +60,9 @@ __FBSDID("$FreeBSD$");
 #include "finger.h"
 #include "pathnames.h"
 
-static void	 find_idle_and_ttywrite __P((WHERE *));
-static void	 userinfo __P((PERSON *, struct passwd *));
-static WHERE	*walloc __P((PERSON *));
+static void	 find_idle_and_ttywrite(WHERE *);
+static void	 userinfo(PERSON *, struct passwd *);
+static WHERE	*walloc(PERSON *);
 
 int
 match(pw, user)

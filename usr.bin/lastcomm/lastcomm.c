@@ -60,11 +60,11 @@ static const char rcsid[] =
 #include <utmp.h>
 #include "pathnames.h"
 
-time_t	 expand __P((u_int));
-char	*flagbits __P((int));
-const	 char *getdev __P((dev_t));
-int	 requested __P((char *[], struct acct *));
-static	 void usage __P((void));
+time_t	 expand(u_int);
+char	*flagbits(int);
+const	 char *getdev(dev_t);
+int	 requested(char *[], struct acct *);
+static	 void usage(void);
 
 #define AC_UTIME 1 /* user */
 #define AC_STIME 2 /* system */

@@ -69,8 +69,8 @@ CHDR chdr;
 u_int options;
 char *archive, *posarg, *posname;
 const char *envtmp;
-static void badoptions __P((const char *));
-static void usage __P((void));
+static void badoptions(const char *);
+static void usage(void);
 
 /*
  * main --
@@ -85,7 +85,7 @@ main(argc, argv)
 {
 	int c;
 	char *p;
-	int (*fcall) __P((char **)) = NULL;
+	int (*fcall)(char **) = NULL;
 
 	(void) setlocale(LC_TIME, "");;
 

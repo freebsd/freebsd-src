@@ -40,12 +40,12 @@ static char sep[] = ", \t";		/* list-element separator */
 #define YES             1
 #define NO              0
 
-static int	from_match __P((const char *, const char *));
-static int	list_match __P((char *, const char *,
-				int (*)(const char *, const char *)));
-static int	netgroup_match __P((const char *, const char *, const char *));
-static int	string_match __P((const char *, const char *));
-static int	user_match __P((const char *, const char *));
+static int	from_match(const char *, const char *);
+static int	list_match(char *, const char *,
+		    int (*)(const char *, const char *));
+static int	netgroup_match(const char *, const char *, const char *);
+static int	string_match(const char *, const char *);
+static int	user_match(const char *, const char *);
 
 /* login_access - match username/group and host/tty with access control file */
 
@@ -114,7 +114,7 @@ const char   *from;
 static int list_match(list, item, match_fn)
 char         *list;
 const char   *item;
-int         (*match_fn) __P((const char *, const char *));
+int         (*match_fn)(const char *, const char *);
 {
     char   *tok;
     int     match = NO;

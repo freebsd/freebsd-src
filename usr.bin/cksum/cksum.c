@@ -59,7 +59,7 @@ static const char rcsid[] =
 
 #include "extern.h"
 
-static void usage __P((void));
+static void usage(void);
 
 int
 main(argc, argv)
@@ -69,8 +69,8 @@ main(argc, argv)
 	int ch, fd, rval;
 	u_int32_t len, val;
 	char *fn, *p;
-	int (*cfncn) __P((int, u_int32_t *, u_int32_t *));
-	void (*pfncn) __P((char *, u_int32_t, u_int32_t));
+	int (*cfncn)(int, u_int32_t *, u_int32_t *);
+	void (*pfncn)(char *, u_int32_t, u_int32_t);
 
 	if ((p = rindex(argv[0], '/')) == NULL)
 		p = argv[0];

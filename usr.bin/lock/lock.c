@@ -73,8 +73,10 @@ static const char rcsid[] =
 
 #define	TIMEOUT	15
 
-void quit __P((int)), bye __P((int)), hi __P((int));
-static void usage __P((void));
+void quit(int);
+void bye(int);
+void hi(int);
+static void usage(void);
 
 struct timeval	timeout;
 struct timeval	zerotime;

@@ -62,18 +62,18 @@ __FBSDID("$FreeBSD$");
 #define MAXBR	100	/* Max number of bracket pairs known */
 #define MAXCMDS	500	/* Max number of commands known */
 
-void addcmd __P((char *));
-void addmac __P((const char *));
-int binsrch __P((const char *));
-void checkknown __P((char *));
-void chkcmd __P((char *, char *));
-void complain __P((int));
-int eq __P((const char *, const char *));
-void nomatch __P((char *));
-void pe __P((int));
-void process __P((FILE *));
-void prop __P((int));
-static void usage __P((void));
+void addcmd(char *);
+void addmac(const char *);
+int binsrch(const char *);
+void checkknown(char *);
+void chkcmd(char *, char *);
+void complain(int);
+int eq(const char *, const char *);
+void nomatch(char *);
+void pe(int);
+void process(FILE *);
+void prop(int);
+static void usage(void);
 
 /*
  * The stack on which we remember what we've seen so far.
