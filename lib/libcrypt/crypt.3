@@ -184,14 +184,11 @@ Other crypt formats may be easilly added.  An example salt would be:
 .Pp
 The algorithm used will depend upon whether
 .Fn crypt_set_format
-has been called and whether
-.Tn DES
-is installed or not.  If
-.Tn DES
-is installed and
+has been called and whether a global default format has been specified.
+Unless a global default has been specified or
 .Fn crypt_set_format
-has not set the format to something else, it will be used.
-Otherwise, the best algorithm is used, which is currently
+has set the format to something else, the best algorithm is used
+which is currently
 .\"
 .\" NOTICE: Also make sure to update this
 .\"
@@ -216,6 +213,12 @@ The
 .Fn crypt_set_format
 function sets the default encoding format according to the supplied
 .Fa string .
+.Pp
+The global default format can be set using the
+.Pa /etc/auth.conf
+file using the
+.Ql crypt_format
+property.
 .Sh RETURN VALUES
 .Pp
 .Fn crypt
@@ -230,8 +233,10 @@ Otherwise, a value of 0 is returned.
 .Sh SEE ALSO
 .Xr login 1 ,
 .Xr passwd 1 ,
+.Xr auth_getval 3 ,
 .Xr cipher 3 ,
 .Xr getpass 3 ,
+.Xr auth.conf 5 ,
 .Xr passwd 5 ,
 .Sh BUGS
 The
