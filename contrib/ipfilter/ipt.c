@@ -5,6 +5,9 @@
  * provided that this notice is preserved and due credit is given
  * to the original author and the contributors.
  */
+#ifdef	__FreeBSD__
+# include <osreldate.h>
+#endif
 #include <stdio.h>
 #include <assert.h>
 #include <string.h>
@@ -16,6 +19,7 @@
 #endif
 #include <sys/types.h>
 #include <sys/param.h>
+#include <sys/time.h>
 #include <stdlib.h>
 #include <unistd.h>
 #include <stddef.h>
@@ -30,6 +34,9 @@
 #include <netinet/ip_icmp.h>
 #include <netinet/tcpip.h>
 #include <net/if.h>
+#if __FreeBSD_version >= 300000
+# include <net/if_var.h>
+#endif
 #include <netdb.h>
 #include <arpa/nameser.h>
 #include <arpa/inet.h>
@@ -42,7 +49,7 @@
 
 #if !defined(lint) && defined(LIBC_SCCS)
 static	char	sccsid[] = "@(#)ipt.c	1.19 6/3/96 (C) 1993-1996 Darren Reed";
-static	char	rcsid[] = "$Id: ipt.c,v 2.0.2.4 1997/04/02 12:23:30 darrenr Exp $";
+static	char	rcsid[] = "$Id: ipt.c,v 2.0.2.5 1997/04/30 13:59:39 darrenr Exp $";
 #endif
 
 extern	char	*optarg;
@@ -66,7 +73,7 @@ char *argv[];
 	char	*rules = NULL, *datain = NULL, *iface = NULL;
 	int	fd, i, dir = 0;
 
-	while ((c = getopt(argc, argv, "bdEHi:I:oPr:STvX")) != -1)
+	while ((c = (char)getopt(argc, argv, "bdEHi:I:oPr:STvX")) != -1)
 		switch (c)
 		{
 		case 'b' :

@@ -5,13 +5,13 @@
 # and is not changed in any way.  The author accepts no responsibility
 # for the use of this software.  I hate legaleese, don't you ?
 #
-# $Id: Makefile,v 2.0.2.7 1997/04/02 12:23:14 darrenr Exp $
+# $Id: Makefile,v 2.0.2.12 1997/05/24 08:13:34 darrenr Exp $
 #
 # where to put things.
 #
-BINDEST=/usr/local/ip_fil3.1.1/bin
-SBINDEST=/usr/local/ip_fil3.1.1/sbin
-MANDIR=/usr/local/ip_fil3.1.1/man
+BINDEST=/usr/local/bin
+SBINDEST=/sbin
+MANDIR=/usr/local/man
 #To test prototyping
 #CC=gcc -Wstrict-prototypes -Wmissing-prototypes -Werror
 CC=gcc
@@ -65,20 +65,44 @@ tests:
 	@if [ -d test ]; then (cd test; make) \
 	else echo test directory not present, sorry; fi
 
-sunos solaris:
+include:
+	mkdir -p netinet
+	(cd netinet; /bin/rm -f *; ln -s ../*.h .; ln -s ../ip_ftp_pxy.c .)
+
+sunos solaris: include
 	./buildsunos
 
-freebsd22 freebsd30:
+freebsd22 freebsd30: include
 	-if [ ! -d BSD/$(CPU) ] ; then mkdir BSD/$(CPU); fi
-	@if [ ! -f `uname -v|sed -e 's@^.*:\(/[^: ]*\).*@\1@'`/ioconf.h ] ; then \
-		echo "Can't find ioconf.h"; \
+	-rm -f BSD/$(CPU)/ioconf.h
+	@if [ -n $(IPFILKERN) ] ; then \
+		ln -s /sys/$(IPFILKERN)/ioconf.h BSD/$(CPU); \
+	elif [ ! -f `uname -v|sed -e 's@^.*:\(/[^: ]*\).*@\1@'`/ioconf.h ] ; then \
+		echo -n "Can't find ioconf.h in "; \
+		echo `uname -v|sed -e 's@^.*:\(/[^: ]*\).*@\1@'`; \
 		exit 1;\
+	else \
+		ln -s `uname -v|sed -e 's@^.*:\(/[^: ]*\).*@\1@'`/ioconf.h BSD/$(CPU) ; \
 	fi
-	rm -f BSD/$(CPU)/ioconf.h
-	ln -s `uname -v|sed -e 's@^.*:\(/[^: ]*\).*@\1@'`/ioconf.h BSD/$(CPU)
-	make bsd
+	make freebsd
 
-bsd netbsd freebsd freebsd20 freebsd21:
+netbsd: include
+	-if [ ! -d BSD/$(CPU) ] ; then mkdir BSD/$(CPU); fi
+	-rm -f BSD/$(CPU)/Makefile BSD/$(CPU)/Makefile.ipsend
+	-ln -s ../Makefile BSD/$(CPU)/Makefile
+	-ln -s ../Makefile.ipsend BSD/$(CPU)/Makefile.ipsend
+	(cd BSD/$(CPU); make build "TOP=../.." $(MFLAGS) "ML=mln_ipl.c"; cd ..)
+	(cd BSD/$(CPU); make -f Makefile.ipsend "TOP=../.." $(MFLAGS); cd ..)
+
+freebsd freebsd20 freebsd21: include
+	-if [ ! -d BSD/$(CPU) ] ; then mkdir BSD/$(CPU); fi
+	-rm -f BSD/$(CPU)/Makefile BSD/$(CPU)/Makefile.ipsend
+	-ln -s ../Makefile BSD/$(CPU)/Makefile
+	-ln -s ../Makefile.ipsend BSD/$(CPU)/Makefile.ipsend
+	(cd BSD/$(CPU); make build "TOP=../.." $(MFLAGS) "ML=mlf_ipl.c"; cd ..)
+	(cd BSD/$(CPU); make -f Makefile.ipsend "TOP=../.." $(MFLAGS); cd ..)
+
+bsd: include
 	-if [ ! -d BSD/$(CPU) ] ; then mkdir BSD/$(CPU); fi
 	-rm -f BSD/$(CPU)/Makefile BSD/$(CPU)/Makefile.ipsend
 	-ln -s ../Makefile BSD/$(CPU)/Makefile
@@ -86,7 +110,7 @@ bsd netbsd freebsd freebsd20 freebsd21:
 	(cd BSD/$(CPU); make build "TOP=../.." $(MFLAGS); cd ..)
 	(cd BSD/$(CPU); make -f Makefile.ipsend "TOP=../.." $(MFLAGS); cd ..)
 
-bsdi bsdos:
+bsdi bsdos: include
 	-if [ ! -d BSD/$(CPU) ] ; then mkdir BSD/$(CPU); fi
 	-rm -f BSD/$(CPU)/Makefile BSD/$(CPU)/Makefile.ipsend
 	-ln -s ../Makefile BSD/$(CPU)/Makefile
@@ -138,19 +162,14 @@ sunos5x86 solaris2x86:
 	(cd SunOS5/$(CPU); make -f Makefile.ipsend TOP=../.. $(MFLAGS); cd ..)
 
 install-bsd: bsd
-	(cd BSD/$(CPU); $(MAKE) "CPU=$(CPU) TOP=../.." install)
+	(cd BSD/$(CPU); make install "TOP=../.." $(MFLAGS); cd ..)
+	(cd BSD/$(CPU); make -f Makefile.ipsend INSTALL=$(INSTALL) install "TOP=../.." $(MFLAGS); cd ..)
+
 install-sunos4: solaris
 	(cd SunOS4; $(MAKE) "CPU=$(CPU) TOP=.." install)
+
 install-sunos5: solaris
 	(cd SunOS5; $(MAKE) "CPU=$(CPU) TOP=.." install)
-
-# XXX FIXME: bogus to depend on all!
-install: all ip_fil.h
-	-$(CP) ip_fil.h /usr/include/netinet/ip_fil.h
-	-$(CHMOD) 444 /usr/include/netinet/ip_fil.h
-	-$(INSTALL) -cs -g wheel -m 755 -o root ipfstat ipf ipnat $(SBINDEST)
-	-$(INSTALL) -cs -g wheel -m 755 -o root ipmon ipftest $(BINDEST)
-	(cd man; $(MAKE) INSTALL=$(INSTALL) MANDIR=$(MANDIR) install; cd ..)
 
 rcsget:
 	-@for i in ipf.c ipt.h solaris.c ipf.h kmem.c ipft_ef.c linux.h \

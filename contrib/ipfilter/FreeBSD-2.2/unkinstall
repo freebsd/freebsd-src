@@ -7,9 +7,28 @@ if ( -d /sys/$karch ) set archdir="/sys/$karch"
 set confdir="$archdir/conf"
 
 if ( $dir =~ */FreeBSD* ) cd ..
+echo -n "Uninstalling "
+foreach i (ip_fil.[ch] ip_nat.[ch] ip_frag.[ch] ip_state.[ch] fil.c ip_compat.h)
+	echo -n "$i ";
+	/bin/rm -f /sys/netinet/$i
+end
+echo ""
 echo "Unpatching ip_input.c, ip_output.c and in_proto.c"
-cat FreeBSD-2.2/ip_{in,out}put.c.diffs FreeBSD-2.2/in_proto.c.diffs |  \
+cat FreeBSD-2.2/ip_{in,out}put.c.diffs FreeBSD-2.2/in_proto.c.diffs | \
 (cd /sys/netinet; patch -R)
+
+if ( -f /sys/conf/files.newconf ) then
+	echo "Unpatching /sys/conf/files.newconf"
+	cat FreeBSD-2.2/files.newconf.diffs | (cd /sys/conf; patch -R)
+	echo "Unpatching /sys/conf/files"
+	cat FreeBSD-2.2/files.diffs | (cd /sys/conf; patch -R)
+endif
+if ( -f /sys/conf/files.oldconf ) then
+	echo "Unpatching /sys/conf/files.oldconf"
+	cat FreeBSD-2.2/files.oldconf.diffs | (cd /sys/conf; patch -R)
+	echo "Unpatching /sys/conf/files"
+	cat FreeBSD-2.2/filez.diffs | (cd /sys/conf; patch -R)
+endif
 
 set config=`(cd $confdir; /bin/ls -1t [0-9A-Z_]*) | head -1`
 echo -n "Kernel configuration to update [$config] "
@@ -29,8 +48,8 @@ if ( -d $archdir/../compile/$newconfig ) then
 		set bak=".bak.$dot"
 		set dot=`expr 1 + $dot`
 	end
-	mv $archdir/../compile/$newconfig $archdir/../compile/${newconfig}.$bak
+	mv $archdir/../compile/$newconfig $archdir/../compile/${newconfig}.${bak}
 endif
-grep -v IPFILTER $confdir/$newconfig.bak > $confdir/$newconfig
+egrep -v IPFILTER $confdir/$newconfig.bak > $confdir/$newconfig
 echo 'You will now need to run "config" and build a new kernel.'
 exit 0
