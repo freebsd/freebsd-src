@@ -1,7 +1,7 @@
 #
 # GENERIC -- Generic machine with WD/AHx/NCR/BTx family disks
 #
-#	$Id: GENERIC,v 1.46.2.8 1996/01/20 06:13:20 nate Exp $
+#	$Id: GENERIC,v 1.46.2.9 1996/04/18 04:04:21 nate Exp $
 #
 
 machine		"i386"
@@ -87,6 +87,12 @@ device		sc0	at isa? port "IO_KBD" tty irq 1 vector scintr
 
 # Mandatory, don't remove
 device		npx0	at isa? port "IO_NPX" irq 13 vector npxintr
+
+#
+# Laptop support (see LINT for more options)
+#
+#device		apm0    at isa?		# Advanced Power Management
+#options		APM_BROKEN_STATCLOCK	# Workaround some buggy APM BIOS
 
 device		sio0	at isa? port "IO_COM1" tty irq 4 vector siointr
 device		sio1	at isa? port "IO_COM2" tty irq 3 vector siointr
