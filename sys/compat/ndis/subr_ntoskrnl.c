@@ -108,6 +108,8 @@ __regparm static uint64_t _aullshr(uint64_t, uint8_t);
 __regparm static uint64_t _aullshl(uint64_t, uint8_t);
 __stdcall static void *ntoskrnl_allocfunc(uint32_t, size_t, uint32_t);
 __stdcall static void ntoskrnl_freefunc(void *);
+static slist_entry *ntoskrnl_pushsl(slist_header *, slist_entry *);
+static slist_entry *ntoskrnl_popsl(slist_header *);
 __stdcall static void ntoskrnl_init_lookaside(paged_lookaside_list *,
 	lookaside_alloc_func *, lookaside_free_func *,
 	uint32_t, size_t, uint32_t, uint16_t);
@@ -116,12 +118,12 @@ __stdcall static void ntoskrnl_init_nplookaside(npaged_lookaside_list *,
 	lookaside_alloc_func *, lookaside_free_func *,
 	uint32_t, size_t, uint32_t, uint16_t);
 __stdcall static void ntoskrnl_delete_nplookaside(npaged_lookaside_list *);
-__stdcall static slist_entry *ntoskrnl_push_slist(/*slist_entry *,
+__stdcall static slist_entry *ntoskrnl_push_slist(/*slist_header *,
 	slist_entry * */ void);
-__stdcall static slist_entry *ntoskrnl_pop_slist(/*slist_entry * */ void);
-__stdcall static slist_entry *ntoskrnl_push_slist_ex(/*slist_entry *,
+__stdcall static slist_entry *ntoskrnl_pop_slist(/*slist_header * */ void);
+__stdcall static slist_entry *ntoskrnl_push_slist_ex(/*slist_header *,
 	slist_entry *,*/ kspin_lock *);
-__stdcall static slist_entry *ntoskrnl_pop_slist_ex(/*slist_entry *,
+__stdcall static slist_entry *ntoskrnl_pop_slist_ex(/*slist_header *,
 	kspin_lock * */void);
 __stdcall static void ntoskrnl_lock_dpc(/*kspin_lock * */ void);
 __stdcall static void ntoskrnl_unlock_dpc(/*kspin_lock * */ void);
@@ -465,7 +467,7 @@ ntoskrnl_waitforobj(obj, reason, mode, alertable, timeout)
 	w.wb_object = obj;
 	w.wb_kthread = td;
 
-	INSERT_LIST_HEAD((&obj->dh_waitlisthead), (&w.wb_waitlist));
+	INSERT_LIST_TAIL((&obj->dh_waitlisthead), (&w.wb_waitlist));
 
 	/*
 	 * The timeout value is specified in 100 nanosecond units
@@ -600,7 +602,7 @@ ntoskrnl_waitforobjs(cnt, obj, wtype, reason, mode,
 	for (i = 0; i < cnt; i++) {
 		if (obj[i]->dh_sigstate == TRUE)
 			continue;
-		INSERT_LIST_HEAD((&obj[i]->dh_waitlisthead),
+		INSERT_LIST_TAIL((&obj[i]->dh_waitlisthead),
 		    (&w[i].wb_waitlist));
 		w[i].wb_kthread = td;
 		w[i].wb_object = obj[i];
@@ -628,7 +630,7 @@ ntoskrnl_waitforobjs(cnt, obj, wtype, reason, mode,
 			error = kthread_suspend(td->td_proc,
 			    timeout == NULL ? 0 : tvtohz(&tv));
 		else
-			error = tsleep(td, PPAUSE|PCATCH, "ndisws",
+			error = tsleep(td, PPAUSE|PDROP, "ndisws",
 			    timeout == NULL ? 0 : tvtohz(&tv));
 
 		mtx_pool_lock(ndis_mtxpool, ntoskrnl_dispatchlock);
@@ -809,6 +811,38 @@ _aullshr(a, b)
 	return (a >> b);
 }
 
+static slist_entry *
+ntoskrnl_pushsl(head, entry)
+	slist_header		*head;
+	slist_entry		*entry;
+{
+	slist_entry		*oldhead;
+
+	oldhead = head->slh_list.slh_next;
+	entry->sl_next = head->slh_list.slh_next;
+	head->slh_list.slh_next = entry;
+	head->slh_list.slh_depth++;
+	head->slh_list.slh_seq++;
+
+	return(oldhead);
+}
+
+static slist_entry *
+ntoskrnl_popsl(head)
+	slist_header		*head;
+{
+	slist_entry		*first;
+
+	first = head->slh_list.slh_next;
+	if (first != NULL) {
+		head->slh_list.slh_next = first->sl_next;
+		head->slh_list.slh_depth--;
+		head->slh_list.slh_seq++;
+	}
+
+	return(first);
+}
+
 __stdcall static void *
 ntoskrnl_allocfunc(pooltype, size, tag)
 	uint32_t		pooltype;
@@ -823,6 +857,7 @@ ntoskrnl_freefunc(buf)
 	void			*buf;
 {
 	free(buf, M_DEVBUF);
+	return;
 }
 
 __stdcall static void
@@ -853,6 +888,9 @@ ntoskrnl_init_lookaside(lookaside, allocfunc, freefunc,
 	mtx = mtx_pool_alloc(ndis_mtxpool);
 	lookaside->nll_obsoletelock = (kspin_lock)mtx;
 
+	lookaside->nll_l.gl_depth = LOOKASIDE_DEPTH;
+	lookaside->nll_l.gl_maxdepth = LOOKASIDE_DEPTH;
+
 	return;
 }
 
@@ -860,6 +898,13 @@ __stdcall static void
 ntoskrnl_delete_lookaside(lookaside)
 	paged_lookaside_list   *lookaside;
 {
+	void			*buf;
+	__stdcall void		(*freefunc)(void *);
+
+	freefunc = lookaside->nll_l.gl_freefunc;
+	while((buf = ntoskrnl_popsl(&lookaside->nll_l.gl_listhead)) != NULL)
+		freefunc(buf);
+
 	return;
 }
 
@@ -876,7 +921,12 @@ ntoskrnl_init_nplookaside(lookaside, allocfunc, freefunc,
 {
 	struct mtx		*mtx;
 
-	lookaside->nll_l.gl_size = size;
+	bzero((char *)lookaside, sizeof(npaged_lookaside_list));
+
+	if (size < sizeof(slist_entry))
+		lookaside->nll_l.gl_size = sizeof(slist_entry);
+	else
+		lookaside->nll_l.gl_size = size;
 	lookaside->nll_l.gl_tag = tag;
 	if (allocfunc == NULL)
 		lookaside->nll_l.gl_allocfunc = ntoskrnl_allocfunc;
@@ -891,6 +941,9 @@ ntoskrnl_init_nplookaside(lookaside, allocfunc, freefunc,
 	mtx = mtx_pool_alloc(ndis_mtxpool);
 	lookaside->nll_obsoletelock = (kspin_lock)mtx;
 
+	lookaside->nll_l.gl_depth = LOOKASIDE_DEPTH;
+	lookaside->nll_l.gl_maxdepth = LOOKASIDE_DEPTH;
+
 	return;
 }
 
@@ -898,6 +951,13 @@ __stdcall static void
 ntoskrnl_delete_nplookaside(lookaside)
 	npaged_lookaside_list   *lookaside;
 {
+	void			*buf;
+	__stdcall void		(*freefunc)(void *);
+
+	freefunc = lookaside->nll_l.gl_freefunc;
+	while((buf = ntoskrnl_popsl(&lookaside->nll_l.gl_listhead)) != NULL)
+		freefunc(buf);
+
 	return;
 }
 
@@ -919,10 +979,9 @@ ntoskrnl_push_slist(/*head, entry*/ void)
 	__asm__ __volatile__ ("" : "=c" (head), "=d" (entry));
 
 	mtx_pool_lock(ndis_mtxpool, ntoskrnl_interlock);
-	oldhead = head->slh_list.slh_next;
-	entry->sl_next = head->slh_list.slh_next;
-	head->slh_list.slh_next = entry;
+	oldhead = ntoskrnl_pushsl(head, entry);
 	mtx_pool_unlock(ndis_mtxpool, ntoskrnl_interlock);
+
 	return(oldhead);
 }
 
@@ -935,10 +994,9 @@ ntoskrnl_pop_slist(/*head*/ void)
 	__asm__ __volatile__ ("" : "=c" (head));
 
 	mtx_pool_lock(ndis_mtxpool, ntoskrnl_interlock);
-	first = head->slh_list.slh_next;
-	if (first != NULL)
-		head->slh_list.slh_next = first->sl_next;
+	first = ntoskrnl_popsl(head);
 	mtx_pool_unlock(ndis_mtxpool, ntoskrnl_interlock);
+
 	return(first);
 }
 
@@ -953,10 +1011,9 @@ ntoskrnl_push_slist_ex(/*head, entry,*/ lock)
 	__asm__ __volatile__ ("" : "=c" (head), "=d" (entry));
 
 	mtx_pool_lock(ndis_mtxpool, (struct mtx *)*lock);
-	oldhead = head->slh_list.slh_next;
-	entry->sl_next = head->slh_list.slh_next;
-	head->slh_list.slh_next = entry;
+	oldhead = ntoskrnl_pushsl(head, entry);
 	mtx_pool_unlock(ndis_mtxpool, (struct mtx *)*lock);
+
 	return(oldhead);
 }
 
@@ -970,10 +1027,9 @@ ntoskrnl_pop_slist_ex(/*head, lock*/ void)
 	__asm__ __volatile__ ("" : "=c" (head), "=d" (lock));
 
 	mtx_pool_lock(ndis_mtxpool, (struct mtx *)*lock);
-	first = head->slh_list.slh_next;
-	if (first != NULL)
-		head->slh_list.slh_next = first->sl_next;
+	first = ntoskrnl_popsl(head);
 	mtx_pool_unlock(ndis_mtxpool, (struct mtx *)*lock);
+
 	return(first);
 }
 
