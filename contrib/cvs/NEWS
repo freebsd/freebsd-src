@@ -1,5 +1,11 @@
 Changes since 1.9:
 
+* When setting up the pserver server, one now must specify the
+allowable CVSROOT directories in inetd.conf.  See the Password
+authentication server section of cvs.texinfo for details.  Note that
+this implies that everyone who is running a pserver server must edit
+inetd.conf when upgrading their CVS.
+
 * The client no longer needs an external patch program (assuming both
 the client and the server have been updated to the new version).
 

@@ -199,7 +199,7 @@ RCS_checkin (rcsfile, workfile, message, rev, flags)
 	if (!existence_error (errno))
 	    error (0, errno, "warning: cannot stat %s", rcsfile);
     }
-    run_setup ("%s%s -x,v/ -f %s%s", Rcsbin, RCS_CI,
+    run_setup ("%s%s -x,v/ -w%s -f %s%s", Rcsbin, RCS_CI, getcaller (),
 	       rev ? "-r" : "", rev ? rev : "");
     if (flags & RCS_FLAGS_DEAD)
 	run_arg ("-sdead");

@@ -43,8 +43,7 @@ distribution of such items under the terms of the GNU Public License.
 ----------------------------------------------------------------------
 Procedure for dealing with people who want to be developers:
 
-People who want checkin access (checkout-only access is available primarily
-via snapshots, for technical reasons) are first requested to send
+People who want checkin access are first requested to send
 patches and have them reviewed by a developer.  If they submit some
 good ones (preferably over a period of time, to demonstrate sustained
 interest), then one of the developers can ask the devel-cvs mailing
@@ -52,3 +51,11 @@ list whether it is OK to make this person a developer (after first
 sending the prospective developer a copy of this file and then having
 the prospective developer say they want to be a developer).  If there
 are no objections, an account will be created.
+
+----------------------------------------------------------------------
+Policy regarding checkout-only access:
+
+Checkout-only access to the CVS repository is available to all, on an
+anonymous basis (no need for registration or other complications).
+The exact technical mechanisms by which it is available are not
+covered by this policy.
