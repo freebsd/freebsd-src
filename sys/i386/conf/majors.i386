@@ -1,4 +1,4 @@
-$Id: majors.i386,v 1.26 1998/02/13 13:00:02 phk Exp $
+$Id: majors.i386,v 1.27 1998/02/13 22:40:53 pst Exp $
 
 Hopefully, this list will one day be obsoleted by DEVFS, but for now
 this is the current allocation of device major numbers.
@@ -37,6 +37,7 @@ blkdev	name		comments
 21	ccd		concatenated disk
 22	gd		Geometry disk.
 23	worm		SCSI "worm type"
+24	wstb		ATAPI tape client of "ata"
 chrdev	name		comments
 0	cn		console
 1	ctty		/dev/tty
@@ -128,3 +129,4 @@ chrdev	name		comments
 87	wfd		ATAPI floppy client of "ata"
 88	dpt		DPT RAID Controller <shimon@i-connect.net>
 89	pps		Pulse-Per-Second timing interface
+90	wst		ATAPI tape client of "ata"
