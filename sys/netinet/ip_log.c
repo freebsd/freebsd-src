@@ -16,7 +16,10 @@
 # include "opt_ipfilter_log.h"
 #endif
 #ifdef  __FreeBSD__
-# if defined(_KERNEL) && !defined(IPFILTER_LKM)
+# if defined(_KERNEL) && !defined(IPFILTER_LKM) 
+#  if !defined(__FreeBSD_version)
+#   include <sys/osreldate.h>
+#  endif
 #  if defined(__FreeBSD_version) && (__FreeBSD_version >= 300000)
 #   include "opt_ipfilter.h"
 #  endif
@@ -126,7 +129,7 @@ extern	kcondvar_t	iplwait;
 
 iplog_t	**iplh[IPL_LOGMAX+1], *iplt[IPL_LOGMAX+1], *ipll[IPL_LOGMAX+1];
 size_t	iplused[IPL_LOGMAX+1];
-static fr_info_t	iplcrc[IPL_LOGMAX+1];
+fr_info_t	iplcrc[IPL_LOGMAX+1];
 # ifdef	linux
 static struct wait_queue *iplwait[IPL_LOGMAX+1];
 # endif

@@ -1,5 +1,4 @@
 /*
- * $Id$
  * $FreeBSD$
  */
 #if SOLARIS && defined(_KERNEL)
@@ -59,15 +58,12 @@ ip_t *ip;
 ap_session_t *aps;
 nat_t *nat;
 {
-	char membuf[512 + 1], *s;
-	int off, dlen, inc = 0;
-	tcphdr_t *tcp, tcph, *tcp2 = &tcph;
 	raudio_t *rap = aps->aps_data;
-	u_short sp, dp, id = 0;
-	struct in_addr swip;
-	fr_info_t fi;
+	unsigned char membuf[512 + 1], *s;
+	u_short id = 0;
+	tcphdr_t *tcp;
+	int off, dlen;
 	int len = 0;
-	nat_t *ipn;
 	mb_t *m;
 #if	SOLARIS
 	mb_t *m1;
@@ -89,14 +85,14 @@ nat_t *nat;
 	dlen = msgdsize(m) - off;
 	if (dlen <= 0)
 		return 0;
-	copyout_mblk(m, off, MIN(sizeof(membuf), dlen), membuf);
+	copyout_mblk(m, off, MIN(sizeof(membuf), dlen), (char *)membuf);
 #else
 	m = *(mb_t **)fin->fin_mp;
 
 	dlen = mbufchainlen(m) - off;
 	if (dlen <= 0)
 		return 0;
-	m_copydata(m, off, MIN(sizeof(membuf), dlen), membuf);
+	m_copydata(m, off, MIN(sizeof(membuf), dlen), (char *)membuf);
 #endif
 	/*
 	 * In all the startup parsing, ensure that we don't go outside
@@ -106,7 +102,7 @@ nat_t *nat;
 	 * Look for the start of connection "PNA" string if not seen yet.
 	 */
 	if (rap->rap_seenpna == 0) {
-		s = memstr("PNA", membuf, 3, dlen);
+		s = (u_char *)memstr("PNA", (char *)membuf, 3, dlen);
 		if (s == NULL)
 			return 0;
 		s += 3;
@@ -160,38 +156,7 @@ nat_t *nat;
 			rap->rap_gotid = 0;
 		}
 	}
-
-	/*
-	 * Wait until we've seen the end of the start messages and even then
-	 * only proceed further if we're using UDP.
-	 */
-	if ((rap->rap_eos == 0) || ((rap->rap_mode & RAP_M_UDP) != RAP_M_UDP))
-		return 0;
-	sp = rap->rap_plport;
-	dp = 0;
-
-	bcopy((char *)fin, (char *)&fi, sizeof(fi));
-	bzero((char *)tcp2, sizeof(*tcp2));
-	tcp2->th_sport = htons(sp);
-	tcp2->th_dport = 0; /* XXX - don't specify remote port */
-	tcp2->th_win = htons(8192);
-	fi.fin_dp = (char *)tcp2;
-	fi.fin_data[0] = sp;
-	fi.fin_data[1] = 0;
-	fi.fin_fr = &raudiofr;
-	swip = ip->ip_src;
-	ip->ip_src = nat->nat_inip;
-	ipn = nat_new(nat->nat_ptr, ip, &fi, IPN_TCP|FI_W_DPORT, NAT_OUTBOUND);
-	if (ipn != NULL) {
-		ipn->nat_age = fr_defnatage;
-		(void) fr_addstate(ip, &fi, FI_W_DPORT);
-	}
-	ip->ip_src = swip;
-
-	if ((rap->rap_mode & RAP_M_UDP_ROBUST) == RAP_M_UDP_ROBUST) {
-		sp = rap->rap_prport;
-	}
-	return inc;
+	return 0;
 }
 
 
@@ -201,19 +166,28 @@ ip_t *ip;
 ap_session_t *aps;
 nat_t *nat;
 {
-	char membuf[IPF_MAXPORTLEN + 1], *s;
-	int off, dlen;
+	unsigned char membuf[IPF_MAXPORTLEN + 1], *s;
+	tcphdr_t *tcp, tcph, *tcp2 = &tcph;
 	raudio_t *rap = aps->aps_data;
+	struct in_addr swa, swb;
 	u_int a1, a2, a3, a4;
-	tcphdr_t *tcp;
+	u_short sp, dp;
+	int off, dlen;
+	fr_info_t fi;
 	tcp_seq seq;
+	nat_t *ipn;
+	u_char swp;
 	mb_t *m;
 #if	SOLARIS
 	mb_t *m1;
 #endif
 
-	if ((rap->rap_sdone != 0) ||
-	    ((rap->rap_mode & RAP_M_UDP_ROBUST) != RAP_M_UDP_ROBUST))
+	/*
+	 * Wait until we've seen the end of the start messages and even then
+	 * only proceed further if we're using UDP.  If they want to use TCP
+	 * then data is sent back on the same channel that is already open.
+	 */
+	if (rap->rap_sdone != 0)
 		return 0;
 
 	tcp = (tcphdr_t *)fin->fin_dp;
@@ -227,13 +201,13 @@ nat_t *nat;
 	if (dlen <= 0)
 		return 0;
 	bzero(membuf, sizeof(membuf));
-	copyout_mblk(m, off, MIN(sizeof(membuf), dlen), membuf);
+	copyout_mblk(m, off, MIN(sizeof(membuf), dlen), (char *)membuf);
 #else
 	dlen = mbufchainlen(m) - off;
 	if (dlen <= 0)
 		return 0;
 	bzero(membuf, sizeof(membuf));
-	m_copydata(m, off, MIN(sizeof(membuf), dlen), membuf);
+	m_copydata(m, off, MIN(sizeof(membuf), dlen), (char *)membuf);
 #endif
 
 	seq = ntohl(tcp->th_seq);
@@ -242,7 +216,7 @@ nat_t *nat;
 	 * We only care for the first 19 bytes coming back from the server.
 	 */
 	if (rap->rap_sseq == 0) {
-		s = memstr("PNA", membuf, 3, dlen);
+		s = (u_char *)memstr("PNA", (char *)membuf, 3, dlen);
 		if (s == NULL)
 			return 0;
 		a1 = s - membuf;
@@ -262,13 +236,68 @@ nat_t *nat;
 	} else
 		return 0;
 
-	for (a3 = a1, a4 = a2; a4 > 0; a4--, a3++) {
+	for (a3 = a1, a4 = a2; (a4 > 0) && (a3 < 19) && (a3 >= 0); a4--,a3++) {
 		rap->rap_sbf |= (1 << a3);
 		rap->rap_svr[a3] = *s++;
 	}
-	if (rap->rap_sbf == 0x7ffff) {		/* 19 bits */
-		s = rap->rap_svr + 13;
+
+	if ((rap->rap_sbf != 0x7ffff) || (!rap->rap_eos))	/* 19 bits */
+		return 0;
+	rap->rap_sdone = 1;
+
+	s = (u_char *)rap->rap_svr + 11;
+	if (((*s << 8) | *(s + 1)) == RA_ID_ROBUST) {
+		s += 2;
 		rap->rap_srport = (*s << 8) | *(s + 1);
 	}
+
+	swp = ip->ip_p;
+	swa = ip->ip_src;
+	swb = ip->ip_dst;
+
+	ip->ip_p = IPPROTO_UDP;
+	ip->ip_src = nat->nat_inip;
+	ip->ip_dst = nat->nat_oip;
+
+	bcopy((char *)fin, (char *)&fi, sizeof(fi));
+	bzero((char *)tcp2, sizeof(*tcp2));
+	fi.fin_dp = (char *)tcp2;
+	fi.fin_fr = &raudiofr;
+	tcp2->th_win = htons(8192);
+
+	if (((rap->rap_mode & RAP_M_UDP_ROBUST) == RAP_M_UDP_ROBUST) &&
+	    (rap->rap_srport != 0)) {
+		dp = rap->rap_srport;
+		sp = rap->rap_prport;
+		tcp2->th_sport = htons(sp);
+		tcp2->th_dport = htons(dp);
+		fi.fin_data[0] = dp;
+		fi.fin_data[1] = sp;
+		ipn = nat_new(nat->nat_ptr, ip, &fi, 
+			      IPN_UDP | (sp ? 0 : FI_W_SPORT),
+			      NAT_OUTBOUND);
+		if (ipn != NULL) {
+			ipn->nat_age = fr_defnatage;
+			(void) fr_addstate(ip, &fi, sp ? 0 : FI_W_SPORT);
+		}
+	}
+
+	if ((rap->rap_mode & RAP_M_UDP) == RAP_M_UDP) {
+		sp = rap->rap_plport;
+		tcp2->th_sport = htons(sp);
+		tcp2->th_dport = 0; /* XXX - don't specify remote port */
+		fi.fin_data[0] = sp;
+		fi.fin_data[1] = 0;
+		ipn = nat_new(nat->nat_ptr, ip, &fi, IPN_UDP|FI_W_DPORT,
+			      NAT_OUTBOUND);
+		if (ipn != NULL) {
+			ipn->nat_age = fr_defnatage;
+			(void) fr_addstate(ip, &fi, FI_W_DPORT);
+		}
+	}
+		
+	ip->ip_p = swp;
+	ip->ip_src = swa;
+	ip->ip_dst = swb;
 	return 0;
 }
