@@ -35,14 +35,14 @@ useacctfile	= yes			# generate accouting info to file
 monitor-allowed	= no			# global switch: monitor on/off
 monitor-port	= 451			# default monitor TCP port
 
-# Monitor rights are granted due to the most specific host/net spec, i.e. in 
+# Monitor rights are granted due to the most specific host/net spec, i.e. in
 # the example below host 192.168.1.2 will have the rights specified on that
 # line, even so it belongs to net 192.168.1.0/24 as well.
 #
 # A monitor specification may either be:
 #
 #  - the name of a local (UNIX-domain) socket; this MUST start with a "/"
-monitor		= "/var/run/isdn-monitor" 
+monitor		= "/var/run/isdn-monitor"
 monitor-access	= fullcmd
 monitor-access	= channelstate, logevents
 monitor-access	= callin, callout
@@ -92,7 +92,7 @@ firmware	= /etc/isdn/b1.t4	# microcode for an AVM B1 controller
 #==============================================================================
 # entry section: IP over ISDN example - i call back the remote end
 #==============================================================================
-entry				
+entry
 
 name        		= I4BIP		# name for reference. This name will
 					# be used in the logfile to identfy
@@ -119,9 +119,9 @@ remote-phone-incoming	= 0123456789	# this one can call in
 local-phone-dialout	= 321		# this is my number
 remote-phone-dialout	= 00123456789	# i call this remote number
 
-					# in case i have several remote 
-					# telephone numbers specified, this 
-					# is used to specify which one is 
+					# in case i have several remote
+					# telephone numbers specified, this
+					# is used to specify which one is
 					# used next on dial fail or retry:
 remdial-handling	= first		# first, last or next
 
@@ -139,7 +139,7 @@ callbackwait		= 1		# no of secs to wait before calling back
 					# specified for telephone answering
 b1protocol		= hdlc		# hdlc, raw
 
-					# shorthold mode and idle time 
+					# shorthold mode and idle time
 					# configuration:
 ratetype		= 0		# ratesfile entry to use
 unitlength		= 90		# unitlength to assume
@@ -170,18 +170,18 @@ downtime		= 30		# time to be in down before going up
 #==============================================================================
 # entry section: IP over ISDN example - i am called back by the remote end
 #==============================================================================
-entry				
-                                
+entry
+
 name        		= I4BIP1	# name for reference
-				
+
 usrdevicename		= ipr		# ipr, tel, rbch
 usrdeviceunit		= 1		# unit number
-				
+
 isdncontroller		= 0		# controller to use or -1 to use any
 isdnchannel		= -1		# channel (1/2) to use or 0 or -1 for any
 
 					# numbers used to DIAL OUT
-remote-phone-dialout	= 00401234567	# remote number to dial 
+remote-phone-dialout	= 00401234567	# remote number to dial
 local-phone-dialout	= 38		# our number to tell remote
 
 					# numbers used to verify at DIAL IN
@@ -194,7 +194,7 @@ ratetype		= 0		# city
 unitlength		= 90		# default unit length
 earlyhangup		= 5		# safety zone
 unitlengthsrc		= aocd		# none, rate, cmdl, conf, aocd
-				
+
 dialin-reaction		= accept	# accept, reject, ignore, anwer, callback
 
 dialout-type		= calledback	# normal or calledback
@@ -214,19 +214,19 @@ idletime-outgoing	= 30
 #==============================================================================
 # entry section: answering machine example
 #==============================================================================
-entry				
+entry
 
 name        		= I4BTEL	# name for reference
 usrdevicename		= tel		# ipr, tel, rbch
 usrdeviceunit           = 0             # unit number
-				
+
 isdncontroller		= 0		# controller to use or -1 to use any
 isdnchannel		= -1		# channel (1/2) to use or 0 or -1 for any
 
 					# numbers used to verify at DIAL IN
 local-phone-incoming	= 456		# this is my number
 remote-phone-incoming	= *		# anyone can call in
-				
+
 dialin-reaction		= answer	# accept, reject, ignore, answer
 
 answerprog		= answer	# program to run
@@ -238,15 +238,15 @@ idletime-incoming	= 5		# 5 seconds idle timeout
 #==============================================================================
 # kernel PPP (with budget handling) - Sunday & Holidays, we call back
 #==============================================================================
-entry				
+entry
 
 valid			= "0,7"		# sundays & holidays
 
 name        		= KPPPs		# name for reference
-				
+
 usrdevicename		= isp		# ipr, tel, rbch
 usrdeviceunit		= 0		# unit number
-				
+
 isdncontroller		= 1		# controller to use or -1 to use any
 isdnchannel		= -1		# channel (1/2) to use or 0 or -1 for any
 
@@ -259,7 +259,7 @@ local-phone-dialout	= 29		# this is my number
 remote-phone-dialout	= 00401234567	# i call this number
 
 remdial-handling	= first		# first, last or next
-				
+
 dialin-reaction		= callback	# accept, reject, ignore, answer, callback
 
 dialout-type		= normal	# normal / calledback
@@ -295,15 +295,15 @@ budget-calloutsfile-rotate = yes
 #==============================================================================
 # kernel PPP (with budget handling) - Monday-Saturday, 9:00-18:00: we call back
 #==============================================================================
-entry				
+entry
 
 valid			= "1,2,3,4,5,6,9:00-18:00" # Monday-Saturday, day
 
 name        		= KPPPd		# name for reference
-				
+
 usrdevicename		= isp		# ipr, tel, rbch
 usrdeviceunit		= 0		# unit number
-				
+
 isdncontroller		= 1		# controller to use or -1 to use any
 isdnchannel		= -1		# channel (1/2) to use or 0 or -1 for any
 
@@ -316,7 +316,7 @@ local-phone-dialout	= 29		# this is my number
 remote-phone-dialout	= 00401234567	# i call this number
 
 remdial-handling	= first		# first, last or next
-				
+
 dialin-reaction		= callback	# accept, reject, ignore, answer, callback
 
 dialout-type		= normal	# normal / calledback
@@ -352,15 +352,15 @@ budget-calloutsfile-rotate = yes
 #==============================================================================
 # kernel PPP (with budget handling) - Monday-Saturday: we call back
 #==============================================================================
-entry				
+entry
 
 valid			= "1,2,3,4,5,6,18:00-9:00" # Monday-Saturday, night
 
 name        		= KPPPn		# name for reference
-				
+
 usrdevicename		= isp		# ipr, tel, rbch
 usrdeviceunit		= 0		# unit number
-				
+
 isdncontroller		= 1		# controller to use or -1 to use any
 isdnchannel		= -1		# channel (1/2) to use or 0 or -1 for any
 
@@ -373,7 +373,7 @@ local-phone-dialout	= 29		# this is my number
 remote-phone-dialout	= 00401234567	# i call this number
 
 remdial-handling	= first		# first, last or next
-				
+
 dialin-reaction		= callback	# accept, reject, ignore, answer, callback
 
 dialout-type		= normal	# normal / calledback

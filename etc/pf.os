@@ -364,7 +364,7 @@ T30:128:1:48:M*,N,N,S:			Windows:98::Windows 98
 64512:128:1:44:M1414:			Windows:NT:4.0:Windows NT 4.0 SP6a
 8192:128:1:44:M*:			Windows:NT:4.0:Windows NT 4.0 (older)
 6144:128:1:52:M*,W0,N,S,N,N:		Windows:NT:4.0:Windows NT 4.0 (RFC1323)
- 
+
 # Windows XP and 2000. Most of the signatures that were
 # either dubious or non-specific (no service pack data)
 # were deleted and replaced with generics at the end.
@@ -548,5 +548,3 @@ S12:64:0:44:M1452:			AXIS:5600:v5.64:AXIS Printer Server 5600 v5.64
 *:128:1:64:M*,N,W*,N,N,T0,N,N,S:	@Windows:XP:RFC1323:Windows XP (RFC1323, w+)
 *:128:1:48:M*,N,N,S:			@Windows:XP::Windows XP/2000
 *:128:1:48:M*,N,N,S:			@Windows:2000::Windows XP/2000
-
-
