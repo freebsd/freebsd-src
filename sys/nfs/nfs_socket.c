@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_socket.c	8.3 (Berkeley) 1/12/94
- * $Id: nfs_socket.c,v 1.15 1996/02/13 18:16:28 wollman Exp $
+ * $Id: nfs_socket.c,v 1.16 1996/06/14 11:13:18 phk Exp $
  */
 
 /*
@@ -1347,11 +1347,12 @@ nfs_timer(arg)
 		    nmp->nm_sent < nmp->nm_cwnd) &&
 		   (m = m_copym(rep->r_mreq, 0, M_COPYALL, M_DONTWAIT))){
 			if ((nmp->nm_flag & NFSMNT_NOCONN) == 0)
-			    error = (*so->so_proto->pr_usrreq)(so, PRU_SEND, m,
-			    (struct mbuf *)0, (struct mbuf *)0);
+			    error = (*so->so_proto->pr_usrreqs->pru_send)
+				    (so, 0, m, (struct mbuf *)0,
+				     (struct mbuf *)0);
 			else
-			    error = (*so->so_proto->pr_usrreq)(so, PRU_SEND, m,
-			    nmp->nm_nam, (struct mbuf *)0);
+			    error = (*so->so_proto->pr_usrreqs->pru_send)
+				    (so, 0, m, nmp->nm_nam, (struct mbuf *)0);
 			if (error) {
 				if (NFSIGNORE_SOERROR(nmp->nm_soflags, error))
 					so->so_error = 0;

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_domain.c	8.2 (Berkeley) 10/18/93
- * $Id: uipc_domain.c,v 1.12 1995/12/16 02:13:50 bde Exp $
+ * $Id: uipc_domain.c,v 1.13 1996/07/09 19:12:51 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -106,10 +106,8 @@ domaininit(dummy)
 		for (pr = dp->dom_protosw; pr < dp->dom_protoswNPROTOSW; pr++){
 #ifdef PRU_OLDSTYLE
 			/* See comments in uipc_socket2.c. */
-			if (pr->pr_usrreqs == 0)
+			if (pr->pr_usrreqs == 0 && pr->pr_ousrreq)
 				pr->pr_usrreqs = &pru_oldstyle;
-			else if(pr->pr_usrreq == 0)
-				pr->pr_usrreq = pr_newstyle_usrreq;
 #endif
 			if (pr->pr_init)
 				(*pr->pr_init)();
