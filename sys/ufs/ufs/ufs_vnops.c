@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_vnops.c	8.10 (Berkeley) 4/1/94
- * $Id: ufs_vnops.c,v 1.36 1996/01/05 18:31:58 wollman Exp $
+ * $Id: ufs_vnops.c,v 1.37 1996/01/19 03:59:28 dyson Exp $
  */
 
 #include "opt_quota.h"
@@ -865,7 +865,10 @@ abortit:
 		if ((fcnp->cn_flags & SAVESTART) == 0)
 			panic("ufs_rename: lost from startdir");
 		fcnp->cn_nameiop = DELETE;
-		(void) relookup(fdvp, &fvp, fcnp);
+		VREF(fdvp);
+		error = relookup(fdvp, &fvp, fcnp);
+		if (error == 0)
+			vrele(fdvp);
 		return (VOP_REMOVE(fdvp, fvp, fcnp));
 	}
 	error = VOP_LOCK(fvp);
@@ -951,9 +954,11 @@ abortit:
 			goto out;
 		if ((tcnp->cn_flags & SAVESTART) == 0)
 			panic("ufs_rename: lost to startdir");
+		VREF(tdvp);
 		error = relookup(tdvp, &tvp, tcnp);
 		if (error)
 			goto out;
+		vrele(tdvp);
 		dp = VTOI(tdvp);
 		xp = NULL;
 		if (tvp)
@@ -1100,7 +1105,10 @@ abortit:
 	fcnp->cn_flags |= LOCKPARENT | LOCKLEAF;
 	if ((fcnp->cn_flags & SAVESTART) == 0)
 		panic("ufs_rename: lost from startdir");
-	(void) relookup(fdvp, &fvp, fcnp);
+	VREF(fdvp);
+	error = relookup(fdvp, &fvp, fcnp);
+	if (error == 0)
+		vrele(fdvp);
 	if (fvp != NULL) {
 		xp = VTOI(fvp);
 		dp = VTOI(fdvp);
