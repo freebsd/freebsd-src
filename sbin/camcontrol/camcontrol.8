@@ -150,7 +150,7 @@ Novice users should stay away from this utility.
 .Nm
 has a number of primary functions, many of which support an optional
 device identifier.  A device identifier can take one of three forms:
-.Bl -tag -width 01234567890123
+.Bl -tag -width 14n
 .It deviceUNIT
 Specify a device name and unit number combination, like "da5" or "cd3".
 Note that character device node names (e.g. /dev/rsd0.ctl) are
@@ -184,19 +184,15 @@ override a specified bus:target or bus:target:lun, however.
 Most of the
 .Nm
 primary functions support these generic arguments:
-.Bl -tag -width 01234567890123
+.Bl -tag -width 14n
 .It Fl C Ar count
 SCSI command retry count.  In order for this to work, error recovery
-.Po
-.Fl E
-.Pc
+.Pq Fl E
 must be turned on.
 .It Fl E
 Instruct the kernel to perform generic SCSI error recovery for the given
 command.  This is needed in order for the retry count
-.Po
-.Fl C
-.Pc
+.Pq Fl C
 to be honored.  Other than retrying commands, the generic error recovery in
 the code will generally attempt to spin up drives that are not spinning.
 It may take some other actions, depending upon the sense code returned from
@@ -234,7 +230,7 @@ Send a SCSI inquiry command (0x12) to a device.  By default,
 will print out the standard inquiry data, device serial number, and
 transfer rate information.  The user can specify that only certain types of
 inquiry data be printed:
-.Bl -tag -width 1234
+.Bl -tag -width 4n
 .It Fl D
 Get the standard inquiry data.
 .It Fl S
@@ -270,7 +266,7 @@ on the system.
 Send the SCSI READ DEFECT DATA (10) command (0x37) to the given device, and
 print out any combination of: the total number of defects, the primary
 defect list (PLIST), and the grown defect list (GLIST).
-.Bl -tag -width 01234567890
+.Bl -tag -width 11n
 .It Fl f Ar format
 The three format options are:
 .Em block ,
@@ -314,7 +310,7 @@ environment variable.
 The
 .Ic modepage
 command takes several arguments:
-.Bl -tag -width 012345678901
+.Bl -tag -width 12n
 .It Fl d
 Disable block descriptors for mode sense.
 .It Fl b
@@ -364,7 +360,7 @@ SCSI device in question, you MUST specify either
 .Fl i
 or
 .Fl o .
-.Bl -tag -width 01234567890123456
+.Bl -tag -width 17n
 .It Fl c Ar cmd Op args
 This specifies the SCSI CDB.  CDBs may be 6, 10, 12 or 16 bytes.
 .It Fl i Ar len Ar fmt
@@ -389,7 +385,7 @@ busy printing messages and unable to service other requests quickly.
 The
 .Ic debug
 function takes a number of arguments:
-.Bl -tag -width 012345678901234567
+.Bl -tag -width 18n
 .It Fl I
 Enable CAM_DEBUG_INFO printfs.
 .It Fl T
@@ -417,7 +413,7 @@ prints out the "soft" maximum number of transactions that can be queued to
 the device in question.  For more detailed information, use the
 .Fl v
 argument described below.
-.Bl -tag -width 0123456
+.Bl -tag -width 7n
 .It Fl N Ar tags
 Set the number of tags for the given device.  This must be between the
 minimum and maximum number set in the kernel quirk table.  The default for
@@ -439,7 +435,7 @@ The verbose flag has special functionality for the
 argument.  It causes
 .Nm
 to print out the tagged queueing related fields of the XPT_GDEV_TYPE CCB:
-.Bl -tag -width 0123456789012
+.Bl -tag -width 13n
 .It dev_openings
 This is the amount of capacity for transactions queued to a given device.
 .It dev_active
@@ -494,7 +490,7 @@ setting negotiation parameters, even if the underlying controller supports
 negotiation changes.  Some controllers, such as the Advansys wide
 controllers, support enabling and disabling synchronous negotiation for
 a device, but do not support setting the synchronous negotiation rate.
-.Bl -tag -width 01234567890123456
+.Bl -tag -width 17n
 .It Fl a
 Attempt to make the negotiation settings take effect immediately by sending
 a Test Unit Ready command to the device.
@@ -570,7 +566,7 @@ and
 .Fl y
 arguments can be useful for scripts.
 .Pp
-.Bl -tag -width 123456
+.Bl -tag -width 6n
 .It Fl q
 Be quiet, don't print any status messages.  This option will not disable
 the questions, however.  To disable questions, use the
@@ -742,9 +738,7 @@ call in
 .Nm
 bails out when it sees the second argument to
 .Fl c
-.Po
-0x00
-.Pc ,
+.Pq 0x00 ,
 above.  Fixing this behavior would take some gross code, or changes to the
 .Xr getopt 3
 interface.  The best way to circumvent this problem is to always make sure

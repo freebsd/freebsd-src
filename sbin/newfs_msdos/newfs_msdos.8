@@ -154,15 +154,20 @@ struct bsxbpb {
 };
 .Ed
 .Sh EXAMPLES
-
-	newfs_msdos /dev/ad0s1
-
-Create a file system, using default parameters, on /dev/ad0s1.
-
-	newfs_msdos -f 1440 -L foo fd0
-
-Create a standard 1.44M file system, with volume label "foo", on
-/dev/fd0.
+.Bd -literal -offset indent
+newfs_msdos /dev/ad0s1
+.Ed
+.Pp
+Create a file system, using default parameters, on
+.Pa /dev/ad0s1 .
+.Bd -literal -offset indent
+newfs_msdos -f 1440 -L foo fd0
+.Ed
+.Pp
+Create a standard 1.44M file system, with volume label
+.Ar foo ,
+on
+.Pa /dev/fd0 .
 .Sh SEE ALSO
 .Xr disktab 5 ,
 .Xr disklabel 8 ,
