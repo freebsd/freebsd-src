@@ -26,7 +26,7 @@
  *
  * 	From Id: probe_keyboard.c,v 1.13 1997/06/09 05:10:55 bde Exp
  *
- *	$Id: vidconsole.c,v 1.3 1998/10/02 16:32:45 msmith Exp $
+ *	$Id: vidconsole.c,v 1.4 1998/10/07 02:39:06 msmith Exp $
  */
 
 #include <stand.h>
@@ -111,7 +111,7 @@ vidc_getchar(void)
 static int
 vidc_ischar(void)
 {
-    v86.ctl = 0;
+    v86.ctl = V86_FLAGS;
     v86.addr = 0x16;
     v86.eax = 0x100;
     v86int();
