@@ -301,7 +301,6 @@ vm_size_t	Lev2mapsize, Lev3mapsize;
  */
 struct pmap kernel_pmap_store;
 
-vm_offset_t avail_start;	/* PA of first available physical page */
 vm_offset_t avail_end;		/* PA of last available physical page */
 vm_offset_t virtual_avail;	/* VA of first avail page (after kernel bss) */
 vm_offset_t virtual_end;	/* VA of last avail page (end of kernel AS) */
@@ -512,7 +511,6 @@ pmap_bootstrap(vm_offset_t ptaddr, u_int maxasn)
 		Lev2map[i] = newpte;
 	}
 
-	avail_start = phys_avail[0];
 	for (i = 0; phys_avail[i+2]; i+= 2) ;
 	avail_end = phys_avail[i+1];
 

@@ -189,7 +189,6 @@ static struct mtx allpmaps_lock;
 static struct mtx lazypmap_lock;
 #endif
 
-vm_paddr_t avail_start;	/* PA of first available physical page */
 vm_paddr_t avail_end;	/* PA of last available physical page */
 vm_offset_t virtual_avail;	/* VA of first avail page (after kernel bss) */
 vm_offset_t virtual_end;	/* VA of last avail page (end of kernel AS) */
@@ -312,8 +311,6 @@ pmap_bootstrap(firstaddr, loadaddr)
 	vm_offset_t va;
 	pt_entry_t *pte;
 	int i;
-
-	avail_start = firstaddr;
 
 	/*
 	 * XXX The calculation of virtual_avail is wrong. It's NKPT*PAGE_SIZE too
