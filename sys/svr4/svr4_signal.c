@@ -30,14 +30,11 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/namei.h>
 #include <sys/proc.h>
 #include <sys/filedesc.h>
-#include <sys/mount.h>
 #include <sys/kernel.h>
 #include <sys/signal.h>
 #include <sys/signalvar.h>
-#include <sys/malloc.h>
 #include <sys/sysproto.h>
 
 #include <svr4/svr4.h>
