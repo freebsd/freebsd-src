@@ -48,6 +48,7 @@
 
 #include <dev/mlx/mlxio.h>
 #include <dev/mlx/mlxvar.h>
+#include <dev/mlx/mlxreg.h>
 
 #if 0
 #define debug(fmt, args...)	printf("%s: " fmt "\n", __FUNCTION__ , ##args)
@@ -174,7 +175,6 @@ static void
 mlxd_strategy(struct buf *bp)
 {
     struct mlxd_softc	*sc = (struct mlxd_softc *)bp->b_dev->si_drv1;
-    int			s;
 
     debug("called");
 
@@ -194,10 +194,8 @@ mlxd_strategy(struct buf *bp)
     if (bp->b_bcount == 0)
 	goto done;
 
-    s = splbio();
     devstat_start_transaction(&sc->mlxd_stats);
     mlx_submit_buf(sc->mlxd_controller, bp);
-    splx(s);
     return;
 
  bad:

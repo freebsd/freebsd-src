@@ -278,7 +278,7 @@ mlx_attach(struct mlx_softc *sc)
     /*
      * Initialise per-controller queues.
      */
-    TAILQ_INIT(&sc->mlx_donecmd);
+    TAILQ_INIT(&sc->mlx_work);
     TAILQ_INIT(&sc->mlx_freecmds);
     bufq_init(&sc->mlx_bufq);
 
@@ -379,7 +379,7 @@ mlx_attach(struct mlx_softc *sc)
     sc->mlx_hwid = me2->me_hardware_id;
 
     /* print a little information about the controller and ourselves */
-    device_printf(sc->mlx_dev, "Mylex %s, firmware %d.%d, %dMB RAM\n", 
+    device_printf(sc->mlx_dev, "Mylex %s, firmware %d.%02d, %dMB RAM\n", 
 	   mlx_name_controller(sc->mlx_hwid), sc->mlx_fwmajor, sc->mlx_fwminor,
 	me2->me_mem_size / (1024 * 1024));
     free(me2, M_DEVBUF);
@@ -390,16 +390,16 @@ mlx_attach(struct mlx_softc *sc)
     switch(sc->mlx_iftype) {
     case MLX_IFTYPE_3:
 	/* XXX certify 3.52? */
-	if (sc->mlx_fwminor != 51) {
-	    device_printf(sc->mlx_dev, " *** WARNING *** This firmware revision is NOT SUPPORTED\n");
-	    device_printf(sc->mlx_dev, " *** WARNING *** Use revision 3.51 only\n");
+	if (sc->mlx_fwminor < 51) {
+	    device_printf(sc->mlx_dev, " *** WARNING *** This firmware revision is not recommended\n");
+	    device_printf(sc->mlx_dev, " *** WARNING *** Use revision 3.51 or later\n");
 	}
 	break;
     case MLX_IFTYPE_4:
 	/* XXX certify firmware versions? */
-	if (sc->mlx_fwminor != 6) {
-	    device_printf(sc->mlx_dev, " *** WARNING *** This firmware revision is NOT SUPPORTED\n");
-	    device_printf(sc->mlx_dev, " *** WARNING *** Use revision 4.6 only\n");
+	if (sc->mlx_fwminor < 6) {
+	    device_printf(sc->mlx_dev, " *** WARNING *** This firmware revision is not recommended\n");
+	    device_printf(sc->mlx_dev, " *** WARNING *** Use revision 4.06 or later\n");
 	}
 	break;
     default:
@@ -653,10 +653,14 @@ mlx_intr(void *arg)
 int
 mlx_submit_buf(struct mlx_softc *sc, struct buf *bp)
 {
+    int		s;
+    
     debug("called");
 
+    s = splbio();
     bufq_insert_tail(&sc->mlx_bufq, bp);
     sc->mlx_waitbufs++;
+    splx(s);
     mlx_startio(sc);
     return(0);
 }
@@ -1557,7 +1561,7 @@ mlx_poll_command(struct mlx_command *mc)
     } while ((mc->mc_status == MLX_STATUS_BUSY) && (count < 10000));
     if (mc->mc_status != MLX_STATUS_BUSY) {
 	s = splbio();
-	TAILQ_REMOVE(&sc->mlx_donecmd, mc, mc_link);
+	TAILQ_REMOVE(&sc->mlx_work, mc, mc_link);
 	splx(s);
 	return(0);
     }
@@ -1581,8 +1585,10 @@ mlx_startio(struct mlx_softc *sc)
     int			blkcount;
     int			driveno;
     int			cmd;
+    int			s;
 
     /* spin until something prevents us from doing any work */
+    s = splbio();
     for (;;) {
 
 	/* see if there's work to be done */
@@ -1599,6 +1605,7 @@ mlx_startio(struct mlx_softc *sc)
 	/* get the buf containing our work */
 	bufq_remove(&sc->mlx_bufq, bp);
 	sc->mlx_waitbufs--;
+	splx(s);
 	
 	/* connect the buf to the command */
 	mc->mc_complete = mlx_completeio;
@@ -1643,7 +1650,9 @@ mlx_startio(struct mlx_softc *sc)
 	    mc->mc_status = MLX_STATUS_WEDGED;
 	    mlx_completeio(mc);
 	}
+	s = splbio();
     }
+    splx(s);
 }
 
 /********************************************************************************
@@ -1881,7 +1890,7 @@ mlx_start(struct mlx_command *mc)
     /* save the slot number as ident so we can handle this command when complete */
     mc->mc_mailbox[0x1] = mc->mc_slot;
 
-    /* set impossible status so that a woken sleeper can tell the command is in progress */
+    /* mark the command as currently being processed */
     mc->mc_status = MLX_STATUS_BUSY;
     
     /* assume we don't collect any completed commands */
@@ -1890,7 +1899,11 @@ mlx_start(struct mlx_command *mc)
     /* spin waiting for the mailbox */
     for (i = 100000, done = 0; (i > 0) && !done; i--) {
 	s = splbio();
-	done = sc->mlx_tryqueue(sc, mc);
+	if (sc->mlx_tryqueue(sc, mc)) {
+	    done = 1;
+	    /* move command to work queue */
+	    TAILQ_INSERT_TAIL(&sc->mlx_work, mc, mc_link);
+	}
 	splx(s);
 	/* check for command completion while we're at it */
 	if (mlx_done(sc))
@@ -1931,20 +1944,17 @@ mlx_done(struct mlx_softc *sc)
     
     debug("called");
 
-    s = splbio();
     mc = NULL;
     slot = 0;
 
     /* poll for a completed command's identifier and status */
+    s = splbio();
     if (sc->mlx_findcomplete(sc, &slot, &status)) {
-	mc = sc->mlx_busycmd[slot];		/* find command */
-	if (mc != NULL) {			/* paranoia */
+	mc = sc->mlx_busycmd[slot];			/* find command */
+	if (mc != NULL) {				/* paranoia */
 	    if (mc->mc_status == MLX_STATUS_BUSY) {
 		mc->mc_status = status;			/* save status */
 
-		/* move completed command to 'done' queue */
-		TAILQ_INSERT_TAIL(&sc->mlx_donecmd, mc, mc_link);
-	
 		/* free slot for reuse */
 		sc->mlx_busycmd[slot] = NULL;
 		sc->mlx_busycmds--;
@@ -1981,35 +1991,40 @@ mlx_complete(struct mlx_softc *sc)
     count = 0;
     
     /* scan the list of done commands */
-    mc = TAILQ_FIRST(&sc->mlx_donecmd);
+    mc = TAILQ_FIRST(&sc->mlx_work);
     while (mc != NULL) {
 	nc = TAILQ_NEXT(mc, mc_link);
 
 	/* XXX this is slightly bogus */
 	if (count++ > (sc->mlx_maxiop * 2))
-	    panic("mlx_donecmd list corrupt!");
+	    panic("mlx_work list corrupt!");
 
-	/*
-	 * Does the command have a completion handler?
-	 */
-	if (mc->mc_complete != NULL) {
-	    /* remove from list and give to handler */
-	    TAILQ_REMOVE(&sc->mlx_donecmd, mc, mc_link);
-	    mc->mc_complete(mc);
-
-	    /* 
-	     * Is there a sleeper waiting on this command?
-	     */
-	} else if (mc->mc_private != NULL) {	/* sleeping caller wants to know about it */
-
-	    /* remove from list and wake up sleeper */
-	    TAILQ_REMOVE(&sc->mlx_donecmd, mc, mc_link);
-	    wakeup_one(mc->mc_private);
+	/* Skip commands that are still busy */
+	if (mc->mc_status != MLX_STATUS_BUSY) {
+	    
 
 	    /*
-	     * Leave the command for a caller that's polling for it.
-	     */
-	} else {
+	 * Does the command have a completion handler?
+	 */
+	    if (mc->mc_complete != NULL) {
+		/* remove from list and give to handler */
+		TAILQ_REMOVE(&sc->mlx_work, mc, mc_link);
+		mc->mc_complete(mc);
+
+		/* 
+		 * Is there a sleeper waiting on this command?
+		 */
+	    } else if (mc->mc_private != NULL) {	/* sleeping caller wants to know about it */
+
+		/* remove from list and wake up sleeper */
+		TAILQ_REMOVE(&sc->mlx_work, mc, mc_link);
+		wakeup_one(mc->mc_private);
+
+		/*
+		 * Leave the command for a caller that's polling for it.
+		 */
+	    } else {
+	    }
 	}
 	mc = nc;
     }
@@ -2355,6 +2370,9 @@ mlx_name_controller(u_int32_t hwid)
 	break;
     case 0x11:
 	submodel = "PJ";
+	break;
+    case 0x16:
+	submodel = "PTL";
 	break;
     default:
 	sprintf(smbuf, " model 0x%x", hwid & 0xff);
