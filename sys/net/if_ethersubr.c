@@ -383,15 +383,16 @@ ether_output_frame(ifp, m)
 	struct mbuf *m;
 {
 	int error = 0;
-
-#if 1	/* XXX ipfw */
 	struct ip_fw *rule = NULL;
-	if (m->m_type == MT_DUMMYNET) { /* extract info from dummynet header */
-		rule = (struct ip_fw *)(m->m_data) ;
-		m = m->m_next ;
+
+	/* Extract info from dummynet tag, ignore others */
+	for (; m->m_type == MT_TAG; m = m->m_next)
+		if (m->m_flags == PACKET_TAG_DUMMYNET)
+			rule = ((struct dn_pkt *)m)->rule;
+
+	if (rule)	/* packet was already bridged */
 		goto no_bridge;
-	}
-#endif
+
 	if (BDG_ACTIVE(ifp) ) {
 		struct ether_header *eh; /* a ptr suffices */
 
@@ -404,7 +405,6 @@ ether_output_frame(ifp, m)
 		return (0);
 	}
 
-#if 1	/* XXX ipfw */
 no_bridge:
 	if (IPFW_LOADED && ether_ipfw != 0) {
 		struct ether_header save_eh, *eh;
@@ -432,7 +432,7 @@ no_bridge:
 				ETHER_HDR_LEN);
 		}
 	}
-#endif /* XXX ipfw */
+
 	/*
 	 * Queue message on interface, update output statistics if
 	 * successful, and start output if interface not yet active.
@@ -454,7 +454,8 @@ ether_ipfw_chk(struct mbuf **m0, struct ifnet *dst,
 	struct ip_fw **rule, struct ether_header *eh, int shared)
 {
 	struct ether_header save_eh = *eh;	/* could be a ptr in m */
-        int i;
+	int i;
+	struct ip_fw_args args;
 
         if (*rule != NULL) /* dummynet packet, already partially processed */
             return 1; /* HACK! I should obey the fw_one_pass */
@@ -465,14 +466,20 @@ ether_ipfw_chk(struct mbuf **m0, struct ifnet *dst,
         i = min( (*m0)->m_pkthdr.len, max_protohdr) ;
         if ( shared || (*m0)->m_len < i) {
 		*m0 = m_pullup(*m0, i);
-		if (*m0 == NULL) {
-			printf("-- bdg: pullup failed.\n") ;
+		if (*m0 == NULL)
 			return 0;
-		}
         }
 
-        i = ip_fw_chk_ptr(m0, dst, NULL /* cookie */, rule,
-	    (struct sockaddr_in **)&save_eh);
+	args.m = *m0;		/* the packet we are looking at		*/
+	args.oif = dst;		/* destination, if any			*/
+	args.divert_rule = 0;	/* we do not support divert yet		*/
+	args.rule = *rule;	/* matching rule to restart		*/
+	args.next_hop = NULL;	/* we do not support forward yet 	*/
+	args.eh = &save_eh;	/* MAC header for bridged/MAC packets	*/
+        i = ip_fw_chk_ptr(&args);	
+	*m0 = args.m;
+	*rule = args.rule;
+
         if ( (i & IP_FW_PORT_DENY_FLAG) || *m0 == NULL) /* drop */
 		return 0;
 
@@ -483,21 +490,21 @@ ether_ipfw_chk(struct mbuf **m0, struct ifnet *dst,
 		/*
 		 * Pass the pkt to dummynet, which consumes it.
 		 * If shared, make a copy and keep the original.
-		 * Need to prepend the ethernet header, optimize the common
-		 * case of eh pointing already into the original mbuf.
 		 */
 		struct mbuf *m ;
 
 		if (shared) {
 			m = m_copypacket(*m0, M_DONTWAIT);
-			if (m == NULL) {
-				printf("bdg_fwd: copy(1) failed\n");
+			if (m == NULL)
 				return 0;
-			}
 		} else {
 			m = *m0 ; /* pass the original to dummynet */
 			*m0 = NULL ; /* and nothing back to the caller */
 		}
+		/*
+		 * Prepend the header, optimize for the common case of
+		 * eh pointing into the mbuf.
+		 */
 		if ( (void *)(eh + 1) == (void *)m->m_data) {
 			m->m_data -= ETHER_HDR_LEN ;
 			m->m_len += ETHER_HDR_LEN ;
@@ -509,8 +516,8 @@ ether_ipfw_chk(struct mbuf **m0, struct ifnet *dst,
 			bcopy(&save_eh, mtod(m, struct ether_header *),
 			    ETHER_HDR_LEN);
 		}
-		ip_dn_io_ptr((i & 0xffff), dst ? DN_TO_ETH_OUT: DN_TO_ETH_DEMUX,
-		    m, dst, NULL /*route*/, 0 /*dst*/, *rule, 0 /*flags*/);
+		ip_dn_io_ptr(m, (i & 0xffff),
+			dst ? DN_TO_ETH_OUT: DN_TO_ETH_DEMUX, &args);
 		return 0;
         }
         /*
@@ -627,15 +634,17 @@ ether_demux(ifp, eh, m)
 	register struct llc *l;
 #endif
 
-#if 1	/* XXX ipfw */
 	struct ip_fw *rule = NULL;
-	if (m->m_type == MT_DUMMYNET) { /* extract info from dummynet header */
-		rule = (struct ip_fw *)(m->m_data) ;
-		m = m->m_next ;
-		ifp = m->m_pkthdr.rcvif;
+
+	/* Extract info from dummynet tag, ignore others */
+	for (;m->m_type == MT_TAG; m = m->m_next)
+		if (m->m_flags == PACKET_TAG_DUMMYNET) {
+			rule = ((struct dn_pkt *)m)->rule;
+			ifp = m->m_next->m_pkthdr.rcvif;
+		}
+
+	if (rule)	/* packet was already bridged */
 		goto post_stats;
-	}
-#endif
 
     if (! (BDG_ACTIVE(ifp) ) )
 	/* Discard packet if upper layers shouldn't see it because it was

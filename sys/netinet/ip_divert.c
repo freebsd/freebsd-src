@@ -79,20 +79,28 @@
 #define	DIVRCVQ		(65536 + 100)
 
 /*
- * A 16 bit cookie is passed to and from the user process.
- * The user process can send it back to help the caller know
- * something about where the packet originally came from.
+ * Divert sockets work in conjunction with ipfw, see the divert(4)
+ * manpage for features.
+ * Internally, packets selected by ipfw in ip_input() or ip_output(),
+ * and never diverted before, are passed to the input queue of the
+ * divert socket with a given 'divert_port' number (as specified in
+ * the matching ipfw rule), and they are tagged with a 16 bit cookie
+ * (representing the rule number of the matching ipfw rule), which
+ * is passed to process reading from the socket.
  *
- * In the case of ipfw, then the cookie is the rule that sent
- * us here. On reinjection is is the rule after which processing
- * should continue. Leaving it the same will make processing start
- * at the rule number after that which sent it here. Setting it to
- * 0 will restart processing at the beginning. 
+ * Packets written to the divert socket are again tagged with a cookie
+ * (usually the same as above) and a destination address.
+ * If the destination address is INADDR_ANY then the packet is
+ * treated as outgoing and sent to ip_output(), otherwise it is
+ * treated as incoming and sent to ip_input().
+ * In both cases, the packet is tagged with the cookie.
  *
- * For divert_packet(), ip_divert_cookie is an input value only.
- * For div_output(), ip_divert_cookie is an output value only.
+ * On reinjection, processing in ip_input() and ip_output()
+ * will be exactly the same as for the original packet, except that
+ * ipfw processing will start at the rule number after the one
+ * written in the cookie (so, tagging a packet with a cookie of 0
+ * will cause it to be effectively considered as a standard packet).
  */
-u_int16_t ip_divert_cookie;
 
 /* Internal variables */
 static struct inpcbhead divcb;
@@ -103,10 +111,6 @@ static u_long	div_recvspace = DIVRCVQ;	/* XXX sysctl ? */
 
 /* Optimization: have this preinitialized */
 static struct sockaddr_in divsrc = { sizeof(divsrc), AF_INET };
-
-/* Internal functions */
-static int div_output(struct socket *so,
-		struct mbuf *m, struct sockaddr *addr, struct mbuf *control);
 
 /*
  * Initialize divert connection block queue.
@@ -147,7 +151,7 @@ div_input(struct mbuf *m, int off)
  * then pass them along with mbuf chain.
  */
 void
-divert_packet(struct mbuf *m, int incoming, int port)
+divert_packet(struct mbuf *m, int incoming, int port, int rule)
 {
 	struct ip *ip;
 	struct inpcb *inp;
@@ -157,15 +161,12 @@ divert_packet(struct mbuf *m, int incoming, int port)
 	/* Sanity check */
 	KASSERT(port != 0, ("%s: port=0", __func__));
 
-	/* Record and reset divert cookie */
-	divsrc.sin_port = ip_divert_cookie;
-	ip_divert_cookie = 0;
+	divsrc.sin_port = rule;		/* record matching rule */
 
 	/* Assure header */
 	if (m->m_len < sizeof(struct ip) &&
-	    (m = m_pullup(m, sizeof(struct ip))) == 0) {
+	    (m = m_pullup(m, sizeof(struct ip))) == 0)
 		return;
-	}
 	ip = mtod(m, struct ip *);
 
 	/*
@@ -246,45 +247,48 @@ divert_packet(struct mbuf *m, int incoming, int port)
  * the interface with that address.
  */
 static int
-div_output(so, m, addr, control)
-	struct socket *so;
-	register struct mbuf *m;
-	struct sockaddr *addr;
-	struct mbuf *control;
+div_output(struct socket *so, struct mbuf *m,
+	struct sockaddr_in *sin, struct mbuf *control)
 {
-	register struct inpcb *const inp = sotoinpcb(so);
-	register struct ip *const ip = mtod(m, struct ip *);
-	struct sockaddr_in *sin = (struct sockaddr_in *)addr;
 	int error = 0;
+	struct m_hdr divert_tag;
+
+	/*
+	 * Prepare the tag for divert info. Note that a packet
+	 * with a 0 tag in mh_data is effectively untagged,
+	 * so we could optimize that case.
+	 */
+	divert_tag.mh_type = MT_TAG;
+	divert_tag.mh_flags = PACKET_TAG_DIVERT;
+	divert_tag.mh_next = m;
+	divert_tag.mh_data = 0;		/* the matching rule # */
+	m->m_pkthdr.rcvif = NULL;	/* XXX is it necessary ? */
 
 	if (control)
 		m_freem(control);		/* XXX */
 
 	/* Loopback avoidance and state recovery */
 	if (sin) {
-		int	len = 0;
-		char	*c = sin->sin_zero;
+		int i;
 
-		ip_divert_cookie = sin->sin_port;
-
+		divert_tag.mh_data = (caddr_t)(int)sin->sin_port;
 		/*
-		 * Find receive interface with the given name or IP address.
-		 * The name is user supplied data so don't trust it's size or 
-		 * that it is zero terminated. The name has priority.
-		 * We are presently assuming that the sockaddr_in 
-		 * has not been replaced by a sockaddr_div, so we limit it
-		 * to 16 bytes in total. the name is stuffed (if it exists)
-		 * in the sin_zero[] field.
+		 * Find receive interface with the given name, stuffed
+		 * (if it exists) in the sin_zero[] field.
+		 * The name is user supplied data so don't trust its size
+		 * or that it is zero terminated.
 		 */
-		while (*c++ && (len++ < sizeof(sin->sin_zero)));
-		if ((len > 0) && (len < sizeof(sin->sin_zero)))
+		for (i = 0; sin->sin_zero[i] && i < sizeof(sin->sin_zero); i++)
+			;
+		if ( i > 0 && i < sizeof(sin->sin_zero))
 			m->m_pkthdr.rcvif = ifunit(sin->sin_zero);
-	} else {
-		ip_divert_cookie = 0;
 	}
 
 	/* Reinject packet into the system as incoming or outgoing */
 	if (!sin || sin->sin_addr.s_addr == 0) {
+		struct inpcb *const inp = sotoinpcb(so);
+		struct ip *const ip = mtod(m, struct ip *);
+
 		/*
 		 * Don't allow both user specified and setsockopt options,
 		 * and don't allow packet length sizes that will crash
@@ -301,42 +305,37 @@ div_output(so, m, addr, control)
 
 		/* Send packet to output processing */
 		ipstat.ips_rawout++;			/* XXX */
-		error = ip_output(m, inp->inp_options, &inp->inp_route,
-			(so->so_options & SO_DONTROUTE) |
-			IP_ALLOWBROADCAST | IP_RAWOUTPUT,
-			inp->inp_moptions);
+		error = ip_output((struct mbuf *)&divert_tag,
+			    inp->inp_options, &inp->inp_route,
+			    (so->so_options & SO_DONTROUTE) |
+			    IP_ALLOWBROADCAST | IP_RAWOUTPUT,
+			    inp->inp_moptions);
 	} else {
-		struct	ifaddr *ifa;
-
-		/* If no luck with the name above. check by IP address.  */
 		if (m->m_pkthdr.rcvif == NULL) {
 			/*
-			 * Make sure there are no distractions
-			 * for ifa_ifwithaddr. Clear the port and the ifname.
-			 * Maybe zap all 8 bytes at once using a 64bit write?
+			 * No luck with the name, check by IP address.
+			 * Clear the port and the ifname to make sure
+			 * there are no distractions for ifa_ifwithaddr.
 			 */
+			struct	ifaddr *ifa;
+
 			bzero(sin->sin_zero, sizeof(sin->sin_zero));
-			/* *((u_int64_t *)sin->sin_zero) = 0; */ /* XXX ?? */
 			sin->sin_port = 0;
-			if (!(ifa = ifa_ifwithaddr((struct sockaddr *) sin))) {
+			ifa = ifa_ifwithaddr((struct sockaddr *) sin);
+			if (ifa == NULL) {
 				error = EADDRNOTAVAIL;
 				goto cantsend;
 			}
 			m->m_pkthdr.rcvif = ifa->ifa_ifp;
 		}
-
 		/* Send packet to input processing */
-		ip_input(m);
+		ip_input((struct mbuf *)&divert_tag);
 	}
 
-	/* paranoid: Reset for next time (and other packets) */
-	/* almost definitly already done in the ipfw filter but.. */
-	ip_divert_cookie = 0;
 	return error;
 
 cantsend:
 	m_freem(m);
-	ip_divert_cookie = 0;
 	return error;
 }
 
@@ -406,16 +405,16 @@ div_bind(struct socket *so, struct sockaddr *nam, struct thread *td)
 
 	s = splnet();
 	inp = sotoinpcb(so);
-	/* in_pcbbind assumes that the socket is a sockaddr_in
+	/* in_pcbbind assumes that the nam is a sockaddr_in
 	 * and in_pcbbind requires a valid address. Since divert
 	 * sockets don't we need to make sure the address is
 	 * filled in properly.
 	 * XXX -- divert should not be abusing in_pcbind
 	 * and should probably have its own family.
 	 */
-	if (nam->sa_family != AF_INET) {
+	if (nam->sa_family != AF_INET)
 		error = EAFNOSUPPORT;
-	} else {
+	else {
 		((struct sockaddr_in *)nam)->sin_addr.s_addr = INADDR_ANY;
 		error = in_pcbbind(inp, nam, td);
 	}
@@ -443,7 +442,7 @@ div_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *nam,
 	}
 
 	/* Send packet */
-	return div_output(so, m, nam, control);
+	return div_output(so, m, (struct sockaddr_in *)nam, control);
 }
 
 static int

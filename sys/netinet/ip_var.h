@@ -192,9 +192,8 @@ void	ip_rsvp_force_done(struct socket *);
 #ifdef IPDIVERT
 void	div_init(void);
 void	div_input(struct mbuf *, int);
-void	divert_packet(struct mbuf *, int, int);
+void	divert_packet(struct mbuf *m, int incoming, int port, int rule);
 extern struct pr_usrreqs div_usrreqs;
-extern u_int16_t ip_divert_cookie;
 #endif
 
 extern struct sockaddr_in *ip_fw_fwd_addr;
