@@ -107,8 +107,6 @@
 #endif
 #endif /*IPSEC*/
 
-#include "faith.h"
-
 #include <net/net_osdep.h>
 
 /*

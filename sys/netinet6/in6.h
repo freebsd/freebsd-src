@@ -600,6 +600,8 @@ void	in6_sin_2_v4mapsin6_in_sock __P((struct sockaddr **nam));
 #define	satosin6(sa)	((struct sockaddr_in6 *)(sa))
 #define	sin6tosa(sin6)	((struct sockaddr *)(sin6))
 #define	ifatoia6(ifa)	((struct in6_ifaddr *)(ifa))
+
+extern int	(*faithprefix_p)(struct in6_addr *);
 #endif /* _KERNEL */
 
 __BEGIN_DECLS

@@ -121,8 +121,6 @@
 
 #include <netinet6/ip6protosw.h>
 
-#include "faith.h"
-
 #include <net/net_osdep.h>
 
 extern struct domain inet6domain;
@@ -633,7 +631,6 @@ ip6_input(m)
 	/*
 	 * FAITH(Firewall Aided Internet Translator)
 	 */
-#if defined(NFAITH) && 0 < NFAITH
 	if (ip6_keepfaith) {
 		if (ip6_forward_rt.ro_rt && ip6_forward_rt.ro_rt->rt_ifp
 		 && ip6_forward_rt.ro_rt->rt_ifp->if_type == IFT_FAITH) {
@@ -643,7 +640,6 @@ ip6_input(m)
 			goto hbhcheck;
 		}
 	}
-#endif
 
 	/*
 	 * Now there is no reason to process the packet if it's not our own
