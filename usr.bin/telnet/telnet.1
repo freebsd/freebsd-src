@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)telnet.1	8.5 (Berkeley) 3/1/94
-.\"	$Id: telnet.1,v 1.8 1997/11/11 05:00:59 steve Exp $
+.\"	$Id: telnet.1,v 1.9 1997/12/27 18:58:27 steve Exp $
 .\"
 .Dd March 1, 1994
 .Dt TELNET 1
@@ -93,6 +93,9 @@ Specifies no automatic login to the remote system.
 Specifies an 8-bit data path on output.  This causes the
 .Dv BINARY
 option to be negotiated on output.
+.It Fl N
+Prevents IP address to name lookup when destination host is given
+as an IP address.
 .It Fl S Ar tos
 Sets the IP type-of-service (TOS) option for the telnet
 connection to the value

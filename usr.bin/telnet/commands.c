@@ -2186,7 +2186,8 @@ tn(argc, argv)
 	if (temp != INADDR_NONE) {
 	    sin.sin_addr.s_addr = temp;
 	    sin.sin_family = AF_INET;
-	    host = gethostbyaddr((char *)&temp, sizeof(temp), AF_INET);
+	    if (doaddrlookup)
+		host = gethostbyaddr((char *)&temp, sizeof(temp), AF_INET);
 	    if (host)
 	        (void) strncpy(_hostname, host->h_name, sizeof(_hostname));
 	    else

@@ -106,6 +106,7 @@ int
 	donebinarytoggle,	/* the user has put us in binary */
 	dontlecho,	/* do we suppress local echoing right now? */
 	globalmode,
+	doaddrlookup = 1, /* do a reverse address lookup? */
 	clienteof = 0;
 
 char *prompt = 0;
