@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: options.c,v 1.44 1996/10/02 01:30:37 jkh Exp $
+ * $Id: options.c,v 1.45 1996/11/07 08:03:27 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -93,31 +93,6 @@ mediaCheck(Option opt)
     return "<not yet set>";
 }
 
-static char *
-consoleCheck(Option opt)
-{
-    static char opts[40];
-    char *cp;
-
-    opts[0] = '\0';
-    cp = variable_get("saver");
-    sprintf(&opts[strlen(opts)], "%s/", cp ?: "std");
-    cp = variable_get("scrnmap");
-    sprintf(&opts[strlen(opts)], "%s/", cp ?: "std");
-    cp = variable_get("font8x8");
-    sprintf(&opts[strlen(opts)], "%s", cp ?: "std");
-    return opts;
-}
-
-static int
-consoleGetType(dialogMenuItem *self)
-{
-    int i;
-
-    i = dmenuOpenSimple(&MenuSyscons, FALSE) ? DITEM_SUCCESS : DITEM_FAILURE;
-    return i | DITEM_RECREATE;
-}
-
 #define TAPE_PROMPT	"Please enter the tape block size in 512 byte blocks:"
 #define RELNAME_PROMPT	"Please specify the release you wish to load or\n\"none\" for a generic release install:"
 #define BPKG_PROMPT	"Please specify the name of the HTML browser package:"
@@ -153,8 +128,6 @@ static Option Options[] = {
       OPT_IS_VAR,	BBIN_PROMPT,		VAR_BROWSER_BINARY,	varCheck	},
 { "Media Type",		"The current installation media type.",
       OPT_IS_FUNC,	mediaGetType,		VAR_MEDIA_TYPE,		mediaCheck	},
-{ "Console Config",	"Keyboard and font configuration.",
-      OPT_IS_FUNC,	consoleGetType,		"System console",	consoleCheck	},
 { "Package Temp",	"The directory where package temporary files should go",
       OPT_IS_VAR,	PKG_PROMPT,		VAR_PKG_TMPDIR,		varCheck	},
 { "Use Defaults",	"Reset all values to startup defaults",
