@@ -35,13 +35,17 @@
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1985, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)unifdef.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 /*
@@ -57,8 +61,11 @@ static char sccsid[] = "@(#)unifdef.c	8.1 (Berkeley) 6/6/93";
  *        corresponding #ifdef or #ifndef
  */
 
-#include <stdio.h>
 #include <ctype.h>
+#include <err.h>
+#include <stdio.h>
+
+typedef int Reject_level;
 
 #define BSS
 FILE *input;
@@ -68,7 +75,6 @@ FILE *input;
 #endif/*YES */
 typedef int Bool;
 
-char *progname BSS;
 char *filename BSS;
 char text BSS;          /* -t option in effect: this is a text file */
 char lnblank BSS;       /* -l option in effect: blank deleted lines */
@@ -94,7 +100,15 @@ char inquote BSS;           /* inside single or double quotes */
 int exitstat BSS;
 char *skipcomment ();
 char *skipquote ();
+static void usage __P((void));
+void flushline __P((Bool));
+int getlin __P((char *, int, FILE *, int));
+int error __P((int, int, int));
+void pfile __P((void));
+int doif __P((int, int, Reject_level, int));
+int findsym __P((char *));
 
+void
 main (argc, argv)
 int argc;
 char **argv;
@@ -103,8 +117,6 @@ char **argv;
     register char *cp;
     register char *cp1;
     char ignorethis;
-
-    progname = argv[0][0] ? argv[0] : "unifdef";
 
     for (curarg = &argv[1]; --argc > 0; curarg++) {
 	if (*(cp1 = cp = *curarg) != '-')
@@ -122,11 +134,8 @@ char **argv;
 	    register int symind;
 
 	    if ((symind = findsym (&cp1[1])) < 0) {
-		if (nsyms >= MAXSYMS) {
-		    prname ();
-		    fprintf (stderr, "too many symbols.\n");
-		    exit (2);
-		}
+		if (nsyms >= MAXSYMS)
+		    errx(2, "too many symbols");
 		symind = nsyms++;
 		symname[symind] = &cp1[1];
 		insym[symind] = SYM_INACTIVE;
@@ -143,31 +152,22 @@ char **argv;
 	    complement = YES;
 	else {
  unrec:
-	    prname ();
-	    fprintf (stderr, "unrecognized option: %s\n", cp);
-	    goto usage;
+	    warnx("unrecognized option: %s", cp);
+	    usage();
 	}
     }
-    if (nsyms == 0) {
- usage:
-	fprintf (stderr, "\
-Usage: %s [-l] [-t] [-c] [[-Dsym] [-Usym] [-iDsym] [-iUsym]]... [file]\n\
-    At least one arg from [-D -U -iD -iU] is required\n", progname);
-	exit (2);
-    }
+    if (nsyms == 0)
+		usage();
 
     if (argc > 1) {
-	prname ();
-	fprintf (stderr, "can only do one file.\n");
+	warnx("can only do one file");
     } else if (argc == 1) {
 	filename = *curarg;
 	if ((input = fopen (filename, "r")) != NULL) {
 	    pfile();
 	    (void) fclose (input);
 	} else {
-	    prname ();
-	    fprintf (stderr, "can't open ");
-	    perror(*curarg);
+	    warn("can't open %s", *curarg);
 	}
     } else {
 	filename = "[stdin]";
@@ -177,6 +177,14 @@ Usage: %s [-l] [-t] [-c] [[-Dsym] [-Usym] [-iDsym] [-iUsym]]... [file]\n\
 
     (void) fflush (stdout);
     exit (exitstat);
+}
+
+static void
+usage()
+{
+	fprintf (stderr, "usage: %s",
+"unifdef [-l] [-t] [-c] [[-Dsym] [-Usym] [-iDsym] [-iUsym]] ... [file]\n");
+	exit (2);
 }
 
 /* types of input lines: */
@@ -191,7 +199,6 @@ typedef int Linetype;
 #define LT_LEOF        7   /* end of file */
 extern Linetype checkline ();
 
-typedef int Reject_level;
 Reject_level reject BSS;    /* 0 or 1: pass thru; 1 or 2: ignore comments */
 #define REJ_NO          0
 #define REJ_IGNORE      1
@@ -223,11 +230,11 @@ char *errs[] = {
 #define IN_IF   1
 #define IN_ELSE 2
 
+void
 pfile ()
 {
     reject = REJ_NO;
     (void) doif (-1, IN_NONE, reject, 0);
-    return;
 }
 
 int
@@ -481,7 +488,7 @@ register int type;
 	    if (*cp == qchar)
 		break;
 	    if (   *cp == '\0'
-		|| *cp == '\\' && *++cp == '\0'
+		|| (*cp == '\\' && *++cp == '\0')
 	       )
 		return cp;
 	}
@@ -594,6 +601,7 @@ int expandtabs;
     return num;
 }
 
+void
 flushline (keep)
 Bool keep;
 {
@@ -602,17 +610,10 @@ Bool keep;
 	register FILE *out = stdout;
 	register char chr;
 
-	while (chr = *line++)
+	while ((chr = *line++))
 	    putc (chr, out);
     } else if (lnblank)
 	putc ('\n', stdout);
-    return;
-}
-
-prname ()
-{
-    fprintf (stderr, "%s: ", progname);
-    return;
 }
 
 int
@@ -624,13 +625,11 @@ int depth;      /* how many ifdefs we are inside */
     if (err == END_ERR)
 	return err;
 
-    prname ();
-
 #ifndef TESTING
-    fprintf (stderr, "Error in %s line %d: %s.\n", filename, line, errs[err]);
+    warnx("error in %s line %d: %s", filename, line, errs[err]);
 #else/* TESTING */
-    fprintf (stderr, "Error in %s line %d: %s. ", filename, line, errs[err]);
-    fprintf (stderr, "ifdef depth: %d\n", depth);
+    warnx("error in %s line %d: %s. ifdef depth: %d",
+			filename, line, errs[err], depth);
 #endif/*TESTING */
 
     exitstat = 2;
