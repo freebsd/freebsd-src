@@ -1,6 +1,6 @@
 # $FreeBSD$
 #
-# Disk geometry and partition layout tables. 
+# Disk geometry and partition layout tables.
 # Key:
 #	dt	controller type
 #	ty	type of disk (fixed, removeable, simulated)
@@ -122,7 +122,7 @@ mk156|toshiba156|Toshiba MK156 156Mb:\
 	:pa#15748:oa#0:ba#4096:fa#512:ta=4.2BSD:\
 	:pb#15748:ob#15748:tb=swap:\
 	:pc#288750:oc#0:\
-	:ph#257250:oh#31500:bh#4096:fh#512:th=4.2BSD:	
+	:ph#257250:oh#31500:bh#4096:fh#512:th=4.2BSD:
 
 cp3100|Connor Peripherals 100MB IDE:\
 	:dt=ST506:ty=winchester:se#512:nt#8:ns#33:nc#766: \

@@ -325,7 +325,7 @@ list_net_interfaces()
 		echo $_dhcplist
 		;;
 	esac
-	return 0			
+	return 0
 }
 
 hexdigit()

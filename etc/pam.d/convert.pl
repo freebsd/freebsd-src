@@ -45,7 +45,7 @@ MAIN:{
     my $version;
     my $type;
     local *FILE;
-    
+
     while (<>) {
 	chomp();
 	s/\s*$//;
@@ -82,6 +82,6 @@ MAIN:{
 	close(FILE);
 	warn("$service\n");
     }
-    
+
     exit(0);
 }

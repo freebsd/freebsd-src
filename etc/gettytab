@@ -205,7 +205,7 @@ A|Auto-baud:\
 autologin|al.9600:\
 	:al=root:tc=std.9600:
 
-# 
+#
 # Entries for 3-wire serial terminals.  These don't supply carrier, so
 # clocal needs to be set, and crtscts needs to be unset.
 #
