@@ -466,15 +466,18 @@ ng_etf_disconnect(hook_p hook)
 {
 	const etf_p etfp = NG_NODE_PRIVATE(NG_HOOK_NODE(hook));
 	int i;
-	struct filter *fil;
+	struct filter *fil1, *fil2;
 
 	/* purge any rules that refer to this filter */
 	for (i = 0; i < HASHSIZE; i++) {
-		LIST_FOREACH(fil, (etfp->hashtable + i), next) {
-			if (fil->match_hook == hook) {
-				LIST_REMOVE(fil, next);
-				FREE(fil, M_NETGRAPH_ETF);
+		fil1 = LIST_FIRST(&etfp->hashtable[i]);
+		while (fil1 != NULL) {
+			fil2 = LIST_NEXT(fil1, next);
+			if (fil1->match_hook == hook) {
+				LIST_REMOVE(fil1, next);
+				FREE(fil1, M_NETGRAPH_ETF);
 			}
+			fil1 = fil2;
 		}
 	}
 		
