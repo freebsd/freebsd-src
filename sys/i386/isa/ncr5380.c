@@ -124,14 +124,14 @@ typedef struct scb {
 	struct scb *next;               /* in free list */
 	struct scsi_xfer *xfer;		/* the scsi_xfer for this cmd */
 	u_char *data;                   /* position in data buffer so far */
-	int32_t datalen;			/* bytes remaining to transfer */;
+	int32_t datalen;		/* bytes remaining to transfer */
 } scb_t;
 
 typedef enum {
 	CTLR_NONE,
 	CTLR_NCR_5380,
 	CTLR_NCR_53C400,
-	CTLR_PAS_16,
+	CTLR_PAS_16
 } ctlr_t;
 
 /*
