@@ -370,7 +370,7 @@ vm_map_entry_set_behavior(struct vm_map_entry *entry, u_char behavior)
 }                       
 
 void
-vm_map_lock(vm_map_t map)
+_vm_map_lock(vm_map_t map, const char *file, int line)
 {
 	vm_map_printf("locking map LK_EXCLUSIVE: %p\n", map);
 	if (lockmgr(&map->lock, LK_EXCLUSIVE, NULL, curthread) != 0)
@@ -379,28 +379,28 @@ vm_map_lock(vm_map_t map)
 }
 
 void
-vm_map_unlock(vm_map_t map)
+_vm_map_unlock(vm_map_t map, const char *file, int line)
 {
 	vm_map_printf("locking map LK_RELEASE: %p\n", map);
 	lockmgr(&(map)->lock, LK_RELEASE, NULL, curthread);
 }
 
 void
-vm_map_lock_read(vm_map_t map)
+_vm_map_lock_read(vm_map_t map, const char *file, int line)
 {
 	vm_map_printf("locking map LK_SHARED: %p\n", map);
 	lockmgr(&(map)->lock, LK_SHARED, NULL, curthread);
 }
 
 void
-vm_map_unlock_read(vm_map_t map)
+_vm_map_unlock_read(vm_map_t map, const char *file, int line)
 {
 	vm_map_printf("locking map LK_RELEASE: %p\n", map);
 	lockmgr(&(map)->lock, LK_RELEASE, NULL, curthread);
 }
 
 int
-vm_map_trylock(vm_map_t map)
+_vm_map_trylock(vm_map_t map, const char *file, int line)
 {
 
 	return (lockmgr(&map->lock, LK_EXCLUSIVE | LK_NOWAIT, NULL,
@@ -408,7 +408,7 @@ vm_map_trylock(vm_map_t map)
 }
 
 static __inline__ int
-_vm_map_lock_upgrade(vm_map_t map, struct thread *td) {
+__vm_map_lock_upgrade(vm_map_t map, struct thread *td) {
 	int error;
 
 	vm_map_printf("locking map LK_EXCLUPGRADE: %p\n", map); 
@@ -419,20 +419,20 @@ _vm_map_lock_upgrade(vm_map_t map, struct thread *td) {
 }
 
 int
-vm_map_lock_upgrade(vm_map_t map)
+_vm_map_lock_upgrade(vm_map_t map, const char *file, int line)
 {
-    return (_vm_map_lock_upgrade(map, curthread));
+    return (__vm_map_lock_upgrade(map, curthread));
 }
 
 void
-vm_map_lock_downgrade(vm_map_t map)
+_vm_map_lock_downgrade(vm_map_t map, const char *file, int line)
 {
 	vm_map_printf("locking map LK_DOWNGRADE: %p\n", map);
 	lockmgr(&map->lock, LK_DOWNGRADE, NULL, curthread);
 }
 
 void
-vm_map_set_recursive(vm_map_t map)
+_vm_map_set_recursive(vm_map_t map, const char *file, int line)
 {
 	mtx_lock((map)->lock.lk_interlock);
 	map->lock.lk_flags |= LK_CANRECURSE;
@@ -440,7 +440,7 @@ vm_map_set_recursive(vm_map_t map)
 }
 
 void
-vm_map_clear_recursive(vm_map_t map)
+_vm_map_clear_recursive(vm_map_t map, const char *file, int line)
 {
 	mtx_lock((map)->lock.lk_interlock);
 	map->lock.lk_flags &= ~LK_CANRECURSE;
