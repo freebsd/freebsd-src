@@ -52,7 +52,7 @@
 #include <sys/mbuf.h>
 #include <sys/proc.h>
 #include <sys/malloc.h>
-#include <sys/ctype.h>
+/* #include <sys/ctype.h> */
 #include <sys/protosw.h>
 #include <sys/errno.h>
 #include <sys/socket.h>
