@@ -14,7 +14,6 @@
 ;;
 ;;
 
-
 ;;  If `c-auto-newline' is non-`nil', newlines are inserted both
 ;;before and after braces that you insert, and after colons and semicolons.
 ;;Correct C indentation is done on all the lines that are made this way.
@@ -29,6 +28,13 @@
 ;; Depends some on whether you're in the habit of using TAB to
 ;; reindent.
 ;(setq c-tab-always-indent nil)
+
+;;; It seems to me that 
+;;;    `M-x set-c-style BSD RET'
+;;; or
+;;;    (set-c-style "BSD")
+;;; takes care of the indentation parameters correctly.
+
 
 ;;  C does not have anything analogous to particular function names for which
 ;;special forms of indentation are desirable.  However, it has a different
