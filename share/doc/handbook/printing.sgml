@@ -1,7 +1,7 @@
 <!-- This is an SGML document in the linuxdoc DTD describing
      Printing with FreeBSD.  By Sean Kelly, 1995.
 
-     $Id: printing.sgml,v 1.7 1996/06/30 08:03:35 andreas Exp $
+     $Id: printing.sgml,v 1.8 1996/08/12 16:07:50 jfieber Exp $
 
      The FreeBSD Documentation Project
 
@@ -3865,7 +3865,7 @@ pac -p1.50
 
 	    For providing a plethora of HP filter programs for perusal.
 
-	  <tag/Jake Hamby <tt/&lt;jehamby@lightside.com&gt;//
+	  <tag/&a.jehamby;/
 
 	    For the Ghostscript-to-HP filter.
 

@@ -1,4 +1,4 @@
-<!-- $Id: mirrors.sgml,v 1.38 1996/08/25 21:20:59 wosch Exp $ -->
+<!-- $Id: mirrors.sgml,v 1.39 1996/08/25 21:25:15 wosch Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -517,9 +517,7 @@ for this domain.
       following mirror sites. If you choose to obtain CTM via
       anonymous FTP, please try to use a site near you.
 
-In case of problems, please contact Poul-Henning Kamp
-<htmlurl url="mailto:phk@FreeBSD.ORG" name="phk@freebsd.org">.
-
+In case of problems, please contact &a.phk;.
 
 <descrip>
 <tag>California</tag>
