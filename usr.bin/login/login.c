@@ -80,6 +80,7 @@ void	 sigint __P((int));
 void	 sleepexit __P((int));
 char	*stypeof __P((char *));
 void	 timedout __P((int));
+void     login_fbtab __P((char *, uid_t, gid_t));
 #ifdef KERBEROS
 int	 klogin __P((struct passwd *, char *, char *, char *));
 #endif
@@ -343,6 +344,13 @@ main(argc, argv)
 	login(&utmp);
 
 	dolastlog(quietlog);
+
+	/*
+	 * Set device protections, depending on what terminal the
+	 * user is logged in. This feature is used on Suns to give
+	 * console users better privacy.
+	 */
+	login_fbtab(tty, pwd->pw_uid, pwd->pw_gid);
 
 	(void)chown(ttyn, pwd->pw_uid,
 	    (gr = getgrnam(TTYGRPNAME)) ? gr->gr_gid : pwd->pw_gid);
