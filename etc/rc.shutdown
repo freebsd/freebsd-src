@@ -86,7 +86,7 @@ case ${local_startup} in
 		fi
 	done
 	IFS="${script_save_sep}"
-	echo .
+	echo '.'
 	;;
 esac
 
