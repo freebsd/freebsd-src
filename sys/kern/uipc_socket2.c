@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)uipc_socket2.c	8.1 (Berkeley) 6/10/93
- * $Id: uipc_socket2.c,v 1.5.4.2 1996/05/31 08:04:12 peter Exp $
+ * $Id: uipc_socket2.c,v 1.5.4.4 1996/06/05 19:49:13 nate Exp $
  */
 
 #include <sys/param.h>
@@ -60,6 +60,8 @@ char	netcls[] = "netcls";
 u_long	sb_max = SB_MAX;		/* patchable */
 
 u_long	sb_efficiency = 8;		/* parameter for sbreserve() */
+
+int	sominqueue = 0;			/* minimum queue override */
 
 /*
  * Procedures to manipulate state flags of socket
@@ -162,7 +164,8 @@ sonewconn1(head, connstatus)
 	register struct socket *so;
 	int soqueue = connstatus ? 1 : 0;
 
-	if (head->so_qlen + head->so_q0len > 3 * head->so_qlimit / 2)
+	if ((head->so_qlen + head->so_q0len > 3 * head->so_qlimit / 2) &&
+	    (head->so_qlen + head->so_q0len > sominqueue))
 		return ((struct socket *)0);
 	MALLOC(so, struct socket *, sizeof(*so), M_SOCKET, M_DONTWAIT);
 	if (so == NULL)

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)tcp_input.c	8.5 (Berkeley) 4/10/94
- *	$Id: tcp_input.c,v 1.25.4.3 1996/02/04 12:46:20 davidg Exp $
+ *	$Id: tcp_input.c,v 1.25.4.4 1996/03/04 04:56:25 davidg Exp $
  */
 
 #ifndef TUBA_INCLUDE
@@ -418,7 +418,8 @@ findpcb:
 	 * Reset idle time and keep-alive timer.
 	 */
 	tp->t_idle = 0;
-	tp->t_timer[TCPT_KEEP] = tcp_keepidle;
+	if (TCPS_HAVEESTABLISHED(tp->t_state))
+		tp->t_timer[TCPT_KEEP] = tcp_keepidle;
 
 	/*
 	 * Process options if not in LISTEN state,
@@ -681,7 +682,7 @@ findpcb:
 			tp->rcv_adv += min(tp->rcv_wnd, TCP_MAXWIN);
 			tcpstat.tcps_connects++;
 			soisconnected(so);
-			tp->t_timer[TCPT_KEEP] = TCPTV_KEEP_INIT;
+			tp->t_timer[TCPT_KEEP] = tcp_keepinit;
 			dropsocket = 0;		/* committed to socket */
 			tcpstat.tcps_accepts++;
 			goto trimthenstep6;
@@ -700,7 +701,7 @@ findpcb:
 		 */
 		tp->t_flags |= TF_ACKNOW;
 		tp->t_state = TCPS_SYN_RECEIVED;
-		tp->t_timer[TCPT_KEEP] = TCPTV_KEEP_INIT;
+		tp->t_timer[TCPT_KEEP] = tcp_keepinit;
 		dropsocket = 0;		/* committed to socket */
 		tcpstat.tcps_accepts++;
 		goto trimthenstep6;
@@ -799,9 +800,10 @@ findpcb:
 				tp->t_state = TCPS_FIN_WAIT_1;
 				tp->t_flags &= ~TF_NEEDFIN;
 				tiflags &= ~TH_SYN;
-			} else
+			} else {
 				tp->t_state = TCPS_ESTABLISHED;
-
+				tp->t_timer[TCPT_KEEP] = tcp_keepidle;
+			}
 		} else {
 		/*
 		 *  Received initial SYN in SYN-SENT[*] state => simul-
@@ -826,8 +828,10 @@ findpcb:
 					if (tp->t_flags & TF_NEEDFIN) {
 						tp->t_state = TCPS_FIN_WAIT_1;
 						tp->t_flags &= ~TF_NEEDFIN;
-					} else
+					} else {
 						tp->t_state = TCPS_ESTABLISHED;
+						tp->t_timer[TCPT_KEEP] = tcp_keepidle;
+					}
 					tp->t_flags |= TF_NEEDSYN;
 				} else
 					tp->t_state = TCPS_SYN_RECEIVED;
@@ -1150,8 +1154,10 @@ trimthenstep6:
 		if (tp->t_flags & TF_NEEDFIN) {
 			tp->t_state = TCPS_FIN_WAIT_1;
 			tp->t_flags &= ~TF_NEEDFIN;
-		} else
+		} else {
 			tp->t_state = TCPS_ESTABLISHED;
+			tp->t_timer[TCPT_KEEP] = tcp_keepidle;
+		}
 		/*
 		 * If segment contains data or ACK, will call tcp_reass()
 		 * later; if not, do so now to pass queued data to user.
