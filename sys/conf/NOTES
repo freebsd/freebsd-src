@@ -1503,7 +1503,7 @@ device		ataraid		# ATA RAID drives
 device		atapicd		# ATAPI CDROM drives
 device		atapifd		# ATAPI floppy drives
 device		atapist		# ATAPI tape drives
-#device		atapicam	# emulate ATAPI devices as SCSI ditto via CAM
+device		atapicam	# emulate ATAPI devices as SCSI ditto via CAM
 				# needs CAM to be present (scbus & pass)
 #
 # For older non-PCI, non-PnPBIOS systems, these are the hints lines to add:
