@@ -64,9 +64,9 @@ SLOBJDIR=	${.CURDIR}/../../lib/libsl
 .endif
 
 .if exists(${.OBJDIR}/../../lib/libtelnet)
-TELNETOBJDIR=	${.OBJDIR}/../../lib/libtelnet
+LIBTELNET=	${.OBJDIR}/../../lib/libtelnet/libtelnet.a
 .else
-TELNETOBJDIR=	${.CURDIR}/../../lib/libtelnet
+LIBTELNET=	${.CURDIR}/../../lib/libtelnet/libtelnet.a
 .endif
 
 CFLAGS+= -I${.CURDIR}/../../include -Wall -DHAVE_CONFIG_H \

@@ -6,23 +6,22 @@
 PROG=		telnetd
 MAN=		telnetd.8
 
-CFLAGS+=	-DLINEMODE -DUSE_TERMIO -DDIAGNOSTICS -DOLD_ENVIRON \
-		-DENV_HACK -DAUTHENTICATION -DENCRYPTION \
-		-I${TELNETDIR} -DINET6
-
 SRCS=		global.c slc.c state.c sys_term.c telnetd.c \
 		termstat.c utility.c authenc.c
 
-DPADD=		${LIBUTIL} ${LIBTERMCAP} ${LIBTELNET} ${LIBCRYPTO} ${LIBKRB} \
-		${LIBCRYPT} ${LIBCOM_ERR}
-LDADD=		-lutil -ltermcap -L${TELNETOBJDIR} -ltelnet -lcrypto \
-		-L${KRBOBJDIR} -lkrb -lcrypt -lcom_err -lmp
+CFLAGS+=	-DLINEMODE -DUSE_TERMIO -DDIAGNOSTICS -DOLD_ENVIRON \
+		-DENV_HACK -DAUTHENTICATION -DENCRYPTION \
+		-I${TELNETDIR} -DINET6
+CFLAGS+=	-DKRB4
 
-.if !defined(NOPAM)
-CFLAGS+=-DUSE_PAM
-DPADD+= ${LIBPAM}
-LDADD+= ${MINUSLPAM}
-.endif
+WARNS?=		2
+
+DPADD=		${LIBUTIL} ${LIBTERMCAP} ${LIBTELNET} ${LIBMP} ${LIBCRYPTO} \
+		${LIBKRB} ${LIBCOM_ERR} \
+		${LIBCRYPT} ${LIBPAM}
+LDADD=		-lutil -ltermcap ${LIBTELNET} -lmp -lcrypto \
+		-L${KRBOBJDIR} -lkrb -lcom_err \
+		-lcrypt ${MINUSLPAM}
 
 .include <bsd.prog.mk>
 
