@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumio.c,v 1.31 1999/06/29 04:08:51 grog Exp $
+ * $Id: vinumio.c,v 1.25 1999/06/28 02:37:48 grog Exp grog $
  */
 
 #include <dev/vinum/vinumhdr.h>
@@ -175,8 +175,7 @@ init_drive(struct drive *drive, int verbose)
 	drive->state = drive_down;			    /* don't tell the system about this one at all */
 	return error;
     }
-    if ((drive->partinfo.part->p_fstype != FS_UNUSED)	    /* not plain */
-    &&(drive->partinfo.part->p_fstype != FS_VINUM)) {	    /* and not Vinum */
+    if (drive->partinfo.part->p_fstype != FS_VINUM) {	    /* not Vinum */
 	drive->lasterror = EFTYPE;
 	if (verbose)
 	    log(LOG_WARNING,
@@ -200,8 +199,8 @@ close_drive(struct drive *drive)
 }
 
 /*
- * Real drive close code, called with drive already locked.  We have
- * also checked that the drive is open.  No errors.
+ * Real drive close code, called with drive already locked.
+ * We have also checked that the drive is open.  No errors.
  */
 void 
 close_locked_drive(struct drive *drive)
@@ -570,38 +569,17 @@ sappend(char *txt, char *s)
     return s - 1;
 }
 
-/* Kludge: kernel printf doesn't handle quads correctly XXX */
-static char *lltoa(long long l, char *s);
-
-static char *
-lltoa(long long l, char *s)
-{
-    if (l < 0) {
-	*s++ = '-';
-	l = -l;
-    }
-    if (l > 9) {
-	s = lltoa(l / 10, s);
-	l %= 10;
-    }
-    *s++ = l + '0';
-    return s;
-}
-/*
- * Format the configuration in text form into the buffer
- * at config.  Don't go beyond len bytes
- * XXX this stinks.  Fix soon. 
- */
 void 
 format_config(char *config, int len)
 {
     int i;
     int j;
     char *s = config;
+    char *configend = &config[len];
 
     bzero(config, len);
 
-    /* First, the volume configuration */
+    /* First write the volume configuration */
     for (i = 0; i < vinum_conf.volumes_allocated; i++) {
 	struct volume *vol;
 
@@ -609,23 +587,21 @@ format_config(char *config, int len)
 	if ((vol->state > volume_uninit)
 	    && (vol->name[0] != '\0')) {		    /* paranoia */
 	    if (vol->preferred_plex >= 0)		    /* preferences, */
-		sprintf(s,
+		snprintf(s,
+		    configend - s,
 		    "volume %s state %s readpol prefer %s",
 		    vol->name,
 		    volume_state(vol->state),
 		    vinum_conf.plex[vol->preferred_plex].name);
 	    else					    /* default round-robin */
-		sprintf(s,
+		snprintf(s,
+		    configend - s,
 		    "volume %s state %s",
 		    vol->name,
 		    volume_state(vol->state));
 	    while (*s)
 		s++;					    /* find the end */
 	    s = sappend("\n", s);
-	    if (s > &config[len - 80]) {
-		log(LOG_ERR, "vinum: configuration data overflow\n");
-		return;
-	    }
 	}
     }
 
@@ -636,7 +612,9 @@ format_config(char *config, int len)
 	plex = &vinum_conf.plex[i];
 	if ((plex->state != plex_referenced)
 	    && (plex->name[0] != '\0')) {		    /* paranoia */
-	    sprintf(s, "plex name %s state %s org %s ",
+	    snprintf(s,
+		configend - s,
+		"plex name %s state %s org %s ",
 		plex->name,
 		plex_state(plex->state),
 		plex_org(plex->organization));
@@ -644,22 +622,27 @@ format_config(char *config, int len)
 		s++;					    /* find the end */
 	    if ((plex->organization == plex_striped)
 		|| (plex->organization == plex_raid5)) {
-		sprintf(s, "%db ", (int) plex->stripesize);
+		snprintf(s,
+		    configend - s,
+		    "%ds ",
+		    (int) plex->stripesize);
 		while (*s)
 		    s++;				    /* find the end */
 	    }
 	    if (plex->volno >= 0)			    /* we have a volume */
-		sprintf(s, "vol %s ", vinum_conf.volume[plex->volno].name);
+		snprintf(s,
+		    configend - s,
+		    "vol %s ",
+		    vinum_conf.volume[plex->volno].name);
 	    while (*s)
 		s++;					    /* find the end */
 	    for (j = 0; j < plex->subdisks; j++) {
-		sprintf(s, " sd %s", vinum_conf.sd[plex->sdnos[j]].name);
+		snprintf(s,
+		    configend - s,
+		    " sd %s",
+		    vinum_conf.sd[plex->sdnos[j]].name);
 	    }
 	    s = sappend("\n", s);
-	    if (s > &config[len - 80]) {
-		log(LOG_ERR, "vinum: configuration data overflow\n");
-		return;
-	    }
 	}
     }
 
@@ -670,26 +653,33 @@ format_config(char *config, int len)
 	sd = &SD[i];
 	if ((sd->state != sd_referenced)
 	    && (sd->name[0] != '\0')) {			    /* paranoia */
-	    sprintf(s,
-		"sd name %s drive %s plex %s state %s len ",
-		sd->name,
-		vinum_conf.drive[sd->driveno].label.name,
-		vinum_conf.plex[sd->plexno].name,
-		sd_state(sd->state));
+	    if (sd->plexno >= 0)
+		snprintf(s,
+		    configend - s,
+		    "sd name %s drive %s plex %s state %s len %qds driveoffset %qds plexoffset %qds\n",
+		    sd->name,
+		    vinum_conf.drive[sd->driveno].label.name,
+		    vinum_conf.plex[sd->plexno].name,
+		    sd_state(sd->state),
+		    sd->sectors,
+		    sd->driveoffset,
+		    sd->plexoffset);
+	    else
+		snprintf(s,
+		    configend - s,
+		    "sd name %s drive %s state %s len %qds driveoffset %qds detached\n",
+		    sd->name,
+		    vinum_conf.drive[sd->driveno].label.name,
+		    sd_state(sd->state),
+		    sd->sectors,
+		    sd->driveoffset);
 	    while (*s)
 		s++;					    /* find the end */
-	    s = lltoa(sd->sectors, s);
-	    s = sappend("b driveoffset ", s);
-	    s = lltoa(sd->driveoffset, s);
-	    s = sappend("b plexoffset ", s);
-	    s = lltoa(sd->plexoffset, s);
-	    s = sappend("b\n", s);
-	    if (s > &config[len - 80]) {
-		log(LOG_ERR, "vinum: configuration data overflow\n");
-		return;
-	    }
+
 	}
     }
+    if (s > &config[len - 2])
+	panic("vinum: configuration data overflow");
 }
 
 /*
@@ -956,28 +946,57 @@ vinum_scandisk(char *devicename[], int drives)
     /* Open all drives and find which was modified most recently */
     for (driveno = 0; driveno < drives; driveno++) {
 	char part;					    /* UNIX partition */
+	int slice;
+	int founddrive;					    /* flag when we find a vinum drive */
 
-	for (part = 'a'; part < 'i'; part++)
-	    if (part != 'c') {				    /* don't do the c partition */
-		snprintf(partname,			    /* /dev/sd0a */
-		    DRIVENAMELEN,
-		    "%s%c",
-		    devicename[driveno],
-		    part);
-		drive = check_drive(partname);		    /* try to open it */
-		if ((drive->lasterror != 0)		    /* didn't work, */
-		||(drive->state != drive_up))
-		    free_drive(drive);			    /* get rid of it */
-		else if (drive->flags & VF_CONFIGURED)	    /* already read this config, */
-		    log(LOG_WARNING,
-			"vinum: already read config from %s\n",	/* say so */
-			drive->label.name);
-		else {
-		    drivelist[gooddrives] = drive->driveno; /* keep the drive index */
-		    drive->flags &= ~VF_NEWBORN;	    /* which is no longer newly born */
-		    gooddrives++;
+	founddrive = 0;					    /* no vinum drive found yet on this spindle */
+	/* first try the partition table */
+	for (slice = 1; slice < 5; slice++)
+	    for (part = 'a'; part < 'i'; part++) {
+		if (part != 'c') {			    /* don't do the c partition */
+		    snprintf(partname,
+			DRIVENAMELEN,
+			"%ss%d%c",
+			devicename[driveno],
+			slice,
+			part);
+		    drive = check_drive(partname);	    /* try to open it */
+		    if (drive->lasterror != 0)		    /* didn't work, */
+			free_drive(drive);		    /* get rid of it */
+		    else if (drive->flags & VF_CONFIGURED)  /* already read this config, */
+			log(LOG_WARNING,
+			    "vinum: already read config from %s\n", /* say so */
+			    drive->label.name);
+		    else {
+			drivelist[gooddrives] = drive->driveno;	/* keep the drive index */
+			drive->flags &= ~VF_NEWBORN;	    /* which is no longer newly born */
+			gooddrives++;
+		    }
 		}
 	    }
+	if (founddrive == 0) {				    /* didn't find anything, */
+	    for (part = 'a'; part < 'i'; part++)	    /* try the compatibility partition */
+		if (part != 'c') {			    /* don't do the c partition */
+		    snprintf(partname,			    /* /dev/sd0a */
+			DRIVENAMELEN,
+			"%s%c",
+			devicename[driveno],
+			part);
+		    drive = check_drive(partname);	    /* try to open it */
+		    if ((drive->lasterror != 0)		    /* didn't work, */
+		    ||(drive->state != drive_up))
+			free_drive(drive);		    /* get rid of it */
+		    else if (drive->flags & VF_CONFIGURED)  /* already read this config, */
+			log(LOG_WARNING,
+			    "vinum: already read config from %s\n", /* say so */
+			    drive->label.name);
+		    else {
+			drivelist[gooddrives] = drive->driveno;	/* keep the drive index */
+			drive->flags &= ~VF_NEWBORN;	    /* which is no longer newly born */
+			gooddrives++;
+		    }
+		}
+	}
     }
 
     if (gooddrives == 0) {
@@ -1002,12 +1021,6 @@ vinum_scandisk(char *devicename[], int drives)
 	    log(LOG_INFO, "vinum: reading configuration from %s\n", drive->devicename);
 	else
 	    log(LOG_INFO, "vinum: updating configuration from %s\n", drive->devicename);
-
-	/* XXX Transition until we can get things changed */
-	if (drive->partinfo.part->p_fstype == FS_UNUSED)    /* still set to unused */
-	    log(LOG_WARNING,
-		"vinum: %s partition type is 'unused', should be 'vinum'\n",
-		drive->devicename);
 
 	/* Read in both copies of the configuration information */
 	error = read_drive(drive, config_text, MAXCONFIG * 2, VINUM_CONFIG_OFFSET);
