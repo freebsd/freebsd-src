@@ -27,6 +27,8 @@
             ..
             Xaw
             ..
+            Xft
+            ..
             Xmu
             ..
             bitmaps
@@ -41,6 +43,16 @@
             ..
         ..
         bitmaps
+        ..
+        freetype2
+            freetype
+                cache
+                ..
+                config
+                ..
+                internal
+                ..
+            ..
         ..
     ..
     info
@@ -96,6 +108,8 @@
                 ..
                 misc
                 ..
+                util
+                ..
             ..
             fs
             ..
@@ -116,9 +130,15 @@
                 ..
                 ibm-cp1133
                 ..
+                iscii-dev
+                ..
+                isiri-3342
+                ..
                 iso8859-1
                 ..
                 iso8859-10
+                ..
+                iso8859-13
                 ..
                 iso8859-14
                 ..
@@ -140,6 +160,8 @@
                 ..
                 iso8859-9
                 ..
+                iso8859-9e
+                ..
                 ja
                 ..
                 ja.JIS
@@ -148,15 +170,31 @@
                 ..
                 ko
                 ..
+                koi8-c
+                ..
                 koi8-r
                 ..
                 koi8-u
                 ..
+                microsoft-cp1251
+                ..
+                microsoft-cp1255
+                ..
+                microsoft-cp1256
+                ..
+                mk_MK.UTF-8
+                ..
                 mulelao-1
+                ..
+                nokhchi-1
+                ..
+                tatar-cyr
                 ..
                 tbl_data
                 ..
                 th_TH.TACTIS
+                ..
+                tscii-0
                 ..
                 vi_VN.tcvn
                 ..
