@@ -37,9 +37,8 @@
 #ifndef _SYS_SELINFO_H_
 #define	_SYS_SELINFO_H_
 
-#include <sys/event.h>			/* for struct klist */
+#include <sys/event.h>		/* for struct klist */
 
-struct thread;
 /*
  * Used to maintain information about processes that wish to be
  * notified when I/O becomes possible.
@@ -52,16 +51,13 @@ struct selinfo {
 };
 #define	SI_COLL	0x0001		/* collision occurred */
 
-#define SEL_WAITING(si)	\
+#define	SEL_WAITING(si)	\
 	((si)->si_thread != NULL || ((si)->si_flags & SI_COLL) != 0)
 
 #ifdef _KERNEL
-struct thread;
-
-void	clear_selinfo_list(struct thread *);
-void	selrecord __P((struct thread *selector, struct selinfo *));
-void	selwakeup __P((struct selinfo *));
-
+void	clear_selinfo_list(struct thread *td);
+void	selrecord __P((struct thread *selector, struct selinfo *sip));
+void	selwakeup __P((struct selinfo *sip));
 #endif
 
 #endif /* !_SYS_SELINFO_H_ */
