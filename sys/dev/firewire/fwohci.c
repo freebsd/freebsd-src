@@ -634,8 +634,7 @@ fwohci_init(struct fwohci_softc *sc, device_t dev)
 
 	sc->fc.tcode = tinfo;
 
-	sc->cromptr = (u_int32_t *)
-		contigmalloc(CROMSIZE * 2, M_DEVBUF, M_NOWAIT, 0, ~0, 1<<10, 0);
+	sc->cromptr = (u_int32_t *) malloc(CROMSIZE * 2, M_DEVBUF, M_NOWAIT);
 
 	if(sc->cromptr == NULL){
 		device_printf(dev, "cromptr alloc failed.");
@@ -656,8 +655,7 @@ fwohci_init(struct fwohci_softc *sc, device_t dev)
 
 /* SID recieve buffer must allign 2^11 */
 #define	OHCI_SIDSIZE	(1 << 11)
-	sc->fc.sid_buf = (u_int32_t *) vm_page_alloc_contig( OHCI_SIDSIZE,
-					0x10000, 0xffffffff, OHCI_SIDSIZE);
+	sc->fc.sid_buf = (u_int32_t *) malloc(OHCI_SIDSIZE, M_DEVBUF, M_NOWAIT);
 	if (sc->fc.sid_buf == NULL) {
 		device_printf(dev, "sid_buf alloc failed.\n");
 		return ENOMEM;
@@ -737,10 +735,9 @@ fwohci_detach(struct fwohci_softc *sc, device_t dev)
 	int i;
 
 	if (sc->fc.sid_buf != NULL)
-		contigfree((void *)(uintptr_t)sc->fc.sid_buf,
-					OHCI_SIDSIZE, M_DEVBUF);
+		free((void *)(uintptr_t)sc->fc.sid_buf, M_DEVBUF);
 	if (sc->cromptr != NULL)
-		contigfree((void *)sc->cromptr, CROMSIZE * 2, M_DEVBUF);
+		free((void *)sc->cromptr, M_DEVBUF);
 
 	fwohci_db_free(&sc->arrq);
 	fwohci_db_free(&sc->arrs);
@@ -1105,7 +1102,7 @@ static void
 fwohci_db_free(struct fwohci_dbch *dbch)
 {
 	struct fwohcidb_tr *db_tr;
-	int idb;
+	int idb, i;
 
 	if ((dbch->flags & FWOHCI_DBCH_INIT) == 0)
 		return;
@@ -1122,8 +1119,8 @@ fwohci_db_free(struct fwohci_dbch *dbch)
 	}
 	dbch->ndb = 0;
 	db_tr = STAILQ_FIRST(&dbch->db_trq);
-	contigfree((void *)(uintptr_t)(volatile void *)db_tr->db,
-		sizeof(struct fwohcidb) * dbch->ndesc * dbch->ndb, M_DEVBUF);
+	for (i = 0; i < dbch->npages; i++)
+		free(dbch->pages[i], M_DEVBUF);
 	free(db_tr, M_DEVBUF);
 	STAILQ_INIT(&dbch->db_trq);
 	dbch->flags &= ~FWOHCI_DBCH_INIT;
@@ -1133,9 +1130,8 @@ static void
 fwohci_db_init(struct fwohci_dbch *dbch)
 {
 	int	idb;
-	struct fwohcidb *db;
 	struct fwohcidb_tr *db_tr;
-
+	int	ndbpp, i, j;
 
 	if ((dbch->flags & FWOHCI_DBCH_INIT) != 0)
 		goto out;
@@ -1147,22 +1143,37 @@ fwohci_db_init(struct fwohci_dbch *dbch)
 		malloc(sizeof(struct fwohcidb_tr) * dbch->ndb,
 		M_DEVBUF, M_DONTWAIT | M_ZERO);
 	if(db_tr == NULL){
-		printf("fwohci_db_init: malloc failed\n");
+		printf("fwohci_db_init: malloc(1) failed\n");
 		return;
 	}
-	db = (struct fwohcidb *)
-		contigmalloc(sizeof (struct fwohcidb) * dbch->ndesc * dbch->ndb,
-		M_DEVBUF, M_DONTWAIT, 0x10000, 0xffffffff, PAGE_SIZE, 0ul);
-	if(db == NULL){
-		printf("fwohci_db_init: contigmalloc failed\n");
-		free(db_tr, M_DEVBUF);
+
+	ndbpp = PAGE_SIZE / (sizeof(struct fwohcidb) * dbch->ndesc);
+	dbch->npages = (dbch->ndb + ndbpp - 1)/ ndbpp;
+#if 0
+	printf("ndesc: %d, ndbpp: %d, ndb: %d, npages: %d\n",
+		dbch->ndesc, ndbpp, dbch->ndb, dbch->npages);
+#endif
+	if (dbch->npages > FWOHCI_DBCH_MAX_PAGES) {
+		printf("npages(%d) > DBCH_MAX_PAGES(%d)\n",
+				dbch->npages, FWOHCI_DBCH_MAX_PAGES);
 		return;
 	}
-	bzero(db, sizeof (struct fwohcidb) * dbch->ndesc * dbch->ndb);
+	for (i = 0; i < dbch->npages; i++) {
+		dbch->pages[i] = malloc(PAGE_SIZE, M_DEVBUF,
+						M_DONTWAIT | M_ZERO);
+		if (dbch->pages[i] == NULL) {
+			printf("fwohci_db_init: malloc(2) failed\n");
+			for (j = 0; j < i; j ++)
+				free(dbch->pages[j], M_DEVBUF);
+			free(db_tr, M_DEVBUF);
+			return;
+		}
+	}
 	/* Attach DB to DMA ch. */
 	for(idb = 0 ; idb < dbch->ndb ; idb++){
 		db_tr->dbcnt = 0;
-		db_tr->db = &db[idb * dbch->ndesc];
+		db_tr->db = (struct fwohcidb *)dbch->pages[idb/ndbpp]
+					+ dbch->ndesc * (idb % ndbpp);
 		STAILQ_INSERT_TAIL(&dbch->db_trq, db_tr, link);
 		if (!(dbch->xferq.flag & FWXFERQ_PACKET) &&
 					dbch->xferq.bnpacket != 0) {
@@ -1245,7 +1256,7 @@ fwohci_irxpp_enable(struct firewire_comm *fc, int dmach)
 	if(!(sc->ir[dmach].xferq.flag & FWXFERQ_RUNNING)){
 		sc->ir[dmach].xferq.queued = 0;
 		sc->ir[dmach].ndb = NDB;
-		sc->ir[dmach].xferq.psize = FWPMAX_S400;
+		sc->ir[dmach].xferq.psize = PAGE_SIZE;
 		sc->ir[dmach].ndesc = 1;
 		fwohci_db_init(&sc->ir[dmach]);
 		if ((sc->ir[dmach].flags & FWOHCI_DBCH_INIT) == 0)
@@ -1809,7 +1820,7 @@ fwohci_intr_body(struct fwohci_softc *sc, u_int32_t stat, int count)
 
 		plen = OREAD(sc, OHCI_SID_CNT) & OHCI_SID_CNT_MASK;
 		plen -= 4; /* chop control info */
-		buf = malloc( FWPMAX_S400, M_DEVBUF, M_NOWAIT);
+		buf = malloc(OHCI_SIDSIZE, M_DEVBUF, M_NOWAIT);
 		if(buf == NULL) goto sidout;
 		bcopy((void *)(uintptr_t)(volatile void *)(fc->sid_buf + 1),
 								buf, plen);
