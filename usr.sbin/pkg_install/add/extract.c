@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: extract.c,v 1.6 1994/12/06 00:51:32 jkh Exp $";
+static const char *rcsid = "$Id: extract.c,v 1.7 1995/05/19 22:40:54 jkh Exp $";
 #endif
 
 /*
@@ -40,7 +40,7 @@ static const char *rcsid = "$Id: extract.c,v 1.6 1994/12/06 00:51:32 jkh Exp $";
 		    where_count = sizeof(STARTSTRING)-1; \
 	} \
 	if (perm_count) { \
-		    if (!isdir(todir)) apply_perms(todir, perm_args); \
+		    apply_perms(todir, perm_args); \
 		    perm_args[0] = 0;\
 		    perm_count = 0; \
 	}
