@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: label.c,v 1.7 1995/05/18 17:38:02 jkh Exp $
+ * $Id: label.c,v 1.8 1995/05/18 18:02:31 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -279,29 +279,31 @@ print_label_chunks(void)
 {
     int i, j, srow, prow, pcol;
     int sz;
+    int label_attr;
 
     clear();
     attrset(A_REVERSE);
     mvaddstr(0, 25, "FreeBSD Disklabel Editor");
     attrset(A_NORMAL);
+    label_attr = A_BOLD;	/* A_UNDERLINE is *BROKEN* in syscons! */
 
     for (i = 0; i < 2; i++) {
-	attrset(A_UNDERLINE);
+	attrset(label_attr);
 	mvaddstr(CHUNK_PART_START_ROW - 1, PART_PART_COL + (i * PART_OFF),
 		 "Part");
 	attrset(A_NORMAL);
 
-	attrset(A_UNDERLINE);
+	attrset(label_attr);
 	mvaddstr(CHUNK_PART_START_ROW - 1, PART_MOUNT_COL + (i * PART_OFF),
 		 "Mount");
 	attrset(A_NORMAL);
 
-	attrset(A_UNDERLINE);
+	attrset(label_attr);
 	mvaddstr(CHUNK_PART_START_ROW - 1, PART_SIZE_COL + (i * PART_OFF) + 2,
 		 "Size");
 	attrset(A_NORMAL);
 
-	attrset(A_UNDERLINE);
+	attrset(label_attr);
 	mvaddstr(CHUNK_PART_START_ROW - 1, PART_NEWFS_COL + (i * PART_OFF),
 		 "Newfs");
 	attrset(A_NORMAL);
