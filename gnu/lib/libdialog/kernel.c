@@ -79,8 +79,8 @@
 
 #define __DIALOG_MAIN__
 
-#include "dialog.priv.h"
 #include <dialog.h>
+#include "dialog.priv.h"
 #ifdef HAVE_NCURSES
 #include "colors.h"
 #endif
