@@ -35,3 +35,24 @@ No actual changes will be made to the disk until you (C)ommit from the
 Install menu or use the (W)rite option here!  You're working with what
 is essentially a copy of the disk label(s), both here and in the Label
 Editor.
+
+If you want to use the entire disk for FreeBSD, type `A'.  You'll be
+asked whether or not you wish to keep the disk (potentially) compatible
+with other operating systems, i.e. the information in the FDISK table
+should be kept valid.  If you select the default of `Yes', slices will be
+aligned to fictitious cylinder boundaries and space will be reserved
+in front of the FreeBSD slice for a [future] possible boot manager.
+
+For the truly dedicated disk case, you can select `No' at the
+compatibility prompt.  In that case, all BIOS geometry considerations
+will no longer be in effect and you can safely ignore the
+``The detected geometry is invalid'' warning message you'll later see.
+
+The FreeBSD slice will start at absolute sector 0 of the disk (so that
+FreeBSD's disk label is identical to the Master Boot Record) and
+extend to the very last sector of the disk medium.  Needless to say,
+such a disk cannot have any sort of a boot manager, `disk manager',
+or anything else that has to interact with the BIOS.  This option is
+therefore only considered safe for SCSI disks and most IDE disks and
+is primarily intented for people who are going to set up a dedicated
+FreeBSD server or workstation, not a typical `home PC'.
