@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: smb.c,v 1.13 1999/05/31 11:25:05 phk Exp $
+ *	$Id: smb.c,v 1.14 1999/07/04 14:58:21 phk Exp $
  *
  */
 #include <sys/param.h>
@@ -122,10 +122,6 @@ static int
 smb_probe(device_t dev)
 {
 	struct smb_softc *sc = (struct smb_softc *)device_get_softc(dev);
-	static int once;
-
-	if (!once++)
-                cdevsw_add(&smb_cdevsw);
 
 	sc->sc_addr = smbus_get_addr(dev);
 
