@@ -81,14 +81,14 @@ void
 g_stall_events(void)
 {
 
-	sx_slock(&g_eventstall);
+	sx_xlock(&g_eventstall);
 }
 
 void
 g_release_events(void)
 {
 
-	sx_sunlock(&g_eventstall);
+	sx_xunlock(&g_eventstall);
 }
 
 void
