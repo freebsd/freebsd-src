@@ -700,6 +700,7 @@ acpi_isa_get_logicalid(device_t dev)
 {
     ACPI_HANDLE		h;
     ACPI_DEVICE_INFO	devinfo;
+    ACPI_BUFFER		buf = {sizeof(devinfo), &devinfo};
     ACPI_STATUS		error;
     u_int32_t		pnpid;
     ACPI_LOCK_DECL;
@@ -709,15 +710,16 @@ acpi_isa_get_logicalid(device_t dev)
     pnpid = 0;
     ACPI_LOCK;
     
-    /* fetch and validate the HID */
+    /* Fetch and validate the HID. */
     if ((h = acpi_get_handle(dev)) == NULL)
 	goto out;
-    if (ACPI_FAILURE(error = AcpiGetObjectInfo(h, &devinfo)))
+    error = AcpiGetObjectInfo(h, &buf);
+    if (ACPI_FAILURE(error))
 	goto out;
-    if (!(devinfo.Valid & ACPI_VALID_HID))
+    if ((devinfo.Valid & ACPI_VALID_HID) == 0)
 	goto out;
 
-    pnpid = PNP_EISAID(devinfo.HardwareId);
+    pnpid = PNP_EISAID(devinfo.HardwareId.Value);
 out:
     ACPI_UNLOCK;
     return_VALUE(pnpid);
@@ -727,7 +729,6 @@ static u_int32_t
 acpi_isa_get_compatid(device_t dev)
 {
     ACPI_HANDLE		h;
-    ACPI_DEVICE_INFO	devinfo;
     ACPI_STATUS		error;
     u_int32_t		pnpid;
     ACPI_LOCK_DECL;
@@ -739,8 +740,6 @@ acpi_isa_get_compatid(device_t dev)
     
     /* fetch and validate the HID */
     if ((h = acpi_get_handle(dev)) == NULL)
-	goto out;
-    if (ACPI_FAILURE(error = AcpiGetObjectInfo(h, &devinfo)))
 	goto out;
     if (ACPI_FAILURE(error = acpi_EvaluateInteger(h, "_CID", &pnpid)))
 	goto out;
@@ -952,8 +951,6 @@ acpi_enable_fixed_events(struct acpi_softc *sc)
 
     /* Enable and clear fixed events and install handlers. */
     if ((AcpiGbl_FADT != NULL) && (AcpiGbl_FADT->PwrButton == 0)) {
-	AcpiEnableEvent(ACPI_EVENT_POWER_BUTTON, ACPI_EVENT_FIXED, 0);
-	AcpiClearEvent(ACPI_EVENT_POWER_BUTTON, ACPI_EVENT_FIXED);
 	AcpiInstallFixedEventHandler(ACPI_EVENT_POWER_BUTTON,
 				     acpi_eventhandler_power_button_for_sleep, sc);
 	if (first_time) {
@@ -961,8 +958,6 @@ acpi_enable_fixed_events(struct acpi_softc *sc)
 	}
     }
     if ((AcpiGbl_FADT != NULL) && (AcpiGbl_FADT->SleepButton == 0)) {
-	AcpiEnableEvent(ACPI_EVENT_SLEEP_BUTTON, ACPI_EVENT_FIXED, 0);
-	AcpiClearEvent(ACPI_EVENT_SLEEP_BUTTON, ACPI_EVENT_FIXED);
 	AcpiInstallFixedEventHandler(ACPI_EVENT_SLEEP_BUTTON,
 				     acpi_eventhandler_sleep_button_for_sleep, sc);
 	if (first_time) {
@@ -983,16 +978,18 @@ acpi_DeviceIsPresent(device_t dev)
 {
     ACPI_HANDLE		h;
     ACPI_DEVICE_INFO	devinfo;
+    ACPI_BUFFER		buf = {sizeof(devinfo), &devinfo};
     ACPI_STATUS		error;
 
     ACPI_ASSERTLOCK;
     
     if ((h = acpi_get_handle(dev)) == NULL)
 	return(FALSE);
-    if (ACPI_FAILURE(error = AcpiGetObjectInfo(h, &devinfo)))
+    error = AcpiGetObjectInfo(h, &buf);
+    if (ACPI_FAILURE(error))
 	return(FALSE);
     /* if no _STA method, must be present */
-    if (!(devinfo.Valid & ACPI_VALID_STA))
+    if ((devinfo.Valid & ACPI_VALID_STA) == 0)
 	return(TRUE);
     /* return true for 'present' and 'functioning' */
     if ((devinfo.CurrentStatus & 0x9) == 0x9)
@@ -1008,16 +1005,18 @@ acpi_BatteryIsPresent(device_t dev)
 {
     ACPI_HANDLE		h;
     ACPI_DEVICE_INFO	devinfo;
+    ACPI_BUFFER		buf = {sizeof(devinfo), &devinfo};
     ACPI_STATUS		error;
 
     ACPI_ASSERTLOCK;
     
     if ((h = acpi_get_handle(dev)) == NULL)
 	return(FALSE);
-    if (ACPI_FAILURE(error = AcpiGetObjectInfo(h, &devinfo)))
+    error = AcpiGetObjectInfo(h, &buf);
+    if (ACPI_FAILURE(error))
 	return(FALSE);
     /* if no _STA method, must be present */
-    if (!(devinfo.Valid & ACPI_VALID_STA))
+    if ((devinfo.Valid & ACPI_VALID_STA) == 0)
 	return(TRUE);
     /* return true for 'present' and 'functioning' */
     if ((devinfo.CurrentStatus & 0x19) == 0x19)
@@ -1033,6 +1032,7 @@ acpi_MatchHid(device_t dev, char *hid)
 {
     ACPI_HANDLE		h;
     ACPI_DEVICE_INFO	devinfo;
+    ACPI_BUFFER		buf = {sizeof(devinfo), &devinfo};
     ACPI_STATUS		error;
     int			cid;
 
@@ -1042,9 +1042,11 @@ acpi_MatchHid(device_t dev, char *hid)
 	return(FALSE);
     if ((h = acpi_get_handle(dev)) == NULL)
 	return(FALSE);
-    if (ACPI_FAILURE(error = AcpiGetObjectInfo(h, &devinfo)))
+    error = AcpiGetObjectInfo(h, &buf);
+    if (ACPI_FAILURE(error))
 	return(FALSE);
-    if ((devinfo.Valid & ACPI_VALID_HID) && !strcmp(hid, devinfo.HardwareId))
+    if ((devinfo.Valid & ACPI_VALID_HID) != 0 &&
+	strcmp(hid, devinfo.HardwareId.Value) == 0)
 	return(TRUE);
     if (ACPI_FAILURE(error = acpi_EvaluateInteger(h, "_CID", &cid)))
 	return(FALSE);
@@ -1392,7 +1394,7 @@ acpi_SetSleepState(struct acpi_softc *sc, int state)
 	    acpi_sleep_machdep(sc, state);
 
 	    /* AcpiEnterSleepState() maybe incompleted, unlock here if locked. */
-	    if (AcpiGbl_AcpiMutexInfo[ACPI_MTX_HARDWARE].OwnerId != ACPI_MUTEX_NOT_ACQUIRED) {
+	    if (1/*AcpiGbl_AcpiMutexInfo[ACPI_MTX_HARDWARE].OwnerId != ACPI_MUTEX_NOT_ACQUIRED*/) {
 		AcpiUtReleaseMutex(ACPI_MTX_HARDWARE);
 	    }
 
@@ -1739,8 +1741,8 @@ acpi_device_enable_wake_event(ACPI_HANDLE h)
 	 * enabled for the wake event.
 	 */
 
-	status = AcpiEnableEvent(res->Package.Elements[0].Integer.Value,
-				 ACPI_EVENT_GPE, ACPI_EVENT_WAKE_ENABLE);
+	status = AcpiEnableGpe(NULL, res->Package.Elements[0].Integer.Value,
+			       ACPI_EVENT_WAKE_ENABLE);
 	if (ACPI_FAILURE(status))
             printf("%s: EnableEvent Failed\n", __func__);
 	break;
