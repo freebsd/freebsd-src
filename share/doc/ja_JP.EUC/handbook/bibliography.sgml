@@ -1,6 +1,6 @@
-<!-- $Id: bibliography.sgml,v 1.6 1997/03/06 03:19:16 hanai Exp $ -->
+<!-- $Id: bibliography.sgml,v 1.7 1997/03/21 09:46:34 hanai Exp $ -->
 <!-- The FreeBSD Japanese Documentation Project -->
-<!-- Original revision: 1.25 -->
+<!-- Original revision: 1.26 -->
 
     <chapt>
       <heading>参考図書<label id="bibliography"></heading>
@@ -400,6 +400,14 @@
               アスキー, 1990.
               <newline>ISBN 4-7561-0783-4
               <newline>邦訳がSpecial 版の訳出か否かは不明)
+            </item>
+
+            <item><em>BSD 系 OS の系譜図</em>. 1997年.
+              <newline>
+	      <htmlurl url="http://www.de.freebsd.org/de/ftp/unix-stammbaum"
+	      name="http://www.de.freebsd.org/de/ftp/unix-stammbaum">
+	      または, FreeBSD-current マシンの<url
+              url="file:/usr/share/misc/bsd-family-tree" name="ローカルファイル">.
             </item>
 
 	  </itemize>
