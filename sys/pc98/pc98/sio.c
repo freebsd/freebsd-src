@@ -743,6 +743,7 @@ static	struct speedtab comspeedtab[] = {
 	{ 4800,		COMBRD(4800) },
 	{ 9600,		COMBRD(9600) },
 	{ 19200,	COMBRD(19200) },
+	{ 28800,	COMBRD(28800) },
 	{ 38400,	COMBRD(38400) },
 	{ 57600,	COMBRD(57600) },
 	{ 115200,	COMBRD(115200) },
