@@ -62,8 +62,8 @@
 #define PANIC(string)   _thread_exit(__FILE__,__LINE__,string)
 
 /* Output debug messages like this: */
-#define	stdout_debug(_x)	_write(1,_x,strlen(_x));
-#define	stderr_debug(_x)	_write(2,_x,strlen(_x));
+#define	stdout_debug(_x)	_thread_sys_write(1,_x,strlen(_x));
+#define	stderr_debug(_x)	_thread_sys_write(2,_x,strlen(_x));
 
 /*
  * State change macro:
@@ -252,6 +252,7 @@ enum pthread_state {
 	PS_SELECT_WAIT,
 	PS_SLEEP_WAIT,
 	PS_WAIT_WAIT,
+	PS_SIGSUSPEND,
 	PS_SIGWAIT,
 	PS_JOIN,
 	PS_SUSPENDED,
@@ -331,6 +332,11 @@ struct pthread {
 	 * Pointer to the next thread in the thread linked list.
 	 */
 	struct pthread	*nxt;
+
+	/*
+	 * Pointer to the next thread in the dead thread linked list.
+	 */
+	struct pthread	*nxt_dead;
 
 	/*
 	 * Thread start routine, argument, stack pointer and thread
@@ -591,6 +597,18 @@ SCLASS int    _thread_dtablesize        /* Descriptor table size.           */
 ;
 #endif
 
+/* Garbage collector mutex and condition variable. */
+SCLASS	pthread_mutex_t _gc_mutex
+#ifdef GLOBAL_PTHREAD_PRIVATE
+= NULL
+#endif
+;
+SCLASS	pthread_cond_t  _gc_cond
+#ifdef GLOBAL_PTHREAD_PRIVATE
+= NULL
+#endif
+;
+
 /*
  * Array of signal actions for this process.
  */
@@ -623,10 +641,8 @@ int     _thread_fd_lock(int, int, struct timespec *);
 int     _thread_fd_lock_debug(int, int, struct timespec *,char *fname,int lineno);
 void    _dispatch_signals(void);
 void    _thread_signal(pthread_t, int);
-void    _lock_dead_thread_list(void);
 void    _lock_thread(void);
 void    _lock_thread_list(void);
-void    _unlock_dead_thread_list(void);
 void    _unlock_thread(void);
 void    _unlock_thread_list(void);
 void    _thread_exit(char *, int, char *);
@@ -649,6 +665,7 @@ int     _thread_queue_remove(struct pthread_queue *, struct pthread *);
 int     _thread_fd_table_init(int fd);
 struct pthread *_thread_queue_get(struct pthread_queue *);
 struct pthread *_thread_queue_deq(struct pthread_queue *);
+pthread_addr_t _thread_gc(pthread_addr_t);
 
 /* #include <signal.h> */
 int     _thread_sys_sigaction(int, const struct sigaction *, struct sigaction *);
