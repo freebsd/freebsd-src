@@ -84,6 +84,13 @@ checkfilesys(const char *fname)
 		return 8;
 	}
 
+	if (checkdirty(dosfs, &boot) && !force)	{
+		if (preen) printf("%s: ", fname);
+		printf("FILESYSTEM CLEAN; SKIPPING CHECKS\n");
+		ret = 0;
+		goto out;
+	}
+
 	if (!preen)  {
 		if (boot.ValidFat < 0)
 			printf("** Phase 1 - Read and Compare FATs\n");
@@ -189,5 +196,50 @@ checkfilesys(const char *fname)
 	if (mod & (FSFATMOD|FSDIRMOD))
 		pwarn("\n***** FILE SYSTEM WAS MODIFIED *****\n");
 
+	return ret;
+}
+
+int checkdirty(int fs, struct bootblock *boot)
+{
+	off_t off;
+	u_char *buffer;
+	int ret = 0;
+	
+	if (boot->ClustMask == CLUST12_MASK)
+		return 0;	
+
+	off = boot->ResSectors;
+	off *= boot->BytesPerSec;
+	
+	buffer = malloc(boot->BytesPerSec);
+	if (buffer == NULL) {
+		perror("No space for FAT");
+		return 1;
+	}
+
+	if (lseek(fs, off, SEEK_SET) != off) {
+		perror("Unable to read FAT");
+		goto err;
+	}
+
+	if (read(fs, buffer, boot->BytesPerSec)
+	    != boot->BytesPerSec) {
+		perror("Unable to read FAT");
+		goto err;
+	}
+
+	 if (buffer[0] == boot->Media && buffer[1] == 0xff
+                    && buffer[2] == 0xff
+                    && ((boot->ClustMask == CLUST16_MASK && buffer[3] == 0x7f)
+                        || (boot->ClustMask == CLUST32_MASK
+                            && buffer[3] == 0x0f && buffer[4] == 0xff
+                            && buffer[5] == 0xff && buffer[6] == 0xff
+                            && buffer[7] == 0x07)))
+		ret = 0;
+	else
+		ret = 1;
+
+err:
+	free(buffer);
 	return ret;
 }

@@ -63,6 +63,7 @@
 #include <sys/malloc.h>
 #include <sys/dirent.h>
 #include <sys/signalvar.h>
+#include <sys/lockf.h>
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
@@ -101,6 +102,7 @@ static int msdosfs_bmap(struct vop_bmap_args *);
 static int msdosfs_strategy(struct vop_strategy_args *);
 static int msdosfs_print(struct vop_print_args *);
 static int msdosfs_pathconf(struct vop_pathconf_args *ap);
+static int msdosfs_advlock(struct vop_advlock_args *);
 
 /*
  * Some general notes:
@@ -1836,6 +1838,23 @@ msdosfs_pathconf(ap)
 	/* NOTREACHED */
 }
 
+/*
+ * Advisory record locking support
+ */
+static int
+msdosfs_advlock(ap)
+	struct vop_advlock_args /* {
+		struct vnode *a_vp;
+		u_char  a_id;
+		int  a_op;
+		struct flock *a_fl;
+		int  a_flags;
+	} */ *ap;
+{
+	struct denode *ip = VTODE(ap->a_vp);
+
+	return (lf_advlock(ap, &(ip->de_lockf), ip->de_FileSize));
+}
 
 /* Global vfs data structures for msdosfs */
 vop_t **msdosfs_vnodeop_p;
@@ -1865,6 +1884,7 @@ static struct vnodeopv_entry_desc msdosfs_vnodeop_entries[] = {
 	{ &vop_strategy_desc,		(vop_t *) msdosfs_strategy },
 	{ &vop_symlink_desc,		(vop_t *) msdosfs_symlink },
 	{ &vop_write_desc,		(vop_t *) msdosfs_write },
+	{ &vop_advlock_desc,            (vop_t *) msdosfs_advlock },
 	{ NULL, NULL }
 };
 static struct vnodeopv_desc msdosfs_vnodeop_opv_desc =

@@ -160,6 +160,7 @@ struct denode {
 	u_long de_FileSize;	/* size of file in bytes */
 	struct fatcache de_fc[FC_SIZE];	/* fat cache */
 	u_quad_t de_modrev;	/* Revision level for lease. */
+	struct lockf *de_lockf; /* lockf */
 };
 
 /*

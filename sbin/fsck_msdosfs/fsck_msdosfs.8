@@ -88,11 +88,9 @@ immediately in foreground, or if its cleaning can be deferred to background.
 FAT (MS-DOS) file systems must always be cleaned in the foreground.
 A non-zero exit code is always returned for this option.
 .It Fl f
-This option is ignored by
-.Nm ,
-and is present only for compatibility with programs that
-check other file system types for consistency, such as
-.Xr fsck_ffs 8 .
+Force
+.Nm 
+to check 'clean' file systems when preening.
 .It Fl n
 Causes
 .Nm
