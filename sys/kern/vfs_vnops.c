@@ -476,8 +476,18 @@ vn_rdwr_inchunks(rw, vp, base, len, offset, segflg, ioflg, active_cred,
 	int error = 0;
 
 	do {
-		int chunk = (len > MAXBSIZE) ? MAXBSIZE : len;
+		int chunk;
 
+		/*
+		 * Force `offset' to a multiple of MAXBSIZE except possibly
+		 * for the first chunk, so that filesystems only need to
+		 * write full blocks except possibly for the first and last
+		 * chunks.
+		 */
+		chunk = MAXBSIZE - (uoff_t)offset % MAXBSIZE;
+
+		if (chunk > len)
+			chunk = len;
 		if (rw != UIO_READ && vp->v_type == VREG)
 			bwillwrite();
 		error = vn_rdwr(rw, vp, base, chunk, offset, segflg,
