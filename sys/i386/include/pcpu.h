@@ -100,19 +100,19 @@ extern struct pcpu *pcpup;
 		__asm __volatile("movb %%fs:%1,%0"			\
 		    : "=r" (__b)					\
 		    : "m" (*(u_char *)(__pcpu_offset(name))));		\
-		__result = *(__pcpu_type(name) *)&__b;			\
+		__result = *(__pcpu_type(name) *)(void *)&__b;		\
 	} else if (sizeof(__result) == 2) {				\
 		u_short __w;						\
 		__asm __volatile("movw %%fs:%1,%0"			\
 		    : "=r" (__w)					\
 		    : "m" (*(u_short *)(__pcpu_offset(name))));		\
-		__result = *(__pcpu_type(name) *)&__w;			\
+		__result = *(__pcpu_type(name) *)(void *)&__w;		\
 	} else if (sizeof(__result) == 4) {				\
 		u_int __i;						\
 		__asm __volatile("movl %%fs:%1,%0"			\
 		    : "=r" (__i)					\
 		    : "m" (*(u_int *)(__pcpu_offset(name))));		\
-		__result = *(__pcpu_type(name) *)&__i;			\
+		__result = *(__pcpu_type(name) *)(void *)&__i;		\
 	} else {							\
 		__result = *__PCPU_PTR(name);				\
 	}								\
