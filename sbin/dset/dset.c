@@ -83,7 +83,7 @@ error(name, str)
 void
 usage(char *title)
 {
-	fprintf(stderr, "usage: %s [-qtv] [-k kernel]\n", title);
+	fprintf(stderr, "usage: %s [-qtv]\n", title);
 }
 
 main(ac, av)
@@ -109,7 +109,7 @@ main(ac, av)
 	int             testonly = FALSE;
 	int             verbose = FALSE;
 
-	while ((ch = getopt(ac, av, "qtvk:")) != EOF)
+	while ((ch = getopt(ac, av, "qtv")) != EOF)
 		switch (ch) {
 		case 'q':
 			quiet = TRUE;
@@ -117,10 +117,6 @@ main(ac, av)
 		case 't':
 			testonly = TRUE;
 			/* In test mode we want to be verbose */
-
-		case 'k':
-			kernel = optarg;
-			break;
 
 		case 'v':
 			verbose = TRUE;
@@ -133,8 +129,7 @@ main(ac, av)
 		}
 
 
-	if (!kernel)
-	    kernel = getbootfile();
+	kernel = getbootfile();
 	if (verbose)
 		printf("Boot image: %s\n", kernel);
 
