@@ -44,12 +44,9 @@ stage0()
 {
 evil_goto:
     if (dialog_menu("Welcome to FreeBSD!",
-		    "Please select one of the following options:",
-		    15, 75, 6, 6, welcome, selection)) {
-	dialog_clear();
-	end_dialog();
-	reboot(RB_AUTOBOOT);
-    }
+		    "Use ALT-F2 and ALT-F1 to toggle between debugging\ninformation screen (ALT-F2) or this dialog screen (ALT-F1)\n\nPlease select one of the following options:", 15, 75, 6, 6, welcome, selection))
+	ExitSysinstall();
+
     switch (atoi(selection)) {
     case 1:	/* View the README */
         ShowFile(README_FILE, "Read Me First");
@@ -77,9 +74,7 @@ evil_goto:
 
     case 6:
 	/* Be neat.. */
-	dialog_clear();
-	end_dialog();
-	reboot(RB_AUTOBOOT);
+	ExitSysinstall();
 	break;	/* hope not! :) */
     }
 }
