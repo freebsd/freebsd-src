@@ -735,7 +735,7 @@ messages.
 .ft B
 .nf
 .sp .5
-void
+int
 get_myaddress(addr)
 struct sockaddr_in *addr;
 .fi
@@ -749,6 +749,7 @@ without consulting the library routines that deal with
 .BR /etc/hosts .
 The port number is always set to
 .BR htons(\s-1PMAPPORT\s0) .
+Returns zero on success, non-zero on failure.
 .br
 .if t .ne 10
 .LP
@@ -997,7 +998,7 @@ fd_set svc_fdset;
 A global variable reflecting the
 .SM RPC
 service side's
-read file descriptor bit mask; it is suitable as a parameter
+read file descriptor bit mask; it is suitable as a template parameter
 to the
 .B select
 system call. This is only of interest
@@ -1009,6 +1010,13 @@ This variable is read-only (do not pass its address to
 yet it may change after calls to
 .B svc_getreqset(\|)
 or any creation routines.
+.br
+As well, note that if the process has descriptor limits
+which are extended beyond
+.BR FD_SETSIZE ,
+this variable will only be usable for the first
+.BR FD_SETSIZE
+descriptors.
 .br
 .if t .ne 6
 .LP
