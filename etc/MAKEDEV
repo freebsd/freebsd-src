@@ -32,8 +32,6 @@
 # Tapes:
 #	wt*	QIC-interfaced (e.g. not SCSI) 3M cartridge tape
 #	sa*	SCSI Sequential Access Devices
-#	ft*	QIC-40/QIC-80 3M cartridge tape (interfaced
-#		via the floppy disk controller)
 #
 # Disks:
 #	acd*	ATAPI CD-ROM disks
@@ -227,7 +225,7 @@ all)
 	sh MAKEDEV wcd0 wfd0 wst0			# bdev, OLD ATAPI devs
 	sh MAKEDEV vn0					# bdev, virtual disk
 	sh MAKEDEV cd0 matcd0 mcd0 scd0			# bdev, cdrom
-	sh MAKEDEV ft0 sa0 wt0				# bdev, tape
+	sh MAKEDEV sa0 wt0				# bdev, tape
 	sh MAKEDEV vty12				# cdev, virtual tty
 	sh MAKEDEV cuaa0 cuaa1 cuaa2 cuaa3		# cdev, serial tty
 	sh MAKEDEV pty0					# cdev, pseudo tty
@@ -247,6 +245,40 @@ all)
 	sh MAKEDEV i4b i4bctl i4btrc0 i4btrc1		# cdev, ISDN
 	sh MAKEDEV i4btel0 i4btel1 i4bteld0 i4bteld1	# cdev, ISDN
 	sh MAKEDEV i4brbch0 i4brbch1			# cdev, ISDN
+	;;
+
+# a much restricted set of the above, to save precious i-nodes on the
+# fixit floppy
+fixit)
+	sh MAKEDEV std					# standard
+	sh MAKEDEV fd0					# bdev, floppy disk
+	sh MAKEDEV da0 					# bdev, SCSI disk
+	sh MAKEDEV ad0		 			# bdev, ATA disk
+	sh MAKEDEV acd0 afd0 ast0			# bdev, ATAPI devices
+	sh MAKEDEV wd0					# bdev, OLD disk
+	sh MAKEDEV wcd0 wfd0 wst0			# bdev, OLD ATAPI devs
+	sh MAKEDEV vn0					# bdev, virtual disk
+	sh MAKEDEV cd0					# bdev, cdrom
+	sh MAKEDEV sa0					# bdev, tape
+	sh MAKEDEV vty2					# cdev, virtual tty
+	sh MAKEDEV cuaa0				# cdev, serial tty
+	sh MAKEDEV pty0					# cdev, pseudo tty
+	sh MAKEDEV ttyd0				# cdev, serial tty
+	sh MAKEDEV kbd0					# cdev, keyboard
+	sh MAKEDEV mse0 psm0 sysmouse			# cdev, mouse
+	sh MAKEDEV lpt0					# cdev, printer
+	sh MAKEDEV ppi0					# cdev, parallel port
+	sh MAKEDEV iic0					# cdev, I2C device
+	sh MAKEDEV smb0					# cdev, SMBus device
+	sh MAKEDEV usb usb0 ums0 ulpt0 ugen0		# cdev, USB devices
+	sh MAKEDEV tun0					# cdev, network
+	sh MAKEDEV ch0					# cdev, miscellaneous
+	sh MAKEDEV apm apmctl card0			# cdev, laptop
+	sh MAKEDEV pass1 xpt1				# cdev, CAM
+	sh MAKEDEV i4b i4bctl i4btrc0 i4btrc1		# cdev, ISDN
+	sh MAKEDEV i4btel0 i4bteld0		 	# cdev, ISDN
+	sh MAKEDEV i4brbch0				# cdev, ISDN
+	rm -f fd/[1-9]?
 	;;
 
 std)
@@ -468,25 +500,6 @@ fd*)
 		;;
 	*)
 		echo bad unit for disk in: $i
-		;;
-	esac
-	umask 77
-	;;
-
-ft*)
-	umask $tape_umask
-	unit=`expr $i : '..\(.*\)'`
-	name=ft; chr=9
-	case $unit in
-	0|1|2|3)
-		mknod ${name}${unit}   c $chr `expr $unit '*' 64 + 32`
-		mknod r${name}${unit}  c $chr `expr $unit '*' 64 + 32`
-		ln -f ${name}${unit} ${name}${unit}a
-		ln -f r${name}${unit} r${name}${unit}a
-		chgrp operator ${name}${unit}* r${name}${unit}*
-		;;
-	*)
-		echo bad unit for tape in: $i
 		;;
 	esac
 	umask 77
