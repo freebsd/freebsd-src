@@ -1,7 +1,7 @@
 /* usual BSD style copyright here */
 /* Written by Julian Elischer (julian@dialix.oz.au)*/
 /*
- * $Id: devfsext.h,v 1.5 1995/12/09 09:11:25 julian Exp $
+ * $Id: devfsext.h,v 1.6 1996/01/21 09:03:04 julian Exp $
  */
 
 #ifndef _SYS_DEVFSECT_H_
@@ -14,6 +14,15 @@ void *devfs_add_devsw(char *path,
 		uid_t uid,
 		gid_t gid,
 		int perms)  ; 
+
+void *devfs_add_devswf(void *devsw,
+		int minor,
+		int chrblk,
+		uid_t uid,
+		gid_t gid,
+		int perms,
+		char *fmt,
+		...)  ; 
 
 void *dev_link(char *path,
 		char *name,

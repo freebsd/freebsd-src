@@ -2,7 +2,7 @@
 /*
  *  Written by Julian Elischer (julian@DIALix.oz.au)
  *
- *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_tree.c,v 1.14 1996/01/21 09:07:58 julian Exp $
+ *	$Header: /home/ncvs/src/sys/miscfs/devfs/devfs_tree.c,v 1.15 1996/01/21 09:43:31 julian Exp $
  */
 
 #include "param.h"
@@ -892,6 +892,43 @@ int dev_add_entry(char *name, dn_p parent, int type, union typeinfo *by, devnm_p
 	return error;
 }
 
+/***********************************************************************\
+* Add the named device entry into the given directory, and make it 	*
+* The appropriate type... (called (sometimes indirectly) by drivers..)	*
+* this function is exported.. see sys/devfsext.h			*
+\***********************************************************************/
+void *devfs_add_devswf(
+		void *devsw,
+		int minor,
+		int chrblk,
+		uid_t uid,
+		gid_t gid,
+		int perms,
+		char *fmt,
+		...)
+{
+	va_list ap;
+	char *p, buf[256]; /* XXX */
+	int i;
+
+	va_start(ap, fmt);
+	i = kvprintf(fmt, NULL, (void*)buf, 32, ap);
+	va_end(ap);
+	buf[i] = '\0';
+	p = NULL;
+	for (i=0; buf[i]; i++)
+		if (buf[i] == '/')
+			p = buf + 1;
+	if (p) {
+		*p++ = '\0';
+		return devfs_add_devsw(buf, p, devsw, minor, chrblk,
+			uid, gid, perms);
+	} else {
+		return devfs_add_devsw("/", buf, devsw, minor, chrblk,
+			uid, gid, perms);
+	}
+}
+
 /***********************************************************************\
 * Add the named device entry into the given directory, and make it 	*
 * The appropriate type... (called (sometimes indirectly) by drivers..)	*
