@@ -1296,8 +1296,8 @@ also builtins
 \ Try to load a kernel; the kernel name is taken from one of
 \ the following lists, as ordered:
 \
-\   1. The "kernel" environment variable
-\   2. The "bootfile" environment variable
+\   1. The "bootfile" environment variable
+\   2. The "kernel" environment variable
 \
 \ Flags are passed, if available. The parameter args must be 2
 \ if flags are being passed, or 1 if they should be ignored.
@@ -1312,14 +1312,14 @@ also builtins
   end-locals
 
   \ Check if a default kernel name exists at all, exits if not
-  s" kernel" getenv dup -1 <> if
+  s" bootfile" getenv dup -1 <> if
     to kernel
     flags kernel args try_multiple_kernels
     dup 0= if exit then
   then
   drop
 
-  s" bootfile" getenv dup -1 <> if
+  s" kernel" getenv dup -1 <> if
     to kernel
   else
     drop
@@ -1333,8 +1333,8 @@ also builtins
 \ Try to load a kernel; the kernel name is taken from one of
 \ the following lists, as ordered:
 \
-\   1. The "kernel" environment variable
-\   2. The "bootfile" environment variable
+\   1. The "bootfile" environment variable
+\   2. The "kernel" environment variable
 \
 \ Flags are passed, if provided.
 \
@@ -1418,8 +1418,8 @@ also builtins
 \ Try to load a kernel; the kernel name is taken from one of
 \ the following lists, as ordered:
 \
-\   1. The "kernel" environment variable
-\   2. The "bootfile" environment variable
+\   1. The "bootfile" environment variable
+\   2. The "kernel" environment variable
 \   3. The "path" argument
 \
 \ Flags are passed, if provided.
