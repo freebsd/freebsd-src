@@ -174,7 +174,7 @@ static moduledata_t ucom_mod = {
 };
 
 DECLARE_MODULE(ucom, ucom_mod, SI_SUB_DRIVERS, SI_ORDER_MIDDLE);
-MODULE_DEPEND(uplcom, usb, 1, 1, 1);
+MODULE_DEPEND(ucom, usb, 1, 1, 1);
 MODULE_VERSION(ucom, UCOM_MODVER);
 
 int
