@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.602 1999/05/21 04:37:36 wpaul Exp $
+#	$Id: LINT,v 1.603 1999/05/23 11:11:31 peter Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -1359,7 +1359,7 @@ device pca0 at isa? port IO_TIMER1
 # apm: Laptop Advanced Power Management (experimental)
 # spigot: The Creative Labs Video Spigot video-acquisition board
 # meteor: Matrox Meteor video capture board
-# bktr: Brooktree bt848/848a/849/878/879 family video capture and TV Tuner board
+# bktr: Brooktree bt848/848a/849a/878/879 video capture and TV Tuner board
 # cy: Cyclades serial driver
 # dgb: Digiboard PC/Xi and PC/Xe series driver (ALPHA QUALITY!)
 # dgm: Digiboard PC/Xem driver
@@ -1608,25 +1608,45 @@ options	EISA_SLOTS=12
 #	for initialization of fps routine when a signal is not present.
 #
 # The 'bktr' device is a PCI video capture device using the Brooktree 
-# bt848/bt848a/bt849/bt878/bt879 chipset. When used with a TV Tuner it forms a
-# TV card, eg Miro PC/TV,Hauppauge WinCast/TV WinTV, VideoLogic Captivator,
-# Intel Smart Video III, AverMedia, IMS Turbo. 
-# The following options can be used to override the auto detection
-#   options OVERRIDE_CARD=xxx
-#   options OVERRIDE_TUNER=xxx
-#   options OVERRIDE_MSP=1
-#   options OVERRIDE_DBX=1
-# The current values are found in /usr/src/sys/pci/brooktree848.c
+# bt848/bt848a/bt849a/bt878/bt879 chipset. When used with a TV Tuner it forms a
+# TV card, eg Miro PC/TV, Hauppauge WinCast/TV WinTV, VideoLogic Captivator,
+# Intel Smart Video III, AverMedia, IMS Turbo, FlyVideo. 
 #
-#   options BROOKTREE_SYSTEM_DEFAULT=BROOKTREE_PAL
+# options OVERRIDE_CARD=xxx
+# options OVERRIDE_TUNER=xxx
+# options OVERRIDE_MSP=1
+# options OVERRIDE_DBX=1
+# These options can be used to override the auto detection
+# The current values for xxx are found in /usr/src/sys/pci/brooktree848.c
+# Using sysctl(8) run-time overrides on a per-card basis can be made
+#
+# options BROOKTREE_SYSTEM_DEFAULT=BROOKTREE_PAL
+# or
+# options BROOKTREE_SYSTEM_DEFAULT=BROOKTREE_NTSC
+# Specifes the default video capture mode.
 # This is required for Dual Crystal (28&35Mhz) boards where PAL is used
 # to prevent hangs during initialisation.  eg VideoLogic Captivator PCI.
 #
+# options BKTR_USE_PLL
 # PAL or SECAM users who have a 28Mhz crystal (and no 35Mhz crystal)
-# must enable PLL mode with this option. eg some new Hauppauge cards.
-#   options BKTR_USE_PLL
+# must enable PLL mode with this option. eg some new Bt878 cards.
 #
-# Using sysctl(8) run-time overrides on a per-card basis can be made
+# options BKTR_GPIO_ACCESS
+# This enable IOCTLs which give user level access to the GPIO port.
+#
+# options BKTR_NO_MSP_RESET
+# Prevents the MSP34xx reset. Good if you initialise the MSP in another OS first
+#
+# options BKTR_430_FX_MODE
+# Switch Bt878/879 cards into Intel 430FX chipset compatibility mode.
+#
+# options BKTR_SIS_VIA_MODE
+# Switch Bt878/879 cards into SIS/VIA chipset compatibility mode which is
+# needed for some old SiS and VIA chipset motherboards.
+# This also allows Bt878/879 chips to work on old OPTi (<1997) chipset
+# motherboards and motherboards with bad or incomplete PCI 2.1 support.
+# As a rough guess, old = before 1998
+#
 #
 # The oltr driver supports the following Olicom PCI token-ring adapters
 # OC-3136, OC-3137, OC-3139, OC-3140, OC-3141, OC-3540, OC-3250
