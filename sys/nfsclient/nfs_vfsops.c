@@ -389,13 +389,6 @@ nfs_mountroot(struct mount *mp, struct thread *td)
 	bootpc_init();		/* use bootp to get nfs_diskless filled in */
 #endif
 
-	/*
-	 * XXX time must be non-zero when we init the interface or else
-	 * the arp code will wedge...
-	 */
-	while (time_second == 0)
-		tsleep(&time_second, PZERO+8, "arpkludge", 10);
-
 	if (nfs_diskless_valid==1)
 		nfs_convert_diskless();
 
