@@ -626,6 +626,11 @@ config_desktop:
 	return DITEM_SUCCESS;
     }
     else {
+    if (file_readable("/var/run/ld.so.hints"))
+	vsystem("ldconfig -m -aout /usr/lib/aout /usr/lib/compat/aout /usr/local/lib/aout /usr/X11R6/lib/aout");
+    else
+	vsystem("ldconfig -aout /usr/lib/aout /usr/lib/compat/aout /usr/local/lib/aout /usr/X11R6/lib/aout");
+
 	msgConfirm("The XFree86 setup utility you chose does not appear to be installed!\n"
 		   "Please install this before attempting to configure XFree86.");
 	restorescr(w);
