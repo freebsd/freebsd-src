@@ -15,7 +15,7 @@
  *	USE OF THIS SOFTWARE.
  * 
  */
-extern struct bootinfo_t bootinfo;
+extern struct bootinfo bootinfo;
 extern int VCPIboot;
 
 extern int pm_copy(char far *from, unsigned long to, unsigned long count);
@@ -23,7 +23,8 @@ extern int pm_copy(char far *from, unsigned long to, unsigned long count);
  * address "to" in the high-memory space.
  */
 
-extern void startprog(long hmaddress, long size, long startaddr, long argv[]);
+extern void startprog(long hmaddress, long size, long startaddr, long loadflags,
+					  long bootdev);
 /* startprog switches to protected mode, moves the kernel from hmaddress
  * to 0x100000l and finally starts the kernel.
  */

@@ -55,10 +55,10 @@ WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 #include <process.h>
 #include <memory.h>
 
+#include "bootinfo.h"
 #include "protmod.h"
 #include "param.h"
 #include "boot.h"
-#include "bootinfo.h"
 #include "reboot.h"
 
 #include "exec.h"
@@ -85,39 +85,41 @@ void pbzero(unsigned long addr, unsigned long size)
 	}
 }
 
-static long loadprog(int howto, long *hsize)
+static long loadprog(long *hsize)
 {
-	long int addr;	/* physical address.. not directly useable */
-	long int hmaddress;
-	int i;
+	long addr;	/* physical address.. not directly useable */
+	long hmaddress;
+	unsigned long pad;
+	long i;
 	static int (*x_entry)() = 0;
 
-	argv[3] = 0;
-	argv[4] = 0;
 	ufs_read(&head, (long) sizeof(head));
-	if ( N_BADMAG(head)) {
+	if (N_BADMAG(head)) {
 		printf("Invalid format!\n");
 		exit(0);
 	}
-
-	poff = N_TXTOFF(head);
 
 	startaddr = (long)head.a_entry;
 	addr = (startaddr & 0x00ffffffl); /* some MEG boundary */
 	printf("Booting @ 0x%lx\n", addr);
 	if(addr < 0x100000l)
 	{
-		printf("kernel linked for wrong address!\n");
-		printf("Only hope is to link the kernel for > 1MB\n");
+		printf("Start address too low!\n");
 		exit(0);
 	}
 
+	poff = N_TXTOFF(head)+head.a_text+head.a_data+head.a_syms;
+	ufs_read((void *)&i, sizeof(long));
 	*hsize = head.a_text+head.a_data+head.a_bss;
+	*hsize = (*hsize+NBPG-1)&~(NBPG-1);
+	*hsize += i+4+head.a_syms;
 	addr=hmaddress=get_high_memory(*hsize);
 	if (!hmaddress) {
 		printf("Sorry, can't allocate enough memory!\n");
 		exit(0);
 	}
+
+	poff = N_TXTOFF(head);
 
 	/********************************************************/
 	/* LOAD THE TEXT SEGMENT                                */
@@ -142,83 +144,61 @@ static long loadprog(int howto, long *hsize)
 	/********************************************************/
 	printf("bss=0x%lx ", head.a_bss);
 	pbzero(addr, head.a_bss);
-	argv[3] = (addr += head.a_bss);
-	argv[3] += -hmaddress+0x100000l;
+	addr += head.a_bss;
+
+	/* Pad to a page boundary. */
+	pad = (unsigned long)(addr-hmaddress+(startaddr & 0x00ffffffl)) % NBPG;
+	if (pad != 0) {
+		pad = NBPG - pad;
+		addr += pad;
+	}
+	bootinfo.bi_symtab = addr-hmaddress+(startaddr & 0x00ffffffl);
 
 	/********************************************************/
-	/* and note the end address of all this			*/
+	/* Copy the symbol table size				*/
 	/********************************************************/
+	pm_copy((char *)&head.a_syms, addr, sizeof(head.a_syms));
+	addr += sizeof(head.a_syms);
 
-	addr = addr-hmaddress+0x100000l;
-	argv[4] = ((addr+(long) sizeof(long)-1l))&~((long)sizeof(long)-1l);
-	printf("total=0x%lx ",argv[4]);
+	/********************************************************/
+	/* Load the symbol table				*/
+	/********************************************************/
+	printf("symbols=[+0x%lx+0x%lx+0x%lx", pad, (long) sizeof(head.a_syms),
+	       (long) head.a_syms);
+	xread(addr, head.a_syms);
+	addr += head.a_syms;
+
+	/********************************************************/
+	/* Load the string table size				*/
+	/********************************************************/
+	ufs_read((void *)&i, sizeof(long));
+	pm_copy((char *)&i, addr, sizeof(long));
+	i -= sizeof(long);
+	addr += sizeof(long);
+
+	/********************************************************/
+	/* Load the string table				*/
+	/********************************************************/
+	printf("+0x%x+0x%lx] ", sizeof(long), i);
+	xread(addr, i);
+	addr += i;
+
+	bootinfo.bi_esymtab = addr-hmaddress+(startaddr & 0x00ffffffl);
 
 	/*
-	 *  We now pass the various bootstrap parameters to the loaded
-	 *  image via the argument list
-	 *  (THIS IS A BIT OF HISTORY FROM MACH.. LEAVE FOR NOW)
-	 *  arg1 = boot flags
-	 *  arg2 = boot device
-	 *  arg3 = start of symbol table (0 if not loaded)
-	 *  arg4 = end of symbol table (0 if not loaded)
-	 *  arg5 = transfer address from image
-	 *  arg6 = transfer address for next image pointer
+	 * For backwards compatibility, use the previously-unused adaptor
+	 * and controller bitfields to hold the slice number.
 	 */
-	switch(maj)
-	{
-	case 2:
-		printf("\n\nInsert file system floppy in drive A or B\n");
-		printf("Press 'A', 'B' or any other key for the default ");
-		printf("%c: ", unit+'A');
-		i = _getche();
-		if (i=='0' || i=='A' || i=='a')
-			unit = 0;
-		if (i=='1' || i=='B' || i=='b')
-			unit = 1;
-		printf("\n");
-		break;
-	case 4:
-		break;
-	}
-	argv[1] = howto;
-	argv[2] = (MAKEBOOTDEV(maj, (slice>>4), (slice&0xf), unit, part)) ;
-	argv[5] = (head.a_entry &= 0xfffffff);
-	argv[6] = (long) &x_entry;
-	argv[0] = 8;
+	printf("total=0x%lx entry point=0x%lx\n",
+		addr-hmaddress+(startaddr & 0x00ffffffl),
+		startaddr & 0x00ffffffl);
 
-	printf("entry point=0x%lx\n" ,((long)startaddr) & 0xffffff);
 	return hmaddress;
 }
 
-static unsigned int memsize(int x)
+void bsdboot(int drive, long loadflags, char *kernel)
 {
-	unsigned int rt=0;
-
-	switch (x) {
-		case 1:
-			_asm {
-				mov		bl,1
-				mov 	ah,88h
-				int		15h
-				mov		rt,ax
-			}
-			break;
-		default:
-			_asm {
-				int		12h
-				mov		rt,ax
-			}
-			break;
-	}
-	return rt;
-}
-
-void bsdboot(int drive, int loadflags, char *kernel)
-{
-	long hmaddress, size;
-
-	argv[7] = memsize(0);
-	argv[8] = memsize(1);
+	long hmaddress, size, bootdev;
 
 	/***************************************************************\
 	* As a default set it to the first partition of the first	*
@@ -231,6 +211,8 @@ void bsdboot(int drive, int loadflags, char *kernel)
 		printf("Can't find %s\n", kernel);
 		exit(0);
 	}
-	hmaddress = loadprog(loadflags, &size);
-	startprog(hmaddress, size, ((long)startaddr & 0xffffffl), argv);
+	hmaddress = loadprog(&size);
+	bootdev = MAKEBOOTDEV(maj, (slice >> 4), slice & 0xf, unit, part);
+	startprog(hmaddress, size, ((long)startaddr & 0xffffffl),
+			  loadflags | RB_BOOTINFO, bootdev);
 }

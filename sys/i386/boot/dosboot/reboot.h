@@ -56,6 +56,10 @@
 #define	RB_MINIROOT	0x200	/* mini-root present in memory at boot time */
 #define RB_CONFIG	0x400	/* invoke user configuration routing */
 #define RB_VERBOSE	0x800	/* print all potentially useful info */
+#define	RB_SERIAL	0x1000	/* user serial port as console */
+#define	RB_CDROM	0x2000	/* use cdrom as root */
+
+#define	RB_BOOTINFO	0x80000000	/* have `struct bootinfo *' arg */
 
 /*
  * Constants for converting boot-style device number to type,

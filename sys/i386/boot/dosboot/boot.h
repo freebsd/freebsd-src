@@ -38,5 +38,5 @@ extern struct fs *fs;
 extern struct inode inode;
 extern long dosdev, slice, unit, part, maj, boff, poff, bnum, cnt;
 
-extern void bsdboot(int d, int howto, char *kernel);
+extern void bsdboot(int d, long howto, char *kernel);
 extern void pbzero(unsigned long addr, unsigned long size);

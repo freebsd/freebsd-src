@@ -26,14 +26,14 @@
 #include "protmod.h"
 
 #define MAV	1
-#define MIV	5
+#define MIV	7
 
 #define ptr2pa(x)	(((((long)(x))&0xffff0000l)>>12l)+(((long)(x))&0xffffl))
 
 static void usage(char *name)
 {
 	fprintf(stderr, "FreeBSD boot Version %d.%d\n", MAV, MIV);
-	fprintf(stderr, "(c) 1994 Christian Gusenbauer, cg@fimp01.fim.uni-linz.ac.at\n\n");
+	fprintf(stderr, "(c) 1994, 1995 Christian Gusenbauer,\n    cg@fimp01.fim.uni-linz.ac.at\n\n");
 	fprintf(stderr, "usage: %s [ options ] [ kernelname ]\n", name);
 	fprintf(stderr, "where options are:\n");
 	fprintf(stderr, "\t-r ... use compiled-in rootdev\n");
@@ -42,15 +42,40 @@ static void usage(char *name)
 	fprintf(stderr, "\t-d ... give control to kernel debugger\n");
 	fprintf(stderr, "\t-c ... invoke user configuration routing\n");
 	fprintf(stderr, "\t-v ... print all potentially useful info\n");
+	fprintf(stderr, "\t-C ... use cdrom as root\n");
 	fprintf(stderr, "\t-D ... boot a kernel from a DOS medium\n");
 	fprintf(stderr, "\t       (default: c:\\kernel)\n");
 	exit(1);
 }
 
+static unsigned int memsize(int x)
+{
+	unsigned int rt=0;
+
+	switch (x) {
+		case 1:
+			_asm {
+				mov		bl,1
+				mov 	ah,88h
+				int		15h
+				mov		rt,ax
+			}
+			break;
+		default:
+			_asm {
+				int		12h
+				mov		rt,ax
+			}
+			break;
+	}
+	return rt;
+}
+
 int main(int argc, char *argv[])
 {
 	char *kernel="/kernel", *ptr;
-	int i, dos=0, howto=0;
+	int i, dos=0;
+	long howto=0;
 	extern unsigned long get_diskinfo(int);
 
 	VCPIboot = 0;
@@ -70,6 +95,7 @@ int main(int argc, char *argv[])
 				case 'c': howto |= RB_CONFIG; break;
 				case 'd': howto |= RB_KDB; break;
 				case 'v': howto |= RB_VERBOSE; break;
+				case 'C': howto |= RB_CDROM; break;
 				case 'D': dos = 1; kernel = "c:\\kernel"; break;
 				case '?':
 				default: usage(argv[0]);
@@ -78,11 +104,15 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	bootinfo.version = 1;
-	bootinfo.nfs_diskless = 0;
-	bootinfo.kernelname = (char *) ptr2pa(kernel);
+	bootinfo.bi_version = BOOTINFO_VERSION;
 	for (i = 0; i < N_BIOS_GEOM; i++)
-		bootinfo.bios_geom[i] = get_diskinfo(0x80+i);
+		bootinfo.bi_bios_geom[i] = get_diskinfo(0x80+i);
+	bootinfo.bi_basemem = memsize(0);
+	bootinfo.bi_extmem = memsize(1);
+	bootinfo.bi_memsizes_valid = 0;		/* that is not yet valid!! */
+	bootinfo.bi_kernelname = (char *) ptr2pa(kernel);
+	bootinfo.bi_nfs_diskless = NULL;
+	bootinfo.bi_size = sizeof(bootinfo);
 
 	if (dos)
 		dosboot(howto, kernel);		/* boot given kernel from DOS partition */
