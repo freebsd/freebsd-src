@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)in_proto.c	8.1 (Berkeley) 6/10/93
- *	$Id: in_proto.c,v 1.14 1995/05/11 00:13:17 wollman Exp $
+ *	$Id: in_proto.c,v 1.16 1995/06/13 17:51:09 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -123,7 +123,7 @@ struct protosw inetsw[] = {
   rip_usrreq,
   0,		0,		0,		0,
 },
-{ SOCK_RAW,	&inetdomain,	IPPROTO_ENCAP,	PR_ATOMIC|PR_ADDR,
+{ SOCK_RAW,	&inetdomain,	IPPROTO_IPIP,	PR_ATOMIC|PR_ADDR,
   ipip_input,	rip_output, 	0,		rip_ctloutput,
   rip_usrreq,
   0,		0,		0,		0,
