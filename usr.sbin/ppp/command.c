@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.24.2.2 1996/12/23 18:13:30 jkh Exp $
+ * $Id: command.c,v 1.24.2.3 1997/01/12 21:52:46 joerg Exp $
  *
  */
 #include <sys/types.h>
@@ -933,7 +933,7 @@ int param;
       VarDialScript[sizeof(VarDialScript)-1] = '\0';
       break;
     case VAR_LOGIN:
-      strncpy(VarLoginScript, *argv, sizeof(VarDialScript)-1);
+      strncpy(VarLoginScript, *argv, sizeof(VarLoginScript)-1);
       VarLoginScript[sizeof(VarLoginScript)-1] = '\0';
       break;
     case VAR_DEVICE:
