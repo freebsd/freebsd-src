@@ -69,7 +69,7 @@ variable rebootkey
 2dup at-xy ."                \       /       /\" 1+
 2dup at-xy ."           [36m______[31m( (_  / \______/" 1+
 2dup at-xy ."         [36m,'  ,-----'   |" 1+
-at-xy ."         `--{__________) [0m" 1+
+at-xy ."         `--{__________) [0m"
 ;
 
 : boring-beastie ( x y -- )
@@ -121,6 +121,8 @@ at-xy ."         `--{__________) [0m" 1+
 		s" 0" compare 0<> if
 			false exit
 		then
+	else
+		drop
 	then
 	true
 ;
@@ -147,6 +149,7 @@ at-xy ."         `--{__________) [0m" 1+
 	13 6 at-xy ." Welcome to FreeBSD!"
 	printmenuitem ."  Boot FreeBSD [default]" bootkey !
 	s" arch-i386" environment? if
+		drop
 		printmenuitem ."  Boot FreeBSD with ACPI " bootacpikey !
 		acpienabled? if
 			." disabled"
@@ -161,9 +164,10 @@ at-xy ."         `--{__________) [0m" 1+
 	printmenuitem ."  Boot FreeBSD with verbose logging" bootverbosekey !
 	printmenuitem ."  Escape to loader prompt" escapekey !
 	s" arch-i386" environment? if
+		drop
 		printmenuitem ."  Boot FreeBSD with USB keyboard" bootusbkey !
 	else
-		-2 bootacpikey !
+		-2 bootusbkey !
 	then
 	printmenuitem ."  Reboot" rebootkey !
 	menuX @ 20 at-xy
@@ -174,7 +178,6 @@ at-xy ."         `--{__________) [0m" 1+
 ;
 
 : tkey
-	dup
 	seconds +
 	begin 1 while
 		over 0<> if
@@ -202,6 +205,8 @@ set-current
 		s" YES" compare-insensitive 0= if
 			exit
 		then
+	else
+		drop
 	then
 	beastie-menu
 	s" autoboot_delay" getenv
@@ -211,7 +216,7 @@ set-current
 	else
 		0 0 2swap >number drop drop drop
 	then
-	begin true while
+	begin
 		dup tkey
 		0 25 at-xy
 		dup 32 = if nip 0 swap then
@@ -235,6 +240,7 @@ set-current
 		then
 		dup bootsafekey @ = if
 			s" arch-i386" environment? if
+				drop
 				s" acpi_load" unsetenv
 				s" 1" s" hint.acpi.0.disabled" setenv
 				s" 1" s" loader.acpi_disabled_by_user" setenv
@@ -260,7 +266,7 @@ set-current
 			exit
 		then
 		rebootkey @ = if 0 reboot then
-	repeat
+	again
 ;
 
 previous
