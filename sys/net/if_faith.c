@@ -275,8 +275,7 @@ faithrtrequest(cmd, rt, info)
 	struct rt_addrinfo *info;
 {
 	RT_LOCK_ASSERT(rt);
-	if (rt)
-		rt->rt_rmx.rmx_mtu = rt->rt_ifp->if_mtu;
+	rt->rt_rmx.rmx_mtu = rt->rt_ifp->if_mtu;
 }
 
 /*
