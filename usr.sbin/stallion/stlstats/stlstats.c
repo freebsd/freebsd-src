@@ -308,7 +308,7 @@ void menuport()
 		case 'e':
 		case 'f':
 			ch = (ch - 'a' + '0' + 10);
-			/* fall thru */
+			/* FALLTHROUGH */
 		case '0':
 		case '1':
 		case '2':

@@ -25,8 +25,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 
@@ -160,7 +162,7 @@ async_Decode(struct async *async, u_char c)
       async->mode |= MODE_ESC;
       break;
     }
-    /* Fall into ... */
+    /* FALLTHROUGH */
   default:
     if (async->length >= HDLCSIZE) {
       /* packet is too large, discard it */
