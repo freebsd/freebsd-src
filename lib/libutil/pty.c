@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1990, 1993
+ * Copyright (c) 1990, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,20 +32,21 @@
  */
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)pty.c	8.1 (Berkeley) 6/4/93";
+static char sccsid[] = "@(#)pty.c	8.3 (Berkeley) 5/16/94";
 #endif /* LIBC_SCCS and not lint */
 
-#include <sys/cdefs.h>
 #include <sys/types.h>
-#include <sys/stat.h>
 #include <sys/ioctl.h>
-#include <fcntl.h>
-#include <termios.h>
+#include <sys/stat.h>
+
 #include <errno.h>
-#include <unistd.h>
-#include <stdio.h>
-#include <string.h>
+#include <fcntl.h>
 #include <grp.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <termios.h>
+#include <unistd.h>
 
 openpty(amaster, aslave, name, termp, winp)
 	int *amaster, *aslave;
@@ -66,6 +67,7 @@ openpty(amaster, aslave, name, termp, winp)
 	for (cp1 = "pqrs"; *cp1; cp1++) {
 		line[8] = *cp1;
 		for (cp2 = "0123456789abcdef"; *cp2; cp2++) {
+			line[5] = 'p';
 			line[9] = *cp2;
 			if ((master = open(line, O_RDWR, 0)) == -1) {
 				if (errno == ENOENT)
@@ -89,7 +91,6 @@ openpty(amaster, aslave, name, termp, winp)
 					return (0);
 				}
 				(void) close(master);
-				line[5] = 'p';
 			}
 		}
 	}

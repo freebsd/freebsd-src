@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1981, 1993
+ * Copyright (c) 1981, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)curses.h	8.2 (Berkeley) 1/2/94
+ *	@(#)curses.h	8.5 (Berkeley) 4/29/95
  */
 
 #ifndef _CURSES_H_
@@ -45,7 +45,9 @@
  * START BACKWARD COMPATIBILITY ONLY.
  */
 #ifndef _CURSES_PRIVATE
+#ifndef __cplusplus
 #define	bool	char
+#endif
 #define	reg	register
 
 #ifndef TRUE
@@ -137,14 +139,13 @@ typedef struct __window {		/* Window structure. */
 
 #define	__ENDLINE	0x001		/* End of screen. */
 #define	__FLUSH		0x002		/* Fflush(stdout) after refresh. */
-#define	__FULLLINE	0x004		/* Line width = terminal width. */
-#define	__FULLWIN	0x008		/* Window is a screen. */
-#define	__IDLINE	0x010		/* Insert/delete sequences. */
-#define	__SCROLLWIN	0x020		/* Last char will scroll window. */
-#define	__SCROLLOK	0x040		/* Scrolling ok. */
-#define	__CLEAROK	0x080		/* Clear on next refresh. */
-#define __WSTANDOUT	0x100		/* Standout window */
-#define __LEAVEOK	0x200		/* If curser left */	
+#define	__FULLWIN	0x004		/* Window is a screen. */
+#define	__IDLINE	0x008		/* Insert/delete sequences. */
+#define	__SCROLLWIN	0x010		/* Last char will scroll window. */
+#define	__SCROLLOK	0x020		/* Scrolling ok. */
+#define	__CLEAROK	0x040		/* Clear on next refresh. */
+#define __WSTANDOUT	0x080		/* Standout window */
+#define __LEAVEOK	0x100		/* If curser left */	
 	u_int flags;
 } WINDOW;
 
@@ -287,8 +288,8 @@ int	 wmove __P((WINDOW *, int, int));
 int	 wprintw __P((WINDOW *, const char *, ...));
 int	 wrefresh __P((WINDOW *));
 int	 wscanw __P((WINDOW *, const char *, ...));
-char	*wstandend __P((WINDOW *));
-char	*wstandout __P((WINDOW *));
+int	 wstandend __P((WINDOW *));
+int	 wstandout __P((WINDOW *));
 int	 vwprintw __P((WINDOW *, const char *, _BSD_VA_LIST_));
 
 /* Private functions that are needed for user programs prototypes. */
@@ -309,7 +310,7 @@ void	 __stop_signal_handler __P((int));
 void	 __swflags __P((WINDOW *));
 int	 __touchline __P((WINDOW *, int, int, int, int));
 int	 __touchwin __P((WINDOW *));
-char	*__tscroll __P((const char *, int));
+char	*__tscroll __P((const char *, int, int));
 int	 __waddch __P((WINDOW *, __LDATA *));
 
 /* Private #defines. */

@@ -1,0 +1,57 @@
+.\" @(#)rstat.1	2.1 88/08/03 4.0 RPCSRC
+.TH RSTAT 1 "3 August 1988"
+.SH NAME
+rstat \- remote status display
+.SH SYNOPSIS
+.B rstat
+.B host
+.SH DESCRIPTION
+.LP
+.B rstat
+displays a summary of the current system status of a particular
+.BR host .
+The output shows the current time of day, how long the system has
+been up,
+and the load averages.
+The load average numbers give the number of jobs in the run queue
+averaged over 1, 5 and 15 minutes.
+.PP
+The
+.B rstat_svc(8c)
+daemon must be running on the remote host for this command to
+work.
+.B rstat
+uses an RPC protocol defined in /usr/include/rpcsvc/rstat.x.
+.SH EXAMPLE
+.RS
+.ft B
+.nf
+example% rstat otherhost
+7:36am  up 6 days, 16:45,  load average: 0.20, 0.23, 0.18
+example%
+.ft R
+.fi
+.RE
+.SH DIAGNOSTICS
+.LP
+rstat: RPC: Program not registered
+.IP
+The
+.B rstat_svc
+daemon has not been started on the remote host.
+.LP
+rstat: RPC: Timed out
+.IP
+A communication error occurred.  Either the network is
+excessively congested, or the
+.B rstat_svc
+daemon has terminated on the remote host.
+.LP
+rstat: RPC: Port mapper failure - RPC: Timed out
+.IP
+The remote host is not running the portmapper (see
+.BR portmap(8c) ),
+and cannot accommodate any RPC-based services.  The host may be down.
+.SH "SEE ALSO"
+.BR portmap (8c),
+.BR rstat_svc (8c)

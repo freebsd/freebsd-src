@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1981, 1993
+ * Copyright (c) 1981, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -32,15 +32,17 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)setterm.c	8.3 (Berkeley) 1/2/94";
+static char sccsid[] = "@(#)setterm.c	8.8 (Berkeley) 10/25/94";
 #endif /* not lint */
 
-#include <sys/ioctl.h>
+#include <sys/ioctl.h>		/* TIOCGWINSZ on old systems. */
 
-#include <curses.h>
 #include <stdlib.h>
 #include <string.h>
+#include <termios.h>
 #include <unistd.h>
+
+#include "curses.h"
 
 static void zap __P((void));
 
@@ -139,10 +141,11 @@ setterm(type)
 	 * Test for cursor motion capbility.
 	 *
 	 * XXX
-	 * This is truly stupid -- tgoto returns "OOPS" if it can't
-	 * do cursor motions.
+	 * This is truly stupid -- historically, tgoto returns "OOPS" if it
+	 * can't do cursor motions.  Some systems have been fixed to return
+	 * a NULL pointer.
 	 */
-	if (tgoto(CM, 0, 0)[0] == 'O') {
+	if ((p = tgoto(CM, 0, 0)) == NULL || *p == 'O') {
 		CA = 0;
 		CM = 0;
 	} else
@@ -152,8 +155,11 @@ setterm(type)
 	aoftspace = tspace;
 	ttytype = longname(genbuf, __ttytype);
 
-	if ((!AL && !al) || (!DL && !dl))
-		__noqch = 1;
+	/* If no scrolling commands, no quick change. */
+	__noqch =
+	    (CS == NULL || HO == NULL ||
+	    SF == NULL && sf == NULL || SR == NULL && sr == NULL) &&
+	    (AL == NULL && al == NULL || DL == NULL && dl == NULL);
 
 	return (unknown ? ERR : OK);
 }
