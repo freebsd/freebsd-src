@@ -5,8 +5,8 @@ MAN4=	bpf.4 ccd.4 cd.4 ch.4 ddb.4 divert.4 drum.4 fd.4 fpa.4 \
 	lkm.4 lo.4 netintro.4 \
 	null.4 od.4 ppp.4 pt.4 pty.4 route.4 \
 	scsi.4 sd.4 sl.4 smp.4 snp.4 sppp.4 st.4 su.4 tcp.4 \
-	ttcp.4 termios.4 tty.4 udp.4 uk.4 update.4 unix.4 vn.4 worm.4 yp.4 \
-	zero.4
+	ttcp.4 termios.4 tty.4 tun.4  udp.4 uk.4 update.4 unix.4 vn.4 \
+	worm.4 yp.4 zero.4
 
 MLINKS+=fd.4 stderr.4 fd.4 stdin.4 fd.4 stdout.4
 MLINKS+=netintro.4 networking.4
