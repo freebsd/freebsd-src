@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)uuencode.c	8.2 (Berkeley) 4/2/94";
 #endif
 static const char rcsid[] =
-	"$Id: uuencode.c,v 1.1.1.1.8.1 1997/08/25 06:29:53 charnier Exp $";
+	"$Id: uuencode.c,v 1.1.1.1.8.2 1997/08/29 05:30:09 imp Exp $";
 #endif /* not lint */
 
 /*
@@ -69,7 +69,7 @@ main(argc, argv)
 	struct stat sb;
 	int mode;
 
-	while (getopt(argc, argv, "") !=  -1)
+	while (getopt(argc, argv, "") != -1)
 		usage();
 	argv += optind;
 	argc -= optind;
