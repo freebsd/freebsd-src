@@ -170,7 +170,7 @@ isa_route_intr_res(device_t bus, u_long start, u_long end)
 	if (start > 7)
 		panic("isa_route_intr_res: start out of isa range");
 	res = isa_ino[start];
-	if (res == 255)
+	if (res == ORIR_NOTFOUND)
 		device_printf(bus, "could not map interrupt %d\n", res);
 	return (res);
 }
