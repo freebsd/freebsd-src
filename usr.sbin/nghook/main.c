@@ -61,6 +61,9 @@
 static void	WriteAscii(u_char * buf, int len);
 static void	Usage(void);
 
+static int outfd = STDOUT_FILENO;
+static int infd = STDIN_FILENO;
+
 /*
  * main()
  */
@@ -76,7 +79,7 @@ main(int ac, char *av[])
 	int	ch;
 
 	/* Parse flags */
-	while ((ch = getopt(ac, av, "adln")) != EOF) {
+	while ((ch = getopt(ac, av, "adlnsS")) != EOF) {
 		switch (ch) {
 		case 'a':
 			asciiFlag = 1;
@@ -89,6 +92,12 @@ main(int ac, char *av[])
 			break;
 		case 'n':
 			noInput = 1;
+			break;
+		case 's':
+			outfd = STDIN_FILENO;
+			break;
+		case 'S':
+			infd = STDOUT_FILENO;
 			break;
 		case '?':
 		default:
@@ -134,7 +143,7 @@ main(int ac, char *av[])
 		/* Setup bits */
 		FD_ZERO(&rfds);
 		if (!noInput)
-			FD_SET(0, &rfds);
+			FD_SET(infd, &rfds);
 		FD_SET(dsock, &rfds);
 
 		/* Wait for something to happen */
@@ -156,7 +165,7 @@ main(int ac, char *av[])
 			/* Write packet to stdout */
 			if (asciiFlag)
 				WriteAscii((u_char *) buf, rl);
-			else if ((wl = write(STDOUT_FILENO, buf, rl)) != rl) {
+			else if ((wl = write(outfd, buf, rl)) != rl) {
 				if (wl < 0) {
 					err(EX_OSERR, "write(stdout)");
 				} else {
@@ -173,12 +182,12 @@ main(int ac, char *av[])
 		}
 
 		/* Check data from stdin */
-		if (FD_ISSET(0, &rfds)) {
+		if (FD_ISSET(infd, &rfds)) {
 			char    buf[BUF_SIZE];
 			int     rl;
 
 			/* Read packet from stdin */
-			if ((rl = read(0, buf, sizeof(buf))) < 0)
+			if ((rl = read(infd, buf, sizeof(buf))) < 0)
 				err(EX_OSERR, "read(stdin)");
 			if (rl == 0)
 				errx(EX_OSERR, "EOF(stdin)");
@@ -221,10 +230,10 @@ WriteAscii(u_char *buf, int len)
 				    sizeof(sbuf) - strlen(sbuf), " ");
 		snprintf(sbuf + strlen(sbuf),
 		    sizeof(sbuf) - strlen(sbuf), "\n");
-		(void) write(STDOUT_FILENO, sbuf, strlen(sbuf));
+		(void) write(outfd, sbuf, strlen(sbuf));
 	}
 	ch = '\n';
-	write(1, &ch, 1);
+	write(outfd, &ch, 1);
 }
 
 /*
@@ -233,6 +242,6 @@ WriteAscii(u_char *buf, int len)
 static void
 Usage(void)
 {
-	errx(EX_USAGE, "usage: nghook [-adln] path [hookname]");
+	errx(EX_USAGE, "usage: nghook [-adlnsS] path [hookname]");
 }
 
