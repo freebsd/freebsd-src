@@ -35,7 +35,7 @@
  *
  *	@(#)fdesc_vnops.c	8.9 (Berkeley) 1/21/94
  *
- * $Id: fdesc_vnops.c,v 1.9 1995/05/30 08:06:57 rgrimes Exp $
+ * $Id: fdesc_vnops.c,v 1.10 1995/09/02 20:19:12 mpp Exp $
  */
 
 /*
@@ -174,7 +174,7 @@ out:;
  * vp is the current namei directory
  * ndp is the name to locate in that directory...
  */
-int
+static int
 fdesc_lookup(ap)
 	struct vop_lookup_args /* {
 		struct vnode * a_dvp;
@@ -315,7 +315,7 @@ bad:;
 	return (error);
 }
 
-int
+static int
 fdesc_open(ap)
 	struct vop_open_args /* {
 		struct vnode *a_vp;
@@ -407,7 +407,7 @@ fdesc_attr(fd, vap, cred, p)
 	return (error);
 }
 
-int
+static int
 fdesc_getattr(ap)
 	struct vop_getattr_args /* {
 		struct vnode *a_vp;
@@ -482,7 +482,7 @@ fdesc_getattr(ap)
 	return (error);
 }
 
-int
+static int
 fdesc_setattr(ap)
 	struct vop_setattr_args /* {
 		struct vnode *a_vp;
@@ -551,7 +551,7 @@ static struct dirtmp {
 	{ 0 }
 };
 
-int
+static int
 fdesc_readdir(ap)
 	struct vop_readdir_args /* {
 		struct vnode *a_vp;
@@ -652,7 +652,7 @@ fdesc_readdir(ap)
 	return (error);
 }
 
-int
+static int
 fdesc_readlink(ap)
 	struct vop_readlink_args /* {
 		struct vnode *a_vp;
@@ -676,7 +676,7 @@ fdesc_readlink(ap)
 	return (error);
 }
 
-int
+static int
 fdesc_read(ap)
 	struct vop_read_args /* {
 		struct vnode *a_vp;
@@ -700,7 +700,7 @@ fdesc_read(ap)
 	return (error);
 }
 
-int
+static int
 fdesc_write(ap)
 	struct vop_write_args /* {
 		struct vnode *a_vp;
@@ -724,7 +724,7 @@ fdesc_write(ap)
 	return (error);
 }
 
-int
+static int
 fdesc_ioctl(ap)
 	struct vop_ioctl_args /* {
 		struct vnode *a_vp;
@@ -751,7 +751,7 @@ fdesc_ioctl(ap)
 	return (error);
 }
 
-int
+static int
 fdesc_select(ap)
 	struct vop_select_args /* {
 		struct vnode *a_vp;
@@ -776,7 +776,7 @@ fdesc_select(ap)
 	return (error);
 }
 
-int
+static int
 fdesc_inactive(ap)
 	struct vop_inactive_args /* {
 		struct vnode *a_vp;
@@ -792,7 +792,7 @@ fdesc_inactive(ap)
 	return (0);
 }
 
-int
+static int
 fdesc_reclaim(ap)
 	struct vop_reclaim_args /* {
 		struct vnode *a_vp;
@@ -810,7 +810,7 @@ fdesc_reclaim(ap)
 /*
  * Return POSIX pathconf information applicable to special devices.
  */
-int
+static int
 fdesc_pathconf(ap)
 	struct vop_pathconf_args /* {
 		struct vnode *a_vp;
@@ -848,7 +848,7 @@ fdesc_pathconf(ap)
  * Print out the contents of a /dev/fd vnode.
  */
 /* ARGSUSED */
-int
+static int
 fdesc_print(ap)
 	struct vop_print_args /* {
 		struct vnode *a_vp;
@@ -860,7 +860,7 @@ fdesc_print(ap)
 }
 
 /*void*/
-int
+static int
 fdesc_vfree(ap)
 	struct vop_vfree_args /* {
 		struct vnode *a_pvp;
@@ -875,7 +875,7 @@ fdesc_vfree(ap)
 /*
  * /dev/fd vnode unsupported operation
  */
-int
+static int
 fdesc_enotsupp()
 {
 
@@ -885,7 +885,7 @@ fdesc_enotsupp()
 /*
  * /dev/fd "should never get here" operation
  */
-int
+static int
 fdesc_badop()
 {
 
@@ -896,7 +896,7 @@ fdesc_badop()
 /*
  * /dev/fd vnode null operation
  */
-int
+static int
 fdesc_nullop()
 {
 
@@ -936,8 +936,8 @@ fdesc_nullop()
 #define fdesc_update ((int (*) __P((struct  vop_update_args *)))fdesc_enotsupp)
 #define fdesc_bwrite ((int (*) __P((struct  vop_bwrite_args *)))fdesc_enotsupp)
 
-int (**fdesc_vnodeop_p)();
-struct vnodeopv_entry_desc fdesc_vnodeop_entries[] = {
+static int (**fdesc_vnodeop_p)();
+static struct vnodeopv_entry_desc fdesc_vnodeop_entries[] = {
 	{ &vop_default_desc, vn_default_error },
 	{ &vop_lookup_desc, fdesc_lookup },	/* lookup */
 	{ &vop_create_desc, fdesc_create },	/* create */
@@ -981,7 +981,7 @@ struct vnodeopv_entry_desc fdesc_vnodeop_entries[] = {
 	{ &vop_bwrite_desc, fdesc_bwrite },	/* bwrite */
 	{ (struct vnodeop_desc*)NULL, (int(*)())NULL }
 };
-struct vnodeopv_desc fdesc_vnodeop_opv_desc =
+static struct vnodeopv_desc fdesc_vnodeop_opv_desc =
 	{ &fdesc_vnodeop_p, fdesc_vnodeop_entries };
 
 VNODEOP_SET(fdesc_vnodeop_opv_desc);

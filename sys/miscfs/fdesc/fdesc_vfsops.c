@@ -35,7 +35,7 @@
  *
  *	@(#)fdesc_vfsops.c	8.4 (Berkeley) 1/21/94
  *
- * $Id: fdesc_vfsops.c,v 1.4 1995/03/16 20:23:38 wollman Exp $
+ * $Id: fdesc_vfsops.c,v 1.5 1995/09/02 20:17:57 mpp Exp $
  */
 
 /*
@@ -56,12 +56,12 @@
 #include <sys/malloc.h>
 #include <miscfs/fdesc/fdesc.h>
 
-int fdesc_statfs __P((struct mount *, struct statfs *, struct proc *));
+static int fdesc_statfs __P((struct mount *, struct statfs *, struct proc *));
 
 /*
  * Mount the per-process file descriptors (/dev/fd)
  */
-int
+static int
 fdesc_mount(mp, path, data, ndp, p)
 	struct mount *mp;
 	char *path;
@@ -102,7 +102,7 @@ fdesc_mount(mp, path, data, ndp, p)
 	return (0);
 }
 
-int
+static int
 fdesc_start(mp, flags, p)
 	struct mount *mp;
 	int flags;
@@ -111,7 +111,7 @@ fdesc_start(mp, flags, p)
 	return (0);
 }
 
-int
+static int
 fdesc_unmount(mp, mntflags, p)
 	struct mount *mp;
 	int mntflags;
@@ -172,7 +172,7 @@ fdesc_root(mp, vpp)
 	return (0);
 }
 
-int
+static int
 fdesc_quotactl(mp, cmd, uid, arg, p)
 	struct mount *mp;
 	int cmd;
@@ -184,7 +184,7 @@ fdesc_quotactl(mp, cmd, uid, arg, p)
 	return (EOPNOTSUPP);
 }
 
-int
+static int
 fdesc_statfs(mp, sbp, p)
 	struct mount *mp;
 	struct statfs *sbp;
@@ -234,7 +234,7 @@ fdesc_statfs(mp, sbp, p)
 	return (0);
 }
 
-int
+static int
 fdesc_sync(mp, waitfor)
 	struct mount *mp;
 	int waitfor;
@@ -247,7 +247,7 @@ fdesc_sync(mp, waitfor)
  * Fdesc flat namespace lookup.
  * Currently unsupported.
  */
-int
+static int
 fdesc_vget(mp, ino, vpp)
 	struct mount *mp;
 	ino_t ino;
@@ -257,7 +257,7 @@ fdesc_vget(mp, ino, vpp)
 	return (EOPNOTSUPP);
 }
 
-int
+static int
 fdesc_fhtovp(mp, fhp, setgen, vpp)
 	struct mount *mp;
 	struct fid *fhp;
@@ -267,7 +267,7 @@ fdesc_fhtovp(mp, fhp, setgen, vpp)
 	return (EOPNOTSUPP);
 }
 
-int
+static int
 fdesc_vptofh(vp, fhp)
 	struct vnode *vp;
 	struct fid *fhp;
@@ -276,7 +276,7 @@ fdesc_vptofh(vp, fhp)
 	return (EOPNOTSUPP);
 }
 
-struct vfsops fdesc_vfsops = {
+static struct vfsops fdesc_vfsops = {
 	fdesc_mount,
 	fdesc_start,
 	fdesc_unmount,
