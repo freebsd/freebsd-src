@@ -37,7 +37,7 @@
  *
  *	@(#)os-bsd44.h	8.1 (Berkeley) 6/6/93
  *
- * $Id: os-bsd44.h,v 1.2 1995/01/20 20:58:54 wollman Exp $
+ * $Id: os-bsd44.h,v 1.3 1995/06/27 11:07:27 dfr Exp $
  *
  * 4.4 BSD definitions for Amd (automounter)
  */
@@ -195,3 +195,7 @@ struct mntent {
  */
 #undef RE_HDR
 #define RE_HDR <regexp.h>
+/*
+ * Need precise length links
+ */
+#define PRECISE_SYMLINKS
