@@ -8,7 +8,7 @@ INTERNALSTATICLIB=	true
 
 SRCS=	aout_freebsd.c biosdisk.c biosmem.c biospnp.c biospci.c \
 	bootinfo.c comconsole.c devicename.c elf_freebsd.c gatea20.c \
-	i386_copy.c i386_module.c time.c vidconsole.c
+	i386_copy.c i386_module.c time.c vidconsole.c pxetramp.s
 
 CFLAGS+=	-I${.CURDIR}/../../common -I${.CURDIR}/../btx/lib \
 		-I${.CURDIR}/../../.. -I.
