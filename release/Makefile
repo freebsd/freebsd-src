@@ -345,8 +345,13 @@ release rerelease:
 	cd ${CHROOTDIR}/usr && \
 		${CVSPREFIX} cvs -R ${CVSARGS} -d ${CVSROOT} co ${CVSCMDARGS} ${CVS_SRCARGS} ${RELEASESRCMODULE}
 .endif
-.if defined(LOCAL_PATCHES) && exists(${LOCAL_PATCHES})
-	cd ${CHROOTDIR}/usr/src && patch ${PATCH_FLAGS} < ${LOCAL_PATCHES}
+.if defined(LOCAL_PATCHES) && !empty(LOCAL_PATCHES)
+	cd ${CHROOTDIR}/usr/${RELEASESRCMODULE}
+.for p in ${LOCAL_PATCHES}
+.if exists(${p})
+	patch ${PATCH_FLAGS} < ${p}
+.endif
+.endfor
 .endif
 .if defined(LOCAL_SCRIPT) && exists(${LOCAL_SCRIPT})
 	cd ${CHROOTDIR} && env CHROOTDIR=${CHROOTDIR} BUILDNAME=${BUILDNAME} RELEASETAG=${RELEASETAG} ${LOCAL_SCRIPT}
