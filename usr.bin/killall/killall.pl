@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 #
-# Copyright (c) 1995 Wolfram Schneider <wosch@cs.tu-berlin.de>
-# All rights reserved. Alle Rechte vorbehalten. 
+# Copyright (c) 1995 Wolfram Schneider, Berlin
+# All rights reserved. Alle Rechte vorbehalten.
 #
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions
@@ -28,62 +28,73 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 # THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #
-# killall - kill all processes
+# killall - kill processes by name
 #
-# Note: work only with effective uid due the limit of procfs
-#       (eg. not with suid programs)
-#
-# $Id: killall.pl,v 1.1.1.1 1995/06/25 18:08:27 joerg Exp $
+# $Id: killall.pl,v 1.4 1996/02/03 21:49:56 wosch Exp $
 #
 
-$ENV{'PATH'} = "/bin:/usr/bin";
+$ENV{'PATH'} = '/bin:/usr/bin'; # security
 $procfs = '/proc';
 $signal = 'SIGTERM';		# default signal for kill
 $debug = 0;
 $match = 0;			# 0 match exactly program name
-$show = 0;
+$show = 0;			# do nothings
 
-$PROC_NAME = 0 + $[;
-$PROC_EUID = 11 + $[;
+# see /sys/miscfs/procfs/procfs_status.c
+$PROC_NAME =  0;
+$PROC_EUID = 11;
+$PROC_RUID = 12;
 
 sub usage {
     $! = 2;
-    die "killall [-v] [-?|-help] [-l] [-m] [-s] [-SIGNAL] program\n";
+    die "killall [-?|-help] [-d] [-l] [-m] [-s] [-SIGNAL] program\n";
 }
 
+$id = $<;			# real uid of this process / your id
 while ($_ = $ARGV[0], /^-/) {
     shift @ARGV;
-    if    (/^--$/)                  { $_ = $ARGV[0]; last }
-    elsif (/^-[vd]$/)               { $debug++ }
-    elsif (/^-(h|help|\?)$/)        { do usage }
-    elsif (/^-l$/)                  { exec 'kill', '-l' }
+    if	  (/^--$/)		    { $_ = $ARGV[0]; last }
+    elsif (/^-(h|help|\?)$/)	    { &usage }
+    elsif (/^-[dv]$/)		    { $debug++ }
+    elsif (/^-l$/)		    { exec 'kill', '-l' }
     elsif (/^-m$/)		    { $match = 1 }
-    elsif (/^-s$/)                  { $show = 1 }
+    elsif (/^-s$/)		    { $show = 1 }
     elsif (/^-([a-z][a-z0-9]+|[0-9]+)$/i) { $signal = $1 }
+    elsif (/^-/)		    { &usage }
 }
 
 $program = $_; &usage unless $program;
 
+
 die "Maybe $procfs is not mounted\n" unless -e "$procfs/0/status";
 opendir(PROCFS, "$procfs") || die "$procfs $!\n";
+print "  PID  EUID  RUID COMMAND\n" if $debug > 1;
+
+# quote meta characters
+($programMatch = $program) =~ s/(\W)/\\$1/g;
 
 foreach (sort{$a <=> $b} grep(/^[0-9]/, readdir(PROCFS))) {
     $status = "$procfs/$_/status";
     $pid = $_;
-    
     next if $pid == $$;		# don't kill yourself
 
-    open(STATUS, "$status") || next;	# process maybe already terminated
+    open(STATUS, "$status") || next; # process maybe already terminated
     while(<STATUS>) {
 	@proc = split;
-	printf "%5d $proc[$PROC_NAME] $proc[$PROC_EUID]\n", $pid
-	    if $debug > 1;
 
-	if (($proc[$PROC_NAME] eq $program ||
-	     ($match && $proc[$PROC_NAME] =~ /$program/i)
-	     ) &&                                   # test program name
-	    ($proc[$PROC_EUID] eq $< || $< == 0)) { # test uid
-	    push(@kill, "$pid");
+	printf "%5d %5d %5d %s\n", $pid, $proc[$PROC_EUID],
+	$proc[$PROC_RUID], $proc[$PROC_NAME] if $debug > 1;
+
+	if ( # match program name
+	    ($proc[$PROC_NAME] eq $program ||
+	     ($match && $proc[$PROC_NAME] =~ /$programMatch/oi)
+	     ) &&
+	    # id test
+	    ($proc[$PROC_EUID] eq $id || # effective uid
+	     $proc[$PROC_RUID] eq $id || # real uid
+	     !$id))			 # root
+	{
+	    push(@kill, $pid);
 	}
     }
     close STATUS;
@@ -94,10 +105,12 @@ if ($#kill < 0) {		# nothing found
     print "No matching process.\n" if $debug || $show;
     exit(1);
 }
-$signal =~ y/[a-z]/[A-Z]/;	# signal name in upper case
+
+$signal =~ y/a-z/A-Z/;		# signal name in upper case
 $signal =~ s/^SIG//;		# strip a leading SIG if present
 print "kill -$signal @kill\n" if $debug || $show;
 
 $cnt = kill ($signal, @kill) unless $show; # kill processes
 exit(0) if $show || $cnt == $#kill + 1;
 exit(1);
+
