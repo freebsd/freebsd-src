@@ -33,7 +33,7 @@
         pkg
         ..
     ..
-/set gname=games mode=0775
+/set gname=games
     games
         hackdir         mode=0770
             save            mode=0770
@@ -44,13 +44,12 @@
         phantasia
         ..
     ..
-/set gname=wheel mode=0700
-    heimdal
+/set gname=wheel
+    heimdal         mode=0700
     ..
-/set mode=0755
     log
     ..
-    mail            gname=mail mode=0775
+    mail            gname=mail
     ..
     msgs            uname=daemon
     ..
@@ -60,10 +59,10 @@
         named           uname=bind gname=bind
         ..
     ..
-    rwho            gname=daemon mode=0775
+    rwho            gname=daemon
     ..
     spool
-        lock            uname=uucp gname=dialer mode=0775
+        lock            uname=uucp gname=dialer
         ..
 /set gname=daemon
         lpd
@@ -77,7 +76,7 @@
             ..
         ..
 /set gname=wheel
-/set uname=uucp gname=uucp mode=0775
+/set uname=uucp gname=uucp
         uucp
             .Preserve
             ..
@@ -90,7 +89,7 @@
             .Xqtdir
             ..
         ..
-/set uname=root gname=wheel mode=0755
+/set uname=root gname=wheel
     ..
     tmp             mode=01777
         vi.recover      mode=01777
