@@ -39,7 +39,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinuminterrupt.c,v 1.11 2000/05/10 22:32:51 grog Exp grog $
+ * $Id: vinuminterrupt.c,v 1.9 2000/02/16 01:59:02 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -209,10 +209,15 @@ freerq(struct request *rq)
     for (rqg = rq->rqg; rqg != NULL; rqg = nrqg) {	    /* through the whole request chain */
 	if (rqg->lock)					    /* got a lock? */
 	    unlockrange(rqg->plexno, rqg->lock);	    /* yes, free it */
-	for (rqno = 0; rqno < rqg->count; rqno++)
+	for (rqno = 0; rqno < rqg->count; rqno++) {
 	    if ((rqg->rqe[rqno].flags & XFR_MALLOCED)	    /* data buffer was malloced, */
 	    &&rqg->rqe[rqno].b.b_data)			    /* and the allocation succeeded */
 		Free(rqg->rqe[rqno].b.b_data);		    /* free it */
+	    if (rqg->rqe[rqno].flags & XFR_BUFLOCKED) {	    /* locked this buffer, */
+		BUF_UNLOCK(&rqg->rqe[rqno].b);		    /* unlock it again */
+		BUF_LOCKFREE(&rqg->rqe[rqno].b);
+	    }
+	}
 	nrqg = rqg->next;				    /* note the next one */
 	Free(rqg);					    /* and free this one */
     }
@@ -248,6 +253,8 @@ sdio_done(struct buf *bp)
 	SD[sbp->sdno].bytes_written += sbp->b.b_bcount;
     }
     bufdone(sbp->bp);					    /* complete the caller's I/O */
+    BUF_UNLOCK(&sbp->b);
+    BUF_LOCKFREE(&sbp->b);
     Free(sbp);
 }
 
