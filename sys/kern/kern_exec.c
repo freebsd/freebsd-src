@@ -469,8 +469,8 @@ interpret:
 	if (p->p_fd->fd_refcnt > 1) {
 		struct filedesc *tmp;
 
-		tmp = fdcopy(td->td_proc->p_fd);
 		FILEDESC_UNLOCK(p->p_fd);
+		tmp = fdcopy(p->p_fd);
 		fdfree(td);
 		p->p_fd = tmp;
 	} else
