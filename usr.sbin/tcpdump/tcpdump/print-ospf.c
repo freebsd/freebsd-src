@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 1991 The Regents of the University of California.
- * All rights reserved.
+ * Copyright (c) 1992, 1993, 1994
+ *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that: (1) source code distributions
@@ -20,13 +20,16 @@
  *
  * OSPF support contributed by Jeffrey Honig (jch@mitchell.cit.cornell.edu)
  */
+
 #ifndef lint
 static char rcsid[] =
-    "@(#) $Header: print-ospf.c,v 1.1 92/01/29 12:44:17 mccanne Exp $ (LBL)";
+    "@(#) $Header: print-ospf.c,v 1.12 94/06/14 20:18:46 leres Exp $ (LBL)";
 #endif
 
 #include <sys/param.h>
+#include <sys/time.h>
 #include <sys/socket.h>
+
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
@@ -34,37 +37,35 @@ static char rcsid[] =
 
 #include <errno.h>
 #include <ctype.h>
+#include <stdio.h>
 
-#include "ospf.h"
 #include "interface.h"
 #include "addrtoname.h"
+
+#include "ospf.h"
 
 #ifndef	__GNUC__
 #define	inline
 #endif
 
-#if	!defined(__STDC__) && !defined(const)
-#define	const
-#endif	/* !defined(__STDC__) && !defined(const) */
-
 struct bits {
-    u_long bit;
+    u_int32 bit;
     const char *str;
 };
 
 static const struct bits ospf_option_bits[] = {
-    OSPF_OPTION_T,	"T",
-    OSPF_OPTION_E,	"E",
-    OSPF_OPTION_MC,	"MC",
-    0,			(char *) 0
+	{ OSPF_OPTION_T,	"T" },
+	{ OSPF_OPTION_E,	"E" },
+	{ OSPF_OPTION_MC,	"MC" },
+	{ 0,			NULL }
 };
 
 static const struct bits ospf_rla_flag_bits[] = {
-    RLA_FLAG_B,		"B",
-    RLA_FLAG_E,		"E",
-    RLA_FLAG_W1,	"W1",
-    RLA_FLAG_W2,	"W2",
-    0,			(char *) 0
+	{ RLA_FLAG_B,		"B" },
+	{ RLA_FLAG_E,		"E" },
+	{ RLA_FLAG_W1,		"W1" },
+	{ RLA_FLAG_W2,		"W2" },
+	{ 0,			NULL }
 };
 
 static const char *ospf_types[OSPF_TYPE_MAX] = {
@@ -77,9 +78,7 @@ static const char *ospf_types[OSPF_TYPE_MAX] = {
 };
 
 static inline void
-ospf_print_seqage(seq, us)
-register u_long seq;
-register time_t us;
+ospf_print_seqage(register u_int32 seq, register time_t us)
 {
     register time_t sec = us % 60;
     register time_t mins = (us / 60) % 60;
@@ -104,9 +103,7 @@ register time_t us;
 
 
 static inline void
-ospf_print_bits(bp, options)
-register struct bits *bp;
-register u_char options;
+ospf_print_bits(register const struct bits *bp, register u_char options)
 {
     char sep = ' ';
 
@@ -137,18 +134,16 @@ register u_char options;
     }
 
 static int
-ospf_print_lshdr(lshp, end)
-register struct lsa_hdr *lshp;
-caddr_t end;
+ospf_print_lshdr(register const struct lsa_hdr *lshp, const caddr_t end)
 {
     if ((caddr_t) (lshp + 1) > end) {
 	return 1;
     }
-    
-    printf(" {");
+
+    printf(" {");						/* } (ctags) */
 
     if (!lshp->ls_type || lshp->ls_type >= LS_TYPE_MAX) {
-	printf(" ??LS type %d?? }",
+	printf(" ??LS type %d?? }",				/* { (ctags) */
 	       lshp->ls_type);
 	return 1;
     }
@@ -168,17 +163,15 @@ caddr_t end;
  */
 
 static int
-ospf_print_lsa(lsap, end)
-register struct lsa *lsap;
-caddr_t	end;
+ospf_print_lsa(register const struct lsa *lsap, const caddr_t end)
 {
-    register caddr_t ls_end;
-    struct rlalink *rlp;
-    struct tos_metric *tosp;
-    struct in_addr *ap;
-    struct aslametric *almp;
-    struct mcla *mcp;
-    u_long *lp;
+    register const char *ls_end;
+    const struct rlalink *rlp;
+    const struct tos_metric *tosp;
+    const struct in_addr *ap;
+    const struct aslametric *almp;
+    const struct mcla *mcp;
+    const u_int32 *lp;
     int j, k;
 
     if (ospf_print_lshdr(&lsap->ls_hdr, end)) {
@@ -186,9 +179,9 @@ caddr_t	end;
     }
 
     ls_end = (caddr_t) lsap + ntohs(lsap->ls_hdr.ls_length);
-    
+
     if (ls_end > end) {
-	printf(" }");
+	printf(" }");						/* { (ctags) */
 	return 1;
     }
 
@@ -204,13 +197,13 @@ caddr_t	end;
 	    if ((caddr_t) rln > ls_end) {
 		break;
 	    }
-	    printf(" {");
+	    printf(" {");					/* } (ctags) */
 
 	    switch (rlp->link_type) {
 	    case RLA_TYPE_VIRTUAL:
 		printf(" virt");
 		/* Fall through */
-		
+
 	    case RLA_TYPE_ROUTER:
 		printf(" nbrid %s if %s",
 		       ipaddr_string(&rlp->link_id),
@@ -230,7 +223,7 @@ caddr_t	end;
 		break;
 
 	    default:
-		printf(" ??RouterLinksType %d?? }",
+		printf(" ??RouterLinksType %d?? }",		/* { (ctags) */
 		       rlp->link_type);
 		return 0;
 	    }
@@ -242,12 +235,12 @@ caddr_t	end;
 		       ntohs(tosp->tos_type),
 		       ntohs(tosp->tos_metric));
 	    }
-	    printf(" }");
+	    printf(" }");					/* { (ctags) */
 	    rlp = rln;
 	}
-	break; 
+	break;
 
-    case LS_TYPE_NETWORK: 
+    case LS_TYPE_NETWORK:
 	printf(" mask %s rtrs",
 	       ipaddr_string(&lsap->lsa_un.un_nla.nla_mask));
 	for (ap = lsap->lsa_un.un_nla.nla_router;
@@ -256,9 +249,9 @@ caddr_t	end;
 	    printf(" %s",
 		   ipaddr_string(ap));
 	}
-	break; 
+	break;
 
-    case LS_TYPE_SUM_IP: 
+    case LS_TYPE_SUM_IP:
 	printf(" mask %s",
 	       ipaddr_string(&lsap->lsa_un.un_sla.sla_mask));
 	/* Fall through */
@@ -268,7 +261,7 @@ caddr_t	end;
 	for (lp = lsap->lsa_un.un_sla.sla_tosmetric;
 	     (caddr_t) (lp + 1) <= ls_end;
 	     lp++) {
-	    u_long ul = ntohl(*lp);
+	    u_int32 ul = ntohl(*lp);
 
 	    printf(" tos %d metric %d",
 		   (ul & SLA_MASK_TOS) >> SLA_SHIFT_TOS,
@@ -283,7 +276,7 @@ caddr_t	end;
 	for (almp = lsap->lsa_un.un_asla.asla_metric;
 	     (caddr_t) (almp + 1) <= ls_end;
 	     almp++) {
-	    u_long ul = ntohl(almp->asla_tosmetric);
+	    u_int32 ul = ntohl(almp->asla_tosmetric);
 
 	    printf(" type %d tos %d metric %d",
 		   (ul & ASLA_FLAG_EXTERNAL) ? 2 : 1,
@@ -324,28 +317,29 @@ caddr_t	end;
 	}
     }
 
-    printf(" }");
+    printf(" }");						/* { (ctags) */
     return 0;
 }
 
 
 void
-ospf_print(dat, length, ip)
-u_char *dat;
-int length;
-struct ip *ip;
+ospf_print(register const u_char *bp, register int length,
+	   register const u_char *bp2)
 {
-    register struct ospfhdr *op = (struct ospfhdr *) dat;
-    register caddr_t end = (caddr_t)snapend;
-    register struct lsa *lsap;
-    register struct lsa_hdr *lshp;
+    register const struct ospfhdr *op;
+    register const struct ip *ip;
+    register const caddr_t end = (caddr_t)snapend;
+    register const struct lsa *lsap;
+    register const struct lsa_hdr *lshp;
     char sep;
     int i, j;
-    struct in_addr *ap;
-    struct lsr *lsrp;
+    const struct in_addr *ap;
+    const struct lsr *lsrp;
 
+    op = (struct ospfhdr *)bp;
+    ip = (struct ip  *)bp2;
     /* Print the source and destination address	*/
-    (void) printf(" %s > %s:",
+    (void) printf("%s > %s:",
 		  ipaddr_string(&ip->ip_src),
 		  ipaddr_string(&ip->ip_dst));
 
@@ -373,11 +367,11 @@ struct ip *ip;
 	       ntohs(op->ospf_len));
 	goto trunc_test;
     }
-	
+
     if ((caddr_t) (&op->ospf_routerid + 1) > end) {
 	goto trunc_test;
     }
-    
+
     /* Print the routerid if it is not the same as the source */
     if (ip->ip_src.s_addr != op->ospf_routerid.s_addr) {
 	printf(" rtrid %s",
@@ -514,7 +508,7 @@ struct ip *ip;
 		lshp = op->ospf_db.db_lshdr;
 
 		while (!ospf_print_lshdr(lshp, end)) {
-		    printf(" }");
+		    printf(" }");				/* { (ctags) */
 		    lshp++;
 		}
 	    }
@@ -523,22 +517,22 @@ struct ip *ip;
 	case OSPF_TYPE_LSR:
 	    if (vflag) {
 		for (lsrp = op->ospf_lsr; (caddr_t) (lsrp+1) <= end; lsrp++) {
-		    long type;
+		    int32 type;
 
 		    if ((caddr_t) (lsrp + 1) > end) {
 			break;
 		    }
 
-		    printf(" {");
+		    printf(" {");				/* } (ctags) */
 		    if (!(type = lsrp->ls_type) || type >= LS_TYPE_MAX) {
-			printf(" ??LinkStateType %d }",
+			printf(" ??LinkStateType %d }",		/* { (ctags) */
 			       type);
-			printf(" }");
+			printf(" }");				/* { (ctags) */
 			break;
 		    }
 
 		    LS_PRINT(lsrp, type);
-		    printf(" }");
+		    printf(" }");				/* { (ctags) */
 		}
 	    }
 	    break;
@@ -561,7 +555,7 @@ struct ip *ip;
 		lshp = op->ospf_lsa.lsa_lshdr;
 
 		while (!ospf_print_lshdr(lshp, end)) {
-		    printf(" }");
+		    printf(" }");				/* { (ctags) */
 		    lshp++;
 		}
 		break;
@@ -576,11 +570,9 @@ struct ip *ip;
     }					/* end switch on version	*/
 
   trunc_test:
-    if ((snapend - dat) < length) {
+    if ((snapend - bp) < length) {
 	printf(" [|]");
     }
 
     return;				/* from ospf_print	*/
 }
-
-

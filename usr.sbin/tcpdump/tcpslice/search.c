@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 1990 The Regents of the University of California.
- * All rights reserved.
+ * Copyright (c) 1990, 1991, 1992, 1993
+ * The Regents of the University of California. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that: (1) source code distributions
@@ -20,19 +20,14 @@
  */
 #ifndef lint
 static char rcsid[] =
-    "@(#)$Header: search.c,v 1.3 92/05/01 15:14:45 vern Exp $ (LBL)";
+    "@(#)$Header: search.c,v 1.8 93/11/18 13:11:51 vern Exp $ (LBL)";
 #endif
 
 /*
  * search.c - supports fast searching through tcpdump files for timestamps
  */
 
-#include <stdio.h>
-#include <sys/types.h>
-#include <sys/time.h>
-
-#include "interface.h"
-#include "savefile.h"
+#include "tcpslice.h"
 
 
 /* Maximum number of seconds that we can conceive of a dump file spanning. */
@@ -44,7 +39,9 @@ static char rcsid[] =
 /* Size of a packet header in bytes; easier than typing the sizeof() all
  * the time ...
  */
-#define PACKET_HDR_LEN (sizeof( struct packet_header ))
+#define PACKET_HDR_LEN (sizeof( struct pcap_pkthdr ))
+
+extern int snaplen;
 
 /* The maximum size of a packet, including its header. */
 #define MAX_PACKET_SIZE (PACKET_HDR_LEN + snaplen)
@@ -71,18 +68,12 @@ static char rcsid[] =
  */
 #define STRAIGHT_SCAN_THRESHOLD (100 * MAX_PACKET_SIZE)
 
-/* Extracts a long integer from a possibly unaligned buffer containing
- * unsigned characters.
- */
-#define EXTRACT_LONG(buf) (buf[0] << 24 | buf[1] << 16 | buf[2] << 8 | buf[3])
-
 
 /* Given a header and an acceptable first and last time stamp, returns non-zero
  * if the header looks reasonable and zero otherwise.
  */
-static int reasonable_header( hdr, first_time, last_time )
-struct packet_header *hdr;
-long first_time, last_time;
+static int
+reasonable_header( struct pcap_pkthdr *hdr, long first_time, long last_time )
 	{
 	if ( last_time == 0 )
 		last_time = first_time + MAX_REASONABLE_FILE_SPAN;
@@ -96,26 +87,40 @@ long first_time, last_time;
 	}
 
 
+#define	SWAPLONG(y) \
+((((y)&0xff)<<24) | (((y)&0xff00)<<8) | (((y)&0xff0000)>>8) | (((y)>>24)&0xff))
+#define	SWAPSHORT(y) \
+	( (((y)&0xff)<<8) | (((y)&0xff00)>>8) )
+
 /* Given a buffer, extracts a (properly aligned) packet header from it. */
 
-static void extract_header( buf, hdr )
-u_char *buf;
-struct packet_header *hdr;
+static void
+extract_header( pcap_t *p, u_char *buf, struct pcap_pkthdr *hdr )
 	{
-	hdr->ts.tv_sec = EXTRACT_LONG(buf);
-	buf += sizeof( long );
-	hdr->ts.tv_usec = EXTRACT_LONG(buf);
-	buf += sizeof( long );
-	hdr->len = EXTRACT_LONG(buf);
-	buf += sizeof( long );
-	hdr->caplen = EXTRACT_LONG(buf);
+	bcopy((char *) buf, (char *) hdr, sizeof(struct pcap_pkthdr));
 
-	if ( sf_swapped )
+	if ( pcap_is_swapped( p ) )
 		{
 		hdr->ts.tv_sec = SWAPLONG(hdr->ts.tv_sec);
 		hdr->ts.tv_usec = SWAPLONG(hdr->ts.tv_usec);
 		hdr->len = SWAPLONG(hdr->len);
 		hdr->caplen = SWAPLONG(hdr->caplen);
+		}
+
+	/*
+	 * From bpf/libpcap/savefile.c:
+	 *
+	 * We interchanged the caplen and len fields at version 2.3,
+	 * in order to match the bpf header layout.  But unfortunately
+	 * some files were written with version 2.3 in their headers
+	 * but without the interchanged fields.
+	 */
+	if ( pcap_minor_version( p ) < 3 ||
+	     (pcap_minor_version( p ) == 3 && hdr->caplen > hdr->len) )
+		{
+		int t = hdr->caplen;
+		hdr->caplen = hdr->len;
+		hdr->len = t;
 		}
 	}
 
@@ -152,16 +157,13 @@ struct packet_header *hdr;
 #define HEADER_PERHAPS 2
 #define HEADER_DEFINITELY 3
 
-static int find_header( buf, buf_len, first_time, last_time,
-		 hdrpos_addr, return_hdr )
-u_char *buf;
-unsigned buf_len;
-long first_time, last_time;
-u_char **hdrpos_addr;
-struct packet_header *return_hdr;
+static int
+find_header( pcap_t *p, u_char *buf, int buf_len,
+		long first_time, long last_time,
+		u_char **hdrpos_addr, struct pcap_pkthdr *return_hdr )
 	{
 	u_char *bufptr, *bufend, *last_pos_to_try;
-	struct packet_header hdr, hdr2;
+	struct pcap_pkthdr hdr, hdr2;
 	int status = HEADER_NONE;
 	int saw_PERHAPS_clash = 0;
 
@@ -175,7 +177,7 @@ struct packet_header *return_hdr;
 
 	for ( bufptr = buf; bufptr < last_pos_to_try; ++bufptr )
 	    {
-	    extract_header( bufptr, &hdr );
+	    extract_header( p, bufptr, &hdr );
 
 	    if ( reasonable_header( &hdr, first_time, last_time ) )
 		{
@@ -183,9 +185,9 @@ struct packet_header *return_hdr;
 
 		if ( next_header + PACKET_HDR_LEN < bufend )
 		    { /* check for another good header */
-		    extract_header( next_header, &hdr2 );
+		    extract_header( p, next_header, &hdr2 );
 
-		    if ( reasonable_header( &hdr2, hdr.ts.tv_sec, 
+		    if ( reasonable_header( &hdr2, hdr.ts.tv_sec,
 			    hdr.ts.tv_sec + MAX_REASONABLE_HDR_SEPARATION ) )
 			{ /* a confirmed header */
 			switch ( status )
@@ -262,15 +264,15 @@ struct packet_header *return_hdr;
  * order to give sf_find_packet() an upper bound on the timestamps
  * present in the dump file.
  */
-int sf_find_end( first_timestamp, last_timestamp )
-struct timeval *first_timestamp;
-struct timeval *last_timestamp;
+int
+sf_find_end( pcap_t *p, struct timeval *first_timestamp,
+		struct timeval *last_timestamp )
 	{
 	long first_time = first_timestamp->tv_sec;
-	unsigned num_bytes;
+	u_int num_bytes;
 	u_char *buf, *bufpos, *bufend;
 	u_char *hdrpos;
-	struct packet_header hdr, successor_hdr;
+	struct pcap_pkthdr hdr, successor_hdr;
 	int status;
 
 	/* Allow enough room for at least two full (untruncated) packets,
@@ -279,10 +281,10 @@ struct timeval *last_timestamp;
 	 * end of the file.
 	 */
 	num_bytes = MAX_BYTES_FOR_DEFINITE_HEADER;
-	if ( fseek( sf_readfile, (long) -num_bytes, 2 ) < 0 )
+	if ( fseek( pcap_file( p ), (long) -num_bytes, 2 ) < 0 )
 		return 0;
 
-	buf = (u_char *)malloc((unsigned) num_bytes);
+	buf = (u_char *)malloc((u_int) num_bytes);
 	if ( ! buf )
 		return 0;
 
@@ -290,11 +292,11 @@ struct timeval *last_timestamp;
 	bufpos = buf;
 	bufend = buf + num_bytes;
 
-	if ( fread( (char *) bufpos, num_bytes, 1, sf_readfile ) != 1 )
+	if ( fread( (char *) bufpos, num_bytes, 1, pcap_file( p ) ) != 1 )
 		goto done;
 
-	if ( find_header( bufpos, num_bytes, first_time, 0L, &hdrpos, &hdr ) !=
-	     HEADER_DEFINITELY )
+	if ( find_header( p, bufpos, num_bytes,
+			  first_time, 0L, &hdrpos, &hdr ) != HEADER_DEFINITELY )
 		goto done;
 
 	/* Okay, we have a definite header in our hands.  Follow its
@@ -313,7 +315,7 @@ struct timeval *last_timestamp;
 			/* not enough room for another header */
 			break;
 
-		extract_header( bufpos, &successor_hdr );
+		extract_header( p, bufpos, &successor_hdr );
 
 		first_time = hdr.ts.tv_sec;
 		if ( ! reasonable_header( &successor_hdr, first_time, 0L ) )
@@ -344,7 +346,7 @@ struct timeval *last_timestamp;
 	status = 1;
 
 	/* Seek so that the next read will start at last valid packet. */
-	if ( fseek( sf_readfile, (long) -(bufend - hdrpos), 2 ) < 0 )
+	if ( fseek( pcap_file( p ), (long) -(bufend - hdrpos), 2 ) < 0 )
 		error( "final fseek() failed in sf_find_end()" );
 
     done:
@@ -356,8 +358,8 @@ struct timeval *last_timestamp;
 
 /* Takes two timeval's and returns the difference, tv2 - tv1, as a double. */
 
-static double timeval_diff( tv1, tv2 )
-struct timeval *tv1, *tv2;
+static double
+timeval_diff( struct timeval *tv1, struct timeval *tv2 )
 	{
 	double result = (tv2->tv_sec - tv1->tv_sec);
 	result += (tv2->tv_usec - tv1->tv_usec) / 1000000.0;
@@ -368,8 +370,8 @@ struct timeval *tv1, *tv2;
 
 /* Returns true if timestamp t1 is chronologically less than timestamp t2. */
 
-int sf_timestamp_less_than( t1, t2 )
-struct timeval *t1, *t2;
+int
+sf_timestamp_less_than( struct timeval *t1, struct timeval *t2 )
 	{
 	return t1->tv_sec < t2->tv_sec ||
 	       (t1->tv_sec == t2->tv_sec &&
@@ -382,10 +384,10 @@ struct timeval *t1, *t2;
  * negative value if the desired_time is outside the given range.
  */
 
-static
-long interpolated_position( min_time, min_pos, max_time, max_pos, desired_time )
-struct timeval *min_time, *max_time, *desired_time;
-long min_pos, max_pos;
+static long
+interpolated_position( struct timeval *min_time, long min_pos,
+			struct timeval *max_time, long max_pos,
+			struct timeval *desired_time )
 	{
 	double full_span = timeval_diff( max_time, min_time );
 	double desired_span = timeval_diff( desired_time, min_time );
@@ -405,46 +407,46 @@ long min_pos, max_pos;
  * first encountered.
  */
 
-static int read_up_to( desired_time )
-struct timeval *desired_time;
+static int
+read_up_to( pcap_t *p, struct timeval *desired_time )
 	{
-	int status = 1;
-	struct packet_header hdr;
-	u_char *buf;
+	struct pcap_pkthdr hdr;
+	const u_char *buf;
 	long pos;
-
-	buf = (u_char *) malloc( (unsigned) snaplen );
+	int status;
 
 	for ( ; ; )
 		{
 		struct timeval *timestamp;
 
-		pos = ftell( sf_readfile );
-		status = sf_next_packet( &hdr, buf, snaplen );
+		pos = ftell( pcap_file( p ) );
+		buf = pcap_next( p, &hdr );
 
-		if ( status )
+		if ( buf == 0 )
 			{
-			if ( status == SFERR_EOF )
+			if ( feof( pcap_file( p ) ) )
 				{
 				status = 0;
+				clearerr( pcap_file( p ) );
 				break;
 				}
 
-			error( "bad status %d in read_up_to()", status );
+			error( "bad status in read_up_to()" );
 			}
 
 		timestamp = &hdr.ts;
 
 		if ( ! sf_timestamp_less_than( timestamp, desired_time ) )
+			{
+			status = 1;
 			break;
+			}
 		}
 
-	if ( fseek( sf_readfile, pos, 0 ) < 0 )
+	if ( fseek( pcap_file( p ), pos, 0 ) < 0 )
 		error( "fseek() failed in read_up_to()" );
 
-	free( (char *) buf );
-
-	return status;
+	return (status);
 	}
 
 
@@ -462,18 +464,19 @@ struct timeval *desired_time;
  * a valid packet.
  */
 
-int sf_find_packet( min_time, min_pos, max_time, max_pos, desired_time )
-struct timeval *min_time, *max_time;
-long min_pos, max_pos;
-struct timeval *desired_time;
+int
+sf_find_packet( pcap_t *p,
+		struct timeval *min_time, long min_pos,
+		struct timeval *max_time, long max_pos,
+		struct timeval *desired_time )
 	{
 	int status = 1;
 	struct timeval min_time_copy, max_time_copy;
-	unsigned num_bytes = MAX_BYTES_FOR_DEFINITE_HEADER;
+	u_int num_bytes = MAX_BYTES_FOR_DEFINITE_HEADER;
 	int num_bytes_read;
 	long desired_pos, present_pos;
 	u_char *buf, *hdrpos;
-	struct packet_header hdr;
+	struct pcap_pkthdr hdr;
 
 	buf = (u_char *) malloc( num_bytes );
 	if ( ! buf )
@@ -498,12 +501,12 @@ struct timeval *desired_time;
 			break;
 			}
 
-		present_pos = ftell( sf_readfile );
+		present_pos = ftell( pcap_file( p ) );
 
 		if ( present_pos <= desired_pos &&
 		     desired_pos - present_pos < STRAIGHT_SCAN_THRESHOLD )
 			{ /* we're close enough to just blindly read ahead */
-			status = read_up_to( desired_time );
+			status = read_up_to( p, desired_time );
 			break;
 			}
 
@@ -514,11 +517,11 @@ struct timeval *desired_time;
 		if ( desired_pos < min_pos )
 			desired_pos = min_pos;
 
-		if ( fseek( sf_readfile, desired_pos, 0 ) < 0 )
+		if ( fseek( pcap_file( p ), desired_pos, 0 ) < 0 )
 			error( "fseek() failed in sf_find_packet()" );
 
 		num_bytes_read =
-			fread( (char *) buf, 1, num_bytes, sf_readfile );
+			fread( (char *) buf, 1, num_bytes, pcap_file( p ) );
 
 		if ( num_bytes_read == 0 )
 			/* This shouldn't ever happen because we try to
@@ -527,7 +530,7 @@ struct timeval *desired_time;
 			 */
 			error( "fread() failed in sf_find_packet()" );
 
-		if ( find_header( buf, num_bytes, min_time->tv_sec,
+		if ( find_header( p, buf, num_bytes, min_time->tv_sec,
 				  max_time->tv_sec, &hdrpos, &hdr ) !=
 		     HEADER_DEFINITELY )
 			error( "can't find header at position %ld in dump file",
@@ -537,7 +540,7 @@ struct timeval *desired_time;
 		desired_pos += (hdrpos - buf);
 
 		/* Seek to the beginning of the header. */
-		if ( fseek( sf_readfile, desired_pos, 0 ) < 0 )
+		if ( fseek( pcap_file( p ), desired_pos, 0 ) < 0 )
 			error( "fseek() failed in sf_find_packet()" );
 
 		if ( sf_timestamp_less_than( &hdr.ts, desired_time ) )

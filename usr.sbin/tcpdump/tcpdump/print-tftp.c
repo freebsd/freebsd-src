@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 1988-1990 The Regents of the University of California.
- * All rights reserved.
+ * Copyright (c) 1990, 1991, 1993, 1994
+ *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that: (1) source code distributions
@@ -20,88 +20,94 @@
  *
  * Format and print trivial file transfer protocol packets.
  */
+
 #ifndef lint
 static char rcsid[] =
-    "@(#) $Header: print-tftp.c,v 1.13 91/04/19 10:46:57 mccanne Exp $ (LBL)";
+    "@(#) $Header: print-tftp.c,v 1.20 94/06/14 20:18:49 leres Exp $ (LBL)";
 #endif
 
-#include <stdio.h>
 #include <sys/param.h>
+#include <sys/time.h>
 #include <sys/types.h>
+
+#include <netinet/in.h>
+
 #include <arpa/tftp.h>
 
-#include "interface.h"
-#include <strings.h>
 #include <ctype.h>
+#include <stdio.h>
+#include <string.h>
 
-struct int2str {
-	int code;
-	char *str;
-};
+#include "interface.h"
+#include "addrtoname.h"
 
 /* op code to string mapping */
-static struct int2str op2str[] = {
-	RRQ, "RRQ",			/* read request */
-	WRQ, "WRQ",			/* write request */
-	DATA, "DATA",			/* data packet */
-	ACK, "ACK",			/* acknowledgement */
-	ERROR, "ERROR",			/* error code */
-	0, 0
+static struct token op2str[] = {
+	{ RRQ,		"RRQ" },	/* read request */
+	{ WRQ,		"WRQ" },	/* write request */
+	{ DATA,		"DATA" },	/* data packet */
+	{ ACK,		"ACK" },	/* acknowledgement */
+	{ ERROR,	"ERROR" },	/* error code */
+	{ 0,		NULL }
 };
 
 /* error code to string mapping */
-static struct int2str err2str[] = {
-	EUNDEF, "EUNDEF",		/* not defined */
-	ENOTFOUND, "ENOTFOUND",		/* file not found */
-	EACCESS, "EACCESS",		/* access violation */
-	ENOSPACE, "ENOSPACE",		/* disk full or allocation exceeded *?
-	EBADOP, "EBADOP",		/* illegal TFTP operation */
-	EBADID, "EBADID",		/* unknown transfer ID */
-	EEXISTS, "EEXISTS",		/* file already exists */
-	ENOUSER, "ENOUSER",		/* no such user */
-	0, 0
+static struct token err2str[] = {
+	{ EUNDEF,	"EUNDEF" },	/* not defined */
+	{ ENOTFOUND,	"ENOTFOUND" },	/* file not found */
+	{ EACCESS,	"EACCESS" },	/* access violation */
+	{ ENOSPACE,	"ENOSPACE" },	/* disk full or allocation exceeded */
+	{ EBADOP,	"EBADOP" },	/* illegal TFTP operation */
+	{ EBADID,	"EBADID" },	/* unknown transfer ID */
+	{ EEXISTS,	"EEXISTS" },	/* file already exists */
+	{ ENOUSER,	"ENOUSER" },	/* no such user */
+	{ 0,		NULL }
 };
 
 /*
  * Print trivial file transfer program requests
  */
 void
-tftp_print(tp, length)
-	register struct tftphdr *tp;
-	int length;
+tftp_print(register const u_char *bp, int length)
 {
-	register struct int2str *ts;
-	register u_char *ep;
+	register const struct tftphdr *tp;
+	register const char *cp;
+	register const u_char *ep, *p;
+	register int opcode;
 #define TCHECK(var, l) if ((u_char *)&(var) > ep - l) goto trunc
 	static char tstr[] = " [|tftp]";
 
+	tp = (const struct tftphdr *)bp;
 	/* 'ep' points to the end of avaible data. */
-	ep = (u_char *)snapend;
+	ep = snapend;
 
 	/* Print length */
 	printf(" %d", length);
 
 	/* Print tftp request type */
 	TCHECK(tp->th_opcode, sizeof(tp->th_opcode));
-	NTOHS(tp->th_opcode);
-	putchar(' ');
-	for (ts = op2str; ts->str; ++ts)
-		if (ts->code == tp->th_opcode) {
-			fputs(ts->str, stdout);
-			break;
-		}
-	if (ts->str == 0) {
-		/* Bail if bogus opcode */
-		printf("tftp-#%d", tp->th_opcode);
+	opcode = ntohs(tp->th_opcode);
+	cp = tok2str(op2str, "tftp-#%d", opcode);
+	printf(" %s", cp);
+	/* Bail if bogus opcode */
+	if (*cp == 't')
 		return;
-	}
 
-	switch (tp->th_opcode) {
+	switch (opcode) {
 
 	case RRQ:
 	case WRQ:
 		putchar(' ');
-		if (printfn((u_char *)tp->th_stuff, ep)) {
+		/*
+		 * XXX Not all arpa/tftp.h's specify th_stuff as any
+		 * array; use address of th_block instead
+		 */
+#ifdef notdef
+		p = (u_char *)tp->th_stuff;
+#else
+		p = (u_char *)&tp->th_block;
+#endif
+		if (fn_print(p, ep)) {
 			fputs(&tstr[1], stdout);
 			return;
 		}
@@ -109,8 +115,7 @@ tftp_print(tp, length)
 
 	case DATA:
 		TCHECK(tp->th_block, sizeof(tp->th_block));
-		NTOHS(tp->th_block);
-		printf(" block %d", tp->th_block);
+		printf(" block %d", ntohs(tp->th_block));
 		break;
 
 	case ACK:
@@ -119,19 +124,10 @@ tftp_print(tp, length)
 	case ERROR:
 		/* Print error code string */
 		TCHECK(tp->th_code, sizeof(tp->th_code));
-		NTOHS(tp->th_code);
-		putchar(' ');
-		for (ts = err2str; ts->str; ++ts)
-			if (ts->code == tp->th_code) {
-				fputs(ts->str, stdout);
-				break;
-			}
-		if (ts->str == 0)
-			printf("tftp-err-#%d", tp->th_code);
-
+		printf(" %s ", tok2str(err2str, "tftp-err-#%d",
+				       ntohs(tp->th_code)));
 		/* Print error message string */
-		putchar(' ');
-		if (printfn((u_char *)tp->th_data, ep)) {
+		if (fn_print((const u_char *)tp->th_data, ep)) {
 			fputs(&tstr[1], stdout);
 			return;
 		}
@@ -139,7 +135,7 @@ tftp_print(tp, length)
 
 	default:
 		/* We shouldn't get here */
-		printf("(unknown #%d)", tp->th_opcode);
+		printf("(unknown #%d)", opcode);
 		break;
 	}
 	return;

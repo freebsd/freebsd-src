@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 1988, 1990 The Regents of the University of California.
- * All rights reserved.
+ * Copyright (c) 1990, 1992, 1993, 1994
+ *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that: (1) source code distributions
@@ -18,19 +18,18 @@
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * @(#) $Header: addrtoname.h,v 1.5 92/03/17 13:41:37 mccanne Exp $ (LBL)
+ * @(#) $Header: addrtoname.h,v 1.11 94/06/14 20:11:41 leres Exp $ (LBL)
  */
 
 /* Name to address translation routines. */
 
-extern char *etheraddr_string();
-extern char *etherproto_string();
-extern char *tcpport_string();
-extern char *udpport_string();
-extern char *getname();
-extern char *intoa();
+extern char *etheraddr_string(const u_char *);
+extern char *etherproto_string(u_short);
+extern char *tcpport_string(u_short);
+extern char *udpport_string(u_short);
+extern char *getname(const u_char *);
+extern char *intoa(u_int32);
 
-extern void init_addrtoname();
-extern void no_foreign_names();
+extern void init_addrtoname(int, u_int32, u_int32);
 
-#define ipaddr_string(p) getname((u_char *)(p))
+#define ipaddr_string(p) getname((const u_char *)(p))

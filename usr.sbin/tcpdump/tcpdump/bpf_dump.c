@@ -1,6 +1,6 @@
 /*
- * Copyright (c) 1990 The Regents of the University of California.
- * All rights reserved.
+ * Copyright (c) 1992, 1993, 1994
+ *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that: (1) source code distributions
@@ -20,17 +20,21 @@
  */
 #ifndef lint
 static char rcsid[] =
-    "@(#) $Header: bpf_dump.c,v 1.1 92/01/29 13:25:30 mccanne Exp $ (LBL)";
+    "@(#) $Header: bpf_dump.c,v 1.6 94/06/06 14:31:21 leres Exp $ (LBL)";
 #endif
 
 #include <sys/types.h>
 #include <sys/time.h>
-#include <net/bpf.h>
+
+#include <pcap.h>
+#include <stdio.h>
+
+#include "interface.h"
+
+extern void bpf_dump(struct bpf_program *, int);
 
 void
-bpf_dump(p, option)
-	struct bpf_program *p;
-	int option;
+bpf_dump(struct bpf_program *p, int option)
 {
 	struct bpf_insn *insn;
 	int i;
@@ -47,7 +51,7 @@ bpf_dump(p, option)
 	}
 	if (option > 1) {
 		for (i = 0; i < n; ++insn, ++i)
-			printf("{ 0x%x, %d, %d, 0x%08x },\n", 
+			printf("{ 0x%x, %d, %d, 0x%08x },\n",
 			       insn->code, insn->jt, insn->jf, insn->k);
 		return;
 	}
