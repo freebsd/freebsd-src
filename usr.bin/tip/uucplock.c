@@ -39,6 +39,8 @@ static char sccsid[] = "@(#)uucplock.c	8.1 (Berkeley) 6/6/93";
 #include <sys/file.h>
 #include <sys/dir.h>
 #include <errno.h>
+#include <unistd.h>
+#include <stdio.h>
 #include "pathnames.h"
 
 /* 
@@ -50,52 +52,43 @@ static char sccsid[] = "@(#)uucplock.c	8.1 (Berkeley) 6/6/93";
 uu_lock(ttyname)
 	char *ttyname;
 {
-	extern int errno;
 	int fd, pid;
 	char tbuf[sizeof(_PATH_LOCKDIRNAME) + MAXNAMLEN];
-	off_t lseek();
+	FILE *ff;
 
 	(void)sprintf(tbuf, _PATH_LOCKDIRNAME, ttyname);
-	fd = open(tbuf, O_RDWR|O_CREAT|O_EXCL, 0660);
-	if (fd < 0) {
+	fd = open(tbuf, O_WRONLY|O_CREAT|O_EXCL, 0644);
+	if (fd >= 0)
+		ff = fdopen(fd, "w");
+	if (fd < 0 || ff == NULL) {
 		/*
 		 * file is already locked
 		 * check to see if the process holding the lock still exists
 		 */
-		fd = open(tbuf, O_RDWR, 0);
-		if (fd < 0) {
+		ff = fopen(tbuf, "r+");
+		if (ff == NULL) {
 			perror("lock open");
 			return(-1);
 		}
-		if (read(fd, &pid, sizeof(pid)) != sizeof(pid)) {
-			(void)close(fd);
+		if (fscanf(ff, "%10d\n", &pid) != 1) {
 			perror("lock read");
+			(void)fclose(ff);
 			return(-1);
 		}
 
 		if (kill(pid, 0) == 0 || errno != ESRCH) {
-			(void)close(fd);	/* process is still running */
+			(void)fclose(ff);        /* process is still running */
 			return(-1);
 		}
 		/*
 		 * The process that locked the file isn't running, so
 		 * we'll lock it ourselves
 		 */
-		if (lseek(fd, 0L, L_SET) < 0) {
-			(void)close(fd);
-			perror("lock lseek");
-			return(-1);
-		}
+		rewind(ff);
 		/* fall out and finish the locking process */
 	}
-	pid = getpid();
-	if (write(fd, (char *)&pid, sizeof(pid)) != sizeof(pid)) {
-		(void)close(fd);
-		(void)unlink(tbuf);
-		perror("lock write");
-		return(-1);
-	}
-	(void)close(fd);
+	(void)fprintf(ff, "%10d\n", getpid());
+	(void)fclose(ff);
 	return(0);
 }
 
