@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_socket.c	8.3 (Berkeley) 1/12/94
- * $Id: nfs_socket.c,v 1.18 1996/10/11 10:15:33 dfr Exp $
+ * $Id: nfs_socket.c,v 1.18.2.1 1997/05/14 08:19:28 dfr Exp $
  */
 
 /*
@@ -845,7 +845,7 @@ nfs_request(vp, mrest, procnum, procp, cred, mrp, mdp, dposp)
 	struct mbuf **mdp;
 	caddr_t *dposp;
 {
-	register struct mbuf *m, *mrep;
+	register struct mbuf *m, *mrep, *m2;
 	register struct nfsreq *rep;
 	register u_long *tl;
 	register int i;
@@ -958,8 +958,8 @@ tryagain:
 		if (nmp->nm_soflags & PR_CONNREQUIRED)
 			error = nfs_sndlock(&nmp->nm_flag, rep);
 		if (!error) {
-			m = m_copym(m, 0, M_COPYALL, M_WAIT);
-			error = nfs_send(nmp->nm_so, nmp->nm_nam, m, rep);
+			m2 = m_copym(m, 0, M_COPYALL, M_WAIT);
+			error = nfs_send(nmp->nm_so, nmp->nm_nam, m2, rep);
 			if (nmp->nm_soflags & PR_CONNREQUIRED)
 				nfs_sndunlock(&nmp->nm_flag);
 		}
