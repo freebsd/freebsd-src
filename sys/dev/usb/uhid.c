@@ -229,8 +229,6 @@ USB_ATTACH(uhid)
 	if (err) {
 		printf("%s: no report descriptor\n", USBDEVNAME(sc->sc_dev));
 		sc->sc_dying = 1;
-		if (desc != NULL)
-			free(desc, M_USBDEV);
 		USB_ATTACH_ERROR_RETURN;
 	}
 	
