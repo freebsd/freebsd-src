@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_tl.c,v 1.2 1998/05/21 16:24:04 jkh Exp $
+ *	$Id: if_tl.c,v 1.3 1998/05/21 17:05:32 jkh Exp $
  */
 
 /*
@@ -240,7 +240,7 @@
 
 #ifndef lint
 static char rcsid[] =
-	"$Id: if_tl.c,v 1.2 1998/05/21 16:24:04 jkh Exp $";
+	"$Id: if_tl.c,v 1.3 1998/05/21 17:05:32 jkh Exp $";
 #endif
 
 /*
@@ -1040,12 +1040,7 @@ static void tl_setmulti(sc)
 	struct tl_csr		*csr;
 	u_int32_t		hashes[2] = { 0, 0 };
 	int			h;
-#if defined(__FreeBSD__) && __FreeBSD__ >= 3
 	struct ifmultiaddr	*ifma;
-#else
-	struct ether_multi	*enm;
-	struct ether_multistep	step;
-#endif
 
 	csr = sc->csr;
 	ifp = &sc->arpcom.ac_if;
@@ -1054,7 +1049,6 @@ static void tl_setmulti(sc)
 		hashes[0] = 0xFFFFFFFF;
 		hashes[1] = 0xFFFFFFFF;
 	} else {
-#if defined(__FreeBSD__) && __FreeBSD__ >= 3
 		for (ifma = ifp->if_multiaddrs.lh_first; ifma != NULL;
 					ifma = ifma->ifma_link.le_next) {
 			if (ifma->ifma_addr->sa_family != AF_LINK)
@@ -1066,24 +1060,6 @@ static void tl_setmulti(sc)
 			else
 				hashes[1] |= (1 << (h - 31));
 		}
-#else
-		ETHER_FIRST_MULTI(step, &sc->arpcom, enm);
-		while(enm != NULL) {
-			if (bcmp(enm->enm_addrlo, enm->enm_addrhi,
-						ETHER_ADDR_LEN)) {
-				hashes[0] = 0xFFFFFFFF;
-				hashes[1] = 0xFFFFFFFF;
-				break;
-			} else {
-				h = tl_calchash(enm->enm_addrlo);
-				if (h < 32)
-					hashes[0] |= (1 << h);
-				else
-					hashes[1] |= (1 << (h - 31));
-			}
-			ETHER_NEXT_MULTI(step, enm);
-		}
-#endif
 	}
 
 	DIO_SEL(TL_HASH1);
@@ -1322,9 +1298,7 @@ static int tl_attach_phy(csr, tl_unit, eaddr, tl_phy, ilist)
 	sc->tl_unit = tl_unit;
 	sc->tl_phy_addr = tl_phy;
 	sc->tl_iflist = ilist;
-#if defined(__FreeBSD__) && __FreeBSD__ >= 3
 	callout_handle_init(&sc->tl_stat_ch);
-#endif
 
 	frame.mii_regaddr = TL_PHY_VENID;
 	tl_mii_readreg(csr, &frame);
@@ -1495,11 +1469,7 @@ tl_attach_ctlr(config_id, unit)
 	s = splimp();
 
 	for (ilist = tl_iflist; ilist != NULL; ilist = ilist->tl_next)
-#if defined(__FreeBSD__) && __FreeBSD__ >= 3
 		if (ilist->tl_config_id == config_id)
-#else
-		if (sametag(ilist->tl_config_id, config_id))
-#endif
 			break;
 
 	if (ilist == NULL) {
@@ -1510,7 +1480,6 @@ tl_attach_ctlr(config_id, unit)
 	/*
 	 * Map control/status registers.
 	 */
-#if defined(__FreeBSD__) && __FreeBSD__ >= 3
 	pci_conf_write(config_id, PCI_COMMAND_STATUS_REG,
 			PCIM_CMD_MEMEN|PCIM_CMD_BUSMASTEREN);
 
@@ -1520,18 +1489,6 @@ tl_attach_ctlr(config_id, unit)
 		printf("tlc%d: failed to enable memory mapping!\n", unit);
 		goto fail;
 	}
-#else
-	pci_conf_write(config_id, PCI_COMMAND_STATUS_REG,
-			PCI_COMMAND_MEM_ENABLE|
-			PCI_COMMAND_MASTER_ENABLE);
-
-	command = pci_conf_read(config_id, PCI_COMMAND_STATUS_REG);
-
-	if (!(command & PCI_COMMAND_MEM_ENABLE)) {
-		printf("tlc%d: failed to enable memory mapping!\n", unit);
-		goto fail;
-	}
-#endif
 
 	if (!pci_map_mem(config_id, TL_PCI_LOMEM, &vbase, &pbase)) {
 		printf ("tlc%d: couldn't map memory\n", unit);
@@ -2102,11 +2059,9 @@ static void tl_stats_update(xsc)
 			    tl_rx_overrun(tl_stats);
 	ifp->if_oerrors += tl_tx_underrun(tl_stats);
 
-#if defined(__FreeBSD__) && __FreeBSD__ >= 3
 	sc->tl_stat_ch = timeout(tl_stats_update, sc, hz);
-#else
-	timeout(tl_stats_update, sc, hz);
-#endif
+
+	return;
 }
 
 /*
@@ -2383,11 +2338,7 @@ static void tl_init(xsc)
 	(void)splx(s);
 
 	/* Start the stats update counter */
-#if defined(__FreeBSD__) && __FreeBSD__ >= 3
 	sc->tl_stat_ch = timeout(tl_stats_update, sc, hz);
-#else
-	timeout(tl_stats_update, sc, hz);
-#endif
 
 	return;
 }
@@ -2502,19 +2453,8 @@ static int tl_ioctl(ifp, command, data)
 		break;
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
-#if defined(__FreeBSD__) && __FreeBSD__ < 3
-		if (command == SIOCADDMULTI)
-			error = ether_addmulti(ifr, &sc->arpcom);
-		else
-			error = ether_delmulti(ifr, &sc->arpcom);
-		if (error == ENETRESET) {
-			tl_setmulti(sc);
-			error = 0;
-		}
-#else
 		tl_setmulti(sc);
 		error = 0;
-#endif
 		break;
 	case SIOCSIFMEDIA:
 	case SIOCGIFMEDIA:
@@ -2575,11 +2515,7 @@ static void tl_stop(sc)
 	ifp = &sc->arpcom.ac_if;
 
 	/* Stop the stats updater. */
-#if defined(__FreeBSD__) && __FreeBSD__ >= 3
 	untimeout(tl_stats_update, sc, sc->tl_stat_ch);
-#else
-	untimeout(tl_stats_update, sc);
-#endif
 
 	/* Stop the transmitter */
 	sc->csr->tl_host_cmd &= TL_CMD_RT;
