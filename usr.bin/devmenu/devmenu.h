@@ -26,16 +26,13 @@
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: devmenu.h,v 1.1 1995/04/13 21:11:00 wollman Exp $
  */
 
 /* NB: must include sys/devconf.h before this file */
 
-/* Args are: title, help file, device name list */
-extern const char *devmenu_netif(const char *, const char *, char **);
-
-/* Args are: title, help file, class mask, name list */
-extern const char *devmenu(const char *, const char *, enum dc_class, char **);
+/* Args are: title, help file, device name list, states */
+extern const char *devmenu_netif(const char *, const char *, char **, int);
 
 extern char *devmenu_toname(const struct devconf *);
 
@@ -48,7 +45,8 @@ extern struct devconf **devmenu_alldevs(void);
 /* Frees the array allocated above */
 extern void devmenu_freedevs(struct devconf ***);
 
-/* Args are: title, help file, name list, prompt, no-devices message, class */
+/* Args are: title, help file, name list, prompt, no-devices, class, states */
 extern const char *devmenu_common(const char *, const char *, char **,
-				  const char *, const char *, enum dc_class);
+				  const char *, const char *, enum dc_class,
+				  int);
 
