@@ -14,7 +14,6 @@ account		required	pam_unix.so
 
 # session
 session		required	pam_lastlog.so
-session		required	pam_permit.so
 
 # password
 password	required	pam_permit.so
