@@ -413,6 +413,7 @@ epic_attach(dev)
 
 	ifp->if_hdrlen = sizeof(struct ether_vlan_header);
 	ifp->if_capabilities |= IFCAP_VLAN_MTU;
+	ifp->if_capenable |= IFCAP_VLAN_MTU;
 	callout_handle_init(&sc->stat_ch);
 
 	/* Activate our interrupt handler. */
