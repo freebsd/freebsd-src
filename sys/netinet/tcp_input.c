@@ -2857,9 +2857,11 @@ tcp_mss(tp, offer)
 		tp->snd_cwnd = min(4 * mss, max(2 * mss, 4380));
 #ifdef INET6
 	else if ((isipv6 && in6_localaddr(&inp->in6p_faddr)) ||
-	    (!isipv6 && in_localaddr(inp->inp_faddr)))
-		tp->snd_cwnd = mss * ss_fltsz_local;
+		 (!isipv6 && in_localaddr(inp->inp_faddr)))
+#else
+	else if (in_localaddr(inp->inp_faddr))
 #endif
+		tp->snd_cwnd = mss * ss_fltsz_local;
 	else
 		tp->snd_cwnd = mss * ss_fltsz;
 }
