@@ -47,6 +47,7 @@
 
 /* Exported for libstand */
 struct devsw *devsw[] = {
+    &bioscd,
     &biosdisk,
 #if defined(LOADER_NFS_SUPPORT) || defined(LOADER_TFTP_SUPPORT)
     &pxedisk,
@@ -58,6 +59,7 @@ struct fs_ops *file_system[] = {
     &ufs_fsops,
     &ext2fs_fsops,
     &dosfs_fsops,
+    &cd9660_fsops,
 #ifdef LOADER_GZIP_SUPPORT
     &zipfs_fsops,
 #endif
