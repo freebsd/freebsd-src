@@ -907,13 +907,12 @@ getmemsize(caddr_t kmdp, u_int64_t first)
 				if (boothowto & RB_VERBOSE)
 					printf(
 	"Overlapping or non-montonic memory region, ignoring second region\n");
-				goto next_run;
+				continue;
 			}
 		}
 
 		if (smap->base == physmap[physmap_idx + 1]) {
 			physmap[physmap_idx + 1] += smap->length;
-next_run:
 			continue;
 		}
 
