@@ -38,7 +38,7 @@
 struct proc;
 
 struct pcic_event {
-	SIMPLEQ_ENTRY(pcic_event) pe_q;
+	STAILQ_ENTRY(pcic_event) pe_q;
 	int pe_type;
 };
 
@@ -70,7 +70,7 @@ struct pcic_handle {
 
 	int shutdown;
 	struct proc *event_thread;
-	SIMPLEQ_HEAD(, pcic_event) events;
+	STAILQ_HEAD(, pcic_event) events;
 };
 
 #define	PCIC_FLAG_SOCKETP	0x0001
@@ -96,7 +96,7 @@ struct pcic_handle {
 #define	PCIC_NSLOTS	4
 
 struct pcic_softc {
-	struct device dev;
+	device_t dev;
 
 	bus_space_tag_t memt;
 	bus_space_handle_t memh;
@@ -136,12 +136,9 @@ int	pcic_ident_ok __P((int));
 int	pcic_vendor __P((struct pcic_handle *));
 char	*pcic_vendor_to_string __P((int));
 
-void	pcic_attach __P((struct pcic_softc *));
+void	pcic_attach(device_t dev);
 void	pcic_attach_sockets __P((struct pcic_softc *));
 int	pcic_intr __P((void *arg));
-
-static __inline int pcic_read __P((struct pcic_handle *, int));
-static __inline void pcic_write __P((struct pcic_handle *, int, int));
 
 int	pcic_chip_mem_alloc __P((pccard_chipset_handle_t, bus_size_t,
 	    struct pccard_mem_handle *));
