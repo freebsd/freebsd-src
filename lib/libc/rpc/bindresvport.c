@@ -29,13 +29,13 @@
  * Mountain View, California  94043
  */
 
-#include <sys/cdefs.h>
 #if defined(LIBC_SCCS) && !defined(lint)
 /*static char *sccsid = "from: @(#)bindresvport.c 1.8 88/02/08 SMI";*/
 /*static char *sccsid = "from: @(#)bindresvport.c	2.2 88/07/29 4.0 RPCSRC";*/
 /*from: OpenBSD: bindresvport.c,v 1.7 1996/07/30 16:25:47 downsj Exp */
-static char *rcsid = "$FreeBSD$";
 #endif
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * Copyright (c) 1987 by Sun Microsystems, Inc.

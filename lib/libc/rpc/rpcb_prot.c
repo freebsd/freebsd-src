@@ -35,11 +35,11 @@
 
 /* #ident	"@(#)rpcb_prot.c	1.13	94/04/24 SMI" */
 
-#if 0
 #if !defined(lint) && defined(SCCSIDS)
 static char sccsid[] = "@(#)rpcb_prot.c 1.9 89/04/21 Copyr 1984 Sun Micro";
 #endif
-#endif
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * rpcb_prot.c

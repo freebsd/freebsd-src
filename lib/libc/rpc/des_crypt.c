@@ -35,10 +35,13 @@
 #include <rpc/des_crypt.h>
 #include <rpc/des.h>
 
+#if 0
 #ifndef lint
-/* from: static char sccsid[] = "@(#)des_crypt.c	2.2 88/08/10 4.0 RPCSRC; from 1.13 88/02/08 SMI"; */
-static const char rcsid[] = "$FreeBSD$";
+static char sccsid[] = "@(#)des_crypt.c	2.2 88/08/10 4.0 RPCSRC; from 1.13 88/02/08 SMI";
 #endif
+#endif
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 static int common_crypt( char *, char *, unsigned, unsigned, struct desparams * );
 int (*__des_crypt_LOCAL)() = 0;

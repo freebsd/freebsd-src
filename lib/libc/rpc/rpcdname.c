@@ -30,7 +30,8 @@
 #if !defined(lint) && defined(SCCSIDS)
 static char sccsid[] = "@(#)rpcdname.c 1.7 91/03/11 Copyr 1989 Sun Micro";
 #endif
-/*	$FreeBSD$ */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * rpcdname.c

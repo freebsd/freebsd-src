@@ -1,5 +1,4 @@
 /*	$NetBSD: svc_simple.c,v 1.20 2000/07/06 03:10:35 christos Exp $	*/
-/*	$FreeBSD$ */
 
 /*
  * Sun RPC is a product of Sun Microsystems, Inc. and is provided for
@@ -34,6 +33,8 @@
  */
 
 /* #pragma ident	"@(#)svc_simple.c	1.18	94/04/24 SMI" */
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * svc_simple.c

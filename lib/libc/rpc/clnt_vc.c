@@ -1,5 +1,4 @@
 /*	$NetBSD: clnt_vc.c,v 1.4 2000/07/14 08:40:42 fvdl Exp $	*/
-/*	$FreeBSD$ */
 
 /*
  * Sun RPC is a product of Sun Microsystems, Inc. and is provided for
@@ -30,12 +29,13 @@
  * Mountain View, California  94043
  */
 
-#include <sys/cdefs.h>
 #if defined(LIBC_SCCS) && !defined(lint)
 static char *sccsid = "@(#)clnt_tcp.c 1.37 87/10/05 Copyr 1984 Sun Micro";
 static char *sccsid = "@(#)clnt_tcp.c	2.2 88/08/01 4.0 RPCSRC";
 static char sccsid[] = "@(#)clnt_vc.c 1.19 89/03/16 Copyr 1988 Sun Micro";
 #endif
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
  
 /*
  * clnt_tcp.c, Implements a TCP/IP based, client side RPC.
