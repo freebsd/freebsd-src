@@ -115,7 +115,8 @@ static char	length[10] = "-l";	/* page length in lines */
 static char	logname[32];		/* user's login name */
 static char	pxlength[10] = "-y";	/* page length in pixels */
 static char	pxwidth[10] = "-x";	/* page width in pixels */
-static char	tempfile[] = "errsXXXXXX"; /* file name for filter errors */
+/* tempstderr is the filename used to catch stderr from exec-ing filters */
+static char	tempstderr[] = "errs.XXXXXXX";
 static char	width[10] = "-w";	/* page width in static characters */
 #define TFILENAME "fltXXXXXX"
 static char	tfile[] = TFILENAME;	/* file name for filter output */
@@ -151,8 +152,9 @@ printjob(pp)
 	register struct jobqueue *q, **qp;
 	struct jobqueue **queue;
 	register int i, nitems;
-	off_t pidoff;
-	int errcnt, count = 0;
+	off_t	 pidoff;
+	int	 errcnt, count = 0;
+	int	 tempfd;
 
 	init(pp); /* set up capabilities */
 	(void) write(1, "", 1);	/* ack that daemon is started */
@@ -168,8 +170,6 @@ printjob(pp)
 	signal(SIGINT, abortpr);
 	signal(SIGQUIT, abortpr);
 	signal(SIGTERM, abortpr);
-
-	(void) mktemp(tempfile);
 
 	/*
 	 * uses short form file names
@@ -218,6 +218,21 @@ printjob(pp)
 			syslog(LOG_ERR, "%s: %s: %m", pp->printer,
 			       pp->lock_file);
 	}
+
+	/* create a file which will be used to hold stderr from filters */
+	if ((tempfd = mkstemp(tempstderr)) == -1) {
+		syslog(LOG_ERR, "%s: mkstemp(%s): %m", pp->printer,
+		       tempstderr);
+		exit(-1);
+	}
+	if ((i = fchmod(tempfd, 0664)) == -1) {
+		syslog(LOG_ERR, "%s: fchmod(%s): %m", pp->printer,
+		       tempstderr);
+		exit(-1);
+	}
+	/* lpd doesn't need it to be open, it just needs it to exist */
+	close(tempfd);
+
 	openpr(pp);			/* open printer or remote */
 again:
 	/*
@@ -314,7 +329,7 @@ again:
 		}
 		(void) close(ofd);
 		(void) wait(NULL);
-		(void) unlink(tempfile);
+		(void) unlink(tempstderr);
 		exit(0);
 	}
 	goto again;
@@ -339,9 +354,8 @@ printit(pp, file)
 	char *file;
 {
 	register int i;
-	char	*cp;
-	int	 bombed = OK;
-	int	 didignorehdr = 0;
+	char *cp;
+	int bombed = OK;
 
 	/*
 	 * open control file; ignore if no longer there.
@@ -760,7 +774,9 @@ start:
 	if ((child = dofork(pp, DORETURN)) == 0) { /* child */
 		dup2(fi, 0);
 		dup2(fo, 1);
-		n = open(tempfile, O_WRONLY|O_CREAT|O_TRUNC, 0664);
+		/* setup stderr for the filter (child process)
+		 * so it goes to our temporary errors file */
+		n = open(tempstderr, O_WRONLY|O_TRUNC, 0664);
 		if (n >= 0)
 			dup2(n, 2);
 		closelog();
@@ -785,8 +801,8 @@ start:
 	}
 	pp->tof = 0;
 
-	/* Copy filter output to "lf" logfile */
-	if ((fp = fopen(tempfile, "r"))) {
+	/* Copy the filter's output to "lf" logfile */
+	if ((fp = fopen(tempstderr, "r"))) {
 		while (fgets(buf, sizeof(buf), fp))
 			fputs(buf, stderr);
 		fclose(fp);
@@ -933,6 +949,7 @@ sendfile(pp, type, file, format)
 {
 	register int f, i, amt;
 	struct stat stb;
+	FILE *fp;
 	char buf[BUFSIZ];
 	int sizerr, resp, closedpr;
 
@@ -990,8 +1007,9 @@ sendfile(pp, type, file, format)
 			if ((ifilter = dofork(pp, DORETURN)) == 0) { /* child */
 				dup2(f, 0);
 				dup2(tfd, 1);
-				n = open(tempfile, O_WRONLY|O_CREAT|O_TRUNC,
-					 TEMP_FILE_MODE);
+				/* setup stderr for the filter (child process)
+				 * so it goes to our temporary errors file */
+				n = open(tempstderr, O_WRONLY|O_TRUNC, 0664);
 				if (n >= 0)
 					dup2(n, 2);
 				closelog();
@@ -1008,6 +1026,13 @@ sendfile(pp, type, file, format)
 				while ((pid = wait((int *)&status)) > 0 &&
 					pid != ifilter)
 					;
+			/* Copy the filter's output to "lf" logfile */
+			if ((fp = fopen(tempstderr, "r"))) {
+				while (fgets(buf, sizeof(buf), fp))
+					fputs(buf, stderr);
+				fclose(fp);
+			}
+			/* process the return-code from the filter */
 			switch (status.w_retcode) {
 			case 0:
 				break;
@@ -1322,8 +1347,8 @@ sendmail(pp, user, bombed)
 			cp = "NOACCT";
 			break;
 		case FILTERERR:
-			if (stat(tempfile, &stb) < 0 || stb.st_size == 0 ||
-			    (fp = fopen(tempfile, "r")) == NULL) {
+			if (stat(tempstderr, &stb) < 0 || stb.st_size == 0
+			    || (fp = fopen(tempstderr, "r")) == NULL) {
 				printf("\nhad some errors and may not have printed\n");
 				break;
 			}
@@ -1402,7 +1427,8 @@ static void
 abortpr(signo)
 	int signo;
 {
-	(void) unlink(tempfile);
+
+	(void) unlink(tempstderr);
 	kill(0, SIGINT);
 	if (ofilter > 0)
 		kill(ofilter, SIGCONT);
