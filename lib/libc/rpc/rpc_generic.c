@@ -137,21 +137,22 @@ __rpc_get_t_size(af, proto, size)
 	int af, proto;
 	int size;	/* Size requested */
 {
-	int maxsize;
+	int maxsize, defsize;
 
+	maxsize = 256 * 1024;	/* XXX */
 	switch (proto) {
 	case IPPROTO_TCP:
-		maxsize = 65536;	/* XXX */
+		defsize = 64 * 1024;	/* XXX */
 		break;
 	case IPPROTO_UDP:
-		maxsize = 8192;		/* XXX */
+		defsize = UDPMSGSIZE;
 		break;
 	default:
-		maxsize = RPC_MAXDATASIZE;
+		defsize = RPC_MAXDATASIZE;
 		break;
 	}
 	if (size == 0)
-		return maxsize;
+		return defsize;
 
 	/* Check whether the value is within the upper max limit */
 	return (size > maxsize ? (u_int)maxsize : (u_int)size);
