@@ -1,4 +1,4 @@
-<!-- $Id: contrib.sgml,v 1.167 1996/12/08 22:18:19 max Exp $ -->
+<!-- $Id: contrib.sgml,v 1.168 1996/12/08 22:38:52 obrien Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!-- Please try to keep the file 'avail' (from CVSROOT) 
@@ -219,6 +219,7 @@
 	  <item>Dave Rivers &lt;rivers@ponds.uucp&gt;
 	  <item>David Dawes &lt;dawes@physics.su.OZ.AU&gt;
 	  <item>David Leonard &lt;d@scry.dstc.edu.au&gt;
+	  <item>David L. Nugent &lt;davidn@blaze.net.au&gt;
 	  <item>Dean Huxley &lt;dean@fsa.ca&gt;
 	  <item>Dirk Froemberg &lt;dirk@hal.in-berlin.de&gt;
 	  <item>Dmitry Kohmanyuk &lt;dk@farm.org&gt;
