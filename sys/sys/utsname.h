@@ -50,20 +50,12 @@ struct utsname {
 	char	machine[SYS_NMLN];	/* Hardware type. */
 };
 
-
 #include <sys/cdefs.h>
 
-
 #ifndef _KERNEL
-#ifdef __STDC__
 __BEGIN_DECLS
 int	uname __P((struct utsname *));
 __END_DECLS
-#else
-extern int uname();
-#endif
-#else
-extern struct utsname utsname;
 #endif	/* _KERNEL */
 
 #endif	/* !_SYS_UTSNAME_H */
