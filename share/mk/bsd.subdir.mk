@@ -31,8 +31,17 @@
 
 .include <bsd.init.mk>
 
+DISTRIBUTION?=	base
+.if !target(distribute)
+distribute:
+.for dist in ${DISTRIBUTION}
+	cd ${.CURDIR}; \
+	    ${MAKE} install -DNO_SUBDIR DESTDIR=${DISTDIR}/${dist} SHARED=copies
+.endfor
+.endif
+
 _SUBDIR: .USE
-.if defined(SUBDIR) && !empty(SUBDIR)
+.if defined(SUBDIR) && !empty(SUBDIR) && !defined(NO_SUBDIR)
 	@for entry in ${SUBDIR}; do \
 		if test -d ${.CURDIR}/$${entry}.${MACHINE_ARCH}; then \
 			${ECHODIR} "===> ${DIRPRFX}$${entry}.${MACHINE_ARCH}"; \
