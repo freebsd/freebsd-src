@@ -147,6 +147,7 @@ chn_dmaupdate(struct pcm_channel *c)
 
 	KASSERT(sndbuf_getsize(b) > 0, ("bufsize == 0"));
 	CHN_LOCKASSERT(c);
+
 	old = sndbuf_gethwptr(b);
 	hwptr = chn_getptr(c);
 	delta = (sndbuf_getsize(b) + hwptr - old) % sndbuf_getsize(b);
@@ -191,8 +192,6 @@ chn_wrupdate(struct pcm_channel *c)
 
 }
 
-static int irqc = 0;
-
 int
 chn_wrfeed(struct pcm_channel *c)
 {
@@ -207,16 +206,17 @@ chn_wrfeed(struct pcm_channel *c)
 		sndbuf_dump(bs, "bs", 0x02);
 	})
 
+	if (c->flags & CHN_F_MAPPED)
+		sndbuf_acquire(bs, NULL, sndbuf_getfree(bs));
+
 	amt = sndbuf_getfree(b);
 	if (sndbuf_getready(bs) < amt)
 		c->xruns++;
+
 	ret = (amt > 0)? sndbuf_feed(bs, b, c, c->feeder, amt) : ENOSPC;
 	if (ret == 0 && sndbuf_getfree(b) < amt)
 		chn_wakeup(c);
-/*
-	if (!(irqc & 63) || (ret != 0))
-		sndbuf_dump(b, "b:wrfeed", 0x03);
-*/
+
 	return ret;
 }
 
@@ -226,7 +226,6 @@ chn_wrintr(struct pcm_channel *c)
 	int ret;
 
 	CHN_LOCKASSERT(c);
-	irqc++;
 	/* update pointers in primary buffer */
 	chn_dmaupdate(c);
 	/* ...and feed from secondary to primary */
