@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)init_main.c	8.9 (Berkeley) 1/21/94
- * $Id: init_main.c,v 1.12 1994/10/02 04:45:45 davidg Exp $
+ * $Id: init_main.c,v 1.13 1994/10/09 07:34:52 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -136,11 +136,6 @@ main(framep)
 	 */
 	p = &proc0;
 	curproc = p;
-	/*
-	 * Attempt to find console and initialize
-	 * in case of early panic or other messages.
-	 */
-	consinit();
 	printf(copyright);
 
 	vm_mem_init();
