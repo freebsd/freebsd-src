@@ -15,10 +15,11 @@
  *
  * Sep, 1994	Implemented on FreeBSD 1.1.5.1R (Toshiba AVS001WD)
  *
- *	$Id: apm.c,v 1.69 1998/02/09 06:08:06 eivind Exp $
+ *	$Id: apm.c,v 1.70 1998/03/30 09:47:57 phk Exp $
  */
 
 #include "opt_devfs.h"
+#include "opt_vm86.h"
 
 #include <sys/param.h>
 #include <sys/conf.h>
@@ -38,6 +39,11 @@
 #include <sys/syslog.h>
 #include <i386/apm/apm_setup.h>
 
+#ifdef VM86
+#include <machine/psl.h>
+#include <machine/vm86.h>
+#endif
+
 static int apm_display __P((int newstate));
 static int apm_int __P((u_long *eax, u_long *ebx, u_long *ecx, u_long *edx));
 static void apm_resume __P((void));
@@ -49,7 +55,7 @@ struct apm_softc {
 	int	disabled, disengaged;
 	u_int	minorversion, majorversion;
 	u_int	cs32_base, cs16_base, ds_base;
-	u_int	cs_limit, ds_limit;
+	u_int	cs16_limit, cs32_limit, ds_limit;
 	u_int	cs_entry;
 	u_int	intversion;
 	struct apmhook sc_suspend;
@@ -83,15 +89,15 @@ static struct cdevsw apm_cdevsw =
 
 /* setup APM GDT discriptors */
 static void
-setup_apm_gdt(u_int code32_base, u_int code16_base, u_int data_base, u_int code_limit, u_int data_limit)
+setup_apm_gdt(u_int code32_base, u_int code16_base, u_int data_base, u_int code32_limit, u_int code16_limit, u_int data_limit)
 {
 	/* setup 32bit code segment */
 	gdt_segs[GAPMCODE32_SEL].ssd_base  = code32_base;
-	gdt_segs[GAPMCODE32_SEL].ssd_limit = code_limit;
+	gdt_segs[GAPMCODE32_SEL].ssd_limit = code32_limit;
 
 	/* setup 16bit code segment */
 	gdt_segs[GAPMCODE16_SEL].ssd_base  = code16_base;
-	gdt_segs[GAPMCODE16_SEL].ssd_limit = code_limit;
+	gdt_segs[GAPMCODE16_SEL].ssd_limit = code16_limit;
 
 	/* setup data segment */
 	gdt_segs[GAPMDATA_SEL  ].ssd_base  = data_base;
@@ -613,17 +619,73 @@ struct isa_driver apmdriver = { apmprobe, apmattach, "apm" };
  * this process forces the CPU to turn to real mode or V86 mode.
  * Current version uses real mode, but in a future version, we want
  * to use V86 mode in APM initialization.
+ * 
+ * XXX If VM86 is defined, we do.
  */
 
 static int
 apmprobe(struct isa_device *dvp)
 {
-	bzero(&apm_softc, sizeof(apm_softc));
+#ifdef VM86
+	struct vm86frame	vmf;
+	int			i;
+#endif
 
 	if ( dvp->id_unit > 0 ) {
 		printf("apm: Only one APM driver supported.\n");
 		return 0;
 	}
+
+#ifdef VM86
+	bzero(&vmf, sizeof(struct vm86frame));		/* safety */
+	vmf.vmf_ax = 0x5300;
+	vmf.vmf_bx = 0;
+	if (((i = vm86_intcall(0x15, &vmf)) == 0) &&
+	    !(vmf.vmf_eflags & PSL_C) && 
+	    (vmf.vmf_bx == 0x504d)) {
+
+		apm_version   = vmf.vmf_ax;
+		apm_flags     = vmf.vmf_cx;
+
+		vmf.vmf_ax = 0x5303;
+		vmf.vmf_bx = 0;
+		if (((i = vm86_intcall(0x15, &vmf)) == 0) &&
+		    !(vmf.vmf_eflags & PSL_C)) {
+
+			apm_cs32_base = vmf.vmf_ax;
+			apm_cs_entry  = vmf.vmf_ebx;
+			apm_cs16_base = vmf.vmf_cx;
+			apm_ds_base   = vmf.vmf_dx;
+			apm_cs32_limit  = vmf.vmf_si;
+			if (apm_version >= 0x0102)
+				apm_cs16_limit = (vmf.esi.r_ex >> 16);
+			apm_ds_limit  = vmf.vmf_di;
+#ifdef APM_DEBUG
+			printf("apm: BIOS probe/32-bit connect successful\n");
+#endif
+		} else {
+			/* XXX constant typo! */
+			if (vmf.vmf_ah == APME_PROT32NOTDUPPORTED) {
+				apm_version = APMINI_NOT32BIT;
+			} else {
+				apm_version = APMINI_CONNECTERR;
+			}
+#ifdef APM_DEBUG
+			printf("apm: BIOS 32-bit connect failed: error 0x%x  carry %d  ah 0x%x\n",
+			       i, (vmf.vmf_eflags & PSL_C) ? 1 : 0, vmf.vmf_ah);
+#endif
+		}
+	} else {
+		apm_version = APMINI_CANTFIND;
+#ifdef APM_DEBUG
+		printf("apm: BIOS probe failed: error 0x%x  carry %d  bx 0x%x\n",
+		       i, (vmf.vmf_eflags & PSL_C) ? 1 : 0, vmf.vmf_bx);
+#endif
+	}
+#endif
+
+	bzero(&apm_softc, sizeof(apm_softc));
+
 	switch (apm_version) {
 	case APMINI_CANTFIND:
 		/* silent */
@@ -716,8 +778,11 @@ apmattach(struct isa_device *dvp)
 	sc->cs16_base = (apm_cs16_base << 4) + APM_KERNBASE;
 	sc->cs32_base = (apm_cs32_base << 4) + APM_KERNBASE;
 	sc->ds_base = (apm_ds_base << 4) + APM_KERNBASE;
-	sc->cs_limit = apm_cs_limit;
-	sc->ds_limit = apm_ds_limit;
+	sc->cs32_limit = apm_cs32_limit - 1;
+	if (apm_cs16_limit == 0)
+	    apm_cs16_limit == apm_cs32_limit;
+	sc->cs16_limit = apm_cs16_limit - 1;
+	sc->ds_limit = apm_ds_limit - 1;
 	sc->cs_entry = apm_cs_entry;
 
 	/* Always call HLT in idle loop */
@@ -735,8 +800,8 @@ apmattach(struct isa_device *dvp)
 	printf("apm: Code entry 0x%08x, Idling CPU %s, Management %s\n",
 		sc->cs_entry, is_enabled(sc->slow_idle_cpu),
 		is_enabled(!sc->disabled));
-	printf("apm: CS_limit=0x%x, DS_limit=0x%x\n",
-		sc->cs_limit, sc->ds_limit);
+	printf("apm: CS32_limit=0x%x, CS16_limit=0x%x, DS_limit=0x%x\n",
+		(u_short)sc->cs32_limit, (u_short)sc->cs16_limit, (u_short)sc->ds_limit);
 #endif /* APM_DEBUG */
 
 #if 0
@@ -747,7 +812,7 @@ apmattach(struct isa_device *dvp)
 
 	/* setup GDT */
 	setup_apm_gdt(sc->cs32_base, sc->cs16_base, sc->ds_base,
-			sc->cs_limit, sc->ds_limit);
+			sc->cs32_limit, sc->cs16_limit, sc->ds_limit);
 
 	/* setup entry point 48bit pointer */
 	apm_addr.segment = GSEL(GAPMCODE32_SEL, SEL_KPL);
