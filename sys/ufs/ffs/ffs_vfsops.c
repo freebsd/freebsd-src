@@ -853,10 +853,12 @@ ffs_oldfscompat_read(fs, ump, sblockloc)
 		fs->fs_qbmask = ~fs->fs_bmask;
 		fs->fs_qfmask = ~fs->fs_fmask;
 	}
-	ump->um_savedmaxfilesize = fs->fs_maxfilesize;
-	maxfilesize = (u_int64_t)0x40000000 * fs->fs_bsize - 1;
-	if (fs->fs_maxfilesize > maxfilesize)
-		fs->fs_maxfilesize = maxfilesize;
+	if (fs->fs_magic == FS_UFS1_MAGIC) {
+		ump->um_savedmaxfilesize = fs->fs_maxfilesize;
+		maxfilesize = (u_int64_t)0x40000000 * fs->fs_bsize - 1;
+		if (fs->fs_maxfilesize > maxfilesize)
+			fs->fs_maxfilesize = maxfilesize;
+	}
 	/* Compatibility for old filesystems */
 	if (fs->fs_avgfilesize <= 0)
 		fs->fs_avgfilesize = AVFILESIZ;
@@ -890,8 +892,8 @@ ffs_oldfscompat_write(fs, ump)
 		fs->fs_old_cstotal.cs_nbfree = fs->fs_cstotal.cs_nbfree;
 		fs->fs_old_cstotal.cs_nifree = fs->fs_cstotal.cs_nifree;
 		fs->fs_old_cstotal.cs_nffree = fs->fs_cstotal.cs_nffree;
+		fs->fs_maxfilesize = ump->um_savedmaxfilesize;
 	}
-	fs->fs_maxfilesize = ump->um_savedmaxfilesize;
 	if (bigcgs) {
 		fs->fs_cgsize = fs->fs_save_cgsize;
 		fs->fs_save_cgsize = 0;
