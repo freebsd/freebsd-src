@@ -470,8 +470,10 @@ pgdelete(pgrp)
 	SESS_UNLOCK(savesess);
 	PGRP_UNLOCK(pgrp);
 	if (i == 0) {
+		if (savesess->s_ttyp != NULL)
+			ttyrel(savesess->s_ttyp);
 		mtx_destroy(&savesess->s_mtx);
-		FREE(pgrp->pg_session, M_SESSION);
+		FREE(savesess, M_SESSION);
 	}
 	mtx_destroy(&pgrp->pg_mtx);
 	FREE(pgrp, M_PGRP);
