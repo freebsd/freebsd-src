@@ -183,8 +183,8 @@ ID0uu_lock_txfr(const char *basettyname, pid_t newpid)
 
   ID0set0();
   ret = uu_lock_txfr(basettyname, newpid);
-  log_Printf(LogID0, "%d = uu_lock_txfr(\"%s\", %d)\n", ret, basettyname,
-             (int)newpid);
+  log_Printf(LogID0, "%d = uu_lock_txfr(\"%s\", %ld)\n", ret, basettyname,
+             (long)newpid);
   ID0setuser();
   return ret;
 }
@@ -268,7 +268,7 @@ ID0kill(pid_t pid, int sig)
 
   ID0set0();
   result = kill(pid, sig);
-  log_Printf(LogID0, "%d = kill(%d, %d)\n", result, (int)pid, sig);
+  log_Printf(LogID0, "%d = kill(%ld, %d)\n", result, (long)pid, sig);
   ID0setuser();
   return result;
 }

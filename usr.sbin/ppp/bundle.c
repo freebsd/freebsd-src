@@ -1615,8 +1615,8 @@ bundle_SendDatalink(struct datalink *dl, int s, struct sockaddr_un *sun)
       int res;
 
       if ((got = read(reply[0], &newpid, sizeof newpid)) == sizeof newpid) {
-        log_Printf(LogDEBUG, "Received confirmation from pid %d\n",
-                   (int)newpid);
+        log_Printf(LogDEBUG, "Received confirmation from pid %ld\n",
+                   (long)newpid);
         if (lock && (res = ID0uu_lock_txfr(lock, newpid)) != UU_LOCK_OK)
             log_Printf(LogERROR, "uu_lock_txfr: %s\n", uu_lockerr(res));
 
@@ -1756,8 +1756,8 @@ bundle_setsid(struct bundle *bundle, int holdsession)
           close(fds[0]);
           setsid();
           bundle_ChangedPID(bundle);
-          log_Printf(LogDEBUG, "%d -> %d: %s session control\n",
-                     (int)orig, (int)getpid(),
+          log_Printf(LogDEBUG, "%ld -> %ld: %s session control\n",
+                     (long)orig, (long)getpid(),
                      holdsession ? "Passed" : "Dropped");
           timer_InitService(0);		/* Start the Timer Service */
           break;
