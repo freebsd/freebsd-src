@@ -91,6 +91,8 @@
 #define PCIC_VMISC	0x3a	/* Vadem: Misc control register */
 #define PCIC_RICOH_ID	0x3a	/* Ricoh: ID register */
 
+#define PCIC_TOPIC_FCR	0x3e	/* Toshiba ToPIC: Function Control Register */
+
 #define	PCIC_TIME_SETUP0	0x3a
 #define	PCIC_TIME_CMD0		0x3b
 #define	PCIC_TIME_RECOV0	0x3c
@@ -262,6 +264,10 @@
 /* Ricoh: ID register values (PCIC_RICOH_ID) */
 #define PCIC_RID_296	0x32
 #define PCIC_RID_396	0xb2
+
+/* Toshiba ToPIC: Function Control Register */
+#define PCIC_FCR_3V_EN		0x01	/* Enable 3V cards */
+#define PCIC_FCR_VS_EN		0x02	/* Voltage Sense enable */
 
 /*
  *	Mask of allowable interrupts.
