@@ -76,3 +76,5 @@ o If you don't like seeing additional interface aliases when running in
   check the sample file.
 o Ppp waits for 1 second before checking whether the device supports
   carrier.  This is controllable with ``set cd''.
+o Random dial timeouts are now between 1 and 30 seconds inclusive rather
+  than between 0 and 29.

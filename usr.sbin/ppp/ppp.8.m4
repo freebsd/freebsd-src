@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.149 1999/02/16 00:16:56 brian Exp $
+.\" $Id: ppp.8,v 1.150 1999/02/18 00:52:15 brian Exp $
 .Dd 20 September 1995
 .nr XX \w'\fC00'
 .Os FreeBSD
@@ -844,14 +844,14 @@ set redial seconds|random[.nseconds|random] [dial_attempts]
 is the number of seconds to wait before attempting
 to connect again. If the argument is
 .Sq random ,
-the delay period is a random value between 0 and 30 seconds.
+the delay period is a random value between 1 and 30 seconds inclusive.
 .Sq Nseconds
 is the number of seconds to wait before attempting
 to dial the next number in a list of numbers (see the
 .Dq set phone
 command).  The default is 3 seconds.  Again, if the argument is
 .Sq random ,
-the delay period is a random value between 0 and 30 seconds.
+the delay period is a random value between 1 and 30 seconds.
 .Sq dial_attempts
 is the number of times to try to connect for each outgoing packet
 that is received. The previous value is unchanged if this parameter
@@ -3826,7 +3826,7 @@ defaults to zero.  A value of
 .Ar random
 for
 .Ar timeout
-will result in a variable pause, somewhere between 0 and 30 seconds.
+will result in a variable pause, somewhere between 1 and 30 seconds.
 .It set recvpipe Op Ar value
 This sets the routing table RECVPIPE value.  The optimum value is
 just over twice the MTU value.  If
@@ -3848,7 +3848,7 @@ may be used here in place of
 .Ar seconds
 and
 .Ar nseconds ,
-causing a random delay of between 0 and 30 seconds.
+causing a random delay of between 1 and 30 seconds.
 .Pp
 Note, this delay will be effective, even after
 .Ar attempts
