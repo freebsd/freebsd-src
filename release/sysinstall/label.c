@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: label.c,v 1.32.2.12 1995/10/16 15:14:09 jkh Exp $
+ * $Id: label.c,v 1.32.2.13 1995/10/16 23:02:22 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -163,33 +163,30 @@ int
 diskLabelCommit(char *str)
 {
     char *cp;
+    int i;
 
     /* Already done? */
     if ((cp = variable_get(DISK_LABELLED)) && strcmp(cp, "yes"))
-	return RET_SUCCESS;
+	i = RET_SUCCESS;
     else if (!cp) {
 	msgConfirm("You must assign disk labels before this option can be used.");
-	return RET_FAIL;
+	i = RET_FAIL;
     }
-    else if ((cp = variable_get(DISK_PARTITIONED))) {
-	/* The routine will guard against redundant writes, just as this one does */
-	if (diskPartitionWrite(NULL) != RET_SUCCESS)
-	    return RET_FAIL;
-    }
-    else {
-	msgConfirm("You must partition the disk(s) before this option can be used.");
-	return RET_FAIL;
-    }
+    /* The routine will guard against redundant writes, just as this one does */
+    else if (diskPartitionWrite(NULL) != RET_SUCCESS)
+	i = RET_FAIL;
 
-    if (installFilesystems() != RET_SUCCESS)
+    else if (installFilesystems() != RET_SUCCESS) {
 	msgConfirm("Failed to make/mount all filesystems.  Please correct\n"
 		   "whatever went wrong and try again.");
+	i = RET_FAIL;
+    }
     else {
 	msgInfo("All filesystem information written successfully.");
 	variable_set2(DISK_LABELLED, "written");
-	return RET_SUCCESS;
+	i = RET_SUCCESS;
     }
-    return RET_FAIL;
+    return i;
 }
 
 /* See if we're already using a desired partition name */

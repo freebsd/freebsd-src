@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.42.2.22 1995/10/16 15:14:16 jkh Exp $
+ * $Id: menus.c,v 1.42.2.23 1995/10/16 23:02:25 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -339,8 +339,8 @@ DMenu MenuDistributions = {
     DMENU_MULTIPLE_TYPE | DMENU_SELECTION_RETURNS,
     "Select the distributions you wish to install.",
     "Please check off the distributions you wish to install.  At the\n\
-	very minimum, this should be \"bin\".  WARNING:  Do not export the\n\
-	    DES distribution out of the U.S.!  It is for U.S. customers only.",
+very minimum, this should be \"bin\".  WARNING:  Do not export the\n\
+DES distribution out of the U.S.!  It is for U.S. customers only.",
     NULL,
     NULL,
 { { "bin",		"Binary base distribution (required) [36MB]",
@@ -448,30 +448,30 @@ clearx11(char *str)
 DMenu MenuXF86Select = {
     DMENU_NORMAL_TYPE,
     "XFree86 3.1.2 Distribution",
-    "Please select the components you need from the XFree86 3.1.2\n"
-	"distribution.  We recommend that you select what you need from the basic\n"
-	    "components set and at least one entry from the Server and Font set menus.",
-	    "Press F1 to read the XFree86 release notes for FreeBSD",
-	    "XF86",
-	{ { "Basic",	"Basic component menu (required)",
-		DMENU_SUBMENU,	&MenuXF86SelectCore, 0, 0			},
-	  { "Server",	"X server menu",
-		DMENU_SUBMENU,	&MenuXF86SelectServer, 0, 0			},
-	  { "Fonts",	"Font set menu",
-		DMENU_SUBMENU,	&MenuXF86SelectFonts, 0, 0			},
-	  { "Exit",		"Exit this menu (returning to previous)",
-		DMENU_CANCEL,	NULL, 0, 0					},
-	  { "Clear",	"Reset XFree86 distribution list",
-		DMENU_CALL,	clearx11, 0, 0, 0				},
-	  { NULL } },
+    "Please select the components you need from the XFree86 3.1.2\n\
+distribution.  We recommend that you select what you need from the basic\n\
+component set and at least one entry from the Server and Font set menus.",
+    "Press F1 to read the XFree86 release notes for FreeBSD",
+    "XF86",
+{ { "Basic",	"Basic component menu (required)",
+	DMENU_SUBMENU,	&MenuXF86SelectCore, 0, 0			},
+  { "Server",	"X server menu",
+	DMENU_SUBMENU,	&MenuXF86SelectServer, 0, 0			},
+  { "Fonts",	"Font set menu",
+	DMENU_SUBMENU,	&MenuXF86SelectFonts, 0, 0			},
+  { "Exit",		"Exit this menu (returning to previous)",
+	DMENU_CANCEL,	NULL, 0, 0					},
+  { "Clear",	"Reset XFree86 distribution list",
+	DMENU_CALL,	clearx11, 0, 0, 0				},
+  { NULL } },
 };
 
 DMenu MenuXF86SelectCore = {
     DMENU_MULTIPLE_TYPE | DMENU_SELECTION_RETURNS,
-    "XFree86 3.1.2 base distribution types",
-    "Please check off the basic XFree86 components you wish to install.",
-    "Press F1 to read the XFree86 release notes for FreeBSD",
-    "XF86",
+"XFree86 3.1.2 base distribution types",
+"Please check off the basic XFree86 components you wish to install.",
+"Press F1 to read the XFree86 release notes for FreeBSD",
+"XF86",
 { { "bin",		"X client applications and shared libs [4MB].",
 	DMENU_SET_FLAG,	&XF86Dists, DIST_XF86_BIN, 0, dmenuFlagCheck		},
   { "lib",		"Data files needed at runtime [600K]",
@@ -531,7 +531,7 @@ DMenu MenuXF86SelectServer = {
     "Please check off the types of X servers you wish to install.\n\
 If you are unsure as to which server will work for your graphics card,\n\
 it is recommended that try the SVGA or VGA16 servers (the VGA16 and\n\
-						      Mono servers are particularly well-suited to most LCD displays).",
+Mono servers are particularly well-suited to most LCD displays).",
     "Press F1 to read the XFree86 release notes for FreeBSD",
     "XF86",
     { { "SVGA",		"Standard VGA or Super VGA display [1MB]",
@@ -685,8 +685,8 @@ software not provided in the base distributions.",
 DMenu MenuNetworking = {
     DMENU_MULTIPLE_TYPE | DMENU_SELECTION_RETURNS,
     "Network Services Menu",
-    "You may have already configured one network device (and the\n\
-							 other various hostname/gateway/name server parameters) in the process\n\
+"You may have already configured one network device (and the other\n\
+various hostname/gateway/name server parameters) in the process\n\
 of installing FreeBSD.  This menu allows you to configure other\n\
 aspects of your system's network configuration.",
     NULL,
@@ -697,6 +697,8 @@ aspects of your system's network configuration.",
 	DMENU_SET_VARIABLE,	"nfs_client=YES", 0, 0, dmenuVarCheck			},
   { "NFS server",		"This machine will be an NFS server",
 	DMENU_SET_VARIABLE,	"nfs_server=YES", 0, 0, dmenuVarCheck			},
+  { "Gateway",			"This machine will route packets between interfaces",
+	DMENU_SET_VARIABLE,	"gateway=YES", 0, 0, dmenuVarCheck			},
   { "gated",			"This machine wants to run gated",
 	DMENU_SET_VARIABLE,	"gated=YES", 0, 0, dmenuVarCheck			},
   { "ntpdate",			"Select a clock-syncronization server",
@@ -843,12 +845,6 @@ when held down.",
       { NULL } },
 };
 
-static char *
-menuSaverTimeoutCheck(DMenuItem *item)
-{
-    return variable_get("blanktime") ? "ON" : "OFF";
-}
-
 DMenu MenuSysconsSaver = {
     DMENU_MULTIPLE_TYPE | DMENU_SELECTION_RETURNS,
     "System Console Screen Saver",
@@ -864,9 +860,9 @@ probably enable one of these screen savers to prevent phosphor burn-in.",
 	DMENU_SET_VARIABLE,	"saver=green", 0, 0, dmenuVarCheck		},
   { "Snake",		"Draw a FreeBSD \"snake\" on your screen",
 	DMENU_SET_VARIABLE,	"saver=snake", 0, 0, dmenuVarCheck		},
-  { "Star",			"A \"twinkling stars\" effect",
+  { "Star",		"A \"twinkling stars\" effect",
 	DMENU_SET_VARIABLE,	"saver=star", 0, 0, dmenuVarCheck		},
   { "Timeout",		"Set the screen saver timeout interval",
-	DMENU_CALL,		configSaverTimeout, 0, 0, menuSaverTimeoutCheck	},
+	DMENU_CALL,		configSaverTimeout, (int)"blanktime", 0, dmenuVarCheck	},
   { NULL } },
 };

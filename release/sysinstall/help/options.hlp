@@ -75,6 +75,18 @@ Release Name:  Which release to attempt to load from installation media.
     what you are doing!  This will change the release name used by
     sysinstall when fetching components of any distributions.
 
+Browser Package:  Which package to load for an HTML browser.
+
+    By default, this is set to lynx but may also be set to any other
+    text capable HTML browser for which a package exists.  If you set this
+    to an X based browser, you will not be able to use it if you're running
+    in text mode! :)
+
+Browser Exec:  Which binary to run for the HTML browser.
+
+    The full pathname to the main executable in Browser Package
+
+    
 Clear:        Clear All Option Flags
 
     Reset all option flags back to their default values.

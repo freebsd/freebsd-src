@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: system.c,v 1.44.2.7 1995/10/16 15:14:26 jkh Exp $
+ * $Id: system.c,v 1.44.2.8 1995/10/16 23:02:29 jkh Exp $
  *
  * Jordan Hubbard
  *
@@ -343,5 +343,5 @@ docShowDocument(char *str)
 	else
 	    vsystem("%s http://www.freebsd.org/%s");
     }
+    return RET_SUCCESS;
 }
-
