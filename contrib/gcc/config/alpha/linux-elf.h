@@ -27,17 +27,23 @@ Boston, MA 02111-1307, USA.  */
 #define SUBTARGET_EXTRA_SPECS \
 { "elf_dynamic_linker", ELF_DYNAMIC_LINKER },
 
-#undef SUB_CPP_PREDEFINES
-#define SUB_CPP_PREDEFINES	"-D__ELF__"
-
 #ifdef USE_GNULIBC_1
 #define ELF_DYNAMIC_LINKER	"/lib/ld.so.1"
 #else
 #define ELF_DYNAMIC_LINKER	"/lib/ld-linux.so.2"
 #endif
 
+#define LINK_SPEC "-m elf64alpha %{G*} %{relax:-relax}		\
+  %{O*:-O3} %{!O*:-O1}						\
+  %{shared:-shared}						\
+  %{!shared:							\
+    %{!static:							\
+      %{rdynamic:-export-dynamic}				\
+      %{!dynamic-linker:-dynamic-linker %(elf_dynamic_linker)}}	\
+    %{static:-static}}"
+
 #ifndef USE_GNULIBC_1
 #undef LIB_SPEC
 #define LIB_SPEC \
-"%{shared:-lc}%{!shared:%{pthread:-lpthread }%{profile:-lc_p}%{!profile:-lc}} "
+"%{pthread:-lpthread }%{shared:-lc}%{!shared:%{profile:-lc_p}%{!profile:-lc}} "
 #endif

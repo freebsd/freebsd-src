@@ -48,8 +48,7 @@ dump_access (di, t)
 }
 
 /* Dump a representation of the specific operator for an overloaded
-   operator associated with node t.
-*/
+   operator associated with node t.  */
 
 static void
 dump_op (di, t)
@@ -264,6 +263,14 @@ cp_dump_tree (dump_info, t)
 	  return 1;
 	}
 
+      /* Is it a type used as a base? */
+      if (TYPE_CONTEXT (t) && TREE_CODE (TYPE_CONTEXT (t)) == TREE_CODE (t)
+	  && CLASSTYPE_AS_BASE (TYPE_CONTEXT (t)) == t)
+	{
+	  dump_child ("bfld", TYPE_CONTEXT (t));
+	  return 1;
+	}
+      
       dump_child ("vfld", TYPE_VFIELD (t));
       if (CLASSTYPE_TEMPLATE_SPECIALIZATION(t))
         dump_string(di, "spec");
@@ -324,7 +331,6 @@ cp_dump_tree (dump_info, t)
 		dump_string (di, "global init");
 	      if (DECL_GLOBAL_DTOR_P (t))
 		dump_string (di, "global fini");
-	      dump_int (di, "prio", GLOBAL_INIT_PRIORITY (t));
 	    }
 	  if (DECL_FRIEND_PSEUDO_TEMPLATE_INSTANTIATION (t))
 	    dump_string (di, "pseudo tmpl");
@@ -390,15 +396,6 @@ cp_dump_tree (dump_info, t)
       dump_child ("decl", TREE_OPERAND (t, 2));
       break;
       
-    case CTOR_STMT:
-      dump_stmt (di, t);
-      if (CTOR_BEGIN_P (t))
-	dump_string (di, "begn");
-      else
-	dump_string (di, "end");
-      dump_next_stmt (di, t);
-      break;
-
     case HANDLER:
       dump_stmt (di, t);
       dump_child ("parm", HANDLER_PARMS (t));
@@ -412,12 +409,6 @@ cp_dump_tree (dump_info, t)
       dump_next_stmt (di, t);
       break;
 
-    case SUBOBJECT:
-      dump_stmt (di, t);
-      dump_child ("clnp", TREE_OPERAND (t, 0));
-      dump_next_stmt (di, t);
-      break;
-
     case USING_STMT:
       dump_stmt (di, t);
       dump_child ("nmsp", USING_STMT_NAMESPACE (t));
@@ -428,6 +419,5 @@ cp_dump_tree (dump_info, t)
       break;
     }
 
-  return 0;
+  return c_dump_tree (di, t);
 }
-

@@ -1,5 +1,6 @@
 /* Functions to support general ended bitmaps.
-   Copyright (C) 1997, 1998, 1999, 2000, 2001 Free Software Foundation, Inc.
+   Copyright (C) 1997, 1998, 1999, 2000, 2001, 2003
+   Free Software Foundation, Inc.
 
 This file is part of GCC.
 
@@ -23,6 +24,7 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 #include "rtl.h"
 #include "flags.h"
 #include "obstack.h"
+#include "ggc.h"
 #include "bitmap.h"
 
 /* Obstack to allocate bitmap elements from.  */
@@ -40,13 +42,33 @@ static int bitmap_obstack_init = FALSE;
 /* Global data */
 bitmap_element bitmap_zero_bits;	/* An element of all zero bits.  */
 static bitmap_element *bitmap_free;	/* Freelist of bitmap elements.  */
+static GTY((deletable (""))) bitmap_element *bitmap_ggc_free;
 
+static void bitmap_elem_to_freelist	PARAMS ((bitmap, bitmap_element *));
 static void bitmap_element_free		PARAMS ((bitmap, bitmap_element *));
-static bitmap_element *bitmap_element_allocate PARAMS ((void));
+static bitmap_element *bitmap_element_allocate PARAMS ((bitmap));
 static int bitmap_element_zerop		PARAMS ((bitmap_element *));
 static void bitmap_element_link		PARAMS ((bitmap, bitmap_element *));
 static bitmap_element *bitmap_find_bit	PARAMS ((bitmap, unsigned int));
 
+/* Add ELEM to the appropriate freelist.  */
+static INLINE void
+bitmap_elem_to_freelist (head, elt)
+     bitmap head;
+     bitmap_element *elt;
+{
+  if (head->using_obstack)
+    {
+      elt->next = bitmap_free;
+      bitmap_free = elt;
+    }
+  else
+    {
+      elt->next = bitmap_ggc_free;
+      bitmap_ggc_free = elt;
+    }
+}
+
 /* Free a bitmap element.  Since these are allocated off the
    bitmap_obstack, "free" actually means "put onto the freelist".  */
 
@@ -75,56 +97,68 @@ bitmap_element_free (head, elt)
       if (head->current)
 	head->indx = head->current->indx;
     }
-
-  elt->next = bitmap_free;
-  bitmap_free = elt;
+  bitmap_elem_to_freelist (head, elt);
 }
 
 /* Allocate a bitmap element.  The bits are cleared, but nothing else is.  */
 
 static INLINE bitmap_element *
-bitmap_element_allocate ()
+bitmap_element_allocate (head)
+     bitmap head;
 {
   bitmap_element *element;
 
-  if (bitmap_free != 0)
+  if (head->using_obstack)
     {
-      element = bitmap_free;
-      bitmap_free = element->next;
-    }
-  else
-    {
-      /* We can't use gcc_obstack_init to initialize the obstack since
-	 print-rtl.c now calls bitmap functions, and bitmap is linked
-	 into the gen* functions.  */
-      if (!bitmap_obstack_init)
+      if (bitmap_free != 0)
 	{
-	  bitmap_obstack_init = TRUE;
-
-	  /* Let particular systems override the size of a chunk.  */
+	  element = bitmap_free;
+	  bitmap_free = element->next;
+	}
+      else
+	{
+	  /* We can't use gcc_obstack_init to initialize the obstack since
+	     print-rtl.c now calls bitmap functions, and bitmap is linked
+	     into the gen* functions.  */
+	  if (!bitmap_obstack_init)
+	    {
+	      bitmap_obstack_init = TRUE;
+	      
+	      /* Let particular systems override the size of a chunk.  */
 #ifndef OBSTACK_CHUNK_SIZE
 #define OBSTACK_CHUNK_SIZE 0
 #endif
-	  /* Let them override the alloc and free routines too.  */
+	      /* Let them override the alloc and free routines too.  */
 #ifndef OBSTACK_CHUNK_ALLOC
 #define OBSTACK_CHUNK_ALLOC xmalloc
 #endif
 #ifndef OBSTACK_CHUNK_FREE
 #define OBSTACK_CHUNK_FREE free
 #endif
-
+	      
 #if !defined(__GNUC__) || (__GNUC__ < 2)
 #define __alignof__(type) 0
 #endif
-
-	  obstack_specify_allocation (&bitmap_obstack, OBSTACK_CHUNK_SIZE,
-				      __alignof__ (bitmap_element),
-				      (void *(*) PARAMS ((long))) OBSTACK_CHUNK_ALLOC,
-				      (void (*) PARAMS ((void *))) OBSTACK_CHUNK_FREE);
+	      
+	      obstack_specify_allocation (&bitmap_obstack, OBSTACK_CHUNK_SIZE,
+					  __alignof__ (bitmap_element),
+					  (void *(*) PARAMS ((long))) OBSTACK_CHUNK_ALLOC,
+					  (void (*) PARAMS ((void *))) OBSTACK_CHUNK_FREE);
+	    }
+	  
+	  element = (bitmap_element *) obstack_alloc (&bitmap_obstack,
+						      sizeof (bitmap_element));
 	}
-
-      element = (bitmap_element *) obstack_alloc (&bitmap_obstack,
-						  sizeof (bitmap_element));
+    }
+  else
+    {
+      if (bitmap_ggc_free != NULL)
+	{
+          element = bitmap_ggc_free;
+          bitmap_ggc_free = element->next;
+	}
+      else
+	element = ggc_alloc (sizeof (bitmap_element));
     }
 
   memset (element->bits, 0, sizeof (element->bits));
@@ -232,11 +266,10 @@ bitmap_clear (head)
   for (element = head->first; element != 0; element = next)
     {
       next = element->next;
-      element->next = bitmap_free;
-      bitmap_free = element;
+      bitmap_elem_to_freelist (head, element);
     }
 
-  head->first = head->current =  0;
+  head->first = head->current = 0;
 }
 
 /* Copy a bitmap to another bitmap.  */
@@ -256,7 +289,7 @@ bitmap_copy (to, from)
   /* Copy elements in forward direction one at a time */
   for (from_ptr = from->first; from_ptr; from_ptr = from_ptr->next)
     {
-      bitmap_element *to_elt = bitmap_element_allocate ();
+      bitmap_element *to_elt = bitmap_element_allocate (to);
 
       to_elt->indx = from_ptr->indx;
 
@@ -298,7 +331,7 @@ bitmap_find_bit (head, bit)
      unsigned int bit;
 {
   bitmap_element *element;
-  unsigned HOST_WIDE_INT indx = bit / BITMAP_ELEMENT_ALL_BITS;
+  unsigned int indx = bit / BITMAP_ELEMENT_ALL_BITS;
 
   if (head->current == 0
       || head->indx == indx)
@@ -337,10 +370,9 @@ bitmap_clear_bit (head, bit)
 
   if (ptr != 0)
     {
-      unsigned bit_num  = bit % (unsigned) HOST_BITS_PER_WIDE_INT;
-      unsigned word_num = ((bit / (unsigned) HOST_BITS_PER_WIDE_INT)
-			   % BITMAP_ELEMENT_WORDS);
-      ptr->bits[word_num] &= ~ (((unsigned HOST_WIDE_INT) 1) << bit_num);
+      unsigned bit_num  = bit % BITMAP_WORD_BITS;
+      unsigned word_num = bit / BITMAP_WORD_BITS % BITMAP_ELEMENT_WORDS;
+      ptr->bits[word_num] &= ~ (((BITMAP_WORD) 1) << bit_num);
 
       /* If we cleared the entire word, free up the element */
       if (bitmap_element_zerop (ptr))
@@ -356,14 +388,13 @@ bitmap_set_bit (head, bit)
      int bit;
 {
   bitmap_element *ptr = bitmap_find_bit (head, bit);
-  unsigned word_num
-    = ((bit / (unsigned) HOST_BITS_PER_WIDE_INT) % BITMAP_ELEMENT_WORDS);
-  unsigned bit_num  = bit % (unsigned) HOST_BITS_PER_WIDE_INT;
-  unsigned HOST_WIDE_INT bit_val = ((unsigned HOST_WIDE_INT) 1) << bit_num;
+  unsigned word_num = bit / BITMAP_WORD_BITS % BITMAP_ELEMENT_WORDS;
+  unsigned bit_num  = bit % BITMAP_WORD_BITS;
+  BITMAP_WORD bit_val = ((BITMAP_WORD) 1) << bit_num;
 
   if (ptr == 0)
     {
-      ptr = bitmap_element_allocate ();
+      ptr = bitmap_element_allocate (head);
       ptr->indx = bit / BITMAP_ELEMENT_ALL_BITS;
       ptr->bits[word_num] = bit_val;
       bitmap_element_link (head, ptr);
@@ -387,9 +418,8 @@ bitmap_bit_p (head, bit)
   if (ptr == 0)
     return 0;
 
-  bit_num = bit % (unsigned) HOST_BITS_PER_WIDE_INT;
-  word_num
-    = ((bit / (unsigned) HOST_BITS_PER_WIDE_INT) % BITMAP_ELEMENT_WORDS);
+  bit_num = bit % BITMAP_WORD_BITS;
+  word_num = bit / BITMAP_WORD_BITS % BITMAP_ELEMENT_WORDS;
 
   return (ptr->bits[word_num] >> bit_num) & 1;
 }
@@ -397,12 +427,12 @@ bitmap_bit_p (head, bit)
 /* Return the bit number of the first set bit in the bitmap, or -1
    if the bitmap is empty.  */
 
-int 
+int
 bitmap_first_set_bit (a)
      bitmap a;
 {
   bitmap_element *ptr = a->first;
-  unsigned HOST_WIDE_INT word;
+  BITMAP_WORD word;
   unsigned word_num, bit_num;
 
   if (ptr == NULL)
@@ -424,10 +454,10 @@ bitmap_first_set_bit (a)
   bit_num = 0;
   word = word & -word;
 
-#if HOST_BITS_PER_WIDE_INT > 64
+#if nBITMAP_WORD_BITS > 64
  #error "Fill out the table."
 #endif
-#if HOST_BITS_PER_WIDE_INT > 32
+#if nBITMAP_WORD_BITS > 32
   if ((word & 0xffffffff) == 0)
     word >>= 32, bit_num += 32;
 #endif
@@ -443,19 +473,19 @@ bitmap_first_set_bit (a)
     bit_num += 1;
 
   return (ptr->indx * BITMAP_ELEMENT_ALL_BITS
-	  + word_num * HOST_BITS_PER_WIDE_INT
+	  + word_num * BITMAP_WORD_BITS
 	  + bit_num);
 }
 
 /* Return the bit number of the last set bit in the bitmap, or -1
    if the bitmap is empty.  */
 
-int 
+int
 bitmap_last_set_bit (a)
      bitmap a;
 {
   bitmap_element *ptr = a->first;
-  unsigned HOST_WIDE_INT word;
+  BITMAP_WORD word;
   unsigned word_num, bit_num;
 
   if (ptr == NULL)
@@ -477,11 +507,11 @@ bitmap_last_set_bit (a)
   /* Binary search for the last set bit.  */
 
   bit_num = 0;
-#if HOST_BITS_PER_WIDE_INT > 64
+#if nBITMAP_WORD_BITS > 64
  #error "Fill out the table."
 #endif
-#if HOST_BITS_PER_WIDE_INT > 32
-  if (word & ~ (unsigned HOST_WIDE_INT) 0xffffffff)
+#if nBITMAP_WORD_BITS > 32
+  if (word & ~(BITMAP_WORD)0xffffffff)
     word >>= 32, bit_num += 32;
 #endif
   if (word & 0xffff0000)
@@ -496,7 +526,7 @@ bitmap_last_set_bit (a)
     bit_num += 1;
 
   return (ptr->indx * BITMAP_ELEMENT_ALL_BITS
-	  + word_num * HOST_BITS_PER_WIDE_INT
+	  + word_num * BITMAP_WORD_BITS
 	  + bit_num);
 }
 
@@ -526,7 +556,7 @@ bitmap_operation (to, from1, from2, operation)
 #if BITMAP_ELEMENT_WORDS == 2
 #define DOIT(OP)					\
   do {							\
-    unsigned HOST_WIDE_INT t0, t1, f10, f11, f20, f21;	\
+    BITMAP_WORD t0, t1, f10, f11, f20, f21;		\
     f10 = from1_tmp->bits[0];				\
     f20 = from2_tmp->bits[0];				\
     t0 = f10 OP f20;					\
@@ -541,7 +571,7 @@ bitmap_operation (to, from1, from2, operation)
 #else
 #define DOIT(OP)					\
   do {							\
-    unsigned HOST_WIDE_INT t, f1, f2;			\
+    BITMAP_WORD t, f1, f2;				\
     int i;						\
     for (i = 0; i < BITMAP_ELEMENT_WORDS; ++i)		\
       {							\
@@ -594,8 +624,7 @@ bitmap_operation (to, from1, from2, operation)
 	  changed = 1;
 	  to_tmp = to_ptr;
 	  to_ptr = to_ptr->next;
-	  to_tmp->next = bitmap_free;
-	  bitmap_free = to_tmp;
+	  bitmap_elem_to_freelist (to, to_tmp);
 	}
       if (to_ptr && to_ptr->indx == indx)
 	{
@@ -603,7 +632,7 @@ bitmap_operation (to, from1, from2, operation)
 	  to_ptr = to_ptr->next;
 	}
       else
-	to_tmp = bitmap_element_allocate ();
+	to_tmp = bitmap_element_allocate (to);
 
       /* Do the operation, and if any bits are set, link it into the
 	 linked list.  */
@@ -638,8 +667,7 @@ bitmap_operation (to, from1, from2, operation)
 	}
       else
 	{
-	  to_tmp->next = bitmap_free;
-	  bitmap_free = to_tmp;
+	  bitmap_elem_to_freelist (to, to_tmp);
 	}
     }
 
@@ -649,8 +677,16 @@ bitmap_operation (to, from1, from2, operation)
       changed = 1;
       for (to_tmp = to_ptr; to_tmp->next ; to_tmp = to_tmp->next)
 	continue;
-      to_tmp->next = bitmap_free;
-      bitmap_free = to_ptr;
+      if (to->using_obstack)
+	{
+	  to_tmp->next = bitmap_free;
+	  bitmap_free = to_ptr;
+	}
+      else
+	{
+	  to_tmp->next = bitmap_ggc_free;
+	  bitmap_ggc_free = to_ptr;
+	}
     }
 
 #undef DOIT
@@ -668,7 +704,7 @@ bitmap_equal_p (a, b)
   bitmap_head c;
   int ret;
 
-  c.first = c.current = 0;
+  memset (&c, 0, sizeof (c)); 
   ret = ! bitmap_operation (&c, a, b, BITMAP_XOR);
   bitmap_clear (&c);
 
@@ -687,6 +723,7 @@ bitmap_ior_and_compl (to, from1, from2)
   bitmap_head tmp;
 
   tmp.first = tmp.current = 0;
+  tmp.using_obstack = 0;
 
   bitmap_operation (&tmp, from1, from2, BITMAP_AND_COMPL);
   bitmap_operation (to, to, &tmp, BITMAP_IOR);
@@ -704,6 +741,7 @@ bitmap_union_of_diff (dst, a, b, c)
   int changed;
 
   tmp.first = tmp.current = 0;
+  tmp.using_obstack = 0;
 
   bitmap_operation (&tmp, b, c, BITMAP_AND_COMPL);
   changed = bitmap_operation (dst, &tmp, a, BITMAP_IOR);
@@ -715,10 +753,15 @@ bitmap_union_of_diff (dst, a, b, c)
 /* Initialize a bitmap header.  */
 
 bitmap
-bitmap_initialize (head)
+bitmap_initialize (head, using_obstack)
      bitmap head;
+     int using_obstack;
 {
+  if (head == NULL && ! using_obstack)
+    head = ggc_alloc (sizeof (*head));
+  
   head->first = head->current = 0;
+  head->using_obstack = using_obstack;
 
   return head;
 }
@@ -740,7 +783,7 @@ debug_bitmap_file (file, head)
 
   for (ptr = head->first; ptr; ptr = ptr->next)
     {
-      int i, j, col = 26;
+      unsigned int i, j, col = 26;
 
       fprintf (file, "\t");
       fprintf (file, HOST_PTR_PRINTF, (PTR) ptr);
@@ -751,7 +794,7 @@ debug_bitmap_file (file, head)
       fprintf (file, " indx = %u\n\t\tbits = {", ptr->indx);
 
       for (i = 0; i < BITMAP_ELEMENT_WORDS; i++)
-	for (j = 0; j < HOST_BITS_PER_WIDE_INT; j++)
+	for (j = 0; j < BITMAP_WORD_BITS; j++)
 	  if ((ptr->bits[i] >> j) & 1)
 	    {
 	      if (col > 70)
@@ -761,7 +804,7 @@ debug_bitmap_file (file, head)
 		}
 
 	      fprintf (file, " %u", (ptr->indx * BITMAP_ELEMENT_ALL_BITS
-				     + i * HOST_BITS_PER_WIDE_INT + j));
+				     + i * BITMAP_WORD_BITS + j));
 	      col += 4;
 	    }
 
@@ -800,3 +843,5 @@ bitmap_print (file, head, prefix, suffix)
 			    });
   fputs (suffix, file);
 }
+
+#include "gt-bitmap.h"

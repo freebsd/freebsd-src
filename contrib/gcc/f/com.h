@@ -157,37 +157,42 @@ struct _ffecom_symbol_
 #include "storag.h"
 #include "symbol.h"
 
-/* Structure definitions. */
-
+extern int global_bindings_p			PARAMS ((void));
+extern tree getdecls				PARAMS ((void));
+extern void pushlevel				PARAMS ((int));
+extern tree poplevel				PARAMS ((int,int, int));
+extern void insert_block			PARAMS ((tree));
+extern void set_block				PARAMS ((tree));
+extern tree pushdecl				PARAMS ((tree));
 
 /* Global objects accessed by users of this module. */
 
-extern tree string_type_node;
-extern tree ffecom_integer_type_node;
-extern tree ffecom_integer_zero_node;
-extern tree ffecom_integer_one_node;
-extern tree ffecom_tree_type[FFEINFO_basictype][FFEINFO_kindtype];
+extern GTY(()) tree string_type_node;
+extern GTY(()) tree ffecom_integer_type_node;
+extern GTY(()) tree ffecom_integer_zero_node;
+extern GTY(()) tree ffecom_integer_one_node;
+extern GTY(()) tree ffecom_tree_type[FFEINFO_basictype][FFEINFO_kindtype];
 extern ffecomSymbol ffecom_symbol_null_;
 extern ffeinfoKindtype ffecom_pointer_kind_;
 extern ffeinfoKindtype ffecom_label_kind_;
 
 extern int ffecom_f2c_typecode_[FFEINFO_basictype][FFEINFO_kindtype];
-extern tree ffecom_f2c_integer_type_node;
-extern tree ffecom_f2c_address_type_node;
-extern tree ffecom_f2c_real_type_node;
-extern tree ffecom_f2c_doublereal_type_node;
-extern tree ffecom_f2c_complex_type_node;
-extern tree ffecom_f2c_doublecomplex_type_node;
-extern tree ffecom_f2c_longint_type_node;
-extern tree ffecom_f2c_logical_type_node;
-extern tree ffecom_f2c_flag_type_node;
-extern tree ffecom_f2c_ftnlen_type_node;
-extern tree ffecom_f2c_ftnlen_zero_node;
-extern tree ffecom_f2c_ftnlen_one_node;
-extern tree ffecom_f2c_ftnlen_two_node;
-extern tree ffecom_f2c_ptr_to_ftnlen_type_node;
-extern tree ffecom_f2c_ftnint_type_node;
-extern tree ffecom_f2c_ptr_to_ftnint_type_node;
+extern GTY(()) tree ffecom_f2c_integer_type_node;
+extern GTY(()) tree ffecom_f2c_address_type_node;
+extern GTY(()) tree ffecom_f2c_real_type_node;
+extern GTY(()) tree ffecom_f2c_doublereal_type_node;
+extern GTY(()) tree ffecom_f2c_complex_type_node;
+extern GTY(()) tree ffecom_f2c_doublecomplex_type_node;
+extern GTY(()) tree ffecom_f2c_longint_type_node;
+extern GTY(()) tree ffecom_f2c_logical_type_node;
+extern GTY(()) tree ffecom_f2c_flag_type_node;
+extern GTY(()) tree ffecom_f2c_ftnlen_type_node;
+extern GTY(()) tree ffecom_f2c_ftnlen_zero_node;
+extern GTY(()) tree ffecom_f2c_ftnlen_one_node;
+extern GTY(()) tree ffecom_f2c_ftnlen_two_node;
+extern GTY(()) tree ffecom_f2c_ptr_to_ftnlen_type_node;
+extern GTY(()) tree ffecom_f2c_ftnint_type_node;
+extern GTY(()) tree ffecom_f2c_ptr_to_ftnint_type_node;
 
 /* Declare functions with prototypes. */
 
@@ -205,6 +210,8 @@ tree ffecom_arg_expr (ffebld expr, tree *length);
 tree ffecom_arg_ptr_to_const_expr (ffebld expr, tree *length);
 tree ffecom_arg_ptr_to_expr (ffebld expr, tree *length);
 tree ffecom_call_gfrt (ffecomGfrt ix, tree args, tree hook);
+tree ffecom_constantunion_with_type (ffebldConstantUnion *cu, 
+		            tree tree_type,ffebldConst ct);
 tree ffecom_constantunion (ffebldConstantUnion *cu, ffeinfoBasictype bt,
 			   ffeinfoKindtype kt, tree tree_type);
 tree ffecom_const_expr (ffebld expr);
@@ -265,6 +272,7 @@ tree ffecom_truth_value (tree expr);
 tree ffecom_truth_value_invert (tree expr);
 tree ffecom_type_expr (ffebld expr);
 tree ffecom_which_entrypoint_decl (void);
+void ffe_parse_file (int);
 
 /* Define macros. */
 

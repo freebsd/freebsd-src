@@ -1,6 +1,6 @@
 /* Definitions of target machine for GNU compiler, for DEC Alpha on Cray
    T3E running Unicos/Mk.
-   Copyright (C) 2001
+   Copyright (C) 2001, 2002
    Free Software Foundation, Inc.
    Contributed by Roman Lechtchinsky (rl@cs.tu-berlin.de)
 
@@ -32,15 +32,18 @@ Boston, MA 02111-1307, USA.  */
 /* The following defines are necessary for the standard headers to work
    correctly.  */
 
-#undef CPP_PREDEFINES
-#define CPP_PREDEFINES "-D__unix=1 -D_UNICOS=205 -D_CRAY=1 -D_CRAYT3E=1 -D_CRAYMPP=1 -D_CRAYIEEE=1 -D_ADDR64=1 -D_LD64=1 -D__UNICOSMK__ -D__INT_MAX__=9223372036854775807 -D__SHRT_MAX__=2147483647"
-
-/* Disable software floating point emulation because it requires a 16-bit
-   type which we do not have.  */
-
-#ifndef __GNUC__
-#undef REAL_ARITHMETIC
-#endif
+#define TARGET_OS_CPP_BUILTINS()				\
+    do {							\
+	builtin_define ("__unix");				\
+	builtin_define ("_UNICOS=205");				\
+	builtin_define ("_CRAY");				\
+	builtin_define ("_CRAYT3E");				\
+	builtin_define ("_CRAYMPP");				\
+	builtin_define ("_CRAYIEEE");				\
+	builtin_define ("_ADDR64");				\
+	builtin_define ("_LD64");				\
+	builtin_define ("__UNICOSMK__");			\
+    } while (0)
 
 #define SHORT_TYPE_SIZE 32
 
@@ -234,10 +237,7 @@ do {								\
    On Unicos/Mk, the standard subroutine __T3E_MISMATCH stores all register
    arguments on the stack. Unfortunately, it doesn't always store the first
    one (i.e. the one that arrives in $16 or $f16). This is not a problem
-   with stdargs as we always have at least one named argument there. This is
-   not always the case when varargs.h is used, however. In such cases, we
-   have to store the first argument ourselves. We use the information from
-   the CIW to determine whether the first argument arrives in $16 or $f16.  */
+   with stdargs as we always have at least one named argument there.  */
 
 #undef SETUP_INCOMING_VARARGS
 #define SETUP_INCOMING_VARARGS(CUM,MODE,TYPE,PRETEND_SIZE,NO_RTL)	\
@@ -245,36 +245,9 @@ do {								\
     {									\
       if (! (NO_RTL))							\
         {								\
-	  int start;							\
-									\
-	  start = (CUM).num_reg_words;					\
-	  if (!current_function_varargs || start == 0)			\
-	    ++start;							\
+	  int start = (CUM).num_reg_words + 1;				\
 									\
           emit_insn (gen_umk_mismatch_args (GEN_INT (start)));		\
-	  if (current_function_varargs && (CUM).num_reg_words == 0)	\
-	    {								\
-	      rtx tmp;							\
-	      rtx int_label, end_label;					\
-									\
-	      tmp = gen_reg_rtx (DImode);				\
-	      emit_move_insn (tmp,					\
-			      gen_rtx_ZERO_EXTRACT (DImode,		\
-						    gen_rtx_REG (DImode, 2),\
-						    (GEN_INT (1)),	\
-						    (GEN_INT (7))));	\
-	      int_label = gen_label_rtx ();				\
-	      end_label = gen_label_rtx ();				\
-	      emit_insn (gen_cmpdi (tmp, GEN_INT (0)));			\
-	      emit_jump_insn (gen_beq (int_label));			\
-	      emit_move_insn (gen_rtx_MEM (DFmode, virtual_incoming_args_rtx),\
-			      gen_rtx_REG (DFmode, 48));		\
-	      emit_jump (end_label);					\
-	      emit_label (int_label);					\
-	      emit_move_insn (gen_rtx_MEM (DImode, virtual_incoming_args_rtx),\
-			      gen_rtx_REG (DImode, 16));		\
-	      emit_label (end_label);					\
-	    }								\
 	  emit_insn (gen_arg_home_umk ());				\
         }								\
 									\
@@ -287,19 +260,6 @@ do {								\
 
 #undef EPILOGUE_USES
 #define EPILOGUE_USES(REGNO)  ((REGNO) == 26 || (REGNO) == 15)
-
-/* Machine-specific function data.  */
-
-struct machine_function
-{
-  /* List of call information words for calls from this function.  */
-  struct rtx_def *first_ciw;
-  struct rtx_def *last_ciw;
-  int ciw_count;
-
-  /* List of deferred case vectors.  */
-  struct rtx_def *addr_list;
-};
 
 /* Would have worked, only the stack doesn't seem to be executable
 #undef TRAMPOLINE_TEMPLATE
@@ -342,9 +302,9 @@ do { fprintf (FILE, "\tbr $1,0\n");			\
 #undef DATA_SECTION_ASM_OP
 #define DATA_SECTION_ASM_OP unicosmk_data_section ()
 
-/* There are ni read-only sections on Unicos/Mk.  */
+/* There are no read-only sections on Unicos/Mk.  */
 
-#undef READONLY_DATA_SECTION
+#undef READONLY_DATA_SECTION_ASM_OP
 #define READONLY_DATA_SECTION data_section
 
 /* Define extra sections for common data and SSIBs (static subroutine
@@ -375,16 +335,6 @@ ssib_section ()			\
   in_section = in_ssib;		\
 }
 
-/* A C expression which evaluates to true if declshould be placed into a
-   unique section for some target-specific reason. On Unicos/Mk, functions
-   and public variables are always placed in unique sections.  */ 
-
-/*
-#define UNIQUE_SECTION_P(DECL) (TREE_PUBLIC (DECL)		\
-				|| TREE_CODE (DECL) == FUNCTION_DECL)
-*/
-#define UNIQUE_SECTION(DECL, RELOC) unicosmk_unique_section (DECL, RELOC)
-
 /* This outputs text to go at the start of an assembler file.  */
 
 #undef ASM_FILE_START
@@ -398,12 +348,6 @@ ssib_section ()			\
 /* We take care of that in ASM_FILE_START.  */
 
 #undef ASM_OUTPUT_SOURCE_FILENAME
-
-/* There is no directive for declaring a label as global. Instead, an 
-   additional colon must be appended when the label is defined.  */
-
-#undef ASM_GLOBALIZE_LABEL
-#define ASM_GLOBALIZE_LABEL(FILE,NAME)
 
 /* This is how to output a label for a jump table.  Arguments are the same as
    for ASM_OUTPUT_INTERNAL_LABEL, except the insn for the jump table is
@@ -568,38 +512,6 @@ ssib_section ()			\
 #undef ASM_OUTPUT_MAX_SKIP_ALIGN
 #define ASM_OUTPUT_MAX_SKIP_ALIGN(STREAM,POWER,MAXSKIP)
 
-/* We have to define these because we do not use the floating-point
-   emulation. Unfortunately, atof does not accept hex literals.  */ 
-
-#ifndef REAL_ARITHMETIC
-#define REAL_VALUE_ATOF(x,s) atof(x)
-#define REAL_VALUE_HTOF(x,s) atof(x)
-
-#define REAL_VALUE_TO_TARGET_SINGLE(IN, OUT)			\
-do {								\
-  union {							\
-    float f;							\
-    HOST_WIDE_INT l;						\
-  } u;								\
-								\
-  u.f = (IN);							\
-  (OUT) = (u.l >> 32) & 0xFFFFFFFF;				\
-} while (0) 
-
-#define REAL_VALUE_TO_TARGET_DOUBLE(IN, OUT)			\
-do {								\
-  union {							\
-    REAL_VALUE_TYPE f;						\
-    HOST_WIDE_INT l;						\
-  } u;								\
-								\
-  u.f = (IN);							\
-  (OUT)[0] = (u.l >> 32) & 0xFFFFFFFF;				\
-  (OUT)[1] = (u.l & 0xFFFFFFFF);				\
-} while (0)
-
-#endif
-
 #undef NM_FLAGS
 
 #undef OBJECT_FORMAT_COFF

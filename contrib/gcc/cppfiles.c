@@ -27,6 +27,12 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #include "intl.h"
 #include "mkdeps.h"
 #include "splay-tree.h"
+#ifdef ENABLE_VALGRIND_CHECKING
+#include <valgrind.h>
+#else
+/* Avoid #ifdef:s when we can help it.  */
+#define VALGRIND_DISCARD(x)
+#endif
 
 #ifdef HAVE_MMAP_FILE
 # include <sys/mman.h>
@@ -77,8 +83,7 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 #undef strcmp
 
 /* This structure is used for the table of all includes.  */
-struct include_file
-{
+struct include_file {
   const char *name;		/* actual path name of file */
   const cpp_hashnode *cmacro;	/* macro, if any, preventing reinclusion.  */
   const struct search_path *foundhere;
@@ -106,7 +111,7 @@ struct include_file
    included again.  If it's NEVER_REREAD, the file is never to be
    included again.  Otherwise it is a macro hashnode, and the file is
    to be included again if the macro is defined.  */
-#define NEVER_REREAD ((const cpp_hashnode *)-1)
+#define NEVER_REREAD ((const cpp_hashnode *) -1)
 #define DO_NOT_REREAD(inc) \
 ((inc)->cmacro && ((inc)->cmacro == NEVER_REREAD \
 		   || (inc)->cmacro->type == NT_MACRO))
@@ -168,7 +173,7 @@ static void
 destroy_node (v)
      splay_tree_value v;
 {
-  struct include_file *f = (struct include_file *)v;
+  struct include_file *f = (struct include_file *) v;
 
   if (f)
     {
@@ -250,7 +255,7 @@ open_file (pfile, filename)
   /* Don't reopen an idempotent file.  */
   if (DO_NOT_REREAD (file))
     return file;
-      
+
   /* Don't reopen one which is already loaded.  */
   if (file->buffer != NULL)
     return file;
@@ -270,7 +275,15 @@ open_file (pfile, filename)
      Special case: the empty string is translated to stdin.  */
 
   if (filename[0] == '\0')
-    file->fd = 0;
+    {
+      file->fd = 0;
+#ifdef __DJGPP__
+      /* For DJGPP redirected input is opened in text mode. Change it
+         to binary mode.  */
+      if (! isatty (file->fd))
+	setmode (file->fd, O_BINARY);
+#endif
+    }
   else
     file->fd = open (file->name, O_RDONLY | O_NOCTTY | O_BINARY, 0666);
 
@@ -311,9 +324,9 @@ stack_include_file (pfile, inc)
 	      (inc->foundhere ? inc->foundhere->sysp : 0));
 
   /* Add the file to the dependencies on its first inclusion.  */
-  if (CPP_OPTION (pfile, print_deps) > !!sysp && !inc->include_count)
+  if (CPP_OPTION (pfile, deps.style) > !!sysp && !inc->include_count)
     {
-      if (pfile->buffer || CPP_OPTION (pfile, deps_ignore_main_file) == 0)
+      if (pfile->buffer || CPP_OPTION (pfile, deps.ignore_main_file) == 0)
 	deps_add_dep (pfile->deps, inc->name);
     }
 
@@ -345,7 +358,7 @@ stack_include_file (pfile, inc)
   fp->inc = inc;
   fp->inc->refcnt++;
 
-  /* Initialise controlling macro state.  */
+  /* Initialize controlling macro state.  */
   pfile->mi_valid = true;
   pfile->mi_cmacro = 0;
 
@@ -378,7 +391,7 @@ read_include_file (pfile, inc)
      struct include_file *inc;
 {
   ssize_t size, offset, count;
-  U_CHAR *buf;
+  uchar *buf;
 #if MMAP_THRESHOLD
   static int pagesize = -1;
 #endif
@@ -395,7 +408,7 @@ read_include_file (pfile, inc)
 	 does not bite us.  */
       if (inc->st.st_size > INTTYPE_MAXIMUM (ssize_t))
 	{
-	  cpp_error (pfile, "%s is too large", inc->name);
+	  cpp_error (pfile, DL_ERROR, "%s is too large", inc->name);
 	  goto fail;
 	}
       size = inc->st.st_size;
@@ -407,15 +420,20 @@ read_include_file (pfile, inc)
 
       if (SHOULD_MMAP (size, pagesize))
 	{
-	  buf = (U_CHAR *) mmap (0, size, PROT_READ, MAP_PRIVATE, inc->fd, 0);
-	  if (buf == (U_CHAR *)-1)
+	  buf = (uchar *) mmap (0, size, PROT_READ, MAP_PRIVATE, inc->fd, 0);
+	  if (buf == (uchar *) -1)
 	    goto perror_fail;
+
+	  /* We must tell Valgrind that the byte at buf[size] is actually
+	     readable.  Discard the handle to avoid handle leak.  */
+	  VALGRIND_DISCARD (VALGRIND_MAKE_READABLE (buf + size, 1));
+
 	  inc->mapped = 1;
 	}
       else
 #endif
 	{
-	  buf = (U_CHAR *) xmalloc (size + 1);
+	  buf = (uchar *) xmalloc (size + 1);
 	  offset = 0;
 	  while (offset < size)
 	    {
@@ -425,8 +443,8 @@ read_include_file (pfile, inc)
 	      if (count == 0)
 		{
 		  if (!STAT_SIZE_TOO_BIG (inc->st))
-		    cpp_warning
-		      (pfile, "%s is shorter than expected", inc->name);
+		    cpp_error (pfile, DL_WARNING,
+			       "%s is shorter than expected", inc->name);
 		  size = offset;
 		  buf = xrealloc (buf, size + 1);
 		  inc->st.st_size = size;
@@ -440,7 +458,7 @@ read_include_file (pfile, inc)
     }
   else if (S_ISBLK (inc->st.st_mode))
     {
-      cpp_error (pfile, "%s is a block device", inc->name);
+      cpp_error (pfile, DL_ERROR, "%s is a block device", inc->name);
       goto fail;
     }
   else
@@ -450,7 +468,7 @@ read_include_file (pfile, inc)
 	 bigger than the majority of C source files.  */
       size = 8 * 1024;
 
-      buf = (U_CHAR *) xmalloc (size + 1);
+      buf = (uchar *) xmalloc (size + 1);
       offset = 0;
       while ((count = read (inc->fd, buf + offset, size - offset)) > 0)
 	{
@@ -476,7 +494,7 @@ read_include_file (pfile, inc)
   return 0;
 
  perror_fail:
-  cpp_error_from_errno (pfile, inc->name);
+  cpp_errno (pfile, DL_ERROR, inc->name);
  fail:
   return 1;
 }
@@ -490,7 +508,14 @@ purge_cache (inc)
     {
 #if MMAP_THRESHOLD
       if (inc->mapped)
-	munmap ((PTR) inc->buffer, inc->st.st_size);
+	{
+	  /* Undo the previous annotation for the
+	     known-zero-byte-after-mmap.  Discard the handle to avoid
+	     handle leak.  */
+	  VALGRIND_DISCARD (VALGRIND_MAKE_NOACCESS (inc->buffer
+						    + inc->st.st_size, 1));
+	  munmap ((PTR) inc->buffer, inc->st.st_size);
+	}
       else
 #endif
 	free ((PTR) inc->buffer);
@@ -515,7 +540,7 @@ cpp_included (pfile, fname)
       nd = splay_tree_lookup (pfile->all_include_files, (splay_tree_key) fname);
       return (nd && nd->value);
     }
-      
+
   /* Search directory path for the file.  */
   name = (char *) alloca (strlen (fname) + pfile->max_include_len + 2);
   for (path = CPP_OPTION (pfile, quote_include); path; path = path->next)
@@ -566,7 +591,8 @@ find_include_file (pfile, header, type)
 
   if (path == NULL)
     {
-      cpp_error (pfile, "no include path in which to find %s", fname);
+      cpp_error (pfile, DL_ERROR, "no include path in which to find %s",
+		 fname);
       return NO_INCLUDE_PATH;
     }
 
@@ -633,7 +659,7 @@ report_missing_guard (n, b)
      void *b;
 {
   struct include_file *f = (struct include_file *) n->value;
-  int *bannerp = (int *)b;
+  int *bannerp = (int *) b;
 
   if (f && f->cmacro == 0 && f->include_count == 1)
     {
@@ -649,7 +675,7 @@ report_missing_guard (n, b)
 }
 
 /* Create a dependency for file FNAME, or issue an error message as
-   appropriate.  ANGLE_BRACKETS is non-zero if the file was bracketed
+   appropriate.  ANGLE_BRACKETS is nonzero if the file was bracketed
    like <..>.  */
 static void
 handle_missing_header (pfile, fname, angle_brackets)
@@ -657,43 +683,19 @@ handle_missing_header (pfile, fname, angle_brackets)
      const char *fname;
      int angle_brackets;
 {
-  int print_dep = CPP_PRINT_DEPS(pfile) > (angle_brackets || pfile->map->sysp);
+  bool print_dep
+    = CPP_OPTION (pfile, deps.style) > (angle_brackets || pfile->map->sysp);
 
-  if (CPP_OPTION (pfile, print_deps_missing_files) && print_dep)
-    {
-      if (!angle_brackets || IS_ABSOLUTE_PATHNAME (fname))
-	deps_add_dep (pfile->deps, fname);
-      else
-	{
-	  /* If requested as a system header, assume it belongs in
-	     the first system header directory.  */
-	  struct search_path *ptr = CPP_OPTION (pfile, bracket_include);
-	  char *p;
-	  int len = 0, fname_len = strlen (fname);
-
-	  if (ptr)
-	    len = ptr->len;
-
-	  p = (char *) alloca (len + fname_len + 2);
-	  if (len)
-	    {
-	      memcpy (p, ptr->name, len);
-	      p[len++] = '/';
-	    }
-	  memcpy (p + len, fname, fname_len + 1);
-	  deps_add_dep (pfile->deps, p);
-	}
-    }
+  if (CPP_OPTION (pfile, deps.missing_files) && print_dep)
+    deps_add_dep (pfile->deps, fname);
   /* If -M was specified, then don't count this as an error, because
      we can still produce correct output.  Otherwise, we can't produce
      correct output, because there may be dependencies we need inside
      the missing file, and we don't know what directory this missing
-     file exists in.  FIXME: Use a future cpp_diagnostic_with_errno ()
-     for both of these cases.  */
-  else if (CPP_PRINT_DEPS (pfile) && ! print_dep)
-    cpp_warning (pfile, "%s: %s", fname, xstrerror (errno));
+     file exists in.  */
   else
-    cpp_error_from_errno (pfile, fname);
+    cpp_errno (pfile, CPP_OPTION (pfile, deps.style) && ! print_dep
+	       ? DL_WARNING: DL_ERROR, fname);
 }
 
 /* Handles #include-family directives (distinguished by TYPE),
@@ -731,7 +733,7 @@ _cpp_compare_file_date (pfile, header)
      const cpp_token *header;
 {
   struct include_file *inc = find_include_file (pfile, header, 0);
-  
+
   if (inc == NULL || inc == NO_INCLUDE_PATH)
     return -1;
 
@@ -740,7 +742,7 @@ _cpp_compare_file_date (pfile, header)
       close (inc->fd);
       inc->fd = -1;
     }
-    
+
   return inc->st.st_mtime > pfile->buffer->inc->st.st_mtime;
 }
 
@@ -757,7 +759,7 @@ _cpp_read_file (pfile, fname)
 
   if (f == NULL)
     {
-      cpp_error_from_errno (pfile, fname);
+      cpp_errno (pfile, DL_ERROR, fname);
       return false;
     }
 
@@ -765,14 +767,12 @@ _cpp_read_file (pfile, fname)
 }
 
 /* Do appropriate cleanup when a file INC's buffer is popped off the
-   input stack.  Push the next -include file, if any remain.  */
-bool
+   input stack.  */
+void
 _cpp_pop_file_buffer (pfile, inc)
      cpp_reader *pfile;
      struct include_file *inc;
 {
-  bool pushed = false;
-
   /* Record the inclusion-preventing macro, which could be NULL
      meaning no controlling macro.  */
   if (pfile->mi_valid && inc->cmacro == NULL)
@@ -784,18 +784,6 @@ _cpp_pop_file_buffer (pfile, inc)
   inc->refcnt--;
   if (inc->refcnt == 0 && DO_NOT_REREAD (inc))
     purge_cache (inc);
-
-  /* Don't generate a callback for popping the main file.  */
-  if (pfile->buffer)
-    {
-      _cpp_do_file_change (pfile, LC_LEAVE, 0, 0, 0);
-
-      /* Finally, push the next -included file, if any.  */
-      if (!pfile->buffer->prev)
-	pushed = _cpp_push_next_buffer (pfile);
-    }
-
-  return pushed;
 }
 
 /* Returns the first place in the include chain to start searching for
@@ -859,8 +847,7 @@ search_from (pfile, type)
    such as DOS.  The format of the file name map file is just a series
    of lines with two tokens on each line.  The first token is the name
    to map, and the second token is the actual name to use.  */
-struct file_name_map
-{
+struct file_name_map {
   struct file_name_map *map_next;
   char *map_from;
   char *map_to;
@@ -880,10 +867,10 @@ read_filename_string (ch, f)
 
   len = 20;
   set = alloc = xmalloc (len + 1);
-  if (! is_space(ch))
+  if (! is_space (ch))
     {
       *set++ = ch;
-      while ((ch = getc (f)) != EOF && ! is_space(ch))
+      while ((ch = getc (f)) != EOF && ! is_space (ch))
 	{
 	  if (set - alloc == len)
 	    {
@@ -900,8 +887,7 @@ read_filename_string (ch, f)
 }
 
 /* This structure holds a linked list of file name maps, one per directory.  */
-struct file_name_map_list
-{
+struct file_name_map_list {
   struct file_name_map_list *map_list_next;
   char *map_list_name;
   struct file_name_map *map_list_map;
@@ -941,17 +927,16 @@ read_name_map (pfile, dirname)
   if (f)
     {
       int ch;
-      int dirlen = strlen (dirname);
 
       while ((ch = getc (f)) != EOF)
 	{
 	  char *from, *to;
 	  struct file_name_map *ptr;
 
-	  if (is_space(ch))
+	  if (is_space (ch))
 	    continue;
 	  from = read_filename_string (ch, f);
-	  while ((ch = getc (f)) != EOF && is_hspace(ch))
+	  while ((ch = getc (f)) != EOF && is_hspace (ch))
 	    ;
 	  to = read_filename_string (ch, f);
 
@@ -964,12 +949,9 @@ read_name_map (pfile, dirname)
 	    ptr->map_to = to;
 	  else
 	    {
-	      ptr->map_to = xmalloc (dirlen + strlen (to) + 2);
-	      strcpy (ptr->map_to, dirname);
-	      ptr->map_to[dirlen] = '/';
-	      strcpy (ptr->map_to + dirlen + 1, to);
+	      ptr->map_to = concat (dirname, "/", to, NULL);
 	      free (to);
-	    }	      
+	    }
 
 	  ptr->map_next = map_list_ptr->map_list_map;
 	  map_list_ptr->map_list_map = ptr;
@@ -980,13 +962,13 @@ read_name_map (pfile, dirname)
 	}
       fclose (f);
     }
-  
+
   /* Add this information to the cache.  */
   map_list_ptr->map_list_next = CPP_OPTION (pfile, map_list);
   CPP_OPTION (pfile, map_list) = map_list_ptr;
 
   return map_list_ptr->map_list_map;
-}  
+}
 
 /* Remap an unsimplified path NAME based on the file_name_map (if any)
    for LOC.  */
@@ -1011,10 +993,10 @@ remap_filename (pfile, name, loc)
       if (! loc->name_map)
 	return name;
     }
-  
+
   /* This works since NAME has not been simplified yet.  */
   from = name + loc->len + 1;
-  
+
   for (map = loc->name_map; map; map = map->map_next)
     if (!strcmp (map->map_from, from))
       return map->map_to;
@@ -1029,13 +1011,13 @@ remap_filename (pfile, name, loc)
 
   /* We know p != name as absolute paths don't call remap_filename.  */
   if (p == name)
-    cpp_ice (pfile, "absolute file name in remap_filename");
+    cpp_error (pfile, DL_ICE, "absolute file name in remap_filename");
 
   dir = (char *) alloca (p - name + 1);
   memcpy (dir, name, p - name);
   dir[p - name] = '\0';
   from = p + 1;
-  
+
   for (map = read_name_map (pfile, dir); map; map = map->map_next)
     if (! strcmp (map->map_from, from))
       return map->map_to;
@@ -1085,7 +1067,7 @@ remove_component_p (path)
    nonzero if an error occurred when using stat () or lstat ().  */
 char *
 _cpp_simplify_pathname (path)
-    char *path;
+     char *path;
 {
 #ifndef VMS
   char *from, *to;
@@ -1101,7 +1083,7 @@ _cpp_simplify_pathname (path)
   /* Convert all backslashes to slashes.  */
   for (from = path; *from; from++)
     if (*from == '\\') *from = '/';
-    
+
   /* Skip over leading drive letter if present.  */
   if (ISALPHA (path[0]) && path[1] == ':')
     from = to = &path[2];
@@ -1110,7 +1092,7 @@ _cpp_simplify_pathname (path)
 #else
   from = to = path;
 #endif
-    
+
   /* Remove redundant leading /s.  */
   if (*from == '/')
     {
@@ -1185,7 +1167,7 @@ _cpp_simplify_pathname (path)
       if (move_base)
 	base = to;
     }
-    
+
   /* Change the empty string to "." so that it is not treated as stdin.
      Null terminate.  */
   if (to == path)

@@ -2636,7 +2636,7 @@ Wed Sep 10 11:49:20 1997  Jason Merrill  <jason@yorick.cygnus.com>
  	EXCEPTION_SECTION, mark the start of the frame info with a
  	collectable tag.
 	* collect2.c (frame_tables): New list.
-	(is_ctor_dtor): Recognise frame entries.
+	(is_ctor_dtor): Recognize frame entries.
 	(scan_prog_file): Likewise.
 	(main): Pass -fno-exceptions to sub-compile.  Also do collection
 	if there are any frame entries.
@@ -3114,7 +3114,7 @@ Wed Aug 27 20:15:53 1997  J"orn Rennecke <amylaar@cygnus.co.uk>
 	(braf_branch_p, align_length, fixup_addr_diff_vecs): Likewise.
 	(addr_diff_vec_adjust, get_dest_uid, gen_far_branch): Likewise.
 	(split_branches, regs_used, gen_block_redirect): Likewise.
-	(from_compare): Can't compare non-zero DImode constant directly.
+	(from_compare): Can't compare nonzero DImode constant directly.
 	Emit special code for TARGET_SH3E floating point with code == GE.
 	Force 0.0 into a register for SH3E.
 	(print_operand): Add ','.
@@ -3935,7 +3935,7 @@ Mon Aug  4 08:06:48 1997  Bernd Schmidt  <crux@pool.informatik.rwth-aachen.de>
 	integer argument of push_reload.
 
 	* rtlanal.c (may_trap_p): Fix unintended fall-through so divisions by
-	non-zero constants are handled properly.  Return 1 for FP divisions.
+	nonzero constants are handled properly.  Return 1 for FP divisions.
 
 Mon Aug  4 06:52:20 1997  Andreas Schwab  <schwab@issan.informatik.uni-dortmund.de>
 
@@ -3948,7 +3948,7 @@ Sun Aug  3 21:57:31 1997  Jim Meyering  <meyering@eng.ascend.com>
 
 Sun Aug  3 21:54:51 1997  Nick Burrett  <n.a.burrett@btinternet.com>
 
-	* cpplib.c (cpp_start_read): Recognise suffixes 'cp' and 'c++'.
+	* cpplib.c (cpp_start_read): Recognize suffixes 'cp' and 'c++'.
 
 Sun Aug  3 19:18:27 1997  Ralf Baechle  <ralf@uni-koblenz.de>
 
@@ -5105,7 +5105,7 @@ Thu Jun 19 21:18:20 1997  Jim Wilson  <wilson@cygnus.com>
 
 Thu Jun 19 14:55:49 1997  Brendan Kehoe  <brendan@cygnus.com>
 
-	* toplev.c (xmalloc): Only give the fatal msg if SIZE is non-zero.
+	* toplev.c (xmalloc): Only give the fatal msg if SIZE is nonzero.
 
 Sun Apr 27 23:19:13 1997  Ulrich Drepper  <drepper@cygnus.com>
 
@@ -9711,7 +9711,7 @@ Sun Oct 20 20:01:09 1996  Richard Kenner  (kenner@vlsi1.ultra.nyu.edu)
 Fri Oct 18 13:32:13 1996  Michael Meissner  <meissner@tiktok.cygnus.com>
 
 	* rs6000.md (float conversion insns): Generate correct code
-	if the bit 15 of rs6000_fpmem_offset is non-zero.
+	if the bit 15 of rs6000_fpmem_offset is nonzero.
 
 Thu Oct 17 23:22:03 1996  Jason Merrill  <jason@yorick.cygnus.com>
 
@@ -9814,7 +9814,7 @@ Tue Oct 15 16:52:33 1996  Ian Lance Taylor  <ian@cygnus.com>
 
 Tue Oct 15 11:19:17 1996  Lee Iverson  <leei@Canada.AI.SRI.COM>
 
-	* mips.h (CPP_SPEC): Restore -D_LANGUAGE_C for Objective C.
+	* mips.h (CPP_SPEC): Restore -D_LANGUAGE_C for Objective-C.
 
 Mon Oct 14 18:03:35 1996  Jason Merrill  <jason@yorick.cygnus.com>
 
@@ -9864,7 +9864,7 @@ Fri Oct 11 12:19:21 1996  Ian Lance Taylor  <ian@cygnus.com>
 	(ASM_SPEC): Rewrite to use above specs.
 	(SUBTARGET_CPP{,_SIZE}_SPEC): Define.
 	(CPP_SPEC): Use above specs.  Don't define _LANGUAGE_C if C++ or
-	Objective C.
+	Objective-C.
 	({,SUBTARGET_}EXTRA_SPECS): Define.
 	* mips/dec-bsd.h ({CPP,ASM}_SPEC): Don't define.
 	* mips/dec-osf1.h (CPP_SPEC): Don't define.
@@ -11676,7 +11676,7 @@ Thu Jul 11 17:29:33 1996  Michael Meissner  <meissner@tiktok.cygnus.com>
 
 Thu Jul 11 10:12:50 1996  Jeffrey A Law  (law@cygnus.com)
 
-	* h8300.h (OK_FOR_U): If generating H8/S code, accept
+	* h8300.h (OK_FOR_U): If generating H8S code, accept
 	SYMBOL_REF and SYMBOL_REF + CONST_INT.
 
 	* h8300.c ({shift,rotate}_one): Emit tabs between opcode and
@@ -11684,7 +11684,7 @@ Thu Jul 11 10:12:50 1996  Jeffrey A Law  (law@cygnus.com)
 	(shift_two, rotate_two): Define.
 	(get_shift_alg): Accept new argument "assembler2_p" for
 	rotate/shift by two insns.  All callers changed.  Rework
-	to generate more efficient code on the H8/300, H8/300H, and H8/S.
+	to generate more efficient code on the H8/300, H8/300H, and H8S.
 	Try to simplify somewhat.
 	(emit_a_shift): Use shift-by-two insns when they're available.
 	Emit tabs between opcode and operands to be consistent with
@@ -11755,31 +11755,31 @@ Mon Jul  8 18:00:33 1996  Jim Wilson  <wilson@cygnus.com>
 
 Mon Jul  8 16:27:33 1996  Jeffrey A. Law  <law@cygnus.com>
 
-	* First cut at support for the H8/S.
-	* h8300.c (h8300_init_once): Handle the H8/S (treat it
+	* First cut at support for the H8S.
+	* h8300.c (h8300_init_once): Handle the H8S (treat it
 	like the H8/300H).
 	(dosize, adds_subs_operand, one_insn_adds_subs_operand): Likewise.
 	(output_adds_subs, const_costs, print_operand): Likewise.
 	(output_simode_bld, h8300_adjust_insn_length): Likewise.
 	(push_order, pop_order): Reverse.
 	(function_prologue): Try to use ldm.l and stm.l insns
-	on the H8/S.  Minor cleanups.
+	on the H8S.  Minor cleanups.
 	(function_epilogue): Likewise.
-	(asm_file_start): Emit ".h8300s" when compiling for the H8/S.
-	* h8300/h8300.h (CPP_SPEC): Handle the H8/S.
+	(asm_file_start): Emit ".h8300s" when compiling for the H8S.
+	* h8300/h8300.h (CPP_SPEC): Handle the H8S.
 	(TARGET_H8300S): New target.
 	(TARGET_SWITCHES): Add "-ms" and "-mno-s".
-	(BITS_PER_WORD): Handle the H8/S (treat it like the H8/300H).
+	(BITS_PER_WORD): Handle the H8S (treat it like the H8/300H).
 	(UNITS_PER_WORD, POINTER_SIZE, PARM_BOUNDARY): Likewise.
 	(BIGGEST_ALIGNMENT, BIGGEST_FIELD_ALIGNMENT): Likewise.
 	(INITIALIZE_TRAMPOLINE, MOVE_MAX, Pmode): Likewise.
-	* h8300.md: Handle H8/S just like H8/300H
+	* h8300.md: Handle H8S just like H8/300H
 	throughout the entire file.
 	* t-h8300 (MULTILIB_OPTIONS): Build "-ms" libraries too.
-	(MULTILIB_DIRNAMES): Put H8/S libraries in "h8300s" directory.
+	(MULTILIB_DIRNAMES): Put H8S libraries in "h8300s" directory.
 	* h8300/lib1funcs.asm: Emit ".h8300s" pseudo-op when generating
-	h8300s object files.  Otherwise treat the H8/S just like the H8/300H.
-	* ginclude/stdarg.h: Handle the H8/S.
+	h8300s object files.  Otherwise treat the H8S just like the H8/300H.
+	* ginclude/stdarg.h: Handle the H8S.
 	* ginclude/varargs.h: Likewise.
 
 Mon Jul  8 14:50:58 1996  Doug Evans  <dje@cygnus.com>
@@ -14430,7 +14430,7 @@ Thu Apr  4 11:40:55 1996  Michael Meissner  <meissner@tiktok.cygnus.com>
 
 Wed Apr  3 14:10:16 1996  Jim Wilson  <wilson@chestnut.cygnus.com>
 
-	* expr.c (emit_push_insn): Clobber register only if it is non-zero.
+	* expr.c (emit_push_insn): Clobber register only if it is nonzero.
 
 Wed Apr  3 11:31:55 1996  Jeffrey A. Law  <law@cygnus.com>
 

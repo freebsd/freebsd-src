@@ -45,6 +45,10 @@ Boston, MA 02111-1307, USA.  */
 #include <string.h>
 #endif
 
+#ifdef HAVE_MALLOC_H
+#include <malloc.h>
+#endif
+
 #include <stdio.h>
 
 #include "libiberty.h"
@@ -158,8 +162,42 @@ eq_pointer (p1, p2)
 /* This function creates table with length slightly longer than given
    source length.  Created hash table is initiated as empty (all the
    hash table entries are EMPTY_ENTRY).  The function returns the
-   created hash table.  Memory allocation must not fail.  */
+   created hash table, or NULL if memory allocation fails.  */
 
+htab_t
+htab_create_alloc (size, hash_f, eq_f, del_f, alloc_f, free_f)
+     size_t size;
+     htab_hash hash_f;
+     htab_eq eq_f;
+     htab_del del_f;
+     htab_alloc alloc_f;
+     htab_free free_f;
+{
+  htab_t result;
+
+  size = higher_prime_number (size);
+  result = (htab_t) (*alloc_f) (1, sizeof (struct htab));
+  if (result == NULL)
+    return NULL;
+  result->entries = (PTR *) (*alloc_f) (size, sizeof (PTR));
+  if (result->entries == NULL)
+    {
+      if (free_f != NULL)
+	(*free_f) (result);
+      return NULL;
+    }
+  result->size = size;
+  result->hash_f = hash_f;
+  result->eq_f = eq_f;
+  result->del_f = del_f;
+  result->alloc_f = alloc_f;
+  result->free_f = free_f;
+  return result;
+}
+
+/* These functions exist solely for backward compatibility.  */
+
+#undef htab_create
 htab_t
 htab_create (size, hash_f, eq_f, del_f)
      size_t size;
@@ -167,23 +205,8 @@ htab_create (size, hash_f, eq_f, del_f)
      htab_eq eq_f;
      htab_del del_f;
 {
-  htab_t result;
-
-  size = higher_prime_number (size);
-  result = (htab_t) xcalloc (1, sizeof (struct htab));
-  result->entries = (PTR *) xcalloc (size, sizeof (PTR));
-  result->size = size;
-  result->hash_f = hash_f;
-  result->eq_f = eq_f;
-  result->del_f = del_f;
-  result->return_allocation_failure = 0;
-  return result;
+  return htab_create_alloc (size, hash_f, eq_f, del_f, xcalloc, free);
 }
-
-/* This function creates table with length slightly longer than given
-   source length.  The created hash table is initiated as empty (all the
-   hash table entries are EMPTY_ENTRY).  The function returns the created
-   hash table.  Memory allocation may fail; it may return NULL.  */
 
 htab_t
 htab_try_create (size, hash_f, eq_f, del_f)
@@ -192,26 +215,7 @@ htab_try_create (size, hash_f, eq_f, del_f)
      htab_eq eq_f;
      htab_del del_f;
 {
-  htab_t result;
-
-  size = higher_prime_number (size);
-  result = (htab_t) calloc (1, sizeof (struct htab));
-  if (result == NULL)
-    return NULL;
-
-  result->entries = (PTR *) calloc (size, sizeof (PTR));
-  if (result->entries == NULL)
-    {
-      free (result);
-      return NULL;
-    }
-
-  result->size = size;
-  result->hash_f = hash_f;
-  result->eq_f = eq_f;
-  result->del_f = del_f;
-  result->return_allocation_failure = 1;
-  return result;
+  return htab_create_alloc (size, hash_f, eq_f, del_f, calloc, free);
 }
 
 /* This function frees all memory allocated for given hash table.
@@ -229,8 +233,11 @@ htab_delete (htab)
 	  && htab->entries[i] != DELETED_ENTRY)
 	(*htab->del_f) (htab->entries[i]);
 
-  free (htab->entries);
-  free (htab);
+  if (htab->free_f != NULL)
+    {
+      (*htab->free_f) (htab->entries);
+      (*htab->free_f) (htab);
+    }
 }
 
 /* This function clears all entries in the given hash table.  */
@@ -302,6 +309,7 @@ htab_expand (htab)
   PTR *oentries;
   PTR *olimit;
   PTR *p;
+  PTR *nentries;
   size_t nsize;
 
   oentries = htab->entries;
@@ -309,17 +317,12 @@ htab_expand (htab)
 
   nsize = higher_prime_number (htab->size * 2);
 
-  if (htab->return_allocation_failure)
-    {
-      PTR *nentries = (PTR *) calloc (nsize, sizeof (PTR));
-      if (nentries == NULL)
-	return 0;
-      htab->entries = nentries;
-    }
-  else
-    htab->entries = (PTR *) xcalloc (nsize, sizeof (PTR));
-
+  nentries = (PTR *) (*htab->alloc_f) (nsize, sizeof (PTR));
+  if (nentries == NULL)
+    return 0;
+  htab->entries = nentries;
   htab->size = nsize;
+
   htab->n_elements -= htab->n_deleted;
   htab->n_deleted = 0;
 
@@ -339,7 +342,8 @@ htab_expand (htab)
     }
   while (p < olimit);
 
-  free (oentries);
+  if (htab->free_f != NULL)
+    (*htab->free_f) (oentries);
   return 1;
 }
 

@@ -36,6 +36,7 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 #include "expr.h"
 #include "output.h"
 #include "timevar.h"
+#include "predict.h"
 
 /* If non-NULL, the address of a language-specific function for
    expanding statements.  */
@@ -334,7 +335,7 @@ genrtl_expr_stmt (expr)
    whether to (1) save the value of the expression, (0) discard it or
    (-1) use expr_stmts_for_value to tell.  The use of -1 is
    deprecated, and retained only for backward compatibility.
-   MAYBE_LAST is non-zero if this EXPR_STMT might be the last statement
+   MAYBE_LAST is nonzero if this EXPR_STMT might be the last statement
    in expression statement.  */
 
 void 
@@ -446,8 +447,9 @@ genrtl_do_stmt (t)
   /* Recognize the common special-case of do { ... } while (0) and do
      not emit the loop widgetry in this case.  In particular this
      avoids cluttering the rtl with dummy loop notes, which can affect
-     alignment of adjacent labels.  */
-  if (integer_zerop (cond))
+     alignment of adjacent labels.  COND can be NULL due to parse
+     errors.  */
+  if (!cond || integer_zerop (cond))
     {
       expand_start_null_loop ();
       expand_stmt (DO_BODY (t));
@@ -486,7 +488,7 @@ genrtl_return_stmt (stmt)
 {
   tree expr;
 
-  expr = RETURN_EXPR (stmt);
+  expr = RETURN_STMT_EXPR (stmt);
 
   emit_line_note (input_filename, lineno);
   if (!expr)
@@ -673,8 +675,7 @@ genrtl_case_label (case_label)
   if (cleanup)
     {
       static int explained = 0;
-      warning_with_decl (TREE_PURPOSE (cleanup), 
-			 "destructor needed for `%#D'");
+      warning ("destructor needed for `%#D'", (TREE_PURPOSE (cleanup)));
       warning ("where case label appears here");
       if (!explained)
 	{
@@ -835,6 +836,15 @@ expand_stmt (t)
 	  break;
 
 	case GOTO_STMT:
+	  /* Emit information for branch prediction.  */
+	  if (!GOTO_FAKE_P (t)
+	      && TREE_CODE (GOTO_DESTINATION (t)) == LABEL_DECL
+	      && flag_guess_branch_prob)
+	    {
+	      rtx note = emit_note (NULL, NOTE_INSN_PREDICTION);
+
+	      NOTE_PREDICTION (note) = NOTE_PREDICT (PRED_GOTO, NOT_TAKEN);
+	    }
 	  genrtl_goto_stmt (GOTO_DESTINATION (t));
 	  break;
 

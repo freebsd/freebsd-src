@@ -1,5 +1,5 @@
 /* List implementation of a partition of consecutive integers.
-   Copyright (C) 2000, 2001 Free Software Foundation, Inc.
+   Copyright (C) 2000, 2001, 2002 Free Software Foundation, Inc.
    Contributed by CodeSourcery, LLC.
 
    This file is part of GCC.
@@ -40,7 +40,7 @@
 extern "C" {
 #endif /* __cplusplus */
 
-#include <ansidecl.h>
+#include "ansidecl.h"
 #include <stdio.h>
 
 struct partition_elem
@@ -77,5 +77,9 @@ extern void partition_print             PARAMS((partition,
 
 #define partition_find(partition__, element__) \
     ((partition__)->elements[(element__)].class_element)
+
+#ifdef __cplusplus
+}
+#endif /* __cplusplus */
 
 #endif /* _PARTITION_H */

@@ -19,6 +19,14 @@ along with GCC; see the file COPYING.  If not, write to the Free
 Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 02111-1307, USA.  */
 
+/* As a special exception, if you link this library with other files,
+   some of which are compiled with GCC, to produce an executable,
+   this library does not by itself cause the resulting executable
+   to be covered by the GNU General Public License.
+   This exception does not however invalidate any other reasons why
+   the executable file might be covered by the GNU General Public License.  */
+
+
 #ifndef GCC_LIBGCC2_H
 #define GCC_LIBGCC2_H
 
@@ -31,9 +39,14 @@ struct bb;
 extern void __bb_exit_func (void);
 extern void __bb_init_func (struct bb *);
 extern void __bb_fork_func (void);
-extern void __bb_trace_func (void);
-extern void __bb_trace_ret (void);
-extern void __bb_init_trace_func (struct bb *, unsigned long);
+
+#if LONG_TYPE_SIZE == GCOV_TYPE_SIZE
+typedef long gcov_type;
+#else
+typedef long long gcov_type;
+#endif
+
+extern gcov_type *__bb_find_arc_counters (void);
 
 struct exception_descriptor;
 extern short int __get_eh_table_language (struct exception_descriptor *);

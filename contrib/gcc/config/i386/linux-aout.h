@@ -1,5 +1,6 @@
 /* Definitions for Intel 386 running Linux-based GNU systems using a.out.
-   Copyright (C) 1992, 1994, 1995, 1997, 1998, 2002 Free Software Foundation, Inc.
+   Copyright (C) 1992, 1994, 1995, 1997, 1998, 2002
+   Free Software Foundation, Inc.
    Contributed by H.J. Lu (hjl@nynexst.com)
 
 This file is part of GNU CC.
@@ -19,22 +20,26 @@ along with GNU CC; see the file COPYING.  If not, write to
 the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
 
-/* This is tested by i386/gas.h.  */
-#define YES_UNDERSCORES
-
-#include <i386/gstabs.h>
-#include <linux-aout.h>	/* some common stuff */
-
 #undef ASM_COMMENT_START
 #define ASM_COMMENT_START "#"
 
-/* Specify predefined symbols in preprocessor.  */
-
-#undef CPP_PREDEFINES
-#define CPP_PREDEFINES "-Dunix -D__gnu_linux__ -Dlinux -Asystem=posix"
+#define TARGET_OS_CPP_BUILTINS()		\
+  do						\
+    {						\
+	builtin_define_std ("linux");		\
+	builtin_define_std ("unix");		\
+	builtin_define ("__gnu_linux__");	\
+	builtin_assert ("system=posix");	\
+	if (flag_pic)				\
+	  {					\
+	    builtin_define ("__PIC__");		\
+	    builtin_define ("__pic__");		\
+	  }					\
+    }						\
+  while (0)
 
 #undef CPP_SPEC
-#define CPP_SPEC "%(cpp_cpu) %{fPIC:-D__PIC__ -D__pic__} %{fpic:-D__PIC__ -D__pic__} %{posix:-D_POSIX_SOURCE}"
+#define CPP_SPEC "%{posix:-D_POSIX_SOURCE}"
 
 #undef SIZE_TYPE
 #define SIZE_TYPE "unsigned int"

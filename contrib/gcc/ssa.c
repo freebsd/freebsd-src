@@ -49,7 +49,7 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 #include "output.h"
 #include "ssa.h"
 
-/* TODO: 
+/* TODO:
 
    Handle subregs better, maybe.  For now, if a reg that's set in a
    subreg expression is duplicated going into SSA form, an extra copy
@@ -78,7 +78,7 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
    the same hard register in the same machine mode are in the same
    class.  */
 
-/* If conservative_reg_partition is non-zero, use a conservative
+/* If conservative_reg_partition is nonzero, use a conservative
    register partitioning algorithm (which leaves more regs after
    emerging from SSA) instead of the coalescing one.  This is being
    left in for a limited time only, as a debugging tool until the
@@ -124,6 +124,8 @@ struct ssa_rename_from_hash_table_data {
   partition reg_partition;
 };
 
+static rtx gen_sequence
+  PARAMS ((void));
 static void ssa_rename_from_initialize
   PARAMS ((void));
 static rtx ssa_rename_from_lookup
@@ -163,7 +165,7 @@ struct rename_context;
 static inline rtx * phi_alternative
   PARAMS ((rtx, int));
 static void compute_dominance_frontiers_1
-  PARAMS ((sbitmap *frontiers, int *idom, int bb, sbitmap done));
+  PARAMS ((sbitmap *frontiers, dominance_info idom, int bb, sbitmap done));
 static void find_evaluations_1
   PARAMS ((rtx dest, rtx set, void *data));
 static void find_evaluations
@@ -174,16 +176,16 @@ static void insert_phi_node
   PARAMS ((int regno, int b));
 static void insert_phi_nodes
   PARAMS ((sbitmap *idfs, sbitmap *evals, int nregs));
-static void create_delayed_rename 
+static void create_delayed_rename
   PARAMS ((struct rename_context *, rtx *));
-static void apply_delayed_renames 
+static void apply_delayed_renames
   PARAMS ((struct rename_context *));
-static int rename_insn_1 
+static int rename_insn_1
   PARAMS ((rtx *ptr, void *data));
-static void rename_block 
-  PARAMS ((int b, int *idom));
-static void rename_registers 
-  PARAMS ((int nregs, int *idom));
+static void rename_block
+  PARAMS ((int b, dominance_info dom));
+static void rename_registers
+  PARAMS ((int nregs, dominance_info idom));
 
 static inline int ephi_add_node
   PARAMS ((rtx reg, rtx *nodes, int *n_nodes));
@@ -195,20 +197,20 @@ static void ephi_create
   PARAMS ((int t, sbitmap visited, sbitmap *pred, sbitmap *succ, rtx *nodes));
 static void eliminate_phi
   PARAMS ((edge e, partition reg_partition));
-static int make_regs_equivalent_over_bad_edges 
+static int make_regs_equivalent_over_bad_edges
   PARAMS ((int bb, partition reg_partition));
 
 /* These are used only in the conservative register partitioning
    algorithms.  */
-static int make_equivalent_phi_alternatives_equivalent 
+static int make_equivalent_phi_alternatives_equivalent
   PARAMS ((int bb, partition reg_partition));
-static partition compute_conservative_reg_partition 
+static partition compute_conservative_reg_partition
   PARAMS ((void));
 static int record_canonical_element_1
   PARAMS ((void **srfp, void *data));
 static int check_hard_regs_in_partition
   PARAMS ((partition reg_partition));
-static int rename_equivalent_regs_in_insn 
+static int rename_equivalent_regs_in_insn
   PARAMS ((rtx *ptr, void *data));
 
 /* These are used in the register coalescing algorithm.  */
@@ -222,14 +224,14 @@ static int coalesce_regs_in_successor_phi_nodes
   PARAMS ((basic_block bb, partition p, conflict_graph conflicts));
 static partition compute_coalesced_reg_partition
   PARAMS ((void));
-static int mark_reg_in_phi 
+static int mark_reg_in_phi
   PARAMS ((rtx *ptr, void *data));
 static void mark_phi_and_copy_regs
   PARAMS ((regset phi_set));
 
-static int rename_equivalent_regs_in_insn 
+static int rename_equivalent_regs_in_insn
   PARAMS ((rtx *ptr, void *data));
-static void rename_equivalent_regs 
+static void rename_equivalent_regs
   PARAMS ((partition reg_partition));
 
 /* Deal with hard registers.  */
@@ -418,7 +420,7 @@ phi_alternative (set, c)
 }
 
 /* Given the SET of a phi node, remove the alternative for predecessor
-   block C.  Return non-zero on success, or zero if no alternative is
+   block C.  Return nonzero on success, or zero if no alternative is
    found for C.  */
 
 int
@@ -470,18 +472,18 @@ find_evaluations (evals, nregs)
      sbitmap *evals;
      int nregs;
 {
-  int bb;
+  basic_block bb;
 
   sbitmap_vector_zero (evals, nregs);
   fe_evals = evals;
 
-  for (bb = n_basic_blocks; --bb >= 0; )
+  FOR_EACH_BB_REVERSE (bb)
     {
       rtx p, last;
 
-      fe_current_bb = bb;
-      p = BLOCK_HEAD (bb);
-      last = BLOCK_END (bb);
+      fe_current_bb = bb->index;
+      p = bb->head;
+      last = bb->end;
       while (1)
 	{
 	  if (INSN_P (p))
@@ -495,8 +497,8 @@ find_evaluations (evals, nregs)
 }
 
 /* Computing the Dominance Frontier:
-  
-   As decribed in Morgan, section 3.5, this may be done simply by 
+
+   As decribed in Morgan, section 3.5, this may be done simply by
    walking the dominator tree bottom-up, computing the frontier for
    the children before the parent.  When considering a block B,
    there are two cases:
@@ -514,13 +516,13 @@ find_evaluations (evals, nregs)
 static void
 compute_dominance_frontiers_1 (frontiers, idom, bb, done)
      sbitmap *frontiers;
-     int *idom;
+     dominance_info idom;
      int bb;
      sbitmap done;
 {
   basic_block b = BASIC_BLOCK (bb);
   edge e;
-  int c;
+  basic_block c;
 
   SET_BIT (done, bb);
   sbitmap_zero (frontiers[bb]);
@@ -528,27 +530,28 @@ compute_dominance_frontiers_1 (frontiers, idom, bb, done)
   /* Do the frontier of the children first.  Not all children in the
      dominator tree (blocks dominated by this one) are children in the
      CFG, so check all blocks.  */
-  for (c = 0; c < n_basic_blocks; ++c)
-    if (idom[c] == bb && ! TEST_BIT (done, c))
-      compute_dominance_frontiers_1 (frontiers, idom, c, done);
+  FOR_EACH_BB (c)
+    if (get_immediate_dominator (idom, c)->index == bb
+	&& ! TEST_BIT (done, c->index))
+      compute_dominance_frontiers_1 (frontiers, idom, c->index, done);
 
   /* Find blocks conforming to rule (1) above.  */
   for (e = b->succ; e; e = e->succ_next)
     {
       if (e->dest == EXIT_BLOCK_PTR)
 	continue;
-      if (idom[e->dest->index] != bb)
+      if (get_immediate_dominator (idom, e->dest)->index != bb)
 	SET_BIT (frontiers[bb], e->dest->index);
     }
 
   /* Find blocks conforming to rule (2).  */
-  for (c = 0; c < n_basic_blocks; ++c)
-    if (idom[c] == bb)
+  FOR_EACH_BB (c)
+    if (get_immediate_dominator (idom, c)->index == bb)
       {
 	int x;
-	EXECUTE_IF_SET_IN_SBITMAP (frontiers[c], 0, x,
+	EXECUTE_IF_SET_IN_SBITMAP (frontiers[c->index], 0, x,
 	  {
-	    if (idom[x] != bb)
+	    if (get_immediate_dominator (idom, BASIC_BLOCK (x))->index != bb)
 	      SET_BIT (frontiers[bb], x);
 	  });
       }
@@ -557,9 +560,9 @@ compute_dominance_frontiers_1 (frontiers, idom, bb, done)
 void
 compute_dominance_frontiers (frontiers, idom)
      sbitmap *frontiers;
-     int *idom;
+     dominance_info idom;
 {
-  sbitmap done = sbitmap_alloc (n_basic_blocks);
+  sbitmap done = sbitmap_alloc (last_basic_block);
   sbitmap_zero (done);
 
   compute_dominance_frontiers_1 (frontiers, idom, 0, done);
@@ -585,7 +588,7 @@ compute_iterated_dominance_frontiers (idfs, frontiers, evals, nregs)
   sbitmap worklist;
   int reg, passes = 0;
 
-  worklist = sbitmap_alloc (n_basic_blocks);
+  worklist = sbitmap_alloc (last_basic_block);
 
   for (reg = 0; reg < nregs; ++reg)
     {
@@ -698,10 +701,10 @@ insert_phi_nodes (idfs, evals, nregs)
     }
 }
 
-/* Rename the registers to conform to SSA. 
+/* Rename the registers to conform to SSA.
 
    This is essentially the algorithm presented in Figure 7.8 of Morgan,
-   with a few changes to reduce pattern search time in favour of a bit
+   with a few changes to reduce pattern search time in favor of a bit
    more memory usage.  */
 
 /* One of these is created for each set.  It will live in a list local
@@ -740,7 +743,7 @@ create_delayed_rename (c, reg_loc)
 {
   struct rename_set_data *r;
   r = (struct rename_set_data *) xmalloc (sizeof(*r));
-  
+
   if (GET_CODE (*reg_loc) != REG
       || !CONVERT_REGISTER_TO_SSA_P (REGNO (*reg_loc)))
     abort ();
@@ -756,7 +759,7 @@ create_delayed_rename (c, reg_loc)
 /* This is part of a rather ugly hack to allow the pre-ssa regno to be
    reused.  If, during processing, a register has not yet been touched,
    ssa_rename_to[regno][machno] will be NULL.  Now, in the course of pushing
-   and popping values from ssa_rename_to, when we would ordinarily 
+   and popping values from ssa_rename_to, when we would ordinarily
    pop NULL back in, we pop RENAME_NO_RTX.  We treat this exactly the
    same as NULL, except that it signals that the original regno has
    already been reused.  */
@@ -775,7 +778,7 @@ apply_delayed_renames (c)
   for (r = c->new_renames; r != NULL; r = r->next)
     {
       int new_regno;
-      
+
       /* Failure here means that someone has a PARALLEL that sets
 	 a register twice (bad!).  */
       if (ssa_rename_to_lookup (r->old_reg) != r->prev_reg)
@@ -812,7 +815,7 @@ apply_delayed_renames (c)
     }
 }
 
-/* Part one of the first step of rename_block, called through for_each_rtx. 
+/* Part one of the first step of rename_block, called through for_each_rtx.
    Mark pseudos that are set for later update.  Transform uses of pseudos.  */
 
 static int
@@ -855,7 +858,7 @@ rename_insn_1 (ptr, data)
 	   (set (subreg (reg foo)) ...)
 	   into
 	   (sequence [(set (reg foo_1) (reg foo))
-	              (set (subreg (reg foo_1)) ...)])  
+	              (set (subreg (reg foo_1)) ...)])
 
 	   FIXME: Much of the time this is too much.  For some constructs
 	   we know that the output register is strictly an output
@@ -870,13 +873,13 @@ rename_insn_1 (ptr, data)
 	  {
 	    rtx i, reg;
 	    reg = dest;
-	    
+
 	    while (GET_CODE (reg) == STRICT_LOW_PART
 		   || GET_CODE (reg) == SUBREG
 		   || GET_CODE (reg) == SIGN_EXTRACT
 		   || GET_CODE (reg) == ZERO_EXTRACT)
 		reg = XEXP (reg, 0);
-	    
+
 	    if (GET_CODE (reg) == REG
 		&& CONVERT_REGISTER_TO_SSA_P (REGNO (reg)))
 	      {
@@ -916,18 +919,23 @@ rename_insn_1 (ptr, data)
       }
 
     case REG:
-      if (CONVERT_REGISTER_TO_SSA_P (REGNO (x)) &&
-	  REGNO (x) < ssa_max_reg_num)
+      if (CONVERT_REGISTER_TO_SSA_P (REGNO (x))
+	  && REGNO (x) < ssa_max_reg_num)
 	{
 	  rtx new_reg = ssa_rename_to_lookup (x);
 
-	  if (new_reg != NULL_RTX && new_reg != RENAME_NO_RTX)
+	  if (new_reg != RENAME_NO_RTX && new_reg != NULL_RTX)
 	    {
 	      if (GET_MODE (x) != GET_MODE (new_reg))
 		abort ();
 	      *ptr = new_reg;
 	    }
-	  /* Else this is a use before a set.  Warn?  */
+	  else
+	    {
+	      /* Undefined value used, rename it to a new pseudo register so
+		 that it cannot conflict with an existing register.  */
+	      *ptr = gen_reg_rtx (GET_MODE (x));
+	    }
 	}
       return -1;
 
@@ -950,7 +958,7 @@ rename_insn_1 (ptr, data)
 	      }
 	    /* Stop traversing.  */
 	    return -1;
-	  }	    
+	  }
 	else
 	  /* Continue traversing.  */
 	  return 0;
@@ -966,20 +974,42 @@ rename_insn_1 (ptr, data)
     }
 }
 
+static rtx
+gen_sequence ()
+{
+  rtx first_insn = get_insns ();
+  rtx result;
+  rtx tem;
+  int i;
+  int len;
+
+  /* Count the insns in the chain.  */
+  len = 0;
+  for (tem = first_insn; tem; tem = NEXT_INSN (tem))
+    len++;
+
+  result = gen_rtx_SEQUENCE (VOIDmode, rtvec_alloc (len));
+
+  for (i = 0, tem = first_insn; tem; tem = NEXT_INSN (tem), i++)
+    XVECEXP (result, 0, i) = tem;
+
+  return result;
+}
+
 static void
 rename_block (bb, idom)
      int bb;
-     int *idom;
+     dominance_info idom;
 {
   basic_block b = BASIC_BLOCK (bb);
   edge e;
   rtx insn, next, last;
   struct rename_set_data *set_data = NULL;
-  int c;
+  basic_block c;
 
   /* Step One: Walk the basic block, adding new names for sets and
      replacing uses.  */
-     
+
   next = b->head;
   last = b->end;
   do
@@ -1004,7 +1034,7 @@ rename_block (bb, idom)
 	    {
 	      rtx seq;
 	      int i;
-	      
+
 	      emit (PATTERN (insn));
 	      seq = gen_sequence ();
 	      /* We really want a SEQUENCE of SETs, not a SEQUENCE
@@ -1014,7 +1044,7 @@ rename_block (bb, idom)
 	      PATTERN (insn) = seq;
 	    }
 	  end_sequence ();
-	  
+
 	  apply_delayed_renames (&context);
 	  set_data = context.done_renames;
 	}
@@ -1078,9 +1108,9 @@ rename_block (bb, idom)
   /* Step Three: Do the same to the children of this block in
      dominator order.  */
 
-  for (c = 0; c < n_basic_blocks; ++c)
-    if (idom[c] == bb)
-      rename_block (c, idom);
+  FOR_EACH_BB (c)
+    if (get_immediate_dominator (idom, c)->index == bb)
+      rename_block (c->index, idom);
 
   /* Step Four: Update the sets to refer to their new register,
      and restore ssa_rename_to to its previous state.  */
@@ -1099,25 +1129,25 @@ rename_block (bb, idom)
       next = set_data->next;
       free (set_data);
       set_data = next;
-    }      
+    }
 }
 
 static void
 rename_registers (nregs, idom)
      int nregs;
-     int *idom;
+     dominance_info idom;
 {
   VARRAY_RTX_INIT (ssa_definition, nregs * 3, "ssa_definition");
   ssa_rename_from_initialize ();
 
   ssa_rename_to_pseudo = (rtx *) alloca (nregs * sizeof(rtx));
   memset ((char *) ssa_rename_to_pseudo, 0, nregs * sizeof(rtx));
-  memset ((char *) ssa_rename_to_hard, 0, 
+  memset ((char *) ssa_rename_to_hard, 0,
 	 FIRST_PSEUDO_REGISTER * NUM_MACHINE_MODES * sizeof (rtx));
 
   rename_block (0, idom);
 
-  /* ??? Update basic_block_live_at_start, and other flow info 
+  /* ??? Update basic_block_live_at_start, and other flow info
      as needed.  */
 
   ssa_rename_to_pseudo = NULL;
@@ -1136,9 +1166,11 @@ convert_to_ssa ()
   sbitmap *idfs;
 
   /* Element I is the immediate dominator of block I.  */
-  int *idom;
+  dominance_info idom;
 
   int nregs;
+
+  basic_block bb;
 
   /* Don't do it twice.  */
   if (in_ssa_form)
@@ -1148,28 +1180,26 @@ convert_to_ssa ()
      dead code.  We'll let the SSA optimizers do that.  */
   life_analysis (get_insns (), NULL, 0);
 
-  idom = (int *) alloca (n_basic_blocks * sizeof (int));
-  memset ((void *) idom, -1, (size_t) n_basic_blocks * sizeof (int));
-  calculate_dominance_info (idom, NULL, CDI_DOMINATORS);
+  idom = calculate_dominance_info (CDI_DOMINATORS);
 
   if (rtl_dump_file)
     {
-      int i;
       fputs (";; Immediate Dominators:\n", rtl_dump_file);
-      for (i = 0; i < n_basic_blocks; ++i)
-	fprintf (rtl_dump_file, ";\t%3d = %3d\n", i, idom[i]);
+      FOR_EACH_BB (bb)
+	fprintf (rtl_dump_file, ";\t%3d = %3d\n", bb->index,
+		 get_immediate_dominator (idom, bb)->index);
       fflush (rtl_dump_file);
     }
 
   /* Compute dominance frontiers.  */
 
-  dfs = sbitmap_vector_alloc (n_basic_blocks, n_basic_blocks);
+  dfs = sbitmap_vector_alloc (last_basic_block, last_basic_block);
   compute_dominance_frontiers (dfs, idom);
 
   if (rtl_dump_file)
     {
       dump_sbitmap_vector (rtl_dump_file, ";; Dominance Frontiers:",
-			   "; Basic Block", dfs, n_basic_blocks);
+			   "; Basic Block", dfs, last_basic_block);
       fflush (rtl_dump_file);
     }
 
@@ -1177,12 +1207,12 @@ convert_to_ssa ()
 
   ssa_max_reg_num = max_reg_num ();
   nregs = ssa_max_reg_num;
-  evals = sbitmap_vector_alloc (nregs, n_basic_blocks);
+  evals = sbitmap_vector_alloc (nregs, last_basic_block);
   find_evaluations (evals, nregs);
 
   /* Compute the iterated dominance frontier for each register.  */
 
-  idfs = sbitmap_vector_alloc (nregs, n_basic_blocks);
+  idfs = sbitmap_vector_alloc (nregs, last_basic_block);
   compute_iterated_dominance_frontiers (idfs, dfs, evals, nregs);
 
   if (rtl_dump_file)
@@ -1208,6 +1238,7 @@ convert_to_ssa ()
   in_ssa_form = 1;
 
   reg_scan (get_insns (), max_reg_num (), 1);
+  free_dominance_info (idom);
 }
 
 /* REG is the representative temporary of its partition.  Add it to the
@@ -1247,7 +1278,7 @@ ephi_forward (t, visited, succ, tstack)
   EXECUTE_IF_SET_IN_SBITMAP (succ[t], 0, s,
     {
       if (! TEST_BIT (visited, s))
-        tstack = ephi_forward (s, visited, succ, tstack);
+	tstack = ephi_forward (s, visited, succ, tstack);
     });
 
   *tstack++ = t;
@@ -1291,7 +1322,7 @@ ephi_create (t, visited, pred, succ, nodes)
   int p;
 
   /* Iterate through the predecessor list looking for unvisited nodes.
-     If there are any, we have a cycle, and must deal with that.  At 
+     If there are any, we have a cycle, and must deal with that.  At
      the same time, look for a visited predecessor.  If there is one,
      we won't need to create a temporary.  */
 
@@ -1322,8 +1353,8 @@ ephi_create (t, visited, pred, succ, nodes)
 	      emit_move_insn (nodes[p], reg_u);
 	    }
 	});
-    }  
-  else 
+    }
+  else
     {
       /* No cycle.  Just copy the value from a successor.  */
 
@@ -1366,7 +1397,7 @@ eliminate_phi (e, reg_partition)
   if (n_nodes == 0)
     return;
 
-  /* Build the auxiliary graph R(B). 
+  /* Build the auxiliary graph R(B).
 
      The nodes of the graph are the members of the register partition
      present in Phi(B).  There is an edge from FIND(T0)->FIND(T1) for
@@ -1399,7 +1430,7 @@ eliminate_phi (e, reg_partition)
 
       reg = regno_reg_rtx[partition_find (reg_partition, REGNO (reg))];
       tgt = regno_reg_rtx[partition_find (reg_partition, REGNO (tgt))];
-      /* If the two registers are already in the same partition, 
+      /* If the two registers are already in the same partition,
 	 nothing will need to be done.  */
       if (reg != tgt)
 	{
@@ -1429,10 +1460,10 @@ eliminate_phi (e, reg_partition)
 
   sbitmap_zero (visited);
 
-  /* As we find a solution to the tsort, collect the implementation 
+  /* As we find a solution to the tsort, collect the implementation
      insns in a sequence.  */
   start_sequence ();
-  
+
   while (tstack != stack)
     {
       i = *--tstack;
@@ -1440,7 +1471,7 @@ eliminate_phi (e, reg_partition)
 	ephi_create (i, visited, pred, succ, nodes);
     }
 
-  insn = gen_sequence ();
+  insn = get_insns ();
   end_sequence ();
   insert_insn_on_edge (insn, e);
   if (rtl_dump_file)
@@ -1456,16 +1487,16 @@ out:
 /* For basic block B, consider all phi insns which provide an
    alternative corresponding to an incoming abnormal critical edge.
    Place the phi alternative corresponding to that abnormal critical
-   edge in the same register class as the destination of the set.  
+   edge in the same register class as the destination of the set.
 
    From Morgan, p. 178:
 
-     For each abnormal critical edge (C, B), 
-     if T0 = phi (T1, ..., Ti, ..., Tm) is a phi node in B, 
-     and C is the ith predecessor of B, 
-     then T0 and Ti must be equivalent. 
+     For each abnormal critical edge (C, B),
+     if T0 = phi (T1, ..., Ti, ..., Tm) is a phi node in B,
+     and C is the ith predecessor of B,
+     then T0 and Ti must be equivalent.
 
-   Return non-zero iff any such cases were found for which the two
+   Return nonzero iff any such cases were found for which the two
    regs were not already in the same class.  */
 
 static int
@@ -1481,7 +1512,7 @@ make_regs_equivalent_over_bad_edges (bb, reg_partition)
   phi = first_insn_after_basic_block_note (b);
 
   /* Scan all the phi nodes.  */
-  for (; 
+  for (;
        PHI_NODE_P (phi);
        phi = next_nonnote_insn (phi))
     {
@@ -1491,7 +1522,7 @@ make_regs_equivalent_over_bad_edges (bb, reg_partition)
       rtx tgt = SET_DEST (set);
 
       /* The set target is expected to be an SSA register.  */
-      if (GET_CODE (tgt) != REG 
+      if (GET_CODE (tgt) != REG
 	  || !CONVERT_REGISTER_TO_SSA_P (REGNO (tgt)))
 	abort ();
       tgt_regno = REGNO (tgt);
@@ -1509,14 +1540,14 @@ make_regs_equivalent_over_bad_edges (bb, reg_partition)
 	      continue;
 
 	    /* The phi alternative is expected to be an SSA register.  */
-	    if (GET_CODE (*alt) != REG 
+	    if (GET_CODE (*alt) != REG
 		|| !CONVERT_REGISTER_TO_SSA_P (REGNO (*alt)))
 	      abort ();
 	    alt_regno = REGNO (*alt);
 
 	    /* If the set destination and the phi alternative aren't
 	       already in the same class...  */
-	    if (partition_find (reg_partition, tgt_regno) 
+	    if (partition_find (reg_partition, tgt_regno)
 		!= partition_find (reg_partition, alt_regno))
 	      {
 		/* ... make them such.  */
@@ -1524,8 +1555,8 @@ make_regs_equivalent_over_bad_edges (bb, reg_partition)
 		  /* It is illegal to unify a hard register with a
 		     different register.  */
 		  abort ();
-		
-		partition_union (reg_partition, 
+
+		partition_union (reg_partition,
 				 tgt_regno, alt_regno);
 		++changed;
 	      }
@@ -1554,7 +1585,7 @@ make_equivalent_phi_alternatives_equivalent (bb, reg_partition)
   phi = first_insn_after_basic_block_note (b);
 
   /* Scan all the phi nodes.  */
-  for (; 
+  for (;
        PHI_NODE_P (phi);
        phi = next_nonnote_insn (phi))
     {
@@ -1572,7 +1603,7 @@ make_equivalent_phi_alternatives_equivalent (bb, reg_partition)
 	  rtx set2 = PATTERN (phi2);
 	  /* The regno of the destination of the set.  */
 	  int tgt2_regno = REGNO (SET_DEST (set2));
-		  
+
 	  /* Are the set destinations equivalent regs?  */
 	  if (partition_find (reg_partition, tgt_regno) ==
 	      partition_find (reg_partition, tgt2_regno))
@@ -1602,7 +1633,7 @@ make_equivalent_phi_alternatives_equivalent (bb, reg_partition)
 
 		  /* If the alternatives aren't already in the same
 		     class ...  */
-		  if (partition_find (reg_partition, REGNO (*alt)) 
+		  if (partition_find (reg_partition, REGNO (*alt))
 		      != partition_find (reg_partition, REGNO (*alt2)))
 		    {
 		      /* ... make them so.  */
@@ -1611,7 +1642,7 @@ make_equivalent_phi_alternatives_equivalent (bb, reg_partition)
 			   a different register.  */
 			abort ();
 
-		      partition_union (reg_partition, 
+		      partition_union (reg_partition,
 				       REGNO (*alt), REGNO (*alt2));
 		      ++changed;
 		    }
@@ -1629,30 +1660,30 @@ make_equivalent_phi_alternatives_equivalent (bb, reg_partition)
 static partition
 compute_conservative_reg_partition ()
 {
-  int bb;
+  basic_block bb;
   int changed = 0;
 
   /* We don't actually work with hard registers, but it's easier to
      carry them around anyway rather than constantly doing register
      number arithmetic.  */
-  partition p = 
+  partition p =
     partition_new (ssa_definition->num_elements);
 
   /* The first priority is to make sure registers that might have to
      be copied on abnormal critical edges are placed in the same
      partition.  This saves us from having to split abnormal critical
      edges.  */
-  for (bb = n_basic_blocks; --bb >= 0; )
-    changed += make_regs_equivalent_over_bad_edges (bb, p);
-  
+  FOR_EACH_BB_REVERSE (bb)
+    changed += make_regs_equivalent_over_bad_edges (bb->index, p);
+
   /* Now we have to insure that corresponding arguments of phi nodes
      assigning to corresponding regs are equivalent.  Iterate until
      nothing changes.  */
   while (changed > 0)
     {
       changed = 0;
-      for (bb = n_basic_blocks; --bb >= 0; )
-	changed += make_equivalent_phi_alternatives_equivalent (bb, p);
+      FOR_EACH_BB_REVERSE (bb)
+	changed += make_equivalent_phi_alternatives_equivalent (bb->index, p);
     }
 
   return p;
@@ -1667,13 +1698,13 @@ compute_conservative_reg_partition ()
        abnormal critical edges (which isn't possible).
 
     2. Figure out which regs are involved (in the LHS or RHS) of
-       copies and phi nodes.  Compute conflicts among these regs.  
+       copies and phi nodes.  Compute conflicts among these regs.
 
     3. Walk around the instruction stream, placing two regs in the
        same class of the partition if one appears on the LHS and the
        other on the RHS of a copy or phi node and the two regs don't
        conflict.  The conflict information of course needs to be
-       updated.  
+       updated.
 
     4. If anything has changed, there may be new opportunities to
        coalesce regs, so go back to 2.
@@ -1681,14 +1712,14 @@ compute_conservative_reg_partition ()
 
 /* If REG1 and REG2 don't conflict in CONFLICTS, place them in the
    same class of partition P, if they aren't already.  Update
-   CONFLICTS appropriately.  
+   CONFLICTS appropriately.
 
    Returns one if REG1 and REG2 were placed in the same class but were
-   not previously; zero otherwise.  
+   not previously; zero otherwise.
 
    See Morgan figure 11.15.  */
 
-static int 
+static int
 coalesce_if_unconflicting (p, conflicts, reg1, reg2)
      partition p;
      conflict_graph conflicts;
@@ -1705,7 +1736,7 @@ coalesce_if_unconflicting (p, conflicts, reg1, reg2)
      REG2.  */
   reg1 = partition_find (p, reg1);
   reg2 = partition_find (p, reg2);
-  
+
   /* If they're already in the same class, there's nothing to do.  */
   if (reg1 == reg2)
     return 0;
@@ -1720,7 +1751,7 @@ coalesce_if_unconflicting (p, conflicts, reg1, reg2)
 
   /* Find the new canonical reg for the merged class.  */
   reg = partition_find (p, reg1);
-  
+
   /* Merge conflicts from the two previous classes.  */
   conflict_graph_merge_regs (conflicts, reg, reg1);
   conflict_graph_merge_regs (conflicts, reg, reg2);
@@ -1769,7 +1800,7 @@ coalesce_regs_in_copies (bb, p, conflicts)
 
       /* Coalesce only if the reg modes are the same.  As long as
 	 each reg's rtx is unique, it can have only one mode, so two
-	 pseudos of different modes can't be coalesced into one.  
+	 pseudos of different modes can't be coalesced into one.
 
          FIXME: We can probably get around this by inserting SUBREGs
          where appropriate, but for now we don't bother.  */
@@ -1779,7 +1810,7 @@ coalesce_regs_in_copies (bb, p, conflicts)
       /* Found a copy; see if we can use the same reg for both the
 	 source and destination (and thus eliminate the copy,
 	 ultimately).  */
-      changed += coalesce_if_unconflicting (p, conflicts, 
+      changed += coalesce_if_unconflicting (p, conflicts,
 					    REGNO (src), REGNO (dest));
     }
 
@@ -1805,12 +1836,12 @@ coalesce_reg_in_phi (insn, dest_regno, src_regno, data)
      int src_regno;
      void *data;
 {
-  struct phi_coalesce_context *context = 
+  struct phi_coalesce_context *context =
     (struct phi_coalesce_context *) data;
-  
+
   /* Attempt to use the same reg, if they don't conflict.  */
-  context->changed 
-    += coalesce_if_unconflicting (context->p, context->conflicts, 
+  context->changed
+    += coalesce_if_unconflicting (context->p, context->conflicts,
 				  dest_regno, src_regno);
   return 0;
 }
@@ -1818,10 +1849,10 @@ coalesce_reg_in_phi (insn, dest_regno, src_regno, data)
 /* For each alternative in a phi function corresponding to basic block
    BB (in phi nodes in successor block to BB), place the reg in the
    phi alternative and the reg to which the phi value is set into the
-   same class in partition P, if allowed by CONFLICTS.  
+   same class in partition P, if allowed by CONFLICTS.
 
    Return the number of changes that were made to P.
-   
+
    See Morgan figure 11.14.  */
 
 static int
@@ -1841,27 +1872,27 @@ coalesce_regs_in_successor_phi_nodes (bb, p, conflicts)
 }
 
 /* Compute and return a partition of pseudos.  Where possible,
-   non-conflicting pseudos are placed in the same class.  
+   non-conflicting pseudos are placed in the same class.
 
    The caller is responsible for deallocating the returned partition.  */
 
 static partition
 compute_coalesced_reg_partition ()
 {
-  int bb;
+  basic_block bb;
   int changed = 0;
   regset_head phi_set_head;
   regset phi_set = &phi_set_head;
 
-  partition p = 
+  partition p =
     partition_new (ssa_definition->num_elements);
 
   /* The first priority is to make sure registers that might have to
      be copied on abnormal critical edges are placed in the same
      partition.  This saves us from having to split abnormal critical
      edges (which can't be done).  */
-  for (bb = n_basic_blocks; --bb >= 0; )
-    make_regs_equivalent_over_bad_edges (bb, p);
+  FOR_EACH_BB_REVERSE (bb)
+    make_regs_equivalent_over_bad_edges (bb->index, p);
 
   INIT_REG_SET (phi_set);
 
@@ -1883,12 +1914,11 @@ compute_coalesced_reg_partition ()
 	 blocks first, so that most frequently executed copies would
 	 be more likely to be removed by register coalescing.  But any
 	 order will generate correct, if non-optimal, results.  */
-      for (bb = n_basic_blocks; --bb >= 0; )
+      FOR_EACH_BB_REVERSE (bb)
 	{
-	  basic_block block = BASIC_BLOCK (bb);
-	  changed += coalesce_regs_in_copies (block, p, conflicts);
-	  changed += 
-	    coalesce_regs_in_successor_phi_nodes (block, p, conflicts);
+	  changed += coalesce_regs_in_copies (bb, p, conflicts);
+	  changed +=
+	    coalesce_regs_in_successor_phi_nodes (bb, p, conflicts);
 	}
 
       conflict_graph_delete (conflicts);
@@ -1995,7 +2025,7 @@ rename_equivalent_regs_in_insn (ptr, data)
 	  unsigned int new_regno = partition_find (reg_partition, regno);
 	  rtx canonical_element_rtx = ssa_rename_from_lookup (new_regno);
 
-	  if (canonical_element_rtx != NULL_RTX && 
+	  if (canonical_element_rtx != NULL_RTX &&
 	      HARD_REGISTER_P (canonical_element_rtx))
 	    {
 	      if (REGNO (canonical_element_rtx) != regno)
@@ -2036,7 +2066,7 @@ record_canonical_element_1 (srfp, data)
     ((struct ssa_rename_from_hash_table_data *) data)->canonical_elements;
   partition reg_partition =
     ((struct ssa_rename_from_hash_table_data *) data)->reg_partition;
-  
+
   SET_BIT (canonical_elements, partition_find (reg_partition, reg));
   return 1;
 }
@@ -2094,11 +2124,10 @@ static void
 rename_equivalent_regs (reg_partition)
      partition reg_partition;
 {
-  int bb;
+  basic_block b;
 
-  for (bb = n_basic_blocks; --bb >= 0; )
+  FOR_EACH_BB_REVERSE (b)
     {
-      basic_block b = BASIC_BLOCK (bb);
       rtx next = b->head;
       rtx last = b->end;
       rtx insn;
@@ -2108,11 +2137,11 @@ rename_equivalent_regs (reg_partition)
 	  insn = next;
 	  if (INSN_P (insn))
 	    {
-	      for_each_rtx (&PATTERN (insn), 
-			    rename_equivalent_regs_in_insn, 
+	      for_each_rtx (&PATTERN (insn),
+			    rename_equivalent_regs_in_insn,
 			    reg_partition);
-	      for_each_rtx (&REG_NOTES (insn), 
-			    rename_equivalent_regs_in_insn, 
+	      for_each_rtx (&REG_NOTES (insn),
+			    rename_equivalent_regs_in_insn,
 			    reg_partition);
 
 	      if (GET_CODE (PATTERN (insn)) == SEQUENCE)
@@ -2141,13 +2170,13 @@ rename_equivalent_regs (reg_partition)
 void
 convert_from_ssa ()
 {
-  int bb;
+  basic_block b, bb;
   partition reg_partition;
   rtx insns = get_insns ();
 
   /* Need global_live_at_{start,end} up to date.  There should not be
      any significant dead code at this point, except perhaps dead
-     stores.  So do not take the time to perform dead code elimination. 
+     stores.  So do not take the time to perform dead code elimination.
 
      Register coalescing needs death notes, so generate them.  */
   life_analysis (insns, NULL, PROP_DEATH_NOTES);
@@ -2167,9 +2196,8 @@ convert_from_ssa ()
   rename_equivalent_regs (reg_partition);
 
   /* Eliminate the PHI nodes.  */
-  for (bb = n_basic_blocks; --bb >= 0; )
+  FOR_EACH_BB_REVERSE (b)
     {
-      basic_block b = BASIC_BLOCK (bb);
       edge e;
 
       for (e = b->pred; e; e = e->pred_next)
@@ -2180,17 +2208,17 @@ convert_from_ssa ()
   partition_delete (reg_partition);
 
   /* Actually delete the PHI nodes.  */
-  for (bb = n_basic_blocks; --bb >= 0; )
+  FOR_EACH_BB_REVERSE (bb)
     {
-      rtx insn = BLOCK_HEAD (bb);
+      rtx insn = bb->head;
 
       while (1)
 	{
 	  /* If this is a PHI node delete it.  */
 	  if (PHI_NODE_P (insn))
 	    {
-	      if (insn == BLOCK_END (bb))
-		BLOCK_END (bb) = PREV_INSN (insn);
+	      if (insn == bb->end)
+		bb->end = PREV_INSN (insn);
 	      insn = delete_insn (insn);
 	    }
 	  /* Since all the phi nodes come at the beginning of the
@@ -2199,9 +2227,9 @@ convert_from_ssa ()
 	  else if (INSN_P (insn))
 	    break;
 	  /* If we've reached the end of the block, stop.  */
-	  else if (insn == BLOCK_END (bb))
+	  else if (insn == bb->end)
 	    break;
-	  else 
+	  else
 	    insn = NEXT_INSN (insn);
 	}
     }
@@ -2214,7 +2242,7 @@ convert_from_ssa ()
   count_or_remove_death_notes (NULL, 1);
 
   /* Deallocate the data structures.  */
-  VARRAY_FREE (ssa_definition);
+  ssa_definition = 0;
   ssa_rename_from_free ();
 }
 
@@ -2224,7 +2252,7 @@ convert_from_ssa ()
    destination, the regno of the phi argument corresponding to BB,
    and DATA.
 
-   If FN ever returns non-zero, stops immediately and returns this
+   If FN ever returns nonzero, stops immediately and returns this
    value.  Otherwise, returns zero.  */
 
 int
@@ -2234,7 +2262,7 @@ for_each_successor_phi (bb, fn, data)
      void *data;
 {
   edge e;
-  
+
   if (bb == EXIT_BLOCK_PTR)
     return 0;
 
@@ -2244,7 +2272,7 @@ for_each_successor_phi (bb, fn, data)
       rtx insn;
 
       basic_block successor = e->dest;
-      if (successor == ENTRY_BLOCK_PTR 
+      if (successor == ENTRY_BLOCK_PTR
 	  || successor == EXIT_BLOCK_PTR)
 	continue;
 
@@ -2261,7 +2289,7 @@ for_each_successor_phi (bb, fn, data)
 	  rtx phi_set = PATTERN (insn);
 	  rtx *alternative = phi_alternative (phi_set, bb->index);
 	  rtx phi_src;
-	  
+
 	  /* This phi function may not have an alternative
 	     corresponding to the incoming edge, indicating the
 	     assigned variable is not defined along the edge.  */
@@ -2270,7 +2298,7 @@ for_each_successor_phi (bb, fn, data)
 	  phi_src = *alternative;
 
 	  /* Invoke the callback.  */
-	  result = (*fn) (insn, REGNO (SET_DEST (phi_set)), 
+	  result = (*fn) (insn, REGNO (SET_DEST (phi_set)),
 			  REGNO (phi_src), data);
 
 	  /* Terminate if requested.  */
@@ -2301,6 +2329,6 @@ conflicting_hard_regs_p (reg1, reg2)
     return 1;
   if (!HARD_REGISTER_NUM_P (orig_reg1) && HARD_REGISTER_NUM_P (orig_reg2))
     return 1;
-  
+
   return 0;
 }

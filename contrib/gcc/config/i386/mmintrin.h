@@ -30,6 +30,9 @@
 #ifndef _MMINTRIN_H_INCLUDED
 #define _MMINTRIN_H_INCLUDED
 
+#ifndef __MMX__
+# error "MMX instruction set not enabled"
+#else
 /* The data type intended for user use.  */
 typedef int __m64 __attribute__ ((__mode__ (__V2SI__)));
 
@@ -53,6 +56,22 @@ _mm_cvtsi32_si64 (int __i)
   return (__m64) __tmp;
 }
 
+#ifdef __x86_64__
+/* Convert I to a __m64 object.  */
+static __inline __m64 
+_mm_cvtsi64x_si64 (long long __i)
+{
+  return (__m64) __i;
+}
+
+/* Convert I to a __m64 object.  */
+static __inline __m64 
+_mm_set_pi64x (long long __i)
+{
+  return (__m64) __i;
+}
+#endif
+
 /* Convert the lower 32 bits of the __m64 object into an integer.  */
 static __inline int
 _mm_cvtsi64_si32 (__m64 __i)
@@ -60,6 +79,15 @@ _mm_cvtsi64_si32 (__m64 __i)
   long long __tmp = (long long)__i;
   return __tmp;
 }
+
+#ifdef __x86_64__
+/* Convert the lower 32 bits of the __m64 object into an integer.  */
+static __inline long long
+_mm_cvtsi64_si64x (__m64 __i)
+{
+  return (long long)__i;
+}
+#endif
 
 /* Pack the four 16-bit values from M1 into the lower four 8-bit values of
    the result, and the four 16-bit values from M2 into the upper four 8-bit
@@ -157,6 +185,13 @@ _mm_add_pi32 (__m64 __m1, __m64 __m2)
   return (__m64) __builtin_ia32_paddd ((__v2si)__m1, (__v2si)__m2);
 }
 
+/* Add the 64-bit values in M1 to the 64-bit values in M2.  */
+static __inline __m64
+_mm_add_si64 (__m64 __m1, __m64 __m2)
+{
+  return (__m64) __builtin_ia32_paddq ((long long)__m1, (long long)__m2);
+}
+
 /* Add the 8-bit values in M1 to the 8-bit values in M2 using signed
    saturated arithmetic.  */
 static __inline __m64
@@ -208,6 +243,13 @@ static __inline __m64
 _mm_sub_pi32 (__m64 __m1, __m64 __m2)
 {
   return (__m64) __builtin_ia32_psubd ((__v2si)__m1, (__v2si)__m2);
+}
+
+/* Add the 64-bit values in M1 to the 64-bit values in M2.  */
+static __inline __m64
+_mm_sub_si64 (__m64 __m1, __m64 __m2)
+{
+  return (__m64) __builtin_ia32_psubq ((long long)__m1, (long long)__m2);
 }
 
 /* Subtract the 8-bit values in M2 from the 8-bit values in M1 using signed
@@ -541,4 +583,5 @@ _mm_set1_pi8 (char __b)
   return _mm_set1_pi32 (__i);
 }
 
+#endif /* __MMX__ */
 #endif /* _MMINTRIN_H_INCLUDED */

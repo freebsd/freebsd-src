@@ -29,31 +29,9 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
    assume the user knows what they're doing.  If no explicit input is
    mentioned, it will read stdin.  */
 
-/* Snarfed from gcc.c: */
-
-/* This defines which switch letters take arguments.  */
-
-#define DEFAULT_SWITCH_TAKES_ARG(CHAR) \
-  ((CHAR) == 'D' || (CHAR) == 'U' || (CHAR) == 'o' \
-   || (CHAR) == 'e' || (CHAR) == 'T' || (CHAR) == 'u' \
-   || (CHAR) == 'I' || (CHAR) == 'm' || (CHAR) == 'x' \
-   || (CHAR) == 'L' || (CHAR) == 'A' || (CHAR) == 'V' \
-   || (CHAR) == 'B' || (CHAR) == 'b')
-
 #ifndef SWITCH_TAKES_ARG
 #define SWITCH_TAKES_ARG(CHAR) DEFAULT_SWITCH_TAKES_ARG(CHAR)
 #endif
-
-/* This defines which multi-letter switches take arguments.  */
-
-#define DEFAULT_WORD_SWITCH_TAKES_ARG(STR)		\
- (!strcmp (STR, "Tdata") || !strcmp (STR, "Ttext")	\
-  || !strcmp (STR, "Tbss") || !strcmp (STR, "include")	\
-  || !strcmp (STR, "imacros") || !strcmp (STR, "aux-info") \
-  || !strcmp (STR, "idirafter") || !strcmp (STR, "iprefix") \
-  || !strcmp (STR, "iwithprefix") || !strcmp (STR, "iwithprefixbefore") \
-  || !strcmp (STR, "isystem") || !strcmp (STR, "specs") \
-  || !strcmp (STR, "MF") || !strcmp (STR, "MT") || !strcmp (STR, "MQ"))
 
 #ifndef WORD_SWITCH_TAKES_ARG
 #define WORD_SWITCH_TAKES_ARG(STR) DEFAULT_WORD_SWITCH_TAKES_ARG (STR)
@@ -90,7 +68,7 @@ lang_specific_driver (in_argc, in_argv, in_added_libraries)
 
   /* Have we seen an input file? */
   int seen_input = 0;
-  
+
   /* Positions to insert -xc, -xassembler-with-cpp, and -o, if necessary.
      0 means unnecessary.  */
   int lang_c_here = 0;
@@ -99,7 +77,7 @@ lang_specific_driver (in_argc, in_argv, in_added_libraries)
 
   /* Do we need to fix up an input file with an unrecognized suffix? */
   int need_fixups = 1;
-  
+
   int i, j, quote = 0;
   const char **new_argv;
   int new_argc;
@@ -117,7 +95,7 @@ lang_specific_driver (in_argc, in_argv, in_added_libraries)
 	  quote = 0;
 	  continue;
 	}
-      
+
       if (argv[i][0] == '-')
 	{
 	  if (argv[i][1] == '\0')
@@ -228,7 +206,7 @@ lang_specific_driver (in_argc, in_argv, in_added_libraries)
   new_argv[j] = NULL;
   *in_argc = new_argc;
   *in_argv = new_argv;
-} 
+}
 
 /* Called before linking.  Returns 0 on success and -1 on failure.  */
 int lang_specific_pre_link ()
@@ -238,3 +216,9 @@ int lang_specific_pre_link ()
 
 /* Number of extra output files that lang_specific_pre_link may generate.  */
 int lang_specific_extra_outfiles = 0;  /* Not used for cpp.  */
+
+/* Table of language-specific spec functions.  */
+const struct spec_function lang_specific_spec_functions[] =
+{
+  { 0, 0 }
+};

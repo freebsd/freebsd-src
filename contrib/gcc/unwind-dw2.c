@@ -48,7 +48,9 @@
 #define PRE_GCC3_DWARF_FRAME_REGISTERS DWARF_FRAME_REGISTERS
 #endif
 
-/* This is the register and unwind state for a particular frame.  */
+/* This is the register and unwind state for a particular frame.  This
+   provides the information necessary to unwind up past a frame and return
+   to its caller.  */
 struct _Unwind_Context
 {
   void *reg[DWARF_FRAME_REGISTERS+1];
@@ -164,6 +166,14 @@ _Unwind_GetGR (struct _Unwind_Context *context, int index)
   return * (_Unwind_Word *) context->reg[index];
 }
 
+/* Get the value of the CFA as saved in CONTEXT.  */
+
+_Unwind_Word
+_Unwind_GetCFA (struct _Unwind_Context *context)
+{
+  return (_Unwind_Ptr) context->cfa;
+}
+
 /* Overwrite the saved value for register REG in CONTEXT with VAL.  */
 
 inline void
@@ -198,6 +208,17 @@ _Unwind_Ptr
 _Unwind_GetRegionStart (struct _Unwind_Context *context)
 {
   return (_Unwind_Ptr) context->bases.func;
+}
+
+void *
+_Unwind_FindEnclosingFunction (void *pc)
+{
+  struct dwarf_eh_bases bases;
+  struct dwarf_fde *fde = _Unwind_Find_FDE (pc-1, &bases);
+  if (fde)
+    return bases.func;
+  else
+    return NULL;
 }
 
 #ifndef __ia64__
@@ -589,68 +610,68 @@ execute_stack_op (const unsigned char *op_ptr, const unsigned char *op_end,
 	  {
 	    /* Binary operations.  */
 	    _Unwind_Word first, second;
-	  if ((stack_elt -= 2) < 0)
-	    abort ();
-	  second = stack[stack_elt];
-	  first = stack[stack_elt + 1];
-
-	  switch (op)
-	    {
-	    case DW_OP_and:
-	      result = second & first;
-	      break;
-	    case DW_OP_div:
-	      result = (_Unwind_Sword) second / (_Unwind_Sword) first;
-	      break;
-	    case DW_OP_minus:
-	      result = second - first;
-	      break;
-	    case DW_OP_mod:
-	      result = (_Unwind_Sword) second % (_Unwind_Sword) first;
-	      break;
-	    case DW_OP_mul:
-	      result = second * first;
-	      break;
-	    case DW_OP_or:
-	      result = second | first;
-	      break;
-	    case DW_OP_plus:
-	      result = second + first;
-	      break;
-	    case DW_OP_shl:
-	      result = second << first;
-	      break;
-	    case DW_OP_shr:
-	      result = second >> first;
-	      break;
-	    case DW_OP_shra:
-	      result = (_Unwind_Sword) second >> first;
-	      break;
-	    case DW_OP_xor:
-	      result = second ^ first;
-	      break;
-	    case DW_OP_le:
-	      result = (_Unwind_Sword) first <= (_Unwind_Sword) second;
-	      break;
-	    case DW_OP_ge:
-	      result = (_Unwind_Sword) first >= (_Unwind_Sword) second;
-	      break;
-	    case DW_OP_eq:
-	      result = (_Unwind_Sword) first == (_Unwind_Sword) second;
-	      break;
-	    case DW_OP_lt:
-	      result = (_Unwind_Sword) first < (_Unwind_Sword) second;
-	      break;
-	    case DW_OP_gt:
-	      result = (_Unwind_Sword) first > (_Unwind_Sword) second;
-	      break;
-	    case DW_OP_ne:
-	      result = (_Unwind_Sword) first != (_Unwind_Sword) second;
-	      break;
-
-	    default:
+	    if ((stack_elt -= 2) < 0)
 	      abort ();
-	    }
+	    second = stack[stack_elt];
+	    first = stack[stack_elt + 1];
+
+	    switch (op)
+	      {
+	      case DW_OP_and:
+		result = second & first;
+		break;
+	      case DW_OP_div:
+		result = (_Unwind_Sword) second / (_Unwind_Sword) first;
+		break;
+	      case DW_OP_minus:
+		result = second - first;
+		break;
+	      case DW_OP_mod:
+		result = (_Unwind_Sword) second % (_Unwind_Sword) first;
+		break;
+	      case DW_OP_mul:
+		result = second * first;
+		break;
+	      case DW_OP_or:
+		result = second | first;
+		break;
+	      case DW_OP_plus:
+		result = second + first;
+		break;
+	      case DW_OP_shl:
+		result = second << first;
+		break;
+	      case DW_OP_shr:
+		result = second >> first;
+		break;
+	      case DW_OP_shra:
+		result = (_Unwind_Sword) second >> first;
+		break;
+	      case DW_OP_xor:
+		result = second ^ first;
+		break;
+	      case DW_OP_le:
+		result = (_Unwind_Sword) first <= (_Unwind_Sword) second;
+		break;
+	      case DW_OP_ge:
+		result = (_Unwind_Sword) first >= (_Unwind_Sword) second;
+		break;
+	      case DW_OP_eq:
+		result = (_Unwind_Sword) first == (_Unwind_Sword) second;
+		break;
+	      case DW_OP_lt:
+		result = (_Unwind_Sword) first < (_Unwind_Sword) second;
+		break;
+	      case DW_OP_gt:
+		result = (_Unwind_Sword) first > (_Unwind_Sword) second;
+		break;
+	      case DW_OP_ne:
+		result = (_Unwind_Sword) first != (_Unwind_Sword) second;
+		break;
+
+	      default:
+		abort ();
+	      }
 	  }
 	  break;
 
@@ -679,7 +700,7 @@ execute_stack_op (const unsigned char *op_ptr, const unsigned char *op_end,
       /* Most things push a result value.  */
       if ((size_t) stack_elt >= sizeof(stack)/sizeof(*stack))
 	abort ();
-      stack[++stack_elt] = result;
+      stack[stack_elt++] = result;
     no_push:;
     }
 
@@ -784,7 +805,7 @@ execute_cfa_program (const unsigned char *insn_ptr,
 	    fs->regs.reg[reg].loc.reg = reg2;
 	  }
 	  break;
-      
+
 	case DW_CFA_remember_state:
 	  {
 	    struct frame_state_reg_info *new_rs;
@@ -829,17 +850,17 @@ execute_cfa_program (const unsigned char *insn_ptr,
 	  break;
 
 	case DW_CFA_def_cfa_expression:
-	  insn_ptr = read_uleb128 (insn_ptr, &utmp);
 	  fs->cfa_exp = insn_ptr;
 	  fs->cfa_how = CFA_EXP;
+	  insn_ptr = read_uleb128 (insn_ptr, &utmp);
 	  insn_ptr += utmp;
 	  break;
 
 	case DW_CFA_expression:
 	  insn_ptr = read_uleb128 (insn_ptr, &reg);
-	  insn_ptr = read_uleb128 (insn_ptr, &utmp);
 	  fs->regs.reg[reg].how = REG_SAVED_EXP;
 	  fs->regs.reg[reg].loc.exp = insn_ptr;
+	  insn_ptr = read_uleb128 (insn_ptr, &utmp);
 	  insn_ptr += utmp;
 	  break;
 
@@ -851,7 +872,7 @@ execute_cfa_program (const unsigned char *insn_ptr,
 	  fs->regs.reg[reg].how = REG_SAVED_OFFSET;
 	  fs->regs.reg[reg].loc.offset = offset;
 	  break;
-	  
+
 	case DW_CFA_def_cfa_sf:
 	  insn_ptr = read_uleb128 (insn_ptr, &fs->cfa_reg);
 	  insn_ptr = read_sleb128 (insn_ptr, &fs->cfa_offset);
@@ -892,6 +913,11 @@ execute_cfa_program (const unsigned char *insn_ptr,
     }
 }
 
+/* Given the _Unwind_Context CONTEXT for a stack frame, look up the FDE for
+   its caller and decode it into FS.  This function also sets the
+   args_size and lsda members of CONTEXT, as they are really information
+   about the caller's frame.  */
+
 static _Unwind_Reason_Code
 uw_frame_state_for (struct _Unwind_Context *context, _Unwind_FrameState *fs)
 {
@@ -1023,34 +1049,48 @@ uw_update_context_1 (struct _Unwind_Context *context, _Unwind_FrameState *fs)
   void *cfa;
   long i;
 
+#ifdef EH_RETURN_STACKADJ_RTX
+  /* Special handling here: Many machines do not use a frame pointer,
+     and track the CFA only through offsets from the stack pointer from
+     one frame to the next.  In this case, the stack pointer is never
+     stored, so it has no saved address in the context.  What we do
+     have is the CFA from the previous stack frame.
+
+     In very special situations (such as unwind info for signal return),
+     there may be location expressions that use the stack pointer as well.
+
+     Do this conditionally for one frame.  This allows the unwind info
+     for one frame to save a copy of the stack pointer from the previous
+     frame, and be able to use much easier CFA mechanisms to do it.
+     Always zap the saved stack pointer value for the next frame; carrying
+     the value over from one frame to another doesn't make sense.  */
+
+  _Unwind_Word tmp_sp;
+
+  if (!orig_context.reg[__builtin_dwarf_sp_column ()])
+    {
+      tmp_sp = (_Unwind_Ptr) context->cfa;
+      orig_context.reg[__builtin_dwarf_sp_column ()] = &tmp_sp;
+    }
+  context->reg[__builtin_dwarf_sp_column ()] = NULL;
+#endif
+
   /* Compute this frame's CFA.  */
   switch (fs->cfa_how)
     {
     case CFA_REG_OFFSET:
-      /* Special handling here: Many machines do not use a frame pointer,
-	 and track the CFA only through offsets from the stack pointer from
-	 one frame to the next.  In this case, the stack pointer is never
-	 stored, so it has no saved address in the context.  What we do 
-	 have is the CFA from the previous stack frame.  */
-      if (context->reg[fs->cfa_reg] == NULL)
-	cfa = context->cfa;
-      else
-	cfa = (void *) (_Unwind_Ptr) _Unwind_GetGR (context, fs->cfa_reg);
+      cfa = (void *) (_Unwind_Ptr) _Unwind_GetGR (&orig_context, fs->cfa_reg);
       cfa += fs->cfa_offset;
       break;
 
     case CFA_EXP:
-      /* ??? No way of knowing what register number is the stack pointer
-	 to do the same sort of handling as above.  Assume that if the
-	 CFA calculation is so complicated as to require a stack program
-	 that this will not be a problem.  */
       {
 	const unsigned char *exp = fs->cfa_exp;
 	_Unwind_Word len;
 
 	exp = read_uleb128 (exp, &len);
 	cfa = (void *) (_Unwind_Ptr)
-	  execute_stack_op (exp, exp + len, context, 0);
+	  execute_stack_op (exp, exp + len, &orig_context, 0);
 	break;
       }
 
@@ -1065,12 +1105,15 @@ uw_update_context_1 (struct _Unwind_Context *context, _Unwind_FrameState *fs)
       {
       case REG_UNSAVED:
 	break;
+
       case REG_SAVED_OFFSET:
 	context->reg[i] = cfa + fs->regs.reg[i].loc.offset;
 	break;
+
       case REG_SAVED_REG:
 	context->reg[i] = orig_context.reg[fs->regs.reg[i].loc.reg];
 	break;
+
       case REG_SAVED_EXP:
 	{
 	  const unsigned char *exp = fs->regs.reg[i].loc.exp;
@@ -1086,6 +1129,11 @@ uw_update_context_1 (struct _Unwind_Context *context, _Unwind_FrameState *fs)
       }
 }
 
+/* CONTEXT describes the unwind state for a frame, and FS describes the FDE
+   of its caller.  Update CONTEXT to refer to the caller as well.  Note
+   that the args_size and lsda members are not updated here, but later in
+   uw_frame_state_for.  */
+
 static void
 uw_update_context (struct _Unwind_Context *context, _Unwind_FrameState *fs)
 {
@@ -1099,7 +1147,7 @@ uw_update_context (struct _Unwind_Context *context, _Unwind_FrameState *fs)
 
 /* Fill in CONTEXT for top-of-stack.  The only valid registers at this
    level will be the return address and the CFA.  */
-   
+
 #define uw_init_context(CONTEXT)					   \
   do									   \
     {									   \
@@ -1117,6 +1165,7 @@ uw_init_context_1 (struct _Unwind_Context *context,
 {
   void *ra = __builtin_extract_return_addr (__builtin_return_address (0));
   _Unwind_FrameState fs;
+  _Unwind_Word sp_slot;
 
   memset (context, 0, sizeof (struct _Unwind_Context));
   context->ra = ra;
@@ -1125,9 +1174,10 @@ uw_init_context_1 (struct _Unwind_Context *context,
     abort ();
 
   /* Force the frame state to use the known cfa value.  */
-  context->cfa = outer_cfa;
+  sp_slot = (_Unwind_Ptr) outer_cfa;
+  context->reg[__builtin_dwarf_sp_column ()] = &sp_slot;
   fs.cfa_how = CFA_REG_OFFSET;
-  fs.cfa_reg = 0;
+  fs.cfa_reg = __builtin_dwarf_sp_column ();
   fs.cfa_offset = 0;
 
   uw_update_context_1 (context, &fs);
@@ -1184,11 +1234,26 @@ uw_install_context_1 (struct _Unwind_Context *current,
 	memcpy (c, t, dwarf_reg_size_table[i]);
     }
 
-  /* We adjust SP by the difference between CURRENT and TARGET's CFA.  */
-  if (STACK_GROWS_DOWNWARD)
-    return target->cfa - current->cfa + target->args_size;
-  else
-    return current->cfa - target->cfa - target->args_size;
+#ifdef EH_RETURN_STACKADJ_RTX
+  {
+    void *target_cfa;
+
+    /* If the last frame records a saved stack pointer, use it.  */
+    if (target->reg[__builtin_dwarf_sp_column ()])
+      target_cfa = (void *)(_Unwind_Ptr)
+        _Unwind_GetGR (target, __builtin_dwarf_sp_column ());
+    else
+      target_cfa = target->cfa;
+
+    /* We adjust SP by the difference between CURRENT and TARGET's CFA.  */
+    if (STACK_GROWS_DOWNWARD)
+      return target_cfa - current->cfa + target->args_size;
+    else
+      return current->cfa - target_cfa - target->args_size;
+  }
+#else
+  return 0;
+#endif
 }
 
 static inline _Unwind_Ptr
