@@ -23,7 +23,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_interface.c,v 1.28 1997/04/26 11:45:03 peter Exp $
+ *	$Id: db_interface.c,v 1.1 1997/06/26 18:40:55 smp Exp smp $
  */
 
 /*
@@ -38,6 +38,10 @@
 #include <machine/cons.h>
 #include <machine/md_var.h>
 #include <machine/segments.h>
+#ifdef SMP
+#include <machine/smp.h>
+#include <machine/smptests.h>	/** TEST_CPUSTOP */
+#endif
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -134,6 +138,11 @@ kdb_trap(type, code, regs)
 
 	cnpollc(TRUE);
 
+#if defined(SMP) && defined(TEST_CPUSTOP)
+	/* we stopp all CPUs except ourselves (obviously) */
+	stop_cpus(other_cpus);
+#endif  /* SMP && TEST_CPUSTOP */
+
 	(void) setjmp(db_global_jmpbuf);
 	db_global_jmpbuf_valid = TRUE;
 	if (ddb_mode)
@@ -141,6 +150,16 @@ kdb_trap(type, code, regs)
 	else
 	    gdb_handle_exception(&ddb_regs, type, code);
 	db_global_jmpbuf_valid = FALSE;
+
+#if defined(SMP) && defined(TEST_CPUSTOP)
+	/* restart all the CPUs we previously stopped */
+	if (stopped_cpus != other_cpus) {
+		db_printf("whoa, other_cpus: 0x%08x, stopped_cpus: 0x%08x\n",
+		       other_cpus, stopped_cpus);
+		cngetc();
+	}
+	restart_cpus(stopped_cpus);
+#endif  /* SMP && TEST_CPUSTOP */
 
 	cnpollc(FALSE);
 
