@@ -483,7 +483,7 @@ main(int argc, char *argv[], char **envp)
 		 * Atomically write process ID
 		 */
 		if (pid_file)
-		{   
+		{
 			int fd;
 			char buf[20];
 
@@ -2765,7 +2765,7 @@ send_file_list(char *whichf)
 			    dir->d_namlen == 2)
 				continue;
 
-			snprintf(nbuf, sizeof(nbuf), 
+			snprintf(nbuf, sizeof(nbuf),
 				"%s/%s", dirname, dir->d_name);
 
 			/*
