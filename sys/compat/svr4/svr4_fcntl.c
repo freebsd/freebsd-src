@@ -285,6 +285,7 @@ fd_truncate(td, fd, flp)
 	struct flock *flp;
 {
 	off_t start, length;
+	struct file *fp;
 	struct vnode *vp;
 	struct vattr vattr;
 	int error, *retval;
@@ -295,16 +296,18 @@ fd_truncate(td, fd, flp)
 	/*
 	 * We only support truncating the file.
 	 */
-	if ((error = fgetvp(td, fd, &vp)) != 0)
+	if ((error = fget(td, fd, &fp)) != 0)
 		return (error);
 
-	if (vp->v_type == VFIFO) {
-		vrele(vp);
+	vp = (struct vnode *) fp->f_data;
+
+	if (fp->f_type != DTYPE_VNODE || vp->v_type == VFIFO) {
+		fdrop(fp, td);
 		return ESPIPE;
 	}
 
-	if ((error = VOP_GETATTR(vp, &vattr, td->td_proc->p_ucred, td)) != 0)
-		vrele(vp);
+	if ((error = VOP_GETATTR(vp, &vattr, td->td_proc->p_ucred, td)) != 0) {
+		fdrop(fp, td);
 		return error;
 	}
 
@@ -324,12 +327,13 @@ fd_truncate(td, fd, flp)
 		break;
 
 	default:
-		vrele(vp);
+		fdrop(fp, td);
 		return EINVAL;
 	}
 
 	if (start + flp->l_len < length) {
 		/* We don't support free'ing in the middle of the file */
+		fdrop(fp, td);
 		return EINVAL;
 	}
 
@@ -338,7 +342,7 @@ fd_truncate(td, fd, flp)
 
 	error = ftruncate(td, &ft);
 
-	vrele(vp);
+	fdrop(fp, td);
 	return (error);
 }
 
