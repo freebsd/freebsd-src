@@ -193,12 +193,11 @@ int line_edit(WINDOW* dialog, int box_y, int box_x, int flen, int box_width, cht
 	  for (i = strlen(instr) - 1; i >= scroll + input_x && instr[i] == ' '; i--)
 	    instr[i] = '\0';
 	  i++;
-	  if (   i < MAX_LEN
-	      && (flen < 0 || i < flen)
-	     ) {
+	  if (i < MAX_LEN && (flen < 0 || scroll+input_x < flen)) {
+	    if (flen < 0 || i < flen)
 	    memmove(instr+scroll+input_x+1, instr+scroll+input_x, i-scroll+input_x);
 	    instr[scroll+input_x] = key;
-	    if (input_x == box_width-1) {
+	    if (input_x == box_width-1 && (flen < 0 || i < flen)) {
 	      scroll++;
 	      wmove(dialog, box_y, box_x);
 	      fix_len = flen >= 0 ? MIN(flen-scroll,box_width) : box_width;
