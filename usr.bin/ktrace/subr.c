@@ -35,9 +35,10 @@
 #if 0
 static char sccsid[] = "@(#)subr.c	8.1 (Berkeley) 6/6/93";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
 #endif /* not lint */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/file.h>
@@ -50,6 +51,11 @@ static const char rcsid[] =
 
 #include "ktrace.h"
 
+void timevaladd(struct timeval *, struct timeval *);
+void timevalsub(struct timeval *, struct timeval *);
+void timevalfix(struct timeval *);
+
+int
 getpoints(s)
 	char *s;
 {
@@ -86,6 +92,7 @@ getpoints(s)
 	return (facs);
 }
 
+void
 timevaladd(t1, t2)
 	struct timeval *t1, *t2;
 {
@@ -94,6 +101,7 @@ timevaladd(t1, t2)
 	timevalfix(t1);
 }
 
+void
 timevalsub(t1, t2)
 	struct timeval *t1, *t2;
 {
@@ -102,6 +110,7 @@ timevalsub(t1, t2)
 	timevalfix(t1);
 }
 
+void
 timevalfix(t1)
 	struct timeval *t1;
 {
