@@ -171,10 +171,10 @@ _strptime(const char *buf, const char *fmt, struct tm *tm)
 				i *= 10;
 				i += *buf - '0';
 			}
-			if (i > 365)
+			if (i < 1 || i > 366)
 				return 0;
 
-			tm->tm_yday = i;
+			tm->tm_yday = i - 1;
 			break;
 
 		case 'M':
@@ -189,13 +189,16 @@ _strptime(const char *buf, const char *fmt, struct tm *tm)
 				i *= 10;
 				i += *buf - '0';
 			}
-			if (i > 59)
-				return 0;
 
-			if (c == 'M')
+			if (c == 'M') {
+				if (i > 59)
+					return 0;
 				tm->tm_min = i;
-			else
+			} else {
+				if (i > 60)
+					return 0;
 				tm->tm_sec = i;
+			}
 
 			if (*buf != 0 && isspace((unsigned char)*buf))
 				while (*ptr != 0 && !isspace((unsigned char)*ptr))
@@ -269,6 +272,47 @@ _strptime(const char *buf, const char *fmt, struct tm *tm)
 
 			tm->tm_wday = i;
 			buf += len;
+			break;
+
+		case 'U':
+		case 'W':
+			/*
+			 * XXX This is bogus, as we can not assume any valid
+			 * information present in the tm structure at this
+			 * point to calculate a real value, so just check the
+			 * range for now.
+			 */
+			if (!isdigit((unsigned char)*buf))
+				return 0;
+
+			for (i = 0; *buf != 0 && isdigit((unsigned char)*buf); buf++) {
+				i *= 10;
+				i += *buf - '0';
+			}
+			if (i > 53)
+				return 0;
+
+			if (*buf != 0 && isspace((unsigned char)*buf))
+				while (*ptr != 0 && !isspace((unsigned char)*ptr))
+					ptr++;
+			break;
+
+		case 'w':
+			if (!isdigit((unsigned char)*buf))
+				return 0;
+
+			for (i = 0; *buf != 0 && isdigit((unsigned char)*buf); buf++) {
+				i *= 10;
+				i += *buf - '0';
+			}
+			if (i > 6)
+				return 0;
+
+			tm->tm_wday = i;
+
+			if (*buf != 0 && isspace((unsigned char)*buf))
+				while (*ptr != 0 && !isspace((unsigned char)*ptr))
+					ptr++;
 			break;
 
 		case 'd':
