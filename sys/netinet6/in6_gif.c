@@ -93,7 +93,7 @@ in6_gif_output(ifp, family, m)
 	struct sockaddr_in6 *sin6_src = (struct sockaddr_in6 *)sc->gif_psrc;
 	struct sockaddr_in6 *sin6_dst = (struct sockaddr_in6 *)sc->gif_pdst;
 	struct ip6_hdr *ip6;
-	int proto;
+	int proto, error;
 	u_int8_t itos, otos;
 
 	if (sin6_src == NULL || sin6_dst == NULL ||
@@ -213,10 +213,17 @@ in6_gif_output(ifp, family, m)
 	 * it is too painful to ask for resend of inner packet, to achieve
 	 * path MTU discovery for encapsulated packets.
 	 */
-	return (ip6_output(m, 0, &sc->gif_ro6, IPV6_MINMTU, 0, NULL, NULL));
+	error = (ip6_output(m, 0, &sc->gif_ro6, IPV6_MINMTU, 0, NULL, NULL));
 #else
-	return (ip6_output(m, 0, &sc->gif_ro6, 0, 0, NULL, NULL));
+	error = (ip6_output(m, 0, &sc->gif_ro6, 0, 0, NULL, NULL));
 #endif
+
+	if ((sc->gif_if.if_flags & IFF_LINK0) == 0) {
+		RTFREE(sc->gif_ro6.ro_rt);
+		sc->gif_ro6.ro_rt = NULL;
+	}
+
+	return (error);
 }
 
 int
