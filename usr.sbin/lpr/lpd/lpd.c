@@ -569,7 +569,7 @@ errloop:
 			if (status)
 				syslog(LOG_WARNING, 
 				    "lpd startup: printcap entry for %s has errors, skipping",
-				    pp->printer ? pp->printer : "<???>");
+				    pp->printer ? pp->printer : "<noname?>");
 		} while (more && status);
 	}
 }
