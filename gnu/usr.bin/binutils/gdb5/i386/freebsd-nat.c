@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 /* Native-dependent code for BSD Unix running on i386's, for GDB.
    Copyright 1988, 1989, 1991, 1992, 1994, 1996 Free Software Foundation, Inc.
 
@@ -18,7 +17,10 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
-/* $FreeBSD$ */
+#ifndef lint
+static const char rcsid[] =
+  "$FreeBSD$";
+#endif /* not lint */
 
 #include "defs.h"
 

@@ -1,4 +1,3 @@
-/*	$FreeBSD$	*/
 /*	$NetBSD: fmtcheck.c,v 1.2 2000/11/01 01:17:20 briggs Exp $	*/
 
 /*-
