@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bootstrap.h,v 1.15 1998/10/22 20:20:50 msmith Exp $
+ *	$Id: bootstrap.h,v 1.16 1998/11/02 23:28:10 msmith Exp $
  */
 
 #include <sys/types.h>
@@ -56,7 +56,7 @@ extern char	command_errbuf[];	/* XXX blah, length */
 
 /* interp.c */
 extern void	interact(void);
-extern void	source(char *filename);
+extern int	source(char *filename);
 
 /* interp_parse.c */
 extern int	parse(int *argc, char ***argv, char *str);
