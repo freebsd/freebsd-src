@@ -67,6 +67,9 @@ maximum of 16, and the other, aforementioned options are now dynamic.
 
 The ahc(4) driver has been updated.
 
+AlphaServer 2100A 'Lynx' support has not been finalised and Lynx is therefore
+not yet supported. 
+
 
 1.2. SECURITY FIXES
 -------------------
