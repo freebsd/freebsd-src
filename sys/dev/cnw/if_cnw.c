@@ -264,6 +264,7 @@ struct cfattach cnw_ca = {
 
 #include <net/bpf.h>
 
+#include <dev/pccard/pccardvar.h>
 #include "card_if.h"
 
 #include <dev/cnw/if_cnwioctl.h>
@@ -1701,7 +1702,7 @@ static int cnw_alloc(dev)
 	}
 
 	error = CARD_SET_RES_FLAGS(device_get_parent(dev), dev,
-			SYS_RES_MEMORY, rid, 2);
+			SYS_RES_MEMORY, rid, PCCARD_A_MEM_8BIT);
 	if (error) {
 		device_printf(dev,
 			"CARD_SET_RES_FLAGS returned 0x%0x\n", error);
