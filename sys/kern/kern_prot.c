@@ -1746,13 +1746,12 @@ crfree(struct ucred *cr)
 	mtx_lock(mtxp);
 	KASSERT(cr->cr_ref > 0, ("bad ucred refcount: %d", cr->cr_ref));
 	if (--cr->cr_ref == 0) {
+		mtx_unlock(mtxp);
 		/*
 		 * Some callers of crget(), such as nfs_statfs(),
 		 * allocate a temporary credential, but don't
 		 * allocate a uidinfo structure.
 		 */
-		mtx_unlock(mtxp);
-		mtx_lock(&Giant);
 		if (cr->cr_uidinfo != NULL)
 			uifree(cr->cr_uidinfo);
 		if (cr->cr_ruidinfo != NULL)
@@ -1766,7 +1765,6 @@ crfree(struct ucred *cr)
 		mac_destroy_cred(cr);
 #endif
 		FREE(cr, M_CRED);
-		mtx_unlock(&Giant);
 	} else {
 		mtx_unlock(mtxp);
 	}
