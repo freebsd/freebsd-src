@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: show.c,v 1.5 1995/01/05 01:10:13 swallace Exp $";
+static const char *rcsid = "$Id: show.c,v 1.6 1995/05/30 03:50:02 rgrimes Exp $";
 #endif
 
 /*
@@ -35,13 +35,13 @@ show_file(char *title, char *fname)
     if (!Quiet)
 	printf("%s%s", InfoPrefix, title);
     fp = fopen(fname, "r");
-    if (!fp) {
-	whinge("show_file: Can't open '%s' for reading.", fname);
-	return;
+    if (!fp)
+	printf("ERROR: show_file: Can't open '%s' for reading!\n", fname);
+    else {
+	while (n = fread(line, 1, 1024, fp))
+	    fwrite(line, 1, n, stdout);
+	fclose(fp);
     }
-    while (n = fread(line, 1, 1024, fp))
-	fwrite(line, 1, n, stdout);
-    fclose(fp);
     printf("\n");	/* just in case */
 }
 
