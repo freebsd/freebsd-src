@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acfreebsd.h - OS specific defines, etc.
- *       $Revision: 9 $
+ *       $Revision: 10 $
  *
  *****************************************************************************/
 
@@ -139,16 +139,16 @@
 #define __cli()     disable_intr()
 #define __sti()     enable_intr()
 
-#ifdef ACPI_DEBUG
+#ifdef ACPI_DEBUG_OUTPUT
 #ifdef DEBUGGER_THREADING
 #undef DEBUGGER_THREADING
 #endif /* DEBUGGER_THREADING */
 #define DEBUGGER_THREADING 0    /* integrated with DDB */
 #include "opt_ddb.h"
 #ifdef DDB
-#define ENABLE_DEBUGGER
+#define ACPI_DEBUGGER
 #endif /* DDB */
-#endif /* ACPI_DEBUG */
+#endif /* ACPI_DEBUG_OUTPUT */
 
 #else /* _KERNEL */
 

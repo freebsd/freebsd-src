@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: dmopcode - AML disassembler, specific AML opcodes
- *              $Revision: 75 $
+ *              $Revision: 77 $
  *
  ******************************************************************************/
 
@@ -122,7 +122,7 @@
 
 #ifdef ACPI_DISASSEMBLER
 
-#define _COMPONENT          ACPI_DEBUGGER
+#define _COMPONENT          ACPI_CA_DEBUGGER
         ACPI_MODULE_NAME    ("dmopcode")
 
 
@@ -419,7 +419,7 @@ AcpiDmDisassembleOneOp (
 
     case AML_BYTE_OP:
 
-        AcpiOsPrintf ("0x%.2X", (UINT32) Op->Common.Value.Integer8);
+        AcpiOsPrintf ("0x%2.2X", (UINT32) Op->Common.Value.Integer8);
         break;
 
 
@@ -431,7 +431,7 @@ AcpiDmDisassembleOneOp (
         }
         else
         {
-            AcpiOsPrintf ("0x%.2X", (UINT32) Op->Common.Value.Integer16);
+            AcpiOsPrintf ("0x%4.4X", (UINT32) Op->Common.Value.Integer16);
         }
         break;
 
@@ -442,30 +442,17 @@ AcpiDmDisassembleOneOp (
         {
             AcpiDmEisaId (Op->Common.Value.Integer32);
         }
-        else if ((Op->Common.Value.Integer32 == ACPI_UINT32_MAX) &&
-                (AcpiGbl_DSDT->Revision < 2))
-        {
-            AcpiOsPrintf ("Ones");
-        }
         else
         {
-            AcpiOsPrintf ("0x%.2X", Op->Common.Value.Integer32);
+            AcpiOsPrintf ("0x%8.8X", Op->Common.Value.Integer32);
         }
         break;
 
 
     case AML_QWORD_OP:
 
-        if ((Op->Common.Value.Integer == ACPI_INTEGER_MAX) &&
-            (AcpiGbl_DSDT->Revision >= 2))
-        {
-            AcpiOsPrintf ("Ones");
-        }
-        else
-        {
-            AcpiOsPrintf ("0x%X%8.8X", Op->Common.Value.Integer64.Hi,
-                                       Op->Common.Value.Integer64.Lo);
-        }
+        AcpiOsPrintf ("0x%8.8X%8.8X", Op->Common.Value.Integer64.Hi,
+                                      Op->Common.Value.Integer64.Lo);
         break;
 
 
@@ -596,7 +583,7 @@ AcpiDmDisassembleOneOp (
         AcpiOsPrintf ("%s", OpInfo->Name);
 
 
-#ifdef ENABLE_DEBUGGER
+#ifdef ACPI_DEBUGGER
 
         if ((Op->Common.AmlOpcode == AML_INT_RETURN_VALUE_OP) &&
             (WalkState) &&
