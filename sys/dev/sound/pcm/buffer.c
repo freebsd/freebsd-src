@@ -30,8 +30,6 @@
 
 SND_DECLARE_FILE("$FreeBSD$");
 
-#define	MIN(x, y) (((x) < (y))? (x) : (y))
-
 #define SNDBUF_NAMELEN	48
 struct snd_dbuf {
 	device_t dev;

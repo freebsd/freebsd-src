@@ -35,7 +35,6 @@ SND_DECLARE_FILE("$FreeBSD$");
 #define	DMA_ALIGN_THRESHOLD	4
 #define	DMA_ALIGN_MASK		(~(DMA_ALIGN_THRESHOLD - 1))
 
-#define	MIN(x, y) (((x) < (y))? (x) : (y))
 #define CANCHANGE(c) (!(c->flags & CHN_F_TRIGGERED))
 
 /*
