@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_clock.c	8.5 (Berkeley) 1/21/94
- * $Id: kern_clock.c,v 1.23 1995/12/07 12:46:37 davidg Exp $
+ * $Id: kern_clock.c,v 1.24 1995/12/17 21:23:16 phk Exp $
  */
 
 /* Portions of this software are covered by the following: */
@@ -83,9 +83,10 @@
 static void initclocks __P((void *dummy));
 SYSINIT(clocks, SI_SUB_CLOCKS, SI_ORDER_FIRST, initclocks, NULL)
 
-/* Does anybody else really care about these? (yes, machdep.c) */
-static struct callout calltodo;
+/* Exported to machdep.c. */
 struct callout *callfree, *callout;
+
+static struct callout calltodo;
 
 /* Some of these don't belong here, but it's easiest to concentrate them. */
 static long cp_time[CPUSTATES];
@@ -149,10 +150,10 @@ long tk_rawcc;
 
 int	stathz;
 int	profhz;
-int	profprocs;
+static int profprocs;
 int	ticks;
 static int psdiv, pscnt;	/* prof => stat divider */
-static int psratio;		/* ratio: prof / stat */
+int psratio;			/* ratio: prof / stat */
 
 volatile struct	timeval time;
 volatile struct	timeval mono_time;

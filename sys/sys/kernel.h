@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernel.h	8.3 (Berkeley) 1/21/94
- * $Id: kernel.h,v 1.18 1995/12/16 21:50:15 bde Exp $
+ * $Id: kernel.h,v 1.19 1996/01/30 23:00:46 mpp Exp $
  */
 
 #ifndef _SYS_KERNEL_H_
@@ -64,6 +64,7 @@ extern struct timezone tz;			/* XXX */
 
 extern int tick;			/* usec per tick (1000000 / hz) */
 extern int hz;				/* system clock's frequency */
+extern int psratio;			/* ratio: prof / stat */
 extern int stathz;			/* statistics clock's frequency */
 extern int profhz;			/* profiling clock's frequency */
 extern int ticks;
