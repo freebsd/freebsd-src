@@ -1189,10 +1189,14 @@
 	</listitem>
       </itemizedlist>
     </para>
-    <para arch="i386,pc98,amd64">Serial devices (&man.ubsa.4;,
-      &man.ubser.4;,
-      &man.uftdi.4;, and &man.uplcom.4; drivers)
-    </para>
+
+    &hwlist.ubsa;
+
+    &hwlist.ubser;
+
+    &hwlist.uftdi;
+
+    &hwlist.uplcom;
 
     &hwlist.uscanner;
 
