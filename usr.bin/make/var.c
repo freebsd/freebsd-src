@@ -1085,9 +1085,6 @@ VarParseLong(char foo[], GNode *ctxt, Boolean err, size_t *lengthPtr,
 
 	Buf_Destroy(buf, TRUE);
 
-	rw_str = VarExpand(v, ctxt, err);
-	*freePtr = TRUE;
-
 	/*
 	 * Now we need to apply any modifiers the user wants applied.
 	 * These are:
@@ -1113,6 +1110,9 @@ VarParseLong(char foo[], GNode *ctxt, Boolean err, size_t *lengthPtr,
 	 */
 	if (haveModifier) {
 	    char	*cp;
+
+	    rw_str = VarExpand(v, ctxt, err);
+	    *freePtr = TRUE;
 
 	    tstr++;
 	    while (*tstr != endc) {
@@ -1633,49 +1633,61 @@ VarParseLong(char foo[], GNode *ctxt, Boolean err, size_t *lengthPtr,
 		}
 		tstr = cp;
 	    }
-	}
 
-	if (v->flags & VAR_FROM_ENV) {
-	    if (rw_str == (char *)Buf_GetAll(v->val, (size_t *)NULL)) {
+	    if (v->flags & VAR_FROM_ENV) {
+		if (rw_str == (char *)Buf_GetAll(v->val, (size_t *)NULL)) {
+		    /*
+		     * Returning the value unmodified, so tell the caller to free
+		     * the thing.
+		     */
+		    *freePtr = TRUE;
+		    *lengthPtr = tstr - input + 1;
+		    VarDestroy(v, FALSE);
+		    return (rw_str);
+		} else {
+		    *lengthPtr = tstr - input + 1;
+		    VarDestroy(v, TRUE);
+		    return (rw_str);
+		}
+	    } else if (v->flags & VAR_JUNK) {
 		/*
-		 * Returning the value unmodified, so tell the caller to free
-		 * the thing.
+		 * Perform any free'ing needed and set *freePtr to FALSE so the caller
+		 * doesn't try to free a static pointer.
 		 */
-		*freePtr = TRUE;
-		*lengthPtr = tstr - input + 1;
-		VarDestroy(v, FALSE);
-		return (rw_str);
+		if (*freePtr) {
+		    free(rw_str);
+		}
+		if (dynamic) {
+		    *freePtr = FALSE;
+		    *lengthPtr = tstr - input + 1;
+		    VarDestroy(v, TRUE);
+		    rw_str = emalloc(*lengthPtr + 1);
+		    strncpy(rw_str, input, *lengthPtr);
+		    rw_str[*lengthPtr] = '\0';
+		    *freePtr = TRUE;
+		    return (rw_str);
+		} else {
+		    *freePtr = FALSE;
+		    *lengthPtr = tstr - input + 1;
+		    VarDestroy(v, TRUE);
+		    return (err ? var_Error : varNoError);
+		}
 	    } else {
 		*lengthPtr = tstr - input + 1;
-		VarDestroy(v, TRUE);
 		return (rw_str);
-	    }
-	} else if (v->flags & VAR_JUNK) {
-	    /*
-	     * Perform any free'ing needed and set *freePtr to FALSE so the caller
-	     * doesn't try to free a static pointer.
-	     */
-	    if (*freePtr) {
-		free(rw_str);
-	    }
-	    if (dynamic) {
-		*freePtr = FALSE;
-		*lengthPtr = tstr - input + 1;
-		VarDestroy(v, TRUE);
-		rw_str = emalloc(*lengthPtr + 1);
-		strncpy(rw_str, input, *lengthPtr);
-		rw_str[*lengthPtr] = '\0';
-		*freePtr = TRUE;
-		return (rw_str);
-	    } else {
-		*freePtr = FALSE;
-		*lengthPtr = tstr - input + 1;
-		VarDestroy(v, TRUE);
-		return (err ? var_Error : varNoError);
 	    }
 	} else {
-	    *lengthPtr = tstr - input + 1;
-	    return (rw_str);
+		char	*result;
+
+		result = VarExpand(v, ctxt, err);
+
+		if (v->flags & VAR_FROM_ENV) {
+			VarDestroy(v, TRUE);
+		}
+
+		*freePtr = TRUE;
+		*lengthPtr = tstr - input + 1;
+		return (result);
 	}
 }
 
