@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, [92/04/03  16:51:14  rvb]
- *	$Id: boot.c,v 1.50 1996/05/11 04:27:24 bde Exp $
+ *	$Id: boot.c,v 1.1.1.1 1996/06/14 10:04:37 asami Exp $
  */
 
 
@@ -61,6 +61,9 @@ WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 #define NAMEBUF_LEN	(8*1024)
 
+#ifdef NAMEBLOCK
+char *dflt_name;
+#endif
 char namebuf[NAMEBUF_LEN];
 struct exec head;
 struct bootinfo bootinfo;
@@ -144,8 +147,19 @@ boot(int drive)
 #endif
 	}
 #endif /* PC98 */
-
+#ifdef	NAMEBLOCK
+	/*
+	 * XXX
+	 * DAMN! I don't understand why this is not being set 
+	 * by the code in boot2.S
+	 */
+	dflt_name= (char *)0x0000ffb0;
+	if( (*dflt_name++ == 'D') && (*dflt_name++ == 'N')) {
+		name = dflt_name;
+	} else
+#endif	/*NAMEBLOCK*/
 loadstart:
+	name = dflname;		/* re-initialize in case of loop */
 	/* print this all each time.. (saves space to do so) */
 	/* If we have looped, use the previous entries as defaults */
 	printf("\n>> FreeBSD BOOT @ 0x%x: %d/%d k of memory\n"
@@ -159,7 +173,6 @@ loadstart:
 	       dosdev & 0x7f, devs[maj], unit, name);
 #endif
 
-	name = dflname;		/* re-initialize in case of loop */
 	loadflags &= RB_SERIAL;	/* clear all, but leave serial console */
 	getbootdev(namebuf, &loadflags);
 	ret = openrd();

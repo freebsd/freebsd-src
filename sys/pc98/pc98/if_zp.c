@@ -34,7 +34,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *	From: if_ep.c,v 1.9 1994/01/25 10:46:29 deraadt Exp $
- *	$Id: if_zp.c,v 1.19 1996/06/04 21:41:01 nate Exp $
+ *	$Id: if_zp.c,v 1.1.1.1 1996/06/14 10:04:44 asami Exp $
  */
 /*-
  * TODO:
@@ -144,17 +144,14 @@
 #endif
 
 #include <machine/clock.h>
+#include <machine/md_var.h>
 
 #ifdef PC98
-#include <pc98/pc98/pc98.h>
 #include <pc98/pc98/pc98_device.h>
-#include <pc98/pc98/icu.h>
 #include <pc98/pc98/if_zpreg.h>
 #include <pc98/pc98/pcic.h>
 #else
-#include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
-#include <i386/isa/icu.h>
 #include <i386/isa/if_zpreg.h>
 #include <i386/isa/pcic.h>
 #endif
@@ -361,7 +358,7 @@ zpprobe(struct isa_device * isa_dev)
 	int     re_init_flag;
 
 	if ((slot = zp_find_adapter(isa_dev->id_maddr, isa_dev->id_reconfig)) < 0)
-		return NULL;
+		return 0;
 
 	/* okay, we found a card, so set it up */
 	/* Inhibit 16 bit memory delay. POINTETH.SYS apparently does this, for
@@ -510,8 +507,6 @@ zpattach(isa_dev)
 	struct zp_softc *sc = &zp_softc[isa_dev->id_unit];
 	struct ifnet *ifp = &sc->arpcom.ac_if;
 	u_short i;
-	struct ifaddr *ifa;
-	struct sockaddr_dl *sdl;
 	int     pl;
 
 	/* PCMCIA card can be offlined. Reconfiguration is required */

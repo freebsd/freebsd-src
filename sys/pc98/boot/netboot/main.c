@@ -24,7 +24,7 @@ struct	bootinfo bootinfo;
 int	root_nfs_port;
 unsigned long	netmask;
 char	kernel_handle[32];
-int 	offset;
+int 	offset, howto;
 
 extern char eth_driver[];
 extern	char packet[];
@@ -320,7 +320,7 @@ cfg_done:
 	bootinfo.bi_nfs_diskless = &nfsdiskless;
 	bootinfo.bi_size = sizeof bootinfo;
 	kernelentry = (void *)(head.a_entry & 0x00FFFFFF);
-	(*kernelentry)(RB_BOOTINFO,NODEV,0,0,0,&bootinfo,0,0,0);
+	(*kernelentry)(howto|RB_BOOTINFO,NODEV,0,0,0,&bootinfo,0,0,0);
 	printf("*** %s execute failure ***\n",kernel);
 }
 

@@ -80,7 +80,6 @@
 #include <pc98/pc98/sbicreg.h>
 #include <pc98/pc98/sbicvar.h>
 
-extern int dma_init_flag;
 extern short dmapageport[];
 
 /*
@@ -1720,16 +1719,6 @@ sbic_dmastart(sbic)
 		sbic_write_reg(sbic->sc_base, 0x74, 0x23);
 	}
 #endif
-
-	if (!dma_init_flag) {
-		dma_init_flag = 1;
-		outb(0x439, (inb(0x439) & 0xfb)); /* DMA Accsess Control over 1MB */
-		outb(0x29, (0x0c | 0));	/* Bank Mode Reg. 16M mode */
-		outb(0x29, (0x0c | 1));	/* Bank Mode Reg. 16M mode */
-		outb(0x29, (0x0c | 2));	/* Bank Mode Reg. 16M mode */
-		outb(0x29, (0x0c | 3));	/* Bank Mode Reg. 16M mode */
-		outb(0x11, 0x50);	/* PC98 must be 0x40 */
-	}
 
 	/* mask channel */
 	outb(DMA_SMSK, sbic->sc_dma | DMA37SM_SET);

@@ -38,7 +38,7 @@
  *
  *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
- *	$Id: vm_machdep.c,v 1.63 1996/05/18 03:36:22 dyson Exp $
+ *	$Id: vm_machdep.c,v 1.1.1.1 1996/06/14 10:04:42 asami Exp $
  */
 
 #include "npx.h"
@@ -235,13 +235,13 @@ more:
 
 	if( size == 0) {
 		splx(s);
-		return NULL;
+		return 0;
 	}
 
 	if ((kva = kmem_alloc_pageable(io_map, size)) == 0) {
 		if( !waitok) {
 			splx(s);
-			return NULL;
+			return 0;
 		}
 		bmwait = 1;
 		tsleep((caddr_t) io_map, PRIBIO, "bmwait", 0);
@@ -694,56 +694,31 @@ void
 vmapbuf(bp)
 	register struct buf *bp;
 {
-	register int npf;
-	register caddr_t addr;
-	int off;
-	vm_offset_t kva;
+	register caddr_t addr, v, kva;
 	vm_offset_t pa;
 
 	if ((bp->b_flags & B_PHYS) == 0)
 		panic("vmapbuf");
 
-	/*
-	 * this is the kva that is to be used for
-	 * the temporary kernel mapping
-	 */
-	kva = (vm_offset_t) bp->b_saveaddr;
-
-	for (addr = (caddr_t)trunc_page(bp->b_data);
-		addr < bp->b_data + bp->b_bufsize;
-		addr += PAGE_SIZE) {
-
-/*
- * do the vm_fault if needed, do the copy-on-write thing when
- * reading stuff off device into memory.
- */
+	for (v = bp->b_saveaddr, addr = (caddr_t)trunc_page(bp->b_data);
+	    addr < bp->b_data + bp->b_bufsize;
+	    addr += PAGE_SIZE, v += PAGE_SIZE) {
+		/*
+		 * Do the vm_fault if needed; do the copy-on-write thing
+		 * when reading stuff off device into memory.
+		 */
 		vm_fault_quick(addr,
 			(bp->b_flags&B_READ)?(VM_PROT_READ|VM_PROT_WRITE):VM_PROT_READ);
-		pa = pmap_kextract((vm_offset_t) addr);
+		pa = trunc_page(pmap_kextract((vm_offset_t) addr));
 		if (pa == 0)
 			panic("vmapbuf: page not present");
-/*
- * hold the data page
- */
-#ifdef DIAGNOSTIC
-		if( VM_PAGE_TO_PHYS(PHYS_TO_VM_PAGE(pa)) != pa)
-			panic("vmapbuf: confused PHYS_TO_VM_PAGE mapping");
-#endif
 		vm_page_hold(PHYS_TO_VM_PAGE(pa));
+		pmap_kenter((vm_offset_t) v, pa);
 	}
 
-	addr = bp->b_saveaddr = bp->b_data;
-	off = (int)addr & PAGE_MASK;
-	npf = btoc(round_page(bp->b_bufsize + off));
-	bp->b_data = (caddr_t) (kva + off);
-	while (npf--) {
-		pa = pmap_kextract((vm_offset_t)addr);
-		if (pa == 0)
-			panic("vmapbuf: null page frame");
-		pmap_kenter(kva, trunc_page(pa));
-		addr += PAGE_SIZE;
-		kva += PAGE_SIZE;
-	}
+	kva = bp->b_saveaddr;
+	bp->b_saveaddr = bp->b_data;
+	bp->b_data = kva + (((vm_offset_t) bp->b_data) & PAGE_MASK);
 }
 
 /*
@@ -760,26 +735,15 @@ vunmapbuf(bp)
 	if ((bp->b_flags & B_PHYS) == 0)
 		panic("vunmapbuf");
 
-	for (addr = (caddr_t)trunc_page((vm_offset_t) bp->b_data);
-		addr < bp->b_data + bp->b_bufsize;
-		addr += PAGE_SIZE)
+	for (addr = (caddr_t)trunc_page(bp->b_data);
+	    addr < bp->b_data + bp->b_bufsize;
+	    addr += PAGE_SIZE) {
+		pa = trunc_page(pmap_kextract((vm_offset_t) addr));
 		pmap_kremove((vm_offset_t) addr);
-
-	bp->b_data = bp->b_saveaddr;
-	bp->b_saveaddr = NULL;
-
-/*
- * unhold the pde, and data pages
- */
-	for (addr = (caddr_t)trunc_page((vm_offset_t) bp->b_data);
-		addr < bp->b_data + bp->b_bufsize;
-		addr += PAGE_SIZE) {
-	/*
-	 * release the data page
-	 */
-		pa = pmap_kextract((vm_offset_t) addr);
 		vm_page_unhold(PHYS_TO_VM_PAGE(pa));
 	}
+
+	bp->b_data = bp->b_saveaddr;
 }
 
 /*

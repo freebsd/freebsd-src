@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: syscons.h,v 1.15 1996/01/30 22:56:11 mpp Exp $
+ *	$Id: syscons.h,v 1.1.1.1 1996/06/14 10:04:47 asami Exp $
  */
 
 #ifndef _PC98_PC98_SYSCONS_H_
@@ -62,7 +62,7 @@
 #define CURSOR_ENABLED 	0x00200
 #define CURSOR_SHOWN 	0x00400
 #define MOUSE_ENABLED	0x00800
-#define UPDATE_MOUSE	0x01000
+#define MOUSE_CUTTING	0x01000
 
 /* configuration flags */
 #define VISUAL_BELL	0x00001
@@ -112,9 +112,10 @@ static unsigned int TIMER_FREQ = 2457600;
 
 #define CONSOLE_BUFSIZE 1024
 #define PCBURST		128
-#define FONT_8		0x001
-#define FONT_14		0x002
-#define FONT_16		0x004
+#define FONT_NONE	1
+#define FONT_8		8
+#define FONT_14		14
+#define FONT_16		16
 #define HISTORY_SIZE	100*80
 
 /* defines related to hardware addresses */
@@ -152,8 +153,8 @@ typedef struct term_stat {
 	int 		num_param;		/* # of parameters to ESC */
 	int	 	last_param;		/* last parameter # */
 	int 		param[MAX_ESC_PAR];	/* contains ESC parameters */
-	int             cur_attr;               /* current hardware attributes word */
-	int             attr_mask;              /* current logical attributes mask */
+	int             cur_attr;               /* current hardware attr word */
+	int             attr_mask;              /* current logical attr mask */
 	int             cur_color;              /* current hardware color */
 	int             std_color;              /* normal hardware color */
 	int             rev_color;              /* reverse hardware color */
@@ -169,6 +170,7 @@ typedef struct scr_stat {
 	int 		ypos;			/* current Y position */
 	int 		xsize;			/* X size */
 	int 		ysize;			/* Y size */
+	int		font_size;		/* fontsize in Y direction */
 	int		start;			/* modified area start */
 	int		end;			/* modified area end */
 	term_stat 	term;			/* terminal emulation stuff */
@@ -182,12 +184,17 @@ typedef struct scr_stat {
 	u_short		mouse_saveunder[4];	/* saved chars under mouse */
 	short		mouse_xpos;		/* mouse x coordinate */
 	short		mouse_ypos;		/* mouse y coordinate */
+	short		mouse_buttons;		/* mouse buttons */
 	u_char		mouse_cursor[128];	/* mouse cursor bitmap store */
+	u_short		*mouse_cut_start;	/* mouse cut start pos */
+	u_short		*mouse_cut_end;		/* mouse cut end pos */
+	struct proc 	*mouse_proc;		/* proc* of controlling proc */
+	pid_t 		mouse_pid;		/* pid of controlling proc */
+	int		mouse_signal;		/* signal # to report with */
 	u_short		bell_duration;
 	u_short		bell_pitch;
 	u_char		border;			/* border color */
 	u_char	 	mode;			/* mode */
-	u_char		font;			/* font on this screen */
 	pid_t 		pid;			/* pid of controlling proc */
 	struct proc 	*proc;			/* proc* of controlling proc */
 	struct vt_mode 	smode;			/* switch mode */
@@ -216,48 +223,9 @@ typedef struct default_attr {
 	int             rev_color;              /* reverse hardware color */
 } default_attr;
 
-/* function prototypes */
-static void scinit(void);
-static u_int scgetc(int noblock);
-static scr_stat *get_scr_stat(dev_t dev);
-static scr_stat *alloc_scp(void);
-static void init_scp(scr_stat *scp);
-static int get_scr_num(void);
-static void scrn_timer(void);
-static void clear_screen(scr_stat *scp);
-static int switch_scr(scr_stat *scp, u_int next_scr);
-static void exchange_scr(void);
-#ifdef PC98
-static void move_crsr(scr_stat *scp, int x, int y);
-#else
-static inline void move_crsr(scr_stat *scp, int x, int y);
-#endif
-static void scan_esc(scr_stat *scp, u_char c);
-#ifdef PC98
-static void draw_cursor(scr_stat *scp, int show);
-#else
-static inline void draw_cursor(scr_stat *scp, int show);
-#endif
-static void ansi_put(scr_stat *scp, u_char *buf, int len);
-static u_char *get_fstr(u_int c, u_int *len);
-static void update_leds(int which);
-static void history_to_screen(scr_stat *scp);
-static int history_up_line(scr_stat *scp);
-static int history_down_line(scr_stat *scp);
-static void kbd_wait(void);
-static void kbd_cmd(u_char command);
-static void set_mode(scr_stat *scp);
-       void set_border(int color);
-static void set_vgaregs(char *modetable);
-static void set_font_mode(void);
-static void set_normal_mode(void);
-static void copy_font(int operation, int font_type, char* font_image);
-static void set_destructive_cursor(scr_stat *scp, int force);
-static void draw_mouse_image(scr_stat *scp);
-static void save_palette(void);
-       void load_palette(void);
-static void do_bell(scr_stat *scp, int pitch, int duration);
-static void blink_screen(scr_stat *scp);
+void load_palette(void);
+void set_border(int color);
+
 #ifdef PC98
 unsigned int at2pc98(unsigned int attr);
 #endif

@@ -678,8 +678,9 @@ DMAbuf_start_dma (int dev, unsigned long physaddr, int count, int dma_mode)
 {
   int             chan = audio_devs[dev]->dmachan;
   struct dma_buffparms *dmap = audio_devs[dev]->dmap;
+#ifdef linux
   unsigned long   flags;
-
+#endif
   /*
    * This function is not as portable as it should be.
    */

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)isa.c	7.2 (Berkeley) 5/13/91
- *	$Id: isa.c,v 1.70 1996/05/02 10:43:09 phk Exp $
+ *	$Id: pc98.c,v 1.1.1.1 1996/06/14 10:04:45 asami Exp $
  */
 
 /*
@@ -50,7 +50,7 @@
 /*
  * modified for PC9801 by A.Kojima F.Ukai M.Ishii 
  *			Kyoto University Microcomputer Club (KMC)
- *	$Id: pc98.c,v 1.3 1994/03/17 23:24:40 kakefuda Exp $
+ *	$Id: pc98.c,v 1.1.1.1 1996/06/14 10:04:45 asami Exp $
  */
 
 #include "opt_auto_eoi.h"
@@ -62,6 +62,7 @@
 #include <sys/buf.h>
 #include <sys/syslog.h>
 #include <sys/malloc.h>
+#include <machine/md_var.h>
 #include <machine/segments.h>
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -105,6 +106,11 @@ inthand2_t *intr_handler[ICU_LEN];
 u_int	intr_mask[ICU_LEN];
 u_int*	intr_mptr[ICU_LEN];
 int	intr_unit[ICU_LEN];
+
+#ifdef DDB
+unsigned int ddb_inb __P((unsigned int addr));
+void ddb_outb __P((unsigned int addr, unsigned char dt));
+#endif
 
 extern struct kern_devconf kdc_cpu0;
 
@@ -778,8 +784,6 @@ void pc98_dmacascade(chan)
  * pc98_dmastart(): program 8237 DMA controller channel, avoid page alignment
  * problems by using a bounce buffer.
  */
-int dma_init_flag = 0;
-
 void pc98_dmastart(int flags, caddr_t addr, u_int nbytes, int chan)
 {
 	vm_offset_t phys;
@@ -824,16 +828,6 @@ void pc98_dmastart(int flags, caddr_t addr, u_int nbytes, int chan)
 #ifdef CYRIX_5X86
 	asm("wbinvd");		/* wbinvd (WB cache flush) */
 #endif
-
-	if (!dma_init_flag) {
-		dma_init_flag = 1;
-		outb(0x439, (inb(0x439) & 0xfb)); /* DMA Accsess Control over 1MB */
-		outb(0x29, (0x0c | 0));	/* Bank Mode Reg. 16M mode */
-		outb(0x29, (0x0c | 1));	/* Bank Mode Reg. 16M mode */
-		outb(0x29, (0x0c | 2));	/* Bank Mode Reg. 16M mode */
-		outb(0x29, (0x0c | 3));	/* Bank Mode Reg. 16M mode */
-		outb(0x11, 0x50);	/* PC98 must be 0x40 */
-	}
 
 	/* mask channel */
 	mskport =  IO_DMA + 0x14;	/* 0x15 */
