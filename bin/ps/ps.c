@@ -134,7 +134,8 @@ static int	 addelem_uid(struct listinfo *, const char *);
 static void	 add_list(struct listinfo *, const char *);
 static void	 dynsizevars(KINFO *);
 static void	*expand_list(struct listinfo *);
-static const char *fmt(char **(*)(kvm_t *, const struct kinfo_proc *, int),
+static const char *
+		 fmt(char **(*)(kvm_t *, const struct kinfo_proc *, int),
 		    KINFO *, char *, int);
 static void	 free_list(struct listinfo *);
 static void	 init_list(struct listinfo *, addelem_rtn, int, const char *);
