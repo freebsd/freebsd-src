@@ -33,7 +33,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: sicontrol.c,v 1.7 1997/10/15 06:43:54 charnier Exp $";
 #endif /* not lint */
 
 #include <ctype.h>
@@ -488,8 +488,10 @@ char **av;
 	printf("\tt_dev 0x%x\n", TTY.t_dev);		/* dev_t t_dev */
 	printf("\tt_flags 0x%x\n", TTY.t_flags);	/* int	t_flags */
 	printf("\tt_state 0x%x\n", TTY.t_state);	/* int	t_state */
-	printf("\tt_hiwat %d.\n", TTY.t_hiwat);		/* short t_hiwat */
-	printf("\tt_lowat %d.\n", TTY.t_lowat);		/* short t_lowat */
+	printf("\tt_ihiwat %d.\n", TTY.t_ihiwat);	/* int	t_ihiwat */
+	printf("\tt_ilowat %d.\n", TTY.t_ilowat);	/* int	t_ilowat */
+	printf("\tt_ohiwat %d.\n", TTY.t_ohiwat);	/* int	t_ohiwat */
+	printf("\tt_olowat %d.\n", TTY.t_olowat);	/* int	t_olowat */
 	printf("\tt_iflag 0x%x\n", TTY.t_iflag);	/* t_iflag */
 	printf("\tt_oflag 0x%x\n", TTY.t_oflag);	/* t_oflag */
 	printf("\tt_cflag 0x%x\n", TTY.t_cflag);	/* t_cflag */

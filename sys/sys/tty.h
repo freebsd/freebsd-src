@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tty.h	8.6 (Berkeley) 1/21/94
- * $Id: tty.h,v 1.39 1997/09/14 02:25:41 peter Exp $
+ * $Id: tty.h,v 1.40 1997/10/12 20:26:06 phk Exp $
  */
 
 #ifndef _SYS_TTY_H_
@@ -92,8 +92,13 @@ struct tty {
 	void	*t_sc;			/* XXX: net/if_sl.c:sl_softc. */
 	int	t_column;		/* Tty output column. */
 	int	t_rocount, t_rocol;	/* Tty. */
-	int	t_hiwat;		/* High water mark. */
-	int	t_lowat;		/* Low water mark. */
+	int	t_ififosize;		/* Total size of upstream fifos. */
+	int	t_ihiwat;		/* High water mark for input. */
+	int	t_ilowat;		/* Low water mark for input. */
+	speed_t	t_ispeedwat;		/* t_ispeed override for watermarks. */
+	int	t_ohiwat;		/* High water mark for output. */
+	int	t_olowat;		/* Low water mark for output. */
+	speed_t	t_ospeedwat;		/* t_ospeed override for watermarks. */
 	int	t_gen;			/* Generation number. */
 };
 
