@@ -2,6 +2,7 @@
 # OpenSSL example configuration file.
 # This is mostly being used for generation of certificate requests.
 #
+# $FreeBSD$
 
 # This definition stops the following lines choking if HOME isn't
 # defined.
