@@ -154,8 +154,7 @@ mkfs(pp, fsys, fi, fo)
 #ifdef FSIRAND
 	if (!randinit) {
 		randinit = 1;
-		if (srandomdev() < 0)
-			srandom(utime ^ getpid());
+		srandomdev();
 	}
 #endif
 	if (mfs) {
