@@ -74,7 +74,8 @@ or a Linux-based management application.
 The
 .Pa /dev/aac?
 device nodes provide access to the management interface of the controller.
-One node exists per installed card.  The aliases
+One node exists per installed card.
+The aliases
 .Pa /dev/afa?
 and
 .Pa /dev/hpn?
@@ -107,12 +108,15 @@ set to a number between 0 and 3
 will enable increasingly verbose debug messages.
 .Pp
 The adapter can send status and alert messages asynchronously
-to the driver.  These messages are printed on the system console,
+to the driver.
+These messages are printed on the system console,
 and are also queued for retrieval by a management application.
 .Sh SEE ALSO
 .Xr kld 4 ,
 .Xr linux 4 ,
-.Xr kldload 8
+.Xr kldload 8 ,
+.Xr loader 8 ,
+.Xr sysctl 8
 .Sh HISTORY
 The
 .Nm

@@ -29,7 +29,7 @@
 .\"
 .Dd December 3, 1997
 .Dt SYSMOUSE 4
-.Os FreeBSD
+.Os
 .Sh NAME
 .Nm sysmouse
 .\" .Nd supplies mouse data from syscons for other applications
@@ -44,7 +44,8 @@ supplies mouse data to the user process in the standardized way via the
 .Nm
 driver.
 This arrangement makes it possible for the console and the user process
-.Pq such as the Tn X\ Window System
+(such as the
+.Tn X\ Window System )
 to share the mouse.
 .Pp
 The user process which wants to utilize mouse operation simply opens

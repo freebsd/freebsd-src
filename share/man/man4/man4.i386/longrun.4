@@ -36,30 +36,26 @@ Transmeta Crusoe chips, similar in scope to Intel's SpeedStep.
 The following
 .Xr sysctl 8
 MIBs control the different CPU modes:
-.Bl -tag -width "hw.crusoe.percentage integer no         " -compact
-.It Sy "Name                 Type    Changeable Description
-.It "hw.crusoe.longrun    integer yes        LongRun mode.
-.Bl -tag -width "0: minimum frequency mode" -compact
-.It "0: minimum frequency mode
-.It "1: power-saving mode
-.It "2: performance mode
-.It "3: maximum frequency mode
-.El
-.It "hw.crusoe.frequency  integer no         Current frequency (MHz).
-.It "hw.crusoe.voltage    integer no         Current voltage (mV).
-.It "hw.crusoe.percentage integer no         Processing performance (%).
+.Bl -column ".Va hw.crusoe.percentage" ".Vt integer" "Changeable"
+.It Sy "Name	Type	Changeable	Description"
+.It Va hw.crusoe.longrun Ta Vt integer Ta yes Ta "LongRun mode:"
+.It Ta Ta Ta "0: minimum frequency mode"
+.It Ta Ta Ta "1: power-saving mode"
+.It Ta Ta Ta "2: performance mode"
+.It Ta Ta Ta "3: maximum frequency mode"
+.It Va hw.crusoe.frequency Ta Vt integer Ta no Ta "Current frequency (MHz)."
+.It Va hw.crusoe.voltage Ta Vt integer Ta no Ta "Current voltage (mV)."
+.It Va hw.crusoe.percentage Ta Vt integer Ta no Ta "Processing performance (%)."
 .El
 .Sh EXAMPLES
 Print the current status:
-.Bd -literal -offset indent
-% sysctl hw.crusoe
-.Ed
+.Pp
+.Dl "% sysctl hw.crusoe"
 .Pp
 To set LongRun mode to performance oriented variable frequency mode
 (less power savings):
-.Bd -literal -offset indent
-# sysctl -w hw.crusoe.longrun=2
-.Ed
+.Pp
+.Dl "# sysctl -w hw.crusoe.longrun=2"
 .Sh AUTHORS
 .An -nosplit
 LongRun support and this manual page were written by
@@ -68,4 +64,4 @@ and
 .An Mitsuru IWASAKI Aq iwasaki@FreeBSD.org .
 .Sh HISTORY
 The Transmeta(TM) Crusoe(TM) LongRun(TM) support first appeared in
-.Fx  4.4 .
+.Fx 4.4 .

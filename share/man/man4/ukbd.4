@@ -32,7 +32,7 @@
 .\"
 .Dd April 11, 1999
 .Dt UKBD 4
-.Os FreeBSD
+.Os
 .Sh NAME
 .Nm ukbd
 .Nd USB keyboard driver
@@ -53,7 +53,7 @@ By default the keyboard subsystem does not create the appropriate devices yet.
 Make sure you reconfigure your kernel with the following option in the kernel
 config file:
 .Bd -literal -offset indent
-options "KBD_INSTALL_CDEV"
+options KBD_INSTALL_CDEV
 .Ed
 .Pp
 Go to /dev and make device nodes kbd*:
@@ -114,12 +114,12 @@ keyboard in the system if it didn't detect one while it was
 initialized at boot time.
 .Sh DRIVER CONFIGURATION
 .Bd -literal -offset indent
-options "KBD_INSTALL_CDEV"
+options KBD_INSTALL_CDEV
 .Ed
 .Pp
 Make the keyboards available through a character device in /dev
 .Bd -literal -offset indent
-options "UKBD_DFLT_KEYMAP"
+options UKBD_DFLT_KEYMAP
 makeoptions "UKBD_DFLT_KEYMAP=fr.iso"
 .Ed
 .Pp
@@ -127,7 +127,7 @@ The above lines will put the French ISO keymap in the ukbd driver.
 You can specify any keymap in /usr/share/syscons/keymaps with this
 option.
 .Bd -literal -offset indent
-options "KBD_DISABLE_KEYMAP_LOADING"
+options KBD_DISABLE_KEYMAP_LOADING
 .Ed
 .Pp
 Don't allow the user to change the keymap.

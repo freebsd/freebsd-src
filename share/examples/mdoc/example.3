@@ -23,9 +23,6 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.\" Note: All FreeBSD man pages should have a FreeBSD revision
-.\" control id to make it easier for translation teams to track
-.\" changes.
 .\"
 .\" Note: The date here should be updated whenever a non-trivial
 .\" change is made to the manual page.
@@ -34,12 +31,12 @@
 .Os
 .Sh NAME
 .Nm example
-.Nd example library function manual page
+.Nd "example library function manual page"
 .Sh LIBRARY
 .\" Note: list of available libraries is available in mdoc(7)
 .Lb libc
 .Sh SYNOPSIS
-.Fd #include <example.h>
+.In example.h
 .Ft int
 .Fn example "char *ptr" "int mode"
 .Sh DESCRIPTION
@@ -58,7 +55,7 @@ and
 The argument
 .Fa mode
 may have one of the following values:
-.Bl -tag -width EXAMPLE_ONE
+.Bl -tag -width ".Dv EXAMPLE_ONE"
 .It Dv EXAMPLE_ONE
 First example of a defined variable.
 .Dv EXAMPLE_ONE
@@ -67,7 +64,7 @@ is described below.
 Second example.
 .El
 .Pp
-The above value are defined in
+The above values are defined in
 .Aq Pa example.h
 as follows:
 .Bd -literal
@@ -81,13 +78,13 @@ function is not actually implemented.
 .Sh RETURN VALUES
 .Rv -std example
 .Sh ENVIRONMENT
-The 
+The
 .Fn example
 library function ignores the
 .Ev EXAMPLE
 environment variable.
 .Sh FILES
-.Bl -tag -width /dev/null -compact
+.Bl -tag -width ".Pa /dev/null" -compact
 .It Pa /dev/null
 Example of a file in the
 .Sx FILES
@@ -223,7 +220,7 @@ Socket is not connected.
 .It Bq Er ESHUTDOWN
 Cannot send after socket shutdown.
 .It Bq Er ETOOMANYREFS
-Too many references:  cannot splice.
+Too many references: cannot splice.
 .It Bq Er ETIMEDOUT
 Operation timed out.
 .It Bq Er ECONNREFUSED
@@ -274,20 +271,20 @@ Need authenticator.
 .Xr example 4 ,
 .Xr mdoc 7
 .Rs
-.%A A. B. Author
-.%T Example RFC Title
+.%A "A. B. Author"
+.%T "Example RFC Title"
 .%O RFC0000
 .Re
 .Rs
-.%A A. B. Author
-.%B Example Book Title
+.%A "A. B. Author"
+.%B "Example Book Title"
 .%O ISBN-0-000-00000-0
 .Re
 .Rs
-.%A A. B. Author
-.%D January 1997
-.%J Example Journal Name
-.%T Example Article Title
+.%A "A. B. Author"
+.%D "January 1997"
+.%J "Example Journal Name"
+.%T "Example Article Title"
 .Re
 .Sh STANDARDS
 If the command conforms to some standard, such as

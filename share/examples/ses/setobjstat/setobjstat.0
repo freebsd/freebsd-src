@@ -61,7 +61,7 @@ SCSI Environmental Services Devices
 .El
 .Sh SEE ALSO
 .Xr ses 4 ,
-.Xr sesd 8 ,
 .Xr getencstat 8 ,
+.Xr sesd 8 ,
 .Xr setencstat 8
 .Sh BUGS

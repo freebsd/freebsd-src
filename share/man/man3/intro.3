@@ -34,7 +34,7 @@
 .\"
 .Dd June 5, 1993
 .Dt INTRO 3
-.Os BSD 4
+.Os
 .Sh NAME
 .Nm intro
 .Nd introduction to the C libraries
@@ -81,10 +81,7 @@ string operators,
 character tests and character operators,
 des encryption routines,
 storage allocation, time functions, signal handling and more.
-.It Xr libcurses Po
-.Fl l Ns Ar curses
-.Fl l Ns Ar termcap
-.Pc
+.It Xr libcurses Pq Fl l Ns Ar curses Fl l Ns Ar termcap
 Terminal independent screen management routines
 for two dimensional non-bitmap display terminals.
 (See
@@ -102,7 +99,8 @@ indicates the proper interface to use.
 .It Xr libkvm Pq Fl l Ns Ar kvm
 Functions used to access kernel memory are in this library.  They can be used
 against both a running system and a crash dump.
-.Pq See Xr kvm 3 . )
+(See
+.Xr kvm 3 . )
 .It Xr libl Pq Fl l Ns Ar l
 The library for
 .Xr lex 1 .

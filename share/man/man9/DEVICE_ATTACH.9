@@ -30,7 +30,7 @@
 .\"
 .Dd June 16, 1998
 .Dt DEVICE_ATTACH 9
-.Os FreeBSD
+.Os
 .Sh NAME
 .Nm DEVICE_ATTACH
 .Nd attach a device
@@ -40,9 +40,11 @@
 .Ft int
 .Fn DEVICE_ATTACH "device_t dev"
 .Sh DESCRIPTION
-Attach a device to the system.  The probe method will have been called
-and will have indicated that the device exists.  This routine should
-initialise the hardware and allocate other system resources (such as
+Attach a device to the system.
+The probe method will have been called and will have indicated that
+the device exists.
+This routine should initialise the hardware and allocate other
+system resources (such as
 .Pa /dev
 entries).
 .Sh RETURN VALUES

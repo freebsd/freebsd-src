@@ -33,8 +33,7 @@
 .Os
 .Sh NAME
 .Nm gif
-.Nd
-.Tn Generic tunnel interface
+.Nd generic tunnel interface
 .Sh SYNOPSIS
 .Cd "pseudo-device gif"
 .Sh DESCRIPTION
@@ -64,12 +63,13 @@ Also, administrator needs to configure protocol and addresses used for the
 inner header, by using
 .Xr ifconfig 8 .
 Note that IPv6 link-local address
-.Pq those start with Li fe80::
+(those start with
+.Li fe80:: )
 will be automatically configured whenever possible.
 You may need to remove IPv6 link-local address manually using
 .Xr ifconfig 8 ,
 when you would like to disable the use of IPv6 as inner header
-.Pq like when you need pure IPv4-over-IPv6 tunnel .
+(like when you need pure IPv4-over-IPv6 tunnel).
 Finally, use routing table to route the packets toward
 .Nm
 interface.
@@ -104,23 +104,19 @@ With
 .Dv IFF_LINK1 ,
 .Nm
 will copy ECN bits
-.Po
-.Dv 0x02
+.Dv ( 0x02
 and
 .Dv 0x01
-on IPv4 TOS byte or IPv6 traffic class byte
-.Pc
+on IPv4 TOS byte or IPv6 traffic class byte)
 on egress and ingress, as follows:
 .Bl -tag -width "Ingress" -offset indent
 .It Ingress
 Copy TOS bits except for ECN CE
-.Po
-masked with
-.Dv 0xfe
-.Pc
+(masked with
+.Dv 0xfe )
 from
 inner to outer.
-set ECN CE bit to
+Set ECN CE bit to
 .Dv 0 .
 .It Egress
 Use inner TOS bits with some change.
@@ -182,7 +178,7 @@ For example, you cannot usually use
 to talk with IPsec devices that use IPsec tunnel mode.
 .Pp
 The current code does not check if the ingress address
-.Pq outer source address
+(outer source address)
 configured to
 .Nm
 makes sense.
@@ -193,7 +189,7 @@ and your node will generate packets with a spoofed source address.
 If the outer protocol is IPv4,
 .Nm
 does not try to perform path MTU discovery for the encapsulated packet
-.Pq DF bit is set to 0 .
+(DF bit is set to 0).
 .Pp
 If the outer protocol is IPv6, path MTU discovery for encapsulated packet
 may affect communication over the interface.
@@ -211,6 +207,6 @@ had a multi-destination behavior, configurable via
 .Dv IFF_LINK0
 flag.
 The behavior was obsoleted and is no longer supported.
-.El
+.Pp
 It is thought that this is not actually a bug in gif, but rather lies
 somewhere around a manipulation of an IPv6 routing table.

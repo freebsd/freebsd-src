@@ -30,7 +30,7 @@
 .\"
 .Dd March 1, 2001
 .Dt MODULE 9
-.Os FreeBSD
+.Os
 .Sh NAME
 .Nm module
 .Nd structure describing a kernel module
@@ -81,12 +81,13 @@ MODULE_DEPEND(foo, bar, 1, 3, 4);
 DECLARE_MODULE(foo, mod_data, SI_SUB_EXEC, SI_ORDER_ANY);
 .Ed
 .Sh SEE ALSO
-.Xr DEV_MODULE 9 ,
 .Xr DECLARE_MODULE 9 ,
+.Xr DEV_MODULE 9 ,
 .Xr DRIVER_MODULE 9 ,
 .Xr MODULE_DEPEND 9 ,
 .Xr MODULE_VERSION 9 ,
-.Xr SYSCALL_MODULE 9 ,
+.Xr SYSCALL_MODULE 9
+.Pp
 .Pa /usr/share/examples/kld
 .Sh AUTHORS
 This man page was written by

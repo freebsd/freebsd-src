@@ -61,7 +61,7 @@
 .\"
 .Dd March 13, 2000
 .Dt ICMP6 4
-.Os KAME
+.Os
 .\"
 .Sh NAME
 .Nm icmp6
@@ -113,7 +113,7 @@ system calls may be used).
 Outgoing packets automatically have an
 .Tn IPv6
 header prepended to them
-.Pq based on the destination address .
+(based on the destination address).
 .Tn ICMPv6
 pseudo header checksum field
 .Pq Li icmp6_cksum
@@ -171,7 +171,7 @@ Six macros operate on an icmp6_filter structure:
 .El
 .Pp
 The first argument to the last four macros
-.Pq an integer
+(an integer)
 is an
 .Tn ICMPv6
 message type, between 0 and 255.
@@ -199,7 +199,7 @@ messages of a given
 .Tn ICMPv6
 type should be passed to the application
 or not passed to the application
-.Pq blocked .
+(blocked).
 .Pp
 The final two macros,
 .Dv WILLPASS
@@ -238,10 +238,10 @@ socket with a network address for which no network interface exists.
 .El
 .\"
 .Sh SEE ALSO
-.Xr send 2 ,
 .Xr recv 2 ,
-.Xr intro 4 ,
+.Xr send 2 ,
 .Xr inet6 4 ,
+.Xr intro 4 ,
 .Xr ip6 4
 .Rs
 .%A W. Stevens
@@ -262,8 +262,6 @@ socket with a network address for which no network interface exists.
 .\"
 .Sh HISTORY
 The implementation is based on KAME stack
-.Po
-which is decendant of WIDE hydrangea IPv6 stack kit
-.Pc .
+(which is descendant of WIDE hydrangea IPv6 stack kit).
 .Pp
 Part of the document was shamelessly copied from RFC2292.

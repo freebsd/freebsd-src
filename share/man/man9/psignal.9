@@ -83,14 +83,15 @@ The target process is currently ignoring the signal.
 .It
 If a stop signal is sent to a sleeping process that takes the
 default action
-.Pq see Xr sigaction 2 ,
+(see
+.Xr sigaction 2 ) ,
 the process is stopped without awakening it.
 .It
 .Dv SIGCONT
 restarts a stopped process
-.Pq or puts them back to sleep
+(or puts them back to sleep)
 regardless of the signal action
-.Pq e.g., blocked or ignored .
+(e.g., blocked or ignored).
 .El
 .Pp
 If the target process is being traced

@@ -32,11 +32,12 @@
 .\"
 .Dd July 22, 1999
 .Dt SF 4
-.Os FreeBSD
+.Os
 .Sh NAME
 .Nm sf
-.Nd
-Adaptec AIC-6915 "Starfire" PCI fast ethernet adapter driver
+.Nd Adaptec AIC-6915
+.Qq Starfire
+PCI fast ethernet adapter driver
 .Sh SYNOPSIS
 .Cd "device miibus"
 .Cd "device sf"
@@ -136,6 +137,7 @@ The "Plug and Play OS" setting int he BIOS should be set to "no" or
 .Fx .
 .It "sf%d: couldn't map ports"
 A fatal initialization error has occurred.
+This may
 happen if the PCI BIOS not configured the device, which may be because
 the BIOS has been configured for a "Plug and Play" operating system.
 The "Plug and Play OS" setting int he BIOS should be set to "no" or

@@ -34,7 +34,7 @@
 .\"
 .Dd June 5, 1993
 .Dt UDP 4
-.Os BSD 4.2
+.Os
 .Sh NAME
 .Nm udp
 .Nd Internet User Datagram Protocol
@@ -149,18 +149,17 @@ listening, log the connection attempt (disabled by default).
 When a datagram is received on a port where there is no socket
 listening, do not return an ICMP port unreachable message.
 (Disabled by default.  See
-.Xr blackhole 4
-)
+.Xr blackhole 4 . )
 .El
 .Sh SEE ALSO
 .Xr getsockopt 2 ,
 .Xr recv 2 ,
 .Xr send 2 ,
 .Xr socket 2 ,
+.Xr blackhole 4 ,
 .Xr inet 4 ,
 .Xr intro 4 ,
-.Xr ip 4 ,
-.Xr blackhole 4
+.Xr ip 4
 .Sh HISTORY
 The
 .Nm

@@ -32,11 +32,10 @@
 .\"
 .Dd September 10, 1999
 .Dt AN 4
-.Os FreeBSD
+.Os
 .Sh NAME
 .Nm an
-.Nd
-Aironet Communications 4500/4800 wireless network adapter driver
+.Nd "Aironet Communications 4500/4800 wireless network adapter driver"
 .Sh SYNOPSIS
 .Cd "device an"
 .Cd "device an0 at isa? port 0x140 irq 5"
@@ -53,7 +52,7 @@ The ISA, PCI
 and PCMCIA devices are all based on the same core PCMCIA modules
 and all have the same programming interface, however unlike the
 Lucent WaveLAN/IEEE cards, the ISA and PCI cards appear to the
-host as normal ISA and PCI devices and no not require any PCCARD
+host as normal ISA and PCI devices and do not require any PCCARD
 support.
 .Pp
 The PCMCIA Aironet cards require pccard support, including the
@@ -106,8 +105,8 @@ command.
 .Sh SEE ALSO
 .Xr arp 4 ,
 .Xr netintro 4 ,
-.Xr ifconfig 8 ,
-.Xr ancontrol 8
+.Xr ancontrol 8 ,
+.Xr ifconfig 8
 .Sh HISTORY
 The
 .Nm

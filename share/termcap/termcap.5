@@ -55,7 +55,7 @@
 .\"
 .Dd April 16, 1994
 .Dt TERMCAP 5
-.Os BSD 3
+.Os
 .Sh NAME
 .Nm termcap
 .Nd terminal capability data base
@@ -701,7 +701,7 @@ new_line_delay		dN	pad needed for LF
 \fBString			TCap	Description\fR
 \fBVariables		Code\fR
 other_non_function_keys	ko	list of	self-mapped keycaps
-arrow_key_map		ma	map arrow keys rogue(1)	motion keys
+arrow_key_map		ma	map arrow keys
 memory_lock_above	ml	lock visible screen memory above the
 				current	line
 memory_unlock		mu	unlock visible screen memory above the
@@ -1112,9 +1112,9 @@ Terminals that use
 .Dq %.\&
 need to be able to
 backspace the cursor
-.Po Sy \&le Pc
+.Pq Sy \&le
 and to move the cursor up one line on the screen
-.Po Sy \&up Pc .
+.Pq Sy \&up .
 This is necessary because it is not always safe to transmit
 .Sy \&\en ,
 .Sy \&^D ,
@@ -2094,7 +2094,7 @@ user preferences.
 .It Pa /usr/share/misc/termcap
 File containing terminal descriptions.
 .It Pa /usr/share/misc/termcap.db
-Hash database file containing terminal descriptions (see 
+Hash database file containing terminal descriptions (see
 .Xr cap_mkdb 1 ) .
 .El
 .Sh SEE ALSO

@@ -29,18 +29,18 @@
 .\"
 .Dd October 10, 1998
 .Dt CD 9
-.Os FreeBSD
+.Os
 .Sh NAME
 .Nm cd
 .Nd CDROM driver for the CAM SCSI subsystem
 .Sh DESCRIPTION
 The
 .Nm
-device driver provides a read only interface for CDROM drives (
-.Tn SCSI
+device driver provides a read only interface for CDROM drives
+.Tn ( SCSI
 type 5)
-and WORM drives (
-.Tn SCSI
+and WORM drives
+.Tn ( SCSI
 type 4)
 that support CDROM type commands.
 Some drives don't behave as the driver expects.  See the section
@@ -64,7 +64,7 @@ driver.
 .It Dv CD_Q_BCD_TRACKS
 This flag is for broken drives that return the track numbers in packed BCD
 instead of straight decimal.  If the drive seems to skip tracks
-.Pq tracks 10-15 are skipped
+(tracks 10-15 are skipped)
 then you have a drive that is in need of this flag.
 .It Dv CD_Q_NO_CHANGER
 This flag tells the driver that the device in question is not a changer.

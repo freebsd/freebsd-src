@@ -6,23 +6,21 @@
 .Os
 .Sh NAME
 .Nm bridge
-.Nd Bridging support
+.Nd bridging support
+.Sh SYNOPSIS
+.Cd "options BRIDGE"
 .Sh DESCRIPTION
-Starting from version 2.2.8,
 .Fx
-supports bridging on Ethernet-type
-interfaces.
-This is enabled by including the following line in the kernel configuration
-file:
+supports bridging on Ethernet-type interfaces.
 .Pp
-.Dl "options BRIDGE"
-.Pp
-Runtime operation of the bridge is controlled by several
+Runtime operation of the
+.Nm
+is controlled by several
 .Xr sysctl 8
 variables.
 The
 .Va net.link.ether.bridge
-variable can be set to 
+variable can be set to
 .Li 1
 to enable bridging, or set to
 .Li 0
@@ -30,7 +28,6 @@ to disable it.
 .Pp
 The
 .Va net.link.ether.bridge_ipfw
-.Xr sysctl 8
 variable can be set to
 .Li 1
 to enable
@@ -43,32 +40,36 @@ to IP packets.
 Non-IP packets are subject to the default
 .Xr ipfw 8
 rule
-.Pq number 65535
+(number 65535)
 which must be an
-.Ar allow
+.Cm allow
 rule if ARP and other non-IP packets need to flow through the
-bridge.
+.Nm .
 .Pp
-The bridge configuration is controlled by the
+The
+.Nm
+configuration is controlled by the
 .Va net.link.ether.bridge_cfg
-.Xr sysctl 8
 variable.
 It consists of a comma-separated list of
 .Ar interface : Ns Ar cluster
 pairs, where all interfaces with the same
-.Ar cluster 
+.Ar cluster
 number will
 be bridged together.
 .Pp
 Another
-.Xr sysctl 8
-variable reinitializes the bridge; this is required if bridged
+variable reinitializes the
+.Nm ;
+this is required if bridged
 configurations include loadable interfaces.
 After loading new interface drivers, setting the
 .Va net.link.ether.bridge_refresh
 variable to
 .Li 1
-will cause the bridge to reinitialize itself.
+will cause the
+.Nm
+to reinitialize itself.
 .Sh EXAMPLES
 The following command will cause the
 .Li ep0
@@ -77,12 +78,14 @@ and
 interfaces to be bridged together, and the
 .Li fxp1
 and
-.Li de0 
+.Li de0
 interfaces to be bridged together:
 .Pp
 .Dl "sysctl -w net.link.ether.bridge_cfg ep0:0,fxp0:0,fxp1:1,de0:1"
 .Sh BUGS
-Care must be taken not to construct loops in the bridge topology.
+Care must be taken not to construct loops in the
+.Nm
+topology.
 The kernel supports only a primitive form of loop detection, by disabling
 some interfaces when a loop is detected.
 No support for a daemon running the

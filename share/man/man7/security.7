@@ -6,7 +6,7 @@
 .\"
 .Dd September 18, 1999
 .Dt SECURITY 7
-.Os FreeBSD
+.Os
 .Sh NAME
 .Nm security
 .Nd introduction to security under FreeBSD
@@ -37,10 +37,8 @@ detection is one of the single most important aspects of any security
 mechanism.  For example, it makes little sense to set the
 .Pa schg
 flags
-.Po
-see
-.Xr chflags 1
-.Pc
+(see
+.Xr chflags 1 )
 on every system binary because while this may temporarily protect the
 binaries, it prevents a hacker who has broken in from making an
 easily detectable change that may result in your security mechanisms not
@@ -81,9 +79,7 @@ sysadmins still run standard telnetd, rlogind, rshd, and ftpd servers on their
 machines.  These servers, by default, do not operate over encrypted
 connections.  The result is that if you have any moderate-sized user base,
 one or more of your users logging into your system from a remote location
-.Po
-which is the most common and convenient way to login to a system
-.Pc
+(which is the most common and convenient way to login to a system)
 will
 have his or her password sniffed.  The attentive system admin will analyze
 his remote access logs looking for suspicious source addresses
@@ -157,7 +153,8 @@ Of course, as a sysadmin you have to be able to get to root, so we open up
 a few holes.  But we make sure these holes require additional password
 verification to operate.  One way to make root accessible is to add appropriate
 staff accounts to the wheel group
-.Pq in Pa /etc/group .
+(in
+.Pa /etc/group ) .
 The staff members placed
 in the wheel group are allowed to
 .Sq su
@@ -194,7 +191,7 @@ key pair.  When you use something like kerberos you generally must secure
 the machines which run the kerberos servers and your desktop workstation.
 When you use a public/private key pair with ssh, you must generally secure
 the machine you are logging in FROM
-.Pq typically your workstation ,
+(typically your workstation),
 but you can
 also add an additional layer of protection to the key pair by password
 protecting the keypair when you create it with
@@ -228,7 +225,7 @@ changing a password on N machines can be a mess.  You can also impose
 re-passwording restrictions with kerberos:  not only can a kerberos ticket
 be made to timeout after a while, but the kerberos system can require that
 the user choose a new password after a certain period of time
-.Pq say, once a month .
+(say, once a month).
 .Sh SECURING ROOT - ROOT-RUN SERVERS AND SUID/SGID BINARIES
 The prudent sysadmin only runs the servers he needs to, no more, no less.  Be
 aware that third party servers are often the most bug-prone.  For example,
@@ -260,7 +257,7 @@ There are a number of other servers that typically do not run in sandboxes:
 sendmail, popper, imapd, ftpd, and others.  There are alternatives to
 some of these, but installing them may require more work then you are willing
 to put
-.Pq the convenience factor strikes again .
+(the convenience factor strikes again).
 You may have to run these
 servers as root and rely on other mechanisms to detect break-ins that might
 occur through them.
@@ -277,12 +274,12 @@ While nothing is 100% safe,
 the system-default suid and sgid binaries can be considered reasonably safe.
 Still, root holes are occasionally found in these binaries.  A root hole
 was found in Xlib in 1998 that made xterm
-.Pq which is typically suid
+(which is typically suid)
 vulnerable.
 It is better to be safe then sorry and the prudent sysadmin will restrict suid
 binaries that only staff should run to a special group that only staff can
 access, and get rid of
-.Pq chmod 000
+.Pq Li "chmod 000"
 any suid binaries that nobody uses.  A
 server with no display generally does not need an xterm binary.  Sgid binaries
 can be almost as dangerous.  If an intruder can break an sgid-kmem binary the
@@ -319,11 +316,9 @@ attacker cannot obtain root-write access.
 .Pp
 Your security scripts should always check for and report changes to
 the password file
-.Po
-see
+(see
 .Sq Checking file integrity
-below
-.Pc .
+below).
 .Sh SECURING THE KERNEL CORE, RAW DEVICES, AND FILESYSTEMS
 If an attacker breaks root he can do just about anything, but there
 are certain conveniences.  For example, most modern kernels have a
@@ -442,19 +437,15 @@ idea.  The
 and
 .Sq nosuid
 options
-.Po
-see
-.Xr mount 8
-.Pc
+(see
+.Xr mount 8 )
 are what you want to look into.  I would scan them anyway at least once a
 week, since the object of this layer is to detect a break-in whether or
 not the breakin is effective.
 .Pp
 Process accounting
-.Po
-see
-.Xr accton 8
-.Pc
+(see
+.Xr accton 8 )
 is a relatively low-overhead feature of
 the operating system which I recommend using as a post-break-in evaluation
 mechanism.  It is especially useful in tracking down how an intruder has
@@ -493,10 +484,8 @@ Kernel Route Cache
 A common DOS attack is against a forking server that attempts to cause the
 server to eat processes, file descriptors, and memory until the machine
 dies.  Inetd
-.Po
-see
-.Xr inetd 8
-.Pc
+(see
+.Xr inetd 8 )
 has several options to limit this sort of attack.
 It should be noted that while it is possible to prevent a machine from going
 down it is not generally possible to prevent a service from being disrupted
@@ -550,14 +539,14 @@ It is a very good idea to protect internal services from external access
 by firewalling them off at your border routers.  The idea here is to prevent
 saturation attacks from outside your LAN, not so much to protect internal
 services from network-based root compromise.  Always configure an exclusive
-firewall, i.e.
+firewall, i.e.\&
 .So
 firewall everything *except* ports A, B, C, D, and M-Z
 .Sc .
 This
 way you can firewall off all of your low ports except for certain specific
 services such as named
-.Pq if you are primary for a zone ,
+(if you are primary for a zone),
 ntalkd, sendmail,
 and other internet-accessible services.
 If you try to configure the firewall the other
@@ -572,15 +561,13 @@ without compromising your low ports.  Also take note that
 allows you to
 control the range of port numbers used for dynamic binding via the various
 net.inet.ip.portrange sysctl's
-.Pq sysctl -a \&| fgrep portrange ,
+.Pq Li "sysctl -a | fgrep portrange" ,
 which can also
 ease the complexity of your firewall's configuration.  I usually use a normal
 first/last range of 4000 to 5000, and a hiport range of 49152 to 65535, then
 block everything under 4000 off in my firewall
-.Po
-except for certain specific
-internet-accessible ports, of course
-.Pc .
+(except for certain specific
+internet-accessible ports, of course).
 .Pp
 Another common DOS attack is called a springboard attack - to attack a server
 in a manner that causes the server to generate responses which then overload
@@ -628,7 +615,7 @@ If your servers are connected to the internet via a T3 or better it may be
 prudent to manually override both rtexpire and rtminexpire via
 .Xr sysctl 8 .
 Never set either parameter to zero
-.Pq unless you want to crash the machine :-) .
+(unless you want to crash the machine :-)).
 Setting both parameters to 2 seconds should be sufficient to protect the route
 table from attack.
 .Sh ACCESS ISSUES WITH KERBEROS AND SSH
@@ -663,14 +650,13 @@ option that ssh allows in its
 file to make the key only useable to entities logging in from specific
 machines.
 .Sh SEE ALSO
-.Pp
 .Xr chflags 1 ,
 .Xr find 1 ,
 .Xr kerberos 1 ,
 .Xr md5 1 ,
 .Xr netstat 1 ,
-.Xr ssh 1 ,
 .Xr openssl 1 ,
+.Xr ssh 1 ,
 .Xr xdm 1 ,
 .Xr group 5 ,
 .Xr ttys 5 ,

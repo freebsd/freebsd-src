@@ -28,11 +28,10 @@
 .\"
 .Dd June 30, 1999
 .Dt VGA 4
-.Os FreeBSD
+.Os
 .Sh NAME
 .Nm vga
-.Nd
-generic video card interface
+.Nd generic video card interface
 .Sh SYNOPSIS
 .Cd "options VESA"
 .Cd "options VESA_DEBUG=N"
@@ -77,7 +76,8 @@ module can be dynamically loaded into the kernel using
 .Sh DRIVER CONFIGURATION
 .Ss Kernel Configuration Options
 The following kernel configuration options
-.Pq see Xr config 8
+(see
+.Xr config 8 )
 can be used to control the
 .Nm
 driver.

@@ -33,7 +33,6 @@
 .Nd IEEE 802.1Q VLAN network interface
 .Sh SYNOPSIS
 .Cd pseudo-device vlan Op Ar count
-\." In -current: .Cd device vlan Op Ar count
 .\"
 .Sh DESCRIPTION
 The
@@ -62,7 +61,7 @@ The
 driver supports physical devices that do
 the VLAN demultiplexing in firmware.
 The
-.Ar link0
+.Cm link0
 flag should be set on a
 .Nm
 interface
@@ -77,11 +76,10 @@ By now, the only NICs that have both hardware support and proper
 driver hooks for the 802.1Q VLAN technology in
 .Fx
 are
-.Xr nge 4
+.Xr nge 4 ,
+.Xr ti 4 ,
 and
-.Xr ti 4 .
-.\" not in -stable:
-.\" .Xr txp 4 .
+.Xr txp 4 .
 .Pp
 The rest of the ethernet NICs supported by
 .Fx
@@ -103,15 +101,13 @@ connectivity problems due to massive, inadequate
 filtering that breaks the Path MTU Discovery mechanism.
 .Pp
 The NICs that support oversized frames are as follows:
-.Bl -tag -width "fxp(4)" -compact -offset indent
+.Bl -tag -width ".Xr fxp 4 " -offset indent
 .It Xr de 4
 requires defining
 .Dv BIG_PACKET
 in the
 .Pa /usr/src/sys/pci/if_de.c
 source file and rebuilding the kernel.
-.\" not in -stable:
-.\" or module.
 The hack works only for the 21041, 21140, and 21140A chips.
 .It Xr fxp 4
 supports long frames for the
@@ -123,8 +119,9 @@ does support long frames.
 may begin supporting long frames soon.
 .It Xr xl 4
 supports long frames only if the card is built on a newer chip
-.Pq Cyclone and above .
+(Cyclone and above).
 .El
+.Pp
 Note:
 Except for
 .Xr fxp 4 ,
@@ -133,7 +130,7 @@ none of the above drivers inform the
 driver about their support for long frames.
 Just fix the MTU of a
 .Nm
-interface if it appears to be lower that 1500 bytes after
+interface if it appears to be lower than 1500 bytes after
 attaching the
 .Nm
 to a parent interface that is known to support long frames.

@@ -34,7 +34,7 @@
 .\"
 .Dd December 11, 1993
 .Dt RC 8
-.Os BSD 4
+.Os
 .Sh NAME
 .Nm rc
 .Nd command scripts for auto\-reboot and daemon startup
@@ -66,16 +66,22 @@ contain additional custom startup code for your system.
 contains the global system configuration information referenced
 by the rc files, while
 .Nm rc.conf.local
-contains the local system configuration.  See rc.conf(5)
+contains the local system configuration.
+See
+.Xr rc.conf 5 .
 .Pp
 The
 .Nm rc.d
 directories contain scripts which will be automatically
-executed at boot time.
-The specified directories are processed immediately after
+executed at boot time and shutdown time.
+At boot time,
+the specified directories are processed immediately after
 .Nm rc.local
 is executed.
 (See below for details on how to specify directories to check.)
+At shutdown time,
+the directories are processed by
+.Nm rc.shutdown .
 The following key points apply to the scripts within each directory:
 .Pp
 .Bl -bullet -compact
@@ -88,12 +94,18 @@ and they are executable.
 Any other files or directories present within the directory are silently
 ignored.
 .It
-When a script is executed, it is passed the string
+When a script is executed at boot time, it is passed the string
 .Dq start
+as its first and only argument.
+At shutdown time, it is passed the string
+.Dq stop
 as its first and only argument.
 All
 .Nm rc.d
-scripts expected to handle this argument appropriately.
+scripts expected to handle these arguments appropriately.
+If no action needs to be taken at a given time
+(either boot time or shutdown time)
+the script should exit successfully and without producing an error message.
 .It
 The scripts within each directory are executed in lexicographical order.
 If a specific order is required,
@@ -106,7 +118,7 @@ without the numeric prefixes the opposite would be true.
 .El
 .Pp
 The output from each script is traditionally a space character,
-followed by the name of the software package being started,
+followed by the name of the software package being started or shut down,
 .Em without
 a trailing newline character (see the
 .Sx EXAMPLES
@@ -216,7 +228,8 @@ Following tradition, the startup files reside in
 The following is a simple, hypothetical example of an
 .Nm rc.d
 script,
-which would start a daemon at boot time.
+which would start a daemon at boot time,
+and kill it at shutdown time.
 .Bd -literal -offset indent
 #!/bin/sh -
 #
@@ -226,12 +239,22 @@ case "$1" in
 start)
 	/usr/local/sbin/foo -d && echo -n ' foo'
 	;;
+stop)
+	kill `cat /var/run/foo.pid` && echo -n ' foo'
+	;;
 *)
-	echo "unknown option: $1 - should be 'start'" >&2
+	echo "unknown option: $1 - should be 'start' or 'stop'" >&2
 	;;
 esac
 .Ed
+.Pp
+As all processes are killed by
+.Xr init 8
+at shutdown, the explicit
+.Xr kill 1
+is unnecessary, but is often included.
 .Sh SEE ALSO
+.Xr kill 1 ,
 .Xr rc.conf 5 ,
 .Xr init 8 ,
 .Xr reboot 8 ,

@@ -4,7 +4,7 @@
 .\"
 .Dd August 10, 1994
 .Dt PROCFS 5
-.Os BSD 4.4
+.Os
 .Sh NAME
 .Nm procfs
 .Nd process file system
@@ -120,8 +120,8 @@ can only be written when the process is stopped.
 This is a read-only file containing the process current and maximum
 limits.
 Each line is of the format
-.Ar rlimit current max
-, with -1
+.Ar rlimit current max ,
+with -1
 indicating infinity.
 .It Pa status
 The process status.

@@ -36,7 +36,7 @@
 .\"
 .Dd November 15, 2000
 .Dt NG_ONE2MANY 4
-.Os FreeBSD
+.Os
 .Sh NAME
 .Nm ng_one2many
 .Nd packet multiplexing netgraph node type
@@ -104,7 +104,7 @@ following:
 Sets the node configuration using a
 .Dv "struct ng_one2many_link_config"
 as the control message argument:
-.Bd -literal -offset 0
+.Bd -literal -offset 0n
 /* Node configuration structure */
 struct ng_one2many_config {
   u_int32_t   xmitAlg;        /* how to distribute packets */
@@ -133,7 +133,7 @@ returns a
 containing statistics for the corresponding
 .Dv many
 link, which may or may not be currently connected:
-.Bd -literal -offset 0
+.Bd -literal -offset 0n
 /* Statistics structure (one for each link) */
 struct ng_one2many_link_stats {
   u_int64_t   recvOctets;     /* total octets rec'd on link */
@@ -167,7 +167,7 @@ corresponding to networking interfaces
 .Dv fxp0
 through
 .Dv fxp3 :
-.Bd -literal -offset 0
+.Bd -literal -offset 0n
   # Plumb nodes together
   ngctl mkpeer fxp0: one2many upper one
   ngctl connect fxp0: fxp0:upper lower many0

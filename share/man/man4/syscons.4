@@ -28,12 +28,11 @@
 .\"
 .Dd June 30, 1999
 .Dt SYSCONS 4
-.Os FreeBSD
+.Os
 .Sh NAME
 .Nm syscons ,
 .Nm sc
-.Nd
-the console driver
+.Nd the console driver
 .Sh SYNOPSIS
 .Cd "options MAXCONS=N"
 .Cd "options SC_ALT_MOUSE_IMAGE"
@@ -264,16 +263,15 @@ the mouse.
 This option disables the ``debug'' key (by default, it is
 .Dv Alt-Esc ,
 or
-.Dv Ctl-PrintScreen
-).
+.Dv Ctl-PrintScreen ) .
 It will prevent the user from
 entering the kernel debugger DDB by pressing the key combination.
 DDB will still be invoked when the kernel panics or hits a break point
 if it is included in the kernel.
 .It Dv SC_DISABLE_REBOOT
 This option disables the ``reboot'' key (by default, it is
-.Dv Ctl-Alt-Del
-), so that the casual user may not accidentally reboot the system.
+.Dv Ctl-Alt-Del ) ,
+so that the casual user may not accidentally reboot the system.
 .It Dv SC_HISTORY_SIZE=N
 Sets the size of back scroll buffer to
 .Fa N
@@ -364,10 +362,12 @@ The following driver flags can be used to control the
 .Nm
 driver.
 They can be set either in the kernel configuration file
-.Pq see Xr config 8 ,
+(see
+.Xr config 8 ) ,
 or else in the User Configuration Menu at boot
 time
-.Pq see Xr boot 8 .
+(see
+.Xr boot 8 ) .
 .Bl -tag -width bit_0
 .\".It bit 0 (VISUAL_BELL)
 .\"Uses the ``visual'' bell.

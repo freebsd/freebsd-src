@@ -27,7 +27,7 @@
 .\"
 .Dd January 25, 1998
 .Dt PORTS 7
-.Os FreeBSD
+.Os
 .Sh NAME
 .Nm ports
 .Nd contributed applications
@@ -40,7 +40,9 @@ administrators to install applications.
 Each
 .Em port
 contains any patches necessary to make the original
-application source code compile and run on BSD.  Compiling an
+application source code compile and run on
+.Bx .
+Compiling an
 application is as simple as typing
 .Ic make build
 in the port directory!  The
@@ -85,7 +87,7 @@ The following targets will be run automatically by each proceeding
 target in order.  That is,
 .Ar build
 will be run
-.Pq if necessary
+(if necessary)
 by
 .Ar install ,
 and so on all the way to
@@ -108,7 +110,7 @@ Defining
 will skip this step.
 .It Ar depends
 Install
-.Pq or compile if only compilation is necessary
+(or compile if only compilation is necessary)
 any dependencies of the current port.  When called by the
 .Ar extract
 or
@@ -160,7 +162,7 @@ portion recurses to dependencies unless
 is defined, but the
 .Sq distclean
 portion never recurses
-.Pq this is perhaps a bug .
+(this is perhaps a bug).
 .It Ar reinstall
 Use this to restore a port after using
 .Xr pkg_delete 1
@@ -258,12 +260,10 @@ The full path to the package.
 .El
 .It Ev PREFIX
 Where to install things in general
-.Po
-usually
+(usually
 .Pa /usr/local
 or
-.Pa /usr/X11R6
-.Pc
+.Pa /usr/X11R6 )
 .It Ev MASTER_SITES
 Primary sites for distribution files if not found locally.
 .It Ev PATCH_SITES
@@ -295,13 +295,12 @@ If defined, only operate on a port if it can be installed 100% automatically.
 .Bl -tag -width /usr/ports/xxxx -compact
 .It Pa /usr/ports
 The default ports directory
-.Po
-.Fx
+.No ( Fx
 and
-.Ox
-.Pc .
+.Ox ) .
 .It Pa /usr/pkgsrc
-The default ports directory (NetBSD).
+The default ports directory
+.Pq Nx .
 .It Pa /usr/ports/Mk/bsd.port.mk
 The big Kahuna.
 .El
@@ -324,7 +323,7 @@ The
 handbook
 .Pp
 http://www.FreeBSD.org/ports
-.Pq searchable index of all ports
+(searchable index of all ports)
 .Sh AUTHORS
 .An -nosplit
 This man page was originated by

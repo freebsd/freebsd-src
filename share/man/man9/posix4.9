@@ -25,7 +25,7 @@
 .\" $FreeBSD$
 .Dd March 1, 1998
 .Dt POSIX.1B 9
-.Os FreeBSD
+.Os
 .Sh NAME
 .Nm posix1b
 .Nd "Posix P1003-1B extensions"
@@ -85,7 +85,9 @@ is a test macro that sorts out when extensions should be
 visible.  It is defined in <sys/_posix.h>.
 .Pp
 In normal C program development
-only _POSIX_VERSION is set, permitting BSD extensions to
+only _POSIX_VERSION is set, permitting
+.Bx
+extensions to
 appear to the programs.  However, when adding new functionality mandated
 by POSIX.1B, it
 is important to satisfy the requirements added by the
@@ -99,16 +101,21 @@ is present to conditionalize POSIX.1B extensions that were historically
 in the system.  These are visible when _POSIX_SOURCE and _POSIX_C_SOURCE
 are not set at all or when _POSIX_C_SOURCE enables POSIX.1B features.
 The intent of this feature test is to permit hiding the new extensions
-while still letting BSD extensions show up to avoid breaking existing
+while still letting
+.Bx
+extensions show up to avoid breaking existing
 programs without trying to use the "big hammer" of _POSIX_C_SOURCE.
 .Pp
 Some recent additions to header files
 are new enough that they should be changed to
 be dependent on _P1003_1B_VISIBLE instead of _HISTORICALLY.
 .Pp
-Traditional BSD headers (e.g., mmap.h) now specified
+Traditional
+.Bx
+headers (e.g., mmap.h) now specified
 in POSIX.1B can include <sys/_posix.h> and conditionalize
-BSD extensions on _P1003_1B_VISIBLE_HISTORICALLY.
+.Bx
+extensions on _P1003_1B_VISIBLE_HISTORICALLY.
 .Sh NON STANDARD TEST MACROS
 .Bd -literal -offset 0i
 _P1003_1B_INCLUDE_MAYBES

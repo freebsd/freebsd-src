@@ -2,7 +2,7 @@
 .\"
 .Dd June 18, 1996
 .Dt DIVERT 4
-.Os FreeBSD
+.Os
 .Sh NAME
 .Nm divert
 .Nd kernel packet diversion mechanism
@@ -77,8 +77,7 @@ must be found after the IP address.
 If an interface name is found,
 that interface will be used and the value of the IP address will be
 ignored (other than the fact that it is not
-.Dv INADDR_ANY
-).
+.Dv INADDR_ANY ) .
 This is to indicate on which interface the packet ``arrived.''
 .Pp
 Normally, packets read as incoming should be written as incoming;
@@ -100,10 +99,8 @@ the tag is interpreted as the rule number
 rule processing should restart.
 .Sh LOOP AVOIDANCE
 Packets written into a divert socket
-.Po
-using
-.Xr sendto 2
-.Pc
+(using
+.Xr sendto 2 )
 re-enter the packet filter at the rule number
 following the tag given in the port part of the socket address, which
 is usually already set at the rule number that caused the diversion

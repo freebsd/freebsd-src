@@ -28,7 +28,7 @@
 .\"
 .Dd January 1, 1995
 .Dt SCD 4 i386
-.Os FreeBSD
+.Os
 .Sh NAME
 .Nm scd
 .Nd Sony CDU31/33 CD-ROM driver
@@ -43,7 +43,9 @@ card or a compatible clone.
 .Sh FILES
 .Bl -tag -width /dev/[r]scd0a -compact
 .It Pa /dev/[r]scd0a
-accesses BSD partition on the disc.
+accesses
+.Bx
+partition on the disc.
 Normally, there is only
 one file system on a CDROM disc.
 .It Pa /dev/[r]scd0c

@@ -32,7 +32,7 @@
 .\"
 .Dd September 10, 1998
 .Dt PTHREAD 3
-.Os BSD 4
+.Os
 .Sh NAME
 .Nm pthread
 .Nd POSIX thread functions
@@ -400,38 +400,38 @@ links a threaded process against
 instead of
 .Fa libc .
 .Sh SEE ALSO
-.Xr pthread_create 3 ,
-.Xr pthread_detach 3 ,
-.Xr pthread_equal 3 ,
-.Xr pthread_exit 3 ,
-.Xr pthread_join 3 ,
-.Xr pthread_once 3 ,
-.Xr pthread_self 3 ,
-.Xr pthread_mutex_destroy 3 ,
-.Xr pthread_mutex_init 3 ,
-.Xr pthread_mutex_lock 3 ,
-.Xr pthread_mutex_trylock 3 ,
-.Xr pthread_mutex_unlock 3 ,
+.Xr pthread_cleanup_pop 3 ,
+.Xr pthread_cleanup_push 3 ,
 .Xr pthread_cond_broadcast 3 ,
 .Xr pthread_cond_destroy 3 ,
 .Xr pthread_cond_init 3 ,
 .Xr pthread_cond_signal 3 ,
 .Xr pthread_cond_timedwait 3 ,
 .Xr pthread_cond_wait 3 ,
+.Xr pthread_create 3 ,
+.Xr pthread_detach 3 ,
+.Xr pthread_equal 3 ,
+.Xr pthread_exit 3 ,
+.Xr pthread_getspecific 3 ,
+.Xr pthread_join 3 ,
+.Xr pthread_key_delete 3 ,
+.Xr pthread_mutex_destroy 3 ,
+.Xr pthread_mutex_init 3 ,
+.Xr pthread_mutex_lock 3 ,
+.Xr pthread_mutex_trylock 3 ,
+.Xr pthread_mutex_unlock 3 ,
+.Xr pthread_once 3 ,
+.Xr pthread_rwlockattr_destroy 3 ,
+.Xr pthread_rwlockattr_getpshared 3 ,
+.Xr pthread_rwlockattr_init 3 ,
+.Xr pthread_rwlockattr_setpshared 3 ,
 .Xr pthread_rwlock_destroy 3 ,
 .Xr pthread_rwlock_init 3 ,
 .Xr pthread_rwlock_rdlock 3 ,
 .Xr pthread_rwlock_unlock 3 ,
 .Xr pthread_rwlock_wrlock 3 ,
-.Xr pthread_rwlockattr_destroy 3 ,
-.Xr pthread_rwlockattr_getpshared 3 ,
-.Xr pthread_rwlockattr_init 3 ,
-.Xr pthread_rwlockattr_setpshared 3 ,
-.Xr pthread_key_delete 3 ,
-.Xr pthread_getspecific 3 ,
-.Xr pthread_setspecific 3 ,
-.Xr pthread_cleanup_pop 3 ,
-.Xr pthread_cleanup_push 3
+.Xr pthread_self 3 ,
+.Xr pthread_setspecific 3
 .Sh STANDARDS
 The functions in
 .Fa libc_r

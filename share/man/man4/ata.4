@@ -28,15 +28,14 @@
 .\"
 .Dd January 27, 2000
 .Dt ATA 4
-.Os FreeBSD
+.Os
 .Sh NAME
 .Nm ata ,
 .Nm acd ,
 .Nm ad ,
 .Nm afd ,
 .Nm ast
-.Nd
-Generic ATA/ATAPI disk controller driver
+.Nd generic ATA/ATAPI disk controller driver
 .Sh SYNOPSIS
 For ISA based ATA/ATAPI support:
 .Cd device isa
@@ -79,7 +78,6 @@ set to 1 to enable Write Caching, 0 to disable (default is enabled)
 set to 1 to enable Tagged Queuing support (default is disabled)
 (only IBM DPTA and DTLA drives support that)
 .El
-.Pp
 .Sh DESCRIPTION
 This driver provides access to disk drives, ATAPI CD-ROM and DVD drives,
 ZIP drives and tape streamers connected to controllers
@@ -174,7 +172,6 @@ for example:
 .Dl sysctl -w hw.atamodes=pio,pio,---,dma,pio,---,dma,---,
 .Pp
 The new modes are set as soon as the sysctl command returns.
-.Pp
 .Sh FILES
 .Bl -tag -width "/sys/i386/conf/GENERIC " -compact
 .It Pa /dev/ad*

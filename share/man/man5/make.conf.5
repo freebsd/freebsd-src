@@ -474,7 +474,9 @@ as an suid root program.
 .It Va SENDMAIL_MC
 .Pq Vt str
 The default m4 configuration file to use at install time.
-The value should include the full path to the .mc file, e.g.,
+The value should include the full path to the
+.Pa .mc
+file, e.g.,
 .Pa /etc/mail/myconfig.mc .
 Use with caution as a make install will overwrite any existing
 .Pa /etc/mail/sendmail.cf .
@@ -483,13 +485,23 @@ Note that
 is now deprecated.
 .It Va SENDMAIL_ADDITIONAL_MC
 .Pq Vt str
-Additional .mc files which should be built into .cf files at build time.
-The value should include the full path to the .mc file(s), e.g.,
+Additional
+.Pa .mc
+files which should be built into
+.Pa .cf
+files at build time.
+The value should include the full path to the
+.Pa .mc
+file(s), e.g.,
 .Pa /etc/mail/foo.mc
 .Pa /etc/mail/bar.mc .
 .It Va SENDMAIL_M4_FLAGS
 .Pq Vt str
-Flags passed to m4 when building a .cf file from a .mc file.
+Flags passed to m4 when building a
+.Pa .cf
+file from a
+.Pa .mc
+file.
 .It Va SENDMAIL_CFLAGS
 .Pq Vt str
 Flags to pass to the compile command when building
@@ -759,9 +771,9 @@ installed if it is installed anywhere other than
 .Sh SEE ALSO
 .Xr gcc 1 ,
 .Xr install 1 ,
-.Xr lpd 8 ,
 .Xr make 1 ,
 .Xr ports 7 ,
+.Xr lpd 8 ,
 .Xr sendmail 8
 .Sh HISTORY
 The

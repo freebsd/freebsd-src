@@ -34,7 +34,7 @@
 .\"
 .Dd January 24, 1994
 .Dt QUEUE 3
-.Os BSD 4
+.Os
 .Sh NAME
 .Nm SLIST_EMPTY ,
 .Nm SLIST_ENTRY ,
@@ -711,7 +711,6 @@ while (n1 != NULL) {
 	n1 = n2;
 }
 LIST_INIT(&head);
-
 .Ed
 .Sh TAIL QUEUES
 A tail queue is headed by a structure defined by the

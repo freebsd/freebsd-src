@@ -196,10 +196,8 @@ The location of the Procedure Linkage Table within this image.
 The location of an array of
 .Fa relocation_info
 structures
-.Po
-see
-.Xr a.out 5
-.Pc
+(see
+.Xr a.out 5 )
 specifying run-time relocations.
 .It Fa sdt_hash
 The location of the hash table for fast symbol lookup in this object's
@@ -227,10 +225,8 @@ A
 structure describes a shared object that is needed
 to complete the link edit process of the object containing it.
 A list of such objects
-.Po
-chained through
-.Fa sod_next
-.Pc
+(chained through
+.Fa sod_next )
 is pointed at
 by the
 .Fa sdt_sods
@@ -256,10 +252,8 @@ specifies a library that is to be searched for by
 .Nm ld.so .
 The path name
 is obtained by searching a set of directories
-.Po
-see also
-.Xr ldconfig 8
-.Pc
+(see also
+.Xr ldconfig 8 )
 for a shared object matching
 .Em lib\&<sod_name>\&.so.n.m .
 If not set,
@@ -340,10 +334,8 @@ struct nzlist {
 .Ed
 .Bl -tag -width nz_size
 .It Fa nlist
-.Po
-see
-.Xr nlist 3
-.Pc .
+(see
+.Xr nlist 3 ) .
 .It Fa nz_size
 The size of the data represented by this symbol.
 .El
