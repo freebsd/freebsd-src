@@ -14,6 +14,10 @@
 #include <utmp.h>
 #endif
 
+#if defined(HAVE_GETBOOTFILE)
+#include <paths.h>
+#endif
+
 #include "ntpd.h"
 #include "ntp_io.h"
 #include "ntp_unixtime.h"
@@ -309,7 +313,11 @@ clock_parms(tickadj, tick)
 		{""},
 	};
 #endif
+#ifdef HAVE_GETBOOTFILE
+	const char *kernelname;
+#else
 	static char *kernelnames[] = {
+		"/kernel",
 		"/vmunix",
 		"/unix",
 		"/mach",
@@ -321,6 +329,7 @@ clock_parms(tickadj, tick)
 #endif
 		NULL
 	};
+#endif
 	struct stat stbuf;
 	int vars[2];
 
@@ -331,6 +340,11 @@ clock_parms(tickadj, tick)
 	 * Check to see what to use for the object file for names and get
 	 * the locations of the necessary kernel variables.
 	 */
+#ifdef	HAVE_GETBOOTFILE
+	kernelname = getbootfile();
+	if (kernelname &&
+            ((stat(kernelname, &stbuf) == -1) || (nlist(kernelname, nl) < 0))) {
+#else
 	for (i = 0; kernelnames[i] != NULL; i++) {
 		if (stat(kernelnames[i], &stbuf) == -1)
 			continue;
@@ -338,6 +352,7 @@ clock_parms(tickadj, tick)
 			break;
 	}
 	if (kernelnames[i] == NULL) {
+#endif
 		syslog(LOG_ERR,
 		  "Clock init couldn't find kernel object file");
 		exit(3);
