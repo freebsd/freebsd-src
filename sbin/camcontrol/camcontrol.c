@@ -911,7 +911,7 @@ scsixferrate(struct cam_device *device)
 			mb, speed % 1000);
 	else
 		fprintf(stdout, "%dKB/s transfers ",
-			(speed % 1000) * 1000);
+			speed);
 
 	if (((ccb->cts.valid & CCB_TRANS_SYNC_OFFSET_VALID) != 0)
 	 && (ccb->cts.sync_offset != 0))
