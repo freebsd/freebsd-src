@@ -3073,6 +3073,47 @@
     </para>
  </sect2>
 
+  <sect2 id="firewire">
+    <title>IEEE 1394 (Firewire) Devices</title>
+
+    <para arch="i386,pc98,powerpc">Host Controllers (&man.fwohci.4;
+      driver)
+
+      <itemizedlist>
+        <listitem>
+	  <para>Ricoh R5C552 chipset</para>
+        </listitem>
+        <listitem>
+	  <para>Sony CX3022 chipset</para>
+        </listitem>
+        <listitem>
+	  <para>TI TSB12LV22, LV23, 26 and TSB43AA22 chipsets</para>
+        </listitem>
+        <listitem>
+	  <para>uPD72861 chipset</para>
+        </listitem>
+        <listitem>
+	  <para>VIA VT6306 chipset</para>
+        </listitem>
+      </itemizedlist>
+
+      </para>
+
+    <para arch="i386,pc98,powerpc">Storage (&man.sbp.4; driver)
+
+      <itemizedlist>
+	<listitem>
+          <para>Apple iPod</para>
+	</listitem>
+	<listitem>
+          <para>Apple Macintosh G4 (target mode)</para>
+	</listitem>
+      </itemizedlist>
+
+      </para>
+
+  </sect2>
+
   <sect2>
     <title>Cryptographic Accelerators</title>
 
