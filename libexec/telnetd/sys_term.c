@@ -507,7 +507,7 @@ int *ptynum;
 	p2 = &line[14];
 #endif
 
-	for (cp = "pqrstuvwxyzPQRST"; *cp; cp++) {
+	for (cp = "pqrsPQRS"; *cp; cp++) {
 		struct stat stb;
 
 		*p1 = *cp;
@@ -519,8 +519,8 @@ int *ptynum;
 		 */
 		if (stat(line, &stb) < 0)
 			break;
-		for (i = 0; i < 16; i++) {
-			*p2 = "0123456789abcdef"[i];
+		for (i = 0; i < 32; i++) {
+			*p2 = "0123456789abcdefghijklmnopqrstuv"[i];
 			p = open(line, 2);
 			if (p > 0) {
 #ifndef	__hpux
