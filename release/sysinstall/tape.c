@@ -65,7 +65,7 @@ mediaInitTape(Device *dev)
 	return FALSE;
     }
     /* We know the tape is already in the drive, so go for it */
-    msgNotify("Attempting to extract from %s...", dev->description);
+    msgNotify("Extracting distributions from %s...", dev->description);
     if (!strcmp(dev->name, "rft0"))
 	i = vsystem("ft | cpio -idum %s --block-size %s", cpioVerbosity(), mediaTapeBlocksize());
     else

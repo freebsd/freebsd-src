@@ -231,11 +231,13 @@ configFstab(void)
 
     /* Go for the burn */
     msgDebug("Generating /etc/fstab file\n");
+    fprintf(fstab, "# Device\t\tMountpoint\tFStype\tOptions\t\tDump?\tfsck pass#\n");
+    fprintf(fstab, "#\t\t\t\t\t\t\t\t\t(0=no) (0=no fsck)\n");
     for (i = 0; i < nchunks; i++)
-	fprintf(fstab, "/dev/%s\t\t\t%s\t\t%s\t%s %d %d\n", name_of(chunk_list[i]), mount_point(chunk_list[i]),
+	fprintf(fstab, "/dev/%s\t\t%s\t%s\t%s\t\t%d\t%d\n", name_of(chunk_list[i]), mount_point(chunk_list[i]),
 		fstype(chunk_list[i]), fstype_short(chunk_list[i]), seq_num(chunk_list[i]), seq_num(chunk_list[i]));
     Mkdir("/proc");
-    fprintf(fstab, "proc\t\t\t\t/proc\t\tprocfs\trw 0 0\n");
+    fprintf(fstab, "proc\t\t/proc\tprocfs\t\trw\t0\t0\n");
 
     /* Now look for the CDROMs */
     devs = deviceFind(NULL, DEVICE_TYPE_CDROM);
@@ -247,7 +249,7 @@ configFstab(void)
 	    msgConfirm("Unable to make mount point for: /cdrom");
 	}
 	else
-	    fprintf(fstab, "/dev/%s\t\t\t/cdrom\t\tcd9660\tro,noauto 0 0\n", devs[0]->name);
+	    fprintf(fstab, "/dev/%s\t\t/cdrom\tcd9660\t\tro,noauto\t0\t0\n", devs[0]->name);
     }
 
     /* Write the others out as /cdrom<n> */
@@ -259,7 +261,7 @@ configFstab(void)
 	    msgConfirm("Unable to make mount point for: %s", cdname);
 	}
 	else
-	    fprintf(fstab, "/dev/%s\t\t\t%s\t\tcd9660\tro,noauto 0 0\n", devs[i]->name, cdname);
+	    fprintf(fstab, "/dev/%s\t\t%s\tcd9660\t\tro,noauto\t0\t0\n", devs[i]->name, cdname);
     }
     fclose(fstab);
     if (isDebug())
