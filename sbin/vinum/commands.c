@@ -533,7 +533,10 @@ vinum_start(int argc, char *argv[], char *arg0[])
 		int doit = 0;				    /* set to 1 if we pass our tests */
 		switch (type) {
 		case drive_object:
-		    fprintf(stderr, "Can't start a drive: %s\n", argv[index]);
+		    if (drive.state == drive_up)	    /* already up */
+			fprintf(stderr, "%s is already up\n", drive.label.name);
+		    else
+			doit = 1;
 		    break;
 
 		case sd_object:
