@@ -410,6 +410,9 @@
       from the <varname>net.inet.ip.ttl</varname> sysctl
       variable.</para>
 
+      <para><application>tcpdump</application> has been updated to
+      3.6.3.</para>
+
       <sect4 id="kame-userland">
         <title>KAME</title>
 
