@@ -28,6 +28,7 @@
 #include "SYS.h"
 
 SYSCALL(vfork)
+	;;
 	cmp.ne	p6,p0=ret1,r0		/* ret1!=0 for child */
 	;;
 (p6)	mov	ret0=r0
