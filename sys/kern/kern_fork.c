@@ -435,8 +435,6 @@ again:
 			 * the shared p_procsig->ps_sigacts.
 			 */
 			p2->p_sigacts  = newsigacts;
-			bcopy(&p1->p_addr->u_sigacts, p2->p_sigacts,
-			    sizeof(*p2->p_sigacts));
 			*p2->p_sigacts = p1->p_addr->u_sigacts;
 		}
 	} else {
