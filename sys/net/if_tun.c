@@ -173,6 +173,7 @@ tunopen(dev, flag, mode, p)
 	tp = &tunctl[unit];
 	if (tp->tun_flags & TUN_OPEN)
 		return EBUSY;
+	tp->tun_pid = p->p_pid;
 	ifp = &tp->tun_if;
 	tp->tun_flags |= TUN_OPEN;
 	TUNDEBUG("%s%d: open\n", ifp->if_name, ifp->if_unit);
@@ -196,6 +197,7 @@ tunclose(dev, foo, bar, p)
 	struct mbuf	*m;
 
 	tp->tun_flags &= ~TUN_OPEN;
+	tp->tun_pid = 0;
 
 	/*
 	 * junk all pending output
@@ -276,11 +278,19 @@ tunifioctl(ifp, cmd, data)
 	u_long	cmd;
 	caddr_t	data;
 {
-	register struct ifreq *ifr = (struct ifreq *)data;
+	struct ifreq *ifr = (struct ifreq *)data;
+	struct tun_softc *tp = &tunctl[ifp->if_unit];
+	struct ifstat *ifs;
 	int		error = 0, s;
 
 	s = splimp();
 	switch(cmd) {
+	case SIOCGIFSTATUS:
+		ifs = (struct ifstat *)data;
+		if (tp->tun_pid)
+			sprintf(ifs->ascii + strlen(ifs->ascii),
+			    "\tOpened by PID %d\n", tp->tun_pid);
+		return(0);
 	case SIOCSIFADDR:
 		tuninit(ifp->if_unit);
 		TUNDEBUG("%s%d: address set\n",
