@@ -732,7 +732,7 @@ display(FTSENT *p, FTSENT *list, int options)
 					mac_free(label);
 label_out:
 					if (labelstr == NULL)
-						labelstr = strdup("");
+						labelstr = strdup("-");
 					labelstrlen = strlen(labelstr);
 					if (labelstrlen > maxlabelstr)
 						maxlabelstr = labelstrlen;
