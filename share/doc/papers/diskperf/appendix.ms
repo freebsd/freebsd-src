@@ -31,12 +31,13 @@
 .\"
 .\"	@(#)appendix.ms	6.2 (Berkeley) 4/16/91
 .\"
-.nr H2 1
+.\" .nr H2 1
 .ds RH Appendix A
-.SH
+.NH
 \s+2Appendix A\s0
-.SH
+.NH 2
 read_8192
+.PP
 .DS
 #define	BUFSIZ 8192
 main( argc, argv)
@@ -50,8 +51,9 @@ char **argv;
 		read(j, buf, BUFSIZ);
 }
 .DE
-.SH
+.NH 2
 write_4096
+.PP
 .DS
 #define	BUFSIZ 4096
 main( argc, argv)
@@ -65,8 +67,9 @@ char **argv;
 		write(j, buf, BUFSIZ);
 }
 .DE
-.SH
+.NH 2
 write_8192
+.PP
 .DS
 #define	BUFSIZ 8192
 main( argc, argv)
@@ -81,8 +84,9 @@ char **argv;
 }
 .DE
 .bp
-.SH
+.NH 2
 rewrite_8192
+.PP
 .DS
 #define	BUFSIZ 8192
 main( argc, argv)
