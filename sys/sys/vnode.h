@@ -240,6 +240,11 @@ struct vattr {
  */
 #define	VNOVAL	(-1)
 
+/*
+ * LK_TIMELOCK timeout for vnode locks (used mainly by the pageout daemon)
+ */
+#define VLKTIMEOUT	(hz / 20 + 1)
+
 #ifdef _KERNEL
 
 #ifdef MALLOC_DECLARE
