@@ -13,9 +13,6 @@ PROG=		fixmount
 
 SRCS=		fixmount.c 
 
-#		These are generated at compile time
-SRCS+=		mount.h nfs_prot.h
-
 #		These would be links created by the GNU-style configure
 SRCS+=		checkmount_bsd44.c
 
