@@ -1,5 +1,5 @@
 /*
- * $Id: tcpip.c,v 1.65 1997/03/09 22:25:49 jkh Exp $
+ * $Id: tcpip.c,v 1.66 1997/06/09 01:19:44 jkh Exp $
  *
  * Copyright (c) 1995
  *      Gary J Palmer. All rights reserved.
@@ -213,12 +213,12 @@ tcpOpenDialog(Device *devp)
     else
 	bzero(nameserver, sizeof(nameserver));
 
+    save = savescr();
     /* If non-interactive, jump straight over the dialog crap and into config section */
     if (variable_get(VAR_NONINTERACTIVE))
 	goto netconfig;
 
     /* Now do all the screen I/O */
-    save = savescr();
     dialog_clear_norefresh();
 
     /* We need a curses window */
