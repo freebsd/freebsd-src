@@ -32,6 +32,7 @@
 #include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
+#include <sys/malloc.h>
 
 #include <pci/pcivar.h>
 #include <pci/pcireg.h>
@@ -107,7 +108,7 @@ pcibios_cfgread(int bus, int slot, int func, int reg, int bytes)
 {
 	struct bios_regs args;
 	u_int mask;
-    
+
 	switch(bytes) {
 	case 1:
 		args.eax = PCIBIOS_READ_CONFIG_BYTE;
@@ -135,7 +136,7 @@ static void
 pcibios_cfgwrite(int bus, int slot, int func, int reg, int data, int bytes)
 {
 	struct bios_regs args;
-    
+
 	switch(bytes) {
 	case 1:
 		args.eax = PCIBIOS_WRITE_CONFIG_BYTE;
@@ -572,6 +573,8 @@ nexus_pcib_identify(driver_t *driver, device_t parent)
 	int found = 0;
 	int pcifunchigh;
 	int found824xx = 0;
+	device_t child;
+	int *ivar;
 
 	if (pci_cfgopen() == 0)
 		return;
@@ -591,7 +594,6 @@ nexus_pcib_identify(driver_t *driver, device_t parent)
 			 */
 			u_int32_t id;
 			u_int8_t class, subclass, busnum;
-			device_t child;
 			const char *s;
 
 			id = nexus_pcib_read_config(0, bus, slot, func,
@@ -614,6 +616,14 @@ nexus_pcib_identify(driver_t *driver, device_t parent)
 				child = BUS_ADD_CHILD(parent, 100,
 						      "pcib", busnum);
 				device_set_desc(child, s);
+
+				ivar = malloc(sizeof ivar[0], M_DEVBUF,
+					      M_NOWAIT);
+				if (ivar == NULL)
+					panic("out of memory");
+				device_set_ivars(child, ivar);
+				ivar[0] = busnum;
+
 				found = 1;
 				if (id == 0x12258086)
 					found824xx = 1;
@@ -634,36 +644,65 @@ nexus_pcib_identify(driver_t *driver, device_t parent)
 		if (bootverbose)
 			printf(
 	"nexus_pcib_identify: no bridge found, adding pcib0 anyway\n");
-		BUS_ADD_CHILD(parent, 100, "pcib", 0);
+		child = BUS_ADD_CHILD(parent, 100, "pcib", 0);
+		ivar = malloc(sizeof ivar[0], M_DEVBUF, M_NOWAIT);
+		if (ivar == NULL)
+			panic("out of memory");
+		device_set_ivars(child, ivar);
+		ivar[0] = 0;
 	}
 }
 
 static int
 nexus_pcib_probe(device_t dev)
 {
-	if (pci_cfgopen() != 0) {
-		device_add_child(dev, "pci", device_get_unit(dev));
+
+	if (pci_cfgopen() != 0)
 		return 0;
-	}
+
 	return ENXIO;
 }
 
 static int
-nexus_pcib_read_ivar(device_t dev, device_t child, int which, u_long *result)
+nexus_pcib_attach(device_t dev)
 {
+	device_t child;
+
+	child = device_add_child(dev, "pci", device_get_unit(dev));
+
+	return bus_generic_attach(dev);
+}
+
+static int
+nexus_pcib_read_ivar(device_t dev, device_t child, int which, uintptr_t *result)
+{
+
 	switch (which) {
 	case  PCIB_IVAR_BUS:
-		*result = 0;
+		*result = *(int*) device_get_ivars(dev);
 		return 0;
 	}
 	return ENOENT;
 }
 
+static int
+nexus_pcib_write_ivar(device_t dev, device_t child, int which, uintptr_t value)
+{
+
+	switch (which) {
+	case  PCIB_IVAR_BUS:
+		*(int*) device_get_ivars(dev) = value;
+		return 0;
+	}
+	return ENOENT;
+}
+
+
 static device_method_t nexus_pcib_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_identify,	nexus_pcib_identify),
 	DEVMETHOD(device_probe,		nexus_pcib_probe),
-	DEVMETHOD(device_attach,	bus_generic_attach),
+	DEVMETHOD(device_attach,	nexus_pcib_attach),
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
 	DEVMETHOD(device_suspend,	bus_generic_suspend),
 	DEVMETHOD(device_resume,	bus_generic_resume),
@@ -671,6 +710,7 @@ static device_method_t nexus_pcib_methods[] = {
 	/* Bus interface */
 	DEVMETHOD(bus_print_child,	bus_generic_print_child),
 	DEVMETHOD(bus_read_ivar,	nexus_pcib_read_ivar),
+	DEVMETHOD(bus_write_ivar,	nexus_pcib_write_ivar),
 	DEVMETHOD(bus_alloc_resource,	bus_generic_alloc_resource),
 	DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
 	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
