@@ -1,4 +1,4 @@
-/* $Id: dec_eb164.c,v 1.3 1998/07/22 08:18:34 dfr Exp $ */
+/* $Id: dec_eb164.c,v 1.4 1998/08/10 07:53:58 dfr Exp $ */
 /* $NetBSD: dec_eb164.c,v 1.26 1998/04/17 02:45:19 mjacob Exp $ */
 
 /*
@@ -98,6 +98,7 @@ dec_eb164_cons_init()
 		/* serial console ... */
 		/* XXX */
 		{
+			extern int comconsole;
 			/*
 			 * Delay to allow PROM putchars to complete.
 			 * FIFO depth * character time,
@@ -105,6 +106,11 @@ dec_eb164_cons_init()
 			 */
 			DELAY(160000000 / comcnrate);
 
+                        /* 
+                         * force a comconsole on com1 if the SRM has a serial
+			 * console
+                         */
+                        comconsole = 0;
 			if (siocnattach(0x3f8, comcnrate))
 				panic("can't init serial console");
 
