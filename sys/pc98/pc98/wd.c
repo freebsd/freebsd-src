@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.1.1.1 1996/06/14 10:04:48 asami Exp $
+ *	$Id: wd.c,v 1.2 1996/07/23 07:46:44 asami Exp $
  */
 
 /* TODO:
@@ -357,17 +357,10 @@ static	d_psize_t	wdsize;
 
 #define CDEV_MAJOR 3
 #define BDEV_MAJOR 0
-extern	struct cdevsw wd_cdevsw;
+static struct cdevsw wd_cdevsw;
 static struct bdevsw wd_bdevsw = 
 	{ wdopen,	wdclose,	wdstrategy,	wdioctl,	/*0*/
 	  wddump,	wdsize,		0,	"wd",	&wd_cdevsw,	-1 };
-
-static struct cdevsw wd_cdevsw = 
-	{ wdopen,	wdclose,	rawread,	rawwrite,	/*3*/
-	  wdioctl,	nostop,		nullreset,	nodevtotty,/* wd */
-	  seltrue,	nommap,		wdstrategy,	"wd",
-	  &wd_bdevsw,	-1 };
-
 
 /*
  * Provide hw.devconf information.
@@ -1659,6 +1652,29 @@ wdsetctlr(struct disk *du)
 		wderror((struct buf *)NULL, du, "wdsetctlr failed");
 		return (1);
 	}
+
+	/*
+	 * The config option flags low 8 bits define the maximum multi-block
+	 * transfer size.  If the user wants the maximum that the drive
+	 * is capable of, just set the low bits of the config option to
+	 * 0x00ff.
+	 */
+	if ((du->cfg_flags & WDOPT_MULTIMASK) != 0 && (du->dk_multi > 1)) {
+		if (du->dk_multi > (du->cfg_flags & WDOPT_MULTIMASK))
+			du->dk_multi = du->cfg_flags & WDOPT_MULTIMASK;
+		if (wdcommand(du, 0, 0, 0, du->dk_multi, WDCC_SET_MULTI)) {
+			du->dk_multi = 1;
+		}
+	} else {
+		du->dk_multi = 1;
+	}
+
+#ifdef NOTYET
+/* set read caching and write caching */
+	wdcommand(du, 0, 0, 0, WDFEA_RCACHE, WDCC_FEATURES);
+	wdcommand(du, 0, 0, 0, WDFEA_WCACHE, WDCC_FEATURES);
+#endif
+
 	return (0);
 }
 
@@ -1899,33 +1915,6 @@ failed:
 	/* better ... */
 	du->dk_dd.d_type = DTYPE_ESDI;
 	du->dk_dd.d_subtype |= DSTYPE_GEOMETRY;
-#endif
-
-	/*
-	 * find out the drives maximum multi-block transfer capability
-	 */
-	du->dk_multi = wp->wdp_nsecperint & 0xff;
-
-	/*
-	 * The config option flags low 8 bits define the maximum multi-block
-	 * transfer size.  If the user wants the maximum that the drive
-	 * is capable of, just set the low bits of the config option to
-	 * 0x00ff.
-	 */
-	if ((flags & WDOPT_MULTIMASK) != 0 && (du->dk_multi > 1)) {
-		if (du->dk_multi > (flags & WDOPT_MULTIMASK))
-			du->dk_multi = flags & WDOPT_MULTIMASK;
-		if (wdcommand(du, 0, 0, 0, du->dk_multi, WDCC_SET_MULTI)) {
-			du->dk_multi = 1;
-		}
-	} else {
-		du->dk_multi = 1;
-	}
-
-#ifdef NOTYET
-/* set read caching and write caching */
-	wdcommand(du, 0, 0, 0, WDFEA_RCACHE, WDCC_FEATURES);
-	wdcommand(du, 0, 0, 0, WDFEA_WCACHE, WDCC_FEATURES);
 #endif
 
 	return (0);
@@ -2470,13 +2459,9 @@ static wd_devsw_installed = 0;
 
 static void 	wd_drvinit(void *unused)
 {
-	dev_t dev;
 
 	if( ! wd_devsw_installed ) {
-		dev = makedev(CDEV_MAJOR,0);
-		cdevsw_add(&dev,&wd_cdevsw,NULL);
-		dev = makedev(BDEV_MAJOR,0);
-		bdevsw_add(&dev,&wd_bdevsw,NULL);
+		bdevsw_add_generic(BDEV_MAJOR,CDEV_MAJOR, &wd_bdevsw);
 		wd_devsw_installed = 1;
     	}
 }
