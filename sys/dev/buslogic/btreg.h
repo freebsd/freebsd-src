@@ -37,8 +37,6 @@
 #ifndef _BTREG_H_
 #define _BTREG_H_
 
-#include "bt.h"
-
 #include <sys/queue.h>
 
 #define BT_MAXTRANSFER_SIZE	 0xffffffff	/* limited by 32bit counter */
