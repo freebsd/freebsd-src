@@ -99,6 +99,9 @@ be a multiple of DIRBLKSIZ that is <= the read size for the mount.
 Pass Kerberos authenticators to the server for client-to-server
 user-credential mapping.
 This requires that the kernel be built with the NFSKERB option.
+The use of this option will prevent the kernel from compiling
+unless calls to the appropriate Kerberos encryption routines
+are provided in the NFS source.
 (Refer to the INTERNET-DRAFT titled
 .%T "Authentication Mechanisms for ONC RPC" ,
 for more information.)
