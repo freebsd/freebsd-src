@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.106 1997/12/28 13:36:07 phk Exp $
+ *	$Id: clock.c,v 1.107 1997/12/28 17:33:10 phk Exp $
  */
 
 /*
@@ -730,10 +730,12 @@ inittodr(time_t base)
 	int		year, month;
 	int		y, m, s;
 
-	s = splclock();
-	time.tv_sec  = base;
-	time.tv_usec = 0;
-	splx(s);
+	if (base) {
+		s = splclock();
+		time.tv_sec  = base;
+		time.tv_usec = 0;
+		splx(s);
+	}
 
 	/* Look	if we have a RTC present and the time is valid */
 	if (!(rtcin(RTC_STATUSD) & RTCSD_PWR))
