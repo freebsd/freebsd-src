@@ -103,7 +103,6 @@ static void acpi_tz_check_tripping_point(void *context)
 #define ACPI_TZ_TRIPPOINT_CHANGE 0x81
 static void acpi_tz_notify_handler( ACPI_HANDLE h,UINT32 notify, void *context)
 {
-	device_t dev = context;
 
 	switch(notify){
 	case ACPI_TZ_STATUS_CHANGE:
