@@ -15,7 +15,7 @@
 .\"
 .\"
 .\"     @(#)pkg_create.8
-.\"	$Id: pkg_create.8,v 1.8 1994/11/26 19:12:17 jtk Exp $	
+.\"	$Id: pkg_create.1,v 1.10 1994/12/06 01:04:12 jkh Exp $	
 .\" hacked up by John Kohl for NetBSD--fixed a few bugs, extended keywords,
 .\" added dependency tracking, etc.
 .\"
@@ -242,7 +242,7 @@ sequences is the same as for
 This command is not executed during the package add, as
 .Cm @exec
 is, but rather when the package is deleted.  This is useful
-for creating links and other ancillary files that were created
+for deleting links and other ancillary files that were created
 as a result of adding the package, but not directly known to
 the package's table of contents (and hence not automatically
 removable).  The advantage of using
