@@ -1,4 +1,4 @@
-#	$Id: options.i386,v 1.47 1997/06/04 16:25:07 pst Exp $
+#	$Id: options.i386,v 1.48 1997/06/22 16:02:59 peter Exp $
 
 BOUNCEPAGES		opt_bounce.h
 USER_LDT
@@ -75,6 +75,8 @@ SLOW_VGA		opt_syscons.h
 PSM_ACCEL		opt_psm.h
 PSM_EMULATION		opt_psm.h
 PSM_CHECKSYNC		opt_psm.h
+PSM_HOOKAPM		opt_psm.h
+PSM_RESETAFTERSUSPEND	opt_psm.h
 PSM_DEBUG		opt_psm.h
 
 KBD_RESETDELAY		opt_kbdio.h
