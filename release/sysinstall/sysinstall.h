@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.55 1996/04/28 20:54:07 jkh Exp $
+ * $Id: sysinstall.h,v 1.56 1996/05/16 11:47:44 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -456,7 +456,6 @@ extern int	installUpgrade(dialogMenuItem *self);
 extern int	installFilesystems(dialogMenuItem *self);
 extern int	installVarDefaults(dialogMenuItem *self);
 extern Boolean	copySelf(void);
-extern Boolean	rootExtract(void);
 
 /* installFinal.c */
 extern int	configGated(dialogMenuItem *self);
