@@ -132,7 +132,8 @@ SYSCTL_INT(_vfs_nfs, OID_AUTO, bufpackets, CTLFLAG_RW, &nfs_bufpackets, 0, "");
  */
 #define	NFS_CWNDSCALE	256
 #define	NFS_MAXCWND	(NFS_CWNDSCALE * 32)
-static int nfs_backoff[8] = { 2, 4, 8, 16, 32, 64, 128, 256, };
+#define	NFS_NBACKOFF	8
+static int nfs_backoff[NFS_NBACKOFF] = { 2, 4, 8, 16, 32, 64, 128, 256, };
 struct callout_handle	nfs_timer_handle;
 
 static int	nfs_msg(struct thread *, char *, char *);
@@ -1013,7 +1014,7 @@ tryagain:
 					(void) tsleep((caddr_t)&lbolt,
 						PSOCK, "nqnfstry", 0);
 				trylater_delay *= nfs_backoff[trylater_cnt];
-				if (trylater_cnt < 7)
+				if (trylater_cnt < NFS_NBACKOFF - 1)
 					trylater_cnt++;
 				goto tryagain;
 			}
@@ -1088,7 +1089,7 @@ nfs_timer(void *arg)
 				timeo *= nfs_backoff[nmp->nm_timeouts - 1];
 			if (rep->r_rtt <= timeo)
 				continue;
-			if (nmp->nm_timeouts < 8)
+			if (nmp->nm_timeouts < NFS_NBACKOFF)
 				nmp->nm_timeouts++;
 		}
 		/*
