@@ -17,6 +17,13 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 5.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20040310:
+	The FreeBSD/sparc64 platform is changing time_t from 32-bits to
+	64-bits.  This is a very major incompatible change, so people
+	using FreeBSD/sparc64 *must* read the UPDATING.64BTT file for
+	detailed instructions on how to make this upgrade.  People
+	upgrading FreeBSD on other platforms can ignore this event.
+
 20040308:
 	The packet filter (pf) is now installed with the base system. Make
 	sure to run mergemaster -p before installworld to create required
