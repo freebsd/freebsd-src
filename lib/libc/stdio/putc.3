@@ -36,7 +36,7 @@
 .\"     @(#)putc.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd June 4, 1993
+.Dd January 10, 2003
 .Dt PUTC 3
 .Os
 .Sh NAME
@@ -54,7 +54,11 @@
 .Ft int
 .Fn putc "int c" "FILE *stream"
 .Ft int
+.Fn putc_unlocked "int c" "FILE *stream"
+.Ft int
 .Fn putchar "int c"
+.Ft int
+.Fn putchar_unlocked "int c"
 .Ft int
 .Fn putw "int w" "FILE *stream"
 .Sh DESCRIPTION
@@ -93,12 +97,31 @@ writes the specified
 .Vt int
 to the named output
 .Fa stream .
-.Sh RETURN VALUES
-The functions,
-.Fn fputc ,
+.Pp
+The
+.Fn putc_unlocked
+and
+.Fn putchar_unlocked
+functions are equivalent to
 .Fn putc
 and
 .Fn putchar
+respectively,
+except that the caller is responsible for locking the stream
+with
+.Fn flockfile
+before calling them.
+These functions may be used to avoid the overhead of locking the stream
+for each character, and to avoid output being interspersed from multiple
+threads writing to the same stream.
+.Sh RETURN VALUES
+The functions,
+.Fn fputc ,
+.Fn putc ,
+.Fn putchar ,
+.Fn putc_unlocked
+and
+.Fn putchar_unlocked
 return the character written.
 If an error occurs, the value
 .Dv EOF
@@ -113,6 +136,7 @@ a write error occurs,
 or if an attempt is made to write a read-only stream.
 .Sh SEE ALSO
 .Xr ferror 3 ,
+.Xr flockfile 3 ,
 .Xr fopen 3 ,
 .Xr getc 3 ,
 .Xr putwc 3 ,
@@ -125,6 +149,12 @@ and
 .Fn putchar ,
 conform to
 .St -isoC .
+The
+.Fn putc_unlocked
+and
+.Fn putchar_unlocked
+functions conform to
+.St -p1003.1-2001 .
 A function
 .Fn putw
 function appeared in
