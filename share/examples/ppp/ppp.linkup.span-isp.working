@@ -1,4 +1,4 @@
-# $Id:$
+# $Id: ppp.linkup.span-isp.working,v 1.1 1999/06/09 12:32:52 brian Exp $
 
 # This is a working example of ppp.linkup.span-isp that uses ppp connections
 # to the same machine through 3 null-modem serial cables.
