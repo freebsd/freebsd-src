@@ -303,6 +303,7 @@ m_dup1(struct mbuf *m, int off, int len, int wait)
 		return NULL;
 	}
 	m_copydata(m, off, len, mtod(n, caddr_t));
+	n->m_len = len;
 	return n;
 }
 
