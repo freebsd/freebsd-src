@@ -135,6 +135,7 @@ struct cd_softc {
 	int			bufs_left;
 	struct cam_periph	*periph;
 	dev_t			dev;
+	eventhandler_tag	clonetag;
 };
 
 struct cd_quirk_entry {
@@ -294,6 +295,26 @@ struct cdchanger {
 };
 
 static STAILQ_HEAD(changerlist, cdchanger) changerq;
+
+static void
+cdclone(void *arg, char *name, int namelen, dev_t *dev)
+{
+	struct cd_softc *softc;
+	const char *p;
+	int l;
+
+	softc = arg;
+	p = devtoname(softc->dev);
+	l = strlen(p);
+	if (bcmp(name, p, l))
+		return;
+	if (name[l] != 'a' && name[l] != 'c')
+		return;
+	if (name[l + 1] != '\0')
+		return;
+	*dev = softc->dev;
+	return;
+}
 
 static void
 cdinit(void)
@@ -465,6 +486,7 @@ cdcleanup(struct cam_periph *periph)
 	}
 	devstat_remove_entry(&softc->device_stats);
 	destroy_dev(softc->dev);
+	EVENTHANDLER_DEREGISTER(dev_clone, softc->clonetag);
 	free(softc, M_DEVBUF);
 	splx(s);
 }
@@ -604,6 +626,8 @@ cdregister(struct cam_periph *periph, void *arg)
 	softc->dev = make_dev(&cd_cdevsw, periph->unit_number,
 		UID_ROOT, GID_OPERATOR, 0640, "cd%d", periph->unit_number);
 	softc->dev->si_drv1 = periph;
+	softc->clonetag =
+	    EVENTHANDLER_REGISTER(dev_clone, cdclone, softc, 1000);
 
 	/*
 	 * Add an async callback so that we get
