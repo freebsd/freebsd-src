@@ -29,8 +29,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *  $Id: lastcomm.c,v 1.7 1997/03/29 04:30:24 imp Exp $
  */
 
 #ifndef lint
@@ -40,7 +38,11 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)lastcomm.c	8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -62,7 +64,7 @@ time_t	 expand __P((u_int));
 char	*flagbits __P((int));
 char	*getdev __P((dev_t));
 int	 requested __P((char *[], struct acct *));
-void	 usage __P((void));
+static void	 usage __P((void));
 char	*user_from_uid();
 
 #define AC_UTIME 1 /* user */
@@ -291,10 +293,10 @@ getdev(dev)
 	return (lastname);
 }
 
-void
+static void
 usage()
 {
 	(void)fprintf(stderr,
-	    "lastcomm [-EScesu] [ -f file ] [command ...] [user ...] [tty ...]\n");
+"usage: lastcomm [-EScesu] [ -f file ] [command ...] [user ...] [tty ...]\n");
 	exit(1);
 }
