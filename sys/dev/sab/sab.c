@@ -492,6 +492,9 @@ sabtty_attach(device_t dev)
 	tp->t_iflag = TTYDEF_IFLAG;
 	tp->t_oflag = TTYDEF_OFLAG;
 	tp->t_lflag = TTYDEF_LFLAG;
+	tp->t_cflag = CREAD | CLOCAL | CS8;
+	tp->t_ospeed = TTYDEF_SPEED;
+	tp->t_ispeed = TTYDEF_SPEED;
 
 	if (sabtty_console(dev, mode, sizeof(mode))) {
 		ttychars(tp);
@@ -499,7 +502,7 @@ sabtty_attach(device_t dev)
 		    &stop, &c) == 5) {
 			tp->t_ospeed = baud;
 			tp->t_ispeed = baud;
-			tp->t_cflag = CREAD | HUPCL;
+			tp->t_cflag = CREAD | CLOCAL;
 
 			switch (clen) {
 			case 5:
@@ -524,10 +527,6 @@ sabtty_attach(device_t dev)
 
 			if (stop == 2)
 				tp->t_cflag |= CSTOPB;
-		} else {
-			tp->t_ospeed = 9600;
-			tp->t_ispeed = 9600;
-			tp->t_cflag = CREAD | CS8 | HUPCL;
 		}
 		sc->sc_flags |= SABTTYF_CONS;
 		sabtty_cons = sc;
@@ -801,11 +800,6 @@ sabttyopen(dev_t dev, int flags, int mode, struct thread *td)
 		(void)tsleep(sc, TTIPRI, "ttclos", hz);
 	}
 
-	if ((sc->sc_flags & SABTTYF_CONS) == 0) {
-		/* Flush and power down if we're not the console */
-		sabtty_flush(sc);
-		sabtty_reset(sc);
-	}
 	return (error);
 }
 
