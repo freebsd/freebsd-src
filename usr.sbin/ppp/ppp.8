@@ -1,4 +1,4 @@
-.\" $Id: ppp.8,v 1.45 1997/07/14 01:41:31 brian Exp $
+.\" $Id: ppp.8,v 1.46 1997/08/10 22:03:20 brian Exp $
 .Dd 20 September 1995
 .Os FreeBSD
 .Dt PPP 8
@@ -1013,15 +1013,29 @@ The following steps should be taken when connecting to your ISP:
 Describe your provider's phone number(s) in the dial script using the
 .Dq set phone
 command.  This command allows you to set multiple phone numbers for
-dialing and redialing separated by a colon (:).  For example:
+dialing and redialing separated by either a pipe (|) or a colon (:)
 .Bd -literal -offset indent
-set phone "1234567:2345678"
+set phone "111[|222]...[:333[|444]...]...
+.Ed
+Numbers after the first in a pipe-seperated list are only used if the
+previous number was used in a failed login script.  Numbers seperated
+by a colon are used sequentially, irrespective of what happened as a
+result of using the previous number.  For example:
+.Bd -literal -offset indent
+set phone "1234567|2345678:3456789|4567890"
 .Ed
 .Pp
-Here, the first number is attempted.  If the connection fails, the second
-number is attempted after the next number redial period.  If the second number
-also fails, the first is tried again after the redial period has expired.
-The selected phone number is substituted for the \\T string in the
+Here, the 1234567 number is attempted.  If the login script fails, the
+2345678 number is used next time, but *only* if the login script fails.
+On the dial after this, the 3456789 number is used.  The 4567890 number
+is only used if the login script using the 3456789 fails.  If the login
+script of the 2345678 number fails, the next number is still the 3456789
+number.  As many pipes and colons can be used as are necessary.
+The next number redial timeout is used between all numbers.  When the
+end of the list is reached, the normal redial period is used before
+starting at the beginning again.
+
+The selected phone number is substituted for the \\\\T string in the
 .Dq set dial
 command (see below).
 
@@ -1612,10 +1626,13 @@ peer to initiate LCP negotiation, you may use the value
 .It set parity odd|even|none|mark
 This allows the line parity to be set.  The default value is none.
 
-.It set phone telno[:telno]...
+.It set phone telno[|telno]...[:telno[|telno]...]...
 This allows the specification of the phone number to be used in
 place of the \\\\T string in the dial and login chat scripts.
-Multiple phone numbers may be given seperated by a colon (:).
+Multiple phone numbers may be given seperated by a colon (:) or
+a pipe (|).  Numbers after the pipe are only dialed if the login script
+for the previous number failed.  Numbers seperated by a colon are tried
+sequentially, irrespective of the reason the line was dropped.
 If multiple numbers are given,
 .Nm
 will dial them in rotation until a connection is made, retrying
