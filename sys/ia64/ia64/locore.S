@@ -98,6 +98,12 @@ ENTRY(__start, 1)
 	;;
 	mov	ar.rsc=3		// turn rse back on
 	;;
+	alloc	r16=ar.pfs,0,0,1,0
+	;;
+	movl	out0=0			// we are linked at the right address 
+	;;				// we just need to process fptrs
+	br.call.sptk.many rp=_reloc
+	;;
 	br.call.sptk.many rp=ia64_init
 
 	/*
@@ -219,3 +225,129 @@ EXPORT(intrcnt)
 	.fill INTRCNT_COUNT + 1, 8, 0
 EXPORT(eintrcnt)
 	.text
+	
+	// in0:	image base
+STATIC_ENTRY(_reloc, 1)
+	alloc	loc0=ar.pfs,1,2,0,0
+	mov	loc1=rp
+	;; 
+	movl	r15=@gprel(_DYNAMIC)	// find _DYNAMIC etc.
+	movl	r2=@gprel(fptr_storage)
+	movl	r3=@gprel(fptr_storage_end)
+	;;
+	add	r15=r15,gp		// relocate _DYNAMIC etc.
+	add	r2=r2,gp
+	add	r3=r3,gp
+	;;
+1:	ld8	r16=[r15],8		// read r15->d_tag
+	;;
+	ld8	r17=[r15],8		// and r15->d_val
+	;;
+	cmp.eq	p6,p0=DT_NULL,r16	// done?
+(p6)	br.cond.dpnt.few 2f
+	;; 
+	cmp.eq	p6,p0=DT_RELA,r16
+	;; 
+(p6)	add	r18=r17,in0		// found rela section
+	;; 
+	cmp.eq	p6,p0=DT_RELASZ,r16
+	;; 
+(p6)	mov	r19=r17			// found rela size
+	;; 
+	cmp.eq	p6,p0=DT_SYMTAB,r16
+	;; 
+(p6)	add	r20=r17,in0		// found symbol table
+	;; 
+(p6)	setf.sig f8=r20
+	;; 
+	cmp.eq	p6,p0=DT_SYMENT,r16
+	;; 
+(p6)	setf.sig f9=r17			// found symbol entry size
+	;; 
+	cmp.eq	p6,p0=DT_RELAENT,r16
+	;; 
+(p6)	mov	r22=r17			// found rela entry size
+	;;
+	br.sptk.few 1b
+	
+2:	
+	ld8	r15=[r18],8		// read r_offset
+	;; 
+	ld8	r16=[r18],8		// read r_info
+	add	r15=r15,in0		// relocate r_offset
+	;;
+	ld8	r17=[r18],8		// read r_addend
+	sub	r19=r19,r22		// update relasz
+
+	extr.u	r23=r16,0,32		// ELF64_R_TYPE(r16)
+	;;
+	cmp.eq	p6,p0=R_IA64_NONE,r23
+(p6)	br.cond.dpnt.few 3f
+	;;
+	cmp.eq	p6,p0=R_IA64_DIR64LSB,r23
+	;;
+(p6)	br.cond.dptk.few 4f
+	;;
+	cmp.eq	p6,p0=R_IA64_FPTR64LSB,r23
+	;;
+(p6)	br.cond.dptk.few 5f
+	;;
+	cmp.eq	p6,p0=R_IA64_REL64LSB,r23
+	;;
+(p6)	br.cond.dptk.few 4f
+	;;
+
+3:	cmp.ltu	p6,p0=0,r19		// more?
+(p6)	br.cond.dptk.few 2b		// loop
+	
+	mov	r8=0			// success return value
+	;;
+	br.cond.sptk.few 9f		// done
+
+4:
+	ld8	r16=[r15]		// read value
+	;;
+	add	r16=r16,in0		// relocate it
+	;;
+	st8	[r15]=r16		// and store it back
+	br.cond.sptk.few 3b
+
+5:
+	extr.u	r23=r16,32,32		// ELF64_R_SYM(r16)
+	;; 
+	setf.sig f10=r23		// so we can multiply
+	;;
+	xma.lu	f10=f10,f9,f8		// f10=symtab + r_sym*syment
+	;;
+	getf.sig r16=f10
+	mov	r8=1			// failure return value
+	;;
+	cmp.geu	p6,p0=r2,r3		// space left?
+(p6)	br.cond.dpnt.few 9f		// bail out
+
+	st8	[r15]=r2		// install fptr
+	add	r16=8,r16		// address of st_value
+	;;
+	ld8	r16=[r16]		// read symbol value
+	;;
+	add	r16=r16,in0		// relocate symbol value
+	;;
+	st8	[r2]=r16,8		// write fptr address
+	;;
+	st8	[r2]=gp,8		// write fptr gp
+	br.cond.sptk.few 3b
+
+9:
+	mov	ar.pfs=loc0
+	mov	rp=loc1
+	;;
+	br.ret.sptk.few rp
+
+END(_reloc)
+	
+	.data
+	.align	16
+	
+fptr_storage:	
+	.space	4096*16			// XXX
+fptr_storage_end:	
