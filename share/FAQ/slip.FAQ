@@ -2,6 +2,8 @@
 ***                 How to Set Up SLIP on FreeBSD                   ***
 ***********************************************************************
 
+$Id$
+
 Updated for 1.1.5(.1) support by Satoshi Asami, 8/6/94.
 
 The following is I (asami) set up my FreeBSD machine for SLIP on a

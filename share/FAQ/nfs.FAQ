@@ -1,5 +1,7 @@
 FreeBSD and NFS [for a FAQ]
 
+$Id$
+
 Certain Ethernet adapters for ISA PC systems have limitations which
 can lead to serious network problems, particularly with NFS.  This
 difficulty is not specific to FreeBSD, but FreeBSD systems are affected
