@@ -40,8 +40,6 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <runetype.h>
-#include <stddef.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <wchar.h>
 
