@@ -254,6 +254,8 @@ beforeinstall:	${HEADERS}
 namehdr nameftr codeftr ${NAMESRC} ${CODESRC}: MKnames.awk Caps
 	${AWK} -f ${NCURSES}/ncurses/tinfo/MKnames.awk ${NCURSES}/include/Caps
 
+.ORDER: namehdr ${NAMESRC} ${CODESRC} nameftr codeftr names.c codes.c
+
 names.c:	 namehdr ${NAMESRC} nameftr
 	cat namehdr ${NAMESRC} nameftr > $@
 
