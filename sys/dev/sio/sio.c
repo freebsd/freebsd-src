@@ -1356,6 +1356,16 @@ determined_type: ;
 		}
 		if (ret)
 			device_printf(dev, "could not activate interrupt\n");
+#if defined(DDB) && (defined(BREAK_TO_DEBUGGER) || \
+    defined(ALT_BREAK_TO_DEBUGGER))
+		/*
+		 * Enable interrupts for early break-to-debugger support
+		 * on the console.
+		 */
+		if (ret == 0 && unit == comconsole)
+			outb(siocniobase + com_ier, IER_ERXRDY | IER_ERLS |
+			    IER_EMSC);
+#endif
 	}
 
 	return (0);
@@ -1597,9 +1607,19 @@ comhardclose(com)
 	com->do_dcd_timestamp = FALSE;
 	com->pps.ppsparam.mode = 0;
 	sio_setreg(com, com_cfcr, com->cfcr_image &= ~CFCR_SBREAK);
+	tp = com->tp;
+
+#if defined(DDB) && (defined(BREAK_TO_DEBUGGER) || \
+    defined(ALT_BREAK_TO_DEBUGGER))
+	/*
+	 * Leave interrupts enabled and don't clear DTR if this is the
+	 * console. This allows us to detect break-to-debugger events
+	 * while the console device is closed.
+	 */
+	if (com->unit != comconsole)
+#endif
 	{
 		sio_setreg(com, com_ier, 0);
-		tp = com->tp;
 		if (tp->t_cflag & HUPCL
 		    /*
 		     * XXX we will miss any carrier drop between here and the
