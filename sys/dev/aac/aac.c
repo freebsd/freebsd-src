@@ -489,10 +489,10 @@ aac_detach(device_t dev)
 
 	/* Remove the child containers */
 	while ((co = TAILQ_FIRST(&sc->aac_container_tqh)) != NULL) {
-		TAILQ_REMOVE(&sc->aac_container_tqh, co, co_link);
 		error = device_delete_child(dev, co->co_disk);
 		if (error)
 			return (error);
+		TAILQ_REMOVE(&sc->aac_container_tqh, co, co_link);
 		free(co, M_AACBUF);
 	}
 
