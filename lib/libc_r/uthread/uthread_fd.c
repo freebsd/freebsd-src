@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: uthread_fd.c,v 1.4 1997/04/01 22:49:58 jb Exp $
  *
  */
 #include <errno.h>
@@ -38,6 +38,13 @@
 #ifdef _THREAD_SAFE
 #include <pthread.h>
 #include "pthread_private.h"
+
+/*
+ * This function *must* return -1 and set the thread specific errno
+ * as a system call. This is because the error return from this
+ * function is propagated directly back from thread-wrapped system
+ * calls.
+ */
 
 int
 _thread_fd_table_init(int fd)
@@ -49,9 +56,11 @@ _thread_fd_table_init(int fd)
 	_thread_kern_sig_block(&status);
 
 	/* Check if the file descriptor is out of range: */
-	if (fd < 0 || fd >= _thread_dtablesize)
+	if (fd < 0 || fd >= _thread_dtablesize) {
 		/* Return a bad file descriptor error: */
-		ret = EBADF;
+		errno = EBADF;
+		ret = -1;
+	}
 
 	/*
 	 * Check if memory has already been allocated for this file
@@ -62,9 +71,11 @@ _thread_fd_table_init(int fd)
 	}
 	/* Allocate memory for the file descriptor table entry: */
 	else if ((_thread_fd_table[fd] = (struct fd_table_entry *)
-	    malloc(sizeof(struct fd_table_entry))) == NULL)
+	    malloc(sizeof(struct fd_table_entry))) == NULL) {
 		/* Return a bad file descriptor error: */
-		ret = EBADF;
+		errno = EBADF;
+		ret = -1;
+            }
 	else {
 		/* Assume that the operation will succeed: */
 		ret = 0;
@@ -85,9 +96,9 @@ _thread_fd_table_init(int fd)
 
 		/* Get the flags for the file: */
 		if (fd >= 3 && (_thread_fd_table[fd]->flags =
-		    _thread_sys_fcntl(fd, F_GETFL, 0)) == -1)
-			ret = errno;
-
+		    _thread_sys_fcntl(fd, F_GETFL, 0)) == -1) {
+			ret = -1;
+		    }
 		else {
 			/* Check if a stdio descriptor: */
 			if (fd < 3)
@@ -109,8 +120,9 @@ _thread_fd_table_init(int fd)
 				 * Some devices don't support
 				 * non-blocking calls (sigh):
 				 */
-				if (errno != ENODEV)
-					ret = errno;
+				if (errno != ENODEV) {
+				   ret = -1;
+				}
 			}
 		}
 

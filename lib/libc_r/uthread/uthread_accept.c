@@ -94,12 +94,11 @@ accept(int fd, struct sockaddr * name, int *namelen)
 		 * set the new socket flags to non-blocking, as that 
 		 * will be the inherited state of the new socket.
 		 */
-		if((_thread_fd_table[fd]->flags & O_NONBLOCK) == 0)
+		if((ret > 0) && (_thread_fd_table[fd]->flags & O_NONBLOCK) == 0)
 			_thread_fd_table[ret]->flags &= ~O_NONBLOCK;
 
 		/* Unlock the file descriptor: */
 		_thread_fd_unlock(fd, FD_RDWR);
-
 	}
 	/* Return the socket file descriptor or -1 on error: */
 	return (ret);
