@@ -369,7 +369,7 @@ sioprobe(dev)
 #endif
 	    || (inb(iobase + com_iir) & IIR_IMASK) != IIR_TXRDY
 	    || isa_irq_pending(dev)
-	    || (inb(iobase + com_iir) & IIR_IMASK) != IIR_NOPEND)
+	    || !(inb(iobase + com_iir) & IIR_NOPEND))
 		result = 0;
 
 	/*
@@ -384,7 +384,7 @@ sioprobe(dev)
 	outb(iobase + com_mcr, MCR_IENABLE);	/* dummy to avoid bus echo */
 	if (   inb(iobase + com_ier) != 0
 	    || isa_irq_pending(dev)
-	    || (inb(iobase + com_iir) & IIR_IMASK) != IIR_NOPEND)
+	    || !(inb(iobase + com_iir) & IIR_NOPEND))
 		result = 0;
 	if (result == 0)
 		outb(iobase + com_mcr, 0);
@@ -861,6 +861,8 @@ siointr(unit)
 #else /* COM_MULTIPORT */
 	bool_t		possibly_more_intrs;
 
+	com = com_addr(unit);
+	comintr1(com);
 	/*
 	 * Loop until there is no activity on any port.  This is necessary
 	 * to get an interrupt edge more than to avoid another interrupt.
@@ -872,15 +874,15 @@ siointr(unit)
 		possibly_more_intrs = FALSE;
 		for (unit = 0; unit < NSIO; ++unit) {
 			com = com_addr(unit);
-			if (com != NULL) {
+			if (com != NULL
+			    && !(inb(com->int_id_port) & IIR_NOPEND)) {
 				/*
 				 * XXX call comintr1() instead of here from
 				 * comwakeup().  The interrupt edge problem
 				 * only exists for real interrupts.
 				 */
 				comintr1(com);
-				if ((inb(com->int_id_port) & IIR_IMASK) != IIR_NOPEND)
-					possibly_more_intrs = TRUE;
+				possibly_more_intrs = TRUE;
 			}
 		}
 	} while (possibly_more_intrs);
@@ -999,7 +1001,7 @@ if (com->iptr - com->ibuf == 8)
 
 		/* finished? */
 #ifndef COM_MULTIPORT
-		if ((inb(com->int_id_port) & IIR_IMASK) == IIR_NOPEND)
+		if (inb(com->int_id_port) & IIR_NOPEND)
 #endif /* COM_MULTIPORT */
 			return;
 	}
