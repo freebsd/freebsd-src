@@ -30,8 +30,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)resourcevar.h	8.3 (Berkeley) 2/22/94
- * $Id: resourcevar.h,v 1.5 1994/10/10 00:58:33 phk Exp $
+ *	@(#)resourcevar.h	8.4 (Berkeley) 1/9/95
+ * $Id: resourcevar.h,v 1.7 1996/02/25 07:23:03 hsu Exp $
  */
 
 #ifndef	_SYS_RESOURCEVAR_H_
@@ -87,7 +87,7 @@ int	 addupc __P((int pc, struct uprof *up, int ticks));
 void	 addupc_intr __P((struct proc *p, u_long pc, u_int ticks));
 void	 addupc_task __P((struct proc *p, u_long pc, u_int ticks));
 void	 calcru __P((struct proc *p, struct timeval *up, struct timeval *sp,
-		     struct timeval *ip));
+	    struct timeval *ip));
 int	 fuswintr __P((void *base));
 struct plimit
 	*limcopy __P((struct plimit *lim));
