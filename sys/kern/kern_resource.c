@@ -565,10 +565,9 @@ dosetrlimit(td, which, limp)
 	switch (which) {
 
 	case RLIMIT_CPU:
-		if (limp->rlim_cur > RLIM_INFINITY / (rlim_t)1000000)
-			p->p_limit->p_cpulimit = RLIM_INFINITY;
-		else
-			p->p_limit->p_cpulimit = limp->rlim_cur;
+		mtx_lock_spin(&sched_lock);
+		p->p_cpulimit = limp->rlim_cur;
+		mtx_unlock_spin(&sched_lock);
 		break;
 	case RLIMIT_DATA:
 		if (limp->rlim_cur > maxdsiz)
