@@ -45,7 +45,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)ping.c	8.1 (Berkeley) 6/5/93";
 */
 static const char rcsid[] =
-	"$Id: ping.c,v 1.32 1998/04/02 04:33:18 imp Exp $";
+	"$Id: ping.c,v 1.33 1998/04/15 19:55:14 phk Exp $";
 #endif /* not lint */
 
 /*
@@ -92,7 +92,8 @@ static const char rcsid[] =
 #include <netinet/ip_var.h>
 #include <arpa/inet.h>
 
-#define	DEFDATALEN	(64 - 8)	/* default data length */
+#define	PHDR_LEN	sizeof(struct timeval)
+#define	DEFDATALEN	(64 - PHDR_LEN)	/* default data length */
 #define	FLOOD_BACKOFF	20000		/* usecs to back off if F_FLOOD mode */
 					/* runs out of buffer space */
 #define	MAXIPLEN	60
@@ -212,7 +213,7 @@ main(argc, argv)
 
 	preload = 0;
 
-	datap = &outpack[8 + sizeof(struct timeval)];
+	datap = &outpack[8 + PHDR_LEN];
 	while ((ch = getopt(argc, argv, "I:LQRT:c:adfi:l:np:qrs:v")) != -1) {
 		switch(ch) {
 		case 'a':
@@ -349,14 +350,14 @@ main(argc, argv)
 		errx(EX_USAGE, 
 		     "-I, -L, -T flags cannot be used with unicast destination");
 
-	if (datalen >= sizeof(struct timeval))	/* can we time transfer */
+	if (datalen >= PHDR_LEN)	/* can we time transfer */
 		timing = 1;
 	packlen = datalen + MAXIPLEN + MAXICMPLEN;
 	if (!(packet = (u_char *)malloc((size_t)packlen)))
 		err(EX_UNAVAILABLE, "malloc");
 
 	if (!(options & F_PINGFILLED))
-		for (i = 8; i < datalen; ++i)
+		for (i = PHDR_LEN; i < datalen; ++i)
 			*datap++ = i;
 
 	ident = getpid() & 0xFFFF;
@@ -575,7 +576,7 @@ pinger(void)
 		(void)gettimeofday((struct timeval *)&outpack[8],
 		    (struct timezone *)NULL);
 
-	cc = datalen + 8;			/* skips ICMP portion */
+	cc = datalen + PHDR_LEN;		/* skips ICMP portion */
 
 	/* compute ICMP checksum here */
 	icp->icmp_cksum = in_cksum((u_short *)icp, cc);
@@ -645,12 +646,15 @@ pr_pack(buf, cc, from)
 		++nreceived;
 		triptime = 0.0;
 		if (timing) {
+			struct timeval tv1;
 #ifndef icmp_data
 			tp = (struct timeval *)&icp->icmp_ip;
 #else
 			tp = (struct timeval *)icp->icmp_data;
 #endif
-			tvsub(&tv, tp);
+			/* Avoid unaligned data: */
+			memcpy(&tv1,tp,sizeof(tv1));
+			tvsub(&tv, &tv1);
 			triptime = ((double)tv.tv_sec) * 1000.0 +
 			    ((double)tv.tv_usec) / 1000.0;
 			tsum += triptime;
@@ -687,14 +691,22 @@ pr_pack(buf, cc, from)
 			if (options & F_AUDIBLE)
 				(void)printf("\a");
 			/* check the data */
-			cp = (u_char*)&icp->icmp_data[8];
-			dp = &outpack[8 + sizeof(struct timeval)];
-			for (i = 8; i < datalen; ++i, ++cp, ++dp) {
+			cp = (u_char*)&icp->icmp_data[PHDR_LEN];
+			dp = &outpack[8 + PHDR_LEN];
+			for (i = PHDR_LEN; i < datalen; ++i, ++cp, ++dp) {
 				if (*cp != *dp) {
 	(void)printf("\nwrong data byte #%d should be 0x%x but was 0x%x",
 	    i, *dp, *cp);
+					printf("\ncp:");
 					cp = (u_char*)&icp->icmp_data[0];
-					for (i = 8; i < datalen; ++i, ++cp) {
+					for (i = 0; i < datalen; ++i, ++cp) {
+						if ((i % 32) == 8)
+							(void)printf("\n\t");
+						(void)printf("%x ", *cp);
+					}
+					printf("\ndp:");
+					cp = &outpack[8];
+					for (i = 0; i < datalen; ++i, ++cp) {
 						if ((i % 32) == 8)
 							(void)printf("\n\t");
 						(void)printf("%x ", *cp);
@@ -1138,8 +1150,9 @@ pr_iph(ip)
 	(void)printf(" %1x  %1x  %02x %04x %04x",
 	    ip->ip_v, ip->ip_hl, ip->ip_tos, ntohs(ip->ip_len),
 	    ntohs(ip->ip_id));
-	(void)printf("   %1lx %04lx", (ntohl(ip->ip_off) & 0xe000) >> 13,
-	    ntohl(ip->ip_off) & 0x1fff);
+	(void)printf("   %1lx %04lx",
+	    (u_long) (ntohl(ip->ip_off) & 0xe000) >> 13,
+	    (u_long) ntohl(ip->ip_off) & 0x1fff);
 	(void)printf("  %02x  %02x %04x", ip->ip_ttl, ip->ip_p,
 							    ntohs(ip->ip_sum));
 	(void)printf(" %s ", inet_ntoa(*(struct in_addr *)&ip->ip_src.s_addr));
@@ -1217,7 +1230,7 @@ fill(bp, patp)
 
 	if (ii > 0)
 		for (kk = 0;
-		    kk <= MAXPACKET - (8 + sizeof(struct timeval) + ii);
+		    kk <= MAXPACKET - (8 + PHDR_LEN + ii);
 		    kk += ii)
 			for (jj = 0; jj < ii; ++jj)
 				bp[jj + kk] = pat[jj];
