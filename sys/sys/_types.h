@@ -39,7 +39,6 @@ typedef	__int32_t	__clockid_t;		/* clock_gettime()... */
 typedef	__uint32_t	__fflags_t;		/* file flags */
 typedef	__uint64_t	__fsblkcnt_t;
 typedef	__uint64_t	__fsfilcnt_t;
-typedef	__uint32_t	__intrmask_t;
 typedef	__uint32_t	__gid_t;
 typedef	__uint16_t	__mode_t;		/* permissions */
 typedef	__int64_t	__off_t;		/* file offset */
