@@ -555,7 +555,7 @@ ast_write_filemark(struct ast_softc *stp, u_int8_t function)
     error = atapi_queue_cmd(stp->atp, ccb, NULL, 0, 0, 10, NULL, NULL);
     if (error)
 	return error;
-    return atapi_wait_ready(stp->atp, 10*60);
+    return atapi_wait_dsc(stp->atp, 10*60);
 }
 
 static int
@@ -594,7 +594,7 @@ ast_locate(struct ast_softc *stp, int hard, u_int32_t pos)
     error = atapi_queue_cmd(stp->atp, ccb, NULL, 0, 0, 10, NULL, NULL);
     if (error)
 	return error;
-    return atapi_wait_ready(stp->atp, 60*60);
+    return atapi_wait_dsc(stp->atp, 60*60);
 }
 
 static int
@@ -621,7 +621,7 @@ ast_load_unload(struct ast_softc *stp, u_int8_t function)
     tsleep((caddr_t)&error, PRIBIO, "astlu", 1 * hz);
     if (function == SS_EJECT)
 	return 0;
-    return atapi_wait_ready(stp->atp, 60*60);
+    return atapi_wait_dsc(stp->atp, 60*60);
 }
 
 static int
@@ -634,7 +634,7 @@ ast_rewind(struct ast_softc *stp)
     error = atapi_queue_cmd(stp->atp, ccb, NULL, 0, 0, 10, NULL, NULL);
     if (error)
 	return error;
-    return atapi_wait_ready(stp->atp, 60*60);
+    return atapi_wait_dsc(stp->atp, 60*60);
 }
 
 static int
