@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)union_vnops.c	8.32 (Berkeley) 6/23/95
- * $Id: union_vnops.c,v 1.21 1997/04/13 06:29:13 phk Exp $
+ * $Id: union_vnops.c,v 1.22 1997/04/13 13:12:12 kato Exp $
  */
 
 #include <sys/param.h>
@@ -245,8 +245,40 @@ union_lookup(ap)
 	 */
 	if (upperdvp != NULLVP) {
 		FIXUP(dun, p);
+		/*
+		 * If we're doing `..' in the underlying filesystem,
+		 * we must drop our lock on the union node before
+		 * going up the tree in the lower file system--if we block
+		 * on the lowervp lock, and that's held by someone else
+		 * coming down the tree and who's waiting for our lock,
+		 * we would be hosed.
+		 */
+		if (cnp->cn_flags & ISDOTDOT) {
+			/* retain lock on underlying VP: */
+			dun->un_flags |= UN_KLOCK;
+			VOP_UNLOCK(dvp, 0, p);
+		}
 		uerror = union_lookup1(um->um_uppervp, &upperdvp,
 					&uppervp, cnp);
+		if (cnp->cn_flags & ISDOTDOT) {
+			if (dun->un_uppervp == upperdvp) {
+				/*
+				 * We got the underlying bugger back locked...
+				 * now take back the union node lock.  Since we
+				 * hold the uppervp lock, we can diddle union
+				 * locking flags at will. :)
+				 */
+				dun->un_flags |= UN_ULOCK;
+			}
+			/*
+			 * If upperdvp got swapped out, it means we did
+			 * some mount point magic, and we do not have
+			 * dun->un_uppervp locked currently--so we get it
+			 * locked here (don't set the UN_ULOCK flag).
+			 */
+			VOP_LOCK(dvp, 0, p);
+		}
+
 		/*if (uppervp == upperdvp)
 			dun->un_flags |= UN_KLOCK;*/
 
@@ -292,6 +324,12 @@ union_lookup(ap)
 			saved_cred = cnp->cn_cred;
 			cnp->cn_cred = um->um_cred;
 		}
+		/*
+		 * We shouldn't have to worry about locking interactions
+		 * between the lower layer and our union layer (w.r.t.
+		 * `..' processing) because we don't futz with lowervp
+		 * locks in the union-node instantiation code path.
+		 */
 		lerror = union_lookup1(um->um_lowervp, &lowerdvp,
 				&lowervp, cnp);
 		if (um->um_op == UNMNT_BELOW)
