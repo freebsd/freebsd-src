@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.41 1998/12/21 10:29:28 dillon Exp $
+#	$Id: Makefile,v 1.42 1998/12/22 19:47:48 dillon Exp $
 
 MAN9=	MD5.9 \
 	VFS.9 VFS_FHTOVP.9 VFS_INIT.9 VFS_MOUNT.9 VFS_QUOTACTL.9 \
@@ -53,7 +53,9 @@ MLINKS+=at_exit.9 rm_at_exit.9
 MLINKS+=at_fork.9 rm_at_fork.9
 MLINKS+=at_shutdown.9 rm_at_shutdown.9
 MLINKS+=copy.9 copyin.9 copy.9 copyinstr.9 copy.9 copyout.9 copy.9 copystr.9
-MLINKS+=devstat.9 devicestat.9
+MLINKS+=devstat.9 devicestat.9 devstat.9 devstat_add_entry.9 
+MLINKS+=devstat.9 devstat_remove_entry.9 devstat.9 devstat_start_transaction.9
+MLINKS+=devstat.9 devstat_end_transaction.9
 MLINKS+=fetch.9 fubyte.9 fetch.9 fuswintr.9 fetch.9 fusword.9 fetch.9 fuword.9
 MLINKS+=ifnet.9 if_data.9 ifnet.9 ifaddr.9 ifnet.9 ifqueue.9
 MLINKS+=kernacc.9 useracc.9
