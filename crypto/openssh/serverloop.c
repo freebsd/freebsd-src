@@ -35,7 +35,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: serverloop.c,v 1.115 2004/01/19 21:25:15 markus Exp $");
+RCSID("$OpenBSD: serverloop.c,v 1.117 2004/08/11 21:43:05 avsm Exp $");
 
 #include "xmalloc.h"
 #include "packet.h"
@@ -240,7 +240,7 @@ client_alive_check(void)
  */
 static void
 wait_until_can_do_something(fd_set **readsetp, fd_set **writesetp, int *maxfdp,
-    int *nallocp, u_int max_time_milliseconds)
+    u_int *nallocp, u_int max_time_milliseconds)
 {
 	struct timeval tv, *tvp;
 	int ret;
@@ -486,7 +486,8 @@ void
 server_loop(pid_t pid, int fdin_arg, int fdout_arg, int fderr_arg)
 {
 	fd_set *readset = NULL, *writeset = NULL;
-	int max_fd = 0, nalloc = 0;
+	int max_fd = 0;
+	u_int nalloc = 0;
 	int wait_status;	/* Status returned by wait(). */
 	pid_t wait_pid;		/* pid returned by wait(). */
 	int waiting_termination = 0;	/* Have displayed waiting close message. */
@@ -991,6 +992,17 @@ server_input_global_request(int type, u_int32_t seq, void *ctxt)
 			    listen_address, listen_port, options.gateway_ports);
 		}
 		xfree(listen_address);
+	} else if (strcmp(rtype, "cancel-tcpip-forward") == 0) {
+		char *cancel_address;
+		u_short cancel_port;
+
+		cancel_address = packet_get_string(NULL);
+		cancel_port = (u_short)packet_get_int();
+		debug("%s: cancel-tcpip-forward addr %s port %d", __func__,
+		    cancel_address, cancel_port);
+
+		success = channel_cancel_rport_listener(cancel_address,
+		    cancel_port);
 	}
 	if (want_reply) {
 		packet_start(success ?

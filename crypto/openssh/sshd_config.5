@@ -34,8 +34,8 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
+.\" $OpenBSD: sshd_config.5,v 1.35 2004/06/26 09:14:40 jmc Exp $
 .\" $FreeBSD$
-.\" $OpenBSD: sshd_config.5,v 1.28 2004/02/17 19:35:21 jmc Exp $
 .Dd September 25, 1999
 .Dt SSHD_CONFIG 5
 .Os
@@ -62,6 +62,28 @@ The possible
 keywords and their meanings are as follows (note that
 keywords are case-insensitive and arguments are case-sensitive):
 .Bl -tag -width Ds
+.It Cm AcceptEnv
+Specifies what environment variables sent by the client will be copied into
+the session's
+.Xr environ 7 .
+See
+.Cm SendEnv
+in
+.Xr ssh_config 5
+for how to configure the client.
+Note that environment passing is only supported for protocol 2.
+Variables are specified by name, which may contain the wildcard characters
+.Ql \&*
+and
+.Ql \&? .
+Multiple environment variables may be separated by whitespace or spread
+across multiple
+.Cm AcceptEnv
+directives.
+Be warned that some environment variables could be used to bypass restricted
+user environments.
+For this reason, care should be taken in the use of this directive.
+The default is not to accept any environment variables.
 .It Cm AllowGroups
 This keyword can be followed by a list of group name patterns, separated
 by spaces.
@@ -74,7 +96,6 @@ can be used as
 wildcards in the patterns.
 Only group names are valid; a numerical group ID is not recognized.
 By default, login is allowed for all groups.
-.Pp
 .It Cm AllowTcpForwarding
 Specifies whether TCP forwarding is permitted.
 The default is
@@ -82,7 +103,6 @@ The default is
 Note that disabling TCP forwarding does not improve security unless
 users are also denied shell access, as they can always install their
 own forwarders.
-.Pp
 .It Cm AllowUsers
 This keyword can be followed by a list of user name patterns, separated
 by spaces.
@@ -98,7 +118,6 @@ By default, login is allowed for all users.
 If the pattern takes the form USER@HOST then USER and HOST
 are separately checked, restricting logins to particular
 users from particular hosts.
-.Pp
 .It Cm AuthorizedKeysFile
 Specifies the file that contains the public keys that can be used
 for user authentication.
@@ -121,7 +140,6 @@ The contents of the specified file are sent to the remote user before
 authentication is allowed.
 This option is only available for protocol version 2.
 By default, no banner is displayed.
-.Pp
 .It Cm ChallengeResponseAuthentication
 Specifies whether challenge-response authentication is allowed.
 Specifically, in
@@ -139,8 +157,19 @@ The default is
 .It Cm Ciphers
 Specifies the ciphers allowed for protocol version 2.
 Multiple ciphers must be comma-separated.
+The supported ciphers are
+.Dq 3des-cbc ,
+.Dq aes128-cbc ,
+.Dq aes192-cbc ,
+.Dq aes256-cbc ,
+.Dq aes128-ctr ,
+.Dq aes192-ctr ,
+.Dq aes256-ctr ,
+.Dq arcfour ,
+.Dq blowfish-cbc ,
+and
+.Dq cast128-cbc .
 The default is
-.Pp
 .Bd -literal
   ``aes128-cbc,3des-cbc,blowfish-cbc,cast128-cbc,arcfour,
     aes192-cbc,aes256-cbc,aes128-ctr,aes192-ctr,aes256-ctr''
@@ -201,7 +230,6 @@ can be used as
 wildcards in the patterns.
 Only group names are valid; a numerical group ID is not recognized.
 By default, login is allowed for all groups.
-.Pp
 .It Cm DenyUsers
 This keyword can be followed by a list of user name patterns, separated
 by spaces.
@@ -392,6 +420,12 @@ for data integrity protection.
 Multiple algorithms must be comma-separated.
 The default is
 .Dq hmac-md5,hmac-sha1,hmac-ripemd160,hmac-sha1-96,hmac-md5-96 .
+.It Cm MaxAuthTries
+Specifies the maximum number of authentication attempts permitted per
+connection.
+Once the number of failures reaches half this value,
+additional failures are logged.
+The default is 6.
 .It Cm MaxStartups
 Specifies the maximum number of concurrent unauthenticated connections to the
 .Nm sshd
@@ -638,12 +672,25 @@ If
 .Cm UsePrivilegeSeparation
 is specified, it will be disabled after authentication.
 .It Cm UsePAM
-Enables PAM authentication (via challenge-response) and session set up.
-If you enable this, you should probably disable
-.Cm PasswordAuthentication .
-If you enable
-.CM UsePAM
-then you will not be able to run sshd as a non-root user.  The default is
+Enables the Pluggable Authentication Module interface.
+If set to
+.Dq yes
+this will enable PAM authentication using
+.Cm ChallengeResponseAuthentication
+and PAM account and session module processing for all authentication types.
+.Pp
+Because PAM challenge-response authentication usually serves an equivalent
+role to password authentication, you should disable either
+.Cm PasswordAuthentication
+or
+.Cm ChallengeResponseAuthentication.
+.Pp
+If
+.Cm UsePAM
+is enabled, you will not be able to run
+.Xr sshd 8
+as a non-root user.
+The default is
 .Dq yes .
 .It Cm UsePrivilegeSeparation
 Specifies whether
@@ -660,7 +707,7 @@ The default is
 Specifies a string to append to the regular version string to identify
 OS- or site-specific modifications.
 The default is
-.Dq FreeBSD-20040419 .
+.Dq FreeBSD-20041028 .
 .It Cm X11DisplayOffset
 Specifies the first display number available for
 .Nm sshd Ns 's

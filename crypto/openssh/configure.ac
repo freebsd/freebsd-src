@@ -1,5 +1,5 @@
+# $Id: configure.ac,v 1.226 2004/08/16 13:12:06 dtucker Exp $
 # $FreeBSD$
-# $Id: configure.ac,v 1.202 2004/02/24 05:47:04 tim Exp $
 #
 # Copyright (c) 1999-2004 Damien Miller
 #
@@ -29,6 +29,8 @@ AC_PROG_CPP
 AC_PROG_RANLIB
 AC_PROG_INSTALL
 AC_PATH_PROG(AR, ar)
+AC_PATH_PROG(CAT, cat)
+AC_PATH_PROG(KILL, kill)
 AC_PATH_PROGS(PERL, perl5 perl)
 AC_PATH_PROG(SED, sed)
 AC_SUBST(PERL)
@@ -38,6 +40,14 @@ AC_PATH_PROG(TEST_MINUS_S_SH, bash)
 AC_PATH_PROG(TEST_MINUS_S_SH, ksh)
 AC_PATH_PROG(TEST_MINUS_S_SH, sh)
 AC_PATH_PROG(SH, sh)
+AC_SUBST(TEST_SHELL,sh)
+
+dnl for buildpkg.sh
+AC_PATH_PROG(PATH_GROUPADD_PROG, groupadd, groupadd,
+	[/usr/sbin${PATH_SEPARATOR}/etc])
+AC_PATH_PROG(PATH_USERADD_PROG, useradd, useradd,
+	[/usr/sbin${PATH_SEPARATOR}/etc])
+AC_CHECK_PROG(MAKE_PACKAGE_SUPPORTED, pkgmk, yes, no)
 
 # System features
 AC_SYS_LARGEFILE
@@ -245,6 +255,7 @@ main() { if (NSVersionOfRunTimeLibrary("System") >= (60 << 16))
 	AC_DEFINE(PAM_TTY_KLUDGE)
 	AC_DEFINE(LOCKED_PASSWD_PREFIX, "!")
 	AC_DEFINE(SPT_TYPE,SPT_REUSEARGV)
+	AC_DEFINE(LINK_OPNOTSUPP_ERRNO, EPERM)
 	inet6_default_4in6=yes
 	case `uname -r` in
 	1.*|2.0.*)
@@ -288,6 +299,7 @@ mips-sony-bsd|mips-sony-newsos4)
 	AC_DEFINE(LOGIN_NEEDS_UTMPX)
 	AC_DEFINE(LOGIN_NEEDS_TERM)
 	AC_DEFINE(PAM_TTY_KLUDGE)
+	AC_DEFINE(SSHPAM_CHAUTHTOK_NEEDS_RUID)
 	AC_DEFINE(LOCKED_PASSWD_STRING, "*LK*")
 	# Pushing STREAMS modules will cause sshd to acquire a controlling tty.
 	AC_DEFINE(SSHD_ACQUIRES_CTTY)
@@ -367,6 +379,7 @@ mips-sony-bsd|mips-sony-newsos4)
 	AC_CHECK_FUNCS(getluid setluid)
 	MANTYPE=man
 	do_sco3_extra_lib_check=yes
+	TEST_SHELL=ksh
 	;;
 *-*-sco3.2v5*)
 	if test -z "$GCC"; then
@@ -382,8 +395,10 @@ mips-sony-bsd|mips-sony-newsos4)
 	AC_DEFINE(BROKEN_SETREUID)
 	AC_DEFINE(BROKEN_SETREGID)
 	AC_DEFINE(WITH_ABBREV_NO_TTY)
+	AC_DEFINE(BROKEN_UPDWTMPX)
 	AC_CHECK_FUNCS(getluid setluid)
 	MANTYPE=man
+	TEST_SHELL=ksh
 	;;
 *-*-unicosmk*)
 	AC_DEFINE(NO_SSH_LASTLOG)
@@ -504,16 +519,16 @@ int main(){exit(0);}
 )
 
 # Checks for header files.
-AC_CHECK_HEADERS(bstring.h crypt.h endian.h features.h floatingpoint.h \
-	getopt.h glob.h ia.h lastlog.h limits.h login.h \
-	login_cap.h maillock.h netdb.h netgroup.h \
+AC_CHECK_HEADERS(bstring.h crypt.h dirent.h endian.h features.h \
+	floatingpoint.h getopt.h glob.h ia.h lastlog.h limits.h login.h \
+	login_cap.h maillock.h ndir.h netdb.h netgroup.h \
 	netinet/in_systm.h pam/pam_appl.h paths.h pty.h readpassphrase.h \
 	rpc/types.h security/pam_appl.h shadow.h stddef.h stdint.h \
-	strings.h sys/strtio.h sys/audit.h sys/bitypes.h sys/bsdtty.h \
-	sys/cdefs.h sys/mman.h sys/prctl.h sys/pstat.h sys/ptms.h \
-	sys/select.h sys/stat.h sys/stream.h sys/stropts.h \
-	sys/sysmacros.h sys/time.h sys/timers.h sys/un.h time.h tmpdir.h \
-	ttyent.h usersec.h util.h utime.h utmp.h utmpx.h vis.h)
+	strings.h sys/dir.h sys/strtio.h sys/audit.h sys/bitypes.h \
+	sys/bsdtty.h sys/cdefs.h sys/mman.h sys/ndir.h sys/prctl.h \
+	sys/pstat.h sys/ptms.h sys/select.h sys/stat.h sys/stream.h \
+	sys/stropts.h sys/sysmacros.h sys/time.h sys/timers.h sys/un.h \
+	time.h tmpdir.h ttyent.h usersec.h util.h utime.h utmp.h utmpx.h vis.h)
 
 # Checks for libraries.
 AC_CHECK_FUNC(yp_match, , AC_CHECK_LIB(nsl, yp_match))
@@ -718,6 +733,14 @@ int main(void){struct dirent d;exit(sizeof(d.d_name)<=sizeof(char));}
 	]
 )
 
+AC_MSG_CHECKING([for /proc/pid/fd directory])
+if test -d "/proc/$$/fd" ; then
+	AC_DEFINE(HAVE_PROC_PID)
+	AC_MSG_RESULT(yes)
+else
+	AC_MSG_RESULT(no)
+fi
+
 # Check whether user wants S/Key support
 SKEY_MSG="no"
 AC_ARG_WITH(skey,
@@ -854,9 +877,9 @@ AC_ARG_WITH(tcp-wrappers,
 
 dnl    Checks for library functions. Please keep in alphabetical order
 AC_CHECK_FUNCS(\
-	arc4random __b64_ntop b64_ntop __b64_pton b64_pton \
-	bcopy bindresvport_sa clock fchmod fchown freeaddrinfo futimes \
-	getaddrinfo getcwd getgrouplist getnameinfo getopt \
+	arc4random __b64_ntop b64_ntop __b64_pton b64_pton bcopy \
+	bindresvport_sa clock closefrom dirfd fchmod fchown freeaddrinfo \
+	futimes getaddrinfo getcwd getgrouplist getnameinfo getopt \
 	getpeereid _getpty getrlimit getttyent glob inet_aton \
 	inet_ntoa inet_ntop innetgr login_getcapbool md5_crypt memmove \
 	mkdtemp mmap ngetaddrinfo nsleep ogetaddrinfo openlog_r openpty \
@@ -895,6 +918,8 @@ AC_CHECK_DECL(tcsendbreak,
 	[AC_CHECK_FUNCS(tcsendbreak)],
 	[#include <termios.h>]
 )
+
+AC_CHECK_DECLS(h_errno, , ,[#include <netdb.h>])
 
 AC_CHECK_FUNCS(setresuid, [
 	dnl Some platorms have setresuid that isn't implemented, test for this
@@ -958,6 +983,20 @@ int main(void){char b[5];snprintf(b,5,"123456789");exit(b[4]!='\0');}
 			AC_MSG_WARN([****** Your snprintf() function is broken, complain to your vendor])
 		]
 	)
+fi
+
+# Check for missing getpeereid (or equiv) support
+NO_PEERCHECK=""
+if test "x$ac_cv_func_getpeereid" != "xyes" ; then
+	AC_MSG_CHECKING([whether system supports SO_PEERCRED getsockopt])
+	AC_TRY_COMPILE(
+		[#include <sys/types.h>
+		 #include <sys/socket.h>],
+		[int i = SO_PEERCRED;],
+		[AC_MSG_RESULT(yes)],
+		[AC_MSG_RESULT(no)
+		NO_PEERCHECK=1]
+        )
 fi
 
 dnl see whether mkstemp() requires XXXXXX
@@ -2194,6 +2233,25 @@ AC_SEARCH_LIBS(getrrsetbyname, resolv,
 		# Needed by our getrrsetbyname()
 		AC_SEARCH_LIBS(res_query, resolv)
 		AC_SEARCH_LIBS(dn_expand, resolv)
+		AC_MSG_CHECKING(if res_query will link)
+		AC_TRY_LINK_FUNC(res_query, AC_MSG_RESULT(yes),
+		   [AC_MSG_RESULT(no)
+		    saved_LIBS="$LIBS"
+		    LIBS="$LIBS -lresolv"
+		    AC_MSG_CHECKING(for res_query in -lresolv)
+		    AC_LINK_IFELSE([
+#include <resolv.h>
+int main()
+{
+	res_query (0, 0, 0, 0, 0);
+	return 0;
+}
+			],
+			[LIBS="$LIBS -lresolv"
+			 AC_MSG_RESULT(yes)],
+			[LIBS="$saved_LIBS"
+			 AC_MSG_RESULT(no)])
+		    ])
 		AC_CHECK_FUNCS(_getshort _getlong)
 		AC_CHECK_MEMBER(HEADER.ad,
 			[AC_DEFINE(HAVE_HEADER_AD)],,
@@ -2247,7 +2305,10 @@ AC_ARG_WITH(kerberos5,
 				       [ char *tmp = heimdal_version; ],
 				       [ AC_MSG_RESULT(yes)
 					 AC_DEFINE(HEIMDAL)
-					 K5LIBS="-lkrb5 -ldes -lcom_err -lasn1 -lroken"
+					 K5LIBS="-lkrb5 -ldes"
+					 K5LIBS="$K5LIBS -lcom_err -lasn1"
+					 AC_CHECK_LIB(roken, net_write, 
+					   [K5LIBS="$K5LIBS -lroken"])
 				       ],
 				       [ AC_MSG_RESULT(no)
 					 K5LIBS="-lkrb5 -lk5crypto -lcom_err"
@@ -2910,7 +2971,7 @@ if test "$ac_cv_lib_pam_pam_set_item" = yes ; then
 fi
 
 AC_EXEEXT
-AC_CONFIG_FILES([Makefile openbsd-compat/Makefile scard/Makefile ssh_prng_cmds])
+AC_CONFIG_FILES([Makefile buildpkg.sh opensshd.init openbsd-compat/Makefile scard/Makefile ssh_prng_cmds])
 AC_OUTPUT
 
 # Print summary of options
@@ -2976,6 +3037,10 @@ echo "         Libraries: ${LIBWRAP} ${LIBPAM} ${LIBS}"
 
 echo ""
 
+if test "x$MAKE_PACKAGE_SUPPORTED" = "xyes" ; then
+	echo "SVR4 style packages are supported with \"make package\"\n"
+fi
+
 if test "x$PAM_MSG" = "xyes" ; then
 	echo "PAM is enabled. You may need to install a PAM control file "
 	echo "for sshd, otherwise password authentication may fail. "
@@ -2989,6 +3054,16 @@ if test ! -z "$RAND_HELPER_CMDHASH" ; then
 	echo "service. Please read WARNING.RNG and request that your OS "
 	echo "vendor includes kernel-based random number collection in "
 	echo "future versions of your OS."
+	echo ""
+fi
+
+if test ! -z "$NO_PEERCHECK" ; then
+	echo "WARNING: the operating system that you are using does not "
+	echo "appear to support either the getpeereid() API nor the "
+	echo "SO_PEERCRED getsockopt() option. These facilities are used to "
+	echo "enforce security checks to prevent unauthorised connections to "
+	echo "ssh-agent. Their absence increases the risk that a malicious "
+	echo "user can connect to your agent. "
 	echo ""
 fi
 

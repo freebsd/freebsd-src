@@ -34,8 +34,8 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
+.\" $OpenBSD: ssh.1,v 1.194 2004/08/12 21:41:13 jakob Exp $
 .\" $FreeBSD$
-.\" $OpenBSD: ssh.1,v 1.181 2003/12/16 15:49:51 markus Exp $
 .Dd September 25, 1999
 .Dt SSH 1
 .Os
@@ -44,14 +44,14 @@
 .Nd OpenSSH SSH client (remote login program)
 .Sh SYNOPSIS
 .Nm ssh
-.Op Fl 1246AaCfgkNnqsTtVvXxY
+.Op Fl 1246AaCfgkMNnqsTtVvXxY
 .Op Fl b Ar bind_address
 .Op Fl c Ar cipher_spec
+.Bk -words
 .Op Fl D Ar port
 .Op Fl e Ar escape_char
 .Op Fl F Ar configfile
 .Op Fl i Ar identity_file
-.Bk -words
 .Oo Fl L Xo
 .Sm off
 .Ar port :
@@ -75,6 +75,7 @@
 .Sm on
 .Xc
 .Oc
+.Op Fl S Ar ctl
 .Oo Ar user Ns @ Oc Ns Ar hostname
 .Op Ar command
 .Sh DESCRIPTION
@@ -242,8 +243,8 @@ Additionally,
 supports hostbased or challenge response authentication.
 .Pp
 Protocol 2 provides additional mechanisms for confidentiality
-(the traffic is encrypted using 3DES, Blowfish, CAST128 or Arcfour)
-and integrity (hmac-md5, hmac-sha1).
+(the traffic is encrypted using AES, 3DES, Blowfish, CAST128 or Arcfour)
+and integrity (hmac-md5, hmac-sha1, hmac-ripemd160).
 Note that protocol 1 lacks a strong mechanism for ensuring the
 integrity of the connection.
 .Ss Login session and remote execution
@@ -303,11 +304,18 @@ Display a list of escape characters.
 Send a BREAK to the remote system
 (only useful for SSH protocol version 2 and if the peer supports it).
 .It Cm ~C
-Open command line (only useful for adding port forwardings using the
+Open command line.
+Currently this allows the addition of port forwardings using the
 .Fl L
 and
 .Fl R
-options).
+options (see below).
+It also allows the cancellation of existing remote port-forwardings
+using
+.Fl KR Ar hostport .
+Basic help is available, using the
+.Fl h
+option.
 .It Cm ~R
 Request rekeying of the connection
 (only useful for SSH protocol version 2 and if the peer supports it).
@@ -394,6 +402,15 @@ The
 option can be used to prevent logins to machines whose
 host key is not known or has changed.
 .Pp
+.Nm
+can be configured to verify host identification using fingerprint resource
+records (SSHFP) published in DNS.
+The
+.Cm VerifyHostKeyDNS
+option can be used to control how DNS lookups are performed.
+SSHFP resource records can be generated using
+.Xr ssh-keygen 1 .
+.Pp
 The options are as follows:
 .Bl -tag -width Ds
 .It Fl 1
@@ -444,13 +461,18 @@ The default value can be set on a host-by-host basis in the
 configuration files; see the
 .Cm Compression
 option.
-.It Fl c Ar blowfish | 3des | des
-Selects the cipher to use for encrypting the session.
-.Ar 3des
-is used by default.
-It is believed to be secure.
+.It Fl c Ar cipher_spec
+Selects the cipher specification for encrypting the session.
+.Pp
+Protocol version 1 allows specification of a single cipher.
+The suported values are
+.Dq 3des ,
+.Dq blowfish
+and
+.Dq des .
 .Ar 3des
 (triple-des) is an encrypt-decrypt-encrypt triple with three different keys.
+It is believed to be secure.
 .Ar blowfish
 is a fast block cipher; it appears very secure and is much faster than
 .Ar 3des .
@@ -462,12 +484,30 @@ that do not support the
 .Ar 3des
 cipher.
 Its use is strongly discouraged due to cryptographic weaknesses.
-.It Fl c Ar cipher_spec
-Additionally, for protocol version 2 a comma-separated list of ciphers can
-be specified in order of preference.
-See
-.Cm Ciphers
-for more information.
+The default is
+.Dq 3des .
+.Pp
+For protocol version 2
+.Ar cipher_spec
+is a comma-separated list of ciphers
+listed in order of preference.
+The supported ciphers are
+.Dq 3des-cbc ,
+.Dq aes128-cbc ,
+.Dq aes192-cbc ,
+.Dq aes256-cbc ,
+.Dq aes128-ctr ,
+.Dq aes192-ctr ,
+.Dq aes256-ctr ,
+.Dq arcfour ,
+.Dq blowfish-cbc ,
+and
+.Dq cast128-cbc .
+The default is
+.Bd -literal
+  ``aes128-cbc,3des-cbc,blowfish-cbc,cast128-cbc,arcfour,
+    aes192-cbc,aes256-cbc''
+.Ed
 .It Fl D Ar port
 Specifies a local
 .Dq dynamic
@@ -570,6 +610,17 @@ IPv6 addresses can be specified with an alternative syntax:
 .It Fl l Ar login_name
 Specifies the user to log in as on the remote machine.
 This also may be specified on a per-host basis in the configuration file.
+.It Fl M
+Places the
+.Nm
+client into
+.Dq master
+mode for connection sharing.
+Refer to the description of
+.Cm ControlMaster
+in
+.Xr ssh_config 5
+for details.
 .It Fl m Ar mac_spec
 Additionally, for protocol version 2 a comma-separated list of MAC
 (message authentication code) algorithms can
@@ -620,7 +671,9 @@ For full details of the options listed below, and their possible values, see
 .It Compression
 .It CompressionLevel
 .It ConnectionAttempts
-.It ConnectionTimeout
+.It ConnectTimeout
+.It ControlMaster
+.It ControlPath
 .It DynamicForward
 .It EscapeChar
 .It ForwardAgent
@@ -651,6 +704,7 @@ For full details of the options listed below, and their possible values, see
 .It RemoteForward
 .It RhostsRSAAuthentication
 .It RSAAuthentication
+.It SendEnv
 .It ServerAliveInterval
 .It ServerAliveCountMax
 .It SmartcardDevice
@@ -695,6 +749,15 @@ IPv6 addresses can be specified with an alternative syntax:
 .Ar hostport .
 .Xc
 .Sm on
+.It Fl S Ar ctl
+Specifies the location of a control socket for connection sharing.
+Refer to the description of
+.Cm ControlPath
+and
+.Cm ControlMaster
+in
+.Xr ssh_config 5
+for details.
 .It Fl s
 May be used to request invocation of a subsystem on the remote system.
 Subsystems are a feature of the SSH2 protocol which facilitate the use
@@ -887,6 +950,8 @@ the convenience of the user.
 This is the per-user configuration file.
 The file format and configuration options are described in
 .Xr ssh_config 5 .
+Because of the potential for abuse, this file must have strict permissions:
+read/write for the user, and not accessible by others.
 .It Pa $HOME/.ssh/authorized_keys
 Lists the public keys (RSA/DSA) that can be used for logging in as this user.
 The format of this file is described in the

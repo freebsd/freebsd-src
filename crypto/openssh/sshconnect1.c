@@ -13,7 +13,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: sshconnect1.c,v 1.56 2003/08/28 12:54:34 markus Exp $");
+RCSID("$OpenBSD: sshconnect1.c,v 1.60 2004/07/28 09:40:29 markus Exp $");
 
 #include <openssl/bn.h>
 #include <openssl/md5.h>
@@ -24,7 +24,7 @@ RCSID("$OpenBSD: sshconnect1.c,v 1.56 2003/08/28 12:54:34 markus Exp $");
 #include "rsa.h"
 #include "buffer.h"
 #include "packet.h"
-#include "mpaux.h"
+#include "kex.h"
 #include "uidswap.h"
 #include "log.h"
 #include "readconf.h"
@@ -32,7 +32,7 @@ RCSID("$OpenBSD: sshconnect1.c,v 1.56 2003/08/28 12:54:34 markus Exp $");
 #include "authfd.h"
 #include "sshconnect.h"
 #include "authfile.h"
-#include "readpass.h"
+#include "misc.h"
 #include "cipher.h"
 #include "canohost.h"
 #include "auth.h"
@@ -476,7 +476,7 @@ ssh_kex(char *host, struct sockaddr *hostaddr)
 	u_char cookie[8];
 	u_int supported_ciphers;
 	u_int server_flags, client_flags;
-	u_int32_t rand = 0;
+	u_int32_t rnd = 0;
 
 	debug("Waiting for server public key.");
 
@@ -528,7 +528,7 @@ ssh_kex(char *host, struct sockaddr *hostaddr)
 
 	client_flags = SSH_PROTOFLAG_SCREEN_NUMBER | SSH_PROTOFLAG_HOST_IN_FWD_OPEN;
 
-	compute_session_id(session_id, cookie, host_key->rsa->n, server_key->rsa->n);
+	derive_ssh1_session_id(host_key->rsa->n, server_key->rsa->n, cookie, session_id);
 
 	/* Generate a session key. */
 	arc4random_stir();
@@ -540,9 +540,9 @@ ssh_kex(char *host, struct sockaddr *hostaddr)
 	 */
 	for (i = 0; i < 32; i++) {
 		if (i % 4 == 0)
-			rand = arc4random();
-		session_key[i] = rand & 0xff;
-		rand >>= 8;
+			rnd = arc4random();
+		session_key[i] = rnd & 0xff;
+		rnd >>= 8;
 	}
 
 	/*
@@ -598,7 +598,7 @@ ssh_kex(char *host, struct sockaddr *hostaddr)
 	if (options.cipher == SSH_CIPHER_NOT_SET) {
 		if (cipher_mask_ssh1(1) & supported_ciphers & (1 << ssh_cipher_default))
 			options.cipher = ssh_cipher_default;
-	} else if (options.cipher == SSH_CIPHER_ILLEGAL ||
+	} else if (options.cipher == SSH_CIPHER_INVALID ||
 	    !(cipher_mask_ssh1(1) & (1 << options.cipher))) {
 		logit("No valid SSH1 cipher, using %.100s instead.",
 		    cipher_name(ssh_cipher_default));

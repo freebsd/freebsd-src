@@ -1,4 +1,4 @@
-/*	$OpenBSD: includes.h,v 1.17 2002/01/26 16:44:22 stevesk Exp $	*/
+/*	$OpenBSD: includes.h,v 1.18 2004/06/13 15:03:02 djm Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -34,6 +34,7 @@ __RCSID(msg)
 #include <grp.h>
 #include <time.h>
 #include <dirent.h>
+#include <stddef.h>
 
 #ifdef HAVE_LIMITS_H
 # include <limits.h> /* For PATH_MAX */
@@ -179,6 +180,16 @@ __RCSID(msg)
 #if defined(KRB5) && defined(USE_AFS)
 # include <krb5.h>
 # include <kafs.h>
+#endif
+
+/*
+ * On HP-UX 11.11, shadow.h and prot.h provide conflicting declarations
+ * of getspnam when _INCLUDE__STDC__ is defined, so we unset it here.
+ */
+#ifdef __hpux
+# ifdef _INCLUDE__STDC__
+#  undef _INCLUDE__STDC__
+# endif
 #endif
 
 #include <openssl/opensslv.h> /* For OPENSSL_VERSION_NUMBER */

@@ -1,4 +1,4 @@
-/*	$OpenBSD: cipher.h,v 1.34 2003/11/10 16:23:41 jakob Exp $	*/
+/*	$OpenBSD: cipher.h,v 1.35 2004/07/28 09:40:29 markus Exp $	*/
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -43,7 +43,7 @@
  * be removed for compatibility.  The maximum allowed value is 31.
  */
 #define SSH_CIPHER_SSH2		-3
-#define SSH_CIPHER_ILLEGAL	-2	/* No valid cipher selected. */
+#define SSH_CIPHER_INVALID	-2	/* No valid cipher selected. */
 #define SSH_CIPHER_NOT_SET	-1	/* None selected (invalid number). */
 #define SSH_CIPHER_NONE		0	/* no encryption */
 #define SSH_CIPHER_IDEA		1	/* IDEA CFB */

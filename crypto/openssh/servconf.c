@@ -10,7 +10,7 @@
  */
 
 #include "includes.h"
-RCSID("$OpenBSD: servconf.c,v 1.130 2003/12/23 16:12:10 jakob Exp $");
+RCSID("$OpenBSD: servconf.c,v 1.137 2004/08/13 11:09:24 dtucker Exp $");
 RCSID("$FreeBSD$");
 
 #include "ssh.h"
@@ -19,7 +19,6 @@ RCSID("$FreeBSD$");
 #include "xmalloc.h"
 #include "compat.h"
 #include "pathnames.h"
-#include "tildexpand.h"
 #include "misc.h"
 #include "cipher.h"
 #include "kex.h"
@@ -96,12 +95,14 @@ initialize_server_options(ServerOptions *options)
 	options->max_startups_begin = -1;
 	options->max_startups_rate = -1;
 	options->max_startups = -1;
+	options->max_authtries = -1;
 	options->banner = NULL;
 	options->use_dns = -1;
 	options->client_alive_interval = -1;
 	options->client_alive_count_max = -1;
 	options->authorized_keys_file = NULL;
 	options->authorized_keys_file2 = NULL;
+	options->num_accept_env = 0;
 
 	/* Needs to be accessable in many places */
 	use_privsep = -1;
@@ -215,6 +216,8 @@ fill_default_server_options(ServerOptions *options)
 		options->max_startups_rate = 100;		/* 100% */
 	if (options->max_startups_begin == -1)
 		options->max_startups_begin = options->max_startups;
+	if (options->max_authtries == -1)
+		options->max_authtries = DEFAULT_AUTH_FAIL_MAX;
 	if (options->use_dns == -1)
 		options->use_dns = 1;
 	if (options->client_alive_interval == -1)
@@ -265,11 +268,12 @@ typedef enum {
 	sPermitUserEnvironment, sUseLogin, sAllowTcpForwarding, sCompression,
 	sAllowUsers, sDenyUsers, sAllowGroups, sDenyGroups,
 	sIgnoreUserKnownHosts, sCiphers, sMacs, sProtocol, sPidFile,
-	sGatewayPorts, sPubkeyAuthentication, sXAuthLocation, sSubsystem, sMaxStartups,
+	sGatewayPorts, sPubkeyAuthentication, sXAuthLocation, sSubsystem,
+	sMaxStartups, sMaxAuthTries,
 	sBanner, sUseDNS, sHostbasedAuthentication,
 	sHostbasedUsesNameFromPacketOnly, sClientAliveInterval,
 	sClientAliveCountMax, sAuthorizedKeysFile, sAuthorizedKeysFile2,
-	sGssAuthentication, sGssCleanupCreds,
+	sGssAuthentication, sGssCleanupCreds, sAcceptEnv,
 	sUsePrivilegeSeparation,
 	sVersionAddendum,
 	sDeprecated, sUnsupported
@@ -361,6 +365,7 @@ static struct {
 	{ "gatewayports", sGatewayPorts },
 	{ "subsystem", sSubsystem },
 	{ "maxstartups", sMaxStartups },
+	{ "maxauthtries", sMaxAuthTries },
 	{ "banner", sBanner },
 	{ "usedns", sUseDNS },
 	{ "verifyreversemapping", sDeprecated },
@@ -370,6 +375,7 @@ static struct {
 	{ "authorizedkeysfile", sAuthorizedKeysFile },
 	{ "authorizedkeysfile2", sAuthorizedKeysFile2 },
 	{ "useprivilegeseparation", sUsePrivilegeSeparation},
+	{ "acceptenv", sAcceptEnv },
 	{ "versionaddendum", sVersionAddendum },
 	{ NULL, sBadOption }
 };
@@ -873,6 +879,10 @@ parse_flag:
 			options->max_startups = options->max_startups_begin;
 		break;
 
+	case sMaxAuthTries:
+		intptr = &options->max_authtries;
+		goto parse_int;
+
 	case sBanner:
 		charptr = &options->banner;
 		goto parse_filename;
@@ -896,6 +906,19 @@ parse_flag:
 	case sClientAliveCountMax:
 		intptr = &options->client_alive_count_max;
 		goto parse_int;
+
+	case sAcceptEnv:
+		while ((arg = strdelim(&cp)) && *arg != '\0') {
+			if (strchr(arg, '=') != NULL)
+				fatal("%s line %d: Invalid environment name.",
+				    filename, linenum);
+			if (options->num_accept_env >= MAX_ACCEPT_ENV)
+				fatal("%s line %d: too many allow env.",
+				    filename, linenum);
+			options->accept_env[options->num_accept_env++] =
+			    xstrdup(arg);
+		}
+		break;
 
 	case sVersionAddendum:
                 ssh_version_set_addendum(strtok(cp, "\n"));
@@ -931,26 +954,50 @@ parse_flag:
 /* Reads the server configuration file. */
 
 void
-read_server_config(ServerOptions *options, const char *filename)
+load_server_config(const char *filename, Buffer *conf)
 {
-	int linenum, bad_options = 0;
-	char line[1024];
+	char line[1024], *cp;
 	FILE *f;
 
-	debug2("read_server_config: filename %s", filename);
-	f = fopen(filename, "r");
-	if (!f) {
+	debug2("%s: filename %s", __func__, filename);
+	if ((f = fopen(filename, "r")) == NULL) {
 		perror(filename);
 		exit(1);
 	}
-	linenum = 0;
+	buffer_clear(conf);
 	while (fgets(line, sizeof(line), f)) {
-		/* Update line number counter. */
-		linenum++;
-		if (process_server_config_line(options, line, filename, linenum) != 0)
+		/*
+		 * Trim out comments and strip whitespace
+		 * NB - preserve newlines, they are needed to reproduce
+		 * line numbers later for error messages
+		 */
+		if ((cp = strchr(line, '#')) != NULL)
+			memcpy(cp, "\n", 2);
+		cp = line + strspn(line, " \t\r");
+
+		buffer_append(conf, cp, strlen(cp));
+	}
+	buffer_append(conf, "\0", 1);
+	fclose(f);
+	debug2("%s: done config len = %d", __func__, buffer_len(conf));
+}
+
+void
+parse_server_config(ServerOptions *options, const char *filename, Buffer *conf)
+{
+	int linenum, bad_options = 0;
+	char *cp, *obuf, *cbuf;
+
+	debug2("%s: config %s len %d", __func__, filename, buffer_len(conf));
+
+	obuf = cbuf = xstrdup(buffer_ptr(conf));
+	linenum = 1;
+	while((cp = strsep(&cbuf, "\n")) != NULL) {
+		if (process_server_config_line(options, cp, filename,
+		    linenum++) != 0)
 			bad_options++;
 	}
-	fclose(f);
+	xfree(obuf);
 	if (bad_options > 0)
 		fatal("%s: terminating, %d bad configuration options",
 		    filename, bad_options);
