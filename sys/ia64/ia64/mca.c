@@ -186,7 +186,7 @@ ia64_mca_init(void)
 	 * under unreliable conditions.
 	 */
 	max_size = 0;
-	for (i = 0; i <= SAL_INFO_TYPES; i++) {
+	for (i = 0; i < SAL_INFO_TYPES; i++) {
 		result = ia64_sal_entry(SAL_GET_STATE_INFO_SIZE, i, 0, 0, 0,
 		    0, 0, 0);
 		if (result.sal_status == 0) {
