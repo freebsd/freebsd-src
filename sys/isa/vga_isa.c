@@ -82,7 +82,6 @@ static struct cdevsw isavga_cdevsw = {
 	.d_ioctl =	isavga_ioctl,
 	.d_mmap =	isavga_mmap,
 	.d_name =	VGA_DRIVER_NAME,
-	.d_maj =	-1,
 };
 
 #endif /* FB_INSTALL_CDEV */
