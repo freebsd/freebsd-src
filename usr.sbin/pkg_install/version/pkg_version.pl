@@ -569,9 +569,9 @@ $CommentChar, $Comment
 $CommentChar
 cd @<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 $portPath
-make && pkg_delete -f @<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+make clean && make && pkg_delete -f @<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
               $packageNameVer
-make install
+make install clean
 
 .
   ;
