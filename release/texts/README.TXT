@@ -1,10 +1,10 @@
    -----------------------------------------
-       FreeBSD 4.1  ---  SNAPSHOT Version              ,        ,
+       FreeBSD 4.2  ---  RELEASE version               ,        ,
    -----------------------------------------          /(        )`
                                                       \ \___   / |
-This is a snapshot release of the 4.1.1-stable        /- _  `-/  '
+This is a full release of FreeBSD from the 4-stable   /- _  `-/  '
 (RELENG_4) branch which is currently moving          (/\/ \ \   /\
-towards the release of 4.2.                          / /   | `    \
+towards the release of 4.3.                          / /   | `    \
                                                      O O   ) /    |
                                                      `-^--'`<     '
                                                     (_.)  _  )   /
@@ -18,22 +18,6 @@ ABOUT.TXT file for more information.                    \       /       /\
                                                    ______( (_  / \______/
                                                  ,'  ,-----'   |
                                                  `--{__________)
-
-TARGET AUDIENCE:
-----------------
-This release is aimed primarily at early-adopters and the various
-other folks who want to get involved with the ongoing development
-of FreeBSD and are willing to deal with a few bumps in the road.
-We do our best to ensure that each snapshot works as advertised,
-but tracking -stable is a process which sometimes has its off
-days.
-
-If you're both technically proficient and know exactly what you're
-getting into here (e.g. you've been following -stable) then this
-snapshot is probably for you.  If you're more interested in doing
-business with FreeBSD than in playing with the cutting edge of
-technology, however, then 3.5 or one of the 4.x releases is almost 
-certainly your best bet.
 
 Most information here is also available from the Documentation menu
 during installation.
