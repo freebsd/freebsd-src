@@ -146,6 +146,7 @@ static long time_reftime;		/* time at last adjustment (s) */
 static long time_tick;			/* nanoseconds per tick (ns) */
 static l_fp time_offset;		/* time offset (ns) */
 static l_fp time_freq;			/* frequency offset (ns/s) */
+static l_fp time_adj;			/* resulting adjustment */
 
 #ifdef PPS_SYNC
 /*
@@ -173,6 +174,7 @@ static int pps_valid;			/* signal watchdog counter */
 static int pps_shift = PPS_FAVG;	/* interval duration (s) (shift) */
 static int pps_shiftmax = PPS_FAVGDEF;	/* max interval duration (s) (shift) */
 static int pps_intcnt;			/* wander counter */
+static int pps_letgo;			/* PLL frequency hold-off */
 
 /*
  * PPS signal quality monitors
@@ -247,6 +249,10 @@ SYSCTL_PROC(_kern_ntp_pll, OID_AUTO, gettime, CTLTYPE_OPAQUE|CTLFLAG_RD,
 #ifdef PPS_SYNC
 SYSCTL_INT(_kern_ntp_pll, OID_AUTO, pps_shiftmax, CTLFLAG_RW, &pps_shiftmax, 0, "");
 SYSCTL_INT(_kern_ntp_pll, OID_AUTO, pps_shift, CTLFLAG_RW, &pps_shift, 0, "");
+
+SYSCTL_OPAQUE(_kern_ntp_pll, OID_AUTO, pps_freq, CTLFLAG_RD, &pps_freq, sizeof(pps_freq), "I", "");
+SYSCTL_OPAQUE(_kern_ntp_pll, OID_AUTO, time_freq, CTLFLAG_RD, &time_freq, sizeof(time_freq), "I", "");
+SYSCTL_OPAQUE(_kern_ntp_pll, OID_AUTO, pps_offset, CTLFLAG_RD, &pps_offset, sizeof(pps_offset), "I", "");
 #endif
 /*
  * ntp_adjtime() - NTP daemon application interface
@@ -402,7 +408,6 @@ void
 ntp_update_second(struct timecounter *tcp)
 {
 	u_int32_t *newsec;
-	l_fp time_adj;		/* 32/64-bit temporaries */
 
 	newsec = &tcp->tc_offset_sec;
 	/*
@@ -647,7 +652,7 @@ hardpps(tsp, nsec)
 	struct timespec *tsp;	/* time at PPS */
 	long nsec;		/* hardware counter at PPS */
 {
-	long u_sec, u_nsec, v_nsec; /* temps */
+	long u_sec, u_nsec, v_nsec, w_nsec; /* temps */
 	l_fp ftemp;
 
 	/*
@@ -738,6 +743,19 @@ hardpps(tsp, nsec)
 	} else if (time_status & STA_PPSTIME) {
 		L_LINT(time_offset, -v_nsec);
 		L_LINT(pps_offset, -v_nsec);
+
+		if (pps_letgo >= 2) {
+			L_LINT(ftemp, -v_nsec);
+			L_RSHIFT(ftemp, (pps_shift * 2));
+			L_ADD(ftemp, time_freq);
+			w_nsec = L_GINT(ftemp);
+			if (w_nsec > MAXFREQ)
+				L_LINT(ftemp, MAXFREQ);
+			else if (w_nsec < -MAXFREQ)
+				L_LINT(ftemp, -MAXFREQ);
+			time_freq = ftemp;
+		}
+
 	}
 	pps_jitter += (u_nsec - pps_jitter) >> PPS_FAVG;
 	u_sec = pps_tf[0].tv_sec - pps_lastsec;
@@ -794,7 +812,10 @@ hardpps(tsp, nsec)
 	} else {
 		pps_intcnt++;
 	}
-	if (pps_shift > pps_shiftmax) {
+	if (!(time_status & STA_PPSFREQ)) {
+		pps_intcnt = 0;
+		pps_shift = PPS_FAVG;
+	} else if (pps_shift > pps_shiftmax) {
 		/* If we lowered pps_shiftmax */
 		pps_shift = pps_shiftmax;
 		pps_intcnt = 0;
@@ -826,7 +847,12 @@ hardpps(tsp, nsec)
 		L_LINT(pps_freq, MAXFREQ);
 	else if (u_nsec < -MAXFREQ)
 		L_LINT(pps_freq, -MAXFREQ);
-	if (time_status & STA_PPSFREQ)
+	if ((time_status & (STA_PPSFREQ | STA_PPSTIME)) == STA_PPSFREQ) {
+		pps_letgo = 0;
 		time_freq = pps_freq;
+	} else if (time_status & STA_PPSTIME) {
+		if (pps_letgo < 2)
+			pps_letgo++;
+	}
 }
 #endif /* PPS_SYNC */
