@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.22 1998/03/28 19:06:21 eivind Exp $
+#	$Id$
 
 .include "${.CURDIR}/../Makefile.inc"
 
@@ -25,7 +25,7 @@ CFLAGS+= -I${.CURDIR} -I${.CURDIR}/../lib -I${CVSDIR}/src -I${CVSDIR}/lib -DHAVE
 DPADD+=	${LIBCVS} ${LIBDIFF} ${LIBGNUREGEX} ${LIBMD} ${LIBCRYPT} ${LIBZ}
 LDADD+=	${LIBCVS} ${LIBDIFF} -lgnuregex -lmd -lcrypt -lz
 
-.if exists(${DESTDIR}/usr/lib/libkrb.a) && defined(MAKE_KERBEROS4)
+.if exists(${DESTDIR}${LIBDIR}/libkrb.a) && defined(MAKE_KERBEROS4)
 CFLAGS+=-DHAVE_KERBEROS -DHAVE_KRB_GET_ERR_TEXT
 LDADD+=	-lkrb -ldes
 DPADD+=	${LIBKRB} ${LIBDES}
