@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)stdio.h	8.5 (Berkeley) 4/29/95
- *	$Id: stdio.h,v 1.15 1998/04/11 07:33:46 jb Exp $
+ *	$Id: stdio.h,v 1.16 1998/04/12 20:29:24 jb Exp $
  */
 
 #ifndef	_STDIO_H_
@@ -413,13 +413,11 @@ static __inline int __sputc(int _c, FILE *_p) {
 #define	getc_unlocked(fp)	__sgetc(fp)
 #define putc_unlocked(x, fp)	__sputc(x, fp)
 #ifdef	_THREAD_SAFE
-void	_flockfile __P((FILE *));
 void	_flockfile_debug __P((FILE *, char *, int));
-void	_funlockfile __P((FILE *));
 #ifdef	_FLOCK_DEBUG
 #define _FLOCKFILE(x)	_flockfile_debug(x, __FILE__, __LINE__)
 #else
-#define _FLOCKFILE(x)	_flockfile(x)
+#define _FLOCKFILE(x)	flockfile(x)
 #endif
 static __inline int			\
 __getc_locked(FILE *_fp)		\
@@ -430,7 +428,7 @@ __getc_locked(FILE *_fp)		\
 		_FLOCKFILE(_fp);	\
 	_ret = getc_unlocked(_fp);	\
 	if (__isthreaded)		\
-		_funlockfile(_fp);	\
+		funlockfile(_fp);	\
 	return (_ret);			\
 }
 static __inline int			\
@@ -442,7 +440,7 @@ __putc_locked(int _x, FILE *_fp)	\
 		_FLOCKFILE(_fp);	\
 	_ret = putc_unlocked(_x, _fp);	\
 	if (__isthreaded)		\
-		_funlockfile(_fp);	\
+		funlockfile(_fp);	\
 	return (_ret);			\
 }
 #define	getc(fp)	__getc_locked(fp)
