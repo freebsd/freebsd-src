@@ -17,7 +17,7 @@
 .\" 5. Modifications may be freely made to this file providing the above
 .\"    conditions are met.
 .\"
-.\" $Id$
+.\" $Id: _secure_path.3,v 1.1 1997/05/10 18:55:37 davidn Exp $
 .\"
 .Dd May 2, 1997
 .Os FreeBSD
@@ -46,7 +46,7 @@ special or named pipe, etc.),
 .It
 Is not world writable.
 .It
-Is owned by the given uid, if uid is not -1,
+Is owned by the given uid or uid 0, if uid is not -1,
 .It
 Is not group wriable or it has group ownership by the given
 gid, if gid is not -1.
