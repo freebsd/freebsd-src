@@ -71,12 +71,13 @@ The
 function may fail and set
 .Va errno
 for any of the errors specified for the library functions
-.Xr fork 2
+.Xr fork 2 ,
 and
 .Xr setsid 2 .
 .Sh SEE ALSO
 .Xr fork 2 ,
-.Xr setsid 2
+.Xr setsid 2 ,
+.Xr sigaction 2
 .Sh HISTORY
 The
 .Fn daemon
@@ -101,3 +102,15 @@ should therefore either call
 .Fn daemon
 before opening any files or sockets, or verify that any file
 descriptors obtained have values greater than 2.
+.Pp
+The
+.Fn daemon
+function temporarily ignores
+.Dv SIGHUP
+while calling
+.Xr setsid 2
+to prevent a parent session group leader's calls to
+.Xr fork 2
+and then
+.Xr _exit 2
+from prematurely terminating the child process.
