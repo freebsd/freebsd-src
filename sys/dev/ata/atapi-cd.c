@@ -1181,7 +1181,7 @@ acd_start(struct atapi_softc *atp)
 
     devstat_start_transaction(cdp->stats);
 
-    atapi_queue_cmd(cdp->atp, ccb, bp->b_data, bp->b_bcount,
+    atapi_queue_cmd(cdp->atp, ccb, bp->b_data, count * cdp->block_size,
 		    (bp->b_iocmd == BIO_READ)?ATPR_F_READ : 0, 30, acd_done, bp);
 }
 
