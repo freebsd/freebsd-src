@@ -111,7 +111,7 @@ parse_ports(const char *portspec)
 	int port, end;
 
 	if (ports == NULL)
-		if ((ports = calloc(1, 65536 / INT_BIT)) == NULL)
+		if ((ports = calloc(65536 / INT_BIT, sizeof(int))) == NULL)
 			err(1, "calloc()");
 	p = portspec;
 	while (*p != '\0') {
