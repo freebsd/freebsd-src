@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aic7xxx.reg,v 1.14 1999/03/08 22:43:23 gibbs Exp $
+ *	$Id: aic7xxx.reg,v 1.15 1999/05/14 05:07:24 gibbs Exp $
  */
 
 /*
@@ -750,7 +750,6 @@ register INTSTAT {
 						 * that require a kernel based
 						 * message state engine.
 						 */
-	mask	TARGET_MSG_HELP	0xb0|SEQINT
 	mask	TRACEPOINT	0xd0|SEQINT
 	mask	MSGIN_PHASEMIS	0xe0|SEQINT	/*
 						 * Target changed phase on us
