@@ -158,10 +158,15 @@ _ILINKS=@ machine
 .MAIN: all
 all: objwarn ${PROG} all-man _SUBDIR
 
-beforedepend: ${_ILINKS}
+# Ensure that the links exist without depending on it when it exists which
+# causes all the modules to be rebuilt when the directory pointed to changes.
+.for _link in ${_ILINKS}
+.if !exists(${.OBJDIR}/${_link})
+${OBJS}: ${_link}
+beforedepend: ${_link}
 	@rm -f .depend
-
-${OBJS}: ${_ILINKS}
+.endif
+.endfor
 
 # Search for kernel source tree in standard places.
 .for _dir in ${.CURDIR}/../.. ${.CURDIR}/../../.. /sys /usr/src/sys
@@ -272,7 +277,9 @@ MFILES?= kern/bus_if.m kern/device_if.m dev/iicbus/iicbb_if.m \
 .for _src in ${SRCS:M${_srcsrc:T:R}.${_ext}}
 CLEANFILES+=	${_src}
 .if !target(${_src})
+.if !exists(@)
 ${_src}: @
+.endif
 .if exists(@)
 ${_src}: @/kern/makeobjops.pl @/${_srcsrc}
 .endif
@@ -285,7 +292,9 @@ ${_src}: @/kern/makeobjops.pl @/${_srcsrc}
 .for _ext in c h
 .if ${SRCS:Mvnode_if.${_ext}} != ""
 CLEANFILES+=	vnode_if.${_ext}
+.if !exists(@)
 vnode_if.${_ext}: @
+.endif
 .if exists(@)
 vnode_if.${_ext}: @/kern/vnode_if.pl @/kern/vnode_if.src
 .endif
