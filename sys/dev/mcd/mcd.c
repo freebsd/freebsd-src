@@ -39,7 +39,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: mcd.c,v 1.17 1994/05/25 08:59:30 rgrimes Exp $
+ *	$Id: mcd.c,v 1.18 1994/08/13 03:50:09 wollman Exp $
  */
 static char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 
@@ -65,7 +65,7 @@ static char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 /* user definable options */
 /*#define MCD_TO_WARNING_ON*/	/* define to get timeout messages */
 /*#define MCDMINI*/ 		/* define for a mini configuration for boot kernel */
-
+/*#define DEBUG*/
 
 #ifdef MCDMINI
 #define MCD_TRACE(fmt,a,b,c,d)
@@ -79,7 +79,7 @@ static char COPYRIGHT[] = "mcd-driver (C)1993 by H.Veit & B.Moore";
 #define mcd_part(dev)	((minor(dev)) & 7)
 #define mcd_unit(dev)	(((minor(dev)) & 0x38) >> 3)
 #define mcd_phys(dev)	(((minor(dev)) & 0x40) >> 6)
-#define RAW_PART	0
+#define RAW_PART	3
 
 /* flags */
 #define MCDOPEN		0x0001	/* device opened */
@@ -205,7 +205,6 @@ struct	isa_driver	mcddriver = { mcd_probe, mcd_attach, "mcd" };
 #define DELAY_STATUS	10000l		/* 10000 * 1us */
 #define DELAY_GETREPLY	200000l		/* 200000 * 2us */
 #define DELAY_SEEKREAD	20000l		/* 20000 * 1us */
-#define mcd_delay	DELAY
 
 int mcd_attach(struct isa_device *dev)
 {
@@ -641,7 +640,7 @@ mcd_waitrdy(int port,int dly)
 	for (i=0; i<dly; i++) {
 		if ((inb(port+mcd_xfer) & MCD_ST_BUSY)==0)
 			return 0;
-		mcd_delay(1);
+		DELAY(10);
 	}
 	return -1;
 }
@@ -1010,7 +1009,9 @@ mcd_setmode(int unit, int mode)
 	int port = cd->iobase;
 	int retry;
 
+#ifdef DEBUG
 	printf("mcd%d: setting mode to %d\n", unit, mode);
+#endif
 	for(retry=0; retry<MCD_RETRYS; retry++)
 	{
 		outb(port+mcd_command, MCD_CMDSETMODE);
@@ -1050,12 +1051,16 @@ mcd_read_toc(int unit)
 		return 0;
 	}
 
+#ifdef DEBUG
 	printf("mcd%d: reading toc header\n", unit);
+#endif
 	if (mcd_toc_header(unit, &th) != 0) {
 		return ENXIO;
 	}
 
+#ifdef DEBUG
 	printf("mcd%d: stopping play\n", unit);
+#endif
 	if ((rc=mcd_stop(unit)) != 0) {
 		return rc;
 	}
@@ -1068,7 +1073,9 @@ mcd_read_toc(int unit)
 		return EIO;
 	}
 
+#ifdef DEBUG
 	printf("mcd%d: get_toc reading qchannel info\n",unit);	
+#endif
 	for(trk=th.starting_track; trk<=th.ending_track; trk++)
 		cd->toc[trk].idx_no = 0;
 	trk = th.ending_track - th.starting_track + 1;
@@ -1186,6 +1193,7 @@ mcd_getqchan(int unit, struct mcd_qchninfo *q)
 	if (mcd_get(unit, (char *) q, sizeof(struct mcd_qchninfo)) < 0) {
 		return -1;
 	}
+#ifdef DEBUG
 	if (cd->debug) {
 		printf("mcd%d: qchannel ctl=%d, t=%d, i=%d, ttm=%d:%d.%d dtm=%d:%d.%d\n",
 		unit,
@@ -1193,6 +1201,7 @@ mcd_getqchan(int unit, struct mcd_qchninfo *q)
 		q->trk_size_msf[0], q->trk_size_msf[1], q->trk_size_msf[2],
 		q->trk_size_msf[0], q->trk_size_msf[1], q->trk_size_msf[2]);
 	}
+#endif
 	return 0;
 }
 
@@ -1203,9 +1212,11 @@ mcd_subchan(int unit, struct ioc_read_subchannel *sc)
 	struct mcd_qchninfo q;
 	struct cd_sub_channel_info data;
 
+#ifdef DEBUG
 	printf("mcd%d: subchan af=%d, df=%d\n", unit,
 		sc->address_format,
 		sc->data_format);
+#endif
 	if (sc->address_format != CD_MSF_FORMAT) {
 		return EIO;
 	}
@@ -1238,8 +1249,10 @@ mcd_playtracks(int unit, struct ioc_play_track *pt)
 	if ((rc = mcd_read_toc(unit)) != 0) {
 		return rc;
 	}
+#ifdef DEBUG
 	printf("mcd%d: playtracks from %d:%d to %d:%d\n", unit,
 		a, pt->start_index, z, pt->end_index);
+#endif
 
 	if (a < cd->volinfo.trk_low || a > cd->volinfo.trk_high || a > z ||
 	    z < cd->volinfo.trk_low || z > cd->volinfo.trk_high) {
@@ -1277,9 +1290,11 @@ mcd_play(int unit, struct mcd_read2 *pb)
 		}
 	}
 
+#ifdef DEBUG
 	if (cd->debug) {
 		printf("mcd%d: mcd_play retry=%d, status=%d\n", unit, retry, st);
 	}
+#endif
 	if (st == -1) {
 		return ENXIO;
 	}
@@ -1296,7 +1311,9 @@ mcd_pause(int unit)
 
 	/* Verify current status */
 	if (cd->audio_status != CD_AS_PLAY_IN_PROGRESS) {
+#ifdef DEBUG
 		printf("mcd%d: pause attempted when not playing\n", unit);
+#endif
 		return EINVAL;
 	}
 
