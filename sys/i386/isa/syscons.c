@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.273 1998/08/10 08:39:19 yokota Exp $
+ *  $Id: syscons.c,v 1.274 1998/08/14 06:32:03 sos Exp $
  */
 
 #include "sc.h"
@@ -4987,7 +4987,7 @@ mouse_cut(scr_stat *scp)
 	    j = i;
 	/* trim trailing blank when crossing lines */
 	if (((p - scp->scr_buf) % scp->xsize) == (scp->xsize - 1)) {
-	    cut_buffer[j++] = '\n';
+	    cut_buffer[j++] = '\r';
 	    i = j;
 	}
     }
