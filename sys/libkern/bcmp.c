@@ -33,7 +33,7 @@
  * $FreeBSD$
  */
 
-#include <string.h>
+#include <sys/libkern.h>
 #include <machine/endian.h>
 
 typedef	const void	*cvp;
