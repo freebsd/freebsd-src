@@ -46,14 +46,10 @@ List information about volume manager state.
 .\" XXX
 Initialize a plex by writing zeroes to all its subdisks.
 .in
-.Cd l
-.Op Fl r
-.Op Fl s
-.Op Fl v
-.Op Fl V
-.Op volume | plex | subdisk
+.Cd label
+.Ar volume
 .in +1i
-List information about specified objects
+Create a volume label
 .in
 .Cd list
 .Op Fl r
@@ -63,6 +59,17 @@ List information about specified objects
 .Op volume | plex | subdisk
 .in +1i
 List information about specified objects
+.in
+.Cd l
+.Op Fl r
+.Op Fl s
+.Op Fl v
+.Op Fl V
+.Op volume | plex | subdisk
+.in +1i
+List information about specified objects (alternative to
+.Cd list
+command)
 .in
 .Cd ld
 .Op Fl r
@@ -100,10 +107,9 @@ List information about plexes
 .in +1i
 List information about volumes
 .in
-.Cd label
-.Ar volume
+.Cd makedev
 .in +1i
-Create a volume label
+Remake the device nodes in /dev/vinum.
 .in
 .Cd read
 .Ar disk-partition
@@ -256,6 +262,25 @@ renames the object (and in the case of a plex, any subordinate subdisks) to fit
 in with the default
 .Nm 
 naming convention.
+.Pp
+A number of considerations apply to attaching subdisks:
+.Bl -bullet
+.It
+Subdisks can normally only be attached to concatenated plexes.
+.It
+If a striped or RAID-5 plex is missing a subdisk (for example after drive
+failure), it may be replaced by a subdisk of the same size only.  No other
+attachment of subdisks is currently allowed.
+.It
+For concatenated plexes, the
+.Ar offset
+parameter specifies the offset in blocks from the beginning of the plex.  For
+striped and RAID-5 plexes, it specifies the offset of the first block of the
+subdisk: in other words, the offset is the numerical position of the subdisk
+multiplied by the stripe size.  For example, in a plex of block size 256k, the
+first subdisk will have offset 0, the second offset 256k, the third 512k, etc.
+This calculation ignores parity blocks in RAID-5 plexes.
+.El
 .It Nm create Ar description-file
 .sp
 .Nm
@@ -291,6 +316,12 @@ option is specified.  If the object is named after the object above it (for
 example, subdisk vol1.p7.s0 attached to plex vol1.p7), the name will be changed
 by prepending the text ``ex-'' (for example, ex-vol1.p7.s0).  If necessary, the
 name will be truncated in the process.
+.Pp
+.Nm detach
+does not reduce the number of subdisks in a striped or RAID-5 plex.  Instead,
+the subdisk is marked absent, and can later be replaced with the
+.Nm attach
+command.
 .It Nm info
 .Pp
 .Nm
@@ -314,6 +345,27 @@ initializes all subdisks of a plex in parallel.  Since this operation can take a
 long time, it is performed in the background.  
 .Nm
 prints a console message when the initialization is complete.
+.It Nm label
+.Ar volume
+.Pp
+The
+.Nm label
+command writes a
+.Ar ufs
+style volume label on a volume.  It is a simple alternative to an appropriate
+call to
+.Ar disklabel . 
+This is needed because some
+.Ar ufs
+commands still read the disk to find the label instead of using the correct
+.Ar ioctl
+call to access it.
+.Nm
+maintains a volume label separately from the volume data, so this command is not
+needed for
+.Ar newfs .
+This command is deprecated.
+.Pp
 .It Nm list
 .Op Fl r
 .Op Fl V
@@ -383,26 +435,13 @@ to output device statistics, the
 (verbose) option causes some additional information to be output, and the
 .Op Fl V
 causes considerable additional information to be output.
-.It Nm label
-.Ar volume
-.Pp
+.It Nm makedev
+.br
 The
-.Nm label
-command writes a
-.Ar ufs
-style volume label on a volume.  It is a simple alternative to an appropriate
-call to
-.Ar disklabel . 
-This is needed because some
-.Ar ufs
-commands still read the disk to find the label instead of using the correct
-.Ar ioctl
-call to access it.
-.Nm
-maintains a volume label separately from the volume data, so this command is not
-needed for
-.Ar newfs .
-This command is deprecated.
+.Nm makedev
+command removes the directory /dev/vinum and recreates it with device nodes
+which reflect the current configuration.  This command is not intended for
+general use, and is provided for emergency use only.
 .Pp
 .It Nm read
 .Ar disk-partition
@@ -413,8 +452,8 @@ command reads a previously created
 .Nm
 configuration from the specified disk partition.
 .Nm
-maintains an up-to-date copy of all configuration information on each of the
-disk slices.  You can specify any of the partitions in a configuration as the
+maintains an up-to-date copy of all configuration information on each disk
+partition.  You can specify any of the partitions in a configuration as the
 parameter to this command.
 .It Nm rename
 .Op Fl r
@@ -532,12 +571,10 @@ subsystem or one of its components.  To start a plex in a multi-plex volume, the
 data must be copied from another plex in the volume.  This frequently takes a
 long time and is done in the background.
 .ig
-XXX
-When invoked without arguments, it checks
-all disks connected to the system for BSD partitions (type 165) and scans the
-slices for a
+XXX When invoked without arguments, it checks all disks connected to the system
+for BSD partitions (type 165) and scans the partitions for a
 .Nm
-slice, which it calls a \fIdrive\fR\|.  The
+partition, which it calls a \fIdrive\fR\|.  The
 .Nm
 drive contains a header with all information about the data stored on the drive,
 including the names of the other drives which are required in order to represent
@@ -644,7 +681,9 @@ command to first bring them to a consistent state.  In the case of striped and
 concatenated plexes, however, it does not normally cause problems to leave them
 inconsistent: when using a volume for a file system or a swap partition, the
 previous contents of the disks are not of interest, so they may be ignored.
-If you want to take this risk, use this keyword.
+If you want to take this risk, use this keyword.  It will only apply to the
+plexes defined immediately after the volume in the configuration file.  If you
+add plexes to a volume at a later time, you must integrate them.
 .Pp
 Note that you \fImust\fP\| use the
 .Nm init
@@ -700,6 +739,12 @@ it specifies the size of a group.  A group is a portion of a plex which
 stores the parity bits all in the same subdisk.   It must be a factor of the plex size (in
 other words, the result of dividing the plex size by the stripe size must be an
 integer), and it must be a multiple of a disk sector (512 bytes).
+.sp
+For optimum performance, stripes should be at least 128 kB in size: anything
+smaller will result in a significant increase in I/O activity due to mapping of
+individual requests over multiple disks.  The increase in concurrency due to
+this mapping will not make up for the increase in latency.  A good guideline for
+stripe size is between 256 kB and 512 kB.
 T}
 .Pp
 #T{
@@ -849,14 +894,14 @@ volume concat
   sd length 100m drive drive2
   sd length 50m drive drive4
  plex org concat
-  sd length 100m drive drive4
+  sd length 150m drive drive4
 # A volume with one striped plex and one concatenated plex
 volume strcon
  plex org striped 32b
   sd length 100m drive drive2
   sd length 100m drive drive4
  plex org concat
-  sd length 100m drive drive2
+  sd length 150m drive drive2
   sd length 50m drive drive4
 # a volume with a  RAID-5 and a striped plex
 # note that the RAID-5 volume is longer by
@@ -880,13 +925,56 @@ in order to avoid overwriting file systems.  In later versions of
 .Nm
 this requirement will change to type
 .Ar vinum .
+Use
+.Nm disklabel
+.Ar -e
+to edit a partition type definition.  The following display shows a typical
+partition layout as shown by
+.Nm disklabel:
+.nf
+8 partitions:
+#        size   offset    fstype   [fsize bsize bps/cpg]
+  a:    81920   344064    4.2BSD        0     0     0   # (Cyl.  240*- 297*)
+  b:   262144    81920      swap                        # (Cyl.   57*- 240*)
+  c:  4226725        0    unused        0     0         # (Cyl.    0 - 2955*)
+  e:    81920        0    4.2BSD        0     0     0   # (Cyl.    0 - 57*)
+  f:  1900000   425984    4.2BSD        0     0     0   # (Cyl.  297*- 1626*)
+  g:  1900741  2325984    unused        0     0     0   # (Cyl. 1626*- 2955*)
+.fi
+.sp
+In this example, partition 
+.Nm g
+may be used as a
+.Nm
+partition.  Partitions 
+.Nm a ,
+.Nm e 
+and
+.Nm f
+may be used as
+.Nm UFS
+file systems or
+.Nm ccd
+partitions.  Partition 
+.Nm b
+is a swap partition, and partition
+.Nm c
+represents the whole disk and should not be used for any other purpose.
+.Pp
 .Nm
 uses the first 265 sectors on each partition for configuration information, so
 the maximum size of a subdisk is 265 sectors smaller than the drive.
+.Sh GOTCHAS
+.Nm
+will not create a device on UFS partitions.  Instead, it will return an error
+message ``wrong partition type''.  The partition type must currently be
+``unused''.  See above for more details.
 .Sh BUGS
 .Nm
 is currently in beta test.  Many bugs can be expected.  The configuration
-mechanism is not yet fully functional.
+mechanism is not yet fully functional.  If you have difficulties, please look at
+http://www.lemis.com/vinum_beta.html and
+http://www.lemis.com/vinum_debugging.html before reporting problems.
 .Sh FILES
 .Ar /dev/vinum
 - directory with device nodes for
@@ -908,6 +996,7 @@ plexes.
 subdisks.
 .Sh SEE ALSO
 .Xr vinum 4 
+.Xr disklabel 8
 .Sh AUTHOR
 Greg Lehey 
 .Pa <grog@lemis.com> .
