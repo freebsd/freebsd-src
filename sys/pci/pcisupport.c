@@ -1009,6 +1009,8 @@ static const char* vga_probe (pcici_t tag, pcidi_t typea)
 		switch (id >> 16) {
 		case 0x0003:
 			chip = "Voodoo Banshee"; break;
+		case 0x0005:
+			chip = "Voodoo 3"; break;
 		}
 		break;
 	case 0x102b:
