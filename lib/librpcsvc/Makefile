@@ -12,7 +12,7 @@ RPCSRCS= klm_prot.x mount.x nfs_prot.x nlm_prot.x rex.x rnusers.x \
 OTHERSRCS=  rnusers.c rstat.c rwall.c yp_passwd.c yp_update.c
 SECRPCSRCS= secretkey.c xcrypt.c
 
-RPCCOM = rpcgen -CM
+RPCCOM = rpcgen -C
 
 INCDIRS= -I${DESTDIR}/usr/include/rpcsvc -I${DESTDIR}/usr/include
 
