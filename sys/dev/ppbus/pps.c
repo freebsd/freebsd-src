@@ -46,6 +46,7 @@ struct pps_data {
 	struct callout_handle timeout;
 	int	lastdata;
 
+	struct mtx	mtx;
 	struct resource *intr_resource;	/* interrupt resource */
 	void *intr_cookie;		/* interrupt registration cookie */
 };
@@ -64,7 +65,6 @@ static	d_ioctl_t	ppsioctl;
 
 static struct cdevsw pps_cdevsw = {
 	.d_version =	D_VERSION,
-	.d_flags =	D_NEEDGIANT,
 	.d_open =	ppsopen,
 	.d_close =	ppsclose,
 	.d_ioctl =	ppsioctl,
@@ -110,6 +110,7 @@ ppsattach(device_t dev)
 	intptr_t irq;
 	int i, unit, zero = 0;
 
+	mtx_init(&sc->mtx, device_get_nameunit(dev), "pps", MTX_SPIN);
 	/* retrieve the ppbus irq */
 	BUS_READ_IVAR(ppbus, dev, PPBUS_IVAR_IRQ, &irq);
 
@@ -203,9 +204,9 @@ ppsopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 			return (EINTR);
 
 		/* attach the interrupt handler */
-		if ((error = BUS_SETUP_INTR(ppbus, ppsdev, sc->intr_resource,
-			       INTR_TYPE_TTY, ppsintr, ppsdev,
-			       &sc->intr_cookie))) {
+		if ((error = bus_setup_intr(ppsdev, sc->intr_resource,
+		    (INTR_TYPE_TTY | INTR_MPSAFE | INTR_FAST), ppsintr,
+		    ppsdev, &sc->intr_cookie))) {
 			ppb_release_bus(ppbus, ppsdev);
 			return (error);
 		}
@@ -280,14 +281,18 @@ ppsintr(void *arg)
 	struct pps_data *sc = DEVTOSOFTC(ppsdev);
 	device_t ppbus = sc->ppbus;
 
+	mtx_lock(&sc->mtx);
 	pps_capture(&sc->pps[0]);
-	if (!(ppb_rstr(ppbus) & nACK))
+	if (!(ppb_rstr(ppbus) & nACK)) {
+		mtx_unlock(&sc->mtx);
 		return;
+	}
 	if (sc->pps[0].ppsparam.mode & PPS_ECHOASSERT) 
 		ppb_wctr(ppbus, IRQENABLE | AUTOFEED);
 	pps_event(&sc->pps[0], PPS_CAPTUREASSERT);
 	if (sc->pps[0].ppsparam.mode & PPS_ECHOASSERT) 
 		ppb_wctr(ppbus, IRQENABLE);
+	mtx_unlock(&sc->mtx);
 }
 
 static int
@@ -295,8 +300,12 @@ ppsioctl(struct cdev *dev, u_long cmd, caddr_t data, int flags, struct thread *t
 {
 	struct pps_data *sc = dev->si_drv1;
 	int subdev = (intptr_t)dev->si_drv2;
+	int err;
 
-	return (pps_ioctl(cmd, data, &sc->pps[subdev]));
+	mtx_lock(&sc->mtx);
+	err = pps_ioctl(cmd, data, &sc->pps[subdev]);
+	mtx_unlock(&sc->mtx);
+	return (err);
 }
 
 static device_method_t pps_methods[] = {
