@@ -180,6 +180,8 @@ USB_DECLARE_DRIVER_INIT(usb,
 			DEVMETHOD(device_shutdown, bus_generic_shutdown)
 			);
 
+MODULE_VERSION(usb, 1);
+
 USB_MATCH(usb)
 {
 	DPRINTF(("usbd_match\n"));
