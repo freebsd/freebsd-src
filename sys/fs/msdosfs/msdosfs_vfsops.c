@@ -71,6 +71,8 @@
 #include <fs/msdosfs/denode.h>
 #include <fs/msdosfs/fat.h>
 
+#include "opt_msdosfs.h"
+
 #define MSDOSFS_DFLTBSIZE       4096
 
 #if 1 /*def PC98*/
@@ -227,6 +229,9 @@ msdosfs_mount(mp, path, data, ndp, td)
 			/*
 			 * Process export requests.
 			 */
+			if ((args.export.ex_flags & MNT_EXPORTED) != 0 &&
+			    (pmp->pm_flags & MSDOSFS_LARGEFS) != 0)
+				return (EOPNOTSUPP);
 			return (vfs_export(mp, &args.export));
 		}
 	}
@@ -415,6 +420,7 @@ mountmsdosfs(devvp, mp, td, argp)
 		pmp->pm_HiddenSects = getushort(b33->bpbHiddenSecs);
 		pmp->pm_HugeSectors = pmp->pm_Sectors;
 	}
+#ifndef MSDOSFS_LARGE
 	if (pmp->pm_HugeSectors > 0xffffffff / 
 	    (pmp->pm_BytesPerSec / sizeof(struct direntry)) + 1) {
 		/*
@@ -426,6 +432,7 @@ mountmsdosfs(devvp, mp, td, argp)
 		printf("mountmsdosfs(): disk too big, sorry\n");
 		goto error_exit;
 	}
+#endif	/* !MSDOSFS_LARGE */
 
 	if (pmp->pm_RootDirEnts == 0) {
 		if (bsp->bs710.bsBootSectSig2 != BOOTSIG2
@@ -628,6 +635,10 @@ mountmsdosfs(devvp, mp, td, argp)
 	mp->mnt_flag |= MNT_LOCAL;
 	devvp->v_rdev->si_mountpoint = mp;
 
+#ifdef MSDOSFS_LARGE
+	msdosfs_fileno_init(mp);
+#endif
+
 	return 0;
 
 error_exit:
@@ -720,6 +731,9 @@ msdosfs_unmount(mp, mntflags, td)
 #endif
 	vrele(pmp->pm_devvp);
 	free(pmp->pm_inusemap, M_MSDOSFSFAT);
+#ifdef MSDOSFS_LARGE
+	msdosfs_fileno_free(mp);
+#endif
 	free(pmp, M_MSDOSFSMNT);
 	mp->mnt_data = (qaddr_t)0;
 	mp->mnt_flag &= ~MNT_LOCAL;

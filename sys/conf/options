@@ -219,6 +219,9 @@ NFS_ROOT	opt_nfsroot.h
 NETSMB			opt_netsmb.h
 NETSMBCRYPTO		opt_netsmb.h
 
+# Experimental support for large MS-DOS filesystems; SEE WARNING IN "NOTES"!
+MSDOSFS_LARGE	opt_msdosfs.h
+
 # Options used only in subr_param.c.
 HZ		opt_param.h
 MAXFILES	opt_param.h
