@@ -333,6 +333,8 @@ int	mac_check_vnode_getacl(struct ucred *cred, struct vnode *vp,
 	    acl_type_t type);
 int	mac_check_vnode_getextattr(struct ucred *cred, struct vnode *vp,
 	    int attrnamespace, const char *name, struct uio *uio);
+int	mac_check_vnode_link(struct ucred *cred, struct vnode *dvp,
+	    struct vnode *vp, struct componentname *cnp);
 int	mac_check_vnode_lookup(struct ucred *cred, struct vnode *dvp,
  	    struct componentname *cnp);
 /* XXX This u_char should be vm_prot_t! */

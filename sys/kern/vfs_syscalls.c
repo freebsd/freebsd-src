@@ -1031,7 +1031,12 @@ kern_link(struct thread *td, char *path, char *link, enum uio_seg segflg)
 		    == 0) {
 			VOP_LEASE(nd.ni_dvp, td, td->td_ucred, LEASE_WRITE);
 			VOP_LEASE(vp, td, td->td_ucred, LEASE_WRITE);
-			error = VOP_LINK(nd.ni_dvp, vp, &nd.ni_cnd);
+#ifdef MAC
+			error = mac_check_vnode_link(td->td_ucred, nd.ni_dvp,
+			    vp, &nd.ni_cnd);
+			if (error == 0)
+#endif
+				error = VOP_LINK(nd.ni_dvp, vp, &nd.ni_cnd);
 			VOP_UNLOCK(vp, 0, td);
 		}
 		NDFREE(&nd, NDF_ONLY_PNBUF);
