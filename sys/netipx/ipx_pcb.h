@@ -53,7 +53,6 @@ struct ipxpcb {
 	caddr_t	ipxp_pcb;		/* protocol specific stuff */
 	struct	route ipxp_route;	/* routing information */
 	struct	ipx_addr ipxp_lastdst;	/* validate cached route for dg socks*/
-	long	ipxp_notify_param;	/* extra info passed via ipx_pcbnotify*/
 	short	ipxp_flags;
 	u_char	ipxp_dpt;		/* default packet type for ipx_output */
 	u_char	ipxp_rpt;		/* last received packet type by ipx_input() */
@@ -93,8 +92,6 @@ void	ipx_pcbdetach(struct ipxpcb *ipxp);
 void	ipx_pcbdisconnect(struct ipxpcb *ipxp);
 struct ipxpcb *
 	ipx_pcblookup(struct ipx_addr *faddr, int lport, int wildp);
-void	ipx_pcbnotify(struct ipx_addr *dst, int errno,
-			   void (*notify)(struct ipxpcb *), long param);
 void	ipx_setpeeraddr(struct ipxpcb *ipxp, struct sockaddr **nam);
 void	ipx_setsockaddr(struct ipxpcb *ipxp, struct sockaddr **nam);
 #endif /* _KERNEL */

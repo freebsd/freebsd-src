@@ -309,61 +309,6 @@ ipx_setpeeraddr(ipxp, nam)
 	*nam = sodupsockaddr((struct sockaddr *)sipx, M_NOWAIT);
 }
 
-/*
- * Pass some notification to all connections of a protocol
- * associated with address dst.  Call the
- * protocol specific routine to handle each connection.
- * Also pass an extra paramter via the ipxpcb. (which may in fact
- * be a parameter list!)
- */
-void
-ipx_pcbnotify(dst, errno, notify, param)
-	register struct ipx_addr *dst;
-	int errno;
-	void (*notify)(struct ipxpcb *);
-	long param;
-{
-	register struct ipxpcb *ipxp, *oinp;
-	int s = splimp();
-
-	for (ipxp = (&ipxpcb)->ipxp_next; ipxp != (&ipxpcb);) {
-		if (!ipx_hosteq(*dst,ipxp->ipxp_faddr)) {
-	next:
-			ipxp = ipxp->ipxp_next;
-			continue;
-		}
-		if (ipxp->ipxp_socket == 0)
-			goto next;
-		if (errno) 
-			ipxp->ipxp_socket->so_error = errno;
-		oinp = ipxp;
-		ipxp = ipxp->ipxp_next;
-		oinp->ipxp_notify_param = param;
-		(*notify)(oinp);
-	}
-	splx(s);
-}
-
-#ifdef notdef
-/*
- * After a routing change, flush old routing
- * and allocate a (hopefully) better one.
- */
-ipx_rtchange(ipxp)
-	struct ipxpcb *ipxp;
-{
-	if (ipxp->ipxp_route.ro_rt != NULL) {
-		rtfree(ipxp->ipxp_route.ro_rt);
-		ipxp->ipxp_route.ro_rt = NULL;
-		/*
-		 * A new route can be allocated the next time
-		 * output is attempted.
-		 */
-	}
-	/* SHOULD NOTIFY HIGHER-LEVEL PROTOCOLS */
-}
-#endif
-
 struct ipxpcb *
 ipx_pcblookup(faddr, lport, wildp)
 	struct ipx_addr *faddr;
