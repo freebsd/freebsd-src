@@ -129,7 +129,6 @@ MALLOC_DEFINE(M_PMAP, "PMAP", "PMAP Structures");
 #endif
 
 #define MINPV 2048	/* Preallocate at least this many */
-#define MAXPV 20480	/* But no more than this */
 
 #if 0
 #define PMAP_DIAGNOSTIC
@@ -500,7 +499,6 @@ void
 pmap_init(void)
 {
 	int i;
-	int initial_pvs;
 
 	/*
 	 * Allocate memory for random pmap data structures.  Includes the
@@ -518,18 +516,13 @@ pmap_init(void)
 	/*
 	 * Init the pv free list and the PTE free list.
 	 */
-	initial_pvs = vm_page_array_size;
-	if (initial_pvs < MINPV)
-		initial_pvs = MINPV;
-	if (initial_pvs > MAXPV)
-		initial_pvs = MAXPV;
 	pvzone = uma_zcreate("PV ENTRY", sizeof (struct pv_entry),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_VM|UMA_ZONE_NOFREE);
-	uma_prealloc(pvzone, initial_pvs);
+	uma_prealloc(pvzone, MINPV);
 
 	ptezone = uma_zcreate("PT ENTRY", sizeof (struct ia64_lpte), 
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_VM|UMA_ZONE_NOFREE);
-	uma_prealloc(ptezone, initial_pvs);
+	uma_prealloc(ptezone, MINPV);
 
 	/*
 	 * Now it is safe to enable pv_table recording.
