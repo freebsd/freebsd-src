@@ -313,10 +313,8 @@ wi_generic_attach(device_t dev)
 	wi_read_record(sc, &gen);
 	sc->wi_has_wep = gen.wi_val;
 
-	if (bootverbose) {
-		device_printf(sc->dev, "%s:wi_has_wep = %d\n",
-		  __func__, sc->wi_has_wep);
-	}
+	if (bootverbose)
+		device_printf(sc->dev, "wi_has_wep = %d\n", sc->wi_has_wep);
 
 	/* 
 	 * Find supported rates.
@@ -349,7 +347,6 @@ wi_generic_attach(device_t dev)
 	ADD(IFM_MAKEWORD(IFM_IEEE80211, IFM_AUTO, 
 		IFM_IEEE80211_ADHOC, 0), 0);
 	ADD(IFM_MAKEWORD(IFM_IEEE80211, IFM_AUTO, 0, 0), 0);
-#ifdef IFM_IEEE80211_HOSTAP
 	if (sc->sc_firmware_type == WI_INTERSIL) {
 		ADD(IFM_MAKEWORD(IFM_IEEE80211, IFM_IEEE80211_DS1,
 		    IFM_IEEE80211_HOSTAP, 0), 0);
@@ -362,7 +359,6 @@ wi_generic_attach(device_t dev)
 		ADD(IFM_MAKEWORD(IFM_IEEE80211, IFM_AUTO, 
 		    IFM_IEEE80211_HOSTAP, 0), 0);
 	}
-#endif
 #undef	ADD
 	ifmedia_set(&sc->ifmedia, IFM_MAKEWORD(IFM_IEEE80211, IFM_AUTO,
 	    0, 0));
@@ -2726,10 +2722,8 @@ wi_media_change(ifp)
 
 	if ((sc->ifmedia.ifm_cur->ifm_media & IFM_IEEE80211_ADHOC) != 0)
 		sc->wi_ptype = WI_PORTTYPE_ADHOC;
-#if defined(IFM_IEEE80211_HOSTAP)
 	else if ((sc->ifmedia.ifm_cur->ifm_media & IFM_IEEE80211_HOSTAP) != 0)
 		sc->wi_ptype = WI_PORTTYPE_AP;
-#endif
 	else
 		sc->wi_ptype = WI_PORTTYPE_BSS;
 
@@ -2770,10 +2764,8 @@ wi_media_status(ifp, imr)
 		imr->ifm_active = IFM_IEEE80211|IFM_AUTO;
 		if (sc->wi_ptype == WI_PORTTYPE_ADHOC)
 			imr->ifm_active |= IFM_IEEE80211_ADHOC;
-#if defined(IFM_IEEE80211_HOSTAP)
 		else if (sc->wi_ptype == WI_PORTTYPE_AP)
 			imr->ifm_active |= IFM_IEEE80211_HOSTAP;
-#endif
 		wreq.wi_type = WI_RID_CUR_TX_RATE;
 		wreq.wi_len = WI_MAX_DATALEN;
 		if (wi_read_record(sc, (struct wi_ltv_gen *)&wreq) == 0) {
