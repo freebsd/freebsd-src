@@ -676,15 +676,11 @@ kern_open(struct thread *td, char *path, enum uio_seg pathseg, int flags,
 	error = falloc(td, &nfp, &indx);
 	if (error)
 		return (error);
+	/* An extra reference on `nfp' has been held for us by falloc(). */
 	fp = nfp;
 	cmode = ((mode &~ fdp->fd_cmask) & ALLPERMS) &~ S_ISTXT;
 	NDINIT(&nd, LOOKUP, FOLLOW, pathseg, path, td);
 	td->td_dupfd = -1;		/* XXX check for fdopen */
-	/*
-	 * Bump the ref count to prevent another process from closing
-	 * the descriptor while we are blocked in vn_open()
-	 */
-	fhold(fp);
 	error = vn_open(&nd, &flags, cmode, indx);
 	if (error) {
 
@@ -3673,13 +3669,9 @@ fhopen(td, uap)
 			vp->v_writecount--;
 		goto bad;
 	}
+	/* An extra reference on `nfp' has been held for us by falloc(). */
 	fp = nfp;	
 
-	/*
-	 * Hold an extra reference to avoid having fp ripped out 
-	 * from under us while we block in the lock op
-	 */
-	fhold(fp);
 	nfp->f_vnode = vp;
 	nfp->f_data = vp;
 	nfp->f_flag = fmode & FMASK;
