@@ -113,8 +113,8 @@ struct sleepqueue {
 	LIST_ENTRY(sleepqueue) sq_hash;		/* (c) Chain and free list. */
 	LIST_HEAD(, sleepqueue) sq_free;	/* (c) Free queues. */
 	void	*sq_wchan;			/* (c) Wait channel. */
-	int	sq_type;			/* (c) Queue type. */
 #ifdef INVARIANTS
+	int	sq_type;			/* (c) Queue type. */
 	struct mtx *sq_lock;			/* (c) Associated lock. */
 #endif
 };
@@ -208,9 +208,21 @@ sleepq_free(struct sleepqueue *sq)
 }
 
 /*
+ * Lock the sleep queue chain associated with the specified wait channel.
+ */
+void
+sleepq_lock(void *wchan)
+{
+	struct sleepqueue_chain *sc;
+
+	sc = SC_LOOKUP(wchan);
+	mtx_lock_spin(&sc->sc_lock);
+}
+
+/*
  * Look up the sleep queue associated with a given wait channel in the hash
- * table locking the associated sleep queue chain.  Return holdind the sleep
- * queue chain lock.  If no queue is found in the table, NULL is returned.
+ * table locking the associated sleep queue chain.  If no queue is found in
+ * the table, NULL is returned.
  */
 struct sleepqueue *
 sleepq_lookup(void *wchan)
@@ -220,7 +232,7 @@ sleepq_lookup(void *wchan)
 
 	KASSERT(wchan != NULL, ("%s: invalid NULL wait channel", __func__));
 	sc = SC_LOOKUP(wchan);
-	mtx_lock_spin(&sc->sc_lock);
+	mtx_assert(&sc->sc_lock, MA_OWNED);
 	LIST_FOREACH(sq, &sc->sc_queues, sq_hash)
 		if (sq->sq_wchan == wchan)
 			return (sq);
@@ -246,10 +258,10 @@ sleepq_release(void *wchan)
  * woken up.
  */
 void
-sleepq_add(struct sleepqueue *sq, void *wchan, struct mtx *lock,
-    const char *wmesg, int flags)
+sleepq_add(void *wchan, struct mtx *lock, const char *wmesg, int flags)
 {
 	struct sleepqueue_chain *sc;
+	struct sleepqueue *sq;
 	struct thread *td, *td1;
 
 	td = curthread;
@@ -258,7 +270,14 @@ sleepq_add(struct sleepqueue *sq, void *wchan, struct mtx *lock,
 	MPASS(td->td_sleepqueue != NULL);
 	MPASS(wchan != NULL);
 
-	/* If the passed in sleep queue is NULL, use this thread's queue. */
+	/* Look up the sleep queue associated with the wait channel 'wchan'. */
+	sq = sleepq_lookup(wchan);
+
+	/*
+	 * If the wait channel does not already have a sleep queue, use
+	 * this thread's sleep queue.  Otherwise, insert the current thread
+	 * into the sleep queue already in use by this wait channel.
+	 */
 	if (sq == NULL) {
 #ifdef SLEEPQUEUE_PROFILING
 		sc->sc_depth++;
@@ -278,12 +297,13 @@ sleepq_add(struct sleepqueue *sq, void *wchan, struct mtx *lock,
 		sq->sq_wchan = wchan;
 #ifdef INVARIANTS
 		sq->sq_lock = lock;
-#endif
 		sq->sq_type = flags & SLEEPQ_TYPE;
+#endif
 		TAILQ_INSERT_TAIL(&sq->sq_blocked, td, td_slpq);
 	} else {
 		MPASS(wchan == sq->sq_wchan);
 		MPASS(lock == sq->sq_lock);
+		MPASS((flags & SLEEPQ_TYPE) == sq->sq_type);
 		TAILQ_FOREACH(td1, &sq->sq_blocked, td_slpq)
 			if (td1->td_priority > td->td_priority)
 				break;
@@ -368,6 +388,7 @@ sleepq_catch_signals(void *wchan)
 	 * thread was removed from the sleep queue while we were blocked
 	 * above, then clear TDF_SINTR before returning.
 	 */
+	sleepq_lock(wchan);
 	sq = sleepq_lookup(wchan);
 	mtx_lock_spin(&sched_lock);
 	if (TD_ON_SLEEPQ(td) && (sig != 0 || do_upcall != 0)) {
@@ -665,9 +686,6 @@ sleepq_signal(void *wchan, int flags, int pri)
 	}
 	KASSERT(sq->sq_type == (flags & SLEEPQ_TYPE),
 	    ("%s: mismatch between sleep/wakeup and cv_*", __func__));
-	/* XXX: Do for all sleep queues eventually. */
-	if (flags & SLEEPQ_CONDVAR)
-		mtx_assert(sq->sq_lock, MA_OWNED);
 
 	/* Remove first thread from queue and awaken it. */
 	td = TAILQ_FIRST(&sq->sq_blocked);
@@ -695,9 +713,6 @@ sleepq_broadcast(void *wchan, int flags, int pri)
 	}
 	KASSERT(sq->sq_type == (flags & SLEEPQ_TYPE),
 	    ("%s: mismatch between sleep/wakeup and cv_*", __func__));
-	/* XXX: Do for all sleep queues eventually. */
-	if (flags & SLEEPQ_CONDVAR)
-		mtx_assert(sq->sq_lock, MA_OWNED);
 
 	/* Move blocked threads from the sleep queue to a temporary list. */
 	TAILQ_INIT(&list);
@@ -739,6 +754,7 @@ sleepq_timeout(void *arg)
 	if (TD_ON_SLEEPQ(td)) {
 		wchan = td->td_wchan;
 		mtx_unlock_spin(&sched_lock);
+		sleepq_lock(wchan);
 		sq = sleepq_lookup(wchan);
 		mtx_lock_spin(&sched_lock);
 	} else {
@@ -802,6 +818,7 @@ sleepq_remove(struct thread *td, void *wchan)
 	 * bail.
 	 */
 	MPASS(wchan != NULL);
+	sleepq_lock(wchan);
 	sq = sleepq_lookup(wchan);
 	mtx_lock_spin(&sched_lock);
 	if (!TD_ON_SLEEPQ(td) || td->td_wchan != wchan) {

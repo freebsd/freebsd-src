@@ -397,9 +397,21 @@ turnstile_free(struct turnstile *ts)
 }
 
 /*
+ * Lock the turnstile chain associated with the specified lock.
+ */
+void
+turnstile_lock(struct lock_object *lock)
+{
+	struct turnstile_chain *tc;
+
+	tc = TC_LOOKUP(lock);
+	mtx_lock_spin(&tc->tc_lock);
+}
+
+/*
  * Look up the turnstile for a lock in the hash table locking the associated
- * turnstile chain along the way.  Return with the turnstile chain locked.
- * If no turnstile is found in the hash table, NULL is returned.
+ * turnstile chain along the way.  If no turnstile is found in the hash
+ * table, NULL is returned.
  */
 struct turnstile *
 turnstile_lookup(struct lock_object *lock)
@@ -408,7 +420,7 @@ turnstile_lookup(struct lock_object *lock)
 	struct turnstile *ts;
 
 	tc = TC_LOOKUP(lock);
-	mtx_lock_spin(&tc->tc_lock);
+	mtx_assert(&tc->tc_lock, MA_OWNED);
 	LIST_FOREACH(ts, &tc->tc_turnstiles, ts_hash)
 		if (ts->ts_lockobj == lock)
 			return (ts);
@@ -432,13 +444,16 @@ turnstile_release(struct lock_object *lock)
  * owner appropriately.
  */
 void
-turnstile_claim(struct turnstile *ts)
+turnstile_claim(struct lock_object *lock)
 {
 	struct turnstile_chain *tc;
+	struct turnstile *ts;
 	struct thread *td, *owner;
 
-	tc = TC_LOOKUP(ts->ts_lockobj);
+	tc = TC_LOOKUP(lock);
 	mtx_assert(&tc->tc_lock, MA_OWNED);
+	ts = turnstile_lookup(lock);
+	MPASS(ts != NULL);
 
 	owner = curthread;
 	mtx_lock_spin(&td_contested_lock);
@@ -460,16 +475,16 @@ turnstile_claim(struct turnstile *ts)
 }
 
 /*
- * Block the current thread on the turnstile ts.  This function will context
- * switch and not return until this thread has been woken back up.  This
- * function must be called with the appropriate turnstile chain locked and
- * will return with it unlocked.
+ * Block the current thread on the turnstile assicated with 'lock'.  This
+ * function will context switch and not return until this thread has been
+ * woken back up.  This function must be called with the appropriate
+ * turnstile chain locked and will return with it unlocked.
  */
 void
-turnstile_wait(struct turnstile *ts, struct lock_object *lock,
-    struct thread *owner)
+turnstile_wait(struct lock_object *lock, struct thread *owner)
 {
 	struct turnstile_chain *tc;
+	struct turnstile *ts;
 	struct thread *td, *td1;
 
 	td = curthread;
@@ -479,7 +494,14 @@ turnstile_wait(struct turnstile *ts, struct lock_object *lock,
 	MPASS(owner != NULL);
 	MPASS(owner->td_proc->p_magic == P_MAGIC);
 
-	/* If the passed in turnstile is NULL, use this thread's turnstile. */
+	/* Look up the turnstile associated with the lock 'lock'. */
+	ts = turnstile_lookup(lock);
+
+	/*
+	 * If the lock does not already have a turnstile, use this thread's
+	 * turnstile.  Otherwise insert the current thread into the
+	 * turnstile already in use by this lock.
+	 */
 	if (ts == NULL) {
 #ifdef TURNSTILE_PROFILING
 		tc->tc_depth++;
