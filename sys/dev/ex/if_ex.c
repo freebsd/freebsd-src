@@ -255,6 +255,9 @@ ex_isa_identify (driver_t *driver, device_t parent)
 	int		tmp;
 	const char *	desc;
 
+	if (bootverbose)
+		printf("ex_isa_identify()\n");
+
 	for (ioport = 0x200; ioport < 0x3a0; ioport += 0x10) {
 
 		/* No board found at address */
@@ -262,8 +265,16 @@ ex_isa_identify (driver_t *driver, device_t parent)
 			continue;
 		}
 
+		if (bootverbose)
+			printf("ex: Found card at 0x%03x!\n", ioport);
+
 		/* Board in PnP mode */
-		if (eeprom_read(ioport, 0) & 0x01) {
+		if (eeprom_read(ioport, EE_W0) & EE_W0_PNP) {
+			/* Reset the card. */
+			outb(ioport + CMD_REG, Reset_CMD);
+			DELAY(500);
+			if (bootverbose)
+				printf("ex: card at 0x%03x in PnP mode!\n", ioport);
 			continue;
 		}
 
@@ -274,7 +285,7 @@ ex_isa_identify (driver_t *driver, device_t parent)
 		DELAY(400);
 
 		ex_get_address(ioport, enaddr);
-		tmp = eeprom_read(ioport, EE_IRQ_No) & IRQ_No_Mask;
+		tmp = eeprom_read(ioport, EE_W1) & EE_W1_INT_SEL;
 
 		/* work out which set of irq <-> internal tables to use */
 		if (ex_card_type(enaddr) == CARD_TYPE_EX_10_PLUS) {
@@ -290,6 +301,9 @@ ex_isa_identify (driver_t *driver, device_t parent)
 		device_set_driver(child, driver);
 		bus_set_resource(child, SYS_RES_IRQ, 0, irq, 1);
 		bus_set_resource(child, SYS_RES_IOPORT, 0, ioport, EX_IOSIZE);
+
+		if (bootverbose)
+			printf("ex: Adding board at 0x%03x, irq %d\n", ioport, irq);
 	}
 
 	return;
@@ -322,16 +336,24 @@ ex_isa_probe(device_t dev)
 	}
 
 	iobase = bus_get_resource_start(dev, SYS_RES_IOPORT, 0);
-	if (iobase && !look_for_card(iobase)) {
+	if (!iobase) {
+		printf("ex: no iobase?\n");
+		return(ENXIO);
+	}
+
+	if (!look_for_card(iobase)) {
 		printf("ex: no card found at 0x%03x\n", iobase);
 		return(ENXIO);
 	}
+
+	if (bootverbose)
+		printf("ex: ex_isa_probe() found card at 0x%03x\n", iobase);
 
 	/*
 	 * Reset the card.
 	 */
 	outb(iobase + CMD_REG, Reset_CMD);
-	DELAY(400);
+	DELAY(800);
 
 	ex_get_address(iobase, enaddr);
 
@@ -344,7 +366,7 @@ ex_isa_probe(device_t dev)
 		ee2irq = ee2irqmap;
 	}
 
-	tmp = eeprom_read(iobase, EE_IRQ_No) & IRQ_No_Mask;
+	tmp = eeprom_read(iobase, EE_W1) & EE_W1_INT_SEL;
 	irq = bus_get_resource_start(dev, SYS_RES_IRQ, 0);
 
 	if (irq > 0) {
