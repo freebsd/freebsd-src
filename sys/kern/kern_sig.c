@@ -389,7 +389,6 @@ struct sigaction_args {
 /*
  * MPSAFE
  */
-/* ARGSUSED */
 int
 sigaction(td, uap)
 	struct thread *td;
@@ -399,21 +398,19 @@ sigaction(td, uap)
 	register struct sigaction *actp, *oactp;
 	int error;
 
-	mtx_lock(&Giant);
-
 	actp = (uap->act != NULL) ? &act : NULL;
 	oactp = (uap->oact != NULL) ? &oact : NULL;
 	if (actp) {
 		error = copyin(uap->act, actp, sizeof(act));
 		if (error)
-			goto done2;
+			return (error);
 	}
+	mtx_lock(&Giant);
 	error = kern_sigaction(td, uap->sig, actp, oactp, 0);
+	mtx_unlock(&Giant);
 	if (oactp && !error) {
 		error = copyout(oactp, uap->oact, sizeof(oact));
 	}
-done2:
-	mtx_unlock(&Giant);
 	return (error);
 }
 
@@ -428,7 +425,6 @@ struct freebsd4_sigaction_args {
 /*
  * MPSAFE
  */
-/* ARGSUSED */
 int
 freebsd4_sigaction(td, uap)
 	struct thread *td;
@@ -438,21 +434,20 @@ freebsd4_sigaction(td, uap)
 	register struct sigaction *actp, *oactp;
 	int error;
 
-	mtx_lock(&Giant);
 
 	actp = (uap->act != NULL) ? &act : NULL;
 	oactp = (uap->oact != NULL) ? &oact : NULL;
 	if (actp) {
 		error = copyin(uap->act, actp, sizeof(act));
 		if (error)
-			goto done2;
+			return (error);
 	}
+	mtx_lock(&Giant);
 	error = kern_sigaction(td, uap->sig, actp, oactp, KSA_FREEBSD4);
+	mtx_unlock(&Giant);
 	if (oactp && !error) {
 		error = copyout(oactp, uap->oact, sizeof(oact));
 	}
-done2:
-	mtx_unlock(&Giant);
 	return (error);
 }
 #endif	/* COMAPT_FREEBSD4 */
@@ -468,7 +463,6 @@ struct osigaction_args {
 /*
  * MPSAFE
  */
-/* ARGSUSED */
 int
 osigaction(td, uap)
 	struct thread *td;
@@ -485,25 +479,23 @@ osigaction(td, uap)
 	nsap = (uap->nsa != NULL) ? &nsa : NULL;
 	osap = (uap->osa != NULL) ? &osa : NULL;
 
-	mtx_lock(&Giant);
-
 	if (nsap) {
 		error = copyin(uap->nsa, &sa, sizeof(sa));
 		if (error)
-			goto done2;
+			return (error);
 		nsap->sa_handler = sa.sa_handler;
 		nsap->sa_flags = sa.sa_flags;
 		OSIG2SIG(sa.sa_mask, nsap->sa_mask);
 	}
+	mtx_lock(&Giant);
 	error = kern_sigaction(td, uap->signum, nsap, osap, KSA_OSIGSET);
+	mtx_unlock(&Giant);
 	if (osap && !error) {
 		sa.sa_handler = osap->sa_handler;
 		sa.sa_flags = osap->sa_flags;
 		SIG2OSIG(osap->sa_mask, sa.sa_mask);
 		error = copyout(&sa, uap->osa, sizeof(sa));
 	}
-done2:
-	mtx_unlock(&Giant);
 	return (error);
 }
 
