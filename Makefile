@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.57.4.5 1995/09/18 08:52:26 davidg Exp $
+#	$Id: Makefile,v 1.57.4.6 1995/11/05 18:38:16 jfieber Exp $
 #
 # Make command line options:
 #	-DCLOBBER will remove /usr/include and MOST of /usr/lib
@@ -214,6 +214,7 @@ includes:
 .if exists(eBones) && !defined(NOCRYPT) && defined(MAKE_EBONES)
 	cd ${.CURDIR}/eBones/include &&		${MAKE} beforeinstall
 .endif
+	cd ${.CURDIR}/eBones/lib/libkrb &&	${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libc &&		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libcurses &&		${MAKE} beforeinstall
 	cd ${.CURDIR}/lib/libedit &&		${MAKE} beforeinstall
