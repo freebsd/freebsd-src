@@ -27,7 +27,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: ldconfig.c,v 1.4 1993/12/02 01:03:16 jkh Exp $
+ *	$Id: ldconfig.c,v 1.5 1994/02/13 20:42:30 jkh Exp $
  */
 
 #include <sys/param.h>
@@ -101,7 +101,7 @@ char	*argv[];
 			justread = 1;
 			break;
 		default:
-			fprintf(stderr, "Usage: %s [-v] [dir ...]\n", progname);
+			fprintf(stderr, "Usage: %s [-r] [-s] [-v] [dir ...]\n", progname);
 			exit(1);
 			break;
 		}
