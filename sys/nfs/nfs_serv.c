@@ -863,7 +863,7 @@ nfsrv_read(nfsd, slp, procp, mrq)
 		 * Locate best candidate
 		 */
 
-		hi = ((int)vp / sizeof(struct vnode)) & (NUM_HEURISTIC - 1);
+		hi = ((int)(vm_offset_t)vp / sizeof(struct vnode)) & (NUM_HEURISTIC - 1);
 		nh = &nfsheur[hi];
 
 		while (try--) {
