@@ -12,52 +12,16 @@ reserved for you.
 The most "complete" version of this will be the one in FreeBSD-current.
 (see http://www.freebsd.org/ or from ftp://ftp.cdrom.com/pub/FreeBSD/)
 
-blkdev	name		comments
-0	wd		ST506 disk controller (with IDE extensions)
-1	wfd		ATAPI Floppy client of "wd"
-2	fd		floppy disk
-3	was:wt		QIC-02/36 tape
-4	da		SCSI "direct acess" devices
-5	was:sa		SCSI "sequential access" devices
-6	cd		SCSI "cdrom" type
-7	mcd		Mitsumi CDROM interface
-8	lkm		assigned to Loadable Kernel modules
-9	lkm		assigned to Loadable Kernel modules
-10	lkm		assigned to Loadable Kernel modules
-11	lkm		assigned to Loadable Kernel modules
-12	lkm		assigned to Loadable Kernel modules
-13	lkm		assigned to Loadable Kernel modules
-14	??		reserved for local use
-15	vn		vnode disk device
-16	scd		Sony CDROM interface
-17	matcd		Matsushita/Panasonic/Creative(SB) CDROM interface
-18	ata		"device independent" ATA/IDE driver
-19	wcdb		ATAPI CDROM client of "wd"
-20	??		ATA disks
-21	ccd		concatenated disk
-22	md		Memory Disk
-23	worm		SCSI "worm type"
-24	was:wstb	ATAPI tape client of "wd"
-25	vinum		Volume manager
-26	sw		VM internal swap device
-27	mlxd		Mylex DAC960 RAID (disk device)
-28	fla		M-Systems DiskOnChip(r)
-29	ida		Intelligent Disk [Array] (md@doc.ic.ac.uk)
-30	ad		ATA disks
-31	acd		ATAPI CDROM
-32	afd		ATAPI floppy
-33	was:ast		ATAPI tape
-34	i2o		Intelligent I/O Block Device
-35	amrd		AMI MegaRAID
-100	??		entries from 100-127 are reserved for local use
-127	??		entries from 100-127 are reserved for local use
+NOTICE: FreeBSD does not use block major numbers anymore, you neither
+need to assign nor use a block major number for any device driver any
+more.
 
 chrdev	name		comments
 0	cn		console
 1	ctty		/dev/tty
 2	mm		/dev/mem,kmem,etc
 3	wd		ST506 disk controller (with IDE extensions)
-4	swap		/dev/drum
+4	was:swap	/dev/drum
 5	pts		pseudo tty "tty" half
 6	ptc		pseudo tty "master" half
 7	log		system log
