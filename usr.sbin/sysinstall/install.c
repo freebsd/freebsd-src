@@ -481,8 +481,6 @@ fixit_common(void)
 	    msgDebug("fixit shell: Unable to get terminal attributes!\n");
 	setenv("PATH", "/bin:/sbin:/usr/bin:/usr/sbin:/stand:"
 	       "/mnt2/stand:/mnt2/bin:/mnt2/sbin:/mnt2/usr/bin:/mnt2/usr/sbin", 1);
-	setenv("MAKEDEVPATH", "/sbin:/bin:/stand:"
-	       "/mnt2/sbin:/mnt2/bin:/mnt2/stand", 1);
 	if (strcmp(variable_get(VAR_FIXIT_TTY), "serial") == 0) {
 	    printf("Waiting for fixit shell to exit.\n"
 		"When you are done, type ``exit'' to exit\n"
@@ -811,6 +809,7 @@ installFixupBin(dialogMenuItem *self)
 	    fclose(fp);
 	}
 #endif
+#if 0
 	/* BOGON #1: Resurrect /dev after bin distribution screws it up */
 	dialog_clear_norefresh();
 	msgNotify("Remaking all devices.. Please wait!");
@@ -847,6 +846,7 @@ installFixupBin(dialogMenuItem *self)
 		}
 	    }
 	}
+#endif
 	
 	/* BOGON #2: We leave /etc in a bad state */
 	chmod("/etc", 0755);
