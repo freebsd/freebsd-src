@@ -1,5 +1,5 @@
 /*
- * $Id: krb.h,v 1.97 1999/06/29 21:18:06 bg Exp $
+ * $Id: krb.h,v 1.99 1999/11/16 14:02:47 bg Exp $
  * $FreeBSD$
  *
  * Copyright 1987, 1988 by the Massachusetts Institute of Technology. 
@@ -166,7 +166,7 @@ typedef struct ktext KTEXT_ST;
 #define 	CLOCK_SKEW	5*60
 /* Filename for readservkey */
 #ifndef		KEYFILE
-#define		KEYFILE		"/etc/kerberosIV/srvtab"
+#define		KEYFILE		(krb_get_default_keyfile())
 #endif
 
 /* Structure definition for rd_ap_req */
@@ -226,7 +226,9 @@ struct krb_host {
 
 /* Location of ticket file for save_cred and get_cred */
 #define TKT_FILE        tkt_string()
-#define TKT_ROOT        "/tmp/tkt"
+#ifndef TKT_ROOT
+#define TKT_ROOT        (krb_get_default_tkt_root())
+#endif
 
 /* Error codes returned from the KDC */
 #define		KDC_OK		0	/* Request OK */
