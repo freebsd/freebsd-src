@@ -594,13 +594,21 @@ fw_ioctl (dev_t dev, u_long cmd, caddr_t data, int flag, fw_proc *td)
 
 		/* copy response */
 		tinfo = &sc->fc->tcode[xfer->recv.hdr.mode.hdr.tcode];
-		if (asyreq->req.len >= xfer->recv.pay_len + tinfo->hdr_len)
-			asyreq->req.len = xfer->recv.pay_len;
-		else
-			err = EINVAL;
+		if (xfer->recv.hdr.mode.hdr.tcode == FWTCODE_RRESB ||
+		    xfer->recv.hdr.mode.hdr.tcode == FWTCODE_LRES) {
+			pay_len = xfer->recv.pay_len;
+			if (asyreq->req.len >= xfer->recv.pay_len + tinfo->hdr_len) {
+				asyreq->req.len = xfer->recv.pay_len +
+					tinfo->hdr_len;
+			} else {
+				err = EINVAL;
+				pay_len = 0;
+			}
+		} else {
+			pay_len = 0;
+		}
 		bcopy(&xfer->recv.hdr, fp, tinfo->hdr_len);
-		bcopy(xfer->recv.payload, (char *)fp + tinfo->hdr_len,
-		    MAX(0, asyreq->req.len - tinfo->hdr_len));
+		bcopy(xfer->recv.payload, (char *)fp + tinfo->hdr_len, pay_len);
 out:
 		fw_xfer_free_buf(xfer);
 		break;
