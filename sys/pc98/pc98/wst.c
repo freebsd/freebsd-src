@@ -761,11 +761,3 @@ wst_reset(struct wst *t)
     outb(t->ata->port + AR_COMMAND, 0x08);
     DELAY(30);
 }
-
-static void 
-wst_drvinit(void *unused)
-{
-    cdevsw_add(&wst_cdevsw);
-}
-
-SYSINIT(wstdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,wst_drvinit,NULL)

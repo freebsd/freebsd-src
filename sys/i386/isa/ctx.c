@@ -189,10 +189,7 @@ static int
 ctxprobe(struct isa_device * devp)
 {
 	int     status;
-	static int once;
 
-	if (!once++)
-		cdevsw_add(&ctx_cdevsw);
 	if (inb(devp->id_iobase) == 0xff)	/* 0xff only if board absent */
 		status = 0;
 	else {
