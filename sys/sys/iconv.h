@@ -92,6 +92,7 @@ __BEGIN_DECLS
 
 int   kiconv_add_xlat_table(const char *, const char *, const u_char *);
 int   kiconv_add_xlat16_cspair(const char *, const char *, int);
+int   kiconv_add_xlat16_cspairs(const char *, const char *);
 int   kiconv_add_xlat16_table(const char *, const char *, const void *, int);
 const char *kiconv_quirkcs(const char *, int);
 
