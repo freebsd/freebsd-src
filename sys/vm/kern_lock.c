@@ -1,9 +1,10 @@
 /* 
- * Copyright (c) 1991, 1993
+ * Copyright (c) 1995
  *	The Regents of the University of California.  All rights reserved.
  *
- * This code is derived from software contributed to Berkeley by
- * The Mach Operating System project at Carnegie-Mellon University.
+ * This code contains ideas from software contributed to Berkeley by
+ * Avadis Tevanian, Jr., Michael Wayne Young, and the Mach Operating
+ * System project at Carnegie-Mellon University.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -33,502 +34,498 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)kern_lock.c	8.1 (Berkeley) 6/11/93
- *
- *
- * Copyright (c) 1987, 1990 Carnegie-Mellon University.
- * All rights reserved.
- *
- * Authors: Avadis Tevanian, Jr., Michael Wayne Young
- * 
- * Permission to use, copy, modify and distribute this software and
- * its documentation is hereby granted, provided that both the copyright
- * notice and this permission notice appear in all copies of the
- * software, derivative works or modified versions, and any portions
- * thereof, and that both notices appear in supporting documentation.
- * 
- * CARNEGIE MELLON ALLOWS FREE USE OF THIS SOFTWARE IN ITS "AS IS" 
- * CONDITION.  CARNEGIE MELLON DISCLAIMS ANY LIABILITY OF ANY KIND 
- * FOR ANY DAMAGES WHATSOEVER RESULTING FROM THE USE OF THIS SOFTWARE.
- * 
- * Carnegie Mellon requests users of this software to return to
- *
- *  Software Distribution Coordinator  or  Software.Distribution@CS.CMU.EDU
- *  School of Computer Science
- *  Carnegie Mellon University
- *  Pittsburgh PA 15213-3890
- *
- * any improvements or extensions that they make and grant Carnegie the
- * rights to redistribute these changes.
- */
-
-/*
- *	Locking primitives implementation
+ *	@(#)kern_lock.c	8.18 (Berkeley) 5/21/95
  */
 
 #include <sys/param.h>
-#include <sys/systm.h>
-
-#include <vm/vm.h>
-
-/* XXX */
 #include <sys/proc.h>
-typedef	int *thread_t;
-#define	current_thread()	((thread_t)&curproc->p_thread)
-/* XXX */
-
-#if	NCPUS > 1
+#include <sys/lock.h>
+#include <machine/cpu.h>
 
 /*
- *	Module:		lock
- *	Function:
- *		Provide reader/writer sychronization.
- *	Implementation:
- *		Simple interlock on a bit.  Readers first interlock
- *		increment the reader count, then let go.  Writers hold
- *		the interlock (thus preventing further readers), and
- *		wait for already-accepted readers to go away.
+ * Locking primitives implementation.
+ * Locks provide shared/exclusive sychronization.
  */
+
+#ifdef DEBUG
+#define COUNT(p, x) if (p) (p)->p_locks += (x)
+#else
+#define COUNT(p, x)
+#endif
+
+#if NCPUS > 1
 
 /*
- *	The simple-lock routines are the primitives out of which
- *	the lock package is built.  The implementation is left
- *	to the machine-dependent code.
+ * For multiprocessor system, try spin lock first.
+ *
+ * This should be inline expanded below, but we cannot have #if
+ * inside a multiline define.
  */
-
-#ifdef	notdef
-/*
- *	A sample implementation of simple locks.
- *	assumes:
- *		boolean_t test_and_set(boolean_t *)
- *			indivisibly sets the boolean to TRUE
- *			and returns its old value
- *		and that setting a boolean to FALSE is indivisible.
- */
-/*
- *	simple_lock_init initializes a simple lock.  A simple lock
- *	may only be used for exclusive locks.
- */
-
-void simple_lock_init(l)
-	simple_lock_t	l;
-{
-	*(boolean_t *)l = FALSE;
-}
-
-void simple_lock(l)
-	simple_lock_t	l;
-{
-	while (test_and_set((boolean_t *)l))
-		continue;
-}
-
-void simple_unlock(l)
-	simple_lock_t	l;
-{
-	*(boolean_t *)l = FALSE;
-}
-
-boolean_t simple_lock_try(l)
-	simple_lock_t	l;
-{
-    	return (!test_and_set((boolean_t *)l));
-}
-#endif /* notdef */
-#endif /* NCPUS > 1 */
-
-#if	NCPUS > 1
 int lock_wait_time = 100;
-#else /* NCPUS > 1 */
+#define PAUSE(lkp, wanted)						\
+		if (lock_wait_time > 0) {				\
+			int i;						\
+									\
+			simple_unlock(&lkp->lk_interlock);		\
+			for (i = lock_wait_time; i > 0; i--)		\
+				if (!(wanted))				\
+					break;				\
+			simple_lock(&lkp->lk_interlock);		\
+		}							\
+		if (!(wanted))						\
+			break;
 
+#else /* NCPUS == 1 */
+
+/*
+ * It is an error to spin on a uniprocessor as nothing will ever cause
+ * the simple lock to clear while we are executing.
+ */
+#define PAUSE(lkp, wanted)
+
+#endif /* NCPUS == 1 */
+
+/*
+ * Acquire a resource.
+ */
+#define ACQUIRE(lkp, error, extflags, wanted)				\
+	PAUSE(lkp, wanted);						\
+	for (error = 0; wanted; ) {					\
+		(lkp)->lk_waitcount++;					\
+		simple_unlock(&(lkp)->lk_interlock);			\
+		error = tsleep((void *)lkp, (lkp)->lk_prio,		\
+		    (lkp)->lk_wmesg, (lkp)->lk_timo);			\
+		simple_lock(&(lkp)->lk_interlock);			\
+		(lkp)->lk_waitcount--;					\
+		if (error)						\
+			break;						\
+		if ((extflags) & LK_SLEEPFAIL) {			\
+			error = ENOLCK;					\
+			break;						\
+		}							\
+	}
+
+/*
+ * Initialize a lock; required before use.
+ */
+void
+lockinit(lkp, prio, wmesg, timo, flags)
+	struct lock *lkp;
+	int prio;
+	char *wmesg;
+	int timo;
+	int flags;
+{
+
+	bzero(lkp, sizeof(struct lock));
+	simple_lock_init(&lkp->lk_interlock);
+	lkp->lk_flags = flags & LK_EXTFLG_MASK;
+	lkp->lk_prio = prio;
+	lkp->lk_timo = timo;
+	lkp->lk_wmesg = wmesg;
+	lkp->lk_lockholder = LK_NOPROC;
+}
+
+/*
+ * Determine the status of a lock.
+ */
+int
+lockstatus(lkp)
+	struct lock *lkp;
+{
+	int lock_type = 0;
+
+	simple_lock(&lkp->lk_interlock);
+	if (lkp->lk_exclusivecount != 0)
+		lock_type = LK_EXCLUSIVE;
+	else if (lkp->lk_sharecount != 0)
+		lock_type = LK_SHARED;
+	simple_unlock(&lkp->lk_interlock);
+	return (lock_type);
+}
+
+/*
+ * Set, change, or release a lock.
+ *
+ * Shared requests increment the shared count. Exclusive requests set the
+ * LK_WANT_EXCL flag (preventing further shared locks), and wait for already
+ * accepted shared locks and shared-to-exclusive upgrades to go away.
+ */
+int
+lockmgr(lkp, flags, interlkp, p)
+	__volatile struct lock *lkp;
+	u_int flags;
+	struct simplelock *interlkp;
+	struct proc *p;
+{
+	int error;
+	pid_t pid;
+	int extflags;
+
+	error = 0;
+	if (p)
+		pid = p->p_pid;
+	else
+		pid = LK_KERNPROC;
+	simple_lock(&lkp->lk_interlock);
+	if (flags & LK_INTERLOCK)
+		simple_unlock(interlkp);
+	extflags = (flags | lkp->lk_flags) & LK_EXTFLG_MASK;
+#ifdef DIAGNOSTIC
 	/*
-	 * 	It is silly to spin on a uni-processor as if we
-	 *	thought something magical would happen to the
-	 *	want_write bit while we are executing.
+	 * Once a lock has drained, the LK_DRAINING flag is set and an
+	 * exclusive lock is returned. The only valid operation thereafter
+	 * is a single release of that exclusive lock. This final release
+	 * clears the LK_DRAINING flag and sets the LK_DRAINED flag. Any
+	 * further requests of any sort will result in a panic. The bits
+	 * selected for these two flags are chosen so that they will be set
+	 * in memory that is freed (freed memory is filled with 0xdeadbeef).
+	 * The final release is permitted to give a new lease on life to
+	 * the lock by specifying LK_REENABLE.
 	 */
-int lock_wait_time = 0;
-#endif /* NCPUS > 1 */
+	if (lkp->lk_flags & (LK_DRAINING|LK_DRAINED)) {
+		if (lkp->lk_flags & LK_DRAINED)
+			panic("lockmgr: using decommissioned lock");
+		if ((flags & LK_TYPE_MASK) != LK_RELEASE ||
+		    lkp->lk_lockholder != pid)
+			panic("lockmgr: non-release on draining lock: %d\n",
+			    flags & LK_TYPE_MASK);
+		lkp->lk_flags &= ~LK_DRAINING;
+		if ((flags & LK_REENABLE) == 0)
+			lkp->lk_flags |= LK_DRAINED;
+	}
+#endif DIAGNOSTIC
 
+	switch (flags & LK_TYPE_MASK) {
 
-/*
- *	Routine:	lock_init
- *	Function:
- *		Initialize a lock; required before use.
- *		Note that clients declare the "struct lock"
- *		variables and then initialize them, rather
- *		than getting a new one from this module.
- */
-void lock_init(l, can_sleep)
-	lock_t		l;
-	boolean_t	can_sleep;
-{
-	bzero(l, sizeof(lock_data_t));
-	simple_lock_init(&l->interlock);
-	l->want_write = FALSE;
-	l->want_upgrade = FALSE;
-	l->read_count = 0;
-	l->can_sleep = can_sleep;
-	l->thread = (char *)-1;		/* XXX */
-	l->recursion_depth = 0;
-}
-
-void lock_sleepable(l, can_sleep)
-	lock_t		l;
-	boolean_t	can_sleep;
-{
-	simple_lock(&l->interlock);
-	l->can_sleep = can_sleep;
-	simple_unlock(&l->interlock);
-}
-
-
-/*
- *	Sleep locks.  These use the same data structure and algorithm
- *	as the spin locks, but the process sleeps while it is waiting
- *	for the lock.  These work on uniprocessor systems.
- */
-
-void lock_write(l)
-	register lock_t	l;
-{
-	register int	i;
-
-	simple_lock(&l->interlock);
-
-	if (((thread_t)l->thread) == current_thread()) {
+	case LK_SHARED:
+		if (lkp->lk_lockholder != pid) {
+			/*
+			 * If just polling, check to see if we will block.
+			 */
+			if ((extflags & LK_NOWAIT) && (lkp->lk_flags &
+			    (LK_HAVE_EXCL | LK_WANT_EXCL | LK_WANT_UPGRADE))) {
+				error = EBUSY;
+				break;
+			}
+			/*
+			 * Wait for exclusive locks and upgrades to clear.
+			 */
+			ACQUIRE(lkp, error, extflags, lkp->lk_flags &
+			    (LK_HAVE_EXCL | LK_WANT_EXCL | LK_WANT_UPGRADE));
+			if (error)
+				break;
+			lkp->lk_sharecount++;
+			COUNT(p, 1);
+			break;
+		}
 		/*
-		 *	Recursive lock.
+		 * We hold an exclusive lock, so downgrade it to shared.
+		 * An alternative would be to fail with EDEADLK.
 		 */
-		l->recursion_depth++;
-		simple_unlock(&l->interlock);
+		lkp->lk_sharecount++;
+		COUNT(p, 1);
+		/* fall into downgrade */
+
+	case LK_DOWNGRADE:
+		if (lkp->lk_lockholder != pid || lkp->lk_exclusivecount == 0)
+			panic("lockmgr: not holding exclusive lock");
+		lkp->lk_sharecount += lkp->lk_exclusivecount;
+		lkp->lk_exclusivecount = 0;
+		lkp->lk_flags &= ~LK_HAVE_EXCL;
+		lkp->lk_lockholder = LK_NOPROC;
+		if (lkp->lk_waitcount)
+			wakeup((void *)lkp);
+		break;
+
+	case LK_EXCLUPGRADE:
+		/*
+		 * If another process is ahead of us to get an upgrade,
+		 * then we want to fail rather than have an intervening
+		 * exclusive access.
+		 */
+		if (lkp->lk_flags & LK_WANT_UPGRADE) {
+			lkp->lk_sharecount--;
+			COUNT(p, -1);
+			error = EBUSY;
+			break;
+		}
+		/* fall into normal upgrade */
+
+	case LK_UPGRADE:
+		/*
+		 * Upgrade a shared lock to an exclusive one. If another
+		 * shared lock has already requested an upgrade to an
+		 * exclusive lock, our shared lock is released and an
+		 * exclusive lock is requested (which will be granted
+		 * after the upgrade). If we return an error, the file
+		 * will always be unlocked.
+		 */
+		if (lkp->lk_lockholder == pid || lkp->lk_sharecount <= 0)
+			panic("lockmgr: upgrade exclusive lock");
+		lkp->lk_sharecount--;
+		COUNT(p, -1);
+		/*
+		 * If we are just polling, check to see if we will block.
+		 */
+		if ((extflags & LK_NOWAIT) &&
+		    ((lkp->lk_flags & LK_WANT_UPGRADE) ||
+		     lkp->lk_sharecount > 1)) {
+			error = EBUSY;
+			break;
+		}
+		if ((lkp->lk_flags & LK_WANT_UPGRADE) == 0) {
+			/*
+			 * We are first shared lock to request an upgrade, so
+			 * request upgrade and wait for the shared count to
+			 * drop to zero, then take exclusive lock.
+			 */
+			lkp->lk_flags |= LK_WANT_UPGRADE;
+			ACQUIRE(lkp, error, extflags, lkp->lk_sharecount);
+			lkp->lk_flags &= ~LK_WANT_UPGRADE;
+			if (error)
+				break;
+			lkp->lk_flags |= LK_HAVE_EXCL;
+			lkp->lk_lockholder = pid;
+			if (lkp->lk_exclusivecount != 0)
+				panic("lockmgr: non-zero exclusive count");
+			lkp->lk_exclusivecount = 1;
+			COUNT(p, 1);
+			break;
+		}
+		/*
+		 * Someone else has requested upgrade. Release our shared
+		 * lock, awaken upgrade requestor if we are the last shared
+		 * lock, then request an exclusive lock.
+		 */
+		if (lkp->lk_sharecount == 0 && lkp->lk_waitcount)
+			wakeup((void *)lkp);
+		/* fall into exclusive request */
+
+	case LK_EXCLUSIVE:
+		if (lkp->lk_lockholder == pid && pid != LK_KERNPROC) {
+			/*
+			 *	Recursive lock.
+			 */
+			if ((extflags & LK_CANRECURSE) == 0)
+				panic("lockmgr: locking against myself");
+			lkp->lk_exclusivecount++;
+			COUNT(p, 1);
+			break;
+		}
+		/*
+		 * If we are just polling, check to see if we will sleep.
+		 */
+		if ((extflags & LK_NOWAIT) && ((lkp->lk_flags &
+		     (LK_HAVE_EXCL | LK_WANT_EXCL | LK_WANT_UPGRADE)) ||
+		     lkp->lk_sharecount != 0)) {
+			error = EBUSY;
+			break;
+		}
+		/*
+		 * Try to acquire the want_exclusive flag.
+		 */
+		ACQUIRE(lkp, error, extflags, lkp->lk_flags &
+		    (LK_HAVE_EXCL | LK_WANT_EXCL));
+		if (error)
+			break;
+		lkp->lk_flags |= LK_WANT_EXCL;
+		/*
+		 * Wait for shared locks and upgrades to finish.
+		 */
+		ACQUIRE(lkp, error, extflags, lkp->lk_sharecount != 0 ||
+		       (lkp->lk_flags & LK_WANT_UPGRADE));
+		lkp->lk_flags &= ~LK_WANT_EXCL;
+		if (error)
+			break;
+		lkp->lk_flags |= LK_HAVE_EXCL;
+		lkp->lk_lockholder = pid;
+		if (lkp->lk_exclusivecount != 0)
+			panic("lockmgr: non-zero exclusive count");
+		lkp->lk_exclusivecount = 1;
+		COUNT(p, 1);
+		break;
+
+	case LK_RELEASE:
+		if (lkp->lk_exclusivecount != 0) {
+			if (pid != lkp->lk_lockholder)
+				panic("lockmgr: pid %d, not %s %d unlocking",
+				    pid, "exclusive lock holder",
+				    lkp->lk_lockholder);
+			lkp->lk_exclusivecount--;
+			COUNT(p, -1);
+			if (lkp->lk_exclusivecount == 0) {
+				lkp->lk_flags &= ~LK_HAVE_EXCL;
+				lkp->lk_lockholder = LK_NOPROC;
+			}
+		} else if (lkp->lk_sharecount != 0) {
+			lkp->lk_sharecount--;
+			COUNT(p, -1);
+		}
+		if (lkp->lk_waitcount)
+			wakeup((void *)lkp);
+		break;
+
+	case LK_DRAIN:
+		/*
+		 * Check that we do not already hold the lock, as it can 
+		 * never drain if we do. Unfortunately, we have no way to
+		 * check for holding a shared lock, but at least we can
+		 * check for an exclusive one.
+		 */
+		if (lkp->lk_lockholder == pid)
+			panic("lockmgr: draining against myself");
+		/*
+		 * If we are just polling, check to see if we will sleep.
+		 */
+		if ((extflags & LK_NOWAIT) && ((lkp->lk_flags &
+		     (LK_HAVE_EXCL | LK_WANT_EXCL | LK_WANT_UPGRADE)) ||
+		     lkp->lk_sharecount != 0 || lkp->lk_waitcount != 0)) {
+			error = EBUSY;
+			break;
+		}
+		PAUSE(lkp, ((lkp->lk_flags &
+		     (LK_HAVE_EXCL | LK_WANT_EXCL | LK_WANT_UPGRADE)) ||
+		     lkp->lk_sharecount != 0 || lkp->lk_waitcount != 0));
+		for (error = 0; ((lkp->lk_flags &
+		     (LK_HAVE_EXCL | LK_WANT_EXCL | LK_WANT_UPGRADE)) ||
+		     lkp->lk_sharecount != 0 || lkp->lk_waitcount != 0); ) {
+			lkp->lk_flags |= LK_WAITDRAIN;
+			simple_unlock(&lkp->lk_interlock);
+			if (error = tsleep((void *)&lkp->lk_flags, lkp->lk_prio,
+			    lkp->lk_wmesg, lkp->lk_timo))
+				return (error);
+			if ((extflags) & LK_SLEEPFAIL)
+				return (ENOLCK);
+			simple_lock(&lkp->lk_interlock);
+		}
+		lkp->lk_flags |= LK_DRAINING | LK_HAVE_EXCL;
+		lkp->lk_lockholder = pid;
+		lkp->lk_exclusivecount = 1;
+		COUNT(p, 1);
+		break;
+
+	default:
+		simple_unlock(&lkp->lk_interlock);
+		panic("lockmgr: unknown locktype request %d",
+		    flags & LK_TYPE_MASK);
+		/* NOTREACHED */
+	}
+	if ((lkp->lk_flags & LK_WAITDRAIN) && ((lkp->lk_flags &
+	     (LK_HAVE_EXCL | LK_WANT_EXCL | LK_WANT_UPGRADE)) == 0 &&
+	     lkp->lk_sharecount == 0 && lkp->lk_waitcount == 0)) {
+		lkp->lk_flags &= ~LK_WAITDRAIN;
+		wakeup((void *)&lkp->lk_flags);
+	}
+	simple_unlock(&lkp->lk_interlock);
+	return (error);
+}
+
+/*
+ * Print out information about state of a lock. Used by VOP_PRINT
+ * routines to display ststus about contained locks.
+ */
+lockmgr_printinfo(lkp)
+	struct lock *lkp;
+{
+
+	if (lkp->lk_sharecount)
+		printf(" lock type %s: SHARED (count %d)", lkp->lk_wmesg,
+		    lkp->lk_sharecount);
+	else if (lkp->lk_flags & LK_HAVE_EXCL)
+		printf(" lock type %s: EXCL (count %d) by pid %d",
+		    lkp->lk_wmesg, lkp->lk_exclusivecount, lkp->lk_lockholder);
+	if (lkp->lk_waitcount > 0)
+		printf(" with %d pending", lkp->lk_waitcount);
+}
+
+#if defined(DEBUG) && NCPUS == 1
+#include <sys/kernel.h>
+#include <vm/vm.h>
+#include <sys/sysctl.h>
+int lockpausetime = 0;
+struct ctldebug debug2 = { "lockpausetime", &lockpausetime };
+int simplelockrecurse;
+/*
+ * Simple lock functions so that the debugger can see from whence
+ * they are being called.
+ */
+void
+simple_lock_init(alp)
+	struct simplelock *alp;
+{
+
+	alp->lock_data = 0;
+}
+
+void
+_simple_lock(alp, id, l)
+	__volatile struct simplelock *alp;
+	const char *id;
+	int l;
+{
+
+	if (simplelockrecurse)
 		return;
-	}
-
-	/*
-	 *	Try to acquire the want_write bit.
-	 */
-	while (l->want_write) {
-		if ((i = lock_wait_time) > 0) {
-			simple_unlock(&l->interlock);
-			while (--i > 0 && l->want_write)
-				continue;
-			simple_lock(&l->interlock);
-		}
-
-		if (l->can_sleep && l->want_write) {
-			l->waiting = TRUE;
-			thread_sleep((int) l, &l->interlock, FALSE);
-			simple_lock(&l->interlock);
+	if (alp->lock_data == 1) {
+		if (lockpausetime == -1)
+			panic("%s:%d: simple_lock: lock held", id, l);
+		printf("%s:%d: simple_lock: lock held\n", id, l);
+		if (lockpausetime == 1) {
+			BACKTRACE(curproc);
+		} else if (lockpausetime > 1) {
+			printf("%s:%d: simple_lock: lock held...", id, l);
+			tsleep(&lockpausetime, PCATCH | PPAUSE, "slock",
+			    lockpausetime * hz);
+			printf(" continuing\n");
 		}
 	}
-	l->want_write = TRUE;
-
-	/* Wait for readers (and upgrades) to finish */
-
-	while ((l->read_count != 0) || l->want_upgrade) {
-		if ((i = lock_wait_time) > 0) {
-			simple_unlock(&l->interlock);
-			while (--i > 0 && (l->read_count != 0 ||
-					l->want_upgrade))
-				continue;
-			simple_lock(&l->interlock);
-		}
-
-		if (l->can_sleep && (l->read_count != 0 || l->want_upgrade)) {
-			l->waiting = TRUE;
-			thread_sleep((int) l, &l->interlock, FALSE);
-			simple_lock(&l->interlock);
-		}
-	}
-	simple_unlock(&l->interlock);
+	alp->lock_data = 1;
+	if (curproc)
+		curproc->p_simple_locks++;
 }
 
-void lock_done(l)
-	register lock_t	l;
+int
+_simple_lock_try(alp, id, l)
+	__volatile struct simplelock *alp;
+	const char *id;
+	int l;
 {
-	simple_lock(&l->interlock);
 
-	if (l->read_count != 0)
-		l->read_count--;
-	else
-	if (l->recursion_depth != 0)
-		l->recursion_depth--;
-	else
-	if (l->want_upgrade)
-	 	l->want_upgrade = FALSE;
-	else
-	 	l->want_write = FALSE;
-
-	if (l->waiting) {
-		l->waiting = FALSE;
-		thread_wakeup((int) l);
-	}
-	simple_unlock(&l->interlock);
+	if (alp->lock_data)
+		return (0);
+	if (simplelockrecurse)
+		return (1);
+	alp->lock_data = 1;
+	if (curproc)
+		curproc->p_simple_locks++;
+	return (1);
 }
 
-void lock_read(l)
-	register lock_t	l;
+void
+_simple_unlock(alp, id, l)
+	__volatile struct simplelock *alp;
+	const char *id;
+	int l;
 {
-	register int	i;
 
-	simple_lock(&l->interlock);
-
-	if (((thread_t)l->thread) == current_thread()) {
-		/*
-		 *	Recursive lock.
-		 */
-		l->read_count++;
-		simple_unlock(&l->interlock);
+	if (simplelockrecurse)
 		return;
-	}
-
-	while (l->want_write || l->want_upgrade) {
-		if ((i = lock_wait_time) > 0) {
-			simple_unlock(&l->interlock);
-			while (--i > 0 && (l->want_write || l->want_upgrade))
-				continue;
-			simple_lock(&l->interlock);
-		}
-
-		if (l->can_sleep && (l->want_write || l->want_upgrade)) {
-			l->waiting = TRUE;
-			thread_sleep((int) l, &l->interlock, FALSE);
-			simple_lock(&l->interlock);
+	if (alp->lock_data == 0) {
+		if (lockpausetime == -1)
+			panic("%s:%d: simple_unlock: lock not held", id, l);
+		printf("%s:%d: simple_unlock: lock not held\n", id, l);
+		if (lockpausetime == 1) {
+			BACKTRACE(curproc);
+		} else if (lockpausetime > 1) {
+			printf("%s:%d: simple_unlock: lock not held...", id, l);
+			tsleep(&lockpausetime, PCATCH | PPAUSE, "sunlock",
+			    lockpausetime * hz);
+			printf(" continuing\n");
 		}
 	}
-
-	l->read_count++;
-	simple_unlock(&l->interlock);
+	alp->lock_data = 0;
+	if (curproc)
+		curproc->p_simple_locks--;
 }
-
-/*
- *	Routine:	lock_read_to_write
- *	Function:
- *		Improves a read-only lock to one with
- *		write permission.  If another reader has
- *		already requested an upgrade to a write lock,
- *		no lock is held upon return.
- *
- *		Returns TRUE if the upgrade *failed*.
- */
-boolean_t lock_read_to_write(l)
-	register lock_t	l;
-{
-	register int	i;
-
-	simple_lock(&l->interlock);
-
-	l->read_count--;
-
-	if (((thread_t)l->thread) == current_thread()) {
-		/*
-		 *	Recursive lock.
-		 */
-		l->recursion_depth++;
-		simple_unlock(&l->interlock);
-		return(FALSE);
-	}
-
-	if (l->want_upgrade) {
-		/*
-		 *	Someone else has requested upgrade.
-		 *	Since we've released a read lock, wake
-		 *	him up.
-		 */
-		if (l->waiting) {
-			l->waiting = FALSE;
-			thread_wakeup((int) l);
-		}
-
-		simple_unlock(&l->interlock);
-		return (TRUE);
-	}
-
-	l->want_upgrade = TRUE;
-
-	while (l->read_count != 0) {
-		if ((i = lock_wait_time) > 0) {
-			simple_unlock(&l->interlock);
-			while (--i > 0 && l->read_count != 0)
-				continue;
-			simple_lock(&l->interlock);
-		}
-
-		if (l->can_sleep && l->read_count != 0) {
-			l->waiting = TRUE;
-			thread_sleep((int) l, &l->interlock, FALSE);
-			simple_lock(&l->interlock);
-		}
-	}
-
-	simple_unlock(&l->interlock);
-	return (FALSE);
-}
-
-void lock_write_to_read(l)
-	register lock_t	l;
-{
-	simple_lock(&l->interlock);
-
-	l->read_count++;
-	if (l->recursion_depth != 0)
-		l->recursion_depth--;
-	else
-	if (l->want_upgrade)
-		l->want_upgrade = FALSE;
-	else
-	 	l->want_write = FALSE;
-
-	if (l->waiting) {
-		l->waiting = FALSE;
-		thread_wakeup((int) l);
-	}
-
-	simple_unlock(&l->interlock);
-}
-
-
-/*
- *	Routine:	lock_try_write
- *	Function:
- *		Tries to get a write lock.
- *
- *		Returns FALSE if the lock is not held on return.
- */
-
-boolean_t lock_try_write(l)
-	register lock_t	l;
-{
-
-	simple_lock(&l->interlock);
-
-	if (((thread_t)l->thread) == current_thread()) {
-		/*
-		 *	Recursive lock
-		 */
-		l->recursion_depth++;
-		simple_unlock(&l->interlock);
-		return(TRUE);
-	}
-
-	if (l->want_write || l->want_upgrade || l->read_count) {
-		/*
-		 *	Can't get lock.
-		 */
-		simple_unlock(&l->interlock);
-		return(FALSE);
-	}
-
-	/*
-	 *	Have lock.
-	 */
-
-	l->want_write = TRUE;
-	simple_unlock(&l->interlock);
-	return(TRUE);
-}
-
-/*
- *	Routine:	lock_try_read
- *	Function:
- *		Tries to get a read lock.
- *
- *		Returns FALSE if the lock is not held on return.
- */
-
-boolean_t lock_try_read(l)
-	register lock_t	l;
-{
-	simple_lock(&l->interlock);
-
-	if (((thread_t)l->thread) == current_thread()) {
-		/*
-		 *	Recursive lock
-		 */
-		l->read_count++;
-		simple_unlock(&l->interlock);
-		return(TRUE);
-	}
-
-	if (l->want_write || l->want_upgrade) {
-		simple_unlock(&l->interlock);
-		return(FALSE);
-	}
-
-	l->read_count++;
-	simple_unlock(&l->interlock);
-	return(TRUE);
-}
-
-/*
- *	Routine:	lock_try_read_to_write
- *	Function:
- *		Improves a read-only lock to one with
- *		write permission.  If another reader has
- *		already requested an upgrade to a write lock,
- *		the read lock is still held upon return.
- *
- *		Returns FALSE if the upgrade *failed*.
- */
-boolean_t lock_try_read_to_write(l)
-	register lock_t	l;
-{
-
-	simple_lock(&l->interlock);
-
-	if (((thread_t)l->thread) == current_thread()) {
-		/*
-		 *	Recursive lock
-		 */
-		l->read_count--;
-		l->recursion_depth++;
-		simple_unlock(&l->interlock);
-		return(TRUE);
-	}
-
-	if (l->want_upgrade) {
-		simple_unlock(&l->interlock);
-		return(FALSE);
-	}
-	l->want_upgrade = TRUE;
-	l->read_count--;
-
-	while (l->read_count != 0) {
-		l->waiting = TRUE;
-		thread_sleep((int) l, &l->interlock, FALSE);
-		simple_lock(&l->interlock);
-	}
-
-	simple_unlock(&l->interlock);
-	return(TRUE);
-}
-
-/*
- *	Allow a process that has a lock for write to acquire it
- *	recursively (for read, write, or update).
- */
-void lock_set_recursive(l)
-	lock_t		l;
-{
-	simple_lock(&l->interlock);
-	if (!l->want_write) {
-		panic("lock_set_recursive: don't have write lock");
-	}
-	l->thread = (char *) current_thread();
-	simple_unlock(&l->interlock);
-}
-
-/*
- *	Prevent a lock from being re-acquired.
- */
-void lock_clear_recursive(l)
-	lock_t		l;
-{
-	simple_lock(&l->interlock);
-	if (((thread_t) l->thread) != current_thread()) {
-		panic("lock_clear_recursive: wrong thread");
-	}
-	if (l->recursion_depth == 0)
-		l->thread = (char *)-1;		/* XXX */
-	simple_unlock(&l->interlock);
-}
+#endif /* DEBUG && NCPUS == 1 */

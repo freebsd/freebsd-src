@@ -37,7 +37,7 @@
  *
  * from: Utah $Hdr: vm_unix.c 1.1 89/11/07$
  *
- *	@(#)vm_unix.c	8.1 (Berkeley) 6/11/93
+ *	@(#)vm_unix.c	8.2 (Berkeley) 1/9/95
  */
 
 /*
@@ -97,7 +97,7 @@ obreak(p, uap, retval)
 int
 grow(p, sp)
 	struct proc *p;
-	unsigned sp;
+	vm_offset_t sp;
 {
 	register struct vmspace *vm = p->p_vmspace;
 	register int si;
@@ -105,7 +105,7 @@ grow(p, sp)
 	/*
 	 * For user defined stacks (from sendsig).
 	 */
-	if (sp < (unsigned)vm->vm_maxsaddr)
+	if (sp < (vm_offset_t)vm->vm_maxsaddr)
 		return (0);
 	/*
 	 * For common case of already allocated (from trap).

@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)vm_param.h	8.1 (Berkeley) 6/11/93
+ *	@(#)vm_param.h	8.2 (Berkeley) 1/9/95
  *
  *
  * Copyright (c) 1987, 1990 Carnegie-Mellon University.
@@ -82,7 +82,7 @@ typedef int	boolean_t;
  *	The machine independent pages are refered to as PAGES.  A page
  *	is some number of hardware pages, depending on the target machine.
  */
-#define DEFAULT_PAGE_SIZE	4096
+#define	DEFAULT_PAGE_SIZE	4096
 
 /*
  *	All references to the size of a page should be done with PAGE_SIZE
@@ -90,8 +90,8 @@ typedef int	boolean_t;
  *	we can easily make them constant if we so desire.
  */
 #define	PAGE_SIZE	cnt.v_page_size		/* size of page */
-#define PAGE_MASK	page_mask		/* size of page - 1 */
-#define PAGE_SHIFT	page_shift		/* bits to shift for pages */
+#define	PAGE_MASK	page_mask		/* size of page - 1 */
+#define	PAGE_SHIFT	page_shift		/* bits to shift for pages */
 #ifdef KERNEL
 extern vm_size_t	page_mask;
 extern int		page_shift;
@@ -100,11 +100,11 @@ extern int		page_shift;
 /*
  * CTL_VM identifiers
  */
-#define	VM_METER	 1		/* struct vmmeter */
-#define	VM_LOADAVG	 2		/* struct loadavg */
-#define	VM_MAXID	 3		/* number of valid vm ids */
+#define	VM_METER	1		/* struct vmmeter */
+#define	VM_LOADAVG	2		/* struct loadavg */
+#define	VM_MAXID	3		/* number of valid vm ids */
 
-#define CTL_VM_NAMES { \
+#define	CTL_VM_NAMES { \
 	{ 0, 0 }, \
 	{ "vmmeter", CTLTYPE_STRUCT }, \
 	{ "loadavg", CTLTYPE_STRUCT }, \
@@ -129,18 +129,18 @@ extern int		page_shift;
  *	No rounding is used.
  */
 #ifdef KERNEL
-#define	atop(x)		(((unsigned)(x)) >> PAGE_SHIFT)
+#define	atop(x)		(((unsigned long)(x)) >> PAGE_SHIFT)
 #define	ptoa(x)		((vm_offset_t)((x) << PAGE_SHIFT))
 
 /*
  * Round off or truncate to the nearest page.  These will work
  * for either addresses or counts (i.e., 1 byte rounds to 1 page).
  */
-#define round_page(x) \
+#define	round_page(x) \
 	((vm_offset_t)((((vm_offset_t)(x)) + PAGE_MASK) & ~PAGE_MASK))
-#define trunc_page(x) \
+#define	trunc_page(x) \
 	((vm_offset_t)(((vm_offset_t)(x)) & ~PAGE_MASK))
-#define num_pages(x) \
+#define	num_pages(x) \
 	((vm_offset_t)((((vm_offset_t)(x)) + PAGE_MASK) >> PAGE_SHIFT))
 
 extern vm_size_t	mem_size;	/* size of physical memory (bytes) */
@@ -150,7 +150,8 @@ extern vm_offset_t	last_addr;	/* last physical page */
 #else
 /* out-of-kernel versions of round_page and trunc_page */
 #define	round_page(x) \
-       ((((vm_offset_t)(x) + (vm_page_size - 1)) / vm_page_size) * vm_page_size)
+	((((vm_offset_t)(x) + (vm_page_size - 1)) / vm_page_size) * \
+	    vm_page_size)
 #define	trunc_page(x) \
 	((((vm_offset_t)(x)) / vm_page_size) * vm_page_size)
 

@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)vm_meter.c	8.4 (Berkeley) 1/4/94
+ *	@(#)vm_meter.c	8.7 (Berkeley) 5/10/95
  */
 
 #include <sys/param.h>
@@ -76,7 +76,7 @@ loadav(avg)
 	register int i, nrun;
 	register struct proc *p;
 
-	for (nrun = 0, p = (struct proc *)allproc; p != NULL; p = p->p_next) {
+	for (nrun = 0, p = allproc.lh_first; p != 0; p = p->p_list.le_next) {
 		switch (p->p_stat) {
 		case SSLEEP:
 			if (p->p_priority > PZERO || p->p_slptime != 0)
@@ -152,7 +152,7 @@ vmtotal(totalp)
 	/*
 	 * Calculate process statistics.
 	 */
-	for (p = (struct proc *)allproc; p != NULL; p = p->p_next) {
+	for (p = allproc.lh_first; p != 0; p = p->p_list.le_next) {
 		if (p->p_flag & P_SYSTEM)
 			continue;
 		switch (p->p_stat) {
@@ -184,15 +184,25 @@ vmtotal(totalp)
 		}
 		/*
 		 * Note active objects.
+		 *
+		 * XXX don't count shadow objects with no resident pages.
+		 * This eliminates the forced shadows caused by MAP_PRIVATE.
+		 * Right now we require that such an object completely shadow
+		 * the original, to catch just those cases.
 		 */
 		paging = 0;
 		for (map = &p->p_vmspace->vm_map, entry = map->header.next;
 		     entry != &map->header; entry = entry->next) {
 			if (entry->is_a_map || entry->is_sub_map ||
-			    entry->object.vm_object == NULL)
+			    (object = entry->object.vm_object) == NULL)
 				continue;
-			entry->object.vm_object->flags |= OBJ_ACTIVE;
-			paging |= entry->object.vm_object->paging_in_progress;
+			while (object->shadow &&
+			       object->resident_page_count == 0 &&
+			       object->shadow_offset == 0 &&
+			       object->size == object->shadow->size)
+				object = object->shadow;
+			object->flags |= OBJ_ACTIVE;
+			paging |= object->paging_in_progress;
 		}
 		if (paging)
 			totalp->t_pw++;
@@ -220,5 +230,6 @@ vmtotal(totalp)
 			}
 		}
 	}
+	simple_unlock(&vm_object_list_lock);
 	totalp->t_free = cnt.v_free_count;
 }

@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)vm_kern.c	8.3 (Berkeley) 1/12/94
+ *	@(#)vm_kern.c	8.4 (Berkeley) 1/9/95
  *
  *
  * Copyright (c) 1987, 1990 Carnegie-Mellon University.
@@ -80,8 +80,8 @@
  *	Allocate pageable memory to the kernel's address map.
  *	map must be "kernel_map" below.
  */
-
-vm_offset_t kmem_alloc_pageable(map, size)
+vm_offset_t
+kmem_alloc_pageable(map, size)
 	vm_map_t		map;
 	register vm_size_t	size;
 {
@@ -109,7 +109,8 @@ vm_offset_t kmem_alloc_pageable(map, size)
  *	Allocate wired-down memory in the kernel's address map
  *	or a submap.
  */
-vm_offset_t kmem_alloc(map, size)
+vm_offset_t
+kmem_alloc(map, size)
 	register vm_map_t	map;
 	register vm_size_t	size;
 {
@@ -201,7 +202,8 @@ vm_offset_t kmem_alloc(map, size)
  *	with kmem_alloc, and return the physical pages
  *	associated with that region.
  */
-void kmem_free(map, addr, size)
+void
+kmem_free(map, addr, size)
 	vm_map_t		map;
 	register vm_offset_t	addr;
 	vm_size_t		size;
@@ -222,7 +224,8 @@ void kmem_free(map, addr, size)
  *	min, max	Returned endpoints of map
  *	pageable	Can the region be paged
  */
-vm_map_t kmem_suballoc(parent, min, max, size, pageable)
+vm_map_t
+kmem_suballoc(parent, min, max, size, pageable)
 	register vm_map_t	parent;
 	vm_offset_t		*min, *max;
 	register vm_size_t	size;
@@ -381,7 +384,8 @@ kmem_malloc(map, size, canwait)
  *	has no room, the caller sleeps waiting for more memory in the submap.
  *
  */
-vm_offset_t kmem_alloc_wait(map, size)
+vm_offset_t
+kmem_alloc_wait(map, size)
 	vm_map_t	map;
 	vm_size_t	size;
 {
@@ -402,7 +406,7 @@ vm_offset_t kmem_alloc_wait(map, size)
 			vm_map_unlock(map);
 			return (0);
 		}
-		assert_wait((int)map, TRUE);
+		assert_wait(map, TRUE);
 		vm_map_unlock(map);
 		thread_block();
 	}
@@ -417,14 +421,15 @@ vm_offset_t kmem_alloc_wait(map, size)
  *	Returns memory to a submap of the kernel, and wakes up any threads
  *	waiting for memory in that map.
  */
-void	kmem_free_wakeup(map, addr, size)
+void
+kmem_free_wakeup(map, addr, size)
 	vm_map_t	map;
 	vm_offset_t	addr;
 	vm_size_t	size;
 {
 	vm_map_lock(map);
 	(void) vm_map_delete(map, trunc_page(addr), round_page(addr + size));
-	thread_wakeup((int)map);
+	thread_wakeup(map);
 	vm_map_unlock(map);
 }
 
@@ -434,7 +439,8 @@ void	kmem_free_wakeup(map, addr, size)
  * map the range between VM_MIN_KERNEL_ADDRESS and `start' as allocated, and
  * the range between `start' and `end' as free.
  */
-void kmem_init(start, end)
+void
+kmem_init(start, end)
 	vm_offset_t start, end;
 {
 	register vm_map_t m;

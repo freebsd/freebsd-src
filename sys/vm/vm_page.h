@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)vm_page.h	8.2 (Berkeley) 12/13/93
+ *	@(#)vm_page.h	8.3 (Berkeley) 1/9/95
  *
  *
  * Copyright (c) 1987, 1990 Carnegie-Mellon University.
@@ -202,14 +202,14 @@ simple_lock_data_t	vm_page_queue_free_lock;
 
 #define PAGE_ASSERT_WAIT(m, interruptible)	{ \
 				(m)->flags |= PG_WANTED; \
-				assert_wait((int) (m), (interruptible)); \
+				assert_wait((m), (interruptible)); \
 			}
 
 #define PAGE_WAKEUP(m)	{ \
 				(m)->flags &= ~PG_BUSY; \
 				if ((m)->flags & PG_WANTED) { \
 					(m)->flags &= ~PG_WANTED; \
-					thread_wakeup((int) (m)); \
+					thread_wakeup((m)); \
 				} \
 			}
 

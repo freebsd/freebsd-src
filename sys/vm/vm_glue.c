@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)vm_glue.c	8.6 (Berkeley) 1/5/94
+ *	@(#)vm_glue.c	8.9 (Berkeley) 3/4/95
  *
  *
  * Copyright (c) 1987, 1990 Carnegie-Mellon University.
@@ -318,12 +318,13 @@ scheduler()
 loop:
 #ifdef DEBUG
 	while (!enableswap)
-		sleep((caddr_t)&proc0, PVM);
+		tsleep((caddr_t)&proc0, PVM, "noswap", 0);
 #endif
 	pp = NULL;
 	ppri = INT_MIN;
-	for (p = (struct proc *)allproc; p != NULL; p = p->p_next) {
+	for (p = allproc.lh_first; p != 0; p = p->p_list.le_next) {
 		if (p->p_stat == SRUN && (p->p_flag & P_INMEM) == 0) {
+			/* XXX should also penalize based on vm_swrss */
 			pri = p->p_swtime + p->p_slptime - p->p_nice * 8;
 			if (pri > ppri) {
 				pp = p;
@@ -333,13 +334,13 @@ loop:
 	}
 #ifdef DEBUG
 	if (swapdebug & SDB_FOLLOW)
-		printf("sched: running, procp %x pri %d\n", pp, ppri);
+		printf("scheduler: running, procp %x pri %d\n", pp, ppri);
 #endif
 	/*
 	 * Nothing to do, back to sleep
 	 */
 	if ((p = pp) == NULL) {
-		sleep((caddr_t)&proc0, PVM);
+		tsleep((caddr_t)&proc0, PVM, "scheduler", 0);
 		goto loop;
 	}
 
@@ -347,6 +348,7 @@ loop:
 	 * We would like to bring someone in.
 	 * This part is really bogus cuz we could deadlock on memory
 	 * despite our feeble check.
+	 * XXX should require at least vm_swrss / 2
 	 */
 	size = round_page(ctob(UPAGES));
 	addr = (vm_offset_t) p->p_addr;
@@ -378,7 +380,7 @@ loop:
 	 */
 #ifdef DEBUG
 	if (swapdebug & SDB_FOLLOW)
-		printf("sched: no room for pid %d(%s), free %d\n",
+		printf("scheduler: no room for pid %d(%s), free %d\n",
 		       p->p_pid, p->p_comm, cnt.v_free_count);
 #endif
 	(void) splhigh();
@@ -386,7 +388,7 @@ loop:
 	(void) spl0();
 #ifdef DEBUG
 	if (swapdebug & SDB_FOLLOW)
-		printf("sched: room again, free %d\n", cnt.v_free_count);
+		printf("scheduler: room again, free %d\n", cnt.v_free_count);
 #endif
 	goto loop;
 }
@@ -418,7 +420,7 @@ swapout_threads()
 #endif
 	outp = outp2 = NULL;
 	outpri = outpri2 = 0;
-	for (p = (struct proc *)allproc; p != NULL; p = p->p_next) {
+	for (p = allproc.lh_first; p != 0; p = p->p_list.le_next) {
 		if (!swappable(p))
 			continue;
 		switch (p->p_stat) {
@@ -527,7 +529,7 @@ swapout(p)
 
 void
 assert_wait(event, ruptible)
-	int event;
+	void *event;
 	boolean_t ruptible;
 {
 #ifdef lint
@@ -542,35 +544,35 @@ thread_block()
 	int s = splhigh();
 
 	if (curproc->p_thread)
-		sleep((caddr_t)curproc->p_thread, PVM);
+		tsleep(curproc->p_thread, PVM, "thrd_block", 0);
 	splx(s);
 }
 
 void
 thread_sleep(event, lock, ruptible)
-	int event;
+	void *event;
 	simple_lock_t lock;
 	boolean_t ruptible;
 {
+	int s = splhigh();
+
 #ifdef lint
 	ruptible++;
 #endif
-	int s = splhigh();
-
 	curproc->p_thread = event;
 	simple_unlock(lock);
 	if (curproc->p_thread)
-		sleep((caddr_t)event, PVM);
+		tsleep(event, PVM, "thrd_sleep", 0);
 	splx(s);
 }
 
 void
 thread_wakeup(event)
-	int event;
+	void *event;
 {
 	int s = splhigh();
 
-	wakeup((caddr_t)event);
+	wakeup(event);
 	splx(s);
 }
 

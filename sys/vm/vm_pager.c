@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)vm_pager.c	8.6 (Berkeley) 1/12/94
+ *	@(#)vm_pager.c	8.7 (Berkeley) 7/7/94
  *
  *
  * Copyright (c) 1987, 1990 Carnegie-Mellon University.
@@ -207,6 +207,26 @@ vm_pager_put_pages(pager, mlist, npages, sync)
 	return ((*pager->pg_ops->pgo_putpages)(pager, mlist, npages, sync));
 }
 
+/* XXX compatibility*/
+int
+vm_pager_get(pager, m, sync)
+	vm_pager_t	pager;
+	vm_page_t	m;
+	boolean_t	sync;
+{
+	return vm_pager_get_pages(pager, &m, 1, sync);
+}
+
+/* XXX compatibility*/
+int
+vm_pager_put(pager, m, sync)
+	vm_pager_t	pager;
+	vm_page_t	m;
+	boolean_t	sync;
+{
+	return vm_pager_put_pages(pager, &m, 1, sync);
+}
+
 boolean_t
 vm_pager_has_page(pager, offset)
 	vm_pager_t	pager;
@@ -240,7 +260,7 @@ vm_pager_cluster(pager, offset, loff, hoff)
 {
 	if (pager == NULL)
 		panic("vm_pager_cluster: null pager");
-	return ((*pager->pg_ops->pgo_cluster)(pager, offset, loff, hoff));
+	((*pager->pg_ops->pgo_cluster)(pager, offset, loff, hoff));
 }
 
 void

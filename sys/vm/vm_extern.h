@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)vm_extern.h	8.2 (Berkeley) 1/12/94
+ *	@(#)vm_extern.h	8.5 (Berkeley) 5/3/95
  */
 
 struct buf;
@@ -47,7 +47,7 @@ void		 chgkprot __P((caddr_t, int, int));
 
 #ifdef KERNEL
 #ifdef TYPEDEF_FOR_UAP
-int		 getpagesize __P((struct proc *p, void *, int *));
+int		 compat_43_getpagesize __P((struct proc *p, void *, int *));
 int		 madvise __P((struct proc *, void *, int *));
 int		 mincore __P((struct proc *, void *, int *));
 int		 mprotect __P((struct proc *, void *, int *));
@@ -59,12 +59,10 @@ int		 smmap __P((struct proc *, void *, int *));
 int		 sstk __P((struct proc *, void *, int *));
 #endif
 
-void		 assert_wait __P((int, boolean_t));
-int		 grow __P((struct proc *, u_int));
+void		 assert_wait __P((void *, boolean_t));
+int		 grow __P((struct proc *, vm_offset_t));
 void		 iprintf __P((const char *, ...));
 int		 kernacc __P((caddr_t, int, int));
-int		 kinfo_loadavg __P((int, char *, int *, int, int *));
-int		 kinfo_meter __P((int, caddr_t, int *, int, int *));
 vm_offset_t	 kmem_alloc __P((vm_map_t, vm_size_t));
 vm_offset_t	 kmem_alloc_pageable __P((vm_map_t, vm_size_t));
 vm_offset_t	 kmem_alloc_wait __P((vm_map_t, vm_size_t));
@@ -75,7 +73,7 @@ vm_offset_t	 kmem_malloc __P((vm_map_t, vm_size_t, boolean_t));
 vm_map_t	 kmem_suballoc __P((vm_map_t, vm_offset_t *, vm_offset_t *,
 		    vm_size_t, boolean_t));
 void		 loadav __P((struct loadavg *));
-void		 munmapfd __P((int));
+void		 munmapfd __P((struct proc *, int));
 int		 pager_cache __P((vm_object_t, boolean_t));
 void		 sched __P((void));
 int		 svm_allocate __P((struct proc *, void *, int *));
@@ -89,8 +87,8 @@ void		 swapout_threads __P((void));
 int		 swfree __P((struct proc *, int));
 void		 swstrategy __P((struct buf *));
 void		 thread_block __P((void));
-void		 thread_sleep __P((int, simple_lock_t, boolean_t));
-void		 thread_wakeup __P((int));
+void		 thread_sleep __P((void *, simple_lock_t, boolean_t));
+void		 thread_wakeup __P((void *));
 int		 useracc __P((caddr_t, int, int));
 int		 vm_allocate __P((vm_map_t,
 		    vm_offset_t *, vm_size_t, boolean_t));
@@ -112,6 +110,8 @@ int		 vm_mmap __P((vm_map_t, vm_offset_t *, vm_size_t,
 int		 vm_protect __P((vm_map_t,
 		    vm_offset_t, vm_size_t, boolean_t, vm_prot_t));
 void		 vm_set_page_size __P((void));
+int		 vm_sysctl __P((int *, u_int, void *, size_t *, void *,
+		    size_t, struct proc *));
 void		 vmmeter __P((void));
 struct vmspace	*vmspace_alloc __P((vm_offset_t, vm_offset_t, int));
 struct vmspace	*vmspace_fork __P((struct vmspace *));
