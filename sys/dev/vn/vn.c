@@ -37,7 +37,8 @@
  *
  * from: Utah Hdr: vn.c 1.13 94/04/02
  *
- *	@(#)vn.c	8.6 (Berkeley) 4/1/94
+ *	from: @(#)vn.c	8.6 (Berkeley) 4/1/94
+ *	$Id$
  */
 
 /*
@@ -624,7 +625,6 @@ vn_drvinit(void *unused)
 	dev_t dev;
 #ifdef DEVFS
 	int mynor;
-	char name[32];
 	int unit;
 	struct vn_softc *vn;
 #endif
