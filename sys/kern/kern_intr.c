@@ -556,6 +556,9 @@ restart:
 				 * on some machines, but we don't
 				 * want to always delay, so only delay
 				 * while warming up.
+				 *
+				 * XXXRW: Calling DELAY() in the interrupt
+				 * path surely needs to be revisited.
 				 */
 				if (warming != 0) {
 					DELAY(1);
