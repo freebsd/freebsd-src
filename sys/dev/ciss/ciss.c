@@ -261,6 +261,23 @@ static struct
     { 0x0e11, 0x409B, CISS_BOARD_SA5,	"HP Smart Array 642" },
     { 0x0e11, 0x409C, CISS_BOARD_SA5,	"HP Smart Array 6400" },
     { 0x0e11, 0x409D, CISS_BOARD_SA5,	"HP Smart Array 6400 EM" },
+    { 0x0e11, 0x409E, CISS_BOARD_SA5,	"HP Smart Array 6422" },
+    { 0x103C, 0x3210, CISS_BOARD_SA5,	"HP Smart Array V100" },
+    { 0x103C, 0x3220, CISS_BOARD_SA5,	"HP Smart Array" },
+    { 0x103C, 0x3222, CISS_BOARD_SA5,	"HP Smart Array" },
+    { 0x103C, 0x3230, CISS_BOARD_SA5,	"HP Smart Array" },
+    { 0x103C, 0x3231, CISS_BOARD_SA5,	"HP Smart Array" },
+    { 0x103C, 0x3232, CISS_BOARD_SA5,	"HP Smart Array" },
+    { 0x103C, 0x3233, CISS_BOARD_SA5,	"HP Smart Array" },
+    { 0x103C, 0x3234, CISS_BOARD_SA5,	"HP Smart Array" },
+    { 0x103C, 0x3235, CISS_BOARD_SA5,	"HP Smart Array" },
+    { 0x103C, 0x3236, CISS_BOARD_SA5,	"HP Smart Array" },
+    { 0x103C, 0x3237, CISS_BOARD_SA5,	"HP Smart Array" },
+    { 0x103C, 0x3238, CISS_BOARD_SA5,	"HP Smart Array" },
+    { 0x103C, 0x3239, CISS_BOARD_SA5,	"HP Smart Array" },
+    { 0x103C, 0x323A, CISS_BOARD_SA5,	"HP Smart Array" },
+    { 0x103C, 0x323B, CISS_BOARD_SA5,	"HP Smart Array" },
+    { 0x103C, 0x323C, CISS_BOARD_SA5,	"HP Smart Array" },
     { 0, 0, 0, NULL }
 };
 
