@@ -33,7 +33,7 @@ If a hard-wired connection to another FreeBSD (2.0R or later) machine
 is available, you might also consider installing over a "laplink"
 parallel port cable.  The data rate over the parallel port is much
 higher than what is typically possible over a serial line, and speeds
-of up to 50KB/sec are not uncommon.
+of over 50KB/sec are not uncommon.
 
 Finally, for the fastest possible network installation, an Ethernet
 adaptor is always a good choice!  FreeBSD supports most common PC

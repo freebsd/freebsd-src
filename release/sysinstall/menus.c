@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: menus.c,v 1.89.2.68 1998/03/15 17:10:53 jkh Exp $
+ * $Id: menus.c,v 1.89.2.69 1998/03/15 19:31:11 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -879,7 +879,7 @@ DMenu MenuXF86SelectCore = {
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_PROG },
       { "set",		"XFree86 Setup Utility",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_SET },
-      { "9set",		"XFree86 Setup Utility (PC98)",
+      { "9set",		"XFree86 Setup Utility for PC98 machines",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_9SET },
       { "sources",	"XFree86 3.3.2 standard sources",
 	dmenuFlagCheck,	dmenuSetFlag, NULL, &XF86Dists, '[', 'X', ']', DIST_XF86_SRC },

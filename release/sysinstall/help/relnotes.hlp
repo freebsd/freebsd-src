@@ -1,5 +1,5 @@
                                  RELEASE NOTES
-                           FreeBSD 2.2-STABLE VERSION
+                          FreeBSD 2.2.6-RELEASE VERSION
 
 o For information about the layout of the release directory, see
   the ABOUT.TXT file.  If you are installing from floppies, it is
@@ -303,12 +303,12 @@ LAST resort!
 3.2. CDROM
 ----------
 
-FreeBSD 2.2-RELEASE and 3.0-SNAPSHOT CDs may be ordered on CDROM from:
+FreeBSD 2.2.x-RELEASE and 3.0-SNAPSHOT CDs may be ordered on CDROM from:
 
         Walnut Creek CDROM
-        4041 Pike Lane, Suite E
+        4041 Pike Lane, Suite F
         Concord CA  94520
-        1-800-786-9907, +1-510-674-0783, +1-510-674-0821 (fax)
+        1-800-786-9907, +1-925-674-0783, +1-925-674-0821 (fax)
 
 Or via the Internet from orders@cdrom.com or http://www.cdrom.com.
 Their current catalog can be obtained via ftp from:
@@ -388,6 +388,12 @@ will give you more information on joining the various lists, accessing
 archives, etc.  There are a number of mailing lists targeted at
 special interest groups not mentioned here, so send mail to majordomo
 and ask about them!
+
+It also goes almost without saying that proper etiquette and topic
+discipline is essential to making sure that the FreeBSD mailing lists
+continue to be viable forums for communication, and your cooperation
+is requested.  Please read the mailing list usage charters at
+http://www.freebsd.org/handbook/eresources.html
 
 
 5. Acknowledgements

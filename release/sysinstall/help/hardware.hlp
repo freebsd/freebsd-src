@@ -1,4 +1,4 @@
-Hardware Documentation Guide:  $Id: hardware.hlp,v 1.9.2.25 1998/03/06 07:19:40 jkh Exp $
+Hardware Documentation Guide:  $Id: hardware.hlp,v 1.9.2.26 1998/03/08 09:26:19 jkh Exp $
 
 Contents last changed:  Jan 14th, 1997
 
@@ -30,9 +30,7 @@ also used on the installation floppy diskette and DOS boot image.
 The table describes the various parameters used by the driver to
 communicate with the hardware in your system.  There are four
 parameters in the table, though not all are used by each and every
-device.
-
-Detail:
+device:
 
    Port   The starting I/O port used by the device, shown in hexadecimal.
 
@@ -48,7 +46,8 @@ Detail:
 If an entry in the table has `n/a' for a value then it means that the
 parameter in question does not apply to that device.  A value of `dyn'
 means that the correct value should be determined automatically by the
-kernel when the system boots.
+kernel when the system boots and that you don't need to worry about
+it.
 
 
 FreeBSD GENERIC kernel:

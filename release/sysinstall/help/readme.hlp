@@ -20,17 +20,16 @@ ABOUT.TXT file for more information.                    \       /       /\
                                                  `--{__________)
 					    
 
-
 ** Most files here are also in the Documentation Menu of the boot floppy **
 
 ROAD MAP:
 
-  README.TXT            This file.
   ABOUT.TXT             All about FreeBSD and the physical organization
                         of this distribution.
-  INSTALL.TXT           How to install FreeBSD on your PC using the files
-                        you'll find here.
+  INSTALL.TXT           How to install FreeBSD on your PC using the data
+                        you see here.
   HARDWARE.TXT          PC Hardware information & troubleshooting guide.
+  README.TXT            This file.
   RELNOTES.TXT          Release Notes - what's new & different in this
                         release.
 
