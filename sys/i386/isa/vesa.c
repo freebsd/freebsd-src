@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: vesa.c,v 1.25 1999/06/22 14:13:13 yokota Exp $
+ * $Id: vesa.c,v 1.26 1999/07/01 15:05:11 peter Exp $
  */
 
 #include "vga.h"
@@ -250,7 +250,7 @@ vesa_bios_get_mode(int mode, struct vesa_mode *vmode)
 	vm86_getptr(&vesa_vmcontext, (vm_offset_t)buf, &vmf.vmf_es, &vmf.vmf_di);
 
 	err = vm86_datacall(0x10, &vmf, &vesa_vmcontext);
-	if ((err != 0) || (vmf.vmf_eax != 0x4f))
+	if ((err != 0) || (vmf.vmf_ax != 0x4f))
 		return 1;
 	bcopy(buf, vmode, sizeof(*vmode));
 	return 0;
@@ -266,7 +266,7 @@ vesa_bios_set_mode(int mode)
 	vmf.vmf_eax = 0x4f02;
 	vmf.vmf_ebx = mode;
 	err = vm86_intcall(0x10, &vmf);
-	return ((err != 0) || (vmf.vmf_eax != 0x4f));
+	return ((err != 0) || (vmf.vmf_ax != 0x4f));
 }
 
 static int
@@ -279,7 +279,7 @@ vesa_bios_get_dac(void)
 	vmf.vmf_eax = 0x4f08;
 	vmf.vmf_ebx = 1;	/* get DAC width */
 	err = vm86_intcall(0x10, &vmf);
-	if ((err != 0) || (vmf.vmf_eax != 0x4f))
+	if ((err != 0) || (vmf.vmf_ax != 0x4f))
 		return 6;	/* XXX */
 	return ((vmf.vmf_ebx >> 8) & 0x00ff);
 }
@@ -294,7 +294,7 @@ vesa_bios_set_dac(int bits)
 	vmf.vmf_eax = 0x4f08;
 	vmf.vmf_ebx = (bits << 8);
 	err = vm86_intcall(0x10, &vmf);
-	if ((err != 0) || (vmf.vmf_eax != 0x4f))
+	if ((err != 0) || (vmf.vmf_ax != 0x4f))
 		return 6;	/* XXX */
 	return ((vmf.vmf_ebx >> 8) & 0x00ff);
 }
@@ -316,7 +316,7 @@ vesa_bios_save_palette(int start, int colors, u_char *palette, int bits)
 	vm86_getptr(&vesa_vmcontext, (vm_offset_t)p, &vmf.vmf_es, &vmf.vmf_di);
 
 	err = vm86_datacall(0x10, &vmf, &vesa_vmcontext);
-	if ((err != 0) || (vmf.vmf_eax != 0x4f))
+	if ((err != 0) || (vmf.vmf_ax != 0x4f))
 		return 1;
 
 	bits = 8 - bits;
@@ -346,7 +346,7 @@ vesa_bios_save_palette2(int start, int colors, u_char *r, u_char *g, u_char *b,
 	vm86_getptr(&vesa_vmcontext, (vm_offset_t)p, &vmf.vmf_es, &vmf.vmf_di);
 
 	err = vm86_datacall(0x10, &vmf, &vesa_vmcontext);
-	if ((err != 0) || (vmf.vmf_eax != 0x4f))
+	if ((err != 0) || (vmf.vmf_ax != 0x4f))
 		return 1;
 
 	bits = 8 - bits;
@@ -383,7 +383,7 @@ vesa_bios_load_palette(int start, int colors, u_char *palette, int bits)
 	vm86_getptr(&vesa_vmcontext, (vm_offset_t)p, &vmf.vmf_es, &vmf.vmf_di);
 
 	err = vm86_datacall(0x10, &vmf, &vesa_vmcontext);
-	return ((err != 0) || (vmf.vmf_eax != 0x4f));
+	return ((err != 0) || (vmf.vmf_ax != 0x4f));
 }
 
 #ifdef notyet
@@ -413,7 +413,7 @@ vesa_bios_load_palette2(int start, int colors, u_char *r, u_char *g, u_char *b,
 	vm86_getptr(&vesa_vmcontext, (vm_offset_t)p, &vmf.vmf_es, &vmf.vmf_di);
 
 	err = vm86_datacall(0x10, &vmf, &vesa_vmcontext);
-	return ((err != 0) || (vmf.vmf_eax != 0x4f));
+	return ((err != 0) || (vmf.vmf_ax != 0x4f));
 }
 #endif
 
@@ -428,9 +428,9 @@ vesa_bios_state_buf_size(void)
 	vmf.vmf_ecx = STATE_MOST;
 	vmf.vmf_edx = STATE_SIZE;
 	err = vm86_intcall(0x10, &vmf);
-	if ((err != 0) || (vmf.vmf_eax != 0x4f))
+	if ((err != 0) || (vmf.vmf_ax != 0x4f))
 		return 0;
-	return vmf.vmf_ebx*64;
+	return vmf.vmf_bx*64;
 }
 
 static int
@@ -449,7 +449,7 @@ vesa_bios_save_restore(int code, void *p, size_t size)
 	bcopy(p, buf, size);
 
 	err = vm86_datacall(0x10, &vmf, &vesa_vmcontext);
-	return ((err != 0) || (vmf.vmf_eax != 0x4f));
+	return ((err != 0) || (vmf.vmf_ax != 0x4f));
 }
 
 static int
@@ -462,7 +462,7 @@ vesa_bios_get_line_length(void)
 	vmf.vmf_eax = 0x4f06; 
 	vmf.vmf_ebx = 1;	/* get scan line length */
 	err = vm86_intcall(0x10, &vmf);
-	if ((err != 0) || (vmf.vmf_eax != 0x4f))
+	if ((err != 0) || (vmf.vmf_ax != 0x4f))
 		return -1;
 	return vmf.vmf_bx;	/* line length in bytes */
 }
@@ -481,7 +481,7 @@ vesa_bios_set_line_length(int pixel)
 #if VESA_DEBUG > 1
 	printf("bx:%d, cx:%d, dx:%d\n", vmf.vmf_bx, vmf.vmf_cx, vmf.vmf_dx); 
 #endif
-	return ((err != 0) || (vmf.vmf_eax != 0x4f));
+	return ((err != 0) || (vmf.vmf_ax != 0x4f));
 }
 
 #if 0
@@ -495,7 +495,7 @@ vesa_bios_get_start(int *x, int *y)
 	vmf.vmf_eax = 0x4f07; 
 	vmf.vmf_ebx = 1;	/* get display start */
 	err = vm86_intcall(0x10, &vmf);
-	if ((err != 0) || (vmf.vmf_eax != 0x4f))
+	if ((err != 0) || (vmf.vmf_ax != 0x4f))
 		return 1;
 	*x = vmf.vmf_cx;
 	*y = vmf.vmf_dx;
@@ -515,7 +515,7 @@ vesa_bios_set_start(int x, int y)
 	vmf.vmf_edx = y;
 	vmf.vmf_ecx = x;
 	err = vm86_intcall(0x10, &vmf);
-	return ((err != 0) || (vmf.vmf_eax != 0x4f));
+	return ((err != 0) || (vmf.vmf_ax != 0x4f));
 }
 
 /* map a generic video mode to a known mode */
@@ -625,7 +625,7 @@ vesa_bios_init(void)
 	vm86_getptr(&vesa_vmcontext, (vm_offset_t)vmbuf, &vmf.vmf_es, &vmf.vmf_di);
 
 	err = vm86_datacall(0x10, &vmf, &vesa_vmcontext);
-	if ((err != 0) || (vmf.vmf_eax != 0x4f) || bcmp("VESA", vmbuf, 4))
+	if ((err != 0) || (vmf.vmf_ax != 0x4f) || bcmp("VESA", vmbuf, 4))
 		return 1;
 	bcopy(vmbuf, buf, sizeof(buf));
 	vesa_adp_info = (struct vesa_info *)buf;
@@ -690,7 +690,7 @@ vesa_bios_init(void)
 				   M_DEVBUF, M_WAITOK);
 #if VESA_DEBUG > 1
 			printf("vesa_bios_init(): modes:%d, vesa_mode_max:%d\n",
-			       modes, vesa_mode_max);
+			       modes, vesa_vmode_max);
 #endif
 			if (modes > 0) {
 				bcopy(vesa_vmode, p, sizeof(*vesa_vmode)*modes);
@@ -1192,7 +1192,7 @@ vesa_get_origin(video_adapter_t *adp, off_t *offset)
 	vmf.vmf_eax = 0x4f05; 
 	vmf.vmf_ebx = 0x10;		/* WINDOW_A, XXX */
 	err = vm86_intcall(0x10, &vmf); 
-	if ((err != 0) || (vmf.vmf_eax != 0x4f))
+	if ((err != 0) || (vmf.vmf_ax != 0x4f))
 		return 1;
 	*offset = vmf.vmf_dx*adp->va_window_gran;
 	return 0;
@@ -1226,7 +1226,7 @@ vesa_set_origin(video_adapter_t *adp, off_t offset)
 	vmf.vmf_ebx = 0;		/* WINDOW_A, XXX */
 	vmf.vmf_edx = offset/adp->va_window_gran;
 	err = vm86_intcall(0x10, &vmf); 
-	if ((err != 0) || (vmf.vmf_eax != 0x4f))
+	if ((err != 0) || (vmf.vmf_ax != 0x4f))
 		return 1;
 	bzero(&vmf, sizeof(vmf));
 	vmf.vmf_eax = 0x4f05; 
