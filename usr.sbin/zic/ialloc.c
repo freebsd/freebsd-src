@@ -1,12 +1,12 @@
 #ifndef lint
 #ifndef NOID
-static char	elsieid[] = "@(#)ialloc.c	8.28";
+static char	elsieid[] = "@(#)ialloc.c	8.29";
 #endif /* !defined NOID */
 #endif /* !defined lint */
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: ialloc.c,v 1.4 1999/01/21 17:12:49 wollman Exp $";
 #endif /* not lint */
 
 /*LINTLIBRARY*/
@@ -14,13 +14,6 @@ static const char rcsid[] =
 #include "private.h"
 
 #define nonzero(n)	(((n) == 0) ? 1 : (n))
-
-char *	icalloc P((int nelem, int elsize));
-char *	icatalloc P((char * old, const char * new));
-char *	icpyalloc P((const char * string));
-char *	imalloc P((int n));
-void *	irealloc P((void * pointer, int size));
-void	ifree P((char * pointer));
 
 char *
 imalloc(n)
