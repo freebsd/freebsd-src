@@ -104,7 +104,7 @@ struct sigcontext {
 	long	sc_fpformat;
 	long	sc_ownedfp;
 	long	sc_spare1[1];
-	long	sc_fpstate[128] __aligned(16);
+	long	sc_fpstate[64] __aligned(16);
 	long	sc_spare2[8];
 };
 #endif /* __BSD_VISIBLE */
