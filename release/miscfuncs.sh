@@ -10,7 +10,7 @@
 # putting your name on top after doing something trivial like reindenting
 # it, just to make it look like you wrote it!).
 #
-# $Id: miscfuncs.sh,v 1.3 1994/11/18 11:01:27 jkh Exp $
+# $Id: miscfuncs.sh,v 1.4 1994/11/18 12:54:45 jkh Exp $
 
 if [ "$_MISCFUNCS_SH_LOADED_" = "yes" ]; then
 	return 0
@@ -66,25 +66,25 @@ handle_rval()
 # A simple user-confirmation dialog.
 confirm()
 {
-	dialog --title "User Confirmation" --msgbox "$*" -1 -1
+	dialog $clear --title "User Confirmation" --msgbox "$*" -1 -1
 }
 
 # A simple message box dialog.
 message()
 {
-	dialog --title "Progress" --infobox "$*" -1 -1
+	dialog $clear --title "Progress" --infobox "$*" -1 -1
 }
 
 # A simple error dialog.
 error()
 {
-	dialog --title "Error!" --msgbox "$*" -1 -1
+	dialog $clear --title "Error!" --msgbox "$*" -1 -1
 }
 
 # Something isn't supported yet! :-(
 not_supported()
 {
-	dialog --title "Sorry!" \
+	dialog $clear --title "Sorry!" \
 	--msgbox "This feature is not supported in the current version of the \
 installation tools.  Barring some sort of fatal accident, we do \
 expect it to be in the release.  Please press RETURN to go on." -1 -1
@@ -93,7 +93,8 @@ expect it to be in the release.  Please press RETURN to go on." -1 -1
 # Get a string from the user
 input()
 {
-	dialog --title "$title" $clear \
+	title=${title-"User Input Required"}
+	dialog $clear --title "$title" \
 	--inputbox "$*" -1 -1 "$default_value" 2> ${TMP}/inputbox.tmp.$$
 	if ! handle_rval $?; then rm -f ${TMP}/inputbox.tmp.$$; return 1; fi
 	answer=`cat ${TMP}/inputbox.tmp.$$`
