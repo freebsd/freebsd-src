@@ -60,20 +60,9 @@ options 	DFLDSIZ="(256*1024*1024)"
 # BLKDEV_IOSIZE sets the default block size used in user block
 # device I/O.  Note that this value will be overriden by the label
 # when specifying a block device from a label with a non-0 
-# partition blocksize
-#
-# DFLTPHYS is the default maximum physical I/O transaction size
-# and is used mostly by the clustering code.  It must be a 
-# multiple of the system page size.
-#
-# MAXPHYS is the absolute maximum physical I/O transaction size.
-# It must be a multiple of the system page size.
-#
-# In general you should not modify either DFLTPHYS or MAXPHYS.
+# partition blocksize.  The default is PAGE_SIZE.
 #
 options		BLKDEV_IOSIZE=8192
-options		DFLTPHYS="(64*1024)"
-options		MAXPHYS="(128*1024)"
 
 # Options for the VM subsystem
 #options 	PQ_NOOPT		# No coloring
