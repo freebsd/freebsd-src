@@ -27,7 +27,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_fxp.c,v 1.56 1998/10/10 19:26:40 dg Exp $
+ *	$Id: if_fxp.c,v 1.57 1998/10/11 06:28:54 dg Exp $
  */
 
 /*
@@ -1072,6 +1072,7 @@ fxp_stats_update(arg)
 	struct fxp_softc *sc = arg;
 	struct ifnet *ifp = &sc->sc_if;
 	struct fxp_stats *sp = sc->fxp_stats;
+	struct fxp_cb_tx *txp;
 	int s;
 
 	ifp->if_opackets += sp->tx_good;
@@ -1080,6 +1081,9 @@ fxp_stats_update(arg)
 		ifp->if_ipackets += sp->rx_good;
 		sc->rx_idle_secs = 0;
 	} else {
+		/*
+		 * Receiver's been idle for another second.
+		 */
 		sc->rx_idle_secs++;
 	}
 	ifp->if_ierrors +=
@@ -1097,6 +1101,23 @@ fxp_stats_update(arg)
 			tx_threshold += 64;
 	}
 	s = splimp();
+	/*
+	 * Release any xmit buffers that have completed DMA. This isn't
+	 * strictly necessary to do here, but it's advantagous for mbufs
+	 * with external storage to be released in a timely manner rather
+	 * than being defered for a potentially long time. This limits
+	 * the delay to a maximum of one second.
+	 */ 
+	for (txp = sc->cbl_first; sc->tx_queued &&
+	    (txp->cb_status & FXP_CB_STATUS_C) != 0;
+	    txp = txp->next) {
+		if (txp->mb_head != NULL) {
+			m_freem(txp->mb_head);
+			txp->mb_head = NULL;
+		}
+		sc->tx_queued--;
+	}
+	sc->cbl_first = txp;
 	/*
 	 * If we haven't received any packets in FXP_MAC_RX_IDLE seconds,
 	 * then assume the receiver has locked up and attempt to clear
