@@ -1233,9 +1233,6 @@ acpi_probe_order(ACPI_HANDLE handle, int *order)
 	ret = 1;
     }
 
-    /* Always probe/attach immediately if we're debugging. */
-    ACPI_DEBUG_EXEC(ret = 1);
-
     return (ret);
 }
 
