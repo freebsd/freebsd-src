@@ -927,7 +927,7 @@ dainit(void)
 
 		/* Register our shutdown event handler */
 		if ((EVENTHANDLER_REGISTER(shutdown_post_sync, dashutdown, 
-					   NULL, SHUTDOWN_PRI_DEFAULT)) == NULL)
+					   NULL, SHUTDOWN_PRI_FIRST)) == NULL)
 		    printf("dainit: shutdown event registration failed!\n");
 	}
 }
