@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 1999 The NetBSD Foundation, Inc.
- * Copyright (c) 2001 Thomas Moestl <tmm@FreeBSD.org>.
+ * Copyright (c) 2001-2003 Thomas Moestl <tmm@FreeBSD.org>.
  * All rights reserved.
  *
  * This code is derived from software contributed to The NetBSD Foundation
@@ -105,15 +105,17 @@ static void	hme_setladrf(struct hme_softc *, int);
 static int	hme_mediachange(struct ifnet *);
 static void	hme_mediastatus(struct ifnet *, struct ifmediareq *);
 
-static int	hme_load_mbuf(struct hme_softc *, struct mbuf *);
+static int	hme_load_txmbuf(struct hme_softc *, struct mbuf *);
 static void	hme_read(struct hme_softc *, int, int);
 static void	hme_eint(struct hme_softc *, u_int);
 static void	hme_rint(struct hme_softc *);
 static void	hme_tint(struct hme_softc *);
 
 static void	hme_cdma_callback(void *, bus_dma_segment_t *, int, int);
-static void	hme_rxdma_callback(void *, bus_dma_segment_t *, int, int);
-static void	hme_txdma_callback(void *, bus_dma_segment_t *, int, int);
+static void	hme_rxdma_callback(void *, bus_dma_segment_t *, int,
+    bus_size_t, int);
+static void	hme_txdma_callback(void *, bus_dma_segment_t *, int,
+    bus_size_t, int);
 
 devclass_t hme_devclass;
 
@@ -252,9 +254,8 @@ hme_config(struct hme_softc *sc)
 	if (error != 0)
 		goto fail_rxdesc;
 	/* Same for the TX descs. */
-	for (tdesc = 0; tdesc < HME_NTXDESC; tdesc++) {
+	for (tdesc = 0; tdesc < HME_NTXQ; tdesc++) {
 		sc->sc_rb.rb_txdesc[tdesc].htx_m = NULL;
-		sc->sc_rb.rb_txdesc[tdesc].htx_flags = 0;
 		error = bus_dmamap_create(sc->sc_tdmatag, 0,
 		    &sc->sc_rb.rb_txdesc[tdesc].htx_dmamap);
 		if (error != 0)
@@ -277,7 +278,7 @@ hme_config(struct hme_softc *sc)
 	ifp->if_init = hme_init;
 	ifp->if_output = ether_output;
 	ifp->if_watchdog = hme_watchdog;
-	ifp->if_snd.ifq_maxlen = HME_NTXDESC;
+	ifp->if_snd.ifq_maxlen = HME_NTXQ;
 
 	hme_mifinit(sc);
 
@@ -401,12 +402,13 @@ hme_stop(struct hme_softc *sc)
 }
 
 static void
-hme_rxdma_callback(void *xsc, bus_dma_segment_t *segs, int nsegs, int error)
+hme_rxdma_callback(void *xsc, bus_dma_segment_t *segs, int nsegs,
+    bus_size_t totsize, int error)
 {
 	bus_addr_t *a = xsc;
 
-	/* XXX: A cluster should not contain more than one segment, correct? */
-	if (error != 0 || nsegs != 1)
+	KASSERT(nsegs == 1, ("hme_rxdma_callback: multiple segments!"));
+	if (error != 0)
 		return;
 	*a = segs[0].ds_addr;
 }
@@ -424,8 +426,7 @@ hme_discard_rxbuf(struct hme_softc *sc, int ix, int sync)
 	 * ownership back to the hardware.
 	 */
 	HME_XD_SETFLAGS(sc->sc_pci, sc->sc_rb.rb_rxd, ix, HME_XD_OWN |
-	    HME_XD_ENCODE_RSIZE(ulmin(HME_BUFSZ,
-	    sc->sc_rb.rb_rxdesc[ix].hrx_len)));
+	    HME_XD_ENCODE_RSIZE(HME_DESC_RXLEN(sc, &sc->sc_rb.rb_rxdesc[ix])));
 	if (sync) {
 		bus_dmamap_sync(sc->sc_cdmatag, sc->sc_cdmamap,
 		    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
@@ -438,10 +439,9 @@ hme_add_rxbuf(struct hme_softc *sc, unsigned int ri, int keepold)
 	struct hme_rxdesc *rd;
 	struct mbuf *m;
 	bus_addr_t ba;
-	bus_size_t len, offs;
 	bus_dmamap_t map;
+	uintptr_t b;
 	int a, unmap;
-	char *b;
 
 	rd = &sc->sc_rb.rb_rxdesc[ri];
 	unmap = rd->hrx_m != NULL;
@@ -453,33 +453,29 @@ hme_add_rxbuf(struct hme_softc *sc, unsigned int ri, int keepold)
 		hme_discard_rxbuf(sc, ri, 0);
 		return (0);
 	}
-	if ((m = m_gethdr(M_DONTWAIT, MT_DATA)) == NULL)
+	if ((m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR)) == NULL)
 		return (ENOBUFS);
-	m_clget(m, M_DONTWAIT);
-	if ((m->m_flags & M_EXT) == 0)
-		goto fail_mcl;
-	len = m->m_ext.ext_size;
-	b = mtod(m, char *);
+	m->m_len = m->m_pkthdr.len = m->m_ext.ext_size;
+	b = mtod(m, uintptr_t);
 	/*
 	 * Required alignment boundary. At least 16 is needed, but since
 	 * the mapping must be done in a way that a burst can start on a
 	 * natural boundary we might need to extend this.
 	 */
-	a = max(0x10, sc->sc_burst);
+	a = max(HME_MINRXALIGN, sc->sc_burst);
 	/*
-	 * Make sure the buffer suitably aligned: we need an offset of
-	 * 2 modulo a. XXX: this ensures at least 16 byte alignment of the
-	 * header adjacent to the ethernet header,  which should be sufficient
-	 * in all cases. Nevertheless, this second-guesses ALIGN().
+	 * Make sure the buffer suitably aligned. The 2 byte offset is removed
+	 * when the mbuf is handed up. XXX: this ensures at least 16 byte
+	 * alignment of the header adjacent to the ethernet header, which
+	 * should be sufficient in all cases. Nevertheless, this second-guesses
+	 * ALIGN().
 	 */
-	offs = (a - (((uintptr_t)b - 2) & (a - 1))) % a;
-	len -= offs;
-	/* Align the buffer on the boundary for mapping. */
-	b += offs - 2;
-	ba = 0;
-	if (bus_dmamap_load(sc->sc_rdmatag, sc->sc_rb.rb_spare_dmamap,
-	    b, len + 2, hme_rxdma_callback, &ba, 0) != 0 || ba == 0)
-		goto fail_mcl;
+	m_adj(m, roundup2(b, a) - b);
+	if (bus_dmamap_load_mbuf(sc->sc_rdmatag, sc->sc_rb.rb_spare_dmamap,
+	    m, hme_rxdma_callback, &ba, 0) != 0) {
+		m_freem(m);
+		return (ENOBUFS);
+	}
 	if (unmap) {
 		bus_dmamap_sync(sc->sc_rdmatag, rd->hrx_dmamap,
 		    BUS_DMASYNC_POSTREAD);
@@ -488,19 +484,12 @@ hme_add_rxbuf(struct hme_softc *sc, unsigned int ri, int keepold)
 	map = rd->hrx_dmamap;
 	rd->hrx_dmamap = sc->sc_rb.rb_spare_dmamap;
 	sc->sc_rb.rb_spare_dmamap = map;
-	rd->hrx_offs = offs;
-	rd->hrx_len = len - sc->sc_burst;
 	bus_dmamap_sync(sc->sc_rdmatag, rd->hrx_dmamap, BUS_DMASYNC_PREREAD);
 	HME_XD_SETADDR(sc->sc_pci, sc->sc_rb.rb_rxd, ri, ba);
-	/* Lazily leave at least one burst size grace space. */
-	HME_XD_SETFLAGS(sc->sc_pci, sc->sc_rb.rb_rxd, ri, HME_XD_OWN |
-	    HME_XD_ENCODE_RSIZE(ulmin(HME_BUFSZ, rd->hrx_len)));
 	rd->hrx_m = m;
+	HME_XD_SETFLAGS(sc->sc_pci, sc->sc_rb.rb_rxd, ri, HME_XD_OWN |
+	    HME_XD_ENCODE_RSIZE(HME_DESC_RXLEN(sc, rd)));
 	return (0);
-
-fail_mcl:
-	m_freem(m);
-	return (ENOBUFS);
 }
 
 static int
@@ -542,16 +531,20 @@ hme_meminit(struct hme_softc *sc)
 	 * Initialize transmit buffer descriptors
 	 */
 	for (i = 0; i < HME_NTXDESC; i++) {
-		td = &sc->sc_rb.rb_txdesc[i];
 		HME_XD_SETADDR(sc->sc_pci, hr->rb_txd, i, 0);
 		HME_XD_SETFLAGS(sc->sc_pci, hr->rb_txd, i, 0);
+	}
+
+	STAILQ_INIT(&sc->sc_rb.rb_txfreeq);
+	STAILQ_INIT(&sc->sc_rb.rb_txbusyq);
+	for (i = 0; i < HME_NTXQ; i++) {
+		td = &sc->sc_rb.rb_txdesc[i];
 		if (td->htx_m != NULL) {
 			m_freem(td->htx_m);
+			bus_dmamap_unload(sc->sc_tdmatag, td->htx_dmamap);
 			td->htx_m = NULL;
 		}
-		if ((td->htx_flags & HTXF_MAPPED) != 0)
-			bus_dmamap_unload(sc->sc_tdmatag, td->htx_dmamap);
-		td->htx_flags = 0;
+		STAILQ_INSERT_TAIL(&sc->sc_rb.rb_txfreeq, td, htx_q);
 	}
 
 	/*
@@ -629,10 +622,6 @@ hme_init(void *xsc)
 
 	/* Re-initialize the MIF */
 	hme_mifinit(sc);
-
-	/* Call MI reset function if any */
-	if (sc->sc_hwreset)
-		(*sc->sc_hwreset)(sc);
 
 #if 0
 	/* Mask all MIF interrupts, just in case */
@@ -735,9 +724,9 @@ hme_init(void *xsc)
 		break;
 	}
 
-	/* Enable DMA, fix RX first byte offset to 2. */
+	/* Enable DMA, fix RX first byte offset. */
 	v &= ~HME_ERX_CFG_FBO_MASK;
-	v |= HME_ERX_CFG_DMAENABLE | (2 << HME_ERX_CFG_FBO_SHIFT);
+	v |= HME_ERX_CFG_DMAENABLE | (HME_RXOFFS << HME_ERX_CFG_FBO_SHIFT);
 	CTR1(KTR_HME, "hme_init: programming ERX_CFG to %x", (u_int)v);
 	HME_ERX_WRITE_4(sc, HME_ERXI_CFG, v);
 
@@ -765,10 +754,6 @@ hme_init(void *xsc)
 
 	/* step 14. Issue Transmit Pending command */
 
-	/* Call MI initialization function if any */
-	if (sc->sc_hwinit)
-		(*sc->sc_hwinit)(sc);
-
 #ifdef HMEDEBUG
 	/* Debug: double-check. */
 	CTR4(KTR_HME, "hme_init: tx ring %#x, rsz %#x, rx ring %#x, "
@@ -795,85 +780,66 @@ hme_init(void *xsc)
 }
 
 struct hme_txdma_arg {
-	struct hme_softc *hta_sc;
-	struct mbuf *hta_m;
-	int hta_err;
-	int hta_flags;
-	int hta_offs;
-	int hta_pad;
+	struct hme_softc	*hta_sc;
+	struct hme_txdesc	*hta_htx;
+	int			hta_ndescs;
 };
 
-/* Values for hta_flags */
-#define	HTAF_SOP	1	/* Start of packet (first mbuf in chain) */
-#define	HTAF_EOP	2	/* Start of packet (last mbuf in chain) */
-
+/*
+ * XXX: this relies on the fact that segments returned by bus_dmamap_load_mbuf()
+ * are readable from the nearest burst boundary on (i.e. potentially before
+ * ds_addr) to the first boundary beyond the end. This is usually a safe
+ * assumption to make, but is not documented.
+ */
 static void
-hme_txdma_callback(void *xsc, bus_dma_segment_t *segs, int nsegs, int error)
+hme_txdma_callback(void *xsc, bus_dma_segment_t *segs, int nsegs,
+    bus_size_t totsz, int error)
 {
 	struct hme_txdma_arg *ta = xsc;
-	struct hme_txdesc *td;
-	bus_addr_t addr;
-	bus_size_t sz;
+	struct hme_txdesc *htx;
+	bus_size_t len = 0;
 	caddr_t txd;
-	u_int32_t flags;
-	int i, *tdhead, pci;
+	u_int32_t flags = 0;
+	int i, tdhead, pci;
 
-	ta->hta_err = error;
 	if (error != 0)
 		return;
 
-	tdhead = &ta->hta_sc->sc_rb.rb_tdhead;
+	tdhead = ta->hta_sc->sc_rb.rb_tdhead;
 	pci = ta->hta_sc->sc_pci;
 	txd = ta->hta_sc->sc_rb.rb_txd;
+	htx = ta->hta_htx;
+
+	if (ta->hta_sc->sc_rb.rb_td_nbusy + nsegs >= HME_NTXDESC) {
+		ta->hta_ndescs = -1;
+		return;
+	}
+	ta->hta_ndescs = nsegs;
+
 	for (i = 0; i < nsegs; i++) {
-		if (ta->hta_sc->sc_rb.rb_td_nbusy == HME_NTXDESC) {
-			ta->hta_err = -1;
-			return;
-		}
-		td = &ta->hta_sc->sc_rb.rb_txdesc[*tdhead];
-		addr = segs[i].ds_addr;
-		sz = segs[i].ds_len;
-		if (i == 0) {
-			/* Adjust the offsets. */
-			addr += ta->hta_offs;
-			sz -= ta->hta_offs;
-			td->htx_flags = HTXF_MAPPED;
-		} else
-			td->htx_flags = 0;
-		if (i == nsegs - 1) {
-			/* Subtract the pad. */
-			if (sz < ta->hta_pad) {
-				/*
-				 * Ooops. This should not have happened; it
-				 * means that we got a zero-size segment or
-				 * segment sizes were unnatural.
-				 */
-				device_printf(ta->hta_sc->sc_dev,
-				    "hme_txdma_callback: alignment glitch\n");
-				ta->hta_err = EINVAL;
-				return;
-			}
-			sz -= ta->hta_pad;
-			/* If sz is 0 now, this does not matter. */
-		}
+		if (segs[i].ds_len == 0)
+			continue;
+
 		/* Fill the ring entry. */
-		flags = HME_XD_ENCODE_TSIZE(sz);
-		if ((ta->hta_flags & HTAF_SOP) != 0 && i == 0)
+		flags = HME_XD_ENCODE_TSIZE(segs[i].ds_len);
+		if (len == 0)
 			flags |= HME_XD_SOP;
-		if ((ta->hta_flags & HTAF_EOP) != 0 && i == nsegs - 1) {
+		if (len + segs[i].ds_len == totsz)
 			flags |= HME_XD_EOP;
-			td->htx_m = ta->hta_m;
-		} else
-			td->htx_m = NULL;
 		CTR5(KTR_HME, "hme_txdma_callback: seg %d/%d, ri %d, "
-		    "flags %#x, addr %#x", i + 1, nsegs, *tdhead, (u_int)flags,
-		    (u_int)addr);
-		HME_XD_SETFLAGS(pci, txd, *tdhead, flags);
-		HME_XD_SETADDR(pci, txd, *tdhead, addr);
+		    "flags %#x, addr %#x", i + 1, nsegs, tdhead, (u_int)flags,
+		    (u_int)segs[i].ds_addr);
+		HME_XD_SETFLAGS(pci, txd, tdhead, flags);
+		HME_XD_SETADDR(pci, txd, tdhead, segs[i].ds_addr);
 
 		ta->hta_sc->sc_rb.rb_td_nbusy++;
-		*tdhead = ((*tdhead) + 1) % HME_NTXDESC;
+		htx->htx_lastdesc = tdhead;
+		tdhead = (tdhead + 1) % HME_NTXDESC;
+		len += segs[i].ds_len;
 	}
+	ta->hta_sc->sc_rb.rb_tdhead = tdhead;
+	KASSERT((flags & HME_XD_EOP) != 0,
+	    ("hme_txdma_callback: missed end of packet!"));
 }
 
 /*
@@ -883,67 +849,32 @@ hme_txdma_callback(void *xsc, bus_dma_segment_t *segs, int nsegs, int error)
  * the packet, or an errno otherwise.
  */
 static int
-hme_load_mbuf(struct hme_softc *sc, struct mbuf *m0)
+hme_load_txmbuf(struct hme_softc *sc, struct mbuf *m0)
 {
 	struct hme_txdma_arg cba;
-	struct mbuf *m = m0, *n;
 	struct hme_txdesc *td;
-	char *start;
-	int error, len, si, ri, totlen, sum;
+	int error, si, ri;
 	u_int32_t flags;
 
-	if ((m->m_flags & M_PKTHDR) == 0)
-		panic("hme_dmamap_load_mbuf: no packet header");
-	totlen = m->m_pkthdr.len;
-	sum = 0;
 	si = sc->sc_rb.rb_tdhead;
+	if ((td = STAILQ_FIRST(&sc->sc_rb.rb_txfreeq)) == NULL)
+		return (-1);
+	td->htx_m = m0;
 	cba.hta_sc = sc;
-	cba.hta_err = 0;
-	cba.hta_flags = HTAF_SOP;
-	cba.hta_m = m0;
-	for (; m != NULL && sum < totlen; m = n) {
-		if (sc->sc_rb.rb_td_nbusy == HME_NTXDESC) {
-			error = -1;
-			goto fail;
-		}
-		len = m->m_len;
-		n = m->m_next;
-		if (len == 0)
-			continue;
-		sum += len;
-		td = &sc->sc_rb.rb_txdesc[sc->sc_rb.rb_tdhead];
-		if (n == NULL || sum >= totlen)
-			cba.hta_flags |= HTAF_EOP;
-		/*
-		 * This is slightly evil: we must map the buffer in a way that
-		 * allows dma transfers to start on a natural burst boundary.
-		 * This is done by rounding down the mapping address, and
-		 * recording the required offset for the callback. With this,
-		 * we cannot cross a page boundary because the burst size
-		 * is a small power of two.
-		 */
-		cba.hta_offs = (sc->sc_burst -
-		    (mtod(m, uintptr_t) & (sc->sc_burst - 1))) % sc->sc_burst;
-		start = mtod(m, char *) - cba.hta_offs;
-		len += cba.hta_offs;
-		/*
-		 * Similarly, the end of the mapping should be on a natural
-		 * burst boundary. XXX: Let's hope that any segment ends
-		 * generated by the busdma code are also on such boundaries.
-		 */
-		cba.hta_pad = (sc->sc_burst - (((uintptr_t)start + len) &
-		    (sc->sc_burst - 1))) % sc->sc_burst;
-		len += cba.hta_pad;
-		/* Most of the work is done in the callback. */
-		if ((error = bus_dmamap_load(sc->sc_tdmatag, td->htx_dmamap,
-		    start, len, hme_txdma_callback, &cba, 0)) != 0 ||
-		    cba.hta_err != 0)
-			goto fail;
-		bus_dmamap_sync(sc->sc_tdmatag, td->htx_dmamap,
-		    BUS_DMASYNC_PREWRITE);
-
-		cba.hta_flags = 0;
+	cba.hta_htx = td;
+	if ((error = bus_dmamap_load_mbuf(sc->sc_tdmatag, td->htx_dmamap,
+	     m0, hme_txdma_callback, &cba, 0)) != 0)
+		goto fail;
+	if (cba.hta_ndescs == -1) {
+		error = -1;
+		goto fail;
 	}
+	bus_dmamap_sync(sc->sc_tdmatag, td->htx_dmamap,
+	    BUS_DMASYNC_PREWRITE);
+
+	STAILQ_REMOVE_HEAD(&sc->sc_rb.rb_txfreeq, htx_q);
+	STAILQ_INSERT_TAIL(&sc->sc_rb.rb_txbusyq, td, htx_q);
+
 	/* Turn descriptor ownership to the hme, back to forth. */
 	ri = sc->sc_rb.rb_tdhead;
 	CTR2(KTR_HME, "hme_load_mbuf: next desc is %d (%#x)",
@@ -964,19 +895,7 @@ hme_load_mbuf(struct hme_softc *sc, struct mbuf *m0)
 	HME_ETX_WRITE_4(sc, HME_ETXI_PENDING, HME_ETX_TP_DMAWAKEUP);
 	return (0);
 fail:
-	for (ri = si; ri != sc->sc_rb.rb_tdhead; ri = (ri + 1) % HME_NTXDESC) {
-		td = &sc->sc_rb.rb_txdesc[ri];
-		if ((td->htx_flags & HTXF_MAPPED) != 0)
-			bus_dmamap_unload(sc->sc_tdmatag, td->htx_dmamap);
-		td->htx_flags = 0;
-		td->htx_m = NULL;
-		sc->sc_rb.rb_td_nbusy--;
-		HME_XD_SETFLAGS(sc->sc_pci, sc->sc_rb.rb_txd, ri, 0);
-	}
-	sc->sc_rb.rb_tdhead = si;
-	error = cba.hta_err != 0 ? cba.hta_err : error;
-	if (error != -1)
-		device_printf(sc->sc_dev, "could not load mbuf: %d\n", error);
+	bus_dmamap_unload(sc->sc_tdmatag, td->htx_dmamap);
 	return (error);
 }
 
@@ -988,7 +907,6 @@ hme_read(struct hme_softc *sc, int ix, int len)
 {
 	struct ifnet *ifp = &sc->sc_arpcom.ac_if;
 	struct mbuf *m;
-	int offs;
 
 	if (len <= sizeof(struct ether_header) ||
 	    len > ETHERMTU + sizeof(struct ether_header)) {
@@ -1002,8 +920,7 @@ hme_read(struct hme_softc *sc, int ix, int len)
 	}
 
 	m = sc->sc_rb.rb_rxdesc[ix].hrx_m;
-	offs = sc->sc_rb.rb_rxdesc[ix].hrx_offs;
-	CTR2(KTR_HME, "hme_read: offs %d, len %d", offs, len);
+	CTR1(KTR_HME, "hme_read: len %d", len);
 
 	if (hme_add_rxbuf(sc, ix, 0) != 0) {
 		/*
@@ -1023,8 +940,8 @@ hme_read(struct hme_softc *sc, int ix, int len)
 	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 
 	m->m_pkthdr.rcvif = ifp;
-	m->m_pkthdr.len = m->m_len = len + offs;
-	m_adj(m, offs);
+	m->m_pkthdr.len = m->m_len = len + HME_RXOFFS;
+	m_adj(m, HME_RXOFFS);
 	/* Pass the packet up. */
 	(*ifp->if_input)(ifp, m);
 }
@@ -1045,11 +962,14 @@ hme_start(struct ifnet *ifp)
 		if (m == NULL)
 			break;
 
-		error = hme_load_mbuf(sc, m);
-		if (error != 0) {
+		error = hme_load_txmbuf(sc, m);
+		if (error == -1) {
 			ifp->if_flags |= IFF_OACTIVE;
 			IF_PREPEND(&ifp->if_snd, m);
 			break;
+		} else if (error > 0) {
+			printf("hme_start: error %d while loading mbuf\n",
+			    error);
 		} else {
 			enq = 1;
 			BPF_MTAP(ifp, m);
@@ -1070,7 +990,7 @@ static void
 hme_tint(struct hme_softc *sc)
 {
 	struct ifnet *ifp = &sc->sc_arpcom.ac_if;
-	struct hme_txdesc *td;
+	struct hme_txdesc *htx;
 	unsigned int ri, txflags;
 
 	/*
@@ -1090,6 +1010,7 @@ hme_tint(struct hme_softc *sc)
 	HME_MAC_WRITE_4(sc, HME_MACI_EXCNT, 0);
 	HME_MAC_WRITE_4(sc, HME_MACI_LTCNT, 0);
 
+	htx = STAILQ_FIRST(&sc->sc_rb.rb_txbusyq);
 	/* Fetch current position in the transmit ring */
 	for (ri = sc->sc_rb.rb_tdtail;; ri = (ri + 1) % HME_NTXDESC) {
 		if (sc->sc_rb.rb_td_nbusy <= 0) {
@@ -1103,14 +1024,7 @@ hme_tint(struct hme_softc *sc)
 		if ((txflags & HME_XD_OWN) != 0)
 			break;
 
-		td = &sc->sc_rb.rb_txdesc[ri];
-		CTR1(KTR_HME, "hme_tint: not owned, dflags %#x", td->htx_flags);
-		if ((td->htx_flags & HTXF_MAPPED) != 0) {
-			bus_dmamap_sync(sc->sc_tdmatag, td->htx_dmamap,
-			    BUS_DMASYNC_POSTWRITE);
-			bus_dmamap_unload(sc->sc_tdmatag, td->htx_dmamap);
-		}
-		td->htx_flags = 0;
+		CTR0(KTR_HME, "hme_tint: not owned");
 		--sc->sc_rb.rb_td_nbusy;
 		ifp->if_flags &= ~IFF_OACTIVE;
 
@@ -1118,9 +1032,19 @@ hme_tint(struct hme_softc *sc)
 		if ((txflags & HME_XD_EOP) == 0)
 			continue;
 
+		KASSERT(htx->htx_lastdesc == ri,
+		    ("hme_tint: ring indices skewed: %d != %d!",
+		     htx->htx_lastdesc, ri));
+		bus_dmamap_sync(sc->sc_tdmatag, htx->htx_dmamap,
+		    BUS_DMASYNC_POSTWRITE);
+		bus_dmamap_unload(sc->sc_tdmatag, htx->htx_dmamap);
+
 		ifp->if_opackets++;
-		m_freem(td->htx_m);
-		td->htx_m = NULL;
+		m_freem(htx->htx_m);
+		htx->htx_m = NULL;
+		STAILQ_REMOVE_HEAD(&sc->sc_rb.rb_txbusyq, htx_q);
+		STAILQ_INSERT_TAIL(&sc->sc_rb.rb_txfreeq, htx, htx_q);
+		htx = STAILQ_FIRST(&sc->sc_rb.rb_txbusyq);
 	}
 	/* Turn off watchdog */
 	if (sc->sc_rb.rb_td_nbusy == 0)
@@ -1393,7 +1317,6 @@ hme_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			 * Reset the interface to pick up changes in any other
 			 * flags that affect hardware registers.
 			 */
-			/*hme_stop(sc);*/
 			hme_init(sc);
 		}
 #ifdef HMEDEBUG
