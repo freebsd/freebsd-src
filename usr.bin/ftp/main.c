@@ -404,7 +404,7 @@ cmdscanner(top)
 
 			if ((buf = el_gets(el, &num)) == NULL || num == 0)
 				quit(0, 0);
-			if (line[--num] == '\n') {
+			if (buf[--num] == '\n') {
 				if (num == 0)
 					break;
 			} else if (num >= sizeof(line)) {
