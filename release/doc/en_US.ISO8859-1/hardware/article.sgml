@@ -640,10 +640,9 @@
 
     &hwlist.aue;
 
-    <para arch="i386,pc98,amd64">CATC USB-EL1210A-based USB Ethernet NICs (&man.cue.4; driver)</para>
+    &hwlist.cue;
 
-    <para arch="i386,pc98,amd64">Kawasaki LSI KU5KUSB101B-based USB Ethernet NICs
-    (&man.kue.4; driver)</para>
+    &hwlist.kue;
 
     &hwlist.axe;
 
