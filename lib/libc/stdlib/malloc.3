@@ -73,6 +73,12 @@ If
 .Fn malloc
 fails, a NULL pointer is returned.
 .Pp
+Note that
+.Fn malloc
+does
+.Em NOT
+normally initialize the returned memory to zero bytes.
+.Pp
 The
 .Fn calloc
 function allocates space for
@@ -85,7 +91,8 @@ The result is identical to calling
 .Fn malloc
 with an argument of
 .Dq "number * size" ,
-with the exception that the allocated memory is initialized to nul bytes.
+with the exception that the allocated memory is explicitly initialized
+to zero bytes.
 .Pp
 The
 .Fn realloc
@@ -310,7 +317,7 @@ options and symbols for debugger support.
 If the program starts to give unusual results, coredump or generally behave
 differently without emitting any of the messages listed in the next
 section, it is likely because it depends on the storage being filled with
-nul bytes.  Try running it with
+zero bytes.  Try running it with
 .Dq Z
 option set;
 if that improves the situation, this diagnosis has been confirmed.
