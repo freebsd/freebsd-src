@@ -73,11 +73,9 @@ ipatm_ifoutput(ifp, m, dst)
 	struct ipvcc	*ivp;
 	int	err = 0;
 
-#ifdef DIAGNOSTIC
 	if (ipatm_print) {
 		atm_pdu_print(m, "ipatm_ifoutput");
 	}
-#endif
 
 	/*
 	 * See if we've already got an appropriate VCC
@@ -212,4 +210,3 @@ ipatm_ifoutput(ifp, m, dst)
 done:
 	return (err);
 }
-

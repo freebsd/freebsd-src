@@ -39,6 +39,10 @@
 #include "opt_atm.h"
 #endif
 
+#include <sys/param.h>
+#include <sys/kernel.h>
+#include <sys/sysctl.h>
+
 #include <netatm/kern_include.h>
 
 #include <netatm/ipatm/ipatm.h>
@@ -54,7 +58,6 @@ __RCSID("@(#) $FreeBSD$");
  */
 int		ipatm_vccnt = 0;		
 int		ipatm_vcidle = IPATM_VCIDLE;		
-int		ipatm_print = 0;
 u_long		last_map_ipdst = 0;
 struct ipvcc*	last_map_ipvcc = NULL;
 
@@ -96,6 +99,17 @@ struct sp_info	ipatm_nifpool = {
 	52				/* si_maxallow */
 };
 
+/*
+ * net.harp.ip
+ */
+SYSCTL_NODE(_net_harp, OID_AUTO, ip, CTLFLAG_RW, 0, "IPv4 over ATM");
+
+/*
+ * net.harp.ip.ipatm_print
+ */
+int		ipatm_print = 0;
+SYSCTL_INT(_net_harp_ip, OID_AUTO, ipatm_print, CTLFLAG_RW,
+    &ipatm_print, 0, "dump IPv4-over-ATM packets");
 
 /*
  * Local functions

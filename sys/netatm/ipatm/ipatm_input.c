@@ -62,11 +62,9 @@ ipatm_cpcs_data(tok, m)
 {
 	struct ipvcc	*ivp = tok;
 
-#ifdef DIAGNOSTIC
 	if (ipatm_print) {
 		atm_pdu_print(m, "ipatm_input");
 	}
-#endif
 
 	/*
 	 * Handle input packet
@@ -114,11 +112,9 @@ ipatm_ipinput(inp, m)
 	int		space;
 #endif
 
-#ifdef DIAGNOSTIC
 	if (ipatm_print) {
 		atm_pdu_print(m, "ipatm_ipinput");
 	}
-#endif
 
 #if defined(BSD)
 #if BSD >= 199103

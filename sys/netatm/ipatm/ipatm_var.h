@@ -210,6 +210,10 @@ extern Atm_attributes	ipatm_aal5llc;
 extern Atm_attributes	ipatm_aal5null;
 extern Atm_attributes	ipatm_aal4null;
 
+#ifdef SYSCTL_DECL
+SYSCTL_DECL(_net_harp_ip);
+#endif
+
 #endif	/* ATM_KERNEL */
 
 #endif	/* _IPATM_IPATM_VAR_H */
