@@ -1216,7 +1216,7 @@ pmap_pinit(pmap)
 	 */
 	ptdpg = vm_page_grab(pmap->pm_pteobj, PTDPTDI,
 	    VM_ALLOC_NORMAL | VM_ALLOC_RETRY | VM_ALLOC_WIRED | VM_ALLOC_ZERO);
-	vm_page_flag_clear(ptdpg, PG_MAPPED | PG_BUSY); /* not usually mapped*/
+	vm_page_flag_clear(ptdpg, PG_BUSY);
 	ptdpg->valid = VM_PAGE_BITS_ALL;
 
 	pmap_qenter((vm_offset_t) pmap->pm_pdir, &ptdpg, 1);
@@ -1628,7 +1628,7 @@ pmap_remove_entry(pmap_t pmap, vm_page_t m, vm_offset_t va)
 		TAILQ_REMOVE(&m->md.pv_list, pv, pv_list);
 		m->md.pv_list_count--;
 		if (TAILQ_FIRST(&m->md.pv_list) == NULL)
-			vm_page_flag_clear(m, PG_MAPPED | PG_WRITEABLE);
+			vm_page_flag_clear(m, PG_WRITEABLE);
 
 		TAILQ_REMOVE(&pmap->pm_pvlist, pv, pv_plist);
 		free_pv_entry(pv);
@@ -1892,7 +1892,7 @@ pmap_remove_all(vm_page_t m)
 		free_pv_entry(pv);
 	}
 
-	vm_page_flag_clear(m, PG_MAPPED | PG_WRITEABLE);
+	vm_page_flag_clear(m, PG_WRITEABLE);
 
 	splx(s);
 }
@@ -2357,7 +2357,6 @@ retry:
 			ptepa += NBPDR;
 			ptepindex += 1;
 		}
-		vm_page_flag_set(p, PG_MAPPED);
 		pmap_invalidate_all(kernel_pmap);
 		return;
 	}
@@ -2411,7 +2410,6 @@ retry:
 				mpte = pmap_enter_quick(pmap, 
 					addr + i386_ptob(tmpidx), p, mpte);
 				vm_page_lock_queues();
-				vm_page_flag_set(p, PG_MAPPED);
 				vm_page_wakeup(p);
 			}
 			vm_page_unlock_queues();
@@ -2444,7 +2442,6 @@ retry:
 				mpte = pmap_enter_quick(pmap, 
 					addr + i386_ptob(tmpidx), p, mpte);
 				vm_page_lock_queues();
-				vm_page_flag_set(p, PG_MAPPED);
 				vm_page_wakeup(p);
 			}
 			vm_page_unlock_queues();
@@ -2542,7 +2539,6 @@ pmap_prefault(pmap, addra, entry)
 			vm_page_unlock_queues();
 			mpte = pmap_enter_quick(pmap, addr, m, mpte);
 			vm_page_lock_queues();
-			vm_page_flag_set(m, PG_MAPPED);
 			vm_page_wakeup(m);
 		}
 		vm_page_unlock_queues();
@@ -3002,7 +2998,7 @@ pmap_remove_pages(pmap, sva, eva)
 		m->md.pv_list_count--;
 		TAILQ_REMOVE(&m->md.pv_list, pv, pv_list);
 		if (TAILQ_FIRST(&m->md.pv_list) == NULL) {
-			vm_page_flag_clear(m, PG_MAPPED | PG_WRITEABLE);
+			vm_page_flag_clear(m, PG_WRITEABLE);
 		}
 
 		pmap_unuse_pt(pv->pv_pmap, pv->pv_va, pv->pv_ptem);
