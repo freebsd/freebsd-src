@@ -49,6 +49,7 @@
 #include <sys/user.h>
 
 #include <machine/md_var.h>
+#include <machine/frame.h>
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
@@ -273,15 +274,29 @@ aout_coredump(td, vp, limit)
 	struct proc *p = td->td_proc;
 	register struct ucred *cred = td->td_ucred;
 	register struct vmspace *vm = p->p_vmspace;
+	caddr_t tempuser;
 	int error;
 
 	if (ctob((UAREA_PAGES + KSTACK_PAGES)
 	    + vm->vm_dsize + vm->vm_ssize) >= limit)
 		return (EFAULT);
+	tempuser = malloc(ctob(UAREA_PAGES + KSTACK_PAGES), M_TEMP,
+	    M_WAITOK | M_ZERO);
+	if (tempuser == NULL)
+		return (ENOMEM);
+	bcopy(p->p_uarea, tempuser, sizeof(struct user));
+	bcopy(td->td_frame,
+	    tempuser + ctob(UAREA_PAGES) +
+	    ((caddr_t) td->td_frame - (caddr_t) td->td_kstack),
+	    sizeof(struct trapframe));
 	PROC_LOCK(p);
 	fill_kinfo_proc(p, &p->p_uarea->u_kproc);
 	PROC_UNLOCK(p);
-	error = cpu_coredump(td, vp, cred);
+	error = vn_rdwr(UIO_WRITE, vp, (caddr_t) tempuser,
+	    ctob(UAREA_PAGES + KSTACK_PAGES),
+	    (off_t)0, UIO_SYSSPACE, IO_UNIT, cred, NOCRED,
+	    (int *)NULL, td);
+	free(tempuser, M_TEMP);
 	if (error == 0)
 		error = vn_rdwr(UIO_WRITE, vp, vm->vm_daddr,
 		    (int)ctob(vm->vm_dsize),
