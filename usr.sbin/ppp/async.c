@@ -17,12 +17,13 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: async.c,v 1.15.2.10 1998/04/06 09:12:22 brian Exp $
+ * $Id: async.c,v 1.15.2.11 1998/04/07 00:53:17 brian Exp $
  *
  */
 #include <sys/types.h>
 
 #include <stdio.h>
+#include <string.h>
 #include <termios.h>
 
 #include "mbuf.h"
@@ -50,6 +51,7 @@ async_Init(struct async *async)
   async->mode = MODE_HUNT;
   async->length = 0;
   async->my_accmap = async->his_accmap = 0xffffffff;
+  memset(async->cfg.EscMap, '\0', sizeof async->cfg.EscMap);
 }
 
 void
