@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id$
+**  $Id: pcisupport.c,v 1.86.2.5 1999/05/07 23:43:07 julian Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -242,6 +242,7 @@ chipset_probe (pcici_t tag, pcidi_t type)
 	char		*descr;
 
 	switch (type) {
+	/* Intel -- vendor 0x8086 */
 	case 0x00088086:
 		/* Silently ignore this one! What is it, anyway ??? */
 		return ("");
@@ -273,7 +274,7 @@ chipset_probe (pcici_t tag, pcidi_t type)
 	case 0x12358086:
 		return ("Intel 82437MX mobile PCI cache memory controller");
 	case 0x12508086:
-		return ("Intel 82439");
+		return ("Intel 82439HX PCI cache memory controller");
 	case 0x70008086:
 		return ("Intel 82371SB PCI to ISA bridge");
 	case 0x70308086:
@@ -309,12 +310,9 @@ chipset_probe (pcici_t tag, pcidi_t type)
 		return ("Intel 82451NX Memory and I/O Controller");
 	case 0x84cb8086:
 		return ("Intel 82454NX PCI Expander Bridge");
-	case 0x00221014:
-		return ("IBM 82351 PCI-PCI bridge");
-	case 0x00011011:
-		return ("DEC 21050 PCI-PCI bridge");
 	case 0x124b8086:
 		return ("Intel 82380FB mobile PCI to PCI bridge");
+
 	/* SiS -- vendor 0x1039 */
 	case 0x04961039:
 		return ("SiS 85c496");
@@ -324,6 +322,10 @@ chipset_probe (pcici_t tag, pcidi_t type)
 		return ("SiS 85c503");
 	case 0x06011039:
 		return ("SiS 85c601");
+	case 0x55911039:
+		return ("SiS 5591 host to PCI bridge");
+	case 0x00011039:
+		return ("SiS 5591 host to AGP bridge");
 	
 	/* VLSI -- vendor 0x1004 */
 	case 0x00051004:
@@ -344,8 +346,8 @@ chipset_probe (pcici_t tag, pcidi_t type)
 	/* VIA Technologies -- vendor 0x1106 
 	 * Note that the old Apollo Master chipset is not in here, as VIA
 	 * does not seem to have any docs on their website for it, and I do
-	 * not have a Master board in my posession. -LC */
-
+	 * not have a Master board in my posession. -LC
+	 */
 	case 0x05851106:
 		return("VIA 82C585 (Apollo VP1/VPX) system controller");
 	case 0x05861106: /* south bridge section -- IDE is covered in ide_pci.c */
@@ -401,6 +403,12 @@ chipset_probe (pcici_t tag, pcidi_t type)
 	case 0x00051166:
 		fixbushigh_Ross(tag);
 		return ("Ross (?) host to PCI bridge");
+
+	/* Others */
+	case 0x00221014:
+		return ("IBM 82351 PCI-PCI bridge");
+	case 0x00011011:
+		return ("DEC 21050 PCI-PCI bridge");
 	};
 
 	if (descr = generic_pci_bridge(tag))
