@@ -307,10 +307,10 @@ vnode_pager_setsize(vp, nsize)
 	 */
 	if (nsize < object->un_pager.vnp.vnp_size) {
 		if (nobjsize < object->size) {
-			vm_object_lock(object);
+			VM_OBJECT_LOCK(object);
 			vm_object_page_remove(object, nobjsize, object->size,
 				FALSE);
-			vm_object_unlock(object);
+			VM_OBJECT_UNLOCK(object);
 		}
 		/*
 		 * this gets rid of garbage at the end of a page that is now
