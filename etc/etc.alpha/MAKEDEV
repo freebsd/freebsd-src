@@ -40,10 +40,11 @@
 #	fd*	"floppy" disk drives (3 1/2", 5 1/4")
 #	da*	"SCSI Direct Access Devices"
 #	cd*	"SCSI CD-ROM disks"
+#	sd*	"SCSI disk", antiquated, use da* instead
 #	mcd*	"Mitsumi CD-ROM disks"
 #	scd*	"Sony CD-ROM disks"
 #	matcd*	"Matsushita (Panasonic) CD-ROM disks"
-#	wcd*	"IDE CD-ROM disks"
+#	acd*	"ATAPI CD-ROM disks"
 #	vn*	"vnode disks"
 #	od*	"optical disks"
 #	fla*	"M-Systems DiskOnChip"
@@ -73,8 +74,18 @@
 #	pty*	set of 32 master and slave pseudo terminals
 #	vty*	virtual terminals using syscons/pcvt/codrv console
 #
-# Printers:
-#	lpt*	stock lp
+# Parallel port:
+#	lpt*	Printer
+#	ppi*	Parallel port i/o
+#
+# I2C and SMBus:
+#	iic*	I2C devices
+#	smb*	SMBUS devices
+#
+# USB devices:
+#	ums*	mouse
+#	ulpt*	printer
+#	ugen*	generic USB device
 #
 # SCSI devices (other than CD-ROM, tape and disk):
 #	ssc	The ``super scsi'' device
@@ -84,6 +95,14 @@
 #
 # PC-CARD (previously called PCMCIA) support
 #	card*	PC-CARD slots
+#
+# ISDN devices:
+#	i4b	isdnd call control device
+#	i4bctl	debugging control device
+#	i4btrc* trace data interface(s), one per passive card
+#	i4btel* telephony interface(s)
+#	i4bteld* telephony dialout interface(s)
+#	i4brbch* raw b channel access device(s)
 #
 # Special purpose devices:
 #	apm	Advanced Power Management BIOS
@@ -106,9 +125,10 @@
 #	perfmon	CPU performance-monitoring counters
 #	pci	PCI configuration-space access from user mode
 #	ipl	ipfilter control devices (ipl, ipnat, ipstate, ipauth)
+#	kbd	keyboard devices
 #
-#	$Id: MAKEDEV,v 1.5 1999/02/05 22:53:18 mjacob Exp $
-#	from etc.i386 MAKEDEV,v 1.171 1998/09/15 10:21:35 gibbs Exp
+#	$Id: MAKEDEV,v 1.6 1999/04/24 20:57:39 peter Exp $
+#	from etc.i386 MAKEDEV,v 1.199 1999/05/29 19:36:55 phk Exp
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:$PATH
@@ -204,14 +224,23 @@ all)
 	sh MAKEDEV cuaa0 cuaa1 cuaa2 cuaa3		# cdev, serial tty
 	sh MAKEDEV pty0					# cdev, pseudo tty
 	sh MAKEDEV ttyd0 ttyd1 ttyd2 ttyd3		# cdev, serial tty
+	sh MAKEDEV kbd0					# cdev, keyboard
 	sh MAKEDEV mse0 psm0 sysmouse			# cdev, mouse
 	sh MAKEDEV pcaudio speaker			# cdev, noise
 	sh MAKEDEV lpt0 lpt1 lpt2			# cdev, printer
+	sh MAKEDEV ppi0 ppi1 ppi2			# cdev, parallel port
+	sh MAKEDEV iic0 iic1				# cdev, I2C device
+	sh MAKEDEV smb0 smb1				# cdev, SMBus device
+	sh MAKEDEV ums0 ulpt0 ugen0			# cdev, USB devices
 	sh MAKEDEV bpf0 ipl tun0			# cdev, network
 	sh MAKEDEV ch0 perfmon tw0			# cdev, miscellaneous
-	sh MAKEDEV apm card0 card1			# cdev, laptop
+	sh MAKEDEV apm card0 card1 card2 card3		# cdev, laptop
 	sh MAKEDEV pass4 xpt2				# cdev, CAM
+	sh MAKEDEV i4b i4bctl i4btrc0 i4btrc1		# cdev, ISDN
+	sh MAKEDEV i4btel0 i4btel1 i4bteld0 i4bteld1	# cdev, ISDN
+	sh MAKEDEV i4brbch0 i4brbch1			# cdev, ISDN
 	;;
+
 std)
 	mknod console	c 0 0;	chmod 600 console
 	mknod drum	c 4 0;	chmod 640 drum;		chgrp kmem drum
@@ -269,10 +298,12 @@ wt*)
 	;;
 
 # Individual slices.
-od*s*|da*s*|vn*s*|wd*s*|wfd*s*|fla*s*)
+ad*s*|od*s*|sd*s*|da*s*|vn*s*|wd*s*|afd*s*|wfd*s*|fla*s*)
 	umask $disk_umask
 	case $i in
-	fla*s*) name=fla; blk=28; chr=101;;
+	ad*s*) name=ad; blk=30; chr=116;;
+	afd*s*) name=afd; blk=32; chr=118;;
+	fla*s*) name=fla; blk=28; chr=102;;
 	od*s*) name=od; blk=4;  chr=13;;
 	sd*s*) name=sd; blk=4;  chr=13;;
 	da*s*) name=da; blk=4;  chr=13;;
@@ -281,7 +312,7 @@ od*s*|da*s*|vn*s*|wd*s*|wfd*s*|fla*s*)
 	wfd*s*) name=wfd; blk=1; chr=87;;
 	esac
 	case $i in
-	fla*s*|wfd*s*)
+	afd*s*|fla*s*|wfd*s*)
 		unit=`expr $i : '...\([0-9]*\)s'`
 		slice=`expr $i : '...[0-9]*s\([0-9]*\)'`
 		part=`expr $i : '...[0-9]*s[0-9]*\(.*\)'`
@@ -349,68 +380,68 @@ fd*)
 		# Fake BSD partitions
 		for i in a b c d e f g h
 		do
-			ln ${name}${unit} ${name}${unit}$i
-			ln r${name}${unit} r${name}${unit}$i
+			ln -f ${name}${unit} ${name}${unit}$i
+			ln -f r${name}${unit} r${name}${unit}$i
 		done
 		# User-readable and programmer-readable name sets
 
 		mknod ${name}${unit}.1720  b $blk `expr $unit '*' 64 + 1`
 		mknod r${name}${unit}.1720 c $chr `expr $unit '*' 64 + 1`
-		# ln ${name}${unit}.1720 ${name}${unit}135hs21
-		# ln r${name}${unit}.1720 r${name}${unit}135hs21
+		# ln -f ${name}${unit}.1720 ${name}${unit}135hs21
+		# ln -f r${name}${unit}.1720 r${name}${unit}135hs21
 
 		mknod ${name}${unit}.1480  b $blk `expr $unit '*' 64 + 2`
 		mknod r${name}${unit}.1480 c $chr `expr $unit '*' 64 + 2`
-		# ln ${name}${unit}.1480 ${name}${unit}135hs18
-		# ln r${name}${unit}.1480 r${name}${unit}135hs18
-		# ln ${name}${unit}.1480 ${name}${unit}96hs18
-		# ln r${name}${unit}.1480 r${name}${unit}96hs18
+		# ln -f ${name}${unit}.1480 ${name}${unit}135hs18
+		# ln -f r${name}${unit}.1480 r${name}${unit}135hs18
+		# ln -f ${name}${unit}.1480 ${name}${unit}96hs18
+		# ln -f r${name}${unit}.1480 r${name}${unit}96hs18
 
 		mknod ${name}${unit}.1440  b $blk `expr $unit '*' 64 + 3`
 		mknod r${name}${unit}.1440 c $chr `expr $unit '*' 64 + 3`
-		# ln ${name}${unit}.1440 ${name}${unit}135
-		# ln r${name}${unit}.1440 r${name}${unit}135
-		# ln ${name}${unit}.1440 ${name}${unit}135ds18
-		# ln r${name}${unit}.1440 r${name}${unit}135ds18
-		# ln ${name}${unit}.1440 ${name}${unit}96ds18
-		# ln r${name}${unit}.1440 r${name}${unit}96ds18
+		# ln -f ${name}${unit}.1440 ${name}${unit}135
+		# ln -f r${name}${unit}.1440 r${name}${unit}135
+		# ln -f ${name}${unit}.1440 ${name}${unit}135ds18
+		# ln -f r${name}${unit}.1440 r${name}${unit}135ds18
+		# ln -f ${name}${unit}.1440 ${name}${unit}96ds18
+		# ln -f r${name}${unit}.1440 r${name}${unit}96ds18
 
 		mknod ${name}${unit}.1200  b $blk `expr $unit '*' 64 + 4`
 		mknod r${name}${unit}.1200 c $chr `expr $unit '*' 64 + 4`
-		# ln ${name}${unit}.1200 ${name}${unit}96
-		# ln r${name}${unit}.1200 r${name}${unit}96
-		# ln ${name}${unit}.1200 ${name}${unit}96ds15
-		# ln r${name}${unit}.1200 r${name}${unit}96ds15
-		# ln ${name}${unit}.1200 ${name}${unit}135ds15
-		# ln r${name}${unit}.1200 r${name}${unit}135ds15
+		# ln -f ${name}${unit}.1200 ${name}${unit}96
+		# ln -f r${name}${unit}.1200 r${name}${unit}96
+		# ln -f ${name}${unit}.1200 ${name}${unit}96ds15
+		# ln -f r${name}${unit}.1200 r${name}${unit}96ds15
+		# ln -f ${name}${unit}.1200 ${name}${unit}135ds15
+		# ln -f r${name}${unit}.1200 r${name}${unit}135ds15
 
 		mknod ${name}${unit}.820  b $blk `expr $unit '*' 64 + 5`
 		mknod r${name}${unit}.820 c $chr `expr $unit '*' 64 + 5`
-		# ln ${name}${unit}.820 ${name}${unit}96hs10
-		# ln r${name}${unit}.820 r${name}${unit}96hs10
-		# ln ${name}${unit}.820 ${name}${unit}135hs10
-		# ln r${name}${unit}.820 r${name}${unit}135hs10
+		# ln -f ${name}${unit}.820 ${name}${unit}96hs10
+		# ln -f r${name}${unit}.820 r${name}${unit}96hs10
+		# ln -f ${name}${unit}.820 ${name}${unit}135hs10
+		# ln -f r${name}${unit}.820 r${name}${unit}135hs10
 
 		mknod ${name}${unit}.800  b $blk `expr $unit '*' 64 + 6`
 		mknod r${name}${unit}.800 c $chr `expr $unit '*' 64 + 6`
-		# ln ${name}${unit}.800 ${name}${unit}96ds10
-		# ln r${name}${unit}.800 r${name}${unit}96ds10
-		# ln ${name}${unit}.800 ${name}${unit}135ds10
-		# ln r${name}${unit}.800 r${name}${unit}135ds10
+		# ln -f ${name}${unit}.800 ${name}${unit}96ds10
+		# ln -f r${name}${unit}.800 r${name}${unit}96ds10
+		# ln -f ${name}${unit}.800 ${name}${unit}135ds10
+		# ln -f r${name}${unit}.800 r${name}${unit}135ds10
 
 		mknod ${name}${unit}.720  b $blk `expr $unit '*' 64 + 7`
 		mknod r${name}${unit}.720 c $chr `expr $unit '*' 64 + 7`
-		# ln ${name}${unit}.720 ${name}${unit}96ds9
-		# ln r${name}${unit}.720 r${name}${unit}96ds9
-		# ln ${name}${unit}.720 ${name}${unit}135ds9
-		# ln r${name}${unit}.720 r${name}${unit}135ds9
+		# ln -f ${name}${unit}.720 ${name}${unit}96ds9
+		# ln -f r${name}${unit}.720 r${name}${unit}96ds9
+		# ln -f ${name}${unit}.720 ${name}${unit}135ds9
+		# ln -f r${name}${unit}.720 r${name}${unit}135ds9
 
 		mknod ${name}${unit}.360  b $blk `expr $unit '*' 64 + 8`
 		mknod r${name}${unit}.360 c $chr `expr $unit '*' 64 + 8`
-		# ln ${name}${unit}.360 ${name}${unit}48
-		# ln r${name}${unit}.360 r${name}${unit}48
-		# ln ${name}${unit}.360 ${name}${unit}48ds9
-		# ln r${name}${unit}.360 r${name}${unit}48ds9
+		# ln -f ${name}${unit}.360 ${name}${unit}48
+		# ln -f r${name}${unit}.360 r${name}${unit}48
+		# ln -f ${name}${unit}.360 ${name}${unit}48ds9
+		# ln -f r${name}${unit}.360 r${name}${unit}48ds9
 
 		chgrp operator ${name}${unit}* r${name}${unit}*
 		;;
@@ -429,8 +460,8 @@ ft*)
 	0|1|2|3)
 		mknod ${name}${unit}   b $blk `expr $unit '*' 64 + 32`
 		mknod r${name}${unit}  c $chr `expr $unit '*' 64 + 32`
-		ln ${name}${unit} ${name}${unit}a
-		ln r${name}${unit} r${name}${unit}a
+		ln -f ${name}${unit} ${name}${unit}a
+		ln -f r${name}${unit} r${name}${unit}a
 		chgrp operator ${name}${unit}* r${name}${unit}*
 		;;
 	*)
@@ -440,10 +471,12 @@ ft*)
 	umask 77
 	;;
 
-sd*|od*|da*|vn*|wd*|wfd*|fla*)
+ad*|sd*|od*|da*|vn*|wd*|afd*|wfd*|fla*)
 	umask $disk_umask
 	case $i in
-	fla*) name=fla; blk=28; chr=101;;
+	ad*) name=ad; blk=30; chr=116;;
+	afd*) name=afd; blk=32; chr=118;;
+	fla*) name=fla; blk=28; chr=102;;
 	sd*) name=sd; blk=4; chr=13;;
 	od*) name=od; blk=4; chr=13;;
 	da*) name=da; blk=4;  chr=13;;
@@ -452,7 +485,7 @@ sd*|od*|da*|vn*|wd*|wfd*|fla*)
 	wfd*) name=wfd; blk=1; chr=87;;
 	esac
 	case $i in
-	fla*|wfd*)
+	afd*|fla*|wfd*)
 		unit=`expr $i : '...\(.*\)'`
 		;;
 	*)
@@ -522,11 +555,12 @@ targ[0-9]*)
 	fi
 	unit=`expr $unit + 1 - 1`
 	mknod ${name}${unit} c $chr $unit
+	mknod ${name}.ctl c $chr 0xffff00ff
 	;;
 
 # CAM transport layer device
 xpt*)
-	umask $disk_umask
+	umask 077
 	# This major number is temporary
 	chr=104
 	name=xpt
@@ -541,11 +575,10 @@ xpt*)
 				chgrp operator %s%d;", \
 				name, i, name, i, name, i, c, i, \
 				name, i); }'`
-	umask 077
 	;;
 # CAM passthrough device
 pass*|uk*)
-	umask $disk_umask
+	umask 077
 	# This major number is temporary
 	chr=31
 	name=pass
@@ -560,7 +593,6 @@ pass*|uk*)
 				chgrp operator %s%d;", \
 				name, i, name, i, name, i, c, i, \
 				name, i); }'`
-	umask 077
 	;;
 pty*)
 	class=`expr $i : 'pty\(.*\)'`
@@ -639,9 +671,27 @@ ch*)
 	umask 77
 	;;
 
-cd*|mcd*|scd*)
+ast*)
+	umask 2 ;
+	unit=`expr $i : '...\(.*\)'`
+	chr=119
+	case $unit in
+	0|1|2|3)
+		mknod rast${unit} c $chr `expr $unit '*' 8 + 0`
+		chgrp operator rast${unit}
+		chmod 640 rast${unit}
+		;;
+	*)
+		echo bad unit for tape in: $i
+		;;
+	esac
+	umask 77
+	;;
+
+acd*|cd*|mcd*|scd*)
 	umask $disk_umask
 	case $i in
+	acd*) units=`expr $i : '...\(.*\)'`; name=acd; blk=31; chr=117;;
 	cd*) units=`expr $i : '..\(.*\)'`; name=cd; blk=6; chr=15;;
 	mcd*) units=`expr $i : '...\(.*\)'`; name=mcd; blk=7; chr=29;;
 	scd*) units=`expr $i : '...\(.*\)'`; name=scd; blk=16; chr=45;;
@@ -700,7 +750,7 @@ matcd*)
 	umask 77
 	;;
 
-wcd*)
+wcd?)
 	umask 2 ;
 	unit=`expr $i : '...\(.*\)'`
 	blk=19
@@ -735,6 +785,51 @@ wst*)
 	umask 77
 	;;
 
+iic*)
+	unit=`expr $i : 'iic\(.*\)'`
+	mknod iic$unit c 105 $unit
+	;;
+
+smb*)
+	unit=`expr $i : 'smb\(.*\)'`
+	mknod smb$unit c 106 $unit
+	;;
+
+ppi*)
+	unit=`expr $i : 'ppi\(.*\)'`
+	mknod ppi$unit c 82 $unit
+	;;
+
+usb*)
+	unit=`expr $i : 'usb\(.*\)'`
+	mknod usb$unit c 108 $unit
+	;;
+
+ums*)
+	unit=`expr $i : 'ums\(.*\)'`
+	mknod ums$unit c 111 $unit
+	;;
+
+ulpt*)
+	unit=`expr $i : 'ulpt\(.*\)'`
+	mknod ulpt$unit c 113 $unit
+	;;
+
+ugen*)
+	unit=`expr $i : 'ugen\([0-9][0-9]*\)'`
+	endpoint=`expr $i : 'ugen.*\.\([0-9][0-9]*\)'`
+	if [ "x$unit" = "x" ]; then
+		echo $i - Invalid unit number 
+	fi
+	if [ "x$endpoint" = "x" ]; then
+		minor=`expr $unit \* 16` 
+		mknod ugen$unit c 114 $minor
+	else
+		minor=`expr $unit \* 16 + $endpoint` 
+		mknod ugen$unit.$endpoint c 114 $minor
+	fi
+	;;
+
 lpt*)
 	unit=`expr $i : 'lpt\(.*\)'`
 	mknod lpt$unit c 16 $unit
@@ -760,8 +855,12 @@ vty*)
 	;;
 
 bpf*)
-	unit=`expr $i : 'bpf\(.*\)'`
-	mknod bpf$unit c 23 $unit
+	nbpf=`expr $i : 'bpf\(.*\)$'`
+	unit=0
+	while [ $unit -le $nbpf ]; do
+		mknod bpf$unit c 23 $unit
+		unit=`expr $unit + 1`
+	done
 	;;
 
 speaker)
@@ -1161,7 +1260,8 @@ bktr?)
 	unit=`expr $i : 'bktr\(.*\)'`
 	mknod bktr$unit c 92 $unit
 	mknod tuner$unit c 92 $((16 + $unit ))
-	chmod 444 bktr$unit tuner$unit
+	mknod vbi$unit c 92 $((32 + $unit ))
+	chmod 444 bktr$unit tuner$unit vbi$unit
 	;;
 
 tun*)
@@ -1240,6 +1340,53 @@ ipl)
 	mknod ipnat c 79 1
 	mknod ipstate c 79 2
 	mknod ipauth c 79 3
+	;;
+
+kbd*)
+	unit=`expr $i : 'kbd\(.*\)'`
+	chr=112
+	mknod kbd$unit c $chr $unit
+	;;
+
+i4b)
+	mknod i4b c 60 0
+	chown root:wheel i4b
+	chmod 600 i4b
+	;;
+
+i4bctl)
+	mknod i4bctl c 55 0
+	chown root:wheel i4bctl
+	chmod 600 i4bctl
+	;;
+
+i4brbch*)
+	unit=`expr $i : 'i4brbch\(.*\)'`
+	mknod i4brbch$unit c 57 $unit
+	chown root:wheel i4brbch$unit
+	chmod 600 i4brbch$unit
+	;;
+
+i4bteld*)
+	offset=64
+	unit=`expr $i : 'i4bteld\(.*\)'`
+	mknod i4bteld$unit c 56 `expr $offset + $unit `
+	chown root:wheel i4bteld$unit
+	chmod 600 i4bteld$unit
+	;;
+
+i4btel*)
+	unit=`expr $i : 'i4btel\(.*\)'`
+	mknod i4btel$unit c 56 $unit
+	chown root:wheel i4btel$unit
+	chmod 600 i4btel$unit
+	;;
+
+i4btrc*)
+	unit=`expr $i : 'i4btrc\(.*\)'`
+	mknod i4btrc$unit c 59 $unit
+	chown root:wheel i4btrc$unit
+	chmod 600 i4btrc$unit
 	;;
 
 local)
