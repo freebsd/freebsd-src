@@ -33,7 +33,7 @@
 
 #ifndef lint
 #if 0
-static char sccsid[] = "@(#)termstat.c	8.1 (Berkeley) 6/4/93";
+static const char sccsid[] = "@(#)termstat.c	8.2 (Berkeley) 5/30/95";
 #endif
 static const char rcsid[] =
   "$FreeBSD$";
@@ -165,34 +165,33 @@ localstat()
 		tty_setlinemode(uselinemode);
 	}
 
-        if (uselinemode) { 
+	if (uselinemode) {
+		/*
+		 * Check for state of BINARY options.
+		 *
+		 * We only need to do the binary dance if we are actually going
+		 * to use linemode.  As this confuses some telnet clients
+		 * that don't support linemode, and doesn't gain us
+		 * anything, we don't do it unless we're doing linemode.
+		 * -Crh (henrich@msu.edu)
+		 */
 
-            /*
-             * Check for state of BINARY options.
-             *
-             * We only need to do the binary dance if we are actually going
-             * to use linemode.  As this confuses some telnet clients that dont
-             * support linemode, and doesnt gain us anything, we dont do it 
-             * unless we're doing linemode.  -Crh (henrich@msu.edu)
-             */
+		if (tty_isbinaryin()) {
+			if (his_want_state_is_wont(TELOPT_BINARY))
+				send_do(TELOPT_BINARY, 1);
+		} else {
+			if (his_want_state_is_will(TELOPT_BINARY))
+				send_dont(TELOPT_BINARY, 1);
+		}
 
-	    if (tty_isbinaryin()) {
-		    if (his_want_state_is_wont(TELOPT_BINARY))
-			    send_do(TELOPT_BINARY, 1);
-	    } else {
-		    if (his_want_state_is_will(TELOPT_BINARY))
-			    send_dont(TELOPT_BINARY, 1);
-	    }
-    
-	    if (tty_isbinaryout()) {
-		    if (my_want_state_is_wont(TELOPT_BINARY))
-			    send_will(TELOPT_BINARY, 1);
-	    } else {
-		    if (my_want_state_is_will(TELOPT_BINARY))
-			    send_wont(TELOPT_BINARY, 1);
-	    }
-
-        }
+		if (tty_isbinaryout()) {
+			if (my_want_state_is_wont(TELOPT_BINARY))
+				send_will(TELOPT_BINARY, 1);
+		} else {
+			if (my_want_state_is_will(TELOPT_BINARY))
+				send_wont(TELOPT_BINARY, 1);
+		}
+	}
 
 	/*
 	 * Do echo mode handling as soon as we know what the
@@ -618,7 +617,7 @@ defer_terminit()
 	if (def_col || def_row) {
 		struct winsize ws;
 
-		bzero((char *)&ws, sizeof(ws));
+		memset((char *)&ws, 0, sizeof(ws));
 		ws.ws_col = def_col;
 		ws.ws_row = def_row;
 		(void) ioctl(pty, TIOCSWINSZ, (char *)&ws);

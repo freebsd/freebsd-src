@@ -29,10 +29,10 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	@(#)telnetd.8	8.3 (Berkeley) 3/1/94
+.\"	@(#)telnetd.8	8.4 (Berkeley) 6/1/94
 .\" $FreeBSD$
 .\"
-.Dd March 1, 1994
+.Dd January 27, 2000
 .Dt TELNETD 8
 .Os
 .Sh NAME
@@ -42,7 +42,7 @@
 protocol server
 .Sh SYNOPSIS
 .Nm /usr/libexec/telnetd
-.Op Fl Uhlkns
+.Op Fl BUhlkns
 .Op Fl D Ar debugmode
 .Op Fl I Ns Ar initid
 .Op Fl S Ar tos
@@ -137,6 +137,17 @@ All user verification will happen through the
 .Xr login 1
 program.
 .El
+.It Fl B
+Specify bftp server mode.  In this mode,
+.Nm
+causes login to start a
+.Xr bftp 1
+session rather than the user's
+normal shell.  In bftp daemon mode normal
+logins are not supported, and it must be used
+on a port other than the normal
+.Tn TELNET
+port.
 .It Fl D Ar debugmode
 This option may be used for debugging purposes.
 This allows

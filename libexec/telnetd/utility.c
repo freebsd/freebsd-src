@@ -33,7 +33,7 @@
 
 #ifndef lint
 #if 0
-static char sccsid[] = "@(#)utility.c	8.2 (Berkeley) 12/15/93";
+static const char sccsid[] = "@(#)utility.c	8.4 (Berkeley) 5/30/95";
 #endif
 static const char rcsid[] =
   "$FreeBSD$";
@@ -43,6 +43,7 @@ static const char rcsid[] =
 #include <locale.h>
 #include <sys/utsname.h>
 #endif
+#include <string.h>
 #define PRINTOPTIONS
 #include "telnetd.h"
 
@@ -217,7 +218,7 @@ netclear()
 		next = nextitem(next);
 	    } while (wewant(next) && (nfrontp > next));
 	    length = next-thisitem;
-	    bcopy(thisitem, good, length);
+	    memmove(good, thisitem, length);
 	    good += length;
 	    thisitem = next;
 	} else {
@@ -397,11 +398,6 @@ putf(cp, where)
 	char *slash;
 	time_t t;
 	char db[100];
-#ifdef	STREAMSPTY
-	extern char *index();
-#else
-	extern char *rindex();
-#endif
 #ifdef __FreeBSD__
 	static struct utsname kerninfo;
 
@@ -425,9 +421,9 @@ putf(cp, where)
 		case 't':
 #ifdef	STREAMSPTY
 			/* names are like /dev/pts/2 -- we want pts/2 */
-			slash = index(line+1, '/');
+			slash = strchr(line+1, '/');
 #else
-			slash = rindex(line, '/');
+			slash = strrchr(line, '/');
 #endif
 			if (slash == (char *) 0)
 				putstr(line);
@@ -500,7 +496,7 @@ printsub(direction, pointer, length)
 {
     register int i = 0;
 
-        if (!(diagnostic & TD_OPTIONS))
+	if (!(diagnostic & TD_OPTIONS))
 		return;
 
 	if (direction) {
@@ -874,80 +870,13 @@ printsub(direction, pointer, length)
 	    }
 	    break;
 
-#if	defined(AUTHENTICATION)
-	case TELOPT_AUTHENTICATION:
-	    output_data("AUTHENTICATION");
-
-	    if (length < 2) {
-		output_data(" (empty suboption??\?)");
-		break;
-	    }
-	    switch (pointer[1]) {
-	    case TELQUAL_REPLY:
-	    case TELQUAL_IS:
-		output_data(" %s ", (pointer[1] == TELQUAL_IS) ?
-							"IS" : "REPLY");
-		if (AUTHTYPE_NAME_OK(pointer[2]))
-		    output_data("%s ", AUTHTYPE_NAME(pointer[2]));
-		else
-		    output_data("%d ", pointer[2]);
-		if (length < 3) {
-		    output_data("(partial suboption??\?)");
-		    break;
-		}
-		output_data("%s|%s",
-			((pointer[3] & AUTH_WHO_MASK) == AUTH_WHO_CLIENT) ?
-			"CLIENT" : "SERVER",
-			((pointer[3] & AUTH_HOW_MASK) == AUTH_HOW_MUTUAL) ?
-			"MUTUAL" : "ONE-WAY");
-
-    		{
-		    char buf[512];
-		    auth_printsub(&pointer[1], length - 1, buf, sizeof(buf));
-		    output_data("%s", buf);
-		}
-		break;
-
-	    case TELQUAL_SEND:
-		i = 2;
-		output_data(" SEND ");
-		while (i < length) {
-		    if (AUTHTYPE_NAME_OK(pointer[i]))
-			output_data("%s ", AUTHTYPE_NAME(pointer[i]));
-		    else
-			output_data("%d ", pointer[i]);
-		    if (++i >= length) {
-			output_data("(partial suboption??\?)");
-			break;
-		    }
-		    output_data("%s|%s ",
-			((pointer[i] & AUTH_WHO_MASK) == AUTH_WHO_CLIENT) ?
-							"CLIENT" : "SERVER",
-			((pointer[i] & AUTH_HOW_MASK) == AUTH_HOW_MUTUAL) ?
-							"MUTUAL" : "ONE-WAY");
-		    ++i;
-		}
-		break;
-
-	    case TELQUAL_NAME:
-		output_data(" NAME \"%.*s\"", length - 2, pointer + 2);
-		break;
-
-	    default:
-		    for (i = 2; i < length; i++) {
-			output_data(" ?%d?", pointer[i]);
-		    }
-		    break;
-	    }
-	    break;
-#endif
 
 
 	default:
 	    if (TELOPT_OK(pointer[0]))
-	        output_data("%s (unknown)", TELOPT(pointer[0]));
+		output_data("%s (unknown)", TELOPT(pointer[0]));
 	    else
-	        output_data("%d (unknown)", pointer[i]);
+		output_data("%d (unknown)", pointer[i]);
 	    for (i = 1; i < length; i++) {
 		output_data(" %d", pointer[i]);
 	    }
