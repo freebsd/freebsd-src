@@ -1079,10 +1079,14 @@ pci_add_map(device_t dev, pcicfgregs* cfg, int reg)
 		base |= ((u_int64_t)cfg->hose << shift);
 	}
 #endif
-	if (type == SYS_RES_IOPORT && !pci_porten(cfg))
-		return 1;
-	if (type == SYS_RES_MEMORY && !pci_memen(cfg))
-		return 1;
+	if (type == SYS_RES_IOPORT && !pci_porten(cfg)) {
+		cfg->cmdreg |= PCIM_CMD_PORTEN;
+		pci_cfgwrite(cfg, PCIR_COMMAND, cfg->cmdreg, 2);
+	}
+	if (type == SYS_RES_MEMORY && !pci_memen(cfg)) {
+		cfg->cmdreg |= PCIM_CMD_MEMEN;
+		pci_cfgwrite(cfg, PCIR_COMMAND, cfg->cmdreg, 2);
+	}
 
 	resource_list_add(rl, type, reg,
 			  base, base + (1 << ln2size) - 1,
