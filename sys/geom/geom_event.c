@@ -64,7 +64,7 @@ static struct event_tailq_head g_events = TAILQ_HEAD_INITIALIZER(g_events);
 static u_int g_pending_events, g_silence_events;
 static void g_do_event(struct g_event *ep);
 static TAILQ_HEAD(,g_provider) g_doorstep = TAILQ_HEAD_INITIALIZER(g_doorstep);
-static struct mtx g_doorlock;
+static struct mtx g_eventlock;
 
 void
 g_silence(void)
@@ -95,9 +95,9 @@ g_orphan_provider(struct g_provider *pp, int error)
 	    ("g_orphan_provider(%p(%s), 0) error must be non-zero\n",
 	     pp, pp->name));
 	pp->error = error;
-	mtx_lock(&g_doorlock);
+	mtx_lock(&g_eventlock);
 	TAILQ_INSERT_TAIL(&g_doorstep, pp, orphan);
-	mtx_unlock(&g_doorlock);
+	mtx_unlock(&g_eventlock);
 	wakeup(&g_wait_event);
 }
 
@@ -211,11 +211,11 @@ one_event(void)
 
 	g_topology_lock();
 	for (;;) {
-		mtx_lock(&g_doorlock);
+		mtx_lock(&g_eventlock);
 		pp = TAILQ_FIRST(&g_doorstep);
 		if (pp != NULL)
 			TAILQ_REMOVE(&g_doorstep, pp, orphan);
-		mtx_unlock(&g_doorlock);
+		mtx_unlock(&g_eventlock);
 		if (pp == NULL)
 			break;
 		g_orphan_register(pp);
@@ -291,5 +291,5 @@ void
 g_event_init()
 {
 
-	mtx_init(&g_doorlock, "GEOM orphanage", NULL, MTX_DEF);
+	mtx_init(&g_eventlock, "GEOM orphanage", NULL, MTX_DEF);
 }
