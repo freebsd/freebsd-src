@@ -64,6 +64,7 @@ static const char rcsid[] =
 #include <netdb.h>
 #include <pwd.h>
 #include <signal.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -786,8 +787,8 @@ rcmd
 					free(fromname);
 				fromname = (char *) 0;
 				restart_point = $4.o;
-				reply(350, "Restarting at %llu. %s",
-				    restart_point,
+				reply(350, "Restarting at %jd. %s",
+				    (intmax_t)restart_point,
 				    "Send STORE or RETRIEVE to initiate transfer.");
 			}
 		}
@@ -1578,7 +1579,7 @@ sizecmd(char *filename)
 		else if (!S_ISREG(stbuf.st_mode))
 			reply(550, "%s: not a plain file.", filename);
 		else
-			reply(213, "%qu", stbuf.st_size);
+			reply(213, "%jd", (intmax_t)stbuf.st_size);
 		break; }
 	case TYPE_A: {
 		FILE *fin;
@@ -1612,7 +1613,7 @@ sizecmd(char *filename)
 		}
 		(void) fclose(fin);
 
-		reply(213, "%qd", count);
+		reply(213, "%jd", (intmax_t)count);
 		break; }
 	default:
 		reply(504, "SIZE not implemented for type %s.",
