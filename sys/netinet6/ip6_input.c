@@ -246,11 +246,11 @@ ip6_input(m)
 	u_int32_t rtalert = ~0;
 	int nxt, ours = 0;
 	struct ifnet *deliverifp = NULL;
-
 #ifdef PFIL_HOOKS
 	struct in6_addr odst;
 #endif
 	int srcrt = 0;
+
 #ifdef IPSEC
 	/*
 	 * should the inner packet be considered authentic?
@@ -345,17 +345,18 @@ ip6_input(m)
 #ifdef PFIL_HOOKS
 	/*
 	 * Run through list of hooks for input packets.
-	 */
-	if (pfil_run_hooks(&inet6_pfil_hook, &m, m->m_pkthdr.rcvif, PFIL_IN))
-		return;
-	if (m == NULL)			/* consumed by filter */
-		return;
 	 *
 	 * NB: Beware of the destination address changing
 	 *     (e.g. by NAT rewriting).  When this happens,
 	 *     tell ip6_forward to do the right thing.
-	ip6 = mtod(m, struct ip6_hdr *);
+	 */
 	odst = ip6->ip6_dst;
+	if (pfil_run_hooks(&inet6_pfil_hook, &m, m->m_pkthdr.rcvif, PFIL_IN))
+		return;
+	if (m == NULL)			/* consumed by filter */
+		return;
+	ip6 = mtod(m, struct ip6_hdr *);
+	srcrt = !IN6_ARE_ADDR_EQUAL(&odst, &ip6->ip6_dst);
 #endif /* PFIL_HOOKS */
 
 	ip6stat.ip6s_nxthist[ip6->ip6_nxt]++;
@@ -365,7 +366,6 @@ ip6_input(m)
 	 */
 	if (ip6_fw_enable && ip6_fw_chk_ptr) {
 		u_short port = 0;
-	srcrt = !IN6_ARE_ADDR_EQUAL(&odst, &ip6->ip6_dst);
 		/* If ipfw says divert, we have to just drop packet */
 		/* use port as a dummy argument */
 		if ((*ip6_fw_chk_ptr)(&ip6, NULL, &port, &m)) {
