@@ -4,7 +4,7 @@
 
 SUBDIR=	ax ccd cd9660 coda fdesc fxp if_disc if_ppp if_sl if_tun ipfw \
 	kernfs mfs mii msdos mx nfs ntfs nullfs pn portal procfs sf \
-	sk ste ti tl umapfs union vn vr wb xl
+	sis sk ste ti tl umapfs union vn vr wb xl
 
 # XXX some of these can move to the general case when de-i386'ed
 .if ${MACHINE_ARCH} == "i386"

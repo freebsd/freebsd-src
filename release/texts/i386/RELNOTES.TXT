@@ -95,6 +95,9 @@ given rule can be given an arbitrary logging limit. [MERGED]
 The top-level category "security" has been added, and IPFW now uses
 syslog(3) to log all messages to /var/log/security.
 
+Driver support has been added for PCI fast ethernet adapters based on
+the Silicon Integrated Systems SiS 900 and SiS 7016 ethernet controllers.
+
 1.2. SECURITY FIXES
 -------------------
 
@@ -299,6 +302,8 @@ VIA Technologies VT3043 "Rhine I" and VT86C100A "Rhine II" fast ethernet
 NICs including the following:
   Hawking Technologies PN102TX
   D-Link DFE-530TX
+
+Silicon Integrated Systems SiS 900 and SiS 7016 PCI fast ethernet NICs
 
 Sundance Technologies ST201 PCI fast ethernet NICs including
 the following:
