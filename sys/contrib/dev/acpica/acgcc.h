@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Name: acgcc.h - GCC specific defines, etc.
- *       $Revision: 17 $
+ *       $Revision: 19 $
  *
  *****************************************************************************/
 
@@ -122,8 +122,25 @@
 #define _IA64
 
 #define COMPILER_DEPENDENT_UINT64   unsigned long
+
+/*
+ * Calling conventions:
+ *
+ * ACPI_SYSTEM_XFACE        - Interfaces to host OS (handlers, threads)
+ * ACPI_EXTERNAL_XFACE      - External ACPI interfaces 
+ * ACPI_INTERNAL_XFACE      - Internal ACPI interfaces
+ * ACPI_INTERNAL_VAR_XFACE  - Internal variable-parameter list interfaces
+ */
+#define ACPI_SYSTEM_XFACE
+#define ACPI_EXTERNAL_XFACE
+#define ACPI_INTERNAL_XFACE
+#define ACPI_INTERNAL_VAR_XFACE
+
 /* Single threaded */
+
 #define ACPI_APPLICATION
+
+/* Asm macros */
 
 #define ACPI_ASM_MACROS
 #define causeinterrupt(level)
@@ -186,6 +203,22 @@
 #else /* DO IA32 */
 
 #define COMPILER_DEPENDENT_UINT64   unsigned long long
+
+/*
+ * Calling conventions:
+ *
+ * ACPI_SYSTEM_XFACE        - Interfaces to host OS (handlers, threads)
+ * ACPI_EXTERNAL_XFACE      - External ACPI interfaces 
+ * ACPI_INTERNAL_XFACE      - Internal ACPI interfaces
+ * ACPI_INTERNAL_VAR_XFACE  - Internal variable-parameter list interfaces
+ */
+#define ACPI_SYSTEM_XFACE
+#define ACPI_EXTERNAL_XFACE
+#define ACPI_INTERNAL_XFACE
+#define ACPI_INTERNAL_VAR_XFACE
+
+/* Asm macros */
+
 #define ACPI_ASM_MACROS
 #define causeinterrupt(level)
 #define BREAKPOINT3
