@@ -3868,7 +3868,7 @@ Received identification packets are logged to the LCP log (see
 .Ic set log
 for details) and are never responded to.
 .It set Ns Xo
-.No Op up
+.Op up
 .Ar var value
 .Xc
 This option allows the setting of any of the following variables:
