@@ -40,9 +40,9 @@
 .In sys/ipc.h
 .In sys/shm.h
 .Ft void *
-.Fn shmat "int shmid" "void *addr" "int flag"
+.Fn shmat "int shmid" "const void *addr" "int flag"
 .Ft int
-.Fn shmdt "void *addr"
+.Fn shmdt "const void *addr"
 .Sh DESCRIPTION
 The
 .Fn shmat
