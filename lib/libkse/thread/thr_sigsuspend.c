@@ -74,8 +74,13 @@ _sigsuspend(const sigset_t *set)
 			/* check pending signal I can handle: */
 			_thr_sig_check_pending(curthread);
 		}
-		THR_ASSERT(curthread->oldsigmask == NULL,
-		           "oldsigmask is not cleared");
+		if ((curthread->cancelflags & THR_CANCELLING) != 0)
+			curthread->oldsigmask = NULL;
+		else {
+			THR_ASSERT(curthread->oldsigmask == NULL,
+		 	          "oldsigmask is not cleared");
+		}
+
 		/* Always return an interrupted error: */
 		errno = EINTR;
 	} else {
