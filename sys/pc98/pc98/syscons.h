@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: syscons.h,v 1.14 1997/06/30 10:00:47 kato Exp $
+ *	$Id: syscons.h,v 1.15 1997/07/16 13:55:59 kato Exp $
  */
 
 #ifndef _PC98_PC98_SYSCONS_H_
@@ -108,7 +108,6 @@ static unsigned int BELL_PITCH = 1678;
 #endif /* AUTO_CLOCK */
 #else /* IBM-PC */
 #define BELL_PITCH	800
-#define TIMER_FREQ	1193182			/* should be in isa.h */
 #endif
 
 #define CONSOLE_BUFSIZE 1024
@@ -117,7 +116,7 @@ static unsigned int BELL_PITCH = 1678;
 #define FONT_8		2
 #define FONT_14		4
 #define FONT_16		8
-#define HISTORY_SIZE	100*80
+#define HISTORY_SIZE	(COL * ROW * 4)
 
 /* defines related to hardware addresses */
 #ifdef PC98
