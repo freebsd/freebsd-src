@@ -325,9 +325,9 @@ static int vr_mii_readreg(sc, frame)
 	/* Check for ack */
 	SIO_CLR(VR_MIICMD_CLK);
 	DELAY(1);
+	ack = CSR_READ_4(sc, VR_MIICMD) & VR_MIICMD_DATAOUT;
 	SIO_SET(VR_MIICMD_CLK);
 	DELAY(1);
-	ack = CSR_READ_4(sc, VR_MIICMD) & VR_MIICMD_DATAOUT;
 
 	/*
 	 * Now try reading data bits. If the ack failed, we still

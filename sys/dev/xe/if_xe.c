@@ -1960,9 +1960,9 @@ xe_mii_readreg(struct xe_softc *scp, struct xe_mii_frame *frame) {
   /* Check for ack */
   XE_MII_CLR(XE_MII_CLK);
   DELAY(1);
+  ack = XE_INB(XE_GPR2) & XE_MII_RDD;
   XE_MII_SET(XE_MII_CLK);
   DELAY(1);
-  ack = XE_INB(XE_GPR2) & XE_MII_RDD;
 
   /*
    * Now try reading data bits. If the ack failed, we still

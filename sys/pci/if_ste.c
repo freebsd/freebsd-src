@@ -281,9 +281,9 @@ static int ste_mii_readreg(sc, frame)
 	/* Check for ack */
 	MII_CLR(STE_PHYCTL_MCLK);
 	DELAY(1);
+	ack = CSR_READ_2(sc, STE_PHYCTL) & STE_PHYCTL_MDATA;
 	MII_SET(STE_PHYCTL_MCLK);
 	DELAY(1);
-	ack = CSR_READ_2(sc, STE_PHYCTL) & STE_PHYCTL_MDATA;
 
 	/*
 	 * Now try reading data bits. If the ack failed, we still
