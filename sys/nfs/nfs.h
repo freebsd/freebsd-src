@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs.h	8.1 (Berkeley) 6/10/93
- * $Id: nfs.h,v 1.5 1994/10/02 17:26:54 phk Exp $
+ * $Id: nfs.h,v 1.6 1994/10/17 17:47:30 phk Exp $
  */
 
 #ifndef _NFS_NFS_H_
@@ -156,6 +156,16 @@ struct nfsstats {
 #define	NFSSVC_MNTD	0x100
 
 /*
+ * fs.nfs sysctl(3) identifiers
+ */
+#define NFS_NFSSTATS	1		/* struct: struct nfsstats */
+
+#define FS_NFS_NAMES { \
+		       { 0, 0 }, \
+		       { "nfsstats", CTLTYPE_STRUCT }, \
+}
+
+/*
  * The set of signals the interrupt an I/O in progress for NFSMNT_INT mounts.
  * What should be in this set is open to debate, but I believe that since
  * I/O system calls on ufs are never interrupted by signals the set should
@@ -211,7 +221,7 @@ TAILQ_HEAD(, nfsreq) nfs_reqq;
 #define	R_MUSTRESEND	0x40		/* Must resend request */
 #define	R_GETONEREP	0x80		/* Probe for one reply only */
 
-struct nfsstats nfsstats;
+extern struct nfsstats nfsstats;
 
 /*
  * A list of nfssvc_sock structures is maintained with all the sockets
