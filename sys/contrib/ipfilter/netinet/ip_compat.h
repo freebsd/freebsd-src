@@ -187,6 +187,9 @@ typedef	struct	qif	{
 	 */
 	size_t	qf_hl;	/* header length */
 	int	qf_sap;
+# if SOLARIS2 >= 8
+	int	qf_tunoff;	/* tunnel offset */
+#endif
 	size_t	qf_incnt;
 	size_t	qf_outcnt;
 } qif_t;
