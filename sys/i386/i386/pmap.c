@@ -1268,6 +1268,7 @@ pmap_release_free_page(pmap_t pmap, vm_page_t p)
 	if (vm_page_sleep_busy(p, FALSE, "pmaprl"))
 		return 0;
 
+	vm_page_lock_queues();
 	vm_page_busy(p);
 
 	/*
@@ -1298,6 +1299,7 @@ pmap_release_free_page(pmap_t pmap, vm_page_t p)
 	p->wire_count--;
 	cnt.v_wire_count--;
 	vm_page_free_zero(p);
+	vm_page_unlock_queues();
 	return 1;
 }
 
