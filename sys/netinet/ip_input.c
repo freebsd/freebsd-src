@@ -753,14 +753,15 @@ ours:
 		    if (ipq[sum].prev == &ipq[sum]) {   /* gak */
 			for (i = 0; i < IPREASS_NHASH; i++) {
 			    if (ipq[i].prev != &ipq[i]) {
+				ipstat.ips_fragtimeout +=
+				    ipq[i].prev->ipq_nfrags;
 				ip_freef(ipq[i].prev);
-				ipstat.ips_fragtimeout++;
 				break;
 			    }
 			}
 		    } else {
+			ipstat.ips_fragtimeout += ipq[sum].prev->ipq_nfrags;
 			ip_freef(ipq[sum].prev);
-			ipstat.ips_fragtimeout++;
 		    }
 		}
 found:
@@ -1054,6 +1055,7 @@ ip_reass(struct mbuf *m, struct ipq *fp, struct ipq *where,
 		}
 		nq = q->m_nextpkt;
 		m->m_nextpkt = nq;
+		ipstat.ips_fragdropped++;
 		fp->ipq_nfrags--;
 		m_freem(q);
 	}
@@ -1086,16 +1088,20 @@ inserted:
 	next = 0;
 	for (p = NULL, q = fp->ipq_frags; q; p = q, q = q->m_nextpkt) {
 		if (GETIP(q)->ip_off != next) {
-			if (fp->ipq_nfrags > maxfragsperpacket)
+			if (fp->ipq_nfrags > maxfragsperpacket) {
+				ipstat.ips_fragdropped += fp->ipq_nfrags;
 				ip_freef(fp);
+			}
 			return (0);
 		}
 		next += GETIP(q)->ip_len;
 	}
 	/* Make sure the last packet didn't have the IP_MF flag */
 	if (p->m_flags & M_FRAG) {
-		if (fp->ipq_nfrags > maxfragsperpacket)
+		if (fp->ipq_nfrags > maxfragsperpacket) {
+			ipstat.ips_fragdropped += fp->ipq_nfrags;
 			ip_freef(fp);
+		}
 		return (0);
 	}
 
@@ -1106,6 +1112,7 @@ inserted:
 	ip = GETIP(q);
 	if (next + (IP_VHL_HL(ip->ip_vhl) << 2) > IP_MAXPACKET) {
 		ipstat.ips_toolong++;
+		ipstat.ips_fragdropped += fp->ipq_nfrags;
 		ip_freef(fp);
 		return (0);
 	}
@@ -1212,7 +1219,7 @@ ip_slowtimo()
 			--fp->ipq_ttl;
 			fp = fp->next;
 			if (fp->prev->ipq_ttl == 0) {
-				ipstat.ips_fragtimeout++;
+				ipstat.ips_fragtimeout += fp->prev->ipq_nfrags;
 				ip_freef(fp->prev);
 			}
 		}
@@ -1226,7 +1233,8 @@ ip_slowtimo()
 		for (i = 0; i < IPREASS_NHASH; i++) {
 			while (nipq > maxnipq &&
 				(ipq[i].next != &ipq[i])) {
-				ipstat.ips_fragdropped++;
+				ipstat.ips_fragdropped +=
+				    ipq[i].next->ipq_nfrags;
 				ip_freef(ipq[i].next);
 			}
 		}
@@ -1245,7 +1253,7 @@ ip_drain()
 
 	for (i = 0; i < IPREASS_NHASH; i++) {
 		while (ipq[i].next != &ipq[i]) {
-			ipstat.ips_fragdropped++;
+			ipstat.ips_fragdropped += ipq[i].next->ipq_nfrags;
 			ip_freef(ipq[i].next);
 		}
 	}
