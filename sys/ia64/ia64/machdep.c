@@ -886,8 +886,9 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	mc = &sf.sf_uc.uc_mcontext;
 	mc->mc_special = tf->tf_special;
 	mc->mc_scratch = tf->tf_scratch;
+
 	if ((tf->tf_flags & FRAME_SYSCALL) == 0) {
-		mc->mc_flags |= IA64_MC_FLAGS_SCRATCH_VALID;
+		mc->mc_flags |= _MC_FLAGS_ASYNC_CONTEXT;
 		mc->mc_scratch_fp = tf->tf_scratch_fp;
 		/*
 		 * XXX High FP. If the process has never used the high FP,
@@ -896,7 +897,9 @@ sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 		 * already there (ie get them from the CPU that has them)
 		 * and write them in the context.
 		 */
-	}
+	} else
+		mc->mc_flags |= _MC_FLAGS_SCRATCH_VALID;
+
 	save_callee_saved(&mc->mc_preserved);
 	save_callee_saved_fp(&mc->mc_preserved_fp);
 
@@ -992,22 +995,29 @@ sigreturn(struct thread *td,
 		return (EFAULT);
 
 	/*
-	 * XXX make sure ndirty in the current trapframe is less than
-	 * 0x1f8 so that if we throw away the current register stack,
-	 * we have reached the bottom of the kernel register stack.
-	 * See also exec_setregs.
-	 */
-
-	/*
-	 * Restore the user-supplied information
+	 * Restore the user-supplied information.
+	 * XXX Very much incomplete.
 	 */
 	mc = &uc.uc_mcontext;
 	tf->tf_special = mc->mc_special;
-	tf->tf_scratch = mc->mc_scratch;
-	if ((mc->mc_flags & IA64_MC_FLAGS_SCRATCH_VALID) != 0) {
+
+	if (mc->mc_flags & _MC_FLAGS_ASYNC_CONTEXT) {
+		tf->tf_scratch = mc->mc_scratch;
 		tf->tf_scratch_fp = mc->mc_scratch_fp;
 		/* XXX high FP. */
+	} else {
+		if ((mc->mc_flags & _MC_FLAGS_SCRATCH_VALID) == 0) {
+			tf->tf_scratch.gr15 = 0;
+			if (mc->mc_flags & _MC_FLAGS_RETURN_VALID) {
+				tf->tf_scratch.gr8 = mc->mc_scratch.gr8;
+				tf->tf_scratch.gr9 = mc->mc_scratch.gr9;
+				tf->tf_scratch.gr10 = mc->mc_scratch.gr10;
+				tf->tf_scratch.gr11 = mc->mc_scratch.gr11;
+			}
+		} else
+			tf->tf_scratch = mc->mc_scratch;
 	}
+
 	restore_callee_saved(&mc->mc_preserved);
 	restore_callee_saved_fp(&mc->mc_preserved_fp);
 
@@ -1043,10 +1053,8 @@ get_mcontext(struct thread *td, mcontext_t *mc, int clear_ret)
 	uint64_t bspst, *kstk, *ustk;
 
 	tf = td->td_frame;
+	bzero(mc, sizeof(*mc));
 	s = tf->tf_special;
-	s.pfs = s.cfm;
-	s.rp = s.iip;
-	s.cfm = s.iip = 0;
 	if (s.ndirty != 0) {
 		__asm __volatile("mov	ar.rsc=0;;");
 		__asm __volatile("mov	%0=ar.bspstore" : "=r"(bspst));
@@ -1068,19 +1076,32 @@ get_mcontext(struct thread *td, mcontext_t *mc, int clear_ret)
 		}
 		s.bspstore = (uintptr_t)ustk;
 	}
+	if (tf->tf_flags & FRAME_SYSCALL) {
+		s.pfs = s.cfm;
+		s.rp = s.iip;
+		s.cfm = s.iip = 0;
+		/*
+		 * Put the syscall return values in the context. We need this
+		 * for swapcontext() to work. Note that we don't use gr11 in
+		 * the kernel, but the runtime specification defines it as a
+		 * return register, just like gr8-gr10.
+		 */
+		mc->mc_flags |= _MC_FLAGS_RETURN_VALID;
+		if (!clear_ret) {
+			mc->mc_scratch.gr8 = tf->tf_scratch.gr8;
+			mc->mc_scratch.gr9 = tf->tf_scratch.gr9;
+			mc->mc_scratch.gr10 = tf->tf_scratch.gr10;
+			mc->mc_scratch.gr11 = tf->tf_scratch.gr11;
+		}
+	} else {
+		mc->mc_flags |= _MC_FLAGS_ASYNC_CONTEXT;
+		mc->mc_scratch = tf->tf_scratch;
+		mc->mc_scratch_fp = tf->tf_scratch_fp;
+		/* XXX High FP */
+	}
 	mc->mc_special = s;
 	save_callee_saved(&mc->mc_preserved);
 	save_callee_saved_fp(&mc->mc_preserved_fp);
-	/*
-	 * Put the syscall return values in the context. We need this
-	 * for swapcontext() to work. Note that we don't use gr11 in
-	 * the kernel, but the runtime specification defines it as a
-	 * return register, just like gr8-gr10.
-	 */
-	mc->mc_scratch.gr8 = (clear_ret) ? 0 : tf->tf_scratch.gr8;
-	mc->mc_scratch.gr9 = (clear_ret) ? 0 : tf->tf_scratch.gr9;
-	mc->mc_scratch.gr10 = (clear_ret) ? 0 : tf->tf_scratch.gr10;
-	mc->mc_scratch.gr11 = (clear_ret) ? 0 : tf->tf_scratch.gr11;
 	return (0);
 }
 
@@ -1092,19 +1113,34 @@ set_mcontext(struct thread *td, const mcontext_t *mc)
 
 	tf = td->td_frame;
 	s = mc->mc_special;
-	s.cfm = s.pfs;
-	s.iip = s.rp;
-	s.pfs = tf->tf_special.pfs;
-	s.rp = tf->tf_special.rp;
 	/* Only copy the user mask from the new context. */
 	s.psr = (s.psr & 0x1f) | (tf->tf_special.psr & ~0x1f);
+	if (mc->mc_flags & _MC_FLAGS_ASYNC_CONTEXT) {
+		tf->tf_scratch = mc->mc_scratch;
+		tf->tf_scratch_fp = mc->mc_scratch_fp;
+		/* XXX High FP */
+	} else {
+		s.cfm = s.pfs;
+		s.pfs = tf->tf_special.pfs;
+		s.iip = s.rp;
+		s.rp = tf->tf_special.rp;
+		if ((mc->mc_flags & _MC_FLAGS_SCRATCH_VALID) == 0) {
+			if (mc->mc_flags & _MC_FLAGS_RETURN_VALID) {
+				tf->tf_scratch.gr8 = mc->mc_scratch.gr8;
+				tf->tf_scratch.gr9 = mc->mc_scratch.gr9;
+				tf->tf_scratch.gr10 = mc->mc_scratch.gr10;
+				tf->tf_scratch.gr11 = mc->mc_scratch.gr11;
+			}
+		} else
+			tf->tf_scratch = mc->mc_scratch;
+	}
 	tf->tf_special = s;
 	restore_callee_saved(&mc->mc_preserved);
 	restore_callee_saved_fp(&mc->mc_preserved_fp);
-	tf->tf_scratch.gr8 = mc->mc_scratch.gr8;
-	tf->tf_scratch.gr9 = mc->mc_scratch.gr9;
-	tf->tf_scratch.gr10 = mc->mc_scratch.gr10;
-	tf->tf_scratch.gr11 = mc->mc_scratch.gr11;
+
+	if (mc->mc_flags & _MC_FLAGS_KSE_SET_MBOX)
+		suword((caddr_t)mc->mc_special.ifa, mc->mc_special.isr);
+
 	return (0);
 }
 
