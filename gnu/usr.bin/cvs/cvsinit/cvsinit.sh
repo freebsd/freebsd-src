@@ -1,7 +1,7 @@
 #! /bin/sh
 :
 #
-#ident	"@(#)cvs:$Name:  $:$Id: cvsinit.sh,v 1.7 1995/11/14 23:44:18 woods Exp $"
+#ident	"@(#)cvs:$Name:  $:$Id: cvsinit.sh,v 1.4 1995/12/10 23:06:51 peter Exp $"
 # Copyright (c) 1992, Brian Berliner
 #
 # You may distribute under the terms of the GNU General Public License as
@@ -97,7 +97,8 @@ for info in $EXAMPLES; do
 	    case $info in
 	      modules)
 		sed -n -e '/END_REQUIRED_CONTENT/q' \
-		    -e p $CVSLIB/examples/modules > $CVSROOT/CVSROOT/modules
+		    -e p $CVSLIB/examples/modules | \
+		sed -e 's@/usr/local/bin@/usr/bin@' > $CVSROOT/CVSROOT/modules
 		;;
 	      rcstemplate)
 		cp $CVSLIB/examples/$info $CVSROOT/CVSROOT/$info
