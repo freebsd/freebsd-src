@@ -185,7 +185,12 @@ ofw_parsedev(struct ofw_devdesc **dev, const char *devspec, const char **path)
     return(err);
 }
 
-/* hack to correctly parse bootpath for currdev. */
+/*
+ * Hack to correctly parse bootpath for currdev. Also, enter the device into
+ * the device array in the case of lazy probing (i.e. on sparc64). This has the
+ * effect that the disk the loader was loaded from will always be the first
+ * in the list, but it saves lots of time.
+ */
 int
 ofw_parseofwdev(struct ofw_devdesc *dev, const char *devspec)
 {
@@ -193,13 +198,14 @@ ofw_parseofwdev(struct ofw_devdesc *dev, const char *devspec)
 	int i;
 	struct devsw *dv;
 
-	if ((cp = strrchr(devspec, '@')) == 0)
+#ifdef __sparc64__
+	ofwd_enter_dev(devspec);
+#endif
+	if ((dev->d_kind.ofwdisk.unit = ofwd_getunit(devspec)) == -1)
+	    return EUNIT;
+	if ((cp = strrchr(devspec, ',')) == 0)
 	    return EINVAL;
 	cp++;
-	ep = cp;
-	dev->d_kind.ofwdisk.unit = strtol(cp, &cp, 10);
-	if (cp == ep)
-	    return EUNIT;
 	if (*cp != ',')
 	    return ESLICE;
 	ep = ++cp;
