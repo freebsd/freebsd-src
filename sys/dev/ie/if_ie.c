@@ -47,7 +47,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: if_ie.c,v 1.58 1998/12/10 01:49:49 archie Exp $
+ *	$Id: if_ie.c,v 1.59 1999/01/28 01:59:53 dillon Exp $
  */
 
 /*
@@ -1655,9 +1655,8 @@ check_ie_present(int unit, caddr_t where, unsigned size)
 	bzero((volatile char *)scb, sizeof *scb);
 
 	scp->ie_bus_use = ie_softc[unit].bus_use;	/* 8-bit or 16-bit */
-	scp->ie_iscp_ptr = (v_caddr_t) ((volatile caddr_t) iscp -
-				      (volatile caddr_t) (volatile uintptr_t)
-				      realbase);
+	scp->ie_iscp_ptr = (caddr_t) (uintptr_t)
+	    ((volatile char *) iscp - (volatile char *) (uintptr_t) realbase);
 
 	iscp->ie_busy = 1;
 	iscp->ie_scb_offset = MK_16(realbase, scb) + 256;
@@ -1680,9 +1679,8 @@ check_ie_present(int unit, caddr_t where, unsigned size)
 			       sizeof(struct ie_int_sys_conf_ptr)));
 	bzero((volatile char *) iscp, sizeof *iscp);	/* ignore cast-qual */
 
-	scp->ie_iscp_ptr = (v_caddr_t) ((v_caddr_t) iscp -
-				      (v_caddr_t) (uintptr_t) realbase);
-	/* ignore cast-qual */
+	scp->ie_iscp_ptr = (caddr_t) (uintptr_t)
+	    ((volatile char *) iscp - (volatile char *) (uintptr_t) realbase);
 
 	iscp->ie_busy = 1;
 	iscp->ie_scb_offset = MK_16(realbase, scb);
@@ -2041,7 +2039,7 @@ setup_rfa(v_caddr_t ptr, struct ie_softc * ie)
 		rfd++;
 	}
 
-	ptr = (v_caddr_t) Align((v_caddr_t) rfd);	/* ignore cast-qual */
+	ptr = Alignvol(rfd);		/* ignore cast-qual */
 
 	/* Now link them together */
 	for (i = 0; i < ie->nframes; i++) {
@@ -2062,7 +2060,7 @@ setup_rfa(v_caddr_t ptr, struct ie_softc * ie)
 	for (i = 0; i < ie->nrxbufs; i++) {
 		ie->rbuffs[i] = rbd;
 		bzero((volatile char *)rbd, sizeof *rbd);
-		ptr = (caddr_t) Align(ptr + sizeof *rbd);
+		ptr = Alignvol(ptr + sizeof *rbd);
 		rbd->ie_rbd_length = IE_RBUF_SIZE;
 		rbd->ie_rbd_buffer = MK_24(MEM, ptr);
 		ie->cbuffs[i] = (volatile void *) ptr;
@@ -2091,7 +2089,7 @@ setup_rfa(v_caddr_t ptr, struct ie_softc * ie)
 	ie->scb->ie_recv_list = MK_16(MEM, ie->rframes[0]);
 	ie->rframes[0]->ie_fd_buf_desc = MK_16(MEM, ie->rbuffs[0]);
 
-	ptr = Align(ptr);
+	ptr = Alignvol(ptr);
 	return (ptr);
 }
 
@@ -2141,7 +2139,7 @@ ieinit(int unit)
 	v_caddr_t ptr;
 	int	i;
 
-	ptr = (v_caddr_t) Align((v_caddr_t) scb + sizeof *scb);
+	ptr = Alignvol((volatile char *) scb + sizeof *scb);
 
 	/*
 	 * Send the configure command first.
@@ -2208,17 +2206,17 @@ ieinit(int unit)
 	for (i = 0; i < ie->ntxbufs; i++) {
 		ie->xmit_cmds[i] = (volatile void *) ptr;
 		ptr += sizeof *ie->xmit_cmds[i];
-		ptr = Align(ptr);
+		ptr = Alignvol(ptr);
 		ie->xmit_buffs[i] = (volatile void *)ptr;
 		ptr += sizeof *ie->xmit_buffs[i];
-		ptr = Align(ptr);
+		ptr = Alignvol(ptr);
 	}
 
 	/* transmit buffers */
 	for (i = 0; i < ie->ntxbufs - 1; i++) {
 		ie->xmit_cbuffs[i] = (volatile void *)ptr;
 		ptr += IE_BUF_LEN;
-		ptr = Align(ptr);
+		ptr = Alignvol(ptr);
 	}
 	ie->xmit_cbuffs[ie->ntxbufs - 1] = (volatile void *) ptr;
 
