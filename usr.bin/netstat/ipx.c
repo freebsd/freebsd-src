@@ -152,8 +152,10 @@ ipxprotopr(off, name)
 	}
 }
 
-#define ANY(x,y,z) (printf("\t%u %s%s%s\n",x,y,plural(x),z))
-#define ANYl(x,y,z) (printf("\t%lu %s%s%s\n",x,y,plural(x),z))
+#define ANY(x,y,z) \
+	    if (x || sflag <= 1) printf("\t%u %s%s%s\n", x, y, plural(x), z)
+#define ANYl(x,y,z) \
+	    if (x || sflag <= 1) printf("\t%lu %s%s%s\n", x, y, plural(x), z)
 
 /*
  * Dump SPX statistics structure.
