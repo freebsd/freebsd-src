@@ -22,6 +22,8 @@ sed	\
  	-e '/INVARIANTS/d' \
  	-e '/INVARIANT_SUPPORT/d' \
  	-e '/WITNESS/d' \
+ 	-e '/AHC_REG_PRETTY_PRINT/d' \
+ 	-e '/AHD_REG_PRETTY_PRINT/d' \
  	-e '/SMP/d' \
 	-e '/atapifd/d' \
 	-e '/atapist/d' \
