@@ -78,7 +78,7 @@ static void setup __P((void));
 IO	in, out;		/* input/output state */
 STAT	st;			/* statistics */
 void	(*cfunc) __P((void));	/* conversion function */
-quad_t	cpy_cnt;		/* # of blocks to copy */
+u_quad_t cpy_cnt;		/* # of blocks to copy */
 off_t	pending = 0;		/* pending seek if sparse */
 u_int	ddflags;		/* conversion options */
 size_t	cbsz;			/* conversion block size */
