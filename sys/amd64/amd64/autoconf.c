@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)autoconf.c	7.1 (Berkeley) 5/9/91
- *	$Id: autoconf.c,v 1.16 1994/11/12 01:47:35 phk Exp $
+ *	$Id: autoconf.c,v 1.17 1994/12/31 17:11:59 jkh Exp $
  */
 
 /*
@@ -103,7 +103,7 @@ configure()
 #ifdef FFS
 	if (!mountroot) {
 		mountroot = ffs_mountroot;
-#ifdef GENERIC
+#ifdef SWAP_GENERIC
 		if ((boothowto & RB_ASKNAME) == 0)
 			setroot();
 		setconf();
