@@ -53,7 +53,6 @@ extern const char *panicstr;	/* panic message */
 extern char version[];		/* system version */
 extern char copyright[];	/* system copyright */
 extern int kstack_pages;	/* number of kernel stack pages */
-extern int uarea_pages;		/* number of user struct pages */
 
 extern int nswap;		/* size of swap space */
 
