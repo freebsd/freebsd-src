@@ -33,7 +33,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)mkfifo.1	8.2 (Berkeley) 1/5/94
-.\"	$Id$
+.\"	$Id: mkfifo.1,v 1.4 1997/04/27 08:45:45 jmg Exp $
 .\"
 .Dd January 5, 1994
 .Dt MKFIFO 1
@@ -43,14 +43,39 @@
 .Nd make fifos
 .Sh SYNOPSIS
 .Nm
+.Op Fl m Ar mode
 .Ar fifo_name  ...
 .Sh DESCRIPTION
 The
 .Nm
-command creates the fifos requested, in the order specified,
-using mode
-.Li \&0777 .
+command creates the fifos requested, in the order specified.
 .Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl m
+Set the file permission bits of the created fifos to the
+specified mode, ignoring the
+.Xr umask 2
+of the calling process.
+The mode argument takes any format that can be specified to the
+.Xr chmod 1
+command.
+If a symbolic mode is specified, the op symbols
+.Dq +
+(plus) and
+.Dq -
+(hyphen) are interpreted relative to an assumed initial mode of
+.Dq a=rw
+(read and write permissions for all). 
+.El
+.Pp
+If the
+.Fl m
+option is not specified, fifos are created with mode
+.Li \&0666
+modified by the
+.Xr umask 2
+of the calling process.
 The
 .Nm
 command requires write permission in the parent directory.
