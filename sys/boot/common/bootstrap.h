@@ -314,3 +314,5 @@ extern struct arch_switch archsw;
 
 /* This must be provided by the MD code, but should it be in the archsw? */
 extern void		delay(int delay);
+
+extern void		dev_cleanup(void);

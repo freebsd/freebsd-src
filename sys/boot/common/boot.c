@@ -110,11 +110,6 @@ command_boot(int argc, char *argv[])
     if (archsw.arch_autoload() != 0)
 	return(CMD_ERROR);
 
-    /* Call cleanup routines */
-    for (i = 0; devsw[i] != NULL; ++i)
-	if (devsw[i]->dv_cleanup != NULL)
-	    (devsw[i]->dv_cleanup)();
-
     /* Call the exec handler from the loader matching the kernel */
     file_formats[fp->f_loader]->l_exec(fp);
     return(CMD_ERROR);

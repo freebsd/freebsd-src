@@ -152,6 +152,7 @@ elf_exec(struct preloaded_file *fp)
 
     printf("Entering %s at 0x%lx...\n", fp->f_name, hdr->e_entry);
     closeall();
+    dev_cleanup();
     alpha_pal_imb();
     (*(void (*)())hdr->e_entry)(ffp_save, ptbr_save,
 			       BOOTINFO_MAGIC, &bootinfo_v1, 1, 0);
