@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.174 1999/01/29 06:18:12 dillon Exp $
+#	$Id: rc,v 1.175 1999/01/31 04:28:51 grog Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -416,9 +416,9 @@ fi
 # Do traditional rc.local file if it exists. 
 # 
 
-if [ -f $conf_dir/rc.local ]; then
+if [ -f /etc/rc.local ]; then
 	echo -n 'starting local daemons:'
-        sh $conf_dir/rc.local
+        sh /etc/rc.local
 	echo '.'
 fi
 
