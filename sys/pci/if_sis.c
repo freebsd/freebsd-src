@@ -1806,8 +1806,16 @@ sis_init(xsc)
 	CSR_WRITE_4(sc, SIS_RX_LISTPTR, sc->sis_cdata.sis_rx_paddr);
 	CSR_WRITE_4(sc, SIS_TX_LISTPTR, sc->sis_cdata.sis_tx_paddr);
 
-	/* Set RX configuration */
-	CSR_WRITE_4(sc, SIS_RX_CFG, SIS_RXCFG);
+	/* SIS_CFG_EDB_MASTER_EN indicates the EDB bus is used instead of
+	 * the PCI bus. When this bit is set, the Max DMA Burst Size
+	 * for TX/RX DMA should be no larger than 16 double words.
+	 */
+	if (CSR_READ_4(sc, SIS_CFG) & SIS_CFG_EDB_MASTER_EN) {
+		CSR_WRITE_4(sc, SIS_RX_CFG, SIS_RXCFG64);
+	} else {
+		CSR_WRITE_4(sc, SIS_RX_CFG, SIS_RXCFG256);
+	}
+
 
 	/* Accept Long Packets for VLAN support */
 	SIS_SETBIT(sc, SIS_RX_CFG, SIS_RXCFG_RX_JABBER);
