@@ -282,7 +282,7 @@ thread_sig_invoke_handler(int sig, siginfo_t *info, ucontext_t *ucp)
 		    (info == NULL))
 			(*(sigfunc))(sig, info, ucp);
 		else
-			(*(sigfunc))(sig, (siginfo_t *)info->si_code, ucp);
+			(*(sigfunc))(sig, (void*)(intptr_t)info->si_code, ucp);
 	}
 	/*
 	 * Only restore the signal mask if it hasn't been changed by the
