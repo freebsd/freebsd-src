@@ -1250,6 +1250,14 @@ ufs_extattr_vnode_inactive(struct vnode *vp, struct proc *p)
 	struct mount	*mp = vp->v_mount;
 	struct ufsmount	*ump = VFSTOUFS(mp);
 
+	/*
+	 * In that case, we cannot lock. We should not have any active vnodes
+	 * on the fs if this is not yet initialized but is going to be, so
+	 * this can go unlocked.
+	 */
+	if (!(ump->um_extattr.uepm_flags & UFS_EXTATTR_UEPM_INITIALIZED))
+		return;
+
 	ufs_extattr_uepm_lock(ump, p);
 
 	if (!(ump->um_extattr.uepm_flags & UFS_EXTATTR_UEPM_STARTED)) {
