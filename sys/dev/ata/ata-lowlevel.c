@@ -324,7 +324,7 @@ ata_end_transaction(struct ata_request *request)
 		ata_pio_read(request, request->transfersize);
 
 	    /* update how far we've gotten */
-		request->donecount += request->transfersize;
+	    request->donecount += request->transfersize;
 
 	    /* do we need a scoop more ? */
 	    if (request->bytecount > request->donecount) {
