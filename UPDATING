@@ -17,6 +17,13 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 5.x IS SLOW:
 	developers choose to disable these features on build machines
 	to maximize performance.
 
+20040226:
+	Some sshd configuration defaults have changed: protocol version 2
+	is no longer enabled by default, and password authentication is
+	disabled by default if PAM is enabled (which it is by default).
+	OpenSSH clients should not be affected by this; other clients may
+	have to be reconfigured, upgraded or replaced.
+
 20040225:
 	routed has been updated in the base system from the vendor
 	sources, routed v2.27, from rhyolite.com. This change means that
