@@ -136,7 +136,7 @@ char partab[] = {
 
 #define	puts	Gputs
 
-static void	defttymode();
+static void	defttymode(void);
 static void	dingdong(int);
 static void	dogettytab(void);
 static int	getname(void);
