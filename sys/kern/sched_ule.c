@@ -1062,21 +1062,27 @@ sched_switch(struct thread *td)
 	td->td_oncpu = NOCPU;
         td->td_flags &= ~TDF_NEEDRESCHED;
 
-	if (TD_IS_RUNNING(td)) {
-		if (td->td_proc->p_flag & P_SA) {
-			kseq_load_rem(KSEQ_CPU(ke->ke_cpu), ke);
-			setrunqueue(td);
-		} else 
-			kseq_runq_add(KSEQ_SELF(), ke);
-	} else {
-		if (ke->ke_runq)
-			kseq_load_rem(KSEQ_CPU(ke->ke_cpu), ke);
-		/*
-		 * We will not be on the run queue. So we must be
-		 * sleeping or similar.
-		 */
-		if (td->td_proc->p_flag & P_SA)
-			kse_reassign(ke);
+	/*
+	 * If the KSE has been assigned it may be in the process of switching
+	 * to the new cpu.  This is the case in sched_bind().
+	 */
+	if ((ke->ke_flags & KEF_ASSIGNED) == 0) {
+		if (TD_IS_RUNNING(td)) {
+			if (td->td_proc->p_flag & P_SA) {
+				kseq_load_rem(KSEQ_CPU(ke->ke_cpu), ke);
+				setrunqueue(td);
+			} else 
+				kseq_runq_add(KSEQ_SELF(), ke);
+		} else {
+			if (ke->ke_runq)
+				kseq_load_rem(KSEQ_CPU(ke->ke_cpu), ke);
+			/*
+			 * We will not be on the run queue. So we must be
+			 * sleeping or similar.
+			 */
+			if (td->td_proc->p_flag & P_SA)
+				kse_reassign(ke);
+		}
 	}
 	newtd = choosethread();
 	if (td != newtd)
