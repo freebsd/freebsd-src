@@ -1,6 +1,6 @@
-static char     nic38_id[] = "@(#)$Id: nic3008.c,v 1.9 1995/11/21 14:56:01 bde Exp $";
+static char     nic38_id[] = "@(#)$Id: nic3008.c,v 1.10 1995/11/29 10:47:04 julian Exp $";
 /*******************************************************************************
- *  II - Version 0.1 $Revision: 1.9 $   $State: Exp $
+ *  II - Version 0.1 $Revision: 1.10 $   $State: Exp $
  *
  * Copyright 1994 Dietmar Friede
  *******************************************************************************
@@ -10,6 +10,12 @@ static char     nic38_id[] = "@(#)$Id: nic3008.c,v 1.9 1995/11/21 14:56:01 bde E
  *
  *******************************************************************************
  * $Log: nic3008.c,v $
+ * Revision 1.10  1995/11/29  10:47:04  julian
+ * OK, that's it..
+ * That's EVERY SINGLE driver that has an entry in conf.c..
+ * my next trick will be to define cdevsw[] and bdevsw[]
+ * as empty arrays and remove all those DAMNED defines as well..
+ *
  * Revision 1.9  1995/11/21  14:56:01  bde
  * Completed function declarations, added prototypes and removed redundant
  * declarations.
@@ -1243,8 +1249,8 @@ static void 	nic_drvinit(void *unused)
 /*	path	name	devsw		minor	type   uid gid perm*/
 	"/",	"nic",	major(dev),	0,	DV_CHR,	0,  0, 0600);
 		}
-    	}
 #endif
+    	}
 }
 
 SYSINIT(nicdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,nic_drvinit,NULL)

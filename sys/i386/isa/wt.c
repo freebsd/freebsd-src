@@ -19,7 +19,7 @@
  * the original CMU copyright notice.
  *
  * Version 1.3, Thu Nov 11 12:09:13 MSK 1993
- * $Id: wt.c,v 1.21 1995/11/28 09:42:06 julian Exp $
+ * $Id: wt.c,v 1.22 1995/11/29 10:48:03 julian Exp $
  *
  */
 
@@ -1009,8 +1009,8 @@ static void 	wt_drvinit(void *unused)
 			x=devfs_add_devsw(
 	"/",	"wt",	major(dev),	0,	DV_BLK,	0,  0, 0600);
 		}
-    	}
 #endif
+    	}
 }
 
 SYSINIT(wtdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,wt_drvinit,NULL)

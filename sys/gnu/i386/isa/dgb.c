@@ -1,5 +1,5 @@
 /*-
- *  dgb.c $Id: dgb.c,v 1.5 1995/11/04 13:22:59 bde Exp $
+ *  dgb.c $Id: dgb.c,v 1.6 1995/11/29 10:47:03 julian Exp $
  *
  *  Digiboard driver.
  *
@@ -2010,8 +2010,8 @@ static void 	dgb_drvinit(void *unused)
 /*	path	name	major		minor	type   uid gid perm*/
 	"/",	"dgb",	major(dev),	0,	DV_CHR,	0,  0, 0600);
 		}
-    	}
 #endif
+    	}
 }
 
 SYSINIT(dgbdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,dgb_drvinit,NULL)

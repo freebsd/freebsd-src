@@ -1,6 +1,6 @@
-static char     _ispyid[] = "@(#)$Id: iispy.c,v 1.4 1995/09/08 11:06:56 bde Exp $";
+static char     _ispyid[] = "@(#)$Id: iispy.c,v 1.5 1995/11/29 10:47:07 julian Exp $";
 /*******************************************************************************
- *  II - Version 0.1 $Revision: 1.4 $   $State: Exp $
+ *  II - Version 0.1 $Revision: 1.5 $   $State: Exp $
  *
  * Copyright 1994 Dietmar Friede
  *******************************************************************************
@@ -10,6 +10,12 @@ static char     _ispyid[] = "@(#)$Id: iispy.c,v 1.4 1995/09/08 11:06:56 bde Exp 
  *
  *******************************************************************************
  * $Log: iispy.c,v $
+ * Revision 1.5  1995/11/29  10:47:07  julian
+ * OK, that's it..
+ * That's EVERY SINGLE driver that has an entry in conf.c..
+ * my next trick will be to define cdevsw[] and bdevsw[]
+ * as empty arrays and remove all those DAMNED defines as well..
+ *
  * Revision 1.4  1995/09/08  11:06:56  bde
  * Fix benign type mismatches in devsw functions.  82 out of 299 devsw
  * functions were wrong.
@@ -216,8 +222,8 @@ static void 	ispy_drvinit(void *unused)
 /*	path	name	devsw		minor	type   uid gid perm*/
 	"/",	"ispy",	major(dev),	0,	DV_CHR,	0,  0, 0600);
 		}
-    	}
 #endif
+    	}
 }
 
 SYSINIT(ispydev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,ispy_drvinit,NULL)

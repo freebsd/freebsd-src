@@ -37,7 +37,7 @@
  *
  *      @(#)bpf.c	8.2 (Berkeley) 3/28/94
  *
- * $Id: bpf.c,v 1.14 1995/11/20 12:29:05 phk Exp $
+ * $Id: bpf.c,v 1.15 1995/11/29 10:48:44 julian Exp $
  */
 
 #include "bpfilter.h"
@@ -1344,8 +1344,8 @@ static void 	bpf_drvinit(void *unused)
 /*	path	name	devsw		minor	type   uid gid perm*/
 	"/",	"bpf",	major(dev),	0,	DV_CHR,	0,  0, 0600);
 		}
-    	}
 #endif
+    	}
 }
 
 SYSINIT(bpfdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,bpf_drvinit,NULL)

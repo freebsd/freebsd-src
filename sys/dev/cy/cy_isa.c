@@ -27,7 +27,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: cy.c,v 1.20 1995/11/28 09:40:56 julian Exp $
+ *	$Id: cy.c,v 1.21 1995/11/29 10:47:35 julian Exp $
  */
 
 #include "cy.h"
@@ -2545,8 +2545,8 @@ static void 	cy_drvinit(void *unused)
 /*	path	name	devsw		minor	type   uid gid perm*/
 	"/",	"cy",	major(dev),	0,	DV_CHR,	0,  0, 0600);
 		}
-    	}
 #endif
+    	}
 }
 
 SYSINIT(cydev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,cy_drvinit,NULL)

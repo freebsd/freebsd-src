@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.72 1995/11/20 12:42:32 phk Exp $
+ *      $Id: sd.c,v 1.73 1995/11/29 10:49:02 julian Exp $
  */
 
 #define SPLSD splbio
@@ -995,8 +995,8 @@ static void 	sd_drvinit(void *unused)
 			x=devfs_add_devsw(
 	"/",	"sd",	major(dev),	0,	DV_BLK,	0,  0, 0600);
 		}
-    	}
 #endif
+    	}
 }
 
 SYSINIT(sddev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,sd_drvinit,NULL)

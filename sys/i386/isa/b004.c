@@ -660,8 +660,8 @@ static void 	bqu_drvinit(void *unused)
 /*	path	name	devsw		minor	type   uid gid perm*/
 	"/",	"bqu",	major(dev),	0,	DV_CHR,	0,  0, 0600);
 		}
-    	}
 #endif
+    	}
 }
 
 SYSINIT(bqudev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,bqu_drvinit,NULL)

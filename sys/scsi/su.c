@@ -44,7 +44,7 @@
  * SUCH DAMAGE.
  *End copyright
  *
- *      $Id: su.c,v 1.6 1995/11/06 00:36:08 bde Exp $
+ *      $Id: su.c,v 1.7 1995/11/29 10:49:06 julian Exp $
  *
  * Tabstops 4
  */
@@ -311,8 +311,8 @@ static void 	su_drvinit(void *unused)
 /*	path	name	devsw		minor	type   uid gid perm*/
 	"/",	"su",	major(dev),	0,	DV_CHR,	0,  0, 0600);
 		}
-    	}
 #endif
+    	}
 }
 
 SYSINIT(sudev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,su_drvinit,NULL)
