@@ -854,9 +854,6 @@ fxp_release(struct fxp_softc *sc)
 			bus_dmamap_destroy(sc->fxp_mtag, rxp->rx_map);
 		}
 		bus_dmamap_destroy(sc->fxp_mtag, sc->spare_map);
-		bus_dma_tag_destroy(sc->fxp_mtag);
-	}
-	if (sc->fxp_stag) {
 		for (i = 0; i < FXP_NTXCB; i++) {
 			txp = &sc->fxp_desc.tx_list[i];
 			if (txp->tx_mbuf != NULL) {
@@ -867,8 +864,10 @@ fxp_release(struct fxp_softc *sc)
 			}
 			bus_dmamap_destroy(sc->fxp_mtag, txp->tx_map);
 		}
-		bus_dma_tag_destroy(sc->fxp_stag);
+		bus_dma_tag_destroy(sc->fxp_mtag);
 	}
+	if (sc->fxp_stag)
+		bus_dma_tag_destroy(sc->fxp_stag);
 	if (sc->cbl_tag)
 		bus_dma_tag_destroy(sc->cbl_tag);
 	if (sc->mcs_tag)
