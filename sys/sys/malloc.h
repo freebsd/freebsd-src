@@ -57,7 +57,7 @@ struct malloc_type {
 	long	ks_limit;	/* most that are allowed to exist */
 	long	ks_size;	/* sizes of this thing that are allocated */
 	long	ks_inuse;	/* # of packets of this type currently in use */
-	long	ks_calls;	/* total packets of this type ever allocated */
+	int64_t	ks_calls;	/* total packets of this type ever allocated */
 	long	ks_maxused;	/* maximum number ever used */
 	u_long	ks_magic;	/* if it's not magic, don't touch it */
 	const char *ks_shortdesc;	/* short description */
@@ -100,10 +100,10 @@ struct kmemusage {
 struct kmembuckets {
 	caddr_t kb_next;	/* list of free blocks */
 	caddr_t kb_last;	/* last free block */
+	int64_t	kb_calls;	/* total calls to allocate this size */
 	long	kb_total;	/* total number of blocks allocated */
 	long	kb_elmpercl;	/* # of elements in this sized allocation */
 	long	kb_totalfree;	/* # of free elements in this bucket */
-	long	kb_calls;	/* total calls to allocate this size */
 	long	kb_highwat;	/* high water mark */
 	long	kb_couldfree;	/* over high water mark and could free */
 };
