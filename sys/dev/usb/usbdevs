@@ -639,6 +639,7 @@ product HP 1220C		0x0212	DeskJet 1220C
 product HP 810C			0x0304	DeskJet 810C/812C
 product HP 4300C		0x0305	Scanjet 4300C
 product HP G85XI		0x0311	OfficeJet G85xi
+product HP 1200			0x0317	LaserJet 1200
 product HP 5200C		0x0401	Scanjet 5200C
 product HP 830C			0x0404	DeskJet 830C
 product HP 3400CSE		0x0405	ScanJet 3400cse
