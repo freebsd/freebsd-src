@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: atapi-cd.c,v 1.8 1999/01/30 12:21:43 phk Exp $
+ *	$Id: atapi-cd.c,v 1.9 1999/01/31 21:51:03 sos Exp $
  */
 
 #include "wdc.h"
@@ -133,6 +133,7 @@ acd_init_lun(struct atapi *ata, int unit, struct atapi_params *ap, int lun,
         if (!(ptr->device_stats = malloc(sizeof(struct devstat), 
 					 M_TEMP, M_NOWAIT)))
             return NULL;
+	bzero(ptr->device_stats, sizeof(struct devstat));
     }
     else
 	ptr->device_stats = device_stats;
