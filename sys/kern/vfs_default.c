@@ -535,16 +535,6 @@ vfs_stdvptofh (vp, fhp)
 }
 
 int
-vfs_stdstart (mp, flags, td)
-	struct mount *mp;
-	int flags;
-	struct thread *td;
-{
-
-	return (0);
-}
-
-int
 vfs_stdquotactl (mp, cmds, uid, arg, td)
 	struct mount *mp;
 	int cmds;

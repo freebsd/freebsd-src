@@ -792,7 +792,7 @@ vfs_domount(
 		if ((mp->mnt_flag & MNT_RDONLY) == 0)
 			error = vfs_allocate_syncvnode(mp);
 		vfs_unbusy(mp, td);
-		if (error || (error = VFS_START(mp, 0, td)) != 0)
+		if (error)
 			vrele(vp);
 	} else {
 		VI_LOCK(vp);
@@ -1054,8 +1054,6 @@ devfs_first(void)
 	if (error)
 		return (NULL);
 
-	VFS_START(mp, 0, td);
-
 	mtx_lock(&mountlist_mtx);
 	TAILQ_INSERT_HEAD(&mountlist, mp, mnt_list);
 	mtx_unlock(&mountlist_mtx);
@@ -1263,7 +1261,6 @@ vfs_mountroot_try(const char *mountfrom)
 		/* sanity check system clock against root fs timestamp */
 		inittodr(mp->mnt_time);
 		vfs_unbusy(mp, curthread);
-		error = VFS_START(mp, 0, curthread);
 
 		devfs_fixup(curthread);
 	}
