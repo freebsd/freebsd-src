@@ -9,6 +9,7 @@
  * $FreeBSD$
  */
 
+#include <err.h>
 #include <time.h>
 #include <signal.h>
 #include <ncurses.h>
@@ -31,9 +32,8 @@ short disp[11] = {
 	074717, 074757, 071111, 075757, 075717, 002020
 };
 long old[6], next[6], new[6], mask;
-char scrol;
 
-int sigtermed=0;
+volatile sig_atomic_t sigtermed;
 
 int hascolor = 0;
 
@@ -41,6 +41,7 @@ void set(int, int);
 void standt(int);
 void movto(int, int);
 void sighndl(int);
+void usage(void);
 
 void sighndl(signo)
 int signo;
@@ -55,7 +56,34 @@ char **argv;
 {
 long t, a;
 int i, j, s, k;
-int n = 0;
+int n;
+int ch;
+int scrol;
+
+	scrol = 0;
+
+	while ((ch = getopt(argc, argv, "s")) != -1)
+	switch (ch) {
+	case 's':
+		scrol = 1;
+		break;
+	case '?':
+	default:
+		usage();
+		/* NOTREACHED */
+	}
+	argc -= optind;
+	argv += optind;
+
+	if (argc > 1) {
+		usage();
+		/* NOTREACHED */
+	}
+
+	if (argc > 0)
+		n = atoi(*argv);
+	else
+		n = 0;
 
 	initscr();
 
@@ -79,12 +107,6 @@ int n = 0;
 
 	clear();
 	refresh();
-	while(--argc > 0) {
-		if(**++argv == '-')
-			scrol = 1;
-		else
-			n = atoi(*argv);
-	}
 
 	if(hascolor) {
 		attrset(COLOR_PAIR(3));
@@ -155,8 +177,7 @@ int n = 0;
 			clear();
 			refresh();
 			endwin();
-			fprintf(stderr, "grdc terminated by signal %d\n", sigtermed);
-			exit(1);
+			errx(1, "terminated by signal %d", (int)sigtermed);
 		}
 	} while(--n);
 	standend();
@@ -204,3 +225,10 @@ movto(int line, int col)
 	move(line, col);
 }
 
+void
+usage(void)
+{
+
+	(void)fprintf(stderr, "usage: grdc [-s] [n]\n");
+	exit(1);
+}
