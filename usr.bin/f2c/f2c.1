@@ -21,7 +21,10 @@
 .TH F2C 1
 .CT 1 prog_other
 .SH NAME
-f\^2c \(mi Convert Fortran 77 to C or C++
+f2c \- Convert Fortran 77 to C or C++
+. \" f\^2c changed to f2c in the previous line for the benefit of
+. \" people on systems (e.g. Sun systems) whose makewhatis cannot
+. \" cope with troff formatting commands.
 .SH SYNOPSIS
 .B f\^2c
 [
@@ -72,6 +75,14 @@ variables in INQUIREs.  Option
 .L -I4
 confirms the default rendering of INTEGER as long int.
 .TP
+.BI -I dir
+Look for a non-absolute include file first in the directory of the
+current input file, then in directories specified by \f(CW-I\fP
+options (one directory per option).  Options
+\f(CW-I2\fP and \f(CW-I4\fP
+have precedence, so, e.g., a directory named \f(CW2\fP
+should be specified by \f(CW-I./2\fP .
+.TP
 .B -onetrip
 Compile DO loops that are performed at least once if reached.
 (Fortran 77 DO loops are not performed at all if the upper limit is smaller than the lower limit.)
@@ -86,10 +97,9 @@ case.
 Make the default type of a variable `undefined' rather than using the default Fortran rules.
 .TP
 .B -w
-Suppress all warning messages.
-If the option is
+Suppress all warning messages, or, if the option is
 .LR -w66 ,
-only Fortran 66 compatibility warnings are suppressed.
+just Fortran 66 compatibility warnings.
 .PP
 The following options are peculiar to
 .IR f\^2c .
@@ -113,6 +123,13 @@ Output C++ code.
 .TP
 .B -c
 Include original Fortran source as comments.
+.TP
+.BI -d dir
+Write
+.L .c
+files in directory
+.I dir
+instead of the current directory.
 .TP
 .B -E
 Declare uninitialized
@@ -226,7 +243,9 @@ to
 .SM DOUBLE COMPLEX.
 .TP
 .B -s
-Preserve multidimensional subscripts.
+Preserve multidimensional subscripts.  Suppressed by option
+.L -C
+\&.
 .TP
 .BI -T dir
 Put temporary files in directory
@@ -296,6 +315,7 @@ see the reference below.
 .br
 .SH FILES
 .TP
+.nr )I 1.75i
 .IB file .[fF]
 input file
 .TP

@@ -1,5 +1,5 @@
 /****************************************************************
-Copyright 1990, 1991 by AT&T Bell Laboratories, Bellcore.
+Copyright 1990, 1991, 1994 by AT&T Bell Laboratories, Bellcore.
 
 Permission to use, copy, modify, and distribute this software
 and its documentation for any purpose and without fee is hereby
@@ -27,6 +27,10 @@ this software.
  */
 
 #ifdef __STDC__
+#undef KR_headers
+#endif
+
+#ifndef KR_headers
 #ifndef ANSI_Libraries
 #define ANSI_Libraries
 #endif
@@ -37,12 +41,10 @@ this software.
 
 #ifdef __BORLANDC__
 #define MSDOS
-extern int ind_printf(), nice_printf();
 #endif
 
 #ifdef __ZTC__	/* Zortech */
 #define MSDOS
-extern int ind_printf(...), nice_printf(...);
 #endif
 
 #ifdef MSDOS
@@ -61,21 +63,16 @@ extern int ind_printf(...), nice_printf(...);
 #else
 char *calloc(), *malloc(), *memcpy(), *memset(), *realloc();
 typedef int size_t;
-#ifdef ANSI_Prototypes
-extern double atof(const char *);
-#else
-extern double atof();
-#endif
+#ifndef atol
+    long atol();
 #endif
 
 #ifdef ANSI_Prototypes
-extern char *gmem(int, int);
-extern char *mem(int, int);
-extern char *Alloc(int);
-extern int* ckalloc(int);
+extern double atof(const char *);
+extern double strtod(const char*, char**);
 #else
-extern char *Alloc(), *gmem(), *mem();
-int *ckalloc();
+extern double atof(), strtod();
+#endif
 #endif
 
 /* On systems like VMS where fopen might otherwise create

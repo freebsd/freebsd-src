@@ -1,5 +1,5 @@
 /****************************************************************
-Copyright 1990, 1991, 1992, 1993 by AT&T Bell Laboratories, Bellcore.
+Copyright 1990 - 1995 by AT&T Bell Laboratories, Bellcore.
 
 Permission to use, copy, modify, and distribute this software
 and its documentation for any purpose and without fee is hereby
@@ -31,7 +31,6 @@ this software.
 #define MAXINCLUDES 10
 #define MAXLITERALS 200		/* Max number of constants in the literal
 				   pool */
-#define MAXTOKENLEN 502		/* length of longest token */
 #define MAXCTL 20
 #define MAXHASH 401
 #define MAXSTNO 801
@@ -50,7 +49,6 @@ typedef struct Constblock *Constp;
 typedef struct Exprblock *Exprp;
 typedef struct Nameblock *Namep;
 
-extern FILEP opf();
 extern FILEP infile;
 extern FILEP diagfile;
 extern FILEP textfile;
@@ -67,7 +65,7 @@ extern int current_ftn_file;
 extern int maxcontin;
 
 extern char *blkdfname, *initfname, *sortfname;
-extern long int headoffset;	/* Since the header block requires data we
+extern long headoffset;		/* Since the header block requires data we
 				   don't know about until AFTER each
 				   function has been processed, we keep a
 				   pointer to the current (dummy) header
@@ -75,8 +73,8 @@ extern long int headoffset;	/* Since the header block requires data we
 				   here */
 
 extern char main_alias[];	/* name given to PROGRAM psuedo-op */
-extern char token [ ];
-extern int toklen;
+extern char *token;
+extern int maxtoklen, toklen;
 extern long lineno;
 extern char *infname;
 extern int needkwd;
@@ -301,7 +299,7 @@ extern int complex_seen, dcomplex_seen;
 struct Labelblock
 	{
 	int labelno;		/* Internal label */
-	unsigned blklevel:8;	/* level of nesting , for branch-in-loop
+	unsigned blklevel:8;	/* level of nesting, for branch-in-loop
 				   checking */
 	unsigned labused:1;
 	unsigned fmtlabused:1;
@@ -488,6 +486,7 @@ struct Exprblock
 	unsigned opcode;
 	expptr leftp;
 	expptr rightp;
+	int typefixed;
 	};
 
 
@@ -497,7 +496,7 @@ union Constant
 		char *ccp0;
 		ftnint blanks;
 		} ccp1;
-	ftnint ci;		/* Constant long integer */
+	ftnint ci;		/* Constant longeger */
 	double cd[2];
 	char *cds[2];
 	};
@@ -680,8 +679,8 @@ struct Equivblock
 	struct Eqvchain *equivs;	/* List (Eqvchain) of primblocks
 					   holding variable identifiers */
 	flag eqvinit;
-	long int eqvtop;
-	long int eqvbottom;
+	long eqvtop;
+	long eqvbottom;
 	int eqvtype;
 	} ;
 #define eqvleng eqvtop
@@ -697,7 +696,7 @@ struct Eqvchain
 		struct Primblock *eqvlhs;
 		Namep eqvname;
 		} eqvitem;
-	long int eqvoffset;
+	long eqvoffset;
 	} ;
 
 
@@ -733,52 +732,322 @@ extern char Letters[];
 
 struct Dims { expptr lb, ub; };
 
-
-/* popular functions with non integer return values */
-
-
-int *ckalloc();
-char *varstr(), *nounder(), *addunder();
-char *copyn(), *copys();
-chainp hookup(), mkchain(), revchain();
-ftnint convci();
-char *convic();
-char *setdoto();
-double convcd();
-Namep mkname();
-struct Labelblock *mklabel(), *execlab();
-Extsym *mkext(), *newentry();
-expptr addrof(), call1(), call2(), call3(), call4();
-Addrp builtin(), mktmp(), mktmp0(), mktmpn(), autovar();
-Addrp mkplace(), mkaddr(), putconst(), memversion();
-expptr mkprim(), mklhs(), mkexpr(), mkconv(), mkfunct(), fixexpr(), fixtype();
-expptr errnode(), mkaddcon(), mkintcon(), putcxop();
-tagptr cpexpr();
-ftnint lmin(), lmax(), iarrlen();
-char *dbconst(), *flconst();
-
-void puteq (), putex1 ();
-expptr putx (), putsteq (), putassign ();
-
 extern int forcedouble;		/* force real functions to double */
 extern int doin_setbound;	/* special handling for array bounds */
 extern int Ansi;
-extern char *cds(), *cpstring(), *dtos(), *string_num();
-extern char *c_type_decl();
 extern char hextoi_tab[];
 #define hextoi(x) hextoi_tab[(x) & 0xff]
 extern char *casttypes[], *ftn_types[], *protorettypes[], *usedcasts[];
 extern int Castargs, infertypes;
 extern FILE *protofile;
-extern void exit(), inferdcl(), protowrite(), save_argtypes();
 extern char binread[], binwrite[], textread[], textwrite[];
 extern char *ei_first, *ei_last, *ei_next;
 extern char *wh_first, *wh_last, *wh_next;
-extern void putwhile();
-extern char *halign;
+extern char *halign, *outbuf, *outbtail;
 extern flag keepsubs;
 #ifdef TYQUAD
 extern flag use_tyquad;
 #endif
-extern int n_keywords, n_st_fields;
-extern char *c_keywords[], *st_fields[];
+extern int n_keywords;
+extern char *c_keywords[];
+
+#ifdef KR_headers
+#define Argdcl(x) ()
+#define Void /* void */
+#else
+#define Argdcl(x) x
+#define Void void
+#endif
+
+char*	Alloc Argdcl((int));
+char*	Argtype Argdcl((int, char*));
+void	Fatal Argdcl((char*));
+struct	Impldoblock* mkiodo Argdcl((chainp, chainp));
+tagptr	Inline Argdcl((int, int, chainp));
+struct	Labelblock* execlab Argdcl((long));
+struct	Labelblock* mklabel Argdcl((long));
+struct	Listblock* mklist Argdcl((chainp));
+void	Un_link_all Argdcl((int));
+void	add_extern_to_list Argdcl((Addrp, chainp*));
+int	addressable Argdcl((tagptr));
+tagptr	addrof Argdcl((tagptr));
+char*	addunder Argdcl((char*));
+Addrp	autovar Argdcl((int, int, tagptr, char*));
+void	backup Argdcl((char*, char*));
+void	bad_atypes Argdcl((Argtypes*, char*, int, int, int, char*, char*));
+int	badchleng Argdcl((tagptr));
+void	badop Argdcl((char*, int));
+void	badstg Argdcl((char*, int));
+void	badtag Argdcl((char*, int));
+void	badthing Argdcl((char*, char*, int));
+void	badtype Argdcl((char*, int));
+Addrp	builtin Argdcl((int, char*, int));
+char*	c_name Argdcl((char*, int));
+tagptr	call0 Argdcl((int, char*));
+tagptr	call1 Argdcl((int, char*, tagptr));
+tagptr	call2 Argdcl((int, char*, tagptr, tagptr));
+tagptr	call3 Argdcl((int, char*, tagptr, tagptr, tagptr));
+tagptr	call4 Argdcl((int, char*, tagptr, tagptr, tagptr, tagptr));
+tagptr	callk Argdcl((int, char*, chainp));
+void	cast_args Argdcl((int, chainp));
+char*	cds Argdcl((char*, char*));
+void	changedtype Argdcl((Namep));
+ptr	ckalloc Argdcl((int));
+int	cktype Argdcl((int, int, int));
+void	clf Argdcl((FILEP*, char*, int));
+int	cmpstr Argdcl((char*, char*, long, long));
+char*	c_type_decl Argdcl((int, int));
+Extsym*	comblock Argdcl((char*));
+char*	comm_union_name Argdcl((int));
+void	consconv Argdcl((int, Constp, Constp));
+void	consnegop Argdcl((Constp));
+int	conssgn Argdcl((tagptr));
+char*	convic Argdcl((long));
+void	copy_data Argdcl((chainp));
+char*	copyn Argdcl((int, char*));
+char*	copys Argdcl((char*));
+tagptr	cpblock Argdcl((int, char*));
+tagptr	cpexpr Argdcl((tagptr));
+void	cpn Argdcl((int, char*, char*));
+char*	cpstring Argdcl((char*));
+void	dataline Argdcl((char*, long, int));
+char*	dataname Argdcl((int, long));
+void	dataval Argdcl((tagptr, tagptr));
+void	dclerr Argdcl((char*, Namep));
+void	def_commons Argdcl((FILEP));
+void	def_start Argdcl((FILEP, char*, char*, char*));
+void	deregister Argdcl((Namep));
+void	do_uninit_equivs Argdcl((FILEP, ptr));
+void	doequiv(Void);
+int	dofork(Void);
+void	doinclude Argdcl((char*));
+void	doio Argdcl((chainp));
+void	done Argdcl((int));
+void	donmlist(Void);
+int	dsort Argdcl((char*, char*));
+char*	dtos Argdcl((double));
+void	elif_out Argdcl((FILEP, tagptr));
+void	end_else_out Argdcl((FILEP));
+void	enddcl(Void);
+void	enddo Argdcl((int));
+void	endio(Void);
+void	endioctl(Void);
+void	endproc(Void);
+void	entrypt Argdcl((int, int, long, Extsym*, chainp));
+int	eqn Argdcl((int, char*, char*));
+char*	equiv_name Argdcl((int, char*));
+void	err Argdcl((char*));
+void	err66 Argdcl((char*));
+void	errext Argdcl((char*));
+void	erri Argdcl((char*, int));
+void	errl Argdcl((char*, long));
+tagptr	errnode(Void);
+void	errstr Argdcl((char*, char*));
+void	exarif Argdcl((tagptr, struct Labelblock*, struct Labelblock*, struct Labelblock*));
+void	exasgoto Argdcl((Namep));
+void	exassign Argdcl((Namep, struct Labelblock*));
+void	excall Argdcl((Namep, struct Listblock*, int, struct Labelblock**));
+void	exdo Argdcl((int, Namep, chainp));
+void	execerr Argdcl((char*, char*));
+void	exelif Argdcl((tagptr));
+void	exelse(Void);
+void	exenddo Argdcl((Namep));
+void	exendif(Void);
+void	exequals Argdcl((struct Primblock*, tagptr));
+void	exgoto Argdcl((struct Labelblock*));
+void	exif Argdcl((tagptr));
+void	exreturn Argdcl((tagptr));
+void	exstop Argdcl((int, tagptr));
+void	extern_out Argdcl((FILEP, Extsym*));
+void	fatali Argdcl((char*, int));
+void	fatalstr Argdcl((char*, char*));
+void	ffilecopy Argdcl((FILEP, FILEP));
+void	fileinit(Void);
+int	fixargs Argdcl((int, struct Listblock*));
+tagptr	fixexpr Argdcl((Exprp));
+tagptr	fixtype Argdcl((tagptr));
+char*	flconst Argdcl((char*, char*));
+void	flline(Void);
+void	fmt_init(Void);
+void	fmtname Argdcl((Namep, Addrp));
+int	fmtstmt Argdcl((struct Labelblock*));
+tagptr	fold Argdcl((tagptr));
+void	frchain Argdcl((chainp*));
+void	frdata Argdcl((chainp));
+void	freetemps(Void);
+void	freqchain Argdcl((struct Equivblock*));
+void	frexchain Argdcl((chainp*));
+void	frexpr Argdcl((tagptr));
+void	frrpl(Void);
+void	frtemp Argdcl((Addrp));
+char*	gmem Argdcl((int, int));
+void	hashclear(Void);
+chainp	hookup Argdcl((chainp, chainp));
+expptr	imagpart Argdcl((Addrp));
+void	impldcl Argdcl((Namep));
+int	in_vector Argdcl((char*, char**, int));
+void	incomm Argdcl((Extsym*, Namep));
+void	inferdcl Argdcl((Namep, int));
+int	inilex Argdcl((char*));
+void	initkey(Void);
+int	inregister Argdcl((Namep));
+long	int commlen Argdcl((chainp));
+long	int convci Argdcl((int, char*));
+long	int iarrlen Argdcl((Namep));
+long	int lencat Argdcl((expptr));
+long	int lmax Argdcl((long, long));
+long	int lmin Argdcl((long, long));
+long	int wr_char_len Argdcl((FILEP, struct Dimblock*, int, int));
+Addrp	intraddr Argdcl((Namep));
+tagptr	intrcall Argdcl((Namep, struct Listblock*, int));
+int	intrfunct Argdcl((char*));
+void	ioclause Argdcl((int, expptr));
+int	iocname(Void);
+int	is_negatable Argdcl((Constp));
+int	isaddr Argdcl((tagptr));
+int	isnegative_const Argdcl((Constp));
+int	isstatic Argdcl((tagptr));
+chainp	length_comp Argdcl((struct Entrypoint*, int));
+int	lengtype Argdcl((int, long));
+char*	lexline Argdcl((ptr));
+void	list_arg_types Argdcl((FILEP, struct Entrypoint*, chainp, int, char*));
+void	list_decls Argdcl((FILEP));
+void	list_init_data Argdcl((FILE **, char *, FILE *));
+void	listargs Argdcl((FILEP, struct Entrypoint*, int, chainp));
+char*	lit_name Argdcl((struct Literal*));
+int	log_2 Argdcl((long));
+char*	lower_string Argdcl((char*, char*));
+int	main Argdcl((int, char**));
+expptr	make_int_expr Argdcl((expptr));
+void	make_param Argdcl((struct Paramblock*, tagptr));
+void	many Argdcl((char*, char, int));
+void	margin_printf Argdcl((FILEP, char*, ...));
+int	maxtype Argdcl((int, int));
+char*	mem Argdcl((int, int));
+void	mem_init(Void);
+char*	memname Argdcl((int, long));
+Addrp	memversion Argdcl((Namep));
+tagptr	mkaddcon Argdcl((long));
+Addrp	mkaddr Argdcl((Namep));
+Addrp	mkarg Argdcl((int, int));
+tagptr	mkbitcon Argdcl((int, int, char*));
+chainp	mkchain Argdcl((char*, chainp));
+Constp	mkconst Argdcl((int));
+tagptr	mkconv Argdcl((int, tagptr));
+tagptr	mkcxcon Argdcl((tagptr, tagptr));
+tagptr	mkexpr Argdcl((int, tagptr, tagptr));
+Extsym*	mkext Argdcl((char*, char*));
+Extsym*	mkext1 Argdcl((char*, char*));
+Addrp	mkfield Argdcl((Addrp, char*, int));
+tagptr	mkfunct Argdcl((tagptr));
+tagptr	mkintcon Argdcl((long));
+tagptr	mklhs Argdcl((struct Primblock*, int));
+tagptr	mklogcon Argdcl((int));
+Namep	mkname Argdcl((char*));
+Addrp	mkplace Argdcl((Namep));
+tagptr	mkprim Argdcl((Namep, struct Listblock*, chainp));
+tagptr	mkrealcon Argdcl((int, char*));
+Addrp	mkscalar Argdcl((Namep));
+void	mkstfunct Argdcl((struct Primblock*, tagptr));
+tagptr	mkstrcon Argdcl((int, char*));
+Addrp	mktmp Argdcl((int, tagptr));
+Addrp	mktmp0 Argdcl((int, tagptr));
+Addrp	mktmpn Argdcl((int, int, tagptr));
+void	namelist Argdcl((Namep));
+int	ncat Argdcl((expptr));
+void	negate_const Argdcl((Constp));
+void	new_endif(Void);
+Extsym*	newentry Argdcl((Namep, int));
+int	newlabel(Void);
+void	newproc(Void);
+Addrp	nextdata Argdcl((long*));
+void	nice_printf Argdcl((FILEP, char*, ...));
+void	not_both Argdcl((char*));
+void	np_init(Void);
+int	oneof_stg Argdcl((Namep, int, int));
+int	op_assign Argdcl((int));
+tagptr	opconv Argdcl((tagptr, int));
+FILEP	opf Argdcl((char*, char*));
+void	out_addr Argdcl((FILEP, Addrp));
+void	out_asgoto Argdcl((FILEP, tagptr));
+void	out_call Argdcl((FILEP, int, int, tagptr, tagptr, tagptr));
+void	out_const Argdcl((FILEP, Constp));
+void	out_else Argdcl((FILEP));
+void	out_for Argdcl((FILEP, tagptr, tagptr, tagptr));
+void	out_init(Void);
+void	outbuf_adjust(Void);
+void	p1_label Argdcl((long));
+void	prcona Argdcl((FILEP, long));
+void	prconi Argdcl((FILEP, long));
+void	prconr Argdcl((FILEP, Constp, int));
+void	procinit(Void);
+void	procode Argdcl((FILEP));
+void	prolog Argdcl((FILEP, chainp));
+void	protowrite Argdcl((FILEP, int, char*, struct Entrypoint*, chainp));
+expptr	prune_left_conv Argdcl((expptr));
+int	put_one_arg Argdcl((int, char*, char**, char*, char*));
+expptr	putassign Argdcl((expptr, expptr));
+Addrp	putchop Argdcl((tagptr));
+void	putcmgo Argdcl((tagptr, int, struct Labelblock**));
+Addrp	putconst Argdcl((Constp));
+tagptr	putcxop Argdcl((tagptr));
+void	puteq Argdcl((expptr, expptr));
+void	putexpr Argdcl((expptr));
+void	puthead Argdcl((char*, int));
+void	putif Argdcl((tagptr, int));
+void	putout Argdcl((tagptr));
+expptr	putsteq Argdcl((Addrp, Addrp));
+void	putwhile Argdcl((tagptr));
+tagptr	putx Argdcl((tagptr));
+void	r8fix(Void);
+int	rdlong Argdcl((FILEP, long*));
+int	rdname Argdcl((FILEP, ptr, char*));
+void	read_Pfiles Argdcl((char**));
+Addrp	realpart Argdcl((Addrp));
+chainp	revchain Argdcl((chainp));
+int	same_expr Argdcl((tagptr, tagptr));
+int	same_ident Argdcl((tagptr, tagptr));
+void	save_argtypes Argdcl((chainp, Argtypes**, Argtypes**, int, char*, int, int, int, int));
+void	saveargtypes Argdcl((Exprp));
+void	set_externs(Void);
+void	set_tmp_names(Void);
+void	setbound Argdcl((Namep, int, struct Dims*));
+void	setdata Argdcl((Addrp, Constp, long));
+void	setext Argdcl((Namep));
+void	setfmt Argdcl((struct Labelblock*));
+void	setimpl Argdcl((int, long, int, int));
+void	setintr Argdcl((Namep));
+void	settype Argdcl((Namep, int, long));
+void	sigcatch Argdcl((int));
+void	start_formatting(Void);
+void	startioctl(Void);
+void	startproc Argdcl((Extsym*, int));
+void	startrw(Void);
+char*	string_num Argdcl((char*, long));
+int	struct_eq Argdcl((chainp, chainp));
+tagptr	subcheck Argdcl((Namep, tagptr));
+tagptr	suboffset Argdcl((struct Primblock*));
+int	type_fixup Argdcl((Argtypes*, Atype*, int));
+void	unamstring Argdcl((Addrp, char*));
+void	unclassifiable(Void);
+void	vardcl Argdcl((Namep));
+void	warn Argdcl((char*));
+void	warn1 Argdcl((char*, char*));
+void	warni Argdcl((char*, int));
+void	wr_abbrevs Argdcl((FILEP, int, chainp));
+char*	wr_ardecls Argdcl((FILE*, struct Dimblock*, long));
+void	wr_array_init Argdcl((FILEP, int, chainp));
+void	wr_common_decls Argdcl((FILEP));
+void	wr_equiv_init Argdcl((FILEP, int, chainp*, int));
+void	wr_globals Argdcl((FILEP));
+void	wr_nv_ident_help Argdcl((FILEP, Addrp));
+void	wr_struct Argdcl((FILEP, chainp));
+void	wronginf Argdcl((Namep));
+void	yyerror Argdcl((char*));
+int	yylex(Void);
+int	yyparse(Void);
+
+#ifdef USE_DTOA
+#define atof(x) strtod(x,0)
+void	g_fmt Argdcl((char*, double));
+#endif

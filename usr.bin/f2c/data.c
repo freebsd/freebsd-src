@@ -1,5 +1,5 @@
 /****************************************************************
-Copyright 1990, 1993 by AT&T Bell Laboratories and Bellcore.
+Copyright 1990, 1993 - 1995 by AT&T Bell Laboratories and Bellcore.
 
 Permission to use, copy, modify, and distribute this software
 and its documentation for any purpose and without fee is hereby
@@ -29,13 +29,18 @@ static char datafmt[] = "%s\t%09ld\t%d";
 static char *cur_varname;
 
 /* another initializer, called from parser */
+ void
+#ifdef KR_headers
 dataval(repp, valp)
-register expptr repp, valp;
+	register expptr repp;
+	register expptr valp;
+#else
+dataval(register expptr repp, register expptr valp)
+#endif
 {
 	int i, nrep;
 	ftnint elen;
 	register Addrp p;
-	Addrp nextdata();
 
 	if (parstate < INDATA) {
 		frexpr(repp);
@@ -53,11 +58,18 @@ register expptr repp, valp;
 	}
 	frexpr(repp);
 
-	if( ! ISCONST(valp) )
-	{
-		err("non-constant initializer");
-		goto ret;
-	}
+	if( ! ISCONST(valp) ) {
+		if (valp->tag == TADDR
+		 && valp->addrblock.uname_tag == UNAM_CONST) {
+			/* kludge */
+			frexpr(valp->addrblock.memoffset);
+			valp->tag = TCONST;
+			}
+		else {
+			err("non-constant initializer");
+			goto ret;
+			}
+		}
 
 	if(toomanyinit) goto ret;
 	for(i = 0 ; i < nrep ; ++i)
@@ -78,8 +90,13 @@ ret:
 }
 
 
-Addrp nextdata(elenp)
-ftnint *elenp;
+ Addrp
+#ifdef KR_headers
+nextdata(elenp)
+	ftnint *elenp;
+#else
+nextdata(ftnint *elenp)
+#endif
 {
 	register struct Impldoblock *ip;
 	struct Primblock *pp;
@@ -220,17 +237,21 @@ next:
 
 LOCAL FILEP dfile;
 
-
+ void
+#ifdef KR_headers
 setdata(varp, valp, elen)
-register Addrp varp;
-ftnint elen;
-register Constp valp;
+	register Addrp varp;
+	register Constp valp;
+	ftnint elen;
+#else
+setdata(register Addrp varp, register Constp valp, ftnint elen)
+#endif
 {
 	struct Constblock con;
 	register int type;
 	int i, k, valtype;
 	ftnint offset;
-	char *dataname(), *varname;
+	char *varname;
 	static Addrp badvar;
 	register unsigned char *s;
 	static int last_lineno;
@@ -291,8 +312,6 @@ register Constp valp;
 	switch(type)
 	{
 	case TYLOGICAL:
-		if (tylogical != TYLONG)
-			type = tylogical;
 	case TYINT1:
 	case TYLOGICAL1:
 	case TYLOGICAL2:
@@ -347,13 +366,18 @@ register Constp valp;
    output form of name is padded with blanks and preceded
    with a storage class digit
 */
-char *dataname(stg,memno)
- int stg;
- long memno;
+ char*
+#ifdef KR_headers
+dataname(stg, memno)
+	int stg;
+	long memno;
+#else
+dataname(int stg, long memno)
+#endif
 {
 	static char varname[64];
 	register char *s, *t;
-	char buf[16], *memname();
+	char buf[16];
 
 	if (stg == STGCOMMON) {
 		varname[0] = '2';
@@ -372,9 +396,13 @@ char *dataname(stg,memno)
 
 
 
-
+ void
+#ifdef KR_headers
 frdata(p0)
-chainp p0;
+	chainp p0;
+#else
+frdata(chainp p0)
+#endif
 {
 	register struct Chain *p;
 	register tagptr q;
@@ -398,28 +426,49 @@ chainp p0;
 }
 
 
-
+ void
+#ifdef KR_headers
 dataline(varname, offset, type)
-char *varname;
-ftnint offset;
-int type;
+	char *varname;
+	ftnint offset;
+	int type;
+#else
+dataline(char *varname, ftnint offset, int type)
+#endif
 {
 	fprintf(dfile, datafmt, varname, offset, type);
 }
 
  void
+#ifdef KR_headers
 make_param(p, e)
- register struct Paramblock *p;
- expptr e;
+	register struct Paramblock *p;
+	expptr e;
+#else
+make_param(register struct Paramblock *p, expptr e)
+#endif
 {
 	register expptr q;
+	struct Constblock qc;
 
+	if (p->vstg == STGARG)
+		errstr("Dummy argument %.50s appears in a parameter statement.",
+			p->fvarname);
 	p->vclass = CLPARAM;
 	impldcl((Namep)p);
+	if (e->headblock.vtype != TYCHAR)
+		e = putx(fixtype(e));
 	p->paramval = q = mkconv(p->vtype, e);
 	if (p->vtype == TYCHAR) {
 		if (q->tag == TEXPR)
-			p->paramval = q = fixexpr(q);
+			p->paramval = q = fixexpr((Exprp)q);
+		if (q->tag == TADDR && q->addrblock.uname_tag == UNAM_CONST) {
+			qc.Const = q->addrblock.user.Const;
+			qc.tag = TCONST;
+			qc.vtype = q->addrblock.vtype;
+			qc.vleng = q->addrblock.vleng;
+			q = (expptr)&qc;
+			}
 		if (!ISCONST(q) || q->constblock.vtype != TYCHAR) {
 			errstr("invalid value for character parameter %s",
 				p->fvarname);

@@ -1,5 +1,5 @@
 /****************************************************************
-Copyright 1990, 1993 by AT&T Bell Laboratories and Bellcore.
+Copyright 1990, 1993 - 1995 by AT&T Bell Laboratories and Bellcore.
 
 Permission to use, copy, modify, and distribute this software
 and its documentation for any purpose and without fee is hereby
@@ -25,23 +25,33 @@ this software.
 #include "p1defs.h"
 #include "names.h"
 
-LOCAL void exar2(), popctl(), pushctl();
+static void exar2 Argdcl((int, tagptr, struct Labelblock*, struct Labelblock*));
+static void popctl Argdcl((void));
+static void pushctl Argdcl((int));
 
 /*   Logical IF codes
 */
 
-
+ void
+#ifdef KR_headers
 exif(p)
-expptr p;
+	expptr p;
+#else
+exif(expptr p)
+#endif
 {
     pushctl(CTLIF);
     putif(p, 0);	/* 0 => if, not elseif */
 }
 
 
-
+ void
+#ifdef KR_headers
 exelif(p)
-expptr p;
+	expptr p;
+#else
+exelif(expptr p)
+#endif
 {
     if (ctlstack->ctltype == CTLIF || ctlstack->ctltype == CTLIFX)
 	putif(p, 1);	/* 1 ==> elseif */
@@ -52,8 +62,8 @@ expptr p;
 
 
 
-
-exelse()
+ void
+exelse(Void)
 {
 	register struct Ctlframe *c;
 
@@ -66,8 +76,12 @@ exelse()
 		execerr("else out of place", CNULL);
 	}
 
-
+ void
+#ifdef KR_headers
 exendif()
+#else
+exendif()
+#endif
 {
 	while(ctlstack->ctltype == CTLIFX) {
 		popctl();
@@ -86,7 +100,12 @@ exendif()
 	}
 
 
+ void
+#ifdef KR_headers
 new_endif()
+#else
+new_endif()
+#endif
 {
 	if (ctlstack->ctltype == CTLIF || ctlstack->ctltype == CTLIFX)
 		pushctl(CTLIFX);
@@ -98,8 +117,12 @@ new_endif()
    zero) */
 
  LOCAL void
+#ifdef KR_headers
 pushctl(code)
- int code;
+	int code;
+#else
+pushctl(int code)
+#endif
 {
 	register int i;
 
@@ -109,12 +132,13 @@ pushctl(code)
 	for(i = 0 ; i < 4 ; ++i)
 		ctlstack->ctlabels[i] = 0;
 	ctlstack->dowhile = 0;
+	ctlstack->domax = ctlstack->dostep = 0;	/* in case of errors */
 	++blklevel;
 }
 
 
  LOCAL void
-popctl()
+popctl(Void)
 {
 	if( ctlstack-- < ctls )
 		Fatal("control stack empty");
@@ -125,7 +149,8 @@ popctl()
 
 /* poplab -- update the flags in   labeltab   */
 
-LOCAL poplab()
+ LOCAL void
+poplab(Void)
 {
 	register struct Labelblock  *lp;
 
@@ -146,9 +171,13 @@ LOCAL poplab()
 
 /*  BRANCHING CODE
 */
-
+ void
+#ifdef KR_headers
 exgoto(lab)
-struct Labelblock *lab;
+	struct Labelblock *lab;
+#else
+exgoto(struct Labelblock *lab)
+#endif
 {
 	lab->labused = 1;
 	p1_goto (lab -> stateno);
@@ -159,10 +188,14 @@ struct Labelblock *lab;
 
 
 
-
+ void
+#ifdef KR_headers
 exequals(lp, rp)
-register struct Primblock *lp;
-register expptr rp;
+	register struct Primblock *lp;
+	register expptr rp;
+#else
+exequals(register struct Primblock *lp, register expptr rp)
+#endif
 {
 	if(lp->tag != TPRIM)
 	{
@@ -173,9 +206,12 @@ register expptr rp;
 	else if(lp->namep->vclass!=CLVAR && lp->argsp)
 	{
 		if(parstate >= INEXEC)
-			err("statement function amid executables");
+			errstr("statement function %.62s amid executables.",
+				lp->namep->fvarname);
 		mkstfunct(lp, rp);
 	}
+	else if (lp->vtype == TYSUBR)
+		err("illegal use of subroutine name");
 	else
 	{
 		expptr new_lp, new_rp;
@@ -195,9 +231,14 @@ register expptr rp;
 long laststfcn = -1, thisstno;
 int doing_stmtfcn;
 
+ void
+#ifdef KR_headers
 mkstfunct(lp, rp)
-struct Primblock *lp;
-expptr rp;
+	struct Primblock *lp;
+	expptr rp;
+#else
+mkstfunct(struct Primblock *lp, expptr rp)
+#endif
 {
 	register struct Primblock *p;
 	register Namep np;
@@ -230,8 +271,10 @@ expptr rp;
 
 		if( ((tagptr)(args->datap))->tag!=TPRIM ||
 		    (p = (struct Primblock *)(args->datap) )->argsp ||
-		    p->fcharp || p->lcharp )
+		    p->fcharp || p->lcharp ) {
 			err("non-variable argument in statement function definition");
+			args->datap = 0;
+			}
 		else
 		{
 
@@ -245,8 +288,12 @@ expptr rp;
 }
 
  static void
+#ifdef KR_headers
 mixed_type(np)
- Namep np;
+	Namep np;
+#else
+mixed_type(Namep np)
+#endif
 {
 	char buf[128];
 	sprintf(buf, "%s function %.90s invoked as subroutine",
@@ -254,12 +301,16 @@ mixed_type(np)
 	warn(buf);
 	}
 
-
+ void
+#ifdef KR_headers
 excall(name, args, nstars, labels)
-Namep name;
-struct Listblock *args;
-int nstars;
-struct Labelblock *labels[ ];
+	Namep name;
+	struct Listblock *args;
+	int nstars;
+	struct Labelblock **labels;
+#else
+excall(Namep name, struct Listblock *args, int nstars, struct Labelblock **labels)
+#endif
 {
 	register expptr p;
 
@@ -275,6 +326,8 @@ struct Labelblock *labels[ ];
 			settype(name, TYSUBR, (ftnint)0);
 		}
 	p = mkfunct( mkprim(name, args, CHNULL) );
+	if (p->tag == TERROR)
+		return;
 
 /* Subroutines and their identifiers acquire the type INT */
 
@@ -289,14 +342,17 @@ struct Labelblock *labels[ ];
 }
 
 
-
+ void
+#ifdef KR_headers
 exstop(stop, p)
-int stop;
-register expptr p;
+	int stop;
+	register expptr p;
+#else
+exstop(int stop, register expptr p)
+#endif
 {
 	char *str;
 	int n;
-	expptr mkstrcon();
 
 	if(p)
 	{
@@ -354,10 +410,17 @@ register expptr p;
    positive increment tests are placed above the body, negative increment
    tests are placed below (see   enddo()   ) */
 
+ void
+#ifdef KR_headers
 exdo(range, loopname, spec)
-int range;			/* end label */
-Namep loopname;
-chainp spec;			/* input spec must have at least 2 exprs */
+	int range;
+	Namep loopname;
+	chainp spec;
+#else
+exdo(int range, Namep loopname, chainp spec)
+#endif
+			/* range = end label */
+			/* input spec must have at least 2 exprs */
 {
 	register expptr p;
 	register Namep np;
@@ -555,8 +618,13 @@ chainp spec;			/* input spec must have at least 2 exprs */
 	p1_for (init, test, inc);
 }
 
+ void
+#ifdef KR_headers
 exenddo(np)
- Namep np;
+	Namep np;
+#else
+exenddo(Namep np)
+#endif
 {
 	Namep np1;
 	int here;
@@ -585,9 +653,13 @@ exenddo(np)
 	enddo(here);
 	}
 
-
+ void
+#ifdef KR_headers
 enddo(here)
-int here;
+	int here;
+#else
+enddo(int here)
+#endif
 {
 	register struct Ctlframe *q;
 	Namep np;			/* name of the current DO index */
@@ -613,16 +685,18 @@ int here;
 				ctlstack->ctlabels[i] = 0;
 			deregister(ctlstack->donamep);
 			ctlstack->donamep->vdovar = NO;
-			e = ctlstack->dostep;
-			if (e->tag == TADDR && e->addrblock.istemp)
-				frtemp((Addrp)e);
-			else
-				frexpr(e);
-			e = ctlstack->domax;
-			if (e->tag == TADDR && e->addrblock.istemp)
-				frtemp((Addrp)e);
-			else
-				frexpr(e);
+			/* ctlstack->dostep and ctlstack->domax can be zero */
+			/* with sufficiently bizarre (erroneous) syntax */
+			if (e = ctlstack->dostep)
+				if (e->tag == TADDR && e->addrblock.istemp)
+					frtemp((Addrp)e);
+				else
+					frexpr(e);
+			if (e = ctlstack->domax)
+				if (e->tag == TADDR && e->addrblock.istemp)
+					frtemp((Addrp)e);
+				else
+					frexpr(e);
 			}
 		else if (ctlstack->dowhile)
 			p1for_end ();
@@ -642,12 +716,16 @@ int here;
 	}
 }
 
+ void
+#ifdef KR_headers
 exassign(vname, labelval)
- register Namep vname;
-struct Labelblock *labelval;
+	register Namep vname;
+	struct Labelblock *labelval;
+#else
+exassign(register Namep vname, struct Labelblock *labelval)
+#endif
 {
 	Addrp p;
-	expptr mkaddcon();
 	register Addrp q;
 	char *fs;
 	register chainp cp, cpprev;
@@ -698,7 +776,6 @@ struct Labelblock *labelval;
 	/* Code for FORMAT label... */
 
 	if (!labelval->labdefined || fs) {
-		extern void fmtname();
 
 		labelval->fmtlabused = 1;
 		p = ALLOC(Addrblock);
@@ -721,10 +798,16 @@ struct Labelblock *labelval;
 } /* exassign */
 
 
-
+ void
+#ifdef KR_headers
 exarif(expr, neglab, zerlab, poslab)
-expptr expr;
-struct Labelblock *neglab, *zerlab, *poslab;
+	expptr expr;
+	struct Labelblock *neglab;
+	struct Labelblock *zerlab;
+	struct Labelblock *poslab;
+#else
+exarif(expptr expr, struct Labelblock *neglab, struct Labelblock *zerlab, struct Labelblock *poslab)
+#endif
 {
     register int lm, lz, lp;
 
@@ -775,10 +858,15 @@ struct Labelblock *neglab, *zerlab, *poslab;
    in order to make the 1 pass algorithm work. */
 
  LOCAL void
+#ifdef KR_headers
 exar2(op, e, l1, l2)
- int op;
- expptr e;
- struct Labelblock *l1, *l2;
+	int op;
+	expptr e;
+	struct Labelblock *l1;
+	struct Labelblock *l2;
+#else
+exar2(int op, expptr e, struct Labelblock *l1, struct Labelblock *l2)
+#endif
 {
 	expptr comp;
 
@@ -794,8 +882,13 @@ exar2(op, e, l1, l2)
 /* exreturn -- return the value in   p  from a SUBROUTINE call -- used to
    implement the alternate return mechanism */
 
+ void
+#ifdef KR_headers
 exreturn(p)
-register expptr p;
+	register expptr p;
+#else
+exreturn(register expptr p)
+#endif
 {
 	if(procclass != CLPROC)
 		warn("RETURN statement in main or block data");
@@ -815,11 +908,15 @@ register expptr p;
 }
 
 
+ void
+#ifdef KR_headers
 exasgoto(labvar)
-Namep labvar;
+	Namep labvar;
+#else
+exasgoto(Namep labvar)
+#endif
 {
 	register Addrp p;
-	void p1_asgoto();
 
 	p = mkplace(labvar);
 	if( ! ISINT(p->vtype) )

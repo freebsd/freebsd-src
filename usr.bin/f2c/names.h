@@ -10,13 +10,10 @@
 
 extern char *c_keywords[];
 
-char *new_io_ident (/* char * */);
-char *new_func_length (/* char * */);
-char *new_arg_length (/* Namep */);
-void declare_new_addr (/* struct Addrblock * */);
-char *nv_ident_help (/* struct Addrblock * */);
-int nv_type_help (/* struct Addrblock */);
-char *user_label (/* int */);
-char *temp_name (/* int, char */);
-char *c_type_decl (/* int, int */);
-char *equiv_name (/* int, char * */);
+char*	c_type_decl Argdcl((int, int));
+void	declare_new_addr Argdcl((Addrp));
+char*	new_arg_length Argdcl((Namep));
+char*	new_func_length Argdcl((void));
+int	nv_type_help Argdcl((Addrp));
+char*	temp_name Argdcl((char*, int, char*));
+char*	user_label Argdcl((long int));

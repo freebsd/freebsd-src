@@ -1,5 +1,5 @@
 /****************************************************************
-Copyright 1990, 1991, 1992, 1993 by AT&T Bell Laboratories and Bellcore.
+Copyright 1990, 1994, 1995 by AT&T Bell Laboratories and Bellcore.
 
 Permission to use, copy, modify, and distribute this software
 and its documentation for any purpose and without fee is hereby
@@ -26,10 +26,22 @@ this software.
 #include "output.h"
 #include "p1defs.h"
 
+/* round a up to the nearest multiple of b:
+
+   a = b * floor ( (a + (b - 1)) / b )*/
+
+#undef roundup
+#define roundup(a,b)    ( b * ( (a+b-1)/b) )
+
 #define EXNULL (union Expression *)0
 
-LOCAL dobss(), docomleng(), docommon(), doentry(),
-	epicode(), nextarg(), retval();
+static void dobss Argdcl((void));
+static void docomleng Argdcl((void));
+static void docommon Argdcl((void));
+static void doentry Argdcl((struct Entrypoint*));
+static void epicode Argdcl((void));
+static int nextarg Argdcl((int));
+static void retval Argdcl((int));
 
 static char Blank[] = BLANKCOMMON;
 
@@ -43,8 +55,12 @@ static char Blank[] = BLANKCOMMON;
  int prev_proc, proc_argchanges, proc_protochanges;
 
  void
+#ifdef KR_headers
 changedtype(q)
- Namep q;
+	Namep q;
+#else
+changedtype(Namep q)
+#endif
 {
 	char buf[200];
 	int qtype, type1;
@@ -82,9 +98,13 @@ changedtype(q)
 	}
 
  void
+#ifdef KR_headers
 unamstring(q, s)
- register Addrp q;
- register char *s;
+	register Addrp q;
+	register char *s;
+#else
+unamstring(register Addrp q, register char *s)
+#endif
 {
 	register int k;
 	register char *t;
@@ -102,7 +122,7 @@ unamstring(q, s)
 	}
 
  static void
-fix_entry_returns()	/* for multiple entry points */
+fix_entry_returns(Void)	/* for multiple entry points */
 {
 	Addrp a;
 	int i;
@@ -144,15 +164,19 @@ fix_entry_returns()	/* for multiple entry points */
 	}
 
  static void
-putentries(outfile)	/* put out wrappers for multiple entries */
- FILE *outfile;
+#ifdef KR_headers
+putentries(outfile)
+	FILE *outfile;
+#else
+putentries(FILE *outfile)
+#endif
+	/* put out wrappers for multiple entries */
 {
 	char base[IDENT_LEN];
 	struct Entrypoint *e;
 	Namep *A, *Ae, *Ae1, **Alp, *a, **a1, np;
-	chainp args, lengths, length_comp();
-	void listargs(), list_arg_types();
-	int i, k, mt, nL, type;
+	chainp args, lengths;
+	int i, k, mt, nL, t, type;
 	extern char *dfltarg[], **dfltproc;
 
 	e = entries;
@@ -209,12 +233,17 @@ putentries(outfile)	/* put out wrappers for multiple entries */
 				*Alp[np->argno] = np;
 			}
 		args = allargs;
-		for(a = A; a < Ae; a++, args = args->nextp)
+		for(a = A; a < Ae; a++, args = args->nextp) {
+			t = ((Namep)args->datap)->vtype;
 			nice_printf(outfile, ", %s", (np = *a)
 				? np->cvarname
 				: ((Namep)args->datap)->vclass == CLPROC
-				? dfltproc[((Namep)args->datap)->vtype]
+				? dfltproc[((Namep)args->datap)->vimpltype
+					? (Castargs ? TYUNKNOWN : TYSUBR)
+					: t == TYREAL && forcedouble && !Castargs
+					? TYDREAL : t]
 				: dfltarg[((Namep)args->datap)->vtype]);
+			}
 		for(; a < Ae1; a++)
 			if (np = *a)
 				nice_printf(outfile, ", %s_len", np->fvarname);
@@ -240,8 +269,12 @@ putentries(outfile)	/* put out wrappers for multiple entries */
 	}
 
  static void
+#ifdef KR_headers
 entry_goto(outfile)
- FILEP outfile;
+	FILE *outfile;
+#else
+entry_goto(FILE *outfile)
+#endif
 {
 	struct Entrypoint *e = entries;
 	int k = 0;
@@ -257,7 +290,8 @@ entry_goto(outfile)
 
 /* start a new procedure */
 
-newproc()
+ void
+newproc(Void)
 {
 	if(parstate != OUTSIDE)
 	{
@@ -270,7 +304,7 @@ newproc()
 }
 
  static void
-zap_changes()
+zap_changes(Void)
 {
 	register chainp cp;
 	register Argtypes *at;
@@ -289,7 +323,8 @@ zap_changes()
 
 /* end of procedure. generate variables, epilogs, and prologs */
 
-endproc()
+ void
+endproc(Void)
 {
 	struct Labelblock *lp;
 	Extsym *ext;
@@ -338,11 +373,11 @@ endproc()
 
 /* End of declaration section of procedure.  Allocate storage. */
 
-enddcl()
+ void
+enddcl(Void)
 {
 	register struct Entrypoint *ep;
 	struct Entrypoint *ep0;
-	extern void freetemps();
 	chainp cp;
 	extern char *err_proc;
 	static char comblks[] = "common blocks";
@@ -388,9 +423,14 @@ enddcl()
 
 /* Main program or Block data */
 
+ void
+#ifdef KR_headers
 startproc(progname, class)
-Extsym * progname;
-int class;
+	Extsym *progname;
+	int class;
+#else
+startproc(Extsym *progname, int class)
+#endif
 {
 	register struct Entrypoint *p;
 
@@ -418,9 +458,14 @@ int class;
 
 /* subroutine or function statement */
 
-Extsym *newentry(v, substmsg)
- register Namep v;
- int substmsg;
+ Extsym *
+#ifdef KR_headers
+newentry(v, substmsg)
+	register Namep v;
+	int substmsg;
+#else
+newentry(register Namep v, int substmsg)
+#endif
 {
 	register Extsym *p;
 	char buf[128], badname[64];
@@ -453,12 +498,17 @@ Extsym *newentry(v, substmsg)
 	return(p);
 }
 
-
+ void
+#ifdef KR_headers
 entrypt(class, type, length, entry, args)
-int class, type;
-ftnint length;
-Extsym *entry;
-chainp args;
+	int class;
+	int type;
+	ftnint length;
+	Extsym *entry;
+	chainp args;
+#else
+entrypt(int class, int type, ftnint length, Extsym *entry, chainp args)
+#endif
 {
 	register Namep q;
 	register struct Entrypoint *p;
@@ -512,7 +562,8 @@ chainp args;
    the procedure declaration.  Handles multiple return value types, as
    well as cooercion into the proper value */
 
-LOCAL epicode()
+ LOCAL void
+epicode(Void)
 {
 	extern int lastwasbranch;
 
@@ -538,8 +589,13 @@ LOCAL epicode()
 
 /* generate code to return value of type  t */
 
-LOCAL retval(t)
-register int t;
+ LOCAL void
+#ifdef KR_headers
+retval(t)
+	register int t;
+#else
+retval(register int t)
+#endif
 {
 	register Addrp p;
 
@@ -576,13 +632,28 @@ register int t;
 
 /* Do parameter adjustments */
 
+ void
+#ifdef KR_headers
 procode(outfile)
-FILE *outfile;
+	FILE *outfile;
+#else
+procode(FILE *outfile)
+#endif
 {
 	prolog(outfile, allargs);
 
 	if (nentry > 1)
 		entry_goto(outfile);
+	}
+
+ static void
+#ifdef KR_headers
+bad_dimtype(q) Namep q;
+#else
+bad_dimtype(Namep q)
+#endif
+{
+	errstr("bad dimension type for %.70s", q->fvarname);
 	}
 
 /* Finish bound computations now that all variables are declared.
@@ -594,13 +665,16 @@ FILE *outfile;
  */
 
  static void
+#ifdef KR_headers
 dim_finish(v)
- Namep v;
+	Namep v;
+#else
+dim_finish(Namep v)
+#endif
 {
 	register struct Dimblock *p;
 	register expptr q;
 	register int i, nd;
-	extern expptr make_int_expr();
 
 	p = v->vdim;
 	v->vdimfinish = 0;
@@ -610,8 +684,7 @@ dim_finish(v)
 		if (q = p->dims[i].dimexpr) {
 			q = p->dims[i].dimexpr = make_int_expr(putx(fixtype(q)));
 			if (!ONEOF(q->headblock.vtype, MSKINT|MSKREAL))
-				errstr("bad dimension type for %.70s",
-					v->fvarname);
+				bad_dimtype(v);
 			}
 	if (q = p->basexpr)
 		p->basexpr = make_int_expr(putx(fixtype(q)));
@@ -619,8 +692,12 @@ dim_finish(v)
 	}
 
  static void
+#ifdef KR_headers
 duparg(q)
- Namep q;
+	Namep q;
+#else
+duparg(Namep q)
+#endif
 { errstr("duplicate argument %.80s", q->fvarname); }
 
 /*
@@ -628,14 +705,19 @@ duparg(q)
  * keep track of return types and labels
  */
 
-LOCAL doentry(ep)
-struct Entrypoint *ep;
+ LOCAL void
+#ifdef KR_headers
+doentry(ep)
+	struct Entrypoint *ep;
+#else
+doentry(struct Entrypoint *ep)
+#endif
 {
 	register int type;
 	register Namep np;
 	chainp p, p1;
 	register Namep q;
-	Addrp mkarg(), rs;
+	Addrp rs;
 	int it, k;
 	extern char dflttype[26];
 	Extsym *entryname = ep->entryname;
@@ -791,23 +873,41 @@ struct Entrypoint *ep;
 
 
 
-LOCAL nextarg(type)
-int type;
-{ return(lastargslot++); }
+ LOCAL int
+#ifdef KR_headers
+nextarg(type)
+	int type;
+#else
+nextarg(int type)
+#endif
+{
+	type = type;	/* shut up warning */
+	return(lastargslot++);
+	}
 
- LOCAL
+ LOCAL void
+#ifdef KR_headers
 dim_check(q)
- Namep q;
+	Namep q;
+#else
+dim_check(Namep q)
+#endif
 {
 	register struct Dimblock *vdim = q->vdim;
+	register expptr nelt;
 
-	if(!vdim->nelt || !ISICON(vdim->nelt))
+	if(!(nelt = vdim->nelt) || !ISCONST(nelt))
 		dclerr("adjustable dimension on non-argument", q);
-	else if (vdim->nelt->constblock.Const.ci <= 0)
+	else if (!ONEOF(nelt->headblock.vtype, MSKINT|MSKREAL))
+		bad_dimtype(q);
+	else if (ISINT(nelt->headblock.vtype)
+		    && nelt->constblock.Const.ci <= 0
+		 || nelt->constblock.Const.cd[0] <= 0)
 		dclerr("nonpositive dimension", q);
 	}
 
-LOCAL dobss()
+ LOCAL void
+dobss(Void)
 {
 	register struct Hashentry *p;
 	register Namep q;
@@ -849,8 +949,8 @@ LOCAL dobss()
 }
 
 
-
-donmlist()
+ void
+donmlist(Void)
 {
 	register struct Hashentry *p;
 	register Namep q;
@@ -863,8 +963,13 @@ donmlist()
 
 /* iarrlen -- Returns the size of the array in bytes, or -1 */
 
-ftnint iarrlen(q)
-register Namep q;
+ ftnint
+#ifdef KR_headers
+iarrlen(q)
+	register Namep q;
+#else
+iarrlen(register Namep q)
+#endif
 {
 	ftnint leng;
 
@@ -882,8 +987,13 @@ register Namep q;
 	return(leng);
 }
 
+ void
+#ifdef KR_headers
 namelist(np)
-Namep np;
+	Namep np;
+#else
+namelist(Namep np)
+#endif
 {
 	register chainp q;
 	register Namep v;
@@ -911,7 +1021,8 @@ Namep np;
 /* docommon -- called at the end of procedure declarations, before
    equivalences and the procedure body */
 
-LOCAL docommon()
+ LOCAL void
+docommon(Void)
 {
     register Extsym *extptr;
     register chainp q, q1;
@@ -991,8 +1102,13 @@ LOCAL docommon()
 /* copy_data -- copy the Namep entries so they are available even after
    the hash table is empty */
 
-copy_data (list)
-chainp list;
+ void
+#ifdef KR_headers
+copy_data(list)
+	chainp list;
+#else
+copy_data(chainp list)
+#endif
 {
     for (; list; list = list -> nextp) {
 	Namep namep = ALLOC (Nameblock);
@@ -1024,7 +1140,8 @@ chainp list;
 
 
 
-LOCAL docomleng()
+ LOCAL void
+docomleng(Void)
 {
 	register Extsym *p;
 
@@ -1044,15 +1161,20 @@ LOCAL docomleng()
 
 /* ROUTINES DEALING WITH AUTOMATIC AND TEMPORARY STORAGE */
 
+ void
+#ifdef KR_headers
 frtemp(p)
-Addrp p;
+	Addrp p;
+#else
+frtemp(Addrp p)
+#endif
 {
 	/* put block on chain of temps to be reclaimed */
 	holdtemps = mkchain((char *)p, holdtemps);
 }
 
  void
-freetemps()
+freetemps(Void)
 {
 	register chainp p, p1;
 	register Addrp q;
@@ -1076,14 +1198,19 @@ freetemps()
 
 /* allocate an automatic variable slot for each of   nelt   variables */
 
-Addrp autovar(nelt0, t, lengp, name)
-register int nelt0, t;
-expptr lengp;
-char *name;
+ Addrp
+#ifdef KR_headers
+autovar(nelt0, t, lengp, name)
+	register int nelt0;
+	register int t;
+	expptr lengp;
+	char *name;
+#else
+autovar(register int nelt0, register int t, expptr lengp, char *name)
+#endif
 {
 	ftnint leng;
 	register Addrp q;
-	char *temp_name ();
 	register int nelt = nelt0 > 0 ? nelt0 : 1;
 	extern char *av_pfix[];
 
@@ -1125,14 +1252,20 @@ char *name;
 /* Returns a temporary of the appropriate type.  Will reuse existing
    temporaries when possible */
 
-Addrp mktmpn(nelt, type, lengp)
-int nelt;
-register int type;
-expptr lengp;
+ Addrp
+#ifdef KR_headers
+mktmpn(nelt, type, lengp)
+	int nelt;
+	register int type;
+	expptr lengp;
+#else
+mktmpn(int nelt, register int type, expptr lengp)
+#endif
 {
 	ftnint leng;
 	chainp p, oldp;
 	register Addrp q;
+	extern int krparens;
 
 	if(type==TYUNKNOWN || type==TYERROR)
 		badtype("mktmpn", type);
@@ -1152,6 +1285,8 @@ expptr lengp;
  * if a temporary of appropriate shape is on the templist,
  * remove it from the list and return it
  */
+	if (krparens == 2 && ONEOF(type,M(TYREAL)|M(TYCOMPLEX)))
+		type++;
 	for(oldp=CHNULL, p=templist[type];  p  ;  oldp=p, p=p->nextp)
 	{
 		q = (Addrp) (p->datap);
@@ -1176,9 +1311,14 @@ expptr lengp;
 /* mktmp -- create new local variable; call it something like   name
    lengp   is taken directly, not copied */
 
-Addrp mktmp(type, lengp)
-int type;
-expptr lengp;
+ Addrp
+#ifdef KR_headers
+mktmp(type, lengp)
+	int type;
+	expptr lengp;
+#else
+mktmp(int type, expptr lengp)
+#endif
 {
 	Addrp rv;
 	/* arrange for temporaries to be recycled */
@@ -1189,9 +1329,14 @@ expptr lengp;
 }
 
 /* mktmp0 omits frtemp() */
-Addrp mktmp0(type, lengp)
-int type;
-expptr lengp;
+ Addrp
+#ifdef KR_headers
+mktmp0(type, lengp)
+	int type;
+	expptr lengp;
+#else
+mktmp0(int type, expptr lengp)
+#endif
 {
 	Addrp rv;
 	/* arrange for temporaries to be recycled */
@@ -1206,8 +1351,13 @@ expptr lengp;
 /* comblock -- Declare a new common block.  Input parameters name the block;
    s   will be NULL if the block is unnamed */
 
-Extsym *comblock(s)
- register char *s;
+ Extsym *
+#ifdef KR_headers
+comblock(s)
+	register char *s;
+#else
+comblock(register char *s)
+#endif
 {
 	Extsym *p;
 	register char *t;
@@ -1217,7 +1367,7 @@ Extsym *comblock(s)
 /* Give the unnamed common block a unique name */
 
 	if(*s == 0)
-		p = mkext(Blank,Blank);
+		p = mkext1(s0 = Blank, Blank);
 	else {
 		s0 = s;
 		t = cbuf;
@@ -1228,13 +1378,14 @@ Extsym *comblock(s)
 			*t++ = '_';
 		t[0] = '_';
 		t[1] = 0;
-		p = mkext(s0,cbuf);
+		p = mkext1(s0,cbuf);
 		}
 	if(p->extstg == STGUNKNOWN)
 		p->extstg = STGCOMMON;
 	else if(p->extstg != STGCOMMON)
 	{
-		errstr("%.68s cannot be a common block name", s);
+		errstr("%.52s cannot be a common block: it is a subprogram.",
+			s0);
 		return(0);
 	}
 
@@ -1244,9 +1395,14 @@ Extsym *comblock(s)
 
 /* incomm -- add a new variable to a common declaration */
 
+ void
+#ifdef KR_headers
 incomm(c, v)
-Extsym *c;
-Namep v;
+	Extsym *c;
+	Namep v;
+#else
+incomm(Extsym *c, Namep v)
+#endif
 {
 	if (!c)
 		return;
@@ -1269,10 +1425,15 @@ Namep v;
    -type.  This function will not change any earlier definitions in   v,
    in will only attempt to fill out more information give the other params */
 
+ void
+#ifdef KR_headers
 settype(v, type, length)
-register Namep  v;
-register int type;
-register ftnint length;
+	register Namep v;
+	register int type;
+	register ftnint length;
+#else
+settype(register Namep v, register int type, register ftnint length)
+#endif
 {
 	int type1;
 
@@ -1342,9 +1503,14 @@ register ftnint length;
 /* lengtype -- returns the proper compiler type, given input of Fortran
    type and length specifier */
 
+ int
+#ifdef KR_headers
 lengtype(type, len)
-register int type;
-ftnint len;
+	register int type;
+	ftnint len;
+#else
+lengtype(register int type, ftnint len)
+#endif
 {
 	register int length = (int)len;
 	switch(type)
@@ -1422,21 +1588,16 @@ ret:
 
 /* setintr -- Set Intrinsic function */
 
+ void
+#ifdef KR_headers
 setintr(v)
-register Namep  v;
+	register Namep v;
+#else
+setintr(register Namep v)
+#endif
 {
 	int k;
 
-	if(v->vstg == STGUNKNOWN)
-		v->vstg = STGINTR;
-	else if(v->vstg!=STGINTR)
-		dclerr("incompatible use of intrinsic function", v);
-	if(v->vclass==CLUNKNOWN)
-		v->vclass = CLPROC;
-	if(v->vprocclass == PUNKNOWN)
-		v->vprocclass = PINTRINSIC;
-	else if(v->vprocclass != PINTRINSIC)
-		dclerr("invalid intrinsic declaration", v);
 	if(k = intrfunct(v->fvarname)) {
 		if ((*(struct Intrpacked *)&k).f4)
 			if (noextflag)
@@ -1448,7 +1609,18 @@ register Namep  v;
 	else {
  unknown:
 		dclerr("unknown intrinsic function", v);
+		return;
 		}
+	if(v->vstg == STGUNKNOWN)
+		v->vstg = STGINTR;
+	else if(v->vstg!=STGINTR)
+		dclerr("incompatible use of intrinsic function", v);
+	if(v->vclass==CLUNKNOWN)
+		v->vclass = CLPROC;
+	if(v->vprocclass == PUNKNOWN)
+		v->vprocclass = PINTRINSIC;
+	else if(v->vprocclass != PINTRINSIC)
+		dclerr("invalid intrinsic declaration", v);
 }
 
 
@@ -1456,8 +1628,13 @@ register Namep  v;
 /* setext -- Set External declaration -- assume that unknowns will become
    procedures */
 
+ void
+#ifdef KR_headers
 setext(v)
-register Namep  v;
+	register Namep v;
+#else
+setext(register Namep v)
+#endif
 {
 	if(v->vclass == CLUNKNOWN)
 		v->vclass = CLPROC;
@@ -1475,10 +1652,15 @@ register Namep  v;
 
 /* create dimensions block for array variable */
 
+ void
+#ifdef KR_headers
 setbound(v, nd, dims)
-register Namep  v;
-int nd;
-struct Dims dims[ ];
+	register Namep v;
+	int nd;
+	struct Dims *dims;
+#else
+setbound(register Namep v, int nd, struct Dims *dims)
+#endif
 {
 	register expptr q, t;
 	register struct Dimblock *p;
@@ -1499,6 +1681,23 @@ struct Dims dims[ ];
 	p->ndim = nd--;
 	p->nelt = ICON(1);
 	doin_setbound = 1;
+
+	if (noextflag)
+		for(i = 0; i <= nd; i++)
+			if (((q = dims[i].lb) && !ISINT(q->headblock.vtype))
+			 || ((q = dims[i].ub) && !ISINT(q->headblock.vtype))) {
+				sprintf(buf, "dimension %d of %s is not an integer.",
+					i+1, v->fvarname);
+				errext(buf);
+				break;
+				}
+
+	for(i = 0; i <= nd; i++) {
+		if (((q = dims[i].lb) && !ISINT(q->headblock.vtype)))
+			dims[i].lb = mkconv(TYINT, q);
+		if (((q = dims[i].ub) && !ISINT(q->headblock.vtype)))
+			dims[i].ub = mkconv(TYINT, q);
+		}
 
 	for(i = 0; i <= nd; ++i)
 	{
@@ -1572,11 +1771,15 @@ struct Dims dims[ ];
 }
 
 
-
-wr_abbrevs (outfile, function_head, vars)
-FILE *outfile;
-int function_head;
-chainp vars;
+ void
+#ifdef KR_headers
+wr_abbrevs(outfile, function_head, vars)
+	FILE *outfile;
+	int function_head;
+	chainp vars;
+#else
+wr_abbrevs(FILE *outfile, int function_head, chainp vars)
+#endif
 {
     for (; vars; vars = vars -> nextp) {
 	Namep name = (Namep) vars -> datap;

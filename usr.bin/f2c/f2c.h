@@ -36,9 +36,9 @@ typedef short flag;
 typedef short ftnlen;
 typedef short ftnint;
 #else
-typedef long flag;
-typedef long ftnlen;
-typedef long ftnint;
+typedef long int flag;
+typedef long int ftnlen;
+typedef long int ftnint;
 #endif
 
 /*external read, write*/
@@ -131,7 +131,7 @@ union Multitype {	/* for multiple entry points */
 
 typedef union Multitype Multitype;
 
-typedef long Long;	/* No longer used; formerly in Namelist */
+/*typedef long int Long;*/	/* No longer used; formerly in Namelist */
 
 struct Vardesc {	/* for Namelist */
 	char *name;

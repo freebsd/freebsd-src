@@ -1,5 +1,5 @@
 /****************************************************************
-Copyright 1990, 1991, 1992, 1993 by AT&T Bell Laboratories and Bellcore.
+Copyright 1990 - 1995 by AT&T Bell Laboratories and Bellcore.
 
 Permission to use, copy, modify, and distribute this software
 and its documentation for any purpose and without fee is hereby
@@ -40,29 +40,51 @@ static char this_proc_name[52];	/* Name of the current procedure.  This is
 				   probably too simplistic to handle
 				   multiple entry points */
 
-static int p1getd(), p1gets(), p1getf(), get_p1_token();
-static int p1get_const(), p1getn();
-static expptr do_format(), do_p1_name_pointer(), do_p1_const();
-static expptr do_p1_expr(), do_p1_ident(), do_p1_charp(), do_p1_extern();
-static expptr do_p1_head(), do_p1_list(), do_p1_literal();
-static void do_p1_label(), do_p1_asgoto(), do_p1_goto();
-static void do_p1_if(), do_p1_else(), do_p1_elif(), do_p1_endif();
-static void do_p1_endelse(), do_p1_subr_ret(), do_p1_comp_goto();
-static void do_p1_for(), do_p1_end_for(), do_p1_fortran();
-static void do_p1_1while(), do_p1_2while(), do_p1_elseifstart();
-static void do_p1_comment(), do_p1_set_line();
-static expptr do_p1_addr();
-static void proto();
-void list_arg_types();
-chainp length_comp();
-void listargs();
+static tagptr do_format Argdcl((FILEP, FILEP));
+static void do_p1_1while Argdcl((FILEP));
+static void do_p1_2while Argdcl((FILEP, FILEP));
+static tagptr do_p1_addr Argdcl((FILEP, FILEP));
+static void do_p1_asgoto Argdcl((FILEP, FILEP));
+static tagptr do_p1_charp Argdcl((FILEP));
+static void do_p1_comment Argdcl((FILEP, FILEP));
+static void do_p1_comp_goto Argdcl((FILEP, FILEP));
+static tagptr do_p1_const Argdcl((FILEP));
+static void do_p1_elif Argdcl((FILEP, FILEP));
+static void do_p1_else Argdcl((FILEP));
+static void do_p1_elseifstart Argdcl((FILEP));
+static void do_p1_end_for Argdcl((FILEP));
+static void do_p1_endelse Argdcl((FILEP));
+static void do_p1_endif Argdcl((FILEP));
+static tagptr do_p1_expr Argdcl((FILEP, FILEP));
+static tagptr do_p1_extern Argdcl((FILEP));
+static void do_p1_for Argdcl((FILEP, FILEP));
+static void do_p1_fortran Argdcl((FILEP, FILEP));
+static void do_p1_goto Argdcl((FILEP, FILEP));
+static tagptr do_p1_head Argdcl((FILEP, FILEP));
+static tagptr do_p1_ident Argdcl((FILEP));
+static void do_p1_if Argdcl((FILEP, FILEP));
+static void do_p1_label Argdcl((FILEP, FILEP));
+static tagptr do_p1_list Argdcl((FILEP, FILEP));
+static tagptr do_p1_literal Argdcl((FILEP));
+static tagptr do_p1_name_pointer Argdcl((FILEP));
+static void do_p1_set_line Argdcl((FILEP));
+static void do_p1_subr_ret Argdcl((FILEP, FILEP));
+static int get_p1_token Argdcl((FILEP));
+static int p1get_const Argdcl((FILEP, int, Constp*));
+static int p1getd Argdcl((FILEP, long int*));
+static int p1getf Argdcl((FILEP, char**));
+static int p1getn Argdcl((FILEP, int, char**));
+static int p1gets Argdcl((FILEP, char*, int));
+static void proto Argdcl((FILEP, Argtypes*, char*));
+
 extern chainp assigned_fmts;
-static char filename[P1_FILENAME_MAX];
-extern int gflag;
+char filename[P1_FILENAME_MAX];
+extern int gflag, sharp_line;
 int gflag1;
 extern char *parens;
 
-start_formatting ()
+ void
+start_formatting(Void)
 {
     FILE *infile;
     static int wrote_one = 0;
@@ -96,7 +118,7 @@ start_formatting ()
 	nice_printf (c_file, ";\n");
 
     prev_tab (c_file);
-    gflag1 = 0;
+    gflag1 = sharp_line = 0;
     if (this_proc_name[0])
 	nice_printf (c_file, "} /* %s */\n", this_proc_name);
 
@@ -145,8 +167,12 @@ start_formatting ()
 
 
  static void
+#ifdef KR_headers
 put_semi(outfile)
- FILE *outfile;
+	FILE *outfile;
+#else
+put_semi(FILE *outfile)
+#endif
 {
 	nice_printf (outfile, ";\n");
 	last_was_label = 0;
@@ -158,8 +184,14 @@ put_semi(outfile)
    the appropriate C code to   outfile   when possible.  When reading an
    expression, the expression tree is returned instead. */
 
-static expptr do_format (infile, outfile)
-FILE *infile, *outfile;
+ static expptr
+#ifdef KR_headers
+do_format(infile, outfile)
+	FILE *infile;
+	FILE *outfile;
+#else
+do_format(FILE *infile, FILE *outfile)
+#endif
 {
     int token_type, was_c_token;
     expptr retval = ENULL;
@@ -198,9 +230,9 @@ FILE *infile, *outfile;
 	    retval = do_p1_extern (infile);
 	    break;
 	case P1_HEAD:
-	    gflag1 = 0;
+	    gflag1 = sharp_line = 0;
 	    retval = do_p1_head (infile, outfile);
-	    gflag1 = gflag;
+	    gflag1 = sharp_line = gflag;
 	    break;
 	case P1_LIST:
 	    retval = do_p1_list (infile, outfile);
@@ -288,8 +320,13 @@ FILE *infile, *outfile;
 
 
  static void
-do_p1_comment (infile, outfile)
-FILE *infile, *outfile;
+#ifdef KR_headers
+do_p1_comment(infile, outfile)
+	FILE *infile;
+	FILE *outfile;
+#else
+do_p1_comment(FILE *infile, FILE *outfile)
+#endif
 {
     extern int c_output_line_length, in_comment;
 
@@ -301,19 +338,23 @@ FILE *infile, *outfile;
 
     length = strlen (storage);
 
-    gflag1 = 0;
+    gflag1 = sharp_line = 0;
     in_comment = 1;
     if (length > c_output_line_length - 6)
-	margin_printf (outfile, "/*%s*/\n", storage);
+	margin_printf(outfile, "/*%s*/\n", storage);
     else
-	margin_printf (outfile, length ? "/* %s */\n" : "\n", storage);
+	margin_printf(outfile, length ? "/* %s */\n" : "\n", storage);
     in_comment = 0;
-    gflag1 = gflag;
+    gflag1 = sharp_line = gflag;
 } /* do_p1_comment */
 
  static void
-do_p1_set_line (infile)
-FILE *infile;
+#ifdef KR_headers
+do_p1_set_line(infile)
+	FILE *infile;
+#else
+do_p1_set_line(FILE *infile)
+#endif
 {
     int status;
     long new_line_number = -1;
@@ -331,8 +372,13 @@ FILE *infile;
 } /* do_p1_set_line */
 
 
-static expptr do_p1_name_pointer (infile)
-FILE *infile;
+ static expptr
+#ifdef KR_headers
+do_p1_name_pointer(infile)
+	FILE *infile;
+#else
+do_p1_name_pointer(FILE *infile)
+#endif
 {
     Namep namep = (Namep) NULL;
     int status;
@@ -350,8 +396,13 @@ FILE *infile;
 
 
 
-static expptr do_p1_const (infile)
-FILE *infile;
+ static expptr
+#ifdef KR_headers
+do_p1_const(infile)
+	FILE *infile;
+#else
+do_p1_const(FILE *infile)
+#endif
 {
     struct Constblock *c = (struct Constblock *) NULL;
     long type = -1;
@@ -377,9 +428,36 @@ FILE *infile;
     return (expptr) c;
 } /* do_p1_const */
 
+ void
+#ifdef KR_headers
+addrlit(addrp)
+	Addrp addrp;
+#else
+addrlit(Addrp addrp)
+#endif
+{
+	int memno = addrp->memno;
+	struct Literal *litp, *lastlit;
 
-static expptr do_p1_literal (infile)
-FILE *infile;
+	lastlit = litpool + nliterals;
+	for (litp = litpool; litp < lastlit; litp++)
+	    if (litp->litnum == memno) {
+		addrp->vtype = litp->littype;
+		*((union Constant *) &(addrp->user)) =
+			*((union Constant *) &(litp->litval));
+		addrp->vstg = STGMEMNO;
+		return;
+		}
+	err("addrlit failure!");
+	}
+
+ static expptr
+#ifdef KR_headers
+do_p1_literal(infile)
+	FILE *infile;
+#else
+do_p1_literal(FILE *infile)
+#endif
 {
     int status;
     long memno;
@@ -392,24 +470,12 @@ FILE *infile;
     else if (status == 0)
 	err ("do_p1_literal:  Missing memno in p1 file");
     else {
-	struct Literal *litp, *lastlit;
-
 	addrp = ALLOC (Addrblock);
 	addrp -> tag = TADDR;
 	addrp -> vtype = TYUNKNOWN;
 	addrp -> Field = NULL;
-
-	lastlit = litpool + nliterals;
-	for (litp = litpool; litp < lastlit; litp++)
-	    if (litp -> litnum == memno) {
-		addrp -> vtype = litp -> littype;
-		*((union Constant *) &(addrp -> user)) =
-			*((union Constant *) &(litp -> litval));
-		break;
-	    } /* if litp -> litnum == memno */
-
 	addrp -> memno = memno;
-	addrp -> vstg = STGMEMNO;
+	addrlit(addrp);
 	addrp -> uname_tag = UNAM_CONST;
     } /* else */
 
@@ -417,12 +483,17 @@ FILE *infile;
 } /* do_p1_literal */
 
 
-static void do_p1_label (infile, outfile)
-FILE *infile, *outfile;
+ static void
+#ifdef KR_headers
+do_p1_label(infile, outfile)
+	FILE *infile;
+	FILE *outfile;
+#else
+do_p1_label(FILE *infile, FILE *outfile)
+#endif
 {
     int status;
     ftnint stateno;
-    char *user_label ();
     struct Labelblock *L;
     char *fmt;
 
@@ -450,8 +521,14 @@ FILE *infile, *outfile;
 
 
 
-static void do_p1_asgoto (infile, outfile)
-FILE *infile, *outfile;
+ static void
+#ifdef KR_headers
+do_p1_asgoto(infile, outfile)
+	FILE *infile;
+	FILE *outfile;
+#else
+do_p1_asgoto(FILE *infile, FILE *outfile)
+#endif
 {
     expptr expr;
 
@@ -461,12 +538,17 @@ FILE *infile, *outfile;
 } /* do_p1_asgoto */
 
 
-static void do_p1_goto (infile, outfile)
-FILE *infile, *outfile;
+ static void
+#ifdef KR_headers
+do_p1_goto(infile, outfile)
+	FILE *infile;
+	FILE *outfile;
+#else
+do_p1_goto(FILE *infile, FILE *outfile)
+#endif
 {
     int status;
     long stateno;
-    char *user_label ();
 
     status = p1getd (infile, &stateno);
 
@@ -480,8 +562,14 @@ FILE *infile, *outfile;
 } /* do_p1_goto */
 
 
-static void do_p1_if (infile, outfile)
-FILE *infile, *outfile;
+ static void
+#ifdef KR_headers
+do_p1_if(infile, outfile)
+	FILE *infile;
+	FILE *outfile;
+#else
+do_p1_if(FILE *infile, FILE *outfile)
+#endif
 {
     expptr cond;
 
@@ -493,15 +581,26 @@ FILE *infile, *outfile;
 } /* do_p1_if */
 
 
-static void do_p1_else (outfile)
-FILE *outfile;
+ static void
+#ifdef KR_headers
+do_p1_else(outfile)
+	FILE *outfile;
+#else
+do_p1_else(FILE *outfile)
+#endif
 {
     out_else (outfile);
 } /* do_p1_else */
 
 
-static void do_p1_elif (infile, outfile)
-FILE *infile, *outfile;
+ static void
+#ifdef KR_headers
+do_p1_elif(infile, outfile)
+	FILE *infile;
+	FILE *outfile;
+#else
+do_p1_elif(FILE *infile, FILE *outfile)
+#endif
 {
     expptr cond;
 
@@ -512,22 +611,38 @@ FILE *infile, *outfile;
     elif_out (outfile, cond);
 } /* do_p1_elif */
 
-static void do_p1_endif (outfile)
-FILE *outfile;
+ static void
+#ifdef KR_headers
+do_p1_endif(outfile)
+	FILE *outfile;
+#else
+do_p1_endif(FILE *outfile)
+#endif
 {
     endif_out (outfile);
 } /* do_p1_endif */
 
 
-static void do_p1_endelse (outfile)
-FILE *outfile;
+ static void
+#ifdef KR_headers
+do_p1_endelse(outfile)
+	FILE *outfile;
+#else
+do_p1_endelse(FILE *outfile)
+#endif
 {
     end_else_out (outfile);
 } /* do_p1_endelse */
 
 
-static expptr do_p1_addr (infile, outfile)
-FILE *infile, *outfile;
+ static expptr
+#ifdef KR_headers
+do_p1_addr(infile, outfile)
+	FILE *infile;
+	FILE *outfile;
+#else
+do_p1_addr(FILE *infile, FILE *outfile)
+#endif
 {
     Addrp addrp = (Addrp) NULL;
     int status;
@@ -552,8 +667,14 @@ FILE *infile, *outfile;
 
 
 
-static void do_p1_subr_ret (infile, outfile)
-FILE *infile, *outfile;
+ static void
+#ifdef KR_headers
+do_p1_subr_ret(infile, outfile)
+	FILE *infile;
+	FILE *outfile;
+#else
+do_p1_subr_ret(FILE *infile, FILE *outfile)
+#endif
 {
     expptr retval;
 
@@ -568,8 +689,14 @@ FILE *infile, *outfile;
 
 
 
-static void do_p1_comp_goto (infile, outfile)
-FILE *infile, *outfile;
+ static void
+#ifdef KR_headers
+do_p1_comp_goto(infile, outfile)
+	FILE *infile;
+	FILE *outfile;
+#else
+do_p1_comp_goto(FILE *infile, FILE *outfile)
+#endif
 {
     expptr index;
     expptr labels;
@@ -590,8 +717,14 @@ FILE *infile, *outfile;
 } /* do_p1_comp_goto */
 
 
-static void do_p1_for (infile, outfile)
-FILE *infile, *outfile;
+ static void
+#ifdef KR_headers
+do_p1_for(infile, outfile)
+	FILE *infile;
+	FILE *outfile;
+#else
+do_p1_for(FILE *infile, FILE *outfile)
+#endif
 {
     expptr init, test, inc;
 
@@ -602,16 +735,26 @@ FILE *infile, *outfile;
     out_for (outfile, init, test, inc);
 } /* do_p1_for */
 
-static void do_p1_end_for (outfile)
-FILE *outfile;
+ static void
+#ifdef KR_headers
+do_p1_end_for(outfile)
+	FILE *outfile;
+#else
+do_p1_end_for(FILE *outfile)
+#endif
 {
     out_end_for (outfile);
 } /* do_p1_end_for */
 
 
  static void
+#ifdef KR_headers
 do_p1_fortran(infile, outfile)
- FILE *infile, *outfile;
+	FILE *infile;
+	FILE *outfile;
+#else
+do_p1_fortran(FILE *infile, FILE *outfile)
+#endif
 {
 	char buf[P1_STMTBUFSIZE];
 	if (!p1gets(infile, buf, P1_STMTBUFSIZE))
@@ -621,8 +764,14 @@ do_p1_fortran(infile, outfile)
 	}
 
 
-static expptr do_p1_expr (infile, outfile)
-FILE *infile, *outfile;
+ static expptr
+#ifdef KR_headers
+do_p1_expr(infile, outfile)
+	FILE *infile;
+	FILE *outfile;
+#else
+do_p1_expr(FILE *infile, FILE *outfile)
+#endif
 {
     int status;
     long opcode, type;
@@ -666,8 +815,13 @@ FILE *infile, *outfile;
 } /* do_p1_expr */
 
 
-static expptr do_p1_ident(infile)
-FILE *infile;
+ static expptr
+#ifdef KR_headers
+do_p1_ident(infile)
+	FILE *infile;
+#else
+do_p1_ident(FILE *infile)
+#endif
 {
 	Addrp addrp;
 	int status;
@@ -702,8 +856,13 @@ FILE *infile;
 	return (expptr) addrp;
 } /* do_p1_ident */
 
-static expptr do_p1_charp(infile)
-FILE *infile;
+ static expptr
+#ifdef KR_headers
+do_p1_charp(infile)
+	FILE *infile;
+#else
+do_p1_charp(FILE *infile)
+#endif
 {
 	Addrp addrp;
 	int status;
@@ -741,8 +900,13 @@ FILE *infile;
 }
 
 
-static expptr do_p1_extern (infile)
-FILE *infile;
+ static expptr
+#ifdef KR_headers
+do_p1_extern(infile)
+	FILE *infile;
+#else
+do_p1_extern(FILE *infile)
+#endif
 {
     Addrp addrp;
 
@@ -767,8 +931,14 @@ FILE *infile;
 
 
 
-static expptr do_p1_head (infile, outfile)
-FILE *infile, *outfile;
+ static expptr
+#ifdef KR_headers
+do_p1_head(infile, outfile)
+	FILE *infile;
+	FILE *outfile;
+#else
+do_p1_head(FILE *infile, FILE *outfile)
+#endif
 {
     int status;
     int add_n_;
@@ -822,8 +992,14 @@ FILE *infile, *outfile;
 } /* do_p1_head */
 
 
-static expptr do_p1_list (infile, outfile)
-FILE *infile, *outfile;
+ static expptr
+#ifdef KR_headers
+do_p1_list(infile, outfile)
+	FILE *infile;
+	FILE *outfile;
+#else
+do_p1_list(FILE *infile, FILE *outfile)
+#endif
 {
     long tag, type, count;
     int status;
@@ -873,9 +1049,15 @@ FILE *infile, *outfile;
 } /* do_p1_list */
 
 
-chainp length_comp(e, add_n)	/* get lengths of characters args */
- struct Entrypoint *e;
- int add_n;
+ chainp
+#ifdef KR_headers
+length_comp(e, add_n)
+	struct Entrypoint *e;
+	int add_n;
+#else
+length_comp(struct Entrypoint *e, int add_n)
+#endif
+		/* get lengths of characters args */
 {
 	chainp lengths;
 	chainp args, args1;
@@ -924,11 +1106,16 @@ chainp length_comp(e, add_n)	/* get lengths of characters args */
 	return revchain(lengths);
 	}
 
-void listargs(outfile, entryp, add_n_, lengths)
- FILE *outfile;
- struct Entrypoint *entryp;
- int add_n_;
- chainp lengths;
+ void
+#ifdef KR_headers
+listargs(outfile, entryp, add_n_, lengths)
+	FILE *outfile;
+	struct Entrypoint *entryp;
+	int add_n_;
+	chainp lengths;
+#else
+listargs(FILE *outfile, struct Entrypoint *entryp, int add_n_, chainp lengths)
+#endif
 {
 	chainp args;
 	char *s;
@@ -977,12 +1164,17 @@ void listargs(outfile, entryp, add_n_, lengths)
 } /* listargs */
 
 
-void list_arg_types(outfile, entryp, lengths, add_n_, finalnl)
-FILE *outfile;
-struct Entrypoint *entryp;
-chainp lengths;
-int add_n_;
-char *finalnl;
+ void
+#ifdef KR_headers
+list_arg_types(outfile, entryp, lengths, add_n_, finalnl)
+	FILE *outfile;
+	struct Entrypoint *entryp;
+	chainp lengths;
+	int add_n_;
+	char *finalnl;
+#else
+list_arg_types(FILE *outfile, struct Entrypoint *entryp, chainp lengths, int add_n_, char *finalnl)
+#endif
 {
     chainp args;
     int last_type = -1, last_class = -1;
@@ -1084,8 +1276,12 @@ char *finalnl;
 } /* list_arg_types */
 
  static void
+#ifdef KR_headers
 write_formats(outfile)
- FILE *outfile;
+	FILE *outfile;
+#else
+write_formats(FILE *outfile)
+#endif
 {
 	register struct Labelblock *lp;
 	int first = 1;
@@ -1108,8 +1304,12 @@ write_formats(outfile)
 	}
 
  static void
+#ifdef KR_headers
 write_ioblocks(outfile)
- FILE *outfile;
+	FILE *outfile;
+#else
+write_ioblocks(FILE *outfile)
+#endif
 {
 	register iob_data *L;
 	register char *f, **s, *sep;
@@ -1138,8 +1338,12 @@ write_ioblocks(outfile)
 	}
 
  static void
+#ifdef KR_headers
 write_assigned_fmts(outfile)
- FILE *outfile;
+	FILE *outfile;
+#else
+write_assigned_fmts(FILE *outfile)
+#endif
 {
 	register chainp cp;
 	Namep np;
@@ -1159,8 +1363,12 @@ write_assigned_fmts(outfile)
 	}
 
  static char *
+#ifdef KR_headers
 to_upper(s)
- register char *s;
+	register char *s;
+#else
+to_upper(register char *s)
+#endif
 {
 	static char buf[64];
 	register char *t = buf;
@@ -1201,9 +1409,13 @@ to_upper(s)
 */
 
  static void
+#ifdef KR_headers
 write_namelists(nmch, outfile)
- chainp nmch;
- FILE *outfile;
+	chainp nmch;
+	FILE *outfile;
+#else
+write_namelists(chainp nmch, FILE *outfile)
+#endif
 {
 	Namep var;
 	struct Hashentry *entry;
@@ -1274,12 +1486,15 @@ write_namelists(nmch, outfile)
  */
 
  static int
+#ifdef KR_headers
 fixexttype(var)
- Namep var;
+	Namep var;
+#else
+fixexttype(Namep var)
+#endif
 {
 	Extsym *e;
 	int type, type1;
-	extern void changedtype();
 
 	type = var->vtype;
 	e = &extsymtab[var->vardesc.varno];
@@ -1295,17 +1510,22 @@ fixexttype(var)
 	}
 
  static void
-ref_defs(outfile, refdefs) FILE *outfile; chainp refdefs;
+#ifdef KR_headers
+ref_defs(outfile, refdefs)
+	FILE *outfile;
+	chainp refdefs;
+#else
+ref_defs(FILE *outfile, chainp refdefs)
+#endif
 {
 	chainp cp;
 	int eb, i, j, n;
 	struct Dimblock *dimp;
-	long L;
 	expptr b, vl;
 	Namep var;
 	char *amp, *comma;
 
-	ind_printf(0, outfile, "\n");
+	margin_printf(outfile, "\n");
 	for(cp = refdefs = revchain(refdefs); cp; cp = cp->nextp) {
 		var = (Namep)cp->datap;
 		cp->datap = 0;
@@ -1353,7 +1573,8 @@ ref_defs(outfile, refdefs) FILE *outfile; chainp refdefs;
 				}
 			nice_printf(outfile, " + a_0");
 			}
-		if (var->vstg != STGARG && (b = dimp->baseoffset)) {
+		if ((var->vstg != STGARG /* || checksubs */ )
+		 && (b = dimp->baseoffset)) {
 			b = cpexpr(b);
 			if (var->vtype == TYCHAR)
 				b = mkexpr(OPSTAR, cpexpr(var->vleng), b);
@@ -1361,7 +1582,7 @@ ref_defs(outfile, refdefs) FILE *outfile; chainp refdefs;
 			expr_out(outfile, b);
 			}
 		if (ISCOMPLEX(var->vtype)) {
-			ind_printf(0, outfile, "\n");
+			margin_printf(outfile, "\n");
 			def_start(outfile, var->cvarname, "_ref", CNULL);
 			comma = "(";
 			for(i = 1; i <= n; i++, comma = ",")
@@ -1373,18 +1594,22 @@ ref_defs(outfile, refdefs) FILE *outfile; chainp refdefs;
 				nice_printf(outfile, "%sa_%d", comma, i);
 			nice_printf(outfile, ")");
 			}
-		ind_printf(0, outfile, "]\n" + eb);
+		margin_printf(outfile, "]\n" + eb);
 		}
 	nice_printf(outfile, "\n");
 	frchain(&refdefs);
 	}
 
-list_decls (outfile)
-FILE *outfile;
+ void
+#ifdef KR_headers
+list_decls(outfile)
+	FILE *outfile;
+#else
+list_decls(FILE *outfile)
+#endif
 {
     extern chainp used_builtins;
     extern struct Hashentry *hashtab;
-    extern ftnint wr_char_len();
     struct Hashentry *entry;
     int write_header = 1;
     int last_class = -1, last_stg = -1;
@@ -1686,7 +1911,7 @@ FILE *outfile;
 					hsize - x);
 			nice_printf(outfile, "; } %s_st;\n", var->cvarname);
 			def_start(outfile, var->cvarname, CNULL, var->cvarname);
-			ind_printf(0, outfile, "_st.val\n");
+			margin_printf(outfile, "_st.val\n");
 			last_type = -1;
 			write_header = 2;
 			continue;
@@ -1724,7 +1949,6 @@ FILE *outfile;
  Alias1:
 	    if (Alias) {
 		char *amp, *lp, *name, *rp;
-		char *equiv_name ();
 		ftnint voff = var -> voffset;
 		int et0, expr_type, k;
 		Extsym *E;
@@ -1806,7 +2030,7 @@ FILE *outfile;
 		last_type = last_class = last_stg = -1;
 		write_header = 0;
 		if (Define) {
-			ind_printf(0, outfile, ")\n");
+			margin_printf(outfile, ")\n");
 			write_header = 2;
 			}
 		continue;
@@ -1841,9 +2065,14 @@ FILE *outfile;
 
 } /* list_decls */
 
-do_uninit_equivs (outfile, did_one)
-FILE *outfile;
-int *did_one;
+ void
+#ifdef KR_headers
+do_uninit_equivs(outfile, did_one)
+	FILE *outfile;
+	int *did_one;
+#else
+do_uninit_equivs(FILE *outfile, int *did_one)
+#endif
 {
     extern int nequiv;
     struct Equivblock *eqv, *lasteqv = eqvclass + nequiv;
@@ -1878,12 +2107,18 @@ int *did_one;
    dimension is greater than 1, a string comment about the original size
    is returned */
 
-char *wr_ardecls(outfile, dimp, size)
-FILE *outfile;
-struct Dimblock *dimp;
-long size;
+ char *
+#ifdef KR_headers
+wr_ardecls(outfile, dimp, size)
+	FILE *outfile;
+	struct Dimblock *dimp;
+	long size;
+#else
+wr_ardecls(FILE *outfile, struct Dimblock *dimp, long size)
+#endif
 {
     int i, k;
+    ftnint j;
     static char buf[1000];
 
     if (dimp == (struct Dimblock *) NULL)
@@ -1895,13 +2130,22 @@ long size;
     for (i = 0; i < dimp -> ndim; i++) {
 	expptr this_size = dimp -> dims[i].dimsize;
 
-	if (!ISICON (this_size))
-	    err ("wr_ardecls:  nonconstant array size");
+	if (ISCONST(this_size)) {
+		if (ISINT(this_size->constblock.vtype))
+			j = this_size -> constblock.Const.ci;
+		else if (ISREAL(this_size->constblock.vtype))
+			j = (ftnint)this_size -> constblock.Const.cd[0];
+		else
+			goto non_const;
+		size *= j;
+	   	sprintf(buf+k, "[%ld]", j);
+	    	k += strlen(buf+k);
+		/* BSD prevents getting strlen from sprintf */
+		}
 	else {
-	    size *= this_size -> constblock.Const.ci;
-	    sprintf(buf+k, "[%ld]", this_size -> constblock.Const.ci);
-	    k += strlen(buf+k);	/* BSD prevents combining this with prev stmt */
-	} /* else */
+ non_const:
+	    err ("wr_ardecls:  nonconstant array size");
+		}
     } /* for i = 0 */
 
     nice_printf (outfile, "[%ld]", size);
@@ -1919,8 +2163,13 @@ long size;
 
    ---------------------------------------------------------------------- */
 
-static int get_p1_token (infile)
-FILE *infile;
+ static int
+#ifdef KR_headers
+get_p1_token(infile)
+	FILE *infile;
+#else
+get_p1_token(FILE *infile)
+#endif
 {
     int token = P1_UNKNOWN;
 
@@ -1941,12 +2190,16 @@ FILE *infile;
 
 /* Returns a (null terminated) string from the input file */
 
-static int p1gets (fp, str, size)
-FILE *fp;
-char *str;
-int size;
+ static int
+#ifdef KR_headers
+p1gets(fp, str, size)
+	FILE *fp;
+	char *str;
+	int size;
+#else
+p1gets(FILE *fp, char *str, int size)
+#endif
 {
-    char *fgets ();
     char c;
 
     if (str == NULL)
@@ -1974,10 +2227,15 @@ int size;
 } /* p1gets */
 
 
-static int p1get_const (infile, type, resultp)
-FILE *infile;
-int type;
-struct Constblock **resultp;
+ static int
+#ifdef KR_headers
+p1get_const(infile, type, resultp)
+	FILE *infile;
+	int type;
+	struct Constblock **resultp;
+#else
+p1get_const(FILE *infile, int type, struct Constblock **resultp)
+#endif
 {
     int status;
     struct Constblock *result;
@@ -2024,17 +2282,26 @@ struct Constblock **resultp;
     return status;
 } /* p1get_const */
 
-static int p1getd (infile, result)
-FILE *infile;
-long *result;
+ static int
+#ifdef KR_headers
+p1getd(infile, result)
+	FILE *infile;
+	long *result;
+#else
+p1getd(FILE *infile, long *result)
+#endif
 {
     return fscanf (infile, "%ld", result);
 } /* p1getd */
 
  static int
+#ifdef KR_headers
 p1getf(infile, result)
- FILE *infile;
- char **result;
+	FILE *infile;
+	char **result;
+#else
+p1getf(FILE *infile, char **result)
+#endif
 {
 
 	char buf[1324];
@@ -2048,14 +2315,18 @@ p1getf(infile, result)
 	return k;
 }
 
-static int p1getn (infile, count, result)
-FILE *infile;
-int count;
-char **result;
+ static int
+#ifdef KR_headers
+p1getn(infile, count, result)
+	FILE *infile;
+	int count;
+	char **result;
+#else
+p1getn(FILE *infile, int count, char **result)
+#endif
 {
 
     char *bufptr;
-    extern ptr ckalloc ();
 
     bufptr = (char *) ckalloc (count);
 
@@ -2069,17 +2340,20 @@ char **result;
 } /* p1getn */
 
  static void
+#ifdef KR_headers
 proto(outfile, at, fname)
- FILE *outfile;
- Argtypes *at;
- char *fname;
+	FILE *outfile;
+	Argtypes *at;
+	char *fname;
+#else
+proto(FILE *outfile,  Argtypes *at,  char *fname)
+#endif
 {
 	int i, j, k, n;
 	char *comma;
 	Atype *atypes;
 	Namep np;
 	chainp cp;
-	extern void bad_atypes();
 
 	if (at) {
 		/* Correct types that we learn on the fly, e.g.
@@ -2163,11 +2437,16 @@ proto(outfile, at, fname)
 	}
 
  void
+#ifdef KR_headers
 protowrite(protofile, type, name, e, lengths)
- FILE *protofile;
- char *name;
- struct Entrypoint *e;
- chainp lengths;
+	FILE *protofile;
+	int type;
+	char *name;
+	struct Entrypoint *e;
+	chainp lengths;
+#else
+protowrite(FILE *protofile, int type, char *name, struct Entrypoint *e, chainp lengths)
+#endif
 {
 	extern char used_rets[];
 	int asave;
@@ -2182,8 +2461,12 @@ protowrite(protofile, type, name, e, lengths)
 	}
 
  static void
+#ifdef KR_headers
 do_p1_1while(outfile)
- FILE *outfile;
+	FILE *outfile;
+#else
+do_p1_1while(FILE *outfile)
+#endif
 {
 	if (*wh_next) {
 		nice_printf(outfile,
@@ -2195,8 +2478,13 @@ do_p1_1while(outfile)
 	}
 
  static void
+#ifdef KR_headers
 do_p1_2while(infile, outfile)
- FILE *infile, *outfile;
+	FILE *infile;
+	FILE *outfile;
+#else
+do_p1_2while(FILE *infile, FILE *outfile)
+#endif
 {
 	expptr test;
 
@@ -2213,8 +2501,12 @@ do_p1_2while(infile, outfile)
 	}
 
  static void
+#ifdef KR_headers
 do_p1_elseifstart(outfile)
- FILE *outfile;
+	FILE *outfile;
+#else
+do_p1_elseifstart(FILE *outfile)
+#endif
 {
 	if (*ei_next++) {
 		prev_tab(outfile);
