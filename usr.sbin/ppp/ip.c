@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ip.c,v 1.26 1997/10/26 01:02:52 brian Exp $
+ * $Id: ip.c,v 1.27 1997/10/26 12:42:10 brian Exp $
  *
  *	TODO:
  *		o Return ICMP message for filterd packet
@@ -341,18 +341,20 @@ PacketCheck(char *cp, int nb, int direction)
     break;
   }
 
-  if (logit)
-    LogPrintf(LogTCPIP, "%s\n", logbuf);
-
   if ((FilterCheck(pip, direction) & A_DENY)) {
-    LogPrintf(LogDEBUG, "blocked.\n");
+    if (logit)
+      LogPrintf(LogTCPIP, "%s - BLOCKED\n", logbuf);
     if (direction == 0)
       IcmpError(pip, pri);
     return (-1);
   } else {
     if (FilterCheck(pip, FL_KEEP) & A_DENY) {	/* Check Keep Alive filter */
+      if (logit)
+        LogPrintf(LogTCPIP, "%s - NO KEEPALIVE\n", logbuf);
       ipKeepAlive = 0;
     } else {
+      if (logit)
+        LogPrintf(LogTCPIP, "%s\n", logbuf);
       ipKeepAlive = 1;
     }
     return (pri);
