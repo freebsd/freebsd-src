@@ -35,7 +35,7 @@
 # From @(#)makedevops.sh 1.1 1998/06/14 13:53:12 dfr Exp $
 # From @(#)makedevops.sh ?.? 1998/10/05
 #
-# $Id$
+# $Id: makedevops.pl,v 1.6 1999/05/02 08:55:27 markm Exp $
 
 #
 # Script to produce device front-end sugar.
@@ -219,7 +219,18 @@ foreach $src ( @filenames ) {
          print CFILE '#include "'.$intname.'_if.h"'."\n\n"
             if $cfile;
 
-      } elsif ( $line =~ m/^METHOD/i ) {
+      } elsif ( $line =~ m/^CODE\s*{$/i ) {
+	 $code = "";
+	 $line = <SRC>;
+         while ( $line !~ m/^}/ ) {
+	    $code .= $line;
+	    $line = <SRC>;
+            $lineno++
+	 }
+	 if ( $cfile ) {
+	     print CFILE $code;
+	 }
+      } elsif ( $line =~ m/^(STATIC|)METHOD/i ) {
          # Get the return type function name and delete that from
          # the line. What is left is the possibly first function argument
          # if it is on the same line.
@@ -231,8 +242,9 @@ foreach $src ( @filenames ) {
             $error = 1;
             last LINE;
          }
-         $line =~ s/^METHODE?\s+([^{]+?)\s*{\s*//i;
-         @ret = split m/\s+/, $1;
+         $line =~ s/^(STATIC|)METHODE?\s+([^{]+?)\s*{\s*//i;
+	 $static = $1;						    
+         @ret = split m/\s+/, $2;
          $name = pop @ret;          # last element is name of method
          $ret = join(" ", @ret);    # return type
 
@@ -267,14 +279,20 @@ foreach $src ( @filenames ) {
             $lineno++
 	 }
 
-         if ( $line !~ s/};?(.*)// ) { # remove first '}' and trailing garbage
-            # The '}' was not there (the rest is optional), so complain
-            warn "$src:$lineno: Premature end of file";
-            $error = 1;
-            last LINE;
-         }
-         warn "$src:$lineno: Ignored '$1'"  # warn about garbage at end of line
-            if $debug and $1;
+	 $default = "";
+	 if ( $line !~ s/};?(.*)// ) { # remove first '}' and trailing garbage
+	    # The '}' was not there (the rest is optional), so complain
+	    warn "$src:$lineno: Premature end of file";
+	    $error = 1;
+	    last LINE;
+	 }
+	 $extra = $1;
+	 if ( $extra =~ /\s*DEFAULT\s*([a-zA-Z_][a-zA-Z_0-9]*)\s*;/ ) {
+	    $default = $1;
+	 } else {
+	    warn "$src:$lineno: Ignored '$1'"  # warn about garbage at end of line
+	       if $debug and $1;
+	 }
 
          # Create a list of variables without the types prepended
          #
@@ -308,6 +326,8 @@ foreach $src ( @filenames ) {
          $arguments = join(", ", @arguments);
          $varnames = join(", ", @varnames);
 
+	 $default = "0" if $default eq "";
+
          if ( $hfile ) {
             # the method description 
             print HFILE "extern struct device_op_desc $mname\_desc;\n";
@@ -323,7 +343,7 @@ foreach $src ( @filenames ) {
          if ( $cfile ) {
             # Print out the method desc
             print CFILE "struct device_op_desc $mname\_desc = {\n";
-            print CFILE "\t0, 0, \"$mname\"\n";
+            print CFILE "\t0, 0, (devop_t) $default, \"$mname\"\n";
             print CFILE "};\n\n";
 
             # Print out the method itself
@@ -336,9 +356,15 @@ foreach $src ( @filenames ) {
                               ',', ' ' x length("$ret $umname(")) . "\n";
             }
             print CFILE "{\n";
-            print CFILE &format_line("\t$mname\_t *m = ($mname\_t *) DEVOPMETH(dev, $mname);",
-                              $line_width-8, ' = ', ' =', "\t\t")
-                      . "\n";
+	    if ($static) {
+	      print CFILE &format_line("\t$mname\_t *m = ($mname\_t *) DRVOPMETH(driver, $mname);",
+				       $line_width-8, ' = ', ' =', "\t\t")
+		. "\n";
+	    } else {
+	      print CFILE &format_line("\t$mname\_t *m = ($mname\_t *) DEVOPMETH(dev, $mname);",
+				       $line_width-8, ' = ', ' =', "\t\t")
+		. "\n";
+	    }
             print CFILE "\t".($ret eq 'void'? '':'return ') . "m($varnames);\n";
             print CFILE "}\n\n";
          }

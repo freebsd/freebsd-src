@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bus_private.h,v 1.5 1999/03/29 08:54:19 dfr Exp $
+ *	$Id: bus_private.h,v 1.6 1999/04/16 21:22:54 peter Exp $
  */
 
 #ifndef _SYS_BUS_PRIVATE_H_
@@ -93,12 +93,15 @@ struct device_ops {
  */
 #define DEVOPDESC(OP)	(&OP##_##desc)
 
-#define DEVOPOFF(DEV, OP)				\
-	((DEVOPDESC(OP)->offset >= DEV->ops->maxoffset	\
-	  || !DEV->ops->methods[DEVOPDESC(OP)->offset])	\
+#define DEVOPOFF(OPS, OP)				\
+	((DEVOPDESC(OP)->offset >= OPS->maxoffset	\
+	  || !OPS->methods[DEVOPDESC(OP)->offset])	\
 	 ? 0 : DEVOPDESC(OP)->offset)
 
-#define DEVOPMETH(DEV, OP) (DEV->ops->methods[DEVOPOFF(DEV, OP)])
+#define DEVOPS(DEV)	   (DEV->ops)
+#define DEVOPMETH(DEV, OP) (DEVOPS(DEV)->methods[DEVOPOFF(DEVOPS(DEV), OP)])
+#define DRVOPS(DRV)	   ((struct device_ops *)DRV->ops)
+#define DRVOPMETH(DRV, OP) (DRVOPS(DRV)->methods[DEVOPOFF(DRVOPS(DRV), OP)])
 
 /*
  * Implementation of device.
@@ -139,6 +142,7 @@ struct device {
 struct device_op_desc {
     unsigned int	offset;	/* offset in driver ops */
     struct method*	method;	/* internal method implementation */
+    devop_t		deflt;	/* default implementation */
     const char*		name;	/* unique name (for registration) */
 };
 
