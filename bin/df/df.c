@@ -54,6 +54,7 @@ static const char rcsid[] =
 #include <sys/param.h>
 #include <sys/stat.h>
 #include <sys/mount.h>
+#include <sys/sysctl.h>
 #include <ufs/ufs/ufsmount.h>
 
 #include <err.h>
@@ -96,6 +97,7 @@ typedef enum { NONE, KILO, MEGA, GIGA, TERA, PETA, UNIT_MAX } unit_t;
 int unitp [] = { NONE, KILO, MEGA, GIGA, TERA, PETA };
 
 int	  checkvfsname __P((const char *, char **));
+char	 *makenetvfslist __P((void));
 char	**makevfslist __P((char *));
 long	  regetmntinfo __P((struct statfs **, long, char **));
 int	  bread __P((off_t, void *, int));
@@ -122,7 +124,7 @@ main(argc, argv)
 	char *mntpt, *mntpath, **vfslist;
 
 	vfslist = NULL;
-	while ((ch = getopt(argc, argv, "abgHhikmnPt:")) != -1)
+	while ((ch = getopt(argc, argv, "abgHhiklmnPt:")) != -1)
 		switch (ch) {
 		case 'a':
 			aflag = 1;
@@ -151,6 +153,11 @@ main(argc, argv)
 		case 'k':
 			putenv("BLOCKSIZE=1k");
 			hflag = 0;
+			break;
+		case 'l':
+			if (vfslist != NULL)
+				errx(1, "-l and -t are mutually exclusive.");
+			vfslist = makevfslist(makenetvfslist());
 			break;
 		case 'm':
 			putenv("BLOCKSIZE=1m");
@@ -506,6 +513,52 @@ usage()
 {
 
 	(void)fprintf(stderr,
-	    "usage: df [-b | -H | -h | -k | -m | -P] [-ain] [-t type] [file | filesystem ...]\n");
+	    "usage: df [-b | -H | -h | -k | -m | -P] [-ailn] [-t type] [file | filesystem ...]\n");
 	exit(EX_USAGE);
+}
+
+char *makenetvfslist()
+{
+	char *str, *strptr, **listptr;
+	int mib[3], maxvfsconf, miblen, cnt=0, i;
+	struct ovfsconf *ptr;
+
+	mib[0] = CTL_VFS; mib[1] = VFS_GENERIC; mib[2] = VFS_MAXTYPENUM;
+	miblen=sizeof(maxvfsconf);
+	if (sysctl(mib, sizeof(mib)/sizeof(mib[0]), &maxvfsconf, &miblen, NULL, 0)) {
+		warnx("sysctl failed");
+		return (NULL);
+	}
+
+	if ((listptr=malloc(sizeof(char*) * maxvfsconf)) == NULL) {
+		warnx("malloc failed");
+		return (NULL);
+	}
+
+	for (ptr=getvfsent();ptr;ptr=getvfsent())
+		if (ptr->vfc_flags & VFCF_NETWORK) {
+			listptr[cnt++] = strdup (ptr->vfc_name);
+			if (! listptr[cnt-1]) {
+				warnx("malloc failed");
+				return (NULL);
+			}
+		}
+
+	if ((str = malloc(sizeof(char)*(32*cnt+cnt+2))) == NULL) {
+		warnx("malloc failed");
+		free(listptr);
+		return (NULL);
+	}
+
+	*str = 'n'; *(str+1) = 'o';
+	for (i = 0,strptr=str+2; i < cnt; i++,strptr++) {
+		strncpy (strptr, listptr[i], 32);
+		strptr+=strlen(listptr[i]);
+		*strptr=',';
+		free(listptr[i]);
+	}
+	*(--strptr) = NULL;
+
+	free(listptr);
+	return (str);
 }
