@@ -30,13 +30,13 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef lint                                                              
-static char rcsid[] = "$OpenBSD: fsirand.c,v 1.9 1997/02/28 00:46:33 millert Exp $";
-#endif /* not lint */                                                        
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
 
 #include <sys/types.h>
 #include <sys/disklabel.h>
-#include <sys/ioctl.h>
 #include <sys/param.h>
 #include <sys/time.h>
 #include <sys/resource.h>
@@ -50,10 +50,9 @@ static char rcsid[] = "$OpenBSD: fsirand.c,v 1.9 1997/02/28 00:46:33 millert Exp
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <time.h>
 #include <unistd.h>
 
-static void usage __P((int));
+static void usage __P((void));
 int fsirand __P((char *));
 
 int printonly = 0, force = 0, ignorelabel = 0;
@@ -78,11 +77,11 @@ main(argc, argv)
 			force++;
 			break;
 		default:
-			usage(1);
+			usage();
 		}
 	}
 	if (argc - optind < 1)
-		usage(1);
+		usage();
 
 	srandomdev();
 
@@ -90,9 +89,9 @@ main(argc, argv)
 	if (getrlimit(RLIMIT_DATA, &rl) == 0) {
 		rl.rlim_cur = rl.rlim_max;
 		if (setrlimit(RLIMIT_DATA, &rl) < 0)
-			warn("Can't get resource limit to max data size");
+			warn("can't get resource limit to max data size");
 	} else
-		warn("Can't get resource limit for data size");
+		warn("can't get resource limit for data size");
 
 	for (n = optind; n < argc; n++) {
 		if (argc - optind != 1)
@@ -121,14 +120,14 @@ fsirand(device)
 	struct disklabel label;
 
 	if ((devfd = open(device, printonly ? O_RDONLY : O_RDWR)) < 0) {
-		warn("Can't open %s", device);
+		warn("can't open %s", device);
 		return (1);
 	}
 
 	/* Get block size (usually 512) from disklabel if possible */
 	if (!ignorelabel) {
 		if (ioctl(devfd, DIOCGDINFO, &label) < 0)
-			warn("Can't read disklabel, using sector size of %d",
+			warn("can't read disklabel, using sector size of %d",
 			    bsize);
 		else
 			bsize = label.d_secsize;
@@ -138,11 +137,11 @@ fsirand(device)
 	(void)memset(&sbuf, 0, sizeof(sbuf));
 	sblock = (struct fs *)&sbuf;
 	if (lseek(devfd, SBOFF, SEEK_SET) == -1) {
-		warn("Can't seek to superblock (%qd) on %s", SBOFF, device);
+		warn("can't seek to superblock (%qd) on %s", SBOFF, device);
 		return (1);
 	}
 	if ((n = read(devfd, (void *)sblock, SBSIZE)) != SBSIZE) {
-		warnx("Can't read superblock on %s: %s", device,
+		warnx("can't read superblock on %s: %s", device,
 		    (n < SBSIZE) ? "short read" : strerror(errno));
 		return (1);
 	}
@@ -150,19 +149,19 @@ fsirand(device)
 
 	/* Simple sanity checks on the superblock */
 	if (sblock->fs_magic != FS_MAGIC) {
-		warnx("Bad magic number in superblock");
+		warnx("bad magic number in superblock");
 		return (1);
 	}
 	if (sblock->fs_sbsize > SBSIZE) {
-		warnx("Superblock size is preposterous");
+		warnx("superblock size is preposterous");
 		return (1);
 	}
 	if (sblock->fs_postblformat == FS_42POSTBLFMT) {
-		warnx("Filesystem format is too old, sorry");
+		warnx("filesystem format is too old, sorry");
 		return (1);
 	}
 	if (!force && !printonly && sblock->fs_clean != 1) {
-		warnx("Filesystem is not clean, fsck %s first.", device);
+		warnx("filesystem is not clean, fsck %s first", device);
 		return (1);
 	}
 
@@ -171,21 +170,21 @@ fsirand(device)
 	for (cg = 0; cg < sblock->fs_ncg; cg++) {
 		dblk = fsbtodb(sblock, cgsblock(sblock, cg));
 		if (lseek(devfd, (off_t)dblk * bsize, SEEK_SET) < 0) {
-			warn("Can't seek to %qd", (off_t)dblk * bsize);
+			warn("can't seek to %qd", (off_t)dblk * bsize);
 			return (1);
 		} else if ((n = write(devfd, (void *)sblock, SBSIZE)) != SBSIZE) {
-			warn("Can't read backup superblock %d on %s: %s",
+			warn("can't read backup superblock %d on %s: %s",
 			    cg + 1, device, (n < SBSIZE) ? "short write"
 			    : strerror(errno));
 			return (1);
 		}
 		if (sblock->fs_magic != FS_MAGIC) {
-			warnx("Bad magic number in backup superblock %d on %s",
+			warnx("bad magic number in backup superblock %d on %s",
 			    cg + 1, device);
 			return (1);
 		}
 		if (sblock->fs_sbsize > SBSIZE) {
-			warnx("Size of backup superblock %d on %s is preposterous",
+			warnx("size of backup superblock %d on %s is preposterous",
 			    cg + 1, device);
 			return (1);
 		}
@@ -196,7 +195,7 @@ fsirand(device)
 	ibufsize = sizeof(struct dinode) * sblock->fs_ipg;
 	if (oldibufsize < ibufsize) {
 		if ((inodebuf = realloc(inodebuf, ibufsize)) == NULL)
-			errx(1, "Can't allocate memory for inode buffer");
+			errx(1, "can't allocate memory for inode buffer");
 		oldibufsize = ibufsize;
 	}
 
@@ -215,12 +214,12 @@ fsirand(device)
 		sblock->fs_id[1] = random();
 
 		if (lseek(devfd, SBOFF, SEEK_SET) == -1) {
-			warn("Can't seek to superblock (%qd) on %s", SBOFF,
+			warn("can't seek to superblock (%qd) on %s", SBOFF,
 			    device);
 			return (1);
 		}
 		if ((n = write(devfd, (void *)sblock, SBSIZE)) != SBSIZE) {
-			warn("Can't read superblock on %s: %s", device,
+			warn("can't read superblock on %s: %s", device,
 			    (n < SBSIZE) ? "short write" : strerror(errno));
 			return (1);
 		}
@@ -232,10 +231,10 @@ fsirand(device)
 		if ((sblock->fs_inodefmt >= FS_44INODEFMT) && !printonly) {
 			dblk = fsbtodb(sblock, cgsblock(sblock, cg));
 			if (lseek(devfd, (off_t)dblk * bsize, SEEK_SET) < 0) {
-				warn("Can't seek to %qd", (off_t)dblk * bsize);
+				warn("can't seek to %qd", (off_t)dblk * bsize);
 				return (1);
 			} else if ((n = write(devfd, (void *)sblock, SBSIZE)) != SBSIZE) {
-				warn("Can't read backup superblock %d on %s: %s",
+				warn("can't read backup superblock %d on %s: %s",
 				    cg + 1, device, (n < SBSIZE) ? "short write"
 				    : strerror(errno));
 				return (1);
@@ -245,10 +244,10 @@ fsirand(device)
 		/* Read in inodes, then print or randomize generation nums */
 		dblk = fsbtodb(sblock, ino_to_fsba(sblock, inumber));
 		if (lseek(devfd, (off_t)dblk * bsize, SEEK_SET) < 0) {
-			warn("Can't seek to %qd", (off_t)dblk * bsize);
+			warn("can't seek to %qd", (off_t)dblk * bsize);
 			return (1);
 		} else if ((n = read(devfd, inodebuf, ibufsize)) != ibufsize) {
-			warnx("Can't read inodes: %s",
+			warnx("can't read inodes: %s",
 			     (n < ibufsize) ? "short read" : strerror(errno));
 			return (1);
 		}
@@ -266,12 +265,12 @@ fsirand(device)
 		/* Write out modified inodes */
 		if (!printonly) {
 			if (lseek(devfd, (off_t)dblk * bsize, SEEK_SET) < 0) {
-				warn("Can't seek to %qd",
+				warn("can't seek to %qd",
 				    (off_t)dblk * bsize);
 				return (1);
 			} else if ((n = write(devfd, inodebuf, ibufsize)) !=
 				 ibufsize) {
-				warnx("Can't write inodes: %s",
+				warnx("can't write inodes: %s",
 				     (n != ibufsize) ? "short write" :
 				     strerror(errno));
 				return (1);
@@ -284,10 +283,9 @@ fsirand(device)
 }
 
 static void
-usage(ex)
-	int ex;
+usage()
 {
 	(void)fprintf(stderr, 
-"usage: fsirand [ -b ] [ -f ] [ -p ] special [special ...]\n");
-	exit(ex);
+		"usage: fsirand [-b] [-f] [-p] special [special ...]\n");
+	exit(1);
 }
