@@ -42,20 +42,28 @@
 .Sh DESCRIPTION
 The
 .Nm
-utility is used to dump the basic-block profiling buffers of the running
-kernel.
+utility is used to extract the basic-block profiling buffers of the running
+kernel into the files needed for the
+.Xr gcov 1
+tool.
 .Pp
 At least one source file in the running kernel must have been compiled
 with the
-.Fl a
-option.
+.Fl --test-coverage
+and
+.Fl --profile-arcs
+options.
 .Pp
-The output format is
-.Tn ASCII ,
-consisting of one line per record with the
-following fields: filename, linenumber, procedure, address, count
-of executions, length of the basic-block in bytes and the product of
-the previous two fields.
+The output is stored in the filenames compiled into the kernel by
+.Xr gcc 1 .
+If the absolute pathname cannot be written to, the directory part
+of the filename is discarded and the file stored in the current
+directory under its basename.
+.Pp
+The output files are named *.da, and the
+.Xr gcov 1
+program will extract the counts and merge them with the source
+file to show actual execution counts.
 .Sh FILES
 .Bl -tag -width /boot/kernel/kernel -compact
 .It Pa /boot/kernel/kernel
@@ -65,9 +73,12 @@ the default memory
 .El
 .Sh SEE ALSO
 .Xr cc 1
+.Xr gcov 1
 .Sh AUTHORS
 The
 .Nm
 utility was written by
 .An Poul-Henning Kamp ,
 along with the kernel-support.
+.Sh BUGS
+There are far too much magic and internal knowledge from GCC in this.
