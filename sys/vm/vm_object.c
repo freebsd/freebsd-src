@@ -1662,7 +1662,6 @@ vm_object_collapse(vm_object_t object)
 			object->backing_object = backing_object->backing_object;
 			object->backing_object_offset +=
 			    backing_object->backing_object_offset;
-/* XXX */		VM_OBJECT_UNLOCK(object);
 
 			/*
 			 * Discard backing_object.
@@ -1682,7 +1681,6 @@ vm_object_collapse(vm_object_t object)
 			);
 			mtx_unlock(&vm_object_list_mtx);
 
-/* XXX */		VM_OBJECT_LOCK(object);
 			uma_zfree(obj_zone, backing_object);
 
 			object_collapses++;
