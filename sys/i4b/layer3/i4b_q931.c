@@ -51,7 +51,6 @@
 #include <sys/ioctl.h>
 #endif
 
-#include <sys/kernel.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
 #include <sys/socket.h>

@@ -79,7 +79,6 @@
 
 #include <sys/types.h>
 #include <sys/param.h>
-#include <sys/kernel.h>
 #include <sys/proc.h>
 #include <sys/time.h>
 

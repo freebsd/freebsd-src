@@ -48,7 +48,6 @@
 #include <sys/tty.h>
 #include <sys/proc.h>
 #include <sys/uio.h>
-#include <sys/kernel.h>
 #include <sys/socket.h>
 #include <net/if.h>
 
