@@ -127,13 +127,14 @@ ReturnStatus	Lst_Insert(Lst, LstNode, void *);
 /* Insert an element after another */
 ReturnStatus	Lst_Append(Lst, LstNode, void *);
 /* Place an element at the front of a lst. */
-ReturnStatus	Lst_AtFront(Lst, void *);
+#define	Lst_AtFront(LST, D)	(Lst_Insert((LST), Lst_First(LST), (D)))
 /* Place an element at the end of a lst. */
-ReturnStatus	Lst_AtEnd(Lst, void *);
+#define	Lst_AtEnd(LST, D) 	(Lst_Append((LST), Lst_Last(LST), (D)))
 /* Remove an element */
 ReturnStatus	Lst_Remove(Lst, LstNode);
 /* Replace a node with a new value */
-ReturnStatus	Lst_Replace(LstNode, void *);
+#define	Lst_Replace(NODE, D)	(((NODE) == NULL) ? FAILURE : \
+				    (((NODE)->datum = (D)), SUCCESS))
 /* Concatenate two lists */
 ReturnStatus	Lst_Concat(Lst, Lst, int);
 
@@ -141,19 +142,21 @@ ReturnStatus	Lst_Concat(Lst, Lst, int);
  * Node-specific functions
  */
 /* Return first element in list */
-LstNode		Lst_First(Lst);
+#define	Lst_First(LST)	((Lst_Valid(LST) && !Lst_IsEmpty(LST)) \
+			    ? (LST)->firstPtr : NULL)
 /* Return last element in list */
-LstNode		Lst_Last(Lst);
+#define	Lst_Last(LST)	((Lst_Valid(LST) && !Lst_IsEmpty(LST)) \
+			    ? (LST)->lastPtr : NULL)
 /* Return successor to given element */
-LstNode		Lst_Succ(LstNode);
+#define	Lst_Succ(NODE)	(((NODE) == NULL) ? NULL : (NODE)->nextPtr)
 /* Get datum from LstNode */
-void *	Lst_Datum(LstNode);
+#define	Lst_Datum(NODE)	((NODE)->datum)
 
 /*
  * Functions for entire lists
  */
 /* Find an element in a list */
-LstNode		Lst_Find(Lst, void *, CompareProc *);
+#define	Lst_Find(LST, D, FN)	(Lst_FindFrom((LST), Lst_First(LST), (D), (FN)))
 /* Find an element starting from somewhere */
 LstNode		Lst_FindFrom(Lst, LstNode, void *, CompareProc *);
 /*
@@ -163,6 +166,8 @@ LstNode		Lst_FindFrom(Lst, LstNode, void *, CompareProc *);
 LstNode		Lst_Member(Lst, void *);
 /* Apply a function to all elements of a lst */
 void		Lst_ForEach(Lst, DoProc *, void *);
+#define	Lst_ForEach(LST, FN, D)	(Lst_ForEachFrom((LST), Lst_First(LST), \
+				    (FN), (D)))
 /*
  * Apply a function to all elements of a lst starting from a certain point.
  * If the list is circular, the application will wrap around to the
@@ -187,7 +192,9 @@ void		Lst_Close(Lst);
  * for using the list as a queue
  */
 /* Place an element at tail of queue */
-ReturnStatus	Lst_EnQueue(Lst, void *);
+#define	Lst_EnQueue(LST, D)	(Lst_Valid(LST) \
+				    ? Lst_Append((LST), Lst_Last(LST), (D)) \
+				    : FAILURE)
 /* Remove an element from head of queue */
 void *	Lst_DeQueue(Lst);
 

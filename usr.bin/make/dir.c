@@ -231,10 +231,12 @@ Dir_Init (void)
 void
 Dir_InitDot (void)
 {
+    LstNode ln;
+
     Dir_AddDir (openDirectories, ".");
-    dot = (Path *)Lst_Datum(Lst_Last(openDirectories));
-    if (dot == (Path *) NULL)
+    if ((ln = Lst_Last(openDirectories)) == NULL)
 	err(1, "cannot open current directory");
+    dot = Lst_Datum(ln);
 
     /*
      * We always need to have dot around, so we increment its reference count
