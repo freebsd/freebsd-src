@@ -20,18 +20,9 @@ extra_commands="reload"
 
 _sockfile="/var/run/syslogd.sockets"
 
-case ${OSTYPE} in
-FreeBSD)
-	pidfile="/var/run/syslog.pid"
-	evalargs="rc_flags=\"\`set_socketlist\` \$rc_flags\""
-	altlog_proglist="named"
-	;;
-NetBSD)
-	pidfile="/var/run/${name}.pid"
-	evalargs="rc_flags=\"-P \$_sockfile \$rc_flags\""
-	altlog_proglist="named ntpd"
-	;;
-esac
+pidfile="/var/run/syslog.pid"
+evalargs="rc_flags=\"\`set_socketlist\` \$rc_flags\""
+altlog_proglist="named"
 
 syslogd_precmd()
 {

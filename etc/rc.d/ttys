@@ -17,34 +17,15 @@ stop_cmd=":"
 
 ttyflags_start()
 {
-	case ${OSTYPE} in
-	FreeBSD)
-
-		# Whack the pty perms back into shape.
-		#	XXX:	there may be more ptys than this; maybe use
-		#		sysctl to find out how many?
-		#
-		if ls /dev/tty[pqrsPQRS]* > /dev/null 2>&1; then
-			chflags 0 /dev/tty[pqrsPQRS]*
-			chmod 666 /dev/tty[pqrsPQRS]*
-			chown root:wheel /dev/tty[pqrsPQRS]*
-		fi
-		;;
-	NetBSD)
-		#	set flags on ttys.
-		#	(do early, in case they use tty for SLIP in network)
-		#
-		echo "Setting tty flags."
-		ttyflags -a
-
-		#	setup ptys
-		#
-		#	XXX:	there may be more ptys than this; maybe use
-		#		sysctl to find out how many?
-		#
-		chmod 666 /dev/tty[pqrs]*
-		;;
-	esac
+	# Whack the pty perms back into shape.
+	#	XXX:	there may be more ptys than this; maybe use
+	#		sysctl to find out how many?
+	#
+	if ls /dev/tty[pqrsPQRS]* > /dev/null 2>&1; then
+		chflags 0 /dev/tty[pqrsPQRS]*
+		chmod 666 /dev/tty[pqrsPQRS]*
+		chown root:wheel /dev/tty[pqrsPQRS]*
+	fi
 }
 
 load_rc_config $name

@@ -16,12 +16,6 @@ start_cmd="savecore_start"
 start_precmd="savecore_prestart"
 stop_cmd=":"
 
-case ${OSTYPE} in
-NetBSD)
-	rcvar=$name
-	;;
-esac
-
 savecore_prestart()
 {
 	#	${DUMPDIR} should be a directory or a symbolic link
@@ -29,38 +23,28 @@ savecore_prestart()
 	#
 	DUMPDIR="${dumpdir:-/var/crash}"
 
-	case ${OSTYPE} in
-	FreeBSD)
-		# Quit if we have no dump device
-		case ${dumpdev} in
-		[Nn][Oo] | '')
-			debug 'No dump device. Quitting.'
-			return 1
-			;;
-		esac
-
-		# If there is no crash directory set it now
-		case ${dumpdir} in
-		'')
-			dumpdir='/var/crash'
-			;;
-		[Nn][Oo])
-			dumpdir='NO'
-			;;
-		esac
-
-		if [ ! -e "${dumpdev}" -o ! -d "${dumpdir}" ]; then
-			warn "Wrong dump device or directory. Savecore not run."
-			return 1
-		fi
-		;;
-	NetBSD)
-		if [ ! -d "${dumpdir}" ]; then
-			warn "No /var/crash directory; savecore not run."
-			return 1
-		fi
+	# Quit if we have no dump device
+	case ${dumpdev} in
+	[Nn][Oo] | '')
+		debug 'No dump device. Quitting.'
+		return 1
 		;;
 	esac
+
+	# If there is no crash directory set it now
+	case ${dumpdir} in
+	'')
+		dumpdir='/var/crash'
+		;;
+	[Nn][Oo])
+		dumpdir='NO'
+		;;
+	esac
+
+	if [ ! -e "${dumpdev}" -o ! -d "${dumpdir}" ]; then
+		warn "Wrong dump device or directory. Savecore not run."
+		return 1
+	fi
 	return 0
 }
 

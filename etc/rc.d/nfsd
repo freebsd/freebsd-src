@@ -15,17 +15,9 @@ rcvar=`set_rcvar nfs_server`
 command="/usr/sbin/${name}"
 
 load_rc_config $name
-case ${OSTYPE} in
-FreeBSD)
-	command_args="${nfs_server_flags}"
-	start_precmd="nfsd_precmd"
-	sig_stop="USR1"
-	;;
-NetBSD)
-	required_vars="mountd rpcbind"
-	start_precmd=
-	;;
-esac
+command_args="${nfs_server_flags}"
+start_precmd="nfsd_precmd"
+sig_stop="USR1"
 
 nfsd_precmd()
 {
