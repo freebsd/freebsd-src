@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_lookup.c,v 1.19 1998/02/23 09:39:25 ache Exp $ */
+/*	$Id: msdosfs_lookup.c,v 1.20 1998/02/23 16:44:30 ache Exp $ */
 /*	$NetBSD: msdosfs_lookup.c,v 1.37 1997/11/17 15:36:54 ws Exp $	*/
 
 /*-
@@ -261,7 +261,7 @@ msdosfs_lookup(ap)
 							    pmp->pm_flags & MSDOSFSMNT_U2WTABLE,
 							    pmp->pm_u2w,
 							    pmp->pm_flags & MSDOSFSMNT_ULTABLE,
-							    pmp->pm_lu);
+							    pmp->pm_ul);
 					continue;
 				}
 

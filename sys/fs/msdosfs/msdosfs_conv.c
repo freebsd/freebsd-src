@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_conv.c,v 1.21 1998/02/23 09:39:24 ache Exp $ */
+/*	$Id: msdosfs_conv.c,v 1.22 1998/02/23 16:44:27 ache Exp $ */
 /*	$NetBSD: msdosfs_conv.c,v 1.25 1997/11/17 15:36:40 ws Exp $	*/
 
 /*-
@@ -387,9 +387,10 @@ l2u[256] = {
  * null.
  */
 int
-dos2unixfn(dn, un, d2u_loaded, d2u, ul_loaded, ul)
+dos2unixfn(dn, un, lower, d2u_loaded, d2u, ul_loaded, ul)
 	u_char dn[11];
 	u_char *un;
+	int lower;
 	int d2u_loaded;
 	u_int8_t *d2u;
 	int ul_loaded;
@@ -410,8 +411,8 @@ dos2unixfn(dn, un, d2u_loaded, d2u, ul_loaded, ul)
 	else
 		c = d2u_loaded && (*dn & 0x80) ? d2u[*dn & 0x7f] :
 		    dos2unix[*dn];
-	*un++ = ul_loaded && (c & 0x80) ?
-		ul[c & 0x7f] : u2l[c];
+	*un++ = lower ? (ul_loaded && (c & 0x80) ?
+			 ul[c & 0x7f] : u2l[c]) : c;
 	dn++;
 
 	/*
@@ -421,8 +422,8 @@ dos2unixfn(dn, un, d2u_loaded, d2u, ul_loaded, ul)
 		c = d2u_loaded && (*dn & 0x80) ? d2u[*dn & 0x7f] :
 		    dos2unix[*dn];
 		dn++;
-		*un++ = ul_loaded && (c & 0x80) ?
-			ul[c & 0x7f] : u2l[c];
+		*un++ = lower ? (ul_loaded && (c & 0x80) ?
+				 ul[c & 0x7f] : u2l[c]) : c;
 		thislong++;
 	}
 	dn += 8 - i;
@@ -438,8 +439,8 @@ dos2unixfn(dn, un, d2u_loaded, d2u, ul_loaded, ul)
 			c = d2u_loaded && (*dn & 0x80) ? d2u[*dn & 0x7f] :
 			    dos2unix[*dn];
 			dn++;
-			*un++ = ul_loaded && (c & 0x80) ?
-				ul[c & 0x7f] : u2l[c];
+			*un++ = lower ? (ul_loaded && (c & 0x80) ?
+					 ul[c & 0x7f] : u2l[c]) : c;
 			thislong++;
 		}
 	}
@@ -724,15 +725,15 @@ find_lcode(code, u2w)
  * Returns the checksum or -1 if no match
  */
 int
-winChkName(un, unlen, wep, chksum, u2w_loaded, u2w, lu_loaded, lu)
+winChkName(un, unlen, wep, chksum, u2w_loaded, u2w, ul_loaded, ul)
 	const u_char *un;
 	int unlen;
 	struct winentry *wep;
 	int chksum;
 	int u2w_loaded;
 	u_int16_t *u2w;
-	int lu_loaded;
-	u_int8_t *lu;
+	int ul_loaded;
+	u_int8_t *ul;
 {
 	u_int8_t *cp;
 	int i;
@@ -775,10 +776,10 @@ winChkName(un, unlen, wep, chksum, u2w_loaded, u2w, lu_loaded, lu)
 			else if (code & 0xff00)
 				code = '?';
 		}
-		c1 = lu_loaded && (code & 0x80) ?
-		     lu[code & 0x7f] : l2u[code];
-		c2 = lu_loaded && (*un & 0x80) ?
-		     lu[*un & 0x7f] : l2u[*un];
+		c1 = ul_loaded && (code & 0x80) ?
+		     ul[code & 0x7f] : u2l[code];
+		c2 = ul_loaded && (*un & 0x80) ?
+		     ul[*un & 0x7f] : u2l[*un];
 		if (c1 != c2)
 			return -1;
 		cp += 2;
@@ -797,10 +798,10 @@ winChkName(un, unlen, wep, chksum, u2w_loaded, u2w, lu_loaded, lu)
 			else if (code & 0xff00)
 				code = '?';
 		}
-		c1 = lu_loaded && (code & 0x80) ?
-		     lu[code & 0x7f] : l2u[code];
-		c2 = lu_loaded && (*un & 0x80) ?
-		     lu[*un & 0x7f] : l2u[*un];
+		c1 = ul_loaded && (code & 0x80) ?
+		     ul[code & 0x7f] : u2l[code];
+		c2 = ul_loaded && (*un & 0x80) ?
+		     ul[*un & 0x7f] : u2l[*un];
 		if (c1 != c2)
 			return -1;
 		cp += 2;
@@ -819,10 +820,10 @@ winChkName(un, unlen, wep, chksum, u2w_loaded, u2w, lu_loaded, lu)
 			else if (code & 0xff00)
 				code = '?';
 		}
-		c1 = lu_loaded && (code & 0x80) ?
-		     lu[code & 0x7f] : l2u[code];
-		c2 = lu_loaded && (*un & 0x80) ?
-		     lu[*un & 0x7f] : l2u[*un];
+		c1 = ul_loaded && (code & 0x80) ?
+		     ul[code & 0x7f] : u2l[code];
+		c2 = ul_loaded && (*un & 0x80) ?
+		     ul[*un & 0x7f] : u2l[*un];
 		if (c1 != c2)
 			return -1;
 		cp += 2;
