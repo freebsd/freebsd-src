@@ -262,7 +262,7 @@ mountfs(vfstype, spec, name, flags, options, mntopts)
 	char *optbuf, execname[MAXPATHLEN + 1], mntpath[MAXPATHLEN];
 
 	if ((realpath(name, mntpath) != NULL) && (stat(mntpath, &sb) == NULL)) {
-		if ((sb.st_mode & S_IFDIR) == 0) {
+		if (!S_ISDIR(sb.st_mode)) {
 			warnx("%s: Not a directory", mntpath);
 			return (1);
 		}
