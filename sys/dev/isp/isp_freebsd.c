@@ -40,11 +40,10 @@ static void isp_action(struct cam_sim *, union ccb *);
 static void isp_relsim(void *);
 
 /* #define	ISP_LUN0_ONLY	1 */
-#ifdef	ISP_LUN0_ONLY
-#undef	_ISP_FC_LUN
-#undef	_ISP_SCSI_LUN
-#define	_ISP_FC_LUN(isp)	1
-#define	_ISP_SCSI_LUN(isp)	1
+#ifdef	CAMDEBUG
+int isp_debug = 1;
+#else
+int isp_debug = 0;
 #endif
 
 void
@@ -66,7 +65,7 @@ isp_attach(struct ispsoftc *isp)
 	/*
 	 * Create the device queue for our SIM(s).
 	 */
-	devq = cam_simq_alloc(MAXISPREQUEST);
+	devq = cam_simq_alloc(isp->isp_maxcmds);
 	if (devq == NULL) {
 		return;
 	}
@@ -75,7 +74,7 @@ isp_attach(struct ispsoftc *isp)
 	 * Construct our SIM entry.
 	 */
 	sim = cam_sim_alloc(isp_action, isp_poll, "isp", isp,
-	    isp->isp_unit, 1, MAXISPREQUEST, devq);
+	    isp->isp_unit, 1, isp->isp_maxcmds, devq);
 	if (sim == NULL) {
 		cam_simq_free(devq);
 		return;
@@ -106,7 +105,7 @@ isp_attach(struct ispsoftc *isp)
 	 */
 	if (IS_12X0(isp)) {
 		sim = cam_sim_alloc(isp_action, isp_poll, "isp", isp,
-		    isp->isp_unit, 1, MAXISPREQUEST, devq);
+		    isp->isp_unit, 1, isp->isp_maxcmds, devq);
 		if (sim == NULL) {
 			xpt_bus_deregister(cam_sim_path(isp->isp_sim));
 			xpt_free_path(isp->isp_path);
@@ -153,7 +152,7 @@ isp_cam_async(void *cbarg, u_int32_t code, struct cam_path *path, void *arg)
 	isp = (struct ispsoftc *) cam_sim_softc(sim);
 	switch (code) {
 	case AC_LOST_DEVICE:
-		if (isp->isp_type & ISP_HA_SCSI) {
+		if (IS_SCSI(isp)) {
 			u_int16_t oflags, nflags;
 			sdparam *sdp = isp->isp_param;
 			int s, tgt = xpt_path_target_id(path);
@@ -161,7 +160,6 @@ isp_cam_async(void *cbarg, u_int32_t code, struct cam_path *path, void *arg)
 			s = splcam();
 			sdp += cam_sim_bus(sim);
 			isp->isp_update |= (1 << cam_sim_bus(sim));
-
 			nflags = DPARM_SAFE_DFLT;
 			if (ISP_FW_REVX(isp->isp_fwrev) >=
 			    ISP_FW_REV(7, 55, 0)) {
@@ -202,10 +200,11 @@ isp_relsim(void *arg)
 	}
 	splx(s);
 }
+
 static void
 isp_action(struct cam_sim *sim, union ccb *ccb)
 {
-	int s, tgt, error;
+	int s, bus, tgt, error;
 	struct ispsoftc *isp;
 	struct ccb_trans_settings *cts;
 
@@ -345,9 +344,7 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 		cts = &ccb->cts;
 		tgt = cts->ccb_h.target_id;
 		s = splcam();
-		if (isp->isp_type & ISP_HA_FC) {
-			;	/* nothing to change */
-		} else {
+		if (IS_SCSI(isp)) {
 			sdparam *sdp = isp->isp_param;
 			u_int16_t *dptr;
 			int bus = cam_sim_bus(xpt_path_sim(cts->ccb_h.path));
@@ -411,6 +408,7 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 			} else {
 				*dptr &= ~DPARM_SYNC;
 			}
+*dptr |= DPARM_SAFE_DFLT;
 			if (bootverbose || isp->isp_dblev >= 3)
 				printf("%s: %d.%d set %s period 0x%x offset "
 				    "0x%x flags 0x%x\n", isp->isp_name, bus,
@@ -420,11 +418,9 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 				    sdp->isp_devparam[tgt].sync_period,
 				    sdp->isp_devparam[tgt].sync_offset,
 				    sdp->isp_devparam[tgt].dev_flags);
-			s = splcam();
 			sdp->isp_devparam[tgt].dev_update = 1;
 			isp->isp_update |= (1 << bus);
 			(void) isp_control(isp, ISPCTL_UPDATE_PARAMS, NULL);
-			(void) splx(s);
 		}
 		(void) splx(s);
 		ccb->ccb_h.status = CAM_REQ_CMP;
@@ -435,7 +431,7 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 
 		cts = &ccb->cts;
 		tgt = cts->ccb_h.target_id;
-		if (isp->isp_type & ISP_HA_FC) {
+		if (IS_FC(isp)) {
 			/*
 			 * a lot of normal SCSI things don't make sense.
 			 */
@@ -541,9 +537,9 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 		break;
 	}
 	case XPT_RESET_BUS:		/* Reset the specified bus */
-		tgt = cam_sim_bus(sim);
+		bus = cam_sim_bus(sim);
 		s = splcam();
-		error = isp_control(isp, ISPCTL_RESET_BUS, &tgt);
+		error = isp_control(isp, ISPCTL_RESET_BUS, &bus);
 		(void) splx(s);
 		if (error)
 			ccb->ccb_h.status = CAM_REQ_CMP_ERR;
@@ -575,7 +571,6 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 		cpi->bus_id = cam_sim_bus(sim);
 		if (IS_FC(isp)) {
 			cpi->hba_misc = PIM_NOBUSRESET;
-
 			/*
 			 * Because our loop ID can shift from time to time,
 			 * make our initiator ID out of range of our bus.
@@ -593,7 +588,6 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 		} else {
 			sdparam *sdp = isp->isp_param;
 			sdp += cam_sim_bus(xpt_path_sim(cpi->ccb_h.path));
-
 			cpi->hba_inquiry = PI_SDTR_ABLE|PI_TAG_ABLE|PI_WIDE_16;
 			cpi->hba_misc = 0;
 			cpi->initiator_id = sdp->isp_initiator_id;
@@ -742,11 +736,6 @@ isp_async(struct ispsoftc *isp, ispasync_t cmd, void *arg)
 			isp->isp_osinfo.simqfrozen |= SIMQFRZ_LOOPDOWN;
 		}
 		printf("%s: Loop DOWN\n", isp->isp_name);
-#if	defined(DDB)
-		if (isp->isp_dblev > DFLT_DBLEVEL) {
-			Debugger("Loop Down");
-		}
-#endif
 		break;
 	case ISPASYNC_LOOP_UP:
 		if (isp->isp_path) {
