@@ -1,4 +1,3 @@
-
 /*
  * BLIST.C -	Bitmap allocator/deallocator, using a radix tree with hinting
  *
@@ -59,9 +58,10 @@
  *	ranges.
  *
  *	This code can be compiled stand-alone for debugging.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #ifdef _KERNEL
 

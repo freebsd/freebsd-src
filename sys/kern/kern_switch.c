@@ -22,12 +22,9 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 /***
-
 Here is the logic..
 
 If there are N processors, then there are at most N KSEs (kernel
@@ -86,8 +83,10 @@ The result of this scheme is that the M available KSEs are always
 queued at the priorities they have inherrited from the M highest priority
 threads for that KSEGROUP. If this situation changes, the KSEs are 
 reassigned to keep this true.
-   
-*/
+***/
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>

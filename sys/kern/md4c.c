@@ -1,5 +1,4 @@
 /* MD4C.C - RSA Data Security, Inc., MD4 message-digest algorithm
- * $FreeBSD$
  */
 
 /* Copyright (C) 1990-2, RSA Data Security, Inc. All rights reserved.
@@ -22,6 +21,9 @@
    These notices must be retained in any copies of any part of this
    documentation and/or software.
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
