@@ -2123,6 +2123,20 @@ validate_suid(char *validarg, char *scriptname, int fdscript)
 		croak("Can't swap uid and euid");	/* really paranoid */
 	    if (PerlLIO_stat(SvPVX(GvSV(PL_curcop->cop_filegv)),&tmpstatbuf) < 0)
 		croak("Permission denied");	/* testing full pathname here */
+#if (defined(BSD) && (BSD >= 199306))
+#ifdef IAMSUID
+	{
+	    struct statfs stfs;
+
+	    if (fstatfs(fileno(PL_rsfp),&stfs) < 0)
+		croak("Can't statfs filesystem of script \"%s\"",PL_origfilename);
+
+	    if (stfs.f_flags & MNT_NOSUID)
+		croak("Permission denied");
+	}
+#endif /* IAMSUID */
+#endif /* BSD */
+
 	    if (tmpstatbuf.st_dev != PL_statbuf.st_dev ||
 		tmpstatbuf.st_ino != PL_statbuf.st_ino) {
 		(void)PerlIO_close(PL_rsfp);
