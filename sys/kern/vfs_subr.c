@@ -1727,18 +1727,18 @@ vrele(vp)
 
 	if (vp->v_usecount == 1) {
 		vp->v_usecount--;
+		/*
+		 * We must call VOP_INACTIVE with the node locked.
+		 * If we are doing a vput, the node is already locked,
+		 * but, in the case of vrele, we must explicitly lock
+		 * the vnode before calling VOP_INACTIVE.
+		 */
+		if (vn_lock(vp, LK_EXCLUSIVE | LK_INTERLOCK, td) == 0)
+			VOP_INACTIVE(vp, td);
 		if (VSHOULDFREE(vp))
 			vfree(vp);
 		else
 			vlruvp(vp);
-	/*
-	 * If we are doing a vput, the node is already locked, and we must
-	 * call VOP_INACTIVE with the node locked.  So, in the case of
-	 * vrele, we explicitly lock the vnode before calling VOP_INACTIVE.
-	 */
-		if (vn_lock(vp, LK_EXCLUSIVE | LK_INTERLOCK, td) == 0) {
-			VOP_INACTIVE(vp, td);
-		}
 
 	} else {
 #ifdef DIAGNOSTIC
@@ -1776,17 +1776,17 @@ vput(vp)
 
 	if (vp->v_usecount == 1) {
 		vp->v_usecount--;
+		/*
+		 * We must call VOP_INACTIVE with the node locked.
+		 * If we are doing a vput, the node is already locked,
+		 * so we just need to release the vnode mutex.
+		 */
+		mtx_unlock(&vp->v_interlock);
+		VOP_INACTIVE(vp, td);
 		if (VSHOULDFREE(vp))
 			vfree(vp);
 		else
 			vlruvp(vp);
-	/*
-	 * If we are doing a vput, the node is already locked, and we must
-	 * call VOP_INACTIVE with the node locked.  So, in the case of
-	 * vrele, we explicitly lock the vnode before calling VOP_INACTIVE.
-	 */
-		mtx_unlock(&vp->v_interlock);
-		VOP_INACTIVE(vp, td);
 
 	} else {
 #ifdef DIAGNOSTIC
