@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.24.2.34 1997/08/31 23:02:07 brian Exp $
+ * $Id: command.c,v 1.24.2.35 1997/09/05 23:07:22 brian Exp $
  *
  */
 #include <sys/types.h>
@@ -239,6 +239,10 @@ ShellCommand(struct cmdtab const * cmdlist, int argc, char **argv, int bg)
     } else if (bg) {
       LogPrintf(LogWARN, "Can only start an interactive shell in"
 		" the foreground mode\n");
+      return 1;
+    } else if (mode&(MODE_AUTO|MODE_DEDICATED|MODE_DIRECT)) {
+      LogPrintf(LogWARN, "Can't start an interactive shell from"
+		" a telnet session\n");
       return 1;
     }
   if ((shell = getenv("SHELL")) == 0)
