@@ -84,7 +84,7 @@ main(argc, argv)
 	sync();
 	skipclean = 1;
 	markclean = 1;
-	while ((ch = getopt(argc, argv, "b:c:dfm:npy")) != -1) {
+	while ((ch = getopt(argc, argv, "b:c:dfFm:npy")) != -1) {
 		switch (ch) {
 		case 'b':
 			skipclean = 0;
@@ -103,6 +103,11 @@ main(argc, argv)
 
 		case 'f':
 			skipclean = 0;
+			break;
+
+		case 'F':
+			/* We can never run in background */
+			exit(EEXIT);
 			break;
 
 		case 'm':
