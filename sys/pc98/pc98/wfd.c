@@ -23,7 +23,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *      $Id: wfd.c,v 1.24 1999/05/30 16:52:30 phk Exp $
+ *      $Id: wfd.c,v 1.25 1999/05/31 11:26:38 phk Exp $
  */
 
 /*
@@ -658,7 +658,7 @@ int wfdioctl (dev_t dev, u_long cmd, caddr_t addr, int flag, struct proc *p)
 
 	error = dsioctl("wfd", dev, cmd, addr, flag, &t->dk_slices,
 			wfdstrategy1, (ds_setgeom_t *)NULL);
-	if (error != -1)
+	if (error != ENOIOCTL)
 		return (error);
 
 	if (t->flags & F_MEDIA_CHANGED)
