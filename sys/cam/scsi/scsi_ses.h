@@ -30,13 +30,14 @@
  */
 
 #define	SESIOC			(('s' - 040) << 8)
-#define	SESIOC_GETNOBJ		_IOR(SESIOC, 1, unsigned int)
-#define	SESIOC_GETOBJMAP	_IOW(SESIOC, 2, void *)
-#define	SESIOC_GETENCSTAT	_IOR(SESIOC, 3, ses_encstat)
-#define	SESIOC_SETENCSTAT	_IOW(SESIOC, 4, ses_encstat)
-#define	SESIOC_GETOBJSTAT	_IOR(SESIOC, 5, ses_objstat)
-#define	SESIOC_SETOBJSTAT	_IOW(SESIOC, 6, ses_objstat)
-#define	SESIOC_INIT		_IO(SESIOC, 7)
+#define	SESIOC_GETNOBJ		_IO(SESIOC, 1)
+#define	SESIOC_GETOBJMAP	_IO(SESIOC, 2)
+#define	SESIOC_GETENCSTAT	_IO(SESIOC, 3)
+#define	SESIOC_SETENCSTAT	_IO(SESIOC, 4)
+#define	SESIOC_GETOBJSTAT	_IO(SESIOC, 5)
+#define	SESIOC_SETOBJSTAT	_IO(SESIOC, 6)
+#define	SESIOC_GETTEXT		_IO(SESIOC, 7)
+#define	SESIOC_INIT		_IO(SESIOC, 8)
 
 /*
  * Platform Independent Definitions for SES devices.
@@ -162,45 +163,17 @@ typedef struct {
 /* Control bits, Generic, byte 3 */
 #define	SESCTL_RQSTFAIL	0x40
 #define	SESCTL_RQSTON	0x20
+
 /*
- * Platform Independent Driver Internal Definitions for SES devices.
+ * Getting text for an object type is a little
+ * trickier because it's string data that can
+ * go up to 64 KBytes. Build this union and
+ * fill the obj_id with the id of the object who's
+ * help text you want, and if text is available,
+ * obj_text will be filled in, null terminated.
  */
-typedef enum {
-	SES_NONE,
-	SES_SES_SCSI2,
-	SES_SES,
-	SES_SES_PASSTHROUGH,
-	SES_SEN,
-	SES_SAFT
-} enctyp;
 
-#define	SES_DEVICE_TYPE	0x0D
-
-#define	SEN_ID		"UNISYS           SUN_SEN"
-#define	SEN_ID_LEN	24
-
-struct ses_softc;
-typedef struct ses_softc ses_softc_t;
-typedef struct {
-	int (*softc_init)(ses_softc_t *, int);
-	int (*init_enc)(ses_softc_t *);
-	int (*get_encstat)(ses_softc_t *, ses_encstat *);
-	int (*set_encstat)(ses_softc_t *, ses_encstat *, int);
-	int (*get_objstat)(ses_softc_t *, ses_objstat *, int);
-	int (*set_objstat)(ses_softc_t *, ses_objstat *, int);
-} encvec;
-
-#define	ENCI_SVALID	0x80
-
-typedef struct {
-	u_int32_t
-		enctype	: 8,		/* enclosure type */
-		subenclosure : 8,	/* subenclosure id */
-		svalid	: 1,		/* enclosure information valid */
-		priv	: 15;		/* private data, per object */
-	u_int8_t	encstat[4];	/* state && stats */
-} encobj;
-
-#if	defined(_KERNEL) || defined(KERNEL)
-enctyp ses_type __P((void *, int));
-#endif
+typedef union {
+	unsigned int obj_id;
+	char obj_text[1];
+} ses_hlptxt;
