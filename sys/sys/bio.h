@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)buf.h	8.9 (Berkeley) 3/30/95
- * $Id: buf.h,v 1.42 1997/09/21 22:08:58 gibbs Exp $
+ * $Id: buf.h,v 1.43 1997/10/23 11:32:06 gibbs Exp $
  */
 
 #ifndef _SYS_BUF_H_
@@ -75,9 +75,7 @@ struct buf {
 	long	b_bcount;		/* Valid bytes in buffer. */
 	long	b_resid;		/* Remaining I/O. */
 	dev_t	b_dev;			/* Device associated with buffer. */
-	struct {
-		caddr_t	b_addr;		/* Memory, superblocks, indirect etc. */
-	} b_un;
+	caddr_t	b_data;			/* Memory, superblocks, indirect etc. */
 	caddr_t	b_kvabase;		/* base kva for buffer */
 	int	b_kvasize;		/* size of kva for buffer */
 	daddr_t	b_lblkno;		/* Logical block number. */
@@ -106,9 +104,6 @@ struct buf {
 	struct	vm_page *b_pages[btoc(MAXPHYS)];
 	int		b_npages;
 };
-
-/* Device driver compatibility definitions. */
-#define	b_data	 b_un.b_addr		/* b_un.b_addr is not changeable. */
 
 /*
  * These flags are kept in b_flags.

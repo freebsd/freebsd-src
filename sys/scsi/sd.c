@@ -15,7 +15,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.113 1997/11/07 08:53:32 phk Exp $
+ *      $Id: sd.c,v 1.114 1997/11/23 11:30:42 bde Exp $
  */
 
 #include "opt_bounce.h"
@@ -614,7 +614,7 @@ sdstart(u_int32_t unit, u_int32_t flags)
 		if (scsi_scsi_cmd(sc_link,
 			(struct scsi_generic *) &cmd,
 			sizeof(cmd),
-			(u_char *) bp->b_un.b_addr,
+			(u_char *) bp->b_data,
 			bp->b_bcount,
 			SD_RETRIES,
 			10000,

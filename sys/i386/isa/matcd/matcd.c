@@ -337,7 +337,7 @@ static char	MATCDVERSION[]="Version  1(26) 18-Oct-95";
 static char	MATCDCOPYRIGHT[] = "Matsushita CD-ROM driver, Copr. 1994,1995 Frank Durda IV";
 /*	The proceeding strings may not be changed*/
 
-/* $Id: matcd.c,v 1.29 1997/09/21 21:42:18 gibbs Exp $ */
+/* $Id: matcd.c,v 1.30 1997/11/07 08:52:48 phk Exp $ */
 
 /*---------------------------------------------------------------------------
 	Include declarations
@@ -1958,7 +1958,7 @@ nextblock:
 #ifdef DEBUGIO
 			printf("matcd%d: Data Phase\n",ldrive);
 #endif /*DEBUGIO*/
-			addr=bp->b_un.b_addr + mbx->skip;
+			addr=bp->b_data + mbx->skip;
 #ifdef DEBUGIO
 			printf("matcd%d: Xfer Addr %x  size %x",
 			       ldrive,(unsigned int)addr,mbx->sz);

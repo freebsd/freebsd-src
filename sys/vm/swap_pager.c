@@ -39,7 +39,7 @@
  * from: Utah $Hdr: swap_pager.c 1.4 91/04/30$
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
- * $Id: swap_pager.c,v 1.77 1997/09/01 02:28:32 bde Exp $
+ * $Id: swap_pager.c,v 1.78 1997/09/01 03:17:13 bde Exp $
  */
 
 /*
@@ -1003,7 +1003,7 @@ swap_pager_getpages(object, m, count, reqpage)
 	bp->b_rcred = bp->b_wcred = bp->b_proc->p_ucred;
 	crhold(bp->b_rcred);
 	crhold(bp->b_wcred);
-	bp->b_un.b_addr = (caddr_t) kva;
+	bp->b_data = (caddr_t) kva;
 	bp->b_blkno = reqaddr[0];
 	bp->b_bcount = PAGE_SIZE * count;
 	bp->b_bufsize = PAGE_SIZE * count;

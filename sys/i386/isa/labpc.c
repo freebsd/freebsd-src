@@ -773,7 +773,7 @@ start(struct ctlr *ctlr)
 		return;
 	}
 
-	ctlr->data = (u_char *)bp->b_un.b_addr;
+	ctlr->data = (u_char *)bp->b_data;
 	ctlr->data_end = ctlr->data + bp->b_bcount;
 
 	if (ctlr->err)
@@ -866,7 +866,7 @@ da_strategy(struct buf *bp, struct ctlr *ctlr)
 			}
 
 			len = bp->b_bcount / 2;
-			data = (u_char *)bp->b_un.b_addr;
+			data = (u_char *)bp->b_data;
 
 			for (i = 0; i < len; i++)
 			{
@@ -891,7 +891,7 @@ da_strategy(struct buf *bp, struct ctlr *ctlr)
 		bp_done(bp, EIO);
 
 	len = bp->b_bcount;
-	data = (u_char *)bp->b_un.b_addr;
+	data = (u_char *)bp->b_data;
 
 	for (i = 0; i < len; i++)
 	{
@@ -936,7 +936,7 @@ digital_out_strategy(struct buf *bp, struct ctlr *ctlr)
 	port = PORTX(ctlr, chan);
 
 	len = bp->b_bcount;
-	data = (u_char *)bp->b_un.b_addr;
+	data = (u_char *)bp->b_data;
 
 	for (i = 0; i < len; i++)
 	{
@@ -964,7 +964,7 @@ digital_in_strategy(struct buf *bp, struct ctlr *ctlr)
 	port = PORTX(ctlr, chan);
 
 	len = bp->b_bcount;
-	data = (u_char *)bp->b_un.b_addr;
+	data = (u_char *)bp->b_data;
 
 	for (i = 0; i < len; i++)
 	{

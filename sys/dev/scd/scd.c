@@ -41,7 +41,7 @@
  */
 
 
-/* $Id: scd.c,v 1.32 1997/07/20 14:10:10 bde Exp $ */
+/* $Id: scd.c,v 1.33 1997/09/21 21:41:32 gibbs Exp $ */
 
 /* Please send any comments to micke@dynas.se */
 
@@ -955,7 +955,7 @@ writeparam:
 
 got_data:
 		/* data is ready */
-		addr = bp->b_un.b_addr + mbx->skip;
+		addr = bp->b_data + mbx->skip;
 		write_control(port, CBIT_DATA_READY_CLEAR);
 		insb(port+IREG_DATA, addr, mbx->sz);
 

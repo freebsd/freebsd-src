@@ -4,7 +4,7 @@
  * v1.4 by Eric S. Raymond (esr@snark.thyrsus.com) Aug 1993
  * modified for FreeBSD by Andrew A. Chernov <ache@astral.msk.su>
  *
- *    $Id$
+ *    $Id: spkr.c,v 1.29 1997/02/22 09:37:11 peter Exp $
  */
 
 #include "speaker.h"
@@ -502,7 +502,7 @@ spkrwrite(dev, uio, ioflag)
 	int error;
 
 	n = uio->uio_resid;
-	cp = spkr_inbuf->b_un.b_addr;
+	cp = spkr_inbuf->b_data;
 	error = uiomove(cp, n, uio);
 	if (!error) {
 		cp[n] = '\0';

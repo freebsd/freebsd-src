@@ -43,7 +43,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: worm.c,v 1.46 1997/09/21 22:03:22 gibbs Exp $
+ *      $Id: worm.c,v 1.47 1997/10/27 21:09:27 jmz Exp $
  */
 
 #include "opt_bounce.h"
@@ -386,7 +386,7 @@ wormstart(unit, flags)
 		if (scsi_scsi_cmd(sc_link,
 			(struct scsi_generic *) &cmd,
 			sizeof(cmd),
-			(u_char *) bp->b_un.b_addr,
+			(u_char *) bp->b_data,
 			bp->b_bcount,
 			0,
 			100000,

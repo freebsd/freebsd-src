@@ -35,7 +35,7 @@
  *
  *	from: @(#)ufs_disksubr.c	7.16 (Berkeley) 5/4/91
  *	from: ufs_disksubr.c,v 1.8 1994/06/07 01:21:39 phk Exp $
- *	$Id: diskslice_machdep.c,v 1.9 1997/04/20 05:16:06 kato Exp $
+ *	$Id: diskslice_machdep.c,v 1.10 1997/09/28 05:52:51 kato Exp $
  */
 
 /*
@@ -271,7 +271,7 @@ reread_mbr:
 	}
 
 	/* Weakly verify it. */
-	cp = bp->b_un.b_addr;
+	cp = bp->b_data;
 	sname = dsname(dname, dkunit(dev), WHOLE_DISK_SLICE, RAW_PART,
 		       partname);
 	if (cp[0x1FE] != 0x55 || cp[0x1FF] != 0xAA) {
@@ -575,7 +575,7 @@ extended(dname, dev, strat, lp, ssp, ext_offset, ext_size, base_ext_offset,
 	}
 
 	/* Weakly verify it. */
-	cp = bp->b_un.b_addr;
+	cp = bp->b_data;
 	if (cp[0x1FE] != 0x55 || cp[0x1FF] != 0xAA) {
 		sname = dsname(dname, dkunit(dev), WHOLE_DISK_SLICE, RAW_PART,
 			       partname);
@@ -586,7 +586,7 @@ extended(dname, dev, strat, lp, ssp, ext_offset, ext_size, base_ext_offset,
 	}
 
 	for (dospart = 0,
-	     dp = (struct dos_partition *)(bp->b_un.b_addr + DOSPARTOFF),
+	     dp = (struct dos_partition *)(bp->b_data + DOSPARTOFF),
 	     slice = ssp->dss_nslices, sp = &ssp->dss_slices[slice];
 	     dospart < NDOSPART; dospart++, dp++) {
 		ext_sizes[dospart] = 0;

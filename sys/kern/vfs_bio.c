@@ -18,7 +18,7 @@
  * 5. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: vfs_bio.c,v 1.135 1997/11/24 06:18:27 dyson Exp $
+ * $Id: vfs_bio.c,v 1.136 1997/12/01 19:04:00 dyson Exp $
  */
 
 /*
@@ -2233,10 +2233,10 @@ DB_SHOW_COMMAND(buffer, db_show_buffer)
 		  "\17locked\16inval\15gathered\14error\13eintr\12done\11dirty"
 		  "\10delwri\7call\6cache\5busy\4bad\3async\2needcommit\1age");
 	db_printf("b_error = %d, b_bufsize = %ld, b_bcount = %ld, "
-		  "b_resid = %ld\nb_dev = 0x%x, b_un.b_addr = %p, "
+		  "b_resid = %ld\nb_dev = 0x%x, b_data = %p, "
 		  "b_blkno = %d, b_pblkno = %d\n",
 		  bp->b_error, bp->b_bufsize, bp->b_bcount, bp->b_resid,
-		  bp->b_dev, bp->b_un.b_addr, bp->b_blkno, bp->b_pblkno);
+		  bp->b_dev, bp->b_data, bp->b_blkno, bp->b_pblkno);
 	if (bp->b_npages) {
 		int i;
 		db_printf("b_npages = %d, pages(OBJ, IDX, PA): ", bp->b_npages);

@@ -37,7 +37,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: sctarg.c,v 1.21 1997/09/02 20:06:36 bde Exp $
+ *      $Id: sctarg.c,v 1.22 1997/09/21 22:03:11 gibbs Exp $
  */
 
 #include "opt_bounce.h"
@@ -212,7 +212,7 @@ sctargstart(unit, unused_flags)
 		if (scsi_scsi_cmd(sc_link,
 			(struct scsi_generic *) &cmd,
 			sizeof(cmd),
-			(u_char *) bp->b_un.b_addr,
+			(u_char *) bp->b_data,
 			bp->b_bcount,
 			0,
 			100000,

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.143 1997/11/07 08:52:45 phk Exp $
+ *	$Id: wd.c,v 1.144 1997/11/07 09:20:34 phk Exp $
  */
 
 /* TODO:
@@ -864,7 +864,7 @@ wdstart(int ctrlr)
 			} else {
 				if((du->dk_flags & DKFL_USEDMA) &&
 				   wddma[du->dk_interface].wdd_dmaverify(du->dk_dmacookie,
-				   	(void *)((int)bp->b_un.b_addr + 
+				   	(void *)((int)bp->b_data + 
 					     du->dk_skip * DEV_BSIZE),
 					du->dk_bc,
 					bp->b_flags & B_READ)) {
@@ -913,7 +913,7 @@ wdstart(int ctrlr)
 
 		if ((du->dk_flags & (DKFL_DMA|DKFL_SINGLE)) == DKFL_DMA) {
 			wddma[du->dk_interface].wdd_dmaprep(du->dk_dmacookie,
-					   (void *)((int)bp->b_un.b_addr + 
+					   (void *)((int)bp->b_data + 
 						    du->dk_skip * DEV_BSIZE),
 					   du->dk_bc,
 					   bp->b_flags & B_READ);
@@ -927,7 +927,7 @@ wdstart(int ctrlr)
 #ifdef WDDEBUG
 		printf("cylin %ld head %ld sector %ld addr %x sts %x\n",
 		       cylin, head, sector,
-		       (int)bp->b_un.b_addr + du->dk_skip * DEV_BSIZE,
+		       (int)bp->b_data + du->dk_skip * DEV_BSIZE,
 		       inb(du->dk_altport));
 #endif
 	}
@@ -990,11 +990,11 @@ wdstart(int ctrlr)
 
 	if (du->dk_flags & DKFL_32BIT)
 		outsl(du->dk_port + wd_data,
-		      (void *)((int)bp->b_un.b_addr + du->dk_skip * DEV_BSIZE),
+		      (void *)((int)bp->b_data + du->dk_skip * DEV_BSIZE),
 		      (count * DEV_BSIZE) / sizeof(long));
 	else
 		outsw(du->dk_port + wd_data,
-		      (void *)((int)bp->b_un.b_addr + du->dk_skip * DEV_BSIZE),
+		      (void *)((int)bp->b_data + du->dk_skip * DEV_BSIZE),
 		      (count * DEV_BSIZE) / sizeof(short));
 	du->dk_bc -= DEV_BSIZE * count;
 	if (du->dk_dkunit >= 0) {
@@ -1181,11 +1181,11 @@ oops:
 		/* suck in data */
 		if( du->dk_flags & DKFL_32BIT)
 			insl(du->dk_port + wd_data,
-			     (void *)((int)bp->b_un.b_addr + du->dk_skip * DEV_BSIZE),
+			     (void *)((int)bp->b_data + du->dk_skip * DEV_BSIZE),
 					chk / sizeof(long));
 		else
 			insw(du->dk_port + wd_data,
-			     (void *)((int)bp->b_un.b_addr + du->dk_skip * DEV_BSIZE),
+			     (void *)((int)bp->b_data + du->dk_skip * DEV_BSIZE),
 					chk / sizeof(short));
 		du->dk_bc -= chk;
 

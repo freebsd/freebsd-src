@@ -20,7 +20,7 @@
  * the original CMU copyright notice.
  *
  * Version 1.3, Thu Nov 11 12:09:13 MSK 1993
- * $Id: wt.c,v 1.40 1997/07/20 14:10:18 bde Exp $
+ * $Id: wt.c,v 1.41 1997/08/25 23:31:05 bde Exp $
  *
  */
 
@@ -572,7 +572,7 @@ wtstrategy (struct buf *bp)
 
 	t->flags &= ~TPEXCEP;
 	s = splbio ();
-	if (wtstart (t, bp->b_flags, bp->b_un.b_addr, bp->b_bcount)) {
+	if (wtstart (t, bp->b_flags, bp->b_data, bp->b_bcount)) {
 		wtwait (t, 0, (bp->b_flags & B_READ) ? "wtread" : "wtwrite");
 		bp->b_resid -= t->dmacount;
 	}
