@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.88 1997/10/26 01:02:26 brian Exp $
+ * $Id: command.c,v 1.89 1997/10/26 12:42:09 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -119,7 +119,7 @@ HelpCommand(struct cmdtab const * list,
 }
 
 int
-IsInteractive()
+IsInteractive(int Display)
 {
   char *mes = NULL;
 
@@ -134,7 +134,7 @@ IsInteractive()
   else if (mode & MODE_DEDICATED)
     mes = "Working in dedicated mode.";
   if (mes) {
-    if (VarTerm)
+    if (Display && VarTerm)
       fprintf(VarTerm, "%s\n", mes);
     return 0;
   }
@@ -391,11 +391,17 @@ ShowLogLevel()
 
   if (!VarTerm)
     return 0;
-  fprintf(VarTerm, "Log:");
-  for (i = LogMIN; i < LogMAXCONF; i++) {
-    if (LogIsKept(i))
+
+  fprintf(VarTerm, "Log:  ");
+  for (i = LogMIN; i <= LogMAX; i++)
+    if (LogIsKept(i) & LOG_KEPT_SYSLOG)
       fprintf(VarTerm, " %s", LogName(i));
-  }
+
+  fprintf(VarTerm, "\nLocal:");
+  for (i = LogMIN; i <= LogMAX; i++)
+    if (LogIsKept(i) & LOG_KEPT_LOCAL)
+      fprintf(VarTerm, " %s", LogName(i));
+
   fprintf(VarTerm, "\n");
 
   return 0;
@@ -740,7 +746,7 @@ TerminalCommand(struct cmdtab const * list, int argc, char **argv)
       fprintf(VarTerm, "LCP state is [%s]\n", StateNames[LcpFsm.state]);
     return 1;
   }
-  if (!IsInteractive())
+  if (!IsInteractive(1))
     return (1);
   if (OpenModem(mode) < 0) {
     if (VarTerm)
@@ -961,18 +967,32 @@ SetLogLevel(struct cmdtab const * list, int argc, char **argv)
   int i;
   int res;
   char *arg;
+  void (*Discard)(int), (*Keep)(int);
+  void (*DiscardAll)(void);
 
   res = 0;
+  if (strcasecmp(argv[0], "local")) {
+    Discard = LogDiscard;
+    Keep = LogKeep;
+    DiscardAll = LogDiscardAll;
+  } else {
+    argc--;
+    argv++;
+    Discard = LogDiscardLocal;
+    Keep = LogKeepLocal;
+    DiscardAll = LogDiscardAllLocal;
+  }
+
   if (argc == 0 || (argv[0][0] != '+' && argv[0][0] != '-'))
-    LogDiscardAll();
+    (*DiscardAll)();
   while (argc--) {
     arg = **argv == '+' || **argv == '-' ? *argv + 1 : *argv;
     for (i = LogMIN; i <= LogMAX; i++)
       if (strcasecmp(arg, LogName(i)) == 0) {
 	if (**argv == '-')
-	  LogDiscard(i);
+	  (*Discard)(i);
 	else
-	  LogKeep(i);
+	  (*Keep)(i);
 	break;
       }
     if (i > LogMAX) {
@@ -1306,7 +1326,7 @@ static struct cmdtab const SetCommands[] = {
   {"loopback", NULL, SetLoopback, LOCAL_AUTH,
   "Set loopback facility", "set loopback on|off"},
   {"log", NULL, SetLogLevel, LOCAL_AUTH,
-  "Set log level", "set log [+|-]value..."},
+  "Set log level", "set log [local] [+|-]value..."},
   {"login", NULL, SetVariable, LOCAL_AUTH,
   "Set login script", "set login chat-script", (void *) VAR_LOGIN},
   {"mru", NULL, SetInitialMRU, LOCAL_AUTH,
