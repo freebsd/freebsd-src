@@ -123,8 +123,8 @@ printcpuinfo(void)
 	}
 
 	if (strcmp(cpu_vendor, "GenuineIntel") == 0) {
-		/* How the hell did you get here?? */
-		strcat(cpu_model, "Yamhill?");
+		/* Better late than never I suppose.. */
+		strcat(cpu_model, "IA-32e");
 	} else if (strcmp(cpu_vendor, "AuthenticAMD") == 0) {
 		/*
 		 * Values taken from AMD Processor Recognition
