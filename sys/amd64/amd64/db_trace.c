@@ -23,17 +23,17 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- *	$Id: db_trace.c,v 1.4 1994/01/03 07:55:19 davidg Exp $
+ *	$Id: db_trace.c,v 1.6 1994/05/25 08:53:21 rgrimes Exp $
  */
 
 #include "param.h"
+#include "systm.h"
 
+#include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/lock.h>
 #include <vm/vm_prot.h>
 #include <vm/pmap.h>
-#include <machine/pmap.h>
-#include "systm.h"
 #include "proc.h"
 #include "ddb/ddb.h"
 
