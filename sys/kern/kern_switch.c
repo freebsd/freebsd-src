@@ -347,9 +347,9 @@ adjustrunqueue( struct thread *td, int newpri)
 	CTR1(KTR_RUNQ, "adjustrunqueue: td%p", td);
 	if ((td->td_flags & TDF_UNBOUND) == 0)  {
 		/* We only care about the kse in the run queue. */
+		td->td_priority = newpri;
 		if (ke->ke_rqindex != (newpri / RQ_PPQ)) {
 			sched_rem(ke);
-			td->td_priority = newpri;
 			sched_add(ke);
 		}
 		return;
