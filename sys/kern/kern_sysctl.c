@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sysctl.c	8.4 (Berkeley) 4/14/94
- * $Id: kern_sysctl.c,v 1.45 1995/11/14 09:26:17 phk Exp $
+ * $Id: kern_sysctl.c,v 1.46 1995/11/14 09:29:15 phk Exp $
  */
 
 /*
@@ -149,19 +149,9 @@ SYSCTL_PROC(_kern, KERN_UPDATEINTERVAL, update, CTLTYPE_INT|CTLFLAG_RW,
 
 
 char hostname[MAXHOSTNAMELEN];
-int hostnamelen;
-static int
-sysctl_kern_hostname SYSCTL_HANDLER_ARGS
-{
-	int error = sysctl_handle_string(oidp,
-		oidp->oid_arg1, oidp->oid_arg2, req);
-	if (req->newptr && (error == 0 || error == ENOMEM))
-		hostnamelen = req->newlen;
-	return error;
-}
 
-SYSCTL_PROC(_kern, KERN_HOSTNAME, hostname, CTLTYPE_STRING|CTLFLAG_RW,
-	&hostname, sizeof(hostname), sysctl_kern_hostname, "");
+SYSCTL_STRING(_kern, KERN_HOSTNAME, hostname, CTLFLAG_RW,
+	hostname, sizeof(hostname), "");
 
 static int
 sysctl_order_cmp(const void *a, const void *b)

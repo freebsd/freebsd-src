@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernfs_vnops.c	8.6 (Berkeley) 2/10/94
- * $Id: kernfs_vnops.c,v 1.11 1995/10/29 15:31:37 phk Exp $
+ * $Id: kernfs_vnops.c,v 1.12 1995/11/09 08:15:38 bde Exp $
  */
 
 /*
@@ -137,7 +137,7 @@ kernfs_xread(kt, buf, len, lenp)
 
 	case KTT_HOSTNAME: {
 		char *cp = hostname;
-		int xlen = hostnamelen;
+		int xlen = strlen(hostname);
 
 		if (xlen >= (len-2))
 			return (EINVAL);
@@ -185,11 +185,11 @@ kernfs_xwrite(kt, buf, len)
 {
 	switch (kt->kt_tag) {
 	case KTT_HOSTNAME: {
+		/* XXX BOGUS !!! no check for the length */
 		if (buf[len-1] == '\n')
 			--len;
 		bcopy(buf, hostname, len);
 		hostname[len] = '\0';
-		hostnamelen = len;
 		return (0);
 	}
 
