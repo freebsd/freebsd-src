@@ -344,14 +344,13 @@ network_pass1() {
 				[Yy][Ee][Ss])
 					if [ -n "${natd_interface}" ]; then
 						if echo ${natd_interface} | \
-							grep -q -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$'; then
-							natd_ifarg="-a ${natd_interface}"
+							grep -q -E '^[0-9]+(\.[0-9]+){0,3}$'; then
+							natd_flags="$natd_flags -a ${natd_interface}"
 						else
-							natd_ifarg="-n ${natd_interface}"
+							natd_flags="$natd_flags -n ${natd_interface}"
 						fi
-
-						echo -n ' natd'; ${natd_program:-/sbin/natd} ${natd_flags} ${natd_ifarg}
 					fi
+					echo -n ' natd'; ${natd_program:-/sbin/natd} ${natd_flags}
 					;;
 				esac
 
