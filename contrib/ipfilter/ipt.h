@@ -1,10 +1,10 @@
 /*
- * (C)opyright 1993-1997 by Darren Reed.
+ * Copyright (C) 1993-1997 by Darren Reed.
  *
  * Redistribution and use in source and binary forms are permitted
  * provided that this notice is preserved and due credit is given
  * to the original author and the contributors.
- * $Id: ipt.h,v 2.0.2.6 1997/04/30 13:49:22 darrenr Exp $
+ * $Id: ipt.h,v 2.0.2.7 1997/09/28 07:12:00 darrenr Exp $
  */
 
 #ifndef	__IPT_H__

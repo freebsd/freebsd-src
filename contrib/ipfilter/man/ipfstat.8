@@ -4,7 +4,7 @@ ipfstat \- reports on packet filter statistics and filter list
 .SH SYNOPSIS
 .B ipfstat
 [
-.B \-hIinov
+.B \-aAfhIinosv
 ] [
 .B \-d
 <device>
@@ -23,6 +23,9 @@ accumulated over time as the kernel has put packets through the filter.
 .TP
 .B \-a
 Display the accounting filter list and show bytes counted against each rule.
+.TP
+.B \-A
+Display packet authentication statistics.
 .TP
 .BR \-d \0<device>
 Use a device other than \fB/dev/ipl\fP for interfacing with the kernel.
@@ -68,6 +71,6 @@ kernel.
 .br
 /vmunix
 .SH SEE ALSO
-ipf(1), ipfstat(1)
+ipf(1)
 .SH BUGS
 none known.

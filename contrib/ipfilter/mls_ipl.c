@@ -1,5 +1,5 @@
 /*
- * (C)opyright 1993,1994,1995 by Darren Reed.
+ * Copyright (C) 1993-1997 by Darren Reed.
  *
  * Redistribution and use in source and binary forms are permitted
  * provided that this notice is preserved and due credit is given
@@ -13,9 +13,11 @@
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/file.h>
+#include <sys/socket.h>
 #include <sys/conf.h>
 #include <sys/syslog.h>
 #include <sys/buf.h>
+#include <sys/mbuf.h>
 #include <sys/param.h>
 #include <sys/errno.h>
 #include <sys/uio.h>
@@ -26,33 +28,28 @@
 #if defined(sun4c) || defined(sun4m)
 # include <sun/openprom.h>
 #endif
+#include <netinet/in.h>
+#include <netinet/in_systm.h>
+#include <netinet/ip.h>
+#include <netinet/ip_var.h>
+#include <netinet/tcp.h>
+#include <netinet/tcpip.h>
+#include <net/if.h>
 #include "ipl.h"
 #include "ip_compat.h"
+#include "ip_fil.h"
 
 
-#if !defined(lint) && defined(LIBC_SCCS)
-static	char	sccsid[] = "@(#)mls_ipl.c	2.6 10/15/95 (C) 1993-1995 Darren Reed";
-static	char	rcsid[] = "$Id: mls_ipl.c,v 2.0.2.3 1997/03/27 13:45:26 darrenr Exp $";
+#if !defined(lint)
+static const char sccsid[] = "@(#)mls_ipl.c	2.6 10/15/95 (C) 1993-1995 Darren Reed";
+static const char rcsid[] = "@(#)$Id: mls_ipl.c,v 2.0.2.9 1997/09/28 07:12:07 darrenr Exp $";
 #endif
 
-#ifndef	IPL_NAME
-#define	IPL_NAME	"/dev/ipl"
-#endif
-#define	IPL_NAT		"/dev/ipnat"
-#define	IPL_STATE	"/dev/ipstate"
-
-extern	int	iplattach __P((void));
-extern	int	iplopen __P((void));
-extern	int	iplclose __P((void));
-extern	int	iplioctl __P((void));
 extern	int	ipldetach __P((void));
-#ifdef	IPFILTER_LOG
-extern	int	iplread __P((void));
-#else
+#ifndef	IPFILTER_LOG
 #define	iplread	nulldev
 #endif
 extern	int	nulldev __P((void));
-extern	int	iplidentify __P((void));
 extern	int	errno;
 
 extern int nodev __P((void));
@@ -60,6 +57,8 @@ extern int nodev __P((void));
 static	int	unload __P((void));
 static	int	ipl_attach __P((void));
 int	xxxinit __P((u_int, struct vddrv *, caddr_t, struct vdstat *));
+static	char	*ipf_devfiles[] = { IPL_NAME, IPL_NAT, IPL_STATE, IPL_AUTH,
+				    NULL };
 
 
 struct	cdevsw	ipldevsw = 
@@ -170,54 +169,46 @@ struct	vdstat	*vds;
 	}
 }
 
+
 static	int	unload()
 {
-	int err;
+	char *name;
+	int err, i;
 
 	err = ipldetach();
-	if (!err)
-		(void) vn_remove(IPL_NAME, UIO_SYSSPACE, FILE);
-	return err;
+	if (err)
+		return err;
+	for (i = 0; (name = ipf_devfiles[i]); i++)
+		(void) vn_remove(name, UIO_SYSSPACE, FILE);
+	return 0;
 }
 
 
 static	int	ipl_attach()
 {
-	struct	vnode	*vp;
-	struct	vattr	vattr;
-	int		error = 0, fmode = S_IFCHR|0600;
+	struct vnode *vp;
+	struct vattr vattr;
+	int error = 0, fmode = S_IFCHR|0600, i;
+	char *name;
 
 	error = iplattach();
 	if (error)
 		return error;
-	(void) vn_remove(IPL_NAME, UIO_SYSSPACE, FILE);
-	vattr_null(&vattr);
-	vattr.va_type = MFTOVT(fmode);
-	vattr.va_mode = (fmode & 07777);
-	vattr.va_rdev = ipl_major<<8;
 
-	error = vn_create(IPL_NAME, UIO_SYSSPACE, &vattr, EXCL, 0, &vp);
-	if (error == 0)
-		VN_RELE(vp);
+        for (i = 0; (name = ipf_devfiles[i]); i++) {
+		(void) vn_remove(name, UIO_SYSSPACE, FILE);
+		vattr_null(&vattr);
+		vattr.va_type = MFTOVT(fmode);
+		vattr.va_mode = (fmode & 07777);
+		vattr.va_rdev = (ipl_major << 8) | i;
 
-	(void) vn_remove(IPL_NAT, UIO_SYSSPACE, FILE);
-	vattr_null(&vattr);
-	vattr.va_type = MFTOVT(fmode);
-	vattr.va_mode = (fmode & 07777);
-	vattr.va_rdev = (ipl_major<<8)|1;
-
-	error = vn_create(IPL_NAT, UIO_SYSSPACE, &vattr, EXCL, 0, &vp);
-	if (error == 0)
-		VN_RELE(vp);
-
-	(void) vn_remove(IPL_STATE, UIO_SYSSPACE, FILE);
-	vattr_null(&vattr);
-	vattr.va_type = MFTOVT(fmode);
-	vattr.va_mode = (fmode & 07777);
-	vattr.va_rdev = (ipl_major<<8)|2;
-
-	error = vn_create(IPL_STATE, UIO_SYSSPACE, &vattr, EXCL, 0, &vp);
-	if (error == 0)
-		VN_RELE(vp);
+		error = vn_create(name, UIO_SYSSPACE, &vattr, EXCL, 0, &vp);
+		if (error) {
+			printf("IP Filter: vn_create(%s) = %d\n", name, error);
+			break;
+		} else {
+			VN_RELE(vp);
+		}
+	}
 	return error;
 }

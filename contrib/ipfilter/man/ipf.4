@@ -2,7 +2,8 @@
 .SH NAME
 ipf \- packet filtering kernel interface
 .SH SYNOPSIS
-#include <sys/ip_fil.h>
+#include <netinet/ip_compat.h>
+#include <netinet/ip_fil.h>
 .SH IOCTLS
 .PP
 To add and delete rules to the filter list, three 'basic' ioctls are provided
@@ -41,10 +42,17 @@ which it is inserted is stored in the "fr_hits" field, below.
 .nf
 typedef struct  frentry {
         struct  frentry *fr_next;
+        u_short fr_group;       /* group to which this rule belongs */
+        u_short fr_head;        /* group # which this rule starts */
+        struct  frentry *fr_grp;
+        int     fr_ref;         /* reference count - for grouping */
         struct  ifnet   *fr_ifa;
-        u_long  fr_hits;
-        u_long  fr_bytes;       /* this is only incremented when a packet */
-                                /* stops matching on this rule */
+        /*
+         * These are only incremented when a packet  matches this rule and
+         * it is the last match
+         */
+        U_QUAD_T  fr_hits;
+        U_QUAD_T  fr_bytes;
         /*
          * Fields after this may not change whilst in the kernel.
          */
@@ -64,6 +72,7 @@ typedef struct  frentry {
         u_short fr_stop;        /* top port for <> and >< */
         u_short fr_dtop;        /* top port for <> and >< */
         u_long  fr_flags;       /* per-rule flags && options (see below) */
+        int     fr_skip;        /* # of rules to skip */
         int     (*fr_func)();   /* call this function */
         char    fr_icode;       /* return ICMP code */
         char    fr_ifname[IFNAMSIZ];
@@ -81,26 +90,31 @@ be put in the "fr_hits" field (the first rule is number 0).
 Flags which are recognised in fr_pass:
 .nf
 
-	FR_BLOCK        0x00001    /* do not allow packet to pass */
-	FR_PASS         0x00002    /* allow packet to pass */
-	FR_OUTQUE       0x00004    /* outgoing packets */
-	FR_INQUE        0x00008    /* ingoing packets */
-	FR_LOG          0x00010    /* Log */
-	FR_LOGP         0x00011    /* Log-pass */
-	FR_LOGB         0x00012    /* Log-fail */
-        FR_LOGBODY      0x00020    /* log the body of packets too */
-        FR_LOGFIRST     0x00040    /* log only the first packet to match */
-	FR_RETRST       0x00080    /* return a TCP RST packet if blocked */
-	FR_RETICMP      0x00100    /* return an ICMP packet if blocked */
-        FR_NOMATCH      0x00200    /* no match occured */
-        FR_ACCOUNT      0x00400    /* count packet bytes */
-        FR_KEEPFRAG     0x00800
-        FR_KEEPSTATE    0x01000    /* keep packet flow state information */
-        FR_INACTIVE     0x02000
-        FR_QUICK        0x04000    /* quick-match and return */
-        FR_FASTROUTE    0x08000
-        FR_CALLNOW      0x10000
-        FR_DUP          0x20000    /* duplicate the packet (not Solaris2)
+     FR_BLOCK        0x000001   /* do not allow packet to pass */
+     FR_PASS         0x000002   /* allow packet to pass */
+     FR_OUTQUE       0x000004   /* outgoing packets */
+     FR_INQUE        0x000008   /* ingoing packets */
+     FR_LOG          0x000010   /* Log */
+     FR_LOGP         0x000011   /* Log-pass */
+     FR_LOGB         0x000012   /* Log-fail */
+     FR_LOGBODY      0x000020   /* log the body of packets too */
+     FR_LOGFIRST     0x000040   /* log only the first packet to match */
+     FR_RETRST       0x000080   /* return a TCP RST packet if blocked */
+     FR__RETICMP     0x000100   /* return an ICMP packet if blocked */
+     FR_NOMATCH      0x000200   /* no match occured */
+     FR_ACCOUNT      0x000400   /* count packet bytes */
+     FR_KEEPFRAG     0x000800   /* keep fragment information */
+     FR_KEEPSTATE    0x001000   /* keep `connection' state information */
+     FR_INACTIVE     0x002000
+     FR_QUICK        0x004000   /* match & stop processing list */
+     FR_FASTROUTE    0x008000   /* bypass normal routing */
+     FR_CALLNOW      0x010000   /* call another function (fr_func) if matches */
+     FR_DUP          0x020000   /* duplicate the packet */
+     FR_LOGORBLOCK   0x040000   /* block the packet if it can't be logged */
+     FR_NOTSRCIP     0x080000   /* not the src IP# */
+     FR_NOTDSTIP     0x100000   /* not the dst IP# */
+     FR_AUTH         0x200000   /* use authentication */
+     FR_PREAUTH      0x400000   /* require preauthentication */
 	
 .fi
 .PP
@@ -134,8 +148,10 @@ Takes an unsigned integer as the parameter.  The flags are then set to
 those provided (clearing/setting all in one).
 .nf
 
-	FF_LOGPASS	1
-	FF_LOGBLOCK	2
+	FF_LOGPASS	0x10000000
+	FF_LOGBLOCK	0x20000000
+	FF_LOGNOMATCH	0x40000000
+	FF_BLOCKNONIP	0x80000000    /* Solaris 2.x only */
 .fi
 .IP SIOCGETFF 16
 Takes a pointer to an unsigned integer as the parameter.  A copy of the
@@ -149,10 +165,14 @@ through the kernel.  To retrieve this structure, use this ioctl:
 
 	ioctl(fd, SIOCGETFS, struct friostat *)
 
-struct	friostat        {
-	struct  filterstats     f_st[2];
-	struct  frentry *f_fin;
-	struct  frentry *f_fout;
+struct  friostat        {
+        struct  filterstats     f_st[2];
+        struct  frentry         *f_fin[2];
+        struct  frentry         *f_fout[2];
+        struct  frentry         *f_acctin[2];
+        struct  frentry         *f_acctout[2];
+        struct  frentry         *f_auth;
+        int     f_active;
 };
 
 struct	filterstats {
@@ -172,6 +192,7 @@ struct	filterstats {
         u_long  fr_bads;        /* bad attempts to allocate packet state */
         u_long  fr_ads;         /* new packet state kept */
         u_long  fr_chit;        /* cached hit */
+        u_long  fr_pull[2];     /* good and bad pullup attempts */
 #if SOLARIS
         u_long  fr_bad;         /* bad IP packets to the filter */
         u_long  fr_notip;       /* packets passed through no on ip queue */

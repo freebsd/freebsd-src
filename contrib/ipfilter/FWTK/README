@@ -3,7 +3,9 @@ There are two patch files in this directory, each allowing for the Firewall
 Toolkit to be used in a transparent proxy configuration.
 
 ftp-gw.diff	- A patch written by myself for use only with IP Filter and
-		  ftp-gw from the Firewall Toolkit.
+		  ftp-gw from the Firewall Toolkit.  You need to copy ip_nat.h,
+		  ip_fil.h and ip_compat.h to the ftp-gw directory to compile
+		  once this patch has been applied.
 
 fwtkp		- A set of patches written by James B. Croall (jcroall@foo.org)
 		  for use with both IP Filter and ipfwadm (for Linux) and more

@@ -1,37 +1,16 @@
-*** ftp-gw.c.orig	Sat Nov  5 10:30:16 1994
---- ftp-gw.c	Sun Jul  7 12:25:15 1996
+*** ftp-gw.c.orig	Sun Jun 22 16:27:42 1997
+--- ftp-gw.c	Sun Jun 22 17:02:16 1997
 ***************
 *** 11,31 ****
+--- 11,41 ----
    */
-  static	char	RcsId[] = "$Header: /devel/CVS/IP-Filter/FWTK/ftp-gw.diff,v 2.0.2.2 1997/02/23 10:38:35 darrenr Exp $";
-  
-  
-  #include	<stdio.h>
-  #include	<ctype.h>
-  #include	<syslog.h>
-  #include	<sys/signal.h>
-  #include	<sys/ioctl.h>
-  #include	<sys/errno.h>
-- extern	int	errno;
-- extern	char	*sys_errlist[];
-  #include	<arpa/ftp.h>
-  #include	<arpa/telnet.h>
-  #include	<sys/time.h>
-  #include	<sys/types.h>
-  #include	<sys/socket.h>
-  #include	<netinet/in.h>
-  
-  extern	char	*rindex();
-  extern	char	*index();
---- 11,37 ----
-   */
-  static	char	RcsId[] = "$Header: /devel/CVS/IP-Filter/FWTK/ftp-gw.diff,v 2.0.2.2 1997/02/23 10:38:35 darrenr Exp $";
+  static	char	RcsId[] = "$Header: /devel/CVS/IP-Filter/FWTK/ftp-gw.diff,v 2.0.2.3 1997/06/22 07:06:02 darrenr Exp $";
   
 + /*
 +  * Patches for IP Filter NAT extensions written by Darren Reed, 7/7/96
 +  * darrenr@cyber.com.au
 +  */
-+ static	char	vIpFilter[] = "v3.1.0";
++ static	char	vIpFilter[] = "v3.1.11";
   
   #include	<stdio.h>
   #include	<ctype.h>
@@ -41,6 +20,10 @@
   #include	<sys/signal.h>
   #include	<sys/ioctl.h>
   #include	<sys/errno.h>
+  extern	int	errno;
++ #ifdef	sun
+  extern	char	*sys_errlist[];
++ #endif
   #include	<arpa/ftp.h>
   #include	<arpa/telnet.h>
   #include	<sys/time.h>
@@ -53,17 +36,19 @@
   extern	char	*index();
 ***************
 *** 36,41 ****
---- 42,48 ----
+--- 46,54 ----
   
   #include	"firewall.h"
   
++ #include	"ip_compat.h"
++ #include	"ip_fil.h"
 + #include	"ip_nat.h"
   
   #ifndef	BSIZ
   #define	BSIZ	2048
 ***************
 *** 83,88 ****
---- 90,97 ----
+--- 96,103 ----
   static	int	cmd_noop();
   static	int	cmd_abor();
   static	int	cmd_passthru();
@@ -81,7 +66,7 @@
   			if(say(0,xuf))
   				exit(1);
   		}
---- 326,335 ----
+--- 332,341 ----
   			if(authallflg)
   				if(say(0,"220-Proxy first requires authentication"))
   					exit(1);
@@ -94,7 +79,7 @@
   		}
 ***************
 *** 338,343 ****
---- 350,357 ----
+--- 356,363 ----
   				exit(1);
   	}
   
@@ -117,10 +102,10 @@
   	short		port = FTPPORT;
   
   	/* kludgy but effective. if authorizing everything call auth instead */
---- 622,631 ----
+--- 628,637 ----
 ***************
 *** 643,648 ****
---- 655,681 ----
+--- 661,687 ----
   			return(sayn(0,noad,sizeof(noad)));
   	}
   
@@ -149,7 +134,7 @@
   		dest = "localhost";
   
 ***************
-*** 685,691 ****
+*** 685,693 ****
   		char	ebuf[512];
   
   		strcpy(ebuf,buf);
@@ -157,14 +142,19 @@
   		return(say(0,buf));
   	}
   	sprintf(buf,"----GATEWAY CONNECTED TO %s----",dest);
---- 718,724 ----
+  	saveline(buf);
+  
+--- 724,733 ----
   		char	ebuf[512];
   
   		strcpy(ebuf,buf);
 ! 		sprintf(buf,"521 %s,%d: %s",dest,ntohs(port),ebuf);
   		return(say(0,buf));
   	}
++ 
   	sprintf(buf,"----GATEWAY CONNECTED TO %s----",dest);
+  	saveline(buf);
+  
 ***************
 *** 698,711 ****
   		return(say(0,buf));
@@ -181,7 +171,7 @@
   }
   
   
---- 731,738 ----
+--- 738,745 ----
   		return(say(0,buf));
   	}
   	saveline(buf);
@@ -192,7 +182,7 @@
   
 ***************
 *** 1591,1593 ****
---- 1618,1659 ----
+--- 1625,1671 ----
   	dup(nread);
   }
   #endif
@@ -224,14 +214,19 @@
 + 	natlookup.nl_outport = faddr.sin_port;
 + 	natlookup.nl_inip = laddr.sin_addr;
 + 	natlookup.nl_outip = faddr.sin_addr;
-+ 	if((natfd = open("/dev/ipl", O_RDONLY)) < 0) {
++ 	natlookup.nl_flags = IPN_TCP;
++ 	if((natfd = open(IPL_NAT, O_RDONLY)) < 0) {
 + 		perror("open");
 + 		exit(1);
 + 	}
 + 	if(ioctl(natfd, SIOCGNATL, &natlookup) == -1) {
-+ 		perror("ioctl");
-+ 		exit(1);
++ 		syslog(LOG_ERR, "SIOCGNATL failed: %m\n");
++ 		close(natfd);
++ 		if(say(0,"220 Ready"))
++ 			exit(1);
++ 		return 0;
 + 	}
 + 	close(natfd);
-+ 	return connectdest(inet_ntoa(natlookup.nl_inip),ntohs(natlookup.nl_inport));
++ 	return connectdest(inet_ntoa(natlookup.nl_realip),
++ 			   ntohs(natlookup.nl_realport));
 + }

@@ -22,6 +22,9 @@
 #include <netinet/in.h>
 #include <netinet/ip_var.h>
 #include <netinet/tcp.h>
+#if __FreeBSD_version >= 300000
+# include <net/if_var.h>
+#endif
 #include "ipsend.h"
 
 

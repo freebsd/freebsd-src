@@ -9,7 +9,7 @@ It is also quite possible for this small kernel extension to be installed
 and used effectively on Sun workstations which don't route IP, just for
 added security.  It can also be integrated with the multicast patches.
 It has also been tested successfully on all of the modern free BSDs as
-well as BSDI.
+well as BSDI, and SGI's IRIX 6.2.
 
    The filter keeps a rule list for both inbound and outbound sides of
 the IP packet queue and a check is made as early as possible, aiming to
@@ -42,6 +42,11 @@ of the packets being "short".  ICMP and UDP packets which are too small
 asked.  When filtering on fragmented packets, the last fragment will get
 through for TCP/UDP/ICMP packets.
 
+Bugs/Problems
+-------------
+If you have a problem with IP Filter on your operating system, please email
+a copy of the file "BugReport" with the details of your setup as required
+and email to darrenr@cyber.com.au.
 
 Some general notes.
 -------------------

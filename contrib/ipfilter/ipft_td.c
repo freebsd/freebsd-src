@@ -1,5 +1,5 @@
 /*
- * (C)opyright 1993,1994,1995 by Darren Reed.
+ * Copyright (C) 1993-1997 by Darren Reed.
  *
  * Redistribution and use in source and binary forms are permitted
  * provided that this notice is preserved and due credit is given
@@ -44,21 +44,23 @@ tcpdump -nqte
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <netinet/in_systm.h>
+#ifndef	linux
 #include <netinet/ip_var.h>
+#endif
 #include <netinet/ip.h>
 #include <netinet/tcp.h>
 #include <netinet/udp.h>
 #include <netinet/ip_icmp.h>
-#include <netinet/tcpip.h>
 #include <net/if.h>
 #include <netdb.h>
 #include "ip_compat.h"
+#include <netinet/tcpip.h>
 #include "ipf.h"
 #include "ipt.h"
 
-#if !defined(lint) && defined(LIBC_SCCS)
-static char sccsid[] = "@(#)ipft_td.c	1.8 2/4/96 (C)1995 Darren Reed";
-static	char	rcsid[] = "$Id: ipft_td.c,v 2.0.2.4 1997/04/30 13:55:12 darrenr Exp $";
+#if !defined(lint)
+static const char sccsid[] = "@(#)ipft_td.c	1.8 2/4/96 (C)1995 Darren Reed";
+static const char rcsid[] = "@(#)$Id: ipft_td.c,v 2.0.2.6.2.1 1997/11/12 10:56:10 darrenr Exp $";
 #endif
 
 static	int	tcpd_open __P((char *));
@@ -113,7 +115,7 @@ char	*buf, **ifn;
 int	cnt, *dir;
 {
 	struct	tcpiphdr pkt;
-	struct	ip	*ip = (struct ip *)&pkt;
+	ip_t	*ip = (ip_t *)&pkt;
 	struct	protoent *p;
 	char	src[32], dst[32], misc[256], time[32], link1[32], link2[32];
 	char	lbuf[160], *s;
@@ -156,7 +158,7 @@ int	cnt, *dir;
 		(void) inet_aton(src, &ip->ip_src);
 		(void) inet_aton(src, &ip->ip_dst);
 	}
-	ip->ip_len = ip->ip_hl = sizeof(struct ip);
+	ip->ip_len = ip->ip_hl = sizeof(ip_t);
 
 	s = strtok(misc, " :");
 	if ((p = getprotobyname(s))) {

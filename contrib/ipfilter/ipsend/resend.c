@@ -1,14 +1,18 @@
 /*
- * resend.c (C) 1995 Darren Reed
+ * resend.c (C) 1995-1997 Darren Reed
  *
  * This was written to test what size TCP fragments would get through
  * various TCP/IP packet filters, as used in IP firewalls.  In certain
  * conditions, enough of the TCP header is missing for unpredictable
  * results unless the filter is aware that this can happen.
  *
+ * Redistribution and use in source and binary forms are permitted
+ * provided that this notice is preserved and due credit is given
+ * to the original author and the contributors.
  */
-#if !defined(lint) && defined(LIBC_SCCS)
-static	char	sccsid[] = "@(#)resend.c	1.3 1/11/96 (C)1995 Darren Reed";
+#if !defined(lint)
+static const char sccsid[] = "@(#)resend.c	1.3 1/11/96 (C)1995 Darren Reed";
+static const char rcsid[] = "@(#)$Id: resend.c,v 2.0.2.12 1997/10/23 11:42:46 darrenr Exp $";
 #endif
 #include <stdio.h>
 #include <netdb.h>
@@ -27,17 +31,21 @@ static	char	sccsid[] = "@(#)resend.c	1.3 1/11/96 (C)1995 Darren Reed";
 #include <netinet/udp.h>
 #include <netinet/ip_icmp.h>
 #ifndef	linux
-#include <netinet/ip_var.h>
-#include <netinet/if_ether.h>
+# include <netinet/ip_var.h>
+# include <netinet/if_ether.h>
+# if __FreeBSD_version >= 300000
+#  include <net/if_var.h>
+# endif
 #endif
 #include "ipsend.h"
 
+extern	int	opts;
 
 static	u_char	buf[65536];	/* 1 big packet */
-static	void	printpacket __P((ip_t *));
+void	printpacket __P((ip_t *));
 
 
-static void printpacket(ip)
+void printpacket(ip)
 ip_t	*ip;
 {
 	tcphdr_t *t;
@@ -90,7 +98,7 @@ char	*datain;
 	ip = (struct ip *)buf;
 	eh = (ether_header_t *)malloc(sizeof(*eh));
 
-	bzero(&eh->ether_shost, sizeof(eh->ether_shost));
+	bzero((char *)A_A eh->ether_shost, sizeof(eh->ether_shost));
 	if (gwip.s_addr && (arp((char *)&gwip, dhost) == -1))
 	    {
 		perror("arp");
@@ -99,21 +107,31 @@ char	*datain;
 
 	while ((i = (*r->r_readip)(buf, sizeof(buf), NULL, NULL)) > 0)
 	    {
-		len = ntohs(ip->ip_len);
-		eh = (ether_header_t *)realloc((char *)eh, sizeof(*eh) + len);
-		eh->ether_type = htons((u_short)ETHERTYPE_IP);
-		if (!gwip.s_addr) {
-			if (arp((char *)&gwip,
-				(char *)&eh->ether_dhost) == -1) {
-				perror("arp");
-				continue;
-			}
-		} else
-			bcopy(dhost, (char *)&eh->ether_dhost, sizeof(dhost));
-		bcopy(ip, (char *)(eh + 1), len);
-		printpacket(ip);
+		if (!(opts & OPT_RAW)) {
+			len = ntohs(ip->ip_len);
+			eh = (ether_header_t *)realloc((char *)eh, sizeof(*eh) + len);
+			eh->ether_type = htons((u_short)ETHERTYPE_IP);
+			if (!gwip.s_addr) {
+				if (arp((char *)&gwip,
+					(char *)A_A eh->ether_dhost) == -1) {
+					perror("arp");
+					continue;
+				}
+			} else
+				bcopy(dhost, (char *)A_A eh->ether_dhost,
+				      sizeof(dhost));
+			if (!ip->ip_sum)
+				ip->ip_sum = chksum((u_short *)ip,
+						    ip->ip_hl << 2);
+			bcopy(ip, (char *)(eh + 1), len);
+			len += sizeof(*eh);
+			printpacket(ip);
+		} else {
+			eh = (ether_header_t *)buf;
+			len = i;
+		}
 
-		if (sendip(wfd, (char *)eh, sizeof(*eh) + len) == -1)
+		if (sendip(wfd, (char *)eh, len) == -1)
 		    {
 			perror("send_packet");
 			break;
