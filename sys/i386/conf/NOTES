@@ -711,6 +711,9 @@ options 	EXT2FS
 # inclusion on shell boxes.
 options 	VFS_AIO
 
+# Cryptographically secure random number generator; /dev/[u]random
+options		RANDOMDEV
+
 
 #####################################################################
 # POSIX P1003.1B
