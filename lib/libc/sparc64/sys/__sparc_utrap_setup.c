@@ -36,6 +36,8 @@ __FBSDID("$FreeBSD$");
 
 #include "__sparc_utrap_private.h"
 
+extern int sysarch(int op, char *parms);
+
 static const struct sparc_utrap_args ua[] = {
 	{ UT_FP_DISABLED, __sparc_utrap_fp_disabled, NULL, NULL, NULL },
 	{ UT_FP_EXCEPTION_IEEE_754, __sparc_utrap_gen, NULL, NULL, NULL },
@@ -45,7 +47,7 @@ static const struct sparc_utrap_args ua[] = {
 };
 
 static const struct sparc_utrap_install_args uia[] = {
-	sizeof (ua) / sizeof (*ua), ua
+	{ sizeof (ua) / sizeof (*ua), ua }
 };
 
 void __sparc_utrap_setup(void) __attribute__((constructor));
@@ -54,5 +56,5 @@ void
 __sparc_utrap_setup(void)
 {
 
-	sysarch(SPARC_UTRAP_INSTALL, &uia);
+	sysarch(SPARC_UTRAP_INSTALL, (char *)&uia);
 }

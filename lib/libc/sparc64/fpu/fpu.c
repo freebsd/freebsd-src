@@ -214,7 +214,6 @@ __fpu_mov(struct fpemu *fe, int type, int rd, int rs2, u_int32_t nand,
     u_int32_t xor)
 {
 	u_int64_t tmp64;
-	u_int32_t *p32;
 	int i;
 
 	if (type == FTYPE_INT || type == FTYPE_SNG)

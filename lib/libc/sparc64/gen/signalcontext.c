@@ -28,15 +28,16 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/signal.h>
 #include <sys/ucontext.h>
 
 #include <machine/frame.h>
 #include <machine/sigframe.h>
 
 #include <errno.h>
+#include <signal.h>
 #include <stdarg.h>
 #include <stdlib.h>
+#include <strings.h>
 #include <unistd.h>
 
 __weak_reference(__signalcontext, signalcontext);
