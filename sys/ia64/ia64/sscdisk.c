@@ -100,7 +100,7 @@ static struct cdevsw ssc_cdevsw = {
         /* maj */       CDEV_MAJOR,
         /* dump */      nodump,
         /* psize */     nopsize,
-        /* flags */     D_DISK | D_CANFREE,
+        /* flags */     D_DISK,
 };
 
 static struct cdevsw sscdisk_cdevsw;
@@ -189,9 +189,7 @@ sscstrategy(struct bio *bp)
 
 		devstat_start_transaction(&sc->stats);
 
-		if (bp->bio_cmd == BIO_DELETE) {
-			dop = DEVSTAT_NO_DATA;
-		} else if (bp->bio_cmd == BIO_READ) {
+		if (bp->bio_cmd == BIO_READ) {
 			dop = DEVSTAT_READ;
 			sscop = SSC_READ;
 		} else {
