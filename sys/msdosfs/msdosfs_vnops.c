@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_vnops.c,v 1.17.2.3 1995/10/09 06:13:08 davidg Exp $ */
+/*	$Id: msdosfs_vnops.c,v 1.17.2.4 1995/10/26 09:17:31 davidg Exp $ */
 /*	$NetBSD: msdosfs_vnops.c,v 1.20 1994/08/21 18:44:13 ws Exp $	*/
 
 /*-
@@ -1558,19 +1558,8 @@ msdosfs_readdir(ap)
 		on = (uio->uio_offset - bias) & pmp->pm_crbomask;
 		n = min((u_long) (pmp->pm_bpcluster - on), uio->uio_resid);
 		diff = dep->de_FileSize - (uio->uio_offset - bias);
-		if (diff <= 0) {
-			if(ap->a_eofflag)
-				*ap->a_eofflag = 1;
-			if(ap->a_ncookies != NULL) {
-				u_int *cookies;
-
-				MALLOC(cookies, u_int *, 1 * sizeof(u_int),
-				       M_TEMP, M_WAITOK);
-				*ap->a_ncookies = 0;
-				*ap->a_cookies = cookies;
-			}
-			return 0;
-		}
+		if (diff <= 0)
+			break;
 		if (diff < n)
 			n = diff;
 		error = pcbmap(dep, lbn, &bn, &cn);
