@@ -68,14 +68,10 @@ extern Elf_Dyn _DYNAMIC;
 
 /* Relocate a non-PLT object with addend. */
 static int
-reloc_non_plt_obj(Obj_Entry *obj_rtld, Obj_Entry *obj, const Elf_Rela *rela)
+reloc_non_plt_obj(Obj_Entry *obj_rtld, Obj_Entry *obj, const Elf_Rela *rela,
+	SymCache *cache)
 {
 	Elf_Addr *where = (Elf_Addr *) (obj->relocbase + rela->r_offset);
-	SymCache *cache;
-
-	cache = (SymCache *)alloca(obj->nchains * sizeof(SymCache));
-	if (cache != NULL)
-	    memset(cache, 0, obj->nchains * sizeof(SymCache));
 
 	switch (ELF_R_TYPE(rela->r_info)) {
 
@@ -155,6 +151,11 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld)
 	const Elf_Rel *rel;
 	const Elf_Rela *relalim;
 	const Elf_Rela *rela;
+	SymCache *cache;
+
+	cache = (SymCache *)alloca(obj->nchains * sizeof(SymCache));
+	if (cache != NULL)
+	    memset(cache, 0, obj->nchains * sizeof(SymCache));
 
 	/* Perform relocations without addend if there are any: */
 	rellim = (const Elf_Rel *) ((caddr_t) obj->rel + obj->relsize);
@@ -164,14 +165,14 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld)
 		locrela.r_info = rel->r_info;
 		locrela.r_offset = rel->r_offset;
 		locrela.r_addend = 0;
-		if (reloc_non_plt_obj(obj_rtld, obj, &locrela))
+		if (reloc_non_plt_obj(obj_rtld, obj, &locrela, cache))
 			return -1;
 	}
 
 	/* Perform relocations with addend if there are any: */
 	relalim = (const Elf_Rela *) ((caddr_t) obj->rela + obj->relasize);
 	for (rela = obj->rela;  obj->rela != NULL && rela < relalim;  rela++) {
-		if (reloc_non_plt_obj(obj_rtld, obj, rela))
+		if (reloc_non_plt_obj(obj_rtld, obj, rela, cache))
 			return -1;
 	}
     return 0;
