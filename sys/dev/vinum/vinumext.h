@@ -56,6 +56,8 @@ struct proc;
 #endif
 
 #ifdef KERNEL
+int vinum_inactive(void);
+void free_vinum(int);
 int give_sd_to_plex(int plexno, int sdno);
 int give_plex_to_volume(int volno, int plexno);
 struct drive *check_drive(char *);
@@ -74,6 +76,7 @@ int find_drive(const char *name, int create);
 int find_drive_by_dev(const char *devname, int create);
 int get_empty_sd(void);
 int find_subdisk(const char *name, int create);
+void return_drive_space(int driveno, int64_t offset, int length);
 void free_sd(int sdno);
 void free_volume(int volno);
 int get_empty_plex(void);
@@ -102,7 +105,7 @@ void remove_sd_entry(int sdno, int force, int recurse);
 void remove_plex_entry(int plexno, int force, int recurse);
 void remove_volume_entry(int volno, int force, int recurse);
 
-void checkernel(char *);
+void checkdiskconfig(char *);
 int open_drive(struct drive *, struct proc *, int);
 void close_drive(struct drive *drive);
 int driveio(struct drive *, char *, size_t, off_t, int);
@@ -120,7 +123,7 @@ void free_drive(struct drive *drive);
 void down_drive(struct drive *drive);
 void remove_drive(int driveno);
 
-void vinum_scandisk(char *drivename[], int drives);
+int vinum_scandisk(char *drivename[], int drives);
 
 /* I/O */
 d_open_t vinumopen;
