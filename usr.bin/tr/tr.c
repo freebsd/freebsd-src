@@ -31,24 +31,24 @@
  * SUCH DAMAGE.
  */
 
+#include <sys/cdefs.h>
+
+__FBSDID("$FreeBSD$");
+
 #ifndef lint
 static const char copyright[] =
 "@(#) Copyright (c) 1988, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
-#endif /* not lint */
+#endif
 
 #ifndef lint
-#if 0
-static char sccsid[] = "@(#)tr.c	8.2 (Berkeley) 5/4/95";
+static const char sccsid[] = "@(#)tr.c	8.2 (Berkeley) 5/4/95";
 #endif
-static const char rcsid[] =
-  "$FreeBSD$";
-#endif /* not lint */
 
-#include <locale.h>
 #include <sys/types.h>
 
 #include <err.h>
+#include <locale.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -94,15 +94,15 @@ static int string1[NCHARS] = {
 STR s1 = { STRING1, NORMAL, 0, OOBCH, { 0, OOBCH }, NULL, NULL };
 STR s2 = { STRING2, NORMAL, 0, OOBCH, { 0, OOBCH }, NULL, NULL };
 
-static void setup __P((int *, char *, STR *, int));
-static void usage __P((void));
+static void setup(int *, char *, STR *, int);
+static void usage(void);
 
 int
 main(argc, argv)
 	int argc;
 	char **argv;
 {
-	register int ch, cnt, lastch, *p;
+	int ch, cnt, lastch, *p;
 	int cflag, dflag, sflag, isstring2;
 
 	(void) setlocale(LC_CTYPE, "");
@@ -212,6 +212,7 @@ main(argc, argv)
 	if (!next(&s2))
 		errx(1, "empty string2");
 
+	ch = s2.lastch;
 	/* If string2 runs out of characters, use the last one specified. */
 	if (sflag)
 		while (next(&s1)) {
@@ -250,7 +251,7 @@ setup(string, arg, str, cflag)
 	STR *str;
 	int cflag;
 {
-	register int cnt, *p;
+	int cnt, *p;
 
 	str->str = arg;
 	bzero(string, NCHARS * sizeof(int));
