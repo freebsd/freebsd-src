@@ -300,6 +300,7 @@ reread_mbr:
 		sp->ds_offset = 0;
 		sp->ds_size = lp->d_secperunit;
 		sp->ds_type = DOSPTYP_386BSD;
+		sp->ds_subtype = 0xc4;
 		error = 0;
 		ssp->dss_nslices = BASE_SLICE + 1;
 		goto done;
@@ -329,6 +330,7 @@ reread_mbr:
 		sp->ds_offset = 0;
 		sp->ds_size = lp->d_secperunit;
 		sp->ds_type = 0xa0;  /* XXX */
+		sp->ds_subtype = 0x81;  /* XXX */
 		error = 0;
 		ssp->dss_nslices = BASE_SLICE + 1;
 		goto done;
@@ -491,6 +493,8 @@ reread_mbr:
 		sp->ds_offset = pc98_start;
 		sp->ds_size = pc98_size;
 		sp->ds_type = dp->dp_mid;
+		sp->ds_subtype = dp->dp_sid;
+		strncpy(sp->ds_name, dp->dp_name, 16);
 #else
 		sp->ds_offset = mbr_offset + dp->dp_start;
 		sp->ds_size = dp->dp_size;
@@ -627,6 +631,8 @@ extended(dname, dev, strat, lp, ssp, ext_offset, ext_size, base_ext_offset,
 			sp->ds_offset = ext_offset + pc98_start;
 			sp->ds_size = pc98_size;
 			sp->ds_type = dp->dp_mid;
+			sp->ds_subtype = dp->dp_sid;
+			strncpy(sp->ds_name, dp->dp_name, 16);
 #else
 			sp->ds_offset = ext_offset + dp->dp_start;
 			sp->ds_size = dp->dp_size;
