@@ -187,7 +187,7 @@ TARGET_INC+=	${GCC_CPU}/freebsd.h
 .if ${TARGET_ARCH} == "amd64"
 TARGET_INC+=	${GCC_CPU}/x86-64.h
 TARGET_INC+=	${GCC_CPU}/freebsd64.h
-TARGET_INC+=	${.CURDIR}/freebsd64-fix.h
+TARGET_INC+=	freebsd64-fix.h
 .endif
 TARGET_INC+=	defaults.h
 
