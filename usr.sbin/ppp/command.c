@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.91 1997/11/08 00:28:06 brian Exp $
+ * $Id: command.c,v 1.92 1997/11/09 06:22:39 brian Exp $
  *
  */
 #include <sys/param.h>
@@ -411,18 +411,17 @@ ShowEscape()
 	    fprintf(VarTerm, " 0x%02x", (code << 3) + bit);
     fprintf(VarTerm, "\n");
   }
-  return 1;
+  return 0;
 }
 
 static int
 ShowTimeout()
 {
-  if (!VarTerm)
-    return 0;
-  fprintf(VarTerm, " Idle Timer: %d secs   LQR Timer: %d secs"
-	  "   Retry Timer: %d secs\n", VarIdleTimeout, VarLqrTimeout,
-	  VarRetryTimeout);
-  return 1;
+  if (VarTerm)
+    fprintf(VarTerm, " Idle Timer: %d secs   LQR Timer: %d secs"
+	    "   Retry Timer: %d secs\n", VarIdleTimeout, VarLqrTimeout,
+	    VarRetryTimeout);
+  return 0;
 }
 
 static int
@@ -451,7 +450,7 @@ ShowStopped()
 
   fprintf(VarTerm, "\n");
 
-  return 1;
+  return 0;
 }
 
 static int
@@ -464,47 +463,43 @@ ShowAuthKey()
 #ifdef HAVE_DES
   fprintf(VarTerm, "Encrypt  = %s\n", VarMSChap ? "MSChap" : "MD5" );
 #endif
-  return 1;
+  return 0;
 }
 
 static int
 ShowVersion()
 {
-  if (!VarTerm)
-    return 0;
-  fprintf(VarTerm, "%s - %s \n", VarVersion, VarLocalVersion);
-  return 1;
+  if (VarTerm)
+    fprintf(VarTerm, "%s - %s \n", VarVersion, VarLocalVersion);
+  return 0;
 }
 
 static int
 ShowInitialMRU()
 {
-  if (!VarTerm)
-    return 0;
-  fprintf(VarTerm, " Initial MRU: %ld\n", VarMRU);
-  return 1;
+  if (VarTerm)
+    fprintf(VarTerm, " Initial MRU: %ld\n", VarMRU);
+  return 0;
 }
 
 static int
 ShowPreferredMTU()
 {
-  if (!VarTerm)
-    return 0;
-  if (VarPrefMTU)
-    fprintf(VarTerm, " Preferred MTU: %ld\n", VarPrefMTU);
-  else
-    fprintf(VarTerm, " Preferred MTU: unspecified\n");
-  return 1;
+  if (VarTerm)
+    if (VarPrefMTU)
+      fprintf(VarTerm, " Preferred MTU: %ld\n", VarPrefMTU);
+    else
+      fprintf(VarTerm, " Preferred MTU: unspecified\n");
+  return 0;
 }
 
 static int
 ShowReconnect()
 {
-  if (!VarTerm)
-    return 0;
-  fprintf(VarTerm, " Reconnect Timer:  %d,  %d tries\n",
-	  VarReconnectTimer, VarReconnectTries);
-  return 1;
+  if (VarTerm)
+    fprintf(VarTerm, " Reconnect Timer:  %d,  %d tries\n",
+	    VarReconnectTimer, VarReconnectTries);
+  return 0;
 }
 
 static int
@@ -533,21 +528,21 @@ ShowRedial()
 
   fprintf(VarTerm, "\n");
 
-  return 1;
+  return 0;
 }
 
 #ifndef NOMSEXT
 static int
 ShowMSExt()
 {
-  if (!VarTerm)
-    return 0;
-  fprintf(VarTerm, " MS PPP extention values \n");
-  fprintf(VarTerm, "   Primary NS     : %s\n", inet_ntoa(ns_entries[0]));
-  fprintf(VarTerm, "   Secondary NS   : %s\n", inet_ntoa(ns_entries[1]));
-  fprintf(VarTerm, "   Primary NBNS   : %s\n", inet_ntoa(nbns_entries[0]));
-  fprintf(VarTerm, "   Secondary NBNS : %s\n", inet_ntoa(nbns_entries[1]));
-  return 1;
+  if (VarTerm) {
+    fprintf(VarTerm, " MS PPP extention values \n");
+    fprintf(VarTerm, "   Primary NS     : %s\n", inet_ntoa(ns_entries[0]));
+    fprintf(VarTerm, "   Secondary NS   : %s\n", inet_ntoa(ns_entries[1]));
+    fprintf(VarTerm, "   Primary NBNS   : %s\n", inet_ntoa(nbns_entries[0]));
+    fprintf(VarTerm, "   Secondary NBNS : %s\n", inet_ntoa(nbns_entries[1]));
+  }
+  return 0;
 }
 
 #endif
