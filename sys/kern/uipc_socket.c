@@ -1753,15 +1753,15 @@ sosetopt(so, sopt)
 				goto bad;
 
 			/* assert(hz > 0); */
-			if (tv.tv_sec < 0 || tv.tv_sec > SHRT_MAX / hz ||
+			if (tv.tv_sec < 0 || tv.tv_sec > INT_MAX / hz ||
 			    tv.tv_usec < 0 || tv.tv_usec >= 1000000) {
 				error = EDOM;
 				goto bad;
 			}
 			/* assert(tick > 0); */
-			/* assert(ULONG_MAX - SHRT_MAX >= 1000000); */
+			/* assert(ULONG_MAX - INT_MAX >= 1000000); */
 			val = (u_long)(tv.tv_sec * hz) + tv.tv_usec / tick;
-			if (val > SHRT_MAX) {
+			if (val > INT_MAX) {
 				error = EDOM;
 				goto bad;
 			}
