@@ -1021,8 +1021,10 @@ vnode_pager_generic_putpages(vp, m, bytecount, flags, rtvals)
 			maxsize = object->un_pager.vnp.vnp_size - poffset;
 			ncount = btoc(maxsize);
 			if ((pgoff = (int)maxsize & PAGE_MASK) != 0) {
+				vm_page_lock_queues();
 				vm_page_clear_dirty(m[ncount - 1], pgoff,
 					PAGE_SIZE - pgoff);
+				vm_page_unlock_queues();
 			}
 		} else {
 			maxsize = 0;

@@ -1351,7 +1351,9 @@ brelse(struct buf * bp)
 					(PAGE_SIZE - poffset) : resid;
 
 				KASSERT(presid >= 0, ("brelse: extra page"));
+				vm_page_lock_queues();
 				vm_page_set_invalid(m, poffset, presid);
+				vm_page_unlock_queues();
 				if (had_bogus)
 					printf("avoided corruption bug in bogus_page/brelse code\n");
 			}
