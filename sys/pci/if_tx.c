@@ -1,5 +1,5 @@
 /*	$OpenBSD: if_tx.c,v 1.3 1998/10/10 04:30:09 jason Exp $	*/
-/*	$Id: if_tx.c,v 1.20 1998/12/14 06:32:56 dillon Exp $ */
+/*	$Id: if_tx.c,v 1.20.2.1 1999/03/09 17:33:04 andreas Exp $ */
 
 /*-
  * Copyright (c) 1997 Semen Ustimenko (semen@iclub.nsu.ru)
@@ -69,6 +69,7 @@
 
 #include "bpfilter.h"
 #include "pci.h"
+#include "opt_bdg.h"
 
 #if NPCI > 0
 #include <sys/param.h>
@@ -135,6 +136,11 @@
 
 #include <pci/pcivar.h>
 #include <pci/if_txvar.h>
+
+#ifdef BRIDGE
+#include <net/bridge.h>
+#endif
+
 #endif
 
 #if defined(__FreeBSD__)
@@ -907,7 +913,43 @@ epic_rx_done __P((
 #else /* __OpenBSD__ */
 			bpf_mtap( sc->sc_if.if_bpf, m );
 #endif /* __FreeBSD__ */
+#endif /* NBPFILTER */
 
+#ifdef BRIDGE
+		if (do_bridge) {
+			struct ifnet *bdg_ifp ;
+			bdg_ifp = bridge_in(m);
+			if (bdg_ifp == BDG_DROP) {
+				if (m)
+					m_free(m);
+				continue; /* and drop */
+			}
+			if (bdg_ifp != BDG_LOCAL)
+				bdg_forward(&m, bdg_ifp);
+			if (bdg_ifp != BDG_LOCAL && bdg_ifp != BDG_BCAST &&
+				bdg_ifp != BDG_MCAST) {
+				if (m)
+					m_free(m);
+				continue; /* and drop */
+			}
+			/* all others accepted locally */
+		}
+#endif
+
+#if NBPFILTER > 0
+#ifdef BRIDGE
+		/*
+		 * This deserves explanation
+		 * If the bridge is _on_, then the following check
+		 * must not be done because occasionally the bridge
+		 * gets packets that are local but have the ethernet
+		 * address of one of the other interfaces.
+		 *
+		 * But if the bridge is off, then we have to drop
+		 * stuff that came in just via bpfilter.
+		 */
+		if (!do_bridge)
+#endif
 		/* Accept only our packets, broadcasts and multicasts */
 		if( (eh->ether_dhost[0] & 1) == 0 &&
 		    bcmp(eh->ether_dhost,sc->sc_macaddr,ETHER_ADDR_LEN)){
