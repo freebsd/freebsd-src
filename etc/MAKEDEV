@@ -50,9 +50,8 @@
 #	psm*	PS/2 mouse
 #
 # Terminal ports:
-#       ttyd*   dialin ports
-#       cua*    dialout ports
-#       tty*    hardwired terminals
+#       ttyd*   dialin ports/hardwired terminals
+#       cuaa*   dialout ports
 #
 # Pseudo terminals:
 #	pty*	set of 16 master and slave pseudo terminals
@@ -72,7 +71,7 @@
 #	socksys iBCS2 socket system driver
 #	vat	VAT compatibility audio driver (requires snd*)
 #
-#	$Id: MAKEDEV,v 1.53 1994/12/03 14:01:01 jkh Exp $
+#	$Id: MAKEDEV,v 1.54 1994/12/04 20:15:15 phk Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
@@ -86,9 +85,9 @@ all)
 	sh MAKEDEV wd0 wd1 wd2 wd3 fd0 fd1 sd0 sd1 sd2 sd3 	# bdev, disk
 	sh MAKEDEV cd0 mcd0					# bdev, cdrom
 	sh MAKEDEV ft0 wt0 st0 					# bdev, tape
-	sh MAKEDEV pty0 tty0 tty1 pc0 lpt0 lpt1 lpt2            # cdev
+	sh MAKEDEV pty0 ttyd0 ttyd1 ttyd2 ttyd3 lpt0            # cdev
 	sh MAKEDEV ch0 tw0 bpf0 				# cdev
-	sh MAKEDEV speaker pcaudio psm0 mse0 ttyd2 ttyd3        # cdev
+	sh MAKEDEV speaker pcaudio psm0 mse0                    # cdev
 	sh MAKEDEV vty4						# cdev
 	;;
 std)
@@ -427,18 +426,6 @@ tw*)
 	chown bin.bin tw$unit
 	;;
 
-# hv 22-apr-93 use this to create the necessary video device for
-# pccons driver
-pc?)
-	chr=12
-	minor=0
- 	name=ttyv0
-	rm -f ${name} vga kbd kbdco vgaco ttyv[0-9][0-9]
-	mknod ${name} c ${chr} ${minor}
-	chown root.wheel $name
-	ln -s ${name} vga
-	;;
-
 # Use this to create virtual consoles for syscons, pcvt or codrv
 # ttyv0-b
 # use as MAKEDEV vtyNN to create NN entries
@@ -466,9 +453,9 @@ speaker)
 	chown root.wheel speaker
 	;;
 
-cua0?|cua?|ttyd?)
-	unit=`expr $i : '...[d0]*\(.\)$'`
-	rm -f cua*0$unit tty*d$unit
+cuaa?|ttyd?)
+	unit=`expr $i : '...[ad]*\(.\)$'`
+	rm -f cua*a$unit tty*d$unit
 	case $unit in
 	[0-9]) m=$unit;;
 	a) m=10;; b) m=11;; c) m=12;; d) m=13;; e) m=14;; f) m=15;; g) m=16;;
@@ -480,29 +467,11 @@ cua0?|cua?|ttyd?)
 	mknod ttyd$unit c 28 $m
 	mknod ttyid$unit c 28 `expr $m + 32`
 	mknod ttyld$unit c 28 `expr $m + 64`
-	mknod cua0$unit c 28 `expr $m + 128`
-	mknod cuai0$unit c 28 `expr $m + 32 + 128`
-	mknod cual0$unit c 28 `expr $m + 64 + 128`
-	chown uucp.dialer cua*0$unit
-	chmod 660 cua*0$unit
-	;;
-
-tty0?|tty?)
-	unit=`expr $i : 'tty0*\(.\)$'`
-	rm -f tty*0$unit
-	case $unit in
-	[0-9]) m=$unit;;
-	a) m=10;; b) m=11;; c) m=12;; d) m=13;; e) m=14;; f) m=15;; g) m=16;;
-	h) m=17;; i) m=18;; j) m=19;; k) m=20;; l) m=21;; m) m=22;; n) m=23;;
-	o) m=24;; p) m=25;; q) m=26;; r) m=27;; s) m=28;; t) m=29;; u) m=30;;
-	v) m=31;;
-	*) echo too many devices; exit 1;;
-	esac
-	umask 0
-	mknod tty0$unit c 28 $m
-	mknod ttyi0$unit c 28 `expr $m + 32`
-	mknod ttyl0$unit c 28 `expr $m + 64`
-	umask 77
+	mknod cuaa$unit c 28 `expr $m + 128`
+	mknod cuaia$unit c 28 `expr $m + 32 + 128`
+	mknod cuala$unit c 28 `expr $m + 64 + 128`
+	chown uucp.dialer cua*a$unit
+	chmod 660 cua*a$unit
 	;;
 
 mse*)
