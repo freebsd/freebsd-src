@@ -6,7 +6,7 @@
 .\" this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
 .\" ----------------------------------------------------------------------------
 .\"
-.\" $Id: kernel.ms,v 1.3 1996/11/14 08:10:31 phk Exp $
+.\" $Id: kernel.ms,v 1.4 1997/01/05 12:13:32 mckay Exp $
 .\"
 .ds RH The kernel and memory
 .NH
@@ -30,7 +30,7 @@ for the data and bss section combined and one for the stack.
 On some systems the text shared a segment with the data and bss, and was
 consequently just as writable as them.
 .PP
-In this setup all the brk(2) system call have to do is to find the
+In this setup all the brk(2) system call has to do is to find the
 right amount of free storage, possibly moving things around in physical
 memory, maybe even swapping out a segment or two to make space,
 and change the upper limit on the data segment according to the address given.
@@ -38,17 +38,17 @@ and change the upper limit on the data segment according to the address given.
 In a more modern page based virtual memory implementation this is still
 pretty much the situation, except that the granularity is now pages:
 The kernel finds the right number of free pages, possibly paging some
-pages out to free them up, and then plug them into the page-table of 
+pages out to free them up, and then plugs them into the page-table of 
 the process.
 .PP
 As such the difference is very small, the real difference is that in
 the old world of swapping, either the entire process was in primary
-storage (or it wouldn't be selected to be run) in a modern VM kernel,
+storage or it wouldn't be selected to be run.  In a modern VM kernel,
 a process might only have a subset of its pages in primary memory,
 the rest will be paged in, if and when the process tries to access them.
 .PP
-Only very few programs deal with the brk(2) interface directly, the
-few that does usually have their own memory management facilities.
+Only very few programs deal with the brk(2) interface directly.
+The few that do usually have their own memory management facilities.
 LISP or FORTH interpreters are good examples.
 Most other programs use the
 .B malloc(3) 
