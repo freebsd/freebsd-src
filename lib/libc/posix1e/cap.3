@@ -112,7 +112,7 @@ invocations as appropriate.
 If true, the capability is permitted for the process.
 .El
 .Pp
-Capability inheritence occurs when processes invoke the
+Capability inheritance occurs when processes invoke the
 .Xr exec 3
 call, resulting in internal invocation of the
 .Xr execve 2
@@ -128,10 +128,10 @@ pP` = (fP & X) | (fI & pI)
 .Pp
 pE` = (fE & pP`)
 .Pp
-p[IPE] represent the starting processes inheritted, permitted, and
+p[IPE] represent the starting processes inherited, permitted, and
 effective sets.
-p'[IPE] represent the new inheritted, permitted, and effective sets.
-f[IPE] represent the file's inheritted, permitted, and effective sets.
+p'[IPE] represent the new inherited, permitted, and effective sets.
+f[IPE] represent the file's inherited, permitted, and effective sets.
 X represents a global bounding set, currently un-implemented.
 .Pp
 The following capabilities are defined and implemented in
@@ -165,7 +165,7 @@ ACLs are available, this capability overrides the ACL read and search access
 restrictions when accessing an object.
 .It Dv CAP_FOWNER
 This capability overrides the requirements that the user ID associated
-with a process be equal to the file owner ID, execpt in the cases where the
+with a process be equal to the file owner ID, except in the cases where the
 CAP_FSETID capability is applicable.
 In general, this capability, when effective, permits a process to perform
 all the functions that any file owner would have for their files.
@@ -179,14 +179,14 @@ bit of the file; and that the set-user-ID and set-group-ID bits of the file
 mode shall be cleared upon successful return from
 .Xr chown 2 .
 .It Dv CAP_KILL
-Thie capability shall override the restriction that the real or effective
+This capability shall override the restriction that the real or effective
 user ID of a process sending a signal must match the real of effective user
 ID of the receiving process.
 .It Dv CAP_LINK_DIR
 This capability is not available on the
 .Fx
 platform.
-On other platforms, this capabiity overrides the restriction that a process
+On other platforms, this capability overrides the restriction that a process
 cannot create or delete a hard link to a directory.
 .It Dv CAP_SETFCAP
 This capability overrides the restriction that a process cannot
@@ -229,7 +229,7 @@ capability set when invoking
 .It Dv CAP_SYS_SETFFLAG
 This capability overrides the restriction that a process cannot manipulate
 the system file flags on a file system object.
-For portability, equivilent to
+For portability, equivalent to
 .Dv CAP_LINUX_IMMUTABLE .
 .It Dv CAP_NET_BIND_SERVICE
 This capability overrides network namespace restrictions on process's
