@@ -1,5 +1,5 @@
 /*
- * $Id: md5.c,v 1.2 1995/02/20 00:48:50 phk Exp $
+ * $Id: md5.c,v 1.3 1995/02/26 01:55:31 phk Exp $
  *
  * Derived from:
  */
@@ -67,7 +67,7 @@ main(argc, argv)
 				MDTestSuite();
 			else {
 				p = MD5File(argv[i]);
-				if (!p)
+				if (!p) 
 					perror(argv[i]);
 				else
 					printf("MD5 (%s) = %s\n", argv[i], p);
@@ -161,8 +161,10 @@ MDFilter(int pipe)
 
 	MD5Init(&context);
 	while (len = fread(buffer, 1, BUFSIZ, stdin)) {
-		if(pipe && (len != fwrite(buffer, 1, len, stdout)))
-			perror(stdout);
+		if(pipe && (len != fwrite(buffer, 1, len, stdout))) {
+			perror("stdout");
+			exit(1);
+		}
 		MD5Update(&context, buffer, len);
 	}
 	printf("%s\n", MD5End(&context));
