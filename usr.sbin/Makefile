@@ -66,7 +66,6 @@ SUBDIR=	ac \
 	jls \
 	kbdcontrol \
 	kbdmap \
-	kernbb \
 	${_keyserv} \
 	${_kgmon} \
 	${_kgzip} \
