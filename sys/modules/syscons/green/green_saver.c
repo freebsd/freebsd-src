@@ -25,20 +25,17 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: green_saver.c,v 1.12 1998/09/15 18:16:39 sos Exp $
+ *	$Id: green_saver.c,v 1.13 1998/09/17 19:40:30 sos Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/exec.h>
-#include <sys/sysent.h>
-#include <sys/lkm.h>
+#include <sys/kernel.h>
+#include <sys/module.h>
 
 #include <i386/isa/isa.h>
 
 #include <saver.h>
-
-MOD_MISC(green_saver);
 
 static void
 green_saver(int blank)
@@ -95,7 +92,7 @@ green_saver(int blank)
 }
 
 static int
-green_saver_load(struct lkm_table *lkmtp, int cmd)
+green_saver_load(void)
 {
 	switch (crtc_type) {
 	case KD_MONO:
@@ -116,14 +113,9 @@ green_saver_load(struct lkm_table *lkmtp, int cmd)
 }
 
 static int
-green_saver_unload(struct lkm_table *lkmtp, int cmd)
+green_saver_unload(void)
 {
 	return remove_scrn_saver(green_saver);
 }
 
-int
-green_saver_mod(struct lkm_table *lkmtp, int cmd, int ver)
-{
-	MOD_DISPATCH(green_saver, lkmtp, cmd, ver,
-		green_saver_load, green_saver_unload, lkm_nullcmd);
-}
+SAVER_MODULE(green_saver);

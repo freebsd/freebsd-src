@@ -25,20 +25,17 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: blank_saver.c,v 1.12 1998/09/15 18:16:38 sos Exp $
+ *	$Id: blank_saver.c,v 1.13 1998/09/17 19:40:29 sos Exp $
  */
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/exec.h>
-#include <sys/sysent.h>
-#include <sys/lkm.h>
+#include <sys/kernel.h>
+#include <sys/module.h>
 
 #include <i386/isa/isa.h>
 
 #include <saver.h>
-
-MOD_MISC(blank_saver);
 
 static void
 blank_saver(int blank)
@@ -91,7 +88,7 @@ blank_saver(int blank)
 }
 
 static int
-blank_saver_load(struct lkm_table *lkmtp, int cmd)
+blank_saver_load(void)
 {
 	switch (crtc_type) {
 	case KD_MONO:
@@ -108,14 +105,9 @@ blank_saver_load(struct lkm_table *lkmtp, int cmd)
 }
 
 static int
-blank_saver_unload(struct lkm_table *lkmtp, int cmd)
+blank_saver_unload(void)
 {
 	return remove_scrn_saver(blank_saver);
 }
 
-int
-blank_saver_mod(struct lkm_table *lkmtp, int cmd, int ver)
-{
-	MOD_DISPATCH(blank_saver, lkmtp, cmd, ver,
-		blank_saver_load, blank_saver_unload, lkm_nullcmd);
-}
+SAVER_MODULE(blank_saver);
