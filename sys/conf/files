@@ -1448,7 +1448,7 @@ netinet/ip_ecn.c	optional inet
 netinet/ip_ecn.c	optional inet6
 netinet/ip_encap.c	optional inet
 netinet/ip_encap.c	optional inet6
-netinet/ip_flow.c	optional inet
+netinet/ip_fastfwd.c	optional inet
 netinet/ip_fw2.c	optional ipfirewall
 netinet/ip_icmp.c	optional inet
 netinet/ip_input.c	optional inet

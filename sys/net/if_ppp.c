@@ -1537,7 +1537,7 @@ ppp_inproc(sc, m)
 	m->m_pkthdr.len -= PPP_HDRLEN;
 	m->m_data += PPP_HDRLEN;
 	m->m_len -= PPP_HDRLEN;
-	if (ipflow_fastforward(m))
+	if (ip_fastforward(m))
 	    return;
 	isr = NETISR_IP;
 	break;

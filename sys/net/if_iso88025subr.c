@@ -556,7 +556,7 @@ iso88025_input(ifp, m)
 #ifdef INET
 		case ETHERTYPE_IP:
 			th->iso88025_shost[0] &= ~(TR_RII); 
-			if (ipflow_fastforward(m))
+			if (ip_fastforward(m))
 				return;
 			isr = NETISR_IP;
 			break;
