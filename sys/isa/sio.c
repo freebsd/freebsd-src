@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: sio.c,v 1.228 1999/04/27 11:15:42 phk Exp $
+ *	$Id: sio.c,v 1.229 1999/05/06 18:44:35 peter Exp $
  *	from: @(#)com.c	7.5 (Berkeley) 5/16/91
  *	from: i386/isa sio.c,v 1.234
  */
@@ -150,6 +150,7 @@
 #define	COM_CONSOLE(flags)	((flags) & 0x10)
 #define	COM_FORCECONSOLE(flags)	((flags) & 0x20)
 #define	COM_LLCONSOLE(flags)	((flags) & 0x40)
+#define	COM_DEBUGGER(flags)	((flags) & 0x80)
 #define	COM_LOSESOUTINTS(flags)	((flags) & 0x08)
 #define	COM_NOFIFO(flags)		((flags) & 0x02)
 #define COM_ST16650A(flags)	((flags) & 0x20000)
@@ -377,9 +378,9 @@ static	volatile speed_t	gdbdefaultrate = CONSPEED;
 #endif
 static	u_int	com_events;	/* input chars + weighted output completions */
 static	Port_t	siocniobase;
-#ifdef __alpha__
+static	int	siocnunit;
 static	Port_t	siogdbiobase;
-#endif
+static	int	siogdbunit = -1;
 static	bool_t	sio_registered;
 static	int	sio_timeout;
 static	int	sio_timeouts_until_log;
@@ -2642,6 +2643,13 @@ static cn_checkc_t siocncheckc;
 
 CONS_DRIVER(sio, siocnprobe, siocninit, siocngetc, siocncheckc, siocnputc);
 
+/*
+ * Routines to support GDB on an sio port.
+ */
+extern	dev_t	gdbdev;
+extern	cn_getc_t *gdb_getc;
+extern	cn_putc_t *gdb_putc;
+
 #endif
 
 static void
@@ -2796,15 +2804,16 @@ siocnprobe(cp)
 		int flags;
 		if (resource_int_value("sio", unit, "flags", &flags))
 			continue;
-		if (COM_CONSOLE(flags)) {
+		if (COM_CONSOLE(flags) || COM_DEBUGGER(flags)) {
 			int port;
+			Port_t iobase;
+
 			if (resource_int_value("sio", unit, "port", &port))
 				continue;
-			siocniobase = port;
+			iobase = port;
 			s = spltty();
 			if (boothowto & RB_SERIAL) {
-				boot_speed = siocngetspeed(siocniobase,
-							   comspeedtab);
+				boot_speed = siocngetspeed(iobase, comspeedtab);
 				if (boot_speed)
 					comdefaultrate = boot_speed;
 			}
@@ -2818,24 +2827,48 @@ siocnprobe(cp)
 			 * need to set the speed in hardware so that
 			 * switching it later is null.
 			 */
-			cfcr = inb(siocniobase + com_cfcr);
-			outb(siocniobase + com_cfcr, CFCR_DLAB | cfcr);
-			outb(siocniobase + com_dlbl,
+			cfcr = inb(iobase + com_cfcr);
+			outb(iobase + com_cfcr, CFCR_DLAB | cfcr);
+			outb(iobase + com_dlbl,
 			     COMBRD(comdefaultrate) & 0xff);
-			outb(siocniobase + com_dlbh,
+			outb(iobase + com_dlbh,
 			     (u_int) COMBRD(comdefaultrate) >> 8);
-			outb(siocniobase + com_cfcr, cfcr);
+			outb(iobase + com_cfcr, cfcr);
 
-			siocnopen(&sp, siocniobase, comdefaultrate);
+			siocnopen(&sp, iobase, comdefaultrate);
+
 			splx(s);
-			if (!COM_LLCONSOLE(flags)) {
+			if (COM_CONSOLE(flags) && !COM_LLCONSOLE(flags)) {
 				cp->cn_dev = makedev(CDEV_MAJOR, unit);
 				cp->cn_pri = COM_FORCECONSOLE(flags)
 					     || boothowto & RB_SERIAL
 					     ? CN_REMOTE : CN_NORMAL;
+				printf("sio%d: system console\n", unit);
+				siocniobase = iobase;
+				siocnunit = unit;
 			}
-			break;
+			if (COM_DEBUGGER(flags) && !COM_LLCONSOLE(flags)) {
+				printf("sio%d: gdb debugging port\n", unit);
+				siogdbiobase = iobase;
+				siogdbunit = unit;
+				gdbdev = makedev(CDEV_MAJOR, unit);
+				gdb_getc = siocngetc;
+				gdb_putc = siocnputc;
+			}
 		}
+	}
+	/*
+	 * XXX Ugly Compatability.
+	 * If no gdb port has been specified, set it to be the console
+	 * as some configuration files don't specify the gdb port.
+	 */
+	if (gdbdev == -1) {
+		printf("sio%d: gdb debugging port\n", siocnunit);
+		siogdbiobase = siocniobase;
+		siogdbunit = siocnunit;
+		gdbdev = makedev(CDEV_MAJOR, siocnunit);
+		gdb_getc = siocngetc;
+		gdb_putc = siocnputc;
 	}
 }
 
@@ -2947,7 +2980,10 @@ siocncheckc(dev)
 	int	s;
 	struct siocnstate	sp;
 
-	iobase = siocniobase;
+	if (minor(dev) == siogdbunit)
+		iobase = siogdbiobase;
+	else
+		iobase = siocniobase;
 	s = spltty();
 	siocnopen(&sp, iobase, comdefaultrate);
 	if (inb(iobase + com_lsr) & LSR_RXRDY)
@@ -2969,7 +3005,10 @@ siocngetc(dev)
 	int	s;
 	struct siocnstate	sp;
 
-	iobase = siocniobase;
+	if (minor(dev) == siogdbunit)
+		iobase = siogdbiobase;
+	else
+		iobase = siocniobase;
 	s = spltty();
 	siocnopen(&sp, iobase, comdefaultrate);
 	while (!(inb(iobase + com_lsr) & LSR_RXRDY))
@@ -2987,12 +3026,17 @@ siocnputc(dev, c)
 {
 	int	s;
 	struct siocnstate	sp;
+	Port_t	iobase;
 
+	if (minor(dev) == siogdbunit)
+		iobase = siogdbiobase;
+	else
+		iobase = siocniobase;
 	s = spltty();
-	siocnopen(&sp, siocniobase, comdefaultrate);
-	siocntxwait(siocniobase);
-	outb(siocniobase + com_data, c);
-	siocnclose(&sp, siocniobase);
+	siocnopen(&sp, iobase, comdefaultrate);
+	siocntxwait(iobase);
+	outb(iobase + com_data, c);
+	siocnclose(&sp, iobase);
 	splx(s);
 }
 
