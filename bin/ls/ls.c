@@ -75,6 +75,7 @@ int f_accesstime;		/* use time of last access */
 int f_column;			/* columnated format */
 int f_flags;			/* show flags associated with a file */
 int f_inode;			/* print inode */
+int f_kblocks;			/* print size in kilobytes */
 int f_listdir;			/* list actual directory, not contents */
 int f_listdot;			/* list files beginning with . */
 int f_longform;			/* long listing format */
@@ -119,7 +120,7 @@ main(argc, argv)
 		f_listdot = 1;
 
 	fts_options = FTS_PHYSICAL;
-	while ((ch = getopt(argc, argv, "1ACFLRTacdfgiloqrstu")) != EOF) {
+	while ((ch = getopt(argc, argv, "1ACFLRTacdfgikloqrstu")) != EOF) {
 		switch (ch) {
 		/*
 		 * The -1, -C and -l options all override each other so shell
@@ -175,6 +176,9 @@ main(argc, argv)
 		case 'i':
 			f_inode = 1;
 			break;
+		case 'k':
+			f_kblocks = 1;
+			break;
 		case 'o':
 			f_flags = 1;
 			break;
@@ -218,7 +222,9 @@ main(argc, argv)
 	/* If -l or -s, figure out block size. */
 	if (f_longform || f_size) {
 		(void)getbsize(&notused, &blocksize);
-		blocksize /= 512;
+		    blocksize /= 512;
+		if (f_kblocks)
+		    blocksize *= 2;
 	}
 
 	/* Select a sort function. */
