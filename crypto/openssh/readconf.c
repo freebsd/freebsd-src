@@ -106,12 +106,8 @@ typedef enum {
 	oClearAllForwardings, oNoHostAuthenticationForLocalhost,
 	oEnableSSHKeysign, oRekeyLimit, oVerifyHostKeyDNS, oConnectTimeout,
 	oAddressFamily, oGssAuthentication, oGssDelegateCreds,
-<<<<<<< readconf.c
-	oServerAliveInterval, oServerAliveCountMax,
-	oVersionAddendum,
-=======
 	oServerAliveInterval, oServerAliveCountMax, oIdentitiesOnly,
->>>>>>> 1.1.1.15
+	oVersionAddendum,
 	oDeprecated, oUnsupported
 } OpCodes;
 
