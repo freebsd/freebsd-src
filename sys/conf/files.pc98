@@ -314,9 +314,9 @@ dev/syscons/sysmouse.c		optional	sc
 i386/isa/tw.c			optional	tw
 pc98/pc98/wd.c			optional	wdc
 pc98/pc98/wd.c			optional	wd
-i386/isa/wd_cd.c		optional	wcd
-i386/isa/wfd.c			optional	wfd
-i386/isa/wst.c			optional	wst
+pc98/pc98/wd_cd.c		optional	wcd
+pc98/pc98/wfd.c			optional	wfd
+pc98/pc98/wst.c			optional	wst
 i386/isa/wt.c			optional	wt
 i386/linux/imgact_linux.c	optional	compat_linux
 i386/linux/linux_dummy.c	optional	compat_linux
