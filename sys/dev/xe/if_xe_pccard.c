@@ -309,6 +309,7 @@ xe_pccard_detach(device_t dev)
 static const struct pccard_product xe_pccard_products[] = {
 	PCMCIA_CARD(ACCTON, EN2226, 0),
 	PCMCIA_CARD(COMPAQ2, CPQ_10_100, 0),
+	PCMCIA_CARD(INTEL, EEPRO100, 0),
 	PCMCIA_CARD(XIRCOM, CE, 0),
 	PCMCIA_CARD(XIRCOM, CE2, 0),
 	PCMCIA_CARD(XIRCOM, CE3, 0),
