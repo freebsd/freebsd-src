@@ -207,7 +207,7 @@ io_apic_setup(int apic)
 		
 		/* program the appropriate registers */
 		if (apic != 0 || pin != irq)
-			printf("IOAPIC #%d intpint %d -> irq %d\n",
+			printf("IOAPIC #%d intpin %d -> irq %d\n",
 			       apic, pin, irq);
 		select = pin * 2 + IOAPIC_REDTBL0;	/* register */
 		vector = NRSVIDT + irq;			/* IDT vec */
