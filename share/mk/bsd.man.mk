@@ -1,4 +1,4 @@
-#	$Id: bsd.man.mk,v 1.14 1996/08/11 12:31:57 peter Exp $
+#	$Id: bsd.man.mk,v 1.15 1996/08/26 10:55:32 peter Exp $
 #
 # The include file <bsd.man.mk> handles installing manual pages and 
 # their links. <bsd.man.mk> includes the file named "../Makefile.inc" 
@@ -73,14 +73,23 @@ all-man: ${MANDEPEND}
 .if defined(NOMANCOMPRESS)
 
 COPY=		-c
+
+# Make special arrangements to filter to a temporary file at build time
+# for NOMANCOMPRESS.
+.if defined(MANFILTER)
+FILTEXTENSION=		.filt
+.else
+FILTEXTENSION=
+.endif
+
 ZEXT=
 
 .if defined(MANFILTER)
 .for sect in ${SECTIONS}
 .if defined(MAN${sect}) && !empty(MAN${sect})
-CLEANFILES+=	${MAN${sect}}
+CLEANFILES+=	${MAN${sect}:T:S/$/${FILTEXTENSION}/g}
 .for page in ${MAN${sect}}
-.for target in ${page}
+.for target in ${page:T:S/$/${FILTEXTENSION}/g}
 all-man: ${target}
 ${target}: ${page}
 	${MANFILTER} < ${.ALLSRC} > ${.TARGET}
@@ -118,7 +127,13 @@ maninstall::
 .if defined(MAN${sect}) && !empty(MAN${sect})
 maninstall:: ${MAN${sect}}
 .if defined(NOMANCOMPRESS)
+.if defined(MANFILTER)
+.for page in ${MAN${sect}}
+	${MINSTALL} ${page:T:S/$/${FILTEXTENSION}/g} ${DESTDIR}${MANDIR}${sect}${MANSUBDIR}/${page}
+.endfor
+.else
 	${MINSTALL} ${.ALLSRC} ${DESTDIR}${MANDIR}${sect}${MANSUBDIR}
+.endif
 .else
 	${MINSTALL} ${.ALLSRC:T:S/$/${ZEXTENSION}/g} \
 		${DESTDIR}${MANDIR}${sect}${MANSUBDIR}
