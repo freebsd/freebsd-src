@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kernel.h	8.3 (Berkeley) 1/21/94
- * $Id: kernel.h,v 1.51 1999/01/28 17:30:51 dillon Exp $
+ * $Id: kernel.h,v 1.52 1999/01/29 08:12:49 dillon Exp $
  */
 
 #ifndef _SYS_KERNEL_H_
@@ -284,7 +284,7 @@ struct kproc_desc {
 	struct proc	**global_procpp;	/* ptr to proc ptr save area*/
 };
 
-void	kproc_start __P((void *udata));
+void	kproc_start __P((const void *udata));
 void	sysinit_add __P((struct sysinit **set));
 
 #ifdef PSEUDO_LKM
