@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_output.c	8.3 (Berkeley) 1/21/94
- *	$Id: ip_output.c,v 1.40 1996/06/08 08:18:59 bde Exp $
+ *	$Id: ip_output.c,v 1.41 1996/07/10 19:44:26 julian Exp $
  */
 
 #define _IP_VHL
@@ -331,6 +331,19 @@ ip_output(m0, opt, ro, flags, imo)
 	}
 
 sendit:
+        /*
+	 * IpHack's section.
+	 * - Xlate: translate packet's addr/port (NAT).
+	 * - Firewall: deny/allow
+	 * - Wrap: fake packet's addr/port <unimpl.>
+	 * - Encapsulate: put it in another IP and send out. <unimp.>
+	 */ 
+
+        if (ip_nat_ptr && !(*ip_nat_ptr)(&ip, &m, IP_NAT_OUT)) {
+		error = EACCES; 
+		goto done;
+	}
+
 #ifdef COMPAT_IPFW
 	/*
 	 * Check with the firewall...
