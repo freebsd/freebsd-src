@@ -1394,14 +1394,12 @@ vm_map_protect(vm_map_t map, vm_offset_t start, vm_offset_t end,
 		 * here -- CHECK THIS XXX
 		 */
 		if (current->protection != old_prot) {
-			mtx_lock(&Giant);
 #define MASK(entry)	(((entry)->eflags & MAP_ENTRY_COW) ? ~VM_PROT_WRITE : \
 							VM_PROT_ALL)
 			pmap_protect(map->pmap, current->start,
 			    current->end,
 			    current->protection & MASK(current));
 #undef	MASK
-			mtx_unlock(&Giant);
 		}
 		vm_map_simplify_entry(map, current);
 		current = current->next;

@@ -3014,7 +3014,9 @@ pmap_protect(pmap_t pm, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 	int flush;
 
 	if ((prot & VM_PROT_READ) == 0) {
+		mtx_lock(&Giant);
 		pmap_remove(pm, sva, eva);
+		mtx_unlock(&Giant);
 		return;
 	}
 
@@ -3026,6 +3028,7 @@ pmap_protect(pmap_t pm, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 		return;
 	}
 
+	mtx_lock(&Giant);
 
 	/*
 	 * OK, at this point, we know we're doing write-protect operation.
@@ -3091,6 +3094,7 @@ pmap_protect(pmap_t pm, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 			pmap_tlb_flushD(pm);
 	}
 
+	mtx_unlock(&Giant);
 }
 
 
