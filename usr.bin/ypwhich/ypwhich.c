@@ -103,7 +103,7 @@ struct sockaddr_in *sin;
 	} else {
 		if (ypbr.ypbind_status != YPBIND_SUCC_VAL) {
 			fprintf(stderr, "can't yp_bind: Reason: %s\n",
-				yperr_string(ypbr.ypbind_status));
+				ypbinderr_string(ypbr.ypbind_status));
 			clnt_destroy(client);
 			return r;
 		}
