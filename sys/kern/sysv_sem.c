@@ -494,14 +494,14 @@ __semctl(td, uap)
 	switch(cmd) {
 	case SEM_STAT:
 		if (semid < 0 || semid >= seminfo.semmsl)
-			return(EINVAL);
+			UGAR(EINVAL);
 		semaptr = &sema[semid];
 		if ((semaptr->sem_perm.mode & SEM_ALLOC) == 0 )
-			return(EINVAL);
+			UGAR(EINVAL);
 		if ((error = ipcperm(td, &semaptr->sem_perm, IPC_R)))
-			return(error);
+			UGAR(error);
 		if ((error = copyin(arg, &real_arg, sizeof(real_arg))) != 0)
-			return(error);
+			UGAR(error);
 		error = copyout((caddr_t)semaptr, real_arg.buf,
 			sizeof(struct semid_ds));
 		rval = IXSEQ_TO_IPCID(semid,semaptr->sem_perm);
