@@ -2820,6 +2820,7 @@ allocbuf(struct buf *bp, int size)
 			if (desiredpages < bp->b_npages) {
 				vm_page_t m;
 
+				VM_OBJECT_LOCK(bp->b_object);
 				vm_page_lock_queues();
 				for (i = desiredpages; i < bp->b_npages; i++) {
 					/*
@@ -2837,6 +2838,7 @@ allocbuf(struct buf *bp, int size)
 					vm_page_unwire(m, 0);
 				}
 				vm_page_unlock_queues();
+				VM_OBJECT_UNLOCK(bp->b_object);
 				pmap_qremove((vm_offset_t) trunc_page((vm_offset_t)bp->b_data) +
 				    (desiredpages << PAGE_SHIFT), (bp->b_npages - desiredpages));
 				bp->b_npages = desiredpages;
