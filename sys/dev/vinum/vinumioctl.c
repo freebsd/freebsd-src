@@ -41,6 +41,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
+ * $Id: vinumioctl.c,v 1.11 1999/10/13 02:19:25 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -329,9 +330,6 @@ vinumioctl(dev_t dev,
 	sd = &SD[objno];
 
 	switch (cmd) {
-	case VINUM_INITSD:				    /* initialize subdisk */
-	    return initsd(objno);
-
 	case DIOCGDINFO:				    /* get disk label */
 	    get_volume_label(sd->name, 1, sd->sectors, (struct disklabel *) data);
 	    break;
