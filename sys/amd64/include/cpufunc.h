@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cpufunc.h,v 1.40 1995/08/26 20:45:59 bde Exp $
+ *	$Id: cpufunc.h,v 1.41 1995/10/05 10:32:47 phk Exp $
  */
 
 /*
@@ -296,35 +296,6 @@ write_eflags(u_long ef)
 	__asm __volatile("pushl %0; popfl" : : "r" (ef));
 }
 
-/*
- * XXX queue stuff belongs elsewhere.
- */
-struct quehead {
-	struct quehead *qh_link;
-	struct quehead *qh_rlink;
-};
-
-static __inline void
-insque(void *a, void *b)
-{
-	struct quehead *element = a, *head = b;
-
-	element->qh_link = head->qh_link;
-	element->qh_rlink = head;
-	head->qh_link = element;
-	element->qh_link->qh_rlink = element;
-}
-
-static __inline void
-remque(void *a)
-{
-	struct quehead *element = a;
-
-	element->qh_link->qh_rlink = element->qh_rlink;
-	element->qh_rlink->qh_link = element->qh_link;
-	element->qh_rlink = 0;
-}
-
 #else /* !__GNUC__ */
 
 int	bdb		__P((void));
@@ -347,9 +318,6 @@ void	pmap_update	__P((void));
 u_long	read_eflags	__P((void));
 u_long	rcr2		__P((void));
 void	write_eflags	__P((u_long ef));
-
-void	insque		__P((void *a, void *b));
-void	remque		__P((void *a));
 
 #endif	/* __GNUC__ */
 

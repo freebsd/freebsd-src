@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)raw_cb.c	8.1 (Berkeley) 6/10/93
- * $Id: raw_cb.c,v 1.4 1995/05/30 08:08:21 rgrimes Exp $
+ * $Id: raw_cb.c,v 1.5 1995/07/29 11:40:59 bde Exp $
  */
 
 #include <sys/param.h>
@@ -41,6 +41,7 @@
 #include <sys/socketvar.h>
 #include <sys/domain.h>
 #include <sys/protosw.h>
+#include <sys/queue.h>
 #include <sys/errno.h>
 
 #include <net/if.h>
