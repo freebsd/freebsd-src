@@ -248,7 +248,7 @@ tags:
   
 install install.debug:
 	@if [ ! -f ${KERNEL}${.TARGET:S/install//} ] ; then \
-		echo "You must first build a kernel first." ; \
+		echo "You must build a kernel first." ; \
 		exit 1 ; \
 	fi
 .if exists(${DESTDIR}/${KERNEL})
