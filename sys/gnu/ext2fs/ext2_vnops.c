@@ -306,7 +306,7 @@ ext2_create(ap)
  *
  * Nothing to do.
  */
-int
+static int
 ext2_open(ap)
 	struct vop_open_args /* {
 		struct vnode *a_vp;
@@ -452,7 +452,7 @@ ext2_getattr(ap)
 /*
  * Set attribute vnode op. called from several syscalls
  */
-int
+static int
 ext2_setattr(ap)
 	struct vop_setattr_args /* {
 		struct vnode *a_vp;
@@ -1054,7 +1054,7 @@ abortit:
 		vput(tdvp);
 	} else {
 		if (xp->i_dev != dp->i_dev || xp->i_dev != ip->i_dev)
-			panic("ext2_rename: EXDEV");
+		       panic("ext2_rename: EXDEV");
 		/*
 		 * Short circuit rename(foo, foo).
 		 */
@@ -1101,9 +1101,9 @@ abortit:
 		 * decrement the link count on the parent
 		 * of the target directory.
 		 */
-		 if (doingdirectory && !newparent) {
-			dp->i_nlink--;
-			dp->i_flag |= IN_CHANGE;
+		if (doingdirectory && !newparent) {
+		       dp->i_nlink--;
+		       dp->i_flag |= IN_CHANGE;
 		}
 		vput(tdvp);
 		/*
@@ -1503,7 +1503,7 @@ ext2_readlink(ap)
  * In order to be able to swap to a file, the ext2_bmaparray() operation may not
  * deadlock on memory.  See ext2_bmap() for details.
  */
-int
+static int
 ext2_strategy(ap)
 	struct vop_strategy_args /* {
 		struct vnode *a_vp;
@@ -1544,7 +1544,7 @@ ext2_strategy(ap)
 /*
  * Print out the contents of an inode.
  */
-int
+static int
 ext2_print(ap)
 	struct vop_print_args /* {
 		struct vnode *a_vp;
@@ -1564,7 +1564,7 @@ ext2_print(ap)
 /*
  * Read wrapper for special devices.
  */
-int
+static int
 ext2spec_read(ap)
 	struct vop_read_args /* {
 		struct vnode *a_vp;
@@ -1593,7 +1593,7 @@ ext2spec_read(ap)
 /*
  * Write wrapper for special devices.
  */
-int
+static int
 ext2spec_write(ap)
 	struct vop_write_args /* {
 		struct vnode *a_vp;
@@ -1620,7 +1620,7 @@ ext2spec_write(ap)
  *
  * Update the times on the inode then do device close.
  */
-int
+static int
 ext2spec_close(ap)
 	struct vop_close_args /* {
 		struct vnode *a_vp;
@@ -1641,7 +1641,7 @@ ext2spec_close(ap)
 /*
  * Read wrapper for fifos.
  */
-int
+static int
 ext2fifo_read(ap)
 	struct vop_read_args /* {
 		struct vnode *a_vp;
@@ -1667,7 +1667,7 @@ ext2fifo_read(ap)
 /*
  * Write wrapper for fifos.
  */
-int
+static int
 ext2fifo_write(ap)
 	struct vop_write_args /* {
 		struct vnode *a_vp;
@@ -1694,7 +1694,7 @@ ext2fifo_write(ap)
  *
  * Update the times on the inode then do device close.
  */
-int
+static int
 ext2fifo_close(ap)
 	struct vop_close_args /* {
 		struct vnode *a_vp;
@@ -1717,7 +1717,7 @@ ext2fifo_close(ap)
  *
  * Fall through to ext2 kqfilter routines if needed 
  */
-int
+static int
 ext2fifo_kqfilter(ap)
 	struct vop_kqfilter_args *ap;
 {
@@ -1732,7 +1732,7 @@ ext2fifo_kqfilter(ap)
 /*
  * Return POSIX pathconf information applicable to ext2 filesystems.
  */
-int
+static int
 ext2_pathconf(ap)
 	struct vop_pathconf_args /* {
 		struct vnode *a_vp;
