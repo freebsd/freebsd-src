@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_shutdown.c	8.3 (Berkeley) 1/21/94
- * $Id: kern_shutdown.c,v 1.13 1997/02/22 09:39:10 peter Exp $
+ * $Id: kern_shutdown.c,v 1.14 1997/04/26 11:46:14 peter Exp $
  */
 
 #include "opt_ddb.h"
@@ -376,15 +376,14 @@ panic(const char *fmt, ...)
 	else
 		panicstr = fmt;
 
-#ifdef SMP
-	printf("panic (cpu#%d): ", cpunumber());
-#else
 	printf("panic: ");
-#endif
 	va_start(ap, fmt);
 	vprintf(fmt, ap);
 	va_end(ap);
 	printf("\n");
+#ifdef SMP
+	printf(" cpu#%d\n", cpunumber());
+#endif
 
 #if defined(DDB)
 	if (debugger_on_panic)
