@@ -1123,7 +1123,6 @@ cbb_intr(void *arg)
 	 */
 	sockevent = cbb_get(sc, CBB_SOCKET_EVENT);
 	if (sockevent != 0) {
-		DPRINTF(("CBB EVENT 0x%x\n", sockevent));
 		/* ack the interrupt */
 		cbb_setb(sc, CBB_SOCKET_EVENT, sockevent);
 
@@ -1145,7 +1144,6 @@ cbb_intr(void *arg)
 			cbb_setb(sc, CBB_SOCKET_MASK, CBB_SOCKET_MASK_CD);
 			sc->flags &= ~CBB_CARD_OK;
 			cbb_disable_func_intr(sc);
-			DPRINTF(("Waking up thread\n"));
 			cv_signal(&sc->cv);
 			mtx_unlock(&sc->mtx);
 		}
@@ -1768,6 +1766,7 @@ cbb_pcic_alloc_resource(device_t brdev, device_t child, int type, int *rid,
 {
 	struct resource *res = NULL;
 	struct cbb_softc *sc = device_get_softc(brdev);
+	int align;
 	int tmp;
 
 	switch (type) {
@@ -1776,8 +1775,20 @@ cbb_pcic_alloc_resource(device_t brdev, device_t child, int type, int *rid,
 			start = cbb_start_mem;
 		if (end < start)
 			end = start;
-		flags = (flags & ~RF_ALIGNMENT_MASK) |
-		    rman_make_alignment_flags(CBB_MEMALIGN);
+		if (count < CBB_MEMALIGN)
+			align = CBB_MEMALIGN;
+		else
+			align = count;
+		if (align > (1 << RF_ALIGNMENT(flags)))
+			flags = (flags & ~RF_ALIGNMENT_MASK) | 
+			    rman_make_alignment_flags(align);
+		if (count < CBB_MEMALIGN)
+			align = CBB_MEMALIGN;
+		else
+			align = count;
+		if (align > (1 << RF_ALIGNMENT(flags)))
+			flags = (flags & ~RF_ALIGNMENT_MASK) | 
+			    rman_make_alignment_flags(align);
 		break;
 	case SYS_RES_IOPORT:
 		if (start < cbb_start_16_io)
