@@ -125,7 +125,19 @@
 ]]>
 
 <![ %release.type.snapshot [
-    <para>No active updates.</para>
+
+    <para>Certain <application>OpenSSH</application>
+    clients, when attempting to connect to a &os; &release.prev;
+    server, will unexpectedly present an
+    <application>S/Key</application> prompt, even if &man.sshd.8; on
+    the server has not been configured for
+    <application>S/Key</application> authentication.  As a workaround,
+    uncomment the
+    <literal>ChallengeResponseAuthentication no</literal> line in
+    <filename>/etc/ssh/sshd_config</filename> (on the server
+    host).  This behavior has been observed with
+    <application>OpenSSH</application> 3.0.1 and 3.0.2 clients.</para>
+
 ]]>
   </sect1>
 </article>
