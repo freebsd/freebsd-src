@@ -10,6 +10,7 @@ MLINKS+=md4.3 MD4End.3  md4.3 MD4File.3   md4.3 MD4Data.3
 MLINKS+=md5.3 MD5Init.3 md5.3 MD5Update.3 md5.3 MD5Final.3 
 MLINKS+=md5.3 MD5End.3  md5.3 MD5File.3   md5.3 MD5Data.3
 CLEANFILES+=	md[245]hl.c md[245].ref md[245].3
+CFLAGS+= -I${.CURDIR}
 
 md2hl.c: mdXhl.c
 	sed -e 's/mdX/md2/g' -e 's/MDX/MD2/g' $> > $@
@@ -75,5 +76,7 @@ beforeinstall: md2.ref md4.ref md5.ref md2.3 md4.3 md5.3
 	./mddriver | cmp ${.CURDIR}/md5.ref -
 	@echo MD5 passed test
 	-rm -f mddriver
+
+beforedepend:	md2hl.c md4hl.c md5hl.c
 
 .include <bsd.lib.mk>
