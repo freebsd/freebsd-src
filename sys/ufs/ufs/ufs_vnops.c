@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_vnops.c	8.27 (Berkeley) 5/27/95
- * $Id: ufs_vnops.c,v 1.116 1999/07/13 18:20:13 mckusick Exp $
+ * $Id: ufs_vnops.c,v 1.117 1999/08/08 18:43:04 phk Exp $
  */
 
 #include "opt_quota.h"
@@ -398,14 +398,14 @@ ufs_getattr(ap)
 	vap->va_gen = ip->i_gen;
 
 	/*
-	 * Use the information contained in v_specinfo for VBLK and VCHR
+	 * Use the information contained in v_rdev for VBLK and VCHR
 	 * vnodes, and in the underlying mount point for (typically) VREG
 	 * vnodes.  Note that vp->v_specmountpoint can be NULL.
 	 */
 	if (vp->v_type == VBLK) {
-		vap->va_blocksize = vp->v_specinfo->si_bsize_best;
+		vap->va_blocksize = vp->v_rdev->si_bsize_best;
 	} else if (vp->v_type == VCHR) {
-		vap->va_blocksize = vp->v_specinfo->si_bsize_max;
+		vap->va_blocksize = vp->v_rdev->si_bsize_max;
 	} else {
 		vap->va_blocksize = vp->v_mount->mnt_stat.f_iosize;
 	}
