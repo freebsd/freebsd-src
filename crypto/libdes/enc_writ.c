@@ -56,8 +56,12 @@
  * [including the GNU Public Licence.]
  */
 
+#include <sys/types.h>
+#include <sys/uio.h>
 #include <errno.h>
 #include <time.h>
+#include <unistd.h>
+
 #include "des_locl.h"
 
 int des_enc_write(fd, buf, len, sched, iv)
