@@ -25,7 +25,7 @@ Zone Australia/Darwin	 8:43:20 -	LMT	1895 Feb
 			 9:30	-	CST	1917 Jan 1 0:01
 			 9:30	Aus	CST
 
-# ZONE-DESCR Australia Darwin Australia Northern Territory
+# ZONE-DESCR Australia Darwin Australia_ Northern Territory
 
 Zone Australia/Perth	 7:43:24 -	LMT	1895 Dec
 			 8:00	-	WST	1917 Jan 1 0:01
@@ -37,7 +37,7 @@ Zone Australia/Perth	 7:43:24 -	LMT	1895 Dec
 			 8:00	1:00	WST	1992 Mar Sun>=1 3:00
 			 8:00	-	WST
 
-# ZONE-DESCR Australia Perth Australia Western_Australia
+# ZONE-DESCR Australia Perth Australia_ Western_Australia
 
 Zone Australia/Brisbane	10:12:08 -	LMT	1895
 			10:00	-	EST	1917 Jan 1 0:01
@@ -51,7 +51,7 @@ Zone Australia/Brisbane	10:12:08 -	LMT	1895
 			10:00	1:00	EST	1992 Mar Sun>=1 3:00
 			10:00	-	EST
 
-# ZONE-DESCR Australia Brisbane Australia Queensland
+# ZONE-DESCR Australia Brisbane Australia_ Queensland
 
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	AS	1971	1985	-	Oct	lastSun	2:00	1:00	-
@@ -69,7 +69,7 @@ Zone Australia/Adelaide	9:14:20 -	LMT	1895 Feb
 			9:30	Aus	CST	1971 Oct lastSun 2:00
 			9:30	AS	CST
 
-# ZONE-DESCR Australia Adelaide Australia South Australia
+# ZONE-DESCR Australia Adelaide Australia_ South Australia
 
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	AT	1967	only	-	Oct	1	2:00	1:00	-
@@ -91,7 +91,7 @@ Zone Australia/Hobart	9:49:16	-	LMT	1895 Sep
 			10:00	Aus	EST	1967 Oct 1 2:00
 			10:00	AT	EST
 
-# ZONE-DESCR Australia Hobart Australia Tasmania
+# ZONE-DESCR Australia Hobart Australia_ Tasmania
 
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	AV	1971	1985	-	Oct	lastSun	2:00	1:00	-
@@ -107,7 +107,7 @@ Zone Australia/Melbourne 9:39:52 -	LMT	1895 Feb
 			10:00	Aus	EST	1971 Oct 31 2:00
 			10:00	AV	EST
 
-# ZONE-DESCR Australia Melbourne Australia Victoria
+# ZONE-DESCR Australia Melbourne Australia_ Victoria
 
 # Rule	NAME	FROM	TO	TYPE	IN	ON	AT	SAVE	LETTER/S
 Rule	AN	1971	1985	-	Oct	lastSun	2:00	1:00	-
@@ -125,7 +125,7 @@ Zone Australia/Sydney	10:04:52 -	LMT	1895 Feb
 			10:00	Aus	EST	1971 Oct 31 2:00
 			10:00	AN	EST
 
-# ZONE-DESCR Australia Sydney Australia New South Wales
+# ZONE-DESCR Australia Sydney Australia_ New South Wales
 
 Zone Australia/Broken_Hill 9:25:48 -	LMT	1895 Feb
 			10:00	-	EST	1896 Aug 23
@@ -134,18 +134,18 @@ Zone Australia/Broken_Hill 9:25:48 -	LMT	1895 Feb
 			9:30	Aus	CST	1971 Oct 31 2:00
 			9:30	AN	CST
 
-# ZONE-DESCR Australia Broken_Hill Australia County of Yancowinna, NSW
+# ZONE-DESCR Australia Broken_Hill Australia_ County of Yancowinna, NSW
 
 Zone Australia/Lord_Howe 10:36:20 -	LMT	1895 Feb
 			10:00	-	EST	1981 Mar
 			10:30	AN	LHST
 
-# ZONE-DESCR Australia Lord_Howe Australia Lord Howe Island
+# ZONE-DESCR Australia Lord_Howe Australia_ Lord Howe Island
 
 Zone Indian/Christmas	7:02:52 -	LMT	1895 Feb
 			7:00	-	JVT
 
-# ZONE-DESCR Indian Christmas Australia Christmas Island
+# ZONE-DESCR Indian Christmas Australia_ Christmas Island
 
 #
 # Ashmore Is, Cartier

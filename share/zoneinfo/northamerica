@@ -151,7 +151,7 @@ Zone America/Phoenix	-7:00	US	M%sT	1946
 # ZONE-DESCR America Fort_Wayne United_States Indiana (except Starke County)
 # ZONE-DESCR America Knox_IN United_States Indiana (Starke County)
 # ZONE-DESCR America Phoenix United_States Arizona (except Navajo Nation)
-# ZONE-DESCR . Navajo United_States Arizona (Navajo Nation)
+# ZONE-DESCR America Navajo United_States Arizona (Navajo Nation)
 
 # From Arthur David Olson (February 13, 1988):
 # However. . .a writer from the Inter Tribal Council of Arizona, Inc.,
@@ -160,7 +160,7 @@ Zone America/Phoenix	-7:00	US	M%sT	1946
 # large size and location in three states."  (The "only" means that other
 # tribal nations don't use DST.)
 
-Link America/Denver Navajo
+Link America/Denver America/Navajo
 
 # From Bob Devine (January 28, 1988):
 # Michigan didn't observe DST from 1968 to 1973.
@@ -178,7 +178,7 @@ Zone America/Detroit	-5:00	US	E%sT	1968
 # ordaining -- by a masterpiece of diplomatic flattery -- that
 # the Fourth of July should be celebrated twice in that year.''
 
-Zone Pacific/Samoa	 12:37:12 -	LMT	1879 Jul  5
+Zone Pacific/Pago_Pago	 12:37:12 -	LMT	1879 Jul  5
 			-11:22:48 -	LMT	1911
 			-11:30	-	SST	1950
 			-11:00	-	NST	1967 Apr	# N=Nome
@@ -206,8 +206,11 @@ Zone Pacific/Honolulu	-10:30	US	H%sT	1933 Apr 30 2:00
 			-10:30	US	H%sT	1947 Jun  8 2:00
 			-10:00	-	HST
 
-# ZONE-DESCR Pacific Samoa United_States American Samoa
-# ZONE-DESCR Pacific Samoa Western_Samoa All points
+# Same time in American and Western Samoa
+Link Pacific/Pago_Pago Pacific/Apia
+
+# ZONE-DESCR Pacific Pago_Pago United_States American Samoa
+# ZONE-DESCR Pacific Apia Western_Samoa All points
 # ZONE-DESCR Pacific Midway United_States Midway Island
 # ZONE-DESCR America Atka United_States Aleutian Islands
 # ZONE-DESCR Pacific Honolulu United_States Hawaii
