@@ -107,6 +107,8 @@ static void db_nextframe(struct i386_frame **, db_addr_t *, struct proc *);
 static int db_numargs(struct i386_frame *);
 static void db_print_stack_entry(const char *, int, char **, int *, db_addr_t);
 static void decode_syscall(int, struct proc *);
+static void db_trace_one_stack(int count, boolean_t have_addr,
+		struct proc *p, struct i386_frame *frame, db_addr_t callpc);
 
 
 static char * watchtype_str(int type);
@@ -284,14 +286,12 @@ db_stack_trace_cmd(addr, have_addr, count, modif)
 	db_expr_t count;
 	char *modif;
 {
-	int *argp;
 	struct i386_frame *frame;
 	struct proc *p;
 	struct pcb *pcb;
 	struct thread *td;
 	db_addr_t callpc;
 	pid_t pid;
-	boolean_t first;
 
 	if (count == -1)
 		count = 1024;
@@ -348,6 +348,54 @@ db_stack_trace_cmd(addr, have_addr, count, modif)
 		callpc = (db_addr_t)db_get_value((int)&frame->f_retaddr, 4, FALSE);
 		frame = frame->f_frame;
 	}
+	db_trace_one_stack(count, have_addr, p, frame, callpc);
+}
+
+void
+db_stack_thread(db_expr_t addr, boolean_t have_addr,
+		db_expr_t count, char *modif)
+{
+	struct i386_frame *frame;
+	struct thread *td;
+	struct proc *p;
+	struct pcb *pcb;
+	db_addr_t callpc;
+
+	if (!have_addr)
+		return;
+	if (!INKERNEL(addr)) {
+		printf("bad thread address");
+		return;
+	}
+	td = (struct thread *)addr;
+	/* quick sanity check */
+	if ((p = td->td_proc) != td->td_ksegrp->kg_proc)
+		return;
+	if (TD_IS_SWAPPED(td)) {
+		db_printf("thread at %p swapped out\n", td);
+		return;
+	}
+	if (td == curthread) {
+		frame = (struct i386_frame *)ddb_regs.tf_ebp;
+		if (frame == NULL)
+			frame = (struct i386_frame *)(ddb_regs.tf_esp - 4);
+		callpc = (db_addr_t)ddb_regs.tf_eip;
+	} else {
+		pcb = td->td_pcb;
+		frame = (struct i386_frame *)pcb->pcb_ebp;
+		if (frame == NULL)
+			frame = (struct i386_frame *) (pcb->pcb_esp - 4);
+		callpc = (db_addr_t)pcb->pcb_eip;
+	}
+	db_trace_one_stack(count, have_addr, p, frame, callpc);
+}
+
+static void
+db_trace_one_stack(int count, boolean_t have_addr,
+		struct proc *p, struct i386_frame *frame, db_addr_t callpc)
+{
+	int *argp;
+	boolean_t first;
 
 	first = TRUE;
 	while (count--) {

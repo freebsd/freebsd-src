@@ -112,7 +112,6 @@ userret(td, frame, oticks)
 	 */
 	if (p->p_flag & P_KSES) {
 		thread_userret(td, frame);
-		/* printf("KSE thread returned"); */
 	}
 
 	/*
