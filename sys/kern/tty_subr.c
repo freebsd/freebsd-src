@@ -6,12 +6,13 @@
  *   of this software, nor does the author assume any responsibility
  *   for damages incurred with its use.
  *
- * $Id: tty_subr.c,v 1.19 1995/12/14 08:32:04 phk Exp $
+ * $Id: tty_subr.c,v 1.20 1995/12/14 23:01:45 bde Exp $
  */
 
 /*
  * clist support routines
  */
+#include "opt_ddb.h"
 
 #include <sys/param.h>
 #include <sys/kernel.h>

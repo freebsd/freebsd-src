@@ -36,8 +36,10 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_prf.c	8.3 (Berkeley) 1/21/94
- * $Id: subr_prf.c,v 1.18 1995/08/24 12:54:11 davidg Exp $
+ * $Id: subr_prf.c,v 1.19 1995/12/14 08:31:41 phk Exp $
  */
+
+#include "opt_ddb.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
