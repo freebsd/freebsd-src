@@ -1,0 +1,253 @@
+.\"
+.\" Copyright (c) 1992, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\" All rights reserved.
+.\"
+.\" This code is derived from software donated to Berkeley by
+.\" Jan-Simon Pendry.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)mount_procfs.8	8.2 (Berkeley) 3/27/94
+.\"
+.\"
+.Dd March 27, 1994
+.Dt MOUNT_PROCFS 8
+.Os BSD 4.4
+.Sh NAME
+.Nm mount_procfs
+.Nd mount the process file system
+.Sh SYNOPSIS
+.Nm mount_procfs
+.Op Fl o Ar options
+.Pa /proc
+.Pa mount_point
+.Sh DESCRIPTION
+The
+.Nm mount_procfs
+command attaches an instance of the process
+namespace to the global filesystem namespace.
+The conventional mount point is
+.Pa /proc .
+This command is normally executed by
+.Xr mount 8
+at boot time.
+.Pp
+The options are as follows:
+.Bl -tag -width indent
+.It Fl o
+Options are specified with a
+.Fl o
+flag followed by a comma separated string of options.
+See the
+.Xr mount 8
+man page for possible options and their meanings.
+.El
+.Pp
+The root of the process filesystem
+contains an entry for each active process.
+These processes are visible as a directory whose
+name is the process' pid.
+In addition, the special entry
+.Pa curproc
+references the current process.
+.Pp
+Each directory contains several files.
+.Bl -tag -width status
+.It Pa ctl
+a writeonly file which supports a variety
+of control operations.
+Control commands are written as strings to the
+.Pa ctl
+file.
+The control commands are:
+.Bl -tag -width detach -compact
+.It attach
+stops the target process and arranges for the sending
+process to become the debug control process.
+.It detach
+continue execution of the target process and
+remove it from control by the debug process (which
+need not be the sending process).
+.It run
+continue running the target process until
+a signal is delivered, a breakpoint is hit, or the
+target process exits.
+.It step
+single step the target process, with no signal delivery.
+.It wait
+wait for the target process to come to a steady
+state ready for debugging.
+The target process must be in this state before
+any of the other commands are allowed.
+.El
+.Pp
+The string can also be the name of a signal, lower case
+and without the
+.Dv SIG
+prefix,
+in which case that signal is delivered to the process
+(see
+.Xr sigaction 2 ).
+.It Pa file
+A reference to the vnode from which the process text was read.
+This can be used to gain access to the process' symbol table,
+or to start another copy of the process.
+.It Pa mem
+The complete virtual memory image of the process.
+Only those address which exist in the process can be accessed.
+Reads and writes to this file modify the process.
+Writes to the text segment remain private to the process.
+.It Pa note
+Not implemented.
+.It Pa notepg
+Not implemented.
+.It Pa regs
+Allows read and write access to the process' register set.
+This file contains a binary data structure
+.Dv "struct regs"
+defined in
+.Pa <machine/reg.h> .
+.Pa regs
+can only be written when the process is stopped.
+.It Pa fpregs
+The floating point registers as defined by
+.Dv "struct fpregs"
+in
+.Pa <machine/reg.h> .
+.Pa fpregs
+is only implemented on machines which have distinct general
+purpose and floating point register sets.
+.It Pa status
+The process status.
+This file is readonly and returns a single line containing
+multiple space-separated fields as follows:
+.Pp
+.Bl -bullet -compact
+.It
+command name
+.It
+process id
+.It
+parent process id
+.It
+process group id
+.It
+session id
+.It
+.Ar major,minor
+of the controlling terminal, or
+.Dv -1,-1
+if there is no controlling terminal.
+.It
+a list of process flags:
+.Dv ctty
+if there is a controlling terminal,
+.Dv sldr
+if the process is a session leader,
+.Dv noflags
+if neither of the other two flags are set.
+.It
+the process start time in seconds and microseconds,
+comma separated.
+.It
+the user time in seconds and microseconds,
+comma separated.
+.It
+the system time in seconds and microseconds,
+comma separated.
+.It
+the wait channel message
+.It
+the process credentials consisting of
+the effective user id
+and the list of groups (whose first member
+is the effective group id)
+all comma separated.
+.El
+.El
+.Pp
+In a normal debugging environment,
+where the target is fork/exec'd by the debugger,
+the debugger should fork and the child should stop
+itself (with a self-inflicted
+.Dv SIGSTOP
+for example).
+The parent should issue a
+.Dv wait
+and then an
+.Dv attach
+command via the appropriate
+.Pa ctl
+file.
+The child process will receive a
+.Dv SIGTRAP
+immediately after the call to exec (see
+.Xr execve 2 ).
+.Sh FILES
+.Bl -tag -width /proc/curproc -compact
+.It Pa /proc/#
+.It Pa /proc/curproc
+.It Pa /proc/curproc/ctl
+.It Pa /proc/curproc/file
+.It Pa /proc/curproc/mem
+.It Pa /proc/curproc/note
+.It Pa /proc/curproc/notepg
+.It Pa /proc/curproc/regs
+.It Pa /proc/curproc/fpregs
+.It Pa /proc/curproc/status
+.El
+.Sh SEE ALSO
+.Xr sigaction 2 ,
+.Xr mount 2 ,
+.Xr unmount 2 ,
+.Sh CAVEATS
+No
+.Pa .
+and
+.Pa ..
+entries appear when listing the contents of the
+.Pa /proc
+directory.
+This makes sense in the context of this filesystem, but is inconsistent
+with usual filesystem conventions.
+However, it is still possible to refer to both
+.Pa .
+and 
+.Pa ..
+in a pathname.
+.Pp
+This filesystem may not be NFS-exported
+since most of the functionality of
+.Dv procfs
+requires that state be maintained.
+.Sh HISTORY
+The
+.Nm mount_procfs
+utility first appeared in 4.4BSD.

@@ -1,0 +1,124 @@
+.\" Copyright (c) 1980, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by the University of
+.\"	California, Berkeley and its contributors.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"     @(#)savecore.8	8.1 (Berkeley) 6/5/93
+.\"
+.Dd June 5, 1993
+.Dt SAVECORE 8
+.Os BSD 4
+.Sh NAME
+.Nm savecore
+.Nd "save a core dump of the operating system"
+.Sh SYNOPSIS
+.Nm savecore
+.Fl c
+.Nm savecore
+.Op Fl fvz
+.Op Fl N Ar system
+.Ar directory
+.Sh DESCRIPTION
+.Nm Savecore
+copies the currently running kernel and its associated core dump into
+.Fa directory ,
+and enters a reboot message and information about the core dump into
+the system log.
+.Pp
+The options are as follows:
+.Bl -tag -width directory
+.It Fl c
+Clears the dump, so that future invocations of
+.Nm savecore
+will ignore it.
+.It Fl f
+Forces a dump to be taken even if the dump doesn't appear correct or there
+is insufficient disk space.
+.It Fl N
+Use
+.Ar system
+as the kernel instead of the default ``/vmunix''.
+.It Fl v
+Prints out some additional debugging information.
+.It Fl z
+Compresses the core dump and kernel (see
+.Xr compress 1 ).
+.El
+.Pp
+.Nm Savecore
+checks the core dump in various ways to make sure that it is current and
+that it corresponds to the currently running system.
+If it passes these checks, it saves the core image in
+.Ar directory Ns Pa /vmcore.#
+and the system in
+.Ar directory Ns Pa /vmunix.#
+The ``#'' is the number from the first line of the file
+.Ar directory Ns Pa /bounds ,
+and it is incremented and stored back into the file each time
+.Nm savecore
+successfully runs.
+.Pp
+.Nm Savecore
+also checks the available disk space before attempting to make the copies.
+If there is insufficient disk space in the filesystem containing
+.Ar directory ,
+or if the file
+.Ar directory Ns Pa /minfree
+exists and the number of free kilobytes (for non-superusers) in the
+filesystem after the copies were made would be less than the number
+in the first line of this file, the copies are not attempted.
+.Pp
+If
+.Nm savecore
+successfully copies the kernel and the core dump, the core dump is cleared
+so that future invocations of
+.Nm savecore
+will ignore it.
+.Pp
+.Nm Savecore
+is meant to be called near the end of the initialization file
+.Pa /etc/rc
+(see
+.Xr rc 8 ) .
+.Sh FILES
+.Bl -tag -width /vmunixxx -compact
+.It Pa /vmunix
+current
+.Tn UNIX
+.El
+.Sh BUGS
+The minfree code does not consider the effect of compression.
+.Sh SEE ALSO
+.Xr compress 1 ,
+.Xr syslogd 8
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.Bx 4.1 .
