@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: yppasswdd_main.c,v 1.9 1997/02/22 16:12:56 peter Exp $
+ *	$Id: yppasswdd_main.c,v 1.2 1997/07/28 18:31:11 wpaul Exp $
  */
 
 #include "yppasswd.h"
@@ -59,7 +59,7 @@
 struct dom_binding {};
 #include <rpcsvc/ypclnt.h>
 #include "yppasswdd_extern.h"
-#include "yppasswd_comm.h"
+#include "yppasswd_private.h"
 #include "ypxfr_extern.h"
 
 #ifndef SIG_PF
@@ -72,7 +72,7 @@ struct dom_binding {};
 
 #define	_RPCSVC_CLOSEDOWN 120
 #ifndef lint
-static const char rcsid[] = "$Id: yppasswdd_main.c,v 1.9 1997/02/22 16:12:56 peter Exp $";
+static const char rcsid[] = "$Id: yppasswdd_main.c,v 1.2 1997/07/28 18:31:11 wpaul Exp $";
 #endif /* not lint */
 int _rpcpmstart = 0;		/* Started by a port monitor ? */
 static int _rpcfdtype;
@@ -96,54 +96,13 @@ int multidomain = 0;
 int verbose = 0;
 int resvport = 1;
 int inplace = 0;
-int yp_sock;
-
-
-static void
-my_svc_run()
-{
-#ifdef FD_SETSIZE
-	fd_set readfds;
-#else
-      int readfds;
-#endif /* def FD_SETSIZE */
-	extern int errno;
-
-	for (;;) {
-
-
-#ifdef FD_SETSIZE
-		readfds = svc_fdset;
-#else
-		readfds = svc_fds;
-#endif /* def FD_SETSIZE */
-		FD_SET(yp_sock, &readfds);
-
-		switch (select(_rpc_dtablesize(), &readfds, (fd_set *)0, (fd_set *)0,
-			       (struct timeval *)0)) {
-		case -1:
-			if (errno == EINTR) {
-				continue;
-			}
-			perror("svc_run: - select failed");
-			return;
-		case 0:
-			continue;
-		default:
-			if (FD_ISSET(yp_sock, &readfds)) {
-				do_master();
-				FD_CLR(yp_sock, &readfds);
-			}
-			svc_getreqset(&readfds);
-		}
-	}
-}
+char *sockname = YP_SOCKNAME;
 
 static void terminate(sig)
 	int sig;
 {
 	svc_unregister(YPPASSWDPROG, YPPASSWDVERS);
-	close(yp_sock);
+	svc_unregister(MASTER_YPPASSWDPROG, MASTER_YPPASSWDVERS);
 	unlink(sockname);
 	exit(0);
 }
@@ -163,7 +122,6 @@ closedown(int sig)
 		int i, openfd;
 
 		if (_rpcfdtype == SOCK_DGRAM) {
-			close(yp_sock);
 			unlink(sockname);
 			exit(0);
 		}
@@ -174,7 +132,6 @@ closedown(int sig)
 			if (FD_ISSET(i, &svc_fdset))
 				openfd++;
 		if (openfd <= 1) {
-			close(yp_sock);
 			unlink(sockname);
 			exit(0);
 		}
@@ -310,6 +267,8 @@ the %s domain -- aborting", yppasswd_domain);
 		openlog(progname, LOG_PID, LOG_DAEMON);
 		sock = RPC_ANYSOCK;
 		(void) pmap_unset(YPPASSWDPROG, YPPASSWDVERS);
+		(void) pmap_unset(MASTER_YPPASSWDPROG, MASTER_YPPASSWDVERS);
+		unlink(sockname);
 	}
 
 	if ((_rpcfdtype == 0) || (_rpcfdtype == SOCK_DGRAM)) {
@@ -340,6 +299,20 @@ the %s domain -- aborting", yppasswd_domain);
 		}
 	}
 
+	unlink(sockname);
+	transp = svcunix_create(sock, 0, 0, sockname);
+	if (transp == NULL) {
+		yp_error("cannot create AF_LOCAL service.");
+		exit(1);
+	}
+	if (!svc_register(transp, MASTER_YPPASSWDPROG, MASTER_YPPASSWDVERS, master_yppasswdprog_1, 0)) {
+		yp_error("unable to register (MASTER_YPPASSWDPROG, MASTER_YPPASSWDVERS, unix).");
+		exit(1);
+	}
+	/* Only root may connect() to the AF_UNIX link. */
+	if (chmod(sockname, 0))
+		err(1, "chmod of %s failed", sockname);
+
 	if (transp == (SVCXPRT *)NULL) {
 		yp_error("could not create a handle");
 		exit(1);
@@ -357,12 +330,7 @@ the %s domain -- aborting", yppasswd_domain);
 
 	signal(SIGHUP, (SIG_PF) reload);
 
-	unlink(sockname);
-	yp_sock = makeservsock();
-	if (chmod(sockname, 0))
-		err(1, "chmod of %s failed", sockname);
-
-	my_svc_run();
+	svc_run();
 	yp_error("svc_run returned");
 	exit(1);
 	/* NOTREACHED */

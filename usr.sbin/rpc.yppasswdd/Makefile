@@ -1,11 +1,11 @@
-# $Id$
+# $Id: Makefile,v 1.2 1997/07/28 18:31:11 wpaul Exp $
 
 PROG=	rpc.yppasswdd
 SRCS=	pw_copy.c pw_util.c util.c yppasswd_svc.c yp_error.c ypxfr_misc.c \
 	yp_dblookup.c yp_dbwrite.c yp_access.c yppasswd_private_xdr.c \
-	yp_clnt.c yppasswdd_server.c yppasswd_comm.c yppasswdd_main.c
+	yppasswd_private_svc.c yp_clnt.c yppasswdd_server.c yppasswdd_main.c
 
-RPCDIR=	${.CURDIR}/../../include/rpcsvc
+RPCDIR=	${DESTDIR}/usr/include/rpcsvc
 
 .PATH:	${.CURDIR}/../../usr.sbin/ypserv ${.CURDIR}/../../usr.bin/chpass \
 	${.CURDIR}/../../libexec/ypxfr ${RPCDIR}
@@ -21,7 +21,7 @@ LDADD=	-lrpcsvc -lcrypt
 
 CLEANFILES= yppasswd_svc.c yppasswd.h \
 	    yppasswd_private_xdr.c yppasswd_private.h \
-	    yp.h yp_clnt.c
+	    yppasswd_private_svc.c yp.h yp_clnt.c
 
 RPCGEN= rpcgen -I -C
 
@@ -51,6 +51,11 @@ yppasswd_private.h: yppasswd_private.x
 yppasswd_private_xdr.c: yppasswd_private.x yppasswd_private.h
 	rm -f ${.TARGET}
 	${RPCGEN} -c -o ${.TARGET} ${.CURDIR}/yppasswd_private.x
+
+yppasswd_private_svc.c: yppasswd_private.x yppasswd_private.h
+	rm -f ${.TARGET}
+	${RPCGEN} -m ${.CURDIR}/yppasswd_private.x | \
+	sed s/"static int _rpcsvcstate = _IDLE"/"extern int _rpcsvcstate"/g > ${.TARGET}
 
 afterinstall:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m ${BINMODE} \

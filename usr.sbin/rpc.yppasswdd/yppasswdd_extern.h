@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: yppasswdd_extern.h,v 1.2 1997/07/28 18:31:11 wpaul Exp $
  */
 
 #include <sys/types.h>
@@ -58,6 +58,8 @@ extern char	*yp_dir;
 extern char	*progname;
 extern void	do_master __P(( void ));
 extern void	yppasswdprog_1 __P(( struct svc_req *, register SVCXPRT * ));
+extern void     master_yppasswdprog_1 __P(( struct svc_req *,
+						register SVCXPRT * ));
 extern void	reaper __P(( int ));
 extern void	install_reaper __P(( int ));
 extern int	pw_copy __P(( int, int, struct passwd * ));

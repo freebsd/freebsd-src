@@ -29,20 +29,18 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: yppasswd_private.x,v 1.2 1997/07/28 18:31:11 wpaul Exp $
  */
 
 #ifndef RPC_HDR
 %#ifndef lint
-%static const char rcsid[] = "$Id$";
+%static const char rcsid[] = "$Id: yppasswd_private.x,v 1.2 1997/07/28 18:31:11 wpaul Exp $";
 %#endif /* not lint */
 #endif
 
-/*
- * This protocol definition file is only used to
- * generate some XDR functions. We don't actually
- * define any RPC services here.
- */
+#ifdef RPC_HDR
+%#define YP_SOCKNAME	"/var/run/yppasswdsock"
+#endif
 
 struct x_master_passwd {
 	string pw_name<>;	/* username */
@@ -65,3 +63,11 @@ struct master_yppasswd {
 	string domain<_YPMAXDOMAIN>;	/* domain we want to operate on */
 	x_master_passwd newpw;		/* new passwd entry */
 };
+
+
+program MASTER_YPPASSWDPROG {
+	version MASTER_YPPASSWDVERS {
+		int
+		YPPASSWDPROC_UPDATE_MASTER(master_yppasswd) = 1;
+	} = 1;
+} = 600100009;
