@@ -265,7 +265,7 @@ i386/pci/pci_cfgreg.c		optional	pci
 i386/pci/pci_bus.c		optional	pci
 i386/svr4/svr4_locore.s		optional	compat_svr4		\
 	dependency	"svr4_assym.h"	\
-	warning "COMPAT_SVR4 is broken and usage is, until fixed, not recommended"
+	warning "COMPAT_SVR4 is broken and should be avoided"
 i386/svr4/svr4_machdep.c	optional	compat_svr4
 #
 # isdn4bsd, needed for isic | iwic | ifpi | ifpi2 | ihfc | ifpnp | itjc
