@@ -46,8 +46,6 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/bio.h>
-#include <sys/buf.h>
 #include <sys/conf.h>
 #include <sys/dirent.h>
 #include <sys/fcntl.h>
@@ -60,7 +58,6 @@
 #include <sys/proc.h>
 #include <sys/stat.h>
 #include <sys/sx.h>
-#include <sys/sysctl.h>
 #include <sys/time.h>
 #include <sys/unistd.h>
 #include <sys/vnode.h>
@@ -92,7 +89,6 @@ static int	devfs_setattr(struct vop_setattr_args *ap);
 #ifdef MAC
 static int	devfs_setlabel(struct vop_setlabel_args *ap);
 #endif
-static int	devfs_specstrategy(struct vop_specstrategy_args *);
 static int	devfs_symlink(struct vop_symlink_args *ap);
 static int	devfs_write(struct vop_write_args *ap);
 
@@ -1227,58 +1223,6 @@ devfs_setlabel(ap)
 }
 #endif
 
-static int doslowdown = 0;
-SYSCTL_INT(_debug, OID_AUTO, doslowdown, CTLFLAG_RW, &doslowdown, 0, "");
-
-static int
-devfs_specstrategy(ap)
-	struct vop_specstrategy_args /* {
-		struct vnode *a_vp;
-		struct buf *a_bp;
-	} */ *ap;
-{
-	struct vnode *vp = ap->a_vp;
-	struct buf *bp = ap->a_bp;
-	struct mount *mp;
-	struct thread *td = curthread;
-	
-	KASSERT(ap->a_vp->v_rdev == ap->a_bp->b_dev,
-	    ("%s, dev %s != %s", __func__,
-	    devtoname(ap->a_vp->v_rdev),
-	    devtoname(ap->a_bp->b_dev)));
-	KASSERT(bp->b_iocmd == BIO_READ || bp->b_iocmd == BIO_WRITE,
-	    ("Wrong b_iocmd buf=%p cmd=%d", bp, bp->b_iocmd));
-
-	/*
-	 * Slow down disk requests for niced processes.
-	 */
-	if (doslowdown && td && td->td_proc->p_nice > 0) {
-		msleep(td, NULL, PPAUSE | PCATCH, "ioslow",
-		    td->td_proc->p_nice);
-	}
-	/*
-	 * Collect statistics on synchronous and asynchronous read
-	 * and write counts for disks that have associated filesystems.
-	 */
-	if (vn_isdisk(vp, NULL) && (mp = vp->v_rdev->si_mountpoint) != NULL) {
-		if (bp->b_iocmd == BIO_WRITE) {
-			if (bp->b_lock.lk_lockholder == LK_KERNPROC)
-				mp->mnt_stat.f_asyncwrites++;
-			else
-				mp->mnt_stat.f_syncwrites++;
-		} else {
-			if (bp->b_lock.lk_lockholder == LK_KERNPROC)
-				mp->mnt_stat.f_asyncreads++;
-			else
-				mp->mnt_stat.f_syncreads++;
-		}
-	}
-
-	dev_strategy(bp->b_dev, bp);	
-		
-	return (0);
-}
-
 static int
 devfs_symlink(ap)
 	struct vop_symlink_args /* {
@@ -1430,7 +1374,6 @@ static struct vnodeopv_entry_desc devfs_specop_entries[] = {
 #ifdef MAC
 	{ &vop_setlabel_desc,		(vop_t *) devfs_setlabel },
 #endif
-	{ &vop_specstrategy_desc,	(vop_t *) devfs_specstrategy },
 	{ &vop_strategy_desc,		(vop_t *) vop_panic },
 	{ &vop_symlink_desc,		(vop_t *) vop_panic },
 	{ &vop_write_desc,		(vop_t *) devfs_write },
