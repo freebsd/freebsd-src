@@ -109,7 +109,6 @@ __FBSDID("$FreeBSD$");
 #include <syslog.h>
 #endif
 
-#include <syslog.h>
 #include <stdarg.h>
 #include <nsswitch.h>
 #include "un-namespace.h"
