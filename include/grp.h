@@ -62,15 +62,15 @@ struct group {
 };
 
 __BEGIN_DECLS
-struct group *getgrgid(gid_t);
-struct group *getgrnam(const char *);
+struct group	*getgrgid(gid_t);
+struct group	*getgrnam(const char *);
 #ifndef _POSIX_SOURCE
-struct group *getgrent(void);
-int setgrent(void);
-void endgrent(void);
-void setgrfile(const char *);
-int setgroupent(int);
-const char *group_from_gid(gid_t, int);
+struct group	*getgrent(void);
+int		 setgrent(void);
+void		 endgrent(void);
+void		 setgrfile(const char *);
+int		 setgroupent(int);
+const char	*group_from_gid(gid_t, int);
 #endif
 __END_DECLS
 
