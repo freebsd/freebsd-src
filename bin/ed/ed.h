@@ -25,13 +25,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)ed.h,v 1.5 1994/02/01 00:34:39 alm Exp
- *	$Id$
+ *	$Id: ed.h,v 1.7 1994/09/24 02:55:25 davidg Exp $
  */
 
 #include <sys/types.h>
-#if defined(BSD) && BSD >= 199103 || defined(__386BSD__)
-# include <sys/param.h>		/* for MAXPATHLEN */
-#endif
+#include <sys/param.h>		/* for MAXPATHLEN */
 #include <errno.h>
 #if defined(sun) || defined(__NetBSD__)
 # include <limits.h>
