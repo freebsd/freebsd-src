@@ -277,13 +277,6 @@
 		this option provides a hint as to the actual size of
 		system memory (which will be tested before use).
 
-	set hw.pci.allow_unsupported_io_range=<value>
-
-		Allow the PCI Bridge to pass through an unsupported
-		memory range assigned by the BIOS.
-
-		value is 0 (default) or non-zero to enable.
-
 	set hw.pci.enable_io_modes=<value>
 
 		Enable PCI resources which are left off by some BIOSes
