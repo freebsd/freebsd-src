@@ -2,7 +2,7 @@
     FreeBSD Japanese Documentation Project
 
     $FreeBSD$
-    Original revision: 1.38
+    Original revision: 1.38.2.1
 -->
 
 <!-- 
@@ -133,6 +133,11 @@
   <sect1 id="security">
     <title>セキュリティ勧告</title>
 
+<![ %release.type.release [
+    <para>セキュリティ勧告は発行されていません。</para>
+]]>
+
+<![ %release.type.snapshot [
     <para><application>CVS</application> には、CVS サーバ上で任意のコマンドが実行できるという、
       リモートから悪用可能なセキュリティ上の弱点が存在します。
       問題の詳細は、セキュリティ勧告 <ulink
@@ -183,12 +188,17 @@
       回避方法と問題を修正するパッチについての情報は、セキュリティ勧告 <ulink
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-03:06.openssl.asc">FreeBSD-SA-03:06</ulink>
       をご覧ください。</para>
-
+]]>
   </sect1>
 
   <sect1 id="late-news">
     <title>最新情報</title>
 
+<![ %release.type.release [
+    <para>まだ情報はありません。</para>
+]]>
+
+<![ %release.type.snapshot [
     <bridgehead renderas="sect3">GEOM</bridgehead>
 
     <para>カーネルにある &man.geom.4;
@@ -383,6 +393,6 @@
       この新しいメーリングリストに関する詳細は、
       <ulink url="http://www.FreeBSD.org/mailman/listinfo/">FreeBSD
       Mailman Info Page</ulink> をご覧ください。</para>
-
+]]>
   </sect1>
 </article>
