@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.173 1995/05/23 21:47:26 jkh Exp $
+#	$Id: Makefile,v 1.174 1995/05/24 01:26:23 jkh Exp $
 #
 # How to roll a release:
 #
@@ -99,6 +99,12 @@ release:
 	#find ${.CURDIR} -print | cpio -dumpv ${CHROOTDIR}
 	chmod 755 ${CHROOTDIR}/mk
 	chroot ${CHROOTDIR} /mk
+
+testftp:       ftp.c
+	cc -o testftp -I../libdisk -DSTANDALONE_FTP ftp.c
+
+testftp:	ftp.c
+	cc -o testftp -I../libdisk -DSTANDALONE_FTP ftp.c
 
 # Same as above, but assume that a build just fell over, has been corrected
 # and now we just want to pick up where we left off.
@@ -277,7 +283,7 @@ release.6:
 			echo "$${i} distribution is finished."; \
 		fi ; \
 	done                                                 
-	touch release.8
+	touch release.6
 
 
 # Make source dists, and finish of DES too
@@ -297,7 +303,7 @@ release.7:
 	if [ -f sdes.aa ] ; then mv sdes.* ../des ; fi && \
 	if [ -f sebones.aa ] ; then mv sebones.* ../des ; fi )
 	@echo "src distribution is finished."
-	touch release.9
+	touch release.7
 
 # Complete the bootfd 
 release.8:
@@ -322,7 +328,7 @@ release.8:
 		install -c README ${RD}/bootfd/stand/help/en_US.ISO8859-1/README
 	touch ${RD}/bootfd/this_is_boot_flp
 	cd ${.CURDIR} ; ${MAKE} doFLOPPY FLOPPY=boot
-	touch release.6
+	touch release.8
 
 # Complete the cpiofd directory
 release.9:
@@ -335,9 +341,9 @@ release.9:
 	@cd ${.CURDIR} ; $(MAKE) installCRUNCH CRUNCH=cpio \
 		DIR=${RD}/cpiofd/stand ZIP=false
 	cd ${RD}/trees/bin ; ls ${CPIO1} | cpio -dump ${RD}/cpiofd/stand
-	tar --exclude CVS -cf - -C ${.CURDIR}/sysinstall info | tar xvf - -C ${RD}/cpiofd/stand
+	tar --exclude CVS -cf - -C ${RD} info | tar xvf - -C ${RD}/cpiofd/stand
 	cd ${RD}/cpiofd ; ( rm -f OK ; find . -print ; touch OK ; echo OK ) | cpio -H newc -oa | gzip -9 -c | dd conv=osync > ${RD}/floppies/cpio.flp
-	touch release.7
+	touch release.9
 
 # Complete the fixitfd
 release.10:
@@ -414,9 +420,10 @@ doTARBALL:
 		tar --exclude CVS --exclude obj -cf - ${ARG} | \
 		${ZIPNSPLIT} ${RD}/dists/${TD}/$$tn. && \
 		cd ${RD}/info && \
-		mkdir ${TD} && \
-		echo ${SD}/${TD}/$$tn.* | wc | awk ' { print "Pieces = ", $$1 } ' > ${TD}/$$tn.inf
-	}
+		mkdir -p ${TD} && \
+		chmod a+x ${.CURDIR}/info.sh && \
+		${.CURDIR}/info.sh ${RD}/dists/${TD}/$$tn > ${TD}/$$tn.inf \
+	)
 
 doRELEASE:  release.1 release.2 release.3 release.4 release.5 release.6 \
 		release.7 release.8 release.9 release.10
@@ -428,8 +435,12 @@ floppies:
 	cd ${.CURDIR} && ${MAKE} doRELEASE
 
 boot.flp:
-	rm -f release.4 release.6
+	rm -f release.4 release.8
 	cd ${.CURDIR} && ${MAKE} release.4 release.6 WHICH_CRUNCH=boot
+
+cpio.flp:
+	rm -f release.4 release.9
+	cd ${.CURDIR} && ${MAKE} release.4 release.9 WHICH_CRUNCH=cpio
 
 fixit.flp:
 	rm -f release.4 release.10
