@@ -297,12 +297,13 @@ static int
 isp_pci_attach(device_t dev)
 {
 	struct resource *regs, *irq;
-	int unit, bitmap, rtp, rgd, iqd, m1, m2, isp_debug, role;
+	int tval, rtp, rgd, iqd, m1, m2, isp_debug, role;
 	u_int32_t data, cmd, linesz, psize, basetype;
 	struct isp_pcisoftc *pcs;
 	struct ispsoftc *isp = NULL;
 	struct ispmdvec *mdvp;
 	bus_size_t lim;
+	char *sptr;
 #ifdef	ISP_SMPLOCK
 	int locksetup = 0;
 #endif
@@ -311,24 +312,26 @@ isp_pci_attach(device_t dev)
 	 * Figure out if we're supposed to skip this one.
 	 * If we are, we actually go to ISP_ROLE_NONE.
 	 */
-	unit = device_get_unit(dev);
-	if (getenv_int("isp_disable", &bitmap)) {
-		if (bitmap & (1 << unit)) {
-			device_printf(dev, "device is disabled\n");
-			/* but return 0 so the !$)$)*!$*) unit isn't reused */
-			return (0);
-		}
+
+	tval = 0;
+	if (resource_int_value(device_get_name(dev), device_get_unit(dev),
+	    "disable", &tval) == 0 && tval) {
+		device_printf(dev, "device is disabled\n");
+		/* but return 0 so the !$)$)*!$*) unit isn't reused */
+		return (0);
 	}
+	
+	role = 0;
+	if (resource_int_value(device_get_name(dev), device_get_unit(dev),
+	    "role", &role) == 0 &&
+	    ((role & ~(ISP_ROLE_INITIATOR|ISP_ROLE_TARGET)) == 0)) {
+		device_printf(dev, "setting role to 0x%x\n", role);
+	} else {
 #ifdef	ISP_TARGET_MODE
-	role = ISP_ROLE_INITIATOR|ISP_ROLE_TARGET;
+		role = ISP_ROLE_INITIATOR|ISP_ROLE_TARGET;
 #else
-	role = ISP_DEFAULT_ROLES;
+		role = ISP_DEFAULT_ROLES;
 #endif
-	if (getenv_int("isp_none", &bitmap)) {
-		if (bitmap & (1 << unit)) {
-			device_printf(dev, "setting to ISP_ROLE_NONE\n");
-			role = ISP_ROLE_NONE;
-		}
 	}
 
 	pcs = malloc(sizeof (struct isp_pcisoftc), M_DEVBUF, M_NOWAIT | M_ZERO);
@@ -347,19 +350,18 @@ isp_pci_attach(device_t dev)
 	m1 = PCIM_CMD_PORTEN;
 	m2 = PCIM_CMD_MEMEN;
 #endif
-	bitmap = 0;
-	if (getenv_int("isp_mem_map", &bitmap)) {
-		if (bitmap & (1 << unit)) {
-			m1 = PCIM_CMD_MEMEN;
-			m2 = PCIM_CMD_PORTEN;
-		}
+
+	tval = 0;
+        if (resource_int_value(device_get_name(dev), device_get_unit(dev),
+            "prefer_iomap", &tval) == 0 && tval != 0) {
+		m1 = PCIM_CMD_PORTEN;
+		m2 = PCIM_CMD_MEMEN;
 	}
-	bitmap = 0;
-	if (getenv_int("isp_io_map", &bitmap)) {
-		if (bitmap & (1 << unit)) {
-			m1 = PCIM_CMD_PORTEN;
-			m2 = PCIM_CMD_MEMEN;
-		}
+	tval = 0;
+        if (resource_int_value(device_get_name(dev), device_get_unit(dev),
+            "prefer_memmap", &tval) == 0 && tval != 0) {
+		m1 = PCIM_CMD_MEMEN;
+		m2 = PCIM_CMD_PORTEN;
 	}
 
 	linesz = PCI_DFLT_LNSZ;
@@ -464,9 +466,8 @@ isp_pci_attach(device_t dev)
 	isp->isp_mdvec = mdvp;
 	isp->isp_type = basetype;
 	isp->isp_revision = pci_get_revid(dev);
-	(void) snprintf(isp->isp_name, sizeof (isp->isp_name), "isp%d", unit);
-	isp->isp_osinfo.unit = unit;
 	isp->isp_role = role;
+	isp->isp_dev = dev;
 
 	/*
 	 * Try and find firmware for this device.
@@ -534,63 +535,81 @@ isp_pci_attach(device_t dev)
 		goto bad;
 	}
 
-	if (getenv_int("isp_no_fwload", &bitmap)) {
-		if (bitmap & (1 << unit))
-			isp->isp_confopts |= ISP_CFG_NORELOAD;
+	tval = 0;
+        if (resource_int_value(device_get_name(dev), device_get_unit(dev),
+            "fwload_disable", &tval) == 0 && tval != 0) {
+		isp->isp_confopts |= ISP_CFG_NORELOAD;
 	}
-	if (getenv_int("isp_fwload", &bitmap)) {
-		if (bitmap & (1 << unit))
-			isp->isp_confopts &= ~ISP_CFG_NORELOAD;
+	tval = 0;
+        if (resource_int_value(device_get_name(dev), device_get_unit(dev),
+            "ignore_nvram", &tval) == 0 && tval != 0) {
+		isp->isp_confopts |= ISP_CFG_NONVRAM;
 	}
-	if (getenv_int("isp_no_nvram", &bitmap)) {
-		if (bitmap & (1 << unit))
-			isp->isp_confopts |= ISP_CFG_NONVRAM;
+	tval = 0;
+        if (resource_int_value(device_get_name(dev), device_get_unit(dev),
+            "fullduplex", &tval) == 0 && tval != 0) {
+		isp->isp_confopts |= ISP_CFG_FULL_DUPLEX;
 	}
-	if (getenv_int("isp_nvram", &bitmap)) {
-		if (bitmap & (1 << unit))
-			isp->isp_confopts &= ~ISP_CFG_NONVRAM;
-	}
-	if (getenv_int("isp_fcduplex", &bitmap)) {
-		if (bitmap & (1 << unit))
-			isp->isp_confopts |= ISP_CFG_FULL_DUPLEX;
-	}
-	if (getenv_int("isp_no_fcduplex", &bitmap)) {
-		if (bitmap & (1 << unit))
-			isp->isp_confopts &= ~ISP_CFG_FULL_DUPLEX;
-	}
-	if (getenv_int("isp_nport", &bitmap)) {
-		if (bitmap & (1 << unit))
-			isp->isp_confopts |= ISP_CFG_NPORT;
-	}
-	/*
-	 * Look for overriding WWN. This is a Node WWN so it binds to
-	 * all FC instances. A Port WWN will be constructed from it
-	 * as appropriate.
-	 */
-	if (!getenv_quad("isp_wwn", (quad_t *) &isp->isp_osinfo.default_wwn)) {
-		int i;
-		u_int64_t seed = (u_int64_t) (intptr_t) isp;
 
-		seed <<= 16;
-		seed &= ((1LL << 48) - 1LL);
-		/*
-		 * This isn't very random, but it's the best we can do for
-		 * the real edge case of cards that don't have WWNs. If
-		 * you recompile a new vers.c, you'll get a different WWN.
-		 */
-		for (i = 0; version[i] != 0; i++) {
-			seed += version[i];
+	sptr = 0;
+        if (resource_string_value(device_get_name(dev), device_get_unit(dev),
+            "topology", &sptr) == 0 && sptr != 0) {
+		if (strcmp(sptr, "lport") == 0) {
+			isp->isp_confopts |= ISP_CFG_LPORT;
+		} else if (strcmp(sptr, "nport") == 0) {
+			isp->isp_confopts |= ISP_CFG_NPORT;
+		} else if (strcmp(sptr, "lport-only") == 0) {
+			isp->isp_confopts |= ISP_CFG_LPORT_ONLY;
+		} else if (strcmp(sptr, "nport-only") == 0) {
+			isp->isp_confopts |= ISP_CFG_NPORT_ONLY;
 		}
-		/*
-		 * Make sure the top nibble has something vaguely sensible
-		 * (NAA == Locally Administered)
-		 */
-		isp->isp_osinfo.default_wwn |= (3LL << 60) | seed;
-	} else {
-		isp->isp_confopts |= ISP_CFG_OWNWWN;
 	}
+
+	/*
+	 * Because the resource_*_value functions can neither return
+	 * 64 bit integer values, nor can they be directly coerced
+	 * to interpret the right hand side of the assignment as
+	 * you want them to interpret it, we have to force WWN
+	 * hint replacement to specify WWN strings with a leading
+	 * 'w' (e..g w50000000aaaa0001). Sigh.
+	 */
+	sptr = 0;
+	tval = resource_string_value(device_get_name(dev), device_get_unit(dev),
+            "portwwn", &sptr);
+	if (tval == 0 && sptr != 0 && *sptr++ == 'w') {
+		char *eptr = 0;
+		isp->isp_osinfo.default_port_wwn = strtouq(sptr, &eptr, 16);
+		if (eptr < sptr + 16 || isp->isp_osinfo.default_port_wwn == 0) {
+			device_printf(dev, "mangled portwwn hint '%s'\n", sptr);
+			isp->isp_osinfo.default_port_wwn = 0;
+		} else {
+			isp->isp_confopts |= ISP_CFG_OWNWWN;
+		}
+	}
+	if (isp->isp_osinfo.default_port_wwn == 0) {
+		isp->isp_osinfo.default_port_wwn = 0x400000007F000009ull;
+	}
+
+	sptr = 0;
+	tval = resource_string_value(device_get_name(dev), device_get_unit(dev),
+            "nodewwn", &sptr);
+	if (tval == 0 && sptr != 0 && *sptr++ == 'w') {
+		char *eptr = 0;
+		isp->isp_osinfo.default_node_wwn = strtouq(sptr, &eptr, 16);
+		if (eptr < sptr + 16 || isp->isp_osinfo.default_node_wwn == 0) {
+			device_printf(dev, "mangled nodewwn hint '%s'\n", sptr);
+			isp->isp_osinfo.default_node_wwn = 0;
+		} else {
+			isp->isp_confopts |= ISP_CFG_OWNWWN;
+		}
+	}
+	if (isp->isp_osinfo.default_node_wwn == 0) {
+		isp->isp_osinfo.default_node_wwn = 0x400000007F000009ull;
+	}
+
 	isp_debug = 0;
-	(void) getenv_int("isp_debug", &isp_debug);
+        (void) resource_int_value(device_get_name(dev), device_get_unit(dev),
+            "debug", &isp_debug);
 
 #ifdef	ISP_SMPLOCK
 	/* Make sure the lock is set up. */
@@ -1587,13 +1606,15 @@ dma2(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 #if	0
 		if (IS_FC(mp->isp)) {
 			ispreqt2_t *rq2 = (ispreqt2_t *)rq;
-			printf("%s: seg0[%d] cnt 0x%x paddr 0x%08x\n",
-			    mp->isp->isp_name, rq->req_seg_count,
+			device_printf(mp->isp->isp_dev,
+			    "seg0[%d] cnt 0x%x paddr 0x%08x\n",
+			    rq->req_seg_count,
 			    rq2->req_dataseg[rq2->req_seg_count].ds_count,
 			    rq2->req_dataseg[rq2->req_seg_count].ds_base);
 		} else {
-			printf("%s: seg0[%d] cnt 0x%x paddr 0x%08x\n",
-			    mp->isp->isp_name, rq->req_seg_count,
+			device_printf(mp->isp->isp_dev,
+			    "seg0[%d] cnt 0x%x paddr 0x%08x\n",
+			    rq->req_seg_count,
 			    rq->req_dataseg[rq->req_seg_count].ds_count,
 			    rq->req_dataseg[rq->req_seg_count].ds_base);
 		}
@@ -1607,10 +1628,8 @@ dma2(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 		    ISP_QUEUE_ENTRY(mp->isp->isp_rquest, *mp->iptrp);
 		*mp->iptrp = ISP_NXT_QENTRY(*mp->iptrp, RQUEST_QUEUE_LEN(isp));
 		if (*mp->iptrp == mp->optr) {
-#if	0
-			printf("%s: Request Queue Overflow++\n",
-			    mp->isp->isp_name);
-#endif
+			isp_prt(mp->isp,
+			    ISP_LOGDEBUG0, "Request Queue Overflow++");
 			mp->error = MUSHERR_NOQENTRIES;
 			return;
 		}
@@ -1626,8 +1645,9 @@ dma2(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 			crq->req_dataseg[seglim].ds_count =
 			    dm_segs->ds_len;
 #if	0
-			printf("%s: seg%d[%d] cnt 0x%x paddr 0x%08x\n",
-			    mp->isp->isp_name, rq->req_header.rqs_entry_count-1,
+			device_printf(mp->isp->isp_dev,
+			    "seg%d[%d] cnt 0x%x paddr 0x%08x\n",
+			    rq->req_header.rqs_entry_count-1,
 			    seglim, crq->req_dataseg[seglim].ds_count,
 			    crq->req_dataseg[seglim].ds_base);
 #endif
@@ -1710,8 +1730,8 @@ isp_pci_dmasetup(struct ispsoftc *isp, struct ccb_scsiio *csio, ispreq_t *rq,
 				    "deferred dma allocation not supported");
 			} else if (error && mp->error == 0) {
 #ifdef	DIAGNOSTIC
-				printf("%s: error %d in dma mapping code\n",
-				    isp->isp_name, error);
+				isp_prt(isp, ISP_LOGERR,
+				    "error %d in dma mapping code", error);
 #endif
 				mp->error = error;
 			}
@@ -1798,7 +1818,9 @@ isp_pci_dumpregs(struct ispsoftc *isp, const char *msg)
 {
 	struct isp_pcisoftc *pci = (struct isp_pcisoftc *)isp;
 	if (msg)
-		printf("%s: %s\n", isp->isp_name, msg);
+		printf("%s: %s\n", device_get_nameunit(isp->isp_dev), msg);
+	else
+		printf("%s:\n", device_get_nameunit(isp->isp_dev));
 	if (IS_SCSI(isp))
 		printf("    biu_conf1=%x", ISP_READ(isp, BIU_CONF1));
 	else
