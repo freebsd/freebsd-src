@@ -242,7 +242,6 @@ exec_shell(const char *command, char *use_shell, char *use_name)
 	switch(pid = vfork()) {
 	case -1:			/* error */
 		err(1, "vfork");
-		/* NOTREACHED */
 	case 0:				/* child */
 		(void)sigsetmask(omask);
 		execl(use_shell, use_name, "-c", command, (char *)NULL);
