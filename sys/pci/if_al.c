@@ -29,7 +29,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_al.c,v 1.1 1999/05/21 04:37:23 wpaul Exp $
+ *	$Id: if_al.c,v 1.2 1999/05/21 04:42:36 wpaul Exp $
  */
 
 /*
@@ -87,7 +87,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: if_al.c,v 1.1 1999/05/21 04:37:23 wpaul Exp $";
+	"$Id: if_al.c,v 1.2 1999/05/21 04:42:36 wpaul Exp $";
 #endif
 
 /*
@@ -1736,17 +1736,6 @@ static void al_init(xsc)
 	} else {
 		AL_CLRBIT(sc, AL_NETCFG, AL_NETCFG_RX_PROMISC);
 	}
-
-	/*
-	 * Set the capture broadcast bit to capture broadcast frames.
-	 */
-#ifdef foo
-	if (ifp->if_flags & IFF_BROADCAST) {
-		AL_SETBIT(sc, AL_NETCFG, AL_NETCFG_RX_BROAD);
-	} else {
-		AL_CLRBIT(sc, AL_NETCFG, AL_NETCFG_RX_BROAD);
-	}
-#endif
 
 	/*
 	 * Load the multicast filter.
