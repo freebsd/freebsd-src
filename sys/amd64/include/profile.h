@@ -64,10 +64,11 @@
 #else
 #define	MCOUNT_DECL(s)	u_long s;
 #ifdef SMP
-#define	MCOUNT_ENTER(s)	{ s = read_eflags(); \
- 			  __asm __volatile("cli" : : : "memory"); \
-			  mtx_lock(&mcount_mtx); }
-#define	MCOUNT_EXIT(s)	{ mtx_unlock(&mcount_mtx); write_eflags(s); }
+#define	MCOUNT_ENTER(s)	{ s = read_eflags(); disable_intr(); \
+ 			  while (!atomic_cmpset_acq_int(&mcount_lock, 0, 1) \
+			  	/* nothing */ ; }
+#define	MCOUNT_EXIT(s)	{ atomic_store_rel_int(&mcount_lock, 0); \
+			  write_eflags(s); }
 #else
 #define	MCOUNT_ENTER(s)	{ s = read_eflags(); disable_intr(); }
 #define	MCOUNT_EXIT(s)	(write_eflags(s))
