@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_lnc.c,v 1.44 1998/07/20 17:32:56 msmith Exp $
+ * $Id: if_lnc.c,v 1.45 1998/08/24 02:28:15 bde Exp $
  */
 
 /*
@@ -117,6 +117,7 @@ struct lnc_softc {
 	int initialised;
 	int rap;
 	int rdp;
+	int bdp;
 #ifdef DEBUG
 	int lnc_debug;
 #endif
@@ -139,8 +140,12 @@ static char const * const ic_ident[] = {
 	"C-LANCE",
 	"PCnet-ISA",
 	"PCnet-ISA+",
+	"PCnet-ISA II",
 	"PCnet-32 VL-Bus",
-	"PCnet-PCI",		/* "can't happen" */
+	"PCnet-PCI",
+	"PCnet-PCI II",
+	"PCnet-FAST",
+	"PCnet-FAST+",
 };
 
 #ifdef LNC_MULTICAST
@@ -201,6 +206,20 @@ read_csr(struct lnc_softc *sc, u_short port)
 {
 	outw(sc->rap, port);
 	return (inw(sc->rdp));
+}
+
+static __inline void
+write_bcr(struct lnc_softc *sc, u_short port, u_short val)
+{
+	outw(sc->rap, port);
+	outw(sc->bdp, val);
+}
+
+static __inline u_short
+read_bcr(struct lnc_softc *sc, u_short port)
+{
+	outw(sc->rap, port);
+	return (inw(sc->bdp));
 }
 
 #ifdef LNC_MULTICAST
@@ -932,7 +951,8 @@ cnet98s_probe(struct lnc_softc *sc, unsigned iobase)
 	outw(iobase + CNET98S_RESET, tmp);
 	DELAY(500);
 
-	if ((sc->nic.ic = pcnet_probe(sc)) == UNKNOWN) {
+	sc->nic.ic = pcnet_probe(sc);
+	if ((sc->nic.ic == UNKNOWN) || (sc->nic.ic > PCnet_32)) {
 		return (0);
 	}
 
@@ -987,7 +1007,8 @@ ne2100_probe(struct lnc_softc *sc, unsigned iobase)
 	sc->rap = iobase + PCNET_RAP;
 	sc->rdp = iobase + PCNET_RDP;
 
-	if ((sc->nic.ic = pcnet_probe(sc))) {
+	sc->nic.ic = pcnet_probe(sc);
+	if ((sc->nic.ic > 0) && (sc->nic.ic < PCnet_PCI)) {
 		sc->nic.ident = NE2100;
 		sc->nic.mem_mode = DMA_FIXED;
 
@@ -1127,7 +1148,6 @@ pcnet_probe(struct lnc_softc *sc)
 	 */
 
 	if ((type = lance_probe(sc))) {
-
 		chip_id = read_csr(sc, CSR89);
 		chip_id <<= 16;
 		chip_id |= read_csr(sc, CSR88);
@@ -1138,21 +1158,18 @@ pcnet_probe(struct lnc_softc *sc)
 				return (PCnet_ISA);
 			case Am79C961:
 				return (PCnet_ISAplus);
+			case Am79C961A:
+				return (PCnet_ISA_II);
 			case Am79C965:
 				return (PCnet_32);
 			case Am79C970:
-			    /*
-			     * do NOT try to ISA attach the PCI version
-			     */
-				return (0);
-			case HITACHI_Am79C970:
-
-                            /*
-			     * PCI cards that should be attached in
-			     * ISA mode should return this value. -- tvf
-			     */
-
-			        return (PCnet_PCI);
+				return (PCnet_PCI);
+			case Am79C970A:
+				return (PCnet_PCI_II);
+			case Am79C971:
+				return (PCnet_FAST);
+			case Am79C972:
+				return (PCnet_FASTplus);
 			default:
 				break;
 			}
@@ -1204,7 +1221,9 @@ lnc_attach_sc(struct lnc_softc *sc, int unit)
 	 */
 	if ((sc->nic.mem_mode != SHMEM) && (kvtop(sc->recv_ring) > 0x1000000)) {
 		log(LOG_ERR, "lnc%d: Memory allocated above 16Mb limit\n", unit);
-		if (sc->nic.ic != PCnet_PCI)
+		if ((sc->nic.ic != PCnet_PCI) &&
+		    (sc->nic.ic != PCnet_PCI_II) &&
+		    (sc->nic.ic != PCnet_FAST))
 			return (0);
 	}
 
@@ -1265,8 +1284,7 @@ lnc_attach(struct isa_device * isa_dev)
 	 *       and ether_ifattach() have been called in lnc_attach() ???
 	 */
 	if ((sc->nic.mem_mode != SHMEM) &&
-		 (sc->nic.ic != PCnet_32) &&
-		 (sc->nic.ic != PCnet_PCI))
+	    (sc->nic.ic < PCnet_32))
 		isa_dmacascade(isa_dev->id_drq);
 #endif
 
@@ -1277,22 +1295,35 @@ lnc_attach(struct isa_device * isa_dev)
 void *
 lnc_attach_ne2100_pci(int unit, unsigned iobase)
 {
+	int i;
 	struct lnc_softc *sc = malloc(sizeof *sc, M_DEVBUF, M_NOWAIT);
 
 	if (sc) {
 		bzero (sc, sizeof *sc);
 
-		/*
-		 * ne2100_probe sets sc->nic.ic to PCnet_PCI for PCI
-		 * cards that work in ISA emulation mode. The first
-		 * clause this code avoids attaching such a card at
-		 * this time to allow it to be picked up as an ISA
-		 * card later. -- tvf
-		 */
+		sc->rap = iobase + PCNET_RAP;
+		sc->rdp = iobase + PCNET_RDP;
+		sc->bdp = iobase + PCNET_BDP;
 
-		if (((ne2100_probe(sc, iobase) == 0) ||
-		     sc->nic.ic == PCnet_PCI)
-		    || (lnc_attach_sc(sc, unit) == 0)) {
+		sc->nic.ic = pcnet_probe(sc);
+		if (sc->nic.ic >= PCnet_PCI) {
+			sc->nic.ident = NE2100;
+			sc->nic.mem_mode = DMA_FIXED;
+  
+			/* XXX - For now just use the defines */
+			sc->nrdre = NRDRE;
+			sc->ntdre = NTDRE;
+
+			/* Extract MAC address from PROM */
+			for (i = 0; i < ETHER_ADDR_LEN; i++)
+				sc->arpcom.ac_enaddr[i] = inb(iobase + i);
+
+			if (lnc_attach_sc(sc, unit) == 0) {
+				free(sc, M_DEVBUF);
+				sc = NULL;
+			}
+		}
+		else {
 			free(sc, M_DEVBUF);
 			sc = NULL;
 		}
@@ -1514,7 +1545,8 @@ lncintr_sc(struct lnc_softc *sc)
 		 * be missed.
 		 */
 
-		outw(sc->rdp, IDON | CERR | BABL | MISS | MERR | RINT | TINT | INEA);
+/*		outw(sc->rdp, IDON | CERR | BABL | MISS | MERR | RINT | TINT | INEA); */
+		outw(sc->rdp, csr0);
 
 		/* We don't do anything with the IDON flag */
 
@@ -1909,6 +1941,7 @@ lnc_dump_state(struct lnc_softc *sc)
 	printf("\n CSR0 = %b CSR1 = %x CSR2 = %x CSR3 = %x\n\n",
 	    read_csr(sc, CSR0), CSR0_FLAGS, read_csr(sc, CSR1),
 	    read_csr(sc, CSR2), read_csr(sc, CSR3));
+
 	/* Set RAP back to CSR0 */
 	outw(sc->rap, CSR0);
 }
