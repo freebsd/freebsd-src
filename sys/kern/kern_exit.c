@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_exit.c	8.7 (Berkeley) 2/12/94
- * $Id: kern_exit.c,v 1.36 1996/08/19 02:28:23 julian Exp $
+ * $Id: kern_exit.c,v 1.37 1996/08/20 07:17:47 smpatel Exp $
  */
 
 #include "opt_ktrace.h"
@@ -130,11 +130,11 @@ exit1(p, rv)
 	vmsizmon();
 #endif
 	/* 
-	 * Check if any LKMs need anything done at process exit
+	 * Check if any LKMs need anything done at process exit.
 	 * e.g. SYSV IPC stuff
 	 * XXX what if one of these generates an error?
 	 */
-	while(ep) {
+	while (ep) {
 		(*ep->function)(p);
 		ep = ep->next;
 	}
@@ -501,11 +501,12 @@ proc_reparent(child, parent)
 	child->p_pptr = parent;
 }
 
-/*********************************************************
- * general routines to handle adding/deleting items on the
+/*
+ * The next two functions are to handle adding/deleting items on the
  * exit callout list
- *****
- * Take the arguments given and put them onto the exit callout list.
+ * 
+ * at_exit():
+ * Take the arguments given and put them onto the exit callout list,
  * However first make sure that it's not already there.
  * returns 0 on success.
  */
@@ -513,39 +514,43 @@ int
 at_exit(exitlist_fn function)
 {
 	ele_p ep;
-	if(rm_at_exit(function)) {
+
+	/* Be noisy if the programmer has lost track of things */
+	if (rm_at_exit(function)) 
 		printf("exit callout entry already present\n");
-	}
-	ep = malloc(sizeof(*ep),M_TEMP,M_NOWAIT);
-	if(!ep) return ENOMEM;
+	ep = malloc(sizeof(*ep), M_TEMP, M_NOWAIT);
+	if (ep == NULL)
+		return (ENOMEM);
 	ep->next = exit_list;
 	ep->function = function;
 	exit_list = ep;
-	return 0;
+	return (0);
 }
 /*
  * Scan the exit callout list for the given items and remove them.
  * Returns the number of items removed.
+ * Logically this can only be 0 or 1.
  */
 int
 rm_at_exit(exitlist_fn function)
 {
-	ele_p *epp,ep;
-	int count = 0;
+	ele_p *epp, ep;
+	int count;
 
+	count = 0;
 	epp = &exit_list;
 	ep = *epp;
-	while(ep) {
-		if(ep->function == function) {
+	while (ep) {
+		if (ep->function == function) {
 			*epp = ep->next;
-			free(ep,M_TEMP);
+			free(ep, M_TEMP);
 			count++;
 		} else {
 			epp = &ep->next;
 		}
 		ep = *epp;
 	}
-	return count;
+	return (count);
 }
 
 

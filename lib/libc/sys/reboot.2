@@ -81,6 +81,9 @@ for more information.
 .It Dv RB_HALT
 the processor is simply halted; no reboot takes place.
 This option should be used with caution.
+.It Dv RB_POWEROFF
+After halting, the shutdown code will do what it can to turn
+of the power. This requires hardware support.
 .It Dv RB_INITNAME
 An option allowing the specification of an init program (see
 .Xr init 8 )
