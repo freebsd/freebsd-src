@@ -50,8 +50,8 @@ savecore_prestart()
 
 savecore_start()
 {
-		echo "Checking for core dump..."
-		savecore ${savecore_flags} ${DUMPDIR}
+		echo "Checking for core dump on ${dumpdev} ..."
+		savecore ${savecore_flags} ${DUMPDIR} ${dumpdev}
 }
 
 load_rc_config $name
