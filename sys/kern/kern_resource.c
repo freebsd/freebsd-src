@@ -252,35 +252,32 @@ rtprio(curp, uap)
 	struct rtprio rtp;
 	int error;
 
-	error = copyin(uap->rtp, &rtp, sizeof(struct rtprio));
-	if (error)
-		return (error);
-
 	if (uap->pid == 0) {
 		p = curp;
 		PROC_LOCK(p);
 	} else
 		p = pfind(uap->pid);
 
-	if (p == 0)
+	if (p == NULL)
 		return (ESRCH);
 
 	switch (uap->function) {
 	case RTP_LOOKUP:
 		if ((error = p_can(curp, p, P_CAN_SEE, NULL)))
-			return (error);
+			break;
 		pri_to_rtp(&p->p_pri, &rtp);
-		PROC_UNLOCK(p);
-		return (copyout(&rtp, uap->rtp, sizeof(struct rtprio)));
+		error = copyout(&rtp, uap->rtp, sizeof(struct rtprio));
+		break;
 	case RTP_SET:
-		if ((error = p_can(curp, p, P_CAN_SCHED, NULL)))
-			goto out;
+		if ((error = p_can(curp, p, P_CAN_SCHED, NULL)) ||
+		    (error = copyin(uap->rtp, &rtp, sizeof(struct rtprio))))
+			break;
 		/* disallow setting rtprio in most cases if not superuser */
 		if (suser(curp) != 0) {
 			/* can't set someone else's */
 			if (uap->pid) {
 				error = EPERM;
-				goto out;
+				break;
 			}
 			/* can't set realtime priority */
 /*
@@ -295,17 +292,15 @@ rtprio(curp, uap)
 #endif
 			if (rtp.type != RTP_PRIO_NORMAL) {
 				error = EPERM;
-				goto out;
+				break;
 			}
 		}
-		if (rtp_to_pri(&rtp, &p->p_pri) == 0)
-			error = 0;
-		else
-			error = EINVAL;
+		error = rtp_to_pri(&rtp, &p->p_pri);
+		break;
 	default:
 		error = EINVAL;
+		break;
 	}
-out:
 	PROC_UNLOCK(p);
 	return (error);
 }
@@ -315,7 +310,7 @@ rtp_to_pri(struct rtprio *rtp, struct priority *pri)
 {
 
 	if (rtp->prio > RTP_PRIO_MAX)
-		return (-1);
+		return (EINVAL);
 	switch (RTP_PRIO_BASE(rtp->type)) {
 	case RTP_PRIO_REALTIME:
 		pri->pri_level = PRI_MIN_REALTIME + rtp->prio;
@@ -327,7 +322,7 @@ rtp_to_pri(struct rtprio *rtp, struct priority *pri)
 		pri->pri_level = PRI_MIN_IDLE + rtp->prio;
 		break;
 	default:
-		return (-1);
+		return (EINVAL);
 	}
 	pri->pri_class = rtp->type;
 	pri->pri_native = pri->pri_level;
