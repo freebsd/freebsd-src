@@ -1,4 +1,4 @@
-# $Id: cvs-supfile,v 1.12 1997/05/19 17:22:50 jdp Exp $
+# $Id: cvs-supfile,v 1.13 1997/07/31 09:37:58 asami Exp $
 #
 # This file contains all of the "CVSup collections" that make up the
 # CVS development tree of the FreeBSD system.
@@ -70,6 +70,7 @@ src-all
 #src-games
 #src-gnu
 #src-include
+#src-kerberosIV
 #src-lib
 #src-libexec
 #src-release
