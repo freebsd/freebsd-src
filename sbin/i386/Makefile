@@ -1,8 +1,6 @@
 # $FreeBSD$
 
-SUBDIR=	comcontrol \
-	fdisk \
-	mount_msdos \
+SUBDIR=	fdisk \
 	nextboot
 #NOTYET: cxconfig
 
