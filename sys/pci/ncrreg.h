@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: ncrreg.h,v 1.3 1995/03/21 22:48:36 se Exp $
+**  $Id: ncrreg.h,v 1.4 1996/10/11 19:50:12 se Exp $
 **
 **  Device driver for the   NCR 53C810   PCI-SCSI-Controller.
 **
@@ -147,12 +147,18 @@ struct ncr_reg {
 	#define   CSIGP   0x40
 
 /*1b*/  u_char    nc_ctest3;
-	#define   CLF	  0x04	/* clear scsi fifo		    */
+        #define   FLF     0x08  /* cmd: flush dma fifo              */
+        #define   CLF	  0x04	/* cmd: clear dma fifo		    */
+        #define   FM      0x02  /* mod: fetch pin mode              */
+        #define   WRIE    0x01  /* mod: write and invalidate enable */
 
 /*1c*/  u_long    nc_temp;	/* ### Temporary stack              */
 
 /*20*/	u_char	  nc_dfifo;
 /*21*/  u_char    nc_ctest4;
+        #define   BDIS    0x80  /* mod: burst disable               */
+        #define   MPEE    0x08  /* mod: master parity error enable  */
+
 /*22*/  u_char    nc_ctest5;
 /*23*/  u_char    nc_ctest6;
 
@@ -163,12 +169,23 @@ struct ncr_reg {
 /*34*/  u_long    nc_scratcha;  /* ??? Temporary register a         */
 
 /*38*/  u_char    nc_dmode;
+        #define   BL_2    0x80  /* mod: burst length shift value +2 */
+        #define   BL_1    0x40  /* mod: burst length shift value +1 */
+        #define   ERL     0x08  /* mod: enable read line            */
+        #define   ERMP    0x04  /* mod: enable read multiple        */
+        #define   BOF     0x02  /* mod: burst op code fetch         */
+
 /*39*/  u_char    nc_dien;
 /*3a*/  u_char    nc_dwt;
 
 /*3b*/  u_char    nc_dcntl;	/* --> Script execution control     */
+        #define   CLSE    0x80  /* mod: cache line size enable      */
+        #define   PFF     0x40  /* cmd: pre-fetch flush             */
+        #define   PFEN    0x20  /* mod: pre-fetch enable            */
         #define   SSM     0x10  /* mod: single step mode            */
+        #define   IRQM    0x08  /* mod: irq mode (1 = totem pole !) */
         #define   STD     0x04  /* cmd: start dma mode              */
+        #define   IRQD    0x02  /* mod: irq disable                 */
 	#define	  NOCOM   0x01	/* cmd: protect sfbr while reselect */
 
 /*3c*/  u_long    nc_adder;
