@@ -708,27 +708,22 @@ sigreturn(td, uap)
 	} */ *uap;
 {
 	struct proc *p = td->td_proc;
+	struct osigcontext *oscp;
+	struct osigreturn_args *ouap;
 	struct trapframe *regs;
 	ucontext_t *ucp;
 	int cs, eflags;
 
-	ucp = uap->sigcntxp;
 #ifdef COMPAT_43
-	if (!useracc((caddr_t)ucp, sizeof(struct osigcontext), VM_PROT_READ))
-		return (EFAULT);
-	if (((struct osigcontext *)ucp)->sc_trapno == 0x01d516)
-		return (osigreturn(td, (struct osigreturn_args *)uap));
-	/*
-	 * Since ucp is not an osigcontext but a ucontext_t, we have to
-	 * check again if all of it is accessible.  A ucontext_t is
-	 * much larger, so instead of just checking for the pointer
-	 * being valid for the size of an osigcontext, now check for
-	 * it being valid for a whole, new-style ucontext_t.
-	 */
+	ouap = (struct osigreturn_args *)uap;
+	oscp = ouap->sigcntxp;
+	if (fuword(&oscp->sc_trapno) == 0x01d516)
+		return (osigreturn(td, ouap));
 #endif
+
+	ucp = uap->sigcntxp;
 	if (!useracc((caddr_t)ucp, sizeof(*ucp), VM_PROT_READ))
 		return (EFAULT);
-
 	regs = td->td_frame;
 	eflags = ucp->uc_mcontext.mc_eflags;
 	if (eflags & PSL_VM) {
