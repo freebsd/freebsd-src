@@ -106,6 +106,8 @@ watchdog_tickle_fn wdog_tickler = NULL;
  */
 const char *panicstr;
 
+int dumping;				/* system is dumping */
+
 static void boot __P((int)) __dead2;
 static void dumpsys __P((void));
 static int setdumpdev __P((dev_t dev));
@@ -460,7 +462,6 @@ static void
 dumpsys(void)
 {
 	int	error;
-	static int dumping;
 
 	if (dumping++) {
 		printf("Dump already in progress, bailing...\n");

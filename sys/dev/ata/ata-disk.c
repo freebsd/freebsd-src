@@ -363,7 +363,7 @@ ad_transfer(struct ad_request *request)
     if (request->donecount == 0) {
 
 	/* start timeout for this transfer */
-	if (panicstr)
+	if (dumping)
 	    request->timeout_handle.callout = NULL;
 	else
 	    request->timeout_handle = 
