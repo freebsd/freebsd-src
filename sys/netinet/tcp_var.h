@@ -518,6 +518,7 @@ struct tcpcb *
 void	 tcp_drain(void);
 void	 tcp_fasttimo(void);
 void	 tcp_init(void);
+void	 tcp_fini(void *);
 void	 tcp_reass_init(void);
 void	 tcp_input(struct mbuf *, int);
 u_long	 tcp_maxmtu(struct in_conninfo *);
