@@ -35,7 +35,7 @@
 .\"
 .Dd June 6, 1993
 .Dt PORTMAP 8
-.Os BSD 4.3
+.Os
 .Sh NAME
 .Nm portmap
 .Nd
@@ -84,8 +84,8 @@ servers are invoked.
 .Pp
 .Nm Portmap
 uses
-.Xr hosts_access 5 
-access control by default.  
+.Xr hosts_access 5
+access control by default.
 Access control patterns may only reference IP addresses.
 .Pp
 Normally
@@ -112,7 +112,7 @@ may be specified multiple times and is typically necessary when running
 portmap on a multi-homed host.  If no -h option is specified, portmap will
 bind to INADDR_ANY, which could lead to problems on a multi-homed host due
 to portmap returning a udp packet from a different IP address then it was
-sent to.  Note that when specifying ip addresses with -h, 
+sent to.  Note that when specifying ip addresses with -h,
 portmap will automatically add 127.0.0.1 to the list so you don't have to.
 .El
 .Sh SEE ALSO
@@ -128,4 +128,4 @@ crashes, all servers must be restarted.
 The
 .Nm
 command appeared in
-.Bx 4.3
+.Bx 4.3 .

@@ -29,7 +29,7 @@
 .\"
 .Dd January 16, 1998
 .Dt WFD 4 i386
-.Os FreeBSD
+.Os
 .Sh NAME
 .Nm wfd
 .Nd ATAPI floppy driver (LS-120 floppy driver)
@@ -198,27 +198,23 @@ first
 slice, partition
 .Ar p
 .Sm off
-.It Xo
-.Pa /dev/wfd Ar u Pa s Ar n Ar p
-.Xc
+.It Pa /dev/wfd Ar u Pa s Ar n Ar p
 .Sm on
 block mode
 .Tn ATAPI
 floppy disk unit
 .Ar u ,
-.No Ar n Ns th
+.Ar n Ns th
 slice, partition
 .Ar p
 .Sm off
-.It Xo
-.Pa /dev/rwfd Ar u Pa s Ar n Ar p
-.Xc
+.It Pa /dev/rwfd Ar u Pa s Ar n Ar p
 .Sm on
 raw mode
 .Tn ATAPI
 floppy disk unit
 .Ar u ,
-.No Ar n Ns th
+.Ar n Ns th
 slice, partition
 .Ar p
 .El
