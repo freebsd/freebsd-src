@@ -650,7 +650,7 @@ print(struct printer *pp, int format, char *file)
 			execl(_PATH_PR, "pr", width, length,
 			    "-h", *title ? title : " ",
 			    "-L", *locale ? locale : "C",
-			    "-F", 0);
+			    "-F", (char *)0);
 			syslog(LOG_ERR, "cannot execl %s", _PATH_PR);
 			exit(2);
 		}
@@ -1315,7 +1315,7 @@ sendmail(struct printer *pp, char *user, int bombed)
 			cp++;
 		else
 			cp = _PATH_SENDMAIL;
-		execl(_PATH_SENDMAIL, cp, "-t", 0);
+		execl(_PATH_SENDMAIL, cp, "-t", (char *)0);
 		_exit(0);
 	} else if (s > 0) {				/* parent */
 		dup2(p[1], 1);
@@ -1512,7 +1512,8 @@ openpr(const struct printer *pp)
 				cp = pp->filters[LPF_OUTPUT];
 			else
 				cp++;
-			execl(pp->filters[LPF_OUTPUT], cp, width, length, 0);
+			execl(pp->filters[LPF_OUTPUT], cp, width, length,
+			      (char *)0);
 			syslog(LOG_ERR, "%s: %s: %m", pp->printer, 
 			       pp->filters[LPF_OUTPUT]);
 			exit(1);
