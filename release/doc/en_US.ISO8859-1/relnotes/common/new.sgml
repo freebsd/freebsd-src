@@ -273,11 +273,23 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       maintainable.  These scripts now reside in
       <filename>/etc/periodic/security/</filename>.</para>
 
+    <para>The <option>ether</option> address family of
+      &man.ifconfig.8; has been changed to a more generic
+      <option>link</option> family (<option>ether</option> is still
+      accepted for backwards compatability).</para>
+
     <para>&man.ldd.1; can now be used on shared libraries, in addition
       to executables.</para>
 
+    <para><filename>libusb</filename> has been renamed as
+      <filename>libusbhid</filename>, following NetBSD's naming
+      conventions.</para>
+
     <para>&man.ngctl.8; now supports a <option>write</option> command
       to send a data packet down a given hook.</para>
+
+    <para>The &man.usbhidctl.1; utility has been added to manipulate
+      USB Human Interface Devices.</para>
 
     <para>The <option>-W</option> option to &man.ps.1; (to extract
       information from a specified swap device) has been useless for
@@ -310,6 +322,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	See <filename>/usr/src/contrib/sendmail/RELEASE_NOTES</filename>
 	and <filename>/etc/mail/README</filename> for more
 	information.</para>
+
+      <para><application>texinfo</application> has been updated to
+	4.1.</para>
+
     </sect3>
 
     <sect3>
