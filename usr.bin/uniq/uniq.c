@@ -83,11 +83,8 @@ main (argc, argv)
 	(void) setlocale(LC_ALL, "");
 
 	obsolete(argv);
-	while ((ch = getopt(argc, argv, "-cdif:s:u")) != -1)
+	while ((ch = getopt(argc, argv, "cdif:s:u")) != -1)
 		switch (ch) {
-		case '-':
-			--optind;
-			goto done;
 		case 'c':
 			cflag = 1;
 			break;
@@ -115,7 +112,7 @@ main (argc, argv)
 			usage();
 	}
 
-done:	argc -= optind;
+	argc -= optind;
 	argv +=optind;
 
 	/* If no flags are set, default is -d -u. */
