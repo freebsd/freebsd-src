@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.172 1999/01/26 04:59:43 peter Exp $
+#	$Id: rc,v 1.173 1999/01/26 05:14:36 peter Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -28,7 +28,8 @@ export PATH
 # on return.
 #
 if [ -f /etc/rc.diskless ]; then
-	if [ `/sbin/sysctl -n vfs.nfs.diskless_valid` != 0 ]; then
+	dlv=`/sbin/sysctl -n vfs.nfs.diskless_valid 2> /dev/null`
+	if [ ${dlv:=0} != 0 ]; then
 		. /etc/rc.diskless
 	fi
 fi
