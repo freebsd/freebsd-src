@@ -189,9 +189,6 @@ vm_fault(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
 {
 	int ret;
 
-	mtx_lock(&Giant);
-	/* GIANT_REQUIRED */
-
 	ret = vm_fault1(map, vaddr, fault_type, fault_flags);
 	mtx_unlock(&Giant);
 	return (ret);
@@ -211,12 +208,11 @@ vm_fault1(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
 	int faultcount;
 	struct faultstate fs;
 
-	GIANT_REQUIRED;
-
-	cnt.v_vm_faults++;
 	hardfault = 0;
 	growstack = TRUE;
+	atomic_add_int(&cnt.v_vm_faults, 1);
 
+	mtx_lock(&Giant);
 RetryFault:;
 
 	/*
@@ -224,11 +220,11 @@ RetryFault:;
 	 * search.
 	 */
 	fs.map = map;
-	if ((result = vm_map_lookup(&fs.map, vaddr,
-		fault_type, &fs.entry, &fs.first_object,
-		&fs.first_pindex, &prot, &wired)) != KERN_SUCCESS) {
-		if ((result != KERN_PROTECTION_FAILURE) ||
-			((fault_flags & VM_FAULT_WIRE_MASK) != VM_FAULT_USER_WIRE)) {
+	result = vm_map_lookup(&fs.map, vaddr, fault_type, &fs.entry,
+	    &fs.first_object, &fs.first_pindex, &prot, &wired);
+	if (result != KERN_SUCCESS) {
+		if (result != KERN_PROTECTION_FAILURE ||
+		    (fault_flags & VM_FAULT_WIRE_MASK) != VM_FAULT_USER_WIRE) {
 			if (growstack && result == KERN_INVALID_ADDRESS &&
 			    map != kernel_map && curproc != NULL) {
 				result = vm_map_growstack(curproc, vaddr);
@@ -237,7 +233,7 @@ RetryFault:;
 				growstack = FALSE;
 				goto RetryFault;
 			}
-			return result;
+			return (result);
 		}
 
 		/*
