@@ -156,22 +156,14 @@ extern u_char *fragtbl[];
  * To lock a buffer, set the B_LOCKED flag and then brelse() it. To unlock,
  * reset the B_LOCKED flag and brelse() the buffer back on the LRU list
  */
-#define LCK_BUF(bp) { \
-	int s; \
-	s = splbio(); \
-	(bp)->b_flags |= B_LOCKED; \
-	splx(s); \
-	brelse(bp); \
-}
+#define LCK_BUF(bp)	BUF_KERNPROC(bp);
 
 #define ULCK_BUF(bp) { \
 	long flags; \
 	int s; \
 	s = splbio(); \
-	BUF_LOCK(bp, LK_EXCLUSIVE, NULL); \
 	flags = (bp)->b_flags; \
-	(bp)->b_flags &= ~(B_DIRTY | B_LOCKED); \
-	bremfree(bp); \
+	(bp)->b_flags &= ~(B_DIRTY); \
 	splx(s); \
 	if (flags & B_DIRTY) \
 		bwrite(bp); \
