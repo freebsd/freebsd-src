@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)cd9660_vfsops.c	8.18 (Berkeley) 5/22/95
- * $Id: cd9660_vfsops.c,v 1.57 1999/08/08 18:42:45 phk Exp $
+ * $Id: cd9660_vfsops.c,v 1.58 1999/08/13 10:29:18 phk Exp $
  */
 
 #include <sys/param.h>
@@ -436,7 +436,7 @@ iso_mountfs(devvp, mp, p, argp)
 	pribp = NULL;
 
 	mp->mnt_data = (qaddr_t)isomp;
-	mp->mnt_stat.f_fsid.val[0] = (long)dev;
+	mp->mnt_stat.f_fsid.val[0] = dev2udev(dev);
 	mp->mnt_stat.f_fsid.val[1] = mp->mnt_vfc->vfc_typenum;
 	mp->mnt_maxsymlinklen = 0;
 	mp->mnt_flag |= MNT_LOCAL;
