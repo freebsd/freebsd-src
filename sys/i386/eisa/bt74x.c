@@ -19,7 +19,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- *	$Id: bt74x.c,v 1.11 1997/08/21 19:56:40 bde Exp $
+ *	$Id: bt74x.c,v 1.12 1997/09/21 21:35:22 gibbs Exp $
  */
 
 #include "eisa.h"
@@ -35,6 +35,7 @@
 #define EISA_DEVICE_ID_BUSLOGIC_74X_B	0x0ab34201
 #define EISA_DEVICE_ID_BUSLOGIC_74X_C	0x0ab34202
 #define	EISA_DEVICE_ID_AMI_4801		0x05a94801
+#define	EISA_DEVICE_ID_BUS4781		0x0ab34781
 
 #define BT_IOSIZE		0x04		/* Move to central header */
 #define BT_EISA_IOSIZE		0x100
@@ -115,6 +116,9 @@ bt_match(type)
 			break;
 		case EISA_DEVICE_ID_AMI_4801:
 			return ("AMI Series 48 SCSI host adapter");
+			break;
+		case EISA_DEVICE_ID_BUS4781:
+			return ("Storage Dimensions SDC3222F SCSI host adapter");
 			break;
 		default:
 			break;
