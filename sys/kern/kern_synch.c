@@ -337,9 +337,6 @@ mi_switch(int flags, struct thread *newtd)
 	    (void *)td, td->td_sched, (long)p->p_pid, p->p_comm);
 	if ((flags & SW_VOL) && (td->td_proc->p_flag & P_SA))
 		newtd = thread_switchout(td, flags, newtd);
-	sched_switch(td, newtd, flags);
-
-	CTR4(KTR_PROC, "mi_switch: new thread %p (kse %p, pid %ld, %s)",
 #if (KTR_COMPILE & KTR_SCHED) != 0
 	if (td == PCPU_GET(idlethread))
 		CTR3(KTR_SCHED, "mi_switch: %p(%s) prio %d idle",
@@ -355,9 +352,12 @@ mi_switch(int flags, struct thread *newtd)
 		    td, td->td_proc->p_comm, td->td_priority,
 		    td->td_inhibitors, td->td_wmesg, td->td_lockname);
 #endif
-	    (void *)td, td->td_sched, (long)p->p_pid, p->p_comm);
+	sched_switch(td, newtd, flags);
 	CTR3(KTR_SCHED, "mi_switch: running %p(%s) prio %d",
 	    td, td->td_proc->p_comm, td->td_priority);
+
+	CTR4(KTR_PROC, "mi_switch: new thread %p (kse %p, pid %ld, %s)",
+	    (void *)td, td->td_sched, (long)p->p_pid, p->p_comm);
 
 	/* 
 	 * If the last thread was exiting, finish cleaning it up.
