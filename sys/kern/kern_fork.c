@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/eventhandler.h>
 #include <sys/filedesc.h>
 #include <sys/kernel.h>
+#include <sys/kthread.h>
 #include <sys/sysctl.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
@@ -59,12 +60,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/resourcevar.h>
 #include <sys/sched.h>
 #include <sys/syscall.h>
+#include <sys/vmmeter.h>
 #include <sys/vnode.h>
 #include <sys/acct.h>
 #include <sys/mac.h>
 #include <sys/ktr.h>
 #include <sys/ktrace.h>
-#include <sys/kthread.h>
 #include <sys/unistd.h>	
 #include <sys/jail.h>
 #include <sys/sx.h>
@@ -75,7 +76,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_extern.h>
 #include <vm/uma.h>
 
-#include <sys/vmmeter.h>
 #include <sys/user.h>
 #include <machine/critical.h>
 
@@ -104,7 +104,7 @@ fork(td, uap)
 		td->td_retval[0] = p2->p_pid;
 		td->td_retval[1] = 0;
 	}
-	return error;
+	return (error);
 }
 
 /*
@@ -124,7 +124,7 @@ vfork(td, uap)
 		td->td_retval[0] = p2->p_pid;
 		td->td_retval[1] = 0;
 	}
-	return error;
+	return (error);
 }
 
 /*
@@ -146,11 +146,10 @@ rfork(td, uap)
 		td->td_retval[0] = p2 ? p2->p_pid : 0;
 		td->td_retval[1] = 0;
 	}
-	return error;
+	return (error);
 }
 
-
-int	nprocs = 1;				/* process 0 */
+int	nprocs = 1;		/* process 0 */
 int	lastpid = 0;
 SYSCTL_INT(_kern, OID_AUTO, lastpid, CTLFLAG_RD, &lastpid, 0, 
     "Last used PID");
@@ -192,32 +191,32 @@ SYSCTL_PROC(_kern, OID_AUTO, randompid, CTLTYPE_INT|CTLFLAG_RW,
 
 int
 fork1(td, flags, pages, procp)
-	struct thread *td;			/* parent proc */
+	struct thread *td;
 	int flags;
 	int pages;
-	struct proc **procp;			/* child proc */
+	struct proc **procp;
 {
-	struct proc *p2, *pptr;
+	struct proc *p1, *p2, *pptr;
 	uid_t uid;
 	struct proc *newproc;
-	int trypid;
-	int ok;
+	int ok, trypid;
 	static int curfail, pidchecked = 0;
 	static struct timeval lastfail;
 	struct filedesc *fd;
 	struct filedesc_to_leader *fdtol;
-	struct proc *p1 = td->td_proc;
 	struct thread *td2;
 	struct kse *ke2;
 	struct ksegrp *kg2;
 	struct sigacts *newsigacts;
 	int error;
 
-	/* Can't copy and clear */
+	/* Can't copy and clear. */
 	if ((flags & (RFFDG|RFCFDG)) == (RFFDG|RFCFDG))
 		return (EINVAL);
 
+	p1 = td->td_proc;
 	mtx_lock(&Giant);
+
 	/*
 	 * Here we don't create a new process, but we divorce
 	 * certain parts of a process from itself.
@@ -332,9 +331,8 @@ fork1(td, flags, pages, procp)
 	 */
 	trypid = lastpid + 1;
 	if (flags & RFHIGHPID) {
-		if (trypid < 10) {
+		if (trypid < 10)
 			trypid = 10;
-		}
 	} else {
 		if (randompid)
 			trypid += arc4random() % randompid;
@@ -582,7 +580,7 @@ again:
 	 * Preserve some more flags in subprocess.  P_PROFIL has already
 	 * been preserved.
 	 */
-	p2->p_flag |= p1->p_flag & (P_SUGID | P_ALTSTACK);
+	p2->p_flag |= p1->p_flag & (P_ALTSTACK | P_SUGID);
 	SESS_LOCK(p1->p_session);
 	if (p1->p_session->s_ttyvp != NULL && p1->p_flag & P_CONTROLT)
 		p2->p_flag |= P_CONTROLT;
@@ -700,9 +698,10 @@ again:
 	_PRELE(p1);
 
 	/*
-	 * tell any interested parties about the new process
+	 * Tell any interested parties about the new process.
 	 */
 	KNOTE(&p1->p_klist, NOTE_FORK | p2->p_pid);
+
 	PROC_UNLOCK(p1);
 
 	/*
@@ -756,8 +755,14 @@ fork_exit(callout, arg, frame)
 	void *arg;
 	struct trapframe *frame;
 {
-	struct thread *td;
 	struct proc *p;
+	struct thread *td;
+
+	/*
+	 * Processes normally resume in mi_switch() after being
+	 * cpu_switch()'ed to, but when children start up they arrive here
+	 * instead, so we must do much the same things as mi_switch() would.
+	 */
 
 	if ((td = PCPU_GET(deadthread))) {
 		PCPU_SET(deadthread, NULL);
@@ -767,6 +772,7 @@ fork_exit(callout, arg, frame)
 	p = td->td_proc;
 	td->td_oncpu = PCPU_GET(cpuid);
 	p->p_state = PRS_NORMAL;
+
 	/*
 	 * Finish setting up thread glue so that it begins execution in a
 	 * non-nested critical section with sched_lock held but not recursed.
@@ -783,9 +789,9 @@ fork_exit(callout, arg, frame)
 
 	/*
 	 * cpu_set_fork_handler intercepts this function call to
-         * have this call a non-return function to stay in kernel mode.
-         * initproc has its own fork handler, but it does return.
-         */
+	 * have this call a non-return function to stay in kernel mode.
+	 * initproc has its own fork handler, but it does return.
+	 */
 	KASSERT(callout != NULL, ("NULL callout in fork_exit"));
 	callout(arg, frame);
 
