@@ -4,10 +4,9 @@
 ; System call name/number master file (or rather, slave, from IBCS2).
 ; Processed to created ibcs2_sysent.c, ibcs2_syscalls.c and ibcs2_syscall.h.
 
-; Columns: number type nargs namespc name alt{name,tag,rtyp}/comments
+; Columns: number type nargs name alt{name,tag,rtyp}/comments
 ;	number	system call number, must be in order
 ;	type	one of STD, OBSOL, UNIMPL, COMPAT
-;	namespc one of POSIX, BSD, SVR3, SCO, NOHIDE
 ;	name	psuedo-prototype of syscall routine
 ;		If one of the following alts is different, then all appear:
 ;	altname	name of system call if different
