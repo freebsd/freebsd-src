@@ -1,5 +1,5 @@
 /*
- * $Id: user.c,v 1.1.2.7 1997/01/24 21:06:06 jkh Exp $
+ * $Id: user.c,v 1.1.2.8 1997/01/29 21:16:36 jkh Exp $
  *
  * Copyright (c) 1996
  *      Jörg Wunsch. All rights reserved.
@@ -533,7 +533,6 @@ completeUser(void)
 	if ((cp2 = strchr(cp, ':')) == NULL)
 	    return;
 	*cp2++ = '\0';
-	strncpy(homedir, cp, sizeof homedir);
 	if (*cp2)
 	    strncpy(shell, cp2, sizeof shell);
     }
