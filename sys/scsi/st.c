@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- * $Id: st.c,v 1.58 1996/01/14 16:29:01 joerg Exp $
+ * $Id: st.c,v 1.59 1996/01/29 03:19:23 gibbs Exp $
  */
 
 /*
@@ -757,6 +757,9 @@ st_decide_mode(unit, first_read)
 	case HALFINCH_1600:
 	case HALFINCH_6250:
 	case DDS:
+	case QIC_525:
+	case QIC_1320:
+	case QIC_3080:
 		st->flags &= ~ST_FIXEDBLOCKS;
 		st->blksiz = 0;
 		SC_DEBUG(sc_link, SDEV_DB3, ("density specified variable\n"));
@@ -765,9 +768,6 @@ st_decide_mode(unit, first_read)
 	case QIC_24:
 	case QIC_120:
 	case QIC_150:
-	case QIC_525:
-	case QIC_1320:
-	case QIC_3080:
 		st->flags |= ST_FIXEDBLOCKS;
 		if (st->media_blksiz > 0) {
 			st->blksiz = st->media_blksiz;
@@ -1993,7 +1993,7 @@ st_touch_tape(unit)
 	if (( errno = st_mode_sense(unit, 0, NULL, 0, 0)) ) {
 		goto bad;
 	}
-	st->blksiz = 1024;
+	st->blksiz = (st->quirks & ST_Q_NO_1024)? 512: 1024;
 	do {
 		switch ((int)st->blksiz) {
 		case 512:
