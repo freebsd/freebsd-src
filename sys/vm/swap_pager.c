@@ -39,7 +39,7 @@
  * from: Utah $Hdr: swap_pager.c 1.4 91/04/30$
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
- * $Id: swap_pager.c,v 1.30 1995/03/11 22:25:02 davidg Exp $
+ * $Id: swap_pager.c,v 1.31 1995/03/19 14:29:24 davidg Exp $
  */
 
 /*
@@ -1282,6 +1282,14 @@ swap_pager_output(swp, m, count, flags, rtvals)
 			 */
 			if (ntoget * PAGE_SIZE > object->size) {
 				ntoget = (object->size + (PAGE_SIZE - 1)) / PAGE_SIZE;
+				/*
+				 * make sure that we include the needed page
+				 */
+				if (ntoget <= off) {
+					printf("swap_pager_output: page outside of object -- %d, %d\n",
+					   m[j]->offset, object->size);
+					ntoget = off + 1;
+				}
 			}
 	retrygetspace:
 			if (!swap_pager_full && ntoget > 1 &&
