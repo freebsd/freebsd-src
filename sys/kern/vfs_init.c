@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_init.c	8.3 (Berkeley) 1/4/94
- * $Id: vfs_init.c,v 1.41 1998/12/07 21:58:30 archie Exp $
+ * $Id: vfs_init.c,v 1.42 1999/01/28 00:57:47 dillon Exp $
  */
 
 
@@ -231,7 +231,7 @@ vfs_rm_vnodeops(const void *data)
 	struct vnodeop_desc *desc;
 	int i, j, k;
 
-	opv = (struct vnodeopv_desc *)data;
+	opv = (const struct vnodeopv_desc *)data;
 	/* Lower ref counts on descs in the table and release if zero */
 	opv_desc_vector = *(opv->opv_desc_vector_p);
 	for (i = 0; (desc = opv->opv_desc_ops[i].opve_op); i++) {
