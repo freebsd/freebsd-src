@@ -169,7 +169,6 @@ struct md_page {
 struct pmap {
 	struct mtx		pm_mtx;
 	pt_entry_t		*pm_lev1;	/* KVA of lev0map */
-	vm_object_t		pm_pteobj;	/* Container for pte's */
 	TAILQ_HEAD(,pv_entry)	pm_pvlist;	/* list of mappings in pmap */
 	u_int32_t		pm_active;	/* active cpus */
 	struct {
