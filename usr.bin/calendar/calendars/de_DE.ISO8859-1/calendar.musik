@@ -11,15 +11,14 @@ LANG=de_DE.ISO8859-1
 
 /* Klassik */
 02/23   Händel geboren, 1685
-03/21   J.S. Bach geboren, 1685
+03/21   Johann Sebastian Bach geboren in Eisenach, 1685
 05/07   Johannes Brahms geboren in Hamburg, 1833
-05/22   Johann Sebastian Bach geboren in Eisenach, 1665
-07/28   Bach gestorben, 1750
+07/28   Johann Sebastian Bach gestorben in Leipzig, 1750
 10/22   Franz Liszt geboren, 1811
 12/05   Mozart gestorben, 1791
 12/16   Beethoven gestorben, 1770
 
 /* Pop */
-09/18   Jimi Hendrix gestorben
+09/18   Jimi Hendrix gestorben, 1970
 
 #endif /* !_de_DE_ISO8859_1_musik_ */

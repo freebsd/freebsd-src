@@ -32,7 +32,7 @@
 .\"     @(#)calendar.1  8.1 (Berkeley) 6/29/93
 .\" $FreeBSD$
 .\"
-.Dd June 29, 1993
+.Dd October 1, 2001
 .Dt CALENDAR 1
 .Os
 .Sh NAME
@@ -50,8 +50,9 @@
 .Sm on
 .Oc
 .Sh DESCRIPTION
-.Nm Calendar
-checks the current directory for a file named
+The
+.Nm
+utility checks the current directory for a file named
 .Pa calendar
 and displays lines that begin with either today's date
 or tomorrow's.
@@ -114,7 +115,7 @@ positive or negative integer.
 .Pp
 Weekdays may be followed by ``-4'' ... ``+5'' (aliases for
 last, first, second, third, fourth) for moving events like
-``the last Monday in April''
+``the last Monday in April''.
 .Pp
 By convention, dates followed by an asterisk are not fixed, i.e., change
 from year to year.
@@ -168,8 +169,7 @@ file in current directory
 .It Pa ~/.calendar
 .Pa calendar
 HOME directory.
-.Nm
-does a chdir into this directory if it exists.
+A chdir is done into this directory if it exists.
 .It Pa ~/.calendar/calendar
 calendar file to use if no calendar file exists in the current directory.
 .It Pa ~/.calendar/nomail
@@ -187,6 +187,10 @@ This calendar should be updated yearly by the local system administrator
 so that roving holidays are set correctly for the current year.
 .It Pa calendar.computer
 Days of special significance to computer people.
+.It Pa calendar.freebsd
+Birthdays of
+.Fx
+committers.
 .It Pa calendar.history
 Everything  else, mostly U.S. historical events.
 .It Pa calendar.holiday
@@ -204,6 +208,8 @@ Strongly  oriented  toward  rock 'n' roll.
 U.S. holidays.
 This calendar should be updated yearly by the local system administrator
 so that roving holidays are set correctly for the current year.
+.It Pa calendar.french
+French calendar.
 .It Pa calendar.german
 German calendar.
 .It Pa calendar.russian
@@ -227,5 +233,6 @@ A
 command appeared in
 .At v7 .
 .Sh BUGS
-.Nm Calendar
-doesn't handle Jewish holidays and moon phases.
+The
+.Nm
+utility doesn't handle Jewish holidays and moon phases.

@@ -29,44 +29,47 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
 
 #ifndef lint
 static const char copyright[] =
 "@(#) Copyright (c) 1989, 1993\n\
 	The Regents of the University of California.  All rights reserved.\n";
-#endif /* not lint */
+#endif
 
+#if 0
 #ifndef lint
-static const char sccsid[] = "@(#)calendar.c  8.3 (Berkeley) 3/25/94";
-#endif /* not lint */
+static char sccsid[] = "@(#)calendar.c  8.3 (Berkeley) 3/25/94";
+#endif
+#endif
 
-#include <sys/param.h>
-#include <stdio.h>
-#include <ctype.h>
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #include <sys/types.h>
+#include <sys/param.h>
 #include <sys/stat.h>
-#include <unistd.h>
+#include <sys/time.h>
+#include <sys/uio.h>
+#include <sys/wait.h>
+#include <ctype.h>
 #include <err.h>
 #include <errno.h>
 #include <langinfo.h>
 #include <locale.h>
-#include <string.h>
-#include <sys/uio.h>
-#include <sys/time.h>
-#include <stdlib.h>
 #include <pwd.h>
-#include <sys/wait.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
 #include "pathnames.h"
 #include "calendar.h"
 
 
-char *calendarFile = "calendar";  /* default calendar file */
-char *calendarHome = ".calendar"; /* HOME */
-char *calendarNoMail = "nomail";  /* don't sent mail if this file exist */
+const char *calendarFile = "calendar";  /* default calendar file */
+const char *calendarHome = ".calendar"; /* HOME */
+const char *calendarNoMail = "nomail";  /* don't sent mail if this file exist */
 
 struct fixs neaster, npaskha;
 
@@ -84,8 +87,8 @@ struct iovec header[] = {
 void
 cal()
 {
-	register int printing;
-	register char *p;
+	int printing;
+	char *p;
 	FILE *fp;
 	int ch, l;
 	int month;
@@ -227,7 +230,7 @@ getfield(p, endp, flags)
 	return (val);
 }
 
-char path[MAXPATHLEN + 1];
+char path[MAXPATHLEN];
 
 FILE *
 opencal()
@@ -281,7 +284,7 @@ opencal()
 		}
 		execl(_PATH_CPP, "cpp", "-P",
 		    "-traditional", "-nostdinc",	/* GCC specific opts */
-		    "-I.", "-I", _PATH_INCLUDE, NULL);
+		    "-I.", "-I", _PATH_INCLUDE, (char *)NULL);
 		warn(_PATH_CPP);
 		_exit(1);
 	}
@@ -344,7 +347,7 @@ closecal(fp)
 			_exit(1);
 		}
 		execl(_PATH_SENDMAIL, "sendmail", "-i", "-t", "-F",
-		    "\"Reminder Service\"", NULL);
+		    "\"Reminder Service\"", (char *)NULL);
 		warn(_PATH_SENDMAIL);
 		_exit(1);
 	}
