@@ -109,12 +109,17 @@ main(void)
     bcache_init(32, 512);	/* 16k cache XXX tune this */
 
     /*
-     * We only want the PXE disk to try to init itself in the below walk through
-     * devsw if we actually booted off of PXE.
+     * Special handling for PXE and CD booting.
      */
-    if((kargs->bootinfo == NULL) &&
-       ((kargs->bootflags & KARGS_FLAGS_PXE) != 0)) {
-      pxe_enable(kargs->pxeinfo ? PTOV(kargs->pxeinfo) : NULL);
+    if (kargs->bootinfo == NULL) {
+	/*
+	 * We only want the PXE disk to try to init itself in the below
+	 * walk through devsw if we actually booted off of PXE.
+	 */
+	if (kargs->bootflags & KARGS_FLAGS_PXE)
+	    pxe_enable(kargs->pxeinfo ? PTOV(kargs->pxeinfo) : NULL);
+	else if (kargs->bootflags & KARGS_FLAGS_CD)
+	    bc_add(initial_bootdev);
     }
 
     /*
@@ -156,25 +161,21 @@ static void
 extract_currdev(void)
 {
     struct i386_devdesc	new_currdev;
-    int			major, biosdev;
+    int			major, biosdev = -1;
 
     /* Assume we are booting from a BIOS disk by default */
     new_currdev.d_dev = &biosdisk;
-    new_currdev.d_type = new_currdev.d_dev->dv_type;
 
     /* new-style boot loaders such as pxeldr and cdldr */
     if (kargs->bootinfo == NULL) {
         if ((kargs->bootflags & KARGS_FLAGS_CD) != 0) {
-	    /* we are booting from a CD with cdldr */
-	    new_currdev.d_kind.biosdisk.slice = -1;
-	    new_currdev.d_kind.biosdisk.partition = 0;
-	    biosdev = initial_bootdev;
+	    /* we are booting from a CD with cdboot */
+	    new_currdev.d_dev = &bioscd;
+	    new_currdev.d_kind.bioscd.unit = bc_bios2unit(initial_bootdev);
 	} else if ((kargs->bootflags & KARGS_FLAGS_PXE) != 0) {
 	    /* we are booting from pxeldr */
 	    new_currdev.d_dev = &pxedisk;
-	    new_currdev.d_type = new_currdev.d_dev->dv_type;
 	    new_currdev.d_kind.netif.unit = 0;
-	    biosdev = -1;
 	} else {
 	    /* we don't know what our boot device is */
 	    new_currdev.d_kind.biosdisk.slice = -1;
@@ -211,12 +212,13 @@ extract_currdev(void)
 	    biosdev = 0x80 + B_UNIT(initial_bootdev);		/* assume harddisk */
 #endif
     }
+    new_currdev.d_type = new_currdev.d_dev->dv_type;
     
     /*
      * If we are booting off of a BIOS disk and we didn't succeed in determining
      * which one we booted off of, just use disk0: as a reasonable default.
      */
-    if ((new_currdev.d_type == devsw[0]->dv_type) &&
+    if ((new_currdev.d_type == biosdisk.dv_type) &&
 	((new_currdev.d_kind.biosdisk.unit = bd_bios2unit(biosdev)) == -1)) {
 	printf("Can't work out which disk we are booting from.\n"
 	       "Guessed BIOS device 0x%x not found by probes, defaulting to disk0:\n", biosdev);
