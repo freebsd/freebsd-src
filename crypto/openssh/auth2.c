@@ -359,6 +359,9 @@ auth_set_user(char *u, char *s)
 		copy->pw_gid = pw->pw_gid;
 		copy->pw_dir = xstrdup(pw->pw_dir);
 		copy->pw_shell = xstrdup(pw->pw_shell);
+		copy->pw_class = xstrdup(pw->pw_class);
+		copy->pw_expire = pw->pw_expire;
+		copy->pw_change = pw->pw_change;
 		authctxt->valid = 1;
 	} else {
 		if (strcmp(u, authctxt->user) != 0 ||
