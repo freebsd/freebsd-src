@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_input.c	8.2 (Berkeley) 1/4/94
- * $Id: ip_input.c,v 1.4 1994/08/18 22:35:30 wollman Exp $
+ * $Id: ip_input.c,v 1.5 1994/09/06 22:42:21 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -282,7 +282,6 @@ next:
 	}
 	if (IN_MULTICAST(ntohl(ip->ip_dst.s_addr))) {
 		struct in_multi *inm;
-#ifdef MROUTING
 		if (ip_mrouter) {
 			/*
 			 * If we are acting as a multicast router, all
@@ -313,7 +312,6 @@ next:
 				goto ours;
 			ipstat.ips_forward++;
 		}
-#endif
 		/*
 		 * See if we belong to the destination multicast group on the
 		 * arrival interface.
