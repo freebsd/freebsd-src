@@ -26,6 +26,7 @@ MINIMALDOCPORTS= \
 	ports/converters/libiconv \
 	ports/devel/bison \
 	ports/devel/gettext \
+	ports/devel/gettext-old \
 	ports/devel/gmake \
 	ports/devel/libtool13 \
 	ports/devel/pkgconfig \
