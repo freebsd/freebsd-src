@@ -41,7 +41,7 @@ $CurrentPackagesCommand = '/usr/sbin/pkg_info -aI';
 $CatProgram = "cat ";
 $FetchProgram = "fetch -o - ";
 
-#$indexFile = "ftp://ftp.freebsd.org/pub/FreeBSD/ports-current/INDEX";
+#$indexFile = "ftp://ftp.freebsd.org/pub/FreeBSD/branches/-current/ports/INDEX";
 $IndexFile = 'file:/usr/ports/INDEX';
 $ShowCommandsFlag = 0;
 $DebugFlag = 0;
@@ -226,14 +226,8 @@ if ($#ARGV >= 0) {
     $IndexFile = $ARGV[0];
 }
 
-# Gross hack to get around a bug in fetch(1).  When PR bin/7203 gets fixed,
-# we can make a lot of this code go away...basically the problem is that
-# we can't depend on "fetch -o -" to do the right thing with files in the
-# filesystem.
-if ($IndexFile =~ s-^file:/-/-) {
-    $IndexPackagesCommand = $CatProgram . $IndexFile;
-}
-elsif ($IndexFile =~ m-^(http|ftp)://-) {
+# Determine what command to use to retrieve the index file.
+if ($IndexFile =~ m-^((http|ftp)://|file:/)-) {
     $IndexPackagesCommand = $FetchProgram . $IndexFile;
 }
 else {
