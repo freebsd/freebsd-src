@@ -39,6 +39,12 @@
 
 #include <sys/queue.h>
 
+
+#include <netinet6/ipsec.h> /* for IPSEC */
+
+#define	in6pcb		inpcb	/* for KAME src sync over BSD*'s */
+#define	in6p_sp		inp_sp	/* for KAME src sync over BSD*'s */
+
 /*
  * Common structure pcb for internet protocol implementation.
  * Here are stored pointers to local and foreign host table
@@ -51,32 +57,111 @@ LIST_HEAD(inpcbporthead, inpcbport);
 typedef	u_quad_t	inp_gen_t;
 
 /*
+ * PCB with AF_INET6 null bind'ed laddr can receive AF_INET input packet.
+ * So, AF_INET6 null laddr is also used as AF_INET null laddr,
+ * by utilize following structure. (At last, same as INRIA)
+ */
+struct in_addr_4in6 {
+	u_int32_t	ia46_pad32[3];
+	struct	in_addr	ia46_addr4;
+};
+
+/*
  * NB: the zone allocator is type-stable EXCEPT FOR THE FIRST TWO LONGS
  * of the structure.  Therefore, it is important that the members in
  * that position not contain any information which is required to be
  * stable.
  */
+struct	icmp6_filter;
+
 struct inpcb {
-	LIST_ENTRY(inpcb) inp_hash;	/* hash list */
-	struct	in_addr inp_faddr;	/* foreign host table entry */
-	struct	in_addr inp_laddr;	/* local host table entry */
+	LIST_ENTRY(inpcb) inp_hash; /* hash list */
 	u_short	inp_fport;		/* foreign port */
 	u_short	inp_lport;		/* local port */
-	LIST_ENTRY(inpcb) inp_list;	/* list for all PCBs of this proto */
+	LIST_ENTRY(inpcb) inp_list; /* list for all PCBs of this proto */
+	u_int32_t	inp_flow;
+
+	/* protocol dependent part, local and foreign addr */
+	union {
+		/* foreign host table entry */
+		struct	in_addr_4in6 inp46_foreign;
+		struct	in6_addr inp6_foreign;
+	} inp_dependfaddr;
+	union {
+		/* local host table entry */
+		struct	in_addr_4in6 inp46_local;
+		struct	in6_addr inp6_local;
+	} inp_dependladdr;
+
 	caddr_t	inp_ppcb;		/* pointer to per-protocol pcb */
 	struct	inpcbinfo *inp_pcbinfo;	/* PCB list info */
 	struct	socket *inp_socket;	/* back pointer to socket */
-	struct	mbuf *inp_options;	/* IP options */
-	struct	route inp_route;	/* placeholder for routing entry */
+					/* list for this PCB's local port */
 	int	inp_flags;		/* generic IP/datagram flags */
-	u_char	inp_ip_tos;		/* type of service proto */
+
+	/* protocol dependent part; cached route */
+	union {
+		/* placeholder for routing entry */
+		struct	route inp4_route;
+		struct	route_in6 inp6_route;
+	} inp_dependroute;
+
+	struct	inpcbpolicy *inp_sp; /* for IPSEC */
+	u_char	inp_vflag;
+#define	INP_IPV4	0x1
+#define	INP_IPV6	0x2
 	u_char	inp_ip_ttl;		/* time to live proto */
 	u_char	inp_ip_p;		/* protocol proto */
-	u_char	pad[1];			/* alignment */
-	struct	ip_moptions *inp_moptions; /* IP multicast options */
-	LIST_ENTRY(inpcb) inp_portlist;	/* list for this PCB's local port */
+
+	/* protocol dependent part; options */
+	struct {
+		u_char	inp4_ip_tos;		/* type of service proto */
+		struct	mbuf *inp4_options;	/* IP options */
+		struct	ip_moptions *inp4_moptions; /* IP multicast options */
+	} inp_depend4;
+#define	inp_faddr	inp_dependfaddr.inp46_foreign.ia46_addr4
+#define	inp_laddr	inp_dependladdr.inp46_local.ia46_addr4
+#define	inp_route	inp_dependroute.inp4_route
+#define	inp_ip_tos	inp_depend4.inp4_ip_tos
+#define	inp_options	inp_depend4.inp4_options
+#define	inp_moptions	inp_depend4.inp4_moptions
+	struct {
+		/* IP options */
+		struct	mbuf *inp6_options;
+		/* IP6 options for outgoing packets */
+		struct	ip6_pktopts *inp6_outputopts;
+		/* IP multicast options */
+		struct	ip6_moptions *inp6_moptions;
+		/* ICMPv6 code type filter */
+		struct	icmp6_filter *inp6_icmp6filt;
+		/* IPV6_CHECKSUM setsockopt */
+		int	inp6_cksum;
+		u_short	inp6_ifindex;
+		short	inp6_hops;
+		u_int8_t	inp6_hlim;
+	} inp_depend6;
+	LIST_ENTRY(inpcb) inp_portlist;
 	struct	inpcbport *inp_phd;	/* head of this list */
-	inp_gen_t inp_gencnt;		/* generation count of this instance */
+	inp_gen_t	inp_gencnt;	/* generation count of this instance */
+#define	in6p_faddr	inp_dependfaddr.inp6_foreign
+#define	in6p_laddr	inp_dependladdr.inp6_local
+#define	in6p_route	inp_dependroute.inp6_route
+#define	in6p_ip6_hlim	inp_depend6.inp6_hlim
+#define	in6p_hops	inp_depend6.inp6_hops	/* default hop limit */
+#define	in6p_ip6_nxt	inp_ip_p
+#define	in6p_flowinfo	inp_flow
+#define	in6p_vflag	inp_vflag
+#define	in6p_options	inp_depend6.inp6_options
+#define	in6p_outputopts	inp_depend6.inp6_outputopts
+#define	in6p_moptions	inp_depend6.inp6_moptions
+#define	in6p_icmp6filt	inp_depend6.inp6_icmp6filt
+#define	in6p_cksum	inp_depend6.inp6_cksum
+#define	inp6_ifindex	inp_depend6.inp6_ifindex
+#define	in6p_flags	inp_flags  /* for KAME src sync over BSD*'s */
+#define	in6p_socket	inp_socket  /* for KAME src sync over BSD*'s */
+#define	in6p_lport	inp_lport  /* for KAME src sync over BSD*'s */
+#define	in6p_fport	inp_fport  /* for KAME src sync over BSD*'s */
+#define	in6p_ppcb	inp_ppcb  /* for KAME src sync over BSD*'s */
 };
 /*
  * The range of the generation count, as used in this implementation,
@@ -140,14 +225,54 @@ struct inpcbinfo {		/* XXX documentation, prefixes */
 #define	INP_ANONPORT		0x40	/* port chosen for user */
 #define	INP_RECVIF		0x80	/* receive incoming interface */
 #define	INP_MTUDISC		0x100	/* user can do MTU discovery */
+#define	INP_FAITH		0x200	/* accept FAITH'ed connections */
+#define	IN6P_PKTINFO		0x010000
+#define	IN6P_HOPLIMIT		0x020000
+#define	IN6P_NEXTHOP		0x040000
+#define	IN6P_HOPOPTS		0x080000
+#define	IN6P_DSTOPTS		0x100000
+#define	IN6P_RTHDR		0x200000
+#define	IN6P_BINDV6ONLY		0x400000
 #define	INP_CONTROLOPTS		(INP_RECVOPTS|INP_RECVRETOPTS|INP_RECVDSTADDR|\
-					INP_RECVIF)
+					INP_RECVIF|\
+				 IN6P_PKTINFO|IN6P_HOPLIMIT|IN6P_NEXTHOP|\
+				 IN6P_HOPOPTS|IN6P_DSTOPTS|IN6P_RTHDR)
+
+#define	INP_UNMAPPABLEOPTS	(IN6P_HOPOPTS|IN6P_DSTOPTS|IN6P_RTHDR)
+
+ /* for KAME src sync over BSD*'s */
+#define	IN6P_RECVOPTS		INP_RECVOPTS
+#define	IN6P_RECVRETOPTS	INP_RECVRETOPTS
+#define	IN6P_RECVDSTADDR	INP_RECVDSTADDR
+#define	IN6P_HDRINCL		INP_HDRINCL
+#define	IN6P_HIGHPORT		INP_HIGHPORT
+#define	IN6P_LOWPORT		INP_LOWPORT
+#define	IN6P_ANONPORT		INP_ANONPORT
+#define	IN6P_RECVIF		INP_RECVIF
+#define	IN6P_MTUDISC		INP_MTUDISC
+#define	IN6P_FAITH		INP_FAITH
+#define	IN6P_CONTROLOPTS INP_CONTROLOPTS
+	/*
+	 * socket AF version is {newer than,or include}
+	 * actual datagram AF version
+	 */
 
 #define	INPLOOKUP_WILDCARD	1
-
 #define	sotoinpcb(so)	((struct inpcb *)(so)->so_pcb)
+#define	sotoin6pcb(so)	sotoinpcb(so) /* for KAME src sync over BSD*'s */
+
+#define	INP_SOCKAF(so) so->so_proto->pr_domain->dom_family
+
+#define	INP_CHECK_SOCKAF(so, af) 	(INP_SOCKAF(so) == af)
 
 #ifdef KERNEL
+extern int	ipport_lowfirstauto;
+extern int	ipport_lowlastauto;
+extern int	ipport_firstauto;
+extern int	ipport_lastauto;
+extern int	ipport_hifirstauto;
+extern int	ipport_hilastauto;
+
 void	in_losing __P((struct inpcb *));
 int	in_pcballoc __P((struct socket *, struct inpcbinfo *, struct proc *));
 int	in_pcbbind __P((struct inpcb *, struct sockaddr *, struct proc *));

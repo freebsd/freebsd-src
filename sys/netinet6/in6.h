@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 1995, 1996, 1997, and 1998 WIDE Project.
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -13,7 +13,7 @@
  * 3. Neither the name of the project nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE PROJECT AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -516,21 +516,9 @@ struct in6_pktinfo {
 #define	IPV6CTL_GIF_HLIM	19	/* default HLIM for gif encap packet */
 #define	IPV6CTL_USE_DEPRECATED	21	/* use deprecated addr (RFC2462 5.5.4) */
 #define	IPV6CTL_RR_PRUNE	22	/* walk timer for router renumbering */
-#ifdef MAPPED_ADDR_ENABLED
 #define	IPV6CTL_MAPPED_ADDR	23
-#endif /* MAPPED_ADDR_ENABLED */
 /* New entries should be added here from current IPV6CTL_MAXID value. */
 #define	IPV6CTL_MAXID		24
-
-#ifdef MAPPED_ADDR_ENABLED
-#define	IPV6CTL_NAMES_MAPPED_ADDR	"mapped_addr"
-#define	IPV6CTL_TYPE_MAPPED_ADDR	CTLTYPE_INT
-#define	IPV6CTL_VARS_MAPPED_ADDR	&ip6_mapped_addr_on
-#else  /* MAPPED_ADDR_ENABLED */
-#define	IPV6CTL_NAMES_MAPPED_ADDR	0
-#define	IPV6CTL_TYPE_MAPPED_ADDR	0
-#define	IPV6CTL_VARS_MAPPED_ADDR	0
-#endif /* MAPPED_ADDR_ENABLED */
 
 #define	IPV6CTL_NAMES { \
 	{ 0, 0 }, \
@@ -556,7 +544,7 @@ struct in6_pktinfo {
 	{ 0, 0 }, \
 	{ "use_deprecated", CTLTYPE_INT }, \
 	{ "rr_prune", CTLTYPE_INT }, \
-	{ IPV6CTL_NAMES_MAPPED_ADDR, IPV6CTL_TYPE_MAPPED_ADDR }, \
+	{ "mapped_addr", CTLTYPE_INT }, \
 }
 
 #define	IPV6CTL_VARS { \
@@ -583,12 +571,23 @@ struct in6_pktinfo {
 	0, \
 	&ip6_use_deprecated, \
 	&ip6_rr_prune, \
-	IPV6CTL_VARS_MAPPED_ADDR, \
+	&ip6_mapped_addr_on, \
 }
 #endif /* !_XOPEN_SOURCE */
 
+/*
+ * Redefinition of mbuf flags
+ */
+#define	M_ANYCAST6	M_PROTO1
+#define	M_AUTHIPHDR	M_PROTO2
+#define	M_DECRYPTED	M_PROTO3
+#define	M_LOOP		M_PROTO4
+#define	M_AUTHIPDGM	M_PROTO5
+
 #ifdef _KERNEL
-struct cmsghdr;
+struct	cmsghdr;
+struct	mbuf;
+struct	ifnet;
 
 int	in6_canforward __P((struct in6_addr *, struct in6_addr *));
 int	in6_cksum __P((struct mbuf *, u_int8_t, int, int));
@@ -597,7 +596,6 @@ int	in6_addrscope __P((struct in6_addr *));
 struct	in6_ifaddr *in6_ifawithscope __P((struct ifnet *, struct in6_addr *));
 struct	in6_ifaddr *in6_ifawithifp __P((struct ifnet *, struct in6_addr *));
 extern void	in6_if_up __P((struct ifnet *));
-#ifdef MAPPED_ADDR_ENABLED
 struct	sockaddr;
 
 void	in6_sin6_2_sin __P((struct sockaddr_in *sin,
@@ -606,7 +604,6 @@ void	in6_sin_2_v4mapsin6 __P((struct sockaddr_in *sin,
 				 struct sockaddr_in6 *sin6));
 void	in6_sin6_2_sin_in_sock __P((struct sockaddr *nam));
 void	in6_sin_2_v4mapsin6_in_sock __P((struct sockaddr **nam));
-#endif /* MAPPED_ADDR_ENABLED */
 
 #define	satosin6(sa)	((struct sockaddr_in6 *)(sa))
 #define	sin6tosa(sin6)	((struct sockaddr *)(sin6))

@@ -103,6 +103,16 @@ rtalloc_ign(ro, ignore)
 	ro->ro_rt = rtalloc1(&ro->ro_dst, 1, ignore);
 }
 
+/* for INET6 */
+void
+rtcalloc(ro)
+	register struct route *ro;
+{
+	if (ro->ro_rt && ro->ro_rt->rt_ifp && (ro->ro_rt->rt_flags & RTF_UP))
+		return;				 /* XXX */
+	ro->ro_rt = rtalloc1(&ro->ro_dst, RTF_CLONING, 0UL);
+}
+
 /*
  * Look up the route that matches the address given
  * Or, at least try.. Create a cloned route if needed.
@@ -121,7 +131,7 @@ rtalloc1(dst, report, ignflags)
 	u_long nflags;
 	int  s = splnet(), err = 0, msgtype = RTM_MISS;
 
-	/* 
+	/*
 	 * Look up the address in the table for that Address Family
 	 */
 	if (rnh && (rn = rnh->rnh_matchaddr((caddr_t)dst, rnh)) &&
@@ -151,7 +161,7 @@ rtalloc1(dst, report, ignflags)
 			}
 			if ((rt = newrt) && (rt->rt_flags & RTF_XRESOLVE)) {
 				/*
-				 * If the new route specifies it be 
+				 * If the new route specifies it be
 				 * externally resolved, then go do that.
 				 */
 				msgtype = RTM_RESOLVE;
@@ -216,7 +226,7 @@ rtfree(rt)
 	if (rt->rt_refcnt <= 0 && (rt->rt_flags & RTF_UP) == 0) {
 		if (rt->rt_nodes->rn_flags & (RNF_ACTIVE | RNF_ROOT))
 			panic ("rtfree 2");
-		/* 
+		/*
 		 * the rtentry must have been removed from the routing table
 		 * so it is represented in rttrash.. remove that now.
 		 */
@@ -229,7 +239,7 @@ rtfree(rt)
 		}
 #endif
 
-		/* 
+		/*
 		 * release references on items we hold them on..
 		 * e.g other routes and ifaddrs.
 		 */
@@ -513,7 +523,7 @@ rtrequest(req, dst, gateway, netmask, flags, ret_nrt)
 		 */
 		rt->rt_flags &= ~RTF_UP;
 
-		/* 
+		/*
 		 * give the protocol a chance to keep things in sync.
 		 */
 		if ((ifa = rt->rt_ifa) && ifa->ifa_rtrequest)
@@ -593,6 +603,7 @@ rtrequest(req, dst, gateway, netmask, flags, ret_nrt)
 		ifa->ifa_refcnt++;
 		rt->rt_ifa = ifa;
 		rt->rt_ifp = ifa->ifa_ifp;
+		/* XXX mtu manipulation will be done in rnh_addaddr -- itojun */
 
 		rn = rnh->rnh_addaddr((caddr_t)ndst, (caddr_t)netmask,
 					rnh, rt->rt_nodes);
@@ -607,7 +618,7 @@ rtrequest(req, dst, gateway, netmask, flags, ret_nrt)
 			 */
 			rt2 = rtalloc1(dst, 0, RTF_PRCLONING);
 			if (rt2 && rt2->rt_parent) {
-				rtrequest(RTM_DELETE, 
+				rtrequest(RTM_DELETE,
 					  (struct sockaddr *)rt_key(rt2),
 					  rt2->rt_gateway,
 					  rt_mask(rt2), rt2->rt_flags, 0);
@@ -638,9 +649,9 @@ rtrequest(req, dst, gateway, netmask, flags, ret_nrt)
 
 		rt->rt_parent = 0;
 
-		/* 
+		/*
 		 * If we got here from RESOLVE, then we are cloning
-		 * so clone the rest, and note that we 
+		 * so clone the rest, and note that we
 		 * are a clone (and increment the parent's references)
 		 */
 		if (req == RTM_RESOLVE) {
@@ -846,8 +857,8 @@ rt_setgate(rt0, dst, gate)
 	 */
 	Bcopy(gate, (rt->rt_gateway = (struct sockaddr *)(new + dlen)), glen);
 
-	/* 
-	 * if we are replacing the chunk (or it's new) we need to 
+	/*
+	 * if we are replacing the chunk (or it's new) we need to
 	 * replace the dst as well
 	 */
 	if (old) {
@@ -941,13 +952,15 @@ rtinit(ifa, cmd, flags)
 	 * be confusing at best and possibly worse.
 	 */
 	if (cmd == RTM_DELETE) {
-		/* 
+		/*
 		 * It's a delete, so it should already exist..
 		 * If it's a net, mask off the host bits
 		 * (Assuming we have a mask)
 		 */
 		if ((flags & RTF_HOST) == 0 && ifa->ifa_netmask) {
-			m = m_get(M_WAIT, MT_SONAME);
+			m = m_get(M_DONTWAIT, MT_SONAME);
+			if (m == NULL)
+				return(ENOBUFS);
 			deldst = mtod(m, struct sockaddr *);
 			rt_maskedcopy(dst, deldst, ifa->ifa_netmask);
 			dst = deldst;
@@ -971,7 +984,7 @@ rtinit(ifa, cmd, flags)
 				 * If the interface in the rtentry doesn't match
 				 * the interface we are using, then we don't
 				 * want to delete it, so return an error.
-				 * This seems to be the only point of 
+				 * This seems to be the only point of
 				 * this whole RTM_DELETE clause.
 				 */
 				if (m)
@@ -983,7 +996,7 @@ rtinit(ifa, cmd, flags)
 		/* XXX */
 #if 0
 		else {
-			/* 
+			/*
 			 * One would think that as we are deleting, and we know
 			 * it doesn't exist, we could just return at this point
 			 * with an "ELSE" clause, but apparently not..
@@ -1025,7 +1038,7 @@ rtinit(ifa, cmd, flags)
 		 */
 		rt->rt_refcnt--;
 		/*
-		 * If it came back with an unexpected interface, then it must 
+		 * If it came back with an unexpected interface, then it must
 		 * have already existed or something. (XXX)
 		 */
 		if (rt->rt_ifa != ifa) {
@@ -1038,7 +1051,7 @@ rtinit(ifa, cmd, flags)
 			 */
 			if (rt->rt_ifa->ifa_rtrequest)
 			    rt->rt_ifa->ifa_rtrequest(RTM_DELETE, rt, SA(0));
-			/* 
+			/*
 			 * Remove the referenve to the it's ifaddr.
 			 */
 			IFAFREE(rt->rt_ifa);
@@ -1048,6 +1061,7 @@ rtinit(ifa, cmd, flags)
 			 */
 			rt->rt_ifa = ifa;
 			rt->rt_ifp = ifa->ifa_ifp;
+			rt->rt_rmx.rmx_mtu = ifa->ifa_ifp->if_mtu;	/*XXX*/
 			ifa->ifa_refcnt++;
 			/*
 			 * Now ask the protocol to check if it needs

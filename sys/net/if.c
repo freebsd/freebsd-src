@@ -35,6 +35,7 @@
  */
 
 #include "opt_compat.h"
+#include "opt_inet.h"
 
 #include <sys/param.h>
 #include <sys/malloc.h>
@@ -53,6 +54,11 @@
 #include <net/if_dl.h>
 #include <net/radix.h>
 
+#ifdef INET6
+/*XXX*/
+#include <netinet/in.h>
+#endif
+
 /*
  * System initialization
  */
@@ -70,6 +76,14 @@ MALLOC_DEFINE(M_IFMADDR, "ether_multi", "link-level multicast address");
 
 int	ifqmaxlen = IFQ_MAXLEN;
 struct	ifnethead ifnet;	/* depend on static init XXX */
+
+#ifdef INET6
+/*
+ * XXX: declare here to avoid to include many inet6 related files..
+ * should be more generalized?
+ */
+extern void	nd6_setmtu __P((struct ifnet *));
+#endif
 
 /*
  * Network interface utility routines.
@@ -98,6 +112,7 @@ ifinit(dummy)
 
 int if_index = 0;
 struct ifaddr **ifnet_addrs;
+struct ifnet **ifindex2ifnet = NULL;
 
 
 /*
@@ -131,19 +146,32 @@ if_attach(ifp)
 	 * this unlikely case.
 	 */
 	TAILQ_INIT(&ifp->if_addrhead);
+	TAILQ_INIT(&ifp->if_prefixhead);
 	LIST_INIT(&ifp->if_multiaddrs);
 	getmicrotime(&ifp->if_lastchange);
 	if (ifnet_addrs == 0 || if_index >= if_indexlim) {
 		unsigned n = (if_indexlim <<= 1) * sizeof(ifa);
-		struct ifaddr **q = (struct ifaddr **)
-					malloc(n, M_IFADDR, M_WAITOK);
-		bzero((caddr_t)q, n);
+		caddr_t q = malloc(n, M_IFADDR, M_WAITOK);
+		bzero(q, n);
 		if (ifnet_addrs) {
 			bcopy((caddr_t)ifnet_addrs, (caddr_t)q, n/2);
 			free((caddr_t)ifnet_addrs, M_IFADDR);
 		}
-		ifnet_addrs = q;
+		ifnet_addrs = (struct ifaddr **)q;
+
+		/* grow ifindex2ifnet */
+		n = if_indexlim * sizeof(struct ifnet *);
+		q = malloc(n, M_IFADDR, M_WAITOK);
+		bzero(q, n);
+		if (ifindex2ifnet) {
+			bcopy((caddr_t)ifindex2ifnet, q, n/2);
+			free((caddr_t)ifindex2ifnet, M_IFADDR);
+		}
+		ifindex2ifnet = (struct ifnet **)q;
 	}
+
+	ifindex2ifnet[if_index] = ifp;
+
 	/*
 	 * create a Link Level name for this device
 	 */
@@ -207,7 +235,7 @@ if_detach(ifp)
 	     ifa = TAILQ_FIRST(&ifp->if_addrhead)) {
 		TAILQ_REMOVE(&ifp->if_addrhead, ifa, ifa_link);
 		IFAFREE(ifa);
-	}    
+	}
 
 	TAILQ_REMOVE(&ifnet, ifp, if_link);
 }
@@ -226,13 +254,15 @@ ifa_ifwithaddr(addr)
 #define	equal(a1, a2) \
   (bcmp((caddr_t)(a1), (caddr_t)(a2), ((struct sockaddr *)(a1))->sa_len) == 0)
 	for (ifp = ifnet.tqh_first; ifp; ifp = ifp->if_link.tqe_next)
-	    for (ifa = ifp->if_addrhead.tqh_first; ifa; 
+	    for (ifa = ifp->if_addrhead.tqh_first; ifa;
 		 ifa = ifa->ifa_link.tqe_next) {
 		if (ifa->ifa_addr->sa_family != addr->sa_family)
 			continue;
 		if (equal(addr, ifa->ifa_addr))
 			return (ifa);
 		if ((ifp->if_flags & IFF_BROADCAST) && ifa->ifa_broadaddr &&
+		    /* IP6 doesn't have broadcast */
+		    ifa->ifa_broadaddr->sa_len != 0 &&
 		    equal(ifa->ifa_broadaddr, addr))
 			return (ifa);
 	}
@@ -251,7 +281,7 @@ ifa_ifwithdstaddr(addr)
 
 	for (ifp = ifnet.tqh_first; ifp; ifp = ifp->if_link.tqe_next)
 	    if (ifp->if_flags & IFF_POINTOPOINT)
-		for (ifa = ifp->if_addrhead.tqh_first; ifa; 
+		for (ifa = ifp->if_addrhead.tqh_first; ifa;
 		     ifa = ifa->ifa_link.tqe_next) {
 			if (ifa->ifa_addr->sa_family != addr->sa_family)
 				continue;
@@ -285,7 +315,7 @@ ifa_ifwithnet(addr)
 		return (ifnet_addrs[sdl->sdl_index - 1]);
 	}
 
-	/* 
+	/*
 	 * Scan though each interface, looking for ones that have
 	 * addresses in this address family.
 	 */
@@ -296,13 +326,17 @@ ifa_ifwithnet(addr)
 
 			if (ifa->ifa_addr->sa_family != af)
 next:				continue;
-			if (ifp->if_flags & IFF_POINTOPOINT) {
+			if (
+#ifdef INET6 /* XXX: for maching gif tunnel dst as routing entry gateway */
+			    addr->sa_family != AF_INET6 &&
+#endif
+			    ifp->if_flags & IFF_POINTOPOINT) {
 				/*
-				 * This is a bit broken as it doesn't 
-				 * take into account that the remote end may 
+				 * This is a bit broken as it doesn't
+				 * take into account that the remote end may
 				 * be a single node in the network we are
 				 * looking for.
-				 * The trouble is that we don't know the 
+				 * The trouble is that we don't know the
 				 * netmask for the remote end.
 				 */
 				if (ifa->ifa_dstaddr != 0
@@ -372,7 +406,7 @@ ifaof_ifpforaddr(addr, ifp)
 
 	if (af >= AF_MAX)
 		return (0);
-	for (ifa = ifp->if_addrhead.tqh_first; ifa; 
+	for (ifa = ifp->if_addrhead.tqh_first; ifa;
 	     ifa = ifa->ifa_link.tqe_next) {
 		if (ifa->ifa_addr->sa_family != af)
 			continue;
@@ -471,6 +505,9 @@ if_route(ifp, flag, fam)
 		if (fam == PF_UNSPEC || (fam == ifa->ifa_addr->sa_family))
 			pfctlinput(PRC_IFUP, ifa->ifa_addr);
 	rt_ifmsg(ifp);
+#ifdef INET6
+	in6_if_up(ifp);
+#endif
 }
 
 /*
@@ -559,9 +596,9 @@ ifunit(name)
 	/*
 	 * Look for a non numeric part
 	 */
-	end = name + IFNAMSIZ; 
+	end = name + IFNAMSIZ;
 	cp2 = namebuf;
-	cp = name; 
+	cp = name;
 	while ((cp < end) && (c = *cp)) {
 		if (c >= '0' && c <= '9')
 			break;
@@ -576,7 +613,7 @@ ifunit(name)
 	 */
 	len = cp - name + 1;
 	for (unit = 0;
-	    ((c = *cp) >= '0') && (c <= '9') && (unit < 1000000); cp++ ) 
+	    ((c = *cp) >= '0') && (c <= '9') && (unit < 1000000); cp++ )
 		unit = (unit * 10) + (c - '0');
 	if (*cp != '\0')
 		return 0;	/* no trailing garbage allowed */
@@ -592,6 +629,35 @@ ifunit(name)
 	return (ifp);
 }
 
+
+/*
+ * Map interface name in a sockaddr_dl to
+ * interface structure pointer.
+ */
+struct ifnet *
+if_withname(sa)
+	struct sockaddr *sa;
+{
+	char ifname[IFNAMSIZ+1];
+	struct sockaddr_dl *sdl = (struct sockaddr_dl *)sa;
+
+	if ( (sa->sa_family != AF_LINK) || (sdl->sdl_nlen == 0) ||
+	     (sdl->sdl_nlen > IFNAMSIZ) )
+		return NULL;
+
+	/*
+	 * ifunit wants a null-terminated name.  It may not be null-terminated
+	 * in the sockaddr.  We don't want to change the caller's sockaddr,
+	 * and there might not be room to put the trailing null anyway, so we
+	 * make a local copy that we know we can null terminate safely.
+	 */
+
+	bcopy(sdl->sdl_data, ifname, sdl->sdl_nlen);
+	ifname[sdl->sdl_nlen] = '\0';
+	return ifunit(ifname);
+}
+
+
 /*
  * Interface ioctls.
  */
@@ -606,6 +672,7 @@ ifioctl(so, cmd, data, p)
 	register struct ifreq *ifr;
 	struct ifstat *ifs;
 	int error;
+	short oif_flags;
 
 	switch (cmd) {
 
@@ -680,6 +747,9 @@ ifioctl(so, cmd, data, p)
 		return(error);
 
 	case SIOCSIFMTU:
+	{
+		u_long oldmtu = ifp->if_mtu;
+
 		error = suser(p);
 		if (error)
 			return (error);
@@ -690,7 +760,16 @@ ifioctl(so, cmd, data, p)
 		error = (*ifp->if_ioctl)(ifp, cmd, data);
 		if (error == 0)
 			getmicrotime(&ifp->if_lastchange);
-		return(error);
+		/*
+		 * If the link MTU changed, do network layer specific procedure.
+		 */
+		if (ifp->if_mtu != oldmtu) {
+#ifdef INET6
+			nd6_setmtu(ifp);
+#endif
+		}
+		return (error);
+	}
 
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
@@ -739,10 +818,11 @@ ifioctl(so, cmd, data, p)
 		return ((*ifp->if_ioctl)(ifp, cmd, data));
 
 	default:
+		oif_flags = ifp->if_flags;
 		if (so->so_proto == 0)
 			return (EOPNOTSUPP);
 #ifndef COMPAT_43
-		return ((*so->so_proto->pr_usrreqs->pru_control)(so, cmd,
+		error = ((*so->so_proto->pr_usrreqs->pru_control)(so, cmd,
 								 data,
 								 ifp, p));
 #else
@@ -793,11 +873,22 @@ ifioctl(so, cmd, data, p)
 		case OSIOCGIFBRDADDR:
 		case OSIOCGIFNETMASK:
 			*(u_short *)&ifr->ifr_addr = ifr->ifr_addr.sa_family;
+
+		}
+	    }
+#endif /* COMPAT_43 */
+
+		if ((oif_flags ^ ifp->if_flags) & IFF_UP) {
+#ifdef INET6
+			if (ifp->if_flags & IFF_UP) {
+				int s = splimp();
+				in6_if_up(ifp);
+				splx(s);
+			}
+#endif
 		}
 		return (error);
 
-	    }
-#endif
 	}
 	return (0);
 }
@@ -960,7 +1051,7 @@ if_allmulti(ifp, onswitch)
 
 /*
  * Add a multicast listenership to the interface in question.
- * The link layer provides a routine which converts 
+ * The link layer provides a routine which converts
  */
 int
 if_addmulti(ifp, sa, retifma)
@@ -976,7 +1067,7 @@ if_addmulti(ifp, sa, retifma)
 	 * If the matching multicast address already exists
 	 * then don't add a new one, just add a reference
 	 */
-	for (ifma = ifp->if_multiaddrs.lh_first; ifma; 
+	for (ifma = ifp->if_multiaddrs.lh_first; ifma;
 	     ifma = ifma->ifma_link.le_next) {
 		if (equal(sa, ifma->ifma_addr)) {
 			ifma->ifma_refcount++;
@@ -1063,7 +1154,7 @@ if_delmulti(ifp, sa)
 	struct ifmultiaddr *ifma;
 	int s;
 
-	for (ifma = ifp->if_multiaddrs.lh_first; ifma; 
+	for (ifma = ifp->if_multiaddrs.lh_first; ifma;
 	     ifma = ifma->ifma_link.le_next)
 		if (equal(sa, ifma->ifma_addr))
 			break;
@@ -1096,7 +1187,7 @@ if_delmulti(ifp, sa)
 	 * in the record for the link-layer address.  (So we don't complain
 	 * in that case.)
 	 */
-	for (ifma = ifp->if_multiaddrs.lh_first; ifma; 
+	for (ifma = ifp->if_multiaddrs.lh_first; ifma;
 	     ifma = ifma->ifma_link.le_next)
 		if (equal(sa, ifma->ifma_addr))
 			break;

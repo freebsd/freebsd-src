@@ -66,12 +66,12 @@ static void	in_rtchange __P((struct inpcb *, int));
  * These configure the range of local port addresses assigned to
  * "unspecified" outgoing connections/packets/whatever.
  */
-static int ipport_lowfirstauto  = IPPORT_RESERVED - 1;	/* 1023 */
-static int ipport_lowlastauto = IPPORT_RESERVEDSTART;	/* 600 */
-static int ipport_firstauto = IPPORT_RESERVED;		/* 1024 */
-static int ipport_lastauto  = IPPORT_USERRESERVED;	/* 5000 */
-static int ipport_hifirstauto = IPPORT_HIFIRSTAUTO;	/* 49152 */
-static int ipport_hilastauto  = IPPORT_HILASTAUTO;	/* 65535 */
+int	ipport_lowfirstauto  = IPPORT_RESERVED - 1;	/* 1023 */
+int	ipport_lowlastauto = IPPORT_RESERVEDSTART;	/* 600 */
+int	ipport_firstauto = IPPORT_RESERVED;		/* 1024 */
+int	ipport_lastauto  = IPPORT_USERRESERVED;		/* 5000 */
+int	ipport_hifirstauto = IPPORT_HIFIRSTAUTO;	/* 49152 */
+int	ipport_hilastauto  = IPPORT_HILASTAUTO;		/* 65535 */
 
 #define RANGECHK(var, min, max) \
 	if ((var) < (min)) { (var) = (min); } \
@@ -204,7 +204,7 @@ in_pcbbind(inp, nam, p)
 			if (so->so_cred->cr_uid != 0 &&
 			    !IN_MULTICAST(ntohl(sin->sin_addr.s_addr))) {
 				t = in_pcblookup_local(inp->inp_pcbinfo,
-				    sin->sin_addr, lport, 
+				    sin->sin_addr, lport,
 				    prison ? 0 :  INPLOOKUP_WILDCARD);
 				if (t &&
 				    (ntohl(sin->sin_addr.s_addr) != INADDR_ANY ||
@@ -409,7 +409,7 @@ in_pcbladdr(inp, nam, plocal_sin)
 			imo = inp->inp_moptions;
 			if (imo->imo_multicast_ifp != NULL) {
 				ifp = imo->imo_multicast_ifp;
-				for (ia = in_ifaddrhead.tqh_first; ia; 
+				for (ia = in_ifaddrhead.tqh_first; ia;
 				     ia = ia->ia_link.tqe_next)
 					if (ia->ia_ifp == ifp)
 						break;
