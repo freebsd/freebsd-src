@@ -806,12 +806,20 @@ vn_ioctl(fp, com, data, active_cred, td)
 	case VCHR:
 	case VBLK:
 		if (com == FIODTYPE) {
-			if (vp->v_rdev == NULL)
-				return (EOPNOTSUPP);
+			dev_lock();
 			if (vp->v_type != VCHR && vp->v_type != VBLK)
-				return (ENOTTY);
-			*(int *)data = devsw(vp->v_rdev)->d_flags & D_TYPEMASK;
-			return (0);
+				error = ENOTTY;
+			else if (vp->v_rdev == NULL)
+				error = ENXIO;
+			else if (vp->v_rdev->si_devsw == NULL)
+				error = ENXIO;
+			else {
+				error = 0;
+				*(int *)data =
+				    vp->v_rdev->si_devsw->d_flags & D_TYPEMASK;
+			}
+			dev_unlock();
+			return (error);
 		}
 		error = VOP_IOCTL(vp, com, data, fp->f_flag, active_cred, td);
 		if (error == ENOIOCTL) {
