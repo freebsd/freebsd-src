@@ -1,7 +1,10 @@
+/* $FreeBSD$ */
+
 /* config.h.  Generated automatically by configure.  */
-/* config.h.in.  Generated automatically from configure.in by autoheader.  */
+/* config.in.  Generated automatically from configure.in by autoheader.  */
 /* acconfig.h
    This file is in the public domain.
+   $Id: acconfig.h,v 1.3 1998/12/06 22:04:03 karl Exp $
 
    Descriptive text for the C preprocessor macros that
    the distributed Autoconf macros can define.
@@ -38,6 +41,9 @@
 
 /* Define if you have a working `mmap' system call.  */
 #define HAVE_MMAP 1
+
+/* Define if you have the strcoll function and it is properly defined.  */
+#define HAVE_STRCOLL 1
 
 /* Define if you have the vprintf function.  */
 #define HAVE_VPRINTF 1
@@ -78,6 +84,9 @@
  */
 /* #undef STACK_DIRECTION */
 
+/* Define if the `S_IS*' macros in <sys/stat.h> do not work properly.  */
+/* #undef STAT_MACROS_BROKEN */
+
 /* Define if you have the ANSI C header files.  */
 #define STDC_HEADERS 1
 
@@ -85,7 +94,7 @@
 /* #undef TM_IN_SYS_TIME */
 
 /* Define to 1 if NLS is requested.  */
-#define ENABLE_NLS 1
+/* #undef ENABLE_NLS */
 
 /* Define as 1 if you have catgets and don't want to use GNU gettext.  */
 /* #undef HAVE_CATGETS */
@@ -98,12 +107,6 @@
 
 /* Define as 1 if you have the stpcpy function.  */
 /* #undef HAVE_STPCPY */
-
-/* Define to the name of the distribution.  */
-#define PACKAGE "texinfo"
-
-/* Define to the version of the distribution.  */
-#define VERSION "3.12"
 
 /* Define if you have the __argz_count function.  */
 /* #undef HAVE___ARGZ_COUNT */
@@ -171,6 +174,9 @@
 /* Define if you have the strerror function.  */
 #define HAVE_STRERROR 1
 
+/* Define if you have the strncasecmp function.  */
+#define HAVE_STRNCASECMP 1
+
 /* Define if you have the <argz.h> header file.  */
 /* #undef HAVE_ARGZ_H */
 
@@ -186,6 +192,9 @@
 /* Define if you have the <malloc.h> header file.  */
 /* #undef HAVE_MALLOC_H */
 
+/* Define if you have the <memory.h> header file.  */
+#define HAVE_MEMORY_H 1
+
 /* Define if you have the <ncurses/termcap.h> header file.  */
 /* #undef HAVE_NCURSES_TERMCAP_H */
 
@@ -194,6 +203,9 @@
 
 /* Define if you have the <pwd.h> header file.  */
 #define HAVE_PWD_H 1
+
+/* Define if you have the <stdlib.h> header file.  */
+#define HAVE_STDLIB_H 1
 
 /* Define if you have the <string.h> header file.  */
 #define HAVE_STRING_H 1
@@ -234,22 +246,33 @@
 /* Define if you have the <unistd.h> header file.  */
 #define HAVE_UNISTD_H 1
 
-/* Define if you have the <values.h> header file.  */
-/* #undef HAVE_VALUES_H */
-
 /* Define if you have the bsd library (-lbsd).  */
 /* #undef HAVE_LIBBSD */
 
 /* Define if you have the i library (-li).  */
 /* #undef HAVE_LIBI */
 
-/* Define if you have the z library (-lz).  */
-#define HAVE_LIBZ 1
+/* Name of package */
+#define PACKAGE "texinfo"
 
-/* For gettext (NLS) */
-#include <libintl.h>
-#define _(String) gettext (String)
-#define N_(String) (String)
+/* Version number of package */
+#define VERSION "4.0"
+
+/* Define if TIOCGWINSZ requires sys/ioctl.h */
+/* #undef GWINSZ_IN_SYS_IOCTL */
+
+/* Define if this function is declared. */
+#define HAVE_DECL_STRERROR 1
+
+/* Define if this function is declared. */
+#define HAVE_DECL_STRCASECMP 1
+
+/* Define if this function is declared. */
+#define HAVE_DECL_STRNCASECMP 1
+
+/* Define if this function is declared. */
+#define HAVE_DECL_STRCOLL 1
+
 
 
 /* Leave that blank line there!!  Autoheader needs it.
