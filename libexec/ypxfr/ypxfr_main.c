@@ -441,7 +441,7 @@ the local domain name isn't set");
 
 	if (yp_put_record(dbp, &key, &data, 0) != YP_TRUE) {
 		yp_error("failed to write order number to database");
-		ypxfr_exit(YPXFR_DBM,&ypxfr_temp_map);
+		ypxfr_exit(YPXFR_DBM,ypxfr_temp_map);
 	}
 
 	key.data = "YP_MASTER_NAME";
@@ -451,7 +451,7 @@ the local domain name isn't set");
 
 	if (yp_put_record(dbp, &key, &data, 0) != YP_TRUE) {
 		yp_error("failed to write master name to database");
-		ypxfr_exit(YPXFR_DBM,&ypxfr_temp_map);
+		ypxfr_exit(YPXFR_DBM,ypxfr_temp_map);
 	}
 
 	key.data = "YP_DOMAIN_NAME";
@@ -461,7 +461,7 @@ the local domain name isn't set");
 
 	if (yp_put_record(dbp, &key, &data, 0) != YP_TRUE) {
 		yp_error("failed to write domain name to database");
-		ypxfr_exit(YPXFR_DBM,&ypxfr_temp_map);
+		ypxfr_exit(YPXFR_DBM,ypxfr_temp_map);
 	}
 
 	snprintf (buf, sizeof(buf), "%s:%s", ypxfr_source_host, ypxfr_mapname);
@@ -473,7 +473,7 @@ the local domain name isn't set");
 
 	if (yp_put_record(dbp, &key, &data, 0) != YP_TRUE) {
 		yp_error("failed to write input name to database");
-		ypxfr_exit(YPXFR_DBM,&ypxfr_temp_map);
+		ypxfr_exit(YPXFR_DBM,ypxfr_temp_map);
 
 	}
 
@@ -487,7 +487,7 @@ the local domain name isn't set");
 
 	if (yp_put_record(dbp, &key, &data, 0) != YP_TRUE) {
 		yp_error("failed to write output name to database");
-		ypxfr_exit(YPXFR_DBM,&ypxfr_temp_map);
+		ypxfr_exit(YPXFR_DBM,ypxfr_temp_map);
 	}
 
 	if (interdom) {
@@ -498,7 +498,7 @@ the local domain name isn't set");
 
 		if (yp_put_record(dbp, &key, &data, 0) != YP_TRUE) {
 			yp_error("failed to add interdomain flag to database");
-			ypxfr_exit(YPXFR_DBM,&ypxfr_temp_map);
+			ypxfr_exit(YPXFR_DBM,ypxfr_temp_map);
 		}
 	}
 
@@ -510,7 +510,7 @@ the local domain name isn't set");
 
 		if (yp_put_record(dbp, &key, &data, 0) != YP_TRUE) {
 			yp_error("failed to add secure flag to database");
-			ypxfr_exit(YPXFR_DBM,&ypxfr_temp_map);
+			ypxfr_exit(YPXFR_DBM,ypxfr_temp_map);
 		}
 	}
 
@@ -519,7 +519,7 @@ the local domain name isn't set");
 	if (ypxfr_get_map(ypxfr_mapname,ypxfr_source_domain,
 			  ypxfr_source_host, ypxfr_foreach)){
 		yp_error("failed to retrieve map from source host");
-		ypxfr_exit(YPXFR_YPERR,&ypxfr_temp_map);
+		ypxfr_exit(YPXFR_YPERR,ypxfr_temp_map);
 	}
 
 	(void)(dbp->close)(dbp);
@@ -537,11 +537,11 @@ leave:
 		yp_error("failed to get order number of %s: %s",
 				ypxfr_mapname, yp_errno == YPXFR_SUCC ?
 				"map has order 0" : ypxfrerr_string(yp_errno));
-		ypxfr_exit(YPXFR_YPERR,&ypxfr_temp_map);
+		ypxfr_exit(YPXFR_YPERR,ypxfr_temp_map);
 	}
 
 	if (ypxfr_order != ypxfr_skew_check)
-		ypxfr_exit(YPXFR_SKEW,&ypxfr_temp_map);
+		ypxfr_exit(YPXFR_SKEW,ypxfr_temp_map);
 
 	/*
 	 * Send a YPPROC_CLEAR to the local ypserv.
@@ -555,7 +555,7 @@ leave:
 			xdr_void, (void *)out)) != RPC_SUCCESS) {
 			yp_error("failed to send 'clear' to local ypserv: %s",
 				 clnt_sperrno((enum clnt_stat) stat));
-			ypxfr_exit(YPXFR_CLEAR, &ypxfr_temp_map);
+			ypxfr_exit(YPXFR_CLEAR, ypxfr_temp_map);
 		}
 	}
 
