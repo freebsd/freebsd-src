@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bootstrap.h,v 1.2 1998/08/31 21:10:42 msmith Exp $
+ *	$Id: bootstrap.h,v 1.3 1998/09/03 02:10:07 msmith Exp $
  */
 
 #include <sys/types.h>
@@ -85,6 +85,29 @@ struct console
 };
 extern struct console	*consoles[];
 extern void		cons_probe(void);
+
+/*
+ * Plug-and-play enumerator/configurator interface.
+ */
+struct pnpinfo
+{
+    char		*pi_ident;	/* ASCII identifier, actual format varies with bus/handler */
+    int			pi_revision;	/* optional revision (or -1) if not supported */
+    char		*pi_module;	/* module/args nominated to handle device */
+    int			pi_argc;	/* module arguments */
+    char		**pi_argv;
+    int			pi_handler;	/* handler which detected this device */
+    struct pnpinfo	*pi_next;
+}
+
+struct pnphandler 
+{
+    char		*pp_name;			/* handler/bus name */
+    struct pnpinfo	*(pp_enumerate *)(int index);	/* return a string identifying device (index) */
+};
+
+extern struct pnphandler    *pnphandlers[];		/* provided by MD code */
+    
 
 /*
  * Module metadata header.
