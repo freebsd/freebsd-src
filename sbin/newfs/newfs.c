@@ -75,8 +75,6 @@ static const char rcsid[] =
 static void fatal(const char *fmt, ...) __printflike(1, 2);
 static struct disklabel *getdisklabel(char *s, int fd);
 
-#define	COMPAT			/* allow non-labeled disks */
-
 /*
  * The following two constants set the default block and fragment sizes.
  * Both constants must be a power of 2 and meet the following constraints:
@@ -139,10 +137,8 @@ int	avgfilesperdir = AFPDIR;/* expected number of files per directory */
 int	bbsize = BBSIZE;	/* boot block size */
 int	sbsize = SBSIZE;	/* superblock size */
 static int	t_or_u_flag = 0;	/* user has specified -t or -u */
-#ifdef COMPAT
 static char	*disktype;
 static int	unlabeled;
-#endif
 
 static char	device[MAXPATHLEN];
 static char	*progname;
@@ -180,11 +176,9 @@ main(int argc, char *argv[])
 			if ((sectorsize = atoi(optarg)) <= 0)
 				fatal("%s: bad sector size", optarg);
 			break;
-#ifdef COMPAT
 		case 'T':
 			disktype = optarg;
 			break;
-#endif
 		case 'U':
 			Uflag = 1;
 			break;
@@ -313,10 +307,8 @@ main(int argc, char *argv[])
 	if (!vflag && (*cp < 'a' || *cp > 'h') && !isdigit(*cp))
 		fatal("%s: can't figure out file system partition",
 		    argv[0]);
-#ifdef COMPAT
 	if (disktype == NULL)
 		disktype = argv[1];
-#endif
 	lp = getdisklabel(special, fsi);
 	if (vflag || isdigit(*cp))
 		pp = &lp->d_partitions[0];
@@ -405,11 +397,7 @@ main(int argc, char *argv[])
 	exit(0);
 }
 
-#ifdef COMPAT
 const char lmsg[] = "%s: can't read disk label; disk type must be specified";
-#else
-const char lmsg[] = "%s: can't read disk label";
-#endif
 
 struct disklabel *
 getdisklabel(char *s, int fd)
@@ -417,7 +405,6 @@ getdisklabel(char *s, int fd)
 	static struct disklabel lab;
 
 	if (ioctl(fd, DIOCGDINFO, (char *)&lab) < 0) {
-#ifdef COMPAT
 		if (disktype) {
 			struct disklabel *lp;
 
@@ -427,7 +414,6 @@ getdisklabel(char *s, int fd)
 				fatal("%s: unknown disk type", disktype);
 			return (lp);
 		}
-#endif
 		warn("ioctl (GDINFO)");
 		fatal(lmsg, s);
 	}
@@ -437,10 +423,8 @@ getdisklabel(char *s, int fd)
 void
 rewritelabel(char *s, int fd, struct disklabel *lp)
 {
-#ifdef COMPAT
 	if (unlabeled)
 		return;
-#endif
 	lp->d_checksum = 0;
 	lp->d_checksum = dkcksum(lp);
 	if (ioctl(fd, DIOCWDINFO, (char *)lp) < 0) {
@@ -473,19 +457,13 @@ usage()
 	fprintf(stderr,
 	    "usage: %s [ -fsoptions ] special-device%s\n",
 	    progname,
-#ifdef COMPAT
 	    " [device-type]");
-#else
-	    "");
-#endif
 	fprintf(stderr, "where fsoptions are:\n");
 	fprintf(stderr,
 	    "\t-N do not create file system, just print out parameters\n");
 	fprintf(stderr, "\t-R regression test, supress random factors\n");
 	fprintf(stderr, "\t-S sector size\n");
-#ifdef COMPAT
 	fprintf(stderr, "\t-T disktype\n");
-#endif
 	fprintf(stderr, "\t-U enable soft updates\n");
 	fprintf(stderr, "\t-a maximum contiguous blocks\n");
 	fprintf(stderr, "\t-b block size\n");
