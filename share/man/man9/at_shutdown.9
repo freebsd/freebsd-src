@@ -23,7 +23,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $Id: at_shutdown.9,v 1.2 1996/08/21 21:43:19 mpp Exp $
+.\" $Id: at_shutdown.9,v 1.3 1996/08/22 03:49:52 julian Exp $
 .\" "
 .Dd August 15, 1996
 .Os
@@ -33,15 +33,14 @@
 .Nm rm_at_shutdown
 .Nd ask that a function be run at shutdown.
 .Sh SYNOPSIS
-.Fd #include <sys/reboot.h>
+.Fd #include <sys/param.h>
 .Fd #include <sys/systm.h>
+.Fd #include <sys/reboot.h>
+.Ft typedef void \*(lp*bootlist_fn\*(rp\*(lpint howto, void *arg\*(rp
 
-.Ft typedef void \*(lp*bootlist_fn\*(rp \*(lpint, void *\*(rp;
-
-
-.Ft void
+.Ft int
 .Fn at_shutdown "bootlist_fn func" "void *arg" "int when"
-.Ft void
+.Ft int
 .Fn rm_at_shutdown "bootlist_fn func" "void *arg"
 .Sh DESCRIPTION
 The
@@ -52,7 +51,7 @@ The function
 .Ar func
 is called with the flags indicating boot type, and the opaque argument
 .Ar arg
-when the system is shut down
+when the system is shut down.
 .Pp
 If the requirement for notification is removed, then the function 
 .Nm rm_at_shutdown
@@ -75,7 +74,7 @@ will remove an entry from either queue.
 .Pp
 .Sh RETURN VALUES
 .Nm at_shutdown
-returns an errno, 0 meaning success. 
+returns an error code, 0 meaning success. 
 .Nm rm_at_shutdown
 returns the number of items removed (should be 0 or 1).
 .Sh SEE ALSO
