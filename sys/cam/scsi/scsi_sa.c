@@ -344,6 +344,7 @@ static	void		sadone(struct cam_periph *periph,
 			       union ccb *start_ccb);
 static  int		saerror(union ccb *ccb, u_int32_t cam_flags,
 				u_int32_t sense_flags);
+static int		samarkswanted(struct cam_periph *);
 static int		sacheckeod(struct cam_periph *periph);
 static int		sagetparams(struct cam_periph *periph,
 				    sa_params params_to_get,
@@ -930,7 +931,12 @@ saioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct proc *p)
 		count = mt->mt_count;
 		switch (mt->mt_op) {
 		case MTWEOF:	/* write an end-of-file marker */
-			/* XXXX: NEED TO CLEAR SA_TAPE_WRITTEN */
+			/*
+			 * We don't need to clear the SA_FLAG_TAPE_WRITTEN
+			 * flag because by keeping track of filemarks
+			 * we have last written we know ehether or not
+			 * we need to write more when we close the device.
+			 */
 			error = sawritefilemarks(periph, count, FALSE);
 			break;
 		case MTWSS:	/* write a setmark */
@@ -2167,6 +2173,28 @@ exit:
 	return (error);
 }
 
+/*
+ * How many filemarks do we need to write if we were to terminate the
+ * tape session right now? Note that this can be a negative number
+ */
+
+static int
+samarkswanted(struct cam_periph *periph)
+{
+	int	markswanted;
+	struct	sa_softc *softc;
+
+	softc = (struct sa_softc *)periph->softc;
+	markswanted = 0;
+	if ((softc->flags & SA_FLAG_TAPE_WRITTEN) != 0) {
+		markswanted++;
+		if (softc->quirks & SA_QUIRK_2FM)
+			markswanted++;
+	}
+	markswanted -= softc->filemarks;
+	return (markswanted);
+}
+
 static int
 sacheckeod(struct cam_periph *periph)
 {
@@ -2175,16 +2203,9 @@ sacheckeod(struct cam_periph *periph)
 	struct	sa_softc *softc;
 
 	softc = (struct sa_softc *)periph->softc;
-	markswanted = 0;
+	markswanted = samarkswanted(periph);
 
-	if ((softc->flags & SA_FLAG_TAPE_WRITTEN) != 0) {
-		markswanted++;
-		if (softc->quirks & SA_QUIRK_2FM)
-			markswanted++;
-	}
-
-	if (softc->filemarks < markswanted) {
-		markswanted -= softc->filemarks;
+	if (markswanted > 0) {
 		error = sawritefilemarks(periph, markswanted, FALSE);
 	} else {
 		error = 0;
