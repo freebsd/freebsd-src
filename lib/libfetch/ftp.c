@@ -62,6 +62,7 @@
 
 #include <ctype.h>
 #include <errno.h>
+#include <netdb.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -86,6 +87,7 @@
 #define FTP_FILE_ACTION_OK		250
 #define FTP_NEED_PASSWORD		331
 #define FTP_NEED_ACCOUNT		332
+#define FTP_FILE_OK			350
 #define FTP_SYNTAX_ERROR		500
 
 static char ENDL[2] = "\r\n";
@@ -160,7 +162,7 @@ _ftp_cmd(int cd, char *fmt, ...)
     iov[0].iov_base = msg;
     iov[0].iov_len = strlen(msg);
     iov[1].iov_base = ENDL;
-    iov[1].iov_len = sizeof(ENDL);
+    iov[1].iov_len = sizeof ENDL;
     r = writev(cd, iov, 2);
     free(msg);
     if (r == -1) {
@@ -175,7 +177,8 @@ _ftp_cmd(int cd, char *fmt, ...)
  * Transfer file
  */
 static FILE *
-_ftp_transfer(int cd, char *oper, char *file, char *mode, char *flags)
+_ftp_transfer(int cd, char *oper, char *file,
+	      char *mode, off_t offset, char *flags)
 {
     struct sockaddr_in sin;
     int pasv, high, verbose;
@@ -242,8 +245,13 @@ _ftp_transfer(int cd, char *oper, char *file, char *mode, char *flags)
 	    addr[i] = strtol(p, &p, 10);
 	}
 
+	/* seek to required offset */
+	if (offset)
+	    if (_ftp_cmd(cd, "REST %lu", (u_long)offset) != FTP_FILE_OK)
+		goto sysouch;
+	
 	/* construct sockaddr for data socket */
-	l = sizeof(sin);
+	l = sizeof sin;
 	if (getpeername(cd, (struct sockaddr *)&sin, &l) == -1)
 	    goto sysouch;
 	bcopy(addr, (char *)&sin.sin_addr, 4);
@@ -252,9 +260,9 @@ _ftp_transfer(int cd, char *oper, char *file, char *mode, char *flags)
 	/* connect to data port */
 	if (verbose)
 	    _fetch_info("opening data connection");
-	if (connect(sd, (struct sockaddr *)&sin, sizeof(sin)) == -1)
+	if (connect(sd, (struct sockaddr *)&sin, sizeof sin) == -1)
 	    goto sysouch;
-	
+
 	/* make the server initiate the transfer */
 	if (verbose)
 	    _fetch_info("initiating transfer");
@@ -268,13 +276,13 @@ _ftp_transfer(int cd, char *oper, char *file, char *mode, char *flags)
 	int arg, d;
 	
 	/* find our own address, bind, and listen */
-	l = sizeof(sin);
+	l = sizeof sin;
 	if (getsockname(cd, (struct sockaddr *)&sin, &l) == -1)
 	    goto sysouch;
 	sin.sin_port = 0;
 	arg = high ? IP_PORTRANGE_HIGH : IP_PORTRANGE_DEFAULT;
 	if (setsockopt(sd, IPPROTO_IP, IP_PORTRANGE,
-		       (char *)&arg, sizeof(arg)) == -1)
+		       (char *)&arg, sizeof arg) == -1)
 	    goto sysouch;
 	if (verbose)
 	    _fetch_info("binding data socket");
@@ -331,7 +339,7 @@ ouch:
 static int
 _ftp_connect(char *host, int port, char *user, char *pwd, char *flags)
 {
-    int cd, e, pp = FTP_DEFAULT_PORT, direct, verbose;
+    int cd, e, pp = 0, direct, verbose;
     char *p, *q;
 
     direct = (flags && strchr(flags, 'd'));
@@ -340,8 +348,21 @@ _ftp_connect(char *host, int port, char *user, char *pwd, char *flags)
     /* check for proxy */
     if (!direct && (p = getenv("FTP_PROXY")) != NULL) {
 	if ((q = strchr(p, ':')) != NULL) {
-	    /* XXX check that it's a valid number */
+	    if (strspn(q+1, "0123456789") != strlen(q+1) || strlen(q+1) > 5) {
+		/* XXX we should emit some kind of warning */
+	    }
 	    pp = atoi(q+1);
+	    if (pp < 1 || pp > 65535) {
+		/* XXX we should emit some kind of warning */
+	    }
+	}
+	if (!pp) {
+	    struct servent *se;
+	    
+	    if ((se = getservbyname("ftp", "tcp")) != NULL)
+		pp = ntohs(se->s_port);
+	    else
+		pp = FTP_DEFAULT_PORT;
 	}
 	if (q)
 	    *q = 0;
@@ -437,8 +458,14 @@ _ftp_cached_connect(struct url *url, char *flags)
     cd = -1;
     
     /* set default port */
-    if (!url->port)
-	url->port = FTP_DEFAULT_PORT;
+    if (!url->port) {
+	struct servent *se;
+	
+	if ((se = getservbyname("ftp", "tcp")) != NULL)
+	    url->port = ntohs(se->s_port);
+	else
+	    url->port = FTP_DEFAULT_PORT;
+    }
     
     /* try to use previously cached connection */
     if (_ftp_isconnected(url)) {
@@ -455,7 +482,7 @@ _ftp_cached_connect(struct url *url, char *flags)
 	if (cached_socket)
 	    _ftp_disconnect(cached_socket);
 	cached_socket = cd;
-	memcpy(&cached_host, url, sizeof(struct url));
+	memcpy(&cached_host, url, sizeof *url);
     }
 
     return cd;
@@ -474,7 +501,7 @@ fetchGetFTP(struct url *url, char *flags)
 	return NULL;
     
     /* initiate the transfer */
-    return _ftp_transfer(cd, "RETR", url->doc, "r", flags);
+    return _ftp_transfer(cd, "RETR", url->doc, "r", url->offset, flags);
 }
 
 /*
@@ -491,7 +518,7 @@ fetchPutFTP(struct url *url, char *flags)
     
     /* initiate the transfer */
     return _ftp_transfer(cd, (flags && strchr(flags, 'a')) ? "APPE" : "STOR",
-			 url->doc, "w", flags);
+			 url->doc, "w", url->offset, flags);
 }
 
 /*
