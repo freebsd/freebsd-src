@@ -1,5 +1,5 @@
 /****************************************************************
-Copyright 1990, 1992, 1993 by AT&T Bell Laboratories and Bellcore.
+Copyright 1990, 1992 - 1995 by AT&T Bell Laboratories and Bellcore.
 
 Permission to use, copy, modify, and distribute this software
 and its documentation for any purpose and without fee is hereby
@@ -56,8 +56,14 @@ this software.
 
 /* generate variable references */
 
-char *c_type_decl (type, is_extern)
-int type, is_extern;
+ char *
+#ifdef KR_headers
+c_type_decl(type, is_extern)
+	int type;
+	int is_extern;
+#else
+c_type_decl(int type, int is_extern)
+#endif
 {
     static char buff[100];
 
@@ -121,11 +127,17 @@ int type, is_extern;
 } /* c_type_decl */
 
 
-char *new_func_length()
+ char *
+new_func_length(Void)
 { return "ret_val_len"; }
 
-char *new_arg_length(arg)
- Namep arg;
+ char *
+#ifdef KR_headers
+new_arg_length(arg)
+	Namep arg;
+#else
+new_arg_length(Namep arg)
+#endif
 {
 	static char buf[64];
 	sprintf (buf, "%s_len", arg->fvarname);
@@ -140,8 +152,12 @@ char *new_arg_length(arg)
    order */
 
  void
-declare_new_addr (addrp)
-struct Addrblock *addrp;
+#ifdef KR_headers
+declare_new_addr(addrp)
+	struct Addrblock *addrp;
+#else
+declare_new_addr(struct Addrblock *addrp)
+#endif
 {
     extern chainp new_vars;
 
@@ -149,9 +165,14 @@ struct Addrblock *addrp;
 } /* declare_new_addr */
 
 
-wr_nv_ident_help (outfile, addrp)
-FILE *outfile;
-struct Addrblock *addrp;
+ void
+#ifdef KR_headers
+wr_nv_ident_help(outfile, addrp)
+	FILE *outfile;
+	struct Addrblock *addrp;
+#else
+wr_nv_ident_help(FILE *outfile, struct Addrblock *addrp)
+#endif
 {
     int eltcount = 0;
 
@@ -170,8 +191,13 @@ struct Addrblock *addrp;
 	nice_printf (outfile, "[%d]", eltcount);
 } /* wr_nv_ident_help */
 
-int nv_type_help (addrp)
-struct Addrblock *addrp;
+ int
+#ifdef KR_headers
+nv_type_help(addrp)
+	struct Addrblock *addrp;
+#else
+nv_type_help(struct Addrblock *addrp)
+#endif
 {
     if (addrp == (struct Addrblock *) NULL)
 	return -1;
@@ -196,11 +222,17 @@ struct Addrblock *addrp;
 	default -> c_b<memno>	(default label)
 */
 
-char *lit_name (litp)
-struct Literal *litp;
+ char *
+#ifdef KR_headers
+lit_name(litp)
+	struct Literal *litp;
+#else
+lit_name(struct Literal *litp)
+#endif
 {
 	static char buf[CONST_IDENT_MAX];
 	ftnint val;
+	char *fmt;
 
 	if (litp == (struct Literal *) NULL)
 		return NULL;
@@ -209,15 +241,16 @@ struct Literal *litp;
 	case TYINT1:
 		val = litp -> litval.litival;
 		if (val >= 256 || val < -255)
-			sprintf (buf, "c_b%d", litp -> litnum);
+			sprintf (buf, "ci1_b%d", litp -> litnum);
 		else if (val < 0)
 			sprintf (buf, "ci1_n%ld", -val);
 		else
 			sprintf(buf, "ci1__%ld", val);
+		break;
         case TYSHORT:
 		val = litp -> litval.litival;
 		if (val >= 32768 || val <= -32769)
-			sprintf (buf, "c_b%d", litp -> litnum);
+			sprintf (buf, "cs_b%d", litp -> litnum);
 		else if (val < 0)
 			sprintf (buf, "cs_n%ld", -val);
 		else
@@ -236,9 +269,15 @@ struct Literal *litp;
 			sprintf (buf, "c__%ld", val);
 		break;
 	case TYLOGICAL1:
+		fmt = "cl1_%s";
+		goto spr_logical;
 	case TYLOGICAL2:
+		fmt = "cl2_%s";
+		goto spr_logical;
 	case TYLOGICAL:
-		sprintf (buf, "c_%s", (litp -> litval.litival
+		fmt = "c_%s";
+	spr_logical:
+		sprintf (buf, fmt, (litp -> litval.litival
 					? "true" : "false"));
 		break;
 	case TYREAL:
@@ -263,8 +302,12 @@ struct Literal *litp;
 
 
  char *
+#ifdef KR_headers
 comm_union_name(count)
- int count;
+	int count;
+#else
+comm_union_name(int count)
+#endif
 {
 	static char buf[12];
 
@@ -279,12 +322,16 @@ comm_union_name(count)
    output the global declarations, such as the static table of constant
    values */
 
-wr_globals (outfile)
-FILE *outfile;
+ void
+#ifdef KR_headers
+wr_globals(outfile)
+	FILE *outfile;
+#else
+wr_globals(FILE *outfile)
+#endif
 {
     struct Literal *litp, *lastlit;
     extern int hsize;
-    extern char *lit_name();
     char *litname;
     int did_one, t;
     struct Constblock cb;
@@ -345,8 +392,12 @@ FILE *outfile;
 } /* wr_globals */
 
  ftnint
+#ifdef KR_headers
 commlen(vl)
- register chainp vl;
+	register chainp vl;
+#else
+commlen(register chainp vl)
+#endif
 {
 	ftnint size;
 	int type;
@@ -367,8 +418,12 @@ commlen(vl)
 	}
 
  static void	/* Pad common block if an EQUIVALENCE extended it. */
+#ifdef KR_headers
 pad_common(c)
- Extsym *c;
+	Extsym *c;
+#else
+pad_common(Extsym *c)
+#endif
 {
 	register chainp cvl;
 	register Namep v;
@@ -430,8 +485,13 @@ pad_common(c)
 #define UNION_STRUCT 2
 #define INIT_STRUCT 3
 
+ void
+#ifdef KR_headers
 wr_common_decls(outfile)
- FILE *outfile;
+	FILE *outfile;
+#else
+wr_common_decls(FILE *outfile)
+#endif
 {
     Extsym *ext;
     extern int extcomm;
@@ -525,10 +585,14 @@ wr_common_decls(outfile)
     } /* for ext = extsymtab */
 } /* wr_common_decls */
 
-
-wr_struct (outfile, var_list)
-FILE *outfile;
-chainp var_list;
+ void
+#ifdef KR_headers
+wr_struct(outfile, var_list)
+	FILE *outfile;
+	chainp var_list;
+#else
+wr_struct(FILE *outfile, chainp var_list)
+#endif
 {
     int last_type = -1;
     int did_one = 0;
@@ -537,7 +601,7 @@ chainp var_list;
     for (this_var = var_list; this_var; this_var = this_var -> nextp) {
 	Namep var = (Namep) this_var -> datap;
 	int type;
-	char *comment = NULL, *wr_ardecls ();
+	char *comment = NULL;
 
 	if (var == (Namep) NULL)
 	    err ("wr_struct:  null variable");
@@ -587,8 +651,13 @@ chainp var_list;
 } /* wr_struct */
 
 
-char *user_label(stateno)
-ftnint stateno;
+ char *
+#ifdef KR_headers
+user_label(stateno)
+	ftnint stateno;
+#else
+user_label(ftnint stateno)
+#endif
 {
 	static char buf[USER_LABEL_MAX + 1];
 	static char *Lfmt[2] = { "L_%ld", "L%ld" };
@@ -601,10 +670,15 @@ ftnint stateno;
 } /* user_label */
 
 
-char *temp_name (starter, num, storage)
-char *starter;
-int num;
-char *storage;
+ char *
+#ifdef KR_headers
+temp_name(starter, num, storage)
+	char *starter;
+	int num;
+	char *storage;
+#else
+temp_name(char *starter, int num, char *storage)
+#endif
 {
     static char buf[IDENT_LEN];
     char *pointer = buf;
@@ -621,9 +695,14 @@ char *storage;
 } /* temp_name */
 
 
-char *equiv_name (memno, store)
-int memno;
-char *store;
+ char *
+#ifdef KR_headers
+equiv_name(memno, store)
+	int memno;
+	char *store;
+#else
+equiv_name(int memno, char *store)
+#endif
 {
     static char buf[IDENT_LEN];
     char *pointer = buf;
@@ -636,12 +715,15 @@ char *store;
 } /* equiv_name */
 
  void
+#ifdef KR_headers
 def_commons(of)
- FILE *of;
+	FILE *of;
+#else
+def_commons(FILE *of)
+#endif
 {
 	Extsym *ext;
 	int c, onefile, Union;
-	char buf[64];
 	chainp comm;
 	extern int ext1comm;
 	FILE *c_filesave = c_file;
@@ -658,16 +740,19 @@ def_commons(of)
 	for(ext = extsymtab; ext < nextext; ext++)
 		if (ext->extstg == STGCOMMON
 		&& !ext->extinit && (comm = ext->allextp)) {
-			sprintf(buf, "%scom.c", ext->cextname);
+			sprintf(outbtail, "%scom.c", ext->cextname);
 			if (onefile)
 				fprintf(of, "/*>>>'%s'<<<*/\n",
-					buf);
+					outbtail);
 			else {
-				c_file = of = fopen(buf,textwrite);
+				c_file = of = fopen(outbuf,textwrite);
 				if (!of)
-					fatalstr("can't open %s", buf);
+					fatalstr("can't open %s", outbuf);
 				}
 			fprintf(of, "#include \"f2c.h\"\n");
+			if (Ansi == 2)
+				fprintf(of,
+			 "\n#ifdef __cplusplus\nextern \"C\" {\n#endif\n\n");
 			if (comm->nextp) {
 				Union = 1;
 				nice_printf(of, "union {\n");
@@ -686,8 +771,11 @@ def_commons(of)
 			if (Union)
 				prev_tab(of);
 			nice_printf(of, "} %s;\n", ext->cextname);
+			if (Ansi == 2)
+				fprintf(of,
+			 "\n#ifdef __cplusplus\n}\n#endif\n");
 			if (onefile)
-				fprintf(of, "/*<<<%s>>>*/\n", buf);
+				fprintf(of, "/*<<<%s>>>*/\n", outbtail);
 			else
 				fclose(of);
 			}
@@ -704,39 +792,31 @@ def_commons(of)
  */
 
 char *c_keywords[] = {
-	"Long", "Multitype", "Namelist", "Vardesc",
-	"abs", "acos", "address", "alist", "asin", "asm",
-	"atan", "atan2", "auto", "break",
-	"case", "catch", "char", "cilist", "class", "cllist",
-	"complex", "const", "continue", "cos", "cosh",
-	"dabs", "default", "defined", "delete",
-	"dmax", "dmin", "do", "double", "doublecomplex", "doublereal",
-	"else", "entry", "enum", "exp", "extern",
-	"flag", "float", "for", "friend", "ftnint", "ftnlen", "goto",
-	"icilist", "if", "include", "inline", "inlist", "int", "integer",
-	"integer1", "log", "logical", "logical1", "long", "longint",
-	"max", "min", "new",
-	"olist", "operator", "overload", "private", "protected", "public",
-	"real", "register", "return",
+	"Long", "Multitype", "Namelist", "Vardesc", "abs", "acos",
+	"addr", "address", "aerr", "alist", "asin", "asm", "atan",
+	"atan2", "aunit", "auto", "break", "c", "case", "catch", "cerr",
+	"char", "ciend", "cierr", "cifmt", "cilist", "cirec", "ciunit",
+	"class", "cllist", "complex", "const", "continue", "cos",
+	"cosh", "csta", "cunit", "d", "dabs", "default", "defined",
+	"delete", "dims", "dmax", "dmin", "do", "double",
+	"doublecomplex", "doublereal", "else", "entry", "enum", "exp",
+	"extern", "far", "flag", "float", "for", "friend", "ftnint",
+	"ftnlen", "goto", "h", "huge", "i", "iciend", "icierr",
+	"icifmt", "icilist", "icirlen", "icirnum", "iciunit", "if",
+	"inacc", "inacclen", "inblank", "inblanklen", "include",
+	"indir", "indirlen", "inerr", "inex", "infile", "infilen",
+	"infmt", "infmtlen", "inform", "informlen", "inline", "inlist",
+	"inname", "innamed", "innamlen", "innrec", "innum", "inopen",
+	"inrecl", "inseq", "inseqlen", "int", "integer", "integer1",
+	"inunf", "inunflen", "inunit", "log", "logical", "logical1",
+	"long", "longint", "max", "min", "name", "near", "new", "nvars",
+	"oacc", "oblnk", "oerr", "ofm", "ofnm", "ofnmlen", "olist",
+	"operator", "orl", "osta", "ounit", "overload", "private",
+	"protected", "public", "r", "real", "register", "return",
 	"short", "shortint", "shortlogical", "signed", "sin", "sinh",
-	"sizeof", "sqrt", "static", "struct", "switch",
-	"tan", "tanh", "template", "this", "try", "typedef",
-	"union", "unsigned", "virtual", "void", "volatile", "while"
-}; /* c_keywords */
+	"sizeof", "sqrt", "static", "struct", "switch", "tan", "tanh",
+	"template", "this", "try", "type", "typedef", "union",
+	"unsigned", "vars", "virtual", "void", "volatile", "while", "z"
+	}; /* c_keywords */
 
 int n_keywords = sizeof(c_keywords)/sizeof(char *);
-
-char *st_fields[] = {
-	"addr", "aerr", "aunit", "c", "cerr", "ciend", "cierr",
-	"cifmt", "cirec", "ciunit", "csta", "cunit", "d", "dims",
-	"h", "i", "iciend", "icierr", "icifmt", "icirlen",
-	"icirnum", "iciunit", "inacc", "inacclen", "inblank",
-	"inblanklen", "indir", "indirlen", "inerr", "inex",
-	"infile", "infilen", "infmt", "infmtlen", "inform",
-	"informlen", "inname", "innamed", "innamlen", "innrec",
-	"innum", "inopen", "inrecl", "inseq", "inseqlen", "inunf",
-	"inunflen", "inunit", "name", "nvars", "oacc", "oblnk",
-	"oerr", "ofm", "ofnm", "ofnmlen", "orl", "osta", "ounit",
-	"r", "type", "vars", "z"
-	};
-int n_st_fields = sizeof(st_fields)/sizeof(char *);

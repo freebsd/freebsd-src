@@ -1,21 +1,3 @@
-From ches Tue Mar  6 09:06:22 EST 1990
-It think it probably is.  I am told the line is 89% utilized.  But the throughpu
-t
-is shared, so I wouldn't worry about it.
->From ehg Tue Mar  6 08:16 EST 1990
-Received: by coma; Tue Mar  6 08:17:21 1990
-From: pyxis!ehg
-Date: Tue, 6 Mar 90 08:16 EST
-To: coma!ches
-
-Thanks.  Is it reasonable for people to ask for the 600KB f2c source over
-uunet's dedicated line?    I'm just trying to find out if there's a problem
-before there's a disaster.
->From ches Tue Mar  6 07:16:18 EST 1990
-Inet has no dialers.  All its calls go through the internet.  The mcsun addresse
-s
-were uunet.uu.net!mcsun!..., which will travel to uunet via Internet and
-then across the ocean on uunet's dedicated line.
 /****************************************************************
 Copyright 1990 by AT&T Bell Laboratories and Bellcore.
 

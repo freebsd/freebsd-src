@@ -1,5 +1,5 @@
 /****************************************************************
-Copyright 1990, 1992, 1993 by AT&T Bell Laboratories and Bellcore.
+Copyright 1990, 1992 - 1995 by AT&T Bell Laboratories and Bellcore.
 
 Permission to use, copy, modify, and distribute this software
 and its documentation for any purpose and without fee is hereby
@@ -52,7 +52,6 @@ this software.
 
 
 LOCAL int stkey;	/* Type of the current statement (DO, END, IF, etc) */
-extern char token[];	/* holds the actual token text */
 static int needwkey;
 ftnint yystno;
 flag intonly;
@@ -96,8 +95,12 @@ typedef struct comment_buf {
 	} comment_buf;
 static comment_buf *cbfirst, *cbcur;
 static char *cbinit, *cbnext, *cblast;
-static void flush_comments();
+static void flush_comments Argdcl((void));
 extern flag use_bs;
+static char *lastfile = "??", *lastfile0 = "?";
+static char fbuf[P1_FILENAME_MAX];
+static long lastline;
+static void putlineno(Void);
 
 
 /* Comment buffering data
@@ -186,6 +189,7 @@ LOCAL struct Keylist  keys[ ] =
 	{ "automatic",  SAUTOMATIC, YES  },
 	{ "backspace",  SBACKSPACE  },
 	{ "blockdata",  SBLOCK  },
+	{ "byte",	SBYTE	},
 	{ "call",  SCALL  },
 	{ "character",  SCHARACTER, YES  },
 	{ "close",  SCLOSE, YES  },
@@ -237,12 +241,22 @@ LOCAL struct Keylist  keys[ ] =
 	{ 0, 0 }
 };
 
-LOCAL void analyz(), crunch(), store_comment();
-LOCAL int getcd(), getcds(), getkwd(), gettok();
+static void analyz Argdcl((void));
+static void crunch Argdcl((void));
+static int getcd Argdcl((char*, int));
+static int getcds Argdcl((void));
+static int getkwd Argdcl((void));
+static int gettok Argdcl((void));
+static void store_comment Argdcl((char*));
 LOCAL char *stbuf[3];
 
+ int
+#ifdef KR_headers
 inilex(name)
-char *name;
+	char *name;
+#else
+inilex(char *name)
+#endif
 {
 	stbuf[0] = Alloc(3*P1_STMTBUFSIZE);
 	stbuf[1] = stbuf[0] + P1_STMTBUFSIZE;
@@ -257,15 +271,21 @@ char *name;
 
 
 /* throw away the rest of the current line */
-flline()
+ void
+flline(Void)
 {
 	lexstate = RETEOS;
 }
 
 
 
-char *lexline(n)
-int *n;
+ char *
+#ifdef KR_headers
+lexline(n)
+	int *n;
+#else
+lexline(int *n)
+#endif
 {
 	*n = (lastch - nextch) + 1;
 	return(nextch);
@@ -274,14 +294,20 @@ int *n;
 
 
 
-
+ void
+#ifdef KR_headers
 doinclude(name)
-char *name;
+	char *name;
+#else
+doinclude(char *name)
+#endif
 {
 	FILEP fp;
 	struct Inclfile *t;
-	char *lastslash, *s, *s0, *temp;
-	int k;
+	char *name0, *lastslash, *s, *s0, *temp;
+	int j, k;
+	chainp I;
+	extern chainp Iargs;
 
 	if(inclp)
 	{
@@ -320,6 +346,7 @@ char *name;
 #endif
 			)
 				lastslash = s;
+		name0 = name;
 		if(lastslash) {
 			k = lastslash - s0 + 1;
 			temp = Alloc(k + strlen(name) + 1);
@@ -328,15 +355,44 @@ char *name;
 			name = temp;
 			}
 		fp = fopen(name, textread);
+		if (!fp && (I = Iargs)) {
+			k = strlen(name0) + 2;
+			for(; I; I = I->nextp) {
+				j = strlen(s = I->datap);
+				name = Alloc(j + k);
+				strcpy(name, s);
+				switch(s[j-1]) {
+					case '/':
+#ifdef MSDOS
+					case ':':
+					case '\\':
+#endif
+						break;
+					default:
+						name[j++] = '/';
+					}
+				strcpy(name+j, name0);
+				if (fp = fopen(name, textread)) {
+					free(name0);
+					goto havefp;
+					}
+				free(name);
+				name = name0;
+				}
+			}
 		}
 	if (fp)
 	{
+ havefp:
 		t = inclp;
 		inclp = ALLOC(Inclfile);
 		inclp->inclnext = t;
 		prevlin = thislin = 0;
 		infname = inclp->inclname = name;
 		infile = inclp->inclfp = fp;
+		lastline = 0;
+		putlineno();
+		lastline = 0;
 	}
 	else
 	{
@@ -348,7 +404,8 @@ char *name;
 
 
 
-LOCAL popinclude()
+ LOCAL int
+popinclude(Void)
 {
 	struct Inclfile *t;
 	register char *p;
@@ -369,11 +426,14 @@ LOCAL popinclude()
 
 	infile = inclp->inclfp;
 	infname = inclp->inclname;
-	prevlin = thislin = inclp->incllno;
+	lineno = prevlin = thislin = inclp->incllno;
 	code = inclp->inclcode;
 	stno = nxtstno = inclp->inclstno;
 	if(inclp->incllinp)
 	{
+		lastline = 0;
+		putlineno();
+		lastline = lineno;
 		endcd = nextcd = sbuf;
 		k = inclp->incllen;
 		p = inclp->incllinp;
@@ -387,11 +447,13 @@ LOCAL popinclude()
 }
 
 
-static char *lastfile = "??", *lastfile0 = "?";
-static char fbuf[P1_FILENAME_MAX];
-
-void p1_line_number (line_number)
-long line_number;
+ void
+#ifdef KR_headers
+p1_line_number(line_number)
+	long line_number;
+#else
+p1_line_number(long line_number)
+#endif
 {
 	if (lastfile != lastfile0) {
 		p1puts(P1_FILENAME, fbuf);
@@ -401,9 +463,8 @@ long line_number;
 	}
 
  static void
-putlineno()
+putlineno(Void)
 {
-	static long lastline;
 	extern int gflag;
 	register char *s0, *s1;
 
@@ -434,8 +495,8 @@ putlineno()
 		}
 	}
 
-
-yylex()
+ int
+yylex(Void)
 {
 	static int  tokno;
 	int retval;
@@ -500,7 +561,7 @@ reteos:
 }
 
  LOCAL void
-contmax()
+contmax(Void)
 {
 	lineno = thislin;
 	many("continuation lines", 'C', maxcontin);
@@ -512,7 +573,7 @@ contmax()
 merged into one long card (hence the size of the buffer named   sbuf)   */
 
  LOCAL int
-getcds()
+getcds(Void)
 {
 	register char *p, *q;
 
@@ -577,9 +638,17 @@ top:
 }
 
  static void
-bang(a,b,c,d,e)		/* save ! comments */
- char *a, *b, *c;
- register char *d, *e;
+#ifdef KR_headers
+bang(a, b, c, d, e)
+	char *a;
+	char *b;
+	char *c;
+	register char *d;
+	register char *e;
+#else
+bang(char *a, char *b, char *c, register char *d, register char *e)
+#endif
+		/* save ! comments */
 {
 	char buf[COMMENT_BUFFER_SIZE + 1];
 	register char *p, *pe;
@@ -614,8 +683,13 @@ bang(a,b,c,d,e)		/* save ! comments */
 It assumes that   b   points to currently empty storage somewhere in  sbuf  */
 
  LOCAL int
+#ifdef KR_headers
 getcd(b, nocont)
- register char *b;
+	register char *b;
+	int nocont;
+#else
+getcd(register char *b, int nocont)
+#endif
 {
 	register int c;
 	register char *p, *bend;
@@ -685,7 +759,7 @@ top:
 				}
 			if (*p < '1' || *p > '9')
 				goto bad_cpp;
-			L = *p - '1';	/* bias down 1 */
+			L = *p - '0';
 			while((c = *++p) >= '0' && c <= '9')
 				L = 10*L + c - '0';
 			if (c != ' ' || *++p != '"')
@@ -696,10 +770,11 @@ top:
 					goto bad_cpp;
 			*p = 0;
 			i = p - bend++;
-			thislin = L;
+			thislin = L - 1;
 			if (!infname || strcmp(infname, bend)) {
 				if (infname)
 					free(infname);
+				lastfile = 0;
 				infname = Alloc(i);
 				strcpy(infname, bend);
 				if (inclp)
@@ -892,6 +967,8 @@ initcheck:
 	goto top;
 
 initline:
+	if (!lastline)
+		lastline = thislin;
 	if (addftnsrc) {
 		nst = (nst+1)%3;
 		if (!laststb && stb0)
@@ -934,12 +1011,27 @@ initline:
 	return(STINITIAL);
 }
 
+ LOCAL void
+#ifdef KR_headers
+adjtoklen(newlen)
+	int newlen;
+#else
+adjtoklen(int newlen)
+#endif
+{
+	while(maxtoklen < newlen)
+		maxtoklen = 2*maxtoklen + 2;
+	if (token = (char *)realloc(token, maxtoklen))
+		return;
+	fprintf(stderr, "adjtoklen: realloc(%d) failure!\n", maxtoklen);
+	exit(2);
+	}
 
 /* crunch -- deletes all space characters, folds the backslash chars and
    Hollerith strings, quotes the Fortran strings */
 
  LOCAL void
-crunch()
+crunch(Void)
 {
 	register char *i, *j, *j0, *j1, *prvstr;
 	int k, ten, nh, nh0, quote;
@@ -992,14 +1084,12 @@ crunch()
 					++i;
 					*i = escapes[*(unsigned char *)i];
 					}
-				if (len < MAXTOKENLEN)
-				    *++j = *i;
-				else if (len == MAXTOKENLEN)
-				    erri
-	    ("String too long, truncating to %d chars", MAXTOKENLEN);
+				*++j = *i;
 				len++;
 			} /* for (;;) */
 
+			if ((len = j - sbuf) > maxtoklen)
+				adjtoklen(len);
 			j[1] = MYQUOTE;
 			j += 2;
 			prvstr = j;
@@ -1029,14 +1119,14 @@ crunch()
 			&& *j0!='(' && *j0!=',' && *j0!='=' && *j0!='.')
 				goto copychar;
 			nh0 = nh;
-			if(i+nh > lastch || nh > MAXTOKENLEN)
+			if(i+nh > lastch)
 			{
 				erri("%dH too big", nh);
 				nh = lastch - i;
-				if (nh > MAXTOKENLEN)
-					nh = MAXTOKENLEN;
 				nh0 = -1;
 			}
+			if (nh > maxtoklen)
+				adjtoklen(nh);
 			j0[1] = MYQUOTE; /* special marker */
 			j = j0 + 1;
 			while(nh-- > 0)
@@ -1076,7 +1166,7 @@ copychar:		/*not a string or space -- copy, shifting case if necessary */
 }
 
  LOCAL void
-analyz()
+analyz(Void)
 {
 	register char *i;
 
@@ -1150,7 +1240,7 @@ analyz()
 
 
  LOCAL int
-getkwd()
+getkwd(Void)
 {
 	register char *i, *j;
 	register struct Keylist *pk, *pend;
@@ -1178,7 +1268,8 @@ getkwd()
 	return(SUNKNOWN);
 }
 
-initkey()
+ void
+initkey(Void)
 {
 	register struct Keylist *p;
 	register int i,j;
@@ -1212,8 +1303,12 @@ initkey()
 	}
 
  LOCAL int
+#ifdef KR_headers
 hexcheck(key)
- int key;
+	int key;
+#else
+hexcheck(int key)
+#endif
 {
 	register int radix;
 	register char *p;
@@ -1256,9 +1351,9 @@ hexcheck(key)
    buffer.   token   initially contains garbage (leftovers from the prev token) */
 
  LOCAL int
-gettok()
+gettok(Void)
 {
-int havdot, havexp, havdbl;
+	int havdot, havexp, havdbl;
 	int radix, val;
 	struct Punctlist *pp;
 	struct Dotlist *pd;
@@ -1499,8 +1594,12 @@ badchar:
 /* Comment buffering code */
 
  static void
+#ifdef KR_headers
 store_comment(str)
- char *str;
+	char *str;
+#else
+store_comment(char *str)
+#endif
 {
 	int len;
 	comment_buf *ncb;
@@ -1533,7 +1632,7 @@ store_comment(str)
 	}
 
  static void
-flush_comments()
+flush_comments(Void)
 {
 	register char *s, *s1;
 	register comment_buf *cb;
@@ -1556,7 +1655,7 @@ flush_comments()
 	}
 
  void
-unclassifiable()
+unclassifiable(Void)
 {
 	register char *s, *se;
 

@@ -1,5 +1,5 @@
 /****************************************************************
-Copyright 1990, 1993 by AT&T Bell Laboratories and Bellcore.
+Copyright 1990, 1993, 1994 by AT&T Bell Laboratories and Bellcore.
 
 Permission to use, copy, modify, and distribute this software
 and its documentation for any purpose and without fee is hereby
@@ -31,11 +31,16 @@ this software.
  * Arrange that the return value, rv, satisfies rv[0] == '-' || rv[-1] == '-' .
  */
 
-#include "sysdep.h"
+#include "defs.h"
 
  char *
+#ifdef KR_headers
 cds(s, z0)
- char *s, *z0;
+	char *s;
+	char *z0;
+#else
+cds(char *s, char *z0)
+#endif
 {
 	int ea, esign, et, i, k, nd = 0, sign = 0, tz;
 	char c, *z;

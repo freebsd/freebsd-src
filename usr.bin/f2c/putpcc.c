@@ -1,5 +1,5 @@
 /****************************************************************
-Copyright 1990, 1991, 1992, 1993 by AT&T Bell Laboratories and Bellcore.
+Copyright 1990 - 1995 by AT&T Bell Laboratories and Bellcore.
 
 Permission to use, copy, modify, and distribute this software
 and its documentation for any purpose and without fee is hereby
@@ -30,16 +30,20 @@ this software.
 #include "names.h"
 #include "p1defs.h"
 
-Addrp realpart();
-LOCAL Addrp intdouble(), putcx1(), putcxeq (), putch1 ();
-LOCAL putct1 ();
-
-expptr putcxop();
-LOCAL expptr putcall (), putmnmx (), putcheq(), putcat ();
-LOCAL expptr putaddr(), putchcmp (), putpower(), putop();
-LOCAL expptr putcxcmp ();
-expptr imagpart();
-ftnint lencat();
+static Addrp intdouble Argdcl((Addrp));
+static Addrp putcx1 Argdcl((tagptr));
+static tagptr putaddr Argdcl((tagptr));
+static tagptr putcall Argdcl((tagptr, Addrp*));
+static tagptr putcat Argdcl((tagptr, tagptr));
+static Addrp putch1 Argdcl((tagptr));
+static tagptr putchcmp Argdcl((tagptr));
+static tagptr putcheq Argdcl((tagptr));
+static void putct1 Argdcl((tagptr, Addrp, Addrp, ptr));
+static tagptr putcxcmp Argdcl((tagptr));
+static Addrp putcxeq Argdcl((tagptr));
+static tagptr putmnmx Argdcl((tagptr));
+static tagptr putop Argdcl((tagptr));
+static tagptr putpower Argdcl((tagptr));
 
 #define FOUR 4
 extern int ops2[];
@@ -51,9 +55,14 @@ extern int krparens;
 /* Puthead -- output the header information about subroutines, functions
    and entry points */
 
+ void
+#ifdef KR_headers
 puthead(s, class)
-char *s;
-int class;
+	char *s;
+	int class;
+#else
+puthead(char *s, int class)
+#endif
 {
 	if (headerdone == NO) {
 		if (class == CLMAIN)
@@ -63,9 +72,14 @@ int class;
 		}
 }
 
+ void
+#ifdef KR_headers
 putif(p, else_if_p)
- register expptr p;
- int else_if_p;
+	register expptr p;
+	int else_if_p;
+#else
+putif(register expptr p, int else_if_p)
+#endif
 {
 	register int k;
 	int n;
@@ -109,9 +123,13 @@ putif(p, else_if_p)
 		}
 	}
 
-
+ void
+#ifdef KR_headers
 putout(p)
-expptr p;
+	expptr p;
+#else
+putout(expptr p)
+#endif
 {
 	p1_expr (p);
 
@@ -120,11 +138,15 @@ expptr p;
 }
 
 
-
+ void
+#ifdef KR_headers
 putcmgo(index, nlab, labs)
-expptr index;
-int nlab;
-struct Labelblock *labs[];
+	expptr index;
+	int nlab;
+	struct Labelblock **labs;
+#else
+putcmgo(expptr index, int nlab, struct Labelblock **labs)
+#endif
 {
 	if(! ISINT(index->headblock.vtype) )
 	{
@@ -136,8 +158,12 @@ struct Labelblock *labs[];
 }
 
  static expptr
+#ifdef KR_headers
 krput(p)
- register expptr p;
+	register expptr p;
+#else
+krput(register expptr p)
+#endif
 {
 	register expptr e, e1;
 	register unsigned op;
@@ -164,8 +190,13 @@ krput(p)
 	return p;
 	}
 
-expptr putx(p)
- register expptr p;
+ expptr
+#ifdef KR_headers
+putx(p)
+	register expptr p;
+#else
+putx(register expptr p)
+#endif
 {
 	int opc;
 	int k;
@@ -349,8 +380,13 @@ putopp:
 
 
 
-LOCAL expptr putop(p)
-expptr p;
+ LOCAL expptr
+#ifdef KR_headers
+putop(p)
+	expptr p;
+#else
+putop(expptr p)
+#endif
 {
 	expptr lp, tp;
 	int pt, lt, lt1;
@@ -409,6 +445,8 @@ expptr p;
 				p->exprblock.leftp = putx(p->exprblock.leftp);
 				return p;
 				}
+			if (pt < lt && ONEOF(lt,MSKINT|MSKREAL))
+				break;
 			frexpr(p->exprblock.vleng);
 			free( (charptr) p );
 			p = lp;
@@ -454,14 +492,22 @@ expptr p;
 
 	if( ops2[p->exprblock.opcode] <= 0)
 		badop("putop", p->exprblock.opcode);
-	p -> exprblock.leftp = putx (p -> exprblock.leftp);
-	if (p -> exprblock.rightp)
-	    p -> exprblock.rightp = putx (p -> exprblock.rightp);
+	lp = p->exprblock.leftp = putx(p->exprblock.leftp);
+	if (p -> exprblock.rightp) {
+		tp = p->exprblock.rightp = putx(p->exprblock.rightp);
+		if (ISCONST(tp) && ISCONST(lp))
+			p = fold(p);
+		}
 	return p;
 }
 
-LOCAL expptr putpower(p)
-expptr p;
+ LOCAL expptr
+#ifdef KR_headers
+putpower(p)
+	expptr p;
+#else
+putpower(expptr p)
+#endif
 {
 	expptr base;
 	Addrp t1, t2;
@@ -521,8 +567,13 @@ expptr p;
 
 
 
-LOCAL Addrp intdouble(p)
-Addrp p;
+ LOCAL Addrp
+#ifdef KR_headers
+intdouble(p)
+	Addrp p;
+#else
+intdouble(Addrp p)
+#endif
 {
 	register Addrp t;
 
@@ -537,8 +588,13 @@ Addrp p;
 
 /* Complex-type variable assignment */
 
-LOCAL Addrp putcxeq(p)
-register expptr p;
+ LOCAL Addrp
+#ifdef KR_headers
+putcxeq(p)
+	register expptr p;
+#else
+putcxeq(register expptr p)
+#endif
 {
 	register Addrp lp, rp;
 	expptr code;
@@ -566,16 +622,26 @@ register expptr p;
 /* putcxop -- used to write out embedded calls to complex functions, and
    complex arguments to procedures */
 
-expptr putcxop(p)
-expptr p;
+ expptr
+#ifdef KR_headers
+putcxop(p)
+	expptr p;
+#else
+putcxop(expptr p)
+#endif
 {
 	return (expptr)putaddr((expptr)putcx1(p));
 }
 
 #define PAIR(x,y) mkexpr (OPCOMMA, (x), (y))
 
-LOCAL Addrp putcx1(p)
-register expptr p;
+ LOCAL Addrp
+#ifdef KR_headers
+putcx1(p)
+	register expptr p;
+#else
+putcx1(register expptr p)
+#endif
 {
 	expptr q;
 	Addrp lp, rp;
@@ -583,7 +649,6 @@ register expptr p;
 	int opcode;
 	int ltype, rtype;
 	long ts, tskludge;
-	expptr mkrealcon();
 
 	if(p == NULL)
 		return(NULL);
@@ -642,9 +707,13 @@ register expptr p;
 	case TEXPR:
 		if( ISCOMPLEX(p->exprblock.vtype) )
 			break;
-		resp = mktmp(TYDREAL, ENULL);
+		resp = mktmp(p->exprblock.vtype, ENULL);
+		/*first arg of above mktmp call was TYDREAL before 19950102 */
 		putout (putassign( cpexpr((expptr)resp), p));
 		return(resp);
+
+	case TERROR:
+		return NULL;
 
 	default:
 		badtag("putcx1", p->tag);
@@ -759,7 +828,9 @@ register expptr p;
 		break;
 
 	case OPCONV:
-		if( ISCOMPLEX(lp->vtype) )
+		if (!lp)
+			break;
+		if(ISCOMPLEX(lp->vtype) )
 			q = imagpart(lp);
 		else if(rp != NULL)
 			q = (expptr) realpart(rp);
@@ -786,8 +857,13 @@ register expptr p;
 /* Only .EQ. and .NE. may be performed on COMPLEX data, other relations
    are not defined */
 
-LOCAL expptr putcxcmp(p)
-register expptr p;
+ LOCAL expptr
+#ifdef KR_headers
+putcxcmp(p)
+	register expptr p;
+#else
+putcxcmp(register expptr p)
+#endif
 {
 	int opcode;
 	register Addrp lp, rp;
@@ -814,8 +890,13 @@ register expptr p;
 
 /* putch1 -- Forces constants into the literal pool, among other things */
 
-LOCAL Addrp putch1(p)
-register expptr p;
+ LOCAL Addrp
+#ifdef KR_headers
+putch1(p)
+	register expptr p;
+#else
+putch1(register expptr p)
+#endif
 {
 	Addrp t;
 	expptr e;
@@ -876,8 +957,13 @@ register expptr p;
 /* putchop -- Write out a character actual parameter; that is, this is
    part of a procedure invocation */
 
-Addrp putchop(p)
-expptr p;
+ Addrp
+#ifdef KR_headers
+putchop(p)
+	expptr p;
+#else
+putchop(expptr p)
+#endif
 {
 	p = putaddr((expptr)putch1(p));
 	return (Addrp)p;
@@ -886,8 +972,13 @@ expptr p;
 
 
 
-LOCAL expptr putcheq(p)
-register expptr p;
+ LOCAL expptr
+#ifdef KR_headers
+putcheq(p)
+	register expptr p;
+#else
+putcheq(register expptr p)
+#endif
 {
 	expptr lp, rp;
 	int nbad;
@@ -922,8 +1013,13 @@ register expptr p;
 
 
 
-LOCAL expptr putchcmp(p)
-register expptr p;
+ LOCAL expptr
+#ifdef KR_headers
+putchcmp(p)
+	register expptr p;
+#else
+putchcmp(register expptr p)
+#endif
 {
 	expptr lp, rp;
 
@@ -962,9 +1058,14 @@ register expptr p;
 */
 
 
-LOCAL expptr putcat(lhs0, rhs)
- expptr lhs0;
- register expptr rhs;
+ LOCAL expptr
+#ifdef KR_headers
+putcat(lhs0, rhs)
+	expptr lhs0;
+	register expptr rhs;
+#else
+putcat(expptr lhs0, register expptr rhs)
+#endif
 {
 	register Addrp lhs = (Addrp)lhs0;
 	int n, tyi;
@@ -1006,10 +1107,16 @@ LOCAL expptr putcat(lhs0, rhs)
 
 
 
-LOCAL putct1(q, length_var, string_var, ip)
-register expptr q;
-register Addrp length_var, string_var;
-int *ip;
+ LOCAL void
+#ifdef KR_headers
+putct1(q, length_var, string_var, ip)
+	register expptr q;
+	register Addrp length_var;
+	register Addrp string_var;
+	int *ip;
+#else
+putct1(register expptr q, register Addrp length_var, register Addrp string_var, int *ip)
+#endif
 {
 	int i;
 	Addrp length_copy, string_copy;
@@ -1045,8 +1152,13 @@ int *ip;
 
 /* putaddr -- seems to write out function invocation actual parameters */
 
-LOCAL expptr putaddr(p0)
- expptr p0;
+	LOCAL expptr
+#ifdef KR_headers
+putaddr(p0)
+	expptr p0;
+#else
+putaddr(expptr p0)
+#endif
 {
 	register Addrp p;
 	chainp cp;
@@ -1071,18 +1183,28 @@ LOCAL expptr putaddr(p0)
 }
 
  LOCAL expptr
-addrfix(e)		/* fudge character string length if it's a TADDR */
- expptr e;
+#ifdef KR_headers
+addrfix(e)
+	expptr e;
+#else
+addrfix(expptr e)
+#endif
+		/* fudge character string length if it's a TADDR */
 {
 	return e->tag == TADDR ? mkexpr(OPIDENTITY, e, ENULL) : e;
 	}
 
  LOCAL int
+#ifdef KR_headers
 typekludge(ccall, q, at, j)
- int ccall;
- register expptr q;
- Atype *at;
- int j;	/* alternate type */
+	int ccall;
+	register expptr q;
+	Atype *at;
+	int j;
+#else
+typekludge(int ccall, register expptr q, Atype *at, int j)
+#endif
+ /* j = alternate type */
 {
 	register int i, k;
 	extern int iocalladdr;
@@ -1177,9 +1299,13 @@ typekludge(ccall, q, at, j)
 	}
 
  char *
+#ifdef KR_headers
 Argtype(k, buf)
- int k;
- char *buf;
+	int k;
+	char *buf;
+#else
+Argtype(int k, char *buf)
+#endif
 {
 	if (k < 100) {
 		sprintf(buf, "%s variable", ftn_types[k]);
@@ -1204,9 +1330,13 @@ Argtype(k, buf)
 	}
 
  static void
+#ifdef KR_headers
 atype_squawk(at, msg)
- Argtypes *at;
- char *msg;
+	Argtypes *at;
+	char *msg;
+#else
+atype_squawk(Argtypes *at, char *msg)
+#endif
 {
 	register Atype *a, *ae;
 	warn(msg);
@@ -1220,10 +1350,18 @@ atype_squawk(at, msg)
  static char inconsist[] = "inconsistent calling sequences for ";
 
  void
+#ifdef KR_headers
 bad_atypes(at, fname, i, j, k, here, prev)
- Argtypes *at;
- char *fname, *here, *prev;
- int i, j, k;
+	Argtypes *at;
+	char *fname;
+	int i;
+	int j;
+	int k;
+	char *here;
+	char *prev;
+#else
+bad_atypes(Argtypes *at, char *fname, int i, int j, int k, char *here, char *prev)
+#endif
 {
 	char buf[208], buf1[32], buf2[32];
 
@@ -1234,10 +1372,14 @@ bad_atypes(at, fname, i, j, k, here, prev)
 	}
 
  int
-type_fixup(at,a,k)
- Argtypes *at;
- Atype *a;
- int k;
+#ifdef KR_headers
+type_fixup(at, a, k)
+	Argtypes *at;
+	Atype *a;
+	int k;
+#else
+type_fixup(Argtypes *at,  Atype *a,  int k)
+#endif
 {
 	register struct Entrypoint *ep;
 	if (!infertypes)
@@ -1252,11 +1394,20 @@ type_fixup(at,a,k)
 
 
  void
+#ifdef KR_headers
 save_argtypes(arglist, at0, at1, ccall, fname, stg, nchargs, type, zap)
- chainp arglist;
- Argtypes **at0, **at1;
- int ccall, stg, nchargs, type, zap;
- char *fname;
+	chainp arglist;
+	Argtypes **at0;
+	Argtypes **at1;
+	int ccall;
+	char *fname;
+	int stg;
+	int nchargs;
+	int type;
+	int zap;
+#else
+save_argtypes(chainp arglist, Argtypes **at0, Argtypes **at1, int ccall, char *fname, int stg, int nchargs, int type, int zap)
+#endif
 {
 	Argtypes *at;
 	chainp cp;
@@ -1305,14 +1456,18 @@ save_argtypes(arglist, at0, at1, ccall, fname, stg, nchargs, type, zap)
 		"%s%.90s:\n\there %d, previously %d args and string lengths.",
 					inconsist, fname, i, nargs);
 				atype_squawk(at, buf);
-				if (type)
+				if (type) {
+					t = init_ap[type];
 					goto newlist;
+					}
 				return;
 				}
 			j = atypes->type;
 			k = *t++;
-			if (j != k)
+			if (j != k && j-400 != k) {
+				cp = 0;
 				goto badtypes;
+				}
 			}
 		for(cp = arglist; cp; atypes++, cp = cp->nextp) {
 			if (++i > nargs)
@@ -1354,13 +1509,15 @@ save_argtypes(arglist, at0, at1, ccall, fname, stg, nchargs, type, zap)
 				{
  badtypes:
 				if (++nbad == 1)
-					bad_atypes(at, fname, i, j, k, "here ",
-						", previously");
+					bad_atypes(at, fname, i - nchargs,
+						j, k, "here ", ", previously");
 				else
 					fprintf(stderr,
 					 "\targ %d: here %s, previously %s.\n",
-						i, Argtype(k,buf1),
+						i - nchargs, Argtype(k,buf1),
 						Argtype(j,buf2));
+				if (!cp)
+					break;
 				continue;
 				}
 			/* We've subsequently learned the right type,
@@ -1422,8 +1579,13 @@ save_argtypes(arglist, at0, at1, ccall, fname, stg, nchargs, type, zap)
 	}
 
  void
-saveargtypes(p)		/* for writing prototypes */
- register Exprp p;
+#ifdef KR_headers
+saveargtypes(p)
+	register Exprp p;
+#else
+saveargtypes(register Exprp p)
+#endif
+				/* for writing prototypes */
 {
 	Addrp a;
 	Argtypes **at0, **at1;
@@ -1474,9 +1636,14 @@ saveargtypes(p)		/* for writing prototypes */
    expression.  The return value is a pointer to a temporary holding the
    result of a COMPLEX or CHARACTER operation, or NULL. */
 
-LOCAL expptr putcall(p0, temp)
- expptr p0;
- Addrp *temp;
+ LOCAL expptr
+#ifdef KR_headers
+putcall(p0, temp)
+	expptr p0;
+	Addrp *temp;
+#else
+putcall(expptr p0, Addrp *temp)
+#endif
 {
     register Exprp p = (Exprp)p0;
     chainp arglist;		/* Pointer to actual arguments, if any */
@@ -1493,7 +1660,6 @@ LOCAL expptr putcall(p0, temp)
 				   parameter list, since we're calling a C
 				   library routine */
     char *s;
-    extern struct Listblock *mklist();
 
     type = p -> vtype;
     charsp = NULL;
@@ -1682,8 +1848,13 @@ LOCAL expptr putcall(p0, temp)
 /* putmnmx -- Put min or max.   p   must point to an EXPR, not just a
    CONST */
 
-LOCAL expptr putmnmx(p)
-register expptr p;
+ LOCAL expptr
+#ifdef KR_headers
+putmnmx(p)
+	register expptr p;
+#else
+putmnmx(register expptr p)
+#endif
 {
 	int op, op2, type;
 	expptr arg, qp, temp;
@@ -1809,8 +1980,12 @@ register expptr p;
 
 
  void
+#ifdef KR_headers
 putwhile(p)
- expptr p;
+	expptr p;
+#else
+putwhile(expptr p)
+#endif
 {
 	long where;
 	int k, n;

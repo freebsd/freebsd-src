@@ -1,5 +1,5 @@
 /****************************************************************
-Copyright 1990, 1991, 1992, 1993 by AT&T Bell Laboratories and Bellcore.
+Copyright 1990 - 1994 by AT&T Bell Laboratories and Bellcore.
 
 Permission to use, copy, modify, and distribute this software
 and its documentation for any purpose and without fee is hereby
@@ -52,7 +52,6 @@ flag use_tyquad = YES;
 #endif
 int tyreal = TYREAL;
 int tycomplex = TYCOMPLEX;
-extern void r8fix(), read_Pfiles();
 
 int maxregvar = MAXREGVAR;	/* if maxregvar > MAXREGVAR, error */
 int maxequiv = MAXEQUIV;
@@ -95,17 +94,15 @@ char *halign, *ohalign;
 int krparens = NO;
 int hsize;	/* for padding under -h */
 int htype;	/* for wr_equiv_init under -h */
-char *o_coutput = 0;
+chainp Iargs;
 
 #define f2c_entry(swit,count,type,store,size) \
 	p_entry ("-", swit, 0, count, type, store, size)
 
 static arg_info table[] = {
-    f2c_entry ("o", P_ONE_ARG, P_STRING, &o_coutput, YES),
     f2c_entry ("w66", P_NO_ARGS, P_INT, &ftn66flag, YES),
     f2c_entry ("w", P_NO_ARGS, P_INT, &nowarnflag, YES),
     f2c_entry ("66", P_NO_ARGS, P_INT, &no66flag, YES),
-    f2c_entry ("d", P_ONE_ARG, P_INT, &debugflag, YES),
     f2c_entry ("1", P_NO_ARGS, P_INT, &onetripflag, YES),
     f2c_entry ("onetrip", P_NO_ARGS, P_INT, &onetripflag, YES),
     f2c_entry ("I2", P_NO_ARGS, P_INT, &useshortints, YES),
@@ -155,6 +152,7 @@ static arg_info table[] = {
     f2c_entry ("72", P_NO_ARGS, P_INT, &warn72, 1),
     f2c_entry ("f", P_NO_ARGS, P_INT, &warn72, 2),
     f2c_entry ("s", P_NO_ARGS, P_INT, &keepsubs, 1),
+    f2c_entry ("d", P_ONE_ARG, P_STRING, &outbuf, 0),
 #ifdef TYQUAD
     f2c_entry ("!i8", P_NO_ARGS, P_INT, &use_tyquad, NO),
 #endif
@@ -181,8 +179,11 @@ static arg_info table[] = {
 	/* -!V ==> omit version msg (to facilitate using diff in
 		regression testing)
 		*/
-    f2c_entry ("!V", P_NO_ARGS, P_INT, &skipversion, 1)
+    f2c_entry ("!V", P_NO_ARGS, P_INT, &skipversion, 1),
 
+	/* -Dnnn = debug level nnn */
+
+    f2c_entry ("D", P_ONE_ARG, P_INT, &debugflag, YES)
 }; /* table */
 
 extern char *c_functions;	/* "c_functions"	*/
@@ -195,11 +196,8 @@ extern char *sortfname;		/* "init_file"		*/
 extern char *proto_fname;	/* "proto_file"		*/
 FILE *protofile;
 
-extern void list_init_data(), set_tmp_names(), sigcatch(), Un_link_all();
-extern char *c_name();
-
-
-set_externs ()
+ void
+set_externs(Void)
 {
     static char *hset[3] = { 0, "integer", "doublereal" };
 
@@ -226,16 +224,16 @@ set_externs ()
 	tyioint = TYSHORT;
 	szleng = typesize[TYSHORT];
 	def_i2 = "#define f2c_i2 1\n";
-	inqmask = M(TYSHORT)|M(TYLOGICAL);
+	inqmask = M(TYSHORT)|M(TYLOGICAL2);
 	goto checklong;
 	}
     else
 	szleng = typesize[TYLONG];
     if (useshortints) {
-	inqmask = M(TYLONG);
+	/* inqmask = M(TYLONG); */
+	/* used to disallow LOGICAL in INQUIRE under -I2 */
  checklong:
-	protorettypes[TYLOGICAL] = typename[TYLOGICAL] = "shortlogical";
-	typesize[TYLOGICAL] = typesize[TYSHORT];
+	protorettypes[TYLOGICAL] = "shortlogical";
 	casttypes[TYLOGICAL] = "K_fp";
 	if (uselongints)
 		err ("Can't use both long and short ints");
@@ -293,7 +291,7 @@ set_externs ()
 
 
  static int
-comm2dcl()
+comm2dcl(Void)
 {
 	Extsym *ext;
 	if (ext1comm)
@@ -304,8 +302,12 @@ comm2dcl()
 	}
 
  static void
+#ifdef KR_headers
 write_typedefs(outfile)
- FILE *outfile;
+	FILE *outfile;
+#else
+write_typedefs(FILE *outfile)
+#endif
 {
 	register int i;
 	register char *s, *p = 0;
@@ -340,8 +342,12 @@ write_typedefs(outfile)
 	}
 
  static void
+#ifdef KR_headers
 commonprotos(outfile)
- register FILE *outfile;
+	register FILE *outfile;
+#else
+commonprotos(register FILE *outfile)
+#endif
 {
 	register Extsym *e, *ee;
 	register Argtypes *at;
@@ -400,28 +406,64 @@ commonprotos(outfile)
 		}
 	}
 
+ static int
+#ifdef KR_headers
+I_args(argc, a)
+	int argc;
+	char **a;
+#else
+I_args(int argc, char **a)
+#endif
+{
+	char **a0, **a1, **ae, *s;
+
+	ae = a + argc;
+	a0 = a;
+	for(a1 = ++a; a < ae; a++) {
+		if (!(s = *a))
+			break;
+		if (*s == '-' && s[1] == 'I' && s[2]
+		  && (s[3] || s[2] != '2' && s[2] != '4'))
+			Iargs = mkchain(s+2, Iargs);
+		else
+			*a1++ = s;
+		}
+	Iargs = revchain(Iargs);
+	*a1 = 0;
+	return a1 - a0;
+	}
+
  int retcode = 0;
 
+ int
+#ifdef KR_headers
 main(argc, argv)
-int argc;
-char **argv;
+	int argc;
+	char **argv;
+#else
+main(int argc, char **argv)
+#endif
 {
 	int c2d, k;
 	FILE *c_output;
 	char *cdfilename;
 	static char stderrbuf[BUFSIZ];
-	extern void def_commons();
 	extern char **dfltproc, *dflt1proc[];
 	extern char link_msg[];
 
 	diagfile = stderr;
 	setbuf(stderr, stderrbuf);	/* arrange for fast error msgs */
 
+	argc = I_args(argc, argv);	/* extract -I args */
 	Max_ftn_files = argc - 1;
 	ftn_files = (char **)ckalloc((argc+1)*sizeof(char *));
 
 	parse_args (argc, argv, table, sizeof(table)/sizeof(arg_info),
 		ftn_files, Max_ftn_files);
+	if (keepsubs && checksubs) {
+		warn("-C suppresses -s\n");
+		keepsubs = 0;
+		}
 	if (!can_include && ext1comm == 2)
 		ext1comm = 1;
 	if (ext1comm && !extcomm)
@@ -438,6 +480,7 @@ char **argv;
 	else
 		dfltproc = dflt1proc;
 
+	outbuf_adjust();
 	set_externs();
 	fileinit();
 	read_Pfiles(ftn_files);
@@ -448,27 +491,21 @@ char **argv;
 	filename0 = file_name = ftn_files[current_ftn_file = k - 1];
 
 	set_tmp_names();
-	sigcatch();
+	sigcatch(0);
 
 	c_file   = opf(c_functions, textwrite);
 	pass1_file=opf(p1_file, binwrite);
 	initkey();
 	if (file_name && *file_name) {
+		cdfilename = coutput;
 		if (debugflag != 1) {
-		        if (!o_coutput)
-			  coutput = c_name(file_name,'c');
-			else
-			  coutput = o_coutput;
+			coutput = c_name(file_name,'c');
+			cdfilename = copys(outbtail);
 			if (Castargs1 >= 2)
 				proto_fname = c_name(file_name,'P');
 			}
-		cdfilename = coutput;
 		if (skipC)
 			coutput = 0;
-		if (coutput[0] == '-'){
-		        c_output = stdout;
-			coutput = 0;
-		      }
 		else if (!(c_output = fopen(coutput, textwrite))) {
 			file_name = coutput;
 			coutput = 0;	/* don't delete read-only .c file */
@@ -575,11 +612,18 @@ sed \"s/^\\/\\*>>>'\\(.*\\)'<<<\\*\\/\\$/cat >'\\1' <<'\\/*<<<\\1>>>*\\/'/\" | /
 		endproc();
 		}
 	done(nerr ? 1 : 0);
+	/* NOT REACHED */ return 0;
 }
 
 
-FILEP opf(fn, mode)
-char *fn, *mode;
+ FILEP
+#ifdef KR_headers
+opf(fn, mode)
+	char *fn;
+	char *mode;
+#else
+opf(char *fn, char *mode)
+#endif
 {
 	FILEP fp;
 	if( fp = fopen(fn, mode) )
@@ -590,10 +634,15 @@ char *fn, *mode;
 }
 
 
+ void
+#ifdef KR_headers
 clf(p, what, quit)
- FILEP *p;
- char *what;
- int quit;
+	FILEP *p;
+	char *what;
+	int quit;
+#else
+clf(FILEP *p, char *what, int quit)
+#endif
 {
 	if(p!=NULL && *p!=NULL && *p!=stdout)
 	{
@@ -609,8 +658,13 @@ clf(p, what, quit)
 }
 
 
+ void
+#ifdef KR_headers
 done(k)
-int k;
+	int k;
+#else
+done(int k)
+#endif
 {
 	clf(&initfile, "initfile", 0);
 	clf(&c_file, "c_file", 0);

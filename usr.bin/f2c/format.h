@@ -4,7 +4,9 @@
 extern int c_output_line_length;	/* max # chars per line in C source
 					   code */
 
-char *wr_ardecls (/* FILE *, struct Dimblock * */);
-void list_init_data (), wr_one_init (), wr_output_values ();
-int do_init_data ();
-chainp data_value ();
+chainp	data_value Argdcl((FILEP, long int, int));
+int	do_init_data Argdcl((FILEP, FILEP));
+void	list_init_data Argdcl((FILEP*, char*, FILEP));
+char*	wr_ardecls Argdcl((FILEP, struct Dimblock*, long int));
+void	wr_one_init Argdcl((FILEP, char*, chainp*, int));
+void	wr_output_values Argdcl((FILEP, Namep, chainp));

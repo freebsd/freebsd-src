@@ -20,5 +20,7 @@ typedef struct defines defines;
 
 extern iob_data *iob_list;
 extern struct Addrblock *io_structs[9];
-extern void def_start(), new_iob_data(), other_undefs();
-extern char *tostring();
+void	def_start Argdcl((FILEP, char*, char*, char*));
+void	new_iob_data Argdcl((io_setup*, char*));
+void	other_undefs Argdcl((FILEP));
+char*	tostring Argdcl((char*, int));

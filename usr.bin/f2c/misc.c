@@ -1,5 +1,5 @@
 /****************************************************************
-Copyright 1990, 1992, 1993 by AT&T Bell Laboratories and Bellcore.
+Copyright 1990, 1992 - 1995 by AT&T Bell Laboratories and Bellcore.
 
 Permission to use, copy, modify, and distribute this software
 and its documentation for any purpose and without fee is hereby
@@ -22,10 +22,17 @@ this software.
 ****************************************************************/
 
 #include "defs.h"
+#include "limits.h"
 
-int oneof_stg (name, stg, mask)
- Namep name;
- int stg, mask;
+ int
+#ifdef KR_headers
+oneof_stg(name, stg, mask)
+	Namep name;
+	int stg;
+	int mask;
+#else
+oneof_stg(Namep name, int stg, int mask)
+#endif
 {
 	if (stg == STGCOMMON && name) {
 		if ((mask & M(STGEQUIV)))
@@ -40,8 +47,13 @@ int oneof_stg (name, stg, mask)
 /* op_assign -- given a binary opcode, return the associated assignment
    operator */
 
-int op_assign (opcode)
-int opcode;
+ int
+#ifdef KR_headers
+op_assign(opcode)
+	int opcode;
+#else
+op_assign(int opcode)
+#endif
 {
     int retval = -1;
 
@@ -66,9 +78,14 @@ int opcode;
 
 
  char *
-Alloc(n)	/* error-checking version of malloc */
+#ifdef KR_headers
+Alloc(n)
+	int n;
+#else
+Alloc(int n)
+#endif
+		/* error-checking version of malloc */
 		/* ckalloc initializes memory to 0; Alloc does not */
- int n;
 {
 	char errbuf[32];
 	register char *rv;
@@ -81,20 +98,30 @@ Alloc(n)	/* error-checking version of malloc */
 	return rv;
 	}
 
-
+ void
+#ifdef KR_headers
 cpn(n, a, b)
-register int n;
-register char *a, *b;
+	register int n;
+	register char *a;
+	register char *b;
+#else
+cpn(register int n, register char *a, register char *b)
+#endif
 {
 	while(--n >= 0)
 		*b++ = *a++;
 }
 
 
-
+ int
+#ifdef KR_headers
 eqn(n, a, b)
-register int n;
-register char *a, *b;
+	register int n;
+	register char *a;
+	register char *b;
+#else
+eqn(register int n, register char *a, register char *b)
+#endif
 {
 	while(--n >= 0)
 		if(*a++ != *b++)
@@ -107,10 +134,17 @@ register char *a, *b;
 
 
 
-
-cmpstr(a, b, la, lb)	/* compare two strings */
-register char *a, *b;
-ftnint la, lb;
+ int
+#ifdef KR_headers
+cmpstr(a, b, la, lb)
+	register char *a;
+	register char *b;
+	ftnint la;
+	ftnint lb;
+#else
+cmpstr(register char *a, register char *b, ftnint la, ftnint lb)
+#endif
+	/* compare two strings */
 {
 	register char *aend, *bend;
 	aend = a + la;
@@ -157,8 +191,14 @@ ftnint la, lb;
 
 /* hookup -- Same as LISP NCONC, that is a destructive append of two lists */
 
-chainp hookup(x,y)
-register chainp x, y;
+ chainp
+#ifdef KR_headers
+hookup(x, y)
+	register chainp x;
+	register chainp y;
+#else
+hookup(register chainp x, register chainp y)
+#endif
 {
 	register chainp p;
 
@@ -173,8 +213,13 @@ register chainp x, y;
 
 
 
-struct Listblock *mklist(p)
-chainp p;
+ struct Listblock *
+#ifdef KR_headers
+mklist(p)
+	chainp p;
+#else
+mklist(chainp p)
+#endif
 {
 	register struct Listblock *q;
 
@@ -185,9 +230,14 @@ chainp p;
 }
 
 
-chainp mkchain(p,q)
-register char * p;
-register chainp q;
+ chainp
+#ifdef KR_headers
+mkchain(p, q)
+	register char * p;
+	register chainp q;
+#else
+mkchain(register char * p, register chainp q)
+#endif
 {
 	register chainp r;
 
@@ -205,8 +255,12 @@ register chainp q;
 }
 
  chainp
+#ifdef KR_headers
 revchain(next)
- register chainp next;
+	register chainp next;
+#else
+revchain(register chainp next)
+#endif
 {
 	register chainp p, prev = 0;
 
@@ -224,31 +278,42 @@ revchain(next)
 /* if not, it has room for appending an _. */
 
  char *
+#ifdef KR_headers
 addunder(s)
- register char *s;
+	register char *s;
+#else
+addunder(register char *s)
+#endif
 {
-	register int c, i;
+	register int c, i, j;
 	char *s0 = s;
 
-	i = 0;
+	i = j = 0;
 	while(c = *s++)
 		if (c == '_')
-			i++;
+			i++, j++;
 		else
 			i = 0;
 	if (!i) {
 		*s-- = 0;
 		*s = '_';
 		}
+	else if (j == 2)
+		s[-2] = 0;
 	return( s0 );
 	}
 
 
 /* copyn -- return a new copy of the input Fortran-string */
 
-char *copyn(n, s)
-register int n;
-register char *s;
+ char *
+#ifdef KR_headers
+copyn(n, s)
+	register int n;
+	register char *s;
+#else
+copyn(register int n, register char *s)
+#endif
 {
 	register char *p, *q;
 
@@ -262,8 +327,13 @@ register char *s;
 
 /* copys -- return a new copy of the input C-string */
 
-char *copys(s)
-char *s;
+ char *
+#ifdef KR_headers
+copys(s)
+	char *s;
+#else
+copys(char *s)
+#endif
 {
 	return( copyn( strlen(s)+1 , s) );
 }
@@ -273,21 +343,51 @@ char *s;
 /* convci -- Convert Fortran-string to integer; assumes that input is a
    legal number, with no trailing blanks */
 
-ftnint convci(n, s)
-register int n;
-register char *s;
+ ftnint
+#ifdef KR_headers
+convci(n, s)
+	register int n;
+	register char *s;
+#else
+convci(register int n, register char *s)
+#endif
 {
-	ftnint sum;
+	ftnint sum, t;
+	char buff[100], *s0;
+	int n0;
+
+	s0 = s;
+	n0 = n;
 	sum = 0;
-	while(n-- > 0)
-		sum = 10*sum + (*s++ - '0');
+	while(n-- > 0) {
+		/* sum = 10*sum + (*s++ - '0'); */
+		t = *s++ - '0';
+		if (sum > LONG_MAX/10) {
+ ovfl:
+			if (n0 > 60)
+				n0 = 60;
+			sprintf(buff, "integer constant %.*s truncated.",
+				n0, s0);
+			err(buff);
+			return LONG_MAX;
+			}
+		sum *= 10;
+		if (sum > LONG_MAX - t)
+			goto ovfl;
+		sum += t;
+		}
 	return(sum);
-}
+	}
 
 /* convic - Convert Integer constant to string */
 
-char *convic(n)
-ftnint n;
+ char *
+#ifdef KR_headers
+convic(n)
+	ftnint n;
+#else
+convic(ftnint n)
+#endif
 {
 	static char s[20];
 	register char *t;
@@ -308,8 +408,13 @@ ftnint n;
 /* mkname -- add a new identifier to the environment, including the closed
    hash table. */
 
-Namep mkname(s)
-register char *s;
+ Namep
+#ifdef KR_headers
+mkname(s)
+	register char *s;
+#else
+mkname(register char *s)
+#endif
 {
 	struct Hashentry *hp;
 	register Namep q;
@@ -326,7 +431,7 @@ register char *s;
 			i = 2;
 		}
 	if (!i && in_vector(s0,c_keywords,n_keywords) >= 0)
-		i = 1;
+		i = 2;
 	hash %= maxhash;
 
 /* Add the name to the closed hash table */
@@ -365,8 +470,13 @@ register char *s;
 }
 
 
-struct Labelblock *mklabel(l)
-ftnint l;
+ struct Labelblock *
+#ifdef KR_headers
+mklabel(l)
+	ftnint l;
+#else
+mklabel(ftnint l)
+#endif
 {
 	register struct Labelblock *lp;
 
@@ -393,7 +503,8 @@ ftnint l;
 }
 
 
-newlabel()
+ int
+newlabel(Void)
 {
 	return( ++lastlabno );
 }
@@ -401,8 +512,13 @@ newlabel()
 
 /* this label appears in a branch context */
 
-struct Labelblock *execlab(stateno)
-ftnint stateno;
+ struct Labelblock *
+#ifdef KR_headers
+execlab(stateno)
+	ftnint stateno;
+#else
+execlab(ftnint stateno)
+#endif
 {
 	register struct Labelblock *lp;
 
@@ -427,8 +543,14 @@ ftnint stateno;
 
 /* find or put a name in the external symbol table */
 
-Extsym *mkext(f,s)
-char *f, *s;
+ Extsym *
+#ifdef KR_headers
+mkext1(f, s)
+	char *f;
+	char *s;
+#else
+mkext1(char *f, char *s)
+#endif
 {
 	Extsym *p;
 
@@ -454,9 +576,30 @@ char *f, *s;
 }
 
 
-Addrp builtin(t, s, dbi)
-int t, dbi;
-char *s;
+ Extsym *
+#ifdef KR_headers
+mkext(f, s)
+	char *f;
+	char *s;
+#else
+mkext(char *f, char *s)
+#endif
+{
+	Extsym *e = mkext1(f, s);
+	if (e->extstg == STGCOMMON)
+		errstr("%.52s cannot be a subprogram: it is a common block.",f);
+	return e;
+	}
+
+ Addrp
+#ifdef KR_headers
+builtin(t, s, dbi)
+	int t;
+	char *s;
+	int dbi;
+#else
+builtin(int t, char *s, int dbi)
+#endif
 {
 	register Extsym *p;
 	register Addrp q;
@@ -492,10 +635,14 @@ char *s;
 }
 
 
-
-add_extern_to_list (addr, list_store)
-Addrp addr;
-chainp *list_store;
+ void
+#ifdef KR_headers
+add_extern_to_list(addr, list_store)
+	Addrp addr;
+	chainp *list_store;
+#else
+add_extern_to_list(Addrp addr, chainp *list_store)
+#endif
 {
     chainp last = CHNULL;
     chainp list;
@@ -523,8 +670,13 @@ chainp *list_store;
 } /* add_extern_to_list */
 
 
+ void
+#ifdef KR_headers
 frchain(p)
-register chainp *p;
+	register chainp *p;
+#else
+frchain(register chainp *p)
+#endif
 {
 	register chainp q;
 
@@ -539,8 +691,12 @@ register chainp *p;
 }
 
  void
+#ifdef KR_headers
 frexchain(p)
- register chainp *p;
+	register chainp *p;
+#else
+frexchain(register chainp *p)
+#endif
 {
 	register chainp q, r;
 
@@ -557,9 +713,14 @@ frexchain(p)
 	}
 
 
-tagptr cpblock(n,p)
-register int n;
-register char * p;
+ tagptr
+#ifdef KR_headers
+cpblock(n, p)
+	register int n;
+	register char *p;
+#else
+cpblock(register int n, register char *p)
+#endif
 {
 	register ptr q;
 
@@ -569,14 +730,26 @@ register char * p;
 
 
 
-ftnint lmax(a, b)
-ftnint a, b;
+ ftnint
+#ifdef KR_headers
+lmax(a, b)
+	ftnint a;
+	ftnint b;
+#else
+lmax(ftnint a, ftnint b)
+#endif
 {
 	return( a>b ? a : b);
 }
 
-ftnint lmin(a, b)
-ftnint a, b;
+ ftnint
+#ifdef KR_headers
+lmin(a, b)
+	ftnint a;
+	ftnint b;
+#else
+lmin(ftnint a, ftnint b)
+#endif
 {
 	return(a < b ? a : b);
 }
@@ -584,8 +757,13 @@ ftnint a, b;
 
 
 
+#ifdef KR_headers
 maxtype(t1, t2)
-int t1, t2;
+	int t1;
+	int t2;
+#else
+maxtype(int t1, int t2)
+#endif
 {
 	int t;
 
@@ -598,8 +776,13 @@ int t1, t2;
 
 
 /* return log base 2 of n if n a power of 2; otherwise -1 */
+ int
+#ifdef KR_headers
 log_2(n)
-ftnint n;
+	ftnint n;
+#else
+log_2(ftnint n)
+#endif
 {
 	int k;
 
@@ -614,8 +797,8 @@ ftnint n;
 }
 
 
-
-frrpl()
+ void
+frrpl(Void)
 {
 	struct Rplblock *rp;
 
@@ -633,10 +816,15 @@ frrpl()
 
 int callk_kludge;
 
-expptr callk(type, name, args)
-int type;
-char *name;
-chainp args;
+ expptr
+#ifdef KR_headers
+callk(type, name, args)
+	int type;
+	char *name;
+	chainp args;
+#else
+callk(int type, char *name, chainp args)
+#endif
 {
 	register expptr p;
 
@@ -649,10 +837,18 @@ chainp args;
 
 
 
-expptr call4(type, name, arg1, arg2, arg3, arg4)
-int type;
-char *name;
-expptr arg1, arg2, arg3, arg4;
+ expptr
+#ifdef KR_headers
+call4(type, name, arg1, arg2, arg3, arg4)
+	int type;
+	char *name;
+	expptr arg1;
+	expptr arg2;
+	expptr arg3;
+	expptr arg4;
+#else
+call4(int type, char *name, expptr arg1, expptr arg2, expptr arg3, expptr arg4)
+#endif
 {
 	struct Listblock *args;
 	args = mklist( mkchain((char *)arg1,
@@ -665,10 +861,17 @@ expptr arg1, arg2, arg3, arg4;
 
 
 
-expptr call3(type, name, arg1, arg2, arg3)
-int type;
-char *name;
-expptr arg1, arg2, arg3;
+ expptr
+#ifdef KR_headers
+call3(type, name, arg1, arg2, arg3)
+	int type;
+	char *name;
+	expptr arg1;
+	expptr arg2;
+	expptr arg3;
+#else
+call3(int type, char *name, expptr arg1, expptr arg2, expptr arg3)
+#endif
 {
 	struct Listblock *args;
 	args = mklist( mkchain((char *)arg1,
@@ -681,10 +884,16 @@ expptr arg1, arg2, arg3;
 
 
 
-expptr call2(type, name, arg1, arg2)
-int type;
-char *name;
-expptr arg1, arg2;
+ expptr
+#ifdef KR_headers
+call2(type, name, arg1, arg2)
+	int type;
+	char *name;
+	expptr arg1;
+	expptr arg2;
+#else
+call2(int type, char *name, expptr arg1, expptr arg2)
+#endif
 {
 	struct Listblock *args;
 
@@ -695,26 +904,42 @@ expptr arg1, arg2;
 
 
 
-expptr call1(type, name, arg)
-int type;
-char *name;
-expptr arg;
+ expptr
+#ifdef KR_headers
+call1(type, name, arg)
+	int type;
+	char *name;
+	expptr arg;
+#else
+call1(int type, char *name, expptr arg)
+#endif
 {
 	return( callk(type,name, (chainp)mklist(mkchain((char *)arg,CHNULL)) ));
 }
 
 
-expptr call0(type, name)
-int type;
-char *name;
+ expptr
+#ifdef KR_headers
+call0(type, name)
+	int type;
+	char *name;
+#else
+call0(int type, char *name)
+#endif
 {
 	return( callk(type, name, CHNULL) );
 }
 
 
 
-struct Impldoblock *mkiodo(dospec, list)
-chainp dospec, list;
+ struct Impldoblock *
+#ifdef KR_headers
+mkiodo(dospec, list)
+	chainp dospec;
+	chainp list;
+#else
+mkiodo(chainp dospec, chainp list)
+#endif
 {
 	register struct Impldoblock *q;
 
@@ -731,8 +956,13 @@ chainp dospec, list;
 /* ckalloc -- Allocate 1 memory unit of size   n,   checking for out of
    memory error */
 
-ptr ckalloc(n)
-register int n;
+ ptr
+#ifdef KR_headers
+ckalloc(n)
+	register int n;
+#else
+ckalloc(register int n)
+#endif
 {
 	register ptr p;
 	p = (ptr)calloc(1, (unsigned) n);
@@ -744,9 +974,13 @@ register int n;
 }
 
 
-
+ int
+#ifdef KR_headers
 isaddr(p)
-register expptr p;
+	register expptr p;
+#else
+isaddr(register expptr p)
+#endif
 {
 	if(p->tag == TADDR)
 		return(YES);
@@ -774,9 +1008,13 @@ register expptr p;
 
 
 
-
+ int
+#ifdef KR_headers
 isstatic(p)
-register expptr p;
+	register expptr p;
+#else
+isstatic(register expptr p)
+#endif
 {
 	extern int useauto;
 	if(p->headblock.vleng && !ISCONST(p->headblock.vleng))
@@ -802,8 +1040,13 @@ register expptr p;
 /* addressable -- return True iff it is a constant value, or can be
    referenced by constant values */
 
+ int
+#ifdef KR_headers
 addressable(p)
-register expptr p;
+	register expptr p;
+#else
+addressable(register expptr p)
+#endif
 {
 	switch(p->tag)
 	{
@@ -822,8 +1065,13 @@ register expptr p;
 /* isnegative_const -- returns true if the constant is negative.  Returns
    false for imaginary and nonnumeric constants */
 
-int isnegative_const (cp)
-struct Constblock *cp;
+ int
+#ifdef KR_headers
+isnegative_const(cp)
+	struct Constblock *cp;
+#else
+isnegative_const(struct Constblock *cp)
+#endif
 {
     int retval;
 
@@ -853,8 +1101,13 @@ struct Constblock *cp;
     return retval;
 } /* isnegative_const */
 
+ void
+#ifdef KR_headers
 negate_const(cp)
- Constp cp;
+	Constp cp;
+#else
+negate_const(Constp cp)
+#endif
 {
     if (cp == (struct Constblock *) NULL)
 	return;
@@ -911,8 +1164,14 @@ negate_const(cp)
     } /* switch */
 } /* negate_const */
 
-ffilecopy (infp, outfp)
-FILE *infp, *outfp;
+ void
+#ifdef KR_headers
+ffilecopy(infp, outfp)
+	FILE *infp;
+	FILE *outfp;
+#else
+ffilecopy(FILE *infp, FILE *outfp)
+#endif
 {
     while (!feof (infp)) {
 	register c = getc (infp);
@@ -927,8 +1186,15 @@ FILE *infp, *outfp;
    c_keywords must be in alphabetical order (as defined by strcmp).
 */
 
-int in_vector(str, keywds, n)
-char *str; char **keywds; register int n;
+ int
+#ifdef KR_headers
+in_vector(str, keywds, n)
+	char *str;
+	char **keywds;
+	register int n;
+#else
+in_vector(char *str, char **keywds, register int n)
+#endif
 {
 	register char **K = keywds;
 	register int n1, t;
@@ -950,8 +1216,13 @@ char *str; char **keywds; register int n;
 	} /* in_vector */
 
 
-int is_negatable (Const)
-Constp Const;
+ int
+#ifdef KR_headers
+is_negatable(Const)
+	Constp Const;
+#else
+is_negatable(Constp Const)
+#endif
 {
     int retval = 0;
     if (Const != (Constp) NULL)
@@ -987,8 +1258,14 @@ Constp Const;
     return retval;
 } /* is_negatable */
 
+ void
+#ifdef KR_headers
 backup(fname, bname)
- char *fname, *bname;
+	char *fname;
+	char *bname;
+#else
+backup(char *fname, char *bname)
+#endif
 {
 	FILE *b, *f;
 	static char couldnt[] = "Couldn't open %.80s";
@@ -1010,8 +1287,14 @@ backup(fname, bname)
 /* struct_eq -- returns YES if structures have the same field names and
    types, NO otherwise */
 
-int struct_eq (s1, s2)
-chainp s1, s2;
+ int
+#ifdef KR_headers
+struct_eq(s1, s2)
+	chainp s1;
+	chainp s2;
+#else
+struct_eq(chainp s1, chainp s2)
+#endif
 {
     struct Dimblock *d1, *d2;
     Constp cp1, cp2;
@@ -1033,20 +1316,13 @@ chainp s1, s2;
 	/* compare dimensions (needed for comparing COMMON blocks) */
 
 	if (d1 = v1->vdim) {
-		if (!(cp1 = (Constp)d1->nelt) || cp1->tag != TCONST)
-			return NO;
-		if (!(d2 = v2->vdim))
-			if (cp1->Const.ci == 1)
-				continue;
-			else
-				return NO;
-		if (!(cp2 = (Constp)d2->nelt) || cp2->tag != TCONST
+		if (!(cp1 = (Constp)d1->nelt) || cp1->tag != TCONST
+		||  !(d2 = v2->vdim)
+		||  !(cp2 = (Constp)d2->nelt) || cp2->tag != TCONST
 		||  cp1->Const.ci != cp2->Const.ci)
 			return NO;
 		}
-	else if ((d2 = v2->vdim) && (!(cp2 = (Constp)d2->nelt)
-				|| cp2->tag != TCONST
-				|| cp2->Const.ci != 1))
+	else if (v2->vdim)
 		return NO;
     } /* while s1 != CHNULL && s2 != CHNULL */
 

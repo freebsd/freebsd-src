@@ -1,5 +1,5 @@
 /****************************************************************
-Copyright 1990, 1992, 1993 by AT&T Bell Laboratories and Bellcore.
+Copyright 1990, 1992 - 1995 by AT&T Bell Laboratories and Bellcore.
 
 Permission to use, copy, modify, and distribute this software
 and its documentation for any purpose and without fee is hereby
@@ -54,8 +54,8 @@ FILEP initfile;
 FILEP blkdfile;
 
 
-char token[MAXTOKENLEN+2];
-int toklen;
+char *token;
+int maxtoklen, toklen;
 long lineno;			/* Current line in the input file, NOT the
 				   Fortran statement label number */
 char *infname;
@@ -156,7 +156,7 @@ char *dfltarg[] = {
 #endif
 	"(real *)0",
 	"(doublereal *)0", "(complex *)0", "(doublecomplex *)0",
-	"(logical1 *)0","(shortlogical *)0)", "(logical *)0", "(char *)0"
+	"(logical1 *)0","(shortlogical *)0", "(logical *)0", "(char *)0"
 	};
 
 static char *dflt0proc[] = {
@@ -289,11 +289,11 @@ char *wh_first, *wh_next, *wh_last;
 
 #define ALLOCN(n,x)	(struct x *) ckalloc((n)*sizeof(struct x))
 
-fileinit()
+ void
+fileinit(Void)
 {
 	register char *s;
 	register int i, j;
-	extern void fmt_init(), mem_init(), np_init();
 
 	lastiolabno = 100000;
 	lastlabno = 0;
@@ -303,6 +303,8 @@ fileinit()
 
 	infile = stdin;
 
+	maxtoklen = 502;
+	token = (char *)ckalloc(maxtoklen+2);
 	memset(dflttype, tyreal, 26);
 	memset(dflttype + 'i' - 'a', tyint, 6);
 	memset(hextoi_tab, 16, sizeof(hextoi_tab));
@@ -341,7 +343,8 @@ fileinit()
 	out_init ();
 }
 
-hashclear()	/* clear hash table */
+ void
+hashclear(Void)	/* clear hash table */
 {
 	register struct Hashentry *hp;
 	register Namep p;
@@ -371,7 +374,8 @@ hashclear()	/* clear hash table */
 		}
 	}
 
-procinit()
+ void
+procinit(Void)
 {
 	register struct Labelblock *lp;
 	struct Chain *cp;
@@ -379,7 +383,6 @@ procinit()
 	struct memblock;
 	extern struct memblock *curmemblock, *firstmemblock;
 	extern char *mem_first, *mem_next, *mem_last, *mem0_last;
-	extern void frexchain();
 
 	curmemblock = firstmemblock;
 	mem_next = mem_first;
@@ -463,16 +466,20 @@ procinit()
 		setimpl(tyint,  (ftnint) 0, 'i', 'n');
 	}
 	setimpl(-STGBSS, (ftnint) 0, 'a', 'z');	/* set class */
-	setlog();
 }
 
 
 
-
+ void
+#ifdef KR_headers
 setimpl(type, length, c1, c2)
-int type;
-ftnint length;
-int c1, c2;
+	int type;
+	ftnint length;
+	int c1;
+	int c2;
+#else
+setimpl(int type, ftnint length, int c1, int c2)
+#endif
 {
 	int i;
 	char buff[100];
