@@ -120,6 +120,7 @@ int	anonftp;		/* automatic anonymous login */
 int	dirchange;		/* remote directory changed by cd command */
 int	ttywidth;		/* width of tty */
 char   *tmpdir;			/* temporary directory */
+int     try_epsv;               /* try EPSV for this session */
 
 #ifndef SMALL
 int	  editing;		/* command line editing enabled */

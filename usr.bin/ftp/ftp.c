@@ -1173,8 +1173,6 @@ initconn()
 #endif
 
 	if (passivemode) {
-		static int try_epsv = 1;
-
 		data_addr = myctladdr;
 		data = socket(data_addr.su_family, SOCK_STREAM, 0);
 		if (data < 0) {
@@ -1206,10 +1204,16 @@ initconn()
 			warn("setsockopt (ignored)");
 		switch (data_addr.su_family) {
 		case AF_INET:
-			if (try_epsv != 0) {
+			if (try_epsv) {
+				int overbose;
+
+				overbose = verbose;
+				if (debug == 0)
+					verbose = -1;
 				result = command(pasvcmd = "EPSV");
+				verbose = overbose;
 				if (code / 10 == 22 && code != 229) {
-					puts("wrong server: return code must be 229");
+					puts("wrong server: EPSV return code must be 229");
 					result = COMPLETE + 1;
 				}
 			} else
@@ -1223,7 +1227,7 @@ initconn()
 		case AF_INET6:
 			result = command(pasvcmd = "EPSV");
 			if (code / 10 == 22 && code != 229) {
-				puts("wrong server: return code must be 229");
+				puts("wrong server: EPSV return code must be 229");
 				result = COMPLETE + 1;
 			}
 			if (result != COMPLETE)
@@ -1711,7 +1715,9 @@ proxtrans(cmd, local, remote)
 	}
 	if (curtype != prox_type)
 		changetype(prox_type, 1);
-	if (command("PASV") != COMPLETE) {
+	if (try_epsv && command("EPSV") != COMPLETE)
+		try_epsv = 0;
+	if (!try_epsv && command("PASV") != COMPLETE) {
 		puts("proxy server does not support third party transfers.");
 		return;
 	}
