@@ -51,7 +51,7 @@ extern const union __nan_un {
     : (sizeof (x) == sizeof (double)) ? __fpclassifyd(x) \
     : __fpclassifyl(x))
 
-#define	isfinite(x)	(fpclassify(x) & (FP_INFINITE|FP_NAN) == 0)
+#define	isfinite(x)	((fpclassify(x) & (FP_INFINITE|FP_NAN)) == 0)
 #define	isinf(x)	(fpclassify(x) == FP_INFINITE)
 #define	isnan(x)	(fpclassify(x) == FP_NAN)
 #define	isnanf(x)      	isnan(x)
