@@ -25,7 +25,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: camcontrol.8,v 1.12 1999/05/10 23:30:00 ken Exp $
+.\"	$Id: camcontrol.8,v 1.13 1999/05/19 19:39:11 ken Exp $
 .\"
 .Dd September 14, 1998
 .Dt CAMCONTROL 8
@@ -568,7 +568,7 @@ and display the first 10 bytes from the cache on cd1.  Display SCSI sense
 information if the command fails.
 .Pp
 .Bd -literal -offset foobar
-camcontrol cmd -n cd -u u -v -c "3B 00 00 00 00 00 00 00 0e 00" \e
+camcontrol cmd -n cd -u 1 -v -c "3B 00 00 00 00 00 00 00 0e 00" \e
 	-o 14 "00 00 00 00 1 2 3 4 5 6 v v v v" 7 8 9 8
 .Ed
 .Pp
