@@ -3234,8 +3234,8 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	&man.named.8; to operate in a more consistent fashion for
 	certain common misconfigurations. &merged;</para>
 
-      <para role="historic"><application>BIND</application> has been updated to
-	8.3.2-T1B. &merged;</para>
+      <para><application>BIND</application> has been updated to
+	8.3.3.</para>
 
       <para><application>Binutils</application> has been updated to
 	2.12.0.</para>
@@ -3336,7 +3336,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 	been updated to 4.1.0. &merged;</para>
 
       <para><application>OpenPAM</application>
-        (<quote>Cinnamon</quote> release) has been imported,
+        (<quote>Citronella</quote> release) has been imported,
         replacing
         <application>Linux-PAM</application>.</para>
 
@@ -3431,6 +3431,10 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
 
       <para role="historic">The timezone database has been updated to the
 	<filename>tzdata2002c</filename> release. &merged;</para>
+
+      <para>&man.whereis.1; has been imported from NetBSD as of 1 July
+	2002.  This version, written in C, replaces the former Perl
+	implementation.</para>
 
       <sect4>
 	<title>CVS</title>
