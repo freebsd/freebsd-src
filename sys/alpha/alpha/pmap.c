@@ -914,7 +914,7 @@ pmap_new_proc(struct proc *p)
 	pt_entry_t *ptek, oldpte;
 
 	/*
-	 * allocate object for the upages
+	 * allocate object for the upage
 	 */
 	upobj = p->p_upages_obj;
 	if (upobj == NULL) {
@@ -935,7 +935,7 @@ pmap_new_proc(struct proc *p)
 
 	for (i = 0; i < UAREA_PAGES; i++) {
 		/*
-		 * Get a kernel stack page
+		 * Get a kernel page for the uarea
 		 */
 		m = vm_page_grab(upobj, i, VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
 
@@ -945,11 +945,11 @@ pmap_new_proc(struct proc *p)
 		m->wire_count++;
 		cnt.v_wire_count++;
 
-		oldpte = *(ptek + i);
 		/*
 		 * Enter the page into the kernel address space.
 		 */
-		*(ptek + i) = pmap_phys_to_pte(VM_PAGE_TO_PHYS(m))
+		oldpte = ptek[i];
+		ptek[i] = pmap_phys_to_pte(VM_PAGE_TO_PHYS(m))
 			| PG_ASM | PG_KRE | PG_KWE | PG_V;
 		if (oldpte) 
 			pmap_invalidate_page(kernel_pmap, up + i * PAGE_SIZE);
@@ -973,7 +973,7 @@ pmap_dispose_proc(p)
 	vm_object_t upobj;
 	vm_offset_t up;
 	vm_page_t m;
-	pt_entry_t *ptek, oldpte;
+	pt_entry_t *ptek;
 
 	upobj = p->p_upages_obj;
 	up = (vm_offset_t)p->p_uarea;
@@ -983,8 +983,7 @@ pmap_dispose_proc(p)
 		if (m == NULL)
 			panic("pmap_dispose_proc: upage already missing?");
 		vm_page_busy(m);
-		oldpte = *(ptek + i);
-		*(ptek + i) = 0;
+		ptek[i] = 0;
 		pmap_invalidate_page(kernel_pmap, up + i * PAGE_SIZE);
 		vm_page_unwire(m, 0);
 		vm_page_free(m);
@@ -1069,43 +1068,39 @@ pmap_new_thread(struct thread *td)
 	pt_entry_t *ptek, oldpte;
 
 	/*
-	 * allocate object for the upages
+	 * allocate object for the kstack
 	 */
-	ksobj = td->td_kstack_obj;
-	if (ksobj == NULL) {
-		ksobj = vm_object_allocate(OBJT_DEFAULT, KSTACK_PAGES);
-		td->td_kstack_obj = ksobj;
-	}
+	ksobj = vm_object_allocate(OBJT_DEFAULT, KSTACK_PAGES);
+	td->td_kstack_obj = ksobj;
 
 #ifdef KSTACK_GUARD
 	/* get a kernel virtual address for the kstack for this thread */
-	ks = td->td_kstack;
-	if (ks == 0) {
-		ks = kmem_alloc_nofault(kernel_map,
-		    (KSTACK_PAGES + 1) * PAGE_SIZE);
-		if (ks == NULL)
-			panic("pmap_new_thread: kstack allocation failed");
-		ks += PAGE_SIZE;
-		td->td_kstack = ks;
-	}
+	ks = kmem_alloc_nofault(kernel_map, (KSTACK_PAGES + 1) * PAGE_SIZE);
+	if (ks == NULL)
+		panic("pmap_new_thread: kstack allocation failed");
 
-	ptek = vtopte(ks - PAGE_SIZE);
+	/* Set the first page to be the unmapped guard page. */
+	ptek = vtopte(ks);
 	oldpte = *ptek;
 	*ptek = 0;
 	if (oldpte)
-		pmap_invalidate_page(kernel_pmap, ks - PAGE_SIZE);
+		pmap_invalidate_page(kernel_pmap, ks);
+	/* move to the next page, which is where the real stack starts. */
+	ks += PAGE_SIZE;
+	td->td_kstack = ks;
 	ptek++;
 #else
 	/* get a kernel virtual address for the kstack for this thread */
-	ks = td->td_kstack;
-	if (ks == 0) {
-		ks = kmem_alloc_nofault(kernel_map, KSTACK_PAGES * PAGE_SIZE);
-		if (ks == NULL)
-			panic("pmap_new_thread: kstack allocation failed");
-		td->td_kstack = ks;
-	}
+	ks = kmem_alloc_nofault(kernel_map, KSTACK_PAGES * PAGE_SIZE);
+	if (ks == NULL)
+		panic("pmap_new_thread: kstack allocation failed");
+	td->td_kstack = ks;
 	ptek = vtopte(ks);
 #endif
+	/*
+	 * For the length of the stack, link in a real page of ram for each
+	 * page of stack.
+	 */
 	for (i = 0; i < KSTACK_PAGES; i++) {
 		/*
 		 * Get a kernel stack page
@@ -1118,11 +1113,11 @@ pmap_new_thread(struct thread *td)
 		m->wire_count++;
 		cnt.v_wire_count++;
 
-		oldpte = *(ptek + i);
 		/*
 		 * Enter the page into the kernel address space.
 		 */
-		*(ptek + i) = pmap_phys_to_pte(VM_PAGE_TO_PHYS(m))
+		oldpte = ptek[i];
+		ptek[i] = pmap_phys_to_pte(VM_PAGE_TO_PHYS(m))
 			| PG_ASM | PG_KRE | PG_KWE | PG_V;
 		if (oldpte) 
 			pmap_invalidate_page(kernel_pmap, ks + i * PAGE_SIZE);
@@ -1146,23 +1141,17 @@ pmap_dispose_thread(td)
 	vm_object_t ksobj;
 	vm_offset_t ks;
 	vm_page_t m;
-	pt_entry_t *ptek, oldpte;
+	pt_entry_t *ptek;
 
 	ksobj = td->td_kstack_obj;
 	ks = td->td_kstack;
 	ptek = vtopte(ks);
-#ifdef KSTACK_GUARD
-	ks -= PAGE_SIZE;
-	for (i = 1; i < (KSTACK_PAGES + 1); i++) {
-#else
 	for (i = 0; i < KSTACK_PAGES; i++) {
-#endif
 		m = vm_page_lookup(ksobj, i);
 		if (m == NULL)
 			panic("pmap_dispose_thread: kstack already missing?");
 		vm_page_busy(m);
-		oldpte = *(ptek + i);
-		*(ptek + i) = 0;
+		ptek[i] = 0;
 		pmap_invalidate_page(kernel_pmap, ks + i * PAGE_SIZE);
 		vm_page_unwire(m, 0);
 		vm_page_free(m);
@@ -1173,11 +1162,10 @@ pmap_dispose_thread(td)
 	 * address map.
 	 */
 #ifdef KSTACK_GUARD
-	kmem_free(kernel_map, ks, (KSTACK_PAGES + 1) * PAGE_SIZE);
+	kmem_free(kernel_map, ks - PAGE_SIZE, (KSTACK_PAGES + 1) * PAGE_SIZE);
 #else
 	kmem_free(kernel_map, ks, KSTACK_PAGES * PAGE_SIZE);
 #endif
-	td->td_kstack_obj = NULL;
 	vm_object_deallocate(ksobj);
 }
 
