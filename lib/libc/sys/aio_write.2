@@ -39,7 +39,7 @@
 .Sh DESCRIPTION
 The
 .Fn aio_write
-function allows the calling process to write
+system call allows the calling process to write
 .Fa iocb->aio_nbytes
 from the buffer pointed to by
 .Fa iocb->aio_buf
@@ -96,7 +96,7 @@ The asynchronous I/O control buffer
 .Fa iocb
 should be zeroed before the
 .Fn aio_write
-call to avoid passing bogus context information to the kernel.
+system call to avoid passing bogus context information to the kernel.
 .Pp
 Modifications of the Asynchronous I/O Control Block structure or the
 buffer contents after the request has been enqueued, but before the
@@ -112,26 +112,26 @@ no I/O will occur.
 .Sh ERRORS
 The
 .Fn aio_write
-function will fail if:
+system call will fail if:
 .Bl -tag -width Er
 .It Bq Er EAGAIN
 The request was not queued because of system resource limitations.
 .It Bq Er ENOSYS
 The
 .Fn aio_write
-call is not supported.
+system call is not supported.
 .El
 .Pp
 The following conditions may be synchronously detected when the
 .Fn aio_write
-call is made, or asynchronously, at any time thereafter.  If they
+system call is made, or asynchronously, at any time thereafter.  If they
 are detected at call time,
 .Fn aio_write
 returns -1 and sets
 .Va errno
 appropriately; otherwise the
 .Fn aio_return
-function must be called, and will return -1, and
+system call must be called, and will return -1, and
 .Fn aio_error
 must be called to determine the actual value that would have been
 returned in
@@ -154,13 +154,13 @@ is not valid.
 If the request is successfully enqueued, but subsequently canceled
 or an error occurs, the value returned by the
 .Fn aio_return
-function is per the
+system call is per the
 .Xr write 2
-call, and the value returned by the
+system call, and the value returned by the
 .Fn aio_error
-function is either one of the error returns from the
+system call is either one of the error returns from the
 .Xr write 2
-call, or one of:
+system call, or one of:
 .Bl -tag -width Er
 .It Bq Er EBADF
 .Fa iocb->aio_fildes
@@ -181,14 +181,16 @@ would be invalid.
 .Xr aio_waitcomplete 2 ,
 .Xr aio 4
 .Sh STANDARDS
+The
 .Fn aio_write
+system call
 is expected to conform to the
 .St -p1003.2
 standard.
 .Sh HISTORY
 The
-.Nm
-Function first appeared in
+.Fn aio_write
+system call first appeared in
 .Fx 3.0 .
 .Sh AUTHORS
 This manual page was written by

@@ -47,14 +47,14 @@
 .Sh DESCRIPTION
 The
 .Fn fcntl
-function provides for control over descriptors.
+system call provides for control over descriptors.
 The argument
 .Fa fd
 is a descriptor to be operated on by
 .Fa cmd
 as described below.  Depending on the value of
 .Fa cmd ,
-.Nm
+.Fn fcntl
 can take an additional third argument
 .Fa "int arg" .
 .Bl -tag -width F_GETOWNX
@@ -145,7 +145,7 @@ flags are as follows:
 .It Dv O_NONBLOCK
 Non-blocking I/O; if no data is available to a
 .Xr read 2
-call, or if a
+system call, or if a
 .Xr write 2
 operation would block,
 the read or write call returns -1 with the error
@@ -195,7 +195,7 @@ in the
 .Fa flock
 structure.
 If no lock is found that would prevent this lock from being created,
-the structure is left unchanged by this function call except for the
+the structure is left unchanged by this system call except for the
 lock type which is set to
 .Dv F_UNLCK .
 .It Dv F_SETLK
@@ -331,7 +331,7 @@ requested a lock on the database.
 Another minor semantic problem with this interface is that
 locks are not inherited by a child process created using the
 .Xr fork 2
-function.
+system call.
 The
 .Xr flock 2
 interface has much more rational last close semantics and
@@ -390,7 +390,7 @@ is set to indicate the error.
 .Sh ERRORS
 The
 .Fn fcntl
-function will fail if:
+system call will fail if:
 .Bl -tag -width Er
 .It Bq Er EAGAIN
 The argument
@@ -450,7 +450,7 @@ The argument
 .Fa cmd
 is
 .Dv F_SETLKW ,
-and the function was interrupted by a signal.
+and the system call was interrupted by a signal.
 .It Bq Er EINVAL
 .Fa Cmd
 is
@@ -554,5 +554,5 @@ for the reasons as stated in
 .Sh HISTORY
 The
 .Fn fcntl
-function call appeared in
+system call appeared in
 .Bx 4.2 .

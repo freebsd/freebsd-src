@@ -63,17 +63,16 @@ the real user ID, then the saved user ID will be set to the effective user ID.
 .Pp
 The
 .Fn setreuid
-function has been used to swap the real and effective user IDs
+system call has been used to swap the real and effective user IDs
 in set-user-ID programs to temporarily relinquish the set-user-ID value.
 This purpose is now better served by the use of the
-.Fn seteuid
-function (see
-.Xr setuid 2 ) .
+.Xr seteuid 2
+system call.
 .Pp
 When setting the real and effective user IDs to the same value,
 the standard
 .Fn setuid
-function is preferred.
+system call is preferred.
 .Sh RETURN VALUES
 .Rv -std setreuid
 .Sh ERRORS

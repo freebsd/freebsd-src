@@ -42,7 +42,7 @@
 .Sh DESCRIPTION
 The
 .Fn semop
-call
+system call
 atomically performs the array of operations indicated by
 .Fa array
 on the semaphore set indicated by
@@ -229,7 +229,7 @@ unexpectedly.
 .Sh ERRORS
 The
 .Fn semop
-call will fail if:
+system call will fail if:
 .Bl -tag -width Er
 .It Bq Er EINVAL
 No semaphore set corresponds to
@@ -261,7 +261,7 @@ The semaphore set was removed from the system.
 .It Bq Er EINTR
 The
 .Fn semop
-call was interrupted by a signal.
+system call was interrupted by a signal.
 .It Bq Er ENOSPC
 The system
 .Dv SEM_UNDO
@@ -283,7 +283,7 @@ to exceed the system-imposed limits.
 .Sh BUGS
 The
 .Fn semop
-call
+system call
 may block waiting for memory even if
 .Dv IPC_NOWAIT
 was specified.

@@ -52,7 +52,9 @@ typedef struct sigaltstack {
 .Ft int
 .Fn sigaltstack "const stack_t * restrict ss" "stack_t * restrict oss"
 .Sh DESCRIPTION
-.Fn Sigaltstack
+The
+.Fn sigaltstack
+system call
 allows users to define an alternate stack on which signals
 are to be processed.
 If
@@ -66,7 +68,7 @@ on that stack.
 When a signal's action indicates its handler
 should execute on the signal stack (specified with a
 .Xr sigaction 2
-call), the system checks to see
+system call), the system checks to see
 if the process is currently executing on that stack.
 If the process is not currently executing on the signal stack,
 the system arranges a switch to the signal stack for the
@@ -135,7 +137,9 @@ unpredictable results may occur.
 .Sh RETURN VALUES
 .Rv -std sigaltstack
 .Sh ERRORS
-.Fn Sigaltstack
+The
+.Fn sigaltstack
+system call
 will fail and the signal stack context will remain unchanged
 if one of the following occurs.
 .Bl -tag -width Er

@@ -45,7 +45,9 @@
 .Ft int
 .Fn readlink "const char *path" "char *buf" "int bufsiz"
 .Sh DESCRIPTION
-.Fn Readlink
+The
+.Fn readlink
+system call
 places the contents of the symbolic link
 .Fa path
 in the buffer
@@ -54,7 +56,7 @@ which has size
 .Fa bufsiz .
 The
 .Fn readlink
-function does not append a
+system call does not append a
 .Dv NUL
 character to
 .Fa buf .
@@ -64,7 +66,9 @@ if it succeeds, or a -1 if an error occurs, placing the error
 code in the global variable
 .Va errno .
 .Sh ERRORS
-.Fn Readlink
+The
+.Fn readlink
+system call
 will fail if:
 .Bl -tag -width Er
 .It Bq Er ENOTDIR
@@ -94,5 +98,5 @@ extends outside the process's allocated address space.
 .Sh HISTORY
 The
 .Fn readlink
-function call appeared in
+system call appeared in
 .Bx 4.2 .

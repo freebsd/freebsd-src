@@ -51,7 +51,7 @@
 .Sh DESCRIPTION
 The
 .Fn sigprocmask
-function examines and/or changes the current signal mask (those signals
+system call examines and/or changes the current signal mask (those signals
 that are blocked from delivery).
 Signals are blocked if they are members of the current signal mask set.
 .Pp
@@ -104,7 +104,7 @@ to be blocked.
 .Sh ERRORS
 The
 .Fn sigprocmask
-call will fail and the signal mask will be unchanged if one
+system call will fail and the signal mask will be unchanged if one
 of the following occurs:
 .Bl -tag -width Er
 .It Bq Er EINVAL
@@ -120,6 +120,6 @@ has a value other than those listed here.
 .Sh STANDARDS
 The
 .Fn sigprocmask
-function call is expected to
+system call is expected to
 conform to
 .St -p1003.1-90 .

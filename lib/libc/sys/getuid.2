@@ -51,10 +51,10 @@
 .Sh DESCRIPTION
 The
 .Fn getuid
-function returns the real user ID of the calling process.
+system call returns the real user ID of the calling process.
 The
 .Fn geteuid
-function
+system call
 returns the effective user ID of the calling process.
 .Pp
 The real user ID is that of the user who has invoked the program.
@@ -70,7 +70,7 @@ The
 .Fn getuid
 and
 .Fn geteuid
-functions are always successful, and no return value is reserved to
+system calls are always successful, and no return value is reserved to
 indicate an error.
 .Sh SEE ALSO
 .Xr getgid 2 ,
@@ -83,12 +83,12 @@ The
 .Fn geteuid
 and
 .Fn getuid
-function calls are expected to conform to
+system calls are expected to conform to
 .St -p1003.1-90 .
 .Sh HISTORY
-A
+The
 .Fn getuid
-and a
+and
 .Fn geteuid
-function call appeared in
+functions appeared in
 .At v7 .

@@ -49,9 +49,11 @@
 .Ft int
 .Fn setsockopt "int s" "int level" "int optname" "const void *optval" "socklen_t optlen"
 .Sh DESCRIPTION
-.Fn Getsockopt
+The
+.Fn getsockopt
 and
 .Fn setsockopt
+system calls
 manipulate the
 .Em options
 associated with a socket.  Options may exist at multiple
@@ -164,7 +166,7 @@ enables debugging in the underlying protocol modules.
 indicates that the rules used in validating addresses supplied
 in a
 .Xr bind 2
-call should allow reuse of local addresses.
+system call should allow reuse of local addresses.
 .Dv SO_REUSEPORT
 allows completely duplicate bindings by multiple processes
 if they all set
@@ -199,7 +201,7 @@ attempt until it is able to transmit the data or until it decides it
 is unable to deliver the information (a timeout period, termed the
 linger interval, is specified in seconds in the
 .Fn setsockopt
-call when
+system call when
 .Dv SO_LINGER
 is requested).
 If
@@ -315,7 +317,7 @@ must be called on the socket before
 trying to install the filter on it,
 or else the
 .Fn setsockopt
-call will fail.
+system call will fail.
 .Bd -literal
 struct  accept_filter_arg {
         char    af_name[16];

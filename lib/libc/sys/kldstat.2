@@ -41,7 +41,7 @@
 .Sh DESCRIPTION
 The
 .Fn kldstat
-function writes the info for the file referred to by
+system call writes the info for the file referred to by
 .Fa fileid
 into
 .Fa stat .
@@ -101,7 +101,7 @@ field.
 There was a problem copying one, some, or all of the fields into
 .Fa stat
 in the
-.Fn copyout
+.Xr copyout 9
 function.
 .El
 .Sh SEE ALSO

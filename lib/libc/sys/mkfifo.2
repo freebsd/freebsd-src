@@ -46,7 +46,9 @@
 .Ft int
 .Fn mkfifo "const char *path" "mode_t mode"
 .Sh DESCRIPTION
-.Fn Mkfifo
+The
+.Fn mkfifo
+system call
 creates a new fifo file with name
 .Fa path .
 The access permissions are
@@ -62,7 +64,9 @@ which it is created.
 .Sh RETURN VALUES
 .Rv -std mkfifo
 .Sh ERRORS
-.Fn Mkfifo
+The
+.Fn mkfifo
+system call
 will fail and no fifo will be created if:
 .Bl -tag -width Er
 .It Bq Er ENOTSUP
@@ -117,5 +121,5 @@ points outside the process's allocated address space.
 .Sh STANDARDS
 The
 .Fn mkfifo
-function call is expected to conform to
+system call is expected to conform to
 .St -p1003.1-90 .

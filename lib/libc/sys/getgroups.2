@@ -46,7 +46,9 @@
 .Ft int
 .Fn getgroups "int gidsetlen" "gid_t *gidset"
 .Sh DESCRIPTION
-.Fn Getgroups
+The
+.Fn getgroups
+system call
 gets the current group access list of the user process
 and stores it in the array
 .Fa gidset .
@@ -54,7 +56,9 @@ The parameter
 .Fa gidsetlen
 indicates the number of entries that may be placed in
 .Fa gidset .
-.Fn Getgroups
+The
+.Fn getgroups
+system call
 returns the actual number of groups returned in
 .Fa gidset .
 No more than
@@ -94,5 +98,5 @@ an invalid address.
 .Sh HISTORY
 The
 .Fn getgroups
-function call appeared in
+system call appeared in
 .Bx 4.2 .

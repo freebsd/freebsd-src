@@ -59,7 +59,7 @@ are changed to
 .Fa mode .
 The
 .Fn chmod
-function verifies that the process owner (user) either owns
+system call verifies that the process owner (user) either owns
 the file specified by
 .Fa path
 (or
@@ -68,12 +68,12 @@ or
 is the super-user.
 The
 .Fn chmod
-function follows symbolic links to operate on the target of the link
+system call follows symbolic links to operate on the target of the link
 rather than the link itself.
 .Pp
 The
-.Fa lchmod
-function is similar to
+.Fn lchmod
+system call is similar to
 .Fn chmod
 but does not follow symbolic links.
 .Pp
@@ -161,7 +161,7 @@ at the expense of a degree of compatibility.
 .Sh ERRORS
 The
 .Fn chmod
-function
+system call
 will fail and the file mode will be unchanged if:
 .Bl -tag -width Er
 .It Bq Er ENOTDIR
@@ -191,7 +191,7 @@ An attempt was made to set the sticky bit upon an executable.
 .Pp
 The
 .Fn fchmod
-function will fail if:
+system call will fail if:
 .Bl -tag -width Er
 .It Bq Er EBADF
 The descriptor is not valid.
@@ -212,23 +212,22 @@ An I/O error occurred while reading from or writing to the file system.
 .Sh STANDARDS
 The
 .Fn chmod
-function call is expected to conform to
+system call is expected to conform to
 .St -p1003.1-90 ,
 except for the return of
 .Er EFTYPE
 and the use of
 .Dv S_ISTXT .
 .Sh HISTORY
-A
+The
 .Fn chmod
-function call appeared in
+function appeared in
 .At v7 .
 The
 .Fn fchmod
-function call
-appeared in
+system call appeared in
 .Bx 4.2 .
 The
 .Fn lchmod
-function call appeared in
+system call appeared in
 .Fx 3.0 .

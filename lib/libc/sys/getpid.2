@@ -49,7 +49,9 @@
 .Ft pid_t
 .Fn getppid void
 .Sh DESCRIPTION
-.Fn Getpid
+The
+.Fn getpid
+system call
 returns
 the process ID of
 the calling process.
@@ -60,7 +62,9 @@ security reasons; see
 .Xr mkstemp 3
 instead.
 .Pp
-.Fn Getppid
+The
+.Fn getppid
+system call
 returns the process ID of the parent
 of the calling process.
 .Sh ERRORS
@@ -68,7 +72,7 @@ The
 .Fn getpid
 and
 .Fn getppid
-functions are always successful, and no return value is reserved to
+system calls are always successful, and no return value is reserved to
 indicate an error.
 .Sh SEE ALSO
 .Xr gethostid 3
@@ -77,10 +81,10 @@ The
 .Fn getpid
 and
 .Fn getppid
-function calls are expected to conform to
+system calls are expected to conform to
 .St -p1003.1-90 .
 .Sh HISTORY
-A
+The
 .Fn getpid
-function call appeared in
+function appeared in
 .At v7 .

@@ -47,7 +47,7 @@
 .Sh DESCRIPTION
 The
 .Fn lseek
-function repositions the offset of the file descriptor
+system call repositions the offset of the file descriptor
 .Fa fildes
 to the
 argument
@@ -58,7 +58,9 @@ The argument
 .Fa fildes
 must be an open
 file descriptor.
-.Fn Lseek
+The
+.Fn lseek
+system call
 repositions the file position pointer associated with the file
 descriptor
 .Fa fildes
@@ -93,7 +95,7 @@ bytes.
 .Pp
 The
 .Fn lseek
-function allows the file offset to be set beyond the end
+system call allows the file offset to be set beyond the end
 of the existing end-of-file of the file.
 If data is later written
 at this point, subsequent reads of the data in the gap return
@@ -112,7 +114,9 @@ a value of -1 is returned and
 is set to indicate
 the error.
 .Sh ERRORS
-.Fn Lseek
+The
+.Fn lseek
+system call
 will fail and the file position pointer will remain unchanged if:
 .Bl -tag -width Er
 .It Bq Er EBADF
@@ -141,10 +145,10 @@ is incorrect English, but is maintained for historical reasons.
 .Sh STANDARDS
 The
 .Fn lseek
-function call is expected to conform to
+system call is expected to conform to
 .St -p1003.1-90 .
 .Sh HISTORY
-A
+The
 .Fn lseek
-function call appeared in
+function appeared in
 .At v7 .

@@ -39,7 +39,7 @@
 .Sh DESCRIPTION
 The
 .Fn aio_error
-function returns the error status of the asynchronous I/O request
+system call returns the error status of the asynchronous I/O request
 associated with the structure pointed to by
 .Fa iocb .
 .Sh RETURN VALUES
@@ -64,7 +64,7 @@ to indicate the error condition.
 .Sh ERRORS
 The
 .Fn aio_error
-function will fail if:
+system call will fail if:
 .Bl -tag -width Er
 .It Bq Er EINVAL
 .Fa iocb
@@ -81,14 +81,16 @@ does not reference an outstanding asynchronous I/O request.
 .Xr write 2 ,
 .Xr aio 4
 .Sh STANDARDS
+The
 .Fn aio_error
+system call
 is expected to conform to the
 .St -p1003.2
 standard.
 .Sh HISTORY
 The
-.Nm
-function first appeared in
+.Fn aio_error
+system call first appeared in
 .Fx 3.0 .
 .Sh AUTHORS
 This

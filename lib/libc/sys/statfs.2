@@ -48,7 +48,9 @@
 .Ft int
 .Fn fstatfs "int fd" "struct statfs *buf"
 .Sh DESCRIPTION
-.Fn Statfs
+The
+.Fn statfs
+system call
 returns information about a mounted file system.
 .Fa Path
 is the path name of any file within the mounted file system.
@@ -121,13 +123,17 @@ The file system is exported with Kerberos uid mapping.
 .El
 .Pp
 Fields that are undefined for a particular file system are set to -1.
-.Fn Fstatfs
+The
+.Fn fstatfs
+system call
 returns the same information about an open file referenced by descriptor
 .Fa fd .
 .Sh RETURN VALUES
 .Rv -std
 .Sh ERRORS
-.Fn Statfs
+The
+.Fn statfs
+system call
 fails if one or more of the following are true:
 .Bl -tag -width Er
 .It Bq Er ENOTDIR
@@ -162,7 +168,9 @@ An
 error occurred while reading from or writing to the file system.
 .El
 .Pp
-.Fn Fstatfs
+The
+.Fn fstatfs
+system call
 fails if one or more of the following are true:
 .Bl -tag -width Er
 .It Bq Er EBADF
@@ -179,5 +187,5 @@ error occurred while reading from or writing to the file system.
 .Sh HISTORY
 The
 .Fn statfs
-function first appeared in
+system call first appeared in
 .Bx 4.4 .

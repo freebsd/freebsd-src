@@ -48,7 +48,9 @@
 .Ft int
 .Fn setpgrp "pid_t pid" "pid_t pgrp"
 .Sh DESCRIPTION
-.Fn Setpgid
+The
+.Fn setpgid
+system call
 sets the process group of the specified process
 .Fa pid
 to the specified
@@ -63,7 +65,9 @@ of the invoking process.
 .Sh RETURN VALUES
 .Rv -std setpgid
 .Sh ERRORS
-.Fn Setpgid
+The
+.Fn setpgid
+system call
 will fail and the process group will not be altered if:
 .Bl -tag -width Er
 .It Bq Er ESRCH
@@ -78,10 +82,12 @@ of the calling process.
 .Sh STANDARDS
 The
 .Fn setpgid
-function call is expected to conform to
+system call is expected to conform to
 .St -p1003.1-90 .
 .Sh COMPATIBILITY
-.Fn Setpgrp
+The
+.Fn setpgrp
+system call
 is identical to
 .Fn setpgid ,
 and is retained for calling convention compatibility with historical

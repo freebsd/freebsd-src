@@ -47,7 +47,9 @@
 .Ft int
 .Fn sysarch "int number" "void *args"
 .Sh DESCRIPTION
-.Fn Sysarch
+The
+.Fn sysarch
+system call
 performs the architecture-dependent function
 specified by
 .Fa number
@@ -69,7 +71,7 @@ user programs.  Instead, they should access
 its functions using the architecture-dependent
 library.
 .Sh RETURN VALUES
-See the manual pages for specific architecture-dependent function calls
+See the manual pages for specific architecture-dependent system calls
 for information about their return values.
 .Sh SEE ALSO
 .Xr i386_get_ioperm 2 ,

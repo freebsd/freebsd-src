@@ -50,7 +50,7 @@
 .Sh DESCRIPTION
 The
 .Fn revoke
-function invalidates all current open file descriptors in the system
+system call invalidates all current open file descriptors in the system
 for the file named by
 .Fa path .
 Subsequent operations on any such descriptors
@@ -60,7 +60,7 @@ from a character device file which has been revoked
 returns a count of zero (end of file),
 and a
 .Fn close
-call will succeed.
+system call will succeed.
 If the file is a special file for a device which is open,
 the device close function
 is called as if all open references to the file had been closed.
@@ -68,7 +68,7 @@ is called as if all open references to the file had been closed.
 Access to a file may be revoked only by its owner or the super user.
 The
 .Fn revoke
-function is currently supported only for block and character special
+system call is currently supported only for block and character special
 device files.
 It is normally used to prepare a terminal device for a new login session,
 preventing any access by a previous user of the terminal.
@@ -103,5 +103,5 @@ The caller is neither the owner of the file nor the super user.
 .Sh HISTORY
 The
 .Fn revoke
-function was introduced in
+system call first appeared in
 .Bx 4.3 Reno .

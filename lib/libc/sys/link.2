@@ -47,7 +47,7 @@
 .Sh DESCRIPTION
 The
 .Fn link
-function call
+system call
 atomically creates the specified directory entry (hard link)
 .Fa name2
 with the attributes of the underlying object pointed at by
@@ -82,7 +82,9 @@ may not be a directory.
 .Sh RETURN VALUES
 .Rv -std link
 .Sh ERRORS
-.Fn Link
+The
+.Fn link
+system call
 will fail and no link will be created if:
 .Bl -tag -width Er
 .It Bq Er ENOTDIR
@@ -153,12 +155,12 @@ is outside the process's allocated address space.
 .Sh STANDARDS
 The
 .Fn link
-function call is expected to conform to
+system call is expected to conform to
 .St -p1003.1-90 .
 .Sh HISTORY
-A
+The
 .Fn link
-function call appeared in
+function appeared in
 .At v7 .
 .Pp
 The

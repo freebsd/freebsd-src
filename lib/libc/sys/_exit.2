@@ -47,7 +47,7 @@
 .Sh DESCRIPTION
 The
 .Fn _exit
-function
+system call
 terminates a process with the following consequences:
 .Bl -bullet
 .It
@@ -103,7 +103,9 @@ before
 calling
 .Fn _exit .
 .Sh RETURN VALUES
+The
 .Fn _exit
+system call
 can never return.
 .Sh SEE ALSO
 .Xr fork 2 ,
@@ -113,10 +115,10 @@ can never return.
 .Sh STANDARDS
 The
 .Fn _exit
-function call is expected to conform to
+system call is expected to conform to
 .St -p1003.1-90 .
 .Sh HISTORY
-An
+The
 .Fn _exit
-function call appeared in
+function appeared in
 .At v7 .

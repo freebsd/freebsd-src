@@ -49,7 +49,7 @@
 is the address of the pathname of a directory, terminated by an ASCII NUL.
 The
 .Fn chroot
-function causes
+system call causes
 .Fa dirname
 to become the root directory,
 that is, the starting point for path searches of pathnames
@@ -87,9 +87,9 @@ is set to one (the default),
 will fail with
 .Er EPERM
 if there are any directories open and the
-process is already subject to a
+process is already subject to the
 .Fn chroot
-call.
+system call.
 .Pp
 Any other value for
 .Ql kern.chroot_allow_open_directories
@@ -102,7 +102,7 @@ is set to indicate an error.
 .Sh ERRORS
 The
 .Fn chroot
-function
+system call
 will fail and the root directory will be unchanged if:
 .Bl -tag -width Er
 .It Bq Er ENOTDIR
@@ -131,5 +131,5 @@ An I/O error occurred while reading from or writing to the file system.
 .Sh HISTORY
 The
 .Fn chroot
-function call appeared in
+system call appeared in
 .Bx 4.2 .

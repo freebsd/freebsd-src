@@ -46,7 +46,9 @@
 .Ft int
 .Fn setgroups "int ngroups" "const gid_t *gidset"
 .Sh DESCRIPTION
-.Fn Setgroups
+The
+.Fn setgroups
+system call
 sets the group access list of the current user process
 according to the array
 .Fa gidset .
@@ -64,7 +66,7 @@ Only the super-user may set new groups.
 .Sh ERRORS
 The
 .Fn setgroups
-call will fail if:
+system call will fail if:
 .Bl -tag -width Er
 .It Bq Er EPERM
 The caller is not the super-user.
@@ -80,5 +82,5 @@ address space.
 .Sh HISTORY
 The
 .Fn setgroups
-function call appeared in
+system call appeared in
 .Bx 4.2 .

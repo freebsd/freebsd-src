@@ -123,7 +123,7 @@ for details.)
 .Sh ERRORS
 The
 .Fn chflags
-function will fail if:
+system call will fail if:
 .Bl -tag -width Er
 .It Bq Er ENOTDIR
 A component of the path prefix is not a directory.
@@ -154,7 +154,7 @@ The underlying file system does not support file flags.
 .Pp
 The
 .Fn fchflags
-function will fail if:
+system call will fail if:
 .Bl -tag -width Er
 .It Bq Er EBADF
 The descriptor is not valid.
@@ -181,8 +181,8 @@ The underlying file system does not support file flags.
 .Xr mount_unionfs 8
 .Sh HISTORY
 The
-.Nm chflags
+.Fn chflags
 and
-.Nm fchflags
-functions first appeared in
+.Fn fchflags
+system calls first appeared in
 .Bx 4.4 .

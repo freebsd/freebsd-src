@@ -48,7 +48,7 @@
 .Sh DESCRIPTION
 The
 .Fn issetugid
-function returns 1 if the process environment or memory address space
+system call returns 1 if the process environment or memory address space
 is considered
 .Dq tainted ,
 and returns 0 otherwise.
@@ -81,7 +81,7 @@ which begin setuid but need to be able to create an untainted process.
 .Sh ERRORS
 The
 .Fn issetugid
-function is always successful, and no return value is reserved to
+system call is always successful, and no return value is reserved to
 indicate an error.
 .Sh SEE ALSO
 .Xr execve 2 ,
@@ -93,9 +93,9 @@ indicate an error.
 .Xr setreuid 2 ,
 .Xr setuid 2
 .Sh HISTORY
-A
+The
 .Fn issetugid
-function call first appeared in
+system call first appeared in
 .Ox 2.0
 and was also implemented in
 .Fx 3.0 .

@@ -57,7 +57,7 @@
 .Sh DESCRIPTION
 The
 .Fn setuid
-function
+system call
 sets the real and effective
 user IDs and the saved set-user-ID of the current process
 to the specified value.
@@ -66,13 +66,13 @@ to the specified value.
 .\" effective user ID is that of the super user.
 .\" I.e.
 .\" .Fn setuid
-.\" function is equal to
+.\" system call is equal to
 .\" .Fn seteuid
-.\" function if the effective user ID is not that of the super user.
+.\" system call if the effective user ID is not that of the super user.
 .\" End of block
 The
 .Fn setuid
-function is permitted if the specified ID is equal to the real user ID
+system call is permitted if the specified ID is equal to the real user ID
 .\" Comment out next line for !_POSIX_SAVED_IDS
 .\" or the saved set-user-ID
 .\" Next line is for Appendix B.4.2.2 case.
@@ -81,7 +81,7 @@ of the process, or if the effective user ID is that of the super user.
 .Pp
 The
 .Fn setgid
-function
+system call
 sets the real and effective
 group IDs and the saved set-group-ID of the current process
 to the specified value.
@@ -90,13 +90,13 @@ to the specified value.
 .\" effective user ID is that of the super user.
 .\" I.e.
 .\" .Fn setgid
-.\" function is equal to
+.\" system call is equal to
 .\" .Fn setegid
-.\" function if the effective user ID is not that of the super user.
+.\" system call if the effective user ID is not that of the super user.
 .\" End of block
 The
 .Fn setgid
-function is permitted if the specified ID is equal to the real group ID
+system call is permitted if the specified ID is equal to the real group ID
 .\" Comment out next line for !_POSIX_SAVED_IDS
 .\" or the saved set-group-ID
 .\" Next line is for Appendix B.4.2.2 case.
@@ -105,7 +105,7 @@ of the process, or if the effective user ID is that of the super user.
 .Pp
 The
 .Fn seteuid
-function
+system call
 .Pq Fn setegid
 sets the effective user ID (group ID) of the
 current process.
@@ -122,7 +122,7 @@ of the real group ID or the saved set-user-ID.
 .Sh RETURN VALUES
 .Rv -std
 .Sh ERRORS
-The functions will fail if:
+The system calls will fail if:
 .Bl -tag -width Er
 .It Bq Er EPERM
 The user is not the super user and the ID
@@ -172,7 +172,7 @@ The
 .Fn setuid
 and
 .Fn setgid
-functions are compliant with the
+system calls are compliant with the
 .St -p1003.1-90
 specification with
 .Li _POSIX_SAVED_IDS
@@ -183,15 +183,15 @@ The
 .Fn seteuid
 and
 .Fn setegid
-functions are extensions based on the
+system calls are extensions based on the
 .Tn POSIX
 concept of
 .Li _POSIX_SAVED_IDS ,
 and have been proposed for a future revision of the standard.
 .Sh HISTORY
-A
+The
 .Fn setuid
-and a
+and
 .Fn setgid
-function calls appeared in
+functions appeared in
 .At v7 .

@@ -51,7 +51,7 @@
 .Sh DESCRIPTION
 The
 .Fn flock
-function applies or removes an
+system call applies or removes an
 .Em advisory
 lock on the file associated with the file descriptor
 .Fa fd .
@@ -118,7 +118,7 @@ Processes blocked awaiting a lock may be awakened by signals.
 .Sh ERRORS
 The
 .Fn flock
-call fails if:
+system call fails if:
 .Bl -tag -width Er
 .It Bq Er EWOULDBLOCK
 The file is locked and the
@@ -146,5 +146,5 @@ refers to an object that does not support file locking.
 .Sh HISTORY
 The
 .Fn flock
-function call appeared in
+system call appeared in
 .Bx 4.2 .

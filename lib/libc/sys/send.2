@@ -52,12 +52,18 @@
 .Ft ssize_t
 .Fn sendmsg "int s" "const struct msghdr *msg" "int flags"
 .Sh DESCRIPTION
-.Fn Send ,
-.Fn sendto ,
+The
+.Fn send
+function,
+and
+.Fn sendto
 and
 .Fn sendmsg
+system calls
 are used to transmit a message to another socket.
-.Fn Send
+The
+.Fn send
+function
 may be used only when the socket is in a
 .Em connected
 state, while
@@ -90,7 +96,7 @@ normally blocks, unless the socket has been placed in
 non-blocking I/O mode.
 The
 .Xr select 2
-call may be used to determine when it is possible to
+system call may be used to determine when it is possible to
 send more data.
 .Pp
 The
@@ -139,10 +145,13 @@ structure.
 The call returns the number of characters sent, or -1
 if an error occurred.
 .Sh ERRORS
-.Fn Send ,
-.Fn sendto ,
+The
+.Fn send
+function and
+.Fn sendto
 and
 .Fn sendmsg
+system calls
 fail if:
 .Bl -tag -width Er
 .It Bq Er EBADF
@@ -205,5 +214,5 @@ implement an acknowlegment mechanism to prevent this from happening.
 .Sh HISTORY
 The
 .Fn send
-function call appeared in
+function appeared in
 .Bx 4.2 .

@@ -41,8 +41,9 @@
 .Ft int
 .Fn modfnext "int modid"
 .Sh DESCRIPTION
-The function
+The
 .Fn modnext
+system call
 returns the modid of the next kernel module (that is, the one after
 .Va modid )
 or 0 if
@@ -54,11 +55,17 @@ If the
 value is 0, then
 .Fn modnext
 will return the modid of the first module.
+The
 .Fn modfnext
+system call
 must always be given a valid modid.
 .Sh RETURN VALUES
+The
 .Fn modnext
-returns the modid of the next module (see DESCRIPTION) or 0.  If an error
+system call
+returns the modid of the next module (see
+.Sx DESCRIPTION )
+or 0.  If an error
 occurs,
 .Va errno
 is set to indicate the error.

@@ -66,9 +66,10 @@ is specified and the IPC_CREAT bit is set in
 .Fa flag ,
 a new one will be created.
 .It
-.Fn ftok
-may be used to generate a key from a pathname.  See
-.Xr ftok 3 .
+The
+.Xr ftok 3
+function
+may be used to generate a key from a pathname.
 .El
 .\"
 .\" Likewise for this section, except SHM_* becomes SEM_*.
@@ -101,13 +102,17 @@ Otherwise,
 .Fa nsems
 may be specified as 0.
 .Sh RETURN VALUES
-.Fn Semget
+The
+.Fn semget
+system call
 returns the id of a semaphore set if successful; otherwise, -1
 is returned and
 .Va errno
 is set to indicate the error.
 .Sh ERRORS
-.Fn Semget
+The
+.Fn semget
+system call
 will fail if:
 .Bl -tag -width Er
 .\" ipcperm could fail (we're opening to read and write, as it were)

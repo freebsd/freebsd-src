@@ -39,7 +39,7 @@
 .Sh DESCRIPTION
 The
 .Fn aio_cancel
-function cancels the outstanding asynchronous
+system call cancels the outstanding asynchronous
 I/O request for the file descriptor specified in
 .Fa fildes .
 If
@@ -52,16 +52,16 @@ Requests complete with an error result of
 .Sh RESTRICTIONS
 The
 .Fn aio_cancel
-function does not cancel asynchronous I/O requests for raw disk devices.
+system call does not cancel asynchronous I/O requests for raw disk devices.
 The
 .Fn aio_cancel
-function will always return
+system call will always return
 .Dv AIO_NOTCANCELED
 for file descriptors associated with raw disk devices.
 .Sh RETURN VALUES
 The
 .Fn aio_cancel
-function returns -1 to indicate an error, or one of the following:
+system call returns -1 to indicate an error, or one of the following:
 .Bl -tag -width Dv
 .It Bq Dv AIO_CANCELED
 All outstanding requests meeting the criteria specified were cancelled.
@@ -91,13 +91,13 @@ is an invalid file descriptor.
 .Sh STANDARDS
 The
 .Fn aio_cancel
-function is expected to conform to the
+system call is expected to conform to the
 .St -p1003.2
 standard.
 .Sh HISTORY
 The
 .Fn aio_cancel
-function first appeared in
+system call first appeared in
 .Fx 3.0 .
 The first functional implementation of
 .Fn aio_cancel

@@ -57,7 +57,7 @@ accepted with
 .Xr accept 2 .
 The
 .Fn listen
-call applies only to sockets of type
+system call applies only to sockets of type
 .Dv SOCK_STREAM
 or
 .Dv SOCK_SEQPACKET .
@@ -120,7 +120,9 @@ parameter.
 .Sh RETURN VALUES
 .Rv -std listen
 .Sh ERRORS
-.Fn Listen
+The
+.Fn listen
+system call
 will fail if:
 .Bl -tag -width Er
 .It Bq Er EBADF
@@ -145,7 +147,7 @@ The socket is not of a type that supports the operation
 .Sh HISTORY
 The
 .Fn listen
-function call appeared in
+system call appeared in
 .Bx 4.2 .
 The ability to configure the maximum
 .Fa backlog

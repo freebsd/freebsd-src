@@ -56,9 +56,9 @@ and
 .Fa who
 is obtained with the
 .Fn getpriority
-call and set with the
+system call and set with the
 .Fn setpriority
-call.
+system call.
 .Fa Which
 is one of
 .Dv PRIO_PROCESS ,
@@ -85,10 +85,10 @@ lower priorities cause more favorable scheduling.
 .Pp
 The
 .Fn getpriority
-call returns the highest priority (lowest numerical value)
+system call returns the highest priority (lowest numerical value)
 enjoyed by any of the specified processes.  The
 .Fn setpriority
-call sets the priorities of all of the specified processes
+system call sets the priorities of all of the specified processes
 to the specified value.  Only the super-user may lower priorities.
 .Sh RETURN VALUES
 Since
@@ -102,9 +102,11 @@ if a -1 is an error or a legitimate value.
 .Pp
 .Rv -std setpriority
 .Sh ERRORS
-.Fn Getpriority
+The
+.Fn getpriority
 and
 .Fn setpriority
+system calls
 will fail if:
 .Bl -tag -width Er
 .It Bq Er ESRCH
@@ -139,5 +141,5 @@ A non super-user attempted to lower a process priority.
 .Sh HISTORY
 The
 .Fn getpriority
-function call appeared in
+system call appeared in
 .Bx 4.2 .

@@ -47,7 +47,7 @@
 .Sh DESCRIPTION
 The
 .Fn acct
-call enables or disables the collection of system accounting
+system call enables or disables the collection of system accounting
 records.
 If the argument
 .Fa file
@@ -84,7 +84,7 @@ The file must exist and the call may be exercised only by the super-user.
 .Sh ERRORS
 The
 .Fn acct
-function will fail if one of the following is true:
+system call will fail if one of the following is true:
 .Bl -tag -width Er
 .It Bq Er EPERM
 The caller is not the super-user.
@@ -112,7 +112,7 @@ An I/O error occurred while reading from or writing to the file system.
 .Xr acct 5 ,
 .Xr sa 8
 .Sh HISTORY
-An
+The
 .Fn acct
-function call appeared in
+function appeared in
 .At v7 .
