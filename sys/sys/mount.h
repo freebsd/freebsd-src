@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mount.h	8.21 (Berkeley) 5/20/95
- *	$Id: mount.h,v 1.71 1998/11/07 04:51:36 peter Exp $
+ *	$Id: mount.h,v 1.72 1998/11/10 09:04:09 peter Exp $
  */
 
 #ifndef _SYS_MOUNT_H_
@@ -73,7 +73,7 @@ struct statfs {
 	long	f_ffree;		/* free file nodes in fs */
 	fsid_t	f_fsid;			/* file system id */
 	uid_t	f_owner;		/* user that mounted the filesystem */
-	int	f_type;			/* type of filesystem (see below) */
+	int	f_type;			/* type of filesystem */
 	int	f_flags;		/* copy of mount exported flags */
 	long    f_syncwrites;		/* count of sync writes since mount */
 	long    f_asyncwrites;		/* count of async writes since mount */
@@ -342,12 +342,14 @@ struct vfsops {
 	}; \
 	extern struct linker_set MODVNOPS; \
 	MOD_VFS(fsname,&MODVNOPS,&_fs_vfsconf); \
-	extern int \
-	fsname ## _mod __P((struct lkm_table *, int, int)); \
+	int \
+	fsname ## _mod(struct lkm_table *lkmtp, int cmd, int ver); \
 	int \
 	fsname ## _mod(struct lkm_table *lkmtp, int cmd, int ver) { \
 		MOD_DISPATCH(fsname, \
-		lkmtp, cmd, ver, lkm_nullcmd, lkm_nullcmd, lkm_nullcmd); }
+		lkmtp, cmd, ver, lkm_nullcmd, lkm_nullcmd, lkm_nullcmd); } \
+	struct __hack
+
 #else
 
 #include <sys/module.h>
@@ -409,13 +411,13 @@ struct	netcred *vfs_export_lookup	    /* lookup host in fs export list */
 int	vfs_allocate_syncvnode __P((struct mount *));
 void	vfs_getnewfsid __P((struct mount *));
 struct	mount *vfs_getvfs __P((fsid_t *));      /* return vfs given fsid */
+int	vfs_modevent __P((module_t, int, void *));
 int	vfs_mountedon __P((struct vnode *));    /* is a vfs mounted on vp */
 int	vfs_rootmountalloc __P((char *, char *, struct mount **));
 void	vfs_unbusy __P((struct mount *, struct proc *));
 void	vfs_unmountall __P((void));
 int	vfs_register __P((struct vfsconf *));
 int	vfs_unregister __P((struct vfsconf *));
-int	vfs_modevent __P((module_t, modeventtype_t, void *));
 extern	CIRCLEQ_HEAD(mntlist, mount) mountlist;	/* mounted filesystem list */
 extern	struct simplelock mountlist_slock;
 extern	struct nfs_public nfs_pub;
