@@ -60,7 +60,9 @@
 #include <string.h>
 #include <stdlib.h>
 
-#ifdef NO_RIPEMD
+#include "../e_os.h"
+
+#ifdef OPENSSL_NO_RIPEMD
 int main(int argc, char *argv[])
 {
     printf("No ripemd support\n");
@@ -68,6 +70,7 @@ int main(int argc, char *argv[])
 }
 #else
 #include <openssl/ripemd.h>
+#include <openssl/evp.h>
 
 #ifdef CHARSET_EBCDIC
 #include <openssl/ebcdic.h>
@@ -102,6 +105,7 @@ int main(int argc, char *argv[])
 	int i,err=0;
 	unsigned char **P,**R;
 	char *p;
+	unsigned char md[RIPEMD160_DIGEST_LENGTH];
 
 	P=(unsigned char **)test;
 	R=(unsigned char **)ret;
@@ -111,7 +115,8 @@ int main(int argc, char *argv[])
 #ifdef CHARSET_EBCDIC
 		ebcdic2ascii((char *)*P, (char *)*P, strlen((char *)*P));
 #endif
-		p=pt(RIPEMD160(&(P[0][0]),(unsigned long)strlen((char *)*P),NULL));
+		EVP_Digest(&(P[0][0]),(unsigned long)strlen((char *)*P),md,NULL,EVP_ripemd160(), NULL);
+		p=pt(md);
 		if (strcmp(p,(char *)*R) != 0)
 			{
 			printf("error calculating RIPEMD160 on '%s'\n",*P);
@@ -124,7 +129,7 @@ int main(int argc, char *argv[])
 		R++;
 		P++;
 		}
-	exit(err);
+	EXIT(err);
 	return(0);
 	}
 

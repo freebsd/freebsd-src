@@ -58,18 +58,7 @@
 
 #include <stdio.h>
 #include "cryptlib.h"
-#include <openssl/asn1_mac.h>
-
-static unsigned long tag2bit[32]={
-0,	0,	0,	B_ASN1_BIT_STRING,	/* tags  0 -  3 */
-B_ASN1_OCTET_STRING,	0,	0,		B_ASN1_UNKNOWN,/* tags  4- 7 */
-B_ASN1_UNKNOWN,	B_ASN1_UNKNOWN,	B_ASN1_UNKNOWN,	B_ASN1_UNKNOWN,/* tags  8-11 */
-B_ASN1_UTF8STRING,B_ASN1_UNKNOWN,B_ASN1_UNKNOWN,B_ASN1_UNKNOWN,/* tags 12-15 */
-0,	0,	B_ASN1_NUMERICSTRING,B_ASN1_PRINTABLESTRING,
-B_ASN1_T61STRING,B_ASN1_VIDEOTEXSTRING,B_ASN1_IA5STRING,0,
-0,B_ASN1_GRAPHICSTRING,B_ASN1_ISO64STRING,B_ASN1_GENERALSTRING,
-B_ASN1_UNIVERSALSTRING,B_ASN1_UNKNOWN,B_ASN1_BMPSTRING,B_ASN1_UNKNOWN,
-	};
+#include <openssl/asn1.h>
 
 static int asn1_collate_primitive(ASN1_STRING *a, ASN1_CTX *c);
 /* type is a 'bitmap' of acceptable string types.
@@ -92,7 +81,7 @@ ASN1_STRING *d2i_ASN1_type_bytes(ASN1_STRING **a, unsigned char **pp,
 		i=ASN1_R_TAG_VALUE_TOO_HIGH;;
 		goto err;
 		}
-	if (!(tag2bit[tag] & type))
+	if (!(ASN1_tag2bit(tag) & type))
 		{
 		i=ASN1_R_WRONG_TYPE;
 		goto err;
@@ -296,7 +285,7 @@ static int asn1_collate_primitive(ASN1_STRING *a, ASN1_CTX *c)
 			goto err;
 			}
 
-		if (!BUF_MEM_grow(&b,num+os->length))
+		if (!BUF_MEM_grow_clean(&b,num+os->length))
 			{
 			c->error=ERR_R_BUF_LIB;
 			goto err;

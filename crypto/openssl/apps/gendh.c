@@ -57,7 +57,7 @@
  * [including the GNU Public Licence.]
  */
 
-#ifndef NO_DH
+#ifndef OPENSSL_NO_DH
 #include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
@@ -81,11 +81,13 @@ int MAIN(int, char **);
 
 int MAIN(int argc, char **argv)
 	{
+	ENGINE *e = NULL;
 	DH *dh=NULL;
 	int ret=1,num=DEFBITS;
 	int g=2;
 	char *outfile=NULL;
 	char *inrand=NULL;
+	char *engine=NULL;
 	BIO *out=NULL;
 
 	apps_startup();
@@ -93,6 +95,9 @@ int MAIN(int argc, char **argv)
 	if (bio_err == NULL)
 		if ((bio_err=BIO_new(BIO_s_file())) != NULL)
 			BIO_set_fp(bio_err,stderr,BIO_NOCLOSE|BIO_FP_TEXT);
+
+	if (!load_config(bio_err, NULL))
+		goto end;
 
 	argv++;
 	argc--;
@@ -110,6 +115,11 @@ int MAIN(int argc, char **argv)
 			g=3; */
 		else if (strcmp(*argv,"-5") == 0)
 			g=5;
+		else if (strcmp(*argv,"-engine") == 0)
+			{
+			if (--argc < 1) goto bad;
+			engine= *(++argv);
+			}
 		else if (strcmp(*argv,"-rand") == 0)
 			{
 			if (--argc < 1) goto bad;
@@ -125,15 +135,18 @@ int MAIN(int argc, char **argv)
 bad:
 		BIO_printf(bio_err,"usage: gendh [args] [numbits]\n");
 		BIO_printf(bio_err," -out file - output the key to 'file\n");
-		BIO_printf(bio_err," -2    use 2 as the generator value\n");
-	/*	BIO_printf(bio_err," -3    use 3 as the generator value\n"); */
-		BIO_printf(bio_err," -5    use 5 as the generator value\n");
+		BIO_printf(bio_err," -2        - use 2 as the generator value\n");
+	/*	BIO_printf(bio_err," -3        - use 3 as the generator value\n"); */
+		BIO_printf(bio_err," -5        - use 5 as the generator value\n");
+		BIO_printf(bio_err," -engine e - use engine e, possibly a hardware device.\n");
 		BIO_printf(bio_err," -rand file%cfile%c...\n", LIST_SEPARATOR_CHAR, LIST_SEPARATOR_CHAR);
 		BIO_printf(bio_err,"           - load the file (or the files in the directory) into\n");
 		BIO_printf(bio_err,"             the random number generator\n");
 		goto end;
 		}
 		
+        e = setup_engine(bio_err, engine, 0);
+
 	out=BIO_new(BIO_s_file());
 	if (out == NULL)
 		{
@@ -144,7 +157,7 @@ bad:
 	if (outfile == NULL)
 		{
 		BIO_set_fp(out,stdout,BIO_NOCLOSE);
-#ifdef VMS
+#ifdef OPENSSL_SYS_VMS
 		{
 		BIO *tmpbio = BIO_new(BIO_f_linebuffer());
 		out = BIO_push(tmpbio, out);
@@ -184,7 +197,8 @@ end:
 		ERR_print_errors(bio_err);
 	if (out != NULL) BIO_free_all(out);
 	if (dh != NULL) DH_free(dh);
-	EXIT(ret);
+	apps_shutdown();
+	OPENSSL_EXIT(ret);
 	}
 
 static void MS_CALLBACK dh_cb(int p, int n, void *arg)

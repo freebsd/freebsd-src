@@ -67,27 +67,34 @@
 #include <string.h>
 #include <openssl/conf.h>
 #include <openssl/conf_api.h>
-#include "openssl/e_os.h"
+#include "e_os.h"
 
 static void value_free_hash(CONF_VALUE *a, LHASH *conf);
 static void value_free_stack(CONF_VALUE *a,LHASH *conf);
-static unsigned long hash(CONF_VALUE *v);
-static int cmp_conf(CONF_VALUE *a,CONF_VALUE *b);
+static IMPLEMENT_LHASH_DOALL_ARG_FN(value_free_hash, CONF_VALUE *, LHASH *)
+static IMPLEMENT_LHASH_DOALL_ARG_FN(value_free_stack, CONF_VALUE *, LHASH *)
+/* We don't use function pointer casting or wrapper functions - but cast each
+ * callback parameter inside the callback functions. */
+/* static unsigned long hash(CONF_VALUE *v); */
+static unsigned long hash(const void *v_void);
+/* static int cmp_conf(CONF_VALUE *a,CONF_VALUE *b); */
+static int cmp_conf(const void *a_void,const void *b_void);
 
 /* Up until OpenSSL 0.9.5a, this was get_section */
-CONF_VALUE *_CONF_get_section(CONF *conf, char *section)
+CONF_VALUE *_CONF_get_section(const CONF *conf, const char *section)
 	{
 	CONF_VALUE *v,vv;
 
 	if ((conf == NULL) || (section == NULL)) return(NULL);
 	vv.name=NULL;
-	vv.section=section;
+	vv.section=(char *)section;
 	v=(CONF_VALUE *)lh_retrieve(conf->data,&vv);
 	return(v);
 	}
 
 /* Up until OpenSSL 0.9.5a, this was CONF_get_section */
-STACK_OF(CONF_VALUE) *_CONF_get_section_values(CONF *conf, char *section)
+STACK_OF(CONF_VALUE) *_CONF_get_section_values(const CONF *conf,
+					       const char *section)
 	{
 	CONF_VALUE *v;
 
@@ -122,7 +129,7 @@ int _CONF_add_string(CONF *conf, CONF_VALUE *section, CONF_VALUE *value)
 	return 1;
 	}
 
-char *_CONF_get_string(CONF *conf, char *section, char *name)
+char *_CONF_get_string(const CONF *conf, const char *section, const char *name)
 	{
 	CONF_VALUE *v,vv;
 	char *p;
@@ -132,8 +139,8 @@ char *_CONF_get_string(CONF *conf, char *section, char *name)
 		{
 		if (section != NULL)
 			{
-			vv.name=name;
-			vv.section=section;
+			vv.name=(char *)name;
+			vv.section=(char *)section;
 			v=(CONF_VALUE *)lh_retrieve(conf->data,&vv);
 			if (v != NULL) return(v->value);
 			if (strcmp(section,"ENV") == 0)
@@ -143,7 +150,7 @@ char *_CONF_get_string(CONF *conf, char *section, char *name)
 				}
 			}
 		vv.section="default";
-		vv.name=name;
+		vv.name=(char *)name;
 		v=(CONF_VALUE *)lh_retrieve(conf->data,&vv);
 		if (v != NULL)
 			return(v->value);
@@ -154,6 +161,9 @@ char *_CONF_get_string(CONF *conf, char *section, char *name)
 		return(Getenv(name));
 	}
 
+#if 0 /* There's no way to provide error checking with this function, so
+	 force implementors of the higher levels to get a string and read
+	 the number themselves. */
 long _CONF_get_number(CONF *conf, char *section, char *name)
 	{
 	char *str;
@@ -170,6 +180,7 @@ long _CONF_get_number(CONF *conf, char *section, char *name)
 		str++;
 		}
 	}
+#endif
 
 int _CONF_new_data(CONF *conf)
 	{
@@ -178,7 +189,7 @@ int _CONF_new_data(CONF *conf)
 		return 0;
 		}
 	if (conf->data == NULL)
-		if ((conf->data = lh_new(hash,cmp_conf)) == NULL)
+		if ((conf->data = lh_new(hash, cmp_conf)) == NULL)
 			{
 			return 0;
 			}
@@ -191,12 +202,14 @@ void _CONF_free_data(CONF *conf)
 
 	conf->data->down_load=0; /* evil thing to make sure the 'OPENSSL_free()'
 				  * works as expected */
-	lh_doall_arg(conf->data,(void (*)())value_free_hash,conf->data);
+	lh_doall_arg(conf->data, LHASH_DOALL_ARG_FN(value_free_hash),
+			conf->data);
 
 	/* We now have only 'section' entries in the hash table.
 	 * Due to problems with */
 
-	lh_doall_arg(conf->data,(void (*)())value_free_stack,conf->data);
+	lh_doall_arg(conf->data, LHASH_DOALL_ARG_FN(value_free_stack),
+			conf->data);
 	lh_free(conf->data);
 	}
 
@@ -229,14 +242,19 @@ static void value_free_stack(CONF_VALUE *a, LHASH *conf)
 	OPENSSL_free(a);
 	}
 
-static unsigned long hash(CONF_VALUE *v)
+/* static unsigned long hash(CONF_VALUE *v) */
+static unsigned long hash(const void *v_void)
 	{
+	CONF_VALUE *v = (CONF_VALUE *)v_void;
 	return((lh_strhash(v->section)<<2)^lh_strhash(v->name));
 	}
 
-static int cmp_conf(CONF_VALUE *a, CONF_VALUE *b)
+/* static int cmp_conf(CONF_VALUE *a, CONF_VALUE *b) */
+static int cmp_conf(const void *a_void,const  void *b_void)
 	{
 	int i;
+	CONF_VALUE *a = (CONF_VALUE *)a_void;
+	CONF_VALUE *b = (CONF_VALUE *)b_void;
 
 	if (a->section != b->section)
 		{
@@ -256,7 +274,7 @@ static int cmp_conf(CONF_VALUE *a, CONF_VALUE *b)
 	}
 
 /* Up until OpenSSL 0.9.5a, this was new_section */
-CONF_VALUE *_CONF_new_section(CONF *conf, char *section)
+CONF_VALUE *_CONF_new_section(CONF *conf, const char *section)
 	{
 	STACK *sk=NULL;
 	int ok=0,i;

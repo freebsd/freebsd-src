@@ -59,7 +59,7 @@
 #include <stdio.h>
 #include "cryptlib.h"
 #include <openssl/evp.h>
-#include <openssl/asn1_mac.h>
+#include <openssl/asn1.h>
 #include <openssl/x509.h>
 
 /* X509_CERT_AUX and string set routines
@@ -77,7 +77,7 @@ int X509_CERT_AUX_print(BIO *out, X509_CERT_AUX *aux, int indent)
 		for(i = 0; i < sk_ASN1_OBJECT_num(aux->trust); i++) {
 			if(!first) BIO_puts(out, ", ");
 			else first = 0;
-			OBJ_obj2txt(oidstr, 80,
+			OBJ_obj2txt(oidstr, sizeof oidstr,
 				sk_ASN1_OBJECT_value(aux->trust, i), 0);
 			BIO_puts(out, oidstr);
 		}
@@ -90,7 +90,7 @@ int X509_CERT_AUX_print(BIO *out, X509_CERT_AUX *aux, int indent)
 		for(i = 0; i < sk_ASN1_OBJECT_num(aux->reject); i++) {
 			if(!first) BIO_puts(out, ", ");
 			else first = 0;
-			OBJ_obj2txt(oidstr, 80,
+			OBJ_obj2txt(oidstr, sizeof oidstr,
 				sk_ASN1_OBJECT_value(aux->reject, i), 0);
 			BIO_puts(out, oidstr);
 		}

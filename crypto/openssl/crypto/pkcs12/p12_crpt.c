@@ -64,19 +64,19 @@
 
 void PKCS12_PBE_add(void)
 {
-#ifndef NO_RC4
+#ifndef OPENSSL_NO_RC4
 EVP_PBE_alg_add(NID_pbe_WithSHA1And128BitRC4, EVP_rc4(), EVP_sha1(),
 							 PKCS12_PBE_keyivgen);
 EVP_PBE_alg_add(NID_pbe_WithSHA1And40BitRC4, EVP_rc4_40(), EVP_sha1(),
 							 PKCS12_PBE_keyivgen);
 #endif
-#ifndef NO_DES
+#ifndef OPENSSL_NO_DES
 EVP_PBE_alg_add(NID_pbe_WithSHA1And3_Key_TripleDES_CBC,
 		 	EVP_des_ede3_cbc(), EVP_sha1(), PKCS12_PBE_keyivgen);
 EVP_PBE_alg_add(NID_pbe_WithSHA1And2_Key_TripleDES_CBC, 
 			EVP_des_ede_cbc(), EVP_sha1(), PKCS12_PBE_keyivgen);
 #endif
-#ifndef NO_RC2
+#ifndef OPENSSL_NO_RC2
 EVP_PBE_alg_add(NID_pbe_WithSHA1And128BitRC2_CBC, EVP_rc2_cbc(),
 					EVP_sha1(), PKCS12_PBE_keyivgen);
 EVP_PBE_alg_add(NID_pbe_WithSHA1And40BitRC2_CBC, EVP_rc2_40_cbc(),
@@ -85,7 +85,7 @@ EVP_PBE_alg_add(NID_pbe_WithSHA1And40BitRC2_CBC, EVP_rc2_40_cbc(),
 }
 
 int PKCS12_PBE_keyivgen (EVP_CIPHER_CTX *ctx, const char *pass, int passlen,
-		ASN1_TYPE *param, EVP_CIPHER *cipher, EVP_MD *md, int en_de)
+		ASN1_TYPE *param, const EVP_CIPHER *cipher, const EVP_MD *md, int en_de)
 {
 	PBEPARAM *pbe;
 	int saltlen, iter;
@@ -117,8 +117,8 @@ int PKCS12_PBE_keyivgen (EVP_CIPHER_CTX *ctx, const char *pass, int passlen,
 		return 0;
 	}
 	PBEPARAM_free(pbe);
-	EVP_CipherInit(ctx, cipher, key, iv, en_de);
-	memset(key, 0, EVP_MAX_KEY_LENGTH);
-	memset(iv, 0, EVP_MAX_IV_LENGTH);
+	EVP_CipherInit_ex(ctx, cipher, NULL, key, iv, en_de);
+	OPENSSL_cleanse(key, EVP_MAX_KEY_LENGTH);
+	OPENSSL_cleanse(iv, EVP_MAX_IV_LENGTH);
 	return 1;
 }

@@ -56,7 +56,7 @@
  *
  */
 
-#ifndef NO_HMAC
+#ifndef OPENSSL_NO_HMAC
 #include <stdio.h>
 #include "cryptlib.h"
 #include <openssl/hmac.h>
@@ -71,6 +71,7 @@ int PKCS12_gen_mac (PKCS12 *p12, const char *pass, int passlen,
 	HMAC_CTX hmac;
 	unsigned char key[PKCS12_MAC_KEY_LENGTH], *salt;
 	int saltlen, iter;
+
 	salt = p12->mac->salt->data;
 	saltlen = p12->mac->salt->length;
 	if (!p12->mac->iter) iter = 1;
@@ -85,10 +86,12 @@ int PKCS12_gen_mac (PKCS12 *p12, const char *pass, int passlen,
 		PKCS12err(PKCS12_F_PKCS12_GEN_MAC,PKCS12_R_KEY_GEN_ERROR);
 		return 0;
 	}
-	HMAC_Init (&hmac, key, PKCS12_MAC_KEY_LENGTH, md_type);
-    	HMAC_Update (&hmac, p12->authsafes->d.data->data,
+	HMAC_CTX_init(&hmac);
+	HMAC_Init_ex(&hmac, key, PKCS12_MAC_KEY_LENGTH, md_type, NULL);
+    	HMAC_Update(&hmac, p12->authsafes->d.data->data,
 					 p12->authsafes->d.data->length);
-    	HMAC_Final (&hmac, mac, maclen);
+    	HMAC_Final(&hmac, mac, maclen);
+    	HMAC_CTX_cleanup(&hmac);
 	return 1;
 }
 
@@ -113,7 +116,7 @@ int PKCS12_verify_mac (PKCS12 *p12, const char *pass, int passlen)
 /* Set a mac */
 
 int PKCS12_set_mac (PKCS12 *p12, const char *pass, int passlen,
-	     unsigned char *salt, int saltlen, int iter, EVP_MD *md_type)
+	     unsigned char *salt, int saltlen, int iter, const EVP_MD *md_type)
 {
 	unsigned char mac[EVP_MAX_MD_SIZE];
 	unsigned int maclen;
@@ -137,7 +140,7 @@ int PKCS12_set_mac (PKCS12 *p12, const char *pass, int passlen,
 
 /* Set up a mac structure */
 int PKCS12_setup_mac (PKCS12 *p12, int iter, unsigned char *salt, int saltlen,
-	     EVP_MD *md_type)
+	     const EVP_MD *md_type)
 {
 	if (!(p12->mac = PKCS12_MAC_DATA_new())) return PKCS12_ERROR;
 	if (iter > 1) {

@@ -61,8 +61,9 @@
 
 #include <stdio.h>
 #include <assert.h>
+
 #include "cryptlib.h"
-#include <openssl/bn.h>
+#include "bn_lcl.h"
 
 
 BN_CTX *BN_CTX_new(void)
@@ -83,6 +84,7 @@ BN_CTX *BN_CTX_new(void)
 
 void BN_CTX_init(BN_CTX *ctx)
 	{
+#if 0 /* explicit version */
 	int i;
 	ctx->tos = 0;
 	ctx->flags = 0;
@@ -90,6 +92,9 @@ void BN_CTX_init(BN_CTX *ctx)
 	ctx->too_many = 0;
 	for (i = 0; i < BN_CTX_NUM; i++)
 		BN_init(&(ctx->bn[i]));
+#else
+	memset(ctx, 0, sizeof *ctx);
+#endif
 	}
 
 void BN_CTX_free(BN_CTX *ctx)
@@ -112,8 +117,14 @@ void BN_CTX_start(BN_CTX *ctx)
 	ctx->depth++;
 	}
 
+
 BIGNUM *BN_CTX_get(BN_CTX *ctx)
 	{
+	/* Note: If BN_CTX_get is ever changed to allocate BIGNUMs dynamically,
+	 * make sure that if BN_CTX_get fails once it will return NULL again
+	 * until BN_CTX_end is called.  (This is so that callers have to check
+	 * only the last return value.)
+	 */
 	if (ctx->depth > BN_CTX_NUM_POS || ctx->tos >= BN_CTX_NUM)
 		{
 		if (!ctx->too_many)

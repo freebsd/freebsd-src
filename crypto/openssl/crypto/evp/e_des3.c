@@ -56,12 +56,13 @@
  * [including the GNU Public Licence.]
  */
 
-#ifndef NO_DES
+#ifndef OPENSSL_NO_DES
 #include <stdio.h>
 #include "cryptlib.h"
 #include <openssl/evp.h>
 #include <openssl/objects.h>
 #include "evp_locl.h"
+#include <openssl/des.h>
 
 static int des_ede_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key,
 			    const unsigned char *iv,int enc);
@@ -69,60 +70,78 @@ static int des_ede_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key,
 static int des_ede3_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key,
 			     const unsigned char *iv,int enc);
 
+typedef struct
+    {
+    DES_key_schedule ks1;/* key schedule */
+    DES_key_schedule ks2;/* key schedule (for ede) */
+    DES_key_schedule ks3;/* key schedule (for ede3) */
+    } DES_EDE_KEY;
+
+#define data(ctx) ((DES_EDE_KEY *)(ctx)->cipher_data)
+
 /* Because of various casts and different args can't use IMPLEMENT_BLOCK_CIPHER */
 
 static int des_ede_ecb_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
 			      const unsigned char *in, unsigned int inl)
 {
 	BLOCK_CIPHER_ecb_loop()
-		des_ecb3_encrypt((des_cblock *)(in + i), (des_cblock *)(out + i), 
-			ctx->c.des_ede.ks1, ctx->c.des_ede.ks2, ctx->c.des_ede.ks3,
-			 ctx->encrypt);
+		DES_ecb3_encrypt((DES_cblock *)(in + i), (DES_cblock *)(out + i), 
+				 &data(ctx)->ks1, &data(ctx)->ks2,
+				 &data(ctx)->ks3,
+				 ctx->encrypt);
 	return 1;
 }
 
 static int des_ede_ofb_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
 			      const unsigned char *in, unsigned int inl)
 {
-	des_ede3_ofb64_encrypt(in, out, (long)inl,
-			ctx->c.des_ede.ks1, ctx->c.des_ede.ks2, ctx->c.des_ede.ks3,
-								(des_cblock *)ctx->iv, &ctx->num);
+	DES_ede3_ofb64_encrypt(in, out, (long)inl,
+			       &data(ctx)->ks1, &data(ctx)->ks2, &data(ctx)->ks3,
+			       (DES_cblock *)ctx->iv, &ctx->num);
 	return 1;
 }
 
 static int des_ede_cbc_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
 			      const unsigned char *in, unsigned int inl)
 {
-	des_ede3_cbc_encrypt(in, out, (long)inl,
-			ctx->c.des_ede.ks1, ctx->c.des_ede.ks2, ctx->c.des_ede.ks3,
- 								(des_cblock *)ctx->iv, ctx->encrypt);
+#ifdef KSSL_DEBUG
+	{
+        int i;
+        char *cp;
+	printf("des_ede_cbc_cipher(ctx=%lx, buflen=%d)\n", ctx, ctx->buf_len);
+	printf("\t iv= ");
+        for(i=0;i<8;i++)
+                printf("%02X",ctx->iv[i]);
+	printf("\n");
+	}
+#endif    /* KSSL_DEBUG */
+	DES_ede3_cbc_encrypt(in, out, (long)inl,
+			     &data(ctx)->ks1, &data(ctx)->ks2, &data(ctx)->ks3,
+			     (DES_cblock *)ctx->iv, ctx->encrypt);
 	return 1;
 }
 
 static int des_ede_cfb_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
 			      const unsigned char *in, unsigned int inl)
 {
-	des_ede3_cfb64_encrypt(in, out, (long)inl, 
-			ctx->c.des_ede.ks1, ctx->c.des_ede.ks2, ctx->c.des_ede.ks3,
-					(des_cblock *)ctx->iv, &ctx->num, ctx->encrypt);
+	DES_ede3_cfb64_encrypt(in, out, (long)inl, 
+			       &data(ctx)->ks1, &data(ctx)->ks2, &data(ctx)->ks3,
+			       (DES_cblock *)ctx->iv, &ctx->num, ctx->encrypt);
 	return 1;
 }
 
-#define NID_des_ede_ecb NID_des_ede
-
-BLOCK_CIPHER_defs(des_ede, des_ede, NID_des_ede, 8, 16, 8,
+BLOCK_CIPHER_defs(des_ede, DES_EDE_KEY, NID_des_ede, 8, 16, 8, 64,
 			0, des_ede_init_key, NULL, 
 			EVP_CIPHER_set_asn1_iv,
 			EVP_CIPHER_get_asn1_iv,
 			NULL)
 
-#define NID_des_ede3_ecb NID_des_ede3
 #define des_ede3_cfb_cipher des_ede_cfb_cipher
 #define des_ede3_ofb_cipher des_ede_ofb_cipher
 #define des_ede3_cbc_cipher des_ede_cbc_cipher
 #define des_ede3_ecb_cipher des_ede_ecb_cipher
 
-BLOCK_CIPHER_defs(des_ede3, des_ede, NID_des_ede3, 8, 24, 8,
+BLOCK_CIPHER_defs(des_ede3, DES_EDE_KEY, NID_des_ede3, 8, 24, 8, 64,
 			0, des_ede3_init_key, NULL, 
 			EVP_CIPHER_set_asn1_iv,
 			EVP_CIPHER_get_asn1_iv,
@@ -131,34 +150,43 @@ BLOCK_CIPHER_defs(des_ede3, des_ede, NID_des_ede3, 8, 24, 8,
 static int des_ede_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key,
 			    const unsigned char *iv, int enc)
 	{
-	des_cblock *deskey = (des_cblock *)key;
+	DES_cblock *deskey = (DES_cblock *)key;
 
-	des_set_key_unchecked(&deskey[0],ctx->c.des_ede.ks1);
-	des_set_key_unchecked(&deskey[1],ctx->c.des_ede.ks2);
-	memcpy( (char *)ctx->c.des_ede.ks3,
-			(char *)ctx->c.des_ede.ks1,
-			sizeof(ctx->c.des_ede.ks1));
+	DES_set_key_unchecked(&deskey[0],&data(ctx)->ks1);
+	DES_set_key_unchecked(&deskey[1],&data(ctx)->ks2);
+	memcpy(&data(ctx)->ks3,&data(ctx)->ks1,
+	       sizeof(data(ctx)->ks1));
 	return 1;
 	}
 
 static int des_ede3_init_key(EVP_CIPHER_CTX *ctx, const unsigned char *key,
 			     const unsigned char *iv, int enc)
 	{
-	des_cblock *deskey = (des_cblock *)key;
+	DES_cblock *deskey = (DES_cblock *)key;
+#ifdef KSSL_DEBUG
+	{
+        int i;
+        printf("des_ede3_init_key(ctx=%lx)\n", ctx);
+	printf("\tKEY= ");
+        for(i=0;i<24;i++) printf("%02X",key[i]); printf("\n");
+	printf("\t IV= ");
+        for(i=0;i<8;i++) printf("%02X",iv[i]); printf("\n");
+	}
+#endif	/* KSSL_DEBUG */
 
-	des_set_key_unchecked(&deskey[0],ctx->c.des_ede.ks1);
-	des_set_key_unchecked(&deskey[1],ctx->c.des_ede.ks2);
-	des_set_key_unchecked(&deskey[2],ctx->c.des_ede.ks3);
+	DES_set_key_unchecked(&deskey[0],&data(ctx)->ks1);
+	DES_set_key_unchecked(&deskey[1],&data(ctx)->ks2);
+	DES_set_key_unchecked(&deskey[2],&data(ctx)->ks3);
 
 	return 1;
 	}
 
-EVP_CIPHER *EVP_des_ede(void)
+const EVP_CIPHER *EVP_des_ede(void)
 {
 	return &des_ede_ecb;
 }
 
-EVP_CIPHER *EVP_des_ede3(void)
+const EVP_CIPHER *EVP_des_ede3(void)
 {
 	return &des_ede3_ecb;
 }

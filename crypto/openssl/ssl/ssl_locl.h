@@ -56,7 +56,7 @@
  * [including the GNU Public Licence.]
  */
 /* ====================================================================
- * Copyright (c) 1998-2000 The OpenSSL Project.  All rights reserved.
+ * Copyright (c) 1998-2001 The OpenSSL Project.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -116,7 +116,7 @@
 #include <string.h>
 #include <errno.h>
 
-#include "openssl/e_os.h"
+#include "e_os.h"
 
 #include <openssl/buffer.h>
 #include <openssl/comp.h>
@@ -127,6 +127,12 @@
 #include <openssl/x509.h>
 #include <openssl/err.h>
 #include <openssl/ssl.h>
+#include <openssl/symhacks.h>
+
+#ifdef OPENSSL_BUILD_SHLIBSSL
+# undef OPENSSL_EXTERN
+# define OPENSSL_EXTERN OPENSSL_EXPORT
+#endif
 
 #define PKCS1_CHECK
 
@@ -221,48 +227,52 @@
  * that the different entities within are mutually exclusive:
  * ONLY ONE BIT PER MASK CAN BE SET AT A TIME.
  */
-#define SSL_MKEY_MASK		0x0000001FL
+#define SSL_MKEY_MASK		0x0000003FL
 #define SSL_kRSA		0x00000001L /* RSA key exchange */
 #define SSL_kDHr		0x00000002L /* DH cert RSA CA cert */
 #define SSL_kDHd		0x00000004L /* DH cert DSA CA cert */
 #define SSL_kFZA		0x00000008L
 #define SSL_kEDH		0x00000010L /* tmp DH key no DH cert */
+#define SSL_kKRB5		0x00000020L /* Kerberos5 key exchange */
 #define SSL_EDH			(SSL_kEDH|(SSL_AUTH_MASK^SSL_aNULL))
 
-#define SSL_AUTH_MASK		0x000003e0L
-#define SSL_aRSA		0x00000020L /* Authenticate with RSA */
-#define SSL_aDSS 		0x00000040L /* Authenticate with DSS */
+#define SSL_AUTH_MASK		0x00000FC0L
+#define SSL_aRSA		0x00000040L /* Authenticate with RSA */
+#define SSL_aDSS 		0x00000080L /* Authenticate with DSS */
 #define SSL_DSS 		SSL_aDSS
-#define SSL_aFZA 		0x00000080L
-#define SSL_aNULL 		0x00000100L /* no Authenticate, ADH */
-#define SSL_aDH 		0x00000200L /* no Authenticate, ADH */
+#define SSL_aFZA 		0x00000100L
+#define SSL_aNULL 		0x00000200L /* no Authenticate, ADH */
+#define SSL_aDH 		0x00000400L /* no Authenticate, ADH */
+#define SSL_aKRB5               0x00000800L /* Authenticate with KRB5 */
 
 #define SSL_NULL		(SSL_eNULL)
 #define SSL_ADH			(SSL_kEDH|SSL_aNULL)
 #define SSL_RSA			(SSL_kRSA|SSL_aRSA)
 #define SSL_DH			(SSL_kDHr|SSL_kDHd|SSL_kEDH)
 #define SSL_FZA			(SSL_aFZA|SSL_kFZA|SSL_eFZA)
+#define SSL_KRB5                (SSL_kKRB5|SSL_aKRB5)
 
-#define SSL_ENC_MASK		0x0001Fc00L
-#define SSL_DES			0x00000400L
-#define SSL_3DES		0x00000800L
-#define SSL_RC4			0x00001000L
-#define SSL_RC2			0x00002000L
-#define SSL_IDEA		0x00004000L
-#define SSL_eFZA		0x00008000L
-#define SSL_eNULL		0x00010000L
+#define SSL_ENC_MASK		0x0087F000L
+#define SSL_DES			0x00001000L
+#define SSL_3DES		0x00002000L
+#define SSL_RC4			0x00004000L
+#define SSL_RC2			0x00008000L
+#define SSL_IDEA		0x00010000L
+#define SSL_eFZA		0x00020000L
+#define SSL_eNULL		0x00040000L
+#define SSL_AES			0x00800000L
 
-#define SSL_MAC_MASK		0x00060000L
-#define SSL_MD5			0x00020000L
-#define SSL_SHA1		0x00040000L
+#define SSL_MAC_MASK		0x00180000L
+#define SSL_MD5			0x00080000L
+#define SSL_SHA1		0x00100000L
 #define SSL_SHA			(SSL_SHA1)
 
-#define SSL_SSL_MASK		0x00180000L
-#define SSL_SSLV2		0x00080000L
-#define SSL_SSLV3		0x00100000L
+#define SSL_SSL_MASK		0x00600000L
+#define SSL_SSLV2		0x00200000L
+#define SSL_SSLV3		0x00400000L
 #define SSL_TLSV1		SSL_SSLV3	/* for now */
 
-/* we have used 001fffff - 11 bits left to go */
+/* we have used 007fffff - 9 bits left to go */
 
 /*
  * Export and cipher strength information. For each cipher we have to decide
@@ -368,11 +378,11 @@ typedef struct cert_st
 	int valid;
 	unsigned long mask;
 	unsigned long export_mask;
-#ifndef NO_RSA
+#ifndef OPENSSL_NO_RSA
 	RSA *rsa_tmp;
 	RSA *(*rsa_tmp_cb)(SSL *ssl,int is_export,int keysize);
 #endif
-#ifndef NO_DH
+#ifndef OPENSSL_NO_DH
 	DH *dh_tmp;
 	DH *(*dh_tmp_cb)(SSL *ssl,int is_export,int keysize);
 #endif
@@ -395,10 +405,10 @@ typedef struct sess_cert_st
 	/* Obviously we don't have the private keys of these,
 	 * so maybe we shouldn't even use the CERT_PKEY type here. */
 
-#ifndef NO_RSA
+#ifndef OPENSSL_NO_RSA
 	RSA *peer_rsa_tmp; /* not used for SSL 2 */
 #endif
-#ifndef NO_DH
+#ifndef OPENSSL_NO_DH
 	DH *peer_dh_tmp; /* not used for SSL 2 */
 #endif
 
@@ -455,9 +465,9 @@ OPENSSL_EXTERN SSL3_ENC_METHOD ssl3_undef_enc_method;
 OPENSSL_EXTERN SSL_CIPHER ssl2_ciphers[];
 OPENSSL_EXTERN SSL_CIPHER ssl3_ciphers[];
 
-#ifdef VMS
+#ifdef OPENSSL_SYS_VMS
 #undef SSL_COMP_get_compression_methods
-#define SSL_COMP_get_compression_methods SSL_COMP_get_compress_methods
+#define SSL_COMP_get_compression_methods	SSL_COMP_get_compress_methods
 #endif
 
 
@@ -521,8 +531,8 @@ int	ssl2_peek(SSL *s, void *buf, int len);
 int	ssl2_write(SSL *s, const void *buf, int len);
 int	ssl2_shutdown(SSL *s);
 void	ssl2_clear(SSL *s);
-long	ssl2_ctrl(SSL *s,int cmd, long larg, char *parg);
-long	ssl2_ctx_ctrl(SSL_CTX *s,int cmd, long larg, char *parg);
+long	ssl2_ctrl(SSL *s,int cmd, long larg, void *parg);
+long	ssl2_ctx_ctrl(SSL_CTX *s,int cmd, long larg, void *parg);
 long	ssl2_callback_ctrl(SSL *s,int cmd, void (*fp)());
 long	ssl2_ctx_callback_ctrl(SSL_CTX *s,int cmd, void (*fp)());
 int	ssl2_pending(SSL *s);
@@ -557,8 +567,8 @@ void ssl3_finish_mac(SSL *s, const unsigned char *buf, int len);
 int ssl3_enc(SSL *s, int send_data);
 int ssl3_mac(SSL *ssl, unsigned char *md, int send_data);
 unsigned long ssl3_output_cert_chain(SSL *s, X509 *x);
-SSL_CIPHER *ssl3_choose_cipher(SSL *ssl,STACK_OF(SSL_CIPHER) *have,
-			       STACK_OF(SSL_CIPHER) *pref);
+SSL_CIPHER *ssl3_choose_cipher(SSL *ssl,STACK_OF(SSL_CIPHER) *clnt,
+			       STACK_OF(SSL_CIPHER) *srvr);
 int	ssl3_setup_buffers(SSL *s);
 int	ssl3_new(SSL *s);
 void	ssl3_free(SSL *s);
@@ -569,8 +579,8 @@ int	ssl3_peek(SSL *s, void *buf, int len);
 int	ssl3_write(SSL *s, const void *buf, int len);
 int	ssl3_shutdown(SSL *s);
 void	ssl3_clear(SSL *s);
-long	ssl3_ctrl(SSL *s,int cmd, long larg, char *parg);
-long	ssl3_ctx_ctrl(SSL_CTX *s,int cmd, long larg, char *parg);
+long	ssl3_ctrl(SSL *s,int cmd, long larg, void *parg);
+long	ssl3_ctx_ctrl(SSL_CTX *s,int cmd, long larg, void *parg);
 long	ssl3_callback_ctrl(SSL *s,int cmd, void (*fp)());
 long	ssl3_ctx_callback_ctrl(SSL_CTX *s,int cmd, void (*fp)());
 int	ssl3_pending(SSL *s);
@@ -583,7 +593,7 @@ int ssl23_write_bytes(SSL *s);
 int tls1_new(SSL *s);
 void tls1_free(SSL *s);
 void tls1_clear(SSL *s);
-long tls1_ctrl(SSL *s,int cmd, long larg, char *parg);
+long tls1_ctrl(SSL *s,int cmd, long larg, void *parg);
 long tls1_callback_ctrl(SSL *s,int cmd, void (*fp)());
 SSL_METHOD *tlsv1_base_method(void );
 

@@ -67,6 +67,11 @@
 #define NID_undef			0
 #define OBJ_undef			0L
 
+#define SN_ccitt		"CCITT"
+#define LN_ccitt		"ccitt"
+#define NID_ccitt		404
+#define OBJ_ccitt		0L
+
 #define SN_iso		"ISO"
 #define LN_iso		"iso"
 #define NID_iso		181
@@ -115,6 +120,67 @@
 #define LN_dsaWithSHA1		"dsaWithSHA1"
 #define NID_dsaWithSHA1		113
 #define OBJ_dsaWithSHA1		OBJ_X9cm,3L
+
+#define SN_ansi_X9_62		"ansi-X9-62"
+#define LN_ansi_X9_62		"ANSI X9.62"
+#define NID_ansi_X9_62		405
+#define OBJ_ansi_X9_62		OBJ_ISO_US,10045L
+
+#define OBJ_X9_62_id_fieldType		OBJ_ansi_X9_62,1L
+
+#define SN_X9_62_prime_field		"prime-field"
+#define NID_X9_62_prime_field		406
+#define OBJ_X9_62_prime_field		OBJ_X9_62_id_fieldType,1L
+
+#define SN_X9_62_characteristic_two_field		"characteristic-two-field"
+#define NID_X9_62_characteristic_two_field		407
+#define OBJ_X9_62_characteristic_two_field		OBJ_X9_62_id_fieldType,2L
+
+#define OBJ_X9_62_id_publicKeyType		OBJ_ansi_X9_62,2L
+
+#define SN_X9_62_id_ecPublicKey		"id-ecPublicKey"
+#define NID_X9_62_id_ecPublicKey		408
+#define OBJ_X9_62_id_ecPublicKey		OBJ_X9_62_id_publicKeyType,1L
+
+#define OBJ_X9_62_ellipticCurve		OBJ_ansi_X9_62,3L
+
+#define OBJ_X9_62_c_TwoCurve		OBJ_X9_62_ellipticCurve,0L
+
+#define OBJ_X9_62_primeCurve		OBJ_X9_62_ellipticCurve,1L
+
+#define SN_X9_62_prime192v1		"prime192v1"
+#define NID_X9_62_prime192v1		409
+#define OBJ_X9_62_prime192v1		OBJ_X9_62_primeCurve,1L
+
+#define SN_X9_62_prime192v2		"prime192v2"
+#define NID_X9_62_prime192v2		410
+#define OBJ_X9_62_prime192v2		OBJ_X9_62_primeCurve,2L
+
+#define SN_X9_62_prime192v3		"prime192v3"
+#define NID_X9_62_prime192v3		411
+#define OBJ_X9_62_prime192v3		OBJ_X9_62_primeCurve,3L
+
+#define SN_X9_62_prime239v1		"prime239v1"
+#define NID_X9_62_prime239v1		412
+#define OBJ_X9_62_prime239v1		OBJ_X9_62_primeCurve,4L
+
+#define SN_X9_62_prime239v2		"prime239v2"
+#define NID_X9_62_prime239v2		413
+#define OBJ_X9_62_prime239v2		OBJ_X9_62_primeCurve,5L
+
+#define SN_X9_62_prime239v3		"prime239v3"
+#define NID_X9_62_prime239v3		414
+#define OBJ_X9_62_prime239v3		OBJ_X9_62_primeCurve,6L
+
+#define SN_X9_62_prime256v1		"prime256v1"
+#define NID_X9_62_prime256v1		415
+#define OBJ_X9_62_prime256v1		OBJ_X9_62_primeCurve,7L
+
+#define OBJ_X9_62_id_ecSigType		OBJ_ansi_X9_62,4L
+
+#define SN_ecdsa_with_SHA1		"ecdsa-with-SHA1"
+#define NID_ecdsa_with_SHA1		416
+#define OBJ_ecdsa_with_SHA1		OBJ_X9_62_id_ecSigType,1L
 
 #define SN_cast5_cbc		"CAST5-CBC"
 #define LN_cast5_cbc		"cast5-cbc"
@@ -261,7 +327,6 @@
 #define NID_pkcs9		47
 #define OBJ_pkcs9		OBJ_pkcs,9L
 
-#define SN_pkcs9_emailAddress		"Email"
 #define LN_pkcs9_emailAddress		"emailAddress"
 #define NID_pkcs9_emailAddress		48
 #define OBJ_pkcs9_emailAddress		OBJ_pkcs9,1L
@@ -593,6 +658,11 @@
 #define NID_localKeyID		157
 #define OBJ_localKeyID		OBJ_pkcs9,21L
 
+#define SN_ms_csp_name		"CSPName"
+#define LN_ms_csp_name		"Microsoft CSP Name"
+#define NID_ms_csp_name		417
+#define OBJ_ms_csp_name		1L,3L,6L,1L,4L,1L,311L,17L,1L
+
 #define OBJ_certTypes		OBJ_pkcs9,22L
 
 #define LN_x509Certificate		"x509Certificate"
@@ -779,6 +849,16 @@
 #define LN_ms_efs		"Microsoft Encrypted File System"
 #define NID_ms_efs		138
 #define OBJ_ms_efs		1L,3L,6L,1L,4L,1L,311L,10L,3L,4L
+
+#define SN_ms_smartcard_login		"msSmartcardLogin"
+#define LN_ms_smartcard_login		"Microsoft Smartcardlogin"
+#define NID_ms_smartcard_login		648
+#define OBJ_ms_smartcard_login		1L,3L,6L,1L,4L,1L,311L,20L,2L,2L
+
+#define SN_ms_upn		"msUPN"
+#define LN_ms_upn		"Microsoft Universal Principal Name"
+#define NID_ms_upn		649
+#define OBJ_ms_upn		1L,3L,6L,1L,4L,1L,311L,20L,2L,3L
 
 #define SN_idea_cbc		"IDEA-CBC"
 #define LN_idea_cbc		"idea-cbc"
@@ -1352,6 +1432,7 @@
 #define OBJ_id_pkix_OCSP_acceptableResponses		OBJ_id_pkix_OCSP,4L
 
 #define SN_id_pkix_OCSP_noCheck		"noCheck"
+#define LN_id_pkix_OCSP_noCheck		"OCSP No Check"
 #define NID_id_pkix_OCSP_noCheck		369
 #define OBJ_id_pkix_OCSP_noCheck		OBJ_id_pkix_OCSP,5L
 
@@ -1432,14 +1513,14 @@
 #define NID_shaWithRSAEncryption		42
 #define OBJ_shaWithRSAEncryption		OBJ_algorithm,15L
 
-#define SN_des_ede		"DES-EDE"
-#define LN_des_ede		"des-ede"
-#define NID_des_ede		32
-#define OBJ_des_ede		OBJ_algorithm,17L
+#define SN_des_ede_ecb		"DES-EDE"
+#define LN_des_ede_ecb		"des-ede"
+#define NID_des_ede_ecb		32
+#define OBJ_des_ede_ecb		OBJ_algorithm,17L
 
-#define SN_des_ede3		"DES-EDE3"
-#define LN_des_ede3		"des-ede3"
-#define NID_des_ede3		33
+#define SN_des_ede3_ecb		"DES-EDE3"
+#define LN_des_ede3_ecb		"des-ede3"
+#define NID_des_ede3_ecb		33
 
 #define SN_des_ede_cbc		"DES-EDE-CBC"
 #define LN_des_ede_cbc		"des-ede-cbc"
@@ -1514,12 +1595,11 @@
 #define NID_commonName		13
 #define OBJ_commonName		OBJ_X509,3L
 
-#define SN_surname		"S"
-#define LN_surname		"surname"
+#define SN_surname		"SN"
+#define LN_surname		"surName"
 #define NID_surname		100
 #define OBJ_surname		OBJ_X509,4L
 
-#define SN_serialNumber		"SN"
 #define LN_serialNumber		"serialNumber"
 #define NID_serialNumber		105
 #define OBJ_serialNumber		OBJ_X509,5L
@@ -1549,12 +1629,10 @@
 #define NID_organizationalUnitName		18
 #define OBJ_organizationalUnitName		OBJ_X509,11L
 
-#define SN_title		"T"
 #define LN_title		"title"
 #define NID_title		106
 #define OBJ_title		OBJ_X509,12L
 
-#define SN_description		"D"
 #define LN_description		"description"
 #define NID_description		107
 #define OBJ_description		OBJ_X509,13L
@@ -1564,24 +1642,31 @@
 #define NID_name		173
 #define OBJ_name		OBJ_X509,41L
 
-#define SN_givenName		"G"
+#define SN_givenName		"GN"
 #define LN_givenName		"givenName"
 #define NID_givenName		99
 #define OBJ_givenName		OBJ_X509,42L
 
-#define SN_initials		"I"
 #define LN_initials		"initials"
 #define NID_initials		101
 #define OBJ_initials		OBJ_X509,43L
 
-#define LN_uniqueIdentifier		"uniqueIdentifier"
-#define NID_uniqueIdentifier		102
-#define OBJ_uniqueIdentifier		OBJ_X509,45L
+#define LN_generationQualifier		"generationQualifier"
+#define NID_generationQualifier		509
+#define OBJ_generationQualifier		OBJ_X509,44L
+
+#define LN_x500UniqueIdentifier		"x500UniqueIdentifier"
+#define NID_x500UniqueIdentifier		503
+#define OBJ_x500UniqueIdentifier		OBJ_X509,45L
 
 #define SN_dnQualifier		"dnQualifier"
 #define LN_dnQualifier		"dnQualifier"
 #define NID_dnQualifier		174
 #define OBJ_dnQualifier		OBJ_X509,46L
+
+#define LN_pseudonym		"pseudonym"
+#define NID_pseudonym		510
+#define OBJ_pseudonym		OBJ_X509,65L
 
 #define SN_role		"role"
 #define LN_role		"role"
@@ -1809,7 +1894,6 @@
 #define NID_SNMPv2		387
 #define OBJ_SNMPv2		OBJ_internet,6L
 
-#define SN_Mail		"mail"
 #define LN_Mail		"Mail"
 #define NID_Mail		388
 #define OBJ_Mail		OBJ_internet,7L
@@ -1824,15 +1908,30 @@
 #define NID_dcObject		390
 #define OBJ_dcObject		OBJ_Enterprises,1466L,344L
 
-#define SN_domainComponent		"DC"
-#define LN_domainComponent		"domainComponent"
-#define NID_domainComponent		391
-#define OBJ_domainComponent		0L,9L,2342L,19200300L,100L,1L,25L
+#define SN_mime_mhs		"mime-mhs"
+#define LN_mime_mhs		"MIME MHS"
+#define NID_mime_mhs		504
+#define OBJ_mime_mhs		OBJ_Mail,1L
 
-#define SN_Domain		"domain"
-#define LN_Domain		"Domain"
-#define NID_Domain		392
-#define OBJ_Domain		0L,9L,2342L,19200300L,100L,4L,13L
+#define SN_mime_mhs_headings		"mime-mhs-headings"
+#define LN_mime_mhs_headings		"mime-mhs-headings"
+#define NID_mime_mhs_headings		505
+#define OBJ_mime_mhs_headings		OBJ_mime_mhs,1L
+
+#define SN_mime_mhs_bodies		"mime-mhs-bodies"
+#define LN_mime_mhs_bodies		"mime-mhs-bodies"
+#define NID_mime_mhs_bodies		506
+#define OBJ_mime_mhs_bodies		OBJ_mime_mhs,2L
+
+#define SN_id_hex_partial_message		"id-hex-partial-message"
+#define LN_id_hex_partial_message		"id-hex-partial-message"
+#define NID_id_hex_partial_message		507
+#define OBJ_id_hex_partial_message		OBJ_mime_mhs_headings,1L
+
+#define SN_id_hex_multipart_message		"id-hex-multipart-message"
+#define LN_id_hex_multipart_message		"id-hex-multipart-message"
+#define NID_id_hex_multipart_message		508
+#define OBJ_id_hex_multipart_message		OBJ_mime_mhs_headings,2L
 
 #define SN_rle_compression		"RLE"
 #define LN_rle_compression		"run length compression"
@@ -1843,4 +1942,927 @@
 #define LN_zlib_compression		"zlib compression"
 #define NID_zlib_compression		125
 #define OBJ_zlib_compression		1L,1L,1L,1L,666L,2L
+
+#define OBJ_csor		2L,16L,840L,1L,101L,3L
+
+#define OBJ_nistAlgorithms		OBJ_csor,4L
+
+#define OBJ_aes		OBJ_nistAlgorithms,1L
+
+#define SN_aes_128_ecb		"AES-128-ECB"
+#define LN_aes_128_ecb		"aes-128-ecb"
+#define NID_aes_128_ecb		418
+#define OBJ_aes_128_ecb		OBJ_aes,1L
+
+#define SN_aes_128_cbc		"AES-128-CBC"
+#define LN_aes_128_cbc		"aes-128-cbc"
+#define NID_aes_128_cbc		419
+#define OBJ_aes_128_cbc		OBJ_aes,2L
+
+#define SN_aes_128_ofb128		"AES-128-OFB"
+#define LN_aes_128_ofb128		"aes-128-ofb"
+#define NID_aes_128_ofb128		420
+#define OBJ_aes_128_ofb128		OBJ_aes,3L
+
+#define SN_aes_128_cfb128		"AES-128-CFB"
+#define LN_aes_128_cfb128		"aes-128-cfb"
+#define NID_aes_128_cfb128		421
+#define OBJ_aes_128_cfb128		OBJ_aes,4L
+
+#define SN_aes_192_ecb		"AES-192-ECB"
+#define LN_aes_192_ecb		"aes-192-ecb"
+#define NID_aes_192_ecb		422
+#define OBJ_aes_192_ecb		OBJ_aes,21L
+
+#define SN_aes_192_cbc		"AES-192-CBC"
+#define LN_aes_192_cbc		"aes-192-cbc"
+#define NID_aes_192_cbc		423
+#define OBJ_aes_192_cbc		OBJ_aes,22L
+
+#define SN_aes_192_ofb128		"AES-192-OFB"
+#define LN_aes_192_ofb128		"aes-192-ofb"
+#define NID_aes_192_ofb128		424
+#define OBJ_aes_192_ofb128		OBJ_aes,23L
+
+#define SN_aes_192_cfb128		"AES-192-CFB"
+#define LN_aes_192_cfb128		"aes-192-cfb"
+#define NID_aes_192_cfb128		425
+#define OBJ_aes_192_cfb128		OBJ_aes,24L
+
+#define SN_aes_256_ecb		"AES-256-ECB"
+#define LN_aes_256_ecb		"aes-256-ecb"
+#define NID_aes_256_ecb		426
+#define OBJ_aes_256_ecb		OBJ_aes,41L
+
+#define SN_aes_256_cbc		"AES-256-CBC"
+#define LN_aes_256_cbc		"aes-256-cbc"
+#define NID_aes_256_cbc		427
+#define OBJ_aes_256_cbc		OBJ_aes,42L
+
+#define SN_aes_256_ofb128		"AES-256-OFB"
+#define LN_aes_256_ofb128		"aes-256-ofb"
+#define NID_aes_256_ofb128		428
+#define OBJ_aes_256_ofb128		OBJ_aes,43L
+
+#define SN_aes_256_cfb128		"AES-256-CFB"
+#define LN_aes_256_cfb128		"aes-256-cfb"
+#define NID_aes_256_cfb128		429
+#define OBJ_aes_256_cfb128		OBJ_aes,44L
+
+#define SN_hold_instruction_code		"holdInstructionCode"
+#define LN_hold_instruction_code		"Hold Instruction Code"
+#define NID_hold_instruction_code		430
+#define OBJ_hold_instruction_code		OBJ_id_ce,23L
+
+#define OBJ_holdInstruction		OBJ_X9_57,2L
+
+#define SN_hold_instruction_none		"holdInstructionNone"
+#define LN_hold_instruction_none		"Hold Instruction None"
+#define NID_hold_instruction_none		431
+#define OBJ_hold_instruction_none		OBJ_holdInstruction,1L
+
+#define SN_hold_instruction_call_issuer		"holdInstructionCallIssuer"
+#define LN_hold_instruction_call_issuer		"Hold Instruction Call Issuer"
+#define NID_hold_instruction_call_issuer		432
+#define OBJ_hold_instruction_call_issuer		OBJ_holdInstruction,2L
+
+#define SN_hold_instruction_reject		"holdInstructionReject"
+#define LN_hold_instruction_reject		"Hold Instruction Reject"
+#define NID_hold_instruction_reject		433
+#define OBJ_hold_instruction_reject		OBJ_holdInstruction,3L
+
+#define SN_data		"data"
+#define NID_data		434
+#define OBJ_data		OBJ_ccitt,9L
+
+#define SN_pss		"pss"
+#define NID_pss		435
+#define OBJ_pss		OBJ_data,2342L
+
+#define SN_ucl		"ucl"
+#define NID_ucl		436
+#define OBJ_ucl		OBJ_pss,19200300L
+
+#define SN_pilot		"pilot"
+#define NID_pilot		437
+#define OBJ_pilot		OBJ_ucl,100L
+
+#define LN_pilotAttributeType		"pilotAttributeType"
+#define NID_pilotAttributeType		438
+#define OBJ_pilotAttributeType		OBJ_pilot,1L
+
+#define LN_pilotAttributeSyntax		"pilotAttributeSyntax"
+#define NID_pilotAttributeSyntax		439
+#define OBJ_pilotAttributeSyntax		OBJ_pilot,3L
+
+#define LN_pilotObjectClass		"pilotObjectClass"
+#define NID_pilotObjectClass		440
+#define OBJ_pilotObjectClass		OBJ_pilot,4L
+
+#define LN_pilotGroups		"pilotGroups"
+#define NID_pilotGroups		441
+#define OBJ_pilotGroups		OBJ_pilot,10L
+
+#define LN_iA5StringSyntax		"iA5StringSyntax"
+#define NID_iA5StringSyntax		442
+#define OBJ_iA5StringSyntax		OBJ_pilotAttributeSyntax,4L
+
+#define LN_caseIgnoreIA5StringSyntax		"caseIgnoreIA5StringSyntax"
+#define NID_caseIgnoreIA5StringSyntax		443
+#define OBJ_caseIgnoreIA5StringSyntax		OBJ_pilotAttributeSyntax,5L
+
+#define LN_pilotObject		"pilotObject"
+#define NID_pilotObject		444
+#define OBJ_pilotObject		OBJ_pilotObjectClass,3L
+
+#define LN_pilotPerson		"pilotPerson"
+#define NID_pilotPerson		445
+#define OBJ_pilotPerson		OBJ_pilotObjectClass,4L
+
+#define SN_account		"account"
+#define NID_account		446
+#define OBJ_account		OBJ_pilotObjectClass,5L
+
+#define SN_document		"document"
+#define NID_document		447
+#define OBJ_document		OBJ_pilotObjectClass,6L
+
+#define SN_room		"room"
+#define NID_room		448
+#define OBJ_room		OBJ_pilotObjectClass,7L
+
+#define LN_documentSeries		"documentSeries"
+#define NID_documentSeries		449
+#define OBJ_documentSeries		OBJ_pilotObjectClass,9L
+
+#define SN_Domain		"domain"
+#define LN_Domain		"Domain"
+#define NID_Domain		392
+#define OBJ_Domain		OBJ_pilotObjectClass,13L
+
+#define LN_rFC822localPart		"rFC822localPart"
+#define NID_rFC822localPart		450
+#define OBJ_rFC822localPart		OBJ_pilotObjectClass,14L
+
+#define LN_dNSDomain		"dNSDomain"
+#define NID_dNSDomain		451
+#define OBJ_dNSDomain		OBJ_pilotObjectClass,15L
+
+#define LN_domainRelatedObject		"domainRelatedObject"
+#define NID_domainRelatedObject		452
+#define OBJ_domainRelatedObject		OBJ_pilotObjectClass,17L
+
+#define LN_friendlyCountry		"friendlyCountry"
+#define NID_friendlyCountry		453
+#define OBJ_friendlyCountry		OBJ_pilotObjectClass,18L
+
+#define LN_simpleSecurityObject		"simpleSecurityObject"
+#define NID_simpleSecurityObject		454
+#define OBJ_simpleSecurityObject		OBJ_pilotObjectClass,19L
+
+#define LN_pilotOrganization		"pilotOrganization"
+#define NID_pilotOrganization		455
+#define OBJ_pilotOrganization		OBJ_pilotObjectClass,20L
+
+#define LN_pilotDSA		"pilotDSA"
+#define NID_pilotDSA		456
+#define OBJ_pilotDSA		OBJ_pilotObjectClass,21L
+
+#define LN_qualityLabelledData		"qualityLabelledData"
+#define NID_qualityLabelledData		457
+#define OBJ_qualityLabelledData		OBJ_pilotObjectClass,22L
+
+#define SN_userId		"UID"
+#define LN_userId		"userId"
+#define NID_userId		458
+#define OBJ_userId		OBJ_pilotAttributeType,1L
+
+#define LN_textEncodedORAddress		"textEncodedORAddress"
+#define NID_textEncodedORAddress		459
+#define OBJ_textEncodedORAddress		OBJ_pilotAttributeType,2L
+
+#define SN_rfc822Mailbox		"mail"
+#define LN_rfc822Mailbox		"rfc822Mailbox"
+#define NID_rfc822Mailbox		460
+#define OBJ_rfc822Mailbox		OBJ_pilotAttributeType,3L
+
+#define SN_info		"info"
+#define NID_info		461
+#define OBJ_info		OBJ_pilotAttributeType,4L
+
+#define LN_favouriteDrink		"favouriteDrink"
+#define NID_favouriteDrink		462
+#define OBJ_favouriteDrink		OBJ_pilotAttributeType,5L
+
+#define LN_roomNumber		"roomNumber"
+#define NID_roomNumber		463
+#define OBJ_roomNumber		OBJ_pilotAttributeType,6L
+
+#define SN_photo		"photo"
+#define NID_photo		464
+#define OBJ_photo		OBJ_pilotAttributeType,7L
+
+#define LN_userClass		"userClass"
+#define NID_userClass		465
+#define OBJ_userClass		OBJ_pilotAttributeType,8L
+
+#define SN_host		"host"
+#define NID_host		466
+#define OBJ_host		OBJ_pilotAttributeType,9L
+
+#define SN_manager		"manager"
+#define NID_manager		467
+#define OBJ_manager		OBJ_pilotAttributeType,10L
+
+#define LN_documentIdentifier		"documentIdentifier"
+#define NID_documentIdentifier		468
+#define OBJ_documentIdentifier		OBJ_pilotAttributeType,11L
+
+#define LN_documentTitle		"documentTitle"
+#define NID_documentTitle		469
+#define OBJ_documentTitle		OBJ_pilotAttributeType,12L
+
+#define LN_documentVersion		"documentVersion"
+#define NID_documentVersion		470
+#define OBJ_documentVersion		OBJ_pilotAttributeType,13L
+
+#define LN_documentAuthor		"documentAuthor"
+#define NID_documentAuthor		471
+#define OBJ_documentAuthor		OBJ_pilotAttributeType,14L
+
+#define LN_documentLocation		"documentLocation"
+#define NID_documentLocation		472
+#define OBJ_documentLocation		OBJ_pilotAttributeType,15L
+
+#define LN_homeTelephoneNumber		"homeTelephoneNumber"
+#define NID_homeTelephoneNumber		473
+#define OBJ_homeTelephoneNumber		OBJ_pilotAttributeType,20L
+
+#define SN_secretary		"secretary"
+#define NID_secretary		474
+#define OBJ_secretary		OBJ_pilotAttributeType,21L
+
+#define LN_otherMailbox		"otherMailbox"
+#define NID_otherMailbox		475
+#define OBJ_otherMailbox		OBJ_pilotAttributeType,22L
+
+#define LN_lastModifiedTime		"lastModifiedTime"
+#define NID_lastModifiedTime		476
+#define OBJ_lastModifiedTime		OBJ_pilotAttributeType,23L
+
+#define LN_lastModifiedBy		"lastModifiedBy"
+#define NID_lastModifiedBy		477
+#define OBJ_lastModifiedBy		OBJ_pilotAttributeType,24L
+
+#define SN_domainComponent		"DC"
+#define LN_domainComponent		"domainComponent"
+#define NID_domainComponent		391
+#define OBJ_domainComponent		OBJ_pilotAttributeType,25L
+
+#define LN_aRecord		"aRecord"
+#define NID_aRecord		478
+#define OBJ_aRecord		OBJ_pilotAttributeType,26L
+
+#define LN_pilotAttributeType27		"pilotAttributeType27"
+#define NID_pilotAttributeType27		479
+#define OBJ_pilotAttributeType27		OBJ_pilotAttributeType,27L
+
+#define LN_mXRecord		"mXRecord"
+#define NID_mXRecord		480
+#define OBJ_mXRecord		OBJ_pilotAttributeType,28L
+
+#define LN_nSRecord		"nSRecord"
+#define NID_nSRecord		481
+#define OBJ_nSRecord		OBJ_pilotAttributeType,29L
+
+#define LN_sOARecord		"sOARecord"
+#define NID_sOARecord		482
+#define OBJ_sOARecord		OBJ_pilotAttributeType,30L
+
+#define LN_cNAMERecord		"cNAMERecord"
+#define NID_cNAMERecord		483
+#define OBJ_cNAMERecord		OBJ_pilotAttributeType,31L
+
+#define LN_associatedDomain		"associatedDomain"
+#define NID_associatedDomain		484
+#define OBJ_associatedDomain		OBJ_pilotAttributeType,37L
+
+#define LN_associatedName		"associatedName"
+#define NID_associatedName		485
+#define OBJ_associatedName		OBJ_pilotAttributeType,38L
+
+#define LN_homePostalAddress		"homePostalAddress"
+#define NID_homePostalAddress		486
+#define OBJ_homePostalAddress		OBJ_pilotAttributeType,39L
+
+#define LN_personalTitle		"personalTitle"
+#define NID_personalTitle		487
+#define OBJ_personalTitle		OBJ_pilotAttributeType,40L
+
+#define LN_mobileTelephoneNumber		"mobileTelephoneNumber"
+#define NID_mobileTelephoneNumber		488
+#define OBJ_mobileTelephoneNumber		OBJ_pilotAttributeType,41L
+
+#define LN_pagerTelephoneNumber		"pagerTelephoneNumber"
+#define NID_pagerTelephoneNumber		489
+#define OBJ_pagerTelephoneNumber		OBJ_pilotAttributeType,42L
+
+#define LN_friendlyCountryName		"friendlyCountryName"
+#define NID_friendlyCountryName		490
+#define OBJ_friendlyCountryName		OBJ_pilotAttributeType,43L
+
+#define LN_organizationalStatus		"organizationalStatus"
+#define NID_organizationalStatus		491
+#define OBJ_organizationalStatus		OBJ_pilotAttributeType,45L
+
+#define LN_janetMailbox		"janetMailbox"
+#define NID_janetMailbox		492
+#define OBJ_janetMailbox		OBJ_pilotAttributeType,46L
+
+#define LN_mailPreferenceOption		"mailPreferenceOption"
+#define NID_mailPreferenceOption		493
+#define OBJ_mailPreferenceOption		OBJ_pilotAttributeType,47L
+
+#define LN_buildingName		"buildingName"
+#define NID_buildingName		494
+#define OBJ_buildingName		OBJ_pilotAttributeType,48L
+
+#define LN_dSAQuality		"dSAQuality"
+#define NID_dSAQuality		495
+#define OBJ_dSAQuality		OBJ_pilotAttributeType,49L
+
+#define LN_singleLevelQuality		"singleLevelQuality"
+#define NID_singleLevelQuality		496
+#define OBJ_singleLevelQuality		OBJ_pilotAttributeType,50L
+
+#define LN_subtreeMinimumQuality		"subtreeMinimumQuality"
+#define NID_subtreeMinimumQuality		497
+#define OBJ_subtreeMinimumQuality		OBJ_pilotAttributeType,51L
+
+#define LN_subtreeMaximumQuality		"subtreeMaximumQuality"
+#define NID_subtreeMaximumQuality		498
+#define OBJ_subtreeMaximumQuality		OBJ_pilotAttributeType,52L
+
+#define LN_personalSignature		"personalSignature"
+#define NID_personalSignature		499
+#define OBJ_personalSignature		OBJ_pilotAttributeType,53L
+
+#define LN_dITRedirect		"dITRedirect"
+#define NID_dITRedirect		500
+#define OBJ_dITRedirect		OBJ_pilotAttributeType,54L
+
+#define SN_audio		"audio"
+#define NID_audio		501
+#define OBJ_audio		OBJ_pilotAttributeType,55L
+
+#define LN_documentPublisher		"documentPublisher"
+#define NID_documentPublisher		502
+#define OBJ_documentPublisher		OBJ_pilotAttributeType,56L
+
+#define SN_id_set		"id-set"
+#define LN_id_set		"Secure Electronic Transactions"
+#define NID_id_set		512
+#define OBJ_id_set		2L,23L,42L
+
+#define SN_set_ctype		"set-ctype"
+#define LN_set_ctype		"content types"
+#define NID_set_ctype		513
+#define OBJ_set_ctype		OBJ_id_set,0L
+
+#define SN_set_msgExt		"set-msgExt"
+#define LN_set_msgExt		"message extensions"
+#define NID_set_msgExt		514
+#define OBJ_set_msgExt		OBJ_id_set,1L
+
+#define SN_set_attr		"set-attr"
+#define NID_set_attr		515
+#define OBJ_set_attr		OBJ_id_set,3L
+
+#define SN_set_policy		"set-policy"
+#define NID_set_policy		516
+#define OBJ_set_policy		OBJ_id_set,5L
+
+#define SN_set_certExt		"set-certExt"
+#define LN_set_certExt		"certificate extensions"
+#define NID_set_certExt		517
+#define OBJ_set_certExt		OBJ_id_set,7L
+
+#define SN_set_brand		"set-brand"
+#define NID_set_brand		518
+#define OBJ_set_brand		OBJ_id_set,8L
+
+#define SN_setct_PANData		"setct-PANData"
+#define NID_setct_PANData		519
+#define OBJ_setct_PANData		OBJ_set_ctype,0L
+
+#define SN_setct_PANToken		"setct-PANToken"
+#define NID_setct_PANToken		520
+#define OBJ_setct_PANToken		OBJ_set_ctype,1L
+
+#define SN_setct_PANOnly		"setct-PANOnly"
+#define NID_setct_PANOnly		521
+#define OBJ_setct_PANOnly		OBJ_set_ctype,2L
+
+#define SN_setct_OIData		"setct-OIData"
+#define NID_setct_OIData		522
+#define OBJ_setct_OIData		OBJ_set_ctype,3L
+
+#define SN_setct_PI		"setct-PI"
+#define NID_setct_PI		523
+#define OBJ_setct_PI		OBJ_set_ctype,4L
+
+#define SN_setct_PIData		"setct-PIData"
+#define NID_setct_PIData		524
+#define OBJ_setct_PIData		OBJ_set_ctype,5L
+
+#define SN_setct_PIDataUnsigned		"setct-PIDataUnsigned"
+#define NID_setct_PIDataUnsigned		525
+#define OBJ_setct_PIDataUnsigned		OBJ_set_ctype,6L
+
+#define SN_setct_HODInput		"setct-HODInput"
+#define NID_setct_HODInput		526
+#define OBJ_setct_HODInput		OBJ_set_ctype,7L
+
+#define SN_setct_AuthResBaggage		"setct-AuthResBaggage"
+#define NID_setct_AuthResBaggage		527
+#define OBJ_setct_AuthResBaggage		OBJ_set_ctype,8L
+
+#define SN_setct_AuthRevReqBaggage		"setct-AuthRevReqBaggage"
+#define NID_setct_AuthRevReqBaggage		528
+#define OBJ_setct_AuthRevReqBaggage		OBJ_set_ctype,9L
+
+#define SN_setct_AuthRevResBaggage		"setct-AuthRevResBaggage"
+#define NID_setct_AuthRevResBaggage		529
+#define OBJ_setct_AuthRevResBaggage		OBJ_set_ctype,10L
+
+#define SN_setct_CapTokenSeq		"setct-CapTokenSeq"
+#define NID_setct_CapTokenSeq		530
+#define OBJ_setct_CapTokenSeq		OBJ_set_ctype,11L
+
+#define SN_setct_PInitResData		"setct-PInitResData"
+#define NID_setct_PInitResData		531
+#define OBJ_setct_PInitResData		OBJ_set_ctype,12L
+
+#define SN_setct_PI_TBS		"setct-PI-TBS"
+#define NID_setct_PI_TBS		532
+#define OBJ_setct_PI_TBS		OBJ_set_ctype,13L
+
+#define SN_setct_PResData		"setct-PResData"
+#define NID_setct_PResData		533
+#define OBJ_setct_PResData		OBJ_set_ctype,14L
+
+#define SN_setct_AuthReqTBS		"setct-AuthReqTBS"
+#define NID_setct_AuthReqTBS		534
+#define OBJ_setct_AuthReqTBS		OBJ_set_ctype,16L
+
+#define SN_setct_AuthResTBS		"setct-AuthResTBS"
+#define NID_setct_AuthResTBS		535
+#define OBJ_setct_AuthResTBS		OBJ_set_ctype,17L
+
+#define SN_setct_AuthResTBSX		"setct-AuthResTBSX"
+#define NID_setct_AuthResTBSX		536
+#define OBJ_setct_AuthResTBSX		OBJ_set_ctype,18L
+
+#define SN_setct_AuthTokenTBS		"setct-AuthTokenTBS"
+#define NID_setct_AuthTokenTBS		537
+#define OBJ_setct_AuthTokenTBS		OBJ_set_ctype,19L
+
+#define SN_setct_CapTokenData		"setct-CapTokenData"
+#define NID_setct_CapTokenData		538
+#define OBJ_setct_CapTokenData		OBJ_set_ctype,20L
+
+#define SN_setct_CapTokenTBS		"setct-CapTokenTBS"
+#define NID_setct_CapTokenTBS		539
+#define OBJ_setct_CapTokenTBS		OBJ_set_ctype,21L
+
+#define SN_setct_AcqCardCodeMsg		"setct-AcqCardCodeMsg"
+#define NID_setct_AcqCardCodeMsg		540
+#define OBJ_setct_AcqCardCodeMsg		OBJ_set_ctype,22L
+
+#define SN_setct_AuthRevReqTBS		"setct-AuthRevReqTBS"
+#define NID_setct_AuthRevReqTBS		541
+#define OBJ_setct_AuthRevReqTBS		OBJ_set_ctype,23L
+
+#define SN_setct_AuthRevResData		"setct-AuthRevResData"
+#define NID_setct_AuthRevResData		542
+#define OBJ_setct_AuthRevResData		OBJ_set_ctype,24L
+
+#define SN_setct_AuthRevResTBS		"setct-AuthRevResTBS"
+#define NID_setct_AuthRevResTBS		543
+#define OBJ_setct_AuthRevResTBS		OBJ_set_ctype,25L
+
+#define SN_setct_CapReqTBS		"setct-CapReqTBS"
+#define NID_setct_CapReqTBS		544
+#define OBJ_setct_CapReqTBS		OBJ_set_ctype,26L
+
+#define SN_setct_CapReqTBSX		"setct-CapReqTBSX"
+#define NID_setct_CapReqTBSX		545
+#define OBJ_setct_CapReqTBSX		OBJ_set_ctype,27L
+
+#define SN_setct_CapResData		"setct-CapResData"
+#define NID_setct_CapResData		546
+#define OBJ_setct_CapResData		OBJ_set_ctype,28L
+
+#define SN_setct_CapRevReqTBS		"setct-CapRevReqTBS"
+#define NID_setct_CapRevReqTBS		547
+#define OBJ_setct_CapRevReqTBS		OBJ_set_ctype,29L
+
+#define SN_setct_CapRevReqTBSX		"setct-CapRevReqTBSX"
+#define NID_setct_CapRevReqTBSX		548
+#define OBJ_setct_CapRevReqTBSX		OBJ_set_ctype,30L
+
+#define SN_setct_CapRevResData		"setct-CapRevResData"
+#define NID_setct_CapRevResData		549
+#define OBJ_setct_CapRevResData		OBJ_set_ctype,31L
+
+#define SN_setct_CredReqTBS		"setct-CredReqTBS"
+#define NID_setct_CredReqTBS		550
+#define OBJ_setct_CredReqTBS		OBJ_set_ctype,32L
+
+#define SN_setct_CredReqTBSX		"setct-CredReqTBSX"
+#define NID_setct_CredReqTBSX		551
+#define OBJ_setct_CredReqTBSX		OBJ_set_ctype,33L
+
+#define SN_setct_CredResData		"setct-CredResData"
+#define NID_setct_CredResData		552
+#define OBJ_setct_CredResData		OBJ_set_ctype,34L
+
+#define SN_setct_CredRevReqTBS		"setct-CredRevReqTBS"
+#define NID_setct_CredRevReqTBS		553
+#define OBJ_setct_CredRevReqTBS		OBJ_set_ctype,35L
+
+#define SN_setct_CredRevReqTBSX		"setct-CredRevReqTBSX"
+#define NID_setct_CredRevReqTBSX		554
+#define OBJ_setct_CredRevReqTBSX		OBJ_set_ctype,36L
+
+#define SN_setct_CredRevResData		"setct-CredRevResData"
+#define NID_setct_CredRevResData		555
+#define OBJ_setct_CredRevResData		OBJ_set_ctype,37L
+
+#define SN_setct_PCertReqData		"setct-PCertReqData"
+#define NID_setct_PCertReqData		556
+#define OBJ_setct_PCertReqData		OBJ_set_ctype,38L
+
+#define SN_setct_PCertResTBS		"setct-PCertResTBS"
+#define NID_setct_PCertResTBS		557
+#define OBJ_setct_PCertResTBS		OBJ_set_ctype,39L
+
+#define SN_setct_BatchAdminReqData		"setct-BatchAdminReqData"
+#define NID_setct_BatchAdminReqData		558
+#define OBJ_setct_BatchAdminReqData		OBJ_set_ctype,40L
+
+#define SN_setct_BatchAdminResData		"setct-BatchAdminResData"
+#define NID_setct_BatchAdminResData		559
+#define OBJ_setct_BatchAdminResData		OBJ_set_ctype,41L
+
+#define SN_setct_CardCInitResTBS		"setct-CardCInitResTBS"
+#define NID_setct_CardCInitResTBS		560
+#define OBJ_setct_CardCInitResTBS		OBJ_set_ctype,42L
+
+#define SN_setct_MeAqCInitResTBS		"setct-MeAqCInitResTBS"
+#define NID_setct_MeAqCInitResTBS		561
+#define OBJ_setct_MeAqCInitResTBS		OBJ_set_ctype,43L
+
+#define SN_setct_RegFormResTBS		"setct-RegFormResTBS"
+#define NID_setct_RegFormResTBS		562
+#define OBJ_setct_RegFormResTBS		OBJ_set_ctype,44L
+
+#define SN_setct_CertReqData		"setct-CertReqData"
+#define NID_setct_CertReqData		563
+#define OBJ_setct_CertReqData		OBJ_set_ctype,45L
+
+#define SN_setct_CertReqTBS		"setct-CertReqTBS"
+#define NID_setct_CertReqTBS		564
+#define OBJ_setct_CertReqTBS		OBJ_set_ctype,46L
+
+#define SN_setct_CertResData		"setct-CertResData"
+#define NID_setct_CertResData		565
+#define OBJ_setct_CertResData		OBJ_set_ctype,47L
+
+#define SN_setct_CertInqReqTBS		"setct-CertInqReqTBS"
+#define NID_setct_CertInqReqTBS		566
+#define OBJ_setct_CertInqReqTBS		OBJ_set_ctype,48L
+
+#define SN_setct_ErrorTBS		"setct-ErrorTBS"
+#define NID_setct_ErrorTBS		567
+#define OBJ_setct_ErrorTBS		OBJ_set_ctype,49L
+
+#define SN_setct_PIDualSignedTBE		"setct-PIDualSignedTBE"
+#define NID_setct_PIDualSignedTBE		568
+#define OBJ_setct_PIDualSignedTBE		OBJ_set_ctype,50L
+
+#define SN_setct_PIUnsignedTBE		"setct-PIUnsignedTBE"
+#define NID_setct_PIUnsignedTBE		569
+#define OBJ_setct_PIUnsignedTBE		OBJ_set_ctype,51L
+
+#define SN_setct_AuthReqTBE		"setct-AuthReqTBE"
+#define NID_setct_AuthReqTBE		570
+#define OBJ_setct_AuthReqTBE		OBJ_set_ctype,52L
+
+#define SN_setct_AuthResTBE		"setct-AuthResTBE"
+#define NID_setct_AuthResTBE		571
+#define OBJ_setct_AuthResTBE		OBJ_set_ctype,53L
+
+#define SN_setct_AuthResTBEX		"setct-AuthResTBEX"
+#define NID_setct_AuthResTBEX		572
+#define OBJ_setct_AuthResTBEX		OBJ_set_ctype,54L
+
+#define SN_setct_AuthTokenTBE		"setct-AuthTokenTBE"
+#define NID_setct_AuthTokenTBE		573
+#define OBJ_setct_AuthTokenTBE		OBJ_set_ctype,55L
+
+#define SN_setct_CapTokenTBE		"setct-CapTokenTBE"
+#define NID_setct_CapTokenTBE		574
+#define OBJ_setct_CapTokenTBE		OBJ_set_ctype,56L
+
+#define SN_setct_CapTokenTBEX		"setct-CapTokenTBEX"
+#define NID_setct_CapTokenTBEX		575
+#define OBJ_setct_CapTokenTBEX		OBJ_set_ctype,57L
+
+#define SN_setct_AcqCardCodeMsgTBE		"setct-AcqCardCodeMsgTBE"
+#define NID_setct_AcqCardCodeMsgTBE		576
+#define OBJ_setct_AcqCardCodeMsgTBE		OBJ_set_ctype,58L
+
+#define SN_setct_AuthRevReqTBE		"setct-AuthRevReqTBE"
+#define NID_setct_AuthRevReqTBE		577
+#define OBJ_setct_AuthRevReqTBE		OBJ_set_ctype,59L
+
+#define SN_setct_AuthRevResTBE		"setct-AuthRevResTBE"
+#define NID_setct_AuthRevResTBE		578
+#define OBJ_setct_AuthRevResTBE		OBJ_set_ctype,60L
+
+#define SN_setct_AuthRevResTBEB		"setct-AuthRevResTBEB"
+#define NID_setct_AuthRevResTBEB		579
+#define OBJ_setct_AuthRevResTBEB		OBJ_set_ctype,61L
+
+#define SN_setct_CapReqTBE		"setct-CapReqTBE"
+#define NID_setct_CapReqTBE		580
+#define OBJ_setct_CapReqTBE		OBJ_set_ctype,62L
+
+#define SN_setct_CapReqTBEX		"setct-CapReqTBEX"
+#define NID_setct_CapReqTBEX		581
+#define OBJ_setct_CapReqTBEX		OBJ_set_ctype,63L
+
+#define SN_setct_CapResTBE		"setct-CapResTBE"
+#define NID_setct_CapResTBE		582
+#define OBJ_setct_CapResTBE		OBJ_set_ctype,64L
+
+#define SN_setct_CapRevReqTBE		"setct-CapRevReqTBE"
+#define NID_setct_CapRevReqTBE		583
+#define OBJ_setct_CapRevReqTBE		OBJ_set_ctype,65L
+
+#define SN_setct_CapRevReqTBEX		"setct-CapRevReqTBEX"
+#define NID_setct_CapRevReqTBEX		584
+#define OBJ_setct_CapRevReqTBEX		OBJ_set_ctype,66L
+
+#define SN_setct_CapRevResTBE		"setct-CapRevResTBE"
+#define NID_setct_CapRevResTBE		585
+#define OBJ_setct_CapRevResTBE		OBJ_set_ctype,67L
+
+#define SN_setct_CredReqTBE		"setct-CredReqTBE"
+#define NID_setct_CredReqTBE		586
+#define OBJ_setct_CredReqTBE		OBJ_set_ctype,68L
+
+#define SN_setct_CredReqTBEX		"setct-CredReqTBEX"
+#define NID_setct_CredReqTBEX		587
+#define OBJ_setct_CredReqTBEX		OBJ_set_ctype,69L
+
+#define SN_setct_CredResTBE		"setct-CredResTBE"
+#define NID_setct_CredResTBE		588
+#define OBJ_setct_CredResTBE		OBJ_set_ctype,70L
+
+#define SN_setct_CredRevReqTBE		"setct-CredRevReqTBE"
+#define NID_setct_CredRevReqTBE		589
+#define OBJ_setct_CredRevReqTBE		OBJ_set_ctype,71L
+
+#define SN_setct_CredRevReqTBEX		"setct-CredRevReqTBEX"
+#define NID_setct_CredRevReqTBEX		590
+#define OBJ_setct_CredRevReqTBEX		OBJ_set_ctype,72L
+
+#define SN_setct_CredRevResTBE		"setct-CredRevResTBE"
+#define NID_setct_CredRevResTBE		591
+#define OBJ_setct_CredRevResTBE		OBJ_set_ctype,73L
+
+#define SN_setct_BatchAdminReqTBE		"setct-BatchAdminReqTBE"
+#define NID_setct_BatchAdminReqTBE		592
+#define OBJ_setct_BatchAdminReqTBE		OBJ_set_ctype,74L
+
+#define SN_setct_BatchAdminResTBE		"setct-BatchAdminResTBE"
+#define NID_setct_BatchAdminResTBE		593
+#define OBJ_setct_BatchAdminResTBE		OBJ_set_ctype,75L
+
+#define SN_setct_RegFormReqTBE		"setct-RegFormReqTBE"
+#define NID_setct_RegFormReqTBE		594
+#define OBJ_setct_RegFormReqTBE		OBJ_set_ctype,76L
+
+#define SN_setct_CertReqTBE		"setct-CertReqTBE"
+#define NID_setct_CertReqTBE		595
+#define OBJ_setct_CertReqTBE		OBJ_set_ctype,77L
+
+#define SN_setct_CertReqTBEX		"setct-CertReqTBEX"
+#define NID_setct_CertReqTBEX		596
+#define OBJ_setct_CertReqTBEX		OBJ_set_ctype,78L
+
+#define SN_setct_CertResTBE		"setct-CertResTBE"
+#define NID_setct_CertResTBE		597
+#define OBJ_setct_CertResTBE		OBJ_set_ctype,79L
+
+#define SN_setct_CRLNotificationTBS		"setct-CRLNotificationTBS"
+#define NID_setct_CRLNotificationTBS		598
+#define OBJ_setct_CRLNotificationTBS		OBJ_set_ctype,80L
+
+#define SN_setct_CRLNotificationResTBS		"setct-CRLNotificationResTBS"
+#define NID_setct_CRLNotificationResTBS		599
+#define OBJ_setct_CRLNotificationResTBS		OBJ_set_ctype,81L
+
+#define SN_setct_BCIDistributionTBS		"setct-BCIDistributionTBS"
+#define NID_setct_BCIDistributionTBS		600
+#define OBJ_setct_BCIDistributionTBS		OBJ_set_ctype,82L
+
+#define SN_setext_genCrypt		"setext-genCrypt"
+#define LN_setext_genCrypt		"generic cryptogram"
+#define NID_setext_genCrypt		601
+#define OBJ_setext_genCrypt		OBJ_set_msgExt,1L
+
+#define SN_setext_miAuth		"setext-miAuth"
+#define LN_setext_miAuth		"merchant initiated auth"
+#define NID_setext_miAuth		602
+#define OBJ_setext_miAuth		OBJ_set_msgExt,3L
+
+#define SN_setext_pinSecure		"setext-pinSecure"
+#define NID_setext_pinSecure		603
+#define OBJ_setext_pinSecure		OBJ_set_msgExt,4L
+
+#define SN_setext_pinAny		"setext-pinAny"
+#define NID_setext_pinAny		604
+#define OBJ_setext_pinAny		OBJ_set_msgExt,5L
+
+#define SN_setext_track2		"setext-track2"
+#define NID_setext_track2		605
+#define OBJ_setext_track2		OBJ_set_msgExt,7L
+
+#define SN_setext_cv		"setext-cv"
+#define LN_setext_cv		"additional verification"
+#define NID_setext_cv		606
+#define OBJ_setext_cv		OBJ_set_msgExt,8L
+
+#define SN_set_policy_root		"set-policy-root"
+#define NID_set_policy_root		607
+#define OBJ_set_policy_root		OBJ_set_policy,0L
+
+#define SN_setCext_hashedRoot		"setCext-hashedRoot"
+#define NID_setCext_hashedRoot		608
+#define OBJ_setCext_hashedRoot		OBJ_set_certExt,0L
+
+#define SN_setCext_certType		"setCext-certType"
+#define NID_setCext_certType		609
+#define OBJ_setCext_certType		OBJ_set_certExt,1L
+
+#define SN_setCext_merchData		"setCext-merchData"
+#define NID_setCext_merchData		610
+#define OBJ_setCext_merchData		OBJ_set_certExt,2L
+
+#define SN_setCext_cCertRequired		"setCext-cCertRequired"
+#define NID_setCext_cCertRequired		611
+#define OBJ_setCext_cCertRequired		OBJ_set_certExt,3L
+
+#define SN_setCext_tunneling		"setCext-tunneling"
+#define NID_setCext_tunneling		612
+#define OBJ_setCext_tunneling		OBJ_set_certExt,4L
+
+#define SN_setCext_setExt		"setCext-setExt"
+#define NID_setCext_setExt		613
+#define OBJ_setCext_setExt		OBJ_set_certExt,5L
+
+#define SN_setCext_setQualf		"setCext-setQualf"
+#define NID_setCext_setQualf		614
+#define OBJ_setCext_setQualf		OBJ_set_certExt,6L
+
+#define SN_setCext_PGWYcapabilities		"setCext-PGWYcapabilities"
+#define NID_setCext_PGWYcapabilities		615
+#define OBJ_setCext_PGWYcapabilities		OBJ_set_certExt,7L
+
+#define SN_setCext_TokenIdentifier		"setCext-TokenIdentifier"
+#define NID_setCext_TokenIdentifier		616
+#define OBJ_setCext_TokenIdentifier		OBJ_set_certExt,8L
+
+#define SN_setCext_Track2Data		"setCext-Track2Data"
+#define NID_setCext_Track2Data		617
+#define OBJ_setCext_Track2Data		OBJ_set_certExt,9L
+
+#define SN_setCext_TokenType		"setCext-TokenType"
+#define NID_setCext_TokenType		618
+#define OBJ_setCext_TokenType		OBJ_set_certExt,10L
+
+#define SN_setCext_IssuerCapabilities		"setCext-IssuerCapabilities"
+#define NID_setCext_IssuerCapabilities		619
+#define OBJ_setCext_IssuerCapabilities		OBJ_set_certExt,11L
+
+#define SN_setAttr_Cert		"setAttr-Cert"
+#define NID_setAttr_Cert		620
+#define OBJ_setAttr_Cert		OBJ_set_attr,0L
+
+#define SN_setAttr_PGWYcap		"setAttr-PGWYcap"
+#define LN_setAttr_PGWYcap		"payment gateway capabilities"
+#define NID_setAttr_PGWYcap		621
+#define OBJ_setAttr_PGWYcap		OBJ_set_attr,1L
+
+#define SN_setAttr_TokenType		"setAttr-TokenType"
+#define NID_setAttr_TokenType		622
+#define OBJ_setAttr_TokenType		OBJ_set_attr,2L
+
+#define SN_setAttr_IssCap		"setAttr-IssCap"
+#define LN_setAttr_IssCap		"issuer capabilities"
+#define NID_setAttr_IssCap		623
+#define OBJ_setAttr_IssCap		OBJ_set_attr,3L
+
+#define SN_set_rootKeyThumb		"set-rootKeyThumb"
+#define NID_set_rootKeyThumb		624
+#define OBJ_set_rootKeyThumb		OBJ_setAttr_Cert,0L
+
+#define SN_set_addPolicy		"set-addPolicy"
+#define NID_set_addPolicy		625
+#define OBJ_set_addPolicy		OBJ_setAttr_Cert,1L
+
+#define SN_setAttr_Token_EMV		"setAttr-Token-EMV"
+#define NID_setAttr_Token_EMV		626
+#define OBJ_setAttr_Token_EMV		OBJ_setAttr_TokenType,1L
+
+#define SN_setAttr_Token_B0Prime		"setAttr-Token-B0Prime"
+#define NID_setAttr_Token_B0Prime		627
+#define OBJ_setAttr_Token_B0Prime		OBJ_setAttr_TokenType,2L
+
+#define SN_setAttr_IssCap_CVM		"setAttr-IssCap-CVM"
+#define NID_setAttr_IssCap_CVM		628
+#define OBJ_setAttr_IssCap_CVM		OBJ_setAttr_IssCap,3L
+
+#define SN_setAttr_IssCap_T2		"setAttr-IssCap-T2"
+#define NID_setAttr_IssCap_T2		629
+#define OBJ_setAttr_IssCap_T2		OBJ_setAttr_IssCap,4L
+
+#define SN_setAttr_IssCap_Sig		"setAttr-IssCap-Sig"
+#define NID_setAttr_IssCap_Sig		630
+#define OBJ_setAttr_IssCap_Sig		OBJ_setAttr_IssCap,5L
+
+#define SN_setAttr_GenCryptgrm		"setAttr-GenCryptgrm"
+#define LN_setAttr_GenCryptgrm		"generate cryptogram"
+#define NID_setAttr_GenCryptgrm		631
+#define OBJ_setAttr_GenCryptgrm		OBJ_setAttr_IssCap_CVM,1L
+
+#define SN_setAttr_T2Enc		"setAttr-T2Enc"
+#define LN_setAttr_T2Enc		"encrypted track 2"
+#define NID_setAttr_T2Enc		632
+#define OBJ_setAttr_T2Enc		OBJ_setAttr_IssCap_T2,1L
+
+#define SN_setAttr_T2cleartxt		"setAttr-T2cleartxt"
+#define LN_setAttr_T2cleartxt		"cleartext track 2"
+#define NID_setAttr_T2cleartxt		633
+#define OBJ_setAttr_T2cleartxt		OBJ_setAttr_IssCap_T2,2L
+
+#define SN_setAttr_TokICCsig		"setAttr-TokICCsig"
+#define LN_setAttr_TokICCsig		"ICC or token signature"
+#define NID_setAttr_TokICCsig		634
+#define OBJ_setAttr_TokICCsig		OBJ_setAttr_IssCap_Sig,1L
+
+#define SN_setAttr_SecDevSig		"setAttr-SecDevSig"
+#define LN_setAttr_SecDevSig		"secure device signature"
+#define NID_setAttr_SecDevSig		635
+#define OBJ_setAttr_SecDevSig		OBJ_setAttr_IssCap_Sig,2L
+
+#define SN_set_brand_IATA_ATA		"set-brand-IATA-ATA"
+#define NID_set_brand_IATA_ATA		636
+#define OBJ_set_brand_IATA_ATA		OBJ_set_brand,1L
+
+#define SN_set_brand_Diners		"set-brand-Diners"
+#define NID_set_brand_Diners		637
+#define OBJ_set_brand_Diners		OBJ_set_brand,30L
+
+#define SN_set_brand_AmericanExpress		"set-brand-AmericanExpress"
+#define NID_set_brand_AmericanExpress		638
+#define OBJ_set_brand_AmericanExpress		OBJ_set_brand,34L
+
+#define SN_set_brand_JCB		"set-brand-JCB"
+#define NID_set_brand_JCB		639
+#define OBJ_set_brand_JCB		OBJ_set_brand,35L
+
+#define SN_set_brand_Visa		"set-brand-Visa"
+#define NID_set_brand_Visa		640
+#define OBJ_set_brand_Visa		OBJ_set_brand,4L
+
+#define SN_set_brand_MasterCard		"set-brand-MasterCard"
+#define NID_set_brand_MasterCard		641
+#define OBJ_set_brand_MasterCard		OBJ_set_brand,5L
+
+#define SN_set_brand_Novus		"set-brand-Novus"
+#define NID_set_brand_Novus		642
+#define OBJ_set_brand_Novus		OBJ_set_brand,6011L
+
+#define SN_des_cdmf		"DES-CDMF"
+#define LN_des_cdmf		"des-cdmf"
+#define NID_des_cdmf		643
+#define OBJ_des_cdmf		OBJ_rsadsi,3L,10L
+
+#define SN_rsaOAEPEncryptionSET		"rsaOAEPEncryptionSET"
+#define NID_rsaOAEPEncryptionSET		644
+#define OBJ_rsaOAEPEncryptionSET		OBJ_rsadsi,1L,1L,6L
 

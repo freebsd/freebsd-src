@@ -65,8 +65,6 @@
 static void SSL_SESSION_list_remove(SSL_CTX *ctx, SSL_SESSION *s);
 static void SSL_SESSION_list_add(SSL_CTX *ctx,SSL_SESSION *s);
 static int remove_session_lock(SSL_CTX *ctx, SSL_SESSION *c, int lck);
-static int ssl_session_num=0;
-static STACK_OF(CRYPTO_EX_DATA_FUNCS) *ssl_session_meth=NULL;
 
 SSL_SESSION *SSL_get_session(SSL *ssl)
 /* aka SSL_get0_session; gets 0 objects, just returns a copy of the pointer */
@@ -92,10 +90,8 @@ SSL_SESSION *SSL_get1_session(SSL *ssl)
 int SSL_SESSION_get_ex_new_index(long argl, void *argp, CRYPTO_EX_new *new_func,
 	     CRYPTO_EX_dup *dup_func, CRYPTO_EX_free *free_func)
 	{
-	ssl_session_num++;
-	return(CRYPTO_get_ex_new_index(ssl_session_num-1,
-		&ssl_session_meth,
-		argl,argp,new_func,dup_func,free_func));
+	return CRYPTO_get_ex_new_index(CRYPTO_EX_INDEX_SSL_SESSION, argl, argp,
+			new_func, dup_func, free_func);
 	}
 
 int SSL_SESSION_set_ex_data(SSL_SESSION *s, int idx, void *arg)
@@ -127,15 +123,49 @@ SSL_SESSION *SSL_SESSION_new(void)
 	ss->prev=NULL;
 	ss->next=NULL;
 	ss->compress_meth=0;
-	CRYPTO_new_ex_data(ssl_session_meth,ss,&ss->ex_data);
+	CRYPTO_new_ex_data(CRYPTO_EX_INDEX_SSL_SESSION, ss, &ss->ex_data);
 	return(ss);
 	}
+
+/* Even with SSLv2, we have 16 bytes (128 bits) of session ID space. SSLv3/TLSv1
+ * has 32 bytes (256 bits). As such, filling the ID with random gunk repeatedly
+ * until we have no conflict is going to complete in one iteration pretty much
+ * "most" of the time (btw: understatement). So, if it takes us 10 iterations
+ * and we still can't avoid a conflict - well that's a reasonable point to call
+ * it quits. Either the RAND code is broken or someone is trying to open roughly
+ * very close to 2^128 (or 2^256) SSL sessions to our server. How you might
+ * store that many sessions is perhaps a more interesting question ... */
+
+#define MAX_SESS_ID_ATTEMPTS 10
+static int def_generate_session_id(const SSL *ssl, unsigned char *id,
+				unsigned int *id_len)
+{
+	unsigned int retry = 0;
+	do
+		RAND_pseudo_bytes(id, *id_len);
+	while(SSL_has_matching_session_id(ssl, id, *id_len) &&
+		(++retry < MAX_SESS_ID_ATTEMPTS));
+	if(retry < MAX_SESS_ID_ATTEMPTS)
+		return 1;
+	/* else - woops a session_id match */
+	/* XXX We should also check the external cache --
+	 * but the probability of a collision is negligible, and
+	 * we could not prevent the concurrent creation of sessions
+	 * with identical IDs since we currently don't have means
+	 * to atomically check whether a session ID already exists
+	 * and make a reservation for it if it does not
+	 * (this problem applies to the internal cache as well).
+	 */
+	return 0;
+}
 
 int ssl_get_new_session(SSL *s, int session)
 	{
 	/* This gets used by clients and servers. */
 
+	unsigned int tmp;
 	SSL_SESSION *ss=NULL;
+	GEN_SESSION_CB cb = def_generate_session_id;
 
 	if ((ss=SSL_SESSION_new()) == NULL) return(0);
 
@@ -174,25 +204,46 @@ int ssl_get_new_session(SSL *s, int session)
 			SSL_SESSION_free(ss);
 			return(0);
 			}
-
-		for (;;)
+		/* Choose which callback will set the session ID */
+		CRYPTO_r_lock(CRYPTO_LOCK_SSL_CTX);
+		if(s->generate_session_id)
+			cb = s->generate_session_id;
+		else if(s->ctx->generate_session_id)
+			cb = s->ctx->generate_session_id;
+		CRYPTO_r_unlock(CRYPTO_LOCK_SSL_CTX);
+		/* Choose a session ID */
+		tmp = ss->session_id_length;
+		if(!cb(s, ss->session_id, &tmp))
 			{
-			SSL_SESSION *r;
-
-			RAND_pseudo_bytes(ss->session_id,ss->session_id_length);
-			CRYPTO_r_lock(CRYPTO_LOCK_SSL_CTX);
-			r=(SSL_SESSION *)lh_retrieve(s->ctx->sessions, ss);
-			CRYPTO_r_unlock(CRYPTO_LOCK_SSL_CTX);
-			if (r == NULL) break;
-			/* else - woops a session_id match */
-			/* XXX We should also check the external cache --
-			 * but the probability of a collision is negligible, and
-			 * we could not prevent the concurrent creation of sessions
-			 * with identical IDs since we currently don't have means
-			 * to atomically check whether a session ID already exists
-			 * and make a reservation for it if it does not
-			 * (this problem applies to the internal cache as well).
-			 */
+			/* The callback failed */
+			SSLerr(SSL_F_SSL_GET_NEW_SESSION,
+				SSL_R_SSL_SESSION_ID_CALLBACK_FAILED);
+			SSL_SESSION_free(ss);
+			return(0);
+			}
+		/* Don't allow the callback to set the session length to zero.
+		 * nor set it higher than it was. */
+		if(!tmp || (tmp > ss->session_id_length))
+			{
+			/* The callback set an illegal length */
+			SSLerr(SSL_F_SSL_GET_NEW_SESSION,
+				SSL_R_SSL_SESSION_ID_HAS_BAD_LENGTH);
+			SSL_SESSION_free(ss);
+			return(0);
+			}
+		/* If the session length was shrunk and we're SSLv2, pad it */
+		if((tmp < ss->session_id_length) && (s->version == SSL2_VERSION))
+			memset(ss->session_id + tmp, 0, ss->session_id_length - tmp);
+		else
+			ss->session_id_length = tmp;
+		/* Finally, check for a conflict */
+		if(SSL_has_matching_session_id(s, ss->session_id,
+						ss->session_id_length))
+			{
+			SSLerr(SSL_F_SSL_GET_NEW_SESSION,
+				SSL_R_SSL_SESSION_ID_CONFLICT);
+			SSL_SESSION_free(ss);
+			return(0);
 			}
 		}
 	else
@@ -202,7 +253,7 @@ int ssl_get_new_session(SSL *s, int session)
 
 	if (s->sid_ctx_length > sizeof ss->sid_ctx)
 		{
-		SSLerr(SSL_F_SSL_GET_NEW_SESSION, SSL_R_INTERNAL_ERROR);
+		SSLerr(SSL_F_SSL_GET_NEW_SESSION, ERR_R_INTERNAL_ERROR);
 		SSL_SESSION_free(ss);
 		return 0;
 		}
@@ -258,9 +309,12 @@ int ssl_get_prev_session(SSL *s, unsigned char *session_id, int len)
 			if (copy)
 				CRYPTO_add(&ret->references,1,CRYPTO_LOCK_SSL_SESSION);
 
-			/* The following should not return 1, otherwise,
-			 * things are very strange */
-			SSL_CTX_add_session(s->ctx,ret);
+			/* Add the externally cached session to the internal
+			 * cache as well if and only if we are supposed to. */
+			if(!(s->ctx->session_cache_mode & SSL_SESS_CACHE_NO_INTERNAL_STORE))
+				/* The following should not return 1, otherwise,
+				 * things are very strange */
+				SSL_CTX_add_session(s->ctx,ret);
 			}
 		if (ret == NULL)
 			goto err;
@@ -472,15 +526,15 @@ void SSL_SESSION_free(SSL_SESSION *ss)
 		}
 #endif
 
-	CRYPTO_free_ex_data(ssl_session_meth,ss,&ss->ex_data);
+	CRYPTO_free_ex_data(CRYPTO_EX_INDEX_SSL_SESSION, ss, &ss->ex_data);
 
-	memset(ss->key_arg,0,SSL_MAX_KEY_ARG_LENGTH);
-	memset(ss->master_key,0,SSL_MAX_MASTER_KEY_LENGTH);
-	memset(ss->session_id,0,SSL_MAX_SSL_SESSION_ID_LENGTH);
+	OPENSSL_cleanse(ss->key_arg,sizeof ss->key_arg);
+	OPENSSL_cleanse(ss->master_key,sizeof ss->master_key);
+	OPENSSL_cleanse(ss->session_id,sizeof ss->session_id);
 	if (ss->sess_cert != NULL) ssl_sess_cert_free(ss->sess_cert);
 	if (ss->peer != NULL) X509_free(ss->peer);
 	if (ss->ciphers != NULL) sk_SSL_CIPHER_free(ss->ciphers);
-	memset(ss,0,sizeof(*ss));
+	OPENSSL_cleanse(ss,sizeof(*ss));
 	OPENSSL_free(ss);
 	}
 
@@ -509,6 +563,17 @@ int SSL_set_session(SSL *s, SSL_SESSION *session)
 			else
 				session->timeout=s->ctx->session_timeout;
 			}
+
+#ifndef OPENSSL_NO_KRB5
+                if (s->kssl_ctx && !s->kssl_ctx->client_princ &&
+                    session->krb5_client_princ_len > 0)
+                {
+                    s->kssl_ctx->client_princ = (char *)malloc(session->krb5_client_princ_len + 1);
+                    memcpy(s->kssl_ctx->client_princ,session->krb5_client_princ,
+                            session->krb5_client_princ_len);
+                    s->kssl_ctx->client_princ[session->krb5_client_princ_len] = '\0';
+                }
+#endif /* OPENSSL_NO_KRB5 */
 
 		/* CRYPTO_w_lock(CRYPTO_LOCK_SSL);*/
 		CRYPTO_add(&session->references,1,CRYPTO_LOCK_SSL_SESSION);
@@ -601,6 +666,8 @@ static void timeout(SSL_SESSION *s, TIMEOUT_PARAM *p)
 		}
 	}
 
+static IMPLEMENT_LHASH_DOALL_ARG_FN(timeout, SSL_SESSION *, TIMEOUT_PARAM *)
+
 void SSL_CTX_flush_sessions(SSL_CTX *s, long t)
 	{
 	unsigned long i;
@@ -613,7 +680,7 @@ void SSL_CTX_flush_sessions(SSL_CTX *s, long t)
 	CRYPTO_w_lock(CRYPTO_LOCK_SSL_CTX);
 	i=tp.cache->down_load;
 	tp.cache->down_load=0;
-	lh_doall_arg(tp.cache,(void (*)())timeout,&tp);
+	lh_doall_arg(tp.cache, LHASH_DOALL_ARG_FN(timeout), &tp);
 	tp.cache->down_load=i;
 	CRYPTO_w_unlock(CRYPTO_LOCK_SSL_CTX);
 	}
