@@ -1,4 +1,29 @@
+.\" Copyright (c) 2003 Greg Lehey
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
 .\" $FreeBSD$
+.\"
 .Dd December 30, 2003
 .Dt GDB 4
 .Os
@@ -6,26 +31,27 @@
 .Nm gdb
 .Nd external kernel debugger
 .Sh SYNOPSIS
-.Cd makeoptions DEBUG=-g
-.Cd options DDB
-.Cd options GDB_REMOTE_CHAT
+.Cd "makeoptions DEBUG=-g"
+.Cd "options DDB"
+.Cd "options GDB_REMOTE_CHAT"
 .Pp
 To prevent activation of the debugger on kernel
 .Xr panic 9 :
-.Cd options DDB_UNATTENDED
+.Cd "options DDB_UNATTENDED"
 .Sh DESCRIPTION
 The
 .Nm
-kernel debugger is a variation of 
+kernel debugger is a variation of
 .Xr gdb 1
 which understands some aspects of the
 .Fx
-kernel environment.  It can be used in a number of ways:
-.Pp
-.Bl -bullet -offset indent -compact
+kernel environment.
+It can be used in a number of ways:
+.Bl -bullet
 .It
 It can be used to debug another system interactively via a serial or firewire
-link.  In this mode, the processor can be stopped and single stepped.
+link.
+In this mode, the processor can be stopped and single stepped.
 .It
 It can be used to examine the memory of the processor on which it runs.
 .It
@@ -44,146 +70,142 @@ and
 .Sh PREPARING FOR DEBUGGING
 When debugging kernels, it is practically essential to have built a kernel with
 debugging symbols
-.Cd ( makeoptions DEBUG=-g ).
-It's easiest to perform operations from the kernel build directory, by default
-.Pa /usr/obj/sys/GENERIC .
+.Pq Cd "makeoptions DEBUG=-g" .
+It is easiest to perform operations from the kernel build directory, by default
+.Pa /usr/obj/usr/src/sys/GENERIC .
 .Pp
 First, ensure you have a copy of the debug macros in the directory:
-.Bd -literal -offset 5m
-# \f(CBmake gdbinit\fP
-.Ed
 .Pp
-This command performs some transformations on the macros installed in 
+.Dl "make gdbinit"
+.Pp
+This command performs some transformations on the macros installed in
 .Pa /usr/src/tools/debugscripts
 to adapt them to the local environment.
-.Ss Debugging a local machine
-To look at and change the contents of the memory of the system you're running
+.Ss "Debugging a Local Machine"
+To look at and change the contents of the memory of the system you are running
 on,
-.Bd -literal -offset 5m
-# \f(CBgdb -k -wcore kernel.debug /dev/mem\fP
-.Ed
+.Pp
+.Dl "gdb -k -wcore kernel.debug /dev/mem"
 .Pp
 In this mode, you need the
 .Fl k
 flag to indicate to
-.Nm gdb
-that the ``dump file''
+.Xr gdb 1
+that the
+.Dq "dump file"
 .Pa /dev/mem
 is a kernel data file.
 You can look at live data, and if you include the
 .Fl wcore
-option, you can change it at your peril.  
+option, you can change it at your peril.
 The system does not stop (obviously), so a number of things will not work.
-You can set breakpoints, but you can't ``continue'' execution, so they won't
-work.
-.Ss Debugging a crash dump
+You can set breakpoints, but you cannot
+.Dq continue
+execution, so they will not work.
+.Ss "Debugging a Crash Dump"
 By default, crash dumps are stored in the directory
 .Pa /var/crash .
 Investigate them from the kernel build directory with:
-.Bd -literal -offset 5m
-# \f(CBgdb -k kernel.debug /var/crash/vmcore.29\fP
-.Ed
+.Pp
+.Dl "gdb -k kernel.debug /var/crash/vmcore.29"
 .Pp
 In this mode, the system is obviously stopped, so you can only look at it.
-.Ss Debugging a live system with a remote link
-In the following discussion, the term ``local system'' refers to the system
-running the debugger, and ``remote system'' refers to the live system being
-debugged.
+.Ss "Debugging a Live System with a Remote Link"
+In the following discussion, the term
+.Dq "local system"
+refers to the system running the debugger, and
+.Dq "remote system"
+refers to the live system being debugged.
 .Pp
 To debug a live system with a remote link, the kernel must be compiled with the
 option
-.Cd options DDB .
+.Cd "options DDB" .
 The option
-.Cd options BREAK_TO_DEBUGGER 
+.Cd "options BREAK_TO_DEBUGGER"
 enables the debugging machine stop the debugged machine once a connection has
 been established by pressing
-.Li ^C.
-.Ss Debugging a live system with a remote serial link
-When using a serial port for the remote link on the i386 platform the serial
+.Ql ^C .
+.Ss "Debugging a Live System with a Remote Serial Link"
+When using a serial port for the remote link on the i386 platform, the serial
 port must be identified by setting the flag bit
 .Li 0x80
 for the specified interface.
-Generally this port will also be used as a serial console (flag bit
-.Li 0x10a),
+Generally, this port will also be used as a serial console (flag bit
+.Li 0x10 ) ,
 so the entry in
-.Pa /boot/device.hints 
+.Pa /boot/device.hints
 should be:
-.Bd -literal -offset 5m
-hint.sio.0.flags="0x90"
-.Ed
+.Pp
+.Dl hint.sio.0.flags="0x90"
 .Pp
 To share a console and debug connection on a serial line, use the
-.Cd options GDB_REMOTE_CHAT
+.Cd "options GDB_REMOTE_CHAT"
 option.
-.Ss Debugging a live system with a remote firewire link
+.Ss "Debugging a Live System with a Remote Firewire Link"
 As with serial debugging, to debug a live system with a firewire link, the
 kernel must be compiled with the option
-.Cd options DDB .
-The 
-.Cd options GDB_REMOTE_CHAT
+.Cd "options DDB" .
+The
+.Cd "options GDB_REMOTE_CHAT"
 is not necessary, since the firewire implementation uses separate ports for the
 console and debug connection.
 .Pp
 A number of steps must be performed to set up a firewire link:
-.Pp
-.Bl -bullet -offset indent -compact
+.Bl -bullet
 .It
-Ensure that both systems have firewire support, and that the kernel of the
-remote system includes the
-.Nm dcons
+Ensure that both systems have
+.Xr firewire 4
+support, and that the kernel of the remote system includes the
+.Xr dcons 4
 and
-.Nm dcons_crom 
+.Xr dcons_crom 4
 drivers.
-If they're not compiled into the kernel, load the klds:
-.Bd -literal -offset 5m
-# \f(CBkldload firewire\fP
-# \f(CBkldload dcons\fP			\fI(remote system only)\fP\/
-# \f(CBkldload dcons_crom\fP		\fI(remote system only)\fP\/
+If they are not compiled into the kernel, load the KLDs:
+.Pp
+.Dl "kldload firewire"
+.Pp
+On the remote system only:
+.Bd -literal -offset indent
+kldload dcons
+kldload dcons_crom
 .Ed
 .Pp
 You should see something like this in the
-.Nm dmesg
+.Xr dmesg 8
 output of the remote system:
-.Pp
-.Bd -literal -offset 5m
+.Bd -literal -offset indent
 fwohci0: BUS reset
 fwohci0: node_id=0x8800ffc0, gen=2, non CYCLEMASTER mode
 firewire0: 2 nodes, maxhop <= 1, cable IRM = 1
-firewire0: bus manager 1 
+firewire0: bus manager 1
 firewire0: New S400 device ID:00c04f3226e88061
 dcons_crom0: <dcons configuration ROM> on firewire0
 dcons_crom0: bus_addr 0x22a000
 .Ed
 .Pp
-It's a good idea to load these modules at boot time with the following entry in
+It is a good idea to load these modules at boot time with the following entry in
 .Pa /boot/loader.conf :
 .Pp
-.Bd -literal -offset 5m
-dcons_crom_enable=YES
-.Ed
+.Dl dcons_crom_enable="YES"
 .Pp
 This ensures that all three modules are loaded.
 There is no harm in loading
-.Nm dcons
+.Xr dcons 4
 and
-.Nm dcons_crom
-on the local system, but if you only want to load the firewire module, include
-the following in
+.Xr dcons_crom 4
+on the local system, but if you only want to load the
+.Xr firewire 4
+module, include the following in
 .Pa /boot/loader.conf :
 .Pp
-.Bd -literal -offset 5m
-firewire_enable=YES
-.Ed
-.Pp
-.Pp
+.Dl firewire_enable="YES"
 .It
 Next, use
-.Nm fwcontrol 
-to find the firewire node corresponding to the remote machine.  
+.Xr fwcontrol 8
+to find the firewire node corresponding to the remote machine.
 On the local machine you might see:
-.Pp
-.Bd -literal -offset 5m
-# \f(CBfwcontrol\fP
+.Bd -literal -offset indent
+# fwcontrol
 2 devices (info_len=2)
 node        EUI64        status
    1  0x00c04f3226e88061      0
@@ -195,51 +217,48 @@ system.
 If there are more than two systems, check from the other end to find which node
 corresponds to the remote system.
 On the remote machine, it looks like this:
-.Pp
-.Bd -literal -offset 5m
-# \f(CBfwcontrol\fP
+.Bd -literal -offset indent
+# fwcontrol
 2 devices (info_len=2)
 node        EUI64        status
    0  0x000199000003622b      0
    1  0x00c04f3226e88061      1
 .Ed
-.Pp
 .It
 Next, establish a firewire connection with
-.Nm dconschat :
+.Xr dconschat 8 :
 .Pp
-.Bd -literal -offset 5m
-# \f(CBdconschat -br -G 5556 -t 0x000199000003622b\fP
-.Ed
+.Dl "dconschat -br -G 5556 -t 0x000199000003622b"
 .Pp
-.Ar 0x000199000003622b
+.Li 0x000199000003622b
 is the EUI64 address of the remote node, as determined from the output of
-.Nm fwcontrol
+.Xr fwcontrol 8
 above.
-When started in this manner, 
-.Nm dconschat
+When started in this manner,
+.Xr dconschat 8
 establishes a local tunnel connection from port
-.Ar localhost:5556
+.Li localhost:5556
 to the remote debugger.
 You can also establish a console port connection with the
 .Fl C
 option to the same invocation
-.Nm dconschat .
-See
+.Xr dconschat 8 .
+See the
 .Xr dconschat 8
-for further details.
+manpage for further details.
 .Pp
-.Nm dconschat
-does not return control to the user.  
-It displays error messages and console output for the remote system, so it's a
+The
+.Xr dconschat 8
+utility
+does not return control to the user.
+It displays error messages and console output for the remote system, so it is a
 good idea to start it in its own window.
-.Pp
 .It
 Finally, establish connection:
-.Bd -literal -offset 5m
-# \f(CBgdb kernel.debug\fP
+.Bd -literal -offset indent
+# gdb kernel.debug
 GNU gdb 5.2.1 (FreeBSD)
-\&\fI(political statements omitted)\fP\/
+.Em "(political statements omitted)"
 Ready to go.  Enter 'tr' to connect to the remote target
 with /dev/cuaa0, 'tr /dev/cuaa1' to connect to a different port
 or 'trf portno' to connect to the remote target with the firewire
@@ -249,35 +268,31 @@ Type 'getsyms' after connection to load kld symbols.
 
 If you're debugging a local system, you can use 'kldsyms' instead
 to load the kld symbols.  That's a less obnoxious interface.
-(gdb) \f(CBtrf\fP
+(gdb) trf
 0xc21bd378 in ?? ()
 .Ed
 .Pp
 The
-.Nm trf
+.Ic trf
 macro assumes a connection on port 5556.
 If you want to use a different port (by changing the invocation of
-.Nm dconschat
+.Xr dconschat 8
 above), use the
-.Nm tr
-macro instead.  
-For example, if you want to use port 4711, run 
-.Nm dconschat
+.Ic tr
+macro instead.
+For example, if you want to use port 4711, run
+.Xr dconschat 8
 like this:
 .Pp
-.Bd -literal -offset 5m
-# \f(CBdconschat -br -G 4711 -t 0x000199000003622b\fP
-.Ed
+.Dl "dconschat -br -G 4711 -t 0x000199000003622b"
 .Pp
 Then establish connection with:
-.Pp
-.Bd -literal -offset 5m
-(gdb) \f(CBtr localhost:4711\fP
+.Bd -literal -offset indent
+(gdb) tr localhost:4711
 0xc21bd378 in ?? ()
 .Ed
-.Pp
 .El
-.Ss Non-cooperative debugging a live system with a remote firewire link
+.Ss "Non-Cooperative Debugging a Live System with a Remote Firewire Link"
 In addition to the conventional debugging via firewire described in the previous
 section, it is possible to debug a remote system without its cooperation, once
 an initial connection has been established.
@@ -285,15 +300,16 @@ This corresponds to debugging a local machine using
 .Pa /dev/mem .
 It can be very useful if a system crashes and the debugger no longer responds.
 To use this method, set the
-.Nm sysctl
+.Xr sysctl 8
 variables
 .Va hw.firewire.fwmem.eui64_hi
 and
 .Va hw.firewire.fwmem.eui64_lo
-to the upper and lower halves of the EUI64 ID of the remote system respectively.
+to the upper and lower halves of the EUI64 ID of the remote system,
+respectively.
 From the previous example, the remote machine shows:
-.Bd -literal -offset 5m
-# \f(CBfwcontrol\fP
+.Bd -literal -offset indent
+# fwcontrol
 2 devices (info_len=2)
 node        EUI64        status
    0  0x000199000003622b      0
@@ -301,19 +317,19 @@ node        EUI64        status
 .Ed
 .Pp
 Enter:
-.Bd -literal -offset 5m
-# \f(CBsysctl -w hw.firewire.fwmem.eui64_hi=0x00019900\fP
+.Bd -literal -offset indent
+# sysctl -w hw.firewire.fwmem.eui64_hi=0x00019900
 hw.firewire.fwmem.eui64_hi: 0 -> 104704
-# \f(CBsysctl -w hw.firewire.fwmem.eui64_lo=0x0003622b\fP
+# sysctl -w hw.firewire.fwmem.eui64_lo=0x0003622b
 hw.firewire.fwmem.eui64_lo: 0 -> 221739
 .Ed
 .Pp
 Note that the variables must be explicitly stated in hexadecimal.
 After this, you can examine the remote machine's state with the following input:
-.Bd -literal -offset 5m
-# \f(CBgdb -k kernel.debug /dev/fwmem0.0\fP
+.Bd -literal -offset indent
+# gdb -k kernel.debug /dev/fwmem0.0
 GNU gdb 5.2.1 (FreeBSD)
-\&\fI(messages omitted)\fP\/
+.Em "(messages omitted)"
 Reading symbols from /boot/kernel/dcons.ko...done.
 Loaded symbols for /boot/kernel/dcons.ko
 Reading symbols from /boot/kernel/dcons_crom.ko...done.
@@ -322,7 +338,7 @@ Loaded symbols for /boot/kernel/dcons_crom.ko
 0xc21bd378 in ?? ()
 .Ed
 .Pp
-In this case, it's not necessary to load the symbols explicitly.
+In this case, it is not necessary to load the symbols explicitly.
 The remote system continues to run.
 .Sh COMMANDS
 The user interface to
@@ -331,237 +347,248 @@ is via
 .Xr gdb 1 ,
 so
 .Xr gdb 1
-commands also work.  
+commands also work.
 This section discusses only the extensions for kernel debugging that get
 installed in the kernel build directory.
 .Ss "Debugging Environment"
 The following macros manipulate the debugging environment:
-.Bl -ohang -offset 3m
-.It Cm ddb
-Switch back to 
-.Nm ddb .
+.Bl -tag -width indent
+.It Ic ddb
+Switch back to
+.Xr ddb 4 .
 This command is only meaningful when performing remote debugging.
-.It Cm getsyms
-Display 
-.Nm kldstat
-information for the target machine and invite user to paste it back in.  
+.It Ic getsyms
+Display
+.Ic kldstat
+information for the target machine and invite user to paste it back in.
 This is required because
-.Nm gdb
-does not allow data to be passed to shell scripts.  
-It's necessary for remote debugging and crash dumps; for local memory debugging
+.Nm
+does not allow data to be passed to shell scripts.
+It is necessary for remote debugging and crash dumps; for local memory debugging
 use
-.Nm kldsyms
+.Ic kldsyms
 instead.
-.It Cm kldsyms
-Read in the symbol tables for the debugging machine.  This doesn't work for
+.It Ic kldsyms
+Read in the symbol tables for the debugging machine.
+This does not work for
 remote debugging and crash dumps; use
-.Nm getsyms
+.Ic getsyms
 instead.
-.It Cm tr Ar interface
+.It Ic tr Ar interface
 Debug a remote system via the specified serial or firewire interface.
-.It Cm tr0
+.It Ic tr0
 Debug a remote system via serial interface
 .Pa /dev/cuaa0 .
-.It Cm tr1
-Debug a remote system via serial interface 
+.It Ic tr1
+Debug a remote system via serial interface
 .Pa /dev/cuaa1 .
-.It Cm trf
+.It Ic trf
 Debug a remote system via firewire interface at default port 5556.
 .El
 .Pp
 The commands
-.Nm tr0 ,
-.Nm tr1
+.Ic tr0 , tr1
 and
-.Nm trf
+.Ic trf
 are convenience commands which invoke
-.Nm tr .
-.Ss "The current process environment"
+.Ic tr .
+.Ss "The Current Process Environment"
 The following macros are convenience functions intended to make things easier
 than the standard
-.Nm gdb
+.Xr gdb 1
 commands.
-.Bl -ohang -offset 3m
-.It Cm f0
+.Bl -tag -width indent
+.It Ic f0
 Select stack frame 0 and show assembler-level details.
-.It Cm f1
+.It Ic f1
 Select stack frame 1 and show assembler-level details.
-.It Cm f2
+.It Ic f2
 Select stack frame 2 and show assembler-level details.
-.It Cm f3
+.It Ic f3
 Select stack frame 3 and show assembler-level details.
-.It Cm f4
+.It Ic f4
 Select stack frame 4 and show assembler-level details.
-.It Cm f5
+.It Ic f5
 Select stack frame 5 and show assembler-level details.
-.It Cm xb
+.It Ic xb
 Show 12 words in hex, starting at current
 .Va ebp
 value.
-.It Cm xi
+.It Ic xi
 List the next 10 instructions from the current
 .Va eip
 value.
-.It Cm xp
+.It Ic xp
 Show the register contents and the first four parameters of the current stack
 frame.
-.It Cm xp0
+.It Ic xp0
 Show the first parameter of current stack frame in various formats.
-.It Cm xp1
+.It Ic xp1
 Show the second parameter of current stack frame in various formats.
-.It Cm xp2
+.It Ic xp2
 Show the third parameter of current stack frame in various formats.
-.It Cm xp3
+.It Ic xp3
 Show the fourth parameter of current stack frame in various formats.
-.It Cm xp4
+.It Ic xp4
 Show the fifth parameter of current stack frame in various formats.
-.It Cm xs
+.It Ic xs
 Show the last 12 words on stack in hexadecimal.
-.It Cm xxp
+.It Ic xxp
 Show the register contents and the first ten parameters.
-.It Cm z
+.It Ic z
 Single step 1 instruction (over calls) and show next instruction.
-.It Cm zs
+.It Ic zs
 Single step 1 instruction (through calls) and show next instruction.
 .El
-.Ss "Examining other processes"
+.Ss "Examining Other Processes"
 The following macros access other processes.
-.Nm gdb
+The
+.Nm
+debugger
 does not understand the concept of multiple processes, so they effectively
 bypass the entire
-.Nm gdb
+.Nm
 environment.
-.Bl -ohang -offset 3m
-.It Cm btp Ar pid
+.Bl -tag -width indent
+.It Ic btp Ar pid
 Show a backtrace for the process
-.Va pid .
-.It Cm btpa
+.Ar pid .
+.It Ic btpa
 Show backtraces for all processes in the system.
-.It Cm btpp
+.It Ic btpp
 Show a backtrace for the process previously selected with
-.Nm defproc .
-.It Cm btr Ar ebp
-Show a backtrace from the 
-.Va ebp 
-address specified
-.It Cm defproc Ar pid
+.Ic defproc .
+.It Ic btr Ar ebp
+Show a backtrace from the
+.Ar ebp
+address specified.
+.It Ic defproc Ar pid
 Specify the PID of the process for some other commands in this section.
-.It Cm fr Ar frame
+.It Ic fr Ar frame
 Show frame
-.Va frame
+.Ar frame
 of the stack of the process previously selected with
-.Nm defproc .
-.It Cm pcb Ar proc
-Show some pcb contents of process
+.Ic defproc .
+.It Ic pcb Ar proc
+Show some PCB contents of the process
 .Ar proc .
 .El
-.Ss "Examining data structures"
+.Ss "Examining Data Structures"
 You can use standard
-.Nm gdb
-commands to look at most data structures.  The macros in this section are
+.Xr gdb 1
+commands to look at most data structures.
+The macros in this section are
 convenience functions which typically display the data in a more readable
 format, or which omit less interesting parts of the structure.
-.Bl -ohang -offset 3m
-.It Cm bp
-Show information about the buffer header pointed to by the variable 
+.Bl -tag -width indent
+.It Ic bp
+Show information about the buffer header pointed to by the variable
 .Va bp
 in the current frame.
-.It Cm bpd
-Show the contents 
-.Vt (char*) 
+.It Ic bpd
+Show the contents
+.Pq Vt "char *"
 of
 .Va bp->data
 in the current frame.
-.It Cm bpl
+.It Ic bpl
 Show detailed information about the buffer header
-.Vt (struct bp) 
+.Pq Vt "struct bp"
 pointed at by the local variable
 .Va bp .
-.It Cm bpp bp
-Show summary information about the buffer header 
-.Vt (struct bp) 
+.It Ic bpp Ar bp
+Show summary information about the buffer header
+.Pq Vt "struct bp"
 pointed at by the parameter
-.Va bp .
-.It Cm bx
-Print a number of fields from the buffer header pointed at in by the pointer 
-.Va bp
+.Ar bp .
+.It Ic bx
+Print a number of fields from the buffer header pointed at in by the pointer
+.Ar bp
 in the current environment.
-.It Cm vdev
-Show some information of the vnode pointed to by the local variable
+.It Ic vdev
+Show some information of the
+.Vt vnode
+pointed to by the local variable
 .Va vp .
 .El
-.Ss "Miscellaneous macros"
-.Bl -ohang -offset 3m
-.It Cm checkmem
-Check unallocated memory for modifications. 
+.Ss "Miscellaneous Macros"
+.Bl -tag -width indent
+.It Ic checkmem
+Check unallocated memory for modifications.
 This assumes that the kernel has been compiled with
-.Cd options DIAGNOSTIC 
-This causes the contents of free  memory to be set to 
+.Cd "options DIAGNOSTIC"
+This causes the contents of free memory to be set to
 .Li 0xdeadc0de .
-.It Cm dmesg
-Print the system message buffer.  This corresponds to the
+.It Ic dmesg
+Print the system message buffer.
+This corresponds to the
 .Xr dmesg 8
-command.
-It can take a very long time over a serial line, and it's even slow via firewire
+utility.
+It can take a very long time over a serial line,
+and it is even slower via firewire
 or local memory due to inefficiencies in
-.Nm gdb .
+.Nm .
 This macro used to be called
-.Nm msgbuf .
-.It Cm kldstat
-Equivalent of the kldstat(8) command without options
-.It Cm pname
+.Ic msgbuf .
+.It Ic kldstat
+Equivalent of the
+.Xr kldstat 8
+utility without options.
+.It Ic pname
 Print the command name of the current process.
-.It Cm ps
-Show process status.  
+.It Ic ps
+Show process status.
 This corresponds in concept, but not in appearance, to the
-.Nm ps
-command.
-.It Cm y
-Kludge for writing macros.  When writing macros, it's convenient to paste them
+.Xr ps 1
+utility.
+.It Ic y
+Kludge for writing macros.
+When writing macros, it is convenient to paste them
 back into the
-.Nm gdb
-window.  Unfortunately, if the macro is already defined,
-.Nm gdb
+.Nm
+window.
+Unfortunately, if the macro is already defined,
+.Nm
 insists on asking
-.Bd -literal -offset 5m
-Redefine foo?
-.Ed
 .Pp
-It won't give up until you answer
-.Li y .
-This command is that answer.  It does nothing else except to print a warning
+.Dl "Redefine foo?"
+.Pp
+It will not give up until you answer
+.Ql y .
+This command is that answer.
+It does nothing else except to print a warning
 message to remind you to remove it again.
 .El
 .Sh AUTHORS
-This man page was written by 
-.An "Greg Lehey" Aq grog@FreeBSD.org
+This man page was written by
+.An "Greg Lehey" Aq grog@FreeBSD.org .
 .Sh SEE ALSO
-.Xr dconschat 8 ,
-.Xr ddb 4 ,
-.Xr fwcontrol 8 ,
 .Xr gdb 1 ,
-.Xr kldload 8 ,
-.Xr vinumdebug 4 .
-.\" .Sh HISTORY
+.Xr ddb 4 ,
+.Xr firewire 4 ,
+.Xr vinumdebug 4 ,
+.Xr dconschat 8 ,
+.Xr fwcontrol 8 ,
+.Xr kldload 8
 .Sh BUGS
-.Bl -bullet -compact
-.It
-.Nm
-was never designed to debug kernels, and it's not a very good match.
-Many problems exist.
-.It
 The
-.Nm gdb
+.Xr gdb 1
+debugger
+was never designed to debug kernels, and it is not a very good match.
+Many problems exist.
+.Pp
+The
+.Nm
 implementation is very inefficient, and many operations are slow.
-.It
+.Pp
 Serial debugging is even slower, and race conditions can make it difficult to
-run the link at more than 9600 bps.  Firewire connections do not have this
-problem.
-.It
-The debugging macros ``just growed''.  
+run the link at more than 9600 bps.
+Firewire connections do not have this problem.
+.Pp
+The debugging macros
+.Dq "just grew" .
 In general, the person who wrote them did so while looking for a specific
 problem, so they may not be general enough, and they may behave badly when used
 in ways for which they were not intended, even if those ways make sense.
-.It
+.Pp
 Many of these commands only work on the ia32 architecture.
-.El
