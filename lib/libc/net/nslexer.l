@@ -94,9 +94,7 @@ STRING		[a-zA-Z][a-zA-Z0-9_]*
 			return STRING;
 		}
 
-[:=\[\]]	return yytext[0];
-
-.		;	/* ignore all else */
+.		return yytext[0];
 
 %%
 

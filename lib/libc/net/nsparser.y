@@ -87,6 +87,10 @@ Entry
 		{
 			_nsdbtput(&curdbt);
 		}
+	| error NL
+		{
+			yyerrok;
+		}
 	;
 
 Database
