@@ -1,40 +1,27 @@
-/*-
- * Copyright (c) 1991 The Regents of the University of California.
- * All rights reserved.
+/*
+ * Streamer tape driver for 386bsd and FreeBSD.
+ * Supports Archive QIC-02 and Wangtek QIC-02/QIC-36 boards.
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission.
+ * Copyright (C) 1993 by:
+ *      Sergey Ryzhkov       <sir@kiae.su>
+ *      Serge Vakulenko      <vak@zebub.msk.su>
  *
- * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
+ * Version 1.1, Fri Sep 24 02:14:42 MSD 1993
  *
- *	@(#)wtreg.h	7.1 (Berkeley) 5/9/91
+ * Placed in the public domain with NO WARRANTIES, not even the implied
+ * warranties for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ *
+ * Authors grant any other persons or organisations permission to use
+ * or modify this software as long as this message is kept with the software,
+ * all derivative works or modified versions.
+ *
+ * This driver is derived from the old 386bsd Wangtek streamer tape driver,
+ * made by Robert Baron at CMU, based on Intel sources.
+ * Authors thank Robert Baron, CMU and Intel and retain here
+ * the original CMU copyright notice.
  */
 
 /*
- *
  * Copyright (c) 1989 Carnegie-Mellon University.
  * All rights reserved.
  *
@@ -61,35 +48,63 @@
  * rights to redistribute these changes.
  */
 
-/* 
- * HISTORY
- * $Log:	wtreg.h,v $
- * Revision 2.2.1.1  90/01/08  13:29:25  rvb
- * 	Add Intel copyright.
- * 	[90/01/08            rvb]
- * 
- * Revision 2.2  89/09/25  12:33:09  rvb
- * 	Driver was provided by Intel 9/18/89.
- * 	[89/09/23            rvb]
- * 
- */
+/* ioctl for direct QIC commands */
+#define WTQICMD         _IO('W', 0)
 
-/*
- *
- *  Copyright 1988, 1989 by Intel Corporation
- *
- */
+/* QIC-02 commands allowed for WTQICMD */
+#define QIC_ERASE       0x22
+#define QIC_RETENS      0x24
 
-/*
- *  wtioctl.h
- *   defines ioctl parameters for direct QIC commands
- */
+/* internal QIC-02 commands */
+#define QIC_RDDATA      0x80    /* read data */
+#define QIC_READFM      0xa0    /* read file mark */
+#define QIC_WRTDATA     0x40    /* write data */
+#define QIC_WRITEFM     0x60    /* write file mark */
+#define QIC_RDSTAT      0xc0    /* read status command */
+#define QIC_REWIND      0x21    /* rewind command (position+bot) */
+#define QIC_FMT11       0x26    /* set format QIC-11 */
+#define QIC_FMT24       0x27    /* set format QIC-24 */
+#define QIC_FMT120      0x28    /* set format QIC-120 */
+#define QIC_FMT150      0x29    /* set format QIC-150 */
 
-#define	WTIOC	('W'<<8)
-#define	WTQICMD	(WTIOC|0)
+/* tape driver flags */
+#define TPINUSE         0x0001  /* tape is already open */
+#define TPREAD          0x0002  /* tape is only open for reading */
+#define TPWRITE         0x0004  /* tape is only open for writing */
+#define TPSTART         0x0008  /* tape must be rewound and reset */
+#define TPRMARK         0x0010  /* read file mark command outstanding */
+#define TPWMARK         0x0020  /* write file mark command outstanding */
+#define TPREW           0x0040  /* rewind command outstanding */
+#define TPEXCEP         0x0080  /* i/o exception flag */
+#define TPVOL           0x0100  /* read file mark or hit end of tape */
+#define TPWO            0x0200  /* write command outstanding */
+#define TPRO            0x0400  /* read command outstanding */
+#define TPWANY          0x0800  /* write command requested */
+#define TPRANY          0x1000  /* read command requested */
+#define TPWP            0x2000  /* write protect error seen */
+#define TPTIMER         0x4000  /* timer() is active */
+#define TPACTIVE        0x8000  /* dma i/o active */
 
-/* QIC commands allowed */
-#define	SELECT	0x01
-#define	REWIND	0x21
-#define	ERASE	0x22
-#define	RETENS	0x24
+/* controller error register bits */
+#define TP_FIL          0x0001  /* File mark detected */
+#define TP_BNL          0x0002  /* Block not located */
+#define TP_UDA          0x0004  /* Unrecoverable data error */
+#define TP_EOM          0x0008  /* End of media */
+#define TP_WRP          0x0010  /* Write protected cartridge */
+#define TP_USL          0x0020  /* Unselected drive */
+#define TP_CNI          0x0040  /* Cartridge not in place */
+#define TP_ST0          0x0080  /* Status byte 0 bits */
+#define TP_ST0MASK      0x00ff  /* Status byte 0 mask */
+#define TP_POR          0x0100  /* Power on/reset occurred */
+#define TP_RES1         0x0200  /* Reserved for end of media */
+#define TP_RES2         0x0400  /* Reserved for bus parity */
+#define TP_BOM          0x0800  /* Beginning of media */
+#define	TP_MBD		0x1000	/* Marginal block detected */
+#define	TP_NDT		0x2000	/* No data detected */
+#define TP_ILL          0x4000  /* Illegal command - should not happen! */
+#define	TP_ST1		0x8000	/* Status byte 1 bits */
+#define TP_ST1MASK      0xff00  /* Status byte 1 mask */
+
+/* formats for printing flags and error values */
+#define WTDS_BITS "\20\1inuse\2read\3write\4start\5rmark\6wmark\7rew\10excep\11vol\12wo\13ro\14wany\15rany\16wp\17timer\20active"
+#define WTER_BITS "\20\1eof\2bnl\3uda\4eom\5wrp\6usl\7cni\11por\12res1\13res2\14bom\15mbd\16ndt\17ill"
