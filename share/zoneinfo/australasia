@@ -1,4 +1,4 @@
-# @(#)australasia	7.56
+# @(#)australasia	7.58
 # This file also includes Pacific islands.
 # $FreeBSD$
 # Notes are at the end of this file
@@ -70,8 +70,11 @@ Rule	AS	1987	max	-	Oct	lastSun	2:00s	1:00	-
 Rule	AS	1972	only	-	Feb	27	2:00s	0	-
 Rule	AS	1973	1985	-	Mar	Sun>=1	2:00s	0	-
 Rule	AS	1986	1989	-	Mar	Sun>=15	2:00s	0	-
-Rule	AS	1990	1994	even	Mar	Sun>=18	2:00s	0	-
-Rule	AS	1990	1994	odd	Mar	Sun>=1	2:00s	0	-
+Rule	AS	1990	only	-	Mar	Sun>=18	2:00s	0	-
+Rule	AS	1991	only	-	Mar	Sun>=1	2:00s	0	-
+Rule	AS	1992	only	-	Mar	Sun>=18	2:00s	0	-
+Rule	AS	1993	only	-	Mar	Sun>=1	2:00s	0	-
+Rule	AS	1994	only	-	Mar	Sun>=18	2:00s	0	-
 Rule	AS	1995	max	-	Mar	lastSun	2:00s	0	-
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone Australia/Adelaide	9:14:20 -	LMT	1895 Feb
@@ -736,6 +739,9 @@ Zone	Pacific/Wallis	12:15:20 -	LMT	1901
 # has decided to join with most of NSW, the ACT, and most of Victoria
 # (Australia) and start daylight saving on the last Sunday in August in 2000
 # instead of the first Sunday in October.
+
+# Sim Alam (2000-07-03) reported a legal citation for the 2000/2001 rules:
+# http://www.thelaw.tas.gov.au/fragview/42++1968+GS3A@EN+2000070300
 
 # Victoria
 

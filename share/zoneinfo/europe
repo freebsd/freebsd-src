@@ -1,4 +1,5 @@
-# @(#)europe	7.71
+# @(#)europe	7.73
+
 # $FreeBSD$
 
 # This data is by no means authoritative; if you think you know better,
@@ -132,6 +133,10 @@
 # A bill was drafted in 1909 and introduced in Parliament several times,
 # but it met with ridicule and opposition, especially from farming interests.
 # One-hour Summer Time was eventually adopted as a wartime measure in 1916.
+# See:
+# <a href="http://www.the-times.co.uk/news/pages/tim/2000/05/18/x-timcrtcrt01011.html">
+# Summer Time Arrives Early, The Times (2000-05-18)
+# </a>
 
 # From Paul Eggert (1996-09-03):
 # The OED Supplement says that the English originally said ``Daylight Saving''
@@ -1186,6 +1191,10 @@ Zone	Europe/Vaduz	0:38:04 -	LMT	1894 Jun
 # motion to give up shifting to summer time in spring, as it was
 # already done by Estonia. 
 
+# From the <a href="http://www.tourism.lt/informa/ff.htm">
+# Fact File, Lithuanian State Department of Tourism
+# </a> (2000-03-27): Local time is GMT+2 hours ..., no daylight saving.
+
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Europe/Vilnius	1:41:16	-	LMT	1880
 			1:24:00	-	WMT	1917	    # Warsaw Mean Time
@@ -1200,7 +1209,7 @@ Zone	Europe/Vilnius	1:41:16	-	LMT	1880
 			2:00	C-Eur	EE%sT	1998
 			2:00	-	EET	1998 Mar 29 1:00u
 			1:00	EU	CE%sT	1999 Oct 31 1:00u
-			2:00	EU	EE%sT
+			2:00	-	EET
 
 # Luxembourg
 # Whitman disagrees with most of these dates in minor ways; go with Shanks.
@@ -1857,7 +1866,8 @@ Zone Europe/Simferopol	2:16:24 -	LMT	1880
 			3:00	1:00	MSD	1996 Oct 27 3:00s
 # IATA SSIM (1997-09) says Crimea switched to EET/EEST.
 # Assume it happened in March by not changing the clocks.
-			3:00	Russia	MSK/MSD	1997 Mar lastSun 1:00u
+			3:00	Russia	MSK/MSD	1997
+			3:00	-	MSK	1997 Mar lastSun 1:00u
 			2:00	EU	EE%sT
 
 # Yugoslavia
