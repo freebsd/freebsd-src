@@ -28,32 +28,29 @@
 
 #include <sys/param.h>
 #include <sys/exec.h>
-#include <sys/fcntl.h>
 #include <sys/imgact.h>
 #include <sys/imgact_aout.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
+#include <sys/malloc.h>
 #include <sys/mutex.h>
-#include <sys/namei.h>
-#include <sys/pioctl.h>
 #include <sys/proc.h>
 #include <sys/resourcevar.h>
-#include <sys/systm.h>
 #include <sys/signalvar.h>
-#include <sys/stat.h>
-#include <sys/sysent.h>
 #include <sys/syscall.h>
+#include <sys/sysent.h>
+#include <sys/systm.h>
 #include <sys/vnode.h>
 #include <sys/user.h>
 
-#include <machine/md_var.h>
 #include <machine/frame.h>
+#include <machine/md_var.h>
 
 #include <vm/vm.h>
-#include <vm/vm_param.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 #include <vm/vm_object.h>
+#include <vm/vm_param.h>
 
 static int	exec_aout_imgact(struct image_params *imgp);
 static int	aout_fixup(register_t **stack_base, struct image_params *imgp);
