@@ -29,8 +29,6 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id: ftpd.c,v 1.25.2.10 1997/07/24 10:05:41 davidn Exp $
  */
 
 #if 0
@@ -41,11 +39,13 @@ static char copyright[] =
 #endif /* not lint */
 #endif
 
-#if 0
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)ftpd.c	8.4 (Berkeley) 4/16/94";
-#endif /* not lint */
 #endif
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
 
 /*
  * FTP server.
@@ -551,7 +551,7 @@ lostconn(signo)
 
 	if (debug)
 		syslog(LOG_DEBUG, "lost connection");
-	dologout(-1);
+	dologout(1);
 }
 
 #ifdef VIRTUAL_HOSTING

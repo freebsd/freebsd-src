@@ -1,7 +1,10 @@
 /* Author: Wietse Venema, Eindhoven University of Technology. 
- *
- *	$Id: skey-stuff.c,v 1.6 1996/10/18 17:09:26 ache Exp $
  */
+
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
 
 #include <stdio.h>
 #include <string.h>
