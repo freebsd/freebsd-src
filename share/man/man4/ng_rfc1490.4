@@ -62,7 +62,7 @@ hooks are used to transmit and receive raw IP frames and PPP frames,
 respectively. PPP frames are transmitted and received according to
 RFC 1973; in particular, frames appearing on the
 .Dv ppp
-hook begin with the PPP protocol number.  The
+hook begin with the PPP protocol number. The
 .Dv ethernet
 hook can be used to transmit and receive Ethernet frames (without a
 checksum) in RFC 1490's bridging format.
@@ -88,7 +88,25 @@ Transmits and receives raw IP frames.
 Transmits and receives PPP frames.
 .El
 .Sh CONTROL MESSAGES
-This node type only supports the generic control messages.
+This node type supports the generic control messages, plus the following:
+.Bl -tag -width foo
+.It Dv NGM_RFC1490_SETENCAP
+This command sets encapsulation method for the node.
+The desired method must be passed as a string message argument,
+and must be one of the following supported encapsulation modes:
+.Bl -tag
+.It Qq ietf-ip
+IP packets are sent using simple RFC1490/2427 encapsulation.
+.It Qq ietf-snap
+IP packets are sent inside SNAP frames.
+Also conforms to RFC1490/2427.
+.It Qq cisco
+IP packets are sent and received using proprietary Cisco encapsulation
+method.
+.El
+.It Dv NGM_RFC1490_GETENCAP
+This command returns current encapsulation method on the node.
+.El
 .Sh SHUTDOWN
 This node shuts down upon receipt of a
 .Dv NGM_SHUTDOWN
@@ -110,6 +128,9 @@ Not all of RFC 1490 is implemented.
 .%A W. Simpson
 .%T "PPP in Frame Relay"
 .%O RFC 1973
+.Re
+.Rs
+http://www.cisco.com/warp/public/121/frf8modes.pdf
 .Re
 .Sh HISTORY
 The
