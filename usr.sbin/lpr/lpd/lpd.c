@@ -153,7 +153,7 @@ main(int argc, char **argv)
 		errx(EX_NOPERM,"must run as root");
 
 	errs = 0;
-	while ((i = getopt(argc, argv, "cdlpw46")) != -1)
+	while ((i = getopt(argc, argv, "cdlpwW46")) != -1)
 		switch (i) {
 		case 'c':
 			/* log all kinds of connection-errors to syslog */
@@ -168,7 +168,19 @@ main(int argc, char **argv)
 		case 'p':
 			pflag++;
 			break;
-		case 'w':
+		case 'w':		/* netbsd uses -w for maxwait */
+			/*
+			 * This will be removed after the release of 4.4, as
+			 * it conflicts with -w in netbsd's lpd.  For now it
+			 * is just a warning, so we won't suddenly break lpd
+			 * for anyone who is currently using the option.
+			 */
+			syslog(LOG_WARNING,
+			    "NOTE: the -w option has been renamed -W");
+			syslog(LOG_WARNING,
+			    "NOTE: please change your lpd config to use -W");
+			/* FALLTHROUGH */
+		case 'W':
 			/* allow connections coming from a non-reserved port */
 			/* (done by some lpr-implementations for MS-Windows) */ 
 			ch_options |= LPD_NOPORTCHK;
@@ -185,6 +197,17 @@ main(int argc, char **argv)
 			errx(EX_USAGE, "lpd compiled sans INET6 (IPv6 support)");
 #endif
 			break;
+		/*
+		 * The following options are not in FreeBSD (yet?), but are
+		 * listed here to "reserve" them, because the option-letters
+		 * are used by either NetBSD or OpenBSD (as of July 2001).
+		 */ 
+		case 'b':		/* set bind-addr */
+		case 'n':		/* set max num of children */
+		case 'r':		/* allow 'of' for remote ptrs */
+					/* ...[not needed in freebsd] */
+		case 's':		/* secure (no inet), same as -p */
+			/* FALLTHROUGH */
 		default:
 			errs++;
 		}
@@ -888,9 +911,9 @@ static void
 usage(void)
 {
 #ifdef INET6
-	fprintf(stderr, "usage: lpd [-cdlpw46] [port#]\n");
+	fprintf(stderr, "usage: lpd [-cdlpW46] [port#]\n");
 #else
-	fprintf(stderr, "usage: lpd [-cdlpw] [port#]\n");
+	fprintf(stderr, "usage: lpd [-cdlpW] [port#]\n");
 #endif
 	exit(EX_USAGE);
 }
