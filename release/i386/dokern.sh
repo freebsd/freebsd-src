@@ -56,6 +56,8 @@ sed	-e '/	pci$/d' \
 	-e '/P1003_1B/d' \
 	-e '/_KPOSIX_PRIORITY_SCHEDULING/d' \
 	-e '/RANDOMDEV/d' \
+	-e '/AHC_REG_PRETTY_PRINT/d' \
+	-e '/AHD_REG_PRETTY_PRINT/d' \
 	-e '/atapist/d' \
 	-e '/lpt/d' \
 	-e '/ppi/d' \
@@ -85,6 +87,8 @@ sed	-e '/pty/d' \
 	-e '/MFS/d' \
 	-e '/NFS_ROOT/d' \
 	-e '/RANDOMDEV/d' \
+	-e '/AHC_REG_PRETTY_PRINT/d' \
+	-e '/AHD_REG_PRETTY_PRINT/d' \
 	-e '/	ncr/d' \
 	-e '/	txp/d' \
 	-e '/	an$/d' \
