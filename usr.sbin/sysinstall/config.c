@@ -590,7 +590,6 @@ tryagain:
 	vsystem("/sbin/ldconfig -m /usr/lib /usr/X11R6/lib /usr/local/lib /usr/lib/compat");
     else
 	vsystem("/sbin/ldconfig /usr/lib /usr/X11R6/lib /usr/local/lib /usr/lib/compat");
-    vsystem("/sbin/ldconfig -aout /usr/lib/compat/aout /usr/lib/aout /usr/X11R6/lib/aout /usr/local/lib/aout");
     vsystem("/sbin/ifconfig lo0 127.0.0.1");
     execfile = string_concat("/usr/X11R6/bin/", config);
     if (file_executable(execfile)) {
