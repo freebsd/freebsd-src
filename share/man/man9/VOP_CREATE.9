@@ -26,7 +26,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $Id: VOP_CREATE.9,v 1.2 1997/03/04 10:02:07 dfr Exp $
+.\" $Id: VOP_CREATE.9,v 1.3 1997/03/07 03:32:22 mpp Exp $
 .\"
 .Dd July 24, 1996
 .Os
@@ -38,6 +38,7 @@
 .Nm VOP_SYMLINK
 .Nd create a file, socket, fifo, device, directory or symlink
 .Sh SYNOPSIS
+.Fd #include <sys/param.h>
 .Fd #include <sys/vnode.h>
 .Fd #include <sys/namei.h>
 .Ft int
@@ -46,6 +47,7 @@
 .Fn VOP_MKNOD "struct vnode *dvp" "struct vnode **vpp" "struct componentname *cnp" "struct vattr *vap"
 .Ft int
 .Fn VOP_MKDIR "struct vnode *dvp" "struct vnode **vpp" "struct componentname *cnp" "struct vattr *vap"
+.Ft int
 .Fn VOP_SYMLINK "struct vnode *dvp" "struct vnode **vpp" "struct componentname *cnp" "struct vattr *vap" "char *target"
 .Sh DESCRIPTION
 These entry points create a new file, socket, fifo, device, directory or symlink

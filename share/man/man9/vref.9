@@ -26,7 +26,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.\" $Id: vref.9,v 1.1 1997/03/03 18:01:00 dfr Exp $
+.\" $Id: vref.9,v 1.2 1997/03/22 22:47:33 mpp Exp $
 .\"
 .Dd July 24, 1996
 .Os
@@ -35,8 +35,9 @@
 .Nm vref
 .Nd increment the use count for a vnode
 .Sh SYNOPSIS
+.Fd #include <sys/param.h>
 .Fd #include <sys/vnode.h>
-.Ft int
+.Ft void
 .Fn vref "struct vnode *vp"
 .Sh DESCRIPTION
 Increment the
