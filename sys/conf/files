@@ -1076,7 +1076,7 @@ pci/agp_sis.c		optional agp
 pci/agp_ali.c		optional agp
 pci/agp_amd.c		optional agp
 pci/agp_i810.c		optional agp
-pci/alpm.c		count alpm
+pci/alpm.c		optional alpm
 pci/amd.c		optional amd
 pci/cy_pci.c		optional cy pci
 pci/if_ar_p.c		count ar pci
