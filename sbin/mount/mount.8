@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)mount.8	8.7 (Berkeley) 3/27/94
-.\"	$Id: mount.8,v 1.11.2.2 1997/08/24 17:52:01 joerg Exp $
+.\"	$Id: mount.8,v 1.11.2.3 1997/12/01 00:47:09 steve Exp $
 .\"
 .Dd March 27, 1994
 .Dt MOUNT 8
@@ -314,6 +314,13 @@ file system table
 .Xr umount 8
 .Sh BUGS
 It is possible for a corrupted file system to cause a crash.
+.Sh CAVEATS
+After a successful mount, the permissions on the original mount point 
+determine if 
+.Pa ".."
+is accessible from the mounted file system.  The minimum permissions for
+the mount point for traversal across the mount point in both 
+directions to be possible for all users is 0111 (execute for all).
 .Sh HISTORY
 A
 .Nm mount
