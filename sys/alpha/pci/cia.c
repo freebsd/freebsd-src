@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: cia.c,v 1.18 1999/05/20 15:33:21 gallatin Exp $
+ *	$Id: cia.c,v 1.19 1999/06/05 13:30:13 dfr Exp $
  */
 /*-
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -103,6 +103,7 @@
 #include <alpha/pci/ciareg.h>
 #include <alpha/pci/ciavar.h>
 #include <alpha/pci/pcibus.h>
+#include <alpha/isa/isavar.h>
 #include <machine/bwx.h>
 #include <machine/swiz.h>
 #include <machine/intr.h>
