@@ -34,7 +34,7 @@ __FBSDID("$FreeBSD$");
  * Check for common security problems on a given path
  * It must be:
  * 1. A regular file, and exists
- * 2. Owned and writaable only by root (or given owner)
+ * 2. Owned and writable only by root (or given owner)
  * 3. Group ownership is given group or is non-group writable
  *
  * Returns:	-2 if file does not exist,
