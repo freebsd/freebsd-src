@@ -182,6 +182,12 @@ struct bpf_hdr {
 #define DLT_PPP_ETHER	51	/* PPP over Ethernet */
 
 /*
+ * Reserved for the Symantec Enterprise Firewall.
+ */
+#define DLT_SYMANTEC_FIREWALL	99
+
+
+/*
  * This value was defined by libpcap 0.5; platforms that have defined
  * it with a different value should define it here with that value -
  * a link type of 104 in a save file will be mapped to DLT_C_HDLC,
@@ -290,6 +296,11 @@ struct bpf_hdr {
 #define DLT_PFSYNC	121
 
 /*
+ * Reserved for Siemens HiPath HDLC. XXX
+ */
+#define DLT_HHDLC	121
+
+/*
  * Reserved for RFC 2625 IP-over-Fibre Channel.
  */
 #define DLT_IP_OVER_FC	122
@@ -300,6 +311,14 @@ struct bpf_hdr {
 #define DLT_SUNATM	123
 
 /*
+ * Reserved as per request from Kent Dahlgren <kent@praesum.com>
+ * for private use.
+ */
+#define DLT_RIO		124	/* RapidIO */
+#define DLT_PCI_EXP	125	/* PCI Express */
+#define DLT_AURORA	126	/* Xilinx Aurora link layer */
+
+/*
  * BSD header for 802.11 plus a number of bits of link-layer information
  * including radio information.
  */
@@ -308,9 +327,26 @@ struct bpf_hdr {
 #endif
 
 /*
+ * Reserved for TZSP encapsulation.
+ */
+#define DLT_TZSP		128	/* Tazmen Sniffer Protocol */
+
+/*
  * Reserved for Linux ARCNET.
  */
 #define DLT_ARCNET_LINUX	129
+
+/*
+ * Juniper-private data link types.
+ */
+#define DLT_JUNIPER_MLPPP	130
+#define DLT_JUNIPER_MLFR	131
+#define DLT_JUNIPER_ES		132
+#define DLT_JUNIPER_GGSN	133
+#define DLT_JUNIPER_MFR		134
+#define DLT_JUNIPER_ATM2	135
+#define DLT_JUNIPER_SERVICES	136
+#define DLT_JUNIPER_ATM1	137
 
 /*
  * Reserved for Apple IP-over-IEEE-1394.
@@ -318,14 +354,30 @@ struct bpf_hdr {
 #define DLT_APPLE_IP_OVER_IEEE1394	138
 
 /*
+ * Reserved for DOCSIS.
+ */
+#define DLT_DOCSIS	143
+
+/*
  * Reserved for Linux IrDA.
  */
 #define DLT_LINUX_IRDA	144
 
 /*
+ * Reserved for IBM SP switch and IBM Next Federation switch.
+ */
+#define DLT_IBM_SP	145
+#define DLT_IBM_SN	146
+
+/*
  * Reserved for AbsoluteValue Systems 802.11 capture.
  */
 #define DLT_IEEE802_11_RADIO_AVS	163
+
+/*
+ * Reserved for Juniper-private DLT.
+ */
+#define DLT_JUNIPER_MONITOR	164
 
 /*
  * The instruction encodings.
