@@ -244,6 +244,8 @@ ip6_input(m)
 	u_int32_t rtalert = ~0;
 	int nxt, ours = 0;
 	struct ifnet *deliverifp = NULL;
+	struct sockaddr_in6 sa6;
+	u_int32_t srczone, dstzone;
 #ifdef PFIL_HOOKS
 	struct in6_addr odst;
 #endif
@@ -387,9 +389,14 @@ ip6_input(m)
 		in6_ifstat_inc(m->m_pkthdr.rcvif, ifs6_in_addrerr);
 		goto bad;
 	}
-	if ((IN6_IS_ADDR_LOOPBACK(&ip6->ip6_src) ||
-	     IN6_IS_ADDR_LOOPBACK(&ip6->ip6_dst)) &&
-	    (m->m_pkthdr.rcvif->if_flags & IFF_LOOPBACK) == 0) {
+	if (IN6_IS_ADDR_MC_INTFACELOCAL(&ip6->ip6_dst) &&
+	    !(m->m_flags & M_LOOP)) {
+		/*
+		 * In this case, the packet should come from the loopback
+		 * interface.  However, we cannot just check the if_flags,
+		 * because ip6_mloopback() passes the "actual" interface
+		 * as the outgoing/incoming interface.
+		 */
 		ip6stat.ip6s_badscope++;
 		in6_ifstat_inc(m->m_pkthdr.rcvif, ifs6_in_addrerr);
 		goto bad;
@@ -429,7 +436,12 @@ ip6_input(m)
 	}
 #endif
 
-	/* drop packets if interface ID portion is already filled */
+	/*
+	 * Drop packets if the link ID portion is already filled.
+	 * XXX: this is technically not a good behavior.  But, we internally
+	 * use the field to disambiguate link-local addresses, so we cannot
+	 * be generous against those a bit strange addresses.
+	 */
 	if ((m->m_pkthdr.rcvif->if_flags & IFF_LOOPBACK) == 0) {
 		if (IN6_IS_SCOPE_LINKLOCAL(&ip6->ip6_src) &&
 		    ip6->ip6_src.s6_addr16[1]) {
@@ -444,12 +456,42 @@ ip6_input(m)
 		}
 	}
 
-	if (IN6_IS_SCOPE_LINKLOCAL(&ip6->ip6_src))
-		ip6->ip6_src.s6_addr16[1]
-			= htons(m->m_pkthdr.rcvif->if_index);
-	if (IN6_IS_SCOPE_LINKLOCAL(&ip6->ip6_dst))
-		ip6->ip6_dst.s6_addr16[1]
-			= htons(m->m_pkthdr.rcvif->if_index);
+	/*
+	 * construct source and destination address structures with
+	 * disambiguating their scope zones (if there is ambiguity).
+	 * XXX: sin6_family and sin6_len will NOT be referred to, but we fill
+	 * in these fields just in case.
+	 */
+	if (in6_addr2zoneid(m->m_pkthdr.rcvif, &ip6->ip6_src, &srczone) ||
+	    in6_addr2zoneid(m->m_pkthdr.rcvif, &ip6->ip6_dst, &dstzone)) {
+		/*
+		 * Note that these generic checks cover cases that src or
+		 * dst are the loopback address and the receiving interface
+		 * is not loopback.
+		 */
+		ip6stat.ip6s_badscope++;
+		goto bad;
+	}
+
+	bzero(&sa6, sizeof(sa6));
+	sa6.sin6_family = AF_INET6;
+	sa6.sin6_len = sizeof(struct sockaddr_in6);
+
+	sa6.sin6_addr = ip6->ip6_src;
+	sa6.sin6_scope_id = srczone;
+	if (in6_embedscope(&ip6->ip6_src, &sa6, NULL, NULL)) {
+		/* XXX: should not happen */
+		ip6stat.ip6s_badscope++;
+		goto bad;
+	}
+
+	sa6.sin6_addr = ip6->ip6_dst;
+	sa6.sin6_scope_id = dstzone;
+	if (in6_embedscope(&ip6->ip6_dst, &sa6, NULL, NULL)) {
+		/* XXX: should not happen */
+		ip6stat.ip6s_badscope++;
+		goto bad;
+	}
 
 	/*
 	 * Multicast check
