@@ -549,7 +549,6 @@ sched_switchout(struct thread *td)
 		 * We will not be on the run queue. So we must be
 		 * sleeping or similar. As it's available,
 		 * someone else can use the KSE if they need it.
-		 * (If bound LOANING can still occur).
 		 */
 		kse_reassign(ke);
 	}
