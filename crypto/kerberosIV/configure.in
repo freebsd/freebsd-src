@@ -8,7 +8,7 @@ dnl
 
 dnl Process this file with autoconf to produce a configure script.
 dnl
-AC_REVISION($Revision: 1.415.2.9 $)
+AC_REVISION($Revision: 1.432.2.2 $)
 AC_INIT(lib/krb/getrealm.c)
 AC_CONFIG_HEADER(include/config.h)
 
@@ -18,7 +18,7 @@ dnl
 
 PACKAGE=krb4
 AC_SUBST(PACKAGE)dnl
-VERSION=0.10.1
+VERSION=1.0
 AC_SUBST(VERSION)dnl
 AC_DEFINE_UNQUOTED(PACKAGE, "$PACKAGE", [Name of package])dnl
 AC_DEFINE_UNQUOTED(VERSION, "$VERSION", [Version number of package])dnl
@@ -67,9 +67,7 @@ AC_KRB_PROG_YACC
 AC_PROG_LEX
 AC_PROG_RANLIB
 AC_PROG_INSTALL
-dnl AC_PROG_AWK
-dnl mawk seems to mishandle \# in lib/roken/roken.awk
-AC_CHECK_PROGS(AWK, gawk nawk awk, )
+AC_PROG_AWK
 AC_CHECK_PROG(MAKEINFO, makeinfo, makeinfo, :)
 
 dnl Use make Wall or make WFLAGS=".."
@@ -329,9 +327,13 @@ fi
 # AIX414
 #
 
+case "${host}" in
+*-*-aix4.1*)
 if test -f /lib/pse.exp ;then
 	LIBS="$LIBS -Wl,-bnolibpath -Wl,-bI:/lib/pse.exp"
 fi
+;;
+esac
 
 dnl
 dnl Various checks for headers and their contents
@@ -384,7 +386,6 @@ AC_CHECK_HEADERS([arpa/ftp.h			\
 	signal.h				\
 	stropts.h				\
 	sys/bitypes.h				\
-	sys/capability.h			\
 	sys/category.h				\
 	sys/file.h				\
 	sys/filio.h				\
@@ -548,21 +549,66 @@ if test "$ac_cv_func_glob_working" != yes; then
 	LIBOBJS="$LIBOBJS glob.o"
 fi
 
-AC_CHECK_FUNCS(asnprintf asprintf vasprintf vasnprintf vsnprintf)
+AC_CHECK_FUNCS([				\
+	_getpty					\
+	_scrsize				\
+	_setsid					\
+	_stricmp				\
+	asnprintf				\
+	asprintf				\
+	atexit					\
+	cgetent					\
+	chroot					\
+	fattach					\
+	fchmod					\
+	fcntl					\
+	forkpty					\
+	frevoke					\
+	getpriority				\
+	getrlimit				\
+	getservbyname				\
+	getspnam				\
+	gettimeofday				\
+	gettosbyname				\
+	getuid					\
+	grantpt					\
+	mktime					\
+	on_exit					\
+	parsetos				\
+	ptsname					\
+	rand					\
+	random					\
+	revoke					\
+	setitimer				\
+	setpgid					\
+	setpriority				\
+	setproctitle				\
+	setregid				\
+	setresgid				\
+	setresuid				\
+	setreuid				\
+	setsid					\
+	setutent				\
+	sigaction				\
+	sysconf					\
+	sysctl					\
+	ttyname					\
+	ttyslot					\
+	ulimit					\
+	uname					\
+	unlockpt				\
+	vasnprintf				\
+	vasprintf				\
+	vhangup					\
+	vsnprintf				\
+	yp_get_default_domain			\
+	])
 
-AC_CHECK_FUNCS(atexit _getpty _scrsize _setsid _stricmp chroot fattach fchmod)
-AC_CHECK_FUNCS(fcntl forkpty frevoke getlogin getpriority)
-AC_CHECK_FUNCS(getrlimit getservbyname getspnam getspuid gettimeofday)
-AC_CHECK_FUNCS(gettosbyname getuid grantpt mktime parsetos ptsname)
-AC_CHECK_FUNCS(rand random revoke setitimer setlogin setpgid setpriority)
-AC_CHECK_FUNCS(setproctitle setregid setresgid setresuid setreuid setsid)
-AC_CHECK_FUNCS(setutent sigaction sysconf sysctl ttyname ttyslot)
-AC_CHECK_FUNCS(ulimit uname unlockpt vhangup yp_get_default_domain)
-AC_CHECK_FUNCS(on_exit sgi_getcapabilitybyname cap_set_proc)
+KRB_CAPABILITIES
 
 AC_CHECK_GETPWNAM_R_POSIX
 
-AC_FIND_FUNC_NO_LIBS(getsockopt, ,
+AC_FIND_FUNC_NO_LIBS(getsockopt,,
 [#ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
 #endif
@@ -570,7 +616,7 @@ AC_FIND_FUNC_NO_LIBS(getsockopt, ,
 #include <sys/socket.h>
 #endif],
 [0,0,0,0,0])
-AC_FIND_FUNC_NO_LIBS(setsockopt, ,
+AC_FIND_FUNC_NO_LIBS(setsockopt,,
 [#ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
 #endif
@@ -624,22 +670,7 @@ AC_SUBST(LIB_dn_expand)dnl
 AC_FUNC_MMAP
 AC_FUNC_ALLOCA
 
-#
-# Test for POSIX (broken) getlogin
-#
-
-if test "$ac_cv_func_getlogin" = yes; then
-AC_CACHE_CHECK(if getlogin is posix, ac_cv_func_getlogin_posix, [
-if test "$ac_cv_func_getlogin" = yes -a "$ac_cv_func_setlogin" = yes; then
-	ac_cv_func_getlogin_posix=no
-else
-	ac_cv_func_getlogin_posix=yes
-fi
-])
-if test "$ac_cv_func_getlogin_posix" = yes; then
-	AC_DEFINE(POSIX_GETLOGIN, 1, [Define if getlogin has POSIX flavour (and not BSD).])
-fi
-fi
+AC_FUNC_GETLOGIN
 
 AC_FIND_IF_NOT_BROKEN(hstrerror, resolv,
 [#ifdef HAVE_NETDB_H
@@ -654,12 +685,16 @@ AC_NEED_PROTO([
 hstrerror)
 fi
 
-AC_BROKEN(chown daemon err errx fchown flock fnmatch)
-AC_BROKEN(getcwd getdtablesize gethostname geteuid getgid getegid)
-AC_BROKEN(getopt getusershell inet_aton initgroups innetgr iruserok lstat)
-AC_BROKEN(memmove mkstemp putenv rcmd readv setegid setenv seteuid)
-AC_BROKEN(strcasecmp strncasecmp strdup strerror strftime strlwr)
-AC_BROKEN(strndup strnlen strsep strtok_r strupr)
+AC_BROKEN(chown copyhostent daemon err errx fchown flock fnmatch freehostent)
+AC_BROKEN(getcwd getdtablesize gethostname getipnodebyaddr getipnodebyname)
+AC_BROKEN(geteuid getgid getegid)
+AC_BROKEN(getopt getusershell)
+AC_BROKEN(inet_aton inet_ntop inet_pton initgroups innetgr iruserok lstat)
+AC_BROKEN(memmove)
+AC_BROKEN(mkstemp putenv rcmd readv recvmsg sendmsg setegid setenv seteuid)
+AC_BROKEN(strcasecmp strncasecmp strdup strerror strftime)
+AC_BROKEN(strlcat strlcpy strlwr)
+AC_BROKEN(strndup strnlen strptime strsep strtok_r strupr)
 AC_BROKEN(swab unsetenv verr verrx vsyslog)
 AC_BROKEN(vwarn vwarnx warn warnx writev)
 
@@ -879,10 +914,22 @@ AC_CHECK_VAR([#ifdef HAVE_ERR_H
 #include <err.h>
 #endif],[__progname])
 
-AC_CHECK_DECLARATION([#include <stdlib.h>], optarg)
-AC_CHECK_DECLARATION([#include <stdlib.h>], optind)
-AC_CHECK_DECLARATION([#include <stdlib.h>], opterr)
-AC_CHECK_DECLARATION([#include <stdlib.h>], optopt)
+AC_CHECK_DECLARATION([#include <stdlib.h>
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif], optarg)
+AC_CHECK_DECLARATION([#include <stdlib.h>
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif], optind)
+AC_CHECK_DECLARATION([#include <stdlib.h>
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif], opterr)
+AC_CHECK_DECLARATION([#include <stdlib.h>
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif], optopt)
 
 AC_CHECK_DECLARATION([#include <stdlib.h>], environ)
 
@@ -932,6 +979,25 @@ AC_HAVE_STRUCT_FIELD(struct utmpx, ut_syslen,
 [#include <sys/types.h>
  #include <utmp.h>])
 
+dnl
+dnl Check for fields in struct tm
+dnl
+
+AC_HAVE_STRUCT_FIELD(struct tm, tm_gmtoff, [#include <time.h>])
+AC_HAVE_STRUCT_FIELD(struct tm, tm_zone, [#include <time.h>])
+
+dnl
+dnl or do we have a variable `timezone' ?
+dnl
+
+AC_CHECK_VAR(
+[#include <time.h>],
+timezone)
+
+AC_HAVE_TYPE([sa_family_t],[#include <sys/socket.h>])
+
+AC_HAVE_TYPE([struct sockaddr_storage], [#include <sys/socket.h>])
+
 AC_KRB_STRUCT_SPWD
 
 AC_STRUCT_ST_BLKSIZE
@@ -970,6 +1036,24 @@ krb_cv_header_sys_socket_h_broken=no,
 krb_cv_header_sys_socket_h_broken=yes)])
 AC_MSG_RESULT($krb_cv_header_sys_socket_h_broken)
 AC_SUBST(krb_cv_header_sys_socket_h_broken)
+
+dnl
+dnl Check for broken ultrix netdb.h
+dnl
+
+AC_MSG_CHECKING(for broken netdb.h)
+AC_CACHE_VAL(krb_cv_header_netdb_h_broken, [
+AC_TRY_COMPILE(
+[#include <sys/types.h>
+#include <netdb.h>
+#include <netdb.h>],[],
+krb_cv_header_netdb_h_broken=no,
+krb_cv_header_netdb_h_broken=yes)])
+AC_MSG_RESULT($krb_cv_header_netdb_h_broken)
+AC_SUBST(krb_cv_header_netdb_h_broken)
+if test "$krb_cv_header_netdb_h_broken" = "yes"; then
+  EXTRA_HEADERS="$EXTRA_HEADERS netdb.h"
+fi
 
 dnl
 dnl Check for sa_len in sys/socket.h
@@ -1016,7 +1100,7 @@ dnl
 
 dnl el_init
 
-AC_FIND_FUNC_NO_LIBS(el_init, edit)
+AC_FIND_FUNC_NO_LIBS(el_init, edit, [], [], [$LIB_tgetent])
 if test "$ac_cv_func_el_init" = yes ; then
 	AC_CACHE_CHECK(for four argument el_init, ac_cv_func_el_init_four,[
 		AC_TRY_COMPILE([#include <stdio.h>
@@ -1195,6 +1279,7 @@ appl/kx/Makefile				\
 appl/kip/Makefile				\
 appl/otp/Makefile				\
 doc/Makefile					\
+etc/inetd.conf.changes				\
 ) dnl end of AC_OUTPUT
 
 AC_KRB_VERSION

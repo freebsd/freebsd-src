@@ -21,7 +21,7 @@ or implied warranty.
 
 #include "krb_locl.h"
 
-RCSID("$Id: read_service_key.c,v 1.11 1999/03/10 18:34:34 joda Exp $");
+RCSID("$Id: read_service_key.c,v 1.12 1999/09/16 20:41:54 assar Exp $");
 
 /*
  * The private keys for servers on a given host are stored in a
@@ -97,7 +97,7 @@ read_service_key(const char *service,	/* Service Name */
         if (!wcard && strcmp(inst,instance))
             continue;
         if (wcard) {
-	    strcpy_truncate (instance, inst, INST_SZ);
+	    strlcpy (instance, inst, INST_SZ);
 	}
         /* Is this the right realm */
         if (strcmp(rlm,realm)) 

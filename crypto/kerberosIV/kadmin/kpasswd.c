@@ -25,7 +25,7 @@ or implied warranty.
 
 #include "kadm_locl.h"
 
-RCSID("$Id: kpasswd.c,v 1.26 1998/06/09 19:24:54 joda Exp $");
+RCSID("$Id: kpasswd.c,v 1.29 1999/11/13 06:33:20 assar Exp $");
 
 static void
 usage(int value)
@@ -57,7 +57,7 @@ main(int argc, char **argv)
 			       default_principal.instance,
 			       default_principal.realm);
 
-    while ((c = getopt(argc, argv, "u:n:i:r:h")) != EOF) {
+    while ((c = getopt(argc, argv, "u:n:i:r:h")) != -1) {
 	switch (c) {
 	case 'u':
 	    status = krb_parse_name (optarg, &principal);
@@ -70,7 +70,7 @@ main(int argc, char **argv)
 	    break;
 	case 'n':
 	    if (k_isname(optarg))
-		strcpy_truncate(principal.name,
+		strlcpy(principal.name,
 				optarg,
 				sizeof(principal.name));
 	    else {
@@ -80,7 +80,7 @@ main(int argc, char **argv)
 	    break;
 	case 'i':
 	    if (k_isinst(optarg))
-		strcpy_truncate(principal.instance,
+		strlcpy(principal.instance,
 				optarg,
 				sizeof(principal.instance));
 	    else {
@@ -90,7 +90,7 @@ main(int argc, char **argv)
 	    break;
 	case 'r':
 	    if (k_isrealm(optarg)) {
-		strcpy_truncate(principal.realm,
+		strlcpy(principal.realm,
 				optarg,
 				sizeof(principal.realm));
 		realm_given++; 
@@ -116,28 +116,28 @@ main(int argc, char **argv)
     }
 
     if (use_default) {
-	strcpy_truncate(principal.name,
+	strlcpy(principal.name,
 			default_principal.name,
 			sizeof(principal.name));
-	strcpy_truncate(principal.instance,
+	strlcpy(principal.instance,
 			default_principal.instance,
 			sizeof(principal.instance));
-	strcpy_truncate(principal.realm,
+	strlcpy(principal.realm,
 			default_principal.realm,
 			sizeof(principal.realm));
     } else {
 	if (!principal.name[0])
-	    strcpy_truncate(principal.name,
+	    strlcpy(principal.name,
 			    default_principal.name,
 			    sizeof(principal.name));
 	if (!principal.realm[0])
-	    strcpy_truncate(principal.realm,
+	    strlcpy(principal.realm,
 			    default_principal.realm,
 			    sizeof(principal.realm));
     }
 
-    snprintf(tktstring, sizeof(tktstring),
-	     TKT_ROOT "_cpw_%u", (unsigned)getpid());
+    snprintf(tktstring, sizeof(tktstring), "%s_cpw_%u",
+	     TKT_ROOT, (unsigned)getpid());
     krb_set_tkt_string(tktstring);
     
     if (get_pw_new_pwd(pword, sizeof(pword), &principal,

@@ -251,7 +251,7 @@ esac
 ])
 
 dnl
-dnl $Id: shared-libs.m4,v 1.3 1999/04/09 15:34:25 assar Exp $
+dnl $Id: shared-libs.m4,v 1.4 1999/07/13 17:47:09 assar Exp $
 dnl
 dnl Shared library stuff has to be different everywhere
 dnl
@@ -316,9 +316,10 @@ case "${host}" in
 	install_symlink_command='$(LN_S) -f $(LIB) $(DESTDIR)$(libdir)/$(LIBNAME).so.'"${SHLIB_SONAME}"';$(LN_S) -f $(LIB) $(DESTDIR)$(libdir)/$(LIBNAME).so'
 	install_symlink_command2='$(LN_S) -f $(LIB2) $(DESTDIR)$(libdir)/$(LIBNAME2).so.'"${SHLIB_SONAME}"';$(LN_S) -f $(LIB2) $(DESTDIR)$(libdir)/$(LIBNAME2).so'
 	;;
-*-*-freebsd3*)
+changequote(,)dnl
+*-*-freebsd[34]*)
+changequote([,])dnl
 	REAL_SHLIBEXT=so.$SHLIB_VERSION
-	LDSHARED='ld -Bshareable'
 	REAL_LD_FLAGS='-Wl,-R$(libdir)'
 	build_symlink_command='$(LN_S) -f [$][@] $(LIBNAME).so'
 	install_symlink_command='$(LN_S) -f $(LIB) $(DESTDIR)$(libdir)/$(LIBNAME).so'
@@ -507,23 +508,23 @@ AC_EGREP_CPP(yes,
 AC_MSG_RESULT($krb_cv_sys_aix)
 ])
 
-dnl $Id: find-func-no-libs.m4,v 1.3 1998/06/04 02:06:50 assar Exp $
+dnl $Id: find-func-no-libs.m4,v 1.5 1999/10/30 21:08:18 assar Exp $
 dnl
 dnl
 dnl Look for function in any of the specified libraries
 dnl
 
-dnl AC_FIND_FUNC_NO_LIBS(func, libraries, includes, arguments)
+dnl AC_FIND_FUNC_NO_LIBS(func, libraries, includes, arguments, extra libs, extra args)
 AC_DEFUN(AC_FIND_FUNC_NO_LIBS, [
-AC_FIND_FUNC_NO_LIBS2([$1], ["" $2], [$3], [$4])])
+AC_FIND_FUNC_NO_LIBS2([$1], ["" $2], [$3], [$4], [$5], [$6])])
 
-dnl $Id: find-func-no-libs2.m4,v 1.1 1998/06/04 02:07:12 assar Exp $
+dnl $Id: find-func-no-libs2.m4,v 1.3 1999/10/30 21:09:53 assar Exp $
 dnl
 dnl
 dnl Look for function in any of the specified libraries
 dnl
 
-dnl AC_FIND_FUNC_NO_LIBS2(func, libraries, includes, arguments)
+dnl AC_FIND_FUNC_NO_LIBS2(func, libraries, includes, arguments, extra libs, extra args)
 AC_DEFUN(AC_FIND_FUNC_NO_LIBS2, [
 
 AC_MSG_CHECKING([for $1])
@@ -537,7 +538,7 @@ if eval "test \"\$ac_cv_func_$1\" != yes" ; then
 		else
 			ac_lib=""
 		fi
-		LIBS="$ac_lib $ac_save_LIBS"
+		LIBS="$6 $ac_lib $5 $ac_save_LIBS"
 		AC_TRY_LINK([$3],[$1($4)],eval "if test -n \"$ac_lib\";then ac_cv_funclib_$1=$ac_lib; else ac_cv_funclib_$1=yes; fi";break)
 	done
 	eval "ac_cv_funclib_$1=\${ac_cv_funclib_$1-no}"
@@ -620,11 +621,14 @@ END
 
 ])
 
-dnl $Id: grok-type.m4,v 1.3 1999/03/21 18:59:56 joda Exp $
+dnl $Id: grok-type.m4,v 1.4 1999/11/29 11:16:48 joda Exp $
 dnl
 AC_DEFUN(AC_GROK_TYPE, [
 AC_CACHE_VAL(ac_cv_type_$1, 
 AC_TRY_COMPILE([
+#ifdef HAVE_INTTYPES_H
+#include <inttypes.h>
+#endif
 #ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
 #endif
@@ -669,7 +673,7 @@ fi
 dnl 
 dnl See if there is any X11 present
 dnl
-dnl $Id: check-x.m4,v 1.1 1999/06/03 00:22:10 joda Exp $
+dnl $Id: check-x.m4,v 1.2 1999/11/05 04:25:23 assar Exp $
 
 AC_DEFUN(KRB_CHECK_X,[
 AC_PATH_XTRA
@@ -699,7 +703,7 @@ if test "$no_x" != yes; then
 			esac
 			done
 		fi
-		LIBS="$ac_save_libs $foo -lX11"
+		LIBS="$ac_save_libs $foo $X_PRE_LIBS -lX11 $X_EXTRA_LIBS"
 		AC_TRY_RUN([
 		#include <X11/Xlib.h>
 		foo()
@@ -998,6 +1002,21 @@ AC_NEED_PROTO([#include <stdio.h>
 fi
 ])
 
+dnl
+dnl $Id: capabilities.m4,v 1.2 1999/09/01 11:02:26 joda Exp $
+dnl
+
+dnl
+dnl Test SGI capabilities
+dnl
+
+AC_DEFUN(KRB_CAPABILITIES,[
+
+AC_CHECK_HEADERS(capability.h sys/capability.h)
+
+AC_CHECK_FUNCS(sgi_getcapabilitybyname cap_set_proc)
+])
+
 dnl $Id: check-getpwnam_r-posix.m4,v 1.2 1999/03/23 16:47:31 joda Exp $
 dnl
 dnl check for getpwnam_r, and if it's posix or not
@@ -1022,6 +1041,29 @@ if test "$ac_cv_func_getpwnam_r_posix" = yes; then
 fi
 fi
 ])
+dnl
+dnl $Id: krb-func-getlogin.m4,v 1.1 1999/07/13 17:45:30 assar Exp $
+dnl
+dnl test for POSIX (broken) getlogin
+dnl
+
+
+AC_DEFUN(AC_FUNC_GETLOGIN, [
+AC_CHECK_FUNCS(getlogin setlogin)
+if test "$ac_cv_func_getlogin" = yes; then
+AC_CACHE_CHECK(if getlogin is posix, ac_cv_func_getlogin_posix, [
+if test "$ac_cv_func_getlogin" = yes -a "$ac_cv_func_setlogin" = yes; then
+	ac_cv_func_getlogin_posix=no
+else
+	ac_cv_func_getlogin_posix=yes
+fi
+])
+if test "$ac_cv_func_getlogin_posix" = yes; then
+	AC_DEFINE(POSIX_GETLOGIN, 1, [Define if getlogin has POSIX flavour (and not BSD).])
+fi
+fi
+])
+
 dnl $Id: find-if-not-broken.m4,v 1.2 1998/03/16 22:16:27 joda Exp $
 dnl
 dnl
@@ -1168,7 +1210,7 @@ fi
 undefine([foo])
 ])
 
-dnl $Id: have-struct-field.m4,v 1.5 1999/03/01 13:10:35 joda Exp $
+dnl $Id: have-struct-field.m4,v 1.6 1999/07/29 01:44:32 assar Exp $
 dnl
 dnl check for fields in a structure
 dnl
@@ -1183,18 +1225,50 @@ cache_val=no)])
 if test "$cache_val" = yes; then
 	define(foo, translit(HAVE_$1_$2, [a-z ], [A-Z_]))
 	AC_DEFINE(foo, 1, [Define if $1 has field $2.])
-	undefine(foo)
+	undefine([foo])
 fi
-undefine(cache_val)
+undefine([cache_val])
 ])
 
-dnl $Id
+dnl $Id: have-type.m4,v 1.4 1999/07/24 19:23:01 assar Exp $
+dnl
+dnl check for existance of a type
+
+dnl AC_HAVE_TYPE(TYPE,INCLUDES)
+AC_DEFUN(AC_HAVE_TYPE, [
+cv=`echo "$1" | sed 'y%./+- %__p__%'`
+AC_MSG_CHECKING(for $1)
+AC_CACHE_VAL([ac_cv_type_$cv],
+AC_TRY_COMPILE(
+[#include <sys/types.h>
+#if STDC_HEADERS
+#include <stdlib.h>
+#include <stddef.h>
+#endif
+$2],
+[$1 foo;],
+eval "ac_cv_type_$cv=yes",
+eval "ac_cv_type_$cv=no"))dnl
+AC_MSG_RESULT(`eval echo \\$ac_cv_type_$cv`)
+if test `eval echo \\$ac_cv_type_$cv` = yes; then
+  ac_tr_hdr=HAVE_`echo $1 | sed 'y%abcdefghijklmnopqrstuvwxyz./- %ABCDEFGHIJKLMNOPQRSTUVWXYZ____%'`
+dnl autoheader tricks *sigh*
+define(foo,translit($1, [ ], [_]))
+: << END
+@@@funcs="$funcs foo"@@@
+END
+undefine([foo])
+  AC_DEFINE_UNQUOTED($ac_tr_hdr, 1)
+fi
+])
+
+dnl $Id: krb-struct-spwd.m4,v 1.3 1999/07/13 21:04:11 assar Exp $
 dnl
 dnl Test for `struct spwd'
 
 AC_DEFUN(AC_KRB_STRUCT_SPWD, [
 AC_MSG_CHECKING(for struct spwd)
-AC_CACHE_VAL(ac_cv_type_struct_spwd, [
+AC_CACHE_VAL(ac_cv_struct_spwd, [
 AC_TRY_COMPILE(
 [#include <pwd.h>
 #ifdef HAVE_SHADOW_H

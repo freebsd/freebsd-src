@@ -14,12 +14,7 @@
  *    notice, this list of conditions and the following disclaimer in the 
  *    documentation and/or other materials provided with the distribution. 
  *
- * 3. All advertising materials mentioning features or use of this software 
- *    must display the following acknowledgement: 
- *      This product includes software developed by Kungliga Tekniska 
- *      Högskolan and its contributors. 
- *
- * 4. Neither the name of the Institute nor the names of its contributors 
+ * 3. Neither the name of the Institute nor the names of its contributors 
  *    may be used to endorse or promote products derived from this software 
  *    without specific prior written permission. 
  *
@@ -38,7 +33,7 @@
 
 #include "krb_locl.h"
 
-RCSID("$Id: time.c,v 1.3 1998/09/30 22:36:19 assar Exp $");
+RCSID("$Id: time.c,v 1.4 1999/12/02 16:58:44 joda Exp $");
 
 /* number of seconds the kdc clock is ahead of us */
 static int time_diff;

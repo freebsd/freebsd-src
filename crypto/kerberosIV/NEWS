@@ -1,11 +1,15 @@
-Changes in release 0.10.1:
+Changes in release 1.0:
 
-* Bug fixes:
-  - krb_get_lrealm now works with zero `n'
-  - kadmin cosmetic fix
-  - login now compiles on IRIX < 6.5
-  - kxd fix for solaris waitpid breakage, fix for unicos setjob
-    breakage, better handling of fork failures
+* A new configuration option `nat_in_use' in krb.extra to ease use
+  through Network Address Translators.
+
+* Support configuration value of KEYFILE and TKT_ROOT in krb.extra
+
+* Easier building on some platforms
+
+* built-in ls in ftpd.
+
+* Bug fixes.
 
 Changes in release 0.10:
 

@@ -14,12 +14,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *      This product includes software developed by the Kungliga Tekniska
- *      Högskolan and its contributors.
- * 
- * 4. Neither the name of the Institute nor the names of its contributors
+ * 3. Neither the name of the Institute nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  * 
@@ -38,7 +33,7 @@
 
 #include "krb_locl.h"
 
-RCSID("$Id: realm_parse.c,v 1.15 1998/06/09 19:25:25 joda Exp $");
+RCSID("$Id: realm_parse.c,v 1.17 1999/12/02 16:58:43 joda Exp $");
 
 static int
 realm_parse(char *realm, int length, const char *file)
@@ -55,7 +50,7 @@ realm_parse(char *realm, int length, const char *file)
 	p = strtok_r(tr, " \t\n\r", &unused);
 	if(p && strcasecmp(p, realm) == 0){
 	    fclose(F);
-	    strcpy_truncate (realm, p, length);
+	    strlcpy (realm, p, length);
 	    return 0;
 	}
     }

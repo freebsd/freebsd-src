@@ -21,7 +21,7 @@ or implied warranty.
 
 #include "kdb_locl.h"
 
-RCSID("$Id: krb_dbm.c,v 1.36 1998/11/07 14:25:55 assar Exp $");
+RCSID("$Id: krb_dbm.c,v 1.37 1999/09/16 20:41:49 assar Exp $");
 
 #include <xdbm.h>
 
@@ -117,8 +117,8 @@ gen_dbsuffix(char *db_name, char *sfx)
 static void
 decode_princ_key(datum *key, char *name, char *instance)
 {
-    strcpy_truncate (name, key->dptr, ANAME_SZ);
-    strcpy_truncate (instance, (char *)key->dptr + ANAME_SZ, INST_SZ);
+    strlcpy (name, key->dptr, ANAME_SZ);
+    strlcpy (instance, (char *)key->dptr + ANAME_SZ, INST_SZ);
 }
 
 static void

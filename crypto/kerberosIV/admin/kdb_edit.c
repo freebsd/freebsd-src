@@ -15,7 +15,7 @@
 
 #include "adm_locl.h"
 
-RCSID("$Id: kdb_edit.c,v 1.27 1998/11/22 09:26:31 assar Exp $");
+RCSID("$Id: kdb_edit.c,v 1.28 1999/09/16 20:37:21 assar Exp $");
 
 #ifdef DEBUG
 extern  kerb_debug;
@@ -93,10 +93,10 @@ change_principal(void)
 	/* make a new principal, fill in defaults */
 	j = 1;
 	creating = 1;
-	strcpy_truncate(principal_data[0].name,
+	strlcpy(principal_data[0].name,
 			input_name,
 			ANAME_SZ);
-	strcpy_truncate(principal_data[0].instance,
+	strlcpy(principal_data[0].instance,
 			input_instance,
 			INST_SZ);
 	principal_data[0].old = NULL;

@@ -45,7 +45,7 @@
 #include <sys/capability.h>
 #endif
 
-RCSID("$Id: login.c,v 1.120.2.2 1999/09/02 08:55:26 joda Exp $");
+RCSID("$Id: login.c,v 1.125 1999/11/30 19:24:01 bg Exp $");
 
 #ifdef OTP
 #include <otp.h>
@@ -225,7 +225,7 @@ main(int argc, char **argv)
 
 	fflag = hflag = pflag = rflag = 0;
 	uid = getuid();
-	while ((ch = getopt(argc, argv, "a:d:fh:pr:")) != EOF)
+	while ((ch = getopt(argc, argv, "a:d:fh:pr:")) != -1)
 	        switch (ch) {
 		case 'a':
 			if (strcmp (optarg, "none") == 0)
@@ -250,7 +250,7 @@ main(int argc, char **argv)
 			if (uid)
 				errx(1, "-h option: %s", strerror(EPERM));
 			hflag = 1;
-			strcpy_truncate(full_hostname,
+			strlcpy(full_hostname,
 					optarg,
 					sizeof(full_hostname));
 			if (domain && (p = strchr(optarg, '.')) &&
@@ -275,7 +275,7 @@ main(int argc, char **argv)
 				exit(1);
                         }
 			rflag = 1;
-			strcpy_truncate(full_hostname,
+			strlcpy(full_hostname,
 					optarg,
 					sizeof(full_hostname));
 			if (domain && (p = strchr(optarg, '.')) &&
@@ -383,7 +383,7 @@ main(int argc, char **argv)
 				badlogin(tbuf);
 			failures = 0;
 		}
-		strcpy_truncate(tbuf, username, sizeof(tbuf));
+		strlcpy(tbuf, username, sizeof(tbuf));
 
 		pwd = paranoid_getpwnam (username);
 
@@ -654,7 +654,7 @@ main(int argc, char **argv)
          * that LD_* and IFS are never preserved.
          */
 	if (term[0] == '\0')
-		strcpy_truncate(term, stypeof(tty), sizeof(term));
+		strlcpy(term, stypeof(tty), sizeof(term));
         /* set up a somewhat censored environment. */
         sysv_newenv(argc, argv, pwd, term, pflag);
 #ifdef KERBEROS
@@ -950,7 +950,7 @@ checknologin(void)
 static void
 dolastlog(int quiet)
 {
-#if defined(HAVE_LASTLOG_H) || defined(HAVE_LOGIN_H) || defined(SYSV_SHADOW)
+#if defined(HAVE_LASTLOG_H) || defined(HAVE_LOGIN_H)
 	struct lastlog ll;
 	int fd;
 

@@ -1,3 +1,61 @@
+1999-11-05  Assar Westerlund  <assar@sics.se>
+
+	* check-x.m4: include X_PRE_LIBS and X_EXTRA_LIBS when testing
+
+1999-11-01  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am.common (install-build-headers): use `cp' instead of
+ 	INSTALL_DATA for copying header files inside the build tree.  The
+ 	user might have redefined INSTALL_DATA to specify owners and other
+ 	information.
+
+1999-10-30  Assar Westerlund  <assar@sics.se>
+
+	* find-func-no-libs2.m4: add yet another argument to allow specify
+ 	linker flags that will be added _before_ the library when trying
+ 	to link
+
+	* find-func-no-libs.m4: add yet another argument to allow specify
+ 	linker flags that will be added _before_ the library when trying
+ 	to link
+
+1999-10-12  Assar Westerlund  <assar@sics.se>
+
+	* find-func-no-libs2.m4 (AC_FIND_FUNC_NO_LIBS2): new argument
+ 	`extra libs'
+
+	* find-func-no-libs.m4 (AC_FIND_FUNC_NO_LIBS): new argument `extra
+ 	libs'
+
+1999-09-01  Johan Danielsson  <joda@pdc.kth.se>
+
+	* capabilities.m4: sgi capabilities
+
+1999-07-29  Assar Westerlund  <assar@sics.se>
+
+	* have-struct-field.m4: quote macros when undefining
+
+1999-07-28  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am.common (install-build-headers): add dependencies
+
+1999-07-24  Assar Westerlund  <assar@sics.se>
+	
+	* have-type.m4: try to get autoheader to co-operate
+
+	* have-type.m4: stolen from Arla
+
+	* krb-struct-sockaddr-sa-len.m4: not used any longer.  removed.
+
+1999-06-13  Assar Westerlund  <assar@sics.se>
+
+	* krb-struct-spwd.m4: consequent name of cache variables
+
+	* krb-func-getlogin.m4: new file for testing for posix (broken)
+ 	getlogin
+
+	* shared-libs.m4 (freebsd[34]): don't use ld -Bshareable
+
 1999-06-02  Johan Danielsson  <joda@pdc.kth.se>
 
 	* check-x.m4: extended test for X

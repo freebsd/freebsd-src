@@ -1,5 +1,5 @@
 # 
-# $Id: Makefile.in,v 1.40 1999/03/10 19:01:11 joda Exp $
+# $Id: Makefile.in,v 1.41 1999/10/03 16:39:27 joda Exp $
 #
 
 srcdir		= @srcdir@
@@ -47,8 +47,8 @@ LIBROKEN= -L$(LIBTOP)/roken -lroken
 
 PROGS = ftpd$(EXECSUFFIX)
 
-ftpd_SOURCES = ftpd.c ftpcmd.c logwtmp.c popen.c security.c krb4.c kauth.c
-ftpd_OBJS = ftpd.o ftpcmd.o logwtmp.o popen.o security.o krb4.o kauth.o
+ftpd_SOURCES = ftpd.c ftpcmd.c logwtmp.c ls.c popen.c security.c krb4.c kauth.c
+ftpd_OBJS = ftpd.o ftpcmd.o logwtmp.o ls.o popen.o security.o krb4.o kauth.o
 
 SOURCES = $(ftpd_SOURCES)
 OBJECTS = $(ftpd_OBJS)

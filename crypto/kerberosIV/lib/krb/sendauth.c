@@ -21,7 +21,7 @@ or implied warranty.
 
 #include "krb_locl.h"
 
-RCSID("$Id: sendauth.c,v 1.17 1998/06/09 19:25:26 joda Exp $");
+RCSID("$Id: sendauth.c,v 1.18 1999/09/16 20:41:55 assar Exp $");
 
 /*
  * krb_sendauth() transmits a ticket over a file descriptor for a
@@ -148,7 +148,7 @@ krb_sendauth(int32_t options,	/* bit-pattern of options */
 	    i = instance;
 	else
 	    i = krb_get_phost(instance);
-	strcpy_truncate (inst, i, sizeof(inst));
+	strlcpy (inst, i, sizeof(inst));
 
 	ret = krb_get_cred (service, inst, realm, cred);
 	if (ret != KSUCCESS)

@@ -1,5 +1,5 @@
 /*
- * $Id: prot.h,v 1.8 1997/12/05 00:18:02 joda Exp $
+ * $Id: prot.h,v 1.9 1999/11/30 18:57:46 bg Exp $
  *
  * Copyright 1985, 1986, 1987, 1988 by the Massachusetts Institute
  * of Technology.
@@ -12,6 +12,8 @@
 
 #ifndef PROT_DEFS
 #define PROT_DEFS
+
+#include <krb.h>
 
 #define		KRB_SERVICE		"kerberos-iv"
 #define		KRB_PORT		750	/* PC's don't have

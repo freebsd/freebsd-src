@@ -1,3 +1,244 @@
+1999-11-25  Assar Westerlund  <assar@sics.se>
+
+	* getopt.c (getopt): return -1 instead of EOF.  From
+	<art@stacken.kth.se>
+
+1999-11-13  Assar Westerlund  <assar@sics.se>
+
+	* strftime.c (strftime): handle `%z' and `%Z' in a tm_gmtoff-less
+	world
+
+	* getcap.c: make sure to use db only if we have both the library
+	and the header file
+	
+1999-11-12  Assar Westerlund  <assar@sics.se>
+
+	* getarg.h: add arg_counter
+	* getarg.c: add a new type of argument: `arg_counter' re-organize
+	the code somewhat
+	
+	* Makefile.am: add strptime and strpftime-test
+	
+	* snprintf.c (xyzprintf): try to do the right thing with an % at
+	the end of the format string
+	
+	* strptime.c (strptime): implement '%U', '%V', '%W'
+	* strftime.c (strftime): implement '%U', '%V', '%W', '%z'
+	
+	* strftime.c (strftime): correct %E and %O handling.  do something
+ 	reasonable with "...%"
+
+	* strftime.c: replace the BSD implementation by one of our own
+	coding
+
+	* strptime.c : new file
+	* strpftime-test.c: new file
+
+1999-11-07  Assar Westerlund  <assar@sics.se>
+
+	* parse_bytes-test.c: new file
+
+	* Makefile.am: add parse_bytes-test
+
+	* parse_units.c (parse_something): try to handle the case of no
+ 	value specified a little bit better
+
+1999-11-04  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am: bump version to 3:2:0
+
+1999-10-30  Assar Westerlund  <assar@sics.se>
+
+	* snprintf.c (PARSE_INT_FORMAT): add redundant casts to work
+ 	around a gcc-bug that manifests itself on Linux-PPC.  From Tom
+ 	Rini <trini@kernel.crashing.org>
+
+1999-10-28  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am: bump version to 3:1:0
+
+	* roken.h.in: use `unsigned char' instead of `u_int8_t' to avoid
+ 	having to have that definition.  this is the easy way out instead
+ 	of getting the definition here where it's needed.  flame me.
+
+Fri Oct 22 15:39:31 1999  Bjoern Groenvall  <bg@sics.se>
+
+	* k_getpwuid.c (k_getpwuid): getspuid() does not exist (even
+ 	though it should), use getspnam().
+
+1999-10-20  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am: set version to 3:0:0
+
+1999-10-18  Johan Danielsson  <joda@pdc.kth.se>
+
+	* getarg.3: document arg_collect
+
+	* getarg.c: change the way arg_collect works; it's still quite
+	horrible though
+
+	* getarg.h: change type of the collect function
+
+1999-10-17  Assar Westerlund  <assar@sics.se>
+
+	* xdbm.h: undo last commit
+
+	* xdbm.h: reorder db includes
+
+1999-10-10  Assar Westerlund  <assar@sics.se>
+
+	* socket.c: const-ize and comment
+
+	* net_write.c: const-ize
+
+	* base64.c: const-ize
+
+1999-10-06  Assar Westerlund  <assar@sics.se>
+
+	* getarg.c (getarg): also set optind when returning error
+
+1999-09-26  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am: add parse_bytes.[ch]
+
+1999-09-24  Johan Danielsson  <joda@pdc.kth.se>
+
+	* getarg.3: getarg manpage
+
+	* getarg.{c,h}: add a callback type to do more complicated processing
+
+	* getarg.{c,h}: add floating point support
+
+1999-09-16  Assar Westerlund  <assar@sics.se>
+
+	* strlcat.c (strlcat): call strlcpy
+
+	* strlcpy.c: update name and prototype
+
+	* strlcat.c: update name and prototype
+
+	* roken.h.in: rename strc{py,at}_truncate to strlc{py,at}
+
+	* Makefile.am: rename strc{py,at}_truncate -> strlc{py,at}
+
+	* Makefile.in: rename strc{py,at}_truncate -> strlc{py,at}
+
+ 	* strcpy_truncate.c (strcpy_truncate): change return value to be
+ 	the length of `src'
+
+1999-08-16  Assar Westerlund  <assar@sics.se>
+
+	* getcap.c: try to make this work on systems with DB
+
+1999-08-16  Johan Danielsson  <joda@pdc.kth.se>
+
+	* getcap.c: protect from db-less systems
+
+1999-08-09  Johan Danielsson  <joda@pdc.kth.se>
+
+	* simple_exec.c: add simple_exec{ve,le}
+
+	* getcap.c: getcap from NetBSD
+
+1999-08-06  Assar Westerlund  <assar@sics.se>
+
+	* roken.h.in (sockaddr_storage): cater for those that have
+ 	v6-support also
+
+1999-08-05  Assar Westerlund  <assar@sics.se>
+
+	* inet_ntop.c (inet_ntop_v4): remember to call ntohl
+
+1999-08-04  Assar Westerlund  <assar@sics.se>
+
+	* roken-common.h: add shutdown constants
+
+	* mini_inetd.c (listen_v4, listen_v6): handle the case of the
+ 	protocol not being supported
+
+1999-08-01  Assar Westerlund  <assar@sics.se>
+
+	* mini_inetd.c (socket_set_reuseaddr): remove duplicate
+
+1999-07-29  Assar Westerlund  <assar@sics.se>
+
+	* mini_inetd.c (mini_inetd): fix my stupid bugs
+
+1999-07-28  Assar Westerlund  <assar@sics.se>
+
+	* roken-common.h: add socket* functions
+
+	* Makefile.am (libroken_la_SOURCES): add socket.c
+
+	* socket.c: new file, originally from appl/ftp/common
+
+	* Makefile.am: set version to 2:0:2
+
+	* roken.h.in (inet_pton): add prototype
+
+	* Makefile.am (EXTRA_libroken_la_SOURCES): add inet_pton
+
+	* inet_pton.c: new file
+
+	* getipnodebyname.c (getipnodebyname): try gethostbyname2 if we
+ 	have it
+
+1999-07-27  Assar Westerlund  <assar@sics.se>
+
+	* mini_inetd.c: support IPv6
+
+1999-07-26  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am: set version to 1:0:1
+
+	* roken.h.in (inet_ntop): add prototype
+
+ 	* roken-common.h: (INET{,6}_ADDRSTRLEN): add
+
+	* inet_ntop.c: new file
+
+	* Makefile.am (EXTRA_libroken_la_SOURCES): add inet_ntop.c
+
+	* Makefile.am: move some files from libroken_la_SOURCES to
+ 	EXTRA_libroken_la_SOURCES
+
+	* snprintf.c: some signed vs unsigned casts
+	
+1999-07-24  Assar Westerlund  <assar@sics.se>
+
+	* roken.h.in (struct sockaddr_storage): define it needed
+
+1999-07-19  Assar Westerlund  <assar@sics.se>
+
+	* Makefile.am (libroken_la_SOURCES): add copyhostent.c,
+ 	freehostent.c, getipnodebyname.c, getipnodebyaddr.c
+	
+	* roken.h.in: <netdb.h>: include
+	(copyhostent, freehostent, getipnodebyname, getipnodebyaddr): add
+	prototypes
+
+	* roken-common.h: new constants for getipnodeby*
+
+	* Makefile.in (SOURCES): add freehostent, copyhostent,
+ 	getipnodebyname, getipnodebyaddr
+
+	* freehostent.c: new file
+
+	* copyhostent.c: new file
+
+	* getipnodebyaddr.c: new file
+
+	* getipnodebyname.c: new file
+
+1999-07-13  Assar Westerlund  <assar@sics.se>
+
+	* roken.h.in (k_getpwnam): update prototype
+
+	* k_getpwnam.c (k_getpwnam): const-ize
+
+	* get_default_username.c (get_default_username): a better way of
+ 	guessing when the user has su:ed
+
 1999-07-08  Johan Danielsson  <joda@pdc.kth.se>
 
 	* roken.awk: use puts, as suggested by Jeffrey Hutzelman

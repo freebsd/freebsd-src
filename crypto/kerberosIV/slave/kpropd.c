@@ -14,12 +14,7 @@
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  * 
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *      This product includes software developed by the Kungliga Tekniska
- *      Högskolan and its contributors.
- * 
- * 4. Neither the name of the Institute nor the names of its contributors
+ * 3. Neither the name of the Institute nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  * 
@@ -40,7 +35,7 @@
 
 #include "kprop.h"
 
-RCSID("$Id: kpropd.c,v 2.30 1999/03/11 20:29:14 bg Exp $");
+RCSID("$Id: kpropd.c,v 2.32 1999/12/02 16:58:56 joda Exp $");
 
 #ifndef SBINDIR
 #define SBINDIR "/usr/athena/sbin"
@@ -292,7 +287,7 @@ main(int argc, char **argv)
 	    kdb_util = optarg;
 	    break;
 	case 'r':
-	    strcpy_truncate(realm, optarg, REALM_SZ);
+	    strlcpy(realm, optarg, REALM_SZ);
 	    break;
 	case 's':
 	    srvtab = optarg;
