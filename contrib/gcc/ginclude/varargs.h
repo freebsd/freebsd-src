@@ -1,67 +1,33 @@
-/* Record that this is varargs.h; this turns off stdarg.h.  */
+/* Copyright (C) 1989, 1997, 1998, 1999, 2000 Free Software Foundation, Inc.
+
+This file is part of GNU CC.
+
+GNU CC is free software; you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation; either version 2, or (at your option)
+any later version.
+
+GNU CC is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with GNU CC; see the file COPYING.  If not, write to
+the Free Software Foundation, 59 Temple Place - Suite 330,
+Boston, MA 02111-1307, USA.  */
+
+/* As a special exception, if you include this header file into source
+   files compiled by GCC, this header file does not by itself cause
+   the resulting executable to be covered by the GNU General Public
+   License.  This exception does not however invalidate any other
+   reasons why the executable file might be covered by the GNU General
+   Public License.  */
 
 /* $FreeBSD$ */
 
 #ifndef _VARARGS_H
 #define _VARARGS_H
-
-#ifdef __sparc__
-#include "va-sparc.h"
-#else
-#ifdef __spur__
-#include "va-spur.h"
-#else
-#ifdef __mips__
-#include "va-mips.h"
-#else
-#ifdef __i860__
-#include "va-i860.h"
-#else
-#ifdef __pyr__
-#include "va-pyr.h"
-#else
-#ifdef __clipper__
-#include "va-clipper.h"
-#else
-#ifdef __m88k__
-#include "va-m88k.h"
-#else
-#if defined(__hppa__) || defined(hp800)
-#include "va-pa.h"
-#else
-#ifdef __i960__
-#include "va-i960.h"
-#else
-#ifdef __alpha__
-#include "va-alpha.h"
-#else
-#if defined (__H8300__) || defined (__H8300H__) || defined (__H8300S__)
-#include "va-h8300.h"
-#else
-#if defined (__PPC__) && (defined (_CALL_SYSV) || defined (_WIN32))
-#include "va-ppc.h"
-#else
-#ifdef __arc__
-#include "va-arc.h"
-#else
-#ifdef __M32R__
-#include "va-m32r.h"
-#else
-#ifdef __sh__
-#include "va-sh.h"
-#else
-#ifdef __mn10300__
-#include "va-mn10300.h"
-#else
-#ifdef __mn10200__
-#include "va-mn10200.h"
-#else
-#ifdef __v850__
-#include "va-v850.h"
-#else
-#if defined (_TMS320C4x) || defined (_TMS320C3x)
-#include <va-c4x.h>
-#else
 
 #ifdef __NeXT__
 
@@ -77,91 +43,32 @@
 #undef va_list
 #undef va_start
 #undef va_end
-#undef __va_rounded_size
 #undef va_arg
 #endif  /* __NeXT__ */
-
-/* In GCC version 2, we want an ellipsis at the end of the declaration
-   of the argument list.  GCC version 1 can't parse it.  */
-
-#if __GNUC__ > 1
-#define __va_ellipsis ...
-#else
-#define __va_ellipsis
-#endif
 
 /* These macros implement traditional (non-ANSI) varargs
    for GNU C.  */
 
 #define va_alist  __builtin_va_alist
-/* The ... causes current_function_varargs to be set in cc1.  */
+
 /* ??? We don't process attributes correctly in K&R argument context.  */
 typedef int __builtin_va_alist_t __attribute__((__mode__(__word__)));
-#define va_dcl	__builtin_va_alist_t __builtin_va_alist; __va_ellipsis
 
-/* Define __gnuc_va_list, just as in gstdarg.h.  */
+/* ??? It would be nice to get rid of the ellipsis here.  It causes
+   current_function_varargs to be set in cc1.  */
+#define va_dcl		__builtin_va_alist_t __builtin_va_alist; ...
+
+/* Define __gnuc_va_list, just as in stdarg.h.  */
 
 #ifndef __GNUC_VA_LIST
 #define __GNUC_VA_LIST
-#if defined(__svr4__) || defined(_AIX) || defined(_M_UNIX)
-typedef char *__gnuc_va_list;
-#else
-typedef void *__gnuc_va_list;
-#endif
+typedef __builtin_va_list __gnuc_va_list;
 #endif
 
-#define va_start(AP)  AP=(char *) &__builtin_va_alist
-
-#define va_end(AP)	((void)0)
-
-#if defined(sysV68)
-#define __va_rounded_size(TYPE)  \
-  (((sizeof (TYPE) + sizeof (short) - 1) / sizeof (short)) * sizeof (short))
-#elif defined(_AIX)
-#define __va_rounded_size(TYPE)  \
-  (((sizeof (TYPE) + sizeof (long) - 1) / sizeof (long)) * sizeof (long))
-#else
-#define __va_rounded_size(TYPE)  \
-  (((sizeof (TYPE) + sizeof (int) - 1) / sizeof (int)) * sizeof (int))
-#endif
-
-#if (defined (__arm__) && ! defined (__ARMEB__)) || defined (__i386__) || defined (__i860__) || defined (__ns32000__) || defined (__vax__)
-/* This is for little-endian machines; small args are padded upward.  */
-#define va_arg(AP, TYPE)						\
- (AP = (__gnuc_va_list) ((char *) (AP) + __va_rounded_size (TYPE)),	\
-  *((TYPE *) (void *) ((char *) (AP) - __va_rounded_size (TYPE))))
-#else /* big-endian */
-/* This is for big-endian machines; small args are padded downward.  */
-#define va_arg(AP, TYPE)						\
- (AP = (__gnuc_va_list) ((char *) (AP) + __va_rounded_size (TYPE)),	\
-  *((TYPE *) (void *) ((char *) (AP)					\
-		       - ((sizeof (TYPE) < __va_rounded_size (char)	\
-			   ? sizeof (TYPE) : __va_rounded_size (TYPE))))))
-#endif /* big-endian */
-
-/* Copy __gnuc_va_list into another variable of this type.  */
-#define __va_copy(dest, src) (dest) = (src)
-
-#endif /* not TMS320C3x or TMS320C4x */
-#endif /* not v850 */
-#endif /* not mn10200 */
-#endif /* not mn10300 */
-#endif /* not sh */
-#endif /* not m32r */
-#endif /* not arc */
-#endif /* not powerpc with V.4 calling sequence */
-#endif /* not h8300 */
-#endif /* not alpha */
-#endif /* not i960 */
-#endif /* not hppa */
-#endif /* not m88k */
-#endif /* not clipper */
-#endif /* not pyr */
-#endif /* not i860 */
-#endif /* not mips */
-#endif /* not spur */
-#endif /* not sparc */
-#endif /* not _VARARGS_H */
+#define va_start(v)	__builtin_varargs_start((v))
+#define va_end		__builtin_va_end
+#define va_arg		__builtin_va_arg
+#define __va_copy(d,s)	__builtin_va_copy((d),(s))
 
 /* Define va_list from __gnuc_va_list.  */
 
@@ -203,7 +110,10 @@ typedef __gnuc_va_list va_list;
 #ifndef _VA_LIST
 /* The macro _VA_LIST_T_H is used in the Bull dpx2  */
 #ifndef _VA_LIST_T_H
+/* The macro __va_list__ is used by BeOS.  */
+#ifndef __va_list__
 typedef __gnuc_va_list va_list;
+#endif /* not __va_list__ */
 #endif /* not _VA_LIST_T_H */
 #endif /* not _VA_LIST */
 #endif /* not _VA_LIST_DEFINED */
@@ -219,6 +129,9 @@ typedef __gnuc_va_list va_list;
 #ifndef _VA_LIST_T_H
 #define _VA_LIST_T_H
 #endif
+#ifndef __va_list__
+#define __va_list__
+#endif
 
 #endif /* not _VA_LIST_, except on certain systems */
 
@@ -229,3 +142,5 @@ typedef __gnuc_va_list va_list;
 #ifdef _BSD_VA_LIST
 #undef _BSD_VA_LIST
 #endif
+
+#endif /* _VARARGS_H */
