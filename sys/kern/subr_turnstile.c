@@ -736,7 +736,6 @@ turnstile_unpend(struct turnstile *ts)
 			td->td_lockname = NULL;
 			TD_CLR_LOCK(td);
 			MPASS(TD_CAN_RUN(td));
-			MPASS(td->td_turnstile != NULL);
 			setrunqueue(td);
 		} else {
 			td->td_flags |= TDF_TSNOBLOCK;
