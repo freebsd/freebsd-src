@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.145 1995/10/28 16:57:54 markm Exp $
+ *	$Id: machdep.c,v 1.146 1995/10/31 19:07:53 peter Exp $
  */
 
 #include "npx.h"
@@ -891,6 +891,16 @@ boot(howto)
 			 * unmount filesystems (thus forcing an fsck on reboot).
 			 */
 			printf("giving up\n");
+#ifdef SHOW_BUSYBUFS
+			nbusy = 0;
+			for (bp = &buf[nbuf]; --bp >= buf; ) {
+				if ((bp->b_flags & (B_BUSY | B_INVAL)) == B_BUSY) {
+					nbusy++;
+					printf("%d: dev:%08x, flags:%08x, blkno:%d, lblkno:%d\n", nbusy, bp->b_dev, bp->b_flags, bp->b_blkno, bp->b_lblkno);
+				}
+			}
+			DELAY(5000000);	/* 5 seconds */
+#endif
 		} else {
 			printf("done\n");
 			/*
