@@ -62,7 +62,7 @@ cd /usr/src
 mkdir -p $D
 make world DESTDIR=$D
 cd etc
-make distribution DESTDIR=$D -DNO_MAKEDEV_RUN
+make distribution DESTDIR=$D
 cd $D/dev
 sh MAKEDEV jail
 cd $D
