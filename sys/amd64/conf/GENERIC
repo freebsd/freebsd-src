@@ -25,7 +25,7 @@ ident		GENERIC
 maxusers	32
 
 #To statically compile in device wiring instead of /boot/device.hints
-hints		"GENERIC.hints"		#Default places to look for devices.
+#hints		"GENERIC.hints"		#Default places to look for devices.
 
 makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
 
@@ -58,8 +58,6 @@ options 	DDB
 options 	INVARIANTS
 options 	INVARIANT_SUPPORT
 options 	WITNESS
-options 	UPAGES=4
-options		CPU_ENABLE_SSE
 
 # To make an SMP kernel, the next two are needed
 #options 	SMP			# Symmetric MultiProcessor Kernel
