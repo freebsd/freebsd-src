@@ -682,7 +682,6 @@ gv_plex_access(struct g_provider *pp, int dr, int dw, int de)
 
 	gp = pp->geom;
 
-	error = ENXIO;
 	LIST_FOREACH(cp, &gp->consumer, consumer) {
 		error = g_access(cp, dr, dw, de);
 		if (error) {
@@ -694,7 +693,7 @@ gv_plex_access(struct g_provider *pp, int dr, int dw, int de)
 			return (error);
 		}
 	}
-	return (error);
+	return (0);
 }
 
 static struct g_geom *
