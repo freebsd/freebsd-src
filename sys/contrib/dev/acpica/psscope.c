@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: psscope - Parser scope stack management routines
- *              $Revision: 29 $
+ *              $Revision: 30 $
  *
  *****************************************************************************/
 
@@ -195,6 +195,7 @@ AcpiPsInitScope (
         return_ACPI_STATUS (AE_NO_MEMORY);
     }
 
+    Scope->Common.DataType      = ACPI_DESC_TYPE_STATE_RPSCOPE;
     Scope->ParseScope.Op        = RootOp;
     Scope->ParseScope.ArgCount  = ACPI_VAR_ARGS;
     Scope->ParseScope.ArgEnd    = ParserState->AmlEnd;
@@ -242,6 +243,7 @@ AcpiPsPushScope (
     }
 
 
+    Scope->Common.DataType         = ACPI_DESC_TYPE_STATE_PSCOPE;
     Scope->ParseScope.Op           = Op;
     Scope->ParseScope.ArgList      = RemainingArgs;
     Scope->ParseScope.ArgCount     = ArgCount;

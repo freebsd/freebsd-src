@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: utdelete - object deletion and reference count utilities
- *              $Revision: 75 $
+ *              $Revision: 78 $
  *
  ******************************************************************************/
 
@@ -339,22 +339,7 @@ AcpiUtDeleteInternalObjectList (
 
     for (InternalObj = ObjList; *InternalObj; InternalObj++)
     {
-        /*
-         * Check for a package
-         * Simple objects are simply stored in the array and do not
-         * need to be deleted separately.
-         */
-        if (IS_THIS_OBJECT_TYPE ((*InternalObj), ACPI_TYPE_PACKAGE))
-        {
-            /* Delete the package */
-
-            /*
-             * TBD: [Investigate] This might not be the right thing to do,
-             * depending on how the internal package object was allocated!!!
-             */
-            AcpiUtDeleteInternalObj (*InternalObj);
-        }
-
+        AcpiUtRemoveReference (*InternalObj);
     }
 
     /* Free the combined parameter pointer list and object array */
@@ -472,8 +457,8 @@ AcpiUtUpdateRefCount (
     if (Count > MAX_REFERENCE_COUNT)
     {
 
-        ACPI_DEBUG_PRINT ((ACPI_DB_ERROR,
-            "**** AE_ERROR **** Invalid Reference Count (%X) in object %p\n\n",
+        ACPI_DEBUG_PRINT ((ACPI_DB_WARN,
+            "**** Warning **** Large Reference Count (%X) in object %p\n\n",
             Count, Object));
     }
 
@@ -538,7 +523,9 @@ AcpiUtUpdateObjectReference (
 
     if (AcpiTbSystemTablePointer (Object))
     {
-        ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "**** Object %p is Pcode Ptr\n", Object));
+        ACPI_DEBUG_PRINT (
+            (ACPI_DB_INFO, "**** Object %p points into an ACPI table\n", 
+            Object));
         return_ACPI_STATUS (AE_OK);
     }
 

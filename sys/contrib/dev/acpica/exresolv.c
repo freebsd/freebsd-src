@@ -2,7 +2,7 @@
 /******************************************************************************
  *
  * Module Name: exresolv - AML Interpreter object resolution
- *              $Revision: 97 $
+ *              $Revision: 99 $
  *
  *****************************************************************************/
 
@@ -398,31 +398,51 @@ AcpiExResolveObjectToValue (
 
 
         /*
-         * TBD: [Restructure] These next three opcodes change the type of
-         * the object, which is actually a no-no.
+         * For constants, we must change the reference/constant object
+         * to a real integer object
          */
         case AML_ZERO_OP:
-
-            StackDesc->Common.Type = (UINT8) ACPI_TYPE_INTEGER;
-            StackDesc->Integer.Value = 0;
-            break;
-
-
         case AML_ONE_OP:
-
-            StackDesc->Common.Type = (UINT8) ACPI_TYPE_INTEGER;
-            StackDesc->Integer.Value = 1;
-            break;
-
-
         case AML_ONES_OP:
+        case AML_REVISION_OP:
 
-            StackDesc->Common.Type = (UINT8) ACPI_TYPE_INTEGER;
-            StackDesc->Integer.Value = ACPI_INTEGER_MAX;
+            /* Create a new integer object */
 
-            /* Truncate value if we are executing from a 32-bit ACPI table */
+            ObjDesc = AcpiUtCreateInternalObject (ACPI_TYPE_INTEGER);
+            if (!ObjDesc)
+            {
+                return_ACPI_STATUS (AE_NO_MEMORY);
+            }
 
-            AcpiExTruncateFor32bitTable (StackDesc, WalkState);
+            switch (Opcode)
+            {
+            case AML_ZERO_OP:
+                ObjDesc->Integer.Value = 0;
+                break;
+
+            case AML_ONE_OP:
+                ObjDesc->Integer.Value = 1;
+                break;
+
+            case AML_ONES_OP:
+                ObjDesc->Integer.Value = ACPI_INTEGER_MAX;
+
+                /* Truncate value if we are executing from a 32-bit ACPI table */
+
+                AcpiExTruncateFor32bitTable (ObjDesc, WalkState);
+                break;
+
+            case AML_REVISION_OP:
+                ObjDesc->Integer.Value = ACPI_CA_VERSION;
+                break;
+            }
+
+            /* 
+             * Remove a reference from the original reference object
+             * and put the new object in its place
+             */
+            AcpiUtRemoveReference (StackDesc);
+            *StackPtr = ObjDesc;
             break;
 
 

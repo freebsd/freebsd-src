@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: psutils - Parser miscellaneous utilities (Parser only)
- *              $Revision: 43 $
+ *              $Revision: 44 $
  *
  *****************************************************************************/
 
@@ -125,8 +125,8 @@
 
 #define PARSEOP_GENERIC     0x01
 #define PARSEOP_NAMED       0x02
-#define PARSEOP_DEFERRED    0x03
-#define PARSEOP_BYTELIST    0x04
+#define PARSEOP_DEFERRED    0x04
+#define PARSEOP_BYTELIST    0x08
 #define PARSEOP_IN_CACHE    0x80
 
 

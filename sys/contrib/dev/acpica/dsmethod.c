@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: dsmethod - Parser/Interpreter interface - control method parsing
- *              $Revision: 65 $
+ *              $Revision: 68 $
  *
  *****************************************************************************/
 
@@ -157,6 +157,7 @@ AcpiDsParseMethod (
     ACPI_PARSE_OBJECT       *Op;
     ACPI_NAMESPACE_NODE     *Node;
     ACPI_OWNER_ID           OwnerId;
+    ACPI_WALK_STATE         *WalkState;
 
 
     FUNCTION_TRACE_PTR ("DsParseMethod", ObjHandle);
@@ -182,7 +183,7 @@ AcpiDsParseMethod (
         return_ACPI_STATUS (AE_NULL_OBJECT);
     }
 
-     /* Create a mutex for the method if there is a concurrency limit */
+    /* Create a mutex for the method if there is a concurrency limit */
 
     if ((ObjDesc->Method.Concurrency != INFINITE_CONCURRENCY) &&
         (!ObjDesc->Method.Semaphore))
@@ -211,6 +212,22 @@ AcpiDsParseMethod (
     AcpiPsSetName (Op, Node->Name);
     Op->Node = Node;
 
+    /* Create and initialize a new walk state */
+
+    WalkState = AcpiDsCreateWalkState (TABLE_ID_DSDT,
+                                    NULL, NULL, NULL);
+    if (!WalkState)
+    {
+        return_ACPI_STATUS (AE_NO_MEMORY);
+    }
+
+    Status = AcpiDsInitAmlWalk (WalkState, Op, Node, ObjDesc->Method.AmlStart, 
+                    ObjDesc->Method.AmlLength, NULL, NULL, 1);
+    if (ACPI_FAILURE (Status))
+    {
+        /* TBD: delete walk state */
+        return_ACPI_STATUS (Status);
+    }
 
     /*
      * Parse the method, first pass
@@ -222,12 +239,7 @@ AcpiDsParseMethod (
      * method so that operands to the named objects can
      * take on dynamic run-time values.
      */
-    Status = AcpiPsParseAml (Op, ObjDesc->Method.Pcode,
-                        ObjDesc->Method.PcodeLength,
-                        ACPI_PARSE_LOAD_PASS1 | ACPI_PARSE_DELETE_TREE,
-                        Node, NULL, NULL,
-                        AcpiDsLoad1BeginOp, AcpiDsLoad1EndOp);
-
+    Status = AcpiPsParseAml (WalkState);
     if (ACPI_FAILURE (Status))
     {
         return_ACPI_STATUS (Status);
@@ -240,9 +252,6 @@ AcpiDsParseMethod (
 
     ACPI_DEBUG_PRINT ((ACPI_DB_INFO, "**** [%4.4s] Parsed **** NamedObj=%p Op=%p\n",
         &((ACPI_NAMESPACE_NODE *)ObjHandle)->Name, ObjHandle, Op));
-
-    /* Install the parsed tree in the method object */
-    /* TBD: [Restructure] Obsolete field? */
 
     AcpiPsDeleteParseTree (Op);
 
@@ -344,13 +353,12 @@ ACPI_STATUS
 AcpiDsCallControlMethod (
     ACPI_WALK_LIST          *WalkList,
     ACPI_WALK_STATE         *ThisWalkState,
-    ACPI_PARSE_OBJECT       *Op)
+    ACPI_PARSE_OBJECT       *Op)  /* TBD: This operand is obsolete */
 {
     ACPI_STATUS             Status;
     ACPI_NAMESPACE_NODE     *MethodNode;
     ACPI_OPERAND_OBJECT     *ObjDesc;
     ACPI_WALK_STATE         *NextWalkState;
-    ACPI_PARSE_STATE        *ParserState;
     UINT32                  i;
 
 
@@ -374,7 +382,6 @@ AcpiDsCallControlMethod (
         return_ACPI_STATUS (AE_NULL_OBJECT);
     }
 
-
     /* Init for new method, wait on concurrency semaphore */
 
     Status = AcpiDsBeginMethodExecution (MethodNode, ObjDesc,
@@ -384,82 +391,66 @@ AcpiDsCallControlMethod (
         return_ACPI_STATUS (Status);
     }
 
-    /* Create and initialize a new parser state */
 
-    ParserState = AcpiPsCreateState (ObjDesc->Method.Pcode,
-                        ObjDesc->Method.PcodeLength);
-    if (!ParserState)
-    {
-        return_ACPI_STATUS (AE_NO_MEMORY);
-    }
-
-    AcpiPsInitScope (ParserState, NULL);
-    ParserState->StartNode = MethodNode;
-
-
-    /* Create a new state for the preempting walk */
+    /* 1) Parse: Create a new walk state for the preempting walk */
 
     NextWalkState = AcpiDsCreateWalkState (ObjDesc->Method.OwningId,
-                                            NULL, ObjDesc, WalkList);
+                                            Op, ObjDesc, NULL);
     if (!NextWalkState)
     {
-        /* TBD: delete parser state */
-
         return_ACPI_STATUS (AE_NO_MEMORY);
-    }
-
-    NextWalkState->WalkType             = WALK_METHOD;
-    NextWalkState->MethodNode           = MethodNode;
-    NextWalkState->ParserState          = ParserState;
-    NextWalkState->ParseFlags           = ThisWalkState->ParseFlags;
-    NextWalkState->DescendingCallback   = ThisWalkState->DescendingCallback;
-    NextWalkState->AscendingCallback    = ThisWalkState->AscendingCallback;
-
-    /* The NextOp of the NextWalk will be the beginning of the method */
-    /* TBD: [Restructure] -- obsolete? */
-
-    NextWalkState->NextOp = NULL;
-
-    /* Open a new scope */
-
-    Status = AcpiDsScopeStackPush (MethodNode,
-                                    ACPI_TYPE_METHOD, NextWalkState);
-    if (ACPI_FAILURE (Status))
-    {
         goto Cleanup;
     }
-
-
-    /*
-     * Initialize the arguments for the method.  The resolved
-     * arguments were put on the previous walk state's operand
-     * stack.  Operands on the previous walk state stack always
-     * start at index 0.
-     */
-    Status = AcpiDsMethodDataInitArgs (&ThisWalkState->Operands[0],
-                                        ThisWalkState->NumOperands,
-                                        NextWalkState);
-    if (ACPI_FAILURE (Status))
-    {
-        goto Cleanup;
-    }
-
 
     /* Create and init a Root Node */
 
     Op = AcpiPsAllocOp (AML_SCOPE_OP);
     if (!Op)
     {
-        return_ACPI_STATUS (AE_NO_MEMORY);
+        Status = AE_NO_MEMORY;
+        goto Cleanup;
     }
 
-    Status = AcpiPsParseAml (Op, ObjDesc->Method.Pcode,
-                                ObjDesc->Method.PcodeLength,
-                                ACPI_PARSE_LOAD_PASS1 | ACPI_PARSE_DELETE_TREE,
-                                MethodNode, NULL, NULL,
-                                AcpiDsLoad1BeginOp, AcpiDsLoad1EndOp);
+    Status = AcpiDsInitAmlWalk (NextWalkState, Op, MethodNode, 
+                    ObjDesc->Method.AmlStart,  ObjDesc->Method.AmlLength, 
+                    NULL, NULL, 1);
+    if (ACPI_FAILURE (Status))
+    {
+        /* TBD: delete walk state */
+        goto Cleanup;
+    }
+
+    /* Begin AML parse */
+
+    Status = AcpiPsParseAml (NextWalkState);
     AcpiPsDeleteParseTree (Op);
 
+
+    /* 2) Execute: Create a new state for the preempting walk */
+
+    NextWalkState = AcpiDsCreateWalkState (ObjDesc->Method.OwningId,
+                                            NULL, ObjDesc, WalkList);
+    if (!NextWalkState)
+    {
+        Status = AE_NO_MEMORY;
+        goto Cleanup;
+    }
+
+    /*
+     * The resolved arguments were put on the previous walk state's operand
+     * stack.  Operands on the previous walk state stack always
+     * start at index 0.
+     * Null terminate the list of arguments 
+     */
+    ThisWalkState->Operands [ThisWalkState->NumOperands] = NULL;
+
+    Status = AcpiDsInitAmlWalk (NextWalkState, NULL, MethodNode, 
+                    ObjDesc->Method.AmlStart, ObjDesc->Method.AmlLength, 
+                    &ThisWalkState->Operands[0], NULL, 3);
+    if (ACPI_FAILURE (Status))
+    {
+        goto Cleanup;
+    }
 
     /*
      * Delete the operands on the previous walkstate operand stack
@@ -474,7 +465,6 @@ AcpiDsCallControlMethod (
     /* Clear the operand stack */
 
     ThisWalkState->NumOperands = 0;
-
 
     ACPI_DEBUG_PRINT ((ACPI_DB_DISPATCH, "Starting nested execution, newstate=%p\n",
         NextWalkState));

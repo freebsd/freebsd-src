@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: exconvrt - Object conversion routines
- *              $Revision: 22 $
+ *              $Revision: 23 $
  *
  *****************************************************************************/
 
@@ -404,8 +404,9 @@ AcpiExConvertToAscii (
     UINT32                  k = 0;
     UINT8                   HexDigit;
     ACPI_INTEGER            Digit;
-    BOOLEAN                 LeadingZero = TRUE;
+    UINT32                  Remainder;
     UINT32                  Length = sizeof (ACPI_INTEGER);
+    BOOLEAN                 LeadingZero = TRUE;
 
 
     FUNCTION_ENTRY ();
@@ -415,6 +416,7 @@ AcpiExConvertToAscii (
     {
     case 10:
 
+        Remainder = 0;
         for (i = ACPI_MAX_DECIMAL_DIGITS; i > 0 ; i--)
         {
             /* Divide by nth factor of 10 */
@@ -422,7 +424,7 @@ AcpiExConvertToAscii (
             Digit = Integer;
             for (j = 1; j < i; j++)
             {
-                Digit = ACPI_DIVIDE (Digit, 10);
+                AcpiUtShortDivide (&Digit, 10, &Digit, &Remainder);
             }
 
             /* Create the decimal digit */
@@ -434,7 +436,7 @@ AcpiExConvertToAscii (
 
             if (!LeadingZero)
             {
-                String[k] = (UINT8) (ASCII_ZERO + ACPI_MODULO (Digit, 10));
+                String[k] = (UINT8) (ASCII_ZERO + Remainder);
                 k++;
             }
         }

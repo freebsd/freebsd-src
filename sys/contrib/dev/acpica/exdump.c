@@ -1,7 +1,7 @@
 /******************************************************************************
  *
  * Module Name: exdump - Interpreter debug output routines
- *              $Revision: 122 $
+ *              $Revision: 124 $
  *
  *****************************************************************************/
 
@@ -138,12 +138,12 @@
  * FUNCTION:    AcpiExShowHexValue
  *
  * PARAMETERS:  ByteCount           - Number of bytes to print (1, 2, or 4)
- *              *AmlPtr             - Address in AML stream of bytes to print
+ *              *AmlStart             - Address in AML stream of bytes to print
  *              InterpreterMode     - Current running mode (load1/Load2/Exec)
  *              LeadSpace           - # of spaces to print ahead of value
  *                                    0 => none ahead but one behind
  *
- * DESCRIPTION: Print ByteCount byte(s) starting at AmlPtr as a single
+ * DESCRIPTION: Print ByteCount byte(s) starting at AmlStart as a single
  *              value, in hex.  If ByteCount > 1 or the value printed is > 9, also
  *              print in decimal.
  *
@@ -152,7 +152,7 @@
 void
 AcpiExShowHexValue (
     UINT32                  ByteCount,
-    UINT8                   *AmlPtr,
+    UINT8                   *AmlStart,
     UINT32                  LeadSpace)
 {
     UINT32                  Value;                  /*  Value retrieved from AML stream */
@@ -164,7 +164,7 @@ AcpiExShowHexValue (
     FUNCTION_TRACE ("ExShowHexValue");
 
 
-    if (!AmlPtr)
+    if (!AmlStart)
     {
         REPORT_ERROR (("ExShowHexValue: null pointer\n"));
     }
@@ -173,9 +173,9 @@ AcpiExShowHexValue (
      * AML numbers are always stored little-endian,
      * even if the processor is big-endian.
      */
-    for (CurrentAmlPtr = AmlPtr + ByteCount,
+    for (CurrentAmlPtr = AmlStart + ByteCount,
             Value = 0;
-            CurrentAmlPtr > AmlPtr; )
+            CurrentAmlPtr > AmlStart; )
     {
         Value = (Value << 8) + (UINT32)* --CurrentAmlPtr;
     }
@@ -201,7 +201,7 @@ AcpiExShowHexValue (
 
     while (ByteCount--)
     {
-        ACPI_DEBUG_PRINT_RAW ((ACPI_DB_LOAD, "%02x", *AmlPtr++));
+        ACPI_DEBUG_PRINT_RAW ((ACPI_DB_LOAD, "%02x", *AmlStart++));
 
         if (ByteCount)
         {
@@ -305,6 +305,12 @@ AcpiExDumpOperand (
         case AML_ONES_OP:
 
             ACPI_DEBUG_PRINT_RAW ((ACPI_DB_INFO, "Reference: Ones\n"));
+            break;
+
+
+        case AML_REVISION_OP:
+
+            ACPI_DEBUG_PRINT_RAW ((ACPI_DB_INFO, "Reference: Revision\n"));
             break;
 
 
@@ -562,7 +568,7 @@ AcpiExDumpOperand (
         ACPI_DEBUG_PRINT_RAW ((ACPI_DB_INFO,
             "Method(%X) @ %p:%lX\n",
             EntryDesc->Method.ParamCount,
-            EntryDesc->Method.Pcode, EntryDesc->Method.PcodeLength));
+            EntryDesc->Method.AmlStart, EntryDesc->Method.AmlLength));
         break;
 
 
@@ -841,8 +847,8 @@ AcpiExDumpObjectDescriptor (
         AcpiOsPrintf ("%20s : %X\n", "ParamCount", ObjDesc->Method.ParamCount);
         AcpiOsPrintf ("%20s : %X\n", "Concurrency", ObjDesc->Method.Concurrency);
         AcpiOsPrintf ("%20s : %p\n", "Semaphore", ObjDesc->Method.Semaphore);
-        AcpiOsPrintf ("%20s : %X\n", "PcodeLength", ObjDesc->Method.PcodeLength);
-        AcpiOsPrintf ("%20s : %X\n", "Pcode", ObjDesc->Method.Pcode);
+        AcpiOsPrintf ("%20s : %X\n", "AmlLength", ObjDesc->Method.AmlLength);
+        AcpiOsPrintf ("%20s : %X\n", "AmlStart", ObjDesc->Method.AmlStart);
         break;
 
 
