@@ -126,12 +126,13 @@ main(int argc, char **argv)
 			eofstr = optarg;
 			break;
 		case 'I':
+			Jflag = 0;
 			Iflag = 1;
 			Lflag = 1;
-			Rflag = 5;
 			replstr = optarg;
 			break;
 		case 'J':
+			Iflag = 0;
 			Jflag = 1;
 			replstr = optarg;
 			break;
@@ -147,8 +148,6 @@ main(int argc, char **argv)
 			pflag = 1;
 			break;
 		case 'R':
-			if (!Iflag)
-				usage();
 			if ((Rflag = atoi(optarg)) <= 0)
 				errx(1, "illegal number of replacements");
 			break;
@@ -171,8 +170,10 @@ main(int argc, char **argv)
 	argc -= optind;
 	argv += optind;
 
-	if (Iflag && Jflag)
-		errx(1, "the -I and -J options may not be used together");
+	if (!Iflag && Rflag)
+		usage();
+	if (Iflag && !Rflag)
+		Rflag = 5;
 	if (xflag && !nflag)
 		usage();
 	if (Iflag || Lflag)
