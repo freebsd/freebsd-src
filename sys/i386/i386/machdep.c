@@ -40,7 +40,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_acpi.h"
+#include "opt_apic.h"
 #include "opt_atalk.h"
 #include "opt_compat.h"
 #include "opt_cpu.h"
@@ -2751,8 +2751,100 @@ Debugger(const char *msg)
 }
 #endif /* no DDB */
 
-#ifndef DEV_ACPI
-MODULE_VERSION(acpi, 1);
+#ifndef DEV_APIC
+#include <machine/apicvar.h>
+
+/*
+ * Provide stub functions so that the MADT APIC enumerator in the acpi
+ * kernel module will link against a kernel without 'device apic'.
+ *
+ * XXX - This is a gross hack.
+ */
+void
+apic_register_enumerator(struct apic_enumerator *enumerator)
+{
+}
+
+void *
+ioapic_create(uintptr_t addr, int32_t id, int intbase)
+{
+	return (NULL);
+}
+
+int
+ioapic_disable_pin(void *cookie, u_int pin)
+{
+	return (ENXIO);
+}
+
+int
+ioapic_get_vector(void *cookie, u_int pin)
+{
+	return (-1);
+}
+
+void
+ioapic_register(void *cookie)
+{
+}
+
+int
+ioapic_remap_vector(void *cookie, u_int pin, int vector)
+{
+	return (ENXIO);
+}
+
+int
+ioapic_set_extint(void *cookie, u_int pin)
+{
+	return (ENXIO);
+}
+
+int
+ioapic_set_nmi(void *cookie, u_int pin)
+{
+	return (ENXIO);
+}
+
+int
+ioapic_set_polarity(void *cookie, u_int pin, char activehi)
+{
+	return (ENXIO);
+}
+
+int
+ioapic_set_triggermode(void *cookie, u_int pin, char edgetrigger)
+{
+	return (ENXIO);
+}
+
+void
+lapic_create(u_int apic_id, int boot_cpu)
+{
+}
+
+void
+lapic_init(uintptr_t addr)
+{
+}
+
+int
+lapic_set_lvt_mode(u_int apic_id, u_int lvt, u_int32_t mode)
+{
+	return (ENXIO);
+}
+
+int
+lapic_set_lvt_polarity(u_int apic_id, u_int lvt, u_char activehi)
+{
+	return (ENXIO);
+}
+
+int
+lapic_set_lvt_triggermode(u_int apic_id, u_int lvt, u_char edgetrigger)
+{
+	return (ENXIO);
+}
 #endif
 
 #ifdef DDB
