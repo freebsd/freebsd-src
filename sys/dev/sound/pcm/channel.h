@@ -99,11 +99,13 @@ void chn_wrupdate(struct pcm_channel *c);
 void chn_rdupdate(struct pcm_channel *c);
 
 int chn_notify(struct pcm_channel *c, u_int32_t flags);
+void chn_lock(struct pcm_channel *c);
+void chn_unlock(struct pcm_channel *c);
 
 #ifdef	USING_MUTEX
 #define CHN_LOCK(c) mtx_lock((struct mtx *)((c)->lock))
 #define CHN_UNLOCK(c) mtx_unlock((struct mtx *)((c)->lock))
-#define CHN_LOCKASSERT(c)
+#define CHN_LOCKASSERT(c) mtx_assert((struct mtx *)((c)->lock), MA_OWNED)
 #else
 #define CHN_LOCK(c)
 #define CHN_UNLOCK(c)
@@ -134,6 +136,7 @@ int fmtvalid(u_int32_t fmt, u_int32_t *fmtlist);
 #define CHN_F_MAPPED		0x00010000  /* has been mmap()ed */
 #define CHN_F_DEAD		0x00020000
 #define CHN_F_BADSETTING	0x00040000
+#define CHN_F_SETBLOCKSIZE	0x00080000
 
 #define	CHN_F_VIRTUAL		0x10000000  /* not backed by hardware */
 
