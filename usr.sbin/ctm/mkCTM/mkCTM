@@ -1,4 +1,4 @@
-#!/usr/local/bin/tcl
+#!/usr/local/bin/tclsh7.4
 
 #############################################################################
 ### Add something
@@ -138,6 +138,7 @@ set max_damage 1200
 set damage 0
 set changes 0
 
+exec sh -c "date -u '+%y%m%d%H%M%S $argv'" >> /home/ctm/log
 source $argv
 
 if {$CTMtmp == ""} {
@@ -152,7 +153,7 @@ if {$CTMdest == ""} {
 
 # Make sure we only run one at a time...
 
-set CTMlock Lck.${CTMname}.${CTMdate}.[id process]
+set CTMlock Lck.${CTMname}.${CTMdate}.[pid]
 exec rm -f ${CTMlock}
 exec echo starting > ${CTMlock}
 if {[catch "exec ln $CTMlock LCK.$CTMname" a]} {
@@ -277,8 +278,8 @@ while 1 {
 
     if {$damage > $max_damage} {
 	puts "Too much damage: $damage deletes"
-	exec sh -c "rm -f ${CTMtmp}.*"
-        exec rm -f $CTMlock
+		exec sh -c "rm -f ${CTMtmp}.*"
+		exec rm -f $CTMlock
 	exit 0
     }
 
@@ -303,7 +304,7 @@ while 1 {
     puts $fdout "CTM_END " nonewline
     close $fdout ; unset fdout
 
-    exec sh -x -c "rm -f ${CTMtmp}.*" >&@ stdout
+    exec sh -c "rm -f ${CTMtmp}.*" >&@ stdout
 
     if {$CTMtest} {
 	puts "testing, stopping now."
@@ -314,7 +315,7 @@ while 1 {
 	    puts "Applying delta"
 	    flush stdout
 	    exec echo now applying > $CTMlock
-	    exec sh -e -x -c "cd $CTMcopy ; $CTMSW/ctm -v -v -v ${CTMtmp}:${nm}.gz" >&@ stdout
+	    exec sh -e -c "cd $CTMcopy ; $CTMSW/ctm -v -v -v ${CTMtmp}:${nm}.gz" >&@ stdout
 	    exec echo did apply > $CTMlock
     }
     puts "Moving delta"
