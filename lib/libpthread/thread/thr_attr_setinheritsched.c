@@ -44,6 +44,9 @@ _pthread_attr_setinheritsched(pthread_attr_t *attr, int sched_inherit)
 
 	if ((attr == NULL) || (*attr == NULL))
 		ret = EINVAL;
+	else if (sched_inherit != PTHREAD_INHERIT_SCHED &&
+		 sched_inherit != PTHREAD_EXPLICIT_SCHED)
+		ret = ENOTSUP;
 	else
 		(*attr)->sched_inherit = sched_inherit;
 
