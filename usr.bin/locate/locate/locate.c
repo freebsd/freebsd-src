@@ -112,7 +112,6 @@ static const char rcsid[] =
 #  include <sys/resource.h>
 #endif
 
-char *path_fcodes;      /* locate database */
 int f_mmap;             /* use mmap */
 int f_icase;            /* ignore case */
 int f_stdin;            /* read database from stdin */
@@ -147,6 +146,7 @@ main(argc, argv)
 {
         register int ch;
         char **dbv = NULL;
+	char *path_fcodes;      /* locate database */
 #ifdef MMAP
         f_mmap = 1;		/* mmap is default */
 #endif
@@ -246,12 +246,12 @@ search_fopen(db, s)
 			*(s+1) = NULL;
 		}
 	} 
-	else if ((fp = fopen(path_fcodes, "r")) == NULL)
-		err(1,  "`%s'", path_fcodes);
+	else if ((fp = fopen(db, "r")) == NULL)
+		err(1,  "`%s'", db);
 
 	/* count only chars or lines */
 	if (f_statistic) {
-		statistic(fp, path_fcodes);
+		statistic(fp, db);
 		(void)fclose(fp);
 		return;
 	}
@@ -263,12 +263,12 @@ search_fopen(db, s)
 #endif
 		if (!f_stdin &&
 		    fseek(fp, (long)0, SEEK_SET) == -1)
-			err(1, "fseek to begin of ``%s''\n", path_fcodes);
+			err(1, "fseek to begin of ``%s''\n", db);
 
 		if (f_icase)
-			fastfind_icase(fp, *s, path_fcodes);
+			fastfind_icase(fp, *s, db);
 		else
-			fastfind(fp, *s, path_fcodes);
+			fastfind(fp, *s, db);
 #ifdef DEBUG
 		warnx("fastfind %ld ms", cputime () - t0);
 #endif
@@ -290,15 +290,15 @@ search_mmap(db, s)
 #ifdef DEBUG
         long t0;
 #endif
-	if ((fd = open(path_fcodes, O_RDONLY)) == -1 ||
+	if ((fd = open(db, O_RDONLY)) == -1 ||
 	    fstat(fd, &sb) == -1)
-		err(1, "`%s'", path_fcodes);
+		err(1, "`%s'", db);
 	len = sb.st_size;
 
 	if ((p = mmap((caddr_t)0, (size_t)len,
 		      PROT_READ, MAP_SHARED,
 		      fd, (off_t)0)) == MAP_FAILED)
-		err(1, "mmap ``%s''", path_fcodes);
+		err(1, "mmap ``%s''", db);
 
 	/* foreach search string ... */
 	while (*s != NULL) {
@@ -306,9 +306,9 @@ search_mmap(db, s)
 		t0 = cputime();
 #endif
 		if (f_icase)
-			fastfind_mmap_icase(*s, p, (int)len, path_fcodes);
+			fastfind_mmap_icase(*s, p, (int)len, db);
 		else
-			fastfind_mmap(*s, p, (int)len, path_fcodes);
+			fastfind_mmap(*s, p, (int)len, db);
 #ifdef DEBUG
 		warnx("fastfind %ld ms", cputime () - t0);
 #endif
@@ -316,7 +316,7 @@ search_mmap(db, s)
 	}
 
 	if (munmap(p, (size_t)len) == -1)
-		warn("munmap %s\n", path_fcodes);
+		warn("munmap %s\n", db);
 	
 	(void)close(fd);
 }
