@@ -2621,7 +2621,7 @@ vt420-36w|DEC vt420 7 bit controls 132x36 autowrap:\
 # assigned to an unknown key, Set-Up may be entered by pressing
 # [F3] as the first key after power up, regardless of keyboard type.
 #
-d6|vt520|DEC VT520 :\
+vt520|DEC VT520 :\
 	:am:mi:xn:xo:bs:pt:\
 	:co#80:li#24:kn#3:\
 	:ae=4\E(B:al=\E[L:as=2\E(0:cd=50\E[J:ce=3\E[K:\
@@ -2641,7 +2641,7 @@ d6|vt520|DEC VT520 :\
         :se=\E[m:so=\E[7m:\
 	:sr=\EM:ue=\E[m:up=\E[A:us=\E[4m:nl=\E[B:ko=do,nd,up:
 #
-df|vt520nam|vt520-nam|v520n|DEC VT520 with no automargins:\
+vt520nam|vt520-nam|v520n|DEC VT520 with no automargins:\
 	:am@:tc=vt520:
 
 #
