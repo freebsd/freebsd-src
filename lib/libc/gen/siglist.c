@@ -72,7 +72,7 @@ const char *const sys_signame[NSIG] = {
 	"winch",			/* SIGWINCH */
 	"info",				/* SIGINFO */
 	"usr1",				/* SIGUSR1 */
-	"usr2",				/* SIGUSR2 */
+	"usr2"				/* SIGUSR2 */
 };
 
 const char *const sys_siglist[NSIG] = {
