@@ -90,6 +90,7 @@ _thread_init(void)
 	int             i;
 	size_t		len;
 	int		mib[2];
+	struct timeval	tv;
 	struct clockinfo clockinfo;
 	struct sigaction act;
 
@@ -222,6 +223,11 @@ _thread_init(void)
 		/* Initialize the owned mutex queue and count: */
 		TAILQ_INIT(&(_thread_initial->mutexq));
 		_thread_initial->priority_mutex_count = 0;
+
+		/* Initialize last active time to now: */
+		gettimeofday(&tv, NULL);
+		_thread_initial->last_active.tv_sec = tv.tv_sec;
+		_thread_initial->last_active.tv_usec = tv.tv_usec;
 
 		/* Initialise the rest of the fields: */
 		_thread_initial->poll_data.nfds = 0;
