@@ -42,7 +42,7 @@ static char copyright[] =
 
 #ifndef lint
 /*static char sccsid[] = "from: @(#)slattach.c	4.6 (Berkeley) 6/1/90";*/
-static char rcsid[] = "$Id: slattach.c,v 1.29 1997/12/21 13:42:27 eivind Exp $";
+static char rcsid[] = "$Id: slattach.c,v 1.30 1998/01/25 09:16:55 jb Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -208,13 +208,13 @@ main(int argc, char **argv)
 	slip_discipline();	/* switch to slip line discipline */
 
 	/* upon INT log a timestamp and exit.  */
-	if ((long)signal(SIGINT,sigint_handler) < 0)
+	if (signal(SIGINT,sigint_handler) == SIG_ERR)
 		syslog(LOG_NOTICE,"cannot install SIGINT handler: %m");
 	/* upon TERM log a timestamp and exit.  */
-	if ((long)signal(SIGTERM,sigterm_handler) < 0)
+	if (signal(SIGTERM,sigterm_handler) == SIG_ERR)
 		syslog(LOG_NOTICE,"cannot install SIGTERM handler: %m");
 	/* upon HUP redial and reconnect.  */
-	if ((long)signal(SIGHUP,sighup_handler) < 0)
+	if (signal(SIGHUP,sighup_handler) == SIG_ERR)
 		syslog(LOG_NOTICE,"cannot install SIGHUP handler: %m");
 
 	if (redial_on_startup)
@@ -272,7 +272,7 @@ void acquire_line()
 		fclose(pidfile);
 	}
 
-	if ((long)signal(SIGHUP,sighup_handler) < 0) /* Re-enable HUP signal */
+	if (signal(SIGHUP,sighup_handler) == SIG_ERR) /* Re-enable HUP signal */
 		syslog(LOG_NOTICE,"cannot install SIGHUP handler: %m");
 
 	if (uucp_lock) {
