@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id$
+ *      $Id: advlib.c,v 1.1.1.1 1996/10/07 02:07:06 gibbs Exp $
  */
 /*
  * Ported from:
@@ -119,8 +119,8 @@ static int	 adv_set_eeprom_config_once __P((struct adv_softc *adv,
 						 struct adv_eeprom_config *eeprom_config));
 
 /* Initialization */
-static u_int32_t adv_load_microcode __P((struct adv_softc *adv, u_int16_t s_addr,
-					 u_int16_t *mcode_buf, u_int16_t mcode_size));
+static u_int32_t adv_load_microcode __P((struct adv_softc *adv,
+					 u_int16_t s_addr, u_int16_t *mcode_buf,					 u_int16_t mcode_size));
 static void	 adv_init_lram __P((struct adv_softc *adv));
 static int	 adv_init_microcode_var __P((struct adv_softc *adv));
 static void	 adv_init_qlink_var __P((struct adv_softc *adv));
@@ -136,7 +136,8 @@ static void	 adv_start_execution __P((struct adv_softc *adv));
 #endif
 static int	 adv_start_chip __P((struct adv_softc *adv));
 static int	 adv_stop_chip __P((struct adv_softc *adv));
-static void	 adv_set_chip_ih __P((struct adv_softc *adv, u_int16_t ins_code));
+static void	 adv_set_chip_ih __P((struct adv_softc *adv,
+				      u_int16_t ins_code));
 static void	 adv_set_bank __P((struct adv_softc *adv, u_int8_t bank));
 #if UNUSED
 static u_int8_t  adv_get_chip_scsi_ctrl __P((struct adv_softc *adv));
@@ -146,25 +147,37 @@ static u_int8_t  adv_get_chip_scsi_ctrl __P((struct adv_softc *adv));
 static int	 adv_sgcount_to_qcount __P((int sgcount));
 static void	 adv_get_q_info __P((struct adv_softc *adv, u_int16_t s_addr, 	u_int16_t *inbuf,
 				     int words));
-static u_int	 adv_get_num_free_queues __P((struct adv_softc *adv, u_int8_t n_qs));
-static u_int8_t  adv_alloc_free_queues __P((struct adv_softc *adv, u_int8_t free_q_head,
+static u_int	 adv_get_num_free_queues __P((struct adv_softc *adv,
+					      u_int8_t n_qs));
+static u_int8_t  adv_alloc_free_queues __P((struct adv_softc *adv,
+					    u_int8_t free_q_head,
 					    u_int8_t n_free_q));
-static u_int8_t  adv_alloc_free_queue __P((struct adv_softc *adv, u_int8_t free_q_head));
-static int	 adv_send_scsi_queue __P((struct adv_softc *adv, struct adv_scsi_q *scsiq,
+static u_int8_t  adv_alloc_free_queue __P((struct adv_softc *adv,
+					   u_int8_t free_q_head));
+static int	 adv_send_scsi_queue __P((struct adv_softc *adv,
+					  struct adv_scsi_q *scsiq,
 					  u_int8_t n_q_required));
-static void	 adv_put_ready_sg_list_queue __P((struct adv_softc *adv, struct adv_scsi_q *scsiq,
+static void	 adv_put_ready_sg_list_queue __P((struct adv_softc *adv,
+						  struct adv_scsi_q *scsiq,
 						  u_int8_t q_no));
-static void	 adv_put_ready_queue __P((struct adv_softc *adv, struct adv_scsi_q *scsiq, u_int8_t q_no));
-static void	 adv_put_scsiq __P((struct adv_softc *adv, u_int16_t s_addr, u_int16_t *buffer, int words));
+static void	 adv_put_ready_queue __P((struct adv_softc *adv,
+					  struct adv_scsi_q *scsiq,
+					  u_int8_t q_no));
+static void	 adv_put_scsiq __P((struct adv_softc *adv, u_int16_t s_addr,
+				    u_int16_t *buffer, int words));
 
 /* SDTR */
-static u_int8_t  adv_msgout_sdtr __P((struct adv_softc *adv, u_int8_t sdtr_period, u_int8_t sdtr_offset));
-static u_int8_t  adv_get_card_sync_setting __P((u_int8_t period, u_int8_t offset));
-static void	 adv_set_chip_sdtr __P((struct adv_softc *adv, u_int8_t sdtr_data,
+static u_int8_t  adv_msgout_sdtr __P((struct adv_softc *adv,
+				      u_int8_t sdtr_period,
+				      u_int8_t sdtr_offset));
+static u_int8_t  adv_get_card_sync_setting __P((u_int8_t period,
+						u_int8_t offset));
+static void	 adv_set_chip_sdtr __P((struct adv_softc *adv,
+					u_int8_t sdtr_data,
 					u_int8_t tid_no));
 
 
-/* Exported Function first */
+/* Exported functions first */
 
 u_int8_t
 adv_read_lram_8(adv, addr)
