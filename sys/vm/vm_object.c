@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.158 1999/07/01 19:53:42 peter Exp $
+ * $Id: vm_object.c,v 1.159 1999/07/11 18:30:32 alc Exp $
  */
 
 /*
@@ -175,7 +175,6 @@ _vm_object_allocate(type, size, object)
 	 */
 	object->hash_rand = object_hash_rand - 129;
 
-	object->last_read = 0;
 	object->generation++;
 
 	TAILQ_INSERT_TAIL(&vm_object_list, object, object_list);
