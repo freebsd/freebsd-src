@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: ccp.h,v 1.11 1997/12/03 23:27:55 brian Exp $
+ * $Id: ccp.h,v 1.12 1998/01/04 20:25:41 brian Exp $
  *
  *	TODO:
  */
@@ -38,6 +38,9 @@
 struct ccpstate {
   u_long his_proto;		/* peer's compression protocol */
   u_long my_proto;		/* our compression protocol */
+
+  int reset_sent;		/* If != -1, ignore compressed 'till ack */
+  int last_reset;		/* We can receive more (dups) w/ this id */
 
   u_long his_reject;		/* Request codes rejected by peer */
   u_long my_reject;		/* Request codes I have rejected */
@@ -83,7 +86,7 @@ extern void CcpUp(void);
 extern void CcpOpen(void);
 extern void CcpInit(void);
 extern int ReportCcpStatus(struct cmdargs const *);
-extern void CcpResetInput(void);
+extern void CcpResetInput(u_char);
 extern int CcpOutput(int, u_short, struct mbuf *);
 extern struct mbuf *CompdInput(u_short *, struct mbuf *);
 extern void CcpDictSetup(u_short, struct mbuf *);
