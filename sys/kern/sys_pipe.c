@@ -183,13 +183,15 @@ static int amountpipekvawired;
 SYSCTL_DECL(_kern_ipc);
 
 SYSCTL_INT(_kern_ipc, OID_AUTO, maxpipes, CTLFLAG_RW,
-	   &maxpipes, 0, "");
+	   &maxpipes, 0, "Max # of pipes");
 SYSCTL_INT(_kern_ipc, OID_AUTO, maxpipekva, CTLFLAG_RW,
 	   &maxpipekva, 0, "Pipe KVA limit");
 SYSCTL_INT(_kern_ipc, OID_AUTO, maxpipekvawired, CTLFLAG_RW,
 	   &maxpipekvawired, 0, "Pipe KVA wired limit");
 SYSCTL_INT(_kern_ipc, OID_AUTO, pipes, CTLFLAG_RD,
-	   &amountpipes, 0, "");
+	   &amountpipes, 0, "Current # of pipes");
+SYSCTL_INT(_kern_ipc, OID_AUTO, bigpipes, CTLFLAG_RD,
+	   &nbigpipe, 0, "Current # of big pipes");
 SYSCTL_INT(_kern_ipc, OID_AUTO, pipekva, CTLFLAG_RD,
 	   &amountpipekva, 0, "Pipe KVA usage");
 SYSCTL_INT(_kern_ipc, OID_AUTO, pipekvawired, CTLFLAG_RD,
@@ -962,7 +964,7 @@ pipe_write(fp, uio, active_cred, flags, td)
 		if ((error = pipelock(wpipe, 1)) == 0) {
 			PIPE_GET_GIANT(wpipe);
 			if (pipespace(wpipe, BIG_PIPE_SIZE) == 0)
-				nbigpipe++;
+				atomic_add_int(&nbigpipe, 1);
 			PIPE_DROP_GIANT(wpipe);
 			pipeunlock(wpipe);
 		}
@@ -1000,8 +1002,7 @@ pipe_write(fp, uio, active_cred, flags, td)
 		 */
 		if ((uio->uio_iov->iov_len >= PIPE_MINDIRECT) &&
 		    (fp->f_flag & FNONBLOCK) == 0 &&
-			 amountpipekvawired < maxpipekvawired &&
-			(uio->uio_iov->iov_len >= PIPE_MINDIRECT)) {
+		    amountpipekvawired < maxpipekvawired) { 
 			error = pipe_direct_write(wpipe, uio);
 			if (error)
 				break;
@@ -1405,7 +1406,7 @@ pipe_free_kmem(cpipe)
 
 	if (cpipe->pipe_buffer.buffer != NULL) {
 		if (cpipe->pipe_buffer.size > PIPE_SIZE)
-			--nbigpipe;
+			atomic_subtract_int(&nbigpipe, 1);
 		atomic_subtract_int(&amountpipekva, cpipe->pipe_buffer.size);
 		atomic_subtract_int(&amountpipes, 1);
 		kmem_free(kernel_map,
