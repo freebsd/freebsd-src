@@ -130,7 +130,6 @@ SUBDIR+=elf2exe
 SUBDIR+=apm \
 	apmconf \
 	apmd \
-	bad144 \
 	boot0cfg \
 	btxld \
 	i4b \
