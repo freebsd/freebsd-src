@@ -53,7 +53,7 @@
  *
  *	@(#)resolv.h	8.1 (Berkeley) 6/2/93
  *	From Id: resolv.h,v 4.9.1.2 1993/05/17 09:59:01 vixie Exp
- *	$Id: resolv.h,v 1.5 1996/01/07 05:01:50 peter Exp $
+ *	$Id: resolv.h,v 1.6 1996/01/30 23:30:34 mpp Exp $
  */
 
 #ifndef _RESOLV_H_
@@ -72,7 +72,7 @@
  * is new enough to contain a certain feature.
  */
 
-#define	__RES	19951031
+#define	__RES	19960229
 
 /*
  * Resolver configuration file.
@@ -134,6 +134,7 @@ struct __res_state {
 #define	RES_INSECURE1	0x00000400	/* type 1 security disabled */
 #define	RES_INSECURE2	0x00000800	/* type 2 security disabled */
 #define	RES_NOALIASES	0x00001000	/* shuts off HOSTALIASES feature */
+#define	RES_USE_INET6	0x00002000	/* use/map IPv6 in gethostbyname() */
 
 #define RES_DEFAULT	(RES_RECURSE | RES_DEFNAMES | RES_DNSRCH)
 
@@ -178,6 +179,12 @@ typedef res_sendhookact (*res_send_rhook)__P((const struct sockaddr_in *ns,
 extern struct __res_state _res;
 
 /* Private routines shared between libc/net, named, nslookup and others. */
+#define	res_hnok	__res_hnok
+#define	res_ownok	__res_ownok
+#define	res_mailok	__res_mailok
+#define	res_dnok	__res_dnok
+#define	loc_ntoa	__loc_ntoa
+#define	loc_aton	__loc_aton
 #define	dn_skipname	__dn_skipname
 #define	fp_query	__fp_query
 #define	fp_nquery	__fp_nquery
@@ -198,6 +205,12 @@ extern struct __res_state _res;
 #define	res_queriesmatch __res_queriesmatch
 
 __BEGIN_DECLS
+int	 __res_hnok __P((const char *));
+int	 __res_ownok __P((const char *));
+int	 __res_mailok __P((const char *));
+int	 __res_dnok __P((const char *));
+int	 __loc_aton __P((const char *ascii, u_char *binary));
+char *	 __loc_ntoa __P((const u_char *binary, char *ascii));
 int	 __dn_skipname __P((const u_char *, const u_char *));
 void	 __fp_resstat __P((struct __res_state *, FILE *));
 void	 __fp_query __P((const u_char *, FILE *));

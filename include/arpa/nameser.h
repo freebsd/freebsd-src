@@ -53,7 +53,7 @@
  *
  *      @(#)nameser.h	8.2 (Berkeley) 2/16/94
  *	From Id: nameser.h,v 4.9.1.15 1994/07/19 22:51:24 vixie Exp
- *	$Id: nameser.h,v 1.6 1996/01/07 05:01:52 peter Exp $
+ *	$Id: nameser.h,v 1.7 1996/01/30 23:31:16 mpp Exp $
  */
 
 #ifndef _ARPA_NAMESER_H_
@@ -87,7 +87,9 @@
 #define	RRFIXEDSZ	10		/* #/bytes of fixed data in r record */
 #define	INT32SZ		4		/* for systems without 32-bit ints */
 #define	INT16SZ		2		/* for systems without 16-bit ints */
-#define	INADDRSZ	4		/* for sizeof(struct inaddr) != 4 */
+#define INADDRSZ	4		/* IPv4 T_A */
+#define IN6ADDRSZ	16		/* IPv6 T_AAAA */
+
 
 /*
  * Internet nameserver port number
