@@ -372,6 +372,16 @@ write_random(const char *buf, u_int nbytes)
 }
 #endif /* notused */
 
+void
+add_true_randomness(int val)
+{
+	add_entropy_word(&random_state, val);
+	random_state.entropy_count += 8*sizeof (val);
+	if (random_state.entropy_count > POOLBITS)
+		random_state.entropy_count = POOLBITS;
+	selwakeup(&random_state.rsel);
+}
+
 int
 random_poll(dev_t dev, int events, struct proc *p)
 {

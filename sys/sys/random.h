@@ -74,6 +74,7 @@ inthand2_t add_interrupt_randomness;
 #ifdef notused
 void add_blkdev_randomness(int major);
 #endif
+void add_true_randomness(int);
 
 #ifdef notused
 void get_random_bytes(void *buf, u_int nbytes);
