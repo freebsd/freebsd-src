@@ -6,8 +6,8 @@ SRCS=	rshd.c
 MAN=	rshd.8
 
 #CFLAGS+= -DCRYPT
+WFORMAT=0
 
-CFLAGS+= -Wall
 DPADD+=	${LIBUTIL}
 LDADD+= -lutil
 

@@ -10,6 +10,7 @@ PROG=	mail.local
 SRCS=	mail.local.c
 MAN=	mail.local.8
 CFLAGS+=-I${SENDMAIL_DIR}/include
+WFORMAT=0
 
 .if exists(${.OBJDIR}/../../lib/libsmutil)
 LIBSMUTILDIR:=	${.OBJDIR}/../../lib/libsmutil
