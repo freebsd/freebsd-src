@@ -10,8 +10,6 @@ SENDMAIL_DIR=	${.CURDIR}/../../contrib/sendmail
 SMDIR=		${SENDMAIL_DIR}/src
 CFDIR=		${SENDMAIL_DIR}/cf
 
-SENDMAIL_M4_FLAGS+=	-D_FFR_TLS_O_T
-
 # this is overkill, but....
 M4FILES!=	find ${CFDIR} -type f -name '*.m4' -print
 
