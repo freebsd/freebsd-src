@@ -615,6 +615,10 @@ Compat_Run(targs)
 	gn = Targ_FindNode(".BEGIN", TARG_NOCREATE);
 	if (gn != NILGNODE) {
 	    Lst_ForEach(gn->commands, CompatRunCommand, (ClientData)gn);
+            if (gn->made == ERROR) {
+                printf("\n\nStop.\n");
+                exit(1);
+            }
 	}
     }
 
