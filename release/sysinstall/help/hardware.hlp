@@ -1,6 +1,6 @@
-Hardware Documentation Guide:  $Id: hardware.hlp,v 1.9.2.23 1997/10/19 13:15:26 joerg Exp $
+Hardware Documentation Guide:  $Id: hardware.hlp,v 1.9.2.24 1997/10/20 23:28:51 jkh Exp $
 
-Contents last changed:  October 20th, 1997
+Contents last changed:  Jan 14th, 1997
 
 Table of Contents
 -----------------
@@ -62,12 +62,12 @@ wdc1    170     15      n/a     n/a     IDE/MFM/RLL disk controller
 ncr0    n/a     n/a     n/a     n/a     NCR PCI SCSI controller
 bt0     330     dyn     dyn     dyn     Buslogic SCSI controller
 uha0    330     dyn     6       dyn     Ultrastore 14f
-aha0    330     dyn     5       dyn     Adaptec 154x SCSI controller
+aha0    330     dyn     5       dyn     Adaptec 154x/1535 SCSI controller
 ahb0    dyn     dyn     dyn     dyn     Adaptec 174x SCSI controller
 ahc0    dyn     dyn     dyn     dyn     Adaptec 274x/284x/294x SCSI controller
-amd0    n/a     n/a     n/a     n/a     Tekram DC-390(T) / AMD 53c974 PCI SCSI
 aic0    340     11      dyn     dyn     Adaptec 152x/AIC-6360 SCSI
                                         controller
+amd0    n/a     n/a     n/a     n/a     Tekram DC-390(T) / AMD 53c974 PCI SCSI
 nca0    1f88    10      dyn     dyn     ProAudioSpectrum cards
 sea0    dyn     5       dyn     c8000   Seagate ST01/02 8 bit controller
 
@@ -100,6 +100,7 @@ fxp0    dyn     dyn     n/a     dyn     Intel EtherExpress Pro/100B
 ie0     360     7       dyn     d0000   AT&T StarLAN 10 and EN100;
                                         3Com 3C507; NI5210
 ix0     300     10      dyn     d0000   Intel EtherExpress cards
+ex0     dyn     dyn     dyn     dyn     Intel EtherExpress Pro/10 cards
 le0     300     5       dyn     d0000   Digital Equipment EtherWorks
                                         2 and EtherWorks 3
 lnc0    280     10      n/a     dyn     Lance/PCnet cards
@@ -115,8 +116,8 @@ zp0     300     10      n/a     d8000   3Com 3c589 Etherlink III
 If the hardware in your computer is not set to the same settings as
 those shown in the table and the item in conflict is not marked 'dyn',
 you will have to either reconfigure your hardware or use UserConfig
-to reconfigure the kernel to match the way your hardware is currently
-set (see the next section).
+to reconfigure the kernel to match the way your hardware is currently set
+(see the next section).
 
 If the settings do not match, the kernel may be unable to locate
 or reliably access the devices in your system.
