@@ -37,10 +37,13 @@
 #ifndef _NET_IF_H_
 #define	_NET_IF_H_
 
+#include <sys/cdefs.h>
+
 #ifdef _KERNEL
 #include <sys/queue.h>
 #endif
 
+#if __BSD_VISIBLE
 /*
  * <net/if.h> does not depend on <sys/time.h> on most other systems.  This
  * helps userland compatibility.  (struct timeval ifi_lastchange)
@@ -50,14 +53,17 @@
 #endif
 
 struct ifnet;
+#endif
 
 /*
  * Length of interface external name, including terminating '\0'.
  * Note: this is the same size as a generic device's external name.
  */
-#define		IFNAMSIZ	16
-#define		IF_NAMESIZE	IFNAMSIZ
+#define		IF_NAMESIZE	16
+#if __BSD_VISIBLE
+#define		IFNAMSIZ	IF_NAMESIZE
 #define		IF_MAXUNIT	0x7fff	/* ifp->if_unit is only 15 bits */
+#endif
 
 #ifdef _KERNEL
 /*
@@ -79,6 +85,8 @@ struct if_clone {
 #define IF_CLONE_INITIALIZER(name, create, destroy, minifs, maxunit)	\
     { { 0 }, name, sizeof(name) - 1, minifs, maxunit, NULL, 0, create, destroy }
 #endif
+
+#if __BSD_VISIBLE
 
 /*
  * Structure used to query names of interface cloners.
@@ -315,6 +323,8 @@ struct if_laddrreq {
 	struct	sockaddr_storage dstaddr; /* out */
 };
 
+#endif /* __BSD_VISIBLE */
+
 #ifdef _KERNEL
 #ifdef MALLOC_DECLARE
 MALLOC_DECLARE(M_IFADDR);
@@ -324,13 +334,13 @@ MALLOC_DECLARE(M_IFMADDR);
 
 #ifndef _KERNEL
 struct if_nameindex {
-	u_int	if_index;	/* 1, 2, ... */
+	unsigned int	if_index;	/* 1, 2, ... */
 	char	*if_name;	/* null terminated name: "le0", ... */
 };
 
 __BEGIN_DECLS
-u_int	 if_nametoindex(const char *);
-char	*if_indextoname(u_int, char *);
+unsigned int if_nametoindex(const char *);
+char	*if_indextoname(unsigned int, char *);
 struct	 if_nameindex *if_nameindex(void);
 void	 if_freenameindex(struct if_nameindex *);
 __END_DECLS
