@@ -1539,12 +1539,23 @@ ata_promise_sx4_command(struct ata_device *atadev, u_int8_t command,
     u_int32_t *wordp;
     int i, idx, length = 0;
 
-    if (command == ATA_ATA_IDENTIFY) {
+    switch (command) {    
+
+    default:
+	return -1;
+
+    case ATA_ATA_IDENTIFY:
+    case ATA_READ:
+    case ATA_READ_MUL:
+    case ATA_WRITE:
+    case ATA_WRITE_MUL:
 	ATA_OUTL(ctlr->r_res2, 0x000c0400 + ((ch->unit + 1) << 2), 0x00000001);
 	return ata_generic_command(atadev, command, lba, count, feature);
-    }
 
-    if (ch->running->flags & ATA_R_CONTROL) {
+    case ATA_SETFEATURES:
+    case ATA_FLUSHCACHE:
+    case ATA_SLEEP:
+    case ATA_SET_MULTI:
 	wordp = (u_int32_t *)
 	    (window + (ch->unit * ATA_PDC_CHN_OFFSET) + ATA_PDC_APKT_OFFSET);
 	wordp[0] = htole32(0x08 | ((ch->unit + 1)<<16) | (0x00 << 24));
@@ -1556,68 +1567,64 @@ ata_promise_sx4_command(struct ata_device *atadev, u_int8_t command,
 	ATA_OUTL(ctlr->r_res2, 0x000c0240 + (ch->unit << 7),
 		 htole32((ch->unit * ATA_PDC_CHN_OFFSET)+ATA_PDC_APKT_OFFSET));
 	return 0;
-    }
-    
-    if (command != ATA_READ_DMA && command != ATA_WRITE_DMA)
-	return -1;
 
-    wordp = (u_int32_t *)
-	(window + (ch->unit * ATA_PDC_CHN_OFFSET) + ATA_PDC_HSG_OFFSET);
-    i = idx = 0;
-    do {
-	wordp[idx++] = htole32(prd[i].addr);
-	wordp[idx++] = htole32(prd[i].count & ~ATA_DMA_EOT);
-	length += (prd[i].count & ~ATA_DMA_EOT);
-    } while (!(prd[i++].count & ATA_DMA_EOT));
-    wordp[idx - 1] |= htole32(ATA_DMA_EOT);
+    case ATA_READ_DMA:
+    case ATA_WRITE_DMA:
+	wordp = (u_int32_t *)
+	    (window + (ch->unit * ATA_PDC_CHN_OFFSET) + ATA_PDC_HSG_OFFSET);
+	i = idx = 0;
+	do {
+	    wordp[idx++] = htole32(prd[i].addr);
+	    wordp[idx++] = htole32(prd[i].count & ~ATA_DMA_EOT);
+	    length += (prd[i].count & ~ATA_DMA_EOT);
+	} while (!(prd[i++].count & ATA_DMA_EOT));
+	wordp[idx - 1] |= htole32(ATA_DMA_EOT);
 
-    wordp = (u_int32_t *)
-	(window + (ch->unit * ATA_PDC_CHN_OFFSET) + ATA_PDC_LSG_OFFSET);
-    wordp[0] = htole32((ch->unit * ATA_PDC_BUF_OFFSET) + ATA_PDC_BUF_BASE);
-    wordp[1] = htole32((count * DEV_BSIZE) | ATA_DMA_EOT);
+	wordp = (u_int32_t *)
+	    (window + (ch->unit * ATA_PDC_CHN_OFFSET) + ATA_PDC_LSG_OFFSET);
+	wordp[0] = htole32((ch->unit * ATA_PDC_BUF_OFFSET) + ATA_PDC_BUF_BASE);
+	wordp[1] = htole32((count * DEV_BSIZE) | ATA_DMA_EOT);
 
-    wordp = (u_int32_t *)
-	(window + (ch->unit * ATA_PDC_CHN_OFFSET) + ATA_PDC_ASG_OFFSET);
-    wordp[0] = htole32((ch->unit * ATA_PDC_BUF_OFFSET) + ATA_PDC_BUF_BASE);
-    wordp[1] = htole32((count * DEV_BSIZE) | ATA_DMA_EOT);
+	wordp = (u_int32_t *)
+	    (window + (ch->unit * ATA_PDC_CHN_OFFSET) + ATA_PDC_ASG_OFFSET);
+	wordp[0] = htole32((ch->unit * ATA_PDC_BUF_OFFSET) + ATA_PDC_BUF_BASE);
+	wordp[1] = htole32((count * DEV_BSIZE) | ATA_DMA_EOT);
 
-    wordp = (u_int32_t *)
-	(window + (ch->unit * ATA_PDC_CHN_OFFSET) + ATA_PDC_HPKT_OFFSET);
-    if (command == ATA_READ_DMA)
-	wordp[0] = htole32(0x14 | ((ch->unit + 9)<<16) | ((ch->unit + 5)<<24));
-    if (command == ATA_WRITE_DMA)
-	wordp[0] = htole32(0x00 | ((ch->unit + 13) << 16) | (0x00 << 24));
-    wordp[1] = htole32((ch->unit * ATA_PDC_CHN_OFFSET)+ATA_PDC_HSG_OFFSET);
-    wordp[2] = htole32((ch->unit * ATA_PDC_CHN_OFFSET)+ATA_PDC_LSG_OFFSET);
-    wordp[3] = 0;
+	wordp = (u_int32_t *)
+	    (window + (ch->unit * ATA_PDC_CHN_OFFSET) + ATA_PDC_HPKT_OFFSET);
+	if (command == ATA_READ_DMA)
+	    wordp[0] = htole32(0x14 | ((ch->unit+9)<<16) | ((ch->unit+5)<<24));
+	if (command == ATA_WRITE_DMA)
+	    wordp[0] = htole32(0x00 | ((ch->unit+13)<<16) | (0x00<<24));
+	wordp[1] = htole32((ch->unit * ATA_PDC_CHN_OFFSET)+ATA_PDC_HSG_OFFSET);
+	wordp[2] = htole32((ch->unit * ATA_PDC_CHN_OFFSET)+ATA_PDC_LSG_OFFSET);
+	wordp[3] = 0;
 
-    wordp = (u_int32_t *)
-	(window + (ch->unit * ATA_PDC_CHN_OFFSET) + ATA_PDC_APKT_OFFSET);
-    if (command == ATA_READ_DMA) {
-	wordp[0] = htole32(0x04 | ((ch->unit + 5) << 16) | (0x00 << 24));
+	wordp = (u_int32_t *)
+	    (window + (ch->unit * ATA_PDC_CHN_OFFSET) + ATA_PDC_APKT_OFFSET);
+	if (command == ATA_READ_DMA)
+	    wordp[0] = htole32(0x04 | ((ch->unit+5)<<16) | (0x00<<24));
+	if (command == ATA_WRITE_DMA)
+	    wordp[0] = htole32(0x10 | ((ch->unit+1)<<16) | ((ch->unit+13)<<24));
 	wordp[1] = htole32((ch->unit * ATA_PDC_CHN_OFFSET)+ATA_PDC_ASG_OFFSET);
-    }
-    if (command == ATA_WRITE_DMA) {
-	wordp[0] = htole32(0x10 | ((ch->unit + 1)<<16) | ((ch->unit + 13)<<24));
-	wordp[1] = htole32((ch->unit * ATA_PDC_CHN_OFFSET)+ATA_PDC_ASG_OFFSET);
-    }
-    wordp[2] = 0;
-    ata_promise_apkt((u_int8_t *)wordp, atadev, command, lba, count, feature);
-    ATA_OUTL(ctlr->r_res2, 0x000c0484, 0x00000001);
+	wordp[2] = 0;
+	ata_promise_apkt((u_int8_t *)wordp, atadev, command, lba,count,feature);
+	ATA_OUTL(ctlr->r_res2, 0x000c0484, 0x00000001);
 
-    if (command == ATA_READ_DMA) {
-	ATA_OUTL(ctlr->r_res2, 0x000c0400 + ((ch->unit + 5) << 2), 0x00000001);
-	ATA_OUTL(ctlr->r_res2, 0x000c0400 + ((ch->unit + 9) << 2), 0x00000001);
-	ATA_OUTL(ctlr->r_res2, 0x000c0240 + (ch->unit << 7),
-		 htole32((ch->unit * ATA_PDC_CHN_OFFSET)+ATA_PDC_APKT_OFFSET));
+	if (command == ATA_READ_DMA) {
+	    ATA_OUTL(ctlr->r_res2, 0x000c0400 + ((ch->unit+5)<<2), 0x00000001);
+	    ATA_OUTL(ctlr->r_res2, 0x000c0400 + ((ch->unit+9)<<2), 0x00000001);
+	    ATA_OUTL(ctlr->r_res2, 0x000c0240 + (ch->unit << 7),
+		htole32((ch->unit * ATA_PDC_CHN_OFFSET) + ATA_PDC_APKT_OFFSET));
+	}
+	if (command == ATA_WRITE_DMA) {
+	    ATA_OUTL(ctlr->r_res2, 0x000c0400 + ((ch->unit+1)<<2), 0x00000001);
+	    ATA_OUTL(ctlr->r_res2, 0x000c0400 + ((ch->unit+13)<<2), 0x00000001);
+	    ata_promise_queue_hpkt(ctlr,
+		htole32((ch->unit * ATA_PDC_CHN_OFFSET) + ATA_PDC_HPKT_OFFSET));
+	}
+	return 0;
     }
-    if (command == ATA_WRITE_DMA) {
-	ATA_OUTL(ctlr->r_res2, 0x000c0400 + ((ch->unit + 1) << 2), 0x00000001);
-	ATA_OUTL(ctlr->r_res2, 0x000c0400 + ((ch->unit + 13) << 2), 0x00000001);
-	ata_promise_queue_hpkt(ctlr, htole32((ch->unit * ATA_PDC_CHN_OFFSET) +
-					     ATA_PDC_HPKT_OFFSET));
-    }
-    return 0;
 }
 
 static int
