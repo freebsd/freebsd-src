@@ -40,9 +40,6 @@ __FBSDID("$FreeBSD$");
  * NWAY to work right is amazingly difficult.
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
