@@ -38,39 +38,24 @@ stop_cmd="network_stop"
 cloneup_cmd="clone_up"
 clonedown_cmd="clone_down"
 extra_commands="cloneup clonedown"
+_cmdifn=
 
 network_start()
 {
-	# Create cloned interfaces
-	clone_up
+	if [ -z "$_cmdifn" ]; then
+		#
+		# We're operating as a general network start routine.
+		#
 
-	# Create IPv6<-->IPv4 tunnels
-	gif_up
+		# Create cloned interfaces
+		clone_up
 
-	# Get a list of network interfaces. Do not include dhcp interfaces.
-	_ifn_list="`list_net_interfaces nodhcp`"
+		# Create IPv6<-->IPv4 tunnels
+		gif_up
+	fi
 
-	# Setup the supplied network interfaces including startup
-	# scripts, if they exist.
-	#
-	for ifn in ${_ifn_list}; do
-		ifscript_up ${ifn} && eval showstat_$ifn=1
-
-		ifconfig_up ${ifn} && eval showstat_$ifn=1
-
-		ifalias_up ${ifn} && eval showstat_$ifn=1
-
-		ipx_up ${ifn} && eval showstat_$ifn=1
-	done
-
-	# Display interfaces configured by this script
-	#
-	for ifn in ${_ifn_list}; do
-		eval showstat=\$showstat_${ifn}
-		if [ ! -z ${showstat} ]; then
-			ifconfig ${ifn}
-		fi
-	done
+	# Configure the interface(s).
+	network_common ifn_start verbose
 
 	# Resync ipfilter
 	/etc/rc.d/ipfilter resync
@@ -80,10 +65,102 @@ network_stop()
 {
 	echo -n "Stopping network:"
 
-	# flush routes
-	route -n flush
+	# Deconfigure the interface(s)
+	network_common ifn_stop
 	echo '.'
 }
+
+# network_common routine verbose
+#	Common configuration subroutine for network interfaces. This
+#	routine takes all the preparatory steps needed for configuriing
+#	an interface and then calls $routine. If $verbose is specified,
+#	it will call ifconfig(8) to show, in long format, the configured
+#	interfaces. If $verbose is not given, it will simply output the
+#	configured interface(s).
+network_common()
+{
+	_func=
+	_verbose=
+
+	if [ -z "$1" ]; then
+		err "network_common(): No function name specified."
+	else
+		_func="$1"
+	fi
+	[ -n "$2" ] && _verbose=yes
+
+	# Get a list of network interfaces. Do not include dhcp interfaces.
+	_ifn_list="`list_net_interfaces nodhcp`"
+
+	# Set the scope of the command (all interfaces or just one).
+	#
+	_cooked_list="$_ifn_list"
+	if [ -n "$_cmdifn" ]; then
+		eval _cooked_list=\"`expr "$_ifn_list" : ".*\($_cmdifn\).*"`\"
+		if [ -z "$_cooked_list" ]; then
+			err "No such network interface: $_cmdifn"
+			return 1
+		fi
+	fi
+
+	for ifn in ${_cooked_list}; do
+		if ${_func} ${ifn} ; then
+			eval showstat_$ifn=1
+		else
+			_fail="$_fail $ifn"
+		fi
+	done
+
+	# Display interfaces configured by this script
+	#
+	for ifn in ${_cooked_list}; do
+		eval showstat=\$showstat_${ifn}
+		if [ ! -z ${showstat} ]; then
+			if [ -n "$_verbose" ]; then
+				ifconfig ${ifn}
+			else
+				echo -n " ${ifn}"
+			fi
+		fi
+	done
+	debug "The following interfaces were not configured: $_fail"
+}
+
+ifn_start()
+{
+	local ifn cfg
+	ifn="$1"
+	cfg=1
+
+	[ -z "$ifn" ] && return 1
+
+	ifscript_up ${ifn} && cfg=0
+	ifconfig_up ${ifn} && cfg=0
+	ifalias_up ${ifn} && cfg=0
+	ipx_up ${ifn} && cfg=0
+
+	return $cfg
+}
+
+ifn_stop()
+{
+	local ifn cfg
+	ifn="$1"
+	cfg=1
+
+	[ -z "$ifn" ] && return 1
+
+	ipx_down ${ifn} && cfg=0
+	ifalias_down ${ifn} && cfg=0
+	ifconfig_down ${ifn} && cfg=0
+	ifscript_down ${ifn} && cfg=0
+
+	return $cfg
+}
+
+if [ -n "$2" ]; then
+	_cmdifn="$2"
+fi
 
 load_rc_config $name
 run_rc_command "$1"
