@@ -295,8 +295,14 @@ trap(int vector, int imm, struct trapframe *framep)
 	if (user) {
 		sticks = td->td_kse->ke_sticks;
 		td->td_frame = framep;
+		KASSERT(td->td_ucred == NULL, ("already have a ucred"));
+		PROC_LOCK(p);
+		td->td_ucred = crhold(p->p_ucred);
+		PROC_UNLOCK(p);
 	} else {
 		sticks = 0;		/* XXX bogus -Wuninitialized warning */
+		KASSERT(cold || td->td_ucred != NULL,
+		    ("kernel trap doesn't have ucred"));
 	}
 
 	switch (vector) {
@@ -552,6 +558,10 @@ out:
 	if (user) {
 		userret(td, framep, sticks);
 		mtx_assert(&Giant, MA_NOTOWNED);
+		mtx_lock(&Giant);
+		crfree(td->td_ucred);
+		mtx_unlock(&Giant);
+		td->td_ucred = NULL;
 	}
 	return;
 
@@ -596,6 +606,10 @@ syscall(int code, u_int64_t *args, struct trapframe *framep)
 
 	td->td_frame = framep;
 	sticks = td->td_kse->ke_sticks;
+	KASSERT(td->td_ucred == NULL, ("already have a ucred"));
+	PROC_LOCK(p);
+	td->td_ucred = crhold(p->p_ucred);
+	PROC_UNLOCK(p);
 
 	/*
 	 * Skip past the break instruction. Remember old address in case
@@ -700,6 +714,10 @@ syscall(int code, u_int64_t *args, struct trapframe *framep)
 	 */
 	STOPEVENT(p, S_SCX, code);
 
+	mtx_lock(&Giant);
+	crfree(td->td_ucred);
+	mtx_unlock(&Giant);
+	td->td_ucred = NULL;
 #ifdef WITNESS
 	if (witness_list(td)) {
 		panic("system call %s returning with mutex(s) held\n",
