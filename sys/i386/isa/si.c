@@ -30,7 +30,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- *	$Id: si.c,v 1.29 1995/12/14 14:29:10 peter Exp $
+ *	$Id: si.c,v 1.30 1995/12/16 14:03:02 peter Exp $
  */
 
 #ifndef lint
@@ -171,6 +171,7 @@ struct si_softc {
 		void	*ttyl;
 		void	*ttyi;
 	} devfs_token[32]; /* what is the max per card? */
+	void	*control_token;
 #endif
 };
 static struct si_softc si_softc[NSI];		/* up to 4 elements */
@@ -698,25 +699,28 @@ mem_fail:
 
 #ifdef DEVFS
 /*	path	name	devsw		minor	type   uid gid perm*/
-	for ( x = 1; x <= nport; x++ ) {
-		sprintf(name,"ttyA%c%c", chardev[x / 10], chardev[x % 10]);
+	for ( x = 0; x <= nport; x++ ) {
+		y = x + 1;	/* For sync with the manuals that start at 1 */
+		sprintf(name,"ttyA%c%c", chardev[y / 10], chardev[y % 10]);
 		sc->devfs_token[x].ttyd = devfs_add_devsw(
 			"/", name, &si_cdevsw, x,
 			DV_CHR, 0, 0, 0600);
-		sprintf(name,"cuaA%c%c", chardev[x / 10], chardev[x % 10]);
+		sprintf(name,"cuaA%c%c", chardev[y / 10], chardev[y % 10]);
 		sc->devfs_token[x].cuaa = devfs_add_devsw(
 			"/", name, &si_cdevsw, x + 128,
 			DV_CHR, 0, 0, 0600);
-		sprintf(name,"ttyiA%c%c", chardev[x / 10], chardev[x % 10]);
+		sprintf(name,"ttyiA%c%c", chardev[y / 10], chardev[y % 10]);
 		sc->devfs_token[x].ttyi = devfs_add_devsw(
 			"/", name, &si_cdevsw, x + 0x10000,
 			DV_CHR, 0, 0, 0600);
-		sprintf(name,"ttylA%c%c", chardev[x / 10], chardev[x % 10]);
+		sprintf(name,"ttylA%c%c", chardev[y / 10], chardev[y % 10]);
 		sc->devfs_token[x].ttyl = devfs_add_devsw(
 			"/", name, &si_cdevsw, x + 0x20000,
 			DV_CHR, 0, 0, 0600);
 	}
-	/* XXX: no global yet */
+	sc->control_token = devfs_add_devsw("/", "si_control",
+						&si_cdevsw, 0x40000,
+						DV_CHR, 0, 0, 0600);
 #endif
 	return (1);
 }
