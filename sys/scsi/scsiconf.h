@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *	$Id: scsiconf.h,v 1.53 1997/04/03 10:09:29 kato Exp $
+ *	$Id: scsiconf.h,v 1.54 1997/05/19 17:32:10 jmz Exp $
  */
 #ifndef	SCSI_SCSICONF_H
 #define SCSI_SCSICONF_H 1
@@ -337,6 +337,8 @@ struct scsi_link
 #define SDEV_TARGET_OPS 	0x0800	/* XXX-HA: Supports target ops  */
 #define	SDEV_IS_OPEN 		0x1000	/* at least 1 open session */
 #define SDEV_UK			0x2000	/* this is the "uk" device */
+#define SDEV_XLOCK		0x4000	/* Device is locked */
+#define SDEV_WANT		0x8000	/* A process is waiting for lock */
 
 /*
  * One of these is allocated and filled in for each scsi bus.

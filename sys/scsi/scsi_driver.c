@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: scsi_driver.c,v 1.22 1997/02/22 09:44:31 peter Exp $
+ * $Id: scsi_driver.c,v 1.23 1997/03/23 06:33:47 bde Exp $
  *
  */
 
@@ -230,5 +230,27 @@ scsi_strategy(struct buf *bp, struct scsi_device *device)
 			(*sc_link->adapter->scsi_minphys)(bp);
 			(*device->dev_strategy)(bp, sc_link);
 		}
+	}
+}
+
+int scsi_device_lock(struct scsi_link *sc_link)
+{
+	int error;
+	while (sc_link->flags & SDEV_XLOCK) {
+		sc_link->flags |= SDEV_WANT;
+		error = tsleep(&sc_link->flags, PRIBIO | PCATCH, "sdevlk",0);
+		if (error)
+			return error;
+	}
+	sc_link->flags |= SDEV_XLOCK;
+	return 0;
+}
+
+void scsi_device_unlock(struct scsi_link *sc_link)
+{
+	sc_link->flags &= ~SDEV_XLOCK;
+	if (sc_link->flags & SDEV_WANT) {
+		sc_link->flags &= ~SDEV_WANT;
+		wakeup(&sc_link->flags);
 	}
 }

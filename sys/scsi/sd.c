@@ -15,7 +15,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.104 1997/03/24 11:25:02 bde Exp $
+ *      $Id: sd.c,v 1.105 1997/05/01 19:15:38 sos Exp $
  */
 
 #include "opt_bounce.h"
@@ -279,6 +279,10 @@ sd_open(dev, mode, fmt, p, sc_link)
 	 */
 	scsi_test_unit_ready(sc_link, 0);
 
+	errcode = scsi_device_lock(sc_link);
+	if (errcode)
+		return errcode;
+
 	/*
 	 * If it's been invalidated, then forget the label
 	 */
@@ -354,6 +358,7 @@ sd_open(dev, mode, fmt, p, sc_link)
 
 	SC_DEBUG(sc_link, SDEV_DB3, ("open %ld %ld\n", sdstrats, sdqueues));
 
+	scsi_device_unlock(sc_link);
 	return 0;
 
 bad:
@@ -361,6 +366,7 @@ bad:
 		scsi_prevent(sc_link, PR_ALLOW, SCSI_ERR_OK | SCSI_SILENT);
 		sc_link->flags &= ~SDEV_OPEN;
 	}
+	scsi_device_unlock(sc_link);
 	return errcode;
 }
 
@@ -377,13 +383,18 @@ sd_close(dev, fflag, fmt, p, sc_link)
 	struct scsi_link *sc_link;
 {
 	struct scsi_data *sd;
+	errval errcode;
 
 	sd = sc_link->sd;
+	errcode = scsi_device_lock(sc_link);
+	if (errcode)
+		return errcode;
 	dsclose(dev, fmt, sd->dk_slices);
 	if (!dsisopen(sd->dk_slices)) {
 		scsi_prevent(sc_link, PR_ALLOW, SCSI_SILENT | SCSI_ERR_OK);
 		sc_link->flags &= ~SDEV_OPEN;
 	}
+	scsi_device_unlock(sc_link);
 	return (0);
 }
 
@@ -661,8 +672,14 @@ sd_ioctl(dev_t dev, int cmd, caddr_t addr, int flag, struct proc *p,
 
 	if (cmd == DIOCSBAD)
 		return (EINVAL);	/* XXX */
+	
+	error = scsi_device_lock(sc_link);
+	if (error)
+		return error;
+
 	error = dsioctl("sd", dev, cmd, addr, flag, &sd->dk_slices,
 			sdstrategy1, (ds_setgeom_t *)NULL);
+	scsi_device_unlock(sc_link);
 	if (error != -1)
 		return (error);
 	if (PARTITION(dev) != RAW_PART)
