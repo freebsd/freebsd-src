@@ -1467,8 +1467,14 @@ ttymodem(tp, flag)
 		    !ISSET(tp->t_cflag, CLOCAL)) {
 			SET(tp->t_state, TS_ZOMBIE);
 			CLR(tp->t_state, TS_CONNECTED);
-			if (tp->t_session && tp->t_session->s_leader)
-				psignal(tp->t_session->s_leader, SIGHUP);
+			if (tp->t_session && tp->t_session->s_leader) {
+				struct proc *p;
+
+				p = tp->t_session->s_leader;
+				PROC_LOCK(p);
+				psignal(p, SIGHUP);
+				PROC_UNLOCK(p);
+			}
 			ttyflush(tp, FREAD | FWRITE);
 			return (0);
 		}

@@ -51,13 +51,13 @@
 #if defined(__NetBSD__) || defined(__OpenBSD__)
 #include <sys/device.h>
 #include <sys/kthread.h>
-#include <sys/proc.h>
 #elif defined(__FreeBSD__)
 #include <sys/module.h>
 #include <sys/bus.h>
 #include <sys/filio.h>
 #include <sys/uio.h>
 #endif
+#include <sys/proc.h>
 #include <sys/conf.h>
 #include <sys/poll.h>
 #if __FreeBSD_version >= 500014
@@ -683,8 +683,11 @@ usbd_add_event(type, dev)
 	SIMPLEQ_INSERT_TAIL(&usb_events, ueq, next);
 	wakeup(&usb_events);
 	selwakeup(&usb_selevent);
-	if (usb_async_proc != NULL)
+	if (usb_async_proc != NULL) {
+		PROC_LOCK(usb_async_proc);
 		psignal(usb_async_proc, SIGIO);
+		PROC_UNLOCK(usb_async_proc);
+	}
 	splx(s);
 }
 

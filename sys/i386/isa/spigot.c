@@ -266,8 +266,11 @@ spigintr(int unit)
 {
 struct	spigot_softc	*ss = (struct spigot_softc *)&spigot_softc[unit];
 
-	if(ss->p && ss->signal_num)
+	if(ss->p && ss->signal_num) {
+		PROC_LOCK(ss->p);
 		psignal(ss->p, ss->signal_num);
+		PROC_UNLOCK(ss->p);
+	}
 }
 
 static	int

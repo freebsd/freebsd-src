@@ -237,7 +237,9 @@ nwfs_writevnode(vp, uiop, cred, ioflag)
 	}
 	if (uiop->uio_resid == 0) return 0;
 	if (p && uiop->uio_offset + uiop->uio_resid > p->p_rlimit[RLIMIT_FSIZE].rlim_cur) {
+		PROC_LOCK(p);
 		psignal(p, SIGXFSZ);
+		PROC_UNLOCK(p);
 		return (EFBIG);
 	}
 	error = ncp_write(NWFSTOCONN(nmp), &np->n_fh, uiop, cred);

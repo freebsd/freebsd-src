@@ -765,7 +765,9 @@ sc_mouse_ioctl(struct tty *tp, u_long cmd, caddr_t data, int flag,
 			cur_scp->mouse_proc = NULL;
 			cur_scp->mouse_pid = 0;
 		} else {
+		    PROC_LOCK(cur_scp->mouse_proc);
 		    psignal(cur_scp->mouse_proc, cur_scp->mouse_signal);
+		    PROC_UNLOCK(cur_scp->mouse_proc);
 		    break;
 		}
 	    }
@@ -818,7 +820,9 @@ sc_mouse_ioctl(struct tty *tp, u_long cmd, caddr_t data, int flag,
 			cur_scp->mouse_proc = NULL;
 			cur_scp->mouse_pid = 0;
 		} else {
+		    PROC_LOCK(cur_scp->mouse_proc);
 		    psignal(cur_scp->mouse_proc, cur_scp->mouse_signal);
+		    PROC_UNLOCK(cur_scp->mouse_proc);
 		    break;
 		}
 	    }
