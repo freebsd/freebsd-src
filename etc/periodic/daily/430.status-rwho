@@ -1,10 +1,15 @@
 #!/bin/sh
 #
-# $Id: 430.status-rwho,v 1.1.1.1 1997/08/12 17:51:15 pst Exp $
+# $Id: 430.status-rwho,v 1.1.1.1 1997/08/16 17:04:01 pst Exp $
 #
 
-if [ -d /var/rwho -a -x /usr/bin/rwho ] ; then
+if [ -d /var/rwho -a -x /usr/bin/rwho -a $(ls -l /var/rwho | wc -l) -ne 0 ]
+then
     echo ""
     echo "Local network system status:"
     ruptime
+else
+    echo ""
+    echo "Local system status:"
+    uptime
 fi
