@@ -147,7 +147,7 @@ int cold = 1;
 
 long Maxmem = 0;
 
-vm_paddr_t phys_avail[10];
+vm_paddr_t phys_avail[20];
 
 /* must be 2 less so 0 0 can signal end of chunks */
 #define PHYS_AVAIL_ARRAY_END ((sizeof(phys_avail) / sizeof(vm_offset_t)) - 2)
@@ -266,7 +266,7 @@ sendsig(catcher, sig, mask, code)
 	} else
 		sp = (char *)regs->tf_rsp - sizeof(struct sigframe) - 128;
 	/* Align to 16 bytes. */
-	sfp = (struct sigframe *)((unsigned long)sp & ~0xF);
+	sfp = (struct sigframe *)((unsigned long)sp & ~0xFul);
 
 	/* Translate the signal if appropriate. */
 	if (p->p_sysent->sv_sigtbl && sig <= p->p_sysent->sv_sigsize)
@@ -527,11 +527,33 @@ exec_setregs(td, entry, stack, ps_strings)
 
 	bzero((char *)regs, sizeof(struct trapframe));
 	regs->tf_rip = entry;
-	regs->tf_rsp = ((stack - 8) & ~0xF) + 8;
+	regs->tf_rsp = ((stack - 8) & ~0xFul) + 8;
 	regs->tf_rdi = stack;		/* argv */
 	regs->tf_rflags = PSL_USER | (regs->tf_rflags & PSL_T);
 	regs->tf_ss = _udatasel;
 	regs->tf_cs = _ucodesel;
+
+	/*
+	 * Reset the hardware debug registers if they were in use.
+	 * They won't have any meaning for the newly exec'd process.
+	 */
+	if (pcb->pcb_flags & PCB_DBREGS) {
+		pcb->pcb_dr0 = 0;
+		pcb->pcb_dr1 = 0;
+		pcb->pcb_dr2 = 0;
+		pcb->pcb_dr3 = 0;
+		pcb->pcb_dr6 = 0;
+		pcb->pcb_dr7 = 0;
+		if (pcb == PCPU_GET(curpcb)) {
+			/*
+			 * Clear the debug registers on the running
+			 * CPU, otherwise they will end up affecting
+			 * the next process we switch to.
+			 */
+			reset_dbregs();
+		}
+		pcb->pcb_flags &= ~PCB_DBREGS;
+	}
 
 	/*
 	 * Arrange to trap the next fpu or `fwait' instruction (see fpu.c
@@ -819,7 +841,8 @@ getmemsize(caddr_t kmdp, u_int64_t first)
 	 * "Consumer may safely assume that size value precedes data."
 	 * ie: an int32_t immediately precedes smap.
 	 */
-	smapbase = (struct bios_smap *)preload_search_info(kmdp, MODINFO_METADATA | MODINFOMD_SMAP);
+	smapbase = (struct bios_smap *)preload_search_info(kmdp,
+	    MODINFO_METADATA | MODINFOMD_SMAP);
 	if (smapbase == NULL)
 		panic("No BIOS smap info from loader!");
 
@@ -983,30 +1006,26 @@ next_run:
 			 * Test for alternating 1's and 0's
 			 */
 			*(volatile int *)ptr = 0xaaaaaaaa;
-			if (*(volatile int *)ptr != 0xaaaaaaaa) {
+			if (*(volatile int *)ptr != 0xaaaaaaaa)
 				page_bad = TRUE;
-			}
 			/*
 			 * Test for alternating 0's and 1's
 			 */
 			*(volatile int *)ptr = 0x55555555;
-			if (*(volatile int *)ptr != 0x55555555) {
-			page_bad = TRUE;
-			}
+			if (*(volatile int *)ptr != 0x55555555)
+				page_bad = TRUE;
 			/*
 			 * Test for all 1's
 			 */
 			*(volatile int *)ptr = 0xffffffff;
-			if (*(volatile int *)ptr != 0xffffffff) {
+			if (*(volatile int *)ptr != 0xffffffff)
 				page_bad = TRUE;
-			}
 			/*
 			 * Test for all 0's
 			 */
 			*(volatile int *)ptr = 0x0;
-			if (*(volatile int *)ptr != 0x0) {
+			if (*(volatile int *)ptr != 0x0)
 				page_bad = TRUE;
-			}
 			/*
 			 * Restore original value.
 			 */
@@ -1015,9 +1034,8 @@ next_run:
 			/*
 			 * Adjust array of valid/good pages.
 			 */
-			if (page_bad == TRUE) {
+			if (page_bad == TRUE)
 				continue;
-			}
 			/*
 			 * If this good page is a continuation of the
 			 * previous set of good pages, then just increase
@@ -1040,7 +1058,7 @@ next_run:
 					break;
 				}
 				phys_avail[pa_indx++] = pa;	/* start */
-				phys_avail[pa_indx] = pa + PAGE_SIZE;	/* end */
+				phys_avail[pa_indx] = pa + PAGE_SIZE; /* end */
 			}
 			physmem++;
 		}
@@ -1127,7 +1145,8 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 		if (x != GPROC0_SEL && x != (GPROC0_SEL + 1))
 			ssdtosd(&gdt_segs[x], &gdt[x]);
 	}
-	ssdtosyssd(&gdt_segs[GPROC0_SEL], (struct system_segment_descriptor *)&gdt[GPROC0_SEL]);
+	ssdtosyssd(&gdt_segs[GPROC0_SEL],
+	    (struct system_segment_descriptor *)&gdt[GPROC0_SEL]);
 
 	r_gdt.rd_limit = NGDT * sizeof(gdt[0]) - 1;
 	r_gdt.rd_base =  (long) gdt;
@@ -1136,7 +1155,7 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 
 	wrmsr(MSR_FSBASE, 0);		/* User value */
 	wrmsr(MSR_GSBASE, (u_int64_t)pc);
-	wrmsr(MSR_KGSBASE, 0);		/* User value while we're in the kernel */
+	wrmsr(MSR_KGSBASE, 0);		/* User value while in the kernel */
 
 	pcpu_init(pc, 0, sizeof(struct pcpu));
 	PCPU_SET(prvspace, pc);
@@ -1204,7 +1223,7 @@ hammer_time(u_int64_t modulep, u_int64_t physfree)
 	common_tss[0].tss_rsp0 = thread0.td_kstack + \
 	    KSTACK_PAGES * PAGE_SIZE - sizeof(struct pcb);
 	/* Ensure the stack is aligned to 16 bytes */
-	common_tss[0].tss_rsp0 &= ~0xF;
+	common_tss[0].tss_rsp0 &= ~0xFul;
 	PCPU_SET(rsp0, common_tss[0].tss_rsp0);
 
 	/* doublefault stack space, runs on ist1 */
@@ -1559,15 +1578,195 @@ fpstate_drop(struct thread *td)
 int
 fill_dbregs(struct thread *td, struct dbreg *dbregs)
 {
+	struct pcb *pcb;
 
+	if (td == NULL) {
+		dbregs->dr[0] = rdr0();
+		dbregs->dr[1] = rdr1();
+		dbregs->dr[2] = rdr2();
+		dbregs->dr[3] = rdr3();
+		dbregs->dr[6] = rdr6();
+		dbregs->dr[7] = rdr7();
+	} else {
+		pcb = td->td_pcb;
+		dbregs->dr[0] = pcb->pcb_dr0;
+		dbregs->dr[1] = pcb->pcb_dr1;
+		dbregs->dr[2] = pcb->pcb_dr2;
+		dbregs->dr[3] = pcb->pcb_dr3;
+		dbregs->dr[6] = pcb->pcb_dr6;
+		dbregs->dr[7] = pcb->pcb_dr7;
+	}
+	dbregs->dr[4] = 0;
+	dbregs->dr[5] = 0;
+	dbregs->dr[8] = 0;
+	dbregs->dr[9] = 0;
+	dbregs->dr[10] = 0;
+	dbregs->dr[11] = 0;
+	dbregs->dr[12] = 0;
+	dbregs->dr[13] = 0;
+	dbregs->dr[14] = 0;
+	dbregs->dr[15] = 0;
 	return (0);
 }
 
 int
 set_dbregs(struct thread *td, struct dbreg *dbregs)
 {
+	struct pcb *pcb;
+	int i;
+	u_int64_t mask1, mask2;
+
+	if (td == NULL) {
+		load_dr0(dbregs->dr[0]);
+		load_dr1(dbregs->dr[1]);
+		load_dr2(dbregs->dr[2]);
+		load_dr3(dbregs->dr[3]);
+		load_dr6(dbregs->dr[6]);
+		load_dr7(dbregs->dr[7]);
+	} else {
+		/*
+		 * Don't let an illegal value for dr7 get set.  Specifically,
+		 * check for undefined settings.  Setting these bit patterns
+		 * result in undefined behaviour and can lead to an unexpected
+		 * TRCTRAP or a general protection fault right here.
+		 */
+		for (i = 0, mask1 = 0x3<<16, mask2 = 0x2<<16; i < 8;
+		     i++, mask1 <<= 2, mask2 <<= 2)
+			if ((dbregs->dr[7] & mask1) == mask2)
+				return (EINVAL);
+
+		pcb = td->td_pcb;
+
+		/*
+		 * Don't let a process set a breakpoint that is not within the
+		 * process's address space.  If a process could do this, it
+		 * could halt the system by setting a breakpoint in the kernel
+		 * (if ddb was enabled).  Thus, we need to check to make sure
+		 * that no breakpoints are being enabled for addresses outside
+		 * process's address space, unless, perhaps, we were called by
+		 * uid 0.
+		 *
+		 * XXX - what about when the watched area of the user's
+		 * address space is written into from within the kernel
+		 * ... wouldn't that still cause a breakpoint to be generated
+		 * from within kernel mode?
+		 */
+
+		if (suser(td) != 0) {
+			if (dbregs->dr[7] & 0x3) {
+				/* dr0 is enabled */
+				if (dbregs->dr[0] >= VM_MAXUSER_ADDRESS)
+					return (EINVAL);
+			}
+			if (dbregs->dr[7] & 0x3<<2) {
+				/* dr1 is enabled */
+				if (dbregs->dr[1] >= VM_MAXUSER_ADDRESS)
+					return (EINVAL);
+			}
+			if (dbregs->dr[7] & 0x3<<4) {
+				/* dr2 is enabled */
+				if (dbregs->dr[2] >= VM_MAXUSER_ADDRESS)
+					return (EINVAL);
+			}
+			if (dbregs->dr[7] & 0x3<<6) {
+				/* dr3 is enabled */
+				if (dbregs->dr[3] >= VM_MAXUSER_ADDRESS)
+					return (EINVAL);
+			}
+		}
+
+		pcb->pcb_dr0 = dbregs->dr[0];
+		pcb->pcb_dr1 = dbregs->dr[1];
+		pcb->pcb_dr2 = dbregs->dr[2];
+		pcb->pcb_dr3 = dbregs->dr[3];
+		pcb->pcb_dr6 = dbregs->dr[6];
+		pcb->pcb_dr7 = dbregs->dr[7];
+
+		pcb->pcb_flags |= PCB_DBREGS;
+	}
 
 	return (0);
+}
+
+void
+reset_dbregs(void)
+{
+
+	load_dr7(0);	/* Turn off the control bits first */
+	load_dr0(0);
+	load_dr1(0);
+	load_dr2(0);
+	load_dr3(0);
+	load_dr6(0);
+}
+
+/*
+ * Return > 0 if a hardware breakpoint has been hit, and the
+ * breakpoint was in user space.  Return 0, otherwise.
+ */
+int
+user_dbreg_trap(void)
+{
+        u_int64_t dr7, dr6; /* debug registers dr6 and dr7 */
+        u_int64_t bp;       /* breakpoint bits extracted from dr6 */
+        int nbp;            /* number of breakpoints that triggered */
+        caddr_t addr[4];    /* breakpoint addresses */
+        int i;
+        
+        dr7 = rdr7();
+        if ((dr7 & 0x000000ff) == 0) {
+                /*
+                 * all GE and LE bits in the dr7 register are zero,
+                 * thus the trap couldn't have been caused by the
+                 * hardware debug registers
+                 */
+                return 0;
+        }
+
+        nbp = 0;
+        dr6 = rdr6();
+        bp = dr6 & 0x0000000f;
+
+        if (!bp) {
+                /*
+                 * None of the breakpoint bits are set meaning this
+                 * trap was not caused by any of the debug registers
+                 */
+                return 0;
+        }
+
+        /*
+         * at least one of the breakpoints were hit, check to see
+         * which ones and if any of them are user space addresses
+         */
+
+        if (bp & 0x01) {
+                addr[nbp++] = (caddr_t)rdr0();
+        }
+        if (bp & 0x02) {
+                addr[nbp++] = (caddr_t)rdr1();
+        }
+        if (bp & 0x04) {
+                addr[nbp++] = (caddr_t)rdr2();
+        }
+        if (bp & 0x08) {
+                addr[nbp++] = (caddr_t)rdr3();
+        }
+
+        for (i=0; i<nbp; i++) {
+                if (addr[i] <
+                    (caddr_t)VM_MAXUSER_ADDRESS) {
+                        /*
+                         * addr[i] is in user space
+                         */
+                        return nbp;
+                }
+        }
+
+        /*
+         * None of the breakpoints are in user space.
+         */
+        return 0;
 }
 
 #ifndef DDB
