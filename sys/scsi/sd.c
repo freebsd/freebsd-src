@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.15 1994/01/06 18:08:03 rgrimes Exp $
+ *      $Id: sd.c,v 1.16 1994/01/22 11:05:16 rgrimes Exp $
  */
 
 #define SPLSD splbio
@@ -818,7 +818,7 @@ sd_get_parms(unit, flags)
 	/*
 	 * First check if we have it all loaded
 	 */
-	if (sd->flags & SDEV_MEDIA_LOADED)
+	if (sd->sc_link->flags & SDEV_MEDIA_LOADED)
 		return 0;
 
 	/*

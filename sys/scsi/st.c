@@ -21,13 +21,13 @@
  * 16 Feb 93    Julian Elischer         ADDED for SCSI system
  * 1.15 is the last version to support MACH and OSF/1
  */
-/* $Revision: 1.13 $ */
+/* $Revision: 1.14 $ */
 
 /*
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  * major changes by Julian Elischer (julian@jules.dialix.oz.au) May 1993
  *
- *      $Id: st.c,v 1.13 1993/11/18 05:03:05 rgrimes Exp $
+ *      $Id: st.c,v 1.14 1993/12/19 00:54:59 wollman Exp $
  */
 
 /*
@@ -485,7 +485,7 @@ stopen(dev, flags)
 	 * Only allow one at a time
 	 */
 	if (st->flags & ST_OPEN) {
-		return (ENXIO);
+		return (EBUSY);
 	}
 	/*
 	 * Throw out a dummy instruction to catch 'Unit attention
@@ -975,6 +975,7 @@ ststart(unit)
 
 		/* if a special awaits, let it proceed first */
 		if (sc_link->flags & SDEV_WAITING) {
+			sc_link->flags &= ~SDEV_WAITING;
 			wakeup((caddr_t)sc_link);
 			return;
 		}
