@@ -1,0 +1,80 @@
+<!-- $Id$ -->
+<!-- The FreeBSD Documentation Project -->
+
+<sect><heading>DES, MD5, and Crypt<label id="crypt"></heading>
+
+<p><em>Contributed by &a.wollman;<newline>24 September 1995.</em>
+
+<p><bf>History</bf>
+
+<p>In order to protect the security of passwords on UN*X systems from
+being easily exposed, passwords have traditionally been scrambled in
+some way.  Starting with Bell Labs' Seventh Edition Unix, passwords
+were encrypted using what the security people call a ``one-way hash
+function''.  That is to say, the password is transformed in such a way
+that the original password cannot be regained except by brute-force
+searching the space of possible passwords.  Unfortunately, the only
+secure method that was available to the AT&amp;T researchers at the
+time was based on DES, the Data Encryption Standard.  This causes only
+minimal difficulty for commercial vendors, but is a serious problem
+for an operating system like FreeBSD where all the source code is
+freely available, because national governments in many places like to
+place restrictions on cross-border transport of DES and other
+encryption software.
+
+<p>So, the FreeBSD team was faced with a dilemma: how could we provide
+compatibility with all those UNIX systems out there while still not
+running afoul of the law?  We decided to take a dual-track approach:
+we would make distributions which contained only a non-regulated
+password scrambler, and then provide as a separate add-on library the
+DES-based password hash.  The password-scrambling function was moved
+out of the C library to a separate library, called `<tt>libcrypt</tt>'
+because the name of the C function to implement it is
+`<tt>crypt</tt>'.  In FreeBSD 1.x and some pre-release 2.0 snapshots,
+the non-regulated scrambler uses an insecure function written by Nate
+Williams; in subsequent releases this was replaced by a mechanism
+using the RSA Data Security, Inc., MD5 one-way hash function.  Because
+neither of these functions involve encryption, they are believed to be
+exportable from the US and importable into many other countries.
+
+<p>Meanwhile, work was also underway on the DES-based password hash
+function.  First, a version of the `<tt>crypt</tt>' function which was
+written outside the US was imported, thus synchronizing the US and
+non-US code.  Then, the library was modified and split into two; the
+DES `<tt>libcrypt</tt>' contains only the code involved in performing
+the one-way password hash, and a separate `<tt>libcipher</tt>' was
+created with the entry points to actually perform encryption.  The
+code was partitioned in this way to make it easier to get an export
+license for the compiled library.
+
+<p><bf>Recognizing your `<tt>crypt</tt>' mechanism</bf>
+
+<p>It is fairly easy to recognize whether a particular password
+string was created using the DES- or MD5-based hash function.
+MD5 password strings always begin with the characters
+`<tt>&dollar;1&dollar;</tt>'.  DES password strings do not have
+any particular identifying characteristics, but they are shorter
+than MD5 passwords, and are coded in a 64-character alphabet
+which does not include the `<tt>&dollar;</tt>' character, so a
+relatively short string which doesn't begin with a dollar sign is
+very likely a DES password.
+
+<p>Determining which library is being used on your system is fairly
+easy for most programs, except for those like `<tt>init</tt>' which
+are statically linked.  (For those programs, the only way is to try
+them on a known password and see if it works.)  Programs which use
+`<tt>crypt</tt>' are linked against `<tt>libcrypt</tt>', which for
+each type of library is a symbolic link to the appropriate
+implementation.  For example, on a system using the DES versions:
+
+<tscreen><verb>
+$ cd /usr/lib
+$ ls -l /usr/lib/libcrypt*
+lrwxr-xr-x  1 bin  bin  13 Sep  5 12:50 libcrypt.a -> libdescrypt.a
+lrwxr-xr-x  1 bin  bin  18 Sep  5 12:50 libcrypt.so.2.0 -> libdescrypt.so.2.0
+lrwxr-xr-x  1 bin  bin  15 Sep  5 12:50 libcrypt_p.a -> libdescrypt_p.a
+</verb></tscreen>
+
+On a system using the MD5-based libraries, the same links will be
+present, but the target will be `<tt>libscrypt</tt>' rather than
+`<tt>libdescrypt</tt>'.
