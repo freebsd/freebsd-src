@@ -398,9 +398,9 @@ struct proc {
 	sigset_t	p_oldsigmask;	/* (c) Saved mask from pre sigpause. */
 	int	p_sig;			/* (n) For core dump/debugger XXX. */
 	u_long	p_code;			/* (n) For core dump/debugger XXX. */
-	u_int	p_stops;		/* (c) Procfs event bitmask. */
-	u_int	p_stype;		/* (c) Procfs stop event type. */
-	char	p_step;			/* (c) Procfs stop *once* flag. */
+	u_int	p_stops;		/* (c) Stop event bitmask. */
+	u_int	p_stype;		/* (c) Stop event type. */
+	char	p_step;			/* (c) Process is stopped. */
 	u_char	p_pfsflags;		/* (c) Procfs flags. */
 	struct	nlminfo *p_nlminfo;	/* (?) Only used by/for lockd. */
 	void	*p_aioinfo;		/* (c) ASYNC I/O info. */
