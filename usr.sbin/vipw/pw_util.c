@@ -32,7 +32,11 @@
  */
 
 #ifndef lint
+#if 0
 static const char sccsid[] = "@(#)pw_util.c	8.3 (Berkeley) 4/2/94";
+#endif
+static const char rcsid[] =
+	"$Id: pw_util.c,v 1.9 1997/10/27 07:53:19 charnier Exp $";
 #endif /* not lint */
 
 /*
@@ -47,7 +51,6 @@ static const char sccsid[] = "@(#)pw_util.c	8.3 (Berkeley) 4/2/94";
 #include <sys/wait.h>
 
 #include <err.h>
-#include <errno.h>
 #include <fcntl.h>
 #include <paths.h>
 #include <pwd.h>
