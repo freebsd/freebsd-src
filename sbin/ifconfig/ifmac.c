@@ -49,8 +49,8 @@
 
 #include "ifconfig.h"
 
-void
-maclabel_status(int s, struct rt_addrinfo *info)
+static void
+maclabel_status(int s, const struct rt_addrinfo *info)
 {
 	struct ifreq ifr;
 	mac_t label;
@@ -77,7 +77,7 @@ mac_free:
 	mac_free(label);
 }
 
-void
+static void
 setifmaclabel(const char *val, int d, int s, const struct afswtch *rafp)
 {
 	struct ifreq ifr;
@@ -97,4 +97,25 @@ setifmaclabel(const char *val, int d, int s, const struct afswtch *rafp)
 	mac_free(label);
 	if (error == -1)
 		perror("setifmac");
+}
+
+static struct cmd mac_cmds[] = {
+	DEF_CMD_ARG("maclabel",	setifmaclabel),
+};
+static struct afswtch af_mac = {
+	.af_name	= "af_maclabel",
+	.af_af		= AF_UNSPEC,
+	.af_status	= maclabel_status,
+};
+
+static __constructor void
+mac_ctor(void)
+{
+#define	N(a)	(sizeof(a) / sizeof(a[0]))
+	int i;
+
+	for (i = 0; i < N(mac_cmds);  i++)
+		cmd_register(&mac_cmds[i]);
+	af_register(&af_mac);
+#undef N
 }
