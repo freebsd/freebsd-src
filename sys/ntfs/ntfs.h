@@ -1,3 +1,5 @@
+/*	$NetBSD: ntfs.h,v 1.2 1999/05/06 15:43:17 christos Exp $	*/
+
 /*-
  * Copyright (c) 1998, 1999 Semen Ustimenko
  * All rights reserved.
@@ -23,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ntfs.h,v 1.2.2.1 1999/03/14 09:47:05 semenu Exp $
+ *	$Id: ntfs.h,v 1.5 1999/05/12 09:42:51 semenu Exp $
  */
 
 /*#define NTFS_DEBUG 1*/
@@ -213,6 +215,8 @@ struct ntvattrdef {
 	u_int32_t	ad_type;
 };
 
+#define	NTFS_BBID	"NTFS    "
+#define	NTFS_BBIDLEN	8
 struct bootfile {
 	u_int8_t        reserved1[3];	/* asm jmp near ... */
 	u_int8_t        bf_sysid[8];	/* 'NTFS    ' */
@@ -246,6 +250,7 @@ struct ntfsmount {
 	gid_t           ntm_gid;
 	mode_t          ntm_mode;
 	u_long          ntm_flag;
+	cn_t		ntm_cfree;
 	struct ntvattrdef *ntm_ad;
 	int		ntm_adnum;
 };
@@ -281,6 +286,32 @@ MALLOC_DECLARE(M_NTFSNTNODE);
 MALLOC_DECLARE(M_NTFSFNODE);
 MALLOC_DECLARE(M_NTFSDIR);
 MALLOC_DECLARE(M_NTFSNTHASH);
+#endif
+
+#ifdef __NetBSD__
+#define MALLOC_DEFINE(a, b, c)
+#define M_NTFSNTHASH	M_TEMP
+#define M_NTFSNTVATTR	M_TEMP
+#define M_NTFSRDATA	M_TEMP
+#define M_NTFSRUN	M_TEMP
+#define M_NTFSDECOMP	M_TEMP
+#define M_NTFSMNT	M_TEMP
+#define M_NTFSNTNODE	M_TEMP
+#define M_NTFSFNODE	M_TEMP
+#define M_NTFSDIR	M_TEMP
+typedef int (vop_t) __P((void *));
+#define HASHINIT(a, b, c, d)	hashinit((a), (b), (c), (d))
+#define bqrelse(bp)		brelse(bp)
+#define VOP__LOCK(a, b, c)	VOP_LOCK((a), (b) ? LK_EXCLUSIVE : LK_SHARED)
+#define VOP__UNLOCK(a, b, c)	VOP_UNLOCK((a), 0)
+#define VGET(a, b, c)		vget((a), LK_EXCLUSIVE)
+#define VN_LOCK(a, b, c)	vn_lock((a), LK_EXCLUSIVE)
+#else
+#define HASHINIT(a, b, c, d)	hashinit((a), (b), (d))
+#define VOP__LOCK(a, b, c)	VOP_LOCK((a), (b), (c))
+#define VOP__UNLOCK(a, b, c)	VOP_UNLOCK((a), (b), (c))
+#define VGET(a, b, c)		vget((a), (b), (c))
+#define VN_LOCK(a, b, c)	vn_lock((a), (b), (c))
 #endif
 
 #if defined(NTFS_DEBUG)

@@ -1,3 +1,5 @@
+/*	$NetBSD: ntfs_subr.h,v 1.2 1999/05/06 15:43:20 christos Exp $	*/
+
 /*-
  * Copyright (c) 1998, 1999 Semen Ustimenko
  * All rights reserved.
@@ -23,14 +25,14 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ntfs_subr.h,v 1.2 1999/02/19 12:31:02 semenu Exp $
+ *	$Id: ntfs_subr.h,v 1.4 1999/05/12 09:43:02 semenu Exp $
  */
 
 #define	VA_LOADED		0x0001
 #define	VA_PRELOADED		0x0002
 
 struct ntvattr {
-	struct ntvattr *va_nextp;
+	LIST_ENTRY(ntvattr) 	va_list;
 
 	u_int32_t		va_vflag;
 	struct vnode	       *va_vp;
@@ -92,20 +94,24 @@ struct timespec	ntfs_nttimetounix __P(( u_int64_t ));
 int ntfs_ntreaddir __P(( struct ntfsmount *, struct fnode *, u_int32_t, struct attr_indexentry **));
 wchar ntfs_toupper __P(( struct ntfsmount *, wchar ));
 int ntfs_uustricmp __P(( struct ntfsmount *, wchar *, int, wchar *, int ));
-int ntfs_uastricmp __P(( struct ntfsmount *, wchar *, int, char *, int ));
-int ntfs_uastrcmp __P(( struct ntfsmount *, wchar *, int, char *, int ));
+int ntfs_uastricmp __P(( struct ntfsmount *, const wchar *, int, const char *,
+    int ));
+int ntfs_uastrcmp __P(( struct ntfsmount *, const wchar *, int, const char *,
+    int ));
 int ntfs_runtovrun __P(( cn_t **, cn_t **, u_long *, u_int8_t *));
 int ntfs_attrtontvattr __P(( struct ntfsmount *, struct ntvattr **, struct attr * ));
 void ntfs_freentvattr __P(( struct ntvattr * ));
 int ntfs_loadntvattrs __P(( struct ntfsmount *, struct vnode *, caddr_t, struct ntvattr **));
 struct ntvattr * ntfs_findntvattr __P(( struct ntfsmount *, struct ntnode *, u_int32_t, cn_t ));
-int ntfs_ntlookup __P(( struct ntfsmount *, struct vnode *, struct componentname *, struct vnode **));
-int ntfs_isnamepermitted __P(( struct ntfsmount *, struct attr_indexentry * ));
-int ntfs_ntvattrrele __P(( struct ntvattr * ));
-int ntfs_ntvattrget __P(( struct ntfsmount *, struct ntnode *, u_int32_t, char *, cn_t , struct ntvattr **));
-int ntfs_ntget __P(( struct ntfsmount *, ino_t, struct ntnode **));
-void ntfs_ntrele __P(( struct ntnode *));
+int ntfs_ntlookupfile __P((struct ntfsmount *, struct vnode *, struct componentname *, struct vnode **));
+int ntfs_isnamepermitted __P((struct ntfsmount *, struct attr_indexentry * ));
+int ntfs_ntvattrrele __P((struct ntvattr * ));
+int ntfs_ntvattrget __P((struct ntfsmount *, struct ntnode *, u_int32_t, char *, cn_t , struct ntvattr **));
+int ntfs_ntlookup __P((struct ntfsmount *, ino_t, struct ntnode **));
+int ntfs_ntget __P((struct ntnode *));
+void ntfs_ntrele __P((struct ntnode *));
+void ntfs_ntput __P((struct ntnode *));
 int ntfs_loadntnode __P(( struct ntfsmount *, struct ntnode * ));
-int ntfs_ntlookupattr(struct ntfsmount *, char *, int, int *, char **);
+int ntfs_ntlookupattr(struct ntfsmount *, const char *, int, int *, char **);
 int ntfs_writentvattr_plain(struct ntfsmount *, struct ntnode *, struct ntvattr *, off_t, size_t, void *, size_t *);
 int ntfs_writeattr_plain(struct ntfsmount *, struct ntnode *, u_int32_t, char *, off_t, size_t, void *, size_t *);
