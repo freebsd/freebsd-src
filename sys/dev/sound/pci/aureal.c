@@ -46,17 +46,23 @@ static int auchan_trigger(void *data, int go);
 static int auchan_getptr(void *data);
 static pcmchan_caps *auchan_getcaps(void *data);
 
-static pcmchan_caps au_playcaps = {
-	4000, 48000,
-	AFMT_STEREO | AFMT_U8 | AFMT_S16_LE,
-	AFMT_STEREO | AFMT_S16_LE
+static u_int32_t au_playfmt[] = {
+	AFMT_U8,
+	AFMT_STEREO | AFMT_U8,
+	AFMT_S16_LE,
+	AFMT_STEREO | AFMT_S16_LE,
+	0
 };
+static pcmchan_caps au_playcaps = {4000, 48000, au_playfmt, 0};
 
-static pcmchan_caps au_reccaps = {
-	4000, 48000,
-	AFMT_STEREO | AFMT_U8 | AFMT_S16_LE,
-	AFMT_STEREO | AFMT_S16_LE
+static u_int32_t au_recfmt[] = {
+	AFMT_U8,
+	AFMT_STEREO | AFMT_U8,
+	AFMT_S16_LE,
+	AFMT_STEREO | AFMT_S16_LE,
+	0
 };
+static pcmchan_caps au_reccaps = {4000, 48000, au_recfmt, 0};
 
 static pcm_channel au_chantemplate = {
 	auchan_init,
@@ -67,6 +73,14 @@ static pcm_channel au_chantemplate = {
 	auchan_trigger,
 	auchan_getptr,
 	auchan_getcaps,
+	NULL, 			/* free */
+	NULL, 			/* nop1 */
+	NULL, 			/* nop2 */
+	NULL, 			/* nop3 */
+	NULL, 			/* nop4 */
+	NULL, 			/* nop5 */
+	NULL, 			/* nop6 */
+	NULL, 			/* nop7 */
 };
 
 /* -------------------------------------------------------------------- */
@@ -545,7 +559,6 @@ au_pci_probe(device_t dev)
 static int
 au_pci_attach(device_t dev)
 {
-	snddev_info    *d;
 	u_int32_t	data;
 	struct au_info *au;
 	int		type[10];
@@ -638,7 +651,7 @@ au_pci_attach(device_t dev)
 
 	codec = ac97_create(dev, au, NULL, au_rdcd, au_wrcd);
 	if (codec == NULL) goto bad;
-	if (mixer_init(d, &ac97_mixer, codec) == -1) goto bad;
+	if (mixer_init(dev, &ac97_mixer, codec) == -1) goto bad;
 
 	if (bus_dma_tag_create(/*parent*/NULL, /*alignment*/2, /*boundary*/0,
 		/*lowaddr*/BUS_SPACE_MAXADDR_32BIT,

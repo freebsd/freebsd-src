@@ -96,17 +96,25 @@ static int csachan_trigger(void *data, int go);
 static int csachan_getptr(void *data);
 static pcmchan_caps *csachan_getcaps(void *data);
 
-static pcmchan_caps csa_playcaps = {
-	8000, 48000,
-	AFMT_STEREO | AFMT_U8 | AFMT_S8 | AFMT_S16_LE | AFMT_S16_BE,
-	AFMT_STEREO | AFMT_S16_LE
-};
-
-static pcmchan_caps csa_reccaps = {
-	11025, 48000,
+static u_int32_t csa_playfmt[] = {
+	AFMT_U8,
+	AFMT_STEREO | AFMT_U8,
+	AFMT_S8,
+	AFMT_STEREO | AFMT_S8,
+	AFMT_S16_LE,
 	AFMT_STEREO | AFMT_S16_LE,
-	AFMT_STEREO | AFMT_S16_LE
+	AFMT_S16_BE,
+	AFMT_STEREO | AFMT_S16_BE,
+	0
 };
+static pcmchan_caps csa_playcaps = {8000, 48000, csa_playfmt, 0};
+
+static u_int32_t csa_recfmt[] = {
+	AFMT_S16_LE,
+	AFMT_STEREO | AFMT_S16_LE,
+	0
+};
+static pcmchan_caps csa_reccaps = {11025, 48000, csa_recfmt, 0};
 
 static pcm_channel csa_chantemplate = {
 	csachan_init,
@@ -117,6 +125,14 @@ static pcm_channel csa_chantemplate = {
 	csachan_trigger,
 	csachan_getptr,
 	csachan_getcaps,
+	NULL, 			/* free */
+	NULL, 			/* nop1 */
+	NULL, 			/* nop2 */
+	NULL, 			/* nop3 */
+	NULL, 			/* nop4 */
+	NULL, 			/* nop5 */
+	NULL, 			/* nop6 */
+	NULL, 			/* nop7 */
 };
 
 /* -------------------------------------------------------------------- */
@@ -735,6 +751,8 @@ csa_releaseres(struct csa_info *csa, device_t dev)
 
 	resp = &csa->res;
 	if (resp->irq != NULL) {
+		if (csa->ih)
+			bus_teardown_intr(dev, resp->irq, csa->ih);
 		bus_release_resource(dev, SYS_RES_IRQ, resp->irq_rid, resp->irq);
 		resp->irq = NULL;
 	}
@@ -745,6 +763,14 @@ csa_releaseres(struct csa_info *csa, device_t dev)
 	if (resp->mem != NULL) {
 		bus_release_resource(dev, SYS_RES_MEMORY, resp->mem_rid, resp->mem);
 		resp->mem = NULL;
+	}
+	if (csa->parent_dmat != NULL) {
+		bus_dma_tag_destroy(csa->parent_dmat);
+		csa->parent_dmat = NULL;
+	}
+	if (csa != NULL) {
+		free(csa, M_DEVBUF);
+		csa = NULL;
 	}
 }
 
@@ -772,7 +798,6 @@ pcmcsa_probe(device_t dev)
 static int
 pcmcsa_attach(device_t dev)
 {
-	snddev_info *devinfo;
 	struct csa_info *csa;
 	csa_res *resp;
 	int unit;
@@ -780,7 +805,6 @@ pcmcsa_attach(device_t dev)
 	struct ac97_info *codec;
 	struct sndcard_func *func;
 
-	devinfo = device_get_softc(dev);
 	csa = malloc(sizeof(*csa), M_DEVBUF, M_NOWAIT);
 	if (csa == NULL)
 		return (ENOMEM);
@@ -810,15 +834,21 @@ pcmcsa_attach(device_t dev)
 		return (ENXIO);
 	}
 	codec = ac97_create(dev, csa, NULL, csa_rdcd, csa_wrcd);
-	if (codec == NULL)
+	if (codec == NULL) {
+		csa_releaseres(csa, dev);
 		return (ENXIO);
-	if (mixer_init(devinfo, &ac97_mixer, codec) == -1)
+	}
+	if (mixer_init(dev, &ac97_mixer, codec) == -1) {
+		ac97_destroy(codec);
+		csa_releaseres(csa, dev);
 		return (ENXIO);
+	}
 
 	snprintf(status, SND_STATUSLEN, "at irq %ld", rman_get_start(resp->irq));
 
 	/* Enable interrupt. */
 	if (bus_setup_intr(dev, resp->irq, INTR_TYPE_TTY, csa_intr, csa, &csa->ih)) {
+		ac97_destroy(codec);
 		csa_releaseres(csa, dev);
 		return (ENXIO);
 	}
@@ -826,6 +856,7 @@ pcmcsa_attach(device_t dev)
 	csa_writemem(resp, BA1_CIE, (csa_readmem(resp, BA1_CIE) & ~0x0000003f) | 0x00000001);
 
 	if (pcm_register(dev, csa, 1, 1)) {
+		ac97_destroy(codec);
 		csa_releaseres(csa, dev);
 		return (ENXIO);
 	}
@@ -834,6 +865,22 @@ pcmcsa_attach(device_t dev)
 	pcm_setstatus(dev, status);
 
 	return (0);
+}
+
+static int
+pcmcsa_detach(device_t dev)
+{
+	int r;
+	struct csa_info *csa;
+
+	r = pcm_unregister(dev);
+	if (r)
+		return r;
+
+	csa = pcm_getdevinfo(dev);
+	csa_releaseres(csa, dev);
+
+	return 0;
 }
 
 /* ac97 codec */
@@ -862,6 +909,7 @@ static device_method_t pcmcsa_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe , pcmcsa_probe ),
 	DEVMETHOD(device_attach, pcmcsa_attach),
+	DEVMETHOD(device_detach, pcmcsa_detach),
 
 	{ 0, 0 },
 };
