@@ -128,11 +128,11 @@ retry:
 		KASSERT((td->td_kse == ke), ("kse/thread mismatch"));
 		kg = ke->ke_ksegrp;
 		if (td->td_proc->p_flag & P_THREADED) {
-			TAILQ_REMOVE(&kg->kg_runq, td, td_runq);
 			if (kg->kg_last_assigned == td) {
 				kg->kg_last_assigned = TAILQ_PREV(td,
 				    threadqueue, td_runq);
 			}
+			TAILQ_REMOVE(&kg->kg_runq, td, td_runq);
 		}
 		kg->kg_runnable--;
 		CTR2(KTR_RUNQ, "choosethread: td=%p pri=%d",
