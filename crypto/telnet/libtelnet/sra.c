@@ -1,3 +1,5 @@
+/* $FreeBSD$ */
+
 #ifdef	SRA
 #include <sys/types.h>
 #include <arpa/telnet.h>

@@ -32,7 +32,12 @@
  */
 
 #ifndef lint
+#if 0
 static const char sccsid[] = "@(#)sys_bsd.c	8.4 (Berkeley) 5/30/95";
+#else
+static const char rcsid[] =
+ "$FreeBSD$";
+#endif
 #endif /* not lint */
 
 /*

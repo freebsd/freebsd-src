@@ -32,7 +32,12 @@
  */
 
 #ifndef lint
+#if 0
 static const char sccsid[] = "@(#)terminal.c	8.2 (Berkeley) 2/16/95";
+#else
+static const char rcsid[] =
+ "$FreeBSD$";
+#endif
 #endif /* not lint */
 
 #include <arpa/telnet.h>
