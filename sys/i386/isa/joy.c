@@ -52,8 +52,8 @@
 
 /* the formulae below only work if u is  ``not too large''. See also 
  * the discussion in microtime.s */
-#define usec2ticks(u) 	((u) * 19549)>>14
-#define ticks2usec(u) 	((u) * 3433)>>12
+#define usec2ticks(u) 	(((u) * 19549)>>14)
+#define ticks2usec(u) 	(((u) * 3433)>>12)
 
 
 #define joypart(d) minor(d)&1
