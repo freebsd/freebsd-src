@@ -1497,7 +1497,7 @@ static struct ieee80211_node *
 ath_node_alloc(struct ieee80211com *ic)
 {
 	struct ath_node *an =
-		malloc(sizeof(struct ath_node), M_DEVBUF, M_NOWAIT | M_ZERO);
+		malloc(sizeof(struct ath_node), M_80211_NODE, M_NOWAIT|M_ZERO);
 	if (an) {
 		int i;
 		for (i = 0; i < ATH_RHIST_SIZE; i++)
