@@ -66,6 +66,11 @@
 #ifndef _NETINET_IPPROTOSW_H_
 #define _NETINET_IPPROTOSW_H_
 
+/*
+ * For pfil_head structure.
+ */
+#include <net/pfil.h>
+
 /* Forward declare these structures referenced from prototypes below. */
 struct mbuf;
 struct proc;
@@ -98,6 +103,7 @@ struct ipprotosw {
 	void	(*pr_drain) __P((void));
 					/* flush any excess space possible */
 	struct	pr_usrreqs *pr_usrreqs;	/* supersedes pr_usrreq() */
+	struct	pfil_head	pr_pfh;
 };
 
 #endif /* !_NETINET_IPPROTOSW_H_ */

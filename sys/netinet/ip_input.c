@@ -43,12 +43,14 @@
 #include "opt_ipfilter.h"
 #include "opt_ipstealth.h"
 #include "opt_ipsec.h"
+#include "opt_pfil_hooks.h"
 
 #include <stddef.h>
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
+#include <sys/pfil.h>
 #include <sys/malloc.h>
 #include <sys/domain.h>
 #include <sys/protosw.h>
@@ -175,8 +177,6 @@ int fw_enable = 1 ;
 ip_dn_ctl_t *ip_dn_ctl_ptr;
 #endif
 
-int (*fr_checkp) __P((struct ip *, int, struct ifnet *, int, struct mbuf **)) = NULL;
-
 
 /*
  * We need to save the IP options in case a protocol wants to respond
@@ -261,6 +261,11 @@ ip_input(struct mbuf *m)
 	u_int32_t divert_info = 0;		/* packet divert/tee info */
 #endif
 	struct ip_fw_chain *rule = NULL;
+#ifdef PFIL_HOOKS
+	struct packet_filter_hook *pfh;
+	struct mbuf *m0;
+	int rv;
+#endif /* PFIL_HOOKS */
 
 #ifdef IPDIVERT
 	/* Get and reset firewall cookie */
@@ -377,17 +382,30 @@ tooshort:
 #if defined(IPFIREWALL) && defined(DUMMYNET)
 iphack:
 #endif
-	/*
-	 * Check if we want to allow this packet to be processed.
-	 * Consider it to be bad if not.
-	 */
-	if (fr_checkp) {
-		struct	mbuf	*m1 = m;
 
-		if ((*fr_checkp)(ip, hlen, m->m_pkthdr.rcvif, 0, &m1) || !m1)
-			return;
-		ip = mtod(m = m1, struct ip *);
-	}
+#ifdef PFIL_HOOKS
+	/*
+	 * Run through list of hooks for input packets.  If there are any
+	 * filters which require that additional packets in the flow are
+	 * not fast-forwarded, they must clear the M_CANFASTFWD flag.
+	 * Note that filters must _never_ set this flag, as another filter
+	 * in the list may have previously cleared it.
+	 */
+	m0 = m;
+	pfh = pfil_hook_get(PFIL_IN, &inetsw[ip_protox[IPPROTO_IP]].pr_pfh);
+	for (; pfh; pfh = pfh->pfil_link.tqe_next)
+		if (pfh->pfil_func) {
+			rv = pfh->pfil_func(ip, hlen,
+					    m->m_pkthdr.rcvif, 0, &m0);
+			if (rv)
+				return;
+			m = m0;
+			if (m == NULL)
+				return;
+			ip = mtod(m, struct ip *);
+		}
+#endif /* PFIL_HOOKS */
+
 	if (fw_enable && ip_fw_chk_ptr) {
 #ifdef IPFIREWALL_FORWARD
 		/*
