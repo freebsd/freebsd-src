@@ -320,7 +320,7 @@ mmap(td, uap)
 		 * credentials do we use for determination? What if
 		 * proc does a setuid?
 		 */
-		if (vp->v_mount->mnt_flag & MNT_NOEXEC)
+		if (vp->v_mount != NULL && vp->v_mount->mnt_flag & MNT_NOEXEC)
 			maxprot = VM_PROT_NONE;
 		else
 			maxprot = VM_PROT_EXECUTE;
