@@ -83,7 +83,7 @@ add_mapping(port, arg)
 	char *copy, *p, *termp;
 
 	copy = strdup(arg);
-	mapp = malloc((u_int)sizeof(MAP));
+	mapp = malloc(sizeof(MAP));
 	if (copy == NULL || mapp == NULL)
 		errx(1, "malloc");
 	mapp->next = NULL;

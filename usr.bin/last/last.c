@@ -290,7 +290,7 @@ doentry(bp)
 		/* add new one */
 		tt = malloc(sizeof(struct ttytab));
 		if (tt == NULL)
-			err(1, "malloc failure");
+			errx(1, "malloc failure");
 		tt->logout = currentout;
 		strncpy(tt->tty, bp->ut_line, UT_LINESIZE);
 		LIST_INSERT_HEAD(&ttylist, tt, list);
@@ -418,8 +418,8 @@ addarg(type, arg)
 {
 	ARG *cur;
 
-	if (!(cur = (ARG *)malloc((u_int)sizeof(ARG))))
-		err(1, "malloc failure");
+	if ((cur = malloc(sizeof(ARG))) == NULL)
+		errx(1, "malloc failure");
 	cur->next = arglist;
 	cur->type = type;
 	cur->name = arg;
@@ -468,8 +468,8 @@ ttyconv(arg)
 	 */
 	if (strlen(arg) == 2) {
 		/* either 6 for "ttyxx" or 8 for "console" */
-		if (!(mval = malloc((u_int)8)))
-			err(1, "malloc failure");
+		if ((mval = malloc(8)) == NULL)
+			errx(1, "malloc failure");
 		if (!strcmp(arg, "co"))
 			(void)strcpy(mval, "console");
 		else {

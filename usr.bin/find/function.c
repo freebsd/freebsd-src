@@ -601,20 +601,20 @@ c_exec(option, argvp)
 		errx(1, "%s: no command specified", option->name);
 
 	cnt = ap - *argvp + 1;
-	if ((new->e_argv = malloc((u_int)cnt * sizeof(char *))) == NULL)
-		err(1, (char *)NULL);
-	if ((new->e_orig = malloc((u_int)cnt * sizeof(char *))) == NULL)
-		err(1, (char *)NULL);
-	if ((new->e_len = malloc((u_int)cnt * sizeof(int))) == NULL)
-		err(1, (char *)NULL);
+	if ((new->e_argv = malloc(cnt * sizeof(char *))) == NULL)
+		err(1, NULL);
+	if ((new->e_orig = malloc(cnt * sizeof(char *))) == NULL)
+		err(1, NULL);
+	if ((new->e_len = malloc(cnt * sizeof(int))) == NULL)
+		err(1, NULL);
 
 	for (argv = *argvp, cnt = 0; argv < ap; ++argv, ++cnt) {
 		new->e_orig[cnt] = *argv;
 		for (p = *argv; *p; ++p)
 			if (p[0] == '{' && p[1] == '}') {
 				if ((new->e_argv[cnt] =
-				    malloc((u_int)MAXPATHLEN)) == NULL)
-					err(1, (char *)NULL);
+				    malloc(MAXPATHLEN)) == NULL)
+					err(1, NULL);
 				new->e_len[cnt] = MAXPATHLEN;
 				break;
 			}
@@ -1210,7 +1210,7 @@ f_regex(plan, entry)
 	FTSENT *entry;
 {
 	char *str;
-	size_t len;
+	int len;
 	regex_t *pre;
 	regmatch_t pmatch;
 	int errcode;
