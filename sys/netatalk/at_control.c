@@ -51,8 +51,7 @@ at_control( int cmd, caddr_t data, struct ifnet *ifp, struct proc *p )
     struct at_aliasreq	*ifra = (struct at_aliasreq *)data;
     struct at_ifaddr	*aa0;
     struct at_ifaddr	*aa = 0;
-    struct mbuf		*m;
-    struct ifaddr	*ifa;
+    struct ifaddr	*ifa, *ifa0;
 
     /*
      * If we have an ifp, then find the matching at_ifaddr if it exists
@@ -140,11 +139,8 @@ at_control( int cmd, caddr_t data, struct ifnet *ifp, struct proc *p )
 	 * XXX change this to use malloc
 	 */
 	if ( aa == (struct at_ifaddr *) 0 ) {
-	    m = m_getclr( M_WAIT, MT_IFADDR );
-	    if ( m == (struct mbuf *)NULL ) {
-		return( ENOBUFS );
-	    }
-
+	    aa0 = malloc(sizeof(struct at_ifaddr), M_IFADDR, M_WAITOK);
+	    bzero(aa0, sizeof(struct ifaddr));
 	    if (( aa = at_ifaddr ) != NULL ) {
 		/*
 		 * Don't let the loopback be first, since the first
@@ -154,19 +150,24 @@ at_control( int cmd, caddr_t data, struct ifnet *ifp, struct proc *p )
 		 * go to the back of the list.
 		 */
 		if ( at_ifaddr->aa_ifp->if_flags & IFF_LOOPBACK ) {
-		    aa = mtod( m, struct at_ifaddr *);
+		    aa = aa0;
 		    aa->aa_next = at_ifaddr;
 		    at_ifaddr = aa;
 		} else {
 		    for ( ; aa->aa_next; aa = aa->aa_next )
 			;
-		    aa->aa_next = mtod( m, struct at_ifaddr *);
+		    aa->aa_next = aa0;
 		}
 	    } else {
-		at_ifaddr = mtod( m, struct at_ifaddr *);
+		at_ifaddr = aa0;
 	    }
-
-	    aa = mtod( m, struct at_ifaddr *);
+	    /* 
+	     * Don't Add a reference for the aa itself!
+	     * I fell into this trap. IFAFREE tests for <=0
+	     * not <= 1 like RTFREE
+	     */
+	    /* aa->aa_ifa.ifa_refcnt++; DON'T DO THIS!! */
+	    aa = aa0;
 
 	    /*
 	     * Find the end of the interface's addresses
@@ -179,6 +180,10 @@ at_control( int cmd, caddr_t data, struct ifnet *ifp, struct proc *p )
 	    } else {
 		ifp->if_addrlist = (struct ifaddr *)aa;
 	    }
+	    /*
+	     * Add a reference for the linking into the ifp_if_addrlist.
+	     */
+	    aa->aa_ifa.ifa_refcnt++;
 
 	    /*
 	     * As the at_ifaddr contains the actual sockaddrs,
@@ -279,22 +284,29 @@ at_control( int cmd, caddr_t data, struct ifnet *ifp, struct proc *p )
 	/*
 	 * remove the ifaddr from the interface
 	 */
-	if (( ifa = ifp->if_addrlist ) == (struct ifaddr *)aa ) {
+	ifa0 = (struct ifaddr *)aa;
+	if (( ifa = ifp->if_addrlist ) == ifa0 ) {
 	    ifp->if_addrlist = ifa->ifa_next;
 	} else {
-	    while ( ifa->ifa_next && ( ifa->ifa_next != (struct ifaddr *)aa )) {
+	    while ( ifa->ifa_next && ( ifa->ifa_next != ifa0 )) {
 		ifa = ifa->ifa_next;
 	    }
 
  	    /*
 	     * if we found it, remove it, otherwise we screwed up.
+	     * decrement the reference count by one.
 	     */
 	    if ( ifa->ifa_next ) {
-		ifa->ifa_next = ((struct ifaddr *)aa)->ifa_next;
+		ifa = ifa->ifa_next = ifa0->ifa_next;
 	    } else {
 		panic( "at_control" );
 	    }
 	}
+	/*
+	 * refs goes from 1->0 if no external refs. note.. 
+	 * This will not free it ... looks for -1.
+	 */
+	IFAFREE(ifa0);
 
 	/*
 	 * Now remove the at_ifaddr from the parallel structure
@@ -319,9 +331,13 @@ at_control( int cmd, caddr_t data, struct ifnet *ifp, struct proc *p )
 	}
 
 	/*
-	 * Now dump the memory we were using
+	 * Now dump the memory we were using.
+	 * Decrement the reference count.
+	 * This should probably be the last reference
+	 * as the count will go from 0 to -1.
+	 * (unless there is still a route referencing this)
 	 */
-	m_free( dtom( aa0 ));
+	IFAFREE(ifa0);
 	break;
 
     default:
@@ -344,8 +360,6 @@ at_scrub( ifp, aa )
     struct at_ifaddr	*aa;
 {
     int			error;
-    struct at_addr addr;
-    struct at_addr mask;
 
     if ( aa->aa_flags & AFA_ROUTE ) {
 	if (ifp->if_flags & IFF_LOOPBACK) {
