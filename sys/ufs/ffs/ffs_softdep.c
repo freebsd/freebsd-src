@@ -1932,6 +1932,11 @@ deallocate_dependencies(bp, inodedep)
 					WORKLIST_INSERT(&inodedep->id_bufwait,
 					    &dirrem->dm_list);
 			}
+			if ((pagedep->pd_state & NEWBLOCK) != 0) {
+				FREE_LOCK(&lk);
+				panic("deallocate_dependencies: "
+				      "active pagedep");
+			}
 			WORKLIST_REMOVE(&pagedep->pd_list);
 			LIST_REMOVE(pagedep, pd_hash);
 			WORKITEM_FREE(pagedep, D_PAGEDEP);
@@ -3930,8 +3935,12 @@ handle_written_filepage(pagedep, bp)
 	 * is written back to disk.
 	 */
 	if (LIST_FIRST(&pagedep->pd_pendinghd) == 0) {
-		LIST_REMOVE(pagedep, pd_hash);
-		WORKITEM_FREE(pagedep, D_PAGEDEP);
+		if ((pagedep->pd_state & NEWBLOCK) != 0) {
+			printf("handle_written_filepage: active pagedep\n");
+		} else {
+			LIST_REMOVE(pagedep, pd_hash);
+			WORKITEM_FREE(pagedep, D_PAGEDEP);
+		}
 	}
 	return (0);
 }
