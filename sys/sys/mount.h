@@ -120,13 +120,9 @@ struct statfs {
  */
 TAILQ_HEAD(vnodelst, vnode);
 
-struct vfsoptlist {
-	struct vfsopt	*opt;
-	unsigned int	optcnt;
-	char		*optbuf;
-};
-
+TAILQ_HEAD(vfsoptlist, vfsopt);
 struct vfsopt {
+	TAILQ_ENTRY(vfsopt) link;
 	char	*name;
 	void	*value;
 	int	len;
@@ -439,6 +435,8 @@ extern	char *mountrootfsname;
 int	dounmount(struct mount *, int, struct thread *td);
 int	kernel_mount(struct iovec *iovp, unsigned int iovcnt, int flags);
 int	kernel_vmount(int flags, ...);
+int	vfs_buildopts(struct uio *, struct vfsoptlist **);
+void	vfs_freeopts(struct vfsoptlist *);
 int	vfs_getopt(struct vfsoptlist *, const char *, void **, int *);
 int	vfs_copyopt(struct vfsoptlist *, const char *, void *, int);
 int	vfs_mount(struct thread *td, const char *type, char *path,

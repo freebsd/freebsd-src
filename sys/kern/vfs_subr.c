@@ -489,6 +489,49 @@ vfs_timestamp(tsp)
 }
 
 /*
+ * Build a linked list of mount options from a struct uio.
+ */
+int
+vfs_buildopts(struct uio *auio, struct vfsoptlist **options)
+{
+	struct vfsoptlist *opts;
+	struct vfsopt *opt;
+	unsigned int i, iovcnt;
+	int error, namelen, optlen;
+
+	iovcnt = auio->uio_iovcnt;
+	opts = malloc(sizeof(struct vfsoptlist), M_MOUNT, M_WAITOK);
+	TAILQ_INIT(opts);
+	for (i = 0; i < iovcnt; i += 2) {
+		opt = malloc(sizeof(struct vfsopt), M_MOUNT, M_WAITOK);
+		namelen = auio->uio_iov[i].iov_len;
+		optlen = auio->uio_iov[i + 1].iov_len;
+		opt->name = malloc(namelen, M_MOUNT, M_WAITOK);
+		opt->value = malloc(optlen, M_MOUNT, M_WAITOK);
+		opt->len = optlen;
+		if (auio->uio_segflg == UIO_SYSSPACE) {
+			bcopy(auio->uio_iov[i].iov_base, opt->name, namelen);
+			bcopy(auio->uio_iov[i + 1].iov_base, opt->value,
+			    optlen);
+		} else {
+			error = copyin(auio->uio_iov[i].iov_base, opt->name,
+			    namelen);
+			if (!error)
+				error = copyin(auio->uio_iov[i + 1].iov_base,
+				    opt->value, optlen);
+			if (error)
+				goto bad;
+		}
+		TAILQ_INSERT_TAIL(opts, opt, link);
+	}
+	*options = opts;
+	return (0);
+bad:
+	vfs_freeopts(opts);
+	return (error);
+}
+
+/*
  * Get a mount option by its name.
  *
  * Return 0 if the option was found, ENOENT otherwise.
@@ -504,11 +547,8 @@ vfs_getopt(opts, name, buf, len)
 	int *len;
 {
 	struct vfsopt *opt;
-	int i;
 
-	i = 0;
-	opt = opts->opt;
-	while (i++ < opts->optcnt) {
+	TAILQ_FOREACH(opt, opts, link) {
 		if (strcmp(name, opt->name) == 0) {
 			if (len != NULL)
 				*len = opt->len;
@@ -516,7 +556,6 @@ vfs_getopt(opts, name, buf, len)
 				*buf = opt->value;
 			return (0);
 		}
-		opt++;
 	}
 	return (ENOENT);
 }
@@ -537,18 +576,14 @@ vfs_copyopt(opts, name, dest, len)
 	int len;
 {
 	struct vfsopt *opt;
-	int i;
 
-	i = 0;
-	opt = opts->opt;
-	while (i++ < opts->optcnt) {
+	TAILQ_FOREACH(opt, opts, link) {
 		if (strcmp(name, opt->name) == 0) {
 			if (len != opt->len)
 				return (EINVAL);
 			bcopy(opt->value, dest, opt->len);
 			return (0);
 		}
-		opt++;
 	}
 	return (ENOENT);
 }

@@ -87,7 +87,6 @@ static int setutimes(struct thread *td, struct vnode *,
     const struct timespec *, int);
 static int vn_access(struct vnode *vp, int user_flags, struct ucred *cred,
     struct thread *td);
-static void vfs_freeopts(struct vfsoptlist *opt);
 static int vfs_nmount(struct thread *td, int, struct uio *);
 
 static int	usermount = 0;	/* if 1, non-root can mount fs. */
@@ -167,13 +166,19 @@ finish:
  * Release all resources related to the
  * mount options.
  */
-static void
-vfs_freeopts(struct vfsoptlist *opt)
+void
+vfs_freeopts(struct vfsoptlist *opts)
 {
+	struct vfsopt *opt;
 
-	free(opt->opt, M_MOUNT);
-	free(opt->optbuf, M_MOUNT);
-	free(opt, M_MOUNT);
+	while (!TAILQ_EMPTY(opts)) {
+		opt = TAILQ_FIRST(opts);
+		TAILQ_REMOVE(opts, opt, link);
+		free(opt->name, M_MOUNT);
+		free(opt->value, M_MOUNT);
+		free(opt, M_MOUNT);
+	}
+	free(opts, M_MOUNT);
 }
 
 int
@@ -275,63 +280,16 @@ vfs_nmount(td, fsflags, fsoptions)
 	struct vnode *vp;
 	struct mount *mp;
 	struct vfsconf *vfsp;
-	struct iovec *cur;
 	struct vfsoptlist *optlist;
-	struct vfsopt *opt;
-	char *buf, *fstype, *fspath;
-	int error, flag = 0, kern_flag = 0, i, len, optcnt;
-	int offset, iovcnt, fstypelen, fspathlen;
+	char *fstype, *fspath;
+	int error, flag = 0, kern_flag = 0;
+	int fstypelen, fspathlen;
 	struct vattr va;
 	struct nameidata nd;
 
-	/*
-	 * Allocate memory to hold the vfsopt structures.
-	 */
-	iovcnt = fsoptions->uio_iovcnt;
-	optcnt = iovcnt >> 1;
-	opt = malloc(sizeof (struct vfsopt) * optcnt,
-	    M_MOUNT, M_WAITOK | M_ZERO);
-
-	/*
-	 * Count the size of the buffer for options,
-	 * allocate it, and fill in the vfsopt structures.
-	 */
-	cur = fsoptions->uio_iov;
-	len = fsoptions->uio_resid;
-	buf = malloc(len, M_TEMP, M_WAITOK | M_ZERO);
-
-	optlist = malloc(sizeof (struct vfsoptlist), M_MOUNT, M_WAITOK);
-	optlist->opt = opt;
-	optlist->optbuf = buf;
-	optlist->optcnt = optcnt;
-
-	offset = i = 0;
-	cur = fsoptions->uio_iov;
-	while (i < optcnt) {
-		opt[i].name = buf + offset;
-		/* Ensure the name of an option is a string. */
-		if (opt[i].name[cur->iov_len - 1] != '\0') {
-			error = EINVAL;
-			goto bad;
-		}
-		offset += cur->iov_len;
-		cur++;
-		opt[i].len = cur->iov_len;
-		/*
-		 * Prevent consumers from trying to
-		 * read the value of a 0 length option
-		 * by setting it to NULL.
-		 */
-		if (opt[i].len == 0)
-			opt[i].value = NULL;
-		else
-			opt[i].value = buf + offset;
-		offset += cur->iov_len;
-		cur++; i++;
-	}
-
-	if ((error = uiomove(buf, len, fsoptions)) != 0)
-		goto bad;
+	error = vfs_buildopts(fsoptions, &optlist);
+	if (error)
+		return (error);
 
 	/*
 	 * We need these two options before the others,
