@@ -139,6 +139,14 @@
       the continuation of a printer definition), the line following
       the comment will be parsed as a part of the previous printer
       definition.</para>
+
+    <para>One of the release notes refers to the
+      <varname>net.inet.tcp.tcp_seq_genscheme</varname> sysctl variable
+      for enabling improved compatability in TCP's initial sequence
+      number generation algorithm.  This variable was rendered
+      unnecessary by the adoption of an algorithm based on RFC 1948,
+      which restores proper operation in all cases while maintaining a
+      high level of unpredictability in initial sequence numbers.</para>
 ]]>
   </sect1>
 </article>
