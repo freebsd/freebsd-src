@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumio.c,v 1.25 1999/06/28 02:37:48 grog Exp grog $
+ * $Id: vinumio.c,v 1.33 1999/08/07 08:07:05 grog Exp $
  */
 
 #include <dev/vinum/vinumhdr.h>
@@ -656,23 +656,23 @@ format_config(char *config, int len)
 	    if (sd->plexno >= 0)
 		snprintf(s,
 		    configend - s,
-		    "sd name %s drive %s plex %s state %s len %qds driveoffset %qds plexoffset %qds\n",
+		    "sd name %s drive %s plex %s state %s len %llus driveoffset %llus plexoffset %llds\n",
 		    sd->name,
 		    vinum_conf.drive[sd->driveno].label.name,
 		    vinum_conf.plex[sd->plexno].name,
 		    sd_state(sd->state),
-		    sd->sectors,
-		    sd->driveoffset,
-		    sd->plexoffset);
+		    (unsigned long long) sd->sectors,
+		    (unsigned long long) sd->driveoffset,
+		    (long long) sd->plexoffset);
 	    else
 		snprintf(s,
 		    configend - s,
-		    "sd name %s drive %s state %s len %qds driveoffset %qds detached\n",
+		    "sd name %s drive %s state %s len %llus driveoffset %llus detached\n",
 		    sd->name,
 		    vinum_conf.drive[sd->driveno].label.name,
 		    sd_state(sd->state),
-		    sd->sectors,
-		    sd->driveoffset);
+		    (unsigned long long) sd->sectors,
+		    (unsigned long long) sd->driveoffset);
 	    while (*s)
 		s++;					    /* find the end */
 
