@@ -683,7 +683,7 @@
 .    nr doc-curr-size \n[.ps]
 .
 .    ie \n[doc-in-synopsis-section] \{\
-.      if "\*[doc-macro-name]"Cd" \{\
+.      ie "\*[doc-macro-name]"Cd" \{\
 .        br
 .        if !\n[doc-indent-synopsis] \
 .          nr doc-indent-synopsis \n[doc-display-indent]u
@@ -694,6 +694,10 @@
 .        doc-print-recursive
 .        if !\n[doc-indent-synopsis-active] \
 .          in -\n[doc-indent-synopsis]u
+.      \}
+.      el \{\
+.        nop \*[doc-Nm-font]\c
+.        doc-print-recursive
 .    \}\}
 .    el \{\
 .      nop \*[doc-Nm-font]\c
@@ -820,22 +824,64 @@
 .
 .
 .\" NS In user macro
-.\" NS   #include statement - not callable
+.\" NS   #include statement in SYNOPSIS
+.\" NS   <header.h> if not in SYNOPSIS
 .\" NS
 .\" NS   this function causes a break; it uses the `Fd' font
+.\" NS
+.\" NS modifies:
+.\" NS   doc-arg-ptr
+.\" NS   doc-curr-font
+.\" NS   doc-curr-size
+.\" NS   doc-indent-synopsis
+.\" NS   doc-macro-name
 .\" NS
 .\" NS width register `In' set in doc-common
 .
 .de In
-.  ie ((\n[.$] == 1) & (\n[doc-arg-limit] == 0)) \{\
-.    doc-do-func-decl
-.    nop \*[doc-Fd-font]#include <\$1>
-.    br
-.    ft \n[doc-curr-font]
-.    ps \n[doc-curr-size]u
+.  if !\n[doc-arg-limit] \{\
+.    ie \n[.$] \{\
+.      ds doc-macro-name In
+.      doc-parse-args \$@
+.    \}
+.    el \
+.      tm Usage: .In include_file ... (#\n[.c])
 .  \}
+.
+.  if !\n[doc-arg-limit] \
+.    return
+.
+.  nr doc-arg-ptr +1
+.  doc-print-prefixes
+.  ie ((\n[doc-arg-limit] >= \n[doc-arg-ptr]) & (\n[doc-type\n[doc-arg-ptr]] == 2)) \{\
+.    nr doc-curr-font \n[.f]
+.    nr doc-curr-size \n[.ps]
+.
+.    ie \n[doc-in-synopsis-section] \{\
+.      ie "\*[doc-macro-name]"In" \{\
+.        doc-do-func-decl
+.        nop \*[doc-Fd-font]#include <\*[doc-arg\n[doc-arg-ptr]]>
+.        ft \n[doc-curr-font]
+.        ps \n[doc-curr-size]u
+.        br
+.        nr doc-arg-ptr +1
+.        ie (\n[doc-arg-limit] >= \n[doc-arg-ptr]) \
+.          doc-print-recursive
+.        el \
+.          doc-reset-args
+.      \}
+.      el \{\
+.        ds doc-arg\n[doc-arg-ptr] "<\*[doc-Pa-font]\*[doc-arg\n[doc-arg-ptr]]
+.        as doc-arg\n[doc-arg-ptr] \f[\n[doc-curr-font]]\s[\n[doc-curr-size]u]>
+.        doc-print-recursive
+.    \}\}
+.    el \{\
+.      ds doc-arg\n[doc-arg-ptr] "<\*[doc-Pa-font]\*[doc-arg\n[doc-arg-ptr]]
+.      as doc-arg\n[doc-arg-ptr] \f[\n[doc-curr-font]]\s[\n[doc-curr-size]u]>
+.      doc-print-recursive
+.  \}\}
 .  el \{\
-.    tm Usage: .In include_file -- In is not callable (#\n[.c])
+.    tm Usage: .In include_file ... (#\n[.c])
 .    doc-reset-args
 .  \}
 ..
@@ -4676,13 +4722,16 @@
 .    ds doc-arg\n[doc-arg-ptr] "\*[doc-func-arg]
 .
 .  if (\n[doc-func-arg-count] > 1) \{\
-.    nop \f[\n[doc-curr-font]]\s[\n[doc-curr-size]u]\|,\)\c
+.    nop \f[\n[doc-curr-font]]\s[\n[doc-curr-size]u]\|\c
+.    if !"\*[doc-arg\n[doc-arg-ptr]]"/*" \
+.      if !"\*[doc-arg\n[doc-arg-ptr]]"*/" \
+.        nop ,\)\c
 .    nop \)\*[doc-space\n[doc-arg-ptr]]\*[doc-Fa-font]\c
 .    nop \)\*[doc-arg\n[doc-arg-ptr]]\f[]\s[0]\c
 .  \}
 .
 .  if (\n[doc-func-arg-count] == 1) \{\
-.    nop \|\*[doc-Fa-font]\*[doc-arg\n[doc-arg-ptr]]\c
+.    nop \)\*[doc-Fa-font]\*[doc-arg\n[doc-arg-ptr]]\c
 .    nop \f[]\s[0]\c
 .  \}
 .  nr doc-func-arg-count +1
@@ -4755,7 +4804,7 @@
 .
 .    br
 .    if !\n[doc-indent-synopsis] \
-.      nr doc-indent-synopsis (8u * \n[doc-fixed-width]u)
+.      nr doc-indent-synopsis (4u * \n[doc-fixed-width]u)
 .    if !\n[doc-indent-synopsis-active] \
 .      in +\n[doc-indent-synopsis]u
 .    ti -\n[doc-indent-synopsis]u
@@ -4833,7 +4882,10 @@
 .  if (\n[doc-arg-limit] >= \n[doc-arg-ptr]) \{\
 .    if (\n[doc-type\n[doc-arg-ptr]] == 2) \{\
 .      nr doc-reg-ddfa (\n[doc-arg-ptr] - 1)
-.      nop \|\f[\n[doc-curr-font]]\s[\n[doc-curr-size]u],\)\c
+.      nop \f[\n[doc-curr-font]]\s[\n[doc-curr-size]u]\|\c
+.      if !"\*[doc-arg\n[doc-arg-ptr]]"/*" \
+.        if !"\*[doc-arg\n[doc-arg-ptr]]"*/" \
+.          nop ,\)\c
 .      nop \)\*[doc-space\n[doc-reg-ddfa]]\f[]\s[0]\|\c
 .      doc-do-func-args
 .  \}\}
@@ -4917,7 +4969,7 @@
 .
 .    br
 .    if !\n[doc-indent-synopsis] \
-.      nr doc-indent-synopsis (8u * \n[doc-fixed-width]u)
+.      nr doc-indent-synopsis (4u * \n[doc-fixed-width]u)
 .  \}
 .
 .  \" start function box
@@ -6133,19 +6185,19 @@
 .
 .ds doc-str-Rv-std-prefix "The
 .ds doc-str-Rv-std-suffix "function returns the value\~0 if successful;
-.as doc-str-Rv-std-suffix " otherwise the value\~-1 is returned and
+.as doc-str-Rv-std-suffix " otherwise the value\~\-1 is returned and
 .as doc-str-Rv-std-suffix " the global variable \*[doc-Va-font]errno\f[]
 .as doc-str-Rv-std-suffix " is set to indicate the error.
 .
 .ds doc-str-Rv-stds-prefix "The
 .ds doc-str-Rv-stds-and    "and
 .ds doc-str-Rv-stds-suffix "functions return the value\~0 if successful;
-.as doc-str-Rv-stds-suffix " otherwise the value\~-1 is returned and
+.as doc-str-Rv-stds-suffix " otherwise the value\~\-1 is returned and
 .as doc-str-Rv-stds-suffix " the global variable \*[doc-Va-font]errno\f[]
 .as doc-str-Rv-stds-suffix " is set to indicate the error.
 .
 .ds doc-str-Rv-std0 "Upon successful completion, the value\~0 is returned;
-.as doc-str-Rv-std0 " otherwise the value\~-1 is returned and
+.as doc-str-Rv-std0 " otherwise the value\~\-1 is returned and
 .as doc-str-Rv-std0 " the global variable \*[doc-Va-font]errno\f[]
 .as doc-str-Rv-std0 " is set to indicate the error.
 .

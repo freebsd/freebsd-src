@@ -101,7 +101,7 @@
 .nr Ft 8n\" ?
 .nr Fx 1
 .nr Ic 10n
-.nr In 12n\" ?
+.nr In 12n
 .nr It 8n\" ?
 .nr Lb 11n
 .nr Li 16n
@@ -587,6 +587,25 @@
 ..
 .
 .
+.\" NS doc-check-depth macro
+.\" NS   check paired macros
+.
+.de doc-check-depth
+.  if \n[doc-list-depth] \{\
+.    tm mdoc warning: A .Bl directive has no matching .El (#\n[.c])
+.    nr doc-list-depth 0
+.  \}
+.  if \n[doc-display-depth] \{\
+.    tm mdoc warning: A .Bd directive has no matching .Ed (#\n[.c])
+.    nr doc-display-depth 0
+.  \}
+.  if \n[doc-fontmode-depth] \{\
+.    tm mdoc warning: A .Bf directive has no matching .Ef (#\n[.c])
+.    nr doc-fontmode-depth 0
+.  \}
+..
+.
+.
 .\" NS doc-end-macro macro
 .\" NS   finish output
 .
@@ -603,8 +622,7 @@
 .    pl +3v
 .  fl
 .
-.  if \n[doc-list-depth] \
-.    tm mdoc warning: list open at EOF!  A .Bl directive has no matching .El
+.  doc-check-depth
 .
 .  if \n[cR] \{\
 .    sp
@@ -834,6 +852,8 @@
 .
 .    in +\n[doc-subheader-indent]u
 .    ns
+.
+.    doc-check-depth
 .  \}
 ..
 .
@@ -898,6 +918,8 @@
 .      ne 2
 .    br
 .    ns
+.
+.    doc-check-depth
 .  \}
 ..
 .
