@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/lib/openpam_impl.h#20 $
+ * $P4: //depot/projects/openpam/lib/openpam_impl.h#21 $
  */
 
 #ifndef _OPENPAM_IMPL_H_INCLUDED
@@ -43,6 +43,8 @@ extern const char *_pam_func_name[PAM_NUM_PRIMITIVES];
 extern const char *_pam_sm_func_name[PAM_NUM_PRIMITIVES];
 extern const char *_pam_err_name[PAM_NUM_ERRORS];
 extern const char *_pam_item_name[PAM_NUM_ITEMS];
+
+extern int _openpam_debug;
 
 /*
  * Control flags

@@ -31,7 +31,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $P4: //depot/projects/openpam/include/security/pam_appl.h#10 $
+ * $P4: //depot/projects/openpam/include/security/pam_appl.h#11 $
  */
 
 #ifndef _PAM_APPL_H_INCLUDED
@@ -83,7 +83,7 @@ pam_get_user(pam_handle_t *_pamh,
 	const char **_user,
 	const char *_prompt);
 
-char *
+const char *
 pam_getenv(pam_handle_t *_pamh,
 	const char *_name);
 
