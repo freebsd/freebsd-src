@@ -114,12 +114,12 @@
 #define stdout_debug(args...)	do {		\
 	char buf[128];				\
 	snprintf(buf, sizeof(buf), ##args);	\
-	_thread_sys_write(1, buf, strlen(buf));	\
+	__sys_write(1, buf, strlen(buf));	\
 } while (0)
 #define stderr_debug(args...)	do {		\
 	char buf[128];				\
 	snprintf(buf, sizeof(buf), ##args);	\
-	_thread_sys_write(2, buf, strlen(buf));	\
+	__sys_write(2, buf, strlen(buf));	\
 } while (0)
 
 
