@@ -1242,11 +1242,6 @@ suser(struct thread *td)
  * (securelevel >= level).  Note that the logic is inverted -- these
  * functions return EPERM on "success" and 0 on "failure".
  *
- * cr is permitted to be NULL for the time being, as there were some
- * existing securelevel checks that occurred without a process/credential
- * context.  In the future this will be disallowed, so a kernel message
- * is displayed.
- *
  * MPSAFE
  */
 int
@@ -1255,8 +1250,7 @@ securelevel_gt(struct ucred *cr, int level)
 	int active_securelevel;
 
 	active_securelevel = securelevel;
-	if (cr == NULL)
-		panic("securelevel_gt: cr is NULL\n");
+	KASSERT(cr != NULL, ("securelevel_gt: null cr"));
 	if (cr->cr_prison != NULL) {
 		mtx_lock(&cr->cr_prison->pr_mtx);
 		active_securelevel = imax(cr->cr_prison->pr_securelevel,
@@ -1272,8 +1266,7 @@ securelevel_ge(struct ucred *cr, int level)
 	int active_securelevel;
 
 	active_securelevel = securelevel;
-	if (cr == NULL)
-		panic("securelevel_gt: cr is NULL\n");
+	KASSERT(cr != NULL, ("securelevel_ge: null cr"));
 	if (cr->cr_prison != NULL) {
 		mtx_lock(&cr->cr_prison->pr_mtx);
 		active_securelevel = imax(cr->cr_prison->pr_securelevel,
