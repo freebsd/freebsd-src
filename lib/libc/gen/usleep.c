@@ -43,25 +43,11 @@ static char sccsid[] = "@(#)usleep.c	8.1 (Berkeley) 6/4/93";
 #include "pthread_private.h"
 #endif
 
-#if !defined(_THREAD_SAFE) && !defined(USE_NANOSLEEP)
-#define	TICK	10000		/* system clock resolution in microseconds */
-#define	USPS	1000000		/* number of microseconds in a second */
-#endif
-
 #ifndef _THREAD_SAFE
-#ifndef USE_NANOSLEEP
-#define	setvec(vec, a) \
-	vec.sv_handler = a; vec.sv_mask = vec.sv_onstack = 0
-
-static int ringring;
-#endif
-
 static void
 sleephandler()
 {
-#ifndef USE_NANOSLEEP
-	ringring = 1;
-#endif
+	return;
 }
 #endif	/* _THREAD_SAFE */
 
@@ -84,7 +70,6 @@ usleep(useconds)
 			 time_to_sleep.tv_nsec != 0);
 	}
 #else
-#ifdef USE_NANOSLEEP
 	struct timespec time_to_sleep;
 	struct timespec time_remaining;
 	struct sigaction act, oact;
@@ -134,46 +119,5 @@ usleep(useconds)
 			sigprocmask(SIG_SETMASK, &omask, (sigset_t *)0);
 		}
 	}
-#else
-	register struct itimerval *itp;
-	struct itimerval itv, oitv;
-	struct sigvec vec, ovec;
-	long omask;
-	static void sleephandler();
-
-	itp = &itv;
-	if (!useconds)
-		return;
-	timerclear(&itp->it_interval);
-	timerclear(&itp->it_value);
-	if (setitimer(ITIMER_REAL, itp, &oitv) < 0)
-		return;
-	itp->it_value.tv_sec = useconds / USPS;
-	itp->it_value.tv_usec = useconds % USPS;
-	if (timerisset(&oitv.it_value)) {
-		if (timercmp(&oitv.it_value, &itp->it_value, >)) {
-			oitv.it_value.tv_sec -= itp->it_value.tv_sec;
-			oitv.it_value.tv_usec -= itp->it_value.tv_usec;
-			if (oitv.it_value.tv_usec < 0) {
-				oitv.it_value.tv_usec += USPS;
-				oitv.it_value.tv_sec--;
-			}
-		} else {
-			itp->it_value = oitv.it_value;
-			oitv.it_value.tv_sec = 0;
-			oitv.it_value.tv_usec = 2 * TICK;
-		}
-	}
-	setvec(vec, sleephandler);
-	(void) sigvec(SIGALRM, &vec, &ovec);
-	omask = sigblock(sigmask(SIGALRM));
-	ringring = 0;
-	(void) setitimer(ITIMER_REAL, itp, (struct itimerval *)0);
-	while (!ringring)
-		sigpause(omask &~ sigmask(SIGALRM));
-	(void) sigvec(SIGALRM, &ovec, (struct sigvec *)0);
-	(void) sigsetmask(omask);
-	(void) setitimer(ITIMER_REAL, &oitv, (struct itimerval *)0);
-#endif	/* USE_NANOSLEEP */
 #endif	/* _THREAD_SAFE */
 }
