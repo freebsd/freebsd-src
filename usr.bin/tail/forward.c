@@ -85,7 +85,6 @@ forward(fp, style, off, sbp)
 {
 	register int ch;
 	struct timeval second;
-	fd_set zero;
 
 	switch(style) {
 	case FBYTES:
@@ -164,11 +163,6 @@ forward(fp, style, off, sbp)
 	 * We pause for one second after displaying any data that has
 	 * accumulated since we read the file.
 	 */
-	if (fflag) {
-		FD_ZERO(&zero);
-		second.tv_sec = 1;
-		second.tv_usec = 0;
-	}
 
 	for (;;) {
 		while ((ch = getc(fp)) != EOF)
@@ -181,9 +175,13 @@ forward(fp, style, off, sbp)
 		(void)fflush(stdout);
 		if (!fflag)
 			break;
+
 		/* Sleep(3) is eight system calls.  Do it fast. */
-		if (select(0, &zero, &zero, &zero, &second) == -1)
-			err(1, "select: %s", strerror(errno));
+		second.tv_sec = 1;
+		second.tv_usec = 0;
+		if (select(0, NULL, NULL, NULL, &second) == -1)
+			if (errno != EINTR)
+				err(1, "select");
 		clearerr(fp);
 	}
 }
@@ -205,13 +203,14 @@ rlines(fp, off, sbp)
 		return;
 
 	if (size > SIZE_T_MAX) {
-		err(0, "%s: %s", fname, strerror(EFBIG));
+		errno = EFBIG;
+		err(0, "%s", fname);
 		return;
 	}
 
 	if ((start = mmap(NULL, (size_t)size,
 	    PROT_READ, 0, fileno(fp), (off_t)0)) == (caddr_t)-1) {
-		err(0, "%s: %s", fname, strerror(EFBIG));
+		err(0, "%s", fname);
 		return;
 	}
 
@@ -230,7 +229,7 @@ rlines(fp, off, sbp)
 		return;
 	}
 	if (munmap(start, (size_t)sbp->st_size)) {
-		err(0, "%s: %s", fname, strerror(errno));
+		err(0, "%s", fname);
 		return;
 	}
 }
