@@ -53,7 +53,7 @@
  * other processors"
  */
 struct globaldata {
-	struct privatespace *gd_prvspace;	/* self-reference */
+	struct globaldata *gd_prvspace;		/* self-reference */
 	struct proc	*gd_curproc;
 	struct proc	*gd_npxproc;
 	struct pcb	*gd_curpcb;
@@ -91,8 +91,6 @@ struct globaldata {
 #endif
 #endif
 };
-
-extern struct globaldata globaldata;
 
 SLIST_HEAD(cpuhead, globaldata);
 extern struct cpuhead cpuhead;

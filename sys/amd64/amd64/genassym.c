@@ -169,6 +169,7 @@ ASSYM(BI_SYMTAB, offsetof(struct bootinfo, bi_symtab));
 ASSYM(BI_ESYMTAB, offsetof(struct bootinfo, bi_esymtab));
 ASSYM(BI_KERNEND, offsetof(struct bootinfo, bi_kernend));
 ASSYM(GD_SIZEOF, sizeof(struct globaldata));
+ASSYM(GD_PRVSPACE, offsetof(struct globaldata, gd_prvspace));
 ASSYM(GD_CURPROC, offsetof(struct globaldata, gd_curproc));
 ASSYM(GD_NPXPROC, offsetof(struct globaldata, gd_npxproc));
 ASSYM(GD_IDLEPROC, offsetof(struct globaldata, gd_idleproc));
@@ -223,10 +224,7 @@ ASSYM(LA_ICR_HI, offsetof(struct LAPIC, icr_hi));
 
 ASSYM(KCSEL, GSEL(GCODE_SEL, SEL_KPL));
 ASSYM(KDSEL, GSEL(GDATA_SEL, SEL_KPL));
-
-#ifdef SMP
 ASSYM(KPSEL, GSEL(GPRIV_SEL, SEL_KPL));
-#endif
 
 ASSYM(BC32SEL, GSEL(GBIOSCODE32_SEL, SEL_KPL));
 ASSYM(GPROC0_SEL, GPROC0_SEL);

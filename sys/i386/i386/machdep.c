@@ -244,6 +244,9 @@ static vm_offset_t buffer_sva, buffer_eva;
 vm_offset_t clean_sva, clean_eva;
 static vm_offset_t pager_sva, pager_eva;
 static struct trapframe proc0_tf;
+#ifndef SMP
+static struct globaldata __globaldata;
+#endif
 
 struct cpuhead cpuhead;
 
@@ -1850,10 +1853,14 @@ init386(first)
 	gdt_segs[GPRIV_SEL].ssd_base = (int) &SMP_prvspace[0];
 	gdt_segs[GPROC0_SEL].ssd_base =
 		(int) &SMP_prvspace[0].globaldata.gd_common_tss;
-	SMP_prvspace[0].globaldata.gd_prvspace = &SMP_prvspace[0];
+	SMP_prvspace[0].globaldata.gd_prvspace = &SMP_prvspace[0].globaldata;
 #else
-	gdt_segs[GPRIV_SEL].ssd_limit = i386_btop(0) - 1;
-	gdt_segs[GPROC0_SEL].ssd_base = (int) &common_tss;
+	gdt_segs[GPRIV_SEL].ssd_limit =
+		i386_btop(sizeof(struct globaldata)) - 1;
+	gdt_segs[GPRIV_SEL].ssd_base = (int) &__globaldata;
+	gdt_segs[GPROC0_SEL].ssd_base =
+		(int) &__globaldata.gd_common_tss;
+	__globaldata.gd_prvspace = &__globaldata;
 #endif
 
 	for (x = 0; x < NGDT; x++) {
