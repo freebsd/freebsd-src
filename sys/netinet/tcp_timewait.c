@@ -1637,6 +1637,7 @@ tcp_twstart(tp)
 
 	tw->snd_nxt = tp->snd_nxt;
 	tw->rcv_nxt = tp->rcv_nxt;
+	tw->iss     = tp->iss;
 	tw->cc_recv = tp->cc_recv;
 	tw->cc_send = tp->cc_send;
 	tw->t_starttime = tp->t_starttime;
@@ -1669,6 +1670,24 @@ tcp_twstart(tp)
 	inp->inp_vflag |= INP_TIMEWAIT;
 	tcp_timer_2msl_reset(tw, tw_time);
 	INP_UNLOCK(inp);
+}
+
+/*
+ * Determine if the ISN we will generate has advanced beyond the last
+ * sequence number used by the previous connection.  If so, indicate
+ * that it is safe to recycle this tw socket by returning 1.
+ */
+int
+tcp_twrecycleable(struct tcptw *tw)
+{
+	tcp_seq new_isn = tw->iss;
+
+	new_isn += (ticks - tw->t_starttime) * (ISN_BYTES_PER_SECOND / hz);
+	
+	if (SEQ_GT(new_isn, tw->snd_nxt))
+		return 1;
+	else
+		return 0;
 }
 
 struct tcptw *
