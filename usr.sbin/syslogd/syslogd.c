@@ -150,6 +150,8 @@ int funix[MAXFUNIX];
 /*
  * This structure represents the files that will have log
  * copies printed.
+ * We require f_file to be valid if f_type is F_FILE, F_CONSOLE, F_TTY
+ * or if f_type if F_PIPE and f_pid > 0.
  */
 
 struct filed {
@@ -1131,7 +1133,6 @@ fprintlog(struct filed *f, int flags, const char *msg)
 				/* case ECONNREFUSED: */
 				default:
 					dprintf("removing entry\n");
-					(void)close(f->f_file);
 					f->f_type = F_UNUSED;
 					break;
 				}
@@ -1390,8 +1391,10 @@ die(int signo)
 		/* flush any pending output */
 		if (f->f_prevcount)
 			fprintlog(f, 0, (char *)NULL);
-		if (f->f_type == F_PIPE)
+		if (f->f_type == F_PIPE && f->f_un.f_pipe.f_pid > 0) {
 			(void)close(f->f_file);
+			f->f_un.f_pipe.f_pid = 0;
+		}
 	}
 	Initialized = was_initialized;
 	if (signo) {
@@ -1457,10 +1460,11 @@ init(int signo)
 			(void)close(f->f_file);
 			break;
 		case F_PIPE:
-			(void)close(f->f_file);
-			if (f->f_un.f_pipe.f_pid > 0)
+			if (f->f_un.f_pipe.f_pid > 0) {
+				(void)close(f->f_file);
 				deadq_enter(f->f_un.f_pipe.f_pid,
 					    f->f_un.f_pipe.f_pname);
+			}
 			f->f_un.f_pipe.f_pid = 0;
 			break;
 		}
@@ -2289,9 +2293,10 @@ validate(struct sockaddr *sa, const char *hname)
  * opposed to a FILE *.
  */
 static int
-p_open(const char *prog, pid_t *pid)
+p_open(const char *prog, pid_t *rpid)
 {
 	int pfd[2], nulldesc, i;
+	pid_t pid;
 	sigset_t omask, mask;
 	char *argv[4]; /* sh -c cmd NULL */
 	char errmsg[200];
@@ -2306,7 +2311,7 @@ p_open(const char *prog, pid_t *pid)
 	sigaddset(&mask, SIGALRM);
 	sigaddset(&mask, SIGHUP);
 	sigprocmask(SIG_BLOCK, &mask, &omask);
-	switch ((*pid = fork())) {
+	switch ((pid = fork())) {
 	case -1:
 		sigprocmask(SIG_SETMASK, &omask, 0);
 		close(nulldesc);
@@ -2364,9 +2369,10 @@ p_open(const char *prog, pid_t *pid)
 		(void)snprintf(errmsg, sizeof errmsg,
 			       "Warning: cannot change pipe to PID %d to "
 			       "non-blocking behaviour.",
-			       (int)*pid);
+			       (int)pid);
 		logerror(errmsg);
 	}
+	*rpid = pid;
 	return (pfd[1]);
 }
 
