@@ -2115,8 +2115,8 @@ Please refer to
 .Pa /usr/share/examples/ppp/ppp.conf.sample
 and
 .Pa /usr/share/examples/ppp/ppp.linkup.sample
-for some real examples.  The pmdemand label should be appropriate for most
-ISPs.
+for some real examples.
+The pmdemand label should be appropriate for most ISPs.
 .Sh LOGGING FACILITY
 .Nm
 is able to generate the following log info either via
@@ -2822,13 +2822,15 @@ and the
 .Dv MAC
 address of the local network in which
 .Dv HISADDR
-appears.  This allows other machines connecteed to the LAN to talk to
-the peer as if the peer itself was connected to the LAN.  The proxy entry
-cannot be made unless
+appears.
+This allows other machines connecteed to the LAN to talk to
+the peer as if the peer itself was connected to the LAN.
+The proxy entry cannot be made unless
 .Dv HISADDR
 is an address from a LAN.
 .It proxyall
-Default: Disabled.  Enabling this will tell
+Default: Disabled.
+Enabling this will tell
 .Nm
 to add proxy arp entries for every IP address in all class C or
 smaller subnets routed via the tun interface.
@@ -3183,8 +3185,9 @@ This is useful
 if you want to support protocols such as RPC and LPD which require
 connections to come from a well known port.
 .It nat target Op Ar address
-Set the given target address or clear it if no address is given.  The target
-address is used by libalias to specify how to NAT incoming packets by default.
+Set the given target address or clear it if no address is given.
+The target address is used by libalias to specify how to NAT incoming
+packets by default.
 If a target address is not set or if
 .Dq default
 is given, packets are not altered and are allowed to route to the internal
@@ -4532,9 +4535,9 @@ bound sockets will remain valid.
 Set the maximum number of packets that
 .Nm
 will read from the tunnel interface while data cannot be sent to any of
-the available links.  This queue limit is necessary to flow control outgoing
-data as the tunnel interface is likely to be far faster than the combined
-links available to
+the available links.
+This queue limit is necessary to flow control outgoing data as the tunnel
+interface is likely to be far faster than the combined links available to
 .Nm ppp .
 .Pp
 If
