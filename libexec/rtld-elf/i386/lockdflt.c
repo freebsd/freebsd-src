@@ -72,6 +72,7 @@ typedef struct Struct_Lock {
 } Lock;
 
 static const struct timespec usec = { 0, 1000 };	/* 1 usec. */
+static sigset_t fullsigmask, oldsigmask;
 
 static inline int
 cmpxchgl(int old, int new, volatile int *m)
@@ -144,10 +145,17 @@ static void
 lock80386_acquire(void *lock)
 {
     Lock *l = (Lock *)lock;
+    sigset_t tmp_oldsigmask;
 
-    while (xchgl(1, &l->lock) != 0)
+    for ( ; ; ) {
+	sigprocmask(SIG_BLOCK, &fullsigmask, &tmp_oldsigmask);
+	if (xchgl(1, &l->lock) == 0)
+	    break;
+	sigprocmask(SIG_SETMASK, &tmp_oldsigmask, NULL);
 	while (l->lock != 0)
 	    nanosleep(&usec, NULL);
+    }
+    oldsigmask = tmp_oldsigmask;
 }
 
 static void
@@ -156,6 +164,7 @@ lock80386_release(void *lock)
     Lock *l = (Lock *)lock;
 
     l->lock = 0;
+    sigprocmask(SIG_SETMASK, &oldsigmask, NULL);
 }
 
 /*
@@ -175,9 +184,16 @@ static void
 wlock_acquire(void *lock)
 {
     Lock *l = (Lock *)lock;
+    sigset_t tmp_oldsigmask;
 
-    while (cmpxchgl(0, WAFLAG, &l->lock) != 0)
+    for ( ; ; ) {
+	sigprocmask(SIG_BLOCK, &fullsigmask, &tmp_oldsigmask);
+	if (cmpxchgl(0, WAFLAG, &l->lock) == 0)
+	    break;
+	sigprocmask(SIG_SETMASK, &tmp_oldsigmask, NULL);
 	nanosleep(&usec, NULL);
+    }
+    oldsigmask = tmp_oldsigmask;
 }
 
 static void
@@ -194,6 +210,7 @@ wlock_release(void *lock)
     Lock *l = (Lock *)lock;
 
     atomic_add_int(&l->lock, -WAFLAG);
+    sigprocmask(SIG_SETMASK, &oldsigmask, NULL);
 }
 
 /*
@@ -250,4 +267,17 @@ lockdflt_init(LockInfo *li)
 	li->rlock_acquire = li->wlock_acquire = lock80386_acquire;
 	li->rlock_release = li->wlock_release = lock80386_release;
     }
+    /*
+     * Construct a mask to block all signals except traps which might
+     * conceivably be generated within the dynamic linker itself.
+     */
+    sigfillset(&fullsigmask);
+    sigdelset(&fullsigmask, SIGILL);
+    sigdelset(&fullsigmask, SIGTRAP);
+    sigdelset(&fullsigmask, SIGABRT);
+    sigdelset(&fullsigmask, SIGEMT);
+    sigdelset(&fullsigmask, SIGFPE);
+    sigdelset(&fullsigmask, SIGBUS);
+    sigdelset(&fullsigmask, SIGSEGV);
+    sigdelset(&fullsigmask, SIGSYS);
 }
