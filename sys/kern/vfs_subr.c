@@ -1169,7 +1169,9 @@ vinvalbuf(vp, flags, cred, td, slpflag, slptimeo)
 		}
 		VI_UNLOCK(vp);
 		if (VOP_GETVOBJECT(vp, &object) == 0) {
+			VM_OBJECT_LOCK(object);
 			vm_object_pip_wait(object, "vnvlbx");
+			VM_OBJECT_UNLOCK(object);
 		}
 		VI_LOCK(vp);
 	} while (vp->v_numoutput > 0);

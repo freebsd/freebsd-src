@@ -139,9 +139,11 @@ vnode_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 	 * If the object is being terminated, wait for it to
 	 * go away.
 	 */
-	while (((object = vp->v_object) != NULL) &&
-		(object->flags & OBJ_DEAD)) {
-		tsleep(object, PVM, "vadead", 0);
+	while ((object = vp->v_object) != NULL) {
+		VM_OBJECT_LOCK(object);
+		if ((object->flags & OBJ_DEAD) == 0)
+			break;
+		msleep(object, VM_OBJECT_MTX(object), PDROP | PVM, "vadead", 0);
 	}
 
 	if (vp->v_usecount == 0)
@@ -159,6 +161,7 @@ vnode_pager_alloc(void *handle, vm_ooffset_t size, vm_prot_t prot,
 		vp->v_object = object;
 	} else {
 		object->ref_count++;
+		VM_OBJECT_UNLOCK(object);
 	}
 	VI_LOCK(vp);
 	vp->v_usecount++;
@@ -182,7 +185,9 @@ vnode_pager_dealloc(object)
 	if (vp == NULL)
 		panic("vnode_pager_dealloc: pager already dealloced");
 
+	VM_OBJECT_LOCK(object);
 	vm_object_pip_wait(object, "vnpdea");
+	VM_OBJECT_UNLOCK(object);
 
 	object->handle = NULL;
 	object->type = OBJT_DEAD;
