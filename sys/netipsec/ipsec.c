@@ -280,7 +280,6 @@ ipsec_getpolicybysock(m, dir, inp, error)
 	struct inpcbpolicy *pcbsp = NULL;
 	struct secpolicy *currsp = NULL;	/* policy on socket */
 	struct secpolicy *sp;
-	int af;
 
 	KASSERT(m != NULL, ("ipsec_getpolicybysock: null mbuf"));
 	KASSERT(inp != NULL, ("ipsec_getpolicybysock: null inpcb"));
@@ -288,26 +287,13 @@ ipsec_getpolicybysock(m, dir, inp, error)
 	KASSERT(dir == IPSEC_DIR_INBOUND || dir == IPSEC_DIR_OUTBOUND,
 		("ipsec_getpolicybysock: invalid direction %u", dir));
 
-	af = inp->inp_socket->so_proto->pr_domain->dom_family;
-	KASSERT(af == AF_INET || af == AF_INET6,
-		("ipsec_getpolicybysock: unexpected protocol family %u", af));
-
-	switch (af) {
-	case AF_INET:
-		/* set spidx in pcb */
-		*error = ipsec4_setspidx_inpcb(m, inp);
-		pcbsp = inp->inp_sp;
-		break;
-#ifdef INET6
-	case AF_INET6:
-		/* set spidx in pcb */
+	/* set spidx in pcb */
+	if (inp->inp_vflag & INP_IPV6PROTO) {
 		*error = ipsec6_setspidx_in6pcb(m, inp);
 		pcbsp = inp->in6p_sp;
-		break;
-#endif
-	default:
-		*error = EPFNOSUPPORT;
-		break;
+	} else {
+		*error = ipsec4_setspidx_inpcb(m, inp);
+		pcbsp = inp->inp_sp;
 	}
 	if (*error)
 		return NULL;
@@ -1571,8 +1557,6 @@ ipsec4_hdrsiz(m, dir, inp)
 	size_t size;
 
 	KASSERT(m != NULL, ("ipsec4_hdrsiz: null mbuf"));
-	KASSERT(inp == NULL || inp->inp_socket != NULL,
-		("ipsec4_hdrsize: socket w/o inpcb"));
 
 	/* get SP for this packet.
 	 * When we are called from ip_forward(), we call
