@@ -38,7 +38,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: stlstats.c,v 1.6 1997/10/20 12:51:34 charnier Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -500,10 +500,9 @@ void localexit(int nr)
 void main(int argc, char *argv[])
 {
 	struct stat	statinfo;
-	int		optind, c, useport;
+	int		c, useport;
 	char		*portdev;
 
-	optind = 0;
 	ctrldevice = defdevice;
 	useport = 0;
 
