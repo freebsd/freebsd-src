@@ -1,8 +1,8 @@
 /*
- * Adaptec 274x/284x/294x device driver firmware for Linux and FreeBSD.
+ * Adaptec U320 device driver firmware for Linux and FreeBSD.
  *
  * Copyright (c) 1994-2001 Justin T. Gibbs.
- * Copyright (c) 2000-2001 Adaptec Inc.
+ * Copyright (c) 2000-2002 Adaptec Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -40,8 +40,9 @@
  * $FreeBSD$
  */
 
-VERSION = "$Id: //depot/aic7xxx/aic7xxx/aic79xx.seq#42 $"
+VERSION = "$Id: //depot/aic7xxx/aic7xxx/aic79xx.seq#51 $"
 PATCH_ARG_LIST = "struct ahd_softc *ahd"
+PREFIX = "ahd_"
 
 #include "aic79xx.reg"
 #include "scsi_message.h"
@@ -164,7 +165,8 @@ fill_qoutfifo_dmadone:
 	mvi	COMPLETE_SCB_DMAINPROG_HEAD[1], SCB_LIST_NULL;
 	bmov	QOUTFIFO_NEXT_ADDR, SCBHADDR, 4;
 	test	QOFF_CTLSTA, SDSCB_ROLLOVR jz return;
-	bmov	QOUTFIFO_NEXT_ADDR, SHARED_DATA_ADDR, 4 ret;
+	bmov	QOUTFIFO_NEXT_ADDR, SHARED_DATA_ADDR, 4;
+	xor	QOUTFIFO_ENTRY_VALID_TAG, QOUTFIFO_ENTRY_VALID_TOGGLE ret;
 
 fetch_new_scb_inprog:
 	test	CCSCBCTL, ARRDONE jz return;
@@ -223,14 +225,17 @@ fill_qoutfifo:
 	 * Keep track of the SCBs we are dmaing just
 	 * in case the DMA fails or is aborted.
 	 */
+	mov	A, QOUTFIFO_ENTRY_VALID_TAG;
 	bmov	COMPLETE_SCB_DMAINPROG_HEAD, COMPLETE_SCB_HEAD, 2;
 	mvi	CCSCBCTL, CCSCBRESET;
 	bmov	SCBHADDR, QOUTFIFO_NEXT_ADDR, 4;
-	bmov	CCSCBRAM, COMPLETE_SCB_HEAD, 2;
+	mov	CCSCBRAM, COMPLETE_SCB_HEAD;
+	or	CCSCBRAM, A, COMPLETE_SCB_HEAD[1];
 	bmov	SCBPTR, COMPLETE_SCB_HEAD, 2;
 	jmp	fill_qoutfifo_first_entry;
 fill_qoutfifo_loop:
-	bmov	CCSCBRAM, SCB_NEXT_COMPLETE, 2;
+	mov	CCSCBRAM, SCB_NEXT_COMPLETE;
+	or	CCSCBRAM, A, SCB_NEXT_COMPLETE[1];
 	bmov	SCBPTR, SCB_NEXT_COMPLETE, 2;
 fill_qoutfifo_first_entry:
 	mov	NONE, SDSCB_QOFF;
@@ -310,7 +315,7 @@ BEGIN_CRITICAL;
 		 * correctly after a packetized selection in several
 		 * situations:
 		 *
-		 * 1) If only one command existed in the the queue, the
+		 * 1) If only one command existed in the queue, the
 		 *    LAST/CURR/NEXTSCB are unchanged.
 		 *
 		 * 2) In a non QAS, protocol allowed phase change,
@@ -661,7 +666,7 @@ p_mesgout_tag:
 	and	SCSIDAT,TAG_ENB|SCB_TAG_TYPE,SCB_CONTROL;
 	call	phase_lock;
 	cmp	LASTPHASE, P_MESGOUT	jne p_mesgout_done;
-	mov	SCB_NONPACKET_TAG jmp p_mesgout_onebyte;
+	mov	SCBPTR jmp p_mesgout_onebyte;
 /*
  * Interrupt the driver, and allow it to handle this message
  * phase and any required retries.
@@ -739,14 +744,15 @@ mesgin_done:
 	mov	NONE,SCSIDAT;		/*dummy read from latch to ACK*/
 	jmp	ITloop;
 
-#define INDEX_DISC_LIST_SCB(target, lun)				\
-	mov	SCBPTR, lun;						\
-	shr	SCBPTR[1], 3, target
+#define INDEX_DISC_LIST_SCB(scsiid, lun)				\
+	and	A, 0xC0, scsiid;					\
+	or	SCBPTR, A, lun;						\
+	clr	SCBPTR[1]
 	
-#define INDEX_DISC_LIST(target, lun)					\
-	INDEX_DISC_LIST_SCB(target, lun);				\
-	and	SINDEX, 0x7, target;					\
-	shl	SINDEX, 1;						\
+#define INDEX_DISC_LIST(scsiid, lun)					\
+	INDEX_DISC_LIST_SCB(scsiid, lun);				\
+	and	SINDEX, 0x30, scsiid;					\
+	shr	SINDEX, 3;	/* Multiply by 2 */			\
 	add	SINDEX, (SCB_DISCONNECTED_LISTS & 0xFF);		\
 	mvi	SINDEX[1], ((SCB_DISCONNECTED_LISTS >> 8) & 0xFF)
 
@@ -755,27 +761,23 @@ mesgin_identify:
 	 * Determine whether a target is using tagged or non-tagged
 	 * transactions by first looking at the transaction stored in
 	 * the per-device, disconnected array.  If there is no untagged
-	 * transaction for this target this must be an untagged transaction.
+	 * transaction for this target, this must be a tagged transaction.
 	 */
-	shr	SINDEX, 4, SAVED_SCSIID;
 	and	SAVED_LUN, MSG_IDENTIFY_LUNMASK, A;
-	INDEX_DISC_LIST(SINDEX, SAVED_LUN);
+	INDEX_DISC_LIST(SAVED_SCSIID, SAVED_LUN);
 	bmov	DINDEX, SINDEX, 2;
-	bmov	SCBPTR, SINDIR, 2;
-	cmp	SCBPTR[1], SCB_LIST_NULL je snoop_tag;
-	test	SCB_CONTROL, TAG_ENB jnz snoop_tag;
-	/* Untagged.  Setup the SCB. */
-	bmov	REG1, SCB_TAG, 4;	/* Save SCB_TAG and SCB_NEXT */
-	jmp dequeue_first_scb;
+	bmov	REG0, SINDIR, 2;
+	cmp	REG0[1], SCB_LIST_NULL je snoop_tag;
+	/* Untagged.  Clear the busy table entry and setup the SCB. */
+	bmov	DINDIR, ALLONES, 2;
+	bmov	SCBPTR, REG0, 2;
+	jmp	setup_SCB;
 
 /*
  * Here we "snoop" the bus looking for a SIMPLE QUEUE TAG message.
  * If we get one, we use the tag returned to find the proper
- * SCB.  The disconnected list contains any outstanding tagged transactions
- * where SCB_TAG != SCB_NONPACKET_TAG or SCB_NONPACKET_TAG + 256.
- * After receiving the tag, look for the SCB at SCB locations tag and
- * tag + 256.  If those SCBs do not match, traverse the disconnected
- * list until we find the correct SCB.
+ * SCB.  After receiving the tag, look for the SCB at SCB locations tag and
+ * tag + 256.
  */
 snoop_tag:
 	if ((ahd->flags & AHD_SEQUENCER_DEBUG) != 0) {
@@ -792,48 +794,18 @@ snoop_tag:
 	}
 	cmp	SCSIBUS, MSG_SIMPLE_Q_TAG jne not_found;
 get_tag:
-	/* Save diconnected list head. */
-	bmov	REG0, SCBPTR, 2;
 	clr	SCBPTR[1];
 	mvi	SCBPTR	call inb_next;	/* tag value */
-	mov	REG1, SCBPTR;
 verify_scb:
-	mov	A, REG1;
-	cmp	SCB_NONPACKET_TAG, A jne verify_other_scb;
+	test	SCB_CONTROL,DISCONNECTED jz verify_other_scb;
 	mov	A, SAVED_SCSIID;
 	cmp	SCB_SCSIID, A jne verify_other_scb;
 	mov	A, SAVED_LUN;
-	cmp	SCB_LUN, A je setup_SCB;
+	cmp	SCB_LUN, A je setup_SCB_disconnected;
 verify_other_scb:
 	xor	SCBPTR[1], 1;
 	test	SCBPTR[1], 0xFF jnz verify_scb;
-
-search_disc_list:
-	/* Restore disconnected list head. */
-	bmov	SCBPTR, REG0, 2;
-	mvi	REG0[1], SCB_LIST_NULL;
-	mov	A, REG1;
-search_disc_list_loop:
-	cmp	SCB_NONPACKET_TAG, A je dequeue_scb;
-	bmov	REG0, SCBPTR, 2;
-	bmov	SCBPTR, SCB_NEXT, 2;
-	cmp	SCBPTR[1], SCB_LIST_NULL jne search_disc_list_loop;
 	jmp	not_found;
-
-dequeue_scb:
-	bmov	REG1, SCB_TAG, 4;	/* Save SCB_TAG and SCB_NEXT */
-	cmp	REG0[1], SCB_LIST_NULL jne dequeue_intermediate_SCB;
-dequeue_first_scb:
-	shr	SINDEX, 4, SAVED_SCSIID;
-	INDEX_DISC_LIST_SCB(SINDEX, SAVED_LUN);
-	/* Update list head. */
-	bmov	DINDIR, REG2, 2;
-	jmp	dequeue_restore;
-dequeue_intermediate_SCB:
-	bmov	SCBPTR, REG0, 2;
-	bmov	SCB_NEXT, REG2, 2;
-dequeue_restore:
-	bmov	SCBPTR, REG1, 2;
 
 /*
  * Ensure that the SCB the tag points to is for
@@ -844,11 +816,11 @@ setup_SCB:
 		or	SEQ_FLAGS, 0x10;
 	}
 	test	SCB_CONTROL,DISCONNECTED jz not_found;
+setup_SCB_disconnected:
 	and	SCB_CONTROL,~DISCONNECTED;
 	clr	SEQ_FLAGS;	/* make note of IDENTIFY */
 	test	SCB_SGPTR, SG_LIST_NULL jnz . + 2;
 	call	allocate_fifo;
-/*	mvi	SEQINTCODE, PRINT_RESIDUALS; */
 	/* See if the host wants to send a message upon reconnection */
 	test	SCB_CONTROL, MK_MESSAGE jz mesgin_done;
 	mvi	HOST_MSG	call mk_mesg;
@@ -875,6 +847,9 @@ not_found_ITloop:
  * it to the QINFIFO and tell us not to post to the QOUTFIFO by setting 
  * RETURN_1 to SEND_SENSE.
  */
+mesgin_complete_proto_violation:
+	mvi	SEQINTCODE, PROTO_VIOLATION;
+	jmp	mesgin_done;
 mesgin_complete:
 
 	/*
@@ -889,18 +864,31 @@ mesgin_complete:
 	 */
 
 	/*
+	 * If we are identified and have successfully sent the CDB,
+	 * any status will do.  Optimize this fast path.
+	 */
+	test	SEQ_FLAGS, NOT_IDENTIFIED|NO_CDB_SENT jnz . + 2;
+	test	SCB_CONTROL, STATUS_RCVD jnz complete_accepted;
+
+	/*
 	 * If the target never sent an identify message but instead went
 	 * to mesgin to give an invalid message, let the host abort us.
 	 */
-	test	SEQ_FLAGS, NOT_IDENTIFIED|NO_CDB_SENT	jz . + 3;
-	mvi	SEQINTCODE, PROTO_VIOLATION;
-	jmp	mesgin_done;
+	test	SEQ_FLAGS, NOT_IDENTIFIED jnz mesgin_complete_proto_violation;
 
 	/*
 	 * If the target never gave us status information, have
 	 * the host abort the command.
 	 */
-	test	SCB_CONTROL, STATUS_RCVD jz . - 2;
+	test	SCB_CONTROL, STATUS_RCVD jz mesgin_complete_proto_violation;
+
+	/*
+	 * If we recevied good status but never successfully sent the
+	 * cdb, abort the command.
+	 */
+	test	SCB_SCSI_STATUS,0xff	jnz complete_accepted;
+	test	SEQ_FLAGS, NO_CDB_SENT jnz mesgin_complete_proto_violation;
+complete_accepted:
 
 	/*
 	 * See if we attempted to deliver a message but the target ingnored us.
@@ -964,18 +952,13 @@ mesgin_disconnect:
 	jmp	mesgin_done;
 disconnect_allowed:
 	or	SCB_CONTROL,DISCONNECTED;
-	test	SCB_CONTROL, TAG_ENB jz queue_disc_scb;
-	mov	A, SCB_NONPACKET_TAG;
-	cmp	SCBPTR, A je await_busfree;
+	test	SCB_CONTROL, TAG_ENB jnz await_busfree;
 queue_disc_scb:
 	bmov	REG0, SCBPTR, 2;
-	shr	SINDEX, 4, SCB_SCSIID;
-	INDEX_DISC_LIST(SINDEX, SCB_LUN);
+	INDEX_DISC_LIST(SAVED_SCSIID, SAVED_LUN);
 	bmov	DINDEX, SINDEX, 2;
-	bmov	REG1, SINDIR, 2;
 	bmov	DINDIR, REG0, 2;
 	bmov	SCBPTR, REG0, 2;
-	bmov	SCB_NEXT, REG1, 2;
 	/* FALLTHROUGH */
 await_busfree:
 	and	SIMODE1, ~ENBUSFREE;
@@ -999,9 +982,7 @@ await_busfree_not_m_dff:
  * only if we've actually been into a data phase to change them.  This
  * protects against bogus data in scratch ram and the residual counts
  * since they are only initialized when we go into data_in or data_out.
- * Ack the message as soon as possible.  For chips without S/G pipelining,
- * we can only ack the message after SHADDR has been saved.  On these
- * chips, SHADDR increments with every bus transaction, even PIO.
+ * Ack the message as soon as possible.
  */
 SET_SRC_MODE	M_DFF1;
 SET_DST_MODE	M_DFF1;
@@ -1094,10 +1075,10 @@ mk_mesg:
 SET_SRC_MODE	M_DFF1;
 SET_DST_MODE	M_DFF1;
 disable_ccsgen:
-	test	SG_STATE, FETCH_INPROG jz return;
-	clr	SG_STATE;
+	test	SG_STATE, FETCH_INPROG jz disable_ccsgen_fetch_done;
+	clr	CCSGCTL;
 disable_ccsgen_fetch_done:
-	clr	CCSGCTL ret;
+	clr	SG_STATE ret;
 
 toggle_dff_mode:
 	mvi	SEQINTCTL, INTVEC1DSL;
@@ -1150,7 +1131,7 @@ idle_sgfetch_complete:
 	 * request in the other FIFO.
 	 */
 	test	SG_STATE, FETCH_INPROG jz return;
-	call	disable_ccsgen_fetch_done;
+	clr	CCSGCTL;
 	and	CCSGADDR, SG_PREFETCH_ADDR_MASK, SCB_RESIDUAL_SGPTR;
 	mvi	SG_STATE, SEGS_AVAIL|LOADING_NEEDED;
 idle_sg_avail:
@@ -1277,9 +1258,7 @@ data_group_dma_loop:
 	/*
 	 * The transfer is complete if either the last segment
 	 * completes or the target changes phase.  Both conditions
-	 * will clear SCSIEN.  We test SCSIEN twice during our
-	 * "idle loop" to avoid long delays before we notice the
-	 * SCSIEN transition.
+	 * will clear SCSIEN.
 	 */
 	call	data_group_idle_loop;
 	test	DFCNTRL, SCSIEN jnz data_group_dma_loop;
