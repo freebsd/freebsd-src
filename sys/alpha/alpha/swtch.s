@@ -270,6 +270,8 @@ Lchkast:
 	beq	t2, Lsetfpenable		/* no: return & deal with FP */
 
 	/* We've got an AST.  Handle it. */
+	ldiq	a0, ALPHA_PSL_IPL_0		/* drop IPL to zero */
+	call_pal PAL_OSF1_swpipl
 	mov	sp, a0				/* only arg is frame */
 	CALL(ast)
 
