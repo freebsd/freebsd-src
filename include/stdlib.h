@@ -222,7 +222,23 @@ extern const char *_malloc_options;
 extern void (*_malloc_message)(const char *, const char *, const char *,
 	    const char *);
 
-void	*alloca(size_t);		/* built-in for gcc */
+#ifndef alloca
+/*
+ * The alloca() function can't be implemented in C, and on some
+ * platforms it can't be implemented at all as a callable function.
+ * The GNU C compiler provides a built-in alloca() which we can use;
+ * in all other cases, provide a prototype, mainly to pacify various
+ * incarnations of lint.  On platforms where alloca() is not in libc,
+ * programs which use it will fail to link when compiled with non-GNU
+ * compilers.
+ */
+#if defined(__GNUC__) || defined(__INTEL_COMPILER)
+#define alloca(sz) __builtin_alloca(sz)
+#else
+void	*alloca(size_t);
+#endif
+#endif
+
 __uint32_t
 	 arc4random(void);
 void	 arc4random_addrandom(unsigned char *dat, int datlen);
