@@ -1,6 +1,6 @@
 /*
  *	from: vector.s, 386BSD 0.1 unknown origin
- *	$Id: vector.s,v 1.16 1995/12/27 11:22:05 markm Exp $
+ *	$Id: vector.s,v 1.17 1996/01/19 23:38:07 phk Exp $
  */
 
 #include <i386/isa/icu.h>
@@ -19,7 +19,6 @@
 	movb	$ICU_EOI,%al ;	/* as soon as possible send EOI ... */ \
 	OUTB_ICU1		/* ... to clear in service bit */
 #define	OUTB_ICU1 \
-	FASTER_NOP ; \
 	outb	%al,$IO_ICU1
 #endif
 
@@ -31,7 +30,6 @@
 #else
 #define	ENABLE_ICU1_AND_2 \
 	movb	$ICU_EOI,%al ;	/* as above */ \
-	FASTER_NOP ; \
 	outb	%al,$IO_ICU2 ;	/* but do second icu first ... */ \
 	OUTB_ICU1		/* ... then first icu (if !AUTO_EOI_1) */
 #endif
@@ -168,7 +166,6 @@ IDTVEC(intr/**/irq_num) ; \
 	movb	_imen + IRQ_BYTE(irq_num),%al ; \
 	orb	$IRQ_BIT(irq_num),%al ; \
 	movb	%al,_imen + IRQ_BYTE(irq_num) ; \
-	FASTER_NOP ; \
 	outb	%al,$icu+1 ; \
 	enable_icus ; \
 	incl	_cnt+V_INTR ;	/* tally interrupts */ \
@@ -191,7 +188,6 @@ Xresume/**/irq_num: ; \
 	movb	_imen + IRQ_BYTE(irq_num),%al ; \
 	andb	$~IRQ_BIT(irq_num),%al ; \
 	movb	%al,_imen + IRQ_BYTE(irq_num) ; \
-	FASTER_NOP ; \
 	outb	%al,$icu+1 ; \
 	sti ;			/* XXX _doreti repeats the cli/sti */ \
 	MEXITCOUNT ; \
