@@ -83,13 +83,11 @@ static void buf_daemon __P((void));
 vm_page_t bogus_page;
 int runningbufspace;
 int vmiodirenable = FALSE;
+int buf_maxio = DFLTPHYS;
 static vm_offset_t bogus_offset;
 
 static int bufspace, maxbufspace, vmiospace, 
 	bufmallocspace, maxbufmallocspace, hibufspace;
-#if 0
-static int maxvmiobufspace;
-#endif
 static int maxbdrun;
 static int needsbuffer;
 static int numdirtybuffers, lodirtybuffers, hidirtybuffers;
@@ -120,10 +118,6 @@ SYSCTL_INT(_vfs, OID_AUTO, bufspace, CTLFLAG_RD,
 	&bufspace, 0, "");
 SYSCTL_INT(_vfs, OID_AUTO, maxbdrun, CTLFLAG_RW,
 	&maxbdrun, 0, "");
-#if 0
-SYSCTL_INT(_vfs, OID_AUTO, maxvmiobufspace, CTLFLAG_RW,
-	&maxvmiobufspace, 0, "");
-#endif
 SYSCTL_INT(_vfs, OID_AUTO, vmiospace, CTLFLAG_RD,
 	&vmiospace, 0, "");
 SYSCTL_INT(_vfs, OID_AUTO, maxmallocbufspace, CTLFLAG_RW,
@@ -334,25 +328,20 @@ bufinit(void)
 	}
 
 	/*
-	 * maxbufspace is currently calculated to support all filesystem 
-	 * blocks to be 8K.  If you happen to use a 16K filesystem, the size
-	 * of the buffer cache is still the same as it would be for 8K 
-	 * filesystems.  This keeps the size of the buffer cache "in check" 
-	 * for big block filesystems.
-	 *
-	 * maxbufspace is calculated as around 50% of the KVA available in
-	 * the buffer_map ( DFLTSIZE vs BKVASIZE ), I presume to reduce the 
-	 * effect of fragmentation.
+	 * maxbufspace is currently calculated to be maximally efficient
+	 * when the filesystem block size is DFLTBSIZE or DFLTBSIZE*2
+	 * (4K or 8K).  To reduce the number of stall points our calculation
+	 * is based on DFLTBSIZE which should reduce the chances of actually
+	 * running out of buffer headers.  The maxbufspace calculation is also
+	 * based on DFLTBSIZE (4K) instead of BKVASIZE (8K) in order to
+	 * reduce the chance that a KVA allocation will fail due to
+	 * fragmentation.  While this does not usually create a stall,
+	 * the KVA map allocation/free functions are O(N) rather then O(1)
+	 * so running them constantly would result in inefficient O(N*M)
+	 * buffer cache operation.
 	 */
 	maxbufspace = (nbuf + 8) * DFLTBSIZE;
-	if ((hibufspace = maxbufspace - MAXBSIZE * 5) <= MAXBSIZE)
-		hibufspace = 3 * maxbufspace / 4;
-#if 0
-/*
- * reserve 1/3 of the buffers for metadata (VDIR) which might not be VMIO'ed
- */
-	maxvmiobufspace = 2 * hibufspace / 3;
-#endif
+	hibufspace = imax(3 * maxbufspace / 4, maxbufspace - MAXBSIZE * 5);
 /*
  * Limit the amount of malloc memory since it is wired permanently into
  * the kernel space.  Even though this is accounted for in the buffer
@@ -369,6 +358,35 @@ bufinit(void)
 	lodirtybuffers = nbuf / 7 + 10;
 	hidirtybuffers = nbuf / 4 + 20;
 	numdirtybuffers = 0;
+/*
+ * To support extreme low-memory systems, make sure hidirtybuffers cannot
+ * eat up all available buffer space.  This occurs when our minimum cannot
+ * be met.  We try to size hidirtybuffers to 3/4 our buffer space assuming
+ * BKVASIZE'd (8K) buffers.  We also reduce buf_maxio in this case (used
+ * by the clustering code) in an attempt to further reduce the load on
+ * the buffer cache.
+ */
+	while (hidirtybuffers * BKVASIZE > 3 * hibufspace / 4) {
+		lodirtybuffers >>= 1;
+		hidirtybuffers >>= 1;
+		buf_maxio >>= 1;
+	}
+	if (lodirtybuffers < 2) {
+		lodirtybuffers = 2;
+		hidirtybuffers = 4;
+	}
+
+	/*
+	 * Temporary, BKVASIZE may be manipulated soon, make sure we don't
+	 * do something illegal. XXX
+	 */
+#if BKVASIZE < MAXBSIZE
+	if (buf_maxio < BKVASIZE * 2)
+		buf_maxio = BKVASIZE * 2;
+#else
+	if (buf_maxio < MAXBSIZE)
+		buf_maxio = MAXBSIZE;
+#endif
 
 /*
  * Try to keep the number of free buffers in the specified range,
@@ -641,10 +659,6 @@ bwrite(struct buf * bp)
 void
 bdwrite(struct buf * bp)
 {
-#if 0
-	struct vnode *vp;
-#endif
-
 #if !defined(MAX_PERF)
 	if (BUF_REFCNT(bp) == 0)
 		panic("bdwrite: buffer is not busy");
@@ -701,19 +715,6 @@ bdwrite(struct buf * bp)
 	 * note: we cannot initiate I/O from a bdwrite even if we wanted to,
 	 * due to the softdep code.
 	 */
-#if 0
-	/*
-	 * XXX The soft dependency code is not prepared to
-	 * have I/O done when a bdwrite is requested. For
-	 * now we just let the write be delayed if it is
-	 * requested by the soft dependency code.
-	 */
-	if ((vp = bp->b_vp) &&
-	    ((vp->v_type == VBLK && vp->v_specmountpoint &&
-		  (vp->v_specmountpoint->mnt_flag & MNT_SOFTDEP)) ||
-		 (vp->v_mount && (vp->v_mount->mnt_flag & MNT_SOFTDEP))))
-		return;
-#endif
 }
 
 /*
@@ -846,15 +847,9 @@ void
 brelse(struct buf * bp)
 {
 	int s;
+	int kvawakeup = 0;
 
 	KASSERT(!(bp->b_flags & (B_CLUSTER|B_PAGING)), ("brelse: inappropriate B_PAGING or B_CLUSTER bp %p", bp));
-
-#if 0
-	if (bp->b_flags & B_CLUSTER) {
-		relpbuf(bp, NULL);
-		return;
-	}
-#endif
 
 	s = splbio();
 
@@ -1020,21 +1015,23 @@ brelse(struct buf * bp)
 	/* buffers with no memory */
 	if (bp->b_bufsize == 0) {
 		bp->b_flags |= B_INVAL;
-		if (bp->b_kvasize)
+		if (bp->b_kvasize) {
 			bp->b_qindex = QUEUE_EMPTYKVA;
-		else
+			kvawakeup = 1;
+		} else {
 			bp->b_qindex = QUEUE_EMPTY;
+		}
 		TAILQ_INSERT_HEAD(&bufqueues[bp->b_qindex], bp, b_freelist);
 		LIST_REMOVE(bp, b_hash);
 		LIST_INSERT_HEAD(&invalhash, bp, b_hash);
 		bp->b_dev = NODEV;
 		kvafreespace += bp->b_kvasize;
-		if (bp->b_kvasize)
-			kvaspacewakeup();
 	/* buffers with junk contents */
 	} else if (bp->b_flags & (B_ERROR | B_INVAL | B_NOCACHE | B_RELBUF)) {
 		bp->b_flags |= B_INVAL;
 		bp->b_qindex = QUEUE_CLEAN;
+		if (bp->b_kvasize)
+			kvawakeup = 1;
 		TAILQ_INSERT_HEAD(&bufqueues[QUEUE_CLEAN], bp, b_freelist);
 		LIST_REMOVE(bp, b_hash);
 		LIST_INSERT_HEAD(&invalhash, bp, b_hash);
@@ -1059,10 +1056,14 @@ brelse(struct buf * bp)
 		case B_AGE:
 		    bp->b_qindex = QUEUE_CLEAN;
 		    TAILQ_INSERT_HEAD(&bufqueues[QUEUE_CLEAN], bp, b_freelist);
+		    if (bp->b_kvasize)
+			    kvawakeup = 1;
 		    break;
 		default:
 		    bp->b_qindex = QUEUE_CLEAN;
 		    TAILQ_INSERT_TAIL(&bufqueues[QUEUE_CLEAN], bp, b_freelist);
+		    if (bp->b_kvasize)
+			    kvawakeup = 1;
 		    break;
 		}
 	}
@@ -1095,6 +1096,8 @@ brelse(struct buf * bp)
 
 	if (bp->b_bufsize)
 		bufspacewakeup();
+	if (kvawakeup)
+		kvaspacewakeup();
 
 	/* unlock */
 	BUF_UNLOCK(bp);
@@ -1581,7 +1584,6 @@ restart:
 		int flags;
 		char *waitmsg;
 
-dosleep:
 		if (defrag > 0) {
 			flags = VFS_BIO_NEED_KVASPACE;
 			waitmsg = "nbufkv";
@@ -1629,8 +1631,7 @@ dosleep:
 				/*
 				 * Uh oh.  We couldn't seem to defragment
 				 */
-				bp = NULL;
-				goto dosleep;
+				panic("getnewbuf: unreachable code reached");
 			}
 		}
 		if (addr) {
@@ -2637,7 +2638,7 @@ biodone(register struct buf * bp)
 		 * occured.  B_CACHE is set for writes in the b*write()
 		 * routines.
 		 */
-		iosize = bp->b_bcount;
+		iosize = bp->b_bcount - bp->b_resid;
 		if ((bp->b_flags & (B_READ|B_FREEBUF|B_INVAL|B_NOCACHE|B_ERROR)) == B_READ) {
 			bp->b_flags |= B_CACHE;
 		}
