@@ -29,25 +29,32 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.Dd OCTOBER 16, 2002
+.\"
+.Dd October 16, 2002
 .Os
 .Dt MAC_BSDEXTENDED 4
 .Sh NAME
 .Nm mac_bsdextended
-.Nd file system firewall policy
+.Nd "file system firewall policy"
 .Sh SYNOPSIS
 To compile the file system firewall policy into your kernel,
 place the following lines in your kernel configuration file:
+.Bd -ragged -offset indent
 .Cd "options MAC"
 .Cd "options MAC_BSDEXTENDED"
+.Ed
 .Pp
 Alternately, to load the file system firewall policy module at boot time,
 place the following line in your kernel configuration file:
+.Bd -ragged -offset indent
 .Cd "options MAC"
+.Ed
 .Pp
 and in
 .Xr loader.conf 5 :
-.Cd mac_bsdextended_load= Ns \&"YES"
+.Bd -literal -offset indent
+mac_bsdextended_load="YES"
+.Ed
 .Sh DESCRIPTION
 The
 .Nm
@@ -91,10 +98,13 @@ The
 .Nm
 policy module first appeared in
 .Fx 5.0
-and was developed by the TrustedBSD Project.
+and was developed by the
+.Tn TrustedBSD
+Project.
 .Sh AUTHORS
 This software was contributed to the
 .Fx
 Project by NAI Labs, the Security Research Division of Network Associates
-Inc. under DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"),
+Inc. under DARPA/SPAWAR contract N66001-01-C-8035
+.Pq Dq CBOSS ,
 as part of the DARPA CHATS research program.

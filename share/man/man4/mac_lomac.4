@@ -29,25 +29,32 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
+.\"
 .Dd December 11, 2002
 .Os
 .Dt MAC_LOMAC 4
 .Sh NAME
 .Nm mac_lomac
-.Nd Low-watermark Mandatory Access Control data integrity policy
+.Nd "Low-watermark Mandatory Access Control data integrity policy"
 .Sh SYNOPSIS
 To compile LOMAC into your kernel, place the following lines in your kernel
 configuration file:
+.Bd -ragged -offset indent
 .Cd "options MAC"
 .Cd "options MAC_LOMAC"
+.Ed
 .Pp
 Alternately, to load the LOMAC module at boot time, place the following line
 in your kernel configuration file:
+.Bd -ragged -offset indent
 .Cd "options MAC"
+.Ed
 .Pp
 and in
 .Xr loader.conf 5 :
-.Cd mac_lomac_load= Ns \&"YES"
+.Bd -literal -offset indent
+mac_lomac_load="YES"
+.Ed
 .Sh DESCRIPTION
 The
 .Nm
@@ -68,33 +75,37 @@ with higher values reflecting higher integrity.
 Three special label component values exist:
 .Bl -column -offset indent ".Sy Label" "dominated by all other labels"
 .It Sy Label Ta Sy Comparison
-.It Li low Ta dominated by all other labels
-.It Li equal Ta equal to all other labels
-.It Li high Ta dominates all other labels
+.It Li low Ta "dominated by all other labels"
+.It Li equal Ta "equal to all other labels"
+.It Li high Ta "dominates all other labels"
 .El
 .Pp
 The
-.Dq high
+.Dq Li high
 label is assigned to system objects which affect the integrity of the system
 as a whole.
-.Dq equal
+The
+.Dq Li equal
+label
 may be used to indicate that a particular subject or object is exempt from
 the LOMAC protections.
 For example, a label of
-.Dq lomac/equal(equal-equal)
+.Dq Li lomac/equal(equal-equal)
 might be used on a subject which is to be used to administratively relabel
 anything on the system.
 .Pp
 Almost all system objects are tagged with a single, active label element,
 reflecting the integrity of the object, or integrity of the data contained
 in the object.
-Filesystem objects may contain an additional auxiliary label which
+File system objects may contain an additional auxiliary label which
 determines the inherited integrity level for new files created in a
 directory or the alternate label assumed by the subject upon execution of
 an executable.
 In general, objects labels are represented in the following form:
 .Pp
-.Dl lomac/ Ns Sy grade Ns [ Sy auxgrade ]
+.Sm off
+.D1 Li lomac / Ar grade Bq Ar auxgrade
+.Sm on
 .Pp
 For example:
 .Pp
@@ -111,21 +122,29 @@ greater or equal integrity to the low end of the range, and lesser or equal
 integrity to the high end of the range.
 In general, subject labels are represented in the following form:
 .Pp
-.Dl lomac/ Ns Sy singlegrade Ns ( Sy lograde Ns - Ns Sy higrade )
+.Sm off
+.D1 Li lomac / Ar singlegrade ( lograde No - Ar higrade )
+.Sm on
 .Pp
 Modification of objects is restricted to access via the following comparison:
 .Pp
-.Dl subject::higrade >= target-object::grade
+.D1 Ar subject Ns :: Ns Ar higrade No \[>=] Ar target-object Ns :: Ns Ar grade
 .Pp
 Modification of subjects is the same, as the target subject's single grade
 is the only element taken into comparison.
 .Pp
 Demotion of a subject occurs when the following comparison is true:
 .Pp
-.Dl subject::singlegrade > object::grade
+.D1 Ar subject Ns :: Ns Ar singlegrade No > Ar object Ns :: Ns Ar grade
 .Pp
-When demotion occurs, the subject's singlegrade and higrade are reduced to the
-object's grade, as well as the lograde if necessary.
+When demotion occurs, the subject's
+.Ar singlegrade
+and
+.Ar higrade
+are reduced to the
+object's grade, as well as the
+.Ar lograde
+if necessary.
 When the demotion occurs, in addition to the permission of the subject being
 reduced, shared
 .Xr mmap 2
@@ -133,7 +152,8 @@ objects which it has opened in its memory space may be revoked according to
 the following
 .Xr sysctl 2
 variables:
-.Bl -bullet
+.Pp
+.Bl -bullet -compact
 .It
 .Va security.mac.lomac.revocation_enabled
 .It
@@ -146,7 +166,7 @@ variables:
 .Pp
 Upon execution of a file, if the executable has an auxiliary label, and that
 label is within the current range of
-.Sy lograde-higrade ,
+.Ar lograde Ns - Ns Ar higrade ,
 it will be assumed by the subject immediately.
 After this, demotion is performed just as with any other read operation, with
 the executable as the target.
@@ -188,11 +208,14 @@ The
 .Nm
 policy module first appeared in
 .Fx 5.0
-and was developed by the TrustedBSD Project.
+and was developed by the
+.Tn TrustedBSD
+Project.
 .Sh AUTHORS
 This software was contributed to the
 .Fx
 Project by Network Associates Labs,
 the Security Research Division of Network Associates
-Inc. under DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"),
+Inc. under DARPA/SPAWAR contract N66001-01-C-8035
+.Pq Dq CBOSS ,
 as part of the DARPA CHATS research program.

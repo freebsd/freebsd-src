@@ -29,32 +29,39 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.Dd DECEMBER 9, 2002
+.\"
+.Dd December 9, 2002
 .Os
 .Dt MAC_PARTITION 4
 .Sh NAME
 .Nm mac_partition
-.Nd process partition policy
+.Nd "process partition policy"
 .Sh SYNOPSIS
 To compile the process partition policy into your kernel,
 place the following lines in your kernel
 configuration file:
+.Bd -ragged -offset indent
 .Cd "options MAC"
 .Cd "options MAC_PARTITION"
+.Ed
 .Pp
 Alternately, to load the process partition module at boot time,
 place the following line in your kernel configuration file:
+.Bd -ragged -offset indent
 .Cd "options MAC"
+.Ed
 .Pp
 and in
 .Xr loader.conf 5 :
-.Cd mac_partition_load= Ns \&"YES"
+.Bd -literal -offset indent
+mac_partition_load="YES"
+.Ed
 .Sh DESCRIPTION
 The
 .Nm
 policy module implements a process partition policy,
 which allows administrators to place running processes into
-.Dq partitions,
+.Dq partitions ,
 based on their numeric process partition
 (specified in the process's MAC label).
 Processes with a specified partition can only see processes that are in the
@@ -62,18 +69,19 @@ same partition.
 If no partition is specified for a process, it can see all other processes
 in the system
 (subject to other MAC policy restrictions not defined in this man page).
-No provisions for placing processes into multiple partitions is available.
+No provisions for placing processes into multiple partitions are available.
 .Ss Label Format
 Partition labels take on the following format:
 .Pp
-.Dl partition/ Ns Sy value
+.Sm off
+.Dl Li partition / Ar value
+.Sm on
 .Pp
 Where
-.Sy value
+.Ar value
 can be any integer value or
-.Dq none .
+.Dq Li none .
 For example:
-.Pp
 .Bd -literal -offset indent
 partition/1
 partition/20
@@ -98,19 +106,24 @@ The
 .Nm
 policy module first appeared in
 .Fx 5.0
-and was developed by the TrustedBSD Project.
+and was developed by the
+.Tn TrustedBSD
+Project.
 .Sh AUTHORS
 This software was contributed to the
 .Fx
 Project by Network Associates Labs,
 the Security Research Division of Network Associates
-Inc. under DARPA/SPAWAR contract N66001-01-C-8035 ("CBOSS"),
+Inc. under DARPA/SPAWAR contract N66001-01-C-8035
+.Pq Dq CBOSS ,
 as part of the DARPA CHATS research program.
 .Sh BUGS
 See
 .Xr mac 9
 concerning appropriateness for production use.
-The TrustedBSD MAC Framework is considered experimental in
+The
+.Tn TrustedBSD
+MAC Framework is considered experimental in
 .Fx .
 .Pp
 While the MAC Framework design is intended to support the containment of
