@@ -112,7 +112,7 @@ static void
 do_cpuid(u_int ax, u_int *p)
 {
 	__asm __volatile(
-	".byte	0x0f, 0xa2;"
+	"cpuid;"
 	"movl	%%eax, (%2);"
 	"movl	%%ebx, 4(%2);"
 	"movl	%%ecx, 8(%2);"
