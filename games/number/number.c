@@ -293,6 +293,6 @@ pfract(len)
 void
 usage()
 {
-	(void)fprintf(stderr, "usage: number [# ...]\n");
+	(void)fprintf(stderr, "usage: number [-l] [# ...]\n");
 	exit(1);
 }
