@@ -1321,10 +1321,11 @@ void
 fdfree(td)
 	struct thread *td;
 {
-	register struct filedesc *fdp = td->td_proc->p_fd;
+	register struct filedesc *fdp;
 	struct file **fpp;
 	register int i;
 
+	fdp = td->td_proc->p_fd;
 	/* Certain daemons might not have file descriptors. */
 	if (fdp == NULL)
 		return;
@@ -1344,6 +1345,11 @@ fdfree(td)
 		if (*fpp)
 			(void) closef(*fpp, td);
 	}
+
+	PROC_LOCK(td->td_proc);
+	td->td_proc->p_fd = NULL;
+	PROC_UNLOCK(td->td_proc);
+
 	if (fdp->fd_nfiles > NDFILE)
 		FREE(fdp->fd_ofiles, M_FILEDESC);
 	if (fdp->fd_cdir)
