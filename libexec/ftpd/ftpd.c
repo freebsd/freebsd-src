@@ -1593,7 +1593,7 @@ skip:
 			syslog(LOG_INFO, "FTP LOGIN FROM %s as %s",
 			    remotehost, pw->pw_name);
 	}
-	if (guest || dochroot)
+	if (logging && (guest || dochroot))
 		syslog(LOG_INFO, "session root changed to %s", chrootdir);
 #ifdef	LOGIN_CAP
 	login_close(lc);
