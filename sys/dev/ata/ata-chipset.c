@@ -996,6 +996,7 @@ ata_nvidia_ident(device_t dev)
     static struct ata_chip_id ids[] =
     {{ ATA_NFORCE1, 0, AMDNVIDIA, NVIDIA|AMDBUG, ATA_UDMA5, "nVidia nForce" },
      { ATA_NFORCE2, 0, AMDNVIDIA, NVIDIA|AMDBUG, ATA_UDMA6, "nVidia nForce2" },
+     { ATA_NFORCE3, 0, AMDNVIDIA, NVIDIA|AMDBUG, ATA_UDMA6, "nVidia nForce3" },
      { 0, 0, 0, 0, 0, 0}};
     char buffer[64];
 
