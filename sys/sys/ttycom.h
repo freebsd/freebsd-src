@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ttycom.h	8.1 (Berkeley) 3/28/94
- * $Id$
+ * $Id: ttycom.h,v 1.12 1997/02/22 09:46:14 peter Exp $
  */
 
 #ifndef	_SYS_TTYCOM_H_
@@ -130,8 +130,6 @@ struct winsize {
 						 * of last DCd rise */
 #define	TIOCSDRAINWAIT	_IOW('t', 87, int)	/* set ttywait timeout */
 #define	TIOCGDRAINWAIT	_IOR('t', 86, int)	/* get ttywait timeout */
-#define	TIOCDSIMICROCODE _IO('t', 85)		/* download microcode to
-						 * DSI Softmodem */
 
 #define	TTYDISC		0		/* termios tty line discipline */
 #define	TABLDISC	3		/* tablet discipline */
