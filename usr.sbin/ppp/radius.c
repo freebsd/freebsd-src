@@ -700,7 +700,7 @@ radius_put_physical_details(struct rad_handle *rad, struct physical *p)
 int
 radius_Authenticate(struct radius *r, struct authinfo *authp, const char *name,
                     const char *key, int klen, const char *nchallenge,
-                    int nclen, const char *pchallenge, int pclen)
+                    int nclen)
 {
   struct timeval tv;
   int got;
@@ -712,6 +712,7 @@ radius_Authenticate(struct radius *r, struct authinfo *authp, const char *name,
 #ifndef NODES
   struct mschap_response msresp;
   struct mschap2_response msresp2;
+  const struct MSCHAPv2_resp *keyv2;
 #endif
 
   if (!*r->cfg.file)
@@ -794,26 +795,21 @@ radius_Authenticate(struct radius *r, struct authinfo *authp, const char *name,
       break;
 
     case 0x81:
-      if (klen != 50) {
+      if (klen != sizeof(*keyv2) + 1) {
         log_Printf(LogERROR, "CHAP81: Unrecognised key length %d\n", klen);
         rad_close(r->cx.rad);
         return 0;
       }
 
-      if (pclen != sizeof msresp2.pchallenge) {
-        log_Printf(LogERROR, "CHAP81: Unrecognised peer challenge length %d\n",
-                   pclen);
-        rad_close(r->cx.rad);
-        return 0;
-      }
-
+      keyv2 = (const struct MSCHAPv2_resp *)(key + 1);
       rad_put_vendor_attr(r->cx.rad, RAD_VENDOR_MICROSOFT,
                           RAD_MICROSOFT_MS_CHAP_CHALLENGE, nchallenge, nclen);
       msresp2.ident = *key;
-      msresp2.flags = 0x00;
-      memcpy(msresp2.response, key + 25, 24);
+      msresp2.flags = keyv2->Flags;
+      memcpy(msresp2.response, keyv2->NTResponse, sizeof msresp2.response);
       memset(msresp2.reserved, '\0', sizeof msresp2.reserved);
-      memcpy(msresp2.pchallenge, pchallenge, pclen);
+      memcpy(msresp2.pchallenge, keyv2->PeerChallenge,
+             sizeof msresp2.pchallenge);
       rad_put_vendor_attr(r->cx.rad, RAD_VENDOR_MICROSOFT,
                           RAD_MICROSOFT_MS_CHAP2_RESPONSE, &msresp2,
                           sizeof msresp2);
