@@ -120,6 +120,9 @@ struct da_quirk_entry {
 	da_quirks quirks;
 };
 
+static const char quantum[] = "QUANTUM";
+static const char microp[] = "MICROP";
+
 static struct da_quirk_entry da_quirk_table[] =
 {
 	{
@@ -138,7 +141,7 @@ static struct da_quirk_entry da_quirk_table[] =
 		 * either.  Reported by: Matthew Jacob <mjacob@feral.com>
 		 * in NetBSD PR kern/6027, August 24, 1998.
 		 */
-		{T_DIRECT, SIP_MEDIA_FIXED, "MICROP", "2217*", "*"},
+		{T_DIRECT, SIP_MEDIA_FIXED, microp, "2217*", "*"},
 		/*quirks*/ DA_Q_NO_SYNC_CACHE
 	},
 	{
@@ -147,7 +150,7 @@ static struct da_quirk_entry da_quirk_table[] =
 		 * either.  Reported by: Hellmuth Michaelis (hm@kts.org)
 		 * (PR 8882).
 		 */
-		{T_DIRECT, SIP_MEDIA_FIXED, "MICROP", "2112*", "*"},
+		{T_DIRECT, SIP_MEDIA_FIXED, microp, "2112*", "*"},
 		/*quirks*/ DA_Q_NO_SYNC_CACHE
 	},
 	{
@@ -160,19 +163,33 @@ static struct da_quirk_entry da_quirk_table[] =
 	},
 	{
 		/*
+		 * Doesn't like the synchronize cache command.
+		 */
+		{T_DIRECT, SIP_MEDIA_FIXED, quantum, "MAVERICK 540S", "*"},
+		/*quirks*/ DA_Q_NO_SYNC_CACHE
+	},
+	{
+		/*
+		 * Doesn't like the synchronize cache command.
+		 */
+		{T_DIRECT, SIP_MEDIA_FIXED, quantum, "LPS525S", "*"},
+		/*quirks*/ DA_Q_NO_SYNC_CACHE
+	},
+	{
+		/*
 		 * Doesn't work correctly with 6 byte reads/writes.
 		 * Returns illegal request, and points to byte 9 of the
 		 * 6-byte CDB.
 		 * Reported by:  Adam McDougall <bsdx@spawnet.com>
 		 */
-		{T_DIRECT, SIP_MEDIA_FIXED, "QUANTUM", "VIKING 4*", "*"},
+		{T_DIRECT, SIP_MEDIA_FIXED, quantum, "VIKING 4*", "*"},
 		/*quirks*/ DA_Q_NO_6_BYTE
 	},
 	{
 		/*
 		 * See above.
 		 */
-		{T_DIRECT, SIP_MEDIA_FIXED, "QUANTUM", "VIKING 2*", "*"},
+		{T_DIRECT, SIP_MEDIA_FIXED, quantum, "VIKING 2*", "*"},
 		/*quirks*/ DA_Q_NO_6_BYTE
 	}
 };

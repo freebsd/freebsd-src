@@ -711,15 +711,7 @@ scsi_op_desc(u_int16_t opcode, struct scsi_inquiry_data *inq_data)
 	asc, asc, action
 #endif 
 
-/*
- * If we're in the kernel, 'quantum' is already defined in cam_xpt.c.
- * Otherwise, we need to define it.
- */
-#ifdef KERNEL
-extern const char quantum[];
-#else
 static const char quantum[] = "QUANTUM";
-#endif
 
 /*
  * WARNING:  You must update the num_ascs field below for this quirk table 
