@@ -2,9 +2,9 @@
      The FreeBSD Russian Documentation Project
 
      $FreeBSD$
-     $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/hardware/sparc64/proc-sparc64.sgml,v 1.1 2004/05/27 06:09:43 den Exp $
+     $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/hardware/sparc64/proc-sparc64.sgml,v 1.2 2004/09/01 12:23:40 den Exp $
 
-     Original revision: 1.11
+     Original revision: 1.12
 -->
 
 <sect1 id="support-sys">
@@ -84,6 +84,12 @@
           <para>SPARCEngine Ultra AXmp</para>
         </listitem>
         <listitem>
+          <para>Ultra 1E</para>
+        </listitem>
+        <listitem>
+          <para>Ultra 2</para>
+        </listitem>
+        <listitem>
           <para>Ultra 5</para>
         </listitem>
         <listitem>
@@ -113,12 +119,6 @@
         </listitem>
         <listitem>
           <para>Enterprise 4500</para>
-        </listitem>
-        <listitem>
-          <para>Ultra 1 Enterprise (1E для краткости)</para>
-        </listitem>
-        <listitem>
-          <para>Ultra 2</para>
         </listitem>
       </itemizedlist>
   </sect2>
