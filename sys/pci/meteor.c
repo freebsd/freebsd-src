@@ -1392,6 +1392,8 @@ meteor_ioctl(dev_t dev, u_long cmd, caddr_t arg, int flag, struct thread *td)
 		*(u_short *)arg = mtr->fps;
 		break;
 	case METEORSSIGNAL:
+		if (*(int *)arg < 0 || *(int *)arg > _SIG_MAXSIG)
+			return EINVAL;
 		mtr->signal = *(int *) arg;
 		if (mtr->signal) {
 		  mtr->proc = td->td_proc;
