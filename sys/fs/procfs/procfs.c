@@ -153,6 +153,7 @@ procfs_init(PFS_INIT_ARGS)
 	
 	dir = pfs_create_dir(root, "pid",
 	    &procfs_attr, NULL, PFS_PROCDEP);
+	dir->pn_refreshlabel = &procfs_piddir_refreshlabel;
 	pfs_create_file(dir, "cmdline", &procfs_doproccmdline,
 	    NULL, NULL, PFS_RD);
 	pfs_create_file(dir, "ctl", &procfs_doprocctl,
