@@ -34,7 +34,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: util.c,v 1.1 1996/08/31 23:14:54 wosch Exp $
+ * $Id: util.c,v 1.2 1996/10/09 00:33:34 wosch Exp $
  */
 
 
@@ -67,9 +67,9 @@ check_bigram_char(ch)
 	    (ch >= ASCII_MIN && ch <= ASCII_MAX))
 		return(ch);
 
-	(void)fprintf(stderr, "locate database header corrupt, bigram ");
-	(void)fprintf(stderr, "char outside 0, %d-%d: %d\n",  
-                      ASCII_MIN, ASCII_MAX, ch);
+	errx(1,
+		"locate database header corrupt, bigram char outside 0, %d-%d: %d",  
+		ASCII_MIN, ASCII_MAX, ch);
 	exit(1);
 }
 
@@ -99,7 +99,7 @@ colon(dbv, path, dot)
 
 	/* empty string */
 	if (*path == '\0') {
-		(void)fprintf(stderr, "empty database name, ignored\n");
+		warnx("empty database name, ignored");
 		return(dbv);
 	}
 
@@ -240,12 +240,8 @@ getwm(p)
 
 	if (i > MAXPATHLEN || i < -(MAXPATHLEN)) {
 		i = ntohl(i);
-		if (i > MAXPATHLEN || i < -(MAXPATHLEN)) {
-			(void)fprintf(stderr, 
-				"integer out of +-MAXPATHLEN (%d): %d\n", 
-			    	MAXPATHLEN, i);
-			exit(1);
-		}
+		if (i > MAXPATHLEN || i < -(MAXPATHLEN))
+			errx(1, "integer out of +-MAXPATHLEN (%d): %d", MAXPATHLEN, i);
 	}
 	return(i);
 }
@@ -268,12 +264,8 @@ getwf(fp)
 
 	if (word > MAXPATHLEN || word < -(MAXPATHLEN)) {
 		word = ntohl(word);
-		if (word > MAXPATHLEN || word < -(MAXPATHLEN)) {
-			(void)fprintf(stderr, 
-				"integer out of +-MAXPATHLEN (%d): %d\n", 
-				MAXPATHLEN, word);
-			exit(1);
-		}
+		if (word > MAXPATHLEN || word < -(MAXPATHLEN))
+			errx(1, "integer out of +-MAXPATHLEN (%d): %d", MAXPATHLEN, word);
 	}
 	return(word);
 }

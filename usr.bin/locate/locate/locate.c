@@ -34,18 +34,22 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: locate.c,v 1.5 1996/09/16 01:17:25 wosch Exp $
+ *      $Id: locate.c,v 1.6 1996/10/13 01:44:41 wosch Exp $
  */
 
 #ifndef lint
-static char copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1995-1996 Wolfram Schneider, Berlin.\n\
 @(#) Copyright (c) 1989, 1993\n\
         The Regents of the University of California.  All rights reserved.\n";
 #endif /* not lint */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)locate.c    8.1 (Berkeley) 6/6/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 /*
@@ -172,7 +176,7 @@ main(argc, argv)
 #ifdef MMAP
                         f_mmap = 1;
 #else
-			(void)fprintf(stderr, "mmap(2) not implemented\n");
+						warnx("mmap(2) not implemented");
 #endif
                         break;
                 case 's':	/* stdio lib */
@@ -244,9 +248,7 @@ search_fopen(db, s)
 	if (f_stdin) { 
 		fp = stdin;
 		if (*(s+1) != NULL) {
-			(void)fprintf(stderr, 
-				      "read database from stdin, use only");
-			(void)fprintf(stderr, " `%s' as pattern\n", *s);
+			warnx("read database from stdin, use only `%s' as pattern", *s);
 			*(s+1) = NULL;
 		}
 	} 
@@ -274,7 +276,7 @@ search_fopen(db, s)
 		else
 			fastfind(fp, *s, path_fcodes);
 #ifdef DEBUG
-		(void)fprintf(stderr, "fastfind %ld ms\n", cputime () - t0);
+		warnx("fastfind %ld ms", cputime () - t0);
 #endif
 		s++;
 	} 
@@ -314,7 +316,7 @@ search_mmap(db, s)
 		else
 			fastfind_mmap(*s, p, (int)len, path_fcodes);
 #ifdef DEBUG
-		(void)fprintf(stderr, "fastfind %ld ms\n", cputime () - t0);
+		warnx("fastfind %ld ms", cputime () - t0);
 #endif
 		s++;
 	}
@@ -340,10 +342,10 @@ cputime ()
 void
 usage ()
 {
-        (void)fprintf(stderr, "usage: locate [-Scims] [-l limit] ");
-	(void)fprintf(stderr, "[-d database] pattern ...\n\n");
-        (void)fprintf(stderr, "default database: `%s' or $LOCATE_PATH\n", 
-		      _PATH_FCODES);
+        (void)fprintf(stderr,
+	"usage: locate [-Scims] [-l limit] [-d database] pattern ...\n\n");
+        (void)fprintf(stderr,
+	"default database: `%s' or $LOCATE_PATH\n", _PATH_FCODES);
         exit(1);
 }
 
