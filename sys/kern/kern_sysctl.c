@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sysctl.c	8.4 (Berkeley) 4/14/94
- * $Id: kern_sysctl.c,v 1.37 1995/11/12 06:43:01 bde Exp $
+ * $Id: kern_sysctl.c,v 1.38 1995/11/12 19:51:51 phk Exp $
  */
 
 /*
@@ -332,7 +332,7 @@ sysctl_handle_string SYSCTL_HANDLER_ARGS
 	else
 		error = SYSCTL_OUT(req, arg1, strlen((char *)arg1)+1);
 
-	if (error || !req->newptr)
+	if (error || !req->newptr || !arg2)
 		return (error);
 
 	if ((req->newlen - req->newidx) > arg2) {
@@ -366,51 +366,69 @@ sysctl_handle_opaque SYSCTL_HANDLER_ARGS
 	return (error);
 }
 
-int
+/*
+ * Transfer functions to/from kernel space.
+ * XXX: rather untested at this point
+ */
+static int
 sysctl_old_kernel(struct sysctl_req *req, void *p, int l)
 {
-	int i = min(req->oldlen - req->oldidx, l);
-	if (i) {
-		bcopy(p, req->oldptr + req->oldidx, i);
-		req->oldidx += i;
+	int i = 0;
+
+	if (req->oldptr) {
+		i = min(req->oldlen - req->oldidx, l);
+		if (i > 0)
+			bcopy(p, req->oldptr + req->oldidx, i);
 	}
+	req->oldidx += l;
 	if (i != l)
 		return (ENOMEM);
-	else
-		return (0);
+	return (0);
 
 }
 
-int
+static int
 sysctl_new_kernel(struct sysctl_req *req, void *p, int l)
 {
-	int i = req->newlen - req->newidx;
-	if (i < l)
+	int i;
+	if (!req->newptr)
+		return 0;
+	if (req->newlen - req->newidx < l)
 		return (EINVAL);
 	bcopy(req->newptr + req->newidx, p, l);
 	req->newidx += l;
 	return (0);
 }
 
-int
+/*
+ * Transfer function to/from user space.
+ */
+static int
 sysctl_old_user(struct sysctl_req *req, void *p, int l)
 {
-	int error , i = min(req->oldlen - req->oldidx, l);
+	int error = 0, i = 0;
 
-	error  = copyout(p, req->oldptr + req->oldidx, i);
-	req->oldidx += i;
+	if (req->oldptr) {
+		i = min(req->oldlen - req->oldidx, l);
+		if (i > 0)
+			error  = copyout(p, req->oldptr + req->oldidx, i);
+	}
+	req->oldidx += l;
 	if (error)
 		return (error);
-	if (i < l)
+	if (req->oldptr && i < l)
 		return (ENOMEM);
-	return (error);
+	return (0);
 }
 
-int
+static int
 sysctl_new_user(struct sysctl_req *req, void *p, int l)
 {
-	int error, i = req->newlen - req->newidx;
-	if (i < l)
+	int error, i;
+
+	if (!req->newptr)
+		return 0;
+	if (req->newlen - req->newidx < l)
 		return (EINVAL);
 	error = copyin(req->newptr + req->newidx, p, l);
 	req->newidx += l;
@@ -472,7 +490,7 @@ sysctl_root SYSCTL_HANDLER_ARGS
 			oidpp++;
 		}
 	}
-	return EJUSTRETURN;
+	return ENOENT;
 found:
 
 	/* If writing isn't allowed */
@@ -511,7 +529,7 @@ __sysctl(p, uap, retval)
 	register struct sysctl_args *uap;
 	int *retval;
 {
-	int error, name[CTL_MAXNAME];
+	int error, i, j, name[CTL_MAXNAME];
 
 	if (uap->namelen > CTL_MAXNAME || uap->namelen < 2)
 		return (EINVAL);
@@ -520,9 +538,17 @@ __sysctl(p, uap, retval)
  	if (error)
 		return (error);
 
-	return (userland_sysctl(p, name, uap->namelen,
+	error = userland_sysctl(p, name, uap->namelen,
 		uap->old, uap->oldlenp, 0,
-		uap->new, uap->newlen, retval));
+		uap->new, uap->newlen, &j);
+	if (error && error != ENOMEM)
+		return (error);
+	if (uap->oldlenp) {
+		i = copyout(&j, uap->oldlenp, sizeof(j));
+		if (i)
+			return (i);
+	}
+	return (error);
 }
 
 static sysctlfn kern_sysctl;
@@ -548,12 +574,10 @@ userland_sysctl(struct proc *p, int *name, u_int namelen, void *old, size_t *old
 		if (inkernel) {
 			req.oldlen = *oldlenp;
 		} else {
-			error = copyin(oldlenp, &req.oldlen,
-				sizeof(req.oldlen));
+			error = copyin(oldlenp, &req.oldlen, sizeof(*oldlenp));
 			if (error)
 				return (error);
 		}
-		oldlen = req.oldlen;
 	}
 
 	if (old) {
@@ -574,21 +598,23 @@ userland_sysctl(struct proc *p, int *name, u_int namelen, void *old, size_t *old
 
 	error = sysctl_root(0, name, namelen, &req);
 
-        if (!error || error == ENOMEM) {
-		if (retval)
-			*retval = req.oldlen;
-		if (oldlenp) {
-			if (inkernel) {
-				*oldlenp = req.oldlen;
-			} else {
-				i = copyout(&req.oldlen, oldlenp,
-					sizeof(req.oldlen));
-				if (i)
-					error = i;
-			}
-		}
+/*
+	if (error && error != ENOMEM)
 		return (error);
+*/
+	if (error == ENOENT)
+		goto oldstuff;
+
+	if (retval) {
+		if (req.oldptr && req.oldidx > req.oldlen)
+			*retval = req.oldlen;
+		else
+			*retval = req.oldidx;
 	}
+	return (error);
+
+oldstuff:
+	oldlen = req.oldlen;
 
 	switch (name[0]) {
 	case CTL_KERN:
@@ -656,13 +682,6 @@ userland_sysctl(struct proc *p, int *name, u_int namelen, void *old, size_t *old
 		return (error);
 	if (retval)
 		*retval = oldlen;
-	if (oldlenp) {
-		if (inkernel) {
-			*oldlenp = oldlen;
-		} else {
-			error = copyout(&oldlen, oldlenp, sizeof(oldlen));
-		}
-	}
 	return (error);
 }
 
