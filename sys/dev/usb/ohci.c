@@ -1836,7 +1836,7 @@ ohci_dump_ed(ohci_soft_ed_t *sed)
 	bitmask_snprintf((int)le32toh(sed->ed.ed_flags),
 			 "\20\14OUT\15IN\16LOWSPEED\17SKIP\20ISO",
 			 sbuf, sizeof(sbuf));
-	bitmask_snprintf((u_long)le32toh(sed->ed.ed_headp),
+	bitmask_snprintf((int)le32toh(sed->ed.ed_headp),
 			 "\20\1HALT\2CARRY", sbuf2, sizeof(sbuf2));
 
 	DPRINTF(("ED(%p) at 0x%08lx: addr=%d endpt=%d maxp=%d %s\ntailp=0x%08lx "
