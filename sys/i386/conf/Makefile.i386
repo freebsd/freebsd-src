@@ -1,7 +1,7 @@
 # Makefile.i386 -- with config changes.
 # Copyright 1990 W. Jolitz
 #	from: @(#)Makefile.i386	7.1 5/10/91
-#	$Id: Makefile.i386,v 1.134 1999/01/09 21:51:00 jdp Exp $
+#	$Id: Makefile.i386,v 1.135 1999/01/17 21:17:27 peter Exp $
 #
 # Makefile for FreeBSD
 #
@@ -161,7 +161,8 @@ setdef1.o: setdef1.c setdefs.h
 	${NORMAL_C}
 
 setdef0.c setdef1.c setdefs.h: ${OBJS}
-	gensetdefs ${OBJS}
+	@echo generating linker set emulation glue for ELF
+	@gensetdefs ${OBJS}
 
 # this rule stops ./assym.s in .depend from causing problems
 ./assym.s: assym.s
