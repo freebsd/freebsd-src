@@ -1027,7 +1027,7 @@ sparc64_dmamap_load_mbuf(bus_dma_tag_t pt, bus_dma_tag_t dt, bus_dmamap_t m,
 {
 	bus_dma_tag_t lt;
 
-	for (lt = pt; lt->dmamap_load == NULL; lt = lt->parent)
+	for (lt = pt; lt->dmamap_load_mbuf == NULL; lt = lt->parent)
 		;
 	return ((*lt->dmamap_load_mbuf)(lt, dt, m, mb, cb, cba, f));
 }
@@ -1040,7 +1040,7 @@ sparc64_dmamap_load_uio(bus_dma_tag_t pt, bus_dma_tag_t dt, bus_dmamap_t m,
 {
 	bus_dma_tag_t lt;
 
-	for (lt = pt; lt->dmamap_load == NULL; lt = lt->parent)
+	for (lt = pt; lt->dmamap_load_uio == NULL; lt = lt->parent)
 		;
 	return ((*lt->dmamap_load_uio)(lt, dt, m, ui, cb, cba, f));
 }
