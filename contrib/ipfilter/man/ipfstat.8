@@ -1,10 +1,11 @@
+.\" $FreeBSD$
 .TH ipfstat 8
 .SH NAME
 ipfstat \- reports on packet filter statistics and filter list
 .SH SYNOPSIS
 .B ipfstat
 [
-.B \-aAfhIinosv
+.B \-aAfghIinosv
 ] [
 .B \-d
 <device>
@@ -33,6 +34,9 @@ Use a device other than \fB/dev/ipl\fP for interfacing with the kernel.
 .B \-f
 Show fragment state information (statistics) and held state information (in
 the kernel) if any is present.
+.TP
+.B \-g
+Show groups currently configured (both active and inactive).
 .TP
 .B \-h
 Show per-rule the number of times each one scores a "hit".  For use in

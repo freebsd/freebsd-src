@@ -1,10 +1,11 @@
+.\" $FreeBSD$
 .TH IPF 8
 .SH NAME
 ipf \- alters packet filtering lists for IP packet input and output
 .SH SYNOPSIS
 .B ipf
 [
-.B \-AdDEInorsUvyzZ
+.B \-AdDEInoPrsUvVyzZ
 ] [
 .B \-l
 <block|pass|nomatch>
@@ -81,6 +82,9 @@ calls or doing anything which would alter the currently running kernel.
 Force rules by default to be added/deleted to/from the output list, rather
 than the (default) input list.
 .TP
+.B \-P
+Add rules as temporary entries in the authentication rule table.
+.TP
 .B \-r
 Remove matching filter rules rather than add them to the internal lists
 .TP
@@ -93,6 +97,12 @@ recognised as IP packets.  They will be printed out on the console.
 .TP
 .B \-v
 Turn verbose mode on.  Displays information relating to rule processing.
+.TP
+.B \-V
+Show version information.  This will display the version information compiled
+into the ipf binary and retrieve it from the kernel code (if running/present).
+If it is present in the kernel, information about its current state will be
+displayed (whether logging is active, default filtering, etc).
 .TP
 .B \-y
 Manually resync the in-kernel interface list maintained by IP Filter with
@@ -113,7 +123,7 @@ affect fragment or state statistics).
 .br
 /dev/ipstate
 .SH SEE ALSO
-ipftest(1), ipf(4), ipl(4), ipf(5), ipfstat(8), ipmon(8), ipnat(8)
+ipftest(1), mkfilters(1), ipf(4), ipl(4), ipf(5), ipfstat(8), ipmon(8), ipnat(8)
 .SH DIAGNOSTICS
 .PP
 Needs to be run as root for the packet filtering lists to actually
