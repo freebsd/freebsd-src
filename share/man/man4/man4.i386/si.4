@@ -1,50 +1,50 @@
-.\" $Id: si.4,v 1.4.2.2 1997/02/28 03:27:06 mpp Exp $
+.\" $Id: si.4,v 1.4.2.3 1998/03/06 14:32:26 jkh Exp $
 .\" The following requests are required for all man pages.
 .Dd September 16, 1995
 .Os FreeBSD
 .Dt SI 4 i386
 .Sh NAME
 .Nm si
-.Nd Driver for Specialix International SI/XIO 8-32 port intelligent serial card.
+.Nd Driver for Specialix International SI/XIO or SX intelligent serial card.
 .Sh SYNOPSIS
-.Cd "device si0 at isa? tty irq 12 iomem 0xd0000 vector siintr"
+.Cd "device si0"
+.Cd "device si0 at isa? tty irq 12 iomem 0xd0000"
 .Sh DESCRIPTION
-The Specialix SI and XIO hardware makes up an 8 to 32 port RS-232 serial
+The Specialix SI/XIO and SX hardware makes up an 8 to 32 port RS-232 serial
 multiplexor.
 .Pp
-This driver was ported and tested on an ISA bus machine, and has rudimentary
-support for operation on an EISA bus system as well, but as of this time the
-EISA version has not been tested by the Author - it may or may not work.  It
-has yet to be updated to the 'new style' EISA configuration system.
+The first instance of the device lines above is for EISA and PCI host cards,
+the second is for ISA host cards.
 .Pp
-The system uses two components..  A "Host adapter", which is plugged into
-an ISA/EISA slot and provides intelligence and buffering/processing
-capabilities, as well as an external bus in the form of a 50 pin cable.
+The system uses two components:  A "Host adapter", which is plugged into
+an ISA, EISA or PCI slot and provides intelligence and buffering/processing
+capabilities, as well as an external bus in the form of a 37 pin cable.
 .Pp
 On this cable, "modules" are connected.  The "SI" module comes in a 4 and 8
-port version, and has simple UARTS.  The "XIO" module comes only in an 8 port
-version, and has two powerful RISC-like UARTS as well.
+port version.  The "XIO" and "SX" modules come only in
+8 port versions.
 .Pp
-The host adapter polls and transfers data between the modules and the main
-Operating system.  The Host adapter provides a 256 byte transmit and 256 byte
+The host adapter polls and transfers data between the modules and the rest
+of the machine. The Host adapter provides a 256 byte transmit and 256 byte
 receive FIFO for each of the 32 ports that it can maintain.
 .Pp
-The XIO module panels can operate each of their 8 ports at 115,200 baud, while
-the SI version can run at 57,600 baud.
+The XIO modules can operate each of their 8 ports at 115,200 baud.
+The SI version can run at 57,600 baud. The SX modules can operate each of their
+8 ports at up to 921,600 baud.
+.Pp
+SX modules are only supported when connected to an SX host card. SI or
+XIO modules are supported on any host card.
 .Pp
 The host adapter uses a shared memory block in the traditional ISA bus
 "hole" between 0xA0000 and 0xEFFFF.  The adapter can be configured outside
 range, but requires the memory range to be explicitly non-cached.  The
 driver does not yet support this mode of operation.
 .Pp
-The adapter can use Irq's 11, 12 or 15.  It is rumored that the ISA adapter
-cards provide their own tri-state drivers and pullups, and may be able to
-share an IRQ between all SI/XIO host cards.  This has not been tested, and
-the driver does not support this mode of operation.  The actual IRQ used is 
-soft-configured onto the host card at boot time, but automatic selection
-of a free IRQ is not yet implemented in the
-.Tn FreeBSD
-version.
+SX ISA Host cards have an 8/16 bit mode switch or jumper on them. This switch
+or jumper MUST be set for 8 bit mode.
+.Pp
+The ISA adapters can use Irq's 11, 12 or 15 (and 9 and 10 in the case of
+SX host cards).
 .Pp
 The si device driver may have some of it's configuration settings changed
 at run-time with the
@@ -55,6 +55,13 @@ The si device driver also responds to the
 .Xr comcontrol 8
 utility for configuring drain-on-close timeouts.
 .Pp
+The driver also devines 3 sysctl variables that can be manipulated:
+machdep.si_debug sets the debug level for the whole driver. It depends
+on the driver being compiled with SI_DEBUG. machdep.si_pollrate
+sets how often per second the driver polls for lost interrupts.
+machdep.si_realpoll sets whether or not the card will treat the
+poll intervals as if they were interrupts.
+.Pp
 An open on a /dev device node controlled by the si driver obeys the same
 semantics as the
 .Xr sio 4
@@ -64,19 +71,9 @@ tty port will block until DCD is raised, unless O_NONBLOCK is specified.
 CLOCAL is honored.  An open on a cua port will always succeed, but DCD
 transitions will be honored after DCD rises for the first time.
 .Pp
-Normally, up to four SI/XIO host cards may be controlled by the si driver,
-but due to the lack of available interrupts that the card can be configured
-to use, only three may be presently used.  Polling operation is not currently
-implemented, although it is a standard mode of operation for Specialix shipped
-drivers.  Once this is implemented, all four cards may be used.
-.Pp
-The lowest 5 bits of the minor device number are used to select the port
-number on the module cluster.
-si driver,
-but due to the lack of available interrupts that the card can be configured
-to use, only three may be presently used.  Polling operation is not currently
-implemented, although it is a standard mode of operation for Specialix shipped
-drivers.  Once this is implemented, all four cards may be used.
+Up to four SI/XIO host cards may be controlled by the si driver.
+Due to the lack of available interrupts, only 3 ISA SI/XIO host cards can be
+used at once.
 .Pp
 The lowest 5 bits of the minor device number are used to select the port
 number on the module cluster. The next 2 bits select which of 4 host adapter
@@ -122,6 +119,10 @@ dialout ports
 initial termios state devices
 .It Pa /dev/ttylA*
 locked termios state devices
+.It Pa /dev/cuaiA*
+initial termios state devices for dialout ports
+.It Pa /dev/cualA*
+locked termios state devices for dialout ports
 .El
 .\" .Sh EXAMPLES
 .\" This next request is for sections 1, 6, 7 & 8 only
@@ -140,27 +141,34 @@ locked termios state devices
 .Sh HISTORY
 This driver is loosely based on driver code originating at Specialix, which
 was ported to run on BSDI by
-.Sy Andy Rutter <andy@specialix.co.uk> .
+.An Andy Rutter Aq andy@specialix.co.uk .
 The System V driver source is/was available by ftp from
 .Sy ftp.specialix.co.uk .
 .Pp
 This driver is not supported by Specialix International. 
 .Sh AUTHORS
-.Sy Peter Wemm <peter@freebsd.org>
+.An Peter Wemm Aq peter@netplex.com.au
 obtained the code from Andy Rutter and ported it to
-.Tn FreeBSD ,
-with a large
-amount of invaluable assistance from
-.Sy Bruce Evans <bde@zeta.org.au>
-.Pp
-Man page by Peter Wemm.
+.Bx Free
+and threw the man page together.
+.An Bruce Evans Aq bde@zeta.org.au
+provided a large amount of assistance during porting.
+.An Nick Sayer Aq nick@specialix.com
+wrote the EISA, PCI and SX portions.
 .Sh BUGS
-The EISA support is untested.
-.Pp
 The interrupt tuning rate is not believed to be optimal at this time for
 maximum efficiency.
 .Pp
-POLL mode is not implemented yet.
+Polled mode (a feature of standard Specialix drivers) is not implemented,
+but it can be approximated by turning on machdep.si_realpoll.  The poll
+frequency is set by machdep.si_pollrate (in units of 1/100th of a second).
+.Pp
+The driver does not yet support baud rates higher than 115,200 on SX
+modules.
 .Pp
 Operation outside the traditional ISA "hole" is not yet supported, although it
 should work if the test is removed from the probe routine.
+.Pp
+Multiple host cards are supported although combinations of hosts on
+different bus types have not been tested - device numbering is known to
+be a problem and may lead to unexpected results.
