@@ -342,7 +342,7 @@ nexus_deactivate_resource(device_t bus, device_t child, int type, int rid,
 		u_int32_t psize;
 
 		psize = r->r_end - r->r_start;
-		pmap_unmapdev(rman_get_virtual(r), psize);
+		pmap_unmapdev((vm_offset_t)rman_get_virtual(r), psize);
 	}
 		
 	return (rman_deactivate_resource(r));
