@@ -3194,20 +3194,14 @@ raidshutdown(void)
 int
 raid_getcomponentsize(RF_Raid_t *raidPtr, RF_RowCol_t row, RF_RowCol_t col)
 {
-	struct disklabel *dlabel;
 	struct vnode *vp;
 	struct vattr va;
 	RF_Thread_t td;
+	off_t mediasize;
+	u_int secsize;
 	int retcode;
 
 	td = raidPtr->engine_thread;
-
-	MALLOC(dlabel, struct disklabel *, sizeof(struct disklabel),
-	    M_RAIDFRAME, M_NOWAIT | M_ZERO);
-	if (dlabel == NULL) {
-		printf("rf_getcomponentsize: Out of memory?\n");
-		return (ENOMEM);
-	}
 
 	retcode = raidlookup(raidPtr->Disks[row][col].devname, td, &vp);
 
@@ -3218,7 +3212,6 @@ raid_getcomponentsize(RF_Raid_t *raidPtr, RF_RowCol_t row, RF_RowCol_t col)
 		/* XXX the component isn't responding properly... 
 		   must be still dead :-( */
 		raidPtr->reconInProgress--;
-		FREE(dlabel, M_RAIDFRAME);
 		return(retcode);
 
 	} else {
@@ -3229,20 +3222,20 @@ raid_getcomponentsize(RF_Raid_t *raidPtr, RF_RowCol_t row, RF_RowCol_t col)
 		if ((retcode = VOP_GETATTR(vp, &va, rf_getucred(td),
 					   td)) != 0) {
 			raidPtr->reconInProgress--;
-			FREE(dlabel, M_RAIDFRAME);
 			return(retcode);
 		}
 		
-		retcode = VOP_IOCTL(vp, DIOCGDINFO, (caddr_t)dlabel,
+		retcode = VOP_IOCTL(vp, DIOCGSECTORSIZE, (caddr_t)&secsize,
 		    FREAD, rf_getucred(td), td);
-		if (retcode) {
-			FREE(dlabel, M_RAIDFRAME);
-			return(retcode);
-		}
-		raidPtr->Disks[row][col].blockSize = dlabel->d_secsize;
-		raidPtr->Disks[row][col].numBlocks =
-		    dlabel->d_partitions[dkpart(vn_todev(vp))].p_size -
-		    rf_protectedSectors;
+		if (retcode)
+			return (retcode);
+		raidPtr->Disks[row][col].blockSize = secsize;
+
+		retcode = VOP_IOCTL(vp, DIOCGMEDIASIZE, (caddr_t)&mediasize,
+		    FREAD, rf_getucred(td), td);
+		if (retcode)
+			return (retcode);
+		raidPtr->Disks[row][col].numBlocks = mediasize / secsize;
 
 		raidPtr->raid_cinfo[row][col].ci_vp = vp;
 		raidPtr->raid_cinfo[row][col].ci_dev = udev2dev(va.va_rdev, 0);
@@ -3257,7 +3250,6 @@ raid_getcomponentsize(RF_Raid_t *raidPtr, RF_RowCol_t row, RF_RowCol_t col)
 			rf_sizePercentage / 100;
 	}
 
-	FREE(dlabel, M_RAIDFRAME);
 	return(retcode);
 }
 
