@@ -67,6 +67,7 @@ static char sccsid[] = "@(#)ping.c	8.1 (Berkeley) 6/5/93";
 #include <sys/file.h>
 #include <sys/time.h>
 #include <sys/signal.h>
+#include <termios.h>
 
 #include <netinet/in_systm.h>
 #include <netinet/in.h>
@@ -136,8 +137,10 @@ double tmin = 999999999.0;	/* minimum round trip time */
 double tmax = 0.0;		/* maximum round trip time */
 double tsum = 0.0;		/* sum of all times, for doing average */
 
+int reset_kerninfo;
+
 char *pr_addr();
-void catcher(), finish();
+void catcher(), finish(), status();
 
 main(argc, argv)
 	int argc;
@@ -149,6 +152,7 @@ main(argc, argv)
 	struct hostent *hp;
 	struct sockaddr_in *to;
 	struct protoent *proto;
+	struct termios ts;
 	register int i;
 	int ch, fdmask, hold, packlen, preload;
 	u_char *datap, *packet;
@@ -158,6 +162,12 @@ main(argc, argv)
 #endif
 
 	preload = 0;
+	if (tcgetattr (0, &ts) != -1) {
+		reset_kerninfo = !(ts.c_lflag & NOKERNINFO);
+		ts.c_lflag |= NOKERNINFO;
+		tcsetattr (0, TCSANOW, &ts);
+	}
+
 	datap = &outpack[8 + sizeof(struct timeval)];
 	while ((ch = getopt(argc, argv, "Rc:dfh:i:l:np:qrs:v")) != EOF)
 		switch(ch) {
@@ -331,6 +341,7 @@ main(argc, argv)
 
 	(void)signal(SIGINT, finish);
 	(void)signal(SIGALRM, catcher);
+	(void)signal(SIGINFO, status);
 
 	while (preload--)		/* fire off them quickies */
 		pinger();
@@ -685,6 +696,29 @@ tvsub(out, in)
 }
 
 /*
+ * status --
+ *	Print out statistics when SIGINFO is received.
+ */
+
+void
+status()
+{
+	double temp_min = nreceived ? tmin : 0;
+	(void)fprintf(stderr, "%ld/%ld packets received (%ld%%) "
+		      "%.3f min / %.3f avg / %.3f max\n",
+		      nreceived, ntransmitted, 
+		      (ntransmitted ? 
+		       100 - (int) (((ntransmitted - nreceived) * 100)
+				    / ntransmitted)
+		       : 0),
+		      temp_min,
+		      ((nreceived + nrepeats) ?
+		       (tsum / (nreceived + nrepeats))/1000.0
+		       : tsum),
+		      tmax/ 1000.0);
+}
+
+/*
  * finish --
  *	Print out statistics, and give up.
  */
@@ -692,6 +726,7 @@ void
 finish()
 {
 	register int i;
+	struct termios ts;
 
 	(void)signal(SIGINT, SIG_IGN);
 	(void)putchar('\n');
@@ -715,6 +750,11 @@ finish()
 		(void)printf("round-trip min/avg/max = %.3f/%.3f/%.3f ms\n",
 		    tmin, ((double)i) / 1000.0, tmax);
 	}
+	if (reset_kerninfo && tcgetattr (0, &ts) != -1) {
+		ts.c_lflag &= ~NOKERNINFO;
+		tcsetattr (0, TCSANOW, &ts);
+	}
+
 	exit(0);
 }
 
