@@ -1011,18 +1011,24 @@ ed_probe_Novell_generic(dev, port_rid, flags)
 	 * probably isn't any memory at 8k - which likely means that the board
 	 * is an NE2000.
 	 */
+	if (bcmp(test_pattern, test_buffer, sizeof(test_pattern)) == 0) {
 	ed_pio_writemem(sc, test_pattern, 8192, sizeof(test_pattern));
 	ed_pio_readmem(sc, 8192, test_buffer, sizeof(test_pattern));
 
-	linksys = ed_get_Linksys(sc);
-	if (linksys) {
-		outb(sc->nic_addr + ED_P0_DCR, ED_DCR_WTS | ED_DCR_FT1 | ED_DCR_LS);
-		sc->isa16bit = 1;
-		sc->type = ED_TYPE_NE2000;
-		sc->type_str = "Linksys";
-	} else if (bcmp(test_pattern, test_buffer, sizeof(test_pattern))) {
-		/* not an NE1000 - try NE2000 */
+	/* could be either an NE1000 or a Linksys ethernet controller */
+		linksys = ed_get_Linksys(sc);
+		if (linksys) {
+			outb(sc->nic_addr + ED_P0_DCR, ED_DCR_WTS | ED_DCR_FT1 | ED_DCR_LS);
+			sc->isa16bit = 1;
+			sc->type = ED_TYPE_NE2000;
+			sc->type_str = "Linksys";
+		} else {
+			sc->type = ED_TYPE_NE1000;
+			sc->type_str = "NE1000";
+		}
+	} else {
 
+		/* neither an NE1000 nor a Linksys - try NE2000 */
 		outb(sc->nic_addr + ED_P0_DCR, ED_DCR_WTS | ED_DCR_FT1 | ED_DCR_LS);
 		outb(sc->nic_addr + ED_P0_PSTART, 16384 / ED_PAGE_SIZE);
 		outb(sc->nic_addr + ED_P0_PSTOP, 32768 / ED_PAGE_SIZE);
@@ -1035,16 +1041,14 @@ ed_probe_Novell_generic(dev, port_rid, flags)
 		 */
 		ed_pio_writemem(sc, test_pattern, 16384, sizeof(test_pattern));
 		ed_pio_readmem(sc, 16384, test_buffer, sizeof(test_pattern));
-
-		if (bcmp(test_pattern, test_buffer, sizeof(test_pattern)))
-			return (ENXIO);	/* not an NE2000 either */
-
-		sc->type = ED_TYPE_NE2000;
-		sc->type_str = "NE2000";
-	} else {
-		sc->type = ED_TYPE_NE1000;
-		sc->type_str = "NE1000";
+		if (bcmp(test_pattern, test_buffer, sizeof(test_pattern)) == 0) {
+			sc->type = ED_TYPE_NE2000;
+			sc->type_str = "NE2000";
+		} else {
+			return (ENXIO);
+		}
 	}
+
 
 	/* 8k of memory plus an additional 8k if 16bit */
 	memsize = 8192 + sc->isa16bit * 8192;
