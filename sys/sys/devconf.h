@@ -22,7 +22,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: devconf.h,v 1.2 1994/10/19 00:10:10 wollman Exp $
+ *	$Id: devconf.h,v 1.3 1994/10/23 21:28:03 wollman Exp $
  */
 
 /*
@@ -83,7 +83,7 @@ typedef int (*kdc_internalize_t)(struct proc *, struct kern_devconf *, void *,
 /*
  * GOAWAY: shut the device down, if possible, and prepare to exit.
  */
-typedef int (*kdc_goaway_t)(struct kern_devconf *, int);
+typedef int (*kdc_shutdown_t)(struct kern_devconf *, int);
 
 struct kern_devconf {
 	struct kern_devconf *kdc_next;		/* filled in by kern_devconf */
@@ -94,7 +94,7 @@ struct kern_devconf {
 	struct machdep_kdevconf kdc_md;		/* filled in by driver */
 	kdc_externalize_t kdc_externalize;	/* filled in by driver */
 	kdc_internalize_t kdc_internalize; 	/* filled in by driver */
-	kdc_goaway_t kdc_goaway;		/* filled in by driver */
+	kdc_shutdown_t kdc_shutdown;		/* filled in by driver */
 	size_t kdc_datalen;			/* filled in by driver */
 	struct kern_devconf *kdc_parent;	/* filled in by driver */
 	void *kdc_parentdata;			/* filled in by driver */
@@ -104,7 +104,7 @@ struct kern_devconf {
 
 int dev_attach(struct kern_devconf *);
 int dev_detach(struct kern_devconf *);
-int dev_goawayall(int);
+int dev_shutdownall(int);
 
 #endif /* KERNEL */
 
