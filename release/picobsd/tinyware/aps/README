@@ -11,9 +11,9 @@ When I have some time, I'll add usual switches and other functions that normal
 Also, what I'm now inclined to think is that it should be reworked to use
 more general (and less complicated) sysctl(3).
 
-<abial@nask.pl>
+<abial@freebsd.org>
 
 (As of 1998.07.31 this program is no longer used in PicoBSD. See sps(1) in
 TinyWare collection).
 
-$Id: README,v 1.2 1998/07/31 20:57:42 abial Exp $
+$Id: README,v 1.1.1.1 1998/08/27 17:38:44 abial Exp $

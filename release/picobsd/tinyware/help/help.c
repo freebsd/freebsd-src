@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 1998 Eric P. Scott <eps@sirius.com>
- * Copyright (c) 1998 Andrzej Bialecki <abial@nask.pl>
+ * Copyright (c) 1998 Andrzej Bialecki <abial@freebsd.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: help.c,v 1.2 1998/09/07 19:00:34 abial Exp $
+ * $Id: help.c,v 1.3 1998/09/23 14:51:34 abial Exp $
  */
 
 

@@ -8,5 +8,5 @@ W glownym katalogu w pliku README znajdziesz   [35mpico[37m
 krotki opis systemu. Mozesz go obejrzec przy pomocy
 "more /README".
 
-Wiecej informacji znajdziesz u autora (abial@nask.pl).
+Wiecej informacji znajdziesz u autora (abial@freebsd.org).
 
