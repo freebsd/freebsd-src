@@ -250,6 +250,8 @@ feed_rate_init(struct pcm_feeder *f)
 	struct feed_rate_info *info;
 
 	info = malloc(sizeof(*info), M_RATEFEEDER, M_NOWAIT | M_ZERO);
+	if (info == NULL)
+		return ENOMEM;
 	info->src = DSP_DEFAULT_SPEED;
 	info->dst = DSP_DEFAULT_SPEED;
 	info->channels = 2;
