@@ -33,49 +33,31 @@ up-to-date.  Many thanks.
 ******************************************************************/
 
 #if defined(LIBC_SCCS) && !defined(lint)
-static char *rcsid = "$NetBSD: msgcat.c,v 1.11 1995/02/27 13:06:51 cgd Exp $";
+static char *rcsid = "$FreeBSD$";
 #endif /* LIBC_SCCS and not lint */
-
-/* Edit History
-
-03/06/91   4 schulert	remove working directory from nlspath
-01/18/91   2 hamilton	#if not rescanned
-01/12/91   3 schulert	conditionally use prototypes
-11/03/90   1 hamilton	Alphalpha->Alfalfa & OmegaMail->Poste
-10/15/90   2 schulert	> #include <unistd.h> if MIPS
-08/13/90   1 schulert	move from ua to omu
-*/
 
 /*
  * We need a better way of handling errors than printing text.  I need
  * to add an error handling routine.
  */
 
-#include "nl_types.h"
-#include "msgcat.h"
-
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/syslimits.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <locale.h>
+#include <nl_types.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
+#include "msgcat.h"
+
 #ifndef True
 # define True	~0
 # define False	0
-#endif
-
-/* take care of sysv diffs */
-#ifndef MAXPATHLEN
-#define MAXPATHLEN 1024
-#endif
-
-#ifndef FD_CLOEXEC
-#define FD_CLOEXEC 1
 #endif
 
 #define	NLERR	((nl_catd) -1)
@@ -87,7 +69,7 @@ nl_catd 	catopen( name, type)
 __const char *name;
 int type;
 {
-    char	path[MAXPATHLEN];
+    char	path[PATH_MAX];
     __const char *catpath = NULL;
     char        *nlspath;
     char	*lang;
