@@ -367,7 +367,7 @@ at_aarpinput( struct arpcom *ac, struct mbuf *m)
 	     * probed for the same address we'd like to use. Change the
 	     * address we're probing for.
 	     */
-	    untimeout((timeout_func_t) aarpprobe, ac );
+	    untimeout( aarpprobe, ac );
 	    wakeup( aa );
 	    m_freem( m );
 	    return;
@@ -518,8 +518,9 @@ out:
 
 
 void
-aarpprobe( struct arpcom *ac )
+aarpprobe( void *arg )
 {
+    struct arpcom	*ac = arg;
     struct mbuf		*m;
     struct ether_header	*eh;
     struct ether_aarp	*ea;
@@ -551,7 +552,7 @@ aarpprobe( struct arpcom *ac )
 	wakeup( aa );
 	return;
     } else {
-	timeout( (timeout_func_t)aarpprobe, (caddr_t)ac, hz / 5 );
+	timeout( aarpprobe, (caddr_t)ac, hz / 5 );
     }
 
     if (( m = m_gethdr( M_DONTWAIT, MT_DATA )) == NULL ) {
