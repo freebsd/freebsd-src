@@ -92,7 +92,9 @@ struct filedesc0 {
  * Per-process open flags.
  */
 #define	UF_EXCLOSE 	0x01		/* auto-close on exec */
+#if 0
 #define	UF_MAPPED 	0x02		/* mapped from device */
+#endif
 
 /*
  * Storage required per open file descriptor.
@@ -125,7 +127,7 @@ SLIST_HEAD(sigiolst, sigio);
 
 #ifdef _KERNEL
 int	closef __P((struct file *fp, struct proc *p));
-int	dupfdopen __P((struct filedesc *fdp, int indx, int dfd, int mode,
+int	dupfdopen __P((struct proc *p, struct filedesc *fdp, int indx, int dfd, int mode,
 		       int error));
 int	falloc __P((struct proc *p, struct file **resultfp, int *resultfd));
 int	fdalloc __P((struct proc *p, int want, int *result));
@@ -140,7 +142,7 @@ pid_t	fgetown __P((struct sigio *sigio));
 int	fsetown __P((pid_t pgid, struct sigio **sigiop));
 void	funsetown __P((struct sigio *sigio));
 void	funsetownlst __P((struct sigiolst *sigiolst));
-struct	file *getfp __P((struct filedesc* fdp, int fd, int flag));
+struct	file *holdfp __P((struct filedesc *fdp, int fd, int flag));
 int	getvnode __P((struct filedesc *fdp, int fd, struct file **fpp));
 void	setugidsafety __P((struct proc *p));
 
