@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2004 Robert N. M. Watson
+ * Copyright (c) 2004-2005 Robert N. M. Watson
  * Copyright (c) 1995, Mike Mitchell
  * Copyright (c) 1984, 1985, 1986, 1987, 1993
  *	The Regents of the University of California.  All rights reserved.
@@ -292,7 +292,7 @@ ipx_setsockaddr(ipxp, nam)
 	sipx->sipx_len = sizeof(*sipx);
 	sipx->sipx_family = AF_IPX;
 	sipx->sipx_addr = ipxp->ipxp_laddr;
-	*nam = sodupsockaddr((struct sockaddr *)sipx, M_NOWAIT);
+	*nam = sodupsockaddr((struct sockaddr *)sipx, M_WAITOK);
 }
 
 void
