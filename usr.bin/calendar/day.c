@@ -155,13 +155,19 @@ settime(now)
 /* convert Day[/Month][/Year] into unix time (since 1970)
  * Day: two digits, Month: two digits, Year: digits
  */
-time_t Mktime (date)
-    char *date;
+time_t Mktime (dp)
+    char *dp;
 {
+    char *date;
     time_t t;
     int len;
     struct tm tm;
 
+    date = strdup(dp);
+    if (date == NULL) {
+	fprintf(stderr, "calendar: strdup failed in Mktime\n");
+	exit(1);
+    }
     (void)time(&t);
     tp = localtime(&t);
     
@@ -198,6 +204,7 @@ time_t Mktime (date)
     printf("Mktime: %d %d %d %s\n", (int)mktime(&tm), (int)t, len,
 	   asctime(&tm));
 #endif
+    free(date);
     return(mktime(&tm));
 }
 
