@@ -662,7 +662,13 @@ nfs_setattr(struct vop_setattr_args *ap)
  				return (error);
 			    }
  			}
- 			np->n_vattr.va_size = vap->va_size;
+			/*
+			 * np->n_size has already been set to vap->va_size
+			 * in nfs_meta_setsize(). We must set it again since
+			 * nfs_loadattrcache() could be called through
+			 * nfs_meta_setsize() and could modify np->n_size.
+			 */
+ 			np->n_vattr.va_size = np->n_size = vap->va_size;
   		};
   	} else if ((vap->va_mtime.tv_sec != VNOVAL ||
 		vap->va_atime.tv_sec != VNOVAL) && (np->n_flag & NMODIFIED) &&
