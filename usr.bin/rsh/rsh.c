@@ -85,6 +85,8 @@ extern char *krb_realmofhost();
  */
 int	rfd2;
 
+int family = PF_UNSPEC;
+
 char   *copyargs __P((char **));
 void	sendsig __P((int));
 void	talk __P((int, long, pid_t, int, int));
@@ -129,15 +131,23 @@ main(argc, argv)
 
 #ifdef KERBEROS
 #ifdef CRYPT
-#define	OPTIONS	"8KLde:k:l:nt:wx"
+#define	OPTIONS	"468KLde:k:l:nt:wx"
 #else
-#define	OPTIONS	"8KLde:k:l:nt:w"
+#define	OPTIONS	"468KLde:k:l:nt:w"
 #endif
 #else
-#define	OPTIONS	"8KLde:l:nt:w"
+#define	OPTIONS	"468KLde:l:nt:w"
 #endif
 	while ((ch = getopt(argc - argoff, argv + argoff, OPTIONS)) != -1)
 		switch(ch) {
+		case '4':
+			family = PF_INET;
+			break;
+
+		case '6':
+			family = PF_INET6;
+			break;
+
 		case 'K':
 #ifdef KERBEROS
 			use_kerberos = 0;
@@ -270,11 +280,11 @@ try_connect:
 		if (doencrypt)
 			errx(1, "the -x flag requires Kerberos authentication");
 		rem = rcmd_af(&host, sp->s_port, pw->pw_name, user, args,
-			      &rfd2, PF_UNSPEC);
+			      &rfd2, family);
 	}
 #else
 	rem = rcmd_af(&host, sp->s_port, pw->pw_name, user, args, &rfd2,
-		      PF_UNSPEC);
+		      family);
 #endif
 
 	if (rem < 0)
@@ -479,7 +489,7 @@ usage()
 {
 
 	(void)fprintf(stderr,
-	    "usage: rsh [-nd%s]%s[-l login] [-t timeout] host [command]\n",
+	    "usage: rsh [-46] [-nd%s]%s[-l login] [-t timeout] host [command]\n",
 #ifdef KERBEROS
 #ifdef CRYPT
 	    "x", " [-k realm] ");

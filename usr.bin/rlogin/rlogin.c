@@ -95,6 +95,7 @@ char dst_realm_buf[REALM_SZ], *dest_realm = NULL;
 #endif
 
 int eight, litout, rem;
+int family = PF_UNSPEC;
 
 int noescape;
 u_char escapechar = '~';
@@ -176,12 +177,20 @@ main(argc, argv)
 	}
 
 #ifdef KERBEROS
-#define	OPTIONS	"8DEKLde:i:k:l:x"
+#define	OPTIONS	"468DEKLde:i:k:l:x"
 #else
-#define	OPTIONS	"8DEKLde:i:l:"
+#define	OPTIONS	"468DEKLde:i:l:"
 #endif
 	while ((ch = getopt(argc - argoff, argv + argoff, OPTIONS)) != -1)
 		switch(ch) {
+		case '4':
+			family = PF_INET;
+			break;
+
+		case '6':
+			family = PF_INET6;
+			break;
+
 		case '8':
 			eight = 1;
 			break;
@@ -334,10 +343,10 @@ main(argc, argv)
 			errx(1, "the -x flag requires Kerberos authentication");
 #endif /* CRYPT */
 		rem = rcmd_af(&host, sp->s_port, localname, user, term, 0,
-			      PF_UNSPEC);
+			      family);
 	}
 #else
-	rem = rcmd_af(&host, sp->s_port, localname, user, term, 0, PF_UNSPEC);
+	rem = rcmd_af(&host, sp->s_port, localname, user, term, 0, family);
 #endif /* KERBEROS */
 
 	if (rem < 0)
@@ -876,7 +885,7 @@ void
 usage()
 {
 	(void)fprintf(stderr,
-	"usage: rlogin [-%s]%s[-e char] [-i localname] [-l username] host\n",
+	"usage: rlogin [-46%s]%s[-e char] [-i localname] [-l username] host\n",
 #ifdef KERBEROS
 #ifdef CRYPT
 	    "8DEKLdx", " [-k realm] ");

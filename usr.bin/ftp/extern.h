@@ -165,6 +165,7 @@ extern struct	cmd cmdtab[];
 extern FILE    *cout;
 extern int	data;
 extern char    *home;
+extern int	family;
 extern int	proxy;
 extern char	reply_string[];
 extern int	NCMDS;
