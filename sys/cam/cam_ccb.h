@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: cam_ccb.h,v 1.7 1999/05/23 18:57:28 gibbs Exp $
+ *      $Id: cam_ccb.h,v 1.8 1999/08/16 22:14:47 gibbs Exp $
  */
 
 #ifndef _CAM_CAM_CCB_H
@@ -471,7 +471,7 @@ struct ccb_dev_match {
 /*
  * Definitions for the path inquiry CCB fields.
  */
-#define CAM_VERSION	0x11	/* Hex value for current version */
+#define CAM_VERSION	0x12	/* Hex value for current version */
 
 typedef enum {
 	PI_MDP_ABLE	= 0x80,	/* Supports MDP message */
