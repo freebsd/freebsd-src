@@ -5,6 +5,9 @@ directly to him.  See end of file for further details.  For commonly
 done items, please see the end of the file.  Search for 'COMMON
 ITEMS:'
 
+20010525:
+	It appears that vm is now stable enough to use again.
+
 20010521:
 	Minor repo damanged has happened.  This may cause problems
 	with cvsup of ports.  If you get errors, please see
@@ -14,7 +17,7 @@ ITEMS:'
 Updater failed: Cannot delete "/usr/ports/www/jakarta-tomcat/files": Directory not empty
 
 20010520:
-	Swapping is busted on -current.  Please be patient.
+	Vm and/or swapping are busted on -current.  Please be patient.
 
 20010519:
 	pccard has had much reorganizational work done to it over
