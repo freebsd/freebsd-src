@@ -34,11 +34,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/ata.h>
 #include <sys/kernel.h>
-#include <sys/malloc.h>
 #include <sys/bus.h>
 #include <sys/conf.h>
 #include <sys/sema.h>
 #include <sys/taskqueue.h>
+#include <vm/uma.h>
 #include <machine/bus.h>
 #include <sys/rman.h>
 #include <dev/ata/ata-all.h>
@@ -48,36 +48,13 @@ static void ata_completed(void *, int);
 static void ata_timeout(struct ata_request *);
 static char *ata_skey2str(u_int8_t);
 
-/* local vars */
-static MALLOC_DEFINE(M_ATA_REQ, "ATA request", "ATA request");
-
-/*
- * ATA request related functions
- */
-struct ata_request *
-ata_alloc_request(void)
-{
-    struct ata_request *request;
-
-    request = malloc(sizeof(struct ata_request), M_ATA_REQ, M_NOWAIT | M_ZERO);
-    if (!request)
-	printf("FAILURE - malloc ATA request failed\n");
-    sema_init(&request->done, 0, "ATA request done");
-    return request;
-}
-
-void
-ata_free_request(struct ata_request *request)
-{
-    sema_destroy(&request->done);
-    free(request, M_ATA_REQ);
-}
-
 void
 ata_queue_request(struct ata_request *request)
 {
-    /* mark request as virgin (it might be a retry) */
+    /* mark request as virgin */
     request->result = request->status = request->error = 0;
+    if (!request->callback)
+	sema_init(&request->done, 0, "ATA request done");
 
     if (request->device->channel->flags & ATA_IMMEDIATE_MODE) {
 
@@ -122,6 +99,8 @@ ata_queue_request(struct ata_request *request)
 	    sema_wait(&request->done);
 	}
     }
+    if (!request->callback)
+	sema_destroy(&request->done);
 }
 
 int
