@@ -1,6 +1,6 @@
 \input texinfo
 @setfilename gdbint.info
-@c $Id: gdbint.texinfo,v 1.1.1.1 1993/10/30 21:59:41 jkh Exp $
+@c $Id: gdbint.texinfo,v 1.76 1994/07/17 21:17:18 shebs Exp $
 
 @ifinfo
 @format
@@ -13,7 +13,7 @@ END-INFO-DIR-ENTRY
 @ifinfo
 This file documents the internals of the GNU debugger GDB.
 
-Copyright 1990, 1991, 1992, 1993 Free Software Foundation, Inc.
+Copyright 1990, 1991, 1992, 1993, 1994 Free Software Foundation, Inc.
 Contributed by Cygnus Support.  Written by John Gilmore.
 
 Permission is granted to make and distribute verbatim copies of
@@ -42,7 +42,7 @@ regarded as a program in the language TeX).
 @page
 @tex
 \def\$#1${{#1}}  % Kluge: collect RCS revision info without $...$
-\xdef\manvers{\$Revision: 1.1.1.1 $}  % For use in headers, footers too
+\xdef\manvers{\$Revision: 1.76 $}  % For use in headers, footers too
 {\parskip=0pt
 \hfill Cygnus Support\par
 \hfill \manvers\par
@@ -51,7 +51,7 @@ regarded as a program in the language TeX).
 @end tex
 
 @vskip 0pt plus 1filll
-Copyright @copyright{} 1990, 1991, 1992, 1993 Free Software Foundation, Inc.
+Copyright @copyright{} 1990, 1991, 1992, 1993, 1994 Free Software Foundation, Inc.
 
 Permission is granted to make and distribute verbatim copies of
 this manual provided the copyright notice and this permission notice
@@ -201,17 +201,17 @@ Good luck!
 
 @node Debugging GDB
 @chapter Debugging GDB with itself
-If gdb is limping on your machine, this is the preferred way to get it
+If GDB is limping on your machine, this is the preferred way to get it
 fully functional.  Be warned that in some ancient Unix systems, like
 Ultrix 4.2, a program can't be running in one process while it is being
 debugged in another.  Rather than typing the command @code{@w{./gdb
 ./gdb}}, which works on Suns and such, you can copy @file{gdb} to
 @file{gdb2} and then type @code{@w{./gdb ./gdb2}}.
 
-When you run gdb in the gdb source directory, it will read a
+When you run GDB in the GDB source directory, it will read a
 @file{.gdbinit} file that sets up some simple things to make debugging
 gdb easier.  The @code{info} command, when executed without a subcommand
-in a gdb being debugged by gdb, will pop you back up to the top level
+in a GDB being debugged by gdb, will pop you back up to the top level
 gdb.  See @file{.gdbinit} for details.
 
 If you use emacs, you will probably want to do a @code{make TAGS} after
@@ -219,7 +219,7 @@ you configure your distribution; this will put the machine dependent
 routines for your local machine where they will be accessed first by
 @kbd{M-.}
 
-Also, make sure that you've either compiled gdb with your local cc, or
+Also, make sure that you've either compiled GDB with your local cc, or
 have run @code{fixincludes} if you are compiling with gcc.
 
 @node New Architectures
@@ -347,7 +347,7 @@ Then edit @file{bfd/configure.host}.  Add a line to recognize your
 @code{my_host} to @var{xxx} when you recognize it.  This will cause your
 file @file{h-@var{xxx}.h} to be linked to @file{sysdep.h} at configuration
 time.  When creating the line that recognizes your configuration,
-only match the fields that you really need to match; e.g. don't match
+only match the fields that you really need to match; e.g. don't
 match the architecture or manufacturer if the OS is sufficient
 to distinguish the configuration that your @file{h-@var{xxx}.h} file supports.
 Don't match the manufacturer name unless you really need to.
@@ -452,7 +452,7 @@ Now, you are now ready to try configuring GDB to compile using your system
 as its host.  From the top level (above @file{bfd}, @file{gdb}, etc), do:
 
 @example
-./configure @var{xxx} +target=vxworks960
+./configure @var{xxx} --target=vxworks960
 @end example
 
 This will configure your system to cross-compile for VxWorks on
@@ -933,14 +933,14 @@ more work.
 
 Fundamental Types (e.g., FT_VOID, FT_BOOLEAN).
 
-These are the fundamental types that gdb uses internally.  Fundamental
+These are the fundamental types that GDB uses internally.  Fundamental
 types from the various debugging formats (stabs, ELF, etc) are mapped into
 one of these.  They are basically a union of all fundamental types that
-gdb knows about for all the languages that gdb knows about.
+gdb knows about for all the languages that GDB knows about.
 
 Type Codes (e.g., TYPE_CODE_PTR, TYPE_CODE_ARRAY).
 
-Each time gdb builds an internal type, it marks it with one of these
+Each time GDB builds an internal type, it marks it with one of these
 types.  The type may be a fundamental type, such as TYPE_CODE_INT, or
 a derived type, such as TYPE_CODE_PTR which is a pointer to another
 type.  Typically, several FT_* types map to one TYPE_CODE_* type, and
@@ -950,7 +950,7 @@ the type is signed or unsigned, and how many bits it uses.
 Builtin Types (e.g., builtin_type_void, builtin_type_char).
 
 These are instances of type structs that roughly correspond to fundamental
-types and are created as global types for gdb to use for various ugly
+types and are created as global types for GDB to use for various ugly
 historical reasons.  We eventually want to eliminate these.  Note for
 example that builtin_type_int initialized in gdbtypes.c is basically the
 same as a TYPE_CODE_INT type that is initialized in c-lang.c for an
@@ -997,7 +997,7 @@ string table, etc.
 @chapter Symbol Reading
 
 GDB reads symbols from "symbol files".  The usual symbol file is the
-file containing the program which gdb is debugging.  GDB can be directed
+file containing the program which GDB is debugging.  GDB can be directed
 to use a different file for symbols (with the ``symbol-file''
 command), and it can also read more symbols via the ``add-file'' and ``load''
 commands, or while reading symbols from shared libraries.
@@ -1490,23 +1490,30 @@ available somehow (e.g. anonymous FTP), and announce it on
 
 When GDB is configured and compiled, various macros are defined or left
 undefined, to control compilation based on the attributes of the host
-system.  These macros and their meanings are:
+system.  These macros and their meanings (or if the meaning is not
+documented here, then one of the source files where they are used is
+indicated) are:
 
 @emph{NOTE:  For now, both host and target conditionals are here.
 Eliminate target conditionals from this list as they are identified.}
 
 @table @code
+
 @item BLOCK_ADDRESS_FUNCTION_RELATIVE
 dbxread.c
+
 @item GDBINIT_FILENAME
 The default name of GDB's initialization file (normally @file{.gdbinit}).
+
 @item KERNELDEBUG
 tm-hppa.h
+
 @item MEM_FNS_DECLARED
 Your host config file defines this if it includes 
 declarations of @code{memcpy} and @code{memset}.  Define this
 to avoid conflicts between the native include
 files and the declarations in @file{defs.h}.
+
 @item NO_SYS_FILE
 dbxread.c
 @item PYRAMID_CONTROL_FRAME_DEBUGGING
@@ -1533,8 +1540,6 @@ altos-xdep.c
 xm-altos.h
 @item ASCII_COFF
 remote-adapt.c
-@item BADMAG
-coffread.c
 @item BCS
 tm-delta88.h
 @item BEFORE_MAIN_LOOP_HOOK
@@ -1551,28 +1556,20 @@ solib.c
 dbxread.c
 @item BPT_VECTOR
 tm-m68k.h
-@item BREAKPOINT
-tm-m68k.h
-@item BREAKPOINT_DEBUG
-breakpoint.c
+
 @item BROKEN_LARGE_ALLOCA
 Avoid large @code{alloca}'s.  For example, on sun's, Large alloca's fail
 because the attempt to increase the stack limit in main() fails because
 shared libraries are allocated just below the initial stack limit.  The
 SunOS kernel will not allow the stack to grow into the area occupied by
 the shared libraries.
-@item BSTRING
-regex.c
+
 @item CALL_DUMMY
 valops.c
 @item CALL_DUMMY_LOCATION
 inferior.h
 @item CALL_DUMMY_STACK_ADJUST
 valops.c
-@item CANNOT_FETCH_REGISTER
-hppabsd-xdep.c
-@item CANNOT_STORE_REGISTER
-findvar.c
 @item CFRONT_PRODUCER
 dwarfread.c
 @item CHILD_PREPARE_TO_STORE
@@ -1589,8 +1586,6 @@ symm-tdep.c
 stack.c
 @item CPLUS_MARKER
 cplus-dem.c
-@item CREATE_INFERIOR_HOOK
-infrun.c
 @item C_ALLOCA
 regex.c
 @item C_GLBLREG
@@ -1599,16 +1594,16 @@ coffread.c
 partial-stab.h
 @item DBX_PARM_SYMBOL_CLASS
 stabsread.c
-@item DEBUG
-remote-adapt.c
 @item DEBUG_INFO
 partial-stab.h
 @item DEBUG_PTRACE
 hppabsd-xdep.c
 @item DECR_PC_AFTER_BREAK
 breakpoint.c
+
 @item DEFAULT_PROMPT
 The default value of the prompt string (normally @code{"(gdb) "}).
+
 @item DELTA88
 m88k-xdep.c
 @item DEV_TTY
@@ -1637,24 +1632,6 @@ target.c
 infcmd.c
 @item FOPEN_RB
 defs.h
-@item FRAMELESS_FUNCTION_INVOCATION
-blockframe.c
-@item FRAME_ARGS_ADDRESS_CORRECT
-stack.c
-@item FRAME_CHAIN_COMBINE
-blockframe.c
-@item FRAME_CHAIN_VALID
-frame.h
-@item FRAME_CHAIN_VALID_ALTERNATE
-frame.h
-@item FRAME_FIND_SAVED_REGS
-stack.c
-@item FRAME_GET_BASEREG_VALUE
-frame.h
-@item FRAME_NUM_ARGS
-tm-m68k.h
-@item FRAME_SPECIFICATION_DYADIC
-stack.c
 @item FUNCTION_EPILOGUE_SIZE
 coffread.c
 @item F_OK
@@ -1673,9 +1650,11 @@ findvar.c
 dwarfread.c
 @item HANDLE_RBRAC
 partial-stab.h
+
 @item HAVE_MMAP
 In some cases, use the system call @code{mmap} for reading symbol
 tables.  For some machines this allows for sharing and quick updates.
+
 @item HAVE_REGISTER_WINDOWS
 findvar.c
 @item HAVE_SIGSETMASK
@@ -1687,7 +1666,7 @@ arm-tdep.c
 @item HOSTING_ONLY
 xm-rtbsd.h
 @item HOST_BYTE_ORDER
-ieee-float.c
+findvar.c
 @item HPUX_ASM
 xm-hp300hpux.h
 @item HPUX_VERSION_5
@@ -1696,8 +1675,6 @@ hp300ux-xdep.c
 infrun.c
 @item I80960
 remote-vx.c
-@item IEEE_DEBUG
-ieee-float.c
 @item IEEE_FLOAT
 valprint.c
 @item IGNORE_SYMBOL
@@ -1728,20 +1705,24 @@ values.c
 dbxread.c
 @item KERNEL_DEBUGGING
 tm-ultra3.h
+
 @item KERNEL_U_ADDR
 Define this to the address of the @code{u} structure (the ``user struct'',
 also known as the ``u-page'') in kernel virtual memory.  GDB needs to know
 this so that it can subtract this address from absolute addresses in
 the upage, that are obtained via ptrace or from core files.  On systems
 that don't need this value, set it to zero.
+
 @item KERNEL_U_ADDR_BSD
 Define this to cause GDB to determine the address of @code{u} at runtime,
 by using Berkeley-style @code{nlist} on the kernel's image in the root
 directory.
+
 @item KERNEL_U_ADDR_HPUX
 Define this to cause GDB to determine the address of @code{u} at runtime,
 by using HP-style @code{nlist} on the kernel's image in the root
 directory.
+
 @item LCC_PRODUCER
 dwarfread.c
 @item LOG_FILE
@@ -1760,25 +1741,33 @@ defs.h
 source.c
 @item L_LNNO32
 coffread.c
+
 @item L_SET
 This macro is used as the argument to lseek (or, most commonly, bfd_seek).
-FIXME, it should be replaced by SEEK_SET instead, which is the POSIX equivalent.
+FIXME, should be replaced by SEEK_SET instead, which is the POSIX equivalent.
+
 @item MACHKERNELDEBUG
 hppabsd-tdep.c
 @item MAINTENANCE
 dwarfread.c
+
 @item MAINTENANCE_CMDS
 If the value of this is 1, then a number of optional maintenance commands
 are compiled in.
+
 @item MALLOC_INCOMPATIBLE
 Define this if the system's prototype for @code{malloc} differs from the
 @sc{ANSI} definition.
+
 @item MIPSEL
 mips-tdep.c
+
 @item MMAP_BASE_ADDRESS
 When using HAVE_MMAP, the first mapping should go at this address.
+
 @item MMAP_INCREMENT
 when using HAVE_MMAP, this is the increment between mappings.
+
 @item MONO
 ser-go32.c
 @item MOTOROLA
@@ -1791,8 +1780,10 @@ infrun.c
 exec.c
 @item NFAILURES
 regex.c
+
 @item NORETURN
 (in defs.h - is this really useful to define/undefine?)
+
 @item NOTDEF
 regex.c
 @item NOTDEF
@@ -1805,6 +1796,7 @@ infrun.c
 remote-mm.c
 @item NO_JOB_CONTROL
 signals.h
+
 @item NO_MMALLOC
 GDB will use the @code{mmalloc} library for memory allocation for symbol
 reading, unless this symbol is defined.  Define it on systems 
@@ -1816,9 +1808,11 @@ to override the setting of @code{MMALLOC_LIB} to empty, in the Makefile.
 Therefore, this define is usually set on the command line by overriding
 @code{MMALLOC_DISABLE} in @file{config/*/*.mh}, rather than by defining
 it in @file{xm-*.h}.
+
 @item NO_MMALLOC_CHECK
 Define this if you are using @code{mmalloc}, but don't want the overhead
 of checking the heap with @code{mmcheck}.
+
 @item NO_SIGINTERRUPT
 remote-adapt.c
 @item NO_SINGLE_STEP
@@ -1887,6 +1881,7 @@ state.c
 state.c
 @item SEM
 coffread.c
+
 @item SET_STACK_LIMIT_HUGE
 When defined, stack limits will be raised to their maximum.  Use this
 if your host supports @code{setrlimit} and you have trouble with
@@ -1894,6 +1889,7 @@ if your host supports @code{setrlimit} and you have trouble with
 
 Also used in @file{fork-child.c} to return stack limits before child
 processes are forked.
+
 @item SHELL_COMMAND_CONCAT
 infrun.c
 @item SHELL_FILE
@@ -1904,24 +1900,16 @@ breakpoint.c
 regex.c
 @item SIGTRAP_STOP_AFTER_LOAD
 infrun.c
-@item SKIP_PROLOGUE
-tm-m68k.h
-@item SKIP_PROLOGUE_FRAMELESS_P
-blockframe.c
 @item SKIP_TRAMPOLINE_CODE
 infrun.c
 @item SOLIB_ADD
 core.c
-@item SOLIB_CREATE_INFERIOR_HOOK
-infrun.c
 @item STACK_ALIGN
 valops.c
 @item START_INFERIOR_TRAPS_EXPECTED
 infrun.c
 @item STOP_SIGNAL
 main.c
-@item STORE_RETURN_VALUE
-tm-m68k.h
 @item SUN4_COMPILER_FEATURE
 infrun.c
 @item SUN_FIXED_LBRAC_BUG
@@ -1938,8 +1926,6 @@ symfile.c
 regex.c
 @item Sword
 regex.c
-@item TDESC
-infrun.c
 @item TIOCGETC
 inflow.c
 @item TIOCGLTC
@@ -1968,10 +1954,12 @@ xm-news.h
 inflow.c
 @item USE_STRUCT_CONVENTION
 values.c
+
 @item USG
 Means that System V (prior to SVR4) include files are in use.
 (FIXME:  This symbol is abused in @file{infrun.c}, @file{regex.c},
 @file{remote-nindy.c}, and @file{utils.c} for other things, at the moment.)
+
 @item USIZE
 xm-m88k.h
 @item U_FPSTATE
@@ -1980,10 +1968,6 @@ i386-xdep.c
 dbxread.c
 @item WRS_ORIG
 remote-vx.c
-@item _LANG_c
-language.c
-@item _LANG_m2
-language.c
 @item __GNUC__
 news-xdep.c
 @item __GO32__
@@ -2041,10 +2025,13 @@ system.  These macros and their meanings are:
 Eliminate host conditionals from this list as they are identified.}
 
 @table @code
+
 @item PUSH_DUMMY_FRAME
 Used in @samp{call_function_by_hand} to create an artificial stack frame.
+
 @item POP_FRAME
 Used in @samp{call_function_by_hand} to remove an artificial stack frame.
+
 @item BLOCK_ADDRESS_FUNCTION_RELATIVE
 dbxread.c
 @item KERNELDEBUG
@@ -2073,12 +2060,8 @@ altos-xdep.c
 xm-altos.h
 @item ASCII_COFF
 remote-adapt.c
-@item BADMAG
-coffread.c
 @item BCS
 tm-delta88.h
-@item BEFORE_MAIN_LOOP_HOOK
-main.c
 @item BELIEVE_PCC_PROMOTION
 coffread.c
 @item BELIEVE_PCC_PROMOTION_TYPE
@@ -2093,20 +2076,25 @@ dbxread.c
 tm-m68k.h
 @item BREAKPOINT
 tm-m68k.h
-@item BREAKPOINT_DEBUG
-breakpoint.c
-@item BSTRING
-regex.c
 @item CALL_DUMMY
 valops.c
 @item CALL_DUMMY_LOCATION
 inferior.h
 @item CALL_DUMMY_STACK_ADJUST
 valops.c
-@item CANNOT_FETCH_REGISTER
-hppabsd-xdep.c
-@item CANNOT_STORE_REGISTER
-findvar.c
+
+@item CANNOT_FETCH_REGISTER (regno)
+A C expression that should be nonzero if @var{regno} cannot be
+fetched from an inferior process.
+This is only relevant if @code{FETCH_INFERIOR_REGISTERS} is not
+defined.
+
+@item CANNOT_STORE_REGISTER (regno)
+A C expression that should be nonzero if @var{regno} should not be
+written to the target.  This is often the case for program counters,
+status words, and other special registers.  If this is not defined,
+GDB will assume that all registers may be written.
+
 @item CFRONT_PRODUCER
 dwarfread.c
 @item CHILD_PREPARE_TO_STORE
@@ -2123,18 +2111,12 @@ symm-tdep.c
 stack.c
 @item CPLUS_MARKER
 cplus-dem.c
-@item CREATE_INFERIOR_HOOK
-infrun.c
-@item C_ALLOCA
-regex.c
 @item C_GLBLREG
 coffread.c
 @item DBXREAD_ONLY
 partial-stab.h
 @item DBX_PARM_SYMBOL_CLASS
 stabsread.c
-@item DEBUG
-remote-adapt.c
 @item DEBUG_INFO
 partial-stab.h
 @item DEBUG_PTRACE
@@ -2155,9 +2137,11 @@ remote.c
 infrun.c
 @item DO_REGISTERS_INFO
 infcmd.c
+
 @item END_OF_TEXT_DEFAULT
 This is an expression that should designate the end of the text section
 (? FIXME ?)
+
 @item EXTRACT_RETURN_VALUE
 tm-m68k.h
 @item EXTRACT_STRUCT_VALUE_ADDRESS
@@ -2178,14 +2162,14 @@ a68v-xdep.c
 mach386-xdep.c
 @item FP_REGNUM
 parse.c
-@item FPU
-Unused?  6-oct-92 rich@@cygnus.com.  FIXME.
 @item FRAMELESS_FUNCTION_INVOCATION
 blockframe.c
 @item FRAME_ARGS_ADDRESS_CORRECT
 stack.c
+
 @item FRAME_CHAIN
 Given FRAME, return a pointer to the calling frame.
+
 @item FRAME_CHAIN_COMBINE
 blockframe.c
 @item FRAME_CHAIN_VALID
@@ -2196,12 +2180,17 @@ frame.h
 stack.c
 @item FRAME_GET_BASEREG_VALUE
 frame.h
-@item FRAME_NUM_ARGS
-tm-m68k.h
+
+@item FRAME_NUM_ARGS (val, fi)
+For the frame described by fi, set val to the number of arguments
+that are being passed.
+
 @item FRAME_SPECIFICATION_DYADIC
 stack.c
+
 @item FRAME_SAVED_PC
 Given FRAME, return the pc saved there.  That is, the return address.
+
 @item FUNCTION_EPILOGUE_SIZE
 coffread.c
 @item F_OK
@@ -2214,16 +2203,19 @@ dbxread.c
 symtab.c
 @item GCC_PRODUCER
 dwarfread.c
+
 @item GDB_TARGET_IS_HPPA
 This determines whether horrible kludge code in dbxread.c and partial-stab.h
 is used to mangle multiple-symbol-table files from HPPA's.  This should all
 be ripped out, and a scheme like elfread.c used.
+
 @item GDB_TARGET_IS_MACH386
 mach386-xdep.c
 @item GDB_TARGET_IS_SUN3
 a68v-xdep.c
 @item GDB_TARGET_IS_SUN386
 sun386-xdep.c
+
 @item GET_LONGJMP_TARGET
 For most machines, this is a target-dependent parameter.  On the DECstation
 and the Iris, this is a native-dependent parameter, since <setjmp.h> is
@@ -2233,6 +2225,7 @@ This macro determines the target PC address that longjmp() will jump
 to, assuming that we have just stopped at a longjmp breakpoint.  It
 takes a CORE_ADDR * as argument, and stores the target PC value through
 this pointer.  It examines the current state of the machine as needed.
+
 @item GET_SAVED_REGISTER
 findvar.c
 @item GPLUS_PRODUCER
@@ -2255,8 +2248,6 @@ inflow.c
 arm-tdep.c
 @item HOSTING_ONLY
 xm-rtbsd.h
-@item HOST_BYTE_ORDER
-ieee-float.c
 @item HPUX_ASM
 xm-hp300hpux.h
 @item HPUX_VERSION_5
@@ -2265,12 +2256,12 @@ hp300ux-xdep.c
 infrun.c
 @item I80960
 remote-vx.c
+
 @item IBM6000_TARGET
 Shows that we are configured for an IBM RS/6000 target.  This conditional
 should be eliminated (FIXME) and replaced by feature-specific macros.
 It was introduced in haste and we are repenting at leisure.
-@item IEEE_DEBUG
-ieee-float.c
+
 @item IEEE_FLOAT
 valprint.c
 @item IGNORE_SYMBOL
@@ -2331,12 +2322,8 @@ altos-xdep.c
 infrun.c
 @item NEED_TEXT_START_END
 exec.c
-@item NFAILURES
-regex.c
 @item NNPC_REGNUM
 infrun.c
-@item NOTDEF
-regex.c
 @item NOTDEF
 remote-adapt.c
 @item NOTDEF
@@ -2397,15 +2384,15 @@ tm-a29k.h
 exec.c
 @item REG_STRUCT_HAS_ADDR
 findvar.c
-@item RE_NREGS
-regex.h
 @item R_FP
 dwarfread.c
 @item R_OK
 xm-altos.h
+
 @item SDB_REG_TO_REGNUM
 Define this to convert sdb register numbers
-into gdb regnums.  If not defined, no conversion will be done.
+into GDB regnums.  If not defined, no conversion will be done.
+
 @item SEEK_END
 state.c
 @item SEEK_SET
@@ -2418,73 +2405,91 @@ infrun.c
 infrun.c
 @item SHIFT_INST_REGS
 breakpoint.c
-@item SIGN_EXTEND_CHAR
-regex.c
 @item SIGTRAP_STOP_AFTER_LOAD
 infrun.c
+
 @item SKIP_PROLOGUE
-tm-m68k.h
+A C statement that advances the PC across any function entry
+prologue instructions so as to reach ``real'' code.
+
 @item SKIP_PROLOGUE_FRAMELESS_P
-blockframe.c
+A C statement that should behave similarly, but that can stop
+as soon as the function is known to have a frame.
+If not defined, @code{SKIP_PROLOGUE} will be used instead.
+
 @item SKIP_TRAMPOLINE_CODE
 infrun.c
 @item SOLIB_ADD
 core.c
-@item SOLIB_CREATE_INFERIOR_HOOK
-infrun.c
 @item SP_REGNUM
 parse.c
+
 @item STAB_REG_TO_REGNUM
 Define this to convert stab register numbers (as gotten from `r' declarations)
-into gdb regnums.  If not defined, no conversion will be done.
+into GDB regnums.  If not defined, no conversion will be done.
+
 @item STACK_ALIGN
 valops.c
 @item START_INFERIOR_TRAPS_EXPECTED
 infrun.c
 @item STOP_SIGNAL
 main.c
-@item STORE_RETURN_VALUE
-tm-m68k.h
+
+@item STORE_RETURN_VALUE (type, valbuf)
+A C expression that stores a function return value of type @var{type},
+where @var{valbuf} is the address of the value to be stored.
+
 @item SUN4_COMPILER_FEATURE
 infrun.c
 @item SUN_FIXED_LBRAC_BUG
 dbxread.c
 @item SVR4_SHARED_LIBS
 solib.c
-@item SWITCH_ENUM_BUG
-regex.c
 @item SYM1
 tm-ultra3.h
 @item SYMBOL_RELOADING_DEFAULT
 symfile.c
-@item SYNTAX_TABLE
-regex.c
-@item Sword
-regex.c
+
 @item TARGET_BYTE_ORDER
-defs.h
+The ordering of bytes in the target.
+This must be defined to be either @code{BIG_ENDIAN} or @code{LITTLE_ENDIAN}.
+
 @item TARGET_CHAR_BIT
-defs.h
+Number of bits in a char; defaults to 8.
+
 @item TARGET_COMPLEX_BIT
-defs.h
+Number of bits in a complex number; defaults to @code{2 * TARGET_FLOAT_BIT}.
+
 @item TARGET_DOUBLE_BIT
-defs.h
+Number of bits in a double float; defaults to @code{8 * TARGET_CHAR_BIT}.
+
 @item TARGET_DOUBLE_COMPLEX_BIT
-defs.h
+Number of bits in a double complex; defaults to @code{2 * TARGET_DOUBLE_BIT}.
+
 @item TARGET_FLOAT_BIT
-defs.h
+Number of bits in a float; defaults to @code{4 * TARGET_CHAR_BIT}.
+
 @item TARGET_INT_BIT
-defs.h
+Number of bits in an integer; defaults to @code{4 * TARGET_CHAR_BIT}.
+
 @item TARGET_LONG_BIT
-defs.h
+Number of bits in a long integer; defaults to @code{4 * TARGET_CHAR_BIT}.
+
 @item TARGET_LONG_DOUBLE_BIT
-defs.h
+Number of bits in a long double float;
+defaults to @code{2 * TARGET_DOUBLE_BIT}.
+
 @item TARGET_LONG_LONG_BIT
-defs.h
+Number of bits in a long long integer; defaults to @code{2 * TARGET_LONG_BIT}.
+
 @item TARGET_PTR_BIT
-defs.h
+Number of bits in a pointer; defaults to @code{TARGET_INT_BIT}.
+
+@item TARGET_SHORT_BIT
+Number of bits in a short integer; defaults to @code{2 * TARGET_CHAR_BIT}.
+
 @item TARGET_READ_PC
-@item TARGET_WRITE_PC
+@item TARGET_WRITE_PC (val, pid)
 @item TARGET_READ_SP
 @item TARGET_WRITE_SP
 @item TARGET_READ_FP
@@ -2498,10 +2503,6 @@ These macros are useful when a target keeps one of these registers in a
 hard to get at place;  for example, part in a segment register and part
 in an ordinary register.
 
-@item TARGET_SHORT_BIT
-defs.h
-@item TDESC
-infrun.c
 @item T_ARG
 coffread.c
 @item T_VOID
@@ -2522,10 +2523,6 @@ i386-xdep.c
 dbxread.c
 @item WRS_ORIG
 remote-vx.c
-@item _LANG_c
-language.c
-@item _LANG_m2
-language.c
 @item __GO32__
 inflow.c
 @item __HPUX_ASM__
@@ -2548,14 +2545,14 @@ m68k-stub.c
 ns32k-opcode.h
 @item sgi
 mips-tdep.c
-@item sparc
-regex.c
 @item sun
 m68k-tdep.c
 @item sun386
 tm-sun386.h
+
 @item test
 (Define this to enable testing code in regex.c.)
+
 @end table
 
 @node Native Conditionals
@@ -2567,9 +2564,11 @@ are the same.  These macros should be defined (or left undefined)
 in @file{nm-@var{system}.h}.
 
 @table @code
+
 @item ATTACH_DETACH
-If defined, then gdb will include support for the @code{attach} and
+If defined, then GDB will include support for the @code{attach} and
 @code{detach} commands.
+
 @item FETCH_INFERIOR_REGISTERS
 Define this if the native-dependent code will provide its
 own routines
@@ -2578,6 +2577,7 @@ own routines
 If this symbol is @emph{not} defined, and @file{infptrace.c}
 is included in this configuration, the default routines in
 @file{infptrace.c} are used for these functions.
+
 @item GET_LONGJMP_TARGET
 For most machines, this is a target-dependent parameter.  On the DECstation
 and the Iris, this is a native-dependent parameter, since <setjmp.h> is
@@ -2587,22 +2587,32 @@ This macro determines the target PC address that longjmp() will jump
 to, assuming that we have just stopped at a longjmp breakpoint.  It
 takes a CORE_ADDR * as argument, and stores the target PC value through
 this pointer.  It examines the current state of the machine as needed.
+
 @item PROC_NAME_FMT
 Defines the format for the name of a @file{/proc} device.  Should be
 defined in @file{nm.h} @emph{only} in order to override the default
 definition in @file{procfs.c}.
+
 @item PTRACE_FP_BUG
 mach386-xdep.c
+
 @item PTRACE_ARG3_TYPE
 The type of the third argument to the @code{ptrace} system call, if it exists
 and is different from @code{int}.
+
 @item REGISTER_U_ADDR
 Defines the offset of the registers in the ``u area''; @pxref{Host}.
+
+@item SOLIB_CREATE_INFERIOR_HOOK
+Define this to expand into any shared-library-relocation code
+that you want to be run just after the child process has been forked.
+
 @item USE_PROC_FS
 This determines whether small routines in @file{*-tdep.c}, which
 translate register values
 between GDB's internal representation and the /proc representation,
 are compiled.
+
 @item U_REGS_OFFSET
 This is the offset of the registers in the upage.  It need only be
 defined if the generic ptrace register access routines in
@@ -2614,6 +2624,7 @@ from @file{infptrace.c} is good enough, leave it undefined.
 The default value means that u.u_ar0 @emph{points to} the location of the
 registers.  I'm guessing that @code{#define U_REGS_OFFSET 0} means that
 u.u_ar0 @emph{is} the location of the registers.
+
 @end table
 
 @node Obsolete Conditionals
