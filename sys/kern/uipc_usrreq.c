@@ -59,9 +59,9 @@
 #include <sys/jail.h>
 #include <sys/sx.h>
 
-#include <vm/vm_zone.h>
+#include <vm/uma.h>
 
-static vm_zone_t unp_zone;
+static uma_zone_t unp_zone;
 static	unp_gen_t unp_gencnt;
 static	u_int unp_count;
 
@@ -530,7 +530,7 @@ unp_attach(so)
 		if (error)
 			return (error);
 	}
-	unp = zalloc(unp_zone);
+	unp = uma_zalloc(unp_zone, M_WAITOK);
 	if (unp == NULL)
 		return (ENOBUFS);
 	bzero(unp, sizeof *unp);
@@ -578,7 +578,7 @@ unp_detach(unp)
 	}
 	if (unp->unp_addr)
 		FREE(unp->unp_addr, M_SONAME);
-	zfree(unp_zone, unp);
+	uma_zfree(unp_zone, unp);
 }
 
 static int
@@ -1072,7 +1072,8 @@ next:
 void
 unp_init(void)
 {
-	unp_zone = zinit("unpcb", sizeof(struct unpcb), nmbclusters, 0, 0);
+	unp_zone = uma_zcreate("unpcb", sizeof(struct unpcb), NULL, NULL,
+	    NULL, NULL, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
 	if (unp_zone == 0)
 		panic("unp_init");
 	LIST_INIT(&unp_dhead);
