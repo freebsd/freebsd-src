@@ -490,7 +490,7 @@ unpack(char *pkg, char *flist)
     else
 	strcpy(args, "-z");
     strcat(args, " -xpf");
-    if (vsystem("tar %s %s %s", args, pkg, flist ? flist : "")) {
+    if (vsystem("tar %s '%s' %s", args, pkg, flist ? flist : "")) {
 	warnx("tar extract of %s failed!", pkg);
 	return 1;
     }
