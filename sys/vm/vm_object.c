@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.156 1999/05/30 01:12:19 alc Exp $
+ * $Id: vm_object.c,v 1.157 1999/06/20 21:47:00 alc Exp $
  */
 
 /*
@@ -1617,8 +1617,8 @@ DB_SHOW_COMMAND(vmochk, vm_object_check)
 		if (object->handle == NULL &&
 		    (object->type == OBJT_DEFAULT || object->type == OBJT_SWAP)) {
 			if (object->ref_count == 0) {
-				db_printf("vmochk: internal obj has zero ref count: %d\n",
-					object->size);
+				db_printf("vmochk: internal obj has zero ref count: %ld\n",
+					(long)object->size);
 			}
 			if (!vm_object_in_map(object)) {
 				db_printf(
@@ -1732,8 +1732,8 @@ DB_SHOW_COMMAND(vmopag, vm_object_print_pages)
 			m = vm_page_lookup(object, idx);
 			if (m == NULL) {
 				if (rcount) {
-					db_printf(" index(%d)run(%d)pa(0x%x)\n",
-						fidx, rcount, pa);
+					db_printf(" index(%ld)run(%d)pa(0x%lx)\n",
+						(long)fidx, rcount, (long)pa);
 					if ( nl > 18) {
 						c = cngetc();
 						if (c != ' ')
@@ -1761,8 +1761,9 @@ DB_SHOW_COMMAND(vmopag, vm_object_print_pages)
 					++rcount;
 					continue;
 				}
-				db_printf(" index(%d)run(%d)pa(0x%x)", fidx, rcount, pa);
-				db_printf("pd(%d)\n", padiff);
+				db_printf(" index(%ld)run(%d)pa(0x%lx)",
+					(long)fidx, rcount, (long)pa);
+				db_printf("pd(%ld)\n", (long)padiff);
 				if ( nl > 18) {
 					c = cngetc();
 					if (c != ' ')
@@ -1776,7 +1777,8 @@ DB_SHOW_COMMAND(vmopag, vm_object_print_pages)
 			rcount = 1;
 		}
 		if (rcount) {
-			db_printf(" index(%d)run(%d)pa(0x%x)\n", fidx, rcount, pa);
+			db_printf(" index(%ld)run(%d)pa(0x%lx)\n",
+				(long)fidx, rcount, (long)pa);
 			if ( nl > 18) {
 				c = cngetc();
 				if (c != ' ')
