@@ -34,6 +34,7 @@
  * SUCH DAMAGE.
  */
 
+#ifndef __GNUC__
 #if defined(LIBC_SCCS) && !defined(lint)
 	.asciz "@(#)alloca.s	5.2 (Berkeley) 5/14/90"
 #endif /* LIBC_SCCS and not lint */
@@ -56,3 +57,4 @@ ENTRY(alloca)
 	pushl	0(%ecx)
 	pushl	%eax		/* dummy to pop at callsite */
 	jmp	*%edx		/* "return" */
+#endif	/*__GNUC__*/
