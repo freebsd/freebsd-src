@@ -1560,10 +1560,29 @@ fdc_initial_reset(device_t dev, struct fdc_data *fdc)
 {
 	int ic_type, part_id;
 
-	/* First, reset the floppy controller. */
+	/*
+	 * A status value of 0xff is very unlikely, but not theoretically
+	 * impossible, but it is far more likely to indicate an empty bus.
+	 */
+	if (fdsts_rd(fdc) == 0xff)
+		return (ENXIO);
+
+	/*
+	 * Assert a reset to the floppy controller and check that the status
+	 * register goes to zero.
+	 */
 	fdout_wr(fdc, 0);
-	DELAY(100);
+	fdout_wr(fdc, 0);
+	if (fdsts_rd(fdc) != 0)
+		return (ENXIO);
+
+	/*
+	 * Clear the reset and see it come ready.
+	 */
 	fdout_wr(fdc, FDO_FRST);
+	DELAY(100);
+	if (fdsts_rd(fdc) != 0x80)
+		return (ENXIO);
 
 	/* Then, see if it can handle a command. */
 	if (fdc_cmd(fdc, 3, NE7CMD_SPECIFY, 0xaf, 0x1e, 0))
@@ -1582,7 +1601,7 @@ fdc_initial_reset(device_t dev, struct fdc_data *fdc)
 		return (ENXIO);
 	if (fdc_cmd(fdc, 1, 0x18, 1, &part_id))
 		return (ENXIO);
-	printf("ic_type %02x part_id %02x\n", ic_type, part_id);
+	device_printf(dev, "ic_type %02x part_id %02x\n", ic_type, part_id);
 	switch (ic_type & 0xff) {
 	case 0x80:
 		device_set_desc(dev, "NEC 765 or clone");
