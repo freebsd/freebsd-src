@@ -37,6 +37,7 @@
 #include <sys/errno.h>
 #include <sys/devicestat.h>
 #include <machine/stdarg.h>
+#include <machine/clock.h>
 
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>
