@@ -336,6 +336,7 @@ static void pmap_insert_entry(pmap_t pmap, vm_offset_t va,
 static vm_page_t pmap_allocpte(pmap_t pmap, vm_offset_t va);
 
 static vm_page_t _pmap_allocpte(pmap_t pmap, unsigned ptepindex);
+static int _pmap_unwire_pte_hold(pmap_t pmap, vm_offset_t va, vm_page_t m);
 static int pmap_unuse_pt(pmap_t, vm_offset_t, vm_page_t);
 #ifdef SMP
 static void pmap_invalidate_page_action(void *arg);
@@ -894,74 +895,65 @@ pmap_map(vm_offset_t *virt, vm_offset_t start, vm_offset_t end, int prot)
  * This routine unholds page table pages, and if the hold count
  * drops to zero, then it decrements the wire count.
  */
-static int 
-_pmap_unwire_pte_hold(pmap_t pmap, vm_offset_t va, vm_page_t m)
-{
-
-	while (vm_page_sleep_if_busy(m, FALSE, "pmuwpt"))
-		vm_page_lock_queues();
-
-	if (m->hold_count == 0) {
-		vm_offset_t pteva;
-		pt_entry_t* pte;
-
-		/*
-		 * unmap the page table page
-		 */
-		if (m->pindex >= NUSERLEV3MAPS) {
-			/* Level 2 page table */
-			pte = pmap_lev1pte(pmap, va);
-			pteva = (vm_offset_t) PTlev2 + alpha_ptob(m->pindex - NUSERLEV3MAPS);
-		} else {
-			/* Level 3 page table */
-			pte = pmap_lev2pte(pmap, va);
-			pteva = (vm_offset_t) PTmap + alpha_ptob(m->pindex);
-		}
-
-		*pte = 0;
-
-		if (m->pindex < NUSERLEV3MAPS) {
-			/* unhold the level 2 page table */
-			vm_page_t lev2pg;
-
-			lev2pg = PHYS_TO_VM_PAGE(pmap_pte_pa(pmap_lev1pte(pmap, va)));
-			vm_page_unhold(lev2pg);
-			if (lev2pg->hold_count == 0)
-				_pmap_unwire_pte_hold(pmap, va, lev2pg);
-		}
-
-		--pmap->pm_stats.resident_count;
-		/*
-		 * Do a invltlb to make the invalidated mapping
-		 * take effect immediately.
-		 */
-		pmap_invalidate_page(pmap, pteva);
-
-		if (pmap->pm_ptphint == m)
-			pmap->pm_ptphint = NULL;
-
-		/*
-		 * If the page is finally unwired, simply free it.
-		 */
-		--m->wire_count;
-		if (m->wire_count == 0) {
-			vm_page_busy(m);
-			vm_page_free_zero(m);
-			atomic_subtract_int(&cnt.v_wire_count, 1);
-		}
-		return 1;
-	}
-	return 0;
-}
-
 static PMAP_INLINE int
 pmap_unwire_pte_hold(pmap_t pmap, vm_offset_t va, vm_page_t m)
 {
+
 	vm_page_unhold(m);
 	if (m->hold_count == 0)
 		return _pmap_unwire_pte_hold(pmap, va, m);
 	else
 		return 0;
+}
+
+static int 
+_pmap_unwire_pte_hold(pmap_t pmap, vm_offset_t va, vm_page_t m)
+{
+	vm_offset_t pteva;
+	pt_entry_t* pte;
+
+	/*
+	 * unmap the page table page
+	 */
+	if (m->pindex >= NUSERLEV3MAPS) {
+		/* Level 2 page table */
+		pte = pmap_lev1pte(pmap, va);
+		pteva = (vm_offset_t) PTlev2 + alpha_ptob(m->pindex - NUSERLEV3MAPS);
+	} else {
+		/* Level 3 page table */
+		pte = pmap_lev2pte(pmap, va);
+		pteva = (vm_offset_t) PTmap + alpha_ptob(m->pindex);
+	}
+
+	*pte = 0;
+
+	if (m->pindex < NUSERLEV3MAPS) {
+		/* unhold the level 2 page table */
+		vm_page_t lev2pg;
+
+		lev2pg = PHYS_TO_VM_PAGE(pmap_pte_pa(pmap_lev1pte(pmap, va)));
+		pmap_unwire_pte_hold(pmap, va, lev2pg);
+	}
+
+	--pmap->pm_stats.resident_count;
+	/*
+	 * Do a invltlb to make the invalidated mapping
+	 * take effect immediately.
+	 */
+	pmap_invalidate_page(pmap, pteva);
+
+	if (pmap->pm_ptphint == m)
+		pmap->pm_ptphint = NULL;
+
+	/*
+	 * If the page is finally unwired, simply free it.
+	 */
+	--m->wire_count;
+	if (m->wire_count == 0) {
+		vm_page_free_zero(m);
+		atomic_subtract_int(&cnt.v_wire_count, 1);
+	}
+	return 1;
 }
 
 /*
