@@ -1171,10 +1171,14 @@ SYSINIT(preload, SI_SUB_KLD, SI_ORDER_MIDDLE, linker_preload, 0);
  * character as a separator to be consistent with the bootloader.
  */
 
-static char linker_path[MAXPATHLEN] = "/boot/modules/;/modules/;/boot/kernel/";
+static char def_linker_path[] = "/boot/modules/;/modules/;/boot/kernel/";
+static char linker_path[MAXPATHLEN] = "";
 
 SYSCTL_STRING(_kern, OID_AUTO, module_path, CTLFLAG_RW, linker_path,
 	      sizeof(linker_path), "module load search path");
+
+TUNABLE_STR_DECL("module_path", def_linker_path, linker_path,
+		 sizeof(linker_path));
 
 static char *linker_ext_list[] = {
 	".ko",
@@ -1211,14 +1215,14 @@ linker_search_path(const char *name)
 	/* find the end of this component */
 	for (ep = cp; (*ep != 0) && (*ep != ';'); ep++)
 	    ;
-	result = malloc((len + (ep - cp) + extlen), M_LINKER, M_WAITOK);
+	result = malloc((len + (ep - cp) + extlen + 1), M_LINKER, M_WAITOK);
 	if (result == NULL)	/* actually ENOMEM */
 	    return(NULL);
 	for (cpp = linker_ext_list; *cpp; cpp++) {
 	    strncpy(result, cp, ep - cp);
-	    strcpy(result + (ep - cp), name);
+	    strcpy(result + (ep - cp), "/");
+	    strcat(result, name);
 	    strcat(result, *cpp);
-
 	    /*
 	     * Attempt to open the file, and return the path if we succeed
 	     * and it's a regular file.
