@@ -772,9 +772,6 @@ options 	VINUMDEBUG	#enable Vinum debugging hooks
 # Size of the kernel message buffer.  Should be N * pagesize.
 options		"MSGBUF_SIZE=40960"
 
-# Conserve space by not including sysctl descriptions (see sysctl(8))
-#options	NO_SYSCTL_DESCRIPTIONS
-
 
 #####################################################################
 # HARDWARE DEVICE CONFIGURATION
