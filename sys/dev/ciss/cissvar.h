@@ -261,11 +261,11 @@ struct ciss_softc
 	do {								\
 	    if (level <= CISS_DEBUG) printf("%s: called\n", __func__);	\
 	} while(0)
-# define debug_struct(s)		printf("  SIZE %s: %d\n", #s, sizeof(struct s))
-# define debug_union(s)			printf("  SIZE %s: %d\n", #s, sizeof(union s))
-# define debug_type(s)			printf("  SIZE %s: %d\n", #s, sizeof(s))
+# define debug_struct(s)		printf("  SIZE %s: %zu\n", #s, sizeof(struct s))
+# define debug_union(s)			printf("  SIZE %s: %zu\n", #s, sizeof(union s))
+# define debug_type(s)			printf("  SIZE %s: %zu\n", #s, sizeof(s))
 # define debug_field(s, f)		printf("  OFFSET %s.%s: %d\n", #s, #f, ((int)&(((struct s *)0)->f)))
-# define debug_const(c)			printf("  CONST %s %d/0x%x\n", #c, c, c);
+# define debug_const(c)			printf("  CONST %s %jd/0x%jx\n", #c, (intmax_t)c, (intmax_t)c);
 #else
 # define debug(level, fmt, args...)
 # define debug_called(level)
