@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_subr.c	8.5 (Berkeley) 3/21/95
- * $Id: ffs_subr.c,v 1.17 1998/02/04 22:33:32 eivind Exp $
+ * $Id: ffs_subr.c,v 1.18 1998/02/06 12:14:14 eivind Exp $
  */
 
 #include <sys/param.h>
@@ -50,7 +50,7 @@
 #include <ufs/ufs/inode.h>
 #include <ufs/ffs/ffs_extern.h>
 
-#if defined(KERNEL) && defined(DIAGNOSTIC) && defined(DDB)
+#ifdef DDB
 static void	ffs_checkoverlap __P((struct buf *, struct inode *));
 #endif
 
@@ -125,7 +125,7 @@ ffs_fragacct(fs, fragmap, fraglist, cnt)
 	}
 }
 
-#if defined(KERNEL) && defined(DIAGNOSTIC) && defined(DDB)
+#ifdef DDB
 static void
 ffs_checkoverlap(bp, ip)
 	struct buf *bp;
@@ -158,7 +158,7 @@ ffs_checkoverlap(bp, ip)
 		panic("ffs_checkoverlap: Disk buffer overlap");
 	}
 }
-#endif /* KERNEL && DIAGNOSTIC && DDB */
+#endif /* DDB */
 
 /*
  * block operations
