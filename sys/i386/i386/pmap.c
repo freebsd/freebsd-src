@@ -1064,7 +1064,6 @@ pmap_pinit(pmap)
 		else {
 			vm_page_lock_queues();
 			vm_page_flag_clear(m, PG_BUSY);
-			m->valid = VM_PAGE_BITS_ALL;
 			vm_page_unlock_queues();
 			ptdpg[i++] = m;
 		}
@@ -1162,7 +1161,6 @@ _pmap_allocpte(pmap, ptepindex)
 		(pd_entry_t) (ptepa | PG_U | PG_RW | PG_V | PG_A | PG_M);
 
 	vm_page_lock_queues();
-	m->valid = VM_PAGE_BITS_ALL;
 	vm_page_flag_clear(m, PG_ZERO);
 	vm_page_wakeup(m);
 	vm_page_unlock_queues();
