@@ -57,7 +57,6 @@
 #endif
 #include <sys/ucred.h>
 #include <machine/proc.h>		/* Machine-dependent proc substruct. */
-#include <vm/uma.h>
 
 /*
  * One structure allocated per session.
