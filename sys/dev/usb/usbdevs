@@ -284,6 +284,7 @@ vendor DIAMOND		0x0841	Diamond
 vendor NETGEAR		0x0846	BayNETGEAR
 vendor ACTIVEWIRE	0x0854	ActiveWire
 vendor PORTGEAR		0x085a	PortGear
+vendor SYSTEMTALKS	0x086e	System TALKS, Inc.
 vendor METRICOM		0x0870	Metricom
 vendor ADESSOKBTEK	0x087c	ADESSO/Kbtek America
 vendor JATON		0x087d	Jaton
@@ -1247,6 +1248,9 @@ product SUNTAC AS144L4		0x0011	SUNTAC U-Cable type A4
 product SUN KEYBOARD		0x0005	Type 6 USB keyboard
 /* XXX The above is a North American PC style keyboard possibly */
 product SUN MOUSE		0x0100	Type 6 USB mouse
+
+/* System TALKS, Inc. */
+product	SYSTEMTALKS SGCX2UL	0x1920	SGC-X2UL
 
 /* Supra products */
 product DIAMOND2 SUPRAEXPRESS56K 0x07da	Supra Express 56K modem
