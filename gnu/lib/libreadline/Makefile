@@ -1,4 +1,4 @@
-#       $Id: Makefile,v 1.14 1994/10/12 02:01:54 ache Exp $
+#       $Id: Makefile,v 1.15 1994/11/01 09:13:02 pst Exp $
 
 
 CFLAGS+= -I${.CURDIR} -DVOID_SIGHANDLER \
@@ -21,9 +21,9 @@ beforeinstall:
 	fi
 	cd ${.CURDIR}/readline; \
 	for m in ${HEADERS} ; do \
-	  cmp -s $m ${DESTDIR}/usr/include/readline || \
+	  cmp -s $$m ${DESTDIR}/usr/include/readline || \
 	  install -c -o ${BINOWN} -g ${BINGRP} -m 444 \
-		$m ${DESTDIR}/usr/include/readline ; \
+		$$m ${DESTDIR}/usr/include/readline ; \
 	done
 
 .include <bsd.lib.mk>
