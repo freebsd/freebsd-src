@@ -8,6 +8,7 @@ MAINTAINER=	green@FreeBSD.org
 
 .include <bsd.prog.mk>
 
+CLEANFILES+= a.out
 #
 # Test the character conversion functions.  We have to be explicit about
 # which LC_LANG we use because the definition of upper and lower case
