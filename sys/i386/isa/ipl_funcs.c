@@ -28,6 +28,8 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/kernel.h>
+#include <sys/sysctl.h>
 #include <machine/ipl.h>
 #include <machine/globals.h>
 #include <i386/isa/intr_machdep.h>
@@ -66,12 +68,44 @@ softclockpending(void)
 }
 
 #ifdef INVARIANT_SUPPORT
+
+#define	SPLASSERT_IGNORE	0
+#define	SPLASSERT_LOG		1
+#define	SPLASSERT_PANIC		2
+
+static int splassertmode = SPLASSERT_LOG;
+SYSCTL_INT(_kern, OID_AUTO, splassertmode, CTLFLAG_RW,
+	&splassertmode, 0, "Set the mode of SPLASSERT");
+
+static void
+init_splassertmode(void *ignored)
+{
+	TUNABLE_INT_FETCH("kern.splassertmode", 0, splassertmode);
+}
+SYSINIT(param, SI_SUB_TUNABLES, SI_ORDER_ANY, init_splassertmode, NULL);
+
+static void
+splassertfail(char *str, const char *msg, char *name, int level)
+{
+	switch (splassertmode) {
+	case SPLASSERT_IGNORE:
+		break;
+	case SPLASSERT_LOG:
+		printf(str, msg, name, level);
+		printf("\n");
+		break;
+	case SPLASSERT_PANIC:
+		panic(str, msg, name, level);
+		break;
+	}
+}
+
 #define	GENSPLASSERT(NAME, MODIFIER)			\
 void							\
 NAME##assert(const char *msg)				\
 {							\
 	if ((cpl & (MODIFIER)) != (MODIFIER))		\
-		panic("%s: not %s, cpl == %#x",		\
+		splassertfail("%s: not %s, cpl == %#x",	\
 		    msg, __XSTRING(NAME) + 3, cpl);	\
 }
 #else
