@@ -55,7 +55,6 @@
 #include <sys/namei.h>
 #include <sys/dirent.h>
 #include <sys/conf.h>
-#include <sys/socketvar.h>
 #include <miscfs/fdesc/fdesc.h>
 
 #define FDL_WANT	0x01
