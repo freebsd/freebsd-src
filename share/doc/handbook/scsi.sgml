@@ -1,4 +1,4 @@
-<!-- $Id: scsi.sgml,v 1.14 1996/05/16 23:18:16 mpp Exp $ -->
+<!-- $Id: scsi.sgml,v 1.15 1996/07/07 02:00:48 jfieber Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -667,11 +667,11 @@ options         "SCSI_DELAY=15"         #Be pessimistic about Joe SCSI device
 	  booting. An example for two of my cartridge tape units:
 	
 	 <verb>
-Feb 25 21:03:34 yedi /386bsd: ahb0 targ 5 lun 0: <TANDBERG TDC 3600       -06:>
-Feb 25 21:03:34 yedi /386bsd: st0: Tandberg tdc3600 is a known rogue
+Feb 25 21:03:34 yedi /kernel: ahb0 targ 5 lun 0: <TANDBERG TDC 3600       -06:>
+Feb 25 21:03:34 yedi /kernel: st0: Tandberg tdc3600 is a known rogue
 
-Mar 29 21:16:37 yedi /386bsd: aha0 targ 5 lun 0: <ARCHIVE VIPER 150  21247-005>
-Mar 29 21:16:37 yedi /386bsd: st1: Archive  Viper 150 is a known rogue
+Mar 29 21:16:37 yedi /kernel: aha0 targ 5 lun 0: <ARCHIVE VIPER 150  21247-005>
+Mar 29 21:16:37 yedi /kernel: st1: Archive  Viper 150 is a known rogue
 	 </verb>
 
 	  For instance, there are devices that respond to 
