@@ -338,26 +338,24 @@ struct geomgetconf {
 struct g_createargs {
 	/* Valid on call */
 	struct g_class		*class;
+	struct g_geom		*geom;
 	struct g_provider	*provider;
 	u_int			flag;
 	u_int			len;
 	void			*ptr;
-	/* Valid on return */
-	struct g_geom		*geom;
 };
 
 struct geomconfiggeom {
 	/* Valid on call */
 	struct geomidorname	class;
+	struct geomidorname	geom;
 	struct geomidorname	provider;
 	u_int			flag;
 	u_int			len;
 	void			*ptr;
 	/* Valid on return */
-	uintptr_t		geom;
 };
 #define GEOMCONFIGGEOM _IOW('G',  0, struct geomconfiggeom)
-
 
 /* geom_enc.c */
 uint16_t g_dec_be2(const u_char *p);
