@@ -1188,8 +1188,11 @@ fwohci_db_init(struct fwohci_softc *sc, struct fwohci_dbch *dbch)
 			/*nsegments*/ dbch->ndesc > 3 ? dbch->ndesc - 2 : 1,
 			/*maxsegsz*/ MAX_REQCOUNT,
 			/*flags*/ 0,
+#if __FreeBSD_version >= 501102
 			/*lockfunc*/busdma_lock_mutex,
-			/*lockarg*/&Giant, &dbch->dmat))
+			/*lockarg*/&Giant,
+#endif
+			&dbch->dmat))
 		return;
 
 	/* allocate DB entries and attach one to each DMA channels */
