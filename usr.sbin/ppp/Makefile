@@ -11,17 +11,24 @@ SRCS=	acf.c arp.c async.c auth.c bundle.c cbcp.c ccp.c chap.c chat.c \
 WARNS?=	3
 .if defined(RELEASE_CRUNCH)
 CFLAGS+=-DRELEASE_CRUNCH
-NO_ATM=
-NODES=
-NOI4B=
-NONAT=
-NOKLDLOAD=
-NOPAM=
-NORADIUS=
-NOSUID=
+PPP_NO_ATM=
+PPP_NO_DES=
+PPP_NO_I4B=
+PPP_NO_KLDLOAD=
+PPP_NO_NAT=
+PPP_NO_PAM=
+PPP_NO_RADIUS=
+PPP_NO_SUID=
 .endif
 
-.if defined(NOSUID) || defined(PPP_NOSUID)
+.if defined(NO_ATM)
+PPP_NO_ATM=
+.endif
+.if defined(NO_I4B)
+PPP_NO_I4B=
+.endif
+
+.if defined(PPP_NO_SUID)
 BINMODE=550
 .else
 BINMODE=4550
@@ -44,7 +51,7 @@ CLEANFILES= ppp.8
 CFLAGS+=-DPPP_CONFDIR=\"${PPP_CONFDIR}\"
 .endif
 
-.if defined(NOKLDLOAD)
+.if defined(PPP_NO_KLDLOAD)
 CFLAGS+=-DNOKLDLOAD
 .endif
 
@@ -52,7 +59,7 @@ CFLAGS+=-DNOKLDLOAD
 CFLAGS+=-DNOINET6
 .endif
 
-.if defined(NOALIAS) || defined(NONAT)
+.if defined(PPP_NO_NAT)
 CFLAGS+=-DNONAT
 .else
 SRCS+=	nat_cmd.c
@@ -60,19 +67,20 @@ LDADD+=	-lalias
 DPADD+= ${LIBALIAS}
 .endif
 
-.if defined(NO_ATM)
+.if defined(PPP_NO_ATM)
 CFLAGS+=-DNOATM
 .else
 SRCS+=	atm.c
 .endif
 
-.if defined(NOSUID) || defined(PPP_NOSUID)
+.if defined(PPP_NO_SUID)
 CFLAGS+=-DNOSUID
 .else
 SRCS+=	id.c
 .endif
 
-.if defined(RELEASE_CRUNCH) || defined(NO_CRYPT) || defined(NO_OPENSSL)
+.if defined(RELEASE_CRUNCH) || defined(NO_CRYPT) || defined(NO_OPENSSL) || \
+    defined(PPP_NO_DES)
 CFLAGS+=-DNODES
 .else
 SRCS+=	chap_ms.c mppe.c
@@ -80,7 +88,7 @@ LDADD+= -lcrypto
 DPADD+= ${LIBCRYPTO}
 .endif
 
-.if defined(NORADIUS)
+.if defined(PPP_NO_RADIUS)
 CFLAGS+=-DNORADIUS
 .else
 SRCS+=	radius.c
@@ -88,13 +96,13 @@ LDADD+=	-lradius
 DPADD+= ${LIBRADIUS}
 .endif
 
-.if defined(NOI4B) || ${MACHINE_ARCH} != "i386"
+.if defined(PPP_NO_I4B) || ${MACHINE_ARCH} != "i386"
 CFLAGS+=-DNOI4B
 .else
 SRCS+=	i4b.c
 .endif
 
-.if defined(NONETGRAPH)
+.if defined(PPP_NO_NETGRAPH)
 CFLAGS+=-DNONETGRAPH
 .else
 SRCS+=	ether.c
@@ -106,7 +114,7 @@ SRCS+=	netgraph.c
 .endif
 .endif
 
-.if defined(NOPAM)
+.if defined(PPP_NO_PAM)
 CFLAGS+=-DNOPAM
 .else
 LDADD+=	${MINUSLPAM}
