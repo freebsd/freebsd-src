@@ -32,6 +32,8 @@ SUBDIR+=	pam_kerberosIV
 .if defined(MAKE_KERBEROS5) && !defined(NOCRYPT) && !defined(NO_OPENSSL)
 SUBDIR+=	pam_krb5
 .endif
+SUBDIR+=	pam_lastlog
+SUBDIR+=	pam_login_access
 SUBDIR+=	pam_nologin
 SUBDIR+=	pam_opie
 SUBDIR+=	pam_opieaccess
