@@ -69,7 +69,6 @@
 
 #include <alpha/pci/apecsreg.h>
 #include <alpha/pci/apecsvar.h>
-#include <alpha/pci/pcibus.h>
 #include <alpha/isa/isavar.h>
 #include <machine/intr.h>
 #include <machine/resource.h>
@@ -151,12 +150,6 @@ apecs_write_hae(u_int64_t hae)
 
 static int apecs_probe(device_t dev);
 static int apecs_attach(device_t dev);
-static struct resource *apecs_alloc_resource(device_t bus, device_t child,
-					     int type, int *rid, u_long start,
-					     u_long end, u_long count,
-					     u_int flags);
-static int apecs_release_resource(device_t bus, device_t child,
-				  int type, int rid, struct resource *r);
 static int apecs_setup_intr(device_t dev, device_t child,
 			    struct resource *irq, int flags,
 			    driver_intr_t *intr, void *arg, void **cookiep);
@@ -169,10 +162,6 @@ static device_method_t apecs_methods[] = {
 	DEVMETHOD(device_attach,	apecs_attach),
 
 	/* Bus interface */
-	DEVMETHOD(bus_alloc_resource,	apecs_alloc_resource),
-	DEVMETHOD(bus_release_resource,	apecs_release_resource),
-	DEVMETHOD(bus_activate_resource, pci_activate_resource),
-	DEVMETHOD(bus_deactivate_resource, pci_deactivate_resource),
 	DEVMETHOD(bus_setup_intr,	apecs_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	apecs_teardown_intr),
 
@@ -280,7 +269,6 @@ apecs_probe(device_t dev)
 	}
 	apecs_hae_mem = REGVAL(EPIC_HAXR1);
 
-	pci_init_resources();
 	isa_init_intr();
 	apecs_init_sgmap();
 
@@ -312,29 +300,6 @@ apecs_attach(device_t dev)
 
 	bus_generic_attach(dev);
 	return 0;
-}
-
-static struct resource *
-apecs_alloc_resource(device_t bus, device_t child, int type, int *rid,
-		     u_long start, u_long end, u_long count, u_int flags)
-{
-	if ((hwrpb->rpb_type == ST_DEC_2100_A50) &&
-	    (type == SYS_RES_IRQ))
-		return isa_alloc_intr(bus, child, start);
-	else
-		return pci_alloc_resource(bus, child, type, rid,
-					  start, end, count, flags);
-}
-
-static int
-apecs_release_resource(device_t bus, device_t child, int type, int rid,
-		       struct resource *r)
-{
-	if ((hwrpb->rpb_type == ST_DEC_2100_A50) &&
-	    (type == SYS_RES_IRQ))
-		return isa_release_intr(bus, child, r);
-	else
-		return pci_release_resource(bus, child, type, rid, r);
 }
 
 static void

@@ -66,7 +66,6 @@
 
 #include <alpha/pci/t2reg.h>
 #include <alpha/pci/t2var.h>
-#include <alpha/pci/pcibus.h>
 #include <alpha/isa/isavar.h>
 #include <machine/intr.h>
 #include <machine/resource.h>
@@ -165,10 +164,6 @@ static device_method_t t2_methods[] = {
 	DEVMETHOD(device_attach,		t2_attach),
 
 	/* Bus interface */
-	DEVMETHOD(bus_alloc_resource,		pci_alloc_resource),
-	DEVMETHOD(bus_release_resource,		pci_release_resource),
-	DEVMETHOD(bus_activate_resource, 	pci_activate_resource),
-	DEVMETHOD(bus_deactivate_resource,	pci_deactivate_resource),
 	DEVMETHOD(bus_setup_intr,		t2_setup_intr),
 	DEVMETHOD(bus_teardown_intr,		t2_teardown_intr),
 
@@ -303,8 +298,8 @@ t2_init()
 	swiz_init_space_hae(&mem_space, KV(T2_PCI_SPARSE),
 			    t2_set_hae_mem, 0);
 
-	busspace_isa_io = (kobj_t) &io_space;
-	busspace_isa_mem = (kobj_t) &mem_space;
+	busspace_isa_io = (struct alpha_busspace *) &io_space;
+	busspace_isa_mem = (struct alpha_busspace *) &mem_space;
 
 	chipset = t2_chipset;
 
@@ -349,8 +344,6 @@ t2_probe(device_t dev)
 		device_printf(dev, "found EXT_IO!!!!!\n");
 		/* t2_num_hoses = 2; XXX not ready for this yet */
 	}
-
-	pci_init_resources();
 
 	for (h = 0; h < t2_num_hoses; h++)
 		t2_csr_init(h);

@@ -105,7 +105,6 @@
 
 #include <alpha/pci/ciareg.h>
 #include <alpha/pci/ciavar.h>
-#include <alpha/pci/pcibus.h>
 #include <alpha/isa/isavar.h>
 #include <machine/bwx.h>
 #include <machine/swiz.h>
@@ -196,10 +195,6 @@ static device_method_t cia_methods[] = {
 
 	/* Bus interface */
 	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-	DEVMETHOD(bus_alloc_resource,	pci_alloc_resource),
-	DEVMETHOD(bus_release_resource,	pci_release_resource),
-	DEVMETHOD(bus_activate_resource, pci_activate_resource),
-	DEVMETHOD(bus_deactivate_resource, pci_deactivate_resource),
 	DEVMETHOD(bus_setup_intr,	cia_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	cia_teardown_intr),
 
@@ -393,7 +388,6 @@ cia_probe(device_t dev)
 	cia0 = dev;
 	device_set_desc(dev, "2117x Core Logic chipset"); /* XXX */
 
-	pci_init_resources();
 	isa_init_intr();
 
 	cia_rev = REGVAL(CIA_CSR_REV) & REV_MASK;
