@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.4 1998/09/22 15:41:05 abial Exp $
+# $Id: Makefile,v 1.5 1998/10/28 16:26:29 abial Exp $
 #
 
 DESTDIR?=/mnt
@@ -62,8 +62,10 @@ links: tree
 # We don't do it under 'all' because it's needed only on non-DEVFS systems
 devnodes: tree
 	(cd ${DESTDIR}/dev; \
-	/dev/MAKEDEV std sysmouse tun2 cuaa0 cuaa1 cuaa2 vty10 fd0 pty0; \
-	/dev/MAKEDEV psm0; \
-	/dev/MAKEDEV wd0s1h wd0s2 wd0s3 wd0s4 wd1s1h wd1s2 wd1s3 wd1s4)
+	ln -s /dev/MAKEDEV; \
+	./MAKEDEV std sysmouse tun2 cuaa0 cuaa1 cuaa2 vty10 fd0 pty0; \
+	./MAKEDEV psm0; \
+	./MAKEDEV wd0s1h wd0s2 wd0s3 wd0s4 wd1s1h wd1s2 wd1s3 wd1s4; \
+	rm MAKEDEV)
 
 clean:
