@@ -18,7 +18,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: ipcp.c,v 1.4 1995/10/31 21:21:06 peter Exp $";
+static char rcsid[] = "$Id: ipcp.c,v 1.5 1995/11/03 19:06:45 peter Exp $";
 #endif
 
 /*
@@ -756,6 +756,28 @@ ipcp_reqci(f, inp, len, reject_if_disagree)
 	next += cilen;			/* Step to next CI */
 
 	switch (citype) {		/* Check CI type */
+	case CI_DNS1:
+	case CI_DNS2:
+	    if ( (citype == CI_DNS1 && !dns1) ||
+	         (citype == CI_DNS2 && !dns2)) {
+		orc = CONFREJ;		/* Reject DNS */
+		break;
+	    }
+	    IPCPDEBUG((LOG_INFO, "ipcp: received DNS[12] "));
+	    GETLONG(tl, p);		/* Parse his idea */
+	    ciaddr1 = htonl(tl);
+	    IPCPDEBUG((LOG_INFO, "(%s:", ip_ntoa(ciaddr1)));
+	    if ( (citype == CI_DNS1 && ciaddr1 != dns1) ||
+	         (citype == CI_DNS2 && ciaddr1 != dns2)) {
+		orc = CONFNAK;
+		if (!reject_if_disagree) {
+		    DECPTR(sizeof (long), p);
+		    tl = ntohl(citype == CI_DNS1 ? dns1 : dns2);
+		    PUTLONG(tl, p);
+		}
+	    }
+	    break;
+
 	case CI_ADDRS:
 	    IPCPDEBUG((LOG_INFO, "ipcp: received ADDRS "));
 	    if (!ao->neg_addr ||
@@ -1188,6 +1210,34 @@ ipcp_printpkt(p, plen, printer, arg)
 		    p += 2;
 		    GETLONG(cilong, p);
 		    printer(arg, "addr %s", ip_ntoa(htonl(cilong)));
+		}
+		break;
+	    case CI_DNS1:
+		if (olen == CILEN_ADDR) {
+		    p += 2;
+		    GETLONG(cilong, p);
+		    printer(arg, "dns1 %s", ip_ntoa(htonl(cilong)));
+		}
+		break;
+	    case CI_DNS2:
+		if (olen == CILEN_ADDR) {
+		    p += 2;
+		    GETLONG(cilong, p);
+		    printer(arg, "dns2 %s", ip_ntoa(htonl(cilong)));
+		}
+		break;
+	    case CI_NBNS1:
+		if (olen == CILEN_ADDR) {
+		    p += 2;
+		    GETLONG(cilong, p);
+		    printer(arg, "nbns1 %s", ip_ntoa(htonl(cilong)));
+		}
+		break;
+	    case CI_NBNS2:
+		if (olen == CILEN_ADDR) {
+		    p += 2;
+		    GETLONG(cilong, p);
+		    printer(arg, "nbns2 %s", ip_ntoa(htonl(cilong)));
 		}
 		break;
 	    }
