@@ -148,6 +148,7 @@ doit(int f, struct sockaddr *fromp)
 	int pv[2], pid, ready, readfrom, cc;
 	char buf[BUFSIZ], sig;
 	int one = 1;
+	int authenticated = 0;
 
 	(void) signal(SIGINT, SIG_DFL);
 	(void) signal(SIGQUIT, SIG_DFL);
@@ -211,11 +212,15 @@ doit(int f, struct sockaddr *fromp)
 	if (*pwd->pw_passwd != '\0') {
 #ifdef OPIE
 		opiechallenge(&opiedata, user, opieprompt);
-		if (opieverify(&opiedata, pass)) {
-#else /* OPIE */
-		namep = crypt(pass, pwd->pw_passwd);
-		if (strcmp(namep, pwd->pw_passwd)) {
+		if (!opieverify(&opiedata, pass))
+			authenticated = 1;
 #endif /* OPIE */
+		if (!authenticated) {
+			namep = crypt(pass, pwd->pw_passwd);
+			if (!strcmp(namep, pwd->pw_passwd))
+				authenticated = 1;
+		}
+		if (!authenticated) {
 			syslog(LOG_ERR, "LOGIN FAILURE from %s, %s",
 			       remote, user);
 			error("Login incorrect.\n");
