@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_raydbg.h,v 1.4 2000/05/21 20:51:09 dmlb Exp $
+ * $Id: if_raydbg.h,v 1.7 2000/06/11 13:54:59 dmlb Exp $
  *
  */
 
@@ -73,7 +73,6 @@
 /* Cut and paste this into a kernel configuration file */
 #if 0
 #define RAY_DEBUG	(				\
- 			/* RAY_DBG_RECERR	| */	\
  			/* RAY_DBG_SUBR		| */ 	\
 			/* RAY_DBG_BOOTPARAM	| */	\
 			/* RAY_DBG_STARTJOIN	| */	\
