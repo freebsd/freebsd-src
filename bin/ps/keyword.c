@@ -54,7 +54,7 @@ __FBSDID("$FreeBSD$");
 
 #include "ps.h"
 
-static VAR *findvar(char *);
+static VAR *findvar(char *, int);
 static int  vcmp(const void *, const void *);
 
 /* Compute offset in common structures. */
@@ -223,7 +223,7 @@ showkey(void)
 }
 
 void
-parsefmt(const char *p)
+parsefmt(const char *p, int user)
 {
 	static struct varent *vtail;
 	char *tempstr, *tempstr1;
@@ -248,8 +248,18 @@ parsefmt(const char *p)
 			cp = tempstr;
 			tempstr = NULL;
 		}
-		if (cp == NULL || !(v = findvar(cp)))
+		if (cp == NULL || !(v = findvar(cp, user)))
 			continue;
+		if (!user) {
+			/*
+			 * If the user is NOT adding this field manually,
+			 * get on with our lives if this VAR is already
+			 * represented in the list.
+			 */
+			vent = find_varentry(v);
+			if (vent != NULL)
+				continue;
+		}
 		if ((vent = malloc(sizeof(struct varent))) == NULL)
 			errx(1, "malloc failed");
 		vent->var = malloc(sizeof(*vent->var));
@@ -273,7 +283,7 @@ parsefmt(const char *p)
 }
 
 static VAR *
-findvar(char *p)
+findvar(char *p, int user)
 {
 	VAR *v, key;
 	char *hp;
@@ -290,7 +300,7 @@ findvar(char *p)
 			warnx("%s: illegal keyword specification", p);
 			eval = 1;
 		}
-		parsefmt(v->alias);
+		parsefmt(v->alias, user);
 		return ((VAR *)NULL);
 	}
 	if (!v) {
