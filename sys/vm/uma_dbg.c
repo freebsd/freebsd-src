@@ -258,7 +258,7 @@ uma_dbg_free(uma_zone_t zone, uma_slab_t slab, void *item)
 	    / zone->uz_rsize;
 
 	if (freei >= zone->uz_ipers)
-		panic("zone: %s(%p) slab %p freelist %i out of range 0-%d\n",
+		panic("zone: %s(%p) slab %p freelist %d out of range 0-%d\n",
 		    zone->uz_name, zone, slab, freei, zone->uz_ipers-1);
 
 	if (((freei * zone->uz_rsize) + slab->us_data) != item) {
