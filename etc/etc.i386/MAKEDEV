@@ -106,7 +106,7 @@
 #	perfmon	CPU performance-monitoring counters
 #	pci	PCI configuration-space access from user mode
 #
-#	$Id: MAKEDEV,v 1.156 1998/02/20 03:59:53 ahasty Exp $
+#	$Id: MAKEDEV,v 1.157 1998/03/01 22:18:28 steve Exp $
 #
 
 PATH=/sbin:/bin/:/usr/bin:/usr/sbin:$PATH
@@ -188,22 +188,24 @@ for i in $*; do
 case $i in
 
 all)
-	sh MAKEDEV std						# standard
-	sh MAKEDEV fd0 fd1					# floppies
-	sh MAKEDEV wd0 wd1 wd2 wd3 sd0 sd1 sd2 sd3		# bdev, disk
-	sh MAKEDEV od0						# bdev, ODD
-	sh MAKEDEV wfd0						# bdev, LS-120
-	sh MAKEDEV vn0						# cdev
-	sh MAKEDEV cd0 mcd0 scd0 matcd0 wcd0			# bdev, cdrom
-	sh MAKEDEV ft0 wt0 st0					# bdev, tape
-	sh MAKEDEV ttyd0 ttyd1 ttyd2 ttyd3			# cdev, serial
-	sh MAKEDEV cuaa0 cuaa1 cuaa2 cuaa3			# cdev, serial
-	sh MAKEDEV lpt0 lpt1 lpt2				# cdev, printer
-	sh MAKEDEV pty0 ch0 tw0 bpf0				# cdev
-	sh MAKEDEV perfmon speaker pcaudio psm0	mse0 sysmouse	# cdev
-	sh MAKEDEV vty4						# cdev
-	sh MAKEDEV tun0						# cdev
-	sh MAKEDEV apm card0 card1				# cdev, laptop
+	sh MAKEDEV std					# standard
+	sh MAKEDEV fd0 fd1				# bdev, floppy disk
+	sh MAKEDEV sd0 sd1 sd2 sd3 wd0 wd1 wd2 wd3	# bdev, ordinary disk
+	sh MAKEDEV od0					# bdev, optical disk
+	sh MAKEDEV wfd0					# bdev, LS-120 floppy
+	sh MAKEDEV vn0					# bdev, virtual disk
+	sh MAKEDEV cd0 matcd0 mcd0 scd0 wcd0		# bdev, cdrom
+	sh MAKEDEV ft0 st0 wt0				# bdev, tape
+	sh MAKEDEV vty4					# cdev, virtual tty
+	sh MAKEDEV cuaa0 cuaa1 cuaa2 cuaa3		# cdev, serial tty
+	sh MAKEDEV pty0					# cdev, pseudo tty
+	sh MAKEDEV ttyd0 ttyd1 ttyd2 ttyd3		# cdev, serial tty
+	sh MAKEDEV mse0 psm0 sysmouse			# cdev, mouse
+	sh MAKEDEV pcaudio speaker			# cdev, noise
+	sh MAKEDEV lpt0 lpt1 lpt2			# cdev, printer
+	sh MAKEDEV bpf0 tun0				# cdev, network
+	sh MAKEDEV ch0 perfmon tw0			# cdev, miscellaneous
+	sh MAKEDEV apm card0 card1			# cdev, laptop
 	;;
 std)
 	mknod console	c 0 0;	chmod 600 console
