@@ -541,7 +541,7 @@ MAIN:{
 
     # Build the world
     if ($cmds{'world'}) {
-	logstage("building world (CFLAGS=${ENV}{'CFLAGS'})");
+	logstage("building world (CFLAGS=$ENV{'CFLAGS'})");
 	cd("$sandbox/src");
 	make('buildworld')
 	    or error("failed to build world");
