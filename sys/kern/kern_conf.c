@@ -270,7 +270,7 @@ makeudev(int x, int y)
 }
 
 dev_t
-make_dev(struct cdevsw *devsw, int minor, uid_t uid, gid_t gid, int perms, char *fmt, ...)
+make_dev(struct cdevsw *devsw, int minor, uid_t uid, gid_t gid, int perms, const char *fmt, ...)
 {
 	dev_t	dev;
 	va_list ap;
@@ -310,7 +310,7 @@ dev_depends(dev_t pdev, dev_t cdev)
 }
 
 dev_t
-make_dev_alias(dev_t pdev, char *fmt, ...)
+make_dev_alias(dev_t pdev, const char *fmt, ...)
 {
 	dev_t	dev;
 	va_list ap;
