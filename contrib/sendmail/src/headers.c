@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2000 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2001 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -12,7 +12,7 @@
  */
 
 #ifndef lint
-static char id[] = "@(#)$Id: headers.c,v 8.203.4.10 2000/10/13 17:54:30 gshapiro Exp $";
+static char id[] = "@(#)$Id: headers.c,v 8.203.4.12 2001/01/22 19:00:22 gshapiro Exp $";
 #endif /* ! lint */
 
 /* $FreeBSD$ */
@@ -310,7 +310,7 @@ hse:
 			dp = qval;
 			l = 0;
 			dp[l++] = '"';
-			for (sp = fvalue; *sp != '\0' && l < MAXNAME - 2; sp++)
+			for (sp = fvalue; *sp != '\0' && l < MAXNAME - 3; sp++)
 			{
 				switch(*sp)
 				{
@@ -339,7 +339,7 @@ hse:
 				if (LogLevel > 9)
 					sm_syslog(LOG_WARNING, e->e_id,
 						  "Warning: truncated header '%s' before check with '%s' len=%d max=%d",
-						  fname, rs, l, MAXNAME);
+						  fname, rs, l, MAXNAME - 1);
 			}
 			if ((sp = macvalue(macid("{currHeader}", NULL), e)) !=
 			    NULL)

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2000 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2001 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1993 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1993
@@ -13,7 +13,7 @@
 
 #ifndef lint
 static char copyright[] =
-"@(#) Copyright (c) 1998-2000 Sendmail, Inc. and its suppliers.\n\
+"@(#) Copyright (c) 1998-2001 Sendmail, Inc. and its suppliers.\n\
 	All rights reserved.\n\
      Copyright (c) 1993 Eric P. Allman.  All rights reserved.\n\
      Copyright (c) 1993\n\
@@ -21,7 +21,7 @@ static char copyright[] =
 #endif /* ! lint */
 
 #ifndef lint
-static char id[] = "@(#)$Id: smrsh.c,v 8.31.4.6 2000/10/09 20:37:16 gshapiro Exp $";
+static char id[] = "@(#)$Id: smrsh.c,v 8.31.4.8 2001/01/22 19:00:26 gshapiro Exp $";
 #endif /* ! lint */
 
 /* $FreeBSD$ */
@@ -78,9 +78,9 @@ static char id[] = "@(#)$Id: smrsh.c,v 8.31.4.6 2000/10/09 20:37:16 gshapiro Exp
 #ifndef CMDDIR
 # if defined(HPUX10) || defined(HPUX11) || SOLARIS >= 20800
 #  define CMDDIR	"/var/adm/sm.bin"
-# else /* HPUX10 || HPUX11 || SOLARIS > 20800 */
+# else /* HPUX10 || HPUX11 || SOLARIS >= 20800 */
 #  define CMDDIR	"/usr/libexec/sm.bin"
-# endif /* HPUX10 || HPUX11 || SOLARIS > 20800 */
+# endif /* HPUX10 || HPUX11 || SOLARIS >= 20800 */
 #endif /* ! CMDDIR */
 
 /* characters disallowed in the shell "-c" argument */
