@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_init.c	8.3 (Berkeley) 1/4/94
- * $Id: vfs_init.c,v 1.44 1999/02/16 10:49:49 dfr Exp $
+ * $Id: vfs_init.c,v 1.45 1999/03/07 16:06:41 dfr Exp $
  */
 
 
@@ -58,7 +58,6 @@ MALLOC_DEFINE(M_VNODE, "vnodes", "Dynamically allocated vnodes");
  * Currently (1998/09/06), only one VFS uses sysctls, so 2 extra linker
  * set slots are more than sufficient.
  */
-extern struct linker_set sysctl__vfs;
 static int mod_xx;
 SYSCTL_INT(_vfs, OID_AUTO, mod0, CTLFLAG_RD, &mod_xx, 0, "");
 SYSCTL_INT(_vfs, OID_AUTO, mod1, CTLFLAG_RD, &mod_xx, 0, "");
@@ -330,12 +329,10 @@ SYSINIT(vfs, SI_SUB_VFS, SI_ORDER_FIRST, vfsinit, NULL)
 int
 vfs_register(struct vfsconf *vfc)
 {
-	struct linker_set *l;
 	struct sysctl_oid *oidp;
 	struct vfsconf *vfsp;
 
 	vfsp = NULL;
-	l = &sysctl__vfs;
 	if (vfsconf)
 		for (vfsp = vfsconf; vfsp->vfc_next; vfsp = vfsp->vfc_next)
 			if (strcmp(vfc->vfc_name, vfsp->vfc_name) == 0)
