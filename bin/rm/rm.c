@@ -30,17 +30,15 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: rm.c,v 1.15 1997/03/28 15:24:34 imp Exp $
+ *	from: @(#)rm.c	8.5 (Berkeley) 4/18/94
  */
 
 #ifndef lint
-static char const copyright[] =
+static const char copyright[] =
 "@(#) Copyright (c) 1990, 1993, 1994\n\
 	The Regents of the University of California.  All rights reserved.\n";
-#endif /* not lint */
-
-#ifndef lint
-static char const sccsid[] = "@(#)rm.c	8.5 (Berkeley) 4/18/94";
+static const char rcsid[] =
+	"$Id: rm.c,v 1.16 1997/04/29 10:03:10 dfr Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -55,19 +53,9 @@ static char const sccsid[] = "@(#)rm.c	8.5 (Berkeley) 4/18/94";
 #include <string.h>
 #include <unistd.h>
 
-/*
- * XXX Until we get kernel support for the undelete(2) system call,
- * this define *must* remain in place.
- */
-/* #define BSD4_4_LITE */
-
 extern char *flags_to_string __P((u_long, char *));
 
-#ifdef BSD4_4_LITE
-int dflag, eval, fflag, iflag, Pflag, stdin_ok;
-#else
 int dflag, eval, fflag, iflag, Pflag, Wflag, stdin_ok;
-#endif
 uid_t uid;
 
 int	check __P((char *, char *, struct stat *));
@@ -92,11 +80,7 @@ main(argc, argv)
 	int ch, rflag;
 
 	Pflag = rflag = 0;
-#ifdef BSD4_4_LITE
-	while ((ch = getopt(argc, argv, "dfiPRr")) != -1)
-#else
 	while ((ch = getopt(argc, argv, "dfiPRrW")) != -1)
-#endif
 		switch(ch) {
 		case 'd':
 			dflag = 1;
@@ -116,11 +100,9 @@ main(argc, argv)
 		case 'r':			/* Compatibility. */
 			rflag = 1;
 			break;
-#ifndef BSD4_4_LITE
 		case 'W':
 			Wflag = 1;
 			break;
-#endif
 		default:
 			usage();
 		}
@@ -170,10 +152,8 @@ rm_tree(argv)
 	flags = FTS_PHYSICAL | FTS_NOCHDIR;
 	if (!needstat)
 		flags |= FTS_NOSTAT;
-#ifndef BSD4_4_LITE
 	if (Wflag)
 		flags |= FTS_WHITEOUT;
-#endif
 	if (!(fts = fts_open(argv, flags, (int (*)())NULL)))
 		err(1, NULL);
 	while ((p = fts_read(fts)) != NULL) {
@@ -244,13 +224,11 @@ rm_tree(argv)
 					continue;
 				break;
 
-#ifndef BSD4_4_LITE
 			case FTS_W:
 				if (!undelete(p->fts_accpath) ||
-			    	fflag && errno == ENOENT)
+			    	(fflag && errno == ENOENT))
 					continue;
 				break;
-#endif
 
 			default:
 				if (Pflag)
@@ -282,12 +260,6 @@ rm_file(argv)
 	while ((f = *argv++) != NULL) {
 		/* Assume if can't stat the file, can't unlink it. */
 		if (lstat(f, &sb)) {
-#ifdef BSD4_4_LITE
-			if (!fflag || errno != ENOENT) {
-				warn("%s", f);
-				eval = 1;
- 			}
-#else
 			if (Wflag) {
 				sb.st_mode = S_IFWHT|S_IWUSR|S_IRUSR;
 			} else {
@@ -300,7 +272,6 @@ rm_file(argv)
 		} else if (Wflag) {
 			warnx("%s: %s", f, strerror(EEXIST));
 			eval = 1;
-#endif
 			continue;
 		}
 
@@ -309,11 +280,7 @@ rm_file(argv)
 			eval = 1;
 			continue;
 		}
-#ifdef BSD4_4_LITE
-		if (!fflag && !check(f, f, &sb))
-#else
 		if (!fflag && !S_ISWHT(sb.st_mode) && !check(f, f, &sb))
-#endif
 			continue;
 		rval = 0;
 		if (!uid &&
@@ -321,13 +288,9 @@ rm_file(argv)
 		    !(sb.st_flags & (SF_APPEND|SF_IMMUTABLE)))
 			rval = chflags(f, sb.st_flags & ~(UF_APPEND|UF_IMMUTABLE));
 		if (!rval) {
-#ifdef BSD4_4_LITE
-			if (S_ISDIR(sb.st_mode))
-#else
 			if (S_ISWHT(sb.st_mode))
 				rval = undelete(f);
 			else if (S_ISDIR(sb.st_mode))
-#endif
 				rval = rmdir(f);
 			else {
 				if (Pflag)
@@ -469,10 +432,6 @@ void
 usage()
 {
 
-#ifdef BSD4_4_LITE
-	(void)fprintf(stderr, "usage: rm [-f | -i] [-dPRr] file ...\n");
-#else
 	(void)fprintf(stderr, "usage: rm [-f | -i] [-dPRrW] file ...\n");
-#endif
 	exit(1);
 }
