@@ -363,7 +363,11 @@ mly_cam_action(struct cam_sim *sim, union ccb *ccb)
 	    cts->valid |= CCB_TRANS_TQ_VALID;
 
 	    /* convert speed (MHz) to usec */
-	    cts->sync_period = 1000000 / sc->mly_btl[bus][target].mb_speed;
+	    if (sc->mly_btl[bus][target].mb_speed == 0) {
+		cts->sync_period = 1000000 / 5;
+	    } else {
+		cts->sync_period = 1000000 / sc->mly_btl[bus][target].mb_speed;
+	    }
 
 	    /* convert bus width to CAM internal encoding */
 	    switch (sc->mly_btl[bus][target].mb_width) {
