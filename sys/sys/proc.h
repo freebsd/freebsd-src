@@ -517,6 +517,7 @@ int	suser_xxx __P((const struct ucred *cred, const struct proc *proc,
 void	remrunqueue __P((struct proc *));
 void	cpu_switch __P((void));
 void	cpu_throw __P((void)) __dead2;
+void	cpu_idle __P((void));
 void	unsleep __P((struct proc *));
 
 void	cpu_exit __P((struct proc *)) __dead2;
