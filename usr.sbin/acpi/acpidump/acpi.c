@@ -67,6 +67,9 @@ static void	acpi_handle_rsdt(struct ACPIsdt *rsdp);
 /* Size of an address. 32-bit for ACPI 1.0, 64-bit for ACPI 2.0 and up. */
 static int addr_size;
 
+/* The FADT revision indicates whether we use the DSDT or X_DSDT addresses. */
+static int fadt_revision;
+
 static void
 acpi_print_string(char *s, size_t length)
 {
@@ -121,16 +124,26 @@ acpi_handle_fadt(struct FADTbody *fadt)
 	struct ACPIsdt	*dsdp;
 	struct FACSbody	*facs;
 
+	/* Set the FADT revision separately from the RSDP version. */
+	if (addr_size == 8) {
+		fadt_revision = 2;
+
+		/*
+		 * A few systems (e.g., IBM T23) have an RSDP that claims
+		 * revision 2 but the 64 bit addresses are invalid.  If
+		 * revision 2 and the 32 bit address is non-zero but the
+		 * 32 and 64 bit versions don't match, prefer the 32 bit
+		 * version for all subsequent tables.
+		 */
+		if (fadt->facs_ptr != 0 &&
+		    (fadt->x_facs_ptr & 0xffffffff) != fadt->facs_ptr)
+			fadt_revision = 1;
+	} else {
+		fadt_revision = 1;
+	}
 	acpi_print_fadt(fadt);
 
-	/*
-	 * My T23 is revision 2 but the 64 bit addresses are invalid.
-	 * If revision 2 and the 32 bit address is non-zero but the 32
-	 * and 64 bit versions don't match, prefer the 32 bit version.
-	 */
-	if (addr_size == 4 ||
-	    (addr_size == 8 && fadt->facs_ptr != 0 &&
-	    (fadt->x_facs_ptr & 0xffffffff) != fadt->facs_ptr))
+	if (fadt_revision == 1)
 		facs = (struct FACSbody *)acpi_map_sdt(fadt->facs_ptr);
 	else
 		facs = (struct FACSbody *)acpi_map_sdt(fadt->x_facs_ptr);
@@ -138,9 +151,7 @@ acpi_handle_fadt(struct FADTbody *fadt)
 		errx(1, "FACS is corrupt");
 	acpi_print_facs(facs);
 
-	if (addr_size == 4 ||
-	    (addr_size == 8 && fadt->dsdt_ptr != 0 &&
-	    (fadt->x_dsdt_ptr & 0xffffffff) != fadt->dsdt_ptr))
+	if (fadt_revision == 1)
 		dsdp = (struct ACPIsdt *)acpi_map_sdt(fadt->dsdt_ptr);
 	else
 		dsdp = (struct ACPIsdt *)acpi_map_sdt(fadt->x_dsdt_ptr);
@@ -509,7 +520,7 @@ acpi_print_fadt(struct FADTbody *fadt)
 		acpi_print_gas(&fadt->reset_reg);
 		printf(", RESET_VALUE=%#x\n", fadt->reset_value);
 	}
-	if (addr_size == 8) {
+	if (fadt_revision > 1) {
 		printf("\tX_FACS=0x%08lx, ", (u_long)fadt->x_facs_ptr);
 		printf("X_DSDT=0x%08lx\n", (u_long)fadt->x_dsdt_ptr);
 		printf("\tX_PM1a_EVT_BLK=");
@@ -795,10 +806,8 @@ dsdt_from_fadt(struct FADTbody *fadt)
 {
 	struct	ACPIsdt *sdt;
 
-	/* Use the DSDT address if it is valid and version 1, else X_DSDT */
-	if (addr_size == 4 ||
-	    (addr_size == 8 && fadt->dsdt_ptr != 0 &&
-	    (fadt->x_dsdt_ptr & 0xffffffff) != fadt->dsdt_ptr))
+	/* Use the DSDT address if it is version 1, otherwise use X_DSDT. */
+	if (fadt_revision == 1)
 		sdt = (struct ACPIsdt *)acpi_map_sdt(fadt->dsdt_ptr);
 	else
 		sdt = (struct ACPIsdt *)acpi_map_sdt(fadt->x_dsdt_ptr);
