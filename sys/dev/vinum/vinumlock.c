@@ -154,17 +154,18 @@ lockrange(daddr_t stripe, struct buf *bp, struct plex *plex)
 		if ((lock->stripe == stripe)		    /* it's our stripe */
 		&&(lock->bp != bp)) {			    /* but not our request */
 #ifdef VINUMDEBUG
-		    if (debug & DEBUG_LASTREQS) {
-			struct rangelock info;
+		    if (debug & DEBUG_LOCKREQS) {
+			struct rangelockinfo lockinfo;
 
-			info.stripe = stripe;
-			info.bp = bp;
-			logrq(loginfo_lockwait, (union rqinfou) &info, bp);
+			lockinfo.stripe = stripe;
+			lockinfo.bp = bp;
+			lockinfo.plexno = plex->plexno;
+			logrq(loginfo_lockwait, (union rqinfou) &lockinfo, bp);
 		    }
 #endif
 		    plex->lockwaits++;			    /* waited one more time */
 		    msleep(lock, &plex->lockmtx, PRIBIO, "vrlock", 0);
-		    lock = plex->lock;			    /* start again */
+		    lock = &plex->lock[-1];		    /* start again */
 		    foundlocks = 0;
 		    pos = NULL;
 		}
@@ -189,8 +190,14 @@ lockrange(daddr_t stripe, struct buf *bp, struct plex *plex)
     plex->usedlocks++;					    /* one more lock */
     mtx_unlock(&plex->lockmtx);
 #ifdef VINUMDEBUG
-    if (debug & DEBUG_LASTREQS)
-	logrq(loginfo_lock, (union rqinfou) pos, bp);
+    if (debug & DEBUG_LOCKREQS) {
+	struct rangelockinfo lockinfo;
+
+	lockinfo.stripe = stripe;
+	lockinfo.bp = bp;
+	lockinfo.plexno = plex->plexno;
+	logrq(loginfo_lock, (union rqinfou) &lockinfo, bp);
+    }
 #endif
     return pos;
 }
@@ -211,14 +218,20 @@ unlockrange(int plexno, struct rangelock *lock)
 	    &plex->lock[PLEX_LOCKS]);
 #endif
 #ifdef VINUMDEBUG
-    if (debug & DEBUG_LASTREQS)
-	logrq(loginfo_unlock, (union rqinfou) lock, lock->bp);
+    if (debug & DEBUG_LOCKREQS) {
+	struct rangelockinfo lockinfo;
+
+	lockinfo.stripe = lock->stripe;
+	lockinfo.bp = lock->bp;
+	lockinfo.plexno = plex->plexno;
+	logrq(loginfo_lockwait, (union rqinfou) &lockinfo, lock->bp);
+    }
 #endif
     lock->stripe = 0;					    /* no longer used */
     plex->usedlocks--;					    /* one less lock */
     if (plex->usedlocks == PLEX_LOCKS - 1)		    /* we were full, */
-	wakeup_one(&plex->usedlocks);			    /* get a waiter if one's there */
-    wakeup_one((void *) lock);
+	wakeup(&plex->usedlocks);			    /* get a waiter if one's there */
+    wakeup((void *) lock);
 }
 
 /* Get a lock for the global config, wait if it's not available */
