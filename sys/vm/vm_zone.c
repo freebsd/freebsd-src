@@ -19,6 +19,8 @@
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/mutex.h>
+#include <sys/queue.h>
 #include <sys/sysctl.h>
 #include <sys/vmmeter.h>
 
@@ -32,61 +34,9 @@
 
 static MALLOC_DEFINE(M_ZONE, "ZONE", "Zone header");
 
-#define ZONE_ERROR_INVALID 0
-#define ZONE_ERROR_NOTFREE 1
-#define ZONE_ERROR_ALREADYFREE 2
+#define ZENTRY_FREE		(void*)0x12342378
 
-#define ZONE_ROUNDING	32
-
-#define ZENTRY_FREE	0x12342378
-
-static void *_zget(vm_zone_t z);
-
-/*
- * void *zalloc(vm_zone_t zone) --
- *	Returns an item from a specified zone.
- *
- * void zfree(vm_zone_t zone, void *item) --
- *  Frees an item back to a specified zone.
- */
-static __inline__ void *
-_zalloc(vm_zone_t z)
-{
-	void *item;
-
-#ifdef INVARIANTS
-	if (z == 0)
-		zerror(ZONE_ERROR_INVALID);
-#endif
-
-	if (z->zfreecnt <= z->zfreemin)
-		return _zget(z);
-
-	item = z->zitems;
-	z->zitems = ((void **) item)[0];
-#ifdef INVARIANTS
-	if (((void **) item)[1] != (void *) ZENTRY_FREE)
-		zerror(ZONE_ERROR_NOTFREE);
-	((void **) item)[1] = 0;
-#endif
-
-	z->zfreecnt--;
-	z->znalloc++;
-	return item;
-}
-
-static __inline__ void
-_zfree(vm_zone_t z, void *item)
-{
-	((void **) item)[0] = z->zitems;
-#ifdef INVARIANTS
-	if (((void **) item)[1] == (void *) ZENTRY_FREE)
-		zerror(ZONE_ERROR_ALREADYFREE);
-	((void **) item)[1] = (void *) ZENTRY_FREE;
-#endif
-	z->zitems = item;
-	z->zfreecnt++;
-}
+#define ZONE_ROUNDING		32
 
 /*
  * This file comprises a very simple zone allocator.  This is used
@@ -101,13 +51,44 @@ _zfree(vm_zone_t z, void *item)
  * must reside in areas after the first two longwords.
  *
  * zinitna, zinit, zbootinit are the initialization routines.
- * zalloc, zfree, are the interrupt/lock unsafe allocation/free routines.
- * zalloci, zfreei, are the interrupt/lock safe allocation/free routines.
+ * zalloc, zfree, are the allocation/free routines.
  */
 
-static struct vm_zone *zlist;
-static int sysctl_vm_zone(SYSCTL_HANDLER_ARGS);
-static int zone_kmem_pages, zone_kern_pages, zone_kmem_kvaspace;
+/*
+ * Subsystem lock.  Never grab it while holding a zone lock.
+ */
+static struct mtx zone_mtx;
+
+/*
+ * Singly-linked list of zones, for book-keeping purposes
+ */
+static SLIST_HEAD(vm_zone_list, vm_zone) zlist;
+
+/*
+ * Statistics
+ */
+static int zone_kmem_pages;	/* Number of interrupt-safe pages allocated */
+static int zone_kern_pages;	/* Number of KVA pages allocated */
+static int zone_kmem_kvaspace;	/* Number of non-intsafe pages allocated */
+
+/*
+ * Subsystem initialization, called from vm_mem_init()
+ */
+void
+vm_zone_init(void)
+{
+	mtx_init(&zone_mtx, "zone subsystem", MTX_DEF);
+	SLIST_INIT(&zlist);
+}
+
+void
+vm_zone_init2(void)
+{
+	/*
+	 * LATER: traverse zlist looking for partially initialized
+	 * LATER: zones and finish initializing them.
+	 */
+}
 
 /*
  * Create a zone, but don't allocate the zone structure.  If the
@@ -137,26 +118,16 @@ zinitna(vm_zone_t z, vm_object_t obj, char *name, int size,
 	int nentries, int flags, int zalloc)
 {
 	int totsize, oldzflags;
-	vm_zone_t oldzlist;
 
 	oldzflags = z->zflags;
-	oldzlist = zlist;
 	if ((z->zflags & ZONE_BOOT) == 0) {
 		z->zsize = (size + ZONE_ROUNDING - 1) & ~(ZONE_ROUNDING - 1);
-		simple_lock_init(&z->zlock);
 		z->zfreecnt = 0;
 		z->ztotal = 0;
 		z->zmax = 0;
 		z->zname = name;
 		z->znalloc = 0;
 		z->zitems = NULL;
-
-		if (zlist == 0) {
-			zlist = z;
-		} else {
-			z->znext = zlist;
-			zlist = z;
-		}
 	}
 
 	z->zflags |= flags;
@@ -169,14 +140,9 @@ zinitna(vm_zone_t z, vm_object_t obj, char *name, int size,
 
 		totsize = round_page(z->zsize * nentries);
 		zone_kmem_kvaspace += totsize;
-
 		z->zkva = kmem_alloc_pageable(kernel_map, totsize);
-		if (z->zkva == 0) {
-			/* Clean up the zlist in case we messed it. */
-			if ((oldzflags & ZONE_BOOT) == 0)
-				zlist = oldzlist;
+		if (z->zkva == 0)
 			return 0;
-		}
 
 		z->zpagemax = totsize / PAGE_SIZE;
 		if (obj == NULL) {
@@ -204,6 +170,14 @@ zinitna(vm_zone_t z, vm_object_t obj, char *name, int size,
 	else
 		z->zalloc = 1;
 
+	/* our zone is good and ready, add it to the list */
+	if ((z->zflags & ZONE_BOOT) == 0) {
+		mtx_init(&(z)->zmtx, "zone", MTX_DEF);
+		mtx_enter(&zone_mtx, MTX_DEF);
+		SLIST_INSERT_HEAD(&zlist, z, zent);
+		mtx_exit(&zone_mtx, MTX_DEF);
+	}
+	
 	return 1;
 }
 
@@ -232,8 +206,13 @@ zinit(char *name, int size, int nentries, int flags, int zalloc)
 }
 
 /*
- * Initialize a zone before the system is fully up.  This routine should
- * only be called before full VM startup.
+ * Initialize a zone before the system is fully up.
+ *
+ * We can't rely on being able to allocate items dynamically, so we
+ * kickstart the zone with a number of static items provided by the
+ * caller.
+ *
+ * This routine should only be called before full VM startup.
  */
 void
 zbootinit(vm_zone_t z, char *name, int size, void *item, int nitems)
@@ -250,14 +229,14 @@ zbootinit(vm_zone_t z, char *name, int size, void *item, int nitems)
 	z->zpagecount = 0;
 	z->zalloc = 0;
 	z->znalloc = 0;
-	simple_lock_init(&z->zlock);
+	mtx_init(&(z)->zmtx, "zone", MTX_DEF);
 
 	bzero(item, nitems * z->zsize);
 	z->zitems = NULL;
 	for (i = 0; i < nitems; i++) {
 		((void **) item)[0] = z->zitems;
 #ifdef INVARIANTS
-		((void **) item)[1] = (void *) ZENTRY_FREE;
+		((void **) item)[1] = ZENTRY_FREE;
 #endif
 		z->zitems = item;
 		(char *) item += z->zsize;
@@ -266,68 +245,13 @@ zbootinit(vm_zone_t z, char *name, int size, void *item, int nitems)
 	z->zmax = nitems;
 	z->ztotal = nitems;
 
-	if (zlist == 0) {
-		zlist = z;
-	} else {
-		z->znext = zlist;
-		zlist = z;
-	}
+	mtx_enter(&zone_mtx, MTX_DEF);
+	SLIST_INSERT_HEAD(&zlist, z, zent);
+	mtx_exit(&zone_mtx, MTX_DEF);
 }
 
 /*
- * Zone critical region locks.
- */
-static __inline int
-zlock(vm_zone_t z)
-{
-	int s;
-
-	s = splhigh();
-	simple_lock(&z->zlock);
-	return s;
-}
-
-static __inline void
-zunlock(vm_zone_t z, int s)
-{
-	simple_unlock(&z->zlock);
-	splx(s);
-}
-
-/*
- * void *zalloc(vm_zone_t zone) --
- *	Returns an item from a specified zone.
- *
- * void zfree(vm_zone_t zone, void *item) --
- *  Frees an item back to a specified zone.
- *
- */
-
-void *
-zalloc(vm_zone_t z)
-{
-	int s;
-	void *item;
-
-	s = zlock(z);
-	item = _zalloc(z);
-	zunlock(z, s);
-	return item;
-}
-
-void
-zfree(vm_zone_t z, void *item)
-{
-	int s;
-
-	s = zlock(z);
-	_zfree(z, item);
-	zunlock(z, s);
-	return;
-}
-
-/*
- * Internal zone routine.  Not to be called from external (non vm_zone) code.
+ * Grow the specified zone to accomodate more items.
  */
 static void *
 _zget(vm_zone_t z)
@@ -337,8 +261,8 @@ _zget(vm_zone_t z)
 	int nitems, nbytes;
 	void *item;
 
-	if (z == NULL)
-		panic("zget: null zone");
+	KASSERT(z != NULL, ("invalid zone"));
+	mtx_assert(&z->zmtx, MA_OWNED);
 
 	if (z->zflags & ZONE_INTERRUPT) {
 		item = (char *) z->zkva + z->zpagecount * PAGE_SIZE;
@@ -376,18 +300,15 @@ _zget(vm_zone_t z)
 		 * map.
 		 */
 		if (lockstatus(&kernel_map->lock, NULL)) {
-			int s;
-			s = splvm();
-			simple_unlock(&z->zlock);
+			mtx_exit(&z->zmtx, MTX_DEF);
 			item = (void *) kmem_malloc(kmem_map, nbytes, M_WAITOK);
-			simple_lock(&z->zlock);
+			mtx_enter(&z->zmtx, MTX_DEF);
 			if (item != NULL)
 				zone_kmem_pages += z->zalloc;
-			splx(s);
 		} else {
-			simple_unlock(&z->zlock);
+			mtx_exit(&z->zmtx, MTX_DEF);
 			item = (void *) kmem_alloc(kernel_map, nbytes);
-			simple_lock(&z->zlock);
+			mtx_enter(&z->zmtx, MTX_DEF);
 			if (item != NULL)
 				zone_kern_pages += z->zalloc;
 		}
@@ -408,7 +329,7 @@ _zget(vm_zone_t z)
 		for (i = 0; i < nitems; i++) {
 			((void **) item)[0] = z->zitems;
 #ifdef INVARIANTS
-			((void **) item)[1] = (void *) ZENTRY_FREE;
+			((void **) item)[1] = ZENTRY_FREE;
 #endif
 			z->zitems = item;
 			(char *) item += z->zsize;
@@ -419,8 +340,8 @@ _zget(vm_zone_t z)
 		item = z->zitems;
 		z->zitems = ((void **) item)[0];
 #ifdef INVARIANTS
-		if (((void **) item)[1] != (void *) ZENTRY_FREE)
-			zerror(ZONE_ERROR_NOTFREE);
+		KASSERT(((void **) item)[1] == ZENTRY_FREE,
+		    ("item is not free"));
 		((void **) item)[1] = 0;
 #endif
 		z->zfreecnt--;
@@ -429,91 +350,99 @@ _zget(vm_zone_t z)
 		item = NULL;
 	}
 
+	mtx_assert(&z->zmtx, MA_OWNED);
 	return item;
 }
 
+/*
+ * Allocates an item from the specified zone.
+ */
+void *
+zalloc(vm_zone_t z)
+{
+	void *item;
+
+	KASSERT(z != NULL, ("invalid zone"));
+	mtx_enter(&z->zmtx, MTX_DEF);
+	
+	if (z->zfreecnt <= z->zfreemin) {
+		item = _zget(z);
+		mtx_exit(&z->zmtx, MTX_DEF);
+		return item;
+	}
+
+	item = z->zitems;
+	z->zitems = ((void **) item)[0];
+#ifdef INVARIANTS
+	KASSERT(((void **) item)[1] == ZENTRY_FREE,
+	    ("item is not free"));
+	((void **) item)[1] = 0;
+#endif
+
+	z->zfreecnt--;
+	z->znalloc++;
+	
+	mtx_exit(&z->zmtx, MTX_DEF);
+	return item;
+}
+
+/*
+ * Frees an item back to the specified zone.
+ */
+void
+zfree(vm_zone_t z, void *item)
+{
+	KASSERT(z != NULL, ("invalid zone"));
+	KASSERT(item != NULL, ("invalid item"));
+	mtx_enter(&z->zmtx, MTX_DEF);
+	
+	((void **) item)[0] = z->zitems;
+#ifdef INVARIANTS
+	KASSERT(((void **) item)[1] != ZENTRY_FREE,
+	    ("item is already free"));
+	((void **) item)[1] = (void *) ZENTRY_FREE;
+#endif
+	z->zitems = item;
+	z->zfreecnt++;
+
+	mtx_exit(&z->zmtx, MTX_DEF);
+}
+
+/*
+ * Sysctl handler for vm.zone 
+ */
 static int
 sysctl_vm_zone(SYSCTL_HANDLER_ARGS)
 {
-	int error=0;
-	vm_zone_t curzone, nextzone;
+	int error, len;
 	char tmpbuf[128];
-	char tmpname[14];
+	vm_zone_t z;
 
-	snprintf(tmpbuf, sizeof(tmpbuf),
-	    "\nITEM            SIZE     LIMIT    USED    FREE  REQUESTS\n");
-	error = SYSCTL_OUT(req, tmpbuf, strlen(tmpbuf));
-	if (error)
-		return (error);
-
-	for (curzone = zlist; curzone; curzone = nextzone) {
-		int i;
-		int len;
-		int offset;
-
-		nextzone = curzone->znext;
-		len = strlen(curzone->zname);
-		if (len >= (sizeof(tmpname) - 1))
-			len = (sizeof(tmpname) - 1);
-		for(i = 0; i < sizeof(tmpname) - 1; i++)
-			tmpname[i] = ' ';
-		tmpname[i] = 0;
-		memcpy(tmpname, curzone->zname, len);
-		tmpname[len] = ':';
-		offset = 0;
-		if (curzone == zlist) {
-			offset = 1;
-			tmpbuf[0] = '\n';
-		}
-
-		snprintf(tmpbuf + offset, sizeof(tmpbuf) - offset,
-			"%s %6.6u, %8.8u, %6.6u, %6.6u, %8.8u\n",
-			tmpname, curzone->zsize, curzone->zmax,
-			(curzone->ztotal - curzone->zfreecnt),
-			curzone->zfreecnt, curzone->znalloc);
-
-		len = strlen((char *)tmpbuf);
-		if (nextzone == NULL)
+	mtx_enter(&zone_mtx, MTX_DEF);
+	len = snprintf(tmpbuf, sizeof(tmpbuf),
+	    "\nITEM            SIZE     LIMIT    USED    FREE  REQUESTS\n\n");
+	error = SYSCTL_OUT(req, tmpbuf, SLIST_EMPTY(&zlist) ? len-1 : len);
+	SLIST_FOREACH(z, &zlist, zent) {
+		mtx_enter(&z->zmtx, MTX_DEF);
+		len = snprintf(tmpbuf, sizeof(tmpbuf),
+		    "%-14.14s %6.6u, %8.8u, %6.6u, %6.6u, %8.8u\n",
+		    z->zname, z->zsize, z->zmax, (z->ztotal - z->zfreecnt),
+		    z->zfreecnt, z->znalloc);
+		mtx_exit(&z->zmtx, MTX_DEF);
+		if (SLIST_NEXT(z, zent) == NULL)
 			tmpbuf[len - 1] = 0;
-
 		error = SYSCTL_OUT(req, tmpbuf, len);
-
-		if (error)
-			return (error);
 	}
-	return (0);
+	mtx_exit(&zone_mtx, MTX_DEF);
+	return (error);
 }
 
-#ifdef INVARIANT_SUPPORT
-void
-zerror(int error)
-{
-	char *msg;
+SYSCTL_OID(_vm, OID_AUTO, zone, CTLTYPE_STRING|CTLFLAG_RD,
+    NULL, 0, sysctl_vm_zone, "A", "Zone Info");
 
-	switch (error) {
-	case ZONE_ERROR_INVALID:
-		msg = "zone: invalid zone";
-		break;
-	case ZONE_ERROR_NOTFREE:
-		msg = "zone: entry not free";
-		break;
-	case ZONE_ERROR_ALREADYFREE:
-		msg = "zone: freeing free entry";
-		break;
-	default:
-		msg = "zone: invalid error";
-		break;
-	}
-	panic(msg);
-}
-#endif
-
-SYSCTL_OID(_vm, OID_AUTO, zone, CTLTYPE_STRING|CTLFLAG_RD, \
-	NULL, 0, sysctl_vm_zone, "A", "Zone Info");
-
-SYSCTL_INT(_vm, OID_AUTO, zone_kmem_pages,
-	CTLFLAG_RD, &zone_kmem_pages, 0, "Number of interrupt safe pages allocated by zone");
-SYSCTL_INT(_vm, OID_AUTO, zone_kmem_kvaspace,
-	CTLFLAG_RD, &zone_kmem_kvaspace, 0, "KVA space allocated by zone");
-SYSCTL_INT(_vm, OID_AUTO, zone_kern_pages,
-	CTLFLAG_RD, &zone_kern_pages, 0, "Number of non-interrupt safe pages allocated by zone");
+SYSCTL_INT(_vm, OID_AUTO, zone_kmem_pages, CTLFLAG_RD, &zone_kmem_pages, 0,
+    "Number of interrupt safe pages allocated by zone");
+SYSCTL_INT(_vm, OID_AUTO, zone_kmem_kvaspace, CTLFLAG_RD, &zone_kmem_kvaspace, 0,
+    "KVA space allocated by zone");
+SYSCTL_INT(_vm, OID_AUTO, zone_kern_pages, CTLFLAG_RD, &zone_kern_pages, 0,
+    "Number of non-interrupt safe pages allocated by zone");
