@@ -4,6 +4,8 @@ ASCII                   en_US.US-ASCII
 US-ASCII                en_US.US-ASCII
 af_ZA.ISO_8859-1        af_ZA.ISO8859-1
 af_ZA.ISO_8859-15       af_ZA.ISO8859-15
+ca_ES.ISO_8859-1        ca_ES.ISO8859-1
+ca_ES.ISO_8859-15       ca_ES.ISO8859-15
 cs_CZ.ISO_8859-2        cs_CZ.ISO8859-2
 da_DK.ISO_8859-1        da_DK.ISO8859-1
 da_DK.ISO_8859-15       da_DK.ISO8859-15
@@ -54,6 +56,7 @@ la_LN.ISO_8859-15       la_LN.ISO8859-15
 la_LN.ISO_8859-2        la_LN.ISO8859-2
 la_LN.ISO_8859-4        la_LN.ISO8859-4
 lt_LT.ISO_8859-4        lt_LT.ISO8859-4
+lt_LT.ISO_8859-13       lt_LT.ISO8859-13
 nl_BE.ISO_8859-1        nl_BE.ISO8859-1
 nl_BE.ISO_8859-15       nl_BE.ISO8859-15
 nl_NL.ISO_8859-1        nl_NL.ISO8859-1
@@ -70,6 +73,7 @@ ru_SU.ISO_8859-5        ru_RU.ISO8859-5
 ru_SU.KOI8-R            ru_RU.KOI8-R
 sk_SK.ISO_8859-2        sk_SK.ISO8859-2
 sl_SI.ISO_8859-2        sl_SI.ISO8859-2
+sr_YU.ISO_8859-5        sr_YU.ISO8859-5
 sv_SE.ISO_8859-1        sv_SE.ISO8859-1
 sv_SE.ISO_8859-15       sv_SE.ISO8859-15
 tr_TR.ISO_8859-9        tr_TR.ISO8859-9
