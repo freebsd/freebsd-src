@@ -102,12 +102,21 @@ CFLAGS+=	-nostdinc -I- ${_ICFLAGS}
 # Add -I paths for system headers.  Individual KLD makefiles don't
 # need any -I paths for this.  Similar defaults for .PATH can't be
 # set because there are no standard paths for non-headers.
-CFLAGS+=	-I${.OBJDIR} -I${.OBJDIR}/@
+CFLAGS+=	-I. -I@
 
-# XXX this is now dubious.
-.if defined(DESTDIR)
+# Add a -I path to standard headers like <stddef.h>.  Use a relative
+# path to src/include if possible.  If the @ symlink hasn't been built
+# yet, then we can't tell if the relative path exists.  Add both the
+# potential relative path and an absolute path in that case.
+.if exists(@)
+.if exists(@/../include)
+CFLAGS+=	-I@/../include
+.else
 CFLAGS+=	-I${DESTDIR}/usr/include
 .endif
+.else # !@
+CFLAGS+=	-I@/../include -I${DESTDIR}/usr/include
+.endif # @
 
 .if ${OBJFORMAT} == elf
 CLEANFILES+=	setdef0.c setdef1.c setdefs.h
