@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)sys_machdep.c	5.5 (Berkeley) 1/19/91
- *	$Id: sys_machdep.c,v 1.22 1997/07/20 08:37:23 bde Exp $
+ *	$Id: sys_machdep.c,v 1.23 1997/08/09 00:02:49 dyson Exp $
  *
  */
 
@@ -51,7 +51,10 @@
 
 #include <machine/cpu.h>
 #include <machine/sysarch.h>
+#ifdef VM86
 #include <machine/pcb_ext.h>
+#include <machine/vm86.h>
+#endif /* VM86 */
 
 #include <vm/vm_kern.h>		/* for kernel_map */
 
@@ -71,7 +74,6 @@ static int i386_set_ldt	__P((struct proc *, char *, int *));
 static int i386_get_ioperm	__P((struct proc *, char *, int *));
 static int i386_set_ioperm	__P((struct proc *, char *, int *));
 int i386_extend_pcb	__P((struct proc *));
-int (*vm86_sysarch) __P((struct proc *, char *, int *));
 #endif
 
 #ifndef _SYS_SYSPROTO_H_
@@ -107,11 +109,8 @@ sysarch(p, uap, retval)
 		error = i386_set_ioperm(p, uap->parms, retval);
 		break;
 	case I386_VM86:
-		if (vm86_sysarch) {
-			error = (*vm86_sysarch)(p, uap->parms, retval);
-			break;
-		}
-		/* FALL THROUGH */
+		error = vm86_sysarch(p, uap->parms, retval);
+		break;
 #endif
 	default:
 		error = EINVAL;
