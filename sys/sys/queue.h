@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)queue.h	8.5 (Berkeley) 8/20/94
- * $Id: queue.h,v 1.13 1997/02/22 09:45:44 peter Exp $
+ * $Id: queue.h,v 1.14 1997/04/14 18:22:02 phk Exp $
  */
 
 #ifndef _SYS_QUEUE_H_
@@ -85,6 +85,25 @@
  * complex end of list detection.
  *
  * For details on the use of these macros, see the queue(3) manual page.
+ *
+ *
+ *			SLIST	LIST	STAILQ	TAILQ	CIRCLEQ
+ * _HEAD		+	+	+	+	+
+ * _ENTRY		+	+	+	+	+
+ * _INIT		+	+	+	+	+
+ * _EMPTY		+	+	+	+	+
+ * _FIRST		+	+	-	+	+
+ * _NEXT		+	+	-	+	+
+ * _PREV		-	-	-	+	+
+ * _LAST		-	-	-	+	+
+ * _FOREACH		-	+	-	+	-
+ * _INSERT_HEAD		+	+	+	+	+
+ * _INSERT_BEFORE	-	+	-	+	+
+ * _INSERT_AFTER	+	+	+	+	+
+ * _INSERT_TAIL		-	-	+	+	+
+ * _REMOVE_HEAD		+	-	+	-	-
+ * _REMOVE		+	+	+	+	+
+ *
  */
 
 /*
@@ -157,6 +176,8 @@ struct {								\
 /*
  * Singly-linked Tail queue functions.
  */
+#define STAILQ_EMPTY(head) ((head)->stqh_first == NULL)
+
 #define	STAILQ_INIT(head) {						\
 	(head)->stqh_first = NULL;					\
 	(head)->stqh_last = &(head)->stqh_first;			\
@@ -217,6 +238,9 @@ struct {								\
 /*
  * List functions.
  */
+
+#define	LIST_EMPTY(head) ((head)->lh_first == NULL)
+
 #define LIST_FIRST(head)	((head)->lh_first)
 
 #define LIST_FOREACH(var, head, field)					\
@@ -276,6 +300,9 @@ struct {								\
  * Tail queue functions.
  */
 #define	TAILQ_EMPTY(head) ((head)->tqh_first == NULL)
+
+#define TAILQ_FOREACH(var, head, field)					\
+	for (var = TAILQ_FIRST(head); var; var = TAILQ_NEXT(var, field))
 
 #define	TAILQ_FIRST(head) ((head)->tqh_first)
 
@@ -351,6 +378,13 @@ struct {								\
 /*
  * Circular queue functions.
  */
+#define CIRCLEQ_EMPTY(head) ((head)->cqh_first == (head)->cqh_last)
+
+#define CIRCLEQ_FIRST(head) ((head)->cqh_first)
+
+#define CIRCLEQ_FOREACH(var, head, field)				\
+	for((var) = (head)->cqh_first; (var); (var) = (var)->field.cqe_next)
+
 #define	CIRCLEQ_INIT(head) {						\
 	(head)->cqh_first = (void *)(head);				\
 	(head)->cqh_last = (void *)(head);				\
@@ -395,6 +429,12 @@ struct {								\
 		(head)->cqh_last->field.cqe_next = (elm);		\
 	(head)->cqh_last = (elm);					\
 }
+
+#define CIRCLEQ_LAST(head) ((head)->cqh_last)
+
+#define CIRCLEQ_NEXT(elm,field) ((elm)->field.cqe_next)
+
+#define CIRCLEQ_PREV(elm,field) ((elm)->field.cqe_prev)
 
 #define	CIRCLEQ_REMOVE(head, elm, field) {				\
 	if ((elm)->field.cqe_next == (void *)(head))			\
