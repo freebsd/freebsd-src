@@ -1,5 +1,5 @@
 #ifndef lint
-static const char *rcsid = "$Id: perform.c,v 1.26.2.10 1996/06/03 05:12:29 jkh Exp $";
+static const char *rcsid = "$Id: perform.c,v 1.37 1996/10/14 19:41:42 jkh Exp $";
 #endif
 
 /*
@@ -221,43 +221,44 @@ pkg_do(char *pkg)
 	    continue;
 	if (Verbose)
 	    printf("Package `%s' depends on `%s'.\n", PkgName, p->name);
-	if (!Fake && vsystem("pkg_info -e %s", p->name)) {
+	if (vsystem("pkg_info -e %s", p->name)) {
 	    char path[FILENAME_MAX], *cp = NULL;
 
-	    if (!Fake && !isURL(pkg) && !getenv("PKG_ADD_BASE")) {
-		snprintf(path, FILENAME_MAX, "%s/%s.tgz", Home, p->name);
-		if (fexists(path))
-		    cp = path;
-		else
-		    cp = fileFindByPath(pkg, p->name);
-		if (cp) {
-		    if (Verbose)
-			printf("Loading it from %s.\n", cp);
-		    if (vsystem("pkg_add %s", cp)) {
-			whinge("Autoload of dependency `%s' failed%s", cp, Force ? " (proceeding anyway)" : "!");
-			if (!Force)
-			    ++code;
-		    }
-		}
-	    }
-	    else if (!Fake && (cp = fileGetURL(pkg, p->name)) != NULL) {
-		if (Verbose)
-		    printf("Finished loading %s over FTP.\n", p->name);
-		if (!Fake) {
-		    if (!fexists("+CONTENTS"))
-			whinge("Autoloaded package %s has no +CONTENTS file?", p->name);
+	    if (!Fake) {
+		if (!isURL(pkg) && !getenv("PKG_ADD_BASE")) {
+		    snprintf(path, FILENAME_MAX, "%s/%s.tgz", Home, p->name);
+		    if (fexists(path))
+			cp = path;
 		    else
-			if (vsystem("(pwd; cat +CONTENTS) | pkg_add %s-S", Verbose ? "-v " : "")) {
-			    whinge("pkg_add of dependency `%s' failed%s",
-				   p->name, Force ? " (proceeding anyway)" : "!");
+			cp = fileFindByPath(pkg, p->name);
+		    if (cp) {
+			if (Verbose)
+			    printf("Loading it from %s.\n", cp);
+			if (vsystem("pkg_add %s", cp)) {
+			    whinge("Autoload of dependency `%s' failed%s", cp, Force ? " (proceeding anyway)" : "!");
 			    if (!Force)
 				++code;
 			}
-			else if (Verbose)
-			    printf("\t`%s' loaded successfully.\n", p->name);
+		    }
 		}
-		/* Nuke the temporary playpen */
-		leave_playpen(cp);
+		else if ((cp = fileGetURL(pkg, p->name)) != NULL) {
+		    if (Verbose)
+			printf("Finished loading %s over FTP.\n", p->name);
+		    if (!fexists("+CONTENTS")) {
+			whinge("Autoloaded package %s has no +CONTENTS file?", p->name);
+			if (!Force)
+			    ++code;
+		    }
+		    else if (vsystem("(pwd; cat +CONTENTS) | pkg_add %s-S", Verbose ? "-v " : "")) {
+			whinge("pkg_add of dependency `%s' failed%s", p->name, Force ? " (proceeding anyway)" : "!");
+			if (!Force)
+			    ++code;
+		    }
+		    else if (Verbose)
+			printf("\t`%s' loaded successfully.\n", p->name);
+		    /* Nuke the temporary playpen */
+		    leave_playpen(cp);
+		}
 	    }
 	    else {
 		if (Verbose)
