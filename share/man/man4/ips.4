@@ -63,7 +63,7 @@ This utility is accessed with the
 key combination during the initial card
 .Tn POST .
 .Pp
-It is highly recommended that this be used to configure the card
+It is highly recommended that this utility be used to configure the card
 before attempting to diagnose the below error messages.
 .Pp
 In some cases, the
@@ -71,12 +71,12 @@ In some cases, the
 driver can have difficulties attaching during
 the system initialization period.
 To avoid these difficulties, set the
-.Pp
-.Dl hw.ips.0.disable=1
-.Pp
-.Xr sysctl
-.Dq MIB
-to prevent the driver from attaching.
+.Dl hw.ips.0.disable
+tunable to
+.Dq 1 .
+This
+.Tn MIB
+prevents the driver from attaching.
 .Sh DIAGNOSTICS
 Several error codes may be shown when the card initializes the
 .Tn IBM
@@ -92,7 +92,7 @@ Unable to obtain adapter or drive configuration.
 .It ips%d iobuf error
 .Pp
 A buffer input/output error has occurred.
-.Op ENXIO
+.Bq Er ENXIO
 .El
 .Ss General adapter errors:
 .Bl -diag
@@ -143,7 +143,7 @@ Failure to map or allocate DMA resources.
 The
 .Nm
 driver will return
-.Op ENOMEM
+.Bq Er ENOMEM
 in such cases.
 .It ERROR: unable to get a command! can't flush cache!
 .It ERROR: cache flush command failed!
@@ -177,5 +177,6 @@ driver was written by
 .An David Jefferys
 and
 .An Scott Long Aq scottl@FreeBSD.org .
+.Pp
 This manual page was written by
 .An Tom Rhodes Aq trhodes@FreeBSD.org .
