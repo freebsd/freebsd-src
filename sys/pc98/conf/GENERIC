@@ -244,6 +244,7 @@ device		bpf		# Berkeley packet filter
 #device		axe		# ASIX Electronics USB ethernet
 #device		cue		# CATC USB ethernet
 #device		kue		# Kawasaki LSI USB ethernet
+#device		rue		# RealTek RTL8150 USB ethernet
 
 # FireWire support
 #device		firewire	# FireWire bus code
