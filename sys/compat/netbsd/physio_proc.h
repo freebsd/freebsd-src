@@ -35,13 +35,7 @@
 #include <sys/buf.h>
 #include <sys/queue.h>
 
-struct physio_proc;
-TAILQ_HEAD(physio_proc_head, physio_proc);
-struct physio_proc_head physio_proc_freet, physio_proc_busyt;
-
 struct physio_proc {
-	TAILQ_ENTRY(physio_proc) pp_chain;
-	struct proc *pp_proc;
 };
 
 static __inline struct physio_proc *physio_proc_enter __P((struct buf *));
@@ -51,39 +45,12 @@ static __inline struct physio_proc *
 physio_proc_enter(bp)
 	struct buf *bp;
 {
-	struct physio_proc *pp;
-	int s;
-
-	if (bp == NULL || (bp->b_flags & B_PHYS) == 0)
-		return NULL;	
-	if ((pp = TAILQ_FIRST(&physio_proc_freet)) == NULL)
-		return NULL;
-
-	s = splstatclock();
-	TAILQ_REMOVE(&physio_proc_freet, pp, pp_chain);
-#if !defined(__FreeBSD__) || __FreeBSD_version < 400001
-	pp->pp_proc = bp->b_proc;
-#endif
-	TAILQ_INSERT_TAIL(&physio_proc_busyt, pp, pp_chain);
-	splx(s);
-	return pp;
+	return NULL;
 }
 
 static __inline void
 physio_proc_leave(pp)
 	struct physio_proc *pp;
 {
-	int s;
-
-	if (pp == NULL)
-		return;
-
-	s = splstatclock();
-	TAILQ_REMOVE(&physio_proc_busyt, pp, pp_chain);
-	TAILQ_INSERT_TAIL(&physio_proc_freet, pp, pp_chain);
-	pp->pp_proc = NULL;
-	splx(s);
 }
-
-void physio_proc_init __P((void));
 #endif /* _I386_PHYSIO_PROC_H_ */
