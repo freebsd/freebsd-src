@@ -11,6 +11,7 @@ CFLAGS+=-funsigned-char
 
 CFLAGS+=-I${.CURDIR}/../../../contrib/diff
 CFLAGS+=-DHAVE_CONFIG_H
+CFLAGS+=-DPR_PROGRAM=\"/usr/bin/pr\"
 
 SUBDIR+= doc
 
