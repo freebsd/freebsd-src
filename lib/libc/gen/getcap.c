@@ -577,6 +577,9 @@ cgetmatch(const char *buf, const char *name)
 {
 	const char *np, *bp;
 
+	if (name == NULL || *name == '\0')
+		return -1;
+
 	/*
 	 * Start search at beginning of record.
 	 */
