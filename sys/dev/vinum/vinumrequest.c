@@ -559,6 +559,21 @@ bre(struct request *rq,
 
 		if (rqe->sdoffset >= sd->sectors) {	    /* starts beyond the end of the subdisk? */
 		    deallocrqg(rqg);
+#if VINUMDEBUG
+		    if (debug & DEBUG_EOFINFO) {	    /* tell on the request */
+			log(LOG_DEBUG,
+			    "vinum: EOF on plex %s, sd %s offset %x (user offset %x)\n",
+			    plex->name,
+			    sd->name,
+			    (u_int) sd->sectors,
+			    bp->b_blkno);
+			log(LOG_DEBUG,
+			    "vinum: stripebase %x, stripeoffset %x, blockoffset %x\n",
+			    stripebase,
+			    stripeoffset,
+			    blockoffset);
+		    }
+#endif
 		    return REQUEST_EOF;
 		} else if (rqe->sdoffset + rqe->datalen > sd->sectors) /* ends beyond the end of the subdisk? */
 		    rqe->datalen = sd->sectors - rqe->sdoffset;	/* yes, truncate */
