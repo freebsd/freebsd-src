@@ -538,7 +538,7 @@ takers?
         - FORE Systems, Inc. PCA-200E ATM PCI Adapters
         - Efficient Networks, Inc. ENI-155p ATM PCI Adapters
 
-   o ATM Signalling Protocols
+   o ATM Signaling Protocols
         - The ATM Forum UNI 3.1 signaling protocol
         - The ATM Forum UNI 3.0 signaling protocol
         - The ATM Forum ILMI address registration
