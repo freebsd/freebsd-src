@@ -64,7 +64,7 @@ ttymsg(iov, iovcnt, line, tmout)
 	static char device[MAXNAMLEN] = _PATH_DEV;
 	static char errbuf[1024];
 	register int cnt, fd, left, wret;
-	struct iovec localiov[6];
+	struct iovec localiov[7];
 	int forked = 0;
 
 	if (iovcnt > sizeof(localiov) / sizeof(localiov[0]))
