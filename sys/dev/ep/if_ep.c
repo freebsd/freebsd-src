@@ -38,7 +38,7 @@
  */
 
 /*
- *  $Id: if_ep.c,v 1.41 1996/02/13 15:55:33 gibbs Exp $
+ *  $Id: if_ep.c,v 1.42 1996/02/26 01:05:34 gibbs Exp $
  *
  *  Promiscuous mode added and interrupt logic slightly changed
  *  to reduce the number of adapter failures. Transceiver select
@@ -425,8 +425,6 @@ ep_isa_attach(is)
     u_short config;
     int irq;
 
-    printf("ep%d: ", sc->unit);
-
     sc->ep_connectors = 0;
     config = inw(IS_BASE + EP_W0_CONFIG_CTRL);
     if (config & IS_AUI) {
@@ -440,7 +438,7 @@ ep_isa_attach(is)
     }
     if (!(sc->ep_connectors & 7))
 	printf("no connectors!");
-    sc->ep_connector = inw(BASE + EP_W0_ADDRESS_CFG);
+    sc->ep_connector = inw(BASE + EP_W0_ADDRESS_CFG) >> ACF_CONNECTOR_BITS;
     /*
      * Write IRQ value to board
      */
@@ -451,7 +449,6 @@ ep_isa_attach(is)
 	return 0;
     }
 
-    printf(" irq %d\n",irq);
     GO_WINDOW(0);
     if(irq == 9)
 	irq = 2;
@@ -489,7 +486,7 @@ ep_attach(sc)
 	printf("bnc");
     }
 
-    printf("[*%s*]", ep_conn_type[sc->ep_connector >> ACF_CONNECTOR_BITS]);
+    printf("[*%s*]", ep_conn_type[sc->ep_connector]);
 
     /*
      * Setup the station address
