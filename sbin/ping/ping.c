@@ -1545,17 +1545,17 @@ pr_retip(ip)
 }
 
 static char *
-pr_ntime (n_time time)
+pr_ntime (n_time timestamp)
 {
 	static char buf[10];
-	int h, m, s;
+	int hour, min, sec;
 
-	s = ntohl(time) / 1000;
-	h = s / 60 / 60;
-	m = (s % (60 * 60)) / 60;
-	s = (s % (60 * 60)) % 60;
+	sec = ntohl(timestamp) / 1000;
+	hour = sec / 60 / 60;
+	min = (sec % (60 * 60)) / 60;
+	sec = (sec % (60 * 60)) % 60;
 
-	(void)snprintf(buf, sizeof(buf), "%02d:%02d:%02d", h, m, s);
+	(void)snprintf(buf, sizeof(buf), "%02d:%02d:%02d", hour, min, sec);
 
 	return (buf);
 }
