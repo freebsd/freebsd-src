@@ -114,7 +114,7 @@ gentempname(ep)
 		i++;
 	if (np == NULL)
 		badentry(ep, "not on ino list");
-	(void) sprintf(name, "%s%d%d", TMPHDR, i, ep->e_ino);
+	(void) sprintf(name, "%s%ld%lu", TMPHDR, i, (u_long)ep->e_ino);
 	return (name);
 }
 
@@ -333,7 +333,7 @@ badentry(ep, msg)
 		    "next hashchain name: %s\n", myname(ep->e_next));
 	fprintf(stderr, "entry type: %s\n",
 		ep->e_type == NODE ? "NODE" : "LEAF");
-	fprintf(stderr, "inode number: %ld\n", ep->e_ino);
+	fprintf(stderr, "inode number: %lu\n", (u_long)ep->e_ino);
 	panic("flags: %s\n", flagvalues(ep));
 }
 
