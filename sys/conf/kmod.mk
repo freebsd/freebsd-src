@@ -315,18 +315,29 @@ ${_src}: @/tools/makeobjops.awk @/${_srcsrc}
 .endfor # _ext
 .endfor # _srcsrc
 
-.for _ext in c h
-.if ${SRCS:Mvnode_if.${_ext}} != ""
-CLEANFILES+=	vnode_if.${_ext}
+.if ${SRCS:Mvnode_if.c} != ""
+CLEANFILES+=	vnode_if.c
 .if !exists(@)
-vnode_if.${_ext}: @
+vnode_if.c: @
 .endif
 .if exists(@)
-vnode_if.${_ext}: @/tools/vnode_if.awk @/kern/vnode_if.src
+vnode_if.c: @/tools/vnode_if.awk @/kern/vnode_if.src
 .endif
-	${AWK} -f @/tools/vnode_if.awk @/kern/vnode_if.src -${_ext}
+	${AWK} -f @/tools/vnode_if.awk @/kern/vnode_if.src -c
 .endif
-.endfor
+
+.if ${SRCS:Mvnode_if.h} != ""
+CLEANFILES+=	vnode_if.h
+.if !exists(@)
+vnode_if.h: @
+.endif
+.if exists(@)
+vnode_if.h: @/tools/vnode_if.awk @/kern/vnode_if.src
+.endif
+	${AWK} -f @/tools/vnode_if.awk @/kern/vnode_if.src -h
+	${AWK} -f @/tools/vnode_if.awk @/kern/vnode_if.src -p
+	${AWK} -f @/tools/vnode_if.awk @/kern/vnode_if.src -q
+.endif
 
 .for _i in mii pccard usb
 .if ${SRCS:M${_i}devs.h} != ""
