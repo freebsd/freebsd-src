@@ -59,6 +59,7 @@ static MALLOC_DEFINE(M_ATADMA, "ATA DMA", "ATA driver DMA");
 /* misc defines */
 #define MAXSEGSZ	PAGE_SIZE
 #define MAXTABSZ	PAGE_SIZE
+#define MAXWSPCSZ	256
 #define MAXCTLDMASZ	(2 * (MAXTABSZ + MAXPHYS))
 
 struct ata_dc_cb_args {
@@ -121,16 +122,35 @@ ata_dmaalloc(struct ata_channel *ch)
 
     if (bus_dmamap_load(ch->dma->cdmatag, ch->dma->cdmamap, ch->dma->dmatab,
 			MAXTABSZ, ata_dmasetupc_cb, &ccba, 0) || ccba.error) {
-	bus_dmamem_free(ch->dma->cdmatag, ch->dma->dmatab,ch->dma->cdmamap);
+	bus_dmamem_free(ch->dma->cdmatag, ch->dma->dmatab, ch->dma->cdmamap);
 	goto error;
     }
     ch->dma->mdmatab = ccba.maddr;
+
     if (bus_dmamap_create(ch->dma->ddmatag, 0, &ch->dma->ddmamap))
 	goto error;
+
+    if (bus_dma_tag_create(ch->dma->dmatag, PAGE_SIZE, PAGE_SIZE,
+			   BUS_SPACE_MAXADDR_32BIT, BUS_SPACE_MAXADDR,
+			   NULL, NULL, MAXWSPCSZ, 1, MAXWSPCSZ,
+			   BUS_DMA_ALLOCNOW, NULL, NULL, &ch->dma->wdmatag))
+	goto error;
+
+    if (bus_dmamem_alloc(ch->dma->wdmatag, (void **)&ch->dma->workspace, 0,
+			 &ch->dma->wdmamap))
+	goto error;
+
+    if (bus_dmamap_load(ch->dma->wdmatag, ch->dma->wdmamap, ch->dma->workspace,
+			MAXWSPCSZ, ata_dmasetupc_cb, &ccba, 0) || ccba.error) {
+	bus_dmamem_free(ch->dma->wdmatag, ch->dma->workspace, ch->dma->wdmamap);
+	goto error;
+    }
+    ch->dma->wdmatab = ccba.maddr;
+
     return;
 
 error:
-    ata_printf(ch, -1, "WARNING - DMA tag allocation failed, disabling DMA\n");
+    ata_printf(ch, -1, "WARNING - DMA allocation failed, disabling DMA\n");
     ata_dmafree(ch);
     free(ch->dma, M_ATADMA);
     ch->dma = NULL;
@@ -139,6 +159,17 @@ error:
 static void
 ata_dmafree(struct ata_channel *ch)
 {
+    if (ch->dma->wdmatab) {
+	bus_dmamap_unload(ch->dma->wdmatag, ch->dma->wdmamap);
+	bus_dmamem_free(ch->dma->wdmatag, ch->dma->workspace, ch->dma->wdmamap);
+	ch->dma->wdmatab = 0;
+	ch->dma->wdmamap = NULL;
+	ch->dma->workspace = NULL;
+    }
+    if (ch->dma->wdmatag) {
+	bus_dma_tag_destroy(ch->dma->wdmatag);
+	ch->dma->wdmatag = NULL;
+    }
     if (ch->dma->mdmatab) {
 	bus_dmamap_unload(ch->dma->cdmatag, ch->dma->cdmamap);
 	bus_dmamem_free(ch->dma->cdmatag, ch->dma->dmatab, ch->dma->cdmamap);

@@ -186,8 +186,8 @@ struct ata_request {
 	struct {
 	    u_int8_t		command;	/* command reg */
 	    u_int8_t		feature;	/* feature reg */
-	    u_int64_t		lba;		/* lba reg */
 	    u_int16_t		count;		/* count reg */
+	    u_int64_t		lba;		/* lba reg */
 	} ata;
 	struct {
 	    u_int8_t		ccb[16];	/* ATAPI command block */
@@ -287,6 +287,11 @@ struct ata_dma {
     bus_dmamap_t		ddmamap;	/* data DMA map */
     struct ata_dmaentry		*dmatab;	/* DMA transfer table */
     bus_addr_t			mdmatab;	/* bus address of dmatab */
+    bus_dma_tag_t		wdmatag;	/* workspace DMA tag */
+    bus_dmamap_t		wdmamap;	/* workspace DMA map */
+    u_int8_t			*workspace;	/* workspace */
+    bus_addr_t			wdmatab;	/* bus address of dmatab */
+
     u_int32_t			alignment;	/* DMA engine alignment */
     u_int32_t			boundary;	/* DMA engine boundary */
     u_int32_t			max_iosize;	/* DMA engine max IO size */
@@ -306,8 +311,9 @@ struct ata_dma {
 /* structure holding lowlevel functions */
 struct ata_lowlevel {
     void (*reset)(struct ata_channel *ch);
-    int (*transaction)(struct ata_request *request);
     void (*interrupt)(void *channel);
+    int (*transaction)(struct ata_request *request);
+    int (*command)(struct ata_device *atadev, u_int8_t command, u_int64_t lba, u_int16_t count, u_int16_t feature);
 };
 
 /* structure holding resources for an ATA channel */
@@ -356,7 +362,7 @@ struct ata_channel {
 
     struct mtx			queue_mtx;	/* queue lock */
     TAILQ_HEAD(, ata_request)	ata_queue;	/* head of ATA queue */
-    void			*running;	/* currently running request */
+    struct ata_request		*running;	/* currently running request */
 };
 
 /* disk bay/enclosure related */
@@ -402,6 +408,7 @@ char *ata_cmd2str(struct ata_request *request);
 
 /* ata-lowlevel.c: */
 void ata_generic_hw(struct ata_channel *ch);
+int ata_generic_command(struct ata_device *atadev, u_int8_t command, u_int64_t lba, u_int16_t count, u_int16_t feature);
 
 /* subdrivers */
 void ad_attach(struct ata_device *atadev);

@@ -307,6 +307,7 @@ ata_cbussub_probe(device_t dev)
     ch->locking = ctlr->locking;
     ch->device[MASTER].setmode = ctlr->setmode;
     ch->device[SLAVE].setmode = ctlr->setmode;
+    ata_generic_hw(ch);
     return ata_probe(dev);
 }
 
