@@ -6,7 +6,7 @@ NOMAN=
 
 all: $(DEMOS) $(PROG)
 
-install: ${DEMOS}
+install:
 	@${ECHO} "to look at the demos, execute:"
 	@${ECHO} "        \"cat <filename>.vt\""
 	@${ECHO} "if it is an animation and it runs too fast, try out:"
