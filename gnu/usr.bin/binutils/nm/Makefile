@@ -2,7 +2,7 @@
 
 .include "../Makefile.inc0"
 
-.PATH: ${SRCDIR}/binutils
+.PATH: ${SRCDIR}/binutils ${SRCDIR}/binutils/doc
 
 PROG=	nm
 SRCS=	nm.c
