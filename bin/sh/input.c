@@ -64,6 +64,7 @@ __FBSDID("$FreeBSD$");
 #include "alias.h"
 #include "parser.h"
 #include "myhistedit.h"
+#include "trap.h"
 
 #define EOF_NLEFT -99		/* value of parsenleft when EOF pushed back */
 
@@ -178,6 +179,12 @@ preadfd(void)
 	int nr;
 	parsenextc = parsefile->buf;
 
+#ifndef NO_HISTORY
+	if (el != NULL && gotwinch) {
+		gotwinch = 0;
+		el_resize(el);
+	}
+#endif
 retry:
 #ifndef NO_HISTORY
 	if (parsefile->fd == 0 && el) {
