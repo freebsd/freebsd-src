@@ -40,13 +40,16 @@
 #include "libi386/libi386.h"
 #include "btxv86.h"
 
+#define	KARGS_FLAGS_CD		0x1
+#define	KARGS_FLAGS_PXE		0x2
+
 /* Arguments passed in from the boot1/boot2 loader */
 static struct 
 {
     u_int32_t	howto;
     u_int32_t	bootdev;
-    u_int32_t	res0;
-    u_int32_t	res1;
+    u_int32_t	bootflags;
+    u_int32_t	pxeinfo;
     u_int32_t	res2;
     u_int32_t	bootinfo;
 } *kargs;
@@ -67,6 +70,11 @@ extern	char bootprog_name[], bootprog_rev[], bootprog_date[], bootprog_maker[];
 /* XXX debugging */
 extern char end[];
 
+/* XXX - I dont know why we have to do this, but it helps. */
+#if defined(LOADER_NFS_SUPPORT) || defined(LOADER_TFTP_SUPPORT)
+char	Heap[200*1024];
+#endif
+
 void
 main(void)
 {
@@ -76,14 +84,20 @@ main(void)
     kargs = (void *)__args;
     initial_howto = kargs->howto;
     initial_bootdev = kargs->bootdev;
-    initial_bootinfo = (struct bootinfo *)PTOV(kargs->bootinfo);
+    initial_bootinfo = kargs->bootinfo ? (struct bootinfo *)PTOV(kargs->bootinfo) : NULL;
 
     /* 
      * Initialise the heap as early as possible.  Once this is done, malloc() is usable.
      */
     bios_getmem();
+
+    /* XXX - I dont know why we have to do this, but it helps PXE. */
+#if defined(LOADER_NFS_SUPPORT) || defined(LOADER_TFTP_SUPPORT)
+    setheap(Heap, Heap+sizeof(Heap));
+#else
     setheap((void *)end, (void *)bios_basemem);
-    
+#endif
+
     /* 
      * XXX Chicken-and-egg problem; we want to have console output early, but some
      * console attributes may depend on reading from eg. the boot device, which we
@@ -100,6 +114,15 @@ main(void)
      * Initialise the block cache
      */
     bcache_init(32, 512);	/* 16k cache XXX tune this */
+
+    /*
+     * We only want the PXE disk to try to init itself in the below walk through
+     * devsw if we actually booted off of PXE.
+     */
+    if((kargs->bootinfo == NULL) &&
+       ((kargs->bootflags & KARGS_FLAGS_PXE) != 0)) {
+      pxe_enable(kargs->pxeinfo ? PTOV(kargs->pxeinfo) : NULL);
+    }
 
     /*
      * March through the device switch probing for things.
@@ -139,17 +162,36 @@ extract_currdev(void)
     struct i386_devdesc	currdev;
     int			major, biosdev;
 
-    /* We're booting from a BIOS disk, try to spiff this */
-    currdev.d_dev = devsw[0];				/* XXX presumes that biosdisk is first in devsw */
+    /* Assume we are booting from a BIOS disk by default */
+    currdev.d_dev = &biosdisk;
     currdev.d_type = currdev.d_dev->dv_type;
 
-    if ((initial_bootdev & B_MAGICMASK) != B_DEVMAGIC) {
+    /* new-style boot loaders such as pxeldr and cdldr */
+    if (kargs->bootinfo == NULL) {
+        if ((kargs->bootflags & KARGS_FLAGS_CD) != 0) {
+	    /* we are booting from a CD with cdldr */
+	    currdev.d_kind.biosdisk.slice = -1;
+	    currdev.d_kind.biosdisk.partition = 0;
+	    biosdev = initial_bootdev;
+	} else if ((kargs->bootflags & KARGS_FLAGS_PXE) != 0) {
+	    /* we are booting from pxeldr */
+	    currdev.d_dev = &pxedisk;
+	    currdev.d_type = currdev.d_dev->dv_type;
+	    currdev.d_kind.netif.unit = 0;
+	} else {
+	    /* we don't know what our boot device is */
+	    currdev.d_kind.biosdisk.slice = -1;
+	    currdev.d_kind.biosdisk.partition = 0;
+	    biosdev = -1;
+	}
+    } else if ((initial_bootdev & B_MAGICMASK) != B_DEVMAGIC) {
 	/* The passed-in boot device is bad */
 	currdev.d_kind.biosdisk.slice = -1;
 	currdev.d_kind.biosdisk.partition = 0;
 	biosdev = -1;
     } else {
-	currdev.d_kind.biosdisk.slice = (B_ADAPTOR(initial_bootdev) << 4) + B_CONTROLLER(initial_bootdev) - 1;
+	currdev.d_kind.biosdisk.slice = (B_ADAPTOR(initial_bootdev) << 4) +
+					 B_CONTROLLER(initial_bootdev) - 1;
 	currdev.d_kind.biosdisk.partition = B_PARTITION(initial_bootdev);
 	biosdev = initial_bootinfo->bi_bios_dev;
 	major = B_TYPE(initial_bootdev);
@@ -173,7 +215,12 @@ extract_currdev(void)
 #endif
     }
     
-    if ((currdev.d_kind.biosdisk.unit = bd_bios2unit(biosdev)) == -1) {
+    /*
+     * If we are booting off of a BIOS disk and we didn't succeed in determining
+     * which one we booted off of, just use disk0: as a reasonable default.
+     */
+    if ((currdev.d_type == devsw[0]->dv_type) &&
+	((currdev.d_kind.biosdisk.unit = bd_bios2unit(biosdev)) == -1)) {
 	printf("Can't work out which disk we are booting from.\n"
 	       "Guessed BIOS device 0x%x not found by probes, defaulting to disk0:\n", biosdev);
 	currdev.d_kind.biosdisk.unit = 0;
