@@ -1,6 +1,6 @@
-/*	$NetBSD: strsuftoll.c,v 1.1 2002/11/29 12:58:17 lukem Exp $	*/
+/*	$NetBSD: strsuftoll.c,v 1.5 2004/01/17 23:02:51 dbj Exp $	*/
 /*-
- * Copyright (c) 2001-2002 The NetBSD Foundation, Inc.
+ * Copyright (c) 2001-2002,2004 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
  * This code is derived from software contributed to The NetBSD Foundation
@@ -50,11 +50,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -71,18 +67,18 @@
  * SUCH DAMAGE.
  */
 
+#if HAVE_NBTOOL_CONFIG_H
+#include "nbtool_config.h"
+#endif
+
 #include <sys/cdefs.h>
 
 #if defined(LIBC_SCCS) && !defined(lint)
-__RCSID("$NetBSD: strsuftoll.c,v 1.1 2002/11/29 12:58:17 lukem Exp $");
+__RCSID("$NetBSD: strsuftoll.c,v 1.5 2004/01/17 23:02:51 dbj Exp $");
 #endif /* LIBC_SCCS and not lint */
 
 #ifdef _LIBC
 #include "namespace.h"
-#endif
-
-#if HAVE_CONFIG_H
-#include "config.h"
 #endif
 
 #if !HAVE_STRSUFTOLL
@@ -100,16 +96,11 @@ __RCSID("$NetBSD: strsuftoll.c,v 1.1 2002/11/29 12:58:17 lukem Exp $");
 #include <string.h>
 
 #ifdef _LIBC
-# define _STRSUFTOLL	_strsuftoll
-# define _STRSUFTOLLX	_strsuftollx
 # ifdef __weak_alias
 __weak_alias(strsuftoll, _strsuftoll)
 __weak_alias(strsuftollx, _strsuftollx)
 # endif
-#else /* !LIBC */
-# define _STRSUFTOLL	strsuftoll
-# define _STRSUFTOLLX	strsuftollx
-#endif /* !LIBC */
+#endif /* LIBC */
 
 /*
  * Convert an expression of the following forms to a (u)int64_t.
@@ -117,8 +108,10 @@ __weak_alias(strsuftollx, _strsuftollx)
  *	2) A positive decimal number followed by a b (mult by 512).
  *	3) A positive decimal number followed by a k (mult by 1024).
  *	4) A positive decimal number followed by a m (mult by 1048576).
- *	5) A positive decimal number followed by a w (mult by sizeof int)
- *	6) Two or more positive decimal numbers (with/without k,b or w).
+ *	5) A positive decimal number followed by a g (mult by 1073741824).
+ *	6) A positive decimal number followed by a t (mult by 1099511627776).
+ *	7) A positive decimal number followed by a w (mult by sizeof int)
+ *	8) Two or more positive decimal numbers (with/without k,b or w).
  *	   separated by x (also * for backwards compatibility), specifying
  *	   the product of the indicated values.
  * Returns the result upon successful conversion, or exits with an
@@ -127,7 +120,7 @@ __weak_alias(strsuftollx, _strsuftollx)
  */
 /* LONGLONG */
 long long
-_STRSUFTOLL(const char *desc, const char *val,
+strsuftoll(const char *desc, const char *val,
     long long min, long long max)
 {
 	long long result;
@@ -145,7 +138,7 @@ _STRSUFTOLL(const char *desc, const char *val,
  */
 /* LONGLONG */
 long long
-_STRSUFTOLLX(const char *desc, const char *val,
+strsuftollx(const char *desc, const char *val,
     long long min, long long max, char *ebuf, size_t ebuflen)
 {
 	long long num, t;
@@ -161,7 +154,7 @@ _STRSUFTOLLX(const char *desc, const char *val,
 	while (isspace((unsigned char)*val))	/* Skip leading space */
 		val++;
 
-	num = strtoll(val, &expr, 0);
+	num = strtoll(val, &expr, 10);
 	if (errno == ERANGE)
 		goto erange;			/* Overflow */
 
@@ -244,7 +237,7 @@ _STRSUFTOLLX(const char *desc, const char *val,
 			/* LONGLONG */
 		snprintf(ebuf, ebuflen,
 		    "%s %lld is greater than %lld.",
-		    desc, (long long)num, (long long)min);
+		    desc, (long long)num, (long long)max);
 		return (0);
 	}
 	*ebuf = '\0';

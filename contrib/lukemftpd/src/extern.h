@@ -1,4 +1,4 @@
-/*	$NetBSD: extern.h,v 1.44 2002/05/30 00:24:47 enami Exp $	*/
+/*	$NetBSD: extern.h,v 1.50 2004-08-09 12:56:47 lukem Exp $	*/
 
 /*-
  * Copyright (c) 1992, 1993
@@ -12,11 +12,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -36,7 +32,7 @@
  */
 
 /*-
- * Copyright (c) 1997-2001 The NetBSD Foundation, Inc.
+ * Copyright (c) 1997-2004 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
  * This code is derived from software contributed to The NetBSD Foundation
@@ -147,9 +143,6 @@ char   *getline(char *, int, FILE *);
 void	init_curclass(void);
 void	logxfer(const char *, off_t, const char *, const char *,
 	    const struct timeval *, const char *);
-#if 0
-void	logwtmp(const char *, const char *, const char *);
-#endif
 struct tab *lookup(struct tab *, const char *);
 void	makedir(const char *);
 void	mlsd(const char *);
@@ -183,6 +176,21 @@ void	store(const char *, const char *, int);
 void	user(const char *);
 char   *xstrdup(const char *);
 void	yyerror(char *);
+
+#ifdef SUPPORT_UTMP
+struct utmp;
+
+void	ftpd_logwtmp(const char *, const char *, const char *);
+void	ftpd_login(const struct utmp *ut);
+int	ftpd_logout(const char *line);
+#endif
+
+#ifdef SUPPORT_UTMPX
+struct utmpx;
+
+void	ftpd_loginx(const struct utmpx *);
+void	ftpd_logwtmpx(const char *, const char *, const char *, int, int);
+#endif
 
 #include <netinet/in.h>
 
@@ -302,11 +310,10 @@ GLOBAL	struct sockinet	pasv_addr;
 GLOBAL	int		connections;
 GLOBAL	struct ftpclass	curclass;
 GLOBAL	int		debug;
-GLOBAL	jmp_buf		errcatch;
 GLOBAL	char		*emailaddr;
 GLOBAL	int		form;
 GLOBAL	int		gidcount;	/* number of entries in gidlist[] */
-GLOBAL	gid_t		gidlist[NGROUPS_MAX];
+GLOBAL	gid_t		*gidlist;
 GLOBAL	int		hasyyerrored;
 GLOBAL	char		hostname[MAXHOSTNAMELEN+1];
 GLOBAL	char		homedir[MAXPATHLEN];
@@ -324,7 +331,6 @@ GLOBAL	int		quietmessages;
 GLOBAL	char		remotehost[MAXHOSTNAMELEN+1];
 GLOBAL	off_t		restart_point;
 GLOBAL	char		tmpline[FTP_BUFLEN];
-GLOBAL	sig_atomic_t	transflag;
 GLOBAL	int		type;
 GLOBAL	int		usedefault;		/* for data transfers */
 GLOBAL	const char     *version;
