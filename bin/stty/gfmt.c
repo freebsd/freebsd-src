@@ -89,7 +89,7 @@ gread(struct termios *tp, char *s)
 		if (!(ep = strchr(p, '=')))
 			gerr(p);
 		*ep++ = '\0';
-		(void)sscanf(ep, "%lx", &tmp);
+		(void)sscanf(ep, "%lx", (u_long *)&tmp);
 
 #define	CHK(s)	(*p == s[0] && !strcmp(p, s))
 		if (CHK("cflag")) {
