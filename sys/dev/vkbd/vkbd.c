@@ -592,6 +592,7 @@ vkbd_init(int unit, keyboard_t **kbdp, void *arg, int flags)
 	accentmap_t	*accmap = NULL;
 	fkeytab_t	*fkeymap = NULL;
 	int		 fkeymap_size, delay[2];
+	int		 error, needfree;
 
 	if (*kbdp == NULL) {
 		*kbdp = kbd = malloc(sizeof(*kbd), M_VKBD, M_NOWAIT | M_ZERO);
@@ -600,19 +601,11 @@ vkbd_init(int unit, keyboard_t **kbdp, void *arg, int flags)
 		accmap = malloc(sizeof(accent_map), M_VKBD, M_NOWAIT);
 		fkeymap = malloc(sizeof(fkey_tab), M_VKBD, M_NOWAIT);
 		fkeymap_size = sizeof(fkey_tab)/sizeof(fkey_tab[0]);
+		needfree = 1;
 		if ((kbd == NULL) || (state == NULL) || (keymap == NULL) ||
 		    (accmap == NULL) || (fkeymap == NULL)) {
-			if (state != NULL)
-				free(state, M_VKBD);
-			if (keymap != NULL)
-				free(keymap, M_VKBD);
-			if (accmap != NULL)
-				free(accmap, M_VKBD);
-			if (fkeymap != NULL)
-				free(fkeymap, M_VKBD);
-			if (kbd != NULL)
-				free(kbd, M_VKBD);
-			return (ENOMEM);
+			error = ENOMEM;
+			goto bad;
 		}
 
 		VKBD_LOCK_INIT(state);
@@ -627,6 +620,7 @@ vkbd_init(int unit, keyboard_t **kbdp, void *arg, int flags)
 		accmap = kbd->kb_accentmap;
 		fkeymap = kbd->kb_fkeytab;
 		fkeymap_size = kbd->kb_fkeytab_size;
+		needfree = 0;
 	}
 
 	if (!KBD_IS_PROBED(kbd)) {
@@ -658,12 +652,30 @@ vkbd_init(int unit, keyboard_t **kbdp, void *arg, int flags)
 		KBD_INIT_DONE(kbd);
 	}
 	if (!KBD_IS_CONFIGURED(kbd)) {
-		if (kbd_register(kbd) < 0)
-			return (ENXIO);
+		if (kbd_register(kbd) < 0) {
+			error = ENXIO;
+			goto bad;
+		}
 		KBD_CONFIG_DONE(kbd);
 	}
 
 	return (0);
+bad:
+	if (needfree) {
+		if (state != NULL)
+			free(state, M_VKBD);
+		if (keymap != NULL)
+			free(keymap, M_VKBD);
+		if (accmap != NULL)
+			free(accmap, M_VKBD);
+		if (fkeymap != NULL)
+			free(fkeymap, M_VKBD);
+		if (kbd != NULL) {
+			free(kbd, M_DEVBUF);
+			*kbdp = NULL;	/* insure ref doesn't leak to caller */
+		}
+	}
+	return (error);
 }
 
 /* Finish using this keyboard */
