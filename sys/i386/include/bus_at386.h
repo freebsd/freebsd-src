@@ -1154,6 +1154,29 @@ bus_space_barrier(bus_space_tag_t tag, bus_space_handle_t bsh,
 	
 
 /*
+ * Generic memory barrier functions.
+ */
+static __inline void
+barrier_read(void)
+{
+	bus_space_barrier(I386_BUS_SPACE_MEM, 0, 0, ~0, BUS_SPACE_BARRIER_READ);
+}
+
+static __inline void
+barrier_write(void)
+{
+	bus_space_barrier(I386_BUS_SPACE_MEM, 0, 0, ~0,
+	    BUS_SPACE_BARRIER_WRITE);
+}
+
+static __inline void
+barrier_rw(void)
+{
+	bus_space_barrier(I386_BUS_SPACE_MEM, 0, 0, ~0,
+	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
+}
+
+/*
  * Flags used in various bus DMA methods.
  */
 #define	BUS_DMA_WAITOK		0x00	/* safe to sleep (pseudo-flag) */
