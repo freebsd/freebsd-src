@@ -89,7 +89,7 @@ svr4_find_socket(p, fp, dev, ino)
 			DPRINTF(("svr4_find_socket: uninitialized [%p,%d,%d]\n",
 			    p, dev, ino));
 			TAILQ_INIT(&svr4_head);
-			atomic_store_rel(&svr4_str_initialized, 2);
+			atomic_store_rel_int(&svr4_str_initialized, 2);
 		}
 		return NULL;
 	}
