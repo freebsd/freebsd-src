@@ -15,7 +15,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: timer.h,v 1.2 1997/10/26 12:42:13 brian Exp $
+ * $Id: timer.h,v 1.3 1997/11/22 03:37:52 brian Exp $
  *
  *	TODO:
  */
@@ -46,6 +46,6 @@ extern void TermTimerService(void);
 extern void ShowTimers(void);
 
 #ifdef SIGALRM
-extern u_int nointr_sleep(u_int);
+extern void nointr_sleep(u_int);
 extern void nointr_usleep(u_int);
 #endif
