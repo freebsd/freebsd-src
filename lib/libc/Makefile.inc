@@ -24,6 +24,7 @@ NOASM=
 .include "${.CURDIR}/../libc/locale/Makefile.inc"
 .include "${.CURDIR}/../libc/net/Makefile.inc"
 .include "${.CURDIR}/../libc/nls/Makefile.inc"
+.include "${.CURDIR}/../libc/posix1e/Makefile.inc"
 .if !defined(NO_QUAD)
 .include "${.CURDIR}/../libc/quad/Makefile.inc"
 .endif
