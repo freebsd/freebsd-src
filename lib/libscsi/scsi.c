@@ -30,7 +30,7 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- * $Id: scsi.c,v 1.3 1995/01/26 23:48:41 dufault Exp $
+ * $Id: scsi.c,v 1.4 1995/04/28 19:23:49 dufault Exp $
  */
 #include <stdlib.h>
 #include <stdio.h>
@@ -114,6 +114,7 @@ scsireq_t *scsireq_new(void)
  *
  * type_specifier : 'i'	// Integral types (i1, i2, i3, i4)
  *       | 'b'				// Bits
+ *       | 't'				// Bits
  *       | 'c'				// Character arrays
  *       | 'z'				// Character arrays with zeroed trailing spaces
  *       ;
@@ -153,7 +154,7 @@ char *fmt, va_list ap)
 		if (!suppress) \
 		{ \
 			if (arg_put) \
-				(*arg_put)(puthook, letter, \
+				(*arg_put)(puthook, (letter == 't' ? 'b' : letter), \
 				(void *)((long)(ARG)), 1, field_name); \
 			else \
 				*(va_arg(ap, int *)) = (ARG); \
@@ -209,6 +210,7 @@ char *fmt, va_list ap)
 			}
 			break;
 
+			case 't':	/* Bit (field) */
 			case 'b':	/* Bits */
 			fmt++;
 			width = strtol(fmt, &fmt, 10);
@@ -284,7 +286,8 @@ char *fmt, va_list ap)
 			if (!suppress)
 			{
 				if (arg_put)
-					(*arg_put)(puthook, letter, databuf, width, field_name);
+					(*arg_put)(puthook, (letter == 't' ? 'b' : letter),
+					databuf, width, field_name);
 				else
 				{
 					char *dest;
@@ -411,7 +414,8 @@ void (*arg_put)(void *, int, void *, int, char *), void *puthook)
  */
 
 static int next_field(char **pp,
-char *fmt, int *width_p, int *value_p, char *name, int n_name, int *error_p)
+char *fmt, int *width_p, int *value_p, char *name, int n_name, int *error_p,
+int *suppress_p)
 {
 	char *p = *pp;
 
@@ -429,6 +433,7 @@ char *fmt, int *width_p, int *value_p, char *name, int n_name, int *error_p)
 	int field_size;		/* Default to byte field type... */
 	int field_width;	/* 1 byte wide */
 	int is_error = 0;
+	int suppress = 0;
 
 	field_size = 8;		/* Default to byte field type... */
 	*fmt = 'i';
@@ -476,6 +481,11 @@ char *fmt, int *width_p, int *value_p, char *name, int n_name, int *error_p)
 					if (*p == '}')
 						p++;
 				}
+				else if (*p == '*')
+				{
+					p++;
+					suppress = 1;
+				}
 				else if (isxdigit(*p))
 				{
 					something = 1;
@@ -488,6 +498,34 @@ char *fmt, int *width_p, int *value_p, char *name, int n_name, int *error_p)
 					something = 2;
 					value = *value_p;
 					state = START_FIELD;
+				}
+/* Try to work without the "v".
+ */
+				else if (tolower(*p) == 'i')
+				{
+					something = 2;
+					value = *value_p;
+					p++;
+
+					*fmt = 'i';
+					field_size = 8;
+					field_width = strtol(p, &p, 10);
+					state = DONE;
+				}
+
+/* XXX: B can't work: Sees the 'b' as a hex digit in "isxdigit".
+ *      try "t" for bit field.
+ */
+				else if (tolower(*p) == 't')
+				{
+					something = 2;
+					value = *value_p;
+					p++;
+
+					*fmt = 'b';
+					field_size = 1;
+					field_width = strtol(p, &p, 10);
+					state = DONE;
 				}
 				else if (tolower(*p) == 's')	/* Seek */
 				{
@@ -508,7 +546,7 @@ char *fmt, int *width_p, int *value_p, char *name, int n_name, int *error_p)
 				}
 				else
 				{
-					fprintf(stderr, "Invalid starting character\n");
+					fprintf(stderr, "Invalid starting character: %c\n", *p);
 					is_error = 1;
 					state = DONE;
 				}
@@ -575,6 +613,7 @@ char *fmt, int *width_p, int *value_p, char *name, int n_name, int *error_p)
 	*pp = p;
 	*width_p = field_width * field_size;
 	*value_p = value;
+	*suppress_p = suppress;
 
 	return something;
 }
@@ -587,7 +626,7 @@ char *fmt, va_list ap)
 	int shift;
 	u_char val;
 	int ret;
-	int width, value, error;
+	int width, value, error, suppress;
 	char c;
 	int encoded = 0;
 	char field_name[80];
@@ -597,16 +636,21 @@ char *fmt, va_list ap)
 	val = 0;
 
  	while ((ret = next_field(&fmt,
-	 &c, &width, &value, field_name, sizeof(field_name), &error)))
+	 &c, &width, &value, field_name, sizeof(field_name), &error, &suppress)))
 	{
 		encoded++;
 
-		if (ret == 2)
-			value = arg_get ? (*arg_get)(gethook, field_name) : va_arg(ap, int);
+		if (ret == 2) {
+			if (suppress)
+				value = 0;
+			else
+				value = arg_get ? (*arg_get)(gethook, field_name) : va_arg(ap, int);
+		}
 				
 #if 0
-		printf("do_encode: ret %d fmt %c width %d value %d name \"%s\" error %d\n",
-		ret, c, width, value, field_name, error);
+		printf(
+"do_encode: ret %d fmt %c width %d value %d name \"%s\" error %d suppress %d\n",
+		ret, c, width, value, field_name, error, suppress);
 #endif
 
 		if (c == 's')	/* Absolute seek */
@@ -802,6 +846,14 @@ int scsireq_encode(scsireq_t *scsireq, char *fmt, ...)
  	 scsireq->datalen, 0, 0, 0, fmt, ap);
 }
 
+int scsireq_buff_encode_visit(u_char *buff, size_t len, char *fmt,
+	int (*arg_get)(void *hook, char *field_name), void *gethook)
+{
+	va_list ap = (va_list)0;
+	return do_encode(buff, len, 0,
+	arg_get, gethook, fmt, ap);
+}
+
 int scsireq_encode_visit(scsireq_t *scsireq, char *fmt,
 	int (*arg_get)(void *hook, char *field_name), void *gethook)
 {
@@ -976,10 +1028,11 @@ static void sense_7x_dump(FILE *f, scsireq_t *scsireq)
 		{
 			int byte;
 			u_char value, bit;
-			fprintf(f, "Illegal parameter in the %s.\n",
-			(s[15] & 0x40) ? "parameter list" : "command descriptor block");
+			int bad_par = ((s[15] & 0x40) == 0);
+			fprintf(f, "Illegal value in the %s.\n",
+			(bad_par ? "parameter list" : "command descriptor block"));
 			byte = ((s[16] << 8) | s[17]);
-			value = (u_char)scsireq->cmd[byte];
+			value = bad_par ? (u_char)scsireq->databuf[byte] : (u_char)scsireq->cmd[byte];
 			bit = s[15] & 0x7;
 			if (s[15] & 0x08)
 				fprintf(f, "Bit %d of byte %d (value %02x) is illegal.\n",
@@ -1023,8 +1076,8 @@ void scsi_sense_dump(FILE *f, scsireq_t *scsireq)
 
 		default:
 		fprintf(f, "No sense dump for error code %02x.\n", code);
-		scsi_dump(f, "sense", s, scsireq->senselen, scsireq->senselen_used, 0);
 	}
+	scsi_dump(f, "sense", s, scsireq->senselen, scsireq->senselen_used, 0);
 }
 
 void scsi_retsts_dump(FILE *f, scsireq_t *scsireq)
