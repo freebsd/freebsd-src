@@ -133,7 +133,6 @@ struct cpu_nameclass {
 extern int	cpu;
 extern int	cpu_class;
 extern u_char	intr_nesting_level;
-extern struct cpu_nameclass i386_cpus[];
 extern int	want_resched;	/* resched was called */
 #endif
 
