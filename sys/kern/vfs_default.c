@@ -59,7 +59,8 @@
 #include <vm/vm_pager.h>
 #include <vm/vnode_pager.h>
 
-static int vop_nostrategy __P((struct vop_strategy_args *));
+static int	vop_nolookup __P((struct vop_lookup_args *));
+static int	vop_nostrategy __P((struct vop_strategy_args *));
 
 /*
  * This vnode table stores what we want to do if the filesystem doesn't
@@ -84,6 +85,7 @@ static struct vnodeopv_entry_desc default_vnodeop_entries[] = {
 	{ &vop_lease_desc,		(vop_t *) vop_null },
 	{ &vop_lock_desc,		(vop_t *) vop_nolock },
 	{ &vop_mmap_desc,		(vop_t *) vop_einval },
+	{ &vop_lookup_desc,		(vop_t *) vop_nolookup },
 	{ &vop_open_desc,		(vop_t *) vop_null },
 	{ &vop_pathconf_desc,		(vop_t *) vop_einval },
 	{ &vop_poll_desc,		(vop_t *) vop_nopoll },
@@ -154,9 +156,20 @@ int
 vop_panic(struct vop_generic_args *ap)
 {
 
-	printf("vop_panic[%s]\n", ap->a_desc->vdesc_name);
-	panic("Filesystem goof");
-	return (0);
+	panic("filesystem goof: vop_panic[%s]", ap->a_desc->vdesc_name);
+}
+
+static int
+vop_nolookup(ap)
+	struct vop_lookup_args /* {
+		struct vnode *a_dvp;
+		struct vnode **a_vpp;
+		struct componentname *a_cnp;
+	} */ *ap;
+{
+
+	*ap->a_vpp = NULL;
+	return (ENOTDIR);
 }
 
 /*
