@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 1997 Justin T. Gibbs.
- * Copyright (c) 1997, 1998 Kenneth D. Merry.
+ * Copyright (c) 1997, 1998, 1999 Kenneth D. Merry.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_cd.c,v 1.13 1999/01/11 17:45:22 eivind Exp $
+ *      $Id: scsi_cd.c,v 1.14 1999/01/12 16:26:19 eivind Exp $
  */
 /*
  * Portions of this driver taken from the original FreeBSD cd driver.
@@ -631,7 +631,8 @@ cdregister(struct cam_periph *periph, void *arg)
 	devstat_add_entry(&softc->device_stats, "cd", 
 			  periph->unit_number, 0,
 	  		  DEVSTAT_BS_UNAVAILABLE,
-			  DEVSTAT_TYPE_CDROM | DEVSTAT_TYPE_IF_SCSI);
+			  DEVSTAT_TYPE_CDROM | DEVSTAT_TYPE_IF_SCSI,
+			  DEVSTAT_PRIORITY_CD);
 
 	/*
 	 * Add an async callback so that we get

@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.186 1999/01/17 05:46:24 bde Exp $
+ *	$Id: wd.c,v 1.187 1999/01/27 19:32:34 julian Exp $
  */
 
 /* TODO:
@@ -549,7 +549,9 @@ wdattach(struct isa_device *dvp)
 			devstat_add_entry(&du->dk_stats, "wd", 
 					  lunit, du->dk_dd.d_secsize,
 					  DEVSTAT_NO_ORDERED_TAGS,
-					  DEVSTAT_TYPE_DIRECT | DEVSTAT_TYPE_IF_IDE);
+					  DEVSTAT_TYPE_DIRECT |
+					  DEVSTAT_TYPE_IF_IDE,
+					  DEVSTAT_PRIORITY_WD);
 
 		} else {
 			free(du, M_TEMP);

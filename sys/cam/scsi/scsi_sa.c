@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_sa.c,v 1.17 1999/02/05 07:32:52 mjacob Exp $
+ *      $Id: scsi_sa.c,v 1.18 1999/02/05 08:49:34 mjacob Exp $
  */
 
 #include <sys/param.h>
@@ -1242,7 +1242,8 @@ saregister(struct cam_periph *periph, void *arg)
 	devstat_add_entry(&softc->device_stats, "sa",
 			  periph->unit_number, 0,
 			  DEVSTAT_BS_UNAVAILABLE,
-			  cgd->pd_type | DEVSTAT_TYPE_IF_SCSI);
+			  cgd->pd_type | DEVSTAT_TYPE_IF_SCSI,
+			  DEVSTAT_PRIORITY_SA);
   
 	/*
 	 * Add an async callback so that we get

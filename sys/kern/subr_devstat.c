@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1998 Kenneth D. Merry.
+ * Copyright (c) 1997, 1998, 1999 Kenneth D. Merry.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: subr_devstat.c,v 1.7 1998/12/04 22:54:51 archie Exp $
+ *	$Id: subr_devstat.c,v 1.8 1998/12/27 18:03:29 dfr Exp $
  */
 
 #include <sys/param.h>
@@ -52,10 +52,12 @@ void
 devstat_add_entry(struct devstat *ds, const char *dev_name, 
 		  int unit_number, u_int32_t block_size,
 		  devstat_support_flags flags,
-		  devstat_type_flags device_type)
+		  devstat_type_flags device_type,
+		  devstat_priority priority)
 {
 	int s;
 	struct devstatlist *devstat_head;
+	struct devstat *ds_tmp;
 
 	if (ds == NULL)
 		return;
@@ -68,15 +70,67 @@ devstat_add_entry(struct devstat *ds, const char *dev_name,
 
 	devstat_head = &device_statq;
 
-	STAILQ_INSERT_TAIL(devstat_head, ds, dev_links);
+	/*
+	 * Priority sort.  Each driver passes in its priority when it adds
+	 * its devstat entry.  Drivers are sorted first by priority, and
+	 * then by probe order.
+	 * 
+	 * For the first device, we just insert it, since the priority
+	 * doesn't really matter yet.  Subsequent devices are inserted into
+	 * the list using the order outlined above.
+	 */
+	if (devstat_num_devs == 1)
+		STAILQ_INSERT_TAIL(devstat_head, ds, dev_links);
+	else {
+		for (ds_tmp = STAILQ_FIRST(devstat_head); ds_tmp != NULL;
+		     ds_tmp = STAILQ_NEXT(ds_tmp, dev_links)) {
+			struct devstat *ds_next;
+
+			ds_next = STAILQ_NEXT(ds_tmp, dev_links);
+
+			/*
+			 * If we find a break between higher and lower
+			 * priority items, and if this item fits in the
+			 * break, insert it.  This also applies if the
+			 * "lower priority item" is the end of the list.
+			 */
+			if ((priority <= ds_tmp->priority)
+			 && ((ds_next == NULL)
+			   || (priority > ds_next->priority))) {
+				STAILQ_INSERT_AFTER(devstat_head, ds_tmp, ds,
+						    dev_links);
+				break;
+			} else if (priority > ds_tmp->priority) {
+				/*
+				 * If this is the case, we should be able
+				 * to insert ourselves at the head of the
+				 * list.  If we can't, something is wrong.
+				 */
+				if (ds_tmp == STAILQ_FIRST(devstat_head)) {
+					STAILQ_INSERT_HEAD(devstat_head,
+							   ds, dev_links);
+					break;
+				} else {
+					STAILQ_INSERT_TAIL(devstat_head,
+							   ds, dev_links);
+					printf("devstat_add_entry: HELP! "
+					       "sorting problem detected "
+					       "for %s%d\n", dev_name,
+					       unit_number);
+					break;
+				}
+			}
+		}
+	}
 
 	ds->device_number = devstat_current_devnumber++;
 	ds->unit_number = unit_number;
 	strncpy(ds->device_name, dev_name, DEVSTAT_NAME_LEN);
-	ds->device_name[DEVSTAT_NAME_LEN - 1] = 0;
+	ds->device_name[DEVSTAT_NAME_LEN - 1] = '\0';
 	ds->block_size = block_size;
 	ds->flags = flags;
 	ds->device_type = device_type;
+	ds->priority = priority;
 
 	s = splclock();
 	getmicrotime(&ds->dev_creation_time);

@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 1997, 1998 Justin T. Gibbs.
- * Copyright (c) 1997, 1998 Kenneth D. Merry.
+ * Copyright (c) 1997, 1998, 1999 Kenneth D. Merry.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: scsi_pass.c,v 1.4 1998/10/22 22:16:56 ken Exp $
+ *      $Id: scsi_pass.c,v 1.5 1998/11/22 23:44:47 ken Exp $
  */
 
 #include <sys/param.h>
@@ -355,7 +355,8 @@ passregister(struct cam_periph *periph, void *arg)
 			  0, DEVSTAT_NO_BLOCKSIZE | DEVSTAT_NO_ORDERED_TAGS,
 			  cgd->pd_type |
 			  DEVSTAT_TYPE_IF_SCSI |
-			  DEVSTAT_TYPE_PASS);
+			  DEVSTAT_TYPE_PASS,
+			  DEVSTAT_PRIORITY_PASS);
 	/*
 	 * Add an async callback so that we get
 	 * notified if this device goes away.
