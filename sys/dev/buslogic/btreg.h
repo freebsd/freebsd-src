@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: btreg.h,v 1.4 1999/03/08 21:36:34 gibbs Exp $
+ *      $Id: btreg.h,v 1.5 1999/04/07 23:01:43 gibbs Exp $
  */
 
 #ifndef _BTREG_H_
@@ -595,6 +595,11 @@ struct sg_map_node {
 };
 	
 struct bt_softc {
+	struct device		*dev;
+	struct resource		*port;
+	struct resource		*irq;
+	struct resource		*drq;
+	void			*ih;
 	bus_space_tag_t		 tag;
 	bus_space_handle_t	 bsh;
 	struct	cam_sim		*sim;
@@ -663,17 +668,18 @@ extern struct bt_softc *bt_softcs[];	/* XXX Config should handle this */
 extern u_long bt_unit;
 
 #define BT_TEMP_UNIT 0xFF		/* Unit for probes */
-struct bt_softc*	bt_alloc(int unit, bus_space_tag_t tag,
-				 bus_space_handle_t bsh);
-void			bt_free(struct bt_softc *bt);
-int			bt_port_probe(struct bt_softc *bt,
+void			bt_init_softc(device_t dev,
+				      struct resource *port,
+				      struct resource *irq,
+				      struct resource *drq);
+void			bt_free_softc(device_t dev);
+int			bt_port_probe(device_t dev,
 				      struct bt_probe_info *info);
-int			bt_probe(struct bt_softc *bt);
-int			bt_fetch_adapter_info(struct bt_softc *bt);
-int			bt_init(struct bt_softc *bt); 
-int			bt_attach(struct bt_softc *bt);
+int			bt_probe(device_t dev);
+int			bt_fetch_adapter_info(device_t dev);
+int			bt_init(device_t dev); 
+int			bt_attach(device_t dev);
 void			bt_intr(void *arg);
-char *			bt_name(struct bt_softc *bt);
 int			bt_check_probed_iop(u_int ioport);
 void			bt_mark_probed_bio(isa_compat_io_t port);
 void			bt_mark_probed_iop(u_int ioport);
@@ -688,6 +694,8 @@ int			bt_cmd(struct bt_softc *bt, bt_op_t opcode,
 			       u_int8_t *params, u_int param_len,
 			       u_int8_t *reply_data, u_int reply_len,
 			       u_int cmd_timeout);
+
+#define bt_name(bt)	device_get_nameunit(bt->dev)
 
 #define bt_inb(bt, port)				\
 	bus_space_read_1((bt)->tag, (bt)->bsh, port)

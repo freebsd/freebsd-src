@@ -25,7 +25,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ahb.c,v 1.7 1999/03/05 23:37:07 gibbs Exp $
+ *	$Id: ahb.c,v 1.8 1999/04/11 03:06:05 eivind Exp $
  */
 
 #include "eisa.h"
@@ -36,10 +36,14 @@
 #include <sys/systm.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
+#include <sys/module.h>
+#include <sys/bus.h>
 
 #include <machine/bus_pio.h>
 #include <machine/bus.h>
 #include <machine/clock.h>
+#include <machine/resource.h>
+#include <sys/rman.h>
 
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>
@@ -71,9 +75,7 @@
 	bus_space_write_4((ahb)->tag, (ahb)->bsh, port, value)
 
 static const char		*ahbmatch(eisa_id_t type);
-static int			 ahbprobe(void);
-static int			 ahbattach(struct eisa_device *dev);
-static struct ahb_softc		*ahballoc(u_long unit, u_int iobase, u_int irq);
+static struct ahb_softc		*ahballoc(u_long unit, u_int iobase);
 static void			 ahbfree(struct ahb_softc *ahb);
 static int			 ahbreset(struct ahb_softc *ahb);
 static void			 ahbmapecbs(void *arg, bus_dma_segment_t *segs,
@@ -184,19 +186,6 @@ ahbqueuembox(struct ahb_softc *ahb, u_int32_t mboxval, u_int attn_code)
 	ahb_outb(ahb, ATTN, attn_code);
 }
 
-static  u_long ahbunit;
-
-static struct eisa_driver ahb_eisa_driver =
-{
-	"ahb",
-	ahbprobe,
-	ahbattach,
-	/*shutdown*/NULL,
-	&ahbunit
-};
-
-DATA_SET (eisadriver_set, ahb_eisa_driver);
-
 static const char *
 ahbmatch(eisa_id_t type)
 {                         
@@ -211,98 +200,93 @@ ahbmatch(eisa_id_t type)
 } 
 
 static int
-ahbprobe(void)      
+ahbprobe(device_t dev)      
 {       
-	struct eisa_device *e_dev = NULL;
+	const char *desc;
 	u_int32_t iobase;
 	u_int32_t irq;
-	int count;      
+	u_int8_t  intdef;      
                 
-	count = 0;      
-	while ((e_dev = eisa_match_dev(e_dev, ahbmatch))) {
-		u_int8_t  intdef;      
+	desc = ahbmatch(eisa_get_id(dev));
+	if (!desc)
+	    return (ENXIO);
+	device_set_desc(dev, desc);
 
-		iobase = (e_dev->ioconf.slot * EISA_SLOT_SIZE) +
-			 AHB_EISA_SLOT_OFFSET;
+	iobase = (eisa_get_slot(dev) * EISA_SLOT_SIZE) +
+	    AHB_EISA_SLOT_OFFSET;
                         
-		eisa_add_iospace(e_dev, iobase, AHB_EISA_IOSIZE, RESVADDR_NONE);
+	eisa_add_iospace(dev, iobase, AHB_EISA_IOSIZE, RESVADDR_NONE);
 		
-		intdef = inb(INTDEF + iobase);
-		switch (intdef & 0x7) {
-		case INT9:  
-			irq = 9;
-			break;
-		case INT10: 
-			irq = 10;
-			break;
-		case INT11:
-			irq = 11;
-			break;
-		case INT12:
-			irq = 12; 
-			break;
-		case INT14:
-	                irq = 14;
-			break;
-		case INT15:
-			irq = 15;
-			break;
-		default:
-		        printf("Adaptec 174X at slot %d: illegal "
-			       "irq setting %d\n", e_dev->ioconf.slot,
-			       (intdef & 0x7));
-			irq = 0;
-			break;
-		}               
-		if (irq == 0)
-			continue;
-		eisa_add_intr(e_dev, irq);
-		eisa_registerdev(e_dev, &ahb_eisa_driver);
-		count++;        
+	intdef = inb(INTDEF + iobase);
+	switch (intdef & 0x7) {
+	case INT9:  
+	    irq = 9;
+	    break;
+	case INT10: 
+	    irq = 10;
+	    break;
+	case INT11:
+	    irq = 11;
+	    break;
+	case INT12:
+	    irq = 12; 
+	    break;
+	case INT14:
+	    irq = 14;
+	    break;
+	case INT15:
+	    irq = 15;
+	    break;
+	default:
+	    printf("Adaptec 174X at slot %d: illegal "
+		   "irq setting %d\n", eisa_get_slot(dev),
+		   (intdef & 0x7));
+	    irq = 0;
+	    break;
 	}               
-	return count;   
+	if (irq == 0)
+	    return ENXIO;
+
+	eisa_add_intr(dev, irq);
+
+	return 0;   
 }
 
 static int
-ahbattach(struct eisa_device *e_dev)
+ahbattach(device_t dev)
 {
 	/*
 	 * find unit and check we have that many defined
 	 */
 	struct	    ahb_softc *ahb;
 	struct	    ecb* next_ecb;
-	resvaddr_t *iospace;
-	u_int	    irq;
+	struct	    resource *io = 0;
+	struct	    resource *irq = 0;
+	int	    shared, rid;
+	void	    *ih;
 
-	if (TAILQ_FIRST(&e_dev->ioconf.irqs) == NULL)
-		return (-1);
-
-	irq = TAILQ_FIRST(&e_dev->ioconf.irqs)->irq_no;
-
-	iospace = e_dev->ioconf.ioaddrs.lh_first;
-
-	if (iospace == NULL)
-		return (-1);
-
-	eisa_reg_start(e_dev);
-	if (eisa_reg_iospace(e_dev, iospace)) {
-		eisa_reg_end(e_dev);
-		return (-1);
+	rid = 0;
+	io = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
+				0, ~0, 1, RF_ACTIVE);
+	if (!io) {
+		device_printf(dev, "No I/O space?!\n");
+		return ENOMEM;
 	}
 
-	if ((ahb = ahballoc(e_dev->unit, iospace->addr, irq)) == NULL) {
-		eisa_reg_end(e_dev);
-		return (-1);
+	if ((ahb = ahballoc(device_get_unit(dev), rman_get_start(io))) == NULL) {
+		goto error_exit2;
 	}
 
 	if (ahbreset(ahb) != 0)
-		return (-1);
+		goto error_exit;
 
-	if (eisa_reg_intr(e_dev, irq, ahbintr, (void *)ahb, &cam_imask,
-			  (ahb_inb(ahb, INTDEF) & INTLEVEL) ? TRUE : FALSE)) {
-		eisa_reg_end(e_dev);
-		ahbfree(ahb);
-		return (-1);
+	shared = (ahb_inb(ahb, INTDEF) & INTLEVEL) ? RF_SHAREABLE : 0;
+	rid = 0;
+	irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid,
+				 0, ~0, 1, shared  | RF_ACTIVE);
+	if (!irq) {
+		device_printf(dev, "Can't allocate interrupt\n");
+		goto error_exit;
 	}
 
 	/*
@@ -377,8 +361,6 @@ ahbattach(struct eisa_device *e_dev)
 
 	ahb->init_level++;
 
-	eisa_reg_end(e_dev);
-
 	/*
 	 * Now that we know we own the resources we need, register
 	 * our bus with the XPT.
@@ -387,21 +369,26 @@ ahbattach(struct eisa_device *e_dev)
 		goto error_exit;
 
 	/* Enable our interrupt */
-	eisa_enable_intr(e_dev, irq);
+	bus_setup_intr(dev, irq, ahbintr, ahb, &ih);
 	return (0);
+
 error_exit:
 	/*
 	 * The board's IRQ line will not be left enabled
 	 * if we can't intialize correctly, so its safe
 	 * to release the irq.
 	 */
-	eisa_release_intr(e_dev, irq, ahbintr);
 	ahbfree(ahb);
+error_exit2:
+	if (io)
+		bus_release_resource(dev, SYS_RES_IOPORT, 0, io);
+	if (irq)
+		bus_release_resource(dev, SYS_RES_IRQ, 0, irq);
 	return (-1);
 }
 
 static struct ahb_softc *
-ahballoc(u_long unit,  u_int iobase, u_int irq)
+ahballoc(u_long unit,  u_int iobase)
 {
 	struct	ahb_softc *ahb;
 
@@ -1347,5 +1334,24 @@ ahbtimeout(void *arg)
 
 	splx(s);
 }
+
+static device_method_t ahb_eisa_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe,		ahbprobe),
+	DEVMETHOD(device_attach,	ahbattach),
+
+	{ 0, 0 }
+};
+
+static driver_t ahb_eisa_driver = {
+	"ahb",
+	ahb_eisa_methods,
+	DRIVER_TYPE_CAM,
+	1,			/* unused */
+};
+
+static devclass_t ahb_devclass;
+
+DRIVER_MODULE(ahb, eisa, ahb_eisa_driver, ahb_devclass, 0, 0);
 
 #endif /* NEISA */
