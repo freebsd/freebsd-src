@@ -720,26 +720,13 @@ dadump(dev_t dev)
 			return(EIO);
 		}
 		
-		if (addr % (1024 * 1024) == 0) {
-#ifdef	HW_WDOG
-			if (wdog_tickler)
-				(*wdog_tickler)();
-#endif /* HW_WDOG */
-			/* Count in MB of data left to write */
-			printf("%d ", (num  * softc->params.secsize)
-				     / (1024 * 1024));
-		}
-		
+		if (dumpstatus(addr, (long)(num * softc->params.secsize)) < 0)
+			return (EINTR);
+
 		/* update block count */
 		num -= blkcnt * dumppages;
 		blknum += blkcnt * dumppages;
 		addr += PAGE_SIZE * dumppages;
-
-		/* operator aborting dump? */
-		if (cncheckc() == 0x03)
-			return (EINTR);
-		else
-			printf("[CTRL-C to abort] ");
 	}
 
 	/*

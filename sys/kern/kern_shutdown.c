@@ -527,6 +527,27 @@ dumpsys(void)
 	}
 }
 
+int
+dumpstatus(vm_offset_t addr, long count)
+{
+	int c;
+
+	if (addr % (1024 * 1024) == 0) {
+#ifdef HW_WDOG
+		if (wdog_tickler)
+			(*wdog_tickler)();
+#endif   
+		printf("%ld ", count / (1024 * 1024));
+	}
+
+	if ((c = cncheckc()) == 0x03)
+		return -1;
+	else if (c != -1)
+		printf("[CTRL-C to abort] ");
+	
+	return 0;
+}
+
 /*
  * Panic is called on unresolvable fatal errors.  It prints "panic: mesg",
  * and then reboots.  If we are called twice, then we avoid trying to sync
