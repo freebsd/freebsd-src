@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: if_ar.c,v 1.10 1996/09/06 23:07:24 phk Exp $
+ * $Id: if_ar.c,v 1.11 1996/10/28 19:40:01 jhay Exp $
  */
 
 /*
@@ -53,22 +53,15 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/kernel.h>
 #include <sys/mbuf.h>
-#include <sys/ioctl.h>
+#include <sys/sockio.h>
 #include <sys/socket.h>
-#include <sys/conf.h>
-#include <sys/errno.h>
-#include <sys/malloc.h>
 
-#include <sys/syslog.h>
 #include <net/if.h>
-#include <net/if_types.h>
 #include <net/if_sppp.h>
 
 #if NBPFILTER > 0
 #include <net/bpf.h>
-#include <net/bpfdesc.h>
 #endif
 
 #include <machine/clock.h>
@@ -76,6 +69,8 @@
 
 #include <i386/isa/if_arregs.h>
 #include <i386/isa/ic/hd64570.h>
+
+#include "ioconf.h"
 
 #ifdef TRACE
 #define TRC(x)               x
