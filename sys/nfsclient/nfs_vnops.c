@@ -211,7 +211,7 @@ static int	nfs_clean_pages_on_close = 1;
 SYSCTL_INT(_vfs_nfs, OID_AUTO, clean_pages_on_close, CTLFLAG_RW,
 	   &nfs_clean_pages_on_close, 0, "NFS clean dirty pages on close");
 
-int nfs_directio_enable = 1;
+int nfs_directio_enable = 0;
 SYSCTL_INT(_vfs_nfs, OID_AUTO, nfs_directio_enable, CTLFLAG_RW,
 	   &nfs_directio_enable, 0, "Enable NFS directio");
 
