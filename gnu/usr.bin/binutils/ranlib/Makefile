@@ -5,7 +5,7 @@
 .PATH: ${SRCDIR}/binutils ${SRCDIR}/binutils/doc
 
 PROG=	ranlib
-SRCS=	ar.o is-ranlib.o
+SRCS=	ar.c is-ranlib.c
 CFLAGS+= -I${.CURDIR}/${RELTOP}/libbinutils
 CFLAGS+= -I${SRCDIR}/binutils
 CFLAGS+= -I${SRCDIR}/bfd
