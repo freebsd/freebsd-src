@@ -657,7 +657,7 @@ release.9:
 .if ${TARGET_ARCH} == "alpha"
 	rm -rf ${RD}/mfsfd/stand/help/*
 .endif
-.if ${TARGET} == "pc98"
+.if defined(SMALLBOOTSIZE)
 .if exists(${.CURDIR}/${TARGET}/drivers-small.conf)
 	@rm -rf ${RD}/mfsfd/stand/modules
 	@mkdir -p ${RD}/mfsfd/stand/modules
@@ -671,22 +671,9 @@ release.9:
 	@sh -e ${.CURDIR}/scripts/doFS.sh ${RD}/floppies/mfsroot-small.flp \
 		${RD} ${MNT} ${SMALLBOOTSIZE} mfsroot-small.gz \
 		${BOOTINODE} ${SMALLBOOTLABEL}
+.endif
 .if exists(${.CURDIR}/${TARGET}/drivers.conf)
 	@rm -rf ${RD}/mfsfd/stand/modules
-	@mkdir -p ${RD}/mfsfd/stand/modules
-	@awk -f  ${.CURDIR}/scripts/driver-copy2.awk 2 \
-	    ${.CURDIR}/${TARGET}/drivers.conf \
-	    ${RD}/trees/base/boot/kernel ${RD}/mfsfd/stand/modules
-.endif
-	sh -e ${.CURDIR}/scripts/doFS.sh -s mfsroot ${RD} ${MNT} \
-		${MFSSIZE} ${RD}/mfsfd ${MFSINODE} ${MFSLABEL}
-	@gzip -9vc mfsroot > mfsroot.gz
-	@sh -e ${.CURDIR}/scripts/doFS.sh ${RD}/floppies/mfsroot.flp \
-		${RD} ${MNT} ${BOOTSIZE} mfsroot.gz ${BOOTINODE} ${BOOTLABEL}
-	@cd ${.CURDIR} && ${MAKE} doMFSKERN FSIMAGE=kern-small FDSIZE=SMALL
-	@cd ${.CURDIR} && ${MAKE} doMFSKERN FSIMAGE=kern
-.else
-.if exists(${.CURDIR}/${TARGET}/drivers.conf)
 	@mkdir -p ${RD}/mfsfd/stand/modules
 	@awk -f  ${.CURDIR}/scripts/driver-copy2.awk 2 \
 	    ${.CURDIR}/${TARGET}/drivers.conf \
@@ -706,11 +693,15 @@ release.9:
 	sh -e ${.CURDIR}/scripts/doFS.sh -s mfsroot ${RD} ${MNT} \
 		${MFSSIZE} ${RD}/mfsfd ${MFSINODE} ${MFSLABEL}
 	@gzip -9vc mfsroot > mfsroot.gz
-.if ${TARGET_ARCH} != "sparc64"
+.if defined(BOOTSIZE)
 	@sh -e ${.CURDIR}/scripts/doFS.sh ${RD}/floppies/mfsroot.flp \
 		${RD} ${MNT} ${BOOTSIZE} mfsroot.gz ${BOOTINODE} ${BOOTLABEL}
 	@cd ${.CURDIR} && ${MAKE} doMFSKERN FSIMAGE=kern
 .endif
+.if defined(SMALLBOOTSIZE)
+	@cd ${.CURDIR} && ${MAKE} doMFSKERN FSIMAGE=kern-small FDSIZE=SMALL
+.endif
+.if defined(BIGBOOTSIZE)
 	@cd ${.CURDIR} && ${MAKE} doMFSKERN FSIMAGE=boot FDSIZE=BIG
 .endif
 	@rm mfsroot mfsroot.gz
