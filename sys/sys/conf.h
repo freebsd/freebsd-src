@@ -47,11 +47,9 @@
 #endif
 
 struct tty;
-struct disk;
-struct vnode;
-struct buf;
 struct snapdata;
 struct devfs_dirent;
+struct cdevsw;
 
 struct cdev {
 	u_int		si_flags;
