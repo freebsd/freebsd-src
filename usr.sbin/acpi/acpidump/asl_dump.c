@@ -202,6 +202,12 @@ print_indent(int indent)
 	asl_env.curname = old_name;					\
 } while(0)
 
+#define ASL_CREATE_LOCALNAMEOBJ(dp) do {				\
+	if(scope_within_method){					\
+		aml_create_name(&asl_env, dp);				\
+	}								\
+}while(0);
+
 static void
 asl_dump_defscope(u_int8_t **dpp, int indent)
 {
@@ -698,6 +704,7 @@ asl_dump_defopregion(u_int8_t **dpp, int indent)
 
 	dp = *dpp;
 	printf("OperationRegion(");
+	ASL_CREATE_LOCALNAMEOBJ(dp);
 	asl_dump_termobj(&dp, indent);	/* Name */
 	printf(", %s, ", regions[*dp++]);	/* Space */
 	asl_dump_termobj(&dp, indent);	/* Offset */
@@ -734,6 +741,7 @@ asl_dump_field(u_int8_t **dpp, u_int32_t offset)
 	case '_':
 	case '.':
 	case '/':
+		ASL_CREATE_LOCALNAMEOBJ(dp);
 		name = asl_dump_namestring(&dp);
 		width = asl_dump_pkglength(&dp);
 		offset += width;
@@ -867,7 +875,7 @@ asl_dump_defbankfield(u_int8_t **dpp, int indent)
 	pkglength = asl_dump_pkglength(&dp);
 	end = start + pkglength;
 
-	printf("Field(");
+	printf("BankField(");
 	asl_dump_termobj(&dp, indent);	/* Name1 */
 	printf(", ");
 	asl_dump_termobj(&dp, indent);	/* Name2 */
@@ -1161,6 +1169,7 @@ asl_dump_termobj(u_int8_t **dpp, int indent)
 		break;
 	case 0x06:		/* AliasOp */
 		printf("Alias(");
+		ASL_CREATE_LOCALNAMEOBJ(dp);
 		asl_dump_termobj(&dp, indent);
 		printf(", ");
 		asl_dump_termobj(&dp, indent);
@@ -1168,6 +1177,7 @@ asl_dump_termobj(u_int8_t **dpp, int indent)
 		break;
 	case 0x08:		/* NameOp */
 		printf("Name(");
+		ASL_CREATE_LOCALNAMEOBJ(dp);
 		asl_dump_termobj(&dp, indent);
 		printf(", ");
 		asl_dump_termobj(&dp, indent);
@@ -1190,6 +1200,7 @@ asl_dump_termobj(u_int8_t **dpp, int indent)
 		switch (opcode) {
 		case 0x01:	/* MutexOp */
 			printf("Mutex(");
+			ASL_CREATE_LOCALNAMEOBJ(dp);
 			asl_dump_termobj(&dp, indent);
 			printf(", %d)", *dp++);
 			break;
@@ -1213,6 +1224,7 @@ asl_dump_termobj(u_int8_t **dpp, int indent)
 			printf(", ");
 			asl_dump_termobj(&dp, indent);
 			printf(", ");
+			ASL_CREATE_LOCALNAMEOBJ(dp);
 			asl_dump_termobj(&dp, indent);
 			printf(")");
 			break;
@@ -1507,6 +1519,7 @@ asl_dump_termobj(u_int8_t **dpp, int indent)
 		printf(", ");
 		asl_dump_termobj(&dp, indent);
 		printf(", ");
+		ASL_CREATE_LOCALNAMEOBJ(dp);
 		asl_dump_termobj(&dp, indent);
 		printf(")");
 		break;
@@ -1516,6 +1529,7 @@ asl_dump_termobj(u_int8_t **dpp, int indent)
 		printf(", ");
 		asl_dump_termobj(&dp, indent);
 		printf(", ");
+		ASL_CREATE_LOCALNAMEOBJ(dp);
 		asl_dump_termobj(&dp, indent);
 		printf(")");
 		break;
@@ -1525,6 +1539,7 @@ asl_dump_termobj(u_int8_t **dpp, int indent)
 		printf(", ");
 		asl_dump_termobj(&dp, indent);
 		printf(", ");
+		ASL_CREATE_LOCALNAMEOBJ(dp);
 		asl_dump_termobj(&dp, indent);
 		printf(")");
 		break;
@@ -1534,6 +1549,7 @@ asl_dump_termobj(u_int8_t **dpp, int indent)
 		printf(", ");
 		asl_dump_termobj(&dp, indent);
 		printf(", ");
+		ASL_CREATE_LOCALNAMEOBJ(dp);
 		asl_dump_termobj(&dp, indent);
 		printf(")");
 		break;
