@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)if.c	8.3 (Berkeley) 4/28/95";
 */
 static const char rcsid[] =
-	"$Id$";
+	"$Id: if.c,v 1.20 1997/01/03 20:16:29 wollman Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -48,11 +48,9 @@ static const char rcsid[] =
 #include <net/if_var.h>
 #include <net/if_dl.h>
 #include <net/if_types.h>
+#include <net/ethernet.h>
 #include <netinet/in.h>
 #include <netinet/in_var.h>
-#define KERNEL 1
-#include <netinet/if_ether.h>
-#undef KERNEL
 #include <netipx/ipx.h>
 #include <netipx/ipx_if.h>
 #ifdef NS
@@ -268,56 +266,50 @@ intpr(interval, ifnetaddr)
 			printf(" %3d", ifnet.if_snd.ifq_drops);
 		putchar('\n');
 		if (aflag && ifaddrfound) {
-		    /*
-		     * Print family's multicast addresses
-		     */
-		    switch (sa->sa_family) {
-		    case AF_INET:
-			{
-			    u_long multiaddr;
-			    struct in_multi inm;
+			/*
+			 * Print family's multicast addresses
+			 */
+			u_long multiaddr;
+			struct ifmultiaddr ifma;
+			union {
+				struct sockaddr sa;
+				struct sockaddr_in in;
+				struct sockaddr_dl dl;
+			} msa;
+			const char *fmt;
 
-			    multiaddr = (u_long)ifaddr.in.ia_multiaddrs.lh_first;
-			    while (multiaddr != 0) {
-				    kread(multiaddr, (char *)&inm,
-							sizeof inm);
-				    multiaddr = (u_long)inm.inm_entry.le_next;
-				    printf("%23s %s\n", "",
-					    routename(inm.inm_addr.s_addr));
-			    }
-			    break;
-			}
-		    case AF_LINK:
-			    switch (ifnet.if_type) {
-			    case IFT_ETHER:
-			    case IFT_FDDI:	/*XXX*/
-				{
-				    off_t multiaddr;
-				    struct arpcom ac;
-				    struct ether_multi enm;
+			for(multiaddr = (u_long)ifnet.if_multiaddrs.lh_first;
+			    multiaddr;
+			    multiaddr = (u_long)ifma.ifma_link.le_next) {
+				if (kread(multiaddr, (char *)&ifma,
+					  sizeof ifma))
+					break;
+				if (kread((u_long)ifma.ifma_addr, (char *)&msa,
+					  sizeof msa))
+					break;
+				if (msa.sa.sa_family != sa->sa_family)
+					continue;
+				
+				fmt = 0;
+				switch (msa.sa.sa_family) {
+				case AF_INET:
+					fmt = routename(msa.in.sin_addr.s_addr);
+					break;
 
-				    kread(ifnetfound, (char *)&ac, sizeof ac);
-				    multiaddr = (u_long)ac.ac_multiaddrs;
-				    while (multiaddr != 0) {
-					    kread(multiaddr, (char *)&enm,
-						    sizeof enm);
-					    multiaddr = (u_long)enm.enm_next;
-					    printf("%23s %s", "",
-						ether_ntoa(&enm.enm_addrlo));
-					    if (bcmp(&enm.enm_addrlo,
-						     &enm.enm_addrhi, 6) != 0)
-						printf(" to %s",
-						    ether_ntoa(&enm.enm_addrhi));
-					    printf("\n");
-				    }
-				    break;
+				case AF_LINK:
+					switch (ifnet.if_type) {
+					case IFT_ETHER:
+					case IFT_FDDI:
+						fmt = ether_ntoa(
+							(struct ether_addr *)
+							LLADDR(&msa.dl));
+						break;
+					}
+					break;
 				}
-			    default:
-				    break;
-			    }
-		    default:
-			    break;
-		    }
+				if (fmt)
+					printf("%23s %s\n", "", fmt);
+			}
 		}
 	}
 }
