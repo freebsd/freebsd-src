@@ -1502,7 +1502,7 @@ p_cansched(struct proc *p1, struct proc *p2)
 		return (0);
 
 #ifdef CAPABILITIES
-	if (!cap_check_xxx(0, p1, CAP_SYS_NICE, PRISON_ROOT))
+	if (!cap_check(NULL, p1, CAP_SYS_NICE, PRISON_ROOT))
 		return (0);
 #endif
 
