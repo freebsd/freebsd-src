@@ -294,11 +294,6 @@ struct acd_track_info {
     u_int	track_length;		/* length of this track */
 };
 
-struct acd_devlist {
-    dev_t	dev;
-    TAILQ_ENTRY(acd_devlist)	chain;		/* list management */  
-};
-
 /* Structure describing an ATAPI CDROM device */
 struct acd_softc {
     struct ata_device		*device;	/* device softc */
@@ -308,7 +303,6 @@ struct acd_softc {
 
     struct mtx			queue_mtx;	/* queue lock */
     struct bio_queue_head	queue;		/* queue of i/o requests */
-    TAILQ_HEAD(, acd_devlist)	dev_list;	/* list of "track" devices */
     struct toc			toc;		/* table of disc contents */
     struct audiopage		au;		/* audio page info */
     struct audiopage		aumask;		/* audio page mask */
@@ -320,9 +314,7 @@ struct acd_softc {
     time_t			timestamp;	/* this instance timestamp */
     u_int			disk_size;	/* size of current media */
     u_int			block_size;	/* blocksize currently used */
-    struct devstat		*stats;		/* devstat entry */
-    dev_t			dev;		/* device place holders */
-#ifndef BURN_BRIDGES
-    eventhandler_tag		clone_evh;
-#endif
+    struct g_geom		*gp;		/* geom instance */
+    struct g_provider		*pp[MAXTRK+1];	/* providers */
+    u_int			iomax;		/* Max I/O request (bytes) */
 };
