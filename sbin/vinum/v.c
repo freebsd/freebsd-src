@@ -607,7 +607,7 @@ make_plex_dev(int plexno, int recurse)
     }
 }
 
-/* Create the contents of /dev/vinum/sd and /dev/vinum/rsd */
+/* Create the contents of /dev/vinum/sd */
 void
 make_sd_dev(int sdno)
 {
