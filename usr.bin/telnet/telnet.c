@@ -602,7 +602,7 @@ dontoption(option)
 
 /*
  * Given a buffer returned by tgetent(), this routine will turn
- * the pipe seperated list of names in the buffer into an array
+ * the pipe separated list of names in the buffer into an array
  * of pointers to null terminated names.  We toss out any bad,
  * duplicate, or verbose names (names with spaces).
  */
