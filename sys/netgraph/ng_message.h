@@ -114,11 +114,12 @@ struct ngm_rmhook {
 	char	ourhook[NG_HOOKLEN + 1];		/* hook name */
 };
 
+#define ng_ID_t unsigned int
 /* Structures used in response to NGM_NODEINFO and NGM_LISTHOOKS */
 struct nodeinfo {
 	char		name[NG_NODELEN + 1];	/* node name (if any) */
         char    	type[NG_TYPELEN + 1];   /* peer type */
-	u_int32_t	id;			/* unique identifier */
+	ng_ID_t		id;			/* unique identifier */
 	u_int32_t	hooks;			/* number of active hooks */
 };
 
