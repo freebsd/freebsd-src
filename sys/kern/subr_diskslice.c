@@ -429,6 +429,8 @@ dsioctl(dev, cmd, data, flags, sspp)
 		return (0);
 
 	case DIOCSBAD:
+		if ((ssp->dss_oflags & DSO_BAD144) == 0)
+			return (ENODEV);
 		if (slice == WHOLE_DISK_SLICE)
 			return (ENODEV);
 		if (!(flags & FWRITE))
@@ -829,11 +831,17 @@ dsopen(dev, mode, flags, sspp, lp)
 			continue;
 		}
 		if (lp1->d_flags & D_BADSECT) {
+			if ((flags & DSO_BAD144) == 0) {
+				log(LOG_ERR,
+				    "%s: bad sector table no supported\n",
+				    sname);
+				continue;
+			}
 			btp = malloc(sizeof *btp, M_DEVBUF, M_WAITOK);
 			TRACE(("readbad144\n"));
 			msg = readbad144(dev1, lp1, btp);
 			if (msg != NULL) {
-				log(LOG_WARNING,
+				log(LOG_ERR,
 				    "%s: cannot find bad sector table (%s)\n",
 				    sname, msg);
 				free(btp, M_DEVBUF);
