@@ -31,7 +31,7 @@
 .Os
 .Sh NAME
 .Nm vm_page_alloc
-.Nd "allocates a page for the object and index"
+.Nd "allocate a page for a vm_object"
 .Sh SYNOPSIS
 .In sys/param.h
 .In vm/vm.h
@@ -41,34 +41,37 @@
 .Sh DESCRIPTION
 The
 .Fn vm_page_alloc
-function allocates a page for
+function allocates a page at
 .Fa pindex
-in the VM object
+within
 .Fa object .
-It is assumed that a page has not already been allocated for
-.Fa pindex
-and
-.Fa object .
+It is assumed that a page has not already been allocated at
+.Fa pindex .
+The page returned is inserted into the object, but is not inserted
+into the pmap.
 .Pp
-The
 .Fn vm_page_alloc
-function will not block.
+will not block.
 .Pp
 Its arguments are:
 .Bl -tag -width ".Fa page_req"
 .It Fa object
 The VM object to allocate the page for.
 .It Fa pindex
-The index of the page that should be allocated.
+The index into the object at which the page should be inserted.
 .It Fa page_req
 A flag indicating how the page should be allocated.
 .Bl -tag -width ".Dv VM_ALLOC_INTERRUPT"
 .It Dv VM_ALLOC_NORMAL
 The page should be allocated with no special treatment.
 .It Dv VM_ALLOC_SYSTEM
-The page can be allocated even if the buffer cache queue is empty
-and the free count is above the interrupt reserved water mark.
-This should be used only when the system really needs the page.
+The page can be allocated if the cache queue is empty and the free
+page count is above the interrupt reserved water mark.
+If
+.Dv VM_ALLOC_INTERRUPT
+is set the page can be allocated as long as the free page count is
+greater than zero.
+This flag should be used only when the system really needs the page.
 .It Dv VM_ALLOC_INTERRUPT
 .Fn vm_page_alloc
 is being called during an interrupt and therefore the cache cannot
@@ -82,9 +85,9 @@ except the page returned is zeroed.
 .El
 .El
 .Sh RETURN VALUES
-A
+The
 .Vt vm_page_t
-is returned if successful; otherwise,
+that was allocated is returned if successful; otherwise,
 .Dv NULL
 is returned.
 .Sh NOTES
