@@ -620,7 +620,7 @@ main(int argc, char *argv[])
 		rodent.zmap[1] = i + 1;
 		mstate[i - 1] = &zstate[0];
 		mstate[i] = &zstate[1];
-		printf("optind: %d, optarg: '%s'\n", optind, optarg);
+		debug("optind: %d, optarg: '%s'", optind, optarg);
 		for (j = 1; j < 4; ++j) {
 		    if ((optind >= argc) || !isdigit(*argv[optind]))
 			break;
