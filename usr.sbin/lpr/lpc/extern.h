@@ -63,14 +63,6 @@ void	 stop_q(struct printer *_pp);
 void	 tclean_gi(int _argc, char *_argv[]);
 void	 topq(int _argc, char *_argv[]);
 void	 up_q(struct printer *_pp);
-void	 disable(struct printer *_pp);		/* X-version */
-void	 doabort(struct printer *_pp);		/* X-version */
-void	 down(int _argc, char *_argv[]);	/* X-version */
-void	 enable(struct printer *_pp);		/* X-version */
-void	 restart(struct printer *_pp);		/* X-version */
-void	 startcmd(struct printer *_pp);		/* X-version */
-void	 stop(struct printer *_pp);		/* X-version */
-void	 up(struct printer *_pp);		/* X-version */
 __END_DECLS
 
 extern int NCMDS;
