@@ -367,9 +367,9 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 				error = EBADF;
 				break;
 			}
-			PROC_LOCK(p);
-			p->p_flag |= P_ADVLOCK;
-			PROC_UNLOCK(p);
+			PROC_LOCK(p->p_leader);
+			p->p_leader->p_flag |= P_ADVLOCK;
+			PROC_UNLOCK(p->p_leader);
 			error = VOP_ADVLOCK(vp, (caddr_t)p->p_leader, F_SETLK,
 			    flp, flg);
 			break;
@@ -378,9 +378,9 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 				error = EBADF;
 				break;
 			}
-			PROC_LOCK(p);
-			p->p_flag |= P_ADVLOCK;
-			PROC_UNLOCK(p);
+			PROC_LOCK(p->p_leader);
+			p->p_leader->p_flag |= P_ADVLOCK;
+			PROC_UNLOCK(p->p_leader);
 			error = VOP_ADVLOCK(vp, (caddr_t)p->p_leader, F_SETLK,
 			    flp, flg);
 			break;
@@ -392,6 +392,19 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 			error = EINVAL;
 			break;
 		}
+		/* Check for race with close */
+		FILEDESC_LOCK(fdp);
+		if ((unsigned) fd >= fdp->fd_nfiles ||
+		    fp != fdp->fd_ofiles[fd]) {
+			FILEDESC_UNLOCK(fdp);
+			flp->l_whence = SEEK_SET;
+			flp->l_start = 0;
+			flp->l_len = 0;
+			flp->l_type = F_UNLCK;
+			(void) VOP_ADVLOCK(vp, (caddr_t)p->p_leader,
+					   F_UNLCK, flp, F_POSIX);
+		} else
+			FILEDESC_UNLOCK(fdp);
 		fdrop(fp, td);
 		break;
 
@@ -427,6 +440,19 @@ kern_fcntl(struct thread *td, int fd, int cmd, intptr_t arg)
 		vp = fp->f_data;
 		error = VOP_ADVLOCK(vp, (caddr_t)p->p_leader, F_GETLK, flp,
 		    F_POSIX);
+		/* Check for race with close */
+		FILEDESC_LOCK(fdp);
+		if ((unsigned) fd >= fdp->fd_nfiles ||
+		    fp != fdp->fd_ofiles[fd]) {
+			FILEDESC_UNLOCK(fdp);
+			flp->l_whence = SEEK_SET;
+			flp->l_start = 0;
+			flp->l_len = 0;
+			flp->l_type = F_UNLCK;
+			(void) VOP_ADVLOCK(vp, (caddr_t)p->p_leader,
+					   F_UNLCK, flp, F_POSIX);
+		} else
+			FILEDESC_UNLOCK(fdp);
 		fdrop(fp, td);
 		break;
 	default:
@@ -1632,15 +1658,25 @@ closef(fp, td)
 	 * If the descriptor was in a message, POSIX-style locks
 	 * aren't passed with the descriptor.
 	 */
-	if (td && (td->td_proc->p_flag & P_ADVLOCK) &&
-	    fp->f_type == DTYPE_VNODE) {
-		lf.l_whence = SEEK_SET;
-		lf.l_start = 0;
-		lf.l_len = 0;
-		lf.l_type = F_UNLCK;
-		vp = fp->f_data;
-		(void) VOP_ADVLOCK(vp, (caddr_t)td->td_proc->p_leader,
-		    F_UNLCK, &lf, F_POSIX);
+	if (td != NULL && fp->f_type == DTYPE_VNODE) {
+		struct proc *p = td->td_proc;
+		int pflagcopy;
+		if (p->p_leader != p ||
+		    p->p_peers != NULL) {
+			PROC_LOCK(p->p_leader);
+			pflagcopy = p->p_leader->p_flag;
+			PROC_UNLOCK(p->p_leader);
+		} else
+			pflagcopy = p->p_flag;
+		if ((pflagcopy & P_ADVLOCK) != 0) {
+			lf.l_whence = SEEK_SET;
+			lf.l_start = 0;
+			lf.l_len = 0;
+			lf.l_type = F_UNLCK;
+			vp = fp->f_data;
+			(void) VOP_ADVLOCK(vp, (caddr_t)td->td_proc->p_leader,
+					   F_UNLCK, &lf, F_POSIX);
+		}
 	}
 	return (fdrop(fp, td));
 }
