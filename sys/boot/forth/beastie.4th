@@ -209,9 +209,9 @@ set-current
 		dup tkey
 		0 25 at-xy
 		dup 32 = if nip 0 swap then
-		dup -1 = if s" boot" evaluate then
-		dup 13 = if s" boot" evaluate then
-		dup bootkey @ = if s" boot" evaluate then
+		dup -1 = if 0 boot then
+		dup 13 = if 0 boot then
+		dup bootkey @ = if 0 boot then
 		dup bootacpikey @ = if
 			acpienabled? if
 				s" acpi_load" unsetenv
@@ -221,7 +221,7 @@ set-current
 				s" YES" s" acpi_load" setenv
 				s" 0" s" hint.acpi.0.disabled" setenv
 			then
-			s" boot" evaluate
+			0 boot
 		then
 		dup bootsafekey @ = if
 			s" arch-i386" environment? if
@@ -233,15 +233,15 @@ set-current
 			s" 0" s" hw.ata.atapi_dma" setenv
 			s" 0" s" hw.ata.wc" setenv
 			s" 0" s" hw.eisa_slots" setenv
-			s" boot" evaluate
+			0 boot
 		then
 		dup bootverbosekey @ = if
 			s" YES" s" boot_verbose" setenv
-			s" boot" evaluate
+			0 boot
 		then
 		dup bootsinglekey @ = if
 			s" YES" s" boot_single" setenv
-			s" boot" evaluate
+			0 boot
 		then
 		dup escapekey @ = if
 			2drop
