@@ -73,21 +73,15 @@ int	pccard_verbose = 0;
 int	pccard_print(void *, const char *);
 
 int
-pccard_ccr_read(pf, ccr)
-	struct pccard_function *pf;
-	int ccr;
+pccard_ccr_read(struct pccard_function *pf, int ccr)
 {
 	return (bus_space_read_1(pf->pf_ccrt, pf->pf_ccrh,
 	    pf->pf_ccr_offset + ccr));
 }
 
 void
-pccard_ccr_write(pf, ccr, val)
-	struct pccard_function *pf;
-	int ccr;
-	int val;
+pccard_ccr_write(struct pccard_function *pf, int ccr, int val)
 {
-
 	if ((pf->ccr_mask) & (1 << (ccr / 2))) {
 		bus_space_write_1(pf->pf_ccrt, pf->pf_ccrh,
 		    pf->pf_ccr_offset + ccr, val);
@@ -195,7 +189,7 @@ pccard_attach_card(device_t dev)
 			device_delete_child(dev, child);
 		}
 	}
-	return 0;
+	return (0);
 }
 
 static int
@@ -220,7 +214,7 @@ pccard_detach_card(device_t dev, int flags)
 		if (pf->dev)
 			device_delete_child(dev, pf->dev);
 	}
-	return 0;
+	return (0);
 }
 
 const struct pccard_product *
@@ -295,7 +289,7 @@ pccard_card_gettype(device_t dev, int *type)
 		*type = PCCARD_IFTYPE_MEMORY;
 	else
 		*type = PCCARD_IFTYPE_IO;
-	return 0;
+	return (0);
 }
 
 /*
@@ -401,7 +395,7 @@ pccard_function_enable(struct pccard_function *pf)
 
 	if (pf->cfe == NULL) {
 		DEVPRVERBOSE((dev, "No config entry could be allocated.\n"));
-		return ENOMEM;
+		return (ENOMEM);
 	}
 
 	/*
@@ -705,14 +699,14 @@ static int
 pccard_add_children(device_t dev, int busno)
 {
 	/* Call parent to scan for any current children */
-	return 0;
+	return (0);
 }
 
 static int
 pccard_probe(device_t dev)
 {
 	device_set_desc(dev, "16-bit PCCard bus");
-	return pccard_add_children(dev, device_get_unit(dev));
+	return (pccard_add_children(dev, device_get_unit(dev)));
 }
 
 static int
@@ -722,7 +716,7 @@ pccard_attach(device_t dev)
 
 	sc->dev = dev;
 	sc->sc_enabled_count = 0;
-	return bus_generic_attach(dev);
+	return (bus_generic_attach(dev));
 }
 
 static void
@@ -791,21 +785,21 @@ pccard_set_resource(device_t dev, device_t child, int type, int rid,
 
 	if (type != SYS_RES_IOPORT && type != SYS_RES_MEMORY
 	    && type != SYS_RES_IRQ && type != SYS_RES_DRQ)
-		return EINVAL;
+		return (EINVAL);
 	if (rid < 0)
-		return EINVAL;
+		return (EINVAL);
 	if (type == SYS_RES_IOPORT && rid >= PCCARD_NPORT)
-		return EINVAL;
+		return (EINVAL);
 	if (type == SYS_RES_MEMORY && rid >= PCCARD_NMEM)
-		return EINVAL;
+		return (EINVAL);
 	if (type == SYS_RES_IRQ && rid >= PCCARD_NIRQ)
-		return EINVAL;
+		return (EINVAL);
 	if (type == SYS_RES_DRQ && rid >= PCCARD_NDRQ)
-		return EINVAL;
+		return (EINVAL);
 
 	resource_list_add(rl, type, rid, start, start + count - 1, count);
 
-	return 0;
+	return (0);
 }
 
 static int
@@ -818,14 +812,14 @@ pccard_get_resource(device_t dev, device_t child, int type, int rid,
 
 	rle = resource_list_find(rl, type, rid);
 	if (!rle)
-		return ENOENT;
+		return (ENOENT);
 
 	if (startp)
 		*startp = rle->start;
 	if (countp)
 		*countp = rle->count;
 
-	return 0;
+	return (0);
 }
 
 static void
@@ -840,8 +834,8 @@ static int
 pccard_set_res_flags(device_t dev, device_t child, int type, int rid,
     u_int32_t flags)
 {
-	return CARD_SET_RES_FLAGS(device_get_parent(dev), child, type,
-	    rid, flags);
+	return (CARD_SET_RES_FLAGS(device_get_parent(dev), child, type,
+	    rid, flags));
 }
 
 static int
@@ -849,8 +843,8 @@ pccard_set_memory_offset(device_t dev, device_t child, int rid,
      u_int32_t offset, u_int32_t *deltap)
 
 {
-	return CARD_SET_MEMORY_OFFSET(device_get_parent(dev), child, rid,
-	    offset, deltap);
+	return (CARD_SET_MEMORY_OFFSET(device_get_parent(dev), child, rid,
+	    offset, deltap));
 }
 
 static int
@@ -944,10 +938,10 @@ pccard_release_resource(device_t dev, device_t child, int type, int rid,
 	}
 
 	if (rle != NULL) {
-		return bus_deactivate_resource(dev, type, rle->rid, rle->res);
+		return (bus_deactivate_resource(dev, type, rle->rid, rle->res));
 	}
 
-	return bus_generic_release_resource(dev, child, type, rid, r);
+	return (bus_generic_release_resource(dev, child, type, rid, r));
 }
 
 static int
@@ -1049,7 +1043,7 @@ pccard_setup_intr(device_t dev, device_t child, struct resource *irq,
 		bus_setup_intr(dev, rle->res, INTR_TYPE_TTY/* | INTR_FAST*/,
 		    pccard_intr, sc, (void*)&sc->intr_handler_count);
 	}
-	return 0;
+	return (0);
 }
 
 static int
@@ -1079,7 +1073,7 @@ pccard_teardown_intr(device_t dev, device_t child, struct resource *r,
 
 		bus_teardown_intr(dev, rle->res, &sc->intr_handler_count);
 	}
-	return 0;
+	return (0);
 }
 
 static device_method_t pccard_methods[] = {
