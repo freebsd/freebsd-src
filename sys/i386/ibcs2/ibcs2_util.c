@@ -43,7 +43,7 @@
 
 #include <i386/ibcs2/ibcs2_util.h>
 
-const char      ibcs2_emul_path[] = "/emul/ibcs2";
+const char      ibcs2_emul_path[] = "/compat/ibcs2";
 
 /*
  * Search an alternate path before passing pathname arguments on
