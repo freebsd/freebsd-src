@@ -120,7 +120,7 @@
 #
 # NLSOWN	National Language Support files owner. [${SHAREGRP}]
 #
-# NLSMODE	National Language Support files mode. [${NONBINMODE}]
+# NLSMODE	National Language Support files mode. [${NOBINMODE}]
 #
 # INCLUDEDIR	Base path for standard C include files [/usr/include]
 
@@ -196,7 +196,7 @@ INFOMODE?=	${NOBINMODE}
 NLSDIR?=	${SHAREDIR}/nls
 NLSGRP?=	${SHAREOWN}
 NLSOWN?=	${SHAREGRP}
-NLSMODE?=	${NONBINMODE}
+NLSMODE?=	${NOBINMODE}
 
 INCLUDEDIR?=	/usr/include
 
