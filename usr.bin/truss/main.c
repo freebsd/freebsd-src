@@ -31,7 +31,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: main.c,v 1.8 1998/01/07 06:19:50 jmg Exp $";
+	"$Id: main.c,v 1.9 1998/07/06 21:01:47 bde Exp $";
 #endif /* not lint */
 
 /*
@@ -127,6 +127,7 @@ main(int ac, char **av) {
   struct ex_types *funcs;
   int in_exec = 0;
   char *fname = NULL;
+  int sigexit = 0;
 
   while ((c = getopt(ac, av, "p:o:S")) != -1) {
     switch (c) {
@@ -216,6 +217,7 @@ main(int ac, char **av) {
 	break;
       case S_SIG:
 	fprintf(outfile, "SIGNAL %lu\n", pfs.val);
+	sigexit = pfs.val;
 	break;
       case S_EXIT:
 	fprintf (outfile, "process exit, rval = %lu\n", pfs.val);
@@ -232,5 +234,11 @@ main(int ac, char **av) {
     if (ioctl(Procfd, PIOCCONT, val) == -1)
       warn("PIOCCONT");
   } while (pfs.why != S_EXIT);
+  if (sigexit) {
+    if (sigexit == SIGQUIT)
+      exit(sigexit);
+    (void) signal(sigexit, SIG_DFL);
+    (void) kill(getpid(), sigexit);
+  }
   return 0;
 }

@@ -32,7 +32,7 @@
 # SUCH DAMAGE.
 #
 #	@(#)mkdep.gcc.sh	8.1 (Berkeley) 6/6/93
-#	$Id: mkdep.gcc.sh,v 1.12 1997/02/22 19:56:10 peter Exp $
+#	$Id: mkdep.gcc.sh,v 1.13 1998/08/17 11:43:25 jb Exp $
 
 D=.depend			# default dependency file is .depend
 append=0
@@ -66,7 +66,7 @@ case $# in 0)
 esac
 
 TMP=_mkdep$$
-trap 'rm -f $TMP ; exit 1' 1 2 3 13 15
+trap 'rm -f $TMP ; trap 2 ; kill -2 $$' 1 2 3 13 15
 trap 'rm -f $TMP' 0
 
 # For C sources, mkdep must use exactly the same cpp and predefined flags
