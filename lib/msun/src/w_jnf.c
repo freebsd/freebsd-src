@@ -14,7 +14,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: w_jnf.c,v 1.1.1.1 1994/08/19 09:39:59 jkh Exp $";
+static char rcsid[] = "$Id: w_jnf.c,v 1.5 1997/02/22 15:12:18 peter Exp $";
 #endif
 
 #include "math.h"
@@ -36,35 +36,6 @@ static char rcsid[] = "$Id: w_jnf.c,v 1.1.1.1 1994/08/19 09:39:59 jkh Exp $";
 	if(fabsf(x)>(float)X_TLOSS) {
 	    /* jn(|x|>X_TLOSS,n) */
 	    return (float)__kernel_standard((double)n,(double)x,138);
-	} else
-	    return z;
-#endif
-}
-
-#ifdef __STDC__
-	float ynf(int n, float x)	/* wrapper ynf */
-#else
-	float ynf(n,x)			/* wrapper ynf */
-	float x; int n;
-#endif
-{
-#ifdef _IEEE_LIBM
-	return __ieee754_ynf(n,x);
-#else
-	float z;
-	z = __ieee754_ynf(n,x);
-	if(_LIB_VERSION == _IEEE_ || isnanf(x) ) return z;
-        if(x <= (float)0.0){
-                if(x==(float)0.0)
-                    /* d= -one/(x-x); */
-                    return (float)__kernel_standard((double)n,(double)x,112);
-                else
-                    /* d = zero/(x-x); */
-                    return (float)__kernel_standard((double)n,(double)x,113);
-        }
-	if(x>(float)X_TLOSS) {
-	    /* yn(x>X_TLOSS,n) */
-	    return (float)__kernel_standard((double)n,(double)x,139);
 	} else
 	    return z;
 #endif

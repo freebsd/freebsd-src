@@ -11,11 +11,11 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: w_j0.c,v 1.1.1.1 1994/08/19 09:39:53 jkh Exp $";
+static char rcsid[] = "$Id: w_j0.c,v 1.5 1997/02/22 15:12:13 peter Exp $";
 #endif
 
 /*
- * wrapper j0(double x), y0(double x)
+ * wrapper j0(double x)
  */
 
 #include "math.h"
@@ -35,34 +35,6 @@ static char rcsid[] = "$Id: w_j0.c,v 1.1.1.1 1994/08/19 09:39:53 jkh Exp $";
 	if(_LIB_VERSION == _IEEE_ || isnan(x)) return z;
 	if(fabs(x)>X_TLOSS) {
 	        return __kernel_standard(x,x,34); /* j0(|x|>X_TLOSS) */
-	} else
-	    return z;
-#endif
-}
-
-#ifdef __STDC__
-	double y0(double x)		/* wrapper y0 */
-#else
-	double y0(x)			/* wrapper y0 */
-	double x;
-#endif
-{
-#ifdef _IEEE_LIBM
-	return __ieee754_y0(x);
-#else
-	double z;
-	z = __ieee754_y0(x);
-	if(_LIB_VERSION == _IEEE_ || isnan(x) ) return z;
-        if(x <= 0.0){
-                if(x==0.0)
-                    /* d= -one/(x-x); */
-                    return __kernel_standard(x,x,8);
-                else
-                    /* d = zero/(x-x); */
-                    return __kernel_standard(x,x,9);
-        }
-	if(x>X_TLOSS) {
-	        return __kernel_standard(x,x,35); /* y0(x>X_TLOSS) */
 	} else
 	    return z;
 #endif
