@@ -36,7 +36,7 @@
 # include <string.h>
 
 #ifndef lint
-static char sccsid[] = "@(#)mime.c	8.49 (Berkeley) 10/30/96";
+static char sccsid[] = "@(#)mime.c	8.51 (Berkeley) 11/24/96";
 #endif /* not lint */
 
 /*
@@ -450,7 +450,7 @@ mime8to7(mci, header, e, boundaries, flags)
 	if (tTd(43, 8))
 	{
 		printf("mime8to7: %ld high bit(s) in %ld byte(s), cte=%s, type=%s/%s\n",
-			sectionhighbits, sectionsize,
+			(long) sectionhighbits, (long) sectionsize,
 			cte == NULL ? "[none]" : cte,
 			type == NULL ? "[none]" : type,
 			subtype == NULL ? "[none]" : subtype);
@@ -959,7 +959,7 @@ mime7to8(mci, header, e)
 	char *cte;
 	char **pvp;
 	u_char *obp;
-	u_char ch, *fbufp, *obufp;
+	u_char *fbufp;
 	char buf[MAXLINE];
 	u_char obuf[MAXLINE + 1];
 	u_char fbuf[MAXLINE + 1];
@@ -1010,7 +1010,6 @@ mime7to8(mci, header, e)
 
 	if (strcasecmp(cte, "base64") == 0)
 	{
-		int nchar = 0;
 		int c1, c2, c3, c4;
 
 		fbufp = fbuf;
