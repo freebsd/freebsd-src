@@ -35,7 +35,7 @@
  * Center for Telecommunications Research
  * Columbia University, New York City
  *
- *	$Id$
+ *	$Id: pw_yp.c,v 1.9 1997/02/22 19:54:26 peter Exp $
  */
 
 #ifdef YP
@@ -441,7 +441,8 @@ void yp_submit(pw)
 		master_yppasswd.newpw.pw_gecos = strdup(pw->pw_gecos);
 		master_yppasswd.newpw.pw_dir = strdup(pw->pw_dir);
 		master_yppasswd.newpw.pw_shell = strdup(pw->pw_shell);
-		master_yppasswd.newpw.pw_class = strdup(pw->pw_class);
+		master_yppasswd.newpw.pw_class = pw->pw_class != NULL ?
+						strdup(pw->pw_class) : "";
 		master_yppasswd.oldpass = ""; /* not really needed */
 		master_yppasswd.domain = yp_domain;
 	} else {
