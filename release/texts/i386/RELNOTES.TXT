@@ -362,6 +362,7 @@ HP PC Lan+ cards (model numbers: 27247B and 27252A).
 Intel EtherExpress 16
 Intel EtherExpress Pro/10
 Intel EtherExpress Pro/100B PCI Fast Ethernet
+Intel PRO/100+ Management Adapter
 
 Isolan AT 4141-0 (16 bit)
 Isolink 4110     (8 bit)

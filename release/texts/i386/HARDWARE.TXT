@@ -98,7 +98,8 @@ ep0     300     10      dyn     dyn     3Com 3C509
 ex0     dyn     dyn     dyn     n/a     Intel EtherExpress Pro/10 cards
 fe0     300     dyn     n/a     n/a     Allied-Telesyn AT1700, RE2000 and
                                         Fujitsu FMV-180 series cards.
-fxp0    dyn     dyn     n/a     dyn     Intel EtherExpress Pro/100B
+fxp0    dyn     dyn     n/a     dyn     Intel EtherExpress Pro/100B and
+					Intel PRO/100+ Management Adapter
 ie0     300     10      dyn     d0000   AT&T StarLAN 10 and EN100;
                                         3Com 3C507; NI5210; 
                                         Intel EtherExpress (8/16,16[TP]) cards
@@ -532,6 +533,7 @@ HP PC Lan+ cards (model numbers: 27247B and 27252A).
 Intel EtherExpress (not recommended due to driver instability)
 Intel EtherExpress Pro/10
 Intel EtherExpress Pro/100B PCI Fast Ethernet
+Intel PRO/100+ Management Adapter
 
 Isolan AT 4141-0 (16 bit)
 Isolink 4110     (8 bit)
