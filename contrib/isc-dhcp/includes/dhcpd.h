@@ -786,6 +786,7 @@ struct interface_info {
 	int ieee80211;			/* True if media is ieee802.11 */
 	int havemedia;			/* True if we have a media table */
 	int linkstate;			/* True if we have link */
+	int polling;			/* True if polling is enabled */
 	int forcediscover;		/* True if a discover is needed */
 	int index;			/* Its index. */
 	int rfdesc;			/* Its read file descriptor. */

@@ -260,8 +260,13 @@ int main (argc, argv, envp)
 #ifdef __FreeBSD__
 		    set_ieee80211 (tmp);
 #endif
+		    /* Init some interface vars, enable polling */
+#ifdef ENABLE_POLLING_MODE
 		    tmp -> forcediscover = 0;
 		    tmp -> linkstate = 0;
+		    tmp -> polling = 1;
+#endif /* ifdef ENABLE_POLLING_MODE */
+
 		    if (interfaces) {
 			    interface_reference (&tmp -> next,
 						 interfaces, MDL);
@@ -944,8 +949,10 @@ void bind_lease (client)
 	      (long)(client -> active -> renewal - cur_time));
 	client -> state = S_BOUND;
 #ifdef ENABLE_POLLING_MODE
+	/* Init some interface vars, enable polling */
 	client -> interface -> linkstate = HAVELINK;
 	client -> interface -> forcediscover = 0;
+	client -> interface -> polling = 1;
 #endif /* ifdef ENABLE_POLLING_MODE */
 	reinitialize_interfaces ();
 	go_daemon ();
@@ -1409,6 +1416,11 @@ void send_discover (cpp)
 	int interval;
 	int increase = 1;
 
+#ifdef ENABLE_POLLING_MODE
+	/* Disable polling for this interface */
+	client -> interface -> polling = 0;
+#endif
+
 	/* Figure out how long it's been since we started transmitting. */
 	interval = cur_time - client -> first_sending;
 
@@ -1552,6 +1564,10 @@ void state_panic (cpp)
 				log_info ("bound: renewal in %ld %s.",
 					  (long)(client -> active -> renewal -
 						 cur_time), "seconds");
+#ifdef ENABLE_POLLING_MODE
+				/* Enable polling for thsi interface */
+				client -> interface -> polling = 1;
+#endif
 				add_timeout (client -> active -> renewal,
 					     state_bound, client, 0, 0);
 			    } else {
@@ -1609,6 +1625,12 @@ void state_panic (cpp)
 	}
 
 	log_info ("No working leases in persistent database - sleeping.");
+
+#ifdef ENABLE_POLLING_MODE
+	/* Enable polling for this interface */
+	client -> interface -> polling = 1;
+#endif
+
 	script_init (client, "FAIL", (struct string_list *)0);
 	if (client -> alias)
 		script_write_params (client, "alias_", client -> alias);
@@ -3341,12 +3363,11 @@ void state_link (cpp)
 	struct interface_info *ip;
 	struct client_state *client;
 
-#ifdef DEBUG
-	printf ("Polling interface status\n");
-#endif
 	for (ip = interfaces; ip; ip = ip -> next) {
-		
+		if (! ip -> polling)
+			continue;
 #ifdef DEBUG
+		printf ("%s: Polling interface state\n", ip -> name);
 		for (client = ip -> client;
 		     client; client = client -> next) {
 			printf ("%s: client state of %d\n", ip -> name, ip -> client -> state);
