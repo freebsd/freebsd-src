@@ -102,10 +102,10 @@
 #	perfmon	CPU performance-monitoring counters
 #	pci	PCI configuration-space access from user mode
 #
-#	$Id: MAKEDEV,v 1.126 1996/10/25 15:01:33 bde Exp $
+#	$Id: MAKEDEV,v 1.127 1996/11/01 08:49:13 bde Exp $
 #
 
-PATH=/sbin:/bin/:/usr/bin:/usr/sbin:
+PATH=/sbin:/bin/:/usr/bin:/usr/sbin:$PATH
 umask 77
 
 # Convert integer to partition name
