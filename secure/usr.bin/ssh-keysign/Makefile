@@ -2,11 +2,10 @@
 #
 
 PROG=	ssh-keysign
-SRCS=	ssh-keysign.c
 MAN=	ssh-keysign.8
 
-LDADD+=	-lssh -lcrypto
-DPADD+=	${LIBSSH} ${LIBCRYPTO}
+DPADD+=	${LIBSSH} ${LIBCRYPTO} ${LIBZ}
+LDADD+=	-lssh -lcrypto -lz
 
 .include <bsd.prog.mk>
 
