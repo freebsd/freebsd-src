@@ -228,8 +228,7 @@ ZIPNSPLIT=		gzip --no-name -9 -c | split -b 1423k -
 
 # Things that need to be compiled without crypto support in releases
 .if !defined(FIXCRYPTO) && !make(release) && !make(rerelease)
-FIXCRYPTO!=	cd ${.CURDIR}/../kerberos5; ${MAKE} -V KPROGS; \
-		cd ${.CURDIR}/../secure; ${MAKE} -V SPROGS
+FIXCRYPTO!=	cd ${.CURDIR}/../secure; ${MAKE} -V SPROGS
 .endif
 
 # Things which may get you into trouble if you change them
