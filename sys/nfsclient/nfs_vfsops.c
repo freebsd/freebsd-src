@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_vfsops.c	8.12 (Berkeley) 5/20/95
- * $Id: nfs_vfsops.c,v 1.59 1998/05/19 07:11:25 peter Exp $
+ * $Id: nfs_vfsops.c,v 1.60 1998/05/20 07:59:21 peter Exp $
  */
 
 #include <sys/param.h>
@@ -711,6 +711,10 @@ mountnfs(argp, mp, nam, pth, hst, vpp)
 	 */
 	if (argp->sotype == SOCK_STREAM)
 		nmp->nm_flags &= ~NFSMNT_NOCONN;
+
+	/* Also clear RDIRPLUS if not NFSv3, it crashes some servers */
+	if ((argp->flags & NFSMNT_NFSV3) == 0)
+		nmp->nm_flag &= ~NFSMNT_RDIRPLUS;
 
 	if ((argp->flags & NFSMNT_TIMEO) && argp->timeo > 0) {
 		nmp->nm_timeo = (argp->timeo * NFS_HZ + 5) / 10;

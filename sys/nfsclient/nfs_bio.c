@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)nfs_bio.c	8.9 (Berkeley) 3/30/95
- * $Id: nfs_bio.c,v 1.54 1998/03/28 16:05:05 steve Exp $
+ * $Id: nfs_bio.c,v 1.55 1998/05/19 07:11:22 peter Exp $
  */
 
 
@@ -1150,8 +1150,6 @@ nfs_doio(bp, cr, p)
 	    case VDIR:
 		nfsstats.readdir_bios++;
 		uiop->uio_offset = ((u_quad_t)bp->b_lblkno) * NFS_DIRBLKSIZ;
-		if (!(nmp->nm_flag & NFSMNT_NFSV3))
-			nmp->nm_flag &= ~NFSMNT_RDIRPLUS;
 		if (nmp->nm_flag & NFSMNT_RDIRPLUS) {
 			error = nfs_readdirplusrpc(vp, uiop, cr);
 			if (error == NFSERR_NOTSUPP)
