@@ -38,7 +38,7 @@
  *
  *	from: Utah $Hdr: mem.c 1.13 89/10/08$
  *	from: @(#)mem.c	7.2 (Berkeley) 5/9/91
- *	$Id: mem.c,v 1.25 1995/12/10 15:54:26 bde Exp $
+ *	$Id: mem.c,v 1.26 1995/12/14 23:50:54 bde Exp $
  */
 
 /*
@@ -406,6 +406,28 @@ mmioctl(dev, cmd, cmdarg, flags, p)
 			return (ENOTTY);
 	}
 	return (0);
+}
+
+/*
+ * Routine that identifies /dev/mem and /dev/kmem.
+ *
+ * A minimal stub routine can always return 0.
+ */
+int
+iskmemdev(dev)
+	dev_t dev;
+{
+
+	return ((major(dev) == mem_cdevsw.d_maj)
+	      && (minor(dev) == 0 || minor(dev) == 1));
+}
+
+int
+iszerodev(dev)
+	dev_t dev;
+{
+	return ((major(dev) == mem_cdevsw.d_maj)
+	  && minor(dev) == 12);
 }
 
 
