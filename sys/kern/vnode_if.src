@@ -31,7 +31,7 @@
 # SUCH DAMAGE.
 #
 #	@(#)vnode_if.src	8.12 (Berkeley) 5/14/95
-# $Id: vnode_if.src,v 1.18 1998/07/04 20:45:32 julian Exp $
+# $Id: vnode_if.src,v 1.19 1998/09/05 14:13:06 phk Exp $
 #
 
 #
@@ -44,7 +44,7 @@
 #
 # The locking value can take the following values:
 # L: locked.
-# U: unlocked/
+# U: unlocked.
 # -: not applicable.  vnode does not yet (or no longer) exists.
 # =: the same on input and output, may be either L or U.
 # X: locked if not nil.
@@ -89,8 +89,6 @@ vop_create {
 
 #
 #% whiteout	dvp	L L L
-#% whiteout	cnp	- - -
-#% whiteout	flag	- - -
 #
 vop_whiteout {
 	IN struct vnode *dvp;
@@ -388,7 +386,7 @@ vop_bmap {
 };
 
 #
-# Needs work: no vp?
+#% strategy	vp	L L L
 #
 vop_strategy {
 	IN struct vnode *vp;
@@ -449,6 +447,9 @@ vop_reallocblks {
 	IN struct cluster_save *buflist;
 };
 
+#
+#% getpages	vp	L L L
+#
 vop_getpages {
 	IN struct vnode *vp;
 	IN vm_page_t *m;
@@ -457,6 +458,9 @@ vop_getpages {
 	IN vm_ooffset_t offset;
 };
 
+#
+#% putpages	vp	L L L
+#
 vop_putpages {
 	IN struct vnode *vp;
 	IN vm_page_t *m;
