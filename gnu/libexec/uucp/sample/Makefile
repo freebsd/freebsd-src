@@ -1,6 +1,8 @@
-# $Id: Makefile,v 1.1 1993/08/05 18:22:22 conklin Exp $
+# $Id: Makefile,v 1.1 1993/10/14 12:18:29 rgrimes Exp $
 
-FILES=	call config dial dialcode passwd port sys1 sys2
+FILES=	call.sample config.sample dial.sample dialcode.sample passwd.sample \
+	port.sample sys1.sample sys2.sample
+
 NOOBJ=	noobj
 
 BINOWN=	$(owner)
