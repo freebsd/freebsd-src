@@ -294,6 +294,9 @@ struct mac_policy_ops {
 	int	(*mpo_check_vnode_getextattr)(struct ucred *cred,
 		    struct vnode *vp, struct label *label, int attrnamespace,
 		    const char *name, struct uio *uio);
+	int	(*mpo_check_vnode_link)(struct ucred *cred, struct vnode *dvp,
+		    struct label *dlabel, struct vnode *vp,
+		    struct label *label, struct componentname *cnp);
 	int	(*mpo_check_vnode_lookup)(struct ucred *cred,
 		    struct vnode *dvp, struct label *dlabel,
 		    struct componentname *cnp);
@@ -454,6 +457,7 @@ enum mac_op_constant {
 	MAC_CHECK_VNODE_EXEC,
 	MAC_CHECK_VNODE_GETACL,
 	MAC_CHECK_VNODE_GETEXTATTR,
+	MAC_CHECK_VNODE_LINK,
 	MAC_CHECK_VNODE_LOOKUP,
 	MAC_CHECK_VNODE_MMAP_PERMS,
 	MAC_CHECK_VNODE_OPEN,
