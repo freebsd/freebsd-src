@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997 - 2000 Kungliga Tekniska Högskolan
+ * Copyright (c) 1997 - 2001 Kungliga Tekniska Högskolan
  * (Royal Institute of Technology, Stockholm, Sweden). 
  * All rights reserved. 
  *
@@ -32,7 +32,7 @@
  */
 
 /* 
- * $Id: headers.h,v 1.11 2001/02/15 04:20:53 assar Exp $ 
+ * $Id: headers.h,v 1.13 2001/08/22 20:30:25 assar Exp $ 
  * $FreeBSD$ 
  */
 
@@ -78,12 +78,15 @@
 #ifdef HAVE_UTIL_H
 #include <util.h>
 #endif
+#ifdef HAVE_LIBUTIL_H
+#include <libutil.h>
+#endif
 #include <err.h>
 #include <roken.h>
 #include <getarg.h>
 #include <base64.h>
 #include <parse_units.h>
-#ifdef HAVE_OPENSSL_DES_H
+#ifdef HAVE_OPENSSL
 #include <openssl/des.h>
 #else
 #include <des.h>
