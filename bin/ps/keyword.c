@@ -105,6 +105,7 @@ VAR var[] = {
 	{"login", "LOGIN", NULL, LJUST, logname, NULL, MAXLOGNAME-1},
 	{"logname", "", "login"},
 	{"lstart", "STARTED", NULL, LJUST|USER, lstarted, NULL, 28},
+	{"lvl", "LVL", NULL, LJUST, lattr, NULL, 3},
 	{"majflt", "MAJFLT",
 		NULL, USER, rvar, NULL, 4, ROFF(ru_majflt), LONG, "ld"},
 	{"minflt", "MINFLT",
