@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.132 1996/10/09 09:53:32 jkh Exp $
+ * $Id: install.c,v 1.133 1996/10/12 23:48:33 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -358,7 +358,6 @@ int
 installNovice(dialogMenuItem *self)
 {
     int i;
-    extern int cdromMounted;
 
     variable_set2(SYSTEM_STATE, "novice");
     dialog_clear_norefresh();
@@ -482,16 +481,6 @@ installNovice(dialogMenuItem *self)
 	dialog_clear_norefresh();
 	if (!msgYesNo("Would you like to configure your X server at this time?"))
 	    configXFree86(self);
-    }
-
-    if (cdromMounted) {
-	dialog_clear_norefresh();
-	if (!msgYesNo("Would you like to link to the ports tree on your CDROM?\n\n"
-		      "This will require that you have your FreeBSD CD in the CDROM\n"
-		      "drive to use the ports collection, but at a substantial savings\n"
-		      "in disk space (NOTE:  This may take as long as 15 or 20 minutes\n"
-		      "depending on the speed of your CDROM drive)."))
-	    configPorts(self);
     }
 
     dialog_clear_norefresh();
