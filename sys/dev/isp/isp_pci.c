@@ -62,10 +62,6 @@ isp_pci_dmateardown(struct ispsoftc *, XS_T *, u_int16_t);
 static void isp_pci_reset1(struct ispsoftc *);
 static void isp_pci_dumpregs(struct ispsoftc *, const char *);
 
-#ifndef	ISP_CODE_ORG
-#define	ISP_CODE_ORG		0x1000
-#endif
-
 static struct ispmdvec mdvec = {
 	isp_pci_rd_isr,
 	isp_pci_rd_reg,
@@ -185,6 +181,10 @@ static struct ispmdvec mdvec_2300 = {
 #define	PCI_PRODUCT_QLOGIC_ISP1080	0x1080
 #endif
 
+#ifndef	PCI_PRODUCT_QLOGIC_ISP10160
+#define	PCI_PRODUCT_QLOGIC_ISP10160	0x1016
+#endif
+
 #ifndef	PCI_PRODUCT_QLOGIC_ISP12160
 #define	PCI_PRODUCT_QLOGIC_ISP12160	0x1216
 #endif
@@ -218,6 +218,9 @@ static struct ispmdvec mdvec_2300 = {
 
 #define	PCI_QLOGIC_ISP1080	\
 	((PCI_PRODUCT_QLOGIC_ISP1080 << 16) | PCI_VENDOR_QLOGIC)
+
+#define	PCI_QLOGIC_ISP10160	\
+	((PCI_PRODUCT_QLOGIC_ISP10160 << 16) | PCI_VENDOR_QLOGIC)
 
 #define	PCI_QLOGIC_ISP12160	\
 	((PCI_PRODUCT_QLOGIC_ISP12160 << 16) | PCI_VENDOR_QLOGIC)
@@ -298,6 +301,9 @@ isp_pci_probe(device_t dev)
 		break;
 	case PCI_QLOGIC_ISP1280:
 		device_set_desc(dev, "Qlogic ISP 1280 PCI SCSI Adapter");
+		break;
+	case PCI_QLOGIC_ISP10160:
+		device_set_desc(dev, "Qlogic ISP 10160 PCI SCSI Adapter");
 		break;
 	case PCI_QLOGIC_ISP12160:
 		if (pci_get_subvendor(dev) == AMI_RAID_SUBVENDOR_ID) {
@@ -451,6 +457,13 @@ isp_pci_attach(device_t dev)
 		mdvp = &mdvec_1080;
 		basetype = ISP_HA_SCSI_1280;
 		psize = 2 * sizeof (sdparam);
+		pcs->pci_poff[DMA_BLOCK >> _BLK_REG_SHFT] =
+		    ISP1080_DMA_REGS_OFF;
+	}
+	if (pci_get_devid(dev) == PCI_QLOGIC_ISP10160) {
+		mdvp = &mdvec_12160;
+		basetype = ISP_HA_SCSI_10160;
+		psize = sizeof (sdparam);
 		pcs->pci_poff[DMA_BLOCK >> _BLK_REG_SHFT] =
 		    ISP1080_DMA_REGS_OFF;
 	}
@@ -852,11 +865,23 @@ isp_pci_rd_isr_2300(struct ispsoftc *isp, u_int16_t *isrp,
 	case ISPR2HST_MBX_OK:
 	case ISPR2HST_MBX_FAIL:
 	case ISPR2HST_ASYNC_EVENT:
-	case ISPR2HST_RIO_16:
-	case ISPR2HST_FPOST:
-	case ISPR2HST_FPOST_CTIO:
 		*isrp = r2hisr & 0xffff;
 		*mbox0p = (r2hisr >> 16);
+		*semap = 1;
+		return (1);
+	case ISPR2HST_RIO_16:
+		*isrp = r2hisr & 0xffff;
+		*mbox0p = ASYNC_RIO1;
+		*semap = 1;
+		return (1);
+	case ISPR2HST_FPOST:
+		*isrp = r2hisr & 0xffff;
+		*mbox0p = ASYNC_CMD_CMPLT;
+		*semap = 1;
+		return (1);
+	case ISPR2HST_FPOST_CTIO:
+		*isrp = r2hisr & 0xffff;
+		*mbox0p = ASYNC_CTIO_DONE;
 		*semap = 1;
 		return (1);
 	case ISPR2HST_RSPQ_UPDATE:
@@ -1012,7 +1037,7 @@ isp_pci_mbxdma(struct ispsoftc *isp)
 	caddr_t base;
 	u_int32_t len;
 	int i, error, ns;
-	bus_size_t bl;
+	bus_size_t alim, slim;
 	struct imush im;
 
 	/*
@@ -1022,16 +1047,22 @@ isp_pci_mbxdma(struct ispsoftc *isp)
 		return (0);
 	}
 
+#ifdef	ISP_DAC_SUPPORTED
+	alim = BUS_SPACE_UNRESTRICTED;
+#else
+	alim = BUS_SPACE_MAXADDR_32BIT;
+#endif
 	if (IS_ULTRA2(isp) || IS_FC(isp) || IS_1240(isp)) {
-		bl = BUS_SPACE_UNRESTRICTED;
+		slim = BUS_SPACE_MAXADDR_32BIT;
 	} else {
-		bl = BUS_SPACE_MAXADDR_24BIT;
+		slim = BUS_SPACE_MAXADDR_24BIT;
 	}
 
-	if (bus_dma_tag_create(NULL, 1, 0, BUS_SPACE_MAXADDR,
-	    BUS_SPACE_MAXADDR, NULL, NULL, BUS_SPACE_MAXSIZE,
-	    ISP_NSEGS, bl, 0, &pcs->dmat)) {
+	ISP_UNLOCK(isp);
+	if (bus_dma_tag_create(NULL, 1, slim+1, alim, alim,
+	    NULL, NULL, BUS_SPACE_MAXSIZE, ISP_NSEGS, slim, 0, &pcs->dmat)) {
 		isp_prt(isp, ISP_LOGERR, "could not create master dma tag");
+		ISP_LOCK(isp);
 		return(1);
 	}
 
@@ -1040,6 +1071,7 @@ isp_pci_mbxdma(struct ispsoftc *isp)
 	isp->isp_xflist = (XS_T **) malloc(len, M_DEVBUF, M_WAITOK | M_ZERO);
 	if (isp->isp_xflist == NULL) {
 		isp_prt(isp, ISP_LOGERR, "cannot alloc xflist array");
+		ISP_LOCK(isp);
 		return (1);
 	}
 	len = sizeof (bus_dmamap_t) * isp->isp_maxcmds;
@@ -1047,6 +1079,7 @@ isp_pci_mbxdma(struct ispsoftc *isp)
 	if (pcs->dmaps == NULL) {
 		isp_prt(isp, ISP_LOGERR, "can't alloc dma map storage");
 		free(isp->isp_xflist, M_DEVBUF);
+		ISP_LOCK(isp);
 		return (1);
 	}
 
@@ -1060,12 +1093,13 @@ isp_pci_mbxdma(struct ispsoftc *isp)
 	}
 
 	ns = (len / PAGE_SIZE) + 1;
-	if (bus_dma_tag_create(pcs->dmat, QENTRY_LEN, 0, BUS_SPACE_MAXADDR,
-	    BUS_SPACE_MAXADDR, NULL, NULL, len, ns, bl, 0, &isp->isp_cdmat)) {
+	if (bus_dma_tag_create(pcs->dmat, QENTRY_LEN, slim+1, alim, alim,
+	    NULL, NULL, len, ns, slim, 0, &isp->isp_cdmat)) {
 		isp_prt(isp, ISP_LOGERR,
 		    "cannot create a dma tag for control spaces");
 		free(pcs->dmaps, M_DEVBUF);
 		free(isp->isp_xflist, M_DEVBUF);
+		ISP_LOCK(isp);
 		return (1);
 	}
 
@@ -1076,6 +1110,7 @@ isp_pci_mbxdma(struct ispsoftc *isp)
 		bus_dma_tag_destroy(isp->isp_cdmat);
 		free(isp->isp_xflist, M_DEVBUF);
 		free(pcs->dmaps, M_DEVBUF);
+		ISP_LOCK(isp);
 		return (1);
 	}
 
@@ -1107,6 +1142,7 @@ isp_pci_mbxdma(struct ispsoftc *isp)
 		base += ISP_QUEUE_SIZE(RESULT_QUEUE_LEN(isp));
 		FCPARAM(isp)->isp_scratch = base;
 	}
+	ISP_LOCK(isp);
 	return (0);
 
 bad:
@@ -1114,6 +1150,7 @@ bad:
 	bus_dma_tag_destroy(isp->isp_cdmat);
 	free(isp->isp_xflist, M_DEVBUF);
 	free(pcs->dmaps, M_DEVBUF);
+	ISP_LOCK(isp);
 	isp->isp_rquest = NULL;
 	return (1);
 }
