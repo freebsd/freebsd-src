@@ -1085,7 +1085,7 @@ bpfpoll(dev, events, p)
 	if (d->bd_bif == NULL)
 		return (ENXIO);
 
-	revents = events & (POLLIN | POLLWRNORM);
+	revents = events & (POLLOUT | POLLWRNORM);
 	s = splimp();
 	if (events & (POLLIN | POLLRDNORM)) {
 		/*
