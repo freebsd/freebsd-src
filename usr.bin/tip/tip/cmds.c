@@ -513,7 +513,7 @@ transmit(fd, eofchars, command)
 out:
 	if (lastc != '\n' && !boolean(value(RAWFTP)))
 		send('\r');
-	for (pc = eofchars; *pc; pc++)
+	for (pc = eofchars; pc && *pc; pc++)
 		send(*pc);
 	stop_t = time(0);
 	fclose(fd);
