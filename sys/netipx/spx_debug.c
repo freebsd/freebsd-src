@@ -33,8 +33,10 @@
  *
  *	@(#)spx_debug.c
  *
- * $Id: spx_debug.c,v 1.9 1997/05/10 09:58:56 jhay Exp $
+ * $Id: spx_debug.c,v 1.10 1997/06/26 19:36:00 jhay Exp $
  */
+
+#include "opt_tcpdebug.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -44,6 +46,7 @@
 #include <netinet/tcp_fsm.h>
 
 #include <netipx/ipx.h>
+#include <netipx/ipx_var.h>
 #include <netipx/spx.h>
 #define SPXTIMERS
 #include <netipx/spx_timer.h>
