@@ -45,15 +45,54 @@
 
 /* Prototypes: */
 static void	build_siginfo(siginfo_t *info, int signo);
-static void	thr_sig_check_state(struct pthread *pthread, int sig);
+#ifndef SYSTEM_SCOPE_ONLY
 static struct pthread *thr_sig_find(struct kse *curkse, int sig,
 		    siginfo_t *info);
 static void	handle_special_signals(struct kse *curkse, int sig);
+#endif
 static void	thr_sigframe_add(struct pthread *thread);
 static void	thr_sigframe_restore(struct pthread *thread,
 		    struct pthread_sigframe *psf);
 static void	thr_sigframe_save(struct pthread *thread,
 		    struct pthread_sigframe *psf);
+
+#define SA_KILL         0x01            /* terminates process by default */
+#define	SA_STOP		0x02
+#define	SA_CONT		0x04
+
+static int sigproptbl[NSIG] = {
+	SA_KILL,	/* SIGHUP */
+	SA_KILL,	/* SIGINT */
+	SA_KILL,	/* SIGQUIT */
+	SA_KILL,	/* SIGILL */
+	SA_KILL,	/* SIGTRAP */
+	SA_KILL,	/* SIGABRT */
+	SA_KILL,	/* SIGEMT */
+	SA_KILL,	/* SIGFPE */
+	SA_KILL,	/* SIGKILL */
+	SA_KILL,	/* SIGBUS */
+	SA_KILL,	/* SIGSEGV */
+	SA_KILL,	/* SIGSYS */
+	SA_KILL,	/* SIGPIPE */
+	SA_KILL,	/* SIGALRM */
+	SA_KILL,	/* SIGTERM */
+	0,		/* SIGURG */
+	SA_STOP,	/* SIGSTOP */
+	SA_STOP,	/* SIGTSTP */
+	SA_CONT,	/* SIGCONT */
+	0,		/* SIGCHLD */
+	SA_STOP,	/* SIGTTIN */
+	SA_STOP,	/* SIGTTOU */
+	0,		/* SIGIO */
+	SA_KILL,	/* SIGXCPU */
+	SA_KILL,	/* SIGXFSZ */
+	SA_KILL,	/* SIGVTALRM */
+	SA_KILL,	/* SIGPROF */
+	0,		/* SIGWINCH  */
+	0,		/* SIGINFO */
+	SA_KILL,	/* SIGUSR1 */
+	SA_KILL		/* SIGUSR2 */
+};
 
 /* #define DEBUG_SIGNAL */
 #ifdef DEBUG_SIGNAL
@@ -133,6 +172,8 @@ static void	thr_sigframe_save(struct pthread *thread,
  *      signal unmasked.
  */
 
+#ifndef SYSTEM_SCOPE_ONLY
+
 static void *
 sig_daemon(void *arg /* Unused */)
 {
@@ -143,13 +184,20 @@ sig_daemon(void *arg /* Unused */)
 	struct kse *curkse;
 	struct pthread *curthread = _get_curthread();
 
-	DBG_MSG("signal daemon started\n");
+	DBG_MSG("signal daemon started(%p)\n", curthread);
 	
 	curthread->name = strdup("signal thread");
 	crit = _kse_critical_enter();
 	curkse = _get_curkse();
+
+	/*
+	 * Daemon thread is a bound thread and we must be created with
+	 * all signals masked
+	 */
+#if 0	
 	SIGFILLSET(set);
 	__sys_sigprocmask(SIG_SETMASK, &set, NULL);
+#endif	
 	__sys_sigpending(&set);
 	ts.tv_sec = 0;
 	ts.tv_nsec = 0;
@@ -173,13 +221,14 @@ sig_daemon(void *arg /* Unused */)
 	return (0);
 }
 
+
 /* Utility function to create signal daemon thread */
 int
 _thr_start_sig_daemon(void)
 {
 	pthread_attr_t attr;
 	sigset_t sigset, oldset;
-	
+
 	SIGFILLSET(sigset);
 	pthread_sigmask(SIG_SETMASK, &sigset, &oldset);
 	pthread_attr_init(&attr);
@@ -206,6 +255,13 @@ _thr_sig_dispatch(struct kse *curkse, int sig, siginfo_t *info)
 
 	/* Some signals need special handling: */
 	handle_special_signals(curkse, sig);
+
+	/* Check if the signal requires a dump of thread information: */
+	if (sig == SIGINFO) {
+		/* Dump thread information to file: */
+		_thread_dump_info();
+	}
+
 	while ((thread = thr_sig_find(curkse, sig, info)) != NULL) {
 		/*
 		 * Setup the target thread to receive the signal:
@@ -233,11 +289,27 @@ _thr_sig_dispatch(struct kse *curkse, int sig, siginfo_t *info)
 	DBG_MSG("<<< _thr_sig_dispatch\n");
 }
 
+#endif /* ! SYSTEM_SCOPE_ONLY */
+
+static __inline int
+sigprop(int sig)
+{
+
+	if (sig > 0 && sig < NSIG)
+                return (sigproptbl[_SIG_IDX(sig)]);
+        return (0);
+}
+
 void
 _thr_sig_handler(int sig, siginfo_t *info, ucontext_t *ucp)
 {
 	__siginfohandler_t *sigfunc;
+	struct pthread *curthread;
 	struct kse *curkse;
+	struct sigaction act;
+	int sa_flags, err_save, intr_save, timeout_save;
+
+	DBG_MSG(">>> _thr_sig_handler(%d)\n", sig);
 
 	curkse = _get_curkse();
 	if ((curkse == NULL) || ((curkse->k_flags & KF_STARTED) == 0)) {
@@ -253,12 +325,86 @@ _thr_sig_handler(int sig, siginfo_t *info, ucontext_t *ucp)
 				(*(sigfunc))(sig,
 				    (siginfo_t*)(intptr_t)info->si_code, ucp);
 		}
+
+		return;
 	}
-	else {
-		/* Nothing. */
-		DBG_MSG("Got signal %d\n", sig);
-		/* XXX Bound thread will fall into this... */
+
+	curthread = _get_curthread();
+	if (curthread == NULL)
+		PANIC("No current thread.\n");
+	if (!(curthread->attr.flags & PTHREAD_SCOPE_SYSTEM))
+		PANIC("Thread is not system scope.\n");
+	if (curthread->flags & THR_FLAGS_EXITING)
+		return;
+	curkse = _get_curkse();
+	/*
+	 * If thread is in critical region or if thread is on
+	 * the way of state transition, then latch signal into buffer.
+	 */
+	if (_kse_in_critical() || THR_IN_CRITICAL(curthread) ||
+	    (curthread->state != PS_RUNNING && curthread->curframe == NULL)) {
+		DBG_MSG(">>> _thr_sig_handler(%d) in critical\n", sig);
+		curthread->siginfo[sig-1] = *info;
+		curthread->check_pending = 1;
+		curkse->k_sigseqno++;
+		SIGADDSET(curthread->sigpend, sig);
+		/* 
+		 * If the kse is on the way to idle itself, but
+		 * we have signal ready, we should prevent it
+		 * to sleep, kernel will latch the wakeup request,
+		 * so kse_release will return from kernel immediately.
+		 */
+		if (KSE_IS_IDLE(curkse))
+			kse_wakeup(&curkse->k_mbx);
+		return;
 	}
+
+	/* It is now safe to invoke signal handler */
+	err_save = curthread->error;
+	timeout_save = curthread->timeout;
+	intr_save = curthread->interrupted;
+	/* Get a fresh copy of signal mask from kernel, for thread dump only */
+	__sys_sigprocmask(SIG_SETMASK, NULL, &curthread->sigmask);
+	_kse_critical_enter();
+	KSE_LOCK_ACQUIRE(curkse, &_thread_signal_lock);
+	sigfunc = _thread_sigact[sig - 1].sa_sigaction;
+	sa_flags = _thread_sigact[sig - 1].sa_flags & SA_SIGINFO;
+	if (sa_flags & SA_RESETHAND) {
+		act.sa_handler = SIG_DFL;
+		act.sa_flags = SA_RESTART;
+		SIGEMPTYSET(act.sa_mask);
+		__sys_sigaction(sig, &act, NULL);
+		__sys_sigaction(sig, NULL, &_thread_sigact[sig - 1]);
+	}
+	KSE_LOCK_RELEASE(curkse, &_thread_signal_lock);
+	_kse_critical_leave(&curthread->tmbx);
+
+	/* Now invoke real handler */
+	if (((__sighandler_t *)sigfunc != SIG_DFL) &&
+	    ((__sighandler_t *)sigfunc != SIG_IGN) && 
+	    (sigfunc != (__siginfohandler_t *)_thr_sig_handler)) {
+		if ((sa_flags & SA_SIGINFO) != 0 || info == NULL)
+			(*(sigfunc))(sig, info, ucp);
+		else
+			(*(sigfunc))(sig, (siginfo_t*)(intptr_t)info->si_code,
+				 ucp);
+	} else {
+		if ((__sighandler_t *)sigfunc == SIG_DFL) {
+			if (sigprop(sig) & SA_KILL)
+				kse_thr_interrupt(NULL, KSE_INTR_SIGEXIT, sig);
+#ifdef NOTYET
+			else if (sigprop(sig) & SA_STOP)
+				kse_thr_interrupt(NULL, KSE_INTR_JOBSTOP, sig);
+#endif
+		}
+	}
+	curthread->error = err_save;
+	curthread->timeout = timeout_save;
+	curthread->interrupted = intr_save;
+	_kse_critical_enter();
+	curthread->sigmask = ucp->uc_sigmask;
+	_kse_critical_leave(&curthread->tmbx);
+	DBG_MSG("<<< _thr_sig_handler(%d)\n", sig);
 }
 
 /* Must be called with signal lock and schedule lock held in order */
@@ -292,19 +438,22 @@ thr_sig_invoke_handler(struct pthread *curthread, int sig, siginfo_t *info,
 	if (!(sa_flags & (SA_NODEFER | SA_RESETHAND)))
 		SIGADDSET(curthread->sigmask, sig);
 	if ((sig != SIGILL) && (sa_flags & SA_RESETHAND)) {
-		if (_thread_dfl_count[sig - 1] == 0) {
-			act.sa_handler = SIG_DFL;
-			act.sa_flags = SA_RESTART;
-			SIGEMPTYSET(act.sa_mask);
-			__sys_sigaction(sig, &act, NULL);
-			__sys_sigaction(sig, NULL, &_thread_sigact[sig - 1]);
-		}
+		act.sa_handler = SIG_DFL;
+		act.sa_flags = SA_RESTART;
+		SIGEMPTYSET(act.sa_mask);
+		__sys_sigaction(sig, &act, NULL);
+		__sys_sigaction(sig, NULL, &_thread_sigact[sig - 1]);
 	}
 	KSE_LOCK_RELEASE(curkse, &_thread_signal_lock);
 	KSE_SCHED_UNLOCK(curkse, curkse->k_kseg);
 	_kse_critical_leave(&curthread->tmbx);
+	/*
+	 * We are processing buffered signals, synchronize working
+	 * signal mask into kernel.
+	 */
+	if (curthread->attr.flags & PTHREAD_SCOPE_SYSTEM)
+		__sys_sigprocmask(SIG_SETMASK, &curthread->sigmask, NULL);
 	ucp->uc_sigmask = sigmask;
-
 	if (((__sighandler_t *)sigfunc != SIG_DFL) &&
 	    ((__sighandler_t *)sigfunc != SIG_IGN)) {
 		if ((sa_flags & SA_SIGINFO) != 0 || info == NULL)
@@ -313,24 +462,29 @@ thr_sig_invoke_handler(struct pthread *curthread, int sig, siginfo_t *info,
 			(*(sigfunc))(sig, (siginfo_t*)(intptr_t)info->si_code,
 			    ucp);
 	} else {
-		/* XXX
-		 * TODO: exit process if signal would kill it. 
-		 */
-#ifdef NOTYET
+		if ((__sighandler_t *)sigfunc == SIG_DFL) {
 			if (sigprop(sig) & SA_KILL)
-				kse_sigexit(sig);
+				kse_thr_interrupt(NULL, KSE_INTR_SIGEXIT, sig);
+#ifdef NOTYET
+			else if (sigprop(sig) & SA_STOP)
+				kse_thr_interrupt(NULL, KSE_INTR_JOBSTOP, sig);
 #endif
+		}
 	}
+
 	_kse_critical_enter();
 	/* Don't trust after critical leave/enter */
 	curkse = _get_curkse();
-	KSE_SCHED_LOCK(curkse, curkse->k_kseg);
-	KSE_LOCK_ACQUIRE(curkse, &_thread_signal_lock);
+
 	/*
 	 * Restore the thread's signal mask.
 	 */
 	curthread->sigmask = ucp->uc_sigmask;
-
+	if (curthread->attr.flags & PTHREAD_SCOPE_SYSTEM)
+		__sys_sigprocmask(SIG_SETMASK, &ucp->uc_sigmask, NULL);
+	KSE_SCHED_LOCK(curkse, curkse->k_kseg);
+	KSE_LOCK_ACQUIRE(curkse, &_thread_signal_lock);
+	
 	DBG_MSG("Got signal %d, handler returned %p\n", sig, curthread);
 }
 
@@ -365,13 +519,13 @@ _thr_getprocsig_unlocked(int sig, siginfo_t *siginfo)
 	SIGADDSET(sigset, sig);
 	ts.tv_sec = 0;
 	ts.tv_nsec = 0;
-	if (__sys_sigtimedwait(&sigset, siginfo, &ts) > 0) {
-		SIGDELSET(_thr_proc_sigpending, sig);
+	SIGDELSET(_thr_proc_sigpending, sig);
+	if (__sys_sigtimedwait(&sigset, siginfo, &ts) > 0)
 		return (sig);
-	}
 	return (0);
 }
 
+#ifndef SYSTEM_SCOPE_ONLY
 /*
  * Find a thread that can handle the signal.  This must be called
  * with upcalls disabled.
@@ -381,15 +535,11 @@ thr_sig_find(struct kse *curkse, int sig, siginfo_t *info)
 {
 	struct pthread	*pthread;
 	struct pthread	*suspended_thread, *signaled_thread;
+	__siginfohandler_t *sigfunc;
 	siginfo_t si;
 
 	DBG_MSG("Looking for thread to handle signal %d\n", sig);
 
-	/* Check if the signal requires a dump of thread information: */
-	if (sig == SIGINFO) {
-		/* Dump thread information to file: */
-		_thread_dump_info();
-	}
 	/*
 	 * Enter a loop to look for threads that have the signal
 	 * unmasked.  POSIX specifies that a thread in a sigwait
@@ -407,12 +557,9 @@ thr_sig_find(struct kse *curkse, int sig, siginfo_t *info)
 	TAILQ_FOREACH(pthread, &_thread_list, tle) {
 		if (pthread == _thr_sig_daemon)
 			continue;
-#ifdef NOTYET
 		/* Signal delivering to bound thread is done by kernel */
 		if (pthread->attr.flags & PTHREAD_SCOPE_SYSTEM)
 			continue;
-#endif
-
 		/* Take the scheduling lock. */
 		KSE_SCHED_LOCK(curkse, pthread->kseg);
 		if ((pthread->state == PS_DEAD)		||
@@ -451,8 +598,16 @@ thr_sig_find(struct kse *curkse, int sig, siginfo_t *info)
 			KSE_LOCK_RELEASE(curkse, &_thread_list_lock);
 			return (NULL);
 		} else if (!SIGISMEMBER(pthread->sigmask, sig) ||
-			(!SIGISMEMBER(pthread->oldsigmask, sig) &&
-			 pthread->state == PS_SIGWAIT)) {
+			   (!SIGISMEMBER(pthread->oldsigmask, sig) &&
+			   pthread->state == PS_SIGWAIT)) {
+			sigfunc = _thread_sigact[sig - 1].sa_sigaction;
+			if ((__sighandler_t *)sigfunc == SIG_DFL) {
+				if (sigprop(sig) & SA_KILL) {
+					kse_thr_interrupt(NULL,
+						 KSE_INTR_SIGEXIT, sig);
+					/* Never reach */
+				}
+			}
 			if (pthread->state == PS_SIGSUSPEND) {
 				if (suspended_thread == NULL) {
 					suspended_thread = pthread;
@@ -478,6 +633,7 @@ thr_sig_find(struct kse *curkse, int sig, siginfo_t *info)
 	}
 	return (pthread);
 }
+#endif /* ! SYSTEM_SCOPE_ONLY */
 
 static void
 build_siginfo(siginfo_t *info, int signo)
@@ -501,8 +657,9 @@ _thr_sig_rundown(struct pthread *curthread, ucontext_t *ucp,
 	int i;
 	kse_critical_t crit;
 	struct kse *curkse;
+	sigset_t sigmask;
 
-	DBG_MSG(">>> thr_sig_rundown %p\n", curthread);
+	DBG_MSG(">>> thr_sig_rundown (%p)\n", curthread);
 	/* Check the threads previous state: */
 	if ((psf != NULL) && (psf->psf_valid != 0)) {
 		/*
@@ -544,6 +701,15 @@ _thr_sig_rundown(struct pthread *curthread, ucontext_t *ucp,
 	curthread->active_priority &= ~THR_SIGNAL_PRIORITY;
 
 	while (1) {
+		/*
+		 * For bound thread, we mask all signals and get a fresh
+		 * copy of signal mask from kernel
+		 */
+		if (curthread->attr.flags & PTHREAD_SCOPE_SYSTEM) {
+			SIGFILLSET(sigmask);
+			__sys_sigprocmask(SIG_SETMASK, &sigmask,
+				 &curthread->sigmask);
+		}
 		for (i = 1; i <= _SIG_MAXSIG; i++) {
 			if (SIGISMEMBER(curthread->sigmask, i))
 				continue;
@@ -552,7 +718,8 @@ _thr_sig_rundown(struct pthread *curthread, ucontext_t *ucp,
 				siginfo = curthread->siginfo[i-1];
 				break;
 			}
-			if (SIGISMEMBER(_thr_proc_sigpending, i)) {
+			if (!(curthread->attr.flags & PTHREAD_SCOPE_SYSTEM) 
+			    && SIGISMEMBER(_thr_proc_sigpending, i)) {
 				if (_thr_getprocsig_unlocked(i, &siginfo))
 					break;
 			}
@@ -568,12 +735,14 @@ _thr_sig_rundown(struct pthread *curthread, ucontext_t *ucp,
 	curkse = _get_curkse();
 	KSE_LOCK_RELEASE(curkse, &_thread_signal_lock);
 	KSE_SCHED_UNLOCK(curkse, curkse->k_kseg);
+	if (curthread->attr.flags & PTHREAD_SCOPE_SYSTEM)
+		__sys_sigprocmask(SIG_SETMASK, &curthread->sigmask, NULL);
 	_kse_critical_leave(&curthread->tmbx);
 
 	curthread->interrupted = interrupted;
 	curthread->timeout = timeout;
 
-	DBG_MSG("<<< thr_sig_rundown %p\n", curthread);
+	DBG_MSG("<<< thr_sig_rundown (%p)\n", curthread);
 }
 
 /*
@@ -603,6 +772,7 @@ _thr_sig_check_pending(struct pthread *curthread)
 	}
 }
 
+#ifndef SYSTEM_SCOPE_ONLY
 /*
  * This must be called with upcalls disabled.
  */
@@ -631,6 +801,7 @@ handle_special_signals(struct kse *curkse, int sig)
 		break;
 	}
 }
+#endif /* ! SYSTEM_SCOPE_ONLY */
 
 /*
  * Perform thread specific actions in response to a signal.
@@ -650,7 +821,7 @@ _thr_sig_add(struct pthread *pthread, int sig, siginfo_t *info)
 	struct	kse *curkse;
 	siginfo_t siginfo;
 
-	DBG_MSG(">>> _thr_sig_add\n");
+	DBG_MSG(">>> _thr_sig_add %p (%d)\n", pthread, sig);
 
 	curkse = _get_curkse();
 	restart = _thread_sigact[sig - 1].sa_flags & SA_RESTART;
@@ -660,13 +831,11 @@ _thr_sig_add(struct pthread *pthread, int sig, siginfo_t *info)
 	    pthread->state == PS_STATE_MAX)
 	    	return; /* return false */
 
-#ifdef NOTYET
-	if ((pthread->attrs.flags & PTHREAD_SCOPE_SYSTEM) != 0) {
-		if (!fromproc)
-			kse_thr_interrupt(&pthread->tmbx, 0, sig);
+	if ((pthread->attr.flags & PTHREAD_SCOPE_SYSTEM) &&
+	    (curthread != pthread)) {
+	    	PANIC("Please use _thr_send_sig for bound thread");
 		return;
 	}
-#endif
 
 	if (pthread->curframe == NULL ||
 	    (pthread->state != PS_SIGWAIT &&
@@ -687,9 +856,11 @@ _thr_sig_add(struct pthread *pthread, int sig, siginfo_t *info)
 		}
 		if (!SIGISMEMBER(pthread->sigmask, sig)) {
 			pthread->check_pending = 1;
-			if (pthread->blocked != 0 && !THR_IN_CRITICAL(pthread))
+			if (!(pthread->attr.flags & PTHREAD_SCOPE_SYSTEM) &&
+			    (pthread->blocked != 0) && 
+			    !THR_IN_CRITICAL(pthread))
 				kse_thr_interrupt(&pthread->tmbx,
-					 restart ? -2 : -1);
+				    restart ? KSE_INTR_RESTART : KSE_INTR_INTERRUPT, 0);
 		}
 	}
 	else {
@@ -801,64 +972,6 @@ _thr_sig_add(struct pthread *pthread, int sig, siginfo_t *info)
 			pthread->check_pending = 1;
 		}
 	}
-
-	DBG_MSG("<<< _thr_sig_add\n");
-}
-
-static void
-thr_sig_check_state(struct pthread *pthread, int sig)
-{
-	/*
-	 * Process according to thread state:
-	 */
-	switch (pthread->state) {
-	/*
-	 * States which do not change when a signal is trapped:
-	 */
-	case PS_RUNNING:
-	case PS_LOCKWAIT:
-	case PS_MUTEX_WAIT:
-	case PS_COND_WAIT:
-	case PS_JOIN:
-	case PS_SUSPENDED:
-	case PS_DEAD:
-	case PS_DEADLOCK:
-	case PS_STATE_MAX:
-		break;
-
-	case PS_SIGWAIT:
-		build_siginfo(&pthread->siginfo[sig-1], sig);
-		/* Wake up the thread if the signal is blocked. */
-		if (!SIGISMEMBER(pthread->sigmask, sig)) {
-			/* Return the signal number: */
-			*(pthread->data.sigwaitinfo) = pthread->siginfo[sig-1];
-			pthread->sigmask = pthread->oldsigmask;
-			/* Change the state of the thread to run: */
-			_thr_setrunnable_unlocked(pthread);
-		} else {
-			/* Increment the pending signal count. */
-			SIGADDSET(pthread->sigpend, sig);
-			if (!SIGISMEMBER(pthread->oldsigmask, sig)) {
-				pthread->check_pending = 1;
-				pthread->interrupted = 1;
-				pthread->sigmask = pthread->oldsigmask;
-				_thr_setrunnable_unlocked(pthread);
-			}
-		}
-		break;
-
-	case PS_SIGSUSPEND:
-	case PS_SLEEP_WAIT:
-		/*
-		 * Remove the thread from the wait queue and make it
-		 * runnable:
-		 */
-		_thr_setrunnable_unlocked(pthread);
-
-		/* Flag the operation as interrupted: */
-		pthread->interrupted = 1;
-		break;
-	}
 }
 
 /*
@@ -869,41 +982,14 @@ _thr_sig_send(struct pthread *pthread, int sig)
 {
 	struct pthread *curthread = _get_curthread();
 
-#ifdef NOTYET
-	if ((pthread->attr.flags & PTHREAD_SCOPE_SYSTEM) == 0) {
-		kse_thr_interrupt(&pthread->tmbx, sig);
+	if (pthread->attr.flags & PTHREAD_SCOPE_SYSTEM) {
+		kse_thr_interrupt(&pthread->tmbx, KSE_INTR_SENDSIG, sig);
 		return;
 	}
-#endif
+
 	/* Lock the scheduling queue of the target thread. */
 	THR_SCHED_LOCK(curthread, pthread);
-
-	/* Check for signals whose actions are SIG_DFL: */
-	if (_thread_sigact[sig - 1].sa_handler == SIG_DFL) {
-		/*
-		 * Check to see if a temporary signal handler is
-		 * installed for sigwaiters:
-		 */
-		if (_thread_dfl_count[sig - 1] == 0) {
-			/*
-			 * Deliver the signal to the process if a handler
-			 * is not installed:
-			 */
-			THR_SCHED_UNLOCK(curthread, pthread);
-			kill(getpid(), sig);
-			THR_SCHED_LOCK(curthread, pthread);
-		}
-		/*
-		 * Assuming we're still running after the above kill(),
-		 * make any necessary state changes to the thread:
-		 */
-		thr_sig_check_state(pthread, sig);
-		THR_SCHED_UNLOCK(curthread, pthread);
-	}
-	/*
-	 * Check that the signal is not being ignored:
-	 */
-	else if (_thread_sigact[sig - 1].sa_handler != SIG_IGN) {
+	if (_thread_sigact[sig - 1].sa_handler != SIG_IGN) {
 		_thr_sig_add(pthread, sig, NULL);
 		THR_SCHED_UNLOCK(curthread, pthread);
 		/* XXX
@@ -965,6 +1051,7 @@ _thr_signal_init(void)
 {
 	sigset_t sigset;
 	struct sigaction act;
+	__siginfohandler_t *sigfunc;
 	int i;
 
 	SIGFILLSET(sigset);
@@ -984,6 +1071,15 @@ _thr_signal_init(void)
 			 */
 			PANIC("Cannot read signal handler info");
 		}
+		/* Intall wrapper if handler was set */
+		sigfunc = _thread_sigact[i - 1].sa_sigaction;
+		if (((__sighandler_t *)sigfunc) != SIG_DFL &&
+		    ((__sighandler_t *)sigfunc) != SIG_IGN) {
+		    	act = _thread_sigact[i - 1];
+			act.sa_flags |= SA_SIGINFO;
+			act.sa_sigaction = (__siginfohandler_t *)_thr_sig_handler;
+			__sys_sigaction(i, &act, NULL);
+		}
 	}
 	/*
 	 * Install the signal handler for SIGINFO.  It isn't
@@ -1000,6 +1096,9 @@ _thr_signal_init(void)
 		 */
 		PANIC("Cannot initialize signal handler");
 	}
+#ifdef SYSTEM_SCOPE_ONLY
+	__sys_sigprocmask(SIG_SETMASK, &_thr_initial->sigmask, NULL);
+#endif
 }
 
 void
