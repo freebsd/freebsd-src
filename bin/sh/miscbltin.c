@@ -379,14 +379,14 @@ ulimitcmd(int argc __unused, char **argv __unused)
 	for (l = limits; l->name && l->option != what; l++)
 		;
 	if (!l->name)
-		error("ulimit: internal error (%c)", what);
+		error("internal error (%c)", what);
 
 	set = *argptr ? 1 : 0;
 	if (set) {
 		char *p = *argptr;
 
 		if (all || argptr[1])
-			error("ulimit: too many arguments");
+			error("too many arguments");
 		if (strcmp(p, "unlimited") == 0)
 			val = RLIM_INFINITY;
 		else {
@@ -399,7 +399,7 @@ ulimitcmd(int argc __unused, char **argv __unused)
 					break;
 			}
 			if (c)
-				error("ulimit: bad number");
+				error("bad number");
 			val *= l->factor;
 		}
 	}
@@ -407,7 +407,7 @@ ulimitcmd(int argc __unused, char **argv __unused)
 		for (l = limits; l->name; l++) { 
 			char optbuf[40];
 			if (getrlimit(l->cmd, &limit) < 0)
-				error("ulimit: can't get limit: %s", strerror(errno));
+				error("can't get limit: %s", strerror(errno));
 			if (how & SOFT)
 				val = limit.rlim_cur;
 			else if (how & HARD)
@@ -432,14 +432,14 @@ ulimitcmd(int argc __unused, char **argv __unused)
 	}
 
 	if (getrlimit(l->cmd, &limit) < 0)
-		error("ulimit: can't get limit: %s", strerror(errno));
+		error("can't get limit: %s", strerror(errno));
 	if (set) {
 		if (how & SOFT)
 			limit.rlim_cur = val;
 		if (how & HARD)
 			limit.rlim_max = val;
 		if (setrlimit(l->cmd, &limit) < 0)
-			error("ulimit: bad limit: %s", strerror(errno));
+			error("bad limit: %s", strerror(errno));
 	} else {
 		if (how & SOFT)
 			val = limit.rlim_cur;
