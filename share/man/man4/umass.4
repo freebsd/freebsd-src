@@ -50,9 +50,14 @@ and one of
 or
 .Xr ohci 4
 must be configured in the kernel.
-Also
+Additionally, since
+.Nm
+uses the SCSI subsystem and sometimes acts as a SCSI device, it
+requires
 .Xr da 4
-has to be included, which provides support for SCSI drives.
+and
+.Xr scbus 4
+to be included in the kernel.
 .Sh HARDWARE
 The
 .Nm
