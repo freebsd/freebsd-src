@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: scsi_driver.c,v 1.9 1995/05/03 18:09:11 dufault Exp $
+ * $Id: scsi_driver.c,v 1.10 1995/05/30 08:13:37 rgrimes Exp $
  *
  */
 #include <sys/types.h>
@@ -135,7 +135,7 @@ struct scsi_device *device)
 	else
 		errcode = (*device->dev_open)(dev, flags, fmt, p, sc_link);
 
-	sc_link->flags |= SDEV_IS_OPEN;
+	if (!errcode ) sc_link->flags |= SDEV_IS_OPEN;
 
 	SC_DEBUG(sc_link, SDEV_DB1, ("%sopen: dev=0x%lx (unit %ld) result %d\n",
 		device->name, dev, unit, errcode));
