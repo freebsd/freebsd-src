@@ -91,7 +91,7 @@ main(argc, argv)
 
 	pname = argv[0];
 	configfile = _PATH_VNTAB;
-	while ((i = getopt(argc, argv, "acdef:gr:s:uv")) != EOF)
+	while ((i = getopt(argc, argv, "acdef:gr:s:uv")) !=  -1)
 		switch (i) {
 
 		/* all -- use config file */

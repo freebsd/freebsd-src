@@ -1,5 +1,5 @@
 #ifndef lint
-static char *rcsid = "$Id: main.c,v 1.9.4.1 1995/10/09 11:16:26 jkh Exp $";
+static char *rcsid = "$Id: main.c,v 1.10 1995/10/25 15:38:29 jkh Exp $";
 #endif
 
 /*
@@ -43,7 +43,7 @@ main(int argc, char **argv)
     char *prog_name = argv[0];
 
     pkgs = start = argv;
-    while ((ch = getopt(argc, argv, Options)) != EOF)
+    while ((ch = getopt(argc, argv, Options)) !=  -1)
 	switch(ch) {
 	case 'a':
 	    AllInstalled = TRUE;

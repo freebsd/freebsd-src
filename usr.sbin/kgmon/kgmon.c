@@ -87,7 +87,7 @@ main(int argc, char **argv)
 	seteuid(getuid());
 	kmemf = NULL;
 	system = NULL;
-	while ((ch = getopt(argc, argv, "M:N:Bbhpr")) != EOF) {
+	while ((ch = getopt(argc, argv, "M:N:Bbhpr")) !=  -1) {
 		switch((char)ch) {
 
 		case 'M':

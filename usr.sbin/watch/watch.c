@@ -292,7 +292,7 @@ main(ac, av)
 		opt_interactive = 0;
 
 
-	while ((ch = getopt(ac, av, "Wciotn")) != EOF)
+	while ((ch = getopt(ac, av, "Wciotn")) !=  -1)
 		switch (ch) {
 		case 'W':
 			opt_write = 1;

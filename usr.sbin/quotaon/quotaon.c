@@ -83,7 +83,7 @@ main(argc, argv)
 			whoami);
 		exit(1);
 	}
-	while ((ch = getopt(argc, argv, "avug")) != EOF) {
+	while ((ch = getopt(argc, argv, "avug")) !=  -1) {
 		switch(ch) {
 		case 'a':
 			aflag++;

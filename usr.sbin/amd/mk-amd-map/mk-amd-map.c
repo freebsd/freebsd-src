@@ -37,7 +37,7 @@
  *
  *	@(#)mk-amd-map.c	8.1 (Berkeley) 6/28/93
  *
- * $Id: mk-amd-map.c,v 5.2.2.1 1992/02/09 15:09:18 jsp beta $
+ * $Id: mk-amd-map.c,v 1.1.1.1 1994/05/26 05:22:04 rgrimes Exp $
  */
 
 /*
@@ -53,7 +53,7 @@ char copyright[] = "\
 #endif /* not lint */
 
 #ifndef lint
-static char rcsid[] = "$Id: mk-amd-map.c,v 5.2.2.1 1992/02/09 15:09:18 jsp beta $";
+static char rcsid[] = "$Id: mk-amd-map.c,v 1.1.1.1 1994/05/26 05:22:04 rgrimes Exp $";
 static char sccsid[] = "@(#)mk-amd-map.c	8.1 (Berkeley) 6/28/93";
 #endif /* not lint */
 
@@ -249,7 +249,7 @@ char *argv[];
 	int ch;
 	extern int optind;
 
-	while ((ch = getopt(argc, argv, "p")) != EOF)
+	while ((ch = getopt(argc, argv, "p")) !=  -1)
 	switch (ch) {
 	case 'p':
 		printit = 1;

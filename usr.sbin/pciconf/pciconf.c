@@ -65,7 +65,7 @@ main(int argc, char **argv)
 
 	listmode = readmode = writemode = byte = isshort = 0;
 
-	while ((c = getopt(argc, argv, "lrwbh")) != EOF) {
+	while ((c = getopt(argc, argv, "lrwbh")) !=  -1) {
 		switch(c) {
 		case 'l':
 			listmode = 1;

@@ -83,7 +83,7 @@ main(int argc, char **argv)
 	x_size = y_size = zoom = depth = brightness = whitebalance =
 	         contrast = exposure = -1;
 
-	while ((opt = getopt(argc, argv, "p:x:y:z:d:b:w:c:e:")) != EOF) {
+	while ((opt = getopt(argc, argv, "p:x:y:z:d:b:w:c:e:")) !=  -1) {
 	    switch (opt) {
 	    case 'p':
 		port = optarg;

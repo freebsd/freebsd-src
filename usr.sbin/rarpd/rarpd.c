@@ -26,7 +26,7 @@ The Regents of the University of California.  All rights reserved.\n";
 
 #ifndef lint
 static const char rcsid[] =
-    "@(#) $Header: /home/ncvs/src/usr.sbin/rarpd/rarpd.c,v 1.7.2.1 1996/11/23 08:34:58 phk Exp $ (LBL)";
+    "@(#) $Header: /home/ncvs/src/usr.sbin/rarpd/rarpd.c,v 1.7.2.2 1996/11/28 08:28:15 phk Exp $ (LBL)";
 #endif
 
 /*
@@ -196,7 +196,7 @@ main(argc, argv)
 	openlog(name, LOG_PID | LOG_CONS, LOG_DAEMON);
 
 	opterr = 0;
-	while ((op = getopt(argc, argv, "afsv")) != EOF) {
+	while ((op = getopt(argc, argv, "afsv")) !=  -1) {
 		switch (op) {
 		case 'a':
 			++aflag;

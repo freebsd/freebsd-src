@@ -29,7 +29,7 @@ provided "as is" without express or implied warranty.
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: newsyslog.c,v 1.7 1996/09/09 15:32:26 jkh Exp $";
+static char rcsid[] = "$Id: newsyslog.c,v 1.7.2.1 1997/02/22 07:34:11 jkh Exp $";
 #endif /* not lint */
 
 #ifndef CONF
@@ -212,7 +212,7 @@ static void PRS(argc,argv)
 	}
 
         optind = 1;             /* Start options parsing */
-        while ((c=getopt(argc,argv,"nrvf:t:")) != EOF)
+        while ((c=getopt(argc,argv,"nrvf:t:")) !=  -1)
                 switch (c) {
                 case 'n':
                         noaction++; /* This implies needroot as off */

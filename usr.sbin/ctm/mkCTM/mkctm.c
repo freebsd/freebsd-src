@@ -510,7 +510,7 @@ main(int argc, char **argv)
 	flag_ignore = 1;
 #endif
 
-	while ((i = getopt(argc, argv, "D:I:B:l:qv")) != EOF)
+	while ((i = getopt(argc, argv, "D:I:B:l:qv")) !=  -1)
 		switch (i) {
 		case 'D':
 			damage_limit = strtol(optarg, 0, 0);

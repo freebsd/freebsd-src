@@ -62,7 +62,7 @@ main(int argc, char **argv)
   int fd, i;
   int debug = -1, settype = 1;
 
-  while((i = getopt(argc, argv, "d:s")) != EOF)
+  while((i = getopt(argc, argv, "d:s")) !=  -1)
     switch(i)
       {
       case 'd':

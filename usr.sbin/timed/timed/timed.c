@@ -42,7 +42,7 @@ static char sccsid[] = "@(#)timed.c	8.1 (Berkeley) 6/6/93";
 #endif /* not lint */
 
 #ifdef sgi
-#ident "$Revision$"
+#ident "$Revision: 1.2.6.1 $"
 #endif /* sgi */
 
 #define TSPTYPES
@@ -185,7 +185,7 @@ main(argc, argv)
 #endif /* sgi */
 
 	opterr = 0;
-	while ((c = getopt(argc, argv, "Mtdn:i:F:G:P:")) != EOF) {
+	while ((c = getopt(argc, argv, "Mtdn:i:F:G:P:")) !=  -1) {
 		switch (c) {
 		case 'M':
 			Mflag = 1;

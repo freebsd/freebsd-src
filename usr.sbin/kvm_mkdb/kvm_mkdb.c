@@ -67,7 +67,7 @@ main(argc, argv)
 	char *p, *nlistpath, *nlistname, dbtemp[MAXPATHLEN], dbname[MAXPATHLEN];
 	HASHINFO hdefault;
 
-	while ((ch = getopt(argc, argv, "")) != EOF)
+	while ((ch = getopt(argc, argv, "")) !=  -1)
 		switch (ch) {
 		case '?':
 		default:

@@ -107,7 +107,7 @@ main(argc, argv)
 	strcpy(prefix, _PATH_PWD);
 	makeold = 0;
 	username = NULL;
-	while ((ch = getopt(argc, argv, "cd:pu:v")) != EOF)
+	while ((ch = getopt(argc, argv, "cd:pu:v")) !=  -1)
 		switch(ch) {
 		case 'c':                       /* verify only */
 			cflag = 1;

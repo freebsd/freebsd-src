@@ -85,7 +85,7 @@ main(argc, argv)
 	char *path;
 	int ch;
 
-	while ((ch = getopt(argc, argv, "Aan")) != EOF) {
+	while ((ch = getopt(argc, argv, "Aan")) !=  -1) {
 		switch (ch) {
 
 		case 'A':

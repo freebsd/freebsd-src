@@ -97,7 +97,7 @@ main(argc, argv)
 		exit(1);
 	}
 	quotatype = USRQUOTA;
-	while ((ch = getopt(argc, argv, "ugtp:")) != EOF) {
+	while ((ch = getopt(argc, argv, "ugtp:")) !=  -1) {
 		switch(ch) {
 		case 'p':
 			protoname = optarg;

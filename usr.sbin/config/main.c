@@ -79,7 +79,7 @@ main(argc, argv)
 	int ch;
 	char *p;
 
-	while ((ch = getopt(argc, argv, "gpn")) != EOF)
+	while ((ch = getopt(argc, argv, "gpn")) !=  -1)
 		switch (ch) {
 		case 'g':
 			debugging++;

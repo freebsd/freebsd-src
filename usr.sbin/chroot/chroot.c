@@ -61,7 +61,7 @@ main(argc, argv)
 	int ch;
 	char *shell;
 
-	while ((ch = getopt(argc, argv, "")) != EOF)
+	while ((ch = getopt(argc, argv, "")) !=  -1)
 		switch(ch) {
 		case '?':
 		default:

@@ -95,7 +95,7 @@ main(argc, argv)
 	openlog("lpd", 0, LOG_LPR);
 
 	aflag = lflag = 0;
-	while ((ch = getopt(argc, argv, "alP:")) != EOF)
+	while ((ch = getopt(argc, argv, "alP:")) !=  -1)
 		switch((char)ch) {
 		case 'a':
 			++aflag;

@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: yppasswdd_main.c,v 1.6 1996/10/23 15:42:37 wpaul Exp $
+ *	$Id: yppasswdd_main.c,v 1.6.2.1 1996/11/16 21:20:40 phk Exp $
  */
 
 #include "yppasswd.h"
@@ -72,7 +72,7 @@ struct dom_binding {};
 
 #define	_RPCSVC_CLOSEDOWN 120
 #ifndef lint
-static const char rcsid[] = "$Id: yppasswdd_main.c,v 1.6 1996/10/23 15:42:37 wpaul Exp $";
+static const char rcsid[] = "$Id: yppasswdd_main.c,v 1.6.2.1 1996/11/16 21:20:40 phk Exp $";
 #endif /* not lint */
 int _rpcpmstart = 0;		/* Started by a port monitor ? */
 static int _rpcfdtype;
@@ -212,7 +212,7 @@ main(argc, argv)
 
 	debug = 1;
 
-	while ((ch = getopt(argc, argv, "t:d:p:sfamuivh")) != EOF) {
+	while ((ch = getopt(argc, argv, "t:d:p:sfamuivh")) !=  -1) {
 		switch(ch) {
 		case 't':
 			passfile_default = optarg;

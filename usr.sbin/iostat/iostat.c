@@ -146,7 +146,7 @@ main(argc, argv)
 
 	interval = reps = 0;
 	nlistf = memf = NULL;
-	while ((ch = getopt(argc, argv, "c:M:N:w:")) != EOF)
+	while ((ch = getopt(argc, argv, "c:M:N:w:")) !=  -1)
 		switch(ch) {
 		case 'c':
 			if ((reps = atoi(optarg)) <= 0)

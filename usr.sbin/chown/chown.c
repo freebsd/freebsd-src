@@ -81,7 +81,7 @@ main(argc, argv)
 	ischown = myname[2] == 'o';
 
 	Hflag = Lflag = Pflag = hflag = 0;
-	while ((ch = getopt(argc, argv, "HLPRfh")) != EOF)
+	while ((ch = getopt(argc, argv, "HLPRfh")) !=  -1)
 		switch (ch) {
 		case 'H':
 			Hflag = 1;

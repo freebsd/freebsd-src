@@ -88,7 +88,7 @@ main(argc, argv)
 	extern int optind;
 	char ch, *qfnp;
 
-	while ((ch = getopt(argc, argv, "aguv")) != EOF) {
+	while ((ch = getopt(argc, argv, "aguv")) !=  -1) {
 		switch(ch) {
 		case 'a':
 			aflag++;

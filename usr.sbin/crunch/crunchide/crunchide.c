@@ -84,7 +84,7 @@ char **argv;
 
     if(argc > 0) pname = argv[0];
 
-    while ((ch = getopt(argc, argv, "k:f:")) != EOF)
+    while ((ch = getopt(argc, argv, "k:f:")) !=  -1)
 	switch(ch) {
 	case 'k':
 	    add_to_keep_list(optarg);

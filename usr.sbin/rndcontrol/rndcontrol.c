@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: rndcontrol.c,v 1.3 1995/12/27 11:40:47 markm Exp $
+ * $Id: rndcontrol.c,v 1.4 1996/06/25 18:56:19 markm Exp $
  *
  */
 
@@ -60,7 +60,7 @@ main(int argc, char *argv[])
 		return (1);
 	}
 	else {
-		while ((ch = getopt(argc, argv, "qs:c:")) != EOF)
+		while ((ch = getopt(argc, argv, "qs:c:")) !=  -1)
 			switch (ch) {
 			case 'q':
 				verbose = 0;
