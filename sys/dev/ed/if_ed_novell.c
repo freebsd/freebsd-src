@@ -59,6 +59,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/ed/if_edreg.h>
 #include <dev/ed/if_edvar.h>
 
+static int ed_probe_gwether(device_t);
+
 /*
  * Probe and vendor-specific initialization routine for NE1000/2000 boards
  */
@@ -67,11 +69,10 @@ ed_probe_Novell_generic(device_t dev, int flags)
 {
 	struct ed_softc *sc = device_get_softc(dev);
 	u_int   memsize, n;
+	int	error;
 	u_char  romdata[16], tmp;
 	static char test_pattern[32] = "THIS is A memory TEST pattern";
 	char    test_buffer[32];
-
-	/* XXX - do Novell-specific probe here */
 
 	/* Reset the board */
 	if (ED_FLAGS_GETTYPE(flags) == ED_FLAGS_GWETHER) {
@@ -98,7 +99,6 @@ ed_probe_Novell_generic(device_t dev, int flags)
 	 * judgement. -DLG
 	 */
 	ed_nic_outb(sc, ED_P0_CR, ED_CR_RD2 | ED_CR_STP);
-
 	DELAY(5000);
 
 	/* Make sure that we really have an 8390 based board */
@@ -141,7 +141,7 @@ ed_probe_Novell_generic(device_t dev, int flags)
 		sc->type_str = "NE1000";
 	} else {
 
-		/* neither an NE1000 nor a Linksys - try NE2000 */
+		/* Not an NE1000 - try NE2000 */
 		ed_nic_outb(sc, ED_P0_DCR, ED_DCR_WTS | ED_DCR_FT1 | ED_DCR_LS);
 		ed_nic_outb(sc, ED_P0_PSTART, 16384 / ED_PAGE_SIZE);
 		ed_nic_outb(sc, ED_P0_PSTOP, 32768 / ED_PAGE_SIZE);
@@ -162,7 +162,6 @@ ed_probe_Novell_generic(device_t dev, int flags)
 		}
 	}
 
-
 	/* 8k of memory plus an additional 8k if 16bit */
 	memsize = 8192 + sc->isa16bit * 8192;
 	sc->mem_size = memsize;
@@ -174,65 +173,9 @@ ed_probe_Novell_generic(device_t dev, int flags)
 	sc->tx_page_start = memsize / ED_PAGE_SIZE;
 
 	if (ED_FLAGS_GETTYPE(flags) == ED_FLAGS_GWETHER) {
-		int     x, i, msize = 0;
-		long    mstart = 0;
-		char    pbuf0[ED_PAGE_SIZE], pbuf[ED_PAGE_SIZE], tbuf[ED_PAGE_SIZE];
-
-		for (i = 0; i < ED_PAGE_SIZE; i++)
-			pbuf0[i] = 0;
-
-		/* Clear all the memory. */
-		for (x = 1; x < 256; x++)
-			ed_pio_writemem(sc, pbuf0, x * 256, ED_PAGE_SIZE);
-
-		/* Search for the start of RAM. */
-		for (x = 1; x < 256; x++) {
-			ed_pio_readmem(sc, x * 256, tbuf, ED_PAGE_SIZE);
-			if (bcmp(pbuf0, tbuf, ED_PAGE_SIZE) == 0) {
-				for (i = 0; i < ED_PAGE_SIZE; i++)
-					pbuf[i] = 255 - x;
-				ed_pio_writemem(sc, pbuf, x * 256, ED_PAGE_SIZE);
-				ed_pio_readmem(sc, x * 256, tbuf, ED_PAGE_SIZE);
-				if (bcmp(pbuf, tbuf, ED_PAGE_SIZE) == 0) {
-					mstart = x * ED_PAGE_SIZE;
-					msize = ED_PAGE_SIZE;
-					break;
-				}
-			}
-		}
-
-		if (mstart == 0) {
-			device_printf(dev, "Cannot find start of RAM.\n");
-			return (ENXIO);
-		}
-		/* Search for the start of RAM. */
-		for (x = (mstart / ED_PAGE_SIZE) + 1; x < 256; x++) {
-			ed_pio_readmem(sc, x * 256, tbuf, ED_PAGE_SIZE);
-			if (bcmp(pbuf0, tbuf, ED_PAGE_SIZE) == 0) {
-				for (i = 0; i < ED_PAGE_SIZE; i++)
-					pbuf[i] = 255 - x;
-				ed_pio_writemem(sc, pbuf, x * 256, ED_PAGE_SIZE);
-				ed_pio_readmem(sc, x * 256, tbuf, ED_PAGE_SIZE);
-				if (bcmp(pbuf, tbuf, ED_PAGE_SIZE) == 0)
-					msize += ED_PAGE_SIZE;
-				else {
-					break;
-				}
-			} else {
-				break;
-			}
-		}
-
-		if (msize == 0) {
-			device_printf(dev, "Cannot find any RAM, start : %ld, x = %d.\n", mstart, x);
-			return (ENXIO);
-		}
-		device_printf(dev, "RAM start at %ld, size : %d.\n", mstart, msize);
-
-		sc->mem_size = msize;
-		sc->mem_start = (caddr_t)(uintptr_t) mstart;
-		sc->mem_end = (caddr_t)(uintptr_t) (msize + mstart);
-		sc->tx_page_start = mstart / ED_PAGE_SIZE;
+		error = ed_probe_gwether(dev);
+		if (error)
+			return (error);
 	}
 
 	/*
@@ -278,4 +221,71 @@ ed_probe_Novell(device_t dev, int port_rid, int flags)
 	sc->nic_offset  = ED_NOVELL_NIC_OFFSET;
 
 	return ed_probe_Novell_generic(dev, flags);
+}
+
+static int
+ed_probe_gwether(device_t dev)
+{
+	int     x, i, msize = 0;
+	long    mstart = 0;
+	char    pbuf0[ED_PAGE_SIZE], pbuf[ED_PAGE_SIZE], tbuf[ED_PAGE_SIZE];
+	struct ed_softc *sc = device_get_softc(dev);
+
+	for (i = 0; i < ED_PAGE_SIZE; i++)
+		pbuf0[i] = 0;
+
+	/* Clear all the memory. */
+	for (x = 1; x < 256; x++)
+		ed_pio_writemem(sc, pbuf0, x * 256, ED_PAGE_SIZE);
+
+	/* Search for the start of RAM. */
+	for (x = 1; x < 256; x++) {
+		ed_pio_readmem(sc, x * 256, tbuf, ED_PAGE_SIZE);
+		if (bcmp(pbuf0, tbuf, ED_PAGE_SIZE) == 0) {
+			for (i = 0; i < ED_PAGE_SIZE; i++)
+				pbuf[i] = 255 - x;
+			ed_pio_writemem(sc, pbuf, x * 256, ED_PAGE_SIZE);
+			ed_pio_readmem(sc, x * 256, tbuf, ED_PAGE_SIZE);
+			if (bcmp(pbuf, tbuf, ED_PAGE_SIZE) == 0) {
+				mstart = x * ED_PAGE_SIZE;
+				msize = ED_PAGE_SIZE;
+				break;
+			}
+		}
+	}
+	if (mstart == 0) {
+		device_printf(dev, "Cannot find start of RAM.\n");
+		return (ENXIO);
+	}
+
+	/* Probe the size of RAM. */
+	for (x = (mstart / ED_PAGE_SIZE) + 1; x < 256; x++) {
+		ed_pio_readmem(sc, x * 256, tbuf, ED_PAGE_SIZE);
+		if (bcmp(pbuf0, tbuf, ED_PAGE_SIZE) == 0) {
+			for (i = 0; i < ED_PAGE_SIZE; i++)
+				pbuf[i] = 255 - x;
+			ed_pio_writemem(sc, pbuf, x * 256, ED_PAGE_SIZE);
+			ed_pio_readmem(sc, x * 256, tbuf, ED_PAGE_SIZE);
+			if (bcmp(pbuf, tbuf, ED_PAGE_SIZE) == 0)
+				msize += ED_PAGE_SIZE;
+			else {
+				break;
+			}
+		} else {
+			break;
+		}
+	}
+
+	if (msize == 0) {
+		device_printf(dev,
+		    "Cannot find any RAM, start : %ld, x = %d.\n", mstart, x);
+		return (ENXIO);
+	}
+	device_printf(dev, "RAM start at %ld, size : %d.\n", mstart, msize);
+
+	sc->mem_size = msize;
+	sc->mem_start = (caddr_t)(uintptr_t) mstart;
+	sc->mem_end = (caddr_t)(uintptr_t) (msize + mstart);
+	sc->tx_page_start = mstart / ED_PAGE_SIZE;
+	return 0;
 }
