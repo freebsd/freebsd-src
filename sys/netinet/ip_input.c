@@ -1579,21 +1579,29 @@ ip_forward(m, srcrt)
 	int error, type = 0, code = 0;
 	struct mbuf *mcopy;
 	n_long dest;
+	struct in_addr pkt_dst;
 	struct ifnet *destifp;
 #ifdef IPSEC
 	struct ifnet dummyifp;
 #endif
 
 	dest = 0;
+	/*
+	 * Cache the destination address of the packet; this may be
+	 * changed by use of 'ipfw fwd'.
+	 */
+	pkt_dst = ip_fw_fwd_addr == NULL ?
+	    ip->ip_dst : ip_fw_fwd_addr->sin_addr;
+
 #ifdef DIAGNOSTIC
 	if (ipprintfs)
 		printf("forward: src %lx dst %lx ttl %x\n",
-		    (u_long)ip->ip_src.s_addr, (u_long)ip->ip_dst.s_addr,
+		    (u_long)ip->ip_src.s_addr, (u_long)pkt_dst.s_addr,
 		    ip->ip_ttl);
 #endif
 
 
-	if (m->m_flags & (M_BCAST|M_MCAST) || in_canforward(ip->ip_dst) == 0) {
+	if (m->m_flags & (M_BCAST|M_MCAST) || in_canforward(pkt_dst) == 0) {
 		ipstat.ips_cantforward++;
 		m_freem(m);
 		return;
@@ -1610,7 +1618,7 @@ ip_forward(m, srcrt)
 	}
 #endif
 
-	if (ip_rtaddr(ip->ip_dst, &ipforward_rt) == 0) {
+	if (ip_rtaddr(pkt_dst, &ipforward_rt) == 0) {
 		icmp_error(m, ICMP_UNREACH, ICMP_UNREACH_HOST, dest, 0);
 		return;
 	} else
@@ -1652,7 +1660,7 @@ ip_forward(m, srcrt)
 	if (rt->rt_ifp == m->m_pkthdr.rcvif &&
 	    (rt->rt_flags & (RTF_DYNAMIC|RTF_MODIFIED)) == 0 &&
 	    satosin(rt_key(rt))->sin_addr.s_addr != 0 &&
-	    ipsendredirects && !srcrt) {
+	    ipsendredirects && !srcrt && !ip_fw_fwd_addr) {
 #define	RTA(rt)	((struct in_ifaddr *)(rt->rt_ifa))
 		u_long src = ntohl(ip->ip_src.s_addr);
 
@@ -1661,7 +1669,7 @@ ip_forward(m, srcrt)
 		    if (rt->rt_flags & RTF_GATEWAY)
 			dest = satosin(rt->rt_gateway)->sin_addr.s_addr;
 		    else
-			dest = ip->ip_dst.s_addr;
+			dest = pkt_dst.s_addr;
 		    /* Router requirements says to only send host redirects */
 		    type = ICMP_REDIRECT;
 		    code = ICMP_REDIRECT_HOST;
