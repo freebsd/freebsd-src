@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)vm_page.c	7.4 (Berkeley) 5/7/91
- *	$Id: vm_page.c,v 1.124 1999/02/07 20:45:15 dillon Exp $
+ *	$Id: vm_page.c,v 1.125 1999/02/08 00:37:35 dillon Exp $
  */
 
 /*
@@ -440,15 +440,14 @@ vm_page_insert(m, object, pindex)
  *	This routine may not block.
  */
 
-vm_object_t
+void
 vm_page_remove(m)
 	vm_page_t m;
 {
-	register struct vm_page **bucket;
 	vm_object_t object;
 
 	if (m->object == NULL)
-		return(NULL);
+		return;
 
 #if !defined(MAX_PERF)
 	if ((m->flags & PG_BUSY) == 0) {
@@ -478,17 +477,21 @@ vm_page_remove(m)
 	 * buffers with vm_page_lookup().
 	 */
 
-	bucket = &vm_page_buckets[vm_page_hash(m->object, m->pindex)];
-	while (*bucket != m) {
+	{
+		struct vm_page **bucket;
+
+		bucket = &vm_page_buckets[vm_page_hash(m->object, m->pindex)];
+		while (*bucket != m) {
 #if !defined(MAX_PERF)
-		if (*bucket == NULL)
-			panic("vm_page_remove(): page not found in hash");
+			if (*bucket == NULL)
+				panic("vm_page_remove(): page not found in hash");
 #endif
-		bucket = &(*bucket)->hnext;
+			bucket = &(*bucket)->hnext;
+		}
+		*bucket = m->hnext;
+		m->hnext = NULL;
+		vm_page_bucket_generation++;
 	}
-	*bucket = m->hnext;
-	m->hnext = NULL;
-	vm_page_bucket_generation++;
 
 	/*
 	 * Now remove from the object's list of backed pages.
@@ -504,8 +507,6 @@ vm_page_remove(m)
 	object->generation++;
 
 	m->object = NULL;
-
-	return(object);
 }
 
 /*
@@ -773,9 +774,8 @@ vm_page_select_free(vm_object_t object, vm_pindex_t pindex, boolean_t prefer_zer
  *	Additional special handling is required when called from an
  *	interrupt (VM_ALLOC_INTERRUPT).  We are not allowed to mess with
  *	the page cache in this case.
- *
- *	vm_page_alloc() 
  */
+
 vm_page_t
 vm_page_alloc(object, pindex, page_req)
 	vm_object_t object;
@@ -783,9 +783,6 @@ vm_page_alloc(object, pindex, page_req)
 	int page_req;
 {
 	register vm_page_t m = NULL;
-	struct vpgqueues *pq;
-	vm_object_t oldobject;
-	int queue, qtype;
 	int s;
 
 	KASSERT(!vm_page_lookup(object, pindex),
@@ -802,113 +799,81 @@ vm_page_alloc(object, pindex, page_req)
 	s = splvm();
 
 loop:
-	switch (page_req) {
-
-	case VM_ALLOC_NORMAL:
-		if (cnt.v_free_count >= cnt.v_free_reserved) {
-			m = vm_page_select_free(object, pindex, FALSE);
-			KASSERT(m != NULL, ("vm_page_alloc(NORMAL): missing page on free queue\n"));
-		} else {
-			m = vm_page_select_cache(object, pindex);
-			if (m == NULL) {
-				splx(s);
-#if defined(DIAGNOSTIC)
-				if (cnt.v_cache_count > 0)
-					printf("vm_page_alloc(NORMAL): missing pages on cache queue: %d\n", cnt.v_cache_count);
-#endif
-				vm_pageout_deficit++;
-				pagedaemon_wakeup();
-				return (NULL);
-			}
-		}
-		break;
-
-	case VM_ALLOC_ZERO:
-		if (cnt.v_free_count >= cnt.v_free_reserved) {
+	if (cnt.v_free_count > cnt.v_free_reserved) {
+		/*
+		 * Allocate from the free queue if there are plenty of pages
+		 * in it.
+		 */
+		if (page_req == VM_ALLOC_ZERO)
 			m = vm_page_select_free(object, pindex, TRUE);
-			KASSERT(m != NULL, ("vm_page_alloc(ZERO): missing page on free queue\n"));
-		} else {
-			m = vm_page_select_cache(object, pindex);
-			if (m == NULL) {
-				splx(s);
-#if defined(DIAGNOSTIC)
-				if (cnt.v_cache_count > 0)
-					printf("vm_page_alloc(ZERO): missing pages on cache queue: %d\n", cnt.v_cache_count);
-#endif
-				vm_pageout_deficit++;
-				pagedaemon_wakeup();
-				return (NULL);
-			}
-		}
-		break;
-
-	case VM_ALLOC_SYSTEM:
-		if ((cnt.v_free_count >= cnt.v_free_reserved) ||
-		    ((cnt.v_cache_count == 0) &&
-		    (cnt.v_free_count >= cnt.v_interrupt_free_min))) {
+		else
 			m = vm_page_select_free(object, pindex, FALSE);
-			KASSERT(m != NULL, ("vm_page_alloc(SYSTEM): missing page on free queue\n"));
-		} else {
-			m = vm_page_select_cache(object, pindex);
-			if (m == NULL) {
-				splx(s);
-#if defined(DIAGNOSTIC)
-				if (cnt.v_cache_count > 0)
-					printf("vm_page_alloc(SYSTEM): missing pages on cache queue: %d\n", cnt.v_cache_count);
-#endif
-				vm_pageout_deficit++;
-				pagedaemon_wakeup();
-				return (NULL);
-			}
-		}
-		break;
-
-	case VM_ALLOC_INTERRUPT:
-		if (cnt.v_free_count > 0) {
-			m = vm_page_select_free(object, pindex, FALSE);
-			KASSERT(m != NULL, ("vm_page_alloc(INTERRUPT): missing page on free queue\n"));
-		} else {
+	} else if (
+	    (page_req == VM_ALLOC_SYSTEM && 
+	     cnt.v_cache_count == 0 && 
+	     cnt.v_free_count > cnt.v_interrupt_free_min) ||
+	    (page_req == VM_ALLOC_INTERRUPT && cnt.v_free_count > 0)
+	) {
+		/*
+		 * Interrupt or system, dig deeper into the free list.
+		 */
+		m = vm_page_select_free(object, pindex, FALSE);
+	} else if (page_req != VM_ALLOC_INTERRUPT) {
+		/*
+		 * Allocateable from cache (non-interrupt only).  On success,
+		 * we must free the page and try again, thus ensuring that
+		 * cnt.v_*_free_min counters are replenished.
+		 */
+		m = vm_page_select_cache(object, pindex);
+		if (m == NULL) {
 			splx(s);
+#if defined(DIAGNOSTIC)
+			if (cnt.v_cache_count > 0)
+				printf("vm_page_alloc(NORMAL): missing pages on cache queue: %d\n", cnt.v_cache_count);
+#endif
 			vm_pageout_deficit++;
 			pagedaemon_wakeup();
 			return (NULL);
 		}
-		break;
-
-	default:
-		m = NULL;
-#if !defined(MAX_PERF)
-		panic("vm_page_alloc: invalid allocation class");
-#endif
-	}
-
-	queue = m->queue;
-	qtype = queue - m->pc;
-
-	/*
-	 * Cache pages must be formally freed (and doubly so with the
-	 * new pagerops functions).  We free the page and try again.
-	 *
-	 * This also has the side effect of ensuring that the minfreepage 
-	 * wall is held more tightly verses the old code.
-	 */
-
-	if (qtype == PQ_CACHE) {
-#if !defined(MAX_PERF)
-		if (m->dirty)
-			panic("found dirty cache page %p", m);
-#endif
+		KASSERT(m->dirty == 0, ("Found dirty cache page %p", m));
 		vm_page_busy(m);
 		vm_page_protect(m, VM_PROT_NONE);
 		vm_page_free(m);
 		goto loop;
+	} else {
+		/*
+		 * Not allocateable from cache from interrupt, give up.
+		 */
+		splx(s);
+		vm_pageout_deficit++;
+		pagedaemon_wakeup();
+		return (NULL);
 	}
 
-	pq = &vm_page_queues[queue];
-	TAILQ_REMOVE(pq->pl, m, pageq);
-	(*pq->cnt)--;
-	(*pq->lcnt)--;
-	oldobject = NULL;
+	/*
+	 *  At this point we had better have found a good page.
+	 */
+
+	KASSERT(
+	    m != NULL,
+	    ("vm_page_alloc(): missing page on free queue\n")
+	);
+
+	/*
+	 * Remove from free queue
+	 */
+
+	{
+		struct vpgqueues *pq = &vm_page_queues[m->queue];
+
+		TAILQ_REMOVE(pq->pl, m, pageq);
+		(*pq->cnt)--;
+		(*pq->lcnt)--;
+	}
+
+	/*
+	 * Initialize structure.  Only the PG_ZERO flag is inherited.
+	 */
 
 	if (m->flags & PG_ZERO) {
 		vm_page_zero_count--;
@@ -1091,9 +1056,14 @@ vm_page_activate(m)
 }
 
 /*
- * helper routine for vm_page_free and vm_page_free_zero.
+ *	vm_page_free_wakeup:
  *
- * This routine may not block.
+ *	Helper routine for vm_page_free_toq() and vm_page_cache().  This
+ *	routine is called when a page has been added to the cache or free
+ *	queues.
+ *
+ *	This routine may not block.
+ *	This routine must be called at splvm()
  */
 static __inline void
 vm_page_free_wakeup()
