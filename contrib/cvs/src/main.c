@@ -12,7 +12,10 @@
  *
  */
 
+/* $FreeBSD$ */
+
 #include "cvs.h"
+#include "prepend_args.h"
 
 #ifdef HAVE_WINSOCK_H
 #include <winsock.h>
@@ -464,6 +467,8 @@ main (argc, argv)
 	readonlyfs = 1;
 	logoff = 1;
     }
+
+    prepend_default_options (getenv ("CVS_OPTIONS"), &argc, &argv);
 
     /* Set this to 0 to force getopt initialization.  getopt() sets
        this to 1 internally.  */
