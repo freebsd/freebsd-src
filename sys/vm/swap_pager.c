@@ -2374,8 +2374,11 @@ swapgeom_done(struct bio *bp2)
 	struct buf *bp;
 
 	bp = bp2->bio_caller2;
+	bp->b_ioflags = bp2->bio_flags;
 	if (bp2->bio_error)
 		bp->b_ioflags |= BIO_ERROR;
+	bp->b_resid = bp->b_bcount - bp2->bio_completed;
+	bp->b_error = bp2->bio_error;
 	bufdone(bp);
 	g_destroy_bio(bp2);
 }
@@ -2393,7 +2396,7 @@ swapgeom_strategy(struct buf *bp, struct swdevt *sp)
 		bufdone(bp);
 		return;
 	}
-	bio = g_clone_bio(&bp->b_io);
+	bio = g_new_bio();
 	if (bio == NULL) {
 		/*
 		 * XXX: This is better than panicing, but not much better.
@@ -2406,6 +2409,8 @@ swapgeom_strategy(struct buf *bp, struct swdevt *sp)
 		return;
 	}
 	bio->bio_caller2 = bp;
+	bio->bio_cmd = bp->b_iocmd;
+	bio->bio_data = bp->b_data;
 	bio->bio_offset = (bp->b_blkno - sp->sw_first) * PAGE_SIZE;
 	bio->bio_length = bp->b_bcount;
 	bio->bio_done = swapgeom_done;
