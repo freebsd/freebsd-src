@@ -37,7 +37,7 @@
 #define STR_LEN 10
 #define TABLE_SIZE 100
 #define COLLATE_VERSION    "1.0\n"
-#define COLLATE_VERSION1_1 "1.1\n"
+#define COLLATE_VERSION1_2 "1.2\n"
 
 struct __collate_st_char_pri {
 	int prim, sec;

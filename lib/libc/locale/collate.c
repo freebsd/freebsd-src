@@ -99,7 +99,7 @@ __collate_load_tables(const char *encoding)
 	chains = -1;
 	if (strcmp(strbuf, COLLATE_VERSION) == 0)
 		chains = 0;
-	else if (strcmp(strbuf, COLLATE_VERSION1_1) == 0)
+	else if (strcmp(strbuf, COLLATE_VERSION1_2) == 0)
 		chains = 1;
 	if (chains < 0) {
 		(void)fclose(fp);
@@ -172,10 +172,21 @@ __collate_load_tables(const char *encoding)
 	if (__collate_char_pri_table_ptr != NULL)
 		free(__collate_char_pri_table_ptr);
 	__collate_char_pri_table_ptr = TMP_char_pri_table;
+	for (i = 0; i < UCHAR_MAX + 1; i++) {
+		__collate_char_pri_table[i].prim =
+		    ntohl(__collate_char_pri_table[i].prim);
+		__collate_char_pri_table[i].sec =
+		    ntohl(__collate_char_pri_table[i].sec);
+	}
 	if (__collate_chain_pri_table != NULL)
 		free(__collate_chain_pri_table);
 	__collate_chain_pri_table = TMP_chain_pri_table;
-	
+	for (i = 0; i < chains; i++) {
+		__collate_chain_pri_table[i].prim =
+		    ntohl(__collate_chain_pri_table[i].prim);
+		__collate_chain_pri_table[i].sec =
+		    ntohl(__collate_chain_pri_table[i].sec);
+	}
 	__collate_substitute_nontrivial = 0;
 	for (i = 0; i < UCHAR_MAX + 1; i++) {
 		if (__collate_substitute_table[i][0] != i ||

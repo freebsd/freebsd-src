@@ -775,6 +775,10 @@ _groff=		gnu/usr.bin/groff/tmac
 _cap_mkdb=	usr.bin/cap_mkdb
 .endif
 
+.if ${BOOTSTRAPPING} < 600018
+_colldef=	usr.bin/colldef
+.endif
+
 .if ${BOOTSTRAPPING} < 600017
 _gencat=	usr.bin/gencat
 .endif
@@ -795,7 +799,7 @@ bootstrap-tools:
     ${_groff} \
     gnu/usr.bin/texinfo \
     ${_cap_mkdb} \
-    usr.bin/colldef \
+    ${_colldef} \
     ${_gencat} \
     usr.bin/lorder \
     usr.bin/makewhatis \
