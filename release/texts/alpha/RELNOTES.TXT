@@ -112,7 +112,7 @@ A bug in periodic(8) that used insecure temporary files has been
 corrected (see security advisory FreeBSD-SA-01:12).
 
 To fix a remotely-exploitable buffer overflow, BIND has been updated
-to 8.2.3.
+to 8.2.3 (see security advisory FreeBSD-SA-01:18).
 
 
 1.3. USERLAND CHANGES
