@@ -1,7 +1,7 @@
 #
 # GENERICAH -- Generic machine with WD/AHx/NCR family disks
 #
-#	$Id: GENERIC,v 1.4 1994/10/22 17:50:17 phk Exp $
+#	$Id: GENERIC,v 1.5 1994/10/24 22:18:11 sos Exp $
 #
 
 machine		"i386"
@@ -22,6 +22,7 @@ options		"FAT_CURSOR"		#block cursor in syscons or pccons
 options		"SCSI_DELAY=15"		#Be pessimistic about Joe SCSI device
 options		"NCONS=4"		#4 virtual consoles
 options		BOUNCE_BUFFERS		#include support for DMA bounce buffers
+options		USERCONFIG		#Allow user configuration with -c
 
 config		kernel	root on wd0 swap on wd0 and wd1 and sd0 and sd1 dumps on wd0
 
