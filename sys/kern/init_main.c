@@ -90,7 +90,6 @@ static struct pgrp pgrp0;
 struct	proc proc0;
 struct	thread thread0;
 struct	ksegrp ksegrp0;
-static struct filedesc0 filedesc0;
 struct	vmspace vmspace0;
 struct	proc *initproc;
 
@@ -313,9 +312,8 @@ struct sysentvec null_sysvec = {
 static void
 proc0_init(void *dummy __unused)
 {
-	register struct proc		*p;
-	register struct filedesc0	*fdp;
-	register unsigned i;
+	struct proc *p;
+	unsigned i;
 	struct thread *td;
 	struct ksegrp *kg;
 
@@ -405,17 +403,8 @@ proc0_init(void *dummy __unused)
 	siginit(&proc0);
 
 	/* Create the file descriptor table. */
-	/* XXX this duplicates part of fdinit() */
-	fdp = &filedesc0;
-	p->p_fd = &fdp->fd_fd;
+	p->p_fd = fdinit(NULL);
 	p->p_fdtol = NULL;
-	mtx_init(&fdp->fd_fd.fd_mtx, FILEDESC_LOCK_DESC, NULL, MTX_DEF);
-	fdp->fd_fd.fd_refcnt = 1;
-	fdp->fd_fd.fd_cmask = CMASK;
-	fdp->fd_fd.fd_ofiles = fdp->fd_dfiles;
-	fdp->fd_fd.fd_ofileflags = fdp->fd_dfileflags;
-	fdp->fd_fd.fd_nfiles = NDFILE;
-	fdp->fd_fd.fd_map = fdp->fd_dmap;
 
 	/* Create the limits structures. */
 	p->p_limit = lim_alloc();
