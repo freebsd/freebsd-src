@@ -162,30 +162,6 @@ const char	*ctrootdevname = ROOTDEVNAME;
 const char	*ctrootdevname = NULL;
 #endif
 
-/*
- * Has to be dynamic as the value of rootdev can change; however, it can't
- * change after the root is mounted, so a user process can't access this
- * sysctl until after the value is unchangeable.
- */
-static int
-sysctl_rootdev(SYSCTL_HANDLER_ARGS)
-{
-	int error;
-
-	/* _RD prevents this from happening. */
-	KASSERT(req->newptr == NULL, ("Attempt to change root device name"));
-
-	if (rootdev != NULL)
-		error = sysctl_handle_string(oidp, rootdev->si_name, 0, req);
-	else
-		error = sysctl_handle_string(oidp, "", 0, req);
-
-	return (error);
-}
-
-SYSCTL_PROC(_kern, OID_AUTO, rootdev, CTLTYPE_STRING | CTLFLAG_RD,
-    0, 0, sysctl_rootdev, "A", "Root file system device");
-
 /* Remove one mount option. */
 static void
 vfs_freeopt(struct vfsoptlist *opts, struct vfsopt *opt)
