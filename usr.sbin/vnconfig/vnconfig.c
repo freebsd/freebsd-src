@@ -186,6 +186,8 @@ main(argc, argv)
 
 		case 'S':
 			size = getsize(optarg);
+			flags |= VN_CONFIG;
+			flags &= ~VN_UNCONFIG;
 			break;
 
 		case 'T':
