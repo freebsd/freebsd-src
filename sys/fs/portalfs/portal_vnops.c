@@ -35,7 +35,7 @@
  *
  *	@(#)portal_vnops.c	8.14 (Berkeley) 5/21/95
  *
- * $Id: portal_vnops.c,v 1.25 1997/10/16 20:32:27 phk Exp $
+ * $Id: portal_vnops.c,v 1.26 1997/10/16 22:00:27 phk Exp $
  */
 
 /*
@@ -598,8 +598,8 @@ portal_badop()
 
 vop_t **portal_vnodeop_p;
 static struct vnodeopv_entry_desc portal_vnodeop_entries[] = {
-	{ &vop_default_desc,		(vop_t *) vn_default_error },
-	{ &vop_access_desc,		(vop_t *) nullop },
+	{ &vop_default_desc,		(vop_t *) vop_defaultop },
+	{ &vop_access_desc,		(vop_t *) vop_null },
 	{ &vop_bmap_desc,		(vop_t *) portal_badop },
 	{ &vop_getattr_desc,		(vop_t *) portal_getattr },
 	{ &vop_inactive_desc,		(vop_t *) portal_inactive },

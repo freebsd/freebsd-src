@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mfs_vnops.c	8.11 (Berkeley) 5/22/95
- * $Id: mfs_vnops.c,v 1.28 1997/10/19 01:36:49 dyson Exp $
+ * $Id: mfs_vnops.c,v 1.29 1997/10/20 19:53:26 phk Exp $
  */
 
 #include <sys/param.h>
@@ -70,6 +70,7 @@ static struct vnodeopv_entry_desc mfs_vnodeop_entries[] = {
 	{ &vop_bwrite_desc,		(vop_t *) vop_defaultop },
 	{ &vop_close_desc,		(vop_t *) mfs_close },
 	{ &vop_fsync_desc,		(vop_t *) mfs_fsync },
+	{ &vop_getpages_desc,		(vop_t *) vop_defaultop },
 	{ &vop_inactive_desc,		(vop_t *) mfs_inactive },
 	{ &vop_ioctl_desc,		(vop_t *) vop_enotty },
 	{ &vop_islocked_desc,		(vop_t *) vop_defaultop },
