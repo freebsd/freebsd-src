@@ -259,20 +259,24 @@ xdr_int64_t(xdrs, int64_p)
 	register XDR *xdrs;
 	int64_t *int64_p;
 {
-	int64_t x;
+	u_long ul[2];
 
 	switch (xdrs->x_op) {
 
 	case XDR_ENCODE:
-		return (xdr_opaque(xdrs, (caddr_t)int64_p, sizeof(int64_t)));
-
-	case XDR_DECODE:
-		if (!xdr_opaque(xdrs, (caddr_t)&x, sizeof x)) {
+		ul[0] = (u_long)((u_int64_t)*int64_p >> 32) & 0xffffffff;
+		ul[1] = (u_long)((u_int64_t)*int64_p) & 0xffffffff;
+		if (XDR_PUTLONG(xdrs, (long *)&ul[0]) == FALSE)
 			return (FALSE);
-		}
-		*int64_p = x;
+		return (XDR_PUTLONG(xdrs, (long *)&ul[1]));
+	case XDR_DECODE:
+		if (XDR_GETLONG(xdrs, (long *)&ul[0]) == FALSE)
+			return (FALSE);
+		if (XDR_GETLONG(xdrs, (long *)&ul[1]) == FALSE)
+			return (FALSE);
+		*int64_p = (int64_t)
+			(((u_int64_t)ul[0] << 32) | ((u_int64_t)ul[1]));
 		return (TRUE);
-
 	case XDR_FREE:
 		return (TRUE);
 	}
@@ -287,20 +291,25 @@ xdr_u_int64_t(xdrs, uint64_p)
 	register XDR *xdrs;
 	u_int64_t *uint64_p;
 {
-	u_int64_t x;
+	u_long ul[2];
 
 	switch (xdrs->x_op) {
 
 	case XDR_ENCODE:
-		return (xdr_opaque(xdrs, (caddr_t)uint64_p, sizeof(u_int64_t)));
-
-	case XDR_DECODE:
-		if (!xdr_opaque(xdrs, (caddr_t)&x, sizeof x)) {
+		ul[0] = (u_long)(*uint64_p >> 32) & 0xffffffff;
+		ul[1] = (u_long)(*uint64_p) & 0xffffffff;
+		if (XDR_PUTLONG(xdrs, (long *)&ul[0]) == FALSE)
 			return (FALSE);
-		}
-		*uint64_p = x;
-		return (TRUE);
+		return (XDR_PUTLONG(xdrs, (long *)&ul[1]));
 
+        case XDR_DECODE:
+		if (XDR_GETLONG(xdrs, (long *)&ul[0]) == FALSE)
+			return (FALSE);
+		if (XDR_GETLONG(xdrs, (long *)&ul[1]) == FALSE)
+			return (FALSE);
+		*uint64_p = (u_int64_t)
+			(((u_int64_t)ul[0] << 32) | ((u_int64_t)ul[1]));
+		return (TRUE);
 	case XDR_FREE:
 		return (TRUE);
 	}
