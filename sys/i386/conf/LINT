@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.539.2.24 1999/05/25 20:19:10 julian Exp $
+#	$Id: LINT,v 1.539.2.25 1999/05/27 03:06:29 julian Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -2085,3 +2085,35 @@ options DPT_SHUTDOWN_SLEEP=500
 # An embedded system might want to run something other than init.
 options         INIT_PATH="/sbin/init:/stand/sysinstall"
 
+# USB support
+# UHCI controller 
+controller	uhci0
+# OHCI controller
+controller	ohci0
+# General USB code (mandatory for USB)
+controller	usb0
+#
+# Generic USB device driver
+device		ugen0
+# Human Interface Device (anything with buttons and dials)
+device		uhid0
+# USB keyboard
+device		ukbd0
+# USB printer
+device		ulpt0
+# USB mouse
+device		ums0
+#
+
+# debugging options for the USB subsystem
+#
+options		UHCI_DEBUG
+options		OHCI_DEBUG
+options		USB_DEBUG
+
+options		UGEN_DEBUG
+options		UHID_DEBUG
+options		UHUB_DEBUG
+options		UKBD_DEBUG
+options		ULPT_DEBUG
+options		UMS_DEBUG
