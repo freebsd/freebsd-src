@@ -49,7 +49,7 @@ static MALLOC_DEFINE(M_HPFSHASH, "HPFS hash", "HPFS node hash tables");
  */
 static LIST_HEAD(hphashhead, hpfsnode) *hpfs_hphashtbl;
 static u_long	hpfs_hphash;		/* size of hash table - 1 */
-#define	HPNOHASH(dev, lsn)	(&hpfs_hphashtbl[(minor(dev) + (lsn)) & hpfs_hphash])
+#define	HPNOHASH(lsn)	(&hpfs_hphashtbl[(lsn) & hpfs_hphash])
 static struct mtx hpfs_hphash_mtx;
 struct lock hpfs_hphash_lock;
 
@@ -88,7 +88,7 @@ hpfs_hphashlookup(dev, ino)
 	struct hpfsnode *hp;
 
 	mtx_lock(&hpfs_hphash_mtx);
-	LIST_FOREACH(hp, HPNOHASH(dev, ino), h_hash)
+	LIST_FOREACH(hp, HPNOHASH(ino), h_hash)
 		if (ino == hp->h_no && dev == hp->h_dev)
 			break;
 	mtx_unlock(&hpfs_hphash_mtx);
@@ -106,7 +106,7 @@ hpfs_hphashget(dev, ino)
 
 loop:
 	mtx_lock(&hpfs_hphash_mtx);
-	LIST_FOREACH(hp, HPNOHASH(dev, ino), h_hash) {
+	LIST_FOREACH(hp, HPNOHASH(ino), h_hash) {
 		if (ino == hp->h_no && dev == hp->h_dev) {
 			lockmgr(&hp->h_intlock, LK_EXCLUSIVE | LK_INTERLOCK,
 			    &hpfs_hphash_slock, NULL);
@@ -133,7 +133,7 @@ hpfs_hphashvget(dev, ino, flags, vpp, td)
 	*vpp = NULLVP;
 loop:
 	mtx_lock(&hpfs_hphash_mtx);
-	LIST_FOREACH(hp, HPNOHASH(dev, ino), h_hash) {
+	LIST_FOREACH(hp, HPNOHASH(ino), h_hash) {
 		if (ino == hp->h_no && dev == hp->h_dev) {
 			vp = HPTOV(hp);
 			mtx_lock(&vp->v_interlock);
@@ -161,7 +161,7 @@ hpfs_hphashins(hp)
 	struct hphashhead *hpp;
 
 	mtx_lock(&hpfs_hphash_mtx);
-	hpp = HPNOHASH(hp->h_dev, hp->h_no);
+	hpp = HPNOHASH(hp->h_no);
 	hp->h_flag |= H_HASHED;
 	LIST_INSERT_HEAD(hpp, hp, h_hash);
 	mtx_unlock(&hpfs_hphash_mtx);

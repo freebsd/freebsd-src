@@ -892,7 +892,6 @@ fs/fdescfs/fdesc_vfsops.c	optional fdescfs
 fs/fdescfs/fdesc_vnops.c	optional fdescfs
 fs/fifofs/fifo_vnops.c		standard
 fs/hpfs/hpfs_alsubr.c		optional hpfs
-fs/hpfs/hpfs_hash.c		optional hpfs
 fs/hpfs/hpfs_lookup.c		optional hpfs
 fs/hpfs/hpfs_subr.c		optional hpfs
 fs/hpfs/hpfs_vfsops.c		optional hpfs
