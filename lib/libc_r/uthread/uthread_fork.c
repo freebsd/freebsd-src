@@ -43,6 +43,7 @@
 pid_t
 _fork(void)
 {
+	struct pthread	*curthread = _get_curthread();
 	int             i, flags;
 	pid_t           ret;
 	pthread_t	pthread;
@@ -63,7 +64,7 @@ _fork(void)
 		__sys_close(_thread_kern_pipe[1]);
 
 		/* Reset signals pending for the running thread: */
-		sigemptyset(&_thread_run->sigpend);
+		sigemptyset(&curthread->sigpend);
 
 		/*
 		 * Create a pipe that is written to by the signal handler to
@@ -125,7 +126,7 @@ _fork(void)
 				pthread = TAILQ_NEXT(pthread, tle);
 
 				/* Make sure this isn't the running thread: */
-				if (pthread_save != _thread_run) {
+				if (pthread_save != curthread) {
 					/* Remove this thread from the list: */
 					TAILQ_REMOVE(&_thread_list,
 					    pthread_save, tle);
@@ -165,7 +166,7 @@ _fork(void)
 			}
 
 			/* Treat the current thread as the initial thread: */
-			_thread_initial = _thread_run;
+			_thread_initial = curthread;
 
 			/* Re-init the dead thread list: */
 			TAILQ_INIT(&_dead_list);
@@ -175,7 +176,7 @@ _fork(void)
 			TAILQ_INIT(&_workq);
 
 			/* Re-init the threads mutex queue: */
-			TAILQ_INIT(&_thread_run->mutexq);
+			TAILQ_INIT(&curthread->mutexq);
 
 			/* No spinlocks yet: */
 			_spinblock_count = 0;

@@ -39,6 +39,7 @@
 int
 pthread_join(pthread_t pthread, void **thread_return)
 {
+	struct pthread	*curthread = _get_curthread();
 	int ret = 0;
 	pthread_t thread;
  
@@ -52,7 +53,7 @@ pthread_join(pthread_t pthread, void **thread_return)
 	}
 
 	/* Check if the caller has specified itself: */
-	if (pthread == _thread_run) {
+	if (pthread == curthread) {
 		/* Avoid a deadlock condition: */
 		_thread_leave_cancellation_point();
 		return(EDEADLK);
@@ -117,12 +118,12 @@ pthread_join(pthread_t pthread, void **thread_return)
 	/* Check if the thread is not dead: */
 	} else if (pthread->state != PS_DEAD) {
 		/* Set the running thread to be the joiner: */
-		pthread->joiner = _thread_run;
+		pthread->joiner = curthread;
 
 		/* Keep track of which thread we're joining to: */
-		_thread_run->join_status.thread = pthread;
+		curthread->join_status.thread = pthread;
 
-		while (_thread_run->join_status.thread == pthread) {
+		while (curthread->join_status.thread == pthread) {
 			/* Schedule the next thread: */
 			_thread_kern_sched_state(PS_JOIN, __FILE__, __LINE__);
 		}
@@ -131,9 +132,9 @@ pthread_join(pthread_t pthread, void **thread_return)
 		 * The thread return value and error are set by the thread we're
 		 * joining to when it exits or detaches:
  		 */
-		ret = _thread_run->join_status.error;
+		ret = curthread->join_status.error;
 		if ((ret == 0) && (thread_return != NULL))
-			*thread_return = _thread_run->join_status.ret;
+			*thread_return = curthread->join_status.ret;
 	} else {
 		/*
 		 * The thread exited (is dead) without being detached, and no

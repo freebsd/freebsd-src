@@ -43,7 +43,7 @@ _aio_suspend(const struct aiocb * const iocbs[], int niocb, const struct
 	_thread_enter_cancellation_point();
 	ret = __sys_aio_suspend(iocbs, niocb, timeout);
 	_thread_leave_cancellation_point();
-	
+
 	return ret;
 }
 

@@ -205,6 +205,7 @@ _thread_dump_info(void)
 static void
 dump_thread(int fd, pthread_t pthread, int long_version)
 {
+	struct pthread	*curthread = _get_curthread();
 	char		s[512];
 	int		i;
 
@@ -223,7 +224,7 @@ dump_thread(int fd, pthread_t pthread, int long_version)
 
 	if (long_version != 0) {
 		/* Check if this is the running thread: */
-		if (pthread == _thread_run) {
+		if (pthread == curthread) {
 			/* Output a record for the running thread: */
 			strcpy(s, "This is the running thread\n");
 			__sys_write(fd, s, strlen(s));

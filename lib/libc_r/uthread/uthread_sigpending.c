@@ -40,6 +40,7 @@
 int
 _sigpending(sigset_t * set)
 {
+	struct pthread	*curthread = _get_curthread();
 	int ret = 0;
 
 	/* Check for a null signal set pointer: */
@@ -48,7 +49,7 @@ _sigpending(sigset_t * set)
 		ret = EINVAL;
 	}
 	else {
-		*set = _thread_run->sigpend;
+		*set = curthread->sigpend;
 	}
 	/* Return the completion status: */
 	return (ret);

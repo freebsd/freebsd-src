@@ -151,7 +151,9 @@ pthread_suspend_np(pthread_t thread)
 static void
 finish_suspension(void *arg)
 {
-	if (_thread_run->suspended != SUSP_NO)
+	struct pthread	*curthread = _get_curthread();
+
+	if (curthread->suspended != SUSP_NO)
 		_thread_kern_sched_state(PS_SUSPENDED, __FILE__, __LINE__);
 }
 

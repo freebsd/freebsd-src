@@ -41,6 +41,7 @@
 int 
 _execve(const char *name, char *const * argv, char *const * envp)
 {
+	struct pthread	*curthread = _get_curthread();
 	int		flags;
 	int             i;
 	int             ret;
@@ -99,7 +100,7 @@ _execve(const char *name, char *const * argv, char *const * envp)
 	}
 
 	/* Set the signal mask: */
-	__sys_sigprocmask(SIG_SETMASK, &_thread_run->sigmask, NULL);
+	__sys_sigprocmask(SIG_SETMASK, &curthread->sigmask, NULL);
 
 	/* Execute the process: */
 	ret = __sys_execve(name, argv, envp);

@@ -159,6 +159,7 @@ pthread_cond_destroy(pthread_cond_t *cond)
 int
 pthread_cond_wait(pthread_cond_t *cond, pthread_mutex_t *mutex)
 {
+	struct pthread	*curthread = _get_curthread();
 	int	rval = 0;
 	int	done = 0;
 	int	interrupted = 0;
@@ -212,21 +213,21 @@ pthread_cond_wait(pthread_cond_t *cond, pthread_mutex_t *mutex)
 				rval = EINVAL;
 			} else {
 				/* Reset the timeout and interrupted flags: */
-				_thread_run->timeout = 0;
-				_thread_run->interrupted = 0;
+				curthread->timeout = 0;
+				curthread->interrupted = 0;
 
 				/*
 				 * Queue the running thread for the condition
 				 * variable:
 				 */
-				cond_queue_enq(*cond, _thread_run);
+				cond_queue_enq(*cond, curthread);
 
 				/* Remember the mutex and sequence number: */
 				(*cond)->c_mutex = *mutex;
 				seqno = (*cond)->c_seqno;
 
 				/* Wait forever: */
-				_thread_run->wakeup_time.tv_sec = -1;
+				curthread->wakeup_time.tv_sec = -1;
 
 				/* Unlock the mutex: */
 				if ((rval = _mutex_cv_unlock(mutex)) != 0) {
@@ -235,7 +236,7 @@ pthread_cond_wait(pthread_cond_t *cond, pthread_mutex_t *mutex)
 					 * the running thread from the condition
 					 * variable queue:
 					 */
-					cond_queue_remove(*cond, _thread_run);
+					cond_queue_remove(*cond, curthread);
 
 					/* Check for no more waiters: */
 					if (TAILQ_FIRST(&(*cond)->c_queue) ==
@@ -254,7 +255,7 @@ pthread_cond_wait(pthread_cond_t *cond, pthread_mutex_t *mutex)
 
 					done = (seqno != (*cond)->c_seqno);
 
-					interrupted = _thread_run->interrupted;
+					interrupted = curthread->interrupted;
 
 					/*
 					 * Check if the wait was interrupted
@@ -279,7 +280,7 @@ pthread_cond_wait(pthread_cond_t *cond, pthread_mutex_t *mutex)
 						_SPINLOCK(&(*cond)->lock);
 
 						cond_queue_remove(*cond,
-						    _thread_run);
+						    curthread);
 
 						/* Check for no more waiters: */
 						if (TAILQ_FIRST(&(*cond)->c_queue) == NULL)
@@ -304,8 +305,8 @@ pthread_cond_wait(pthread_cond_t *cond, pthread_mutex_t *mutex)
 			break;
 		}
 
-		if ((interrupted != 0) && (_thread_run->continuation != NULL))
-			_thread_run->continuation((void *) _thread_run);
+		if ((interrupted != 0) && (curthread->continuation != NULL))
+			curthread->continuation((void *) curthread);
 	} while ((done == 0) && (rval == 0));
 
 	_thread_leave_cancellation_point();
@@ -318,6 +319,7 @@ int
 pthread_cond_timedwait(pthread_cond_t * cond, pthread_mutex_t * mutex,
 		       const struct timespec * abstime)
 {
+	struct pthread	*curthread = _get_curthread();
 	int	rval = 0;
 	int	done = 0;
 	int	interrupted = 0;
@@ -370,20 +372,20 @@ pthread_cond_timedwait(pthread_cond_t * cond, pthread_mutex_t * mutex,
 				_SPINUNLOCK(&(*cond)->lock);
 			} else {
 				/* Set the wakeup time: */
-				_thread_run->wakeup_time.tv_sec =
+				curthread->wakeup_time.tv_sec =
 				    abstime->tv_sec;
-				_thread_run->wakeup_time.tv_nsec =
+				curthread->wakeup_time.tv_nsec =
 				    abstime->tv_nsec;
 
 				/* Reset the timeout and interrupted flags: */
-				_thread_run->timeout = 0;
-				_thread_run->interrupted = 0;
+				curthread->timeout = 0;
+				curthread->interrupted = 0;
 
 				/*
 				 * Queue the running thread for the condition
 				 * variable:
 				 */
-				cond_queue_enq(*cond, _thread_run);
+				cond_queue_enq(*cond, curthread);
 
 				/* Remember the mutex and sequence number: */
 				(*cond)->c_mutex = *mutex;
@@ -396,7 +398,7 @@ pthread_cond_timedwait(pthread_cond_t * cond, pthread_mutex_t * mutex,
 					 * the running thread from the condition
 					 * variable queue: 
 					 */
-					cond_queue_remove(*cond, _thread_run);
+					cond_queue_remove(*cond, curthread);
 
 					/* Check for no more waiters: */
 					if (TAILQ_FIRST(&(*cond)->c_queue) == NULL)
@@ -414,7 +416,7 @@ pthread_cond_timedwait(pthread_cond_t * cond, pthread_mutex_t * mutex,
 
 					done = (seqno != (*cond)->c_seqno);
 
-					interrupted = _thread_run->interrupted;
+					interrupted = curthread->interrupted;
 
 					/*
 					 * Check if the wait was interrupted
@@ -439,7 +441,7 @@ pthread_cond_timedwait(pthread_cond_t * cond, pthread_mutex_t * mutex,
 						_SPINLOCK(&(*cond)->lock);
 
 						cond_queue_remove(*cond,
-						    _thread_run);
+						    curthread);
 
 						/* Check for no more waiters: */
 						if (TAILQ_FIRST(&(*cond)->c_queue) == NULL)
@@ -455,7 +457,7 @@ pthread_cond_timedwait(pthread_cond_t * cond, pthread_mutex_t * mutex,
 						 * timed out and there wasn't an
 						 * error locking the mutex:
 						 */
-						if ((_thread_run->timeout != 0)
+						if ((curthread->timeout != 0)
 						    && rval == 0)
 							rval = ETIMEDOUT;
 					}
@@ -473,8 +475,8 @@ pthread_cond_timedwait(pthread_cond_t * cond, pthread_mutex_t * mutex,
 			break;
 		}
 
-		if ((interrupted != 0) && (_thread_run->continuation != NULL))
-			_thread_run->continuation((void *) _thread_run);
+		if ((interrupted != 0) && (curthread->continuation != NULL))
+			curthread->continuation((void *) curthread);
 	} while ((done == 0) && (rval == 0));
 
 	_thread_leave_cancellation_point();

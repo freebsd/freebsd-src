@@ -42,6 +42,7 @@
 int
 _connect(int fd, const struct sockaddr * name, socklen_t namelen)
 {
+	struct pthread	*curthread = _get_curthread();
 	struct sockaddr tmpname;
 	int             errnolen, ret, tmpnamelen;
 
@@ -50,7 +51,7 @@ _connect(int fd, const struct sockaddr * name, socklen_t namelen)
 			if ((_thread_fd_getflags(fd) & O_NONBLOCK) == 0
 			    && ((errno == EWOULDBLOCK) || (errno == EINPROGRESS)
 			    || (errno == EALREADY) || (errno == EAGAIN))) {
-				_thread_run->data.fd.fd = fd;
+				curthread->data.fd.fd = fd;
 
 				/* Set the timeout: */
 				_thread_kern_set_timeout(NULL);

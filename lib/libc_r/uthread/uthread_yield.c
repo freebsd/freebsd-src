@@ -38,8 +38,10 @@
 int
 sched_yield(void)
 {
+	struct pthread	*curthread = _get_curthread();
+
 	/* Reset the accumulated time slice value for the current thread: */
-	_thread_run->slice_usec = -1;
+	curthread->slice_usec = -1;
 
 	/* Schedule the next thread: */
 	_thread_kern_sched(NULL);
@@ -52,8 +54,10 @@ sched_yield(void)
 void
 pthread_yield(void)
 {
+	struct pthread	*curthread = _get_curthread();
+
 	/* Reset the accumulated time slice value for the current thread: */
-	_thread_run->slice_usec = -1;
+	curthread->slice_usec = -1;
 
 	/* Schedule the next thread: */
 	_thread_kern_sched(NULL);

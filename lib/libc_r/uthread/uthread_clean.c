@@ -41,24 +41,26 @@
 void
 pthread_cleanup_push(void (*routine) (void *), void *routine_arg)
 {
+	struct pthread	*curthread = _get_curthread();
 	struct pthread_cleanup *new;
 
 	if ((new = (struct pthread_cleanup *) malloc(sizeof(struct pthread_cleanup))) != NULL) {
 		new->routine = routine;
 		new->routine_arg = routine_arg;
-		new->next = _thread_run->cleanup;
+		new->next = curthread->cleanup;
 
-		_thread_run->cleanup = new;
+		curthread->cleanup = new;
 	}
 }
 
 void
 pthread_cleanup_pop(int execute)
 {
+	struct pthread	*curthread = _get_curthread();
 	struct pthread_cleanup *old;
 
-	if ((old = _thread_run->cleanup) != NULL) {
-		_thread_run->cleanup = old->next;
+	if ((old = curthread->cleanup) != NULL) {
+		curthread->cleanup = old->next;
 		if (execute) {
 			old->routine(old->routine_arg);
 		}
