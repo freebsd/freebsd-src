@@ -250,6 +250,23 @@ ipx_down()
 	return $_ret
 }
 
+# ifnet_rename
+#	Rename all requested interfaces.
+#
+ifnet_rename()
+{
+
+	_ifn_list="`list_net_interfaces all`"
+	[ -z "$_ifn_list" ] && return 0
+	for _if in ${_ifn_list} ; do
+		eval _ifname=\$ifconfig_${_if}_name
+		if [ ! -z "$_ifname" ]; then
+			ifconfig $_if name $_ifname
+		fi
+	done
+	return 0
+}
+
 #
 # list_net_interfaces type
 #	List all network interfaces. The type of interface returned
@@ -257,6 +274,7 @@ ipx_down()
 #	argument can be any of the following:
 #		nodhcp - all interfaces, excluding DHCP configured interfaces
 #		dhcp   - list only DHCP configured interfaces
+#		all    - all interfaces
 #	If no argument is specified all network interfaces are output.
 #	Note that the list will include cloned interfaces if applicable.
 #	Cloned interfaces must already exist to have a chance to appear
@@ -324,6 +342,9 @@ list_net_interfaces()
 		;;
 	dhcp)
 		echo $_dhcplist
+		;;
+	all)
+		echo $_nodhcplist $_dhcplist
 		;;
 	esac
 	return 0
