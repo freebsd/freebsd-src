@@ -56,7 +56,7 @@ FILE       *output;		/* the output file */
 
 #define CHECK_SIZE_CODE \
 	if (e_code >= l_code) { \
-	    register int nsize = l_code-s_code+400; \
+	    int nsize = l_code-s_code+400; \
 	    codebuf = (char *) realloc(codebuf, nsize); \
 	    e_code = codebuf + (e_code-s_code) + 1; \
 	    l_code = codebuf + nsize - 5; \
@@ -64,7 +64,7 @@ FILE       *output;		/* the output file */
 	}
 #define CHECK_SIZE_COM \
 	if (e_com >= l_com) { \
-	    register int nsize = l_com-s_com+400; \
+	    int nsize = l_com-s_com+400; \
 	    combuf = (char *) realloc(combuf, nsize); \
 	    e_com = combuf + (e_com-s_com) + 1; \
 	    l_com = combuf + nsize - 5; \
@@ -72,7 +72,7 @@ FILE       *output;		/* the output file */
 	}
 #define CHECK_SIZE_LAB \
 	if (e_lab >= l_lab) { \
-	    register int nsize = l_lab-s_lab+400; \
+	    int nsize = l_lab-s_lab+400; \
 	    labbuf = (char *) realloc(labbuf, nsize); \
 	    e_lab = labbuf + (e_lab-s_lab) + 1; \
 	    l_lab = labbuf + nsize - 5; \
@@ -80,7 +80,7 @@ FILE       *output;		/* the output file */
 	}
 #define CHECK_SIZE_TOKEN \
 	if (e_token >= l_token) { \
-	    register int nsize = l_token-s_token+400; \
+	    int nsize = l_token-s_token+400; \
 	    tokenbuf = (char *) realloc(tokenbuf, nsize); \
 	    e_token = tokenbuf + (e_token-s_token) + 1; \
 	    l_token = tokenbuf + nsize - 5; \
