@@ -51,7 +51,7 @@
 .Sh DESCRIPTION
 The
 .Nm
-command creates a
+utility creates a
 null layer, duplicating a sub-tree of the filesystem
 name space under another part of the global filesystem namespace.
 This allows existing files and directories to be accessed
@@ -103,8 +103,9 @@ for constructing new layers.
 .Sh INSTANTIATING NEW NULL LAYERS
 New null layers are created with
 .Nm .
-.Nm Mount_nullfs
-takes two arguments, the pathname
+The
+.Nm
+utility takes two arguments, the pathname
 of the lower vfs (target-pn) and the pathname where the null
 layer will appear in the namespace (mount-point-pn).  After
 the null layer is put into place, the contents

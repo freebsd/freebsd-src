@@ -65,8 +65,9 @@ is an alternate name for
 option syntax is implemented for backward compatibility, but
 is not documented here.)
 .Sh DESCRIPTION
-.Nm Dump
-examines files
+The
+.Nm
+utility examines files
 on a filesystem
 and determines which files
 need to be backed up.
@@ -257,8 +258,7 @@ but the
 .Fl D
 option may be used to change it.
 .It Fl W
-.Nm Dump
-tells the operator what filesystems need to be dumped.
+Tell the operator what filesystems need to be dumped.
 This information is gleaned from the files
 .Pa dumpdates
 and
@@ -291,8 +291,9 @@ subject to the
 .Fl h
 option.
 .Pp
-.Nm Dump
-requires operator intervention on these conditions:
+The
+.Nm
+utility requires operator intervention on these conditions:
 end of tape,
 end of dump,
 tape write error,
@@ -329,8 +330,9 @@ restart itself from the checkpoint
 after the old tape has been rewound and removed,
 and a new tape has been mounted.
 .Pp
-.Nm Dump
-tells the operator what is going on at periodic intervals
+The
+.Nm
+utility tells the operator what is going on at periodic intervals
 (every 5 minutes, or promptly after receiving
 .Dv SIGINFO ) ,
 including usually low estimates of the number of blocks to write,
@@ -422,8 +424,9 @@ impossible to use a larger output block size, so
 .Nm
 will prevent this from happening.
 .Pp
-.Nm Dump
-with the
+The
+.Nm
+utility with the
 .Fl W
 or
 .Fl w
@@ -443,8 +446,9 @@ and provided more assistance
 for the operator running
 .Xr restore .
 .Pp
-.Nm Dump
-cannot do remote backups without being run as root, due to its
+The
+.Nm
+utility cannot do remote backups without being run as root, due to its
 security history.  This will be fixed in a later version of
 .Fx .
 Presently, it works if you set it setuid (like it used to be), but this
@@ -452,5 +456,5 @@ might constitute a security risk.
 .Sh HISTORY
 A
 .Nm
-command appeared in
+utility appeared in
 .At v6 .

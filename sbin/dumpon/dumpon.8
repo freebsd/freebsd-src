@@ -46,8 +46,9 @@
 .Op Fl v
 .Ar off
 .Sh DESCRIPTION
-.Nm Dumpon
-is used to specify a device where the kernel can save a crash dump in
+The
+.Nm
+utility is used to specify a device where the kernel can save a crash dump in
 the case of a panic.
 .Pp
 Calls to
@@ -81,7 +82,7 @@ should be used as the dump device.
 .Pp
 The
 .Nm
-program operates by setting the
+utility operates by setting the
 .Xr sysctl 3
 MIB variable
 .Dq kern.dumpdev
@@ -126,5 +127,5 @@ is taken, it is not possible to send crash dumps directly to a file.
 .Sh HISTORY
 The
 .Nm
-command appeared in
+utility appeared in
 .Fx 2.1 .

@@ -52,7 +52,7 @@
 .Sh DESCRIPTION
 The
 .Nm
-command is used to mount a sub-tree of an existing filesystem
+utility is used to mount a sub-tree of an existing filesystem
 that uses a different set of uids and gids than the local system.
 Such a filesystem could be mounted from a remote site via NFS or
 it could be a filesystem on removable media brought from some
@@ -60,13 +60,13 @@ foreign location that uses a different password file.
 .Pp
 The
 .Nm
-command uses a set of files provided by the user to make correspondences
+utility uses a set of files provided by the user to make correspondences
 between uids and gids in the sub-tree's original environment and
 some other set of ids in the local environment.  For instance, user
 smith might have uid 1000 in the original environment, while having
 uid 2000 in the local environment.  The
 .Nm
-command allows the subtree from smith's original environment to be
+utility allows the subtree from smith's original environment to be
 mapped in such a way that all files with owning uid 1000 look like
 they are actually owned by uid 2000.
 .Pp
@@ -110,14 +110,15 @@ at most 16 groups can be mapped by a given subtree.
 .Pp
 The mapfiles can be located anywhere in the file hierarchy, but they
 must be owned by root, and they must be writable only by root.
-.Nm Mount_umapfs
-will refuse to map the sub-tree if the ownership or permissions on
+The
+.Nm
+utility will refuse to map the sub-tree if the ownership or permissions on
 these files are improper.  It will also balk if the count of mappings
 in the first line of the map files is not correct.
 .Pp
 The layer created by the
 .Nm
-command is meant to serve as a simple example of filesystem layering.
+utility is meant to serve as a simple example of filesystem layering.
 It is not meant for production use.  The implementation is not very
 sophisticated.
 .Sh SEE ALSO

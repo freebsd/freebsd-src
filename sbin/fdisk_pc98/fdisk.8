@@ -37,14 +37,13 @@ you can have one or more partitions with one
 .Em active .
 The DOS
 .Nm
-program can be used to divide space on the disk into partitions and set one
+utility can be used to divide space on the disk into partitions and set one
 .Em active .
 .Sh DESCRIPTION
 The
 .Fx
-program
 .Nm
-serves a similar purpose to the DOS program.  The first form is used to
+utility serves a similar purpose to the DOS program.  The first form is used to
 display partition information or to interactively edit the partition
 table.  The second is used to write a partition table using a
 .Ar configfile
@@ -224,10 +223,11 @@ option is used.  If the
 .Fl f
 option is not used, the
 .Nm
-program will enter a conversational mode.
+utility will enter a conversational mode.
 This mode is designed not to change any data unless you explicitly tell it to.
-.Nm Fdisk
-selects defaults for its questions to guarantee the above behavior.
+The
+.Nm
+utility selects defaults for its questions to guarantee the above behavior.
 .Pp
 It displays each partition
 and ask if you want to edit it.
@@ -237,8 +237,9 @@ and asking for a new one.
 When you are done with a partition,
 .Nm
 will display it and ask if it is correct.
-.Nm Fdisk
-will then proceed to the next entry.
+The
+.Nm
+utility will then proceed to the next entry.
 .Pp
 Getting the
 .Em cyl , sector ,

@@ -34,7 +34,9 @@
 .Op Fl log_ipfw_denied
 .Ek
 .Sh DESCRIPTION
-This program provides a Network Address Translation facility for use
+The
+.Nm
+utility provides a Network Address Translation facility for use
 with
 .Xr divert 4
 sockets under
@@ -47,7 +49,7 @@ switch to
 .Pp
 The
 .Nm
-normally runs in the background as a daemon.
+utility normally runs in the background as a daemon.
 It is passed raw IP packets as they travel into and out of the machine,
 and will possibly change these before re-injecting them back into the
 IP packet stream.

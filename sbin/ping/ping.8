@@ -60,8 +60,9 @@ packets to network hosts
 .Ar mcast-group
 .Bc
 .Sh DESCRIPTION
-.Nm Ping
-uses the
+The
+.Nm
+utility uses the
 .Tn ICMP
 .No protocol Ap s mandatory
 .Tn ECHO_REQUEST
@@ -313,8 +314,9 @@ it uses in the computation of round trip times.
 If less than eight bytes of pad are specified, no round trip times are
 given.
 .Sh DUPLICATE AND DAMAGED PACKETS
-.Nm Ping
-will report duplicate and damaged packets.
+The
+.Nm
+utility will report duplicate and damaged packets.
 Duplicate packets should never occur when pinging a unicast address,
 and seem to be caused by
 inappropriate link-level retransmissions.
@@ -440,7 +442,7 @@ Others may use completely wild values.
 .Sh RETURN VALUES
 The
 .Nm
-command returns an exit status of zero if at least one response was
+utility returns an exit status of zero if at least one response was
 heard from the specified
 .Ar host ;
 a status of two if the transmission was successful but no responses
@@ -456,12 +458,12 @@ if an error occurred.
 .Sh HISTORY
 The
 .Nm
-command appeared in
+utility appeared in
 .Bx 4.3 .
 .Sh AUTHORS
 The original
 .Nm
-command was written by
+utility was written by
 .An Mike Muuss
 while at the US Army Ballistics
 Research Laboratory.
