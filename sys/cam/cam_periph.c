@@ -1369,6 +1369,9 @@ camperiphscsisenseerror(union ccb *ccb, cam_flags camflags,
 
 		switch (err_action & SS_MASK) {
 		case SS_NOP:
+			action_string = "No Recovery Action Needed";
+			error = 0;
+			break;
 		case SS_RETRY:
 			action_string = "Retrying Command";
 			error = ERESTART;
