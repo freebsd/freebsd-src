@@ -344,8 +344,6 @@ MALLOC_DECLARE(M_USBHC);
 
 #endif
 
-#define USBVERBOSE
-
 /* We don't use the soft interrupt code in FreeBSD. */
 #if 0
 #define USB_USE_SOFTINTR
