@@ -68,6 +68,8 @@
 #ifdef PC98
 #define SNDCARD_PCM86     	19
 #endif
+#define SNDCARD_AWE32           20
+
 
 /***********************************
  * IOCTL Commands for /dev/sequencer
@@ -497,6 +499,7 @@ struct synth_info {	/* Read only */
 #define FM_TYPE_OPL3			0x01
 
 #define SAMPLE_TYPE_GUS			0x10
+#define SAMPLE_TYPE_AWE32		0x20
 
 		int	perc_mode;	/* No longer supported */
 		int	nr_voices;
