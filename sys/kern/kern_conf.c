@@ -377,8 +377,7 @@ fini_cdevsw(struct cdevsw *devsw)
 		reserved_majors[devsw->d_maj] = 0;
 		devsw->d_maj = MAJOR_AUTO;
 		devsw->d_flags &= ~D_ALLOCMAJ;
-	} else if (devsw->d_maj == 0)
-		devsw->d_maj = 256;
+	}
 	devsw->d_flags &= ~D_INIT;
 }
 
@@ -430,8 +429,6 @@ prep_cdevsw(struct cdevsw *devsw)
 	if (devsw->d_maj == MAJOR_AUTO) {
 		find_major(devsw);
 	} else {
-		if (devsw->d_maj == 256)	/* XXX: tty_cons.c is magic */
-			devsw->d_maj = 0;	
 		KASSERT(devsw->d_maj >= 0 && devsw->d_maj < 256,
 		    ("Invalid major (%d) in make_dev", devsw->d_maj));
 		if (reserved_majors[devsw->d_maj] != devsw->d_maj) {
