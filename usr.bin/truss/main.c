@@ -232,7 +232,7 @@ START_TRACE:
    * All of the grunt work is done in the support routines.
    */
 
-  gettimeofday(&trussinfo->start_time, (struct timezone *)NULL);
+  clock_gettime(CLOCK_REALTIME, &trussinfo->start_time);
 
   do {
     int val = 0;
@@ -243,10 +243,10 @@ START_TRACE:
       switch(i = pfs.why) {
       case S_SCE:
 	funcs->enter_syscall(trussinfo, pfs.val);
-	gettimeofday(&trussinfo->before, (struct timezone *)NULL);
+	clock_gettime(CLOCK_REALTIME, &trussinfo->before);
 	break;
       case S_SCX:
-	gettimeofday(&trussinfo->after, (struct timezone *)NULL);
+	clock_gettime(CLOCK_REALTIME, &trussinfo->after);
 	/*
 	 * This is so we don't get two messages for an exec -- one
 	 * for the S_EXEC, and one for the syscall exit.  It also,
