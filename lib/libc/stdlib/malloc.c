@@ -6,7 +6,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id$
+ * $Id: malloc.c,v 1.3 1995/09/16 09:28:13 phk Exp $
  *
  */
 
@@ -319,9 +319,12 @@ static void
 malloc_exit()
 {
     FILE *fd = fopen("malloc.out","a");
-    if (fd)
+    char *q = "malloc() warning: Couldn't dump stats.\n";
+    if (fd) {
         malloc_dump(fd);
-    fclose(fd);
+	fclose(fd);
+    } else
+	write(2,q,strlen(q));
 }
 
 
@@ -340,11 +343,8 @@ map_pages(int pages, int update)
 	last_index = ((u_long)tail >> malloc_pageshift) - malloc_origo -1;
 	malloc_brk = tail;
 	TRACE(("%6d S %p .. %p\n",malloc_event++, result, tail));
-	if (update && 
-	  last_index >= malloc_ninfo &&
-	  !extend_page_directory(last_index))
-	    ;
-	else
+	if (!update || last_index < malloc_ninfo ||
+	  extend_page_directory(last_index))
 	    return result;
     }
     TRACE(("%6d s %d %p %d\n",malloc_event++,pages,sbrk(0),errno));
