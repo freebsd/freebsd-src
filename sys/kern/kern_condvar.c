@@ -196,7 +196,7 @@ cv_wait(struct cv *cvp, struct mtx *mp)
 		ktrcsw(p->p_tracep, 1, 0);
 #endif
 	CV_ASSERT(cvp, mp, p);
-	WITNESS_SLEEP(0, mp);
+	WITNESS_SLEEP(0, &mp->mtx_object);
 	WITNESS_SAVE(&mp->mtx_object, mp);
 
 	mtx_lock_spin(&sched_lock);
@@ -249,7 +249,7 @@ cv_wait_sig(struct cv *cvp, struct mtx *mp)
 		ktrcsw(p->p_tracep, 1, 0);
 #endif
 	CV_ASSERT(cvp, mp, p);
-	WITNESS_SLEEP(0, mp);
+	WITNESS_SLEEP(0, &mp->mtx_object);
 	WITNESS_SAVE(&mp->mtx_object, mp);
 
 	mtx_lock_spin(&sched_lock);
@@ -314,7 +314,7 @@ cv_timedwait(struct cv *cvp, struct mtx *mp, int timo)
 		ktrcsw(p->p_tracep, 1, 0);
 #endif
 	CV_ASSERT(cvp, mp, p);
-	WITNESS_SLEEP(0, mp);
+	WITNESS_SLEEP(0, &mp->mtx_object);
 	WITNESS_SAVE(&mp->mtx_object, mp);
 
 	mtx_lock_spin(&sched_lock);
@@ -376,7 +376,7 @@ cv_timedwait_sig(struct cv *cvp, struct mtx *mp, int timo)
 		ktrcsw(p->p_tracep, 1, 0);
 #endif
 	CV_ASSERT(cvp, mp, p);
-	WITNESS_SLEEP(0, mp);
+	WITNESS_SLEEP(0, &mp->mtx_object);
 	WITNESS_SAVE(&mp->mtx_object, mp);
 
 	mtx_lock_spin(&sched_lock);
