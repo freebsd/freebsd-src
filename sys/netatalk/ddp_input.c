@@ -419,7 +419,7 @@ ddp_input(m, ifp, elh, phase)
 #endif
 
     /* 
-     * If we found one, deliver th epacket to the socket
+     * If we found one, deliver the packet to the socket
      */
     SOCKBUF_LOCK(&ddp->ddp_socket->so_rcv);
     if (sbappendaddr_locked(&ddp->ddp_socket->so_rcv, (struct sockaddr *)&from,
