@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.121 1998/05/28 09:30:06 phk Exp $
+ *	$Id: clock.c,v 1.122 1998/06/07 08:40:23 phk Exp $
  */
 
 /*
@@ -175,6 +175,7 @@ static	void	set_timer_freq(u_int freq, int intr_freq);
 
 static struct timecounter tsc_timecounter[3] = {
 	tsc_get_timecount,	/* get_timecount */
+	0,			/* no poll_pps */
  	~0u,			/* counter_mask */
 	0,			/* frequency */
 	 "TSC"			/* name */
@@ -185,6 +186,7 @@ SYSCTL_OPAQUE(_debug, OID_AUTO, tsc_timecounter, CTLFLAG_RD,
 
 static struct timecounter i8254_timecounter[3] = {
 	i8254_get_timecount,	/* get_timecount */
+	0,			/* no poll_pps */
 	~0u,			/* counter_mask */
 	0,			/* frequency */
 	"i8254"			/* name */
