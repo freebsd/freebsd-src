@@ -513,6 +513,15 @@ pnp_create_devices(device_t parent, pnp_id *p, int csn,
 			scanning -= large_len;
 
 			if (PNP_LRES_NUM(tag) == PNP_TAG_ID_ANSI) {
+				if (dev) {
+					/*
+					 * This is an optional device
+					 * indentifier string. Skipt it
+					 * for now.
+					 */
+					continue;
+				}
+				/* else mandately card identifier string */
 				if (large_len > sizeof(buf) - 1)
 					large_len = sizeof(buf) - 1;
 				bcopy(resinfo, buf, large_len);
@@ -524,8 +533,6 @@ pnp_create_devices(device_t parent, pnp_id *p, int csn,
 					large_len--;
 				buf[large_len] = '\0';
 				desc = buf;
-				if (dev)
-					device_set_desc_copy(dev, desc);
 				continue;
 			}
 
@@ -565,6 +572,9 @@ pnp_create_devices(device_t parent, pnp_id *p, int csn,
 			dev = BUS_ADD_CHILD(parent, ISA_ORDER_PNP, NULL, -1);
 			if (desc)
 				device_set_desc_copy(dev, desc);
+			else
+				device_set_desc_copy(dev,
+						     pnp_eisaformat(logical_id));
 			isa_set_vendorid(dev, p->vendor_id);
 			isa_set_serial(dev, p->serial);
 			isa_set_logicalid(dev, logical_id);
