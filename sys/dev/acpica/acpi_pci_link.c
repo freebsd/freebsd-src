@@ -416,6 +416,13 @@ acpi_pci_link_add_link(ACPI_HANDLE handle, struct acpi_prt_entry *entry)
 	 * zero and flags to indicate this link is not routed.  If we can't
 	 * run _DIS (i.e., the method doesn't exist), assume the initial
 	 * IRQ was routed by the BIOS.
+	 *
+	 * XXX Since we detect link devices via _PRT entries but run long
+	 * after APIC mode has been enabled, we don't get a chance to
+	 * disable links that will be unused (especially in APIC mode).
+	 * Leaving them enabled can cause duplicate interrupts for some
+	 * devices.  The right fix is to probe links via their PNPID, so we
+	 * see them no matter what the _PRT says.
 	 */
 	if (ACPI_SUCCESS(AcpiEvaluateObject(handle, "_DIS", NULL, NULL))) {
 		link->current_irq = 0;
