@@ -247,6 +247,8 @@ smb_iod_sendrq(struct smbiod *iod, struct smb_rq *rqp)
 		*rqp->sr_rqtid = htole16(ssp ? ssp->ss_tid : SMB_TID_UNKNOWN);
 		*rqp->sr_rquid = htole16(vcp ? vcp->vc_smbuid : 0);
 		mb_fixhdr(&rqp->sr_rq);
+		if (vcp->vc_hflags2 & SMB_FLAGS2_SECURITY_SIGNATURE)
+			smb_rq_sign(rqp);
 	}
 	if (rqp->sr_sendcnt++ > 5) {
 		rqp->sr_flags |= SMBR_RESTART;
