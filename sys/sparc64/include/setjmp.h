@@ -36,11 +36,7 @@
 #ifndef	_MACHINE_SETJMP_H_
 #define	_MACHINE_SETJMP_H_
 
-#define	_JBLEN	3
-
-#define	_JB_FP	0
-#define	_JB_PC	1
-#define	_JB_SP	2
+#define	_JBLEN	31
 
 /*
  * jmp_buf and sigjmp_buf are encapsulated in different structs to force
@@ -48,15 +44,9 @@
  * internally to avoid some run-time errors for mismatches.
  */
 #ifndef _ANSI_SOURCE
-struct _sigjmp_buf {
-	long	_sjb[_JBLEN + 1];
-};
-typedef struct _sigjmp_buf sigjmp_buf[1];
+typedef struct _sigjmp_buf { long _sjb[_JBLEN + 1]; } sigjmp_buf[1];
 #endif
 
-struct _jmp_buf {
-	long	_jb[_JBLEN + 1];
-};
-typedef struct _jmp_buf jmp_buf[1];
+typedef struct _jmp_buf { long _jb[_JBLEN + 1]; } jmp_buf[1];
 
 #endif /* !_MACHINE_SETJMP_H_ */
