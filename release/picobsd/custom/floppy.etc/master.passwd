@@ -1,0 +1,8 @@
+root::0:0::0:0:Charlie &:/root:/bin/sh
+toor:*:0:0::0:0:Bourne-again Superuser:/root:
+daemon:*:1:1::0:0:Owner of many system processes:/root:/nonexistent
+operator:*:2:20::0:0:System &:/usr/guest/operator:/bin/csh
+bin:*:3:7::0:0:Binaries Commands and Source,,,:/:/nonexistent
+nobody:*:65534:65534::0:0:Unprivileged user:/nonexistent:/nonexistent
+user:$1$T9q8Coad$WatJttamwr2UAdbfKbWxj.:1002:1002:polish:0:0:user:/home/user:/bin/sh
+netman::9999:209::0:0:Network access:/netman:/bin/sh
