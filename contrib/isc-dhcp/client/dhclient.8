@@ -35,6 +35,11 @@
 .\" Enterprises.  To learn more about the Internet Software Consortium,
 .\" see ``http://www.isc.org/isc''.  To learn more about Vixie
 .\" Enterprises, see ``http://www.vix.com''.
+.\"
+.\" Portions copyright (c) 2000 David E. O'Brien.
+.\" All rights reserved.
+.\" $FreeBSD$
+.\"
 .TH dhclient 8
 .SH NAME
 dhclient - Dynamic Host Configuration Protocol Client
@@ -42,6 +47,10 @@ dhclient - Dynamic Host Configuration Protocol Client
 .B dhclient
 [
 .B -Ddq1
+]
+[
+.B -cf
+.I config-file
 ]
 [
 .B -lf
@@ -157,6 +166,11 @@ number specified with the
 .B -p
 flag - if you wish to use alternate port numbers, you must configure
 any relay agents you are using to use the same alternate port numbers.
+.PP
+The 
+.B -cf
+flag may be used to change the shell script from the default of
+/sbin/dhclient-script.
 .PP
 The 
 .B -lf

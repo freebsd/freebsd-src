@@ -301,8 +301,8 @@ static void usage (appname)
 	note (url);
 	note ("");
 
-	warn ("Usage: %s [-D] [-d] [-p <port>] [-lf lease-file]", appname);
-	error ("       [-pf pidfile] [-q] [-1] [interface]");
+	warn ("Usage: %s [-D] [-d] [-p <port>] [-cf conf-file]", appname);
+	error ("       [-lf lease-file] [-pf pidfile] [-q] [-1] [interface]");
 }
 
 void cleanup ()
