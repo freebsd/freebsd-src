@@ -168,7 +168,29 @@ ENTRY(cpu_switch, 0)
 	st8	[r17]=r16,8 ;;		// ar.rnat
 	ld8	r3=[r3]
 	st8	[r17]=r20,8 ;;		// pr
-	st8	[r17]=r3		// current pmap
+	st8	[r17]=r3,8		// current pmap
+
+	mov	r18=ar.fsr
+	;;
+	st8	[r17]=r18,8		// ar.fsr
+	mov	r19=ar.fcr
+	;; 
+	st8	[r17]=r19,8		// ar.fcr
+	mov	r18=ar.fir
+	;; 
+	st8	[r17]=r18,8		// ar.fir
+	mov	r19=ar.fdr
+	;; 
+	st8	[r17]=r19,8		// ar.fdr
+	mov	r18=ar.eflag
+	;; 
+	st8	[r17]=r18,8		// ar.eflag
+	mov	r19=ar.csd
+	;; 
+	st8	[r17]=r19,8		// ar.csd
+	mov	r18=ar.ssd
+	;; 
+	st8	[r17]=r18,8		// ar.ssd
 
 	mov	ar.rsc=3		// turn RSE back on
 
@@ -266,7 +288,7 @@ ENTRY(cpu_switch, 0)
 	ld8	r17=[r15],8 ;;		// ar.pfs
 	ld8	r18=[r15],16 ;;		// ar.bspstore, skip ar.unat
 	ld8	r19=[r15],8 ;;		// ar.rnat
-	ld8	r20=[r15] ;;		// pr
+	ld8	r20=[r15],16 ;;		// pr, skip pmap
 
 	loadrs				// invalidate register stack
 	;;
@@ -276,6 +298,28 @@ ENTRY(cpu_switch, 0)
 	mov	ar.rnat=r19
 	mov	pr=r20,0x1ffff
 	;;
+	ld8	r16=[r15],8		// ar.fsr
+	;;
+	ld8	r17=[r15],8		// ar.fcr
+	mov	ar.fsr=r16
+	;; 
+	ld8	r16=[r15],8		// ar.fir
+	mov	ar.fcr=r17
+	;; 
+	ld8	r17=[r15],8		// ar.fdr
+	mov	ar.fir=r16
+	;; 
+	ld8	r16=[r15],8		// ar.eflag
+	mov	ar.fdr=r17
+	;; 
+	ld8	r17=[r15],8		// ar.csd
+	mov	ar.eflag=r16
+	;; 
+	ld8	r16=[r15],8		// ar.ssd
+	mov	ar.csd=r17
+	;; 
+	mov	ar.ssd=r16
+	
 	mov	ar.rsc=3		// restart RSE
 	invala
 	;;
