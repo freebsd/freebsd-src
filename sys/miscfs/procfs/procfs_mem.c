@@ -37,7 +37,7 @@
  *
  *	@(#)procfs_mem.c	8.4 (Berkeley) 1/21/94
  *
- *	$Id: procfs_mem.c,v 1.19 1996/07/02 01:40:52 dyson Exp $
+ *	$Id: procfs_mem.c,v 1.20 1996/10/24 02:47:05 dyson Exp $
  */
 
 /*
@@ -300,6 +300,23 @@ procfs_domem(curp, p, pfs, uio)
 	if (uio->uio_resid == 0)
 		return (0);
 
+ 	/*
+ 	 * XXX
+ 	 * We need to check for KMEM_GROUP because ps is sgid kmem;
+ 	 * not allowing it here causes ps to not work properly.  Arguably,
+ 	 * this is a bug with what ps does.  We only need to do this
+ 	 * for Pmem nodes, and only if it's reading.  This is still not
+ 	 * good, as it may still be possible to grab illicit data if
+ 	 * a process somehow gets to be KMEM_GROUP.  Note that this also
+ 	 * means that KMEM_GROUP can't change without editing procfs.h!
+ 	 * All in all, quite yucky.
+ 	 */
+  
+	if (!CHECKIO(curp, p) &&
+ 	    !(curp->p_cred->pc_ucred->cr_gid == KMEM_GROUP &&
+ 	      uio->uio_rw == UIO_READ))
+  		return EPERM;
+ 
 	error = procfs_rwmem(p, uio);
 
 	return (error);
