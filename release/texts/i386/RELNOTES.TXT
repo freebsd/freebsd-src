@@ -59,8 +59,12 @@ Support for more than 32 signals has been added.
 
 Jail(8) aware sysctl(8) variables have been added for Linux mode.
 
-The VM system's anonymous storage subsystem (the ``swap pager'') has
-been completely revamped.
+A large number of bug fixes and performance improvements have been
+made to the VM system, including and most especially to mmap() and
+related functions.  The MAP_NOSYNC option has been added to better support 
+the use of shared files as an IPC mechanism.  The VM system's swapper has
+been completely rewritten and performance has been greatly enhanced,
+especially when swapping over NFS.
 
 An emulator for SVR4 binaries has been added.
 
