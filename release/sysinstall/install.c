@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.134.2.39 1997/03/25 02:45:47 jkh Exp $
+ * $Id: install.c,v 1.134.2.40 1997/03/28 02:25:14 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -586,11 +586,13 @@ installNovice(dialogMenuItem *self)
 	configUsers(self);
 
     dialog_clear_norefresh();
-    if (!msgYesNo("Would you like to set the system manager's password now?\n\n"
-		  "This is the password you'll use to log in as \"root\".")) {
+    msgConfirm("Now you must set the system manager's password.\n"
+	       "This is the password you'll use to log in as \"root\".");
+    {
 	WINDOW *w = savescr();
 
-	systemExecute("passwd root");
+	if (!systemExecute("passwd root"))
+	    variable_set2("root_password", "YES");
 	restorescr(w);
     }
 
