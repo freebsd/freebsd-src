@@ -14,7 +14,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@tfs.com) Sept 1992
  *
- *	$Id: scsiconf.h,v 1.37 1996/01/07 19:27:06 gibbs Exp $
+ *	$Id: scsiconf.h,v 1.38 1996/01/20 15:05:53 joerg Exp $
  */
 #ifndef	SCSI_SCSICONF_H
 #define SCSI_SCSICONF_H 1
@@ -257,6 +257,7 @@ typedef struct st_mode st_modes[4];
 #define ST_Q_IGNORE_LOADS	0x0010
 #define ST_Q_BLKSIZ		0x0020	/* variable-block media_blksiz > 0 */
 #define ST_Q_CC_NOMSG		0x0040	/* no messages accepted in CC state */
+#define ST_Q_NO_1024		0x0080	/* never ever use 1024-byte fix blk */
 
 #define ST_Q_NO_SYNC		SCSI_Q_NO_SYNC
 #define ST_Q_NO_FAST		SCSI_Q_NO_FAST
