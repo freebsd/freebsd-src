@@ -39,7 +39,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)init_main.c	8.9 (Berkeley) 1/21/94
- * $Id: init_main.c,v 1.113 1999/04/24 18:50:48 dt Exp $
+ * $Id: init_main.c,v 1.114 1999/04/28 01:04:25 luoqi Exp $
  */
 
 #include "opt_devfs.h"
@@ -408,6 +408,9 @@ proc0_init(dummy)
 	p->p_cred = &cred0;
 	p->p_ucred = crget();
 	p->p_ucred->cr_ngroups = 1;	/* group 0 */
+
+	/* Don't jail it */
+	p->p_prison = 0;
 
 	/* Create procsig. */
 	p->p_procsig = &procsig0;

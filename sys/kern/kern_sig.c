@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_sig.c	8.7 (Berkeley) 4/18/94
- * $Id: kern_sig.c,v 1.53 1999/01/10 01:58:24 eivind Exp $
+ * $Id: kern_sig.c,v 1.54 1999/01/26 02:38:10 julian Exp $
  */
 
 #include "opt_compat.h"
@@ -79,12 +79,12 @@ SYSCTL_INT(_kern, KERN_LOGSIGEXIT, logsigexit, CTLFLAG_RW, &kern_logsigexit, 0, 
  * Can process p, with pcred pc, send the signal signum to process q?
  */
 #define CANSIGNAL(p, pc, q, signum) \
-	((pc)->pc_ucred->cr_uid == 0 || \
+	(PRISON_CHECK(p, q) && ((pc)->pc_ucred->cr_uid == 0 || \
 	    (pc)->p_ruid == (q)->p_cred->p_ruid || \
 	    (pc)->pc_ucred->cr_uid == (q)->p_cred->p_ruid || \
 	    (pc)->p_ruid == (q)->p_ucred->cr_uid || \
 	    (pc)->pc_ucred->cr_uid == (q)->p_ucred->cr_uid || \
-	    ((signum) == SIGCONT && (q)->p_session == (p)->p_session))
+	    ((signum) == SIGCONT && (q)->p_session == (p)->p_session)))
 
 /*
  * Policy -- Can real uid ruid with ucred uc send a signal to process q?

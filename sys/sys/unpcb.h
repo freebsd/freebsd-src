@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)unpcb.h	8.1 (Berkeley) 6/2/93
- * $Id: unpcb.h,v 1.6 1997/08/16 19:16:16 wollman Exp $
+ * $Id: unpcb.h,v 1.7 1998/05/15 20:11:40 wollman Exp $
  */
 
 #ifndef _SYS_UNPCB_H_
@@ -71,6 +71,7 @@ struct	unpcb {
 	LIST_ENTRY(unpcb) unp_link; 	/* glue on list of all PCBs */
 	struct	socket *unp_socket;	/* pointer back to socket */
 	struct	vnode *unp_vnode;	/* if associated with file */
+	struct	vnode *unp_rvnode;	/* root vp for creating process */
 	ino_t	unp_ino;		/* fake inode number */
 	struct	unpcb *unp_conn;	/* control block of connected socket */
 	struct	unp_head unp_refs;	/* referencing socket linked list */

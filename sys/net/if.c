@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if.c	8.3 (Berkeley) 1/4/94
- *	$Id: if.c,v 1.68 1999/04/26 09:02:40 peter Exp $
+ *	$Id: if.c,v 1.69 1999/04/27 11:16:56 phk Exp $
  */
 
 #include "opt_compat.h"
@@ -857,7 +857,7 @@ ifconf(cmd, data)
 	ifrp = ifc->ifc_req;
 	for (; space > sizeof (ifr) && ifp; ifp = ifp->if_link.tqe_next) {
 		char workbuf[64];
-		int ifnlen;
+		int ifnlen, addrs;
 
 		ifnlen = snprintf(workbuf, sizeof(workbuf),
 		    "%s%d", ifp->if_name, ifp->if_unit);
@@ -867,17 +867,14 @@ ifconf(cmd, data)
 			strcpy(ifr.ifr_name, workbuf);
 		}
 
-		if ((ifa = ifp->if_addrhead.tqh_first) == 0) {
-			bzero((caddr_t)&ifr.ifr_addr, sizeof(ifr.ifr_addr));
-			error = copyout((caddr_t)&ifr, (caddr_t)ifrp,
-			    sizeof (ifr));
-			if (error)
-				break;
-			space -= sizeof (ifr), ifrp++;
-		} else
-		    for ( ; space > sizeof (ifr) && ifa; 
-			 ifa = ifa->ifa_link.tqe_next) {
+		addrs = 0;
+		ifa = ifp->if_addrhead.tqh_first;
+		for ( ; space > sizeof (ifr) && ifa;
+		    ifa = ifa->ifa_link.tqe_next) {
 			register struct sockaddr *sa = ifa->ifa_addr;
+			if (curproc->p_prison && prison_if(curproc, sa))
+				continue;
+			addrs++;
 #ifdef COMPAT_43
 			if (cmd == OSIOCGIFCONF) {
 				struct osockaddr *osa =
@@ -909,6 +906,14 @@ ifconf(cmd, data)
 			if (error)
 				break;
 			space -= sizeof (ifr);
+		}
+		if (!addrs) {
+			bzero((caddr_t)&ifr.ifr_addr, sizeof(ifr.ifr_addr));
+			error = copyout((caddr_t)&ifr, (caddr_t)ifrp,
+			    sizeof (ifr));
+			if (error)
+				break;
+			space -= sizeof (ifr), ifrp++;
 		}
 	}
 	ifc->ifc_len -= space;

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	From: @(#)tcp_usrreq.c	8.2 (Berkeley) 1/3/94
- *	$Id: tcp_usrreq.c,v 1.40 1999/01/20 17:31:59 fenner Exp $
+ *	$Id: tcp_usrreq.c,v 1.41 1999/04/24 18:25:35 ache Exp $
  */
 
 #include "opt_tcpdebug.h"
@@ -238,6 +238,8 @@ tcp_usr_connect(struct socket *so, struct sockaddr *nam, struct proc *p)
 		error = EAFNOSUPPORT;
 		goto out;
 	}
+
+	prison_remote_ip(p, 0, &sinp->sin_addr.s_addr);
 
 	if ((error = tcp_connect(tp, nam, p)) != 0)
 		goto out;

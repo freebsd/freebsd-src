@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)rtsock.c	8.5 (Berkeley) 11/2/94
- *	$Id: rtsock.c,v 1.37 1997/10/31 08:53:13 davidg Exp $
+ *	$Id: rtsock.c,v 1.38 1999/01/27 22:42:14 dillon Exp $
  */
 
 
@@ -910,6 +910,8 @@ sysctl_iflist(af, w)
 		}
 		while ((ifa = ifa->ifa_link.tqe_next) != 0) {
 			if (af && af != ifa->ifa_addr->sa_family)
+				continue;
+			if (curproc->p_prison && prison_if(curproc, ifa->ifa_addr))
 				continue;
 			ifaaddr = ifa->ifa_addr;
 			netmask = ifa->ifa_netmask;

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)tcp_subr.c	8.2 (Berkeley) 5/24/95
- *	$Id: tcp_subr.c,v 1.51 1999/02/04 03:02:56 msmith Exp $
+ *	$Id: tcp_subr.c,v 1.52 1999/02/04 03:27:43 msmith Exp $
  */
 
 #include "opt_compat.h"
@@ -541,7 +541,7 @@ tcp_pcblist SYSCTL_HANDLER_ARGS
 	s = splnet();
 	for (inp = tcbinfo.listhead->lh_first, i = 0; inp && i < n;
 	     inp = inp->inp_list.le_next) {
-		if (inp->inp_gencnt <= gencnt)
+		if (inp->inp_gencnt <= gencnt && !prison_xinpcb(req->p, inp))
 			inp_list[i++] = inp;
 	}
 	splx(s);

@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)in_pcb.c	8.4 (Berkeley) 5/24/95
- *	$Id: in_pcb.c,v 1.47 1999/01/27 22:42:24 dillon Exp $
+ *	$Id: in_pcb.c,v 1.48 1999/04/27 11:17:31 phk Exp $
  */
 
 #include <sys/param.h>
@@ -42,6 +42,7 @@
 #include <sys/socket.h>
 #include <sys/socketvar.h>
 #include <sys/proc.h>
+#include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
 
@@ -154,7 +155,7 @@ in_pcbbind(inp, nam, p)
 	struct inpcbinfo *pcbinfo = inp->inp_pcbinfo;
 	u_short lport = 0;
 	int wild = 0, reuseport = (so->so_options & SO_REUSEPORT);
-	int error;
+	int error, prison = 0;
 
 	if (TAILQ_EMPTY(&in_ifaddrhead)) /* XXX broken! */
 		return (EADDRNOTAVAIL);
@@ -174,6 +175,8 @@ in_pcbbind(inp, nam, p)
 		if (sin->sin_family != AF_INET)
 			return (EAFNOSUPPORT);
 #endif
+		if (prison_ip(p, 0, &sin->sin_addr.s_addr))
+			return(EINVAL);
 		lport = sin->sin_port;
 		if (IN_MULTICAST(ntohl(sin->sin_addr.s_addr))) {
 			/*
@@ -195,12 +198,15 @@ in_pcbbind(inp, nam, p)
 
 			/* GROSS */
 			if (ntohs(lport) < IPPORT_RESERVED && p &&
-			    suser(p))
+			    suser_xxx(0, p, PRISON_ROOT))
 				return (EACCES);
+			if (p && p->p_prison)
+				prison = 1;
 			if (so->so_uid &&
 			    !IN_MULTICAST(ntohl(sin->sin_addr.s_addr))) {
 				t = in_pcblookup_local(inp->inp_pcbinfo,
-				    sin->sin_addr, lport, INPLOOKUP_WILDCARD);
+				    sin->sin_addr, lport, 
+				    prison ? 0 :  INPLOOKUP_WILDCARD);
 				if (t &&
 				    (ntohl(sin->sin_addr.s_addr) != INADDR_ANY ||
 				     ntohl(t->inp_laddr.s_addr) != INADDR_ANY ||
@@ -210,7 +216,7 @@ in_pcbbind(inp, nam, p)
 					return (EADDRINUSE);
 			}
 			t = in_pcblookup_local(pcbinfo, sin->sin_addr,
-			    lport, wild);
+			    lport, prison ? 0 : wild);
 			if (t && (reuseport & t->inp_socket->so_options) == 0)
 				return (EADDRINUSE);
 		}
@@ -220,6 +226,8 @@ in_pcbbind(inp, nam, p)
 		ushort first, last;
 		int count;
 
+		if (prison_ip(p, 0, &inp->inp_laddr.s_addr ))
+			return (EINVAL);
 		inp->inp_flags |= INP_ANONPORT;
 
 		if (inp->inp_flags & INP_HIGHPORT) {
@@ -227,7 +235,7 @@ in_pcbbind(inp, nam, p)
 			last  = ipport_hilastauto;
 			lastport = &pcbinfo->lasthi;
 		} else if (inp->inp_flags & INP_LOWPORT) {
-			if (p && (error = suser(p)))
+			if (p && (error = suser_xxx(0, p, PRISON_ROOT)))
 				return error;
 			first = ipport_lowfirstauto;	/* 1023 */
 			last  = ipport_lowlastauto;	/* 600 */
@@ -894,4 +902,14 @@ in_pcbremlists(inp)
 	}
 	LIST_REMOVE(inp, inp_list);
 	inp->inp_pcbinfo->ipi_count--;
+}
+
+int
+prison_xinpcb(struct proc *p, struct inpcb *inp)
+{
+	if (!p->p_prison)
+		return (0);
+	if (ntohl(inp->inp_laddr.s_addr) == p->p_prison->pr_ip)
+		return (0);
+	return (1);
 }
