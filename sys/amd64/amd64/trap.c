@@ -480,7 +480,7 @@ restart:
 			if (in_vm86call)
 				break;
 
-			if (PCPU_GET(intr_nesting_level) != 0)
+			if (p->p_intr_nesting_level != 0)
 				break;
 
 			/*
@@ -687,7 +687,7 @@ trap_pfault(frame, usermode, eva)
 
 		if (p == NULL ||
 		    (!usermode && va < VM_MAXUSER_ADDRESS &&
-		     (PCPU_GET(intr_nesting_level) != 0 ||
+		     (p->p_intr_nesting_level != 0 ||
 		      PCPU_GET(curpcb) == NULL ||
 		      PCPU_GET(curpcb)->pcb_onfault == NULL))) {
 			trap_fatal(frame, eva);
@@ -751,7 +751,7 @@ trap_pfault(frame, usermode, eva)
 		return (0);
 nogo:
 	if (!usermode) {
-		if (PCPU_GET(intr_nesting_level) == 0 &&
+		if (p->p_intr_nesting_level == 0 &&
 		    PCPU_GET(curpcb) != NULL &&
 		    PCPU_GET(curpcb)->pcb_onfault != NULL) {
 			frame->tf_eip = (int)PCPU_GET(curpcb)->pcb_onfault;
@@ -858,7 +858,7 @@ trap_pfault(frame, usermode, eva)
 		return (0);
 nogo:
 	if (!usermode) {
-		if (PCPU_GET(intr_nesting_level) == 0 &&
+		if (p->p_intr_nesting_level == 0 &&
 		    PCPU_GET(curpcb) != NULL &&
 		    PCPU_GET(curpcb)->pcb_onfault != NULL) {
 			frame->tf_eip = (int)PCPU_GET(curpcb)->pcb_onfault;

@@ -177,7 +177,6 @@ IDTVEC(fpu)
 	call	_npx_intr
 
 	addl	$4,%esp
-	incb	PCPU(INTR_NESTING_LEVEL)
 	MEXITCOUNT
 	jmp	_doreti
 #else	/* DEV_NPX */
@@ -216,7 +215,6 @@ calltrap:
 	/*
 	 * Return via _doreti to handle ASTs.
 	 */
-	incb	PCPU(INTR_NESTING_LEVEL)
 	MEXITCOUNT
 	jmp	_doreti
 
@@ -257,7 +255,6 @@ IDTVEC(syscall)
 	cli				/* atomic astpending access */
 	cmpl    $0,PCPU(ASTPENDING)	/* AST pending? */
 	je	doreti_syscall_ret	/* no, get out of here */
-	movb	$1,PCPU(INTR_NESTING_LEVEL)
 	jmp	_doreti
 
 /*
@@ -289,7 +286,6 @@ IDTVEC(int0x80_syscall)
 	cli				/* atomic astpending access */
 	cmpl    $0,PCPU(ASTPENDING)	/* AST pending? */
 	je	doreti_syscall_ret	/* no, get out of here */
-	movb	$1,PCPU(INTR_NESTING_LEVEL)
 	jmp	_doreti
 
 ENTRY(fork_trampoline)
@@ -323,7 +319,6 @@ ENTRY(fork_trampoline)
 	/*
 	 * Return via _doreti to handle ASTs.
 	 */
-	movb	$1,PCPU(INTR_NESTING_LEVEL)
 	MEXITCOUNT
 	jmp	_doreti
 

@@ -57,8 +57,6 @@
 _doreti:
 	FAKE_MCOUNT(_bintr)		/* init "from" _bintr -> _doreti */
 doreti_next:
-	decb	PCPU(INTR_NESTING_LEVEL)
-
 	/* Check for ASTs that can be handled now. */
 	testl	$AST_PENDING,PCPU(ASTPENDING)
 	je	doreti_exit		/* no AST, exit */
@@ -128,7 +126,6 @@ doreti_ast:
 	sti
 	movl	$T_ASTFLT,TF_TRAPNO(%esp)
 	call	_ast
-	movb	$1,PCPU(INTR_NESTING_LEVEL) /* for doreti_next to decrement */
 	jmp	doreti_next
 
 #ifdef APIC_IO

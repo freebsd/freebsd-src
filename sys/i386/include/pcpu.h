@@ -58,8 +58,6 @@ struct globaldata {
 	struct timeval	gd_switchtime;
 	struct i386tss	gd_common_tss;
 	int		gd_switchticks;
-	u_char		gd_intr_nesting_level;
-	u_char		gd_pad0[3];
 	struct segment_descriptor gd_common_tssd;
 	struct segment_descriptor *gd_tss_gdt;
 	int		gd_currentldt;		/* only used for USER_LDT */
