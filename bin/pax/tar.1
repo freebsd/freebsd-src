@@ -37,9 +37,11 @@
 .Nm tar
 .Nd tape archiver
 .Sh SYNOPSIS
-.Nm tar
+.Nm
 .Sm off
-.Oo \&- Oc {crtux} Op befhmopqsvwzHLOPXZ014578
+.Op Fl
+.Brq Cm crtux
+.Op Cm befhmopqsvwzHLOPXZ014578
 .Sm on
 .Op Ar blocksize
 .Op Ar archive
@@ -47,19 +49,21 @@
 .\" XXX how to do this right?
 .Op Fl C Ar directory
 .Op Fl I Ar file
-.Op Ar file ...
+.Op Ar
 .Sh DESCRIPTION
 The
 .Nm
 command creates, adds files to, or extracts files from an
 archive file in
-.Dq tar
+.Nm
 format.
-A tar archive is often stored on a magnetic tape, but can be
+A
+.Nm
+archive is often stored on a magnetic tape, but can be
 stored equally well on a floppy, CD-ROM, or in a regular disk file.
 .Pp
 One of the following flags must be present:
-.Bl -tag -width Ar
+.Bl -tag -width indent
 .It Fl c
 Create new archive, or overwrite an existing archive,
 adding the specified files to it.
@@ -90,7 +94,7 @@ The file mode is subject to modification by the
 .Pp
 In addition to the flags mentioned above, any of the following
 flags may be used:
-.Bl -tag -width Ar
+.Bl -tag -width indent
 .It Fl b Ar "blocking factor"
 Set blocking factor to use for the archive.
 .Nm
@@ -109,11 +113,14 @@ Defaults to
 Follow symbolic links as if they were normal files
 or directories.
 .It Fl j
-Compress archives using bzip2.
+Compress archives using
+.Xr bzip2 1 .
 .It Fl m
 Do not preserve modification time.
 .It Fl O
-Write old-style (non-POSIX) archives.
+Write old-style
+.Pq non- Ns Tn POSIX
+archives.
 .It Fl o
 Don't write directory information that the older (V7) style
 .Nm
@@ -155,14 +162,19 @@ As in
 .Cm old
 is a basic regular expression and
 .Cm new
-can contain an ampersand (&), \\n (where n is a digit) back-references,
+can contain an ampersand
+.Pq Ql & ,
+.Li \e Ns Ar n
+(where
+.Ar n
+is a digit) back-references,
 or subexpression matching.
 The
 .Cm old
-string may also contain
-.Dv <newline>
-characters.
-Any non-null character can be used as a delimiter (/ is shown here).
+string may also contain newline characters.
+Any non-null character can be used as a delimiter
+.Ql ( /
+is shown here).
 Multiple
 .Fl s
 expressions can be specified.
@@ -179,9 +191,11 @@ option.
 The optional trailing
 .Cm p
 will cause the final result of a successful substitution to be written to
-.Dv standard error
+standard error
 in the following format:
+.Pp
 .Dl <original pathname> >> <new pathname>
+.Pp
 File or archive member names that substitute to the empty string
 are not selected and will be skipped.
 .It Fl v
@@ -193,9 +207,11 @@ This option causes
 to prompt the user for the filename to use when storing or
 extracting files in an archive.
 .It Fl y
-Compress archives using bzip2.
+Compress archives using
+.Xr bzip2 1 .
 .It Fl z
-Compress archive using gzip.
+Compress archive using
+.Xr gzip 1 .
 .It Fl C Ar directory
 This is a positional argument which sets the working directory for the
 following files.
@@ -208,7 +224,7 @@ Follow symlinks given on command line only.
 Follow all symlinks.
 .It Fl P
 Do not strip leading slashes
-.Pq Sq /
+.Pq Ql /
 from pathnames.
 The default is to strip leading slashes.
 .It Fl I Ar file
@@ -217,13 +233,27 @@ archive or extract from the given file, one per line.
 .It Fl X
 Do not cross mount points in the file system.
 .It Fl Z
-Compress archive using compress.
+Compress archive using
+.Xr compress 1 .
 .El
 .Pp
 The options
 .Op Fl 014578
 can be used to select one of the compiled-in backup devices,
-.Pa /dev/rstN .
+.Pa /dev/rst Ns Ar N .
+.Sh ENVIRONMENT
+.Bl -tag -width TMPDIR
+.It Ev TMPDIR
+Path in which to store temporary files.
+.It Ev TAPE
+Default tape device to use instead of
+.Pa /dev/rst0 .
+.El
+.Sh FILES
+.Bl -tag -width "/dev/rst0"
+.It Pa /dev/rst0
+default archive name
+.El
 .Sh DIAGNOSTICS
 .Nm
 will exit with one of the following values:
@@ -262,32 +292,20 @@ or error,
 .Nm
 may have only partially created the archive which may violate the
 specific archive format specification.
-.Sh FILES
-.Bl -tag -width "/dev/rst0"
-.It Pa /dev/rst0
-default archive name
-.El
-.Sh ENVIRONMENT
-.Bl -tag -width Fl
-.It Ev TMPDIR
-Path in which to store temporary files.
-.It Ev TAPE
-Default tape device to use instead of
-.Pa /dev/rst0 .
-.El
-.Sh SEE ALSO
-.Xr cpio 1 ,
-.Xr pax 1
-.Sh AUTHORS
-Keith Muller at the University of California, San Diego.
-.Sh HISTORY
-A
-.Nm
-command first appeared in
-.At v7 .
-.Sh CAVEATS
+.Sh COMPATIBILITY
 The
 .Fl L
 flag is not portable to other versions of
 .Nm
 where it may have a different meaning.
+.Sh SEE ALSO
+.Xr cpio 1 ,
+.Xr pax 1
+.Sh HISTORY
+A
+.Nm
+command first appeared in
+.At v7 .
+.Sh AUTHORS
+.An Keith Muller
+at the University of California, San Diego.
