@@ -460,8 +460,10 @@ if_attachdomain(dummy)
 	int s;
 
 	s = splnet();
+	IFNET_RLOCK();
 	for (ifp = TAILQ_FIRST(&ifnet); ifp; ifp = TAILQ_NEXT(ifp, if_list))
 		if_attachdomain1(ifp);
+	IFNET_RUNLOCK();
 	splx(s);
 }
 SYSINIT(domainifattach, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_FIRST,
