@@ -590,6 +590,13 @@
 
     </sect3>
 
+    <sect3>
+      <title>Contributed Software</title>
+ 
+	<para><application>IPFilter</application> has been updated to
+	  3.4.35.</para>
+
+    </sect3>
   </sect2>
 
   <sect2 id="userland">
@@ -899,7 +906,7 @@
       0.9.7c to 0.9.7d.  &merged;</para>
 
     <para><application>pf</application>, OpenBSD's packet filter as of
-      OpenBSD 3.4, has been imported into &os; source tree and is now installed
+      OpenBSD 3.5, has been imported into &os; source tree and is now installed
       by default.  A new user <username>proxy</username>, and two new
       groups <username>authpf</username> and <username>proxy</username>,
       which <application>pf</application> needs, are added as well.
