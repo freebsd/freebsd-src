@@ -7,6 +7,7 @@ KEYMAPS+= ce.iso2.kbd
 KEYMAPS+= cz.iso2.kbd
 KEYMAPS+= danish.iso.kbd danish.cp865.kbd
 KEYMAPS+= finnish.iso.kbd finnish.cp850.kbd
+KEYMAPS+= estonian.iso.kbd estonian.iso15.kbd estonian.cp850.kbd
 KEYMAPS+= fr.iso.kbd fr.iso.acc.kbd
 KEYMAPS+= fr_CA.iso.acc.kbd
 KEYMAPS+= german.iso.kbd german.cp850.kbd
