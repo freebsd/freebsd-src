@@ -427,7 +427,7 @@ udp6_ctlinput(cmd, sa, d)
 
 	/* translate addresses into internal form */
 	sa6 = *(struct sockaddr_in6 *)sa;
-	if (IN6_IS_ADDR_LINKLOCAL(&sa6.sin6_addr))
+	if (m != NULL && IN6_IS_ADDR_LINKLOCAL(&sa6.sin6_addr))
 		sa6.sin6_addr.s6_addr16[1] = htons(m->m_pkthdr.rcvif->if_index);
 
 	if (ip6) {
