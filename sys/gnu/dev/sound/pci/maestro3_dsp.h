@@ -1,5 +1,5 @@
 /* $FreeBSD$ */
-/*
+/*-
  *      ESS Technology allegro audio driver.
  *
  *      Copyright (C) 1992-2000  Don Kim (don.kim@esstech.com)
