@@ -2,6 +2,9 @@ PROG= pkg_add
 
 CFLAGS+=	${DEBUG} -I${.CURDIR}/../lib
 
+LDADD+=		-lftp
+DPADD+=		${LIBFTP}
+
 .if exists(${.CURDIR}/../lib/obj)
 LDADD+=		-L${.CURDIR}/../lib/obj -linstall
 DPADD+=		${.CURDIR}/../lib/obj/libinstall.a
