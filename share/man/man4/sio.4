@@ -34,9 +34,9 @@
 .\"
 .\"     from: @(#)dca.4	5.2 (Berkeley) 3/27/91
 .\"	from: com.4,v 1.1 1993/08/06 11:19:07 cgd Exp
-.\"	$Id: sio.4,v 1.1 1993/08/28 12:41:23 rgrimes Exp $
+.\"	$Id: sio.4,v 1.3 1994/02/13 00:16:23 ache Exp $
 .\"
-.Dd February 15, 1994
+.Dd February 9, 1994
 .Dt SIO 4 i386
 .Os FreeBSD
 .Sh NAME
@@ -44,112 +44,91 @@
 .Nd
 fast interrupt driven asynchronous serial communications interface
 .Sh SYNOPSIS
-For single lines:
+For standard ports:
 .Cd "device sio0 at isa? port" \&"IO_COM1\&" tty irq 4 vector siointr
 .Cd "device sio1 at isa? port" \&"IO_COM2\&" tty irq 3 vector siointr
 .Cd "device sio2 at isa? port" \&"IO_COM3\&" tty irq 5 vector siointr
 .Cd "device sio3 at isa? port" \&"IO_COM4\&" tty irq 9 vector siointr
-.Cd ""
+.sp
 For multiport cards:
 .Cd "options" \&"COM_MULTIPORT\&"
-.Cd "device sio4 at isa? port 0x2a0 tty irq 6 flags 0x0701 vector siointr"
-.Cd "device sio5 at isa? port 0x2a8 tty flags 0x0701 vector siointr"
-.Cd "device sio6 at isa? port 0x2b0 tty flags 0x0701 vector siointr"
-.Cd "device sio7 at isa? port 0x2b8 tty flags 0x0701 vector siointr"
-.Cd ""
-For bidirectional use of sio devices:
+.Cd "device sio4 at isa? port 0x2a0 tty irq 12 vector siointr flags 0x401"
+.Cd "device sio5 at isa? port 0x2a8 tty vector siointr flags 0x401"
+.Cd "device sio6 at isa? port 0x2b0 tty vector siointr flags 0x401"
+.Cd "device sio7 at isa? port 0x2b8 tty vector siointr flags 0x401"
+.sp
+For bidirectional use of ports:
 .Cd "options" \&"COM_BIDIR\&"
+.sp
+For control FIFO trigger:
+.Cd "options" \&"FIFO_TRIGGER=FIFO_TRIGGER_14\&"
+.sp
+Use 0x02 bit in flags field to disable FIFO on specified port.
 .Sh DESCRIPTION
 The
 .Nm sio
 driver provides support for NS8250-, NS16450-, NS16550 and NS16550A-based
-(and true compatibles)
 .Tn EIA
 .Tn RS-232C
 .Pf ( Tn CCITT
 .Tn V.24 )
 communications interfaces.  The NS8250 and NS16450 have single character
-buffers, the NS16550 has broken FIFO buffers and the NS16550A has a 16 character 
-FIFO buffer. 
+buffers, the NS16550A has a 16 character FIFO buffer.
 .Pp
 Input and output for each line may set to one of following baud rates;
 50, 75, 110, 134.5, 150, 300, 600, 1200, 1800, 2400, 4800, 9600,
-19200, 38400, 57600, or 115200. The hardware implementation of your
-serial interface card may limit your choice of baud rates. To be precise: the 
-frequency of the baud rate clock signal fed into the NSxx50 chips determines
-which baudrates you can select, not the NSxx50 chips themselves.
-.Pp
-All I/O addresses and IRQ levels listed in the config file must 
-exactly match the actual setup of the hardware. Note that the AT bus 
-does not support multiple cards on a single IRQ line.
+19200, 38400, 57600, or 115200. Your hardware may limit your baud
+rate choices.
 .Pp
 For multiport cards the 
 .Nm flags
-keyword in the kernel configuration file determines which device of 
-your multiport card is the master device and also indicates that the 
-device is part of a multiport card. The master device is the device which
-has the register through which all interrupts of the card are funneled. 
-All devices of a multiport card report pending interrupts using this single 
-register.
+keyword in the kernel configuration file determines which port of 
+your multiport card is the master device, and whether the 
+port is part of a multiport card. The master device is the port which
+has register through which all interrupts of the card are funneled.
+All ports of a multiport card report pending interrupts using this
+single register.
 .sp
 The master device is indicated 
 .Nm bitwise
-using bits 8-15. All sio entries in the kernel config file that are part of a 
+, so all sio entries in the kernel config file that are part of a 
 multiport card must include the correct 
 .Nm flags
-specification. The requirement to have a 
-.Nm flags 
-value on each sio line entry for a multiport card device allows multiple 
-multiport cards to be configured in one system. It does 
+specification. The bitwise assignment allows multiple multiport cards to
+be configured in one system. It does 
 .Nm not
 imply that the hardware can share the same physical interrupt line!
-.sp
-In the synopsis 
-.Nm flags 0x0701 
-means that the device with minor number 
-.Nm 7 
-is the multiport card's master 
-device (so the MSB of the flags), and that the devices are on a 
+.Pp
+In the synopsis the 
+.Nm flags 0x401
+means that the 4th port (sio4) is the master
+device (so the MSB of the flags), and that the ports are part of a 
 multiport card (the LSB of the flags, actually only the LS 
 .Nm bit
-) is used to indicate this. So, in this example the last device of the 
-multiport card is the masterdevice.
-.sp
-Note that if you also have non-multiport serial devices controlled by sio,
-as in the 
-.Nm Synopsis
-, they do not require
+).
+F.e. if you have only two standard ports in addition to multiport
+card, this
 .Nm flags
-entries but 
-.Nm do
-count as serial devices for the calculation of the multiport card's master
-device.
-.sp
-Which device the master device is depends on the card type. Consult
-the hardware documentation of your card to obtain this info.
-.sp
-If you want to disable the FIFO buffers on a sio line with a NS16550A 
-chip, you can specify a 
-.Nm flags
-value of 0x0002 for a non-multiport line, or OR 0x0002 to the 
-.Nm flags
-entry of a multiport line. You can specify this also for a device
-that has no FIFO buffers and it will simply have no effect.
-.sp
-Serial devices controlled by the 
+will be
+.Nm 0x201 .
+.Pp
+Which port is the master device depends on the card type. Consult
+the hardware documentation of your card.
+.Pp
+Serial ports controlled by the 
 .Nm sio
 driver can be used for both dialin and dialout. Use 
-.Nm comcontrol
-command to enable/disable bidirectional use of the 
+.Xr comcontrol 8
+to enable/disable bidirectional use of the 
 .Nm sio
-devices. The minor number of the dialout
-device is 128 higher than that of the corresponding dialin device. Use 
-.Nm stty(1)
+ports. The minor number of the dialout
+port is 128 higher than that of the corresponding dialin port. Use 
+.Xr stty 1
 to enable or disable modem control as required by your setup.
 .Sh FILES
 .Bl -tag -width Pa
-.It Pa /dev/tty00 for dialin
-.It Pa /dev/ttyd00 for dialout
+.It Pa /dev/tty0? for dialin
+.It Pa /dev/cua0? for dialout
 .El
 .Sh DIAGNOSTICS
 .Bl -diag
@@ -157,17 +136,14 @@ to enable or disable modem control as required by your setup.
 The single-character input
 .Dq silo
 has overflowed and incoming data has been lost.
-.It sio%d: interrupt-level buffer overflow.
-The kernel was too busy to read the interrupt-level buffer in time.
-.It sio%d: tty-level buffer overflow.
-The application was too busy to read the tty-level buffer in time or the
-system was too busy to give the application enough time to read the tty-level
-buffer.
+.\".It com%d: weird interrupt: %x.
+.\"The device has generated an unexpected interrupt
+.\"with the code listed.
 .El
 .Sh SEE ALSO
-.Xr tty 4
-.Xr comcontrol 1
-.Xr stty 1
+.Xr tty 4 ,
+.Xr comcontrol 8 ,
+.Xr stty 1 .
 .Sh HISTORY
 The
 .Nm
@@ -177,48 +153,25 @@ driver is derived from the
 driver and is
 .Ud
 .Sh BUGS
-Data loss is not nearly as likely on busy systems as it is with the
+Data loss is not near as likely on busy systems as they are with the
 .Xr com 4
-driver but can still occur at very high baud rates on slow systems. The
-use of NS16550A's helps to handle high baud rates on multiple lines.
+driver but they still can occur at very high baud rates on slow systems. The
+use of NS16550A's helps lot to handle high baud rates.
 .Pp
 Stay away from NS16550 (so without the trailing A). These are early 
 implementations of the chip with non-functional FIFO hardware.
 .Pp
 The constants which define the locations
-of the various serial devices are holdovers from
+of the various serial ports are holdovers from
 .Nm DOS .
 As shown, hex addresses can be and for clarity probably should be used instead.
 .Pp
-Rumour has it that not all 16550 clones work correctly. Hard evidence is
-difficult to come by.
+As usual, you get what you pay for; cheap NS16550 clones generally don't work.
 .Pp
-The meaning of the
-.Nm flags
-value has changed between FreeBSD 1.0.2 and 1.1. On FreeBSD 1.0.2,
-it was sufficient to have the 
-.Nm flags 
-value on only one sio line for each
-multiport card, although it really should have been on all lines even for 1.0.2. 
-For 1.1 you must have 
-.Nm flags 
-entries on each line that is part of a multiport card.
-Take care when you want to re-use 1.0.2. config files on 1.1.
-.sp
 The multiport example is based on an AST/4 card, your
-mileage may vary however. Note that on the AST/4 the card's dip switches should 
+mileage may vary however. Note that on the AST/4 the card's dipswitches should 
 .Nm not
 be set to use interrupt sharing. AST/4-like interrupt sharing is only used when 
 .Nm multiple
 AST/4 cards are installed in the same system. The sio driver does not 
-support more than 1 AST/4 card on one IRQ. It looks like the AST/4 
-sometimes needs a power cycle to reset itself correctly. Symptoms:
-devices are probed by the kernel as being present but do not work correctly.
-.sp
-Getting multiport cards to work can prematurely 
-turn your hair grey. The hardware documentation generally increases the
-greying rate.
-.Pp
-This man page can not replace the Ultimate Doc(tm): the source.
-.Pp
-Bugs in this man page can be reported to: wilko@idca.tds.philips.nl
+support more than 1 AST/4 on one IRQ.
