@@ -57,6 +57,7 @@ cset_alloc(void)
 	cs->cs_root = NULL;
 	cs->cs_classes = NULL;
 	cs->cs_havecache = false;
+	cs->cs_invert = false;
 	return (cs);
 }
 
