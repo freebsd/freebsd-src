@@ -376,7 +376,7 @@ idle_loop:
 
 #else /* !SMP */
 
-	movl	$HIDENAME(tmpstk),%esp
+	movl	$tmpstk,%esp
 #if defined(OVERLY_CONSERVATIVE_PTD_MGMT)
 #if defined(SWTCH_OPTIM_STATS)
 	incl	_swtch_optim_stats

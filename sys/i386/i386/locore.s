@@ -93,9 +93,9 @@
 	.data
 	ALIGN_DATA		/* just to be sure */
 
-	.globl	HIDENAME(tmpstk)
+	.globl	tmpstk
 	.space	0x2000		/* space for tmpstk - temporary stack */
-HIDENAME(tmpstk):
+tmpstk:
 
 	.globl	_boothowto,_bootdev
 
@@ -248,6 +248,27 @@ NON_GPROF_ENTRY(btext)
 	mov	%ax, %fs
 	mov	%ax, %gs
 
+/*
+ * Clear the bss.  Not all boot programs do it, and it is our job anyway.
+ *
+ * XXX we don't check that there is memory for our bss and page tables
+ * before using it.
+ *
+ * Note: we must be careful to not overwrite an active gdt or idt.  In
+ * the !BDE_DEBUGGER case they are inactive from now until we switch to
+ * new ones, since we don't load any more segment registers or permit
+ * interrupts until after the switch.  In the BDE_DEBUGGER case, we depend
+ * on the convention that the boot program is below 1MB and we are above
+ * 1MB to keep the gdt and idt away from the bss and page tables.
+ */
+	movl	$R(_end),%ecx
+	movl	$R(_edata),%edi
+	subl	%edi,%ecx
+	xorl	%eax,%eax
+	cld
+	rep
+	stosb
+
 	call	recover_bootinfo
 
 /* Get onto a stack that we can trust. */
@@ -256,7 +277,7 @@ NON_GPROF_ENTRY(btext)
  * the old stack, but it need not be, since recover_bootinfo actually
  * returns via the old frame.
  */
-	movl	$R(HIDENAME(tmpstk)),%esp
+	movl	$R(tmpstk),%esp
 
 #ifdef PC98
 	/* pc98_machine_type & M_EPSON_PC98 */
@@ -286,30 +307,6 @@ NON_GPROF_ENTRY(btext)
 #endif
 
 	call	identify_cpu
-
-/* clear bss */
-/*
- * XXX this should be done a little earlier.
- *
- * XXX we don't check that there is memory for our bss and page tables
- * before using it.
- *
- * XXX the boot program somewhat bogusly clears the bss.  We still have
- * to do it in case we were unzipped by kzipboot.  Then the boot program
- * only clears kzipboot's bss.
- *
- * XXX the gdt and idt are still somewhere in the boot program.  We
- * depend on the convention that the boot program is below 1MB and we
- * are above 1MB to keep the gdt and idt  away from the bss and page
- * tables.  The idt is only used if BDE_DEBUGGER is enabled.
- */
-	movl	$R(_end),%ecx
-	movl	$R(_edata),%edi
-	subl	%edi,%ecx
-	xorl	%eax,%eax
-	cld
-	rep
-	stosb
 
 #if NAPM > 0
 #ifndef VM86
