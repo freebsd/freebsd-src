@@ -1525,8 +1525,8 @@ ata_sis_ident(device_t dev)
      { ATA_SIS540,  0x00, SIS66,     0, ATA_UDMA4, "SiS 540" },
      { ATA_SIS530,  0x00, SIS66,     0, ATA_UDMA4, "SiS 530" },
 
-     { ATA_SIS5513, 0xc2, SIS33,     0, ATA_UDMA2, "SiS 5313" },
-     { ATA_SIS5513, 0x00, SIS33,     0, ATA_WDMA2, "SiS 5313" },
+     { ATA_SIS5513, 0xc2, SIS33,     0, ATA_UDMA2, "SiS 5513" },
+     { ATA_SIS5513, 0x00, SIS33,     0, ATA_WDMA2, "SiS 5513" },
      { 0, 0, 0, 0, 0, 0 }};
     char buffer[64];
 
