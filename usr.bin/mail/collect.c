@@ -47,6 +47,7 @@ static const char rcsid[] =
  */
 
 #include "rcv.h"
+#include <fcntl.h>
 #include "extern.h"
 
 /*
@@ -213,6 +214,7 @@ cont:
 			shell(&linebuf[2]);
 			break;
 		case ':':
+		case '_':
 			/*
 			 * Escape to command mode, but be nice!
 			 */
@@ -231,6 +233,11 @@ cont:
 			hadintr++;
 			collint(SIGINT);
 			exit(1);
+		case 'x':
+			/*
+			 * Exit, do not save in dead.letter.
+			 */
+			goto err;
 		case 'h':
 			/*
 			 * Grab a bunch of headers.
@@ -269,18 +276,52 @@ cont:
 			break;
 		case 'b':
 			/*
-			 * Add stuff to blind carbon copies list.
+			 * Add to the BCC list.
 			 */
 			hp->h_bcc = cat(hp->h_bcc, extract(&linebuf[2], GBCC));
 			break;
+		case 'i':
+		case 'A':
+		case 'a':
+			/*
+			 * Insert named variable in message
+			 */
+			switch(c) {
+				case 'i':
+					cp = &linebuf[2];
+					while(isspace((unsigned char)*cp))
+						cp++;
+					break;
+				case 'a':
+					cp = "sign";
+					break;
+				case 'A':
+					cp = "Sign";
+					break;
+				default:
+					goto err;
+			}
+
+			if(*cp != '\0' && (cp = value(cp)) != NULL) {
+				printf("%s\n", cp);
+				if(putline(collf, cp, 1) < 0)
+					goto err;
+			}
+
+			break;
 		case 'd':
-			if (strlcpy(linebuf + 2, getdeadletter(), sizeof(linebuf) - 2)
+			/*
+			 * Read in the dead letter file.
+			 */
+			if (strlcpy(linebuf + 2, getdeadletter(),
+				sizeof(linebuf) - 2)
 			    >= sizeof(linebuf) - 2) {
 				printf("Line buffer overflow\n");
 				break;
 			}
-			/* fall into . . . */
+			/* FALLTHROUGH */
 		case 'r':
+		case '<':
 			/*
 			 * Invoke a file:
 			 * Search for the file name,
@@ -296,11 +337,55 @@ cont:
 			cp = expand(cp);
 			if (cp == NULL)
 				break;
-			if (isdir(cp)) {
+			if (*cp == '!') {
+				/*
+				 * Insert stdout of command.
+				 */
+				char *sh;
+				int nullfd, tempfd, rc;
+				char tempname2[PATHSIZE];
+
+				if ((nullfd = open("/dev/null", O_RDONLY, 0))
+				    == -1) {
+					warn("/dev/null");
+					break;
+				}
+
+				(void)snprintf(tempname2, sizeof(tempname2),
+				    "%s/mail.ReXXXXXXXXXX", tmpdir);
+				if ((tempfd = mkstemp(tempname2)) == -1 ||
+				    (fbuf = Fdopen(tempfd, "w+")) == NULL) {
+					warn("%s", tempname2);
+					break;
+				}
+				(void)unlink(tempname2);
+
+				if ((sh = value("SHELL")) == NULL)
+					sh = _PATH_CSHELL;
+
+				rc = run_command(sh, 0, nullfd, fileno(fbuf),
+				    "-c", cp+1, NULL);
+
+				close(nullfd);
+
+				if (rc < 0) {
+					(void)Fclose(fbuf);
+					break;
+				}
+
+				if (fsize(fbuf) == 0) {
+					fprintf(stderr,
+					    "No bytes from command \"%s\"\n",
+					    cp+1);
+					(void)Fclose(fbuf);
+					break;
+				}
+
+				rewind(fbuf);
+			} else if (isdir(cp)) {
 				printf("%s: Directory\n", cp);
 				break;
-			}
-			if ((fbuf = Fopen(cp, "r")) == NULL) {
+			} else if ((fbuf = Fopen(cp, "r")) == NULL) {
 				warn("%s", cp);
 				break;
 			}

@@ -1,23 +1,37 @@
 -----------------------------------------------------------
 The following ~ escapes are defined:
+~?		Print this message
 ~~		Quote a single tilde
+~.		Same as .
+~A		Equivalent to: ~i Sign
+~a		Equivalent to: ~i sign
 ~b users	Add users to "blind" cc list
 ~c users	Add users to cc list
+~C		Dump core
 ~d		Read in dead.letter
 ~e		Edit the message buffer
 ~f messages	Read in messages
 ~F messages	Same as ~f, but keep all header lines
 ~h		Prompt for to list, subject and cc list
-~r file		Read a file into the message buffer
-~p		Print the message buffer
+~i name		Insert the value of the named variable
 ~m messages	Read in messages, right shifted by a tab
 ~M messages	Same as ~m, but keep all header lines
+~p		Print the message buffer
+~q		Quit, save partial message in dead.letter
+~r file		Read a file into the message buffer
+~r !command	Insert the output of the command in the message
+~< file		Same as ~r
+~< !command	Same as ~r
 ~R address	Set reply-to
 ~s subject	Set subject
-~t users	Add users to to list
+~t users	Add users to the To list
 ~v		Invoke display editor on message
 ~w file		Write message onto file.
+~x		Quit, do not save to dead.letter
 ~?		Print this message
-~!command	Invoke the shell
-~|command	Pipe the message through the command
+~! command	Invoke the shell
+~| command	Pipe the message through the command
+~^ command	Same as ~|
+~_ mail-cmd	Perform the command-level request
+~: mail-cmd	Same as ~_
 -----------------------------------------------------------
