@@ -45,18 +45,6 @@
 enum vtype	{ VNON, VREG, VDIR, VBLK, VCHR, VLNK, VSOCK, VFIFO, VBAD };
 
 /*
- * Vnode tag types.
- * These are for the benefit of external programs only (e.g., pstat)
- * and should NEVER be inspected by the kernel.
- */
-enum vtagtype	{
-	VT_NON, VT_UFS, VT_NFS, VT_UNUSED, VT_PC, VT_LFS, VT_LOFS, VT_FDESC,
-	VT_PORTAL, VT_NULL, VT_UMAP, VT_KERNFS, VT_PROCFS, VT_AFS, VT_ISOFS,
-	VT_UNION, VT_MSDOSFS, VT_DEVFS, VT_TFS, VT_VFS, VT_CODA, VT_NTFS,
-	VT_HPFS, VT_NWFS, VT_PSEUDOFS
-};
-
-/*
  * Each underlying file system allocates its own private area and hangs
  * it from v_data.  If non-null, this area is freed in getnewvnode().
  */
@@ -105,7 +93,7 @@ struct vnode {
 	struct vm_object *v_object;		/* Place to store VM object */
 	struct	simplelock v_interlock;		/* lock on usecount and flag */
 	struct	lock *v_vnlock;			/* used for non-locking fs's */
-	enum	vtagtype v_tag;			/* type of underlying data */
+	const	char *v_tag;			/* type of underlying data */
 	void 	*v_data;			/* private data for fs */
 	LIST_HEAD(, namecache) v_cache_src;	/* Cache entries from us */
 	TAILQ_HEAD(, namecache) v_cache_dst;	/* Cache entries to us */
@@ -241,7 +229,7 @@ A FIFO (named pipe).  Advisory locking won't work on this.
 .It Dv VBAD
 An old style bad sector map
 .El
-.Sh NOTES
+.Sh IMPLEMENTATION NOTES
 VFIFO uses the "struct fileops" from
 .Pa /sys/kern/sys_pipe.c .
 VSOCK uses the "struct fileops" from
@@ -252,7 +240,17 @@ Everything else uses the one from
 The VFIFO/VSOCK code, which is why "struct fileops" is used at all, is
 an artifact of an incomplete integration of the VFS code into the
 kernel.
+.Pp
+Calls to
+.Xr malloc 9
+or
+.Xr free 9
+when holding a
+.Nm
+interlock, will cause a LOR (Lock Order Reversal) due to the
+interwining of VM Objects and Vnodes.
 .Sh SEE ALSO
+.Xr malloc 9
 .Xr VFS 9
 .Sh AUTHORS
 This man page was written by
