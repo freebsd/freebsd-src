@@ -212,7 +212,7 @@ struct mbuf *nfsm_rpchead __P((struct ucred *cr, int nmflag, int procid,
 #define	nfsm_loadattr(v, a) \
 	do { \
 		struct vnode *ttvp = (v); \
-		if ((t1 = nfs_loadattrcache(&ttvp, &md, &dpos, (a))) != 0) { \
+		if ((t1 = nfs_loadattrcache(&ttvp, &md, &dpos, (a), 0)) != 0) { \
 			error = t1; \
 			m_freem(mrep); \
 			goto nfsmout; \
@@ -226,7 +226,7 @@ struct mbuf *nfsm_rpchead __P((struct ucred *cr, int nmflag, int procid,
 		nfsm_dissect(tl, u_int32_t *, NFSX_UNSIGNED); \
 		if (((f) = fxdr_unsigned(int, *tl)) != 0) { \
 			if ((t1 = nfs_loadattrcache(&ttvp, &md, &dpos, \
-				(struct vattr *)0)) != 0) { \
+				(struct vattr *)0, 1)) != 0) { \
 				error = t1; \
 				(f) = 0; \
 				m_freem(mrep); \
