@@ -49,12 +49,13 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *End copyright
- * $Id: ssc.c,v 1.11 1996/03/28 14:33:56 scrappy Exp $
+ * $Id: ssc.c,v 1.12 1996/03/28 16:51:12 scrappy Exp $
  */
 
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/conf.h>
+#include <sys/disklabel.h>
 #include <sys/scsiio.h>
 #include <sys/kernel.h>
 #include <sys/errno.h>
@@ -104,9 +105,12 @@ sscioctl(dev_t dev, int cmd, caddr_t data, int fflag, struct proc *p)
 {
 	if (cmd == SCIOCADDR)
 	{
-		struct scsi_addr *sca = (struct scsi_addr *) data;
-		dev_t newdev = SCSI_MKFIXED(sca->scbus,sca->target,sca->lun);
+		struct scsi_addr *sca;
+		dev_t newdev;
 		int ret;
+
+		sca = (struct scsi_addr *) data;
+		newdev = SCSI_MKFIXED(sca->scbus,sca->target,sca->lun,RAW_PART);
 
 		if (sscdev != NODEV)
 		{
