@@ -1,3 +1,6 @@
+v1.9.2 - January 20, 1995.  Another passive mode fix with the SOCKS library.
+  Trying to avoid going into the interactive shell if colon-mode fails.
+
 v1.9.1 - January 1, 1995.  Passive mode fix with the SOCKS library.
 
 v1.9.0 - December 22, 1994.  The program won't exit from the interactive shell
