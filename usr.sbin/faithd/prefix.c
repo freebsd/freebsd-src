@@ -1,4 +1,4 @@
-/*	$KAME: prefix.c,v 1.9 2001/07/02 14:36:49 itojun Exp $	*/
+/*	$KAME: prefix.c,v 1.13 2003/09/02 22:50:17 itojun Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -58,17 +58,16 @@ struct config *config_list = NULL;
 const int niflags = NI_NUMERICHOST;
 
 static int
-prefix_set(s, prefix, slash)
-	const char *s;
-	struct prefix *prefix;
-	int slash;
+prefix_set(const char *s, struct prefix *prefix, int slash)
 {
-	char *p, *q, *r;
+	char *p = NULL, *q, *r;
 	struct addrinfo hints, *res = NULL;
 	int max;
 	char *a;
 
 	p = strdup(s);
+	if (!p)
+		goto fail;
 	q = strchr(p, '/');
 	if (q) {
 		if (!slash)
@@ -126,8 +125,7 @@ fail:
 }
 
 const char *
-prefix_string(prefix)
-	const struct prefix *prefix;
+prefix_string(const struct prefix *prefix)
 {
 	static char buf[NI_MAXHOST + 20];
 	char hbuf[NI_MAXHOST];
@@ -140,9 +138,7 @@ prefix_string(prefix)
 }
 
 int
-prefix_match(prefix, sa)
-	const struct prefix *prefix;
-	const struct sockaddr *sa;
+prefix_match(const struct prefix *prefix, const struct sockaddr *sa)
 {
 	struct sockaddr_storage a, b;
 	char *pa, *pb;
@@ -194,8 +190,7 @@ prefix_match(prefix, sa)
  * 3ffe::/16 permit 10.0.0.0/8 10.1.1.1
  */
 static struct config *
-config_load1(line)
-	const char *line;
+config_load1(const char *line)
 {
 	struct config *conf;
 	char buf[BUFSIZ];
@@ -268,8 +263,7 @@ fail:
 }
 
 int
-config_load(configfile)
-	const char *configfile;
+config_load(const char *configfile)
 {
 	FILE *fp;
 	char buf[BUFSIZ];
@@ -285,6 +279,7 @@ config_load(configfile)
 		return -1;
 
 	p = &sentinel;
+	sentinel.next = NULL;
 	while (fgets(buf, sizeof(buf), fp) != NULL) {
 		conf = config_load1(buf);
 		if (conf) {
@@ -300,8 +295,7 @@ config_load(configfile)
 
 #if 0
 static void
-config_show1(conf)
-	const struct config *conf;
+config_show1(const struct config *conf)
 {
 	const char *p;
 
@@ -330,8 +324,7 @@ config_show()
 #endif
 
 const struct config *
-config_match(sa1, sa2)
-	struct sockaddr *sa1, *sa2;
+config_match(struct sockaddr *sa1, struct sockaddr *sa2)
 {
 	static struct config conf;
 	const struct config *p;
