@@ -1,10 +1,11 @@
 PROG=	curseperl
 
-SRCS+= array.c cmd.c cons.c consarg.c 
-SRCS+= doarg.c doio.c dolist.c dump.c
-SRCS+= eval.c form.c hash.c malloc.c 
-SRCS+= perl.c perly.c regcomp.c regexec.c
-SRCS+= stab.c str.c toke.c util.c 
+# From perl
+SRCS+= array.c cmd.c cons.c consarg.c doarg.c doio.c dolist.c dump.c
+SRCS+= eval.c form.c hash.c malloc.c perl.c perly.c regcomp.c regexec.c
+SRCS+= stab.c str.c toke.c util.c
+
+# Local to us.
 SRCS+=	usersub.c curses.c
 
 CFLAGS+=	-DDEBUGGING -I${.CURDIR}/../perl
@@ -14,8 +15,18 @@ CLEANFILES+=	curses.c
 VPATH+=	${.CURDIR}/../perl
 NOMAN=	yes
 
+# If perl exists in none of these places, something is horribly wrong.
+.if exists(${.CURDIR}/../perl/obj/perl)
+PERL=${.CURDIR}/../perl/obj/perl
+.endif
+.if !defined(PERL) && exists(${.CURDIR}/../perl/perl)
+PERL=${.CURDIR}/../perl/perl
+.else
+PERL=	/usr/bin/perl
+.endif
+
 curses.c: curses.mus
-	/usr/bin/perl ${.CURDIR}/mus ${.CURDIR}/curses.mus > curses.c
+	${PERL} ${.CURDIR}/mus ${.CURDIR}/curses.mus > curses.c
 
 .include "../../Makefile.inc"
 .include <bsd.prog.mk>
