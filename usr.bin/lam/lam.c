@@ -64,8 +64,8 @@ struct	openfile {		/* open file structure */
 	short	eof;		/* eof flag */
 	short	pad;		/* pad flag for missing columns */
 	char	eol;		/* end of line character */
-	char	*sepstring;	/* string to print before each line */
-	char	*format;	/* printf(3) style string spec. */
+	const char *sepstring;	/* string to print before each line */
+	const char *format;	/* printf(3) style string spec. */
 }	input[MAXOFILES];
 
 int	morefiles;		/* set by getargs(), changed by gatherline() */
@@ -73,13 +73,13 @@ int	nofinalnl;		/* normally append \n to each output line */
 char	line[BIGBUFSIZ];
 char	*linep;
 
-char	*gatherline(struct openfile *);
-void	 getargs(char *[]);
-char	*pad(struct openfile *);
+static char    *gatherline(struct openfile *);
+static void	getargs(char *[]);
+static char    *pad(struct openfile *);
 static void	usage(void);
 
 int
-main(int argc, char *argv[])
+main(int argc __unused, char *argv[])
 {
 	struct	openfile *ip;
 
@@ -99,7 +99,7 @@ main(int argc, char *argv[])
 	}
 }
 
-void
+static void
 getargs(char *av[])
 {
 	struct	openfile *ip = input;
@@ -176,7 +176,7 @@ getargs(char *av[])
 		ip->sepstring = "";
 }
 
-char *
+static char *
 pad(struct openfile *ip)
 {
 	char *lp = linep;
@@ -190,7 +190,7 @@ pad(struct openfile *ip)
 	return (lp);
 }
 
-char *
+static char *
 gatherline(struct openfile *ip)
 {
 	char s[BUFSIZ];
