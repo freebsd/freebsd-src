@@ -6,6 +6,7 @@
 
 #include "includes.h"
 #include "ssh.h"
+#include "ssh1.h"
 #include "packet.h"
 #include "xmalloc.h"
 

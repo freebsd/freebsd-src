@@ -416,8 +416,8 @@ do_authloop(Authctxt *authctxt)
 			  tgt.data = packet_get_string(&tgtlen);
 			  tgt.length = tgtlen;
 			  
-			  if (!auth_krb5_tgt(luser, &tgt, tkt_client))
-			    verbose ("Kerberos V5 TGT refused for %.100s", luser);
+			  if (!auth_krb5_tgt(pw->pw_name, &tgt, tkt_client))
+			    verbose ("Kerberos V5 TGT refused for %.100s", pw->pw_name);
 			  xfree(tgt.data);
 			      
 			  break;
