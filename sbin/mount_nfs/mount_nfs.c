@@ -784,10 +784,11 @@ tryagain:
 						warnx("%s", clnt_sperror(clp,
 						    "bad MNT RPC"));
 				} else {
-					auth_destroy(clp->cl_auth);
-					clnt_destroy(clp);
 					retrycnt = 0;
 				}
+				auth_destroy(clp->cl_auth);
+				clnt_destroy(clp);
+				so = RPC_ANYSOCK;
 			}
 		}
 		if (--retrycnt > 0) {
