@@ -30,7 +30,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: yppoll.c,v 1.3 1997/10/27 12:30:30 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -65,7 +65,7 @@ char **argv;
 
         yp_get_default_domain(&domainname);
 
-	while( (c=getopt(argc, argv, "h:d:?")) != -1)
+	while( (c=getopt(argc, argv, "h:d:")) != -1)
 		switch(c) {
 		case 'd':
                         domainname = optarg;
