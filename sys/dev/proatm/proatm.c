@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2002, 2003 Christian Bucari, Prosum 
- * Copyright (c) 2002, 2003 6wind
+ * Copyright (c) 2002, 2003 Xavier Heiny, Vincent Jardin, 6WIND
  * Copyright (c) 2000, 2001 Richard Hodges and Matriplex, inc.
  * Copyright (c) 1996, 1997, 1998, 1999 Mark Tinguely
  *
@@ -84,7 +84,7 @@ __FBSDID("$FreeBSD$");
 /* replace with #define XDEBUG 1 or #define XDEBUG 2 for extra debug printing */
 #define XDEBUG 0
 
-#define PROATM_VERSION      "PROATM 1.0060"
+#define PROATM_VERSION      "PROATM 1.0061"
 /* Don't touch these **********************************************************/
 #if XDEBUG == 1
 #define XPRINT(arg...) printf(arg)
@@ -475,6 +475,11 @@ proatm_detach(device_t dev)
             proatm_connect_rxclose(proatm, connection);   
             if (connection->recv != NULL)
                 m_freem(connection->recv);
+	    /* Enforce close when it is a VBR or UBR connection for which a
+	     * PROATM_CLOSE_TAG message has to be sent to the SAR.
+	     * It means that no message will be posted.
+	     * Only the CBR and UBR0 connections are synchronously closed.
+	     */
             proatm_connect_txclose(proatm, connection, 1);
         }
     }
@@ -1703,6 +1708,7 @@ proatm_queue_put(CONNECTION *connection, struct mbuf *m)
         panic(__FUNCTION__" missing M_PKTHDR");
 
     m->m_pkthdr.rcvif = (struct ifnet *) connection;
+    m->m_pkthdr.header = NULL;
     s = splimp();
     if (txqueue->mput != NULL) {
         txqueue->mput->m_nextpkt = m;
@@ -1744,7 +1750,8 @@ proatm_queue_flush(CONNECTION *connection, int32_t *count)
     m = txqueue->mget;
 
     while (m != NULL) {
-        if (m->m_pkthdr.rcvif == (struct ifnet *) connection) {
+	if (KB_ISPKT(m) &&
+	   (m->m_pkthdr.rcvif == (struct ifnet *) connection)) {
             *mp = m->m_nextpkt;
             m_freem(m);
             m = *mp;
@@ -2384,6 +2391,7 @@ proatm_connect_txclose(PROATM *proatm, CONNECTION *connection, int32_t force)
         connection->traf_pcr = 0;
         connection->traf_scr = 0;
         connection->traf_mbs = 0;
+	/* XXX: Is proatm_connect_txstop (proatm, conn) missing ?? */
         splx(s);
         return 0;
 
@@ -2786,6 +2794,10 @@ proatm_transmit_top (PROATM *proatm, TX_QUEUE *txqueue)
              * we must insert a special end-of-connection TSR
              */
             *txqueue->scq_next++ = IDT_TSR | IDT_TBD_TSIF | (PROATM_CLOSE_TAG<<20);
+	    if ((top->m_len != 4) || (top->m_pkthdr.len != 0))
+		printf("proatm%d: trying close (PROATM_CLOSE_TAG) with m_len"
+		    " %d and m_pkthdr.len %d\n", proatm->unit, top->m_len,
+		    top->m_pkthdr.len);
             *txqueue->scq_next++ = (u_int32_t) connection;
             *txqueue->scq_next++ = 0;
             *txqueue->scq_next++ = 0;
@@ -3117,6 +3129,7 @@ proatm_intr_tsq (PROATM *proatm)
                 connection->flg_active = 0;
                 if (connection->class == NICVBR)
                     proatm->pu_stats.proatm_st_drv.drv_xm_idlevbr++;
+		    /* XXX: What's about UBR, UBR0 and may be ABR ?? */
             }
           }
           break;
@@ -3403,7 +3416,7 @@ proatm_recv(proatm_reg_t *proatm)
             clen = connection->rlen;                  /* length based on cell count */
             connection->recv = NULL;
             connection->rlen = 0;
-            mptr->m_pkthdr.len = clen;
+	    mptr->m_pkthdr.len = clen;                /* M_PKTHDR has already been tested */
             mptr->m_pkthdr.rcvif = NULL;
             mptr->m_nextpkt = NULL;
 #ifndef FBSD35
@@ -3729,6 +3742,7 @@ idt77105_get_counter(proatm_reg_t *proatm, u_int32_t counter)
 
     /* Select counter register */
     proatm_util_wr(proatm, IDT77105_CTRSEL_REG, counter);
+    /* XXX: Should we delay ? */
     /* Read the counter */
     /*   read the low 8 bits */
     proatm_util_rd(proatm, IDT77105_CTRLO_REG, &t);
@@ -3833,13 +3847,13 @@ int32_t
 proatm_atm_ioctl(int32_t code, caddr_t data, caddr_t arg)
 {  
     PROATM*                 proatm = (PROATM*)arg ;     
-    struct atm_pif		    *pip = (struct atm_pif *)proatm;
+    struct atm_pif	    *pip = (struct atm_pif *)proatm;
     struct atminfreq        *aip = (struct atminfreq *)data;
-	caddr_t			        buf = aip->air_buf_addr;
-    struct air_vinfo_rsp	*avr; /*rsp*/
-	int32_t			        count, len, buf_len = aip->air_buf_len;
-    int32_t			        err = 0;
-    char		            ifname[2*IFNAMSIZ];
+    caddr_t		    buf = aip->air_buf_addr;
+    struct air_vinfo_rsp    *avr; /*rsp*/
+    int32_t		    count, len, buf_len = aip->air_buf_len;
+    int32_t		    err = 0;
+    char		    ifname[2*IFNAMSIZ];
 
     XPRINT("proatm_atm_ioctl: code=%d, opcode=%d\n",
            code, aip->air_opcode);
@@ -3850,32 +3864,68 @@ proatm_atm_ioctl(int32_t code, caddr_t data, caddr_t arg)
 	switch ( aip->air_opcode ) {
 
     case AIOCS_INF_VST:
-        /* Get vendor statistics */		
-        snprintf (ifname, sizeof(ifname), "%s%d", pip->pif_name, pip->pif_unit);
+        /*
+         * Get vendor statistics
+         */
+        if (proatm == NULL)
+            return ENXIO;
+        snprintf (ifname, sizeof(ifname),
+                  "%s%d", pip->pif_name, pip->pif_unit);
+
+        /*
+         * Cast response structure onto user's buffer
+         */
         avr = (struct air_vinfo_rsp *)buf;
+
+        /*
+         * How large is the response structure
+         */
         len = sizeof(struct air_vinfo_rsp);
+
+        /*
+         * Sanity check - enough room for response structure?
+         */
         if (buf_len < len )
             return ENOSPC;
+
+        /*
+         * Copy interface name into response structure
+         */
         if ((err = copyout(ifname, avr->avsp_intf, IFNAMSIZ)) != 0)
             break;
-        buf += len;  buf_len -= len;
-                            /* retrieve the SUNI stats */
+
+        /*
+         * Advance the buffer address and decrement the size
+         */
+        buf += len;
+        buf_len -= len;
+
+        /* retrieve the SUNI stats */
         proatm_get_stats (proatm);
 
         /* Get misc stats */
-                            /* current CBR TX cellrate */
+        /* current CBR TX cellrate */
         proatm->pu_stats.proatm_st_drv.drv_xm_cbrbw = proatm->cellrate_tcur;
-                            /* Unused TX QUEUE  */
+        /* Unused TX QUEUE  */
         proatm->pu_stats.proatm_st_drv.drv_xm_qufree = proatm->txqueue_free_count;
-                            /* Free slots within the UBR0 queue */
+        /* Free slots within the UBR0 queue */
         proatm->pu_stats.proatm_st_drv.drv_xm_ubr0free =
             IDT_SCQ_ENTRIES - proatm->txqueue_ubr0.scq_cur;
 
+        /*
+         * Stick as much of it as we have room for
+         * into the response
+         */
         count = MIN ( sizeof(Proatm_stats), buf_len );
 
+        /*
+         * Copy stats into user's buffer. Return value is
+         * amount of data copied.
+         */
         if ((err = copyout((void *)&proatm->pu_stats, buf, count)) != 0)
             break;
-        buf += count; buf_len -= count;
+        buf += count;
+        buf_len -= count;
         if ( count < sizeof(Proatm_stats) )
             err = ENOSPC;
 
@@ -3885,7 +3935,7 @@ proatm_atm_ioctl(int32_t code, caddr_t data, caddr_t arg)
          */
         if ((err = copyout(&count, &avr->avsp_len, sizeof(int32_t))) != 0)
             break;   
-                            /* Update the reply length and pointer*/
+        /* Update the reply length and pointer*/
         aip->air_buf_addr = buf;
         aip->air_buf_len = buf_len;
         break;
