@@ -317,7 +317,6 @@ typedef struct pv_entry {
 	vm_offset_t	pv_va;		/* virtual address for mapping */
 	TAILQ_ENTRY(pv_entry)	pv_list;
 	TAILQ_ENTRY(pv_entry)	pv_plist;
-	vm_page_t	pv_ptem;	/* VM page for pte */
 } *pv_entry_t;
 
 #ifdef	_KERNEL
