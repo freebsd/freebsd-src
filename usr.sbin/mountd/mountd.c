@@ -937,13 +937,11 @@ get_exportlist()
 		union {
 			struct ufs_args ua;
 			struct iso_args ia;
-			struct mfs_args ma;
 			struct msdosfs_args da;
 			struct ntfs_args na;
 		} targs;
 
-		if (!strcmp(fsp->f_fstypename, "mfs") ||
-		    !strcmp(fsp->f_fstypename, "ufs") ||
+		if (!strcmp(fsp->f_fstypename, "ufs") ||
 		    !strcmp(fsp->f_fstypename, "msdos") ||
 		    !strcmp(fsp->f_fstypename, "ntfs") ||
 		    !strcmp(fsp->f_fstypename, "cd9660")) {
@@ -1744,7 +1742,6 @@ do_mount(ep, grp, exflags, anoncrp, dirp, dirplen, fsb)
 	union {
 		struct ufs_args ua;
 		struct iso_args ia;
-		struct mfs_args ma;
 		struct msdosfs_args da;
 		struct ntfs_args na;
 	} args;
