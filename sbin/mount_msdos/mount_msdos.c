@@ -47,6 +47,8 @@ static const char rcsid[] =
 #include <locale.h>
 #include <pwd.h>
 #include <stdio.h>
+/* must be after stdio to declare fparseln */
+#include <libutil.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sysexits.h>
@@ -260,9 +262,10 @@ load_u2wtable (pargs, name)
 	char *name;
 {
 	FILE *f;
-	int i, code;
+	int i, j, code[8];
+	size_t line = 0;
 	char buf[128];
-	char *fn;
+	char *fn, *s, *p;
 
 	if (*name == '/')
 		fn = name;
@@ -273,21 +276,50 @@ load_u2wtable (pargs, name)
 	}
 	if ((f = fopen(fn, "r")) == NULL)
 		err(EX_NOINPUT, "%s", fn);
-	for (i = 0; i < 128; i++) {
-		if (fscanf(f, "%i", &code) != 1)
-			errx(EX_DATAERR, "u2w: missing item number %d", i);
-		pargs->u2w[i] = code;
+	p = NULL;
+	for (i = 0; i < 16; i++) {
+		do {
+			if (p != NULL) free(p);
+			if ((p = s = fparseln(f, NULL, &line, NULL, 0)) == NULL)
+				errx(EX_DATAERR, "can't read u2w table row %d near line %d", i, line);
+			while (isspace((unsigned char)*s))
+				s++;
+		} while (*s == '\0');
+		if (sscanf(s, "%i%i%i%i%i%i%i%i",
+code, code + 1, code + 2, code + 3, code + 4, code + 5, code + 6, code + 7) != 8)
+			errx(EX_DATAERR, "u2w table: missing item(s) in row %d, line %d", i, line);
+		for (j = 0; j < 8; j++)
+			pargs->u2w[i * 8 + j] = code[j];
 	}
-	for (i = 0; i < 128; i++) {
-		if (fscanf(f, "%i", &code) != 1)
-			errx(EX_DATAERR, "d2u: missing item number %d", i);
-		pargs->d2u[i] = code;
+	for (i = 0; i < 16; i++) {
+		do {
+			free(p);
+			if ((p = s = fparseln(f, NULL, &line, NULL, 0)) == NULL)
+				errx(EX_DATAERR, "can't read d2u table row %d near line %d", i, line);
+			while (isspace((unsigned char)*s))
+				s++;
+		} while (*s == '\0');
+		if (sscanf(s, "%i%i%i%i%i%i%i%i",
+code, code + 1, code + 2, code + 3, code + 4, code + 5, code + 6, code + 7) != 8)
+			errx(EX_DATAERR, "d2u table: missing item(s) in row %d, line %d", i, line);
+		for (j = 0; j < 8; j++)
+			pargs->d2u[i * 8 + j] = code[j];
 	}
-	for (i = 0; i < 128; i++) {
-		if (fscanf(f, "%i", &code) != 1)
-			errx(EX_DATAERR, "u2d: missing item number %d", i);
-		pargs->u2d[i] = code;
+	for (i = 0; i < 16; i++) {
+		do {
+			free(p);
+			if ((p = s = fparseln(f, NULL, &line, NULL, 0)) == NULL)
+				errx(EX_DATAERR, "can't read u2d table row %d near line %d", i, line);
+			while (isspace((unsigned char)*s))
+				s++;
+		} while (*s == '\0');
+		if (sscanf(s, "%i%i%i%i%i%i%i%i",
+code, code + 1, code + 2, code + 3, code + 4, code + 5, code + 6, code + 7) != 8)
+			errx(EX_DATAERR, "u2d table: missing item(s) in row %d, line %d", i, line);
+		for (j = 0; j < 8; j++)
+			pargs->u2d[i * 8 + j] = code[j];
 	}
+	free(p);
 	fclose(f);
 }
 
