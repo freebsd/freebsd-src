@@ -7837,10 +7837,12 @@ ahc_handle_target_cmd(struct ahc_softc *ahc, struct target_cmd *cmd)
 		return (1);
 	} else
 		ahc->flags &= ~AHC_TQINFIFO_BLOCKED;
-#if 0
-	printf("Incoming command from %d for %d:%d%s\n",
-	       initiator, target, lun,
-	       lstate == ahc->black_hole ? "(Black Holed)" : "");
+#ifdef AHC_DEBUG
+	if (ahc_debug & AHC_SHOW_TQIN) {
+		printf("Incoming command from %d for %d:%d%s\n",
+		       initiator, target, lun,
+		       lstate == ahc->black_hole ? "(Black Holed)" : "");
+	}
 #endif
 	SLIST_REMOVE_HEAD(&lstate->accept_tios, sim_links.sle);
 
@@ -7900,9 +7902,11 @@ ahc_handle_target_cmd(struct ahc_softc *ahc, struct target_cmd *cmd)
 		 * continue target I/O comes in response
 		 * to this accept tio.
 		 */
-#if 0
-		printf("Received Immediate Command %d:%d:%d - %p\n",
-		       initiator, target, lun, ahc->pending_device);
+#ifdef AHC_DEBUG
+		if (ahc_debug & AHC_SHOW_TQIN) {
+			printf("Received Immediate Command %d:%d:%d - %p\n",
+			       initiator, target, lun, ahc->pending_device);
+		}
 #endif
 		ahc->pending_device = lstate;
 		aic_freeze_ccb((union ccb *)atio);
