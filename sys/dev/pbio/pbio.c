@@ -117,7 +117,10 @@ struct pbio_softc {
 	struct portdata pd[PBIO_NPORTS];/* Per port data */
 	int	iomode;			/* Virtualized I/O mode port value */
 					/* The real port is write-only */
-} ;
+	struct resource *res;
+	bus_space_tag_t bst;
+	bus_space_handle_t bsh;
+};
 
 typedef	struct pbio_softc *sc_p;
 
@@ -142,49 +145,67 @@ static driver_t pbio_driver = {
 
 DRIVER_MODULE(pbio, isa, pbio_driver, pbio_devclass, 0, 0);
 
+static __inline uint8_t
+pbinb(struct pbio_softc *scp, int off)
+{
+
+	return bus_space_read_1(scp->bst, scp->bsh, off);
+}
+
+static __inline void
+pboutb(struct pbio_softc *scp, int off, uint8_t val)
+{
+
+	bus_space_write_1(scp->bst, scp->bsh, off, val);
+}
+
+
 static int
 pbioprobe(device_t dev)
 {
-	int iobase;
-	int rid;
-	struct resource *port;
+	int		rid;
+	struct pbio_softc *scp = device_get_softc(dev);
 #ifdef GENERIC_PBIO_PROBE
 	unsigned char val;
 #endif
 
 	rid = 0;
-	port = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0, 
-	    IO_PBIOSIZE, RF_ACTIVE);
-	if (!port)
+	scp->res = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
+	    0, ~0, IO_PBIOSIZE, RF_ACTIVE);
+	if (scp->res == NULL)
 		return (ENXIO);
 
-	iobase = rman_get_start(port);
-
 #ifdef GENERIC_PBIO_PROBE
+	scp->bst = rman_get_bustag(scp->res);
+	scp->bsh = rman_get_bushandle(scp->res);
 	/*
 	 * try see if the device is there.
 	 * This probe works only if the device has no I/O attached to it
 	 * XXX Better allow flags to abort testing
 	 */
 	/* Set all ports to output */
-	outb(iobase + PBIO_CFG, 0x80);
+	pboutb(scp, PBIO_CFG, 0x80);
 	printf("pbio val(CFG: 0x%03x)=0x%02x (should be 0x80)\n",
-		iobase, inb(iobase + PBIO_CFG));
-	outb(iobase + PBIO_PORTA, 0xa5);
-	val = inb(iobase + PBIO_PORTA);
+		iobase, pbinb(scp, PBIO_CFG));
+	pboutb(scp, PBIO_PORTA, 0xa5);
+	val = pbinb(scp, PBIO_PORTA);
 	printf("pbio val=0x%02x (should be 0xa5)\n", val);
-	if (val != 0xa5)
+	if (val != 0xa5) {
+		bus_release_resource(dev, SYS_RES_IOPORT, rid, sc->res);
 		return (ENXIO);
-	outb(iobase + PBIO_PORTA, 0x5a);
-	val = inb(iobase + PBIO_PORTA);
+	}
+	pboutb(scp, PBIO_PORTA, 0x5a);
+	val = pbinb(scp, PBIO_PORTA);
 	printf("pbio val=0x%02x (should be 0x5a)\n", val);
-	if (val != 0x5a)
+	if (val != 0x5a) {
+		bus_release_resource(dev, SYS_RES_IOPORT, rid, sc->res);
 		return (ENXIO);
+	}
 #endif
 	device_set_desc(dev, "Intel 8255 PPI (basic mode)");
 	/* Set all ports to input */
-	/* outb(iobase + PBIO_CFG, 0x9b); */
-	bus_release_resource(dev, SYS_RES_IOPORT, rid, port);
+	/* pboutb(scp, PBIO_CFG, 0x9b); */
+	bus_release_resource(dev, SYS_RES_IOPORT, rid, scp->res);
 	return (0);
 }
 
@@ -196,30 +217,25 @@ pbioprobe(device_t dev)
 static int
 pbioattach (device_t dev)
 {
-	struct resource *port;
+	int unit;
+	int i;
+	int		rid;
 	struct pbio_softc *sc;
 	int flags, i, iobase, rid, unit;
 
+	sc = device_get_softc(dev);
 	unit = device_get_unit(dev);
 	rid = 0;
-	port = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid, 0, ~0,
-	    IO_PBIOSIZE, RF_ACTIVE);
-	if (!port)
+	sc->res = bus_alloc_resource(dev, SYS_RES_IOPORT, &rid,
+	    0, ~0, IO_PBIOSIZE, RF_ACTIVE);
+	if (sc->res == NULL)
 		return (ENXIO);
-
-	iobase = rman_get_start(port);
-	sc = device_get_softc(dev);
-
-	/*
-	 * Allocate storage for this instance .
-	 */
-	bzero(sc, sizeof(*sc));
-	flags = device_get_flags(dev);
+	sc->bst = rman_get_bustag(sc->res);
+	sc->bsh = rman_get_bushandle(sc->res);
 
 	/*
 	 * Store whatever seems wise.
 	 */
-	sc->iobase = iobase;
 	sc->iomode = 0x9b;		/* All ports to input */
 
 	for (i = 0; i < PBIO_NPORTS; i++)
@@ -289,10 +305,10 @@ pbioopen(struct cdev *dev, int oflags, int devtype, struct thread *td)
 
 	if (oflags & FWRITE)
 		/* Writing == output; zero the bit */
-		outb(scp->iobase + PBIO_CFG, scp->iomode = (ocfg & (~portbit)));
+		pboutb(scp, PBIO_CFG, scp->iomode = (ocfg & (~portbit)));
 	else if (oflags & FREAD)
 		/* Reading == input; set the bit */
-		outb(scp->iobase + PBIO_CFG, scp->iomode = (ocfg | portbit));
+		pboutb(scp, PBIO_CFG, scp->iomode = (ocfg | portbit));
 	else
 		return (EACCES);
 
@@ -325,16 +341,16 @@ portval(int port, struct pbio_softc *scp, char *val)
 	for (;;) {
 		switch (port) {
 		case 0:
-			*val = inb(scp->iobase + PBIO_PORTA);
+			*val = pbinb(scp, PBIO_PORTA);
 			break;
 		case 1:
-			*val = inb(scp->iobase + PBIO_PORTB);
+			*val = pbinb(scp, PBIO_PORTB);
 			break;
 		case 2:
-			*val = (inb(scp->iobase + PBIO_PORTC) >> 4) & 0xf;
+			*val = (pbinb(scp, PBIO_PORTC) >> 4) & 0xf;
 			break;
 		case 3:
-			*val = inb(scp->iobase + PBIO_PORTC) & 0xf;
+			*val = pbinb(scp, PBIO_PORTC) & 0xf;
 			break;
 		default:
 			*val = 0;
@@ -396,7 +412,6 @@ pbiowrite(struct cdev *dev, struct uio *uio, int ioflag)
 	if (scp == NULL)
 		return (ENODEV);
 
-	iobase = scp->iobase;
 	while (uio->uio_resid > 0) {
 		towrite = min(uio->uio_resid, PBIO_BUFSIZ);
 		if ((ret = uiomove(scp->pd[port].buff, towrite, uio)) != 0)
@@ -405,22 +420,22 @@ pbiowrite(struct cdev *dev, struct uio *uio, int ioflag)
 			val = scp->pd[port].buff[i];
 			switch (port) {
 			case 0:
-				outb(iobase + PBIO_PORTA, val);
+				pboutb(scp, PBIO_PORTA, val);
 				break;
 			case 1:
-				outb(iobase + PBIO_PORTB, val);
+				pboutb(scp, PBIO_PORTB, val);
 				break;
 			case 2:
-				oval = inb(iobase + PBIO_PORTC);
+				oval = pbinb(scp, PBIO_PORTC);
 				oval &= 0xf;
 				val <<= 4;
-				outb(iobase + PBIO_PORTC, val | oval);
+				pboutb(scp, PBIO_PORTC, val | oval);
 				break;
 			case 3:
-				oval = inb(iobase + PBIO_PORTC);
+				oval = pbinb(scp, PBIO_PORTC);
 				oval &= 0xf0;
 				val &= 0xf;
-				outb(iobase + PBIO_PORTC, oval | val);
+				pboutb(scp, PBIO_PORTC, oval | val);
 				break;
 			}
 			if (scp->pd[port].opace)
