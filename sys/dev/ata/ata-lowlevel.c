@@ -48,6 +48,7 @@ static int ata_generic_transaction(struct ata_request *);
 static void ata_generic_interrupt(void *);
 static void ata_generic_reset(struct ata_channel *);
 static int ata_wait(struct ata_device *, u_int8_t);
+/*static int ata_command(struct ata_device *, u_int8_t, u_int64_t, u_int16_t, u_int16_t);*/
 static void ata_pio_read(struct ata_request *, int);
 static void ata_pio_write(struct ata_request *, int);
 
@@ -585,9 +586,9 @@ ata_generic_reset(struct ata_channel *ch)
     ATA_IDX_OUTB(ch, ATA_DRIVE, ATA_D_IBM | ATA_MASTER);
     DELAY(10);
     ATA_IDX_OUTB(ch, ATA_ALTSTAT, ATA_A_IDS | ATA_A_RESET);
-    DELAY(10000); 
+    ata_udelay(10000); 
     ATA_IDX_OUTB(ch, ATA_ALTSTAT, ATA_A_IDS);
-    DELAY(100000);
+    ata_udelay(100000);
     ATA_IDX_INB(ch, ATA_ERROR);
 
     /* wait for BUSY to go inactive */
@@ -656,7 +657,7 @@ ata_generic_reset(struct ata_channel *ch)
 	    if (stat1 == 0xff && timeout > 5)
 		mask &= ~0x02;
 	}
-	DELAY(100000);
+	ata_udelay(100000);
     }	
 
     if (bootverbose)
