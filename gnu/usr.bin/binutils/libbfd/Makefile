@@ -49,13 +49,13 @@ CFLAGS+= -DSELECT_VECS="${SELVEC}"
 
 # XXX:DEO should grab BFD_VERSION_DATE from ${VERSION}...
 bfdver.h: Makefile
-	echo '#define BFD_VERSION	214920000'	> ${.TARGET}
-	echo '#define BFD_VERSION_DATE	20040510'	>> ${.TARGET}
+	echo '#define BFD_VERSION	215000000'	> ${.TARGET}
+	echo '#define BFD_VERSION_DATE	20040517'	>> ${.TARGET}
 	echo '#define BFD_VERSION_STRING ${VERSION}'	>> ${.TARGET}
 
 targmatch.h: targmatch.sed config.bfd
 	sed -f ${.ALLSRC:M*.sed} ${.ALLSRC:M*.bfd} > ${.TARGET}
-	
+
 config.h: config.h.fbsd
 .if ${TARGET_ARCH} == "i386"
 	sed -e 's,!!TRAD_HEADER!!,"hosts/i386bsd.h",g' ${.ALLSRC} > ${.TARGET}
