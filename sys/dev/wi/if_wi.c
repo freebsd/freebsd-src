@@ -254,10 +254,11 @@ wi_pci_probe(dev)
 	struct wi_softc		*sc;
 
 	sc = device_get_softc(dev);
-	if ((pci_get_vendor(dev) == WI_PCI_VENDOR_Eumitcom) &&
+	if ((pci_get_vendor(dev) == WI_PCI_VENDOR_EUMITCOM) &&
 		(pci_get_device(dev) == WI_PCI_DEVICE_PRISM2STA)) {
 			sc->wi_prism2 = 1;
-			device_set_desc(dev, "PRISM2STA PCI WaveLAN/IEEE 802.11");
+			device_set_desc(dev,
+			    "PRISM2STA PCI WaveLAN/IEEE 802.11");
 			return (0);
 	}
 	return(ENXIO);
@@ -362,7 +363,7 @@ wi_pci_attach(device_t dev)
 	CSR_WRITE_2(sc, WI_INT_EN, 0);
 	CSR_WRITE_2(sc, WI_EVENT_ACK, 0xFFFF);
 
-	sc->mem_rid = 0x18;
+	sc->mem_rid = WI_PCI_MEMRES;
 	sc->mem = bus_alloc_resource(dev, SYS_RES_MEMORY, &sc->mem_rid,
 				0, ~0, 1, RF_ACTIVE);
 	if (sc->mem == NULL) {
@@ -376,17 +377,16 @@ wi_pci_attach(device_t dev)
 	/*
 	 * From Linux driver:
 	 * Write COR to enable PC card
-	 * (FOR GREAT JUSTICE)
 	 */
 	CSM_WRITE_1(sc, WI_COR_OFFSET, WI_COR_VALUE); 
 	reg = CSM_READ_1(sc, WI_COR_OFFSET);
 
-	CSR_WRITE_2(sc, WI_HFA384x_SWSUPPORT0_OFF, WI_PRISM2STA_MAGIC);
-	reg = CSR_READ_2(sc, WI_HFA384x_SWSUPPORT0_OFF);
+	CSR_WRITE_2(sc, WI_HFA384X_SWSUPPORT0_OFF, WI_PRISM2STA_MAGIC);
+	reg = CSR_READ_2(sc, WI_HFA384X_SWSUPPORT0_OFF);
 	if (reg != WI_PRISM2STA_MAGIC) {
 		device_printf(dev,
-			"CSR_READ_2(WI_HFA384x_SWSUPPORT0_OFF) wanted %d, got %d\n",
-			WI_PRISM2STA_MAGIC, reg);
+		    "CSR_READ_2(WI_HFA384X_SWSUPPORT0_OFF) "
+		    "wanted %d, got %d\n", WI_PRISM2STA_MAGIC, reg);
 		wi_free(dev);
 		return (ENXIO);
 	}
@@ -411,7 +411,7 @@ wi_generic_attach(device_t dev)
 	ifp = &sc->arpcom.ac_if;
 
 	error = bus_setup_intr(dev, sc->irq, INTR_TYPE_NET,
-			       wi_intr, sc, &sc->wi_intrhand);
+	    wi_intr, sc, &sc->wi_intrhand);
 
 	if (error) {
 		device_printf(dev, "bus_setup_intr() failed! (%d)\n", error);
@@ -961,11 +961,14 @@ static int wi_write_record(sc, ltv)
 		    {
 			int error;
 			struct wi_ltv_str	ws;
-			struct wi_ltv_keys	*wk = (struct wi_ltv_keys *)ltv;
+			struct wi_ltv_keys	*wk =
+			    (struct wi_ltv_keys *)ltv;
+
 			for (i = 0; i < 4; i++) {
 				ws.wi_len = 4;
 				ws.wi_type = WI_RID_P2_CRYPT_KEY0 + i;
-				memcpy(ws.wi_str, &wk->wi_keys[i].wi_keydat, 5);
+				memcpy(ws.wi_str,
+				    &wk->wi_keys[i].wi_keydat, 5);
 				ws.wi_str[5] = '\0';
 				error = wi_write_record(sc,
 				    (struct wi_ltv_gen *)&ws);
@@ -1089,8 +1092,7 @@ again:
 		return(EIO);
 
 	if (CSR_READ_2(sc, WI_DATA0) != 0x1234 ||
-	    CSR_READ_2(sc, WI_DATA0) != 0x5678)
-	{
+	    CSR_READ_2(sc, WI_DATA0) != 0x5678) {
 		if (--retries >= 0)
 			goto again;
 		device_printf(sc->dev, "wi_write_data device timeout\n");
@@ -1113,7 +1115,8 @@ static int wi_alloc_nicmem(sc, len, id)
 	int			i;
 
 	if (wi_cmd(sc, WI_CMD_ALLOC_MEM, len)) {
-		device_printf(sc->dev, "failed to allocate %d bytes on NIC\n", len);
+		device_printf(sc->dev,
+		    "failed to allocate %d bytes on NIC\n", len);
 		return(ENOMEM);
 	}
 
