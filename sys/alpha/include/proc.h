@@ -1,4 +1,4 @@
-/* $Id: proc.h,v 1.3 1998/07/15 20:16:27 dfr Exp $ */
+/* $Id: proc.h,v 1.4 1998/11/15 18:25:16 dfr Exp $ */
 /* From: NetBSD: proc.h,v 1.3 1997/04/06 08:47:36 cgd Exp */
 
 /*
@@ -43,6 +43,7 @@ struct mdproc {
 	struct pcb	*md_pcbpaddr;	/* phys addr of the pcb */
 	struct mdbpt	md_sstep[2];	/* two single step breakpoints */
 	u_int64_t	md_hae;		/* user HAE register value */
+	void            *osf_sigtramp;  /* user-level signal trampoline */
 };
 
 #define	MDP_FPUSED	0x0001		/* Process used the FPU */
