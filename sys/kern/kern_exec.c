@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/pioctl.h>
 #include <sys/namei.h>
+#include <sys/sf_buf.h>
 #include <sys/sysent.h>
 #include <sys/shm.h>
 #include <sys/sysctl.h>
@@ -303,8 +304,7 @@ kern_execve(td, fname, argv, envv, mac_p)
 	 * Allocate temporary demand zeroed space for argument and
 	 *	environment strings
 	 */
-	imgp->stringbase = (char *)kmem_alloc_wait(exec_map, ARG_MAX +
-	    PAGE_SIZE);
+	imgp->stringbase = (char *)kmem_alloc_wait(exec_map, ARG_MAX);
 	if (imgp->stringbase == NULL) {
 		error = ENOMEM;
 		mtx_lock(&Giant);
@@ -312,7 +312,7 @@ kern_execve(td, fname, argv, envv, mac_p)
 	}
 	imgp->stringp = imgp->stringbase;
 	imgp->stringspace = ARG_MAX;
-	imgp->image_header = imgp->stringbase + ARG_MAX;
+	imgp->image_header = NULL;
 
 	/*
 	 * Translate the file name. namei() returns a vnode pointer
@@ -328,7 +328,7 @@ interpret:
 	error = namei(ndp);
 	if (error) {
 		kmem_free_wakeup(exec_map, (vm_offset_t)imgp->stringbase,
-		    ARG_MAX + PAGE_SIZE);
+		    ARG_MAX);
 		goto exec_fail;
 	}
 
@@ -699,7 +699,7 @@ exec_fail_dealloc:
 
 	if (imgp->stringbase != NULL)
 		kmem_free_wakeup(exec_map, (vm_offset_t)imgp->stringbase,
-		    ARG_MAX + PAGE_SIZE);
+		    ARG_MAX);
 
 	if (imgp->object != NULL)
 		vm_object_deallocate(imgp->object);
@@ -800,8 +800,8 @@ exec_map_first_page(imgp)
 	vm_page_unlock_queues();
 	VM_OBJECT_UNLOCK(object);
 
-	pmap_qenter((vm_offset_t)imgp->image_header, ma, 1);
-	imgp->firstpage = ma[0];
+	imgp->firstpage = sf_buf_alloc(ma[0], 0);
+	imgp->image_header = (char *)sf_buf_kva(imgp->firstpage);
 
 	return (0);
 }
@@ -810,13 +810,15 @@ void
 exec_unmap_first_page(imgp)
 	struct image_params *imgp;
 {
+	vm_page_t m;
 
 	if (imgp->firstpage != NULL) {
-		pmap_qremove((vm_offset_t)imgp->image_header, 1);
-		vm_page_lock_queues();
-		vm_page_unhold(imgp->firstpage);
-		vm_page_unlock_queues();
+		m = sf_buf_page(imgp->firstpage);
+		sf_buf_free(imgp->firstpage);
 		imgp->firstpage = NULL;
+		vm_page_lock_queues();
+		vm_page_unhold(m);
+		vm_page_unlock_queues();
 	}
 }
 
