@@ -16,6 +16,7 @@ SRCS=		main.c conf.c
 HAVE_PNP=	yes
 HAVE_ISABUS=	yes
 
+.if !defined(NOFORTH)
 # Enable BootForth
 BOOT_FORTH=	yes
 CFLAGS+=	-DBOOT_FORTH -I${.CURDIR}/../../ficl
@@ -23,6 +24,7 @@ CFLAGS+=	-DBOOT_FORTH -I${.CURDIR}/../../ficl
 LIBFICL=	${.OBJDIR}/../../ficl/libficl.a
 .else
 LIBFICL=	${.CURDIR}/../../ficl/libficl.a
+.endif
 .endif
 
 # Always add MI sources 
