@@ -175,7 +175,7 @@ vmspace_zfini(void *mem, int size)
 	struct vmspace *vm;
 
 	vm = (struct vmspace *)mem;
-
+	pmap_release(vmspace_pmap(vm));
 	vm_map_zfini(&vm->vm_map, sizeof(vm->vm_map));
 }
 
@@ -187,6 +187,7 @@ vmspace_zinit(void *mem, int size)
 	vm = (struct vmspace *)mem;
 
 	vm_map_zinit(&vm->vm_map, sizeof(vm->vm_map));
+	pmap_pinit(vmspace_pmap(vm));
 }
 
 static void
@@ -254,7 +255,6 @@ vmspace_alloc(min, max)
 	vm = uma_zalloc(vmspace_zone, M_WAITOK);
 	CTR1(KTR_VM, "vmspace_alloc: %p", vm);
 	_vm_map_init(&vm->vm_map, min, max);
-	pmap_pinit(vmspace_pmap(vm));
 	vm->vm_map.pmap = vmspace_pmap(vm);		/* XXX */
 	vm->vm_refcnt = 1;
 	vm->vm_shm = NULL;
@@ -299,7 +299,6 @@ vmspace_dofree(struct vmspace *vm)
 	    vm->vm_map.max_offset);
 	vm_map_unlock(&vm->vm_map);
 
-	pmap_release(vmspace_pmap(vm));
 	uma_zfree(vmspace_zone, vm);
 }
 
