@@ -273,7 +273,7 @@ atapi_transfer(struct atapi_request *request)
     request->timeout_handle = timeout((timeout_t *)atapi_timeout, 
 				      request, request->timeout);
 
-    if (request->ccb[0] != ATAPI_REQUEST_SENSE)
+    if (!(request->flags & ATPR_F_INTERNAL))
 	atp->cmd = request->ccb[0];
 
     /* if DMA enabled setup DMA hardware */
@@ -332,11 +332,7 @@ int
 atapi_interrupt(struct atapi_request *request)
 {
     struct atapi_softc *atp = request->device;
-    int8_t **buffer = (int8_t **)&request->data;
     int reason, dma_stat = 0;
-
-    if (request->ccb[0] == ATAPI_REQUEST_SENSE)
-	*buffer = (int8_t *)&request->sense;
 
     reason = (inb(atp->controller->ioaddr+ATA_IREASON) & (ATA_I_CMD|ATA_I_IN)) |
 	     (atp->controller->status & ATA_S_DRQ);
@@ -402,7 +398,7 @@ atapi_interrupt(struct atapi_request *request)
 	    if (atp->controller->status & (ATA_S_ERROR | ATA_S_DWF))
 		request->result = inb(atp->controller->ioaddr + ATA_ERROR);
 	    else 
-		if (request->ccb[0] != ATAPI_REQUEST_SENSE)
+		if (!(request->flags & ATPR_F_INTERNAL))
 		    request->result = 0;
 	    break;
 
@@ -421,11 +417,10 @@ op_finished:
 	request->ccb[0] = ATAPI_REQUEST_SENSE;
 	request->ccb[4] = sizeof(struct atapi_reqsense);
 	request->bytecount = sizeof(struct atapi_reqsense);
-	request->flags = ATPR_F_READ;
+	request->flags = ATPR_F_READ | ATPR_F_INTERNAL;
 	TAILQ_INSERT_HEAD(&atp->controller->atapi_queue, request, chain);
     }
     else {
-	request->error = 0;
     	if (request->result) {
 	    switch ((request->result & ATAPI_SK_MASK)) {
 	    case ATAPI_SK_RESERVED:
@@ -463,6 +458,8 @@ op_finished:
 		request->error = EIO;
 	    }
 	}
+	else
+	    request->error = 0;
 	if (request->callback) {
 #ifdef ATAPI_DEBUG
 	    printf("%s: finished %s (callback)\n", 
@@ -541,7 +538,7 @@ atapi_read(struct atapi_request *request, int length)
     int size = min(request->bytecount, length);
     int resid;
 
-    if (request->ccb[0] == ATAPI_REQUEST_SENSE)
+    if (request->flags & ATPR_F_INTERNAL)
 	*buffer = (int8_t *)&request->sense;
 
     if (request->device->controller->flags & ATA_USE_16BIT ||
@@ -570,7 +567,7 @@ atapi_write(struct atapi_request *request, int length)
     int size = min(request->bytecount, length);
     int resid;
 
-    if (request->ccb[0] == ATAPI_REQUEST_SENSE)
+    if (request->flags & ATPR_F_INTERNAL)
 	*buffer = (int8_t *)&request->sense;
 
     if (request->device->controller->flags & ATA_USE_16BIT ||
