@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.317 1997/03/13 19:23:27 bde Exp $
+#	$Id: LINT,v 1.318 1997/03/19 02:59:02 obrien Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -393,7 +393,7 @@ options		SCSI_REPORT_GEOMETRY
 #
 options		OD_BOGUS_NOT_READY
 #
-# For an automatic spindown, try this.  Again, preferrably as an
+# For an automatic spindown, try this.  Again, preferably as an
 # option in your config file.
 # WARNING!  Use at your own risk.  Joerg's ancient SONY SMO drive
 # groks it fine, while Shunsuke's Fujitsu chokes on it and times
@@ -906,7 +906,7 @@ controller	ahb0
 controller	ahc0
 device		fea0
 
-# enable tagged command queueing, which is a major performance win on
+# enable tagged command queuing, which is a major performance win on
 # devices that support it (and controllers with enough SCB's)
 options	AHC_TAGENABLE
 
