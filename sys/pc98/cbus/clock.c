@@ -1248,7 +1248,7 @@ resettodr()
 	rtc_outb(bin2bcd(tm%24)); tm /= 24;	/* Write back Hours   */
 
 	/* We have now the days	since 01-01-1970 in tm */
-	wd = (tm + 4) % 7 + 1);			/* Write back Weekday */
+	wd = (tm + 4) % 7 + 1;			/* Write back Weekday */
 	for (y = 1970, m = DAYSPERYEAR + LEAPYEAR(y);
 	     tm >= m;
 	     y++,      m = DAYSPERYEAR + LEAPYEAR(y))
