@@ -106,6 +106,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/timepps.h>
 
+#include <machine/stdarg.h>
+
 #include <vm/vm.h>
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
@@ -116,6 +118,35 @@ long tk_cancc;
 long tk_nin;
 long tk_nout;
 long tk_rawcc;
+
+static	d_open_t	ttysopen;
+static	d_close_t	ttysclose;
+static	d_read_t	ttysrdwr;
+static	d_ioctl_t	ttysioctl;
+static	d_purge_t	ttypurge;
+
+/* Default cdevsw for common tty devices */
+static struct cdevsw tty_cdevsw = {
+	.d_version =	D_VERSION,
+	.d_open =	ttyopen,
+	.d_close =	ttyclose,
+	.d_ioctl =	ttyioctl,
+	.d_purge =	ttypurge,
+	.d_name =	"ttydrv",
+	.d_flags =	D_TTY | D_NEEDGIANT,
+};
+
+/* Cdevsw for slave tty devices */
+static struct cdevsw ttys_cdevsw = {
+	.d_version =	D_VERSION,
+	.d_open =	ttysopen,
+	.d_close =	ttysclose,
+	.d_read =	ttysrdwr,
+	.d_write =	ttysrdwr,
+	.d_ioctl =	ttysioctl,
+	.d_name =	"TTYS",
+	.d_flags =	D_TTY | D_NEEDGIANT,
+};
 
 static int	proc_compare(struct proc *p1, struct proc *p2);
 static int	ttnread(struct tty *tp);
@@ -2723,6 +2754,8 @@ ttysleep(struct tty *tp, void *chan, int pri, char *wmesg, int timo)
 
 	gen = tp->t_gen;
 	error = tsleep(chan, pri, wmesg, timo);
+	if (tp->t_state & TS_GONE)
+		return (ENXIO);
 	if (error)
 		return (error);
 	return (tp->t_gen == gen ? 0 : ERESTART);
@@ -2830,6 +2863,129 @@ ttyalloc()
 {
 
 	return (ttymalloc(NULL));
+}
+
+static void
+ttypurge(struct cdev *dev)
+{
+
+	if (dev->si_tty == NULL)
+		return;
+	ttygone(dev->si_tty);
+}
+
+/*
+ * ttycreate()
+ *
+ * Create the device entries for this tty thereby opening it for business.
+ *
+ * The flags argument controls if "cua" units are created.
+ *
+ * The t_sc filed is copied to si_drv1 in the created cdevs.  This 
+ * is particularly important for ->t_cioctl() users.
+ *
+ * XXX: implement the init and lock devices by cloning.
+ */
+
+int 
+ttycreate(struct tty *tp, struct cdevsw *csw, int unit, int flags, const char *fmt, ...)
+{
+	char namebuf[SPECNAMELEN - 3];		/* XXX space for "tty" */
+	va_list ap;
+	struct cdev *cp;
+	int i, minor;
+
+	if (csw == NULL)
+		csw = &tty_cdevsw;
+	KASSERT(csw->d_purge == NULL || csw->d_purge == ttypurge,
+	    ("tty should not have d_purge"));
+
+	csw->d_purge = ttypurge;
+
+	minor = unit2minor(unit);
+	va_start(ap, fmt);
+	i = vsnrprintf(namebuf, sizeof namebuf, 32, fmt, ap);
+	va_end(ap);
+	KASSERT(i < sizeof namebuf, ("Too long tty name (%s)", namebuf));
+
+	cp = make_dev(csw, minor,
+	    UID_ROOT, GID_WHEEL, 0600, "tty%s", namebuf);
+	tp->t_dev = cp;
+	tp->t_mdev = cp;
+	cp->si_tty = tp;
+	cp->si_drv1 = tp->t_sc;
+
+	cp = make_dev(&ttys_cdevsw, minor | MINOR_INIT,
+	    UID_ROOT, GID_WHEEL, 0600, "tty%s.init", namebuf);
+	dev_depends(tp->t_dev, cp);
+	cp->si_drv1 = tp->t_sc;
+	cp->si_drv2 = &tp->t_init_in;
+	cp->si_tty = tp;
+
+	cp = make_dev(&ttys_cdevsw, minor | MINOR_LOCK,
+	    UID_ROOT, GID_WHEEL, 0600, "tty%s.lock", namebuf);
+	dev_depends(tp->t_dev, cp);
+	cp->si_drv1 = tp->t_sc;
+	cp->si_drv2 = &tp->t_lock_in;
+	cp->si_tty = tp;
+
+	if (flags & MINOR_CALLOUT) {
+		cp = make_dev(csw, minor | MINOR_CALLOUT,
+		    UID_UUCP, GID_DIALER, 0660, "cua%s", namebuf);
+		dev_depends(tp->t_dev, cp);
+		cp->si_drv1 = tp->t_sc;
+		cp->si_tty = tp;
+
+		cp = make_dev(&ttys_cdevsw, minor | MINOR_CALLOUT | MINOR_INIT,
+		    UID_UUCP, GID_DIALER, 0660, "cua%s.init", namebuf);
+		dev_depends(tp->t_dev, cp);
+		cp->si_drv1 = tp->t_sc;
+		cp->si_drv2 = &tp->t_init_out;
+		cp->si_tty = tp;
+
+		cp = make_dev(&ttys_cdevsw, minor | MINOR_CALLOUT | MINOR_LOCK,
+		    UID_UUCP, GID_DIALER, 0660, "cua%s.lock", namebuf);
+		dev_depends(tp->t_dev, cp);
+		cp->si_drv1 = tp->t_sc;
+		cp->si_drv2 = &tp->t_lock_out;
+		cp->si_tty = tp;
+	}
+
+	return (0);
+}
+
+/*
+ * This function is called when the hardware disappears.  We set a flag
+ * and wake up stuff so all sleeping threads will notice.
+ */
+void	
+ttygone(struct tty *tp)
+{
+
+	tp->t_state |= TS_GONE;
+	wakeup(&tp->t_dtr_wait);
+	wakeup(TSA_CARR_ON(tp));
+	wakeup(TSA_HUP_OR_INPUT(tp));
+	wakeup(TSA_OCOMPLETE(tp));
+	wakeup(TSA_OLOWAT(tp));
+	if (tp->t_purge != NULL)
+		tp->t_purge(tp);
+}
+
+/*
+ * ttyfree()
+ *    
+ * Called when the driver is ready to free the tty structure.
+ *
+ * XXX: This shall sleep until all threads have left the driver.
+ */
+ 
+void
+ttyfree(struct tty *tp)
+{
+ 
+	ttygone(tp);
+	destroy_dev(tp->t_mdev);
 }
 
 static int
@@ -3098,16 +3254,87 @@ ttydtrwaitsleep(struct tty *tp)
 	return (error);
 }
 
-/*
- * This function is called when the hardware disappears.  We set a flag
- * and wake up stuff so all sleeping threads will notice.
- */
-void	
-ttygone(struct tty *tp)
+static int
+ttysopen(struct cdev *dev, int flag, int mode, struct thread *td)
+{
+	struct tty *tp;
+
+	tp = dev->si_tty;
+	KASSERT(tp != NULL,
+	    ("ttysopen(): no tty pointer on device (%s)", devtoname(dev)));
+	if (tp->t_state & TS_GONE)
+		return (ENODEV);
+	return (0);
+}
+
+static int
+ttysclose(struct cdev *dev, int flag, int mode, struct thread *td)
 {
 
-	tp->t_state |= TS_GONE;
-	wakeup(&tp->t_dtr_wait);
+	return (0);
+}
+
+static int
+ttysrdwr(struct cdev *dev, struct uio *uio, int flag)
+{
+
+	return (ENODEV);
+}
+
+static int
+ttysioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread *td)
+{
+	struct tty	*tp;
+	int		error;
+	struct termios	*ct;
+
+	tp = dev->si_tty;
+	KASSERT(tp != NULL,
+	    ("ttysopen(): no tty pointer on device (%s)", devtoname(dev)));
+	if (tp->t_state & TS_GONE)
+		return (ENODEV);
+	ct = dev->si_drv2;
+	switch (cmd) {
+	case TIOCSETA:
+		error = suser(td);
+		if (error != 0)
+			return (error);
+		*ct = *(struct termios *)data;
+		return (0);
+	case TIOCGETA:
+		*(struct termios *)data = *ct;
+		return (0);
+	case TIOCGETD:
+		*(int *)data = TTYDISC;
+		return (0);
+	case TIOCGWINSZ:
+		bzero(data, sizeof(struct winsize));
+		return (0);
+	default:
+		if (tp->t_cioctl != NULL)
+			return(tp->t_cioctl(dev, cmd, data, flag, td));
+		return (ENOTTY);
+	}
+}
+
+/*
+ * Use more "normal" termios paramters for consoles.
+ */
+void
+ttyconsolemode(struct tty *tp, int speed)
+{
+
+	tp->t_init_in.c_iflag = TTYDEF_IFLAG;
+	tp->t_init_in.c_oflag = TTYDEF_OFLAG;
+	tp->t_init_in.c_cflag = TTYDEF_CFLAG | CLOCAL;
+	tp->t_init_in.c_lflag = TTYDEF_LFLAG | ECHO | ECHOE | ECHOKE | ECHOCTL;
+	tp->t_lock_out.c_cflag = tp->t_lock_in.c_cflag = CLOCAL;
+	if (speed == 0)
+		speed = TTYDEF_SPEED;
+	tp->t_lock_out.c_ispeed = tp->t_lock_out.c_ospeed =
+	tp->t_lock_in.c_ispeed = tp->t_lock_in.c_ospeed =
+	tp->t_init_in.c_ispeed = tp->t_init_in.c_ospeed = speed;
+	tp->t_init_out = tp->t_init_in;
 }
 
 /*
