@@ -489,6 +489,7 @@ int		sc_vtb_pos(sc_vtb_t *vtb, int pos, int offset);
 
 #define		sc_vtb_tail(vtb)	((vtb)->vtb_tail)
 #define		sc_vtb_rows(vtb)	((vtb)->vtb_rows)
+#define		sc_vtb_cols(vtb)	((vtb)->vtb_cols)
 
 void		sc_vtb_copy(sc_vtb_t *vtb1, int from, sc_vtb_t *vtb2, int to,
 			    int count);

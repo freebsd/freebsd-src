@@ -189,6 +189,10 @@ sc_set_text_mode(scr_stat *scp, struct tty *tp, int mode, int xsize, int ysize,
     }
 
     /* set up scp */
+#ifndef SC_NO_HISTORY
+    if (scp->history != NULL)
+	sc_hist_save(scp);
+#endif
     prev_ysize = scp->ysize;
     /*
      * This is a kludge to fend off scrn_update() while we
@@ -401,6 +405,10 @@ sc_set_pixel_mode(scr_stat *scp, struct tty *tp, int xsize, int ysize,
     }
 
     /* set up scp */
+#ifndef SC_NO_HISTORY
+    if (scp->history != NULL)
+	sc_hist_save(scp);
+#endif
     prev_ysize = scp->ysize;
     scp->status |= (UNKNOWN_MODE | PIXEL_MODE);
     scp->status &= ~GRAPHICS_MODE;
