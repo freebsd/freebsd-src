@@ -2382,9 +2382,17 @@ END_DEBUG
 static void
 sbp_poll(struct cam_sim *sim)
 {       
-	/* should call fwohci_intr? */
+	struct sbp_softc *sbp;
+	struct firewire_comm *fc;
+
+	sbp = (struct sbp_softc *)sim->softc;
+	fc = sbp->fd.fc;
+
+	fc->poll(fc, 0, -1);
+
 	return;
 }
+
 static struct sbp_ocb *
 sbp_dequeue_ocb(struct sbp_dev *sdev, struct sbp_status *sbp_status)
 {
