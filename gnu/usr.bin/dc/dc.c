@@ -858,7 +858,6 @@ perror_with_name (name)
      char *name;
 {
   extern int errno, sys_nerr;
-  extern char *sys_errlist[];
   char *s;
 
   if (errno < sys_nerr)
