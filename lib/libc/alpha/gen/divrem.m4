@@ -172,7 +172,7 @@ ifelse(OP, `div',
 ifelse(S, `true',
 `
 	/* Check to see if we should negate it. */
-	subqv	zero, RESULT, T_0
+	subq	zero, RESULT, T_0
 	cmovlbs	NEG, T_0, RESULT
 ')
 
