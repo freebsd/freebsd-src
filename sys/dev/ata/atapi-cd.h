@@ -335,5 +335,5 @@ struct acd_softc {
     int				block_size;	/* blocksize currently used */
     struct disklabel		disklabel;	/* fake disk label */
     struct devstat		*stats;		/* devstat entry */
-    dev_t			dev1, dev2;	/* device place holders */
+    dev_t			dev;		/* device place holders */
 };

@@ -208,8 +208,7 @@ acddetach(struct atapi_softc *atp)
 	    while ((bp = bioq_first(&cdp->driver[subdev]->queue))) {
         	biofinish(bp, NULL, ENXIO);
 	    }
-	    destroy_dev(cdp->driver[subdev]->dev1);
-	    destroy_dev(cdp->driver[subdev]->dev2);
+	    destroy_dev(cdp->driver[subdev]->dev);
 	    while ((entry = TAILQ_FIRST(&cdp->driver[subdev]->dev_list))) {
 		destroy_dev(entry->dev);
 		TAILQ_REMOVE(&cdp->driver[subdev]->dev_list, entry, chain);
@@ -226,8 +225,7 @@ acddetach(struct atapi_softc *atp)
     while ((bp = bioq_first(&cdp->queue))) {
         biofinish(bp, NULL, ENXIO);
     }
-    destroy_dev(cdp->dev1);
-    destroy_dev(cdp->dev2);
+    destroy_dev(cdp->dev);
     while ((entry = TAILQ_FIRST(&cdp->dev_list))) {
 	destroy_dev(entry->dev);
 	TAILQ_REMOVE(&cdp->dev_list, entry, chain);
@@ -272,17 +270,13 @@ acd_make_dev(struct acd_softc *cdp)
     dev_t dev;
 
     dev = make_dev(&acd_cdevsw, dkmakeminor(cdp->lun, 0, 0),
-		   UID_ROOT, GID_OPERATOR, 0644, "acd%da", cdp->lun);
+		   UID_ROOT, GID_OPERATOR, 0644, "acd%d", cdp->lun);
+    make_dev_alias(dev, "acd%da", cdp->lun);
+    make_dev_alias(dev, "acd%dc", cdp->lun);
     dev->si_drv1 = cdp;
     dev->si_iosize_max = 252 * DEV_BSIZE;
     dev->si_bsize_phys = 2048; /* XXX SOS */
-    cdp->dev1 = dev;
-    dev = make_dev(&acd_cdevsw, dkmakeminor(cdp->lun, 0, RAW_PART),
-		   UID_ROOT, GID_OPERATOR, 0644, "acd%dc", cdp->lun);
-    dev->si_drv1 = cdp;
-    dev->si_iosize_max = 252 * DEV_BSIZE;
-    dev->si_bsize_phys = 2048; /* XXX SOS */
-    cdp->dev2 = dev;
+    cdp->dev = dev;
     cdp->atp->flags |= ATAPI_F_MEDIA_CHANGED;
 }
 
@@ -1310,7 +1304,7 @@ acd_read_toc(struct acd_softc *cdp)
 	entry = malloc(sizeof(struct acd_devlist), M_ACD, M_NOWAIT | M_ZERO);
     	entry->dev = make_dev(&acd_cdevsw, (cdp->lun << 3) | (track << 16),
 			      0, 0, 0644, name, NULL);
-	entry->dev->si_drv1 = cdp->dev1->si_drv1;
+	entry->dev->si_drv1 = cdp->dev->si_drv1;
 	TAILQ_INSERT_TAIL(&cdp->dev_list, entry, chain);
     }
 
