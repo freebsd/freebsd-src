@@ -290,6 +290,14 @@ Set to zero if the link level source address should be filled in automatically
 by the the interface output routine.  Set to one if the link level source
 address will be written, as provided, to the wire.  This flag is initialized
 to zero by default.
+.It Dv BIOCSSEESENT
+.It Dv BIOCGSEESENT
+.Pq Li u_int
+Set or get the flag determining whether locally generated packets on the
+interface should be returned by BPF.  Set to zero to see only incoming
+packets on the interface.  Set to one to see packets originating
+locally and remotely on the interface.  This flag is initialized to one by
+default.
 .Sh BPF HEADER
 The following structure is prepended to each packet returned by
 .Xr read 2 :
