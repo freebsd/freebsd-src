@@ -1,12 +1,12 @@
 <!DOCTYPE linuxdoc PUBLIC "-//FreeBSD//DTD linuxdoc//EN">
-<!-- $Id: FAQ.sgml,v 1.47 1997/05/01 20:55:20 jkh Exp $ -->
+<!-- $Id: FAQ.sgml,v 1.48 1997/05/01 22:07:51 jkh Exp $ -->
 
   <article>
 
 <title>Frequently Asked Questions for FreeBSD 2.X
 <author>Maintainer: Peter da Silva <tt><htmlurl url='mailto:pds@FreeBSD.ORG'
   name='&lt;pds@FreeBSD.ORG&gt;'></tt>
-<date>$Date: 1997/05/01 20:55:20 $</date>
+<date>$Date: 1997/05/01 22:07:51 $</date>
 
 <abstract>
 This is the FAQ for FreeBSD systems version 2.X  All entries are
@@ -1940,7 +1940,7 @@ pseudo-device   vn   #Vnode driver (turns a file into a device)
 	library mechanism is based more closely on Sun's
 	<tt>SunOS</tt>-style shared library mechanism and, as such, is very
 	easy to use.  The only thing we actually lack with <tt/a.out/
-	which <tt/ELF/ would give us is better support for C++ constructors
+	which <tt/ELF/ would give us is cleaner support for C++ constructors
 	and destructors, among other similarly esoteric things, and it
 	simply hasn't become much of a problem yet (and there is quite
 	a bit of C++ code in FreeBSD's source tree).  Should that change,
