@@ -78,8 +78,6 @@
 
 struct	in_addr zeroin_addr;
 
-static void	in_rtchange __P((struct inpcb *, int));
-
 /*
  * These configure the range of local port addresses assigned to
  * "unspecified" outgoing connections/packets/whatever.
@@ -693,20 +691,6 @@ in_pcbnotify(head, dst, fport_arg, laddr, lport_arg, cmd, notify, tcp_sequence, 
 	if (faddr.s_addr == INADDR_ANY)
 		return;
 
-	/*
-	 * Redirects go to all references to the destination,
-	 * and use in_rtchange to invalidate the route cache.
-	 * Dead host indications: notify all references to the destination.
-	 * Otherwise, if we have knowledge of the local port and address,
-	 * deliver only to that socket.
-	 */
-	if (PRC_IS_REDIRECT(cmd) || cmd == PRC_HOSTDEAD) {
-		fport = 0;
-		lport = 0;
-		laddr.s_addr = 0;
-		if (cmd != PRC_HOSTDEAD)
-			notify = in_rtchange;
-	}
 	errno = inetctlerrmap[cmd];
 	s = splnet();
 	for (inp = LIST_FIRST(head); inp != NULL;) {
@@ -717,12 +701,11 @@ in_pcbnotify(head, dst, fport_arg, laddr, lport_arg, cmd, notify, tcp_sequence, 
 		}
 #endif
 		if (inp->inp_faddr.s_addr != faddr.s_addr ||
-		    inp->inp_socket == 0 ||
-		    (lport && inp->inp_lport != lport) ||
-		    (laddr.s_addr && inp->inp_laddr.s_addr != laddr.s_addr) ||
-		    (fport && inp->inp_fport != fport)) {
-			inp = LIST_NEXT(inp, inp_list);
-			continue;
+		    inp->inp_socket == 0 || inp->inp_lport != lport ||
+		    inp->inp_laddr.s_addr != laddr.s_addr ||
+		    inp->inp_fport != fport) {
+				inp = LIST_NEXT(inp, inp_list);
+				continue;
 		}
 		/*
 		 * If tcp_seq_check is set, then skip sessions where
@@ -735,6 +718,45 @@ in_pcbnotify(head, dst, fport_arg, laddr, lport_arg, cmd, notify, tcp_sequence, 
 		 */
 		if ((tcp_seq_check == 1) && (tcp_seq_vs_sess(inp, tcp_sequence) == 0))
 			break;
+		oinp = inp;
+		inp = LIST_NEXT(inp, inp_list);
+		if (notify)
+			(*notify)(oinp, errno);
+	}
+	splx(s);
+}
+
+void
+in_pcbnotifyall(head, dst, cmd, notify)
+	struct inpcbhead *head;
+	struct sockaddr *dst;
+	int cmd;
+	void (*notify) __P((struct inpcb *, int));
+{
+	register struct inpcb *inp, *oinp;
+	struct in_addr faddr;
+	int errno, s;
+
+	if ((unsigned)cmd > PRC_NCMDS || dst->sa_family != AF_INET)
+		return;
+	faddr = ((struct sockaddr_in *)dst)->sin_addr;
+	if (faddr.s_addr == INADDR_ANY)
+		return;
+
+	errno = inetctlerrmap[cmd];
+	s = splnet();
+	for (inp = LIST_FIRST(head); inp != NULL;) {
+#ifdef INET6
+		if ((inp->inp_vflag & INP_IPV4) == 0) {
+			inp = LIST_NEXT(inp, inp_list);
+			continue;
+		}
+#endif
+		if (inp->inp_faddr.s_addr != faddr.s_addr ||
+			inp->inp_socket == 0) {
+				inp = LIST_NEXT(inp, inp_list);
+				continue;
+		}
 		oinp = inp;
 		inp = LIST_NEXT(inp, inp_list);
 		if (notify)
@@ -781,7 +803,7 @@ in_losing(inp)
  * After a routing change, flush old routing
  * and allocate a (hopefully) better one.
  */
-static void
+void
 in_rtchange(inp, errno)
 	register struct inpcb *inp;
 	int errno;
