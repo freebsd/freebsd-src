@@ -4,13 +4,14 @@ CLEANFILES=	makedevs.c rtermcap
 
 .PATH: ${.CURDIR}/../disklabel ${.CURDIR}/../../usr.bin/cksum
 
-SRCS=	attr.c cdrom.c command.c config.c decode.c devices.c disks.c dist.c \
-	dmenu.c doc.c dos.c floppy.c ftp.c ftp_strat.c globals.c index.c install.c \
-	installFinal.c installPreconfig.c installUpgrade.c label.c main.c \
-	makedevs.c media.c menus.c misc.c msg.c network.c nfs.c options.c package.c \
-	system.c tape.c tcpip.c termcap.c ufs.c variable.c wizard.c
+SRCS=	apache.c attr.c cdrom.c command.c config.c decode.c devices.c \
+	disks.c dist.c dmenu.c doc.c dos.c floppy.c ftp.c ftp_strat.c \
+	globals.c index.c install.c installFinal.c installPreconfig.c \
+	installUpgrade.c label.c main.c makedevs.c media.c menus.c \
+	misc.c msg.c network.c nfs.c options.c package.c system.c \
+	tape.c tcpip.c termcap.c ufs.c variable.c wizard.c
 
-CFLAGS+=	-Wall -I${.CURDIR}/../libdisk -I${.CURDIR}/../../gnu/lib/libdialog
+CFLAGS+= -Wall -I${.CURDIR}/../libdisk -I${.CURDIR}/../../gnu/lib/libdialog
 
 LDADD=  -ldialog -lncurses -lmytinfo -lutil
 .if exists(${.CURDIR}/../libdisk/obj)
@@ -54,4 +55,3 @@ testftp:       ftp.c
 	cc -o testftp -I../libdisk -DSTANDALONE_FTP ftp.c
 
 .include <bsd.prog.mk>
-

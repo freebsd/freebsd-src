@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: msg.c,v 1.29.2.5 1995/10/21 14:06:53 jkh Exp $
+ * $Id: msg.c,v 1.29.2.6 1995/10/22 01:32:54 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -350,4 +350,19 @@ msgWeHaveOutput(char *fmt, ...)
     free(errstr);
     if (OnVTY)
 	msgInfo("Command output is on VTY2 - type ALT-F2 to see it");
+}
+
+/* Simple versions of msgConfirm() and msgNotify() for calling from scripts */
+int
+msgSimpleConfirm(char *str)
+{
+    msgConfirm(str);
+    return RET_SUCCESS;
+}
+
+int
+msgSimpleNotify(char *str)
+{
+    msgNotify(str);
+    return RET_SUCCESS;
 }

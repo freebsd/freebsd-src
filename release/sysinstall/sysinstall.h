@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.42.2.32 1995/10/22 08:33:19 jkh Exp $
+ * $Id: sysinstall.h,v 1.42.2.34 1995/10/22 12:04:12 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -355,6 +355,9 @@ extern DMenu		MenuHTMLDoc;		/* HTML Documentation menu			*/
 
 /*** Prototypes ***/
 
+/* apache.c */
+extern int	installApache(char *str);
+
 /* attrs.c */
 extern char	*attr_match(Attribs *attr, char *name);
 extern int	attr_parse_file(Attribs *attr, char *file);
@@ -546,6 +549,8 @@ extern void	msgNotify(char *fmt, ...);
 extern void	msgWeHaveOutput(char *fmt, ...);
 extern int	msgYesNo(char *fmt, ...);
 extern char	*msgGetInput(char *buf, char *fmt, ...);
+extern int	msgSimpleConfirm(char *);
+extern int	msgSimpleNotify(char *);
 
 /* network.c */
 extern Boolean	mediaInitNetwork(Device *dev);
