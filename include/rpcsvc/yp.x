@@ -34,7 +34,7 @@
 #ifndef RPC_HDR
 %#ifndef lint
 %/*static char sccsid[] = "from: @(#)yp.x	2.1 88/08/01 4.0 RPCSRC";*/
-%static char rcsid[] = "$Id: yp.x,v 1.2 1995/12/08 17:58:50 wpaul Exp $";
+%static char rcsid[] = "$Id: yp.x,v 1.3 1995/12/09 08:34:04 wpaul Exp $";
 %#endif /* not lint */
 #endif
 
@@ -278,9 +278,13 @@ program YPPUSH_XFRRESPPROG {
 	version YPPUSH_XFRRESPVERS {
 		void
 		YPPUSHPROC_NULL(void) = 0;
-
+#ifdef STUPID_SUN_BUG /* argument and return value are backwards */
 		yppushresp_xfr	
 		YPPUSHPROC_XFRRESP(void) = 1;
+#else
+		void	
+		YPPUSHPROC_XFRRESP(yppushresp_xfr) = 1;
+#endif
 	} = 1;
 } = 0x40000000;	/* transient: could be anything up to 0x5fffffff */
 #endif
