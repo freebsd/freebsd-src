@@ -1,0 +1,22 @@
+#	$Id:$
+
+M4?=	m4
+
+ORG=	0x9000
+
+all: btx
+
+btx: btx.o
+.if ${OBJFORMAT} == aout
+	${LD} -nostdlib -N -s -T ${ORG} -o btx.out btx.o
+	dd if=btx.out of=${.TARGET} ibs=32 skip=1
+.else
+	${LD} -N -e start -Ttext ${ORG} -o btx.out btx.o
+	/usr/libexec/elf/objcopy -S -O binary btx.out ${.TARGET}
+.endif
+
+btx.o: btx.m4 btx.s
+	${M4} btx.m4 btx.s | ${AS} ${AFLAGS} -o ${.TARGET}
+
+clean:
+	rm -f btx btx.out btx.o
