@@ -69,7 +69,7 @@ dirname(path)
 		} while (endp > path && *endp == '/');
 	}
 
-	if (endp - path + 1 > sizeof(bname)) {
+	if (endp - path + 2 > sizeof(bname)) {
 		errno = ENAMETOOLONG;
 		return(NULL);
 	}
