@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: aha1542.c,v 1.58 1996/04/07 17:32:08 bde Exp $
+ *      $Id: aha1542.c,v 1.59 1996/06/12 05:03:34 gpalmer Exp $
  */
 
 /*
@@ -914,7 +914,9 @@ aha_done(aha, ccb)
 	 */
 	if (!(xs->flags & INUSE)) {
 		printf("aha%d: exiting but not in use!\n", aha->unit);
-		Debugger("aha1542");
+#ifdef DIAGNOSTIC
+		panic("aha1542 exiting but not in use");
+#endif
 	}
 	xs->status = ccb->target_stat;
 	xs->resid = 0;
@@ -1870,7 +1872,9 @@ aha_timeout(void *arg1)
 	 */
 	if (ccb->mbx->cmd != AHA_MBO_FREE) {
 		printf("\nadapter not taking commands.. frozen?!\n");
-		Debugger("aha1542");
+#ifdef DIAGNOSTIC
+		panic("aha1542 frozen");
+#endif
 	}
 	/*
 	 * If it has been through before, then
