@@ -102,8 +102,11 @@ and reading new connections on listening sockets, has been added.
 [MERGED]
 
 The ata(4) driver now has support for ATA100 controllers. [MERGED]
+In addition, it now supports the ServerWorks ROSB4 ATA33 chipset,
+the CMD 648 ATA66 and CMD 649 ATA100 chipsets, and the Cyrix 5530.
 
-The ata(4) driver now has support for tagged queueing.
+The ata(4) driver now has support for tagged queueing, which is
+enabled by the ATA_ENABLE_TAGS option.
 
 The ti(4) driver now supports the Alteon AceNIC 1000baseT Gigabit
 Ethernet and Netgear GA620T 1000baseT Gigabit cards. [MERGED]
