@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.16.2.11 1995/10/14 19:13:13 jkh Exp $
+ * $Id: config.c,v 1.16.2.12 1995/10/15 12:40:55 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -75,7 +75,7 @@ chunk_compare(const void *p1, const void *p2)
 static char *
 name_of(Chunk *c1)
 {
-    static char rootname[64];
+    static char rootname[32];
 
     /* Our boot blocks can't deal with root partitions on slices - need the comp
 atbility name */

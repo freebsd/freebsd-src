@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.42.2.14 1995/10/15 04:37:07 jkh Exp $
+ * $Id: sysinstall.h,v 1.42.2.15 1995/10/15 12:41:06 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -69,8 +69,8 @@
 #define VAR_VALUE_MAX		1024
 
 /* device limits */
-#define DEV_NAME_MAX		128	/* The maximum length of a device name	*/
-#define DEV_MAX			200	/* The maximum number of devices we'll deal with */
+#define DEV_NAME_MAX		64	/* The maximum length of a device name	*/
+#define DEV_MAX			100	/* The maximum number of devices we'll deal with */
 #define INTERFACE_MAX		50	/* Maximum number of network interfaces we'll deal with */
 #define MAX_FTP_RETRIES		3	/* How many times to beat our heads against the wall */
 
@@ -86,7 +86,7 @@
  * For 2.1 I'll revisit this and try to make it more dynamic, but since
  * this will catch 99.99% of all possible cases, I'm not too worried.
  */
-#define MAX_CHUNKS	50
+#define MAX_CHUNKS	40
 
 /* Internal environment variables */
 #define DISK_PARTITIONED	"_diskPartitioned"
@@ -170,8 +170,8 @@ typedef struct _variable {
 } Variable;
 
 #define MAX_ATTRIBS	200
-#define MAX_NAME	511
-#define MAX_VALUE	4095
+#define MAX_NAME	256
+#define MAX_VALUE	2048
 
 typedef struct _attribs {
     char *name;
@@ -261,9 +261,9 @@ typedef IndexEntry *IndexEntryPtr;
 
 typedef int (*commandFunc)(char *key, void *data);
 
-#define HOSTNAME_FIELD_LEN	256
+#define HOSTNAME_FIELD_LEN	128
 #define IPADDR_FIELD_LEN	16
-#define EXTRAS_FIELD_LEN	256
+#define EXTRAS_FIELD_LEN	128
 
 /* Verbosity levels for CPIO as expressed by cpio arguments - yuck */
 #define CPIO_VERBOSITY		(!strcmp(variable_get(CPIO_VERBOSITY_LEVEL), "low") ? "" : \
