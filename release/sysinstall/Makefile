@@ -81,7 +81,8 @@ rtermcap:	${.CURDIR}/rtermcap.c
 .if ${MACHINE} == "pc98"
 KEYMAPS= jp.pc98 jp.pc98.iso
 .else
-KEYMAPS= be.iso br275.cp850 br275.iso danish.cp865 danish.iso estonian.iso \
+KEYMAPS= be.iso br275.cp850 br275.iso cs.latin2.qwertz danish.cp865 \
+	danish.iso estonian.iso \
 	estonian.iso15 estonian.cp850 finnish.cp850 finnish.iso fr.iso \
 	fr.iso.acc german.cp850 german.iso hr.iso hu.iso2.101keys \
 	hu.iso2.102keys it.iso icelandic.iso icelandic.iso.acc jp.106 \
