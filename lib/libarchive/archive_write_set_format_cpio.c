@@ -207,10 +207,12 @@ format_octal_recursive(int64_t v, char *p, int s)
 static int
 archive_write_cpio_finish(struct archive *a)
 {
+	struct cpio *cpio;
 	struct stat st;
 	int er;
 	struct archive_entry *trailer;
 
+	cpio = a->format_data;
 	trailer = archive_entry_new();
 	memset(&st, 0, sizeof(st));
 	st.st_nlink = 1;
@@ -218,6 +220,9 @@ archive_write_cpio_finish(struct archive *a)
 	archive_entry_set_pathname(trailer, "TRAILER!!!");
 	er = archive_write_cpio_header(a, trailer);
 	archive_entry_free(trailer);
+
+	free(cpio);
+	a->format_data = NULL;
 	return (er);
 }
 

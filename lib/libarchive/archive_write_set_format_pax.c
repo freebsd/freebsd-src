@@ -611,7 +611,7 @@ archive_write_pax_header(struct archive *a,
 		    pax_attr_entry, 'x');
 
 		archive_entry_free(pax_attr_entry);
-		free(pax_entry_name.s);
+		archive_string_free(&pax_entry_name);
 
 		/* Note that the 'x' header shouldn't ever fail to format */
 		if (ret != 0) {
@@ -765,12 +765,16 @@ static int
 archive_write_pax_finish(struct archive *a)
 {
 	struct pax *pax;
+	int r;
+
+	r = ARCHIVE_OK;
 	pax = a->format_data;
 	if (pax->written && a->compression_write != NULL)
-		return (write_nulls(a, 512 * 2));
+		r = write_nulls(a, 512 * 2);
+	archive_string_free(&pax->pax_header);
 	free(pax);
 	a->format_data = NULL;
-	return (ARCHIVE_OK);
+	return (r);
 }
 
 static int
