@@ -898,8 +898,9 @@ FsmRecvEchoReq(struct fsm *fp, struct fsmheader *lhp, struct mbuf *bp)
     cp = MBUF_CTOP(bp);
     ua_ntohl(cp, &magic);
     if (magic != lcp->his_magic) {
-      log_Printf(fp->LogLevel, "%s: RecvEchoReq: Error: His magic is bad!!\n",
-                fp->link->name);
+      log_Printf(fp->LogLevel, "%s: RecvEchoReq: magic 0x%08lx is wrong,"
+                 " expecting 0x%08lx\n", fp->link->name, (u_long)magic,
+                 (u_long)lcp->his_magic);
       /* XXX: We should send terminate request */
     }
     if (fp->state == ST_OPENED) {
