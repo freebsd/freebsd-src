@@ -34,11 +34,16 @@
 
 #include <netinet/in.h>
 
+#include <machine/stdarg.h>
+
 #include <stand.h>
 
 #include "bootstrap.h"
 #include "libofw.h"
-#include "openfirm.h"
+
+#define	DISKSECSZ	512
+#define	DISKLABELSEC	0
+#define	DISKLABELOFF	128
 
 static int	ofwd_init(void);
 static int	ofwd_strategy(void *devdata, int flag, daddr_t dblk, 
@@ -46,6 +51,8 @@ static int	ofwd_strategy(void *devdata, int flag, daddr_t dblk,
 static int	ofwd_open(struct open_file *f, ...);
 static int	ofwd_close(struct open_file *f);
 static void	ofwd_print(int verbose);
+static char *	ofwd_getdevpath(int unit);
+int readdisklabel(struct ofw_devdesc *);
 
 struct devsw ofwdisk = {
 	"disk",
@@ -71,10 +78,21 @@ ofwd_init(void)
 	char devpath[255];
 	ihandle_t instance;
 
+	printf("ofwd_init: searching for block devices\n");
 	ofw_devsearch_init();
-	while((ret = ofw_devsearch("block", devpath)) != 0) {
-		if (ret == -1)
+	while ((ret = ofw_devsearch("block", devpath)) != 0) {
+		devpath[sizeof devpath - 1] = 0;
+		printf("ofwd_init: devpath=%s\n", devpath);
+		if (ret == -1) {
+			printf("ofwd_init: ret=%d\n", ret);
 			return (1);
+		}
+#ifdef DEBUG
+		printf("devpath=\"%s\" ret=%d\n", devpath, ret);
+#endif
+
+		if (strcmp(devpath, "/pci@1f,0/pci@1,1/ide@3/cdrom") == 0)
+			continue;
 
 		instance = OF_open(devpath);
 		if (instance != -1) {
@@ -91,6 +109,7 @@ ofwd_init(void)
 		}
 	}
 
+	printf("ofwd_init: return (0)\n");
 	return (0);
 }
 
@@ -98,19 +117,87 @@ static int
 ofwd_strategy(void *devdata, int flag, daddr_t dblk, size_t size, char *buf,
     size_t *rsize)
 {
-	return (0);
+	struct ofw_devdesc *dp = (struct ofw_devdesc *)devdata;
+	unsigned long pos;
+	int n;
+	int i, j;
+
+	pos = (dp->d_kind.ofwdisk.partoff + dblk) * dp->d_kind.ofwdisk.bsize;
+
+	do {
+		if (OF_seek(dp->d_kind.ofwdisk.handle, pos) < 0) {
+			return EIO;
+		}
+		n = OF_read(dp->d_kind.ofwdisk.handle, buf, size);
+		if (n < 0 && n != -2) {
+			return EIO;
+		}
+	} while (n == -2);
+
+	*rsize = size;
+	return 0;
 }
 
 static int
 ofwd_open(struct open_file *f, ...)
 {
-	return (0);
+	va_list vl;
+	struct ofw_devdesc *dp;
+	char *devpath;
+	phandle_t diskh;
+	char buf[8192];
+	int i, j;
+
+	va_start(vl, f);
+	dp = va_arg(vl, struct ofw_devdesc *);
+	va_end(vl);
+
+	devpath = ofwd_getdevpath(dp->d_kind.ofwdisk.unit);
+	if ((diskh = OF_open(devpath)) == -1) {
+		printf("ofwd_open: Could not open %s\n", devpath);
+		return 1;
+	}
+	dp->d_kind.ofwdisk.bsize = DISKSECSZ;
+	dp->d_kind.ofwdisk.handle = diskh;
+	readdisklabel(dp);
+	
+	return 0;
+}
+
+/* XXX This is a NetBSD header! */
+#include "disklabel.h"
+int
+readdisklabel(struct ofw_devdesc *dp)
+{
+	char buf[DISKSECSZ];
+	struct partition *p;
+	struct disklabel *lp;
+	size_t size;
+	int i;
+
+	dp->d_kind.ofwdisk.partoff = 0;
+
+	dp->d_dev->dv_strategy(dp, 0, DISKLABELSEC, sizeof(buf), buf, &size);
+
+	lp = (struct disklabel *)(buf + DISKLABELOFF);
+	p = lp->d_partitions;
+	for (i = 0; i < MAXPARTITIONS; i++) {
+		if (i == dp->d_kind.ofwdisk.partition) {
+			dp->d_kind.ofwdisk.partoff = p->p_offset;
+			return 0;
+		}
+		p++;
+	}
+	return 1;
 }
 
 static int
 ofwd_close(struct open_file *f)
 {
-	return (0);
+	struct ofw_devdesc *dev = f->f_devdata;
+	OF_close(dev->d_kind.ofwdisk.handle);
+
+	return 0;
 }
 
 static void
@@ -138,4 +225,16 @@ ofwd_getunit(const char *path)
 	}
 
 	return -1;
+}
+
+static char *
+ofwd_getdevpath(int unit)
+{
+	int i;
+
+	for (i = 0; i < nofwdinfo; i++) {
+		if (ofwdinfo[i].ofwd_unit == unit)
+			return ofwdinfo[i].ofwd_path;
+	}
+	return 0;
 }
