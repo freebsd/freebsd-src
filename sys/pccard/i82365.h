@@ -39,8 +39,8 @@
 #define	PCIC_I82365	0		/* Intel i82365SL-A/B or clone */
 #define	PCIC_IBM	1		/* IBM clone */
 #define	PCIC_VLSI	2		/* VLSI chip */
-#define	PCIC_PD672X	3		/* Cirrus logic 672x */
-#define	PCIC_PD6710	4		/* Cirrus logic 6710 */
+#define	PCIC_PD6722	3		/* Cirrus logic PD6722 */
+#define	PCIC_PD6710	4		/* Cirrus logic PD6710 */
 #define	PCIC_VG365	5		/* Vadem 365 */
 #define	PCIC_VG465      6		/* Vadem 465 */
 #define	PCIC_VG468	7		/* Vadem 468 */
@@ -49,6 +49,8 @@
 #define	PCIC_RF5C396	10		/* Ricoh RF5C396 */
 #define	PCIC_IBM_KING	11		/* IBM KING PCMCIA Controller */
 #define PCIC_I82365SL_DF 12		/* Intel i82365sl-DF step */
+#define PCIC_PD6729	13		/* Cirrus Logic PD6729 */
+#define PCIC_PD673X	14		/* Cirrus Logic PD673x */
 
 /*
  *	Address of the controllers. Each controller can manage
@@ -81,10 +83,12 @@
 #define PCIC_IO1	0x0c	/* I/O Address 1 */
 #define	PCIC_MEMBASE	0x10	/* Base of memory window registers */
 #define PCIC_CDGC	0x16	/* Card Detect and General Control */
-#define PCIC_MISC1	0x16	/* PD672x: Misc control register 1 per slot */
+#define PCIC_MISC1	0x16	/* PD67xx: Misc control register 1 per slot */
 #define PCIC_GLO_CTRL	0x1e	/* Global Control Register */
-#define PCIC_MISC2	0x1e	/* PD672x: Misc control register 2 per chip */
+#define PCIC_MISC2	0x1e	/* PD67xx: Misc control register 2 per chip */
 #define PCIC_CLCHIP	0x1f	/* PD67xx: Chip I/D */
+#define PCIC_EXT_IND	0x2e	/* PD67xx: Extended Index */
+#define PCIC_EXTENDED	0x2f	/* PD67xx: Extended register */
 #define PCIC_CVSR	0x2f	/* Vadem: Voltage select register */
 #define PCIC_RICOH_MCR2 0x2f	/* Ricoh: Mode Control Register 2 */
 
@@ -247,6 +251,15 @@
 /* CL-PD67[12]x: Chip info (PCIC_CLCHIP) */
 #define PCIC_CLC_TOGGLE 0xc0		/* These bits toggle 1 -> 0 */
 #define PCIC_CLC_DUAL	0x20		/* Single/dual socket version */
+
+/* Cirrus Logic: Extended Registers (PCIC_EXT_IND) */
+#define PCIC_EXT_DATA	0x0a		/* External Data */
+
+/* EXT_DATA */
+#define PCIC_VS1A	0x01
+#define PCIC_VS2A	0x02
+#define PCIC_VS1B	0x04
+#define PCIC_VS2B	0x08
 
 /* Vadem: Card Voltage Select register (PCIC_CVSR) */
 #define PCIC_CVSR_VS	0x03		/* Voltage select */

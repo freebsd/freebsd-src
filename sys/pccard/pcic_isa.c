@@ -63,7 +63,7 @@ static struct {
 	{ "Intel i82365SL-A/B",	PCIC_AB_POWER},
 	{ "IBM PCIC",		PCIC_AB_POWER},
 	{ "VLSI 82C146",	PCIC_AB_POWER},
-	{ "Cirrus logic 672x",	PCIC_PD_POWER},
+	{ "Cirrus logic 6722",	PCIC_PD_POWER},
 	{ "Cirrus logic 6710", 	PCIC_PD_POWER},
 	{ "Vadem 365",		PCIC_VG_POWER},
 	{ "Vadem 465",		PCIC_VG_POWER},
@@ -251,7 +251,7 @@ pcic_isa_probe(device_t dev)
 			c = sp->getb(sp, PCIC_CLCHIP);
 			if ((c & PCIC_CLC_TOGGLE) == 0) {
 				if (c & PCIC_CLC_DUAL)
-					sp->controller = PCIC_PD672X;
+					sp->controller = PCIC_PD6722;
 				else
 					sp->controller = PCIC_PD6710;
 				sp->revision = 8 - ((c & 0x1F) >> 2);
@@ -272,7 +272,7 @@ pcic_isa_probe(device_t dev)
 		 * that claims to reduce power consumption by 30%, so
 		 * enable it and hope for the best.
 		 */
-		if (sp->controller == PCIC_PD672X) {
+		if (sp->controller == PCIC_PD6722) {
 			pcic_setb(sp, PCIC_MISC1, PCIC_MISC1_SPEAKER);
 			pcic_setb(sp, PCIC_MISC2, PCIC_LPDM_EN);
 		}
