@@ -101,8 +101,8 @@ int main(argc, argv)
 	len = sizeof(kern_offset);
 	if (sysctl(mib, 2, &kern_offset, &len, NULL, 0) == -1) {
 		perror("sysctl(get_offset)");
-			return 1;
-		}
+		return 1;
+	}
 
 /****** Critical section, do all things as fast as possible ******/
 
@@ -200,9 +200,35 @@ int main(argc, argv)
 		stz = NULL;
 
 	if (stz != NULL || stv != NULL) {
+		int disrtcset, need_restore = 0;
+
+		if (init && stv != NULL) {
+			mib[0] = CTL_MACHDEP;
+			mib[1] = CPU_DISRTCSET;
+			len = sizeof(disrtcset);
+			if (sysctl(mib, 2, &disrtcset, &len, NULL, 0) == -1) {
+				perror("sysctl(get_disrtcset)");
+				return 1;
+			}
+			if (disrtcset == 0) {
+				disrtcset = 1;
+				need_restore = 1;
+				if (sysctl(mib, 2, NULL, NULL, &disrtcset, len) == -1) {
+					perror("sysctl(set_disrtcset)");
+					return 1;
+				}
+			}
+		}
 		if (settimeofday(stv, stz)) {
 			perror("settimeofday");
 			return 1;
+		}
+		if (need_restore) {
+			disrtcset = 0;
+			if (sysctl(mib, 2, NULL, NULL, &disrtcset, len) == -1) {
+				perror("sysctl(restore_disrtcset)");
+				return 1;
+			}
 		}
 	}
 
