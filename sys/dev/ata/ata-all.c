@@ -218,11 +218,9 @@ ata_detach(device_t dev)
 	return ENXIO;
 
     /* make sure channel is not busy */
-    s = splbio();
-    while (!atomic_cmpset_int(&ch->active, ATA_IDLE, ATA_CONTROL))
-	tsleep((caddr_t)&s, PRIBIO, "atarel", hz/4);
-    splx(s);
+    ATA_SLEEPLOCK_CH(ch, ATA_CONTROL);
 
+    s = splbio();
 #ifdef DEV_ATADISK
     if (ch->devices & ATA_ATA_MASTER && ch->device[MASTER].driver)
 	ad_detach(&ch->device[MASTER], 1);
@@ -235,6 +233,7 @@ ata_detach(device_t dev)
     if (ch->devices & ATA_ATAPI_SLAVE && ch->device[SLAVE].driver)
 	atapi_detach(&ch->device[SLAVE]);
 #endif
+    splx(s);
 
     if (ch->device[MASTER].param) {
 	free(ch->device[MASTER].param, M_ATA);
@@ -260,7 +259,7 @@ ata_detach(device_t dev)
     ch->r_altio = NULL;
     ch->r_bmio = NULL;
     ch->r_irq = NULL;
-    ch->active = ATA_IDLE;
+    ATA_UNLOCK_CH(ch);
     return 0;
 }
 
@@ -276,7 +275,7 @@ ataioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct thread *td)
     struct ata_cmd *iocmd = (struct ata_cmd *)addr;
     struct ata_channel *ch;
     device_t device = devclass_get_device(ata_devclass, iocmd->channel);
-    int error, s;
+    int error;
 
     if (cmd != IOCATA)
 	return ENOTTY;
@@ -300,12 +299,8 @@ ataioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct thread *td)
 	case ATAREINIT:
 	    if (!device || !(ch = device_get_softc(device)))
 		return ENXIO;
-
-	    s = splbio();
-	    while (!atomic_cmpset_int(&ch->active, ATA_IDLE, ATA_ACTIVE))
-		tsleep((caddr_t)&s, PRIBIO, "atarin", hz/4);
+	    ATA_SLEEPLOCK_CH(ch, ATA_ACTIVE);
 	    error = ata_reinit(ch);
-	    splx(s);
 	    return error;
 
 #ifdef DEV_ATADISK
@@ -607,10 +602,12 @@ ata_start(struct ata_channel *ch)
 #if defined(DEV_ATAPICD) || defined(DEV_ATAPIFD) || defined(DEV_ATAPIST)
     struct atapi_request *atapi_request;
 #endif
+    int s;
 
-    if (!atomic_cmpset_int(&ch->active, ATA_IDLE, ATA_ACTIVE))
+    if (!ATA_LOCK_CH(ch, ATA_ACTIVE))
 	return;
 
+    s = splbio();
 #ifdef DEV_ATADISK
     /* find & call the responsible driver if anything on the ATA queue */
     if (TAILQ_EMPTY(&ch->ata_queue)) {
@@ -623,8 +620,10 @@ ata_start(struct ata_channel *ch)
 	TAILQ_REMOVE(&ch->ata_queue, ad_request, chain);
 	ch->active = ATA_ACTIVE_ATA;
 	ch->running = ad_request;
-	if (ad_transfer(ad_request) == ATA_OP_CONTINUES)
+	if (ad_transfer(ad_request) == ATA_OP_CONTINUES) {
+	    splx(s);
 	    return;
+	}
     }
 
 #endif
@@ -640,10 +639,13 @@ ata_start(struct ata_channel *ch)
 	TAILQ_REMOVE(&ch->atapi_queue, atapi_request, chain);
 	ch->active = ATA_ACTIVE_ATAPI;
 	ch->running = atapi_request;
-	if (atapi_transfer(atapi_request) == ATA_OP_CONTINUES)
+	if (atapi_transfer(atapi_request) == ATA_OP_CONTINUES) {
+	    splx(s);
 	    return;
+	}
     }
 #endif
+    splx(s);
     ch->active = ATA_IDLE;
 }
 
@@ -782,7 +784,7 @@ ata_reinit(struct ata_channel *ch)
 
     if (!ch->r_io || !ch->r_altio || !ch->r_irq)
 	return ENXIO;
-    ch->active = ATA_CONTROL;
+    ATA_FORCELOCK_CH(ch, ATA_CONTROL);
     ch->running = NULL;
     devices = ch->devices;
     ata_printf(ch, -1, "resetting devices .. ");
@@ -859,7 +861,7 @@ ata_reinit(struct ata_channel *ch)
     }
 #endif
     printf("done\n");
-    ch->active = ATA_IDLE;
+    ATA_UNLOCK_CH(ch);
     ata_start(ch);
     return 0;
 }
@@ -1037,7 +1039,7 @@ ata_command(struct ata_device *atadev, u_int8_t command,
 	if (atadev->channel->flags & ATA_QUEUED)
 	    ATA_OUTB(atadev->channel->r_altio, ATA_ALTSTAT, ATA_A_4BIT);
 
-	if (tsleep((caddr_t)atadev->channel, PRIBIO, "atacmd", 10 * hz) != 0) {
+	if (tsleep((caddr_t)atadev->channel, PRIBIO, "atacmd", 10 * hz)) {
 	    ata_prtdev(atadev, "timeout waiting for interrupt\n");
 	    atadev->channel->active &= ~ATA_WAIT_INTR;
 	    error = -1;
@@ -1086,10 +1088,6 @@ static void
 ata_change_mode(struct ata_device *atadev, int mode)
 {
     int umode, wmode, pmode;
-    int s = splbio();
-
-    while (!atomic_cmpset_int(&atadev->channel->active, ATA_IDLE, ATA_ACTIVE))
-	tsleep((caddr_t)&s, PRIBIO, "atachm", hz/4);
 
     umode = ata_umode(atadev->param);
     wmode = ata_wmode(atadev->param);
@@ -1111,11 +1109,11 @@ ata_change_mode(struct ata_device *atadev, int mode)
 	umode = -1;
 	wmode = -1;
     }
-    ata_dmainit(atadev->channel, atadev->unit, pmode, wmode, umode);
 
-    atadev->channel->active = ATA_IDLE;
+    ATA_SLEEPLOCK_CH(atadev->channel, ATA_ACTIVE);
+    ata_dmainit(atadev->channel, atadev->unit, pmode, wmode, umode);
+    ATA_UNLOCK_CH(atadev->channel);
     ata_start(atadev->channel);
-    splx(s);
 }
 
 int

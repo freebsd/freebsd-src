@@ -448,8 +448,8 @@ aststrategy(struct bio *bp)
 
     s = splbio();
     bioq_insert_tail(&stp->queue, bp);
-    ata_start(stp->device->channel);
     splx(s);
+    ata_start(stp->device->channel);
 }
 
 void 

@@ -121,6 +121,7 @@ ad_attach(struct ata_device *atadev)
     adp->heads = atadev->param->heads;
     adp->sectors = atadev->param->sectors;
     adp->total_secs = atadev->param->cylinders * adp->heads * adp->sectors;	
+    bioq_init(&adp->queue);
 
     /* does this device need oldstyle CHS addressing */
     if (!ad_version(atadev->param->version_major) || 
@@ -137,6 +138,7 @@ ad_attach(struct ata_device *atadev)
 	atadev->param->lba_size48 > 268435455)
 	adp->total_secs = atadev->param->lba_size48;
     
+    ATA_SLEEPLOCK_CH(atadev->channel, ATA_CONTROL);
     /* use multiple sectors/interrupt if device supports it */
     adp->transfersize = DEV_BSIZE;
     if (ad_version(atadev->param->version_major)) {
@@ -185,6 +187,8 @@ ad_attach(struct ata_device *atadev)
 	    ata_prtdev(atadev, "disabling service interrupt failed\n");
     }
 
+    ATA_UNLOCK_CH(atadev->channel);
+
     devstat_add_entry(&adp->stats, "ad", adp->lun, DEV_BSIZE,
 		      DEVSTAT_NO_ORDERED_TAGS,
 		      DEVSTAT_TYPE_DIRECT | DEVSTAT_TYPE_IF_IDE,
@@ -194,7 +198,6 @@ ad_attach(struct ata_device *atadev)
     dev->si_drv1 = adp;
     dev->si_iosize_max = 256 * DEV_BSIZE;
     adp->dev = dev;
-    bioq_init(&adp->queue);
 
     /* construct the disklabel */
     bzero(&adp->disk.d_label, sizeof(struct disklabel));
@@ -267,8 +270,10 @@ adclose(dev_t dev, int flags, int fmt, struct thread *td)
 {
     struct ad_softc *adp = dev->si_drv1;
 
+    ATA_SLEEPLOCK_CH(adp->device->channel, ATA_CONTROL);
     if (ata_command(adp->device, ATA_C_FLUSHCACHE, 0, 0, 0, ATA_WAIT_READY))
 	ata_prtdev(adp->device, "flushing cache on close failed\n");
+    ATA_UNLOCK_CH(adp->device->channel);
     return 0;
 }
 
@@ -284,8 +289,8 @@ adstrategy(struct bio *bp)
     }
     s = splbio();
     bioqdisksort(&adp->queue, bp);
-    ata_start(adp->device->channel);
     splx(s);
+    ata_start(adp->device->channel);
 }
 
 int
@@ -776,14 +781,10 @@ ad_service(struct ad_softc *adp, int change)
 static void
 ad_free(struct ad_request *request)
 {
-    int s = splbio();
-
     if (request->dmatab)
 	free(request->dmatab, M_DEVBUF);
     request->softc->tags[request->tag] = NULL;
     free(request, M_AD);
-
-    splx(s);
 }
 
 static void
@@ -849,7 +850,6 @@ static void
 ad_timeout(struct ad_request *request)
 {
     struct ad_softc *adp = request->softc;
-    int s = splbio();
 
     adp->device->channel->running = NULL;
     ata_prtdev(adp->device, "%s command timeout tag=%d serv=%d - resetting\n",
@@ -869,7 +869,10 @@ ad_timeout(struct ad_request *request)
 
     /* if retries still permit, reinject this request */
     if (request->retries++ < AD_MAX_RETRIES) {
+	int s = splbio();
+
 	TAILQ_INSERT_HEAD(&adp->device->channel->ata_queue, request, chain);
+	splx(s);
     }
     else {
 	/* retries all used up, return error */
@@ -879,7 +882,6 @@ ad_timeout(struct ad_request *request)
 	ad_free(request);
     }
     ata_reinit(adp->device->channel);
-    splx(s);
 }
 
 void
