@@ -1,7 +1,7 @@
 #       bsd.sgml.mk - 8 Sep 1995 John Fieber
 #       This file is in the public domain.
 #
-#	$Id: bsd.sgml.mk,v 1.16 1997/05/02 05:02:54 ache Exp $
+#	$Id: bsd.sgml.mk,v 1.17 1997/05/02 05:07:45 ache Exp $
 #
 # The include file <bsd.sgml.mk> handles installing sgml documents.
 # <bsd.prog.mk> includes the file named "../Makefile.inc" if it exists,
@@ -16,6 +16,12 @@
 #               (ascii, html, latex, latin1, nroff). [html latin1 ascii]
 #
 # LPR		Printer command. [lpr]
+#
+# NOSGMLCOMPRESS	If you do not want SGML formatted documents
+#		be compressed when they are installed. [yes]
+#
+# SCOMPRESS_CMD	Program to compress SGML formatted documents. Output is to
+#		stdout. [${COMPRESS_CMD}]
 #
 # SGMLFLAGS	Flags to sgmlfmt. [${SGMLOPTS}]
 #
@@ -65,11 +71,27 @@ DISTRIBUTION?=	doc
 SGMLFMT?=	sgmlfmt
 LPR?=		lpr
 
-DOCS=	${FORMATS:S/^/${DOC}./g}
-CLEANFILES+=	${DOCS}
+NOSGMLCOMPRESS?=	yes
+SCOMPRESS_CMD?=	${COMPRESS_CMD}
+.if !empty(NOSGMLCOMPRESS)
+SCOMPRESS_EXT=
+.else
+SCOMPRESS_EXT?=	${COMPRESS_EXT}
+.endif
+
+_docs=
+.for _xformat in ${FORMATS}
+__xformat=${_xformat}
+.if ${__xformat} == "html"
+_docs+=	${DOC}.${_xformat}
+.else
+_docs+=	${DOC}.${_xformat}${SCOMPRESS_EXT}
+.endif
+.endfor
+
 
 .MAIN:	all
-all:	${DOCS}
+all:	${_docs}
 
 # If FORMATS is empty, do nothing
 .if empty(FORMATS)
@@ -111,8 +133,12 @@ _FORMAT = ${_XFORMAT}
 print-${_FORMAT}:
 
 .else
-print-${_FORMAT}: ${DOC}.${_FORMAT}
-	${LPR} -P${.TARGET:S/print-//} ${DOC}.${_FORMAT}
+print-${_FORMAT}: ${DOC}.${_FORMAT}${SCOMPRESS_EXT}
+.if !empty(NOSGMLCOMPRESS)
+	${LPR} ${.ALLSRC}
+.else
+	${SCOMPRESS_CMD} -d ${.ALLSRC} | ${LPR}
+.endif
 
 .endif
 .endif
@@ -130,19 +156,29 @@ install-${_FORMAT}:
 .else
 install-${_FORMAT}:
 	${INSTALL} ${COPY} -o ${DOCOWN} -g ${DOCGRP} -m ${DOCMODE} \
-		${DOC}.${.TARGET:S/install-//} ${DESTDIR}${DOCDIR}/${VOLUME}
-
+		${DOC}.${.TARGET:S/install-//}${SCOMPRESS_EXT} \
+		${DESTDIR}${DOCDIR}/${VOLUME}
 .endif
 .endif
 
 .if !target(${DOC}.${_FORMAT})
+.if ${_FORMAT} != "html" && empty(NOSGMLCOMPRESS)
+${DOC}.${_FORMAT}${SCOMPRESS_EXT}: ${SRCS}
+	${SGMLFMT} -f ${_XFORMAT} ${SGMLFLAGS} ${.CURDIR}/${DOC}.sgml
+	${SCOMPRESS_CMD} ${DOC}.${_XFORMAT} > ${.TARGET}
+.else
 ${DOC}.${_FORMAT}: ${SRCS}
-	${SGMLFMT} -f ${.TARGET:S/${DOC}.//} ${SGMLFLAGS} ${.CURDIR}/${DOC}.sgml
-
+	${SGMLFMT} -f ${_XFORMAT} ${SGMLFLAGS} ${.CURDIR}/${DOC}.sgml
+.endif
 .endif
 
 .if ${_FORMAT} == "html"
 CLEANFILES+= ${DOC}*.html ${DOC}.ln
+.else
+.if empty(NOSGMLCOMPRESS)
+CLEANFILES+= ${DOC}.${_XFORMAT}${SCOMPRESS_EXT} 
+.endif
+CLEANFILES+= ${DOC}.${_XFORMAT}
 .endif
 
 .endfor
