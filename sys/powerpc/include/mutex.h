@@ -312,8 +312,7 @@ void	witness_restore(mtx_t *, const char *, int);
 		if (((mp)->mtx_lock & MTX_FLAGMASK) != (tid))		     \
 			mtx_enter_hard(mp, (type) & MTX_HARDOPTS, 0);	     \
 		else {							     \
-			if (((mp)->mtx_lock & MTX_RECURSE) == 0)	     \
-				atomic_set_64(&(mp)->mtx_lock, MTX_RECURSE); \
+			atomic_set_64(&(mp)->mtx_lock, MTX_RECURSE);	     \
 			(mp)->mtx_recurse++;				     \
 		}							     \
 	} else {							     \
@@ -379,12 +378,15 @@ void	witness_restore(mtx_t *, const char *, int);
  */
 
 #define	_exitlock_spin(mp) do {						\
-	int _ipl = (mp)->mtx_saveipl;					\
 	alpha_mb();							\
-	if ((mp)->mtx_recurse == 0 || (--(mp)->mtx_recurse) == 0)	\
+	if ((mp)->mtx_recurse == 0) {					\
+		int _ipl = (mp)->mtx_saveipl;				\
 		atomic_cmpset_64(&(mp)->mtx_lock, (mp)->mtx_lock,	\
 		    MTX_UNOWNED);					\
-	alpha_pal_swpipl(_ipl);						\
+		alpha_pal_swpipl(_ipl);					\
+	} else {							\
+		(mp)->mtx_recurse--;					\
+	}								\
 } while (0)
 
 /*
