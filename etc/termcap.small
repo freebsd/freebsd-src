@@ -67,27 +67,27 @@ cons60|ansi80x60:\
 	:li#60:tc=cons25:
 cons60-m|ansi80x60-mono:\
 	:li#60:tc=cons25-m:
-# KOI8-R FreeBSD console with ACS support
-cons25r|pc3r|ibmpc3r|cons25-koi8-r:\
+# KOI8-R/KOI8-U FreeBSD console with ACS support
+cons25r|cons25u|pc3r|ibmpc3r|cons25-koi8:\
 	:ac=q\200x\201m\204v\211j\205t\206n\212u\207l\202w\210k\203y\230z\231f\234~\225a\220h\221`^D.^Y-^Xi^U0\215:\
 	:tc=cons25w:
-cons25r-m|pc3r-m|ibmpc3r-mono|cons25-koi8-r-mono:\
+cons25r-m|cons25u-m|pc3r-m|ibmpc3r-mono|cons25-koi8-mono:\
 	:pa@:Co@:AF@:AB@:AX@:op@:us=\E[4m:ue=\E[24m:tc=cons25r:
-cons30r|cons30-koi8-r:\
+cons30r|cons30u|cons30-koi8:\
 	:li#30:tc=cons25r:
-cons30r-m|cons30-koi8-r-mono:\
+cons30r-m|cons30u-m|cons30-koi8-mono:\
 	:li#30:tc=cons25r-m:
-cons43r|cons43-koi8-r:\
+cons43r|cons43u|cons43-koi8:\
 	:li#43:tc=cons25r:
-cons43r-m|cons43-koi8-r-mono:\
+cons43r-m|cons43u-m|cons43-koi8-mono:\
 	:li#43:tc=cons25r-m:
-cons50r|cons50-koi8-r:\
+cons50r|cons50u|cons50-koi8:\
 	:li#50:tc=cons25r:
-cons50r-m|cons50-koi8-r-mono:\
+cons50r-m|cons50u-m|cons50-koi8-mono:\
 	:li#50:tc=cons25r-m:
-cons60r|cons60-koi8-r:\
+cons60r|cons60u|cons60-koi8:\
 	:li#60:tc=cons25r:
-cons60r-m|cons60-koi8-r-mono:\
+cons60r-m|cons60u-m|cons60-koi8-mono:\
 	:li#60:tc=cons25r-m:
 # ISO 8859-2 FreeBSD console with ACS support
 cons25l2|cons25-iso8859-2:\
