@@ -131,6 +131,9 @@
     <para arch="i386">The loran (Loran-C receiver) driver has been removed due to
       breakage and lack of maintainership.</para>
 
+    <para>The ULE scheduler is now the default scheduler in the
+      <filename>GENERIC</filename> kernel.</para>
+
     <!-- Above this line, sort kernel changes by manpage/keyword-->
 
     <sect3 id="proc">
@@ -149,12 +152,20 @@
         <filename>/boot/boot0sio</filename> as the argument to the
         <option>-b</option> option.</para>
 
+      <para arch="i386"><filename>cdboot</filename> now works around a
+	BIOS problem observed on some systems when booting from USB
+	CDROM drives.</para>
+
       <!-- Above this line, order boot loader changes by keyword-->
 
     </sect3>
 
     <sect3 id="net-if">
       <title>Network Interface Support</title>
+
+      <para arch="sparc64">The &man.dc.4; driver now supports sparc64
+	Davicom cards that store their MAC address in
+	OpenFirmware.</para>
 
       <para arch="i386,pc98">The hea (Efficient Networks, Inc. ENI-155p ATM adapter)
 	driver has been removed due to breakage.  Its functionality
@@ -168,10 +179,19 @@
 	FreeBSD.  For more information, see the &man.ndis.4; and
 	&man.ndiscvt.8; manual pages.</para>
 
+      <para>Several bugs related to multicast and promiscuous mode
+	handling in the &man.sk.4; driver have been fixed.</para>
+
     </sect3>
 
     <sect3 id="net-proto">
       <title>Network Protocols</title>
+
+      <para>Some bugs in the IPsec implementation from the KAME
+	Project have been fixed.  These bugs were related to freeing
+	memory objects before all references to them were removed, and
+	could cause erratic behavior or kernel panics after flushing
+	the Security Policy Database (SPD).</para>
 
       <para>The following TCP features are now enabled by default: RFC
 	3042 (Limited Retransmit), RFC 3390 (increased initial
@@ -193,14 +213,22 @@
     <sect3 id="disks">
       <title>Disks and Storage</title>
 
-      <para></para>
+      <para>A number of bugs in the &man.ata.4; driver have been
+	fixed.  Most notably, master/slave device detection should
+	work better, and some problems with timeouts should be
+	resolved.</para>
 
     </sect3>
 
     <sect3 id="fs">
       <title>File Systems</title>
 
-      <para></para>
+      <para>A bug in GEOM that could result in I/O hangs in some rare
+	cases has been fixed.</para>
+
+      <para>A panic in the NFSv4 client has been fixed; this occurred
+        when attempting operations against an NFSv3/NFSv2-only
+        server.</para>
 
     </sect3>
 
@@ -225,6 +253,11 @@
       print only the action and comment for each rule, thus omitting
       the rule body.</para>
 
+    <para>A bugfix has been applied to NSS support, which fixes
+      problems when using third-party NSS modules (such as <filename
+      role="package">net/nss_ldap</filename>) and groups with large
+      membership lists.</para>
+
   </sect2>
 
   <sect2 id="contrib">
@@ -232,6 +265,11 @@
 
     <para>The <application>ACPI-CA</application> code has been updated
       from the 20030619 snapshot to the 20031203 snapshot.</para>
+
+    <para>Two security fixes for <application>CVS</application> (one
+      related to pserver operation and the other dealing with
+      malformed module requests) have been backported from later
+      versions.</para>
 
     <para><application>OpenSSH</application> has been updated from
       3.6.1p1 to 3.7.1p2.</para>
