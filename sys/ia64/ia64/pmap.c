@@ -1068,9 +1068,11 @@ pmap_insert_entry(pmap_t pmap, vm_offset_t va, vm_page_t m)
 	pv->pv_pmap = pmap;
 	pv->pv_va = va;
 
+	vm_page_lock_queues();
 	TAILQ_INSERT_TAIL(&pmap->pm_pvlist, pv, pv_plist);
 	TAILQ_INSERT_TAIL(&m->md.pv_list, pv, pv_list);
 	m->md.pv_list_count++;
+	vm_page_unlock_queues();
 }
 
 /*
