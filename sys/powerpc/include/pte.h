@@ -72,6 +72,8 @@ struct pteg {
 #define	PTE_RW		PTE_BW
 #define	PTE_RO		PTE_BR
 
+#define	PTE_EXEC	0x00000200	/* pseudo bit in attrs; page is exec */
+
 #ifndef	LOCORE
 typedef	struct pte pte_t;
 #endif	/* LOCORE */
