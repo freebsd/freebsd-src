@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)expand.h	8.2 (Berkeley) 5/4/95
- *	$Id: expand.h,v 1.6 1998/09/06 21:13:09 tegge Exp $
+ *	$Id: expand.h,v 1.8 1999/04/09 15:23:48 tegge Exp $
  */
 
 struct strlist {
@@ -62,6 +62,6 @@ union node;
 void expandhere __P((union node *, int));
 void expandarg __P((union node *, struct arglist *, int));
 void expari __P((int));
-int patmatch __P((char *, char *));
+int patmatch __P((char *, char *, int));
 void rmescapes __P((char *));
 int casematch __P((union node *, char *));
