@@ -32,7 +32,7 @@
 .\"     @(#)byteorder.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd June 4, 1993
+.Dd May 11, 2002
 .Dt BYTEORDER 3
 .Os
 .Sh NAME
@@ -45,6 +45,10 @@
 .Lb libc
 .Sh SYNOPSIS
 .In arpa/inet.h
+.Pp
+or
+.Pp
+.In netinet/in.h
 .Ft uint32_t
 .Fn htonl "uint32_t hostlong"
 .Ft uint16_t
@@ -70,7 +74,7 @@ and
 .Sh STANDARDS
 The
 .Nm byteorder
-functions are expected to conform with
+functions conform to
 .St -p1003.1-2001 .
 .Sh HISTORY
 The
