@@ -1046,12 +1046,27 @@ installFilesystems(dialogMenuItem *self)
 	    }
 #if defined(__ia64__)
 	    else if (c1->type == efi && c1->private_data) {
+		char bootdir[FILENAME_MAX];
+		char efi_bootdir[FILENAME_MAX];
 		PartInfo *pi = (PartInfo *)c1->private_data;
 
 		if (pi->newfs && (!upgrade || !msgNoYes("You are upgrading - are you SURE you want to newfs /dev/%s?", c1->name)))
 		    command_shell_add(pi->mountpoint, "%s %s/dev/%s", pi->newfs_cmd, RunningAsInit ? "/mnt" : "", c1->name);
 
 		command_func_add(pi->mountpoint, Mount, c1->name);
+
+		/*
+		 * Create a directory boot on the EFI filesystem and create a
+		 * link boot on the root filesystem pointing to the one on the
+		 * EFI filesystem. That way, we install the loader, kernel
+		 * and modules on the EFI filesystem.
+		 */
+		sprintf(bootdir, "%s", RunningAsInit ? "/mnt" : "");
+		sprintf(efi_bootdir, "%s/%s", bootdir, pi->mountpoint);
+		strcat(bootdir, "/boot");
+		strcat(efi_bootdir, "/boot");
+		Mkdir(efi_bootdir);
+		symlink(efi_bootdir, bootdir);
 	    }
 #endif
 	}
