@@ -769,6 +769,7 @@ epic_common_attach(sc)
 
 	/* Bring the chip out of low-power mode. */
 	CSR_WRITE_4( sc, GENCTL, GENCTL_SOFT_RESET);
+	DELAY(500);
 
 	/* Workaround for Application Note 7-15 */
 	for (i=0; i<16; i++) CSR_WRITE_4(sc, TEST1, TEST1_CLOCK_TEST);
