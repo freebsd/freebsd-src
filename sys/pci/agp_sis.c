@@ -64,6 +64,8 @@ agp_sis_match(device_t dev)
 	switch (pci_get_devid(dev)) {
 	case 0x00011039:
 		return ("SiS 5591 host to AGP bridge");
+	case 0x06481039:
+		return ("SiS 648 host to AGP bridge");
 	};
 
 	if (pci_get_vendor(dev) == 0x1039)
