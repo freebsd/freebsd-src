@@ -27,8 +27,11 @@
  *	$FreeBSD$
  */
 
-typedef uintptr_t	devinfo_handle_t;
-#define DEVINFO_ROOT_DEVICE	(devinfo_handle_t)0
+#include <sys/cdefs.h>
+#include <machine/ansi.h>
+
+typedef __uintptr_t	devinfo_handle_t;
+#define DEVINFO_ROOT_DEVICE	((devinfo_handle_t)0)
 
 struct devinfo_dev {
 	devinfo_handle_t	dd_handle;	/* device handle */
@@ -42,8 +45,8 @@ struct devinfo_dev {
 struct devinfo_rman {
 	devinfo_handle_t	dm_handle;	/* resource manager handle */
 
-	u_long			dm_start;	/* resource start */
-	u_long			dm_size;	/* resource size */
+	unsigned long		dm_start;	/* resource start */
+	unsigned long		dm_size;	/* resource size */
     
 	char			*dm_desc;	/* resource description */
 };
@@ -53,8 +56,8 @@ struct devinfo_res {
 	devinfo_handle_t	dr_rman;	/* resource manager handle */
 	devinfo_handle_t	dr_device;	/* owning device */
 
-	u_long			dr_start;	/* region start */
-	u_long			dr_size;	/* region size */
+	unsigned long		dr_start;	/* region start */
+	unsigned long		dr_size;	/* region size */
 	/* XXX add flags */
 };
 
