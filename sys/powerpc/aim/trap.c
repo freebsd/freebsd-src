@@ -190,6 +190,8 @@ trap(frame)
 	}
 	case EXC_DSI|EXC_USER:
 		PROC_LOCK(p);
+		++p->p_lock;
+		PROC_UNLOCK(p);
 #if 0
 		curcpu()->ci_ev_udsi.ev_count++;
 #endif
@@ -216,6 +218,8 @@ trap(frame)
 		} else {
 			trapsignal(p, SIGSEGV, EXC_DSI);
 		}
+		PROC_LOCK(p);
+		--p->p_lock;
 		PROC_UNLOCK(p);
 		break;
 	case EXC_ISI:
@@ -224,6 +228,8 @@ trap(frame)
 		goto brain_damage2;
 	case EXC_ISI|EXC_USER:
 		PROC_LOCK(p);
+		++p->p_lock;
+		PROC_UNLOCK(p);
 #if 0
 		curcpu()->ci_ev_isi.ev_count++;
 #endif
@@ -231,6 +237,8 @@ trap(frame)
 		rv = vm_fault(&p->p_vmspace->vm_map, trunc_page(frame->srr0),
 		    ftype, VM_FAULT_NORMAL);
 		if (rv == 0) {
+			PROC_LOCK(p);
+			--p->p_lock;
 			PROC_UNLOCK(p);
 			break;
 		}
@@ -241,6 +249,8 @@ trap(frame)
 		    "(SSR1=%#x)\n",
 		    p->p_pid, p->p_comm, frame->srr0, frame->srr1);
 		trapsignal(p, SIGSEGV, EXC_ISI);
+		PROC_LOCK(p);
+		--p->p_lock;
 		PROC_UNLOCK(p);
 		break;
 	case EXC_SC|EXC_USER:
