@@ -45,7 +45,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)who.c	8.1 (Berkeley) 6/6/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: who.c,v 1.3.2.2 1997/08/27 06:19:30 charnier Exp $";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -54,6 +54,7 @@ static const char rcsid[] =
 #include <locale.h>
 #include <pwd.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <time.h>
 #include <unistd.h>
@@ -73,6 +74,9 @@ main(argc, argv)
 	FILE *ufp, *file();
 	char *t;
 
+	if (getopt(argc, argv, "") != -1)
+		usage();
+
 	(void) setlocale(LC_TIME, "");
 
 	switch (argc) {
@@ -90,6 +94,10 @@ main(argc, argv)
 			output(&usr);
 		break;
 	case 3:					/* who am i */
+	        if (strcmp(argv[1], "am")
+		    || (strcmp(argv[2], "I") && strcmp(argv[2], "i")))
+		        usage();
+		
 		ufp = file(_PATH_UTMP);
 
 		/* search through the utmp and find an entry for this tty */
