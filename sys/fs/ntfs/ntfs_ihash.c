@@ -44,107 +44,75 @@
 
 #include <ntfs/ntfs.h>
 #include <ntfs/ntfs_inode.h>
+#include <ntfs/ntfs_ihash.h>
 
-MALLOC_DEFINE(M_NTFSIHASH, "NTFS ihash", "NTFS Inode hash tables");
+MALLOC_DEFINE(M_NTFSNTHASH, "NTFS nthash", "NTFS ntnode hash tables");
 
 /*
  * Structures associated with inode cacheing.
  */
-static LIST_HEAD(ihashhead, ntnode) *ntfs_ihashtbl;
-static u_long	ntfs_ihash;		/* size of hash table - 1 */
-#define	NTNOHASH(device, inum)	(&ntfs_ihashtbl[((device) + (inum)) & ntfs_ihash])
-static struct simplelock ntfs_ihash_slock;
+static LIST_HEAD(nthashhead, ntnode) *ntfs_nthashtbl;
+static u_long	ntfs_nthash;		/* size of hash table - 1 */
+#define	NTNOHASH(device, inum)	(&ntfs_nthashtbl[((device) + (inum)) & ntfs_nthash])
+#ifndef NULL_SIMPLELOCKS
+static struct simplelock ntfs_nthash_slock;
+#endif
 
 /*
  * Initialize inode hash table.
  */
 void
-ntfs_ihashinit()
+ntfs_nthashinit()
 {
 
-	ntfs_ihashtbl = hashinit(desiredvnodes, M_NTFSIHASH, &ntfs_ihash);
-	simple_lock_init(&ntfs_ihash_slock);
+	ntfs_nthashtbl = hashinit(desiredvnodes, M_NTFSNTHASH, &ntfs_nthash);
+	simple_lock_init(&ntfs_nthash_slock);
 }
 
 /*
  * Use the device/inum pair to find the incore inode, and return a pointer
  * to it. If it is in core, return it, even if it is locked.
  */
-struct vnode *
-ntfs_ihashlookup(dev, inum)
+struct ntnode *
+ntfs_nthashlookup(dev, inum)
 	dev_t dev;
 	ino_t inum;
 {
 	struct ntnode *ip;
 
-	simple_lock(&ntfs_ihash_slock);
+	simple_lock(&ntfs_nthash_slock);
 	for (ip = NTNOHASH(dev, inum)->lh_first; ip; ip = ip->i_hash.le_next)
 		if (inum == ip->i_number && dev == ip->i_dev)
 			break;
-	simple_unlock(&ntfs_ihash_slock);
+	simple_unlock(&ntfs_nthash_slock);
 
-	if (ip)
-		return (NTTOV(ip));
-	return (NULLVP);
+	return (ip);
 }
 
 /*
- * Use the device/inum pair to find the incore inode, and return a pointer
- * to it. If it is in core, but locked, wait for it.
- */
-struct vnode *
-ntfs_ihashget(dev, inum)
-	dev_t dev;
-	ino_t inum;
-{
-	struct proc *p = curproc;	/* XXX */
-	struct ntnode *ip;
-	struct vnode *vp;
-
-loop:
-	simple_lock(&ntfs_ihash_slock);
-	for (ip = NTNOHASH(dev, inum)->lh_first; ip; ip = ip->i_hash.le_next) {
-		if (inum == ip->i_number && dev == ip->i_dev) {
-			vp = NTTOV(ip);
-			simple_lock(&vp->v_interlock);
-			simple_unlock(&ntfs_ihash_slock);
-			if (vget(vp, LK_EXCLUSIVE | LK_INTERLOCK, p))
-				goto loop;
-			return (vp);
-		}
-	}
-	simple_unlock(&ntfs_ihash_slock);
-	return (NULL);
-}
-
-/*
- * Insert the inode into the hash table, and return it locked.
+ * Insert the ntnode into the hash table.
  */
 void
-ntfs_ihashins(ip)
+ntfs_nthashins(ip)
 	struct ntnode *ip;
 {
-	struct proc *p = curproc;		/* XXX */
-	struct ihashhead *ipp;
+	struct nthashhead *ipp;
 
-	/* lock the inode, then put it on the appropriate hash list */
-	lockmgr(&ip->i_lock, LK_EXCLUSIVE, (struct simplelock *)0, p);
-
-	simple_lock(&ntfs_ihash_slock);
+	simple_lock(&ntfs_nthash_slock);
 	ipp = NTNOHASH(ip->i_dev, ip->i_number);
 	LIST_INSERT_HEAD(ipp, ip, i_hash);
 	ip->i_flag |= IN_HASHED;
-	simple_unlock(&ntfs_ihash_slock);
+	simple_unlock(&ntfs_nthash_slock);
 }
 
 /*
  * Remove the inode from the hash table.
  */
 void
-ntfs_ihashrem(ip)
+ntfs_nthashrem(ip)
 	struct ntnode *ip;
 {
-	simple_lock(&ntfs_ihash_slock);
+	simple_lock(&ntfs_nthash_slock);
 	if (ip->i_flag & IN_HASHED) {
 		ip->i_flag &= ~IN_HASHED;
 		LIST_REMOVE(ip, i_hash);
@@ -153,5 +121,5 @@ ntfs_ihashrem(ip)
 		ip->i_hash.le_prev = NULL;
 #endif
 	}
-	simple_unlock(&ntfs_ihash_slock);
+	simple_unlock(&ntfs_nthash_slock);
 }

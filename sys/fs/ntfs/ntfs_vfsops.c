@@ -52,12 +52,15 @@
 #include <ntfs/ntfs.h>
 #include <ntfs/ntfs_inode.h>
 #include <ntfs/ntfs_subr.h>
+#include <ntfs/ntfs_vfsops.h>
+#include <ntfs/ntfs_ihash.h>
 #include <ntfs/ntfs_extern.h>
 #include <ntfs/ntfsmount.h>
 
 #if __FreeBSD_version >= 300000
 MALLOC_DEFINE(M_NTFSMNT, "NTFS mount", "NTFS mount structure");
-MALLOC_DEFINE(M_NTFSNODE,"NTFS node",  "NTFS node information");
+MALLOC_DEFINE(M_NTFSNTNODE,"NTFS ntnode",  "NTFS ntnode information");
+MALLOC_DEFINE(M_NTFSFNODE,"NTFS fnode",  "NTFS fnode information");
 MALLOC_DEFINE(M_NTFSDIR,"NTFS dir",  "NTFS dir buffer");
 #endif
 
@@ -106,7 +109,7 @@ ntfs_init ()
 
 	printf("ntfs_init(): \n");
 
-	ntfs_ihashinit();
+	ntfs_nthashinit();
 
 	return 0;
 }
@@ -411,7 +414,13 @@ ntfs_mountfs(devvp, mp, argsp, p)
 	printf("ntfs_mountfs(): reading system nodes...\n");
 	{
 		i = NTFS_MFTINO;
-		error = VFS_VGET(mp, i, &ntmp->ntm_sysvn[i]);
+		error = VFS_VGET(mp, i, &(ntmp->ntm_sysvn[i]));
+		if(error)
+			goto out1;
+		VREF(ntmp->ntm_sysvn[i]);
+		vput(ntmp->ntm_sysvn[i]);
+		i = NTFS_ROOTINO;
+		error = VFS_VGET(mp, i, &(ntmp->ntm_sysvn[i]));
 		if(error)
 			goto out1;
 		VREF(ntmp->ntm_sysvn[i]);
@@ -426,7 +435,7 @@ ntfs_mountfs(devvp, mp, argsp, p)
 	if(error) 
 		goto out1;
 	printf("ntfs_mountfs(): reading $UpCase\n");
-	error = ntfs_breadattr( ntmp, VTONT(vp), NTFS_A_DATA, NULL,
+	error = ntfs_readattr( ntmp, VTONT(vp), NTFS_A_DATA, NULL,
 			0, 65536*sizeof(wchar), ntmp->ntm_upcase);
 	printf("ntfs_mountfs(): closing $UpCase\n");
 	vput(vp);
@@ -443,7 +452,7 @@ ntfs_mountfs(devvp, mp, argsp, p)
 			goto out1;
 
 		for(num=0;;num++) {
-			error = ntfs_breadattr(ntmp, VTONT(vp),
+			error = ntfs_readattr(ntmp, VTONT(vp),
 					NTFS_A_DATA, NULL,
 					num * sizeof(ad), sizeof(ad),
 					&ad);
@@ -461,7 +470,7 @@ ntfs_mountfs(devvp, mp, argsp, p)
 		ntmp->ntm_adnum = num;
 
 		for(i=0;i<num;i++){
-			error = ntfs_breadattr(ntmp, VTONT(vp),
+			error = ntfs_readattr(ntmp, VTONT(vp),
 					NTFS_A_DATA, NULL,
 					i * sizeof(ad), sizeof(ad),
 					&ad);
@@ -537,13 +546,16 @@ ntfs_unmount(
 		flags |= FORCECLOSE;
 
 	printf("ntfs_unmount: vflushing...\n");
-	for(i=0;i<NTFS_SYSNODESNUM;i++)
-		 if(ntmp->ntm_sysvn[i]) vrele(ntmp->ntm_sysvn[i]);
-	error = vflush(mp,NULLVP,flags);
+	error = vflush(mp,NULLVP,flags | SKIPSYSTEM);
 	if (error) {
 		printf("ntfs_unmount: vflush failed: %d\n",error);
 		return (error);
 	}
+	for(i=0;i<NTFS_SYSNODESNUM;i++)
+		 if(ntmp->ntm_sysvn[i]) vrele(ntmp->ntm_sysvn[i]);
+	error = vflush(mp,NULLVP,flags);
+	if (error)
+		printf("ntfs_unmount: vflush failed: %d\n",error);
 
 #if __FreeBSD_version >= 300000
 	ntmp->ntm_devvp->v_specmountpoint = NULL;
@@ -578,7 +590,8 @@ ntfs_root(
 	struct vnode *nvp;
 	int error = 0;
 
-	dprintf(("ntfs_root():\n"));
+	dprintf(("ntfs_root(): sysvn: %p\n",
+		VFSTONTFS(mp)->ntm_sysvn[NTFS_ROOTINO]));
 	error = VFS_VGET(mp, (ino_t)NTFS_ROOTINO, &nvp);
 	if(error) {
 		printf("ntfs_root: VFS_VGET failed: %d\n",error);
@@ -615,18 +628,18 @@ ntfs_statfs(
 
 	dprintf(("ntfs_statfs():"));
 
-	ntfs_filesize(ntmp, VTONT(ntmp->ntm_sysvn[NTFS_MFTINO]),
+	ntfs_filesize(ntmp, VTOF(ntmp->ntm_sysvn[NTFS_MFTINO]),
 		      &mftsize, &mftallocated);
 
 	error = VFS_VGET(mp, NTFS_BITMAPINO, &vp);
 	if(error)
 		return (error);
 
-	ntfs_filesize(ntmp, VTONT(vp), &bmsize, &bmallocated);
+	ntfs_filesize(ntmp, VTOF(vp), &bmsize, &bmallocated);
 
 	MALLOC(tmp, u_int8_t *, bmsize,M_TEMP, M_WAITOK);
 
-	error = ntfs_breadattr(ntmp, VTONT(vp), NTFS_A_DATA, NULL,
+	error = ntfs_readattr(ntmp, VTONT(vp), NTFS_A_DATA, NULL,
 			       0, bmsize, tmp);
 	if(error) {
 		FREE(tmp, M_TEMP);
@@ -660,6 +673,7 @@ ntfs_statfs(
 		bcopy((caddr_t)mp->mnt_stat.f_mntfromname,
 			(caddr_t)&sbp->f_mntfromname[0], MNAMELEN);
 	}
+	sbp->f_flags = mp->mnt_flag;
 	
 	return (0);
 }
@@ -708,58 +722,107 @@ ntfs_vptofh(
 	return EOPNOTSUPP;
 }
 
+int
+ntfs_vgetex(
+	struct mount *mp,
+	ino_t ino,
+	u_int32_t attrtype,
+	char *attrname,
+	u_long lkflags,
+	u_long flags,
+	struct proc *p,
+	struct vnode **vpp) 
+{
+	int error;
+	register struct ntfsmount *ntmp;
+	struct ntnode *ip;
+	struct fnode *fp;
+	struct vnode *vp;
+
+	dprintf(("ntfs_vgetex: ino: %d, attr: 0x%x:%s, lkf: 0x%x, f: 0x%x\n",
+		ino, attrtype, attrname?attrname:"", lkflags, flags ));
+
+	ntmp = VFSTONTFS(mp);
+	*vpp = NULL;
+
+	/* Get ntnode */
+	error = ntfs_ntget(ntmp, ino, &ip);
+	if (error) {
+		printf("ntfs_vget: ntfs_ntget failed\n");
+		return (error);
+	}
+
+	error = ntfs_fget(ntmp, ip, attrtype, attrname, &fp);
+	if (error) {
+		printf("ntfs_vget: ntfs_fget failed\n");
+		ntfs_ntrele(ip);
+		return (error);
+	}
+
+	if (FTOV(fp)) {
+		vget(FTOV(fp), lkflags, p);
+		*vpp = FTOV(fp);
+		ntfs_ntrele(ip);
+		return (0);
+	}
+
+	/* It may be not initialized fully, so force load it */
+	if (!(flags & VG_DONTLOAD) && !(ip->i_flag & IN_LOADED)) {
+		error = ntfs_loadntnode(ntmp, ip);
+		if(error) {
+			printf("ntfs_vget: CAN'T LOAD ATTRIBUTES FOR INO: %d\n",
+			       ip->i_number);
+			ntfs_ntrele(ip);
+			return (error);
+		}
+	}
+
+	error = getnewvnode(VT_NTFS, ntmp->ntm_mountp, ntfs_vnodeop_p, &vp);
+	if(error) {
+		ntfs_frele(fp);
+		ntfs_ntrele(ip);
+		return (error);
+	}
+	dprintf(("ntfs_vget: vnode: %p for ntnode: %d\n", vp,ino));
+
+	lockinit(&fp->f_lock, PINOD, "fnode", 0, 0);
+	fp->f_vp = vp;
+	vp->v_data = fp;
+
+	if (ip->i_frflag & NTFS_FRFLAG_DIR)
+		vp->v_type = fp->f_type = VDIR;
+	else
+		vp->v_type = fp->f_type = VREG;	
+
+	if (ino == NTFS_ROOTINO)
+		vp->v_flag |= VROOT;
+	if (ino < NTFS_SYSNODESNUM)
+		vp->v_flag |= VSYSTEM;
+
+	ntfs_ntrele(ip);
+
+	if (lkflags & LK_TYPE_MASK) {
+		error = vn_lock(vp, lkflags, p);
+		if (error) {
+			vput(vp);
+			return (error);
+		}
+	}
+
+	VREF(fp->f_devvp);
+	*vpp = vp;
+	return (0);
+	
+}
+
 static int
 ntfs_vget(
 	struct mount *mp,
 	ino_t ino,
 	struct vnode **vpp) 
 {
-	int error=0;
-	struct vnode *vp;
-	register struct ntfsmount *ntmp;
-	struct ntnode *ip;
-
-	dprintf(("ntfs_vget: ino: %d\n",ino));
-
-	ntmp = VFSTONTFS(mp);
-
-	*vpp = NULL;		
-	
-	dprintf(("ntfs_ntvget: ihashlookup\n"));
-	if( (*vpp = ntfs_ihashget(ntmp->ntm_dev, ino)) != NULL )
-		return (0);
-
-	error = ntfs_ntget(ntmp,ino,&ip);
-	if(error) {
-		printf("ntfs_vget: ntfs_ntget failed\n");
-		return (error);
-	}
-
-	error = getnewvnode(VT_NTFS, ntmp->ntm_mountp, ntfs_vnodeop_p, &vp);
-	if(error) {
-		/* XXX */
-		ntfs_ntrele(ip);
-		return (error);
-	}
-	ip->i_vnode = vp;
-	vp->v_data = ip;
-	vp->v_type = ip->i_type;	
-
-	ntfs_ihashins(ip);
-
-	VREF(ip->i_devvp);
-
-	error = ntfs_loadnode(ntmp, ip);
-	if(error) {
-		printf("ntfs_vget: CAN'T LOAD ATTRIBUTES FOR INO: %d\n",
-		       ip->i_number);
-		vput(vp);
-		return (error);
-	}
-
-	*vpp = vp;
-
-	return (0);
+	return ntfs_vgetex(mp, ino, NTFS_A_DATA, NULL,
+			   LK_EXCLUSIVE, 0, curproc, vpp);
 }
 
 #if __FreeBSD_version >= 300000

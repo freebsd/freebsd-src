@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: ntfs_vnops.c,v 1.9 1999/02/02 01:54:55 semen Exp $
+ *	$Id: ntfs_vnops.c,v 1.10 1999/02/02 03:15:13 semen Exp $
  *
  */
 
@@ -66,11 +66,12 @@
 #include <ntfs/ntfs.h>
 #include <ntfs/ntfs_inode.h>
 #include <ntfs/ntfs_subr.h>
+#include <ntfs/ntfs_extern.h>
 #include <miscfs/specfs/specdev.h>
 
 static int	ntfs_bypass __P((struct vop_generic_args *ap));
 static int	ntfs_read __P((struct vop_read_args *));
-static int	ntfs_bwrite __P((struct vop_bwrite_args *ap));
+static int	ntfs_write __P((struct vop_write_args *ap));
 static int	ntfs_getattr __P((struct vop_getattr_args *ap));
 static int	ntfs_inactive __P((struct vop_inactive_args *ap));
 static int	ntfs_print __P((struct vop_print_args *ap));
@@ -88,120 +89,25 @@ static int	ntfs_readdir __P((struct vop_readdir_args *ap));
 static int	ntfs_lookup __P((struct vop_lookup_args *ap));
 static int	ntfs_bmap __P((struct vop_bmap_args *ap));
 static int	ntfs_getpages __P((struct vop_getpages_args *ap));
+static int	ntfs_putpages __P((struct vop_putpages_args *));
 static int	ntfs_fsync __P((struct vop_fsync_args *ap));
 
 int	ntfs_prtactive = 1;	/* 1 => print out reclaim of active vnodes */
 
-/*
- * Vnode op for VM getpages.
- */
 int
 ntfs_getpages(ap)
 	struct vop_getpages_args *ap;
 {
-	int i, error, nextoff, size, toff, npages, count;
-	struct uio uio;
-	struct iovec iov;
-	vm_offset_t kva;
-	struct buf *bp;
-	struct vnode *vp;
-	struct proc *p;
-	struct ucred *cred;
-	struct ntfsmount *ntmp;
-	vm_page_t *pages;
+	return vnode_pager_generic_getpages(ap->a_vp, ap->a_m, ap->a_count,
+		ap->a_reqpage);
+}
 
-	vp = ap->a_vp;
-	p = curproc;				/* XXX */
-	cred = curproc->p_ucred;		/* XXX */
-	ntmp = VFSTONTFS(vp->v_mount);
-	pages = ap->a_m;
-	count = ap->a_count;
-
-	if (vp->v_object == NULL) {
-		printf("ntfs_getpages: called with non-merged cache vnode??\n");
-		return VM_PAGER_ERROR;
-	}
-
-	/*
-	 * We use only the kva address for the buffer, but this is extremely
-	 * convienient and fast.
-	 */
-#if __FreeBSD_version >= 400000
-	bp = getpbuf(NULL);
-#else
-	bp = getpbuf();
-#endif
-
-	npages = btoc(count);
-	kva = (vm_offset_t) bp->b_data;
-	pmap_qenter(kva, pages, npages);
-
-	iov.iov_base = (caddr_t) kva;
-	iov.iov_len = count;
-	uio.uio_iov = &iov;
-	uio.uio_iovcnt = 1;
-	uio.uio_offset = IDX_TO_OFF(pages[0]->pindex);
-	uio.uio_resid = count;
-	uio.uio_segflg = UIO_SYSSPACE;
-	uio.uio_rw = UIO_READ;
-	uio.uio_procp = p;
-
-	error = VOP_READ(vp, &uio, 0, cred);
-	pmap_qremove(kva, npages);
-
-#if __FreeBSD_version >= 400000
-	relpbuf(bp,NULL);
-#else
-	relpbuf(bp);
-#endif
-
-	if (error && (uio.uio_resid == count))
-		return VM_PAGER_ERROR;
-
-	size = count - uio.uio_resid;
-
-	for (i = 0, toff = 0; i < npages; i++, toff = nextoff) {
-		vm_page_t m;
-		nextoff = toff + PAGE_SIZE;
-		m = pages[i];
-
-		m->flags &= ~PG_ZERO;
-
-		if (nextoff <= size) {
-			m->valid = VM_PAGE_BITS_ALL;
-			m->dirty = 0;
-		} else {
-			int nvalid = ((size + DEV_BSIZE - 1) - toff) & ~(DEV_BSIZE - 1);
-			vm_page_set_validclean(m, 0, nvalid);
-		}
-		
-		if (i != ap->a_reqpage) {
-			/*
-			 * Whether or not to leave the page activated is up in
-			 * the air, but we should put the page on a page queue
-			 * somewhere (it already is in the object).  Result:
-			 * It appears that emperical results show that
-			 * deactivating pages is best.
-			 */
-
-			/*
-			 * Just in case someone was asking for this page we
-			 * now tell them that it is ok to use.
-			 */
-			if (!error) {
-				if (m->flags & PG_WANTED)
-					vm_page_activate(m);
-				else
-					vm_page_deactivate(m);
-#if __FreeBSD_version >= 300000
-				vm_page_wakeup(m);
-#endif
-			} else {
-				vnode_pager_freepage(m);
-			}
-		}
-	}
-	return 0;
+int
+ntfs_putpages(ap)
+	struct vop_putpages_args *ap;
+{
+	return vnode_pager_generic_putpages(ap->a_vp, ap->a_m, ap->a_count,
+		ap->a_sync, ap->a_rtvals);
 }
 
 /*
@@ -218,6 +124,7 @@ ntfs_bmap(ap)
 		int *a_runb;
 	} */ *ap;
 {
+	dprintf(("ntfs_bmap: vn: %p, blk: %d\n", ap->a_vp,(u_int32_t)ap->a_bn));
 	if (ap->a_vpp != NULL)
 		*ap->a_vpp = ap->a_vp;
 	if (ap->a_bnp != NULL)
@@ -239,7 +146,8 @@ ntfs_read(ap)
 	} */ *ap;
 {
 	register struct vnode *vp = ap->a_vp;
-	register struct ntnode *ip = VTONT(vp);
+	register struct fnode *fp = VTOF(vp);
+	register struct ntnode *ip = FTONT(fp);
 	struct uio *uio = ap->a_uio;
 	struct ntfsmount *ntmp = ip->i_mp;
 	u_int8_t *data;
@@ -248,7 +156,7 @@ ntfs_read(ap)
 
 	dprintf(("ntfs_read: ino: %d, off: %d resid: %d, segflg: %d\n",ip->i_number,(u_int32_t)uio->uio_offset,uio->uio_resid,uio->uio_segflg));
 
-	ntfs_filesize( ntmp, ip, &toread, NULL );
+	ntfs_filesize(ntmp, fp, &toread, NULL);
 	dprintf(("ntfs_read: filesize: %d",(u_int32_t)toread));
 
 	toread = min( uio->uio_resid, toread - uio->uio_offset );
@@ -257,16 +165,17 @@ ntfs_read(ap)
 
 	MALLOC(data, u_int8_t *, toread, M_TEMP,M_WAITOK);
 
-	error = ntfs_breadattr( ntmp, ip, ip->i_defattr, ip->i_defattrname, 
-		uio->uio_offset, toread, data );
+	error = ntfs_readattr( ntmp, ip, fp->f_attrtype,
+		fp->f_attrname, uio->uio_offset, toread, data);
 	if(error) {
-		printf("ntfs_read: ntfs_breadattr failed: %d\n",error);
+		printf("ntfs_read: ntfs_readattr failed: %d\n",error);
 		FREE(data, M_TEMP);
 		return (error);
 	}
 
 	error = uiomove(data, (int) toread, uio);
 	if(error) {
+		printf("ntfs_read: uiomove failed: %d\n",error);
 		FREE(data, M_TEMP);
 		return (error);
 	}
@@ -284,7 +193,7 @@ ntfs_bypass(ap)
 	} */ *ap;
 {
 	int error = ENOTTY;
-	dprintf (("ntfs_bypass: %s\n", ap->a_desc->vdesc_name));
+	dprintf(("ntfs_bypass: %s\n", ap->a_desc->vdesc_name));
 	return (error);
 }
 
@@ -299,33 +208,28 @@ ntfs_getattr(ap)
 	} */ *ap;
 {
 	register struct vnode *vp = ap->a_vp;
-	register struct ntnode *ip = VTONT(vp);
+	register struct fnode *fp = VTOF(vp);
+	register struct ntnode *ip = FTONT(fp);
 	register struct vattr *vap = ap->a_vap;
-	int error;
 
 	dprintf(("ntfs_getattr: %d, flags: %d\n",ip->i_number,ip->i_flag));
 
-	if ((ip->i_flag & (IN_LOADED | IN_PRELOADED)) == 0) {
-		error = ntfs_loadnode(ip->i_mp,ip);
-		if (error)
-			return error;
-	}
-	vap->va_fsid = ip->i_dev;
+	vap->va_fsid = fp->f_dev;
 	vap->va_fileid = ip->i_number;
 	vap->va_mode = ip->i_mode;
 	vap->va_nlink = ip->i_nlink;
 	vap->va_uid = ip->i_uid;
 	vap->va_gid = ip->i_gid;
 	vap->va_rdev = (dev_t)0;
-	vap->va_size = ip->i_size;
-	vap->va_bytes = ip->i_allocated;
-	vap->va_atime = ntfs_nttimetounix(ip->i_times.t_access);
-	vap->va_mtime = ntfs_nttimetounix(ip->i_times.t_write);
-	vap->va_ctime = ntfs_nttimetounix(ip->i_times.t_create);
+	vap->va_size = fp->f_size;
+	vap->va_bytes = fp->f_allocated;
+	vap->va_atime = ntfs_nttimetounix(fp->f_times.t_access);
+	vap->va_mtime = ntfs_nttimetounix(fp->f_times.t_write);
+	vap->va_ctime = ntfs_nttimetounix(fp->f_times.t_create);
 	vap->va_flags = ip->i_flag;
 	vap->va_gen = 0;
 	vap->va_blocksize = ip->i_mp->ntm_spc * ip->i_mp->ntm_bps;
-	vap->va_type = ip->i_type;
+	vap->va_type = fp->f_type;
 	vap->va_filerev = 0;
 	return (0);
 }
@@ -346,8 +250,7 @@ ntfs_inactive(ap)
 #endif
 	int error;
 
-	dprintf(("ntfs_inactive: %d (%d locks)\n",
-		ip->i_number,ip->i_lockcount));
+	dprintf(("ntfs_inactive: vnode: %p, ntnode: %d\n", vp, ip->i_number));
 
 	if (ntfs_prtactive && vp->v_usecount != 0)
 		vprint("ntfs_inactive: pushing active", vp);
@@ -391,34 +294,25 @@ ntfs_reclaim(ap)
 	} */ *ap;
 {
 	register struct vnode *vp = ap->a_vp;
-	register struct ntnode *ip = VTONT(vp);
+	register struct fnode *fp = VTOF(vp);
+#if NTFS_DEBUG
+	register struct ntnode *ip = FTONT(fp);
+#endif
 
-	dprintf(("ntfs_reclaim: reclaim: %d\n",ip->i_number));
+	dprintf(("ntfs_reclaim: vnode: %p, ntnode: %d\n", vp, ip->i_number));
 
 #if __FreeBSD_version >= 300000
 	VOP_UNLOCK(vp,0,ap->a_p);
 #endif
 
-	if(ip->i_dirblbuf) {
-		FREE(ip->i_dirblbuf, M_NTFSDIR);
-		ip->i_dirblbuf = NULL;
-	}
-
-	/*
-	 * Remove the inode from its hash chain.
-	 */
-	ntfs_ihashrem(ip);
-
-	/*
-	 * Purge old data structures associated with the inode.
-	 */
+	/* Purge old data structures associated with the inode. */
 	cache_purge(vp);
-	if (ip->i_devvp) {
-		vrele(ip->i_devvp);
-		ip->i_devvp = 0;
+	if (fp->f_devvp) {
+		vrele(fp->f_devvp);
+		fp->f_devvp = NULL;
 	}
 
-	ntfs_ntrele(ip);
+	ntfs_frele(fp);
 
 	vp->v_data = NULL;
 
@@ -447,47 +341,126 @@ ntfs_strategy(ap)
 	} */ *ap;
 {
 	register struct buf *bp = ap->a_bp;
-	struct ucred *cr;
-	struct proc *p;
-	int error = 0;
+	register struct vnode *vp = bp->b_vp;
+	register struct fnode *fp = VTOF(vp);
+	register struct ntnode *ip = FTONT(fp);
+	struct ntfsmount *ntmp = ip->i_mp;
+	int error;
 
-	dprintf(("strategy: data: %p, npages: %d,dirty: %d\n",bp->b_data,bp->b_npages,bp->b_dirtyend));
-	if (bp->b_flags & B_PHYS)
-		panic("ntfs physio");
-	if (bp->b_flags & B_ASYNC)
-		p = (struct proc *)0;
-	else
-		p = curproc;	/* XXX */
-	if (bp->b_flags & B_READ)
-		cr = bp->b_rcred;
-	else
-		cr = bp->b_wcred;
-	/*
-	 * If the op is asynchronous and an i/o daemon is waiting
-	 * queue the request, wake it up and wait for completion
-	 * otherwise just do it ourselves.
-	 */
-/*
-	if ((bp->b_flags & B_ASYNC) == 0 ||
-		nfs_asyncio(bp, NOCRED))
-		error = nfs_doio(bp, cr, p);
-*/
+	dprintf(("ntfs_strategy: offset: %d, blkno: %d, lblkno: %d\n",
+		(u_int32_t)bp->b_offset,(u_int32_t)bp->b_blkno,
+		(u_int32_t)bp->b_lblkno));
+	dprintf(("strategy: bcount: %d flags: 0x%x\n", 
+		(u_int32_t)bp->b_bcount,bp->b_flags));
 
-	return (ENOTTY);
+	if (bp->b_flags & B_READ) {
+		u_int32_t toread;
+
+		if (ntfs_cntob(bp->b_blkno) >= fp->f_size) {
+			clrbuf(bp);
+			error = 0;
+		} else {
+			toread = min(bp->b_bcount,
+				 fp->f_size-ntfs_cntob(bp->b_blkno));
+			dprintf(("ntfs_strategy: toread: %d, fsize: %d\n",
+				toread,(u_int32_t)fp->f_size));
+
+			error = ntfs_readattr(ntmp, ip, fp->f_attrtype,
+				fp->f_attrname, ntfs_cntob(bp->b_blkno),
+				toread, bp->b_data);
+
+			if (error) {
+				printf("ntfs_strategy: ntfs_readattr failed\n");
+				bp->b_error = error;
+				bp->b_flags |= B_ERROR;
+			}
+
+			bzero(bp->b_data + toread, bp->b_bcount - toread);
+		}
+	} else {
+		size_t tmp;
+		u_int32_t towrite;
+
+		if (ntfs_cntob(bp->b_blkno) + bp->b_bcount >= fp->f_size) {
+			printf("ntfs_strategy: CAN'T EXTEND FILE\n");
+			bp->b_error = error = EFBIG;
+			bp->b_flags |= B_ERROR;
+		} else {
+			towrite = min(bp->b_bcount,
+				fp->f_size-ntfs_cntob(bp->b_blkno));
+			dprintf(("ntfs_strategy: towrite: %d, fsize: %d\n",
+				towrite,(u_int32_t)fp->f_size));
+
+			error = ntfs_writeattr_plain(ntmp, ip, fp->f_attrtype,	
+				fp->f_attrname, ntfs_cntob(bp->b_blkno),towrite,
+				bp->b_data, &tmp);
+
+			if (error) {
+				printf("ntfs_strategy: ntfs_writeattr fail\n");
+				bp->b_error = error;
+				bp->b_flags |= B_ERROR;
+			}
+		}
+	}
+	biodone(bp);
 	return (error);
 }
 
 static int
-ntfs_bwrite(ap)
-	struct vop_bwrite_args /* {
-		struct buf *a_bp;
+ntfs_write(ap)
+	struct vop_write_args /* {
+		struct vnode *a_vp;
+		struct uio *a_uio;
+		int  a_ioflag;
+		struct ucred *a_cred;
 	} */ *ap;
 {
-	int error = ENOTTY;
+	register struct vnode *vp = ap->a_vp;
+	register struct fnode *fp = VTOF(vp);
+	register struct ntnode *ip = FTONT(fp);
+	struct uio *uio = ap->a_uio;
+	struct ntfsmount *ntmp = ip->i_mp;
+	u_int8_t *data;
+	u_int64_t towrite;
+	off_t off;
+	size_t written;
+	int error;
 
-	printf("ntfs_bwrite: \n");
+	dprintf(("ntfs_write: ino: %d, off: %d resid: %d, segflg: %d\n",ip->i_number,(u_int32_t)uio->uio_offset,uio->uio_resid,uio->uio_segflg));
 
-	return (error);
+	ntfs_filesize(ntmp, fp, &towrite, NULL);
+
+	if (uio->uio_resid + uio->uio_offset > towrite) {
+		printf("ntfs_write: CAN'T WRITE BEYOND OF FILE\n");
+		return (EFBIG);
+	}
+
+	dprintf(("ntfs_write: filesize: %d",(u_int32_t)towrite));
+
+	towrite = min(uio->uio_resid, towrite - uio->uio_offset);
+	off = uio->uio_offset;
+
+	dprintf((", towrite: %d\n",(u_int32_t)towrite));
+
+	MALLOC(data, u_int8_t *, towrite, M_TEMP,M_WAITOK);
+
+	error = uiomove(data, (int) towrite, uio);
+	if(error) {
+		FREE(data, M_TEMP);
+		return (error);
+	}
+
+	error = ntfs_writeattr_plain(ntmp, ip, fp->f_attrtype,
+		fp->f_attrname, off, towrite, data, &written);
+	if(error) {
+		printf("ntfs_write: ntfs_writeattr failed: %d\n",error);
+		FREE(data, M_TEMP);
+		return (error);
+	}
+
+	FREE(data, M_TEMP);
+
+	return (0);
 }
 
 #if __FreeBSD_version < 300000
@@ -502,7 +475,7 @@ ntfs_islocked(ap)
 {
 	register struct ntnode *ip = VTONT(ap->a_vp);
 
-	dprintf(("ntfs_islocked %d (%d locks)\n",ip->i_number,ip->i_lockcount));
+	dprintf(("ntfs_islocked %d\n",ip->i_number));
 
 	if (ip->i_flag & IN_LOCKED)
 		return (1);
@@ -522,7 +495,7 @@ ntfs_unlock(ap)
 	register struct ntnode *ip = VTONT(ap->a_vp);
 	struct proc *p = curproc;
 
-	dprintf(("ntfs_unlock %d (%d locks)\n",ip->i_number,ip->i_lockcount));
+	dprintf(("ntfs_unlock %d\n",ip->i_number));
 
 #ifdef DIAGNOSTIC
 
@@ -639,7 +612,7 @@ ntfs_access(ap)
 	 * character device resident on the file system.
 	 */
 	if (mode & VWRITE) {
-		switch (vp->v_type) {
+		switch ((int)vp->v_type) {
 		case VDIR:
 		case VLNK:
 		case VREG:
@@ -717,7 +690,7 @@ ntfs_open(ap)
 	register struct vnode *vp = ap->a_vp;
 	register struct ntnode *ip = VTONT(vp);
 
-	printf("ntfs_open: %d (%d locks)\n",ip->i_number,ip->i_lockcount);
+	printf("ntfs_open: %d\n",ip->i_number);
 #endif
 
 	/*
@@ -746,7 +719,7 @@ ntfs_close(ap)
 	register struct vnode *vp = ap->a_vp;
 	register struct ntnode *ip = VTONT(vp);
 
-	printf("ntfs_close: %d (%d locks)\n",ip->i_number,ip->i_lockcount);
+	printf("ntfs_close: %d\n",ip->i_number);
 #endif
 
 	return (0);
@@ -767,7 +740,8 @@ ntfs_readdir(ap)
 	} */ *ap;
 {
 	register struct vnode *vp = ap->a_vp;
-	register struct ntnode *ip = VTONT(vp);
+	register struct fnode *fp = VTOF(vp);
+	register struct ntnode *ip = FTONT(fp);
 	struct uio *uio = ap->a_uio;
 	struct ntfsmount *ntmp = ip->i_mp;
 	int i, error = 0;
@@ -813,7 +787,7 @@ ntfs_readdir(ap)
 	while( uio->uio_resid >= sizeof(struct dirent) ) {
 		struct attr_indexentry *iep;
 
-		error = ntfs_ntreaddir(ntmp, ip, num, &iep);
+		error = ntfs_ntreaddir(ntmp, fp, num, &iep);
 
 		if(error)
 			return (error);
@@ -919,7 +893,7 @@ ntfs_lookup(ap)
 		cnp->cn_nameptr, cnp->cn_namelen,
 		dip->i_number,lockparent, wantparent));
 
-	error = VOP_ACCESS(dvp,VEXEC, cred, cnp->cn_proc);
+	error = VOP_ACCESS(dvp, VEXEC, cred, cnp->cn_proc);
 	if(error)
 		return (error);
 
@@ -974,39 +948,12 @@ ntfs_lookup(ap)
 		}
 		return (error);
 	} else {
-		struct ntnode * nip;
-
-		error = ntfs_ntlookup(ntmp, dip, cnp, &nip);
+		error = ntfs_ntlookup(ntmp, dvp, cnp, ap->a_vpp);
 		if(error)
 			return (error);
 
-		dprintf(("ntfs_lookup: found ino: %d\n", nip->i_number));
-		if( nip->i_number == dip->i_number ) {
-			ntfs_ntrele(nip);
-			VREF(dvp);
-			*ap->a_vpp = dvp;
-			return (0);
-		}
-
-		*ap->a_vpp = ntfs_ihashget(ntmp->ntm_dev, nip->i_number);
-		if(*ap->a_vpp == NULL) {
-			error = getnewvnode(VT_NTFS, ntmp->ntm_mountp,
-					    ntfs_vnodeop_p, ap->a_vpp);
-			if(error) {
-				ntfs_ntrele(nip);
-				return (error);
-			}
-			nip->i_vnode = *(ap->a_vpp);
-			(*ap->a_vpp)->v_data = nip;
-			(*ap->a_vpp)->v_type = nip->i_type;	
-
-			ntfs_ihashins(nip);
-
-			VREF(nip->i_devvp);
-		} else {
-			printf("found in cache\n");
-			ntfs_ntrele(nip);
-		}
+		dprintf(("ntfs_lookup: found ino: %d\n", 
+			VTONT(*ap->a_vpp)->i_number));
 
 		if(!lockparent || !(cnp->cn_flags & ISLASTCN))
 #if __FreeBSD_version >= 300000
@@ -1070,10 +1017,12 @@ static struct vnodeopv_entry_desc ntfs_vnodeop_entries[] = {
 
 	{ &vop_bmap_desc, (vop_t *)ntfs_bmap },
 	{ &vop_getpages_desc, (vop_t *)ntfs_getpages },
+	{ &vop_putpages_desc, (vop_t *) ntfs_putpages },
 
 	{ &vop_strategy_desc, (vop_t *)ntfs_strategy },
-	{ &vop_bwrite_desc, (vop_t *)ntfs_bwrite },
+	{ &vop_bwrite_desc, (vop_t *)vop_stdbwrite },
 	{ &vop_read_desc, (vop_t *)ntfs_read },
+	{ &vop_write_desc, (vop_t *)ntfs_write },
 
 	{ NULL, NULL }
 };
