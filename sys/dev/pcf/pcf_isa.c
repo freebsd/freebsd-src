@@ -53,7 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/pcf/pcfvar.h>
 #include "iicbus_if.h"
 
-#define PCF_NAME "pcf"
+#define	PCF_NAME	"pcf"
 
 static void pcf_identify(driver_t *, device_t);
 static int pcf_probe(device_t);
@@ -155,7 +155,7 @@ pcf_attach(device_t dev)
 			goto error;
 		}
 	}
-		
+
 	if ((sc->iicbus = device_add_child(dev, "iicbus", -1)) == NULL)
 		device_printf(dev, "could not allocate iicbus instance\n");
 
