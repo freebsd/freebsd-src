@@ -1,4 +1,4 @@
-#       $Id: Makefile,v 1.12 1994/06/11 15:18:01 paul Exp $
+#       $Id: Makefile,v 1.13 1994/06/12 08:50:39 ache Exp $
 
 
 CFLAGS+= -I${.CURDIR} -DVOID_SIGHANDLER \
@@ -11,6 +11,7 @@ SRCS+=  readline.c funmap.c keymaps.c vi_mode.c parens.c \
 	   history.c search.c tilde.c xmalloc.c
 HEADERS= history.h readline.h keymaps.h chardefs.h tilde.h
 NOMAN=	noman
+LDADD+= -ltermcap
 
 beforeinstall:
 	@-if [ ! -d ${DESTDIR}/usr/include/readline ]; then \
