@@ -124,7 +124,7 @@ device		ses		# SCSI Environmental Services (and SAF-TE)
 #device		splash		# Splash screen and screen saver support
 #options 	KBD_INSTALL_CDEV # install a CDEV entry in /dev
 
-device		ofw_console	# Open Firmware console device
+#device		ofw_console	# Open Firmware console device
 
 # Builtin hardware
 device		auxio		# auxiliary I/O device
@@ -135,10 +135,10 @@ device		rtc		# rtc (really a front-end for the MC146818)
 device		mc146818	# Motorola MC146818 and compatible clocks
 
 # Serial (COM) ports
-device		sab		# Siemens SAB82532 based serial ports
-device		zs		# Zilog 8530 based serial ports
-#device		uart		# Multi-uart driver
-#device		puc		# Multi-channel uarts
+#device		sab		# Siemens SAB82532 based serial ports
+#device		zs		# Zilog 8530 based serial ports
+device		uart		# Multi-uart driver
+device		puc		# Multi-channel uarts
 
 # Parallel port
 #device		ppc
