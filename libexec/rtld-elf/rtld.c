@@ -695,11 +695,17 @@ find_symdef(unsigned long symnum, const Obj_Entry *refobj,
     ref = refobj->symtab + symnum;
     name = refobj->strtab + ref->st_name;
     hash = elf_hash(name);
+    def = NULL;
+    defobj = NULL;
 
     if (refobj->symbolic) {	/* Look first in the referencing object */
 	if ((symp = symlook_obj(name, hash, refobj, in_plt)) != NULL) {
-	    *defobj_out = refobj;
-	    return symp;
+	    def = symp;
+	    defobj = refobj;
+	    if (ELF_ST_BIND(def->st_info) != STB_WEAK) {
+		*defobj_out = defobj;
+		return def;
+	    }
 	}
     }
 
@@ -710,8 +716,6 @@ find_symdef(unsigned long symnum, const Obj_Entry *refobj,
      * definition.  If we find a strong definition we stop searching,
      * because there won't be anything better than that.
      */
-    def = NULL;
-    defobj = NULL;
     for (obj = obj_list;  obj != NULL;  obj = obj->next) {
 	if (obj == refobj && refobj->symbolic)
 	    continue;
