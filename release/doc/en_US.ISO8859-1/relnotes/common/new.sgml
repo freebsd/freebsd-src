@@ -1350,7 +1350,7 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <para arch="powerpc">The ofw driver, a basic OpenFirmware disk
 	driver, has been added.</para>
 
-      <para arch="i386">The pst driver, for supporting Promise
+      <para arch="i386">The &man.pst.4; driver, for supporting Promise
 	SuperTrak ATA RAID controllers, has been
 	added. &merged;</para>
 
@@ -3636,6 +3636,13 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <literal>en_US.ISO8859-1</literal>.  Entries in
       <filename>/etc/locale.alias</filename> provide backward
       compatibility. &merged;</para>
+
+    <para>Various routines in the C library now have support for
+      <quote>wide</quote> characters.  Among these are
+      character class functions such as &man.wctype.3;, wide character
+      I/O functions such as &man.getwc.3;, formatted I/O functions
+      such as &man.wprintf.3; and &man.wscanf.3;.  Conversion
+      functions to &man.multibyte.3; characters are also supported.</para>
 
     <para role="historic"><filename>/usr/src/share/examples/BSD_daemon/</filename> now
       contains a scalable Beastie graphic. &merged;</para>
