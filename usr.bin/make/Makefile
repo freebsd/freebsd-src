@@ -20,6 +20,9 @@ CFLAGS+=-DMAKE_VERSION=\"5200209170\"
 CFLAGS+=-D__FBSDID=__RCSID
 .endif
 
+# XXX: kernel currently broken
+# CFLAGS+=-DUSE_KQUEUE
+
 main.o: ${MAKEFILE}
 
 # Set the shell which make(1) uses.  Bourne is the default, but a decent
