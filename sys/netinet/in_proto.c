@@ -31,7 +31,7 @@
   * SUCH DAMAGE.
   *
   *	@(#)in_proto.c	8.1 (Berkeley) 6/10/93
-  * $Id: in_proto.c,v 1.3 1994/08/02 07:48:23 davidg Exp $
+  * $Id: in_proto.c,v 1.4 1994/09/06 22:42:19 wollman Exp $
   */
 
  #include <sys/param.h>
@@ -77,9 +77,7 @@
  void	eoninput(), eonctlinput(), eonprotoinit();
  #endif /* EON */
 
- #ifdef MROUTING
- void multiencap_decap(struct mbuf *);
- #endif
+void multiencap_decap(struct mbuf *);
 
  extern	struct domain inetdomain;
 
@@ -119,13 +117,11 @@
    rip_usrreq,
    0,		0,		0,		0,
  },
-#ifdef MROUTING
  { SOCK_RAW,	&inetdomain,	IPPROTO_ENCAP,	PR_ATOMIC|PR_ADDR,
    multiencap_decap, rip_output, 0,		rip_ctloutput,
    rip_usrreq,
    0,		0,		0,		0,
  },
-#endif /* MROUTING */
 #ifdef TPIP
 { SOCK_SEQPACKET,&inetdomain,	IPPROTO_TP,	PR_CONNREQUIRED|PR_WANTRCVD,
   tpip_input,	0,		tpip_ctlinput,	tp_ctloutput,

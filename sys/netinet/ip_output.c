@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_output.c	8.3 (Berkeley) 1/21/94
- * $Id: ip_output.c,v 1.6 1994/09/06 22:42:24 wollman Exp $
+ * $Id: ip_output.c,v 1.7 1994/09/09 22:05:02 wollman Exp $
  */
 
 #include <sys/param.h>
@@ -211,7 +211,6 @@ ip_output(m0, opt, ro, flags, imo)
 			 */
 			ip_mloopback(ifp, m, dst);
 		}
-#ifdef MROUTING
 		else {
 			/*
 			 * If we are acting as a multicast router, perform
@@ -240,7 +239,7 @@ ip_output(m0, opt, ro, flags, imo)
 				}
 			}
 		}
-#endif
+
 		/*
 		 * Multicasts with a time-to-live of zero may be looped-
 		 * back, above, but must not be transmitted on a network.
@@ -790,9 +789,13 @@ ip_setmoptions(optname, imop, m)
 	}
 
 	switch (optname) {
-#ifdef MROUTING
+		extern int (*legal_vif_num)(int);
 	/* store an index number for the vif you wanna use in the send */
 	case IP_MULTICAST_VIF:
+		if (!legal_vif_num) {
+			error = EOPNOTSUPP;
+			break;
+		}
 		if (m == NULL || m->m_len != sizeof(int)) {
 			error = EINVAL;
 			break;
@@ -804,7 +807,6 @@ ip_setmoptions(optname, imop, m)
 		}
 		imo->imo_multicast_vif = i;
 		break;
-#endif
 
 	case IP_MULTICAST_IF:
 		/*

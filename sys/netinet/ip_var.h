@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ip_var.h	8.1 (Berkeley) 6/10/93
- * $Id: ip_var.h,v 1.4 1994/08/21 05:27:33 paul Exp $
+ * $Id: ip_var.h,v 1.5 1994/09/06 22:42:25 wollman Exp $
  */
 
 #ifndef _NETINET_IP_VAR_H_
@@ -169,7 +169,7 @@ void	 ip_freef __P((struct ipq *));
 void	 ip_freemoptions __P((struct ip_moptions *));
 int	 ip_getmoptions __P((int, struct ip_moptions *, struct mbuf **));
 void	 ip_init __P((void));
-int	 ip_mforward __P((struct ip *, struct ifnet *, struct mbuf *,
+extern int	 (*ip_mforward) __P((struct ip *, struct ifnet *, struct mbuf *,
 			  struct ip_moptions *));
 int	 ip_optcopy __P((struct ip *, struct ip *));
 int	 ip_output __P((struct mbuf *,
