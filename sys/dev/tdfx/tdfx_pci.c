@@ -384,12 +384,8 @@ tdfx_setmtrr(device_t dev) {
 		 * If, for some reason, we can't set the MTRR (N/A?) we may still continue
 		 */
 #ifdef DEBUG
-		if(retval == 0) {
-			device_printf(dev, "MTRR Set Type Uncacheable %x\n",
-			    (u_int32_t)tdfx_info->mrdesc.mr_base);
-		} else {
-			device_printf(dev, "Couldn't Set MTRR\n");
-		}
+		device_printf(dev, "MTRR Set Type Uncacheable %x\n",
+		    (u_int32_t)tdfx_info->mrdesc.mr_base);
 #endif
 	}
 #ifdef DEBUG
