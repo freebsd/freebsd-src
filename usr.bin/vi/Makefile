@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.22 1998/06/09 04:07:20 imp Exp $
+# $Id: Makefile,v 1.23 1998/09/05 12:25:54 asami Exp $
 #
 # This has most of the glue needed to compile tknvi and the perl hooks,
 # but not all.
@@ -16,13 +16,14 @@ APISTUFF=	ex_notcl.c ex_noperl.c
 
 #TCLINTERP=	yes	#we don't have it in the base tree
 #TKNVI=		yes	#not ready, needs X11, tk, doesn't quite work yet
-#PERLINTERP=	yes	#needs the perl5 v5.003 port
+#PERLINTERP=	yes	#works
 
 APISTUFF=	ex_tcl.c ex_perl.c
 
-# Any better ideas?
-#PERL=		/usr/local/bin/perl5.003
-#CFLAGS+=	-DHAVE_PERL_5_003_01	# If perl >= 5.03.01
+.if defined(PERLINTERP)
+PERL?=		/usr/bin/perl5
+CFLAGS+=	-DHAVE_PERL_5_003_01	# If perl >= 5.03.01
+.endif
 
 .endif
 
