@@ -171,6 +171,8 @@ struct g_provider {
 	off_t			mediasize;
 	u_int			sectorsize;
 	struct g_stat		*stat;
+	u_int			flags;
+#define G_PF_CANDELETE		0x1
 };
 
 /*
