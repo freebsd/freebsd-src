@@ -92,10 +92,12 @@ distribution:
 	(cd ${.CURDIR}; ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 ${SSL} \
 	    ${DESTDIR}/etc/ssl )
 .endif
-.if !defined(NO_MAKEDEV)
+.if !defined(NO_MAKEDEV_INSTALL)
 	( cd ${.CURDIR}; ${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 555 \
 	     MAKEDEV.local MAKEDEV ${DESTDIR}/dev )
+.if !defined(NO_MAKEDEV_RUN)
 	(cd ${DESTDIR}/dev; sh MAKEDEV all)
+.endif
 .endif
 	(cd ${.CURDIR}/root; \
 		${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 644 dot.cshrc \
