@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 15, 2004
+.Dd June 21, 2004
 .Dt TINDERBOX 1
 .Os
 .Sh NAME
@@ -139,6 +139,9 @@ The default is
 The location of the sandbox in which the builds are to take place.
 This directory should reside on a reasonably fast disk with at least
 1.5 GB available (3 GB if building a release).
+.It Fl t Ar NUM , Fl -timeout Ns = Ns Ar NUM
+The maximum wall-time duration of the run, in seconds.
+The default is to continue until all targets are completed.
 .It Fl v , Fl -verbose
 Enable additional debugging output.
 .El

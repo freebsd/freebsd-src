@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 14, 2004
+.Dd June 21, 2004
 .Dt TBMASTER 1
 .Os
 .Sh NAME
@@ -238,6 +238,10 @@ A list of targets (commands) to specify to the
 script.
 The default is
 .Dq world .
+.It TIMEOUT
+The number of seconds after which each tinderbox invocation will time
+out.
+No default value.
 .It TINDERBOX
 The location of the
 .Xr tinderbox(1)

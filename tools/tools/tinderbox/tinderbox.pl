@@ -50,7 +50,10 @@ my $machine;			# Target machine
 my $patch;			# Patch to apply before building
 my $repository;			# Location of CVS repository
 my $sandbox;			# Location of sandbox
+my $timeout;			# Timeout in seconds
 my $verbose;			# Verbose mode
+
+my %children;
 
 my %userenv;
 
@@ -199,7 +202,10 @@ sub spawn($@) {
 	exec($cmd, @args);
 	die("child: exec(): $!\n");
     }
-    if (waitpid($pid, 0) == -1) {
+    $children{$pid} = $pid;
+    my $ret = waitpid($pid, 0);
+    delete $children{$pid};
+    if ($ret == -1) {
 	return warning("waitpid(): $!\n");
     } elsif ($? & 0xff) {
 	return warning("$cmd caught signal ", $? & 0x7f, "\n");
@@ -233,6 +239,13 @@ sub sigdie {
 
     logstage(shift);
     logstage("tinderbox aborted");
+    exit(1);
+}
+
+sub timeout() {
+    kill(15, keys(%children))
+	if (%children);
+    error("timed out after $timeout seconds");
     exit(1);
 }
 
@@ -307,11 +320,15 @@ MAIN:{
 	"p|patch=s"		=> \$patch,
 	"r|repository=s"	=> \$repository,
 	"s|sandbox=s"		=> \$sandbox,
+	"t|timeout=i"		=> \$timeout,
 	"v|verbose+"		=> \$verbose,
 	) or usage();
 
     if ($jobs < 0) {
 	error("invalid number of jobs");
+    }
+    if ($timeout < 0) {
+	error("invalid timeout");
     }
     if ($branch !~ m|^(\w+)$|) {
 	error("invalid source branch");
@@ -340,6 +357,12 @@ MAIN:{
 
     if (!@ARGV) {
 	usage();
+    }
+
+    # Set up a timeout
+    if ($timeout > 0) {
+	$SIG{ALRM} = \&timeout;
+	alarm($timeout);
     }
 
     # Find out what we're expected to do
