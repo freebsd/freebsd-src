@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)talkd.c	8.1 (Berkeley) 6/4/93";
 #endif
 static const char rcsid[] =
-	"$Id$";
+	"$Id: talkd.c,v 1.8 1997/12/02 12:33:42 charnier Exp $";
 #endif /* not lint */
 
 /*
@@ -89,8 +89,13 @@ main(argc, argv)
 	register CTL_MSG *mp = &request;
 	int cc;
 
+#ifdef NOTDEF
+	/*
+	 * removed so ntalkd can run in tty sandbox
+	 */
 	if (getuid())
 		errx(1, "getuid: not super-user");
+#endif
 	openlog("talkd", LOG_PID, LOG_DAEMON);
 	if (gethostname(hostname, sizeof (hostname) - 1) < 0) {
 		syslog(LOG_ERR, "gethostname: %m");
