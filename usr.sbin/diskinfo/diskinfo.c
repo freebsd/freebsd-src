@@ -31,12 +31,14 @@
 
 #include <stdio.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <paths.h>
 #include <err.h>
 #include <sys/disk.h>
+#include <sys/time.h>
 
 static void
 usage(void)
@@ -47,7 +49,7 @@ usage(void)
 
 static int opt_t, opt_v;
 
-static void speeddisk(const char *name, int fd, off_t mediasize, u_int sectorsize);
+static void speeddisk(int fd, off_t mediasize, u_int sectorsize);
 
 int
 main(int argc, char **argv)
@@ -123,7 +125,7 @@ main(int argc, char **argv)
 		}
 		printf("\n");
 		if (opt_t)
-			speeddisk(argv[i], fd, mediasize, sectorsize);
+			speeddisk(fd, mediasize, sectorsize);
 		close(fd);
 	}
 	exit (0);
@@ -140,7 +142,7 @@ rdsect(int fd, u_int blockno, u_int sectorsize)
 
 	lseek(fd, (off_t)blockno * sectorsize, SEEK_SET);
 	error = read(fd, sector, sectorsize);
-	if (error != sectorsize)
+	if (error != (int)sectorsize)
 		err(1, "read error or disk too small for test.");
 }
 
@@ -193,12 +195,11 @@ TR(double count)
 }
 
 static void
-speeddisk(const char *name, int fd, off_t mediasize, u_int sectorsize)
+speeddisk(int fd, off_t mediasize, u_int sectorsize)
 {
-	int error, i;
+	int i;
 	uint b0, b1, sectorcount;
 
-	off_t size;
 	sectorcount = mediasize / sectorsize;
 
 	printf("Seek times:\n");
