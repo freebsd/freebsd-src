@@ -279,6 +279,7 @@ static driver_t fxp_driver = {
 static devclass_t fxp_devclass;
 
 DRIVER_MODULE(fxp, pci, fxp_driver, fxp_devclass, 0, 0);
+DRIVER_MODULE(fxp, cardbus, fxp_driver, fxp_devclass, 0, 0);
 DRIVER_MODULE(miibus, fxp, miibus_driver, miibus_devclass, 0, 0);
 
 static int fxp_rnr;

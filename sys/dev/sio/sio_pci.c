@@ -160,3 +160,4 @@ sio_pci_probe(dev)
 }
 
 DRIVER_MODULE(sio, pci, sio_pci_driver, sio_devclass, 0, 0);
+DRIVER_MODULE(sio, cardbus, sio_pci_driver, sio_devclass, 0, 0);

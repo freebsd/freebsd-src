@@ -462,3 +462,4 @@ static driver_t fwohci_driver = {
 static devclass_t fwohci_devclass;
 
 DRIVER_MODULE(fwohci, pci, fwohci_driver, fwohci_devclass, 0, 0);
+DRIVER_MODULE(fwohci, cardbus, fwohci_driver, fwohci_devclass, 0, 0);
