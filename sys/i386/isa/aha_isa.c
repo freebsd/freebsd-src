@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: aha_isa.c,v 1.6 1999/01/20 06:21:23 imp Exp $
+ *	$Id: aha_isa.c,v 1.7 1999/04/16 21:22:19 peter Exp $
  */
 
 #include "pnp.h"
@@ -103,7 +103,7 @@ aha_isa_probe(dev)
 		if (aha_check_probed_iop(ioport) != 0)
 			continue;
 		dev->id_iobase = ioport;
-		if (haveseen_isadev(dev, CC_IOADDR | CC_QUIET))
+		if (haveseen_iobase(dev, AHA_NREGS))
 			continue;
 
 		/* Allocate a softc for use during probing */

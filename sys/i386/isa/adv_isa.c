@@ -44,7 +44,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: adv_isa.c,v 1.9 1999/04/11 03:06:06 eivind Exp $
+ *      $Id: adv_isa.c,v 1.10 1999/04/23 23:29:23 gibbs Exp $
  */
 
 #include <sys/param.h>
@@ -150,7 +150,7 @@ advisaprobe(struct isa_device *id)
 			/* Already been attached */
 			continue;
 		id->id_iobase = port_addr;
-		if (haveseen_isadev(id, CC_IOADDR | CC_QUIET))
+		if (haveseen_iobase(id, 1))	/* XXX real portsize? */
 			continue;
 
 		if (adv_find_signature(I386_BUS_SPACE_IO, port_addr)) {
@@ -304,7 +304,7 @@ advisaprobe(struct isa_device *id)
 			
 			/* Mark as probed */
 			adv_isa_ioports[port_index] = 0;
-			return 1;
+			return 1;	/* XXX what is the real portsize? */
 		}
 	}
 
