@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mman.h	8.2 (Berkeley) 1/9/95
- * $Id: mman.h,v 1.18 1997/04/13 15:38:09 bde Exp $
+ * $Id: mman.h,v 1.19 1997/12/02 21:30:03 dyson Exp $
  */
 
 #ifndef _SYS_MMAN_H_
@@ -66,7 +66,7 @@
 /*
  * Error return from mmap()
  */
-#define MAP_FAILED	((caddr_t)-1)
+#define MAP_FAILED	((void *)-1)
 
 /*
  * msync() flags
@@ -105,18 +105,18 @@
 #include <sys/cdefs.h>
 
 __BEGIN_DECLS
+int	madvise __P((void *, size_t, int));
+int	mincore __P((const void *, size_t, char *));
+int	minherit __P((void *, size_t, int));
+int	mlock __P((const void *, size_t));
 #ifndef _MMAP_DECLARED
 #define	_MMAP_DECLARED
-caddr_t	mmap __P((caddr_t, size_t, int, int, int, off_t));
+void *	mmap __P((void *, size_t, int, int, int, off_t));
 #endif
-int	mprotect __P((caddr_t, size_t, int));
-int	munmap __P((caddr_t, size_t));
-int	msync __P((caddr_t, size_t, int));
-int	mlock __P((caddr_t, size_t));
-int	munlock __P((caddr_t, size_t));
-int	madvise __P((caddr_t, size_t, int));
-int	mincore __P((caddr_t, size_t, char *));
-int	minherit __P((caddr_t, size_t, int));
+int	mprotect __P((const void *, size_t, int));
+int	msync __P((void *, size_t, int));
+int	munlock __P((const void *, size_t));
+int	munmap __P((void *, size_t));
 __END_DECLS
 
 #endif /* !KERNEL */

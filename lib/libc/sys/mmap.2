@@ -40,8 +40,8 @@
 .Sh SYNOPSIS
 .Fd #include <sys/types.h>
 .Fd #include <sys/mman.h>
-.Ft caddr_t
-.Fn mmap "caddr_t addr" "size_t len" "int prot" "int flags" "int fd" "off_t offset"
+.Ft void *
+.Fn mmap "void * addr" "size_t len" "int prot" "int flags" "int fd" "off_t offset"
 .Sh DESCRIPTION
 The
 .Fn mmap

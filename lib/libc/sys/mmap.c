@@ -43,9 +43,9 @@ static char sccsid[] = "@(#)mmap.c	8.1 (Berkeley) 6/17/93";
  * This function provides 64-bit offset padding that
  * is not supplied by GCC 1.X but is supplied by GCC 2.X.
  */
-caddr_t
+void *
 mmap(addr, len, prot, flags, fd, offset)
-	caddr_t addr;
+	void *	addr;
 	size_t	len;
 	int	prot;
 	int	flags;
@@ -53,6 +53,6 @@ mmap(addr, len, prot, flags, fd, offset)
 	off_t	offset;
 {
 
-	return((caddr_t)__syscall((quad_t)SYS_mmap, addr, len, prot, flags,
+	return((void *)__syscall((quad_t)SYS_mmap, addr, len, prot, flags,
 		fd, 0, offset));
 }
