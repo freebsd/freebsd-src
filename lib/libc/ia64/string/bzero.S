@@ -32,7 +32,7 @@ ENTRY(bzero, 2)
 	
 	cmp.le	p6,p0=in1,r0			// bail if len <= 0
 (p6)	br.ret.spnt.few rp
-
+	;; 
 	mov	r14=ar.lc			// save ar.lc
 
 	cmp.ltu	p6,p0=17,in1			// check for small
@@ -51,11 +51,11 @@ ENTRY(bzero, 2)
 	
 3:	tbit.nz	p6,p0=in0,0 ;;
 (p6)	st1	[in0]=r0,1
-(p6)	add	in1=-1,in1
+(p6)	add	in1=-1,in1 ;;
 
 	tbit.nz	p6,p0=in0,1 ;;
 (p6)	st2	[in0]=r0,2
-(p6)	add	in1=-2,in1
+(p6)	add	in1=-2,in1 ;;
 
 	tbit.nz	p6,p0=in0,2 ;;
 (p6)	st4	[in0]=r0,4
