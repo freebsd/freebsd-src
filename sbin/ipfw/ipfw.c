@@ -458,6 +458,8 @@ show_ipfw(struct ip_fw *chain)
 		printf(" iplen %u", chain->fw_iplen);
 	if (chain->fw_ipflg & IP_FW_IF_IPID)
 		printf(" ipid %#x", chain->fw_ipid);
+	if (chain->fw_ipflg & IP_FW_IF_IPPRE)
+		printf(" ipprecedence %u", (chain->fw_iptos & 0xe0) >> 5);
 
 	if (chain->fw_ipflg & IP_FW_IF_IPTOS) {
 		int	_opt_printed = 0;
@@ -930,6 +932,7 @@ show_usage(void)
 "    ipoptions [!]{ssrr|lsrr|rr|ts}, ...\n"
 "    iplen {length}\n"
 "    ipid {identification number}\n"
+"    ipprecedence {precedence}\n"
 "    iptos [!]{lowdelay|throughput|reliability|mincost|congestion}, ...\n"
 "    ipttl {time to live}\n"
 "    ipversion {version number}\n"
@@ -2119,6 +2122,24 @@ badviacombo:
 				     " of range");
 			rule.fw_ipflg |= IP_FW_IF_IPID;
 			rule.fw_ipid = (u_short)ipid;
+			av++; ac--;
+		} else if (!strncmp(*av, "ipprecedence", strlen(*av))) {
+			u_long ippre;
+			char *c;
+
+			av++; ac--;
+			if (!ac)
+				errx(EX_USAGE, "missing argument"
+					" for ``ipprecedence''");
+			ippre = strtoul(*av, &c, 0);
+			if (*c != '\0')
+				errx(EX_DATAERR, "argument to ipprecedence"
+					" must be numeric");
+			if (ippre > 7)
+				errx(EX_DATAERR, "argument to ipprecedence"
+					" out of range");
+			rule.fw_ipflg |= IP_FW_IF_IPPRE;
+			rule.fw_iptos |= (u_short)(ippre << 5);
 			av++; ac--;
 		} else if (!strncmp(*av, "iptos", strlen(*av))) {
 			av++; ac--;
