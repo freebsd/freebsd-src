@@ -9,8 +9,15 @@ CFLAGS+=-I${.CURDIR}/../../lib
 CFLAGS+=-DINET6
 SRCS=	global.c slc.c state.c sys_term.c telnetd.c \
 	termstat.c utility.c
+
+.if exists(${.OBJDIR}/../../lib/libtelnet)
+LIBTELNET=	${.OBJDIR}/../../lib/libtelnet/libtelnet.a
+.else
+LIBTELNET=	${.CURDIR}/../../lib/libtelnet/libtelnet.a
+.endif
+
 DPADD=	${LIBUTIL} ${LIBTERMCAP} ${LIBTELNET}
-LDADD=	-lutil -ltermcap -ltelnet
+LDADD=	-lutil -ltermcap ${LIBTELNET}
 MAN=	telnetd.8
 
 .include <bsd.prog.mk>

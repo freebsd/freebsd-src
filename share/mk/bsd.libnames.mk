@@ -89,7 +89,6 @@ LIBSS?=		${DESTDIR}${LIBDIR}/libss.a
 LIBSSL?=	${DESTDIR}${LIBDIR}/libssl.a	# XXX in secure dist, not base
 LIBSTDCPLUSPLUS?= ${DESTDIR}${LIBDIR}/libstdc++.a
 LIBTACPLUS?=	${DESTDIR}${LIBDIR}/libtacplus.a
-LIBTELNET?=	${DESTDIR}${LIBDIR}/libtelnet.a
 LIBTERMCAP?=	${DESTDIR}${LIBDIR}/libtermcap.a
 LIBTERMLIB?=	"don't use LIBTERMLIB, use LIBTERMCAP"
 LIBUTIL?=	${DESTDIR}${LIBDIR}/libutil.a
