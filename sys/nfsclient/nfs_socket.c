@@ -235,8 +235,7 @@ nfs_connect(struct nfsmount *nmp, struct nfsreq *rep)
 			    PSOCK, "nfscon", 2 * hz);
 			if ((so->so_state & SS_ISCONNECTING) &&
 			    so->so_error == 0 && rep &&
-			    (error = nfs_sigintr(nmp, rep,
-			      (rep->r_td ? rep->r_td->td_proc : NULL))) != 0){
+			    (error = nfs_sigintr(nmp, rep, rep->r_td)) != 0) {
 				so->so_state &= ~SS_ISCONNECTING;
 				splx(s);
 				goto bad;
@@ -1075,8 +1074,7 @@ nfs_timer(void *arg)
 		nmp = rep->r_nmp;
 		if (rep->r_mrep || (rep->r_flags & R_SOFTTERM))
 			continue;
-		if (nfs_sigintr(nmp, rep,
-		    (rep->r_td ? rep->r_td->td_proc : NULL))) {
+		if (nfs_sigintr(nmp, rep, rep->r_td)) {
 			nfs_softterm(rep);
 			continue;
 		}
@@ -1224,8 +1222,9 @@ nfs_softterm(struct nfsreq *rep)
  * This is used for NFSMNT_INT mounts.
  */
 int
-nfs_sigintr(struct nfsmount *nmp, struct nfsreq *rep, struct proc *p)
+nfs_sigintr(struct nfsmount *nmp, struct nfsreq *rep, struct thread *td)
 {
+	struct proc *p;
 	sigset_t tmpset;
 
 	if (rep && (rep->r_flags & R_SOFTTERM))
@@ -1235,9 +1234,10 @@ nfs_sigintr(struct nfsmount *nmp, struct nfsreq *rep, struct proc *p)
 		return (EINTR);
 	if (!(nmp->nm_flag & NFSMNT_INT))
 		return (0);
-	if (p == NULL)
+	if (td == NULL)
 		return (0);
 
+	p = td->td_proc;
 	tmpset = p->p_siglist;
 	SIGSETNAND(tmpset, p->p_sigmask);
 	SIGSETNAND(tmpset, p->p_sigignore);
@@ -1267,7 +1267,7 @@ nfs_sndlock(struct nfsreq *rep)
 	} else
 		td = (struct thread *)0;
 	while (*statep & NFSSTA_SNDLOCK) {
-		if (nfs_sigintr(rep->r_nmp, rep, td ? td->td_proc : NULL))
+		if (nfs_sigintr(rep->r_nmp, rep, td))
 			return (EINTR);
 		*statep |= NFSSTA_WANTSND;
 		(void) tsleep((caddr_t)statep, slpflag | (PZERO - 1),
@@ -1309,8 +1309,7 @@ nfs_rcvlock(struct nfsreq *rep)
 	else
 		slpflag = 0;
 	while (*statep & NFSSTA_RCVLOCK) {
-		if (nfs_sigintr(rep->r_nmp, rep,
-		    (rep->r_td ? rep->r_td->td_proc : NULL)))
+		if (nfs_sigintr(rep->r_nmp, rep, rep->r_td))
 			return (EINTR);
 		*statep |= NFSSTA_WANTRCV;
 		(void) tsleep((caddr_t)statep, slpflag | (PZERO - 1), "nfsrcvlk",

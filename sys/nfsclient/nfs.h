@@ -267,7 +267,7 @@ int	nfs_nfsiodnew(void);
 int	nfs_asyncio(struct buf *, struct ucred *, struct thread *);
 int	nfs_doio(struct buf *, struct ucred *, struct thread *);
 int	nfs_readlinkrpc(struct vnode *, struct uio *, struct ucred *);
-int	nfs_sigintr(struct nfsmount *, struct nfsreq *, struct proc *);
+int	nfs_sigintr(struct nfsmount *, struct nfsreq *, struct thread *);
 int	nfs_readdirplusrpc(struct vnode *, struct uio *, struct ucred *);
 int	nfs_request(struct vnode *, struct mbuf *, int, struct thread *,
 	    struct ucred *, struct mbuf **, struct mbuf **, caddr_t *);
