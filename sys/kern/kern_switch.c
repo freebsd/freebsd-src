@@ -152,12 +152,12 @@ runq_setbit(struct runq *rq, int pri)
 	rqb->rqb_bits[RQB_WORD(pri)] |= RQB_BIT(pri);
 }
 
-#ifdef INVARIANT_SUPPORT
+#if defined(INVARIANT_SUPPORT) && defined(DIAGNOSTIC)
 /*
  * Return true if the specified process is already in the run queue.
  */
 static __inline int
-runq_find(struct runq *rq, struct kse *ke)
+runq_findproc(struct runq *rq, struct kse *ke)
 {
 	struct kse *ke2;
 	int i;
@@ -189,8 +189,10 @@ runq_add(struct runq *rq, struct kse *ke)
 	mtx_assert(&sched_lock, MA_OWNED);
 	KASSERT(p->p_stat == SRUN, ("runq_add: proc %p (%s) not SRUN",
 	    p, p->p_comm));
-	KASSERT(runq_find(rq, ke) == 0,
+#if defined(INVARIANTS) && defined(DIAGNOSTIC)
+	KASSERT(runq_findproc(rq, ke) == 0,
 	    ("runq_add: proc %p (%s) already in run queue", ke, p->p_comm));
+#endif
 	pri = ke->ke_thread->td_priority / RQ_PPQ;
 	ke->ke_rqindex = pri;
 	runq_setbit(rq, pri);
