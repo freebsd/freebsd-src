@@ -136,7 +136,7 @@ svctcp_create(sock, sendsize, recvsize)
 
 	if (sock == RPC_ANYSOCK) {
 		if ((sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) < 0) {
-			perror("svctcp_.c - udp socket creation problem");
+			perror("svctcp_.c - tcp socket creation problem");
 			return ((SVCXPRT *)NULL);
 		}
 		madesock = TRUE;
