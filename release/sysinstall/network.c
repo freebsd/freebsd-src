@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media_strategy.c,v 1.28 1995/05/26 20:30:59 jkh Exp $
+ * $Id: network.c,v 1.1 1995/05/27 10:38:58 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -43,12 +43,7 @@
  *
  */
 
-/*
- * These routines deal with getting things off of floppy media, though
- * with one exception:  genericGetDist() is actually used from lots of places
- * since it can think of the world as just "one big floppy" too if that's
- * appropriate.
- */
+/* These routines deal with getting things off of network media */
 
 #include "sysinstall.h"
 

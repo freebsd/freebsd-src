@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.26 1995/05/27 10:47:30 jkh Exp $
+ * $Id: dist.c,v 1.27 1995/05/27 23:39:27 phk Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -218,7 +218,7 @@ static Distribution XF86FontDistTable[] = {
 { NULL },
 };
 
-static int
+static Boolean
 distExtract(char *parent, Distribution *me)
 {
     int i, status;
@@ -227,17 +227,17 @@ distExtract(char *parent, Distribution *me)
     const char *tmp;
     Attribs *dist_attr;
 
-    status = 0;
+    status = FALSE;
     if (mediaDevice->init)
 	if (!(*mediaDevice->init)(mediaDevice))
-	    return 0;
-    for (i = 0; me[i].my_name; i++) {
+	    return FALSE;
 
+    for (i = 0; me[i].my_name; i++) {
 	/* If we're not doing it, we're not doing it */
 	if (!(me[i].my_bit & *(me[i].my_mask)))
 	    continue;
 
-	/* Recurse if we think thats more fun */
+	/* Recurse if actually have a sub-distribution */
 	if (me[i].my_dist) {
 	    status = distExtract(me[i].my_name, me[i].my_dist);
 	    goto done;
@@ -264,17 +264,20 @@ distExtract(char *parent, Distribution *me)
 	    dist_attr = safe_malloc(sizeof(Attribs) * MAX_ATTRIBS);
 	    if (attr_parse(&dist_attr, buf) == 0) {
 		msgConfirm("Cannot load information file for %s distribution!\nPlease verify that your media is valid and try again.", dist);
-		return -1;
+		return FALSE;
 	    }
    
 	    msgDebug("Looking for attribute `pieces'\n");
 	    tmp = attr_match(dist_attr, "pieces");
-	    numchunks = atoi(tmp);
-	} else
+	    if (tmp)
+		numchunks = atoi(tmp);
+	    else
+		numchunks = 0;
+	}
+	else
 	    numchunks = 0;
 
-	msgDebug("Attempting to extract distribution from %u chunks.\n", 
-		numchunks);
+	msgDebug("Attempting to extract distribution from %u chunks.\n", numchunks);
 
 	if (numchunks < 2 ) {
 	    snprintf(buf, 512, "%s%s", path, dist);
@@ -282,13 +285,13 @@ distExtract(char *parent, Distribution *me)
 		strcat(buf,".aa");
 	    fd = (*mediaDevice->get)(buf);
 	    if (fd == -1) {
-		status = 1;
+		status = FALSE;
 	    } else {
-		    status = mediaExtractDist(me[i].my_name, me[i].my_dir, fd);
-		    if (mediaDevice->close)
-			(*mediaDevice->close)(mediaDevice, fd);
-		    else
-			close(fd);
+		status = mediaExtractDist(me[i].my_name, me[i].my_dir, fd);
+		if (mediaDevice->close)
+		    (*mediaDevice->close)(mediaDevice, fd);
+		else
+		    close(fd);
 	    }
 	    goto done;
 	}
@@ -297,12 +300,9 @@ distExtract(char *parent, Distribution *me)
 	for (chunk = 0; chunk < numchunks; chunk++) {
 	    int n, retval;
 
-	    snprintf(buf, 512, "%s%s.%c%c", path, dist,
-		(chunk / 26) + 'a', (chunk % 26) + 'a');
+	    snprintf(buf, 512, "%s%s.%c%c", path, dist,	(chunk / 26) + 'a', (chunk % 26) + 'a');
 	    fd = (*mediaDevice->get)(buf);
-
-	    if (fd < 0)
-	    {
+	    if (fd < 0) {
 		msgConfirm("FtpGet failed to retreive piece `%s' in the %s distribution!\nAborting the transfer", chunk, dist);
 		goto punt;
 	    }
@@ -312,33 +312,38 @@ distExtract(char *parent, Distribution *me)
 		{
 		    if (mediaDevice->close)
 			(*mediaDevice->close)(mediaDevice, fd);
+		    else
+			close(fd);
 		    msgConfirm("Write failure on transfer! (wrote %d bytes of %d bytes)", retval, n);
 		    goto punt;
 		}
 	    }
 	    if (mediaDevice->close)
 		(*mediaDevice->close)(mediaDevice, fd);
+	    else
+		close(fd);
 	}
 	close(fd2);
-	status = mediaExtractDistEnd(zpid,cpid);
+	status = mediaExtractDistEnd(zpid, cpid);
         goto done;
 
     punt:
 	close(fd2);
-	mediaExtractDistEnd(zpid,cpid);
-	status = 1;
+	mediaExtractDistEnd(zpid, cpid);
+	status = FALSE;
+
     done:
-	if (status) {
-	    if (getenv(NO_CONFIRMATION))
-		status = 0;
-	    else
-		status = !msgYesNo("Unable to transfer the %s distribution from %s.\nDo you want to retry this distribution later?", me[i].my_name, mediaDevice->name);
-	}
 	if (!status) {
+	    if (getenv(NO_CONFIRMATION))
+		status = TRUE;
+	    else
+		status = msgYesNo("Unable to transfer the %s distribution from %s.\nDo you want to retry this distribution later?", me[i].my_name, mediaDevice->name);
+	}
+	if (status) {
 	    /* Extract was successful, remove ourselves from further consideration */
 	    *(me[i].my_mask) &= ~(me[i].my_bit);
 	}
-}
+    }
     if (mediaDevice->shutdown && parent == NULL) {
 	(*mediaDevice->shutdown)(mediaDevice);
 	mediaDevice = NULL;

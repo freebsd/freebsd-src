@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: dos.c,v 1.1 1995/05/27 10:38:47 jkh Exp $
+ * $Id: dos.c,v 1.2 1995/05/27 23:39:28 phk Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -86,26 +86,14 @@ mediaGetDOS(char *file)
     char		buf[PATH_MAX];
 
     snprintf(buf, PATH_MAX, "/dos/%s", file);
-    return open(buf,O_RDONLY);
+    return open(buf, O_RDONLY);
 }
 
 void
 mediaShutdownDOS(Device *dev)
 {
-    extern int getDistpid;
-
     if (!DOSMounted)
 	return;
-    if (getDistpid) {
-	int i, j;
-
-	i = waitpid(getDistpid, &j, 0);
-	if (i < 0 || WEXITSTATUS(j)) {
-	    msgConfirm("Warning: Last extraction returned status code %d.", WEXITSTATUS(j));
-	    getDistpid = 0;
-	}
-	getDistpid = 0;
-    }
     msgDebug("Unmounting /dos\n");
     if (unmount("/dos", 0) != 0)
 	msgConfirm("Could not unmount the DOS partition: %s\n", strerror(errno));

@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: tape.c,v 1.1 1995/05/27 10:39:02 jkh Exp $
+ * $Id: tape.c,v 1.2 1995/05/27 23:39:33 phk Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -43,12 +43,7 @@
  *
  */
 
-/*
- * These routines deal with getting things off of floppy media, though
- * with one exception:  genericGetDist() is actually used from lots of places
- * since it can think of the world as just "one big floppy" too if that's
- * appropriate.
- */
+/* These routines deal with getting things off of tape media */
 
 #include "sysinstall.h"
 

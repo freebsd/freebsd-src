@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: cdrom.c,v 1.1 1995/05/27 10:38:45 jkh Exp $
+ * $Id: cdrom.c,v 1.2 1995/05/27 23:39:26 phk Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -43,12 +43,7 @@
  *
  */
 
-/*
- * These routines deal with getting things off of floppy media, though
- * with one exception:  genericGetDist() is actually used from lots of places
- * since it can think of the world as just "one big floppy" too if that's
- * appropriate.
- */
+/* These routines deal with getting things off of CDROM media */
 
 #include "sysinstall.h"
 #include <sys/stat.h>
@@ -85,9 +80,11 @@ mediaInitCDROM(Device *dev)
 	return FALSE;
     }
 
-    /* Do a very simple check to see if this looks roughly like a 2.0.5 CDROM
-       Unfortunately FreeBSD won't let us read the ``label'' AFAIK, which is one
-       sure way of telling the disc version :-( */
+    /*
+     * Do a very simple check to see if this looks roughly like a 2.0.5 CDROM
+     * Unfortunately FreeBSD won't let us read the ``label'' AFAIK, which is one
+     * sure way of telling the disc version :-(
+     */
     if (stat("/cdrom/dists", &sb)) {
 	if (errno == ENOENT) {
 	    msgConfirm("Couldn't locate the directory `dists' on the CD.\nIs this a 2.0.5 CDROM?\n");
@@ -108,7 +105,7 @@ mediaGetCDROM(char *file)
     char		buf[PATH_MAX];
 
     snprintf(buf, PATH_MAX, "/cdrom/%s", file);
-    return open(buf,O_RDONLY);
+    return open(buf, O_RDONLY);
 }
 
 void
