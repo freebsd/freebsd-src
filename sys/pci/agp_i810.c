@@ -187,6 +187,7 @@ agp_i810_probe(device_t dev)
 	if (desc) {
 		device_t bdev;
 		u_int8_t smram;
+		unsigned int gcc1;
 		int devid = pci_get_devid(dev);
 
 		bdev = agp_i810_find_bridge(dev);
@@ -199,10 +200,12 @@ agp_i810_probe(device_t dev)
 		/*
 		 * checking whether internal graphics device has been activated.
 		 */
-		if ( (devid == 0x71218086 ) ||
-		     (devid == 0x71238086 ) ||
-		     (devid == 0x71258086 ) ||
-		     (devid == 0x11328086 ) ) {
+		switch (devid) {
+			/* i810 */
+		case 0x71218086:
+		case 0x71238086:
+		case 0x71258086:
+		case 0x11328086:
 			smram = pci_read_config(bdev, AGP_I810_SMRAM, 1);
 			if ((smram & AGP_I810_SMRAM_GMS)
 			    == AGP_I810_SMRAM_GMS_DISABLED) {
@@ -210,14 +213,23 @@ agp_i810_probe(device_t dev)
 					printf("I810: disabled, not probing\n");
 				return ENXIO;
 			}
-		} else {	/* I830MG */
-			unsigned int gcc1;
+			break;
+
+			/* i830 */
+		case 0x35778086:
+		case 0x35828086:
+		case 0x25628086:
+		case 0x25728086:
 			gcc1 = pci_read_config(bdev, AGP_I830_GCC1, 1);
 			if ((gcc1 & AGP_I830_GCC1_DEV2) == AGP_I830_GCC1_DEV2_DISABLED) {
 				if (bootverbose)
 					printf("I830: disabled, not probing\n");
 				return ENXIO;
 			}
+			break;
+
+		default:
+			return ENXIO;
 		}
 
 		device_verbose(dev);
