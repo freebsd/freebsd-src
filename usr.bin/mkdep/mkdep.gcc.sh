@@ -32,7 +32,7 @@
 # SUCH DAMAGE.
 #
 #	@(#)mkdep.gcc.sh	8.1 (Berkeley) 6/6/93
-#	$Id$
+#	$Id: mkdep.gcc.sh,v 1.8 1996/10/27 15:53:18 wosch Exp $
 
 PATH=/bin:/usr/bin; export PATH
 
@@ -63,11 +63,11 @@ while :
 done
 
 case $# in 0) 
-	echo 'usage: mkdep [-p] [-f depend_file] [cc_flags] file ...'
+	echo 'usage: mkdep [-ap] [-f file] [flags] file ...' >&2
 	exit 1;;
 esac
 
-TMP=/tmp/mkdep$$
+TMP=_mkdep$$
 trap 'rm -f $TMP ; exit 1' 1 2 3 13 15
 trap 'rm -f $TMP' 0
 
@@ -80,7 +80,7 @@ echo "# $@" > $TMP	# store arguments for debugging
 
 if $MKDEP_CPP -M "$@" >> $TMP; then :
 else
-	echo 'mkdep: compile failed.'
+	echo 'mkdep: compile failed' >&2
 	exit 1
 fi
 

@@ -177,7 +177,6 @@ forward(fp, style, off, sbp)
 		if (!fflag)
 			break;
 
-		/* Sleep(3) is eight system calls.  Do it fast. */
 		second.tv_sec = 1;
 		second.tv_usec = 0;
 		if (select(0, NULL, NULL, NULL, &second) == -1)

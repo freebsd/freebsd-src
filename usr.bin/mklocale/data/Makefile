@@ -1,4 +1,4 @@
-# $Id: Makefile,v 1.7 1997/02/28 19:51:39 wosch Exp $
+# $Id: Makefile,v 1.3.2.1 1997/02/28 22:54:47 adam Exp $
 
 NOMAN=YES
 CLEANFILES+= ${LOCALES:S/$/.out/g}
@@ -13,7 +13,7 @@ LOCALES=        ja_JP.EUC \
 
 LOCALEDIR=	${DESTDIR}/usr/share/locale
 
-.if exists(${.OBJDIR}/..)
+.if exists(${.OBJDIR}/../mklocale)
 MKLOCALE=${.OBJDIR}/../mklocale
 .else
 MKLOCALE=${.CURDIR}/../mklocale

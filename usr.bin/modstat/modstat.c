@@ -32,7 +32,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: modstat.c,v 1.4.2.1 1997/07/30 06:42:43 charnier Exp $";
+	"$Id: modstat.c,v 1.4.2.2 1997/08/29 05:29:36 imp Exp $";
 #endif /* not lint */
 
 #include <a.out.h>
@@ -53,6 +53,7 @@ static const char rcsid[] =
 static void
 usage()
 {
+
 	fprintf(stderr, "usage: modstat [-i <module id>] [-n <module name>]\n");
 	exit(1);
 }
@@ -129,7 +130,7 @@ main(argc, argv)
 	int modnum = -1;
 	char *modname = NULL;
 
-	while ((c = getopt(argc, argv, "i:n:")) !=  -1) {
+	while ((c = getopt(argc, argv, "i:n:")) != -1) {
 		switch (c) {
 		case 'i':
 			modnum = atoi(optarg);
