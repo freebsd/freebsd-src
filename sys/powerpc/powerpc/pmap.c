@@ -114,6 +114,8 @@ __FBSDID("$FreeBSD$");
  * correct.
  */
 
+#include "opt_kstack_pages.h"
+
 #include <sys/param.h>
 #include <sys/kernel.h>
 #include <sys/ktr.h>

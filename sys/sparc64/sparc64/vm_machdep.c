@@ -43,6 +43,7 @@
  * $FreeBSD$
  */
 
+#include "opt_kstack_pages.h"
 #include "opt_pmap.h"
 
 #include <sys/param.h>

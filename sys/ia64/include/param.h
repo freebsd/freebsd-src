@@ -134,7 +134,9 @@
 #define	SSIZE		1		/* initial stack size/NBPG */
 #define	SINCR		1		/* increment of stack/NBPG */
 
+#ifndef	KSTACK_PAGES
 #define	KSTACK_PAGES	4		/* pages of kernel stack */
+#endif
 #define	KSTACK_GUARD_PAGES 0		/* pages of kstack guard; 0 disables */
 #define	UAREA_PAGES	1		/* pages of u-area */
 

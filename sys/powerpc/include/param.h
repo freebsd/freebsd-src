@@ -97,10 +97,10 @@
 #define	KERNBASE	0x100000	/* start of kernel virtual */
 #define	BTOPKERNBASE	((u_long)KERNBASE >> PGSHIFT)
 
-#ifndef KSTACK_UPAGES
+#ifndef KSTACK_PAGES
 #define	KSTACK_PAGES		4		/* includes pcb */
-#define	KSTACK_GUARD_PAGES	1	/* pages of kstack guard; 0 disables */
 #endif
+#define	KSTACK_GUARD_PAGES	1	/* pages of kstack guard; 0 disables */
 #define	USPACE		(KSTACK_PAGES * PAGE_SIZE)	/* total size of pcb */
 #define	UAREA_PAGES	1		/* holds struct user WITHOUT PCB */
 

@@ -63,6 +63,7 @@
  * correct.
  */
 
+#include "opt_kstack_pages.h"
 #include "opt_msgbuf.h"
 #include "opt_pmap.h"
 
