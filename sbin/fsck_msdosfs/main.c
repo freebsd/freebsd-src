@@ -51,9 +51,9 @@ static const char rcsid[] =
 
 int alwaysno;		/* assume "no" for all questions */
 int alwaysyes;		/* assume "yes" for all questions */
-int force;		/* force check even the fs is clean */
 int preen;		/* set when preening */
 int rdonly;		/* device is opened read only (supersedes above) */
+int skipclean;		/* skip clean file systems if preening */
 
 static void usage(void) __dead2;
 
@@ -71,11 +71,11 @@ main(int argc, char **argv)
 	int ret = 0, erg;
 	int ch;
 
-	force = 0;
+	skipclean = 1;
 	while ((ch = getopt(argc, argv, "fFnpy")) != -1) {
 		switch (ch) {
 		case 'f':
-			force = 1;
+			skipclean = 0;
 			break;
 		case 'F':
 			/*
