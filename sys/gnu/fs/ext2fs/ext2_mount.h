@@ -53,6 +53,10 @@ struct ext2mount {
 	u_long	um_nindir;			/* indirect ptrs per block */
 	u_long	um_bptrtodb;			/* indir ptr to disk block */
 	u_long	um_seqinc;			/* inc between seq blocks */
+
+	struct g_geom *um_gp;
+	struct g_consumer *um_cp;
+	struct bufobj *um_bo;
 };
 
 /* Convert mount ptr to ext2fsmount ptr. */
