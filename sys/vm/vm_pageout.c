@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.24 1994/11/06 05:07:53 davidg Exp $
+ * $Id: vm_pageout.c,v 1.25 1994/11/14 02:57:40 davidg Exp $
  */
 
 /*
@@ -792,7 +792,8 @@ rescan1:
 			/*
 			 * if this is a system process, skip it
 			 */
-			if ((p->p_flag & P_SYSTEM) || ((p->p_pid < 48) && (vm_swap_size != 0))) {
+			if ((p->p_flag & P_SYSTEM) || (p->p_pid == 1) ||
+			    ((p->p_pid < 48) && (vm_swap_size != 0))) {
 				continue;
 			}
 
