@@ -39,7 +39,7 @@ static char sccsid[] = "@(#)main.c	8.1 (Berkeley) 6/5/93";
 #elif defined(__NetBSD__)
 static char rcsid[] = "$NetBSD$";
 #endif
-#ident "$Revision: 1.17 $"
+#ident "$Revision: 1.1.1.1 $"
 
 #include "defs.h"
 #include "pathnames.h"
@@ -119,7 +119,7 @@ main(int argc,
 	(void)gethostname(myname, sizeof(myname)-1);
 	(void)gethost(myname, &myaddr);
 
-	while ((n = getopt(argc, argv, "sqdghmpAtT:F:P:")) != EOF) {
+	while ((n = getopt(argc, argv, "sqdghmAtT:F:P:")) != EOF) {
 		switch (n) {
 		case 's':
 			supplier = 1;
