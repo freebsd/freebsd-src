@@ -441,7 +441,7 @@ main(int ac, char **av)
 		usage();
 	if ((fd = open(*av, O_RDONLY)) < 0 ||
 	    fstat(fd, &sb) < 0)
-		err(1, NULL);
+		err(1, "%s", *av);
 	e = mmap(NULL, sb.st_size, PROT_READ, MAP_SHARED, fd, 0);
 	if (e == MAP_FAILED)
 		err(1, NULL);
@@ -1109,6 +1109,6 @@ elf_get_quad(Elf32_Ehdr *e, void *base, elf_member_t member)
 void
 usage(void)
 {
-	fprintf(stderr, "usage: elfdump [-acdeiGhnprs] [-w file] filename\n");
+	fprintf(stderr, "usage: elfdump -a | -cdeGhinprs [-w file] file\n");
 	exit(1);
 }
