@@ -63,7 +63,7 @@ struct sysentvec {
 	int 		*sv_errtbl;	/* errno translation table */
 	int		(*sv_transtrap) __P((int, int));
 					/* translate trap-to-signal mapping */
-	int		(*sv_fixup) __P((long **, struct image_params *));
+	int		(*sv_fixup) __P((register_t **, struct image_params *));
 					/* stack fixup function */
 	void		(*sv_sendsig) __P((void (*)(int), int, sigset_t *, u_long));
 					/* send signal */
