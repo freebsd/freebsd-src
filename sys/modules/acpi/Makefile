@@ -44,11 +44,14 @@ SRCS+=	OsdHardware.c OsdInterrupt.c OsdMemory.c OsdSchedule.c
 SRCS+=	OsdStream.c OsdSynch.c OsdTable.c OsdEnvironment.c 
 SRCS+=	opt_acpi.h opt_bus.h opt_ddb.h
 SRCS+=	device_if.h bus_if.h pci_if.h pcib_if.h isa_if.h
+.if ACPI_MAX_THREADS
+CFLAGS+=-DACPI_MAX_THREADS=${ACPI_MAX_THREADS}
+.endif
 .if ACPI_NO_SEMAPHORES
 CFLAGS+=-DACPI_NO_SEMAPHORES
 .endif
-.if ACPI_MAX_THREADS
-CFLAGS+=-DACPI_MAX_THREADS=${ACPI_MAX_THREADS}
+.if SMP
+CFLAGS+=-DSMP
 .endif
 
 # Debugging support
