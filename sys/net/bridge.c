@@ -146,7 +146,7 @@ static void
 bdg_promisc_off(int clear_used)
 {
     struct ifnet *ifp ;
-    for (ifp = ifnet.tqh_first; ifp; ifp = ifp->if_link.tqe_next ) {
+    for (ifp = TAILQ_FIRST(&ifnet); ifp; ifp = TAILQ_NEXT(ifp, if_link) ) {
 	if ( (ifp2sc[ifp->if_index].flags & IFF_BDG_PROMISC) ) {
 	    int s, ret ;
 	    s = splimp();
@@ -173,7 +173,7 @@ bdg_promisc_on()
     struct ifnet *ifp ;
     int s ;
 
-    for (ifp = ifnet.tqh_first; ifp; ifp = ifp->if_link.tqe_next ) {
+    for (ifp = TAILQ_FIRST(&ifnet); ifp; ifp = TAILQ_NEXT(ifp, if_link) ) {
 	if ( !BDG_USED(ifp) )
 	    continue ;
 	if ( 0 == ( ifp->if_flags & IFF_UP) ) {
@@ -457,8 +457,8 @@ bdgtakeifaces(void)
     *bridge_cfg = '\0';
 
     printf("BRIDGE 010131, have %d interfaces\n", if_index);
-    for (i = 0 , ifp = ifnet.tqh_first ; i < if_index ;
-		i++, ifp = ifp->if_link.tqe_next)
+    for (i = 0 , ifp = TAILQ_FIRST(&ifnet) ; i < if_index ;
+		i++, ifp = TAILQ_NEXT(ifp, if_link))
 	if (ifp->if_type == IFT_ETHER) { /* ethernet ? */
 	    bp = &ifp2sc[ifp->if_index] ;
 	    ac = (struct arpcom *)ifp;
@@ -636,7 +636,7 @@ bdg_forward(struct mbuf *m0, struct ether_header *const eh, struct ifnet *dst)
 	return m0;
     }
     if (dst == BDG_BCAST || dst == BDG_MCAST || dst == BDG_UNKNOWN) {
-	ifp = ifnet.tqh_first ; /* scan all ports */
+	ifp = TAILQ_FIRST(&ifnet) ; /* scan all ports */
 	once = 0 ;
 	if (dst != BDG_UNKNOWN) /* need a copy for the local stack */
 	    shared = 1 ;
@@ -840,7 +840,7 @@ forward:
 			 (IFF_UP|IFF_RUNNING) &&
 		BDG_SAMECLUSTER(ifp, src) && !BDG_MUTED(ifp) )
 	    last = ifp ;
-	ifp = ifp->if_link.tqe_next ;
+	ifp = TAILQ_NEXT(ifp, if_link) ;
 	if (ifp == NULL)
 	    once = 1 ;
     }

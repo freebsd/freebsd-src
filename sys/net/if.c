@@ -110,7 +110,7 @@ ifinit(dummy)
 	int s;
 
 	s = splimp();
-	for (ifp = ifnet.tqh_first; ifp; ifp = ifp->if_link.tqe_next) {
+	for (ifp = TAILQ_FIRST(&ifnet); ifp; ifp = TAILQ_NEXT(ifp, if_link)) {
 		if (ifp->if_snd.ifq_maxlen == 0) {
 			printf("%s%d XXX: driver didn't set ifq_maxlen\n",
 			    ifp->if_name, ifp->if_unit);
@@ -357,9 +357,9 @@ ifa_ifwithaddr(addr)
 
 #define	equal(a1, a2) \
   (bcmp((caddr_t)(a1), (caddr_t)(a2), ((struct sockaddr *)(a1))->sa_len) == 0)
-	for (ifp = ifnet.tqh_first; ifp; ifp = ifp->if_link.tqe_next)
-	    for (ifa = ifp->if_addrhead.tqh_first; ifa;
-		 ifa = ifa->ifa_link.tqe_next) {
+	for (ifp = TAILQ_FIRST(&ifnet); ifp; ifp = TAILQ_NEXT(ifp, if_link))
+	    for (ifa = TAILQ_FIRST(&ifp->if_addrhead); ifa;
+		 ifa = TAILQ_NEXT(ifa, ifa_link)) {
 		if (ifa->ifa_addr->sa_family != addr->sa_family)
 			continue;
 		if (equal(addr, ifa->ifa_addr))
@@ -383,10 +383,10 @@ ifa_ifwithdstaddr(addr)
 	register struct ifnet *ifp;
 	register struct ifaddr *ifa;
 
-	for (ifp = ifnet.tqh_first; ifp; ifp = ifp->if_link.tqe_next)
+	for (ifp = TAILQ_FIRST(&ifnet); ifp; ifp = TAILQ_NEXT(ifp, if_link))
 	    if (ifp->if_flags & IFF_POINTOPOINT)
-		for (ifa = ifp->if_addrhead.tqh_first; ifa;
-		     ifa = ifa->ifa_link.tqe_next) {
+		for (ifa = TAILQ_FIRST(&ifp->if_addrhead); ifa;
+		     ifa = TAILQ_NEXT(ifa, ifa_link)) {
 			if (ifa->ifa_addr->sa_family != addr->sa_family)
 				continue;
 			if (ifa->ifa_dstaddr && equal(addr, ifa->ifa_dstaddr))
@@ -423,9 +423,9 @@ ifa_ifwithnet(addr)
 	 * Scan though each interface, looking for ones that have
 	 * addresses in this address family.
 	 */
-	for (ifp = ifnet.tqh_first; ifp; ifp = ifp->if_link.tqe_next) {
-		for (ifa = ifp->if_addrhead.tqh_first; ifa;
-		     ifa = ifa->ifa_link.tqe_next) {
+	for (ifp = TAILQ_FIRST(&ifnet); ifp; ifp = TAILQ_NEXT(ifp, if_link)) {
+		for (ifa = TAILQ_FIRST(&ifp->if_addrhead); ifa;
+		     ifa = TAILQ_NEXT(ifa, ifa_link)) {
 			register char *cp, *cp2, *cp3;
 
 			if (ifa->ifa_addr->sa_family != af)
@@ -510,8 +510,8 @@ ifaof_ifpforaddr(addr, ifp)
 
 	if (af >= AF_MAX)
 		return (0);
-	for (ifa = ifp->if_addrhead.tqh_first; ifa;
-	     ifa = ifa->ifa_link.tqe_next) {
+	for (ifa = TAILQ_FIRST(&ifp->if_addrhead); ifa;
+	     ifa = TAILQ_NEXT(ifa, ifa_link)) {
 		if (ifa->ifa_addr->sa_family != af)
 			continue;
 		if (ifa_maybe == 0)
@@ -671,7 +671,7 @@ if_slowtimo(arg)
 	register struct ifnet *ifp;
 	int s = splimp();
 
-	for (ifp = ifnet.tqh_first; ifp; ifp = ifp->if_link.tqe_next) {
+	for (ifp = TAILQ_FIRST(&ifnet); ifp; ifp = TAILQ_NEXT(ifp, if_link)) {
 		if (ifp->if_timer == 0 || --ifp->if_timer)
 			continue;
 		if (ifp->if_watchdog)
@@ -719,7 +719,7 @@ ifunit(char *name)
 	/*
 	 * Now search all the interfaces for this name/number
 	 */
-	for (ifp = ifnet.tqh_first; ifp; ifp = ifp->if_link.tqe_next) {
+	for (ifp = TAILQ_FIRST(&ifnet); ifp; ifp = TAILQ_NEXT(ifp, if_link)) {
 		if (strcmp(ifp->if_name, namebuf))
 			continue;
 		if (unit == ifp->if_unit)
@@ -1060,13 +1060,13 @@ ifconf(cmd, data)
 	caddr_t data;
 {
 	register struct ifconf *ifc = (struct ifconf *)data;
-	register struct ifnet *ifp = ifnet.tqh_first;
+	register struct ifnet *ifp = TAILQ_FIRST(&ifnet);
 	register struct ifaddr *ifa;
 	struct ifreq ifr, *ifrp;
 	int space = ifc->ifc_len, error = 0;
 
 	ifrp = ifc->ifc_req;
-	for (; space > sizeof (ifr) && ifp; ifp = ifp->if_link.tqe_next) {
+	for (; space > sizeof (ifr) && ifp; ifp = TAILQ_NEXT(ifp, if_link)) {
 		char workbuf[64];
 		int ifnlen, addrs;
 
@@ -1080,9 +1080,9 @@ ifconf(cmd, data)
 		}
 
 		addrs = 0;
-		ifa = ifp->if_addrhead.tqh_first;
+		ifa = TAILQ_FIRST(&ifp->if_addrhead);
 		for ( ; space > sizeof (ifr) && ifa;
-		    ifa = ifa->ifa_link.tqe_next) {
+		    ifa = TAILQ_NEXT(ifa, ifa_link)) {
 			register struct sockaddr *sa = ifa->ifa_addr;
 			if (curproc->p_prison && prison_if(curproc, sa))
 				continue;
@@ -1186,8 +1186,8 @@ if_addmulti(ifp, sa, retifma)
 	 * If the matching multicast address already exists
 	 * then don't add a new one, just add a reference
 	 */
-	for (ifma = ifp->if_multiaddrs.lh_first; ifma;
-	     ifma = ifma->ifma_link.le_next) {
+	for (ifma = LIST_FIRST(&ifp->if_multiaddrs); ifma;
+	     ifma = LIST_NEXT(ifma, ifma_link)) {
 		if (equal(sa, ifma->ifma_addr)) {
 			ifma->ifma_refcount++;
 			if (retifma)
@@ -1229,8 +1229,8 @@ if_addmulti(ifp, sa, retifma)
 	*retifma = ifma;
 
 	if (llsa != 0) {
-		for (ifma = ifp->if_multiaddrs.lh_first; ifma;
-		     ifma = ifma->ifma_link.le_next) {
+		for (ifma = LIST_FIRST(&ifp->if_multiaddrs); ifma;
+		     ifma = LIST_NEXT(ifma, ifma_link)) {
 			if (equal(ifma->ifma_addr, llsa))
 				break;
 		}
@@ -1273,8 +1273,8 @@ if_delmulti(ifp, sa)
 	struct ifmultiaddr *ifma;
 	int s;
 
-	for (ifma = ifp->if_multiaddrs.lh_first; ifma;
-	     ifma = ifma->ifma_link.le_next)
+	for (ifma = LIST_FIRST(&ifp->if_multiaddrs); ifma;
+	     ifma = LIST_NEXT(ifma, ifma_link))
 		if (equal(sa, ifma->ifma_addr))
 			break;
 	if (ifma == 0)
@@ -1306,8 +1306,8 @@ if_delmulti(ifp, sa)
 	 * in the record for the link-layer address.  (So we don't complain
 	 * in that case.)
 	 */
-	for (ifma = ifp->if_multiaddrs.lh_first; ifma;
-	     ifma = ifma->ifma_link.le_next)
+	for (ifma = LIST_FIRST(&ifp->if_multiaddrs); ifma;
+	     ifma = LIST_NEXT(ifma, ifma_link))
 		if (equal(sa, ifma->ifma_addr))
 			break;
 	if (ifma == 0)
@@ -1382,8 +1382,8 @@ ifmaof_ifpforaddr(sa, ifp)
 {
 	struct ifmultiaddr *ifma;
 	
-	for (ifma = ifp->if_multiaddrs.lh_first; ifma;
-	     ifma = ifma->ifma_link.le_next)
+	for (ifma = LIST_FIRST(&ifp->if_multiaddrs); ifma;
+	     ifma = LIST_NEXT(ifma, ifma_link))
 		if (equal(ifma->ifma_addr, sa))
 			break;
 

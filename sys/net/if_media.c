@@ -280,7 +280,7 @@ ifmedia_ioctl(ifp, ifr, ifm, cmd)
 		(*ifm->ifm_status)(ifp, ifmr);
 
 		count = 0;
-		ep = ifm->ifm_list.lh_first;
+		ep = LIST_FIRST(&ifm->ifm_list);
 
 		if (ifmr->ifm_count != 0) {
 			kptr = (int *)malloc(ifmr->ifm_count * sizeof(int),
@@ -290,7 +290,7 @@ ifmedia_ioctl(ifp, ifr, ifm, cmd)
 			 * Get the media words from the interface's list.
 			 */
 			for (; ep != NULL && count < ifmr->ifm_count;
-			    ep = ep->ifm_list.le_next, count++)
+			    ep = LIST_NEXT(ep, ifm_list), count++)
 				kptr[count] = ep->ifm_media;
 
 			if (ep != NULL)
@@ -303,7 +303,7 @@ ifmedia_ioctl(ifp, ifr, ifm, cmd)
 		 * to 0 on the first call to know how much space to
 		 * callocate.
 		 */
-		for (; ep != NULL; ep = ep->ifm_list.le_next)
+		for (; ep != NULL; ep = LIST_NEXT(ep, ifm_list))
 			count++;
 
 		/*
@@ -351,8 +351,8 @@ ifmedia_match(ifm, target, mask)
 	match = NULL;
 	mask = ~mask;
 
-	for (next = ifm->ifm_list.lh_first; next != NULL;
-	    next = next->ifm_list.le_next) {
+	for (next = LIST_FIRST(&ifm->ifm_list); next != NULL;
+	    next = LIST_NEXT(next, ifm_list)) {
 		if ((next->ifm_media & mask) == (target & mask)) {
 #if defined(IFMEDIA_DEBUG) || defined(DIAGNOSTIC)
 			if (match) {
