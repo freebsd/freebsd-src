@@ -1986,12 +1986,7 @@ siointr1(com)
 				if (com->do_timestamp)
 					microtime(&com->timestamp);
 				++com_events;
-/* XXX - needs to go away when alpha gets ithreads */
-#ifdef __alpha__
 				schedsofttty();
-#else
-				setsofttty();
-#endif
 #if 0 /* for testing input latency vs efficiency */
 if (com->iptr - com->ibuf == 8)
 	setsofttty();
