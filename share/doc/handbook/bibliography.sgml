@@ -1,4 +1,4 @@
-<!-- $Id: bibliography.sgml,v 1.17 1997/02/22 12:58:08 peter Exp $ -->
+<!-- $Id: bibliography.sgml,v 1.18 1997/03/19 03:32:12 obrien Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
     <chapt>
@@ -183,6 +183,10 @@
 		and the UNIX Domain Protocols</em>.
 		Reading, Mass. : Addison-Wesley, 1996.
 		<newline>ISBN 0-201-63495-3</item>
+
+	    <item>Vahalia, Uresh. <em>UNIX Internals -- The New Frontiers</em>.
+		Prentice Hall, 1996.
+		<newline>ISBN 0-13-101908-2</item>
 
 	    <item>Wright, Gary R. and W. Richard Stevens.
 		<em>TCP/IP Illustrated, Volume 2:
