@@ -1,4 +1,4 @@
-/*	$NetBSD: ugen.c,v 1.51 2001/11/13 07:59:32 augustss Exp $	*/
+/*	$NetBSD: ugen.c,v 1.57 2002/02/11 15:11:49 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -487,6 +487,7 @@ ugenopen(dev_t dev, int flag, int mode, usb_proc_ptr p)
 				usbd_free_xfer(sce->isoreqs[i].xfer);
 			return (ENOMEM);
 		case UE_CONTROL:
+			sce->timeout = USBD_DEFAULT_TIMEOUT;
 			return (EINVAL);
 		}
 	}
@@ -1112,18 +1113,9 @@ ugen_do_ioctl(struct ugen_softc *sc, int endpt, u_long cmd,
 			sce->state &= ~UGEN_SHORT_OK;
 		return (0);
 	case USB_SET_TIMEOUT:
-		if (endpt == USB_CONTROL_ENDPOINT) {
-			/* XXX the lower levels don't support this yet. */
-			return (EINVAL);
-		}
 		sce = &sc->sc_endpoints[endpt][IN];
 		if (sce == NULL)
 			return (EINVAL);
-
-		if (sce->pipeh == NULL) {
-			printf("ugenioctl: USB_SET_TIMEOUT, no pipe\n");
-			return (EIO);
-		}
 		sce->timeout = *(int *)addr;
 		return (0);
 	default:
@@ -1316,8 +1308,9 @@ ugen_do_ioctl(struct ugen_softc *sc, int endpt, u_long cmd,
 					goto ret;
 			}
 		}
+		sce = &sc->sc_endpoints[endpt][IN];
 		err = usbd_do_request_flags(sc->sc_udev, &ur->ucr_request, 
-			  ptr, ur->ucr_flags, &ur->ucr_actlen);
+			  ptr, ur->ucr_flags, &ur->ucr_actlen, sce->timeout);
 		if (err) {
 			error = EIO;
 			goto ret;
