@@ -2093,7 +2093,7 @@ ufsfifo_read(ap)
 	ip = VTOI(ap->a_vp);
 	if ((ap->a_vp->v_mount->mnt_flag & MNT_NOATIME) == 0 && ip != NULL &&
 	    (uio->uio_resid != resid || (error == 0 && resid != 0)))
-		VTOI(ap->a_vp)->i_flag |= IN_ACCESS;
+		ip->i_flag |= IN_ACCESS;
 	return (error);
 }
 
@@ -2118,7 +2118,7 @@ ufsfifo_write(ap)
 	error = VOCALL(fifo_vnodeop_p, VOFFSET(vop_write), ap);
 	ip = VTOI(ap->a_vp);
 	if (ip != NULL && (uio->uio_resid != resid || (error == 0 && resid != 0)))
-		VTOI(ap->a_vp)->i_flag |= IN_CHANGE | IN_UPDATE;
+		ip->i_flag |= IN_CHANGE | IN_UPDATE;
 	return (error);
 }
 
