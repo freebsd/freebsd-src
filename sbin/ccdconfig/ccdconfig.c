@@ -46,7 +46,6 @@ static const char rcsid[] =
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <kvm.h>
 #include <limits.h>
 #include <paths.h>
 #include <stdio.h>
@@ -63,9 +62,6 @@ static	int lineno = 0;
 static	int verbose = 0;
 static	char *ccdconf = _PATH_CCDCONF;
 
-static	char *core = NULL;
-static	char *kernel = NULL;
-
 struct	flagval {
 	char	*fv_flag;
 	int	fv_val;
@@ -75,14 +71,6 @@ struct	flagval {
 	{ "CCDF_MIRROR",	CCDF_MIRROR },
 	{ "CCDF_PARITY",	CCDF_PARITY },
 	{ NULL,			0 },
-};
-
-static	struct nlist nl[] = {
-	{ "_ccd_softc" },
-#define SYM_CCDSOFTC		0
-	{ "_numccd" },
-#define SYM_NUMCCD		1
-	{ NULL },
 };
 
 #define CCD_CONFIG		0	/* configure a device */
@@ -99,7 +87,7 @@ static	int dump_ccd __P((int, char **));
 static	int getmaxpartitions __P((void));
 static	int getrawpartition __P((void));
 static	int flags_to_val __P((char *));
-static	void print_ccd_info __P((struct ccd_softc *, kvm_t *));
+static	void print_ccd_info __P((struct ccd_s *));
 static	char *resolve_ccdname __P((char *));
 static	void usage __P((void));
 
@@ -130,14 +118,6 @@ main(argc, argv)
 			action = CCD_DUMP;
 			break;
 
-		case 'M':
-			core = optarg;
-			break;
-
-		case 'N':
-			kernel = optarg;
-			break;
-
 		case 'u':
 			action = CCD_UNCONFIG;
 			++options;
@@ -161,15 +141,6 @@ main(argc, argv)
 
 	if (options > 1)
 		usage();
-
-	/*
-	 * Discard setgid privileges if not the running kernel so that bad
-	 * guys can't print interesting stuff from kernel memory.
-	 */
-	if (core != NULL || kernel != NULL || action != CCD_DUMP) {
-		setegid(getgid());
-		setgid(getgid());
-	}
 
 	if (modfind("ccd") < 0) {
 		/* Not present in kernel, try loading it */
@@ -476,6 +447,14 @@ do_io(path, cmd, cciop)
 			cp = "CCDIOCCLR";
 			break;
 
+		case CCDCONFINFO:
+			cp = "CCDCONFINFO";
+			break;
+
+		case CCDCPPINFO:
+			cp = "CCDCPPINFO";
+			break;
+
 		default:
 			cp = "unknown";
 		}
@@ -486,78 +465,44 @@ do_io(path, cmd, cciop)
 	return (0);
 }
 
-#define KVM_ABORT(kd, str) {						\
-	(void)kvm_close((kd));						\
-	warnx("%s", (str));							\
-	warnx("%s", kvm_geterr((kd)));					\
-	return (1);							\
-}
-
 static int
 dump_ccd(argc, argv)
 	int argc;
 	char **argv;
 {
-	char errbuf[_POSIX2_LINE_MAX], *ccd, *cp;
-	struct ccd_softc *cs, *kcs;
-	size_t readsize;
+	char *ccd, *cp;
 	int i, error, numccd, numconfiged = 0;
-	kvm_t *kd;
-
-	bzero(errbuf, sizeof(errbuf));
-
-	if ((kd = kvm_openfiles(kernel, core, NULL, O_RDONLY,
-	    errbuf)) == NULL) {
-		warnx("can't open kvm: %s", errbuf);
-		return (1);
-	}
-	setegid(getgid());
-	setgid(getgid());
-
-	if (kvm_nlist(kd, nl))
-		KVM_ABORT(kd, "ccd-related symbols not available");
-
-	/* Check to see how many ccds are currently configured. */
-	if (kvm_read(kd, nl[SYM_NUMCCD].n_value, (char *)&numccd,
-	    sizeof(numccd)) != sizeof(numccd))
-		KVM_ABORT(kd, "can't determine number of configured ccds");
-
-	if (numccd == 0) {
-		printf("ccd driver in kernel, but is uninitialized\n");
-		goto done;
-	}
-
-	/* Allocate space for the configuration data. */
-	readsize = numccd * sizeof(struct ccd_softc);
-	if ((cs = malloc(readsize)) == NULL) {
-		warnx("no memory for configuration data");
-		goto bad;
-	}
-	bzero(cs, readsize);
+	struct ccdconf conf;
 
 	/*
 	 * Read the ccd configuration data from the kernel and dump
 	 * it to stdout.
 	 */
-	if (kvm_read(kd, nl[SYM_CCDSOFTC].n_value, (char *)&kcs,
-	    sizeof(kcs)) != sizeof(kcs)) {
-		free(cs);
-		KVM_ABORT(kd, "can't find pointer to configuration data");
+	if ((ccd = resolve_ccdname("ccd0")) == NULL) {		/* XXX */
+		warnx("invalid ccd name: %s", cp);
+		return (1);
 	}
-	if (kvm_read(kd, (u_long)kcs, (char *)cs, readsize) != readsize) {
-		free(cs);
-		KVM_ABORT(kd, "can't read configuration data");
+	conf.size = 0;
+	if (do_io(ccd, CCDCONFINFO, (struct ccd_ioctl *) &conf))
+		return (1);
+	if (conf.size == 0) {
+		printf("no concatenated disks configured\n");
+		return (0);
 	}
+	/* Allocate space for the configuration data. */
+	conf.buffer = alloca(conf.size);
+	if (conf.buffer == NULL) {
+		warnx("no memory for configuration data");
+		return (1);
+	}
+	if (do_io(ccd, CCDCONFINFO, (struct ccd_ioctl *) &conf))
+		return (1);
+
+	numconfiged = conf.size / sizeof(struct ccd_s);
 
 	if (argc == 0) {
-		for (i = 0; i < numccd; ++i)
-			if (cs[i].sc_flags & CCDF_INITED) {
-				++numconfiged;
-				print_ccd_info(&cs[i], kd);
-			}
-
-		if (numconfiged == 0)
-			printf("no concatenated disks configured\n");
+		for (i = 0; i < numconfiged; i++)
+			print_ccd_info(&(conf.buffer[i]));
 	} else {
 		while (argc) {
 			cp = *argv++; --argc;
@@ -565,55 +510,41 @@ dump_ccd(argc, argv)
 				warnx("invalid ccd name: %s", cp);
 				continue;
 			}
-			if ((error = pathtounit(ccd, &i)) != 0) {
+			if ((error = pathtounit(ccd, &numccd)) != 0) {
 				warnx("%s: %s", ccd, strerror(error));
 				continue;
 			}
-			if (i >= numccd) {
-				warnx("ccd%d not configured", i);
+			error = 1;
+			for (i = 0; i < numconfiged; i++) {
+				if (conf.buffer[i].sc_unit == numccd) {
+					print_ccd_info(&(conf.buffer[i]));
+					error = 0;
+					break;
+				}
+			}
+			if (error) {
+				warnx("ccd%d not configured", numccd);
 				continue;
 			}
-			if (cs[i].sc_flags & CCDF_INITED)
-				print_ccd_info(&cs[i], kd);
-			else
-				printf("ccd%d not configured\n", i);
 		}
-	}
+	}	
 
-	free(cs);
-
- done:
-	(void)kvm_close(kd);
 	return (0);
-
- bad:
-	(void)kvm_close(kd);
-	return (1);
 }
 
 static void
-print_ccd_info(cs, kd)
-	struct ccd_softc *cs;
-	kvm_t *kd;
+print_ccd_info(cs)
+	struct ccd_s *cs;
 {
+	char *cp, *ccd;
 	static int header_printed = 0;
-	struct ccdcinfo *cip;
-	size_t readsize;
-	char path[MAXPATHLEN];
-	int i;
+	struct ccdcpps cpps;
 
+	/* Print out header if necessary*/
 	if (header_printed == 0 && verbose) {
 		printf("# ccd\t\tileave\tflags\tcompnent devices\n");
 		header_printed = 1;
 	}
-
-	readsize = cs->sc_nccdisks * sizeof(struct ccdcinfo);
-	if ((cip = malloc(readsize)) == NULL) {
-		warn("ccd%d: can't allocate memory for component info",
-		    cs->sc_unit);
-		return;
-	}
-	bzero(cip, readsize);
 
 	/* Dump out softc information. */
 	printf("ccd%d\t\t%d\t%d\t", cs->sc_unit, cs->sc_ileave,
@@ -621,29 +552,46 @@ print_ccd_info(cs, kd)
 	fflush(stdout);
 
 	/* Read in the component info. */
-	if (kvm_read(kd, (u_long)cs->sc_cinfo, (char *)cip,
-	    readsize) != readsize) {
+	asprintf(&cp, "%s%d", cs->device_stats.device_name,
+	    cs->device_stats.unit_number);
+	if (cp == NULL) {
+		printf("\n");
+		warn("ccd%d: can't allocate memory",
+		    cs->sc_unit);
+		return;
+	}
+
+	if ((ccd = resolve_ccdname(cp)) == NULL) {
+		printf("\n");
+		warnx("can't read component info: invalid ccd name: %s", cp);
+		return;
+	}
+	cpps.size = 0;
+	if (do_io(ccd, CCDCPPINFO, (struct ccd_ioctl *) &cpps)) {
 		printf("\n");
 		warnx("can't read component info");
-		warnx("%s", kvm_geterr(kd));
-		goto done;
+		return;
+	}
+	cpps.buffer = alloca(cpps.size);
+	if (cpps.buffer == NULL) {
+		printf("\n");
+		warn("ccd%d: can't allocate memory for component info",
+		    cs->sc_unit);
+		return;
+	}
+	if (do_io(ccd, CCDCPPINFO, (struct ccd_ioctl *) &cpps)) {
+		printf("\n");
+		warnx("can't read component info");
+		return;
 	}
 
-	/* Read component pathname and display component info. */
-	for (i = 0; i < cs->sc_nccdisks; ++i) {
-		if (kvm_read(kd, (u_long)cip[i].ci_path, (char *)path,
-		    cip[i].ci_pathlen) != cip[i].ci_pathlen) {
-			printf("\n");
-			warnx("can't read component pathname");
-			warnx("%s", kvm_geterr(kd));
-			goto done;
-		}
-		printf((i + 1 < cs->sc_nccdisks) ? "%s " : "%s\n", path);
+	/* Display component info. */
+	for (cp = cpps.buffer; cp - cpps.buffer < cpps.size; cp += strlen(cp) + 1) {
+		printf((cp + strlen(cp) + 1) < (cpps.buffer + cpps.size) ?
+		    "%s " : "%s\n", cp);
 		fflush(stdout);
 	}
-
- done:
-	free(cip);
+	return;
 }
 
 static int
@@ -725,7 +673,7 @@ usage()
 		"       ccdconfig -C [-v] [-f config_file]",
 		"       ccdconfig -u [-v] ccd [...]",
 		"       ccdconfig -U [-v] [-f config_file]",
-		"       ccdconfig -g [-M core] [-N system] [ccd [...]]");
+		"       ccdconfig -g [ccd [...]]");
 	exit(1);
 }
 
