@@ -66,6 +66,9 @@ struct pmap {
 
 void	pmap_bootstrap(vm_offset_t skpa, vm_offset_t ekva);
 vm_offset_t pmap_kextract(vm_offset_t va);
+void	pmap_kenter_flags(vm_offset_t va, vm_offset_t pa, u_long flags);
+
+#define	vtophys(va)	pmap_kextract(((vm_offset_t) (va)))
 
 extern	vm_offset_t avail_start;
 extern	vm_offset_t avail_end;
