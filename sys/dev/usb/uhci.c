@@ -1,7 +1,7 @@
 /*	$NetBSD: uhci.c,v 1.160 2002/05/28 12:42:39 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
-/*	Also incorporated from NetBSD: 1.165	*/
+/*	Also incorporated from NetBSD: 1.165, 166	*/
 
 /*
  * Copyright (c) 1998 The NetBSD Foundation, Inc.
@@ -169,6 +169,7 @@ struct uhci_pipe {
 };
 
 Static void		uhci_globalreset(uhci_softc_t *);
+Static usbd_status	uhci_portreset(uhci_softc_t*, int);
 Static void		uhci_reset(uhci_softc_t *);
 #if defined(__NetBSD__) || defined(__OpenBSD__)
 Static void		uhci_shutdown(void *v);
@@ -2981,6 +2982,101 @@ uhci_str(usb_string_descriptor_t *p, int l, char *s)
 }
 
 /*
+ * The USB hub protocol requires that SET_FEATURE(PORT_RESET) also
+ * enables the port, and also states that SET_FEATURE(PORT_ENABLE)
+ * should not be used by the USB subsystem.  As we cannot issue a
+ * SET_FEATURE(PORT_ENABLE) externally, we must ensure that the port
+ * will be enabled as part of the reset.
+ *
+ * On the VT83C572, the port cannot be successfully enabled until the
+ * outstanding "port enable change" and "connection status change"
+ * events have been reset.
+ */
+Static usbd_status
+uhci_portreset(uhci_softc_t *sc, int index)
+{
+	int lim, port, x;
+
+	if (index == 1)
+		port = UHCI_PORTSC1;
+	else if (index == 2)
+		port = UHCI_PORTSC2;
+	else
+		return (USBD_IOERROR);
+
+	x = URWMASK(UREAD2(sc, port));
+	UWRITE2(sc, port, x | UHCI_PORTSC_PR);
+
+	usb_delay_ms(&sc->sc_bus, USB_PORT_ROOT_RESET_DELAY);
+
+	DPRINTFN(3,("uhci port %d reset, status0 = 0x%04x\n",
+		    index, UREAD2(sc, port)));
+
+	x = URWMASK(UREAD2(sc, port));
+	UWRITE2(sc, port, x & ~UHCI_PORTSC_PR);
+
+	delay(100);
+
+	DPRINTFN(3,("uhci port %d reset, status1 = 0x%04x\n",
+		    index, UREAD2(sc, port)));
+
+	x = URWMASK(UREAD2(sc, port));
+	UWRITE2(sc, port, x  | UHCI_PORTSC_PE);
+
+	for (lim = 10; --lim > 0;) {
+		usb_delay_ms(&sc->sc_bus, USB_PORT_RESET_DELAY);
+
+		x = UREAD2(sc, port);
+
+		DPRINTFN(3,("uhci port %d iteration %u, status = 0x%04x\n",
+			    index, lim, x));
+
+		if (!(x & UHCI_PORTSC_CCS)) {
+			/*
+			 * No device is connected (or was disconnected
+			 * during reset).  Consider the port reset.
+			 * The delay must be long enough to ensure on
+			 * the initial iteration that the device
+			 * connection will have been registered.  50ms
+			 * appears to be sufficient, but 20ms is not.
+			 */
+			DPRINTFN(3,("uhci port %d loop %u, device detached\n",
+				    index, lim));
+			break;
+		}
+
+		if (x & (UHCI_PORTSC_POEDC | UHCI_PORTSC_CSC)) {
+			/*
+			 * Port enabled changed and/or connection
+			 * status changed were set.  Reset either or
+			 * both raised flags (by writing a 1 to that
+			 * bit), and wait again for state to settle.
+			 */
+			UWRITE2(sc, port, URWMASK(x) |
+				(x & (UHCI_PORTSC_POEDC | UHCI_PORTSC_CSC)));
+			continue;
+		}
+
+		if (x & UHCI_PORTSC_PE)
+			/* Port is enabled */
+			break;
+
+		UWRITE2(sc, port, URWMASK(x) | UHCI_PORTSC_PE);
+	}
+
+	DPRINTFN(3,("uhci port %d reset, status2 = 0x%04x\n",
+		    index, UREAD2(sc, port)));
+
+	if (lim <= 0) {
+		DPRINTFN(1,("uhci port %d reset timed out\n", index));
+		return (USBD_TIMEOUT);
+	}
+	
+	sc->sc_isreset = 1;
+	return (USBD_NORMAL_COMPLETION);
+}
+
+/*
  * Simulate a hardware hub by handling all the necessary requests.
  */
 usbd_status
@@ -3290,18 +3386,8 @@ uhci_root_ctrl_start(usbd_xfer_handle xfer)
 			UWRITE2(sc, port, x | UHCI_PORTSC_SUSP);
 			break;
 		case UHF_PORT_RESET:
-			x = URWMASK(UREAD2(sc, port));
-			UWRITE2(sc, port, x | UHCI_PORTSC_PR);
-			usb_delay_ms(&sc->sc_bus, USB_PORT_ROOT_RESET_DELAY);
-			UWRITE2(sc, port, x & ~UHCI_PORTSC_PR);
-			delay(100);
-			x = UREAD2(sc, port);
-			UWRITE2(sc, port, x  | UHCI_PORTSC_PE);
-			usb_delay_ms(&sc->sc_bus, 10); /* XXX */
-			DPRINTFN(3,("uhci port %d reset, status = 0x%04x\n",
-				    index, UREAD2(sc, port)));
-			sc->sc_isreset = 1;
-			break;
+			err = uhci_portreset(sc, index);
+			goto ret;
 		case UHF_PORT_POWER:
 			/* Pretend we turned on power */
 			err = USBD_NORMAL_COMPLETION;
