@@ -57,6 +57,7 @@
 #endif
 
 #include <machine/cpu.h>
+#include <machine/ipl.h>
 #ifdef SMP
 #include <machine/smp.h>
 #endif
