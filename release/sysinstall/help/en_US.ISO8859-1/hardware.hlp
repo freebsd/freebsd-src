@@ -1,4 +1,4 @@
-Hardware Documentation Guide:  $Id: hardware.hlp,v 1.9 1995/06/07 05:51:11 jkh Exp $
+Hardware Documentation Guide:  $Id: hardware.hlp,v 1.10 1995/06/09 08:29:16 jkh Exp $
 
 Table of Contents
 -----------------
@@ -375,7 +375,7 @@ A: This problem may occur in a system with a 3com 3c509 ethernet adaptor.
 Q: My system hangs during boot, right after the "fd0: [my floppy drive]"
    line.
 
-A: This is not actually a hang, simply a very LONG "wcd0" probe that
+A: This is not actually a hang, simply a very LONG "wdc0" probe that
    often takes a long time to complete on certain systems (where there
    usually _isn't_ a WD controller).  Be patient, your system will boot!
    To eliminate the problem, boot with the -c flag and eliminate the wdc0
