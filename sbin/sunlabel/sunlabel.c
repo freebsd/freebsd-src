@@ -70,7 +70,8 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/param.h>
-#include <sys/sysctl.h>
+#include <sys/disk.h>
+#include <sys/ioctl.h>
 #include <sys/sun_disklabel.h>
 #include <sys/wait.h>
 
@@ -102,6 +103,8 @@ static int edit_label(struct sun_disklabel *sl, const char *disk,
     const char *bootpath);
 static int parse_label(struct sun_disklabel *sl, const char *file);
 static void print_label(struct sun_disklabel *sl, const char *disk, FILE *out);
+
+static uint16_t checksum(struct sun_disklabel *sl);
 
 static int parse_size(struct sun_disklabel *sl, int part, char *size);
 static int parse_offset(struct sun_disklabel *sl, int part, char *offset);
@@ -185,6 +188,8 @@ main(int ac, char **av)
 			usage();
 		proto = av[1];
 		read_label(&sl, disk);
+		if (parse_label(&sl, proto) != 0)
+			errx(1, "%s: invalid label", proto);
 		write_label(&sl, disk, bootpath);
 	} else if (Bflag) {
 		read_label(&sl, disk);
@@ -212,6 +217,12 @@ check_label(struct sun_disklabel *sl)
 	int j;
 
 	nsectors = sl->sl_ncylinders * sl->sl_ntracks * sl->sl_nsectors;
+	if (sl->sl_part[2].sdkp_cyloffset != 0 ||
+	    sl->sl_part[2].sdkp_nsectors != nsectors) {
+		warnx("partition c is incorrect, must start at 0 and cover "
+		    "whole disk");
+		return (1);
+	}
 	for (i = 0; i < 8; i++) {
 		if (i == 2 || sl->sl_part[i].sdkp_nsectors == 0)
 			continue;
@@ -245,72 +256,62 @@ check_label(struct sun_disklabel *sl)
 static void
 read_label(struct sun_disklabel *sl, const char *disk)
 {
-	uint32_t bytepercyl;
-	uint32_t bytepersec;
-	uint32_t acylinders;
-	uint32_t nsectors;
-	uint32_t ntracks;
-	uintmax_t offset;
-	uintmax_t size;
-	char name[64];
-	char *text;
-	char *p, *s;
-	size_t len;
-	int i;
-	int n;
+	char path[MAXPATHLEN];
+	uint32_t sectorsize;
+	uint32_t fwsectors;
+	uint32_t fwheads;
+	off_t mediasize;
+	int fd;
 
-	if (sysctlbyname("kern.geom.conftxt", NULL, &len, NULL, 0) < 0)
-		err(1, "sysctlbyname");
-	if ((text = malloc(len)) == NULL)
-		err(1, "malloc");
-	if (sysctlbyname("kern.geom.conftxt", text, &len, NULL, 0) < 0)
-		err(1, "sysctlbyname");
-	bytepercyl = 0;
-	for (p = text; (s = strsep(&p, "\n")) != NULL;) {
-		n = sscanf(s, "%*u DISK %s %ju %u hd %u sc %u\n", name, &size,
-		    &bytepersec, &ntracks, &nsectors);
-		if (n == 5) {
-			if (strncmp(name, disk, strlen(disk)) != 0)
-				continue;
-			bytepercyl = ntracks * nsectors * bytepersec;
-			sl->sl_pcylinders = size / bytepercyl;
-			sl->sl_acylinders = 2;
-			sl->sl_nsectors = nsectors;
-			sl->sl_ntracks = ntracks;
-			continue;
+	snprintf(path, sizeof(path), "%s%s", _PATH_DEV, disk);
+	if ((fd = open(path, O_RDONLY)) < 0)
+		err(1, "open %s", path);
+	if (read(fd, sl, sizeof(*sl)) != sizeof(*sl))
+		err(1, "read");
+	if (sl->sl_magic != SUN_DKMAGIC || checksum(sl) != sl->sl_cksum) {
+		bzero(sl, sizeof(*sl));
+		if (ioctl(fd, DIOCGMEDIASIZE, &mediasize) != 0)
+			err(1, "%s: ioctl(DIOCGMEDIASIZE) failed", disk);
+		if (ioctl(fd, DIOCGSECTORSIZE, &sectorsize) != 0)
+			err(1, "%s: DIOCGSECTORSIZE failed", disk);
+		if (ioctl(fd, DIOCGFWSECTORS, &fwsectors) != 0)
+			fwsectors = 63;
+		if (ioctl(fd, DIOCGFWHEADS, &fwheads) != 0) {
+			if (mediasize <= 63 * 1024 * sectorsize)
+				fwheads = 1;
+			else if (mediasize <= 63 * 16 * 1024 * sectorsize)
+				fwheads = 16;
+			else
+				fwheads = 255;
 		}
-		n = sscanf(s,
-		    "%*u SUN %s %ju %*u i %u o %ju sc %*u hd %*u alt %u",
-		    name, &size, &i, &offset, &acylinders);
-		if (n == 5) {
-			if (strncmp(name, disk, strlen(disk)) != 0)
-				continue;
-			sl->sl_acylinders = acylinders;
-			sl->sl_part[i].sdkp_cyloffset = offset / bytepercyl;
-			sl->sl_part[i].sdkp_nsectors = size / bytepersec;
-			sl->sl_magic = SUN_DKMAGIC;
-			continue;
+		sl->sl_rpm = 3600;
+		sl->sl_pcylinders = mediasize / (fwsectors * fwheads *
+		    sectorsize);
+		sl->sl_sparespercyl = 0;
+		sl->sl_interleave = 1;
+		sl->sl_ncylinders = sl->sl_pcylinders - 2;
+		sl->sl_acylinders = 2;
+		sl->sl_nsectors = fwsectors;
+		sl->sl_ntracks = fwheads;
+		sl->sl_part[2].sdkp_cyloffset = 0;
+		sl->sl_part[2].sdkp_nsectors = sl->sl_ncylinders *
+		    sl->sl_ntracks * sl->sl_nsectors;
+		if (mediasize > 4999L * 1024L * 1024L) {
+			sprintf(sl->sl_text,
+			    "FreeBSD%luG cyl %u alt %u hd %u sec %u",
+			    (mediasize + 512 * 1024 * 1024) /
+			        (1024 * 1024 * 1024),
+			    sl->sl_ncylinders, sl->sl_acylinders,
+			    sl->sl_ntracks, sl->sl_nsectors);
+		} else {
+			sprintf(sl->sl_text,
+			    "FreeBSD%luM cyl %u alt %u hd %u sec %u",
+			    (mediasize + 512 * 1024) / (1024 * 1024),
+			    sl->sl_ncylinders, sl->sl_acylinders,
+			    sl->sl_ntracks, sl->sl_nsectors);
 		}
 	}
-	if (bytepercyl == 0)
-		errx(1, "disk %s not found", disk);
-	sl->sl_ncylinders = sl->sl_pcylinders -
-	    sl->sl_acylinders;
-	sl->sl_interleave = 1;
-	sl->sl_sparespercyl = 0;
-	sl->sl_rpm = 3600;
-	size = (uint64_t)sl->sl_ncylinders * sl->sl_ntracks * sl->sl_nsectors;
-	if (size > 4999 * 1024 * 2) {
-		sprintf(sl->sl_text, "FreeBSD%luG cyl %u alt %u hd %u sec %u",
-		    (size + 1024 * 1024) / (2 * 1024 * 1024),
-		    sl->sl_ncylinders, sl->sl_acylinders,
-		    sl->sl_ntracks, sl->sl_nsectors);
-	} else {
-		sprintf(sl->sl_text, "FreeBSD%luM cyl %u alt %u hd %u sec %u",
-		    (size + 1024) / (2 * 1024),
-		    sl->sl_ncylinders, sl->sl_acylinders,
-		    sl->sl_ntracks, sl->sl_nsectors);
-	}
+	close(fd);
 }
 
 static void
@@ -318,22 +319,13 @@ write_label(struct sun_disklabel *sl, const char *disk, const char *bootpath)
 {
 	char path[MAXPATHLEN];
 	char boot[16 * 512];
-	uint16_t cksum;
-	uint16_t *sp1;
-	uint16_t *sp2;
 	off_t off;
 	int bfd;
 	int fd;
 	int i;
 
 	sl->sl_magic = SUN_DKMAGIC;
-
-	sp1 = (u_short *)sl;
-	sp2 = (u_short *)(sl + 1);
-	cksum = 0;
-	while (sp1 < sp2)
-		cksum ^= *sp1++;
-	sl->sl_cksum = cksum;
+	sl->sl_cksum = checksum(sl);
 
 	if (check_label(sl) != 0)
 		errx(1, "invalid label");
@@ -452,9 +444,6 @@ parse_label(struct sun_disklabel *sl, const char *file)
 		line++;
 	}
 	fclose(fp);
-	sl->sl_part[2].sdkp_cyloffset = 0;
-	sl->sl_part[2].sdkp_nsectors = sl->sl_ncylinders *
-	    sl->sl_ntracks * sl->sl_nsectors;
 	return (check_label(sl));
 }
 
@@ -493,6 +482,21 @@ parse_size(struct sun_disklabel *sl, int part, char *size)
 	}
 	sl->sl_part[part].sdkp_nsectors = n;
 	return (0);
+}
+
+static uint16_t
+checksum(struct sun_disklabel *sl)
+{
+	uint16_t cksum;
+	uint16_t *sp1;
+	uint16_t *sp2;
+
+	sp1 = (u_short *)sl;
+	sp2 = (u_short *)(sl + 1) - 1;
+	cksum = 0;
+	while (sp1 < sp2)
+		cksum ^= *sp1++;
+	return (cksum);
 }
 
 static int
