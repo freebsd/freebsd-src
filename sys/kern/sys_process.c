@@ -394,24 +394,12 @@ ptrace(struct thread *td, struct ptrace_args *uap)
 	case PT_KILL:
 	case PT_STEP:
 	case PT_DETACH:
-#ifdef PT_GETREGS
 	case PT_GETREGS:
-#endif
-#ifdef PT_SETREGS
 	case PT_SETREGS:
-#endif
-#ifdef PT_GETFPREGS
 	case PT_GETFPREGS:
-#endif
-#ifdef PT_SETFPREGS
 	case PT_SETFPREGS:
-#endif
-#ifdef PT_GETDBREGS
 	case PT_GETDBREGS:
-#endif
-#ifdef PT_SETDBREGS
 	case PT_SETDBREGS:
-#endif
 		/* not being traced... */
 		if ((p->p_flag & P_TRACED) == 0) {
 			PROC_UNLOCK(p);
@@ -584,7 +572,6 @@ ptrace(struct thread *td, struct ptrace_args *uap)
 		uap->data = SIGKILL;
 		goto sendsig;	/* in PT_CONTINUE above */
 
-#ifdef PT_SETREGS
 	case PT_SETREGS:
 		error = copyin(uap->addr, &r.reg, sizeof r.reg);
 		if (error == 0) {
@@ -593,9 +580,7 @@ ptrace(struct thread *td, struct ptrace_args *uap)
 			PRELE(p);
 		}
 		return (error);
-#endif /* PT_SETREGS */
 
-#ifdef PT_GETREGS
 	case PT_GETREGS:
 		PHOLD(p);
 		error = proc_read_regs(td2, &r.reg);
@@ -603,9 +588,7 @@ ptrace(struct thread *td, struct ptrace_args *uap)
 		if (error == 0)
 			error = copyout(&r.reg, uap->addr, sizeof r.reg);
 		return (error);
-#endif /* PT_SETREGS */
 
-#ifdef PT_SETFPREGS
 	case PT_SETFPREGS:
 		error = copyin(uap->addr, &r.fpreg, sizeof r.fpreg);
 		if (error == 0) {
@@ -614,9 +597,7 @@ ptrace(struct thread *td, struct ptrace_args *uap)
 			PRELE(p);
 		}
 		return (error);
-#endif /* PT_SETFPREGS */
 
-#ifdef PT_GETFPREGS
 	case PT_GETFPREGS:
 		PHOLD(p);
 		error = proc_read_fpregs(td2, &r.fpreg);
@@ -624,9 +605,7 @@ ptrace(struct thread *td, struct ptrace_args *uap)
 		if (error == 0)
 			error = copyout(&r.fpreg, uap->addr, sizeof r.fpreg);
 		return (error);
-#endif /* PT_SETFPREGS */
 
-#ifdef PT_SETDBREGS
 	case PT_SETDBREGS:
 		error = copyin(uap->addr, &r.dbreg, sizeof r.dbreg);
 		if (error == 0) {
@@ -635,9 +614,7 @@ ptrace(struct thread *td, struct ptrace_args *uap)
 			PRELE(p);
 		}
 		return (error);
-#endif /* PT_SETDBREGS */
-		
-#ifdef PT_GETDBREGS
+
 	case PT_GETDBREGS:
 		PHOLD(p);
 		error = proc_read_dbregs(td2, &r.dbreg);
@@ -645,7 +622,6 @@ ptrace(struct thread *td, struct ptrace_args *uap)
 		if (error == 0)
 			error = copyout(&r.dbreg, uap->addr, sizeof r.dbreg);
 		return (error);
-#endif /* PT_SETDBREGS */
 
 	default:
 		KASSERT(0, ("unreachable code\n"));
