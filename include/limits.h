@@ -36,6 +36,7 @@
 
 #ifndef _LIMITS_H_
 #define	_LIMITS_H_
+
 #include <sys/cdefs.h>
 
 #if __POSIX_VISIBLE
@@ -64,16 +65,16 @@
 #endif
 
 #if __POSIX_VISIBLE >= 199309
-#define _POSIX_AIO_LISTIO_MAX	16
-#define _POSIX_AIO_MAX		1
-#define _POSIX_DELAYTIMER_MAX	32
-#define _POSIX_MQ_OPEN_MAX	8
-#define _POSIX_MQ_PRIO_MAX	32
-#define _POSIX_RTSIG_MAX	0
-#define _POSIX_SEM_NSEMS_MAX	256
-#define _POSIX_SEM_VALUE_MAX	32767
-#define _POSIX_SIGQUEUE_MAX	32
-#define _POSIX_TIMER_MAX	32
+#define	_POSIX_AIO_LISTIO_MAX	16
+#define	_POSIX_AIO_MAX		1
+#define	_POSIX_DELAYTIMER_MAX	32
+#define	_POSIX_MQ_OPEN_MAX	8
+#define	_POSIX_MQ_PRIO_MAX	32
+#define	_POSIX_RTSIG_MAX	0
+#define	_POSIX_SEM_NSEMS_MAX	256
+#define	_POSIX_SEM_VALUE_MAX	32767
+#define	_POSIX_SIGQUEUE_MAX	32
+#define	_POSIX_TIMER_MAX	32
 #endif
 
 #if __POSIX_VISIBLE >= 200112
@@ -82,17 +83,18 @@
 
 #if __XSI_VISIBLE
 #define	_XOPEN_IOV_MAX		16
-#define PASS_MAX		128	/* _PASSWORD_LEN from <pwd.h> */
+#define	PASS_MAX		128	/* _PASSWORD_LEN from <pwd.h> */
 
-#define NL_ARGMAX		99	/* max # of position args for printf */
-#define NL_LANGMAX		31	/* max LANG name length */
-#define NL_MSGMAX		32767
-#define NL_NMAX			1
-#define NL_SETMAX		255
-#define NL_TEXTMAX		2048
-#endif 
+#define	NL_ARGMAX		99	/* max # of position args for printf */
+#define	NL_LANGMAX		31	/* max LANG name length */
+#define	NL_MSGMAX		32767
+#define	NL_NMAX			1
+#define	NL_SETMAX		255
+#define	NL_TEXTMAX		2048
+#endif
 
 #include <machine/limits.h>
+
 #if __POSIX_VISIBLE
 #include <sys/syslimits.h>
 #endif
