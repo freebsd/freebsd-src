@@ -16,7 +16,7 @@
  * 4. Modifications may be freely made to this file if the above conditions
  *    are met.
  *
- * $Id: kern_physio.c,v 1.11.4.1 1995/09/14 07:09:58 davidg Exp $
+ * $Id: kern_physio.c,v 1.11.4.2 1996/06/26 06:12:45 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -167,6 +167,7 @@ minphys(struct buf *bp)
 		bp->b_bcount = maxphys;
 	}
 	return bp->b_bcount;
+}
 
 int
 rawread(dev_t dev, struct uio *uio, int ioflag)
