@@ -155,8 +155,7 @@ static	char mybuf[50];
 /*         4 for port */
 /*         8 for numeric only */
 char *
-atalk_print(sa,what)
-	register struct sockaddr *sa;
+atalk_print(struct sockaddr *sa, int what)
 {
 	struct sockaddr_at *sat = (struct sockaddr_at *)sa;
 	static	char mybuf[50];
@@ -213,9 +212,7 @@ atalk_print2(struct sockaddr *sa, struct sockaddr *mask, int what)
 }
 
 void
-atalkprotopr(off, name)
-	u_long off;
-	char *name;
+atalkprotopr(u_long off, char *name)
 {
 	struct ddpcb *this, *next;
 
@@ -264,9 +261,7 @@ atalkprotopr(off, name)
  * Dump DDP statistics structure.
  */
 void
-ddp_stats(off, name)
-	u_long off;
-	char *name;
+ddp_stats(u_long off, char *name)
 {
 	struct ddpstat ddpstat;
 
