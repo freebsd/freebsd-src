@@ -6,14 +6,12 @@
 #
 # csu must be built before all shared libaries for ELF.
 # libcom_err must be built before libkrb, libpam and libss.
-# libcrypt must be built before libkrb, libpam and libskey.
+# libcrypt must be built before libkrb and libpam.
 # msun must be built before libg++ and libstdc++.
-# libmd must be built before libatm, libopie, libradius, libskey, and
-# libtacplus.
+# libmd must be built before libatm, libopie, libradius, and libtacplus.
 # libncurses must be built before libdialog, libedit and libreadline.
 # libopie must be built before libpam.
 # libradius must be built before libpam.
-# libskey must be built before libpam.
 # libtacplus must be built before libpam.
 # libutil must be built before libpam.
 # libsbuf must be built before libcam.
@@ -21,7 +19,7 @@
 # Otherwise, the SUBDIR list should be in alphabetical order.
 
 SUBDIR=	${_csu} libcom_err libcrypt msun libmd \
-	libncurses libradius libskey libtacplus libutil libsbuf \
+	libncurses libradius libtacplus libutil libsbuf \
 	${_compat} libalias libatm ${_libbind} libbz2 libc ${_libc_r} \
 	libcalendar libcam libcompat libdevinfo libdevstat libdisk \
 	libedit libfetch libform libftpio libgnumalloc ${_libio} libipsec \
