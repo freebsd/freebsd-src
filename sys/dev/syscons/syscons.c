@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.240 1997/11/25 12:44:44 sos Exp $
+ *  $Id: syscons.c,v 1.241 1997/12/06 13:23:26 bde Exp $
  */
 
 #include "sc.h"
@@ -49,6 +49,7 @@
 #include <machine/clock.h>
 #include <machine/cons.h>
 #include <machine/console.h>
+#include <machine/mouse.h>
 #include <machine/md_var.h>
 #include <machine/psl.h>
 #include <machine/frame.h>
@@ -153,6 +154,8 @@ static  char		vgaregs[MODE_PARAM_SIZE];
 static  char		vgaregs2[MODE_PARAM_SIZE];
 static  int		rows_offset = 1;
 static	char 		*cut_buffer;
+static	int		mouse_level = 0;	/* sysmouse protocol level */
+static	mousestatus_t	mouse_status = { 0, 0, 0, 0, 0, 0 };
 static  u_short 	mouse_and_mask[16] = {
 				0xc000, 0xe000, 0xf000, 0xf800,
 				0xfc00, 0xfe00, 0xff00, 0xff80,
@@ -249,8 +252,14 @@ static void set_font_mode(u_char *buf);
 static void set_normal_mode(u_char *buf);
 static void set_destructive_cursor(scr_stat *scp);
 static void set_mouse_pos(scr_stat *scp);
+static int skip_spc_right(scr_stat *scp, u_short *p);
+static int skip_spc_left(scr_stat *scp, u_short *p);
+static void mouse_cut(scr_stat *scp);
 static void mouse_cut_start(scr_stat *scp);
 static void mouse_cut_end(scr_stat *scp);
+static void mouse_cut_word(scr_stat *scp);
+static void mouse_cut_line(scr_stat *scp);
+static void mouse_cut_extend(scr_stat *scp);
 static void mouse_paste(scr_stat *scp);
 static void draw_mouse_image(scr_stat *scp); 
 static void remove_mouse_image(scr_stat *scp); 
@@ -785,6 +794,8 @@ scopen(dev_t dev, int flag, int mode, struct proc *p)
 	scparam(tp, &tp->t_termios);
 	ttsetwater(tp);
 	(*linesw[tp->t_line].l_modem)(tp, 1);
+    	if (minor(dev) == SC_MOUSE)
+	    mouse_level = 0;		/* XXX */
     }
     else
 	if (tp->t_state & TS_XCLUDE && p->p_ucred->cr_uid != 0)
@@ -925,11 +936,12 @@ int
 scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 {
     int error;
-    u_int i = 0;
+    u_int i;
     struct tty *tp;
     scr_stat *scp;
     u_short *usp;
     char *mp;
+    int s;
 
     tp = scdevtotty(dev);
     if (!tp)
@@ -1047,10 +1059,22 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 
     case CONS_MOUSECTL:		/* control mouse arrow */
     {
+	/* MOUSE_BUTTON?DOWN -> MOUSE_MSC_BUTTON?UP */
+	static butmap[8] = {
+            MOUSE_MSC_BUTTON1UP | MOUSE_MSC_BUTTON2UP 
+		| MOUSE_MSC_BUTTON3UP,
+            MOUSE_MSC_BUTTON2UP | MOUSE_MSC_BUTTON3UP,
+            MOUSE_MSC_BUTTON1UP | MOUSE_MSC_BUTTON3UP,
+            MOUSE_MSC_BUTTON3UP,
+            MOUSE_MSC_BUTTON1UP | MOUSE_MSC_BUTTON2UP,
+            MOUSE_MSC_BUTTON2UP,
+            MOUSE_MSC_BUTTON1UP,
+            0,
+	};
 	mouse_info_t *mouse = (mouse_info_t*)data;
 
 	if (!crtc_vga)
-	    return ENXIO;
+	    return ENODEV;
 	
 	switch (mouse->operation) {
 	case MOUSE_MODE:
@@ -1100,26 +1124,55 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	case MOUSE_GETINFO:
 	    mouse->u.data.x = scp->mouse_xpos;
 	    mouse->u.data.y = scp->mouse_ypos;
+	    mouse->u.data.z = 0;
 	    mouse->u.data.buttons = scp->mouse_buttons;
 	    break;
 
 	case MOUSE_ACTION:
+	case MOUSE_MOTION_EVENT:
 	    /* this should maybe only be settable from /dev/consolectl SOS */
 	    /* send out mouse event on /dev/sysmouse */
+
+	    mouse_status.dx += mouse->u.data.x;
+	    mouse_status.dy += mouse->u.data.y;
+	    mouse_status.dz += mouse->u.data.z;
+	    if (mouse->operation == MOUSE_ACTION)
+	        mouse_status.button = mouse->u.data.buttons;
+	    mouse_status.flags |= 
+		((mouse->u.data.x || mouse->u.data.y || mouse->u.data.z) ? 
+		    MOUSE_POSCHANGED : 0)
+		| (mouse_status.obutton ^ mouse_status.button);
+
 	    if (cur_console->status & MOUSE_ENABLED)
 	    	cur_console->status |= MOUSE_VISIBLE;
+
 	    if ((MOUSE_TTY)->t_state & TS_ISOPEN) {
-		u_char buf[5];
+		u_char buf[MOUSE_SYS_PACKETSIZE];
 		int j;
 
-		buf[0] = 0x80 | ((~mouse->u.data.buttons) & 0x07);
-		buf[1] = (mouse->u.data.x & 0x1fe >> 1);
-		buf[3] = (mouse->u.data.x & 0x1ff) - buf[1];
-		buf[2] = -(mouse->u.data.y & 0x1fe >> 1);
-		buf[4] = -(mouse->u.data.y & 0x1ff) - buf[2];
-		for (j=0; j<5; j++)
+		/* the first five bytes are compatible with MouseSystems' */
+		buf[0] = MOUSE_MSC_SYNC
+		    | butmap[mouse_status.button & MOUSE_STDBUTTONS];
+		j = imax(imin(mouse->u.data.x, 255), -256);
+		buf[1] = j >> 1;
+		buf[3] = j - buf[1];
+		j = -imax(imin(mouse->u.data.y, 255), -256);
+		buf[2] = j >> 1;
+		buf[4] = j - buf[2];
+		for (j = 0; j < MOUSE_MSC_PACKETSIZE; j++)
 	    		(*linesw[(MOUSE_TTY)->t_line].l_rint)(buf[j],MOUSE_TTY);
+		if (mouse_level >= 1) { 	/* extended part */
+		    j = imax(imin(mouse->u.data.z, 127), -128);
+		    buf[5] = (j >> 1) & 0x7f;
+		    buf[6] = (j - (j >> 1)) & 0x7f;
+		    /* buttons 4-10 */
+		    buf[7] = (~mouse_status.button >> 3) & 0x7f;
+		    for (j = MOUSE_MSC_PACKETSIZE; 
+			 j < MOUSE_SYS_PACKETSIZE; j++)
+	    		(*linesw[(MOUSE_TTY)->t_line].l_rint)(buf[j],MOUSE_TTY);
+		}
 	    }
+
 	    if (cur_console->mouse_signal) {
 		cur_console->mouse_buttons = mouse->u.data.buttons;
     		/* has controlling process died? */
@@ -1132,25 +1185,116 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 		else
 		    psignal(cur_console->mouse_proc, cur_console->mouse_signal);
 	    }
-	    else {
+	    else if (mouse->operation == MOUSE_ACTION) {
 		/* process button presses */
-		if (cur_console->mouse_buttons != mouse->u.data.buttons) {
+		if ((cur_console->mouse_buttons ^ mouse->u.data.buttons) && 
+		    !(cur_console->status & UNKNOWN_MODE)) {
 		    cur_console->mouse_buttons = mouse->u.data.buttons;
-		    if (!(cur_console->status & UNKNOWN_MODE)) {
-			if (cur_console->mouse_buttons & LEFT_BUTTON)
-			    mouse_cut_start(cur_console);
-			else
-			    mouse_cut_end(cur_console);
-			if (cur_console->mouse_buttons & RIGHT_BUTTON ||
-			    cur_console->mouse_buttons & MIDDLE_BUTTON)
-			    mouse_paste(cur_console);
-		    }
+		    if (cur_console->mouse_buttons & MOUSE_BUTTON1DOWN)
+			mouse_cut_start(cur_console);
+		    else
+			mouse_cut_end(cur_console);
+		    if (cur_console->mouse_buttons & MOUSE_BUTTON2DOWN ||
+			cur_console->mouse_buttons & MOUSE_BUTTON3DOWN)
+			mouse_paste(cur_console);
 		}
 	    }
+
 	    if (mouse->u.data.x != 0 || mouse->u.data.y != 0) {
-	    	cur_console->mouse_xpos += mouse->u.data.x;
-	    	cur_console->mouse_ypos += mouse->u.data.y;
+		cur_console->mouse_xpos += mouse->u.data.x;
+		cur_console->mouse_ypos += mouse->u.data.y;
 		set_mouse_pos(cur_console);
+	    }
+
+	    break;
+
+	case MOUSE_BUTTON_EVENT:
+	    if ((mouse->u.event.id & MOUSE_BUTTONS) == 0)
+		return EINVAL;
+	    if (mouse->u.event.value < 0)
+		return EINVAL;
+
+	    if (mouse->u.event.value > 0) {
+	        cur_console->mouse_buttons |= mouse->u.event.id;
+	        mouse_status.button |= mouse->u.event.id;
+	    } else {
+	        cur_console->mouse_buttons &= ~mouse->u.event.id;
+	        mouse_status.button &= ~mouse->u.event.id;
+	    }
+	    mouse_status.flags |= 
+		((mouse->u.data.x || mouse->u.data.y || mouse->u.data.z) ? 
+		    MOUSE_POSCHANGED : 0)
+		| (mouse_status.obutton ^ mouse_status.button);
+
+	    if (cur_console->status & MOUSE_ENABLED)
+	    	cur_console->status |= MOUSE_VISIBLE;
+
+	    if ((MOUSE_TTY)->t_state & TS_ISOPEN) {
+		u_char buf[8];
+		int i;
+
+		buf[0] = MOUSE_MSC_SYNC 
+			 | butmap[mouse_status.button & MOUSE_STDBUTTONS];
+		buf[7] = (~mouse_status.button >> 3) & 0x7f;
+		buf[1] = buf[2] = buf[3] = buf[4] = buf[5] = buf[6] = 0;
+		for (i = 0; 
+		     i < ((mouse_level >= 1) ? MOUSE_SYS_PACKETSIZE 
+					     : MOUSE_MSC_PACKETSIZE); i++)
+	    	    (*linesw[(MOUSE_TTY)->t_line].l_rint)(buf[i],MOUSE_TTY);
+	    }
+
+	    if (cur_console->mouse_signal) {
+		if (cur_console->mouse_proc && 
+		    (cur_console->mouse_proc != pfind(cur_console->mouse_pid))){
+		    	cur_console->mouse_signal = 0;
+			cur_console->mouse_proc = NULL;
+			cur_console->mouse_pid = 0;
+		}
+		else
+		    psignal(cur_console->mouse_proc, cur_console->mouse_signal);
+		break;
+	    }
+
+	    if (cur_console->status & UNKNOWN_MODE)
+		break;
+
+	    switch (mouse->u.event.id) {
+	    case MOUSE_BUTTON1DOWN:
+	        switch (mouse->u.event.value % 4) {
+		case 0:	/* up */
+		    mouse_cut_end(cur_console);
+		    break;
+		case 1:
+		    mouse_cut_start(cur_console);
+		    break;
+		case 2:
+		    mouse_cut_word(cur_console);
+		    break;
+		case 3:
+		    mouse_cut_line(cur_console);
+		    break;
+		}
+		break;
+	    case MOUSE_BUTTON2DOWN:
+	        switch (mouse->u.event.value) {
+		case 0:	/* up */
+		    break;
+		default:
+		    mouse_paste(cur_console);
+		    break;
+		}
+		break;
+	    case MOUSE_BUTTON3DOWN:
+	        switch (mouse->u.event.value) {
+		case 0:	/* up */
+		    if (!(cur_console->mouse_buttons & MOUSE_BUTTON1DOWN))
+		        mouse_cut_end(cur_console);
+		    break;
+		default:
+		    mouse_cut_extend(cur_console);
+		    break;
+		}
+		break;
 	    }
 	    break;
 
@@ -1161,6 +1305,107 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	scrn_time_stamp = mono_time.tv_sec;
 	return 0;
     }
+
+    /* MOUSE_XXX: /dev/sysmouse ioctls */
+    case MOUSE_GETHWINFO:	/* get device information */
+    {
+	mousehw_t *hw = (mousehw_t *)data;
+
+	if (tp != MOUSE_TTY)
+	    return ENOTTY;
+	hw->buttons = 10;		/* XXX unknown */
+	hw->iftype = MOUSE_IF_SYSMOUSE;
+	hw->type = MOUSE_MOUSE;
+	hw->model = MOUSE_MODEL_GENERIC;
+	hw->hwid = 0;
+	return 0;
+    }
+
+    case MOUSE_GETMODE:		/* get protocol/mode */
+    {
+	mousemode_t *mode = (mousemode_t *)data;
+
+	if (tp != MOUSE_TTY)
+	    return ENOTTY;
+	mode->level = mouse_level;
+	switch (mode->level) {
+	case 0:
+	    /* at this level, sysmouse emulates MouseSystems protocol */
+	    mode->protocol = MOUSE_PROTO_MSC;
+	    mode->rate = -1;		/* unknown */
+	    mode->resolution = -1;	/* unknown */
+	    mode->accelfactor = 0;	/* disabled */
+	    mode->packetsize = MOUSE_MSC_PACKETSIZE;
+	    mode->syncmask[0] = MOUSE_MSC_SYNCMASK;
+	    mode->syncmask[1] = MOUSE_MSC_SYNC;
+	    break;
+
+	case 1:
+	    /* at this level, sysmouse uses its own protocol */
+	    mode->protocol = MOUSE_PROTO_SYSMOUSE;
+	    mode->rate = -1;
+	    mode->resolution = -1;
+	    mode->accelfactor = 0;
+	    mode->packetsize = MOUSE_SYS_PACKETSIZE;
+	    mode->syncmask[0] = MOUSE_SYS_SYNCMASK;
+	    mode->syncmask[1] = MOUSE_SYS_SYNC;
+	    break;
+	}
+	return 0;
+    }
+
+    case MOUSE_SETMODE:		/* set protocol/mode */
+    {
+	mousemode_t *mode = (mousemode_t *)data;
+
+	if (tp != MOUSE_TTY)
+	    return ENOTTY;
+	if ((mode->level < 0) || (mode->level > 1))
+	    return EINVAL;
+	mouse_level = mode->level;
+	return 0;
+    }
+
+    case MOUSE_GETLEVEL:	/* get operation level */
+	if (tp != MOUSE_TTY)
+	    return ENOTTY;
+	*(int *)data = mouse_level;
+	return 0;
+
+    case MOUSE_SETLEVEL:	/* set operation level */
+	if (tp != MOUSE_TTY)
+	    return ENOTTY;
+	if ((*(int *)data  < 0) || (*(int *)data > 1))
+	    return EINVAL;
+	mouse_level = *(int *)data;
+	return 0;
+
+    case MOUSE_GETSTATUS:	/* get accumulated mouse events */
+	if (tp != MOUSE_TTY)
+	    return ENOTTY;
+	s = spltty();
+	*(mousestatus_t *)data = mouse_status;
+	mouse_status.flags = 0;
+	mouse_status.obutton = mouse_status.button;
+	mouse_status.dx = 0;
+	mouse_status.dy = 0;
+	mouse_status.dz = 0;
+	splx(s);
+	return 0;
+
+#if notyet
+    case MOUSE_GETVARS:		/* get internal mouse variables */
+    case MOUSE_SETVARS:		/* set internal mouse variables */
+	if (tp != MOUSE_TTY)
+	    return ENOTTY;
+	return ENODEV;
+#endif
+
+    case MOUSE_READSTATE:	/* read status from the device */
+    case MOUSE_READDATA:	/* read data from the device */
+	if (tp != MOUSE_TTY)
+	    return ENOTTY;
+	return ENODEV;
 
     case CONS_GETINFO:  	/* get current (virtual) console info */
     {
@@ -1210,6 +1455,8 @@ scioctl(dev_t dev, int cmd, caddr_t data, int flag, struct proc *p)
 	if (scp->history != NULL)
 	    i = imax(scp->history_size / scp->xsize 
 		     - imax(SC_HISTORY_SIZE, scp->ysize), 0);
+	else
+	    i = 0;
 	switch (cmd & 0xff) {
 	case M_VGA_C80x60: case M_VGA_M80x60:
 	    if (!(fonts_loaded & FONT_8))
@@ -4106,26 +4353,84 @@ set_mouse_pos(scr_stat *scp)
     	scp->mouse_pos = scp->scr_buf + 
 	    ((scp->mouse_ypos/scp->font_size)*scp->xsize + scp->mouse_xpos/8);
 
-	if ((scp->status & MOUSE_VISIBLE) && (scp->status & MOUSE_CUTTING)) {
-	    u_short *ptr;
-	    int i = 0;
-
-	    mark_for_update(scp, scp->mouse_cut_start - scp->scr_buf);
-	    mark_for_update(scp, scp->mouse_cut_end - scp->scr_buf);
-	    scp->mouse_cut_end = scp->mouse_pos;
-	    for (ptr = (scp->mouse_cut_start > scp->mouse_cut_end 
-			? scp->mouse_cut_end : scp->mouse_cut_start);
-		 ptr <= (scp->mouse_cut_start > scp->mouse_cut_end 
-			 ? scp->mouse_cut_start : scp->mouse_cut_end);
-	    	 ptr++) {
-	        cut_buffer[i++] = *ptr & 0xff;
-	        if (((ptr - scp->scr_buf) % scp->xsize) == (scp->xsize - 1)) {
-		    cut_buffer[i++] = '\n';
-	        }
-	    }
-	    cut_buffer[i] = 0x00;
-        }
+	if ((scp->status & MOUSE_VISIBLE) && (scp->status & MOUSE_CUTTING))
+	    mouse_cut(scp);
     }
+}
+
+#define isspace(c)	(((c) & 0xff) == ' ')
+
+static int
+skip_spc_right(scr_stat *scp, u_short *p)
+{
+    int i;
+
+    for (i = (p - scp->scr_buf) % scp->xsize; i < scp->xsize; ++i) {
+	if (!isspace(*p))
+	    break;
+	++p;
+    }
+    return i;
+}
+
+static int
+skip_spc_left(scr_stat *scp, u_short *p)
+{
+    int i;
+
+    for (i = (p-- - scp->scr_buf) % scp->xsize - 1; i >= 0; --i) {
+	if (!isspace(*p))
+	    break;
+	--p;
+    }
+    return i;
+}
+
+static void
+mouse_cut(scr_stat *scp)
+{
+    u_short *end;
+    u_short *p;
+    int i = 0;
+    int j = 0;
+
+    scp->mouse_cut_end = (scp->mouse_pos >= scp->mouse_cut_start) ?
+	scp->mouse_pos + 1 : scp->mouse_pos;
+    end = (scp->mouse_cut_start > scp->mouse_cut_end) ? 
+	scp->mouse_cut_start : scp->mouse_cut_end;
+    for (p = (scp->mouse_cut_start > scp->mouse_cut_end) ?
+	    scp->mouse_cut_end : scp->mouse_cut_start; p < end; ++p) {
+	cut_buffer[i] = *p & 0xff;
+	/* remember the position of the last non-space char */
+	if (!isspace(cut_buffer[i++]))
+	    j = i;
+	/* trim trailing blank when crossing lines */
+	if (((p - scp->scr_buf) % scp->xsize) == (scp->xsize - 1)) {
+	    cut_buffer[j++] = '\n';
+	    i = j;
+	}
+    }
+    cut_buffer[i] = '\0';
+
+    /* scan towards the end of the last line */
+    --p;
+    for (i = (p - scp->scr_buf) % scp->xsize; i < scp->xsize; ++i) {
+	if (!isspace(*p))
+	    break;
+	++p;
+    }
+    /* if there is nothing but blank chars, trim them, but mark towards eol */
+    if (i >= scp->xsize) {
+	if (scp->mouse_cut_start > scp->mouse_cut_end)
+	    scp->mouse_cut_start = p;
+	else
+	    scp->mouse_cut_end = p;
+	cut_buffer[j++] = '\n';
+	cut_buffer[j] = '\0';
+    }
+
+    mark_for_update(scp, scp->mouse_cut_start - scp->scr_buf);
+    mark_for_update(scp, scp->mouse_cut_end - scp->scr_buf);
 }
 
 static void
@@ -4135,14 +4440,24 @@ mouse_cut_start(scr_stat *scp)
 
     if (scp->status & MOUSE_VISIBLE) {
 	if (scp->mouse_pos == scp->mouse_cut_start &&
-	    scp->mouse_cut_start == scp->mouse_cut_end) {
-	    cut_buffer[0] = 0x00;
+	    scp->mouse_cut_start == scp->mouse_cut_end - 1) {
+	    cut_buffer[0] = '\0';
 	    remove_cutmarking(scp);
-	}
-	else {
-	    scp->mouse_cut_start = scp->mouse_cut_end = scp->mouse_pos;
+	} else if (skip_spc_right(scp, scp->mouse_pos) >= scp->xsize) {
+	    /* if the pointer is on trailing blank chars, mark towards eol */
+	    i = skip_spc_left(scp, scp->mouse_pos) + 1;
+	    scp->mouse_cut_start = scp->scr_buf +
+	        ((scp->mouse_pos - scp->scr_buf) / scp->xsize) * scp->xsize + i;
+	    scp->mouse_cut_end = scp->scr_buf +
+	        ((scp->mouse_pos - scp->scr_buf) / scp->xsize + 1) * scp->xsize;
+	    cut_buffer[0] = '\n';
+	    cut_buffer[1] = '\0';
+	    scp->status |= MOUSE_CUTTING;
+	} else {
+	    scp->mouse_cut_start = scp->mouse_pos;
+	    scp->mouse_cut_end = scp->mouse_cut_start + 1;
 	    cut_buffer[0] = *scp->mouse_cut_start & 0xff;
-	    cut_buffer[1] = 0x00;
+	    cut_buffer[1] = '\0';
 	    scp->status |= MOUSE_CUTTING;
 	}
     	mark_all(scp);
@@ -4160,6 +4475,77 @@ mouse_cut_end(scr_stat *scp)
 {
     if (scp->status & MOUSE_VISIBLE) {
 	scp->status &= ~MOUSE_CUTTING;
+    }
+}
+
+static void
+mouse_cut_word(scr_stat *scp)
+{
+    u_short *p;
+    u_short *sol;
+    u_short *eol;
+    int i;
+
+    /*
+     * Because we don't have locale information in the kernel,
+     * we only distinguish space char and non-space chars.  Punctuation
+     * chars, symbols and other regular chars are all treated alike.
+     */
+    if (scp->status & MOUSE_VISIBLE) {
+	sol = scp->scr_buf
+	    + ((scp->mouse_pos - scp->scr_buf) / scp->xsize) * scp->xsize;
+	eol = sol + scp->xsize;
+	if (isspace(*scp->mouse_pos)) {
+	    for (p = scp->mouse_pos; p >= sol; --p)
+	        if (!isspace(*p))
+		    break;
+	    scp->mouse_cut_start = ++p;
+	    for (p = scp->mouse_pos; p < eol; ++p)
+	        if (!isspace(*p))
+		    break;
+	    scp->mouse_cut_end = p;
+	} else {
+	    for (p = scp->mouse_pos; p >= sol; --p)
+	        if (isspace(*p))
+		    break;
+	    scp->mouse_cut_start = ++p;
+	    for (p = scp->mouse_pos; p < eol; ++p)
+	        if (isspace(*p))
+		    break;
+	    scp->mouse_cut_end = p;
+	}
+	for (i = 0, p = scp->mouse_cut_start; p < scp->mouse_cut_end; ++p)
+	    cut_buffer[i++] = *p & 0xff;
+	cut_buffer[i] = '\0';
+	scp->status |= MOUSE_CUTTING;
+    }
+}
+
+static void
+mouse_cut_line(scr_stat *scp)
+{
+    u_short *p;
+    int i;
+
+    if (scp->status & MOUSE_VISIBLE) {
+	scp->mouse_cut_start = scp->scr_buf
+	    + ((scp->mouse_pos - scp->scr_buf) / scp->xsize) * scp->xsize;
+	scp->mouse_cut_end = scp->mouse_cut_start + scp->xsize;
+	for (i = 0, p = scp->mouse_cut_start; p < scp->mouse_cut_end; ++p)
+	    cut_buffer[i++] = *p & 0xff;
+	cut_buffer[i++] = '\n';
+	cut_buffer[i] = '\0';
+	scp->status |= MOUSE_CUTTING;
+    }
+}
+
+static void
+mouse_cut_extend(scr_stat *scp) 
+{
+    if ((scp->status & MOUSE_VISIBLE) && !(scp->status & MOUSE_CUTTING)
+	&& (scp->mouse_cut_start != NULL)) {
+	mouse_cut(scp);
+	scp->status |= MOUSE_CUTTING;
     }
 }
 
@@ -4273,7 +4659,7 @@ draw_cutmarking(scr_stat *scp)
 	/* are we outside the selected area ? */
 	if ( ptr < (scp->mouse_cut_start > scp->mouse_cut_end ? 
 	            scp->mouse_cut_end : scp->mouse_cut_start) ||
-	     ptr > (scp->mouse_cut_start > scp->mouse_cut_end ?
+	     ptr >= (scp->mouse_cut_start > scp->mouse_cut_end ?
 	            scp->mouse_cut_start : scp->mouse_cut_end)) {
 	    if (ptr != scp->cursor_pos)
 		nch = (och & 0xff) | (*ptr & 0xff00);

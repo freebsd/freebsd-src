@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 1992, 1993 Erik Forsberg.
+ * Copyright (c) 1996, 1997 Kazutaka YOKOTA
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -19,7 +20,7 @@
  * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: mouse.h,v 1.7 1997/02/22 09:34:50 peter Exp $
+ *	$Id: mouse.h,v 1.8 1997/10/19 10:44:02 yokota Exp $
  */
 
 #ifndef _MACHINE_MOUSE_H_
@@ -28,45 +29,33 @@
 #include <sys/types.h>
 #include <sys/ioccom.h>
 
-/*
- * NOTE: MOUSEIOC, MOUSEIOCREAD, and mouseinfo are now obsolete, 
- * but will stay for compatibility reasons. But, remember, 
- * the MOUSEIOCREAD ioctl command doesn't work and never worked before.  
- * Some day we shall get rid of these... 
- */
+/* ioctls */
+#define MOUSE_GETSTATUS		_IOR('M', 0, mousestatus_t)
+#define MOUSE_GETHWINFO		_IOR('M', 1, mousehw_t)
+#define MOUSE_GETMODE		_IOR('M', 2, mousemode_t)
+#define MOUSE_SETMODE		_IOW('M', 3, mousemode_t)
+#define MOUSE_GETLEVEL		_IOR('M', 4, int)
+#define MOUSE_SETLEVEL		_IOW('M', 5, int)
+#define MOUSE_GETVARS		_IOR('M', 6, mousevar_t)
+#define MOUSE_SETVARS		_IOW('M', 7, mousevar_t)
+#define MOUSE_READSTATE		_IOWR('M', 8, mousedata_t)
+#define MOUSE_READDATA		_IOWR('M', 9, mousedata_t)
 
-#define MOUSEIOC		('M'<<8)
-#define MOUSEIOCREAD		(MOUSEIOC|60)
-
-typedef struct mouseinfo {
-	unsigned char status;
-	char xmotion;
-	char ymotion;
-} mouseinfo_t;
-/* status */
-#define BUTSTATMASK	0x07	/* Any mouse button down if any bit set */
-#define BUTCHNGMASK	0x38	/* Any mouse button changed if any bit set */
-#define BUT3STAT	0x01	/* Button 3 down if set */
-#define BUT2STAT	0x02	/* Button 2 down if set */
-#define BUT1STAT	0x04	/* Button 1 down if set */
-#define BUT3CHNG	0x08	/* Button 3 changed if set */
-#define BUT2CHNG	0x10	/* Button 2 changed if set */
-#define BUT1CHNG	0x20	/* Button 1 changed if set */
-#define MOVEMENT	0x40	/* Mouse movement detected */
-
-#define MOUSE_GETSTATE		_IOR('M',0,mousestatus_t)
-#define MOUSE_GETHWINFO		_IOR('M',1,mousehw_t)
-#define MOUSE_GETMODE		_IOR('M',2,mousemode_t)
-#define MOUSE_SETMODE		_IOW('M',3,mousemode_t)
-
-/* new ioctls */
+#if notyet
+#define MOUSE_SETRESOLUTION	_IOW('M', 10, int)
+#define MOUSE_SETSCALING	_IOW('M', 11, int)
+#define MOUSE_SETRATE		_IOW('M', 12, int)
+#define MOUSE_GETHWID		_IOR('M', 13, int)
+#endif
 
 /* mouse status block */
 typedef struct mousestatus {
+    int     flags;		/* state change flags */
     int     button;		/* button status */
     int     obutton;		/* previous button status */
     int     dx;			/* x movement */
     int     dy;			/* y movement */
+    int     dz;			/* z movement */
 } mousestatus_t;
 
 /* button */
@@ -78,23 +67,34 @@ typedef struct mousestatus {
 #define MOUSE_BUTTON6DOWN	0x0020
 #define MOUSE_BUTTON7DOWN	0x0040
 #define MOUSE_BUTTON8DOWN	0x0080
-#define MOUSE_STDBUTTONS	0x0007	/* buttons 1-3 */
-#define MOUSE_EXTBUTTONS	0x00f8	/* the others */
+#define MOUSE_MAXBUTTON		31
+#define MOUSE_STDBUTTONS	0x0007		/* buttons 1-3 */
+#define MOUSE_EXTBUTTONS	0x7ffffff8	/* the others (28 of them!) */
+#define MOUSE_BUTTONS		(MOUSE_STDBUTTONS | MOUSE_EXTBUTTONS)
+
+/* flags */
+#define MOUSE_STDBUTTONSCHANGED	MOUSE_STDBUTTONS
+#define MOUSE_EXTBUTTONSCHANGED	MOUSE_EXTBUTTONS
+#define MOUSE_BUTTONSCHANGED	MOUSE_BUTTONS
+#define MOUSE_POSCHANGED	0x80000000
 
 typedef struct mousehw {
-	int buttons;
+	int buttons;		/* -1 if unknown */
 	int iftype;		/* MOUSE_IF_XXX */
 	int type;		/* mouse/track ball/pad... */
+	int model;		/* I/F dependent model ID: MOUSE_MODEL_XXX */
 	int hwid;		/* I/F dependent hardware ID
 				 * for the PS/2 mouse, it will be PSM_XXX_ID 
 				 */
 } mousehw_t;
 
 /* iftype */
+#define MOUSE_IF_UNKNOWN	(-1)
 #define MOUSE_IF_SERIAL		0
 #define MOUSE_IF_BUS		1
 #define MOUSE_IF_INPORT		2
 #define MOUSE_IF_PS2		3
+#define MOUSE_IF_SYSMOUSE	4
 
 /* type */
 #define MOUSE_UNKNOWN		(-1)	/* should be treated as a mouse */
@@ -103,24 +103,67 @@ typedef struct mousehw {
 #define MOUSE_STICK		2
 #define MOUSE_PAD		3
 
+/* model */
+#define MOUSE_MODEL_UNKNOWN		(-1)
+#define MOUSE_MODEL_GENERIC		0
+#define MOUSE_MODEL_GLIDEPOINT		1
+#define MOUSE_MODEL_NETSCROLL		2
+#define MOUSE_MODEL_NET			3
+#define MOUSE_MODEL_INTELLI		4
+#define MOUSE_MODEL_THINK		5
+#define MOUSE_MODEL_EASYSCROLL		6
+#define MOUSE_MODEL_MOUSEMANPLUS	7
+
 typedef struct mousemode {
 	int protocol;		/* MOUSE_PROTO_XXX */
 	int rate;		/* report rate (per sec), -1 if unknown */
-	int resolution;		/* 1:low, 2:medium low, 3:medium high
-				 * 4:high, 0: default, -1 if unknown 
-				 */
+	int resolution;		/* MOUSE_RES_XXX, -1 if unknown */
 	int accelfactor;	/* accelation factor (must be 1 or greater) */
+	int level;		/* driver operation level */
+	int packetsize;		/* the length of the data packet */
+	unsigned char syncmask[2]; /* sync. data bits in the header byte */
 } mousemode_t;
 
 /* protocol */
+#define MOUSE_PROTO_UNKNOWN	(-1)
 #define MOUSE_PROTO_MS		0	/* Microsoft Serial, 3 bytes */
 #define MOUSE_PROTO_MSC		1	/* Mouse Systems, 5 bytes */
 #define MOUSE_PROTO_LOGI	2	/* Logitech, 3 bytes */
 #define MOUSE_PROTO_MM		3	/* MM series, 3 bytes */
 #define MOUSE_PROTO_LOGIMOUSEMAN 4	/* Logitech MouseMan 3/4 bytes */
 #define MOUSE_PROTO_BUS		5	/* MS/Logitech bus mouse */
-#define MOUSE_PROTO_INPORT	6	/* MS/ATI inport mouse */
+#define MOUSE_PROTO_INPORT	6	/* MS/ATI InPort mouse */
 #define MOUSE_PROTO_PS2		7	/* PS/2 mouse, 3 bytes */
+#define MOUSE_PROTO_HITTAB	8	/* Hitachi Tablet 3 bytes */
+#define MOUSE_PROTO_GLIDEPOINT	9	/* ALPS GlidePoint, 3/4 bytes */
+#define MOUSE_PROTO_INTELLI	10	/* MS IntelliMouse, 4 bytes */
+#define MOUSE_PROTO_THINK	11	/* Kensignton Thinking Mouse, 3/4 bytes */
+#define MOUSE_PROTO_SYSMOUSE	12	/* /dev/sysmouse */
+
+#define MOUSE_RES_UNKNOWN	(-1)
+#define MOUSE_RES_DEFAULT	0
+#define MOUSE_RES_LOW		(-2)
+#define MOUSE_RES_MEDIUMLOW	(-3)
+#define MOUSE_RES_MEDIUMHIGH	(-4)
+#define MOUSE_RES_HIGH		(-5)
+
+typedef struct mousedata {
+	int len;		/* # of data in the buffer */
+	int buf[16];		/* data buffer */
+} mousedata_t;
+
+#if (defined(MOUSE_GETVARS))
+
+typedef struct mousevar {
+	int var[16];
+} mousevar_t;
+
+/* magic numbers in var[0] */
+#define MOUSE_VARS_PS2_SIG	0x00325350	/* 'PS2' */
+#define MOUSE_VARS_BUS_SIG	0x00535542	/* 'BUS' */
+#define MOUSE_VARS_INPORT_SIG	0x00504e49	/* 'INP' */
+
+#endif /* MOUSE_GETVARS */
 
 /* Microsoft Serial mouse data packet */
 #define MOUSE_MSS_PACKETSIZE	3
@@ -132,7 +175,19 @@ typedef struct mousemode {
 #define MOUSE_MSS_BUTTON3DOWN	0x10	/* right */
 
 /* Logitech MouseMan data packet (M+ protocol) */
-#define MOUSE_LMAN_BUTTON2DOWN	0x20	/* middle button, in the 4th byte */
+#define MOUSE_LMAN_BUTTON2DOWN	0x20	/* middle button, the 4th byte */
+
+/* ALPS GlidePoint extention (variant of M+ protocol) */
+#define MOUSE_ALPS_BUTTON2DOWN	0x20	/* middle button, the 4th byte */
+#define MOUSE_ALPS_TAP		0x10	/* `tapping' action, the 4th byte */
+
+/* Kinsington Thinking Mouse extention (variant of M+ protocol) */
+#define MOUSE_THINK_BUTTON2DOWN 0x20	/* lower-left button, the 4th byte */
+#define MOUSE_THINK_BUTTON4DOWN 0x10	/* lower-right button, the 4th byte */
+
+/* MS IntelliMouse (variant of MS Serial) */
+#define MOUSE_INTELLI_PACKETSIZE 4
+#define MOUSE_INTELLI_BUTTON2DOWN 0x10	/* middle button the 4th byte */
 
 /* Mouse Systems Corp. mouse data packet */
 #define MOUSE_MSC_PACKETSIZE	5
@@ -156,18 +211,50 @@ typedef struct mousemode {
 
 /* PS/2 mouse data packet */
 #define MOUSE_PS2_PACKETSIZE	3
-#define MOUSE_PS2_SYNCMASK	0x08	/* 0x0c for 2 button mouse */
-#define MOUSE_PS2_SYNC		0x08	/* 0x0c for 2 button mouse */
+#define MOUSE_PS2_SYNCMASK	0xc8
+#define MOUSE_PS2_SYNC		0x08
 #define MOUSE_PS2_BUTTONS	0x07	/* 0x03 for 2 button mouse */
 #define MOUSE_PS2_BUTTON1DOWN	0x01	/* left */
 #define MOUSE_PS2_BUTTON2DOWN	0x04	/* middle */
 #define MOUSE_PS2_BUTTON3DOWN	0x02	/* right */
-#define MOUSE_PS2_BUTTON4UP	0x08	/* GlidePoint tapping feature 
-					 * Yes! this is the same bit as SYNC!
-					 */
+#define MOUSE_PS2_TAP		MOUSE_PS2_SYNC /* GlidePoint (PS/2) `tapping'
+					        * Yes! this is the same bit 
+						* as SYNC!
+					 	*/
+#define MOUSE_PS2PLUS_BUTTON4DOWN 0x10	/* 4th button on MouseMan+ */
+
 #define MOUSE_PS2_XNEG		0x10
 #define MOUSE_PS2_YNEG		0x20
 #define MOUSE_PS2_XOVERFLOW	0x40
 #define MOUSE_PS2_YOVERFLOW	0x80
+#define MOUSE_PS2PLUS_ZNEG	0x08	/* MouseMan+ negative wheel movement */
+
+/* sysmouse extended data packet */
+/*
+ * /dev/sysmouse sends data in two formats, depending on the protocol
+ * level.  At the level 0, format is exactly the same as MousSystems'
+ * five byte packet.  At the level 1, the first five bytes are the same
+ * as at the level 0.  There are additional three bytes which shows
+ * `dz' and the states of additional buttons.  `dz' is expressed as the
+ * sum of the byte 5 and 6 which contain signed seven bit values.
+ * The states of the button 4 though 10 are in the bit 0 though 6 in 
+ * the byte 7 respectively: 1 indicates the button is up.
+ */
+#define MOUSE_SYS_PACKETSIZE	8
+#define MOUSE_SYS_SYNCMASK	0xf8
+#define MOUSE_SYS_SYNC		0x80
+#define MOUSE_SYS_BUTTON1UP	0x04	/* left, 1st byte */
+#define MOUSE_SYS_BUTTON2UP	0x02	/* middle, 1st byte */
+#define MOUSE_SYS_BUTTON3UP	0x01	/* right, 1st byte */
+#define MOUSE_SYS_BUTTON4UP	0x0001	/* 7th byte */
+#define MOUSE_SYS_BUTTON5UP	0x0002
+#define MOUSE_SYS_BUTTON6UP	0x0004
+#define MOUSE_SYS_BUTTON7UP	0x0008
+#define MOUSE_SYS_BUTTON8UP	0x0010
+#define MOUSE_SYS_BUTTON9UP	0x0020
+#define MOUSE_SYS_BUTTON10UP	0x0040
+#define MOUSE_SYS_MAXBUTTON	10
+#define MOUSE_SYS_STDBUTTONS	0x07
+#define MOUSE_SYS_EXTBUTTONS	0x7f	/* the others */
 
 #endif /* _MACHINE_MOUSE_H_ */
