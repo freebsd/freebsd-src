@@ -44,7 +44,6 @@
 #include <sys/mount.h>
 #include <ufs/ufs/ufsmount.h>
 #include <sys/reboot.h>
-#include <sys/dkbad.h>
 #include <sys/disklabel.h>
 
 /* Quick check to see if a file is readable */
