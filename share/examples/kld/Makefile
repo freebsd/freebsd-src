@@ -65,6 +65,6 @@
 # SUCH DAMAGE.
 #
 
-SUBDIR=	cdev misc
+SUBDIR=	cdev syscall
 
 .include <bsd.subdir.mk>
