@@ -48,15 +48,15 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/eisa/eisaconf.h>
 
-#define IDA_EISA_IOPORT_START	0x0c88
-#define IDA_EISA_IOPORT_LEN	0x0017
+#define	IDA_EISA_IOPORT_START	0x0c88
+#define	IDA_EISA_IOPORT_LEN	0x0017
 
-#define IDA_EISA_IRQ_REG	0x0cc0
-#define IDA_EISA_IRQ_MASK	0xf0
-#define IDA_EISA_IRQ_15		0x80
-#define IDA_EISA_IRQ_14		0x40
-#define IDA_EISA_IRQ_11		0x10
-#define IDA_EISA_IRQ_10		0x20
+#define	IDA_EISA_IRQ_REG	0x0cc0
+#define	IDA_EISA_IRQ_MASK	0xf0
+#define	IDA_EISA_IRQ_15		0x80
+#define	IDA_EISA_IRQ_14		0x40
+#define	IDA_EISA_IRQ_11		0x10
+#define	IDA_EISA_IRQ_10		0x20
 
 static int
 ida_v1_fifo_full(struct ida_softc *ida)

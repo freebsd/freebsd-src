@@ -31,20 +31,20 @@
  */
 
 #ifndef _IDAVAR_H
-#define _IDAVAR_H
+#define	_IDAVAR_H
 
-#define ida_inb(ida, port) \
+#define	ida_inb(ida, port) \
 	bus_space_read_1((ida)->tag, (ida)->bsh, port)
-#define ida_inw(ida, port) \
+#define	ida_inw(ida, port) \
 	bus_space_read_2((ida)->tag, (ida)->bsh, port)
-#define ida_inl(ida, port) \
+#define	ida_inl(ida, port) \
 	bus_space_read_4((ida)->tag, (ida)->bsh, port)
 
-#define ida_outb(ida, port, val) \
+#define	ida_outb(ida, port, val) \
 	bus_space_write_1((ida)->tag, (ida)->bsh, port, val)
-#define ida_outw(ida, port, val) \
+#define	ida_outw(ida, port, val) \
 	bus_space_write_2((ida)->tag, (ida)->bsh, port, val)
-#define ida_outl(ida, port, val) \
+#define	ida_outl(ida, port, val) \
 	bus_space_write_4((ida)->tag, (ida)->bsh, port, val)
 
 struct ida_hdr {
@@ -68,7 +68,7 @@ struct ida_sgb {
 	u_int32_t	addr;		/* physical address of block */
 };
 
-#define IDA_NSEG	32		/* maximum number of segments */
+#define	IDA_NSEG	32		/* maximum number of segments */
 
 /*
  * right now, this structure totals 276 bytes.
@@ -87,11 +87,11 @@ typedef enum {
 
 #define	DMA_DATA_IN	0x0001
 #define	DMA_DATA_OUT	0x0002
-#define IDA_COMMAND	0x0004
-#define DMA_DATA_TRANSFER	(DMA_DATA_IN | DMA_DATA_OUT)
+#define	IDA_COMMAND	0x0004
+#define	DMA_DATA_TRANSFER	(DMA_DATA_IN | DMA_DATA_OUT)
 
-#define IDA_QCB_MAX	256
-#define IDA_CONTROLLER	0		/* drive "number" for controller */
+#define	IDA_QCB_MAX	256
+#define	IDA_CONTROLLER	0		/* drive "number" for controller */
 
 struct ida_qcb {
 	struct		ida_hardware_qcb *hwqcb;
@@ -119,9 +119,9 @@ struct ida_access {
 /*
  * flags for the controller 
  */
-#define IDA_ATTACHED	0x01		/* attached */
-#define IDA_FIRMWARE	0x02		/* firmware must be started */
-#define IDA_INTERRUPTS	0x04		/* interrupts enabled */
+#define	IDA_ATTACHED	0x01		/* attached */
+#define	IDA_FIRMWARE	0x02		/* firmware must be started */
+#define	IDA_INTERRUPTS	0x04		/* interrupts enabled */
 
 struct ida_softc {
 	device_t	dev;
@@ -164,7 +164,7 @@ struct ida_softc {
 /*
  * drive flags
  */
-#define DRV_WRITEPROT		0x0001
+#define	DRV_WRITEPROT		0x0001
 
 struct idad_softc {
 	device_t	dev;
