@@ -36,6 +36,9 @@ __FBSDID("$FreeBSD$");
 #include <dev/uart/uart.h>
 #include <dev/uart/uart_cpu.h>
 
+bus_space_tag_t uart_bus_space_io;
+bus_space_tag_t uart_bus_space_mem;
+
 int
 uart_cpu_eqres(struct uart_bas *b1, struct uart_bas *b2)
 {
@@ -47,6 +50,10 @@ int
 uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 {
 	unsigned int i, ivar, flags;
+
+	/* Check the environment. */
+	if (uart_getenv(devtype, di) == 0)
+		return (0);
 
 	/*
 	 * There are 2 built-in serial ports on pc98 hardware.  The 
@@ -81,7 +88,7 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 		else
 			di->ops = uart_i8251_ops;
 		di->bas.chan = 0;
-		di->bas.bst = I386_BUS_SPACE_IO;
+		di->bas.bst = uart_bus_space_io;
 		if (bus_space_map(di->bas.bst, ivar, 8, 0, &di->bas.bsh) != 0)
 			continue;
 		di->bas.regshft = 0;

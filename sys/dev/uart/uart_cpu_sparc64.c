@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2003 Marcel Moolenaar
+ * Copyright (c) 2003, 2004 Marcel Moolenaar
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -38,6 +38,9 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/uart/uart.h>
 #include <dev/uart/uart_cpu.h>
+
+bus_space_tag_t uart_bus_space_io;
+bus_space_tag_t uart_bus_space_mem;
 
 static phandle_t uart_cpu_getdev_keyboard(phandle_t root);
 
