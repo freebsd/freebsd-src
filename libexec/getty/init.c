@@ -146,5 +146,6 @@ struct	gettyflags gettyflags[] = {
 	{ "np", 0 },			/* no parity at all (8bit chars) */
 	{ "mb", 0 },			/* do MDMBUF flow control */
 	{ "hw", 0 },			/* do CTSRTS flow control */
+	{ "nc", 0 },			/* set clocal (no carrier) */
 	{ 0 }
 };
