@@ -465,7 +465,8 @@ g_slice_new(struct g_class *mp, u_int slices, struct g_provider *pp, struct g_co
 	gp->softc = gsp;
 	gp->start = g_slice_start;
 	gp->spoiled = g_slice_spoiled;
-	gp->dumpconf = g_slice_dumpconf;
+	if (gp->dumpconf == NULL)
+		gp->dumpconf = g_slice_dumpconf;
 	if (gp->class->destroy_geom == NULL)
 		gp->class->destroy_geom = g_slice_destroy_geom;
 	cp = g_new_consumer(gp);
