@@ -95,12 +95,12 @@ struct iso88025_header {
 	u_int8_t	iso88025_shost[ISO88025_ADDR_LEN];  /* source address */
 	u_int16_t	rcf;				    /* route control field */
 	u_int16_t	rd[RIF_MAX_RD];			    /* routing designators */
-} __attribute__ ((__packed__));
+} __packed;
 
 struct iso88025_rif {
 	u_int16_t	rcf;				    /* route control field */
 	u_int16_t	rd[RIF_MAX_RD];			    /* routing designators */
-} __attribute__ ((__packed__));
+} __packed;
 
 struct iso88025_sockaddr_data {
 	u_char ether_dhost[ISO88025_ADDR_LEN];
