@@ -123,4 +123,9 @@
 #define CONSPEED 9600
 #endif
 
+/* default serial gdb speed if not set with sysctl or probed from boot */
+#ifndef GDBSPEED
+#define GDBSPEED CONSPEED
+#endif
+
 #define	IO_COMSIZE	8		/* 8250, 16x50 com controllers */
