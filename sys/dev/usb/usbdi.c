@@ -1,4 +1,4 @@
-/*	$NetBSD: usbdi.c,v 1.76 2000/06/06 11:36:21 augustss Exp $	*/
+/*	$NetBSD: usbdi.c,v 1.77 2000/09/23 21:02:04 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -883,6 +883,14 @@ usbd_status
 usbd_do_request_flags(usbd_device_handle dev, usb_device_request_t *req,
 		      void *data, u_int16_t flags, int *actlen)
 {
+	return (usbd_do_request_flags_pipe(dev, dev->default_pipe, req, 
+					   data, flags, actlen));
+}
+
+usbd_status
+usbd_do_request_flags_pipe(usbd_device_handle dev, usbd_pipe_handle pipe,
+	usb_device_request_t *req, void *data, u_int16_t flags, int *actlen)
+{
 	usbd_xfer_handle xfer;
 	usbd_status err;
 
@@ -901,7 +909,8 @@ usbd_do_request_flags(usbd_device_handle dev, usb_device_request_t *req,
 	if (xfer == NULL)
 		return (USBD_NOMEM);
 	usbd_setup_default_xfer(xfer, dev, 0, USBD_DEFAULT_TIMEOUT, req,
-				   data, UGETW(req->wLength), flags, 0);
+				data, UGETW(req->wLength), flags, 0);
+	xfer->pipe = pipe;
 	err = usbd_sync_transfer(xfer);
 #if defined(USB_DEBUG) || defined(DIAGNOSTIC)
 	if (xfer->actlen > xfer->length)
