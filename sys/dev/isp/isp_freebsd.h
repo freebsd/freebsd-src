@@ -34,8 +34,8 @@
 #ifndef	_ISP_FREEBSD_H
 #define	_ISP_FREEBSD_H
 
-#define	ISP_PLATFORM_VERSION_MAJOR	0
-#define	ISP_PLATFORM_VERSION_MINOR	992
+#define	ISP_PLATFORM_VERSION_MAJOR	4
+#define	ISP_PLATFORM_VERSION_MINOR	0
 
 
 #include <sys/param.h>
@@ -59,6 +59,7 @@
 #include <cam/scsi/scsi_all.h>
 #include <cam/scsi/scsi_message.h>
 
+#include "opt_ddb.h"
 #include "opt_isp.h"
 #ifdef	SCSI_ISP_FABRIC
 #define	ISP2100_FABRIC		1
@@ -108,12 +109,8 @@ struct isposinfo {
 #include <dev/isp/ispvar.h>
 #include <dev/isp/ispmbox.h>
 
-#define	PVS			"Qlogic ISP Driver, FreeBSD CAM"
-#ifdef	CAMDEBUG
-#define	DFLT_DBLEVEL		2
-#else
-#define	DFLT_DBLEVEL		1
-#endif
+#define	DFLT_DBLEVEL		isp_debug
+extern int isp_debug;
 #define	ISP_LOCKVAL_DECL	int isp_spl_save
 #define	ISP_ILOCKVAL_DECL	ISP_LOCKVAL_DECL
 #define	ISP_UNLOCK(isp)		(void) splx(isp_spl_save)
@@ -136,7 +133,8 @@ struct isposinfo {
 #define	XS_STS(ccb)		(ccb)->scsi_status
 #define	XS_TIME(ccb)		(ccb)->ccb_h.timeout
 #define	XS_SNSP(ccb)		(&(ccb)->sense_data)
-#define	XS_SNSLEN(ccb)		imin((sizeof((ccb)->sense_data)), ccb->sense_len)
+#define	XS_SNSLEN(ccb)		\
+	imin((sizeof((ccb)->sense_data)), ccb->sense_len)
 #define	XS_SNSKEY(ccb)		((ccb)->sense_data.flags & 0xf)
 
 /*
@@ -183,8 +181,6 @@ extern void isp_done(struct ccb_scsiio *);
 	((ccb->tag_action == MSG_SIMPLE_Q_TAG)? REQFLAG_STAG : \
 	  ((ccb->tag_action == MSG_HEAD_OF_Q_TAG)? REQFLAG_HTAG : REQFLAG_OTAG))
 		
-
-
 #define	CMD_COMPLETE		0
 #define	CMD_EAGAIN		1
 #define	CMD_QUEUED		2
@@ -206,8 +202,17 @@ extern void isp_uninit(struct ispsoftc *);
 #define	DMA_MSW(x)	(((x) >> 16) & 0xffff)
 #define	DMA_LSW(x)	(((x) & 0xffff))
 
+#define	ISP_UNSWIZZLE_AND_COPY_PDBP(isp, dest, src)	\
+	bcopy(src, dest, sizeof (isp_pdb_t))
+#define	ISP_SWIZZLE_ICB(a, b)
+#define	ISP_SWIZZLE_REQUEST(a, b)
+#define	ISP_UNSWIZZLE_RESPONSE(a, b)
+#define	ISP_SWIZZLE_SNS_REQ(a, b)
+#define	ISP_UNSWIZZLE_SNS_RSP(a, b, c)
+
 #define	IDPRINTF(lev, x)	if (isp->isp_dblev >= lev) printf x
 #define	PRINTF			printf
+#define	CFGPRINTF		if (bootverbose || DFLT_DBLEVEL > 0) printf
 
 #define	SYS_DELAY(x)	DELAY(x)
 
@@ -215,87 +220,6 @@ extern void isp_uninit(struct ispsoftc *);
 #define	DEFAULT_LOOPID(x)	109
 #define	DEFAULT_WWN(x)		(0x0000feeb00000000LL + (x)->isp_osinfo.seed)
 
-static __inline void isp_prtstst(ispstatusreq_t *sp);
-static __inline const char *isp2100_fw_statename(int state);
-static __inline const char *isp2100_pdb_statename(int pdb_state);
-
-static __inline void isp_prtstst(ispstatusreq_t *sp)
-{
-	char buf[128];
-	sprintf(buf, "states->");
-	if (sp->req_state_flags & RQSF_GOT_BUS)
-		sprintf(buf, "%s%s", buf, "GOT_BUS ");
-	if (sp->req_state_flags & RQSF_GOT_TARGET)
-		sprintf(buf, "%s%s", buf, "GOT_TGT ");
-	if (sp->req_state_flags & RQSF_SENT_CDB)
-		sprintf(buf, "%s%s", buf, "SENT_CDB ");
-	if (sp->req_state_flags & RQSF_XFRD_DATA)
-		sprintf(buf, "%s%s", buf, "XFRD_DATA ");
-	if (sp->req_state_flags & RQSF_GOT_STATUS)
-		sprintf(buf, "%s%s", buf, "GOT_STS ");
-	if (sp->req_state_flags & RQSF_GOT_SENSE)
-		sprintf(buf, "%s%s", buf, "GOT_SNS ");
-	if (sp->req_state_flags & RQSF_XFER_COMPLETE)
-		sprintf(buf, "%s%s", buf, "XFR_CMPLT ");
-	sprintf(buf, "%s%s", buf, "\n");
-	sprintf(buf, "%s%s", buf, "status->");
-	if (sp->req_status_flags & RQSTF_DISCONNECT)
-		sprintf(buf, "%s%s", buf, "Disconnect ");
-	if (sp->req_status_flags & RQSTF_SYNCHRONOUS)
-		sprintf(buf, "%s%s", buf, "Sync_xfr ");
-	if (sp->req_status_flags & RQSTF_PARITY_ERROR)
-		sprintf(buf, "%s%s", buf, "Parity ");
-	if (sp->req_status_flags & RQSTF_BUS_RESET)
-		sprintf(buf, "%s%s", buf, "Bus_Reset ");
-	if (sp->req_status_flags & RQSTF_DEVICE_RESET)
-		sprintf(buf, "%s%s", buf, "Device_Reset ");
-	if (sp->req_status_flags & RQSTF_ABORTED)
-		sprintf(buf, "%s%s", buf, "Aborted ");
-	if (sp->req_status_flags & RQSTF_TIMEOUT)
-		sprintf(buf, "%s%s", buf, "Timeout ");
-	if (sp->req_status_flags & RQSTF_NEGOTIATION)
-		sprintf(buf, "%s%s", buf, "Negotiation ");
-	printf(buf, "%s\n", buf);
-}
-
-static __inline const char *isp2100_fw_statename(int state)
-{
-	static char buf[16];
-	switch(state) {
-	case FW_CONFIG_WAIT:	return "Config Wait";
-	case FW_WAIT_AL_PA:	return "Waiting for AL_PA";
-	case FW_WAIT_LOGIN:	return "Wait Login";
-	case FW_READY:		return "Ready";
-	case FW_LOSS_OF_SYNC:	return "Loss Of Sync";
-	case FW_ERROR:		return "Error";
-	case FW_REINIT:		return "Re-Init";
-	case FW_NON_PART:	return "Nonparticipating";
-	default:
-		sprintf(buf, "0x%x", state);
-		return buf;
-	}
-}
-
-static __inline const char *isp2100_pdb_statename(int pdb_state)
-{
-	static char buf[16];
-	switch(pdb_state) {
-	case PDB_STATE_DISCOVERY:	return "Port Discovery";
-	case PDB_STATE_WDISC_ACK:	return "Waiting Port Discovery ACK";
-	case PDB_STATE_PLOGI:		return "Port Login";
-	case PDB_STATE_PLOGI_ACK:	return "Wait Port Login ACK";
-	case PDB_STATE_PRLI:		return "Process Login";
-	case PDB_STATE_PRLI_ACK:	return "Wait Process Login ACK";
-	case PDB_STATE_LOGGED_IN:	return "Logged In";
-	case PDB_STATE_PORT_UNAVAIL:	return "Port Unavailable";
-	case PDB_STATE_PRLO:		return "Process Logout";
-	case PDB_STATE_PRLO_ACK:	return "Wait Process Logout ACK";
-	case PDB_STATE_PLOGO:		return "Port Logout";
-	case PDB_STATE_PLOG_ACK:	return "Wait Port Logout ACK";
-	default:
-		sprintf(buf, "0x%x", pdb_state);
-		return buf;
-	}
-}
-
+#define	INLINE	__inline
+#include <dev/isp/isp_inline.h>
 #endif	/* _ISP_FREEBSD_H */
