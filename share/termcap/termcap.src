@@ -2746,7 +2746,7 @@ xterm-xf86-v32|xterm terminal emulator (X Window System):\
 	:u6=\E[%i%d;%dR:u7=\E[6n:u8=\E[?1;2c:u9=\E[c:
 # @(#)termcap	X10/6.6	11/7/86, minus alternate screen, plus :cs
 xterm|vs100|xterm terminal emulator (X window system):\
-	:li#24:\
+	:ut:li#24:\
 	:kh=\EOH:@7=\EOF:kb=^H:kD=^?:\
 	:k1=\EOP:k2=\EOQ:k3=\EOR:k4=\EOS:km:\
 	:is=\E>\E[?1;3;4;5l\E[?7;8h\E[1;65r\E[65;1H:\
