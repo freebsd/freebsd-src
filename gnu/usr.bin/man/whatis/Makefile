@@ -36,5 +36,9 @@ install: ${TARG} maninstall
 
 .include "../Makefile.inc"
 .if make(maninstall) || make(install)
+.if !defined(NOMAN)
 .include <bsd.man.mk>
+.else
+maninstall:
+.endif
 .endif
