@@ -10,7 +10,7 @@ encounter during this installation:
 KEY             ACTION
 ---             ------
 SPACE           Select or toggle the current item.
-ENTER          Finish with a menu or item.
+ENTER           Finish with a menu or item.
 UP ARROW        Move to previous item (or up, in a text display box).
 DOWN ARROW      Move to next item (or down, in a text display box).
 TAB             Move to next item or group.
@@ -31,7 +31,11 @@ PageUp and PageDown keys will scroll by entire screens.
 
 Selecting OK in a menu will confirm whatever action it's controlling.
 Selecting Cancel will cancel the operation and generally return you to
-the previous menu.
+the previous menu.  Note also that "checkbox" menus use SPACE to select
+their items, not ENTER!  Pressing ENTER will leave the menu with either
+an OK or Cancel status, depending on which button at the bottom is
+selected, and is probably not what you wanted to do if still selecting
+options.  Remember the spacebar!
 
 Most screens obey the Help key (F1) - USE IT!  It generally offers useful
 context-specific hints on what to do at each stage of the installation,
