@@ -24,7 +24,7 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 #
-# $Id: adduser.perl,v 1.19.2.5 1997/07/31 15:25:35 pst Exp $
+# $Id: adduser.perl,v 1.19.2.6 1997/09/20 12:11:25 wosch Exp $
 
 
 # read variables
@@ -244,7 +244,7 @@ sub passwd_read {
 	    if ($verbose && $sh &&
 		!$shell{&basename($sh)} &&
 		$p_username !~ /^(news|xten|bin|nobody|uucp)$/ &&
-		$sh !~ /\/(pppd|sliplogin|nologin)$/);
+		$sh !~ /\/(pppd|sliplogin|nologin|nonexistent)$/);
 	$uid{$p_uid} = $p_username;
 	$pwgid{$p_gid} = $p_username;
     }
@@ -360,12 +360,15 @@ sub new_users_id {
 		! $uid{$u_id_tmp};
 	if ($uid{$u_id_tmp}) {
 	    warn "Uid ``$u_id_tmp'' in use!\a\n";
+	    $uid_start = $u_id_tmp;
+	    ($u_id, $g_id) = &next_id($name);
+	    next;
 	} else {
 	    warn "Wrong uid.\a\n";
 	}
     }
     # use calculated uid
-    return ($u_id_tmp, $g_id) if $u_id_tmp eq $u_id;
+    # return ($u_id_tmp, $g_id) if $u_id_tmp eq $u_id;
     # recalculate gid
     $uid_start = $u_id_tmp;
     return &next_id($name);
