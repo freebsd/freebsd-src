@@ -187,6 +187,7 @@ ext2_mount(mp, path, data, ndp, p)
 	register struct ext2_sb_info *fs;
 	u_int size;
 	int error, flags;
+	mode_t accessmode;
 
 	if (error = copyin(data, (caddr_t)&args, sizeof (struct ufs_args)))
 		return (error);
@@ -217,8 +218,24 @@ ext2_mount(mp, path, data, ndp, p)
 			error = ext2_reload(mp, ndp->ni_cnd.cn_cred, p);
 		if (error)
 			return (error);
-		if (fs->s_rd_only && (mp->mnt_kern_flag & MNTK_WANTRDWR))
+		if (fs->s_rd_only && (mp->mnt_kern_flag & MNTK_WANTRDWR)) {
+			/*
+			 * If upgrade to read-write by non-root, then verify
+			 * that user has necessary permissions on the device.
+			 */
+			if (p->p_ucred->cr_uid != 0) {
+				devvp = ump->um_devvp;
+				vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, p);
+				if (error = VOP_ACCESS(devvp, VREAD | VWRITE,
+				    p->p_ucred, p)) {
+					VOP_UNLOCK(devvp, 0, p);
+					return (error);
+				}
+				VOP_UNLOCK(devvp, 0, p);
+			}
+
 			fs->s_rd_only = 0;
+		}
 		if (fs->s_rd_only == 0) {
 			/* don't say it's clean */
 			fs->s_es->s_state &= ~EXT2_VALID_FS;
@@ -248,6 +265,23 @@ ext2_mount(mp, path, data, ndp, p)
 		vrele(devvp);
 		return (ENXIO);
 	}
+
+	/*
+	 * If mount by non-root, then verify that user has necessary
+	 * permissions on the device.
+	 */
+	if (p->p_ucred->cr_uid != 0) {
+		accessmode = VREAD;
+		if ((mp->mnt_flag & MNT_RDONLY) == 0)
+			accessmode |= VWRITE;
+		vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY, p);
+		if (error = VOP_ACCESS(devvp, accessmode, p->p_ucred, p)) {
+			vput(devvp);
+			return (error);
+		}
+		VOP_UNLOCK(devvp, 0, p);
+	}
+
 	if ((mp->mnt_flag & MNT_UPDATE) == 0) {
 		if (bdevsw[major(devvp->v_rdev)]->d_flags & D_NOCLUSTERR)
 			mp->mnt_flag |= MNT_NOCLUSTERR;
