@@ -68,6 +68,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/vmmeter.h>
 #include <sys/vnode.h>
 
+#include <machine/stdarg.h>
+
 #include <vm/vm.h>
 #include <vm/vm_object.h>
 #include <vm/vm_extern.h>
@@ -2482,20 +2484,20 @@ static char *typename[] =
 {"VNON", "VREG", "VDIR", "VBLK", "VCHR", "VLNK", "VSOCK", "VFIFO", "VBAD"};
 
 void
-vprint(label, vp)
-	char *label;
-	struct vnode *vp;
+vn_printf(struct vnode *vp, const char *fmt, ...)
 {
+	va_list ap;
 	char buf[96];
 
-	if (label != NULL)
-		printf("%s: %p: ", label, (void *)vp);
-	else
-		printf("%p: ", (void *)vp);
-	printf("tag %s, type %s\n    ", vp->v_tag, typename[vp->v_type]);
-	printf("usecount %d, writecount %d, refcount %d mountedhere %p\n",
+	va_start(ap, fmt);
+	vprintf(fmt, ap);
+	va_end(ap);
+	printf("%p: ", (void *)vp);
+	printf("tag %s, type %s\n", vp->v_tag, typename[vp->v_type]);
+	printf("    usecount %d, writecount %d, refcount %d mountedhere %p\n",
 	    vp->v_usecount, vp->v_writecount, vp->v_holdcnt, vp->v_mountedhere);
 	buf[0] = '\0';
+	buf[1] = '\0';
 	if (vp->v_vflag & VV_ROOT)
 		strcat(buf, "|VV_ROOT");
 	if (vp->v_vflag & VV_TEXT)
@@ -2510,11 +2512,12 @@ vprint(label, vp)
 		strcat(buf, "|VI_DOOMED");
 	if (vp->v_iflag & VI_FREE)
 		strcat(buf, "|VI_FREE");
-	if (buf[0] != '\0')
-		printf("    flags (%s)", &buf[1]);
+	printf("    flags (%s)\n", buf + 1);
 	if (mtx_owned(VI_MTX(vp)))
 		printf(" VI_LOCKed");
-	printf("\n    ");
+	if (vp->v_object != NULL);
+		printf("    v_object %p\n", vp->v_object);
+	printf("    ");
 	lockmgr_printinfo(vp->v_vnlock);
 	printf("\n");
 	if (vp->v_data != NULL)
