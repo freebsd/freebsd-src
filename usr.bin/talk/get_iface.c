@@ -29,7 +29,7 @@
  * From:
  *  Id: find_interface.c,v 1.1 1995/08/14 16:08:39 wollman Exp
  *
- * $Id$
+ * $Id: get_iface.c,v 1.1 1996/03/09 19:22:52 joerg Exp $
  */
 
 #include <unistd.h>
@@ -70,7 +70,7 @@ get_iface(dst, iface)
 
 	do {
 		rv = bind(s, (struct sockaddr *)&local, sizeof local);
-		local.sin_port++;
+		local.sin_port = htons(ntohs(local.sin_port) + 1);
 	} while(rv < 0 && errno == EADDRINUSE);
 
 	if (rv < 0) {
@@ -80,7 +80,7 @@ get_iface(dst, iface)
 
 	do {
 		rv = connect(s, (struct sockaddr *)&remote, sizeof remote);
-		remote.sin_port++;
+		remote.sin_port = htons(ntohs(remote.sin_port) + 1);
 	} while(rv < 0 && errno == EADDRINUSE);
 
 	if (rv < 0) {
