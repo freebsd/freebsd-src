@@ -2092,12 +2092,14 @@ void
 statfilecmd(char *filename)
 {
 	FILE *fin;
+	int atstart;
 	int c;
 	char line[LINE_MAX];
 
 	(void)snprintf(line, sizeof(line), _PATH_LS " -lgA %s", filename);
 	fin = ftpd_popen(line, "r");
 	lreply(211, "status of %s:", filename);
+	atstart = 1;
 	while ((c = getc(fin)) != EOF) {
 		if (c == '\n') {
 			if (ferror(stdout)){
@@ -2113,7 +2115,16 @@ statfilecmd(char *filename)
 			}
 			(void) putc('\r', stdout);
 		}
+		/*
+		 * RFC 959 says neutral text should be prepended before
+		 * a leading 3-digit number followed by whitespace, but
+		 * many ftp clients can be confused by any leading digits,
+		 * as a matter of fact.
+		 */
+		if (atstart && isdigit(c))
+			(void) putc(' ', stdout);
 		(void) putc(c, stdout);
+		atstart = (c == '\n');
 	}
 	(void) ftpd_pclose(fin);
 	reply(211, "End of Status");
