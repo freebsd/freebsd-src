@@ -26,7 +26,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: fdisk.c,v 1.24 1998/09/16 19:25:47 obrien Exp $";
+	"$Id: fdisk.c,v 1.25 1998/11/06 03:25:56 jkoshy Exp $";
 #endif /* not lint */
 
 #include <sys/disklabel.h>
@@ -200,6 +200,7 @@ struct part_type
 	,{0xA5, "FreeBSD/NetBSD/386BSD"}
 	,{0xA6, "OpenBSD"}
 	,{0xA7, "NEXTSTEP"}
+	,{0xA9, "NetBSD"}
 	,{0xB7, "BSDI BSD/386 filesystem"}
 	,{0xB8, "BSDI BSD/386 swap"}
 	,{0xDB, "Concurrent CPM or C.DOS or CTOS"}
