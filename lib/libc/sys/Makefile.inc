@@ -115,6 +115,7 @@ MLINKS+=getsockopt.2 setsockopt.2
 MLINKS+=gettimeofday.2 settimeofday.2
 MLINKS+=getuid.2 geteuid.2
 MLINKS+=intro.2 errno.2
+MLINKS+=jail.2 jail_attach.2
 MLINKS+=kqueue.2 kevent.2
 MLINKS+=kse.2 kse_create.2 kse.2 kse_exit.2 kse.2 kse_release.2 \
 	kse.2 kse_wakeup.2 kse.2 kse_thr_interrupt.2

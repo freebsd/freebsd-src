@@ -20,15 +20,27 @@ struct jail {
 	u_int32_t	ip_number;
 };
 
+struct xprison {
+	int		 pr_version;
+	int		 pr_id;
+	char		 pr_path[MAXPATHLEN];
+	char 		 pr_host[MAXHOSTNAMELEN];
+	u_int32_t	 pr_ip;
+};
+#define	XPRISON_VERSION	1
+
 #ifndef _KERNEL
 
 int jail(struct jail *);
+int jail_attach(int);
 
 #else /* _KERNEL */
 
 #include <sys/queue.h>
 #include <sys/_lock.h>
 #include <sys/_mutex.h>
+
+#define JAIL_MAX	999999
 
 #ifdef MALLOC_DECLARE
 MALLOC_DECLARE(M_PRISON);
@@ -40,13 +52,18 @@ MALLOC_DECLARE(M_PRISON);
  * delete the struture when the last inmate is dead.
  *
  * Lock key:
+ *   (a) allprison_mutex
  *   (p) locked by pr_mutex
  *   (c) set only during creation before the structure is shared, no mutex
  *       required to read
  */
 struct mtx;
 struct prison {
+	LIST_ENTRY(prison) pr_list;			/* (a) all prisons */
+	int		 pr_id;				/* (c) prison id */
 	int		 pr_ref;			/* (p) refcount */
+	char		 pr_path[MAXPATHLEN];		/* (c) chroot path */
+	struct vnode	*pr_root;			/* (c) vnode to rdir */
 	char 		 pr_host[MAXHOSTNAMELEN];	/* (p) jail hostname */
 	u_int32_t	 pr_ip;				/* (c) ip addr host */
 	void		*pr_linux;			/* (p) linux abi */
@@ -62,6 +79,9 @@ struct prison {
 extern int	jail_set_hostname_allowed;
 extern int	jail_socket_unixiproute_only;
 extern int	jail_sysvipc_allowed;
+
+LIST_HEAD(prisonlist, prison);
+extern struct	prisonlist allprison;
 
 /*
  * Kernel support functions for jail().

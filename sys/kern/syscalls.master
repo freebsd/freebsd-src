@@ -630,6 +630,7 @@
 433	MSTD	BSD	{ int thr_kill(thr_id_t id, int sig); }
 434	MSTD	BSD	{ int _umtx_lock(struct umtx *umtx); }
 435	MSTD	BSD	{ int _umtx_unlock(struct umtx *umtx); }
+436	MSTD	BSD	{ int jail_attach(int jid); }
 
 ; Please copy any additions and changes to the following compatability tables:
 ; sys/ia64/ia32/syscalls.master  (take a best guess)
