@@ -41,7 +41,7 @@ static char *month[12] = {
 int
 skeyinfo(mp,name,ss)
 struct skey *mp;
-char *name;
+const char *name;
 char *ss;
 {
 	int rval;
@@ -73,7 +73,7 @@ char *ss;
 int
 skeychallenge(mp,name, ss)
 struct skey *mp;
-char *name;
+const char *name;
 char *ss;
 {
 	int rval;
@@ -101,7 +101,7 @@ char *ss;
 int
 skeylookup(mp,name)
 struct skey *mp;
-char *name;
+const char *name;
 {
 	int found;
 	int len;
@@ -191,7 +191,7 @@ char *response;
 	tm = localtime(&now);
 /* can't use %b here, because it can be in national form */
 	strftime(fbuf, sizeof(fbuf), "%d,%Y %T", tm);
-	sprintf(tbuf, " %s %s", month[tm->tm_mon], fbuf);
+	snprintf(tbuf, sizeof(tbuf), " %s %s", month[tm->tm_mon], fbuf);
 
 	if(response == NULL){
 		fclose(mp->keyfile);
