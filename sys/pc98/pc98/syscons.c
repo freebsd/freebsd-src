@@ -2975,8 +2975,7 @@ next_code:
     if (!(c & RELKEY))
 	sc_touch_scrn_saver();
 
-    /* do the /dev/random device a favour */
-    random_harvest((u_int64_t)c, 1, 0, RANDOM_KEYBOARD);
+    random_harvest(&c, sizeof(c), 1, 0, RANDOM_KEYBOARD);
 
     if (scp->kbd_mode != K_XLATE)
 	return KEYCHAR(c);
