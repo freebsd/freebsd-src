@@ -4,7 +4,7 @@
 # This is sysconfig - a file full of useful variables that you can set 
 # to change the default startup behavior of your system.
 #
-#	$Id: sysconfig,v 1.33 1996/01/29 08:46:14 gpalmer Exp $
+#	$Id: sysconfig,v 1.34 1996/01/31 15:02:32 mpp Exp $
 
 ######################### Start Of Local Configuration Section ###########
 
@@ -139,8 +139,11 @@ lpd=YES
 # time in minutes.  If set to NO, don't start sendmail at all.
 sendmail_flags="-bd -q30m"
 
-# Set to appropriate flags if you want to use AMD
+# Set to appropriate flags if you want to use AMD.  The commented-out entry
+# provides a reasonable default, using the sample amd.map config file from the
+# /usr/src/etc directory.
 amdflags="NO"
+#amdflags="a /net -c 1800 -k i386 -d my.domain -l syslog /host /etc/amd.map"
 
 # Set to YES if this machine will be an NFS client
 nfs_client=NO
