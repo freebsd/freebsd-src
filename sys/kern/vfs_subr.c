@@ -2545,8 +2545,10 @@ vclean(vp, flags, td)
 		vfree(vp);
 
 	/*
-	 * Done with purge, notify sleepers of the grim news.
+	 * Done with purge, reset to the standard lock and
+	 * notify sleepers of the grim news.
 	 */
+	vp->v_vnlock = &vp->v_lock;
 	vp->v_op = dead_vnodeop_p;
 	if (vp->v_pollinfo != NULL)
 		vn_pollgone(vp);
