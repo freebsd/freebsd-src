@@ -1,5 +1,5 @@
 #
-#	$Id: Makefile,v 1.205 1998/07/07 09:59:48 bde Exp $
+#	$Id: Makefile,v 1.206 1998/08/02 09:24:59 wosch Exp $
 #
 # While porting to the another architecture include the bootstrap instead
 # of the normal build.
@@ -41,6 +41,16 @@
 .if (!make(world)) && (!make(buildworld)) && (!make(installworld))
 .MAKEFLAGS:=	-m ${.CURDIR}/share/mk ${.MAKEFLAGS}
 .endif
+
+#
+# Pick up any macros that are defined in the src-relative bsd.own.mk
+# but not in the "system" bsd.own.mk.  The "system" version has
+# unfortunately already been included by the "system" sys.mk, so this
+# only works for new macros.  First undefine old macros that cause
+# problems.
+#
+.undef LIBDIR
+.include "${.CURDIR}/share/mk/bsd.own.mk"
 
 # Put initial settings here.
 SUBDIR=
@@ -366,7 +376,7 @@ reinstall:
 	@echo " Installing everything.."
 	@echo "--------------------------------------------------------------"
 	cd ${.CURDIR}; ${MAKE} install
-.if !defined(MACHINE_ARCH) || ${MACHINE_ARCH} == "i386"
+.if ${MACHINE_ARCH} == "i386"
 	@echo
 	@echo "--------------------------------------------------------------"
 	@echo " Re-scanning the shared libraries.."
@@ -601,7 +611,7 @@ includes:
 #
 # Declare tools if they are not required on all architectures.
 #
-.if !defined(MACHINE_ARCH) || ${MACHINE_ARCH} == "i386"
+.if ${MACHINE_ARCH} == "i386"
 # aout tools:
 _aout_ar	= usr.bin/ar
 _aout_as	= gnu/usr.bin/as
