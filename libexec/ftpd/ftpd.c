@@ -239,7 +239,7 @@ static void	selecthost(union sockunion *);
 static void	 ack(char *);
 static void	 sigurg(int);
 static void	 myoob(void);
-static int	 checkuser(char *, char *, int);
+static int	 checkuser(char *, char *, int, char **);
 static FILE	*dataconn(char *, off_t, char *);
 static void	 dolog(struct sockaddr *);
 static char	*curdir(void);
@@ -1000,8 +1000,8 @@ user(char *name)
 
 	guest = 0;
 	if (strcmp(name, "ftp") == 0 || strcmp(name, "anonymous") == 0) {
-		if (checkuser(_PATH_FTPUSERS, "ftp", 0) ||
-		    checkuser(_PATH_FTPUSERS, "anonymous", 0))
+		if (checkuser(_PATH_FTPUSERS, "ftp", 0, NULL) ||
+		    checkuser(_PATH_FTPUSERS, "anonymous", 0, NULL))
 			reply(530, "User %s access denied.", name);
 #ifdef VIRTUAL_HOSTING
 		else if ((pw = sgetpwnam(thishost->anonuser)) != NULL) {
@@ -1032,7 +1032,7 @@ user(char *name)
 				break;
 		endusershell();
 
-		if (cp == NULL || checkuser(_PATH_FTPUSERS, name, 1)) {
+		if (cp == NULL || checkuser(_PATH_FTPUSERS, name, 1, NULL)) {
 			reply(530, "User %s access denied.", name);
 			if (logging)
 				syslog(LOG_NOTICE,
@@ -1069,10 +1069,12 @@ user(char *name)
 }
 
 /*
- * Check if a user is in the file "fname"
+ * Check if a user is in the file "fname",
+ * return a pointer to a malloc'd string with the rest
+ * of the matching line in "residue" if not NULL.
  */
 static int
-checkuser(char *fname, char *name, int pwset)
+checkuser(char *fname, char *name, int pwset, char **residue)
 {
 	FILE *fd;
 	int found = 0;
@@ -1106,26 +1108,40 @@ checkuser(char *fname, char *name, int pwset)
 				int i = 0;
 				struct group *grp;
 
-				if ((grp = getgrnam(p+1)) == NULL)
-					goto nextline;
-				/*
-				 * Check user's default group
-				 */
-				if (pwset && grp->gr_gid == pw->pw_gid)
+				if (p[1] == '\0') /* single @ matches anyone */
 					found = 1;
-				/*
-				 * Check supplementary groups
-				 */
-				while (!found && grp->gr_mem[i])
-					found = strcmp(name,
-						grp->gr_mem[i++])
-						== 0;
+				else {
+					if ((grp = getgrnam(p+1)) == NULL)
+						goto nextline;
+					/*
+					 * Check user's default group
+					 */
+					if (pwset && grp->gr_gid == pw->pw_gid)
+						found = 1;
+					/*
+					 * Check supplementary groups
+					 */
+					while (!found && grp->gr_mem[i])
+						found = strcmp(name,
+							grp->gr_mem[i++])
+							== 0;
+				}
 			}
 			/*
 			 * Otherwise, just check for username match
 			 */
 			else
 				found = strcmp(p, name) == 0;
+			/*
+			 * Save the rest of line to "residue" if matched
+			 */
+			if (found && residue) {
+				if ((p = strtok(NULL, "")) != NULL) {
+				 	if ((*residue = strdup(p)) == NULL)
+						fatalerror("Ran out of memory.");
+				} else
+					*residue = NULL;
+			}
 nextline:
 			if (mp)
 				free(mp);
@@ -1331,6 +1347,7 @@ pass(char *passwd)
 #ifdef USE_PAM
 	int e;
 #endif
+	char *chrootdir;
 	char *xpasswd;
 
 	if (logged_in || askpasswd == 0) {
@@ -1447,10 +1464,11 @@ skip:
 			stats = 0;
 
 	dochroot =
+		checkuser(_PATH_FTPCHROOT, pw->pw_name, 1, &chrootdir)
 #ifdef	LOGIN_CAP	/* Allow login.conf configuration as well */
-		login_getcapbool(lc, "ftp-chroot", 0) ||
+		|| login_getcapbool(lc, "ftp-chroot", 0)
 #endif
-		checkuser(_PATH_FTPCHROOT, pw->pw_name, 1);
+	;
 	if (guest) {
 		/*
 		 * We MUST do a chdir() after the chroot. Otherwise
@@ -1462,10 +1480,25 @@ skip:
 			goto bad;
 		}
 	} else if (dochroot) {
-		if (chroot(pw->pw_dir) < 0 || chdir("/") < 0) {
+		if (chrootdir) { /* chroot dir set in ftpchroot(5) */
+			if (chrootdir[0] != '/') { /* relative to homedir */
+				char *p;
+
+				asprintf(&p, "%s/%s", pw->pw_dir, chrootdir);
+				if (p == NULL)
+					fatalerror("Ran out of memory.");
+				free(chrootdir);
+				chrootdir = p;
+			}
+		} else
+			if ((chrootdir = strdup(pw->pw_dir)) == NULL)
+				fatalerror("Ran out of memory.");
+		if (chroot(chrootdir) < 0 || chdir("/") < 0) {
 			reply(550, "Can't change root.");
+			free(chrootdir);
 			goto bad;
 		}
+		free(chrootdir);
 	} else if (chdir(pw->pw_dir) < 0) {
 		if (chdir("/") < 0) {
 			reply(530, "User %s: can't change directory to %s.",

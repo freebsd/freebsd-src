@@ -358,13 +358,17 @@ If the user name appears in the file
 or the user is a member of a group with a group entry in this file,
 i.e. one prefixed with
 .Ql \&@ ,
-the session's root will be changed to the user's login directory by
+the session's root will be changed to the directory specified
+in this file or to the user's login directory by
 .Xr chroot 2
 as for an
 .Dq anonymous
 or
 .Dq ftp
 account (see next item).
+See
+.Xr ftpchroot 5
+for a detailed description of the format of this file.
 This facility may also be triggered by enabling the boolean "ftp-chroot"
 capability in
 .Xr login.conf 5 .
@@ -518,6 +522,7 @@ Default place for session logs.
 .Xr key 1 ,
 .Xr umask 2 ,
 .Xr getusershell 3 ,
+.Xr ftpchroot 5 ,
 .Xr login.conf 5 ,
 .Xr inetd 8 ,
 .Xr syslogd 8
