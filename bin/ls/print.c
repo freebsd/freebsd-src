@@ -500,7 +500,7 @@ char *cs;
 				fprintf(stderr,
 				    "error: invalid character '%c' in LSCOLORS"
 				    " env var\n", c[j]);
-				colors[i].num[j] = defcolors[2*i+j]-'0';
+				colors[i].num[j] = -1;
 			}
 		}
 	}
