@@ -829,7 +829,7 @@ interface configured for IPv6.
 Normally, such an address is automatically configured by the
 kernel on each interface added to the system; this behaviour may
 be disabled by setting the sysctl MIB variable
-.Em net.inet6.ip6.auto_linklocal
+.Va net.inet6.ip6.auto_linklocal
 to 0.
 .Pp
 If you delete such an address using
@@ -842,7 +842,8 @@ Do this at your own risk.
 .Xr vlan 4 ,
 .\" .Xr eon 5 ,
 .Xr rc 8 ,
-.Xr routed 8
+.Xr routed 8 ,
+.Xr sysctl 8
 .Sh HISTORY
 The
 .Nm
