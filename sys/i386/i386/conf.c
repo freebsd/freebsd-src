@@ -53,9 +53,10 @@
  * 25 May 93	Bruce Evans		New fast interrupt serial driver (sio)
  * 		Gene Stark		Xten power controller info added (tw)
  *		Rick Macklem		Bus mouse driver (mse)
+ * 28 Jul 93	Jordan K. Hubbard	Free codrv's slot again
  *
  */
-static char rcsid[] = "$Header: /usr/src/sys.386bsd/i386/i386/RCS/conf.c,v 1.2 92/01/21 14:21:57 william Exp Locker: toor $";
+static char rcsid[] = "$Header: /a/cvs/386BSD/src/sys/i386/i386/conf.c,v 1.1.1.1 1993/06/12 14:58:07 rgrimes Exp $";
 
 #include "param.h"
 #include "systm.h"
@@ -266,19 +267,6 @@ int	lptopen(),lptclose(),lptwrite(),lptioctl();
 #define	lptioctl	enxio
 #endif
 
-#include "co.h"
-#if NCO > 0
-int	coopen(),coclose(),coread(),coioctl(),coselect(),comap();
-#define pcmmap		comap
-#else
-#define coopen		enxio
-#define coclose		enxio
-#define coread		enxio
-#define coioctl		enxio
-#define coselect	enxio
-#define comap		enxio
-#endif
-
 #include "tw.h"
 #if NTW > 0
 int	twopen(),twclose(),twread(),twwrite(),twselect();
@@ -434,9 +422,9 @@ struct cdevsw	cdevsw[] =
 	{ enxio,	enxio,		enxio,		enxio,		/*20*/
 	  enxio,	enxio,		enxio,		NULL,	/* soundblaster?*/
 	  enxio,	enxio,		enxio },
-	{ coopen,	coclose,	coread,		enxio,		/*21*/
-	  coioctl,	nullop,		nullop,		NULL,	/* co */
-	  coselect,	comap,		NULL },
+	{ enxio,	enxio,		enxio,		enxio,		/*21*/
+	  enxio,	enxio,		enxio,		NULL,	/* free */
+	  enxio,	enxio,		NULL },
 	{ fdopen,	enxio,		enxio,		enxio,		/*22*/
 	  enxio,	enxio,		enxio,		NULL,	/* fd (!=Fd) */
 	  enxio,	enxio,		enxio },
