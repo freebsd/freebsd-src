@@ -97,6 +97,7 @@ sk	i386,pc98,alpha,amd64
 sn	i386,amd64
 snc	pc98
 snd_ad1816	i386,amd64
+snd_audiocs	sparc64
 snd_cmi	i386,amd64
 snd_cs4281	i386,amd64
 snd_csa	i386,amd64
