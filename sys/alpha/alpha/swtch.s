@@ -1,6 +1,3 @@
-/* $FreeBSD$ */
-/* $NetBSD: locore.s,v 1.47 1998/03/22 07:26:32 thorpej Exp $ */
-
 /*
  * Copyright (c) 1994, 1995, 1996 Carnegie-Mellon University.
  * All rights reserved.
@@ -26,6 +23,9 @@
  *
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
+ *
+ *	$NetBSD: locore.s,v 1.47 1998/03/22 07:26:32 thorpej Exp $
+ * $FreeBSD$
  */
 
 #define _LOCORE

@@ -25,6 +25,7 @@
  *
  * $FreeBSD$
  */
+
 /*
  * Copyright (c) 1994, 1995, 1996 Carnegie-Mellon University.
  * All rights reserved.

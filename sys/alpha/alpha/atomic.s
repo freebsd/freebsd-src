@@ -27,9 +27,9 @@
  */
 
 #include <machine/asm.h>
-	
+
 	.text
-	
+
 LEAF(atomic_set_8, 2)
 	bic	a0, 7, t1
 0:	ldq_l	t2, 0(t1)

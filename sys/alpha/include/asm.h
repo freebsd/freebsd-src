@@ -1,6 +1,3 @@
-/* $FreeBSD$ */
-/* From: NetBSD: asm.h,v 1.18 1997/11/03 04:22:06 ross Exp */
-
 /* 
  * Copyright (c) 1991,1990,1989,1994,1995,1996 Carnegie Mellon University
  * All Rights Reserved.
@@ -24,6 +21,8 @@
  * 
  * any improvements or extensions that they make and grant Carnegie Mellon
  * the rights to redistribute these changes.
+ *	From: NetBSD: asm.h,v 1.18 1997/11/03 04:22:06 ross Exp
+ * $FreeBSD$
  */
 
 /*
