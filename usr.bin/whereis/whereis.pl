@@ -28,7 +28,7 @@
 #
 # Rewritten from scratch for FreeBSD after the 4.3BSD manual page.
 #
-# $Id: whereis.pl,v 1.4 1997/02/22 19:57:48 peter Exp $
+# $Id: whereis.pl,v 1.5 1997/12/22 19:11:28 ache Exp $
 #
 
 sub usage
@@ -144,7 +144,7 @@ if (!defined(@sources)) {
 		"/usr/src/usr.sbin", "/usr/src/libexec",
 		"/usr/src/gnu/bin", "/usr/src/gnu/usr.bin",
 		"/usr/src/gnu/sbin", "/usr/src/gnu/usr.sbin",
-		"/usr/src/gnu/libexec");
+		"/usr/src/gnu/libexec", "/usr/src/contrib");
 
     #
     # if /usr/ports exists, look in all its subdirs, too
@@ -213,7 +213,7 @@ foreach $name (@names) {
 	$found = 0;
 	$unusual++;
 	foreach (@sources) {
-	    $line .= " $_/$name", $unusual--, $found++, last if -d "$_/$name";
+		$line .= " $_/$name", $unusual--, $found++ if -d "$_/$name";
 	}
 	#
 	# If not yet found, ask locate(1) to do the search for us.
