@@ -42,9 +42,6 @@
 
 __weak_reference(_pthread_exit, pthread_exit);
 
-/* thr_exit() */
-extern int _thr_exit(void);
-
 static void	deadlist_free_threads();
 
 void
@@ -164,7 +161,6 @@ _pthread_exit(void *status)
 	deadlist_free_threads();
 	TAILQ_INSERT_HEAD(&_dead_list, curthread, dle);
 	TAILQ_REMOVE(&_thread_list, curthread, tle);
-	curthread->isdead = 1;
 	
 	/* If we're the last thread, call it quits */
 	if (TAILQ_EMPTY(&_thread_list))
@@ -181,7 +177,7 @@ _pthread_exit(void *status)
 	 * thread, which we can't be because we've already checked
 	 * for that.
 	 */
-	_thr_exit();
+	thr_exit((long *)&curthread->isdead);
 
 	/* This point should not be reached. */
 	PANIC("Dead thread has resumed");

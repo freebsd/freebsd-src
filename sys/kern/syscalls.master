@@ -614,7 +614,7 @@
 		    acl_type_t type, struct acl *aclp); }
 429	MSTD	{ int sigwait(const sigset_t *set, int *sig); }
 430	MSTD	{ int thr_create(ucontext_t *ctx, long *id, int flags); }
-431	MSTD	{ void thr_exit(void); }
+431	MSTD	{ void thr_exit(long *state); }
 432	MSTD	{ int thr_self(long *id); }
 433	MSTD	{ int thr_kill(long id, int sig); }
 434	MSTD	{ int _umtx_lock(struct umtx *umtx); }
