@@ -133,7 +133,6 @@ static void	amr_freecmd_cluster(struct amr_command_cluster *acc);
  */
 static int	amr_bio_command(struct amr_softc *sc, struct amr_command **acp);
 static int	amr_wait_command(struct amr_command *ac);
-static int	amr_poll_command(struct amr_command *ac);
 static int	amr_getslot(struct amr_command *ac);
 static void	amr_mapcmd(struct amr_command *ac);
 static void	amr_unmapcmd(struct amr_command *ac);
@@ -150,9 +149,11 @@ static void	amr_periodic(void *data);
  */
 static int	amr_quartz_submit_command(struct amr_softc *sc);
 static int	amr_quartz_get_work(struct amr_softc *sc, struct amr_mailbox *mbsave);
+static int	amr_quartz_poll_command(struct amr_command *ac);
 
 static int	amr_std_submit_command(struct amr_softc *sc);
 static int	amr_std_get_work(struct amr_softc *sc, struct amr_mailbox *mbsave);
+static int	amr_std_poll_command(struct amr_command *ac);
 static void	amr_std_attach_mailbox(struct amr_softc *sc);
 
 #ifdef AMR_BOARD_INIT
@@ -165,7 +166,9 @@ static int	amr_std_init(struct amr_softc *sc);
  */
 static void	amr_describe_controller(struct amr_softc *sc);
 #ifdef AMR_DEBUG
+#if 0
 static void	amr_printcommand(struct amr_command *ac);
+#endif
 #endif
 
 /********************************************************************************
@@ -213,9 +216,11 @@ amr_attach(struct amr_softc *sc)
     if (AMR_IS_QUARTZ(sc)) {
 	sc->amr_submit_command = amr_quartz_submit_command;
 	sc->amr_get_work       = amr_quartz_get_work;
+	sc->amr_poll_command   = amr_quartz_poll_command;
     } else {
 	sc->amr_submit_command = amr_std_submit_command;
 	sc->amr_get_work       = amr_std_get_work;
+	sc->amr_poll_command   = amr_std_poll_command;
 	amr_std_attach_mailbox(sc);;
     }
 
@@ -345,6 +350,10 @@ amr_free(struct amr_softc *sc)
 	TAILQ_REMOVE(&sc->amr_cmd_clusters, acc, acc_link);
 	amr_freecmd_cluster(acc);
     }
+
+    /* destroy control device */
+    if( sc->amr_dev_t != (dev_t)NULL)
+	    destroy_dev(sc->amr_dev_t);
 }
 
 /*******************************************************************************
@@ -501,7 +510,7 @@ amr_ioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, d_thread_t *td)
 	    error = copyout(dp, au->au_buffer, au->au_length);
 	debug(2, "copyout %ld bytes from %p -> %p", au->au_length, dp, au->au_buffer);
 	if (dp != NULL)
-	    debug(2, "%16D", dp, " ");
+	    debug(2, "%16d", (int)dp);
 	au->au_status = ac->ac_status;
 	break;
 
@@ -688,7 +697,7 @@ amr_enquiry(struct amr_softc *sc, size_t bufsize, u_int8_t cmd, u_int8_t cmdsub,
     mbox[3] = cmdqual;
 
     /* can't assume that interrupts are going to work here, so play it safe */
-    if (amr_poll_command(ac))
+    if (sc->amr_poll_command(ac))
 	goto out;
     error = ac->ac_status;
     
@@ -722,7 +731,7 @@ amr_flush(struct amr_softc *sc)
     ac->ac_mailbox.mb_command = AMR_CMD_FLUSH;
 
     /* we have to poll, as the system may be going down or otherwise damaged */
-    if (amr_poll_command(ac))
+    if (sc->amr_poll_command(ac))
 	goto out;
     error = ac->ac_status;
     
@@ -758,7 +767,7 @@ amr_support_ext_cdb(struct amr_softc *sc)
 
 
     /* we have to poll, as the system may be going down or otherwise damaged */
-    if (amr_poll_command(ac))
+    if (sc->amr_poll_command(ac))
 	goto out;
     if( ac->ac_status == AMR_STATUS_SUCCESS ) {
 	    error = 1;
@@ -928,7 +937,7 @@ amr_wait_command(struct amr_command *ac)
  * Returns nonzero on error.  Can be safely called with interrupts enabled.
  */
 static int
-amr_poll_command(struct amr_command *ac)
+amr_std_poll_command(struct amr_command *ac)
 {
     struct amr_softc	*sc = ac->ac_sc;
     int			error, count;
@@ -955,6 +964,62 @@ amr_poll_command(struct amr_command *ac)
 	error = EIO;
 	device_printf(sc->amr_dev, "polled command timeout\n");
     }
+    return(error);
+}
+
+/********************************************************************************
+ * Take a command, submit it to the controller and busy-wait for it to return.
+ * Returns nonzero on error.  Can be safely called with interrupts enabled.
+ */
+static int
+amr_quartz_poll_command(struct amr_command *ac)
+{
+    struct amr_softc	*sc = ac->ac_sc;
+    int			s;
+    int			error;
+
+    debug_called(2);
+
+    /* now we have a slot, we can map the command (unmapped in amr_complete) */
+    amr_mapcmd(ac);
+
+    s = splbio();
+
+    if(sc->amr_busyslots) {
+	device_printf(sc->amr_dev, "adapter is busy");
+	splx(s);
+	amr_unmapcmd(ac);
+    	ac->ac_status=0;
+	return(1);
+    }
+
+    bcopy(&ac->ac_mailbox, (void *)(uintptr_t)(volatile void *)sc->amr_mailbox, AMR_MBOX_CMDSIZE);
+
+    /* clear the poll/ack fields in the mailbox */
+    sc->amr_mailbox->mb_ident = 0xFE;
+    sc->amr_mailbox->mb_nstatus = 0xFF;
+    sc->amr_mailbox->mb_status = 0xFF;
+    sc->amr_mailbox->mb_poll = 0;
+    sc->amr_mailbox->mb_ack = 0;
+
+    AMR_QPUT_IDB(sc, sc->amr_mailboxphys | AMR_QIDB_SUBMIT);
+
+    while(sc->amr_mailbox->mb_nstatus == 0xFF);
+    while(sc->amr_mailbox->mb_status == 0xFF);
+    ac->ac_status=sc->amr_mailbox->mb_status;
+    error = (ac->ac_status !=AMR_STATUS_SUCCESS) ? 1:0;
+    while(sc->amr_mailbox->mb_poll != 0x77);
+    sc->amr_mailbox->mb_poll = 0;
+    sc->amr_mailbox->mb_ack = 0x77;
+
+    /* acknowledge that we have the commands */
+    AMR_QPUT_IDB(sc, sc->amr_mailboxphys | AMR_QIDB_ACK);
+
+    splx(s);
+
+    /* unmap the command's data buffer */
+    amr_unmapcmd(ac);
+
     return(error);
 }
 
@@ -1712,6 +1777,7 @@ amr_describe_controller(struct amr_softc *sc)
 /********************************************************************************
  * Print the command (ac) in human-readable format
  */
+#if 0
 static void
 amr_printcommand(struct amr_command *ac)
 {
@@ -1733,4 +1799,5 @@ amr_printcommand(struct amr_command *ac)
     for (i = 0; i < ac->ac_mailbox.mb_nsgelem; i++, sg++)
 	device_printf(sc->amr_dev, "  %x/%d\n", sg->sg_addr, sg->sg_count);
 }
+#endif
 #endif
