@@ -397,7 +397,7 @@ ithread_schedule(struct ithd *ithread, int do_switch)
 			KASSERT((TD_IS_RUNNING(ctd)),
 			    ("ithread_schedule: Bad state for curthread."));
 			ctd->td_proc->p_stats->p_ru.ru_nivcsw++;
-			if (ctd->td_kse->ke_flags & KEF_IDLEKSE)
+			if (ctd->td_flags & TDF_IDLETD)
 				ctd->td_state = TDS_CAN_RUN; /* XXXKSE */
 			mi_switch();
 		} else {
