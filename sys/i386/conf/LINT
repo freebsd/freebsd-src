@@ -4,7 +4,7 @@
 #
 #	This kernel is NOT MEANT to be runnable!
 #
-#	$Id: LINT,v 1.108 1994/11/15 14:28:46 bde Exp $
+#	$Id: LINT,v 1.109 1994/11/24 20:35:21 se Exp $
 #
 
 #
@@ -88,7 +88,7 @@ options		SYSVMSG
 #
 options		DODUMP			#We dump core-image on panic
 options		DDB			#Kernel debugger
-options		"SYMTAB_SPACE=158940"	#This kernel needs LOTS of symtable
+options		"SYMTAB_SPACE=159100"	#This kernel needs LOTS of symtable
 
 # 
 # KTRACE enables the system-call tracing facility ktrace(2).
