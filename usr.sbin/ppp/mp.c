@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp.c,v 1.4 1998/05/23 17:05:28 brian Exp $
+ *	$Id: mp.c,v 1.5 1998/05/23 22:24:46 brian Exp $
  */
 
 #include <sys/types.h>
@@ -861,7 +861,6 @@ mpserver_UpdateSet(struct descriptor *d, fd_set *r, fd_set *w, fd_set *e,
       result -= datalink_RemoveFromSet(s->send.dl, r, w, e);
       bundle_SendDatalink(s->send.dl, s->fd, &s->socket);
       s->send.dl = NULL;
-      close(s->fd);
       s->fd = -1;
     } else
       /* Never read from a datalink that's on death row ! */
@@ -899,8 +898,8 @@ mpserver_Read(struct descriptor *d, struct bundle *bundle, const fd_set *fdset)
 
   if (in.sa_family == AF_LOCAL)
     bundle_ReceiveDatalink(bundle, fd, (struct sockaddr_un *)&in);
-
-  close(fd);
+  else
+    close(fd);
 }
 
 static void
@@ -994,7 +993,6 @@ mpserver_Close(struct mpserver *s)
   if (s->send.dl != NULL) {
     bundle_SendDatalink(s->send.dl, s->fd, &s->socket);
     s->send.dl = NULL;
-    close(s->fd);
     s->fd = -1;
   } else if (s->fd >= 0) {
     close(s->fd);

@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: modem.c,v 1.82 1998/05/21 22:55:08 brian Exp $
+ * $Id: modem.c,v 1.83 1998/05/23 22:24:44 brian Exp $
  *
  *  TODO:
  */
@@ -954,6 +954,8 @@ modem_DescriptorRead(struct descriptor *d, struct bundle *bundle,
           log_WritePrompts(p->dl, rbuff, cp - rbuff);
           log_WritePrompts(p->dl, "\r\n", 2);
         }
+        log_Printf(LogPHASE, "%s: PPP packet detected, coming up\n",
+                   p->link.name);
         datalink_Up(p->dl, 0, 1);
       } else
         log_WritePrompts(p->dl, rbuff, n);
@@ -1030,6 +1032,7 @@ iov2modem(struct datalink *dl, struct iovec *iov, int *niov, int maxiov, int fd)
     modem_StartTimer(dl->bundle, p);
   }
   /* Don't need to lock the device in -direct mode */
+  /* XXX: What if it's not a -direct link ! */
 
   return p;
 }
@@ -1048,7 +1051,8 @@ modem2iov(struct physical *p, struct iovec *iov, int *niov, int maxiov)
     timer_Stop(&p->link.ccp.fsm.StoppedTimer);
     if (p->Timer.state != TIMER_STOPPED) {
       timer_Stop(&p->Timer);
-      p->Timer.state = TIMER_RUNNING;	/* Special - see iov2modem() */
+      if (!physical_IsATTY(p) || p->fd != STDIN_FILENO)
+        p->Timer.state = TIMER_RUNNING;	/* Special - see iov2modem() */
     }
     timer_Stop(&p->link.throughput.Timer);
   }
