@@ -159,7 +159,6 @@ SYSCTL_INT(_net_graph, OID_AUTO, recvspace, CTLFLAG_RW,
 static LIST_HEAD(, ngpcb) ngsocklist;
 
 static struct mtx	ngsocketlist_mtx;
-MTX_SYSINIT(ngsocketlist, &ngsocketlist_mtx, "ng_socketlist", MTX_DEF);
 
 #define sotongpcb(so) ((struct ngpcb *)(so)->so_pcb)
 
@@ -1094,6 +1093,7 @@ ngs_mod_event(module_t mod, int event, void *data)
 
 	switch (event) {
 	case MOD_LOAD:
+		mtx_init(&ngsocketlist_mtx, "ng_socketlist", NULL, MTX_DEF);
 		/* Register protocol domain */
 		net_add_domain(&ngdomain);
 		break;
@@ -1109,6 +1109,7 @@ ngs_mod_event(module_t mod, int event, void *data)
 		/* Unregister protocol domain XXX can't do this yet.. */
 			if ((error = net_rm_domain(&ngdomain)) != 0)
 				break;
+			mtx_destroy(&ngsocketlist_mtx);
 		} else
 #endif
 			error = EBUSY;
