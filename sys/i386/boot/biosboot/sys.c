@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:36:34  rpd
- *	$Id: sys.c,v 1.11 1996/04/07 14:28:03 bde Exp $
+ *	$Id: sys.c,v 1.12 1996/09/07 21:06:43 bde Exp $
  */
 
 #include "boot.h"
@@ -72,21 +72,17 @@ read(char *buffer, int count)
 		logno = lblkno(fs, poff);
 		cnt2 = size = blksize(fs, &inode, logno);
 		bnum2 = fsbtodb(fs, block_map(logno)) + boff;
-		cnt = cnt2;
-		bnum = bnum2;
 		if (	(!off)  && (size <= count))
 		{
-			iodest = buffer;
-			devread();
+			devread(buffer, bnum2, cnt2);
 		}
 		else
 		{
-			iodest = iobuf;
 			size -= off;
 			if (size > count)
 				size = count;
-			devread();
-			bcopy(iodest+off,buffer,size);
+			devread(iobuf, bnum2, cnt2);
+			bcopy(iobuf+off, buffer, size);
 		}
 		buffer += size;
 		count -= size;
@@ -104,11 +100,8 @@ find(char *path)
 
 	list_only = (path[0] == '?' && path[1] == '\0');
 loop:
-	iodest = iobuf;
-	cnt = fs->fs_bsize;
-	bnum = fsbtodb(fs,ino_to_fsba(fs,ino)) + boff;
-	devread();
-	bcopy((void *)&((struct dinode *)iodest)[ino % fs->fs_inopb],
+	devread(iobuf, fsbtodb(fs, ino_to_fsba(fs, ino)) + boff, fs->fs_bsize);
+	bcopy((void *)&((struct dinode *)iobuf)[ino % fs->fs_inopb],
 	      (void *)&inode.i_din,
 	      sizeof (struct dinode));
 	if (!*path)
@@ -131,12 +124,10 @@ loop:
 		}
 		if (!(off = blkoff(fs, loc))) {
 			block = lblkno(fs, loc);
-			cnt = blksize(fs, &inode, block);
-			bnum = fsbtodb(fs, block_map(block)) + boff;
-			iodest = iobuf;
-			devread();
+			devread(iobuf, fsbtodb(fs, block_map(block)) + boff,
+				blksize(fs, &inode, block));
 		}
-		dp = (struct direct *)(iodest + off);
+		dp = (struct direct *)(iobuf + off);
 		loc += dp->d_reclen;
 		if (dp->d_ino && list_only)
 			printf("%s ", dp->d_name);
@@ -150,12 +141,11 @@ loop:
 int
 block_map(int file_block)
 {
+	int bnum;
 	if (file_block < NDADDR)
 		return(inode.i_db[file_block]);
 	if ((bnum=fsbtodb(fs, inode.i_ib[0])+boff) != mapblock) {
-		iodest = mapbuf;
-		cnt = fs->fs_bsize;
-		devread();
+		devread(mapbuf, bnum, fs->fs_bsize);
 		mapblock = bnum;
 	}
 	return (((int *)mapbuf)[(file_block - NDADDR) % NINDIR(fs)]);
@@ -247,7 +237,6 @@ openrd(void)
 	}
 	printf("dosdev = %x, biosdrive = %d, unit = %d, maj = %d\n",
 		dosdev, biosdrive, unit, maj);
-	inode.i_dev = dosdev;
 
 	/***********************************************\
 	* Now we know the disk unit and part,		*
@@ -259,10 +248,7 @@ openrd(void)
 	/***********************************************\
 	* Load Filesystem info (mount the device)	*
 	\***********************************************/
-	iodest = (char *)(fs = (struct fs *)fsbuf);
-	cnt = SBSIZE;
-	bnum = SBLOCK + boff;
-	devread();
+	devread((char *)(fs = (struct fs *)fsbuf), SBLOCK + boff, SBSIZE);
 	/***********************************************\
 	* Find the actual FILE on the mounted device	*
 	\***********************************************/
