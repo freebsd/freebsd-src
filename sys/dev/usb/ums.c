@@ -388,7 +388,7 @@ ums_detach(device_t self)
 	sc->sc_disconnected = 1;
 
 	DPRINTF(("%s: disconnected\n", USBDEVNAME(self)));
-	device_set_desc(self, NULL);
+
 	free(sc->sc_loc_btn, M_USB);
 	free(sc->sc_ibuf, M_USB);
 
