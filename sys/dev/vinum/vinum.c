@@ -86,7 +86,7 @@ STATIC int vinum_devsw_installed = 0;
 void
 vinumattach(void *dummy)
 {
-	char *buf;					    /* pointer to temporary buffer */
+    char *buf;						    /* pointer to temporary buffer */
     struct _ioctl_reply *ioctl_reply;			    /* struct to return */
     struct uio uio;
     struct iovec iovec;
@@ -146,8 +146,10 @@ vinumattach(void *dummy)
     ioctl_reply = NULL;					    /* no reply on longjmp */
 }
 
-/* Check if we have anything open.  If so, return 0 (not inactive),
- * otherwise 1 (inactive) */
+/*
+ * Check if we have anything open.  If so, return 0 (not inactive),
+ * otherwise 1 (inactive) 
+ */
 int 
 vinum_inactive(void)
 {
@@ -165,7 +167,8 @@ vinum_inactive(void)
     return can_do;
 }
 
-/* Free all structures.
+/*
+ * Free all structures.
  * If cleardrive is 0, save the configuration; otherwise
  * remove the configuration from the drive.
  *
@@ -220,7 +223,7 @@ MOD_MISC(vinum);
 STATIC int 
 vinum_load(struct lkm_table *lkmtp, int cmd)
 {
-   vinumattach(NULL);
+    vinumattach(NULL);
     return 0;						    /* OK */
 }
 
@@ -230,7 +233,7 @@ vinum_load(struct lkm_table *lkmtp, int cmd)
 STATIC int 
 vinum_unload(struct lkm_table *lkmtp, int cmd)
 {
-	if (vinum_inactive()) {				    /* is anything open? */
+    if (vinum_inactive()) {				    /* is anything open? */
 	struct sync_args dummyarg =
 	{0};
 
@@ -249,7 +252,7 @@ vinum_unload(struct lkm_table *lkmtp, int cmd)
 int 
 vinum_mod(struct lkm_table *lkmtp, int cmd, int ver)
 {
-	MOD_DISPATCH(vinum,				    /* module name */
+    MOD_DISPATCH(vinum,					    /* module name */
 	lkmtp,						    /* LKM table */
 	cmd,						    /* command */
 	ver,
@@ -294,11 +297,13 @@ DECLARE_MODULE(vinum, vinum_mod, SI_SUB_DRIVERS, SI_ORDER_MIDDLE);
 #endif /* LKM */
 
 /* ARGSUSED */
-/* Open a vinum object
+/*
+ * Open a vinum object
  * At the moment, we only open volumes and the
  * super device.  It's a nice concept to be
  * able to open drives, subdisks and plexes, but
- * I can't think what good it could be */
+ * I can't think what good it could be 
+ */
 int 
 vinumopen(dev_t dev,
     int flags,
@@ -374,8 +379,10 @@ vinumopen(dev_t dev,
 	    return ENXIO;				    /* no such device */
 	sd = &SD[index];
 
-	/* Opening a subdisk is always a special operation, so we 
-	 * ignore the state as long as it represents a real subdisk */
+	/*
+	 * Opening a subdisk is always a special operation, so we 
+	 * ignore the state as long as it represents a real subdisk 
+	 */
 	switch (sd->state) {
 	case sd_unallocated:
 	case sd_uninit:
@@ -398,11 +405,10 @@ vinumopen(dev_t dev,
 	return ENODEV;					    /* don't know what to do with these */
 
     case VINUM_SUPERDEV_TYPE:
-	if (p->p_ucred->cr_uid == 0) {			    /* root calling, */
+	error = suser(p->p_ucred, &p->p_acflag);	    /* are we root? */
+	if (error == 0)					    /* yes, can do */
 	    vinum_conf.opencount = 1;			    /* we're open */
-	    return 0;					    /* no worries opening super dev */
-	} else
-	    return EPERM;				    /* you can't do that! */
+	return error;
     }
 }
 
@@ -466,8 +472,11 @@ vinumclose(dev_t dev,
 	return 0;
 
     case VINUM_SUPERDEV_TYPE:
-	if (p->p_ucred->cr_uid == 0)			    /* root calling, */
-	    vinum_conf.opencount = 0;			    /* no longer open */
+	/*
+	 * don't worry about whether we're root:
+	 * nobody else would get this far.
+	 */
+	vinum_conf.opencount = 0;			    /* no longer open */
 	return 0;					    /* no worries closing super dev */
 
     case VINUM_DRIVE_TYPE:
