@@ -36,7 +36,7 @@
 static const char sccsid[] = "@(#)pw_util.c	8.3 (Berkeley) 4/2/94";
 #endif
 static const char rcsid[] =
-	"$Id: pw_util.c,v 1.10 1998/10/13 14:52:33 des Exp $";
+	"$Id: pw_util.c,v 1.11 1998/10/20 11:34:11 des Exp $";
 #endif /* not lint */
 
 /*
@@ -115,11 +115,27 @@ pw_lock()
 	 * that users can't get at the encrypted passwords while editing.
 	 * Open should allow flock'ing the file; see 4.4BSD.	XXX
 	 */
-	lockfd = open(_PATH_MASTERPASSWD, O_RDONLY, 0);
-	if (lockfd < 0 || fcntl(lockfd, F_SETFD, 1) == -1)
-		err(1, "%s", _PATH_MASTERPASSWD);
-	if (flock(lockfd, LOCK_EX|LOCK_NB))
-		errx(1, "the password db file is busy");
+	for (;;) {
+	    struct stat st;
+
+	    lockfd = open(_PATH_MASTERPASSWD, O_RDONLY, 0);
+	    if (lockfd < 0 || fcntl(lockfd, F_SETFD, 1) == -1)
+		    err(1, "%s", _PATH_MASTERPASSWD);
+	    if (flock(lockfd, LOCK_EX|LOCK_NB))
+		    errx(1, "the password db file is busy");
+
+	    /*
+	     * If the password file was replaced while we were trying to
+	     * get the lock, our hardlink count will be 0 and we have to
+	     * close and retry.
+	     */
+	    if (fstat(lockfd, &st) < 0)
+		    errx(1, "fstat() failed");
+	    if (st.st_nlink != 0)
+		    break;
+	    close(lockfd);
+	    lockfd = -1;
+	}
 	return (lockfd);
 }
 
