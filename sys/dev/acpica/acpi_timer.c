@@ -53,8 +53,8 @@ ACPI_MODULE_NAME("TIMER")
 
 static device_t			acpi_timer_dev;
 static struct resource		*acpi_timer_reg;
-static bus_space_handle_t	timer_bsh;
-static bus_space_tag_t		timer_bst;
+static bus_space_handle_t	acpi_timer_bsh;
+static bus_space_tag_t		acpi_timer_bst;
 
 static u_int	acpi_timer_frequency = 14318182 / 4;
 
@@ -64,10 +64,10 @@ static int	acpi_timer_attach(device_t dev);
 static u_int	acpi_timer_get_timecount(struct timecounter *tc);
 static u_int	acpi_timer_get_timecount_safe(struct timecounter *tc);
 static int	acpi_timer_sysctl_freq(SYSCTL_HANDLER_ARGS);
-static void	acpi_timer_test(void);
+static void	acpi_timer_boot_test(void);
 
-static u_int	read_counter(void);
-static int	test_counter(void);
+static u_int	acpi_timer_read(void);
+static int	acpi_timer_test(void);
 
 static device_method_t acpi_timer_methods[] = {
     DEVMETHOD(device_identify,	acpi_timer_identify),
@@ -88,21 +88,22 @@ DRIVER_MODULE(acpi_timer, acpi, acpi_timer_driver, acpi_timer_devclass, 0, 0);
 MODULE_DEPEND(acpi_timer, acpi, 1, 1, 1);
 
 static struct timecounter acpi_timer_timecounter = {
-	.tc_get_timecount =	acpi_timer_get_timecount_safe,
-	.tc_poll_pps =		0,
-	.tc_counter_mask =	0,
-	.tc_frequency =		0,
-	.tc_name =		"ACPI",
-	.tc_quality =		1000
+	acpi_timer_get_timecount_safe,	/* get_timecount function */
+	0,				/* no poll_pps */
+	0,				/* no default counter_mask */
+	0,				/* no default frequency */
+	"ACPI",				/* name */
+	1000				/* quality */
 };
 
 static u_int
-read_counter()
+acpi_timer_read()
 {
     uint32_t tv;
 
-    tv = bus_space_read_4(timer_bst, timer_bsh, 0);
-    bus_space_barrier(timer_bst, timer_bsh, 0, 4, BUS_SPACE_BARRIER_READ);
+    tv = bus_space_read_4(acpi_timer_bst, acpi_timer_bsh, 0);
+    bus_space_barrier(acpi_timer_bst, acpi_timer_bsh, 0, 4,
+	BUS_SPACE_BARRIER_READ);
     return (tv);
 }
 
@@ -141,15 +142,15 @@ acpi_timer_identify(driver_t *driver, device_t parent)
 		      rtype == SYS_RES_IOPORT ? "port" : "mem", rstart);
 	return_VOID;
     }
-    timer_bsh = rman_get_bushandle(acpi_timer_reg);
-    timer_bst = rman_get_bustag(acpi_timer_reg);
+    acpi_timer_bsh = rman_get_bushandle(acpi_timer_reg);
+    acpi_timer_bst = rman_get_bustag(acpi_timer_reg);
     if (AcpiGbl_FADT->TmrValExt != 0)
 	acpi_timer_timecounter.tc_counter_mask = 0xffffffff;
     else
 	acpi_timer_timecounter.tc_counter_mask = 0x00ffffff;
     acpi_timer_timecounter.tc_frequency = acpi_timer_frequency;
     if (testenv("debug.acpi.timer_test"))
-	acpi_timer_test();
+	acpi_timer_boot_test();
 
     /*
      * If all tests of the counter succeed, use the ACPI-fast method.  If
@@ -158,7 +159,7 @@ acpi_timer_identify(driver_t *driver, device_t parent)
      */
     j = 0;
     for (i = 0; i < 10; i++)
-	j += test_counter();
+	j += acpi_timer_test();
     if (j == 10) {
 	acpi_timer_timecounter.tc_name = "ACPI-fast";
 	acpi_timer_timecounter.tc_get_timecount = acpi_timer_get_timecount;
@@ -196,7 +197,7 @@ acpi_timer_attach(device_t dev)
 static u_int
 acpi_timer_get_timecount(struct timecounter *tc)
 {
-    return (read_counter());
+    return (acpi_timer_read());
 }
 
 /*
@@ -211,13 +212,13 @@ acpi_timer_get_timecount_safe(struct timecounter *tc)
 {
     u_int u1, u2, u3;
 
-    u2 = read_counter();
-    u3 = read_counter();
+    u2 = acpi_timer_read();
+    u3 = acpi_timer_read();
     do {
 	u1 = u2;
 	u2 = u3;
-	u3 = read_counter();
-    } while (u1 > u2 || u2 > u3 || u3 - u1 > 15);
+	u3 = acpi_timer_read();
+    } while (u1 > u2 || u2 > u3);
 
     return (u2);
 }
@@ -272,16 +273,16 @@ SYSCTL_PROC(_machdep, OID_AUTO, acpi_timer_freq, CTLTYPE_INT | CTLFLAG_RW,
  */
 #define N 2000
 static int
-test_counter()
+acpi_timer_test()
 {
     uint32_t	last, this;
     int		min, max, n, delta;
 
     min = 10000000;
     max = 0;
-    last = read_counter();
+    last = acpi_timer_read();
     for (n = 0; n < N; n++) {
-	this = read_counter();
+	this = acpi_timer_read();
 	delta = acpi_TimerDelta(this, last);
 	if (delta > max)
 	    max = delta;
@@ -310,13 +311,13 @@ test_counter()
  * Boot with debug.acpi.timer_test set to invoke this.
  */
 static void
-acpi_timer_test(void)
+acpi_timer_boot_test(void)
 {
     uint32_t u1, u2, u3;
 
-    u1 = read_counter();
-    u2 = read_counter();
-    u3 = read_counter();
+    u1 = acpi_timer_read();
+    u2 = acpi_timer_read();
+    u3 = acpi_timer_read();
 
     device_printf(acpi_timer_dev, "timer test in progress, reboot to quit.\n");
     for (;;) {
@@ -332,6 +333,6 @@ acpi_timer_test(void)
 	}
 	u1 = u2;
 	u2 = u3;
-	u3 = read_counter();
+	u3 = acpi_timer_read();
     }
 }
