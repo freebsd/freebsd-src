@@ -37,12 +37,6 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
-#include <sys/disklabel.h>
-#if defined(__FreeBSD__) && __FreeBSD_version >= 500001
-#include <sys/bio.h>
-#endif
-#include <sys/buf.h>
-#include <sys/queue.h>
 #include <sys/malloc.h>
 #include <sys/errno.h>
 
