@@ -45,7 +45,7 @@
  *					are using trap 16 handling.
  *
  */
-static char rcsid[] = "$Header: /usr/bill/working/sys/i386/isa/RCS/npx.c,v 1.2 92/01/21 14:34:27 william Exp $";
+static char rcsid[] = "$Header: /a/cvs/386BSD/src/sys.386bsd/i386/isa/npx.c,v 1.1.1.1 1993/06/12 14:58:00 rgrimes Exp $";
 
 #include "npx.h"
 #if NNPX > 0
@@ -329,13 +329,13 @@ npxattach(dvp)
 	struct isa_device *dvp;
 {
 	if (npx_ex16)
-		printf(" <Errors reported via Exception 16>");
+		printf("npx%d: Errors reported via Exception 16\n",dvp->id_unit);
 	else if (npx_irq13)
-		printf(" <Errors reported via IRQ 13>");
+		printf("npx%d: Errors reported via IRQ 13\n",dvp->id_unit);
 	else if (npx_exists)
-		printf(" <Error reporting broken, using 387 emulator>");
+		printf("npx%d: Error reporting broken, using 387 emulator\n",dvp->id_unit);
 	else
-		printf(" <387 Emulator>");
+		printf("npx%d: 387 Emulator\n",dvp->id_unit);
 	npxinit(__INITIAL_NPXCW__);
 	return (1);		/* XXX unused */
 }
