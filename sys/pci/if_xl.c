@@ -585,6 +585,8 @@ static void xl_miibus_statchg(dev)
 	sc = device_get_softc(dev);
 	mii = device_get_softc(sc->xl_miibus);
 
+	xl_setcfg(sc);
+
 	/* Set ASIC's duplex mode to match the PHY. */
 	XL_SEL_WIN(3);
 	if ((mii->mii_media_active & IFM_GMASK) == IFM_FDX)
@@ -2389,7 +2391,9 @@ static void xl_init(xsc)
 	 */
 	xl_stop(sc);
 
+	xl_reset(sc);
 	xl_wait(sc);
+	DELAY(1000);
 
 	if (sc->xl_miibus != NULL)
 		mii = device_get_softc(sc->xl_miibus);
@@ -2587,6 +2591,7 @@ static int xl_ifmedia_upd(ifp)
 
 	switch(IFM_SUBTYPE(ifm->ifm_media)) {
 	case IFM_100_FX:
+	case IFM_10_FL:
 	case IFM_10_2:
 	case IFM_10_5:
 		xl_setmode(sc, ifm->ifm_media);
@@ -2598,9 +2603,7 @@ static int xl_ifmedia_upd(ifp)
 
 	if (sc->xl_media & XL_MEDIAOPT_MII || sc->xl_media & XL_MEDIAOPT_BTX
 		|| sc->xl_media & XL_MEDIAOPT_BT4) {
-		xl_setcfg(sc);
-		if (mii != NULL)
-			mii_mediachg(mii);
+		xl_init(sc);
 	} else {
 		xl_setmode(sc, ifm->ifm_media);
 	}
@@ -2684,6 +2687,7 @@ static int xl_ioctl(ifp, command, data)
 	struct ifreq		*ifr = (struct ifreq *) data;
 	int			s, error = 0;
 	struct mii_data		*mii = NULL;
+	u_int8_t		rxfilt;
 
 	s = splimp();
 
@@ -2694,12 +2698,30 @@ static int xl_ioctl(ifp, command, data)
 		error = ether_ioctl(ifp, command, data);
 		break;
 	case SIOCSIFFLAGS:
+		XL_SEL_WIN(5);
+		rxfilt = CSR_READ_1(sc, XL_W5_RX_FILTER);
 		if (ifp->if_flags & IFF_UP) {
-			xl_init(sc);
+			if (ifp->if_flags & IFF_RUNNING &&
+			    ifp->if_flags & IFF_PROMISC &&
+			    !(sc->xl_if_flags & IFF_PROMISC)) {
+				rxfilt |= XL_RXFILTER_ALLFRAMES;
+				CSR_WRITE_2(sc, XL_COMMAND,
+				    XL_CMD_RX_SET_FILT|rxfilt);
+				XL_SEL_WIN(7);
+			} else if (ifp->if_flags & IFF_RUNNING &&
+			    !(ifp->if_flags & IFF_PROMISC) &&
+			    sc->xl_if_flags & IFF_PROMISC) {
+				rxfilt &= ~XL_RXFILTER_ALLFRAMES;
+				CSR_WRITE_2(sc, XL_COMMAND,
+				    XL_CMD_RX_SET_FILT|rxfilt);
+				XL_SEL_WIN(7);
+			} else
+				xl_init(sc);
 		} else {
 			if (ifp->if_flags & IFF_RUNNING)
 				xl_stop(sc);
 		}
+		sc->xl_if_flags = ifp->if_flags;
 		error = 0;
 		break;
 	case SIOCADDMULTI:
