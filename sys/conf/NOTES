@@ -2193,6 +2193,10 @@ device		kue
 # RealTek RTL8150 USB to fast ethernet. Supports the Melco LUA-KTX
 # and the GREEN HOUSE GH-USB100B.
 device		rue
+#
+# Davicom DM9601E USB to fast ethernet. Supports the Corega FEther USB-TXC.
+device		udav
+
 
 # debugging options for the USB subsystem
 #
