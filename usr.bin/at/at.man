@@ -1,4 +1,4 @@
-.\" $Id: at.man,v 1.9 1999/02/15 08:34:06 fenner Exp $
+.\" $Id: at.man,v 1.10 1999/08/15 08:25:13 mpp Exp $
 .Dd April 12, 1995
 .Dt "AT" 1
 .Os FreeBSD 2.1
@@ -94,8 +94,10 @@ where the time-units can be
 .Nm minutes ,
 .Nm hours ,
 .Nm days ,
+.Nm weeks ,
+.Nm months
 or
-.Nm weeks
+.Nm years
 and you can tell
 .Nm at
 to run the job today by suffixing the time with
