@@ -65,7 +65,7 @@ struct fw_device{
 #define FWDEVINIT	1
 #define FWDEVATTACHED	2
 #define FWDEVINVAL	3
-	TAILQ_ENTRY(fw_device) link;
+	STAILQ_ENTRY(fw_device) link;
 #if 0
 	LIST_HEAD(, fw_xfer) txqueue;
 	LIST_HEAD(, fw_xfer) rxqueue;
@@ -141,7 +141,7 @@ struct firewire_comm{
 		*arq, *atq, *ars, *ats, *it[FW_MAX_DMACH],*ir[FW_MAX_DMACH];
 	STAILQ_HEAD(, tlabel) tlabels[0x40];
 	STAILQ_HEAD(, fw_bind) binds;
-	TAILQ_HEAD(, fw_device) devices;
+	STAILQ_HEAD(, fw_device) devices;
 	STAILQ_HEAD(, fw_xfer)	pending;
 	volatile u_int32_t *sid_buf;
 	u_int  sid_cnt;
@@ -152,9 +152,9 @@ struct firewire_comm{
 	struct fw_topology_map *topology_map;
 	struct fw_speed_map *speed_map;
 	struct callout busprobe_callout;
-	struct callout_handle bmrhandle;
-	struct callout_handle timeouthandle;
-	struct callout_handle retry_probe_handle;
+	struct callout bmr_callout;
+	struct callout timeout_callout;
+	struct callout retry_probe_callout;
 	u_int32_t (*cyctimer) __P((struct  firewire_comm *));
 	void (*ibr) __P((struct firewire_comm *));
 	u_int32_t (*set_bmr) __P((struct firewire_comm *, u_int32_t));
@@ -298,11 +298,12 @@ struct fw_xfer{
 	} send, recv;
 	struct mbuf *mbuf;
 	STAILQ_ENTRY(fw_xfer) link;
+	struct malloc_type *malloc;
 };
 void fw_sidrcv __P((struct firewire_comm *, caddr_t, u_int, u_int));
 void fw_rcv __P((struct firewire_comm *, caddr_t, u_int, u_int, u_int, u_int));
 void fw_xfer_free __P(( struct fw_xfer*));
-struct fw_xfer *fw_xfer_alloc __P((void));
+struct fw_xfer *fw_xfer_alloc __P((struct malloc_type *));
 void fw_init __P((struct firewire_comm *));
 int fw_tbuf_update __P((struct firewire_comm *, int, int));
 int fw_rbuf_update __P((struct firewire_comm *, int, int));
@@ -320,7 +321,8 @@ u_int16_t fw_crc16 __P((u_int32_t *, u_int32_t));
 void fw_xfer_timeout __P((void *));
 void fw_xfer_done __P((struct fw_xfer *));
 void fw_asy_callback __P((struct fw_xfer *));
-struct fw_device *fw_noderesolve __P((struct firewire_comm *, struct fw_eui64));
+struct fw_device *fw_noderesolve_nodeid __P((struct firewire_comm *, int));
+struct fw_device *fw_noderesolve_eui64 __P((struct firewire_comm *, struct fw_eui64));
 struct fw_bind *fw_bindlookup __P((struct firewire_comm *, u_int32_t, u_int32_t));
 
 
@@ -337,7 +339,8 @@ extern devclass_t firewire_devclass;
 #define		SPLIT_TIMEOUT_HI	0x0018
 #define		SPLIT_TIMEOUT_LO	0x001c
 #define		CYCLE_TIME	0x0200
-#define		BUS_TIME	0x0210
+#define		BUS_TIME	0x0204
+#define		BUSY_TIMEOUT	0x0210
 #define		BUS_MGR_ID	0x021c
 #define		BANDWIDTH_AV	0x0220
 #define		CHANNELS_AV_HI	0x0224
@@ -360,3 +363,6 @@ extern devclass_t firewire_devclass;
 #undef vtophys
 #define vtophys(va)	alpha_XXX_dmamap((vm_offset_t)(va))
 #endif /* __alpha__ */
+
+MALLOC_DECLARE(M_FW);
+MALLOC_DECLARE(M_FWXFER);
