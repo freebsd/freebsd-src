@@ -743,9 +743,7 @@ pipe_destroy_write_buffer(wpipe)
 {
 	int i;
 
-	GIANT_REQUIRED;
 	PIPE_LOCK_ASSERT(wpipe, MA_NOTOWNED);
-
 	if (wpipe->pipe_map.kva) {
 		pmap_qremove(wpipe->pipe_map.kva, wpipe->pipe_map.npages);
 
@@ -754,7 +752,7 @@ pipe_destroy_write_buffer(wpipe)
 			vm_offset_t kva = wpipe->pipe_map.kva;
 			wpipe->pipe_map.kva = 0;
 			kmem_free(kernel_map, kva,
-				wpipe->pipe_buffer.size + PAGE_SIZE);
+			    wpipe->pipe_buffer.size + PAGE_SIZE);
 			atomic_subtract_int(&amountpipekvawired,
 			    wpipe->pipe_buffer.size + PAGE_SIZE);
 		}
@@ -788,11 +786,11 @@ pipe_clone_write_buffer(wpipe)
 	wpipe->pipe_buffer.cnt = size;
 	wpipe->pipe_state &= ~PIPE_DIRECTW;
 
-	PIPE_GET_GIANT(wpipe);
+	PIPE_UNLOCK(wpipe);
 	bcopy((caddr_t) wpipe->pipe_map.kva + pos,
 	    wpipe->pipe_buffer.buffer, size);
 	pipe_destroy_write_buffer(wpipe);
-	PIPE_DROP_GIANT(wpipe);
+	PIPE_LOCK(wpipe);
 }
 
 /*
@@ -861,9 +859,9 @@ retry:
 	while (!error && (wpipe->pipe_state & PIPE_DIRECTW)) {
 		if (wpipe->pipe_state & PIPE_EOF) {
 			pipelock(wpipe, 0);
-			PIPE_GET_GIANT(wpipe);
+			PIPE_UNLOCK(wpipe);
 			pipe_destroy_write_buffer(wpipe);
-			PIPE_DROP_GIANT(wpipe);
+			PIPE_LOCK(wpipe);
 			pipeselwakeup(wpipe);
 			pipeunlock(wpipe);
 			error = EPIPE;
@@ -886,9 +884,9 @@ retry:
 		 */
 		pipe_clone_write_buffer(wpipe);
 	} else {
-		PIPE_GET_GIANT(wpipe);
+		PIPE_UNLOCK(wpipe);
 		pipe_destroy_write_buffer(wpipe);
-		PIPE_DROP_GIANT(wpipe);
+		PIPE_LOCK(wpipe);
 	}
 	pipeunlock(wpipe);
 	return (error);
