@@ -17,6 +17,11 @@ M4?=		m4
 M4FLAGS+=	-DPROBE_KEYBOARD
 .endif
 
+.if defined(BOOT_PXELDR_ALWAYS_SERIAL)
+M4FLAGS+=	-DALWAYS_SERIAL
+.endif
+
+
 .if exists(${.OBJDIR}/../loader)
 LOADERBIN=	${.OBJDIR}/../loader/loader.bin
 .else
