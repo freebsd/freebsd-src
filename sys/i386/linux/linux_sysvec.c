@@ -205,7 +205,7 @@ linux_rt_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	int oonstack;
 
 	regs = p->p_md.md_regs;
-	oonstack = p->p_sigstk.ss_flags & SS_ONSTACK;
+	oonstack = sigonstack(regs->tf_esp);
 
 #ifdef DEBUG
 	printf("Linux-emul(%ld): linux_rt_sendsig(%p, %d, %p, %lu)\n",
@@ -218,10 +218,8 @@ linux_rt_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	    SIGISMEMBER(p->p_sigacts->ps_sigonstack, sig)) {
 		fp = (struct linux_rt_sigframe *)(p->p_sigstk.ss_sp +
 		    p->p_sigstk.ss_size - sizeof(struct linux_rt_sigframe));
-		p->p_sigstk.ss_flags |= SS_ONSTACK;
-	} else {
+	} else
 		fp = (struct linux_rt_sigframe *)regs->tf_esp - 1;
-	}
 
 	/*
 	 * grow() will return FALSE if the fp will not fit inside the stack
@@ -240,8 +238,8 @@ linux_rt_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 		SIGDELSET(p->p_sigcatch, SIGILL);
 		SIGDELSET(p->p_sigmask, SIGILL);
 #ifdef DEBUG
-		printf("Linux-emul(%ld): linux_rt_sendsig -- bad stack %p, SS_ONSTACK: 0x%x ",
-	    (long)p->p_pid, fp, p->p_sigstk.ss_flags & SS_ONSTACK);
+		printf("Linux-emul(%ld): linux_rt_sendsig -- bad stack %p, "
+		    "oonstack=%x\n", (long)p->p_pid, fp, oonstack);
 #endif
 		psignal(p, SIGILL);
 		return;
@@ -271,9 +269,9 @@ linux_rt_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	frame.sf_sc.uc_link = NULL;		/* XXX ??? */
 
 	frame.sf_sc.uc_stack.ss_sp = p->p_sigstk.ss_sp;
-	frame.sf_sc.uc_stack.ss_flags =
-	    bsd_to_linux_sigaltstack(p->p_sigstk.ss_flags);
 	frame.sf_sc.uc_stack.ss_size = p->p_sigstk.ss_size;
+	frame.sf_sc.uc_stack.ss_flags = (p->p_flag & P_ALTSTACK)
+	    ? ((oonstack) ? LINUX_SS_ONSTACK : 0) : LINUX_SS_DISABLE;
 
 	bsd_to_linux_sigset(mask, &frame.sf_sc.uc_sigmask);
 
@@ -298,9 +296,10 @@ linux_rt_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	frame.sf_sc.uc_mcontext.sc_trapno = code;	/* XXX ???? */
 
 #ifdef DEBUG
-	printf("Linux-emul(%ld): rt_sendsig flags: 0x%x, sp: %p, ss: 0x%x, mask: 0x%x\n",
-	    (long)p->p_pid, frame.sf_sc.uc_stack.ss_flags,  p->p_sigstk.ss_sp, 
-	    p->p_sigstk.ss_size, frame.sf_sc.uc_mcontext.sc_mask);
+	printf("Linux-emul(%ld): rt_sendsig flags: 0x%x, sp: %p, ss: 0x%x, "
+	    "mask: 0x%x\n", (long)p->p_pid, frame.sf_sc.uc_stack.ss_flags,
+	    p->p_sigstk.ss_sp, p->p_sigstk.ss_size,
+	    frame.sf_sc.uc_mcontext.sc_mask);
 #endif
 
 	if (copyout(&frame, fp, sizeof(frame)) != 0) {
@@ -355,7 +354,7 @@ linux_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	}
 
 	regs = p->p_md.md_regs;
-	oonstack = p->p_sigstk.ss_flags & SS_ONSTACK;
+	oonstack = sigonstack(regs->tf_esp);
 
 #ifdef DEBUG
 	printf("Linux-emul(%ld): linux_sendsig(%p, %d, %p, %lu)\n",
@@ -369,10 +368,8 @@ linux_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	    SIGISMEMBER(p->p_sigacts->ps_sigonstack, sig)) {
 		fp = (struct linux_sigframe *)(p->p_sigstk.ss_sp +
 		    p->p_sigstk.ss_size - sizeof(struct linux_sigframe));
-		p->p_sigstk.ss_flags |= SS_ONSTACK;
-	} else {
+	} else
 		fp = (struct linux_sigframe *)regs->tf_esp - 1;
-	}
 
 	/*
 	 * grow() will return FALSE if the fp will not fit inside the stack
@@ -521,7 +518,6 @@ linux_sigreturn(p, args)
 		return(EINVAL);
 	}
 
-	p->p_sigstk.ss_flags &= ~SS_ONSTACK;
 	lmask.__bits[0] = frame.sf_sc.sc_mask;
 	for (i = 0; i < (LINUX_NSIG_WORDS-1); i++)
 		lmask.__bits[i+1] = frame.sf_extramask[i];
@@ -621,7 +617,6 @@ linux_rt_sigreturn(p, args)
 		return(EINVAL);
 	}
 
-	p->p_sigstk.ss_flags &= ~SS_ONSTACK;
 	linux_to_bsd_sigset(&uc.uc_sigmask, &p->p_sigmask);
 	SIG_CANTMASK(p->p_sigmask);
 

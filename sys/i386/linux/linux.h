@@ -163,7 +163,6 @@ struct linux_new_utsname {
 
 /* sigaltstack */
 #define LINUX_MINSIGSTKSZ	2048
-#define LINUX_SS_ONSTACK_BC	0 	/* backwards compat SS_ONSTACK */
 #define LINUX_SS_ONSTACK	1
 #define LINUX_SS_DISABLE	2
 
