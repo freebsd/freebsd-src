@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.469 1998/09/18 00:01:39 ken Exp $
+#	$Id: LINT,v 1.470 1998/09/18 00:46:41 mjacob Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -879,19 +879,20 @@ device		npx0	at isa? port "IO_NPX" iosiz 0x0 flags 0x0 irq 13 vector npxintr
 #
 
 controller	bt0	at isa? port "IO_BT0" cam irq ?
-controller	adv0	at isa? port ? cam irq ?
-controller	aha0	at isa? port "IO_AHA0" bio irq ? drq 5 vector ahaintr
-controller	uha0	at isa? port "IO_UHA0" bio irq ? drq 5 vector uhaintr
+# adv is broken when DIAGNOSTIC is defined
+#controller	adv0	at isa? port ? cam irq ?
+controller      aha0    at isa? port ? cam irq ?
+#!CAM# controller	uha0	at isa? port "IO_UHA0" bio irq ? drq 5 vector uhaintr
 
-controller      aic0    at isa? port 0x340 bio irq 11 vector aicintr
-controller	nca0	at isa? port 0x1f88 bio irq 10 vector ncaintr
-controller	nca1	at isa? port 0x1f84
-controller	nca2	at isa? port 0x1f8c
-controller	nca3	at isa? port 0x1e88
-controller	nca4	at isa? port 0x350 bio irq 5 vector ncaintr
+#!CAM# controller      aic0    at isa? port 0x340 bio irq 11 vector aicintr
+#!CAM# controller	nca0	at isa? port 0x1f88 bio irq 10 vector ncaintr
+#!CAM# controller	nca1	at isa? port 0x1f84
+#!CAM# controller	nca2	at isa? port 0x1f8c
+#!CAM# controller	nca3	at isa? port 0x1e88
+#!CAM# controller	nca4	at isa? port 0x350 bio irq 5 vector ncaintr
 
-controller	sea0	at isa? bio irq 5 iomem 0xdc000 iosiz 0x2000 vector seaintr
-controller	wds0	at isa? port 0x350 bio irq 15 drq 6 vector wdsintr
+#!CAM# controller	sea0	at isa? bio irq 5 iomem 0xdc000 iosiz 0x2000 vector seaintr
+#!CAM# controller	wds0	at isa? port 0x350 bio irq 15 drq 6 vector wdsintr
 
 #
 # ST-506, ESDI, and IDE hard disks: `wdc' and `wd'
@@ -1462,7 +1463,7 @@ controller	pci0
 controller	ahc1
 controller	ncr0
 controller	isp0
-controller	amd0
+#!CAM# controller	amd0
 device		de0
 device		fxp0
 device		tl0
@@ -1558,7 +1559,7 @@ controller pcf0	at isa? port 0x320 net irq 5 vector pcfintr
 # ppc	ISA-bus parallel port interfaces.  
 #
 controller	ppbus0
-controller	vpo0	at ppbus?
+#!CAM# controller	vpo0	at ppbus?
 device		nlpt0	at ppbus?
 device		plip0	at ppbus?
 device		ppi0	at ppbus?
@@ -1709,9 +1710,9 @@ controller      dpt0
 # DPT options
 options DPT_VERIFY_HINTR
 options DPT_RESTRICTED_FREELIST
-options DPT_MEASURE_PERFORMANCE
+#!CAM# options DPT_MEASURE_PERFORMANCE
 options DPT_FREELIST_IS_STACK
-options DPT_HANDLE_TIMEOUTS
+#!CAM# options DPT_HANDLE_TIMEOUTS
 options DPT_TIMEOUT_FACTOR=4
 options	DPT_INTR_DELAY=200      # Some motherboards need that
 options DPT_LOST_IRQ
