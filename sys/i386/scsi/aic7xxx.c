@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aic7xxx.c,v 1.80 1996/10/25 06:42:51 gibbs Exp $
+ *      $Id: aic7xxx.c,v 1.84 1996/11/07 06:39:44 gibbs Exp $
  */
 /*
  * TODO:
@@ -116,7 +116,6 @@
 #include <vm/pmap.h>
 
 #if defined(__FreeBSD__)
-#include "opt_aic7xxx.h"
 #include <i386/scsi/aic7xxx.h>
 
 #include <dev/aic7xxx/aic7xxx_reg.h>
@@ -961,15 +960,15 @@ ahc_handle_seqint(ahc, intstat)
 			 * and didn't have to fall down to async
 			 * transfers.
 			 */
-			if ((ahc->sdtrpending & targ_mask) != 0
-			 && (saved_offset == offset)) {
-				/*
-				 * Don't send an SDTR back to
-				 * the target
-				 */
-				AHC_OUTB(ahc, RETURN_1, 0);
-				ahc->needsdtr &= ~targ_mask;
-				ahc->sdtrpending &= ~targ_mask;
+			if ((ahc->sdtrpending & targ_mask) != 0) {
+				if (saved_offset == offset) {
+					/*
+					 * Don't send an SDTR back to
+					 * the target
+					 */
+					AHC_OUTB(ahc, RETURN_1, 0);
+				} else
+					AHC_OUTB(ahc, RETURN_1, SEND_REJ);
 			} else {
 				/*
 				 * Send our own SDTR in reply
@@ -978,18 +977,9 @@ ahc_handle_seqint(ahc, intstat)
 				ahc_construct_sdtr(ahc, /*start_byte*/0,
 						   period, offset);
 				AHC_OUTB(ahc, RETURN_1, SEND_MSG);
-
-				/*
-				 * If we aren't starting a re-negotiation
-				 * because we had to go async in response
-				 * to a "too low" response from the target
-				 * clear the needsdtr flag for this target.
-				 */
-				if ((ahc->sdtrpending & targ_mask) == 0)
-					ahc->needsdtr &= ~targ_mask;
-				else
-					ahc->sdtrpending |= targ_mask;
 			}
+			ahc->needsdtr &= ~targ_mask;
+			ahc->sdtrpending &= ~targ_mask;
 			break;
 		}
 		case MSG_EXT_WDTR:
@@ -1077,6 +1067,7 @@ ahc_handle_seqint(ahc, intstat)
 			/* Unknown extended message.  Reject it. */
 			AHC_OUTB(ahc, RETURN_1, SEND_REJ);
 		}
+		break;
 	}
 	case REJECT_MSG:
 	{
@@ -1209,6 +1200,7 @@ ahc_handle_seqint(ahc, intstat)
 				hscb->SG_segment_count = 1;
 				hscb->SG_list_pointer = vtophys(sg);
 				hscb->data = sg->addr; 
+				/* Maintain SCB_LINKED_NEXT */
 				hscb->datalen &= 0xFF000000;
 				hscb->datalen |= sg->len;
 				hscb->cmdpointer = vtophys(sc);
@@ -1749,7 +1741,6 @@ ahc_init(ahc)
 		printf("%d SCBs\n", ahc->scb_data->maxhscbs);
 	}
 
-
 #ifdef AHC_DEBUG
 	if (ahc_debug & AHC_SHOWMISC) {
 		printf("%s: hardware scb %d bytes; kernel scb %d bytes; "
@@ -1949,6 +1940,8 @@ ahc_init(ahc)
 			       "Failing attach\n");
 			return (-1);
 		}
+		/* At least the control byte of each hscb needs to be zeroed */
+		bzero(ahc->scb_data->hscbs, array_size);
 
 		/* Tell the sequencer where it can find the hscb array. */
 		hscb_physaddr = vtophys(ahc->scb_data->hscbs);
@@ -2099,8 +2092,8 @@ ahc_scsi_cmd(xs)
 		hscb->control |= MSG_ORDERED_Q_TAG;
 		ahc->orderedtag &= ~mask;
 	} else if (hscb->control & DISCENB) {
-                if (ahc->tagenable & mask)
-                        hscb->control |= TAG_ENB;
+		if (ahc->tagenable & mask)
+			hscb->control |= TAG_ENB;
 	}
 	hscb->tcl = ((xs->sc_link->target << 4) & 0xF0)
 		  | (IS_SCSIBUS_B(ahc,xs->sc_link)? SELBUSB : 0)
