@@ -57,6 +57,7 @@ static int VGLSwitchPending;
 static int VGLOnDisplay;
 static unsigned int VGLCurWindow;
 static int VGLInitDone = 0;
+static struct winsize VGLOldWSize;
 
 void
 VGLEnd()
@@ -79,8 +80,8 @@ struct vt_mode smode;
     ioctl(0, _IO('V', VGLOldMode - M_VESA_BASE), 0);
     if (VGLOldMode == M_VESA_800x600) {
       int size[3];
-      size[0] = 80;
-      size[1] = 25;
+      size[0] = VGLOldWSize.ws_col;
+      size[1] = VGLOldWSize.ws_row;
       size[2] = 16;
       ioctl(0, KDRASTER, size);
     }
@@ -143,6 +144,11 @@ VGLInit(int mode)
     VGLModeInfo.vi_mode = mode & 0x0ff;
   if (ioctl(0, CONS_MODEINFO, &VGLModeInfo))	/* FBIO_MODEINFO */
     return -1;
+
+  /* If current mode is VESA_800x600 then save its geometry to restore later */
+  if ((VGLOldMode >= M_VESA_BASE) && (VGLOldMode == M_VESA_800x600))
+    if (ioctl(0, TIOCGWINSZ, &VGLOldWSize))
+      return -1;
 
   VGLDisplay = (VGLBitmap *)malloc(sizeof(VGLBitmap));
   if (VGLDisplay == NULL)
