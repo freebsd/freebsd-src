@@ -314,9 +314,9 @@ arprequest(ifp, sip, tip, enaddr)
 		return;
 	m->m_len = sizeof(*ah) + 2*sizeof(struct in_addr) +
 		2*ifp->if_data.ifi_addrlen;
-		m->m_pkthdr.len = m->m_len;
-		MH_ALIGN(m, m->m_len);
-		ah = mtod(m, struct arphdr *);
+	m->m_pkthdr.len = m->m_len;
+	MH_ALIGN(m, m->m_len);
+	ah = mtod(m, struct arphdr *);
 	bzero((caddr_t)ah, m->m_len);
 #ifdef MAC
 	mac_create_mbuf_linklayer(ifp, m);
@@ -695,8 +695,7 @@ match:
 		la->la_asked = 0;
 		la->la_preempt = arp_maxtries;
 		if (la->la_hold) {
-			(*ifp->if_output)(ifp, la->la_hold,
-				rt_key(rt), rt);
+			(*ifp->if_output)(ifp, la->la_hold, rt_key(rt), rt);
 			la->la_hold = 0;
 		}
 	}
