@@ -203,8 +203,12 @@ When a
 .Vt pfil_head
 is being modified, no traffic is diverted
 (to avoid deadlock).
-This means that unwanted traffic may flow for a short period
+This means that traffic may be dropped unconditionally for a short period
 of time.
+.Fn pfil_run_hooks
+will return
+.Dv ENOBUF
+to indicate this.
 .Sh SEE ALSO
 .Xr bpf 4 ,
 .Xr bridge 4
