@@ -83,26 +83,28 @@ struct tcpcb {
 	struct	inpcb *t_inpcb;		/* back pointer to internet pcb */
 	int	t_state;		/* state of this connection */
 	u_int	t_flags;
-#define	TF_ACKNOW	0x00001		/* ack peer immediately */
-#define	TF_DELACK	0x00002		/* ack, but try to delay it */
-#define	TF_NODELAY	0x00004		/* don't delay packets to coalesce */
-#define	TF_NOOPT	0x00008		/* don't use tcp options */
-#define	TF_SENTFIN	0x00010		/* have sent FIN */
-#define	TF_REQ_SCALE	0x00020		/* have/will request window scaling */
-#define	TF_RCVD_SCALE	0x00040		/* other side has requested scaling */
-#define	TF_REQ_TSTMP	0x00080		/* have/will request timestamps */
-#define	TF_RCVD_TSTMP	0x00100		/* a timestamp was received in SYN */
-#define	TF_SACK_PERMIT	0x00200		/* other side said I could SACK */
-#define	TF_NEEDSYN	0x00400		/* send SYN (implicit state) */
-#define	TF_NEEDFIN	0x00800		/* send FIN (implicit state) */
-#define	TF_NOPUSH	0x01000		/* don't push */
-#define	TF_REQ_CC	0x02000		/* have/will request CC */
-#define	TF_RCVD_CC	0x04000		/* a CC was received in SYN */
-#define	TF_SENDCCNEW	0x08000		/* send CCnew instead of CC in SYN */
-#define	TF_MORETOCOME	0x10000		/* More data to be appended to sock */
-#define	TF_LQ_OVERFLOW	0x20000		/* listen queue overflow */
-#define	TF_LASTIDLE	0x40000		/* connection was previously idle */
-#define TF_RXWIN0SENT	0x80000		/* sent a receiver win 0 in response */
+#define	TF_ACKNOW	0x000001	/* ack peer immediately */
+#define	TF_DELACK	0x000002	/* ack, but try to delay it */
+#define	TF_NODELAY	0x000004	/* don't delay packets to coalesce */
+#define	TF_NOOPT	0x000008	/* don't use tcp options */
+#define	TF_SENTFIN	0x000010	/* have sent FIN */
+#define	TF_REQ_SCALE	0x000020	/* have/will request window scaling */
+#define	TF_RCVD_SCALE	0x000040	/* other side has requested scaling */
+#define	TF_REQ_TSTMP	0x000080	/* have/will request timestamps */
+#define	TF_RCVD_TSTMP	0x000100	/* a timestamp was received in SYN */
+#define	TF_SACK_PERMIT	0x000200	/* other side said I could SACK */
+#define	TF_NEEDSYN	0x000400	/* send SYN (implicit state) */
+#define	TF_NEEDFIN	0x000800	/* send FIN (implicit state) */
+#define	TF_NOPUSH	0x001000	/* don't push */
+#define	TF_REQ_CC	0x002000	/* have/will request CC */
+#define	TF_RCVD_CC	0x004000	/* a CC was received in SYN */
+#define	TF_SENDCCNEW	0x008000	/* send CCnew instead of CC in SYN */
+#define	TF_MORETOCOME	0x010000	/* More data to be appended to sock */
+#define	TF_LQ_OVERFLOW	0x020000	/* listen queue overflow */
+#define	TF_LASTIDLE	0x040000	/* connection was previously idle */
+#define	TF_RXWIN0SENT	0x080000	/* sent a receiver win 0 in response */
+#define	TF_FASTRECOVERY	0x100000	/* in NewReno Fast Recovery */
+#define	TF_WASFRECOVERY	0x200000	/* was in NewReno Fast Recovery */
 	int	t_force;		/* 1 if forcing out a byte */
 
 	tcp_seq	snd_una;		/* send unacknowledged */
@@ -131,7 +133,6 @@ struct tcpcb {
 					 */
 	u_long	snd_bandwidth;		/* calculated bandwidth or 0 */
 	tcp_seq	snd_recover;		/* for use in NewReno Fast Recovery */
-	tcp_seq snd_high;		/* for use in NewReno Fast Recovery */
 
 	u_int	t_maxopd;		/* mss plus options */
 
@@ -175,10 +176,14 @@ struct tcpcb {
 /* experimental */
 	u_long	snd_cwnd_prev;		/* cwnd prior to retransmit */
 	u_long	snd_ssthresh_prev;	/* ssthresh prior to retransmit */
-	tcp_seq	snd_high_prev;		/* snd_high prior to retransmit */
+	tcp_seq	snd_recover_prev;	/* snd_recover prior to retransmit */
 	u_long	t_badrxtwin;		/* window for retransmit recovery */
 	u_char	snd_limited;		/* segments limited transmitted */
 };
+
+#define IN_FASTRECOVERY(tp)	(tp->t_flags & TF_FASTRECOVERY)
+#define ENTER_FASTRECOVERY(tp)	tp->t_flags |= TF_FASTRECOVERY
+#define EXIT_FASTRECOVERY(tp)	tp->t_flags &= ~TF_FASTRECOVERY
 
 /*
  * Structure to hold TCP options that are only used during segment
