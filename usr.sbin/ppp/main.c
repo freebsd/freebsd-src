@@ -94,7 +94,6 @@
 
 static void DoLoop(struct bundle *);
 static void TerminalStop(int);
-static const char *ex_desc(int);
 
 static struct bundle *SignalBundle;
 static struct prompt *SignalPrompt;
@@ -164,21 +163,6 @@ BringDownServer(int signo)
 {
   /* Drops all child prompts too ! */
   server_Close(SignalBundle);
-}
-
-static const char *
-ex_desc(int ex)
-{
-  static char num[12];		/* Used immediately if returned */
-  static const char * const desc[] = {
-    "normal", "start", "sock", "modem", "dial", "dead", "done",
-    "reboot", "errdead", "hangup", "term", "nodial", "nologin"
-  };
-
-  if (ex >= 0 && ex < sizeof desc / sizeof *desc)
-    return desc[ex];
-  snprintf(num, sizeof num, "%d", ex);
-  return num;
 }
 
 static void
@@ -436,6 +420,7 @@ main(int argc, char **argv)
 
         if (bgpid) {
 	  char c = EX_NORMAL;
+          int ret;
 
 	  if (sw.mode == PHYS_BACKGROUND) {
 	    close(bgpipe[1]);
@@ -447,16 +432,31 @@ main(int argc, char **argv)
             signal(SIGQUIT, KillChild);
 
 	    /* Wait for our child to close its pipe before we exit */
-	    if (read(bgpipe[0], &c, 1) != 1) {
+            while ((ret = read(bgpipe[0], &c, 1)) == 1) {
+              switch (c) {
+                case EX_NORMAL:
+	          prompt_Printf(prompt, "PPP enabled\n");
+	          log_Printf(LogPHASE, "Parent: PPP enabled\n");
+	          break;
+                case EX_REDIAL:
+                  if (!sw.quiet)
+	            prompt_Printf(prompt, "Attempting redial\n");
+                  continue;
+                case EX_RECONNECT:
+                  if (!sw.quiet)
+	            prompt_Printf(prompt, "Attempting reconnect\n");
+                  continue;
+	        default:
+	          prompt_Printf(prompt, "Child failed (%s)\n",
+                                ex_desc((int)c));
+	          log_Printf(LogPHASE, "Parent: Child failed (%s)\n",
+		             ex_desc((int) c));
+	      }
+	      break;
+            }
+            if (ret != 1) {
 	      prompt_Printf(prompt, "Child exit, no status.\n");
 	      log_Printf(LogPHASE, "Parent: Child exit, no status.\n");
-	    } else if (c == EX_NORMAL) {
-	      prompt_Printf(prompt, "PPP enabled.\n");
-	      log_Printf(LogPHASE, "Parent: PPP enabled.\n");
-	    } else {
-	      prompt_Printf(prompt, "Child failed (%s).\n", ex_desc((int) c));
-	      log_Printf(LogPHASE, "Parent: Child failed (%s).\n",
-		         ex_desc((int) c));
 	    }
 	    close(bgpipe[0]);
 	  }
@@ -519,6 +519,7 @@ DoLoop(struct bundle *bundle)
     /* All our prompts and the diagnostic socket */
     descriptor_UpdateSet(&server.desc, &rfds, NULL, NULL, &nfds);
 
+    bundle_CleanDatalinks(bundle);
     if (bundle_IsDead(bundle))
       /* Don't select - we'll be here forever */
       break;

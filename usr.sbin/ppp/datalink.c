@@ -83,7 +83,7 @@ datalink_OpenTimeout(void *v)
 
   timer_Stop(&dl->dial.timer);
   if (dl->state == DATALINK_OPENING)
-    log_Printf(LogPHASE, "%s: Redial timer expired.\n", dl->name);
+    log_Printf(LogCHAT, "%s: Redial timer expired.\n", dl->name);
 }
 
 static int
@@ -157,7 +157,8 @@ datalink_HangupDone(struct datalink *dl)
     dl->dial.incs = 0;
     dl->reconnect_tries = 0;
     bundle_LinkClosed(dl->bundle, dl);
-    if (!dl->bundle->CleaningUp)
+    if (!dl->bundle->CleaningUp &&
+        !(dl->physical->type & (PHYS_DIRECT|PHYS_BACKGROUND|PHYS_FOREGROUND)))
       datalink_StartDialTimer(dl, datalink_GetDialTimeout(dl));
   } else {
     datalink_NewState(dl, DATALINK_OPENING);
@@ -169,11 +170,16 @@ datalink_HangupDone(struct datalink *dl)
       dl->dial.tries = dl->cfg.dial.max;
       dl->dial.incs = 0;
       dl->reconnect_tries--;
+      log_Printf(LogCHAT, "%s: Reconnect try %d of %d\n",
+                 dl->name, dl->cfg.reconnect.max - dl->reconnect_tries,
+                 dl->cfg.reconnect.max);
+      bundle_Notify(dl->bundle, EX_RECONNECT);
     } else {
       if (dl->phone.next == NULL)
         datalink_StartDialTimer(dl, datalink_GetDialTimeout(dl));
       else
         datalink_StartDialTimer(dl, dl->cfg.dial.next_timeout);
+      bundle_Notify(dl->bundle, EX_REDIAL);
     }
   }
 }
@@ -196,7 +202,7 @@ datalink_ChoosePhoneNumber(struct datalink *dl)
   phone = strsep(&dl->phone.alt, "|");
   dl->phone.chosen = *phone ? phone : "[NONE]";
   if (*phone)
-    log_Printf(LogPHASE, "Phone: %s\n", phone);
+    log_Printf(LogCHAT, "Phone: %s\n", phone);
   return phone;
 }
 
@@ -308,6 +314,7 @@ datalink_UpdateSet(struct fdescriptor *d, fd_set *r, fd_set *w, fd_set *e,
             int timeout;
 
             timeout = datalink_StartDialTimer(dl, datalink_GetDialTimeout(dl));
+            bundle_Notify(dl->bundle, EX_REDIAL);
             log_WritePrompts(dl, "Failed to open %s, pause %d seconds\n",
                              dl->physical->name.full, timeout);
           }

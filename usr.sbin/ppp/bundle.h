@@ -190,3 +190,4 @@ extern void bundle_CalculateBandwidth(struct bundle *);
 extern void bundle_AutoAdjust(struct bundle *, int, int);
 extern int bundle_WantAutoloadTimer(struct bundle *);
 extern void bundle_ChangedPID(struct bundle *);
+extern void bundle_Notify(struct bundle *, char);

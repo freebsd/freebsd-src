@@ -443,7 +443,8 @@ PacketCheck(struct bundle *bundle, char *cp, int nb, struct filter *filter)
   int mask, len, n, pri, logit, loglen, result;
   char logbuf[200];
 
-  logit = (log_IsKept(LogTCPIP) || log_IsKept(LogDNS)) && filter->logok;
+  logit = (log_IsKept(LogTCPIP) || log_IsKept(LogDNS)) &&
+          (!filter || filter->logok);
   loglen = 0;
   pri = 0;
 
@@ -451,7 +452,10 @@ PacketCheck(struct bundle *bundle, char *cp, int nb, struct filter *filter)
   uh = NULL;
 
   if (logit && loglen < sizeof logbuf) {
-    snprintf(logbuf + loglen, sizeof logbuf - loglen, "%s ", filter->name);
+    if (filter)
+      snprintf(logbuf + loglen, sizeof logbuf - loglen, "%s ", filter->name);
+    else
+      snprintf(logbuf + loglen, sizeof logbuf - loglen, "  ");
     loglen += strlen(logbuf + loglen);
   }
   ptop = (cp + (pip->ip_hl << 2));
@@ -584,7 +588,7 @@ PacketCheck(struct bundle *bundle, char *cp, int nb, struct filter *filter)
     break;
   }
 
-  if (FilterCheck(pip, filter)) {
+  if (filter && FilterCheck(pip, filter)) {
     if (logit)
       log_Printf(LogTCPIP, "%s - BLOCKED\n", logbuf);
 #ifdef notdef
@@ -595,7 +599,7 @@ PacketCheck(struct bundle *bundle, char *cp, int nb, struct filter *filter)
   } else {
     /* Check Keep Alive filter */
     if (logit && log_IsKept(LogTCPIP)) {
-      if (FilterCheck(pip, &bundle->filter.alive))
+      if (filter && FilterCheck(pip, &bundle->filter.alive))
         log_Printf(LogTCPIP, "%s - NO KEEPALIVE\n", logbuf);
       else
         log_Printf(LogTCPIP, "%s\n", logbuf);
@@ -603,7 +607,7 @@ PacketCheck(struct bundle *bundle, char *cp, int nb, struct filter *filter)
     result = pri;
   }
 
-  if (uh && ntohs(uh->uh_dport) == 53 && log_IsKept(LogDNS))
+  if (filter && uh && ntohs(uh->uh_dport) == 53 && log_IsKept(LogDNS))
     ip_LogDNS(uh, filter->name);
 
   return result;
