@@ -113,6 +113,7 @@ main(int ac, char **av)
 	int		sflag = 0;
 	int		dflag = 0;
 	int		mflag = 0;
+	int		zflag = 0;
 	uid_t		uid = 0;
 	dev_t		tdev = 0;
 	char		thiscmd[MAXCOMLEN + 1];
@@ -176,6 +177,9 @@ main(int ac, char **av)
 				break;
 			case 'm':
 				mflag++;
+				break;
+			case 'z':
+				zflag++;
 				break;
 			default:
 				if (isalpha(**av)) {
@@ -286,6 +290,8 @@ main(int ac, char **av)
 		printf("nprocs %d\n", nprocs);
 
 	for (i = 0; i < nprocs; i++) {
+		if ((procs[i].ki_stat & SZOMB) == SZOMB && !zflag)
+			continue;
 		thispid = procs[i].ki_pid;
 		strncpy(thiscmd, procs[i].ki_comm, MAXCOMLEN);
 		thiscmd[MAXCOMLEN] = '\0';
