@@ -1,4 +1,4 @@
-/*	$Id: denode.h,v 1.1 1994/09/19 15:41:38 dfr Exp $ */
+/*	$Id: denode.h,v 1.2 1994/12/12 12:35:40 bde Exp $ */
 /*	$NetBSD: denode.h,v 1.8 1994/08/21 18:43:49 ws Exp $	*/
 
 /*-
@@ -199,16 +199,16 @@ struct denode {
 #define	VTODE(vp)	((struct denode *)(vp)->v_data)
 #define	DETOV(de)	((de)->de_vnode)
 
-#define	DE_UPDAT(dep, t, waitfor) \
-	if ((dep)->de_flag & (DE_MODIFIED | DE_UPDATE)) \
-		(void) deupdat((dep), (t), (waitfor));
-
 #define	DE_TIMES(dep, t) \
 	if ((dep)->de_flag & DE_UPDATE) { \
-		struct timespec DE_TIMES_ts; \
-		(dep)->de_flag |= DE_MODIFIED; \
-		TIMEVAL_TO_TIMESPEC((t), &DE_TIMES_ts); \
-		unix2dostime(&DE_TIMES_ts, &(dep)->de_Date, &(dep)->de_Time); \
+		if (!((dep)->de_Attributes & ATTR_DIRECTORY)) { \
+			struct timespec DE_TIMES_ts; \
+			(dep)->de_flag |= DE_MODIFIED; \
+			TIMEVAL_TO_TIMESPEC((t), &DE_TIMES_ts); \
+			unix2dostime(&DE_TIMES_ts, &(dep)->de_Date, \
+				     &(dep)->de_Time); \
+			(dep)->de_Attributes |= ATTR_ARCHIVE; \
+		} \
 		(dep)->de_flag &= ~DE_UPDATE; \
 	}
 

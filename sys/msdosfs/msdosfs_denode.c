@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_denode.c,v 1.4 1994/10/10 07:57:32 phk Exp $ */
+/*	$Id: msdosfs_denode.c,v 1.5 1994/12/12 12:35:43 bde Exp $ */
 /*	$NetBSD: msdosfs_denode.c,v 1.9 1994/08/21 18:44:00 ws Exp $	*/
 
 /*-
@@ -351,8 +351,10 @@ deupdat(dep, tp, waitfor)
 	 * If the mtime is to be updated, put the passed in time into the
 	 * directory entry.
 	 */
-	if (dep->de_flag & DE_UPDATE)
+	if (dep->de_flag & DE_UPDATE) {
+		dep->de_Attributes |= ATTR_ARCHIVE;
 		unix2dostime(tp, &dep->de_Date, &dep->de_Time);
+	}
 
 	/*
 	 * The mtime is now up to date.  The denode will be unmodifed soon.
@@ -688,8 +690,10 @@ msdosfs_inactive(ap)
 		dep->de_flag |= DE_UPDATE;
 		dep->de_Name[0] = SLOT_DELETED;
 	}
-	TIMEVAL_TO_TIMESPEC(&time, &ts);
-	DE_UPDAT(dep, &ts, 0);
+	if (dep->de_flag & (DE_MODIFIED | DE_UPDATE)) {
+		TIMEVAL_TO_TIMESPEC(&time, &ts);
+		deupdat(dep, &ts, 0);
+	}
 	VOP_UNLOCK(vp);
 	dep->de_flag = 0;
 
