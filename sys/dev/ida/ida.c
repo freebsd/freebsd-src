@@ -393,7 +393,7 @@ ida_construct_qcb(struct ida_softc *ida)
 
 	bioq_remove(&ida->bio_queue, bp);
 	qcb->buf = bp;
-	qcb->flags = 0;
+	qcb->flags = bp->bio_cmd == BIO_READ ? DMA_DATA_IN : DMA_DATA_OUT;
 
 	hwqcb = qcb->hwqcb;
 	bzero(hwqcb, sizeof(struct ida_hdr) + sizeof(struct ida_req));
@@ -512,11 +512,22 @@ ida_done(struct ida_softc *ida, struct ida_qcb *qcb)
 		bus_dmamap_unload(ida->buffer_dmat, qcb->dmamap);
 	}
 
-	if (qcb->hwqcb->req.error & SOFT_ERROR)
-		device_printf(ida->dev, "soft error\n");
+	if (qcb->hwqcb->req.error & SOFT_ERROR) {
+		if (qcb->buf)
+			device_printf(ida->dev, "soft %s error\n",
+				qcb->buf->bio_cmd == BIO_READ ?
+					"read" : "write");
+		else
+			device_printf(ida->dev, "soft error\n");
+	}
 	if (qcb->hwqcb->req.error & HARD_ERROR) {
 		error = 1;
-		device_printf(ida->dev, "hard error\n");
+		if (qcb->buf)
+			device_printf(ida->dev, "hard %s error\n",
+				qcb->buf->bio_cmd == BIO_READ ?
+					"read" : "write");
+		else
+			device_printf(ida->dev, "hard error\n");
 	}
 	if (qcb->hwqcb->req.error & CMD_REJECTED) {
 		error = 1;
@@ -533,6 +544,7 @@ ida_done(struct ida_softc *ida, struct ida_qcb *qcb)
 	}
 
 	qcb->state = QCB_FREE;
+	qcb->buf = NULL;
 	SLIST_INSERT_HEAD(&ida->free_qcbs, qcb, link.sle);
 	ida_construct_qcb(ida);
 }
