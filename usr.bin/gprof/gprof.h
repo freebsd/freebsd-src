@@ -47,6 +47,9 @@
 #if __alpha__
 #   include "alpha.h"
 #endif
+#if __sparc64__
+#   include "sparc64.h"
+#endif
 #if vax
 #   include "vax.h"
 #endif
