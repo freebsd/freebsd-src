@@ -109,6 +109,8 @@ char	*from = host;	/* client's machine name */
 int	remote;		/* true if sending files to a remote host */
 char	*printcapdb[2] = { _PATH_PRINTCAP, 0 };
 
+extern uid_t	uid, euid;
+
 static int compar __P((const void *, const void *));
 
 /*
@@ -155,7 +157,9 @@ getport(rhost, rport)
 	 * Try connecting to the server.
 	 */
 retry:
+	seteuid(euid);
 	s = rresvport(&lport);
+	seteuid(uid);
 	if (s < 0)
 		return(-1);
 	if (connect(s, (struct sockaddr *)&sin, sizeof(sin)) < 0) {
@@ -189,14 +193,14 @@ getline(cfp)
 	register char *lp = line;
 	register c;
 
-	while ((c = getc(cfp)) != '\n') {
+	while ((c = getc(cfp)) != '\n' && linel+1 < sizeof(line)) {
 		if (c == EOF)
 			return(0);
 		if (c == '\t') {
 			do {
 				*lp++ = ' ';
 				linel++;
-			} while ((linel & 07) != 0);
+			} while ((linel & 07) != 0 && linel+1 < sizeof(line));
 			continue;
 		}
 		*lp++ = c;
@@ -222,14 +226,16 @@ getq(namelist)
 	DIR *dirp;
 	int arraysz;
 
+	seteuid(euid);
 	if ((dirp = opendir(SD)) == NULL)
 		return(-1);
 	if (fstat(dirp->dd_fd, &stbuf) < 0)
 		goto errdone;
+	seteuid(uid);
 
 	/*
 	 * Estimate the array size by taking the size of the directory file
-	 * and dividing it by a multiple of the minimum size entry.
+	 * and dividing it by a multiple of the minimum size entry. 
 	 */
 	arraysz = (stbuf.st_size / 24);
 	queue = (struct queue **)malloc(arraysz * sizeof(struct queue *));
@@ -240,8 +246,10 @@ getq(namelist)
 	while ((d = readdir(dirp)) != NULL) {
 		if (d->d_name[0] != 'c' || d->d_name[1] != 'f')
 			continue;	/* daemon control files only */
+		seteuid(euid);
 		if (stat(d->d_name, &stbuf) < 0)
 			continue;	/* Doesn't exist */
+		seteuid(uid);
 		q = (struct queue *)malloc(sizeof(time_t)+strlen(d->d_name)+1);
 		if (q == NULL)
 			goto errdone;
@@ -300,7 +308,7 @@ checkremote()
 	if (RM != NULL) {
 		/* get the official name of the local host */
 		gethostname(name, sizeof(name));
-		name[sizeof(name)-1] = '\0';
+		name[sizeof(name) - 1] = '\0';
 		hp = gethostbyname(name);
 		if (hp == (struct hostent *) NULL) {
 		    (void) snprintf(errbuf, sizeof(errbuf),
@@ -341,14 +349,14 @@ delay(n)
 	(void) select(0, (fd_set *)0, (fd_set *)0, (fd_set *)0, &tdelay);
 }
 
-#if __STDC__
+#ifdef __STDC__
 #include <stdarg.h>
 #else
 #include <varargs.h>
 #endif
 
 void
-#if __STDC__
+#ifdef __STDC__
 fatal(const char *msg, ...)
 #else
 fatal(msg, va_alist)
@@ -357,7 +365,7 @@ fatal(msg, va_alist)
 #endif
 {
 	va_list ap;
-#if __STDC__
+#ifdef __STDC__
 	va_start(ap, msg);
 #else
 	va_start(ap);

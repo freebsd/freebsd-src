@@ -45,7 +45,7 @@ static char copyright[] =
 
 #ifndef lint
 static char sccsid[] = "From: @(#)lpr.c	8.4 (Berkeley) 4/28/95"
-	"\n$Id: lpr.c,v 1.10.2.2 1997/05/13 20:48:44 brian Exp $\n";
+	"\n$Id: lpr.c,v 1.10.2.3 1997/07/08 21:07:21 dima Exp $\n";
 #endif /* not lint */
 
 /*
@@ -113,6 +113,8 @@ static int	 nfile __P((char *));
 static int	 test __P((char *));
 static void	 usage __P((void));
 
+uid_t	uid, euid;
+
 int
 main(argc, argv)
 	int argc;
@@ -125,6 +127,9 @@ main(argc, argv)
 	int c, i, f, errs;
 	struct stat stb;
 
+	euid = geteuid();
+	uid = getuid();
+	seteuid(uid);
 	if (signal(SIGHUP, SIG_IGN) != SIG_IGN)
 		signal(SIGHUP, cleanup);
 	if (signal(SIGINT, SIG_IGN) != SIG_IGN)
@@ -135,7 +140,7 @@ main(argc, argv)
 		signal(SIGTERM, cleanup);
 
 	name = argv[0];
-	gethostname(host, sizeof (host));
+	gethostname(host, sizeof(host));
 	openlog("lpd", 0, LOG_LPR);
 
 	errs = 0;
@@ -281,7 +286,9 @@ main(argc, argv)
 	 */
 	mktemps();
 	tfd = nfile(tfname);
+	seteuid(euid);
 	(void) fchown(tfd, DU, -1);	/* owned by daemon for protection */
+	seteuid(uid);
 	card('H', host);
 	card('P', person);
 	if (hdr) {
@@ -289,7 +296,7 @@ main(argc, argv)
 			if (argc == 0)
 				jobname = "stdin";
 			else
-				jobname = (arg = rindex(argv[0], '/')) ? arg+1 : argv[0];
+				jobname = (arg = strrchr(argv[0], '/')) ? arg+1 : argv[0];
 		}
 		card('J', jobname);
 		card('C', class);
@@ -355,6 +362,7 @@ main(argc, argv)
 		/*
 		 * Touch the control file to fix position in the queue.
 		 */
+		seteuid(euid);
 		if ((tfd = open(tfname, O_RDWR)) >= 0) {
 			char c;
 
@@ -373,6 +381,7 @@ main(argc, argv)
 			cleanup(0);
 		}
 		unlink(tfname);
+		seteuid(uid);
 		if (qflag)		/* just q things up */
 			exit(0);
 		if (!startdaemon(printer))
@@ -380,6 +389,7 @@ main(argc, argv)
 		exit(0);
 	}
 	cleanup(0);
+	return (1);
 	/* NOTREACHED */
 }
 
@@ -434,6 +444,7 @@ linked(file)
 {
 	register char *cp;
 	static char buf[MAXPATHLEN];
+	register int ret;
 
 	if (*file != '/') {
 		if (getcwd(buf, sizeof(buf)) == NULL)
@@ -445,7 +456,7 @@ linked(file)
 				continue;
 			case '.':
 				if (file[2] == '/') {
-					if ((cp = rindex(buf, '/')) != NULL)
+					if ((cp = strrchr(buf, '/')) != NULL)
 						*cp = '\0';
 					file += 3;
 					continue;
@@ -457,7 +468,10 @@ linked(file)
 		strncat(buf, file, sizeof(buf) - strlen(buf) - 1);
 		file = buf;
 	}
-	return(symlink(file, dfname) ? NULL : file);
+	seteuid(euid);
+	ret = symlink(file, dfname);
+	seteuid(uid);
+	return(ret ? NULL : file);
 }
 
 /*
@@ -491,6 +505,7 @@ nfile(n)
 	register int f;
 	int oldumask = umask(0);		/* should block signals */
 
+	seteuid(euid);
 	f = open(n, O_WRONLY | O_EXCL | O_CREAT, FILMOD);
 	(void) umask(oldumask);
 	if (f < 0) {
@@ -499,8 +514,9 @@ nfile(n)
 	}
 	if (fchown(f, userid, -1) < 0) {
 		printf("%s: cannot chown %s\n", name, n);
-		cleanup(0);
+		cleanup(0);	/* cleanup does exit */
 	}
+	seteuid(uid);
 	if (++n[inchar] > 'z') {
 		if (++n[inchar-2] == 't') {
 			printf("too many files - break up the job\n");
@@ -526,6 +542,7 @@ cleanup(signo)
 	signal(SIGQUIT, SIG_IGN);
 	signal(SIGTERM, SIG_IGN);
 	i = inchar;
+	seteuid(euid);
 	if (tfname)
 		do
 			unlink(tfname);
@@ -580,12 +597,12 @@ test(file)
 	}
 	if (read(fd, &execb, sizeof(execb)) == sizeof(execb) &&
 	    !N_BADMAG(execb)) {
-			printf("%s: %s is an executable program", name, file);
-			goto error1;
-		}
+		printf("%s: %s is an executable program", name, file);
+		goto error1;
+	}
 	(void) close(fd);
 	if (rflag) {
-		if ((cp = rindex(file, '/')) == NULL) {
+		if ((cp = strrchr(file, '/')) == NULL) {
 			if (checkwriteperm(file,".") == 0)
 				return(1);
 		} else {
@@ -694,8 +711,10 @@ mktemps()
 	register int len, fd, n;
 	register char *cp;
 	char buf[BUFSIZ];
+	char *lmktemp();
 
 	(void) snprintf(buf, sizeof(buf), "%s/.seq", SD);
+	seteuid(euid);
 	if ((fd = open(buf, O_RDWR|O_CREAT, 0661)) < 0) {
 		printf("%s: cannot create %s\n", name, buf);
 		exit(1);
@@ -704,6 +723,7 @@ mktemps()
 		printf("%s: cannot lock %s\n", name, buf);
 		exit(1);
 	}
+	seteuid(uid);
 	n = 0;
 	if ((len = read(fd, buf, sizeof(buf))) > 0) {
 		for (cp = buf; len--; ) {
@@ -740,14 +760,14 @@ lmktemp(id, num, len)
 	return(s);
 }
 
-#if __STDC__
+#ifdef __STDC__
 #include <stdarg.h>
 #else
 #include <varargs.h>
 #endif
 
 static void
-#if __STDC__
+#ifdef __STDC__
 fatal2(const char *msg, ...)
 #else
 fatal2(msg, va_alist)
@@ -756,7 +776,7 @@ fatal2(msg, va_alist)
 #endif
 {
 	va_list ap;
-#if __STDC__
+#ifdef __STDC__
 	va_start(ap, msg);
 #else
 	va_start(ap);
