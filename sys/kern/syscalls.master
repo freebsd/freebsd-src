@@ -1,4 +1,4 @@
-	$Id: syscalls.master,v 1.39 1997/06/01 08:52:38 peter Exp $
+	$Id: syscalls.master,v 1.40 1997/06/16 00:29:32 dyson Exp $
 ;	from: @(#)syscalls.master	8.2 (Berkeley) 1/13/94
 ;
 ; System call name/number master file.
@@ -332,7 +332,7 @@
 205	STD	BSD	{ int utrace(caddr_t addr, size_t len); }
 ; problem here. NetBSD/OpenBSD have syscall 206 as futimes()
 206	STD	BSD	{ int undelete(char *path); }
-207	UNIMPL	NOHIDE	getpgid (NetBSD)
+207	STD	BSD	{ int getpgid(pid_t pid); }
 208	UNIMPL	NOHIDE	newreboot (NetBSD)
 ; problem. NetBSD and OpenBSD have a different syscall number for poll()
 209	UNIMPL	NOHIDE	poll2 (NetBSD, OpenBSD used 252 first)
@@ -457,7 +457,7 @@
 307	STD	BSD	{ int kldnext(int fileid); }
 308	STD	BSD	{ int kldstat(int fileid, struct kld_file_stat* stat); }
 309	STD	BSD	{ int kldfirstmod(int fileid); }
-310	UNIMPL	NOHIDE	getsid
+310	STD	BSD	{ int getsid(pid_t pid); }
 311	UNIMPL	NOHIDE	setresuid
 312	UNIMPL	NOHIDE	setresgid
 313	STD	BSD	{ int signanosleep(const struct timespec *rqtp, \
