@@ -1,7 +1,7 @@
 #
 # Makefile for the NIS databases
 #
-# $Id: Makefile.yp,v 1.5 1996/06/03 16:24:32 wpaul Exp $
+# $Id: Makefile.yp,v 1.6 1996/06/05 02:01:27 wpaul Exp $
 #
 # This Makefile should only be run on the NIS master server of a domain.
 # All updated maps will be pushed to all NIS slave servers listed in the
@@ -102,6 +102,7 @@ MASTER	  = $(MASTER_PASSWD)
 .endif
 YPSERVERS = $(YPDIR)/ypservers	# List of all NIS servers for a domain
 PUBLICKEY = $(YPSRCDIR)/publickey
+NETID     = $(YPSRCDIR)/netid
 
 target: 
 	@$(RM) $(NFILE)
@@ -457,8 +458,8 @@ group.bygid: $(GROUP)
 netid.byname: $(GROUP) $(PASSWD)
 	@echo "Updating $@..."
 	@echo $@.$$$$ > $(NFILE)
-	@$(MKNETID) $(PASSWD) $(GROUP) `basename \`pwd\`` \
-		| $(DBLOAD) -o $(YPMAPDIR)/$@ - $(TMP)
+	@$(MKNETID) -q -p $(PASSWD) -g $(GROUP) -h $(HOSTS) -n $(NETID) \
+		-d $(DOMAIN) | $(DBLOAD) -o $(YPMAPDIR)/$@ - $(TMP)
 	@$(MV) $(TMP) $@
 	@$(DBLOAD) -c
 	@if [ ! $(NOPUSH) ]; then $(YPPUSH) -d $(DOMAIN) $@; fi
