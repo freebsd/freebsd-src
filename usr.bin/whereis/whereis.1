@@ -1,3 +1,5 @@
+.\"	$NetBSD: whereis.1,v 1.12 2001/12/01 16:43:27 wiz Exp $
+.\"
 .\" Copyright (c) 1993
 .\"	The Regents of the University of California.  All rights reserved.
 .\"
@@ -33,31 +35,41 @@
 .\"
 .Dd April 27, 1995
 .Dt WHEREIS 1
-.Os BSD 3
+.Os
 .Sh NAME
 .Nm whereis
 .Nd locate programs
 .Sh SYNOPSIS
-.Nm whereis
+.Nm
+.Op Fl p
+.Ar program
 .Op Ar program ...
 .Sh DESCRIPTION
 The
-.Nm whereis
+.Nm
 utility checks the standard binary directories for the specified programs,
 printing out the paths of any it finds.
 .Pp
-The path searched is the string returned by the
+The default path searched is the string returned by the
 .Xr sysctl 8
 utility for the
 .Dq user.cs_path
 string.
+If the
+.Op Fl p
+option is specified, then the value of the environment
+variable
+.Ev PATH
+is used instead.
 .Sh SEE ALSO
+.Xr which 1 ,
 .Xr sysctl 8
 .Sh COMPATIBILITY
 The historic flags and arguments for the
-.Nm whereis
+.Nm
 utility are no longer available in this version.
 .Sh HISTORY
 The
-.Nm whereis
-command appeared in 3.0BSD.
+.Nm
+command appeared in
+.Bx 3.0 .
