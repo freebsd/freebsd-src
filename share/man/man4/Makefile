@@ -64,12 +64,14 @@ MAN=	aac.4 \
 	ichsmb.4 \
 	icmp.4 \
 	icmp6.4 \
+	ida.4 \
 	ieee80211.4 \
 	ifmib.4 \
 	iic.4 \
 	iicbb.4 \
 	iicbus.4 \
 	iicsmb.4 \
+	iir.4 \
 	inet.4 \
 	inet6.4 \
 	intpm.4 \
