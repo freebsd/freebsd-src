@@ -54,7 +54,7 @@ static const char rcsid[] =
 #include <stdio.h>
 #include <string.h>
 
-int	show __P((int, char *));
+int	show __P((int, const char *));
 static void	usage __P((void));
 
 int
@@ -86,7 +86,7 @@ main(argc, argv)
 int
 show(count, name)
 	int count;
-	char *name;
+	const char *name;
 {
 	static int first = 1;
 	struct exec head;
