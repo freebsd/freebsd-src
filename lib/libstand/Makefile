@@ -24,6 +24,10 @@ CFLAGS+=	-mpreferred-stack-boundary=2
 .if ${MACHINE_ARCH} == "powerpc"
 CFLAGS+=	-msoft-float
 .endif
+.if ${MACHINE_ARCH} == "amd64"
+CFLAGS+=	-m32
+LDFLAGS+=	-m elf_i386_fbsd
+.endif
 
 # standalone components and stuff we have modified locally
 SRCS+=	zutil.h __main.c assert.c bcd.c bswap.c environment.c getopt.c gets.c \
@@ -34,13 +38,17 @@ SRCS+=	zutil.h __main.c assert.c bcd.c bswap.c environment.c getopt.c gets.c \
 SRCS+=	strcasecmp.c
 
 # byte order functions from libc
+.if ${MACHINE_ARCH} != "amd64"
 .PATH: ${.CURDIR}/../libc/${MACHINE_ARCH}/net
+.else
+.PATH: ${.CURDIR}/../libc/i386/net
+.endif
 SRCS+= htons.S ntohs.S htonl.S ntohl.S
 
 # string functions from libc
 .PATH:	${.CURDIR}/../libc/string
 .if ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "powerpc" || \
-	${MACHINE_ARCH} == "sparc64"
+	${MACHINE_ARCH} == "sparc64" || ${MACHINE_ARCH} == "amd64"
 SRCS+=	bcmp.c bcopy.c bzero.c ffs.c index.c memccpy.c memchr.c memcmp.c \
         memcpy.c memmove.c memset.c qdivrem.c rindex.c strcat.c strchr.c \
         strcmp.c strcpy.c strcspn.c strlen.c strncat.c strncmp.c strncpy.c \
@@ -107,7 +115,11 @@ SRCS+= __udivdi3.S __udivsi3.S __umoddi3.S __umodsi3.S
 .endif
 
 # _setjmp/_longjmp
+.if ${MACHINE_ARCH} == "amd64"
+.PATH:	${.CURDIR}/i386
+.else
 .PATH:	${.CURDIR}/${MACHINE_ARCH}
+.endif
 SRCS+=	_setjmp.S
 
 # decompression functionality from libbz2
@@ -169,3 +181,12 @@ SRCS+=	dosfs.c ext2fs.c
 SRCS+=	splitfs.c
 
 .include <bsd.lib.mk>
+
+.if ${MACHINE_ARCH} == "amd64"
+${SRCS:M*.c:R:S/$/.o/g}:	machine
+
+beforedepend:	machine
+
+machine:
+	ln -s ${.CURDIR}/../../sys/i386/include machine
+.endif
