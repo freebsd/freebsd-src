@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.71.2.20 1995/10/05 09:15:29 jkh Exp $
+ * $Id: install.c,v 1.71.2.21 1995/10/07 11:55:26 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -235,11 +235,25 @@ installFixit(char *str)
     if ((child = fork()) != 0)
 	(void)waitpid(child, &waitstatus, 0);
     else {
+	int i;
+
+	for (i = 0; i < 64; i++)
+	    close(i);
+	fd = open("/dev/ttyv0", O_RDWR);
+	ioctl(0, TIOCSCTTY, &fd);
+	dup2(0, 1);
+	dup2(0, 2);
+	if (login_tty(fd) == -1) {
+	    msgNotify("Can't set controlling terminal");
+	    exit(1);
+	}
+	printf("When you're finished with this shell, please type exit.\n");
 	setenv("PATH", "/bin:/sbin:/usr/bin:/usr/sbin:/stand:/mnt2/stand", 1);
 	execlp("sh", "-sh", 0);
 	return -1;
     }
     DialogActive = TRUE;
+    clear();
     dialog_clear();
     dialog_update();
     unmount("/mnt2", MNT_FORCE);
