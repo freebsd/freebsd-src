@@ -298,7 +298,6 @@
 #include <machine/ioctl_meteor.h>
 #include <machine/ioctl_bt848.h>	/* extensions to ioctl_meteor.h */
 #include <pci/brktree_reg.h>
-#include <vm/vm.h>
 #include <sys/sysctl.h>
 static int bt848_card = -1;
 static int bt848_tuner = -1;
