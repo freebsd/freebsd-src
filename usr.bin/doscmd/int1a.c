@@ -35,7 +35,7 @@ __FBSDID("$FreeBSD$");
 
 #include "doscmd.h"
 
-static inline int
+static __inline int
 to_BCD (int n)
 {
     n &= 0xFF;

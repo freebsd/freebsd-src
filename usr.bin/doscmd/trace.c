@@ -43,7 +43,7 @@ static u_char	*iaddr, ibyte;
 
 /* locals */
 static void		printtrace(regcontext_t *REGS, char *buf);
-static inline void	showstate(long, long, char);
+static __inline void	showstate(long, long, char);
 
 /*
  * Before exiting to VM86 mode:
@@ -183,7 +183,7 @@ tracetrap(regcontext_t *REGS)
     }
 }
 
-static inline void
+static __inline void
 showstate(long flags, long flag, char f)
 {
     putc((flags & flag) ? f : ' ', debugf);

@@ -42,17 +42,25 @@ __FBSDID("$FreeBSD$");
 #define	MINPORT		0x000
 #define	MAXPORT_MASK	(MAXPORT - 1)
 
-#define in(port) \
-({ \
-        register int _inb_result; \
-\
-        asm volatile ("xorl %%eax,%%eax; inb %%dx,%%al" : \
-            "=a" (_inb_result) : "d" (port)); \
-        _inb_result; \
-})
+static __inline int
+in(u_int port)
+{
+        int _inb_result;
 
-#define out(port, data) \
-        asm volatile ("outb %%al,%%dx" : : "a" (data), "d" (port))
+#ifdef __GNUC__
+        __asm __volatile ("xorl %%eax,%%eax; inb %%dx,%%al" :
+            "=a" (_inb_result) : "d" (port));
+#endif
+        return _inb_result;
+}
+
+static __inline void
+out(u_int port, int data)
+{
+#ifdef __GNUC__
+        __asm __volatile ("outb %%al,%%dx" : : "a" (data), "d" (port));
+#endif
+}
 
 FILE *iolog = 0;
 u_long ioports[MAXPORT/32];
