@@ -257,7 +257,6 @@ static	d_ioctl_t	bktr_ioctl;
 static	d_mmap_t	bktr_mmap;
 static	d_poll_t	bktr_poll;
 
-#define CDEV_MAJOR 92 
 static struct cdevsw bktr_cdevsw = {
 	.d_open =	bktr_open,
 	.d_close =	bktr_close,
@@ -267,7 +266,6 @@ static struct cdevsw bktr_cdevsw = {
 	.d_poll =	bktr_poll,
 	.d_mmap =	bktr_mmap,
 	.d_name =	"bktr",
-	.d_maj =	CDEV_MAJOR,
 };
 
 DRIVER_MODULE(bktr, pci, bktr_driver, bktr_devclass, 0, 0);

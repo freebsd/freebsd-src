@@ -423,7 +423,6 @@ PERIPHDRIVER_DECLARE(sa, sadriver);
 #define D_TAPE 0
 #endif
 
-#define SA_CDEV_MAJOR 14
 
 static struct cdevsw sa_cdevsw = {
 	.d_open =	saopen,
@@ -433,7 +432,6 @@ static struct cdevsw sa_cdevsw = {
 	.d_ioctl =	saioctl,
 	.d_strategy =	sastrategy,
 	.d_name =	"sa",
-	.d_maj =	SA_CDEV_MAJOR,
 	.d_flags =	D_TAPE,
 };
 

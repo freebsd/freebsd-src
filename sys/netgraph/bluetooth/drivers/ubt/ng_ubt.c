@@ -225,12 +225,6 @@ Static d_poll_t		ubt_poll;
 Static void		ubt_create_device_nodes  (ubt_softc_p);
 Static void		ubt_destroy_device_nodes (ubt_softc_p);
 
-#if __FreeBSD_version < 500104
-#define CDEV_MAJOR	222
-#else
-#define CDEV_MAJOR	MAJOR_AUTO
-#endif
-
 Static struct cdevsw	ubt_cdevsw = {
 	.d_open =	ubt_open,
 	.d_close =	ubt_close,
@@ -239,7 +233,6 @@ Static struct cdevsw	ubt_cdevsw = {
 	.d_ioctl =	ubt_ioctl,
 	.d_poll =	ubt_poll,
 	.d_name =	"ubt",
-	.d_maj =	CDEV_MAJOR,
 };
 
 /*

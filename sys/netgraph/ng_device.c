@@ -112,7 +112,6 @@ static d_write_t ngdwrite;
 static d_ioctl_t ngdioctl;
 static d_poll_t ngdpoll;
 
-#define NGD_CDEV_MAJOR 20
 static struct cdevsw ngd_cdevsw = {
 	.d_open =	ngdopen,
 	.d_close =	ngdclose,
@@ -121,7 +120,6 @@ static struct cdevsw ngd_cdevsw = {
 	.d_ioctl =	ngdioctl,
 	.d_poll =	ngdpoll,
 	.d_name =	"ngd",
-	.d_maj =	NGD_CDEV_MAJOR,
 };
 
 /* 

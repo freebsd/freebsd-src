@@ -180,7 +180,6 @@ static struct ti_type ti_devs[] = {
 	{ 0, 0, NULL }
 };
 
-#define	TI_CDEV_MAJOR	153
 
 static	d_open_t	ti_open;
 static	d_close_t	ti_close;
@@ -191,7 +190,6 @@ static struct cdevsw ti_cdevsw = {
 	.d_close =	ti_close,
 	.d_ioctl =	ti_ioctl2,
 	.d_name =	"ti",
-	.d_maj =	TI_CDEV_MAJOR,
 };
 
 static int ti_probe		(device_t);

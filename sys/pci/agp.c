@@ -63,7 +63,6 @@ MODULE_VERSION(agp, 1);
 
 MALLOC_DEFINE(M_AGP, "agp", "AGP data structures");
 
-#define CDEV_MAJOR	148
 				/* agp_drv.c */
 static d_open_t agp_open;
 static d_close_t agp_close;
@@ -76,7 +75,6 @@ static struct cdevsw agp_cdevsw = {
 	.d_ioctl =	agp_ioctl,
 	.d_mmap =	agp_mmap,
 	.d_name =	"agp",
-	.d_maj =	CDEV_MAJOR,
 };
 
 static devclass_t agp_devclass;

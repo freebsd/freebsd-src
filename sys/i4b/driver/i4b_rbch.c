@@ -110,7 +110,6 @@ static 	d_read_t	i4brbchwrite;
 static 	d_ioctl_t	i4brbchioctl;
 static 	d_poll_t	i4brbchpoll;
 
-#define CDEV_MAJOR 57
 
 static struct cdevsw i4brbch_cdevsw = {
 	.d_open =	i4brbchopen,
@@ -120,7 +119,6 @@ static struct cdevsw i4brbch_cdevsw = {
 	.d_ioctl =	i4brbchioctl,
 	.d_poll =	i4brbchpoll,
 	.d_name =	"i4brbch",
-	.d_maj =	CDEV_MAJOR,
 };
 
 static void i4brbchattach(void *);

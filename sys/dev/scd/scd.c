@@ -145,7 +145,6 @@ static	d_close_t	scdclose;
 static	d_ioctl_t	scdioctl;
 static	d_strategy_t	scdstrategy;
 
-#define CDEV_MAJOR 45
 
 static struct cdevsw scd_cdevsw = {
 	.d_open =	scdopen,
@@ -154,7 +153,6 @@ static struct cdevsw scd_cdevsw = {
 	.d_ioctl =	scdioctl,
 	.d_strategy =	scdstrategy,
 	.d_name =	"scd",
-	.d_maj =	CDEV_MAJOR,
 	.d_flags =	D_DISK,
 };
 

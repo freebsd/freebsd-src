@@ -42,7 +42,6 @@
 #include <sys/bus.h>
 #include <sys/cdefs.h>
 
-#define	CDEV_MAJOR	107
 #define  PCI_DEVICE_ALLIANCE_AT3D	0x643d1142
 #define	PCI_DEVICE_3DFX_VOODOO1		0x0001121a
 #define	PCI_DEVICE_3DFX_VOODOO2		0x0002121a

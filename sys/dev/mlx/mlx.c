@@ -53,14 +53,12 @@
 #include <dev/mlx/mlxvar.h>
 #include <dev/mlx/mlxreg.h>
 
-#define MLX_CDEV_MAJOR	130
 
 static struct cdevsw mlx_cdevsw = {
 	.d_open =	mlx_open,
 	.d_close =	mlx_close,
 	.d_ioctl =	mlx_ioctl,
 	.d_name =	"mlx",
-	.d_maj =	MLX_CDEV_MAJOR,
 };
 
 devclass_t	mlx_devclass;

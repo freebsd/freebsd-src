@@ -72,7 +72,6 @@ static d_write_t apmwrite;
 static d_ioctl_t apmioctl;
 static d_poll_t apmpoll;
 
-#define CDEV_MAJOR 39
 static struct cdevsw apm_cdevsw = {
 	.d_open =	apmopen,
 	.d_close =	apmclose,
@@ -80,7 +79,6 @@ static struct cdevsw apm_cdevsw = {
 	.d_ioctl =	apmioctl,
 	.d_poll =	apmpoll,
 	.d_name =	"apm",
-	.d_maj =	CDEV_MAJOR,
 };
 
 static int intr_model = ACPI_INTR_PIC;

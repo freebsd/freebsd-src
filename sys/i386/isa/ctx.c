@@ -141,7 +141,6 @@ static	d_close_t	ctxclose;
 static	d_read_t	ctxread;
 static	d_write_t	ctxwrite;
 static	d_ioctl_t	ctxioctl;
-#define CDEV_MAJOR 40
 
 static struct cdevsw ctx_cdevsw = {
 	.d_open =	ctxopen,
@@ -150,7 +149,6 @@ static struct cdevsw ctx_cdevsw = {
 	.d_write =	ctxwrite,
 	.d_ioctl =	ctxioctl,
 	.d_name =	"ctx",
-	.d_maj =	CDEV_MAJOR,
 };
 
 

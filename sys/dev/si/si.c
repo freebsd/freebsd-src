@@ -117,7 +117,6 @@ static	d_close_t	siclose;
 static	d_write_t	siwrite;
 static	d_ioctl_t	siioctl;
 
-#define	CDEV_MAJOR	68
 static struct cdevsw si_cdevsw = {
 	.d_open =	siopen,
 	.d_close =	siclose,
@@ -126,7 +125,6 @@ static struct cdevsw si_cdevsw = {
 	.d_ioctl =	siioctl,
 	.d_poll =	ttypoll,
 	.d_name =	"si",
-	.d_maj =	CDEV_MAJOR,
 	.d_flags =	D_TTY,
 	.d_kqfilter =	ttykqfilter,
 };

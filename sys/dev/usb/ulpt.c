@@ -145,7 +145,6 @@ Static d_close_t ulptclose;
 Static d_write_t ulptwrite;
 Static d_ioctl_t ulptioctl;
 
-#define ULPT_CDEV_MAJOR 113
 
 Static struct cdevsw ulpt_cdevsw = {
 	.d_open =	ulptopen,
@@ -153,7 +152,6 @@ Static struct cdevsw ulpt_cdevsw = {
 	.d_write =	ulptwrite,
 	.d_ioctl =	ulptioctl,
 	.d_name =	"ulpt",
-	.d_maj =	ULPT_CDEV_MAJOR,
 #if __FreeBSD_version < 500014
 	.d_bmaj		-1
 #endif

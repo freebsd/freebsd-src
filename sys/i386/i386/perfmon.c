@@ -71,13 +71,11 @@ static d_ioctl_t perfmon_ioctl;
 static void perfmon_init_dev(void *);
 SYSINIT(cpu, SI_SUB_DRIVERS, SI_ORDER_ANY, perfmon_init_dev, NULL);
 
-#define CDEV_MAJOR 2	/* We're really a minor of mem.c */
 static struct cdevsw perfmon_cdevsw = {
 	.d_open =	perfmon_open,
 	.d_close =	perfmon_close,
 	.d_ioctl =	perfmon_ioctl,
 	.d_name =	"perfmon",
-	.d_maj =	CDEV_MAJOR,
 };
 
 /*

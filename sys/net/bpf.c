@@ -126,7 +126,6 @@ static	d_ioctl_t	bpfioctl;
 static	d_poll_t	bpfpoll;
 static	d_kqfilter_t	bpfkqfilter;
 
-#define CDEV_MAJOR 23
 static struct cdevsw bpf_cdevsw = {
 	.d_open =	bpfopen,
 	.d_close =	bpfclose,
@@ -135,7 +134,6 @@ static struct cdevsw bpf_cdevsw = {
 	.d_ioctl =	bpfioctl,
 	.d_poll =	bpfpoll,
 	.d_name =	"bpf",
-	.d_maj =	CDEV_MAJOR,
 	.d_kqfilter =	bpfkqfilter,
 };
 
@@ -1598,7 +1596,7 @@ bpf_drvinit(unused)
 	EVENTHANDLER_REGISTER(dev_clone, bpf_clone, 0, 1000);
 }
 
-SYSINIT(bpfdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE+CDEV_MAJOR,bpf_drvinit,NULL)
+SYSINIT(bpfdev,SI_SUB_DRIVERS,SI_ORDER_MIDDLE,bpf_drvinit,NULL)
 
 #else /* !DEV_BPF && !NETGRAPH_BPF */
 /*

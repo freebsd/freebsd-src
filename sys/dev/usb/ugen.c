@@ -149,7 +149,6 @@ d_write_t ugenwrite;
 d_ioctl_t ugenioctl;
 d_poll_t  ugenpoll;
 
-#define UGEN_CDEV_MAJOR	114
 
 Static struct cdevsw ugen_cdevsw = {
 	.d_open =	ugenopen,
@@ -159,7 +158,6 @@ Static struct cdevsw ugen_cdevsw = {
 	.d_ioctl =	ugenioctl,
 	.d_poll =	ugenpoll,
 	.d_name =	"ugen",
-	.d_maj =	UGEN_CDEV_MAJOR,
 #if __FreeBSD_version < 500014
 	.d_bmaj		-1
 #endif

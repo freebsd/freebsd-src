@@ -152,7 +152,6 @@ Static d_read_t  ums_read;
 Static d_ioctl_t ums_ioctl;
 Static d_poll_t  ums_poll;
 
-#define UMS_CDEV_MAJOR	111
 
 Static struct cdevsw ums_cdevsw = {
 	.d_open =	ums_open,
@@ -161,7 +160,6 @@ Static struct cdevsw ums_cdevsw = {
 	.d_ioctl =	ums_ioctl,
 	.d_poll =	ums_poll,
 	.d_name =	"ums",
-	.d_maj =	UMS_CDEV_MAJOR,
 #if __FreeBSD_version < 500014
 	.d_bmaj		-1
 #endif

@@ -571,7 +571,6 @@ static	d_close_t	rpclose;
 static	d_write_t	rpwrite;
 static	d_ioctl_t	rpioctl;
 
-#define	CDEV_MAJOR	81
 struct cdevsw rp_cdevsw = {
 	.d_open =	rpopen,
 	.d_close =	rpclose,
@@ -580,7 +579,6 @@ struct cdevsw rp_cdevsw = {
 	.d_ioctl =	rpioctl,
 	.d_poll =	ttypoll,
 	.d_name =	"rp",
-	.d_maj =	CDEV_MAJOR,
 	.d_flags =	D_TTY,
 };
 

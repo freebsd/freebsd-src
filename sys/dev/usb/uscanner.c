@@ -266,7 +266,6 @@ d_read_t  uscannerread;
 d_write_t uscannerwrite;
 d_poll_t  uscannerpoll;
 
-#define USCANNER_CDEV_MAJOR	156
 
 Static struct cdevsw uscanner_cdevsw = {
 	.d_open =	uscanneropen,
@@ -275,7 +274,6 @@ Static struct cdevsw uscanner_cdevsw = {
 	.d_write =	uscannerwrite,
 	.d_poll =	uscannerpoll,
 	.d_name =	"uscanner",
-	.d_maj =	USCANNER_CDEV_MAJOR,
 #if __FreeBSD_version < 500014
 	.d_bmaj		-1
 #endif

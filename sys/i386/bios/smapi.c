@@ -77,7 +77,6 @@ static d_ioctl_t smapi_ioctl;
 static struct cdevsw smapi_cdevsw = {
 	.d_ioctl =	smapi_ioctl,
 	.d_name =	"smapi",
-	.d_maj =	MAJOR_AUTO,
 	.d_flags =	D_MEM,
 };
 

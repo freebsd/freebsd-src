@@ -385,7 +385,6 @@ static	d_close_t	sioclose;
 static	d_write_t	siowrite;
 static	d_ioctl_t	sioioctl;
 
-#define	CDEV_MAJOR	48
 static struct cdevsw sio_cdevsw = {
 	.d_open =	sioopen,
 	.d_close =	sioclose,
@@ -394,7 +393,6 @@ static struct cdevsw sio_cdevsw = {
 	.d_ioctl =	sioioctl,
 	.d_poll =	ttypoll,
 	.d_name =	driver_name,
-	.d_maj =	CDEV_MAJOR,
 	.d_flags =	D_TTY,
 	.d_kqfilter =	ttykqfilter,
 };

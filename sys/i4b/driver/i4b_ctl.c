@@ -56,7 +56,6 @@ static	d_close_t	i4bctlclose;
 static	d_ioctl_t	i4bctlioctl;
 static	d_poll_t	i4bctlpoll;
 
-#define CDEV_MAJOR 55
 
 static struct cdevsw i4bctl_cdevsw = {
 	.d_open =	i4bctlopen,
@@ -64,7 +63,6 @@ static struct cdevsw i4bctl_cdevsw = {
 	.d_ioctl =	i4bctlioctl,
 	.d_poll =	i4bctlpoll,
 	.d_name =	"i4bctl",
-	.d_maj =	CDEV_MAJOR,
 };
 
 static void i4bctlattach(void *);

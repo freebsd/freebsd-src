@@ -346,7 +346,6 @@ static driver_t psm_driver = {
     sizeof(struct psm_softc),
 };
 
-#define CDEV_MAJOR        21
 
 static struct cdevsw psm_cdevsw = {
 	.d_open =	psmopen,
@@ -355,7 +354,6 @@ static struct cdevsw psm_cdevsw = {
 	.d_ioctl =	psmioctl,
 	.d_poll =	psmpoll,
 	.d_name =	PSM_DRIVER_NAME,
-	.d_maj =	CDEV_MAJOR,
 };
 
 /* debug message level */

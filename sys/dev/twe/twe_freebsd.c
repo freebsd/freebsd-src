@@ -71,7 +71,6 @@ static struct cdevsw twe_cdevsw = {
 	.d_close =	twe_close,
 	.d_ioctl =	twe_ioctl_wrapper,
 	.d_name =	"twe",
-	.d_maj =	TWE_CDEV_MAJOR,
 };
 
 /********************************************************************************

@@ -642,7 +642,6 @@ COMPAT_ISA_DRIVER(stli, stlidriver);
  *	FreeBSD-2.2+ kernel linkage.
  */
 
-#define	CDEV_MAJOR	75
 static struct cdevsw stli_cdevsw = {
 	.d_open =	stliopen,
 	.d_close =	stliclose,
@@ -651,7 +650,6 @@ static struct cdevsw stli_cdevsw = {
 	.d_ioctl =	stliioctl,
 	.d_poll =	ttypoll,
 	.d_name =	stli_drvname,
-	.d_maj =	CDEV_MAJOR,
 	.d_flags =	D_TTY,
 	.d_kqfilter =	ttykqfilter,
 };

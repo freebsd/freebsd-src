@@ -91,12 +91,6 @@ Static d_write_t	ubtbcmfw_write;
 Static d_ioctl_t	ubtbcmfw_ioctl;
 Static d_poll_t		ubtbcmfw_poll;
 
-#if __FreeBSD_version < 500104
-#define CDEV_MAJOR	223
-#else
-#define CDEV_MAJOR	MAJOR_AUTO
-#endif
-
 Static struct cdevsw	ubtbcmfw_cdevsw = {
 	.d_open =	ubtbcmfw_open,
 	.d_close =	ubtbcmfw_close,
@@ -105,7 +99,6 @@ Static struct cdevsw	ubtbcmfw_cdevsw = {
 	.d_ioctl =	ubtbcmfw_ioctl,
 	.d_poll =	ubtbcmfw_poll,
 	.d_name =	"ubtbcmfw",
-	.d_maj =	CDEV_MAJOR,
 };
 
 /*
