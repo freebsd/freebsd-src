@@ -257,11 +257,17 @@ void
 vop_strategy_pre(void *ap)
 {
 	struct vop_strategy_args *a = ap;
-	int status;
+	struct buf *bp;
 
-	status = lockstatus(&a->a_bp->b_lock, curthread);
+	bp = a->a_bp;
 
-	if (status != LK_SHARED && status != LK_EXCLUSIVE) {
+	/*
+	 * Cluster ops lock their component buffers but not the IO container.
+	 */
+	if ((bp->b_flags & B_CLUSTER) != 0)
+		return;
+
+	if (BUF_REFCNT(bp) < 1) {
 		if (vfs_badlock_print)
 			printf("VOP_STRATEGY: bp is not locked but should be.\n");
 		if (vfs_badlock_panic)
