@@ -65,6 +65,7 @@ __bt_free(t, h)
 	h->prevpg = P_INVALID;
 	h->nextpg = t->bt_free;
 	t->bt_free = h->pgno;
+	F_SET(t, B_METADIRTY);
 
 	/* Make sure the page gets written back. */
 	return (mpool_put(t->bt_mp, h, MPOOL_DIRTY));
@@ -92,6 +93,7 @@ __bt_new(t, npg)
 	    (h = mpool_get(t->bt_mp, t->bt_free, 0)) != NULL) {
 		*npg = t->bt_free;
 		t->bt_free = h->nextpg;
+		F_SET(t, B_METADIRTY);
 		return (h);
 	}
 	return (mpool_new(t->bt_mp, npg));
