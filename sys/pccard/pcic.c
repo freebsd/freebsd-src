@@ -387,7 +387,6 @@ pcic_attach(device_t dev)
 		sp->slt->irq = sc->irq;
 
 		/* Check for changes */
-		pcic_setb(sp, PCIC_POWER, PCIC_PCPWRE | PCIC_DISRST);
 		sp->slt->laststate = sp->slt->state = empty;
 		if (pcic_boot_deactivated) {
 			if ((sp->getb(sp, PCIC_STATUS) & PCIC_CD) == PCIC_CD) {
@@ -495,10 +494,8 @@ pcic_ioctl(struct slot *slt, int cmd, caddr_t data)
  *	cardbus bridges have minor issues with power via the ExCA registers,
  *	go ahead and do it all via cardbus registers.
  *
- *	An expamination of the code will show the relative
- *	ease that we do Vpp as well.
- *
- *	Too bad it appears to not work.
+ *	An expamination of the code will show the relative ease that we do
+ *	Vpp in comparison to the ExCA case (which may be partially broken).
  */
 static int
 pcic_cardbus_power(struct pcic_slot *sp, struct slot *slt)
@@ -506,19 +503,95 @@ pcic_cardbus_power(struct pcic_slot *sp, struct slot *slt)
 	uint32_t power;
 	uint32_t state;
 
-	/*
-	 * Preserve the clock stop bit of the socket power register.
-	 */
-	power = bus_space_read_4(sp->bst, sp->bsh, CB_SOCKET_POWER);
-	state =  bus_space_read_4(sp->bst, sp->bsh, CB_SOCKET_STATE);
-	printf("old value 0x%x\n", power);
-	power &= ~CB_SP_CLKSTOP;
+  	/*
+ 	 * If we're doing an auto-detect, and we're in a badvcc state, then
+ 	 * we need to force the socket to rescan the card.  We don't do this
+ 	 * all the time because the socket can take up to 200ms to do the deed,
+ 	 * and that's too long to busy wait.  Since this is a relatively rare
+ 	 * event (some BIOSes, and earlier versions of OLDCARD caused it), we
+ 	 * test for it special.
+ 	 */
+ 	state =  bus_space_read_4(sp->bst, sp->bsh, CB_SOCKET_STATE);
+ 	if (slt->pwr.vcc == -1 && (state & CB_SS_BADVCC)) {
+ 		/*
+ 	 	 * Force the bridge to scan the card for the proper voltages
+ 		 * that it supports.
+ 		 */
+ 		bus_space_write_4(sp->bst, sp->bsh, CB_SOCKET_FORCE,
+ 		    CB_SF_INTCVS);
+ 		state =  bus_space_read_4(sp->bst, sp->bsh, CB_SOCKET_STATE);
+ 		/* This while loop can take 100-150ms */
+ 		while ((state & CB_SS_CARD_MASK) == 0) {
+ 			DELAY(10 * 1000);
+ 			state =  bus_space_read_4(sp->bst, sp->bsh,
+ 			    CB_SOCKET_STATE);
+ 		}
+ 	}
+ 
+ 
+ 	/*
+ 	 * Preserve the clock stop bit of the socket power register.  Not
+ 	 * sure that we want to do that, but maybe we should set it based
+ 	 * on the power state.
+  	 */
+  	power = bus_space_read_4(sp->bst, sp->bsh, CB_SOCKET_POWER);
+ 	power = 0;
 
+	/*
+	 * vcc == -1 means automatically detect the voltage of the card.
+	 * Do so and apply the right amount of power.
+	 */
+	if (slt->pwr.vcc == -1) {
+		if (state & CB_SS_5VCARD)
+			slt->pwr.vcc = 50;
+		else if (state & CB_SS_3VCARD)
+			slt->pwr.vcc = 33;
+		else if (state & CB_SS_XVCARD)
+			slt->pwr.vcc = 22;
+		else if (state & CB_SS_YVCARD)
+			slt->pwr.vcc = 11;
+ 		if (bootverbose && slt->pwr.vcc != -1)
+ 			device_printf(sp->sc->dev,
+			    "Autodetected %d.%dV card\n",
+ 			    slt->pwr.vcc / 10, slt->pwr.vcc % 10);
+	}
+
+	switch(slt->pwr.vcc) {
+	default:
+		return (EINVAL);
+	case 0:
+		power |= CB_SP_VCC_0V;
+		break;
+	case 11:
+		power |= CB_SP_VCC_YV;
+		break;
+	case 22:
+		power |= CB_SP_VCC_XV;
+		break;
+	case 33:
+		power |= CB_SP_VCC_3V;
+		break;
+	case 50:
+		power |= CB_SP_VCC_5V;
+		break;
+	}
+
+	/*
+	 * vpp == -1 means use vcc voltage.
+	 */
+	if (slt->pwr.vpp == -1)
+		slt->pwr.vpp = slt->pwr.vcc;
 	switch(slt->pwr.vpp) {
 	default:
 		return (EINVAL);
 	case 0:
 		power |= CB_SP_VPP_0V;
+		break;
+	case 11:
+		power |= CB_SP_VPP_YV;
+		break;
+	case 22:
+		power |= CB_SP_VPP_XV;
 		break;
 	case 33:
 		power |= CB_SP_VPP_3V;
@@ -530,34 +603,26 @@ pcic_cardbus_power(struct pcic_slot *sp, struct slot *slt)
 		power |= CB_SP_VPP_12V;
 		break;
 	}
-
-	switch(slt->pwr.vcc) {
-	default:
-		return (EINVAL);
-	case 0:
-		power |= CB_SP_VCC_0V;
-		break;
-	case 33:
-		power |= CB_SP_VCC_3V;
-		break;
-	case 50:
-		power |= CB_SP_VCC_5V;
-		break;
-	case -1:
-		if (state & CB_SS_5VCARD)
-			power |= CB_SP_VCC_5V;
-		else if (state & CB_SS_3VCARD)
-			power |= CB_SP_VCC_3V;
-		else if (state & CB_SS_XVCARD)
-			power |= CB_SP_VCC_XV;
-		else if (state & CB_SS_YVCARD)
-			power |= CB_SP_VCC_YV;
-		break;
-	}
-	printf("Setting power reg to 0x%x", power);
 	bus_space_write_4(sp->bst, sp->bsh, CB_SOCKET_POWER, power);
 
-	return (EIO);
+ 	/*
+ 	 * OK.  We need to bring the card out of reset.  Let the power
+ 	 * stabilize for 300ms (why 300?) and then enable the outputs
+ 	 * and then wait 100ms (why 100?) for it to stabilize.  These numbers
+ 	 * were stolen from the dim, dark past of OLDCARD and I have no clue
+ 	 * how they were derived.  I also use the bit setting routines here
+ 	 * as a measure of conservatism.
+ 	 */
+ 	if (power) {
+ 		pcic_setb(sp, PCIC_POWER, PCIC_DISRST);
+ 		DELAY(300*1000);
+ 		pcic_setb(sp, PCIC_POWER, PCIC_DISRST | PCIC_OUTENA);
+ 		DELAY(100*1000);
+ 	} else {
+ 		pcic_clrb(sp, PCIC_POWER, PCIC_DISRST | PCIC_OUTENA);
+ 	}
+ 
+	return (0);
 }
 
 /*
@@ -572,6 +637,7 @@ pcic_power(struct slot *slt)
 	struct pcic_slot *sp = slt->cdata;
 	struct pcic_slot *sp2;
 	struct pcic_softc *sc = sp->sc;
+	int dodefault = 0;
 
 	/*
 	 * Cardbus power registers are completely different.
@@ -579,6 +645,9 @@ pcic_power(struct slot *slt)
 	if (sc->flags & PCIC_CARDBUS_POWER)
 		return (pcic_cardbus_power(sp, slt));
 
+	if (bootverbose)
+		device_printf(sc->dev, "Power: Vcc=%d Vpp=%d\n", slt->pwr.vcc,
+		    slt->pwr.vpp);
 	/*
 	 * If we're automatically detecting what voltage to use, then we need
 	 * to ask the bridge what type (voltage-wise) the card is.
@@ -605,7 +674,9 @@ pcic_power(struct slot *slt)
 			 * seem to have the signals wired right for the '29
 			 * method to work, so we always use the '10 method for
 			 * the '22.  The laptops that don't work hang solid
-			 * when the pccard memory is accessed.
+			 * when the pccard memory is accessed.  The '32 and
+			 * '33 cases are taken care of in cardbus code, so
+			 * it doesn't matter that I have no clue.
 			 */
 			switch (sp->controller) {
 			case PCIC_PD6710:
@@ -642,10 +713,33 @@ pcic_power(struct slot *slt)
 			 */
 			reg |= PCIC_APSENA;
 		}
+		if (sc->flags & PCIC_RICOH_POWER) {
+			switch (sp->controller) {
+			case PCIC_RF5C396:
+			case PCIC_RF5C296:
+				/*
+				 * The ISA bridge have the 5V/3.3V in register
+				 * 1, bit 7.
+				 */
+				c = sp->getb(sp, PCIC_STATUS);
+				if ((c & PCIC_RICOH_5VCARD) == 0)
+					slt->pwr.vcc = 33;
+				else
+					slt->pwr.vcc = 50;
+				break;
+			}
+		}
 		/* Other bridges here */
 		if (bootverbose && slt->pwr.vcc != -1)
 			device_printf(sc->dev, "Autodetected %d.%dV card\n",
 			    slt->pwr.vcc / 10, slt->pwr.vcc %10);
+	}
+	if (slt->pwr.vcc == -1) {
+		if (bootverbose)
+			device_printf(sc->dev,
+			    "Couldn't autodetect voltage, assuming 5.0V\n");
+		dodefault = 1;
+		slt->pwr.vcc = 50;
 	}
 
 	/*
@@ -655,6 +749,8 @@ pcic_power(struct slot *slt)
 	 * applications want vpp == vcc and the following code does appear
 	 * to do that for all bridge sets.
 	 */
+	if (slt->pwr.vpp == -1)
+		slt->pwr.vpp = slt->pwr.vcc;
 	switch(slt->pwr.vpp) {
 	default:
 		return (EINVAL);
@@ -707,7 +803,6 @@ pcic_power(struct slot *slt)
 		if (sc->flags & PCIC_DF_POWER)
 			reg |= PCIC_VCC_3V;
 		break;
-	case -1:			/* Treat default like 5.0V */
 	case 50:
 		if (sc->flags & PCIC_KING_POWER)
 			reg |= PCIC_VCC_5V_KING;
@@ -728,25 +823,36 @@ pcic_power(struct slot *slt)
 		break;
 	}
 	sp->putb(sp, PCIC_POWER, reg);
+	if (bootverbose)
+		device_printf(sc->dev, "Power applied\n");
 	DELAY(300*1000);
 	if (slt->pwr.vcc) {
 		reg |= PCIC_OUTENA;
 		sp->putb(sp, PCIC_POWER, reg);
+		if (bootverbose)
+			device_printf(sc->dev, "Output enabled\n");
 		DELAY(100*1000);
+		if (bootverbose)
+			device_printf(sc->dev, "Settling complete\n");
 	}
 
 	/*
 	 * Some chipsets will attempt to preclude us from supplying
 	 * 5.0V to cards that only handle 3.3V.  We seem to need to
 	 * try 3.3V to paper over some power handling issues in other
-	 * parts of the system.  I suspect they are in the pccard bus
-	 * driver, but may be in pccardd as well.
+	 * parts of the system.  Maybe the proper detection of 3.3V cards
+	 * now obviates the need for this hack, so put a printf in to
+	 * warn the world about it.
 	 */
-	if (!(sp->getb(sp, PCIC_STATUS) & PCIC_POW) && slt->pwr.vcc == -1) {
+	if (!(sp->getb(sp, PCIC_STATUS) & PCIC_POW) && dodefault) {
 		slt->pwr.vcc = 33;
 		slt->pwr.vpp = 0;
+		device_printf(sc->dev,
+		    "Failed at 5.0V.  Trying 3.3V.  Please report message to mobile@freebsd.org\n");
 		return (pcic_power(slt));
 	}
+	if (bootverbose)
+		printf("Power complete.\n");
 	return (0);
 }
 
@@ -764,7 +870,13 @@ pcic_mapirq(struct slot *slt, int irq)
 }
 
 /*
- *	pcic_reset - Reset the card and enable initial power.
+ *	pcic_reset - Reset the card and enable initial power.  This may
+ *	need to be interrupt driven in the future.  We should likely turn
+ *	the reset on, DELAY for a period of time < 250ms, turn it off and
+ *	tsleep for a while and check it when we're woken up.  I think that
+ *	we're running afoul of the card status interrupt glitching, causing
+ *	an interrupt storm because the card doesn't seem to be able to
+ *	clear this pin while in reset.
  */
 static void
 pcic_reset(void *chan)
@@ -820,7 +932,8 @@ pcic_reset(void *chan)
 }
 
 /*
- *	pcic_disable - Disable the slot.
+ *	pcic_disable - Disable the slot.  I wonder if these operations can
+ *	cause an interrupt we need to acknowledge? XXX
  */
 static void
 pcic_disable(struct slot *slt)
@@ -829,7 +942,8 @@ pcic_disable(struct slot *slt)
 
 	pcic_clrb(sp, PCIC_INT_GEN, PCIC_CARDTYPE | PCIC_CARDRESET);
 	pcic_mapirq(slt, 0);
-	sp->putb(sp, PCIC_POWER, 0);
+	slt->pwr.vcc = slt->pwr.vpp = 0;
+	pcic_power(slt);
 }
 
 /*

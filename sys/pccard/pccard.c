@@ -32,8 +32,6 @@
  * $FreeBSD$
  */
 
-#include "opt_pcic.h"
-
 #include <sys/param.h>
 #include <sys/types.h>
 #include <sys/systm.h>
@@ -53,18 +51,6 @@
 #include <pccard/pccard_nbk.h>
 
 #include <machine/md_var.h>
-
-#if __FreeBSD_version < 500000
-#define suser_td(a)	suser(a)
-#endif
-
-SYSCTL_NODE(_machdep, OID_AUTO, pccard, CTLFLAG_RW, 0, "pccard");
-
-/* The following might now be obsolete */
-static int pcic_resume_reset = 1;
-
-SYSCTL_INT(_machdep_pccard, OID_AUTO, pcic_resume_reset, CTLFLAG_RW,
-    &pcic_resume_reset, 0, "");
 
 #define MIN(a,b)	((a)<(b)?(a):(b))
 
@@ -301,25 +287,23 @@ inserted(void *arg)
 
 	slt->state = filled;
 	/*
-	 *	Enable 5V to the card so that the CIS can be read.
-	 */
-	slt->pwr.vcc = -1;
-	slt->pwr.vpp = 50;
-
-	/*
 	 * Disable any pending timeouts for this slot, and explicitly
 	 * power it off right now.  Then, re-enable the power using
 	 * the (possibly new) power settings.
 	 */
 	untimeout(power_off_slot, (caddr_t)slt, slt->poff_ch);
 	power_off_slot(slt);
+
+	/*
+	 *	Enable 5V to the card so that the CIS can be read.  Well,
+	 * enable the most natural voltage so that the CIS can be read.
+	 */
+	slt->pwr.vcc = -1;
+	slt->pwr.vpp = -1;
 	slt->ctrl->power(slt);
 
 	printf("pccard: card inserted, slot %d\n", slt->slotnum);
 	pccard_insert_beep();
-	/*
-	 *	Now start resetting the card.
-	 */
 	slt->ctrl->reset(slt);
 }
 
@@ -524,7 +508,7 @@ crdioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, d_thread_t *td)
 	 * At the very least, we only allow root to set the context.
 	 */
 	case PIOCSMEM:
-		if (suser_td(td))
+		if (suser(td))
 			return (EPERM);
 		if (slt->state != filled)
 			return (ENXIO);
@@ -549,7 +533,7 @@ crdioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, d_thread_t *td)
 	 * Set I/O port context.
 	 */
 	case PIOCSIO:
-		if (suser_td(td))
+		if (suser(td))
 			return (EPERM);
 		if (slt->state != filled)
 			return (ENXIO);
@@ -575,7 +559,7 @@ crdioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, d_thread_t *td)
 			*(unsigned long *)data = pccard_mem;
 			break;
 		}
-		if (suser_td(td))
+		if (suser(td))
 			return (EPERM);
 		/*
 		 * Validate the memory by checking it against the I/O
@@ -607,7 +591,7 @@ crdioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, d_thread_t *td)
 	 * Allocate a driver to this slot.
 	 */
 	case PIOCSDRV:
-		if (suser_td(td))
+		if (suser(td))
 			return (EPERM);
 		err = allocate_driver(slt, (struct dev_desc *)data);
 		if (!err)
