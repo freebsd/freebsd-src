@@ -147,6 +147,7 @@ struct filed {
 	short	f_type;			/* entry type, see below */
 	short	f_file;			/* file descriptor */
 	time_t	f_time;			/* time this was last written */
+	char	*f_host;		/* host from which to recd. */
 	u_char	f_pmask[LOG_NFACILITIES+1];	/* priority mask */
 	u_char	f_pcmp[LOG_NFACILITIES+1];	/* compare priority */
 #define PRI_LT	0x1
@@ -269,7 +270,7 @@ int	LogFacPri = 0;		/* Put facility and priority in log message: */
 				/* 0=no, 1=numeric, 2=names */
 
 int	allowaddr __P((char *));
-void	cfline __P((char *, struct filed *, char *));
+void	cfline __P((char *, struct filed *, char *, char *));
 char   *cvthname __P((struct sockaddr_in *));
 void	deadq_enter __P((pid_t, const char *));
 int	deadq_remove __P((pid_t));
@@ -752,6 +753,19 @@ logmsg(pri, msg, from, flags)
 		     )
 		    || f->f_pmask[fac] == INTERNAL_NOPRI)
 			continue;
+		/* skip messages with the incorrect hostname */
+		if (f->f_host)
+			switch (f->f_host[0]) {
+			case '+':
+				if((strcmp(from, f->f_host + 1) != 0) )
+					continue;
+				break;
+			case '-':
+				if((strcmp(from, f->f_host + 1) == 0) )
+					continue;
+				break;
+			}
+
 		/* skip messages with the incorrect program name */
 		if(f->f_program)
 			if(strcmp(prog, f->f_program) != 0)
@@ -1242,6 +1256,7 @@ init(signo)
 	char *p;
 	char cline[LINE_MAX];
  	char prog[NAME_MAX+1];
+	char host[MAXHOSTNAMELEN+1];
 
 	dprintf("init\n");
 
@@ -1271,6 +1286,7 @@ init(signo)
 		}
 		next = f->f_next;
 		if(f->f_program) free(f->f_program);
+		if (f->f_host) free(f->f_host);
 		free((char *)f);
 	}
 	Files = NULL;
@@ -1280,9 +1296,9 @@ init(signo)
 	if ((cf = fopen(ConfFile, "r")) == NULL) {
 		dprintf("cannot open %s\n", ConfFile);
 		*nextp = (struct filed *)calloc(1, sizeof(*f));
-		cfline("*.ERR\t/dev/console", *nextp, "*");
+		cfline("*.ERR\t/dev/console", *nextp, "*", "*");
 		(*nextp)->f_next = (struct filed *)calloc(1, sizeof(*f));
-		cfline("*.PANIC\t*", (*nextp)->f_next, "*");
+		cfline("*.PANIC\t*", (*nextp)->f_next, "*", "*");
 		Initialized = 1;
 		return;
 	}
@@ -1291,6 +1307,7 @@ init(signo)
 	 *  Foreach line in the conf table, open that file.
 	 */
 	f = NULL;
+	strcpy(host, "*");
 	strcpy(prog, "*");
 	while (fgets(cline, sizeof(cline), cf) != NULL) {
 		/*
@@ -1304,8 +1321,25 @@ init(signo)
 			continue;
 		if(*p == '#') {
 			p++;
-			if(*p!='!')
+			if (*p != '!' && *p != '+' && *p != '-')
 				continue;
+		}
+		if (*p == '+' || *p == '-') {
+			host[0] = *p++;
+			while (isspace(*p)) p++;
+			if ((!*p) || (*p == '*')) {
+				strcpy(host, "*");
+				continue;
+			}
+			if (*p == '@')
+				p = LocalHostName;
+			for (i = 1; i < MAXHOSTNAMELEN; i++) {
+				if (!isalnum(*p) && *p != '.' && *p != '-')
+					break;
+				host[i] = *p++;
+			}
+			host[i] = '\0';
+			continue;
 		}
 		if(*p=='!') {
 			p++;
@@ -1328,7 +1362,7 @@ init(signo)
 		f = (struct filed *)calloc(1, sizeof(*f));
 		*nextp = f;
 		nextp = &f->f_next;
-		cfline(cline, f, prog);
+		cfline(cline, f, prog, host);
 	}
 
 	/* close the configuration file */
@@ -1382,17 +1416,18 @@ init(signo)
  * Crack a configuration file line
  */
 void
-cfline(line, f, prog)
+cfline(line, f, prog, host)
 	char *line;
 	struct filed *f;
 	char *prog;
+	char *host;
 {
 	struct hostent *hp;
 	int i, pri;
 	char *bp, *p, *q;
 	char buf[MAXLINE], ebuf[100];
 
-	dprintf("cfline(\"%s\", f, \"%s\")\n", line, prog);
+	dprintf("cfline(\"%s\", f, \"%s\", \"%s\")\n", line, prog, host);
 
 	errno = 0;	/* keep strerror() stuff out of logerror messages */
 
@@ -1400,6 +1435,15 @@ cfline(line, f, prog)
 	memset(f, 0, sizeof(*f));
 	for (i = 0; i <= LOG_NFACILITIES; i++)
 		f->f_pmask[i] = INTERNAL_NOPRI;
+
+	/* save hostname if any */
+	if (host && *host == '*') host = NULL;
+	if (host) {
+		f->f_host = calloc(1, strlen(host)+1);
+		if (f->f_host) {
+			strcpy(f->f_host, host);
+		}
+	}
 
 	/* save program name if any */
 	if(prog && *prog=='*') prog = NULL;
