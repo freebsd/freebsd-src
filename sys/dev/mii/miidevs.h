@@ -1,10 +1,10 @@
-/* $FreeBSD$	*/
+/*	$FreeBSD$	*/
 
 /*
  * THIS FILE AUTOMATICALLY GENERATED.  DO NOT EDIT.
  *
  * generated from:
- *	Id: miidevs,v 1.1 1999/08/21 17:40:43 wpaul Exp 
+ *	Id: miidevs,v 1.3 1999/08/29 15:42:04 wpaul Exp 
  */
 /*$NetBSD: miidevs,v 1.6 1999/05/14 11:37:30 drochner Exp $*/
 
@@ -57,6 +57,7 @@
  */
 
 #define	MII_OUI_AMD	0x00001a	/* Advanced Micro Devices */
+#define	MII_OUI_BROADCOM	0x001018	/* Broadcom Corporation */
 #define	MII_OUI_DAVICOM	0x00606e	/* Davicom Semiconductor */
 #define	MII_OUI_ICS	0x00a0be	/* Integrated Circuit Systems */
 #define	MII_OUI_INTEL	0x00aa00	/* Intel */
@@ -95,6 +96,10 @@
 #define	MII_STR_xxAMD_79C873	"Am79C873 10/100 media interface"
 #define	MII_MODEL_AMD_79c973phy	0x0036
 #define	MII_STR_AMD_79c973phy	"Am79c973 internal PHY"
+
+/* Broadcom Corp. PHYs. */
+#define	MII_MODEL_BROADCOM_3c905Cphy	0x0017
+#define	MII_STR_BROADCOM_3c905Cphy	"3c905C 10/100 internal PHY"
 
 /* Davicom Semiconductor PHYs */
 #define	MII_MODEL_xxDAVICOM_DM9101	0x0000
