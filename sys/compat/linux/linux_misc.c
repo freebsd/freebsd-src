@@ -487,6 +487,7 @@ cleanup:
 int
 linux_select(struct thread *td, struct linux_select_args *args)
 {
+	l_timeval ltv;
 	struct timeval tv0, tv1, utv, *tvp;
 	int error;
 
@@ -502,8 +503,10 @@ linux_select(struct thread *td, struct linux_select_args *args)
 	 * time left.
 	 */
 	if (args->timeout) {
-		if ((error = copyin(args->timeout, &utv, sizeof(utv))))
+		if ((error = copyin(args->timeout, &ltv, sizeof(ltv))))
 			goto select_out;
+		utv.tv_sec = ltv.tv_sec;
+		utv.tv_usec = ltv.tv_usec;
 #ifdef DEBUG
 		if (ldebug(select))
 			printf(LMSG("incoming timeout (%ld/%ld)"),
@@ -566,7 +569,9 @@ linux_select(struct thread *td, struct linux_select_args *args)
 			printf(LMSG("outgoing timeout (%ld/%ld)"),
 			    utv.tv_sec, utv.tv_usec);
 #endif
-		if ((error = copyout(&utv, args->timeout, sizeof(utv))))
+		ltv.tv_sec = utv.tv_sec;
+		ltv.tv_usec = utv.tv_usec;
+		if ((error = copyout(&ltv, args->timeout, sizeof(ltv))))
 			goto select_out;
 	}
 
