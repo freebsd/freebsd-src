@@ -1,5 +1,5 @@
 #	from: @(#)Makefile	5.6 (Berkeley) 5/22/91
-#	$Id: Makefile,v 1.25.2.2 1997/04/30 03:13:33 msmith Exp $
+#	$Id: Makefile,v 1.25.2.3 1997/06/06 02:18:41 brian Exp $
 
 CFLAGS+=        -DLIBC_SCCS -fno-omit-frame-pointer -I${.CURDIR}
 OBJS=		crt0.o c++rt0.o gcrt0.o scrt0.o sgcrt0.o
@@ -13,13 +13,11 @@ all: ${OBJS}
 
 crt0.o: crt0.c
 	${CC} ${CFLAGS} -c -DCRT0 -DDYNAMIC ${.CURDIR}/crt0.c -o ${.TARGET}
-	${LD} -x -r ${.TARGET}
-	mv -f a.out ${.TARGET}
+	${LD} -O ${.TARGET} -x -r ${.TARGET}
 
 c++rt0.o: c++rt0.c
 	${CC} ${CFLAGS} -fpic -c ${.CURDIR}/c++rt0.c
-	@${LD} -x -r ${.TARGET}
-	@mv -f a.out ${.TARGET}
+	@${LD} -O ${.TARGET} -x -r ${.TARGET}
 
 #
 # gcrt0.o doesn't really depend on crt0.o, but this is the easiest way
@@ -27,20 +25,17 @@ c++rt0.o: c++rt0.c
 #
 gcrt0.o: crt0.o
 	${CC} ${CFLAGS} -c -DMCRT0 -DDYNAMIC ${.CURDIR}/crt0.c -o ${.TARGET}
-	${LD} -x -r ${.TARGET}
-	mv -f a.out ${.TARGET}
+	${LD} -O ${.TARGET} -x -r ${.TARGET}
 
 # dependencies fudged as for gcrt0.o
 scrt0.o: crt0.o
 	${CC} ${CFLAGS} -c -DCRT0 ${.CURDIR}/crt0.c -o ${.TARGET}
-	${LD} -x -r ${.TARGET}
-	mv -f a.out ${.TARGET}
+	${LD} -O ${TARGET} -x -r ${.TARGET}
 
 # dependencies fudged as for gcrt0.o
 sgcrt0.o: scrt0.o
 	${CC} ${CFLAGS} -c -DMCRT0 ${.CURDIR}/crt0.c -o ${.TARGET}
-	${LD} -x -r ${.TARGET}
-	mv -f a.out ${.TARGET}
+	${LD} -O ${.TARGET} -x -r ${.TARGET}
 
 beforeinstall:
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/dlfcn.h \
