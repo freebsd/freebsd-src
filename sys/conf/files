@@ -266,6 +266,7 @@ netipx/spx_usrreq.c	optional ipx
 #netiso/tuba_subr.c	optional iso tuba
 #netiso/tuba_table.c	optional iso tuba
 #netiso/tuba_usrreq.c	optional iso tuba
+netkey/key.c		optional key
 #netns/idp_usrreq.c	optional ns
 #netns/ns.c		optional ns
 #netns/ns_error.c	optional ns
