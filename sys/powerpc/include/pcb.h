@@ -42,6 +42,7 @@ struct pcb {
 	register_t	pcb_cr;			/* Condition register */
 	register_t	pcb_sp;			/* stack pointer */
 	register_t	pcb_lr;			/* link register */
+	register_t	pcb_usr;		/* USER_SR segment register */
 	struct		pmap *pcb_pm;		/* pmap of our vmspace */
 	struct		pmap *pcb_pmreal;	 /* real address of above */
 	faultbuf	*pcb_onfault;		/* For use during

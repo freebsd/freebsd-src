@@ -134,6 +134,7 @@ ASSYM(PCB_CR, offsetof(struct pcb, pcb_cr));
 ASSYM(PCB_PMR, offsetof(struct pcb, pcb_pmreal));
 ASSYM(PCB_SP, offsetof(struct pcb, pcb_sp));
 ASSYM(PCB_LR, offsetof(struct pcb, pcb_lr));
+ASSYM(PCB_USR, offsetof(struct pcb, pcb_usr));
 ASSYM(PCB_ONFAULT, offsetof(struct pcb, pcb_onfault));
 ASSYM(PCB_FLAGS, offsetof(struct pcb, pcb_flags));
 
