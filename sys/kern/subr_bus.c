@@ -242,7 +242,7 @@ TAILQ_HEAD(devq, dev_event_info);
 static struct dev_softc
 {
 	int	inuse;
-	int 	nonblock;
+	int	nonblock;
 	struct mtx mtx;
 	struct cv cv;
 	struct selinfo sel;
@@ -386,7 +386,7 @@ devctl_queue_data(char *data)
 		return;
 	n1->dei_data = data;
 	mtx_lock(&devsoftc.mtx);
-	TAILQ_INSERT_TAIL(&devsoftc.devq, n1, dei_link);	
+	TAILQ_INSERT_TAIL(&devsoftc.devq, n1, dei_link);
 	cv_broadcast(&devsoftc.cv);
 	mtx_unlock(&devsoftc.mtx);
 	selwakeup(&devsoftc.sel);
@@ -2224,7 +2224,7 @@ int
 bus_child_pnpinfo_str(device_t child, char *buf, size_t buflen)
 {
 	device_t parent;
-	
+
 	parent = device_get_parent(child);
 	if (parent == NULL) {
 		*buf = '\0';
@@ -2237,7 +2237,7 @@ int
 bus_child_location_str(device_t child, char *buf, size_t buflen)
 {
 	device_t parent;
-	
+
 	parent = device_get_parent(child);
 	if (parent == NULL) {
 		*buf = '\0';
