@@ -415,7 +415,7 @@ cryptodev_op(
 
 	s = splcrypto();	/* NB: only needed with CRYPTO_F_CBIMM */
 	error = crypto_dispatch(crp);
-	if (error == 0)
+	if (error == 0 && (crp->crp_flags & CRYPTO_F_DONE) == 0)
 		error = tsleep(crp, PSOCK, "crydev", 0);
 	splx(s);
 	if (error)

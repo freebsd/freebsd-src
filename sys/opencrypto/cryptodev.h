@@ -264,6 +264,7 @@ struct cryptop {
 #define CRYPTO_F_REL	0x0004	/* Must return data in same place */
 #define	CRYPTO_F_BATCH	0x0008	/* Batch op if possible possible */
 #define	CRYPTO_F_CBIMM	0x0010	/* Do callback immediately */
+#define	CRYPTO_F_DONE	0x0020	/* Operation completed */
 
 	caddr_t		crp_buf;	/* Data to be processed */
 	caddr_t		crp_opaque;	/* Opaque pointer, passed along */

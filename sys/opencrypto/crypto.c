@@ -636,6 +636,7 @@ crypto_dispatch(struct cryptop *crp)
 				crypto_drivers[hid].cc_qblocked = 1;
 				TAILQ_INSERT_HEAD(&crp_q, crp, crp_next);
 				cryptostats.cs_blocks++;
+				result = 0;
 			}
 		} else {
 			/*
@@ -895,6 +896,9 @@ crypto_getreq(int num)
 void
 crypto_done(struct cryptop *crp)
 {
+	KASSERT((crp->crp_flags & CRYPTO_F_DONE) == 0,
+		("crypto_done: op already done, flags 0x%x", crp->crp_flags));
+	crp->crp_flags |= CRYPTO_F_DONE;
 	if (crp->crp_etype != 0)
 		cryptostats.cs_errs++;
 #ifdef CRYPTO_TIMING
