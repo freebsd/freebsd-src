@@ -19,7 +19,7 @@
 #
 
 # Which version of config(8) is required.
-%VERSREQ=	400018
+%VERSREQ=	400019
 
 # Can be overridden by makeoptions or /etc/make.conf
 KERNEL?=	kernel
