@@ -360,7 +360,8 @@ linux_ustat(struct thread *td, struct linux_ustat_args *args)
 		if (vp->v_mount == NULL)
 			return (EINVAL);
 #ifdef MAC
-		error = mac_check_mount_stat(td->td_proc->p_ucred, mp);
+		error = mac_check_mount_stat(td->td_proc->p_ucred,
+		    vp->v_mount);
 		if (error)
 			return (error);
 #endif
