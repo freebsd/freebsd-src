@@ -28,10 +28,16 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ * $Id$
+ *
  * $FreeBSD$
  */
 
+#ifdef __linux__
+#include "../queue.h"
+#else
 #include <sys/queue.h>
+#endif
 
 typedef enum {
 	UNINITIALIZED,
@@ -54,10 +60,10 @@ typedef enum {
 }amode_t;
 
 struct reg_info {
-	uint8_t address;
+	u_int8_t address;
 	int	 size;
 	amode_t	 mode;
-	uint8_t valid_bitmask;
+	u_int8_t valid_bitmask;
 	int	 typecheck_masks;
 };
 
@@ -65,11 +71,11 @@ typedef SLIST_HEAD(symlist, symbol_node) symlist_t;
 
 struct mask_info {
 	symlist_t symrefs;
-	uint8_t mask;
+	u_int8_t mask;
 };
 
 struct const_info {
-	uint8_t value;
+	u_int8_t value;
 	int	 define;
 };
 

@@ -29,6 +29,8 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
+ * $Id$
+ *
  * $FreeBSD$
  */
 
@@ -38,7 +40,11 @@
 #include <sysexits.h>
 
 #include <sys/types.h>
+#ifdef __linux__
+#include "../queue.h"
+#else
 #include <sys/queue.h>
+#endif
 
 #include "aicasm.h"
 #include "aicasm_symbol.h"
@@ -57,24 +63,21 @@ static int instruction_ptr;
 static int sram_or_scb_offset;
 static int download_constant_count;
 
-static void process_bitmask __P((int mask_type, symbol_t *sym, int mask));
-static void initialize_symbol __P((symbol_t *symbol));
-static void process_register __P((symbol_t **p_symbol));
-static void format_1_instr __P((int opcode, symbol_ref_t *dest,
-				expression_t *immed, symbol_ref_t *src,
-				int ret));
-static void format_2_instr __P((int opcode, symbol_ref_t *dest,
-				expression_t *places, symbol_ref_t *src,
-				int ret));
-static void format_3_instr __P((int opcode, symbol_ref_t *src,
-				expression_t *immed, symbol_ref_t *address));
-static void test_readable_symbol __P((symbol_t *symbol));
-static void test_writable_symbol __P((symbol_t *symbol));
-static void type_check __P((symbol_t *symbol, expression_t *expression,
-			    int and_op));
-static void make_expression __P((expression_t *immed, int value));
-static void add_conditional __P((symbol_t *symbol));
-static int  is_download_const __P((expression_t *immed));
+static void process_bitmask(int mask_type, symbol_t *sym, int mask);
+static void initialize_symbol(symbol_t *symbol);
+static void process_register(symbol_t **p_symbol);
+static void format_1_instr(int opcode, symbol_ref_t *dest,
+			   expression_t *immed, symbol_ref_t *src, int ret);
+static void format_2_instr(int opcode, symbol_ref_t *dest,
+			   expression_t *places, symbol_ref_t *src, int ret);
+static void format_3_instr(int opcode, symbol_ref_t *src,
+			   expression_t *immed, symbol_ref_t *address);
+static void test_readable_symbol(symbol_t *symbol);
+static void test_writable_symbol(symbol_t *symbol);
+static void type_check(symbol_t *symbol, expression_t *expression, int and_op);
+static void make_expression(expression_t *immed, int value);
+static void add_conditional(symbol_t *symbol);
+static int  is_download_const(expression_t *immed);
 
 #define YYDEBUG 1
 #define SRAM_SYMNAME "SRAM_BASE"
@@ -530,6 +533,8 @@ scb:
 			}
 			cur_symbol->type = SCBLOC;
 			initialize_symbol(cur_symbol);
+			/* 64 bytes of SCB space */
+			cur_symbol->info.rinfo->size = 64;
 		}
 		reg_address
 		{
@@ -750,7 +755,6 @@ conditional:
 	'}'
 	{
 		scope_t *scope_context;
-		scope_t *last_scope;
 
 		scope_context = SLIST_FIRST(&scope_stack);
 		if (scope_context->type == SCOPE_ROOT) {
@@ -999,10 +1003,7 @@ code:
 %%
 
 static void
-process_bitmask(mask_type, sym, mask)
-	int		mask_type;
-	symbol_t	*sym;
-	int		mask;
+process_bitmask(int mask_type, symbol_t *sym, int mask)
 {
 	/*
 	 * Add the current register to its
@@ -1047,8 +1048,7 @@ process_bitmask(mask_type, sym, mask)
 }
 
 static void
-initialize_symbol(symbol)
-	symbol_t *symbol;
+initialize_symbol(symbol_t *symbol)
 {
 	switch (symbol->type) {
         case UNINITIALIZED:
@@ -1129,8 +1129,7 @@ initialize_symbol(symbol)
 }
 
 static void
-process_register(p_symbol)
-	symbol_t **p_symbol;
+process_register(symbol_t **p_symbol)
 {
 	char buf[255];
 	symbol_t *symbol = *p_symbol;
@@ -1153,12 +1152,8 @@ process_register(p_symbol)
 }
 
 static void
-format_1_instr(opcode, dest, immed, src, ret)
-	int	     opcode;
-	symbol_ref_t *dest;
-	expression_t *immed;
-	symbol_ref_t *src;
-	int	     ret;
+format_1_instr(int opcode, symbol_ref_t *dest, expression_t *immed,
+	       symbol_ref_t *src, int ret)
 {
 	struct instruction *instr;
 	struct ins_format1 *f1_instr;
@@ -1192,12 +1187,8 @@ format_1_instr(opcode, dest, immed, src, ret)
 }
 
 static void
-format_2_instr(opcode, dest, places, src, ret)
-	int	     opcode;
-	symbol_ref_t *dest;
-	expression_t *places;
-	symbol_ref_t *src;
-	int	     ret;
+format_2_instr(int opcode, symbol_ref_t *dest, expression_t *places,
+	       symbol_ref_t *src, int ret)
 {
 	struct instruction *instr;
 	struct ins_format2 *f2_instr;
@@ -1257,11 +1248,8 @@ format_2_instr(opcode, dest, places, src, ret)
 }
 
 static void
-format_3_instr(opcode, src, immed, address)
-	int	     opcode;
-	symbol_ref_t *src;
-	expression_t *immed;
-	symbol_ref_t *address;
+format_3_instr(int opcode, symbol_ref_t *src,
+	       expression_t *immed, symbol_ref_t *address)
 {
 	struct instruction *instr;
 	struct ins_format3 *f3_instr;
@@ -1299,8 +1287,7 @@ format_3_instr(opcode, src, immed, address)
 }
 
 static void
-test_readable_symbol(symbol)
-	symbol_t *symbol;
+test_readable_symbol(symbol_t *symbol)
 {
 	if (symbol->info.rinfo->mode == WO) {
 		stop("Write Only register specified as source",
@@ -1310,8 +1297,7 @@ test_readable_symbol(symbol)
 }
 
 static void
-test_writable_symbol(symbol)
-	symbol_t *symbol;
+test_writable_symbol(symbol_t *symbol)
 {
 	if (symbol->info.rinfo->mode == RO) {
 		stop("Read Only register specified as destination",
@@ -1321,10 +1307,7 @@ test_writable_symbol(symbol)
 }
 
 static void
-type_check(symbol, expression, opcode)
-	symbol_t     *symbol;
-	expression_t *expression;
-	int	     opcode;
+type_check(symbol_t *symbol, expression_t *expression, int opcode)
 {
 	symbol_node_t *node;
 	int and_op;
@@ -1373,17 +1356,14 @@ type_check(symbol, expression, opcode)
 }
 
 static void
-make_expression(immed, value)
-	expression_t *immed;
-	int	     value;
+make_expression(expression_t *immed, int value)
 {
 	SLIST_INIT(&immed->referenced_syms);
 	immed->value = value & 0xff;
 }
 
 static void
-add_conditional(symbol)
-	symbol_t *symbol;
+add_conditional(symbol_t *symbol)
 {
 	static int numfuncs;
 
@@ -1420,15 +1400,13 @@ add_conditional(symbol)
 }
 
 void
-yyerror(string)
-	const char *string;
+yyerror(const char *string)
 {
 	stop(string, EX_DATAERR);
 }
 
 static int
-is_download_const(immed)
-	expression_t *immed;
+is_download_const(expression_t *immed)
 {
 	if ((immed->referenced_syms.slh_first != NULL)
 	 && (immed->referenced_syms.slh_first->symbol->type == DOWNLOAD_CONST))
