@@ -471,6 +471,7 @@ wdattach(struct isa_device *dvp)
 	struct wdparams *wp;
 	static char buf[] = "wdcXXX";
 	const char *dname;
+	dev_t dev;
 
 	dvp->id_intr = wdintr;
 
@@ -598,8 +599,10 @@ wdattach(struct isa_device *dvp)
 			/*
 			 * Register this media as a disk
 			 */
-			disk_create(lunit, &du->disk, 0, &wd_cdevsw,
+			dev = disk_create(lunit, &du->disk, 0, &wd_cdevsw,
 				    &wddisk_cdevsw);
+			dev->si_drv1 = &wddrives[lunit];
+			
 		} else {
 			free(du, M_TEMP);
 			wddrives[lunit] = NULL;
@@ -645,17 +648,18 @@ void
 wdstrategy(register struct bio *bp)
 {
 	struct softc *du;
-	int	lunit = dkunit(bp->bio_dev);
+	int	lunit;
 	int	s;
 
-	/* valid unit, controller, and request?  */
-	if (lunit >= NWD || bp->bio_blkno < 0 || (du = wddrives[lunit]) == NULL
-	    || bp->bio_bcount % DEV_BSIZE != 0) {
+	du = bp->bio_dev->si_drv1;
+	if (du == NULL ||  bp->bio_blkno < 0 ||
+	    bp->bio_bcount % DEV_BSIZE != 0) {
 
 		bp->bio_error = EINVAL;
 		bp->bio_flags |= BIO_ERROR;
 		goto done;
 	}
+	lunit = du->dk_unit;
 
 #ifdef PC98
 	outb(0x432,(du->dk_unit)%2);
@@ -768,8 +772,8 @@ wdstart(int ctrlr)
 	}
 
 	/* obtain controller and drive information */
-	lunit = dkunit(bp->bio_dev);
-	du = wddrives[lunit];
+	du = bp->bio_dev->si_drv1;
+	lunit = du->dk_unit;
 
 #ifdef PC98
 	outb(0x432,(du->dk_unit)%2);
@@ -1033,7 +1037,7 @@ wdintr(void *unitnum)
 		return;
 	}
 	bp = bioq_first(&wdtab[unit].controller_queue);
-	du = wddrives[dkunit(bp->bio_dev)];
+	du = bp->bio_dev->si_drv1;
 
 #ifdef PC98
 	outb(0x432,(du->dk_unit)%2);
@@ -1227,13 +1231,9 @@ done: ;
 int
 wdopen(dev_t dev, int flags, int fmt, struct thread *td)
 {
-	register unsigned int lunit;
 	register struct softc *du;
 
-	lunit = dkunit(dev);
-	if (lunit >= NWD || dksparebits(dev) != 0)
-		return (ENXIO);
-	du = wddrives[lunit];
+	du = dev->si_drv1;
 	if (du == NULL)
 		return (ENXIO);
 
@@ -1279,7 +1279,7 @@ wdcontrol(register struct bio *bp)
 	register struct softc *du;
 	int	ctrlr;
 
-	du = wddrives[dkunit(bp->bio_dev)];
+	du = bp->bio_dev->si_drv1;
 	ctrlr = du->dk_ctrlr_cmd640;
 
 #ifdef PC98

@@ -128,15 +128,15 @@ acd_init_lun(struct atapi *ata, int unit, struct atapi_params *ap, int lun,
     else
 	ptr->device_stats = device_stats;
 
-    make_dev(&acd_cdevsw, dkmakeminor(lun, 0, 0),
+    pdev = make_dev(&acd_cdevsw, dkmakeminor(lun, 0, 0),
         UID_ROOT, GID_OPERATOR, 0640, "wcd%da", lun);
-    pdev = makedev(acd_cdevsw.d_maj, dkmakeminor(lun, 0, 0));
     make_dev_alias(pdev, "rwcd%da", lun);
+    pdev->si_drv1 = ptr;
 
-    make_dev(&acd_cdevsw, dkmakeminor(lun, 0, RAW_PART),
+    pdev = make_dev(&acd_cdevsw, dkmakeminor(lun, 0, RAW_PART),
         UID_ROOT, GID_OPERATOR, 0640, "wcd%dc", lun);
-    pdev = makedev(acd_cdevsw.d_maj, dkmakeminor(lun, 0, RAW_PART));
     make_dev_alias(pdev, "rwcd%dc", lun);
+    pdev->si_drv1 = ptr;
 
     return ptr;
 }
@@ -381,12 +381,11 @@ acd_describe(struct acd *cdp)
 static int
 acdopen(dev_t dev, int flags, int fmt, struct thread *td)
 {
-    int lun = dkunit(dev);
     struct acd *cdp;
 
-    if (lun >= acdnlun || !atapi_request_immediate)
+    cdp = dev->si_drv1;
+    if (cdp == NULL)
         return ENXIO;
-    cdp = acdtab[lun];
 
     if (!(cdp->flags & F_BOPEN) && !cdp->refcnt) {
         /* Prevent user eject */
@@ -400,14 +399,14 @@ acdopen(dev_t dev, int flags, int fmt, struct thread *td)
         ++cdp->refcnt;
     dev->si_bsize_phys = cdp->block_size;
     if (!(flags & O_NONBLOCK) && acd_read_toc(cdp) && !(flags & FWRITE))
-        printf("acd%d: read_toc failed\n", lun);
+        printf("acd%d: read_toc failed\n", cdp->unit);
     return 0;
 }
 
 int 
 acdclose(dev_t dev, int flags, int fmt, struct thread *td)
 {
-    struct acd *cdp = acdtab[dkunit(dev)];
+    struct acd *cdp = dev->si_drv1;
 
     if (fmt == S_IFBLK)
     	cdp->flags &= ~F_BOPEN;
@@ -434,8 +433,7 @@ acdclose(dev_t dev, int flags, int fmt, struct thread *td)
 void 
 acdstrategy(struct bio *bp)
 {
-    int lun = dkunit(bp->bio_dev);
-    struct acd *cdp = acdtab[lun];
+    struct acd *cdp = bp->bio_dev->si_drv1;
     int x;
 
 #ifdef NOTYET
@@ -578,8 +576,7 @@ msf2lba(u_char m, u_char s, u_char f)
 int 
 acdioctl(dev_t dev, u_long cmd, caddr_t addr, int flag, struct thread *td)
 {
-    int lun = dkunit(dev);
-    struct acd *cdp = acdtab[lun];
+    struct acd *cdp = dev->si_drv1;
     int error = 0;
 
     if (cdp->flags & F_MEDIA_CHANGED)
