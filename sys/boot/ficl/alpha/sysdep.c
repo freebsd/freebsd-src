@@ -12,9 +12,9 @@
 #include <stdlib.h>
 #else
 #include <stand.h>
-#endif
 #ifdef __i386__
 #include <machine/cpufunc.h>
+#endif
 #endif
 #include "ficl.h"
 
@@ -73,11 +73,11 @@ void  ficlFree   (void *p)
 
 #ifdef __i386__
 /* 
- * pc! ( port# c -- )
+ * outb ( port# c -- )
  * Store a byte to I/O port number port#
  */
 void
-pc_store(FICL_VM *pVM)
+ficlOutb(FICL_VM *pVM)
 {
 	u_char c;
 	u_int32_t port;
@@ -88,11 +88,11 @@ pc_store(FICL_VM *pVM)
 }
 
 /*
- * pc@ ( port# -- c )
+ * inb ( port# -- c )
  * Fetch a byte from I/O port number port#
  */
 void
-pc_fetch(FICL_VM *pVM)
+ficlInb(FICL_VM *pVM)
 {
 	u_char c;
 	u_int32_t port;
