@@ -66,7 +66,7 @@ MAIN:{
     while (<GENERIC>) {
 	my $line = $_;
 	chomp();
-	if ($opts{'c'} && m/^\#/) {
+	if ($opts{'c'} && m/^\s*\#/) {
 	    if ($blank) {
 		print "\n";
 		$blank = 0;
