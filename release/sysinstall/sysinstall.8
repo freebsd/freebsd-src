@@ -675,6 +675,9 @@ The first primary partition found is used (e.g. C:).
 Select a tape device as the installation media.
 .Pp
 \fBVariables:\fR None
+
+.\" XXX
+
 .It mediaSetFTP
 Select an FTP site as the installation media.
 .Pp
@@ -719,6 +722,18 @@ using "passive" FTP transfer mode.
 .Pp
 \fBVariables:\fR Same as for
 .Ar mediaSetFTP .
+.It mediaSetHTTP
+Alias for
+.Ar mediaSetFTP
+using an HTTP proxy.
+.Pp
+\fBVariables:\fR See
+.Ar mediaSetFTP ,
+plus
+.Bl -tag -width indent
+.It _httpPath
+The proxy to use (host:port) (non-optional).
+.El
 .It mediaSetUFS
 Select an existing UFS partition (mounted with the label editor) as
 the installation media.

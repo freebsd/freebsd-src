@@ -576,14 +576,15 @@ check_for_interrupt(void)
 static Boolean
 distExtract(char *parent, Distribution *me)
 {
-    int i, status, total, intr;
+    int i,j, status, total, intr;
     int cpid, zpid, fd2, chunk, numchunks;
-    char *path, *dist, buf[BUFSIZ];
+    char *path, *dist, buf[300000];
     const char *tmp;
     FILE *fp;
     WINDOW *w = savescr();
     struct timeval start, stop;
     struct sigaction old, new;
+    properties dist_attr;
 
     status = TRUE;
     if (isDebug())
@@ -646,8 +647,6 @@ distExtract(char *parent, Distribution *me)
 	    }
 	}
 	else if (fp > 0) {
-	    properties dist_attr;
-
 	    if (isDebug())
 		msgDebug("Parsing attributes file for distribution %s\n", dist);
 
@@ -664,7 +663,6 @@ distExtract(char *parent, Distribution *me)
 		    numchunks = strtol(tmp, 0, 0);
 	    }
 	    fclose(fp);
-	    properties_free(dist_attr);
 	    if (!numchunks)
 		continue;
 	}
@@ -720,12 +718,19 @@ distExtract(char *parent, Distribution *me)
 	/* And go for all the chunks */
 	dialog_clear_norefresh();
 	for (chunk = 0; chunk < numchunks; chunk++) {
-	    int n, retval, last_msg;
+	    int n, retval, last_msg, chunksize, realsize;
 	    char prompt[80];
 
 	    last_msg = 0;
 
 	getchunk:
+	    snprintf(buf, sizeof buf, "cksum.%c%c",  (chunk / 26) + 'a', (chunk % 26) + 'a');
+	    tmp = property_find(dist_attr, buf);
+	    chunksize = 0;
+	    if (tmp) {
+		tmp=index(tmp, ' ');
+		chunksize = strtol(tmp, 0, 0);
+	    }
 	    snprintf(buf, sizeof buf, "%s/%s.%c%c", path, dist, (chunk / 26) + 'a', (chunk % 26) + 'a');
 	    if (isDebug())
 		msgDebug("trying for piece %d of %d: %s\n", chunk + 1, numchunks, buf);
@@ -747,10 +752,11 @@ distExtract(char *parent, Distribution *me)
 	    snprintf(prompt, sizeof prompt, "Extracting %s into %s directory...", dist, root_bias(me[i].my_dir));
 	    dialog_gauge("Progress", prompt, 8, 15, 6, 50, (int)((float)(chunk + 1) / numchunks * 100));
 
+	    realsize = 0;
 	    while (1) {
 		int seconds;
 
-		n = fread(buf, 1, BUFSIZ, fp);
+		n = fread(buf + realsize, 1, BUFSIZ, fp);
 		if (check_for_interrupt()) {
 		    msgConfirm("Media read error:  User interrupt.");
 		    fclose(fp);
@@ -759,6 +765,7 @@ distExtract(char *parent, Distribution *me)
 		else if (n <= 0)
 		    break;
 		total += n;
+		realsize += n;
 
 		/* Print statistics about how we're doing */
 		(void) gettimeofday(&stop, (struct timezone *)0);
@@ -775,19 +782,36 @@ distExtract(char *parent, Distribution *me)
 		    msgInfo("%10d bytes read from %s dist, chunk %2d of %2d @ %.1f KB/sec.",
 			    total, dist, chunk + 1, numchunks, (total / seconds) / 1024.0);
 		}
-		retval = write(fd2, buf, n);
-		if (retval != n) {
-		    fclose(fp);
-		    dialog_clear_norefresh();
-		    msgConfirm("Write failure on transfer! (wrote %d bytes of %d bytes)", retval, n);
-		    goto punt;
-		}
 	    }
 	    fclose(fp);
+            
+	    if (!chunksize || (realsize == chunksize)) {
+		/* No substitution necessary */
+		retval = write(fd2, buf, realsize);
+		if (retval != realsize) {
+		    fclose(fp);
+		    dialog_clear_norefresh();
+		    msgConfirm("Write failure on transfer! (wrote %d bytes of %d bytes)", retval, realsize);
+		    goto punt;
+		}
+	    } else {
+		for(j = 0; j < realsize; j++) {
+		    /* On finding CRLF, skip the CR; don't exceed end of buffer. */
+		    if ((buf[j] != 0x0d) || (j == total - 1) || (buf[j + 1] != 0x0a)) {
+			retval = write(fd2, buf + j, 1);
+			if (retval != 1) {
+			    fclose(fp);
+			    dialog_clear_norefresh();
+			    msgConfirm("Write failure on transfer! (wrote %d bytes of %d bytes)", j, chunksize);
+			    goto punt;
+			}
+		    }
+		}
+	    }
 	}
 	close(fd2);
 	status = mediaExtractDistEnd(zpid, cpid);
-        goto done;
+	goto done;
 
     punt:
 	close(fd2);
@@ -817,6 +841,7 @@ distExtract(char *parent, Distribution *me)
 	else
 	    continue;
     }
+    properties_free(dist_attr);
     sigaction(SIGINT, &old, NULL);	/* Restore signal handler */
     restorescr(w);
     return status;
