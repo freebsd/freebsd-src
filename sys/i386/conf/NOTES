@@ -4,7 +4,7 @@
 #
 #	This kernel is NOT MEANT to be runnable!
 #
-#	$Id: LINT,v 1.85 1994/09/26 16:15:05 jkh Exp $
+#	$Id: LINT,v 1.86 1994/09/27 20:36:26 phk Exp $
 #
 
 machine		"i386"
@@ -125,6 +125,8 @@ device		uk0			#unknown scsi devices
 # 
 #This is needed here so the isa? below will work
 controller	isa0
+#This is a preliminary PCI bus ``device''
+device		pci0
 
 # driver for the Adaptec 154x SCSI cards.
 controller	aha0	at isa? port "IO_AHA0" bio irq 11 drq 5 vector ahaintr
@@ -134,6 +136,10 @@ controller	ahb0	at isa? bio irq 11 vector ahbintr
 controller      aic0    at isa? port 0x340 bio irq 11 vector aicintr
 # driver for the Bustek 742.
 controller	bt0	at isa? port "IO_BT0" bio irq 12 vector btintr
+# Driver for the NCR 53c810 and 53c825 PCI SCSI host adapter chips
+device		ncr0
+# example specification of IRQ for PCI device ID 5 (ncr0 on some MB)
+#device		pci5	at isa? bio irq 9 vector pciintr
 
 controller	fdc0	at isa? port "IO_FD1" bio irq 6 drq 2 vector fdintr
 disk		fd0	at fdc0 drive 0
