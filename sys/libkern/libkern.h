@@ -30,54 +30,54 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)libkern.h	8.1 (Berkeley) 6/10/93
+ *	@(#)libkern.h	8.2 (Berkeley) 8/5/94
  */
 
 #include <sys/types.h>
 
-static inline int
+static __inline int
 imax(a, b)
 	int a, b;
 {
 	return (a > b ? a : b);
 }
-static inline int
+static __inline int
 imin(a, b)
 	int a, b;
 {
 	return (a < b ? a : b);
 }
-static inline long
+static __inline long
 lmax(a, b)
 	long a, b;
 {
 	return (a > b ? a : b);
 }
-static inline long
+static __inline long
 lmin(a, b)
 	long a, b;
 {
 	return (a < b ? a : b);
 }
-static inline u_int
+static __inline u_int
 max(a, b)
 	u_int a, b;
 {
 	return (a > b ? a : b);
 }
-static inline u_int
+static __inline u_int
 min(a, b)
 	u_int a, b;
 {
 	return (a < b ? a : b);
 }
-static inline u_long
+static __inline u_long
 ulmax(a, b)
 	u_long a, b;
 {
 	return (a > b ? a : b);
 }
-static inline u_long
+static __inline u_long
 ulmin(a, b)
 	u_long a, b;
 {
