@@ -133,6 +133,7 @@ freopen(file, mode, fp)
 	if (HASLB(fp))
 		FREELB(fp);
 	fp->_lb._size = 0;
+	fp->_extra->orientation = 0;
 
 	if (f < 0) {			/* did not get it after all */
 		fp->_flags = 0;		/* set it free */
