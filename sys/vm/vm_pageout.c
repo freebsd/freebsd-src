@@ -65,7 +65,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_pageout.c,v 1.25 1994/11/14 02:57:40 davidg Exp $
+ * $Id: vm_pageout.c,v 1.26 1994/11/17 06:24:25 davidg Exp $
  */
 
 /*
@@ -343,20 +343,10 @@ vm_pageout_object_deactivate_pages(map, object, count)
 	if (count == 0)
 		count = 1;
 
-#ifndef REL2_1
-	if (object->shadow) {
-		int scount = count;
-		if( object->shadow->ref_count > 1)
-			scount /= object->shadow->ref_count;
-		if( scount)
-			dcount += vm_pageout_object_deactivate_pages(map, object->shadow, scount);
-	}
-#else
 	if (object->shadow) {
 		if( object->shadow->ref_count == 1)
 			dcount += vm_pageout_object_deactivate_pages(map, object->shadow, count/2);
 	}
-#endif
 
 	if (object->paging_in_progress)
 		return dcount;
@@ -479,7 +469,6 @@ vm_pageout_map_deactivate_pages(map, entry, count, freeer)
 	return;
 }
 
-#ifdef REL2_1
 void
 vm_req_vmdaemon() {
 	extern	int ticks;
@@ -489,7 +478,6 @@ vm_req_vmdaemon() {
 		lastrun = ticks;
 	}
 }
-#endif
 
 /*
  *	vm_pageout_scan does the dirty work for the pageout daemon.
@@ -508,69 +496,6 @@ vm_pageout_scan()
 	int		force_wakeup = 0;
 	int		cache_size, orig_cache_size;
 
-#ifndef REL2_1
-morefree:
-	/*
-	 * now swap processes out if we are in low memory conditions
-	 */
-	if ((cnt.v_free_count <= cnt.v_free_min) && !swap_pager_full && vm_swap_size) {
-		/*
-		 * swap out inactive processes
-		 */
-		swapout_threads();
-	}
-
-	/*
-	 * scan the processes for exceeding their rlimits or if process
-	 * is swapped out -- deactivate pages 
-	 */
-
-	for (p = (struct proc *)allproc; p != NULL; p = p->p_next) {
-		int overage;
-		quad_t limit;
-
-		/*
-		 * if this is a system process or if we have already
-		 * looked at this process, skip it.
-		 */
-		if (p->p_flag & (P_SYSTEM|P_WEXIT)) {
-			continue;
-		}
-
-		/*
-		 * if the process is in a non-running type state,
-		 * don't touch it.
-		 */
-		if (p->p_stat != SRUN && p->p_stat != SSLEEP) {
-			continue;
-		}
-
-		/*
-		 * get a limit
-		 */
-		limit = qmin(p->p_rlimit[RLIMIT_RSS].rlim_cur,
-			    p->p_rlimit[RLIMIT_RSS].rlim_max);
-			
-		/*
-		 * let processes that are swapped out really be swapped out
-		 * set the limit to nothing (will force a swap-out.)
-		 */
-		if ((p->p_flag & P_INMEM) == 0)
-			limit = 0;
-
-		size = p->p_vmspace->vm_pmap.pm_stats.resident_count * NBPG;
-		if (limit >= 0 && size >= limit) {
-			overage = (size - limit) / NBPG;
-			vm_pageout_map_deactivate_pages(&p->p_vmspace->vm_map,
-				(vm_map_entry_t) 0, &overage, vm_pageout_object_deactivate_pages);
-		}
-	}
-
-	if (((cnt.v_free_count + cnt.v_inactive_count) >=
-		(cnt.v_inactive_target + cnt.v_free_target)) &&
-		(cnt.v_free_count >= cnt.v_free_target))
-		return force_wakeup;
-#else
 	/* calculate the total cached size */
 
 	if( cnt.v_inactive_count < cnt.v_inactive_target) {
@@ -586,8 +511,6 @@ morefree:
 		vm_req_vmdaemon();
 	}
 
-#endif
-
 	pages_freed = 0;
 	desired_free = cnt.v_free_target;
 
@@ -598,7 +521,7 @@ morefree:
 	 *	encounter dirty pages, we start cleaning them.
 	 */
 
-	maxlaunder = (cnt.v_free_target - cnt.v_free_count);
+	maxlaunder = 128;
 	maxscan = cnt.v_inactive_count;
 rescan1:
 	m = vm_page_queue_inactive.tqh_first;
@@ -891,7 +814,6 @@ vm_pageout()
 	}
 }
 
-#ifdef REL2_1
 void
 vm_daemon() {
 	int cache_size;
@@ -994,4 +916,3 @@ restart:
 		vm_object_cache_unlock();
 	}
 }
-#endif
