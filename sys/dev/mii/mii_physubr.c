@@ -231,9 +231,11 @@ mii_phy_tick(struct mii_softc *sc)
 	/*
 	 * Only retry autonegotiation every N seconds.
 	 */
-	if (sc->mii_anegticks == 0)
+	if (sc->mii_anegticks == 0) {
 		sc->mii_anegticks = 17;
-	if (++sc->mii_ticks != sc->mii_anegticks)
+		return (0);
+	}
+	if (++sc->mii_ticks <= sc->mii_anegticks)
 		return (EJUSTRETURN);
 
 	sc->mii_ticks = 0;
