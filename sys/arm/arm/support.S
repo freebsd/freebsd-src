@@ -30,10 +30,6 @@ __FBSDID("$FreeBSD$");
 
 #include "assym.s"
 
-ENTRY(casuptr)
-	mov	r1, r2
-	bl	suword
-
 /*
  * memset: Sets a block of memory to the specified value
  *
