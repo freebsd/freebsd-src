@@ -247,26 +247,14 @@ procfs_domem(curp, p, pfs, uio)
 	struct pfsnode *pfs;
 	struct uio *uio;
 {
+	int error;
 
 	if (uio->uio_resid == 0)
 		return (0);
 
- 	/*
- 	 * XXX
- 	 * We need to check for KMEM_GROUP because ps is sgid kmem;
- 	 * not allowing it here causes ps to not work properly.  Arguably,
- 	 * this is a bug with what ps does.  We only need to do this
- 	 * for Pmem nodes, and only if it's reading.  This is still not
- 	 * good, as it may still be possible to grab illicit data if
- 	 * a process somehow gets to be KMEM_GROUP.  Note that this also
- 	 * means that KMEM_GROUP can't change without editing procfs.h!
- 	 * All in all, quite yucky.
- 	 */
- 
- 	if (p_candebug(curp, p) &&
-	    !(uio->uio_rw == UIO_READ &&
-	      procfs_kmemaccess(curp)))
- 		return EPERM;
+	error = p_candebug(curp, p);
+	if (error)
+		return (error);
 
 	return (procfs_rwmem(curp, p, uio));
 }
@@ -302,22 +290,4 @@ procfs_findtextvp(p)
 {
 
 	return (p->p_textvp);
-}
-
-int procfs_kmemaccess(curp)
-	struct proc *curp;
-{
-	int i;
-	struct ucred *cred;
-
-	cred = curp->p_ucred;
-	if (suser(curp))
-		return 1;
-
-	/* XXX: Why isn't this done with file-perms ??? */
-	for (i = 0; i < cred->cr_ngroups; i++)
-		if (cred->cr_groups[i] == KMEM_GROUP)	
-			return 1;
-	
-	return 0;
 }
