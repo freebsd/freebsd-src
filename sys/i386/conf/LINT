@@ -489,8 +489,6 @@ options 	PPP_FILTER		#enable bpf filtering (needs bpf)
 #
 # IPDIVERT enables the divert IP sockets, used by ``ipfw divert''
 #
-# IPFILTER_LKM enables LKM support for an ipfilter module (untested).
-#
 # IPSTEALTH enables code to support stealth forwarding (i.e., forwarding
 # packets without touching the ttl).  This can be useful to hide firewalls
 # from traceroute and similar tools.
@@ -506,7 +504,8 @@ options 	IPFIREWALL_FORWARD	#enable transparent proxy support
 options 	IPFIREWALL_VERBOSE_LIMIT=100	#limit verbosity
 options 	IPFIREWALL_DEFAULT_TO_ACCEPT	#allow everything by default
 options 	IPDIVERT		#divert sockets
-#options 	IPFILTER_LKM		#kernel support for ip_fil.o LKM
+options 	IPFILTER		#ipfilter support
+options 	IPFILTER_LOG		#ipfilter logging
 options 	IPSTEALTH		#support for stealth forwarding
 options 	TCPDEBUG
 
