@@ -33,7 +33,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_cluster.c	8.7 (Berkeley) 2/13/94
- * $Id: vfs_cluster.c,v 1.31 1995/12/22 16:06:46 bde Exp $
+ * $Id: vfs_cluster.c,v 1.32 1996/01/19 03:58:14 dyson Exp $
  */
 
 #include <sys/param.h>
@@ -179,6 +179,7 @@ cluster_read(vp, filesize, lblkno, size, cred, bpp)
 	 * if we have been doing sequential I/O, then do some read-ahead
 	 */
 	if (seq) {
+		alreadyincore = 0;
 
 	/*
 	 * bump ralen a bit...
