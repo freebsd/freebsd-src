@@ -29,12 +29,14 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id$
  */
 
 #ifndef lint
+#if 0
 static char sccsid[] = "@(#)sys_term.c	8.2 (Berkeley) 12/15/93";
+#endif
+static const char rcsid[] =
+	"$Id$";
 #endif /* not lint */
 
 #include "telnetd.h"
@@ -186,6 +188,12 @@ struct termios termbuf, termbuf2;	/* pty control structure */
 int ttyfd = -1;
 # endif
 #endif	/* USE_TERMIO */
+
+#include <sys/types.h>
+#include <libutil.h>
+
+int cleanopen __P((char *));
+void scrub_env __P((void));
 
 /*
  * init_termbuf()
@@ -1046,10 +1054,9 @@ extern void utmp_sig_notify P((int));
  * getptyslave()
  *
  * Open the slave side of the pty, and do any initialization
- * that is necessary.  The return value is a file descriptor
- * for the slave side.
+ * that is necessary.
  */
-	int
+	void
 getptyslave()
 {
 	register int t = -1;
@@ -1369,7 +1376,6 @@ startslave(host, autologin, autoname)
 {
 	register int i;
 	long time();
-	char name[256];
 #ifdef	NEWINIT
 	extern char *ptyip;
 	struct init_request request;
@@ -1502,7 +1508,7 @@ init_env()
 	char **envp;
 
 	envp = envinit;
-	if (*envp = getenv("TZ"))
+	if ((*envp = getenv("TZ")))
 		*envp++ -= 3;
 #if	defined(CRAY) || defined(__hpux)
 	else
@@ -1527,9 +1533,8 @@ start_login(host, autologin, name)
 	int autologin;
 	char *name;
 {
-	register char *cp;
 	register char **argv;
-	char **addarg(), *user;
+	char **addarg();
 	extern char *getenv();
 #ifdef	UTMPX
 	register int pid = getpid();
@@ -1736,7 +1741,7 @@ start_login(host, autologin, name)
 	}
 	execv(altlogin, argv);
 
-	syslog(LOG_ERR, "%s: %m\n", altlogin);
+	syslog(LOG_ERR, "%s: %m", altlogin);
 	fatalperror(net, altlogin);
 	/*NOTREACHED*/
 }
@@ -1781,6 +1786,7 @@ addarg(argv, val)
  * Remove a few things from the environment that
  * don't need to be there.
  */
+	void
 scrub_env()
 {
 	register char **cpp, **cpp2;
@@ -2000,7 +2006,7 @@ cleantmp(wtp)
 
 	utp = getutid(wtp);
 	if (utp == 0) {
-		syslog(LOG_ERR, "Can't get /etc/utmp entry to clean TMPDIR");
+		syslog(LOG_ERR, "can't get /etc/utmp entry to clean TMPDIR");
 		return(-1);
 	}
 	/*
@@ -2052,12 +2058,12 @@ cleantmpdir(jid, tpath, user)
 {
 	switch(fork()) {
 	case -1:
-		syslog(LOG_ERR, "TMPDIR cleanup(%s): fork() failed: %m\n",
+		syslog(LOG_ERR, "TMPDIR cleanup(%s): fork() failed: %m",
 							tpath);
 		break;
 	case 0:
 		execl(CLEANTMPCMD, CLEANTMPCMD, user, tpath, 0);
-		syslog(LOG_ERR, "TMPDIR cleanup(%s): execl(%s) failed: %m\n",
+		syslog(LOG_ERR, "TMPDIR cleanup(%s): execl(%s) failed: %m",
 							tpath, CLEANTMPCMD);
 		exit(1);
 	default:
