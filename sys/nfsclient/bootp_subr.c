@@ -262,8 +262,6 @@ static __inline int bootpc_ifctx_isresolved(struct bootpc_ifcontext *ifctx);
 static __inline int bootpc_ifctx_isunresolved(struct bootpc_ifcontext *ifctx);
 static __inline int bootpc_ifctx_isfailed(struct bootpc_ifcontext *ifctx);
 
-void bootpc_init(void);
-
 /*
  * In order to have multiple active interfaces with address 0.0.0.0
  * and be able to send data to a selected interface, we perform
