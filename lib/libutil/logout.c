@@ -44,12 +44,12 @@ static char sccsid[] = "@(#)logout.c	8.1 (Berkeley) 6/4/93";
 #include <sys/time.h>
 
 #include <fcntl.h>
-#include <utmp.h>
-#include <unistd.h>
+#include <libutil.h>
 #include <stdlib.h>
 #include <string.h>
 #include <timeconv.h>
-#include <libutil.h>
+#include <unistd.h>
+#include <utmp.h>
 
 typedef struct utmp UTMP;
 

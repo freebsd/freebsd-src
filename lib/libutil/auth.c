@@ -31,12 +31,12 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <unistd.h>
-#include <syslog.h>
 #include <sys/types.h>
-#include <paths.h>
 #include <fcntl.h>
 #include <libutil.h>
+#include <paths.h>
+#include <syslog.h>
+#include <unistd.h>
 
 static properties P;
 
