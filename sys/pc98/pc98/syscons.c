@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: syscons.c,v 1.119 1999/05/30 16:53:24 phk Exp $
+ *  $Id: syscons.c,v 1.120 1999/05/31 11:28:41 phk Exp $
  */
 
 #include "sc.h"
@@ -33,7 +33,6 @@
 #include "apm.h"
 #include "opt_ddb.h"
 #include "opt_devfs.h"
-#include "opt_vm86.h"
 #include "opt_syscons.h"
 
 #if NSC > 0
@@ -619,7 +618,7 @@ static int
 scattach(device_t dev)
 {
     scr_stat *scp;
-#if defined(VESA) && defined(VM86)
+#if defined(VESA)
     video_info_t info;
 #endif
     dev_t cdev = makedev(CDEV_MAJOR, 0);
@@ -651,7 +650,7 @@ scattach(device_t dev)
     /* initialize history buffer & pointers */
     sc_alloc_history_buffer(scp, sc_history_size, 0, FALSE);
 
-#if defined(VESA) && defined(VM86)
+#if defined(VESA)
     if ((sc_flags & VESA800X600)
 	&& ((*vidsw[scp->ad]->get_info)(scp->adp, M_VESA_800x600, &info) == 0)) {
 #if NSPLASH > 0
@@ -665,7 +664,7 @@ scattach(device_t dev)
     	splash_init(scp->adp, scsplash_callback);
 #endif
     }
-#endif /* VESA && VM86 */
+#endif /* VESA */
 
     /* initialize cursor stuff */
     if (!ISGRAPHSC(scp))
