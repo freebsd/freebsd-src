@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: disks.c,v 1.12 1995/05/08 10:20:49 jkh Exp $
+ * $Id: disks.c,v 1.13 1995/05/08 18:41:37 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -218,7 +218,11 @@ get_mountpoint(struct chunk *c)
 		      "Please specify a mount point for the partition");
     if (val) {
 	if (check_conflict(val)) {
-	    msgConfirm("You already have a mountpoint for %s assigned!", val);
+	    msgConfirm("You already have a mount point for %s assigned!", val);
+	    return NULL;
+	}
+	else if (*val != '/') {
+	    msgConfirm("Mount point must start with a / character");
 	    return NULL;
 	}
 	else if (!strcmp(val, "/")) {
