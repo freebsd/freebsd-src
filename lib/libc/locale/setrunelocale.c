@@ -73,7 +73,7 @@ setrunelocale(encoding)
 	 */
 	if (!strcmp(encoding, "C") || !strcmp(encoding, "POSIX")) {
 		_CurrentRuneLocale = &_DefaultRuneLocale;
-		return(0);
+		return (0);
 	}
 
 	if (_PathLocale == NULL) {
@@ -100,27 +100,27 @@ setrunelocale(encoding)
 	(void) strcat(name, "/LC_CTYPE");
 
 	if ((fp = fopen(name, "r")) == NULL)
-		return(ENOENT);
+		return (errno);
 
 	if ((rl = _Read_RuneMagi(fp)) == 0) {
 		fclose(fp);
-		return(EFTYPE);
+		return (EFTYPE);
 	}
 	fclose(fp);
 
 	if (!rl->encoding[0])
-		return(EINVAL);
+		return (EFTYPE);
 	else if (!strcmp(rl->encoding, "NONE"))
-		return(_none_init(rl));
+		return (_none_init(rl));
 	else if (!strcmp(rl->encoding, "UTF2"))
-		return(_UTF2_init(rl));
+		return (_UTF2_init(rl));
 	else if (!strcmp(rl->encoding, "EUC"))
-		return(_EUC_init(rl));
+		return (_EUC_init(rl));
 	else if (!strcmp(rl->encoding, "BIG5"))
-		return(_BIG5_init(rl));
+		return (_BIG5_init(rl));
 	else if (!strcmp(rl->encoding, "MSKanji"))
-		return(_MSKanji_init(rl));
+		return (_MSKanji_init(rl));
 	else
-		return(EINVAL);
+		return (EFTYPE);
 }
 
