@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: sysinstall.h,v 1.41.2.1 1995/05/31 10:17:43 jkh Exp $
+ * $Id: sysinstall.h,v 1.41.2.2 1995/05/31 20:55:32 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -430,7 +430,6 @@ extern void	mediaShutdownNFS(Device *dev);
 /* system.c */
 extern void	systemInitialize(int argc, char **argv);
 extern void	systemShutdown(void);
-extern void	systemWelcome(void);
 extern int	systemExecute(char *cmd);
 extern int	systemDisplayFile(char *file);
 extern char	*systemHelpFile(char *file, char *buf);
