@@ -67,7 +67,7 @@ static struct _devname {
 #ifdef notdef
     { DEVICE_TYPE_CDROM,	"matcd%da",	"Matsushita CDROM ('sound blaster' type)", 46, 0, 8, 4 		},
 #endif
-    { DEVICE_TYPE_CDROM,	"acd%dc",	"ATAPI/IDE CDROM",	117, 2, 8, 4				},
+    { DEVICE_TYPE_CDROM,	"acd%dc",	"ATAPI/IDE CDROM",	117, 0, 8, 4				},
     { DEVICE_TYPE_TAPE, 	"rsa%d",	"SCSI tape drive",	14, 0, 16, 4				},
     { DEVICE_TYPE_TAPE, 	"rwt%d",	"Wangtek tape drive",	10, 0, 1, 4				},
     { DEVICE_TYPE_DISK, 	"da%d",		"SCSI disk device",	13, 65538, 8, 16			},
