@@ -179,6 +179,7 @@ struct card_vcc {
 #define	FATM_VCC_TRY_OPEN	0x00020000	/* is currently opening */
 #define	FATM_VCC_TRY_CLOSE	0x00040000	/* is currently closing */
 #define	FATM_VCC_BUSY		0x00070000	/* one of the above */
+#define	FATM_VCC_REOPEN		0x00080000	/* reopening during init */
 
 /*
  * Finally the softc structure
