@@ -61,7 +61,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_object.c,v 1.149 1999/02/12 09:51:43 dillon Exp $
+ * $Id: vm_object.c,v 1.150 1999/02/12 20:42:19 dillon Exp $
  */
 
 /*
@@ -762,29 +762,6 @@ vm_object_madvise(object, pindex, count, advise)
 	end = pindex + count;
 
 	/*
-	 * MADV_FREE special case - free any swap backing store now,
-	 * whether or not resident pages can be found later.
-	 */
-
-	if (advise == MADV_FREE) {
-		tobject = object;
-		tpindex = pindex;
-
-		while (
-		    (tobject->type == OBJT_DEFAULT || 
-		     tobject->type == OBJT_SWAP) &&
-		    (tobject->flags & OBJ_ONEMAPPING)
-		) {
-			if (tobject->type == OBJT_SWAP) {
-				swap_pager_freespace(tobject, tpindex, count);
-			}
-			if ((tobject = tobject->backing_object) == NULL)
-				break;
-			tpindex += OFF_TO_IDX(tobject->backing_object_offset);
-		}
-	}
-
-	/*
 	 * Locate and adjust resident pages
 	 */
 
@@ -806,6 +783,15 @@ shadowlookup:
 		m = vm_page_lookup(tobject, tpindex);
 
 		if (m == NULL) {
+			/*
+			 * There may be swap even if there is no backing page
+			 */
+			if (advise == MADV_FREE && tobject->type == OBJT_SWAP)
+				swap_pager_freespace(tobject, tpindex, 1);
+
+			/*
+			 * next object
+			 */
 			tobject = tobject->backing_object;
 			if (tobject == NULL)
 				continue;
@@ -853,6 +839,8 @@ shadowlookup:
 			m->dirty = 0;
 			m->act_count = 0;
 			vm_page_deactivate(m);
+			if (tobject->type == OBJT_SWAP)
+				swap_pager_freespace(tobject, tpindex, 1);
 		}
 	}	
 }
