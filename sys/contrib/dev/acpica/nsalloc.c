@@ -1,7 +1,7 @@
 /*******************************************************************************
  *
  * Module Name: nsalloc - Namespace allocation and deletion utilities
- *              $Revision: 84 $
+ *              $Revision: 85 $
  *
  ******************************************************************************/
 
@@ -428,10 +428,11 @@ AcpiNsInstallNode (
     Node->OwnerId = OwnerId;
     Node->Type = (UINT8) Type;
 
-    ACPI_DEBUG_PRINT ((ACPI_DB_NAMES, "%4.4s (%s) added to %4.4s (%s) %p at %p\n",
-        AcpiUtGetNodeName (Node), AcpiUtGetTypeName (Node->Type),
+    ACPI_DEBUG_PRINT ((ACPI_DB_NAMES, 
+        "%4.4s (%s) [Node %p Owner %X] added to %4.4s (%s) [Node %p]\n",
+        AcpiUtGetNodeName (Node), AcpiUtGetTypeName (Node->Type), Node, OwnerId,
         AcpiUtGetNodeName (ParentNode), AcpiUtGetTypeName (ParentNode->Type),
-        ParentNode, Node));
+        ParentNode));
 
     /*
      * Increment the reference count(s) of all parents up to
