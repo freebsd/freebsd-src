@@ -67,14 +67,12 @@ pthread_join(pthread_t pthread, void **thread_return)
 
 	if (pthread1 == NULL) {
 		/* Return an error: */
-		errno = ESRCH;
-		rval = -1;
+		rval = ESRCH;
 
 	/* Check if this thread has been detached: */
 	} else if ((pthread->attr.flags & PTHREAD_DETACHED) != 0) {
 		/* Return an error: */
-		errno = ESRCH;
-		rval = -1;
+		rval = ESRCH;
 	}
 	/* Check if the thread is not dead: */
 	else if (pthread->state != PS_DEAD) {
@@ -96,8 +94,7 @@ pthread_join(pthread_t pthread, void **thread_return)
 			}
 		} else {
 			/* Return an error: */
-			errno = ESRCH;
-			rval = -1;
+			rval = ESRCH;
 		}
 	} else {
 		/* Check if the return value is required: */

@@ -40,8 +40,7 @@ int pthread_condattr_destroy(pthread_condattr_t *attr)
 {
 	int	ret;
 	if (attr == NULL || *attr == NULL) {
-		errno = EINVAL;
-		ret = -1;
+		ret = EINVAL;
 	} else {
 		free(*attr);
 		*attr = NULL;

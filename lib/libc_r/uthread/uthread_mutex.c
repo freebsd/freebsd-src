@@ -46,8 +46,7 @@ pthread_mutex_init(pthread_mutex_t * mutex,
 	int             status;
 
 	if (mutex == NULL) {
-		errno = EINVAL;
-		ret = -1;
+		ret = EINVAL;
 	} else {
 		/* Check if default mutex attributes: */
 		if (mutex_attr == NULL || *mutex_attr == NULL) {
@@ -55,8 +54,7 @@ pthread_mutex_init(pthread_mutex_t * mutex,
 			type = MUTEX_TYPE_FAST;
 		} else if ((*mutex_attr)->m_type >= MUTEX_TYPE_MAX) {
 			/* Return an invalid argument error: */
-			errno = EINVAL;
-			ret = -1;
+			ret = EINVAL;
 		} else {
 			/* Use the requested mutex type: */
 			type = (*mutex_attr)->m_type;
@@ -65,8 +63,7 @@ pthread_mutex_init(pthread_mutex_t * mutex,
 		/* Check no errors so far: */
 		if (ret == 0) {
 			if ((pmutex = (pthread_mutex_t) malloc(sizeof(struct pthread_mutex))) == NULL) {
-				errno = ENOMEM;
-				ret = -1;
+				ret = ENOMEM;
 			} else {
 				/* Reset the mutex flags: */
 				pmutex->m_flags = 0;
@@ -90,8 +87,7 @@ pthread_mutex_init(pthread_mutex_t * mutex,
 				/* Trap invalid mutex types: */
 				default:
 					/* Return an invalid argument error: */
-					errno = EINVAL;
-					ret = -1;
+					ret = EINVAL;
 					break;
 				}
 				if (ret == 0) {
@@ -122,8 +118,7 @@ pthread_mutex_destroy(pthread_mutex_t * mutex)
 	int             status;
 
 	if (mutex == NULL || *mutex == NULL) {
-		errno = EINVAL;
-		ret = -1;
+		ret = EINVAL;
 	} else {
 		/* Block signals: */
 		_thread_kern_sig_block(&status);
@@ -144,8 +139,7 @@ pthread_mutex_destroy(pthread_mutex_t * mutex)
 		/* Trap undefined mutex types: */
 		default:
 			/* Return an invalid argument error: */
-			errno = EINVAL;
-			ret = -1;
+			ret = EINVAL;
 			break;
 		}
 
@@ -169,8 +163,7 @@ pthread_mutex_trylock(pthread_mutex_t * mutex)
 	int             status;
 
 	if (mutex == NULL || *mutex == NULL) {
-		errno = EINVAL;
-		ret = -1;
+		ret = EINVAL;
 	} else {
 		/* Block signals: */
 		_thread_kern_sig_block(&status);
@@ -185,8 +178,7 @@ pthread_mutex_trylock(pthread_mutex_t * mutex)
 				(*mutex)->m_owner = _thread_run;
 			} else {
 				/* Return a busy error: */
-				errno = EBUSY;
-				ret = -1;
+				ret = EBUSY;
 			}
 			break;
 
@@ -203,8 +195,7 @@ pthread_mutex_trylock(pthread_mutex_t * mutex)
 					(*mutex)->m_data.m_count++;
 				} else {
 					/* Return a busy error: */
-					errno = EBUSY;
-					ret = -1;
+					ret = EBUSY;
 				}
 			} else {
 				/* Lock the mutex for the running thread: */
@@ -215,8 +206,7 @@ pthread_mutex_trylock(pthread_mutex_t * mutex)
 		/* Trap invalid mutex types: */
 		default:
 			/* Return an invalid argument error: */
-			errno = EINVAL;
-			ret = -1;
+			ret = EINVAL;
 			break;
 		}
 
@@ -235,8 +225,7 @@ pthread_mutex_lock(pthread_mutex_t * mutex)
 	int             status;
 
 	if (mutex == NULL || *mutex == NULL) {
-		errno = EINVAL;
-		ret = -1;
+		ret = EINVAL;
 	} else {
 		/* Block signals: */
 		_thread_kern_sig_block(&status);
@@ -306,8 +295,7 @@ pthread_mutex_lock(pthread_mutex_t * mutex)
 		/* Trap invalid mutex types: */
 		default:
 			/* Return an invalid argument error: */
-			errno = EINVAL;
-			ret = -1;
+			ret = EINVAL;
 			break;
 		}
 
@@ -326,8 +314,7 @@ pthread_mutex_unlock(pthread_mutex_t * mutex)
 	int             status;
 
 	if (mutex == NULL || *mutex == NULL) {
-		errno = EINVAL;
-		ret = -1;
+		ret = EINVAL;
 	} else {
 		/* Block signals: */
 		_thread_kern_sig_block(&status);
@@ -339,8 +326,7 @@ pthread_mutex_unlock(pthread_mutex_t * mutex)
 			/* Check if the running thread is not the owner of the mutex: */
 			if ((*mutex)->m_owner != _thread_run) {
 				/* Return an invalid argument error: */
-				errno = EINVAL;
-				ret = -1;
+				ret = EINVAL;
 			}
 			/*
 			 * Get the next thread from the queue of threads waiting on
@@ -357,8 +343,7 @@ pthread_mutex_unlock(pthread_mutex_t * mutex)
 			/* Check if the running thread is not the owner of the mutex: */
 			if ((*mutex)->m_owner != _thread_run) {
 				/* Return an invalid argument error: */
-				errno = EINVAL;
-				ret = -1;
+				ret = EINVAL;
 			}
 			/* Check if there are still counts: */
 			else if ((*mutex)->m_data.m_count) {
@@ -378,8 +363,7 @@ pthread_mutex_unlock(pthread_mutex_t * mutex)
 		/* Trap invalid mutex types: */
 		default:
 			/* Return an invalid argument error: */
-			errno = EINVAL;
-			ret = -1;
+			ret = EINVAL;
 			break;
 		}
 
