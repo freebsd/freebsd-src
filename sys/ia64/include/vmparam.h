@@ -72,7 +72,7 @@
 #define	DFLSSIZ		(1<<21)			/* initial stack size (2M) */
 #endif
 #ifndef	MAXSSIZ
-#define	MAXSSIZ		(1<<25)			/* max stack size (32M) */
+#define	MAXSSIZ		(1<<28)			/* max stack size (256M) */
 #endif
 #ifndef SGROWSIZ
 #define SGROWSIZ	(128UL*1024)		/* amount to grow stack */
