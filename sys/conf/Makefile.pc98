@@ -231,23 +231,23 @@ kernel-install kernel-install.debug:
 		echo "You must build a kernel first." ; \
 		exit 1 ; \
 	fi
-.if exists(${DESTDIR}/${KODIR})
-.if exists(${DESTDIR}/${KODIR}.old)
-	@-chflags -R noschg ${DESTDIR}/${KODIR}.old
-	-rm -rf ${DESTDIR}/${KODIR}.old
+.if exists(${DESTDIR}${KODIR})
+.if exists(${DESTDIR}${KODIR}.old)
+	@-chflags -R noschg ${DESTDIR}${KODIR}.old
+	-rm -rf ${DESTDIR}${KODIR}.old
 .endif
-	mv ${DESTDIR}/${KODIR} ${DESTDIR}/${KODIR}.old
+	mv ${DESTDIR}${KODIR} ${DESTDIR}${KODIR}.old
 .endif
-	mkdir -p ${DESTDIR}/${KODIR}
-	@if [ -f ${DESTDIR}/${KODIR}/${KERNEL_KO} ] ; then \
-	    chflags noschg ${DESTDIR}/${KODIR}/${KERNEL_KO} ; \
+	mkdir -p ${DESTDIR}${KODIR}
+	@if [ -f ${DESTDIR}${KODIR}/${KERNEL_KO} ] ; then \
+	    chflags noschg ${DESTDIR}${KODIR}/${KERNEL_KO} ; \
 	fi
 	install -c -m 555 -o root -g wheel -fschg \
-		${KERNEL_KO}${.TARGET:S/kernel-install//} ${DESTDIR}/${KODIR}
+		${KERNEL_KO}${.TARGET:S/kernel-install//} ${DESTDIR}${KODIR}
 
 kernel-reinstall kernel-reinstall.debug:
-	@if [ -f ${DESTDIR}/${KODIR}/${KERNEL_KO} ] ; then \
-	    chflags noschg ${DESTDIR}/${KODIR}/${KERNEL_KO} ; \
+	@if [ -f ${DESTDIR}${KODIR}/${KERNEL_KO} ] ; then \
+	    chflags noschg ${DESTDIR}${KODIR}/${KERNEL_KO} ; \
 	fi
 	install -c -m 555 -o root -g wheel -fschg \
 		${KERNEL}${.TARGET:S/kernel-reinstall//} ${DESTDIR}/${KERNEL}
@@ -263,7 +263,7 @@ install install.debug: modules-install
 reinstall reinstall.debug: modules-reinstall
 .endif
 
-MKMODULESENV=	MAKEOBJDIRPREFIX=${.OBJDIR}/modules KMODDIR=${DESTDIR}/${KODIR}
+MKMODULESENV=	MAKEOBJDIRPREFIX=${.OBJDIR}/modules KMODDIR=${DESTDIR}${KODIR}
 
 modules:
 	@mkdir -p ${.OBJDIR}/modules
