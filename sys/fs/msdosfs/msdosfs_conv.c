@@ -1,4 +1,4 @@
-/*	$Id: msdosfs_conv.c,v 1.1 1994/09/19 15:41:40 dfr Exp $ */
+/*	$Id: msdosfs_conv.c,v 1.2 1994/09/27 20:42:42 phk Exp $ */
 /*	$NetBSD: msdosfs_conv.c,v 1.6.2.1 1994/08/30 02:27:57 cgd Exp $	*/
 
 /*
@@ -146,7 +146,7 @@ dos2unixtime(dd, dt, tsp)
 	u_long days;
 	u_short *months;
 
-	seconds = ((dt & DT_2SECONDS_MASK) >> DT_2SECONDS_SHIFT)
+	seconds = (((dt & DT_2SECONDS_MASK) >> DT_2SECONDS_SHIFT) << 1)
 	    + ((dt & DT_MINUTES_MASK) >> DT_MINUTES_SHIFT) * 60
 	    + ((dt & DT_HOURS_MASK) >> DT_HOURS_SHIFT) * 3600;
 	/*
