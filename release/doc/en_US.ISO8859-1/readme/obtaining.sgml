@@ -11,7 +11,7 @@ be the "Obtaining FreeBSD" section of RELNOTES.TXT.
 <sect1>
   <title>Obtaining &os;</title>
 
-  <para>You may obtain &os; in a variety of ways.  This section
+  <para>&os; may be obtained in a variety of ways.  This section
   focuses on those ways that are primarily of use for obtaining a
   complete &os; distribution, rather than updating an existing
   installation.  More information can be found in the <ulink
@@ -65,17 +65,22 @@ be the "Obtaining FreeBSD" section of RELNOTES.TXT.
 
     <para>You can use FTP to retrieve &os; and any or all of its
     optional packages from <ulink
-    url="ftp://ftp.freebsd.org/">ftp://ftp.freebsd.org/</ulink>, which
+    url="ftp://ftp.freebsd.org/"></ulink>, which
     is the
-    official &os; release site.</para>
+    official &os; release site, or any of its <quote>mirrors</quote>.</para>
 
-    <para>For other locations that mirror the &os; software see the
-    file <filename>MIRROR.SITES</filename>.  
-    Please FTP the distribution from the site
-    closest (in networking terms) to you.  Additional mirror sites are
-    always welcome!  
+    <para>Lists of locations that mirror &os;
+    can be found in the <ulink
+    url="http://www.freebsd.org/handbook/mirrors.html#mirrors-ftp">FTP
+    Sites</ulink> section of the Handbook, or on the
+    <ulink url="http://www.freebsdmirrors.org/"></ulink> Web pages.
+    Finding a close (in networking terms) mirror from which to
+    download the distribution is highly recommended.</para>
+
+    <para>Additional mirror sites are
+    always welcome.
     Contact <email>freebsd-admin@FreeBSD.org</email> for more
-    details if you'd like to become an official mirror site.</para>
+    details on becoming an official mirror site.</para>
 
     <para>Mirrors generally contain the floppy disk images necessary
     to begin an installation, as well as the distribution files needed
@@ -89,13 +94,19 @@ be the "Obtaining FreeBSD" section of RELNOTES.TXT.
 
     <para>If you do not have access to the Internet and electronic
     mail is your only recourse, then you may still fetch the files by
-    sending mail to <email>ftpmail@ftpmail.vix.com</email> - putting
-    the keyword <literal>help</literal> in your message to get more
+    using an FTP-over-email service.
+    Send an email message to <email>ftpmail@ftpmail.vix.com</email>
+    consisting of
+    the keyword <literal>help</literal> to get more
     information on how to fetch files from a &os; FTP archive using
-    this mechanism.  Please do note, however, that this will end up
-    sending many <emphasis>tens of megabytes</emphasis> through the
-    mail and should only be employed as an absolute
-    <emphasis>last</emphasis> resort!</para>
+    this mechanism.</para>
+
+    <important>
+      <para>This procedure will result in 
+      sending many tens of megabytes through the
+      mail and should only be employed as an absolute
+      last resort.</para>
+    </important>
   </sect2>
 </sect1>
 
