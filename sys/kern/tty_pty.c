@@ -166,7 +166,7 @@ ptyinit(n)
 	    0, 0, 0666, "pty%c%r", names[n / 32], n % 32);
 
 	devs->si_drv1 = devc->si_drv1 = pt;
-	devs->si_tty_tty = devc->si_tty_tty = &pt->pt_tty;
+	devs->si_tty = devc->si_tty = &pt->pt_tty;
 	ttyregister(&pt->pt_tty);
 }
 
@@ -198,7 +198,7 @@ ptsopen(dev, flag, devtype, p)
 		ptyinit(minor(dev));
 	if (!dev->si_drv1)
 		return(ENXIO);	
-	tp = dev->si_tty_tty;
+	tp = dev->si_tty;
 	if ((tp->t_state & TS_ISOPEN) == 0) {
 		ttychars(tp);		/* Set up default chars */
 		tp->t_iflag = TTYDEF_IFLAG;
@@ -233,7 +233,7 @@ ptsclose(dev, flag, mode, p)
 	register struct tty *tp;
 	int err;
 
-	tp = dev->si_tty_tty;
+	tp = dev->si_tty;
 	err = (*linesw[tp->t_line].l_close)(tp, flag);
 	ptsstop(tp, FREAD|FWRITE);
 	(void) ttyclose(tp);
@@ -247,7 +247,7 @@ ptsread(dev, uio, flag)
 	int flag;
 {
 	struct proc *p = curproc;
-	register struct tty *tp = dev->si_tty_tty;
+	register struct tty *tp = dev->si_tty;
 	register struct pt_ioctl *pti = dev->si_drv1;
 	int error = 0;
 
@@ -303,7 +303,7 @@ ptswrite(dev, uio, flag)
 {
 	register struct tty *tp;
 
-	tp = dev->si_tty_tty;
+	tp = dev->si_tty;
 	if (tp->t_oproc == 0)
 		return (EIO);
 	return ((*linesw[tp->t_line].l_write)(tp, uio, flag));
@@ -358,7 +358,7 @@ ptcopen(dev, flag, devtype, p)
 		ptyinit(minor(dev));
 	if (!dev->si_drv1)
 		return(ENXIO);	
-	tp = dev->si_tty_tty;
+	tp = dev->si_tty;
 	if (tp->t_oproc)
 		return (EIO);
 	tp->t_oproc = ptsstart;
@@ -380,7 +380,7 @@ ptcclose(dev, flags, fmt, p)
 {
 	register struct tty *tp;
 
-	tp = dev->si_tty_tty;
+	tp = dev->si_tty;
 	(void)(*linesw[tp->t_line].l_modem)(tp, 0);
 
 	/*
@@ -407,7 +407,7 @@ ptcread(dev, uio, flag)
 	struct uio *uio;
 	int flag;
 {
-	register struct tty *tp = dev->si_tty_tty;
+	register struct tty *tp = dev->si_tty;
 	struct pt_ioctl *pti = dev->si_drv1;
 	char buf[BUFSIZ];
 	int error = 0, cc;
@@ -493,7 +493,7 @@ ptcpoll(dev, events, p)
 	int events;
 	struct proc *p;
 {
-	register struct tty *tp = dev->si_tty_tty;
+	register struct tty *tp = dev->si_tty;
 	struct pt_ioctl *pti = dev->si_drv1;
 	int revents = 0;
 	int s;
@@ -543,7 +543,7 @@ ptcwrite(dev, uio, flag)
 	register struct uio *uio;
 	int flag;
 {
-	register struct tty *tp = dev->si_tty_tty;
+	register struct tty *tp = dev->si_tty;
 	register u_char *cp = 0;
 	register int cc = 0;
 	u_char locbuf[BUFSIZ];
@@ -654,7 +654,7 @@ ptydevtotty(dev)
 	if (minor(dev) & ~0xff)
 		return (NULL);
 
-	return dev->si_tty_tty;
+	return dev->si_tty;
 }
 
 /*ARGSUSED*/
@@ -666,7 +666,7 @@ ptyioctl(dev, cmd, data, flag, p)
 	int flag;
 	struct proc *p;
 {
-	register struct tty *tp = dev->si_tty_tty;
+	register struct tty *tp = dev->si_tty;
 	register struct pt_ioctl *pti = dev->si_drv1;
 	register u_char *cc = tp->t_cc;
 	int stop, error;
