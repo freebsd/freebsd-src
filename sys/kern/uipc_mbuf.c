@@ -52,10 +52,6 @@
 #include <machine/cpu.h>
 #endif
 
-#ifndef NMBCLUSTERS
-#define NMBCLUSTERS	(512 + MAXUSERS * 16)
-#endif
-
 static void mbinit __P((void *));
 SYSINIT(mbuf, SI_SUB_MBUF, SI_ORDER_FIRST, mbinit, NULL)
 
@@ -69,8 +65,8 @@ int	max_linkhdr;
 int	max_protohdr;
 int	max_hdr;
 int	max_datalen;
-int	nmbclusters = NMBCLUSTERS;
-int	nmbufs = NMBCLUSTERS * 4;
+int	nmbclusters;
+int	nmbufs;
 u_int	m_mballoc_wid = 0;
 u_int	m_clalloc_wid = 0;
 
@@ -91,10 +87,37 @@ SYSCTL_INT(_kern_ipc, KIPC_NMBCLUSTERS, nmbclusters, CTLFLAG_RD,
 	   &nmbclusters, 0, "Maximum number of mbuf clusters available");
 SYSCTL_INT(_kern_ipc, OID_AUTO, nmbufs, CTLFLAG_RD, &nmbufs, 0,
 	   "Maximum number of mbufs available"); 
-TUNABLE_INT("kern.ipc.nmbclusters", &nmbclusters);
-TUNABLE_INT("kern.ipc.nmbufs", &nmbufs);
 
 static void	m_reclaim __P((void));
+
+#ifndef NMBCLUSTERS
+#define NMBCLUSTERS	(512 + maxusers * 16)
+#endif
+#ifndef NMBUFS
+#define NMBUFS		(nmbclusters * 4)
+#endif
+
+/*
+ * Perform sanity checks of tunables declared above.
+ */
+static void
+tunable_mbinit(void *dummy)
+{
+
+	/*
+	 * This has to be done before VM init.
+	 */
+	nmbclusters = NMBCLUSTERS;
+	TUNABLE_INT_FETCH("kern.ipc.nmbclusters", &nmbclusters);
+	nmbufs = NMBUFS;
+	TUNABLE_INT_FETCH("kern.ipc.nmbufs", &nmbufs);
+	/* Sanity checks */
+	if (nmbufs < nmbclusters * 2)
+		nmbufs = nmbclusters * 2;
+
+	return;
+}
+SYSINIT(tunable_mbinit, SI_SUB_TUNABLES, SI_ORDER_ANY, tunable_mbinit, NULL);
 
 /* "number of clusters of pages" */
 #define NCL_INIT	1

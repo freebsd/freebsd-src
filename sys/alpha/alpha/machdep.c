@@ -688,6 +688,13 @@ alpha_init(pfn, ptb, bim, bip, biv)
 	 */
 	cycles_per_sec = hwrpb->rpb_cc_freq;
 
+	/* Get the loader(8) metadata */
+	preload_metadata = (caddr_t)bootinfo.modptr;
+	kern_envp = bootinfo.envp;
+
+	/* Do basic tuning, hz etc */
+	init_param();
+
 	/*
 	 * Initalize the (temporary) bootstrap console interface, so
 	 * we can use printf until the VM system starts being setup.
@@ -786,8 +793,6 @@ alpha_init(pfn, ptb, bim, bip, biv)
 	/* But if the bootstrap tells us otherwise, believe it! */
 	if (bootinfo.kernend)
 		kernend = round_page(bootinfo.kernend);
-	preload_metadata = (caddr_t)bootinfo.modptr;
-	kern_envp = bootinfo.envp;
 
 	p = getenv("kernelname");
 	if (p)
