@@ -39,7 +39,7 @@
 #include <sys/capability.h>
 #endif
 
-RCSID("$Id: login.c,v 1.59 2003/03/24 15:57:10 joda Exp $");
+RCSID("$Id: login.c,v 1.59.2.1 2004/09/08 09:15:39 joda Exp $");
 
 static int login_timeout = 60;
 
@@ -181,21 +181,19 @@ krb5_to4 (krb5_ccache id)
 
     int get_v4_tgt;
 
-    get_v4_tgt = krb5_config_get_bool(context, NULL,
-				      "libdefaults",
-				      "krb4_get_tickets",
-				      NULL);
-
     ret = krb5_cc_get_principal(context, id, &princ);
-    if (ret == 0) {
-	get_v4_tgt = krb5_config_get_bool_default(context, NULL,
-						  get_v4_tgt,
-						  "realms",
-						  *krb5_princ_realm(context,
-								    princ),
-						  "krb4_get_tickets",
-						  NULL);
+    if(ret == 0) {
+	krb5_appdefault_boolean(context, "login", 
+				krb5_principal_get_realm(context, princ), 
+				"krb4_get_tickets", FALSE, &get_v4_tgt);
 	krb5_free_principal(context, princ);
+    } else {
+	krb5_realm realm = NULL;
+	krb5_get_default_realm(context, &realm);
+	krb5_appdefault_boolean(context, "login", 
+				realm, 
+				"krb4_get_tickets", FALSE, &get_v4_tgt);
+	free(realm);
     }
 
     if (get_v4_tgt) {

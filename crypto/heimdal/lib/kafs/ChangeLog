@@ -1,3 +1,12 @@
+2004-06-22  Love  <lha@stacken.kth.se>
+
+	* afssys.c: 1.70->1.72: s/arla/nnpfs/
+	
+2004-06-22  Love Hörquist Åstrand  <lha@it.su.se>
+
+	* afssys.c: 1.70: support the linux /proc/fs/mumel/afs_ioctl afs
+	"syscall" interface
+	
 2003-04-23  Love Hörquist Åstrand  <lha@it.su.se>
 
 	* common.c, kafs.h: drop the int argument (the error code) from

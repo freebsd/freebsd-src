@@ -1,3 +1,8 @@
+2004-09-08  Johan Danielsson  <joda@pdc.kth.se>
+
+	* login.c: pull up 1.62->1.63: use krb5_appdefault_boolean instead
+	of krb5_config_get_bool
+
 2003-03-24  Johan Danielsson  <joda@pdc.kth.se>
 
 	* Makefile.am: install man pages
