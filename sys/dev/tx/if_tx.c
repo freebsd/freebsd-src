@@ -140,6 +140,7 @@ static EPIC_INTR_RET_TYPE epic_intr(void *);
 static int epic_common_attach(epic_softc_t *);
 static void epic_ifstart(struct ifnet *);
 static void epic_ifwatchdog(struct ifnet *);
+static void epic_stats_update(epic_softc_t *);
 static int epic_init(epic_softc_t *);
 static void epic_stop(epic_softc_t *);
 static void epic_rx_done(epic_softc_t *);
@@ -1149,6 +1150,26 @@ epic_ifwatchdog(ifp)
 }
 
 /*
+ * Despite the name of this function, it doesn't update statistics, it only
+ * helps in autonegotiation process.
+ */
+static void
+epic_stats_update(epic_softc_t * sc)
+{
+	struct mii_data * mii;
+	int s;
+
+	s = splimp();
+
+	mii = device_get_softc(sc->miibus);
+	mii_tick(mii);
+
+	sc->stat_ch = timeout((timeout_t *)epic_stats_update, sc, hz);
+
+	splx(s);
+}
+
+/*
  * Set media options.
  */
 static int
@@ -1354,7 +1375,9 @@ epic_miibus_statchg(dev)
 	else
 		sc->sc_if.if_baudrate = 10000000;
 
+	epic_stop_activity(sc);
 	epic_set_tx_mode(sc);
+	epic_start_activity(sc);
 
 	return;
 }
@@ -1399,7 +1422,6 @@ epic_init(sc)
 	epic_softc_t *sc;
 {       
 	struct ifnet *ifp = &sc->sc_if;
-	struct mii_data *mii;
 	int s,i;
  
 	s = splimp();
@@ -1475,16 +1497,10 @@ epic_init(sc)
 	/* Start Rx process */
 	epic_start_activity(sc);
 
-	/* Reset all PHYs */
-	mii = device_get_softc(sc->miibus);
-        if (mii->mii_instance) {
-		struct mii_softc	*miisc;
-		LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
-			mii_phy_reset(miisc);
-	}
-
 	/* Set appropriate media */
 	epic_ifmedia_upd(ifp);
+
+	sc->stat_ch = timeout((timeout_t *)epic_stats_update, sc, hz);
 
 	splx(s);
 
@@ -1723,6 +1739,8 @@ epic_stop(sc)
 	s = splimp();
 
 	sc->sc_if.if_timer = 0;
+
+	untimeout((timeout_t *)epic_stats_update, sc, sc->stat_ch);
 
 	/* Disable interrupts */
 	CSR_WRITE_4( sc, INTMASK, 0 );
