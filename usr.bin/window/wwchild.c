@@ -48,10 +48,9 @@ static char rcsid[] =
 void
 wwchild()
 {
-	int olderrno;
 	register struct ww **wp;
-	union wait w;
-	int pid;
+	pid_t pid;
+	int olderrno, w;
 	char collected = 0;
 
 	olderrno = errno;

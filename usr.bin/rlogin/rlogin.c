@@ -468,16 +468,16 @@ writeroob(int signo __unused)
 void
 catch_child(int signo __unused)
 {
-	union wait status;
-	int pid;
+	pid_t pid;
+	int status;
 
 	for (;;) {
-		pid = wait3((int *)&status, WNOHANG|WUNTRACED, NULL);
+		pid = wait3(&status, WNOHANG|WUNTRACED, NULL);
 		if (pid == 0)
 			return;
 		/* if the child (reader) dies, just quit */
 		if (pid < 0 || (pid == child && !WIFSTOPPED(status)))
-			done((int)(status.w_termsig | status.w_retcode));
+			done(WTERMSIG(status) | WEXITSTATUS(status));
 	}
 	/* NOTREACHED */
 }
