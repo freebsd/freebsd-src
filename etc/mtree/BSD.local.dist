@@ -1,4 +1,4 @@
-#     $FreeBSD$
+#     $Id$
 #
 
 /set type=dir uname=bin gname=bin mode=0755

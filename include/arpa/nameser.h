@@ -73,7 +73,7 @@
  *
  *      @(#)nameser.h	8.2 (Berkeley) 2/16/94
  *	From Id: nameser.h,v 8.11 1996/10/08 04:51:02 vixie Exp
- *	$FreeBSD$
+ *	$Id$
  */
 
 #ifndef _ARPA_NAMESER_H_

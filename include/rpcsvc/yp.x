@@ -34,7 +34,7 @@
 #ifndef RPC_HDR
 %#ifndef lint
 %/*static char sccsid[] = "from: @(#)yp.x	2.1 88/08/01 4.0 RPCSRC";*/
-%static char rcsid[] = "$FreeBSD$";
+%static char rcsid[] = "$Id$";
 %#endif /* not lint */
 #endif
 
