@@ -121,8 +121,7 @@ vsyslog(pri, fmt, ap)
 	/* Build the message. */
 	(void)time(&now);
 	p = tbuf + sprintf(tbuf, "<%d>", pri);
-	p += strftime(p, sizeof (tbuf) - (p - tbuf), "%h %e %T ",
-	    localtime(&now));
+	p += sprintf(p, "%.15s ", ctime(&now) + 4);
 	if (LogStat & LOG_PERROR)
 		stdp = p;
 	if (LogTag == NULL)
