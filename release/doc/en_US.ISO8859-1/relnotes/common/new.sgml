@@ -266,6 +266,12 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <ulink
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:20.syncache.asc">FreeBSD-SA-02:20</ulink>.</para>
 
+    <para>A routing table memory leak, which could allow a remote
+      attacker to exhaust the memory of a target machine, has been
+      fixed.  A workaround and patches can be found in security
+      advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:21.tcpip.asc">FreeBSD-SA-02:21</ulink>.</para>
+
   </sect2>
   <sect2 id="userland">
     <title>Userland Changes</title>
