@@ -71,7 +71,7 @@
  */
 #define	LEAPYEAR(y)	(((y) % 4) == 0)
 
-device_t clockdev;
+kobj_t clockdev;
 int clockinitted;
 int tickfix;
 int tickfixinterval;
@@ -80,7 +80,7 @@ int	disable_rtc_set;	/* disable resettodr() if != 0 */
 int	wall_cmos_clock;	/* wall	CMOS clock assumed if != 0 */
 static	int	beeping = 0;
 
-extern u_char itc_frequency;
+extern u_int64_t itc_frequency;
 
 static timecounter_get_t	ia64_get_timecount;
 
@@ -122,7 +122,7 @@ static u_int32_t last_time;
 static u_int32_t calibrate_clocks(u_int32_t firmware_freq);
 
 void
-clockattach(device_t dev)
+clockattach(kobj_t dev)
 {
 
 	/*
