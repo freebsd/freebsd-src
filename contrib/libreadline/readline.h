@@ -73,6 +73,7 @@ extern int
   rl_forward_word (), rl_tab_insert (), rl_yank_pop (), rl_yank_nth_arg (),
   rl_backward_kill_word (), rl_backward_kill_line (), rl_transpose_words (),
   rl_complete (), rl_possible_completions (), rl_insert_completions (),
+  rl_menu_complete (),
   rl_do_lowercase_version (), rl_kill_full_line (),
   rl_digit_argument (), rl_universal_argument (), rl_abort (),
   rl_undo_command (), rl_revert_line (), rl_beginning_of_history (),
@@ -93,13 +94,19 @@ extern void rl_callback_handler_install ();
 extern void rl_callback_read_char ();
 extern void rl_callback_handler_remove ();
 
+/* Not available unless __CYGWIN32__ is defined. */
+#ifdef __CYGWIN32__
+extern int rl_paste_from_clipboard ();
+#endif
+
 /* These are *both* defined even when VI_MODE is not. */
 extern int rl_vi_editing_mode (), rl_emacs_editing_mode ();
 
 /* Non incremental history searching. */
-extern int
-  rl_noninc_forward_search (), rl_noninc_reverse_search (),
-  rl_noninc_forward_search_again (), rl_noninc_reverse_search_again ();
+extern int rl_noninc_forward_search ();
+extern int rl_noninc_reverse_search ();
+extern int rl_noninc_forward_search_again ();
+extern int rl_noninc_reverse_search_again ();
 
 /* Things for vi mode. Not available unless readline is compiled -DVI_MODE. */
 extern int rl_vi_check ();
