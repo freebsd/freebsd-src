@@ -153,7 +153,7 @@ cpu_set_upcall_kse(struct thread *td, struct kse_upcall *ku)
 {
 	struct ia64_fdesc *fd;
 	struct trapframe *tf;
-	uint64_t stack;
+	uint64_t ndirty, stack;
 
 	tf = td->td_frame;
 
@@ -161,6 +161,7 @@ cpu_set_upcall_kse(struct thread *td, struct kse_upcall *ku)
 	    ("Whoa there! We have more than 8KB of dirty registers!"));
 
 	fd = ku->ku_func;
+	ndirty = tf->tf_special.ndirty;
 	stack = (uint64_t)ku->ku_stack.ss_sp;
 
 	bzero(&tf->tf_special, sizeof(tf->tf_special));
@@ -179,10 +180,16 @@ cpu_set_upcall_kse(struct thread *td, struct kse_upcall *ku)
 		suword((caddr_t)stack, (uint64_t)ku->ku_mailbox);
 	} else {
 		tf->tf_special.iip = fuword(&fd->func);
-                tf->tf_special.cfm = (1UL<<63) | (1UL<<7) | 1UL;
-                tf->tf_special.bspstore = stack;
-                tf->tf_special.ndirty = 8;
-                *(uint64_t*)stack = (uint64_t)ku->ku_mailbox;
+		tf->tf_special.cfm = (1UL<<63) | (1UL<<7) | 1UL;
+		tf->tf_special.bspstore = stack;
+		tf->tf_special.ndirty = 8;
+		stack = td->td_kstack + ndirty - 8;
+		if ((stack & 0x1ff) == 0x1f8) {
+			*(uint64_t*)stack = 0;
+			tf->tf_special.ndirty += 8;
+			stack -= 8;
+		}
+		*(uint64_t*)stack = (uint64_t)ku->ku_mailbox;
 	}
 }
 
