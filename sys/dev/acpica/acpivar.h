@@ -141,6 +141,10 @@ struct acpi_prw_data {
 #define	ACPI_INTR_APIC		1
 #define	ACPI_INTR_SAPIC		2
 
+/* Quirk flags. */
+#define ACPI_Q_OK		0
+#define ACPI_Q_BROKEN		(1 << 0)	/* Disable ACPI completely. */
+
 /*
  * Note that the low ivar values are reserved to provide
  * interface compatibility with ISA drivers which can also
@@ -321,6 +325,8 @@ int		acpi_disabled(char *subsys);
 int		acpi_machdep_init(device_t dev);
 void		acpi_install_wakeup_handler(struct acpi_softc *sc);
 int		acpi_sleep_machdep(struct acpi_softc *sc, int state);
+int		acpi_table_quirks(int *quirks);
+int		acpi_machdep_quirks(int *quirks);
 
 /* Battery Abstraction. */
 struct acpi_battinfo;
