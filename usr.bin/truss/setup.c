@@ -3,7 +3,7 @@
  * I'm afraid.
  */
 /*
- * $Id$
+ * $Id: setup.c,v 1.1 1997/12/06 05:23:05 sef Exp $
  */
 
 #include <stdio.h>
@@ -46,6 +46,7 @@ setup_and_wait(char *command[]) {
     fd = open("/proc/curproc/mem", O_WRONLY);
     if (fd == -1)
       err(2, "cannot open /proc/curproc/mem: %s\n", strerror(errno));
+    fcntl(fd, F_SETFD, 1);
     if (ioctl(fd, PIOCBIS, &mask) == -1)
       err(3, "PIOCBIS: %s\n", strerror(errno));
     execvp(command[0], command);
