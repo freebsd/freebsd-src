@@ -495,7 +495,7 @@ m3_pchan_setformat(kobj_t kobj, void *chdata, u_int32_t format)
         m3_wr_assp_data(sc, ch->dac_data + SRC3_WORD_LENGTH_OFFSET, data);
 
         ch->fmt = format;
-        return format;
+        return 0;
 }
 
 static int
@@ -770,7 +770,7 @@ m3_rchan_setformat(kobj_t kobj, void *chdata, u_int32_t format)
         m3_wr_assp_data(sc, ch->adc_data + SRC3_WORD_LENGTH_OFFSET, data);
 
         ch->fmt = format;
-        return format;
+        return 0;
 }
 
 static int

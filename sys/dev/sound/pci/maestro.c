@@ -717,7 +717,7 @@ aggch_setplayformat(kobj_t obj, void *data, u_int32_t format)
 	}
 	ch->wcreg_tpl = wcreg_tpl;
 	ch->aputype = aputype;
-	return format;
+	return 0;
 }
 
 static int
