@@ -73,12 +73,13 @@ SCSI_NCR_MAX_WIDE	opt_ncr.h
 SCSI_NCR_MYADDR		opt_ncr.h
 
 # Resource limits.
-DFLDSIZ		opt_rlimit.h
-CHILD_MAX	opt_rlimit.h
-MAXDSIZ		opt_rlimit.h
-OPEN_MAX	opt_rlimit.h
+CHILD_MAX		opt_defunct.h
+DFLDSIZ			opt_rlimit.h
+MAXDSIZ			opt_rlimit.h
+OPEN_MAX		opt_defunct.h
 
 # Net stuff.
+GATEWAY			opt_defunct.h
 MROUTING		opt_mrouting.h
 IPFIREWALL		opt_ipfw.h
 IPFIREWALL_VERBOSE	opt_ipfw.h
