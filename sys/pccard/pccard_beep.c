@@ -64,7 +64,11 @@ void pccard_failure_beep(void)
 	sysbeep(PCCARD_BEEP_PITCH2, PCCARD_BEEP_DURATION2);
 }
 
-void pccard_beep_select(enum beepstate state)
+int pccard_beep_select(enum beepstate state)
 {
-	allow_beep = state;
+	if (state == BEEP_ON || state == BEEP_OFF) {
+		allow_beep = state;
+		return 0;
+	}
+	return 1;
 }
