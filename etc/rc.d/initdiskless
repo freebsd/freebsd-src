@@ -178,7 +178,7 @@ bootp_ipbca=""
 if [ ${dlv:=0} -ne 0 ] ; then
 	iflist=`ifconfig -l`
 	for i in ${iflist} ; do
-	    set `ifconfig ${i}`
+	    set -- `ifconfig ${i}`
 	    while [ $# -ge 1 ] ; do
 		if [ "${bootp_ifc}" = "" -a "$1" = "inet" ] ; then
 		    bootp_ifc=${i} ; bootp_ipa=${2} ; shift
@@ -202,8 +202,7 @@ fi
 
 # Figure out our NFS root path
 #
-# The 'x' is there in case the list is empty.
-set x `mount -t nfs`
+set -- `mount -t nfs`
 while [ $# -ge 1 ] ; do
     if [ "$2" = "on" -a "$3" = "/" ]; then
 	nfsroot="$1"
