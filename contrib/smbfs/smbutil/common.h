@@ -1,7 +1,7 @@
 /* $FreeBSD$ */
 
 #define iprintf(ident,args...)	do { printf("%-" # ident "s", ""); \
-				printf(# args);}while(0)
+				printf(args);}while(0)
 
 extern int verbose;
 
