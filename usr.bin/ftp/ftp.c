@@ -1015,6 +1015,7 @@ initconn()
 			perror("ftp: setsockopt (ignored)");
 		if (command("PASV") != COMPLETE) {
 			printf("Passive mode refused.\n");
+			close(data);
 			return(1);
 		}
 
@@ -1029,6 +1030,7 @@ initconn()
 		if (sscanf(pasv,"%d,%d,%d,%d,%d,%d",&a1,&a2,&a3,&a4,&p1,&p2)
 		    != 6) {
 			printf("Passive mode address scan failure. Shouldn't happen!\n");
+			close(data);
 			return(1);
 		};
 
@@ -1040,6 +1042,7 @@ initconn()
 		if (connect(data, (struct sockaddr *) &data_addr,
 		    sizeof(data_addr))<0) {
 			perror("ftp: connect");
+			close(data);
 			return(1);
 		}
 #ifdef IP_TOS
