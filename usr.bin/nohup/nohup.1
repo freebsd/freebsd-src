@@ -43,6 +43,7 @@
 .Nd invoke a command immune to hangups
 .Sh SYNOPSIS
 .Nm
+.Op Ar --
 .Ar command
 .Op Ar arguments
 .Sh DESCRIPTION
@@ -50,15 +51,10 @@ The
 .Nm
 utility invokes
 .Ar command
-with
-its
+with its
 .Ar arguments
 and at this time sets the signal
 .Dv SIGHUP
-to be ignored.
-The signal
-.Dv SIGQUIT
-may also be set
 to be ignored.
 If the standard output is a terminal, the standard output is
 appended to the file
@@ -66,10 +62,6 @@ appended to the file
 in the current directory.
 If standard error is a terminal, it is directed to the same place
 as the standard output.
-.Pp
-.Nm Nohup
-exits 1 if an error occurs, otherwise the exit status is that of
-.Ar command  .
 .Pp
 Some shells may provide a builtin
 .Nm
@@ -90,6 +82,26 @@ utility uses the directory named by
 .Ev HOME
 to create the file.
 .El
+.Sh DIAGNOSTICS
+The
+.Nm
+utility exits with one of the following values:
+.Bl -tag -width Ds
+.It 126
+The
+.Ar command
+was found, but could not be invoked.
+.It 127
+The
+.Ar command
+could not be found or an error occurred in
+.Nm .
+.El
+.Pp
+Otherwise, the exit status of
+.Nm
+will be that of
+.Ar command .
 .Sh SEE ALSO
 .Xr builtin 1 ,
 .Xr csh 1 ,
@@ -100,3 +112,7 @@ The
 utility is expected to be
 .St -p1003.2
 compatible.
+.Sh BUGS
+Two or more instances of
+.Nm
+can append to the same file, which makes for a confusing output.
