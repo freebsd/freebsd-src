@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: pw.h,v 1.6 1997/02/22 16:12:27 peter Exp $
  */
 
 #include <stdio.h>
@@ -98,7 +98,6 @@ struct userconf *read_userconfig(char const * file);
 int write_userconfig(char const * file);
 struct carg *addarg(struct cargs * _args, int ch, char *argstr);
 struct carg *getarg(struct cargs * _args, int ch);
-void cmderr(int ec, char const * fmt,...);
 
 int pw_user(struct userconf * cnf, int mode, struct cargs * _args);
 int pw_group(struct userconf * cnf, int mode, struct cargs * _args);

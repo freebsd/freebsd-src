@@ -22,20 +22,24 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$Id: pw_user.c,v 1.21 1997/06/14 00:23:49 ache Exp $
  */
 
-#include <unistd.h>
-#include <fcntl.h>
+#ifndef lint
+static const char rcsid[] =
+	"$Id$";
+#endif /* not lint */
+
 #include <ctype.h>
-#include <paths.h>
+#include <err.h>
+#include <fcntl.h>
 #include <sys/param.h>
 #include <dirent.h>
+#include <paths.h>
 #include <termios.h>
 #include <sys/types.h>
 #include <sys/time.h>
 #include <sys/resource.h>
+#include <unistd.h>
 #include <utmp.h>
 #if defined(USE_MD5RAND)
 #include <md5.h>
@@ -155,7 +159,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 			cnf->home[--l] = '\0';
 
 		if (l < 2 || *cnf->home != '/')		/* Check for absolute path name */
-			cmderr(EX_DATAERR, "invalid base directory for home '%s'\n", cnf->home);
+			errx(EX_DATAERR, "invalid base directory for home '%s'", cnf->home);
 
 		if (stat(cnf->home, &st) == -1) {
 			char	dbuf[MAXPATHLEN];
@@ -185,18 +189,18 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 							goto direrr;
 						chown(dbuf, 0, 0);
 					} else if (!S_ISDIR(st.st_mode))
-						cmderr(EX_OSFILE, "'%s' (root home parent) is not a directory\n", dbuf);
+						errx(EX_OSFILE, "'%s' (root home parent) is not a directory", dbuf);
 					*p = '/';
 				}
 			}
 			if (stat(dbuf, &st) == -1) {
 				if (mkdir(dbuf, 0755) == -1) {
-				direrr:	cmderr(EX_OSFILE, "mkdir '%s': %s\n", dbuf, strerror(errno));
+				direrr:	err(EX_OSFILE, "mkdir '%s'", dbuf);
 				}
 				chown(dbuf, 0, 0);
 			}
 		} else if (!S_ISDIR(st.st_mode))
-			cmderr(EX_OSFILE, "root home `%s' is not a directory\n", cnf->home);
+			errx(EX_OSFILE, "root home `%s' is not a directory", cnf->home);
 	}
 
 
@@ -213,7 +217,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 		p = arg->val;
 		if ((grp = getgrnam(p)) == NULL) {
 			if (!isdigit(*p) || (grp = getgrgid((gid_t) atoi(p))) == NULL)
-				cmderr(EX_NOUSER, "group `%s' does not exist\n", p);
+				errx(EX_NOUSER, "group `%s' does not exist", p);
 		}
 		cnf->default_group = newstr(grp->gr_name);
 	}
@@ -226,7 +230,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 		for (p = strtok(arg->val, ", \t"); p != NULL; p = strtok(NULL, ", \t")) {
 			if ((grp = getgrnam(p)) == NULL) {
 				if (!isdigit(*p) || (grp = getgrgid((gid_t) atoi(p))) == NULL)
-					cmderr(EX_NOUSER, "group `%s' does not exist\n", p);
+					errx(EX_NOUSER, "group `%s' does not exist", p);
 			}
 			if (extendarray(&cnf->groups, &cnf->numgroups, i + 2) != -1)
 				cnf->groups[i++] = newstr(grp->gr_name);
@@ -236,14 +240,14 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 	}
 	if ((arg = getarg(args, 'k')) != NULL) {
 		if (stat(cnf->dotdir = arg->val, &st) == -1 || !S_ISDIR(st.st_mode))
-			cmderr(EX_OSFILE, "skeleton `%s' is not a directory or does not exist\n", cnf->dotdir);
+			errx(EX_OSFILE, "skeleton `%s' is not a directory or does not exist", cnf->dotdir);
 	}
 	if ((arg = getarg(args, 's')) != NULL)
 		cnf->shell_default = arg->val;
 
 	if (mode == M_ADD && getarg(args, 'D')) {
 		if (getarg(args, 'n') != NULL)
-			cmderr(EX_DATAERR, "can't combine `-D' with `-n name'\n");
+			errx(EX_DATAERR, "can't combine `-D' with `-n name'");
 		if ((arg = getarg(args, 'u')) != NULL && (p = strtok(arg->val, ", \t")) != NULL) {
 			if ((cnf->min_uid = (uid_t) atoi(p)) == 0)
 				cnf->min_uid = 1000;
@@ -262,7 +266,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 		arg = getarg(args, 'C');
 		if (write_userconfig(arg ? arg->val : NULL))
 			return EXIT_SUCCESS;
-		perror("config update");
+		warn("config update");
 		return EX_IOERR;
 	}
 	if (mode == M_PRINT && getarg(args, 'a')) {
@@ -280,7 +284,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 
 	if (a_uid == NULL) {
 		if (a_name == NULL)
-			cmderr(EX_DATAERR, "user name or id required\n");
+			errx(EX_DATAERR, "user name or id required");
 
 		/*
 		 * Determine whether 'n' switch is name or uid - we don't
@@ -306,8 +310,8 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 				return print_user(&fakeuser, getarg(args, 'P') != NULL);
 			}
 			if (a_name == NULL)
-				cmderr(EX_NOUSER, "no such uid `%s'\n", a_uid->val);
-			cmderr(EX_NOUSER, "no such user `%s'\n", a_name->val);
+				errx(EX_NOUSER, "no such uid `%s'", a_uid->val);
+			errx(EX_NOUSER, "no such user `%s'", a_name->val);
 		}
 		if (a_name == NULL)	/* May be needed later */
 			a_name = addarg(args, 'n', newstr(pwd->pw_name));
@@ -321,7 +325,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 			uid_t           uid = pwd->pw_uid;
 
 			if (strcmp(pwd->pw_name, "root") == 0)
-				cmderr(EX_DATAERR, "cannot remove user 'root'\n");
+				errx(EX_DATAERR, "cannot remove user 'root'");
 
 			/*
 			 * Remove skey record from /etc/skeykeys
@@ -346,10 +350,10 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 			home[sizeof home - 1] = '\0';
 
 			if (!delpwent(pwd))
-				cmderr(EX_IOERR, "Error updating passwd file: %s\n", strerror(errno));
+				err(EX_IOERR, "error updating passwd file");
 
 			if (cnf->nispasswd && *cnf->nispasswd=='/' && !delnispwent(cnf->nispasswd, a_name->val))
-				perror("WARNING: NIS passwd update");
+				warn("WARNING: NIS passwd update");
 				
 			editgroups(a_name->val, NULL);
 
@@ -386,15 +390,15 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 		 */
 		if ((arg = getarg(args, 'l')) != NULL) {
 			if (strcmp(pwd->pw_name, "root") == 0)
-				cmderr(EX_DATAERR, "can't rename `root' account\n");
+				errx(EX_DATAERR, "can't rename `root' account");
 			pwd->pw_name = pw_checkname((u_char *)arg->val, 0);
 		}
 		if ((arg = getarg(args, 'u')) != NULL && isdigit(*arg->val)) {
 			pwd->pw_uid = (uid_t) atol(arg->val);
 			if (pwd->pw_uid != 0 && strcmp(pwd->pw_name, "root") == 0)
-				cmderr(EX_DATAERR, "can't change uid of `root' account\n");
+				errx(EX_DATAERR, "can't change uid of `root' account");
 			if (pwd->pw_uid == 0 && strcmp(pwd->pw_name, "root") != 0)
-				fprintf(stderr, "WARNING: account `%s' will have a uid of 0 (superuser access!)\n", pwd->pw_name);
+				warnx("WARNING: account `%s' will have a uid of 0 (superuser access!)", pwd->pw_name);
 		}
 		if ((arg = getarg(args, 'g')) != NULL && pwd->pw_uid != 0)	/* Already checked this */
 			pwd->pw_gid = (gid_t) getgrnam(cnf->default_group)->gr_gid;
@@ -407,7 +411,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 				time_t          expire = parse_date(now, arg->val);
 
 				if (now == expire)
-					cmderr(EX_DATAERR, "Invalid password change date `%s'\n", arg->val);
+					errx(EX_DATAERR, "invalid password change date `%s'", arg->val);
 				pwd->pw_change = expire;
 			}
 		}
@@ -419,7 +423,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 				time_t          expire = parse_date(now, arg->val);
 
 				if (now == expire)
-					cmderr(EX_DATAERR, "Invalid account expiry date `%s'\n", arg->val);
+					errx(EX_DATAERR, "invalid account expiry date `%s'", arg->val);
 				pwd->pw_expire = expire;
 			}
 		}
@@ -432,9 +436,9 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 		if ((arg  = getarg(args, 'd')) != NULL) {
 			if (stat(pwd->pw_dir = arg->val, &st) == -1) {
 				if (getarg(args, 'm') == NULL && strcmp(pwd->pw_dir, "/nonexistent") != 0)
-				  fprintf(stderr, "WARNING: home `%s' does not exist\n", pwd->pw_dir);
+				  warnx("WARNING: home `%s' does not exist", pwd->pw_dir);
 			} else if (!S_ISDIR(st.st_mode))
-				fprintf(stderr, "WARNING: home `%s' is not a directory\n", pwd->pw_dir);
+				warnx("WARNING: home `%s' is not a directory", pwd->pw_dir);
 		}
 
 		if ((arg = getarg(args, 'w')) != NULL && getarg(args, 'h') == NULL)
@@ -442,9 +446,9 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 
 	} else {
 		if (a_name == NULL)	/* Required */
-			cmderr(EX_DATAERR, "login name required\n");
+			errx(EX_DATAERR, "login name required");
 		else if ((pwd = getpwnam(a_name->val)) != NULL)	/* Exists */
-			cmderr(EX_DATAERR, "login name `%s' already exists\n", a_name->val);
+			errx(EX_DATAERR, "login name `%s' already exists", a_name->val);
 
 		/*
 		 * Now, set up defaults for a new user
@@ -461,7 +465,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 		pwd->pw_shell = pw_shellpolicy(cnf, args, NULL);
 
 		if (pwd->pw_uid == 0 && strcmp(pwd->pw_name, "root") != 0)
-			fprintf(stderr, "WARNING: new account `%s' has a uid of 0 (superuser access!)\n", pwd->pw_name);
+			warnx("WARNING: new account `%s' has a uid of 0 (superuser access!)", pwd->pw_name);
 	}
 
 	/*
@@ -499,14 +503,14 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 				fflush(stdout);
 			}
 			if (b < 0) {
-				perror("-h file descriptor");
+				warn("-h file descriptor");
 				return EX_IOERR;
 			}
 			line[b] = '\0';
 			if ((p = strpbrk(line, " \t\r\n")) != NULL)
 				*p = '\0';
 			if (!*line)
-				cmderr(EX_DATAERR, "empty password read on file descriptor %d\n", fd);
+				errx(EX_DATAERR, "empty password read on file descriptor %d", fd);
 			pwd->pw_passwd = pw_pwcrypt(line);
 		}
 	}
@@ -529,10 +533,10 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 	}
 
 	if (!r) {
-		perror("password update");
+		warn("password update");
 		return EX_IOERR;
 	} else if (!r1) {
-		perror("WARNING: NIS password update");
+		warn("WARNING: NIS password update");
 		/* Keep on trucking */
 	}
 
@@ -545,7 +549,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 
 	/* pwd may have been invalidated */
 	if ((pwd = getpwnam(a_name->val)) == NULL)
-		cmderr(EX_NOUSER, "user '%s' disappeared during update\n", a_name->val);
+		errx(EX_NOUSER, "user '%s' disappeared during update", a_name->val);
 
 	grp = getgrgid(pwd->pw_gid);
 	pw_log(cnf, mode, W_USER, "%s(%ld):%s(%d):%s:%s:%s",
@@ -573,7 +577,7 @@ pw_user(struct userconf * cnf, int mode, struct cargs * args)
 			FILE           *pfp = popen(_PATH_SENDMAIL " -t", "w");
 
 			if (pfp == NULL)
-				perror("sendmail");
+				warn("sendmail");
 			else {
 				fprintf(pfp, "From: root\n" "To: %s\n" "Subject: Welcome!\n\n", pwd->pw_name);
 				while (fgets(line, sizeof(line), fp) != NULL) {
@@ -615,7 +619,7 @@ pw_uidpolicy(struct userconf * cnf, struct cargs * args)
 		uid = (uid_t) atol(a_uid->val);
 
 		if ((pwd = getpwuid(uid)) != NULL && getarg(args, 'o') == NULL)
-			cmderr(EX_DATAERR, "uid `%ld' has already been allocated\n", (long) pwd->pw_uid);
+			errx(EX_DATAERR, "uid `%ld' has already been allocated", (long) pwd->pw_uid);
 	} else {
 		struct bitmap   bm;
 
@@ -650,7 +654,7 @@ pw_uidpolicy(struct userconf * cnf, struct cargs * args)
 		 * Another sanity check
 		 */
 		if (uid < cnf->min_uid || uid > cnf->max_uid)
-			cmderr(EX_SOFTWARE, "unable to allocate a new uid - range fully used\n");
+			errx(EX_SOFTWARE, "unable to allocate a new uid - range fully used");
 		bm_dealloc(&bm);
 	}
 	return uid;
@@ -678,7 +682,7 @@ pw_gidpolicy(struct userconf * cnf, struct cargs * args, char *nam, gid_t prefer
 		if ((grp = getgrnam(a_gid->val)) == NULL) {
 			gid = (gid_t) atol(a_gid->val);
 			if ((gid == 0 && !isdigit(*a_gid->val)) || (grp = getgrgid(gid)) == NULL)
-				cmderr(EX_NOUSER, "group `%s' is not defined\n", a_gid->val);
+				errx(EX_NOUSER, "group `%s' is not defined", a_gid->val);
 		}
 		gid = grp->gr_gid;
 	} else if ((grp = getgrnam(nam)) != NULL && grp->gr_mem[0] == NULL) {
@@ -736,7 +740,7 @@ pw_pwdpolicy(struct userconf * cnf, struct cargs * args)
 
 	if (arg != NULL) {
 		if ((result = parse_date(now, arg->val)) == now)
-			cmderr(EX_DATAERR, "invalid date/time `%s'\n", arg->val);
+			errx(EX_DATAERR, "invalid date/time `%s'", arg->val);
 	} else if (cnf->password_days > 0)
 		result = now + ((long) cnf->password_days * 86400L);
 	return result;
@@ -752,7 +756,7 @@ pw_exppolicy(struct userconf * cnf, struct cargs * args)
 
 	if (arg != NULL) {
 		if ((result = parse_date(now, arg->val)) == now)
-			cmderr(EX_DATAERR, "invalid date/time `%s'\n", arg->val);
+			errx(EX_DATAERR, "invalid date/time `%s'", arg->val);
 	} else if (cnf->expire_days > 0)
 		result = now + ((long) cnf->expire_days * 86400L);
 	return result;
@@ -770,7 +774,7 @@ pw_homepolicy(struct userconf * cnf, struct cargs * args, char const * user)
 		static char     home[128];
 
 		if (cnf->home == NULL || *cnf->home == '\0')
-			cmderr(EX_CONFIG, "no base home directory set\n");
+			errx(EX_CONFIG, "no base home directory set");
 		sprintf(home, "%s/%s", cnf->home, user);
 		return home;
 	}
@@ -806,8 +810,8 @@ shell_path(char const * path, char *shells[], char *sh)
 				}
 		}
 		if (sh == NULL)
-			cmderr(EX_OSFILE, "can't find shell `%s' in shell paths\n", sh);
-		cmderr(EX_CONFIG, "no default shell available or defined\n");
+			errx(EX_OSFILE, "can't find shell `%s' in shell paths", sh);
+		errx(EX_CONFIG, "no default shell available or defined");
 		return NULL;
 	}
 }
@@ -1041,14 +1045,14 @@ pw_checkname(u_char *name, int gecos)
 		if (strchr(notch, name[l]) != NULL || name[l] < ' ' || name[l] == 127 ||
 			(!gecos && l==0 && name[l] == '-') ||	/* leading '-' */
 			(!gecos && name[l] & 0x80))	/* 8-bit */
-			cmderr(EX_DATAERR, (name[l] >= ' ' && name[l] < 127)
-					    ? "invalid character `%c' in field\n"
-					    : "invalid character 0x%02x in field\n",
+			errx(EX_DATAERR, (name[l] >= ' ' && name[l] < 127)
+					    ? "invalid character `%c' in field"
+					    : "invalid character 0x%02x in field",
 					    name[l]);
 		++l;
 	}
 	if (!gecos && l > LOGNAMESIZE)
-		cmderr(EX_DATAERR, "name too long `%s'\n", name);
+		errx(EX_DATAERR, "name too long `%s'", name);
 	return (char *)name;
 }
 
