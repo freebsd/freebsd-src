@@ -41,14 +41,13 @@ my $COPYRIGHT	= "Copyright (c) 2003 Dag-Erling Smørgrav. " .
 
 my $arch;			# Target architecture
 my $branch;			# CVS branch to checkou
-my $clean;			# Clean before building
 my $date;			# Date of sources to check out
 my $jobs;			# Number of paralell jobs
 my $logfile;			# Path to log file
 my $machine;			# Target machine
+my $patch;			# Patch to apply before building
 my $repository;			# Location of CVS repository
 my $sandbox;			# Location of sandbox
-my $update;			# Update sources before building
 my $verbose;			# Verbose mode
 
 my %userenv;
@@ -133,7 +132,7 @@ sub remove_dir($) {
     my $dir = shift;
 
     if (!-d $dir) {
-	message("removing $dir")
+	print("$dir\n")
 	    if ($verbose);
 	return (unlink($dir) || $! == ENOENT);
     }
@@ -151,7 +150,7 @@ sub remove_dir($) {
     }
     closedir(DIR)
 	or return warning("$dir: $!");
-    message("rmdir $dir")
+    print("$dir\n")
 	if ($verbose);
     return rmdir($dir);
 }
@@ -248,6 +247,7 @@ Parameters:
   -j, --jobs=NUM                Maximum number of paralell jobs
   -l, --logfile=FILE            Path to log file (e.g. pc98)
   -m, --machine=MACHINE         Target machine
+  -p, --patch=PATCH             Patch to apply before building
   -r, --repository=DIR          Location of CVS repository
   -s, --sandbox=DIR             Location of sandbox
 
@@ -288,6 +288,7 @@ MAIN:{
 	"j|jobs=i"		=> \$jobs,
 	"l|logfile=s"		=> \$logfile,
 	"m|machine=s"		=> \$machine,
+	"p|patch=s"		=> \$patch,
 	"r|repository=s"	=> \$repository,
 	"s|sandbox=s"		=> \$sandbox,
 	"v|verbose+"		=> \$verbose,
@@ -329,7 +330,7 @@ MAIN:{
     }
 
     # Take control of our sandbox
-    if ($sandbox !~ m|^(/[\w/-]+)$|) {
+    if ($sandbox !~ m|^(/[\w./-]+)$|) {
 	error("invalid sandbox directory");
     }
     $sandbox = "$1/$branch/$arch/$machine";
@@ -369,14 +370,12 @@ MAIN:{
 	    or error("unable to remove old object directory");
 	remove_dir("$sandbox/root")
 	    or error("unable to remove old chroot directory");
-	make_dir("$sandbox/obj")
-	    or error("$sandbox/obj: $!");
     }
 
     # Check out new source tree
     if ($cmds{'update'}) {
-	cd("$sandbox");
 	logstage("checking out the source tree");
+	cd("$sandbox");
 	my @cvsargs = (
 	    "-f",
 	    "-R",
@@ -395,6 +394,24 @@ MAIN:{
 	push(@cvsargs, "src");
 	spawn('/usr/bin/cvs', @cvsargs)
 	    or error("unable to check out the source tree");
+    }
+
+    # Patch sources
+    if (defined($patch)) {
+	$patch = "$sandbox/$patch"
+	    unless ($patch =~ m|^/|);
+	if ($patch !~ m|^(/[\w./-]+)$|) {
+	    error("invalid patchfile path");
+	}
+	$patch = $1;
+	if (-f $patch) {
+	    logstage("patching the sources");
+	    cd("$sandbox/src");
+	    spawn('/usr/bin/patch', "-f", "-s", "-i$patch")
+		or error("failed to apply patch to source tree");
+	} else {
+	    warning("patch not found");
+	}
     }
 
     # Prepare environment for make(1);
@@ -429,6 +446,10 @@ MAIN:{
 	    if defined($date);
 	$ENV{'WORLD_FLAGS'} = $ENV{'KERNEL_FLAGS'} =
 	    ($jobs > 1) ? "-j$jobs" : "-B";
+	if ($patch) {
+	    $ENV{'LOCAL_PATCHES'} = $patch;
+	    $ENV{'PATCH_FLAGS'} = "-fs";
+	}
 
 	# Save time and space
 	$ENV{'NOCDROM'} = "YES";
@@ -475,7 +496,7 @@ MAIN:{
 		or error("failed to generate LINT kernel config");
 	}
 	if (! -f "$sandbox/src/sys/$machine/conf/LINT") {
-	    logstage("no LINT kernel config, skipping LINT kernel");
+	    warning("no LINT kernel config, skipping LINT kernel");
 	    $cmds{'lint'} = 0;
 	}
     }
