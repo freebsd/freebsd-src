@@ -45,10 +45,8 @@
  * posted to the sci.crypt newsgroup by the author and is available for FTP.
  *
  * ARCHITECTURE ASSUMPTIONS:
- *	This code assumes that u_longs are 32 bits.  It will probably not
- *	operate on 64-bit machines without modifications.
  *	It is assumed that the 8-byte arrays passed by reference can be
- *	addressed as arrays of u_longs (ie. the CPU is not picky about
+ *	addressed as arrays of uint32_t (ie. the CPU is not picky about
  *	alignment).
  */
 #include <sys/types.h>
@@ -151,7 +149,7 @@ static u_char	pbox[32] = {
 	 2,  8, 24, 14, 32, 27,  3,  9, 19, 13, 30,  6, 22, 11,  4, 25
 };
 
-static u_long	bits32[32] =
+static uint32_t	bits32[32] =
 {
 	0x80000000, 0x40000000, 0x20000000, 0x10000000,
 	0x08000000, 0x04000000, 0x02000000, 0x01000000,
@@ -165,20 +163,20 @@ static u_long	bits32[32] =
 
 static u_char	bits8[8] = { 0x80, 0x40, 0x20, 0x10, 0x08, 0x04, 0x02, 0x01 };
 
-static u_long	saltbits;
+static uint32_t	saltbits;
 static long	old_salt;
-static u_long	*bits28, *bits24;
+static uint32_t	*bits28, *bits24;
 static u_char	init_perm[64], final_perm[64];
-static u_long	en_keysl[16], en_keysr[16];
-static u_long	de_keysl[16], de_keysr[16];
+static uint32_t	en_keysl[16], en_keysr[16];
+static uint32_t	de_keysl[16], de_keysr[16];
 static int	des_initialised = 0;
 static u_char	m_sbox[4][4096];
-static u_long	psbox[4][256];
-static u_long	ip_maskl[8][256], ip_maskr[8][256];
-static u_long	fp_maskl[8][256], fp_maskr[8][256];
-static u_long	key_perm_maskl[8][128], key_perm_maskr[8][128];
-static u_long	comp_maskl[8][128], comp_maskr[8][128];
-static u_long	old_rawkey0, old_rawkey1;
+static uint32_t	psbox[4][256];
+static uint32_t	ip_maskl[8][256], ip_maskr[8][256];
+static uint32_t	fp_maskl[8][256], fp_maskr[8][256];
+static uint32_t	key_perm_maskl[8][128], key_perm_maskr[8][128];
+static uint32_t	comp_maskl[8][128], comp_maskr[8][128];
+static uint32_t	old_rawkey0, old_rawkey1;
 
 static u_char	ascii64[] =
 	 "./0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
@@ -208,7 +206,7 @@ static void
 des_init()
 {
 	int	i, j, b, k, inbit, obit;
-	u_long	*p, *il, *ir, *fl, *fr;
+	uint32_t *p, *il, *ir, *fl, *fr;
 
 	old_rawkey0 = old_rawkey1 = 0L;
 	saltbits = 0L;
@@ -338,7 +336,7 @@ des_init()
 static void
 setup_salt(long salt)
 {
-	u_long	obit, saltbit;
+	uint32_t obit, saltbit;
 	int	i;
 
 	if (salt == old_salt)
@@ -360,14 +358,14 @@ setup_salt(long salt)
 int
 des_setkey(const char *key)
 {
-	u_long	k0, k1, rawkey0, rawkey1;
+	uint32_t k0, k1, rawkey0, rawkey1;
 	int	shifts, i, b, round;
 
 	if (!des_initialised)
 		des_init();
 
-	rawkey0 = ntohl(*(u_long *) key);
-	rawkey1 = ntohl(*(u_long *) (key + 4));
+	rawkey0 = ntohl(*(uint32_t *) key);
+	rawkey1 = ntohl(*(uint32_t *) (key + 4));
 
 	if ((rawkey0 | rawkey1)
 	    && rawkey0 == old_rawkey0
@@ -407,7 +405,7 @@ des_setkey(const char *key)
 	 */
 	shifts = 0;
 	for (round = 0; round < 16; round++) {
-		u_long	t0, t1;
+		uint32_t t0, t1;
 		int	bit;
 
 		shifts += key_shifts[round];
@@ -440,13 +438,14 @@ des_setkey(const char *key)
 
 
 static int
-do_des(	u_long l_in, u_long r_in, u_long *l_out, u_long *r_out, int count)
+do_des(	uint32_t l_in, uint32_t r_in, uint32_t *l_out, uint32_t *r_out,
+    int count)
 {
 	/*
 	 *	l_in, r_in, l_out, and r_out are in pseudo-"big-endian" format.
 	 */
-	u_long	mask, rawl, rawr, l, r, *kl, *kr, *kl1, *kr1;
-	u_long	f, r48l, r48r;
+	uint32_t mask, rawl, rawr, l, r, *kl, *kr, *kl1, *kr1;
+	uint32_t f, r48l, r48r;
 	int	i, j, b, round;
 
 	if (count == 0) {
@@ -559,7 +558,7 @@ do_des(	u_long l_in, u_long r_in, u_long *l_out, u_long *r_out, int count)
 int
 des_cipher(const char *in, char *out, long salt, int count)
 {
-	u_long	l_out, r_out, rawl, rawr;
+	uint32_t l_out, r_out, rawl, rawr;
 	int	retval;
 
 	if (!des_initialised)
@@ -567,13 +566,13 @@ des_cipher(const char *in, char *out, long salt, int count)
 
 	setup_salt(salt);
 
-	rawl = ntohl(*((u_long *) in)++);
-	rawr = ntohl(*((u_long *) in));
+	rawl = ntohl(*((uint32_t *) in)++);
+	rawr = ntohl(*((uint32_t *) in));
 
 	retval = do_des(rawl, rawr, &l_out, &r_out, count);
 
-	*((u_long *) out)++ = htonl(l_out);
-	*((u_long *) out) = htonl(r_out);
+	*((uint32_t *) out)++ = htonl(l_out);
+	*((uint32_t *) out) = htonl(r_out);
 	return(retval);
 }
 
@@ -582,7 +581,7 @@ int
 setkey(char *key)
 {
 	int	i, j;
-	u_long	packed_keys[2];
+	uint32_t packed_keys[2];
 	u_char	*p;
 
 	p = (u_char *) packed_keys;
@@ -600,7 +599,7 @@ setkey(char *key)
 int
 encrypt(char *block, int flag)
 {
-	u_long	io[2];
+	uint32_t io[2];
 	u_char	*p;
 	int	i, j, retval;
 
