@@ -1,0 +1,13 @@
+#
+# Host Database
+# This file should contain the addresses and aliases
+# for local hosts that share this file.
+# It is used only for "ifconfig" and other operations
+# before the nameserver is started.
+#
+#
+127.1		localhost localhost.my.domain
+#
+# Imaginary network.
+0.2		myname.my.domain myname
+0.3		myfriend.my.domain myfriend

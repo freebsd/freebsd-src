@@ -1,0 +1,72 @@
+#	fs: /var
+#	by: bostic
+#
+#	@(#)BSD.var.dist	5.3 (Berkeley) 5/9/91
+
+/set group=bin mode=0755 owner=bin type=file
+account	type=dir owner=bin group=bin mode=0755
+..
+
+/set group=bin mode=0755 owner=bin type=file
+at	type=dir
+	past	type=dir owner=bin group=bin mode=0755
+	..
+..
+backups	type=dir owner=bin group=bin mode=0755
+..
+db	type=dir owner=bin group=bin mode=0755
+..
+
+/set group=bin mode=0755 owner=games type=file
+games	type=dir
+	hackdir	type=dir owner=games group=bin mode=0755
+	..
+	larn	type=dir owner=games group=bin mode=0755
+	..
+	phantasia	type=dir owner=games group=bin mode=0755
+	..
+..
+log	type=dir owner=bin group=bin mode=0755
+..
+mail	type=dir owner=bin group=bin mode=0755
+..
+msgs	type=dir owner=bin group=bin mode=0755
+..
+preserve	type=dir owner=bin group=bin mode=0755
+..
+quotas	type=dir owner=bin group=bin mode=0755
+..
+run	type=dir owner=bin group=bin mode=0755
+..
+rwho	type=dir owner=bin group=bin mode=0755
+..
+
+/set group=bin mode=0755 owner=bin type=file
+spool	type=dir mode=0755
+
+/set group=bin mode=0755 owner=bin type=file
+	ftp	type=dir mode=0755
+		bin	type=dir owner=bin group=bin mode=0755
+		..
+		hidden	type=dir owner=bin group=bin mode=0111
+		..
+		pub	type=dir owner=bin group=bin mode=0755
+		..
+	..
+	lpd	type=dir owner=bin group=bin mode=0755
+	..
+	mqueue	type=dir owner=root group=bin mode=0755
+	..
+	news	type=dir owner=bin group=bin mode=0755
+	..
+	output	type=dir owner=bin group=bin mode=0755
+	..
+	secretmail	type=dir owner=root group=bin mode=0755
+	..
+	uucp	type=dir owner=uucp group=daemon mode=0755
+	..
+	uucppublic	type=dir owner=uucp group=daemon mode=01777
+	..
+..
+tmp	type=dir owner=bin group=bin mode=01777
+..

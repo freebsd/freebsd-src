@@ -1,0 +1,36 @@
+#!/bin/sh -
+#
+#	@(#)security	5.3 (Berkeley) 5/28/91
+#
+PATH=/sbin:/bin:/usr/bin
+
+host=`hostname -s`
+echo "Subject: $host security check output"
+
+LOG=/var/log
+TMP=/tmp/_secure.$$
+
+echo "checking setuid files and devices:"
+MP=`mount -t ufs | sed 's;/dev/;&r;' | awk '{ print $1 " " $3 }'`
+set $MP
+ls -lgT `while test $# -ge 2; do
+	device=$1
+	shift
+	mount=$1
+	shift
+	ncheck -s $device | sed -e "/:$/d" -e "/\/dev\//d" \
+	    -e "s;[^/]*;$mount;" -e "s;//;/;g" | sort
+done` > $TMP
+
+if cmp $LOG/setuid.today $TMP >/dev/null; then :; else
+	echo "$host setuid/device diffs:"
+	diff $LOG/setuid.today $TMP
+	mv $LOG/setuid.today $LOG/setuid.yesterday
+	mv $TMP $LOG/setuid.today
+fi
+rm -f $TMP
+
+echo ""
+echo ""
+echo "checking for uids of 0:"
+awk 'BEGIN {FS=":"} $3=="0" {print $1,$3}' /etc/master.passwd
