@@ -1589,7 +1589,7 @@ DMenu MenuSysconsFont = {
       { "4 IBM 865", "Norwegian, IBM encoding",	dmenuVarCheck,	dmenuSetVariables, NULL,
 	"font8x8=cp865-8x8,font8x14=cp865-8x14,font8x16=cp865-8x16" },
       { "5 IBM 866", "Russian, IBM encoding (use with screenmap)",   dmenuVarCheck,  dmenuSetVariables, NULL,
-	"font8x8=cp866-8x8,font8x14=cp866-8x14,font8x16=cp866b-8x16" },
+	"font8x8=cp866-8x8,font8x14=cp866-8x14,font8x16=cp866b-8x16,mousechar_start=3" },
       { "6 IBM 866u", "Ukrainian, IBM encoding",	dmenuVarCheck,	dmenuSetVariables, NULL,
 	"font8x8=cp866u-8x8,font8x14=cp866u-8x14,font8x16=cp866u-8x16" },
       { "7 ISO 8859-1", "Western Europe, ISO encoding",	dmenuVarCheck,	dmenuSetVariables, NULL,
