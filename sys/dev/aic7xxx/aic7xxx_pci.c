@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: //depot/src/aic7xxx/aic7xxx_pci.c#12 $
+ * $Id: //depot/src/aic7xxx/aic7xxx_pci.c#16 $
  *
  * $FreeBSD$
  */
@@ -66,6 +66,8 @@ ahc_compose_id(u_int device, u_int vendor, u_int subdevice, u_int subvendor)
 #define ID_ALL_MASK		0xFFFFFFFFFFFFFFFFull
 #define ID_DEV_VENDOR_MASK	0xFFFFFFFF00000000ull
 #define ID_9005_GENERIC_MASK	0xFFF0FFFF00000000ull
+#define ID_9005_SISL_MASK	0x000FFFFF00000000ull
+#define ID_9005_SISL_ID		0x0005900500000000ull
 #define ID_AIC7850		0x5078900400000000ull
 #define ID_AHA_2910_15_20_30C	0x5078900478509004ull
 #define ID_AIC7855		0x5578900400000000ull
@@ -101,12 +103,14 @@ ahc_compose_id(u_int device, u_int vendor, u_int subdevice, u_int subvendor)
 #define ID_AHA_2940U_CN		0x0078900478009004ull
 
 #define ID_AIC7895		0x7895900478959004ull
-#define ID_AIC7895_RAID_PORT	0x7893900478939004ull
+#define ID_AIC7895_ARO		0x7890900478939004ull
+#define ID_AIC7895_ARO_MASK	0xFFF0FFFFFFFFFFFFull
 #define ID_AHA_2940U_DUAL	0x7895900478919004ull
 #define ID_AHA_3940AU		0x7895900478929004ull
 #define ID_AHA_3944AU		0x7895900478949004ull
 
 #define ID_AIC7890		0x001F9005000F9005ull
+#define ID_AIC7890_ARO		0x00139005000F9005ull
 #define ID_AAA_131U2		0x0013900500039005ull
 #define ID_AHA_2930U2		0x0011900501819005ull
 #define ID_AHA_2940U2B		0x00109005A1009005ull
@@ -115,6 +119,7 @@ ahc_compose_id(u_int device, u_int vendor, u_int subdevice, u_int subvendor)
 #define ID_AHA_2950U2B		0x00109005E1009005ull
 
 #define ID_AIC7892		0x008F9005FFFF9005ull
+#define ID_AIC7892_ARO		0x00839005FFFF9005ull
 #define ID_AHA_29160		0x00809005E2A09005ull
 #define ID_AHA_29160_CPQ	0x00809005E2A00E11ull
 #define ID_AHA_29160N		0x0080900562A09005ull
@@ -123,12 +128,14 @@ ahc_compose_id(u_int device, u_int vendor, u_int subdevice, u_int subvendor)
 #define ID_AHA_19160B		0x0081900562A19005ull
 
 #define ID_AIC7896		0x005F9005FFFF9005ull
+#define ID_AIC7896_ARO		0x00539005FFFF9005ull
 #define ID_AHA_3950U2B_0	0x00509005FFFF9005ull
 #define ID_AHA_3950U2B_1	0x00509005F5009005ull
 #define ID_AHA_3950U2D_0	0x00519005FFFF9005ull
 #define ID_AHA_3950U2D_1	0x00519005B5009005ull
 
 #define ID_AIC7899		0x00CF9005FFFF9005ull
+#define ID_AIC7899_ARO		0x00C39005FFFF9005ull
 #define ID_AHA_3960D		0x00C09005F6209005ull /* AKA AHA-39160 */
 #define ID_AHA_3960D_CPQ	0x00C09005F6200E11ull
 
@@ -157,6 +164,12 @@ ahc_compose_id(u_int device, u_int vendor, u_int subdevice, u_int subvendor)
 #define		SUBID_9005_TYPE_CARD		0x0	/* Standard Card */
 #define		SUBID_9005_TYPE_LCCARD		0x1	/* Low Cost Card */
 #define		SUBID_9005_TYPE_RAID		0x3	/* Combined with Raid */
+
+#define SUBID_9005_TYPE_KNOWN(id)			\
+	  ((((id) & 0xF) == SUBID_9005_TYPE_MB)		\
+	|| (((id) & 0xF) == SUBID_9005_TYPE_CARD)	\
+	|| (((id) & 0xF) == SUBID_9005_TYPE_LCCARD)	\
+	|| (((id) & 0xF) == SUBID_9005_TYPE_RAID))
 
 #define SUBID_9005_MAXRATE(id) (((id) & 0x30) >> 4)
 #define		SUBID_9005_MAXRATE_ULTRA2	0x0
@@ -358,6 +371,13 @@ struct ahc_pci_identity ahc_pci_ident_table [] =
 		"Adaptec 2940/CN Ultra SCSI adapter",
 		ahc_aic7880_setup
 	},
+	/* Ignore all SISL (AAC on MB) based controllers. */
+	{
+		ID_9005_SISL_ID,
+		ID_9005_SISL_MASK,
+		NULL,
+		NULL
+	},
 	/* aic7890 based controllers */
 	{
 		ID_AHA_2930U2,
@@ -387,6 +407,12 @@ struct ahc_pci_identity ahc_pci_ident_table [] =
 		ID_AHA_2950U2B,
 		ID_ALL_MASK,
 		"Adaptec 2950 Ultra2 SCSI adapter",
+		ahc_aic7890_setup
+	},
+	{
+		ID_AIC7890_ARO,
+		ID_ALL_MASK,
+		"Adaptec aic7890/91 Ultra2 SCSI adapter (ARO)",
 		ahc_aic7890_setup
 	},
 	{
@@ -432,6 +458,12 @@ struct ahc_pci_identity ahc_pci_ident_table [] =
 		"Adaptec 19160B Ultra160 SCSI adapter",
 		ahc_aic7892_setup
 	},
+	{
+		ID_AIC7892_ARO,
+		ID_ALL_MASK,
+		"Adaptec aic7892 Ultra2 SCSI adapter (ARO)",
+		ahc_aic7892_setup
+	},
 	/* aic7895 based controllers */	
 	{
 		ID_AHA_2940U_DUAL,
@@ -449,6 +481,12 @@ struct ahc_pci_identity ahc_pci_ident_table [] =
 		ID_AHA_3944AU,
 		ID_ALL_MASK,
 		"Adaptec 3944A Ultra SCSI adapter",
+		ahc_aic7895_setup
+	},
+	{
+		ID_AIC7895_ARO,
+		ID_AIC7895_ARO_MASK,
+		"Adaptec aic7895 Ultra SCSI adapter (ARO)",
 		ahc_aic7895_setup
 	},
 	/* aic7896/97 based controllers */	
@@ -476,6 +514,12 @@ struct ahc_pci_identity ahc_pci_ident_table [] =
 		"Adaptec 3950D Ultra2 SCSI adapter",
 		ahc_aic7896_setup
 	},
+	{
+		ID_AIC7896_ARO,
+		ID_ALL_MASK,
+		"Adaptec aic7896/97 Ultra2 SCSI adapter (ARO)",
+		ahc_aic7896_setup
+	},
 	/* aic7899 based controllers */	
 	{
 		ID_AHA_3960D,
@@ -487,6 +531,12 @@ struct ahc_pci_identity ahc_pci_ident_table [] =
 		ID_AHA_3960D_CPQ,
 		ID_ALL_MASK,
 		"Adaptec (Compaq OEM) 3960D Ultra160 SCSI adapter",
+		ahc_aic7899_setup
+	},
+	{
+		ID_AIC7899_ARO,
+		ID_ALL_MASK,
+		"Adaptec aic7899 Ultra160 SCSI adapter (ARO)",
 		ahc_aic7899_setup
 	},
 	/* Generic chip probes for devices we don't know 'exactly' */
@@ -542,12 +592,6 @@ struct ahc_pci_identity ahc_pci_ident_table [] =
 		ID_AIC7895 & ID_DEV_VENDOR_MASK,
 		ID_DEV_VENDOR_MASK,
 		"Adaptec aic7895 Ultra SCSI adapter",
-		ahc_aic7895_setup
-	},
-	{
-		ID_AIC7895_RAID_PORT & ID_DEV_VENDOR_MASK,
-		ID_DEV_VENDOR_MASK,
-		"Adaptec aic7895 Ultra SCSI adapter (RAID PORT)",
 		ahc_aic7895_setup
 	},
 	{
@@ -670,13 +714,18 @@ ahc_find_pci_device(ahc_dev_softc_t pci)
 	/* If the second function is not hooked up, ignore it. */
 	if (ahc_get_pci_function(pci) > 0
 	 && subvendor == 0x9005
+	 && SUBID_9005_TYPE_KNOWN(subdevice) != 0
 	 && SUBID_9005_MFUNCENB(subdevice) == 0)
 		return (NULL);
 
 	for (i = 0; i < ahc_num_pci_devs; i++) {
 		entry = &ahc_pci_ident_table[i];
-		if (entry->full_id == (full_id & entry->id_mask))
+		if (entry->full_id == (full_id & entry->id_mask)) {
+			/* Honor exclusion entries. */
+			if (entry->name == NULL)
+				return (NULL);
 			return (entry);
+		}
 	}
 	return (NULL);
 }
