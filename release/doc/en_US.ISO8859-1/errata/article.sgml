@@ -23,6 +23,8 @@
 %release;
 <!ENTITY % misc PUBLIC  "-//FreeBSD//ENTITIES DocBook Miscellaneous FreeBSD Entities//EN">
 %misc;
+
+<!ENTITY release.bugfix "5.2.1-RELEASE">
 ]>
 
 <article>
@@ -75,6 +77,12 @@
       operation or usability.  An up-to-date version of this document
       should always be consulted before installing this version of
       &os;.</para>
+
+    <para>This document also contains errata for &os;
+      &release.bugfix;, a <quote>point release</quote> made about one
+      month after &os; &release.prev;.  Unless otherwise noted, all
+      errata items in this document apply to both &release.prev;
+      and &release.bugfix;.</para>
 
     <para>This errata document for &os; 
 <![ %release.type.snapshot [
@@ -129,7 +137,7 @@
 
 <![ %release.type.snapshot [
 
-    <para>(30 Jan 2004) A bug in &man.mksnap.ffs.8; causes the creation of a
+    <para>(30 Jan 2004, updated 28 Feb 2004) A bug in &man.mksnap.ffs.8; causes the creation of a
       filesystem snapshot to reset the flags on the filesystem to
       their default values.  The possible consequences depend on local
       usage, but can include disabling extended access control lists
@@ -139,19 +147,31 @@
       that &man.mksnap.ffs.8; is normally only available to the
       superuser and members of the <groupname>operator</groupname>
       group.  This bug has been fixed on the &os; &release.current;
-      security fix branch.  For more information, see security advisory <ulink
+      security fix branch and in &os; &release.bugfix;.  For more information, see security advisory <ulink
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:01.mksnap_ffs.asc">FreeBSD-SA-04:01</ulink>.</para>
 
-    <para>(8 Feb 2004) A bug with the System V Shared Memory interface
+    <para>(8 Feb 2004, updated 28 Feb 2004) A bug with the System V Shared Memory interface
       (specifically the &man.shmat.2; system call)
       can cause a shared memory segment to reference
       unallocated kernel memory.  In turn, this can permit a local
       attacker to gain unauthorized access to parts of kernel memory,
       possibly resulting in disclosure of sensitive information,
       bypass of access control mechanisms, or privilege escalation.
+      This bug has been fixed on the &os; &release.current;
+      security fix branch and in &os; &release.bugfix;.
       More details, including bugfix and workaround information,
       can be found in security advisory <ulink
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:02.shmat.asc">FreeBSD-SA-04:02</ulink>.</para>
+
+    <para>(28 Feb 2004) It is possible, under some circumstances, for
+      a processor with superuser privileges inside a &man.jail.8;
+      environment to change its root directory to a different jail,
+      giving it read and write access to the files and directories
+      within.  This vulnerability has been closed on the &os;
+      &release.current; security fix branch and in &os;
+      &release.bugfix;.  Information on the bug fix can be found in
+      security advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-04:03.mail.asc">FreeBSD-SA-04:03</ulink>.</para>
 
 ]]>
 
@@ -184,7 +204,7 @@
       output of &man.dmesg.8; and &man.acpidump.8; to the
       &a.current; may help diagnose the problem.</para>
 
-    <para>(9 Jan 2004) In some cases, ATA devices may behave
+    <para>(9 Jan 2004, updated 28 Feb 2004) In some cases, ATA devices may behave
       erratically, particularly SATA devices.  Reported symptoms
       include command timeouts or missing interrupts.  These problems
       appear to be timing-dependent, making them rather difficult to
@@ -211,6 +231,10 @@
       </listitem>
     </itemizedlist>
 
+    <para>Some of these problems were addressed in &os;
+      &release.bugfix; with the import of a newer &man.ata.4; from
+      &release.current;.</para>
+
     <para>(9 Jan 2004) Installing over NFS when using the install
       floppies requires that the <filename>nfsclient.ko</filename>
       module be manually loaded from the third floppy disk.  This can
@@ -230,19 +254,21 @@
       <varname>hint.apic.0.disabled</varname> loader tunable.  Note
       that disabling APIC is not compatible with SMP systems.</para>
 
-    <para>(10 Jan 2004) The NFSv4 client may panic when attempting an
+    <para>(10 Jan 2004, updated 28 Feb 2004) The NFSv4 client may panic when attempting an
       NFSv4 operation against an NFSv3/NFSv2-only server.  This
       problem has been fixed with revision 1.4 of
       <filename>src/sys/rpc/rpcclnt.c</filename> in &os;
-      &release.current;.</para>
+      &release.current;.  It was also fixed in &os;
+      &release.bugfix;.</para>
 
-    <para>(11 Jan 2004) Some problems have been encountered when using
+    <para>(11 Jan 2004, updated 28 Feb 2004) Some problems have been encountered when using
       third-party NSS modules, such as <filename>nss_ldap</filename>,
       and groups with large membership lists.  These have been fixed
       with revision 1.2 of <filename>src/include/nss.h</filename> and
       revision 1.2 of
       <filename>src/lib/libc/net/nss_compat.c</filename> in &os;
-      &release.current;.</para>
+      &release.current;; this fix was backported to &os;
+      &release.bugfix;.</para>
 
     <para>(13 Jan 2004) The &os; &release.current; release notes
       incorrectly stated that <application>GCC</application> was a
@@ -250,14 +276,16 @@
       GCC was a <emphasis>pre-release</emphasis> GCC 3.3.3
       snapshot.</para>
 
-    <para>(13 Jan 2004) The <filename
+    <para>(13 Jan 2004, updated 28 Feb 2004) The <filename
       role="package">sysutils/kdeadmin3</filename> port/package has a
       bug in the <application>KUser</application> component that can
       cause deletion of the <username>root</username> user from the
       system password file.  Users are strongly urged to upgrade to
-      version 3.1.4_1 of this port/package.</para>
+      version 3.1.4_1 of this port/package.  The package set included
+      with &os; &release.bugfix; contains the fixed version of this
+      package.</para>
 
-    <para>(21 Jan 2004) Some bugs in the IPsec implementation imported
+    <para>(21 Jan 2004, updated 28 Feb 2004) Some bugs in the IPsec implementation imported
       from the KAME Project can result in memory objects being freed
       before all references to them were removed.  Reported symptoms
       include erratic behavior or kernel panics after flushing the
@@ -265,11 +293,17 @@
       been fixed in &os; &release.current; in rev. 1.31 of
       <filename>src/sys/netinet6/ipsec.c</filename>, rev. 1.136 of
       <filename>src/sys/netinet/in_pcb.c</filename>, and revs. 1.63
-      and 1.64 of <filename>src/sys/netkey/key.c</filename>.  More
+      and 1.64 of <filename>src/sys/netkey/key.c</filename>.  These
+      bugfixes were backported to &os; &release.bugfix;.  More
       information about these problems has been posted to the
       &a.current;, in particular the thread entitled <ulink 
       url="http://lists.FreeBSD.org/pipermail/freebsd-current/2004-January/thread.html#18084">
       <quote>[PATCH] IPSec fixes</quote></ulink>.</para>
+
+    <para>(28 Feb 2004) The edition of the Porters Handbook included
+      with &os; &release.bugfix; contained an incorrect value for
+      &release.bugfix;'s <varname>__FreeBSD_version</varname>.  The
+      correct value is <literal>502010</literal>.</para>
 
 ]]>
 
@@ -284,7 +318,7 @@
 
 <![ %release.type.snapshot [
 
-    <para>(10 Jan 2004) The TCP implementation in &os; now includes
+    <para>(10 Jan 2004, updated 28 Feb 2004) The TCP implementation in &os; now includes
       protection against a certain class of TCP MSS resource
       exhaustion attacks, in the form of limits on the size and rate
       of TCP segments.  The first limit sets the minimum allowed
@@ -299,9 +333,9 @@
       Because this feature was added late in the &release.prev;
       release cycle, connection rate limiting is disabled by default,
       but can be enabled manually by assigning a non-zero value to
-      <varname>net.inet.tcp.minmssoverload</varname> (the default
-      value in &release.current; at the time of this writing is
-      <literal>1000</literal> packets per second).</para>
+      <varname>net.inet.tcp.minmssoverload</varname>.  This feature
+      was added to &os; &release.prev; too late for inclusion in its
+      release notes.</para>
 
 ]]>
 
