@@ -1,0 +1,174 @@
+.\" ACPI (ACPI Package)
+.\"
+.\" Copyright (c) 1999 Doug Rabson <dfr@FreeBSD.org>
+.\" Copyright (c) 2000 Mitsuru IWASAKI <iwasaki@FreeBSD.org>
+.\" Copyright (c) 2000 Yasuo YOKOYAMA <yokoyama@jp.FreeBSD.org>
+.\" Copyright (c) 2000 Hiroki Sato <hrs@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\" 
+.\" $FreeBSD$
+.\" 
+.Dd August 31, 2000
+.Dt ACPIDUMP 8
+.Os FreeBSD 5.0
+.Sh NAME
+.Nm acpidump
+.Nd dump ACPI tables
+.Sh SYNOPSIS
+.Nm acpidump
+.Nm acpidump
+.Op Fl o Ar dsdt_file_for_output
+.Nm acpidump
+.Op Fl f Ar dsdt_file_for_input
+.Sh DESCRIPTION
+The
+.Nm
+command analyzes ACPI tables in physical memory and dumps them to standard output.
+In addition,
+.Nm
+can disassemble some contents of the tables in AML
+.Pq ACPI Machine Language
+and dump them in ASL
+.Pq ACPI Source Language .
+.Pp
+ACPI tables have an notably essential data block called DSDT
+.Pq Differentiated System Description Table ,
+that includes information used on the kernel side such as
+detail information about PnP hardware, procedures for controlling
+a power management support and so on.
+.Nm
+can extract a DSDT data block from physical memory and store it into
+a DSDT data file, and also can generate an output in ASL
+from a given DSDT data file.
+.Pp
+When
+.Nm
+is invoked with no option, it will search ACPI tables from physical
+memory via a special file
+.Pa /dev/mem
+and dump them.  First, it searches Root System Description Pointer,
+that has a signature
+.Qq RSD PTR\ \& ,
+and then gets RSDT
+.Pq Root System Description Table ,
+which includes a list of pointers to physical memory addresses
+for other tables.
+RSDT itself and all other tables linked from RSDT are generically
+called SDT
+.Pq System Description Table
+and their header has the common format which consists of items
+such as Signature, Length, Revision, Checksum, OEMID, OEM Table ID,
+OEM Revision, Creator ID and Creator Revision.
+.Nm
+dumps contents of these SDTs.
+For further information about formats of each table,
+see chapter 5: ACPI Software Programming Model, 
+.Dq Advanced Configuration and Power Interface Specification Revision 1.0b
+from Intel/Microsoft/Toshiba.
+.Pp
+There is always a pointer to a physical memory address in RSDT for FACP
+.Pq Fixed ACPI Description Table .
+.Ns \ FACP defines static system information about power management support
+.Pq ACPI Hardware Register Implementation
+such as interrupt mode
+.Pq INT_MODEL ,
+SCI interrupt number, SMI command port
+.Pq SMI_CMD
+and location of ACPI registers.  
+FACP also has a pointer to a physical memory address for DSDT,
+which includes information used on the kernel side such as
+PnP, power management support and so on.
+While the other tables are described in fixed format,
+DSDT consists of AML data which compiled from sources
+written in free formated ASL, description language for ACPI.
+When
+.Nm
+outputs DSDT, it disassembles the AML data and
+translates them into ASL.
+.Sh OPTIONS
+The following options are supported by
+.Nm Ns :
+.Bl -tag -width indent
+.It Fl o Ar dsdt_file_for_output
+Stores DSDT data block from physical memory into a file specified in
+.Ar dsdt_file_for_output
+in addition to behavior with no option.
+.It Fl f Ar dsdt_file_for_input
+Interprets AML data in DSDT from a file specified in
+.Ar dsdt_file_for_input
+and dumps them in ASL to standard output.
+.It Fl h
+Displays usage and exit.
+.El
+.Sh EXAMPLES
+This is an example to get a dump of SDTs and a DSDT data file
+simultaneously on a machine that supports ACPI BIOS.
+.Bd -literal -offset indent
+# acpidump -o foo.dsdt > foo.asl
+.Ed
+.Sh BUGS
+In the current implementation,
+.Nm
+doesn't dump any information of Firmware ACPI Control Structure
+.Pq FACS
+specified by a pointer in FACP.
+Some parts of output in ASL are incomplete.  To obtain a complete
+output, it would need to change the implementation into another one
+that analyzes a whole DSDT and builds an ACPI namespace as preprocess,
+and then interprets the DSDT again referring to namespace.
+.Sh FILES
+.Bl -tag -width /dev/mem
+.It Pa /dev/mem
+.El
+.Sh SEE ALSO
+.Xr mem 4 ,
+.Xr acpi 4 ,
+.Xr acpiconf 8 ,
+.Xr amldb 8
+.Pp
+.Dq Advanced Configuration and Power Interfce Specification
+.Bd -literal -offset indent -compact 
+Intel
+Microsoft
+Toshiba
+Revision 1.0b
+.Ed
+<URL:http://www.teleport.com/~acpi/>
+.Sh AUTHORS
+.An Doug Rabson Aq dfr@FreeBSD.org
+.An Mitsuru IWASAKI Aq iwasaki@FreeBSD.org
+.An Yasuo YOKOYAMA Aq yokoyama@jp.FreeBSD.org
+.Pp
+Some contributions made by
+.An Chitoshi Ohsawa Aq ohsawa@catv1.ccn-net.ne.jp ,
+.An Takayasu IWANASHI Aq takayasu@wendy.a.perfect-liberty.or.jp ,
+.An Yoshihiko SARUMARU Aq mistral@imasy.or.jp ,
+.An Hiroki Sato Aq hrs@FreeBSD.org ,
+and
+.An Michael Lucas Aq mwlucas@blackhelicopters.org .
+.Sh HISTORY
+The
+.Nm
+command appeared in
+.Fx 5.0 .
