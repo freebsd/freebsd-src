@@ -81,6 +81,8 @@ EXTERN int dialog_active;
 EXTERN char selection[];
 EXTERN int debug_fd;
 
+EXTERN int no_mounts;
+EXTERN struct fstab *mounts[MAX_NO_MOUNTS];
 
 extern unsigned char *scratch;
 extern unsigned char *errmsg;
