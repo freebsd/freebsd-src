@@ -11,7 +11,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)arpadate.c	8.12 (Berkeley) 5/19/1998";
+static char sccsid[] = "@(#)arpadate.c	8.14 (Berkeley) 2/2/1999";
 #endif /* not lint */
 
 # include "sendmail.h"
@@ -73,7 +73,7 @@ arpadate(ud)
 	**	to resolve the timezone.
 	*/
 
-	(void) time(&t);
+	t = curtime();
 	if (ud == NULL)
 		ud = ctime(&t);
 
@@ -156,7 +156,12 @@ arpadate(ud)
 		{
 			extern char *tzname[];
 
-			tz = tzname[lt->tm_isdst];
+			if (lt->tm_isdst > 0)
+				tz = tzname[1];
+			else if (lt->tm_isdst == 0)
+				tz = tzname[0];
+			else
+				tz = NULL;
 		}
 #endif
 #if TZ_TYPE == TZ_TIMEZONE
