@@ -41,7 +41,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumioctl.c,v 1.11 1999/10/13 02:19:25 grog Exp grog $
+ * $Id: vinumioctl.c,v 1.13 2000/04/26 04:10:20 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -302,12 +302,8 @@ vinumioctl(dev_t dev,
 	    *(int *) data = daemon_options;
 	    return 0;
 
-	case VINUM_CHECKPARITY:				    /* check RAID-4/5 parity */
-	    parityops((struct vinum_ioctl_msg *) data, checkparity);
-	    return 0;
-
-	case VINUM_REBUILDPARITY:			    /* rebuild RAID-4/5 parity */
-	    parityops((struct vinum_ioctl_msg *) data, rebuildparity);
+	case VINUM_PARITYOP:				    /* check/rebuild RAID-4/5 parity */
+	    parityops((struct vinum_ioctl_msg *) data);
 	    return 0;
 
 	    /* move an object */

@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumext.h,v 1.22 1999/12/30 07:03:37 grog Exp grog $
+ * $Id: vinumext.h,v 1.25 2000/05/10 06:08:43 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -190,13 +190,13 @@ void setstate_by_force(struct vinum_ioctl_msg *msg);
 void vinum_label(int);
 int vinum_writedisklabel(struct volume *, struct disklabel *);
 int initsd(int, int);
-struct buf *parityrebuild(struct plex *, u_int64_t, int, int, struct rangelock **);
+struct buf *parityrebuild(struct plex *, u_int64_t, int, enum parityop, struct rangelock **, off_t *);
 enum requeststatus sddownstate(struct request *rq);
 
 int restart_plex(int plexno);
 int revive_read(struct sd *sd);
 int revive_block(int sdno);
-void parityops(struct vinum_ioctl_msg *, enum parityop op);
+void parityops(struct vinum_ioctl_msg *);
 
 /* Auxiliary functions */
 enum sdstates sdstatemap(struct plex *plex);

@@ -45,7 +45,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumconfig.c,v 1.28 1999/12/29 07:39:16 grog Exp grog $
+ * $Id: vinumconfig.c,v 1.30 2000/05/01 09:45:50 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -2042,7 +2042,7 @@ finish_config(int update)
     vinum_conf.flags &= ~VF_CONFIGURING;		    /* and now other people can take a turn */
     if ((vinum_conf.flags & VF_WILL_CONFIGURE) != 0) {
 	vinum_conf.flags &= ~VF_WILL_CONFIGURE;
-	wakeup(&vinum_conf);
+	wakeup_one(&vinum_conf);
     }
 }
 /* Local Variables: */

@@ -33,7 +33,7 @@
  * otherwise) arising in any way out of the use of this software, even if
  * advised of the possibility of such damage.
  *
- * $Id: vinumio.c,v 1.27 1999/12/31 02:49:14 grog Exp grog $
+ * $Id: vinumio.c,v 1.30 2000/05/10 23:23:30 grog Exp grog $
  * $FreeBSD$
  */
 
@@ -77,6 +77,10 @@ open_drive(struct drive *drive, struct proc *p, int verbose)
 	devmajor = 116;
     else if (bcmp(dname, "da", 2) == 0)
 	devmajor = 13;
+    else if (bcmp(dname, "vn", 2) == 0)
+	devmajor = 43;
+    else if (bcmp(dname, "md", 2) == 0)
+	devmajor = 95;
     else
 	return ENODEV;
     dname += 2;						    /* point past */
@@ -257,20 +261,28 @@ close_locked_drive(struct drive *drive)
 
 /*
  * Remove drive from the configuration.
- * Caller must ensure that it isn't active
+ * Caller must ensure that it isn't active.
  */
 void
 remove_drive(int driveno)
 {
     struct drive *drive = &vinum_conf.drive[driveno];
-    int64_t nomagic = VINUM_NOMAGIC;			    /* no magic number */
+    struct vinum_hdr *vhdr;				    /* buffer for header */
+    int error;
 
     if (drive->state > drive_referenced) {		    /* real drive */
-	if (drive->state == drive_up)
-	    write_drive(drive,				    /* obliterate the magic, but leave a hint */
-		(char *) &nomagic,
-		8,
-		VINUM_LABEL_OFFSET);
+	if (drive->state == drive_up) {
+	    vhdr = (struct vinum_hdr *) Malloc(VINUMHEADERLEN);	/* allocate buffer */
+	    CHECKALLOC(vhdr, "Can't allocate memory");
+	    error = read_drive(drive, (void *) vhdr, VINUMHEADERLEN, VINUM_LABEL_OFFSET);
+	    if (error)
+		drive->lasterror = error;
+	    else {
+		vhdr->magic = VINUM_NOMAGIC;		    /* obliterate the magic, but leave the rest */
+		write_drive(drive, (void *) vhdr, VINUMHEADERLEN, VINUM_LABEL_OFFSET);
+	    }
+	    Free(vhdr);
+	}
 	free_drive(drive);				    /* close it and free resources */
 	save_config();					    /* and save the updated configuration */
     }
@@ -767,6 +779,7 @@ write_volume_label(int volno)
     error = biowait(bp);
     bp->b_flags |= B_INVAL | B_AGE;
     bp->b_flags &= ~B_ERROR;
+
     brelse(bp);
     return error;
 }
@@ -781,7 +794,6 @@ vinum_scandisk(char *devicename[], int drives)
     volatile int gooddrives;				    /* number of usable drives found */
     int firsttime;					    /* set if we have never configured before */
     int error;
-    struct nameidata nd;				    /* mount point credentials */
     char *config_text;					    /* read the config info from disk into here */
     char *volatile cptr;				    /* pointer into config information */
     char *eptr;						    /* end pointer into config information */
@@ -923,7 +935,7 @@ vinum_scandisk(char *devicename[], int drives)
 			 */
 			log(LOG_ERR,
 			    "vinum: Config error on %s, aborting integration\n",
-			    nd.ni_dirp);
+			    drive->devicename);
 			free_drive(drive);		    /* give it back */
 			status = EINVAL;
 		    }
