@@ -51,8 +51,10 @@ ipcperm(p, perm, mode)
 	int mode;
 {
 	struct ucred *cred = p->p_ucred;
+	int error;
 
-	if (suser(p))
+	error = suser(p);
+	if (!error)
 		return (0);
 
 	/* Check for user match. */
