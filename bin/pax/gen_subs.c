@@ -64,8 +64,8 @@ static const char rcsid[] =
 #define MODELEN 20
 #define DATELEN 64
 #define SIXMONTHS	 ((365 / 2) * 86400)
-#define CURFRMT		"%b %e %H:%M"
-#define OLDFRMT		"%b %e  %Y"
+#define CURFRMT         "%Ef %H:%M"
+#define OLDFRMT         "%Ef  %Y"
 #ifndef UT_NAMESIZE
 #define UT_NAMESIZE	8
 #endif
