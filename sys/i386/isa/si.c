@@ -30,7 +30,7 @@
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN
  * NO EVENT SHALL THE AUTHORS BE LIABLE.
  *
- *	$Id: si.c,v 1.70 1998/03/28 13:24:39 bde Exp $
+ *	$Id: si.c,v 1.71 1998/06/07 17:10:56 dfr Exp $
  */
 
 #ifndef lint
@@ -2799,8 +2799,8 @@ si_modulename(host_type, uart_type)
 			return(" (SI)");
 		case 40:
 			return(" (XIO)");
-		case 80:
-			return(" (SX)");
+		case 72:
+			return(" (SXDC)");
 		}
 		break;
 	}
