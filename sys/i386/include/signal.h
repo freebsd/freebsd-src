@@ -62,7 +62,7 @@ typedef int sig_atomic_t;
  */
 typedef unsigned int osigset_t;
 
-struct	osigcontext {
+struct osigcontext {
 	int	sc_onstack;		/* sigstack state to restore */
 	osigset_t sc_mask;		/* signal mask to restore */
 	int	sc_esp;			/* machine state follows: */
@@ -90,7 +90,7 @@ struct	osigcontext {
  * The sequence of the fields/registers in struct sigcontext should match
  * those in mcontext_t.
  */
-struct	sigcontext {
+struct sigcontext {
 	sigset_t sc_mask;		/* signal mask to restore */
 	int	sc_onstack;		/* sigstack state to restore */
 	int	sc_gs;			/* machine state (struct trapframe): */

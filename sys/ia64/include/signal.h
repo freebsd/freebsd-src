@@ -68,7 +68,7 @@ struct  osigcontext {};
  * The sequence of the fields should match those in
  * mcontext_t. Keep them in sync!
  */
-struct	sigcontext {
+struct sigcontext {
 	sigset_t	sc_mask;		/* signal mask to restore */
 	unsigned long	sc_onstack;
 	unsigned long	sc_flags;

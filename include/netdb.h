@@ -84,7 +84,7 @@ extern int h_errno;
  * supplied in host order, and returned in network order (suitable for
  * use in system calls).
  */
-struct	hostent {
+struct hostent {
 	char	*h_name;	/* official name of host */
 	char	**h_aliases;	/* alias list */
 	int	h_addrtype;	/* host address type */
@@ -97,21 +97,21 @@ struct	hostent {
  * Assumption here is that a network number
  * fits in an unsigned long -- probably a poor one.
  */
-struct	netent {
+struct netent {
 	char		*n_name;	/* official name of net */
 	char		**n_aliases;	/* alias list */
 	int		n_addrtype;	/* net address type */
 	unsigned long	n_net;		/* network # */
 };
 
-struct	servent {
+struct servent {
 	char	*s_name;	/* official service name */
 	char	**s_aliases;	/* alias list */
 	int	s_port;		/* port # */
 	char	*s_proto;	/* protocol to use */
 };
 
-struct	protoent {
+struct protoent {
 	char	*p_name;	/* official protocol name */
 	char	**p_aliases;	/* alias list */
 	int	p_proto;	/* protocol # */
