@@ -29,10 +29,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	from: @(#)genassym.c	5.11 (Berkeley) 5/10/91
  * $FreeBSD$
  */
 
+#include "opt_compat.h"
 #include "opt_kstack_pages.h"
 
 #include <sys/param.h>
@@ -60,6 +60,10 @@
 #include <sys/user.h>
 #include <net/if.h>
 #include <netinet/in.h>
+
+#ifdef COMPAT_IA32
+ASSYM(COMPAT_IA32,	COMPAT_IA32);
+#endif
 
 ASSYM(DT_NULL,		DT_NULL);
 ASSYM(DT_RELA,		DT_RELA);
