@@ -68,14 +68,10 @@
 
 #ifdef PROF
 #define	ALTENTRY(x)	_ENTRY(x); \
-			pushl %rbp; movl %rsp,%rbp; \
 			call PIC_PLT(HIDENAME(mcount)); \
-			popl %rbp; \
 			jmp 9f
 #define	ENTRY(x)	_ENTRY(x); \
-			pushl %rbp; movl %rsp,%rbp; \
 			call PIC_PLT(HIDENAME(mcount)); \
-			popl %rbp; \
 			9:
 #else
 #define	ALTENTRY(x)	_ENTRY(x)
