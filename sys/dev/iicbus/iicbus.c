@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: iicbus.c,v 1.3 1998/11/07 14:33:46 nsouch Exp $
+ *	$Id: iicbus.c,v 1.4 1998/11/08 18:42:34 nsouch Exp $
  *
  */
 
@@ -107,8 +107,6 @@ static device_method_t iicbus_methods[] = {
         DEVMETHOD(bus_print_child,      iicbus_print_child),
         DEVMETHOD(bus_read_ivar,        iicbus_read_ivar),
         DEVMETHOD(bus_write_ivar,       iicbus_write_ivar),
-        DEVMETHOD(bus_create_intr,      bus_generic_create_intr),
-        DEVMETHOD(bus_connect_intr,     bus_generic_connect_intr),
 
         { 0, 0 }
 };
