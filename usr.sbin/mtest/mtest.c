@@ -5,11 +5,10 @@
  * Written by Steve Deering, Stanford University, February 1989.
  */
 
-#define MULTICAST
-
 #include <stdio.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/time.h>
 #include <net/if.h>
 #include <sys/ioctl.h>
 #include <netinet/in.h>
