@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bundle.c,v 1.1.2.77 1998/05/08 01:15:04 brian Exp $
+ *	$Id: bundle.c,v 1.1.2.78 1998/05/09 13:52:10 brian Exp $
  */
 
 #include <sys/types.h>
@@ -1256,6 +1256,8 @@ bundle_ReceiveDatalink(struct bundle *bundle, int s, struct sockaddr_un *sun)
   /* We've successfully received an open file descriptor through our socket */
   link_fd = *(int *)CMSG_DATA(cmsg);
 
+  write(s, "!",1 );	/* ACK */
+
   if (strncmp(Version, iov[0].iov_base, iov[0].iov_len)) {
     log_Printf(LogWARN, "Cannot receive datalink, incorrect version"
                " (\"%.*s\", not \"%s\")\n", (int)iov[0].iov_len,
@@ -1282,7 +1284,7 @@ bundle_ReceiveDatalink(struct bundle *bundle, int s, struct sockaddr_un *sun)
 void
 bundle_SendDatalink(struct datalink *dl, int s, struct sockaddr_un *sun)
 {
-  char cmsgbuf[sizeof(struct cmsghdr) + sizeof(int)];  /* pass ppp_fd */
+  char cmsgbuf[sizeof(struct cmsghdr) + sizeof(int)], ack;
   struct cmsghdr *cmsg = (struct cmsghdr *)cmsgbuf;
   struct msghdr msg;
   struct iovec iov[SCATTER_SEGMENTS];
@@ -1330,6 +1332,8 @@ bundle_SendDatalink(struct datalink *dl, int s, struct sockaddr_un *sun)
     setsockopt(s, SOL_SOCKET, SO_SNDBUF, &f, sizeof f);
     if (sendmsg(s, &msg, 0) == -1)
       log_Printf(LogERROR, "Failed sendmsg: %s\n", strerror(errno));
+    /* We must get the ACK before closing the descriptor ! */
+    read(s, &ack, 1);
     close(link_fd);
   }
 
