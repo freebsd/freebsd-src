@@ -99,6 +99,7 @@ char	*machinename;
 #define	MACHINE_I386	1
 #define MACHINE_PC98	2
 #define MACHINE_ALPHA	3
+#define MACHINE_IA64	4
 
 /*
  * For each machine, a set of CPU's may be specified as supported.

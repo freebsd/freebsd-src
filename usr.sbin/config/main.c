@@ -168,6 +168,7 @@ main(int argc, char **argv)
 	case MACHINE_I386:
 	case MACHINE_PC98:
 	case MACHINE_ALPHA:
+	case MACHINE_IA64:
 		break;
 
 	default:

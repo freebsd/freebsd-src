@@ -44,7 +44,7 @@
 #define memcpy(x,y,z)	bcopy(y, x, z)
 #endif
 
-#if defined(__i386__) || defined(__alpha__)
+#if defined(__i386__) || defined(__alpha__) || defined(__ia64__)
 #define Encode memcpy
 #define Decode memcpy
 #else /* __i386__ */
