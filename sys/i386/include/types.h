@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)types.h	8.3 (Berkeley) 1/5/94
- * $Id$
+ * $Id: types.h,v 1.10 1997/02/22 09:35:21 peter Exp $
  */
 
 #ifndef _MACHINE_TYPES_H_
@@ -68,5 +68,11 @@ typedef	unsigned long long	u_int64_t;
 typedef	int32_t			register_t;
 
 typedef int32_t			ufs_daddr_t;
+
+/* Interrupt mask (spl, xxx_imask, etc) */
+typedef u_int32_t		intrmask_t;
+
+/* Interrupt handler function type - arg should be "void *" one day */
+typedef void			inthand2_t(int _unit);
 
 #endif /* !_MACHINE_TYPES_H_ */
