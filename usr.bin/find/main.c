@@ -65,7 +65,7 @@ int ftsoptions;			/* options for the ftsopen(3) call */
 int isdeprecated;		/* using deprecated syntax */
 int isdepth;			/* do directories on post-order visit */
 int isoutput;			/* user specified output operator */
-int issort;         		/* do directories in lexicographical order */
+int issort;         		/* do hierarchies in lexicographical order */
 int isxargs;			/* don't permit xargs delimiting chars */
 
 static void usage __P((void));
