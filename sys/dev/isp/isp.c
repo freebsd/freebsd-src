@@ -1,5 +1,5 @@
-/* $Id: isp.c,v 1.16 1999/03/26 00:33:13 mjacob Exp $ */
-/* release_4_3_99 */
+/* $Id: isp.c,v 1.17 1999/04/04 02:28:29 mjacob Exp $ */
+/* release_4_3_99+ */
 /*
  * Machine and OS Independent (well, as best as possible)
  * code for the Qlogic ISP SCSI adapters.
@@ -1611,31 +1611,35 @@ isp_intr(arg)
 			}
 			/*
 			 * It really has to be a bounced request just copied
-			 * from the request queue to the response queue.
+			 * from the request queue to the response queue. If
+			 * not, something bad has happened.
 			 */
-
 			if (sp->req_header.rqs_entry_type != RQSTYPE_REQUEST) {
 				ISP_WRITE(isp, INMAILBOX5, optr);
+				PRINTF("%s: not RESPONSE in RESPONSE Queue "
+				    "(type 0x%x) @ idx %d (next %d)\n",
+				    isp->isp_name,
+				    sp->req_header.rqs_entry_type, oop, optr);
 				continue;
 			}
-			PRINTF("%s: not RESPONSE in RESPONSE Queue "
-			    "(type 0x%x) @ idx %d (next %d)\n", isp->isp_name,
-			    sp->req_header.rqs_entry_type, oop, optr);
 			buddaboom = 1;
 		}
 
 		if (sp->req_header.rqs_flags & 0xf) {
+#define	_RQS_OFLAGS	\
+	~(RQSFLAG_CONTINUATION|RQSFLAG_FULL|RQSFLAG_BADHEADER|RQSFLAG_BADPACKET)
 			if (sp->req_header.rqs_flags & RQSFLAG_CONTINUATION) {
+				IDPRINTF(3, ("%s: continuation segment\n",
+				    isp->isp_name));
 				ISP_WRITE(isp, INMAILBOX5, optr);
 				continue;
 			}
-			PRINTF("%s: rqs_flags=%x", isp->isp_name,
-				sp->req_header.rqs_flags & 0xf);
 			if (sp->req_header.rqs_flags & RQSFLAG_FULL) {
-				PRINTF("%s: internal queues full\n",
-				    isp->isp_name);
-				/* XXXX: this command *could* get restarted */
-				buddaboom++;
+				IDPRINTF(2, ("%s: internal queues full\n",
+				    isp->isp_name));
+				/*
+				 * We'll synthesize a QUEUE FULL message below.
+				 */
 			}
 			if (sp->req_header.rqs_flags & RQSFLAG_BADHEADER) {
 				PRINTF("%s: bad header\n", isp->isp_name);
@@ -1646,6 +1650,12 @@ isp_intr(arg)
 				    isp->isp_name);
 				buddaboom++;
 			}
+			if (sp->req_header.rqs_flags & _RQS_OFLAGS) {
+				PRINTF("%s: unknown flags in response (0x%x)\n",
+				    isp->isp_name, sp->req_header.rqs_flags);
+				buddaboom++;
+			}
+#undef	_RQS_OFLAGS
 		}
 		if (sp->req_handle > RQUEST_QUEUE_LEN || sp->req_handle < 1) {
 			PRINTF("%s: bad request handle %d\n", isp->isp_name,
@@ -1684,6 +1694,16 @@ isp_intr(arg)
 				sdparam *sdp = isp->isp_param;
 				isp->isp_update = 1;
 				sdp->isp_devparam[XS_TGT(xs)].dev_refresh = 1;
+			}
+		} else if (sp->req_header.rqs_entry_type == RQSTYPE_REQUEST) {
+			if (sp->req_header.rqs_flags & RQSFLAG_FULL) {
+				/*
+				 * Force Queue Full status.
+				 */
+				XS_STS(xs) = 0x28;
+				XS_SETERR(xs, HBA_NOERROR);
+			} else if (XS_NOERR(xs)) {
+				XS_SETERR(xs, HBA_BOTCH);
 			}
 		} else {
 			if (XS_STS(xs) == SCSI_CHECK) {
@@ -3656,7 +3676,7 @@ isp_setdfltparm(isp)
 		sdp->isp_async_data_setup = 6;
 	}
 	sdp->isp_selection_timeout = 250;
-	sdp->isp_max_queue_depth = 128;
+	sdp->isp_max_queue_depth = MAXISPREQUEST;
 	sdp->isp_tag_aging = 8;
 	sdp->isp_bus_reset_delay = 3;
 	sdp->isp_retry_count = 0;
