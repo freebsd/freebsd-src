@@ -1,4 +1,4 @@
-#	$Id: options,v 1.45 1998/01/09 03:20:51 eivind Exp $
+#	$Id: options,v 1.46 1998/01/24 02:54:04 eivind Exp $
 
 # Format:
 # Option name	filename
@@ -12,6 +12,7 @@ DEVFS
 DEVFS_ROOT	opt_devfs.h
 SUIDDIR		opt_suiddir.h
 KTRACE
+MD5
 MFS_AUTOLOAD	opt_mfs.h
 MFS_ROOT	opt_mfs.h
 QUOTA
