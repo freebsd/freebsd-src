@@ -1057,8 +1057,7 @@ mac_lomac_associate_vnode_extattr(struct mount *mp, struct label *fslabel,
     struct vnode *vp, struct label *vlabel)
 {
 	struct mac_lomac temp, *source, *dest;
-	size_t buflen;
-	int error;
+	int buflen, error;
 
 	source = SLOT(fslabel);
 	dest = SLOT(vlabel);
