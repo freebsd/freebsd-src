@@ -1,5 +1,5 @@
 #
-# $Id: INDEX.fonts,v 1.3 1996/07/25 14:06:37 wosch Exp $
+# $Id: INDEX.fonts,v 1.4 1996/08/19 22:13:04 wosch Exp $
 #
 # database for vidfont(8) 
 #
@@ -50,10 +50,12 @@
 MENU:en:Choose your keyboard font
 MENU:de:Wähle Deine Schrift
 MENU:fr:Choisissez votre fonte écran
+MENU:pl:Wybierz czcionkê ekranow±
 #
 FONT:en:cp437-8x16.fnt
 FONT:de,fr:iso-8x16.fnt
 FONT:ru:koi8-r-8x16.fnt
+FONT:pl:iso02-8x16.fnt
 #
 cp437-8x14.fnt:en:Codepage 437 English, 8x14
 cp437-8x14.fnt:de:Codeseite 437 Englisch, 8x14
@@ -158,6 +160,15 @@ iso-8x8.fnt:fr:ISO-8859-1 Est européen, 8x8
 
 iso-8859-2-8x16.fnt:en:ISO-8859-2 Central European, 8x16
 iso-8859-2-8x16.fnt:de:ISO-8859-2 Mitteleuropa, 8x16
+
+iso02-8x16.fnt:en:Polish ISO-8859-2, 8x16
+iso02-8x16.fnt:pl:Polska ISO-8859-2, 8x16
+
+iso02-8x14.fnt:en:Polish ISO-8859-2, 8x14
+iso02-8x14.fnt:pl:Polska ISO-8859-2, 8x14
+
+iso02-8x8.fnt:en:Polish ISO-8859-2, 8x8
+iso02-8x8.fnt:pl:Polska ISO-8859-2, 8x8
 
 koi8-r-8x14.fnt:en:Russian koi8-r, 8x14
 koi8-r-8x14.fnt:de:Russisch koi8-r, 8x14
