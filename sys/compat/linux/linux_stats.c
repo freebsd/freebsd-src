@@ -380,6 +380,8 @@ static int
 stat64_copyout(struct stat *buf, void *ubuf)
 {
 	struct l_stat64 lbuf;
+	struct cdevsw *cdevsw;
+	dev_t dev;
 
 	bzero(&lbuf, sizeof(lbuf));
 	lbuf.st_dev = uminor(buf->st_dev) | (umajor(buf->st_dev) << 8);
@@ -395,6 +397,23 @@ stat64_copyout(struct stat *buf, void *ubuf)
 	lbuf.st_ctime = buf->st_ctime;
 	lbuf.st_blksize = buf->st_blksize;
 	lbuf.st_blocks = buf->st_blocks;
+
+	/* Lie about disk drives which are character devices
+	 * in FreeBSD but block devices under Linux.
+	 */
+	if (S_ISCHR(lbuf.st_mode) &&
+	    (dev = udev2dev(buf->st_rdev, 0)) != NODEV) {
+		cdevsw = devsw(dev);
+		if (cdevsw != NULL && (cdevsw->d_flags & D_DISK)) {
+			lbuf.st_mode &= ~S_IFMT;
+			lbuf.st_mode |= S_IFBLK;
+
+			/* XXX this may not be quite right */
+			/* Map major number to 0 */
+			lbuf.st_dev = uminor(buf->st_dev) & 0xf;
+			lbuf.st_rdev = buf->st_rdev & 0xff;
+		}
+	}
 
 	/*
 	 * The __st_ino field makes all the difference. In the Linux kernel
