@@ -1,7 +1,7 @@
 /*
  * National Semiconductor DS8390 NIC register definitions 
  *
- * $Id: if_edreg.h,v 1.11 1994/01/25 22:52:09 ats Exp $
+ * $Id: if_edreg.h,v 1.12 1994/02/02 02:24:42 davidg Exp $
  *
  * Modification history
  *
@@ -698,6 +698,7 @@ struct ed_ring	{
 #define ED_TYPE_TOSHIBA3	0x13 /* named PCETB  */
 #define ED_TYPE_TOSHIBA4	0x14 /* named PCETC  */
 #define ED_TYPE_WD8003W		0x24
+#define ED_TYPE_WD8003EB	0x25
 #define ED_TYPE_WD8013W		0x26
 #define ED_TYPE_WD8013EP	0x27
 #define ED_TYPE_WD8013WC	0x28

@@ -20,7 +20,7 @@
  */
 
 /*
- * $Id: if_ed.c,v 1.30 1994/01/31 07:34:20 davidg Exp $
+ * $Id: if_ed.c,v 1.31 1994/02/02 02:24:38 davidg Exp $
  */
 
 #include "ed.h"
@@ -298,21 +298,20 @@ ed_probe_WD80x3(isa_dev)
 	/*
 	 * Set initial values for width/size.
 	 */
+	memsize = 8192;
+	isa16bit = 0;
 	switch (sc->type) {
 	case ED_TYPE_WD8003S:
 		sc->type_str = "WD8003S";
-		memsize = 8192;
-		isa16bit = 0;
 		break;
 	case ED_TYPE_WD8003E:
 		sc->type_str = "WD8003E";
-		memsize = 8192;
-		isa16bit = 0;
+		break;
+	case ED_TYPE_WD8003EB:
+		sc->type_str = "WD8003EB";
 		break;
 	case ED_TYPE_WD8003W:
 		sc->type_str = "WD8003W";
-		memsize = 8192;
-		isa16bit = 0;
 		break;
 	case ED_TYPE_WD8013EBT:
 		sc->type_str = "WD8013EBT";
@@ -331,8 +330,6 @@ ed_probe_WD80x3(isa_dev)
 			memsize = 16384;
 			sc->type_str = "WD8013EP";
 		} else {
-			isa16bit = 0;
-			memsize = 8192;
 			sc->type_str = "WD8003EP";
 		}
 		break;
@@ -377,8 +374,6 @@ ed_probe_WD80x3(isa_dev)
 #endif
 	default:
 		sc->type_str = "";
-		memsize = 8192;
-		isa16bit = 0;
 		break;
 	}
 	/*
