@@ -116,11 +116,13 @@ g_apple_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 	mp = gsp->softc;
 	g_slice_dumpconf(sb, indent, gp, cp, pp);
 	if (pp != NULL) {
-		if (indent == NULL)
-			sbuf_printf(sb, " n %s ty %s",
-			    mp->apmpart[pp->index].am_name,
+		if (indent == NULL) {
+			sbuf_printf(sb, " ty %s",
 			    mp->apmpart[pp->index].am_type);
-		else {
+                        if (*mp->apmpart[pp->index].am_name)
+                                sbuf_printf(sb, " sn %s",
+                                    mp->apmpart[pp->index].am_name);
+		} else {
 			sbuf_printf(sb, "%s<name>%s</name>\n", indent,
 			    mp->apmpart[pp->index].am_name);
 			sbuf_printf(sb, "%s<type>%s</type>\n", indent,
