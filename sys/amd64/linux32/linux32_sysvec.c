@@ -207,9 +207,9 @@ static int _bsd_to_linux_trapcode[] = {
 
 struct linux32_ps_strings {
 	u_int32_t ps_argvstr;	/* first of 0 or more argument strings */
-	int	ps_nargvstr;	/* the number of argument strings */
+	u_int ps_nargvstr;	/* the number of argument strings */
 	u_int32_t ps_envstr;	/* first of 0 or more environment strings */
-	int	ps_nenvstr;	/* the number of environment strings */
+	u_int ps_nenvstr;	/* the number of environment strings */
 };
 
 /*
