@@ -47,13 +47,12 @@ mblen(const char *s, size_t n)
 {
 	const char *e;
 
-	if (s == NULL || *s == '\0')
+	if (s == NULL)
 		/* No support for state dependent encodings. */
 		return (0);	
-
 	if (sgetrune(s, n, &e) == _INVALID_RUNE) {
 		errno = EILSEQ;
-		return (s - e);
+		return (-1);
 	}
-	return (e - s);
+	return (*s == '\0' ? 0 : e - s);
 }
