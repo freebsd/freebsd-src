@@ -72,10 +72,6 @@ main(argc, argv)
 	char *cp, homedir[MAXPATHLEN];
 	struct servent sp_default;
 
-#ifdef	SOCKS
-	SOCKSinit(argv[0]);
-#endif
-
 	sp = getservbyname("ftp", "tcp");
 	if (sp == 0) {
 		sp = &sp_default;
