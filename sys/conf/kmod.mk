@@ -1,5 +1,5 @@
 #	From: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-#	$Id: bsd.kmod.mk,v 1.57 1998/11/05 04:01:55 peter Exp $
+#	$Id: bsd.kmod.mk,v 1.58 1998/11/11 07:40:44 peter Exp $
 #
 # The include file <bsd.kmod.mk> handles installing Loadable Kernel Modules.
 #
@@ -32,8 +32,6 @@
 #
 #			LINKS=  /lkm/master /lkm/meister
 #
-# LN_FLAGS	Flags for ln(1) (see variable LINKS)
-#
 # MODLOAD	Command to load a kernel module [/sbin/modload]
 #
 # MODUNLOAD	Command to unload a kernel module [/sbin/modunload]
@@ -52,6 +50,9 @@
 # SUBDIR        A list of subdirectories that should be built as well.
 #               Each of the targets will execute the same target in the
 #               subdirectories.
+#
+# SYMLINKS	Same as LINKS, except it creates symlinks and the
+#		linked-to pathname may be relative.
 #
 # DESTDIR, DISTDIR are set by other Makefiles (e.g. bsd.own.mk)
 #
@@ -279,8 +280,18 @@ realinstall: _SUBDIR
 		t=${DESTDIR}$$1; \
 		shift; \
 		${ECHO} $$t -\> $$l; \
-		rm -f $$t; \
-		ln ${LN_FLAGS} $$l $$t; \
+		ln -f $$l $$t; \
+	done; true
+.endif
+.if defined(SYMLINKS) && !empty(SYMLINKS)
+	@set ${SYMLINKS}; \
+	while test $$# -ge 2; do \
+		l=$$1; \
+		shift; \
+		t=${DESTDIR}$$1; \
+		shift; \
+		${ECHO} $$t -\> $$l; \
+		ln -fs $$l $$t; \
 	done; true
 .endif
 

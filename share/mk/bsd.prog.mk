@@ -1,5 +1,5 @@
 #	from: @(#)bsd.prog.mk	5.26 (Berkeley) 6/25/91
-#	$Id: bsd.prog.mk,v 1.80 1998/12/06 17:14:37 bde Exp $
+#	$Id: bsd.prog.mk,v 1.81 1999/01/22 12:41:27 jdp Exp $
 
 .if !target(__initialized__)
 __initialized__:
@@ -103,8 +103,18 @@ realinstall: beforeinstall
 		t=${DESTDIR}$$1; \
 		shift; \
 		${ECHO} $$t -\> $$l; \
-		rm -f $$t; \
-		ln ${LN_FLAGS} $$l $$t; \
+		ln -f $$l $$t; \
+	done; true
+.endif
+.if defined(SYMLINKS) && !empty(SYMLINKS)
+	@set ${SYMLINKS}; \
+	while test $$# -ge 2; do \
+		l=$$1; \
+		shift; \
+		t=${DESTDIR}$$1; \
+		shift; \
+		${ECHO} $$t -\> $$l; \
+		ln -fs $$l $$t; \
 	done; true
 .endif
 

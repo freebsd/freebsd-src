@@ -1,5 +1,5 @@
 #	from: @(#)bsd.lib.mk	5.26 (Berkeley) 5/2/91
-#	$Id: bsd.lib.mk,v 1.84 1999/01/20 21:42:40 jdp Exp $
+#	$Id: bsd.lib.mk,v 1.85 1999/01/22 12:41:26 jdp Exp $
 #
 
 .if !target(__initialized__)
@@ -280,7 +280,7 @@ realinstall: beforeinstall
 	    ${INSTALLFLAGS} ${SHLINSTALLFLAGS} \
 	    ${SHLIB_NAME} ${DESTDIR}${SHLIBDIR}
 .if defined(SHLIB_LINK)
-	ln ${LN_FLAGS} -sf ${SHLIB_NAME} ${DESTDIR}${SHLIBDIR}/${SHLIB_LINK}
+	ln -sf ${SHLIB_NAME} ${DESTDIR}${SHLIBDIR}/${SHLIB_LINK}
 .endif
 .endif
 .if defined(INSTALL_PIC_ARCHIVE)
@@ -295,8 +295,18 @@ realinstall: beforeinstall
 		t=${DESTDIR}$$1; \
 		shift; \
 		${ECHO} $$t -\> $$l; \
-		rm -f $$t; \
-		ln ${LN_FLAGS} $$l $$t; \
+		ln -f $$l $$t; \
+	done; true
+.endif
+.if defined(SYMLINKS) && !empty(SYMLINKS)
+	@set ${SYMLINKS}; \
+	while test $$# -ge 2; do \
+		l=$$1; \
+		shift; \
+		t=${DESTDIR}$$1; \
+		shift; \
+		${ECHO} $$t -\> $$l; \
+		ln -fs $$l $$t; \
 	done; true
 .endif
 
