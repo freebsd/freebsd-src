@@ -4,7 +4,7 @@
  * THIS FILE AUTOMATICALLY GENERATED.  DO NOT EDIT.
  *
  * generated from:
- *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.46 2003/04/10 06:58:40 imp Exp 
+ *	FreeBSD: src/sys/dev/pccard/pccarddevs,v 1.48 2003/04/18 14:52:14 sanpei Exp 
  */
 /* $NetBSD: pcmciadevs,v 1.182 2003/04/09 02:09:55 christos Exp $ */
 /* $OpenBSD: pcmciadevs,v 1.93 2002/06/21 08:31:10 henning Exp $ */
@@ -116,7 +116,7 @@
 #define	PCMCIA_VENDOR_CONTEC	0xc001	/* Contec */
 #define	PCMCIA_VENDOR_MACNICA	0xc00b	/* MACNICA */
 #define	PCMCIA_VENDOR_ROLAND	0xc00c	/* Roland */
-#define	PCMCIA_VENDOR_COREGA	0xc00f	/* Corega K.K. */
+#define	PCMCIA_VENDOR_COREGA2	0xc00f	/* Corega K.K. */
 #define	PCMCIA_VENDOR_ALLIEDTELESIS	0xc00f	/* Allied Telesis K.K. */
 #define	PCMCIA_VENDOR_HAGIWARASYSCOM	0xc012	/* Hagiwara SYS-COM */
 #define	PCMCIA_VENDOR_RATOC	0xc015	/* RATOC System Inc. */
@@ -751,6 +751,7 @@
 #define	PCMCIA_VENDOR_AMD	0xffffffff	/* AMD */
 #define	PCMCIA_VENDOR_BILLIONTON	0xffffffff	/* Billionton Systems Inc. */
 #define	PCMCIA_VENDOR_CNET	0xffffffff	/* CNet */
+#define	PCMCIA_VENDOR_COREGA	0xffffffff	/* Corega K.K. */
 #define	PCMCIA_VENDOR_DIGITAL	0xffffffff	/* Digital Equipment Corporation */
 #define	PCMCIA_VENDOR_DLINK	0xffffffff	/* D-Link */
 #define	PCMCIA_VENDOR_DYNALINK	0xffffffff	/* DynaLink */
@@ -1013,13 +1014,6 @@
 #define	PCMCIA_CIS_SVEC_LANCARD	{ "SVEC", "FD605 PCMCIA EtherNet Card", "V1-1", NULL }
 #define	PCMCIA_PRODUCT_SVEC_LANCARD	0xffffffff
 #define	PCMCIA_STR_SVEC_LANCARD	"SVEC PCMCIA Lan Card"
-/*
- * vendor ID of PN650TX is LINKSYS (0x0149) and product ID is 0xc1ab, but
- * it conflicts with LINKSYS Combo EthernetCard.
- */
-#define	PCMCIA_CIS_SVEC_PN650TX	{ NULL, NULL, NULL, NULL }
-#define	PCMCIA_PRODUCT_SVEC_PN650TX	-1
-#define	PCMCIA_STR_SVEC_PN650TX	"SVEC PN650TX 10/100 Dual Speed Fast Ethernet PC Card"
 #define	PCMCIA_CIS_SYNERGY21_S21810	{ "PCMCIA", "Ethernet", "A", "004743118001" }
 #define	PCMCIA_PRODUCT_SYNERGY21_S21810	0xffffffff
 #define	PCMCIA_STR_SYNERGY21_S21810	"Synergy 21 S21810+ NE2000 Compatible Card"
