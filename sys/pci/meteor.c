@@ -140,7 +140,6 @@
 #include <sys/devfsext.h>
 #endif /* DEVFS */
 #include <machine/clock.h>
-#include <machine/cpu.h>	/* bootverbose */
 
 #include <vm/vm.h>
 #include <vm/vm_kern.h>
