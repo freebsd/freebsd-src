@@ -18,7 +18,7 @@ my $glossary = $ARGV[1] || 'Porting/Glossary';
 
 
 open CONFIG, ">$config_pm" or die "Can't open $config_pm: $!\n";
-$myver = "v5.6.0"; # XXX - Yuck - allow bootstrapping. MarkM
+$myver = "v5.6.1"; # XXX - Yuck - allow bootstrapping. MarkM
 
 print CONFIG <<'ENDOFBEG_NOQ', <<"ENDOFBEG";
 package Config;
