@@ -906,16 +906,18 @@ ed_get_Linksys(sc)
 	int i;
 
 	/*
-	 * 0x14-0x19 : Physical Address Register 0-5 (PAR0-PAR5)
-	 * 0x1A      : Card ID Register (CIR)
-	 * 0x1B      : Check Sum Register (SR)
+	 * Linksys registers(offset from ASIC base)
+	 *
+	 * 0x04-0x09 : Physical Address Register 0-5 (PAR0-PAR5)
+	 * 0x0A      : Card ID Register (CIR)
+	 * 0x0B      : Check Sum Register (SR)
 	 */
-	for (sum = 0, i = 0x14; i < 0x1c; i++)
-		sum += inb(sc->nic_addr + i);
+	for (sum = 0, i = 0x04; i < 0x0c; i++)
+		sum += inb(sc->asic_addr + i);
 	if (sum != 0xff)
 		return (0);		/* invalid DL10019C */
 	for (i = 0; i < ETHER_ADDR_LEN; i++) {
-		sc->arpcom.ac_enaddr[i] = inb(sc->nic_addr + 0x14 + i);
+		sc->arpcom.ac_enaddr[i] = inb(sc->asic_addr + 0x04 + i);
 	}
 	if (bcmp(sc->arpcom.ac_enaddr, LinksysOUI1, sizeof(LinksysOUI1)) &&
 	    bcmp(sc->arpcom.ac_enaddr, LinksysOUI2, sizeof(LinksysOUI2)))
