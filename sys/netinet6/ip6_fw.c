@@ -288,19 +288,17 @@ ip6opts_match(struct ip6_hdr **pip6, struct ip6_fw *f, struct mbuf **m,
 			case IPPROTO_ESP:
 				opts &= ~IPV6_FW_IP6OPT_ESP;
 				nopts &= ~IPV6_FW_IP6OPT_ESP;
-				break;
+				goto opts_check;
 			case IPPROTO_NONE:
 				opts &= ~IPV6_FW_IP6OPT_NONXT;
 				nopts &= ~IPV6_FW_IP6OPT_NONXT;
 				goto opts_check;
-				break;
 			case IPPROTO_DSTOPTS:
 				opts &= ~IPV6_FW_IP6OPT_OPTS;
 				nopts &= ~IPV6_FW_IP6OPT_OPTS;
 				break;
 			default:
 				goto opts_check;
-				break;
 			}
 			*off += (ip6e->ip6e_len + 1) << 3;
 			break;
