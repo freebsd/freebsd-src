@@ -94,6 +94,7 @@ struct field {
 	int type;
 	int y;
 	int x;
+	int height;
 	int width;
 	int attr;
 	int selattr;
@@ -122,3 +123,4 @@ int initfrm(struct form *);
 void endfrm(struct form *);
 void exit_form(void);
 void cancel_form(void);
+void print_status(char *);

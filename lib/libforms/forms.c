@@ -74,6 +74,11 @@ initfrm(struct form *form)
 	cbreak();
 	noecho();
 
+	if (!form->height)
+		form->height = LINES;
+	if (!form->width)
+		form->width = COLS;
+
 	form->window = newwin(form->height, form->width, form->y, form->x);
 	if (!form->window) {
 		print_status("Couldn't open window, closing form");
@@ -137,8 +142,6 @@ endfrm(struct form *form)
 int
 update_form(struct form *form)
 {
-	int selattr;
-
 	show_form(form);
 
 	if (form->current_field == -1)
@@ -207,7 +210,7 @@ disp_text(struct form *form, int index)
 
 	struct field *field = &form->field[index];
 
-	if (print_string(form->window, field->y, field->x,
+	if (print_string(form->window, field->y, field->x, field->height,
 	             field->width, field->field.text->text) == ERR)
 		print_status("Illegal scroll in print_string");
 }
@@ -219,11 +222,11 @@ disp_input(struct form *form, int index)
 	struct field *field = &form->field[index];
 
 	if (field->field.input->lbl_flag) {
-		if (print_string(form->window, field->y, field->x,
+		if (print_string(form->window, field->y, field->x, field->height,
 						 field->width, field->field.input->label) == ERR)
 			print_status("Illegal scroll in print_string");
 	} else 
-		if (print_string(form->window, field->y, field->x,
+		if (print_string(form->window, field->y, field->x, field->height,
 						 field->width, field->field.input->input) == ERR)
 			print_status("Illegal scroll in print_string");
 }
@@ -233,7 +236,7 @@ disp_menu(struct form *form, int index)
 {
 	struct field *field = &form->field[index];
 
-	if (print_string(form->window, field->y, field->x,
+	if (print_string(form->window, field->y, field->x, field->height,
 			field->width,
 			field->field.menu->options[field->field.menu->selected]) == ERR)
 		print_status("Illegal scroll in print_string");
@@ -244,7 +247,7 @@ disp_action(struct form *form, int index)
 {
 	struct field *field = &form->field[index];
 
-	if (print_string(form->window, field->y, field->x,
+	if (print_string(form->window, field->y, field->x, field->height,
 				field->width,
 				field->field.action->text) == ERR)
 		print_status("Illegal scroll in print_string");
@@ -342,9 +345,10 @@ next_field(struct form *form, int ch)
 
 static int
 print_string(WINDOW *window, int y, int x,
-             int width, char *string)
+             int height, int fwidth, char *string)
 {
 	int len;
+	int width;
 
 	if (!string)
 		len = -1;
@@ -353,18 +357,24 @@ print_string(WINDOW *window, int y, int x,
 
 	if (wmove(window, y, x) == ERR)
 		return (ERR);
-	while (width--) {
-		if (len-- > 0) {
-			if (waddch(window, *string++) == ERR)
-				return (ERR);
-		} else
-			if (waddch(window, ' ') == ERR)
-				return (ERR);
+	while (height--) {
+		width = fwidth;
+		while (width--) {
+			if (len-- > 0) {
+				if (waddch(window, *string++) == ERR)
+					return (ERR);
+			} else
+				if (waddch(window, ' ') == ERR)
+					return (ERR);
+		}
+		if (wmove(window, ++y, x) == ERR)
+			return (ERR);
+
 	}
 	return (OK);
 }	
 
-static void
+void
 print_status(char *msg)
 {
 	if (wmove(stdscr, LINES-1, 0) == ERR) {
@@ -410,7 +420,7 @@ field_input(struct form *form)
 		ch = wgetch(form->window);
 		if (next_field(form, ch)) {
 			print_string(form->window, field->y, field->x,
-						field->width,
+						field->height, field->width,
 						field->field.input->input+DISPOFF);
 			return;
 		}
@@ -456,7 +466,7 @@ field_input(struct form *form)
 				beep();
 			else {
 				++abspos;
-				if (cursor++ == field->width) {
+				if (++cursor == field->width) {
 					++disp_off;
 					--cursor;
 				}
@@ -473,7 +483,7 @@ field_input(struct form *form)
 		} else {
 				beep();
 		}
-		print_string(form->window, field->y, field->x,
+		print_string(form->window, field->y, field->x, field->height,
 					 field->width, field->field.input->input+disp_off);
 	}
 	/* Not Reached */
