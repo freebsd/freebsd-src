@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  * 
- *	$Id: devfs_tree.c,v 1.58 1998/12/10 19:57:00 eivind Exp $
+ *	$Id: devfs_tree.c,v 1.59 1999/01/27 22:42:04 dillon Exp $
  */
 
 
@@ -55,6 +55,7 @@
 static MALLOC_DEFINE(M_DEVFSNODE, "DEVFS node", "DEVFS node");
 static MALLOC_DEFINE(M_DEVFSNAME, "DEVFS name", "DEVFS name");
 
+static void devfs_add_to_tree(dev_t dev, uid_t uid, gid_t gid, int perms);
 devnm_p	dev_root;		/* root of the backing tree */
 static struct mount *devfs_hidden_mount;
 int devfs_up_and_going; 
@@ -78,6 +79,7 @@ devfs_sinit(void *junk)
 	 * call the right routine at the right time with the right args....
 	 */
 	retval = dev_add_entry("root", NULL, DEV_DIR, NULL, NULL, NULL, &dev_root);
+	devfs_create_hook = devfs_add_to_tree;
 #ifdef PARANOID
 	if(retval) panic("devfs_sinit: dev_add_entry failed ");
 #endif
@@ -1048,6 +1050,24 @@ dev_add_entry(char *name, dn_p parent, int type, union typeinfo *by,
 	return error;
 }
 
+static void
+devfs_add_to_tree(dev_t dev, uid_t uid, gid_t gid, int perms)
+{
+
+	struct cdevsw *devsw = dev->si_devsw;
+
+	dev->si_devfs = devfs_add_devswf(dev->si_devsw, minor(dev), DV_CHR,
+				uid, gid, perms, "%s", dev->si_name );
+	
+	/* XXX HACK .. name may not start in 'r' */
+	/* Also Hack.. no place to store Block cookie */
+	if ((devsw->d_bmaj != -1)
+	&& (dev->si_name[0] == 'r')
+	&& ((devsw->d_flags & D_TYPEMASK) == D_DISK))  {
+        	/* dev->si_devfs =*/ devfs_add_devswf(devsw, minor(dev), DV_BLK,
+	    				uid, gid, perms, dev->si_name + 1);
+	}
+}
 /***********************************************************************\
 * Add the named device entry into the given directory, and make it 	*
 * The appropriate type... (called (sometimes indirectly) by drivers..)	*
