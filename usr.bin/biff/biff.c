@@ -47,8 +47,10 @@ static char sccsid[] = "@(#)biff.c	8.1 (Berkeley) 6/6/93";
 __FBSDID("$FreeBSD$");
 
 #include <sys/stat.h>
+
 #include <err.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h>
 
 static void usage __P((void));
