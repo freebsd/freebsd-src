@@ -1270,43 +1270,43 @@
     <para arch="i386">RealTek RTL 8002 Pocket Ethernet (&man.rdp.4;
     driver)</para>
 
-    <para arch="i386,pc98,alpha">RealTek 8129/8139 Fast Ethernet NICs (&man.rl.4; driver)
+    <para arch="i386,pc98,alpha,sparc64">RealTek 8129/8139 Fast Ethernet NICs (&man.rl.4; driver)
       <itemizedlist>
 	<listitem>
 	  <para>Accton <quote>Cheetah</quote> EN1207D (MPX 5030/5038;
 	  RealTek 8139 clone)</para>
         </listitem>
-        <listitem arch="i386,alpha">
+        <listitem arch="i386,alpha,sparc64">
           <para>Allied Telesyn AT2550</para>
         </listitem>
-	<listitem arch="i386,alpha">
+	<listitem arch="i386,alpha,sparc64">
 	  <para>Allied Telesyn AT2500TX</para>
         </listitem>
-	<listitem arch="i386,alpha">
+	<listitem arch="i386,alpha,sparc64">
 	  <para>D-Link DFE-530TX+, DFE-538TX</para>
 	</listitem>
-        <listitem arch="i386,alpha">
+        <listitem arch="i386,alpha,sparc64">
           <para>Farallon NetLINE 10/100 PCI</para>
         </listitem>
-	<listitem arch="i386,alpha">
+	<listitem arch="i386,alpha,sparc64">
 	  <para>Genius GF100TXR (RTL8139)</para>
         </listitem>
-	<listitem arch="i386,alpha">
+	<listitem arch="i386,alpha,sparc64">
 	  <para>KTX-9130TX 10/100 Fast Ethernet</para>
         </listitem>
-	<listitem arch="i386,alpha">
+	<listitem arch="i386,alpha,sparc64">
 	  <para>NDC Communications NE100TX-E</para>
         </listitem>
-	<listitem arch="i386,alpha">
+	<listitem arch="i386,alpha,sparc64">
 	  <para>Netronix Inc. EA-1210 NetEther 10/100</para>
         </listitem>
-	<listitem arch="i386,alpha">
+	<listitem arch="i386,alpha,sparc64">
 	  <para>OvisLink LEF-8129TX</para>
         </listitem>
-	<listitem arch="i386,alpha">
+	<listitem arch="i386,alpha,sparc64">
 	  <para>OvisLink LEF-8139TX</para>
         </listitem>
-	<listitem arch="i386,alpha">
+	<listitem arch="i386,alpha,sparc64">
 	  <para>SMC EZ Card 10/100 PCI 1211-TX</para>
         </listitem>
 	<listitem arch="pc98">
