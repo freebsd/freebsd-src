@@ -312,12 +312,8 @@ For example, if you have a volume
 use the following command to create a ufs file system on it:
 .Pp
 .Bd -literal
-  # newfs -v /dev/vinum/rconcat
+  # newfs -v /dev/vinum/concat
 .Ed
-.Pp
-As with other file systems, you perform the
-.Nm newfs
-command on the raw device, not the block device.
 .Sh OBJECT NAMING
 .Nm
 assigns default names to plexes and subdisks, although they may be overridden.
@@ -341,16 +337,11 @@ creates or deletes objects, it creates a directory
 .Pa /dev/vinum ,
 in which it makes device entries for each volume it finds.  It also creates
 subdirectories,
-.Pa /dev/vinum/plex ,
-.Pa /dev/vinum/sd
+.Pa /dev/vinum/plex
 and
-.Pa /dev/vinum/rsd ,
-in which it stores device entries for the plexes and subdisks.
-.Pa /dev/vinum/sd
-contains block device entries, while
-.Pa /dev/vinum/rsd
-contains character device entries.  In addition, it creates two more
-directories,
+.Pa /dev/vinum/sd ,
+in which it stores device entries for plexes and subdisks.
+In addition, it creates two more directories,
 .Pa /dev/vinum/vol
 and
 .Pa /dev/vinum/drive ,
@@ -438,7 +429,7 @@ The directory
 .Ar /dev/vinum
 looks like:
 .Bd -literal -offset indent
-# ls -lR /dev/vinum/ /dev/rvinum
+# ls -lR /dev/vinum
 total 5
 brwxr-xr--  1 root  wheel   25,   2 Mar 30 16:08 concat
 brwx------  1 root  wheel   25, 0x40000000 Mar 30 16:08 control
@@ -468,14 +459,6 @@ brwxr-xr--  1 root  wheel   25, 0x10000001 Mar 30 16:08 stripe.p0
 brwxr-xr--  1 root  wheel   25, 0x10000000 Mar 30 16:08 tinyvol.p0
 brwxr-xr--  1 root  wheel   25, 0x10000004 Mar 30 16:08 vol5.p0
 brwxr-xr--  1 root  wheel   25, 0x10010004 Mar 30 16:08 vol5.p1
-
-/dev/vinum/rvol:
-total 0
-crwxr-xr--  1 root  wheel   91,   2 Mar 30 16:08 concat
-crwxr-xr--  1 root  wheel   91,   3 Mar 30 16:08 strcon
-crwxr-xr--  1 root  wheel   91,   1 Mar 30 16:08 stripe
-crwxr-xr--  1 root  wheel   91,   0 Mar 30 16:08 tinyvol
-crwxr-xr--  1 root  wheel   91,   4 Mar 30 16:08 vol5
 
 /dev/vinum/sd:
 total 0
@@ -577,13 +560,6 @@ brwxr-xr--  1 root  wheel   25, 0x20100004 Mar 30 16:08 vol5.p0.s1
 total 0
 brwxr-xr--  1 root  wheel   25, 0x20010004 Mar 30 16:08 vol5.p1.s0
 brwxr-xr--  1 root  wheel   25, 0x20110004 Mar 30 16:08 vol5.p1.s1
-
-/dev/rvinum:
-crwxr-xr--  1 root  wheel   91,   2 Mar 30 16:08 rconcat
-crwxr-xr--  1 root  wheel   91,   3 Mar 30 16:08 rstrcon
-crwxr-xr--  1 root  wheel   91,   1 Mar 30 16:08 rstripe
-crwxr-xr--  1 root  wheel   91,   0 Mar 30 16:08 rtinyvol
-crwxr-xr--  1 root  wheel   91,   4 Mar 30 16:08 rvol5
 .Ed
 .Pp
 In the case of unattached plexes and subdisks, the naming is reversed.  Subdisks
