@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aic7xxx.c,v 1.86 1996/11/16 01:19:14 gibbs Exp $
+ *      $Id: aic7xxx.c,v 1.87 1996/11/22 08:28:45 gibbs Exp $
  */
 /*
  * TODO:
@@ -1526,6 +1526,9 @@ ahc_handle_scsiint(ahc, intstat)
 			printf("Unexpected busfree.  LASTPHASE == 0x%x\n",
 			       lastphase);
 		}
+		ahc_outb(ahc, CLRSINT1, CLRBUSFREE);
+		ahc_outb(ahc, CLRINT, CLRSCSIINT);
+		restart_sequencer(ahc);
 	} else if (scb == NULL) {
 		printf("%s: ahc_intr - referenced scb not "
 		       "valid during scsiint 0x%x scb(%d)\n",
@@ -1612,7 +1615,7 @@ ahc_handle_scsiint(ahc, intstat)
 
 		ahc_outb(ahc, SCB_CONTROL, 0);
 
-		ahc_outb(ahc, CLRSINT1, CLRSELTIMEO);
+		ahc_outb(ahc, CLRSINT1, CLRSELTIMEO|CLRBUSFREE);
 
 		ahc_outb(ahc, CLRINT, CLRSCSIINT);
 
@@ -2661,14 +2664,18 @@ ahc_timeout(arg)
 	case P_MESGIN:
 		printf("in message in phase");
 		break;
-	default:
+	case P_BUSFREE:
 		printf("while idle, LASTPHASE == 0x%x",
 			bus_state);
+		bus_state = 0;
+		break;
+	default:
 		/* 
 		 * We aren't in a valid phase, so assume we're
 		 * idle.
 		 */
-		bus_state = 0;
+		printf("invalid phase, LASTPHASE == 0x%x",
+			bus_state);
 		break;
 	}
 
@@ -3054,7 +3061,7 @@ ahc_reset_channel(ahc, channel, timedout_scb, xs_error, initiate_reset)
 		ahc_outb(ahc, SBLKCTL, sblkctl ^ SELBUSB);
 		if (initiate_reset)
 			ahc_reset_current_bus(ahc);
-		ahc_outb(ahc, CLRSINT1, CLRSCSIRSTI|CLRSELTIMEO);
+		ahc_outb(ahc, CLRSINT1, CLRSCSIRSTI|CLRSELTIMEO|CLRBUSFREE);
 		ahc_outb(ahc, CLRINT, CLRSCSIINT);
 		ahc_outb(ahc, SBLKCTL, sblkctl);
 		unpause_sequencer(ahc, /*unpause_always*/TRUE);
@@ -3062,7 +3069,7 @@ ahc_reset_channel(ahc, channel, timedout_scb, xs_error, initiate_reset)
 		/* Case 2: A command from this bus is active or we're idle */ 
 		if (initiate_reset)
 			ahc_reset_current_bus(ahc);
-		ahc_outb(ahc, CLRSINT1, CLRSCSIRSTI|CLRSELTIMEO);
+		ahc_outb(ahc, CLRSINT1, CLRSCSIRSTI|CLRSELTIMEO|CLRBUSFREE);
 		ahc_outb(ahc, CLRINT, CLRSCSIINT);
 		restart_sequencer(ahc);
 	}
