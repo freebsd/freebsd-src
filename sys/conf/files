@@ -863,6 +863,8 @@ dev/usb/usbdi_util.c		optional usb
 dev/usb/uscanner.c		optional uscanner
 dev/usb/uvisor.c		optional uvisor ucom
 dev/usb/uvscom.c		optional uvscom ucom
+dev/utopia/idtphy.c		optional utopia
+dev/utopia/suni.c		optional utopia
 dev/utopia/utopia.c		optional utopia
 dev/vge/if_vge.c		optional vge
 dev/vkbd/vkbd.c			optional vkbd
