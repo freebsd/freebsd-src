@@ -12,6 +12,6 @@ SRCS+=	if_lnc_isa.c
 SRCS+=	opt_inet.h device_if.h bus_if.h isa_if.h pci_if.h
 #SRCS+=	miibus_if.h
 
-CFLAGS+= -g -I${.CURDIR}/../../dev/lnc
+CFLAGS+= -I${.CURDIR}/../../dev/lnc
 
 .include <bsd.kmod.mk>
