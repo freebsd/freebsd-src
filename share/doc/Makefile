@@ -1,7 +1,7 @@
 #	From: @(#)Makefile	8.1 (Berkeley) 6/5/93
-#	$Id: Makefile,v 1.7 1995/10/18 05:07:43 jfieber Exp $
+#	$Id: Makefile,v 1.8 1996/09/08 20:14:33 jfieber Exp $
 
-SUBDIR=	psd smm usd papers
+SUBDIR=	FAQ handbook psd smm usd papers
 
 # Default output formats are ascii for troff documents, and 
 # ascii and html for sgml documents.  
