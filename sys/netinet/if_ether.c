@@ -408,8 +408,10 @@ arpresolve(ac, rt, m, dst, desten, rt0)
 	 * Probably should not allocate empty llinfo struct if we are
 	 * not going to be sending out an arp request.
 	 */
-	if (ac->ac_if.if_flags & IFF_NOARP)
+	if (ac->ac_if.if_flags & IFF_NOARP) {
+		m_freem(m);
 		return (0);
+	}
 	/*
 	 * There is an arptab entry, but no ethernet address
 	 * response yet.  Replace the held mbuf with this
