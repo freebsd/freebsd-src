@@ -29,10 +29,6 @@
  * $FreeBSD$
  */
 
-#include "wd.h"
-
-#if NWDC > 0
-
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/buf.h>
@@ -1878,5 +1874,3 @@ ide_pci_iobase(void *xcp)
 		return cp->iobase_wd;
 	}
 }
-
-#endif
