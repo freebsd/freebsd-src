@@ -37,11 +37,13 @@
 #include "opt_ipfw.h"		/* for ipfw_fwd		*/
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
+#include "opt_mac.h"
 #include "opt_tcpdebug.h"
 #include "opt_tcp_input.h"
 
 #include <sys/param.h>
 #include <sys/kernel.h>
+#include <sys/mac.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/proc.h>		/* for proc0 declaration */
@@ -360,6 +362,9 @@ tcp_input(m, off0)
 	int isipv6;
 #endif /* INET6 */
 	struct sockaddr_in *next_hop = NULL;
+#ifdef MAC
+	int error;
+#endif
 	int rstreason; /* For badport_bandlim accounting purposes */
 
 	/* Grab info from MT_TAG mbufs prepended to the chain. */
@@ -651,6 +656,11 @@ findpcb:
 		tiwin = th->th_win;
 
 	so = inp->inp_socket;
+#ifdef MAC
+	error = mac_check_socket_receive(so, m);
+	if (error)
+		goto drop;
+#endif
 	if (so->so_options & (SO_DEBUG|SO_ACCEPTCONN)) {
 		struct in_conninfo inc;
 #ifdef TCPDEBUG
@@ -1171,6 +1181,9 @@ after_listen:
 				tp->t_flags &= ~TF_RCVD_CC;
 			tcpstat.tcps_connects++;
 			soisconnected(so);
+#ifdef MAC
+			mac_set_socket_peer_from_mbuf(m, so);
+#endif
 			/* Do window scaling on this connection? */
 			if ((tp->t_flags & (TF_RCVD_SCALE|TF_REQ_SCALE)) ==
 				(TF_RCVD_SCALE|TF_REQ_SCALE)) {
