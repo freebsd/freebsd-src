@@ -115,6 +115,20 @@
       <literal>NODEVFS</literal> option has been removed from the set of
       possible kernel configuration options.</para>
 
+    <para>A minor bug in the permissions handling of
+      <filename>/dev/tty</filename> has been fixed.  As a result,
+      &man.ssh.1; can now be used after &man.su.1;.</para>
+
+    <para>A bug that caused &man.fstat.2; to return
+      <literal>0</literal> as the number of bytes available to read
+      from a TCP socket has been fixed.</para>
+
+    <para>A bug that caused &man.kqueue.2; to report
+      <literal>0</literal> as the number of bytes available to read
+      from a TCP socket has been fixed.  The
+      <literal>NOTE_LOWAT</literal> flag for
+      <literal>EVFILT_READ</literal> has been fixed.</para>
+
     <para>Linux emulation mode now supports IPv6.</para>
 
     <!-- Above this line, sort kernel changes by manpage/keyword-->
@@ -167,10 +181,18 @@
       <para>A new wlan module provides 802.11 link-layer support.  The
 	&man.wi.4; driver now uses this facility.</para>
 
+      <para arch="i386,alpha,pc98,sparc64">A timing bug in the
+	&man.xl.4; driver, which could cause a kernel panic (or other
+	problems) when configuring an interface, has been
+	fixed.</para>
+
     </sect3>
 
     <sect3>
       <title>Network Protocols</title>
+
+      <para>&man.ipfw.4; <literal>skipto</literal> rules can once
+        again be used with the <literal>log</literal> keyword.</para>
 
       <para>It is now possible to build the
         <literal>FAST_IPSEC</literal> and <literal>INET6</literal>
@@ -192,6 +214,10 @@
         to traditionally privileged ports without requiring superuser
         access.  &man.ip.4; has more details.</para>
 
+      <para>Some bugs in the non-blocking RPC code has been fixed.  As
+	a result, &man.amd.8; users are now able to mount volumes from
+	a &release.current; server.</para>
+
     </sect3>
 
     <sect3>
@@ -208,6 +234,9 @@
       <para>&man.geom.4; is now mandatory; the
         <literal>NO_GEOM</literal> has been removed from the set of
         kernel configuration options.</para>
+
+      <para>A bug in the &man.mly.4; driver that caused hangs has been
+	corrected.</para>
 
       <para>Support has been added for volume labels on UFS and UFS2
         filesystems.  These labels are strings that can be used to
@@ -229,7 +258,9 @@
     <sect3>
       <title>Filesystems</title>
 
-      <para></para>
+      <para>Bugs that could cause the unmounting of a smbfs share to
+	fail or cause a kernel panic have been fixed.</para>
+
     </sect3>
 
     <sect3>
@@ -253,6 +284,9 @@
 
   <sect2 id="userland">
     <title>Userland Changes</title>
+
+    <para>&man.adduser.8; now correctly handles setting user passwords
+      containing special shell characters.</para>
 
     <para arch="alpha,i386">The <filename>compat4x</filename>
       distribution now includes the
@@ -379,6 +413,10 @@
     <para>A bug in &man.rand.3; that could cause a sequence to remain
       stuck at <literal>0</literal> has been fixed.  (&man.rand.3;
       remains unsuitable for all but trivial uses.)</para>
+
+    <para>&man.sem.open.3; now correctly handles multiple opens of the
+      same semaphore; as a result, &man.sem.close.3; no longer crashes
+      calling programs.</para>
 
     <para>The seeding algorithm used by &man.srandom.3; has been
       strengthened.</para>
