@@ -16,7 +16,7 @@
  *
  * NEW command line interface for IP firewall facility
  *
- * $Id: ipfw.c,v 1.47 1997/08/08 14:36:28 alex Exp $
+ * $Id: ipfw.c,v 1.48 1997/12/05 02:43:26 julian Exp $
  *
  */
 
@@ -1088,9 +1088,8 @@ ipfw_main(ac,av)
 	char 	**av;
 {
 
-	char 		ch;
+	int 		ch;
 	extern int 	optind;
-
 
 	if ( ac == 1 ) {
 		show_usage(NULL);
@@ -1099,7 +1098,7 @@ ipfw_main(ac,av)
 	/* Set the force flag for non-interactive processes */
 	do_force = !isatty(STDIN_FILENO);
 
-	while ((ch = getopt(ac, av ,"afqtN")) != -1)
+	while ((ch = getopt(ac, av, "afqtN")) != -1)
 	switch(ch) {
 		case 'a':
 			do_acct=1;
@@ -1140,7 +1139,7 @@ ipfw_main(ac,av)
 			/* Ask the user */
 			printf("Are you sure? [yn] ");
 			do {
-                    		fflush(stdout);
+				fflush(stdout);
 				c = toupper(getc(stdin));
 				while (c != '\n' && getc(stdin) != '\n')
 					if (feof(stdin))
