@@ -116,7 +116,8 @@
       <title>Processor/Motherboard Support</title>
 
       <para arch="i386">&os; now has rudimentary support for
-	HyperThreading (HTT).  SMP kernels will detect and start up
+	HyperThreading (HTT).  SMP kernels with the
+	<literal>HTT</literal> kernel option will detect and start up
 	the logical processors on HTT-capable machines.  The logical
 	processors will be treated like additional physical processors
 	for the purposes of process scheduling.</para>
