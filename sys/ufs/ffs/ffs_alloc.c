@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_alloc.c	8.8 (Berkeley) 2/21/94
- * $Id: ffs_alloc.c,v 1.13 1995/05/11 19:26:48 rgrimes Exp $
+ * $Id: ffs_alloc.c,v 1.14 1995/05/30 08:14:57 rgrimes Exp $
  */
 
 #include <sys/param.h>
@@ -1078,7 +1078,7 @@ ffs_clusteralloc(ip, cg, bpref, len)
 	for (i = 0; i < len; i += fs->fs_frag)
 		if (ffs_alloccgblk(fs, cgp, bno + i) != bno + i)
 			panic("ffs_clusteralloc: lost block");
-	brelse(bp);
+	bdwrite(bp);
 	return (bno);
 
 fail:
