@@ -183,7 +183,9 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
     <sect3>
       <title>Disks and Storage</title>
 
-      <para></para>
+      <para>The &man.ata.4; driver now has support for rebuilding
+	failed drives in a RAID1 configuration, under control of
+	&man.atacontrol.8;.</para>
     </sect3>
 
     <sect3>
@@ -245,6 +247,9 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
   </sect2>
   <sect2 id="userland">
     <title>Userland Changes</title>
+
+    <para>&man.atacontrol.8; has been added to control various aspects
+      of the &man.ata.4; driver.</para>
 
     <para>&man.ctags.1; no longer creates a corrupt tags file if the
       source file used <literal>//</literal> (C++-style)
