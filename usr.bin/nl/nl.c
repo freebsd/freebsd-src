@@ -172,10 +172,9 @@ main(argc, argv)
 				delim[1] = optarg[1];
 			/* at most two delimiter characters */
 			if (optarg[2] != '\0') {
-				(void)fprintf(stderr,
-				    "nl: invalid delim argument -- %s\n",
+				errx(EXIT_FAILURE,
+				    "invalid delim argument -- %s",
 				    optarg);
-				exit(EXIT_FAILURE);
 				/* NOTREACHED */
 			}
 			break;
@@ -189,22 +188,18 @@ main(argc, argv)
 			errno = 0;
 			val = strtol(optarg, &ep, 10);
 			if ((ep != NULL && *ep != '\0') ||
-			 ((val == LONG_MIN || val == LONG_MAX) && errno != 0)) {
-				(void)fprintf(stderr,
-				    "invalid incr argument -- %s\n", optarg);
-				exit(EXIT_FAILURE);
-			}
+			 ((val == LONG_MIN || val == LONG_MAX) && errno != 0))
+				errx(EXIT_FAILURE,
+				    "invalid incr argument -- %s", optarg);
 			incr = (int)val;
 			break;
 		case 'l':
 			errno = 0;
 			uval = strtoul(optarg, &ep, 10);
 			if ((ep != NULL && *ep != '\0') ||
-			    (uval == ULONG_MAX && errno != 0)) {
-				(void)fprintf(stderr,
-				    "invalid num argument -- %s\n", optarg);
-				exit(EXIT_FAILURE);
-			}
+			    (uval == ULONG_MAX && errno != 0))
+				errx(EXIT_FAILURE,
+				    "invalid num argument -- %s", optarg);
 			nblank = (unsigned int)uval;
 			break;
 		case 'n':
@@ -214,11 +209,9 @@ main(argc, argv)
 				format = FORMAT_RN;
 			} else if (strcmp(optarg, "rz") == 0) {
 				format = FORMAT_RZ;
-			} else {
-				(void)fprintf(stderr,
-				    "nl: illegal format -- %s\n", optarg);
-				exit(EXIT_FAILURE);
-			}
+			} else
+				errx(EXIT_FAILURE,
+				    "illegal format -- %s", optarg);
 			break;
 		case 's':
 			sep = optarg;
@@ -227,29 +220,23 @@ main(argc, argv)
 			errno = 0;
 			val = strtol(optarg, &ep, 10);
 			if ((ep != NULL && *ep != '\0') ||
-			 ((val == LONG_MIN || val == LONG_MAX) && errno != 0)) {
-				(void)fprintf(stderr,
-				    "invalid startnum value -- %s\n", optarg);
-				exit(EXIT_FAILURE);
-			}
+			 ((val == LONG_MIN || val == LONG_MAX) && errno != 0))
+				errx(EXIT_FAILURE,
+				    "invalid startnum value -- %s", optarg);
 			startnum = (int)val;
 			break;
 		case 'w':
 			errno = 0;
 			val = strtol(optarg, &ep, 10);
 			if ((ep != NULL && *ep != '\0') ||
-			 ((val == LONG_MIN || val == LONG_MAX) && errno != 0)) {
-				(void)fprintf(stderr,
-				    "invalid width value -- %s\n", optarg);
-				exit(EXIT_FAILURE);
-			}
+			 ((val == LONG_MIN || val == LONG_MAX) && errno != 0))
+				errx(EXIT_FAILURE,
+				    "invalid width value -- %s", optarg);
 			width = (int)val;
-			if (!(width > 0)) {
-				(void)fprintf(stderr,
-				    "nl: width argument must be > 0 -- %d\n",
+			if (!(width > 0))
+				errx(EXIT_FAILURE,
+				    "width argument must be > 0 -- %d",
 				    width);
-				 exit(EXIT_FAILURE);
-			}
 			break;
 		case '?':
 		default:
@@ -407,18 +394,16 @@ parse_numbering(argstr, section)
 			(void)regerror(error,
 			    &numbering_properties[section].expr,
 			    errorbuf, sizeof (errorbuf));
-			(void)fprintf(stderr,
-			    "nl: %s expr: %s -- %s\n",
+			errx(EXIT_FAILURE,
+			    "%s expr: %s -- %s",
 			    numbering_properties[section].name, errorbuf,
 			    &argstr[1]);
-			exit(EXIT_FAILURE);
 		}
 		break;
 	default:
-		(void)fprintf(stderr,
-		    "nl: illegal %s line numbering type -- %s\n",
+		errx(EXIT_FAILURE,
+		    "illegal %s line numbering type -- %s",
 		    numbering_properties[section].name, argstr);
-		exit(EXIT_FAILURE);
 	}
 }
 
