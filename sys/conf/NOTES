@@ -4,7 +4,7 @@
 #
 #	This kernel is NOT MEANT to be runnable!
 #
-#	$Id: LINT,v 1.16 1993/10/18 22:46:58 rgrimes Exp $
+#	$Id: LINT,v 1.17 1993/10/19 19:49:24 nate Exp $
 #
 
 machine		"i386"
@@ -116,6 +116,25 @@ disk		wd0	at wd0 drive 0
 disk		wd1	at wd0 drive 1
 device		wt0	at isa? port 0x300 bio irq 5 drq 1 vector wtintr
 
+# To enable sound card support, uncomment one or more of the following lines.
+#       Unit numbers are:
+#                 1 for Yamaha FM synth
+#                 2 for SB/SB Pro DSP
+#                 3 for PAS PCM and Midi
+#                 4 for GUS
+#                 5 for MPU-401
+#
+#       If you have ProAudioSpectrum, uncomment units 3, 2 and 1
+#       If you have SoundBlaster, uncomment 2 and 1.
+#       If you have GravisUltrasound, uncomment 4
+#       If you have MPU-401, uncomment 5
+#
+#device snd5 at isa? port 0x330 irq 6 drq 0 vector mpuintr
+#device snd4 at isa? port 0x220 irq 15 drq 6 vector gusintr
+#device snd3 at isa? port 0x388 irq 12 drq 3 vector pasintr
+#device snd2 at isa? port 0x220 irq 7 drq 1 vector sbintr
+#device snd1 at isa? port 0x388 irq 0 drq 0 vector sbintr
+#
 #
 # options that have not been resolved yet
 #
