@@ -356,9 +356,9 @@ dump_dinode(dip)
 		"gid   ", dip->di_gid,
 		"size  ", dip->di_size);
 	(void)printf("%s%s%s%s%s%s",
-		"atime ", ctime(&dip->di_atime.ts_sec),
-		"mtime ", ctime(&dip->di_mtime.ts_sec),
-		"ctime ", ctime(&dip->di_ctime.ts_sec));
+		"atime ", ctime(&dip->di_atime.tv_sec),
+		"mtime ", ctime(&dip->di_mtime.tv_sec),
+		"ctime ", ctime(&dip->di_ctime.tv_sec));
 	(void)printf("inum  %d\n", dip->di_inumber);
 	(void)printf("Direct Addresses\n");
 	for (i = 0; i < NDADDR; i++) {
