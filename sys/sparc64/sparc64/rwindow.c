@@ -60,6 +60,8 @@ rwindow_load(struct thread *td, struct trapframe *tf, int n)
 	for (i = 0; i < n; i++) {
 		CTR1(KTR_TRAP, "rwindow_load: usp=%#lx", usp);
 		usp += SPOFF;
+		if ((error = (usp & 0x7)) != 0)
+			break;
 		error = copyin((void *)usp, &rw, sizeof rw);
 		usp = rw.rw_in[6];
 	}
@@ -91,6 +93,8 @@ rwindow_save(struct thread *td)
 		usp = *ausp;
 		CTR1(KTR_TRAP, "rwindow_save: usp=%#lx", usp);
 		usp += SPOFF;
+		if ((error = (usp & 0x7)) != 0)
+			break;
 		error = copyout(rw, (void *)usp, sizeof *rw);
 		if (error)
 			break;
