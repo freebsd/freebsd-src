@@ -555,7 +555,8 @@ ufs_setattr(ap)
 		default:
 			break;
 		}
-		if ((error = UFS_TRUNCATE(vp, vap->va_size, 0, cred, td)) != 0)
+		if ((error = UFS_TRUNCATE(vp, vap->va_size, IO_NORMAL,
+		    cred, td)) != 0)
 			return (error);
 	}
 	if (vap->va_atime.tv_sec != VNOVAL ||
@@ -1268,7 +1269,9 @@ abortit:
 			xp->i_nlink--;
 			DIP(xp, i_nlink) = xp->i_nlink;
 			xp->i_flag |= IN_CHANGE;
-			ioflag = DOINGASYNC(tvp) ? 0 : IO_SYNC;
+			ioflag = IO_NORMAL;
+			if (DOINGASYNC(tvp))
+				ioflag |= IO_SYNC;
 			if ((error = UFS_TRUNCATE(tvp, (off_t)0, ioflag,
 			    tcnp->cn_cred, tcnp->cn_thread)) != 0)
 				goto bad;
@@ -1762,7 +1765,9 @@ ufs_rmdir(ap)
 		ip->i_nlink--;
 		DIP(ip, i_nlink) = ip->i_nlink;
 		ip->i_flag |= IN_CHANGE;
-		ioflag = DOINGASYNC(vp) ? 0 : IO_SYNC;
+		ioflag = IO_NORMAL;
+		if (DOINGASYNC(vp))
+			ioflag |= IO_SYNC;
 		error = UFS_TRUNCATE(vp, (off_t)0, ioflag, cnp->cn_cred,
 		    cnp->cn_thread);
 	}
@@ -1980,7 +1985,7 @@ ufs_strategy(ap)
 	if (vp->v_type == VBLK || vp->v_type == VCHR)
 		panic("ufs_strategy: spec");
 	if (bp->b_blkno == bp->b_lblkno) {
-		error = ufs_bmaparray(vp, bp->b_lblkno, &blkno, NULL, NULL);
+		error = ufs_bmaparray(vp, bp->b_lblkno, &blkno, bp, NULL, NULL);
 		bp->b_blkno = blkno;
 		if (error) {
 			bp->b_error = error;

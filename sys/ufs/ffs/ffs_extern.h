@@ -79,8 +79,8 @@ int	ffs_mountroot(void);
 int	ffs_mount(struct mount *, char *, caddr_t, struct nameidata *,
 	    struct thread *);
 int	ffs_reallocblks(struct vop_reallocblks_args *);
-int	ffs_realloccg(struct inode *,
-	    ufs2_daddr_t, ufs2_daddr_t, int, int, struct ucred *, struct buf **);
+int	ffs_realloccg(struct inode *, ufs2_daddr_t, ufs2_daddr_t,
+	    ufs2_daddr_t, int, int, struct ucred *, struct buf **);
 void	ffs_setblock(struct fs *, u_char *, ufs1_daddr_t);
 int	ffs_snapblkfree(struct fs *, struct vnode *, ufs2_daddr_t, long, ino_t);
 void	ffs_snapremove(struct vnode *vp);
@@ -115,10 +115,12 @@ void	softdep_update_inodeblock(struct inode *, struct buf *, int);
 void	softdep_load_inodeblock(struct inode *);
 void	softdep_freefile(struct vnode *, ino_t, int);
 int	softdep_request_cleanup(struct fs *, struct vnode *);
-void	softdep_setup_freeblocks(struct inode *, off_t);
+void	softdep_setup_freeblocks(struct inode *, off_t, int);
 void	softdep_setup_inomapdep(struct buf *, struct inode *, ino_t);
 void	softdep_setup_blkmapdep(struct buf *, struct fs *, ufs2_daddr_t);
 void	softdep_setup_allocdirect(struct inode *, ufs_lbn_t, ufs2_daddr_t,
+	    ufs2_daddr_t, long, long, struct buf *);
+void	softdep_setup_allocext(struct inode *, ufs_lbn_t, ufs2_daddr_t,
 	    ufs2_daddr_t, long, long, struct buf *);
 void	softdep_setup_allocindir_meta(struct buf *, struct inode *,
 	    struct buf *, int, ufs2_daddr_t);

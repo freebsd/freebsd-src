@@ -257,6 +257,7 @@ struct buf {
 #define	BX_BKGRDINPROG	0x00000008	/* Background write in progress */
 #define	BX_BKGRDWAIT	0x00000010	/* Background write waiting */
 #define BX_BKGRDMARKER	0x00000020	/* Mark buffer for splay tree */
+#define	BX_ALTDATA	0x00000040	/* Holds extended data */
 
 #define	NOOFFSET	(-1LL)		/* No buffer offset calculated yet */
 
