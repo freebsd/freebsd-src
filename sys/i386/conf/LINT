@@ -24,7 +24,7 @@ ident		LINT
 
 #
 # The `maxusers' parameter controls the static sizing of a number of
-# internal system tables by a complicated formula defined in param.c.
+# internal system tables by a formula defined in subr_param.c.
 #
 maxusers	10
 
