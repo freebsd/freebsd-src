@@ -100,6 +100,14 @@ static const char topology[] =
     "Loop ID %d, AL_PA 0x%x, Port ID 0x%x, Loop State 0x%x, Topology '%s'";
 static const char finmsg[] =
     "(%d.%d.%d): FIN dl%d resid %d STS 0x%x SKEY %c XS_ERR=0x%x";
+static const char sc0[] =
+    "%s CHAN %d FTHRSH %d IID %d RESETD %d RETRYC %d RETRYD %d ASD 0x%x";
+static const char sc1[] =
+    "%s RAAN 0x%x DLAN 0x%x DDMAB 0x%x CDMAB 0x%x SELTIME %d MQD %d";
+static const char sc2[] = "%s CHAN %d TGT %d FLAGS 0x%x 0x%x/0x%x";
+static const char sc3[] = "Generated";
+static const char sc4[] = "NVRAM";
+
 /*
  * Local function prototypes.
  */
@@ -4761,7 +4769,7 @@ isp_setdfltparm(struct ispsoftc *isp, int channel)
 	/*
 	 * Establish some default parameters.
 	 */
-	sdp->isp_cmd_dma_burst_enable = 1;
+	sdp->isp_cmd_dma_burst_enable = 0;
 	sdp->isp_data_dma_burst_enabl = 1;
 	sdp->isp_fifo_threshold = 0;
 	sdp->isp_initiator_id = DEFAULT_IID(isp);
@@ -4773,9 +4781,13 @@ isp_setdfltparm(struct ispsoftc *isp, int channel)
 	sdp->isp_selection_timeout = 250;
 	sdp->isp_max_queue_depth = MAXISPREQUEST(isp);
 	sdp->isp_tag_aging = 8;
-	sdp->isp_bus_reset_delay = 3;
-	sdp->isp_retry_count = 2;
-	sdp->isp_retry_delay = 2;
+	sdp->isp_bus_reset_delay = 5;
+	/*
+	 * Don't retry selection, busy or queue full automatically- reflect
+	 * these back to us.
+	 */
+	sdp->isp_retry_count = 0;
+	sdp->isp_retry_delay = 0;
 
 	for (tgt = 0; tgt < MAX_TARGETS; tgt++) {
 		sdp->isp_devparam[tgt].exc_throttle = ISP_EXEC_THROTTLE;
@@ -4812,12 +4824,14 @@ isp_setdfltparm(struct ispsoftc *isp, int channel)
 		}
 	}
 
-	isp_prt(isp, ISP_LOGDEBUG0,
-	    "defaulting bus %d REQ/ACK Active Negation is %d",
-	    channel, sdp->isp_req_ack_active_neg);
-	isp_prt(isp, ISP_LOGDEBUG0,
-	    "defaulting bus %d DATA Active Negation is %d",
-	    channel, sdp->isp_data_line_active_neg);
+	isp_prt(isp, ISP_LOGDEBUG0, sc0, sc3,
+	    0, sdp->isp_fifo_threshold, sdp->isp_initiator_id,
+	    sdp->isp_bus_reset_delay, sdp->isp_retry_count,
+	    sdp->isp_retry_delay, sdp->isp_async_data_setup);
+	isp_prt(isp, ISP_LOGDEBUG0, sc1, sc3,
+	    sdp->isp_req_ack_active_neg, sdp->isp_data_line_active_neg,
+	    sdp->isp_data_dma_burst_enabl, sdp->isp_cmd_dma_burst_enable,
+	    sdp->isp_selection_timeout, sdp->isp_max_queue_depth);
 
 	/*
 	 * The trick here is to establish a default for the default (honk!)
@@ -4864,12 +4878,10 @@ isp_setdfltparm(struct ispsoftc *isp, int channel)
 		sdp->isp_devparam[tgt].goal_period =
 		    sdp->isp_devparam[tgt].nvrm_period = per;
 
-		isp_prt(isp, ISP_LOGDEBUG0,
-		    "Generated Defaults bus%d tgt%d flags %x off %x per %x",
+		isp_prt(isp, ISP_LOGDEBUG0, sc2, sc3,
 		    channel, tgt, sdp->isp_devparam[tgt].nvrm_flags,
 		    sdp->isp_devparam[tgt].nvrm_offset,
 		    sdp->isp_devparam[tgt].nvrm_period);
-
 	}
 }
 
@@ -5064,8 +5076,8 @@ isp_rdnvram_word(struct ispsoftc *isp, int wo, u_int16_t *rp)
 static void
 isp_parse_nvram_1020(struct ispsoftc *isp, u_int8_t *nvram_data)
 {
-	int i;
 	sdparam *sdp = (sdparam *) isp->isp_param;
+	int tgt;
 
 	sdp->isp_fifo_threshold =
 		ISP_NVRAM_FIFO_THRESHOLD(nvram_data) |
@@ -5118,15 +5130,25 @@ isp_parse_nvram_1020(struct ispsoftc *isp, u_int8_t *nvram_data)
 		ISP_NVRAM_MAX_QUEUE_DEPTH(nvram_data);
 
 	sdp->isp_fast_mttr = ISP_NVRAM_FAST_MTTR_ENABLE(nvram_data);
-	for (i = 0; i < MAX_TARGETS; i++) {
-		sdp->isp_devparam[i].dev_enable =
-			ISP_NVRAM_TGT_DEVICE_ENABLE(nvram_data, i);
-		sdp->isp_devparam[i].exc_throttle =
-			ISP_NVRAM_TGT_EXEC_THROTTLE(nvram_data, i);
-		sdp->isp_devparam[i].nvrm_offset =
-			ISP_NVRAM_TGT_SYNC_OFFSET(nvram_data, i);
-		sdp->isp_devparam[i].nvrm_period =
-			ISP_NVRAM_TGT_SYNC_PERIOD(nvram_data, i);
+
+	isp_prt(isp, ISP_LOGDEBUG0, sc0, sc4,
+	    0, sdp->isp_fifo_threshold, sdp->isp_initiator_id,
+	    sdp->isp_bus_reset_delay, sdp->isp_retry_count,
+	    sdp->isp_retry_delay, sdp->isp_async_data_setup);
+	isp_prt(isp, ISP_LOGDEBUG0, sc1, sc4,
+	    sdp->isp_req_ack_active_neg, sdp->isp_data_line_active_neg,
+	    sdp->isp_data_dma_burst_enabl, sdp->isp_cmd_dma_burst_enable,
+	    sdp->isp_selection_timeout, sdp->isp_max_queue_depth);
+
+	for (tgt = 0; tgt < MAX_TARGETS; tgt++) {
+		sdp->isp_devparam[tgt].dev_enable =
+			ISP_NVRAM_TGT_DEVICE_ENABLE(nvram_data, tgt);
+		sdp->isp_devparam[tgt].exc_throttle =
+			ISP_NVRAM_TGT_EXEC_THROTTLE(nvram_data, tgt);
+		sdp->isp_devparam[tgt].nvrm_offset =
+			ISP_NVRAM_TGT_SYNC_OFFSET(nvram_data, tgt);
+		sdp->isp_devparam[tgt].nvrm_period =
+			ISP_NVRAM_TGT_SYNC_PERIOD(nvram_data, tgt);
 		/*
 		 * We probably shouldn't lie about this, but it
 		 * it makes it much safer if we limit NVRAM values
@@ -5137,50 +5159,51 @@ isp_parse_nvram_1020(struct ispsoftc *isp, u_int8_t *nvram_data)
 			 * If we're not ultra, we can't possibly
 			 * be a shorter period than this.
 			 */
-			if (sdp->isp_devparam[i].nvrm_period < 0x19) {
-				sdp->isp_devparam[i].nvrm_period = 0x19;
+			if (sdp->isp_devparam[tgt].nvrm_period < 0x19) {
+				sdp->isp_devparam[tgt].nvrm_period = 0x19;
 			}
-			if (sdp->isp_devparam[i].nvrm_offset > 0xc) {
-				sdp->isp_devparam[i].nvrm_offset = 0x0c;
+			if (sdp->isp_devparam[tgt].nvrm_offset > 0xc) {
+				sdp->isp_devparam[tgt].nvrm_offset = 0x0c;
 			}
 		} else {
-			if (sdp->isp_devparam[i].nvrm_offset > 0x8) {
-				sdp->isp_devparam[i].nvrm_offset = 0x8;
+			if (sdp->isp_devparam[tgt].nvrm_offset > 0x8) {
+				sdp->isp_devparam[tgt].nvrm_offset = 0x8;
 			}
 		}
-		sdp->isp_devparam[i].nvrm_flags = 0;
-		if (ISP_NVRAM_TGT_RENEG(nvram_data, i))
-			sdp->isp_devparam[i].nvrm_flags |= DPARM_RENEG;
-		sdp->isp_devparam[i].nvrm_flags |= DPARM_ARQ;
-		if (ISP_NVRAM_TGT_TQING(nvram_data, i))
-			sdp->isp_devparam[i].nvrm_flags |= DPARM_TQING;
-		if (ISP_NVRAM_TGT_SYNC(nvram_data, i))
-			sdp->isp_devparam[i].nvrm_flags |= DPARM_SYNC;
-		if (ISP_NVRAM_TGT_WIDE(nvram_data, i))
-			sdp->isp_devparam[i].nvrm_flags |= DPARM_WIDE;
-		if (ISP_NVRAM_TGT_PARITY(nvram_data, i))
-			sdp->isp_devparam[i].nvrm_flags |= DPARM_PARITY;
-		if (ISP_NVRAM_TGT_DISC(nvram_data, i))
-			sdp->isp_devparam[i].nvrm_flags |= DPARM_DISC;
-		sdp->isp_devparam[i].actv_flags = 0; /* we don't know */
-		isp_prt(isp, ISP_LOGDEBUG0, "tgt %d flags %x offset %x per %x",
-		    i, sdp->isp_devparam[i].nvrm_flags,
-		    sdp->isp_devparam[i].nvrm_offset,
-		    sdp->isp_devparam[i].nvrm_period);
-		sdp->isp_devparam[i].goal_offset =
-		    sdp->isp_devparam[i].nvrm_offset;
-		sdp->isp_devparam[i].goal_period =
-		    sdp->isp_devparam[i].nvrm_period;
-		sdp->isp_devparam[i].goal_flags =
-		    sdp->isp_devparam[i].nvrm_flags;
+		sdp->isp_devparam[tgt].nvrm_flags = 0;
+		if (ISP_NVRAM_TGT_RENEG(nvram_data, tgt))
+			sdp->isp_devparam[tgt].nvrm_flags |= DPARM_RENEG;
+		sdp->isp_devparam[tgt].nvrm_flags |= DPARM_ARQ;
+		if (ISP_NVRAM_TGT_TQING(nvram_data, tgt))
+			sdp->isp_devparam[tgt].nvrm_flags |= DPARM_TQING;
+		if (ISP_NVRAM_TGT_SYNC(nvram_data, tgt))
+			sdp->isp_devparam[tgt].nvrm_flags |= DPARM_SYNC;
+		if (ISP_NVRAM_TGT_WIDE(nvram_data, tgt))
+			sdp->isp_devparam[tgt].nvrm_flags |= DPARM_WIDE;
+		if (ISP_NVRAM_TGT_PARITY(nvram_data, tgt))
+			sdp->isp_devparam[tgt].nvrm_flags |= DPARM_PARITY;
+		if (ISP_NVRAM_TGT_DISC(nvram_data, tgt))
+			sdp->isp_devparam[tgt].nvrm_flags |= DPARM_DISC;
+		sdp->isp_devparam[tgt].actv_flags = 0; /* we don't know */
+		isp_prt(isp, ISP_LOGDEBUG0, sc2, sc4,
+		    0, tgt, sdp->isp_devparam[tgt].nvrm_flags,
+		    sdp->isp_devparam[tgt].nvrm_offset,
+		    sdp->isp_devparam[tgt].nvrm_period);
+		sdp->isp_devparam[tgt].goal_offset =
+		    sdp->isp_devparam[tgt].nvrm_offset;
+		sdp->isp_devparam[tgt].goal_period =
+		    sdp->isp_devparam[tgt].nvrm_period;
+		sdp->isp_devparam[tgt].goal_flags =
+		    sdp->isp_devparam[tgt].nvrm_flags;
 	}
 }
 
 static void
 isp_parse_nvram_1080(struct ispsoftc *isp, int bus, u_int8_t *nvram_data)
 {
-	int i;
 	sdparam *sdp = (sdparam *) isp->isp_param;
+	int tgt;
+
 	sdp += bus;
 
 	sdp->isp_fifo_threshold =
@@ -5199,16 +5222,13 @@ isp_parse_nvram_1080(struct ispsoftc *isp, int bus, u_int8_t *nvram_data)
 	    ISP1080_NVRAM_BUS_RETRY_DELAY(nvram_data, bus);
 
 	sdp->isp_async_data_setup =
-	    ISP1080_NVRAM_ASYNC_DATA_SETUP_TIME(nvram_data,
-	    bus);
+	    ISP1080_NVRAM_ASYNC_DATA_SETUP_TIME(nvram_data, bus);
 
 	sdp->isp_req_ack_active_neg =
-	    ISP1080_NVRAM_REQ_ACK_ACTIVE_NEGATION(nvram_data,
-	    bus);
+	    ISP1080_NVRAM_REQ_ACK_ACTIVE_NEGATION(nvram_data, bus);
 
 	sdp->isp_data_line_active_neg =
-	    ISP1080_NVRAM_DATA_LINE_ACTIVE_NEGATION(nvram_data,
-	    bus);
+	    ISP1080_NVRAM_DATA_LINE_ACTIVE_NEGATION(nvram_data, bus);
 
 	sdp->isp_data_dma_burst_enabl =
 	    ISP1080_NVRAM_BURST_ENABLE(nvram_data);
@@ -5222,40 +5242,50 @@ isp_parse_nvram_1080(struct ispsoftc *isp, int bus, u_int8_t *nvram_data)
 	sdp->isp_max_queue_depth =
 	     ISP1080_NVRAM_MAX_QUEUE_DEPTH(nvram_data, bus);
 
-	for (i = 0; i < MAX_TARGETS; i++) {
-		sdp->isp_devparam[i].dev_enable =
-		    ISP1080_NVRAM_TGT_DEVICE_ENABLE(nvram_data, i, bus);
-		sdp->isp_devparam[i].exc_throttle =
-			ISP1080_NVRAM_TGT_EXEC_THROTTLE(nvram_data, i, bus);
-		sdp->isp_devparam[i].nvrm_offset =
-			ISP1080_NVRAM_TGT_SYNC_OFFSET(nvram_data, i, bus);
-		sdp->isp_devparam[i].nvrm_period =
-			ISP1080_NVRAM_TGT_SYNC_PERIOD(nvram_data, i, bus);
-		sdp->isp_devparam[i].nvrm_flags = 0;
-		if (ISP1080_NVRAM_TGT_RENEG(nvram_data, i, bus))
-			sdp->isp_devparam[i].nvrm_flags |= DPARM_RENEG;
-		sdp->isp_devparam[i].nvrm_flags |= DPARM_ARQ;
-		if (ISP1080_NVRAM_TGT_TQING(nvram_data, i, bus))
-			sdp->isp_devparam[i].nvrm_flags |= DPARM_TQING;
-		if (ISP1080_NVRAM_TGT_SYNC(nvram_data, i, bus))
-			sdp->isp_devparam[i].nvrm_flags |= DPARM_SYNC;
-		if (ISP1080_NVRAM_TGT_WIDE(nvram_data, i, bus))
-			sdp->isp_devparam[i].nvrm_flags |= DPARM_WIDE;
-		if (ISP1080_NVRAM_TGT_PARITY(nvram_data, i, bus))
-			sdp->isp_devparam[i].nvrm_flags |= DPARM_PARITY;
-		if (ISP1080_NVRAM_TGT_DISC(nvram_data, i, bus))
-			sdp->isp_devparam[i].nvrm_flags |= DPARM_DISC;
-		sdp->isp_devparam[i].actv_flags = 0;
-		isp_prt(isp, ISP_LOGDEBUG0, "bus %d tgt %d flags %x %x/%x", bus,
-		    i, sdp->isp_devparam[i].nvrm_flags,
-		    sdp->isp_devparam[i].nvrm_offset,
-		    sdp->isp_devparam[i].nvrm_period);
-		sdp->isp_devparam[i].goal_offset =
-		    sdp->isp_devparam[i].nvrm_offset;
-		sdp->isp_devparam[i].goal_period =
-		    sdp->isp_devparam[i].nvrm_period;
-		sdp->isp_devparam[i].goal_flags =
-		    sdp->isp_devparam[i].nvrm_flags;
+	isp_prt(isp, ISP_LOGDEBUG0, sc0, sc4,
+	    bus, sdp->isp_fifo_threshold, sdp->isp_initiator_id,
+	    sdp->isp_bus_reset_delay, sdp->isp_retry_count,
+	    sdp->isp_retry_delay, sdp->isp_async_data_setup);
+	isp_prt(isp, ISP_LOGDEBUG0, sc1, sc4,
+	    sdp->isp_req_ack_active_neg, sdp->isp_data_line_active_neg,
+	    sdp->isp_data_dma_burst_enabl, sdp->isp_cmd_dma_burst_enable,
+	    sdp->isp_selection_timeout, sdp->isp_max_queue_depth);
+
+
+	for (tgt = 0; tgt < MAX_TARGETS; tgt++) {
+		sdp->isp_devparam[tgt].dev_enable =
+		    ISP1080_NVRAM_TGT_DEVICE_ENABLE(nvram_data, tgt, bus);
+		sdp->isp_devparam[tgt].exc_throttle =
+			ISP1080_NVRAM_TGT_EXEC_THROTTLE(nvram_data, tgt, bus);
+		sdp->isp_devparam[tgt].nvrm_offset =
+			ISP1080_NVRAM_TGT_SYNC_OFFSET(nvram_data, tgt, bus);
+		sdp->isp_devparam[tgt].nvrm_period =
+			ISP1080_NVRAM_TGT_SYNC_PERIOD(nvram_data, tgt, bus);
+		sdp->isp_devparam[tgt].nvrm_flags = 0;
+		if (ISP1080_NVRAM_TGT_RENEG(nvram_data, tgt, bus))
+			sdp->isp_devparam[tgt].nvrm_flags |= DPARM_RENEG;
+		sdp->isp_devparam[tgt].nvrm_flags |= DPARM_ARQ;
+		if (ISP1080_NVRAM_TGT_TQING(nvram_data, tgt, bus))
+			sdp->isp_devparam[tgt].nvrm_flags |= DPARM_TQING;
+		if (ISP1080_NVRAM_TGT_SYNC(nvram_data, tgt, bus))
+			sdp->isp_devparam[tgt].nvrm_flags |= DPARM_SYNC;
+		if (ISP1080_NVRAM_TGT_WIDE(nvram_data, tgt, bus))
+			sdp->isp_devparam[tgt].nvrm_flags |= DPARM_WIDE;
+		if (ISP1080_NVRAM_TGT_PARITY(nvram_data, tgt, bus))
+			sdp->isp_devparam[tgt].nvrm_flags |= DPARM_PARITY;
+		if (ISP1080_NVRAM_TGT_DISC(nvram_data, tgt, bus))
+			sdp->isp_devparam[tgt].nvrm_flags |= DPARM_DISC;
+		sdp->isp_devparam[tgt].actv_flags = 0;
+		isp_prt(isp, ISP_LOGDEBUG0, sc2, sc4,
+		    bus, tgt, sdp->isp_devparam[tgt].nvrm_flags,
+		    sdp->isp_devparam[tgt].nvrm_offset,
+		    sdp->isp_devparam[tgt].nvrm_period);
+		sdp->isp_devparam[tgt].goal_offset =
+		    sdp->isp_devparam[tgt].nvrm_offset;
+		sdp->isp_devparam[tgt].goal_period =
+		    sdp->isp_devparam[tgt].nvrm_period;
+		sdp->isp_devparam[tgt].goal_flags =
+		    sdp->isp_devparam[tgt].nvrm_flags;
 	}
 }
 
@@ -5263,7 +5293,7 @@ static void
 isp_parse_nvram_12160(struct ispsoftc *isp, int bus, u_int8_t *nvram_data)
 {
 	sdparam *sdp = (sdparam *) isp->isp_param;
-	int i;
+	int tgt;
 
 	sdp += bus;
 
@@ -5283,16 +5313,13 @@ isp_parse_nvram_12160(struct ispsoftc *isp, int bus, u_int8_t *nvram_data)
 	    ISP12160_NVRAM_BUS_RETRY_DELAY(nvram_data, bus);
 
 	sdp->isp_async_data_setup =
-	    ISP12160_NVRAM_ASYNC_DATA_SETUP_TIME(nvram_data,
-	    bus);
+	    ISP12160_NVRAM_ASYNC_DATA_SETUP_TIME(nvram_data, bus);
 
 	sdp->isp_req_ack_active_neg =
-	    ISP12160_NVRAM_REQ_ACK_ACTIVE_NEGATION(nvram_data,
-	    bus);
+	    ISP12160_NVRAM_REQ_ACK_ACTIVE_NEGATION(nvram_data, bus);
 
 	sdp->isp_data_line_active_neg =
-	    ISP12160_NVRAM_DATA_LINE_ACTIVE_NEGATION(nvram_data,
-	    bus);
+	    ISP12160_NVRAM_DATA_LINE_ACTIVE_NEGATION(nvram_data, bus);
 
 	sdp->isp_data_dma_burst_enabl =
 	    ISP12160_NVRAM_BURST_ENABLE(nvram_data);
@@ -5306,40 +5333,49 @@ isp_parse_nvram_12160(struct ispsoftc *isp, int bus, u_int8_t *nvram_data)
 	sdp->isp_max_queue_depth =
 	     ISP12160_NVRAM_MAX_QUEUE_DEPTH(nvram_data, bus);
 
-	for (i = 0; i < MAX_TARGETS; i++) {
-		sdp->isp_devparam[i].dev_enable =
-		    ISP12160_NVRAM_TGT_DEVICE_ENABLE(nvram_data, i, bus);
-		sdp->isp_devparam[i].exc_throttle =
-			ISP12160_NVRAM_TGT_EXEC_THROTTLE(nvram_data, i, bus);
-		sdp->isp_devparam[i].nvrm_offset =
-			ISP12160_NVRAM_TGT_SYNC_OFFSET(nvram_data, i, bus);
-		sdp->isp_devparam[i].nvrm_period =
-			ISP12160_NVRAM_TGT_SYNC_PERIOD(nvram_data, i, bus);
-		sdp->isp_devparam[i].nvrm_flags = 0;
-		if (ISP12160_NVRAM_TGT_RENEG(nvram_data, i, bus))
-			sdp->isp_devparam[i].nvrm_flags |= DPARM_RENEG;
-		sdp->isp_devparam[i].nvrm_flags |= DPARM_ARQ;
-		if (ISP12160_NVRAM_TGT_TQING(nvram_data, i, bus))
-			sdp->isp_devparam[i].nvrm_flags |= DPARM_TQING;
-		if (ISP12160_NVRAM_TGT_SYNC(nvram_data, i, bus))
-			sdp->isp_devparam[i].nvrm_flags |= DPARM_SYNC;
-		if (ISP12160_NVRAM_TGT_WIDE(nvram_data, i, bus))
-			sdp->isp_devparam[i].nvrm_flags |= DPARM_WIDE;
-		if (ISP12160_NVRAM_TGT_PARITY(nvram_data, i, bus))
-			sdp->isp_devparam[i].nvrm_flags |= DPARM_PARITY;
-		if (ISP12160_NVRAM_TGT_DISC(nvram_data, i, bus))
-			sdp->isp_devparam[i].nvrm_flags |= DPARM_DISC;
-		sdp->isp_devparam[i].actv_flags = 0;
-		isp_prt(isp, ISP_LOGDEBUG0, "bus %d tgt %d flags %x %x/%x", bus,
-		    i, sdp->isp_devparam[i].nvrm_flags,
-		    sdp->isp_devparam[i].nvrm_offset,
-		    sdp->isp_devparam[i].nvrm_period);
-		sdp->isp_devparam[i].goal_offset =
-		    sdp->isp_devparam[i].nvrm_offset;
-		sdp->isp_devparam[i].goal_period =
-		    sdp->isp_devparam[i].nvrm_period;
-		sdp->isp_devparam[i].goal_flags =
-		    sdp->isp_devparam[i].nvrm_flags;
+	isp_prt(isp, ISP_LOGDEBUG0, sc0, sc4,
+	    bus, sdp->isp_fifo_threshold, sdp->isp_initiator_id,
+	    sdp->isp_bus_reset_delay, sdp->isp_retry_count,
+	    sdp->isp_retry_delay, sdp->isp_async_data_setup);
+	isp_prt(isp, ISP_LOGDEBUG0, sc1, sc4,
+	    sdp->isp_req_ack_active_neg, sdp->isp_data_line_active_neg,
+	    sdp->isp_data_dma_burst_enabl, sdp->isp_cmd_dma_burst_enable,
+	    sdp->isp_selection_timeout, sdp->isp_max_queue_depth);
+
+	for (tgt = 0; tgt < MAX_TARGETS; tgt++) {
+		sdp->isp_devparam[tgt].dev_enable =
+		    ISP12160_NVRAM_TGT_DEVICE_ENABLE(nvram_data, tgt, bus);
+		sdp->isp_devparam[tgt].exc_throttle =
+			ISP12160_NVRAM_TGT_EXEC_THROTTLE(nvram_data, tgt, bus);
+		sdp->isp_devparam[tgt].nvrm_offset =
+			ISP12160_NVRAM_TGT_SYNC_OFFSET(nvram_data, tgt, bus);
+		sdp->isp_devparam[tgt].nvrm_period =
+			ISP12160_NVRAM_TGT_SYNC_PERIOD(nvram_data, tgt, bus);
+		sdp->isp_devparam[tgt].nvrm_flags = 0;
+		if (ISP12160_NVRAM_TGT_RENEG(nvram_data, tgt, bus))
+			sdp->isp_devparam[tgt].nvrm_flags |= DPARM_RENEG;
+		sdp->isp_devparam[tgt].nvrm_flags |= DPARM_ARQ;
+		if (ISP12160_NVRAM_TGT_TQING(nvram_data, tgt, bus))
+			sdp->isp_devparam[tgt].nvrm_flags |= DPARM_TQING;
+		if (ISP12160_NVRAM_TGT_SYNC(nvram_data, tgt, bus))
+			sdp->isp_devparam[tgt].nvrm_flags |= DPARM_SYNC;
+		if (ISP12160_NVRAM_TGT_WIDE(nvram_data, tgt, bus))
+			sdp->isp_devparam[tgt].nvrm_flags |= DPARM_WIDE;
+		if (ISP12160_NVRAM_TGT_PARITY(nvram_data, tgt, bus))
+			sdp->isp_devparam[tgt].nvrm_flags |= DPARM_PARITY;
+		if (ISP12160_NVRAM_TGT_DISC(nvram_data, tgt, bus))
+			sdp->isp_devparam[tgt].nvrm_flags |= DPARM_DISC;
+		sdp->isp_devparam[tgt].actv_flags = 0;
+		isp_prt(isp, ISP_LOGDEBUG0, sc2, sc4,
+		    bus, tgt, sdp->isp_devparam[tgt].nvrm_flags,
+		    sdp->isp_devparam[tgt].nvrm_offset,
+		    sdp->isp_devparam[tgt].nvrm_period);
+		sdp->isp_devparam[tgt].goal_offset =
+		    sdp->isp_devparam[tgt].nvrm_offset;
+		sdp->isp_devparam[tgt].goal_period =
+		    sdp->isp_devparam[tgt].nvrm_period;
+		sdp->isp_devparam[tgt].goal_flags =
+		    sdp->isp_devparam[tgt].nvrm_flags;
 	}
 }
 
