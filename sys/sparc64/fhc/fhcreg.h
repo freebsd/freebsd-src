@@ -41,4 +41,11 @@
 #define	FHC_IMAP	0x0
 #define	FHC_ICLR	0x10
 
+#define	FHC_CTRL	(0x20)
+#define	FHC_CTRL_SLINE	(0x00010000)
+#define	FHC_CTRL_AOFF	(0x00001000)
+#define	FHC_CTRL_BOFF	(0x00000800)
+#define	FHC_CTRL_IXIST	(0x00000200)
+#define	FHC_BSR		(0x30)
+
 #endif

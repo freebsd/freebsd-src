@@ -35,6 +35,8 @@ enum fhc_device_ivars {
 	FHC_IVAR_TYPE
 };
 
+#define	FHC_CENTRAL		(1<<0)
+
 struct fhc_softc {
 	phandle_t		sc_node;
 	struct resource *	sc_memres[FHC_NREG];
@@ -42,7 +44,9 @@ struct fhc_softc {
 	bus_space_tag_t		sc_bt[FHC_NREG];
 	int			sc_nrange;
 	struct sbus_ranges	*sc_ranges;
+	int			sc_board;
 	int			sc_ign;
+	int			sc_flags;
 };
 
 int fhc_probe(device_t dev);
@@ -52,7 +56,7 @@ int fhc_print_child(device_t dev, device_t child);
 void fhc_probe_nomatch(device_t dev, device_t child);
 int fhc_read_ivar(device_t, device_t, int, uintptr_t *);
 int fhc_write_ivar(device_t, device_t, int, uintptr_t);
-int fhc_setup_intr(device_t, device_t, struct resource *, int, driver_intr_t,
+int fhc_setup_intr(device_t, device_t, struct resource *, int, driver_intr_t *,
     void *, void **);
 int fhc_teardown_intr(device_t, device_t, struct resource *, void *);
 struct resource *fhc_alloc_resource(device_t, device_t, int, int *, u_long,

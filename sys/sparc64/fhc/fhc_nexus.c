@@ -121,5 +121,8 @@ fhc_nexus_attach(device_t dev)
 		sc->sc_bt[i] = rman_get_bustag(sc->sc_memres[i]);
 		sc->sc_bh[i] = rman_get_bushandle(sc->sc_memres[i]);
 	}
+
+	OF_getprop(node, "board#", &sc->sc_board, sizeof(sc->sc_board));
+
 	return (fhc_attach(dev));
 }
