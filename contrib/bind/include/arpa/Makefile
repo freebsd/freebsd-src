@@ -1,4 +1,4 @@
-# Copyright (c) 1996 by Internet Software Consortium
+# Copyright (c) 1996,1999 by Internet Software Consortium
 #
 # Permission to use, copy, modify, and distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
@@ -27,7 +27,7 @@ clean: FRC
 
 install: ${DESTDIR}${DESTINC}/arpa
 	set -x; for x in ${HFILES}; do \
-		${INSTALL} -c -m 444 $$x ${DESTDIR}${DESTINC}/arpa/$$x; \
+		${INSTALL} -c ${INSTALL_INC} -m 444 $$x ${DESTDIR}${DESTINC}/arpa/$$x; \
 	done
 
 ${DESTDIR}${DESTINC}/arpa:

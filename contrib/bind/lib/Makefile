@@ -1,4 +1,4 @@
-# Copyright (c) 1996 by Internet Software Consortium
+# Copyright (c) 1996,1999 by Internet Software Consortium
 #
 # Permission to use, copy, modify, and distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
@@ -13,9 +13,9 @@
 # ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 # SOFTWARE.
 
-# $Id: Makefile,v 8.10 1997/09/26 17:56:00 halley Exp $
+# $Id: Makefile,v 8.22 1999/06/08 01:42:57 vixie Exp $
 
-SUBDIRS = resolv irs isc bsd inet nameser
+SUBDIRS = resolv irs isc bsd inet nameser dst
 
 # these are only appropriate for BSD 4.4 or derivatives, and are used in
 # development.  normal builds will be done in the top level directory and
@@ -31,51 +31,70 @@ TOP= ..
 INCL= ${TOP}/include
 PORTINCL= ${TOP}/port/${SYSTYPE}/include
 LIBBIND= ${TOP}/lib/libbind.${A}
+LIBBINDR= ${TOP}/lib/libbind_r.${A}
 LIBPORT= ${TOP}/port/libport.${A}
 RANLIB= ranlib
-AR= ar cruv
+AR= ar cru
 INSTALL= install
 CDEBUG= -g
+REENTRANT=-D_REENTRANT
+INSTALL_EXEC=
+INSTALL_LIB=-o bin -g bin
 
 # Warning: this MARGS has RANLIB=: to prevent submakes from running ranlib
 MARGS =	"SYSTYPE=${SYSTYPE}" "SHELL=${SHELL}" "A=${A}" "O=${O}" \
 	"CC=${CC}" "LEX=${LEX}" "YACC=${YACC}" "CDEBUG=${CDEBUG}" \
 	"SYSLIBS=${SYSLIBS}" "LDFLAGS=${LDFLAGS}" \
-	"DESTDIR=${DESTDIR}" "PIDDIR=${PIDDIR}" "DESTMAN=${DESTMAN}" \
+	"DESTDIR=${DESTDIR}" "DESTMAN=${DESTMAN}" \
 	"DESTBIN=${DESTBIN}" "DESTSBIN=${DESTSBIN}" "DESTEXEC=${DESTEXEC}" \
 	"DESTLIB=${DESTLIB}" "DESTINC=${DESTINC}" "DESTHELP=${DESTHELP}" \
 	"RANLIB=:" "AR=${AR}" "ARPREF=${ARPREF}" "ARSUFF=${ARSUFF}" \
-	"INCL=../${INCL}" "PORTINCL=../${PORTINCL}" \
+	"INCL=../${INCL}" "PORTINCL=../${PORTINCL}" "EXE=${EXE}" \
 	"LIBBIND=../${LIBBIND}" "LIBPORT=../${LIBPORT}" \
-	"INSTALL=${INSTALL}" "CPPFLAGS=${CPPFLAGS}" "TOP=../${TOP}"
+	"INSTALL=${INSTALL}" "CPPFLAGS=${CPPFLAGS}" "TOP=../${TOP}" \
+	"REENTRANT=${REENTRANT}" "INSTALL_LIB=${INSTALL_LIB}" \
+	"INSTALL_EXEC=${INSTALL_EXEC}" "BOUNDS=${BOUNDS}"
 
 LIB = libbind.${A}
 LIBTS = ${TOP}/lib/libbind.ts
+LIBR = libbind_r.${A}
+LIBRTS = ${TOP}/lib/libbindr.ts
 
 all depend clean install distclean::
 	@for x in ${SUBDIRS}; do \
 		(cd $$x; pwd; ${MAKE} ${MARGS} $@); \
 	done
 
-all:: ${LIBTS}
+all:: ${LIBTS} ${LIBRTS}
+
+${LIBRTS}: ${LIBBINDR}
+	${RANLIB} ${LIBBINDR}
+	sleep 1 && touch ${LIBRTS}
 
 ${LIBTS}: ${LIBBIND}
 	${RANLIB} ${LIBBIND}
-	touch ${LIBTS}
+	sleep 1 && touch ${LIBTS}
 
 distclean:: clean
 
 clean:: FRC
 	rm -f *~ *.BAK *.CKP *.orig
 	rm -f ${LIBBIND} ${LIBTS}
+	rm -f ${LIBBINDR} ${LIBRTS}
 
 install:: ${DESTDIR}${DESTLIB} ${DESTDIR}${DESTLIB}/${LIB}
+install:: ${DESTDIR}${DESTLIB} ${DESTDIR}${DESTLIB}/${LIBR}
 
 ${DESTDIR}${DESTLIB}:
 	mkdir -p ${DESTDIR}${DESTLIB}
 
+${DESTDIR}${DESTLIB}/${LIBR}: ${LIBBINDR}
+	${INSTALL} -c ${INSTALL_LIB} -m 644 ${LIBBINDR} \
+		${DESTDIR}${DESTLIB}/${LIBR}
+	( cd ${DESTDIR}${DESTLIB} ; ${RANLIB} ${LIBR} )
+
 ${DESTDIR}${DESTLIB}/${LIB}: ${LIBBIND}
-	${INSTALL} -c -o bin -g bin -m 644 ${LIBBIND} \
+	${INSTALL} -c ${INSTALL_LIB} -m 644 ${LIBBIND} \
 		${DESTDIR}${DESTLIB}/${LIB}
 	( cd ${DESTDIR}${DESTLIB} ; ${RANLIB} ${LIB} )
 

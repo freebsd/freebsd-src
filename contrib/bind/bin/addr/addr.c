@@ -1,9 +1,9 @@
 #if !defined(lint) && !defined(SABER)
-static char rcsid[] = "$Id: addr.c,v 8.5 1997/04/25 00:00:29 vixie Exp $";
+static const char rcsid[] = "$Id: addr.c,v 8.8 1999/10/13 16:38:55 vixie Exp $";
 #endif /* not lint */
 
 /*
- * Copyright (c) 1996 by Internet Software Consortium.
+ * Copyright (c) 1996,1999 by Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -129,11 +129,12 @@ main(argc, argv)
 	char *argv[];
 {
 	u_char addr[BIGGEST_ADDRESS];
-	int optchr, af, len;
+	int optchr, af, len, some;
 
 	prog = argv[0];
 	af = AF_INET;
 	len = INADDRSZ;
+	some = 0;
 	while ((optchr = getopt(argc, argv, "46n:p:")) != -1) {
 		switch (optchr) {
 		case '4':
@@ -152,6 +153,7 @@ main(argc, argv)
 				/* NOTREACHED */
 			}
 			display(optarg, af, addr, len);
+			some++;
 			break;
 		case 'p':
 			if (inet_pton(af, optarg, addr) <= 0) {
@@ -161,12 +163,15 @@ main(argc, argv)
 				/* NOTREACHED */
 			}
 			display(optarg, af, addr, len);
+			some++;
 			break;
 		default:
 			usage();
 			/* NOTREACHED */
 		}
 	}
+	if (!some)
+		usage();
 	exit(0);
 	/* NOTREACHED */
 }

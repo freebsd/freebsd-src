@@ -32,7 +32,7 @@
 
 /*
  *      from nameser.h	8.1 (Berkeley) 6/2/93
- *	$Id: nameser_compat.h,v 8.9 1998/03/20 23:25:10 halley Exp $
+ *	$Id: nameser_compat.h,v 8.11 1999/01/02 08:00:58 vixie Exp $
  */
 
 #ifndef _ARPA_NAMESER_COMPAT_
@@ -164,6 +164,10 @@ typedef struct {
 #define NXRRSET		ns_r_nxrrset
 #define NOTAUTH		ns_r_notauth
 #define NOTZONE		ns_r_notzone
+/*#define BADSIG		ns_r_badsig*/
+/*#define BADKEY		ns_r_badkey*/
+/*#define BADTIME		ns_r_badtime*/
+
 
 #define DELETE		ns_uop_delete
 #define ADD		ns_uop_add
@@ -203,6 +207,7 @@ typedef struct {
 #define	T_SRV		ns_t_srv
 #define T_ATMA		ns_t_atma
 #define T_NAPTR		ns_t_naptr
+#define	T_TSIG		ns_t_tsig
 #define	T_IXFR		ns_t_ixfr
 #define T_AXFR		ns_t_axfr
 #define T_MAILB		ns_t_mailb

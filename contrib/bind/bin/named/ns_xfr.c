@@ -1,9 +1,9 @@
 #if !defined(lint) && !defined(SABER)
-static char rcsid[] = "$Id: ns_xfr.c,v 8.25 1998/03/25 18:47:34 halley Exp $";
+static const char rcsid[] = "$Id: ns_xfr.c,v 8.55 1999/10/13 16:39:13 vixie Exp $";
 #endif /* not lint */
 
 /*
- * Copyright (c) 1996, 1997 by Internet Software Consortium.
+ * Copyright (c) 1996-1999 by Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -24,6 +24,7 @@ static char rcsid[] = "$Id: ns_xfr.c,v 8.25 1998/03/25 18:47:34 halley Exp $";
 #include <sys/param.h>
 #include <sys/file.h>
 #include <sys/socket.h>
+#include <sys/un.h>
 
 #include <netinet/in.h>
 #include <arpa/nameser.h>
@@ -32,25 +33,25 @@ static char rcsid[] = "$Id: ns_xfr.c,v 8.25 1998/03/25 18:47:34 halley Exp $";
 #include <errno.h>
 #include <fcntl.h>
 #include <resolv.h>
+#include <res_update.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <syslog.h>
 #include <time.h>
+#include <unistd.h>
 
 #include <isc/eventlib.h>
 #include <isc/logging.h>
 #include <isc/memcluster.h>
+
+#include <isc/dst.h>
 
 #include "port_after.h"
 
 #include "named.h"
 
 static struct qs_x_lev *sx_freelev(struct qs_x_lev *lev);
-
-static void		sx_newmsg(struct qstream *qsp),
-			sx_sendlev(struct qstream *qsp),
-			sx_sendsoa(struct qstream *qsp);
 
 static int		sx_flush(struct qstream *qsp),
 			sx_addrr(struct qstream *qsp,
@@ -59,20 +60,18 @@ static int		sx_flush(struct qstream *qsp),
 			sx_nsrrs(struct qstream *qsp),
 			sx_allrrs(struct qstream *qsp),
 			sx_pushlev(struct qstream *qsp, struct namebuf *np);
+static struct databuf  *db_next(struct databuf *dp);
 
 /*
  * void
- * ns_xfr(qsp, znp, zone, class, type, opcode, id)
+ * ns_xfr(qsp, znp, zone, class, type, opcode, id, serial_ixfr, in_tsig)
  *	Initiate a concurrent (event driven) outgoing zone transfer.
  */
 void
 ns_xfr(struct qstream *qsp, struct namebuf *znp,
        int zone, int class, int type,
-       int opcode, int id)
+       int opcode, int id, u_int32_t serial_ixfr, struct tsig_record *in_tsig)
 {
-	FILE *rfp;
-	int fdstat;
-	pid_t pid;
 	server_info si;
 #ifdef SO_SNDBUF
 	static const int sndbuf = XFER_BUFSIZE * 2;
@@ -80,9 +79,26 @@ ns_xfr(struct qstream *qsp, struct namebuf *znp,
 #ifdef SO_SNDLOWAT
 	static const int sndlowat = XFER_BUFSIZE;
 #endif
+	ns_updrec	*changes;
 
-	ns_info(ns_log_xfer_out, "zone transfer of \"%s\" (%s) to %s",
-		zones[zone].z_origin, p_class(class), sin_ntoa(qsp->s_from));
+	switch (type) {
+	case ns_t_axfr: /*FALLTHROUGH*/
+	case ns_t_ixfr:
+#ifdef BIND_ZXFR
+	case ns_t_zxfr:
+#endif
+		ns_info(ns_log_xfer_out,
+			"zone transfer (%s) of \"%s\" (%s) to %s",
+			p_type(type), zones[zone].z_origin, p_class(class),
+			sin_ntoa(qsp->s_from));
+		break;
+	default:
+		ns_warning(ns_log_xfer_out,
+			   "unsupported XFR (type %s) of \"%s\" (%s) to %s",
+			p_type(type), zones[zone].z_origin, p_class(class),
+			sin_ntoa(qsp->s_from));
+		goto abort;
+	}
 
 #ifdef SO_SNDBUF
 	/*
@@ -104,9 +120,10 @@ ns_xfr(struct qstream *qsp, struct namebuf *znp,
 	if (sq_openw(qsp, 64*1024) == -1)
 		goto abort;
 	memset(&qsp->xfr, 0, sizeof qsp->xfr);
-	qsp->xfr.top = znp;
+	qsp->xfr.top.axfr = znp;
 	qsp->xfr.zone = zone;
 	qsp->xfr.class = class;
+	qsp->xfr.type = type;
 	qsp->xfr.id = id;
 	qsp->xfr.opcode = opcode;
 	qsp->xfr.msg = memget(XFER_BUFSIZE);
@@ -118,19 +135,76 @@ ns_xfr(struct qstream *qsp, struct namebuf *znp,
 	zones[zone].z_numxfrs++;
 	qsp->flags |= STREAM_AXFR;
 
+#ifdef BIND_ZXFR
+	if (type == ns_t_zxfr) {
+		enum { rd = 0, wr = 1 };
+		int z[2];
+		pid_t p;
+
+		if (pipe(z) < 0) {
+			ns_error(ns_log_xfer_out, "pipe: %s", strerror(errno));
+			goto abort;
+		}
+		p = vfork();
+		if (p < 0) {
+			ns_error(ns_log_xfer_out, "vfork: %s", strerror(errno));
+			goto abort;
+		}
+		if (p == 0) {
+			/* Child. */
+			dup2(z[rd], STDIN_FILENO);
+			dup2(qsp->s_rfd, STDOUT_FILENO);
+			execlp("gzip", "gzip", NULL);
+			ns_error(ns_log_xfer_out, "execlp: %s", strerror(errno));
+			_exit(1);
+		}
+		ns_info(ns_log_xfer_out, "zxfr gzip pid %lu", p);
+		/* Parent. */
+		dup2(z[wr], qsp->s_rfd);
+		close(z[wr]);
+		close(z[rd]);
+
+		/* When a ZXFR completes, there can be no more requests. */
+		qsp->flags |= STREAM_DONE_CLOSE;
+	}
+#endif
+
 	si = find_server(qsp->s_from.sin_addr);
 	if (si != NULL && si->transfer_format != axfr_use_default)
 		qsp->xfr.transfer_format = si->transfer_format;
 	else	
 		qsp->xfr.transfer_format = server_options->transfer_format;
-
-	if (sx_pushlev(qsp, znp) < 0) {
- abort:
-		(void) shutdown(qsp->s_rfd, 2);
-		sq_remove(qsp);
-		return;
+	if (in_tsig == NULL)
+		qsp->xfr.tsig_state = NULL;
+	else {
+		qsp->xfr.tsig_state = memget(sizeof(ns_tcp_tsig_state));
+		ns_sign_tcp_init(in_tsig->key, in_tsig->sig, in_tsig->siglen,
+				 qsp->xfr.tsig_state);
+		qsp->xfr.tsig_skip = 0;
 	}
-	(void) sq_writeh(qsp, sx_sendsoa);
+
+	if (type == ns_t_ixfr) {
+		changes = ixfr_get_change_list(&zones[zone], serial_ixfr,
+			zones[zone].z_serial);
+		if (changes != NULL)
+		{
+			qsp->xfr.serial = serial_ixfr;
+			qsp->xfr.top.ixfr = changes;
+		}
+		else
+			type = ns_t_axfr;
+	}
+		if (sx_pushlev(qsp, znp) < 0) {
+ abort:
+			(void) shutdown(qsp->s_rfd, 2);
+			sq_remove(qsp);
+			return;
+		}
+	if (type != ns_t_ixfr) 
+		(void) sq_writeh(qsp, sx_sendsoa);
+	else 
+		(void) sq_writeh(qsp, sx_send_ixfr);
+	
 }
 
 /*
@@ -176,7 +250,7 @@ ns_freexfr(struct qstream *qsp) {
  *	init the header of a message, reset the compression pointers, and
  *	reset the write pointer to the first byte following the header.
  */
-static void
+void
 sx_newmsg(struct qstream *qsp) {
 	HEADER *hp = (HEADER *)qsp->xfr.msg;
 
@@ -190,6 +264,11 @@ sx_newmsg(struct qstream *qsp) {
 	qsp->xfr.ptrs[1] = NULL;
 
 	qsp->xfr.cp = qsp->xfr.msg + HFIXEDSZ;
+
+	qsp->xfr.eom = qsp->xfr.msg + XFER_BUFSIZE;
+
+	if (qsp->xfr.tsig_state != NULL)
+		qsp->xfr.eom -= TSIG_BUF_SIZE;
 }
 
 /*
@@ -205,12 +284,30 @@ sx_flush(struct qstream *qsp) {
 
 #ifdef DEBUG
 	if (debug >= 10)
-		fp_nquery(qsp->xfr.msg, qsp->xfr.cp - qsp->xfr.msg,
-			  log_get_stream(packet_channel));
+		res_pquery(&res, qsp->xfr.msg, qsp->xfr.cp - qsp->xfr.msg,
+			   log_get_stream(packet_channel));
 #endif
+	if (qsp->xfr.tsig_state != NULL && qsp->xfr.tsig_skip == 0) {
+		int msglen = qsp->xfr.cp - qsp->xfr.msg;
+
+		ns_sign_tcp(qsp->xfr.msg, &msglen, qsp->xfr.eom - qsp->xfr.msg,
+			    NOERROR, qsp->xfr.tsig_state,
+			    qsp->xfr.state == s_x_done);
+
+		if (qsp->xfr.state == s_x_done) {
+			memput(qsp->xfr.tsig_state, sizeof(ns_tcp_tsig_state));
+			qsp->xfr.tsig_state = NULL;
+		}
+		qsp->xfr.cp = qsp->xfr.msg + msglen;
+	
+	}
 	ret = sq_write(qsp, qsp->xfr.msg, qsp->xfr.cp - qsp->xfr.msg);
-	if (ret >= 0)
+	if (ret >= 0) {
 		qsp->xfr.cp = NULL;
+		qsp->xfr.tsig_skip = 0;
+	}
+	else
+		qsp->xfr.tsig_skip = 1;
 	return (ret);
 }
 
@@ -229,7 +326,7 @@ static int
 sx_addrr(struct qstream *qsp, const char *dname, struct databuf *dp) {
 	HEADER *hp = (HEADER *)qsp->xfr.msg;
 	u_char **edp = qsp->xfr.ptrs + sizeof qsp->xfr.ptrs / sizeof(u_char*);
-	int n;
+	int n, type;
 
 	if (qsp->xfr.cp != NULL) {
 		if (qsp->xfr.transfer_format == axfr_one_answer &&
@@ -238,15 +335,34 @@ sx_addrr(struct qstream *qsp, const char *dname, struct databuf *dp) {
 	}
 	if (qsp->xfr.cp == NULL)
 		sx_newmsg(qsp);
+
+	/*
+	 * Add question to first answer.
+	 */
+	if (qsp->xfr.state == s_x_firstsoa && dp->d_type == T_SOA ) {
+	     if ((qsp->xfr.type == ns_t_ixfr) || (qsp->flags & STREAM_AXFRIXFR)) {
+			n = dn_comp(dname, qsp->xfr.cp, qsp->xfr.eom - qsp->xfr.cp,
+				    qsp->xfr.ptrs, edp);
+			if (n > 0 && (qsp->xfr.cp + n + INT16SZ * 2) <= qsp->xfr.eom) {
+				qsp->xfr.cp += n;
+				type = (qsp->xfr.type == ns_t_zxfr) ?
+						ns_t_axfr : qsp->xfr.type;
+				PUTSHORT((u_int16_t) type, qsp->xfr.cp);
+				PUTSHORT((u_int16_t) qsp->xfr.class, qsp->xfr.cp);
+				hp->qdcount = htons(ntohs(hp->qdcount) + 1);
+			}
+		}
+	}
+
 	n = make_rr(dname, dp, qsp->xfr.cp, qsp->xfr.eom - qsp->xfr.cp,
-		    0, qsp->xfr.ptrs, edp);
+		    0, qsp->xfr.ptrs, edp, 0);
 	if (n < 0) {
 		if (sx_flush(qsp) < 0)
 			return (-1);
 		if (qsp->xfr.cp == NULL)
 			sx_newmsg(qsp);
 		n = make_rr(dname, dp, qsp->xfr.cp, qsp->xfr.eom - qsp->xfr.cp,
-			    0, qsp->xfr.ptrs, edp);
+			    0, qsp->xfr.ptrs, edp, 0);
 		INSIST(n >= 0);
 	}
 	hp->ancount = htons(ntohs(hp->ancount) + 1);
@@ -264,18 +380,37 @@ sx_addrr(struct qstream *qsp, const char *dname, struct databuf *dp) {
  * side effects:
  *	if progress was made, header and pointers will be advanced.
  */
-static int
+int
 sx_soarr(struct qstream *qsp) {
 	struct databuf *dp;
+	int added_soa = 0;
 
-	foreach_rr(dp, qsp->xfr.top, T_SOA, qsp->xfr.class, qsp->xfr.zone) {
+	foreach_rr(dp, qsp->xfr.top.axfr, T_SOA, qsp->xfr.class,
+		   qsp->xfr.zone) {
 		if (sx_addrr(qsp, zones[qsp->xfr.zone].z_origin, dp) < 0) {
 			/* RR wouldn't fit. Bail out. */
 			return (-1);
 		}
-		return (0);
+		added_soa = 1;
+		break;
 	}
-	ns_panic(ns_log_xfer_out, 1, "no SOA at zone top");
+	if (added_soa == 0)
+		ns_panic(ns_log_xfer_out, 1, "no SOA at zone top");
+	if (qsp->xfr.state == s_x_firstsoa) {
+		foreach_rr(dp, qsp->xfr.top.axfr, T_SIG, qsp->xfr.class,
+			   qsp->xfr.zone)
+		{
+			if (SIG_COVERS(dp) != T_SOA)
+				continue;
+			if (sx_addrr(qsp, zones[qsp->xfr.zone].z_origin, dp) <
+			    0)
+			{
+				/* RR wouldn't fit. Bail out. */
+				return (-1);
+			}
+		}
+	}
+	return (0);
 }
 
 /*
@@ -283,6 +418,9 @@ sx_soarr(struct qstream *qsp) {
  * sx_nsrrs(qsp)
  *	add the NS RR's at the current level's current np,
  *	to the assembly message
+ *      This function also adds the SIG(NS), KEY, SIG(KEY), NXT, SIG(NXT)
+ *      the reason for this these records are part of the delegation. 
+ *
  * return:
  *	>1 = number of NS RRs added, note that there may be more
  *	0 = success, there are no more NS RRs at this level
@@ -303,11 +441,11 @@ sx_nsrrs(struct qstream *qsp) {
 	int rrcount, class;
 
 	class = qsp->xfr.class;
-	top = qsp->xfr.top;
+	top = qsp->xfr.top.axfr;
 	rrcount = 0;
 	for ((void)NULL;
 	     (dp = qsp->xfr.lev->dp) != NULL;
-	     qsp->xfr.lev->dp = dp->d_next) {
+	     qsp->xfr.lev->dp = db_next(dp)) {
 		/* XYZZY foreach_rr? */
 		if (dp->d_class != class && class != C_ANY)
 			continue;
@@ -323,14 +461,21 @@ sx_nsrrs(struct qstream *qsp) {
 		 */
 		if (dp->d_zone == DB_Z_CACHE)
 			continue;
-		if (dp->d_type != T_NS)
+
+		if (dp->d_type != T_NS && dp->d_type != T_KEY && 
+		    dp->d_type != T_NXT && dp->d_type != T_SIG)
+			continue;
+		if (dp->d_type == T_SIG && ((SIG_COVERS(dp) != T_NS) &&
+		    (SIG_COVERS(dp) != T_KEY) && (SIG_COVERS(dp) != T_NXT)))
 			continue;
 		if (!(qsp->xfr.lev->flags & SXL_GLUING)) {
 			if (sx_addrr(qsp, qsp->xfr.lev->dname, dp) < 0) {
 				/* RR wouldn't fit. Bail out. */
 				return (-1);
 			}
-			rrcount++;
+			if (dp->d_type != T_NS) /* no glue processing */
+				continue;
+			rrcount++;  /* only count NS records */
 		}
 
 		/*
@@ -373,6 +518,16 @@ sx_nsrrs(struct qstream *qsp) {
 				 */
 				return (-1);
 			}
+		/* for IPv6 glue AAAA record transfer */
+		/* patched by yasuhiro@nic.ad.jp, 1999/5/23 */
+		foreach_rr(gdp, gnp, T_AAAA, class, DB_Z_CACHE)
+			if (sx_addrr(qsp, fname, gdp) < 0) {
+				/*
+				 * Rats.  We already sent the NS RR, too.
+				 * Note that SXL_GLUING is being left on.
+				 */
+				return (-1);
+			}
 		qsp->xfr.lev->flags &= ~SXL_GLUING;
 	}
 	return (rrcount);
@@ -383,6 +538,8 @@ sx_nsrrs(struct qstream *qsp) {
  * sx_allrrs(qsp)
  *	add the non-(SOA,NS) RR's at the current level's current np,
  *	to the assembly message
+ *      do not add the DNSSEC types KEY and NXT as the delegation check 
+ *	wrote these types out.
  * return:
  *	>0 = number of RR's added, note that there may be more
  *	0 = success, there are no more RRs at this level
@@ -396,20 +553,18 @@ sx_nsrrs(struct qstream *qsp) {
  */
 static int
 sx_allrrs(struct qstream *qsp) {
-	struct databuf *dp, *tdp, *gdp;
-	struct namebuf *gnp, *tnp, *top;
-	struct hashbuf *htp;
-	const char *fname;
+	struct databuf *dp;
+	struct namebuf *top;
 	int rrcount, class;
 	u_int zone;
 
 	class = qsp->xfr.class;
-	top = qsp->xfr.top;
+	top = qsp->xfr.top.axfr;
 	zone = qsp->xfr.zone;
 	rrcount = 0;
 	for ((void)NULL;
 	     (dp = qsp->xfr.lev->dp) != NULL;
-	     qsp->xfr.lev->dp = dp->d_next) {
+	     qsp->xfr.lev->dp = db_next(dp)) {
 		/* XYZZY foreach_rr? */
 		if (dp->d_class != class && class != C_ANY)
 			continue;
@@ -417,18 +572,13 @@ sx_allrrs(struct qstream *qsp) {
 			continue;
 		if (dp->d_zone != zone || stale(dp))
 			continue;
-		if (dp->d_type == T_SOA || dp->d_type == T_NS)
+		if (dp->d_type == T_SOA || dp->d_type == T_NS ||
+			dp->d_type == T_NXT || dp->d_type == T_KEY)
 			continue;
-		/* XXXRTH I presume this is still relevant and that
-		   this is the right place... */
-#if 0 /* Not yet implemented.  Only a SHOULD in the I-D.  -gnu@toad.com */
-		/* skip the SIG AXFR record because we did it first too. */
-		if (dp->d_type == T_SIG) {
-			int sig_rrtype = GETSHORT (dp->d_data);
-			if (sig_rrtype == T_AXFR)
-				continue;
-		}
-#endif /* 0 */
+		if (dp->d_type == T_SIG &&
+		    (SIG_COVERS(dp) == T_SOA || SIG_COVERS(dp) == T_NS ||
+		     SIG_COVERS(dp) == T_KEY || SIG_COVERS(dp) == T_NXT))
+			continue;
 		INSIST(!(qsp->xfr.lev->flags & SXL_GLUING));
 
 		if (sx_addrr(qsp, qsp->xfr.lev->dname, dp) < 0) {
@@ -452,7 +602,7 @@ sx_allrrs(struct qstream *qsp) {
  *	qsp->xfr.state at the end of the topmost level.  changes the
  *	qsp->xfr.lev->state several times per domain name.
  */
-static void
+void
 sx_sendlev(struct qstream *qsp) {
 	struct qs_x_lev *lev;
 	int rrcount;
@@ -462,6 +612,12 @@ sx_sendlev(struct qstream *qsp) {
 	switch (lev->state) {
 	    case sxl_ns: {
 		while (lev->dp) {
+			/* Was the child zone reloaded under us? */
+			if ((lev->dp->d_flags & DB_F_ACTIVE) == 0) {
+				(void) shutdown(qsp->s_rfd, 2);
+				sq_remove(qsp);
+				return;
+			}
 			rrcount = sx_nsrrs(qsp);
 			/* If we can't pack this one in, come back later. */
 			if (rrcount < 0)
@@ -470,7 +626,7 @@ sx_sendlev(struct qstream *qsp) {
 			 * NS RRs other than those at the
 			 * zone top are zone cuts.
 			 */
-			if (rrcount > 0 && qsp->xfr.top != lev->np)
+			if (rrcount > 0 && qsp->xfr.top.axfr != lev->np)
 				lev->flags |= SXL_ZONECUT;
 		}
 		/* No more DP's for the NS RR pass on this NP. */
@@ -481,10 +637,18 @@ sx_sendlev(struct qstream *qsp) {
 		/* No NS RR's, so it's safe to send other types. */
 		lev->state = sxl_all;
 		lev->dp = lev->np->n_data;
+		if (lev->dp)
+			DRCNTINC(lev->dp);
 		goto again;
 	    }
 	    case sxl_all: {
 		while (lev->dp) {
+			/* Was a record updated under us? */
+			if ((lev->dp->d_flags & DB_F_ACTIVE) == 0) {
+				(void) shutdown(qsp->s_rfd, 2);
+				sq_remove(qsp);
+				return;
+			}
 			/* If we can't pack this one in, come back later. */
 			if (sx_allrrs(qsp) < 0)
 				return;
@@ -535,10 +699,14 @@ sx_sendlev(struct qstream *qsp) {
  * side effects:
  *	changes qsp->xfr.state.  adds RR to output buffer.
  */
-static void
+void
 sx_sendsoa(struct qstream *qsp) {
+	HEADER *	hp = (HEADER *) qsp->xfr.msg;
+
 	if (sx_soarr(qsp) == -1)
 		return;		/* No state change, come back here later. */
+
+	hp->aa = 1;
 
 	switch (qsp->xfr.state) {
 	    case s_x_firstsoa: {
@@ -549,8 +717,8 @@ sx_sendsoa(struct qstream *qsp) {
 	    }
 	    case s_x_lastsoa: {
 		/* Next thing to do is go back and wait for another query. */
-		(void)sx_flush(qsp);
 		qsp->xfr.state = s_x_done;
+		(void)sx_flush(qsp);
 		sq_writeh(qsp, sq_flushw);
 		break;
 	    }
@@ -581,6 +749,8 @@ sx_pushlev(struct qstream *qsp, struct namebuf *np) {
 	new->state = sxl_ns;
 	new->np = np;
 	new->dp = np->n_data;
+	if (new->dp)
+		DRCNTINC(new->dp);
 	getname(np, new->dname, sizeof new->dname);
 	/*
 	 * We find the subdomains by looking in the hash table for this
@@ -637,6 +807,26 @@ static struct qs_x_lev *
 sx_freelev(struct qs_x_lev *lev) {
 	struct qs_x_lev *next = lev->next;
 
+	if (lev->dp) {
+		DRCNTDEC(lev->dp);
+		if (lev->dp->d_rcnt == 0)
+			db_freedata(lev->dp);
+	}
 	memput(lev, sizeof *lev);
 	return (next);
 }
+
+static struct databuf *
+db_next(struct databuf *dp) {
+	struct databuf *next = dp->d_next;
+
+	DRCNTDEC(dp);
+	if (dp->d_rcnt == 0)
+		db_freedata(dp);
+
+	if (next)
+		DRCNTINC(next);
+
+	return (next);
+}
+

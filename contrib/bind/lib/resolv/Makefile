@@ -1,4 +1,4 @@
-# Copyright (c) 1996 by Internet Software Consortium
+# Copyright (c) 1996,1999 by Internet Software Consortium
 #
 # Permission to use, copy, modify, and distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
@@ -13,7 +13,7 @@
 # ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
 # SOFTWARE.
 
-# $Id: Makefile,v 8.17 1997/05/21 19:32:09 halley Exp $
+# $Id: Makefile,v 8.30 1999/10/07 08:24:15 vixie Exp $
 
 # these are only appropriate for BSD 4.4 or derivatives, and are used in
 # development.  normal builds will be done in the top level directory and
@@ -31,35 +31,53 @@ TOP= ../..
 INCL = ${TOP}/include
 PORTINCL = ${TOP}/port/${SYSTYPE}/include
 LIBBIND = ${TOP}/lib/libbind.${A}
+LIBBINDR = ../${TOP}/lib/libbind_r.${A}
 CFLAGS=	${CDEBUG} -I${PORTINCL} -I${INCL}
+# -D__BIND_NOSTATIC
 LD_LIBFLAGS= -x -r
-AR= ar cruv
+AR= ar cru
 RANLIB= ranlib
 INSTALL= install
+INSTALL_EXEC=
+INSTALL_LIB=-o bin -g bin
+THREADED= threaded
 
 SRCS=	herror.c res_debug.c res_data.c res_comp.c res_init.c \
-	res_mkquery.c res_query.c res_send.c res_mkupdate.c \
-	res_update.c
+	res_mkquery.c res_query.c res_send.c res_sendsigned.c \
+	res_mkupdate.c res_update.c \
+	res_findzonecut.c
 
 OBJS=	herror.${O} res_debug.${O} res_data.${O} res_comp.${O} res_init.${O} \
-	res_mkquery.${O} res_query.${O} res_send.${O} res_mkupdate.${O} \
-	res_update.${O}
+	res_mkquery.${O} res_query.${O} res_send.${O} res_sendsigned.${O} \
+	res_mkupdate.${O} res_update.${O} \
+	res_findzonecut.${O}
 
 all: ${LIBBIND}
 
 ${LIBBIND}: ${OBJS}
+	( cd ${THREADED} ; \
+	${AR} ${LIBBINDR} ${ARPREF} ${OBJS} ${ARSUFF} ; \
+	${RANLIB} ${LIBBINDR} )
 	${AR} ${LIBBIND} ${ARPREF} ${OBJS} ${ARSUFF}
 	${RANLIB} ${LIBBIND}
 
 .c.${O}:
-	${CC} ${CPPFLAGS} ${CFLAGS} -c $*.c
-	-${LDS} ${LD} ${LD_LIBFLAGS} $*.${O} && ${LDS} mv a.out $*.${O}
+	if test ! -d ${THREADED} ; then mkdir ${THREADED} ; fi
+	${CC} ${CPPFLAGS} ${CFLAGS} ${BOUNDS} ${REENTRANT} -c $*.c \
+	 -o ${THREADED}/$*.${O}
+	-${LDS} ${LD} ${LD_LIBFLAGS} ${THREADED}/$*.${O} -o a.out && \
+	 ${LDS} mv a.out ${THREADED}/$*.${O}
+	${CC} ${CPPFLAGS} ${CFLAGS} ${BOUNDS} -c $*.c
+	-${LDS} ${LD} ${LD_LIBFLAGS} $*.${O} -o a.out && \
+	 ${LDS} mv a.out $*.${O}
 
 distclean: clean
 
 clean: FRC
 	rm -f .depend a.out core ${LIB} tags
 	rm -f *.${O} *.BAK *.CKP *~
+	rm -f ${THREADED}/*.${O}
+	-rmdir ${THREADED}
 
 depend: FRC
 	mkdep -I${INCL} -I${PORTINCL} ${CPPFLAGS} ${SRCS}

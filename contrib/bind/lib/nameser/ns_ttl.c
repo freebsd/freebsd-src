@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996 by Internet Software Consortium.
+ * Copyright (c) 1996,1999 by Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -16,7 +16,7 @@
  */
 
 #ifndef lint
-static char rcsid[] = "$Id: ns_ttl.c,v 8.5 1998/02/13 01:16:38 halley Exp $";
+static const char rcsid[] = "$Id: ns_ttl.c,v 8.8 1999/10/13 16:39:36 vixie Exp $";
 #endif
 
 /* Import. */
@@ -52,7 +52,7 @@ int
 ns_format_ttl(u_long src, char *dst, size_t dstlen) {
 	char *odst = dst;
 	int secs, mins, hours, days, weeks, x;
-	char tmp[50], *p;
+	char *p;
 
 	secs = src % 60;   src /= 60;
 	mins = src % 60;   src /= 60;

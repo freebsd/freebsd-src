@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996, 1998 by Internet Software Consortium.
+ * Copyright (c) 1996-1999 by Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -16,7 +16,7 @@
  */
 
 #if !defined(LINT) && !defined(CODECENTER)
-static char rcsid[] = "$Id: lcl.c,v 1.11 1998/03/21 00:59:49 halley Exp $";
+static const char rcsid[] = "$Id: lcl.c,v 1.15 1999/10/13 16:39:32 vixie Exp $";
 #endif
 
 /* Imports */
@@ -26,6 +26,13 @@ static char rcsid[] = "$Id: lcl.c,v 1.11 1998/03/21 00:59:49 halley Exp $";
 #include <stdlib.h>
 #include <errno.h>
 #include <string.h>
+
+#include <sys/types.h>
+#include <netinet/in.h> 
+#include <arpa/nameser.h>
+#include <resolv.h>
+
+#include <isc/memcluster.h>
 
 #include <irs.h>
 
@@ -37,6 +44,9 @@ static char rcsid[] = "$Id: lcl.c,v 1.11 1998/03/21 00:59:49 halley Exp $";
 /* Forward. */
 
 static void		lcl_close(struct irs_acc *);
+static struct __res_state *	lcl_res_get(struct irs_acc *);
+static void		lcl_res_set(struct irs_acc *, struct __res_state *,
+				void (*)(void *));
 
 /* Public */
 
@@ -45,17 +55,19 @@ irs_lcl_acc(const char *options) {
 	struct irs_acc *acc;
 	struct lcl_p *lcl;
 
-	if (!(acc = malloc(sizeof *acc))) {
+	if (!(acc = memget(sizeof *acc))) {
 		errno = ENOMEM;
 		return (NULL);
 	}
 	memset(acc, 0x5e, sizeof *acc);
-	if (!(lcl = malloc(sizeof *lcl))) {
+	if (!(lcl = memget(sizeof *lcl))) {
 		errno = ENOMEM;
 		free(acc);
 		return (NULL);
 	}
 	memset(lcl, 0x5e, sizeof *lcl);
+	lcl->res = NULL;
+	lcl->free_res = NULL;
 	acc->private = lcl;
 #ifdef WANT_IRS_GR
 	acc->gr_map = irs_lcl_gr;
@@ -72,17 +84,55 @@ irs_lcl_acc(const char *options) {
 	acc->ho_map = irs_lcl_ho;
 	acc->nw_map = irs_lcl_nw;
 	acc->ng_map = irs_lcl_ng;
+	acc->res_get = lcl_res_get;
+	acc->res_set = lcl_res_set;
 	acc->close = lcl_close;
 	return (acc);
 }
 
 /* Methods */
+static struct __res_state *
+lcl_res_get(struct irs_acc *this) {
+	struct lcl_p *lcl = (struct lcl_p *)this->private;
+
+	if (lcl->res == NULL) {
+		struct __res_state *res;
+		res = (struct __res_state *)malloc(sizeof *res);
+		if (res == NULL)
+			return (NULL);
+		memset(res, 0, sizeof *res);
+		lcl_res_set(this, res, free);
+	}
+
+	if ((lcl->res->options | RES_INIT) == 0 &&
+	    res_ninit(lcl->res) < 0)
+		return (NULL);
+
+	return (lcl->res);
+}
+
+static void
+lcl_res_set(struct irs_acc *this, struct __res_state *res,
+		void (*free_res)(void *)) {
+	struct lcl_p *lcl = (struct lcl_p *)this->private;
+
+	if (lcl->res && lcl->free_res) {
+		res_nclose(lcl->res);
+		(*lcl->free_res)(lcl->res);
+	}
+
+	lcl->res = res;
+	lcl->free_res = free_res;
+}
 
 static void
 lcl_close(struct irs_acc *this) {
 	struct lcl_p *lcl = (struct lcl_p *)this->private;
 
-	if (lcl)
-		free(lcl);
-	free(this);
+	if (lcl) {
+		if (lcl->free_res)
+			(*lcl->free_res)(lcl->res);
+		memput(lcl, sizeof *lcl);
+	}
+	memput(this, sizeof *this);
 }

@@ -1,9 +1,9 @@
 #if defined(LIBC_SCCS) && !defined(lint)
-static const char rcsid[] = "$Id: hesiod.c,v 1.15 1998/01/26 23:08:24 halley Exp $";
+static const char rcsid[] = "$Id: hesiod.c,v 1.20 1999/02/22 04:09:06 vixie Exp $";
 #endif
 
 /*
- * Copyright (c) 1996 by Internet Software Consortium.
+ * Copyright (c) 1996,1999 by Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -65,6 +65,7 @@ void		hesiod_free_list(void *context, char **list);
 static int	parse_config_file(struct hesiod_p *ctx, const char *filename);
 static char **	get_txt_records(struct hesiod_p *ctx, int class,
 				const char *name);
+static int	init(struct hesiod_p *ctx);
 
 /* Public */
 
@@ -131,15 +132,16 @@ hesiod_init(void **context) {
 		goto cleanup;
 	}
 	
+#if 0
+	if (res_ninit(ctx->res) < 0)
+		goto cleanup;
+#endif
+
 	*context = ctx;
 	return (0);
 
  cleanup:
-	if (ctx->LHS)
-		free(ctx->LHS);
-	if (ctx->RHS)
-		free(ctx->RHS);
-	free(ctx);
+	hesiod_end(ctx);
 	return (-1);
 }
 
@@ -149,12 +151,18 @@ hesiod_init(void **context) {
 void
 hesiod_end(void *context) {
 	struct hesiod_p *ctx = (struct hesiod_p *) context;
+	int save_errno = errno;
 
+	if (ctx->res)
+		res_nclose(ctx->res);
 	if (ctx->RHS)
 		free(ctx->RHS);
 	if (ctx->LHS)
 		free(ctx->LHS);
+	if (ctx->res && ctx->free_res)
+		(*ctx->free_res)(ctx->res);
 	free(ctx);
+	errno = save_errno;
 }
 
 /*
@@ -226,11 +234,17 @@ hesiod_resolve(void *context, const char *name, const char *type) {
 	char *bindname = hesiod_to_bind(context, name, type);
 	char **retvec;
 
-	if (!bindname)
+	if (bindname == NULL)
 		return (NULL);
+	if (init(ctx) == -1) {
+		free(bindname);
+		return (NULL);
+	}
 
-	if ((retvec = get_txt_records(ctx, C_IN, bindname)))
+	if ((retvec = get_txt_records(ctx, C_IN, bindname))) {
+		free(bindname);
 		return (retvec);
+	}
 	
 	if (errno != ENOENT)
 		return (NULL);
@@ -322,8 +336,6 @@ parse_config_file(struct hesiod_p *ctx, const char *filename) {
 /*
  * Given a DNS class and a DNS name, do a lookup for TXT records, and
  * return a list of them.
- *
- * XXX we're still using the non-thread safe res_* routines.
  */
 static char **
 get_txt_records(struct hesiod_p *ctx, int class, const char *name) {
@@ -333,7 +345,6 @@ get_txt_records(struct hesiod_p *ctx, int class, const char *name) {
 		int dlen;		/* len of data section */
 		u_char *data;		/* pointer to data */
 	} rr;
-	struct __res_state save_res;
 	HEADER *hp;
 	u_char qbuf[MAX_HESRESP], abuf[MAX_HESRESP];
 	u_char *cp, *erdata, *eom;
@@ -342,22 +353,15 @@ get_txt_records(struct hesiod_p *ctx, int class, const char *name) {
 	int i, j, n, skip;
 
 	/*
-	 * Construct the query and send it.  We play games with _res
-	 * since we don't have our own resolver state.  Once the
-	 * resolver routines are rewritten to use their own context
-	 * variable, we'll use it here.
+	 * Construct the query and send it.
 	 */
-	if ((_res.options & RES_INIT) == 0 && res_init() == -1)
-		return (NULL);
-	save_res = _res;
-	n = res_mkquery(QUERY, name, class, T_TXT, NULL, 0,
-			NULL, qbuf, MAX_HESRESP);
+	n = res_nmkquery(ctx->res, QUERY, name, class, T_TXT, NULL, 0,
+			 NULL, qbuf, MAX_HESRESP);
 	if (n < 0) {
 		errno = EMSGSIZE;
 		return (NULL);
 	}
-	n = res_send(qbuf, n, abuf, MAX_HESRESP);
-	_res = save_res;
+	n = res_nsend(ctx->res, qbuf, n, abuf, MAX_HESRESP);
 	if (n < 0) {
 		errno = ECONNREFUSED;
 		return (NULL);
@@ -451,4 +455,49 @@ get_txt_records(struct hesiod_p *ctx, int class, const char *name) {
 		free(list[i]);
 	free(list);
 	return (NULL);
+}
+
+struct __res_state *
+__hesiod_res_get(void *context) {
+	struct hesiod_p *ctx = context;
+
+	if (!ctx->res) {
+		struct __res_state *res;
+		res = (struct __res_state *)malloc(sizeof *res);
+		if (res == NULL) {
+			errno = ENOMEM;
+			return (NULL);
+		}
+		memset(res, 0, sizeof *res);
+		__hesiod_res_set(ctx, res, free);
+	}
+
+	return (ctx->res);
+}
+
+void
+__hesiod_res_set(void *context, struct __res_state *res,
+	         void (*free_res)(void *)) {
+	struct hesiod_p *ctx = context;
+
+	if (ctx->res && ctx->free_res) {
+		res_nclose(ctx->res);
+		(*ctx->free_res)(ctx->res);
+	}
+
+	ctx->res = res;
+	ctx->free_res = free_res;
+}
+
+static int
+init(struct hesiod_p *ctx) {
+	
+	if (!ctx->res && !__hesiod_res_get(ctx))
+		return (-1);
+
+	if (((ctx->res->options & RES_INIT) == 0) &&
+	    (res_ninit(ctx->res) == -1))
+		return (-1);
+
+	return (0);
 }

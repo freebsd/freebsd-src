@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1996 by Internet Software Consortium.
+ * Copyright (c) 1996,1999 by Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -20,7 +20,7 @@
  */
 
 /*
- * $Id: hesiod_p.h,v 1.6 1996/11/18 09:09:32 vixie Exp $
+ * $Id: hesiod_p.h,v 1.9 1999/01/08 19:24:39 vixie Exp $
  */
 
 /*
@@ -36,6 +36,11 @@
 struct hesiod_p {
 	char *		LHS;		/* normally ".ns" */
 	char *		RHS;		/* AKA the default hesiod domain */
+	struct __res_state * res;	/* resolver context */
+	void		(*free_res)(void *);
+	void		(*res_set)(struct hesiod_p *, struct __res_state *,
+				   void (*)(void *));
+	struct __res_state * (*res_get)(struct hesiod_p *);
 };
 
 #define MAX_HESRESP	1024
