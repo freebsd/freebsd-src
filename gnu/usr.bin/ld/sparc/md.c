@@ -1,5 +1,5 @@
 /*
- * $Id: md.c,v 1.2 1993/10/27 00:56:17 pk Exp $
+ * $Id: md.c,v 1.3 1993/11/06 19:15:31 pk Exp $
  */
 
 #include <sys/param.h>
@@ -148,6 +148,13 @@ md_init_header(hp, magic, flags)
 struct exec	*hp;
 int		magic, flags;
 {
+#ifdef NetBSD
+	N_SETMAGIC((*hp), magic, MID_MACHINE, flags);
+
+	/* TEXT_START depends on the value of outheader.a_entry.  */
+	if (!(link_mode & SHAREABLE)) /*WAS: if (entry_symbol) */
+		hp->a_entry = PAGSIZ;
+#else
 	hp->a_magic = magic;
 	hp->a_machtype = M_SPARC;
 	hp->a_toolversion = 1;
@@ -156,6 +163,7 @@ int		magic, flags;
 	/* SunOS 4.1 N_TXTADDR depends on the value of outheader.a_entry.  */
 	if (!(link_mode & SHAREABLE)) /*WAS: if (entry_symbol) */
 		hp->a_entry = N_PAGSIZ(*hp);
+#endif
 }
 
 /*
