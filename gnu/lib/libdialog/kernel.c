@@ -388,7 +388,7 @@ void draw_shadow(WINDOW *win, int y, int x, int height, int width)
     wattrset(win, shadow_attr);
     wmove(win, y + height, x + 2);
     for (i = 0; i < width; i++)
-      waddch(win, mvwinch(curscr, sy+y+height, sx+x+2+i) & A_CHARTEXT);
+      waddch(win, mvwinch(newscr, sy+y+height, sx+x+2+i) & A_CHARTEXT);
     for (i = y + 1; i < y + height + 1; i++) {
       /* small touch */
       wattrset(win, A_INVIS);
@@ -397,8 +397,8 @@ void draw_shadow(WINDOW *win, int y, int x, int height, int width)
       /* end touch */
       wattrset(win, shadow_attr);
       wmove(win, i, x + width);
-      waddch(win, mvwinch(curscr, sy+i, sx+x+width) & A_CHARTEXT);
-      waddch(win, mvwinch(curscr, sy+i, sx+x+width+1) & A_CHARTEXT);
+      waddch(win, mvwinch(newscr, sy+i, sx+x+width) & A_CHARTEXT);
+      waddch(win, mvwinch(newscr, sy+i, sx+x+width+1) & A_CHARTEXT);
     }
     wnoutrefresh(win);
   }
