@@ -44,7 +44,7 @@ static char	*debugFuncs[256];
 # define ENTER(proc) { \
 			debugFuncs[debugDepth] = proc; \
 			fprintf(stderr, "ENTER(%d:%s.%s)\n", \
-				debugDepth, DEBUG,
+				debugDepth, DEBUG, \
 				debugFuncs[debugDepth]); \
 			debugDepth++; \
 		}
