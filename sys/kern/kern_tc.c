@@ -596,7 +596,7 @@ pps_event(struct pps_state *pps, int event)
 	tcount &= pps->capth->th_counter->tc_counter_mask;
 	bt = pps->capth->th_offset;
 	bintime_addx(&bt, pps->capth->th_scale * tcount);
-	bintime_add(&bt, boottimebin);
+	bintime_add(&bt, &boottimebin);
 	bintime2timespec(&bt, &ts);
 
 	/* If the timecounter was wound up underneath us, bail out. */
