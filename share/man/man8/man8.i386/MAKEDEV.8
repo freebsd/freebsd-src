@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)MAKEDEV.8	8.1 (Berkeley) 6/5/93
-.\"	$Id$
+.\"	$Id: MAKEDEV.8,v 1.9 1997/02/22 13:26:17 peter Exp $
 .\"
 .Dd June 5, 1993
 .Dt MAKEDEV 8 i386
@@ -77,6 +77,8 @@ set of 16 master and slave pseudo terminals
 SCSI disk drives
 .It st#
 SCSI tape drives
+.It vty#
+set of 12 virtual console devices for syscons/pcvt/codrv
 .It wd#
 ``winchester'' disk drives (ST506, IDE, ESDI, RLL etc.)
 .It wt#
