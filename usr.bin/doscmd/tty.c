@@ -197,8 +197,8 @@ static void	vram2ximage(void);
 #define	K4_SLOCK_LED	0x01
 #define	K4_NLOCK_LED	0x02
 #define	K4_CLOCK_LED	0x04
-#define	K4_ACK		0x10		/* ACK recieved from keyboard */
-#define	K4_RESEND	0x20		/* RESEND recieved from keyboard */
+#define	K4_ACK		0x10		/* ACK received from keyboard */
+#define	K4_RESEND	0x20		/* RESEND received from keyboard */
 #define	K4_LED		0x40		/* LED update in progress */
 #define	K4_ERROR	0x80
 

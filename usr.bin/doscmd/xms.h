@@ -35,7 +35,7 @@
 #define XMS_REVISION  0x0100  /* driver revision 1.0 */
 
 #define NUM_HANDLES     64	/* number of available handles */
-#define FIRST_HANDLE    1	/* number of firts valid handle */
+#define FIRST_HANDLE    1	/* number of first valid handle */
 #define PARAGRAPH       16      /* bytes in a paragraph */
 #define MAX_BLOCK_LOCKS 256	/* number of locks on a block */
 #define DEFAULT_EMM_SIZE 512 * 1024    /* default EMM size */
@@ -60,7 +60,7 @@
 #define  XMS_ALLOCATE_UMB               	0x10
 #define  XMS_DEALLOCATE_UMB             	0x11
 #define  XMS_REALLOCATE_UMB			0x12
-/* New functions for values bigger than 65MB, not implented yet */
+/* New functions for values bigger than 65MB, not implanted yet */
 #define  XMS_QUERY_FREE_EXTENDED_MEMORY_LARGE	0x88
 #define  XMS_ALLOCATE_EXTENDED_MEMORY_LARGE   	0x89
 #define  XMS_FREE_EXTENDED_MEMORY_LARGE       	0x8a
@@ -118,7 +118,7 @@ struct XMSinfo {
 };
 
 /*
- * Handle management inside the emulator for extendend memory pages, 
+ * Handle management inside the emulator for extended memory pages, 
  * invisible to DOS
  */
 
@@ -129,7 +129,7 @@ typedef struct {
 } XMS_handle;
 
 /*
- * Managment of UMB memory paragraphs (16 bytes). UMB blocks are
+ * Management of UMB memory paragraphs (16 bytes). UMB blocks are
  * directly accessible by VM86 applications and lie between 0xd0000 and
  * 0xefff0 in VM86 memory space. 
  */

@@ -50,9 +50,9 @@ static inline void	showstate(long, long, char);
  * 1) Always set the trap flag.
  * 2) If this is a POPF or IRET instruction, set the trap flag in the saved
  *    flag state on the stack.
- * On enterint from VM86 mode:
+ * On entering from VM86 mode:
  * 1) Restore the trap flag from our saved flag state.
- * 2) If we just finished a POPF or IRET unstruction, patch the saved flag
+ * 2) If we just finished a POPF or IRET instruction, patch the saved flag
  *    state on the stack.
  */
 
