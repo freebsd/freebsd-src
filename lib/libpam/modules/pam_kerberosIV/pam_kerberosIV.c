@@ -39,12 +39,12 @@
 
 #define PASSWORD_PROMPT	"Password:"
 
-extern int klogin(struct passwd *, char *, char *, char *);
+extern int _pam_klogin(struct passwd *, char *, char *, char *);
 
-/* Globals used by klogin.c */
-int	notickets = 1;
-int	noticketsdontcomplain = 1;
-char	*krbtkfile_env;
+/* Globals used by _pam_klogin.c */
+int	_pam_notickets = 1;
+int	_pam_noticketsdontcomplain = 1;
+char	*_pam_krbtkfile_env;
 
 PAM_EXTERN int
 pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc,
@@ -77,17 +77,17 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc,
 	else
 		instance = "";
 	if ((pwd = getpwnam(user)) != NULL &&
-	    klogin(pwd, instance, localhost, (char *)password) == 0) {
-		if (!(flags & PAM_SILENT) && notickets &&
-		    !noticketsdontcomplain)
+	    _pam_klogin(pwd, instance, localhost, (char *)password) == 0) {
+		if (!(flags & PAM_SILENT) && _pam_notickets &&
+		    !_pam_noticketsdontcomplain)
 			pam_prompt(pamh, PAM_ERROR_MSG,
 			    "Warning: no Kerberos tickets issued", NULL);
 		/*
 		 * XXX - I think the ticket file really isn't supposed to
 		 * be even created until pam_sm_setcred() is called.
 		 */
-		if (krbtkfile_env != NULL)
-			setenv("KRBTKFILE", krbtkfile_env, 1);
+		if (_pam_krbtkfile_env != NULL)
+			setenv("KRBTKFILE", _pam_krbtkfile_env, 1);
 		retval = PAM_SUCCESS;
 	} else
 		retval = PAM_AUTH_ERR;
