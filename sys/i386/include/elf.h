@@ -122,8 +122,28 @@ __ElfType(Auxinfo);
 #define	R_386_RELATIVE	8	/* Add load address of shared object. */
 #define	R_386_GOTOFF	9	/* Add GOT-relative symbol address. */
 #define	R_386_GOTPC	10	/* Add PC-relative GOT table address. */
+#define	R_386_TLS_TPOFF	14	/* Negative offset in static TLS block */
+#define	R_386_TLS_IE	15	/* Absolute address of GOT for -ve static TLS */
+#define	R_386_TLS_GOTIE	16	/* GOT entry for negative static TLS block */
+#define	R_386_TLS_LE	17	/* Negative offset relative to static TLS */
+#define	R_386_TLS_GD	18	/* 32 bit offset to GOT (index,off) pair */
+#define	R_386_TLS_LDM	19	/* 32 bit offset to GOT (index,zero) pair */
+#define	R_386_TLS_GD_32	24	/* 32 bit offset to GOT (index,off) pair */
+#define	R_386_TLS_GD_PUSH 25	/* pushl instruction for Sun ABI GD sequence */
+#define	R_386_TLS_GD_CALL 26	/* call instruction for Sun ABI GD sequence */
+#define	R_386_TLS_GD_POP 27	/* popl instruction for Sun ABI GD sequence */
+#define	R_386_TLS_LDM_32 28	/* 32 bit offset to GOT (index,zero) pair */
+#define	R_386_TLS_LDM_PUSH 29	/* pushl instruction for Sun ABI LD sequence */
+#define	R_386_TLS_LDM_CALL 30	/* call instruction for Sun ABI LD sequence */
+#define	R_386_TLS_LDM_POP 31	/* popl instruction for Sun ABI LD sequence */
+#define	R_386_TLS_LDO_32 32	/* 32 bit offset from start of TLS block */
+#define	R_386_TLS_IE_32	33	/* 32 bit offset to GOT static TLS offset entry */
+#define	R_386_TLS_LE_32	34	/* 32 bit offset within static TLS block */
+#define	R_386_TLS_DTPMOD32 35	/* GOT entry containing TLS index */
+#define	R_386_TLS_DTPOFF32 36	/* GOT entry containing TLS offset */
+#define	R_386_TLS_TPOFF32 37	/* GOT entry of -ve static TLS offset */
 
-#define	R_386_COUNT	11	/* Count of defined relocation types. */
+#define	R_386_COUNT	38	/* Count of defined relocation types. */
 
 /* Define "machine" characteristics */
 #define	ELF_TARG_CLASS	ELFCLASS32
