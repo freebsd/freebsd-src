@@ -598,13 +598,10 @@ sc_vid_ioctl(struct tty *tp, u_long cmd, caddr_t data, int flag, struct proc *p)
 	    return ENODEV;	/* XXX */
 	return fb_ioctl(adp, cmd, data);
 
-    /* XXX */
     case FBIO_GETPALETTE:
     case FBIO_SETPALETTE:
     case FBIOPUTCMAP:
     case FBIOGETCMAP:
-	return ENODEV;
-
     case FBIOGTYPE:
     case FBIOGATTR:
     case FBIOSVIDEO:
