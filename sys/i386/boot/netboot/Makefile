@@ -15,6 +15,8 @@
 #	-DNE_BASE	- Base I/O address for NE1000/NE2000
 #       -D_3COM_BASE    - Base I/O address for 3c503
 #	-DWD_DEFAULT_MEM- Default memory location for WD/SMC cards
+# XXX nothing depends on this Makefile so you must run `make clean' after
+# changing an option.
 #
 
 PROG=	netboot.com
@@ -47,7 +49,7 @@ RELOCADDR=0x90000
 makerom: makerom.c
 	${CC} -o ${.TARGET} -DROMSIZE=${ROMSIZE} ${.CURDIR}/makerom.c
 
-netboot.rom:	makerom start2.ro ${OBJS}
+netboot.rom:	makerom start2.ro ${SRCS:N*.h:R:S/$/.o/g}
 	${LD} ${LDFLAGS} -o ${.TARGET} ${OBJS:S/start2.o/start2.ro/}
 
 netboot.rom.strip:	netboot.rom
