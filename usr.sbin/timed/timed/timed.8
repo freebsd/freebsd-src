@@ -216,10 +216,8 @@ settings are often associated with "multi-homed" machines
 that looked for time masters on more than one network and eventually
 chose to become a slave on the other network.
 .Sh WARNINGS
-If two or more time daemons, whether
-.Nm ,
-.Tn NTP ,
-try to adjust the same clock, temporal chaos will result.
+Temporal chaos will result if two or more time daemons attempt
+to adjust the same clock.
 If both
 .Nm
 and another time daemon are run on the same machine,
