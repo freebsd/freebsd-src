@@ -49,8 +49,9 @@ declares
 .Pp
 which is used to pass an error code from IPsec policy manipulation library
 to an user program.
+The
 .Fn ipsec_strerror
-can be used to obtain the error message string for the error code.
+function can be used to obtain the error message string for the error code.
 .Pp
 The array pointed to is not to be modified by the program.
 Since
@@ -66,20 +67,23 @@ would make the return value from
 invalid, or overwritten.
 .\"
 .Sh RETURN VALUES
+The
 .Fn ipsec_strerror
-always return a pointer to C string.
+function always returns a pointer to C string.
 The C string must not be overwritten by user programs.
 .\"
 .Sh SEE ALSO
 .Xr ipsec_set_policy 3
 .\"
 .Sh HISTORY
+The
 .Fn ipsec_strerror
-first appeared in WIDE/KAME IPv6 protocol stack kit.
+function first appeared in WIDE/KAME IPv6 protocol stack kit.
 .\"
 .Sh BUGS
+The
 .Fn ipsec_strerror
-will return its result which may be overwritten by subsequent calls.
+function will return its result which may be overwritten by subsequent calls.
 .Pp
 .Va ipsec_errcode
 is not thread safe.
