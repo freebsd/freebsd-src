@@ -230,66 +230,67 @@
 .
 .\" an alternative, more detailed scheme for naming the manual sections
 .\"
-.ds doc-volume-ds-1 System General Commands Manual
+.ds doc-volume-operating-system BSD
+.ds doc-volume-ds-1 General Commands Manual
 .ds doc-volume-ds-2 System Calls Manual
-.ds doc-volume-ds-3 System Library Functions Manual
-.ds doc-volume-ds-4 System Kernel Interfaces Manual
-.ds doc-volume-ds-5 System File Formats Manual
-.ds doc-volume-ds-6 System Games Manual
-.ds doc-volume-ds-7 System Miscellaneous Information Manual
+.ds doc-volume-ds-3 Library Functions Manual
+.ds doc-volume-ds-4 Kernel Interfaces Manual
+.ds doc-volume-ds-5 File Formats Manual
+.ds doc-volume-ds-6 Games Manual
+.ds doc-volume-ds-7 Miscellaneous Information Manual
 .ds doc-volume-ds-8 System Manager's Manual
-.ds doc-volume-ds-9 System Kernel Developer's Manual
+.ds doc-volume-ds-9 Kernel Developer's Manual
 .
-.ds doc-volume-ds-USD   System User's Supplementary Documents
-.ds doc-volume-ds-PS1   System Programmer's Supplementary Documents
-.ds doc-volume-ds-AMD   System Ancestral Manual Documents
+.ds doc-volume-ds-USD   User's Supplementary Documents
+.ds doc-volume-ds-PS1   Programmer's Supplementary Documents
+.ds doc-volume-ds-AMD   Ancestral Manual Documents
 .ds doc-volume-ds-SMM   System Manager's Manual
-.ds doc-volume-ds-URM   System Reference Manual
-.ds doc-volume-ds-PRM   System Programmer's Manual
-.ds doc-volume-ds-KM    System Kernel Manual
-.ds doc-volume-ds-IND   System Manual Master Index
-.ds doc-volume-ds-LOCAL System Local Manual
-.ds doc-volume-ds-CON   System Contributed Software Manual
+.ds doc-volume-ds-URM   User's Reference Manual
+.ds doc-volume-ds-PRM   Programmer's Manual
+.ds doc-volume-ds-KM    Kernel Manual
+.ds doc-volume-ds-IND   Manual Master Index
+.ds doc-volume-ds-LOCAL Local Manual
+.ds doc-volume-ds-CON   Contributed Software Manual
 .
 .als doc-volume-ds-MMI doc-volume-ds-IND
 .als doc-volume-ds-LOC doc-volume-ds-LOCAL
 .
-.ds doc-volume-as-alpha    (Alpha Architecture)
+.ds doc-volume-as-alpha    Alpha
 .als doc-volume-as-Alpha doc-volume-as-alpha
-.ds doc-volume-as-amiga    (Amiga Architecture)
-.ds doc-volume-as-arc      (Arc Architecture)
-.ds doc-volume-as-arm26    (ARM26 Architecture)
-.ds doc-volume-as-arm32    (ARM32 Architecture)
-.ds doc-volume-as-atari    (Atari Architecture)
-.ds doc-volume-as-bebox    (BEbox Architecture)
-.ds doc-volume-as-cobalt   (Cobalt Architecture)
-.ds doc-volume-as-evbsh3   (Evbsh3 Architecture)
-.ds doc-volume-as-hp300    (HP300 Architecture)
-.ds doc-volume-as-hpcmips  (HPcmips Architecture)
-.ds doc-volume-as-i386     (i386 Architecture)
-.ds doc-volume-as-luna68k  (luna68k Architecture)
-.ds doc-volume-as-m68k     (m68k Architecture)
-.ds doc-volume-as-mac68k   (mac68k Architecture)
-.ds doc-volume-as-macppc   (macppc Architecture)
-.ds doc-volume-as-mips     (MIPS Architecture)
-.ds doc-volume-as-mmeye    (mmeye Architecture)
-.ds doc-volume-as-mvme68k  (mvme68k Architecture)
-.ds doc-volume-as-news68k  (news68k Architecture)
-.ds doc-volume-as-newsmips (newsmips Architecture)
-.ds doc-volume-as-next68k  (next68k Architecture)
-.ds doc-volume-as-ofppc    (ofppc Architecture)
-.ds doc-volume-as-pc532    (pc532 Architecture)
-.ds doc-volume-as-pmax     (pmax Architecture)
-.ds doc-volume-as-powerpc  (powerpc Architecture)
-.ds doc-volume-as-prep     (prep Architecture)
-.ds doc-volume-as-sgimips  (sgimips Architecture)
-.ds doc-volume-as-sh3      (sh3 Architecture)
-.ds doc-volume-as-sparc    (SPARC Architecture)
-.ds doc-volume-as-sparc64  (sparc64 Architecture)
-.ds doc-volume-as-sun3     (sun3 Architecture)
-.ds doc-volume-as-tahoe    (Tahoe Architecture)
-.ds doc-volume-as-vax      (VAX Architecture)
-.ds doc-volume-as-x68k     (x68k Architecture)
+.ds doc-volume-as-amiga    Amiga
+.ds doc-volume-as-arc      Arc
+.ds doc-volume-as-arm26    ARM26
+.ds doc-volume-as-arm32    ARM32
+.ds doc-volume-as-atari    Atari
+.ds doc-volume-as-bebox    BEbox
+.ds doc-volume-as-cobalt   Cobalt
+.ds doc-volume-as-evbsh3   Evbsh3
+.ds doc-volume-as-hp300    HP300
+.ds doc-volume-as-hpcmips  HPcmips
+.ds doc-volume-as-i386     i386
+.ds doc-volume-as-luna68k  luna68k
+.ds doc-volume-as-m68k     m68k
+.ds doc-volume-as-mac68k   mac68k
+.ds doc-volume-as-macppc   macppc
+.ds doc-volume-as-mips     MIPS
+.ds doc-volume-as-mmeye    mmeye
+.ds doc-volume-as-mvme68k  mvme68k
+.ds doc-volume-as-news68k  news68k
+.ds doc-volume-as-newsmips newsmips
+.ds doc-volume-as-next68k  next68k
+.ds doc-volume-as-ofppc    ofppc
+.ds doc-volume-as-pc532    pc532
+.ds doc-volume-as-pmax     pmax
+.ds doc-volume-as-powerpc  powerpc
+.ds doc-volume-as-prep     prep
+.ds doc-volume-as-sgimips  sgimips
+.ds doc-volume-as-sh3      sh3
+.ds doc-volume-as-sparc    SPARC
+.ds doc-volume-as-sparc64  sparc64
+.ds doc-volume-as-sun3     sun3
+.ds doc-volume-as-tahoe    Tahoe
+.ds doc-volume-as-vax      VAX
+.ds doc-volume-as-x68k     x68k
 .
 .de Dt
 .  \" reset default arguments
@@ -304,30 +305,24 @@
 .    ds doc-section \$2
 .    ie \B\$2 \{\
 .      if ((\$2 >= 1) & (\$2 <= 9)) \{\
-.        ds doc-volume "\*[doc-volume-ds-URM]
-.        ie d doc-volume-ds-\$2 \
-.          ds doc-volume "\*[doc-volume-ds-\$2]
-.        el \{ .ie ((\$2 > 1) & (\$2 < 6)) \
-.          ds doc-volume "\*[doc-volume-ds-PRM]
-.        el \{ .ie (\$2 == 8) \
-.          ds doc-volume "\*[doc-volume-ds-SMM]
-.        el \{ .if (\$2 == 9) \
-.          ds doc-volume "\*[doc-volume-ds-KM]
-.    \}\}\}\}\}
-.    el \{ .ie "\$2"unass" .ds doc-volume DRAFT
-.    el \{ .ie "\$2"draft" .ds doc-volume DRAFT
-.    el \{ .ie "\$2"paper" .ds doc-volume UNTITLED
-.    el \
-.      tm mdoc warning: .Dt: unknown section `\$2' (#\n[.c])
-.  \}\}\}\}
-.
-.  if \A\$3 \{\
-.    if d doc-volume-ds-\$3 \
-.      ds doc-volume "\*[doc-volume-ds-\$3]
-.
-.    if d doc-volume-as-\$3 \
-.      as doc-volume " \*[doc-volume-as-\$3]
-.  \}
+.        ds doc-volume "\*[doc-volume-operating-system]
+.        if \A\$3 \{\
+.          if d doc-volume-as-\$3 \
+.            as doc-volume "/\*[doc-volume-as-\$3]
+.        \}
+.        as doc-volume " \*[doc-volume-ds-\$2]
+.    \}\}
+.    el \{\
+.      ie "\$2"unass" .ds doc-volume DRAFT
+.      el \{ .ie "\$2"draft" .ds doc-volume DRAFT
+.      el \{ .ie "\$2"paper" .ds doc-volume UNTITLED
+.      el \
+.        tm mdoc warning: .Dt: unknown section `\$2' (#\n[.c])
+.      \}\}
+.      if \A\$3 \{\
+.        if d doc-volume-ds-\$3 \
+.          ds doc-volume "\*[doc-volume-ds-\$3]
+.  \}\}\}
 .
 .  if !"\$3"" \
 .    if "\*[doc-volume]"LOCAL" \
