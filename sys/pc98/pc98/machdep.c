@@ -74,7 +74,6 @@
 #include <sys/mutex.h>
 #include <sys/pcpu.h>
 #include <sys/ptrace.h>
-#include <sys/proc.h>
 #include <sys/reboot.h>
 #include <sys/sched.h>
 #include <sys/signalvar.h>
@@ -87,9 +86,9 @@
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 #include <vm/vm_kern.h>
-#include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_map.h>
+#include <vm/vm_object.h>
 #include <vm/vm_pager.h>
 #include <vm/vm_param.h>
 
@@ -99,6 +98,13 @@
 #endif
 #include <ddb/ddb.h>
 #include <ddb/db_sym.h>
+#endif
+
+#ifdef PC98
+#include <pc98/pc98/pc98_machdep.h>
+#include <pc98/pc98/pc98.h>
+#else
+#include <isa/rtc.h>
 #endif
 
 #include <net/netisr.h>
@@ -127,13 +133,6 @@
 
 #ifdef DEV_ISA
 #include <i386/isa/icu.h>
-#endif
-
-#ifdef PC98
-#include <pc98/pc98/pc98_machdep.h>
-#include <pc98/pc98/pc98.h>
-#else
-#include <isa/rtc.h>
 #endif
 
 /* Sanity check for __curthread() */
