@@ -12,7 +12,7 @@ MOUNT=	${.CURDIR}/../mount
 CFLAGS+= -I${MOUNT}
 .PATH:	${MOUNT}
 
-TABDIR= ${DESTDIR}/usr/libdata/msdosfs
+TABDIR= ${DESTDIR}${LIBDATADIR}/msdosfs
 TABLES= iso22dos koi2dos
 
 afterinstall:
