@@ -37,6 +37,9 @@ __FBSDID("$FreeBSD$");
  * IEEE 802.11 ioctl support (FreeBSD-specific)
  */
 
+#include "opt_inet.h"
+#include "opt_ipx.h"
+
 #include <sys/endian.h>
 #include <sys/param.h>
 #include <sys/kernel.h>
@@ -48,6 +51,16 @@ __FBSDID("$FreeBSD$");
 #include <net/if_arp.h>
 #include <net/if_media.h>
 #include <net/ethernet.h>
+
+#ifdef INET
+#include <netinet/in.h>
+#include <netinet/if_ether.h>
+#endif
+
+#ifdef IPX
+#include <netipx/ipx.h>
+#include <netipx/ipx_if.h>
+#endif
 
 #include <net80211/ieee80211_var.h>
 #include <net80211/ieee80211_ioctl.h>
@@ -756,6 +769,7 @@ ieee80211_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	u_int8_t tmpkey[IEEE80211_KEYBUF_SIZE];
 	char tmpssid[IEEE80211_NWID_LEN];
 	struct ieee80211_channel *chan;
+	struct ifaddr *ifa;			/* XXX */
 
 	switch (cmd) {
 	case SIOCSIFMEDIA:
@@ -861,6 +875,7 @@ ieee80211_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			break;
 		default:
 			error = EINVAL;
+			break;
 		}
 		break;
 	case SIOCS80211:
@@ -1025,6 +1040,51 @@ ieee80211_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			error = EINVAL;
 		else
 			ifp->if_mtu = ifr->ifr_mtu;
+		break;
+	case SIOCSIFADDR:
+		/*
+		 * XXX Handle this directly so we can supress if_init calls.
+		 * XXX This should be done in ether_ioctl but for the moment
+		 * XXX there are too many other parts of the system that
+		 * XXX set IFF_UP and so supress if_init being called when
+		 * XXX it should be.
+		 */
+		ifa = (struct ifaddr *) data;
+		switch (ifa->ifa_addr->sa_family) {
+#ifdef INET
+		case AF_INET:
+			if ((ifp->if_flags & IFF_UP) == 0) {
+				ifp->if_flags |= IFF_UP;
+				ifp->if_init(ifp->if_softc);
+			}
+			arp_ifinit(ifp, ifa);
+			break;
+#endif
+#ifdef IPX
+		/*
+		 * XXX - This code is probably wrong,
+		 *	 but has been copied many times.
+		 */
+		case AF_IPX: {
+			struct ipx_addr *ina = &(IA_SIPX(ifa)->sipx_addr);
+			struct arpcom *ac = (struct arpcom *)ifp;
+
+			if (ipx_nullhost(*ina))
+				ina->x_host = *(union ipx_host *) ac->ac_enaddr;
+			else
+				bcopy((caddr_t) ina->x_host.c_host,
+				      (caddr_t) ac->ac_enaddr,
+				      sizeof(ac->ac_enaddr));
+			/* fall thru... */
+		}
+#endif
+		default:
+			if ((ifp->if_flags & IFF_UP) == 0) {
+				ifp->if_flags |= IFF_UP;
+				ifp->if_init(ifp->if_softc);
+			}
+			break;
+		}
 		break;
 	default:
 		error = ether_ioctl(ifp, cmd, data);
