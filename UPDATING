@@ -117,7 +117,7 @@ prior to 4.0 Release.
 
 20000707:
 	We started building modules here.  IF you don't wish to
-	follow the documented proceedure for building kernels, then
+	follow the documented procedure for building kernels, then
 	you'll have to install new mk files from src/share/mk, or
 	define NO_MODULES.
 
