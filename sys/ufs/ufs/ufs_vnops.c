@@ -1874,7 +1874,7 @@ ufs_readlink(ap)
  * Calculate the logical to physical mapping if not done already,
  * then call the device strategy routine.
  *
- * In order to be able to swap to a file, the VOP_BMAP operation may not
+ * In order to be able to swap to a file, the ufs_bmaparray() operation may not
  * deadlock on memory.  See ufs_bmap() for details.
  */
 int
@@ -1893,7 +1893,7 @@ ufs_strategy(ap)
 	if (vp->v_type == VBLK || vp->v_type == VCHR)
 		panic("ufs_strategy: spec");
 	if (bp->b_blkno == bp->b_lblkno) {
-		error = VOP_BMAP(vp, bp->b_lblkno, NULL, &bp->b_blkno, NULL, NULL);
+		error = ufs_bmaparray(vp, bp->b_lblkno, &bp->b_blkno, NULL, NULL);
 		if (error) {
 			bp->b_error = error;
 			bp->b_ioflags |= BIO_ERROR;
