@@ -17,6 +17,7 @@ CFLAGS+= -D"Table_size=${TOP_TABLE_SIZE}"
 SRCS=	commands.c display.c machine.c screen.c top.c \
 	username.c utils.c version.c
 
+CLEANFILES+= top.1
 DPADD=  ${LIBTERMCAP} ${LIBM} ${LIBKVM}
 LDADD=  -ltermcap -lm -lkvm
 BINGRP= kmem

@@ -91,7 +91,7 @@ int multitech_dialer (register char *num, char *acu)
 	if (lock_baud)
 	{
 		int i;
-		if ((i = speed(number(value(BAUDRATE)))) == NULL)
+		if ((i = speed(number(value(BAUDRATE)))) == 0)
 			return 0;
 		ttysetup (i);
 	}

@@ -38,7 +38,7 @@ static char copyright[] =
 #endif /* not lint */
 
 #ifndef lint
-static char sccsid[] = "@(#)uname.c	8.1 (Berkeley) 6/6/93";
+static char sccsid[] = "@(#)uname.c	8.2 (Berkeley) 5/4/95";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -47,6 +47,7 @@ static char sccsid[] = "@(#)uname.c	8.1 (Berkeley) 6/6/93";
 #include <err.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 void usage __P((void));
 
@@ -66,7 +67,7 @@ main(argc, argv)
 	char *p, *prefix, buf[1024];
 
 	flags = 0;
-	while ((ch = getopt(argc, argv, "amnrsv")) !=  -1)
+	while ((ch = getopt(argc, argv, "amnrsv")) != -1)
 		switch(ch) {
 		case 'a':
 			flags |= (MFLAG | NFLAG | RFLAG | SFLAG | VFLAG);
