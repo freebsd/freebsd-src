@@ -196,6 +196,8 @@ tcp_init()
 	tcp_keepintvl = TCPTV_KEEPINTVL;
 	tcp_maxpersistidle = TCPTV_KEEP_IDLE;
 	tcp_msl = TCPTV_MSL;
+	tcp_rexmit_min = TCPTV_MIN;
+	tcp_rexmit_slop = TCPTV_CPU_VAR;
 
 	LIST_INIT(&tcb);
 	tcbinfo.listhead = &tcb;
@@ -540,7 +542,7 @@ tcp_newtcpcb(inp)
 	 */
 	tp->t_srtt = TCPTV_SRTTBASE;
 	tp->t_rttvar = ((TCPTV_RTOBASE - TCPTV_SRTTBASE) << TCP_RTTVAR_SHIFT) / 4;
-	tp->t_rttmin = TCPTV_MIN;
+	tp->t_rttmin = tcp_rexmit_min;
 	tp->t_rxtcur = TCPTV_RTOBASE;
 	tp->snd_cwnd = TCP_MAXWIN << TCP_MAX_WINSHIFT;
 	tp->snd_ssthresh = TCP_MAXWIN << TCP_MAX_WINSHIFT;

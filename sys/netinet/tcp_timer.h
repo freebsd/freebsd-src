@@ -90,7 +90,17 @@
 #define	TCPTV_KEEPINTVL	( 75*hz)		/* default probe interval */
 #define	TCPTV_KEEPCNT	8			/* max probes before drop */
 
-#define	TCPTV_MIN	(  1*hz)		/* minimum allowable value */
+/*
+ * TCPTV_MIN represents the minimum allowed retransmit interval.  It
+ * is currently one second but will ultimately be reduced to 3 ticks
+ * for algorithmic stability, leaving the 200ms variance to deal with
+ * delayed-acks, protocol overheads.  A 1 second minimum badly breaks
+ * throughput on any network faster then a modem that has minor but
+ * continuous packet loss unrelated to congestion, such as on a wireless
+ * network.
+ */
+#define	TCPTV_MIN	( hz )			/* minimum allowable value */
+#define TCPTV_CPU_VAR	( hz/5 )		/* cpu variance (200ms) */
 #define	TCPTV_REXMTMAX	( 64*hz)		/* max allowable REXMT value */
 
 #define TCPTV_TWTRUNC	8			/* RTO factor to truncate TW */
@@ -110,7 +120,7 @@ static char *tcptimers[] =
  * Force a time value to be in a certain range.
  */
 #define	TCPT_RANGESET(tv, value, tvmin, tvmax) do { \
-	(tv) = (value); \
+	(tv) = (value) + tcp_rexmit_slop; \
 	if ((u_long)(tv) < (u_long)(tvmin)) \
 		(tv) = (tvmin); \
 	else if ((u_long)(tv) > (u_long)(tvmax)) \
@@ -124,6 +134,8 @@ extern int tcp_keepintvl;		/* time between keepalive probes */
 extern int tcp_maxidle;			/* time to drop after starting probes */
 extern int tcp_delacktime;		/* time before sending a delayed ACK */
 extern int tcp_maxpersistidle;
+extern int tcp_rexmit_min;
+extern int tcp_rexmit_slop;
 extern int tcp_msl;
 extern int tcp_ttl;			/* time to live for TCP segs */
 extern int tcp_backoff[];
