@@ -1,6 +1,6 @@
 /**************************************************************************
 
-Copyright (c) 2001 Intel Corporation
+Copyright (c) 2001-2002 Intel Corporation
 All rights reserved.
 
 Redistribution and use in source and binary forms of the Software, with or
@@ -70,7 +70,6 @@ SUCH DAMAGE.
 #include <machine/clock.h>
 #include <pci/pcivar.h>
 #include <pci/pcireg.h>
-
 #include "opt_bdg.h"
 
 #include <dev/em/if_em_fxhw.h>
@@ -109,9 +108,6 @@ SUCH DAMAGE.
 #define DEBUG_INIT  0
 #define DEBUG_IOCTL 0
 #define DEBUG_HW    0
-#define DEBUG_TXRX  0
-#define DEBUG_RXCSUM 0
-#define DEBUG_TXCSUM 0
 
 #define INIT_DEBUGOUT(S)            if (DEBUG_INIT)  printf(S "\n")
 #define INIT_DEBUGOUT1(S, A)        if (DEBUG_INIT)  printf(S "\n", A)
@@ -122,24 +118,7 @@ SUCH DAMAGE.
 #define HW_DEBUGOUT(S)              if (DEBUG_HW) printf(S "\n")
 #define HW_DEBUGOUT1(S, A)          if (DEBUG_HW) printf(S "\n", A)
 #define HW_DEBUGOUT2(S, A, B)       if (DEBUG_HW) printf(S "\n", A, B)
-#define TXRX_DEBUGOUT(S)              if (DEBUG_TXRX) printf(S "\n")
-#define TXRX_DEBUGOUT1(S, A)          if (DEBUG_TXRX) printf(S "\n", A)
-#define TXRX_DEBUGOUT2(S, A, B)       if (DEBUG_TXRX) printf(S "\n", A, B)
-#define RXCSUM_DEBUGOUT(S)              if (DEBUG_RXCSUM) printf(S "\n")
-#define RXCSUM_DEBUGOUT1(S, A)          if (DEBUG_RXCSUM) printf(S "\n", A)
-#define RXCSUM_DEBUGOUT2(S, A, B)       if (DEBUG_RXCSUM) printf(S "\n", A, B)
-#define TXCSUM_DEBUGOUT(S)              if (DEBUG_TXCSUM) printf(S "\n")
-#define TXCSUM_DEBUGOUT1(S, A)          if (DEBUG_TXCSUM) printf(S "\n", A)
-#define TXCSUM_DEBUGOUT2(S, A, B)       if (DEBUG_TXCSUM) printf(S "\n", A, B)
 
-/* Device ID defines */
-#define PCI_DEVICE_ID_82542            0x1000
-#define PCI_DEVICE_ID_82543GC_FIBER    0x1001
-#define PCI_DEVICE_ID_82543GC_COPPER   0x1004
-#define PCI_DEVICE_ID_82544EI_FIBER    0x1009
-#define PCI_DEVICE_ID_82544EI_COPPER   0x1008
-#define PCI_DEVICE_ID_82544GC_STRG     0x100C
-#define PCI_DEVICE_ID_82544GC_COPPER   0x100D
 
 /* Supported RX Buffer Sizes */
 #define EM_RXBUFFER_2048        2048
@@ -147,6 +126,10 @@ SUCH DAMAGE.
 #define EM_RXBUFFER_8192        8192
 #define EM_RXBUFFER_16384      16384
 
+#ifdef __alpha__
+#undef vtophys
+#define vtophys(va)     alpha_XXX_dmamap((vm_offset_t)(va))
+#endif /* __alpha__ */
 
 /* ******************************************************************************
  * vendor_info_array
@@ -167,8 +150,8 @@ typedef struct _em_vendor_info_t
 
 struct em_tx_buffer {
         STAILQ_ENTRY(em_tx_buffer) em_tx_entry;
-        struct mbuf    *Packet;
-        u_int32_t       NumTxDescriptorsUsed;
+        struct mbuf    *m_head;
+        u_int32_t       num_tx_desc_used;
 };
 
 
@@ -178,9 +161,8 @@ struct em_tx_buffer {
  * ******************************************************************************/
 struct em_rx_buffer {
         STAILQ_ENTRY(em_rx_buffer) em_rx_entry;
-        struct mbuf    *Packet;
-        u_int32_t       LowPhysicalAddress;
-        u_int32_t       HighPhysicalAddress;
+        struct mbuf    *m_head;
+        u_int64_t      buffer_addr;
 };
 
 typedef enum _XSUM_CONTEXT_T {
@@ -206,53 +188,39 @@ struct adapter {
         struct callout_handle timer_handle;
         u_int8_t        unit;
 
-        /* PCI Info */
-        u_int16_t       VendorId;
-        u_int16_t       DeviceId;
-        u_int8_t        RevId;
-        u_int16_t       SubVendorId;
-        u_int16_t       SubSystemId;
-
-
         /* Info about the board itself */
-        uint8_t         PermNetAddress[ETH_LENGTH_OF_ADDRESS];
-        u_int32_t       PartNumber;
+        u_int32_t       part_num;
+        u_int8_t        link_active;
+        u_int16_t       link_speed;
+        u_int16_t       link_duplex;
+        u_int32_t       tx_int_delay;
+        u_int32_t       rx_int_delay;
 
-        u_int8_t        MulticastAddressList[MAX_NUM_MULTICAST_ADDRESSES][ETH_LENGTH_OF_ADDRESS];
-        u_int8_t        LinkStatusChanged;
-        u_int8_t        LinkIsActive;
-        u_int16_t       LineSpeed;
-        u_int16_t       FullDuplex;
-        u_int32_t       TxIntDelay;
-        u_int32_t       RxIntDelay;
-
-        u_int8_t        RxChecksum;
-        XSUM_CONTEXT_T  ActiveChecksumContext;
+        u_int8_t        rx_checksum;
+        XSUM_CONTEXT_T  active_checksum_context;
 
         /* Transmit definitions */
-        struct em_tx_desc *FirstTxDescriptor;
-        struct em_tx_desc *LastTxDescriptor;
-        struct em_tx_desc *NextAvailTxDescriptor;
-        struct em_tx_desc *OldestUsedTxDescriptor;
-        struct em_tx_desc *TxDescBase;
-        volatile u_int16_t NumTxDescriptorsAvail;
-        u_int16_t       NumTxDescriptors;
-        u_int32_t       TxdCmd;
+        struct em_tx_desc *first_tx_desc;
+        struct em_tx_desc *last_tx_desc;
+        struct em_tx_desc *next_avail_tx_desc;
+        struct em_tx_desc *oldest_used_tx_desc;
+        struct em_tx_desc *tx_desc_base;
+        volatile u_int16_t num_tx_desc_avail;
+        u_int16_t       num_tx_desc;
+        u_int32_t       txd_cmd;
         struct em_tx_buffer   *tx_buffer_area;
-        STAILQ_HEAD(__em_tx_buffer_free, em_tx_buffer)  FreeSwTxPacketList;
-        STAILQ_HEAD(__em_tx_buffer_used, em_tx_buffer)  UsedSwTxPacketList;
+        STAILQ_HEAD(__em_tx_buffer_free, em_tx_buffer)  free_tx_buffer_list;
+        STAILQ_HEAD(__em_tx_buffer_used, em_tx_buffer)  used_tx_buffer_list;
 
         /* Receive definitions */
-        struct em_rx_desc *FirstRxDescriptor;
-        struct em_rx_desc *LastRxDescriptor;
-        struct em_rx_desc *NextRxDescriptorToCheck;
-        struct em_rx_desc *RxDescBase;
-        u_int16_t       NumRxDescriptors;
-        u_int16_t       NumRxDescriptorsEmpty;
-        u_int16_t       NextRxDescriptorToFill;
-        u_int32_t       RxBufferLen;
+        struct em_rx_desc *first_rx_desc;
+        struct em_rx_desc *last_rx_desc;
+        struct em_rx_desc *next_rx_desc_to_check;
+        struct em_rx_desc *rx_desc_base;
+        u_int16_t       num_rx_desc;
+        u_int32_t       rx_buffer_len;
         struct em_rx_buffer   *rx_buffer_area;
-        STAILQ_HEAD(__em_rx_buffer, em_rx_buffer)  RxSwPacketList;
+        STAILQ_HEAD(__em_rx_buffer, em_rx_buffer)  rx_buffer_list;
 
         /* Jumbo frame */
         struct mbuf     *fmp;
@@ -260,18 +228,17 @@ struct adapter {
 
 
         /* Misc stats maintained by the driver */
-        unsigned long   DroppedPackets;
-        unsigned long   NoJumboBufAvail;
-        unsigned long   JumboMbufFailed;
-        unsigned long   JumboClusterFailed;
-        unsigned long   StdMbufFailed;
-        unsigned long   StdClusterFailed;
-#ifdef DBG_STATS
-        unsigned long   NoTxDescAvail;
-        unsigned long   NoPacketsAvail;
-        unsigned long   CleanTxInterrupts;
-        unsigned long   NoTxBufferAvail1;
-        unsigned long   NoTxBufferAvail2;
+        unsigned long   dropped_pkts;
+        unsigned long   mbuf_alloc_failed;
+        unsigned long   mbuf_cluster_failed;
+        unsigned long   xmit_pullup;
+        unsigned long   no_tx_desc_avail;
+        unsigned long   no_tx_buffer_avail1;
+        unsigned long   no_tx_buffer_avail2;
+#ifdef DBG_STATS 
+        unsigned long   no_pkts_avail;
+        unsigned long   clean_tx_interrupts;
+
 #endif
 
         struct em_shared_stats stats;

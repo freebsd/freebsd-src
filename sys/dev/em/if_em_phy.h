@@ -1,6 +1,6 @@
 /*******************************************************************************
 
-  Copyright (c) 2001 Intel Corporation 
+  Copyright (c) 2001-2002 Intel Corporation 
   All rights reserved. 
   
   Redistribution and use in source and binary forms of the Software, with or 
@@ -102,27 +102,26 @@ struct em_phy_info {
     em_1000t_rx_status remote_rx;
 };
 
+struct em_phy_stats {
+    uint32_t idle_errors;
+    uint32_t receive_errors;
+};
+
 /* Function Prototypes */
-uint16_t em_read_phy_reg(struct em_shared_adapter *shared,
-                            uint32_t reg_addr);
-void em_write_phy_reg(struct em_shared_adapter *shared,
-                         uint32_t reg_addr,
-                         uint16_t data);
+uint16_t em_read_phy_reg(struct em_shared_adapter *shared, uint32_t reg_addr);
+void em_write_phy_reg(struct em_shared_adapter *shared, uint32_t reg_addr, uint16_t data);
 void em_phy_hw_reset(struct em_shared_adapter *shared);
 boolean_t em_phy_reset(struct em_shared_adapter *shared);
-boolean_t em_phy_setup(struct em_shared_adapter *shared,
-                          uint32_t ctrl_reg);
+boolean_t em_phy_setup(struct em_shared_adapter *shared, uint32_t ctrl_reg);
 boolean_t em_phy_setup_autoneg(struct em_shared_adapter *shared);
-void em_config_mac_to_phy(struct em_shared_adapter *shared,
-                             uint16_t mii_reg);
+void em_config_mac_to_phy(struct em_shared_adapter *shared, uint16_t mii_reg);
 void em_config_collision_dist(struct em_shared_adapter *shared);
 void em_display_mii(struct em_shared_adapter *shared);
 boolean_t em_detect_gig_phy(struct em_shared_adapter *shared);
 void em_phy_reset_dsp(struct em_shared_adapter *shared);
 boolean_t em_wait_autoneg(struct em_shared_adapter *shared);
-boolean_t em_phy_get_info(struct em_shared_adapter *shared,
-                             struct em_phy_info *phy_status_info);
-boolean_t em_validate_mdi_setting(struct em_shared_adapter * shared);
+boolean_t em_phy_get_info(struct em_shared_adapter *shared, struct em_phy_info *phy_status_info);
+boolean_t em_validate_mdi_setting(struct em_shared_adapter *shared);
 
 /* Bit definitions for the Management Data IO (MDIO) and Management Data
  * Clock (MDC) pins in the Device Control Register.
@@ -357,6 +356,7 @@ boolean_t em_validate_mdi_setting(struct em_shared_adapter * shared);
 #define M88E1000_12_PHY_ID 0x01410C50
 #define M88E1000_14_PHY_ID 0x01410C40
 #define M88E1000_I_PHY_ID  0x01410C30
+#define M88E1011_I_PHY_ID  0x01410C20
 
 /* Miscellaneous PHY bit definitions. */
 #define PHY_PREAMBLE        0xFFFFFFFF

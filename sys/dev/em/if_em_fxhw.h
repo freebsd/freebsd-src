@@ -1,6 +1,6 @@
 /*******************************************************************************
 
-  Copyright (c) 2001 Intel Corporation 
+  Copyright (c) 2001-2002 Intel Corporation 
   All rights reserved. 
   
   Redistribution and use in source and binary forms of the Software, with or 
@@ -54,6 +54,7 @@ typedef enum {
     em_82542_rev2_1,
     em_82543,
     em_82544,
+    em_82540,
     em_num_macs
 } em_mac_type;
 
@@ -113,56 +114,36 @@ boolean_t em_init_hw(struct em_shared_adapter *shared);
 void em_init_rx_addrs(struct em_shared_adapter *shared);
 
 /* Filters (multicast, vlan, receive) */
-void em_mc_addr_list_update(struct em_shared_adapter *shared,
-                               uint8_t * mc_addr_list,
-                               uint32_t mc_addr_count,
-                               uint32_t pad);
-uint32_t em_hash_mc_addr(struct em_shared_adapter *shared,
-                            uint8_t * mc_addr);
-void em_mta_set(struct em_shared_adapter *shared,
-                   uint32_t hash_value);
-void em_rar_set(struct em_shared_adapter *shared,
-                   uint8_t * mc_addr,
-                   uint32_t rar_index);
-void em_write_vfta(struct em_shared_adapter *shared,
-                      uint32_t offset,
-                      uint32_t value);
+void em_mc_addr_list_update(struct em_shared_adapter *shared, uint8_t * mc_addr_list, uint32_t mc_addr_count, uint32_t pad);
+uint32_t em_hash_mc_addr(struct em_shared_adapter *shared, uint8_t * mc_addr);
+void em_mta_set(struct em_shared_adapter *shared, uint32_t hash_value);
+void em_rar_set(struct em_shared_adapter *shared, uint8_t * mc_addr, uint32_t rar_index);
+void em_write_vfta(struct em_shared_adapter *shared, uint32_t offset, uint32_t value);
 void em_clear_vfta(struct em_shared_adapter *shared);
 
 /* Link layer setup functions */
 boolean_t em_setup_fc_and_link(struct em_shared_adapter *shared);
-boolean_t em_setup_pcs_link(struct em_shared_adapter *shared,
-                               uint32_t dev_ctrl_reg);
+boolean_t em_setup_pcs_link(struct em_shared_adapter *shared, uint32_t dev_ctrl_reg);
 void em_config_fc_after_link_up(struct em_shared_adapter *shared);
 void em_check_for_link(struct em_shared_adapter *shared);
-void em_get_speed_and_duplex(struct em_shared_adapter *shared,
-                                uint16_t * speed,
-                                uint16_t * duplex);
+void em_get_speed_and_duplex(struct em_shared_adapter *shared, uint16_t * speed, uint16_t * duplex);
 
 /* EEPROM Functions */
-uint16_t em_read_eeprom(struct em_shared_adapter *shared,
-                           uint16_t reg);
+uint16_t em_read_eeprom(struct em_shared_adapter *shared, uint16_t reg);
 boolean_t em_validate_eeprom_checksum(struct em_shared_adapter *shared);
 void em_update_eeprom_checksum(struct em_shared_adapter *shared);
-boolean_t em_write_eeprom(struct em_shared_adapter *shared,
-                             uint16_t reg,
-                             uint16_t data);
+boolean_t em_write_eeprom(struct em_shared_adapter *shared, uint16_t reg, uint16_t data);
 
 /* Everything else */
 void em_clear_hw_cntrs(struct em_shared_adapter *shared);
-boolean_t em_read_part_num(struct em_shared_adapter *shared,
-                              uint32_t * part_num);
+boolean_t em_read_part_num(struct em_shared_adapter *shared, uint32_t * part_num);
 void em_led_on(struct em_shared_adapter *shared);
 void em_led_off(struct em_shared_adapter *shared);
 void em_get_bus_info(struct em_shared_adapter *shared);
-uint32_t em_tbi_adjust_stats(struct em_shared_adapter *shared,
-                                struct em_shared_stats *stats,
-                                uint32_t frame_len,
-                                uint8_t * mac_addr);
-void em_write_pci_cfg(struct em_shared_adapter *shared,
-                         uint32_t reg,
-                         uint16_t * value);
+uint32_t em_tbi_adjust_stats(struct em_shared_adapter *shared, struct em_shared_stats *stats, uint32_t frame_len, uint8_t * mac_addr);
+void em_write_pci_cfg(struct em_shared_adapter *shared, uint32_t reg, uint16_t * value);
 
+/* PCI Device IDs */
 #define E1000_DEV_ID_82542          0x1000
 #define E1000_DEV_ID_82543GC_FIBER  0x1001
 #define E1000_DEV_ID_82543GC_COPPER 0x1004
@@ -170,6 +151,8 @@ void em_write_pci_cfg(struct em_shared_adapter *shared,
 #define E1000_DEV_ID_82544EI_FIBER  0x1009
 #define E1000_DEV_ID_82544GC_COPPER 0x100C
 #define E1000_DEV_ID_82544GC_LOM    0x100D
+#define E1000_DEV_ID_82540EM        0x100E
+#define NUM_DEV_IDS 8
 
 #define NODE_ADDRESS_SIZE 6
 #define ETH_LENGTH_OF_ADDRESS 6
@@ -446,13 +429,15 @@ struct em_ffvt_entry {
 #define E1000_CTRL     0x00000  /* Device Control - RW */
 #define E1000_STATUS   0x00008  /* Device Status - RO */
 #define E1000_EECD     0x00010  /* EEPROM/Flash Control - RW */
-#define E1000_CTRLEXT  0x00018  /* Extended Device Control - RW */
+#define E1000_EERD     0x00014  /* EEPROM Read - RW */
+#define E1000_CTRL_EXT 0x00018  /* Extended Device Control - RW */
 #define E1000_MDIC     0x00020  /* MDI Control - RW */
 #define E1000_FCAL     0x00028  /* Flow Control Address Low - RW */
 #define E1000_FCAH     0x0002C  /* Flow Control Address High -RW */
 #define E1000_FCT      0x00030  /* Flow Control Type - RW */
 #define E1000_VET      0x00038  /* VLAN Ether Type - RW */
 #define E1000_ICR      0x000C0  /* Interrupt Cause Read - R/clr */
+#define E1000_ITR      0x000C4  /* Interrupt Throttling Rate - RW */
 #define E1000_ICS      0x000C8  /* Interrupt Cause Set - WO */
 #define E1000_IMS      0x000D0  /* Interrupt Mask Set - RW */
 #define E1000_IMC      0x000D8  /* Interrupt Mask Clear - WO */
@@ -463,6 +448,7 @@ struct em_ffvt_entry {
 #define E1000_TCTL     0x00400  /* TX Control - RW */
 #define E1000_TIPG     0x00410  /* TX Inter-packet gap -RW */
 #define E1000_TBT      0x00448  /* TX Burst Timer - RW */
+#define E1000_LEDCTL   0x00E00  /* LED Control - RW */
 #define E1000_PBA      0x01000  /* Packet Buffer Allocation - RW */
 #define E1000_FCRTL    0x02160  /* Flow Control Receive Threshold Low - RW */
 #define E1000_FCRTH    0x02168  /* Flow Control Receive Threshold High - RW */
@@ -473,6 +459,8 @@ struct em_ffvt_entry {
 #define E1000_RDT      0x02818  /* RX Descriptor Tail - RW */
 #define E1000_RDTR     0x02820  /* RX Delay Timer - RW */
 #define E1000_RXDCTL   0x02828  /* RX Descriptor Control - RW */
+#define E1000_RADV     0x0282C  /* RX Interrupt Absolute Delay Timer - RW */
+#define E1000_RSRPD    0x02C00  /* RX Small Packet Detect - RW */
 #define E1000_TXDMAC   0x03000  /* TX DMA Control - RW */
 #define E1000_TDBAL    0x03800  /* TX Descriptor Base Address Low - RW */
 #define E1000_TDBAH    0x03804  /* TX Descriptor Base Address High - RW */
@@ -481,6 +469,7 @@ struct em_ffvt_entry {
 #define E1000_TDT      0x03818  /* TX Descripotr Tail - RW */
 #define E1000_TIDV     0x03820  /* TX Interrupt Delay Value - RW */
 #define E1000_TXDCTL   0x03828  /* TX Descriptor Control - RW */
+#define E1000_TADV     0x0382C  /* TX Interrupt Absolute Delay Val - RW */
 #define E1000_TSPMT    0x03830  /* TCP Segmentation PAD & Min Threshold - RW */
 #define E1000_CRCERRS  0x04000  /* CRC Error Count - R/clr */
 #define E1000_ALGNERRC 0x04004  /* Alignment Error Count - R/clr */
@@ -521,6 +510,9 @@ struct em_ffvt_entry {
 #define E1000_RFC      0x040A8  /* RX Fragment Count - R/clr */
 #define E1000_ROC      0x040AC  /* RX Oversize Count - R/clr */
 #define E1000_RJC      0x040B0  /* RX Jabber Count - R/clr */
+#define E1000_MGTPRC   0x040B4  /* Management Packets RX Count - R/clr */
+#define E1000_MGTPDC   0x040B8  /* Management Packets Dropped Count - R/clr */
+#define E1000_MGTPTC   0x040BC  /* Management Packets TX Count - R/clr */
 #define E1000_TORL     0x040C0  /* Total Octets RX Low - R/clr */
 #define E1000_TORH     0x040C4  /* Total Octets RX High - R/clr */
 #define E1000_TOTL     0x040C8  /* Total Octets TX Low - R/clr */
@@ -544,8 +536,10 @@ struct em_ffvt_entry {
 #define E1000_WUC      0x05800  /* Wakeup Control - RW */
 #define E1000_WUFC     0x05808  /* Wakeup Filter Control - RW */
 #define E1000_WUS      0x05810  /* Wakeup Status - RO */
+#define E1000_MANC     0x05820  /* Management Control - RW */
 #define E1000_IPAV     0x05838  /* IP Address Valid - RW */
 #define E1000_IP4AT    0x05840  /* IPv4 Address Table - RW Array */
+#define E1000_IP6AT    0x05880  /* IPv6 Address Table - RW Array */
 #define E1000_WUPL     0x05900  /* Wakeup Packet Length - RW */
 #define E1000_WUPM     0x05A00  /* Wakeup Packet Memory - RO A */
 #define E1000_FFLT     0x05F00  /* Flexible Filter Length Table - RW Array */
@@ -561,7 +555,8 @@ struct em_ffvt_entry {
 #define E1000_82542_CTRL     E1000_CTRL
 #define E1000_82542_STATUS   E1000_STATUS
 #define E1000_82542_EECD     E1000_EECD
-#define E1000_82542_CTRLEXT  E1000_CTRLEXT
+#define E1000_82542_EERD     E1000_EERD
+#define E1000_82542_CTRL_EXT E1000_CTRL_EXT
 #define E1000_82542_MDIC     E1000_MDIC
 #define E1000_82542_FCAL     E1000_FCAL
 #define E1000_82542_FCAH     E1000_FCAH
@@ -569,6 +564,7 @@ struct em_ffvt_entry {
 #define E1000_82542_VET      E1000_VET
 #define E1000_82542_RA       0x00040
 #define E1000_82542_ICR      E1000_ICR
+#define E1000_82542_ITR      E1000_ITR
 #define E1000_82542_ICS      E1000_ICS
 #define E1000_82542_IMS      E1000_IMS
 #define E1000_82542_IMC      E1000_IMC
@@ -595,10 +591,14 @@ struct em_ffvt_entry {
 #define E1000_82542_TIDV     0x00440
 #define E1000_82542_TBT      E1000_TBT
 #define E1000_82542_VFTA     0x00600
+#define E1000_82542_LEDCTL   E1000_LEDCTL
 #define E1000_82542_PBA      E1000_PBA
 #define E1000_82542_RXDCTL   E1000_RXDCTL
+#define E1000_82542_RADV     E1000_RADV
+#define E1000_82542_RSRPD    E1000_RSRPD
 #define E1000_82542_TXDMAC   E1000_TXDMAC
 #define E1000_82542_TXDCTL   E1000_TXDCTL
+#define E1000_82542_TADV     E1000_TADV
 #define E1000_82542_TSPMT    E1000_TSPMT
 #define E1000_82542_CRCERRS  E1000_CRCERRS
 #define E1000_82542_ALGNERRC E1000_ALGNERRC
@@ -639,6 +639,9 @@ struct em_ffvt_entry {
 #define E1000_82542_RFC      E1000_RFC
 #define E1000_82542_ROC      E1000_ROC
 #define E1000_82542_RJC      E1000_RJC
+#define E1000_82542_MGTPRC   E1000_MGTPRC
+#define E1000_82542_MGTPDC   E1000_MGTPDC
+#define E1000_82542_MGTPTC   E1000_MGTPTC
 #define E1000_82542_TORL     E1000_TORL
 #define E1000_82542_TORH     E1000_TORH
 #define E1000_82542_TOTL     E1000_TOTL
@@ -659,8 +662,10 @@ struct em_ffvt_entry {
 #define E1000_82542_WUC      E1000_WUC
 #define E1000_82542_WUFC     E1000_WUFC
 #define E1000_82542_WUS      E1000_WUS
+#define E1000_82542_MANC     E1000_MANC
 #define E1000_82542_IPAV     E1000_IPAV
 #define E1000_82542_IP4AT    E1000_IP4AT
+#define E1000_82542_IP6AT    E1000_IP6AT
 #define E1000_82542_WUPL     E1000_WUPL
 #define E1000_82542_WUPM     E1000_WUPM
 #define E1000_82542_FFLT     E1000_FFLT
@@ -747,6 +752,7 @@ struct em_shared_adapter {
     uint32_t txcw_reg;
     uint32_t autoneg_failed;
     uint32_t max_frame_size;
+    uint32_t min_frame_size;
     uint32_t mc_filter_type;
     uint32_t num_mc_addrs;
     uint16_t autoneg_advertised;
@@ -754,6 +760,11 @@ struct em_shared_adapter {
     uint16_t fc_high_water;
     uint16_t fc_low_water;
     uint16_t fc_pause_time;
+    uint16_t device_id;
+    uint16_t vendor_id;
+    uint16_t subsystem_id;
+    uint16_t subsystem_vendor_id;
+    uint8_t revision_id;
     boolean_t disable_polarity_correction;
     boolean_t get_link_status;
     boolean_t tbi_compatibility_en;
@@ -762,7 +773,6 @@ struct em_shared_adapter {
     boolean_t fc_send_xon;
     boolean_t report_tx_early;
     boolean_t low_profile;
-    boolean_t large_eeprom;
     uint8_t autoneg;
     uint8_t mdix;
     uint8_t forced_speed_duplex;
@@ -772,7 +782,7 @@ struct em_shared_adapter {
 };
 
 
-#define E1000_EEPROM_SWDPIN0   0x00000001       /* SWDPIN 0 EEPROM Value */
+#define E1000_EEPROM_SWDPIN0   0x0001   /* SWDPIN 0 EEPROM Value */
 #define E1000_EEPROM_LED_LOGIC 0x0020   /* Led Logic Word */
 
 /* Register Bit Masks */
@@ -811,6 +821,9 @@ struct em_shared_adapter {
 /* Device Status */
 #define E1000_STATUS_FD         0x00000001      /* Full duplex.0=half,1=full */
 #define E1000_STATUS_LU         0x00000002      /* Link up.0=no,1=link */
+#define E1000_STATUS_FUNC_MASK  0x0000000C      /* PCI Function Mask */
+#define E1000_STATUS_FUNC_0     0x00000000      /* Function 0 */
+#define E1000_STATUS_FUNC_1     0x00000004      /* Function 1 */
 #define E1000_STATUS_TXOFF      0x00000010      /* transmission paused */
 #define E1000_STATUS_TBIMODE    0x00000020      /* TBI mode */
 #define E1000_STATUS_SPEED_MASK 0x000000C0
@@ -839,6 +852,17 @@ struct em_shared_adapter {
 #define E1000_EECD_FWE_EN    0x00000020 /* Enable FLASH writes */
 #define E1000_EECD_FWE_SHIFT 4
 #define E1000_EECD_SIZE      0x00000200 /* EEPROM Size (0=64 word 1=256 word) */
+#define E1000_EECD_REQ       0x00000040 /* EEPROM Access Request */
+#define E1000_EECD_GNT       0x00000080 /* EEPROM Access Grant */
+#define E1000_EECD_PRES      0x00000100 /* EEPROM Present */
+
+/* EEPROM Read */
+#define E1000_EERD_START      0x00000001 /* Start Read */
+#define E1000_EERD_DONE       0x00000010 /* Read Done */
+#define E1000_EERD_ADDR_SHIFT 8
+#define E1000_EERD_ADDR_MASK  0x0000FF00 /* Read Address */
+#define E1000_EERD_DATA_SHIFT 16
+#define E1000_EERD_DATA_MASK  0xFFFF0000 /* Read Data */
 
 /* Extended Device Control */
 #define E1000_CTRL_EXT_GPI0_EN   0x00000001 /* Maps SDP4 to GPI0 */ 
@@ -859,6 +883,14 @@ struct em_shared_adapter {
 #define E1000_CTRL_EXT_EE_RST    0x00002000 /* Reinitialize from EEPROM */
 #define E1000_CTRL_EXT_IPS       0x00004000 /* Invert Power State */
 #define E1000_CTRL_EXT_SPD_BYPS  0x00008000 /* Speed Select Bypass */
+#define E1000_CTRL_EXT_LINK_MODE_MASK 0x00C00000
+#define E1000_CTRL_EXT_LINK_MODE_GMII 0x00000000
+#define E1000_CTRL_EXT_LINK_MODE_TBI  0x00C00000
+#define E1000_CTRL_EXT_WR_WMARK_MASK  0x03000000
+#define E1000_CTRL_EXT_WR_WMARK_256   0x00000000
+#define E1000_CTRL_EXT_WR_WMARK_320   0x01000000
+#define E1000_CTRL_EXT_WR_WMARK_384   0x02000000
+#define E1000_CTRL_EXT_WR_WMARK_448   0x03000000
 
 /* MDI Control */
 #define E1000_MDIC_DATA_MASK 0x0000FFFF
@@ -872,6 +904,40 @@ struct em_shared_adapter {
 #define E1000_MDIC_INT_EN    0x20000000
 #define E1000_MDIC_ERROR     0x40000000
 
+/* LED Control */
+#define E1000_LEDCTL_LED0_MODE_MASK  0x0000000F
+#define E1000_LEDCTL_LED0_MODE_SHIFT 0
+#define E1000_LEDCTL_LED0_IVRT       0x00000040
+#define E1000_LEDCTL_LED0_BLINK      0x00000080
+#define E1000_LEDCTL_LED1_MODE_MASK  0x00000F00
+#define E1000_LEDCTL_LED1_MODE_SHIFT 8
+#define E1000_LEDCTL_LED1_IVRT       0x00004000
+#define E1000_LEDCTL_LED1_BLINK      0x00008000
+#define E1000_LEDCTL_LED2_MODE_MASK  0x000F0000
+#define E1000_LEDCTL_LED2_MODE_SHIFT 16
+#define E1000_LEDCTL_LED2_IVRT       0x00400000
+#define E1000_LEDCTL_LED2_BLINK      0x00800000
+#define E1000_LEDCTL_LED3_MODE_MASK  0x0F000000
+#define E1000_LEDCTL_LED3_MODE_SHIFT 24
+#define E1000_LEDCTL_LED3_IVRT       0x40000000
+#define E1000_LEDCTL_LED3_BLINK      0x80000000
+
+#define E1000_LEDCTL_MODE_LINK_10_1000  0x0
+#define E1000_LEDCTL_MODE_LINK_100_1000 0x1
+#define E1000_LEDCTL_MODE_LINK_UP       0x2
+#define E1000_LEDCTL_MODE_ACTIVITY      0x3
+#define E1000_LEDCTL_MODE_LINK_ACTIVITY 0x4
+#define E1000_LEDCTL_MODE_LINK_10       0x5
+#define E1000_LEDCTL_MODE_LINK_100      0x6
+#define E1000_LEDCTL_MODE_LINK_1000     0x7
+#define E1000_LEDCTL_MODE_PCIX_MODE     0x8
+#define E1000_LEDCTL_MODE_FULL_DUPLEX   0x9
+#define E1000_LEDCTL_MODE_COLLISION     0xA
+#define E1000_LEDCTL_MODE_BUS_SPEED     0xB
+#define E1000_LEDCTL_MODE_BUS_SIZE      0xC
+#define E1000_LEDCTL_MODE_PAUSED        0xD
+#define E1000_LEDCTL_MODE_LED_ON        0xE
+#define E1000_LEDCTL_MODE_LED_OFF       0xF
 
 /* Receive Address */
 #define E1000_RAH_AV  0x80000000        /* Receive descriptor valid */
@@ -890,6 +956,8 @@ struct em_shared_adapter {
 #define E1000_ICR_GPI_EN1 0x00001000    /* GP Int 1 */
 #define E1000_ICR_GPI_EN2 0x00002000    /* GP Int 2 */
 #define E1000_ICR_GPI_EN3 0x00004000    /* GP Int 3 */
+#define E1000_ICR_TXD_LOW 0x00008000
+#define E1000_ICR_SRPD    0x00010000
 
 /* Interrupt Cause Set */
 #define E1000_ICS_TXDW    E1000_ICR_TXDW        /* Transmit desc written back */
@@ -905,6 +973,8 @@ struct em_shared_adapter {
 #define E1000_ICS_GPI_EN1 E1000_ICR_GPI_EN1     /* GP Int 1 */
 #define E1000_ICS_GPI_EN2 E1000_ICR_GPI_EN2     /* GP Int 2 */
 #define E1000_ICS_GPI_EN3 E1000_ICR_GPI_EN3     /* GP Int 3 */
+#define E1000_ICS_TXD_LOW E1000_ICR_TXD_LOW
+#define E1000_ICS_SRPD    E1000_ICR_SRPD
 
 /* Interrupt Mask Set */
 #define E1000_IMS_TXDW    E1000_ICR_TXDW        /* Transmit desc written back */
@@ -920,6 +990,8 @@ struct em_shared_adapter {
 #define E1000_IMS_GPI_EN1 E1000_ICR_GPI_EN1     /* GP Int 1 */
 #define E1000_IMS_GPI_EN2 E1000_ICR_GPI_EN2     /* GP Int 2 */
 #define E1000_IMS_GPI_EN3 E1000_ICR_GPI_EN3     /* GP Int 3 */
+#define E1000_IMS_TXD_LOW E1000_ICR_TXD_LOW
+#define E1000_IMS_SRPD    E1000_ICR_SRPD
 
 /* Interrupt Mask Clear */
 #define E1000_IMC_TXDW    E1000_ICR_TXDW        /* Transmit desc written back */
@@ -935,6 +1007,8 @@ struct em_shared_adapter {
 #define E1000_IMC_GPI_EN1 E1000_ICR_GPI_EN1     /* GP Int 1 */
 #define E1000_IMC_GPI_EN2 E1000_ICR_GPI_EN2     /* GP Int 2 */
 #define E1000_IMC_GPI_EN3 E1000_ICR_GPI_EN3     /* GP Int 3 */
+#define E1000_IMC_TXD_LOW E1000_ICR_TXD_LOW
+#define E1000_IMC_SRPD    E1000_ICR_SRPD
 
 /* Receive Control */
 #define E1000_RCTL_RST          0x00000001      /* Software reset */
@@ -997,6 +1071,7 @@ struct em_shared_adapter {
 #define E1000_TXDCTL_HTHRESH 0x0000FF00 /* TXDCTL Host Threshold */
 #define E1000_TXDCTL_WTHRESH 0x00FF0000 /* TXDCTL Writeback Threshold */
 #define E1000_TXDCTL_GRAN    0x01000000 /* TXDCTL Granularity */
+#define E1000_TXDCTL_LWTHRESH 0xFE000000 /* TXDCTL Low Threshold */
 
 /* Transmit Configuration Word */
 #define E1000_TXCW_FD         0x00000020        /* TXCW full duplex */
@@ -1035,6 +1110,7 @@ struct em_shared_adapter {
 #define E1000_RXCSUM_PCSS_MASK 0x000000FF   /* Packet Checksum Start */
 #define E1000_RXCSUM_IPOFL     0x00000100   /* IPv4 checksum offload */
 #define E1000_RXCSUM_TUOFL     0x00000200   /* TCP / UDP checksum offload */
+#define E1000_RXCSUM_IPV6OFL   0x00000400   /* IPv6 checksum offload */
 
 /* Definitions for power management and wakeup registers */
 /* Wake Up Control */
@@ -1051,6 +1127,7 @@ struct em_shared_adapter {
 #define E1000_WUFC_BC   0x00000010 /* Broadcast Wakeup Enable */
 #define E1000_WUFC_ARP  0x00000020 /* ARP Request Packet Wakeup Enable */
 #define E1000_WUFC_IPV4 0x00000040 /* Directed IPv4 Packet Wakeup Enable */
+#define E1000_WUFC_IPV6 0x00000080 /* Directed IPv6 Packet Wakeup Enable */
 #define E1000_WUFC_FLX0 0x00010000 /* Flexible Filter 0 Enable */
 #define E1000_WUFC_FLX1 0x00020000 /* Flexible Filter 1 Enable */
 #define E1000_WUFC_FLX2 0x00040000 /* Flexible Filter 2 Enable */
@@ -1067,12 +1144,37 @@ struct em_shared_adapter {
 #define E1000_WUS_BC   0x00000010 /* Broadcast Received */
 #define E1000_WUS_ARP  0x00000020 /* ARP Request Packet Received */
 #define E1000_WUS_IPV4 0x00000040 /* Directed IPv4 Packet Wakeup Received */
+#define E1000_WUS_IPV6 0x00000080 /* Directed IPv6 Packet Wakeup Received */
 #define E1000_WUS_FLX0 0x00010000 /* Flexible Filter 0 Match */
 #define E1000_WUS_FLX1 0x00020000 /* Flexible Filter 1 Match */
 #define E1000_WUS_FLX2 0x00040000 /* Flexible Filter 2 Match */
 #define E1000_WUS_FLX3 0x00080000 /* Flexible Filter 3 Match */
 #define E1000_WUS_FLX_FILTERS 0x000F0000 /* Mask for the 4 flexible filters */
 
+/* Management Control */
+#define E1000_MANC_SMBUS_EN      0x00000001 /* SMBus Enabled - RO */
+#define E1000_MANC_ASF_EN        0x00000002 /* ASF Enabled - RO */
+#define E1000_MANC_R_ON_FORCE    0x00000004 /* Reset on Force TCO - RO */
+#define E1000_MANC_RMCP_EN       0x00000100 /* Enable RCMP 026Fh Filtering */
+#define E1000_MANC_0298_EN       0x00000200 /* Enable RCMP 0298h Filtering */
+#define E1000_MANC_IPV4_EN       0x00000400 /* Enable IPv4 */
+#define E1000_MANC_IPV6_EN       0x00000800 /* Enable IPv6 */
+#define E1000_MANC_SNAP_EN       0x00001000 /* Accept LLC/SNAP */
+#define E1000_MANC_ARP_EN        0x00002000 /* Enable ARP Request Filtering */
+#define E1000_MANC_NEIGHBOR_EN   0x00004000 /* Enable Neighbor Discovery 
+                                             * Filtering */
+#define E1000_MANC_TCO_RESET     0x00010000 /* TCO Reset Occurred */
+#define E1000_MANC_RCV_TCO_EN    0x00020000 /* Receive TCO Packets Enabled */
+#define E1000_MANC_REPORT_STATUS 0x00040000 /* Status Reporting Enabled */
+#define E1000_MANC_SMB_REQ       0x01000000 /* SMBus Request */
+#define E1000_MANC_SMB_GNT       0x02000000 /* SMBus Grant */
+#define E1000_MANC_SMB_CLK_IN    0x04000000 /* SMBus Clock In */
+#define E1000_MANC_SMB_DATA_IN   0x08000000 /* SMBus Data In */
+#define E1000_MANC_SMB_DATA_OUT  0x10000000 /* SMBus Data Out */
+#define E1000_MANC_SMB_CLK_OUT   0x20000000 /* SMBus Clock Out */
+
+#define E1000_MANC_SMB_DATA_OUT_SHIFT  28 /* SMBus Data Out Shift */
+#define E1000_MANC_SMB_CLK_OUT_SHIFT   29 /* SMBus Clock Out Shift */
 
 /* Wake Up Packet Length */
 #define E1000_WUPL_LENGTH_MASK 0x0FFF   /* Only the lower 12 bits are valid */
@@ -1130,7 +1232,7 @@ struct em_shared_adapter {
 
 /* Default values for the transmit IPG register */
 #define DEFAULT_82542_TIPG_IPGT        10
-#define DEFAULT_82543_TIPG_IPGT_FIBER  6
+#define DEFAULT_82543_TIPG_IPGT_FIBER  9
 #define DEFAULT_82543_TIPG_IPGT_COPPER 8
 
 #define E1000_TIPG_IPGT_MASK  0x000003FF
@@ -1202,23 +1304,15 @@ struct em_shared_adapter {
 
 /* TBI_ACCEPT macro definition:
  *
- * If Tbi Compatibility mode is turned-on, then we should accept frames with
- * receive errors if and only if:
- *      1) errors is equal to the CRC error bit.
- *      2) The last byte is a Carrier extension (0x0F).
- *      3) The frame length (as reported by Hardware) is greater than 64 (60
- *         if a VLAN tag was stripped from the frame.
- *      4) "    "     "      "   "       "   "        <= max_frame_size+1.
- *
  * This macro requires:
  *      adapter = a pointer to struct em_shared_adapter 
- *      special = the 16 bit special field of the RX descriptor with EOP set
+ *      status = the 8 bit status field of the RX descriptor with EOP set
  *      error = the 8 bit error field of the RX descriptor with EOP set
  *      length = the sum of all the length fields of the RX descriptors that
  *               make up the current frame
  *      last_byte = the last byte of the frame DMAed by the hardware
  *      max_frame_length = the maximum frame length we want to accept.
- *                         THIS INCLUDES THE 4 BYTE ETHERNET CRC!
+ *      min_frame_length = the minimum frame length we want to accept.
  *
  * This macro is a conditional that should be used in the interrupt 
  * handler's Rx processing routine when RxErrors have been detected.
@@ -1235,15 +1329,15 @@ struct em_shared_adapter {
  *  ...
  */
 
-#define TBI_ACCEPT(adapter, special, errors, length, last_byte) \
+#define TBI_ACCEPT(adapter, status, errors, length, last_byte) \
     ((adapter)->tbi_compatibility_on && \
      (((errors) & E1000_RXD_ERR_FRAME_ERR_MASK) == E1000_RXD_ERR_CE) && \
      ((last_byte) == CARRIER_EXTENSION) && \
-     ((special == 0x0000) ? \
-         ((length <= ((adapter)->max_frame_size + 1)) && \
-          (length > 64)) : \
-         ((length <= ((adapter)->max_frame_size - 3)) && \
-          (length > 60))))
+     (((status) & E1000_RXD_STAT_VP) ? \
+          (((length) > ((adapter)->min_frame_size - VLAN_TAG_SIZE)) && \
+           ((length) <= ((adapter)->max_frame_size + 1))) : \
+          (((length) > (adapter)->min_frame_size) && \
+           ((length) <= ((adapter)->max_frame_size + VLAN_TAG_SIZE + 1)))))
 
 
 #endif /* _EM_MAC_H_ */
