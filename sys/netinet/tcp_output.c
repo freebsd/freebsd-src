@@ -874,9 +874,8 @@ send:
 			 * No need to check for TH_FIN here because
 			 * the TF_SENTFIN flag handles that case.
 			 */
-			if (flags & TH_SYN)
-				tp->snd_nxt--;
-			tp->snd_nxt -= len;
+			if ((flags & TH_SYN) == 0)
+				tp->snd_nxt -= len;
 		}
 
 out:
