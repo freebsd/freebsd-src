@@ -2,6 +2,8 @@
 
 NO_GDB=	yes
 
+#NO_GDB=	yes
+
 .include "../Makefile.inc0"
 
 GDBDIR=	${.CURDIR}/../../../../contrib/gdb
@@ -36,11 +38,11 @@ ld.info:	ld.texinfo bfdsumm.texi ldver.texi configdoc.texi
 configdoc.texi: gen-doc.texi
 	ln -sf ${.ALLSRC} ${.TARGET}
 
-gdb.info: gdb.texinfo gdb-cfg.texi GDBvn.texi annotate.texi \
-	  fdl.texi gpl.texi gdbmi.texinfo \
+gdb.info: gdb.texinfo gdb-cfg.texi GDBvn.texi annotate.texinfo \
+	  fdl.texi gpl.texi \
 	rluser.texinfo inc-hist.texinfo
 
-gdbint.info: gdbint.texinfo gdb-cfg.texi fdl.texi
+gdbint.info: gdbint.texinfo gdb-cfg.texi fdl.texi observer.texi
 	
 gdb-cfg.texi: all-cfg.texi
 	ln -sf ${.ALLSRC} ${.TARGET}
