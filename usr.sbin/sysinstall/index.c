@@ -486,7 +486,7 @@ pkg_fire(dialogMenuItem *self)
 		msgInfo("Added %s to selection list", kp->name);
 	    }
 	    else if (ie->depc == 0) {
-		if (!msgYesNo("Do you really want to delete %s from the system?", kp->name)) {
+		if (!msgNoYes("Do you really want to delete %s from the system?", kp->name)) {
 		    if (vsystem("pkg_delete %s %s", isDebug() ? "-v" : "", kp->name)) {
 			msgConfirm("Warning:  pkg_delete of %s failed.\n  Check debug output for details.", kp->name);
 		    }

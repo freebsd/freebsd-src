@@ -149,9 +149,9 @@ main(int argc, char **argv)
 	dmenuOpen(&MenuInitial, &choice, &scroll, &curr, &max, TRUE);
 	if (getpid() != 1
 #ifdef __alpha__
-	    || !msgYesNo("Are you sure you wish to exit?  The system will halt.")
+	    || !msgNoYes("Are you sure you wish to exit?  The system will halt.")
 #else
-	    || !msgYesNo("Are you sure you wish to exit?  The system will reboot\n"
+	    || !msgNoYes("Are you sure you wish to exit?  The system will reboot\n"
 		         "(be sure to remove any floppies/CDROMs from the drives).")
 #endif
 	    )

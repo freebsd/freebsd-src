@@ -528,7 +528,7 @@ diskPartition(Device *dev)
 		msgConfirm("You've already written this information out - you\n"
 			   "can't undo it.");
 	    }
-	    else if (!msgYesNo("Are you SURE you want to Undo everything?")) {
+	    else if (!msgNoYes("Are you SURE you want to Undo everything?")) {
 		char cp[BUFSIZ];
 
 		sstrncpy(cp, d->name, sizeof cp);
@@ -546,7 +546,7 @@ diskPartition(Device *dev)
 	    break;
 
 	case 'W':
-	    if (!msgYesNo("WARNING:  This should only be used when modifying an EXISTING\n"
+	    if (!msgNoYes("WARNING:  This should only be used when modifying an EXISTING\n"
 			       "installation.  If you are installing FreeBSD for the first time\n"
 			       "then you should simply type Q when you're finished here and your\n"
 			       "changes will be committed in one batch automatically at the end of\n"
@@ -599,7 +599,7 @@ diskPartition(Device *dev)
 	    break;
 	    
 	case '|':
-	    if (!msgYesNo("Are you SURE you want to go into Wizard mode?\n"
+	    if (!msgNoYes("Are you SURE you want to go into Wizard mode?\n"
 			  "No seat belts whatsoever are provided!")) {
 		clear();
 		refresh();
