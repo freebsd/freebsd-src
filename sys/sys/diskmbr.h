@@ -71,6 +71,11 @@
 #define LABELOFFSET	0
 #endif
 
+#ifdef __sparc64__
+#define LABELSECTOR	0
+#define LABELOFFSET	128
+#endif
+
 #ifndef	LABELSECTOR
 #define LABELSECTOR	0
 #endif
