@@ -261,8 +261,12 @@ static __inline void
 waitrunningbufspace(void)
 {
 	while (runningbufspace > hirunningspace) {
+		int s;
+
+		s = splbio();	/* fix race against interrupt/biodone() */
 		++runningbufreq;
 		tsleep(&runningbufreq, PVM, "wdrain", 0);
+		splx(s);
 	}
 }
 
