@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.286.2.16 1997/02/28 16:09:01 bde Exp $
+#	$Id: LINT,v 1.286.2.17 1997/03/11 23:30:50 se Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -939,6 +939,14 @@ options	AHC_SCBPAGING_ENABLE
 # this doesn't work on some motherboards, which prevents it from being the
 # default.
 options AHC_ALLOW_MEMIO
+
+# By default, only 10 EISA slots are probed, since the slot numbers
+# above clash with the configuration address space of the PCI subsystem,
+# and the EISA probe is not very smart about this.  This is sufficient
+# for most machines, but in particular the HP NetServer LC series comes
+# with an onboard AIC7770 dual-channel SCSI controller on EISA slot #11,
+# thus you need to bump this figure to 12 for them.
+options	"EISA_SLOTS=12"
 
 #
 # PCI devices:
