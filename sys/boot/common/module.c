@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: module.c,v 1.1.1.1 1998/08/21 03:17:41 msmith Exp $
  */
 
 /*
@@ -38,7 +38,7 @@
 
 #include "bootstrap.h"
 
-/* Initially determined from kernel load address */
+/* XXX load address should be tweaked by first module loaded (kernel) */
 static vm_offset_t	loadaddr = 0;
 
 struct loaded_module *loaded_modules = NULL;
@@ -51,6 +51,32 @@ command_load(int argc, char *argv[])
     return(mod_load(argv[1], argc - 2, argv + 2));
 }
 
+COMMAND_SET(unload, "unload", "unload all modules", command_unload);
+
+static int
+command_unload(int argc, char *argv[])
+{
+    struct loaded_module	*mp;
+    struct module_metadata	*md;
+    
+    while (loaded_modules != NULL) {
+	mp = loaded_modules;
+	loaded_modules = loaded_modules->m_next;
+	while (mp->m_metadata != NULL) {
+	    md = mp->m_metadata;
+	    mp->m_metadata = mp->m_metadata->md_next;
+	    free(md);
+	}
+	free(mp->m_name);
+	free(mp->m_type);
+	if (mp->m_args != NULL)
+	    free(mp->m_args);
+	free(mp);
+    }
+    loadaddr = 0;
+    return(CMD_OK);
+}
+
 COMMAND_SET(lsmod, "lsmod", "list loaded modules", command_lsmod);
 
 static int
@@ -61,7 +87,7 @@ command_lsmod(int argc, char *argv[])
     
     pager_open();
     for (am = loaded_modules; (am != NULL); am = am->m_next) {
-	sprintf(lbuf, " %p: %s (%s, 0x%x)\n", 
+	sprintf(lbuf, " %x: %s (%s, 0x%x)\n", 
 		am->m_addr, am->m_name, am->m_type, am->m_size);
 	pager_output(lbuf);
 	if (am->m_args != NULL) {
@@ -91,6 +117,9 @@ mod_load(char *name, int argc, char *argv[])
 	    /* Fatal error */
 	    sprintf(command_errbuf, "can't load module '%s': %s", name, strerror(err));
 	    return(CMD_ERROR);
+	} else {
+	    /* remember the loader */
+	    am->m_loader = i;
 	}
     }
     if (am == NULL) {
@@ -126,4 +155,28 @@ mod_findmodule(char *name, char *type)
 	    break;
     }
     return(mp);
+}
+
+void
+mod_addmetadata(struct loaded_module *mp, int type, size_t size, void *p)
+{
+    struct module_metadata	*md;
+
+    md = malloc(sizeof(struct module_metadata) + size);
+    md->md_size = size;
+    md->md_type = type;
+    bcopy(p, md->md_data, size);
+    md->md_next = mp->m_metadata;
+    mp->m_metadata = md;
+}
+
+struct module_metadata *
+mod_findmetadata(struct loaded_module *mp, int type)
+{
+    struct module_metadata	*md;
+
+    for (md = mp->m_metadata; md != NULL; md = md->md_next)
+	if (md->md_type == type)
+	    break;
+    return(md);
 }
