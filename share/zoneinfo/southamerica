@@ -1,4 +1,4 @@
-# @(#)southamerica	7.54
+# @(#)southamerica	7.55
 
 # This data is by no means authoritative; if you think you know better,
 # go ahead and edit the file (and please send any changes to
@@ -671,7 +671,7 @@ Zone America/Campo_Grande -3:38:28 -	LMT	1914
 # Mato Grosso (MT)
 Zone America/Cuiaba	-3:44:20 -	LMT	1914
 			-4:00	Brazil	AM%sT	2003 Sep 24
-			-4:00	-	AMT	2004 Oct  4
+			-4:00	-	AMT	2004 Oct  1
 			-4:00	Brazil	AM%sT
 #
 # west Para (PA), Rondonia (RO)
