@@ -254,6 +254,9 @@ g_io_request(struct bio *bp, struct g_consumer *cp)
 		    bp->bio_length, cp->provider->sectorsize));
 	}
 
+	g_trace(G_T_BIO, "bio_request(%p) from %p(%s) to %p(%s) cmd %d",
+	    bp, cp, cp->geom->name, pp, pp->name, bp->bio_cmd);
+
 	bp->bio_from = cp;
 	bp->bio_to = pp;
 	bp->bio_error = 0;
@@ -280,8 +283,6 @@ g_io_request(struct bio *bp, struct g_consumer *cp)
 	g_bioq_unlock(&g_bio_run_down);
 
 	/* Pass it on down. */
-	g_trace(G_T_BIO, "bio_request(%p) from %p(%s) to %p(%s) cmd %d",
-	    bp, cp, cp->geom->name, pp, pp->name, bp->bio_cmd);
 	wakeup(&g_wait_down);
 }
 
