@@ -81,7 +81,7 @@ main(argc, argv)
 		err(2, "stat");
 
 	if (*argv == NULL) {
-		(void)printf("is %s%s\n",
+		(void)printf("is %s\n",
 		    sb.st_mode & S_IXUSR ? "y" :
 		    sb.st_mode & S_IXGRP ? "b" : "n");
 		return(sb.st_mode & (S_IXUSR | S_IXGRP) ? 0 : 1);
