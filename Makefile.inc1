@@ -284,6 +284,8 @@ _worldtmp:
     usr/libexec usr/share/misc
 	mkdir -p ${WORLDTMP}/${_dir}
 .endfor
+	mtree -deU -f ${.CURDIR}/etc/mtree/BSD.include.dist \
+	    -p ${WORLDTMP}/usr/include
 	ln -sf ${.CURDIR}/sys ${WORLDTMP}
 _legacy:
 	@echo
