@@ -1676,7 +1676,7 @@ fwohci_irx_enable(struct firewire_comm *fc, int dmach)
 }
 
 int
-fwohci_shutdown(struct fwohci_softc *sc, device_t dev)
+fwohci_stop(struct fwohci_softc *sc, device_t dev)
 {
 	u_int i;
 
