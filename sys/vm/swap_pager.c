@@ -111,6 +111,33 @@ __FBSDID("$FreeBSD$");
 #define NSWAPDEV	4
 #endif
 
+/*
+ * SWB_NPAGES must be a power of 2.  It may be set to 1, 2, 4, 8, or 16
+ * pages per allocation.  We recommend you stick with the default of 8.
+ * The 16-page limit is due to the radix code (kern/subr_blist.c).
+ */
+#ifndef MAX_PAGEOUT_CLUSTER
+#define MAX_PAGEOUT_CLUSTER 16
+#endif
+
+#if !defined(SWB_NPAGES)
+#define SWB_NPAGES	MAX_PAGEOUT_CLUSTER
+#endif
+
+/*
+ * Piecemeal swap metadata structure.  Swap is stored in a radix tree.
+ *
+ * If SWB_NPAGES is 8 and sizeof(char *) == sizeof(daddr_t), our radix
+ * is basically 8.  Assuming PAGE_SIZE == 4096, one tree level represents
+ * 32K worth of data, two levels represent 256K, three levels represent
+ * 2 MBytes.   This is acceptable.
+ *
+ * Overall memory utilization is about the same as the old swap structure.
+ */
+#define SWCORRECT(n) (sizeof(void *) * (n) / sizeof(daddr_t))
+#define SWAP_META_PAGES		(SWB_NPAGES * 2)
+#define SWAP_META_MASK		(SWAP_META_PAGES - 1)
+
 typedef	int32_t	swblk_t;	/* swap offset */
 
 struct swblock {
@@ -2716,3 +2743,41 @@ SYSCTL_INT(_vm, OID_AUTO, nswapdev, CTLFLAG_RD, &nswdev, 0,
     "Number of swap devices");
 SYSCTL_NODE(_vm, OID_AUTO, swap_info, CTLFLAG_RD, sysctl_vm_swap_info,
     "Swap statistics by device");
+
+/*
+ * vmspace_swap_count() - count the approximate swap useage in pages for a
+ *			  vmspace.
+ *
+ *	The map must be locked.
+ *
+ *	Swap useage is determined by taking the proportional swap used by
+ *	VM objects backing the VM map.  To make up for fractional losses,
+ *	if the VM object has any swap use at all the associated map entries
+ *	count for at least 1 swap page.
+ */
+int
+vmspace_swap_count(struct vmspace *vmspace)
+{
+	vm_map_t map = &vmspace->vm_map;
+	vm_map_entry_t cur;
+	int count = 0;
+
+	for (cur = map->header.next; cur != &map->header; cur = cur->next) {
+		vm_object_t object;
+
+		if ((cur->eflags & MAP_ENTRY_IS_SUB_MAP) == 0 &&
+		    (object = cur->object.vm_object) != NULL) {
+			VM_OBJECT_LOCK(object);
+			if (object->type == OBJT_SWAP &&
+			    object->un_pager.swp.swp_bcount != 0) {
+				int n = (cur->end - cur->start) / PAGE_SIZE;
+
+				count += object->un_pager.swp.swp_bcount *
+				    SWAP_META_PAGES * n / object->size + 1;
+			}
+			VM_OBJECT_UNLOCK(object);
+		}
+	}
+	return (count);
+}
+
