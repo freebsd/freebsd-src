@@ -23,7 +23,7 @@
  * Copies of this Software may be made, however, the above copyright
  * notice must be reproduced on all copies.
  *
- *	@(#) $Id: atm_cm.c,v 1.2 1998/09/17 09:34:59 phk Exp $
+ *	@(#) $Id: atm_cm.c,v 1.3 1998/10/31 20:06:54 phk Exp $
  *
  */
 
@@ -38,7 +38,7 @@
 #include <netatm/kern_include.h>
 
 #ifndef lint
-__RCSID("@(#) $Id: atm_cm.c,v 1.2 1998/09/17 09:34:59 phk Exp $");
+__RCSID("@(#) $Id: atm_cm.c,v 1.3 1998/10/31 20:06:54 phk Exp $");
 #endif
 
 
@@ -996,7 +996,7 @@ atm_cm_release(cop, cause)
 	/*
 	 * Check out the VCC state too
 	 */
-	if (cvp = cop->co_connvc) {
+	if ((cvp = cop->co_connvc) != NULL) {
 
 		switch (cvp->cvc_state) {
 
@@ -1404,7 +1404,7 @@ atm_cm_connected(cvp)
 	/*
 	 * Input any queued packets
 	 */
-	while (m = cvp->cvc_rcvq) {
+	while ((m = cvp->cvc_rcvq) != NULL) {
 		cvp->cvc_rcvq = KB_QNEXT(m);
 		cvp->cvc_rcvqlen--;
 		KB_QNEXT(m) = NULL;
@@ -1562,7 +1562,7 @@ atm_cm_incall(cvp)
 	/*
 	 * Look for matching listeners
 	 */
-	while (lcop = atm_cm_match(&attr, lcop)) {
+	while ((lcop = atm_cm_match(&attr, lcop)) != NULL) {
 
 		if (cop == NULL) {
 			/*
