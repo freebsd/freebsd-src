@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.363 1997/09/09 12:40:53 jmg Exp $
+#	$Id: LINT,v 1.364 1997/09/10 03:07:13 peter Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -950,6 +950,22 @@ options		NATM			#native ATM
 # i386/isa/sound/sound_config.h.  If you change the values here, you
 # must also change the values in the include file.
 #
+# pcm: PCM audio through various sound cards.
+#
+# This is the work in progress from Luigi Rizzo.  This has support for
+# CS423x based cards, OPTi931, SB16 PnP, GusPnP.  For more information
+# about this driver, take a look at sys/i386/isa/snd/README.
+#
+# The flags of the device tells the device a bit more info about the
+# device that normally is obtained through the PnP interface.
+#	bit  2..0   secondary DMA channel;
+#	bit  4      set if the board uses two dma channels;
+#	bit 15..8   board type, overrides autodetection; leave it
+#		    zero if don't know what to put in (and you don't,
+#		    since this is unsupported at the moment...).
+#
+# This driver will use the new PnP code if it's available.
+#
 # pca: PCM audio through your PC speaker
 #
 # If you don't have a lpt0 device at IRQ 7, you can remove the
@@ -988,6 +1004,9 @@ device uart0 at isa? port 0x330 irq 5 vector "m6850intr"
 # broken
 #device sscape0  at isa? port 0x330 irq 6 drq 0
 #device trix0    at isa? port 0x330 irq 6 drq 0 vector sscapeintr
+
+# Luigi's snd code
+# device pcm0 at isa? port ? tty irq 10 drq 1 flags 0x0 vector pcmintr
 
 # Not controlled by `snd'
 device pca0 at isa? port IO_TIMER1 tty
