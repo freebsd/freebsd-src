@@ -389,7 +389,7 @@ AcpiExStoreObjectToIndex (
 
             /* If same as the original source, add a reference */
 
-            if (NewDesc == SourceDesc)
+            if (NewDesc == SourceDesc || ObjDesc == NULL)
             {
                 AcpiUtAddReference (NewDesc);
             }
