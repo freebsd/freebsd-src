@@ -85,7 +85,6 @@
 #ifndef MACHINE_ARCH
 #define	MACHINE_ARCH	"ia64"
 #endif
-#define	MID_MACHINE	MID_IA64
 
 #ifdef SMP
 #define	MAXCPU		16
