@@ -477,6 +477,9 @@ again:
 	PROC_LOCK(p1);
 	p2->p_ucred = crhold(p1->p_ucred);
 	td2->td_ucred = crhold(p2->p_ucred);	/* XXXKSE */
+#ifdef	DIAGNOSTIC 			/* see the comment in ast() */
+	td2->td_ucred_cache = NULL;
+#endif
 
 	if (p2->p_args)
 		p2->p_args->ar_ref++;
@@ -802,12 +805,12 @@ fork_exit(callout, arg, frame)
 		kthread_exit(0);
 	}
 	PROC_UNLOCK(p);
-#ifdef	INVARIANTS
-	mtx_lock(&Giant);
-	crfree(td->td_ucred);
-	mtx_unlock(&Giant);
-	td->td_ucred = NULL;
-#endif
+#ifdef DIAGNOSTIC 			/* see the comment in ast() */
+	if (td->td_ucred_cache)
+		panic("fork_exit:thread already has cached ucred");
+	td->td_ucred_cache = td->td_ucred;
+       	td->td_ucred = NULL;
+#endif /* DIAGNOSTIC */
 	mtx_assert(&Giant, MA_NOTOWNED);
 }
 
