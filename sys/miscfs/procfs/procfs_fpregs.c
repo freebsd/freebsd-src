@@ -36,7 +36,7 @@
  *
  *	@(#)procfs_fpregs.c	8.1 (Berkeley) 1/27/94
  *
- *	$Id: procfs_fpregs.c,v 1.1.1.1 1994/05/24 10:05:09 rgrimes Exp $
+ *	$Id: procfs_fpregs.c,v 1.2 1994/08/02 07:45:12 davidg Exp $
  */
 
 #include <sys/param.h>
@@ -47,6 +47,8 @@
 #include <sys/vnode.h>
 #include <machine/reg.h>
 #include <miscfs/procfs/procfs.h>
+#include <vm/vm.h>
+#include <vm/vm_extern.h>
 
 int
 procfs_dofpregs(curp, p, pfs, uio)
@@ -68,6 +70,8 @@ procfs_dofpregs(curp, p, pfs, uio)
 	if (kl > uio->uio_resid)
 		kl = uio->uio_resid;
 
+	PHOLD(p);
+
 	if (kl < 0)
 		error = EINVAL;
 	else
@@ -80,7 +84,15 @@ procfs_dofpregs(curp, p, pfs, uio)
 		else
 			error = procfs_write_fpregs(p, &r);
 	}
+	PRELE(p);
 
 	uio->uio_offset = 0;
 	return (error);
+}
+
+int
+procfs_validfpregs(p)
+	struct proc *p;
+{
+	return ((p->p_flag & P_SYSTEM) == 0);
 }
