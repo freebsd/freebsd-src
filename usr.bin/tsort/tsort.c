@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id$
+ * $Id: tsort.c,v 1.6 1997/02/22 19:57:28 peter Exp $
  */
 
 #ifndef lint
@@ -56,6 +56,7 @@ static char sccsid[] = "@(#)tsort.c	8.3 (Berkeley) 5/4/95";
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 /*
  *  Topological sort.  Input is a list of pairs of strings separated by
