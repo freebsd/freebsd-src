@@ -135,6 +135,7 @@ nslookup_yy_input(buf, result, max_size, intr)
 			el_set(el, EL_EDITOR, "emacs");
 			el_set(el, EL_PROMPT, nslookup_prompt);
 			el_set(el, EL_SIGNAL, 1);
+			el_source(el, NULL);
 		}
 	
 		if ((bp = el_gets(el, &num)) == NULL || num == 0) {
