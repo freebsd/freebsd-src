@@ -57,6 +57,7 @@ static void stios2stio(struct ibcs2_termios *, struct ibcs2_termio *);
 static void stio2stios(struct ibcs2_termio *, struct ibcs2_termios *);
 
 
+#ifndef BURN_BRIDGES
 int
 ibcs2_gtty(struct thread *td, struct ibcs2_gtty_args *args)
 {
@@ -80,6 +81,7 @@ ibcs2_stty(struct thread *td, struct ibcs2_stty_args *args)
 
 	return ioctl(td, &ioctl_arg);
 }
+#endif /* BURN BRIDGES */
 
 
 /*

@@ -48,8 +48,13 @@ struct sysent ibcs2_sysent[] = {
 	{ AS(ibcs2_fstat_args), (sy_call_t *)ibcs2_fstat },	/* 28 = ibcs2_fstat */
 	{ SYF_MPSAFE | 0, (sy_call_t *)ibcs2_pause },	/* 29 = ibcs2_pause */
 	{ AS(ibcs2_utime_args), (sy_call_t *)ibcs2_utime },	/* 30 = ibcs2_utime */
+#ifndef BURN_BRIDGES
 	{ AS(ibcs2_stty_args), (sy_call_t *)ibcs2_stty },	/* 31 = ibcs2_stty */
 	{ AS(ibcs2_gtty_args), (sy_call_t *)ibcs2_gtty },	/* 32 = ibcs2_gtty */
+#else
+	{ AS(ibcs2_stty_args), (sy_call_t *)nosys },		/* 31 = ibcs2_stty */
+	{ AS(ibcs2_gtty_args), (sy_call_t *)nosys },		/* 32 = ibcs2_gtty */
+#endif
 	{ AS(ibcs2_access_args), (sy_call_t *)ibcs2_access },	/* 33 = ibcs2_access */
 	{ SYF_MPSAFE | AS(ibcs2_nice_args), (sy_call_t *)ibcs2_nice },	/* 34 = ibcs2_nice */
 	{ AS(ibcs2_statfs_args), (sy_call_t *)ibcs2_statfs },	/* 35 = ibcs2_statfs */

@@ -38,6 +38,7 @@
 #ifndef _SYS_IOCTL_COMPAT_H_
 #define	_SYS_IOCTL_COMPAT_H_
 
+#ifndef BURN_BRIDGES
 #include <sys/ttychars.h>
 #include <sys/ttydev.h>
 
@@ -161,4 +162,5 @@ struct sgttyb {
 #define	NETLDISC	1
 #define	NTTYDISC	2
 
+#endif /* BURN_BRIDGES */
 #endif /* !_SYS_IOCTL_COMPAT_H_ */
