@@ -70,27 +70,24 @@ __FBSDID("$FreeBSD$");
 #define CS_DMA_BUFFER_SIZE 16384
 #endif
 
-static int	cs_recv_delay = 570;
-SYSCTL_INT(_machdep, OID_AUTO, cs_recv_delay, CTLFLAG_RW, &cs_recv_delay, 0, "");
+static void	cs_init(void *);
+static int	cs_ioctl(struct ifnet *, u_long, caddr_t);
+static void	cs_start(struct ifnet *);
+static void	cs_stop(struct cs_softc *);
+static void	cs_reset(struct cs_softc *);
+static void	cs_watchdog(struct ifnet *);
 
-static void	cs_init		(void *);
-static int	cs_ioctl	(struct ifnet *, u_long, caddr_t);
-static void	cs_start	(struct ifnet *);
-static void	cs_stop		(struct cs_softc *);
-static void	cs_reset	(struct cs_softc *);
-static void	cs_watchdog	(struct ifnet *);
-
-static int	cs_mediachange	(struct ifnet *);
-static void	cs_mediastatus	(struct ifnet *, struct ifmediareq *);
-static int      cs_mediaset	(struct cs_softc *, int);
+static int	cs_mediachange(struct ifnet *);
+static void	cs_mediastatus(struct ifnet *, struct ifmediareq *);
+static int      cs_mediaset(struct cs_softc *, int);
 
 static void	cs_write_mbufs(struct cs_softc*, struct mbuf*);
 static void	cs_xmit_buf(struct cs_softc*);
 static int	cs_get_packet(struct cs_softc*);
 static void	cs_setmode(struct cs_softc*);
 
-static int	get_eeprom_data(struct cs_softc *sc, int, int, int *);
-static int	get_eeprom_cksum(int, int, int *);
+static int	get_eeprom_data(struct cs_softc *sc, int, int, uint16_t *);
+static int	get_eeprom_cksum(int, int, uint16_t *);
 static int	wait_eeprom_ready( struct cs_softc *);
 static void	control_dc_dc( struct cs_softc *, int );
 static int	send_test_pkt( struct cs_softc * );
@@ -101,26 +98,46 @@ static int      cs_duplex_auto(struct cs_softc *);
 
 devclass_t cs_devclass;
 
+/* sysctl vars */
+SYSCTL_NODE(_hw, OID_AUTO, cs, CTLFLAG_RD, 0, "cs device parameters");
+
+int	cs_debug = 0;
+TUNABLE_INT("hw.cs.debug", &cs_debug);
+SYSCTL_INT(_hw_cs, OID_AUTO, debug, CTLFLAG_RW,
+    &cs_debug, 0,
+  "cs debug");
+
+int	cs_ignore_cksum_failure = 0;
+TUNABLE_INT("hw.cs.ignore_checksum_failure", &cs_ignore_cksum_failure);
+SYSCTL_INT(_hw_cs, OID_AUTO, ignore_checksum_failure, CTLFLAG_RW,
+    &cs_ignore_cksum_failure, 0,
+  "ignore checksum errors in cs card EEPROM");
+
+static int	cs_recv_delay = 570;
+TUNABLE_INT("hw.cs.recv_delay", &cs_ignore_cksum_failure);
+SYSCTL_INT(_hw_cs, OID_AUTO, recv_delay, CTLFLAG_RW, &cs_recv_delay, 570, "");
+
 static int
-get_eeprom_data( struct cs_softc *sc, int off, int len, int *buffer)
+get_eeprom_data(struct cs_softc *sc, int off, int len, uint16_t *buffer)
 {
 	int i;
 
 #ifdef CS_DEBUG
-	printf(CS_NAME":EEPROM data from %x for %x:\n", off,len);
+	printf(CS_NAME":EEPROM data from %x for %x:\n", off, len);
 #endif
 
-	for (i=0;i<len;i++) {
-		if (wait_eeprom_ready(sc) < 0) return -1;
+	for (i=0; i < len; i++) {
+		if (wait_eeprom_ready(sc) < 0)
+			return (-1);
 		/* Send command to EEPROM to read */
 		cs_writereg(sc, PP_EECMD, (off + i) | EEPROM_READ_CMD);
-		if (wait_eeprom_ready(sc)<0)
+		if (wait_eeprom_ready(sc) < 0)
 			return (-1);
 		buffer[i] = cs_readreg(sc, PP_EEData);
 
 #ifdef CS_DEBUG
 		printf("%02x %02x ",(unsigned char)buffer[i],
-					(unsigned char)buffer[i+1]);
+		    (unsigned char)buffer[i] >> 8);
 #endif
 	}
 
@@ -131,22 +148,27 @@ get_eeprom_data( struct cs_softc *sc, int off, int len, int *buffer)
 }
 
 static int
-get_eeprom_cksum(int off, int len, int *buffer)
+get_eeprom_cksum(int off, int len, uint16_t *buffer)
 {
-	int i,cksum=0;
+	int i;
+	uint16_t cksum=0;
 
-	for (i=0;i<len;i++)
-		cksum+=buffer[i];
+	for (i = 0; i < len; i++)
+		cksum += buffer[i];
 	cksum &= 0xffff;
 	if (cksum==0)
-		return 0;
-	return -1;
+		return (0);
+	if (cs_ignore_cksum_failure) {
+		printf(CS_NAME": checksum mismatch, ignoring\n");
+		return (0);
+	}
+	return (-1);
 }
 
 static int
 wait_eeprom_ready(struct cs_softc *sc)
 {
-	DELAY ( 30000 );	/* XXX should we do some checks here ? */
+	DELAY(30000);	/* XXX should we do some checks here ? */
 	return 0;
 }
 
@@ -161,7 +183,7 @@ control_dc_dc(struct cs_softc *sc, int on_not_off)
 		self_control &= ~HCB1;
 	cs_writereg(sc, PP_SelfCTL, self_control);
 
-	DELAY( 500000 );
+	DELAY(500000);
 }
 
 
@@ -214,9 +236,8 @@ send_test_pkt(struct cs_softc *sc)
 	int i;
 	u_char ether_address_backup[ETHER_ADDR_LEN];
 
-	for (i = 0; i < ETHER_ADDR_LEN; i++) {
+	for (i = 0; i < ETHER_ADDR_LEN; i++)
 		ether_address_backup[i] = sc->arpcom.ac_enaddr[i];
-	}
 
 	cs_writereg(sc, PP_LineCTL, cs_readreg(sc, PP_LineCTL) | SERIAL_TX_ON);
 	bcopy(test_packet, sc->arpcom.ac_enaddr, ETHER_ADDR_LEN);
@@ -228,9 +249,8 @@ send_test_pkt(struct cs_softc *sc)
 	/* Wait for chip to allocate memory */
 	DELAY(50000);
 	if (!(cs_readreg(sc, PP_BusST) & READY_FOR_TX_NOW)) {
-		for (i = 0; i < ETHER_ADDR_LEN; i++) {
+		for (i = 0; i < ETHER_ADDR_LEN; i++)
 			sc->arpcom.ac_enaddr[i] = ether_address_backup[i];
-		}
 		return 0;
 	}
 
@@ -238,15 +258,10 @@ send_test_pkt(struct cs_softc *sc)
 
 	DELAY(30000);
 
-	if ((cs_readreg(sc, PP_TxEvent) & TX_SEND_OK_BITS) == TX_OK) {
-		for (i = 0; i < ETHER_ADDR_LEN; i++) {
-			sc->arpcom.ac_enaddr[i] = ether_address_backup[i];
-		}
-		return 1;
-	}
-	for (i = 0; i < ETHER_ADDR_LEN; i++) {
+	for (i = 0; i < ETHER_ADDR_LEN; i++)
 		sc->arpcom.ac_enaddr[i] = ether_address_backup[i];
-	}
+	if ((cs_readreg(sc, PP_TxEvent) & TX_SEND_OK_BITS) == TX_OK)
+		return 1;
 	return 0;
 }
 
@@ -294,9 +309,9 @@ cs_cs89x0_probe(device_t dev)
 	u_long irq, junk;
 	struct cs_softc *sc = device_get_softc(dev);
 	unsigned rev_type = 0;
-	u_int16_t id;
+	uint16_t id;
 	char chip_revision;
-	int eeprom_buff[CHKSUM_LEN];
+	uint16_t eeprom_buff[CHKSUM_LEN];
 	int chip_type, pp_isaint, pp_isadma;
 
 	error = cs_alloc_port(dev, 0, CS_89x0_IO_PORTS);
@@ -653,7 +668,18 @@ cs_attach(device_t dev)
 	case A_CNF_MEDIA_10B_T: media = IFM_ETHER|IFM_10_T; break;
 	case A_CNF_MEDIA_10B_2: media = IFM_ETHER|IFM_10_2; break;
 	case A_CNF_MEDIA_AUI:   media = IFM_ETHER|IFM_10_5; break;
-	default: if_printf(ifp, "adapter has no media\n");
+	default:
+		if_printf(ifp, "no media, assuming 10baseT\n");
+		sc->adapter_cnf |= A_CNF_10B_T;
+		ifmedia_add(&sc->media, IFM_ETHER|IFM_10_T, 0, NULL);
+		if (sc->chip_type != CS8900) {
+			ifmedia_add(&sc->media,
+			    IFM_ETHER|IFM_10_T|IFM_FDX, 0, NULL);
+			ifmedia_add(&sc->media,
+			    IFM_ETHER|IFM_10_T|IFM_HDX, 0, NULL);
+		}
+		media = IFM_ETHER | IFM_10_T;
+		break;
 	}
 	ifmedia_set(&sc->media, media);
 	cs_mediaset(sc, media);
@@ -812,11 +838,9 @@ cs_get_packet(struct cs_softc *sc)
 	    (ifp->if_flags & IFF_MULTICAST && status & RX_HASHED)) {
 		/* Feed the packet to the upper layer */
 		(*ifp->if_input)(ifp, m);
-
 		ifp->if_ipackets++;
-
-		if (length==ETHER_MAX_LEN-ETHER_CRC_LEN)
-                        DELAY( cs_recv_delay );
+		if (length == ETHER_MAX_LEN-ETHER_CRC_LEN)
+                        DELAY(cs_recv_delay);
 	} else {
 		m_freem(m);
 	}
