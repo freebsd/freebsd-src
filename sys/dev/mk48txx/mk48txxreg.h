@@ -136,7 +136,7 @@
 #define MK48TXX_WDAY_MASK	0x07	/* mask for weekday */
 #define MK48TXX_WDAY_CB		0x10	/* century bit (extended only) */
 #define MK48TXX_WDAY_CEB	0x20	/* century enable bit (extended only) */
-#define MK48TXX_WDAY_FT		0x30	/* frequency bit */
+#define MK48TXX_WDAY_FT		0x40	/* frequency test */
 
 /* Bits in the day in month register */
 #define MK48TXX_DAY_MASK	0x3f	/* mask for day in month */
