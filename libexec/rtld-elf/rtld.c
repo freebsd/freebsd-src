@@ -78,15 +78,13 @@ static Obj_Entry *digest_phdr(const Elf_Phdr *, int, caddr_t, const char *);
 static Obj_Entry *dlcheck(void *);
 static bool donelist_check(DoneList *, Obj_Entry *);
 static char *find_library(const char *, const Obj_Entry *);
-static void funclist_call(Funclist *);
-static void funclist_clear(Funclist *);
-static void funclist_init(Funclist *);
-static void funclist_push_head(Funclist *, InitFunc);
-static void funclist_push_tail(Funclist *, InitFunc);
 static const char *gethints(void);
 static void init_dag(Obj_Entry *);
 static void init_dag1(Obj_Entry *root, Obj_Entry *obj, DoneList *);
 static void init_rtld(caddr_t);
+static void initlist_add_neededs(Needed_Entry *needed, Objlist *list);
+static void initlist_add_objects(Obj_Entry *obj, Obj_Entry **tail,
+  Objlist *list);
 static bool is_exported(const Elf_Sym *);
 static void linkmap_add(Obj_Entry *);
 static void linkmap_delete(Obj_Entry *);
@@ -95,9 +93,15 @@ static int load_preload_objects(void);
 static Obj_Entry *load_object(char *);
 static void lock_check(void);
 static Obj_Entry *obj_from_addr(const void *);
-static void objlist_add(Objlist *, Obj_Entry *);
+static void objlist_call_fini(Objlist *);
+static void objlist_call_init(Objlist *);
+static void objlist_clear(Objlist *);
 static Objlist_Entry *objlist_find(Objlist *, const Obj_Entry *);
+static void objlist_init(Objlist *);
+static void objlist_push_head(Objlist *, Obj_Entry *);
+static void objlist_push_tail(Objlist *, Obj_Entry *);
 static void objlist_remove(Objlist *, Obj_Entry *);
+static void objlist_remove_unref(Objlist *);
 static int relocate_objects(Obj_Entry *, bool);
 static void rtld_exit(void);
 static char *search_library_path(const char *, const char *);
@@ -133,6 +137,8 @@ static Objlist list_global =	/* Objects dlopened with RTLD_GLOBAL */
   STAILQ_HEAD_INITIALIZER(list_global);
 static Objlist list_main =	/* Objects loaded at program startup */
   STAILQ_HEAD_INITIALIZER(list_main);
+static Objlist list_fini =	/* Objects needing fini() calls */
+  STAILQ_HEAD_INITIALIZER(list_fini);
 
 static LockInfo lockinfo;
 
@@ -235,7 +241,8 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     Elf_Auxinfo *auxp;
     const char *argv0;
     Obj_Entry *obj;
-    Funclist initlist;
+    Obj_Entry **preload_tail;
+    Objlist initlist;
 
     /*
      * On entry, the dynamic linker itself has not been relocated yet.
@@ -340,6 +347,8 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     obj_tail = &obj_main->next;
     obj_count++;
     obj_main->refcount++;
+    /* Make sure we don't call the main program's init and fini functions. */
+    obj_main->init = obj_main->fini = NULL;
 
     /* Initialize a fake symbol for resolving undefined weak references. */
     sym_zero.st_info = ELF_ST_INFO(STB_GLOBAL, STT_NOTYPE);
@@ -348,21 +357,15 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     dbg("loading LD_PRELOAD libraries");
     if (load_preload_objects() == -1)
 	die();
+    preload_tail = obj_tail;
 
     dbg("loading needed objects");
     if (load_needed_objects(obj_main) == -1)
 	die();
 
-    /*
-     * Make a list of all objects loaded at startup.  Also construct
-     * the list of init functions to call, in reverse order.
-     */
-    funclist_init(&initlist);
-    for (obj = obj_list;  obj != NULL;  obj = obj->next) {
-	objlist_add(&list_main, obj);
-	if (obj->init != NULL && !obj->mainprog)
-	    funclist_push_head(&initlist, obj->init);
-    }
+    /* Make a list of all objects loaded at startup. */
+    for (obj = obj_list;  obj != NULL;  obj = obj->next)
+	objlist_push_tail(&list_main, obj);
 
     if (ld_tracing) {		/* We're done */
 	trace_loaded_objects(obj_main);
@@ -385,11 +388,15 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
     lockdflt_init(&lockinfo);
     lockinfo.thelock = lockinfo.lock_create(lockinfo.context);
 
+    /* Make a list of init functions to call. */
+    objlist_init(&initlist);
+    initlist_add_objects(obj_list, preload_tail, &initlist);
+
     r_debug_state();		/* say hello to gdb! */
 
-    funclist_call(&initlist);
+    objlist_call_init(&initlist);
     wlock_acquire();
-    funclist_clear(&initlist);
+    objlist_clear(&initlist);
     wlock_release();
 
     dbg("transferring control to program entry point = %p", obj_main->entry);
@@ -877,55 +884,6 @@ find_symdef(unsigned long symnum, Obj_Entry *refobj,
     return def;
 }
 
-static void
-funclist_call(Funclist *list)
-{
-    Funclist_Entry *elm;
-
-    STAILQ_FOREACH(elm, list, link) {
-	dbg("calling init/fini function at %p", elm->func);
-	(*elm->func)();
-    }
-}
-
-static void
-funclist_clear(Funclist *list)
-{
-    Funclist_Entry *elm;
-
-    while (!STAILQ_EMPTY(list)) {
-	elm = STAILQ_FIRST(list);
-	STAILQ_REMOVE_HEAD(list, link);
-	free(elm);
-    }
-}
-
-static void
-funclist_init(Funclist *list)
-{
-    STAILQ_INIT(list);
-}
-
-static void
-funclist_push_head(Funclist *list, InitFunc func)
-{
-    Funclist_Entry *elm;
-
-    elm = NEW(Funclist_Entry);
-    elm->func = func;
-    STAILQ_INSERT_HEAD(list, elm, link);
-}
-
-static void
-funclist_push_tail(Funclist *list, InitFunc func)
-{
-    Funclist_Entry *elm;
-
-    elm = NEW(Funclist_Entry);
-    elm->func = func;
-    STAILQ_INSERT_TAIL(list, elm, link);
-}
-
 /*
  * Return the search path from the ldconfig hints file, reading it if
  * necessary.  Returns NULL if there are problems with the hints file,
@@ -981,8 +939,8 @@ init_dag1(Obj_Entry *root, Obj_Entry *obj, DoneList *dlp)
 
     if (donelist_check(dlp, obj))
 	return;
-    objlist_add(&obj->dldags, root);
-    objlist_add(&root->dagmembers, obj);
+    objlist_push_tail(&obj->dldags, root);
+    objlist_push_tail(&root->dagmembers, obj);
     for (needed = obj->needed;  needed != NULL;  needed = needed->next)
 	if (needed->obj != NULL)
 	    init_dag1(root, needed->obj, dlp);
@@ -1036,6 +994,57 @@ init_rtld(caddr_t mapbase)
 
     r_debug.r_brk = r_debug_state;
     r_debug.r_state = RT_CONSISTENT;
+}
+
+/*
+ * Add the init functions from a needed object list (and its recursive
+ * needed objects) to "list".  This is not used directly; it is a helper
+ * function for initlist_add_objects().  The write lock must be held
+ * when this function is called.
+ */
+static void
+initlist_add_neededs(Needed_Entry *needed, Objlist *list)
+{
+    /* Recursively process the successor needed objects. */
+    if (needed->next != NULL)
+	initlist_add_neededs(needed->next, list);
+
+    /* Process the current needed object. */
+    if (needed->obj != NULL)
+	initlist_add_objects(needed->obj, &needed->obj->next, list);
+}
+
+/*
+ * Scan all of the DAGs rooted in the range of objects from "obj" to
+ * "tail" and add their init functions to "list".  This recurses over
+ * the DAGs and ensure the proper init ordering such that each object's
+ * needed libraries are initialized before the object itself.  At the
+ * same time, this function adds the objects to the global finalization
+ * list "list_fini" in the opposite order.  The write lock must be
+ * held when this function is called.
+ */
+static void
+initlist_add_objects(Obj_Entry *obj, Obj_Entry **tail, Objlist *list)
+{
+    if (obj->init_done)
+	return;
+    obj->init_done = true;
+
+    /* Recursively process the successor objects. */
+    if (&obj->next != tail)
+	initlist_add_objects(obj->next, tail, list);
+
+    /* Recursively process the needed objects. */
+    if (obj->needed != NULL)
+	initlist_add_neededs(obj->needed, list);
+
+    /* Add the object to the init list. */
+    if (obj->init != NULL)
+	objlist_push_tail(list, obj);
+
+    /* Add the object to the global fini list in the reverse order. */
+    if (obj->fini != NULL)
+	objlist_push_head(&list_fini, obj);
 }
 
 static bool
@@ -1224,14 +1233,50 @@ obj_from_addr(const void *addr)
     return NULL;
 }
 
+/*
+ * Call the finalization functions for each of the objects in "list"
+ * which are unreferenced.  All of the objects are expected to have
+ * non-NULL fini functions.
+ */
 static void
-objlist_add(Objlist *list, Obj_Entry *obj)
+objlist_call_fini(Objlist *list)
 {
     Objlist_Entry *elm;
 
-    elm = NEW(Objlist_Entry);
-    elm->obj = obj;
-    STAILQ_INSERT_TAIL(list, elm, link);
+    STAILQ_FOREACH(elm, list, link) {
+	if (elm->obj->refcount == 0) {
+	    dbg("calling fini function for %s", elm->obj->path);
+	    (*elm->obj->fini)();
+	}
+    }
+}
+
+/*
+ * Call the initialization functions for each of the objects in
+ * "list".  All of the objects are expected to have non-NULL init
+ * functions.
+ */
+static void
+objlist_call_init(Objlist *list)
+{
+    Objlist_Entry *elm;
+
+    STAILQ_FOREACH(elm, list, link) {
+	dbg("calling init function for %s", elm->obj->path);
+	(*elm->obj->init)();
+    }
+}
+
+static void
+objlist_clear(Objlist *list)
+{
+    Objlist_Entry *elm;
+
+    while (!STAILQ_EMPTY(list)) {
+	elm = STAILQ_FIRST(list);
+	STAILQ_REMOVE_HEAD(list, link);
+	free(elm);
+    }
 }
 
 static Objlist_Entry *
@@ -1246,6 +1291,32 @@ objlist_find(Objlist *list, const Obj_Entry *obj)
 }
 
 static void
+objlist_init(Objlist *list)
+{
+    STAILQ_INIT(list);
+}
+
+static void
+objlist_push_head(Objlist *list, Obj_Entry *obj)
+{
+    Objlist_Entry *elm;
+
+    elm = NEW(Objlist_Entry);
+    elm->obj = obj;
+    STAILQ_INSERT_HEAD(list, elm, link);
+}
+
+static void
+objlist_push_tail(Objlist *list, Obj_Entry *obj)
+{
+    Objlist_Entry *elm;
+
+    elm = NEW(Objlist_Entry);
+    elm->obj = obj;
+    STAILQ_INSERT_TAIL(list, elm, link);
+}
+
+static void
 objlist_remove(Objlist *list, Obj_Entry *obj)
 {
     Objlist_Entry *elm;
@@ -1254,6 +1325,27 @@ objlist_remove(Objlist *list, Obj_Entry *obj)
 	STAILQ_REMOVE(list, elm, Struct_Objlist_Entry, link);
 	free(elm);
     }
+}
+
+/*
+ * Remove all of the unreferenced objects from "list".
+ */
+static void
+objlist_remove_unref(Objlist *list)
+{
+    Objlist newlist;
+    Objlist_Entry *elm;
+
+    STAILQ_INIT(&newlist);
+    while (!STAILQ_EMPTY(list)) {
+	elm = STAILQ_FIRST(list);
+	STAILQ_REMOVE_HEAD(list, link);
+	if (elm->obj->refcount == 0)
+	    free(elm);
+	else
+	    STAILQ_INSERT_TAIL(&newlist, elm, link);
+    }
+    *list = newlist;
 }
 
 /*
@@ -1334,9 +1426,13 @@ rtld_exit(void)
     Obj_Entry *obj;
 
     dbg("rtld_exit()");
-    for (obj = obj_list->next;  obj != NULL;  obj = obj->next)
-	if (obj->fini != NULL)
-	    (*obj->fini)();
+    wlock_acquire();
+    /* Clear all the reference counts so the fini functions will be called. */
+    for (obj = obj_list;  obj != NULL;  obj = obj->next)
+	obj->refcount = 0;
+    wlock_release();
+    objlist_call_fini(&list_fini);
+    /* No need to remove the items from the list, since we are exiting. */
 }
 
 static char *
@@ -1379,8 +1475,6 @@ int
 dlclose(void *handle)
 {
     Obj_Entry *root;
-    Obj_Entry *obj;
-    Funclist finilist;
 
     wlock_acquire();
     root = dlcheck(handle);
@@ -1396,18 +1490,12 @@ dlclose(void *handle)
     if (root->refcount == 0) {
 	/*
 	 * The object is no longer referenced, so we must unload it.
-	 * First, make a list of the fini functions and then call them
-	 * with no locks held.
+	 * First, call the fini functions with no locks held.
 	 */
-	funclist_init(&finilist);
-	for (obj = obj_list->next;  obj != NULL;  obj = obj->next)
-	    if (obj->refcount == 0 && obj->fini != NULL)
-		funclist_push_tail(&finilist, obj->fini);
-
 	wlock_release();
-	funclist_call(&finilist);
+	objlist_call_fini(&list_fini);
 	wlock_acquire();
-	funclist_clear(&finilist);
+	objlist_remove_unref(&list_fini);
 
 	/* Finish cleaning up the newly-unreferenced objects. */
 	GDB_STATE(RT_DELETE);
@@ -1453,10 +1541,9 @@ dlopen(const char *name, int mode)
 {
     Obj_Entry **old_obj_tail;
     Obj_Entry *obj;
-    Obj_Entry *initobj;
-    Funclist initlist;
+    Objlist initlist;
 
-    funclist_init(&initlist);
+    objlist_init(&initlist);
 
     wlock_acquire();
     GDB_STATE(RT_ADD);
@@ -1475,7 +1562,7 @@ dlopen(const char *name, int mode)
     if (obj) {
 	obj->dl_refcount++;
 	if (mode & RTLD_GLOBAL && objlist_find(&list_global, obj) == NULL)
-	    objlist_add(&list_global, obj);
+	    objlist_push_tail(&list_global, obj);
 	mode &= RTLD_MODEMASK;
 	if (*old_obj_tail != NULL) {		/* We loaded something new. */
 	    assert(*old_obj_tail == obj);
@@ -1488,10 +1575,8 @@ dlopen(const char *name, int mode)
 		    unload_object(obj);
 		obj = NULL;
 	    } else {
-		/* Make list of init functions to call, in reverse order */
-		for (initobj = obj; initobj != NULL; initobj = initobj->next)
-		    if (initobj->init != NULL)
-			funclist_push_head(&initlist, initobj->init);
+		/* Make list of init functions to call. */
+		initlist_add_objects(obj, &obj->next, &initlist);
 	    }
 	}
     }
@@ -1500,9 +1585,9 @@ dlopen(const char *name, int mode)
 
     /* Call the init functions with no locks held. */
     wlock_release();
-    funclist_call(&initlist);
+    objlist_call_init(&initlist);
     wlock_acquire();
-    funclist_clear(&initlist);
+    objlist_clear(&initlist);
     wlock_release();
     return obj;
 }
