@@ -6,6 +6,7 @@
 
 /bin/sh
 /bin/csh
+/bin/tcsh
 /usr/local/bin/ksh
 /usr/local/bin/zsh
 /usr/local/bin/bash
