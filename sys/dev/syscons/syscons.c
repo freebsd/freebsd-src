@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: syscons.c,v 1.317 1999/08/13 16:17:54 dt Exp $
+ *	$Id: syscons.c,v 1.318 1999/08/17 22:06:17 billf Exp $
  */
 
 #include "sc.h"
@@ -39,6 +39,7 @@
 #if NSC > 0
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/eventhandler.h>
 #include <sys/reboot.h>
 #include <sys/conf.h>
 #include <sys/proc.h>
@@ -140,7 +141,7 @@ static void scinit(int unit, int flags);
 #if __i386__
 static void scterm(int unit, int flags);
 #endif
-static void scshutdown(int howto, void *arg);
+static void scshutdown(void *arg, int howto);
 static u_int scgetc(sc_softc_t *sc, u_int flags);
 #define SCGETC_CN	1
 #define SCGETC_NONBLOCK	2
@@ -359,7 +360,8 @@ sc_attach_unit(int unit, int flags)
 
     /* register a shutdown callback for the kernel console */
     if (sc_console_unit == unit)
-	at_shutdown(scshutdown, (void *)(uintptr_t)unit, SHUTDOWN_PRE_SYNC);
+	EVENTHANDLER_REGISTER(shutdown_pre_sync, scshutdown, 
+			      (void *)(uintptr_t)unit, SHUTDOWN_PRI_DEFAULT);
 
     /*
      * syscons's cdevsw must be registered from here. As syscons and
@@ -3380,7 +3382,7 @@ scterm(int unit, int flags)
 #endif
 
 static void
-scshutdown(int howto, void *arg)
+scshutdown(void *arg, int howto)
 {
     /* assert(sc_console != NULL) */
 

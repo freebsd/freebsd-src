@@ -70,7 +70,7 @@
 
 static	void en_pci_attach __P((pcici_t, int));
 static	const char *en_pci_probe __P((pcici_t, pcidi_t));
-static void en_pci_shutdown __P((int, void *));
+static void en_pci_shutdown __P((void *, int));
 
 /*
  * local structures
@@ -266,7 +266,8 @@ int unit;
    * doing so could allow DMA to corrupt kernel memory during the
    * reboot before the driver initializes.
    */
-  at_shutdown(en_pci_shutdown, scp, SHUTDOWN_POST_SYNC);
+  EVENTHANDLER_REGISTER(shutdown_post_sync, en_pci_shutdown, scp,
+			SHUTDOWN_PRI_DEFAULT);
 
   if (!pci_map_int(config_id, en_intr, (void *) sc, &net_imask)) {
     printf("%s: couldn't establish interrupt\n", sc->sc_dev.dv_xname);
@@ -304,8 +305,8 @@ int unit;
 
 static void
 en_pci_shutdown(
-	int howto,
-	void *sc)
+	void *sc,
+	int howto)
 {
     struct en_pci_softc *psc = (struct en_pci_softc *)sc;
     
