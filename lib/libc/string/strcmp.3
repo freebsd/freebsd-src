@@ -36,7 +36,7 @@
 .\"     @(#)strcmp.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd June 4, 1993
+.Dd October 11, 2001
 .Dt STRCMP 3
 .Os
 .Sh NAME
@@ -46,7 +46,7 @@
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
-.Fd #include <string.h>
+.In string.h
 .Ft int
 .Fn strcmp "const char *s1" "const char *s2"
 .Ft int
@@ -64,9 +64,16 @@ and
 .Pp
 The
 .Fn strncmp
+function
 compares not more than
 .Fa len
 characters.
+Because
+.Fn strncmp
+is designed for comparing strings rather than binary data,
+characters that appear after a
+.Ql \e0
+character are not compared.
 .Sh RETURN VALUES
 The
 .Fn strcmp
