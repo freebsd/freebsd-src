@@ -38,6 +38,7 @@
 .Sh NAME
 .Nm copysign ,
 .Nm copysignf ,
+.Nm copysignl ,
 .Nm finite ,
 .Nm finitef ,
 .Nm ilogb ,
@@ -57,6 +58,8 @@
 .Fn copysign "double x" "double y"
 .Ft float
 .Fn copysignf "float x" "float y"
+.Ft long double
+.Fn copysignl "long double x" "long double y"
 .Ft int
 .Fn finite "double x"
 .Ft int
@@ -81,9 +84,10 @@
 These functions are required or recommended by
 .St -ieee754 .
 .Pp
-.Fn copysign
-and
+.Fn copysign ,
 .Fn copysignf
+and
+.Fn copysignl
 return
 .Fa x
 with its sign changed to
@@ -179,5 +183,9 @@ The
 .Nm ieee
 functions appeared in
 .Bx 4.3 .
+The
+.Fn copysignl
+function first appeared in
+.Fx 5.3 .
 .Sh STANDARDS
 .St -ieee754

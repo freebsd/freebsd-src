@@ -102,7 +102,7 @@ LIBCDIR=	${.CURDIR}/../libc
 CFLAGS+=	-I${LIBCDIR}/include -I${LIBCDIR}/${MACHINE_ARCH}
 
 # C99 long double functions
-COMMON_SRCS+=	s_fabsl.c
+COMMON_SRCS+=	s_copysignl.c s_fabsl.c
 
 # FreeBSD's C library supplies these functions:
 #COMMON_SRCS+=	s_fabs.c s_frexp.c s_isnan.c s_ldexp.c s_modf.c
@@ -143,7 +143,8 @@ MLINKS+=fabs.3 fabsf.3 fabs.3 fabsl.3
 MLINKS+=floor.3 floorf.3
 MLINKS+=fmod.3 fmodf.3
 MLINKS+=hypot.3 cabs.3 hypot.3 cabsf.3 hypot.3 hypotf.3
-MLINKS+=ieee.3 copysign.3 ieee.3 copysignf.3 ieee.3 finite.3 ieee.3 finitef.3 \
+MLINKS+=ieee.3 copysign.3 ieee.3 copysignf.3 ieee.3 copysignl.3 \
+	ieee.3 finite.3 ieee.3 finitef.3 \
 	ieee.3 ilogb.3 ieee.3 ilogbf.3 ieee.3 nextafter.3 ieee.3 nextafterf.3 \
 	ieee.3 remainder.3 ieee.3 remainderf.3 ieee.3 scalbn.3 ieee.3 scalbnf.3
 MLINKS+=ieee_test.3 logb.3 ieee_test.3 logbf.3
