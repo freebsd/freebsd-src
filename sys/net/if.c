@@ -832,6 +832,8 @@ ifpromisc(ifp, pswitch)
 		if (--ifp->if_pcount > 0)
 			return (0);
 		ifp->if_flags &= ~IFF_PROMISC;
+		log(LOG_INFO, "%s%d: promiscuous mode disabled\n",
+		    ifp->if_name, ifp->if_unit);
 	}
 	ifr.ifr_flags = ifp->if_flags;
 	error = (*ifp->if_ioctl)(ifp, SIOCSIFFLAGS, (caddr_t)&ifr);
