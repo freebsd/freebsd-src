@@ -508,8 +508,10 @@ ata_cyrix_setmode(struct ata_device *atadev, int mode)
     u_int32_t udmatiming[] = { 0x00921250, 0x00911140, 0x00911030 };
     int error;
 
-    mode = ata_limit_mode(atadev, mode, ATA_UDMA2);
     atadev->channel->dma->alignment = 16;
+    atadev->channel->dma->max_iosize = 63 * 1024;
+
+    mode = ata_limit_mode(atadev, mode, ATA_UDMA2);
 
     error = ata_controlcmd(atadev, ATA_SETFEATURES, ATA_SF_SETXFER, 0, mode);
 
@@ -955,7 +957,7 @@ ata_national_setmode(struct ata_device *atadev, int mode)
     u_int32_t udmatiming[] = { 0x80921250, 0x80911140, 0x80911030 };
     int error;
 
-    atadev->channel->dma->alignment = 4;
+    atadev->channel->dma->alignment = 16;
     atadev->channel->dma->max_iosize = 63 * 1024;
 
     mode = ata_limit_mode(atadev, mode, ATA_UDMA2);
