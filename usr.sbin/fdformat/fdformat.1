@@ -52,9 +52,10 @@ or using an abbreviated name that will be looked up
 under
 .Pa /dev
 (e.g.\&
-.Em fd0 ) .
+.Dq Li fd0 ) .
 .Pp
 The options are as follows:
+.\" XXX
 .Bl -tag -width 10n -offset indent
 .It Fl F Ar fill
 Use
@@ -62,8 +63,9 @@ Use
 as the fill byte for newly formatted sectors.
 .Ar fill
 must be a number in the range 0 through 255 using common C
-language notation.  The default value is
-.Em 0xf5 .
+language notation.
+The default value is
+.Dq Li 0xf5 .
 .It Fl f Ar fmt
 Specify the density settings for a
 .Ar fmt
@@ -74,13 +76,13 @@ Specify the density settings using explicit parameters, as
 described in
 .Xr fdcontrol 8 .
 .It Fl n
-Don't verify floppy after formatting.
+Do not verify floppy after formatting.
 .It Fl q
-Suppress any normal output from the command, and don't ask the
+Suppress any normal output from the command, and do not ask the
 user for a confirmation whether to format the floppy disk at
 .Ar device .
 .It Fl v
-Don't format, verify only.
+Do not format, verify only.
 .It Fl y
 Do not ask for confirmation whether to format the floppy disk but
 still report formatting status.
@@ -91,7 +93,8 @@ For non-autoselecting subdevices, neither
 nor
 .Fl s Ar fmtstr
 may be specified, since the preconfigured media density settings
-from the kernel driver will always be used.  However, if
+from the kernel driver will always be used.
+However, if
 .Ar device
 is a device with automatic media density selection (see
 .Xr fdc 4 ) ,
@@ -106,20 +109,22 @@ flag has not been specified, the user is asked for a confirmation
 of the intended formatting process.
 In order to continue, an answer
 of
-.Dq y
+.Ql y
 must be given.
 .Pp
 Note that
 .Nm
-does only perform low-level formatting.  In order to create
+does only perform low-level formatting.
+In order to create
 a file system on the medium, see the commands
 .Xr newfs 8
-for an
-.Em ufs
+for a
+.Tn UFS
 file system, or
 .Xr newfs_msdos 8
 for an
-.Em MS-DOS (FAT)
+.Tn MS-DOS
+(FAT)
 file system.
 .Sh DIAGNOSTICS
 Unless
@@ -127,16 +132,16 @@ Unless
 has been specified, a single letter is printed to standard output
 to inform the user about the progress of work.
 First, an
-.Sq Em F
-is printed when the track(s) is being formatted, then a
-.Sq Em V
-while it's being verified, and if an error has been detected, it
+.Ql F
+is printed when the track is being formatted, then a
+.Ql V
+while it is being verified, and if an error has been detected, it
 will finally change to
-.Sq Em E .
+.Ql E .
 Detailed status information (cylinder, head and sector number, and the
 exact cause of the error) will be printed for up to 10 errors after the
 entire formatting process has completed.
-.Pp
+.Sh DIAGNOSTICS
 An exit status of 0 is returned upon successful operation.
 Exit status
 1 is returned on any errors during floppy formatting, and an exit status
@@ -148,7 +153,9 @@ appropriate information written to diagnostic output).
 .Xr newfs 8 ,
 .Xr newfs_msdos 8
 .Sh HISTORY
-.Nm Fdformat
+The
+.Nm
+utility
 has been developed for
 .Bx 386 0.1
 and upgraded to the new
