@@ -59,7 +59,7 @@
  * any improvements or extensions that they make and grant Carnegie the
  * rights to redistribute these changes.
  *
- * $Id: vm_glue.c,v 1.50 1996/05/31 00:37:57 dyson Exp $
+ * $Id: vm_glue.c,v 1.51 1996/06/30 21:16:18 dyson Exp $
  */
 
 #include "opt_ddb.h"
@@ -253,7 +253,7 @@ vm_fork(p1, p2)
 		pmap_kenter(((vm_offset_t) up) + i * PAGE_SIZE,
 			VM_PAGE_TO_PHYS(m));
 		m->flags &= ~PG_ZERO;
-		m->flags |= PG_MAPPED;
+		m->flags |= PG_MAPPED|PG_WRITEABLE;
 		m->valid = VM_PAGE_BITS_ALL;
 	}
 
@@ -364,7 +364,7 @@ retry:
 				m->valid = VM_PAGE_BITS_ALL;
 			}
 			PAGE_WAKEUP(m);
-			m->flags |= PG_MAPPED;
+			m->flags |= PG_MAPPED|PG_WRITEABLE;
 		}
 		
 		s = splhigh();
