@@ -146,7 +146,6 @@ extern struct ktr_entry ktr_buf[];
 #endif
 #endif
 #ifndef _TR
-#include <sys/systm.h>
 #define _TR()							\
         struct ktr_entry *_ktrptr;				\
 	int _ktr_newidx, _ktr_saveidx;				\
