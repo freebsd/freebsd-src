@@ -41,7 +41,7 @@
  *     -------------------------------------------------------------------
  *     READ        1    10   A5 - A0             Reads data stored in memory,
  *                                               starting at specified address
- *     EWEN        1    00   11XXXX              Write enable must preceed
+ *     EWEN        1    00   11XXXX              Write enable must precede
  *                                               all programming modes
  *     ERASE       1    11   A5 - A0             Erase register A5A4A3A2A1A0
  *     WRITE       1    01   A5 - A0   D15 - D0  Writes register

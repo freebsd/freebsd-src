@@ -1167,7 +1167,7 @@ suboption()
 	if (SB_EOF())
 	    break;		/* another garbage check */
 
-	if (request == LM_SLC) {  /* SLC is not preceeded by WILL or WONT */
+	if (request == LM_SLC) {  /* SLC is not preceded by WILL or WONT */
 		/*
 		 * Process suboption buffer of slc's
 		 */

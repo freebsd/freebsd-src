@@ -2105,7 +2105,7 @@ dolist(int row, int num, int detail, int *ofs, DEV_LIST **list, char *dhelp)
 		extended=1;
 		break;
 		    
-	    case '[':				/* cheat : always preceeds cursor move */
+	    case '[':				/* cheat : always precedes cursor move */
 	    case 'O':				/* ANSI application key mode */
 		if (extended==1)
 		    extended=2;
@@ -2893,7 +2893,7 @@ introfunc(CmdParm *parms)
 		extended = 1;
 		break;
 		    
-	    case '[':				/* cheat : always preceeds cursor move */
+	    case '[':				/* cheat : always precedes cursor move */
 	    case 'O':				/* ANSI application key mode */
 		if (extended == 1)
 		    extended = 2;
