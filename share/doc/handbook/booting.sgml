@@ -3,7 +3,7 @@
      
      This conversion has been made by Ollivier Robert.
 
-     $Id: booting.sgml,v 1.5 1995/08/29 01:42:30 jfieber Exp $
+     $Id: booting.sgml,v 1.6 1995/09/25 04:53:28 jfieber Exp $
 
 
 <!DOCTYPE linuxdoc PUBLIC "-//FreeBSD//DTD linuxdoc//EN">
@@ -133,7 +133,7 @@
                 <tt>/rootfs/bin -&gt; /bin</tt><newline>
                 <tt>/rootfs/etc -&gt; /etc</tt><newline>
                 <tt>/rootfs/sbin -&gt; /sbin</tt><newline>
-                ...<newline>
+                (etc...)<newline>
             </itemize>
             
             Now you run FreeBSD without repartitioning your hard disk...

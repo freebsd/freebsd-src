@@ -1,4 +1,4 @@
-<!-- $Id: hw.sgml,v 1.6 1995/09/02 11:09:03 ats Exp $ -->
+<!-- $Id: hw.sgml,v 1.7 1995/10/02 15:59:53 wollman Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!-- 
@@ -54,14 +54,14 @@
 		known work around is to turn the cache
 		off.
 
-	      <tag>Saturn-I <em>(ie, 82424ZX at rev 0, 1 or
-		2)</em>:</tag> write back cache coherency
+	      <tag>Saturn-I <em>(ie, 82424ZX at rev 0, 1 or 2)</em>:</tag>
+		Write back cache coherency
 		problems.  Hardware flaw, only known work around
 		is to set the external cache to write-through
 		mode.  Upgrade to Saturn-II.
 
-	      <tag>Saturn-II <em>(ie, 82424ZX at rev 3 or
-		4)</em>:</tag> Works fine, but many MB
+	      <tag>Saturn-II <em>(ie, 82424ZX at rev 3 or 4)</em>:</tag>
+                Works fine, but many MB
 		manufactures leave out the external dirty bit
 		SRAM needed for write back operation.  Work
 		arounds are either run it in write through mode,
