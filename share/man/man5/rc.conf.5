@@ -590,6 +590,14 @@ it is possible to use something like:
 .Bd -literal
 ifconfig_ed0="DHCP"
 .Ed
+.It Va cloned_interfaces
+.Pq Vt str
+Set to the list of clonable network interfaces to create on this host.
+Entries in
+.Va cloned_interfaces
+are automatically appended to
+.Va network_interfaces
+for configuration.
 .It Va ppp_enable
 .Pq Vt bool
 If set to

@@ -146,6 +146,11 @@ network_pass1() {
 		;;
 	esac
 
+	# Attempt to create cloned interfaces.
+	for ifn in ${cloned_interfaces}; do
+		ifconfig ${ifn} create
+	done
+
 	# Special options for sppp(4) interfaces go here.  These need
 	# to go _before_ the general ifconfig section, since in the case
 	# of hardwired (no link1 flag) but required authentication, you
@@ -176,6 +181,9 @@ network_pass1() {
 	case ${network_interfaces} in
 	[Aa][Uu][Tt][Oo])
 		network_interfaces="`ifconfig -l`"
+		;;
+	*)
+		network_interfaces="${network_interfaces} ${cloned_interfaces}"
 		;;
 	esac
 
@@ -827,7 +835,8 @@ network_gif_setup() {
 				continue
 				;;
 			*)
-				ifconfig $i create tunnel ${peers}
+				ifconfig $i create >/dev/null 2>&1
+				ifconfig $i tunnel ${peers}
 				;;
 			esac
 		done
