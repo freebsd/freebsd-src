@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: mp.c,v 1.14 1998/08/25 17:48:42 brian Exp $
+ *	$Id: mp.c,v 1.15 1998/08/26 17:39:37 brian Exp $
  */
 
 #include <sys/types.h>
@@ -44,6 +44,7 @@
 #include <termios.h>
 #include <unistd.h>
 
+#include "ua.h"
 #include "defs.h"
 #include "command.h"
 #include "mbuf.h"
@@ -124,17 +125,19 @@ static int
 mp_ReadHeader(struct mp *mp, struct mbuf *m, struct mp_header *header)
 {
   if (mp->local_is12bit) {
-    header->seq = ntohs(*(u_int16_t *)MBUF_CTOP(m));
-    if (header->seq & 0x3000) {
+    u_int16_t val;
+
+    ua_ntohs(MBUF_CTOP(m), &val);
+    if (val & 0x3000) {
       log_Printf(LogWARN, "Oops - MP header without required zero bits\n");
       return 0;
     }
-    header->begin = header->seq & 0x8000 ? 1 : 0;
-    header->end = header->seq & 0x4000 ? 1 : 0;
-    header->seq &= 0x0fff;
+    header->begin = val & 0x8000 ? 1 : 0;
+    header->end = val & 0x4000 ? 1 : 0;
+    header->seq = val & 0x0fff;
     return 2;
   } else {
-    header->seq = ntohl(*(u_int32_t *)MBUF_CTOP(m));
+    ua_ntohl(MBUF_CTOP(m), &header->seq);
     if (header->seq & 0x3f000000) {
       log_Printf(LogWARN, "Oops - MP header without required zero bits\n");
       return 0;
@@ -525,16 +528,16 @@ mp_Output(struct mp *mp, struct link *l, struct mbuf *m, u_int32_t begin,
   mo = mbuf_Alloc(4, MB_MP);
   mo->next = m;
   if (mp->peer_is12bit) {
-    u_int16_t *seq16;
+    u_int16_t val;
 
-    seq16 = (u_int16_t *)MBUF_CTOP(mo);
-    *seq16 = htons((begin << 15) | (end << 14) | (u_int16_t)mp->out.seq);
+    val = (begin << 15) | (end << 14) | (u_int16_t)mp->out.seq;
+    ua_htons(&val, MBUF_CTOP(mo));
     mo->cnt = 2;
   } else {
-    u_int32_t *seq32;
+    u_int32_t val;
 
-    seq32 = (u_int32_t *)MBUF_CTOP(mo);
-    *seq32 = htonl((begin << 31) | (end << 30) | (u_int32_t)mp->out.seq);
+    val = (begin << 31) | (end << 30) | (u_int32_t)mp->out.seq;
+    ua_htonl(&val, MBUF_CTOP(mo));
     mo->cnt = 4;
   }
   if (log_IsKept(LogDEBUG))
