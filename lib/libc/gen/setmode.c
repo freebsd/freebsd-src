@@ -157,8 +157,12 @@ common:			if (set->cmd2 & CMD2_CLR) {
 		BITCMD *newset;						\
 		setlen += SET_LEN_INCR;					\
 		newset = realloc(saveset, sizeof(BITCMD) * setlen);	\
-		if (!saveset)						\
+		if (!newset) {						\
+			if (saveset)					\
+				free(saveset);				\
+			saveset = NULL;					\
 			return (NULL);					\
+		}							\
 		set = newset + (set - saveset);				\
 		saveset = newset;					\
 		endset = newset + (setlen - 2);				\
@@ -172,11 +176,12 @@ setmode(p)
 	const char *p;
 {
 	int perm, who;
-	char op;
+	char op, *ep;
 	BITCMD *set, *saveset, *endset;
 	sigset_t sigset, sigoset;
 	mode_t mask;
 	int equalopdone=0, permXbits, setlen;
+	long perml;
 
 	if (!*p)
 		return (NULL);
@@ -205,17 +210,14 @@ setmode(p)
 	 * or illegal bits.
 	 */
 	if (isdigit((unsigned char)*p)) {
-		perm = (mode_t)strtol(p, NULL, 8);
-		if (perm & ~(STANDARD_BITS|S_ISTXT)) {
+		perml = strtol(p, &ep, 8);
+		if (*ep || perml < 0 || perml & ~(STANDARD_BITS|S_ISTXT)) {
 			free(saveset);
 			return (NULL);
 		}
-		while (*++p)
-			if (*p < '0' || *p > '7') {
-				free(saveset);
-				return (NULL);
-			}
+		perm = (mode_t)perml;
 		ADDCMD('=', (STANDARD_BITS|S_ISTXT), perm, mask);
+		set->cmd = 0;
 		return (saveset);
 	}
 
