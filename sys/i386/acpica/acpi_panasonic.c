@@ -83,6 +83,7 @@ static hkey_fn_t	hkey_lcd_brightness_max;
 static hkey_fn_t	hkey_lcd_brightness;
 static hkey_fn_t	hkey_sound_mute;
 static int		lcd_brightness_max = 255;
+ACPI_SERIAL_DECL(panasonic, "ACPI Panasonic extras");
 
 /* Table of sysctl names and HKEY functions to call. */
 static struct {
@@ -210,18 +211,21 @@ acpi_panasonic_sysctl(SYSCTL_HANDLER_ARGS)
 	handler = sysctl_table[function].handler;
 
         /* Get the current value from the appropriate function. */
+	ACPI_SERIAL_BEGIN(panasonic);
 	error = handler(sc->handle, HKEY_GET, &arg);
 	if (error != 0)
-		return (error);
+		goto out;
 
 	/* Send the current value to the user and return if no new value. */
 	error = sysctl_handle_int(oidp, &arg, 0, req);
 	if (error != 0 || req->newptr == NULL)
-		return (error);
+		goto out;
 
 	/* Set the new value via the appropriate function. */
 	error = handler(sc->handle, HKEY_SET, &arg);
+	ACPI_SERIAL_END(panasonic);
 
+out:
 	return (error);
 }
 
@@ -232,6 +236,7 @@ acpi_panasonic_sinf(ACPI_HANDLE h, ACPI_INTEGER index)
 	ACPI_OBJECT *res;
 	ACPI_INTEGER ret;
 
+	ACPI_SERIAL_ASSERT(panasonic);
 	ret = -1;
 	buf.Length = ACPI_ALLOCATE_BUFFER;
 	buf.Pointer = NULL;
@@ -250,6 +255,7 @@ acpi_panasonic_sset(ACPI_HANDLE h, ACPI_INTEGER index, ACPI_INTEGER val)
 	ACPI_OBJECT_LIST args;
 	ACPI_OBJECT obj[2];
 
+	ACPI_SERIAL_ASSERT(panasonic);
 	obj[0].Type = ACPI_TYPE_INTEGER;
 	obj[0].Integer.Value = index;
 	obj[1].Type = ACPI_TYPE_INTEGER;
@@ -263,6 +269,7 @@ static int
 hkey_lcd_brightness_max(ACPI_HANDLE h, int op, UINT32 *val)
 {
 
+	ACPI_SERIAL_ASSERT(panasonic);
 	switch (op) {
 	case HKEY_SET:
 		if (*val < 0 || *val > 255)
@@ -281,6 +288,7 @@ static int
 hkey_lcd_brightness(ACPI_HANDLE h, int op, UINT32 *val)
 {
 
+	ACPI_SERIAL_ASSERT(panasonic);
 	switch (op) {
 	case HKEY_SET:
 		if (*val < 0 || *val > lcd_brightness_max)
@@ -299,6 +307,7 @@ static int
 hkey_sound_mute(ACPI_HANDLE h, int op, UINT32 *val)
 {
 
+	ACPI_SERIAL_ASSERT(panasonic);
 	switch (op) {
 	case HKEY_SET:
 		if (*val != 0 && *val != 1)
@@ -322,6 +331,7 @@ acpi_panasonic_hkey_event(struct acpi_panasonic_softc *sc, ACPI_HANDLE h,
 	ACPI_INTEGER val;
 	int status;
 
+	ACPI_SERIAL_ASSERT(panasonic);
 	status = ENXIO;
 
 	buf.Length = ACPI_ALLOCATE_BUFFER;
@@ -355,6 +365,7 @@ acpi_panasonic_hkey_action(struct acpi_panasonic_softc *sc, ACPI_HANDLE h,
 {
 	int arg;
 
+	ACPI_SERIAL_ASSERT(panasonic);
 	switch (key) {
 	case 1:
 		/* Decrease LCD brightness. */
@@ -398,10 +409,12 @@ acpi_panasonic_notify(ACPI_HANDLE h, UINT32 notify, void *context)
 
 	switch (notify) {
 	case 0x80:
+		ACPI_SERIAL_BEGIN(panasonic);
 		if (acpi_panasonic_hkey_event(sc, h, &key) == 0) {
 			acpi_panasonic_hkey_action(sc, h, key);
 			acpi_UserNotify("Panasonic", h, (uint8_t)key);
 		}
+		ACPI_SERIAL_END(panasonic);
 		break;
 	default:
 		device_printf(sc->dev, "unknown notify: %#x\n", notify);
