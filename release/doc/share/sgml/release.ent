@@ -20,7 +20,7 @@
 
 <!-- The previous historical release.  Used only to tell what was
      the cutoff point for "historic" release notes. -->
-<!ENTITY release.prev.historic "5.0-RELEASE">
+<!ENTITY release.prev.historic "5.1-RELEASE">
 
 <!-- The next version to be released, usually used for snapshots. -->
 <!ENTITY release.next "5.2-RELEASE">
