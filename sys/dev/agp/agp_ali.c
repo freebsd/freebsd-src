@@ -98,6 +98,7 @@ agp_ali_attach(device_t dev)
 	struct agp_ali_softc *sc = device_get_softc(dev);
 	struct agp_gatt *gatt;
 	int error;
+	u_int32_t attbase;
 
 	error = agp_generic_attach(dev);
 	if (error)
@@ -126,10 +127,9 @@ agp_ali_attach(device_t dev)
 	sc->gatt = gatt;
 
 	/* Install the gatt. */
-	pci_write_config(dev, AGP_ALI_ATTBASE,
-			 (gatt->ag_physical
-			  | (pci_read_config(dev, AGP_ALI_ATTBASE, 4) & 0xff)),
-			 4);
+	attbase = pci_read_config(dev, AGP_ALI_ATTBASE, 4);
+	pci_write_config(dev, AGP_ALI_ATTBASE, gatt->ag_physical |
+	    (attbase & 0xff), 4);
 	
 	/* Enable the TLB. */
 	pci_write_config(dev, AGP_ALI_TLBCTRL, 0x10, 1);
@@ -142,6 +142,7 @@ agp_ali_detach(device_t dev)
 {
 	struct agp_ali_softc *sc = device_get_softc(dev);
 	int error;
+	u_int32_t attbase;
 
 	error = agp_generic_detach(dev);
 	if (error)
@@ -152,9 +153,8 @@ agp_ali_detach(device_t dev)
 
 	/* Put the aperture back the way it started. */
 	AGP_SET_APERTURE(dev, sc->initial_aperture);
-	pci_write_config(dev, AGP_ALI_ATTBASE,
-			 pci_read_config(dev, AGP_ALI_ATTBASE, 4) & 0xff,
-			 4);
+	attbase = pci_read_config(dev, AGP_ALI_ATTBASE, 4);
+	pci_write_config(dev, AGP_ALI_ATTBASE, attbase & 0xff, 4);
 
 	agp_free_gatt(sc->gatt);
 	return 0;
@@ -194,6 +194,7 @@ static int
 agp_ali_set_aperture(device_t dev, u_int32_t aperture)
 {
 	int i;
+	u_int32_t attbase;
 
 	for (i = 0; i < agp_ali_table_size; i++)
 		if (agp_ali_table[i] == aperture)
@@ -201,9 +202,8 @@ agp_ali_set_aperture(device_t dev, u_int32_t aperture)
 	if (i == agp_ali_table_size)
 		return EINVAL;
 
-	pci_write_config(dev, AGP_ALI_ATTBASE,
-			 ((pci_read_config(dev, AGP_ALI_ATTBASE, 4) & ~0xff)
-			  | i), 4);
+	attbase = pci_read_config(dev, AGP_ALI_ATTBASE, 4);
+	pci_write_config(dev, AGP_ALI_ATTBASE, (attbase & ~0xff) | i, 4);
 	return 0;
 }
 
