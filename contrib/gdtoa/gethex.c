@@ -51,7 +51,7 @@ gethex( CONST char **sp, FPI *fpi, Long *exp, Bigint **bp, int sign)
 	ULong L, lostbits, *x;
 	Long e, e1;
 #ifdef USE_LOCALE
-	char decimalpoint = *localeconv()->decimal_point;
+	unsigned char decimalpoint = *localeconv()->decimal_point;
 #else
 #define decimalpoint '.'
 #endif
@@ -164,6 +164,7 @@ gethex( CONST char **sp, FPI *fpi, Long *exp, Bigint **bp, int sign)
 	if (e > fpi->emax) {
  ovfl:
 		Bfree(b);
+		*bp = 0;
 		return STRTOG_Infinite | STRTOG_Overflow | STRTOG_Inexhi;
 		}
 	irv = STRTOG_Normal;
@@ -173,7 +174,7 @@ gethex( CONST char **sp, FPI *fpi, Long *exp, Bigint **bp, int sign)
 		if (n >= nbits) {
 			switch (fpi->rounding) {
 			  case FPI_Round_near:
-				if (n == nbits && n < 2 || any_on(b,n-1))
+				if (n == nbits && (n < 2 || any_on(b,n-1)))
 					goto one_bit;
 				break;
 			  case FPI_Round_up:
@@ -191,6 +192,7 @@ gethex( CONST char **sp, FPI *fpi, Long *exp, Bigint **bp, int sign)
 					}
 			  }
 			Bfree(b);
+			*bp = 0;
 			return STRTOG_Zero | STRTOG_Inexlo | STRTOG_Underflow;
 			}
 		k = n - 1;
@@ -224,17 +226,17 @@ gethex( CONST char **sp, FPI *fpi, Long *exp, Bigint **bp, int sign)
 			k = b->wds;
 			b = increment(b);
 			x = b->x;
-			if (b->wds > k
+			if (irv == STRTOG_Denormal) {
+				if (nbits == fpi->nbits - 1
+				 && x[nbits >> kshift] & 1 << (nbits & kmask))
+					irv =  STRTOG_Normal;
+				}
+			else if (b->wds > k
 			 || (n = nbits & kmask) !=0
 			     && hi0bits(x[k-1]) < 32-n) {
 				rshift(b,1);
 				if (++e > fpi->emax)
 					goto ovfl;
-				}
-			else if (irv == STRTOG_Denormal) {
-				k = nbits - 1;
-				if (x[k >> kshift] & 1 << (k & kmask))
-					irv = STRTOG_Normal;
 				}
 			irv |= STRTOG_Inexhi;
 			}
