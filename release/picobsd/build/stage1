@@ -1,26 +1,51 @@
 #! /bin/sh -
 
+#	$Id$
 #
-#	$Id: stage1,v 1.7 1999/01/19 23:02:05 abial Exp $
+# stage1 -- this script fills the mfs for the picobsd kernel
+
+. ../Version
+
+set -e	# abort in case of untested errors
+
+# fail errno errcode
+# is the function used to trap errors and print msgs
 #
+fail() {
+    errno=$1
+    errcode=$2
+    echo "--> Error $errno code $errcode"
+    case $errcode in
+    no_vnconfig)
+	echo "Error while doing vnconfig of fs.PICOBSD on /dev/rvn0..."
+	echo "   Most probably your running kernel doesn't have the vn(4) device."
+	;;
+    disklabel)
+	echo "Error while labeling fs.PICOBSD size $SIZE"
+	;;
+    no_mount)
+	echo "Error while mounting fs.PICOBSD (/dev/vn0c) on /mnt"
+	;;
+    mtree)
+	echo "Error while making hierarchy in /mnt"
+	;;
+    makedevs)
+	echo "Error while making devices in /mnt"
+	;;
+    crunch)
+	echo "Error while building ../${TYPE}/crunch1..."
+	;;
+    vnconfig2)
+	echo "Error while doing vnconfig of floppy.img on /dev/rvn0..."
+	;;
+    disklabel)
+	echo "Error while doing disklabel on of floppy.img size $FLOPPY_SIZE"
+	;;
+    esac
+    echo "-> Aborting $0"
+    exit 10
+}
 
-set -e
-
-if [ ! -f ${SRC}/sys/compile/PICOBSD${suffix}.${SIZE}/kernel ]; then
-	echo "-> ERROR: you must build PICOBSD${suffix}.${SIZE} first"
-	exit 1
-fi
-
-echo "-> Preparing kernel..."
-cp -p ${SRC}/sys/compile/PICOBSD${suffix}.${SIZE}/kernel kernel
-#if [ "${TYPE}" != "dial" ]
-#then
-#	echo "-> Preparing kvm database..."
-#	mv /var/db/kvm_kernel.db /var/db/old.db
-#	kvm_mkdb kernel
-#	cp /var/db/kvm_kernel.db kvm_kernel.db
-#	mv /var/db/old.db /var/db/kvm_kernel.db
-#fi
 
 echo "-> Preparing MFS filesystem..."
 umount /dev/vn0 2> /dev/null || true
@@ -30,64 +55,217 @@ vnconfig -u /dev/rvn0 2> /dev/null || true
 dd of=fs.PICOBSD if=/dev/zero count=${SIZE} bs=1k 2> /dev/null
 
 awk 'BEGIN {printf "%c%c", 85, 170}' | \
-                dd of=fs.PICOBSD obs=1 seek=510 conv=notrunc  2> /dev/null
+    dd of=fs.PICOBSD obs=1 seek=510 conv=notrunc  2> /dev/null
 
-vnconfig -s labels -c /dev/rvn0 fs.PICOBSD 2>/dev/null
-#vnconfig -c /dev/rvn0 fs.PICOBSD 2>/dev/null
-if [ "X$?" != "X0" ]
-then
-	echo "-> Error while doing vnconfig of fs.PICOBSD on /dev/rvn0..."
-	echo "   Most probably your running kernel doesn't have the vn(4) device."
-	echo "-> Aborting $0"
-	exit 10
-fi
+vnconfig -s labels -c /dev/rvn0 fs.PICOBSD 2>/dev/null || fail $? no_vnconfig
 
 dd if=/boot/boot1 of=fs.PICOBSD conv=notrunc 2> /dev/null
 
-# This command does weird things on 2.2.x systems. In such case use normal
-# disktype here instead
-if [ "${TYPE}" != "router" ]
-then
-	disklabel -rw vn0 auto
+# This command does weird things on 2.2.x systems.
+# For small image sizes, use std disktypes
+if [ ${SIZE} -lt 1024 ] ; then
+	disklabel -rw /dev/rvn0 fd${SIZE} || fail $? disklabel
 else
-	if [ ${SIZE} -lt 1024 ]
-	then
-		disklabel -rw /dev/rvn0 fd${SIZE}
-	else
-		disklabel -rw vn0 auto
-	fi
+	disklabel -rw vn0 auto || fail $? disklabel
 fi
-if [ "X$?" != "X0" ]
-then
-	echo "-> Error while labeling fs.PICOBSD (vn0)..."
+
+newfs -i ${MFS_INODES} -m 0 -p 0 -o space /dev/rvn0c 2>&1 >/dev/null
+mount /dev/vn0c /mnt || fail $? no_mount
+
+pwd=`pwd`
+
+echo "-> Populating MFS tree..."
+cd ../${TYPE}
+make -f Makefile.mfs || fail $? mtree
+if [ X"${NO_DEVFS}" != X"" ] ; then
+	make -f Makefile.mfs devnodes || fail $? makedevs
+fi
+
+# MY_ETC contains files which override the global config in DEFAULT_ETC
+
+if [ -f floppy.tree/etc/mfs.rc ] ; then
+    MFS_RC=floppy.tree/etc/mfs.rc
+else
+    MFS_RC=../floppy.tree/etc/mfs.rc
+fi
+if [ "${INIT}" = "oinit" ] ; then
+    cat ${MFS_RC} | sed -e "s/@VER@/${VER}/g" > /mnt/etc/oinit.rc
+else
+    cat ${MFS_RC} | sed -e "s/@VER@/${VER}/g" > /mnt/etc/rc
+    if [ -f floppy.tree/etc/mfs.login.conf ] ; then
+	cp floppy.tree/etc/mfs.login.conf /mnt/etc/login.conf
+    else
+	cp ../floppy.tree/etc/mfs.login.conf /mnt/etc/login.conf
+    fi
+    cat lang/README.${LANGUAGE} | sed -e "s/@VER@/${VER}/g" > /mnt/README
+fi
+cp lang/update.${LANGUAGE} /mnt/stand/update
+if [ "${TYPE}" = "dial" ] ; then
+    for i in reboot login dialup; do
+	cp lang/${i}.${LANGUAGE} /mnt/stand/${i}
+    done
+    ln -f /mnt/stand/reboot /mnt/stand/shutdown
+    (cd ../help;\
+    rm -rf tmp_hlp;\
+    mkdir tmp_hlp;\
+    for i in `ls *.hlp.${LANGUAGE}`; do \
+	    cp $i tmp_hlp/`basename $i .hlp.${LANGUAGE}`;\
+    done;\
+    cd tmp_hlp;\
+    ar -cru help.a *;\
+    cp help.a /mnt/help.a)
+fi
+
+echo "-> Making and installing crunch1..."
+cd crunch1
+make "SRC=${SRC}" && make install 2>&1 >/dev/null || fail $? crunch
+
+cd ${pwd}
+
+(echo "-> Fixing permissions"; cd /mnt; chown -R root *)
+
+# stage2
+
+#if [ ! -f ${SRC}/sys/compile/PICOBSD${suffix}.${SIZE}/kernel ]; then
+#    echo "-> ERROR: you must build PICOBSD${suffix}.${SIZE} first"
+#    exit 1
+#fi
+if [ ! -f ${SRC}/sys/compile/PICOBSD${suffix}/kernel ]; then
+    echo "-> ERROR: you must build PICOBSD${suffix} first"
+    exit 1
+fi
+
+echo "-> Preparing kernel..."
+cp -p ${SRC}/sys/compile/PICOBSD${suffix}/kernel kernel
+if [ ! -f kernel ]; then
+	echo "-> ERROR: you must build PICOBSD${suffix} kernel first"
+	exit 1
+fi
+
+echo "-> Preparing kernel with MFS filesystem inside..."
+df -ik /mnt
+umount /mnt 2>&1 >/dev/null
+fsck -p /dev/rvn0c
+vnconfig -u /dev/rvn0 2>&1 >/dev/null
+
+#if [ ! -f ../tools/write_mfs_in_kernel/wmik ]; then
+#	(cd ../tools/write_mfs_in_kernel; make)
+#fi
+
+#../tools/write_mfs_in_kernel/wmik kernel fs.PICOBSD
+strip kernel
+strip --remove-section=.note --remove-section=.comment kernel
+gzip -9 -n kernel
+#rm fs.PICOBSD
+
+#---- stage3
+
+# stage3 -- prepare floppy filesystem and image.
+# by default we are in /usr/src/release/build
+#
+
+if [ ! -f kernel.gz ]; then
+	echo "-> ERROR: you must build kernel.gz first"
+	exit 1
+fi
+
+echo "-> Preparing ${FLOPPY_SIZE}kB floppy filesystem..."
+umount /dev/vn0 2> /dev/null || true
+umount /mnt 2> /dev/null || true
+vnconfig -u /dev/rvn0 2> /dev/null || true
+
+dd of=picobsd.bin if=/dev/zero count=${FLOPPY_SIZE} bs=1k 2> /dev/null
+
+awk 'BEGIN {printf "%c%c", 85, 170}' | \
+                dd of=picobsd.bin obs=1 seek=510 conv=notrunc  2> /dev/null
+
+#vnconfig -s labels -c /dev/rvn0 picobsd.bin 2>/dev/null
+vnconfig -c /dev/rvn0 picobsd.bin 2>/dev/null || fail $? vnconfig2
+
+dd if=/boot/boot1 of=picobsd.bin conv=notrunc 2> /dev/null
+
+# XXX todo: right floppy size!
+disklabel -Brw -b /boot/boot1 -s /boot/boot2 /dev/rvn0 fd1440 2>&1 >/dev/null || fail $?  disklabel
+
+newfs -i ${FLOPPY_INODES} -m 0 -p 0 -o space /dev/rvn0c 2>&1 >/dev/null
+
+mount /dev/vn0c /mnt
+
+echo "-> `pwd`: Populating floppy filesystem..."
+
+# copy floppy tree excluding private files.
+(cd ../floppy.tree ; \
+    tar -cvf - --exclude-from ../${TYPE}/floppy.tree.exclude . ) | \
+    (cd /mnt ; tar xvf - )
+
+# update with private files
+if [ -d ../${TYPE}/floppy.tree ] ; then
+    (cd ../${TYPE}/floppy.tree ; tar cvf - . ) | (cd /mnt ; tar xvf - )
+fi
+
+echo "-> `pwd`: Copying language dependent files..."
+for i in hosts motd ; do
+	cat ../${TYPE}/lang/${i}.${LANGUAGE} | \
+		sed -e "s/@VER@/${VER}/g" > /mnt/etc/${i}
+done
+
+if [ "${TYPE}" = "dial" ] ; then
+	cp -p /mnt/etc/master.passwd .
+	pwd_mkdb -d . master.passwd
+	mv spwd.db /mnt/etc/
+	rm pwd.db master.passwd
+fi
+
+if [ "X$?" != "X0" ] ; then
+	echo "-> ERROR while transferring ../${TYPE}/floppy.tree to /mnt..."
 	echo "-> Aborting $0"
 	exit 10
 fi
 
-# Default setting for other (custom) setups.
-INODES=4096
-# You can save some space on MFS if you don't want so many inodes...
-if [ "${TYPE}" = "dial" ]
-then
-	INODES=4096
-fi
-if [ "${TYPE}" = "router" ]
-then
-	INODES=3072
-fi
-if [ "${TYPE}" = "net" ]
-then
-	INODES=4096
-fi
-if [ "${TYPE}" = "isp" ]
-then
-	INODES=4096
-fi
-newfs -i $INODES -m 0 -p 0 -o space /dev/rvn0c 2>&1 >/dev/null
-mount /dev/vn0c /mnt
-if [ "X$?" != "X0" ]
-then
-	echo "-> Error while mounting fs.PICOBSD (/dev/vn0c) on /mnt..."
+cp kernel.gz /mnt/kernel.gz
+if [ "X$?" != "X0" ] ; then
+	echo "-> ERROR while transferring kernel.gz to /mnt..."
 	echo "-> Aborting $0"
 	exit 10
 fi
+
+gzip -9cv fs.PICOBSD > /mnt/fs.PICOBSD.gz
+if [ "X$?" != "X0" ] ; then
+	echo "\-> ERROR transferring MFS to /mnt"
+	echo "-> Aborting $0"
+	exit 10
+fi
+
+mkdir /mnt/boot
+mkdir /mnt/boot/defaults
+cp /boot/loader .
+# Make sure we have the a.out stubs we need...
+# This is deprecated for 3.X
+if [ ! -f /usr/lib/aout/kzhead.o ] ; then
+	(cd ${SRC}/sys/i386/boot/kzipboot && make all install clean)
+fi
+kzip -v loader
+mv loader.kz /mnt/boot/loader
+rm -f loader loader.o
+# XXX is next line ok ?
+echo "/boot/loader" >/mnt/boot.config
+cp ${SRC}/sys/boot/forth/loader.4th /mnt/boot/
+cp ${SRC}/sys/boot/forth/support.4th /mnt/boot/
+cp ${SRC}/sys/boot/forth/loader.conf /mnt/boot/defaults
+echo "userconfig_script_load=\"YES\"">/mnt/boot/loader.conf
+echo "rootfs_load=\"YES\"" >>/mnt/boot/loader.conf
+echo "rootfs_name=\"fs.PICOBSD\"" >>/mnt/boot/loader.conf
+echo "rootfs_type=\"mfs_root\"" >>/mnt/boot/loader.conf
+for i in frames screen
+do
+	cp ${SRC}/share/examples/bootforth/${i}.4th /mnt/boot/
+done
+cp ../forth/loader.rc /mnt/boot/loader.rc
+cp ../forth/menu.4th /mnt/boot/menu.4th
+(echo "-> Fixing permissions"; cd /mnt; chown -R root *)
+rm kernel.gz
+
+df -ik /mnt
+
+umount /mnt
+vnconfig -u /dev/rvn0
