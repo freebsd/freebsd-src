@@ -30,8 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	from: @(#)extern.h	8.1 (Berkeley) 6/4/93
- *	$Id: extern.h,v 1.2 1994/08/17 20:10:29 pk Exp $
+ *	@(#)extern.h	8.1 (Berkeley) 6/4/93
  */
 
 struct delayval;
@@ -51,7 +50,7 @@ char	*portselector __P((void));
 void	 set_ttydefaults __P((int));
 void	 setchars __P((void));
 void	 setdefaults __P((void));
-void	 setflags __P((int));
+long	 setflags __P((int));
 int	 speed __P((int));
 
 int	 login_tty __P((int));			/* From libutil. */

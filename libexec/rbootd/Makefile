@@ -1,8 +1,11 @@
-#	from: @(#)Makefile	8.1 (Berkeley) 6/4/93
-#	$NetBSD: Makefile,v 1.4 1995/08/21 17:05:08 thorpej Exp $
+#	@(#)Makefile	8.1 (Berkeley) 6/4/93
 
 PROG=	rbootd
 SRCS=	bpf.c conf.c parseconf.c rbootd.c rmpproto.c utils.c
-MAN=	rbootd.8
+MAN8=	rbootd.0
+
+afterinstall:
+	(cd ${.CURDIR}/bootdir && install -c -o ${BINOWN} -g ${BINGRP} \
+	    -m 444 * ${DESTDIR}/usr/mdec/)
 
 .include <bsd.prog.mk>
