@@ -106,10 +106,11 @@ NOPORTSATALL=	YES
 .endif
 .endif
 
-# Set ALLLANG=no if you want the documentation (e.g. Handbook, FAQ) to be
-# in English only.  The language for the release notes is controlled
-# by the RELNOTES_LANG variable above.
-ALLLANG?=	yes
+# By default, documentation (Handbook, FAQ, etc.) is built for all
+# the languages.  To speed up building, set the DOC_LANG to just
+# the languages you need.  (The language for the release notes is
+# controlled by the RELNOTES_LANG variable above.)
+#DOC_LANG=	en_US.ISO8859-1
 DOCPORTS=	textproc/docproj
 # Set this to wherever the distfiles required by release procedures.
 .if defined(DOCDISTFILES)
@@ -350,7 +351,7 @@ rerelease release:
 	echo "_RELTARGET=\$${1:-doRELEASE}"	>> ${CHROOTDIR}/mk
 .for var in \
 	AUTO_KEYBOARD_DETECT BOOT_CONFIG BUILDNAME \
-	CD_EXTRA_BITS DISTRIBUTIONS DOMINIMALDOCPORTS \
+	CD_EXTRA_BITS DISTRIBUTIONS DOC_LANG DOMINIMALDOCPORTS \
 	EXTRA_SRC FIXCRYPTO KERNELS KERNEL_FLAGS \
 	MAKE_ISOS NODOC NOKERBEROS NOPORTS NOSHARED \
 	NOSRC NO_SENDMAIL RELEASETAG \
@@ -359,11 +360,6 @@ rerelease release:
 	echo "export ${var}=\"${${var}}\""	>> ${CHROOTDIR}/mk
 .endif
 .endfor
-.if defined(ALLLANG) && ${ALLLANG} != "NO" && ${ALLLANG} != "no"
-	echo "export ALLLANG=${ALLLANG}"	>> ${CHROOTDIR}/mk
-.else
-	echo "export DOC_LANG=en_US.ISO8859-1"	>> ${CHROOTDIR}/mk
-.endif
 	# Don't remove this, or the build will fall over!
 	echo "export RELEASEDIR=${_R}"		>> ${CHROOTDIR}/mk
 	echo "export PATH=/bin:/usr/bin:/sbin:/usr/sbin:${LOCALDIR}"	>> ${CHROOTDIR}/mk
