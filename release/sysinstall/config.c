@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: config.c,v 1.16.2.64 1996/11/07 09:16:37 jkh Exp $
+ * $Id$
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -47,6 +47,7 @@
 
 static Chunk *chunk_list[MAX_CHUNKS];
 static int nchunks;
+static int rootdev_is_od;
 
 /* arg to sort */
 static int
@@ -83,6 +84,21 @@ chunk_sort(void)
 	    }
 	}
     }
+}
+
+static void
+check_rootdev(Chunk **list, int n)
+{
+	int i;
+	Chunk *c;
+
+	rootdev_is_od = 0;
+	for (i = 0; i < n; i++) {
+		c = *list++;
+		if (c->type == part && (c->flags & CHUNK_IS_ROOT)
+		    && strncmp(c->disk->name, "od", 2) == 0)
+			rootdev_is_od = 1;
+	}
 }
 
 static char *
@@ -127,21 +143,33 @@ static char *
 fstype_short(Chunk *c1)
 {
     if (c1->type == part) {
-	if (c1->subtype != FS_SWAP)
-	    return "rw";
+	if (c1->subtype != FS_SWAP) {
+	    if (rootdev_is_od == 0 && strncmp(c1->name, "od", 2) == 0)
+		return "rw,noauto";
+	    else
+		return "rw";
+	}
 	else
 	    return "sw";
     }
-    else if (c1->type == fat)
-	return "ro";
+    else if (c1->type == fat) {
+	if (strncmp(c1->name, "od", 2) == 0)
+	    return "ro,noauto";
+	else
+	    return "ro";
+    }
     return "bog";
 }
 
 static int
 seq_num(Chunk *c1)
 {
-    if (c1->type == part && c1->subtype != FS_SWAP)
-	return 1;
+    if (c1->type == part && c1->subtype != FS_SWAP) {
+	if (rootdev_is_od == 0 && strncmp(c1->name, "od", 2) == 0)
+	    return 0;
+	else
+	    return 1;
+    }
     return 0;
 }
 
@@ -199,13 +227,17 @@ configFstab(void)
 	return DITEM_FAILURE;
     }
 
+    check_rootdev(chunk_list, nchunks);
+
     /* Go for the burn */
     msgDebug("Generating /etc/fstab file\n");
+    fprintf(fstab, "# Device\t\tMountpoint\tFStype\tOptions\t\tDump?\tfsck pass#\n");
+    fprintf(fstab, "#\t\t\t\t\t\t\t\t\t(0=no) (0=no fsck)\n");
     for (i = 0; i < nchunks; i++)
-	fprintf(fstab, "/dev/%s\t\t\t%s\t\t%s\t%s %d %d\n", name_of(chunk_list[i]), mount_point(chunk_list[i]),
+	fprintf(fstab, "/dev/%s\t\t%s\t%s\t%s\t\t%d\t%d\n", name_of(chunk_list[i]), mount_point(chunk_list[i]),
 		fstype(chunk_list[i]), fstype_short(chunk_list[i]), seq_num(chunk_list[i]), seq_num(chunk_list[i]));
     Mkdir("/proc");
-    fprintf(fstab, "proc\t\t\t\t/proc\t\tprocfs\trw 0 0\n");
+    fprintf(fstab, "proc\t\t/proc\tprocfs\t\trw\t0\t0\n");
 
     /* Now look for the CDROMs */
     devs = deviceFind(NULL, DEVICE_TYPE_CDROM);
@@ -217,7 +249,7 @@ configFstab(void)
 	    msgConfirm("Unable to make mount point for: /cdrom");
 	}
 	else
-	    fprintf(fstab, "/dev/%s\t\t\t/cdrom\t\tcd9660\tro,noauto 0 0\n", devs[0]->name);
+	    fprintf(fstab, "/dev/%s\t\t/cdrom\tcd9660\t\tro,noauto\t0\t0\n", devs[0]->name);
     }
 
     /* Write the others out as /cdrom<n> */
@@ -229,7 +261,7 @@ configFstab(void)
 	    msgConfirm("Unable to make mount point for: %s", cdname);
 	}
 	else
-	    fprintf(fstab, "/dev/%s\t\t\t%s\t\tcd9660\tro,noauto 0 0\n", devs[i]->name, cdname);
+	    fprintf(fstab, "/dev/%s\t\t%s\tcd9660\t\tro,noauto\t0\t0\n", devs[i]->name, cdname);
     }
     fclose(fstab);
     if (isDebug())
@@ -275,7 +307,7 @@ configSysconfig(char *config)
 	    /* Skip the comments */
 	    if (lines[i][0] == '#')
 		continue;
-	    strcpy(tmp, lines[i]);
+	    SAFE_STRCPY(tmp, lines[i]);
 	    cp = index(tmp, '=');
 	    if (!cp)
 		continue;
@@ -355,15 +387,37 @@ configNTP(dialogMenuItem *self)
 }
 
 int
+configUsers(dialogMenuItem *self)
+{
+    dialog_clear_norefresh();
+    dmenuOpenSimple(&MenuUsermgmt, FALSE); 
+    dialog_clear();
+    return DITEM_SUCCESS | DITEM_RESTORE;
+}
+
+int
 configXFree86(dialogMenuItem *self)
 {
-    if (file_executable("/usr/X11R6/bin/XF86Setup")) {
+    char *config, *execfile;
+
+    dialog_clear_norefresh();
+    dmenuOpenSimple(&MenuXF86Config, FALSE); 
+
+    config = variable_get(VAR_XF86_CONFIG);
+    if (!config)
+	return DITEM_FAILURE | DITEM_RESTORE;
+    execfile = string_concat("/usr/X11R6/bin/", config);
+    if (file_executable(execfile)) {
+	dialog_clear_norefresh();
+	if (!file_readable("/dev/mouse") && !msgYesNo("Does this system have a mouse attached to it?"))
+	    dmenuOpenSimple(&MenuMouse, FALSE); 
 	dialog_clear();
 	systemExecute("/sbin/ldconfig /usr/lib /usr/X11R6/lib /usr/local/lib /usr/lib/compat");
-	systemExecute("/usr/X11R6/bin/XF86Setup");
+	systemExecute(execfile);
 	return DITEM_SUCCESS | DITEM_RESTORE;
     }
     else {
+	dialog_clear_norefresh();
 	msgConfirm("XFree86 does not appear to be installed!  Please install\n"
 		   "The XFree86 distribution before attempting to configure it.");
 	return DITEM_FAILURE;
@@ -378,12 +432,6 @@ configResolv(void)
 
     if (!RunningAsInit || file_readable("/etc/resolv.conf"))
 	return;
-
-    if (Mkdir("/etc")) {
-	msgConfirm("Unable to create /etc directory.  Network configuration\n"
-		   "files will therefore not be written!");
-	return;
-    }
 
     cp = variable_get(VAR_NAMESERVER);
     if (!cp || !*cp)
@@ -417,7 +465,7 @@ skip:
 	if (!index(hp, '.'))
 	    cp2[0] = '\0';
 	else {
-	    strcpy(cp2, hp);
+	    SAFE_STRCPY(cp2, hp);
 	    *(index(cp2, '.')) = '\0';
 	}
 	fprintf(fp, "%s\t\t%s %s\n", cp, hp, cp2);
@@ -440,7 +488,7 @@ configRouter(dialogMenuItem *self)
 			     "will attempt to load if you select gated.  Any other\n"
 			     "choice of routing daemon will be assumed to be something\n"
 			     "the user intends to install themselves before rebooting\n"
-			     "the system.  If you don't want any routing daemon, say NO") ?
+			     "the system.  If you don't want any routing daemon, choose NO") ?
 	DITEM_SUCCESS : DITEM_FAILURE;
 
     if (ret == DITEM_SUCCESS) {
@@ -449,9 +497,9 @@ configRouter(dialogMenuItem *self)
 	cp = variable_get(VAR_ROUTER);
 	if (strcmp(cp, "NO")) {
 	    if (!strcmp(cp, "gated")) {
-		if (package_add(PACKAGE_GATED) != DITEM_SUCCESS) {
-		    msgConfirm("Unable to load gated package.  Falling back to routed.");
-		    variable_set2(VAR_ROUTER, "routed");
+		if (package_add(variable_get(VAR_GATED_PKG)) != DITEM_SUCCESS) {
+		    msgConfirm("Unable to load gated package.  Falling back to no router.");
+		    variable_set2(VAR_ROUTER, "NO");
 		}
 	    }
 	    /* Now get the flags, if they chose a router */
@@ -473,7 +521,7 @@ configPackages(dialogMenuItem *self)
     static PkgNode top, plist;
     static Boolean index_initted = FALSE;
     PkgNodePtr tmp;
-    int fd;
+    FILE *fp;
 
     if (!mediaVerify())
 	return DITEM_FAILURE;
@@ -483,8 +531,8 @@ configPackages(dialogMenuItem *self)
 
     if (!index_initted) {
 	msgNotify("Attempting to fetch packages/INDEX file from selected media.");
-	fd = mediaDevice->get(mediaDevice, "packages/INDEX", TRUE);
-	if (fd < 0) {
+	fp = mediaDevice->get(mediaDevice, "packages/INDEX", TRUE);
+	if (!fp) {
 	    dialog_clear_norefresh();
 	    msgConfirm("Unable to get packages/INDEX file from selected media.\n"
 		       "This may be because the packages collection is not available at\n"
@@ -493,17 +541,18 @@ configPackages(dialogMenuItem *self)
 		       "(or path to media) and try again.  If your local site does not\n"
 		       "carry the packages collection, then we recommend either a CD\n"
 		       "distribution or the master distribution on ftp.freebsd.org.");
+	    mediaDevice->shutdown(mediaDevice);
 	    return DITEM_FAILURE | DITEM_RESTORE;
 	}
-	msgNotify("Got INDEX successfully, now building packages menu..");
+	msgNotify("Located INDEX, now reading package data from it...");
 	index_init(&top, &plist);
-	if (index_read(fd, &top)) {
+	if (index_read(fp, &top)) {
 	    msgConfirm("I/O or format error on packages/INDEX file.\n"
 		       "Please verify media (or path to media) and try again.");
-	    mediaDevice->close(mediaDevice, fd);
+	    fclose(fp);
 	    return DITEM_FAILURE | DITEM_RESTORE;
 	}
-	mediaDevice->close(mediaDevice, fd);
+	fclose(fp);
 	index_sort(&top);
 	index_initted = TRUE;
     }
@@ -539,7 +588,7 @@ configPackages(dialogMenuItem *self)
         tmp = tmp2;
     }
     index_init(NULL, &plist);
-    return DITEM_SUCCESS | DITEM_RESTORE | DITEM_RECREATE;
+    return DITEM_SUCCESS | DITEM_RESTORE;
 }
 
 #ifdef NETCON_EXTENTIONS
@@ -573,7 +622,7 @@ configPCNFSD(dialogMenuItem *self)
     if (variable_get(VAR_PCNFSD))
 	variable_unset(VAR_PCNFSD);
     else {
-	ret = package_add(PACKAGE_PCNFSD);
+	ret = package_add(variable_get(VAR_PCNFSD_PKG));
 	if (DITEM_STATUS(ret) == DITEM_SUCCESS) {
 	    variable_set2(VAR_PCNFSD, "YES");
 	    variable_set2("weak_mountd_authentication", "YES");

@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: floppy.c,v 1.16 1996/10/09 09:53:30 jkh Exp $
+ * $Id$
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -117,18 +117,20 @@ mediaInitFloppy(Device *dev)
 {
     struct msdosfs_args dosargs;
     struct ufs_args u_args;
+    char *mountpoint = "/dist";
 
     if (floppyMounted)
 	return TRUE;
 
-    if (Mkdir("/dist")) {
-	msgConfirm("Unable to make directory mountpoint for %s!", dev->devname);
+    if (Mkdir(mountpoint)) {
+	msgConfirm("Unable to make %s directory mountpoint for %s!", mountpoint, dev->devname);
 	return FALSE;
     }
+
     msgDebug("Init floppy called for %s distribution.\n", distWanted ? distWanted : "some");
     if (!distWanted)
     	msgConfirm("Please insert floppy for %s", dev->description);
-    else if (distWanted != (char *)1)	/* 1 is kludge for "don't ask!" */
+    else
 	msgConfirm("Please insert floppy containing %s for %s", distWanted, dev->description);
 
     memset(&dosargs, 0, sizeof dosargs);
@@ -139,55 +141,58 @@ mediaInitFloppy(Device *dev)
     memset(&u_args, 0, sizeof(u_args));
     u_args.fspec = dev->devname;
 
-    if (mount(MOUNT_MSDOS, "/dist", MNT_RDONLY, (caddr_t)&dosargs) == -1) {
-	if (mount(MOUNT_UFS, "/dist", MNT_RDONLY, (caddr_t)&u_args) == -1) {
-	    if (distWanted != (char *)1)
-		msgConfirm("Error mounting floppy %s (%s) on /dist : %s", dev->name, dev->devname, strerror(errno));
+    if (mount(MOUNT_MSDOS, mountpoint, MNT_RDONLY, (caddr_t)&dosargs) == -1) {
+	if (mount(MOUNT_UFS, mountpoint, MNT_RDONLY, (caddr_t)&u_args) == -1) {
+	    msgConfirm("Error mounting floppy %s (%s) on %s : %s", dev->name, dev->devname, mountpoint,
+		       strerror(errno));
 	    return FALSE;
 	}
     }
-    msgDebug("initFloppy: mounted floppy %s successfully on /dist\n", dev->devname);
+    msgDebug("initFloppy: mounted floppy %s successfully on %s\n", dev->devname, mountpoint);
     floppyMounted = TRUE;
     distWanted = NULL;
     return TRUE;
 }
 
-int
+FILE *
 mediaGetFloppy(Device *dev, char *file, Boolean probe)
 {
-    char		buf[PATH_MAX];
-    int			fd;
-    int			nretries = 5;
+    char	buf[PATH_MAX];
+    FILE	*fp;
+    int		nretries = 5;
 
     snprintf(buf, PATH_MAX, "/dist/%s", file);
 
-    msgDebug("Request for %s from floppy on /dist, probe is %d.\n", buf, probe);
+    if (isDebug())
+	msgDebug("Request for %s from floppy on /dist, probe is %d.\n", buf, probe);
     if (!file_readable(buf)) {
 	if (probe)
-	    return -1;
+	    return NULL;
 	else {
 	    while (!file_readable(buf)) {
 		if (!--nretries) {
 		    msgConfirm("GetFloppy: Failed to get %s after retries;\ngiving up.", buf);
-		    return -1;
+		    return NULL;
 		}
 		distWanted = buf;
 		mediaShutdownFloppy(dev);
 		if (!mediaInitFloppy(dev))
-		    return -1;
+		    return NULL;
 	    }
 	}
     }
-    fd = open(buf, O_RDONLY);
-    return fd;
+    fp = fopen(buf, "r");
+    return fp;
 }
 
 void
 mediaShutdownFloppy(Device *dev)
 {
+    char *mountpoint = "/dist";
+
     if (floppyMounted) {
-	if (unmount("/dist", MNT_FORCE) != 0)
-	    msgDebug("Umount of floppy on /dist failed: %s (%d)\n", strerror(errno), errno);
+	if (unmount(mountpoint, MNT_FORCE) != 0)
+	    msgDebug("Umount of floppy on %s failed: %s (%d)\n", mountpoint, strerror(errno), errno);
 	else {
 	    floppyMounted = FALSE;
 	    msgDebug("Floppy unmounted successfully.\n");

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: samba.c,v 1.10 1996/11/04 12:56:31 jkh Exp $
+ * $Id$
  *
  * Copyright (c) 1995
  *	Jordan Hubbard & Coranth Gryphon.  All rights reserved.
@@ -63,7 +63,7 @@ configSamba(dialogMenuItem *self)
 
     if (!dmenuOpenSimple(&MenuSamba, FALSE))
 	i = DITEM_FAILURE;
-    else if (DITEM_STATUS(package_add(PACKAGE_SAMBA)) != DITEM_SUCCESS)
+    else if (DITEM_STATUS(package_add(variable_get(VAR_SAMBA_PKG))) != DITEM_SUCCESS)
 	i = DITEM_FAILURE;
     else {
 	FILE *fptr;
@@ -155,6 +155,5 @@ configSamba(dialogMenuItem *self)
     if (DITEM_STATUS(i) == DITEM_SUCCESS)
 	variable_set2("samba", "YES");
     restorescr(w);
-    return i | DITEM_RECREATE;
+    return i | DITEM_RESTORE;
 }
-

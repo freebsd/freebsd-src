@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.71.2.110 1996/11/12 18:43:06 jkh Exp $
+ * $Id$
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -48,9 +48,9 @@
 #undef MSDOSFS
 #include <sys/stat.h>
 #include <unistd.h>
-#include <sys/mount.h>
 
 static void	create_termcap(void);
+static void	fixit_common(void);
 #ifdef SAVE_USERCONFIG
 static void	save_userconfig_to_kernel(char *);
 #endif
@@ -227,12 +227,13 @@ installInitial(void)
     }
 
     if (chroot("/mnt") == -1) {
-	msgConfirm("Unable to chroot to /mnt - this is bad!");
+	msgConfirm("Unable to chroot to %s - this is bad!", "/mnt");
 	return DITEM_FAILURE;
     }
 
     chdir("/");
     variable_set2(RUNNING_ON_ROOT, "yes");
+    configResolv();
 
     /* stick a helpful shell over on the 4th VTY */
     systemCreateHoloshell();
@@ -242,11 +243,83 @@ installInitial(void)
 }
 
 int
+installFixitHoloShell(dialogMenuItem *self)
+{
+    systemCreateHoloshell();
+    return DITEM_SUCCESS;
+}
+
+int
 installFixitCDROM(dialogMenuItem *self)
 {
-    msgConfirm("Sorry, this feature is currently unimplemented but will,\n"
-	       "at some point in the future, support the use of the live\n"
-	       "filesystem CD (CD 2) in fixing your system.");
+    struct stat sb;
+
+    if (!RunningAsInit)
+	return DITEM_SUCCESS;
+
+    variable_set2(SYSTEM_STATE, "fixit");
+    (void)unlink("/mnt2");
+    (void)rmdir("/mnt2");
+
+    while (1) {
+	msgConfirm("Please insert the second FreeBSD CDROM and press return");
+	if (DITEM_STATUS(mediaSetCDROM(NULL)) != DITEM_SUCCESS || !mediaDevice || !mediaDevice->init(mediaDevice)) {
+	    /* If we can't initialize it, it's probably not a FreeBSD CDROM so punt on it */
+	    if (mediaDevice) {
+		mediaDevice->shutdown(mediaDevice);
+		mediaDevice = NULL;
+	    }
+	    if (msgYesNo("Unable to mount the CDROM - do you want to try again?") != 0)
+		return DITEM_FAILURE;
+	}
+	else
+	    break;
+    }
+
+    /* Since the fixit code expects everything to be in /mnt2, and the CDROM mounting stuff /dist, do
+     * a little kludge dance here..
+     */
+    if (symlink("/dist", "/mnt2")) {
+	msgConfirm("Unable to symlink /mnt2 to the CDROM mount point.  Please report this\n"
+		   "unexpected failure to bugs@freebsd.org.");
+	return DITEM_FAILURE;
+    }
+
+    /*
+     * If /tmp points to /mnt2/tmp from a previous fixit floppy session, it's
+     * not very good for us if we point it to the CDROM now.  Rather make it
+     * a directory in the root MFS then.  Experienced admins will still be
+     * able to mount their disk's /tmp over this if they need.
+     */
+    if (lstat("/tmp", &sb) == 0 && (sb.st_mode & S_IFMT) == S_IFLNK)
+	(void)unlink("/tmp");
+    Mkdir("/tmp");
+
+    /*
+     * Since setuid binaries ignore LD_LIBRARY_PATH, we indeed need the
+     * ld.so.hints file.  Fortunately, it's fairly small (~ 3 KB).
+     */
+    if (!file_readable("/var/run/ld.so.hints")) {
+	Mkdir("/var/run");
+	if (vsystem("/mnt2/sbin/ldconfig -s /mnt2/usr/lib")) {
+	    msgConfirm("Warning: ldconfig could not create the ld.so hints file.\n"
+		       "Dynamic executables from the CDROM likely won't work.");
+	}
+    }
+
+    /* Yet another iggly hardcoded pathname. */
+    if (!file_readable("/usr/libexec/ld.so")) {
+	Mkdir("/usr/libexec");
+	if (symlink("/mnt2/usr/libexec/ld.so", "/usr/libexec/ld.so")) {
+	    msgConfirm("Warning: could not create the symlink for ld.so.\n"
+		       "Dynamic executables from the CDROM likely won't work.");
+	}
+    }
+
+    fixit_common();
+
+    msgConfirm("Please remove the FreeBSD CDROM now.");
+    mediaDevice->shutdown(mediaDevice);
     return DITEM_SUCCESS;
 }
 
@@ -254,8 +327,9 @@ int
 installFixitFloppy(dialogMenuItem *self)
 {
     struct ufs_args args;
-    pid_t child;
-    int waitstatus;
+
+    if (!RunningAsInit)
+	return DITEM_SUCCESS;
 
     variable_set2(SYSTEM_STATE, "fixit");
     memset(&args, 0, sizeof(args));
@@ -273,11 +347,26 @@ installFixitFloppy(dialogMenuItem *self)
 	if (msgYesNo("Unable to mount the fixit floppy - do you want to try again?") != 0)
 	    return DITEM_FAILURE;
     }
-    dialog_clear();
-    end_dialog();
-    DialogActive = FALSE;
+
     if (!directory_exists("/tmp"))
 	(void)symlink("/mnt2/tmp", "/tmp");
+
+    fixit_common();
+
+    msgConfirm("Please remove the fixit floppy now.");
+    unmount("/mnt2", MNT_FORCE);
+    return DITEM_SUCCESS;
+}
+
+/*
+ * The common code for both fixit variants.
+ */
+static void
+fixit_common(void)
+{
+    pid_t child;
+    int waitstatus;
+
     if (!directory_exists("/var/tmp/vi.recover")) {
 	if (DITEM_STATUS(Mkdir("/var/tmp/vi.recover")) != DITEM_SUCCESS) {
 	    msgConfirm("Warning:  Was unable to create a /var/tmp/vi.recover directory.\n"
@@ -285,6 +374,9 @@ installFixitFloppy(dialogMenuItem *self)
 		       "be essentially usable.");
 	}
     }
+    if (!directory_exists("/bin"))
+	(void)Mkdir("/bin");
+    (void)symlink("/stand/sh", "/bin/sh");
     /* Link the /etc/ files */
     if (DITEM_STATUS(Mkdir("/etc")) != DITEM_SUCCESS)
 	msgConfirm("Unable to create an /etc directory!  Things are weird on this floppy..");
@@ -295,7 +387,20 @@ installFixitFloppy(dialogMenuItem *self)
     if (!file_readable(TERMCAP_FILE))
 	create_termcap();
     if (!(child = fork())) {
+	int i, fd;
 	struct termios foo;
+	extern int login_tty(int);
+
+	ioctl(0, TIOCNOTTY, NULL);
+	for (i = getdtablesize(); i >= 0; --i)
+	    close(i);
+	fd = open("/dev/ttyv3", O_RDWR);
+	ioctl(0, TIOCSCTTY, &fd);
+	dup2(0, 1);
+	dup2(0, 2);
+	DebugFD = 2;
+	if (login_tty(fd) == -1)
+	    msgDebug("fixit: I can't set the controlling terminal.\n");
 
 	signal(SIGTTOU, SIG_IGN);
 	if (tcgetattr(0, &foo) != -1) {
@@ -305,25 +410,25 @@ installFixitFloppy(dialogMenuItem *self)
 	}
 	else
 	    msgDebug("fixit shell: Unable to get terminal attributes!\n");
-	setenv("PATH", "/bin:/sbin:/usr/bin:/usr/sbin:/stand:/mnt2/stand", 1);
-	/* use the .profile from the fixit floppy */
+	setenv("PATH", "/bin:/sbin:/usr/bin:/usr/sbin:/stand:"
+	       "/mnt2/stand:/mnt2/bin:/mnt2/sbin:/mnt2/usr/bin:/mnt2/usr/sbin", 1);
+	/* use the .profile from the fixit medium */
 	setenv("HOME", "/mnt2", 1);
 	chdir("/mnt2");
 	execlp("sh", "-sh", 0);
 	msgDebug("fixit shell: Failed to execute shell!\n");
-	return -1;
+	_exit(1);;
     }
-    else
+    else {
+	msgNotify("Waiting for fixit shell to exit.  Go to VTY4 now by\n"
+		  "typing ALT-F4.  When you are done, type ``exit'' to exit\n"
+		  "the fixit shell and be returned here.");
 	(void)waitpid(child, &waitstatus, 0);
-
-    DialogActive = TRUE;
-    clear();
+    }
     dialog_clear();
-    unmount("/mnt2", MNT_FORCE);
-    msgConfirm("Please remove the fixit floppy now.");
-    return DITEM_SUCCESS;
 }
-  
+
+
 int
 installExpress(dialogMenuItem *self)
 {
@@ -336,28 +441,14 @@ installExpress(dialogMenuItem *self)
     if (DITEM_STATUS((i = diskLabelEditor(self))) == DITEM_FAILURE)
 	return i;
 
-    if (!Dists) {
-	dialog_clear_norefresh();
-	if (!dmenuOpenSimple(&MenuDistributions, FALSE) && !Dists)
-	    return DITEM_FAILURE | DITEM_RECREATE;
-    }
-
-    if (!mediaDevice) {
-	dialog_clear_norefresh();
-	if (!dmenuOpenSimple(&MenuMedia, FALSE) || !mediaDevice)
-	    return DITEM_FAILURE | DITEM_RECREATE;
-    }
-
     if (DITEM_STATUS((i = installCommit(self))) == DITEM_SUCCESS) {
 	i |= DITEM_LEAVE_MENU;
 	/* Give user the option of one last configuration spree */
 	installConfigure();
-
-	/* Now write out any changes .. */
-	configResolv();
-	configSysconfig("/etc/sysconfig");
     }
-    return i | DITEM_RECREATE;
+    /* Now write out any changes .. */
+    configSysconfig("/etc/sysconfig");
+    return i | DITEM_RESTORE;
 }
 
 /* Novice mode installation */
@@ -389,18 +480,6 @@ installNovice(dialogMenuItem *self)
     if (DITEM_STATUS(diskLabelEditor(self)) == DITEM_FAILURE)
 	return DITEM_FAILURE;
 
-    while (1) {
-	dialog_clear_norefresh();
-	if (!dmenuOpenSimple(&MenuDistributions, FALSE) && !Dists)
-	    return DITEM_FAILURE | DITEM_RECREATE;
-	
-	if (Dists || !msgYesNo("No distributions selected.  Are you sure you wish to continue?"))
-	    break;
-    }
-
-    if (!mediaDevice && !dmenuOpenSimple(&MenuMedia, FALSE))
-	return DITEM_FAILURE | DITEM_RECREATE;
-
     if (DITEM_STATUS((i = installCommit(self))) == DITEM_FAILURE) {
 	dialog_clear_norefresh();
 	msgConfirm("Installation completed with some errors.  You may wish to\n"
@@ -408,7 +487,7 @@ installNovice(dialogMenuItem *self)
 		   "scroll-lock feature.  You can also chose \"No\" at the next\n"
 		   "prompt and go back into the installation menus to try and retry\n"
 		   "whichever operations have failed.");
-	return i | DITEM_RECREATE;
+	return i | DITEM_RESTORE;
 
     }
     else {
@@ -491,10 +570,26 @@ installNovice(dialogMenuItem *self)
     }
 
     dialog_clear_norefresh();
-    if (!msgYesNo("The FreeBSD package collection is a collection of over 600 ready-to-run\n"
+    if (!msgYesNo("The FreeBSD package collection is a collection of over 700 ready-to-run\n"
 		  "applications, from text editors to games to WEB servers.  Would you like\n"
 		  "to browse the collection now?"))
 	configPackages(self);
+
+    dialog_clear_norefresh();
+    if (!msgYesNo("Would you like to add any initial user accounts to the system?\n"
+		  "Adding at least one account for yourself at this stage is suggested\n"
+		  "since working as the \"root\" user is dangerous (it is easy to do\n"
+		  "things which adversely affect the entire system)."))
+	configUsers(self);
+
+    dialog_clear_norefresh();
+    if (!msgYesNo("Would you like to set the system manager's password now?\n\n"
+		  "This is the password you'll use to log in as \"root\".")) {
+	WINDOW *w = savescr();
+
+	systemExecute("passwd root");
+	restorescr(w);
+    }
 
     /* XXX Put whatever other nice configuration questions you'd like to ask the user here XXX */
 
@@ -502,10 +597,9 @@ installNovice(dialogMenuItem *self)
     installConfigure();
 
     /* Now write out any changes .. */
-    configResolv();
     configSysconfig("/etc/sysconfig");
 
-    return DITEM_LEAVE_MENU | DITEM_RECREATE;
+    return DITEM_LEAVE_MENU | DITEM_RESTORE;
 }
 
 /* The version of commit we call from the Install Custom menu */
@@ -520,7 +614,6 @@ installCustomCommit(dialogMenuItem *self)
 	installConfigure();
 
 	/* Now write out any changes .. */
-	configResolv();
 	configSysconfig("/etc/sysconfig");
 	return i;
     }
@@ -544,10 +637,17 @@ installCommit(dialogMenuItem *self)
 {
     int i;
     char *str;
-    Boolean need_bin = FALSE;
+    Boolean need_bin;
 
-    if (!mediaVerify())
-	return DITEM_FAILURE;
+    if (!Dists) {
+	if (!dmenuOpenSimple(&MenuDistributions, FALSE) && !Dists)
+	    return DITEM_FAILURE | DITEM_RESTORE;
+    }
+
+    if (!mediaDevice) {
+	if (!dmenuOpenSimple(&MenuMedia, FALSE) || !mediaDevice)
+	    return DITEM_FAILURE | DITEM_RESTORE;
+    }
 
     str = variable_get(SYSTEM_STATE);
     if (isDebug())
@@ -561,14 +661,27 @@ installCommit(dialogMenuItem *self)
 	    return i;
     }
 
-    if (Dists & DIST_BIN)
-	need_bin = TRUE;
-    i = distExtractAll(self);
-    if (DITEM_STATUS(i) != DITEM_FAILURE || !need_bin || !(Dists & DIST_BIN))
-	i = installFixup(self);
+try_media:
+    if (!mediaDevice->init(mediaDevice)) {
+	if (!msgYesNo("Unable to initialize selected media. Would you like to\n"
+		      "adjust your media configuration and try again?")) {
+	    if (!dmenuOpenSimple(&MenuMedia, FALSE) || !mediaDevice)
+		return DITEM_FAILURE | DITEM_RESTORE;
+	    else
+		goto try_media;
+	}
+	else
+	    return DITEM_FAILURE | DITEM_RESTORE;
+    }
 
+    need_bin = Dists & DIST_BIN;
+    i = distExtractAll(self);
+    if (DITEM_STATUS(i) == DITEM_SUCCESS) {
+	if (need_bin && !(Dists & DIST_BIN))
+	    i = installFixup(self);
+    }
     variable_set2(SYSTEM_STATE, DITEM_STATUS(i) == DITEM_FAILURE ? "error-install" : "full-install");
-    return i | DITEM_RECREATE;
+    return i | DITEM_RESTORE;
 }
 
 static void
@@ -696,7 +809,7 @@ installFilesystems(dialogMenuItem *self)
     command_clear();
     upgrade = str && !strcmp(str, "upgrade");
 
-    if (swapdev) {
+    if (swapdev && RunningAsInit) {
 	/* As the very first thing, try to get ourselves some swap space */
 	sprintf(dname, "/dev/%s", swapdev->name);
 	if (!Fake && (!MakeDevChunk(swapdev, "/dev") || !file_readable(dname))) {
@@ -715,7 +828,7 @@ installFilesystems(dialogMenuItem *self)
 	}
     }
 
-    if (rootdev) {
+    if (rootdev && RunningAsInit) {
 	/* Next, create and/or mount the root device */
 	sprintf(dname, "/dev/r%sa", rootdev->disk->name);
 	if (!Fake && (!MakeDevChunk(rootdev, "/dev") || !file_readable(dname))) {
@@ -768,11 +881,13 @@ installFilesystems(dialogMenuItem *self)
 	    msgConfirm("No chunk list found for %s!", disk->name);
 	    return DITEM_FAILURE;
 	}
-	if (root && (root->newfs || upgrade)) {
+	if (RunningAsInit && root && (root->newfs || upgrade)) {
 	    Mkdir("/mnt/dev");
 	    if (!Fake)
 		MakeDevDisk(disk, "/mnt/dev");
 	}
+	else if (!RunningAsInit && !Fake)
+	    MakeDevDisk(disk, "/dev");
 
 	for (c1 = disk->chunks->part; c1; c1 = c1->next) {
 	    if (c1->type == freebsd) {
@@ -785,9 +900,9 @@ installFilesystems(dialogMenuItem *self)
 			    continue;
 
 			if (tmp->newfs)
-			    command_shell_add(tmp->mountpoint, "%s /mnt/dev/r%s", tmp->newfs_cmd, c2->name);
+			    command_shell_add(tmp->mountpoint, "%s %s/dev/r%s", tmp->newfs_cmd, RunningAsInit ? "/mnt" : "", c2->name);
 			else
-			    command_shell_add(tmp->mountpoint, "fsck -y /mnt/dev/r%s", c2->name);
+			    command_shell_add(tmp->mountpoint, "fsck -y %s/dev/r%s", RunningAsInit ? "/mnt" : "", c2->name);
 			command_func_add(tmp->mountpoint, Mount, c2->name);
 		    }
 		    else if (c2->type == part && c2->subtype == FS_SWAP) {
@@ -796,7 +911,7 @@ installFilesystems(dialogMenuItem *self)
 
 			if (c2 == swapdev)
 			    continue;
-			sprintf(fname, "/mnt/dev/%s", c2->name);
+			sprintf(fname, "%s/dev/%s", RunningAsInit ? "/mnt" : "", c2->name);
 			i = (Fake || swapon(fname));
 			if (!i)
 			    msgNotify("Added %s as an additional swap device", fname);
@@ -808,19 +923,21 @@ installFilesystems(dialogMenuItem *self)
 	    else if (c1->type == fat && c1->private_data && (root->newfs || upgrade)) {
 		char name[FILENAME_MAX];
 
-		sprintf(name, "/mnt%s", ((PartInfo *)c1->private_data)->mountpoint);
+		sprintf(name, "%s/%s", RunningAsInit ? "/mnt" : "", ((PartInfo *)c1->private_data)->mountpoint);
 		Mkdir(name);
 	    }
 	}
     }
 
-    msgNotify("Copying initial device files..");
-    /* Copy the boot floppy's dev files */
-    if ((root->newfs || upgrade) && vsystem("find -x /dev | cpio %s -pdum /mnt", cpioVerbosity())) {
-	msgConfirm("Couldn't clone the /dev files!");
-	return DITEM_FAILURE;
+    if (RunningAsInit) {
+	msgNotify("Copying initial device files..");
+	/* Copy the boot floppy's dev files */
+	if ((root->newfs || upgrade) && vsystem("find -x /dev | cpio %s -pdum /mnt", cpioVerbosity())) {
+	    msgConfirm("Couldn't clone the /dev files!");
+	    return DITEM_FAILURE;
+	}
     }
-    
+
     command_sort();
     command_execute();
     return DITEM_SUCCESS;
@@ -833,7 +950,7 @@ installVarDefaults(dialogMenuItem *self)
     char *cp;
 
     /* Set default startup options */
-    variable_set2(VAR_ROUTER,			"routed");
+    variable_set2(VAR_ROUTER,			"NO");
     variable_set2(VAR_RELNAME,			RELEASE_NAME);
     variable_set2(VAR_CPIO_VERBOSITY,		"high");
     variable_set2(VAR_TAPE_BLOCKSIZE,		DEFAULT_TAPE_BLOCKSIZE);
@@ -847,6 +964,11 @@ installVarDefaults(dialogMenuItem *self)
     variable_set2(VAR_BROWSER_BINARY,		"/usr/local/bin/lynx");
     variable_set2(VAR_FTP_STATE,		"passive");
     variable_set2(VAR_PKG_TMPDIR,		"/usr/tmp");
+    variable_set2(VAR_APACHE_PKG,		PACKAGE_APACHE);
+    variable_set2(VAR_SAMBA_PKG,		PACKAGE_SAMBA);
+    variable_set2(VAR_GATED_PKG,		PACKAGE_GATED);
+    variable_set2(VAR_PCNFSD_PKG,		PACKAGE_PCNFSD);
+    variable_set2(VAR_MEDIA_TIMEOUT,		itoa(MEDIA_TIMEOUT));
     if (getpid() != 1)
 	variable_set2(SYSTEM_STATE,		"update");
     else

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: label.c,v 1.63 1996/10/06 11:40:31 jkh Exp $
+ * $Id$
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -248,7 +248,7 @@ new_part(char *mpoint, Boolean newfs, u_long size)
 	mpoint = "/change_me";
 
     ret = (PartInfo *)safe_malloc(sizeof(PartInfo));
-    strncpy(ret->mountpoint, mpoint, FILENAME_MAX);
+    sstrncpy(ret->mountpoint, mpoint, FILENAME_MAX);
     strcpy(ret->newfs_cmd, "newfs -b 8192 -f 1024");
     ret->newfs = newfs;
     if (!size)
@@ -355,7 +355,7 @@ getNewfsCmd(PartInfo *p)
 		      "Please enter the newfs command and options you'd like to use in\n"
 		      "creating this file system.");
     if (val)
-	strncpy(p->newfs_cmd, val, NEWFS_CMD_MAX);
+	sstrncpy(p->newfs_cmd, val, NEWFS_CMD_MAX);
 }
 
 #define MAX_MOUNT_NAME	12
@@ -460,7 +460,7 @@ static void
 print_command_summary(void)
 {
     mvprintw(17, 0, "The following commands are valid here (upper or lower case):");
-    mvprintw(18, 0, "C = Create      D = Delete         M = Mount");
+    mvprintw(18, 0, "C = Create      D = Delete         M = Mount pt.");
     if (!RunningAsInit)
 	mvprintw(18, 47, "W = Write");
     mvprintw(19, 0, "N = Newfs Opts  T = Newfs Toggle   U = Undo    Q = Finish");
@@ -523,6 +523,7 @@ diskLabel(char *str)
 	    clear_wins();
 	    break;
 
+	case '\020':	/* ^P */
 	case KEY_UP:
 	case '-':
 	    if (here != 0)
@@ -532,6 +533,7 @@ diskLabel(char *str)
 		    ++here;
 	    break;
 
+	case '\016':	/* ^N */
 	case KEY_DOWN:
 	case '+':
 	case '\r':
@@ -917,6 +919,7 @@ diskLabel(char *str)
 		msg = "A most prudent choice!";
 	    break;
 
+	case '\033':	/* ESC */
 	case 'Q':
 	    labeling = FALSE;
 	    break;

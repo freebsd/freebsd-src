@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: cdrom.c,v 1.26 1996/10/14 21:32:22 jkh Exp $
+ * $Id$
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -51,13 +51,7 @@
 #include <sys/mount.h>
 #undef CD9660
 
-/*
- * This isn't a boolean like the others since we have 3 states for it:
- * 0 = cdrom isn't mounted, 1 = cdrom is mounted and we mounted it, 2 = cdrom
- * was already mounted when we came in and we should leave it that way when
- * we leave.
- */
-static int cdromMounted;
+static Boolean cdromMounted;
 
 Boolean
 mediaInitCDROM(Device *dev)
@@ -65,9 +59,10 @@ mediaInitCDROM(Device *dev)
     struct iso_args	args;
     Attribs *cd_attr;
     char *cp;
-    Boolean dontRead;
+    Boolean readInfo = TRUE;
+    char *mountpoint = "/dist";
 
-    if (cdromMounted != CD_UNMOUNTED)
+    if (cdromMounted)
 	return TRUE;
 
     bzero(&args, sizeof(args));
@@ -76,83 +71,92 @@ mediaInitCDROM(Device *dev)
 
     cd_attr = alloca(sizeof(Attribs) * MAX_ATTRIBS);
     cp = NULL;
-    dontRead = FALSE;
-    /* If this cdrom's not already mounted or can't be mounted, yell */
-    if (!file_readable("/cdrom/cdrom.inf")) {
-	Mkdir("/cdrom");
-	if (mount(MOUNT_CD9660, "/cdrom", MNT_RDONLY, (caddr_t) &args) == -1) {
-	    if (errno != EBUSY) {
-	    	msgConfirm("Error mounting %s on /cdrom: %s (%u)", dev->devname, strerror(errno), errno);
-		return FALSE;
-	    }
+
+    Mkdir(mountpoint);
+
+    if (mount(MOUNT_CD9660, mountpoint, MNT_RDONLY, (caddr_t) &args) == -1) {
+	if (errno == EINVAL) {
+	    msgConfirm("The CD in your drive looks more like an Audio CD than a FreeBSD release.");
+	    return FALSE;
 	}
-	if (!file_readable("/cdrom/cdrom.inf")) {
-	    if (msgYesNo("Warning: The CD currently in the drive is either not a FreeBSD\n"
-			 "CD or it is an older (pre 2.1.5) FreeBSD CD which does not\n"
-			 "have a version number on it.  Do you wish to use this CD anyway?") != 0) {
-		unmount("/cdrom", MNT_FORCE);
-		return FALSE;
-	    }
-	    dontRead = TRUE;
+	else if (errno != EBUSY) {
+	    msgConfirm("Error mounting %s on %s: %s (%u)", dev->devname, mountpoint, strerror(errno), errno);
+	    return FALSE;
 	}
-	cdromMounted = CD_WE_MOUNTED_IT;
+	cdromMounted = TRUE;
     }
-    else
-	cdromMounted = CD_ALREADY_MOUNTED;
-    if (!dontRead && (DITEM_STATUS(attr_parse_file(cd_attr, "/cdrom/cdrom.inf")) == DITEM_FAILURE ||
-	!(cp = attr_match(cd_attr, "CD_VERSION")) || strcmp(cp, variable_get(VAR_RELNAME)))) {
-	unmount("/cdrom", MNT_FORCE);
+
+    if (!file_readable(string_concat(mountpoint, "/cdrom.inf"))) {
+	if (msgYesNo("Warning: The CD currently in the drive is either not a FreeBSD\n"
+		     "CD or it is an older (pre 2.1.5) FreeBSD CD which does not\n"
+		     "have a version number on it.  Do you wish to use this CD anyway?") != 0) {
+	    unmount(mountpoint, MNT_FORCE);
+	    return FALSE;
+	}
+	else
+	    readInfo = FALSE;
+    }
+
+    if (readInfo &&
+	(DITEM_STATUS(attr_parse_file(cd_attr, string_concat(mountpoint, "/cdrom.inf"))) == DITEM_FAILURE ||
+		      !(cp = attr_match(cd_attr, "CD_VERSION")) || (strcmp(cp, variable_get(VAR_RELNAME)) && strcmp("none", variable_get(VAR_RELNAME))))) {
 	if (!cp)
-	    msgConfirm("Unable to find a /cdrom/cdrom.inf file.\n"
+	    msgConfirm("Unable to find a %s/cdrom.inf file.\n"
 		       "Either this is not a FreeBSD CDROM, there is a problem with\n"
 		       "the CDROM driver or something is wrong with your hardware.\n"
 		       "Please fix this problem (check the console logs on VTY2) and\n"
-		       "try again.");
+		       "try again.", mountpoint);
 	else
 	    msgConfirm("Warning: The version of the FreeBSD CD currently in the drive\n"
-		       "(%s) does not match the version of this boot floppy\n"
+		       "(%s) does not match the version of the boot floppy\n"
 		       "(%s).\n\n"
-		       "If this is intentional, then please visit the Options editor\n"
-		       "to set the boot floppy version string to match that of the CD\n"
-		       "before selecting it as an installation media to avoid this warning", cp, variable_get(VAR_RELNAME));
+		       "If this is intentional, to avoid this message in the future\n"
+		       "please visit the Options editor to set the boot floppy version\n"
+		       "string to match that of the CD before selecting it as your\n"
+		       "installation media.", cp, variable_get(VAR_RELNAME));
+
+	if (msgYesNo("Would you like to try and use this CDROM anyway?") != 0) {
+	    unmount(mountpoint, MNT_FORCE);
+	    cdromMounted = FALSE;
+	    return FALSE;
+	}
     }
-    msgDebug("Mounted FreeBSD CDROM on device %s as /cdrom\n", dev->devname);
+    msgDebug("Mounted FreeBSD CDROM from device %s\n", dev->devname);
     return TRUE;
 }
 
-int
+FILE *
 mediaGetCDROM(Device *dev, char *file, Boolean probe)
 {
     char	buf[PATH_MAX];
 
     if (isDebug())
 	msgDebug("Request for %s from CDROM\n", file);
-    snprintf(buf, PATH_MAX, "/cdrom/%s", file);
+    snprintf(buf, PATH_MAX, "/dist/%s", file);
     if (file_readable(buf))
-	return open(buf, O_RDONLY);
-    snprintf(buf, PATH_MAX, "/cdrom/dists/%s", file);
+	return fopen(buf, "r");
+    snprintf(buf, PATH_MAX, "/dist/dists/%s", file);
     if (file_readable(buf))
-	return open(buf, O_RDONLY);
-    snprintf(buf, PATH_MAX, "/cdrom/%s/%s", variable_get(VAR_RELNAME), file);
+	return fopen(buf, "r");
+    snprintf(buf, PATH_MAX, "/dist/%s/%s", variable_get(VAR_RELNAME), file);
     if (file_readable(buf))
-	return open(buf, O_RDONLY);
-    snprintf(buf, PATH_MAX, "/cdrom/%s/dists/%s", variable_get(VAR_RELNAME), file);
-    return open(buf, O_RDONLY);
+	return fopen(buf, "r");
+    snprintf(buf, PATH_MAX, "/dist/%s/dists/%s", variable_get(VAR_RELNAME), file);
+    return fopen(buf, "r");
 }
 
 void
 mediaShutdownCDROM(Device *dev)
 {
-    /* Only undo it if we did it */
-    if (cdromMounted != CD_WE_MOUNTED_IT)
+    char *mountpoint = "/dist";
+
+    if (!cdromMounted)
 	return;
-    msgDebug("Unmounting %s from /cdrom\n", dev->devname);
-    if (unmount("/cdrom", MNT_FORCE) != 0) {
-	msgConfirm("Could not unmount the CDROM from /cdrom: %s", strerror(errno));
-	cdromMounted = CD_ALREADY_MOUNTED;	/* Guess somebody else got it */
-    }
+    msgDebug("Unmounting %s from %s\n", dev->devname, mountpoint);
+    if (unmount(mountpoint, MNT_FORCE) != 0)
+	msgConfirm("Could not unmount the CDROM from %s: %s", mountpoint, strerror(errno));
     else {
-	msgDebug("Unmount successful\n");
-	cdromMounted = CD_UNMOUNTED;
+	msgDebug("Unmount of CDROM successful\n");
+	cdromMounted = FALSE;
     }
 }

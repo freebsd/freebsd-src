@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.36.2.42 1996/11/07 09:16:51 jkh Exp $
+ * $Id$
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -34,8 +34,9 @@
  *
  */
 
-#include <sys/time.h>
 #include "sysinstall.h"
+#include <sys/time.h>
+#include <signal.h>
 
 unsigned int Dists;
 unsigned int DESDists;
@@ -65,6 +66,7 @@ static Distribution DistTable[] = {
 { "doc",	"/",			&Dists,		DIST_DOC,		NULL		},
 { "games",	"/",			&Dists,		DIST_GAMES,		NULL		},
 { "manpages",	"/",			&Dists,		DIST_MANPAGES,		NULL		},
+{ "catpages",	"/",			&Dists,		DIST_CATPAGES,		NULL		},
 { "proflibs",	"/",			&Dists,		DIST_PROFLIBS,		NULL		},
 { "dict",	"/",			&Dists,		DIST_DICT,		NULL		},
 { "info",	"/",			&Dists,		DIST_INFO,		NULL		},
@@ -73,8 +75,6 @@ static Distribution DistTable[] = {
 { "compat1x",	"/",			&Dists,		DIST_COMPAT1X,		NULL		},
 { "compat20",	"/",			&Dists,		DIST_COMPAT20,		NULL		},
 { "compat21",	"/",			&Dists,		DIST_COMPAT21,		NULL		},
-{ "commerce",	"/usr/local",		&Dists,		DIST_COMMERCIAL,	NULL		},
-{ "xperimnt",	"/usr/local",		&Dists,		DIST_EXPERIMENTAL,	NULL		},
 { "XF8632",	"/usr",			&Dists,		DIST_XF86,		XF86DistTable	},
 { NULL },
 };
@@ -270,7 +270,7 @@ distSetDES(dialogMenuItem *self)
     }
     else
 	i = DITEM_FAILURE;
-    return i | DITEM_RECREATE | DITEM_RESTORE;
+    return i | DITEM_RECREATE;
 }
 
 static int
@@ -301,7 +301,7 @@ distMaybeSetDES(dialogMenuItem *self)
 	else
 	    i = DITEM_FAILURE;
     }
-    return i | DITEM_RECREATE | DITEM_RESTORE;
+    return i | DITEM_RECREATE;
 }
 
 int
@@ -317,7 +317,7 @@ distSetSrc(dialogMenuItem *self)
     }
     else
 	i = DITEM_FAILURE;
-    return i | DITEM_RECREATE | DITEM_RESTORE;
+    return i | DITEM_RECREATE;
 }
 
 int
@@ -337,24 +337,52 @@ distSetXF86(dialogMenuItem *self)
     }
     else
 	i = DITEM_FAILURE;
-    return i | DITEM_RECREATE | DITEM_RESTORE;
+    return i | DITEM_RECREATE;
+}
+
+static Boolean got_intr = FALSE;
+
+/* timeout handler */
+static void
+handle_intr(int sig)
+{
+    msgDebug("User generated interrupt.\n");
+    got_intr = TRUE;
+}
+
+static int
+check_for_interrupt(void)
+{
+    if (got_intr) {
+	got_intr = FALSE;
+	return TRUE;
+    }
+    return FALSE;
 }
 
 static Boolean
 distExtract(char *parent, Distribution *me)
 {
-    int i, status, total;
-    int cpid, zpid, fd, fd2, chunk, numchunks;
+    int i, status, total, intr;
+    int cpid, zpid, fd2, chunk, numchunks;
     char *path, *dist, buf[BUFSIZ];
     const char *tmp;
+    FILE *fp;
     Attribs *dist_attr;
     WINDOW *w = savescr();
     struct timeval start, stop;
+    struct sigaction old, new;
 
     status = TRUE;
     dialog_clear_norefresh();
     if (isDebug())
 	msgDebug("distExtract: parent: %s, me: %s\n", parent ? parent : "(none)", me->my_name);
+
+    /* Make ^C fake a sudden timeout */
+    new.sa_handler = handle_intr;
+    new.sa_flags = 0;
+    new.sa_mask = 0;
+    sigaction(SIGINT, &new, &old);
 
     /* Loop through to see if we're in our parent's plans */
     for (i = 0; me[i].my_name; i++) {
@@ -384,53 +412,79 @@ distExtract(char *parent, Distribution *me)
 	 */
 	dist_attr = NULL;
 	numchunks = 0;
-
 	snprintf(buf, sizeof buf, "%s/%s.inf", path, dist);
-	fd = mediaDevice->get(mediaDevice, buf, TRUE);
-	if (fd >= 0) {
+
+    getinfo:
+	fp = mediaDevice->get(mediaDevice, buf, TRUE);
+	intr = check_for_interrupt();
+	if (fp > 0) {
+	    int status;
+
 	    if (isDebug())
 		msgDebug("Parsing attributes file for distribution %s\n", dist);
-	    dist_attr = safe_malloc(sizeof(Attribs) * MAX_ATTRIBS);
-	    if (DITEM_STATUS(attr_parse(dist_attr, fd)) == DITEM_FAILURE)
-		msgConfirm("Cannot parse information file for the %s distribution!\n"
-			   "Please verify that your media is valid and try again.", dist);
+	    dist_attr = alloca(sizeof(Attribs) * MAX_ATTRIBS);
+
+	    status = attr_parse(dist_attr, fp);
+	    intr = check_for_interrupt();
+	    if (intr || DITEM_STATUS(status) == DITEM_FAILURE)
+		msgConfirm("Cannot parse information file for the %s distribution: %s\n"
+			   "Please verify that your media is valid and try again.",
+			   dist, !intr ? "I/O error" : "User interrupt");
 	    else {
-		if (isDebug())
-		    msgDebug("Looking for attribute `pieces'\n");
 		tmp = attr_match(dist_attr, "pieces");
 		if (tmp)
 		    numchunks = strtol(tmp, 0, 0);
 	    }
-	    safe_free(dist_attr);
-	    mediaDevice->close(mediaDevice, fd);
+	    fclose(fp);
 	    if (!numchunks)
 		continue;
 	}
-	else if (fd == IO_ERROR) {	/* Hard error, can't continue */
-	    mediaDevice->shutdown(mediaDevice);
-	    status = FALSE;
-	    goto done;
+	else if (fp == (FILE *)IO_ERROR || intr) {	/* Hard error, can't continue */
+	    if (!msgYesNo("Unable to open %s: %s.\nReinitialize media?",
+			  buf, !intr ? "I/O error." : "User interrupt.")) {
+		mediaDevice->shutdown(mediaDevice);
+		if (!mediaDevice->init(mediaDevice)) {
+		    status = FALSE;
+		    goto done;
+		}
+		else
+		    goto getinfo;
+	    }
+	    else {
+		status = FALSE;
+		goto done;
+	    }
 	}
 	else {
 	    /* Try to get the distribution as a single file */
-	    snprintf(buf, 512, "%s/%s.tgz", path, dist);
+	    snprintf(buf, sizeof buf, "%s/%s.tgz", path, dist);
 	    /*
 	     * Passing TRUE as 3rd parm to get routine makes this a "probing" get, for which errors
 	     * are not considered too significant.
 	     */
-	    fd = mediaDevice->get(mediaDevice, buf, TRUE);
-	    if (fd >= 0) {
+	getsingle:
+	    fp = mediaDevice->get(mediaDevice, buf, TRUE);
+	    intr = check_for_interrupt();
+	    if (fp > 0) {
 		char *dir = root_bias(me[i].my_dir);
 
 		msgNotify("Extracting %s into %s directory...", dist, dir);
-		status = mediaExtractDist(dir, fd);
-		mediaDevice->close(mediaDevice, fd);
+		status = mediaExtractDist(dir, dist, fp);
+		fclose(fp);
 		goto done;
 	    }
-	    else if (fd == IO_ERROR) {	/* Hard error, can't continue */
+	    else if (fp == (FILE *)IO_ERROR || intr) {	/* Hard error, can't continue */
+		if (intr)	/* result of an interrupt */
+		    msgConfirm("Unable to open %s: User interrupt", buf);
+		else
+		    msgConfirm("Unable to open %s: I/O error", buf);
 		mediaDevice->shutdown(mediaDevice);
-		status = FALSE;
-		goto done;
+		if (!mediaDevice->init(mediaDevice)) {
+		    status = FALSE;
+		    goto done;
+		}
+		else
+		    goto getsingle;
 	    }
 	    else
 		numchunks = 0;
@@ -446,30 +500,48 @@ distExtract(char *parent, Distribution *me)
 	total = 0;
 	(void)gettimeofday(&start, (struct timezone *)0);
 
-	/* We have one or more chunks, go pick them up */
+	/* We have one or more chunks, initialize unpackers... */
 	mediaExtractDistBegin(root_bias(me[i].my_dir), &fd2, &zpid, &cpid);
+
+	/* And go for all the chunks */
 	for (chunk = 0; chunk < numchunks; chunk++) {
 	    int n, retval, last_msg;
 	    char prompt[80];
 
 	    last_msg = 0;
 
-	    snprintf(buf, 512, "%s/%s.%c%c", path, dist, (chunk / 26) + 'a', (chunk % 26) + 'a');
+	getchunk:
+	    snprintf(buf, sizeof buf, "%s/%s.%c%c", path, dist, (chunk / 26) + 'a', (chunk % 26) + 'a');
 	    if (isDebug())
 		msgDebug("trying for piece %d of %d: %s\n", chunk + 1, numchunks, buf);
-	    fd = mediaDevice->get(mediaDevice, buf, FALSE);
-	    if (fd < 0) {
-		msgConfirm("failed to retreive piece file %s!\n"
-			   "Aborting the transfer", buf);
-		goto punt;
+	    fp = mediaDevice->get(mediaDevice, buf, FALSE);
+	    intr = check_for_interrupt();
+	    if (fp <= (FILE *)0 || intr) {
+		if (fp == (FILE *)0)
+		    msgConfirm("Failed to find %s on this media.  Reinitializing media.", buf);
+		else
+		    msgConfirm("failed to retreive piece file %s.\n"
+			       "%s: Reinitializing media.", buf, !intr ? "I/O error" : "User interrupt");
+		mediaDevice->shutdown(mediaDevice);
+		if (!mediaDevice->init(mediaDevice))
+		    goto punt;
+		else
+		    goto getchunk;
 	    }
-	    snprintf(prompt, 80, "Extracting %s into %s directory...", dist, root_bias(me[i].my_dir));
+
+	    snprintf(prompt, sizeof prompt, "Extracting %s into %s directory...", dist, root_bias(me[i].my_dir));
 	    dialog_gauge("Progress", prompt, 8, 15, 6, 50, (int)((float)(chunk + 1) / numchunks * 100));
+
 	    while (1) {
 		int seconds;
 
-		n = read(fd, buf, BUFSIZ);
-		if (n <= 0)
+		n = fread(buf, 1, BUFSIZ, fp);
+		if (check_for_interrupt()) {
+		    msgConfirm("Media read error:  User interrupt.");
+		    fclose(fp);
+		    goto punt;
+		}
+		else if (n <= 0)
 		    break;
 		total += n;
 
@@ -490,13 +562,13 @@ distExtract(char *parent, Distribution *me)
 		}
 		retval = write(fd2, buf, n);
 		if (retval != n) {
-		    mediaDevice->close(mediaDevice, fd);
+		    fclose(fp);
 		    dialog_clear_norefresh();
 		    msgConfirm("Write failure on transfer! (wrote %d bytes of %d bytes)", retval, n);
 		    goto punt;
 		}
 	    }
-	    mediaDevice->close(mediaDevice, fd);
+	    fclose(fp);
 	}
 	close(fd2);
 	status = mediaExtractDistEnd(zpid, cpid);
@@ -523,13 +595,17 @@ distExtract(char *parent, Distribution *me)
 		    status = msgYesNo("Unable to transfer the %s distribution from\n%s.\n\n"
 				      "Do you want to try to retrieve it again?",
 				      me[i].my_name, mediaDevice->name);
+		    dialog_clear();
 		}
 	    }
 	}
 	/* Extract was successful, remove ourselves from further consideration */
 	if (status)
 	    *(me[i].my_mask) &= ~(me[i].my_bit);
+	else
+	    continue;
     }
+    sigaction(SIGINT, &old, NULL);	/* Restore signal handler */
     restorescr(w);
     return status;
 }
@@ -568,16 +644,10 @@ distExtractAll(dialogMenuItem *self)
     int retries = 0;
     char buf[512];
 
-    /* First try to initialize the state of things */
-    if (!Dists) {
-	msgConfirm("You haven't selected any distributions to extract.");
-	return DITEM_FAILURE;
-    }
-    if (!mediaVerify())
+    /* paranoia */
+    if (!Dists || !mediaVerify() || !mediaDevice->init(mediaDevice))
 	return DITEM_FAILURE;
 
-    if (!mediaDevice->init(mediaDevice))
-	return DITEM_FAILURE;
     dialog_clear_norefresh();
     msgNotify("Attempting to install all selected distributions..");
     /* Try for 3 times around the loop, then give up. */
@@ -593,8 +663,7 @@ distExtractAll(dialogMenuItem *self)
 	msgConfirm("Couldn't extract the following distributions.  This may\n"
 		   "be because they were not available on the installation\n"
 		   "media you've chosen:\n\n\t%s", buf);
-	return DITEM_FAILURE | DITEM_RESTORE;
+	return DITEM_SUCCESS | DITEM_RESTORE;
     }
     return DITEM_SUCCESS;
 }
-

@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: system.c,v 1.66 1996/10/01 12:13:29 jkh Exp $
+ * $Id$
  *
  * Jordan Hubbard
  *
@@ -29,6 +29,8 @@
 #define	DOC_TMP_DIR	"/tmp"
 #define	DOC_TMP_FILE	"/tmp/doc.tmp"
 
+static pid_t ehs_pid;
+
 /*
  * Handle interrupt signals - this probably won't work in all cases
  * due to our having bogotified the internal state of dialog or curses,
@@ -40,7 +42,7 @@ handle_intr(int sig)
     WINDOW *save = savescr();
 
     if (!msgYesNo("Are you sure you want to abort the installation?"))
-	systemShutdown(1);
+	systemShutdown(-1);
     else
 	restorescr(save);
 }
@@ -83,6 +85,13 @@ systemInitialize(int argc, char **argv)
 	setbuf(stdin, 0);
 	setbuf(stderr, 0);
     }
+    else {
+	char hname[256];
+
+	/* Initalize various things for a multi-user environment */
+	if (!gethostname(hname, sizeof hname))
+	    variable_set2(VAR_HOSTNAME, hname);
+    }
 
     if (set_termcap() == -1) {
 	printf("Can't find terminal entry\n");
@@ -106,7 +115,7 @@ void
 systemShutdown(int status)
 {
     /* If some media is open, close it down */
-    if (mediaDevice)
+    if (status >=0 && mediaDevice)
 	mediaDevice->shutdown(mediaDevice);
 
     /* Shut down the dialog library */
@@ -287,17 +296,40 @@ void
 systemCreateHoloshell(void)
 {
     if (OnVTY && RunningAsInit) {
-	if (!fork()) {
+
+	if (ehs_pid != 0) {
+	    int pstat;
+
+	    if (kill(ehs_pid, 0) == 0) {
+
+		if (msgYesNo("There seems to be an emergency holographic shell\n"
+			     "already running von VTY 4.\n"
+			     "Kill it and start a new one?"))
+		    return;
+
+		/* try cleaning up as much as possible */
+		(void) kill(ehs_pid, SIGHUP);
+		sleep(1);
+		(void) kill(ehs_pid, SIGKILL);
+	    }
+
+	    /* avoid too many zombies */
+	    (void) waitpid(ehs_pid, &pstat, WNOHANG);
+	}
+
+	if ((ehs_pid = fork()) == 0) {
 	    int i, fd;
 	    struct termios foo;
 	    extern int login_tty(int);
 	    
-	    for (i = 0; i < 64; i++)
+	    ioctl(0, TIOCNOTTY, NULL);
+	    for (i = getdtablesize(); i >= 0; --i)
 		close(i);
-	    DebugFD = fd = open("/dev/ttyv3", O_RDWR);
+	    fd = open("/dev/ttyv3", O_RDWR);
 	    ioctl(0, TIOCSCTTY, &fd);
 	    dup2(0, 1);
 	    dup2(0, 2);
+	    DebugFD = 2;
 	    if (login_tty(fd) == -1)
 		msgDebug("Doctor: I can't set the controlling terminal.\n");
 	    signal(SIGTTOU, SIG_IGN);

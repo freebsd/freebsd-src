@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: network.c,v 1.16 1996/08/03 10:11:26 jkh Exp $
+ * $Id$
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -16,6 +16,7 @@
  *    notice, this list of conditions and the following disclaimer,
  *    verbatim and that no modifications are made prior to this
  *    point in the file.
+ *
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
@@ -45,12 +46,14 @@
 static Boolean	networkInitialized;
 static pid_t	startPPP(Device *devp);
 
+static pid_t	pppPID;
+
 Boolean
 mediaInitNetwork(Device *dev)
 {
     int i;
     char *rp;
-    char *cp, ifconfig[64];
+    char *cp, ifconfig[255];
 
     if (!RunningAsInit || networkInitialized)
 	return TRUE;
@@ -59,13 +62,14 @@ mediaInitNetwork(Device *dev)
     if (!file_readable("/etc/resolv.conf"))
 	configResolv();
 
-    /* Old process lying around? */
-    if (dev->private) {
-	kill((pid_t)dev->private, SIGTERM);
-	dev->private = NULL;
+    /* Old PPP process lying around? */
+    if (pppPID) {
+	msgNotify("Killing previous PPP process %d.", pppPID);
+	kill(pppPID, SIGTERM);
+	pppPID = 0;
     }
     if (!strncmp("ppp", dev->name, 3)) {	/* PPP? */
-	if (!(dev->private = (void *)startPPP(dev))) {
+	if (!(pppPID = startPPP(dev))) {
 	    msgConfirm("Unable to start PPP!  This installation method cannot be used.");
 	    return FALSE;
 	}
@@ -88,13 +92,20 @@ mediaInitNetwork(Device *dev)
 			  "correctness (default here is: VJ compression, Hardware flow-\n"
 			  "control, ignore carrier and 9600 baud data rate).  When you're\n"
 			  "ready, press [ENTER] to execute it.");
-	if (!val)
+	if (!val) {
+	    msgConfirm("slattach command was empty.  Try again!");
 	    return FALSE;
+	}
 	else
-	    strcpy(attach, val);
+	    SAFE_STRCPY(attach, val);
+	/*
+	 * Doing this with vsystem() is actually bogus since we should be storing the pid of slattach
+	 * for later killing.  It's just too convenient to call vsystem(), however, rather than
+	 * constructing a proper argument for exec() so we punt on doing slip right for now.
+	 */
 	if (vsystem(attach)) {
 	    msgConfirm("slattach returned a bad status!  Please verify that\n"
-		       "the command is correct and try again.");
+		       "the command is correct and try this operation again.");
 	    return FALSE;
 	}
     }
@@ -106,7 +117,7 @@ mediaInitNetwork(Device *dev)
 		   "in the Networking configuration menu before proceeding.", dev->name);
 	return FALSE;
     }
-    msgNotify("Configuring network device %s.", dev->name);
+    msgNotify("ifconfig %s %s", dev->name, cp);
     i = vsystem("ifconfig %s %s", dev->name, cp);
     if (i) {
 	msgConfirm("Unable to configure the %s interface!\n"
@@ -123,7 +134,8 @@ mediaInitNetwork(Device *dev)
 	msgNotify("Adding default route to %s.", rp);
 	vsystem("route add default %s", rp);
     }
-    msgDebug("Network initialized successfully.\n");
+    if (isDebug())
+	msgDebug("Network initialized successfully.\n");
     networkInitialized = TRUE;
     return TRUE;
 }
@@ -146,7 +158,7 @@ mediaShutdownNetwork(Device *dev)
 	cp = variable_get(ifconfig);
 	if (!cp)
 	    return;
-	msgNotify("Shutting interface %s down.", dev->name);
+	msgNotify("ifconfig %s down", dev->name);
 	i = vsystem("ifconfig %s down", dev->name);
 	if (i)
 	    msgConfirm("Warning: Unable to down the %s interface properly", dev->name);
@@ -155,14 +167,13 @@ mediaShutdownNetwork(Device *dev)
 	    msgNotify("Deleting default route.");
 	    vsystem("route delete default");
 	}
-	networkInitialized = FALSE;
     }
-    else if (dev->private) {	/* ppp sticks its PID there */
-	msgNotify("Killing PPP process %d.", (int)dev->private);
-	kill((pid_t)dev->private, SIGTERM);
-	dev->private = NULL;
-	networkInitialized = FALSE;
+    else if (pppPID) {
+	msgNotify("Killing previous PPP process %d.", pppPID);
+	kill(pppPID, SIGTERM);
+	pppPID = 0;
     }
+    networkInitialized = FALSE;
 }
 
 /* Start PPP on the 3rd screen */
@@ -189,15 +200,18 @@ startPPP(Device *devp)
 		      "maximum data rate since most modems can talk at one speed to the\n"
 		      "computer and at another speed to the remote end.\n\n"
 		      "If you're not sure what to put here, just select the default.");
-    strcpy(speed, (val && *val) ? val : "115200");
+    SAFE_STRCPY(speed, (val && *val) ? val : "115200");
 
-    strcpy(provider, variable_get(VAR_GATEWAY) ? variable_get(VAR_GATEWAY) : "0");
+    val = variable_get(VAR_GATEWAY);
+    SAFE_STRCPY(provider, (val && *val) ? val : "0");
+
+    dialog_clear_norefresh();
     val = msgGetInput(provider, "Enter the IP address of your service provider or 0 if you\n"
 		      "don't know it and would prefer to negotiate it dynamically.");
-    strcpy(provider, val ? val : "0");
+    SAFE_STRCPY(provider, (val && *val) ? val : "0");
 
     if (devp->private && ((DevInfo *)devp->private)->ipaddr[0])
-	strcpy(myaddr, ((DevInfo *)devp->private)->ipaddr);
+	SAFE_STRCPY(myaddr, ((DevInfo *)devp->private)->ipaddr);
     else
 	strcpy(myaddr, "0");
 
@@ -232,6 +246,7 @@ startPPP(Device *devp)
     fprintf(fp, " set speed %s\n", speed);
     fprintf(fp, " set device %s\n", devp->devname);
     fprintf(fp, " set ifaddr %s %s\n", myaddr, provider);
+    fprintf(fp, " set timeout 0\n");
     fclose(fp);
 
     if (!Fake && !file_readable("/dev/tun0") && mknod("/dev/tun0", 0600 | S_IFCHR, makedev(52, 0))) {
@@ -239,19 +254,23 @@ startPPP(Device *devp)
 	return 0;
     }
 
+    if (isDebug())
+	msgDebug("About to start PPP on device %s @ %s baud.  Provider = %s\n", devp->devname, speed, provider);
+
     if (!Fake && !(pid = fork())) {
 	int i, fd;
 	struct termios foo;
 	extern int login_tty(int);
 
-	for (i = 0; i < 64; i++)
+	for (i = getdtablesize(); i >= 0; i--)
 	    close(i);
 
 	/* We're going over to VTY2 */
-	DebugFD = fd = open("/dev/ttyv2", O_RDWR);
+	fd = open("/dev/ttyv2", O_RDWR);
 	ioctl(0, TIOCSCTTY, &fd);
 	dup2(0, 1);
 	dup2(0, 2);
+	DebugFD = 2;
 	if (login_tty(fd) == -1)
 	    msgDebug("ppp: Can't set the controlling terminal.\n");
 	signal(SIGTTOU, SIG_IGN);
@@ -267,6 +286,7 @@ startPPP(Device *devp)
 	exit(1);
     }
     else {
+	dialog_clear_norefresh();
 	msgConfirm("NOTICE: The PPP command is now started on VTY3 (type ALT-F3 to\n"
 		   "interact with it, ALT-F1 to switch back here). The only command\n"
 		   "you'll probably want or need to use is the \"term\" command\n"

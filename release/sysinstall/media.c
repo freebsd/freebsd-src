@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: media.c,v 1.25.2.43 1996/11/07 09:17:33 jkh Exp $
+ * $Id$
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -34,8 +34,8 @@
  *
  */
 
-#include <unistd.h>
-#include <stdio.h>
+#include "sysinstall.h"
+#include <signal.h>
 #include <netdb.h>
 #include <sys/socket.h>
 #include <sys/param.h>
@@ -47,7 +47,25 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
-#include "sysinstall.h"
+static Boolean got_intr = FALSE;
+
+/* timeout handler */
+static void
+handle_intr(int sig)
+{
+    msgDebug("User generated interrupt.\n");
+    got_intr = TRUE;
+}
+
+static int
+check_for_interrupt(void)
+{
+    if (got_intr) {
+	got_intr = FALSE;
+	return TRUE;
+    }
+    return FALSE;
+}
 
 static int
 genericHook(dialogMenuItem *self, DeviceType type)
@@ -108,11 +126,11 @@ mediaSetCDROM(dialogMenuItem *self)
 	status = dmenuOpenSimple(menu, FALSE);
 	free(menu);
 	if (!status)
-	    return DITEM_FAILURE | DITEM_RECREATE;
+	    return DITEM_FAILURE | DITEM_RESTORE;
     }
     else
 	mediaDevice = devs[0];
-    return (mediaDevice ? DITEM_SUCCESS | DITEM_LEAVE_MENU : DITEM_FAILURE) | DITEM_RECREATE;
+    return (mediaDevice ? DITEM_SUCCESS | DITEM_LEAVE_MENU : DITEM_FAILURE) | DITEM_RESTORE;
 }
 
 static int
@@ -149,11 +167,11 @@ mediaSetFloppy(dialogMenuItem *self)
 	status = dmenuOpenSimple(menu, FALSE);
 	free(menu);
 	if (!status)
-	    return DITEM_FAILURE | DITEM_RECREATE;
+	    return DITEM_FAILURE | DITEM_RESTORE;
     }
     else
 	mediaDevice = devs[0];
-    return (mediaDevice ? DITEM_LEAVE_MENU : DITEM_FAILURE) | DITEM_RECREATE;
+    return (mediaDevice ? DITEM_LEAVE_MENU : DITEM_FAILURE) | DITEM_RESTORE;
 }
 
 static int
@@ -188,11 +206,11 @@ mediaSetDOS(dialogMenuItem *self)
 	status = dmenuOpenSimple(menu, FALSE);
 	free(menu);
 	if (!status)
-	    return DITEM_FAILURE | DITEM_RECREATE;
+	    return DITEM_FAILURE | DITEM_RESTORE;
     }
     else
 	mediaDevice = devs[0];
-    return (mediaDevice ? DITEM_LEAVE_MENU : DITEM_FAILURE) | DITEM_RECREATE;
+    return (mediaDevice ? DITEM_LEAVE_MENU : DITEM_FAILURE) | DITEM_RESTORE;
 }
 
 static int
@@ -229,7 +247,7 @@ mediaSetTape(dialogMenuItem *self)
 	status = dmenuOpenSimple(menu, FALSE);
 	free(menu);
 	if (!status)
-	    return DITEM_FAILURE | DITEM_RECREATE;
+	    return DITEM_FAILURE | DITEM_RESTORE;
     }
     else
 	mediaDevice = devs[0];
@@ -246,7 +264,7 @@ mediaSetTape(dialogMenuItem *self)
 	else
 	    mediaDevice->private = strdup(val);
     }
-    return (mediaDevice ? DITEM_LEAVE_MENU : DITEM_FAILURE) | DITEM_RECREATE;
+    return (mediaDevice ? DITEM_LEAVE_MENU : DITEM_FAILURE) | DITEM_RESTORE;
 }
 
 /*
@@ -270,10 +288,10 @@ mediaSetFTP(dialogMenuItem *self)
     if (!cp) {
 	dialog_clear_norefresh();
 	if (!dmenuOpenSimple(&MenuMediaFTP, FALSE))
-	    return DITEM_FAILURE | DITEM_RECREATE;
+	    return DITEM_FAILURE | DITEM_RESTORE;
 	else
 	    cp = variable_get(VAR_FTP_PATH);
-	what = DITEM_RECREATE;
+	what = DITEM_RESTORE;
     }
     if (!cp)
 	return DITEM_FAILURE | what;
@@ -297,12 +315,11 @@ mediaSetFTP(dialogMenuItem *self)
 	variable_unset(VAR_FTP_PATH);
 	return DITEM_FAILURE | what;
     }
-    strcpy(ftpDevice.name, cp);
+    SAFE_STRCPY(ftpDevice.name, cp);
 
     dialog_clear_norefresh();
-    if (RunningAsInit &&
-	(network_init || msgYesNo("You've already done the network configuration once,\n"
-				  "would you like to skip over it now?") != 0)) {
+    if (RunningAsInit && (network_init || msgYesNo("You've already done the network configuration once,\n"
+						   "would you like to skip over it now?") != 0)) {
 	if (mediaDevice)
 	    mediaDevice->shutdown(mediaDevice);
 	if (!tcpDeviceSelect()) {
@@ -349,9 +366,8 @@ mediaSetFTP(dialogMenuItem *self)
     ftpDevice.type = DEVICE_TYPE_FTP;
     ftpDevice.init = mediaInitFTP;
     ftpDevice.get = mediaGetFTP;
-    ftpDevice.close = mediaCloseFTP;
     ftpDevice.shutdown = mediaShutdownFTP;
-    ftpDevice.private = mediaDevice; /* Set to network device by tcpDeviceSelect() */
+    ftpDevice.private = RunningAsInit ? mediaDevice : NULL; /* Set to network device by tcpDeviceSelect() */
     mediaDevice = &ftpDevice;
     return DITEM_SUCCESS | DITEM_LEAVE_MENU | what;
 }
@@ -385,7 +401,6 @@ mediaSetUFS(dialogMenuItem *self)
     ufsDevice.type = DEVICE_TYPE_UFS;
     ufsDevice.init = dummyInit;
     ufsDevice.get = mediaGetUFS;
-    ufsDevice.close = dummyClose;
     ufsDevice.shutdown = dummyShutdown;
     ufsDevice.private = strdup(cp);
     mediaDevice = &ufsDevice;
@@ -396,6 +411,7 @@ int
 mediaSetNFS(dialogMenuItem *self)
 {
     static Device nfsDevice;
+    static int network_init = 1;
     char *cp, *idx;
 
     dialog_clear_norefresh();
@@ -409,17 +425,20 @@ mediaSetNFS(dialogMenuItem *self)
 		   "host:/full/pathname/to/FreeBSD/distdir");
 	return DITEM_FAILURE;
     }
-    strncpy(nfsDevice.name, cp, DEV_NAME_MAX);
-    /* str == NULL means we were just called to change NFS paths, not network interfaces */
-    if (!tcpDeviceSelect())
-	return DITEM_FAILURE;
-    if (!mediaDevice || !mediaDevice->init(mediaDevice)) {
-	if (isDebug())
-	    msgDebug("mediaSetNFS: Net device init failed\n");
-	return DITEM_FAILURE;
-    }
+    SAFE_STRCPY(nfsDevice.name, cp);
     *idx = '\0';
-    if (variable_get(VAR_NAMESERVER)) {
+    if (RunningAsInit && (network_init || msgYesNo("You've already done the network configuration once,\n"
+						   "would you like to skip over it now?") != 0)) {
+	if (!tcpDeviceSelect())
+	    return DITEM_FAILURE;
+	if (!mediaDevice || !mediaDevice->init(mediaDevice)) {
+	    if (isDebug())
+		msgDebug("mediaSetNFS: Net device init failed\n");
+	    return DITEM_FAILURE;
+	}
+    }
+    network_init = 0;
+    if (!RunningAsInit || variable_get(VAR_NAMESERVER)) {
 	if ((gethostbyname(cp) == NULL) && (inet_addr(cp) == INADDR_NONE)) {
 	    msgConfirm("Cannot resolve hostname `%s'!  Are you sure that your\n"
 		       "name server, gateway and network interface are correctly configured?", cp);
@@ -427,15 +446,13 @@ mediaSetNFS(dialogMenuItem *self)
 	}
 	else
 	    msgNotify("Found DNS entry for %s successfully..", cp);
-
     }
     variable_set2(VAR_NFS_HOST, cp);
     nfsDevice.type = DEVICE_TYPE_NFS;
     nfsDevice.init = mediaInitNFS;
     nfsDevice.get = mediaGetNFS;
-    nfsDevice.close = dummyClose;
     nfsDevice.shutdown = mediaShutdownNFS;
-    nfsDevice.private = mediaDevice;
+    nfsDevice.private = RunningAsInit ? mediaDevice : NULL;
     mediaDevice = &nfsDevice;
     return DITEM_LEAVE_MENU;
 }
@@ -521,31 +538,38 @@ mediaExtractDistEnd(int zpid, int cpid)
     return TRUE;
 }
 
-
 Boolean
-mediaExtractDist(char *dir, int fd)
+mediaExtractDist(char *dir, char *dist, FILE *fp)
 {
-    int i, j, zpid, cpid, pfd[2];
+    int i, j, total, seconds, zpid, cpid, pfd[2], qfd[2];
+    char buf[BUFSIZ];
+    struct timeval start, stop;
+    struct sigaction new, old;
 
     if (!dir)
 	dir = "/";
 
     Mkdir(dir);
     chdir(dir);
-    pipe(pfd);
+    pipe(pfd);	/* read end */
+    pipe(qfd);	/* write end */
     zpid = fork();
     if (!zpid) {
 	char *gunzip = RunningAsInit ? "/stand/gunzip" : "/usr/bin/gunzip";
 
-	dup2(fd, 0); close(fd);
+	fclose(fp);
+	close(qfd[1]);
+	dup2(qfd[0], 0); close(qfd[0]);
+
+	close(pfd[0]); 
 	dup2(pfd[1], 1); close(pfd[1]);
+
 	if (DebugFD != -1)
 	    dup2(DebugFD, 2);
 	else {
 	    close(2);
 	    open("/dev/null", O_WRONLY);
 	}
-	close(pfd[0]);
 	i = execl(gunzip, gunzip, 0);
 	if (isDebug())
 	    msgDebug("%s command returns %d status\n", gunzip, i);
@@ -555,15 +579,16 @@ mediaExtractDist(char *dir, int fd)
     if (!cpid) {
 	char *cpio = RunningAsInit ? "/stand/cpio" : "/usr/bin/cpio";
 
-	dup2(pfd[0], 0); close(pfd[0]);
-	close(fd);
 	close(pfd[1]);
+	dup2(pfd[0], 0); close(pfd[0]);
+	close (qfd[0]); close(qfd[1]);
+	fclose(fp);
 	if (DebugFD != -1) {
 	    dup2(DebugFD, 1);
 	    dup2(DebugFD, 2);
 	}
 	else {
-	    close(1); open("/dev/null", O_WRONLY);
+	    dup2(open("/dev/null", O_WRONLY), 1);
 	    dup2(1, 2);
 	}
 	if (strlen(cpioVerbosity()))
@@ -574,8 +599,43 @@ mediaExtractDist(char *dir, int fd)
 	    msgDebug("%s command returns %d status\n", cpio, i);
 	exit(i);
     }
-    close(pfd[0]);
-    close(pfd[1]);
+    close(pfd[0]); close(pfd[1]);
+    close(qfd[0]);
+
+    total = 0;
+    (void)gettimeofday(&start, (struct timezone *)0);
+
+    /* Make ^C abort the current transfer rather than the whole show */
+    new.sa_handler = handle_intr;
+    new.sa_flags = 0;
+    new.sa_mask = 0;
+    sigaction(SIGINT, &new, &old);
+
+    while ((i = fread(buf, 1, BUFSIZ, fp)) > 0) {
+	if (check_for_interrupt()) {
+	    msgConfirm("Failure to read from media:  User interrupt.");
+	    break;
+	}
+	if (write(qfd[1], buf, i) != i) {
+	    msgConfirm("Write error on transfer to cpio process, try of %d bytes.", i);
+	    break;
+	}
+	else {
+	    (void)gettimeofday(&stop, (struct timezone *)0);
+	    stop.tv_sec = stop.tv_sec - start.tv_sec;
+	    stop.tv_usec = stop.tv_usec - start.tv_usec;
+	    if (stop.tv_usec < 0)
+		stop.tv_sec--, stop.tv_usec += 1000000;
+	    seconds = stop.tv_sec + (stop.tv_usec / 1000000.0);
+	    if (!seconds)
+		seconds = 1;
+	    total += i;
+	    msgInfo("%10d bytes read from %s dist @ %.1f KB/sec.",
+		    total, dist, (total / seconds) / 1024.0);
+	}
+    }
+    sigaction(SIGINT, &old, NULL);	/* restore sigint */
+    close(qfd[1]);
 
     i = waitpid(zpid, &j, 0);
     /* Don't check exit status - gunzip seems to return a bogus one! */
@@ -599,7 +659,7 @@ mediaGetType(dialogMenuItem *self)
     int i;
 
     i = dmenuOpenSimple(&MenuMedia, FALSE) ? DITEM_SUCCESS : DITEM_FAILURE;
-    return i | DITEM_RECREATE;
+    return i | DITEM_RESTORE;
 }
 
 /* Return TRUE if all the media variables are set up correctly */
@@ -623,7 +683,9 @@ mediaSetFTPUserPass(dialogMenuItem *self)
     dialog_clear_norefresh();
     if (variable_get_value(VAR_FTP_USER, "Please enter the username you wish to login as:")) {
 	dialog_clear_norefresh();
+	DialogInputAttrs |= DITEM_NO_ECHO;
 	pass = variable_get_value(VAR_FTP_PASS, "Please enter the password for this user:");
+	DialogInputAttrs &= ~DITEM_NO_ECHO;
     }
     else
 	pass = NULL;

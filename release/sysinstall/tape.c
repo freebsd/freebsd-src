@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: tape.c,v 1.13 1996/08/23 07:56:00 jkh Exp $
+ * $Id$
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -53,49 +53,58 @@ mediaTapeBlocksize(void)
 Boolean
 mediaInitTape(Device *dev)
 {
-    int i;
-    if (tapeInitted)
-	return TRUE;
-
-    msgDebug("Tape init routine called for %s (private dir is %s)\n", dev->name, dev->private);
-    Mkdir(dev->private);
-    if (chdir(dev->private))
-	return FALSE;
-    /* We know the tape is already in the drive, so go for it */
-    msgNotify("Attempting to extract from %s...", dev->description);
-    if (!strcmp(dev->name, "rft0"))
-	i = vsystem("ft | cpio -idum %s --block-size %s", cpioVerbosity(), mediaTapeBlocksize());
-    else
-	i = vsystem("cpio -idum %s --block-size %s -I %s", cpioVerbosity(), mediaTapeBlocksize(), dev->devname);
-    if (!i) {
-	tapeInitted = TRUE;
-	msgDebug("Tape initialized successfully.\n");
-	return TRUE;
-    }
-    else
-	msgConfirm("Tape extract command failed with status %d!", i);
-    return FALSE;
+    /* This is REALLY gross, but we need to do the init later in get due to the fact
+     * that media is initialized BEFORE a filesystem is mounted now.
+     */
+    return TRUE;
 }
 
-int
+FILE *
 mediaGetTape(Device *dev, char *file, Boolean probe)
 {
     char buf[PATH_MAX];
-    int fd;
+    FILE *fp;
+
+    int i;
+
+    if (!tapeInitted) {
+	msgDebug("Tape init routine called for %s (private dir is %s)\n", dev->name, dev->private);
+	Mkdir(dev->private);
+	if (chdir(dev->private)) {
+	    msgConfirm("Unable to CD to %s before extracting tape!\n"
+		       "Tape media is not selected and thus cannot be installed from.", dev->private);
+	    return (FILE *)IO_ERROR;
+	}
+	/* We know the tape is already in the drive, so go for it */
+	msgNotify("First extracting distributions from %s...", dev->description);
+	if (!strcmp(dev->name, "rft0"))
+	    i = vsystem("ft | cpio -idum %s --block-size %s", cpioVerbosity(), mediaTapeBlocksize());
+	else
+	    i = vsystem("cpio -idum %s --block-size %s -I %s", cpioVerbosity(), mediaTapeBlocksize(), dev->devname);
+	if (!i) {
+	    tapeInitted = TRUE;
+	    msgDebug("Tape initialized successfully.\n");
+	}
+	else {
+	    msgConfirm("Tape extract command failed with status %d!\n"
+		       "Unable to use tape media.", i);
+	    return (FILE *)IO_ERROR;
+	}
+    }
 
     sprintf(buf, "%s/%s", (char *)dev->private, file);
     if (isDebug())
 	msgDebug("Request for %s from tape (looking in %s)\n", file, buf);
     if (file_readable(buf))
-	fd = open(buf, O_RDONLY);
+	fp = fopen(buf, "r");
     else {
 	sprintf(buf, "%s/dists/%s", (char *)dev->private, file);
-	fd = open(buf, O_RDONLY);
+	fp = fopen(buf, "r");
     }
     /* Nuke the files behind us to save space */
-    if (fd != -1)
+    if (fp)
 	unlink(buf);
-    return fd;
+    return fp;
 }
 
 void
@@ -103,9 +112,8 @@ mediaShutdownTape(Device *dev)
 {
     if (!tapeInitted)
 	return;
-    msgDebug("Shutdown of tape device - %s will be cleaned\n", dev->private);
     if (file_readable(dev->private)) {
-	msgNotify("Cleaning up results of tape extract..");
+	msgNotify("Cleaning up results of tape extract in %s..", dev->private);
 	(void)vsystem("rm -rf %s", (char *)dev->private);
     }
     tapeInitted = FALSE;

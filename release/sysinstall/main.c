@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: main.c,v 1.28 1996/09/26 21:03:35 pst Exp $
+ * $Id$
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -35,14 +35,13 @@
  */
 
 #include "sysinstall.h"
-#include <stdio.h>
 #include <sys/signal.h>
 #include <sys/fcntl.h>
 
 static void
 screech(int sig)
 {
-    fprintf(stderr, "\007Fatal signal %d caught!  I'm dead..\n", sig);
+    printf("\007Fatal signal %d caught!  I'm dead..\n", sig);
     if (RunningAsInit)
 	pause();
     else
@@ -79,9 +78,13 @@ main(int argc, char **argv)
     }
 
     /* Try to preserve our scroll-back buffer */
-    if (OnVTY)
+    if (OnVTY) {
 	for (curr = 0; curr < 25; curr++)
 	    putchar('\n');
+    }
+    /* Move stderr aside */
+    if (DebugFD)
+	dup2(DebugFD, 2);
 
     /* Probe for all relevant devices on the system */
     deviceGetAll();
@@ -89,13 +92,6 @@ main(int argc, char **argv)
     /* First, see if we have any arguments to process (and argv[0] counts if it's not "sysinstall") */
     if (!RunningAsInit) {
 	int i, start_arg;
-
-	/* Try to set ourselves up as a CDROM if we can do that first */
-	if (DITEM_STATUS(mediaSetCDROM(NULL)) == DITEM_SUCCESS) {
-	    /* If we can't initialize it, it's probably not a FreeBSD CDROM so punt on it */
-	    if (!mediaDevice->init(mediaDevice))
-		mediaDevice = NULL;
-	}
 
 	if (!strstr(argv[0], "sysinstall"))
 	    start_arg = 0;
@@ -110,25 +106,21 @@ main(int argc, char **argv)
 	if (argc > start_arg)
 	    systemShutdown(0);
     }
+    else {
+	FILE *fp;
+	char buf[BUFSIZ];
 
-    {
-	int fd;
-	Attribs attrs[512];
-
-	bzero(attrs, sizeof(attrs));
-
-	fd = open("install.cfg", O_RDONLY);
-	if (fd >= 0) {
+	fp = fopen("install.cfg", "r");
+	if (fp) {
 	    msgNotify("Loading pre-configuration file");
-	    if (DITEM_STATUS(attr_parse(attrs, fd)) == DITEM_SUCCESS) {
-		int i;
-
-		for (i = 0; *attrs[i].name; i++)
-		    variable_set2(attrs[i].name, attrs[i].value);
+	    while (fgets(buf, sizeof buf, fp)) {
+		if (DITEM_STATUS(dispatchCommand(buf)) != DITEM_SUCCESS) {
+		    msgDebug("Command `%s' failed - rest of script aborted.\n", buf);
+		    break;
+		}
 	    }
-	    close(fd);
+	    fclose(fp);
 	}
-
 #if defined(LOAD_CONFIG_FILE)
 	else {
 	    /* If we have a compiled-in startup config file name on
@@ -136,24 +128,20 @@ main(int argc, char **argv)
 	    extern char *distWanted;
 
 	    /* Tell mediaSetFloppy() to try floppy now */
-	    distWanted = (char *)1;
+	    distWanted = LOAD_CONFIG_FILE;
 
 	    /* Try to open the floppy drive if we can do that first */
-	    if (DITEM_STATUS(mediaSetFloppy(NULL)) != DITEM_FAILURE &&
-		mediaDevice->init(mediaDevice)) {
-		int fd;
-
-		fd = mediaDevice->get(mediaDevice, LOAD_CONFIG_FILE, TRUE);
-		if (fd > 0) {
-		    msgNotify("Loading %s pre-configuration file",
-			      LOAD_CONFIG_FILE);
-		    if (DITEM_STATUS(attr_parse(attrs, fd)) == DITEM_SUCCESS) {
-			int i;
-
-			for (i = 0; *attrs[i].name; i++)
-			    variable_set2(attrs[i].name, attrs[i].value);
+	    if (DITEM_STATUS(mediaSetFloppy(NULL)) != DITEM_FAILURE && mediaDevice->init(mediaDevice)) {
+		fp = mediaDevice->get(mediaDevice, LOAD_CONFIG_FILE, TRUE);
+		if (fp) {
+		    msgNotify("Loading %s pre-configuration file", LOAD_CONFIG_FILE);
+		    while (fgets(buf, sizeof buf, fp)) {
+			if (DITEM_STATUS(dispatchCommand(buf)) != DITEM_SUCCESS) {
+			    msgDebug("Command `%s' failed - rest of script aborted.\n", buf);
+			    break;
+			}
 		    }
-		    mediaDevice->close(mediaDevice, fd);
+		    fclose(fp);
 		}
 		mediaDevice->shutdown(mediaDevice);
 	    }

@@ -24,7 +24,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  * library functions for userconfig library
  *
- * $Id: uc_main.c,v 1.12 1996/10/06 16:04:49 jkh Exp $
+ * $Id$
  */
 
 #include <sys/types.h>
@@ -39,9 +39,7 @@
 #include <fcntl.h>
 
 #include "uc_main.h"
-
-extern int	isDebug(void);
-extern void	msgDebug(char *fmt, ...);
+#include "sysinstall.h"
 
 static struct nlist _nl[] = {
     {"_isa_devtab_bio"},
@@ -76,9 +74,9 @@ uc_open(char *name){
 	incore = 0;
     
     if (incore || (strcmp(name,"-bootfile") == 0))
-	strncpy(kname, getbootfile(), 79);
+	SAFE_STRCPY(kname, getbootfile());
     else
-	strncpy(kname, name, 79);
+	SAFE_STRCPY(kname, name);
 
     if (isDebug())
 	msgDebug("uc_open: kernel name is %s, incore = %d\n", kname, incore);
@@ -192,7 +190,7 @@ uc_open(char *name){
 	kern->core = mmap((caddr_t)0, sb.st_size, PROT_READ | PROT_WRITE,
 			  MAP_SHARED, kd, 0);
 	kern->incore = 0;
-	if (kern->core == (caddr_t)0) {
+	if (kern->core == MAP_FAILED) {
 	    free(kern);
 	    msgDebug("uc_open: Unable to mmap from %s.\n", kname);
 	    return NULL;
@@ -211,10 +209,14 @@ uc_open(char *name){
     get_eisa_info(kern);
     if (isDebug())
 	msgDebug("uc_open: got eisa information\n");
-
+#ifdef USE_SCSI
     get_scsi_info(kern);
     if (isDebug())
 	msgDebug("uc_open: got scsi information\n");
+#else
+    kern->scsi_devp=(struct uc_scsi*)NULL;
+    kern->scsibus_devp=(struct uc_scsibus*)NULL;
+#endif
     return kern;
 }
  

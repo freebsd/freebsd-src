@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: variable.c,v 1.11 1996/06/12 14:02:13 jkh Exp $
+ * $Id$
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -41,45 +41,52 @@
 static void
 make_variable(char *var, char *value)
 {
-    Variable *newvar;
+    Variable *vp;
+
+    /* Trim leading and trailing whitespace */
+    var = string_skipwhite(string_prune(var));
+
+    if (!var || !*var)
+	return;
 
     /* Put it in the environment in any case */
     setenv(var, value, 1);
 
     /* Now search to see if it's already in the list */
-    for (newvar = VarHead; newvar; newvar = newvar->next) {
-	if (!strcmp(newvar->name, var)) {
+    for (vp = VarHead; vp; vp = vp->next) {
+	if (!strcmp(vp->name, var)) {
 	    if (isDebug())
-		msgDebug("variable %s was %s, now %s\n", newvar->name, newvar->value, value);
-	    strncpy(newvar->value, value, VAR_VALUE_MAX);
+		msgDebug("variable %s was %s, now %s\n", vp->name, vp->value, value);
+	    free(vp->value);
+	    vp->value = strdup(value);
 	    return;
 	}
     }
 
     /* No?  Create a new one */
-    newvar = (Variable *)safe_malloc(sizeof(Variable));
-    strncpy(newvar->name, var, VAR_NAME_MAX);
-    strncpy(newvar->value, value, VAR_VALUE_MAX);
-    newvar->next = VarHead;
-    VarHead = newvar;
+    vp = (Variable *)safe_malloc(sizeof(Variable));
+    vp->name = strdup(var);
+    vp->value = strdup(value);
+    vp->next = VarHead;
+    VarHead = vp;
     if (isDebug())
-	msgDebug("Setting variable %s to %s\n", newvar->name, newvar->value);
+	msgDebug("Setting variable %s to %s\n", vp->name, vp->value);
 }
 
 void
 variable_set(char *var)
 {
-    char tmp[VAR_NAME_MAX + VAR_VALUE_MAX], *cp;
+    char tmp[1024], *cp;
 
     if (!var)
 	msgFatal("NULL variable name & value passed.");
     else if (!*var)
 	msgDebug("Warning:  Zero length name & value passed to variable_set()\n");
-    strncpy(tmp, var, VAR_NAME_MAX + VAR_VALUE_MAX);
+    SAFE_STRCPY(tmp, var);
     if ((cp = index(tmp, '=')) == NULL)
 	msgFatal("Invalid variable format: %s", var);
     *(cp++) = '\0';
-    make_variable(tmp, cp);
+    make_variable(tmp, string_skipwhite(cp));
 }
 
 void
@@ -102,19 +109,20 @@ void
 variable_unset(char *var)
 {
     Variable *vp;
-    char name[VAR_NAME_MAX + 1], *cp;
+    char name[512], *cp;
 
     unsetenv(var);
     if ((cp = index(var, '=')) != NULL) {
-	strncpy(name, cp, cp - var);
-	name[cp - var] = '\0';
-	var = name;
+	sstrncpy(name, cp, cp - var);
+	var = string_skipwhite(string_prune(name));
     }
 
     /* Now search to see if it's in our list, if we have one.. */
     if (!VarHead)
 	return;
     else if (!VarHead->next && !strcmp(VarHead->name, var)) {
+	safe_free(VarHead->name);
+	safe_free(VarHead->value);
 	free(VarHead);
 	VarHead = NULL;
     }
@@ -124,6 +132,8 @@ variable_unset(char *var)
 		Variable *save = vp->next;
 
 		*vp = *save;
+		safe_free(save->name);
+		safe_free(save->value);
 		safe_free(save);
 		break;
 	    }

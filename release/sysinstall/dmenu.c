@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: dmenu.c,v 1.12.2.17 1996/11/07 09:16:57 jkh Exp $
+ * $Id$
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -36,7 +36,6 @@
 
 #include "sysinstall.h"
 #include <errno.h>
-#include <sys/types.h>
 
 #define MAX_MENU		15
 
@@ -53,7 +52,7 @@ int
 dmenuSubmenu(dialogMenuItem *tmp)
 {
     return (dmenuOpenSimple((DMenu *)(tmp->data), FALSE) ? DITEM_SUCCESS : DITEM_FAILURE) |
-	DITEM_RECREATE;
+	DITEM_RESTORE;
 }
 
 int
@@ -182,7 +181,7 @@ dmenuVarCheck(dialogMenuItem *item)
 	w = (char *)item->data;
     if (!w)
 	return FALSE;
-    strncpy(tmp, w, 256);
+    SAFE_STRCPY(tmp, w);
     if ((cp = index(tmp, '=')) != NULL) {
         *(cp++) = '\0';
 	if ((cp3 = index(cp, ',')) != NULL)

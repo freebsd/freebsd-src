@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: devices.c,v 1.49 1996/10/05 11:56:47 jkh Exp $
+ * $Id$
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -35,19 +35,18 @@
  */
 
 #include "sysinstall.h"
-
 #include <sys/fcntl.h>
 #include <sys/param.h>
 #include <sys/socket.h>
 #include <sys/ioctl.h>
 #include <sys/errno.h>
-
+#include <sys/time.h>
 #include <net/if.h>
+#include <net/if_var.h>
 #include <net/if_dl.h>
 #include <netinet/in.h>
 #include <netinet/in_var.h>
 #include <arpa/inet.h>
-
 #include <ctype.h>
 
 static Device *Devices[DEV_MAX];
@@ -68,26 +67,28 @@ static struct {
     { DEVICE_TYPE_TAPE, 	"rwt0",		"Wangtek tape drive"					},
     { DEVICE_TYPE_DISK, 	"sd",		"SCSI disk device"					},
     { DEVICE_TYPE_DISK, 	"wd",		"IDE/ESDI/MFM/ST506 disk device"			},
+    { DEVICE_TYPE_DISK, 	"od",		"SCSI optical disk device"				},
     { DEVICE_TYPE_FLOPPY,	"fd0",		"floppy drive unit A"					},
     { DEVICE_TYPE_FLOPPY,	"fd1",		"floppy drive unit B"					},
+    { DEVICE_TYPE_FLOPPY,	"od0",		"SCSI optical disk/floppy format"			},
     { DEVICE_TYPE_NETWORK,	"cuaa0",	"%s on serial port 0 (COM1)"				},
     { DEVICE_TYPE_NETWORK,	"cuaa1",	"%s on serial port 1 (COM2)"				},
     { DEVICE_TYPE_NETWORK,	"cuaa2",	"%s on serial port 2 (COM3)"				},
     { DEVICE_TYPE_NETWORK,	"cuaa3",	"%s on serial port 3 (COM4)"				},
     { DEVICE_TYPE_NETWORK,	"lp0",		"Parallel Port IP (PLIP) using laplink cable"		},
     { DEVICE_TYPE_NETWORK,	"lo",		"Loop-back (local) network interface"			},
-    { DEVICE_TYPE_NETWORK,	"sl",		"Serial-line IP (SLIP) interface"			},
-    { DEVICE_TYPE_NETWORK,	"ppp",		"Point-to-Point Protocol (PPP) interface"		},
     { DEVICE_TYPE_NETWORK,	"de",		"DEC DE435 PCI NIC or other DC21040-AA based card"	},
     { DEVICE_TYPE_NETWORK,	"fxp",		"Intel EtherExpress Pro/100B PCI Fast Ethernet card"	},
-    { DEVICE_TYPE_NETWORK,	"ed",		"WD/SMC 80xx; Novell NE1000/2000; 3Com 3C503 cards"	},
+    { DEVICE_TYPE_NETWORK,	"ed",		"WD/SMC 80xx; Novell NE1000/2000; 3Com 3C503 card"	},
     { DEVICE_TYPE_NETWORK,	"ep",		"3Com 3C509 ethernet card"				},
     { DEVICE_TYPE_NETWORK,	"el",		"3Com 3C501 ethernet card"				},
+    { DEVICE_TYPE_NETWORK,	"ex",		"Intel EtherExpress Pro/10 ethernet card"				},
     { DEVICE_TYPE_NETWORK,	"fe",		"Fujitsu MB86960A/MB86965A ethernet card"		},
     { DEVICE_TYPE_NETWORK,	"ie",		"AT&T StarLAN 10 and EN100; 3Com 3C507; NI5210"		},
     { DEVICE_TYPE_NETWORK,	"ix",		"Intel Etherexpress ethernet card"			},
     { DEVICE_TYPE_NETWORK,	"le",		"DEC EtherWorks 2 or 3 ethernet card"			},
     { DEVICE_TYPE_NETWORK,	"lnc",		"Lance/PCnet (Isolan/Novell NE2100/NE32-VL) ethernet"	},
+    { DEVICE_TYPE_NETWORK,	"vx",		"3COM 3c590 / 3c595 / 3c9xx ethernet card"	},
     { DEVICE_TYPE_NETWORK,	"ze",		"IBM/National Semiconductor PCMCIA ethernet card"	},
     { DEVICE_TYPE_NETWORK,	"zp",		"3Com Etherlink III PCMCIA ethernet card"		},
     { NULL },
@@ -101,7 +102,7 @@ new_device(char *name)
     dev = safe_malloc(sizeof(Device));
     bzero(dev, sizeof(Device));
     if (name)
-	strcpy(dev->name, name);
+	SAFE_STRCPY(dev->name, name);
     return dev;
 }
 
@@ -112,18 +113,10 @@ dummyInit(Device *dev)
     return TRUE;
 }
 
-int
+FILE *
 dummyGet(Device *dev, char *dist, Boolean probe)
 {
-    return -1;
-}
-
-Boolean
-dummyClose(Device *dev, int fd)
-{
-    if (!close(fd))
-	return TRUE;
-    return FALSE;
+    return NULL;
 }
 
 void
@@ -138,21 +131,21 @@ deviceTry(char *name, char *try)
     int fd;
 
     snprintf(try, FILENAME_MAX, "/dev/%s", name);
-    fd = open(try, O_RDWR);
+    fd = open(try, O_RDONLY);
     if (fd > 0)
 	return fd;
     if (errno == EBUSY)
 	return -1;
     snprintf(try, FILENAME_MAX, "/mnt/dev/%s", name);
-    fd = open(try, O_RDWR);
+    fd = open(try, O_RDONLY);
     return fd;
 }
 
 /* Register a new device in the devices array */
 Device *
 deviceRegister(char *name, char *desc, char *devname, DeviceType type, Boolean enabled,
-	       Boolean (*init)(Device *), int (*get)(Device *, char *, Boolean),
-	       Boolean (*close)(Device *, int), void (*shutdown)(Device *), void *private)
+	       Boolean (*init)(Device *), FILE * (*get)(Device *, char *, Boolean),
+	       void (*shutdown)(Device *), void *private)
 {
     Device *newdev = NULL;
 
@@ -166,7 +159,6 @@ deviceRegister(char *name, char *desc, char *devname, DeviceType type, Boolean e
 	newdev->enabled = enabled;
 	newdev->init = init ? init : dummyInit;
 	newdev->get = get ? get : dummyGet;
-	newdev->close = close ? close : dummyClose;
 	newdev->shutdown = shutdown ? shutdown : dummyShutdown;
 	newdev->private = private;
 	Devices[numDevs] = newdev;
@@ -198,8 +190,8 @@ deviceGetAll(void)
 	    if (!d)
 		msgFatal("Unable to open disk %s", names[i]);
 
-	    (void)deviceRegister(names[i], names[i], d->name, DEVICE_TYPE_DISK, FALSE, NULL, NULL, NULL, NULL, d);
-	    msgDebug("Found a device of type disk named: %s\n", names[i]);
+	    (void)deviceRegister(names[i], names[i], d->name, DEVICE_TYPE_DISK, FALSE, NULL, NULL, NULL, d);
+	    msgDebug("Found a disk device named %s\n", names[i]);
 
 	    /* Look for existing DOS partitions to register */
 	    for (c1 = d->chunks->part; c1; c1 = c1->next) {
@@ -210,7 +202,7 @@ deviceGetAll(void)
 		    /* Got one! */
 		    sprintf(devname, "/dev/%s", c1->name);
 		    dev = deviceRegister(c1->name, c1->name, strdup(devname), DEVICE_TYPE_DOS, TRUE,
-					 mediaInitDOS, mediaGetDOS, NULL, mediaShutdownDOS, NULL);
+					 mediaInitDOS, mediaGetDOS, mediaShutdownDOS, NULL);
 		    dev->private = c1;
 		    msgDebug("Found a DOS partition %s on drive %s\n", c1->name, d->name);
 		}
@@ -226,11 +218,11 @@ deviceGetAll(void)
     s = socket(AF_INET, SOCK_DGRAM, 0);
     if (s < 0) {
 	msgConfirm("ifconfig: socket");
-	return;
+	goto skipif;	/* Jump over network iface probing */
     }
     if (ioctl(s, SIOCGIFCONF, (char *) &ifc) < 0) {
 	msgConfirm("ifconfig (SIOCGIFCONF)");
-	return;
+	goto skipif;	/* Jump over network iface probing */
     }
     ifflags = ifc.ifc_req->ifr_flags;
     end = (struct ifreq *) (ifc.ifc_buf + ifc.ifc_len);
@@ -240,12 +232,21 @@ deviceGetAll(void)
 	/* If it's not a link entry, forget it */
 	if (ifptr->ifr_ifru.ifru_addr.sa_family != AF_LINK)
 	    continue;
+
 	/* Eliminate network devices that don't make sense */
-	if (!strncmp(ifptr->ifr_name, "tun", 3)
-	    || !strncmp(ifptr->ifr_name, "lo0", 3))
+	if (!strncmp(ifptr->ifr_name, "lo0", 3))
 	    continue;
-	descr = NULL;
-	for (i = 0; device_names[i].name; i++) {
+
+	/* If we have a slip device, don't register it */
+	if (!strncmp(ifptr->ifr_name, "sl", 2)) {
+	    continue;
+	}
+	/* And the same for ppp */
+	if (!strncmp(ifptr->ifr_name, "tun", 3) || !strncmp(ifptr->ifr_name, "ppp", 3)) {
+	    continue;
+	}
+	/* Try and find its description */
+	for (i = 0, descr = NULL; device_names[i].name; i++) {
 	    int len = strlen(device_names[i].name);
 
 	    if (!strncmp(ifptr->ifr_name, device_names[i].name, len)) {
@@ -255,9 +256,10 @@ deviceGetAll(void)
 	}
 	if (!descr)
 	    descr = "<unknown network interface type>";
+
 	deviceRegister(ifptr->ifr_name, descr, strdup(ifptr->ifr_name), DEVICE_TYPE_NETWORK, TRUE,
-		       mediaInitNetwork, NULL, NULL, mediaShutdownNetwork, NULL);
-	msgDebug("Found a device of type network named: %s\n", ifptr->ifr_name);
+		       mediaInitNetwork, NULL, mediaShutdownNetwork, NULL);
+	msgDebug("Found a network device named %s\n", ifptr->ifr_name);
 	close(s);
 	if ((s = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
 	    msgConfirm("ifconfig: socket");
@@ -267,6 +269,7 @@ deviceGetAll(void)
 	    ifptr = (struct ifreq *)((caddr_t)ifptr + ifptr->ifr_addr.sa_len - sizeof(struct sockaddr));
     }
 
+skipif:
     /* Finally, try to find all the types of devices one might need
      * during the second stage of the installation.
      */
@@ -280,30 +283,30 @@ deviceGetAll(void)
 	    if (fd >= 0 || errno == EBUSY) {	/* EBUSY if already mounted */
 		if (fd >= 0) close(fd);
 		(void)deviceRegister(device_names[i].name, device_names[i].description, strdup(try),
-				     DEVICE_TYPE_CDROM, TRUE, mediaInitCDROM, mediaGetCDROM, NULL,
+				     DEVICE_TYPE_CDROM, TRUE, mediaInitCDROM, mediaGetCDROM,
 				     mediaShutdownCDROM, NULL);
-		msgDebug("Found a device of type CDROM named: %s\n", device_names[i].name);
+		msgDebug("Found a CDROM device named %s\n", device_names[i].name);
 	    }
 	    break;
 
 	case DEVICE_TYPE_TAPE:
 	    fd = deviceTry(device_names[i].name, try);
 	    if (fd >= 0) {
-		if (fd) close(fd);
+		close(fd);
 		deviceRegister(device_names[i].name, device_names[i].description, strdup(try),
-			       DEVICE_TYPE_TAPE, TRUE, mediaInitTape, mediaGetTape, NULL, mediaShutdownTape, NULL);
-		msgDebug("Found a device of type TAPE named: %s\n", device_names[i].name);
+			       DEVICE_TYPE_TAPE, TRUE, mediaInitTape, mediaGetTape, mediaShutdownTape, NULL);
+		msgDebug("Found a TAPE device named %s\n", device_names[i].name);
 	    }
 	    break;
 
 	case DEVICE_TYPE_FLOPPY:
 	    fd = deviceTry(device_names[i].name, try);
 	    if (fd >= 0) {
-		if (fd) close(fd);
+		close(fd);
 		deviceRegister(device_names[i].name, device_names[i].description, strdup(try),
-			       DEVICE_TYPE_FLOPPY, TRUE, mediaInitFloppy, mediaGetFloppy, NULL,
+			       DEVICE_TYPE_FLOPPY, TRUE, mediaInitFloppy, mediaGetFloppy,
 			       mediaShutdownFloppy, NULL);
-		msgDebug("Found a device of type floppy named: %s\n", device_names[i].name);
+		msgDebug("Found a floppy device named %s\n", device_names[i].name);
 	    }
 	    break;
 
@@ -313,20 +316,19 @@ deviceGetAll(void)
 	    if (fd >= 0) {
 		char *newdesc, *cp;
 
-		if (fd)
-		    close(fd);
-
-		/* Serial devices get a slip and ppp device each */
+		close(fd);
 		cp = device_names[i].description;
+		/* Serial devices get a slip and ppp device each, if supported */
 		newdesc = safe_malloc(strlen(cp) + 40);
 		sprintf(newdesc, cp, "SLIP interface");
 		deviceRegister("sl0", newdesc, strdup(try), DEVICE_TYPE_NETWORK, TRUE, mediaInitNetwork,
-			       NULL, NULL, mediaShutdownNetwork, NULL);
+				NULL, mediaShutdownNetwork, NULL);
+		msgDebug("Add mapping for %s on %s to sl0\n", device_names[i].name, try);
 		newdesc = safe_malloc(strlen(cp) + 50);
 		sprintf(newdesc, cp, "PPP interface");
 		deviceRegister("ppp0", newdesc, strdup(try), DEVICE_TYPE_NETWORK, TRUE, mediaInitNetwork,
-			       NULL, NULL, mediaShutdownNetwork, NULL);
-		msgDebug("Found a device of type network named: %s\n", device_names[i].name);
+				NULL, mediaShutdownNetwork, NULL);
+		msgDebug("Add mapping for %s on %s to ppp0\n", device_names[i].name, try);
 	    }
 	    break;
 
@@ -347,9 +349,27 @@ deviceFind(char *name, DeviceType class)
     static Device *found[DEV_MAX];
     int i, j;
 
-    for (i = 0, j = 0; i < numDevs; i++) {
+    j = 0;
+    for (i = 0; i < numDevs; i++) {
 	if ((!name || !strcmp(Devices[i]->name, name))
 	    && (class == DEVICE_TYPE_ANY || class == Devices[i]->type))
+	    found[j++] = Devices[i];
+    }
+    found[j] = NULL;
+    return j ? found : NULL;
+}
+
+Device **
+deviceFindDescr(char *name, char *desc, DeviceType class)
+{
+    static Device *found[DEV_MAX];
+    int i, j;
+
+    j = 0;
+    for (i = 0; i < numDevs; i++) {
+	if ((!name || !strcmp(Devices[i]->name, name)) &&
+	    (!desc || !strcmp(Devices[i]->description, desc)) &&
+	    (class == DEVICE_TYPE_ANY || class == Devices[i]->type))
 	    found[j++] = Devices[i];
     }
     found[j] = NULL;

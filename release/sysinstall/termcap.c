@@ -11,17 +11,12 @@
  * incurred with its use.
  */
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
+#include "sysinstall.h"
 #include <stdarg.h>
 #include <fcntl.h>
 #include <sys/errno.h>
 #include <sys/ioctl.h>
 #include <machine/console.h>
-
-#include "sysinstall.h"
 
 #define VTY_STATUS_LINE    24
 #define TTY_STATUS_LINE    23
@@ -82,6 +77,6 @@ set_termcap(void)
 	msgDebug("Unable to get terminal size - errno %d\n", errno);
 	ts.ts_lines = 0;
     }
-    StatusLine = ts.ts_lines ? ts.ts_lines : (OnVTY ? VTY_STATUS_LINE : TTY_STATUS_LINE);
+    StatusLine = ts.ts_lines ? ts.ts_lines - 1: (OnVTY ? VTY_STATUS_LINE : TTY_STATUS_LINE);
     return 0;
 }
