@@ -39,7 +39,7 @@
  * from: Utah $Hdr: swap_pager.c 1.4 91/04/30$
  *
  *	@(#)swap_pager.c	8.9 (Berkeley) 3/21/94
- * $Id: swap_pager.c,v 1.47 1995/09/24 04:40:19 davidg Exp $
+ * $Id: swap_pager.c,v 1.48 1995/11/02 06:42:45 davidg Exp $
  */
 
 /*
@@ -74,7 +74,7 @@
 int nswiodone;
 int swap_pager_full;
 extern int vm_swap_size;
-int no_swap_space = 1;
+static int no_swap_space = 1;
 struct rlist *swaplist;
 int nswaplist;
 
@@ -110,7 +110,7 @@ struct pagerlst swap_pager_un_object_list; /* list of "unnamed" anon region obje
 #define SWAP_FREE_NEEDED_BY_PAGEOUT 0x2
 int swap_pager_needflags;
 
-struct pagerlst *swp_qs[] = {
+static struct pagerlst *swp_qs[] = {
 	&swap_pager_object_list, &swap_pager_un_object_list, (struct pagerlst *) 0
 };
 
@@ -127,8 +127,8 @@ struct pagerops swappagerops = {
 	swap_pager_sync
 };
 
-int npendingio = NPENDINGIO;
-void swap_pager_finish();
+static int npendingio = NPENDINGIO;
+static void swap_pager_finish();
 int dmmin, dmmax;
 
 
@@ -143,7 +143,7 @@ swapsizecheck()
 		swap_pager_full = 0;
 }
 
-void
+static void
 swap_pager_init()
 {
 	TAILQ_INIT(&swap_pager_object_list);
@@ -231,7 +231,7 @@ swap_pager_swp_alloc(object, wait)
  * Note that if we are called from the pageout daemon (handle == NULL)
  * we should not wait for memory as it could resulting in deadlock.
  */
-vm_object_t
+static vm_object_t
 swap_pager_alloc(handle, size, prot, offset)
 	void *handle;
 	register vm_size_t size;
@@ -328,7 +328,7 @@ swap_pager_setvalid(object, offset, valid)
  * this routine allocates swap space with a fragmentation
  * minimization policy.
  */
-int
+static int
 swap_pager_getswapspace(object, amount, rtval)
 	vm_object_t object;
 	unsigned int amount;
@@ -349,7 +349,7 @@ swap_pager_getswapspace(object, amount, rtval)
  * this routine frees swap space with a fragmentation
  * minimization policy.
  */
-void
+static void
 swap_pager_freeswapspace(object, from, to)
 	vm_object_t object;
 	unsigned int from;
@@ -452,7 +452,7 @@ swap_pager_free_swap(object)
  */
 #define MAXRECLAIM 128
 
-void
+static void
 swap_pager_reclaim()
 {
 	vm_object_t object;
@@ -633,7 +633,7 @@ swap_pager_copy(srcobject, srcoffset, dstobject, dstoffset, offset)
 	return;
 }
 
-void
+static void
 swap_pager_dealloc(object)
 	vm_object_t object;
 {
@@ -699,7 +699,7 @@ swap_pager_block_offset(offset)
  * swap_pager_haspage returns TRUE if the pager has data that has
  * been written out.
  */
-boolean_t
+static boolean_t
 swap_pager_haspage(object, offset, before, after)
 	vm_object_t object;
 	vm_offset_t offset;
@@ -789,7 +789,7 @@ swap_pager_ridpages(m, count, reqpage)
 /*
  * swap_pager_iodone1 is the completion routine for both reads and async writes
  */
-void
+static void
 swap_pager_iodone1(bp)
 	struct buf *bp;
 {
@@ -1536,7 +1536,7 @@ swap_pager_finish(spc)
 /*
  * swap_pager_iodone
  */
-void
+static void
 swap_pager_iodone(bp)
 	register struct buf *bp;
 {
