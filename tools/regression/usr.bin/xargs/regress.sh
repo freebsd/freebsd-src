@@ -7,6 +7,8 @@ if [ -z "$TESTDIR" ]; then
 fi
 cd $TESTDIR
 
+STATUS=0
+
 for test in normal I J L; do
   echo "Running test $test"
   case "$test" in
@@ -26,7 +28,9 @@ for test in normal I J L; do
   if [ $? -eq 0 ]; then
     echo "Test $test detected no regression, output matches."
   else
+    STATUS=$?
     echo "Test $test failed: regression detected.  See above."
-    exit 1
   fi
 done
+
+exit $STATUS
