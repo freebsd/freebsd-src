@@ -15,7 +15,7 @@
  *
  * Ported to run under 386BSD by Julian Elischer (julian@dialix.oz.au) Sept 1992
  *
- *      $Id: sd.c,v 1.110 1997/09/13 16:12:15 joerg Exp $
+ *      $Id: sd.c,v 1.111 1997/09/21 22:03:14 gibbs Exp $
  */
 
 #include "opt_bounce.h"
@@ -187,6 +187,12 @@ sdattach(struct scsi_link *sc_link)
 
 	bufq_init(&sd->buf_queue);
 	/*
+	 * In case it is a funny one, tell it to start
+	 * not needed for  most hard drives (ignore failure)
+	 */
+	scsi_start_unit(sc_link,
+			SCSI_ERR_OK | SCSI_SILENT | SCSI_NOSLEEP | SCSI_NOMASK);
+	/*
 	 * Use the subdriver to request information regarding
 	 * the drive. We cannot use interrupts yet, so the
 	 * request must specify this.
@@ -294,11 +300,6 @@ sd_open(dev, mode, fmt, p, sc_link)
 
 		dsgone(&sd->dk_slices);
 	}
-	/*
-	 * In case it is a funny one, tell it to start
-	 * not needed for  most hard drives (ignore failure)
-	 */
-	scsi_start_unit(sc_link, SCSI_ERR_OK | SCSI_SILENT);
 
 	/*
 	 * Check that it is still responding and ok.
