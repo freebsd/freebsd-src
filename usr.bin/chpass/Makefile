@@ -1,7 +1,7 @@
 #	@(#)Makefile	8.2 (Berkeley) 4/2/94
 
 PROG=	chpass
-CFLAGS+=-Wall
+CFLAGS+=-Wall -DPASSWD_IGNORE_COMMENTS
 SRCS=	chpass.c edit.c field.c pw_copy.c pw_scan.c pw_util.c pw_yp.c \
 	table.c util.c ypxfr_misc.c ${GENSRCS}
 GENSRCS=yp.h yp_clnt.c yppasswd.h yppasswd_clnt.c yppasswd_private.h \
