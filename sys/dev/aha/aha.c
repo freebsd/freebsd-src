@@ -2,11 +2,11 @@
  * Generic register and struct definitions for the Adaptech 154x/164x
  * SCSI host adapters. Product specific probe and attach routines can
  * be found in:
- *      aha 1540/1542B/1542C/1542CF/1542CP	aha_isa.c
+ *      aha 1542B/1542C/1542CF/1542CP	aha_isa.c
+ *      aha 1640			aha_mca.c
  *
  * Copyright (c) 1998 M. Warner Losh.
  * All Rights Reserved.
- *
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -60,12 +60,12 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
-#include <sys/systm.h> 
+#include <sys/systm.h>
 #include <sys/malloc.h>
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
- 
+
 #include <machine/bus_pio.h>
 #include <machine/bus.h>
 
@@ -325,7 +325,7 @@ aha_probe(struct aha_softc* aha)
 	 * Some compatible cards return 0 here.  Some cards also
 	 * seem to return 0x7f.
 	 *
-	 * XXX I'm not sure how this will impact other cloned cards 
+	 * XXX I'm not sure how this will impact other cloned cards
 	 *
 	 * This really should be replaced with the esetup command, since
 	 * that appears to be more reliable.  This becomes more and more
@@ -342,7 +342,7 @@ aha_probe(struct aha_softc* aha)
 			return (ENXIO);
 		}
 	}
-	
+
 	return (0);
 }
 
@@ -357,7 +357,7 @@ aha_fetch_adapter_info(struct aha_softc *aha)
 	uint8_t length_param;
 	int	 error;
 	struct	aha_extbios extbios;
-	
+
 	switch (aha->boardid) {
 	case BOARD_1540_16HEAD_BIOS:
 		snprintf(aha->model, sizeof(aha->model), "1540 16 head BIOS");
@@ -398,7 +398,7 @@ aha_fetch_adapter_info(struct aha_softc *aha)
 	 */
 	if (PROBABLY_NEW_BOARD(aha->boardid) ||
 		(aha->boardid == 0x41
-		&& aha->fw_major == 0x31 && 
+		&& aha->fw_major == 0x31 &&
 		aha->fw_minor >= 0x34)) {
 		error = aha_cmd(aha, AOP_RETURN_EXT_BIOS_INFO, NULL,
 		    /*paramlen*/0, (u_char *)&extbios, sizeof(extbios),
@@ -444,7 +444,6 @@ aha_fetch_adapter_info(struct aha_softc *aha)
 	aha->num_boxes = aha->max_ccbs;
 
 	/* Determine our SCSI ID */
-	
 	error = aha_cmd(aha, AOP_INQUIRE_CONFIG, NULL, /*parmlen*/0,
 	    (uint8_t*)&config_data, sizeof(config_data), DEFAULT_CMD_TIMEOUT);
 	if (error != 0) {
@@ -474,7 +473,7 @@ aha_init(struct aha_softc* aha)
 
 	/*
 	 * Create our DMA tags.  These tags define the kinds of device
-	 * accessible memory allocations and memory mappings we will 
+	 * accessible memory allocations and memory mappings we will
 	 * need to perform during normal operation.
 	 *
 	 * Unless we need to further restrict the allocation, we rely
@@ -642,19 +641,17 @@ aha_attach(struct aha_softc *aha)
 		cam_simq_free(devq);
 		return (ENOMEM);
 	}
-	
 	if (xpt_bus_register(aha->sim, 0) != CAM_SUCCESS) {
 		cam_sim_free(aha->sim, /*free_devq*/TRUE);
 		return (ENXIO);
 	}
-	
 	if (xpt_create_path(&aha->path, /*periph*/NULL, cam_sim_path(aha->sim),
 	    CAM_TARGET_WILDCARD, CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
 		xpt_bus_deregister(cam_sim_path(aha->sim));
 		cam_sim_free(aha->sim, /*free_devq*/TRUE);
 		return (ENXIO);
 	}
-		
+
 	return (0);
 }
 
@@ -730,7 +727,7 @@ ahaallocccbs(struct aha_softc *aha)
 
 	bus_dmamap_load(aha->sg_dmat, sg_map->sg_dmamap, sg_map->sg_vaddr,
 	    PAGE_SIZE, ahamapsgs, aha, /*flags*/0);
-	
+
 	segs = sg_map->sg_vaddr;
 	physaddr = sg_map->sg_physaddr;
 
@@ -810,9 +807,9 @@ ahaaction(struct cam_sim *sim, union ccb *ccb)
 	int s;
 
 	CAM_DEBUG(ccb->ccb_h.path, CAM_DEBUG_TRACE, ("ahaaction\n"));
-	
+
 	aha = (struct aha_softc *)cam_sim_softc(sim);
-	
+
 	switch (ccb->ccb_h.func_code) {
 	/* Common cases first */
 	case XPT_SCSI_IO:	/* Execute the requested I/O operation */
@@ -832,7 +829,6 @@ ahaaction(struct cam_sim *sim, union ccb *ccb)
 			xpt_done(ccb);
 			return;
 		}
-		
 		hccb = &accb->hccb;
 
 		/*
@@ -920,7 +916,7 @@ ahaaction(struct cam_sim *sim, union ccb *ccb)
 						}
 						splx(s);
 					} else {
-						struct bus_dma_segment seg; 
+						struct bus_dma_segment seg;
 
 						/* Pointer to physical buffer */
 						seg.ds_addr =
@@ -1021,7 +1017,6 @@ ahaaction(struct cam_sim *sim, union ccb *ccb)
 		ccg = &ccb->ccg;
 		size_mb = ccg->volume_size
 			/ ((1024L * 1024L) / ccg->block_size);
-		
 		if (size_mb >= 1024 && (aha->extended_trans != 0)) {
 			if (size_mb >= 2048) {
 				ccg->heads = 255;
@@ -1053,7 +1048,7 @@ ahaaction(struct cam_sim *sim, union ccb *ccb)
 	case XPT_PATH_INQ:		/* Path routing inquiry */
 	{
 		struct ccb_pathinq *cpi = &ccb->cpi;
-		
+
 		cpi->version_num = 1; /* XXX??? */
 		cpi->hba_inquiry = PI_SDTR_ABLE;
 		cpi->target_sprt = 0;
@@ -1104,7 +1099,7 @@ ahaexecuteccb(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 		xpt_done(ccb);
 		return;
 	}
-		
+
 	if (nseg != 0) {
 		aha_sg_t *sg;
 		bus_dma_segment_t *end_seg;
@@ -1158,7 +1153,7 @@ ahaexecuteccb(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 		splx(s);
 		return;
 	}
-		
+
 	accb->flags = ACCB_ACTIVE;
 	ccb->ccb_h.status |= CAM_SIM_QUEUED;
 	LIST_INSERT_HEAD(&aha->pending_ccbs, &ccb->ccb_h, sim_links.le);
@@ -1190,7 +1185,7 @@ ahaexecuteccb(void *arg, bus_dma_segment_t *dm_segs, int nseg, int error)
 	}
 	paddr = ahaccbvtop(aha, accb);
 	ahautoa24(paddr, aha->cur_outbox->ccb_addr);
-	aha->cur_outbox->action_code = AMBO_START;	
+	aha->cur_outbox->action_code = AMBO_START;
 	aha_outb(aha, COMMAND_REG, AOP_START_MBOX);
 
 	ahanextoutbox(aha);
@@ -1272,7 +1267,7 @@ ahadone(struct aha_softc *aha, struct aha_ccb *accb, aha_mbi_comp_code_t comp_co
 		error = xpt_create_path(&path, /*periph*/NULL,
 		    cam_sim_path(aha->sim), accb->hccb.target,
 		    CAM_LUN_WILDCARD);
-		
+
 		if (error == CAM_REQ_CMP)
 			xpt_async(AC_SENT_BDR, path, NULL);
 
@@ -1335,7 +1330,7 @@ ahadone(struct aha_softc *aha, struct aha_ccb *accb, aha_mbi_comp_code_t comp_co
 				 * offsets based on the scsi cmd len
 				 */
 				bcopy((caddr_t) &accb->hccb.scsi_cdb +
-				    accb->hccb.cmd_len, 
+				    accb->hccb.cmd_len,
 				    (caddr_t) &csio->sense_data,
 				    accb->hccb.sense_len);
 				break;
@@ -1507,8 +1502,8 @@ ahareset(struct aha_softc* aha, int hard_reset)
  * Send a command to the adapter.
  */
 int
-aha_cmd(struct aha_softc *aha, aha_op_t opcode, uint8_t *params, 
-	u_int param_len, uint8_t *reply_data, u_int reply_len, 
+aha_cmd(struct aha_softc *aha, aha_op_t opcode, uint8_t *params,
+	u_int param_len, uint8_t *reply_data, u_int reply_len,
 	u_int cmd_timeout)
 {
 	u_int	timeout;
@@ -1675,7 +1670,7 @@ aha_cmd(struct aha_softc *aha, aha_op_t opcode, uint8_t *params,
 	s = splcam();
 	aha_intr(aha);
 	splx(s);
-	
+
 	if (error != 0)
 		return (error);
 
@@ -1719,7 +1714,7 @@ aha_cmd(struct aha_softc *aha, aha_op_t opcode, uint8_t *params,
 }
 
 static int
-ahainitmboxes(struct aha_softc *aha) 
+ahainitmboxes(struct aha_softc *aha)
 {
 	int error;
 	init_24b_mbox_params_t init_mbox;
@@ -1795,7 +1790,7 @@ ahafetchtransinfo(struct aha_softc *aha, struct ccb_trans_settings* cts)
 		cts->sync_period = scsi_calc_syncparam(sync_period);
 	else
 		cts->sync_period = 0;
-	
+
 	cts->valid = CCB_TRANS_SYNC_RATE_VALID
 		   | CCB_TRANS_SYNC_OFFSET_VALID
 		   | CCB_TRANS_BUS_WIDTH_VALID;
@@ -1900,7 +1895,7 @@ ahatimeout(void *arg)
 		ahareset(aha, /*hardreset*/TRUE);
 		printf("%s: No longer in timeout\n", aha_name(aha));
 	} else {
-		/*    
+		/*
 		 * Send a Bus Device Reset message:
 		 * The target that is holding up the bus may not
 		 * be the same as the one that triggered this timeout
