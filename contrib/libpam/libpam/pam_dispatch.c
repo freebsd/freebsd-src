@@ -64,7 +64,7 @@ static int _pam_dispatch_aux(pam_handle_t *pamh, int flags, struct handler *h,
 
     /* Loop through module logic stack */
     for (depth=0 ; h != NULL ; h = h->next, ++depth) {
-	int retval, cached_retval, action;
+	int retval, action;
 
 	/* skip leading modules if they have already returned */
 	if (depth < skip_depth) {
