@@ -1,6 +1,6 @@
 #! /bin/sh -
 #	@(#)makesyscalls.sh	8.1 (Berkeley) 6/10/93
-# $Id: makesyscalls.sh,v 1.8 1994/09/26 03:27:22 phk Exp $
+# $Id: makesyscalls.sh,v 1.9 1994/10/09 22:07:37 sos Exp $
 
 set -e
 
@@ -113,10 +113,13 @@ awk < $1 "
 			printf("HIDE_%s(%s)\n", $4, $5) > syshide
 	}
 	$2 == "STD" || $2 == "NODEF" {
-		if (!nosys || $5 != "nosys")
+		if (( !nosys || $5 != "nosys" ) && ( !lkmnosys ||
+			$5 != "lkmnosys"))
 			printf("int\t%s();\n", $5) > sysdcl
 		if ($5 == "nosys")
 			nosys = 1
+		if ($5 == "lkmnosys")
+			lkmnosys = 1
 		printf("\t{ %d, %s },\t\t\t/* %d = %s */\n", \
 		    $3, $5, syscall, $6) > sysent
 		printf("\t\"%s\",\t\t\t/* %d = %s */\n", \
