@@ -38,12 +38,12 @@ then
     source_periodic_confs
 fi
 
-TMP=`mktemp ${TMPDIR:-/tmp}/security.XXXXXXXXXX`
 LOG="${daily_status_security_logdir}"
 rc=0
 
 case "$daily_status_security_kernelmsg_enable" in
     [Yy][Ee][Ss])
+	TMP=`mktemp ${TMPDIR:-/tmp}/security.XXXXXXXXXX`
 	if dmesg 2>/dev/null > ${TMP}; then
 	    if [ ! -f ${LOG}/dmesg.today ]; then
 		rc=1
