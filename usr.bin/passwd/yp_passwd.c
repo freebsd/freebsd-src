@@ -87,6 +87,8 @@ for other users");
 		return(1);
 	}
 
+	pw->pw_change = 0;
+
 	/* Initialize password information */
 	if (suser_override) {
 		master_yppasswd.newpw.pw_passwd = strdup(pw->pw_passwd);
