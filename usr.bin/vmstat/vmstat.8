@@ -61,13 +61,13 @@ is for the time period since the last display.
 If no
 .Ar wait
 interval is specified, the default is 1 second.
-.It Fl f
-Report on the number
-.Xr fork 2
-and
-.Xr vfork 2
-system calls since system startup, and the number of pages of virtual memory
-involved in each.
+.\" .It Fl f
+.\" Report on the number
+.\" .Xr fork 2
+.\" and
+.\" .Xr vfork 2
+.\" system calls since system startup, and the number of pages of virtual memory
+.\" involved in each.
 .It Fl i
 Report on the number of interrupts taken by each device since system
 startup.
@@ -89,9 +89,9 @@ Display the contents of the
 .Em sum
 structure, giving the total number of several kinds of paging related
 events which have occurred since system startup.
-.It Fl t
-Report on the number of page in and page reclaims since system startup,
-and the amount of time required by each.
+.\" .It Fl t
+.\" Report on the number of page in and page reclaims since system startup,
+.\" and the amount of time required by each.
 .It Fl w
 Pause
 .Ar wait
@@ -134,18 +134,20 @@ Information about page faults and paging activity.
 These are averaged each five seconds, and given in units per second.
 .Pp
 .Bl -tag -width indent -compact
+.It flt
+total number of page faults
 .It re
 page reclaims (simulating reference bits)
-.It at
-pages attached (found in free list)
+.\" .It at
+.\" pages attached (found in free list)
 .It pi
 pages paged in
 .It po
 pages paged out
 .It fr
 pages freed per second
-.It de
-anticipated short term memory shortfall
+.\" .It de
+.\" anticipated short term memory shortfall
 .It sr
 pages scanned by clock algorithm, per-second
 .El
