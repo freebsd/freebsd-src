@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mbuf.h	8.3 (Berkeley) 1/21/94
- * $Id: mbuf.h,v 1.5 1994/08/21 19:19:39 paul Exp $
+ * $Id: mbuf.h,v 1.6 1994/10/02 17:24:50 phk Exp $
  */
 
 #ifndef _SYS_MBUF_H_
@@ -397,6 +397,7 @@ int	max_datalen;			/* MHLEN - max_hdr */
 extern	int mbtypes[];			/* XXX */
 
 int	m_clalloc __P((int, int));
+void	m_copyback __P((struct mbuf *, int, int, caddr_t));
 struct	mbuf *m_retry __P((int, int));
 struct	mbuf *m_retryhdr __P((int, int));
 void	m_reclaim __P((void));
