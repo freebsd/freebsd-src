@@ -101,6 +101,7 @@ sed	-e '/pty/d' \
 	-e '/maxusers/d' \
 	-e '/MFS/d' \
 	-e '/NFS_ROOT/d' \
+	-e '/MSDOSFS/d' \
 	-e '/ncr/d' \
 	-e '/atapist/d' \
 	-e '/lpt/d' \
