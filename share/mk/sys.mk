@@ -1,5 +1,5 @@
 #	from: @(#)sys.mk	8.2 (Berkeley) 3/21/94
-#	$Id: sys.mk,v 1.25 1997/09/05 09:09:56 peter Exp $
+#	$Id: sys.mk,v 1.26 1997/09/05 11:45:15 peter Exp $
 
 unix		?=	We run FreeBSD, not UNIX.
 
@@ -95,7 +95,11 @@ YFLAGS		?=	-d
 .endif
 
 # Default executable format
+.if ${MACHINE} == "alpha"
+BINFORMAT	?=	elf
+.else
 BINFORMAT	?=	aout
+.endif
 
 # For tags rule.
 GTAGSFLAGS=	-se
