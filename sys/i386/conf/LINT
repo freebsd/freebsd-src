@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.211 1995/10/31 23:35:59 julian Exp $
+#	$Id: LINT,v 1.212 1995/11/05 17:02:54 gibbs Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -443,10 +443,9 @@ device		npx0	at isa? port "IO_NPX" irq 13 vector npxintr
 #
 
 #
-# SCSI host adapters: `aha', `ahb', `aic', `bt', `nca'
+# SCSI host adapters: `aha', `aic', `bt', `nca'
 #
 # aha: Adaptec 154x
-# ahb: Adaptec 174x
 # ahc: Adaptec 274x/284x/294x
 # aic: Adaptec 152x and sound cards using the Adaptec AIC-6360 (slow!)
 # bt: Most Buslogic controllers
@@ -460,7 +459,6 @@ device		npx0	at isa? port "IO_NPX" irq 13 vector npxintr
 #
 
 controller	bt0	at isa? port "IO_BT0" bio irq ? vector btintr
-controller	ahb0	at isa? bio irq ? vector ahbintr
 controller	aha0	at isa? port "IO_AHA0" bio irq ? drq 5 vector ahaintr
 controller	uha0	at isa? port "IO_UHA0" bio irq ? drq 5 vector uhaintr
 
@@ -753,10 +751,13 @@ device		bqu0	at isa? port 0x150
 # The EISA bus device is eisa0.  It provides auto-detection and
 # configuration support for all devices on the EISA bus.
 #
+# The `ahb' device provides support for the Adaptec 174X adapter.
+#
 # The `ahc' device provides support for the Adaptec 274X and 284X
 # adapters.  The 284X, although a VLB card responds to EISA probes.
 #
 controller	eisa0
+controller	ahb0
 controller	ahc0
 
 #
