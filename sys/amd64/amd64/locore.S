@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)locore.s	7.3 (Berkeley) 5/13/91
- *	$Id: locore.s,v 1.32 1994/10/02 18:57:15 davidg Exp $
+ *	$Id: locore.s,v 1.33 1994/10/06 09:22:47 rgrimes Exp $
  */
 
 /*
@@ -250,6 +250,7 @@ NON_GPROF_ENTRY(btext)
 	movsb
 
 1:
+#ifdef DISKLESS
 	/*
 	 * If we have a nfs_diskless structure copy it in
 	 */
@@ -261,6 +262,7 @@ NON_GPROF_ENTRY(btext)
 	cld
 	rep
 	movsb
+#endif
 
 	/*
 	 * The old style disk boot.
