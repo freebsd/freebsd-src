@@ -719,9 +719,8 @@ in6_pcbdetach(inp)
 	struct inpcbinfo *ipi = inp->inp_pcbinfo;
 
 #ifdef IPSEC
-	if (sotoinpcb(so) != 0)
-		key_freeso(so);
-	ipsec6_delete_pcbpolicy(inp);
+	if (inp->in6p_sp != NULL)
+		ipsec6_delete_pcbpolicy(inp);
 #endif /* IPSEC */
 	inp->inp_gencnt = ++ipi->ipi_gencnt;
 	in_pcbremlists(inp);
