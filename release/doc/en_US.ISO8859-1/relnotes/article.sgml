@@ -555,6 +555,9 @@
       <quote>Dianthus</quote> release to the
       <quote>Dogwood</quote> release.</para>
 
+    <para><application>OpenSSL</application> has been updated from
+      0.9.7a to 0.9.7c.</para>
+
     <para><application>sendmail</application> has been updated to
       version 8.12.10.</para>
 
