@@ -57,6 +57,7 @@ int _thread_PS_DEAD_value		= PS_DEAD;
 
 static void free_thread(struct pthread *curthread, struct pthread *thread);
 static int  create_stack(struct pthread_attr *pattr);
+static void free_stack(struct pthread_attr *pattr);
 static void thread_start(struct pthread *curthread,
 		void *(*start_routine) (void *), void *arg);
 
@@ -91,7 +92,6 @@ int
 _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 	       void *(*start_routine) (void *), void *arg)
 {
-	struct kse *curkse;
 	struct pthread *curthread, *new_thread;
 	struct kse *kse = NULL;
 	struct kse_group *kseg = NULL;
@@ -132,14 +132,16 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 			new_thread->attr = _pthread_attr_default;
 		else
 			new_thread->attr = *(*attr);
-
+#ifdef SYSTEM_SCOPE_ONLY
+		new_thread->attr.flags |= PTHREAD_SCOPE_SYSTEM;
+#endif
 		if (create_stack(&new_thread->attr) != 0) {
 			/* Insufficient memory to create a stack: */
 			ret = EAGAIN;
 			_thr_free(curthread, new_thread);
 		}
 		else if (((new_thread->attr.flags & PTHREAD_SCOPE_SYSTEM) != 0) &&
-		    (((kse = _kse_alloc(curthread)) == NULL)
+		    (((kse = _kse_alloc(curthread, 1)) == NULL)
 		    || ((kseg = _kseg_alloc(curthread)) == NULL))) {
 			/* Insufficient memory to create a new KSE/KSEG: */
 			ret = EAGAIN;
@@ -147,15 +149,7 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 				kse->k_mbx.km_flags |= KMF_DONE;
 				_kse_free(curthread, kse);
 			}
-			if ((new_thread->attr.flags & THR_STACK_USER) == 0) {
-				crit = _kse_critical_enter();
-				curkse = _get_curkse();
-				KSE_LOCK_ACQUIRE(curkse, &_thread_list_lock);
-				/* Stack routines don't use malloc/free. */
-				_thr_stack_free(&new_thread->attr);
-				KSE_LOCK_RELEASE(curkse, &_thread_list_lock);
-				_kse_critical_leave(crit);
-			}
+			free_stack(&new_thread->attr);
 			_thr_free(curthread, new_thread);
 		}
 		else {
@@ -178,9 +172,6 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 			new_thread->cancelflags = PTHREAD_CANCEL_ENABLE |
 			    PTHREAD_CANCEL_DEFERRED;
 
-			/* Initialize the thread for signals: */
-			new_thread->sigmask = curthread->sigmask;
-
 			/* No thread is wanting to join to this one: */
 			new_thread->joiner = NULL;
 
@@ -193,6 +184,8 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 			 */
 			crit = _kse_critical_enter();
 			THR_GETCONTEXT(&new_thread->tmbx.tm_context);
+			/* Initialize the thread for signals: */
+			new_thread->sigmask = curthread->sigmask;
 			_kse_critical_leave(crit);
 			new_thread->tmbx.tm_udata = new_thread;
 			new_thread->tmbx.tm_context.uc_sigmask =
@@ -278,9 +271,7 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 			}
 			else {
 				kse->k_curthread = NULL;
-#ifdef NOT_YET
 				kse->k_kseg->kg_flags |= KGF_SINGLE_THREAD;
-#endif
 				new_thread->kse = kse;
 				new_thread->kseg = kse->k_kseg;
 				kse->k_mbx.km_udata = kse;
@@ -308,6 +299,7 @@ _pthread_create(pthread_t * thread, const pthread_attr_t * attr,
 static void
 free_thread(struct pthread *curthread, struct pthread *thread)
 {
+	free_stack(&thread->attr);
 	if ((thread->attr.flags & PTHREAD_SCOPE_SYSTEM) != 0) {
 		/* Free the KSE and KSEG. */
 		_kseg_free(thread->kseg);
@@ -332,6 +324,22 @@ create_stack(struct pthread_attr *pattr)
 	return (ret);
 }
 
+static void
+free_stack(struct pthread_attr *pattr)
+{
+	struct kse *curkse;
+	kse_critical_t crit;
+
+	if ((pattr->flags & THR_STACK_USER) == 0) {
+		crit = _kse_critical_enter();
+		curkse = _get_curkse();
+		KSE_LOCK_ACQUIRE(curkse, &_thread_list_lock);
+		/* Stack routines don't use malloc/free. */
+		_thr_stack_free(pattr);
+		KSE_LOCK_RELEASE(curkse, &_thread_list_lock);
+		_kse_critical_leave(crit);
+	}
+}
 
 static void
 thread_start(struct pthread *curthread, void *(*start_routine) (void *),

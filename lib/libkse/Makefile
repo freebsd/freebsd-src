@@ -22,6 +22,10 @@ CFLAGS+=-fno-builtin
 CFLAGS+=-D_LOCK_DEBUG
 #CFLAGS+= -g
 
+# Uncomment this if you want to build a 1:1 threading mode library
+# however it is no longer strictly conformed to POSIX
+# CFLAGS+=-DSYSTEM_SCOPE_ONLY
+
 LDFLAGS= -Wl,--version-script=${.CURDIR}/pthread.map
 
 # enable extra internal consistancy checks

@@ -52,6 +52,15 @@ _pthread_sigmask(int how, const sigset_t *set, sigset_t *oset)
 	if (! _kse_isthreaded())
 		_kse_setthreaded(1);
 
+	if (curthread->attr.flags & PTHREAD_SCOPE_SYSTEM) {
+		ret = __sys_sigprocmask(how, set, oset);
+		if (ret != 0)
+			ret = errno;
+		/* Get a copy for thread dump */
+		__sys_sigprocmask(SIG_SETMASK, NULL, &curthread->sigmask);
+		return (ret);
+	}
+
 	if (set)
 		newset = *set;
 

@@ -107,9 +107,11 @@ _pthread_cancel(pthread_t pthread)
 				/* Ignore - only here to silence -Wall: */
 				break;
 			}
-			if ((pthread->blocked != 0) &&
-			    ((pthread->cancelflags & THR_AT_CANCEL_POINT) != 0))
-				kse_thr_interrupt(&pthread->tmbx, -1);
+			if ((pthread->cancelflags & THR_AT_CANCEL_POINT) &&
+			    (pthread->blocked != 0 ||
+			     pthread->attr.flags & PTHREAD_SCOPE_SYSTEM))
+				kse_thr_interrupt(&pthread->tmbx,
+					KSE_INTR_INTERRUPT, 0);
 		}
 
 		/*

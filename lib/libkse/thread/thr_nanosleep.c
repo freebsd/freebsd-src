@@ -55,8 +55,9 @@ _nanosleep(const struct timespec *time_to_sleep,
 		errno = EINVAL;
 		ret = -1;
 	} else {
-		if (!_kse_isthreaded())
-			return __sys_nanosleep(time_to_sleep, time_remaining);
+		if (!_kse_isthreaded() ||
+		    (curthread->attr.flags & PTHREAD_SCOPE_SYSTEM))
+			return (__sys_nanosleep(time_to_sleep, time_remaining));
 			
 		KSE_GET_TOD(curthread->kse, &ts);
 

@@ -56,19 +56,17 @@ _thr_ref_add(struct pthread *curthread, struct pthread *thread,
 	crit = _kse_critical_enter();
 	curkse = _get_curkse();
 	KSE_LOCK_ACQUIRE(curkse, &_thread_list_lock);
-	TAILQ_FOREACH(pthread, &_thread_list, tle) {
-		if (pthread == thread) {
-			if ((include_dead == 0) &&
-			    ((pthread->state == PS_DEAD) ||
-			    ((pthread->state == PS_DEADLOCK) ||
-			    ((pthread->flags & THR_FLAGS_EXITING) != 0))))
-				pthread = NULL;
-			else {
-				thread->refcount++;
-				if (curthread != NULL)
-					curthread->critical_count++;
-			}
-			break;
+	pthread = _thr_hash_find(thread);
+	if (pthread) {
+		if ((include_dead == 0) &&
+		    ((pthread->state == PS_DEAD) ||
+		    ((pthread->state == PS_DEADLOCK) ||
+		    ((pthread->flags & THR_FLAGS_EXITING) != 0))))
+			pthread = NULL;
+		else {
+			pthread->refcount++;
+			if (curthread != NULL)
+				curthread->critical_count++;
 		}
 	}
 	KSE_LOCK_RELEASE(curkse, &_thread_list_lock);

@@ -202,6 +202,7 @@ struct kse {
 	int			k_cpu;		/* CPU ID when bound */
 	int			k_done;		/* this KSE is done */
 	int			k_switch;	/* thread switch in UTS */
+	int			k_sigseqno;	/* signal buffered count */
 };
 
 /*
@@ -615,6 +616,9 @@ struct pthread {
 	/* Queue entry for GC lists: */
 	TAILQ_ENTRY(pthread)	gcle;
 
+	/* Hash queue entry */
+	LIST_ENTRY(pthread)	hle;
+
 	/*
 	 * Lock for accesses to this thread structure.
 	 */
@@ -662,7 +666,7 @@ struct pthread {
 	sigset_t		oldsigmask;
 	sigset_t		sigmask;
 	sigset_t		sigpend;
-	int			check_pending;
+	volatile int		check_pending;
 	int			refcount;
 
 	/* Thread state: */
@@ -894,12 +898,14 @@ do {									\
 #define	THR_LIST_ADD(thrd) do {					\
 	if (((thrd)->flags & THR_FLAGS_IN_TDLIST) == 0) {	\
 		TAILQ_INSERT_HEAD(&_thread_list, thrd, tle);	\
+		_thr_hash_add(thrd);				\
 		(thrd)->flags |= THR_FLAGS_IN_TDLIST;		\
 	}							\
 } while (0)
 #define	THR_LIST_REMOVE(thrd) do {				\
 	if (((thrd)->flags & THR_FLAGS_IN_TDLIST) != 0) {	\
 		TAILQ_REMOVE(&_thread_list, thrd, tle);		\
+		_thr_hash_remove(thrd);				\
 		(thrd)->flags &= ~THR_FLAGS_IN_TDLIST;		\
 	}							\
 } while (0)
@@ -1001,13 +1007,6 @@ SCLASS int		_clock_res_usec		SCLASS_PRESET(CLOCK_RES_USEC);
 SCLASS struct sigaction	_thread_sigact[_SIG_MAXSIG];
 
 /*
- * Array of counts of dummy handlers for SIG_DFL signals.  This is used to
- * assure that there is always a dummy signal handler installed while there
- * is a thread sigwait()ing on the corresponding signal.
- */
-SCLASS int		_thread_dfl_count[_SIG_MAXSIG];
-
-/*
  * Lock for above count of dummy handlers and for the process signal
  * mask and pending signal sets.
  */
@@ -1047,7 +1046,7 @@ void	_cond_wait_backout(struct pthread *);
 struct pthread *_get_curthread(void);
 struct kse *_get_curkse(void);
 void	_set_curkse(struct kse *);
-struct kse *_kse_alloc(struct pthread *);
+struct kse *_kse_alloc(struct pthread *, int sys_scope);
 kse_critical_t _kse_critical_enter(void);
 void	_kse_critical_leave(kse_critical_t);
 int	_kse_in_critical(void);
@@ -1131,11 +1130,16 @@ void	_thr_enter_cancellation_point(struct pthread *);
 void	_thr_leave_cancellation_point(struct pthread *);
 int	_thr_setconcurrency(int new_level);
 int	_thr_setmaxconcurrency(void);
+void	_thr_critical_enter(struct pthread *);
+void	_thr_critical_leave(struct pthread *);
 int	_thr_start_sig_daemon(void);
 int	_thr_getprocsig(int sig, siginfo_t *siginfo);
 int	_thr_getprocsig_unlocked(int sig, siginfo_t *siginfo);
 void	_thr_signal_init(void);
 void	_thr_signal_deinit(void);
+void	_thr_hash_add(struct pthread *);
+void	_thr_hash_remove(struct pthread *);
+struct pthread *_thr_hash_find(struct pthread *);
 
 /*
  * Aliases for _pthread functions. Should be called instead of
