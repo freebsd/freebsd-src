@@ -95,11 +95,6 @@ userret(td, frame, oticks)
 #endif
 
 	/*
-	 * Let the scheduler adjust our priority etc.
-	 */
-	sched_userret(td);
-
-	/*
 	 * We need to check to see if we have to exit or wait due to a
 	 * single threading requirement or some other STOP condition.
 	 * Don't bother doing all the work if the stop bits are not set
@@ -128,6 +123,11 @@ userret(td, frame, oticks)
 		mtx_unlock_spin(&sched_lock);
 		addupc_task(td, TRAPF_PC(frame), (u_int)ticks * psratio);
 	}
+
+	/*
+	 * Let the scheduler adjust our priority etc.
+	 */
+	sched_userret(td);
 }
 
 /*
