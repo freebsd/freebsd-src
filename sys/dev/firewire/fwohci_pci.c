@@ -181,7 +181,7 @@ fwohci_pci_attach(device_t self)
 {
 	fwohci_softc_t *sc = device_get_softc(self);
 	int err;
-	int rid;
+	int rid, s;
 #if __FreeBSD_version < 500000
 	int intr;
 	/* For the moment, put in a message stating what is wrong */
@@ -250,6 +250,17 @@ fwohci_pci_attach(device_t self)
 		fwohci_pci_detach(self);
 		return EIO;
 	}
+
+	/* XXX
+	 * Clear the bus reset event flag to start transactions even when
+	 * interrupt is disabled during the boot process.
+	 */
+#if 0
+	DELAY(100);
+#endif
+	s = splfw();
+	fwohci_intr((void *)sc);
+	splx(s);
 
 	return 0;
 }
