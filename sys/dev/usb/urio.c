@@ -585,7 +585,7 @@ urioioctl(dev, cmd, addr, flag, p)
 		uio.uio_rw =
 			req.bmRequestType & UT_READ ? 
 			UIO_READ : UIO_WRITE;
-		uio.uio_td = p;
+		uio.uio_procp = p;
 		ptr = malloc(len, M_TEMP, M_WAITOK);
 		if (uio.uio_rw == UIO_WRITE) {
 			error = uiomove(ptr, len, &uio);

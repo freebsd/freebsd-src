@@ -50,7 +50,6 @@
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mutex.h>
-#include <sys/kthread.h>
 #if defined(__NetBSD__) || defined(__OpenBSD__)
 #include <sys/device.h>
 #elif defined(__FreeBSD__)
@@ -60,6 +59,7 @@
 #include <sys/filio.h>
 #include <sys/uio.h>
 #endif
+#include <sys/kthread.h>
 #include <sys/proc.h>
 #include <sys/conf.h>
 #include <sys/poll.h>
@@ -474,7 +474,7 @@ usbioctl(dev_t devt, u_long cmd, caddr_t data, int flag, usb_proc_ptr p)
 			uio.uio_rw =
 				ur->request.bmRequestType & UT_READ ? 
 				UIO_READ : UIO_WRITE;
-			uio.uio_td = p;
+			uio.uio_procp = p;
 			ptr = malloc(len, M_TEMP, M_WAITOK);
 			if (uio.uio_rw == UIO_WRITE) {
 				error = uiomove(ptr, len, &uio);
