@@ -1,0 +1,8 @@
+#
+# RELENG_4 tinderbox setup
+#
+# $FreeBSD$
+#
+
+branches	= RELENG_4
+platforms	= alpha, i386/i386, i386/pc98

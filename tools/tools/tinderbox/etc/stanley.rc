@@ -1,0 +1,11 @@
+#
+# Tinderbox setup for stanley.rtp.freebsd.org
+#
+# $FreeBSD$
+#
+
+comment		= Tinderbox stress test
+logdir		= /home/des/public_html/stanley
+branches	= CURRENT
+targets		= update, world, generic, lint
+platforms	= alpha, amd64, i386/i386, i386/pc98, ia64, powerpc, sparc64
