@@ -1,5 +1,5 @@
 /*
- * $Id: tcpip.c,v 1.30.2.9 1995/10/20 16:49:50 jkh Exp $
+ * $Id: tcpip.c,v 1.30.2.11 1995/10/20 21:57:25 jkh Exp $
  *
  * Copyright (c) 1995
  *      Gary J Palmer. All rights reserved.
@@ -52,7 +52,6 @@
 #include "dir.h"
 #include "dialog.priv.h"
 #include "colors.h"
-#include "rc.h"
 #include "sysinstall.h"
 
 /* These are nasty, but they make the layout structure a lot easier ... */
@@ -107,7 +106,7 @@ static Layout layout[] = {
 #define LAYOUT_IPADDR		4
 { 10, 35, 18, IPADDR_FIELD_LEN - 1,
       "Netmask:",
-      "The netmask for this interfaace, e.g. 0xffffff00 for a class C network",
+      "The netmask for this interface, e.g. 0xffffff00 for a class C network",
       netmask, STRINGOBJ, NULL },
 #define LAYOUT_NETMASK		5
 { 14, 10, 37, HOSTNAME_FIELD_LEN - 1,

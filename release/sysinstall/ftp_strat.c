@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated to essentially a complete rewrite.
  *
- * $Id: ftp_strat.c,v 1.7.2.27 1995/10/22 12:04:06 jkh Exp $
+ * $Id: ftp_strat.c,v 1.7.2.29 1995/10/22 17:39:09 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -83,9 +83,11 @@ get_new_host(Device *dev, Boolean tentative)
 
 	if (cp && *cp)
 	    (void)mediaSetFtpUserPass(NULL);
-	/* Bounce the link */
-	dev->shutdown(dev);
-	i = dev->init(dev) ? RET_SUCCESS : RET_FAIL;
+	/* Bounce the link if necessary */
+	if (ftpInitted) {
+	    dev->shutdown(dev);
+	    i = dev->init(dev);
+	}
     }
     return (i != RET_FAIL) ? TRUE : FALSE;
 }
@@ -230,9 +232,10 @@ retry:
     return TRUE;
 
 punt:
-    dev->shutdown(dev);
-    dev->init(dev);
-    /* We used to shut down network here - not anymore */
+    if (ftp != NULL) {
+	FtpClose(ftp);
+	ftp = NULL;
+    }
     return FALSE;
 }
 
