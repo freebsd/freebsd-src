@@ -95,7 +95,7 @@ static u_long  lastday;
 static u_short lastddate;
 static u_short lastdtime;
 
-static int mbsadjpos(const char **, int, int, int, int, void *handle);
+static int mbsadjpos(const char **, size_t, size_t, int, int, void *handle);
 static u_int16_t dos2unixchr(const u_char **, size_t *, int, struct msdosfsmount *);
 static u_int16_t unix2doschr(const u_char **, size_t *, struct msdosfsmount *);
 static u_int16_t win2unixchr(u_int16_t, struct msdosfsmount *);
@@ -421,7 +421,7 @@ dos2unixfn(dn, un, lower, pmp)
 	int lower;
 	struct msdosfsmount *pmp;
 {
-	int i;
+	size_t i;
 	int thislong = 0;
 	u_int16_t c;
 
@@ -438,7 +438,7 @@ dos2unixfn(dn, un, lower, pmp)
 	 * Copy the name portion into the unix filename string.
 	 */
 	for (i = 8; i > 0 && *dn != ' ';) {
-		c = dos2unixchr((const u_char **)&dn, (size_t *)&i, lower, pmp);
+		c = dos2unixchr((const u_char **)&dn, &i, lower, pmp);
 		if (c & 0xff00) {
 			*un++ = c >> 8;
 			thislong++;
@@ -456,7 +456,7 @@ dos2unixfn(dn, un, lower, pmp)
 		*un++ = '.';
 		thislong++;
 		for (i = 3; i > 0 && *dn != ' ';) {
-			c = dos2unixchr((const u_char **)&dn, (size_t *)&i, lower, pmp);
+			c = dos2unixchr((const u_char **)&dn, &i, lower, pmp);
 			if (c & 0xff00) {
 				*un++ = c >> 8;
 				thislong++;
@@ -485,11 +485,12 @@ int
 unix2dosfn(un, dn, unlen, gen, pmp)
 	const u_char *un;
 	u_char dn[12];
-	int unlen;
+	size_t unlen;
 	u_int gen;
 	struct msdosfsmount *pmp;
 {
-	int i, j, l;
+	ssize_t i, j;
+	int l;
 	int conv = 1;
 	const u_char *cp, *dp, *dp1;
 	u_char gentext[6], *wcp;
@@ -606,7 +607,7 @@ unix2dosfn(un, dn, unlen, gen, pmp)
 	 * Now convert the rest of the name
 	 */
 	for (i = dp - un, j = 0; un < dp && j < 8; j++) {
-		c = unix2doschr(&un, (size_t *)&i, pmp);
+		c = unix2doschr(&un, &i, pmp);
 		if (c & 0xff00) {
 			dn[j] = c >> 8;
 			if (++j < 8) {
@@ -701,7 +702,7 @@ done:
 int
 unix2winfn(un, unlen, wep, cnt, chksum, pmp)
 	const u_char *un;
-	int unlen;
+	size_t unlen;
 	struct winentry *wep;
 	int cnt;
 	int chksum;
@@ -737,21 +738,21 @@ unix2winfn(un, unlen, wep, cnt, chksum, pmp)
 	 */
 	end = 0;
 	for (wcp = wep->wePart1, i = sizeof(wep->wePart1)/2; --i >= 0 && !end;) {
-		code = unix2winchr(&un, (size_t *)&unlen, 0, pmp);
+		code = unix2winchr(&un, &unlen, 0, pmp);
 		*wcp++ = code;
 		*wcp++ = code >> 8;
 		if (!code)
 			end = WIN_LAST;
 	}
 	for (wcp = wep->wePart2, i = sizeof(wep->wePart2)/2; --i >= 0 && !end;) {
-		code = unix2winchr(&un, (size_t *)&unlen, 0, pmp);
+		code = unix2winchr(&un, &unlen, 0, pmp);
 		*wcp++ = code;
 		*wcp++ = code >> 8;
 		if (!code)
 			end = WIN_LAST;
 	}
 	for (wcp = wep->wePart3, i = sizeof(wep->wePart3)/2; --i >= 0 && !end;) {
-		code = unix2winchr(&un, (size_t *)&unlen, 0, pmp);
+		code = unix2winchr(&un, &unlen, 0, pmp);
 		*wcp++ = code;
 		*wcp++ = code >> 8;
 		if (!code)
@@ -770,11 +771,11 @@ unix2winfn(un, unlen, wep, cnt, chksum, pmp)
 int
 winChkName(un, unlen, chksum, pmp)
 	const u_char *un;
-	int unlen;
+	size_t unlen;
 	int chksum;
 	struct msdosfsmount *pmp;
 {
-	int len;
+	size_t len;
 	u_int16_t c1, c2;
 	u_char *np;
 	struct dirent dirbuf;
@@ -804,8 +805,8 @@ winChkName(un, unlen, chksum, pmp)
 		 * to look up or create files in case sensitive even when
 		 * it's a long file name.
 		 */
-		c1 = unix2winchr((const u_char **)&np, (size_t *)&len, LCASE_BASE, pmp);
-		c2 = unix2winchr(&un, (size_t *)&unlen, LCASE_BASE, pmp);
+		c1 = unix2winchr((const u_char **)&np, &len, LCASE_BASE, pmp);
+		c2 = unix2winchr(&un, &unlen, LCASE_BASE, pmp);
 		if (c1 != c2)
 			return -2;
 	}
@@ -928,7 +929,7 @@ winChksum(name)
 int
 winSlotCnt(un, unlen, pmp)
 	const u_char *un;
-	int unlen;
+	size_t unlen;
 	struct msdosfsmount *pmp;
 {
 	size_t wlen;
@@ -939,7 +940,7 @@ winSlotCnt(un, unlen, pmp)
 	if (pmp->pm_flags & MSDOSFSMNT_KICONV && msdosfs_iconv) {
 		wlen = WIN_MAXLEN * 2;
 		wnp = wn;
-		msdosfs_iconv->conv(pmp->pm_u2w, (const char **)&un, (size_t *)&unlen, &wnp, &wlen);
+		msdosfs_iconv->conv(pmp->pm_u2w, (const char **)&un, &unlen, &wnp, &wlen);
 		if (unlen > 0)
 			return 0;
 		return howmany(WIN_MAXLEN - wlen/2, WIN_CHARS);
@@ -953,10 +954,10 @@ winSlotCnt(un, unlen, pmp)
 /*
  * Determine the number of bytes neccesary for Win95 names
  */
-int
+size_t
 winLenFixup(un, unlen)
 	const u_char* un;
-	int unlen;
+	size_t unlen;
 {
 	for (un += unlen; unlen > 0; unlen--)
 		if (*--un != ' ' && *un != '.')
@@ -970,14 +971,14 @@ winLenFixup(un, unlen)
  * inlen or outlen.
  */
 static int
-mbsadjpos(const char **instr, int inlen, int outlen, int weight, int flag, void *handle)
+mbsadjpos(const char **instr, size_t inlen, size_t outlen, int weight, int flag, void *handle)
 {
 	char *outp, outstr[outlen * weight + 1];
 
 	if (flag & MSDOSFSMNT_KICONV && msdosfs_iconv) {
 		outp = outstr;
 		outlen *= weight;
-		msdosfs_iconv->conv(handle, instr, (size_t *)&inlen, &outp, (size_t *)&outlen);
+		msdosfs_iconv->conv(handle, instr, &inlen, &outp, &outlen);
 		return (inlen);
 	}
 

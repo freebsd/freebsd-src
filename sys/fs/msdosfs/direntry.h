@@ -144,14 +144,14 @@ void	unix2dostime(struct timespec *tsp, u_int16_t *ddp,
 void	dos2unixtime(u_int dd, u_int dt, u_int dh, struct timespec *tsp);
 int	dos2unixfn(u_char dn[11], u_char *un, int lower,
 	    struct msdosfsmount *pmp);
-int	unix2dosfn(const u_char *un, u_char dn[12], int unlen, u_int gen,
+int	unix2dosfn(const u_char *un, u_char dn[12], size_t unlen, u_int gen,
 	    struct msdosfsmount *pmp);
-int	unix2winfn(const u_char *un, int unlen, struct winentry *wep, int cnt,
+int	unix2winfn(const u_char *un, size_t unlen, struct winentry *wep, int cnt,
 	    int chksum, struct msdosfsmount *pmp);
-int	winChkName(const u_char *un, int unlen, int chksum,
+int	winChkName(const u_char *un, size_t unlen, int chksum,
 	    struct msdosfsmount *pmp);
 int	win2unixfn(struct winentry *wep, int chksum, struct msdosfsmount *pmp);
 u_int8_t winChksum(u_int8_t *name);
-int	winSlotCnt(const u_char *un, int unlen, struct msdosfsmount *pmp);
-int	winLenFixup(const u_char *un, int unlen);
+int	winSlotCnt(const u_char *un, size_t unlen, struct msdosfsmount *pmp);
+size_t	winLenFixup(const u_char *un, size_t unlen);
 #endif	/* _KERNEL */
