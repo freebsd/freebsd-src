@@ -632,8 +632,7 @@
     (&man.ste.4; driver)
     </para>
 
-    <para arch="i386,pc98,alpha,amd64">SysKonnect SK-984x PCI Gigabit Ethernet cards (&man.sk.4; driver)
-    </para>
+    &hwlist.sk;
 
     <para arch="i386,pc98,alpha,amd64">Texas Instruments ThunderLAN PCI NICs (&man.tl.4; driver)</para>
 
