@@ -789,10 +789,10 @@ sched_prio(struct thread *td, u_char prio)
 		 * queue.  We still call adjustrunqueue below in case kse
 		 * needs to fix things up.
 		 */
-		if ((td->td_ksegrp->kg_pri_class == PRI_TIMESHARE &&
+		if (ke && ((td->td_ksegrp->kg_pri_class == PRI_TIMESHARE &&
 		    prio < td->td_ksegrp->kg_user_pri) ||
 		    (td->td_ksegrp->kg_pri_class == PRI_IDLE &&
-		    prio < PRI_MIN_IDLE)) {
+		    prio < PRI_MIN_IDLE))) {
 			runq_remove(ke->ke_runq, ke);
 			ke->ke_runq = KSEQ_CPU(ke->ke_cpu)->ksq_curr;
 			runq_add(ke->ke_runq, ke);
@@ -1075,14 +1075,6 @@ sched_clock(struct thread *td)
 
 	CTR4(KTR_ULE, "Tick kse %p (slice: %d, slptime: %d, runtime: %d)",
 	    ke, ke->ke_slice, kg->kg_slptime >> 10, kg->kg_runtime >> 10);
-
-	/*
-	 * Idle tasks should always resched.
-	 */
-	if (kg->kg_pri_class == PRI_IDLE) {
-		td->td_flags |= TDF_NEEDRESCHED;
-		return;
-	}
 	/*
 	 * We only do slicing code for TIMESHARE ksegrps.
 	 */
