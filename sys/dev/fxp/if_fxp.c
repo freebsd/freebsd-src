@@ -368,7 +368,7 @@ fxp_attach(device_t dev)
 	struct fxp_rx *rxp;
 	u_int32_t val;
 	u_int16_t data, myea[ETHER_ADDR_LEN / 2];
-	int i, rid, m1, m2, prefer_iomap;
+	int i, rid, m1, m2, prefer_iomap, maxtxseg;
 	int s;
 
 	bzero(sc, sizeof(*sc));
@@ -586,10 +586,10 @@ fxp_attach(device_t dev)
 	/*
 	 * Allocate DMA tags and DMA safe memory.
 	 */
+	maxtxseg = sc->flags & FXP_FLAG_EXT_RFA ? FXP_NTXSEG - 1 : FXP_NTXSEG;
 	error = bus_dma_tag_create(NULL, 2, 0, BUS_SPACE_MAXADDR_32BIT,
-	    BUS_SPACE_MAXADDR, NULL, NULL, MCLBYTES,
-	    sc->flags & FXP_FLAG_EXT_RFA ? FXP_NTXSEG - 1 : FXP_NTXSEG,
-	    BUS_SPACE_MAXSIZE_32BIT, 0, &sc->fxp_mtag);
+	    BUS_SPACE_MAXADDR, NULL, NULL, MCLBYTES * maxtxseg,
+	    maxtxseg, MCLBYTES, 0, &sc->fxp_mtag);
 	if (error) {
 		device_printf(dev, "could not allocate dma tag\n");
 		goto fail;
@@ -597,7 +597,7 @@ fxp_attach(device_t dev)
 
 	error = bus_dma_tag_create(NULL, 4, 0, BUS_SPACE_MAXADDR_32BIT,
 	    BUS_SPACE_MAXADDR, NULL, NULL, sizeof(struct fxp_stats), 1,
-	    BUS_SPACE_MAXSIZE_32BIT, 0, &sc->fxp_stag);
+	    sizeof(struct fxp_stats), 0, &sc->fxp_stag);
 	if (error) {
 		device_printf(dev, "could not allocate dma tag\n");
 		goto fail;
@@ -617,7 +617,7 @@ fxp_attach(device_t dev)
 
 	error = bus_dma_tag_create(NULL, 4, 0, BUS_SPACE_MAXADDR_32BIT,
 	    BUS_SPACE_MAXADDR, NULL, NULL, FXP_TXCB_SZ, 1,
-	    BUS_SPACE_MAXSIZE_32BIT, 0, &sc->cbl_tag);
+	    FXP_TXCB_SZ, 0, &sc->cbl_tag);
 	if (error) {
 		device_printf(dev, "could not allocate dma tag\n");
 		goto fail;
@@ -639,7 +639,7 @@ fxp_attach(device_t dev)
 
 	error = bus_dma_tag_create(NULL, 4, 0, BUS_SPACE_MAXADDR_32BIT,
 	    BUS_SPACE_MAXADDR, NULL, NULL, sizeof(struct fxp_cb_mcs), 1,
-	    BUS_SPACE_MAXSIZE_32BIT, 0, &sc->mcs_tag);
+	    sizeof(struct fxp_cb_mcs), 0, &sc->mcs_tag);
 	if (error) {
 		device_printf(dev, "could not allocate dma tag\n");
 		goto fail;
