@@ -1,6 +1,6 @@
 # Copyright 1990 W. Jolitz
 #	from: @(#)Makefile.i386	7.1 5/10/91
-#	$Id: Makefile.i386,v 1.11 1993/11/07 04:41:11 wollman Exp $
+#	$Id: Makefile.i386,v 1.12 1993/11/07 16:46:33 wollman Exp $
 #
 # Makefile for FreeBSD
 #
@@ -43,7 +43,8 @@ NORMAL_C_C= ${CC} -c ${CFLAGS} ${PROF} ${PARAM} $<
 NORMAL_S= ${CPP} -I. -DLOCORE ${COPTS} $< | ${AS} ${ASFLAGS} -o $*.o
 DRIVER_C= ${CC} -c ${CFLAGS} ${PROF} $<
 DRIVER_C_C= ${CC} -c ${CFLAGS} ${PROF} ${PARAM} $<
-SYSTEM_OBJS=locore.o ${OBJS} param.o ioconf.o conf.o machdep.o
+SYSTEM_OBJS=locore.o exception.o swtch.o support.o ${OBJS} param.o \
+	ioconf.o conf.o machdep.o
 SYSTEM_DEP=Makefile symbols.sort ${SYSTEM_OBJS}
 SYSTEM_LD_HEAD= 	@echo loading $@; rm -f $@
 SYSTEM_LD= @${LD} -z -T ${LOAD_ADDRESS} -o $@ -X vers.o ${SYSTEM_OBJS}
@@ -82,9 +83,27 @@ symbols.sort: ${I386}/i386/symbols.raw
 locore.o: assym.s ${I386}/i386/locore.s machine/trap.h machine/psl.h \
 	machine/pte.h ${I386}/isa/vector.s ${I386}/isa/icu.s \
 	$S/sys/errno.h machine/specialreg.h ${I386}/isa/debug.h \
-	${I386}/isa/icu.h ${I386}/isa/isa.h vector.h $S/net/netisr.h
+	${I386}/isa/icu.h ${I386}/isa/isa.h vector.h $S/net/netisr.h \
+	machine/asmacros.h
 	${CPP} -I. -DLOCORE ${COPTS} ${I386}/i386/locore.s | \
 		${AS} ${ASFLAGS} -o locore.o
+
+exception.o: assym.s ${I386}/i386/exception.s machine/trap.h \
+	${I386}/isa/vector.s ${I386}/isa/icu.s \
+	$S/sys/errno.h ${I386}/isa/icu.h ${I386}/isa/isa.h vector.h \
+	$S/net/netisr.h machine/asmacros.h
+	${CPP} -I. -DLOCORE ${COPTS} ${I386}/i386/exception.s | \
+		${AS} ${ASFLAGS} -o exception.o
+
+swtch.o: assym.s ${I386}/i386/swtch.s \
+	$S/sys/errno.h ${I386}/isa/debug.h machine/asmacros.h
+	${CPP} -I. ${COPTS} ${I386}/i386/swtch.s | \
+		${AS} ${ASFLAGS} -o swtch.o
+
+support.o: assym.s ${I386}/i386/support.s \
+	$S/sys/errno.h machine/asmacros.h
+	${CPP} -I. ${COPTS} ${I386}/i386/support.s | \
+		${AS} ${ASFLAGS} -o support.o
 
 machdep.o: ${I386}/i386/machdep.c Makefile
 	${CC} -c ${CFLAGS} -DLOAD_ADDRESS=0x${LOAD_ADDRESS} ${PROF} $<

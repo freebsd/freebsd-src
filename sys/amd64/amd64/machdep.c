@@ -35,7 +35,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)machdep.c	7.4 (Berkeley) 6/3/91
- *	$Id: machdep.c,v 1.14 1993/10/29 09:06:56 davidg Exp $
+ *	$Id: machdep.c,v 1.15 1993/11/07 21:47:00 wollman Exp $
  */
 
 #include "npx.h"
@@ -92,6 +92,10 @@ static unsigned int avail_remaining;
 
 #define	EXPECT_BASEMEM	640	/* The expected base memory*/
 #define	INFORM_WAIT	1	/* Set to pause berfore crash in weird cases*/
+
+#ifndef PANIC_REBOOT_WAIT_TIME
+#define PANIC_REBOOT_WAIT_TIME 15 /* default to 15 seconds */
+#endif
 
 /*
  * Declare these as initialized data so we can patch them.
@@ -625,13 +629,34 @@ boot(arghowto)
 			savectx(&dumppcb, 0);
 			dumppcb.pcb_ptd = rcr3();
 			dumpsys();	
-			/*NOTREACHED*/
+
+			if (PANIC_REBOOT_WAIT_TIME != 0) {
+				if (PANIC_REBOOT_WAIT_TIME != -1) {
+					int loop;
+					printf("Automatic reboot in %d seconds - press a key on the console to abort\n",
+						PANIC_REBOOT_WAIT_TIME);
+					for (loop = PANIC_REBOOT_WAIT_TIME; loop > 0; --loop) {
+						DELAY(1000 * 1000); /* one second */
+						if (sgetc(1)) /* Did user type a key? */
+							break;
+					}
+					if (!loop)
+						goto die;
+				}
+			} else { /* zero time specified - reboot NOW */
+				goto die;
+			}
+			printf("--> Press a key on the console to reboot <--\n");
+			cngetc();
 		}
 	}
 #ifdef lint
 	dummy = 0; dummy = dummy;
 	printf("howto %d, devtype %d\n", arghowto, devtype);
 #endif
+die:
+	printf("Rebooting...\n");
+	DELAY (100000);	/* wait 100ms for printf's to complete */
 	cpu_reset();
 	for(;;) ;
 	/*NOTREACHED*/
@@ -681,8 +706,6 @@ dumpsys()
 		printf("succeeded\n");
 		break;
 	}
-	printf("\n\n");
-	DELAY(1000);
 }
 
 #ifdef HZ
