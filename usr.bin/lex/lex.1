@@ -22,14 +22,14 @@ generates as output a C source file,
 which defines a routine
 .B yylex().
 This file is compiled and linked with the
-.B \-lfl
+.B \-ll
 library to produce an executable.  When the executable is run,
 it analyzes its input for occurrences
 of the regular expressions.  Whenever it finds one, it executes
 the corresponding C code.
 .PP
 For full documentation, see
-.B flexdoc(1).
+.B lexdoc(1).
 This manual entry is intended for use as a quick reference.
 .SH OPTIONS
 .I flex
@@ -125,7 +125,7 @@ at a considerable performance cost.  This option is incompatible with
 or
 .B \-CF.
 See
-.I flexdoc(1)
+.I lexdoc(1)
 for details.
 .TP
 .B \-n
@@ -175,7 +175,7 @@ scanner instead of an
 scanner (see
 .B \-I
 below).  See
-.I flexdoc(1)
+.I lexdoc(1)
 for details.  Scanners using
 .B \-Cf
 or
@@ -193,7 +193,7 @@ and for some sets of patterns will be considerably smaller (and for
 others, larger).  It cannot be used with the
 .B \-+
 option.  See
-.B flexdoc(1)
+.B lexdoc(1)
 for more details.
 .IP
 This option is equivalent to
@@ -213,7 +213,7 @@ This is the opposite of
 scanners (see
 .B \-B
 above).  See
-.B flexdoc(1)
+.B lexdoc(1)
 for details.
 .IP
 Note,
@@ -291,7 +291,7 @@ option.
 .B \-+
 specifies that you want flex to generate a C++
 scanner class.  See the section on Generating C++ Scanners in
-.I flexdoc(1)
+.I lexdoc(1)
 for details.
 .TP 
 .B \-C[aefFmr]
@@ -326,7 +326,7 @@ different states.
 .IP
 .B \-CF
 specifies that the alternate fast scanner representation (described in
-.B flexdoc(1))
+.B lexdoc(1))
 should be used.  This option cannot be used with
 .B \-+.
 .IP
@@ -403,7 +403,7 @@ prefix used by
 to be
 .I prefix
 instead.  See
-.I flexdoc(1)
+.I lexdoc(1)
 for a description of all the global variables and file names that
 this affects.
 .TP
@@ -615,7 +615,7 @@ holds the text of the current token.  It may be modified but not lengthened
 (you cannot append characters to the end).  Modifying the last character
 may affect the activity of rules anchored using '^' during the next scan;
 see
-.B flexdoc(1)
+.B lexdoc(1)
 for details.
 .IP
 If the special directive
@@ -769,7 +769,7 @@ which may be redefined.  By default, it is simply a "break", to separate
 each rule's action from the following rule's.
 .SH FILES
 .TP
-.B \-lfl
+.B \-ll
 library with which to link scanners to obtain the default versions
 of
 .I yywrap()
@@ -803,7 +803,7 @@ flag (called
 on some systems).
 .SH "SEE ALSO"
 .PP
-flexdoc(1), lex(1), yacc(1), sed(1), awk(1).
+lexdoc(1), lex(1), yacc(1), sed(1), awk(1).
 .PP
 M. E. Lesk and E. Schmidt,
 .I LEX \- Lexical Analyzer Generator
@@ -844,7 +844,7 @@ any of its rules.
 indicates that the given rule
 cannot be matched because it follows other rules that will
 always match the same text as it.  See
-.I flexdoc(1)
+.I lexdoc(1)
 for an example.
 .PP
 .I warning,
@@ -914,7 +914,7 @@ option), which are fully reentrant.
 Vern Paxson, with the help of many ideas and much inspiration from
 Van Jacobson.  Original version by Jef Poskanzer.
 .PP
-See flexdoc(1) for additional credits and the address to send comments to.
+See lexdoc(1) for additional credits and the address to send comments to.
 .SH DEFICIENCIES / BUGS
 .PP
 Some trailing context
