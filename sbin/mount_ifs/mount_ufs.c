@@ -59,6 +59,7 @@ static struct mntopt mopts[] = {
 	MOPT_STDOPTS,
 	MOPT_ASYNC,
 	MOPT_SYNC,
+	MOPT_FORCE,
 	MOPT_UPDATE,
 	MOPT_UQUOTA,
 	MOPT_GQUOTA,
