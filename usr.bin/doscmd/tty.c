@@ -29,7 +29,7 @@
  *
  *	BSDI tty.c,v 2.4 1996/04/08 22:03:27 prb Exp
  *
- * $Id: tty.c,v 1.3 1998/01/21 21:37:02 jlemon Exp $
+ * $Id: tty.c,v 1.4 1998/02/22 23:36:54 msmith Exp $
  */
 
 #ifndef NO_X
@@ -962,7 +962,7 @@ printf("FORCED REDRAW\n");
 	    case 0x14:	/* T */
 		tmode ^= 1;
 		if (!tmode)
-		    resettrace(&saved_sigframe->sf_sc); 
+		    resettrace(&saved_sigframe->sf_siginfo.si_sc); 
 		return(0xffff);
 	    case 0x53:	/* DEL */
 		quit(0);
@@ -1455,7 +1455,8 @@ video_event(XEvent *ev)
 				if (ks == 'T' || ks == 't') {
 				    tmode ^= 1;
 				    if (!tmode)
-					    resettrace(&saved_sigframe->sf_sc); 
+					    resettrace(&saved_sigframe->
+						sf_siginfo.si_sc); 
 				    break;
 				}
 				if (ks == 'R' || ks == 'r') {
