@@ -130,6 +130,10 @@ WORLDTMP=	${OBJTREE}${.CURDIR}/${BUILD_ARCH}
 STRICTTMPPATH=	${WORLDTMP}/usr/sbin:${WORLDTMP}/usr/bin:${WORLDTMP}/usr/games
 TMPPATH=	${STRICTTMPPATH}:${PATH}
 
+TMPDIR?=	/tmp
+TMPPID!=	echo $$$$
+INSTALLTMP=	${TMPDIR}/install.${TMPPID}
+
 #
 # Building a world goes through the following stages
 #
@@ -190,7 +194,8 @@ WMAKEENV=	${CROSSENV} \
 WMAKE=		${WMAKEENV} ${MAKE} -f Makefile.inc1
 
 # install stage
-IMAKEENV=	${CROSSENV}
+IMAKEENV=	${CROSSENV} \
+		PATH=${STRICTTMPPATH}:${INSTALLTMP}
 IMAKE=		${IMAKEENV} ${MAKE} -f Makefile.inc1
 
 USRDIRS=	usr/bin usr/lib/compat/aout usr/games usr/libdata/ldscripts \
@@ -304,7 +309,14 @@ everything:
 # Installs everything compiled by a 'buildworld'.
 #
 installworld:
+	mkdir -p ${INSTALLTMP}
+	for prog in [ awk cat chflags chown date echo egrep find grep \
+	    install ln make makewhatis miniperl mtree mv perl rm sed sh sysctl \
+	    test true uname wc zic; do \
+		cp `which $$prog` ${INSTALLTMP}; \
+	done
 	cd ${.CURDIR}; ${IMAKE} reinstall
+	rm -rf ${INSTALLTMP}
 
 #
 # reinstall
