@@ -69,7 +69,7 @@
  * Paul Mackerras (paulus@cs.anu.edu.au).
  */
 
-/* $Id: if_ppp.c,v 1.9 1994/11/27 15:29:56 bde Exp $ */
+/* $Id: if_ppp.c,v 1.10 1995/02/13 02:09:13 ache Exp $ */
 /* from if_sl.c,v 1.11 84/10/04 12:54:47 rick Exp */
 
 #include "ppp.h"
@@ -1610,6 +1610,6 @@ pppdumpb(b, l)
     printf("%s\n", buf);
 }
 
-TEXT_SET(pseudo_set, pppattach);
+PSEUDO_SET(pppattach, if_ppp);
 
 #endif	/* NPPP > 0 */

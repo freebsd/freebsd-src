@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)if_sl.c	8.6 (Berkeley) 2/1/94
- * $Id: if_sl.c,v 1.12 1995/02/13 02:09:14 ache Exp $
+ * $Id: if_sl.c,v 1.13 1995/03/16 18:14:27 bde Exp $
  */
 
 /*
@@ -220,7 +220,7 @@ slattach()
 	}
 }
 
-PSEUDO_SET(slattach);
+PSEUDO_SET(slattach, if_sl);
 
 static int
 slinit(sc)
