@@ -314,3 +314,4 @@ typedef struct wx_softc {
 #define	T_NXT_IDX(x)	((x + 1) & (WX_MAX_TDESC - 1))
 #define	WX_MAX_RDESC	64	/* number of receive descriptors */
 #define	R_NXT_IDX(x)	((x + 1) & (WX_MAX_RDESC - 1))
+#define	R_PREV_IDX(x)	((x - 1) & (WX_MAX_RDESC - 1))
