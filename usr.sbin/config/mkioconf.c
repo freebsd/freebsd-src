@@ -36,7 +36,7 @@
 static char sccsid[] = "@(#)mkioconf.c	8.2 (Berkeley) 1/21/94";
 #endif
 static const char rcsid[] =
-	"$Id: mkioconf.c,v 1.46 1999/02/04 10:24:45 markm Exp $";
+	"$Id: mkioconf.c,v 1.47 1999/02/05 16:49:18 bde Exp $";
 #endif /* not lint */
 
 #include <err.h>
@@ -728,7 +728,7 @@ isa_biotab(fp, table)
 			fprintf(fp, "       %d,", mp->d_portn);
 		else
 			fprintf(fp, "   0x%04x,", mp->d_portn);
-		fprintf(fp, "%6s, %2d, C 0x%05X, %5d,   0, %3d, 0x%04X, %5d,    0,       0,       0, %6d, %8d,   0 },\n",
+		fprintf(fp, "%6s, %2d, C 0x%05X, %5d, {0}, %3d, 0x%04X, %5d,    0,       0,       0, %6d, %8d,   0 },\n",
 			sirq(mp->d_irq), mp->d_drq, mp->d_maddr,
 			mp->d_msize, dp->d_unit,
 			dp->d_flags, dp->d_drive, !dp->d_disabled,
@@ -768,7 +768,7 @@ isa_devtab(fp, table, dev_idp)
 			fprintf(fp, "       %d,", dp->d_portn);
 		else
 			fprintf(fp, "   0x%04x,", dp->d_portn);
-		fprintf(fp, "%6s, %2d, C 0x%05X, %5d,   0, %3d, 0x%04X,     0,    0,       0,       0, %6d, %8d,   0 },\n",
+		fprintf(fp, "%6s, %2d, C 0x%05X, %5d, {0}, %3d, 0x%04X,     0,    0,       0,       0, %6d, %8d,   0 },\n",
 			sirq(dp->d_irq), dp->d_drq, dp->d_maddr,
 			dp->d_msize, dp->d_unit,
 			dp->d_flags, !dp->d_disabled, dp->d_conflicts);
