@@ -250,22 +250,16 @@ tilde_expand_word (filename)
 	}
       else
 	{
-	  char u_name[257];
-	  struct passwd *user_entry;
 	  char *username;
-	  int i, c;
+	  struct passwd *user_entry;
+	  int i;
 
-	  username = u_name;
-	  for (i = 1; c = dirname[i]; i++)
-	    {
-	      if (c == '/')
-		break;
-	      else
-		username[i - 1] = c;
-	    }
+	  username = xmalloc (strlen (dirname));
+	  for (i = 1; dirname[i] && dirname[i] != '/'; i++)
+	    username[i - 1] = dirname[i];
 	  username[i - 1] = '\0';
 
-	  if (!(user_entry = getpwnam (username)))
+	  if ((user_entry = getpwnam (username)) == 0)
 	    {
 	      /* If the calling program has a special syntax for
 		 expanding tildes, and we couldn't find a standard
@@ -298,7 +292,8 @@ tilde_expand_word (filename)
 	      free (dirname);
 	      dirname = temp_name;
 	    }
-	    endpwent ();
+	  endpwent ();
+	  free (username);
 	}
     }
   return (dirname);
