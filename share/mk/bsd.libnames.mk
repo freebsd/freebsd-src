@@ -28,6 +28,7 @@ LIBDIALOG?=	${DESTDIR}${LIBDIR}/libdialog.a
 LIBDISK?=	${DESTDIR}${LIBDIR}/libdisk.a
 LIBEDIT?=	${DESTDIR}${LIBDIR}/libedit.a
 LIBF2C?=	${DESTDIR}${LIBDIR}/libf2c.a
+LIBFETCH?=	${DESTDIR}${LIBDIR}/libfetch.a
 LIBFL?=		"don't use LIBFL, use LIBL"
 LIBFORMS?=	${DESTDIR}${LIBDIR}/libforms.a
 LIBFTPIO?=	${DESTDIR}${LIBDIR}/libftpio.a
