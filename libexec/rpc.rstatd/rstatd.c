@@ -33,10 +33,9 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id$";
+	"$Id: rstatd.c,v 1.6 1997/11/26 07:34:56 charnier Exp $";
 #endif /* not lint */
 
-#include <stdio.h>
 #include <stdlib.h>
 #include <rpc/rpc.h>
 #include <signal.h>
@@ -104,15 +103,15 @@ main(argc, argv)
 		exit(1);
 	}
 	if (!svc_register(transp, RSTATPROG, RSTATVERS_TIME, rstat_service, proto)) {
-		syslog(LOG_ERR, "unable to register (RSTATPROG, RSTATVERS_TIME, udp)");
+		syslog(LOG_ERR, "unable to register (RSTATPROG, RSTATVERS_TIME, %s)", proto?"udp":"(inetd)");
 		exit(1);
 	}
 	if (!svc_register(transp, RSTATPROG, RSTATVERS_SWTCH, rstat_service, proto)) {
-		syslog(LOG_ERR, "unable to register (RSTATPROG, RSTATVERS_SWTCH, udp)");
+		syslog(LOG_ERR, "unable to register (RSTATPROG, RSTATVERS_SWTCH, %s)", proto?"udp":"(inetd)");
 		exit(1);
 	}
 	if (!svc_register(transp, RSTATPROG, RSTATVERS_ORIG, rstat_service, proto)) {
-		syslog(LOG_ERR, "unable to register (RSTATPROG, RSTATVERS_ORIG, udp)");
+		syslog(LOG_ERR, "unable to register (RSTATPROG, RSTATVERS_ORIG, %s)", proto?"udp":"(inetd)");
 		exit(1);
 	}
 
