@@ -29,7 +29,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: uthread_kern.c,v 1.3.2.4 1998/04/30 22:26:30 jb Exp $
+ * $Id: uthread_kern.c,v 1.3.2.5 1998/11/04 08:42:11 tg Exp $
  *
  */
 #include <errno.h>
@@ -610,6 +610,22 @@ _thread_kern_sched_state(enum pthread_state state, char *fname, int lineno)
 	_thread_run->state = state;
 	_thread_run->fname = fname;
 	_thread_run->lineno = lineno;
+
+	/* Schedule the next thread that is ready: */
+	_thread_kern_sched(NULL);
+	return;
+}
+
+void
+_thread_kern_sched_state_unlock(enum pthread_state state,
+    spinlock_t *lock, char *fname, int lineno)
+{
+	/* Change the state of the current thread: */
+	_thread_run->state = state;
+	_thread_run->fname = fname;
+	_thread_run->lineno = lineno;
+
+	_SPINUNLOCK(lock);
 
 	/* Schedule the next thread that is ready: */
 	_thread_kern_sched(NULL);
