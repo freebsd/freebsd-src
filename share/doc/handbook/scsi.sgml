@@ -1,4 +1,4 @@
-<!-- $Id: scsi.sgml,v 1.8 1995/11/20 05:46:00 julian Exp $ -->
+<!-- $Id: scsi.sgml,v 1.9 1995/11/25 20:00:49 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <!--
@@ -453,7 +453,7 @@
           and, last but not least, have more capacity. You can imagine that
           the value reported by the drive when inquiring about the geometry
           now becomes suspect at best, and nearly always misleading. When
-	  asked fro a geometry , it is nearly always better to supply the
+	  asked for a geometry , it is nearly always better to supply the
 	  geometry used by the BIOS, or <em>if the BIOS is never going to know
 	  about this disk</em>, (e.g. it is not a booting disk) to supply a
 	  ficticious geometry that is convenient.
@@ -569,7 +569,7 @@ device cd0 at scbus?			[the first ever CDROM found, no wiring]
 	  the first SCSI disk it finds to sd0, the second disk to sd1
 	  etc. If you ever removed or added a disk, all other devices
 	  of the same type (disk in this case) would 'move around'.
-	  This implies you have to change /etc/fstab each time.
+	  This implies you have to change <tt>/etc/fstab</tt> each time.
 
 	  Although the old style still works, you 
 	  are <em>strongly</em> recommended to use this new feature.
@@ -579,17 +579,20 @@ device cd0 at scbus?			[the first ever CDROM found, no wiring]
 	  pre-FreeBSD2.0.5.R system check this out.
 
           <verb>
-controller      ahb0    at isa? bio irq 11 vector ahbintr	&lsqb;driver for Adaptec 174x&rsqb;
-controller      aha0    at isa? port "IO_AHA0" bio irq 11 drq 5 vector ahaintr &lsqb;for Adaptec 154x&rsqb;
-controller      sea0    at isa? bio irq 5 iomem 0xc8000 iosiz 0x2000 vector seaintr &lsqb;for Seagate
-ST01/02&rsqb;
+&lsqb;driver for Adaptec 174x&rsqb;
+controller      ahb0    at isa? bio irq 11 vector ahbintr
+&lsqb;for Adaptec 154x&rsqb;
+controller      aha0    at isa? port "IO_AHA0" bio irq 11 drq 5 vector ahaintr
+&lsqb;for Seagate ST01/02&rsqb;
+controller      sea0    at isa? bio irq 5 iomem 0xc8000 iosiz 0x2000 vector seaintr
 controller      scbus0
 
 device          sd0	&lsqb;support for 4 SCSI harddisks, sd0 up sd3&rsqb;
 
 device          st0	&lsqb;support for 2 SCSI tapes&rsqb;
 
-device          cd0     #Only need one of these, the code dynamically grows &lsqb;for the cdrom&rsqb;
+&lsqb;for the cdrom&rsqb;
+device          cd0     #Only need one of these, the code dynamically grows
           </verb>
 
 	
@@ -722,7 +725,8 @@ options        "TUNE_1542"             #dynamic tune of bus DMA speed
 	    and try accessing the device with debugging turned on for
 	    that device. If your device doesn't even probe at startup,
 	    you may have to define the address of the device that
-	    is failing, and the desired debug level in /sys/scsi/scsidebug.h.
+	    is failing, and the desired debug level in
+	    <tt>/sys/scsi/scsidebug.h</tt>.
 	    If it probes but just doesn't work, you can use the
 	    <tt>scsi(8)</tt> command to dynamically set a debug level to
 	    it in a running kernel (if SCSIDEBUG is defined).
