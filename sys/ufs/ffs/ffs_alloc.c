@@ -499,7 +499,7 @@ ffs_reallocblks_ufs1(ap)
 	 */
 #ifdef DEBUG
 	if (prtrealloc)
-		printf("realloc: ino %d, lbns %lld-%lld\n\told:", ip->i_number,
+		printf("realloc: ino %d, lbns %jd-%jd\n\told:", ip->i_number,
 		    (intmax_t)start_lbn, (intmax_t)end_lbn);
 #endif
 	blkno = newblk;
@@ -701,7 +701,7 @@ ffs_reallocblks_ufs2(ap)
 	 */
 #ifdef DEBUG
 	if (prtrealloc)
-		printf("realloc: ino %d, lbns %lld-%lld\n\told:", ip->i_number,
+		printf("realloc: ino %d, lbns %jd-%jd\n\told:", ip->i_number,
 		    (intmax_t)start_lbn, (intmax_t)end_lbn);
 #endif
 	blkno = newblk;
@@ -719,7 +719,7 @@ ffs_reallocblks_ufs2(ap)
 #endif
 #ifdef DEBUG
 		if (prtrealloc)
-			printf(" %lld,", (intmax_t)*bap);
+			printf(" %jd,", (intmax_t)*bap);
 #endif
 		if (DOINGSOFTDEP(vp)) {
 			if (sbap == &ip->i_din2->di_db[0] && i < ssize)
@@ -1710,7 +1710,7 @@ ffs_blkfree(fs, devvp, bno, size, inum)
 		panic("ffs_blkfree: deallocation on suspended filesystem");
 	if ((u_int)size > fs->fs_bsize || fragoff(fs, size) != 0 ||
 	    fragnum(fs, bno) + numfrags(fs, size) > fs->fs_frag) {
-		printf("dev=%s, bno = %lld, bsize = %ld, size = %ld, fs = %s\n",
+		printf("dev=%s, bno = %jd, bsize = %ld, size = %ld, fs = %s\n",
 		    devtoname(dev), (intmax_t)bno, (long)fs->fs_bsize,
 		    size, fs->fs_fsmnt);
 		panic("ffs_blkfree: bad size");
@@ -1825,7 +1825,7 @@ ffs_checkblk(ip, bno, size)
 		panic("ffs_checkblk: bad size");
 	}
 	if ((u_int)bno >= fs->fs_size)
-		panic("ffs_checkblk: bad block %lld", (intmax_t)bno);
+		panic("ffs_checkblk: bad block %jd", (intmax_t)bno);
 	error = bread(ip->i_devvp, fsbtodb(fs, cgtod(fs, dtog(fs, bno))),
 		(int)fs->fs_cgsize, NOCRED, &bp);
 	if (error)
@@ -2281,11 +2281,11 @@ sysctl_ffs_fsck(SYSCTL_HANDLER_ARGS)
 #ifdef DEBUG
 		if (fsckcmds) {
 			if (cmd.size == 1)
-				printf("%s: free block %lld\n",
+				printf("%s: free block %jd\n",
 				    mp->mnt_stat.f_mntonname,
 				    (intmax_t)cmd.value);
 			else
-				printf("%s: free blocks %lld-%lld\n",
+				printf("%s: free blocks %jd-%jd\n",
 				    mp->mnt_stat.f_mntonname, 
 				    (intmax_t)cmd.value,
 				    (intmax_t)cmd.value + cmd.size - 1);
