@@ -1312,7 +1312,22 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       <para>The &man.geom.4; disk I/O request transformation framework
 	has been added; this extensible framework is designed to
 	support a wide variety of operations on I/O requests on their
-	way from the upper kernel to the device drivers.</para>
+	way from the upper kernel to the device drivers.
+
+	<note>
+	  <para>GEOM-enabled kernels no longer support
+	    <quote>compatability slices</quote>.  This feature
+	    (supported on the i386 and pc98 only) allowed a user to
+	    refer to a disk partition without specifying an MBR slice
+	    (e.g. <filename>/dev/ad0a</filename>); the kernel would
+	    automatically find the first applicable &os; slice and use
+	    it.  On GEOM kernels, only the full partition names
+	    (e.g. <filename>/dev/ad0s1a</filename>) are allowed when
+	    referring to partitions within MBR slices.  This
+	    change should affect very few users.</para>
+	</note>
+
+	</para>
 
       <para>A GEOM Based Disk Encryption module has been added.  It
         provides denial of access to <quote>cold disks</quote>, with
