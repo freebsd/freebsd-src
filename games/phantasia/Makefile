@@ -18,7 +18,7 @@ stamp.setuprun: monsters.asc setup
 	touch ${.TARGET}
 
 setup: phantglobs.o setup.o ${LIBM}
-	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} phantglobs.o setup.o -lm
+	${CC} -static ${CFLAGS} ${LDFLAGS} -o ${.TARGET} phantglobs.o setup.o -lm
 
 beforeinstall:
 	${INSTALL} ${COPY} -o ${BINOWN} -g ${BINGRP} -m 660 \
@@ -27,7 +27,7 @@ beforeinstall:
 # Make Phantasia map.  Change the map commands reflect your installation.
 # PLOTDEVICE is used for plotting the map.  Change as appropriate.
 map: map.c
-	${CC} -O ${.CURDIR}/map.c -lplot -o ${.TARGET}
+	${CC} -static -O ${.CURDIR}/map.c -lplot -o ${.TARGET}
 	./map | plot > /dev/tty
 
 .include <bsd.prog.mk>

@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.11 1998/04/23 16:30:51 bde Exp $
+# $Id: Makefile,v 1.12 1998/07/07 01:46:41 bde Exp $
 #
 
 #
@@ -27,7 +27,7 @@ bc-$i.h: bi-$i bytecode.def
 	./bi-$i < ${GCCDIR}/bytecode.def > bc-$i.h
 
 bi-$i: bi-$i.o bi-parser.o bi-lexer.o bi-reverse.o
-	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${.ALLSRC}
+	${CC} -static ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${.ALLSRC}
 
 GENSRCS+=	bc-$i.h bi-$i.c
 CLEANFILES+=	bi-$i
@@ -59,7 +59,7 @@ GENSRCS+=	insn-$i.c
 build-tools: gen$i
 
 gen$i: gen$i.o rtl.o obstack.o
-	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${.ALLSRC}
+	${CC} -static ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${.ALLSRC}
 
 GENSRCS+=	gen$i.c
 CLEANFILES+=	gen$i
@@ -69,7 +69,7 @@ CLEANFILES+=	gen$i
 build-tools: gen$i
 
 gen$i: gen$i.o rtl.o rtlanal.o print-rtl.o obstack.o
-	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${.ALLSRC}
+	${CC} -static ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${.ALLSRC}
 
 GENSRCS+=	gen$i.c
 CLEANFILES+=	gen$i
