@@ -222,6 +222,7 @@ static const char rcsid[] =
 #include <netinet/udp.h>
 #include <netinet/udp_var.h>
 #include <netinet/tcp.h>
+#include <netinet/tcpip.h>
 
 #include <arpa/inet.h>
 
@@ -300,7 +301,6 @@ struct outdata {
 	u_char seq;		/* sequence number of this packet */
 	u_char ttl;		/* ttl packet left with */
 	struct timeval tv;	/* time packet left */
-	int    optlen;		/* length of ip options */
 };
 
 #ifndef HAVE_ICMP_NEXTMTU
@@ -366,6 +366,7 @@ struct	hostinfo *gethostinfo(char *);
 u_short	in_cksum(u_short *, int);
 char	*inetname(struct in_addr);
 int	main(int, char **);
+u_short p_cksum(struct ip *, u_short *, int);
 int	packet_ok(u_char *, int, struct sockaddr_in *, int);
 char	*pr_type(u_char);
 void	print(u_char *, int, struct sockaddr_in *);
@@ -470,7 +471,6 @@ main(int argc, char **argv)
 	register u_short off = 0;
 	struct ifaddrlist *al;
 	char errbuf[132];
-	register int optlen = 0;
 	int requestPort = -1;
 	int sump = 0;
 	int sockerrno;
@@ -924,7 +924,6 @@ main(int argc, char **argv)
 			/* Prepare outgoing data */
 			outdata.seq = ++seq;
 			outdata.ttl = ttl;
-			outdata.optlen = optlen;
 
 			/* Avoid alignment problems by copying bytewise: */
 			(void)gettimeofday(&t1, &tz);
@@ -1269,13 +1268,10 @@ icmp_prep(struct outdata *outdata)
 	icmpheader->icmp_type = ICMP_ECHO;
 	icmpheader->icmp_id = htons(ident);
 	icmpheader->icmp_seq = htons(outdata->seq);
-
 	icmpheader->icmp_cksum = 0;
-	icmpheader->icmp_cksum = in_cksum((u_short *)icmpheader,
-	    packlen - (sizeof(*outip) + outdata->optlen));
+	icmpheader->icmp_cksum = in_cksum((u_short *)icmpheader, protlen);
 	if (icmpheader->icmp_cksum == 0)
 		icmpheader->icmp_cksum = 0xffff;
-
 }
 
 int
@@ -1291,29 +1287,17 @@ void
 udp_prep(struct outdata *outdata)
 {
 	struct udphdr *const outudp = (struct udphdr *) outp;
-	struct ip tip;
-	struct udpiphdr *ui, *oui;
 
 	outudp->uh_sport = htons(ident);
 	outudp->uh_dport = htons(port + outdata->seq);
 	outudp->uh_ulen = htons((u_short)protlen);
+	outudp->uh_sum = 0;
 	if (doipcksum) {
-		/* Checksum (we must save and restore ip header) */
-		tip = *outip;
-		ui = (struct udpiphdr *)outip;
-		oui = (struct udpiphdr *)&tip;
-		/* Easier to zero and put back things that are ok */
-		memset((char *)ui, 0, sizeof(ui->ui_i));
-		ui->ui_src = oui->ui_src;
-		ui->ui_dst = oui->ui_dst;
-		ui->ui_pr = oui->ui_pr;
-		ui->ui_len = outudp->uh_ulen;
-		outudp->uh_sum = 0;
-		outudp->uh_sum = in_cksum((u_short *)ui, packlen);
-		if (outudp->uh_sum == 0)
-			outudp->uh_sum = 0xffff;
-		*outip = tip;
+	    u_short sum = p_cksum(outip, (u_short*)outudp, protlen);
+	    outudp->uh_sum = (sum) ? sum : 0xffff;
 	}
+
+	return;
 }
 
 int
@@ -1336,6 +1320,12 @@ tcp_prep(struct outdata *outdata)
 	tcp->th_ack = 0;
 	tcp->th_off = 5;
 	tcp->th_flags = TH_SYN;
+	tcp->th_sum = 0;
+
+	if (doipcksum) {
+	    u_short sum = p_cksum(outip, (u_short*)tcp, protlen);
+	    tcp->th_sum = (sum) ? sum : 0xffff;
+	}
 }
 
 int
@@ -1403,6 +1393,28 @@ print(register u_char *buf, register int cc, register struct sockaddr_in *from)
 
 	if (verbose)
 		Printf(" %d bytes to %s", cc, inet_ntoa (ip->ip_dst));
+}
+
+/*
+ * Checksum routine for UDP and TCP headers.
+ */
+u_short 
+p_cksum(struct ip *ip, u_short *data, int len)
+{
+	static struct ipovly ipo;
+	u_short sumh, sumd;
+	u_long sumt;
+
+	ipo.ih_pr = ip->ip_p;
+	ipo.ih_len = htons(len);
+	ipo.ih_src = ip->ip_src;
+	ipo.ih_dst = ip->ip_dst;
+
+	sumh = in_cksum((u_short*)&ipo, sizeof(ipo)); /* pseudo ip hdr cksum */
+	sumd = in_cksum((u_short*)data, len);	      /* payload data cksum */
+	sumt = (sumh << 16) | (sumd);
+
+	return ~in_cksum((u_short*)&sumt, sizeof(sumt));
 }
 
 /*
