@@ -339,10 +339,12 @@
 #define CCCA_CURRADDR		0x18000008
 
 #define CCR			0x09		/* Cache control register				*/
-#define CCR_CACHEINVALIDSIZE	0xfe000000	/* Number of invalid samples cache for this channel    	*/
+#define CCR_CACHEINVALIDSIZE	0x07190009
+#define CCR_CACHEINVALIDSIZE_MASK	0xfe000000	/* Number of invalid samples cache for this channel    	*/
 #define CCR_CACHELOOPFLAG	0x01000000	/* 1 = Cache has a loop service pending			*/
 #define CCR_INTERLEAVEDSAMPLES	0x00800000	/* 1 = A cache service will fetch interleaved samples	*/
 #define CCR_WORDSIZEDSAMPLES	0x00400000	/* 1 = A cache service will fetch word sized samples	*/
+#define CCR_READADDRESS		0x06100009
 #define CCR_READADDRESS_MASK	0x003f0000	/* Location of cache just beyond current cache service	*/
 #define CCR_LOOPINVALSIZE	0x0000fe00	/* Number of invalid samples in cache prior to loop	*/
 						/* NOTE: This is valid only if CACHELOOPFLAG is set	*/
