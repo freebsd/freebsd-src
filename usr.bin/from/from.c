@@ -66,7 +66,7 @@ main(argc, argv)
 	extern char *optarg;
 	extern int optind;
 	struct passwd *pwd;
-	int ch, newline;
+	int ch, count, newline;
 	char *file, *sender, *p;
 #if MAXPATHLEN > BUFSIZ
 	char buf[MAXPATHLEN];
@@ -75,8 +75,12 @@ main(argc, argv)
 #endif
 
 	file = sender = NULL;
-	while ((ch = getopt(argc, argv, "f:s:")) != -1)
-		switch((char)ch) {
+	count = -1;
+	while ((ch = getopt(argc, argv, "cf:s:")) != -1)
+		switch (ch) {
+		case 'c':
+			count = 0;
+			break;
 		case 'f':
 			file = optarg;
 			break;
@@ -120,17 +124,24 @@ main(argc, argv)
 			continue;
 		}
 		if (newline && !strncmp(buf, "From ", 5) &&
-		    (!sender || match(buf + 5, sender)))
-			printf("%s", buf);
+		    (!sender || match(buf + 5, sender))) {
+			if (count != -1)
+				count++;
+			else
+				printf("%s", buf);
+		}
 		newline = 0;
 	}
+	if (count != -1)
+		printf("There %s %d message%s in your incoming mailbox.\n",
+		    count == 1 ? "is" : "are", count, count == 1 ? "" : "s"); 
 	exit(0);
 }
 
 static void
 usage()
 {
-	fprintf(stderr, "usage: from [-f file] [-s sender] [user]\n");
+	fprintf(stderr, "usage: from [-c] [-f file] [-s sender] [user]\n");
 	exit(1);
 }
 

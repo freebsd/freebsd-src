@@ -30,6 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"	@(#)from.1	8.2 (Berkeley) 12/30/93
+.\"	$FreeBSD$
 .\"
 .Dd December 30, 1993
 .Dt FROM 1
@@ -39,6 +40,7 @@
 .Nd print names of those who have sent mail
 .Sh SYNOPSIS
 .Nm from
+.Op Fl c
 .Op Fl s Ar sender
 .Op Fl f Ar file
 .Op Ar user
@@ -49,6 +51,8 @@ out the mail header lines from the invoker's mailbox.
 .Pp
 Options:
 .Bl -tag -width Fl
+.It Fl c
+Just print a count of messages and exit.
 .It Fl f Ar file 
 The supplied file
 is examined instead of the invoker's mailbox.
