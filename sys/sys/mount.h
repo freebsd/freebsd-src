@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)mount.h	8.13 (Berkeley) 3/27/94
- *	$Id: mount.h,v 1.15 1995/03/16 20:23:48 wollman Exp $
+ *	$Id: mount.h,v 1.16 1995/04/10 18:52:40 wollman Exp $
  */
 
 #ifndef _SYS_MOUNT_H_
@@ -97,7 +97,8 @@ struct statfs {
 #define MOUNT_AFS	13	/* Andrew Filesystem */
 #define MOUNT_CD9660	14	/* ISO9660 (aka CDROM) Filesystem */
 #define MOUNT_UNION	15	/* Union (translucent) Filesystem */
-#define	MOUNT_MAXTYPE	15
+#define MOUNT_DEVFS	16	/* existing device Filesystem */
+#define	MOUNT_MAXTYPE	16
 
 #define INITMOUNTNAMES { \
 	"none",		/*  0 MOUNT_NONE */ \
@@ -116,6 +117,7 @@ struct statfs {
 	"afs",		/* 13 MOUNT_AFS */ \
 	"cd9660",	/* 14 MOUNT_CD9660 */ \
 	"union",	/* 15 MOUNT_UNION */ \
+	"devfs",	/* 15 MOUNT_DEVFS */ \
 	0,		/* 16 MOUNT_SPARE */ \
 }
 

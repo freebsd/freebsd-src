@@ -43,7 +43,7 @@
  * SUCH DAMAGE.
  *
  *	from:	@(#)fd.c	7.4 (Berkeley) 5/25/91
- *	$Id: fd.c,v 1.56 1995/04/06 07:20:15 rgrimes Exp $
+ *	$Id: fd.c,v 1.57 1995/04/12 20:47:41 wollman Exp $
  *
  */
 
@@ -558,6 +558,10 @@ fdattach(struct isa_device *dev)
 	int	fdsu, st0, st3, i, unithasfd;
 	struct isa_device *fdup;
 	int ic_type = 0;
+#ifdef	DEVFS
+	char	name[64];
+	caddr_t key;
+#endif	/* DEVFS */
 
 	fdc->fdcu = fdcu;
 	fdc->flags |= FDC_ATTACHED;
@@ -702,37 +706,61 @@ fdattach(struct isa_device *dev)
 			fd->type = FD_1200;
 			kdc_fd[fdu].kdc_description = 
 				"1.2MB (1200K) 5.25in floppy disk drive";
+#ifdef	DEVFS
+			sprintf(name,"fd%d.1200",fdu);
+#endif	/* DEVFS */
 			break;
 		case RTCFDT_144M:
 			printf("1.44MB 3.5in\n");
 			fd->type = FD_1440;
 			kdc_fd[fdu].kdc_description =
 				"1.44MB (1440K) 3.5in floppy disk drive";
+#ifdef	DEVFS
+			sprintf(name,"fd%d.1440",fdu);
+#endif	/* DEVFS */
 			break;
 		case RTCFDT_288M:
 			printf("2.88MB 3.5in - 1.44MB mode\n");
 			fd->type = FD_1440;
 			kdc_fd[fdu].kdc_description =
 				"2.88MB (2880K) 3.5in floppy disk drive in 1.44 mode";
+#ifdef	DEVFS
+			sprintf(name,"fd%d.1440",fdu);
+#endif	/* DEVFS */
 			break;
 		case RTCFDT_360K:
 			printf("360KB 5.25in\n");
 			fd->type = FD_360;
 			kdc_fd[fdu].kdc_description =
 				"360KB 5.25in floppy disk drive";
+#ifdef	DEVFS
+			sprintf(name,"fd%d.360",fdu);
+#endif	/* DEVFS */
 			break;
 		case RTCFDT_720K:
 			printf("720KB 3.5in\n");
 			fd->type = FD_720;
 			kdc_fd[fdu].kdc_description =
 				"720KB 3.5in floppy disk drive";
+#ifdef	DEVFS
+			sprintf(name,"fd%d.720",fdu);
+#endif	/* DEVFS */
 			break;
 		default:
 			printf("unknown\n");
 			fd->type = NO_TYPE;
+#ifdef	DEVFS
+			sprintf(name,"fd%d.xxxx",fdu);
+#endif	/* DEVFS */
 			break;
 		}
 		kdc_fd[fdu].kdc_state = DC_IDLE;
+#ifdef DEVFS
+		key = dev_add("/disks/rfloppy",name,(caddr_t)Fdopen,fdu * 8,
+			0,0,0,0644);
+		key = dev_add("/disks/floppy",name,(caddr_t)Fdopen,fdu * 8,
+			1,0,0,0644);
+#endif /* DEVFS */
 		if (dk_ndrive < DK_NDRIVE) {
 			sprintf(dk_names[dk_ndrive], "fd%d", fdu);
 			fd->dkunit = dk_ndrive++;
