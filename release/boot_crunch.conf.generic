@@ -14,5 +14,5 @@ ln minigzip zcat
 ln sh -sh
 ln test [
 
-libs -ll -ledit -lutil -lkvm -lmd -lcrypt -lftpio -lz
+libs -ll -ledit -lutil -lkvm -lmd -lcrypt -lftpio -lz -lnetgraph
 libs -ldialog -lncurses -lmytinfo -L/usr/src/release/libdisk/obj -ldisk -lipx
