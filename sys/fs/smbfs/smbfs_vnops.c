@@ -918,7 +918,7 @@ smbfs_ioctl(ap)
 		struct thread *td;
 	} */ *ap;
 {
-	return EINVAL;
+	return ENOTTY;
 }
 
 static char smbfs_atl[] = "rhsvda";
