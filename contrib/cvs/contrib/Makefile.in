@@ -1,3 +1,18 @@
+# Makefile.in generated automatically by automake 1.4e from Makefile.am.
+
+# Copyright 1994, 1995, 1996, 1997, 1998, 1999, 2000, 2001
+# Free Software Foundation, Inc.
+# This Makefile.in is free software; the Free Software Foundation
+# gives unlimited permission to copy and/or distribute it,
+# with or without modifications, as long as this notice is preserved.
+
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY, to the extent permitted by law; without
+# even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+# PARTICULAR PURPOSE.
+
+@SET_MAKE@
+
 # Makefile for GNU CVS contributed sources.
 # Do not use this makefile directly, but only from `../Makefile'.
 # Copyright (C) 1986, 1988-1990 Free Software Foundation, Inc.
@@ -12,116 +27,365 @@
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
 
-SHELL = /bin/sh
+# DISTFILES = \
+# 	ChangeLog README .cvsignore intro.doc \
+# 	Makefile.in clmerge.pl cln_hist.pl commit_prep.pl cvs2vendor.sh \
+# 	cvs_acls.pl cvscheck.sh cvscheck.man cvshelp.man debug_check_log.sh \
+# 	descend.sh \
+# 	descend.man dirfns.shar log.pl log_accum.pl mfpipe.pl rcs-to-cvs.sh \
+# 	rcs2log.sh rcslock.pl sccs2rcs.csh rcs2sccs.sh
 
-srcdir     = @srcdir@
+# files installed in $(pkgdatadir)
+#
+# CONTRIB_FILES = README intro.doc cvscheck.man
+
+
+SHELL = @SHELL@
+
+srcdir = @srcdir@
 top_srcdir = @top_srcdir@
-VPATH      = @srcdir@
-
+VPATH = @srcdir@
 prefix = @prefix@
 exec_prefix = @exec_prefix@
 
-# Where to install the executables.
 bindir = @bindir@
-
-# Where to put the system-wide .cvsrc file
+sbindir = @sbindir@
+libexecdir = @libexecdir@
+datadir = @datadir@
+sysconfdir = @sysconfdir@
+sharedstatedir = @sharedstatedir@
+localstatedir = @localstatedir@
 libdir = @libdir@
-
-# Where to put the manual pages.
+infodir = @infodir@
 mandir = @mandir@
+includedir = @includedir@
+oldincludedir = /usr/include
 
-# where to find command interpreters
-perl_path = @perl_path@
-csh_path = @csh_path@
+pkgdatadir = $(datadir)/@PACKAGE@
+pkglibdir = $(libdir)/@PACKAGE@
+pkgincludedir = $(includedir)/@PACKAGE@
 
-# Use cp if you don't have install.
+top_builddir = ..
+
+ACLOCAL = @ACLOCAL@
+AUTOCONF = @AUTOCONF@
+AUTOMAKE = @AUTOMAKE@
+AUTOHEADER = @AUTOHEADER@
+
 INSTALL = @INSTALL@
-INSTALL_DATA = @INSTALL_DATA@
 INSTALL_PROGRAM = @INSTALL_PROGRAM@
+INSTALL_DATA = @INSTALL_DATA@
+INSTALL_SCRIPT = @INSTALL_SCRIPT@
+INSTALL_HEADER = $(INSTALL_DATA)
+transform = @program_transform_name@
 
-DISTFILES = \
-	ChangeLog README .cvsignore intro.doc \
-	Makefile.in clmerge.pl cln_hist.pl commit_prep.pl cvs2vendor.sh \
-	cvs_acls.pl cvscheck.sh cvscheck.man cvshelp.man descend.sh \
-	descend.man dirfns.shar log.pl log_accum.pl mfpipe.pl rcs-to-cvs.sh \
-	rcs2log.sh rcslock.pl sccs2rcs.csh rcs2sccs.sh
+NORMAL_INSTALL = :
+PRE_INSTALL = :
+POST_INSTALL = :
+NORMAL_UNINSTALL = :
+PRE_UNINSTALL = :
+POST_UNINSTALL = :
+AMTAR = @AMTAR@
+AWK = @AWK@
+CC = @CC@
+CSH = @CSH@
+DEPDIR = @DEPDIR@
+ETAGS = @ETAGS@
+ETAGS_INCLUDE_OPTION = @ETAGS_INCLUDE_OPTION@
+INSTALL_STRIP_PROGRAM = @INSTALL_STRIP_PROGRAM@
+INSTALL_STRIP_PROGRAM_ENV = @INSTALL_STRIP_PROGRAM_ENV@
+KRB4 = @KRB4@
+LN_S = @LN_S@
+MAKEINFO = @MAKEINFO@
+PACKAGE = @PACKAGE@
+PERL = @PERL@
+PR = @PR@
+PS2PDF = @PS2PDF@
+RANLIB = @RANLIB@
+ROFF = @ROFF@
+STRIP = @STRIP@
+TEXI2DVI = @TEXI2DVI@
+VERSION = @VERSION@
+YACC = @YACC@
+_am_include = @_am_include@
+_am_quote = @_am_quote@
+includeopt = @includeopt@
+install_sh = @install_sh@
 
-# files installed in $(libdir)/cvs/contrib
-#
-CONTRIB_FILES = README intro.doc cvscheck.man
+contribdir = $(pkgdatadir)/contrib
 
-# things we actually build and install....
-#
-PROGS = rcs2log
-CONTRIB_PROGS = clmerge cln_hist commit_prep cvs2vendor cvs_acls cvscheck \
-	log log_accum mfpipe rcs-to-cvs rcs2log rcslock sccs2rcs
+contrib_SCRIPTS = \
+	clmerge \
+	cln_hist \
+	commit_prep \
+	cvs2vendor \
+	cvs_acls \
+	cvscheck \
+	debug_check_log \
+	log \
+	log_accum \
+	mfpipe \
+	rcs-to-cvs \
+	rcs2log \
+	rcslock \
+	sccs2rcs
 
-.SUFFIXES: .pl .sh .csh
 
-.pl:
-	rm -f $@
-	sed -e 's,xPERL_PATHx,$(perl_path),' $< > $@-t
-	mv $@-t $@
-	chmod +x $@
+contrib_DATA = \
+	README \
+	intro.doc
 
-.csh:
-	rm -f $@
-	sed -e 's,xCSH_PATHx,$(csh_path),' $< > $@-t
-	mv $@-t $@
-	chmod +x $@
+
+contrib_MANS = \
+	cvscheck.man
+
+
+bin_LINKS = \
+	rcs2log
+
+
+EXTRA_DIST = \
+	.cvsignore \
+	$(contrib_DATA) \
+	$(contrib_MANS) \
+	cvs2vendor.sh \
+	cvscheck.sh \
+	cvshelp.man \
+	debug_check_log.sh \
+	descend.sh \
+	descend.man \
+	dirfns.shar \
+	rcs-to-cvs.sh \
+	rcs2log.sh \
+	rcs2sccs.sh
+
+
+CLEANFILES = $(bin_SCRIPTS) $(contrib_SCRIPTS)
+
+SUFFIXES = .sh
+EXEEXT =
+OBJEXT = o
+subdir = contrib
+mkinstalldirs = $(SHELL) $(top_srcdir)/mkinstalldirs
+CONFIG_HEADER = $(top_builddir)/config.h $(top_builddir)/src/options.h
+CONFIG_CLEAN_FILES = clmerge cln_hist commit_prep cvs_acls log log_accum \
+	mfpipe rcslock sccs2rcs
+SCRIPTS = $(contrib_SCRIPTS)
+
+DIST_SOURCES =
+DATA = $(contrib_DATA)
+
+DIST_COMMON = README ChangeLog Makefile.am Makefile.in clmerge.in \
+	cln_hist.in commit_prep.in cvs_acls.in log.in log_accum.in \
+	mfpipe.in rcslock.in sccs2rcs.in
+all: all-am
+
+.SUFFIXES:
+.SUFFIXES: .sh
+
+$(srcdir)/Makefile.in:  Makefile.am  $(top_srcdir)/configure.in $(ACLOCAL_M4)
+	cd $(top_srcdir) && \
+	  $(AUTOMAKE) --gnu  contrib/Makefile
+
+Makefile:  $(srcdir)/Makefile.in  $(top_builddir)/config.status
+	cd $(top_builddir) && \
+	  CONFIG_HEADERS= CONFIG_LINKS= \
+	  CONFIG_FILES=$(subdir)/$@ $(SHELL) ./config.status
+clmerge: $(top_builddir)/config.status clmerge.in
+	cd $(top_builddir) && CONFIG_FILES=$(subdir)/$@ CONFIG_HEADERS= CONFIG_LINKS= $(SHELL) ./config.status
+cln_hist: $(top_builddir)/config.status cln_hist.in
+	cd $(top_builddir) && CONFIG_FILES=$(subdir)/$@ CONFIG_HEADERS= CONFIG_LINKS= $(SHELL) ./config.status
+commit_prep: $(top_builddir)/config.status commit_prep.in
+	cd $(top_builddir) && CONFIG_FILES=$(subdir)/$@ CONFIG_HEADERS= CONFIG_LINKS= $(SHELL) ./config.status
+cvs_acls: $(top_builddir)/config.status cvs_acls.in
+	cd $(top_builddir) && CONFIG_FILES=$(subdir)/$@ CONFIG_HEADERS= CONFIG_LINKS= $(SHELL) ./config.status
+log: $(top_builddir)/config.status log.in
+	cd $(top_builddir) && CONFIG_FILES=$(subdir)/$@ CONFIG_HEADERS= CONFIG_LINKS= $(SHELL) ./config.status
+log_accum: $(top_builddir)/config.status log_accum.in
+	cd $(top_builddir) && CONFIG_FILES=$(subdir)/$@ CONFIG_HEADERS= CONFIG_LINKS= $(SHELL) ./config.status
+mfpipe: $(top_builddir)/config.status mfpipe.in
+	cd $(top_builddir) && CONFIG_FILES=$(subdir)/$@ CONFIG_HEADERS= CONFIG_LINKS= $(SHELL) ./config.status
+rcslock: $(top_builddir)/config.status rcslock.in
+	cd $(top_builddir) && CONFIG_FILES=$(subdir)/$@ CONFIG_HEADERS= CONFIG_LINKS= $(SHELL) ./config.status
+sccs2rcs: $(top_builddir)/config.status sccs2rcs.in
+	cd $(top_builddir) && CONFIG_FILES=$(subdir)/$@ CONFIG_HEADERS= CONFIG_LINKS= $(SHELL) ./config.status
+install-contribSCRIPTS: $(contrib_SCRIPTS)
+	@$(NORMAL_INSTALL)
+	$(mkinstalldirs) $(DESTDIR)$(contribdir)
+	@list='$(contrib_SCRIPTS)'; for p in $$list; do \
+	  f="`echo $$p|sed '$(transform)'`"; \
+	  if test -f $$p; then \
+	    echo " $(INSTALL_SCRIPT) $$p $(DESTDIR)$(contribdir)/$$f"; \
+	    $(INSTALL_SCRIPT) $$p $(DESTDIR)$(contribdir)/$$f; \
+	  elif test -f $(srcdir)/$$p; then \
+	    echo " $(INSTALL_SCRIPT) $(srcdir)/$$p $(DESTDIR)$(contribdir)/$$f"; \
+	    $(INSTALL_SCRIPT) $(srcdir)/$$p $(DESTDIR)$(contribdir)/$$f; \
+	  else :; fi; \
+	done
+
+uninstall-contribSCRIPTS:
+	@$(NORMAL_UNINSTALL)
+	@list='$(contrib_SCRIPTS)'; for p in $$list; do \
+	  f="`echo $$p|sed '$(transform)'`"; \
+	  echo " rm -f $(DESTDIR)$(contribdir)/$$f"; \
+	  rm -f $(DESTDIR)$(contribdir)/$$f; \
+	done
+install-contribDATA: $(contrib_DATA)
+	@$(NORMAL_INSTALL)
+	$(mkinstalldirs) $(DESTDIR)$(contribdir)
+	@list='$(contrib_DATA)'; for p in $$list; do \
+	  if test -f "$$p"; then d=; else d="$(srcdir)/"; fi; \
+	  f="`echo $$p | sed -e 's|^.*/||'`"; \
+	  echo " $(INSTALL_DATA) $$d$$p $(DESTDIR)$(contribdir)/$$f"; \
+	  $(INSTALL_DATA) $$d$$p $(DESTDIR)$(contribdir)/$$f; \
+	done
+
+uninstall-contribDATA:
+	@$(NORMAL_UNINSTALL)
+	@list='$(contrib_DATA)'; for p in $$list; do \
+	  f="`echo $$p | sed -e 's|^.*/||'`"; \
+	  echo " rm -f $(DESTDIR)$(contribdir)/$$f"; \
+	  rm -f $(DESTDIR)$(contribdir)/$$f; \
+	done
+tags: TAGS
+TAGS:
+
+
+DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
+
+top_distdir = ..
+distdir = $(top_distdir)/$(PACKAGE)-$(VERSION)
+
+distdir: $(DISTFILES)
+	@for file in $(DISTFILES); do \
+	  d=$(srcdir); \
+	  if test -d $$d/$$file; then \
+	    cp -pR $$d/$$file $(distdir) \
+	    || exit 1; \
+	  else \
+	    test -f $(distdir)/$$file \
+	    || cp -p $$d/$$file $(distdir)/$$file \
+	    || exit 1; \
+	  fi; \
+	done
+check-am: all-am
+check: check-am
+all-am: Makefile $(SCRIPTS) $(DATA)
+
+installdirs:
+	$(mkinstalldirs) $(DESTDIR)$(contribdir) $(DESTDIR)$(contribdir)
+
+install: install-am
+install-exec: install-exec-am
+install-data: install-data-am
+uninstall: uninstall-am
+
+install-am: all-am
+	@$(MAKE) $(AM_MAKEFLAGS) install-exec-am install-data-am
+
+installcheck: installcheck-am
+
+install-strip:
+	$(MAKE) $(AM_MAKEFLAGS) INSTALL_PROGRAM="$(INSTALL_STRIP_PROGRAM)" \
+	  INSTALL_PROGRAM_ENV='$(INSTALL_STRIP_PROGRAM_ENV)' install
+
+mostlyclean-generic:
+
+clean-generic:
+	-test -z "$(CLEANFILES)" || rm -f $(CLEANFILES)
+
+distclean-generic:
+	-rm -f Makefile $(CONFIG_CLEAN_FILES)
+	-rm -f config.cache config.log stamp-h stamp-h[0-9]*
+
+maintainer-clean-generic:
+	@echo "This command is intended for maintainers to use"
+	@echo "it deletes files that may require special tools to rebuild."
+	-rm -f Makefile.in
+clean: clean-am
+
+clean-am: clean-generic mostlyclean-am
+
+distclean: distclean-am
+
+distclean-am: clean-am distclean-generic
+
+dvi:
+
+dvi-am:
+
+info:
+
+info-am:
+
+install-data-am: install-contribDATA install-contribSCRIPTS \
+	install-data-local
+
+install-exec-am:
+
+install-info:
+
+install-man:
+
+installcheck-am:
+
+maintainer-clean: maintainer-clean-am
+
+maintainer-clean-am: distclean-am maintainer-clean-generic
+
+mostlyclean: mostlyclean-am
+
+mostlyclean-am: mostlyclean-generic
+
+uninstall-am: uninstall-contribDATA uninstall-contribSCRIPTS \
+	uninstall-local
+
+.PHONY: all all-am check check-am clean clean-generic distclean \
+	distclean-generic distdir dvi dvi-am info info-am install \
+	install-am install-contribDATA install-contribSCRIPTS \
+	install-data install-data-am install-data-local install-exec \
+	install-exec-am install-info install-man install-strip \
+	installcheck installcheck-am installdirs maintainer-clean \
+	maintainer-clean-generic mostlyclean mostlyclean-generic \
+	uninstall uninstall-am uninstall-contribDATA \
+	uninstall-contribSCRIPTS uninstall-local
+
+
+# we'd rather have a link here rather than two copies of a script
+install-data-local:
+	# FIXME - this path should be determined dynamically from bindir
+	# & contribdir
+	@$(NORMAL_INSTALL)
+	$(mkinstalldirs) $(DESTDIR)$(bindir)
+	@list='$(bin_LINKS)'; for p in $$list; do \
+	    echo "test ! -e $(DESTDIR)$(bindir)/`echo $$p|sed '$(transform)'`"; \
+	    echo "  && cd $(DESTDIR)$(bindir) && $(LN_S) ../share/$(PACKAGE)/contrib/`echo $$p|sed '$(transform)'` ."; \
+	    (test ! -e $(DESTDIR)$(bindir)/`echo $$p|sed '$(transform)'` \
+	        && cd $(DESTDIR)$(bindir) && $(LN_S) ../share/$(PACKAGE)/contrib/`echo $$p|sed '$(transform)'` .) \
+	      || (echo "Link creation failed" && if test -f $$p; then \
+	           echo " $(INSTALL_SCRIPT) $$p $(DESTDIR)$(bindir)/`echo $$p|sed '$(transform)'`"; \
+	           $(INSTALL_SCRIPT) $$p $(DESTDIR)$(bindir)/`echo $$p|sed '$(transform)'`; \
+	         else if test -f $(srcdir)/$$p; then \
+	           echo " $(INSTALL_SCRIPT) $(srcdir)/$$p $(DESTDIR)$(bindir)/`echo $$p|sed '$(transform)'`"; \
+	           $(INSTALL_SCRIPT) $(srcdir)/$$p $(DESTDIR)$(bindir)/`echo $$p|sed '$(transform)'`; \
+	         else :; fi; fi); \
+	done
+
+uninstall-local:
+	@$(NORMAL_UNINSTALL)
+	list='$(bin_LINKS)'; for p in $$list; do \
+	  rm -f $(DESTDIR)$(bindir)/`echo $$p|sed '$(transform)'`; \
+	done
 
 .sh:
 	rm -f $@
 	cp $< $@
 	chmod +x $@
 
-all: Makefile $(PROGS) $(CONTRIB_PROGS)
-.PHONY: all
-
-install: all installdirs
-	for f in $(CONTRIB_FILES) ; do\
-		$(INSTALL_DATA) $(srcdir)/$$f $(libdir)/cvs/contrib/$$f; \
-	done
-	for f in $(CONTRIB_PROGS) ; do\
-		$(INSTALL_PROGRAM) $$f $(libdir)/cvs/contrib/$$f; \
-	done
-	for f in $(PROGS) ; do\
-		$(INSTALL_PROGRAM) $$f $(bindir)/$$f; \
-	done
-.PHONY: install
-
-installdirs:
-	$(top_srcdir)/mkinstalldirs $(libdir)/cvs/contrib
-.PHONY: installdirs
-
-tags:
-.PHONY: tags
-
-TAGS:
-.PHONY: TAGS
-
-ls:
-	@echo $(DISTFILES)
-.PHONY: ls
-
-clean:
-	rm -f *.o core
-.PHONY: clean
-
-distclean: clean
-	rm -f Makefile $(PROGS) $(CONTRIB_PROGS)
-.PHONY: distclean
-
-realclean: distclean
+# for backwards compatibility with the old makefiles
+realclean: maintainer-clean
 .PHONY: realclean
 
-dist-dir:
-	mkdir ${DISTDIR}
-	for i in ${DISTFILES}; do \
-	  ln $(srcdir)/$${i} ${DISTDIR}; \
-	done
-.PHONY: dist-dir
-
-subdir = contrib
-Makefile: ../config.status Makefile.in
-	cd .. && CONFIG_FILES=$(subdir)/$@ CONFIG_HEADERS= ./config.status
+# Tell versions [3.59,3.63) of GNU make to not export all variables.
+# Otherwise a system limit (for SysV at least) may be exceeded.
+.NOEXPORT:

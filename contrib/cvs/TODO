@@ -790,3 +790,26 @@ reduced to zero, and the client need not even contact the server.
 196.  Using a CVSROOT with a trailing slash will confuse CVS.  I think
 we need to add a call to strip_trailing_slashes in root.c
 (parse_cvsroot), but I haven't considered all of the ramifications.
+
+197.  Analyze the difference between CVS_UNLINK & unlink_file.  As far as I
+can tell, unlink_file aborts in noexec mode and CVS_UNLINK does not.  I'm not
+sure it would be possible to remove even the use of temp files in noexec mode,
+but most unlinks should probably be using unlink_file and not CVS_UNLINK.
+
+198.  Remove references to deprecated cvs_temp_name function.
+
+199.  Add test for login & logout functionality, including support for
+backwards compatibility with old CVSROOTs.
+
+200.  Make a 'cvs add' without write access a non-fatal error so that the
+user's Entries file is updated and future 'cvs diffs' will work properly.  This
+should ease patch submission.
+
+201.  cvs_temp_file should be creating temporary files in a privately owned
+subdirectory of of temp due to security issues on some systems.
+
+**
+202.  Merge most of the diff & rdiff code.  Enable rdiff to accept most diff
+options.  Make rdiff output look like diff's.  Make diff garbage go to stderr
+and only standard diff output go to stdout.
+**  In progress - DRP
