@@ -59,6 +59,8 @@
  * variables.
  */
 
+#include "opt_sleepqueue_profiling.h"
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
@@ -73,6 +75,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sched.h>
 #include <sys/signalvar.h>
 #include <sys/sleepqueue.h>
+#include <sys/sysctl.h>
 
 /*
  * Constants for the hash table of sleep queue chains.  These constants are
@@ -119,8 +122,20 @@ struct sleepqueue {
 struct sleepqueue_chain {
 	LIST_HEAD(, sleepqueue) sc_queues;	/* List of sleep queues. */
 	struct mtx sc_lock;			/* Spin lock for this chain. */
+#ifdef SLEEPQUEUE_PROFILING
+	u_int	sc_depth;			/* Length of sc_queues. */
+	u_int	sc_max_depth;			/* Max length of sc_queues. */
+#endif
 };
 
+#ifdef SLEEPQUEUE_PROFILING
+u_int sleepq_max_depth;
+SYSCTL_NODE(_debug, OID_AUTO, sleepq, CTLFLAG_RD, 0, "sleepq profiling");
+SYSCTL_NODE(_debug_sleepq, OID_AUTO, chains, CTLFLAG_RD, 0,
+    "sleepq chain stats");
+SYSCTL_UINT(_debug_sleepq, OID_AUTO, max_depth, CTLFLAG_RD, &sleepq_max_depth,
+    0, "maxmimum depth achieved of a single chain");
+#endif
 static struct sleepqueue_chain sleepq_chains[SC_TABLESIZE];
 
 MALLOC_DEFINE(M_SLEEPQUEUE, "sleep queues", "sleep queues");
@@ -141,12 +156,27 @@ static void	sleepq_resume_thread(struct thread *td, int pri);
 void
 init_sleepqueues(void)
 {
+#ifdef SLEEPQUEUE_PROFILING
+	struct sysctl_oid *chain_oid;
+	char chain_name[10];
+#endif
 	int i;
 
 	for (i = 0; i < SC_TABLESIZE; i++) {
 		LIST_INIT(&sleepq_chains[i].sc_queues);
 		mtx_init(&sleepq_chains[i].sc_lock, "sleepq chain", NULL,
 		    MTX_SPIN);
+#ifdef SLEEPQUEUE_PROFILING
+		snprintf(chain_name, sizeof(chain_name), "%d", i);
+		chain_oid = SYSCTL_ADD_NODE(NULL, 
+		    SYSCTL_STATIC_CHILDREN(_debug_sleepq_chains), OID_AUTO,
+		    chain_name, CTLFLAG_RD, NULL, "sleepq chain stats");
+		SYSCTL_ADD_UINT(NULL, SYSCTL_CHILDREN(chain_oid), OID_AUTO,
+		    "depth", CTLFLAG_RD, &sleepq_chains[i].sc_depth, 0, NULL);
+		SYSCTL_ADD_UINT(NULL, SYSCTL_CHILDREN(chain_oid), OID_AUTO,
+		    "max_depth", CTLFLAG_RD, &sleepq_chains[i].sc_max_depth, 0,
+		    NULL);
+#endif
 	}
 	thread0.td_sleepqueue = sleepq_alloc();
 }
@@ -230,6 +260,14 @@ sleepq_add(struct sleepqueue *sq, void *wchan, struct mtx *lock,
 
 	/* If the passed in sleep queue is NULL, use this thread's queue. */
 	if (sq == NULL) {
+#ifdef SLEEPQUEUE_PROFILING
+		sc->sc_depth++;
+		if (sc->sc_depth > sc->sc_max_depth) {
+			sc->sc_max_depth = sc->sc_depth;
+			if (sc->sc_max_depth > sleepq_max_depth)
+				sleepq_max_depth = sc->sc_max_depth;
+		}
+#endif
 		sq = td->td_sleepqueue;
 		LIST_INSERT_HEAD(&sc->sc_queues, sq, sq_hash);
 		KASSERT(TAILQ_EMPTY(&sq->sq_blocked),
@@ -554,6 +592,9 @@ sleepq_remove_thread(struct sleepqueue *sq, struct thread *td)
 		td->td_sleepqueue = sq;
 #ifdef INVARIANTS
 		sq->sq_wchan = NULL;
+#endif
+#ifdef SLEEPQUEUE_PROFILING
+		sc->sc_depth--;
 #endif
 	} else
 		td->td_sleepqueue = LIST_FIRST(&sq->sq_free);
