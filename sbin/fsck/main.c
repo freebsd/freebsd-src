@@ -195,7 +195,7 @@ checkfilesys(filesys, mntpt, auxdata, child)
 	case 0:
 		if (preen)
 			pfatal("CAN'T CHECK FILE SYSTEM.");
-		/* fall through */
+		return (0);
 	case -1:
 		pwarn("clean, %ld free ", sblock.fs_cstotal.cs_nffree +
 			sblock.fs_frag * sblock.fs_cstotal.cs_nbfree);
