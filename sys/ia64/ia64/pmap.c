@@ -1478,9 +1478,9 @@ pmap_enter_quick(pmap_t pmap, vm_offset_t va, vm_page_t m)
  * during dump.
  */
 void *
-pmap_kenter_temporary(vm_offset_t pa)
+pmap_kenter_temporary(vm_offset_t pa, int i)
 {
-	return (void *) IA64_PHYS_TO_RR7(pa);
+	return (void *) IA64_PHYS_TO_RR7(pa - (i * PAGE_SIZE));
 }
 
 #define MAX_INIT_PT (96)
