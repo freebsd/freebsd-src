@@ -44,26 +44,27 @@ It was later realized, with the hindsight that IBM is famous for, that disks
 could be bigger than the 32Mb that the early DOS FAT-12 file system could
 handle, so they added a kludge:  They had two MSDOS slices, a "Primary" and
 a "Secondary".  The primary could still only be 32Mb, but the Secondary had
-no size limit.  And the trick was that the secondary had ANOTHER "table entry"
-so that now suddenly up to 5 slices could be available to MS-DOS.  The
-Secondary boot record was later made recursive, thus effectively avoiding
-any fixed limit.  Of course, they were still stuck with a maximum of 26 slices
-given the use of "drive letters" in DOS.  They also reserved only 10 bits
-for cylinder addressing, limiting DOS to being able to address a maximum
-of 1024 cylinders (and cause of the dreaded "cylinder translation" kludges,
-the misconfiguration of which many users have seen as the notorious "Missing
-Operating System" message).  Yes, truly DOS was and is an utterly terrible
-operating system, which of course explains its amazing degree of success.
-Anyway, this all brings us up to today, which is where FreeBSD comes in:
+no size limit.  And the trick was that the secondary had ANOTHER "table
+entry" so that now suddenly up to 5 slices could be available to MS-DOS.
+The Secondary boot record was later made recursive, thus effectively
+avoiding any fixed limit.  Of course, they were still stuck with a maximum
+of 26 slices given the use of "drive letters" in DOS.  They also reserved
+only 10 bits for cylinder addressing, limiting DOS to being able to address
+a maximum of 1024 cylinders (and cause of the dreaded "cylinder translation"
+kludges, the misconfiguration of which many users have seen as the notorious
+"Missing Operating System" message).  Yes, truly DOS was and is an utterly
+terrible operating system, which of course explains its amazing degree of
+success.  Anyway, this all brings us up to today, which is where FreeBSD
+comes in:
 
 
 1.2  What FreeBSD does
 ----------------------
 FreeBSD has, like any other UNIX-like operating system, the concept of
-"partitions."  Partitions are used to implement its own "slicing" abstraction,
-and although there is no real difference between a slice and a partition as
-such, we use the two words to distinguish between these two different levels
-of slicing.
+"partitions."  Partitions are used to implement its own "slicing"
+abstraction, and although there is no real difference between a slice and a
+partition as such, we use the two words to distinguish between these two
+different levels of slicing.
 
 The result is that we have a two-tier structure on the disk:
 
@@ -155,9 +156,9 @@ operating system entries!
 Even if you don't plan to have MSDOS on a disk, make an MSDOS slice
 using the MSDOS's FDISK.COM program.  The reason for this is that if you
 do it that way, you are 100% sure that FreeBSD will use the same number
-of heads, sectors and cylinders as MSDOS would use.  If you really don't plan
-to have MSDOS on the disk, just (D)elete the slice in the FreeBSD's (F)disk
-editor.
+of heads, sectors and cylinders as MSDOS would use.  If you really don't
+plan to have MSDOS on the disk, just (D)elete the slice in the FreeBSD's
+(F)disk editor.
 
 From the main screen press 'F' to enter the MBR editor.  You have five
 commands available:
@@ -168,14 +169,14 @@ commands available:
 
 (E)dit -- Allows you to edit a slice.  It will ask how many megabytes
   you want to assign to the slice, and will suggest the maximum possible
-  as a default.  It might say zero, even though there is disk space available,
-  in which case you will probably need to delete and recreate the other
-  partitions to get it to see where the free space is.
+  as a default.  It might say zero, even though there is disk space
+  available, in which case you will probably need to delete and recreate the
+  other partitions to get it to see where the free space is.
   It will then ask you what type to give the slice, for which the default is
-  0xa5 (a FreeBSD slice).  You can enter any other number here too, which can
-  be useful as a placeholder for some other OS you plan to install later.
-  Finally, it will ask you about the "boot flag".  0x80 means "boot from this"
-  slice by default, and anything else means "don't".
+  0xa5 (a FreeBSD slice).  You can enter any other number here too, which
+  can be useful as a placeholder for some other OS you plan to install
+  later.  Finally, it will ask you about the "boot flag".  0x80 means "boot
+  from this" slice by default, and anything else means "don't".
 
   If you specified a FreeBSD slice, any existing slices with the 0xa5 
   type will be reset to 0x00 "unused".  FreeBSD only supports one slice
@@ -240,9 +241,9 @@ applicatins, here are some good rules of thumb to follow:
 
 3. /usr can take up the rest of your disk, though some people like to create
    extra partitions for user home directories and the like.  Be sure to make
-   your /usr big enough to contain the system software (about 50MB) and perhaps
-   some of your own, unless you're going to use symbolic links to point things
-   like /usr/local (or /usr/src) somewhere else.
+   your /usr big enough to contain the system software (about 50MB) and
+   perhaps some of your own, unless you're going to use symbolic links to
+   point things like /usr/local (or /usr/src) somewhere else.
 
 
 Here are some suggested filesystem names and sizes, just for reference:
@@ -259,4 +260,4 @@ Mountpoint	Filesystem size
 /usr/X11R6	50Mb	If you load the entire XFree86 binary kit.
 
 
-$Id: DISKSPACE.FAQ,v 1.2 1994/11/05 06:54:49 jkh Exp $
+$Id: DISKSPACE.FAQ,v 1.3 1994/11/07 10:35:54 jkh Exp $
