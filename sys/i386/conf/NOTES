@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.170 1995/04/18 11:02:22 ache Exp $
+#	$Id: LINT,v 1.171 1995/04/22 22:39:33 dyson Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -254,13 +254,6 @@ options		QUOTA			#enable disk quotas
 #####################################################################
 # SCSI DEVICES
 
-# SCSI OPTIONS:
-
-# SCSIDEBUG: When defined enables debugging macros
-# NO_SCSI_SENSE: When defined disables sense descriptions (about 4k)
-# SCSI_REPORT_GEOMETRY: Always report disk geometry at boot up instead
-#                       only when booting verbosely.
-
 # SCSI DEVICE CONFIGURATION
 
 # The SCSI subsystem consists of the `base' SCSI code, a number of
@@ -308,6 +301,16 @@ device worm0 at scbus?	# SCSI worm
 device pt0 at scbus?	# SCSI processor type
 device sctarg0 at scbus? # SCSI target
 
+# SCSI OPTIONS:
+
+# SCSIDEBUG: When defined enables debugging macros
+# NO_SCSI_SENSE: When defined disables sense descriptions (about 4k)
+# SCSI_REPORT_GEOMETRY: Always report disk geometry at boot up instead
+#                       only when booting verbosely.
+options		SCSIDEBUG
+#options	NO_SCSI_SENSE
+options		SCSI_REPORT_GEOMETRY
+
 
 #####################################################################
 # MISCELLANEOUS DEVICES AND OPTIONS
@@ -316,7 +319,8 @@ device sctarg0 at scbus? # SCSI target
 # Of these, only the `log' device is truly mandatory.  The `pty'
 # device usually turns out to be ``effectively mandatory'', as it is
 # required for `telnetd', `rlogind', `screen', `emacs', and `xterm',
-# among others.
+# among others.  The `isdn', `ii', `ity', `itel', and `ispy' devices
+# are all required when ISDN support is used.
 #
 pseudo-device	pty	16	#Pseudo ttys - can go as high as 64
 pseudo-device	speaker		#Play IBM BASIC-style noises out your speaker
@@ -324,6 +328,13 @@ pseudo-device	log		#Kernel syslog interface (/dev/klog)
 pseudo-device	gzip		#Exec gzipped a.out's
 pseudo-device	vn		#Vnode driver (turns a file into a device)
 pseudo-device	snp	3	#Snoop device - to look at pty/vty/etc..
+
+# These are non-optional for ISDN
+pseudo-device   isdn
+pseudo-device   ii      4
+pseudo-device   ity     4
+pseudo-device   itel    2       
+pseudo-device   ispy    1       
 
 
 #####################################################################
@@ -334,7 +345,7 @@ pseudo-device	snp	3	#Snoop device - to look at pty/vty/etc..
 # Micro Channel is not supported at all.
 
 #
-# Mandatory ISA devices: isa, sc, npx
+# Mandatory ISA devices: isa, sc or vt, npx
 #
 controller	isa0
 
@@ -490,19 +501,11 @@ options	FDSEEKWAIT="16"
 # mse: Logitech and ATI InPort bus mouse ports
 # psm: PS/2 mouse port (needs ALLOW_CONFLICT_IOADDR, above)
 # sio: serial ports (see sio(4))
-# cy: Cyclades high-speed serial driver (ALPHA QUALITY!)
-# gp:  National Instruments AT-GPIB and AT-GPIB/TNT board
-# gsc: Genius GS-4500 hand scanner.
-# joy: joystick
 
 device		lpt0	at isa? port "IO_LPT3" tty irq 7 vector lptintr
 device		mse0	at isa? port 0x23c tty irq 5 vector mseintr
 device		psm0	at isa? port "IO_KBD" tty irq 12 vector psmintr
 device		sio0	at isa? port "IO_COM1" tty irq 4 vector siointr
-device		gp0	at isa? port 0x2c0 tty
-device		gsc0	at isa? port "IO_GSC1" tty drq 3
-device		joy0	at isa? port "IO_GAME"
-device		cy0	at isa? tty irq 10 iomem 0xd4000 vector cyintr
 
 # Options for sio:
 options		COMCONSOLE		#prefer serial console to video console
@@ -518,6 +521,7 @@ options		BREAK_TO_DEBUGGER	#a BREAK on a comconsole goes to
 # ed: Western Digital and SMC 80xx; Novell NE1000 and NE2000; 3Com 3C503
 # el: 3Com 3C501 (slow!)
 # ep: 3Com 3C509 (buggy)
+# fe: Fujitsu MB86960A/MB86965A Ethernet
 # fea: DEC DEFEA EISA FDDI adapter
 # ie: AT&T StarLAN 10 and EN100; 3Com 3C507; unknown NI5210
 # le: Digital Equipment EtherWorks 2 and EtherWorks 3 (DEPCA, DE100,
@@ -534,6 +538,7 @@ device ed0 at isa? port 0x280 net irq 5 iomem 0xd8000 vector edintr
 device eg0 at isa? port 0x310 net irq 5 vector egintr
 device el0 at isa? port 0x300 net irq 9 vector elintr
 device ep0 at isa? port 0x300 net irq 10 vector epintr
+device fe0 at isa? port 0x240 net irq ? vector feintr
 device fea0 at isa? net irq ? vector feaintr
 device ie0 at isa? port 0x360 net irq 7 iomem 0xd0000 vector ieintr
 device ix0 at isa? port 0x300 net irq 10 iomem 0xd0000 iosiz 32768 vector ixintr
@@ -542,10 +547,10 @@ device lnc0 at isa? port 0x300 net irq 10 drq 0 vector lncintr
 device ze0 at isa? port 0x300 net irq 5 iomem 0xd8000 vector zeintr
 device zp0 at isa? port 0x300 net irq 10 iomem 0xd8000 vector zpintr
 
-
+#
 # ISDN drivers - `isdn'.
 #
-# Uncomment one (and only one) of the following 4 drivers for the appropriate
+# Uncomment one (and only one) of the following two drivers for the appropriate
 # ISDN device you have.  For more information on what's considered appropriate
 # for your given set of circumstances, please read
 # /usr/src/gnu/usr.sbin/docs/INSTALL.  It's a bit sparse at present, but it's
@@ -554,62 +559,45 @@ device zp0 at isa? port 0x300 net irq 10 iomem 0xd8000 vector zpintr
 #
 device nic0 at isa? port "IO_COM3" iomem 0xe0000 tty irq 9 vector nicintr
 device nnic0 at isa? port 0x150 iomem 0xe0000 tty irq 12 vector nnicintr
-# This one is also temporarily ill - needs an isa_device structure!!
-#controller tel0 at isa? iomem 0xe0000 tty irq 9 vector telintr
-
-# These are non-optional for ISDN
-pseudo-device   isdn
-pseudo-device   ii      4
-pseudo-device   ity     4
-pseudo-device   itel    2       
-pseudo-device   ispy    1       
-
 
 #
-# Audio drivers: `snd', `pca'
+# Audio drivers: `snd', `sb', `pas', `gus', `pca'
 #
-# snd: Voxware sound drivers for various cards
-#      see /usr/src/sys/i386/isa/sound/sound.doc for details
+# snd: Voxware sound support code
+# sb: SoundBlaster PCM - SoundBlaster, SB Pro, SB16, ProAudioSpectrum
+# sbxvi: SoundBlaster 16
+# sbmidi: SoundBlaster 16 MIDI interface
+# pas: ProAudioSpectrum PCM and MIDI
+# gus: Gravis Ultrasound - Ultrasound, Ultrasound 16, Ultrasound MAX
+# gusxvi: Gravis Ultrasound 16-bit PCM
+# gusmax: Gravis Ultrasound MAX (currently broken)
+# mss: Microsoft Sound System
+# opl: Yamaha OPL-2 and OPL-3 FM - SB, SB Pro, SB 16, ProAudioSpectrum
+# uart: stand-alone 6850 UART for MIDI
+# mpu: Roland MPU-401 stand-alone card
+# 
+# Beware!  The addresses specified below are also hard-coded in
+# i386/isa/sound/sound_config.h.  If you change the values here, you
+# must also change the values in the include file.
+#
 # pca: PCM audio through your PC speaker
 #
 
-# SB = SoundBlaster;  PAS = ProAudioSpectrum;  GUS = Gravis UltraSound
 # Controls all sound devices
 controller	snd0
-
-# SoundBlaster DSP driver - for SB, SB Pro, SB16, PAS(emulating SB)
 device sb0      at isa? port 0x220 irq 7 drq 1 vector sbintr
-
-# SoundBlaster 16 DSP driver - for SB16 - requires sb0 device
 device sbxvi0   at isa? drq 5
-
-# SoundBlaster 16 MIDI - for SB16 - requires sb0 device
 device sbmidi0  at isa? port 0x330
-
-# ProAudioSpectrum PCM and Midi - for PAS
 device pas0     at isa? port 0x388 irq 10 drq 6 vector pasintr
-
-# Gravis UltraSound - for GUS, GUS16, GUSMAX
 device gus0 at isa? port 0x220 irq 11 drq 1 vector gusintr
-
-# Gravis UltraSound 16 bit option - for GUS16 - requires gus0
 device gusxvi0 at isa? port 0x530 irq 7 drq 3 vector adintr
-
-# Gravis UltraSound MAX - for GUSMAX - requires gus0
 device gusmax0 at isa? port 0x32c
-
-# MS Sound System
 device mss0 at isa? port 0x530 irq 10 drq 1 vector adintr
-
-# Yamaha OPL-2/OPL-3 FM - for SB, SB Pro, SB16, PAS
 device opl0     at isa? port 0x388
-
-# MPU-401 - for MPU-401 standalone card
 device mpu0     at isa? port 0x330 irq 6 drq 0
-
-# 6850 UART Midi
 device uart0 at isa? port 0x330 irq 5 vector "m6850intr"
 
+# Not controlled by `snd'
 device pca0 at isa? port IO_TIMER1 tty
 
 #
@@ -622,6 +610,10 @@ device pca0 at isa? port IO_TIMER1 tty
 # ctx: Cortex-I frame grabber
 # apm: Laptop Advanced Power Management (experimental)
 # spigot: The Creative Labs Video Spigot video-aquisition board
+# cy: Cyclades high-speed serial driver (ALPHA QUALITY!)
+# gp:  National Instruments AT-GPIB and AT-GPIB/TNT board
+# gsc: Genius GS-4500 hand scanner.
+# joy: joystick
 #
 # Notes on the spigot:
 #  The video spigot is at 0xad6.  This port address can not be changed.
@@ -635,13 +627,14 @@ device		mcd0	at isa? port 0x300 bio irq 10 vector mcdintr
 device		scd0	at isa? port 0x230 bio
 # for the soundblaster 16 multicd - up to 4 devices
 controller      matcd0  at isa? port ?
-#controller      matcd1  at isa? port ?
-#controller      matcd2  at isa? port ?
-#controller      matcd3  at isa? port ?
 device		wt0	at isa? port 0x300 bio irq 5 drq 1 vector wtintr
 device		ctx0	at isa? port 0x230 iomem 0xd0000
 device		spigot0 at isa? port 0xad6 irq 15 iomem 0xee000 vector spigintr
 device		apm0	at isa?
+device		gp0	at isa? port 0x2c0 tty
+device		gsc0	at isa? port "IO_GSC1" tty drq 3
+device		joy0	at isa? port "IO_GAME"
+device		cy0	at isa? tty irq 10 iomem 0xd4000 vector cyintr
 
 #
 # PCI devices:
