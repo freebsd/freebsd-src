@@ -758,7 +758,7 @@ ParseDoDependency (line)
 		 */
 		char *p = cp + 1;
 
-		if (*cp == ':' && *p == ':');
+		if (*cp == ':' && *p == ':')
 		    p++;
 
 		/* Found the best match already. */
