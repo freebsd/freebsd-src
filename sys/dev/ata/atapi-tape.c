@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: atapi-tape.c,v 1.1 1999/03/01 21:19:18 sos Exp $
+ *	$Id: atapi-tape.c,v 1.2 1999/03/03 21:10:29 sos Exp $
  */
 
 #include "ata.h"
@@ -209,7 +209,7 @@ ast_describe(struct ast_softc *stp)
     printf("\n");
 }
 
-static int32_t
+static int
 astopen(dev_t dev, int32_t flags, int32_t fmt, struct proc *p)
 {
     int32_t lun = UNIT(dev);
@@ -228,7 +228,7 @@ astopen(dev_t dev, int32_t flags, int32_t fmt, struct proc *p)
     return 0;
 }
 
-static int32_t 
+static int 
 astclose(dev_t dev, int32_t flags, int32_t fmt, struct proc *p)
 {
     int32_t lun = UNIT(dev);
@@ -257,19 +257,19 @@ astclose(dev_t dev, int32_t flags, int32_t fmt, struct proc *p)
     return 0;
 }
 
-static int32_t
+static int
 astread(dev_t dev, struct uio *uio, int32_t ioflag)
 {
 	return physio(aststrategy, NULL, dev, 1, minphys, uio);
 }
 
-static int32_t
+static int
 astwrite(dev_t dev, struct uio *uio, int32_t ioflag)
 {
 	return physio(aststrategy, NULL, dev, 0, minphys, uio);
 }
 
-static int32_t 
+static int 
 astioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
 {
     int32_t lun = UNIT(dev);

@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: ata-all.c,v 1.1 1999/03/01 21:19:18 sos Exp $
+ *  $Id: ata-all.c,v 1.2 1999/03/03 21:10:29 sos Exp $
  */
 
 #include "ata.h"
@@ -65,12 +65,7 @@ static void ata_pciattach(pcici_t, int32_t);
 static void promise_intr(int32_t);
 #endif
 static int32_t ata_probe(int32_t, int32_t, int32_t *);
-static int32_t ata_attach(int32_t);
 static void ataintr(int32_t);
-static int32_t ata_device_attach(struct ata_softc *, int32_t);
-static int32_t atapi_device_attach(struct ata_softc *, int32_t);
-static void bswap(int8_t *, int32_t);
-static void btrim(int8_t *, int32_t);
 
 static int32_t atanlun = 0, sysctrl = 0;
 struct ata_softc *atadevices[MAXATA];
@@ -98,7 +93,7 @@ ata_isaprobe(struct isa_device *devp)
 static int32_t
 ata_isaattach(struct isa_device *devp)
 {
-    return ata_attach(devp->id_unit);
+    return 1;
 }
 #endif
 
@@ -223,7 +218,6 @@ ata_pciattach(pcici_t tag, int32_t unit)
 	}
 	printf("ata%d at 0x%04x irq %d on ata-pci%d\n",
 	       lun, iobase_1, irq1, unit);
-	ata_attach(lun);
     }
     if (ata_probe(iobase_2, altiobase_2, &lun)) {
 	if (iobase_2 == IO_WD2)
@@ -234,7 +228,6 @@ ata_pciattach(pcici_t tag, int32_t unit)
 	}
 	printf("ata%d at 0x%04x irq %d on ata-pci%d\n",
 	       lun, iobase_2, irq2, unit);
-	ata_attach(lun);
     }
 }
 
@@ -402,31 +395,6 @@ ata_probe(int32_t ioaddr, int32_t altioaddr, int32_t *unit)
     return ATA_IOSIZE;
 }
 
-static int32_t
-ata_attach(int32_t unit)
-{
-    struct ata_softc *scp;
-    
-    if (unit > atanlun)
-	return 0;
-
-    scp = atadevices[unit];
-
-    if (scp->devices & ATA_ATA_MASTER)
-        if (ata_device_attach(scp, ATA_MASTER))
-	    scp->devices &= ~ATA_ATA_MASTER;
-    if (scp->devices & ATA_ATA_SLAVE)
-	if (ata_device_attach(scp, ATA_SLAVE))
-	    scp->devices &= ~ATA_ATA_SLAVE;
-    if (scp->devices & ATA_ATAPI_MASTER)
-	if (atapi_device_attach(scp, ATA_MASTER))
-	    scp->devices &= ~ATA_ATAPI_MASTER;
-    if (scp->devices & ATA_ATAPI_SLAVE)
-	if (atapi_device_attach(scp, ATA_SLAVE))
-	    scp->devices &= ~ATA_ATAPI_SLAVE;
-    return scp->devices;
-}
-
 static void
 ataintr(int32_t unit)
 {
@@ -457,6 +425,11 @@ ataintr(int32_t unit)
     case ATA_ACTIVE_ATAPI:
         if ((atapi_request = TAILQ_FIRST(&scp->atapi_queue)))
 	    atapi_interrupt(atapi_request);
+	break;
+
+    case ATA_WAIT_INTR:
+	wakeup((caddr_t)scp);
+	scp->active = ATA_IDLE;
 	break;
 
     case ATA_IGNORE_INTR:
@@ -527,99 +500,45 @@ ata_wait(struct ata_softc *scp, u_int8_t mask)
     return -1;
 }
 
-static int32_t
-ata_device_attach(struct ata_softc *scp, int32_t device)
-{
-    struct ata_params *ata_parm;
-    int8_t buffer[DEV_BSIZE];
-
-    outb(scp->ioaddr + ATA_DRIVE, ATA_D_IBM | device);
-    if (ata_wait(scp, 0) < 0)
-	return -1;
-    outb(scp->ioaddr + ATA_DRIVE, ATA_D_IBM | device); /* XXX SOS */
-    scp->active = ATA_IGNORE_INTR;
-    outb(scp->ioaddr + ATA_CMD, ATA_C_ATA_IDENTIFY);
-    if (ata_wait(scp, ATA_S_DRDY | ATA_S_DSC | ATA_S_DRQ))
-	return -1;
-
-    insw(scp->ioaddr + ATA_DATA, buffer, sizeof(buffer)/sizeof(int16_t));
-    ata_parm = malloc(sizeof(struct ata_params), M_DEVBUF, M_NOWAIT);
-    if (!ata_parm) 
-   	return -1; 
-    bcopy(buffer, ata_parm, sizeof(struct ata_params));
-    bswap(ata_parm->model, sizeof(ata_parm->model));
-    btrim(ata_parm->model, sizeof(ata_parm->model));
-    bswap(ata_parm->revision, sizeof(ata_parm->revision));
-    btrim(ata_parm->revision, sizeof(ata_parm->revision));
-    scp->ata_parm[device == ATA_SLAVE] = ata_parm;
-    return 0;
-}
-
 int32_t
-atapi_wait(struct ata_softc *scp, u_int8_t mask)
+ata_command(struct ata_softc *scp, int32_t device, u_int32_t command,
+	   u_int32_t cylinder, u_int32_t head, u_int32_t sector, 
+	   u_int32_t count, int32_t flags)
 {
-    u_int8_t status;
-    u_int32_t timeout = 0;
-    
-    while (timeout++ <= 500000) {        /* timeout 5 secs */
-        status = inb(scp->ioaddr + ATA_STATUS);
-        if ((status == 0xff) && (scp->flags & ATA_F_SLAVE_ONLY)) {
-            outb(scp->ioaddr + ATA_DRIVE, ATA_D_IBM | ATA_SLAVE);
-            status = inb(scp->ioaddr + ATA_STATUS);
-        }
-
-        if (!(status & ATA_S_BSY))  
-            break;            
-        DELAY (10);        
-    }    
-    if (timeout <= 0)    
-        return -1;          
-    if (!mask)     
-        return (status & ATA_S_ERROR);   
-    
-    /* Wait 50 msec for bits wanted. */    
-    for (timeout=5000; timeout>0; --timeout) {    
-        status = inb(scp->ioaddr + ATA_STATUS);        
-        if ((status & mask) == mask)        
-            return (status & ATA_S_ERROR);            
-        DELAY (10);        
-    }     
-    return -1;      
-}   
-
-static int32_t
-atapi_device_attach(struct ata_softc *scp, int32_t device)
-{
-    struct atapi_params	*atapi_parm;
-    int8_t buffer[DEV_BSIZE];
-
-    outb(scp->ioaddr + ATA_DRIVE, ATA_D_IBM | device);
-    if (atapi_wait(scp, 0) < 0)
+    /* ready to issue command ? */ 
+    while (ata_wait(scp, 0) < 0) {
+        printf("ad_transfer: timeout waiting to give command");
 	return -1;
-    outb(scp->ioaddr + ATA_DRIVE, ATA_D_IBM | device); /* XXX SOS */
-    outb(scp->ioaddr + ATA_CMD, ATA_C_ATAPI_IDENTIFY);
-    if (atapi_wait(scp, ATA_S_DRQ))
-	return -1;
+    }
 
-    insw(scp->ioaddr + ATA_DATA, buffer, sizeof(buffer)/sizeof(int16_t));
-    atapi_parm = malloc(sizeof(struct atapi_params), M_DEVBUF, M_NOWAIT);
-    if (!atapi_parm) 
-   	return -1; 
+    outb(scp->ioaddr + ATA_PRECOMP, 0); /* no precompensation */
+    outb(scp->ioaddr + ATA_CYL_LSB, cylinder);
+    outb(scp->ioaddr + ATA_CYL_MSB, cylinder >> 8);
+    outb(scp->ioaddr + ATA_DRIVE, ATA_D_IBM | device | head);
+    outb(scp->ioaddr + ATA_SECTOR, sector);
+    outb(scp->ioaddr + ATA_COUNT, count);
+
+    switch (flags) {
+    case ATA_WAIT_INTR:
+        scp->active = ATA_WAIT_INTR;
+        outb(scp->ioaddr + ATA_CMD, command);
+	tsleep((caddr_t)scp, PRIBIO, "atacmd", 0);
+	break;
     
-    bcopy(buffer, atapi_parm, sizeof(struct atapi_params));
-    if (!((atapi_parm->model[0] == 'N' && atapi_parm->model[1] == 'E') ||
-          (atapi_parm->model[0] == 'F' && atapi_parm->model[1] == 'X')))
-        bswap(atapi_parm->model, sizeof(atapi_parm->model));
-    btrim(atapi_parm->model, sizeof(atapi_parm->model));
-    bswap(atapi_parm->revision, sizeof(atapi_parm->revision));
-    btrim(atapi_parm->revision, sizeof(atapi_parm->revision));
-    bswap(atapi_parm->serial, sizeof(atapi_parm->serial)); /* unused SOS */
-    btrim(atapi_parm->serial, sizeof(atapi_parm->serial)); /* unused SOS */
-    scp->atapi_parm[device == ATA_SLAVE] = atapi_parm;
+    case ATA_IGNORE_INTR:
+        scp->active = ATA_IGNORE_INTR;
+        outb(scp->ioaddr + ATA_CMD, command);
+	break;
+
+    case ATA_IMMEDIATE:
+    default:
+        outb(scp->ioaddr + ATA_CMD, command);
+	break;
+    }
     return 0;
 }
 
-static void
+void
 bswap(int8_t *buf, int32_t len) 
 {
     u_int16_t *p = (u_int16_t*)(buf + len);
@@ -628,7 +547,7 @@ bswap(int8_t *buf, int32_t len)
         *p = ntohs(*p);
 } 
 
-static void
+void
 btrim(int8_t *buf, int32_t len)
 { 
     int8_t *p;

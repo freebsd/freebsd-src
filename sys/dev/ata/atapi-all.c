@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: atapi-all.c,v 1.1 1999/03/01 21:19:18 sos Exp $
+ *	$Id: atapi-all.c,v 1.2 1999/03/03 21:10:29 sos Exp $
  */
 
 #include "ata.h"
@@ -49,8 +49,12 @@
 
 /* prototypes */
 static void atapi_attach(void *);
+static int32_t atapi_get_param(struct atapi_softc *);
 static int8_t *atapi_type(int32_t);
+#ifdef ATAPI_DEBUG
 static int8_t *atapi_cmd2str(u_int8_t);
+#endif
+int32_t atapi_wait(struct ata_softc *, u_int8_t);
 static void atapi_init(void);
 
 /* extern references */
@@ -63,6 +67,7 @@ static struct intr_config_hook *atapi_attach_hook;
 static void
 atapi_attach(void *notused)
 {
+    struct atapi_softc *atp;
     int32_t ctlr, dev;
     int8_t model_buf[40+1];
     int8_t revision_buf[8+1];
@@ -70,18 +75,21 @@ atapi_attach(void *notused)
     /* now, run through atadevices and look for ATAPI devices */
     for (ctlr=0; ctlr<MAXATA && atadevices[ctlr]; ctlr++) {
 	for (dev=0; dev<2; dev++) {
-	    struct ata_softc *scp = atadevices[ctlr];
-
-	    if (scp->atapi_parm[dev]) {
-                struct atapi_softc *atp;
-
-                atp = malloc(sizeof(struct atapi_softc), M_DEVBUF, M_NOWAIT);
+	    if (atadevices[ctlr]->devices & 
+		(dev ? ATA_ATAPI_SLAVE : ATA_ATAPI_MASTER)) {
+                if (!(atp = malloc(sizeof(struct atapi_softc),
+				   M_DEVBUF, M_NOWAIT))) {
+		    printf("atapi: failed to allocate driver storage\n");
+		    continue;
+		}
                 bzero(atp, sizeof(struct atapi_softc));
-                atp->controller = scp;
-                atp->atapi_parm = scp->atapi_parm[dev];
+                atp->controller = atadevices[ctlr];
                 atp->unit = (dev) ? ATA_SLAVE : ATA_MASTER;
-
-		switch (scp->atapi_parm[dev]->device_type) {
+                if (atapi_get_param(atp)) {
+                    free(atp, M_DEVBUF);
+                    continue;
+                }
+		switch (atp->atapi_parm->device_type) {
 #if NATAPICD > 0
 	     	case ATAPI_TYPE_CDROM:
         	    if (acdattach(atp))
@@ -103,14 +111,13 @@ atapi_attach(void *notused)
 notfound:
 		default:
 		    free(atp, M_DEVBUF);
-	            bpack(scp->atapi_parm[dev]->model, model_buf,
-			  sizeof(model_buf));
-		    bpack(scp->atapi_parm[dev]->revision, revision_buf, 
+	            bpack(atp->atapi_parm->model, model_buf, sizeof(model_buf));
+		    bpack(atp->atapi_parm->revision, revision_buf, 
 		          sizeof(revision_buf));
 		    printf("atapi: <%s/%s> %s device at ata%d as %s "
 			   "- NO DRIVER!\n", 
            	           model_buf, revision_buf,
-		           atapi_type(scp->atapi_parm[dev]->device_type),
+		           atapi_type(atp->atapi_parm->device_type),
 		           ctlr,
 		           (dev) ? "slave" : "master ");
 		}
@@ -120,6 +127,34 @@ notfound:
     config_intrhook_disestablish(atapi_attach_hook); 
 }
 
+static int32_t
+atapi_get_param(struct atapi_softc *atp)
+{
+    struct atapi_params	*atapi_parm;
+    int8_t buffer[DEV_BSIZE];
+
+    ata_command(atp->controller, atp->unit, ATA_C_ATAPI_IDENTIFY,
+                0, 0, 0, 0, ATA_WAIT_INTR);     
+    if (atapi_wait(atp->controller, ATA_S_DRQ))
+	return -1;
+    insw(atp->controller->ioaddr + ATA_DATA, buffer,
+ 	 sizeof(buffer)/sizeof(int16_t));
+    if (!(atapi_parm = malloc(sizeof(struct atapi_params), M_DEVBUF, M_NOWAIT)))
+   	return -1; 
+    bcopy(buffer, atapi_parm, sizeof(struct atapi_params));
+    if (!((atapi_parm->model[0] == 'N' && atapi_parm->model[1] == 'E') ||
+          (atapi_parm->model[0] == 'F' && atapi_parm->model[1] == 'X')))
+        bswap(atapi_parm->model, sizeof(atapi_parm->model));
+    btrim(atapi_parm->model, sizeof(atapi_parm->model));
+    bswap(atapi_parm->revision, sizeof(atapi_parm->revision));
+    btrim(atapi_parm->revision, sizeof(atapi_parm->revision));
+    bswap(atapi_parm->serial, sizeof(atapi_parm->serial)); /* unused SOS */
+    btrim(atapi_parm->serial, sizeof(atapi_parm->serial)); /* unused SOS */
+    atp->atapi_parm = atapi_parm;
+    return 0;
+}
+
+
 int32_t   
 atapi_queue_cmd(struct atapi_softc *atp, int8_t *ccb, void *data, 
 		int32_t count, int32_t flags,
@@ -127,12 +162,11 @@ atapi_queue_cmd(struct atapi_softc *atp, int8_t *ccb, void *data,
 {
     struct atapi_request *request;
     int32_t error = 0; 
-    int32_t s = splbio();
+    int32_t x;
  
-    if (!(request = malloc(sizeof(struct atapi_request), M_DEVBUF, M_NOWAIT))) {
-        splx(s);
+    if (!(request = malloc(sizeof(struct atapi_request), M_DEVBUF, M_NOWAIT)))
         return -1;
-    }
+    x = splbio();
     bzero(request, sizeof(struct atapi_request));
     request->device = atp;
     request->data = data;
@@ -149,22 +183,24 @@ atapi_queue_cmd(struct atapi_softc *atp, int8_t *ccb, void *data,
     /* link onto controller queue */
     TAILQ_INSERT_TAIL(&atp->controller->atapi_queue, request, chain);
 #ifdef ATAPI_DEBUG
-    printf("atapi: trying to start %s command\n", atapi_cmd2str(ccb[0]));
+    printf("atapi: queued %s cmd\n", atapi_cmd2str(ccb[0]));
 #endif
+
     /* try to start controller */
     if (!atp->controller->active)
         ata_start(atp->controller);
-
     if (!callback) {
     	/* wait for command to complete */
-    	tsleep((caddr_t)request, PRIBIO, "atprq", 0);
+    	if (tsleep((caddr_t)request, PRIBIO, "atprq", 100))
+	    error = 0xf0;
+	else
+    	    error = request->result;
 #ifdef ATAPI_DEBUG
     printf("atapi: phew, got back from tsleep\n");
 #endif
-    	error = request->result;
     	free(request, M_DEVBUF);
     }
-    splx(s);
+    splx(x);
     return error;
 }
     
@@ -178,21 +214,17 @@ atapi_transfer(struct atapi_request *request)
     /* get device params */
     atp = request->device;
 
+#ifdef ATAPI_DEBUG
+    printf("atapi: trying to start %s cmd\n", atapi_cmd2str(request->ccb[0]));
+#endif
+
     /* start ATAPI operation */
-    outb(atp->controller->ioaddr + ATA_DRIVE, ATA_D_IBM | atp->unit);
-    if (atapi_wait(atp->controller, 0) < 0) {
-        printf ("atapi_transfer: timeout waiting to send PACKET command\n");
-	/* now what ? SOS */
-    }
-    outb(atp->controller->ioaddr + ATA_PRECOMP, 0);
-    outb(atp->controller->ioaddr + ATA_COUNT, 0);
-    outb(atp->controller->ioaddr + ATA_SECTOR, 0);
-    outb(atp->controller->ioaddr + ATA_CYL_LSB, request->bytecount);
-    outb(atp->controller->ioaddr + ATA_CYL_MSB, request->bytecount >> 8);
-    outb(atp->controller->ioaddr + ATA_CMD, ATA_C_PACKET_CMD);
- 
-    /* wait for interrupt ?? not supported yet. */
-    /* just return then and let atapi_interrupt handle it */
+    ata_command(atp->controller, atp->unit, ATA_C_PACKET_CMD, 
+		request->bytecount, 0, 0, 0, ATA_IMMEDIATE);
+
+    /* command interrupt device ? just return */
+    if (atp->atapi_parm->drqtype == ATAPI_DRQT_INTR)
+	return;
 
     /* ready to write ATAPI command */
     timeout = 5000; /* might be less for fast devices */
@@ -209,6 +241,9 @@ atapi_transfer(struct atapi_request *request)
 	printf("atapi_transfer: bad command phase\n");
 	/* now what ?? SOS atapi-done & again */
     }
+
+    /* this seems to be needed for some (slow) devices */
+    DELAY(10);
 
     /* send actual command */
     outsw(atp->controller->ioaddr + ATA_DATA, request->ccb, 
@@ -248,15 +283,12 @@ printf("atapi_interrupt: length=%d reason=0x%02x\n", length, reason);
     switch (reason) {
     
     case ATAPI_P_CMDOUT:
-        printf("atapi_interrupt: command interrupt, not supported yet\n");
-#if notyet
-    	/* send actual command */
-	if (!(atp->status & ATA_S_DRQ))
+    	/* send ATAPI command */
+	if (!(atp->controller->status & ATA_S_DRQ))
             printf("atapi_interrupt: command interrupt, but no DRQ\n");
 	else
     	    outsw(atp->controller->ioaddr + ATA_DATA, request->ccb,
-                  request->ccdsize / sizeof(int16_t));
-#endif
+                  request->ccbsize / sizeof(int16_t));
 	return;
 	
     case ATAPI_P_WRITE:
@@ -371,6 +403,7 @@ atapi_type(int32_t type)
     }
 }
 
+#ifdef ATAPI_DEBUG
 static int8_t *
 atapi_cmd2str(u_int8_t cmd)
 {
@@ -414,6 +447,39 @@ atapi_cmd2str(u_int8_t cmd)
 	}
     }
 }
+#endif
+
+int32_t
+atapi_wait(struct ata_softc *scp, u_int8_t mask)
+{
+    u_int8_t status;
+    u_int32_t timeout = 0;
+    
+    while (timeout++ <= 500000) {        /* timeout 5 secs */
+        status = inb(scp->ioaddr + ATA_STATUS);
+        if ((status == 0xff) && (scp->flags & ATA_F_SLAVE_ONLY)) {
+            outb(scp->ioaddr + ATA_DRIVE, ATA_D_IBM | ATA_SLAVE);
+            status = inb(scp->ioaddr + ATA_STATUS);
+        }
+
+        if (!(status & ATA_S_BSY))  
+            break;            
+        DELAY (10);        
+    }    
+    if (timeout <= 0)    
+        return -1;          
+    if (!mask)     
+        return (status & ATA_S_ERROR);   
+    
+    /* Wait 50 msec for bits wanted. */    
+    for (timeout=5000; timeout>0; --timeout) {    
+        status = inb(scp->ioaddr + ATA_STATUS);        
+        if ((status & mask) == mask)        
+            return (status & ATA_S_ERROR);            
+        DELAY (10);        
+    }     
+    return -1;      
+}   
 
 static void
 atapi_init(void)

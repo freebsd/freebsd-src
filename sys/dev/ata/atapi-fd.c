@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: atapi-fd.c,v 1.1 1999/03/03 21:10:29 sos Exp $
  */
 
 #include "ata.h"
@@ -191,7 +191,7 @@ afd_describe(struct afd_softc *fdp)
     printf("\n");
 }
 
-static int32_t
+static int
 afdopen(dev_t dev, int32_t flags, int32_t fmt, struct proc *p)
 {
     struct afd_softc *fdp;
@@ -220,7 +220,7 @@ afdopen(dev_t dev, int32_t flags, int32_t fmt, struct proc *p)
 		  (ds_setgeom_t *)NULL, &afd_cdevsw);
 }
 
-static int32_t 
+static int 
 afdclose(dev_t dev, int32_t flags, int32_t fmt, struct proc *p)
 {
     int32_t lun = UNIT(dev);
@@ -235,19 +235,19 @@ afdclose(dev_t dev, int32_t flags, int32_t fmt, struct proc *p)
     return 0;
 }
 
-static int32_t
+static int
 afdread(dev_t dev, struct uio *uio, int32_t ioflag)
 {
 	return physio(afdstrategy, NULL, dev, 1, minphys, uio);
 }
 
-static int32_t
+static int
 afdwrite(dev_t dev, struct uio *uio, int32_t ioflag)
 {
 	return physio(afdstrategy, NULL, dev, 0, minphys, uio);
 }
 
-static int32_t 
+static int 
 afdioctl(dev_t dev, u_long cmd, caddr_t addr, int32_t flag, struct proc *p)
 {
     int32_t lun = UNIT(dev);
