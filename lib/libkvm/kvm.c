@@ -206,6 +206,10 @@ _kvm_open(kd, uf, mf, flag, errout)
 		_kvm_syserr(kd, kd->program, "%s", mf);
 		goto failed;
 	}
+	if (fcntl(kd->pmfd, F_SETFD, FD_CLOEXEC) < 0) {
+		_kvm_syserr(kd, kd->program, "%s", mf);
+		goto failed;
+	}
 	if (S_ISCHR(st.st_mode)) {
 		/*
 		 * If this is a character special device, then check that
@@ -224,6 +228,10 @@ _kvm_open(kd, uf, mf, flag, errout)
 				_kvm_syserr(kd, kd->program, "%s", _PATH_KMEM);
 				goto failed;
 			}
+			if (fcntl(kd->vmfd, F_SETFD, FD_CLOEXEC) < 0) {
+				_kvm_syserr(kd, kd->program, "%s", _PATH_KMEM);
+				goto failed;
+			}
 		}
 	} else {
 		/*
@@ -232,6 +240,10 @@ _kvm_open(kd, uf, mf, flag, errout)
 		 * but first setup the namelist fd.
 		 */
 		if ((kd->nlfd = open(uf, O_RDONLY, 0)) < 0) {
+			_kvm_syserr(kd, kd->program, "%s", uf);
+			goto failed;
+		}
+		if (fcntl(kd->nlfd, F_SETFD, FD_CLOEXEC) < 0) {
 			_kvm_syserr(kd, kd->program, "%s", uf);
 			goto failed;
 		}
