@@ -46,6 +46,7 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif /* not lint */
 
+#include <ctype.h>
 #include <err.h>
 #include <errno.h>
 #include <stdio.h>
@@ -54,6 +55,7 @@ static const char rcsid[] =
 #include <unistd.h>
 #include <sys/param.h>
 #include <sys/ioctl.h>
+#include <sys/linker.h>
 #include <sys/mount.h>
 #include <sys/module.h>
 #include <sys/stat.h>
@@ -236,6 +238,14 @@ config(vnp)
 	FILE *f;
 	u_long l;
 
+	rv = 0;
+
+	/*
+	 * Prepend "/dev/" to the specified device name, if necessary.
+	 * Operate on vnp->dev because it is used later.
+	 */
+	if (vnp->dev[0] != '/' && vnp->dev[0] != '.')
+		(void)asprintf(&vnp->dev, "/dev/%s", vnp->dev);
 	dev = vnp->dev;
 	file = vnp->file;
 	flags = vnp->flags;
@@ -318,7 +328,7 @@ config(vnp)
 		if (rv) {
 			warn("VNIO[GU]SET");
 		} else if (verbose)
-			printf("%s: flags now=%08x\n",dev,l);
+			printf("%s: flags now=%08lx\n",dev,l);
 	}
 	/*
 	 * Reset an option
@@ -332,7 +342,7 @@ config(vnp)
 		if (rv) {
 			warn("VNIO[GU]CLEAR");
 		} else if (verbose)
-			printf("%s: flags now=%08x\n",dev,l);
+			printf("%s: flags now=%08lx\n",dev,l);
 	}
 
 	/*
@@ -482,8 +492,10 @@ rawdevice(dev)
 static void
 usage()
 {
-	fprintf(stderr,
-"usage: vnconfig [-acdefguv] [-s option] [-r option] [special-device file]\n");
+	fprintf(stderr, "%s\n%s\n%s\n",
+		"usage: vnconfig [-cdeguv] [-s option] [-r option] [-S value] special_file",
+		"                [regular_file] [feature]",
+		"       vnconfig -a [-cdeguv] [-s option] [-r option] [-f config_file]");
 	exit(1);
 }
 
