@@ -616,21 +616,6 @@ osf1_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 		sip = (osiginfo_t *)(alpha_pal_rdusp() - rndfsize);
 	PROC_UNLOCK(p);
 
-	(void)grow_stack(p, (u_long)sip);
-	if (useracc((caddr_t)sip, fsize, VM_PROT_WRITE) == 0) {
-		/*
-		 * Process has trashed its stack; give it an illegal
-		 * instruction to halt it in its tracks.
-		 */
-		PROC_LOCK(p);
-		SIGACTION(p, SIGILL) = SIG_DFL;
-		SIGDELSET(p->p_sigignore, SIGILL);
-		SIGDELSET(p->p_sigcatch, SIGILL);
-		SIGDELSET(p->p_sigmask, SIGILL);
-		psignal(p, SIGILL);
-		return;
-	}
-
 	/*
 	 * Build the signal context to be used by sigreturn.
 	 */
@@ -667,7 +652,19 @@ osf1_sendsig(sig_t catcher, int sig, sigset_t *mask, u_long code)
 	/*
 	 * copy the frame out to userland.
 	 */
-	(void) copyout((caddr_t)&ksi, (caddr_t)sip, fsize);
+	if (copyout((caddr_t)&ksi, (caddr_t)sip, fsize) != 0) {
+		/*
+		 * Process has trashed its stack; give it an illegal
+		 * instruction to halt it in its tracks.
+		 */
+		PROC_LOCK(p);
+		SIGACTION(p, SIGILL) = SIG_DFL;
+		SIGDELSET(p->p_sigignore, SIGILL);
+		SIGDELSET(p->p_sigcatch, SIGILL);
+		SIGDELSET(p->p_sigmask, SIGILL);
+		psignal(p, SIGILL);
+		return;
+	}
 
 	/*
 	 * Set up the registers to return to sigcode.
