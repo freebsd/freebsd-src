@@ -244,9 +244,11 @@ Do not recursively archive the contents of directories.
 (c and r modes only)
 Honor the nodump file flag by skipping this file.
 .It Fl O
-(x mode only)
-Extracted files are written to standard out rather than
+(x, t modes only)
+In extract (-x) mode, files will be written to standard out rather than
 being extracted to disk.
+In list (-t) mode, the file listing will be written to stderr rather than
+the usual stdout.
 .It Fl o
 (x mode only)
 Use the user and group of the user running the program rather
