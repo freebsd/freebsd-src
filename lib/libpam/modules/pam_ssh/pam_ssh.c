@@ -397,7 +397,6 @@ pam_sm_open_session(pam_handle_t *pamh, int flags __unused,
 
 	if ((retval = openpam_borrow_cred(pamh, pwent)) != PAM_SUCCESS)
 		return retval;
-	fprintf(stderr, "ruid %d, euid %d\n", getuid(), geteuid());
 
 	/* Try to create the per-agent file or open it for reading if it
 	   exists.  If we can't do either, we won't try to link a
