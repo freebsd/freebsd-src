@@ -4,7 +4,7 @@
 .Dt DIVERT 4
 .Os FreeBSD
 .Sh NAME
-.Nm divert 
+.Nm divert
 .Nd kernel packet diversion mechanism
 .Sh SYNOPSIS
 .Fd #include <sys/types.h>
@@ -27,7 +27,7 @@ to that port by some (here unspecified) kernel mechanism(s).
 Packets may also be written to a divert port, in which case they
 re-enter kernel IP packet processing.
 .Pp
-Divert sockets are normally used in conjunction with 
+Divert sockets are normally used in conjunction with
 FreeBSD's packet filtering implementation and the
 .Xr ipfw 8
 program.
@@ -45,7 +45,7 @@ Diverted packets may be read unaltered via
 or
 .Xr recvfrom 2 .
 In the latter case, the address returned will have its port set to
-the some tag supplied by the packet diverter, (usually the ipfw rule number) 
+the some tag supplied by the packet diverter, (usually the ipfw rule number)
 and the IP address set to the (first) address of
 the interface on which the packet was received (if the packet
 was incoming) or
@@ -90,12 +90,12 @@ unmodified to
 simplifies things (see below).
 .Pp
 The port part of the socket address passed to the
-.Xr sendto 2 
+.Xr sendto 2
 contains a tag that should be meaningful to the diversion module.
 In the
 case of
-.Xr Ipfw 8
-the tag is interpretted as the rule number
+.Xr ipfw 8
+the tag is interpreted as the rule number
 .Em after which
 rule processing should restart.
 .Sh LOOP AVOIDANCE
