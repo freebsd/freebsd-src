@@ -303,7 +303,7 @@
 #define RL_TXTHRESH(x)		((x) << 11)
 #define RL_TX_THRESH_INIT	96
 #define RL_RX_FIFOTHRESH	RL_RXFIFO_256BYTES
-#define RL_RX_MAXDMA		RL_RXDMA_UNLIMITED
+#define RL_RX_MAXDMA		RL_RXDMA_1024BYTES /*RL_RXDMA_UNLIMITED*/
 #define RL_TX_MAXDMA		RL_TXDMA_2048BYTES
 
 #define RL_RXCFG_CONFIG (RL_RX_FIFOTHRESH|RL_RX_MAXDMA|RL_RX_BUF_SZ)
@@ -315,8 +315,10 @@ struct rl_chain_data {
 	u_int16_t		cur_rx;
 	caddr_t			rl_rx_buf;
 	caddr_t			rl_rx_buf_ptr;
+	bus_dmamap_t		rl_rx_dmamap;
 
 	struct mbuf		*rl_tx_chain[RL_TX_LIST_CNT];
+	bus_dmamap_t		rl_tx_dmamap[RL_TX_LIST_CNT];
 	u_int8_t		last_tx;
 	u_int8_t		cur_tx;
 };
@@ -325,9 +327,11 @@ struct rl_chain_data {
 #define RL_CUR_TXADDR(x)	((x->rl_cdata.cur_tx * 4) + RL_TXADDR0)
 #define RL_CUR_TXSTAT(x)	((x->rl_cdata.cur_tx * 4) + RL_TXSTAT0)
 #define RL_CUR_TXMBUF(x)	(x->rl_cdata.rl_tx_chain[x->rl_cdata.cur_tx])
+#define RL_CUR_DMAMAP(x)	(x->rl_cdata.rl_tx_dmamap[x->rl_cdata.cur_tx])
 #define RL_LAST_TXADDR(x)	((x->rl_cdata.last_tx * 4) + RL_TXADDR0)
 #define RL_LAST_TXSTAT(x)	((x->rl_cdata.last_tx * 4) + RL_TXSTAT0)
 #define RL_LAST_TXMBUF(x)	(x->rl_cdata.rl_tx_chain[x->rl_cdata.last_tx])
+#define RL_LAST_DMAMAP(x)	(x->rl_cdata.rl_tx_dmamap[x->rl_cdata.last_tx])
 
 struct rl_type {
 	u_int16_t		rl_vid;
@@ -363,6 +367,8 @@ struct rl_softc {
 	struct resource		*rl_irq;
 	void			*rl_intrhand;
 	device_t		rl_miibus;
+	bus_dma_tag_t		rl_parent_tag;
+	bus_dma_tag_t		rl_tag;
 	u_int8_t		rl_unit;	/* interface number */
 	u_int8_t		rl_type;
 	int			rl_eecmd_read;
@@ -483,8 +489,3 @@ struct rl_softc {
 #define RL_PSTATE_D3		0x0003
 #define RL_PME_EN		0x0010
 #define RL_PME_STATUS		0x8000
-
-#ifdef __alpha__
-#undef vtophys
-#define vtophys(va)     alpha_XXX_dmamap((vm_offset_t)va)
-#endif
