@@ -1476,6 +1476,9 @@ osigreturn(struct thread *td,
 #endif /* COMPAT_43 */
 }
 
+/*
+ * MPSAFE
+ */
 int
 sigreturn(struct thread *td,
 	struct sigreturn_args /* {
