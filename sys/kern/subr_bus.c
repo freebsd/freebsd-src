@@ -200,10 +200,7 @@ devclass_sysctl_handler(SYSCTL_HANDLER_ARGS)
 {
 	devclass_t dc = (devclass_t)arg1;
 	const char *value;
-	char *buf;
-	int error;
 
-	buf = NULL;
 	switch (arg2) {
 	case DEVCLASS_SYSCTL_PARENT:
 		value = dc->parent ? dc->parent->name : "";
@@ -211,10 +208,7 @@ devclass_sysctl_handler(SYSCTL_HANDLER_ARGS)
 	default:
 		return (EINVAL);
 	}
-	error = SYSCTL_OUT(req, value, strlen(value));
-	if (buf != NULL)
-		free(buf, M_BUS);
-	return (error);
+	return (SYSCTL_OUT(req, value, strlen(value)));
 }
 
 static void
