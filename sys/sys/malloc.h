@@ -59,7 +59,7 @@ struct malloc_type {
 	long	ks_limit;	/* most that are allowed to exist */
 	long	ks_size;	/* sizes of this thing that are allocated */
 	long	ks_inuse;	/* # of packets of this type currently in use */
-	int64_t	ks_calls;	/* total packets of this type ever allocated */
+	uint64_t ks_calls;	/* total packets of this type ever allocated */
 	long	ks_maxused;	/* maximum number ever used */
 	u_long	ks_magic;	/* if it's not magic, don't touch it */
 	const char *ks_shortdesc;	/* short description */
