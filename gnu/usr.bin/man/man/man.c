@@ -101,7 +101,10 @@ struct ltable {
 };
 static struct ltable ltable[] = {
 	{"KOI8-R", "koi8-r"},
+	{"ISO8859-1", "latin1"},
 	{"ISO_8859-1", "latin1"},
+	{"ISO8859-15", "latin1"},
+	{"ISO_8859-15", "latin1"},
 	{NULL}
 };
 #endif
@@ -464,8 +467,13 @@ man_getopt (argc, argv)
 	    || strlen(tmp + 1) < 4
 	    || tmp[3] != '.') {
 		if (debug) {
-			errno = EINVAL;
-			perror ("ctype locale env");
+			if (strcmp(locale, "C") != 0 &&
+			    strcmp(locale, "POSIX") != 0 &&
+			    strcmp(locale, "ASCII") != 0 &&
+			    strcmp(locale, "US-ASCII") != 0) {
+				errno = EINVAL;
+				perror ("ctype locale env");
+			}
 		}
 		locale = NULL;
 	} else {
