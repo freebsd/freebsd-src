@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *  $Id: linux_stats.c,v 1.3 1995/11/22 07:43:51 bde Exp $
+ *  $Id: linux_stats.c,v 1.4 1996/01/30 12:23:17 peter Exp $
  */
 
 #include <sys/param.h>
@@ -42,7 +42,8 @@
 #include <sys/pipe.h>
 
 #include <i386/linux/linux.h>
-#include <i386/linux/sysproto.h>
+#include <i386/linux/linux_proto.h>
+#include <i386/linux/linux_util.h>
 
 struct linux_newstat {
     unsigned short stat_dev;
@@ -67,10 +68,6 @@ struct linux_newstat {
     unsigned long __unused5;
 };
 
-struct linux_newstat_args {
-    char *path;
-    struct linux_newstat *buf;
-};
 
 static int
 newstat_copyout(struct stat *buf, void *ubuf)
@@ -97,9 +94,12 @@ int
 linux_newstat(struct proc *p, struct linux_newstat_args *args, int *retval)
 {
     struct stat buf;
-    struct linux_newstat tbuf;
     struct nameidata nd;
     int error;
+    caddr_t sg;
+
+    sg = stackgap_init();
+    CHECKALTEXIST(p, &sg, args->path);
   
 #ifdef DEBUG
     printf("Linux-emul(%d): newstat(%s, *)\n", p->p_pid, args->path);
@@ -115,44 +115,78 @@ linux_newstat(struct proc *p, struct linux_newstat_args *args, int *retval)
     return error;
 }
 
+/*
+ * Get file status; this version does not follow links.
+ */
 int
-linux_newlstat(struct proc *p, struct linux_newstat_args *args, int *retval)
+linux_newlstat(p, uap, retval)
+	struct proc *p;
+	struct linux_newlstat_args *uap;
+	int *retval;
 {
-    struct stat buf;
-    struct linux_newstat tbuf;
-    struct nameidata nd;
-    int error;
+	int error;
+	struct vnode *vp, *dvp;
+	struct stat sb, sb1;
+	struct nameidata nd;
+	caddr_t sg;
+
+	sg = stackgap_init();
+	CHECKALTEXIST(p, &sg, uap->path);
   
 #ifdef DEBUG
-    printf("Linux-emul(%d): newlstat(%s, *)\n", p->p_pid, args->path);
+	printf("Linux-emul(%d): newlstat(%s, *)\n", p->p_pid, uap->path);
 #endif
-    NDINIT(&nd, LOOKUP, LOCKLEAF|FOLLOW, UIO_USERSPACE, args->path, p);
-    error = namei(&nd);
-    if (!error) {
-	error = vn_stat(nd.ni_vp, &buf, p);
-	vput(nd.ni_vp);
-    }
-    if (!error)
-	error = newstat_copyout(&buf, args->buf);
-    return error;
+	NDINIT(&nd, LOOKUP, NOFOLLOW | LOCKLEAF | LOCKPARENT, UIO_USERSPACE,
+	    uap->path, p);
+	error = namei(&nd);
+	if (error)
+		return (error);
+	/*
+	 * For symbolic links, always return the attributes of its
+	 * containing directory, except for mode, size, and links.
+	 */
+	vp = nd.ni_vp;
+	dvp = nd.ni_dvp;
+	if (vp->v_type != VLNK) {
+		if (dvp == vp)
+			vrele(dvp);
+		else
+			vput(dvp);
+		error = vn_stat(vp, &sb, p);
+		vput(vp);
+		if (error)
+			return (error);
+	} else {
+		error = vn_stat(dvp, &sb, p);
+		vput(dvp);
+		if (error) {
+			vput(vp);
+			return (error);
+		}
+		error = vn_stat(vp, &sb1, p);
+		vput(vp);
+		if (error)
+			return (error);
+		sb.st_mode &= ~S_IFDIR;
+		sb.st_mode |= S_IFLNK;
+		sb.st_nlink = sb1.st_nlink;
+		sb.st_size = sb1.st_size;
+		sb.st_blocks = sb1.st_blocks;
+	}
+	error = newstat_copyout(&sb, uap->buf);
+	return (error);
 }
-
-struct linux_newfstat_args {
-    int fd;
-    struct linux_newstat *buf;
-};
 
 int
 linux_newfstat(struct proc *p, struct linux_newfstat_args *args, int *retval)
 {
-    struct linux_newstat tbuf;
     struct filedesc *fdp = p->p_fd;
     struct file *fp;
     struct stat buf;
     int error;
   
 #ifdef DEBUG
-    printf("Linux-emul(%d): newlstat(%d, *)\n", p->p_pid, args->fd);
+    printf("Linux-emul(%d): newfstat(%d, *)\n", p->p_pid, args->fd);
 #endif
     if ((unsigned)args->fd >= fdp->fd_nfiles 
 	|| (fp = fdp->fd_ofiles[args->fd]) == NULL)
@@ -175,7 +209,7 @@ linux_newfstat(struct proc *p, struct linux_newfstat_args *args, int *retval)
     return error;
 }
 
-struct linux_statfs {
+struct linux_statfs_buf {
 	long ftype;
 	long fbsize;
 	long fblocks;
@@ -188,12 +222,6 @@ struct linux_statfs {
 	long fspare[6];
 };
 
-
-struct linux_statfs_args {
-	char *path;
-	struct statfs *buf;
-};
-
 int
 linux_statfs(struct proc *p, struct linux_statfs_args *args, int *retval)
 {
@@ -201,8 +229,12 @@ linux_statfs(struct proc *p, struct linux_statfs_args *args, int *retval)
 	struct nameidata *ndp;
 	struct statfs *bsd_statfs;
 	struct nameidata nd;
-	struct linux_statfs linux_statfs;
+	struct linux_statfs_buf linux_statfs_buf;
 	int error;
+	caddr_t sg;
+
+	sg = stackgap_init();
+	CHECKALTEXIST(p, &sg, args->path);
 
 #ifdef DEBUG
 	printf("Linux-emul(%d): statfs(%s, *)\n", p->p_pid, args->path);
@@ -217,24 +249,19 @@ linux_statfs(struct proc *p, struct linux_statfs_args *args, int *retval)
 	if (error = VFS_STATFS(mp, bsd_statfs, p))
 		return error;
 	bsd_statfs->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
-	linux_statfs.ftype = bsd_statfs->f_type;
-	linux_statfs.fbsize = bsd_statfs->f_bsize;
-	linux_statfs.fblocks = bsd_statfs->f_blocks;
-	linux_statfs.fbfree = bsd_statfs->f_bfree;
-	linux_statfs.fbavail = bsd_statfs->f_bavail;
-  	linux_statfs.fffree = bsd_statfs->f_ffree;
-	linux_statfs.ffiles = bsd_statfs->f_files;
-	linux_statfs.ffsid.val[0] = bsd_statfs->f_fsid.val[0];
-	linux_statfs.ffsid.val[1] = bsd_statfs->f_fsid.val[1];
-	linux_statfs.fnamelen = MAXNAMLEN;
-	return copyout((caddr_t)&linux_statfs, (caddr_t)args->buf,
-		       sizeof(struct linux_statfs));
+	linux_statfs_buf.ftype = bsd_statfs->f_type;
+	linux_statfs_buf.fbsize = bsd_statfs->f_bsize;
+	linux_statfs_buf.fblocks = bsd_statfs->f_blocks;
+	linux_statfs_buf.fbfree = bsd_statfs->f_bfree;
+	linux_statfs_buf.fbavail = bsd_statfs->f_bavail;
+  	linux_statfs_buf.fffree = bsd_statfs->f_ffree;
+	linux_statfs_buf.ffiles = bsd_statfs->f_files;
+	linux_statfs_buf.ffsid.val[0] = bsd_statfs->f_fsid.val[0];
+	linux_statfs_buf.ffsid.val[1] = bsd_statfs->f_fsid.val[1];
+	linux_statfs_buf.fnamelen = MAXNAMLEN;
+	return copyout((caddr_t)&linux_statfs_buf, (caddr_t)args->buf,
+		       sizeof(struct linux_statfs_buf));
 }
-
-struct linux_fstatfs_args {
-	int fd;
-	struct statfs *buf;
-};
 
 int
 linux_fstatfs(struct proc *p, struct linux_fstatfs_args *args, int *retval)
@@ -242,7 +269,7 @@ linux_fstatfs(struct proc *p, struct linux_fstatfs_args *args, int *retval)
 	struct file *fp;
 	struct mount *mp;
 	struct statfs *bsd_statfs;
-	struct linux_statfs linux_statfs;
+	struct linux_statfs_buf linux_statfs_buf;
 	int error;
 
 #ifdef DEBUG
@@ -255,16 +282,16 @@ linux_fstatfs(struct proc *p, struct linux_fstatfs_args *args, int *retval)
 	if (error = VFS_STATFS(mp, bsd_statfs, p))
 		return error;
 	bsd_statfs->f_flags = mp->mnt_flag & MNT_VISFLAGMASK;
-	linux_statfs.ftype = bsd_statfs->f_type;
-	linux_statfs.fbsize = bsd_statfs->f_bsize;
-	linux_statfs.fblocks = bsd_statfs->f_blocks;
-	linux_statfs.fbfree = bsd_statfs->f_bfree;
-	linux_statfs.fbavail = bsd_statfs->f_bavail;
-  	linux_statfs.fffree = bsd_statfs->f_ffree;
-	linux_statfs.ffiles = bsd_statfs->f_files;
-	linux_statfs.ffsid.val[0] = bsd_statfs->f_fsid.val[0];
-	linux_statfs.ffsid.val[1] = bsd_statfs->f_fsid.val[1];
-	linux_statfs.fnamelen = MAXNAMLEN;
-	return copyout((caddr_t)&linux_statfs, (caddr_t)args->buf,
-		       sizeof(struct linux_statfs));
+	linux_statfs_buf.ftype = bsd_statfs->f_type;
+	linux_statfs_buf.fbsize = bsd_statfs->f_bsize;
+	linux_statfs_buf.fblocks = bsd_statfs->f_blocks;
+	linux_statfs_buf.fbfree = bsd_statfs->f_bfree;
+	linux_statfs_buf.fbavail = bsd_statfs->f_bavail;
+  	linux_statfs_buf.fffree = bsd_statfs->f_ffree;
+	linux_statfs_buf.ffiles = bsd_statfs->f_files;
+	linux_statfs_buf.ffsid.val[0] = bsd_statfs->f_fsid.val[0];
+	linux_statfs_buf.ffsid.val[1] = bsd_statfs->f_fsid.val[1];
+	linux_statfs_buf.fnamelen = MAXNAMLEN;
+	return copyout((caddr_t)&linux_statfs_buf, (caddr_t)args->buf,
+		       sizeof(struct linux_statfs_buf));
 }

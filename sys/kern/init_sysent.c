@@ -287,14 +287,3 @@ struct sysent sysent[] = {
 	{ 3, (sy_call_t *)minherit },			/* 250 = minherit */
 	{ 1, (sy_call_t *)rfork },			/* 251 = rfork */
 };
-
-struct sysentvec aout_sysvec = {
-	sizeof (sysent) / sizeof (sysent[0]),
-	sysent,
-	0,
-	0,
-	0,
-	0,
-	0,
-	0
-};

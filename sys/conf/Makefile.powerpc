@@ -1,6 +1,6 @@
 # Copyright 1990 W. Jolitz
 #	from: @(#)Makefile.i386	7.1 5/10/91
-#	$Id: Makefile.i386,v 1.74 1996/01/07 22:31:27 phk Exp $
+#	$Id: Makefile.i386,v 1.75 1996/01/08 03:55:36 peter Exp $
 #
 # Makefile for FreeBSD
 #
@@ -136,7 +136,8 @@ genassym: genassym.o
 
 # XXX this assumes that the options for NORMAL_C* and DRIVER_C* are identical.
 depend: assym.s param.c vnode_if.h ${BEFORE_DEPEND}
-	mkdep ${COPTS} ${CFILES} ${SYSTEM_CFILES}
+	rm -f .depend
+	mkdep -a ${COPTS} ${CFILES} ${SYSTEM_CFILES}
 	mkdep -a ${COPTS} ${PARAM} -UKERNEL ${I386}/i386/genassym.c
 	MKDEP_CPP=${CPP} ; export MKDEP_CPP ; \
 	mkdep -a -DLOCORE ${COPTS} ${SFILES} ${SYSTEM_SFILES}

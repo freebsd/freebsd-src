@@ -28,7 +28,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: imgact_linux.c,v 1.7 1996/01/19 22:59:23 dyson Exp $
+ *	$Id: imgact_linux.c,v 1.8 1996/02/16 18:40:48 peter Exp $
  */
 
 #include <sys/param.h>
@@ -50,7 +50,8 @@
 #include <vm/vm_prot.h>
 #include <vm/vm_extern.h>
 
-#include <i386/linux/sysproto.h>
+#include <i386/linux/linux.h>
+#include <i386/linux/linux_proto.h>
 
 extern int	exec_linux_imgact __P((struct image_params *iparams));
 
@@ -83,6 +84,9 @@ exec_linux_imgact(imgp)
 	return (-1);
     }
     bss_size = round_page(a_out->a_bss);
+#ifdef DEBUG
+    printf("imgact: text: %08x, data: %08x, bss: %08x\n", a_out->a_text, a_out->a_data, bss_size);
+#endif
 
     /*
      * Check various fields in header for validity/bounds.
@@ -173,6 +177,9 @@ exec_linux_imgact(imgp)
 	if (error)
 	    return (error);
     
+#ifdef DEBUG
+	printf("imgact: startaddr=%08x, length=%08x\n", vmaddr, a_out->a_text + a_out->a_data);
+#endif
 	/*
 	 * allow read/write of data
 	 */
@@ -193,6 +200,10 @@ exec_linux_imgact(imgp)
 				bss_size, FALSE, VM_PROT_ALL, VM_PROT_ALL, 0);
 	    if (error)
 		return (error);
+#ifdef DEBUG
+	    printf("imgact: bssaddr=%08x, length=%08x\n", vmaddr, bss_size);
+#endif
+
 	}
 	/* Indicate that this file should not be modified */
 	imgp->vp->v_flag |= VTEXT;

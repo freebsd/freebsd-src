@@ -1,4 +1,3 @@
-
 /*
  * Copyright (c) 1994 Christos Zoulas
  * Copyright (c) 1995 Frank van der Linden
@@ -29,6 +28,7 @@
  *
  * from: svr4_util.h,v 1.5 1994/11/18 02:54:31 christos Exp
  * from: linux_util.h,v 1.2 1995/03/05 23:23:50 fvdl Exp
+ * $Id$
  */
 
 /*
@@ -36,17 +36,16 @@
  * (for now).
  */
 
-#ifndef	_IBCS2_UTIL_H_
-#define	_IBCS2_UTIL_H_
+#ifndef	_LINUX_UTIL_H_
+#define	_LINUX_UTIL_H_
 
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
 #include <machine/vmparam.h>
 #include <sys/exec.h>
-#include <sys/cdefs.h>
 #include <sys/sysent.h>
-#include <sys/proc.h>
+#include <sys/cdefs.h>
 
 #ifndef SCARG
 #define SCARG(p, x)  (p)->x
@@ -59,7 +58,7 @@ static __inline caddr_t
 stackgap_init()
 {
 #define szsigcode (*(curproc->p_sysent->sv_szsigcode), sizeof(char *))
-        return (caddr_t)(((caddr_t)PS_STRINGS) - szsigcode - SPARE_USRSPACE);
+	return (caddr_t)(((caddr_t)PS_STRINGS) - szsigcode - SPARE_USRSPACE);
 }
 
 
@@ -73,21 +72,21 @@ stackgap_alloc(sgp, sz)
 	return p;
 }
 
-#ifdef DEBUG_IBCS2
+#ifdef DEBUG_LINUX
 #define DPRINTF(a)      printf a;
 #else
 #define DPRINTF(a)
 #endif
 
-extern const char ibcs2_emul_path[];
+extern const char linux_emul_path[];
 
-int ibcs2_emul_find __P((struct proc *, caddr_t *, const char *, char *,
+int linux_emul_find __P((struct proc *, caddr_t *, const char *, char *,
 			char **, int));
 
 #define CHECKALTEXIST(p, sgp, path) \
-    ibcs2_emul_find(p, sgp, ibcs2_emul_path, path, &(path), 0)
+    linux_emul_find(p, sgp, linux_emul_path, path, &(path), 0)
 
 #define CHECKALTCREAT(p, sgp, path) \
-    ibcs2_emul_find(p, sgp, ibcs2_emul_path, path, &(path), 1)
+    linux_emul_find(p, sgp, linux_emul_path, path, &(path), 1)
 
-#endif /* !_IBCS2_UTIL_H_ */
+#endif /* !_LINUX_UTIL_H_ */

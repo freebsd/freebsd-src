@@ -28,7 +28,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: kern_exec.c,v 1.34 1996/01/20 21:36:30 bde Exp $
+ *	$Id: kern_exec.c,v 1.35 1996/02/24 14:32:52 peter Exp $
  */
 
 #include <sys/param.h>
@@ -456,13 +456,23 @@ exec_copyout_strings(imgp)
 	char *stringp, *destp;
 	int *stack_base;
 	struct ps_strings *arginfo;
+	int szsigcode;
 
 	/*
 	 * Calculate string base and vector table pointers.
+	 * Also deal with signal trampoline code for this exec type.
 	 */
 	arginfo = PS_STRINGS;
-	destp =	(caddr_t)arginfo - SPARE_USRSPACE -
+	szsigcode = *(imgp->proc->p_sysent->sv_szsigcode);
+	destp =	(caddr_t)arginfo - szsigcode - SPARE_USRSPACE -
 		roundup((ARG_MAX - imgp->stringspace), sizeof(char *));
+
+	/*
+	 * install sigcode
+	 */
+	if (szsigcode)
+		copyout(imgp->proc->p_sysent->sv_sigcode,
+			((caddr_t)arginfo - szsigcode), szsigcode);
 
 	/*
 	 * The '+ 2' is for the null pointers at the end of each of the

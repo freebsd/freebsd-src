@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: exception.s,v 1.13 1995/12/19 14:30:24 davidg Exp $
+ *	$Id: exception.s,v 1.14 1995/12/21 19:20:57 davidg Exp $
  */
 
 #include "npx.h"				/* NNPX */
@@ -232,6 +232,7 @@ IDTVEC(syscall)
 	movl	%ax,%es
 	movl	TF_ERR(%esp),%eax		/* copy saved eflags to final spot */
 	movl	%eax,TF_EFLAGS(%esp)
+	movl	$7,TF_ERR(%esp) 		/* sizeof "lcall 7,0" */
 	FAKE_MCOUNT(12*4(%esp))
 	incl	_cnt+V_SYSCALL
 	movl	$SWI_AST_MASK,_cpl
@@ -245,12 +246,11 @@ IDTVEC(syscall)
 	MEXITCOUNT
 	jmp	_doreti
 
-#if defined(COMPAT_LINUX) || defined(LINUX)
 /*
- * Call gate entry for Linux syscall (int 0x80)
+ * Call gate entry for Linux/NetBSD syscall (int 0x80)
  */
 	SUPERALIGN_TEXT
-IDTVEC(linux_syscall)
+IDTVEC(int0x80_syscall)
 	subl	$8,%esp				/* skip over tf_trapno and tf_err */
 	pushal
 	pushl	%ds
@@ -258,10 +258,11 @@ IDTVEC(linux_syscall)
 	movl	$KDSEL,%eax			/* switch to kernel segments */
 	movl	%ax,%ds
 	movl	%ax,%es
+	movl	$2,TF_ERR(%esp)			/* sizeof "int 0x80" */
 	FAKE_MCOUNT(12*4(%esp))
 	incl	_cnt+V_SYSCALL
 	movl	$SWI_AST_MASK,_cpl
-	call	_linux_syscall
+	call	_syscall
 	/*
 	 * Return via _doreti to handle ASTs.
 	 */
@@ -270,7 +271,6 @@ IDTVEC(linux_syscall)
 	movb	$1,_intr_nesting_level
 	MEXITCOUNT
 	jmp	_doreti
-#endif /* COMPAT_LINUX || LINUX */
 
 /*
  * Include what was once config+isa-dependent code.
