@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)subr_xxx.c	8.1 (Berkeley) 6/10/93
- * $Id: subr_xxx.c,v 1.11 1998/08/20 06:10:40 bde Exp $
+ * $Id: subr_xxx.c,v 1.12 1998/11/08 12:39:02 dfr Exp $
  */
 
 /*
@@ -146,7 +146,7 @@ noreset(dev)
 	dev_t dev;
 {
 
-	printf("noreset(0x%x) called\n", dev);
+	printf("noreset(%d,%d) called\n", major(dev), minor(dev));
 	return (ENODEV);
 }
 

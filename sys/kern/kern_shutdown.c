@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)kern_shutdown.c	8.3 (Berkeley) 1/21/94
- * $Id: kern_shutdown.c,v 1.50 1999/05/07 10:10:53 phk Exp $
+ * $Id: kern_shutdown.c,v 1.51 1999/05/08 06:39:38 phk Exp $
  */
 
 #include "opt_ddb.h"
@@ -382,7 +382,8 @@ dumpsys(void)
 	if (!(bdevsw(dumpdev)->d_dump))
 		return;
 	dumpsize = Maxmem;
-	printf("\ndumping to dev %lx, offset %ld\n", (u_long)dumpdev, dumplo);
+	printf("\ndumping to dev (%d,%d), offset %ld\n",
+		major(dumpdev), minor(dumpdev), dumplo);
 	printf("dump ");
 	switch ((*bdevsw(dumpdev)->d_dump)(dumpdev)) {
 
