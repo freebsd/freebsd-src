@@ -4,7 +4,7 @@
 
      $Id$
      $FreeBSD$
-     Original revision: 1.8
+     Original revision: 1.1.2.53
 
 	FreeBSD errata document.  Unlike some of the other RELNOTESng
 	files, this file should remain as a single SGML file, so that
@@ -55,7 +55,13 @@
 <!-- XXX Change release.current to release.prev when there's -->
 <!-- XXX a release on this branch. -->
 
-<para>Ce document énumère les errata pour &os; &release.current;
+<para>Ce document énumère les errata pour &os; 
+<![ %release.type.snapshot [
+      &release.prev;,
+]]>
+<![ %release.type.release [
+      &release.current;,
+]]>
 , contenant des informations importantes
 découvertes après la sortie de cette version. Ces informations incluent
 les bulletins de sécurité, aussi bien que des informations sur
@@ -68,30 +74,35 @@ de &os;.
 
 <![ %release.type.snapshot [
 
-<para>Cet errata de &os; &release.prev; sera maintenu jusqu'a  &os; &release.next;.</para>
+<para>Cet errata de &os; 
+<![ %release.type.snapshot [
+      &release.prev;
+]]>
+<![ %release.type.release [
+      &release.current;
+]]>
+ sera maintenu jusqu'a  &os; &release.next;.</para>
 
 ]]>
 
 <![ %release.type.release [
 
-<para>Ceci est la version final du errat pour &os; &release.prev;. Les errata suivants de la branche &release.branch;
+<para>Ceci est la version final du errata pour &os; &release.prev;. Les errata suivants de la branche &release.branch;
 se référeront a &os; &release.current; et les version suivantes.</para>
-
 ]]>
-
-<para>Actuellement, &release.current; ne comporte aucun errata, car il n'y a pas 
-eut de version finale dans la branche &release.branch; depuis le dernier changement de branche (la prochaine
-version finale sera &release.next;). Ce fichier existe pour permettre de creer un canevas
-propre pour les nouvelles branches crées. (Normalement cette note ne devrait
-apparaitre sur aucune version de branches)
-</para>
   </abstract>
 
   <sect1>
     <title>Introduction</title>
     
     <para>Ce document contient les <quote>dernières informations importantes</quote> à propos 
-    de &os; &release.current;. Avant d'installer cette version, il est important de consulter 
+    de &os;
+<![ %release.type.snapshot [
+      &release.prev;.
+]]>
+<![ %release.type.release [
+      &release.current;.
+]]>. Avant d'installer cette version, il est important de consulter 
     ce document pour se renseigner sur les problèmes qui peuvent avoir déjà été rencontrés et 
     corrigés.</para>
 
@@ -111,11 +122,109 @@ apparaitre sur aucune version de branches)
 
   <sect1>
     <title>Avis de securité</title>
-    <para></para>
+<![ %release.type.release [
+    <para>Aucun d'avis de sécurité.</para>
+]]>
+<![ %release.type.snapshot [
+<para>Une "race condition" existait et faisait en sorte qu'un fichier pouvait être supprimé
+        entre un appel à la fonction &man.fstatfs.2; et le 
+        point où l'on accède au fichier, provoquant une panique du noyau.
+        Seul le système de fichier &man.procfs.5; était connu comme étant
+        vulnérable à cette attaque. Ce bug a été fixé dans la
+        FreeBSD &os; &release.prev;, mais le Bulletin de Sécurité décrivant le bug
+        a été écrit après celle-ci.
+        Pour plus d'informations, incluant un moyen de contourner le problème et un patch, allez voir
+        le Bulletin de Sécurité <ulink 
+        url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:09.fstatfs.asc">FreeBSD-SA-02:09</ulink>.</para>
+]]>
   </sect1>
 
   <sect1>
     <title>Information de mise a jour du système</title>
-    <para></para>
+
+<![ %release.type.release [
+    <para>No active updates.</para>
+]]>
+
+<![ %release.type.snapshot [
+ <para>Certains clients SSH présenteront une ligne de commande 
+        <application>S/Key</application> lorsqu'ils éssaieront de se
+        connecter à un serveur FreeBSD  &os; &release.prev; même si le &man.sshd.8;
+	présent sur le serveur n'a pas été
+        configuré éxplicitement pour l'authentification <application>S/Key</application>. Ceci est dû aux 
+        réglages par défaut des clients ayant changés
+        (ex: utilisation du protocol SSH version 2 (SSH2) lorsqu'il n'était pas utilisé auparavant),
+        ou à un changement de l'ancienne séquence d'authentification par défaut du client.
+        Il existe plusieurs manières de régler ce problème :
+        <itemizedlist>
+          <listitem>
+            <para>Sur les nouveaux clients <application>OpenSSH</application>,
+            Ajouter la ligne suivante à votre fichier <filename>~/.ssh/config</filename>:
+<programlisting>PreferredAuthentications publickey,password,keyboard-interactive</programlisting>
+            </para>
+          </listitem>
+
+          <listitem>
+            <para>Pour les clients <application>PuTTY</application>, l'ordre
+            de la séquence d'authentification ne peut être changé, mais 
+            la séquence d'authentification "keyboard-interactive" peut être désactivée dans
+            les préférences.</para>
+          </listitem>
+
+          <listitem>
+            <para>Pour désactiver l'authentification "keyboard-interactive"
+            sur le serveur, enlevez les commentaires ('#') du fichier <filename>/etc/ssh/sshd_config</filename>
+	    (sur la machine serveur) à la ligne :
+<programlisting>ChallengeResponseAuthentication no</programlisting> 
+            </para>
+          </listitem>
+        </itemizedlist>
+	</para>
+	
+	<para>Les notes de versions mentionnaient le nouveau driver sbni,
+        mais indiquaient une mauvaise référence vers le programme de la
+        collection de ports &os; utilisé pour configurer le driver.
+        Le nom de fichier correct est <filename role="package">sysutils/sbniconfig</filename>.</para>
+
+
+	<para>L'émulation Linux requiert maintenant <literal>options
+	SYSVSEM</literal>dans le fichier de configuration du kernel. Cette dépendance a été
+        introduite dans &os; avant la &release.prev;.</para>
+
+	<para>Les packages contenant certains composants optionnels de <application>KDE</application>
+	ont été omis accidentellement des
+        images ISO (et donc des 4 CDs "officiels"). Dans les versions
+        précédentes, ces packages pouvaient être installés à partir du package
+	<filename role="package">x11/kde2</filename>. Ces
+        composants peuvent être installés soit en utilisant la collection
+        des ports FreeBSD soit en téléchargeant les packages binaires d'un des
+        serveurs FTP FreeBSD. Les ports concernés sont : 
+	<filename role="package">games/kdegames2</filename>, <filename role="package">misc/kdeutils2</filename>,
+      <filename role="package">editors/koffice</filename>, <filename role="package">net/kdenetwork2</filename>,
+      <filename role="package">graphics/kdegraphics2</filename>,et 
+      <filename role="package">audio/kdemultimedia2</filename>. Notez que
+      les packages <filename role="package">x11/kdelibs2</filename> et
+      <filename role="package">x11/kdebase2</filename> qui sont 
+        souvent requis pour les autres composants, <emphasis>sont</emphasis>inclus sur
+        le disque 1 des 4 CDs "officiels".
+	<footnote>
+	<para>La collection complète des packages &os; remplit
+          actuellement 9 CDROMs. Par conséquent, les 4 CDs "officiels"
+          contiennent seulement une partie des packages disponibles. Plusieurs
+          revendeurs FreeBSD proposent des distributions qui contiennent davantage
+          de packages; une collection plus complète est
+          également disponible sur les sites FTP &os;.</para>
+       </footnote>  
+       </para>
+
+       <para>Un package binaire contenant <application>Samba</application>
+        a été omis accidentellement des
+        images ISO. Ce logiciel peut être installé soit via le port
+        <filename role="package">net/samba</filename> de la collection 
+        des ports &os; soit en téléchargeant et en installant le
+        package binaire d'un des serveurs FTP &os;.</para>
+]]>
+
   </sect1>
 </article>
+
