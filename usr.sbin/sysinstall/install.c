@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.118 1996/08/03 10:11:00 jkh Exp $
+ * $Id: install.c,v 1.119 1996/09/29 10:03:30 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -392,13 +392,11 @@ installNovice(dialogMenuItem *self)
 	    break;
     }
 
-    if (!mediaDevice) {
-	msgConfirm("Finally, you must specify an installation medium.");
-	if (!dmenuOpenSimple(&MenuMedia, FALSE) || !mediaDevice)
-	    return DITEM_FAILURE | DITEM_RECREATE;
-    }
+    if (!mediaDevice && !dmenuOpenSimple(&MenuMedia, FALSE))
+	return DITEM_FAILURE | DITEM_RECREATE;
 
     if (DITEM_STATUS((i = installCommit(self))) == DITEM_FAILURE) {
+	dialog_clear();
 	msgConfirm("Installation completed with some errors.  You may wish to\n"
 		   "scroll through the debugging messages on VTY1 with the\n"
 		   "scroll-lock feature.  You can also chose \"No\" at the next\n"
@@ -408,6 +406,7 @@ installNovice(dialogMenuItem *self)
 
     }
     else
+	dialog_clear();
 	msgConfirm("Congratulations!  You now have FreeBSD installed on your system.\n\n"
 		   "We will now move on to the final configuration questions.\n"
 		   "For any option you do not wish to configure, simply select\n"
@@ -416,7 +415,7 @@ installNovice(dialogMenuItem *self)
 		   "may do so by typing: /stand/sysinstall.");
 
     if (mediaDevice->type != DEVICE_TYPE_FTP && mediaDevice->type != DEVICE_TYPE_NFS) {
-	if (!msgYesNo("Does this system have a network interface card?")) {
+	if (!msgYesNo("Would you like to configure any SLIP/PPP or network interface devices?")) {
 	    Device *save = mediaDevice;
 
 	    /* This will also set the media device, which we don't want */
@@ -432,22 +431,28 @@ installNovice(dialogMenuItem *self)
 		  "machines can use NETBUI transport for disk and printer sharing."))
 	configSamba(self);
 
+    dialog_clear_norefresh();
     if (!msgYesNo("Will this machine be an IP gateway (e.g. will it forward packets\n"
 		  "between interfaces)?"))
 	variable_set2("gateway", "YES");
 
+    dialog_clear_norefresh();
     if (!msgYesNo("Do you want to allow anonymous FTP connections to this machine?"))
 	configAnonFTP(self);
 
+    dialog_clear_norefresh();
     if (!msgYesNo("Do you want to configure this machine as an NFS server?"))
 	configNFSServer(self);
 
+    dialog_clear_norefresh();
     if (!msgYesNo("Do you want to configure this machine as an NFS client?"))
 	variable_set2("nfs_client", "YES");
 
+    dialog_clear_norefresh();
     if (!msgYesNo("Do you want to configure this machine as a WEB server?"))
 	configApache(self);
 
+    dialog_clear_norefresh();
     if (!msgYesNo("Would you like to customize your system console settings?")) {
 	WINDOW *w = savescr();
 
@@ -455,6 +460,7 @@ installNovice(dialogMenuItem *self)
 	restorescr(w);
     }
 
+    dialog_clear_norefresh();
     if (!msgYesNo("Would you like to set this machine's time zone now?")) {
 	WINDOW *w = savescr();
 
@@ -463,6 +469,7 @@ installNovice(dialogMenuItem *self)
 	restorescr(w);
     }
 
+    dialog_clear_norefresh();
     if (!msgYesNo("Does this system have a mouse attached to it?")) {
 	WINDOW *w = savescr();
 
@@ -471,11 +478,13 @@ installNovice(dialogMenuItem *self)
     }
 
     if (directory_exists("/usr/X11R6")) {
+	dialog_clear_norefresh();
 	if (!msgYesNo("Would you like to configure your X server at this time?"))
 	    configXFree86(self);
     }
 
     if (cdromMounted) {
+	dialog_clear_norefresh();
 	if (!msgYesNo("Would you like to link to the ports tree on your CDROM?\n\n"
 		      "This will require that you have your FreeBSD CD in the CDROM\n"
 		      "drive to use the ports collection, but at a substantial savings\n"
@@ -484,7 +493,8 @@ installNovice(dialogMenuItem *self)
 	    configPorts(self);
     }
 
-    if (!msgYesNo("The FreeBSD package collection is a collection of over 450 ready-to-run\n"
+    dialog_clear_norefresh();
+    if (!msgYesNo("The FreeBSD package collection is a collection of over 550 ready-to-run\n"
 		  "applications, from text editors to games to WEB servers.  Would you like\n"
 		  "to browse the collection now?"))
 	configPackages(self);
@@ -578,6 +588,7 @@ static void
 installConfigure(void)
 {
     /* Final menu of last resort */
+    dialog_clear_norefresh();
     if (!msgYesNo("Visit the general configuration menu for a chance to set\n"
 		  "any last options?")) {
 	WINDOW *w = savescr();

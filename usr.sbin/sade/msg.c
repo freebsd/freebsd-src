@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: msg.c,v 1.39 1996/08/01 10:58:52 jkh Exp $
+ * $Id: msg.c,v 1.40 1996/08/03 10:11:21 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -184,7 +184,6 @@ msgConfirm(char *fmt, ...)
 {
     va_list args;
     char *errstr;
-    WINDOW *w;
 
     errstr = (char *)alloca(FILENAME_MAX);
     va_start(args, fmt);
@@ -192,14 +191,12 @@ msgConfirm(char *fmt, ...)
     va_end(args);
     use_helpline(NULL);
     use_helpfile(NULL);
-    w = savescr();
     if (OnVTY) {
 	msgDebug("Switching back to VTY1\n");
 	ioctl(0, VT_ACTIVATE, 1);
 	msgInfo(NULL);
     }
     dialog_notify(errstr);
-    restorescr(w);
 }
 
 /* Put up a message in a popup information box */
@@ -228,7 +225,6 @@ msgYesNo(char *fmt, ...)
     va_list args;
     char *errstr;
     int ret;
-    WINDOW *w;
 
     errstr = (char *)alloca(FILENAME_MAX);
     va_start(args, fmt);
@@ -236,14 +232,12 @@ msgYesNo(char *fmt, ...)
     va_end(args);
     use_helpline(NULL);
     use_helpfile(NULL);
-    w = savescr();
     if (OnVTY) {
 	msgDebug("Switching back to VTY1\n");
 	ioctl(0, VT_ACTIVATE, 1);	/* Switch back */
 	msgInfo(NULL);
     }
     ret = dialog_yesno("User Confirmation Requested", errstr, -1, -1);
-    restorescr(w);
     return ret;
 }
 
@@ -255,7 +249,6 @@ msgGetInput(char *buf, char *fmt, ...)
     char *errstr;
     static char input_buffer[256];
     int rval;
-    WINDOW *w;
 
     errstr = (char *)alloca(FILENAME_MAX);
     va_start(args, fmt);
@@ -267,14 +260,12 @@ msgGetInput(char *buf, char *fmt, ...)
 	strcpy(input_buffer, buf);
     else
 	input_buffer[0] = '\0';
-    w = savescr();
     if (OnVTY) {
 	msgDebug("Switching back to VTY1\n");
 	ioctl(0, VT_ACTIVATE, 1);	/* Switch back */
 	msgInfo(NULL);
     }
     rval = dialog_inputbox("Value Required", errstr, -1, -1, input_buffer);
-    restorescr(w);
     if (!rval)
 	return input_buffer;
     else
