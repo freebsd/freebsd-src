@@ -1,4 +1,4 @@
-/*	$Id: sysv_sem.c,v 1.10 1995/10/21 19:49:59 bde Exp $ */
+/*	$Id: sysv_sem.c,v 1.11 1995/12/14 08:31:52 phk Exp $ */
 
 /*
  * Implementation of SVID semaphores
@@ -19,15 +19,17 @@
 static void seminit __P((void *));
 SYSINIT(sysv_sem, SI_SUB_SYSV_SEM, SI_ORDER_FIRST, seminit, NULL)
 
-struct semctl_args;
-static int semctl __P((struct proc *p, struct semctl_args *uap, int *retval));
+#ifndef _SYS_SYSPROTO_H_
+struct __semctl_args;
+int __semctl __P((struct proc *p, struct __semctl_args *uap, int *retval));
 struct semget_args;
-static int semget __P((struct proc *p, struct semget_args *uap, int *retval));
+int semget __P((struct proc *p, struct semget_args *uap, int *retval));
 struct semop_args;
-static int semop __P((struct proc *p, struct semop_args *uap, int *retval));
+int semop __P((struct proc *p, struct semop_args *uap, int *retval));
 struct semconfig_args;
-static int semconfig __P((struct proc *p, struct semconfig_args *uap, 
+int semconfig __P((struct proc *p, struct semconfig_args *uap, 
 		int *retval));
+#endif
 
 static struct sem_undo *semu_alloc __P((struct proc *p));
 static int semundo_adjust __P((struct proc *p, struct sem_undo **supptr, 
@@ -37,7 +39,7 @@ static void semexit __P((struct proc *p));
 
 /* XXX casting to (sy_call_t *) is bogus, as usual. */
 static sy_call_t *semcalls[] = {
-	(sy_call_t *)semctl, (sy_call_t *)semget,
+	(sy_call_t *)__semctl, (sy_call_t *)semget,
 	(sy_call_t *)semop, (sy_call_t *)semconfig
 };
 
@@ -112,11 +114,13 @@ semsys(p, uap, retval)
  * in /dev/kmem.
  */
 
+#ifndef _SYS_SYSPROTO_H_
 struct semconfig_args {
 	semconfig_ctl_t	flag;
 };
+#endif
 
-static int
+int
 semconfig(p, uap, retval)
 	struct proc *p;
 	struct semconfig_args *uap;
@@ -315,17 +319,22 @@ semundo_clear(semid, semnum)
 	}
 }
 
-struct semctl_args {
+/*
+ * Note that the user-mode half of this passes a union, not a pointer
+ */
+#ifndef _SYS_SYSPROTO_H_
+struct __semctl_args {
 	int	semid;
 	int	semnum;
 	int	cmd;
 	union	semun *arg;
 };
+#endif
 
-static int
-semctl(p, uap, retval)
+int
+__semctl(p, uap, retval)
 	struct proc *p;
-	register struct semctl_args *uap;
+	register struct __semctl_args *uap;
 	int *retval;
 {
 	int semid = uap->semid;
@@ -479,13 +488,15 @@ semctl(p, uap, retval)
 	return(eval);
 }
 
+#ifndef _SYS_SYSPROTO_H_
 struct semget_args {
 	key_t	key;
 	int	nsems;
 	int	semflg;
 };
+#endif
 
-static int
+int
 semget(p, uap, retval)
 	struct proc *p;
 	register struct semget_args *uap;
@@ -592,13 +603,15 @@ found:
 	return(0);
 }
 
+#ifndef _SYS_SYSPROTO_H_
 struct semop_args {
 	int	semid;
 	struct	sembuf *sops;
 	int	nsops;
 };
+#endif
 
-static int
+int
 semop(p, uap, retval)
 	struct proc *p;
 	register struct semop_args *uap;
