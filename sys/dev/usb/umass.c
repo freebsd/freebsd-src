@@ -308,8 +308,7 @@ struct umass_devdescr_t {
 };
 
 Static struct umass_devdescr_t umass_devdescrs[] = {
-	{ USB_VENDOR_ASAHIOPTICAL, USB_PRODUCT_ASAHIOPTICAL_OPTIO230,
-	  RID_WILDCARD,
+	{ USB_VENDOR_ASAHIOPTICAL, PID_WILDCARD, RID_WILDCARD,
 	  UMASS_PROTO_ATAPI | UMASS_PROTO_CBI_I,
 	  RS_NO_CLEAR_UA
 	},
