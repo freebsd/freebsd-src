@@ -62,6 +62,7 @@ __FBSDID("$FreeBSD$");
 #include <net/if_types.h>
 
 #include <net80211/ieee80211_var.h>
+#include <net80211/ieee80211_radiotap.h>
 
 #include <dev/pccard/pccardvar.h>
 #if __FreeBSD_version >= 500000
@@ -69,8 +70,8 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #include <dev/wi/if_wavelan_ieee.h>
-#include <dev/wi/if_wivar.h>
 #include <dev/wi/if_wireg.h>
+#include <dev/wi/if_wivar.h>
 #ifdef WI_SYMBOL_FIRMWARE
 #include <dev/wi/spectrum24t_cf.h>
 #endif
