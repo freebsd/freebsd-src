@@ -271,7 +271,8 @@ ata_pci_add_child(device_t dev, int unit)
 	    return ENOMEM;
     }
     else {
-	if (!(child = device_add_child(dev, "ata", 2)))
+	if (!(child = device_add_child(dev, "ata",
+			   devclass_find_free_unit(devclass_find("ata"), 2))))
 	    return ENOMEM;
     }
     return 0;
