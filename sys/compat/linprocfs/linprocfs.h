@@ -126,6 +126,7 @@ node_action_t	linprocfs_doselflink;
 node_action_t	linprocfs_dostat;
 node_action_t	linprocfs_douptime;
 node_action_t	linprocfs_doversion;
+node_action_t	linprocfs_doloadavg;
 
 extern node_action_t procfs_domem;
 extern node_action_t procfs_docmdline;
