@@ -231,11 +231,32 @@ vop_nopoll(ap)
 		struct proc *a_p;
 	} */ *ap;
 {
-
 	/*
-	 * Just return what we were asked for.
+	 * Return true for read/write.  If the user asked for something
+	 * special, return POLLNVAL, so that clients have a way of
+	 * determining reliably whether or not the extended
+	 * functionality is present without hard-coding knowledge
+	 * of specific filesystem implementations.
 	 */
+	if (ap->a_events & ~POLLSTANDARD)
+		return (POLLNVAL);
+
 	return (ap->a_events & (POLLIN | POLLOUT | POLLRDNORM | POLLWRNORM));
+}
+
+/*
+ * Implement poll for local filesystems that support it.
+ */
+int
+vop_stdpoll(ap)
+	struct vop_poll_args /* {
+		struct vnode *a_vp;
+		int  a_events;
+		struct ucred *a_cred;
+		struct proc *a_p;
+	} */ *ap;
+{
+	return (vn_pollrecord(ap->a_vp, ap->a_p, ap->a_events));
 }
 
 int

@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vfs_subr.c	8.31 (Berkeley) 5/26/95
- * $Id: vfs_subr.c,v 1.113 1997/11/12 05:42:15 julian Exp $
+ * $Id: vfs_subr.c,v 1.114 1997/11/22 08:35:39 bde Exp $
  */
 
 /*
@@ -1207,6 +1207,7 @@ vclean(vp, flags, p)
 	 * Done with purge, notify sleepers of the grim news.
 	 */
 	vp->v_op = dead_vnodeop_p;
+	vn_pollgone(vp);
 	vp->v_tag = VT_NON;
 	vp->v_flag &= ~VXLOCK;
 	if (vp->v_flag & VXWANT) {
@@ -2110,4 +2111,87 @@ vbusy(vp)
 	freevnodes--;
 	simple_unlock(&vnode_free_list_slock);
 	vp->v_flag &= ~VFREE;
+}
+
+/*
+ * Record a process's interest in events which might happen to
+ * a vnode.  Because poll uses the historic select-style interface
+ * internally, this routine serves as both the ``check for any
+ * pending events'' and the ``record my interest in future events''
+ * functions.  (These are done together, while the lock is held,
+ * to avoid race conditions.)
+ */
+int
+vn_pollrecord(vp, p, events)
+	struct vnode *vp;
+	struct proc *p;
+	short events;
+{
+	simple_lock(&vp->v_pollinfo.vpi_lock);
+	if (vp->v_pollinfo.vpi_revents & events) {
+		/*
+		 * This leaves events we are not interested
+		 * in available for the other process which
+		 * which presumably had requested them
+		 * (otherwise they would never have been
+		 * recorded).
+		 */
+		events &= vp->v_pollinfo.vpi_revents;
+		vp->v_pollinfo.vpi_revents &= ~events;
+
+		simple_unlock(&vp->v_pollinfo.vpi_lock);
+		return events;
+	}
+	vp->v_pollinfo.vpi_events |= events;
+	selrecord(p, &vp->v_pollinfo.vpi_selinfo);
+	simple_unlock(&vp->v_pollinfo.vpi_lock);
+	return 0;
+}
+
+/*
+ * Note the occurrence of an event.  If the VN_POLLEVENT macro is used,
+ * it is possible for us to miss an event due to race conditions, but
+ * that condition is expected to be rare, so for the moment it is the
+ * preferred interface.
+ */
+void
+vn_pollevent(vp, events)
+	struct vnode *vp;
+	short events;
+{
+	simple_lock(&vp->v_pollinfo.vpi_lock);
+	if (vp->v_pollinfo.vpi_events & events) {
+		/*
+		 * We clear vpi_events so that we don't
+		 * call selwakeup() twice if two events are
+		 * posted before the polling process(es) is
+		 * awakened.  This also ensures that we take at
+		 * most one selwakeup() if the polling process
+		 * is no longer interested.  However, it does
+		 * mean that only one event can be noticed at
+		 * a time.  (Perhaps we should only clear those
+		 * event bits which we note?) XXX
+		 */
+		vp->v_pollinfo.vpi_events = 0;	/* &= ~events ??? */
+		vp->v_pollinfo.vpi_revents |= events;
+		selwakeup(&vp->v_pollinfo.vpi_selinfo);
+	}
+	simple_unlock(&vp->v_pollinfo.vpi_lock);
+}
+
+/*
+ * Wake up anyone polling on vp because it is being revoked.
+ * This depends on dead_poll() returning POLLHUP for correct
+ * behavior.
+ */
+void
+vn_pollgone(vp)
+	struct vnode *vp;
+{
+	simple_lock(&vp->v_pollinfo.vpi_lock);
+	if (vp->v_pollinfo.vpi_events) {
+		vp->v_pollinfo.vpi_events = 0;
+		selwakeup(&vp->v_pollinfo.vpi_selinfo);
+	}
+	simple_unlock(&vp->v_pollinfo.vpi_lock);
 }

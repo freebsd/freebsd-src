@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)dead_vnops.c	8.1 (Berkeley) 6/10/93
- * $Id: dead_vnops.c,v 1.21 1997/10/26 20:55:10 phk Exp $
+ * $Id: dead_vnops.c,v 1.22 1997/12/05 19:55:41 bde Exp $
  */
 
 #include <sys/param.h>
@@ -40,20 +40,22 @@
 #include <sys/lock.h>
 #include <sys/vnode.h>
 #include <sys/buf.h>
+#include <sys/poll.h>
 
 static int	chkvnlock __P((struct vnode *));
 /*
  * Prototypes for dead operations on vnodes.
  */
 static int	dead_badop __P((void));
-static int	dead_lookup __P((struct vop_lookup_args *));
-static int	dead_open __P((struct vop_open_args *));
-static int	dead_read __P((struct vop_read_args *));
-static int	dead_write __P((struct vop_write_args *));
+static int	dead_bmap __P((struct vop_bmap_args *));
 static int	dead_ioctl __P((struct vop_ioctl_args *));
 static int	dead_lock __P((struct vop_lock_args *));
-static int	dead_bmap __P((struct vop_bmap_args *));
+static int	dead_lookup __P((struct vop_lookup_args *));
+static int	dead_open __P((struct vop_open_args *));
+static int	dead_poll __P((struct vop_poll_args *));
 static int	dead_print __P((struct vop_print_args *));
+static int	dead_read __P((struct vop_read_args *));
+static int	dead_write __P((struct vop_write_args *));
 
 vop_t **dead_vnodeop_p;
 static struct vnodeopv_entry_desc dead_vnodeop_entries[] = {
@@ -73,6 +75,7 @@ static struct vnodeopv_entry_desc dead_vnodeop_entries[] = {
 	{ &vop_mmap_desc,		(vop_t *) dead_badop },
 	{ &vop_open_desc,		(vop_t *) dead_open },
 	{ &vop_pathconf_desc,		(vop_t *) vop_ebadf },	/* per pathconf(2) */
+	{ &vop_poll_desc,		(vop_t *) dead_poll },
 	{ &vop_print_desc,		(vop_t *) dead_print },
 	{ &vop_read_desc,		(vop_t *) dead_read },
 	{ &vop_readdir_desc,		(vop_t *) vop_ebadf },
@@ -287,4 +290,16 @@ chkvnlock(vp)
 		locked = 1;
 	}
 	return (locked);
+}
+
+/*
+ * Trivial poll routine that always returns POLLHUP.
+ * This is necessary so that a process which is polling a file
+ * gets notified when that file is revoke()d.
+ */
+static int
+dead_poll(ap)
+	struct vop_poll_args *ap;
+{
+	return (POLLHUP);
 }

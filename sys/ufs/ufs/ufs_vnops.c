@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ufs_vnops.c	8.27 (Berkeley) 5/27/95
- * $Id: ufs_vnops.c,v 1.70 1997/12/12 14:14:44 peter Exp $
+ * $Id: ufs_vnops.c,v 1.71 1997/12/13 12:30:34 bde Exp $
  */
 
 #include "opt_quota.h"
@@ -55,6 +55,7 @@
 #include <sys/malloc.h>
 #include <sys/dirent.h>
 #include <sys/lockf.h>
+#include <sys/poll.h>
 
 #include <miscfs/specfs/specdev.h>
 #include <miscfs/fifofs/fifo.h>
@@ -135,6 +136,7 @@ ufs_create(ap)
 	    ap->a_dvp, ap->a_vpp, ap->a_cnp);
 	if (error)
 		return (error);
+	VN_POLLEVENT(ap->a_dvp, POLLWRITE);
 	return (0);
 }
 
@@ -160,6 +162,7 @@ ufs_mknod(ap)
 	    ap->a_dvp, vpp, ap->a_cnp);
 	if (error)
 		return (error);
+	VN_POLLEVENT(ap->a_dvp, POLLWRITE);
 	ip = VTOI(*vpp);
 	ip->i_flag |= IN_ACCESS | IN_CHANGE | IN_UPDATE;
 	if (vap->va_rdev != VNOVAL) {
@@ -469,6 +472,7 @@ ufs_setattr(ap)
 			return (EROFS);
 		error = ufs_chmod(vp, (int)vap->va_mode, cred, p);
 	}
+	VN_POLLEVENT(vp, POLLATTRIB);
 	return (error);
 }
 
@@ -650,6 +654,8 @@ ufs_remove(ap)
 		ip->i_nlink--;
 		ip->i_flag |= IN_CHANGE;
 	}
+	VN_POLLEVENT(vp, POLLNLINK);
+	VN_POLLEVENT(dvp, POLLWRITE);
 out:
 	if (dvp == vp)
 		vrele(vp);
@@ -719,6 +725,8 @@ out1:
 	if (tdvp != vp)
 		VOP_UNLOCK(vp, 0, p);
 out2:
+	VN_POLLEVENT(vp, POLLNLINK);
+	VN_POLLEVENT(tdvp, POLLWRITE);
 	vput(tdvp);
 	return (error);
 }
@@ -936,6 +944,7 @@ abortit:
 		oldparent = dp->i_number;
 		doingdirectory++;
 	}
+	VN_POLLEVENT(fdvp, POLLWRITE);
 	vrele(fdvp);
 
 	/*
@@ -1030,6 +1039,7 @@ abortit:
 			}
 			goto bad;
 		}
+		VN_POLLEVENT(tdvp, POLLWRITE);
 		vput(tdvp);
 	} else {
 		if (xp->i_dev != dp->i_dev || xp->i_dev != ip->i_dev)
@@ -1085,6 +1095,7 @@ abortit:
 			dp->i_nlink--;
 			dp->i_flag |= IN_CHANGE;
 		}
+		VN_POLLEVENT(tdvp, POLLWRITE);
 		vput(tdvp);
 		/*
 		 * Adjust the link count of the target to
@@ -1104,6 +1115,7 @@ abortit:
 			    tcnp->cn_cred, tcnp->cn_proc);
 		}
 		xp->i_flag |= IN_CHANGE;
+		VN_POLLEVENT(tvp, POLLNLINK);
 		vput(tvp);
 		xp = NULL;
 	}
@@ -1381,6 +1393,7 @@ ufs_mkdir(ap)
 		dp->i_nlink--;
 		dp->i_flag |= IN_CHANGE;
 	}
+	VN_POLLEVENT(dvp, POLLWRITE);
 bad:
 	/*
 	 * No need to do an explicit VOP_TRUNCATE here, vrele will do this
@@ -1444,6 +1457,7 @@ ufs_rmdir(ap)
 	error = ufs_dirremove(dvp, cnp);
 	if (error)
 		goto out;
+	VN_POLLEVENT(dvp, POLLWRITE|POLLNLINK);
 	dp->i_nlink--;
 	dp->i_flag |= IN_CHANGE;
 	cache_purge(dvp);
@@ -1464,6 +1478,7 @@ ufs_rmdir(ap)
 	error = UFS_TRUNCATE(vp, (off_t)0, IO_SYNC, cnp->cn_cred,
 	    cnp->cn_proc);
 	cache_purge(ITOV(ip));
+	VN_POLLEVENT(vp, POLLNLINK);
 out:
 	if (dvp)
 		vput(dvp);
@@ -1492,6 +1507,7 @@ ufs_symlink(ap)
 	    vpp, ap->a_cnp);
 	if (error)
 		return (error);
+	VN_POLLEVENT(ap->a_dvp, POLLWRITE);
 	vp = *vpp;
 	len = strlen(ap->a_target);
 	if (len < vp->v_mount->mnt_maxsymlinklen) {
@@ -2132,6 +2148,7 @@ static struct vnodeopv_entry_desc ufs_vnodeop_entries[] = {
 	{ &vop_mmap_desc,		(vop_t *) ufs_mmap },
 	{ &vop_open_desc,		(vop_t *) ufs_open },
 	{ &vop_pathconf_desc,		(vop_t *) ufs_pathconf },
+	{ &vop_poll_desc,		(vop_t *) vop_stdpoll },
 	{ &vop_print_desc,		(vop_t *) ufs_print },
 	{ &vop_readdir_desc,		(vop_t *) ufs_readdir },
 	{ &vop_readlink_desc,		(vop_t *) ufs_readlink },
