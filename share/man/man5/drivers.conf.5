@@ -63,7 +63,7 @@ The first field,
 .Ar driver ,
 is the name of the driver or option in the kernel configuration file.
 This is used by
-.Pa driver-remove.pl
+.Pa driver-remove.awk
 to remove drivers from the boot floppy kernel configuration
 file that are included as modules on the mfsroot floppy.
 .Pp
@@ -76,11 +76,11 @@ extension).
 The third field,
 .Ar floppy ,
 specifies which floppy disk should include the kernel module.
-Currently, only a value of 2 is valid here (representing
-.Pa mfsroot.flp ) .
-In the future, a third
-.Dq "driver floppy"
-may be added.
+A value of '2' represents the
+.Pa mfsroot.flp
+floppy image, and a value of '3' represents the optional
+.Pa driver.flp
+floppy image.
 .Pp
 The fourth field,
 .Ar type ,
@@ -98,8 +98,8 @@ provides a short description of the device driver.
 .Bl -tag -compact
 .It Pa /usr/src/release/Makefile
 .It Pa /usr/src/release/${arch}/drivers.conf
-.It Pa /usr/src/release/scripts/driver-copy2.pl
-.It Pa /usr/src/release/scripts/driver-remove.pl
+.It Pa /usr/src/release/scripts/driver-copy2.awk
+.It Pa /usr/src/release/scripts/driver-remove.awk
 .El
 .Sh SEE ALSO
 .Xr release 7 ,
