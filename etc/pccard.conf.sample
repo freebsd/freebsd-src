@@ -8,7 +8,7 @@
 # IRQ == 0 means "allocate free IRQ from IRQ pool"
 # IRQ == 16 means "do not use IRQ (e.g. PIO mode)"
 #
-# $Id: pccard.conf.sample,v 1.33 1999/05/03 19:08:43 brian Exp $
+# $Id: pccard.conf.sample,v 1.34 1999/05/04 08:39:11 brian Exp $
 
 # Generally available IO ports
 io	0x240-0x360
@@ -17,7 +17,32 @@ irq	3 5 10 11 13 15
 # Available memory slots
 memory	0xd4000  96k
 
-#IBM PCMCIA Ethernet I/II
+
+# Lucent WaveLAN/IEEE
+card "Lucent Technologies" "WaveLAN/IEEE"
+	config	0x1 "wi0" 11
+	insert	echo WaveLAN/IEEE inserted
+	insert	/etc/pccard_ether wi0
+	remove	echo WaveLAN/IEEE removed
+	remove	/sbin/ifconfig wi0 delete
+
+# NCR WaveLAN/IEEE
+card "NCR" "WaveLAN/IEEE"
+	config	0x1 "wi0" 11
+	insert	echo WaveLAN/IEEE inserted
+	insert	/etc/pccard_ether wi0
+	remove	echo WaveLAN/IEEE removed
+	remove	/sbin/ifconfig wi0 delete
+
+# Cabletron RoamAbout, WaveLAN/IEEE clone
+card "Cabletron" "RoamAbout 802.11 DS"
+	config	0x1 "wi0" 11
+	insert	echo WaveLAN/IEEE inserted
+	insert	/etc/pccard_ether wi0
+	remove	echo WaveLAN/IEEE removed
+	remove	/sbin/ifconfig wi0 delete
+
+# IBM PCMCIA Ethernet I/II
 card "IBM Corp." "Ethernet"
 	config	0x1 "ed0" 11
 	ether	0xff0

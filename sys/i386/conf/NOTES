@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.590 1999/05/02 20:34:06 peter Exp $
+#	$Id: LINT,v 1.591 1999/05/02 21:54:03 n_hibma Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -1198,6 +1198,9 @@ options		EXTRA_SIO=2		#number of extra sio ports to allocate
 # rdp: RealTek RTL 8002-based pocket ethernet adapters
 # sr: RISCom/N2 hdlc sync 1/2 port V.35/X.21 serial driver (requires sppp)
 # wl: Lucent Wavelan (ISA card only).
+# wi: Lucent WaveLAN/IEEE 802.11 PCMCIA adapters. Note: this supports both
+      the PCMCIA and ISA cards: the ISA card is really a PCMCIA to ISA
+      bridge with a PCMCIA adapter plugged into it.
 # ze: IBM/National Semiconductor PCMCIA ethernet controller.
 # zp: 3Com PCMCIA Etherlink III (It does not require shared memory for
 #     send/receive operation, but it needs 'iomem' to read/write the
@@ -1219,6 +1222,7 @@ device le0 at isa? port 0x300 irq 5 iomem 0xd0000
 device lnc0 at isa? port 0x280 irq 10 drq 0
 device rdp0 at isa? port 0x378 irq 7 flags 2
 device sr0 at isa? port 0x300 irq 5 iomem 0xd0000
+device wi0 at isa? port? irq?
 options		WLCACHE		# enables the signal-strength cache
 options		WLDEBUG		# enables verbose debugging output
 device wl0 at isa? port 0x300 irq ?
