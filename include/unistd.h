@@ -542,7 +542,10 @@ int	 undelete(const char *);
 int	 unwhiteout(const char *);
 void	*valloc(size_t);			/* obsoleted by malloc() */
 
+#ifndef _OPTRESET_DECLARED
+#define	_OPTRESET_DECLARED
 extern int optreset;			/* getopt(3) external variable */
+#endif
 #endif /* __BSD_VISIBLE */
 __END_DECLS
 

@@ -72,7 +72,11 @@ int	 getopt(int, char * const [], const char *);
 
 extern char *optarg;			/* getopt(3) external variables */
 extern int optind, opterr, optopt;
-#endif /* _GETOPT_DECLARED */
+#endif
+#ifndef _OPTRESET_DECLARED
+#define	_OPTRESET_DECLARED
+extern int optreset;			/* getopt(3) external variable */
+#endif
 __END_DECLS
  
 #endif /* !_GETOPT_H_ */
