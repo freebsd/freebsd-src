@@ -97,9 +97,11 @@ int     auth_rsa_read_key(char **cpp, u_int *bitsp, BIGNUM * e, BIGNUM * n);
  */
 int     auth_rsa_challenge_dialog(RSA *pk);
 
+#ifdef KRB4
+#include <krb.h>
+#endif /* KRB4 */
 #ifdef KRB5
 #include <krb5.h>
-#include <krb.h>
 int auth_krb5();  /* XXX Doplnit prototypy */
 int auth_krb5_tgt();
 int krb5_init();
