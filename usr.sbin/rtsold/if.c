@@ -68,9 +68,7 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <limits.h>
-#ifdef HAVE_GETIFADDRS
 #include <ifaddrs.h>
-#endif
 
 #include "rtsold.h"
 
@@ -78,9 +76,6 @@ extern int rssock;
 static int ifsock;
 
 static int get_llflag __P((const char *name));
-#ifndef HAVE_GETIFADDRS
-static unsigned int if_maxindex __P((void));
-#endif
 static void get_rtaddrs __P((int addrs, struct sockaddr *sa,
 			     struct sockaddr **rti_info));
 
@@ -326,7 +321,6 @@ getinet6sysctl(int code)
 static int
 get_llflag(const char *name)
 {
-#ifdef HAVE_GETIFADDRS
 	struct ifaddrs *ifap, *ifa;
 	struct in6_ifreq ifr6;
 	struct sockaddr_in6 *sin6;
@@ -370,87 +364,7 @@ get_llflag(const char *name)
 	freeifaddrs(ifap);
 	close(s);
 	return -1;
-#else
-	int s;
-	unsigned int maxif;
-	struct ifreq *iflist;
-	struct ifconf ifconf;
-	struct ifreq *ifr, *ifr_end;
-	struct sockaddr_in6 *sin6;
-	struct in6_ifreq ifr6;
-
-	maxif = if_maxindex() + 1;
-	iflist = (struct ifreq *)malloc(maxif * BUFSIZ);	/* XXX */
-	if (iflist == NULL) {
-		warnmsg(LOG_ERR, __func__, "not enough core");
-		exit(1);
-	}
-
-	if ((s = socket(PF_INET6, SOCK_DGRAM, 0)) < 0) {
-		warnmsg(LOG_ERR, __func__, "socket(SOCK_DGRAM): %s",
-		    strerror(errno));
-		exit(1);
-	}
-	memset(&ifconf, 0, sizeof(ifconf));
-	ifconf.ifc_req = iflist;
-	ifconf.ifc_len = maxif * BUFSIZ;	/* XXX */
-	if (ioctl(s, SIOCGIFCONF, &ifconf) < 0) {
-		warnmsg(LOG_ERR, __func__, "ioctl(SIOCGIFCONF): %s",
-		    strerror(errno));
-		exit(1);
-	}
-
-	/* Look for this interface in the list */
-	ifr_end = (struct ifreq *) (ifconf.ifc_buf + ifconf.ifc_len);
-	for (ifr = ifconf.ifc_req;
-	     ifr < ifr_end;
-	     ifr = (struct ifreq *) ((char *) &ifr->ifr_addr
-				    + ifr->ifr_addr.sa_len)) {
-		if (strlen(ifr->ifr_name) != strlen(name)
-		 || strncmp(ifr->ifr_name, name, strlen(name)) != 0)
-			continue;
-		if (ifr->ifr_addr.sa_family != AF_INET6)
-			continue;
-		sin6 = (struct sockaddr_in6 *)&ifr->ifr_addr;
-		if (!IN6_IS_ADDR_LINKLOCAL(&sin6->sin6_addr))
-			continue;
-
-		memset(&ifr6, 0, sizeof(ifr6));
-		strcpy(ifr6.ifr_name, name);
-		memcpy(&ifr6.ifr_ifru.ifru_addr, sin6, sin6->sin6_len);
-		if (ioctl(s, SIOCGIFAFLAG_IN6, &ifr6) < 0) {
-			warnmsg(LOG_ERR, __func__,
-			    "ioctl(SIOCGIFAFLAG_IN6): %s", strerror(errno));
-			exit(1);
-		}
-
-		free(iflist);
-		close(s);
-		return ifr6.ifr_ifru.ifru_flags6;
-	}
-
-	free(iflist);
-	close(s);
-	return -1;
-#endif
 }
-
-#ifndef HAVE_GETIFADDRS
-static unsigned int
-if_maxindex()
-{
-	struct if_nameindex *p, *p0;
-	unsigned int max = 0;
-
-	p0 = if_nameindex();
-	for (p = p0; p && p->if_index && p->if_name; p++) {
-		if (max < p->if_index)
-			max = p->if_index;
-	}
-	if_freenameindex(p0);
-	return max;
-}
-#endif
 
 static void
 get_rtaddrs(int addrs, struct sockaddr *sa, struct sockaddr **rti_info)
