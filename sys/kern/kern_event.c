@@ -395,7 +395,6 @@ kqueue(struct thread *td, struct kqueue_args *uap)
 	fp->f_flag = FREAD | FWRITE;
 	fp->f_type = DTYPE_KQUEUE;
 	fp->f_ops = &kqueueops;
-	TAILQ_INIT(&kq->kq_head);
 	fp->f_data = kq;
 	FILE_UNLOCK(fp);
 	fdrop(fp, td);
