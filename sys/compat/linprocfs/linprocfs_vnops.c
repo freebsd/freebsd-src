@@ -749,7 +749,7 @@ linprocfs_readdir(ap)
 	if (pfs->pfs_nd == root_dir) {
 		sx_slock(&allproc_lock);
 		p = LIST_FIRST(&allproc);
-		i = (nd - pfs->pfs_nd) / sizeof(*nd);
+		i = nd - pfs->pfs_nd;
 
 		while (p && i < start) {
 			if (p_can(curproc, p, P_CAN_SEE, NULL) == 0)
@@ -773,7 +773,6 @@ linprocfs_readdir(ap)
 		sx_sunlock(&allproc_lock);
 	}
 done:
-	uio->uio_offset += copied * delen;
 	return (error);
 }
 
