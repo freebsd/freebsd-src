@@ -508,6 +508,7 @@ case "${RERUN}" in
       esac
       make DESTDIR=${TEMPROOT} distrib-dirs &&
       make MAKEOBJDIRPREFIX=${TEMPROOT}/usr/obj obj &&
+      make MAKEOBJDIRPREFIX=${TEMPROOT}/usr/obj all &&
       make MAKEOBJDIRPREFIX=${TEMPROOT}/usr/obj DESTDIR=${TEMPROOT} \
           distribution;} ||
     { echo '';
