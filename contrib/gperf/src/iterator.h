@@ -1,6 +1,8 @@
+/* This may look like C code, but it is really -*- C++ -*- */
+
 /* Provides an Iterator for keyword characters.
 
-   Copyright (C) 1989 Free Software Foundation, Inc.
+   Copyright (C) 1989-1998 Free Software Foundation, Inc.
    written by Douglas C. Schmidt (schmidt@ics.uci.edu)
 
 This file is part of GNU GPERF.
@@ -16,8 +18,8 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with GNU GPERF; see the file COPYING.  If not, write to
-the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
+along with GNU GPERF; see the file COPYING.  If not, write to the Free
+Software Foundation, 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.  */
 
 /* Provides an Iterator that expands and decodes a control string containing digits
    and ranges, returning an integer every time the generator function is called.
@@ -28,20 +30,22 @@ the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
    No errors are handled in these routines, they are passed back to the
    calling routines via a user-supplied Error_Value */
 
-#ifndef _iterator_h
-#define _iterator_h
-#include "prototype.h"
+#ifndef iterator_h
+#define iterator_h 1
 
-typedef struct iterator 
+class Iterator
 {
-  char *str;                    /* A pointer to the string provided by the user. */
+private:
+  const char *str;              /* A pointer to the string provided by the user. */
   int   end;                    /* Value returned after last key is processed. */
   int   end_word;               /* A value marking the abstract ``end of word'' ( usually '$'). */
   int   error_value;            /* Error value returned when input is syntactically erroneous. */
   int   hi_bound;               /* Greatest possible value, inclusive. */
   int   lo_bound;               /* Smallest possible value, inclusive. */
-} ITERATOR;
 
-extern void iterator_init P ((char *s, int lo, int hi, int word_end, int bad_val, int key_end));
-extern int  next P ((void));
-#endif /* _iterator_h */
+public:
+        Iterator (const char *s, int lo, int hi, int word_end, int bad_val, int key_end);
+  int   operator () (void);
+};
+
+#endif

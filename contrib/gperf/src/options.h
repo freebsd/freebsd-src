@@ -1,6 +1,8 @@
+/* This may look like C code, but it is really -*- C++ -*- */
+
 /* Handles parsing the Options provided to the user.
 
-   Copyright (C) 1989 Free Software Foundation, Inc.
+   Copyright (C) 1989-1998, 2000 Free Software Foundation, Inc.
    written by Douglas C. Schmidt (schmidt@ics.uci.edu)
 
 This file is part of GNU GPERF.
@@ -16,138 +18,142 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with GNU GPERF; see the file COPYING.  If not, write to
-the Free Software Foundation, 675 Mass Ave, Cambridge, MA 02139, USA.  */
+along with GNU GPERF; see the file COPYING.  If not, write to the Free
+Software Foundation, 59 Temple Place - Suite 330, Boston, MA 02111, USA.  */
 
-/* This module provides a uniform interface to the various Options available
-   to a user of the Perfect.hash function generator.  In addition to the
-   run-time Options, found in the Option_Type below, there is also the
+/* This module provides a uniform interface to the various options available
+   to a user of the gperf hash function generator.  In addition to the
+   run-time options, found in the Option_Type below, there is also the
    hash table Size and the Keys to be used in the hashing.
    The overall design of this module was an experiment in using C++
    classes as a mechanism to enhance centralization of option and
    and error handling, which tend to get out of hand in a C program. */
 
-#ifndef _options_h
-#define _options_h
+#ifndef options_h
+#define options_h 1
 
 #include <stdio.h>
-#include "prototype.h"
 
 /* Enumerate the potential debugging Options. */
 
-enum option_type 
+enum Option_Type
 {
-  DEBUG        = 01,            /* Enable debugging (prints diagnostics to Std_Err). */
+  DEBUG        = 01,            /* Enable debugging (prints diagnostics to stderr). */
   ORDER        = 02,            /* Apply ordering heuristic to speed-up search time. */
-  ANSI         = 04,            /* Generate ANSI prototypes. */
-  ALLCHARS     = 010,           /* Use all characters in hash function. */
-  GNU          = 020,           /* Assume GNU extensions (primarily function inline). */
-  TYPE         = 040,           /* Handle user-defined type structured keyword input. */
-  RANDOM       = 0100,          /* Randomly initialize the associated values table. */
-  DEFAULTCHARS = 0200,          /* Make default char positions be 1,$ (end of keyword). */
-  SWITCH       = 0400,          /* Generate switch output to save space. */
-  POINTER      = 01000,         /* Have in_word_set function return pointer, not boolean. */
-  NOLENGTH     = 02000,         /* Don't include keyword length in hash computations. */
-  LENTABLE     = 04000,         /* Generate a length table for string comparison. */
-  DUP          = 010000,        /* Handle duplicate hash values for keywords. */
-  FAST         = 020000,        /* Generate the hash function ``fast.'' */
-  NOTYPE       = 040000,	      /* Don't include user-defined type definition
-                                   in output -- it's already defined elsewhere. */
-  COMP         = 0100000,       /* Generate strncmp rather than strcmp. */
-  GLOBAL       = 0200000,       /* Make the keyword table a global variable. */
-  CONST        = 0400000,       /* Make the generated tables readonly (const). */
+  ALLCHARS     = 04,            /* Use all characters in hash function. */
+  TYPE         = 010,           /* Handle user-defined type structured keyword input. */
+  RANDOM       = 020,           /* Randomly initialize the associated values table. */
+  DEFAULTCHARS = 040,           /* Make default char positions be 1,$ (end of keyword). */
+  SWITCH       = 0100,          /* Generate switch output to save space. */
+  NOLENGTH     = 0200,          /* Don't include keyword length in hash computations. */
+  LENTABLE     = 0400,          /* Generate a length table for string comparison. */
+  DUP          = 01000,         /* Handle duplicate hash values for keywords. */
+  FAST         = 02000,         /* Generate the hash function ``fast.'' */
+  NOTYPE       = 04000,         /* Don't include user-defined type definition in output -- it's already defined elsewhere. */
+  COMP         = 010000,        /* Generate strncmp rather than strcmp. */
+  GLOBAL       = 020000,        /* Make the keyword table a global variable. */
+  CONST        = 040000,        /* Make the generated tables readonly (const). */
+  KRC          = 0100000,       /* Generate K&R C code: no prototypes, no const. */
+  C            = 0200000,       /* Generate C code: no prototypes, but const (user can #define it away). */
+  ANSIC        = 0400000,       /* Generate ISO/ANSI C code: prototypes and const, but no class. */
+  CPLUSPLUS    = 01000000,      /* Generate C++ code: prototypes, const, class, inline, enum. */
+  ENUM         = 02000000,      /* Use enum for constants. */
+  INCLUDE      = 04000000,      /* Generate #include statements. */
+  SEVENBIT     = 010000000      /* Assume 7-bit, not 8-bit, characters. */
 };
 
-/* Define some useful constants. */
+/* Define some useful constants (these don't really belong here, but I'm
+   not sure where else to put them!).  These should be consts, but g++
+   doesn't seem to do the right thing with them at the moment... ;-( */
 
-/* Max size of each word's key set. */
-#define MAX_KEY_POS (128 - 1)
-
-/* Signals the start of a word. */
-#define WORD_START 1           
-
-/* Signals the end of a word. */
-#define WORD_END 0             
-
-/* Signals end of the key list. */
-#define EOS MAX_KEY_POS        
-
-/* Returns TRUE if option O is enabled. */
-#define OPTION_ENABLED(OW,O) (OW.option_word & (int)O)
-
-/* Enables option O in OPTION_WORD. */
-#define SET_OPTION(OW,O) (OW.option_word |= (int)O)
-
-/* Disable option O in OPTION_WORD. */
-#define UNSET_OPTION(OW,O) (OW.option_word &= ~(int)(O))
-
-/* Returns total distinct key positions. */
-#define GET_CHARSET_SIZE(O) (O.total_charset_size)
-
-/* Set the total distinct key positions. */
-#define SET_CHARSET_SIZE(O,S) (O.total_charset_size = (S))
-
-/* Initializes the key Iterator. */
-#define RESET(O) (O.key_pos = 0)
-
-/* Returns current key_position and advances index. */
-#define GET(O) (O.key_positions[O.key_pos++])
-
-/* Sets the size of the table size. */
-#define SET_ASSO_MAX(O,R) (O.size = (R))
-
-/* Returns the size of the table size. */
-#define GET_ASSO_MAX(O) (O.size)
-
-/* Returns the jump value. */
-#define GET_JUMP(O) (O.jump)
-
-/* Returns the iteration value. */
-#define GET_ITERATIONS(O) (O.iterations)
-
-/* Returns the lookup function name. */
-#define GET_FUNCTION_NAME(O) (O.function_name)
-
-/* Returns the keyword key name. */
-#define GET_KEY_NAME(O) (O.key_name)
-
-/* Returns the hash function name. */
-#define GET_HASH_NAME(O) (O.hash_name)
-
-/* Returns the initial associated character value. */
-#define INITIAL_VALUE(O) (O.initial_asso_value)
-
-/* Returns the string used to delimit keywords from other attributes. */
-#define GET_DELIMITER(O) (O.delimiters)
-
-/* Sets the keyword/attribute delimiters with value of D. */
-#define SET_DELIMITERS(O,D) (O.delimiters = (D))
-
-/* Gets the total number of switch statements to generate. */
-#define GET_TOTAL_SWITCHES(O) (O.total_switches)
-
-/* Class manager for gperf program options. */
-
-typedef struct options
+enum
 {
-  int    option_word;           /* Holds the user-specified Options. */
-  int    total_charset_size;   /* Total number of distinct key_positions. */
-  int    size;                  /* Range of the hash table. */
-  int    key_pos;               /* Tracks current key position for Iterator. */
-  int    jump;                  /* Jump length when trying alternative values. */
-  int    initial_asso_value;    /* Initial value for asso_values table. */
-  int    argument_count;        /* Records count of command-line arguments. */
-  int    iterations;            /* Amount to iterate when a collision occurs. */
-  int    total_switches;        /* Number of switch statements to generate. */     
-  char **argument_vector;       /* Stores a pointer to command-line vector. */
-  char  *function_name;         /* Name used for generated lookup function. */
-  char  *key_name;              /* Name used for keyword key. */
-  char  *hash_name;             /* Name used for generated hash function. */
-  char  *delimiters;            /* Separates keywords from other attributes. */
-  char   key_positions[MAX_KEY_POS]; /* Contains user-specified key choices. */
-} OPTIONS;
+  MAX_KEY_POS = 128 - 1,    /* Max size of each word's key set. */
+  WORD_START = 1,           /* Signals the start of a word. */
+  WORD_END = 0,             /* Signals the end of a word. */
+  EOS = MAX_KEY_POS         /* Signals end of the key list. */
+};
 
-extern void    options_init P ((int argc, char *argv[]));
-extern void    options_destroy P ((void));
-extern OPTIONS option;       
-#endif /* _options_h */
+/* Class manager for gperf program Options. */
+
+class Options
+{
+public:
+                      Options (void);
+                     ~Options (void);
+  int                 operator[] (Option_Type option);
+  void                operator() (int argc, char *argv[]);
+  void                operator= (enum Option_Type);
+  void                operator!= (enum Option_Type);
+  static void         print_options (void);
+  static void         set_asso_max (int r);
+  static int          get_asso_max (void);
+  static void         reset (void);
+  static int          get (void);
+  static int          get_iterations (void);
+  static int          get_max_keysig_size (void);
+  static void         set_keysig_size (int);
+  static int          get_jump (void);
+  static int          initial_value (void);
+  static int          get_total_switches (void);
+  static const char  *get_function_name (void);
+  static const char  *get_key_name (void);
+  static const char  *get_initializer_suffix (void);
+  static const char  *get_class_name (void);
+  static const char  *get_hash_name (void);
+  static const char  *get_wordlist_name (void);
+  static const char  *get_delimiter (void);
+
+private:
+  static int          option_word;                        /* Holds the user-specified Options. */
+  static int          total_switches;                     /* Number of switch statements to generate. */
+  static int          total_keysig_size;                  /* Total number of distinct key_positions. */
+  static int          size;                               /* Range of the hash table. */
+  static int          key_pos;                            /* Tracks current key position for Iterator. */
+  static int          jump;                               /* Jump length when trying alternative values. */
+  static int          initial_asso_value;                 /* Initial value for asso_values table. */
+  static int          argument_count;                     /* Records count of command-line arguments. */
+  static int          iterations;                         /* Amount to iterate when a collision occurs. */
+  static char       **argument_vector;                    /* Stores a pointer to command-line vector. */
+  static const char  *function_name;                      /* Names used for generated lookup function. */
+  static const char  *key_name;                           /* Name used for keyword key. */
+  static const char  *initializer_suffix;                 /* Suffix for empty struct initializers. */
+  static const char  *class_name;                         /* Name used for generated C++ class. */
+  static const char  *hash_name;                          /* Name used for generated hash function. */
+  static const char  *wordlist_name;                      /* Name used for hash table array. */
+  static const char  *delimiters;                         /* Separates keywords from other attributes. */
+  static char         key_positions[MAX_KEY_POS];         /* Contains user-specified key choices. */
+  static int          key_sort (char *base, int len);     /* Sorts key positions in REVERSE order. */
+  static void         short_usage (FILE * strm);          /* Prints proper program usage. */
+  static void         long_usage (FILE * strm);           /* Prints proper program usage. */
+};
+
+/* Global option coordinator for the entire program. */
+extern Options option;
+
+/* Set to 1 if your want to stack-allocate some large arrays.
+   This requires compiler support for variable-size arrays on the stack
+   (not ANSI). */
+#ifndef LARGE_STACK_ARRAYS
+#if defined(__GNUG__) && !defined(__STRICT_ANSI__)
+#define LARGE_STACK_ARRAYS 1
+#else
+#define LARGE_STACK_ARRAYS 0
+#endif
+#endif
+
+/* Set to 1 if the stack is large enough for holding a text line. */
+#ifndef LARGE_STACK
+#define LARGE_STACK 1
+#endif
+
+#ifdef __OPTIMIZE__
+
+#include "trace.h"
+#define INLINE inline
+#include "options.icc"
+#undef INLINE
+
+#endif
+
+#endif
