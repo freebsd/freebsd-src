@@ -196,6 +196,7 @@ chrdev	name		comments
 178	raidctl		RAIDframe (control device)
 179	raid		RAIDframe (disk device)
 180	nvidia		NVIDIA (nvidiaN/nvidiactl)
+181	casm		HP/Compaq ProLiant Advanced Server Management <peter>
 200	??		entries from 200-252 are reserved for local use
 252	??		entries from 200-252 are reserved for local use
 254	internal	Used internally by the kernel
