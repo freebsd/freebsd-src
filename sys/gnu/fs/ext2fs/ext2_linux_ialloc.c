@@ -60,24 +60,6 @@ void mark_buffer_dirty(struct buf *bh)
 	bh->b_flags &= ~(B_READ | B_ERROR);
 } 
 
-/* 
-   this should write a buffer immediately w/o releasing it
- */
-int ll_w_block(struct buf * bp, int waitfor)
-{
-	if (bp->b_flags & B_DELWRI) {
-		--numdirtybuffers;
-		if (needsbuffer)
-			vfs_bio_need_satisfy();
-	}
-	bp->b_flags &= ~(B_READ|B_DONE|B_ERROR|B_DELWRI);
-	bp->b_flags |= B_WRITEINPROG;
-	bp->b_vp->v_numoutput++;
-	vfs_busy_pages(bp, 1);
-	VOP_STRATEGY(bp);
-	return waitfor ? biowait(bp) : 0;
-}
-
 struct ext2_group_desc * get_group_desc (struct mount * mp,
 						unsigned int block_group,
 						struct buffer_head ** bh)
