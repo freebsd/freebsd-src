@@ -6,9 +6,12 @@ BASE=		loader
 PROG=		${BASE}
 NEWVERSWHAT=	"bootstrap loader" sparc64
 
+LOADER_DISK_SUPPORT?= yes
+LOADER_NET_SUPPORT?= yes
+
 # Architecture-specific loader code
-SRCS=		locore.s main.c
-CFLAGS=		-mno-app-regs -nostdinc
+SRCS=		locore.s main.c metadata.c
+CFLAGS=		-mno-app-regs 
 
 # Always add MI sources 
 .PATH:		${.CURDIR}/../../common
