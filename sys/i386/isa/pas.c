@@ -14,7 +14,7 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
- * $Id: pas.c,v 1.4 1994/09/16 13:33:46 davidg Exp $
+ * $Id: pas.c,v 1.5 1994/10/18 03:53:12 phk Exp $
  *
  * This is a driver for the one particular kind of the "ProAudioSpectrum"
  * card from MediaVision.  To find out if your card is supported, you can
@@ -70,14 +70,15 @@
 #include "pas.h"
 #if NPAS > 0
 
-#include "param.h"
-#include "systm.h"
-#include "types.h"
-#include "buf.h"
-#include "i386/isa/isa_device.h"
+#include <sys/param.h>
+#include <sys/systm.h>
+#include <sys/buf.h>
+#include <sys/devconf.h>
+
+#include <i386/isa/isa_device.h>
+#include <i386/isa/ic/ncr_5380.h>
 #include <scsi/scsi_all.h>
 #include <scsi/scsiconf.h>
-#include "ic/ncr_5380.h"
 
 /*
  * Define this macro to disable the PSEUDO-DMA transfers.
@@ -306,6 +307,26 @@ pas_adapter_info(int adapter_number)
     return 1;
 }
 
+static struct kern_devconf kdc_pas[NPAS] = { {
+	0, 0, 0,		/* filled in by dev_attach */
+	"pas", 0, { MDDT_ISA, 0, "bio" },
+	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
+	&kdc_isa0,		/* parent */
+	0,			/* parentdata */
+	DC_BUSY,		/* host adapters are always busy */
+	"Media Vision ProAudioSpectrum SCSI host adapter"
+} };
+
+static inline void
+pas_registerdev(struct isa_device *id)
+{
+	if(id->id_unit)
+		kdc_pas[id->id_unit] = kdc_pas[0];
+	kdc_pas[id->id_unit].kdc_unit = id->id_unit;
+	kdc_pas[id->id_unit].kdc_parentdata = id;
+	dev_attach(&kdc_pas[id->id_unit]);
+}
+
 int
 pasattach(struct isa_device *dev)
 {
@@ -336,6 +357,7 @@ pasattach(struct isa_device *dev)
     outb(base^0xbc00,0x01);
     outb(base^0x8003,0x4d);
 
+    pas_registerdev(dev);
     scsi_attachdevs(&(ppas->sc_link));
     pas_reset(dev->id_unit);
     return 1;

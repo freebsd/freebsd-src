@@ -37,7 +37,7 @@ static int wdtest = 0;
  * SUCH DAMAGE.
  *
  *	from: @(#)wd.c	7.2 (Berkeley) 5/9/91
- *	$Id: wd.c,v 1.54 1994/10/20 00:08:22 phk Exp $
+ *	$Id: wd.c,v 1.55 1994/10/22 01:57:12 phk Exp $
  */
 
 /* TODO:
@@ -116,29 +116,48 @@ static int wdc_externalize(struct proc *, struct kern_devconf *, void *, size_t)
 /*
  * Templates for the kern_devconf structures used when we attach.
  */
-static struct kern_devconf kdc_wd_template = {
+static struct kern_devconf kdc_wd[NWD] = { {
 	0, 0, 0,		/* filled in by kern_devconf.c */
-	"wd", 0, { "wdc0", MDDT_DISK, 0 },
-	wd_externalize, 0, wd_goaway, DISK_EXTERNALLEN
-};
+	"wd", 0, { MDDT_DISK, 0 },
+	wd_externalize, 0, wd_goaway, DISK_EXTERNALLEN,
+	0,			/* parent */
+	0,			/* parentdata */
+	DC_UNKNOWN,		/* don't support state yet */
+	"ST506/ESDI/IDE disk"
+} };
 
-static struct kern_devconf kdc_wdc_template = {
+static struct kern_devconf kdc_wdc[NWDC] = { {
 	0, 0, 0,		/* filled in by kern_devconf.c */
-	"wdc", 0, { "isa0", MDDT_ISA, 0 },
-	wdc_externalize, 0, wdc_goaway, ISA_EXTERNALLEN
-};
+	"wdc", 0, { MDDT_ISA, 0 },
+	isa_generic_externalize, 0, wdc_goaway, ISA_EXTERNALLEN,
+	&kdc_isa0,		/* parent */
+	0,			/* parentdata */
+	DC_UNKNOWN,		/* state */
+	"ST506/ESDI/IDE disk controller"
+} };
 
 static inline void
 wd_registerdev(int ctlr, int unit)
 {
-	struct kern_devconf *kdc;
+	if(unit != 0)
+		kdc_wd[unit] = kdc_wd[0];
 
-	MALLOC(kdc, struct kern_devconf *, sizeof *kdc, M_TEMP, M_NOWAIT);
-	if(!kdc) return;
-	*kdc = kdc_wd_template;
-	kdc->kdc_unit = unit;
-	sprintf(kdc->kdc_md.mddc_parent, "wdc%d", ctlr);
-	dev_attach(kdc);
+	kdc_wd[unit].kdc_unit = unit;
+	kdc_wd[unit].kdc_parent = &kdc_wdc[ctlr];
+	dev_attach(&kdc_wd[unit]);
+}
+
+static inline void
+wdc_registerdev(struct isa_device *dvp)
+{
+	int unit = dvp->id_unit;
+
+	if(unit != 0)
+		kdc_wd[unit] = kdc_wd[0];
+
+	kdc_wdc[unit].kdc_unit = unit;
+	kdc_wdc[unit].kdc_parentdata = dvp;
+	dev_attach(&kdc_wdc[unit]);
 }
 
 static int
@@ -146,7 +165,6 @@ wdc_goaway(struct kern_devconf *kdc, int force)
 {
 	if(force) {
 		dev_detach(kdc);
-		FREE(kdc, M_TEMP);
 		return 0;
 	} else {
 		return EBUSY;	/* XXX fix */
@@ -157,7 +175,6 @@ static int
 wd_goaway(struct kern_devconf *kdc, int force)
 {
 	dev_detach(kdc);
-	FREE(kdc, M_TEMP);
 	return 0;
 }
 
@@ -213,7 +230,6 @@ struct disk {
 	long    dk_badsect[127];        /* 126 plus trailing -1 marker */
 };
 
-static struct isa_device *wdcdevs[NWDC];
 static struct disk *wddrives[NWD];	/* table of units */
 static struct buf wdtab[NWDC];
 static struct buf wdutab[NWD];	/* head of queue per drive */
@@ -251,12 +267,6 @@ wd_externalize(struct proc *p, struct kern_devconf *kdc, void *userp, size_t len
 	return disk_externalize(wddrives[kdc->kdc_unit]->dk_unit, userp, &len);
 }
 
-static int
-wdc_externalize(struct proc *p, struct kern_devconf *kdc, void *userp, size_t len)
-{
-	return isa_externalize(wdcdevs[kdc->kdc_unit], userp, &len);
-}
-
 struct isa_driver wdcdriver = {
 	wdprobe, wdattach, "wdc",
 };
@@ -274,7 +284,6 @@ wdprobe(struct isa_device *dvp)
 
 	if (unit >= NWDC)
 		return (0);
-	wdcdevs[unit] = dvp;
 
 	du = malloc(sizeof *du, M_TEMP, M_NOWAIT);
 	if (du == NULL)
@@ -350,17 +359,11 @@ wdattach(struct isa_device *dvp)
 	int	unit, lunit;
 	struct isa_device *wdup;
 	struct disk *du;
-	struct kern_devconf *kdc;
 
 	if (dvp->id_unit >= NWDC)
 		return (0);
 
-	MALLOC(kdc, struct kern_devconf *, sizeof *kdc, M_TEMP, M_NOWAIT);
-	if(!kdc)
-		return 0;
-	*kdc = kdc_wdc_template;
-	kdc->kdc_unit = dvp->id_unit;
-	dev_attach(kdc);
+	wdc_registerdev(dvp);
 
 	for (wdup = isa_biotab_wdc; wdup->id_driver != 0; wdup++) {
 		if (wdup->id_iobase != dvp->id_iobase)

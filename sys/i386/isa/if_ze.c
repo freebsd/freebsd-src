@@ -46,6 +46,10 @@
  *			ETO, Toshihisa <eto@osl.fujitsu.co.jp>
  */
 
+/*
+ * $Id$
+ */
+
 #include "ze.h"
 #if	NZE > 0
 #include "bpfilter.h"

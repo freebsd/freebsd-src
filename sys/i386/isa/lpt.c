@@ -46,7 +46,7 @@
  * SUCH DAMAGE.
  *
  *	from: unknown origin, 386BSD 0.1
- *	$Id: lpt.c,v 1.19 1994/09/18 06:12:45 phk Exp $
+ *	$Id: lpt.c,v 1.20 1994/10/10 01:12:27 phk Exp $
  */
 
 /*
@@ -112,6 +112,7 @@
 #include <sys/tty.h>
 #include <sys/uio.h>
 #include <sys/syslog.h>
+#include <sys/devconf.h>
 
 #include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
@@ -252,6 +253,27 @@ static void lpintr(int);
 struct	isa_driver lptdriver = {
 	lptprobe, lptattach, "lpt"
 };
+
+
+static struct kern_devconf kdc_lpt[NLPT] = { {
+	0, 0, 0,		/* filled in by dev_attach */
+	"lpt", 0, { MDDT_ISA, 0, "tty" },
+	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
+	&kdc_isa0,		/* parent */
+	0,			/* parentdata */
+	DC_UNKNOWN,		/* not supported */
+	"Parallel printer adapter"
+} };
+
+static inline void
+lpt_registerdev(struct isa_device *id)
+{
+	if(id->id_unit)
+		kdc_lpt[id->id_unit] = kdc_lpt[0];
+	kdc_lpt[id->id_unit].kdc_unit = id->id_unit;
+	kdc_lpt[id->id_unit].kdc_isa = id;
+	dev_attach(&kdc_lpt[id->id_unit]);
+}
 
 
 
@@ -405,6 +427,8 @@ lptattach(struct isa_device *isdp)
 		lprintf("lpt%d: Polled port\n", isdp->id_unit);
 	}
 	lprintf("irq %x\n", sc->sc_irq);
+
+	lpt_registerdev(isdp);
 
 	return (1);
 }

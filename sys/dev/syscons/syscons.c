@@ -35,7 +35,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: syscons.c,v 1.69 1994/10/18 03:34:53 ache Exp $
+ *	$Id: syscons.c,v 1.70 1994/10/20 00:08:20 phk Exp $
  */
 
 #include "sc.h"
@@ -55,10 +55,13 @@
 #include <sys/syslog.h>
 #include <sys/errno.h>
 #include <sys/malloc.h>
+#include <sys/devconf.h>
+
 #include <machine/console.h>
 #include <machine/psl.h>
 #include <machine/frame.h>
 #include <machine/pc/display.h>
+
 #include <i386/isa/isa.h>
 #include <i386/isa/isa_device.h>
 #include <i386/isa/timerreg.h>
@@ -336,6 +339,27 @@ gotack:
 	return (IO_KBDSIZE);
 }
 
+static struct kern_devconf kdc_sc[NSC] = { {
+	0, 0, 0,		/* filled in by dev_attach */
+	"sc", 0, { MDDT_ISA, 0, "tty" },
+	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
+	&kdc_isa0,		/* parent */
+	0,			/* parentdata */
+	DC_UNKNOWN,		/* not supported */
+	"Parallel printer adapter"
+} };
+
+static inline void
+sc_registerdev(struct isa_device *id)
+{
+	if(id->id_unit)
+		kdc_sc[id->id_unit] = kdc_sc[0];
+	kdc_sc[id->id_unit].kdc_unit = id->id_unit;
+	kdc_sc[id->id_unit].kdc_isa = id;
+	dev_attach(&kdc_sc[id->id_unit]);
+}
+
+
 int
 pcattach(struct isa_device *dev)
 {
@@ -386,6 +410,7 @@ pcattach(struct isa_device *dev)
 	/* get cursor going */
 	cursor_pos(1);
 	update_leds(console[0].status);
+	sc_registerdev(dev);
 	return 0;
 }
 

@@ -21,9 +21,13 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $Id: if_le.c,v 1.7 1994/10/12 11:39:37 se Exp $
+ * $Id: if_le.c,v 1.8 1994/10/19 01:59:03 wollman Exp $
  *
  * $Log: if_le.c,v $
+ * Revision 1.8  1994/10/19  01:59:03  wollman
+ * Add support for devconf to a large number of device drivers, and do
+ * the right thing in dev_goawayall() when kdc_goaway is null.
+ *
  * Revision 1.7  1994/10/12  11:39:37  se
  * Submitted by:	Matt Thomas <thomas@lkg.dec.com>
  * #ifdef MULTICAST removed.
@@ -337,8 +341,12 @@ unsigned le_intrs[NLE];
 
 static struct kern_devconf kdc_le[NLE] = { {
 	0, 0, 0,		/* filled in by dev_attach */
-	"le", 0, { "isa0", MDDT_ISA, 0 },
-	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN
+	"le", 0, { MDDT_ISA, 0, "net" },
+	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
+	&kdc_isa0,		/* parent */
+	0,			/* parentdata */
+	DC_BUSY,		/* network interfaces are always busy */
+	"DEC EtherWorks II or EtherWorks III Ethernet adapter"
 } };
 
 static inline void

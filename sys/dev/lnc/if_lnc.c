@@ -730,8 +730,12 @@ lnc_tint(int unit)
 
 static struct kern_devconf kdc_lnc[NLNC] = { {
 	0, 0, 0,		/* filled in by dev_attach */
-	"lnc", 0, { "isa0", MDDT_ISA, 0 },
-	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN
+	"lnc", 0, { MDDT_ISA, 0, "net" },
+	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
+	&kdc_isa0,		/* parent */
+	0,			/* parentdata */
+	DC_BUSY,
+	"Generic LANCE-based Ethernet adapter"
 } };
 
 static inline void

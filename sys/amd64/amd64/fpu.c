@@ -32,7 +32,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)npx.c	7.2 (Berkeley) 5/12/91
- *	$Id: npx.c,v 1.13 1994/09/22 14:44:16 davidg Exp $
+ *	$Id: npx.c,v 1.14 1994/10/08 22:27:58 phk Exp $
  */
 
 #include "npx.h"
@@ -43,11 +43,14 @@
 #include <sys/conf.h>
 #include <sys/file.h>
 #include <sys/proc.h>
+#include <sys/devconf.h>
+#include <sys/ioctl.h>
+
 #include <machine/cpu.h>
 #include <machine/pcb.h>
 #include <machine/trap.h>
-#include <sys/ioctl.h>
 #include <machine/specialreg.h>
+
 #include <i386/isa/icu.h>
 #include <i386/isa/isa_device.h>
 #include <i386/isa/isa.h>
@@ -302,6 +305,26 @@ npxprobe1(dvp)
 	return (-1);
 }
 
+static struct kern_devconf kdc_npx[NNPX] = { {
+	0, 0, 0,		/* filled in by dev_attach */
+	"npx", 0, { MDDT_ISA, 0 },
+	isa_generic_externalize, 0, 0, ISA_EXTERNALLEN,
+	&kdc_isa0,		/* parent */
+	0,			/* parentdata */
+	DC_UNKNOWN,		/* not supported */
+	"Floating-point unit"
+} };
+
+static inline void
+npx_registerdev(struct isa_device *id)
+{
+	if(id->id_unit)
+		kdc_npx[id->id_unit] = kdc_npx[0];
+	kdc_npx[id->id_unit].kdc_unit = id->id_unit;
+	kdc_npx[id->id_unit].kdc_isa = id;
+	dev_attach(&kdc_npx[id->id_unit]);
+}
+
 /*
  * Attach routine - announce which it is, and wire into system
  */
@@ -318,6 +341,7 @@ npxattach(dvp)
 		}
 	}
 	npxinit(__INITIAL_NPXCW__);
+	npx_registerdev(dvp);
 	return (1);		/* XXX unused */
 }
 
