@@ -1498,25 +1498,6 @@ nextnode:
 }
 
 /*
- * To obtain CSR register values.
- */
-u_int32_t
-getcsrdata(struct fw_device *fwdev, u_int8_t key)
-{
-	int i;
-	struct csrhdr *chdr;
-	struct csrreg *creg;
-	chdr = (struct csrhdr *)&fwdev->csrrom[0];
-	for( i = chdr->info_len + 4; i <= fwdev->rommax - CSRROMOFF; i+=4){
-		creg = (struct csrreg *)&fwdev->csrrom[i/4];
-		if(creg->key == key){
-			return (u_int32_t)creg->val;
-		}
-	}
-	return 0;
-}
-
-/*
  * To attach sub-devices layer onto IEEE1394 bus.
  */
 static void
@@ -1528,71 +1509,11 @@ fw_attach_dev(struct firewire_comm *fc)
 	device_t *devlistp;
 	int devcnt;
 	struct firewire_dev_comm *fdc;
-	u_int32_t spec, ver;
 
-	STAILQ_FOREACH(fwdev, &fc->devices, link) {
-		if(fwdev->status == FWDEVINIT){
-			spec = getcsrdata(fwdev, CSRKEY_SPEC);
-			if(spec == 0)
-				continue;
-			ver = getcsrdata(fwdev, CSRKEY_VER);
-			if(ver == 0)
-				continue;
-			fwdev->maxrec = (fwdev->csrrom[2] >> 12) & 0xf;
-
-			device_printf(fc->bdev, "Device ");
-			switch(spec){
-			case CSRVAL_ANSIT10:
-				switch(ver){
-				case CSRVAL_T10SBP2:
-					printf("SBP-II");
-					break;
-				default:
-					break;
-				}
-				break;
-			case CSRVAL_1394TA:
-				switch(ver){
-				case CSR_PROTAVC:
-					printf("AV/C");
-					break;
-				case CSR_PROTCAL:
-					printf("CAL");
-					break;
-				case CSR_PROTEHS:
-					printf("EHS");
-					break;
-				case CSR_PROTHAVI:
-					printf("HAVi");
-					break;
-				case CSR_PROTCAM104:
-					printf("1394 Cam 1.04");
-					break;
-				case CSR_PROTCAM120:
-					printf("1394 Cam 1.20");
-					break;
-				case CSR_PROTCAM130:
-					printf("1394 Cam 1.30");
-					break;
-				case CSR_PROTDPP:
-					printf("1394 Direct print");
-					break;
-				case CSR_PROTIICP:
-					printf("Industrial & Instrument");
-					break;
-				default:
-					printf("unknown 1394TA");
-					break;
-				}
-				break;
-			default:
-				printf("unknown spec");
-				break;
-			}
+	STAILQ_FOREACH(fwdev, &fc->devices, link)
+		if (fwdev->status == FWDEVINIT)
 			fwdev->status = FWDEVATTACHED;
-			printf("\n");
-		}
-	}
+
 	err = device_get_children(fc->bdev, &devlistp, &devcnt);
 	if( err != 0 )
 		return;
