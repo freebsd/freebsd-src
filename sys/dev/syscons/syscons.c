@@ -54,7 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/power.h>
 
 #include <machine/clock.h>
-#ifdef __sparc64__
+#if __sparc64__ || __powerpc__
 #include <machine/sc_machdep.h>
 #else
 #include <machine/pc/display.h>
@@ -150,7 +150,7 @@ static kbd_callback_func_t sckbdevent;
 static int scparam(struct tty *tp, struct termios *t);
 static void scstart(struct tty *tp);
 static void scinit(int unit, int flags);
-#if __i386__ || __ia64__ || __amd64__ || __sparc64__
+#if !__alpha__
 static void scterm(int unit, int flags);
 #endif
 static void scshutdown(void *arg, int howto);
@@ -1378,7 +1378,7 @@ scstart(struct tty *tp)
 static void
 sccnprobe(struct consdev *cp)
 {
-#if __i386__ || __ia64__ || __amd64__ || __sparc64__
+#if !__alpha__
     int unit;
     int flags;
 
@@ -1396,7 +1396,7 @@ sccnprobe(struct consdev *cp)
 
     /* initialize required fields */
     sprintf(cp->cn_name, "consolectl");
-#endif /* __i386__ || __ia64__ || __amd64__ || __sparc64__ */
+#endif /* !__alpha__ */
 
 #if __alpha__
     /*
@@ -1411,7 +1411,7 @@ sccnprobe(struct consdev *cp)
 static void
 sccninit(struct consdev *cp)
 {
-#if __i386__ || __ia64__ || __amd64__ || __sparc64__
+#if !__alpha__
     int unit;
     int flags;
 
@@ -1419,7 +1419,7 @@ sccninit(struct consdev *cp)
     scinit(unit, flags | SC_KERNEL_CONSOLE);
     sc_console_unit = unit;
     sc_console = SC_STAT(sc_get_softc(unit, SC_KERNEL_CONSOLE)->dev[0]);
-#endif /* __i386__ || __ia64__ || __amd64__ || __sparc64__ */
+#endif /* !__alpha__ */
 
 #if __alpha__
     /* SHOULDN'T REACH HERE */
@@ -1434,7 +1434,7 @@ sccnterm(struct consdev *cp)
     if (sc_console_unit < 0)
 	return;			/* shouldn't happen */
 
-#if __i386__ || __ia64__ || __amd64__ || __sparc64__
+#if !__alpha__
 #if 0 /* XXX */
     sc_clear_screen(sc_console);
     sccnupdate(sc_console);
@@ -1442,7 +1442,7 @@ sccnterm(struct consdev *cp)
     scterm(sc_console_unit, SC_KERNEL_CONSOLE);
     sc_console_unit = -1;
     sc_console = NULL;
-#endif /* __i386__ || __ia64__ || __amd64__ || __sparc64__ */
+#endif /* !__alpha__ */
 
 #if __alpha__
     /* do nothing XXX */
@@ -2845,7 +2845,7 @@ scinit(int unit, int flags)
     sc->flags |= SC_INIT_DONE;
 }
 
-#if __i386__ || __ia64__ || __amd64__ || __sparc64__
+#if !__alpha__
 static void
 scterm(int unit, int flags)
 {
@@ -2901,7 +2901,7 @@ scterm(int unit, int flags)
     sc->keyboard = -1;
     sc->adapter = -1;
 }
-#endif /* __i386__ || __ia64__ || __amd64__ || __sparc64__ */
+#endif /* !__alpha__ */
 
 static void
 scshutdown(void *arg, int howto)
