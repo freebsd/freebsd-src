@@ -118,6 +118,7 @@ struct ktr_entry {
 	u_long	ktr_parm3;
 	u_long	ktr_parm4;
 	u_long	ktr_parm5;
+	u_long	ktr_parm6;
 #endif
 };
 
@@ -140,7 +141,7 @@ void	ktr_tracepoint(u_int mask, const char *filename, u_int line,
 		       const char *format, ...) __printflike(4, 5);
 #else
 void	ktr_tracepoint(u_int mask, const char *format, u_long arg1, u_long arg2,
-		       u_long arg3, u_long arg4, u_long arg5);
+		       u_long arg3, u_long arg4, u_long arg5, u_long arg6);
 #endif
 
 #ifdef KTR_EXTEND
@@ -159,21 +160,17 @@ void	ktr_tracepoint(u_int mask, const char *format, u_long arg1, u_long arg2,
 #define	CTR6(m, format, p1, p2, p3, p4, p5, p6)				\
 	CTR(m, format, p1, p2, p3, p4, p5, p6)
 #else							    /* not extended */
-#define CTR5(m, format, p1, p2, p3, p4, p5) do {			\
-	if (KTR_COMPILE & (m))						\
-		ktr_tracepoint((m), format, (u_long)p1, (u_long)p2,	\
-		    (u_long)p3, (u_long)p4, (u_long)p5);		\
-	} while(0)
 #define CTR6(m, format, p1, p2, p3, p4, p5, p6) do {			\
 	if (KTR_COMPILE & (m))						\
 		ktr_tracepoint((m), format, (u_long)p1, (u_long)p2,	\
 		    (u_long)p3, (u_long)p4, (u_long)p5, (u_long)p6);	\
 	} while(0)
-#define CTR0(m, format)			CTR5(m, format, 0, 0, 0, 0, 0)
-#define CTR1(m, format, p1)		CTR5(m, format, p1, 0, 0, 0, 0)
-#define	CTR2(m, format, p1, p2)		CTR5(m, format, p1, p2, 0, 0, 0)
-#define	CTR3(m, format, p1, p2, p3)	CTR5(m, format, p1, p2, p3, 0, 0)
-#define	CTR4(m, format, p1, p2, p3, p4)	CTR5(m, format, p1, p2, p3, p4, 0)
+#define CTR0(m, format)			CTR6(m, format, 0, 0, 0, 0, 0, 0)
+#define CTR1(m, format, p1)		CTR6(m, format, p1, 0, 0, 0, 0, 0)
+#define	CTR2(m, format, p1, p2)		CTR6(m, format, p1, p2, 0, 0, 0, 0)
+#define	CTR3(m, format, p1, p2, p3)	CTR6(m, format, p1, p2, p3, 0, 0, 0)
+#define	CTR4(m, format, p1, p2, p3, p4)	CTR6(m, format, p1, p2, p3, p4, 0, 0)
+#define	CTR5(m, format, p1, p2, p3, p4, p5)	CTR6(m, format, p1, p2, p3, p4, p5, 0)
 #endif	/* KTR_EXTEND */
 #else	/* KTR */
 #undef KTR_COMPILE
@@ -193,6 +190,7 @@ void	ktr_tracepoint(u_int mask, const char *format, u_long arg1, u_long arg2,
 #define	TR3(d, p1, p2, p3)		CTR3(KTR_GEN, d, p1, p2, p3)
 #define	TR4(d, p1, p2, p3, p4)		CTR4(KTR_GEN, d, p1, p2, p3, p4)
 #define	TR5(d, p1, p2, p3, p4, p5)	CTR5(KTR_GEN, d, p1, p2, p3, p4, p5)
+#define	TR6(d, p1, p2, p3, p4, p5, p6)	CTR5(KTR_GEN, d, p1, p2, p3, p4, p5, p6)
 
 /*
  * Trace initialization events, similar to CTR with KTR_INIT, but
@@ -207,6 +205,7 @@ void	ktr_tracepoint(u_int mask, const char *format, u_long arg1, u_long arg2,
 #define	ITR3(d, p1, p2, p3)		CTR3(KTR_INIT, d, p1, p2, p3)
 #define	ITR4(d, p1, p2, p3, p4)		CTR4(KTR_INIT, d, p1, p2, p3, p4)
 #define	ITR5(d, p1, p2, p3, p4, p5)	CTR5(KTR_INIT, d, p1, p2, p3, p4, p5)
+#define	ITR6(d, p1, p2, p3, p4, p5, p6)	CTR5(KTR_INIT, d, p1, p2, p3, p4, p5, p6)
 #else
 #define	ITR0(d)
 #define	ITR1(d, p1)
@@ -214,6 +213,7 @@ void	ktr_tracepoint(u_int mask, const char *format, u_long arg1, u_long arg2,
 #define	ITR3(d, p1, p2, p3)
 #define	ITR4(d, p1, p2, p3, p4)
 #define	ITR5(d, p1, p2, p3, p4, p5)
+#define	ITR6(d, p1, p2, p3, p4, p5, p6)
 #endif
 
 #endif /* !_SYS_KTR_H_ */
