@@ -2566,14 +2566,17 @@ pmap_is_prefaultable(pmap_t pmap, vm_offset_t addr)
 {
 	pd_entry_t *pde;
 	pt_entry_t *pte;
+	boolean_t rv;
 
+	rv = FALSE;
+	PMAP_LOCK(pmap);
 	pde = pmap_pde(pmap, addr);
-	if (pde == NULL || (*pde & PG_V) == 0) 
-		return (FALSE);
-	pte = vtopte(addr);
-	if (*pte & PG_V)
-		return (FALSE);
-	return (TRUE);
+	if (pde != NULL && (*pde & PG_V)) {
+		pte = vtopte(addr);
+		rv = (*pte & PG_V) == 0;
+	}
+	PMAP_UNLOCK(pmap);
+	return (rv);
 }
 
 /*
