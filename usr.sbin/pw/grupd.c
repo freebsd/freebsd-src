@@ -134,7 +134,7 @@ gr_update(struct group * grp, char const * group, int mode)
 	char	       *grbuf = NULL;
 
 	ENDGRENT();
-	snprintf(pfx, sizeof pfx, "%s:", group);
+	l = snprintf(pfx, sizeof pfx, "%s:", group);
 
 	/*
 	 * Update the group file
