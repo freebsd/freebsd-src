@@ -17,18 +17,15 @@
  * THIS SOFTWARE IS PROVIDED ``AS IS'' AND WITHOUT ANY EXPRESS OR IMPLIED
  * WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
  * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE.
- */
-#ifndef lint
-static  char rcsid[] =
-    "@(#)$Header: pcap-pf.c,v 1.50 96/07/16 14:30:28 vern Exp $ (LBL)";
-#endif
-
-/*
+ *
  * packet filter subroutines for tcpdump
  *	Extraction/creation by Jeffrey Mogul, DECWRL
- *
- * Extracted from tcpdump.c.
  */
+
+#ifndef lint
+static const char rcsid[] =
+    "@(#) $Header: pcap-pf.c,v 1.54 96/12/10 23:15:01 leres Exp $ (LBL)";
+#endif
 
 #include <sys/types.h>
 #include <sys/time.h>
@@ -290,6 +287,7 @@ your system may not be properly configured; see \"man packetfilter(4)\"\n",
 	}
 	p->snapshot = snaplen;
 	/* accept all packets */
+	bzero((char *)&Filter, sizeof(Filter));
 	Filter.enf_Priority = 37;	/* anything > 2 */
 	Filter.enf_FilterLen = 0;	/* means "always true" */
 	if (ioctl(p->fd, EIOCSETF, (caddr_t)&Filter) < 0) {

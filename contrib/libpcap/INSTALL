@@ -1,4 +1,4 @@
-@(#) $Header: INSTALL,v 1.27 96/07/23 14:36:02 leres Exp $ (LBL)
+@(#) $Header: INSTALL,v 1.32 96/12/11 19:16:21 leres Exp $ (LBL)
 
 To build libpcap, first customize any paths in Makefile.in, then run
 "./configure" (a shell script). The configure script will determine
@@ -42,16 +42,19 @@ via anonymous ftp:
 
 	ftp://ftp.ee.lbl.gov/flex-*.tar.Z
 
-As of this writing, the current version is 2.5.3.
+As of this writing, the current version is 2.5.4.
 
 If you use bison, you must use flex (and visa versa). The configure
 script automatically falls back to lex and yacc if both flex and bison
 are not found.
 
-If your system only has AT&T lex, that also works okay unless your
-libpcap program uses other lex/yacc generated code. (Although it's
-possible to map the yy* identifiers with a script, we use flex and
-bison so we don't feel this is necessary.)
+If you use flex and bison, you may also have to use gcc to avoid
+undefined references for alloca.
+
+If your system only has AT&T lex, this is okay unless your libpcap
+program uses other lex/yacc generated code. (Although it's possible to
+map the yy* identifiers with a script, we use flex and bison so we
+don't feel this is necessary.)
 
 Some systems support the Berkeley Packet Filter natively; for example
 out of the box OSF and BSD/OS have bpf. If your system does not support
@@ -66,14 +69,29 @@ network device drivers. See the bpf INSTALL document for more
 information.
 
 If you use Solaris, there is a bug with bufmod(7) that is fixed in
-5.3.2.  Setting a snapshot length with the broken bufmod(7) results in
-data be truncated from the FRONT of the packet instead of the end.  The
-work around is to not set a snapshot length but this results in
-performance problems since the entire packet is copied to user space.
-If you must run an older version of Solaris, there is a patch available
-from Sun; ask for bugid 1149065. After installing the patch, use
-"setenv BUFMOD_FIXED" to enable use of bufmod(7). However, we recommend
-you run a more current release of Solaris.
+Solaris 2.3.2 (aka SunOS 5.3.2). Setting a snapshot length with the
+broken bufmod(7) results in data be truncated from the FRONT of the
+packet instead of the end.  The work around is to not set a snapshot
+length but this results in performance problems since the entire packet
+is copied to user space. If you must run an older version of Solaris,
+there is a patch available from Sun; ask for bugid 1149065. After
+installing the patch, use "setenv BUFMOD_FIXED" to enable use of
+bufmod(7). However, we recommend you run a more current release of
+Solaris.
+
+If you use the SPARCompiler, you must be careful to not use the
+/usr/ucb/cc interface. If you do, you will get bogus warnings and
+perhaps errors. Either make sure your path has /opt/SUNWspro/bin
+before /usr/ucb or else:
+
+    setenv CC /opt/SUNWspro/bin/cc
+
+before running configure. (You might have to do a "make distclean"
+if you already ran configure once).
+
+Also note that "make depend" won't work; while all of the known
+universe uses -M, the SPARCompiler uses -xM to generate makefile
+dependencies.
 
 Under OSF, packet capture must be enabled before it can be used. For
 instructions on how to enable packet filter support, see:
@@ -88,16 +106,20 @@ instructions on how to enable packet filter support, see:
 
 	ftp://ftp.digital.com/pub/Digital/dec-faq/ultrix
 
-If you use HP-UX, have at least version 9 and either have the version
-of cc that supports ANSI C (cc -Aa) or else get the GNU C compiler. In
-addition, you must buy the optional streams package. If you don't have:
+If you use HP-UX, you must have at least version 9 and either the
+version of cc that supports ANSI C (cc -Aa) or else use the GNU C
+compiler. You must also buy the optional streams package. If you don't
+have:
 
     /usr/include/sys/dlpi.h
     /usr/include/sys/dlpi_ext.h
 
-then you don't have the streams package. It's also possible that the
-streams package is standard starting with a particular subrelease of
-HP-UX 10.
+then you don't have the streams package. In addition, we believe you
+need to install the "9.X LAN and DLPI drivers cumulative" patch
+(PHNE_6855) to make the version 9 DLPI work with libpcap.
+
+It's been reported that the DLPI streams package is standard starting
+with HP-UX 10.
 
 The HP implementation of DLPI is a little bit eccentric. Unlike
 Solaris, you must attach /dev/dlpi instead of the specific /dev/*
@@ -116,46 +138,51 @@ at a time. This results in error messages:
 which may be safely ignored. Finally, testing shows that there can't be
 more than one simultaneous dlpi user per network interface.
 
-If you use Linux, you will not be able to build libpcap from this
-release. We have a Linux system up and hope to support Linux at some
-point after the next even version of the Linux kernel source is
-released. Meanwhile, you can try picking up:
-
-	ftp://sunsite.unc.edu/pub/Linux/system/Network/management/tcpdump-3.0.2-linux.tar.gz
-
-This appears to be libpcap 0.0.6 and tcpdump 3.0.2 hacked for Linux.
-(It includes 20000 lines of linux-specific include files, almost twice
-the source in the official libpcap distribution. It also contains a
-linux specific libpcap module that is essentially a hacked copy of the
-snoop module; one of the hacks is to replace the Regents of the
-University of California copyright with a vague reference to the GNU
-license.)
+If you use Linux, this version of libpcap is known to compile and run
+under Red Hat 4.0 with the 2.0.25 kernel. It may work with earlier 2.X
+versions but is guaranteed not to work with 1.X kernels. Running more
+than one libpcap program at a time can cause problems since promiscuous
+mode is implemented by twiddlin the interface flags from the libpcap
+application. Also, packet timestamps aren't very good. This appears to
+be due to haphazard handling of the timestamp in the kernel.
 
 Note well: there is rumoured to be a version of tcpdump floating around
 called 3.0.3 that includes libpcap and is supposed to support Linux.
 You should be advised that the Network Research Group at LBNL never
-generated a release with this version number. You should also know that
-a standard trick crackers use to get people to install trojans is to
+generated a release with this version number. We note with interest
+that a standard cracker trick to get people to install trojans is to
 distribute bogus packages that have a version number higher than the
 current release.
 
-If you use AIX, you will not be able to build libpcap from this
-release. We have a set of contributed patches that we hope to integrate
-in some future release of libpcap.
+If you use AIX, you may not be able to build libpcap from this release.
+We do not have an AIX system in house so it's impossible for us to test
+AIX patches submitted to us. We are told that you must like againt
+/lib/pse.exp, that you must use AIX cc or a GNU C compiler newer than
+2.7.2 and that you may need to run strload before running a libpcap
+application.
 
 If you use NeXTSTEP, you will not be able to build libpcap from this
 release. We hope to support this operating system in some future
 release of libpcap.
 
 If you use SINIX, you should be able to build libpcap from this
-release. We are told you must have the C-DS V1.1A00 compiler. If you
-have problems, please send details to libpcap@ee.lbl.gov.
+release. It is known to compile and run on SINIX-Y/N 5.42 with the C-DS
+V1.0 or V1.1 compiler. But note that in some releases of SINIX, yacc
+emits incorrect code; if grammar.y fails to compile, change every
+occurence of:
+
+	#ifdef YYDEBUG
+
+to:
+	#if YYDEBUG
+
+Another workaround is to use flex and bison.
 
 If you use SCO, you might have trouble building libpcap from this
 release. We do not have a machine running SCO and have not had reports
 of anyone successfully building on it. Since SCO apparently supports
-dlpi, it's possible libpcap 0.2 works. Meanwhile, sco provides a
-tcpdump binary as part of their "Network/Security Tools" package:
+dlpi, it's possible the current version works. Meanwhile, sco provides
+a tcpdump binary as part of their "Network/Security Tools" package:
 
     http://www.sco.com/technology/internet/goodies/#SECURITY
 
@@ -228,7 +255,7 @@ Makefile.in	- compilation rules (input to the configure script)
 README		- description of distribution
 SUNOS4		- pre-SunOS 4.1 replacement kernel nit modules
 VERSION		- version of this release
-aclocal.m4	- autoconf macros
+acsite.m4	- autoconf macros
 bpf/net		- copies of bpf_filter.c and bpf.h
 bpf_filter.c	- symlink to bpf/net/bpf_filter.c
 bpf_image.c	- bpf disassembly routine
@@ -245,6 +272,7 @@ inet.c		- network routines
 install-sh	- BSD style install script
 lbl/gnuc.h	- gcc macros and defines
 lbl/os-*.h	- os dependent defines and prototypes
+linux-include/*	- network include files missing on Linux
 mkdep		- construct Makefile dependency list
 nametoaddr.c	- hostname to address routines
 net		- symlink to bpf/net

@@ -36,13 +36,11 @@
  * SUCH DAMAGE.
  *
  *	@(#)bpf.c	7.5 (Berkeley) 7/15/91
- *
- * static char rcsid[] =
- * "$Header: bpf_filter.c,v 1.29 96/06/23 13:44:02 leres Exp $";
  */
+
 #if !(defined(lint) || defined(KERNEL))
-static char rcsid[] =
-    "@(#) $Header: bpf_filter.c,v 1.29 96/06/23 13:44:02 leres Exp $ (LBL)";
+static const char rcsid[] =
+    "@(#) $Header: bpf_filter.c,v 1.31 96/12/11 20:18:39 leres Exp $ (LBL)";
 #endif
 
 #include <sys/param.h>
