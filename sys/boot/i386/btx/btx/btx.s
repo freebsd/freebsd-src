@@ -296,7 +296,7 @@ exit.2: 	xor %ax,%ax			# Real mode segment
 		testb $0x1,btx_hdr+0x7		# Reboot?
 exit.3:		jz exit.3			# No
 		movw $0x1234, BDA_BOOT		# Do a warm boot
-		ljmp $0xffff,$0x0		# reboot the machine
+		ljmp $0xf000,$0xfff0		# reboot the machine
 #
 # Set IRQ offsets by reprogramming 8259A PICs.
 #
