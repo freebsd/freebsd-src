@@ -1,6 +1,6 @@
 /**************************************************************************
 **
-**  $Id: pcisupport.c,v 1.57 1997/10/17 16:26:14 wollman Exp $
+**  $Id: pcisupport.c,v 1.58 1997/11/11 01:50:06 wollman Exp $
 **
 **  Device driver for DEC/INTEL PCI chipsets.
 **
@@ -202,6 +202,8 @@ chipset_probe (pcici_t tag, pcidi_t type)
 		return ("SiS 85c601");
 	case 0x70008086:
 		return ("Intel 82371SB PCI to ISA bridge");
+	case 0x70208086:
+		return ("Intel 82371SB USB host controller");
 	case 0x71008086:
 		return ("Intel 82439TX System Controller (MTXC)");
 	case 0x71108086:
