@@ -373,15 +373,6 @@ my_setmulti(struct my_softc * sc)
 	CSR_WRITE_4(sc, MY_MAR1, 0);
 
 	/* now program new ones */
-	/*
-	 * Add by Surfer for (ifma = ifp->if_multiaddrs.lh_first; ifma !=
-	 * NULL; ifma = ifma->ifma_link.le_next) { if
-	 * (ifma->ifma_addr->sa_family != AF_LINK) continue; h =
-	 * my_calchash(LLADDR((struct sockaddr_dl *)ifma->ifma_addr)); if (h
-	 * < 32) hashes[0] |= (1 << h); else hashes[1] |= (1 << (h - 32));
-	 * mcnt++; }
-	 */
-
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
 			continue;
