@@ -364,14 +364,9 @@ init_stage1() {
 # Then copy it here and strip as much as possible.
 do_kernel() {		# OK
     log "---> Preparing kernel \"$name\" in $MY_TREE"
-    (cd $MY_TREE; export name SRC CONFIG # used in this makefile ;
-	make -v -f ${PICO_TREE}/build/Makefile.conf )
-    cp -p ${SRC}/sys/compile/PICOBSD-${name}/kernel ${BUILDDIR}/kernel || \
+    (cd $MY_TREE; export name SRC CONFIG BUILDDIR # used in this makefile ;
+	make -v -f ${PICO_TREE}/build/Makefile.conf ) || \
 	fail $? missing_kernel
-    (cd ${BUILDDIR};
-    strip kernel
-    strip --remove-section=.note --remove-section=.comment kernel
-    )
 }
 
 # Populate the variable part of the floppy filesystem. Should be
@@ -491,12 +486,9 @@ populate_mfs() {
     log "---> Making and installing crunch1 from `pwd`..."
     a=${BUILDDIR}/crunch1.conf
     ( export BUILDDIR SRC MY_TREE PICO_OBJ ;
-    make -v -f ${PICO_TREE}/build/Makefile.conf ${BUILDDIR}/crunch.mk )
-    # update crunch.mk for new libs
-    if [ "${LIBS}" != "" ] ; then
-	sed -e "s@^LIBS=@  LIBS= ${LIBS}@" ${BUILDDIR}/crunch.mk > ${BUILDDIR}/crunch1.mk
-	mv ${BUILDDIR}/crunch1.mk ${BUILDDIR}/crunch.mk
-    fi
+	make -v -f ${PICO_TREE}/build/Makefile.conf ${BUILDDIR}/crunch.mk )
+    log "-- libs are ${LIBS} "
+    export LIBS CFLAGS # used by crunch.mk
     log "Now make -f crunch.mk"
     make ${makeopts} -f ${BUILDDIR}/crunch.mk
     strip --remove-section=.note --remove-section=.comment crunch1
@@ -576,6 +568,12 @@ fail() {
 	;;
     missing_kernel)
 	echo "Error: you must build PICOBSD${suffix} kernel first"
+	;;
+    includes)
+	echo "Error: failed while making includes"
+	;;
+    libraries)
+	echo "Error: failed while making libraries"
 	;;
     "")
 	echo "User break"
@@ -661,36 +659,44 @@ while [ true ]; do
     case $1 in
     --src)	# set the source path instead of /usr/src
 	SRC=$2
-	# Optionally creates include directory, and set cflags
-	# accordingly. Note that you will still need the right
-	# libraries...
+	if [ "$3" = "--init" ] ; then
+	    # Optionally creates include directory and libraries.
+	    mkdir -p ${SRC}/usr/include		# the include directory...
+	    mkdir -p ${SRC}/usr/share/misc	# a few things go here
+	    mkdir -p ${SRC}/usr/lib		# libraries
 
-	i=${SRC}/usr/include	# the include directory...
-	if [ \! -d $i ] ; then
-	    echo "Create \"$i\" as include directory"
-	    mkdir -p $i
-	    (cd ${SRC};
-	    INCOWN=`id -un` DESTDIR=${SRC} make includes
-	    )
+	    (cd ${SRC}; INCOWN=`id -un` DESTDIR=${SRC} make includes ) || \
+		fail $? includes
+	    # libraries already have the include path in the Makefile
+	    CFLAGS="-nostdinc" ; export CFLAGS
+
+	    (cd ${SRC}
+		# $e is the invocation of make with correct environment
+		e="MAKEOBJDIRPREFIX=/usr/obj-pico/picobsd/libraries \
+		    BINOWN=`id -un` DESTDIR=${SRC} \
+		    make -DNOHTML -DNOINFO -DNOMAN -DNOSHARE -DNOFSCHG "
+		# need to 'make obj' in a few places. This is very
+		# version-specific... The following works for 5.0
+		for i in lib secure/lib gnu/lib usr.sbin/pcvt/keycap \
+			gnu/usr.bin/perl usr.bin/lex  ; do
+		    (cd ${i}; eval $e obj)
+		done
+		# now make the static libraries
+		eval $e -DNOPROFILE -DNOPIC libraries
+	    ) || fail $? "libraries"
+	    log "libraries done"
 	fi
-	CFLAGS="-nostdinc -I$i" ; export CFLAGS
-	i=${SRC}/usr/lib
-	if [ \! -d $i ]; then
-	    echo "Create libraries (this takes long...)"
-	    mkdir -p $i
-	    (cd ${SRC};
-		BINOWN=`id -un` DESTDIR=${SRC} \
-		make -DNOHTML -DNOINFO -DNOMAN -DNOFSCHG libraries
-	    )
-	fi
-	LIBS=" -L$i"
-	(cd ${SRC}/usr.sbin/config ;
-	make
-	)
+	# pass the right LIBS and CFLAGS to the Makefile,
+	# and build the config program
+	LIBS="-L${SRC}/usr/lib"
+	CFLAGS="-nostdinc -I${SRC}/usr/include"
+	export LIBS CFLAGS
+	(cd ${SRC}/usr.sbin/config ; CFLAGS="" make )
 	CONFIG=${SRC}/usr.sbin/config/config
 
 	shift
 	;;
+
     --floppy_size)
 	FLOPPY_SIZE=$2
 	shift
