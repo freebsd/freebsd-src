@@ -204,6 +204,10 @@ SYSCTL_INT(_regression, OID_AUTO, securelevel_nonmonotonic, CTLFLAG_RW,
 #endif
 
 int securelevel = -1;
+struct mtx securelevel_mtx;
+
+MTX_SYSINIT(securelevel_lock, &securelevel_mtx, "securelevel mutex lock",
+    MTX_DEF);
 
 static int
 sysctl_kern_securelvl(SYSCTL_HANDLER_ARGS)
@@ -240,10 +244,14 @@ sysctl_kern_securelvl(SYSCTL_HANDLER_ARGS)
 		pr->pr_securelevel = level;
 		mtx_unlock(&pr->pr_mtx);
 	} else {
+		mtx_lock(&securelevel_mtx);
 		if (!regression_securelevel_nonmonotonic &&
-		    (level < securelevel))
+		    (level < securelevel)) {
+			mtx_unlock(&securelevel_mtx);
 			return (EPERM);
+		}
 		securelevel = level;
+		mtx_unlock(&securelevel_mtx);
 	}
 	return (error);
 }
