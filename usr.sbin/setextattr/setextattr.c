@@ -40,7 +40,7 @@ void
 usage(void)
 {
 
-	fprintf(stderr, "setextattr [namespace] [attrname] [filename] "
+	fprintf(stderr, "setextattr [attrnamespace] [attrname] [filename] "
 	    "[attrvalue]\n");
 	exit(-1);
 }
@@ -49,12 +49,12 @@ int
 main(int argc, char *argv[])
 {
 	struct iovec    iov_buf;
-	int	error, namespace;
+	int	error, attrnamespace;
 
 	if (argc != 5)
 		usage();
 
-	error = extattr_string_to_namespace(argv[1], &namespace);
+	error = extattr_string_to_namespace(argv[1], &attrnamespace);
 	if (error) {
 		perror(argv[1]);
 		return (-1);
@@ -63,7 +63,7 @@ main(int argc, char *argv[])
 	iov_buf.iov_base = argv[4];
 	iov_buf.iov_len = strlen(argv[4]);
 
-	error = extattr_set_file(argv[3], namespace, argv[2], &iov_buf, 1);
+	error = extattr_set_file(argv[3], attrnamespace, argv[2], &iov_buf, 1);
 	if (error == -1) {
 		perror(argv[3]);
 		return (-1);
