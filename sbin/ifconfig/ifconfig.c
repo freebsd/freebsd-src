@@ -42,7 +42,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)ifconfig.c	8.2 (Berkeley) 2/16/94";
 #endif
 static const char rcsid[] =
-	"$Id: ifconfig.c,v 1.36 1998/07/06 06:53:43 charnier Exp $";
+	"$Id: ifconfig.c,v 1.37 1998/07/06 19:54:39 bde Exp $";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -80,11 +80,6 @@ static const char rcsid[] =
 #endif
 
 /* OSI */
-#ifdef ISO
-#define EON
-#include <netiso/iso.h>
-#include <netiso/iso_var.h>
-#endif
 
 #include <ctype.h>
 #include <err.h>
@@ -99,10 +94,6 @@ static const char rcsid[] =
 
 struct	ifreq		ifr, ridreq;
 struct	ifaliasreq	addreq;
-#ifdef ISO
-struct	iso_ifreq	iso_ridreq;
-struct	iso_aliasreq	iso_addreq;
-#endif
 struct	sockaddr_in	netmask;
 struct	netrange	at_nr;		/* AppleTalk net range */
 
@@ -110,9 +101,6 @@ char	name[32];
 int	flags;
 int	metric;
 int	mtu;
-#ifdef ISO
-int	nsellength = 1;
-#endif
 int	setaddr;
 int	setipdst;
 int	doalias;
@@ -138,9 +126,6 @@ c_func	setifaddr, setifbroadaddr, setifdstaddr, setifnetmask;
 c_func	setifipdst;
 c_func	setifflags, setifmetric, setifmtu;
 
-#ifdef ISO
-c_func	setsnpaoffset, setnsellength;
-#endif
 
 #define	NEXTARG		0xffffff
 
@@ -170,10 +155,6 @@ struct	cmd {
 	{ "metric",	NEXTARG,	setifmetric },
 	{ "broadcast",	NEXTARG,	setifbroadaddr },
 	{ "ipdst",	NEXTARG,	setifipdst },
-#ifdef ISO
-	{ "snpaoffset",	NEXTARG,	setsnpaoffset },
-	{ "nsellength",	NEXTARG,	setnsellength },
-#endif
 	{ "link0",	IFF_LINK0,	setifflags },
 	{ "-link0",	-IFF_LINK0,	setifflags },
 	{ "link1",	IFF_LINK1,	setifflags },
@@ -207,10 +188,6 @@ af_getaddr	in_getaddr, ipx_getaddr, at_getaddr;
 af_status	xns_status;
 af_getaddr	xns_getaddr;
 #endif
-#ifdef ISO
-af_status	iso_status;
-af_getaddr	iso_getaddr;
-#endif
 
 /* Known address families */
 const
@@ -234,10 +211,6 @@ struct	afswtch {
 #ifdef NS
 	{ "ns", AF_NS, xns_status, xns_getaddr,
 	     SIOCDIFADDR, SIOCAIFADDR, C(ridreq), C(addreq) },
-#endif
-#ifdef ISO
-	{ "iso", AF_ISO, iso_status, iso_getaddr,
-	     SIOCDIFADDR_ISO, SIOCAIFADDR_ISO, C(iso_ridreq), C(iso_addreq) },
 #endif
 	{ "ether", AF_INET, ether_status, NULL },	/* XXX not real!! */
 #if 0	/* XXX conflicts with the media command */
@@ -515,10 +488,6 @@ ifconfig(argc, argv, afp)
 		}
 		argc--, argv++;
 	}
-#ifdef ISO
-	if (af == AF_ISO)
-		adjust_nsellength();
-#endif
 	if (setipdst && ifr.ifr_addr.sa_family == AF_IPX) {
 		struct ipxip_req rq;
 		int size = sizeof(rq);
@@ -713,15 +682,6 @@ setifmtu(val, dummy, s, afp)
 		warn("ioctl (set mtu)");
 }
 
-#ifdef ISO
-void
-setsnpaoffset(val, dummy)
-	char *val;
-	int dummy __unused;
-{
-	iso_addreq.ifra_snpaoffset = atoi(val);
-}
-#endif
 
 #define	IFFBITS \
 "\020\1UP\2BROADCAST\3DEBUG\4LOOPBACK\5POINTOPOINT\6b6\7RUNNING" \
@@ -937,33 +897,6 @@ xns_status(s, info)
 }
 #endif
 
-#ifdef ISO
-void
-iso_status(s, info)
-	int s __unused;
-	struct rt_addrinfo * info;
-{
-	struct sockaddr_iso *siso, null_siso;
-
-	memset(&null_siso, 0, sizeof(null_siso));
-
-	siso = (struct sockaddr_iso *)info->rti_info[RTAX_IFA];
-	printf("\tiso %s ", iso_ntoa(&siso->siso_addr));
-
-	if (flags & IFF_POINTOPOINT) {
-		siso = (struct sockaddr_iso *)info->rti_info[RTAX_BRD];
-		if (!siso)
-			siso = &null_siso;
-		printf("--> %s ", iso_ntoa(&siso->siso_addr));
-	}
-
-	siso = (struct sockaddr_iso *)info->rti_info[RTAX_NETMASK];
-	if (siso)
-		printf(" netmask %s ", iso_ntoa(&siso->siso_addr));
-
-	putchar('\n');
-}
-#endif
 
 void
 ether_status(s, info)
@@ -1179,54 +1112,3 @@ xns_getaddr(addr, which)
 }
 #endif
 
-#ifdef ISO
-#define SISO(x) ((struct sockaddr_iso *) &(x))
-struct sockaddr_iso *sisotab[] = {
-SISO(iso_ridreq.ifr_Addr), SISO(iso_addreq.ifra_addr),
-SISO(iso_addreq.ifra_mask), SISO(iso_addreq.ifra_dstaddr)};
-
-void
-iso_getaddr(addr, which)
-char *addr;
-{
-	register struct sockaddr_iso *siso = sisotab[which];
-	struct iso_addr *iso_addr();
-	siso->siso_addr = *iso_addr(addr);
-
-	if (which == MASK) {
-		siso->siso_len = TSEL(siso) - (caddr_t)(siso);
-		siso->siso_nlen = 0;
-	} else {
-		siso->siso_len = sizeof(*siso);
-		siso->siso_family = AF_ISO;
-	}
-}
-
-void
-setnsellength(val)
-	char *val;
-{
-	nsellength = atoi(val);
-	if (nsellength < 0)
-		errx(1, "negative NSEL length is absurd");
-	if (afp == 0 || afp->af_af != AF_ISO)
-		errx(1, "setting NSEL length valid only for iso");
-}
-
-void
-fixnsel(s)
-register struct sockaddr_iso *s;
-{
-	if (s->siso_family == 0)
-		return;
-	s->siso_tlen = nsellength;
-}
-
-void
-adjust_nsellength()
-{
-	fixnsel(sisotab[RIDADDR]);
-	fixnsel(sisotab[ADDR]);
-	fixnsel(sisotab[DSTADDR]);
-}
-#endif
