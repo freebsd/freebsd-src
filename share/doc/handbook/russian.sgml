@@ -1,0 +1,195 @@
+<!-- $Id: russian.sgml,v 1.3 1997/05/02 08:07:35 ache Exp $ -->
+<!-- The FreeBSD Documentation Project -->
+
+<sect><heading>Russian Language (KOI8-R encoding)<label id="russian"></heading>
+<p><em>Contributed by &a.ache;<newline>
+1 May 1997</em>.
+<p>See more info about KOI8-R encoding at
+<htmlurl url="http://www.nagual.pp.ru/~ache/koi8.html"
+name="KOI8-R References (Russian Net Character Set)">.
+
+<sect1><heading>Console Setup<label id="russian:console"></heading>
+<p>
+<enum>
+<item>Russian console entry in <tt>/etc/rc.conf</tt> should looks like
+<verb>
+keymap=ru.koi8-r
+keychange="61 ^[[K"
+scrnmap=koi8-r2cp866
+font8x16=cp866b-8x16
+font8x14=cp866-8x14
+font8x8=cp866-8x8
+</verb>
+<p>
+<it>NOTE:</it> ^[ means that real ESC character must be entered into
+<tt>/etc/rc.conf</tt>,
+not just ^[ string.
+<p>
+This tuning means KOI8-R keyboard with Alternative
+screen font mapped to KOI8-R encoding to
+preserve pseudographics, <it>Gray Delete</it> key remapped to match Russian
+<tt>termcap(5)</tt> entry for FreeBSD console.
+<p>
+RUS/LAT switch will be <bf>CapsLock</bf>. Old CapsLock function still
+available via <bf>Shift+CapsLock</bf>. CapsLock LED will
+indicate RUS mode, not CapsLock mode.
+
+<item>For each <tt>ttyv?</tt> entry in <tt>/etc/ttys</tt>
+change terminal type from <tt>cons25</tt> to
+<tt>cons25r</tt>, i.e. each entry should looks like
+<verb>
+ttyv0	"/usr/libexec/getty Pc"		cons25r	on  secure
+</verb>
+</enum>
+
+<sect1><heading>Locale Setup<label id="russian:locale"></heading>
+<p><label id="russian:env">
+There is two environment variables for locale setup:
+<itemize>
+<item><tt>LANG</tt>
+for POSIX <tt>setlocale(3)</tt> family functions;
+<item><tt>MM_CHARSET</tt>
+for applications MIME chararter set.
+</itemize>
+<p>
+The best way is using <tt>/etc/login.conf</tt>
+<tt>russian</tt> user's login class
+in <tt>passwd(5)</tt> entry login class position.
+See <tt>login.conf(5)</tt> for details.
+
+<sect2><heading>Login Class Method<label id="russian:class"></heading>
+<p>
+First of all check your <tt>/etc/login.conf</tt> have
+<tt>russian</tt> login class, this entry may looks like:
+<verb>
+russian:Russian Users Accounts:\
+	:charset=KOI8-R:\
+	:lang=ru_RU.KOI8-R:\
+	:tc=default:
+</verb>
+
+<sect3><heading>How to do it with vipw(8)</heading>
+<p>
+If you use <tt>vipw(8)</tt> for adding new users,
+<tt>/etc/master.passwd</tt>
+entry should looks like:
+<verb>
+user:password:1111:11:russian:0:0:User Name:/home/user:/bin/csh
+</verb>
+
+<sect3><heading>How to do it with adduser(8)</heading>
+<p>
+If you use <tt>adduser(8)</tt> for adding new users:
+<itemize>
+<item>Set
+<verb>
+defaultclass = russian
+</verb>
+in <tt>/etc/adduser.conf</tt>
+(you must enter <tt>default</tt> class for all non-Russian
+users in this case);
+<newline><newline>
+
+<item>Alternative variant will be answering <tt>russian</tt>
+each time when you see
+<verb>
+Enter login class: default []:
+</verb>
+prompt from <tt>adduser(8)</tt>;
+<newline><newline>
+
+<item>Another variant: call
+<verb>
+# adduser -class russian
+</verb>
+for each Russian user you want to add.
+</itemize>
+
+<sect3><heading>How to do it with pw(8)</heading>
+<p>
+If you use <tt>pw(8)</tt> for adding new users, call it in this form:
+<verb>
+# pw useradd user_name -L russian
+</verb>
+
+<sect2><heading>Shell Startup Files Method</heading>
+<p>
+If you don't want to use
+<ref id="russian:class" name="login class method">
+for some reasons, just set
+this
+<ref id="russian:env" name="two environment variables">
+in the following shell startup files:
+<itemize>
+<item><tt>/etc/profile</tt>:
+<verb>
+LANG=ru_RU.KOI8-R; export LANG
+MM_CHARSET=KOI8-R; export MM_CHARSET
+</verb>
+
+<item><tt>/etc/csh.login</tt>:
+<verb>
+setenv LANG ru_RU.KOI8-R
+setenv MM_CHARSET KOI8-R
+</verb>
+</itemize>
+<p>
+Alternatively you can add this instructions to
+<itemize>
+<item><tt>/usr/share/skel/dot.profile</tt>:
+<p>
+(similar to <tt>/etc/profile</tt> above);
+
+<item><tt>/usr/share/skel/dot.login</tt>:
+<p>
+(similar to <tt>/etc/csh.login</tt> above).
+</itemize>
+
+<sect1><heading>X Window Setup<label id="russian:xwindow"></heading>
+<p>
+Step by step instructions:
+<enum>
+<item>Do
+<ref id="russian:locale" name="locale setup"> first as described.
+<p>
+<it>NOTE:</it><label id="russian:note">
+Russian KOI8-R locale may not work with old XFree86 versions
+(lower than 3.2.1 + locale/keyboard patches).
+XFree86 port from <tt>/usr/ports/x11/XFree86</tt> already have
+all neccessary patches, so it will work, if you install XFree86
+from this port.
+Basically, XFree86 version shipped with latest FreeBSD distribution should
+work too unless somebody forget to apply port patches to it.
+
+<item>Go to <tt>/usr/ports/russian/X.language</tt> directory and say
+<verb>
+# make all install
+</verb>
+there. This port install latest version of KOI8-R fonts.
+<p>
+Check find <tt>"Files"</tt> section in your <tt>/etc/XF86Config</tt>,
+following lines must be before any other <tt>FontPath</tt> entries:
+<verb>
+    FontPath   "/usr/X11R6/lib/X11/fonts/cyrillic/misc"
+    FontPath   "/usr/X11R6/lib/X11/fonts/cyrillic/75dpi"
+    FontPath   "/usr/X11R6/lib/X11/fonts/cyrillic/100dpi"
+</verb>
+<p>
+If you use high resolution video mode, swap 75 dpi and
+100 dpi lines.
+
+<item>To activate Russian keyboard add
+<verb>
+    XkbKeymap   "xfree86(ru)"
+</verb>
+line into <tt>"Keyboard"</tt> section in your <tt>/etc/XF86Config</tt>,
+also make sure that <tt>XkbDisable</tt> is turned off (commented out)
+there.
+<p>
+RUS/LAT switch will be <bf>CapsLock</bf>. Old CapsLock function still
+available via <bf>Shift+CapsLock</bf> (in LAT mode only).
+<p>
+<it>NOTE:</it>
+Russian XKB keyboard may not work with old XFree86 versions,
+see <ref id="russian:note" name="locale note"> for more info.
+</enum>
