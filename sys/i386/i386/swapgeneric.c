@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)swapgeneric.c	5.5 (Berkeley) 5/9/91
- *	$Id$
+ *	$Id: swapgeneric.c,v 1.21 1997/02/22 09:32:49 peter Exp $
  */
 
 #include <sys/param.h>
@@ -52,7 +52,6 @@
 #include "wd.h"
 #include "fd.h"
 #include "sd.h"
-#include "vn.h"
 #include "cd.h"
 #include "mcd.h"
 #include "scd.h"
@@ -64,19 +63,6 @@
  */
 dev_t	rootdev = NODEV;
 dev_t	dumpdev = NODEV;
-
-#ifdef notused
-int	nswap;
-struct	swdevt swdevt[] = {
-	{ makedev (0xFF, 0x00000001),	0,	0 },
-#if NVN > 0
-	{ makedev (15, 0x00000001),	0,	0 },
-#endif
-	{ NODEV,	0,	0 }, /* For NFS diskless */
-	{ NODEV,	0,	0 },
-};
-int	dmmin, dmmax, dmtext;
-#endif
 
 void gets __P((char *));
 
