@@ -32,7 +32,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)exf.c	8.94 (Berkeley) 8/7/94";
+static const char sccsid[] = "@(#)exf.c	8.96 (Berkeley) 8/17/94";
 #endif /* not lint */
 
 #include <sys/param.h>
@@ -361,7 +361,14 @@ file_init(sp, frp, rcv_name, force)
 	 */
 	set_alt_name(sp, sp->frp == NULL ? NULL : sp->frp->name);
 
-	/* Switch... */
+	/*
+	 * Switch...
+	 *
+	 * !!!
+	 * Note, because the EXF structure is examine at interrupt time,
+	 * the underlying DB structures have to be consistent as soon as
+	 * it's assigned to an SCR structure.
+	 */
 	++ep->refcnt;
 	sp->ep = ep;
 	sp->frp = frp;

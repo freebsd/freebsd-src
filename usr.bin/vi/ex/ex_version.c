@@ -32,7 +32,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)ex_version.c	8.62 (Berkeley) 8/15/94";
+static const char sccsid[] = "@(#)ex_version.c	8.64 (Berkeley) 8/17/94";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -62,10 +62,10 @@ ex_version(sp, ep, cmdp)
 	EXF *ep;
 	EXCMDARG *cmdp;
 {
-	static time_t then = 776975285;
+	static const time_t then = 777130317;
 
 	(void)ex_printf(EXCOOKIE,
-"Version 1.32, %sThe CSRG, University of California, Berkeley.\n",
+"Version 1.33, %sThe CSRG, University of California, Berkeley.\n",
 	    ctime(&then));
 	return (0);
 }

@@ -32,7 +32,7 @@
  */
 
 #ifndef lint
-static char sccsid[] = "@(#)util.c	8.71 (Berkeley) 8/8/94";
+static const char sccsid[] = "@(#)util.c	8.73 (Berkeley) 8/17/94";
 #endif /* not lint */
 
 #include <sys/types.h>
@@ -59,40 +59,38 @@ static char sccsid[] = "@(#)util.c	8.71 (Berkeley) 8/8/94";
  * binc --
  *	Increase the size of a buffer.
  */
-int
-binc(sp, argp, bsizep, min)
+void *
+binc(sp, bp, bsizep, min)
 	SCR *sp;			/* sp MAY BE NULL!!! */
-	void *argp;
+	void *bp;
 	size_t *bsizep, min;
 {
 	size_t csize;
-	void *bpp;
 
 	/* If already larger than the minimum, just return. */
 	if (min && *bsizep >= min)
-		return (0);
+		return (bp);
 
-	bpp = *(char **)argp;
 	csize = *bsizep + MAX(min, 256);
-	REALLOC(sp, bpp, void *, csize);
+	REALLOC(sp, bp, void *, csize);
 
-	if (bpp == NULL) {
+	if (bp == NULL) {
 		/*
 		 * Theoretically, realloc is supposed to leave any already
 		 * held memory alone if it can't get more.  Don't trust it.
 		 */
 		*bsizep = 0;
-		return (1);
+		return (NULL);
 	}
 	/*
 	 * Memory is guaranteed to be zero-filled, various parts of
 	 * nvi depend on this.
 	 */
-	memset((char *)bpp + *bsizep, 0, csize - *bsizep);
-	*(char **)argp = bpp;
+	memset((char *)bp + *bsizep, 0, csize - *bsizep);
 	*bsizep = csize;
-	return (0);
+	return (bp);
 }
+
 /*
  * nonblank --
  *	Set the column number of the first non-blank character
