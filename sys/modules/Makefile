@@ -279,7 +279,6 @@ _pf=		pf
 # XXX some of these can move now, but are untested on other architectures.
 _3dfx=		3dfx
 _agp=		agp
-_ahb=		ahb
 _aic=		aic
 _amd=		amd
 _aout=		aout
@@ -332,6 +331,7 @@ _xe=		xe
 .if ${MACHINE} == "i386"
 _aac=		aac
 _acpi=		acpi
+_ahb=		ahb
 _arl=		arl
 _asr=		asr
 _bios=		bios
