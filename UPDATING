@@ -5,6 +5,17 @@ This file is maintained and copyrighted by M. Warner Losh
 of file for further details.  For commonly done items, please see the
 COMMON ITEMS: section later in the file.
 
+20020112:
+	The preferred configuration method for PAM is now /etc/pam.d/
+	rather than /etc/pam.conf.  If you have an unmodified
+	pam.conf, just delete it after your next mergemaster run.  If
+	you have local modifications, you can use
+	/usr/src/etc/pam.d/convert.pl to incorporate them into your
+	/etc/pam.d.
+
+	Please see the following url for more details:
+http://www.freebsd.org/cgi/mid.cgi?db=mid&id=<xzp6667fyoa.fsf@flood.ping.uio.no>
+
 20011229:
 	If anyone here is already using the new rc.conf(5) variable
 	networkfs_types, please note that it has changed
