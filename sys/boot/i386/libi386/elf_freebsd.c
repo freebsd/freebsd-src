@@ -84,6 +84,7 @@ elf_exec(struct loaded_module *mp)
     printf("Start @ 0x%lx ...\n", entry);
 #endif
 
+    dev_cleanup();
     __exec((void *)entry, boothowto, bootdev, 0, 0, 0, bootinfop);
 
     panic("exec returned");

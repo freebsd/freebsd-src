@@ -77,6 +77,7 @@ aout_exec(struct loaded_module *mp)
     bi->bi_symtab = ssym;	/* XXX this is only the primary kernel symtab */
     bi->bi_esymtab = esym;
 
+    dev_cleanup();
     __exec((void *)entry, boothowto, bootdev, 0, 0, 0, bootinfop);
 
     panic("exec returned");
