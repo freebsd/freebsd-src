@@ -1553,28 +1553,6 @@ ENTRY(lgdt)
 	movl	$KCSEL,4(%esp)
 	lret
 
-/*
- * void lidt(struct region_descriptor *rdp);
- */
-ENTRY(lidt)
-	movl	4(%esp),%eax
-	lidt	(%eax)
-	ret
-
-/*
- * void lldt(u_short sel)
- */
-ENTRY(lldt)
-	lldt	4(%esp)
-	ret
-
-/*
- * void ltr(u_short sel)
- */
-ENTRY(ltr)
-	ltr	4(%esp)
-	ret
-
 /* ssdtosd(*ssdp,*sdp) */
 ENTRY(ssdtosd)
 	pushl	%ebx
