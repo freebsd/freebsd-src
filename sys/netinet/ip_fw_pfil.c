@@ -85,6 +85,9 @@ ipfw_check_in(void *arg, struct mbuf **m0, struct ifnet *ifp, int dir)
 
 	KASSERT(dir == PFIL_IN, ("ipfw_check_in wrong direction!"));
 
+	if (!fw_enable)
+		goto pass;
+
 	bzero(&args, sizeof(args));
 
 	dn_tag = m_tag_find(*m0, PACKET_TAG_DUMMYNET, NULL);
@@ -163,6 +166,9 @@ ipfw_check_out(void *arg, struct mbuf **m0, struct ifnet *ifp, int dir)
 #endif
 
 	KASSERT(dir == PFIL_OUT, ("ipfw_check_out wrong direction!"));
+
+	if (!fw_enable)
+		goto pass;
 
 	bzero(&args, sizeof(args));
 
