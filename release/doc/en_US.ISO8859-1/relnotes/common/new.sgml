@@ -61,6 +61,12 @@
 
     <para>A &man.nmdm.4; null-modem terminal driver has been added.</para>
 
+    <para>The <varname>maxusers</varname> kernel configuration
+    parameter is now a boot-time tunable variable.  The kernel
+    parameters derived from <varname>maxusers</varname> are now also
+    tunables and can be overridden at boot-time.  The
+    <varname>hz</varname> parameter is also now a tunable.</para>
+
     <sect3>
       <title>Processor/Motherboard Support</title>
 
@@ -441,7 +447,8 @@
     sending messages with empty bodies.</para>
 
     <para>&man.vidcontrol.1; now supports a <option>-C</option> option to
-    clear the history buffer for a given tty.</para>
+    clear the history buffer for a given tty, as well as a
+    <option>-h</option> to set the size of the history buffer.</para>
 
     <para>&man.last.1; now implements a <option>-d</option> that provides a
     <quote>snapshot</quote> of who was logged in at a particular date and
@@ -497,6 +504,10 @@
 
     <para>&man.col.1; now takes a <option>-p</option> to force unknown
     control sequences to be passed through unchanged.</para>
+
+    <para>&man.tmpnam.3; will now use the <envar>TMPDIR</envar>
+    environment variable, if set, to specify the location of temporary
+    files.</para>
 
     <sect3>
       <title>Contributed Software</title>
