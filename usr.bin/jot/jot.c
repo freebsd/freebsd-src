@@ -84,7 +84,6 @@ int	nofinalnl;
 const	char *sepstring = "\n";
 char	format[BUFSIZ];
 
-int		main(int, char *[]);
 void		getformat(void);
 int		getprec(char *);
 int		putdata(double, long);
