@@ -677,9 +677,9 @@ kinfo_vnodes(avnodes)
 	bp = vbuf;
 	evbuf = vbuf + (numvnodes + 20) * (VPTRSZ + VNODESZ);
 	KGET(V_MOUNTLIST, mountlist);
-	for (num = 0, mp = mountlist.cqh_first; ; mp = mp_next) {
+	for (num = 0, mp = TAILQ_FIRST(&mountlist); ; mp = mp_next) {
 		KGET2(mp, &mount, sizeof(mount), "mount entry");
-		mp_next = mount.mnt_list.cqe_next;
+		mp_next = TAILQ_NEXT(&mount, mnt_list);
 		for (vp = mount.mnt_vnodelist.lh_first;
 		    vp != NULL; vp = vp_next) {
 			KGET2(vp, &vnode, sizeof(vnode), "vnode");
@@ -693,7 +693,7 @@ kinfo_vnodes(avnodes)
 			bp += VNODESZ;
 			num++;
 		}
-		if (mp == mountlist.cqh_last)
+		if (mp == TAILQ_LAST(&mountlist, mntlist))
 			break;
 	}
 	*avnodes = num;

@@ -507,10 +507,9 @@ getNewVnode(vpp)
 struct mount *devtomp(dev)
     dev_t dev;
 {
-    struct mount *mp, *nmp;
-    
-    for (mp = mountlist.cqh_first; mp != (void*)&mountlist; mp = nmp) {
-	nmp = mp->mnt_list.cqe_next;
+    struct mount *mp;
+   
+    TAILQ_FOREACH(mp, &mountlist, mnt_list) {
 	if (((VFSTOUFS(mp))->um_dev == dev)) {
 	    /* mount corresponds to UFS and the device matches one we want */
 	    return(mp); 

@@ -331,7 +331,7 @@ update:
 		vp->v_mountedhere = mp;
 		simple_unlock(&vp->v_interlock);
 		simple_lock(&mountlist_slock);
-		CIRCLEQ_INSERT_TAIL(&mountlist, mp, mnt_list);
+		TAILQ_INSERT_TAIL(&mountlist, mp, mnt_list);
 		simple_unlock(&mountlist_slock);
 		checkdirs(vp);
 		VOP_UNLOCK(vp, 0, p);
@@ -494,7 +494,7 @@ dounmount(mp, flags, p)
 			wakeup((caddr_t)mp);
 		return (error);
 	}
-	CIRCLEQ_REMOVE(&mountlist, mp, mnt_list);
+	TAILQ_REMOVE(&mountlist, mp, mnt_list);
 	if ((coveredvp = mp->mnt_vnodecovered) != NULLVP) {
 		coveredvp->v_mountedhere = (struct mount *)0;
 		vrele(coveredvp);
@@ -533,10 +533,9 @@ sync(p, uap)
 	int asyncflag;
 
 	simple_lock(&mountlist_slock);
-	mp = CIRCLEQ_FIRST(&mountlist);
-	for (; mp != (void *)&mountlist; mp = nmp) {
+	for (mp = TAILQ_FIRST(&mountlist); mp != NULL; mp = nmp) {
 		if (vfs_busy(mp, LK_NOWAIT, &mountlist_slock, p)) {
-			nmp = CIRCLEQ_NEXT(mp, mnt_list);
+			nmp = TAILQ_NEXT(mp, mnt_list);
 			continue;
 		}
 		if ((mp->mnt_flag & MNT_RDONLY) == 0) {
@@ -548,7 +547,7 @@ sync(p, uap)
 			mp->mnt_flag |= asyncflag;
 		}
 		simple_lock(&mountlist_slock);
-		nmp = CIRCLEQ_NEXT(mp, mnt_list);
+		nmp = TAILQ_NEXT(mp, mnt_list);
 		vfs_unbusy(mp, p);
 	}
 	simple_unlock(&mountlist_slock);
@@ -718,10 +717,9 @@ getfsstat(p, uap)
 	sfsp = (caddr_t)SCARG(uap, buf);
 	count = 0;
 	simple_lock(&mountlist_slock);
-	mp = CIRCLEQ_FIRST(&mountlist);
-	for (; mp != (void *)&mountlist; mp = nmp) {
+	for (mp = TAILQ_FIRST(&mountlist); mp != NULL; mp = nmp) {
 		if (vfs_busy(mp, LK_NOWAIT, &mountlist_slock, p)) {
-			nmp = CIRCLEQ_NEXT(mp, mnt_list);
+			nmp = TAILQ_NEXT(mp, mnt_list);
 			continue;
 		}
 		if (sfsp && count < maxcount) {
@@ -735,7 +733,7 @@ getfsstat(p, uap)
 			    (SCARG(uap, flags) & MNT_WAIT)) &&
 			    (error = VFS_STATFS(mp, sp, p))) {
 				simple_lock(&mountlist_slock);
-				nmp = CIRCLEQ_NEXT(mp, mnt_list);
+				nmp = TAILQ_NEXT(mp, mnt_list);
 				vfs_unbusy(mp, p);
 				continue;
 			}
@@ -749,7 +747,7 @@ getfsstat(p, uap)
 		}
 		count++;
 		simple_lock(&mountlist_slock);
-		nmp = CIRCLEQ_NEXT(mp, mnt_list);
+		nmp = TAILQ_NEXT(mp, mnt_list);
 		vfs_unbusy(mp, p);
 	}
 	simple_unlock(&mountlist_slock);
