@@ -106,8 +106,8 @@
 #define FD_NOT_VALID -2
 #define FDC_ERRMAX	100	/* do not log more */
 
-#define NUMTYPES 14
-#define NUMDENS  (NUMTYPES - 6)
+#define NUMTYPES 17
+#define NUMDENS  (NUMTYPES - 7)
 
 /* These defines (-1) must match index for fd_types */
 #define F_TAPE_TYPE	0x020	/* bit for fd_types to indicate tape */
@@ -120,13 +120,16 @@
 #define FD_800          6
 #define FD_720          7
 #define FD_360          8
+#define FD_640          9
+#define FD_1232         10
 
-#define FD_1480in5_25   9
-#define FD_1440in5_25   10
-#define FD_820in5_25    11
-#define FD_800in5_25    12
-#define FD_720in5_25    13
-#define FD_360in5_25    14
+#define FD_1480in5_25   11
+#define FD_1440in5_25   12
+#define FD_820in5_25    13
+#define FD_800in5_25    14
+#define FD_720in5_25    15
+#define FD_360in5_25    16
+#define FD_640in5_25    17
 
 
 static struct fd_type fd_types[NUMTYPES] =
@@ -139,6 +142,8 @@ static struct fd_type fd_types[NUMTYPES] =
 { 10,2,0xFF,0x10,80,1600,1,FDC_250KBPS,2,0x2E,1 }, /*  800K in HD 3.5in */
 {  9,2,0xFF,0x20,80,1440,1,FDC_250KBPS,2,0x50,1 }, /*  720K in HD 3.5in */
 {  9,2,0xFF,0x2A,40, 720,1,FDC_250KBPS,2,0x50,1 }, /*  360K in DD 5.25in */
+{  8,2,0xFF,0x2A,80,1280,1,FDC_250KBPS,2,0x50,1 }, /*  640K in DD 5.25in */
+{  8,3,0xFF,0x35,77,1232,1,FDC_500KBPS,2,0x74,1 }, /* 1.23M in HD 5.25in */
 
 { 18,2,0xFF,0x02,82,2952,1,FDC_500KBPS,2,0x02,2 }, /* 1.48M in HD 5.25in */
 { 18,2,0xFF,0x02,80,2880,1,FDC_500KBPS,2,0x02,2 }, /* 1.44M in HD 5.25in */
@@ -146,6 +151,7 @@ static struct fd_type fd_types[NUMTYPES] =
 { 10,2,0xFF,0x10,80,1600,1,FDC_300KBPS,2,0x2E,1 }, /*  800K in HD 5.25in */
 {  9,2,0xFF,0x20,80,1440,1,FDC_300KBPS,2,0x50,1 }, /*  720K in HD 5.25in */
 {  9,2,0xFF,0x23,40, 720,2,FDC_300KBPS,2,0x50,1 }, /*  360K in HD 5.25in */
+{  8,2,0xFF,0x2A,80,1280,1,FDC_300KBPS,2,0x50,1 }, /*  640K in HD 5.25in */
 };
 
 #define DRVS_PER_CTLR 2		/* 2 floppies */
@@ -1377,6 +1383,7 @@ Fdopen(dev_t dev, int flags, int mode, struct proc *p)
 			case FD_720:
 				if (   type != FD_820
 				    && type != FD_800
+				    && type != FD_640
 				   )
 					return (ENXIO);
 				break;
@@ -1388,6 +1395,8 @@ Fdopen(dev_t dev, int flags, int mode, struct proc *p)
 				case FD_1440:
 					type = FD_1440in5_25;
 					break;
+				case FD_1232:
+					break;
 				case FD_820:
 					type = FD_820in5_25;
 					break;
@@ -1396,6 +1405,9 @@ Fdopen(dev_t dev, int flags, int mode, struct proc *p)
 					break;
 				case FD_720:
 					type = FD_720in5_25;
+					break;
+				case FD_640:
+					type = FD_640in5_25;
 					break;
 				case FD_360:
 					type = FD_360in5_25;
@@ -1411,6 +1423,7 @@ Fdopen(dev_t dev, int flags, int mode, struct proc *p)
 				    && type != FD_820
 				    && type != FD_800
 				    && type != FD_720
+				    && type != FD_640
 				    )
 					return(ENXIO);
 				break;
