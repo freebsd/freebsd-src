@@ -104,8 +104,8 @@ acpi_acad_get_status(void *context)
 
     /* If status is valid and has changed, notify the system. */
     ACPI_SERIAL_BEGIN(acad);
-    sc->status = newstatus;
     if (newstatus != -1 && sc->status != newstatus) {
+	sc->status = newstatus;
 	power_profile_set_state(newstatus ? POWER_PROFILE_PERFORMANCE :
 	    POWER_PROFILE_ECONOMY);
 	ACPI_VPRINT(dev, acpi_device_get_parent_softc(dev),
