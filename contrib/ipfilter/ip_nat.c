@@ -9,7 +9,7 @@
  */
 #if !defined(lint)
 static const char sccsid[] = "@(#)ip_nat.c	1.11 6/5/96 (C) 1995 Darren Reed";
-static const char rcsid[] = "@(#)$Id: ip_nat.c,v 2.2.2.11 1999/12/17 13:05:40 darrenr Exp $";
+static const char rcsid[] = "@(#)$Id: ip_nat.c,v 2.2.2.12 2000/01/24 12:43:40 darrenr Exp $";
 #endif
 
 #if defined(__FreeBSD__) && defined(KERNEL) && !defined(_KERNEL)
@@ -726,12 +726,22 @@ int direction;
 			port = 0;
 			in.s_addr = np->in_nip;
 			if (l == 0) {
+				/*
+				 * Check to see if there is an existing NAT
+				 * setup for this IP address pair.
+				 */
 				natl = nat_maplookup(fin->fin_ifp, flags,
 						     ip->ip_src, ip->ip_dst);
 				if (natl != NULL) {
 					in = natl->nat_outip;
+					if ((in.s_addr & np->in_outmsk) !=
+					    np->in_outip)
+						in.s_addr = 0;
+					else
 #ifndef sparc
-					in.s_addr = ntohl(in.s_addr);
+						in.s_addr = ntohl(in.s_addr);
+#else
+						;
 #endif
 				}
 			}
@@ -1766,6 +1776,7 @@ u_int type;
 	natl.nl_origport = nat->nat_oport;
 	natl.nl_inport = nat->nat_inport;
 	natl.nl_outport = nat->nat_outport;
+	natl.nl_p = nat->nat_p;
 	natl.nl_type = type;
 	natl.nl_rule = -1;
 #ifndef LARGE_NAT
