@@ -500,21 +500,20 @@ mutex_lock_common(struct pthread *curthread, pthread_mutex_t *m)
 				 */
 				mutex_queue_enq(*m, curthread);
 				curthread->data.mutex = *m;
-
 				/*
 				 * This thread is active and is in a critical
 				 * region (holding the mutex lock); we should
 				 * be able to safely set the state.
 				 */
-				THR_LOCK_SWITCH(curthread);
+				THR_SCHED_LOCK(curthread, curthread);
 				THR_SET_STATE(curthread, PS_MUTEX_WAIT);
+				THR_SCHED_UNLOCK(curthread, curthread);
 
 				/* Unlock the mutex structure: */
 				THR_LOCK_RELEASE(curthread, &(*m)->m_lock);
 
 				/* Schedule the next thread: */
 				_thr_sched_switch(curthread);
-				THR_UNLOCK_SWITCH(curthread);
 			}
 			break;
 
@@ -570,14 +569,15 @@ mutex_lock_common(struct pthread *curthread, pthread_mutex_t *m)
 					/* Adjust priorities: */
 					mutex_priority_adjust(curthread, *m);
 
-				THR_LOCK_SWITCH(curthread);
+				THR_SCHED_LOCK(curthread, curthread);
 				THR_SET_STATE(curthread, PS_MUTEX_WAIT);
+				THR_SCHED_UNLOCK(curthread, curthread);
+
 				/* Unlock the mutex structure: */
 				THR_LOCK_RELEASE(curthread, &(*m)->m_lock);
 
 				/* Schedule the next thread: */
 				_thr_sched_switch(curthread);
-				THR_UNLOCK_SWITCH(curthread);
 			}
 			break;
 
@@ -643,15 +643,15 @@ mutex_lock_common(struct pthread *curthread, pthread_mutex_t *m)
 				 * be able to safely set the state.
 				 */
 
-				THR_LOCK_SWITCH(curthread);
+				THR_SCHED_LOCK(curthread, curthread);
 				THR_SET_STATE(curthread, PS_MUTEX_WAIT);
+				THR_SCHED_UNLOCK(curthread, curthread);
 
 				/* Unlock the mutex structure: */
 				THR_LOCK_RELEASE(curthread, &(*m)->m_lock);
 
 				/* Schedule the next thread: */
 				_thr_sched_switch(curthread);
-				THR_UNLOCK_SWITCH(curthread);
 				/*
 				 * The threads priority may have changed while
 				 * waiting for the mutex causing a ceiling
@@ -822,15 +822,15 @@ mutex_self_lock(struct pthread *curthread, pthread_mutex_t m)
 		 * deadlock on attempts to get a lock you already own.
 		 */
 
-		THR_LOCK_SWITCH(curthread);
+		THR_SCHED_LOCK(curthread, curthread);
 		THR_SET_STATE(curthread, PS_DEADLOCK);
+		THR_SCHED_UNLOCK(curthread, curthread);
 
 		/* Unlock the mutex structure: */
 		THR_LOCK_RELEASE(curthread, &m->m_lock);
 
 		/* Schedule the next thread: */
 		_thr_sched_switch(curthread);
-		THR_UNLOCK_SWITCH(curthread);
 		break;
 
 	case PTHREAD_MUTEX_RECURSIVE:

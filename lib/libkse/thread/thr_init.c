@@ -72,6 +72,7 @@
 int	__pthread_cond_wait(pthread_cond_t *, pthread_mutex_t *);
 int	__pthread_mutex_lock(pthread_mutex_t *);
 int	__pthread_mutex_trylock(pthread_mutex_t *);
+void	_thread_init_hack(void);
 
 static void init_private(void);
 static void init_main_thread(struct pthread *thread);
@@ -131,6 +132,7 @@ static void *references[] = {
 	&_sigsuspend,
 	&_socket,
 	&_socketpair,
+	&_thread_init_hack,
 	&_wait4,
 	&_write,
 	&_writev

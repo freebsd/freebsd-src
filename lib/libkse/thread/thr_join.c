@@ -123,13 +123,15 @@ _pthread_join(pthread_t pthread, void **thread_return)
 			THR_SCHED_UNLOCK(curthread, pthread);
 			_thr_ref_delete(curthread, pthread);
 
-			THR_LOCK_SWITCH(curthread);
+			THR_SCHED_LOCK(curthread, curthread);
 			while (curthread->join_status.thread == pthread) {
 				THR_SET_STATE(curthread, PS_JOIN);
+				THR_SCHED_UNLOCK(curthread, curthread);
 				/* Schedule the next thread: */
 				_thr_sched_switch(curthread);
+				THR_SCHED_LOCK(curthread, curthread);
 			}
-			THR_UNLOCK_SWITCH(curthread);
+			THR_SCHED_UNLOCK(curthread, curthread);
 
 			/*
 			 * The thread return value and error are set by the
