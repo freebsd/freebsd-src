@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.460.2.8 1999/02/14 14:09:43 des Exp $
+#	$Id: Makefile,v 1.460.2.9 1999/03/10 03:51:15 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -239,7 +239,7 @@ rerelease release:
 	echo "cd /usr/src/release/sysinstall"	>> ${CHROOTDIR}/mk
 	echo "make obj"				>> ${CHROOTDIR}/mk
 	echo "cd /usr/src/release"		>> ${CHROOTDIR}/mk
-	echo "make objlink"			>> ${CHROOTDIR}/mk
+	echo "make obj"				>> ${CHROOTDIR}/mk
 	echo "make \$${_RELTARGET}"		>> ${CHROOTDIR}/mk
 	echo "echo make ${.TARGET} Finished"	>> ${CHROOTDIR}/mk
 	chmod 755 ${CHROOTDIR}/mk
