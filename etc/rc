@@ -1,5 +1,5 @@
 #!/bin/sh
-#	$Id: rc,v 1.104.2.30 1998/01/29 10:50:21 obrien Exp $
+#	$Id: rc,v 1.104.2.31 1998/01/29 11:01:28 obrien Exp $
 #	From: @(#)rc	5.27 (Berkeley) 6/5/91
 
 # System startup script run by init on autoboot
@@ -233,7 +233,7 @@ _LDC=/usr/lib
 if [ -d /usr/lib/compat ]; then _LDC="${_LDC} /usr/lib/compat" ; fi
 if [ -d /usr/X11R6/lib ]; then _LDC="${_LDC} /usr/X11R6/lib" ; fi
 if [ -d /usr/local/lib ]; then _LDC="${_LDC} /usr/local/lib" ; fi
-if [ -z $ldconfig_paths -a "X${ldconfig_paths}" != X ]; then
+if [ "X${ldconfig_paths}" != X ]; then
 	for LDIR in $ldconfig_paths; do
 		if [ -d ${LDIR} ]; then _LDC="${_LDC} ${LDIR} " ; fi
 	done
