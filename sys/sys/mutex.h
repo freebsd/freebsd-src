@@ -350,7 +350,10 @@ do {									\
  * without special recursion handling.
  *
  * This mechanism is intended as temporary until everything of
- * importance is properly locked.
+ * importance is properly locked.  Note: the semantics for
+ * NET_{LOCK,UNLOCK}_GIANT() are not the same as DROP_GIANT()
+ * and PICKUP_GIANT(), as they are plain mutex operations
+ * without a recursion counter.
  */
 extern	int debug_mpsafenet;		/* defined in net/netisr.c */
 #define	NET_LOCK_GIANT() do {						\
