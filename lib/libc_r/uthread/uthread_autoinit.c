@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2002 Alfred Perlstein <alfred@freebsd.org>.
  * Copyright (c) 1995 John Birrell <jb@cimlogic.com.au>.
  * All rights reserved.
  *
@@ -33,39 +34,18 @@
  */
 
 /*
- * This module uses the magic of C++ static constructors to initialize the
+ * This module uses GCC extentions to initialize the
  * threads package at program start-up time.
- *
- * Note: Because of a bug in certain versions of "/usr/lib/c++rt0.o", you
- * should _not_ enclose the body of this module in an "#ifdef _THREAD_SAFE"
- * conditional.
  */
 
-extern "C" void _thread_init(void);
+void	_thread_init_hack(void) __attribute__ ((constructor));
 
-/*
- * First, we declare a class with a constructor.
- */
-class _thread_init_invoker {
-public:
-	_thread_init_invoker();	/* Constructor declaration. */
-};
-
-/*
- * Here is the definition of the constructor.  All it does is call the
- * threads initialization function, "_thread_init".
- */
-_thread_init_invoker::_thread_init_invoker()
+void
+_thread_init_hack(void)
 {
+
 	_thread_init();
 }
-
-/*
- * Here is a single, static instance of our "_thread_init_invoker" class.
- * The mere existance of this instance will result in its constructor
- * being called, automatically, at program start-up time.
- */
-static _thread_init_invoker the_thread_init_invoker;
 
 /*
  * For the shared version of the threads library, the above is sufficient.
@@ -76,14 +56,6 @@ static _thread_init_invoker the_thread_init_invoker;
  * referenced (as an extern) from libc/stdlib/exit.c. This will always
  * create a need for this module, ensuring that it is present in the
  * executable.
- *
- * We know that, if the user does _anything_ at all with threads, then the
- * "uthread_init.c" module will be linked in.  That is the case because
- * "uthread_init.c" is the module that defines all of the global variables
- * used by the threads library.  The presence of "uthread_init.c" will, in
- * turn, force this module to be linked in.  And the presence of this module
- * in the executable will result in the constructor being invoked, and
- * "_thread_init" being called.
  */
-extern "C" int _thread_autoinit_dummy_decl;	/* Declare with "C" linkage */
+extern int _thread_autoinit_dummy_decl;
 int _thread_autoinit_dummy_decl = 0;
