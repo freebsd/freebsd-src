@@ -55,15 +55,77 @@
  * copied and put under another distribution licence
  * [including the GNU Public Licence.]
  */
+/* ====================================================================
+ * Copyright (c) 1998-2000 The OpenSSL Project.  All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer. 
+ *
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in
+ *    the documentation and/or other materials provided with the
+ *    distribution.
+ *
+ * 3. All advertising materials mentioning features or use of this
+ *    software must display the following acknowledgment:
+ *    "This product includes software developed by the OpenSSL Project
+ *    for use in the OpenSSL Toolkit. (http://www.openssl.org/)"
+ *
+ * 4. The names "OpenSSL Toolkit" and "OpenSSL Project" must not be used to
+ *    endorse or promote products derived from this software without
+ *    prior written permission. For written permission, please contact
+ *    openssl-core@openssl.org.
+ *
+ * 5. Products derived from this software may not be called "OpenSSL"
+ *    nor may "OpenSSL" appear in their names without prior written
+ *    permission of the OpenSSL Project.
+ *
+ * 6. Redistributions of any form whatsoever must retain the following
+ *    acknowledgment:
+ *    "This product includes software developed by the OpenSSL Project
+ *    for use in the OpenSSL Toolkit (http://www.openssl.org/)"
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE OpenSSL PROJECT ``AS IS'' AND ANY
+ * EXPRESSED OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED.  IN NO EVENT SHALL THE OpenSSL PROJECT OR
+ * ITS CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT
+ * NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT,
+ * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+ * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED
+ * OF THE POSSIBILITY OF SUCH DAMAGE.
+ * ====================================================================
+ *
+ * This product includes cryptographic software written by Eric Young
+ * (eay@cryptsoft.com).  This product includes software written by Tim
+ * Hudson (tjh@cryptsoft.com).
+ *
+ */
 
+#define ENTROPY_NEEDED 16  /* require 128 bits = 16 bytes of randomness */
+
+#ifndef MD_RAND_DEBUG
+# ifndef NDEBUG
+#   define NDEBUG
+# endif
+#endif
+
+#include <assert.h>
 #include <stdio.h>
-#include <sys/types.h>
 #include <time.h>
 #include <string.h>
 
 #include "openssl/e_os.h"
 
 #include <openssl/crypto.h>
+#include <openssl/err.h>
 
 #if !defined(USE_MD5_RAND) && !defined(USE_SHA1_RAND) && !defined(USE_MDC2_RAND) && !defined(USE_MD2_RAND)
 #if !defined(NO_SHA) && !defined(NO_SHA1)
@@ -121,6 +183,10 @@
 
 #include <openssl/rand.h>
 
+#ifdef BN_DEBUG
+# define PREDICT
+#endif
+
 /* #define NORAND	1 */
 /* #define PREDICT	1 */
 
@@ -129,17 +195,29 @@ static int state_num=0,state_index=0;
 static unsigned char state[STATE_SIZE+MD_DIGEST_LENGTH];
 static unsigned char md[MD_DIGEST_LENGTH];
 static long md_count[2]={0,0};
+static double entropy=0;
+static int initialized=0;
+
+#ifdef PREDICT
+int rand_predictable=0;
+#endif
 
 const char *RAND_version="RAND" OPENSSL_VERSION_PTEXT;
 
 static void ssleay_rand_cleanup(void);
 static void ssleay_rand_seed(const void *buf, int num);
-static void ssleay_rand_bytes(unsigned char *buf, int num);
+static void ssleay_rand_add(const void *buf, int num, double add_entropy);
+static int ssleay_rand_bytes(unsigned char *buf, int num);
+static int ssleay_rand_pseudo_bytes(unsigned char *buf, int num);
+static int ssleay_rand_status(void);
 
 RAND_METHOD rand_ssleay_meth={
 	ssleay_rand_seed,
 	ssleay_rand_bytes,
 	ssleay_rand_cleanup,
+	ssleay_rand_add,
+	ssleay_rand_pseudo_bytes,
+	ssleay_rand_status
 	}; 
 
 RAND_METHOD *RAND_SSLeay(void)
@@ -155,22 +233,49 @@ static void ssleay_rand_cleanup(void)
 	memset(md,0,MD_DIGEST_LENGTH);
 	md_count[0]=0;
 	md_count[1]=0;
+	entropy=0;
 	}
 
-static void ssleay_rand_seed(const void *buf, int num)
+static void ssleay_rand_add(const void *buf, int num, double add)
 	{
-	int i,j,k,st_idx,st_num;
+	int i,j,k,st_idx;
+	long md_c[2];
+	unsigned char local_md[MD_DIGEST_LENGTH];
 	MD_CTX m;
 
 #ifdef NORAND
 	return;
 #endif
 
+	/*
+	 * (Based on the rand(3) manpage)
+	 *
+	 * The input is chopped up into units of 20 bytes (or less for
+	 * the last block).  Each of these blocks is run through the hash
+	 * function as follows:  The data passed to the hash function
+	 * is the current 'md', the same number of bytes from the 'state'
+	 * (the location determined by in incremented looping index) as
+	 * the current 'block', the new key data 'block', and 'count'
+	 * (which is incremented after each use).
+	 * The result of this is kept in 'md' and also xored into the
+	 * 'state' at the same locations that were used as input into the
+         * hash function.
+	 */
+
 	CRYPTO_w_lock(CRYPTO_LOCK_RAND);
 	st_idx=state_index;
-	st_num=state_num;
 
-	state_index=(state_index+num);
+	/* use our own copies of the counters so that even
+	 * if a concurrent thread seeds with exactly the
+	 * same data and uses the same subarray there's _some_
+	 * difference */
+	md_c[0] = md_count[0];
+	md_c[1] = md_count[1];
+
+	memcpy(local_md, md, sizeof md);
+
+	/* state_index <= state_num <= STATE_SIZE */
+	state_index += num;
 	if (state_index >= STATE_SIZE)
 		{
 		state_index%=STATE_SIZE;
@@ -181,6 +286,14 @@ static void ssleay_rand_seed(const void *buf, int num)
 		if (state_index > state_num)
 			state_num=state_index;
 		}
+	/* state_index <= state_num <= STATE_SIZE */
+
+	/* state[st_idx], ..., state[(st_idx + num - 1) % STATE_SIZE]
+	 * are what we will use now, but other threads may use them
+	 * as well */
+
+	md_count[1] += (num / MD_DIGEST_LENGTH) + (num % MD_DIGEST_LENGTH > 0);
+
 	CRYPTO_w_unlock(CRYPTO_LOCK_RAND);
 
 	for (i=0; i<num; i+=MD_DIGEST_LENGTH)
@@ -189,7 +302,7 @@ static void ssleay_rand_seed(const void *buf, int num)
 		j=(j > MD_DIGEST_LENGTH)?MD_DIGEST_LENGTH:j;
 
 		MD_Init(&m);
-		MD_Update(&m,md,MD_DIGEST_LENGTH);
+		MD_Update(&m,local_md,MD_DIGEST_LENGTH);
 		k=(st_idx+j)-STATE_SIZE;
 		if (k > 0)
 			{
@@ -200,97 +313,177 @@ static void ssleay_rand_seed(const void *buf, int num)
 			MD_Update(&m,&(state[st_idx]),j);
 			
 		MD_Update(&m,buf,j);
-		MD_Update(&m,(unsigned char *)&(md_count[0]),sizeof(md_count));
-		MD_Final(md,&m);
-		md_count[1]++;
+		MD_Update(&m,(unsigned char *)&(md_c[0]),sizeof(md_c));
+		MD_Final(local_md,&m);
+		md_c[1]++;
 
 		buf=(const char *)buf + j;
 
 		for (k=0; k<j; k++)
 			{
-			state[st_idx++]^=md[k];
+			/* Parallel threads may interfere with this,
+			 * but always each byte of the new state is
+			 * the XOR of some previous value of its
+			 * and local_md (itermediate values may be lost).
+			 * Alway using locking could hurt performance more
+			 * than necessary given that conflicts occur only
+			 * when the total seeding is longer than the random
+			 * state. */
+			state[st_idx++]^=local_md[k];
 			if (st_idx >= STATE_SIZE)
-				{
 				st_idx=0;
-				st_num=STATE_SIZE;
-				}
 			}
 		}
 	memset((char *)&m,0,sizeof(m));
+
+	CRYPTO_w_lock(CRYPTO_LOCK_RAND);
+	/* Don't just copy back local_md into md -- this could mean that
+	 * other thread's seeding remains without effect (except for
+	 * the incremented counter).  By XORing it we keep at least as
+	 * much entropy as fits into md. */
+	for (k = 0; k < sizeof md; k++)
+		{
+		md[k] ^= local_md[k];
+		}
+	if (entropy < ENTROPY_NEEDED) /* stop counting when we have enough */
+	    entropy += add;
+	CRYPTO_w_unlock(CRYPTO_LOCK_RAND);
+	
+#ifndef THREADS	
+	assert(md_c[1] == md_count[1]);
+#endif
 	}
 
-static void ssleay_rand_bytes(unsigned char *buf, int num)
+static void ssleay_rand_seed(const void *buf, int num)
 	{
-	int i,j,k,st_num,st_idx;
-	MD_CTX m;
-	static int init=1;
+	ssleay_rand_add(buf, num, num);
+	}
+
+static void ssleay_rand_initialize(void)
+	{
 	unsigned long l;
+#ifndef GETPID_IS_MEANINGLESS
+	pid_t curr_pid = getpid();
+#endif
 #ifdef DEVRANDOM
 	FILE *fh;
 #endif
 
-#ifdef PREDICT
-	{
-	static unsigned char val=0;
-
-	for (i=0; i<num; i++)
-		buf[i]=val++;
+#ifdef NORAND
 	return;
-	}
 #endif
+
+	CRYPTO_w_unlock(CRYPTO_LOCK_RAND);
+	/* put in some default random data, we need more than just this */
+#ifndef GETPID_IS_MEANINGLESS
+	l=curr_pid;
+	RAND_add(&l,sizeof(l),0);
+	l=getuid();
+	RAND_add(&l,sizeof(l),0);
+#endif
+	l=time(NULL);
+	RAND_add(&l,sizeof(l),0);
+
+#ifdef DEVRANDOM
+	/* Use a random entropy pool device. Linux, FreeBSD and OpenBSD
+	 * have this. Use /dev/urandom if you can as /dev/random may block
+	 * if it runs out of random entries.  */
+
+	if ((fh = fopen(DEVRANDOM, "r")) != NULL)
+		{
+		unsigned char tmpbuf[ENTROPY_NEEDED];
+		int n;
+		
+		setvbuf(fh, NULL, _IONBF, 0);
+		n=fread((unsigned char *)tmpbuf,1,ENTROPY_NEEDED,fh);
+		fclose(fh);
+		RAND_add(tmpbuf,sizeof tmpbuf,n);
+		memset(tmpbuf,0,n);
+		}
+#endif
+#ifdef PURIFY
+	memset(state,0,STATE_SIZE);
+	memset(md,0,MD_DIGEST_LENGTH);
+#endif
+	CRYPTO_w_lock(CRYPTO_LOCK_RAND);
+	initialized=1;
+	}
+
+static int ssleay_rand_bytes(unsigned char *buf, int num)
+	{
+	int i,j,k,st_num,st_idx;
+	int ok;
+	long md_c[2];
+	unsigned char local_md[MD_DIGEST_LENGTH];
+	MD_CTX m;
+#ifndef GETPID_IS_MEANINGLESS
+	pid_t curr_pid = getpid();
+#endif
+
+#ifdef PREDICT
+	if (rand_predictable)
+		{
+		static unsigned char val=0;
+
+		for (i=0; i<num; i++)
+			buf[i]=val++;
+		return(1);
+		}
+#endif
+
+	/*
+	 * (Based on the rand(3) manpage:)
+	 *
+	 * For each group of 10 bytes (or less), we do the following:
+	 *
+	 * Input into the hash function the top 10 bytes from the
+	 * local 'md' (which is initialized from the global 'md'
+	 * before any bytes are generated), the bytes that are
+	 * to be overwritten by the random bytes, and bytes from the
+	 * 'state' (incrementing looping index).  From this digest output
+	 * (which is kept in 'md'), the top (up to) 10 bytes are
+	 * returned to the caller and the bottom (up to) 10 bytes are xored
+	 * into the 'state'.
+	 * Finally, after we have finished 'num' random bytes for the
+	 * caller, 'count' (which is incremented) and the local and global 'md'
+	 * are fed into the hash function and the results are kept in the
+	 * global 'md'.
+	 */
 
 	CRYPTO_w_lock(CRYPTO_LOCK_RAND);
 
-	if (init)
+	if (!initialized)
+		ssleay_rand_initialize();
+
+	ok = (entropy >= ENTROPY_NEEDED);
+	if (!ok)
 		{
-		CRYPTO_w_unlock(CRYPTO_LOCK_RAND);
-		/* put in some default random data, we need more than
-		 * just this */
-		RAND_seed(&m,sizeof(m));
-#ifndef MSDOS
-		l=getpid();
-		RAND_seed(&l,sizeof(l));
-		l=getuid();
-		RAND_seed(&l,sizeof(l));
-#endif
-		l=time(NULL);
-		RAND_seed(&l,sizeof(l));
-
-/* #ifdef DEVRANDOM */
-		/* 
-		 * Use a random entropy pool device.
-		 * Linux 1.3.x and FreeBSD-Current has 
-		 * this. Use /dev/urandom if you can
-		 * as /dev/random will block if it runs out
-		 * of random entries.
+		/* If the PRNG state is not yet unpredictable, then seeing
+		 * the PRNG output may help attackers to determine the new
+		 * state; thus we have to decrease the entropy estimate.
+		 * Once we've had enough initial seeding we don't bother to
+		 * adjust the entropy count, though, because we're not ambitious
+		 * to provide *information-theoretic* randomness.
 		 */
-		if ((fh = fopen(DEVRANDOM, "r")) != NULL)
-			{
-			unsigned char tmpbuf[32];
-
-			fread((unsigned char *)tmpbuf,1,32,fh);
-			/* we don't care how many bytes we read,
-			 * we will just copy the 'stack' if there is
-			 * nothing else :-) */
-			fclose(fh);
-			RAND_seed(tmpbuf,32);
-			memset(tmpbuf,0,32);
-			}
-/* #endif */
-#ifdef PURIFY
-		memset(state,0,STATE_SIZE);
-		memset(md,0,MD_DIGEST_LENGTH);
-#endif
-		CRYPTO_w_lock(CRYPTO_LOCK_RAND);
-		init=0;
+		entropy -= num;
+		if (entropy < 0)
+			entropy = 0;
 		}
 
 	st_idx=state_index;
 	st_num=state_num;
+	md_c[0] = md_count[0];
+	md_c[1] = md_count[1];
+	memcpy(local_md, md, sizeof md);
+
 	state_index+=num;
 	if (state_index > state_num)
-		state_index=(state_index%state_num);
+		state_index %= state_num;
 
+	/* state[st_idx], ..., state[(st_idx + num - 1) % st_num]
+	 * are now ours (but other threads may use them too) */
+
+	md_count[0] += 1;
 	CRYPTO_w_unlock(CRYPTO_LOCK_RAND);
 
 	while (num > 0)
@@ -298,8 +491,15 @@ static void ssleay_rand_bytes(unsigned char *buf, int num)
 		j=(num >= MD_DIGEST_LENGTH/2)?MD_DIGEST_LENGTH/2:num;
 		num-=j;
 		MD_Init(&m);
-		MD_Update(&m,&(md[MD_DIGEST_LENGTH/2]),MD_DIGEST_LENGTH/2);
-		MD_Update(&m,(unsigned char *)&(md_count[0]),sizeof(md_count));
+#ifndef GETPID_IS_MEANINGLESS
+		if (curr_pid) /* just in the first iteration to save time */
+			{
+			MD_Update(&m,(unsigned char*)&curr_pid,sizeof curr_pid);
+			curr_pid = 0;
+			}
+#endif
+		MD_Update(&m,&(local_md[MD_DIGEST_LENGTH/2]),MD_DIGEST_LENGTH/2);
+		MD_Update(&m,(unsigned char *)&(md_c[0]),sizeof(md_c));
 #ifndef PURIFY
 		MD_Update(&m,buf,j); /* purify complains */
 #endif
@@ -311,28 +511,111 @@ static void ssleay_rand_bytes(unsigned char *buf, int num)
 			}
 		else
 			MD_Update(&m,&(state[st_idx]),j);
-		MD_Final(md,&m);
+		MD_Final(local_md,&m);
 
 		for (i=0; i<j; i++)
 			{
+			state[st_idx++]^=local_md[i]; /* may compete with other threads */
+			*(buf++)=local_md[i+MD_DIGEST_LENGTH/2];
 			if (st_idx >= st_num)
 				st_idx=0;
-			state[st_idx++]^=md[i];
-			*(buf++)=md[i+MD_DIGEST_LENGTH/2];
 			}
 		}
 
 	MD_Init(&m);
-	MD_Update(&m,(unsigned char *)&(md_count[0]),sizeof(md_count));
-	md_count[0]++;
+	MD_Update(&m,(unsigned char *)&(md_c[0]),sizeof(md_c));
+	MD_Update(&m,local_md,MD_DIGEST_LENGTH);
+	CRYPTO_w_lock(CRYPTO_LOCK_RAND);
 	MD_Update(&m,md,MD_DIGEST_LENGTH);
 	MD_Final(md,&m);
+	CRYPTO_w_unlock(CRYPTO_LOCK_RAND);
+
 	memset(&m,0,sizeof(m));
+	if (ok)
+		return(1);
+	else
+		{
+		RANDerr(RAND_F_SSLEAY_RAND_BYTES,RAND_R_PRNG_NOT_SEEDED);
+		return(0);
+		}
+	}
+
+/* pseudo-random bytes that are guaranteed to be unique but not
+   unpredictable */
+static int ssleay_rand_pseudo_bytes(unsigned char *buf, int num) 
+	{
+	int ret, err;
+
+	ret = RAND_bytes(buf, num);
+	if (ret == 0)
+		{
+		err = ERR_peek_error();
+		if (ERR_GET_LIB(err) == ERR_LIB_RAND &&
+		    ERR_GET_REASON(err) == RAND_R_PRNG_NOT_SEEDED)
+			(void)ERR_get_error();
+		}
+	return (ret);
+	}
+
+static int ssleay_rand_status(void)
+	{
+	int ret;
+
+	CRYPTO_w_lock(CRYPTO_LOCK_RAND);
+
+	if (!initialized)
+		ssleay_rand_initialize();
+	ret = entropy >= ENTROPY_NEEDED;
+
+	CRYPTO_w_unlock(CRYPTO_LOCK_RAND);
+
+	return ret;
 	}
 
 #ifdef WINDOWS
 #include <windows.h>
 #include <openssl/rand.h>
+
+int RAND_event(UINT iMsg, WPARAM wParam, LPARAM lParam)
+        {
+        double add_entropy=0;
+        SYSTEMTIME t;
+
+        switch (iMsg)
+                {
+        case WM_KEYDOWN:
+                        {
+                        static WPARAM key;
+                        if (key != wParam)
+                                add_entropy = 0.05;
+                        key = wParam;
+                        }
+                        break;
+	case WM_MOUSEMOVE:
+                        {
+                        static int lastx,lasty,lastdx,lastdy;
+                        int x,y,dx,dy;
+
+                        x=LOWORD(lParam);
+                        y=HIWORD(lParam);
+                        dx=lastx-x;
+                        dy=lasty-y;
+                        if (dx != 0 && dy != 0 && dx-lastdx != 0 && dy-lastdy != 0)
+                                add_entropy=.2;
+                        lastx=x, lasty=y;
+                        lastdx=dx, lastdy=dy;
+                        }
+		break;
+		}
+
+        GetSystemTime(&t);
+        RAND_add(&iMsg, sizeof(iMsg), add_entropy);
+	RAND_add(&wParam, sizeof(wParam), 0);
+	RAND_add(&lParam, sizeof(lParam), 0);
+        RAND_add(&t, sizeof(t), 0);
+
+	return (RAND_status());
+	}
 
 /*****************************************************************************
  * Initialisation function for the SSL random generator.  Takes the contents
@@ -354,12 +637,12 @@ static void ssleay_rand_bytes(unsigned char *buf, int num)
  */
 /*
  * I have modified the loading of bytes via RAND_seed() mechanism since
- * the origional would have been very very CPU intensive since RAND_seed()
+ * the original would have been very very CPU intensive since RAND_seed()
  * does an MD5 per 16 bytes of input.  The cost to digest 16 bytes is the same
  * as that to digest 56 bytes.  So under the old system, a screen of
- * 1024*768*256 would have been CPU cost of approximatly 49,000 56 byte MD5
+ * 1024*768*256 would have been CPU cost of approximately 49,000 56 byte MD5
  * digests or digesting 2.7 mbytes.  What I have put in place would
- * be 48 16k MD5 digests, or efectivly 48*16+48 MD5 bytes or 816 kbytes
+ * be 48 16k MD5 digests, or effectively 48*16+48 MD5 bytes or 816 kbytes
  * or about 3.5 times as much.
  * - eric 
  */

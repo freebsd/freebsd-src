@@ -56,9 +56,7 @@
  * [including the GNU Public Licence.]
  */
 
-#ifdef APPS_CRLF
-# include <assert.h>
-#endif
+#include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -83,13 +81,14 @@ typedef unsigned int u_int;
 #include <openssl/pem.h>
 #include "s_apps.h"
 
+#ifdef WINDOWS
+#include <conio.h>
+#endif
+
+
 #if (defined(VMS) && __VMS_VER < 70000000)
 /* FIONBIO used as a switch to enable ioctl, and that isn't in VMS < 7.0 */
 #undef FIONBIO
-#endif
-
-#if defined(NO_RSA) && !defined(NO_SSL2)
-#define NO_SSL2
 #endif
 
 #undef PROG
@@ -118,6 +117,7 @@ static void sc_usage(void);
 static void print_stuff(BIO *berr,SSL *con,int full);
 static BIO *bio_c_out=NULL;
 static int c_quiet=0;
+static int c_ign_eof=0;
 
 static void sc_usage(void)
 	{
@@ -142,19 +142,20 @@ static void sc_usage(void)
 #ifdef FIONBIO
 	BIO_printf(bio_err," -nbio         - Run with non-blocking IO\n");
 #endif
-#ifdef APPS_CRLF /* won't be #ifdef'd in next release */
 	BIO_printf(bio_err," -crlf         - convert LF from terminal into CRLF\n");
-#endif
 	BIO_printf(bio_err," -quiet        - no s_client output\n");
+	BIO_printf(bio_err," -ign_eof      - ignore input eof (default when -quiet)\n");
 	BIO_printf(bio_err," -ssl2         - just use SSLv2\n");
 	BIO_printf(bio_err," -ssl3         - just use SSLv3\n");
 	BIO_printf(bio_err," -tls1         - just use TLSv1\n");
 	BIO_printf(bio_err," -no_tls1/-no_ssl3/-no_ssl2 - turn off that protocol\n");
 	BIO_printf(bio_err," -bugs         - Switch on all SSL implementation bug workarounds\n");
-	BIO_printf(bio_err," -cipher       - prefered cipher to use, use the 'openssl ciphers'\n");
+	BIO_printf(bio_err," -cipher       - preferred cipher to use, use the 'openssl ciphers'\n");
 	BIO_printf(bio_err,"                 command to see what is available\n");
 
 	}
+
+int MAIN(int, char **);
 
 int MAIN(int argc, char **argv)
 	{
@@ -171,15 +172,16 @@ int MAIN(int argc, char **argv)
 	char *cert_file=NULL,*key_file=NULL;
 	char *CApath=NULL,*CAfile=NULL,*cipher=NULL;
 	int reconnect=0,badop=0,verify=SSL_VERIFY_NONE,bugs=0;
-#ifdef APPS_CRLF
 	int crlf=0;
-#endif
 	int write_tty,read_tty,write_ssl,read_ssl,tty_on,ssl_pending;
 	SSL_CTX *ctx=NULL;
 	int ret=1,in_init=1,i,nbio_test=0;
+	int prexit = 0;
 	SSL_METHOD *meth=NULL;
 	BIO *sbio;
-	/*static struct timeval timeout={10,0};*/
+#ifdef WINDOWS
+	struct timeval tv;
+#endif
 
 #if !defined(NO_SSL2) && !defined(NO_SSL3)
 	meth=SSLv23_client_method();
@@ -192,6 +194,7 @@ int MAIN(int argc, char **argv)
 	apps_startup();
 	c_Pause=0;
 	c_quiet=0;
+	c_ign_eof=0;
 	c_debug=0;
 	c_showcerts=0;
 
@@ -244,12 +247,17 @@ int MAIN(int argc, char **argv)
 			if (--argc < 1) goto bad;
 			cert_file= *(++argv);
 			}
-#ifdef APPS_CRLF
+		else if	(strcmp(*argv,"-prexit") == 0)
+			prexit=1;
 		else if	(strcmp(*argv,"-crlf") == 0)
 			crlf=1;
-#endif
 		else if	(strcmp(*argv,"-quiet") == 0)
+			{
 			c_quiet=1;
+			c_ign_eof=1;
+			}
+		else if	(strcmp(*argv,"-ign_eof") == 0)
+			c_ign_eof=1;
 		else if	(strcmp(*argv,"-pause") == 0)
 			c_Pause=1;
 		else if	(strcmp(*argv,"-debug") == 0)
@@ -324,6 +332,8 @@ bad:
 		goto end;
 		}
 
+	app_RAND_load_file(NULL, bio_err, 0);
+
 	if (bio_c_out == NULL)
 		{
 		if (c_quiet)
@@ -337,7 +347,8 @@ bad:
 			}
 		}
 
-	SSLeay_add_ssl_algorithms();
+	OpenSSL_add_ssl_algorithms();
+	SSL_load_error_strings();
 	ctx=SSL_CTX_new(meth);
 	if (ctx == NULL)
 		{
@@ -352,7 +363,11 @@ bad:
 
 	if (state) SSL_CTX_set_info_callback(ctx,apps_ssl_info_callback);
 	if (cipher != NULL)
-		SSL_CTX_set_cipher_list(ctx,cipher);
+		if(!SSL_CTX_set_cipher_list(ctx,cipher)) {
+		BIO_printf(bio_err,"error setting cipher list\n");
+		ERR_print_errors(bio_err);
+		goto end;
+	}
 #if 0
 	else
 		SSL_CTX_set_cipher_list(ctx,getenv("SSL_CIPHER"));
@@ -365,14 +380,13 @@ bad:
 	if ((!SSL_CTX_load_verify_locations(ctx,CAfile,CApath)) ||
 		(!SSL_CTX_set_default_verify_paths(ctx)))
 		{
-		/* BIO_printf(bio_err,"error seting default verify locations\n"); */
+		/* BIO_printf(bio_err,"error setting default verify locations\n"); */
 		ERR_print_errors(bio_err);
 		/* goto end; */
 		}
 
-	SSL_load_error_strings();
 
-	con=(SSL *)SSL_new(ctx);
+	con=SSL_new(ctx);
 /*	SSL_set_cipher_list(con,"RC4-MD5"); */
 
 re_start:
@@ -473,12 +487,18 @@ re_start:
 				if (read_tty)  FD_SET(fileno(stdin),&readfds);
 				if (write_tty) FD_SET(fileno(stdout),&writefds);
 				}
-#endif
 			if (read_ssl)
 				FD_SET(SSL_get_fd(con),&readfds);
 			if (write_ssl)
 				FD_SET(SSL_get_fd(con),&writefds);
-
+#else
+			if(!tty_on || !write_tty) {
+				if (read_ssl)
+					FD_SET(SSL_get_fd(con),&readfds);
+				if (write_ssl)
+					FD_SET(SSL_get_fd(con),&writefds);
+			}
+#endif
 /*			printf("mode tty(%d %d%d) ssl(%d%d)\n",
 				tty_on,read_tty,write_tty,read_ssl,write_ssl);*/
 
@@ -488,8 +508,29 @@ re_start:
 			 * will choke the compiler: if you do have a cast then
 			 * you can either go for (int *) or (void *).
 			 */
+#ifdef WINDOWS
+			/* Under Windows we make the assumption that we can
+			 * always write to the tty: therefore if we need to
+			 * write to the tty we just fall through. Otherwise
+			 * we timeout the select every second and see if there
+			 * are any keypresses. Note: this is a hack, in a proper
+			 * Windows application we wouldn't do this.
+			 */
+			i=0;
+			if(!write_tty) {
+				if(read_tty) {
+					tv.tv_sec = 1;
+					tv.tv_usec = 0;
+					i=select(width,(void *)&readfds,(void *)&writefds,
+						 NULL,&tv);
+					if(!i && (!_kbhit() || !read_tty) ) continue;
+				} else 	i=select(width,(void *)&readfds,(void *)&writefds,
+					 NULL,NULL);
+			}
+#else
 			i=select(width,(void *)&readfds,(void *)&writefds,
 				 NULL,NULL);
+#endif
 			if ( i < 0)
 				{
 				BIO_printf(bio_err,"bad select %d\n",
@@ -566,8 +607,12 @@ re_start:
 				goto shut;
 				}
 			}
-#ifndef WINDOWS
+#ifdef WINDOWS
+		/* Assume Windows can always write */
+		else if (!ssl_pending && write_tty)
+#else
 		else if (!ssl_pending && FD_ISSET(fileno(stdout),&writefds))
+#endif
 			{
 #ifdef CHARSET_EBCDIC
 			ascii2ebcdic(&(sbuf[sbuf_off]),&(sbuf[sbuf_off]),sbuf_len);
@@ -589,7 +634,6 @@ re_start:
 				write_tty=0;
 				}
 			}
-#endif
 		else if (ssl_pending || FD_ISSET(SSL_get_fd(con),&readfds))
 			{
 #ifdef RENEG
@@ -644,10 +688,12 @@ printf("read=%d pending=%d peek=%d\n",k,SSL_pending(con),SSL_peek(con,zbuf,10240
 				}
 			}
 
-#ifndef WINDOWS
+#ifdef WINDOWS
+		else if (_kbhit())
+#else
 		else if (FD_ISSET(fileno(stdin),&readfds))
+#endif
 			{
-#ifdef APPS_CRLF
 			if (crlf)
 				{
 				int j, lf_num;
@@ -671,16 +717,15 @@ printf("read=%d pending=%d peek=%d\n",k,SSL_pending(con),SSL_peek(con,zbuf,10240
 				assert(lf_num == 0);
 				}
 			else
-#endif
 				i=read(fileno(stdin),cbuf,BUFSIZZ);
 
-			if ((!c_quiet) && ((i <= 0) || (cbuf[0] == 'Q')))
+			if ((!c_ign_eof) && ((i <= 0) || (cbuf[0] == 'Q')))
 				{
 				BIO_printf(bio_err,"DONE\n");
 				goto shut;
 				}
 
-			if ((!c_quiet) && (cbuf[0] == 'R'))
+			if ((!c_ign_eof) && (cbuf[0] == 'R'))
 				{
 				BIO_printf(bio_err,"RENEGOTIATING\n");
 				SSL_renegotiate(con);
@@ -698,13 +743,13 @@ printf("read=%d pending=%d peek=%d\n",k,SSL_pending(con),SSL_peek(con,zbuf,10240
 			write_ssl=1;
 			read_tty=0;
 			}
-#endif
 		}
 shut:
 	SSL_shutdown(con);
 	SHUTDOWN(SSL_get_fd(con));
 	ret=0;
 end:
+	if(prexit) print_stuff(bio_c_out,con,1);
 	if (con != NULL) SSL_free(con);
 	if (con2 != NULL) SSL_free(con2);
 	if (ctx != NULL) SSL_CTX_free(ctx);

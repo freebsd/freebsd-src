@@ -90,11 +90,11 @@ typedef struct bio_connect_st
 	struct sockaddr_in them;
 
 	/* int socket; this will be kept in bio->num so that it is
-	 * compatable with the bss_sock bio */ 
+	 * compatible with the bss_sock bio */ 
 
 	/* called when the connection is initially made
 	 *  callback(BIO,state,ret);  The callback should return
-	 * 'ret'.  state is for compatablity with the ssl info_callback */
+	 * 'ret'.  state is for compatibility with the ssl info_callback */
 	int (*info_callback)();
 	} BIO_CONNECT;
 
@@ -104,6 +104,7 @@ static int conn_puts(BIO *h,char *str);
 static long conn_ctrl(BIO *h,int cmd,long arg1,char *arg2);
 static int conn_new(BIO *h);
 static int conn_free(BIO *data);
+static long conn_callback_ctrl(BIO *h,int cmd,void *(*fp)());
 
 static int conn_state(BIO *b, BIO_CONNECT *c);
 static void conn_close_socket(BIO *data);
@@ -121,6 +122,7 @@ static BIO_METHOD methods_connectp=
 	conn_ctrl,
 	conn_new,
 	conn_free,
+	conn_callback_ctrl,
 	};
 
 static int conn_state(BIO *b, BIO_CONNECT *c)
@@ -494,7 +496,7 @@ static long conn_ctrl(BIO *b, int cmd, long num, char *ptr)
 				*((int *)ptr)=data->port;
 				}
 			if ((!b->init) || (ptr == NULL))
-				*pptr="not initalised";
+				*pptr="not initialized";
 			ret=1;
 			}
 		break;
@@ -564,16 +566,25 @@ static long conn_ctrl(BIO *b, int cmd, long num, char *ptr)
 	case BIO_CTRL_FLUSH:
 		break;
 	case BIO_CTRL_DUP:
+		{
 		dbio=(BIO *)ptr;
 		if (data->param_port)
 			BIO_set_conn_port(dbio,data->param_port);
 		if (data->param_hostname)
 			BIO_set_conn_hostname(dbio,data->param_hostname);
 		BIO_set_nbio(dbio,data->nbio);
-		(void)BIO_set_info_callback(dbio,data->info_callback);
+		(void)BIO_set_info_callback(dbio,(void *(*)())(data->info_callback));
+		}
 		break;
 	case BIO_CTRL_SET_CALLBACK:
-		data->info_callback=(int (*)())ptr;
+		{
+#if 0 /* FIXME: Should this be used?  -- Richard Levitte */
+		BIOerr(BIO_F_CONN_CTRL, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
+		ret = -1;
+#else
+		ret=0;
+#endif
+		}
 		break;
 	case BIO_CTRL_GET_CALLBACK:
 		{
@@ -581,6 +592,27 @@ static long conn_ctrl(BIO *b, int cmd, long num, char *ptr)
 
 		fptr=(int (**)())ptr;
 		*fptr=data->info_callback;
+		}
+		break;
+	default:
+		ret=0;
+		break;
+		}
+	return(ret);
+	}
+
+static long conn_callback_ctrl(BIO *b, int cmd, void *(*fp)())
+	{
+	long ret=1;
+	BIO_CONNECT *data;
+
+	data=(BIO_CONNECT *)b->ptr;
+
+	switch (cmd)
+		{
+	case BIO_CTRL_SET_CALLBACK:
+		{
+		data->info_callback=(int (*)())fp;
 		}
 		break;
 	default:

@@ -78,12 +78,8 @@ static unsigned char ssl3_pad_2[48]={
 	0x5c,0x5c,0x5c,0x5c,0x5c,0x5c,0x5c,0x5c,
 	0x5c,0x5c,0x5c,0x5c,0x5c,0x5c,0x5c,0x5c };
 
-#ifndef NO_PROTO
 static int ssl3_handshake_mac(SSL *s, EVP_MD_CTX *in_ctx,
-	unsigned char *sender, int len, unsigned char *p);
-#else
-static int ssl3_handshake_mac();
-#endif
+	const char *sender, int len, unsigned char *p);
 
 static void ssl3_generate_key_block(SSL *s, unsigned char *km, int num)
 	{
@@ -304,7 +300,7 @@ int ssl3_setup_key_block(SSL *s)
 
 	ssl3_cleanup_key_block(s);
 
-	if ((p=(unsigned char *)Malloc(num)) == NULL)
+	if ((p=Malloc(num)) == NULL)
 		goto err;
 
 	s->s3->tmp.key_block_length=num;
@@ -416,7 +412,7 @@ int ssl3_cert_verify_mac(SSL *s, EVP_MD_CTX *ctx, unsigned char *p)
 	}
 
 int ssl3_final_finish_mac(SSL *s, EVP_MD_CTX *ctx1, EVP_MD_CTX *ctx2,
-	     unsigned char *sender, int len, unsigned char *p)
+	     const char *sender, int len, unsigned char *p)
 	{
 	int ret;
 
@@ -427,7 +423,7 @@ int ssl3_final_finish_mac(SSL *s, EVP_MD_CTX *ctx1, EVP_MD_CTX *ctx2,
 	}
 
 static int ssl3_handshake_mac(SSL *s, EVP_MD_CTX *in_ctx,
-	     unsigned char *sender, int len, unsigned char *p)
+	     const char *sender, int len, unsigned char *p)
 	{
 	unsigned int ret;
 	int npad,n;
@@ -447,7 +443,7 @@ static int ssl3_handshake_mac(SSL *s, EVP_MD_CTX *in_ctx,
 	EVP_DigestUpdate(&ctx,ssl3_pad_1,npad);
 	EVP_DigestFinal(&ctx,md_buf,&i);
 
-	EVP_DigestInit(&ctx,EVP_MD_CTX_type(&ctx));
+	EVP_DigestInit(&ctx,EVP_MD_CTX_md(&ctx));
 	EVP_DigestUpdate(&ctx,s->session->master_key,
 		s->session->master_key_length);
 	EVP_DigestUpdate(&ctx,ssl3_pad_2,npad);
@@ -575,11 +571,11 @@ int ssl3_alert_code(int code)
 	case SSL_AD_ACCESS_DENIED:	return(SSL3_AD_HANDSHAKE_FAILURE);
 	case SSL_AD_DECODE_ERROR:	return(SSL3_AD_HANDSHAKE_FAILURE);
 	case SSL_AD_DECRYPT_ERROR:	return(SSL3_AD_HANDSHAKE_FAILURE);
-	case SSL_AD_EXPORT_RESTRICION:	return(SSL3_AD_HANDSHAKE_FAILURE);
+	case SSL_AD_EXPORT_RESTRICTION:	return(SSL3_AD_HANDSHAKE_FAILURE);
 	case SSL_AD_PROTOCOL_VERSION:	return(SSL3_AD_HANDSHAKE_FAILURE);
 	case SSL_AD_INSUFFICIENT_SECURITY:return(SSL3_AD_HANDSHAKE_FAILURE);
 	case SSL_AD_INTERNAL_ERROR:	return(SSL3_AD_HANDSHAKE_FAILURE);
-	case SSL_AD_USER_CANCLED:	return(SSL3_AD_HANDSHAKE_FAILURE);
+	case SSL_AD_USER_CANCELLED:	return(SSL3_AD_HANDSHAKE_FAILURE);
 	case SSL_AD_NO_RENEGOTIATION:	return(-1); /* Don't send it :-) */
 	default:			return(-1);
 		}

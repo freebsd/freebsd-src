@@ -73,7 +73,7 @@ int i2d_X509_REQ_INFO(X509_REQ_INFO *a, unsigned char **pp)
 	 * allow some CA Software to accept the cert request.
 	 * It is not following the PKCS standards ...
 	 * PKCS#10 pg 5
-	 * attributes [0] IMPLICIT Attibutes
+	 * attributes [0] IMPLICIT Attributes
 	 * NOTE: no OPTIONAL ... so it *must* be there
 	 */
 	if (a->req_kludge) 
@@ -94,7 +94,7 @@ int i2d_X509_REQ_INFO(X509_REQ_INFO *a, unsigned char **pp)
 	/* this is a *nasty* hack reported to be required by some CA's.
 	 * It is not following the PKCS standards ...
 	 * PKCS#10 pg 5
-	 * attributes [0] IMPLICIT Attibutes
+	 * attributes [0] IMPLICIT Attributes
 	 * NOTE: no OPTIONAL ... so it *must* be there
 	 */
 	if (a->req_kludge)
@@ -126,7 +126,7 @@ X509_REQ_INFO *d2i_X509_REQ_INFO(X509_REQ_INFO **a, unsigned char **pp,
 	 * have been reported as requiring it.
 	 * It is not following the PKCS standards ...
 	 * PKCS#10 pg 5
-	 * attributes [0] IMPLICIT Attibutes
+	 * attributes [0] IMPLICIT Attributes
 	 * NOTE: no OPTIONAL ... so it *must* be there
 	 */
 	if (asn1_Finish(&c))
@@ -147,7 +147,7 @@ X509_REQ_INFO *X509_REQ_INFO_new(void)
 	ASN1_CTX c;
 
 	M_ASN1_New_Malloc(ret,X509_REQ_INFO);
-	M_ASN1_New(ret->version,ASN1_INTEGER_new);
+	M_ASN1_New(ret->version,M_ASN1_INTEGER_new);
 	M_ASN1_New(ret->subject,X509_NAME_new);
 	M_ASN1_New(ret->pubkey,X509_PUBKEY_new);
 	M_ASN1_New(ret->attributes,sk_X509_ATTRIBUTE_new_null);
@@ -159,11 +159,11 @@ X509_REQ_INFO *X509_REQ_INFO_new(void)
 void X509_REQ_INFO_free(X509_REQ_INFO *a)
 	{
 	if (a == NULL) return;
-	ASN1_INTEGER_free(a->version);
+	M_ASN1_INTEGER_free(a->version);
 	X509_NAME_free(a->subject);
 	X509_PUBKEY_free(a->pubkey);
 	sk_X509_ATTRIBUTE_pop_free(a->attributes,X509_ATTRIBUTE_free);
-	Free((char *)a);
+	Free(a);
 	}
 
 int i2d_X509_REQ(X509_REQ *a, unsigned char **pp)
@@ -203,7 +203,7 @@ X509_REQ *X509_REQ_new(void)
 	ret->references=1;
 	M_ASN1_New(ret->req_info,X509_REQ_INFO_new);
 	M_ASN1_New(ret->sig_alg,X509_ALGOR_new);
-	M_ASN1_New(ret->signature,ASN1_BIT_STRING_new);
+	M_ASN1_New(ret->signature,M_ASN1_BIT_STRING_new);
 	return(ret);
 	M_ASN1_New_Error(ASN1_F_X509_REQ_NEW);
 	}
@@ -229,8 +229,8 @@ void X509_REQ_free(X509_REQ *a)
 
 	X509_REQ_INFO_free(a->req_info);
 	X509_ALGOR_free(a->sig_alg);
-	ASN1_BIT_STRING_free(a->signature);
-	Free((char *)a);
+	M_ASN1_BIT_STRING_free(a->signature);
+	Free(a);
 	}
 
 

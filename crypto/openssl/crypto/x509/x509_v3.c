@@ -63,6 +63,7 @@
 #include <openssl/objects.h>
 #include <openssl/evp.h>
 #include <openssl/x509.h>
+#include <openssl/x509v3.h>
 
 int X509v3_get_ext_count(const STACK_OF(X509_EXTENSION) *x)
 	{
@@ -242,7 +243,7 @@ int X509_EXTENSION_set_data(X509_EXTENSION *ex, ASN1_OCTET_STRING *data)
 	int i;
 
 	if (ex == NULL) return(0);
-	i=ASN1_OCTET_STRING_set(ex->value,data->data,data->length);
+	i=M_ASN1_OCTET_STRING_set(ex->value,data->data,data->length);
 	if (!i) return(0);
 	return(1);
 	}

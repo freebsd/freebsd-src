@@ -76,7 +76,7 @@ extern "C" {
 #define BIO_TYPE_SOCKET		(5|0x0400|0x0100)
 #define BIO_TYPE_NULL		(6|0x0400)
 #define BIO_TYPE_SSL		(7|0x0200)
-#define BIO_TYPE_MD		(8|0x0200)		/* pasive filter */
+#define BIO_TYPE_MD		(8|0x0200)		/* passive filter */
 #define BIO_TYPE_BUFFER		(9|0x0200)		/* filter */
 #define BIO_TYPE_CIPHER		(10|0x0200)		/* filter */
 #define BIO_TYPE_BASE64		(11|0x0200)		/* filter */
@@ -147,6 +147,11 @@ extern "C" {
 
 #define BIO_FLAGS_BASE64_NO_NL	0x100
 
+/* This is used with memory BIOs: it means we shouldn't free up or change the
+ * data in any way.
+ */
+#define BIO_FLAGS_MEM_RDONLY	0x200
+
 #define BIO_set_flags(b,f) ((b)->flags|=(f))
 #define BIO_get_flags(b) ((b)->flags)
 #define BIO_set_retry_special(b) \
@@ -163,7 +168,7 @@ extern "C" {
 #define BIO_get_retry_flags(b) \
 		((b)->flags&(BIO_FLAGS_RWS|BIO_FLAGS_SHOULD_RETRY))
 
-/* These shouldbe used by the application to tell why we should retry */
+/* These should be used by the application to tell why we should retry */
 #define BIO_should_read(a)		((a)->flags & BIO_FLAGS_READ)
 #define BIO_should_write(a)		((a)->flags & BIO_FLAGS_WRITE)
 #define BIO_should_io_special(a)	((a)->flags & BIO_FLAGS_IO_SPECIAL)
@@ -214,6 +219,7 @@ typedef struct bio_method_st
 	long (*ctrl)();
 	int (*create)();
 	int (*destroy)();
+	long (*callback_ctrl)();
 	} BIO_METHOD;
 #else
 typedef struct bio_method_st
@@ -227,6 +233,7 @@ typedef struct bio_method_st
 	long (_far *ctrl)();
 	int (_far *create)();
 	int (_far *destroy)();
+	long (_fat *callback_ctrl)();
 	} BIO_METHOD;
 #endif
 
@@ -278,9 +285,6 @@ typedef struct bio_f_buffer_ctx_struct
 #define BIO_CONN_S_NBIO			8
 /*#define BIO_CONN_get_param_hostname	BIO_ctrl */
 
-#define BIO_number_read(b)	((b)->num_read)
-#define BIO_number_written(b)	((b)->num_write)
-
 #define BIO_C_SET_CONNECT			100
 #define BIO_C_DO_STATE_MACHINE			101
 #define BIO_C_SET_NBIO				102
@@ -325,9 +329,14 @@ typedef struct bio_f_buffer_ctx_struct
 #define BIO_C_GET_WRITE_GUARANTEE		140
 #define BIO_C_GET_READ_REQUEST			141
 #define BIO_C_SHUTDOWN_WR			142
+#define BIO_C_NREAD0				143
+#define BIO_C_NREAD				144
+#define BIO_C_NWRITE0				145
+#define BIO_C_NWRITE				146
+#define BIO_C_RESET_READ_REQUEST		147
 
 
-#define BIO_set_app_data(s,arg)		BIO_set_ex_data(s,0,(char *)arg)
+#define BIO_set_app_data(s,arg)		BIO_set_ex_data(s,0,arg)
 #define BIO_get_app_data(s)		BIO_get_ex_data(s,0)
 
 /* BIO_s_connect() and BIO_s_socks4a_connect() */
@@ -366,7 +375,7 @@ typedef struct bio_f_buffer_ctx_struct
 /* BIO_set_nbio(b,n) */
 #define BIO_set_filter_bio(b,s) BIO_ctrl(b,BIO_C_SET_PROXY_PARAM,2,(char *)(s))
 /* BIO *BIO_get_filter_bio(BIO *bio); */
-#define BIO_set_proxy_cb(b,cb) BIO_ctrl(b,BIO_C_SET_PROXY_PARAM,3,(char *)(cb))
+#define BIO_set_proxy_cb(b,cb) BIO_callback_ctrl(b,BIO_C_SET_PROXY_PARAM,3,(void *(*cb)()))
 #define BIO_set_proxy_header(b,sk) BIO_ctrl(b,BIO_C_SET_PROXY_PARAM,4,(char *)sk)
 #define BIO_set_no_connect_return(b,bool) BIO_int_ctrl(b,BIO_C_SET_PROXY_PARAM,5,bool)
 
@@ -445,8 +454,8 @@ int BIO_read_filename(BIO *b,const char *name);
 size_t BIO_ctrl_pending(BIO *b);
 size_t BIO_ctrl_wpending(BIO *b);
 #define BIO_flush(b)		(int)BIO_ctrl(b,BIO_CTRL_FLUSH,0,NULL)
-#define BIO_get_info_callback(b,cbp) (int)BIO_ctrl(b,BIO_CTRL_GET_CALLBACK,0,(char *)cbp)
-#define BIO_set_info_callback(b,cb) (int)BIO_ctrl(b,BIO_CTRL_SET_CALLBACK,0,(char *)cb)
+#define BIO_get_info_callback(b,cbp) (int)BIO_ctrl(b,BIO_CTRL_GET_CALLBACK,0,(void (**)())(cbp))
+#define BIO_set_info_callback(b,cb) (int)BIO_callback_ctrl(b,BIO_CTRL_SET_CALLBACK,(void (*)())(cb))
 
 /* For the BIO_f_buffer() type */
 #define BIO_buffer_get_num_lines(b) BIO_ctrl(b,BIO_CTRL_GET,0,NULL)
@@ -461,8 +470,7 @@ size_t BIO_ctrl_wpending(BIO *b);
 #define BIO_get_read_request(b)    (int)BIO_ctrl(b,BIO_C_GET_READ_REQUEST,0,NULL)
 size_t BIO_ctrl_get_write_guarantee(BIO *b);
 size_t BIO_ctrl_get_read_request(BIO *b);
-
-
+int BIO_ctrl_reset_read_request(BIO *b);
 
 #ifdef NO_STDIO
 #define NO_FP_API
@@ -472,10 +480,12 @@ size_t BIO_ctrl_get_read_request(BIO *b);
 /* These two aren't currently implemented */
 /* int BIO_get_ex_num(BIO *bio); */
 /* void BIO_set_ex_free_func(BIO *bio,int idx,void (*cb)()); */
-int BIO_set_ex_data(BIO *bio,int idx,char *data);
-char *BIO_get_ex_data(BIO *bio,int idx);
-int BIO_get_ex_new_index(long argl, char *argp, int (*new_func)(),
-	int (*dup_func)(), void (*free_func)());
+int BIO_set_ex_data(BIO *bio,int idx,void *data);
+void *BIO_get_ex_data(BIO *bio,int idx);
+int BIO_get_ex_new_index(long argl, void *argp, CRYPTO_EX_new *new_func,
+	CRYPTO_EX_dup *dup_func, CRYPTO_EX_free *free_func);
+unsigned long BIO_number_read(BIO *bio);
+unsigned long BIO_number_written(BIO *bio);
 
 #  if defined(WIN16) && defined(_WINDLL)
 BIO_METHOD *BIO_s_file_internal(void);
@@ -497,9 +507,10 @@ int	BIO_set(BIO *a,BIO_METHOD *type);
 int	BIO_free(BIO *a);
 int	BIO_read(BIO *b, void *data, int len);
 int	BIO_gets(BIO *bp,char *buf, int size);
-int	BIO_write(BIO *b, const char *data, int len);
+int	BIO_write(BIO *b, const void *data, int len);
 int	BIO_puts(BIO *bp,const char *buf);
 long	BIO_ctrl(BIO *bp,int cmd,long larg,void *parg);
+long	BIO_callback_ctrl(BIO *bp,int cmd,void (*fp)());
 char *	BIO_ptr_ctrl(BIO *bp,int cmd,long larg);
 long	BIO_int_ctrl(BIO *bp,int cmd,long larg,int iarg);
 BIO *	BIO_push(BIO *b,BIO *append);
@@ -510,6 +521,11 @@ BIO *	BIO_get_retry_BIO(BIO *bio, int *reason);
 int	BIO_get_retry_reason(BIO *bio);
 BIO *	BIO_dup_chain(BIO *in);
 
+int BIO_nread0(BIO *bio, char **buf);
+int BIO_nread(BIO *bio, char **buf, int num);
+int BIO_nwrite0(BIO *bio, char **buf);
+int BIO_nwrite(BIO *bio, char **buf, int num);
+
 #ifndef WIN16
 long BIO_debug_callback(BIO *bio,int cmd,const char *argp,int argi,
 	long argl,long ret);
@@ -519,6 +535,7 @@ long _far _loadds BIO_debug_callback(BIO *bio,int cmd,const char *argp,int argi,
 #endif
 
 BIO_METHOD *BIO_s_mem(void);
+BIO *BIO_new_mem_buf(void *buf, int len);
 BIO_METHOD *BIO_s_socket(void);
 BIO_METHOD *BIO_s_connect(void);
 BIO_METHOD *BIO_s_accept(void);
@@ -597,11 +614,17 @@ int BIO_printf(BIO *bio, ...);
 #define BIO_F_BIO_MAKE_PAIR				 121
 #define BIO_F_BIO_NEW					 108
 #define BIO_F_BIO_NEW_FILE				 109
+#define BIO_F_BIO_NEW_MEM_BUF				 126
+#define BIO_F_BIO_NREAD					 123
+#define BIO_F_BIO_NREAD0				 124
+#define BIO_F_BIO_NWRITE				 125
+#define BIO_F_BIO_NWRITE0				 122
 #define BIO_F_BIO_PUTS					 110
 #define BIO_F_BIO_READ					 111
 #define BIO_F_BIO_SOCK_INIT				 112
 #define BIO_F_BIO_WRITE					 113
 #define BIO_F_BUFFER_CTRL				 114
+#define BIO_F_CONN_CTRL					 127
 #define BIO_F_CONN_STATE				 115
 #define BIO_F_FILE_CTRL					 116
 #define BIO_F_MEM_WRITE					 117
@@ -634,6 +657,7 @@ int BIO_printf(BIO *bio, ...);
 #define BIO_R_UNABLE_TO_LISTEN_SOCKET			 119
 #define BIO_R_UNINITIALIZED				 120
 #define BIO_R_UNSUPPORTED_METHOD			 121
+#define BIO_R_WRITE_TO_READ_ONLY_BIO			 126
 #define BIO_R_WSASTARTUP				 122
 
 #ifdef  __cplusplus
