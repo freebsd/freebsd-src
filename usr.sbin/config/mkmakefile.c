@@ -134,27 +134,23 @@ makefile(void)
 	}
 	if (ifp == 0)
 		err(1, "%s", line);
-	ofp = fopen(path("Makefile.new"), "w");
-	if (ofp == 0)
-		err(1, "%s", path("Makefile.new"));
-	fprintf(ofp, "KERN_IDENT=%s\n", raisestr(ident));
-	fprintf(ofp, "IDENT=");
-	if (profiling)
-		fprintf(ofp, " -DGPROF");
 
+	/* XXX this check seems to be misplaced. */
 	if (cputype == 0) {
 		printf("cpu type must be specified\n");
 		exit(1);
 	}
-	fprintf(ofp, "\n");
+
+	ofp = fopen(path("Makefile.new"), "w");
+	if (ofp == 0)
+		err(1, "%s", path("Makefile.new"));
+	fprintf(ofp, "KERN_IDENT=%s\n", raisestr(ident));
 	for (op = mkopt; op; op = op->op_next)
 		fprintf(ofp, "%s=%s\n", op->op_name, op->op_value);
 	if (debugging)
 		fprintf(ofp, "DEBUG=-g\n");
-	if (profiling) {
-		fprintf(ofp, "PROF=-pg\n");
+	if (profiling)
 		fprintf(ofp, "PROFLEVEL=%d\n", profiling);
-	}
 	if (*srcdir != '\0')
 		fprintf(ofp,"S=%s\n", srcdir);
 	while (fgets(line, BUFSIZ, ifp) != 0) {

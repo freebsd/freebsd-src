@@ -21,7 +21,7 @@ CWARNFLAGS=	-Wall -Wredundant-decls -Wnested-externs -Wstrict-prototypes \
 		-ansi
 
 # Which version of config(8) is required.
-%VERSREQ=	500010
+%VERSREQ=	500011
 
 STD8X16FONT?=	iso
 
