@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: install.c,v 1.84 1996/04/23 01:29:22 jkh Exp $
+ * $Id: install.c,v 1.85 1996/04/25 17:31:18 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -203,6 +203,9 @@ installInitial(void)
 int
 installFixitCDROM(dialogMenuItem *self)
 {
+    msgConfirm("Sorry, this feature is currently unimplemented but will,\n"
+	       "at some point in the future, support the use of the live\n"
+	       "filesystem CD (CD 2) in fixing your system.");
     return DITEM_SUCCESS;
 }
 
