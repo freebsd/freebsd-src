@@ -266,6 +266,14 @@ Additional flags to pass to the DHCP client program.
 For the ISC DHCP client, see the
 .Xr dhclient 8
 manpage for a description of the command line options available.
+.It Va background_dhclient
+.Pq Vt bool
+Set to
+.Dq Li YES
+to start dhcp client in background.
+Setting this to
+.Dq Li NO
+can block dhclient during startup if no cable is plugged in.
 .It Va firewall_enable
 .Pq Vt bool
 Set to
