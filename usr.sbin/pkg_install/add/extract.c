@@ -29,17 +29,17 @@ static const char rcsid[] =
 
 
 #define STARTSTRING "tar cf - "
-#define TOOBIG(str) ((strlen(str) + FILENAME_MAX + where_count > maxargs) \
-		|| (strlen(str) + FILENAME_MAX + perm_count > maxargs))
+#define TOOBIG(str) (((int)strlen(str) + FILENAME_MAX + where_count > maxargs) \
+		|| ((int)strlen(str) + FILENAME_MAX + perm_count > maxargs))
 
 #define PUSHOUT(todir) /* push out string */ \
-        if (where_count > sizeof(STARTSTRING)-1) { \
+        if (where_count > (int)sizeof(STARTSTRING)-1) { \
 		    strcat(where_args, "|tar --unlink -xf - -C "); \
 		    strcat(where_args, todir); \
 		    if (system(where_args)) { \
 	                cleanup(0); \
-		        errx(2, __FUNCTION__ ": can not invoke %d byte tar pipeline: %s", \
-			     strlen(where_args), where_args); \
+		        errx(2, __FUNCTION__ ": can not invoke %ld byte tar pipeline: %s", \
+			     (long)strlen(where_args), where_args); \
 		    } \
 		    strcpy(where_args, STARTSTRING); \
 		    where_count = sizeof(STARTSTRING)-1; \
@@ -51,10 +51,11 @@ static const char rcsid[] =
 	}
 
 static void
-rollback(char *name, char *home, PackingList start, PackingList stop)
+rollback(const char *name, const char *home, PackingList start, PackingList stop)
 {
     PackingList q;
-    char try[FILENAME_MAX], bup[FILENAME_MAX], *dir;
+    char try[FILENAME_MAX], bup[FILENAME_MAX];
+    const char *dir;
 
     dir = home;
     for (q = start; q != stop; q = q->next) {
@@ -77,7 +78,7 @@ rollback(char *name, char *home, PackingList start, PackingList stop)
 }
 
 void
-extract_plist(char *home, Package *pkg)
+extract_plist(const char *home, Package *pkg)
 {
     PackingList p = pkg->head;
     char *last_file;
@@ -109,7 +110,7 @@ extract_plist(char *home, Package *pkg)
     Group = NULL;
     Mode = NULL;
     last_file = NULL;
-    Directory = home;
+    (const char *)Directory = home;
 
     /* Do it */
     while (p) {
@@ -207,7 +208,7 @@ extract_plist(char *home, Package *pkg)
 		Directory = p->name;
 	    }
 	    else
-		Directory = home;
+		(const char *)Directory = home;
 	    break;
 
 	case PLIST_CMD:

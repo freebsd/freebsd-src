@@ -136,7 +136,7 @@ pkg_do(char *pkg)
 	    }
 	    Home = make_playpen(playpen, sb.st_size * 4);
 	    if (!Home)
-		errx(1, "unable to make playpen for %qd bytes", sb.st_size * 4);
+		errx(1, "unable to make playpen for %qd bytes", (long long)sb.st_size * 4);
 	    where_to = Home;
 	    /* Since we can call ourselves recursively, keep notes on where we came from */
 	    if (!getenv("_TOP"))
@@ -192,7 +192,7 @@ pkg_do(char *pkg)
 	    if (!inPlace && min_free(playpen) < sb.st_size * 4) {
 		warnx("projected size of %qd exceeds available free space.\n"
 "Please set your PKG_TMPDIR variable to point to a location with more\n"
-		       "free space and try again", sb.st_size * 4);
+		       "free space and try again", (long long)sb.st_size * 4);
 		warnx("not extracting %s\ninto %s, sorry!",
 			pkg_fullname, where_to);
 		goto bomb;
@@ -232,7 +232,7 @@ pkg_do(char *pkg)
 
     setenv(PKG_PREFIX_VNAME, (p = find_plist(&Plist, PLIST_CWD)) ? p->name : ".", 1);
     /* Protect against old packages with bogus @name fields */
-    PkgName = (p = find_plist(&Plist, PLIST_NAME)) ? p->name : "anonymous";
+    (const char *)PkgName = (p = find_plist(&Plist, PLIST_NAME)) ? p->name : "anonymous";
 
     /* See if we're already registered */
     sprintf(LogDir, "%s/%s", LOG_DIR, PkgName);
@@ -391,7 +391,7 @@ pkg_do(char *pkg)
     /* Time to record the deed? */
     if (!NoRecord && !Fake) {
 	char contents[FILENAME_MAX];
-	FILE *cfile;
+	FILE *contfile;
 
 	if (getuid() != 0)
 	    warnx("not running as root - trying to record install anyway");
@@ -430,28 +430,28 @@ pkg_do(char *pkg)
 	if (fexists(MTREE_FNAME))
 	    move_file(".", MTREE_FNAME, LogDir);
 	sprintf(contents, "%s/%s", LogDir, CONTENTS_FNAME);
-	cfile = fopen(contents, "w");
-	if (!cfile) {
+	contfile = fopen(contents, "w");
+	if (!contfile) {
 	    warnx("can't open new contents file '%s'! can't register pkg",
 		contents);
 	    goto success; /* can't log, but still keep pkg */
 	}
-	write_plist(&Plist, cfile);
-	fclose(cfile);
+	write_plist(&Plist, contfile);
+	fclose(contfile);
 	for (p = Plist.head; p ; p = p->next) {
 	    if (p->type != PLIST_PKGDEP)
 		continue;
 	    if (Verbose)
 		printf("Attempting to record dependency on package '%s'\n", p->name);
-	    sprintf(contents, "%s/%s/%s", LOG_DIR, basename_of(p->name),
+	    sprintf(contents, "%s/%s/%s", LOG_DIR, basename(p->name),
 	    	    REQUIRED_BY_FNAME);
-	    cfile = fopen(contents, "a");
-	    if (!cfile)
+	    contfile = fopen(contents, "a");
+	    if (!contfile)
 		warnx("can't open dependency file '%s'!\n"
 		       "dependency registration is incomplete", contents);
 	    else {
-		fprintf(cfile, "%s\n", PkgName);
-		if (fclose(cfile) == EOF)
+		fprintf(contfile, "%s\n", PkgName);
+		if (fclose(contfile) == EOF)
 		    warnx("cannot properly close file %s", contents);
 	    }
 	}

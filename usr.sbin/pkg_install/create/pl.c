@@ -31,10 +31,10 @@ static const char rcsid[] =
 
 /* Check a list for files that require preconversion */
 void
-check_list(char *home, Package *pkg)
+check_list(const char *home, Package *pkg)
 {
-    char *where = home;
-    char *there = NULL;
+    const char *where = home;
+    const char *there = NULL;
     char *cp, name[FILENAME_MAX], buf[33];
     PackingList p;
 
@@ -86,9 +86,9 @@ trylink(const char *from, const char *to)
 }
 
 #define STARTSTRING "tar cf -"
-#define TOOBIG(str) strlen(str) + 6 + strlen(home) + where_count > maxargs
+#define TOOBIG(str) (int)strlen(str) + 6 + (int)strlen(home) + where_count > maxargs
 #define PUSHOUT() /* push out string */ \
-	if (where_count > sizeof(STARTSTRING)-1) { \
+	if (where_count > (int)sizeof(STARTSTRING)-1) { \
 		    strcat(where_args, "|tar xpf -"); \
 		    if (system(where_args)) { \
 			cleanup(0); \
@@ -105,12 +105,13 @@ trylink(const char *from, const char *to)
  * have already been copied in an earlier pass through the list.
  */
 void
-copy_plist(char *home, Package *plist)
+copy_plist(const char *home, Package *plist)
 {
     PackingList p = plist->head;
-    char *where = home;
-    char *there = NULL, *mythere;
-    char *where_args, *last_chdir, *root = "/";
+    const char *where = home;
+    const char *there = NULL, *mythere;
+    char *where_args;
+    const char *last_chdir, *root = "/";
     int maxargs, where_count = 0, add_count;
     struct stat stb;
     dev_t curdir;

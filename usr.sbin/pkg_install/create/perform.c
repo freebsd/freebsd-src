@@ -34,8 +34,8 @@ static const char rcsid[] =
 #include <unistd.h>
 
 static void sanity_check(void);
-static void make_dist(char *, char *, char *, Package *);
-static int create_from_installed(char *, char *);
+static void make_dist(const char *, const char *, const char *, Package *);
+static int create_from_installed(const char *, const char *);
 
 static char *home;
 
@@ -47,7 +47,7 @@ pkg_perform(char **pkgs)
     FILE *pkg_in, *fp;
     Package plist;
     int len;
-    char *suf;
+    const char *suf;
     int compress = TRUE;	/* default is to compress packages */
 
     /* Preliminary setup */
@@ -161,7 +161,7 @@ pkg_perform(char **pkgs)
      * at the top.
      */
     if (find_plist(&plist, PLIST_NAME) == NULL)
-	add_plist_top(&plist, PLIST_NAME, basename_of(pkg));
+	add_plist_top(&plist, PLIST_NAME, basename(pkg));
 
     /*
      * We're just here for to dump out a revised plist for the FreeBSD ports
@@ -258,29 +258,29 @@ pkg_perform(char **pkgs)
 }
 
 static void
-make_dist(char *home, char *pkg, char *suffix, Package *plist)
+make_dist(const char *homedir, const char *pkg, const char *suff, Package *plist)
 {
     char tball[FILENAME_MAX];
     PackingList p;
     int ret;
-    char *args[50];	/* Much more than enough. */
+    const char *args[50];	/* Much more than enough. */
     int nargs = 0;
     int pipefds[2];
     FILE *totar;
     pid_t pid;
-    char *cname;
+    const char *cname;
 
     args[nargs++] = "tar";	/* argv[0] */
 
     if (*pkg == '/')
-	snprintf(tball, FILENAME_MAX, "%s.%s", pkg, suffix);
+	snprintf(tball, FILENAME_MAX, "%s.%s", pkg, suff);
     else
-	snprintf(tball, FILENAME_MAX, "%s/%s.%s", home, pkg, suffix);
+	snprintf(tball, FILENAME_MAX, "%s/%s.%s", homedir, pkg, suff);
 
     args[nargs++] = "-c";
     args[nargs++] = "-f";
     args[nargs++] = tball;
-    if (strchr(suffix, 'z')) {	/* Compress/gzip/bzip2? */
+    if (strchr(suff, 'z')) {	/* Compress/gzip/bzip2? */
 	if (UseBzip2) {
 	    args[nargs++] = "-y";
 	    cname = "bzip'd ";
@@ -318,7 +318,7 @@ make_dist(char *home, char *pkg, char *suffix, Package *plist)
 	dup2(pipefds[0], 0);
 	close(pipefds[0]);
 	close(pipefds[1]);
-	execv("/usr/bin/tar", args);
+	execv("/usr/bin/tar", (char * const *)(uintptr_t)args);
 	cleanup(0);
 	errx(2, __FUNCTION__ ": failed to execute tar command");
     }
@@ -400,18 +400,18 @@ cleanup(int sig)
 }
 
 static int
-create_from_installed(char *pkg, char *suf)
+create_from_installed(const char *pkg, const char *suf)
 {
     FILE *fp;
     Package plist;
-    char home[MAXPATHLEN], log_dir[FILENAME_MAX];
+    char homedir[MAXPATHLEN], log_dir[FILENAME_MAX];
 
     snprintf(log_dir, sizeof(log_dir), "%s/%s", LOG_DIR, InstalledPkg);
     if (!fexists(log_dir)) {
 	warnx("can't find package '%s' installed!", InstalledPkg);
 	return 1;
     }
-    getcwd(home, sizeof(home));
+    getcwd(homedir, sizeof(homedir));
     if (chdir(log_dir) == FAIL) {
 	warnx("can't change directory to '%s'!", log_dir);
 	return 1;
@@ -427,7 +427,7 @@ create_from_installed(char *pkg, char *suf)
     read_plist(&plist, fp);
     fclose(fp);
 
-    make_dist(home, pkg, suf, &plist);
+    make_dist(homedir, pkg, suf, &plist);
 
     free_plist(&plist);
     return TRUE;

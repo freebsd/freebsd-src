@@ -29,14 +29,15 @@ static const char rcsid[] =
 #include <signal.h>
 
 static int pkg_do(char *);
-static int find_pkg(char *, struct which_head *);
+static int find_pkg(const char *, struct which_head *);
 static int cmp_path(const char *, const char *, const char *);
+static char *abspath(const char *);
 
 int
 pkg_perform(char **pkgs)
 {
     char **matched;
-    char *tmp;
+    const char *tmp;
     int err_cnt = 0;
     int i, errcode;
 
@@ -184,7 +185,7 @@ pkg_do(char *pkg)
 	if (Flags & SHOW_COMMENT)
 	    show_file("Comment:\n", COMMENT_FNAME);
 	if (Flags & SHOW_REQUIRE)
-	    show_plist("Depends on:\n", &plist, PLIST_PKGDEP);
+	    show_plist("Depends on:\n", &plist, PLIST_PKGDEP, FALSE);
 	if ((Flags & SHOW_REQBY) && !isemptyfile(REQUIRED_BY_FNAME))
 	    show_file("Required by:\n", REQUIRED_BY_FNAME);
 	if (Flags & SHOW_DESC)
@@ -192,7 +193,7 @@ pkg_do(char *pkg)
 	if ((Flags & SHOW_DISPLAY) && fexists(DISPLAY_FNAME))
 	    show_file("Install notice:\n", DISPLAY_FNAME);
 	if (Flags & SHOW_PLIST)
-	    show_plist("Packing list:\n", &plist, (plist_t)-1);
+	    show_plist("Packing list:\n", &plist, (plist_t)0, TRUE);
 	if ((Flags & SHOW_INSTALL) && fexists(INSTALL_FNAME))
 	    show_file("Install script:\n", INSTALL_FNAME);
 	if ((Flags & SHOW_INSTALL) && fexists(POST_INSTALL_FNAME))
@@ -204,7 +205,7 @@ pkg_do(char *pkg)
 	if ((Flags & SHOW_MTREE) && fexists(MTREE_FNAME))
 	    show_file("mtree file:\n", MTREE_FNAME);
 	if (Flags & SHOW_PREFIX)
-	    show_plist("Prefix(s):\n", &plist, PLIST_CWD);
+	    show_plist("Prefix(s):\n", &plist, PLIST_CWD, FALSE);
 	if (Flags & SHOW_FILES)
 	    show_files("Files:\n", &plist);
 	if ((Flags & SHOW_SIZE) && installed)
@@ -242,7 +243,7 @@ cleanup(int sig)
  * /'s, as realpath() would, but without resolving symlinks, because that can
  * potentially screw up our comparisons later.
  */
-char *
+static char *
 abspath(const char *pathname)
 {
     char *tmp, *tmp1, *resolved_path;
@@ -316,14 +317,14 @@ cmp_path(const char *target, const char *current, const char *cwd)
  * packages installed the files in which_list.
  */
 static int 
-find_pkg(char *db_dir, struct which_head *which_list)
+find_pkg(const char *db_dir, struct which_head *which_list)
 {
     char **installed;
     int errcode, i;
     struct which_entry *wp;
 
     TAILQ_FOREACH(wp, which_list, next) {
-	char *msg = "file cannot be found";
+	const char *msg = "file cannot be found";
 	char *tmp;
 
 	wp->skip = TRUE;

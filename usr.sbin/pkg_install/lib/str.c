@@ -25,19 +25,8 @@ static const char rcsid[] =
 
 #include "lib.h"
 
-/* Return the filename portion of a path */
 char *
-basename_of(char *str)
-{
-    char *basename = str + strlen(str) - 1;
-
-    while (basename != str && basename[-1] != '/')
-	--basename;
-    return basename;
-}
-
-char *
-strconcat(char *s1, char *s2)
+strconcat(const char *s1, const char *s2)
 {
     static char tmp[FILENAME_MAX];
 
@@ -77,7 +66,7 @@ s_strlcat(char *dst, const char *src, size_t size)
 
 /* Rather Obvious */
 char *
-copy_string(char *str)
+copy_string(const char *str)
 {
     char *ret;
 
@@ -92,7 +81,7 @@ copy_string(char *str)
 
 /* Return TRUE if 'str' ends in suffix 'suff' */
 Boolean
-suffix(char *str, char *suff)
+suffix(const char *str, const char *suff)
 {
     char *idx;
     Boolean ret = FALSE;
@@ -141,4 +130,3 @@ get_string(char *str, int max, FILE *fp)
     }
     return NULL;
 }
-

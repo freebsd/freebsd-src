@@ -4,6 +4,8 @@ PROG= pkg_create
 
 CFLAGS+=	${DEBUG} -I${.CURDIR}/../lib
 
+WARNS?=	2
+
 DPADD=	${LIBINSTALL} ${LIBFETCH} ${LIBMD}
 LDADD=	${LIBINSTALL} -lfetch -lmd
 

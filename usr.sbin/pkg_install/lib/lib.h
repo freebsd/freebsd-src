@@ -123,42 +123,41 @@ STAILQ_HEAD(reqr_by_head, reqr_by_entry);
 int		vsystem(const char *, ...);
 char		*vpipe(const char *, ...);
 void		cleanup(int);
-char		*make_playpen(char *, size_t);
+char		*make_playpen(char *, off_t);
 char		*where_playpen(void);
 void		leave_playpen(void);
-off_t		min_free(char *);
+off_t		min_free(const char *);
 
 /* String */
 char 		*get_dash_string(char **);
-char		*copy_string(char *);
-Boolean		suffix(char *, char *);
+char		*copy_string(const char *);
+Boolean		suffix(const char *, const char *);
 void		nuke_suffix(char *);
 void		str_lowercase(char *);
-char		*basename_of(char *);
-char		*strconcat(char *, char *);
+char		*strconcat(const char *, const char *);
 char		*get_string(char *, int, FILE *);
 int		s_strlcpy(char *, const char *, size_t);
 int		s_strlcat(char *, const char *, size_t);
 
 /* File */
-Boolean		fexists(char *);
-Boolean		isdir(char *);
-Boolean		isemptydir(char *fname);
-Boolean		isemptyfile(char *fname);
-Boolean         isfile(char *);
-Boolean		isempty(char *);
-Boolean		issymlink(char *);
-Boolean		isURL(char *);
-char		*fileGetURL(char *, char *);
-char		*fileFindByPath(char *, char *);
-char		*fileGetContents(char *);
-void		write_file(char *, char *);
-void		copy_file(char *, char *, char *);
-void		move_file(char *, char *, char *);
-void		copy_hierarchy(char *, char *, Boolean);
-int		delete_hierarchy(char *, Boolean, Boolean);
-int		unpack(char *, char *);
-void		format_cmd(char *, char *, char *, char *);
+Boolean		fexists(const char *);
+Boolean		isdir(const char *);
+Boolean		isemptydir(const char *fname);
+Boolean		isemptyfile(const char *fname);
+Boolean         isfile(const char *);
+Boolean		isempty(const char *);
+Boolean		issymlink(const char *);
+Boolean		isURL(const char *);
+char		*fileGetURL(const char *, const char *);
+char		*fileFindByPath(const char *, const char *);
+char		*fileGetContents(const char *);
+void		write_file(const char *, const char *);
+void		copy_file(const char *, const char *, const char *);
+void		move_file(const char *, const char *, const char *);
+void		copy_hierarchy(const char *, const char *, Boolean);
+int		delete_hierarchy(const char *, Boolean, Boolean);
+int		unpack(const char *, const char *);
+void		format_cmd(char *, const char *, const char *, const char *);
 
 /* Msg */
 void		upchuck(const char *);
@@ -170,19 +169,19 @@ Boolean		y_or_n(Boolean, const char *, ...);
 PackingList	new_plist_entry(void);
 PackingList	last_plist(Package *);
 PackingList	find_plist(Package *, plist_t);
-char		*find_plist_option(Package *, char *name);
-void		plist_delete(Package *, Boolean, plist_t, char *);
+char		*find_plist_option(Package *, const char *name);
+void		plist_delete(Package *, Boolean, plist_t, const char *);
 void		free_plist(Package *);
 void		mark_plist(Package *);
 void		csum_plist_entry(char *, PackingList);
-void		add_plist(Package *, plist_t, char *);
-void		add_plist_top(Package *, plist_t, char *);
-void		delete_plist(Package *pkg, Boolean all, plist_t type, char *name);
+void		add_plist(Package *, plist_t, const char *);
+void		add_plist_top(Package *, plist_t, const char *);
+void		delete_plist(Package *pkg, Boolean all, plist_t type, const char *name);
 void		write_plist(Package *, FILE *);
 void		read_plist(Package *, FILE *);
-int		plist_cmd(char *, char **);
+int		plist_cmd(const char *, char **);
 int		delete_package(Boolean, Boolean, Package *);
-Boolean 	make_preserve_name(char *, int, char *, char *);
+Boolean 	make_preserve_name(char *, int, const char *, const char *);
 
 /* For all */
 int		pkg_perform(char **);
@@ -192,7 +191,7 @@ char		**matchinstalled(match_t, char **, int *);
 
 /* Dependencies */
 int		sortdeps(char **);
-int		chkifdepends(char *, char *);
+int		chkifdepends(const char *, const char *);
 int		requiredby(const char *, struct reqr_by_head **, Boolean, Boolean);
 
 /* Externs */
