@@ -175,15 +175,12 @@ The symbol itself (for example,
 for the lower-case letter
 .Ar a )
 .It
-The symbol chain (for example,
-.Ar abc )
-.It
-In octal representation (for example,
+The symbol in octal representation (for example,
 .Ar \e141
 for the letter
 .Ar a )
 .It
-In hexadecimal representation (for example,
+The symbol in hexadecimal representation (for example,
 .Ar \ex61
 for the letter
 .Ar a )
@@ -191,9 +188,9 @@ for the letter
 The symbol name as defined in the
 .Ar charmap
 file (for example,
-.Ar <abc>
+.Ar <letterA>
 for
-.Ar abc \e023
+.Ar letterA \e023
 record in
 .Ar charmapfile ) .
 If character map name have
@@ -213,6 +210,11 @@ Symbols
 .Ar \er ,
 .Ar \ev
 are permitted in its usual C-language meaning
+.It
+The symbol chain (for example:
+.Ar abc ,
+.Ar <letterA><letterB> ,
+.Ar \exf1\exf2 )
 .It
 The symbol range (for example,
 .Ar a;...;z )

@@ -47,6 +47,7 @@ static void usage(void);
 static void collate_print_tables(void);
 
 char map_name[FILENAME_MAX] = ".";
+char curr_chain[STR_LEN];
 
 char __collate_version[STR_LEN];
 u_char charmap_table[UCHAR_MAX + 1][CHARMAP_SYMBOL_LEN];
@@ -72,7 +73,6 @@ const char *out_file = "LC_COLLATE";
 }
 %token SUBSTITUTE WITH ORDER RANGE
 %token <str> STRING
-%token <str> CHAIN
 %token <str> DEFN
 %token <ch> CHAR
 %%
@@ -139,17 +139,33 @@ order : ORDER order_list {
 order_list : item
 	| order_list ';' item
 ;
+chain : CHAR CHAR {
+	curr_chain[0] = $1;
+	curr_chain[1] = $2;
+	if (curr_chain[0] == '\0' || curr_chain[1] == '\0')
+		yyerror("\\0 can't be chained");
+	curr_chain[2] = '\0';
+}
+	| chain CHAR {
+	static char tb[2];
+
+	tb[0] = $2;
+	if (tb[0] == '\0')
+		yyerror("\\0 can't be chained");
+	if (strlen(curr_chain) + 2 > STR_LEN)
+		yyerror("Chain '%s' grows too long", curr_chain);
+	(void)strcat(curr_chain, tb);
+}
+;
 item :  CHAR {
 	if (__collate_char_pri_table[$1].prim)
 		yyerror("Char 0x%02x duplicated", $1);
 	__collate_char_pri_table[$1].prim = prim_pri++;
 }
-	| CHAIN {
+	| chain {
 	if (chain_index >= TABLE_SIZE - 1)
 		yyerror("__collate_chain_pri_table overflow");
-	if (strlen($1) + 1 > STR_LEN)
-		yyerror("Chain %d is too long", chain_index);
-	strcpy(__collate_chain_pri_table[chain_index].str, $1);
+	(void)strcpy(__collate_chain_pri_table[chain_index].str, curr_chain);
 	__collate_chain_pri_table[chain_index++].prim = prim_pri++;
 }
 	| CHAR RANGE CHAR {
@@ -196,12 +212,10 @@ prim_sub_item : CHAR {
 		__collate_char_pri_table[(u_char)i].prim = prim_pri;
 	}
 }
-	| CHAIN {
+	| chain {
 	if (chain_index >= TABLE_SIZE - 1)
 		yyerror("__collate_chain_pri_table overflow");
-	if (strlen($1) + 1 > STR_LEN)
-		yyerror("Chain %d is too long", chain_index);
-	strcpy(__collate_chain_pri_table[chain_index].str, $1);
+	(void)strcpy(__collate_chain_pri_table[chain_index].str, curr_chain);
 	__collate_chain_pri_table[chain_index++].prim = prim_pri;
 }
 ;
@@ -225,12 +239,10 @@ sec_sub_item : CHAR {
 		__collate_char_pri_table[(u_char)i].sec = sec_pri++;
 	}
 }
-	| CHAIN {
+	| chain {
 	if (chain_index >= TABLE_SIZE - 1)
 		yyerror("__collate_chain_pri_table overflow");
-	if (strlen($1) + 1 > STR_LEN)
-		yyerror("Chain %d is too long", chain_index);
-	strcpy(__collate_chain_pri_table[chain_index].str, $1);
+	(void)strcpy(__collate_chain_pri_table[chain_index].str, curr_chain);
 	__collate_chain_pri_table[chain_index].prim = prim_pri;
 	__collate_chain_pri_table[chain_index++].sec = sec_pri++;
 }
