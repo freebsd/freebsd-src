@@ -61,10 +61,14 @@ will thus inherit and share all the segments the parent process owns,
 whether they are normally shareable or not.  The stack segment is
 not split (both the parent and child return on the same stack) and thus
 .Fn rfork
-with the RFMEM flag may not generally be called directly from a high level
-language.  For example, you may not call it directly from C.
+with the RFMEM flag may not generally be called directly from high level
+languages including C.
 May be set only with
 .Dv RFPROC .
+A helper function is provided to assist with this problem and will cause
+the new process to run on the provided stack.  See
+.Fn rfork_thread 3
+for information.
 .It RFSIGSHARE
 If set, the kernel will force sharing the sigacts structure between the
 child and the parent.
@@ -145,7 +149,8 @@ There is insufficient swap space for the new process.
 .Xr fork 2 ,
 .Xr intro 2 ,
 .Xr minherit 2 ,
-.Xr vfork 2
+.Xr vfork 2 ,
+.Xr rfork_thread 3
 .Sh BUGS
 .Fx
 does not yet implement a native
@@ -157,6 +162,10 @@ with RFMEM.  A native port of the linux threads library,
 contains a working
 .Fn clone
 call that utilizes RFMEM.
+The
+.Fn rfork_thread
+library call can often be used instead of
+.Fn clone .
 .Sh HISTORY
 The
 .Fn rfork
