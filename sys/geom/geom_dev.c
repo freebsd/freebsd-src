@@ -244,6 +244,7 @@ g_dev_close(dev_t dev, int flags, int fmt, struct thread *td)
 	return (error);
 }
 
+MALLOC_DEFINE(M_GEOMGIO, "GEOMGIO", "Geom data structures");
 /*
  * XXX: Until we have unmessed the ioctl situation, there is a race against
  * XXX: a concurrent orphanization.  We cannot close it by holding topology
@@ -272,7 +273,6 @@ g_dev_ioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
 	    ("Consumer with zero access count in g_dev_ioctl"));
 	DROP_GIANT();
 
-	gio = NULL;
 	i = IOCPARM_LEN(cmd);
 	switch (cmd) {
 	case DIOCGSECTORSIZE:
@@ -314,7 +314,7 @@ g_dev_ioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
 		break;
 
 	default:
-		gio = g_malloc(sizeof *gio, M_WAITOK | M_ZERO);
+		gio = malloc(sizeof *gio, M_GEOMGIO, M_WAITOK | M_ZERO);
 		gio->cmd = cmd;
 		gio->data = data;
 		gio->fflag = fflag;
@@ -354,7 +354,7 @@ g_dev_ioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
 		error = ENOTTY;
 	}
 	if (gio != NULL)
-		g_free(gio);
+		free(gio, M_GEOMGIO);
 	return (error);
 }
 

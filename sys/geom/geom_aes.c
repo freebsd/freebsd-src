@@ -251,11 +251,9 @@ g_aes_orphan(struct g_consumer *cp)
 
 	gp = cp->geom;
 	sc = gp->softc;
-	gp->flags |= G_GEOM_WITHER;
-	error = cp->provider->error;
-	LIST_FOREACH(pp, &gp->provider, provider)
-		g_orphan_provider(pp, error);
+	g_wither_geom(gp, cp->provider->error);
 	bzero(sc, sizeof(struct g_aes_softc));	/* destroy evidence */
+	g_free(sc);
 	return;
 }
 
@@ -323,9 +321,11 @@ g_aes_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 		    strlen(aes_magic_test))) {
 			sc->keying = KEY_TEST;
 		} else {
+			g_free(buf);
 			g_free(sc);
 			break;
 		}
+		g_free(buf);
 		gp->softc = sc;
 		gp->access = g_aes_access;
 		sc->sectorsize = sectorsize;

@@ -509,11 +509,15 @@ static int
 g_ctl_ioctl(dev_t dev, u_long cmd, caddr_t data, int fflag, struct thread *td)
 {
 	int error;
+	u_long l1, l2;
 
 	switch(cmd) {
 	case GEOM_CTL:
 		DROP_GIANT();
+		l1 = M_GEOM[0].ks_memuse;
 		error = g_ctl_ioctl_ctl(dev, cmd, data, fflag, td);
+		l2 = M_GEOM[0].ks_memuse;
+		printf("%ld %ld -> %ld\n", l1, l2, l2 - l1);
 		PICKUP_GIANT();
 		break;
 	default:

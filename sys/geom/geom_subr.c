@@ -237,7 +237,9 @@ g_new_provider_event(void *arg, int flag)
 	struct g_class *mp;
 	struct g_provider *pp;
 	struct g_consumer *cp;
+	struct g_geom *gp;
 	int i;
+	u_long l1, l2;
 
 	g_topology_assert();
 	if (flag == EV_CANCEL)
@@ -254,7 +256,12 @@ g_new_provider_event(void *arg, int flag)
 				i = 0;
 		if (!i)
 			continue;
-		mp->taste(mp, pp, 0);
+		l1 = M_GEOM[0].ks_memuse;
+		gp = mp->taste(mp, pp, 0);
+		l2 = M_GEOM[0].ks_memuse;
+		if (l1 != l2)
+			printf("%s %p %lu %lu -> %lu\n",
+				mp->name, gp, l1, l2, l2 - l1);
 		g_topology_assert();
 	}
 }
@@ -595,20 +602,10 @@ g_std_done(struct bio *bp)
 void
 g_std_spoiled(struct g_consumer *cp)
 {
-	struct g_geom *gp;
-	struct g_provider *pp;
 
 	g_trace(G_T_TOPOLOGY, "g_std_spoiled(%p)", cp);
 	g_topology_assert();
-	g_detach(cp);
-	gp = cp->geom;
-	LIST_FOREACH(pp, &gp->provider, provider)
-		g_orphan_provider(pp, ENXIO);
-	g_destroy_consumer(cp);
-	if (LIST_EMPTY(&gp->provider) && LIST_EMPTY(&gp->consumer))
-		g_destroy_geom(gp);
-	else
-		gp->flags |= G_GEOM_WITHER;
+	g_wither_geom(cp->geom, ENXIO);
 }
 
 /*
