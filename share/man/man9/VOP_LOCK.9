@@ -42,13 +42,13 @@
 .In sys/lock.h
 .In sys/vnode.h
 .Ft int
-.Fn VOP_LOCK "struct vnode *vp" "int flags" "struct proc *p"
+.Fn VOP_LOCK "struct vnode *vp" "int flags" "struct thread *td"
 .Ft int
-.Fn VOP_UNLOCK "struct vnode *vp" "int flags" "struct proc *p"
+.Fn VOP_UNLOCK "struct vnode *vp" "int flags" "struct thread *td"
 .Ft int
-.Fn VOP_ISLOCKED "struct vnode *vp" "struct proc *p"
+.Fn VOP_ISLOCKED "struct vnode *vp" "struct thread *td"
 .Ft int
-.Fn vn_lock "struct vnode *vp" "int flags" "struct proc *p"
+.Fn vn_lock "struct vnode *vp" "int flags" "struct thread *td"
 .Sh DESCRIPTION
 These calls are used to serialize access to the filesystem, such as
 to prevent two writes to the same file from happening at the
@@ -90,8 +90,8 @@ with these control flags:
 .It Dv LK_RETRY Ta "Retry until locked"
 .It Dv LK_NOOBJ Ta "Don't create object"
 .El
-.It Ar p
-process context to use for the locks
+.It Ar td
+thread context to use for the locks
 .El
 .Pp
 Kernel code should use
