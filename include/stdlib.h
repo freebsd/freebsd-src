@@ -163,6 +163,7 @@ int	 radixsort __P((const unsigned char **, int, const unsigned char *,
 int	 sradixsort __P((const unsigned char **, int, const unsigned char *,
 	    unsigned));
 long	 random __P((void));
+void    *reallocf __P((void *, size_t));
 char	*realpath __P((const char *, char resolved_path[]));
 char	*setstate __P((char *));
 void	 srandom __P((unsigned long));
