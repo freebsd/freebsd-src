@@ -25,7 +25,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id$
+ *	$Id: ems.h,v 1.1 1997/09/30 22:03:45 jlemon Exp $
  */
 
 #ifndef EMS_H
@@ -36,7 +36,7 @@
 /* Global definitions, some of them will be configurable in the future */
 
 #define EMS_NUM_HANDLES		256		/* Includes OS handle 0 */
-#define EMS_MAXSIZE		1024 		/* In kbytes */
+#define EMS_MAXSIZE		10240 		/* In kbytes */
 #define EMS_MAX_PHYS		4		/* Frame is 64kB */
 #define EMS_FRAME_ADDR		0xe0000
 #define EMS_VERSION		0x40		/* Version 4.0 */
