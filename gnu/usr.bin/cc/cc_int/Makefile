@@ -47,15 +47,15 @@ insn-$F.c: ${.OBJDIR}/../cc_tools/gen$F ${MD_FILE}
 #	shared between the drivers
 SRCS+=	multilib.h choose-temp.c obstack.c prefix.c pexecute.c version.c mbchar.c concat.c make-temp-file.c
 #	C_AND_OBJC_OBJS
-#SRCS+=	attribs.o c-errors.o c-lex.o c-pragma.o c-decl.o c-typeck.o \
-#	c-convert.o c-aux-info.o c-common.o c-format.o c-semantics.o \
-#	c-objc-common.o
+#SRCS+=	attribs.c c-errors.c c-lex.c c-pragma.c c-decl.c c-typeck.c \
+#	c-convert.c c-aux-info.c c-common.c c-format.c c-semantics.c \
+#	c-objc-common.c
 
 #	XXX: shared by cc1, cc1obj & cpp0
 #	cc1plus seems to be able to tolerate these here,
 #	BUT only if the right .o's are specified in cc1plus/Makefile
 SRCS+=	c-typeck.c \
-		c-errors.o c-pragma.o c-convert.o c-aux-info.o c-common.o c-format.o c-semantics.o c-objc-common.o
+		c-errors.c c-pragma.c c-convert.c c-aux-info.c c-common.c c-format.c c-semantics.c c-objc-common.c
 
 #	libbackend
 SRCS+=	builtins.c diagnostic.c doloop.c dominance.c et-forest.c \
