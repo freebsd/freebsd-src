@@ -129,10 +129,6 @@ ntfs_nthashrem(ip)
 	if (ip->i_flag & IN_HASHED) {
 		ip->i_flag &= ~IN_HASHED;
 		LIST_REMOVE(ip, i_hash);
-#ifdef DIAGNOSTIC
-		ip->i_hash.le_next = NULL;
-		ip->i_hash.le_prev = NULL;
-#endif
 	}
 	mtx_exit(&ntfs_nthash_mtx, MTX_DEF);
 }
