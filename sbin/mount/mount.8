@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)mount.8	8.8 (Berkeley) 6/16/94
-.\"	$Id: mount.8,v 1.24 1998/10/16 00:06:56 des Exp $
+.\"	$Id: mount.8,v 1.25 1999/04/08 13:59:42 ghelmer Exp $
 .\"
 .Dd June 16, 1994
 .Dt MOUNT 8
@@ -101,6 +101,8 @@ caution).
 Options are specified with a
 .Fl o
 flag followed by a comma separated string of options.
+In case of conflicting options being specified, the rightmost option
+takes effect.
 The following options are available:
 .Bl -tag -width indent
 .It async
@@ -112,12 +114,23 @@ This is a
 flag to set,
 and should not be used unless you are prepared to recreate the file
 system should your system crash.
+.It current
+When used with the
+.Fl u
+flag, this is the same as specifying the options currently in effect for
+the mounted filesystem.
 .It force
 The same as
 .Fl f ;
 forces the revocation of write access when trying to downgrade
 a filesystem mount status from read-write to read-only. Also
 forces the R/W mount of an unclean filesystem (dangerous; use with caution).
+.It fstab
+When used with the
+.Fl u
+flag, this is the same as specifying all the options listed in the
+.Xr fstab 5
+file for the filesystem.
 .It noatime
 Do not update the file access time when reading from a file. This option
 is useful on filesystems where there are large numbers of files and
@@ -287,13 +300,9 @@ An attempt to change from read-write to read-only will fail if any
 files on the filesystem are currently open for writing unless the
 .Fl f
 flag is also specified.
-The set of options is determined by first extracting the options
-for the file system from the
-.Xr fstab 5
-table,
-then applying any options specified by the
-.Fl o
-argument,
+The set of options is determined by applying the options specified 
+in the argument to 
+.Fl o 
 and finally applying the
 .Fl r
 or
