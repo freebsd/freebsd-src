@@ -31,7 +31,7 @@
 	set boot_userconfig
 
 	Requests that the kernel's interactive device configuration program
-	be run when the kernel is booted.
+	be run when the kernel is booted.  Currently a no-op.
 
 ################################################################################
 # Tset Sroot_disk_unit DForce the root disk unit number.
