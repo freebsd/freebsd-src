@@ -736,7 +736,7 @@ finduser(name, fuzzyp)
 		if (*p == (SpaceSub & 0177) || *p == '_')
 			*p = ' ';
 	}
-	(void) setpwent();
+	setpwent();
 	while ((pw = getpwent()) != NULL)
 	{
 		char buf[MAXNAME + 1];
