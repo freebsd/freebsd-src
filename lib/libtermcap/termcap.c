@@ -115,9 +115,9 @@ tgetent(char *bp, const char *name)
 		strncpy(pathbuf, cp, PBUFSIZ);	/* still can be tokenized */
 	pathbuf[PBUFSIZ - 1] = '\0';
 
-	/* XXX Should really be issetguid(), but we don't have that */
-	if (getuid() != geteuid() || getgid() != getegid())
+	if (issetugid())
 		strcpy(pathbuf, _PATH_DEF_SEC);
+
 	*fname++ = pathbuf;	/* tokenize path into vector of names */
 	while (*++p)
 		if (*p == ' ' || *p == ':') {
