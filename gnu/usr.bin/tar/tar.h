@@ -232,6 +232,7 @@ TAR_EXTERN int f_force_local;	/* --force-local */
 TAR_EXTERN int f_atime_preserve;/* --atime-preserve */
 TAR_EXTERN int f_compress_block; /* --compress-block */
 TAR_EXTERN int f_unlink;	/* --unlink */
+TAR_EXTERN int f_fast_read;	/* --fast-read */
 
 /*
  * We default to Unix Standard format rather than 4.2BSD tar format.
@@ -274,6 +275,10 @@ TAR_EXTERN char *gnu_dumpfile;
  */
 TAR_EXTERN char read_error_flag;
 
+/*
+ * global boolean, see name_match in tar.c
+ */
+extern int	nlpsfreed;
 
 /*
  * Declarations of functions available to the world.
