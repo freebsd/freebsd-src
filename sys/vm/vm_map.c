@@ -513,6 +513,7 @@ _vm_map_init(vm_map_t map, vm_offset_t min, vm_offset_t max)
 	map->min_offset = min;
 	map->max_offset = max;
 	map->first_free = &map->header;
+	map->flags = 0;
 	map->root = NULL;
 	map->timestamp = 0;
 }
