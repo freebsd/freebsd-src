@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)ffs_vfsops.c	8.31 (Berkeley) 5/20/95
- * $Id: ffs_vfsops.c,v 1.98 1999/05/08 06:40:22 phk Exp $
+ * $Id: ffs_vfsops.c,v 1.99 1999/05/31 11:29:24 phk Exp $
  */
 
 #include "opt_quota.h"
@@ -709,11 +709,11 @@ ffs_mountfs(devvp, mp, p, malloctype)
 			*lp++ = fs->fs_contigsumsize;
 	}
 	mp->mnt_data = (qaddr_t)ump;
-	mp->mnt_stat.f_fsid.val[0] = (long)dev;
-	if (fs->fs_id[0] != 0 && fs->fs_id[1] != 0)
-		mp->mnt_stat.f_fsid.val[1] = fs->fs_id[1];
-	else
-		mp->mnt_stat.f_fsid.val[1] = mp->mnt_vfc->vfc_typenum;
+	mp->mnt_stat.f_fsid.val[0] = fs->fs_id[0];
+	mp->mnt_stat.f_fsid.val[1] = fs->fs_id[1];
+	if (fs->fs_id[0] == 0 || fs->fs_id[1] == 0 || 
+	    vfs_getvfs(&mp->mnt_stat.f_fsid)) 
+		vfs_getnewfsid(mp);
 	mp->mnt_maxsymlinklen = fs->fs_maxsymlinklen;
 	mp->mnt_flag |= MNT_LOCAL;
 	ump->um_mountp = mp;
