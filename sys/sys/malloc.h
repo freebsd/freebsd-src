@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)malloc.h	8.3 (Berkeley) 1/12/94
- * $Id: malloc.h,v 1.8 1995/04/20 03:18:15 julian Exp $
+ * $Id: malloc.h,v 1.9 1995/09/14 16:25:06 wollman Exp $
  */
 
 #ifndef _SYS_MALLOC_H_
@@ -121,7 +121,8 @@
 #define M_IPFW		77	/* IpFw/IpAcct chain's */
 #define M_DEVL		78	/* isa_device lists in userconfig() */
 #define M_PKTCLASS	79	/* structures used in packet classifier */
-#define	M_LAST		80	/* Must be last type + 1 */
+#define	M_SYSCTL	80	/* sysctl internal magic */
+#define	M_LAST		81	/* Must be last type + 1 */
 
 #define INITKMEMNAMES { \
 	"free",		/* 0 M_FREE */ \
@@ -199,6 +200,7 @@
 	"IpFw/IpAcct",	/* 77 M_IPFW */ \
 	"isa_devlist",	/* 78 M_DEVL */ \
 	"PktClass",	/* 79 M_PKTCLASS */ \
+	"sysctl",	/* 80 M_SYSCTL */ \
 }
 
 struct kmemstats {
