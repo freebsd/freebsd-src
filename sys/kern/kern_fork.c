@@ -626,11 +626,15 @@ again:
 	 * Copy traceflag and tracefile if enabled.
 	 */
 	mtx_lock(&ktrace_mtx);
-	KASSERT(p2->p_tracep == NULL, ("new process has a ktrace vnode"));
+	KASSERT(p2->p_tracevp == NULL, ("new process has a ktrace vnode"));
 	if (p1->p_traceflag & KTRFAC_INHERIT) {
 		p2->p_traceflag = p1->p_traceflag;
-		if ((p2->p_tracep = p1->p_tracep) != NULL)
-			VREF(p2->p_tracep);
+		if ((p2->p_tracevp = p1->p_tracevp) != NULL) {
+			VREF(p2->p_tracevp);
+			KASSERT(p1->p_tracecred != NULL,
+			    ("ktrace vnode with no cred"));
+			p2->p_tracecred = crhold(p1->p_tracecred);
+		}
 	}
 	mtx_unlock(&ktrace_mtx);
 #endif

@@ -625,7 +625,7 @@ fill_kinfo_proc(p, kp)
 	kp->ki_args = p->p_args;
 	kp->ki_textvp = p->p_textvp;
 #ifdef KTRACE
-	kp->ki_tracep = p->p_tracep;
+	kp->ki_tracep = p->p_tracevp;
 	mtx_lock(&ktrace_mtx);
 	kp->ki_traceflag = p->p_traceflag;
 	mtx_unlock(&ktrace_mtx);
