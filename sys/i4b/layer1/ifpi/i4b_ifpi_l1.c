@@ -36,9 +36,8 @@
  *---------------------------------------------------------------------------*/
 
 #include "ifpi.h"
-#include "pci.h"
 
-#if (NIFPI > 0) && (NPCI > 0)
+#if (NIFPI > 0)
 
 #include <sys/param.h>
 #include <sys/systm.h>

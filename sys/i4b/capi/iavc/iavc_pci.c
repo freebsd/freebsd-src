@@ -30,9 +30,8 @@
 
 #include "iavc.h"
 #include "i4bcapi.h"
-#include "pci.h"
 
-#if (NIAVC > 0) && (NI4BCAPI > 0) && (NPCI > 0)
+#if (NIAVC > 0) && (NI4BCAPI > 0)
 
 #include <sys/param.h>
 #include <sys/kernel.h>

@@ -41,7 +41,6 @@
 
 #include "itjc.h"
 #include "opt_i4b.h"
-#include "pci.h"
 
 #if (NITJC > 0)
 

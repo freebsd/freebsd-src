@@ -35,9 +35,8 @@
 
 #include "iwic.h"
 #include "opt_i4b.h"
-#include "pci.h"
 
-#if (NIWIC > 0) && (NPCI > 0)
+#if (NIWIC > 0)
 
 #include <sys/param.h>
 #include <sys/kernel.h>
