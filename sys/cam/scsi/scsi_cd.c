@@ -101,7 +101,8 @@ typedef enum {
 	CD_FLAG_RETRY_UA	= 0x0200,
 	CD_FLAG_VALID_MEDIA	= 0x0400,
 	CD_FLAG_VALID_TOC	= 0x0800,
-	CD_FLAG_OPEN		= 0x1000
+	CD_FLAG_OPEN		= 0x1000,
+	CD_FLAG_SCTX_INIT	= 0x2000
 } cd_flags;
 
 typedef enum {
@@ -469,7 +470,9 @@ cdcleanup(struct cam_periph *periph)
 
 	xpt_print_path(periph->path);
 	printf("removing device entry\n");
-	if (sysctl_ctx_free(&softc->sysctl_ctx) != 0) {
+
+	if ((softc->flags & CD_FLAG_SCTX_INIT) != 0
+	    && sysctl_ctx_free(&softc->sysctl_ctx) != 0) {
 		xpt_print_path(periph->path);
 		printf("can't remove sysctl context\n");
 	}
@@ -630,6 +633,7 @@ cdsysctlinit(void *context, int pending)
 	snprintf(tmpstr2, sizeof(tmpstr2), "%d", periph->unit_number);
 
 	sysctl_ctx_init(&softc->sysctl_ctx);
+	softc->flags |= CD_FLAG_SCTX_INIT;
 	softc->sysctl_tree = SYSCTL_ADD_NODE(&softc->sysctl_ctx,
 		SYSCTL_STATIC_CHILDREN(_kern_cam_cd), OID_AUTO,
 		tmpstr2, CTLFLAG_RD, 0, tmpstr);
