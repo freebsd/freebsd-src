@@ -955,6 +955,7 @@ main(int ac, char **av)
 	/* drop */
 	setegid(getgid());
 	setgid(getgid());
+	setuid(geteuid());
 
 	SSLeay_add_all_algorithms();
 
