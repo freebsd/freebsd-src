@@ -1,5 +1,5 @@
 #	@(#)Makefile	8.2 (Berkeley) 1/4/94
-#	$Id: Makefile,v 1.92 1999/01/17 22:35:09 dt Exp $
+#	$Id: Makefile,v 1.93 1999/03/11 15:12:28 phk Exp $
 #
 # Doing a make install builds /usr/include
 #
@@ -63,6 +63,7 @@ osreldate.h:	${.CURDIR}/../sys/conf/newvers.sh \
 	echo \#'define __FreeBSD_version' $$RELDATE >> osreldate.h
 
 beforeinstall: ${SHARED}
+	@rm -f ${DESTDIR}/usr/include/timepps.h
 	cd ${.CURDIR}; \
 		${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 \
 		${FILES} ${DESTDIR}/usr/include
