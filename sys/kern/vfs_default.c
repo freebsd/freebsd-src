@@ -93,7 +93,7 @@ static struct vnodeopv_entry_desc default_vnodeop_entries[] = {
 	{ &vop_poll_desc,		(vop_t *) vop_nopoll },
 	{ &vop_putpages_desc,		(vop_t *) vop_stdputpages },
 	{ &vop_readlink_desc,		(vop_t *) vop_einval },
-	{ &vop_revoke_desc,		(vop_t *) vop_revoke },
+	{ &vop_revoke_desc,		(vop_t *) vop_panic },
 	{ &vop_strategy_desc,		(vop_t *) vop_nostrategy },
 	{ &vop_unlock_desc,		(vop_t *) vop_stdunlock },
 	{ NULL, NULL }
