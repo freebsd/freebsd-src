@@ -61,9 +61,11 @@ static struct radix_node
 static int	max_keylen;
 static struct radix_mask *rn_mkfreelist;
 static struct radix_node_head *mask_rnhead;
-static char *addmask_key;
-static char normal_chars[] = {0, 0x80, 0xc0, 0xe0, 0xf0, 0xf8, 0xfc, 0xfe, -1};
-static char *rn_zeros, *rn_ones;
+/*
+ * Work area -- the following point to 3 buffers of size max_keylen,
+ * allocated in this order in a block of memory malloc'ed by rn_init.
+ */
+static char *rn_zeros, *rn_ones, *addmask_key;
 
 #define MKGet(m) {						\
 	if (rn_mkfreelist) {					\
@@ -469,10 +471,9 @@ rn_addmask(n_arg, search, skip)
 		x = 0;
 	if (x || search)
 		return (x);
-	R_Malloc(x, struct radix_node *, max_keylen + 2 * sizeof (*x));
+	R_Zalloc(x, struct radix_node *, max_keylen + 2 * sizeof (*x));
 	if ((saved_x = x) == 0)
 		return (0);
-	bzero(x, max_keylen + 2 * sizeof (*x));
 	netmask = cp = (caddr_t)(x + 2);
 	bcopy(addmask_key, cp, mlen);
 	x = rn_insert(cp, mask_rnhead, &maskduplicated, x);
@@ -483,11 +484,19 @@ rn_addmask(n_arg, search, skip)
 	}
 	/*
 	 * Calculate index of mask, and check for normalcy.
+	 * First find the first byte with a 0 bit, then if there are
+	 * more bits left (remember we already trimmed the trailing 0's),
+	 * the pattern must be one of those in normal_chars[], or we have
+	 * a non-contiguous mask.
 	 */
-	cplim = netmask + mlen; isnormal = 1;
+	cplim = netmask + mlen;
+	isnormal = 1;
 	for (cp = netmask + skip; (cp < cplim) && *(u_char *)cp == 0xff;)
 		cp++;
 	if (cp != cplim) {
+		static char normal_chars[] = {
+			0, 0x80, 0xc0, 0xe0, 0xf0, 0xf8, 0xfc, 0xfe, 0xff};
+
 		for (j = 0x80; (j & *cp) != 0; j >>= 1)
 			b++;
 		if (*cp != normal_chars[b] || cp != (cplim - 1))
@@ -1027,10 +1036,9 @@ rn_inithead(head, off)
 	register struct radix_node *t, *tt, *ttt;
 	if (*head)
 		return (1);
-	R_Malloc(rnh, struct radix_node_head *, sizeof (*rnh));
+	R_Zalloc(rnh, struct radix_node_head *, sizeof (*rnh));
 	if (rnh == 0)
 		return (0);
-	bzero(rnh, sizeof (*rnh));
 #ifdef _KERNEL
 	RADIX_NODE_HEAD_LOCK_INIT(rnh);
 #endif
