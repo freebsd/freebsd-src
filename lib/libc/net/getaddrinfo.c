@@ -78,7 +78,6 @@
  * diffs with other KAME platforms:
  * - other KAME platforms already nuked FAITH ($GAI), but as FreeBSD
  *   4.0-RELEASE supplies it, we still have the code here.
- * - EAI_RESNULL support
  * - AI_ADDRCONFIG support is supplied
  * - EDNS0 support is not available due to resolver differences
  * - some of FreeBSD style (#define tabify and others)
@@ -255,9 +254,6 @@ static char *ai_errlist[] = {
 	"System error returned in errno", 		/* EAI_SYSTEM     */
 	"Invalid value for hints",			/* EAI_BADHINTS	  */
 	"Resolved protocol is unknown",			/* EAI_PROTOCOL   */
-#ifdef EAI_RESNULL
-	"Argument res is NULL",				/* EAI_RESNULL	  */
-#endif
 	"Unknown error", 				/* EAI_MAX        */
 };
 
@@ -397,10 +393,6 @@ getaddrinfo(hostname, servname, hints, res)
 
 	if (hostname == NULL && servname == NULL)
 		return EAI_NONAME;
-#ifdef EAI_RESNULL
-	if (res == NULL)
-		return EAI_RESNULL; /* xxx */
-#endif
 	if (hints) {
 		/* error check for hints */
 		if (hints->ai_addrlen || hints->ai_canonname ||
