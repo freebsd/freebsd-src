@@ -583,14 +583,14 @@ ata_pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
 	    return 0;
 
 	if (masterdev) {
-#ifdef __i386__
+#ifdef __alpha__
+	    return alpha_platform_alloc_ide_intr(unit);
+#else
 	    int irq = (unit == 0 ? 14 : 15);
 
 	    return BUS_ALLOC_RESOURCE(device_get_parent(dev), child,
 				      SYS_RES_IRQ, rid,
 				      irq, irq, 1, flags & ~RF_SHAREABLE);
-#else
-	    return alpha_platform_alloc_ide_intr(unit);
 #endif
 	} else {
 	    /* primary and secondary channels share the same interrupt */
@@ -650,11 +650,11 @@ ata_pci_release_resource(device_t dev, device_t child, int type, int rid,
 	    return ENOENT;
 
 	if (masterdev) {
-#ifdef __i386__
+#ifdef __alpha__
+	    return alpha_platform_release_ide_intr(unit, r);
+#else
 	    return BUS_RELEASE_RESOURCE(device_get_parent(dev),
 					child, SYS_RES_IRQ, rid, r);
-#else
-	    return alpha_platform_release_ide_intr(unit, r);
 #endif
 	}
 	else {
@@ -674,11 +674,11 @@ ata_pci_setup_intr(device_t dev, device_t child, struct resource *irq,
 		   void **cookiep)
 {
     if (pci_get_progif(dev) & PCIP_STORAGE_IDE_MASTERDEV) {
-#ifdef __i386__
+#ifdef __alpha__
+	return alpha_platform_setup_ide_intr(irq, intr, arg, cookiep);
+#else
 	return BUS_SETUP_INTR(device_get_parent(dev), child, irq,
 			      flags, intr, arg, cookiep);
-#else
-	return alpha_platform_setup_ide_intr(irq, intr, arg, cookiep);
 #endif
     }
     else
@@ -691,10 +691,10 @@ ata_pci_teardown_intr(device_t dev, device_t child, struct resource *irq,
 		      void *cookie)
 {
     if (pci_get_progif(dev) & PCIP_STORAGE_IDE_MASTERDEV) {
-#ifdef __i386__
-	return BUS_TEARDOWN_INTR(device_get_parent(dev), child, irq, cookie);
-#else
+#ifdef __alpha__
 	return alpha_platform_teardown_ide_intr(irq, cookie);
+#else
+	return BUS_TEARDOWN_INTR(device_get_parent(dev), child, irq, cookie);
 #endif
     }
     else
