@@ -54,7 +54,7 @@
 </sect1>
 
 <!--
-	The "What's New" section of the release notes.  
+	The "What's New" section of the release notes. 
 
 	Guidelines for new entries:
 
@@ -178,7 +178,7 @@
     Alpha machine without clobbering the TOY clock setting, &os; now
     supports a boot environment variable
     <varname>clock_compat_osf1</varname> to use Tru64's year values.  By setting this
-    variable to <literal>1</literal> from the <literal>ok</literal> prompt of the loader or 
+    variable to <literal>1</literal> from the <literal>ok</literal> prompt of the loader or
     by putting <literal>clock_compat_osf1=1</literal> in
     <filename>/boot/loader.conf</filename>, an Alpha can be dual booted
     without <quote>time warps</quote>.</para>
@@ -187,8 +187,8 @@
       <title>Processor/Motherboard Support</title>
 
       <para arch="alpha">The machine dependent code has been corrected
-      to allow &os; to run on Alphaserver 2100 and 2100A machines based on EV5 
-      Alpha processors. Machines with EV4 Alpha processors were already 
+      to allow &os; to run on Alphaserver 2100 and 2100A machines based on EV5
+      Alpha processors. Machines with EV4 Alpha processors were already
       supported.</para>
 
     </sect3>
@@ -294,7 +294,7 @@
       fixed.</para>
 
       <para>TCP's default buffer sizes, controlled by the
-      <varname>net.inet.tcp.sendspace</varname> and 
+      <varname>net.inet.tcp.sendspace</varname> and
       <varname>net.inet.tcp.recvspace</varname> sysctl variables, have
       been increased to 32K and 64K respectively.  Previously, the
       default for both buffer sizes was 16K.  To try to avoid
@@ -341,8 +341,8 @@
       supports the Compaq SmartRAID 5* family of RAID controllers
       (5300, 532, 5i).</para>
 
-      <para arch="alpha">Floppy access on the Alphaserver DS10 and DS20 
-      is broken. Use results in corrupted floppies and/or machine 
+      <para arch="alpha">Floppy access on the Alphaserver DS10 and DS20
+      is broken. Use results in corrupted floppies and/or machine
       crashes.</para>
 
       <para>The &man.isp.4; driver now supports the Qlogic 2300 and
@@ -405,7 +405,7 @@
       IPv6.</para>
 
       <sect4 arch="i386">
-        <title>isdn4bsd</title>
+	<title>isdn4bsd</title>
 
 	<para>&man.isdnphone.8; now supports a <option>-k</option> option for
 	sending messages via the keypad facility to a PBX or exchange
@@ -505,7 +505,7 @@
     locale name has been changed to
     <literal>en_US.ISO8859-1</literal>.  Entries in
     <filename>/etc/locale.alias</filename>,
-    <filename>/etc/man.alias</filename>, and 
+    <filename>/etc/man.alias</filename>, and
     <filename>/etc/nls.alias</filename> provide backward
     compatibility.  The table below summarizes the locale changes:
 
@@ -588,7 +588,7 @@
 
     <para>&man.route.8; now uses
     <literal><replaceable>host</replaceable>/<replaceable>bits</replaceable></literal>
-    syntax instead of 
+    syntax instead of
     <literal><replaceable>net</replaceable>/<replaceable>bits</replaceable></literal>
     syntax, for compatibility with &man.netstat.1;.</para>
 
@@ -653,11 +653,11 @@
       supports authentication forwarding for DSA keys, and an experimental
       <application>SOCKS4</application> proxy has been added to
       &man.ssh.1;.
-        <note>
+	<note>
 	  <para><literal>Protocol 1,2</literal> remains the default
-          protocol setting in
-          <filename>/etc/ssh/ssh_config</filename>.  In &os; -CURRENT,
-          the default is <literal>Protocol 2,1</literal>.</para>
+	  protocol setting in
+	  <filename>/etc/ssh/ssh_config</filename>.  In &os; -CURRENT,
+	  the default is <literal>Protocol 2,1</literal>.</para>
 	</note>
       </para>
 
@@ -676,14 +676,14 @@
       <filename>tzdata2001d</filename> release.</para>
 
       <sect4>
-        <title>CVS</title>
-      
+	<title>CVS</title>
+     
 	<para><application>CVS</application> has been updated to
 	1.11.1p1.</para>
 
-        <para>&man.cvs.1; now supports a <option>-T</option> option to
-        update a sandbox's <filename>CVS/Template</filename> file from
-        the repository.</para>
+	<para>&man.cvs.1; now supports a <option>-T</option> option to
+	update a sandbox's <filename>CVS/Template</filename> file from
+	the repository.</para>
 
 	<para>&man.cvs.1; <literal>diff</literal> now supports the
 	<option>-j</option> option to perform differences against a
