@@ -34,7 +34,7 @@
  * SUCH DAMAGE.
  *
  *	from: @(#)clock.c	7.2 (Berkeley) 5/12/91
- *	$Id: clock.c,v 1.71 1999/06/24 08:32:52 kato Exp $
+ *	$Id: clock.c,v 1.72 1999/06/28 13:11:16 kato Exp $
  */
 
 /*
@@ -254,48 +254,26 @@ clkintr(struct clockframe frame)
 		break;
 
 	case ACQUIRE_PENDING:
-		setdelayed();
-		timer0_max_count = TIMER_DIV(new_rate);
 		disable_intr();
+		i8254_offset = i8254_get_timecount(NULL);
+		i8254_lastcount = 0;
+		timer0_max_count = TIMER_DIV(new_rate);
 		outb(TIMER_MODE, TIMER_SEL0 | TIMER_RATEGEN | TIMER_16BIT);
 		outb(TIMER_CNTR0, timer0_max_count & 0xff);
 		outb(TIMER_CNTR0, timer0_max_count >> 8);
 		enable_intr();
-		timer0_prescaler_count = 0;
 		timer_func = new_function;
 		timer0_state = ACQUIRED;
+		setdelayed();
 		break;
 
 	case RELEASE_PENDING:
 		if ((timer0_prescaler_count += timer0_max_count)
 		    >= hardclock_max_count) {
-			timer0_prescaler_count -= hardclock_max_count;
-#ifdef FIXME
-			/*
-			 * XXX: This magic doesn't work, but It shouldn't be 
-			 * needed now anyway since we will not be able to 
-			 * aquire the i8254 if it is used for timecounting.
-			 */
-			/*
-			 * See microtime.s for this magic.
-			 */
-#ifdef PC98
-			if (pc98_machine_type & M_8M) {
-				/* PC98_8M */
-				time.tv_usec += (16411 * timer0_prescaler_count) >> 15;
-			} else {
-				time.tv_usec += (6667 * timer0_prescaler_count) >> 14;
-			}
-#else /* IBM-PC */
-			time.tv_usec += (27465 * timer0_prescaler_count) >> 15;
-#endif
-			if (time.tv_usec >= 1000000)
-				time.tv_usec -= 1000000;
-#endif
-			hardclock(&frame);
-			setdelayed();
-			timer0_max_count = hardclock_max_count;
 			disable_intr();
+			i8254_offset = i8254_get_timecount(NULL);
+			i8254_lastcount = 0;
+			timer0_max_count = hardclock_max_count;
 			outb(TIMER_MODE,
 			     TIMER_SEL0 | TIMER_RATEGEN | TIMER_16BIT);
 			outb(TIMER_CNTR0, timer0_max_count & 0xff);
@@ -304,6 +282,8 @@ clkintr(struct clockframe frame)
 			timer0_prescaler_count = 0;
 			timer_func = hardclock;
 			timer0_state = RELEASED;
+			hardclock(&frame);
+			setdelayed();
 		}
 		break;
 	}
@@ -318,8 +298,6 @@ acquire_timer0(int rate, void (*function) __P((struct clockframe *frame)))
 	static int old_rate;
 
 	if (rate <= 0 || rate > TIMER0_MAX_FREQ)
-		return (-1);
-	if (strcmp(timecounter->tc_name, "i8254") == 0)
 		return (-1);
 	switch (timer0_state) {
 
@@ -1458,7 +1436,7 @@ sysctl_machdep_i8254_freq SYSCTL_HANDLER_ARGS
 	 * is is too generic.  Should use it everywhere.
 	 */
 	freq = timer_freq;
-	error = sysctl_handle_opaque(oidp, &freq, sizeof freq, req);
+	error = sysctl_handle_int(oidp, &freq, sizeof(freq), req);
 	if (error == 0 && req->newptr != NULL) {
 		if (timer0_state != RELEASED)
 			return (EBUSY);	/* too much trouble to handle */
@@ -1470,7 +1448,7 @@ sysctl_machdep_i8254_freq SYSCTL_HANDLER_ARGS
 }
 
 SYSCTL_PROC(_machdep, OID_AUTO, i8254_freq, CTLTYPE_INT | CTLFLAG_RW,
-	    0, sizeof(u_int), sysctl_machdep_i8254_freq, "I", "");
+    0, sizeof(u_int), sysctl_machdep_i8254_freq, "I", "");
 
 static int
 sysctl_machdep_tsc_freq SYSCTL_HANDLER_ARGS
@@ -1478,10 +1456,10 @@ sysctl_machdep_tsc_freq SYSCTL_HANDLER_ARGS
 	int error;
 	u_int freq;
 
-	if (!tsc_present)
+	if (tsc_timecounter.tc_frequency == 0)
 		return (EOPNOTSUPP);
 	freq = tsc_freq;
-	error = sysctl_handle_opaque(oidp, &freq, sizeof freq, req);
+	error = sysctl_handle_int(oidp, &freq, sizeof(freq), req);
 	if (error == 0 && req->newptr != NULL) {
 		tsc_freq = freq;
 		tsc_timecounter.tc_frequency = tsc_freq;
@@ -1491,7 +1469,7 @@ sysctl_machdep_tsc_freq SYSCTL_HANDLER_ARGS
 }
 
 SYSCTL_PROC(_machdep, OID_AUTO, tsc_freq, CTLTYPE_INT | CTLFLAG_RW,
-	    0, sizeof(u_int), sysctl_machdep_tsc_freq, "I", "");
+    0, sizeof(u_int), sysctl_machdep_tsc_freq, "I", "");
 
 static unsigned
 i8254_get_timecount(struct timecounter *tc)
