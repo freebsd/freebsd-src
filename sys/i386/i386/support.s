@@ -30,9 +30,10 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: support.s,v 1.41.2.5 1997/01/14 16:17:21 bde Exp $
+ *	$Id: support.s,v 1.41.2.6 1997/01/25 03:23:09 dyson Exp $
  */
 
+#include "npx.h"
 #include "opt_cpu.h"
 
 #include <machine/asmacros.h>
@@ -61,9 +62,11 @@ _copyout_vector:
 	.globl	_ovbcopy_vector
 _ovbcopy_vector:
 	.long	_generic_bcopy
+#if defined(I586_CPU) && NNPX > 0
 kernel_fpu_lock:
 	.byte	0xfe
 	.space	3
+#endif
 
 	.text
 
@@ -190,7 +193,7 @@ do0:
 	ret
 #endif
 
-#ifdef I586_CPU
+#if defined(I586_CPU) && NNPX > 0
 ENTRY(i586_bzero)
 	movl	4(%esp),%edx
 	movl	8(%esp),%ecx
@@ -330,7 +333,7 @@ intreg_i586_bzero:
 	stosb
 	popl	%edi
 	ret
-#endif /* I586_CPU */
+#endif /* I586_CPU && NNPX > 0 */
 
 /* fillw(pat, base, cnt) */
 ENTRY(fillw)
@@ -433,7 +436,7 @@ ENTRY(generic_bcopy)
 	cld
 	ret
 
-#ifdef I586_CPU
+#if defined(I586_CPU) && NNPX > 0
 ENTRY(i586_bcopy)
 	pushl	%esi
 	pushl	%edi
@@ -569,7 +572,7 @@ small_i586_bcopy:
 	popl	%esi
 	cld
 	ret
-#endif /* I586_CPU */
+#endif /* I586_CPU && NNPX > 0 */
 
 /*
  * Note: memcpy does not support overlapping copies
@@ -711,7 +714,7 @@ ENTRY(generic_copyout)
 3:
 	movl	%ebx,%ecx
 
-#ifdef I586_CPU
+#if defined(I586_CPU) && NNPX > 0
 	ALIGN_TEXT
 slow_copyout:
 #endif
@@ -743,7 +746,7 @@ copyout_fault:
 	movl	$EFAULT,%eax
 	ret
 
-#ifdef I586_CPU
+#if defined(I586_CPU) && NNPX > 0
 ENTRY(i586_copyout)
 	/*
 	 * Duplicated from generic_copyout.  Could be done a bit better.
@@ -795,7 +798,7 @@ ENTRY(i586_copyout)
 	call	_fastmove
 	addl	$4,%esp
 	jmp	done_copyout
-#endif /* I586_CPU */
+#endif /* I586_CPU && NNPX > 0 */
 
 /* copyin(from_user, to_kernel, len) */
 ENTRY(copyin)
@@ -820,7 +823,7 @@ ENTRY(generic_copyin)
 	cmpl	$VM_MAXUSER_ADDRESS,%edx
 	ja	copyin_fault
 
-#ifdef I586_CPU
+#if defined(I586_CPU) && NNPX > 0
 	ALIGN_TEXT
 slow_copyin:
 #endif
@@ -834,10 +837,10 @@ slow_copyin:
 	rep
 	movsb
 
-#if defined(I586_CPU)
+#if defined(I586_CPU) && NNPX > 0
 	ALIGN_TEXT
 done_copyin:
-#endif /* I586_CPU */
+#endif
 	popl	%edi
 	popl	%esi
 	xorl	%eax,%eax
@@ -854,7 +857,7 @@ copyin_fault:
 	movl	$EFAULT,%eax
 	ret
 
-#ifdef I586_CPU
+#if defined(I586_CPU) && NNPX > 0
 ENTRY(i586_copyin)
 	/*
 	 * Duplicated from generic_copyin.  Could be done a bit better.
@@ -887,9 +890,9 @@ ENTRY(i586_copyin)
 	call	_fastmove
 	addl	$8,%esp
 	jmp	done_copyin
-#endif /* I586_CPU */
+#endif /* I586_CPU && NNPX > 0 */
 
-#if defined(I586_CPU)
+#if defined(I586_CPU) && NNPX > 0
 /* fastmove(src, dst, len)
 	src in %esi
 	dst in %edi
@@ -1075,7 +1078,7 @@ fastmove_tail_fault:
 	movl	$0,PCB_ONFAULT(%edx)
 	movl	$EFAULT,%eax
 	ret
-#endif /* I586_CPU */
+#endif /* I586_CPU && NNPX > 0 */
 
 /*
  * fu{byte,sword,word} : fetch a byte (sword, word) from user memory
