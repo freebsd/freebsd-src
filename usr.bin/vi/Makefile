@@ -1,5 +1,5 @@
 #
-# $Id: Makefile,v 1.3 1996/11/01 08:34:51 peter Exp $
+# $Id: Makefile,v 1.4 1996/11/03 19:15:44 peter Exp $
 #
 # This has most of the glue needed to compile tknvi and the perl hooks,
 # but not all.
@@ -8,8 +8,8 @@
 SRCDIR=		${.CURDIR}/../../contrib/nvi
 
 TCLINTERP=	yes	#fine, in base tree, little cost
-#TKNVI=		tknvi	#not ready, needs X11, tk
-#PERLINTERP=	no	#not ready, needs perl5.002+
+#TKNVI=		tknvi	#not ready, needs X11, tk, doesn't quite work yet
+#PERLINTERP=	yes	#needs the perl5 v5.003 port
 
 #if using ncurses:
 #CFLAGS+=	-DSYSV_CURSES
@@ -37,34 +37,40 @@ CATALOGS= dutch english french german ru_SU.KOI8-R spanish swedish
 
 CFLAGS+=-I${.CURDIR} -I${SRCDIR} -I${SRCDIR}/include
 
-DPADD+= ${LIBCURSES} ${LIBTERMCAP}
-LDADD+=	-lcurses -ltermcap
+.if !defined(TKNVI)
+DPADD+=		${LIBCURSES} ${LIBTERMCAP}
+LDADD+=		-lcurses -ltermcap
+.endif
 
 .if defined(TKNVI)
-.PATH:	${SRCDIR}/tk
-#DPADD+=	?
-#LDADD+=	-ltk
+.PATH:		${SRCDIR}/tk
+LDADD+=		-L/usr/local/lib -L/usr/X11R6/lib -ltk41 -lX11
+CFLAGS+=	-I/usr/local/include -I/usr/X11R6/include
 .endif
 
 .if defined(TCLINTERP)
-.PATH:	${SRCDIR}/tcl_api
-DPADD+=	${LIBTCL} ${LIBM}
-LDADD+=	-ltcl -lm
-CFLAGS+= -DHAVE_TCL_INTERP
+.PATH:		${SRCDIR}/tcl_api
+DPADD+=		${LIBTCL} ${LIBM}
+LDADD+=		-ltcl -lm
+CFLAGS+=	-DHAVE_TCL_INTERP
 .endif
 
 .if defined(PERLINTERP)
-.PATH:	${SRCDIR}/perl_api
-#DPADD+=	?
-#LDADD+=	?
-CFLAGS+= -DHAVE_PERL_INTERP
+.PATH:		${SRCDIR}/perl_api
+LDADD+=	 /usr/local/lib/perl5/i386-freebsd/5.003/auto/DynaLoader/DynaLoader.a \
+	 -L/usr/local/lib/perl5/i386-freebsd/5.003/CORE -lperl -lcrypt
+CFLAGS+= -DHAVE_PERL_INTERP -I/usr/local/lib/perl5/i386-freebsd/5.003/CORE
 #CFLAGS+= -DHAVE_PERL_5_003_01	# If perl >= 5.03.01
+PERL=	/usr/local/bin/perl5.003
+PERLLIB=/usr/local/lib/perl5
 .endif
 
 CLEANFILES+=${EX}
 
 # Vi curses sources
+.if !defined(TKNVI)
 SRCS+=	cl_bsd.c cl_funcs.c cl_main.c cl_read.c cl_screen.c cl_term.c
+.endif
 
 # Vi Tk sources
 .if defined(TKNVI)
@@ -124,15 +130,15 @@ afterinstall:
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 \
 		${CATALOGS:S;^;${SRCDIR}/catalog/;} \
 		${DESTDIR}/usr/share/vi/catalog
-.if defined(PERLINTERP)
-	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 \
-		${SRCDIR}/perl_scripts/*.pl VI.pm \
-		${DESTDIR}/usr/share/vi/perl
-.endif
-.if defined(TCLINTERP)
 	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 \
 		${SRCDIR}/tcl_scripts/*.tcl \
 		${DESTDIR}/usr/share/vi/tcl
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 \
+		${SRCDIR}/perl_scripts/*.pl \
+		${DESTDIR}/usr/share/vi/perl
+.if defined(PERLINTERP)
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 444 VI.pm
+		${DESTDIR}/usr/share/vi/perl
 .endif
 
 .include <bsd.prog.mk>
