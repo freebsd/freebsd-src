@@ -425,6 +425,21 @@ options HZ=1000 # not compulsory but strongly recommended</programlisting>
       For more details, see security advisory <ulink
       url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:34.rpc.asc">FreeBSD-SA-02:34</ulink>.</para>
 
+    <para>&new.462; A bug that could allow local users to read and write
+      arbitrary blocks on an FFS filesystem has been corrected.  More
+      details can be found in security advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:35.ffs.asc">FreeBSD-SA-02:35</ulink>.</para>
+
+    <para>&new.462; A bug in the NFS server code, which could allow a remote
+      denial of service attack, has been fixed.  Security advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:36.nfs.asc">FreeBSD-SA-02:36</ulink>
+      has more details.</para>
+
+    <para>&new.462; A bug that could allow local users to panic a system using
+      the &man.kqueue.2; mechanism has been fixed.  More information
+      is contained in security advisory <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/advisories/FreeBSD-SA-02:37.kqueue.asc">FreeBSD-SA-02:37</ulink>.</para>
+
   </sect2>
 
   <sect2 id="userland">
