@@ -7,34 +7,8 @@ MLINKS=	init.8 securelevel.8
 BINMODE=500
 INSTALLFLAGS=-fschg
 CFLAGS+=-DDEBUGSHELL -DSECURE -DLOGIN_CAP -DCOMPAT_SYSV_INIT
-
-#.if exists(${.CURDIR}/../../secure) && !defined(NOCRYPT) && !defined(NOSECURE)
-#DISTRIBUTION=crypto
-#DPADD=	${LIBUTIL} ${DESCRYPTOBJDIR}/libdescrypt.a
-#LDADD=	-lutil -L${DESCRYPTOBJDIR} -ldescrypt
-#.else
-#DPADD=	${LIBUTIL} ${SCRYPTOBJDIR}/libscrypt.a
-#LDADD=	-lutil -L${SCRYPTOBJDIR} -lscrypt
-#.endif
-
-DPADD=	${LIBUTIL} ${SCRYPTOBJDIR}/libcrypt.a
-LDADD=	-lutil -L${SCRYPTOBJDIR} -lcrypt
-
-.if exists(${.OBJDIR}/../../lib/libcrypt)
-SCRYPTOBJDIR=	${.OBJDIR}/../../lib/libcrypt
-.else
-SCRYPTOBJDIR=	${.CURDIR}/../../lib/libcrypt
-.endif
-
-.if exists (${.CURDIR}/../../secure)
-
-.if exists(${.OBJDIR}/../../secure/lib/libcrypt)
-DESCRYPTOBJDIR=	${.OBJDIR}/../../secure/lib/libcrypt
-.else
-DESCRYPTOBJDIR=	${.CURDIR}/../../secure/lib/libcrypt
-.endif
-
-.endif
+DPADD=	${LIBUTIL} ${LIBCRYPT}
+LDADD=	-lutil -lcrypt
 
 beforeinstall:
 .if exists(${DESTDIR}${BINDIR}/${PROG})
