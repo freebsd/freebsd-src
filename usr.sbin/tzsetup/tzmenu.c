@@ -28,7 +28,7 @@
  */
 
 static const char rcsid[] =
-	"$Id: tzmenu.c,v 1.3 1996/03/22 22:22:40 joerg Exp $";
+	"$Id: tzmenu.c,v 1.4 1996/03/31 09:55:02 joerg Exp $";
 
 #include <stdio.h>
 #include <ncurses.h>
@@ -75,8 +75,6 @@ tzmenu(void)
 	int item = 0;
 	int sc = 0;
 	const char *res;
-	struct winsize win;
-	char *cp;
 
 	while(1) {
 		dialog_clear();
@@ -155,7 +153,6 @@ location_menu(const struct country *ctry, const char *name)
 	int rv;
 	int item = 0;
 	int sc = 0;
-	const char *res;
 
 	snprintf(title, sizeof title, "Timezone Selector - %s", name);
 
