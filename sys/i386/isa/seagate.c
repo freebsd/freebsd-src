@@ -60,7 +60,7 @@
  *               that category, with the possible exception of scanners and
  *               some of the older MO drives.
  *
- * $Id: seagate.c,v 1.8.4.1 1995/08/08 12:29:36 jkh Exp $
+ * $Id: seagate.c,v 1.8.4.2 1995/08/31 06:36:08 davidg Exp $
  */
 
 /*
@@ -220,7 +220,7 @@ typedef struct scb {
 	struct scb *next;               /* in free list */
 	struct scsi_xfer *xfer;		/* the scsi_xfer for this cmd */
 	u_char *data;                   /* position in data buffer so far */
-	int32 datalen;			/* bytes remaining to transfer */;
+	int32_t datalen;			/* bytes remaining to transfer */;
 } scb_t;
 
 typedef enum {
@@ -334,8 +334,8 @@ int seaintr (int unit);
 static int sea_probe (struct isa_device *dev);
 static int sea_detect (adapter_t *z, struct isa_device *dev);
 static int sea_attach (struct isa_device *dev);
-static int32 sea_scsi_cmd (struct scsi_xfer *xs);
-static u_int32 sea_adapter_info (int unit);
+static int32_t sea_scsi_cmd (struct scsi_xfer *xs);
+static u_int32_t sea_adapter_info (int unit);
 static void sea_timeout (void *scb);
 static void seaminphys (struct buf *bp);
 static void sea_done (adapter_t *z, scb_t *scb);
@@ -579,7 +579,7 @@ int sea_attach (struct isa_device *dev)
  * Return some information to the caller about
  * the adapter and its capabilities.
  */
-u_int32 sea_adapter_info (int unit)
+u_int32_t sea_adapter_info (int unit)
 {
 	return (1);
 }
@@ -623,7 +623,7 @@ void sea_tick (void *arg)
  * Also needs the unit, target and lu.  Get a free scb and set it up.
  * Call send_scb.  Either start timer or wait until done.
  */
-int32 sea_scsi_cmd (struct scsi_xfer *xs)
+int32_t sea_scsi_cmd (struct scsi_xfer *xs)
 {
 	int unit = xs->sc_link->adapter_unit, flags = xs->flags, x = 0;
 	adapter_t *z = &seadata[unit];

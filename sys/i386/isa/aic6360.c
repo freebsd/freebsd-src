@@ -31,7 +31,7 @@
  */
 
 /*
- * $Id: aic6360.c,v 1.9 1995/05/30 08:01:12 rgrimes Exp $
+ * $Id: aic6360.c,v 1.9.4.1 1995/08/31 06:36:03 davidg Exp $
  *
  * Acknowledgements: Many of the algorithms used in this driver are
  * inspired by the work of Julian Elischer (julian@tfs.com) and
@@ -682,7 +682,7 @@ void	aicattach       __P((struct device *, struct device *, void *));
 #endif
 void	aic_minphys	__P((struct buf *));
 #ifdef __FreeBSD__
-u_int32	aic_adapter_info __P((int));
+u_int32_t aic_adapter_info __P((int));
 int	aicintr		__P((int));
 void 	aic_init	__P((struct aic_data *));
 int 	aic_find	__P((struct aic_data *));
@@ -693,7 +693,7 @@ void	aic_init        __P((struct aic_softc *));
 #endif
 void	aic_done	__P((struct acb *));
 #ifdef __FreeBSD__
-int32	aic_scsi_cmd	__P((struct scsi_xfer *));
+int32_t	aic_scsi_cmd	__P((struct scsi_xfer *));
 int	aic_poll	__P((int, struct acb *));
 #else
 int	aic_scsi_cmd    __P((struct scsi_xfer *));
@@ -1155,7 +1155,7 @@ aic_init(aic)
  * SCSI-commands.
  */
 #ifdef __FreeBSD__
-int32
+int32_t
 #else
 int
 #endif
@@ -1250,7 +1250,7 @@ aic_minphys(bp)
 
 
 #ifdef __FreeBSD__
-u_int32
+u_int32_t
 aic_adapter_info(unit)
 	int	unit;
 #else

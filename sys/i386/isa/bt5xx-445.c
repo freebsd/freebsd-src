@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- *      $Id: bt5xx-445.c,v 1.1 1995/12/12 08:50:54 gibbs Exp $
+ *      $Id: bt5xx-445.c,v 1.3 1996/03/31 03:06:20 gibbs Exp $
  */
 
 /*
@@ -90,6 +90,13 @@ bt_isa_probe(dev)
 	int     unit = bt_unit;
 	struct bt_data *bt;
 
+	/*
+	 * We ignore the unit number assigned by config to allow
+	 * consistant numbering between PCI/EISA/ISA devices.
+	 * This is a total kludge until we have a configuration
+	 * manager.
+	 */
+	dev->id_unit = bt_unit;
 	/*
 	 * Allocate a storage area for us
 	 */

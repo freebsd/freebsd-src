@@ -22,7 +22,7 @@
  * today: Fri Jun  2 17:21:03 EST 1994
  * added 24F support  ++sg
  *
- *      $Id: ultra14f.c,v 1.36 1995/08/25 20:39:01 bde Exp $
+ *      $Id: ultra14f.c,v 1.33.4.3 1995/09/14 07:09:37 davidg Exp $
  */
 
 #include <sys/types.h>
@@ -265,13 +265,13 @@ struct uha_data {
 int     uhaprobe();
 int     uha_attach();
 int     uhaintr();
-int32   uha_scsi_cmd();
+int32_t uha_scsi_cmd();
 timeout_t uha_timeout;
 void	uha_free_mscp();
 int     uha_abort();
 void    uhaminphys();
 void    uha_done();
-u_int32 uha_adapter_info();
+u_int32_t uha_adapter_info();
 struct mscp *uha_mscp_phys_kv();
 int	uha_init __P((int unit));
 int	uha24_init __P((int unit));
@@ -575,7 +575,7 @@ uha_attach(dev)
  * Return some information to the caller about
  * the adapter and it's capabilities
  */
-u_int32
+u_int32_t
 uha_adapter_info(unit)
 	int     unit;
 {
@@ -1070,7 +1070,7 @@ uhaminphys(bp)
  * start a scsi operation given the command and the data address.  Also
  * needs the unit, target and lu.
  */
-int32
+int32_t
 uha_scsi_cmd(xs)
 	struct scsi_xfer *xs;
 {
