@@ -47,7 +47,7 @@ static const char rcsid[] =
 /*
  * Convert a string to an unsigned quad integer.
  *
- * Ignores `locale' stuff.  Assumes that the upper and lower case
+ * Assumes that the upper and lower case
  * alphabets and digits are each contiguous.
  */
 u_quad_t

@@ -35,6 +35,11 @@
 static char sccsid[] = "@(#)strtol.c	8.1 (Berkeley) 6/4/93";
 #endif /* LIBC_SCCS and not lint */
 
+#ifndef lint
+static const char rcsid[] =
+"$FreeBSD$";
+#endif
+
 #include <limits.h>
 #include <ctype.h>
 #include <errno.h>
@@ -44,7 +49,7 @@ static char sccsid[] = "@(#)strtol.c	8.1 (Berkeley) 6/4/93";
 /*
  * Convert a string to a long integer.
  *
- * Ignores `locale' stuff.  Assumes that the upper and lower case
+ * Assumes that the upper and lower case
  * alphabets and digits are each contiguous.
  */
 long
@@ -53,25 +58,29 @@ strtol(nptr, endptr, base)
 	char **endptr;
 	register int base;
 {
-	register const char *s = nptr;
+	register const char *s;
 	register unsigned long acc;
 	register unsigned char c;
 	register unsigned long cutoff;
-	register int neg = 0, any, cutlim;
+	register int neg, any, cutlim;
 
 	/*
 	 * Skip white space and pick up leading +/- sign if any.
 	 * If base is 0, allow 0x for hex and 0 for octal, else
 	 * assume decimal; if base is already 16, allow 0x.
 	 */
+	s = nptr;
 	do {
 		c = *s++;
 	} while (isspace(c));
 	if (c == '-') {
 		neg = 1;
 		c = *s++;
-	} else if (c == '+')
-		c = *s++;
+	} else {
+		neg = 0;
+		if (c == '+')
+			c = *s++;
+	}
 	if ((base == 0 || base == 16) &&
 	    c == '0' && (*s == 'x' || *s == 'X')) {
 		c = s[1];
@@ -80,6 +89,9 @@ strtol(nptr, endptr, base)
 	}
 	if (base == 0)
 		base = c == '0' ? 8 : 10;
+	any = 0;
+	if (base < 2 || base > 36)
+		goto noconv;
 
 	/*
 	 * Compute the cutoff value between legal numbers and illegal
@@ -95,13 +107,14 @@ strtol(nptr, endptr, base)
 	 * a value > 214748364, or equal but the next digit is > 7 (or 8),
 	 * the number is too big, and we will return a range error.
 	 *
-	 * Set any if any `digits' consumed; make it negative to indicate
+	 * Set 'any' if any `digits' consumed; make it negative to indicate
 	 * overflow.
 	 */
-	cutoff = neg ? -(unsigned long)LONG_MIN : LONG_MAX;
-	cutlim = cutoff % (unsigned long)base;
-	cutoff /= (unsigned long)base;
-	for (acc = 0, any = 0;; c = *s++) {
+	cutoff = neg ? (unsigned long)-(LONG_MIN + LONG_MAX) + LONG_MAX
+	    : LONG_MAX;
+	cutlim = cutoff % base;
+	cutoff /= base;
+	for (acc = 0; ; c = *s++) {
 		if (!isascii(c))
 			break;
 		if (isdigit(c))
@@ -123,9 +136,12 @@ strtol(nptr, endptr, base)
 	if (any < 0) {
 		acc = neg ? LONG_MIN : LONG_MAX;
 		errno = ERANGE;
+	} else if (!any) {
+noconv:
+		errno = EINVAL;
 	} else if (neg)
 		acc = -acc;
-	if (endptr != 0)
+	if (endptr != NULL)
 		*endptr = (char *)(any ? s - 1 : nptr);
 	return (acc);
 }
