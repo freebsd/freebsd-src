@@ -232,15 +232,11 @@ globaldata_find(int cpuno)
 /* lock around the MP rendezvous */
 static struct mtx smp_rv_mtx;
 
-/* only 1 CPU can panic at a time :) */
-struct mtx panic_mtx;
-
 static void
 init_locks(void)
 {
 
 	mtx_init(&smp_rv_mtx, "smp rendezvous", MTX_SPIN);
-	mtx_init(&panic_mtx, "panic", MTX_DEF);
 }
 
 void

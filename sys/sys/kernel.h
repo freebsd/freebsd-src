@@ -81,9 +81,6 @@ extern int lbolt;			/* once a second sleep address */
 extern int tickdelta;
 extern long timedelta;
 
-/* global data in mp_machdep.c */
-extern struct mtx       panic_mtx;
-
 #endif /* _KERNEL */
 
 /*
