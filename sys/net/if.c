@@ -34,6 +34,7 @@
 #include "opt_inet6.h"
 #include "opt_inet.h"
 #include "opt_mac.h"
+#include "opt_carp.h"
 
 #include <sys/param.h>
 #include <sys/types.h>
@@ -77,6 +78,9 @@
 #endif
 #ifdef INET
 #include <netinet/if_ether.h>
+#endif
+#ifdef DEV_CARP
+#include <netinet/ip_carp.h>
 #endif
 
 struct mbuf *(*tbr_dequeue_ptr)(struct ifaltq *, int) = NULL;
@@ -525,6 +529,12 @@ if_detach(struct ifnet *ifp)
  	int found;
 
 	EVENTHANDLER_INVOKE(ifnet_departure_event, ifp);
+#ifdef DEV_CARP
+	/* Maybe hook to the generalized departure handler above?!? */
+	if (ifp->if_carp)
+		carp_ifdetach(ifp);
+#endif
+
 	/*
 	 * Remove routes and flush queues.
 	 */
@@ -929,6 +939,10 @@ if_unroute(struct ifnet *ifp, int flag, int fam)
 		if (fam == PF_UNSPEC || (fam == ifa->ifa_addr->sa_family))
 			pfctlinput(PRC_IFDOWN, ifa->ifa_addr);
 	if_qflush(&ifp->if_snd);
+#ifdef DEV_CARP
+	if (ifp->if_carp)
+		carp_carpdev_state(ifp->if_carp);
+#endif
 	rt_ifmsg(ifp);
 }
 
@@ -947,6 +961,10 @@ if_route(struct ifnet *ifp, int flag, int fam)
 	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)
 		if (fam == PF_UNSPEC || (fam == ifa->ifa_addr->sa_family))
 			pfctlinput(PRC_IFUP, ifa->ifa_addr);
+#ifdef DEV_CARP
+	if (ifp->if_carp)
+		carp_carpdev_state(ifp->if_carp);
+#endif
 	rt_ifmsg(ifp);
 #ifdef INET6
 	in6_if_up(ifp);

@@ -23,9 +23,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $FreeBSD$
+.\"	$FreeBSD$
 .\"
-.Dd February 25, 2005
+.Dd February 23, 2005
 .Dt CARP 4
 .Os
 .Sh NAME
@@ -106,14 +106,10 @@ interfaces.
 See also the first example.
 Disabled by default.
 .It Va net.inet.carp.log
-Value of 0 disables any logging.
-Value of 1 enables logging of bad
+Log bad
 .Nm
 packets.
-Values above 1 enable logging state changes of
-.Nm
-interfaces.
-Default value is 1.
+Enabled by default.
 .It Va net.inet.carp.arpbalance
 Balance local traffic using ARP.
 Disabled by default.

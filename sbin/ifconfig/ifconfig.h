@@ -70,3 +70,14 @@ extern void set80211txpower(const char *, int, int, const struct afswtch *rafp);
 extern void ieee80211_status(int s, struct rt_addrinfo *);
 extern void maclabel_status(int s, struct rt_addrinfo *);
 extern void setifmaclabel(const char *, int, int, const struct afswtch *rafp);
+
+extern void setpfsync_syncif(const char *, int, int, const struct afswtch *rafp);
+extern void unsetpfsync_syncif(const char *, int, int, const struct afswtch *rafp);
+extern void setpfsync_maxupd(const char *, int, int, const struct afswtch *rafp);
+extern void pfsync_status(int, struct rt_addrinfo *);
+
+extern void carp_status(int s, struct rt_addrinfo *);
+extern void setcarp_advbase(const char *,int, int, const struct afswtch *rafp);
+extern void setcarp_advskew(const char *, int, int, const struct afswtch *rafp);
+extern void setcarp_passwd(const char *, int, int, const struct afswtch *rafp);
+extern void setcarp_vhid(const char *, int, int, const struct afswtch *rafp);

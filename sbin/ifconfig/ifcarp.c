@@ -52,14 +52,8 @@
 
 static const char *carp_states[] = { CARP_STATES };
 
-void carp_status(int s);
-void setcarp_advbase(const char *,int, int, const struct afswtch *rafp);
-void setcarp_advskew(const char *, int, int, const struct afswtch *rafp);
-void setcarp_passwd(const char *, int, int, const struct afswtch *rafp);
-void setcarp_vhid(const char *, int, int, const struct afswtch *rafp);
-
 void
-carp_status(int s)
+carp_status(int s, struct rt_addrinfo *info __unused)
 {
 	const char *state;
 	struct carpreq carpr;
@@ -81,7 +75,7 @@ carp_status(int s)
 		    carpr.carpr_advskew);
 	}
 
-	return;
+        return;
 
 }
 
@@ -172,28 +166,4 @@ setcarp_advbase(const char *val, int d, int s, const struct afswtch *afp)
 		err(1, "SIOCSVH");
 
 	return;
-}
-
-static struct cmd carp_cmds[] = {
-	DEF_CMD_ARG("advbase",	setcarp_advbase),
-	DEF_CMD_ARG("advskew",	setcarp_advskew),
-	DEF_CMD_ARG("pass",	setcarp_passwd),
-	DEF_CMD_ARG("vhid",	setcarp_vhid),
-};
-static struct afswtch af_carp = {
-	.af_name	= "af_carp",
-	.af_af		= AF_UNSPEC,
-	.af_other_status = carp_status,
-};
-
-static __constructor void
-carp_ctor(void)
-{
-#define	N(a)	(sizeof(a) / sizeof(a[0]))
-	int i;
-
-	for (i = 0; i < N(carp_cmds);  i++)
-		cmd_register(&carp_cmds[i]);
-	af_register(&af_carp);
-#undef N
 }

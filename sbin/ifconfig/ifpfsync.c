@@ -44,12 +44,7 @@
 
 #include "ifconfig.h"
 
-void setpfsync_syncif(const char *, int, int, const struct afswtch *rafp);
-void unsetpfsync_syncif(const char *, int, int, const struct afswtch *rafp);
-void setpfsync_maxupd(const char *, int, int, const struct afswtch *rafp);
-void pfsync_status(int);
-
-void
+void 
 setpfsync_syncif(const char *val, int d, int s, const struct afswtch *rafp)
 {
 	struct pfsyncreq preq;
@@ -104,7 +99,7 @@ setpfsync_maxupd(const char *val, int d, int s, const struct afswtch *rafp)
 }
 
 void
-pfsync_status(int s)
+pfsync_status(int s, struct rt_addrinfo *info __unused)
 {
 	struct pfsyncreq preq;
 
@@ -118,27 +113,4 @@ pfsync_status(int s)
 		printf("\tpfsync: syncif: %s maxupd: %d\n",
 		    preq.pfsyncr_syncif, preq.pfsyncr_maxupdates);
 	}
-}
-
-static struct cmd pfsync_cmds[] = {
-	DEF_CMD_ARG("syncif",		setpfsync_syncif),
-	DEF_CMD_ARG("maxupd",		setpfsync_maxupd),
-	DEF_CMD("-syncif",	1,	unsetpfsync_syncif),
-};
-static struct afswtch af_pfsync = {
-	.af_name	= "af_pfsync",
-	.af_af		= AF_UNSPEC,
-	.af_other_status = pfsync_status,
-};
-
-static __constructor void
-pfsync_ctor(void)
-{
-#define	N(a)	(sizeof(a) / sizeof(a[0]))
-	int i;
-
-	for (i = 0; i < N(pfsync_cmds);  i++)
-		cmd_register(&pfsync_cmds[i]);
-	af_register(&af_pfsync);
-#undef N
 }

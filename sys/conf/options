@@ -611,6 +611,7 @@ NDEVFSOVERFLOW		opt_devfs.h
 DEV_BPF			opt_bpf.h
 DEV_ISA			opt_isa.h
 DEV_MCA			opt_mca.h
+DEV_CARP		opt_carp.h
 DEV_SPLASH		opt_splash.h
 
 EISA_SLOTS		opt_eisa.h

@@ -245,6 +245,11 @@ struct	cmd {
 	{ "mediaopt",	NEXTARG,	setmediaopt },
 	{ "-mediaopt",	NEXTARG,	unsetmediaopt },
 #endif
+#ifdef USE_PFSYNC
+	{ "syncif",	NEXTARG,	setpfsync_syncif },
+	{ "maxupd",	NEXTARG,	setpfsync_maxupd },
+	{ "-syncif",	1,		unsetpfsync_syncif },
+#endif
 #ifdef USE_VLANS
 	{ "vlan",	NEXTARG,	setvlantag },
 	{ "vlandev",	NEXTARG,	setvlandev },
@@ -281,6 +286,12 @@ struct	cmd {
 #endif
 #ifdef USE_MAC
 	{ "maclabel",	NEXTARG,	setifmaclabel },
+#endif
+#ifdef USE_CARP
+	{ "advbase",	NEXTARG,	setcarp_advbase },
+	{ "advskew",	NEXTARG,	setcarp_advskew },
+	{ "pass",	NEXTARG,	setcarp_passwd },
+	{ "vhid",	NEXTARG,	setcarp_vhid },
 #endif
 	{ "rxcsum",	IFCAP_RXCSUM,	setifcap },
 	{ "-rxcsum",	-IFCAP_RXCSUM,	setifcap },
@@ -367,6 +378,9 @@ struct	afswtch {
 #endif
 #ifdef USE_IEEE80211
 	{ "ieee80211", AF_UNSPEC, ieee80211_status, NULL, NULL, },  /* XXX not real!! */
+#endif
+#ifdef USE_CARP
+	{ "carp", AF_UNSPEC, carp_status, NULL, NULL, },  /* XXX not real!! */
 #endif
 #ifdef USE_MAC
 	{ "maclabel", AF_UNSPEC, maclabel_status, NULL, NULL, },
@@ -1168,6 +1182,10 @@ status(const struct afswtch *afp, int addrcount, struct	sockaddr_dl *sdl,
 	if (allfamilies || afp->af_status == media_status)
 		media_status(s, NULL);
 #endif
+#ifdef USE_PFSYNC
+	if (allfamilies || afp->af_status == pfsync_status)
+		pfsync_status(s, NULL);
+#endif
 #ifdef USE_VLANS
 	if (allfamilies || afp->af_status == vlan_status)
 		vlan_status(s, NULL);
@@ -1175,6 +1193,10 @@ status(const struct afswtch *afp, int addrcount, struct	sockaddr_dl *sdl,
 #ifdef USE_IEEE80211
 	if (allfamilies || afp->af_status == ieee80211_status)
 		ieee80211_status(s, NULL);
+#endif
+#ifdef USE_CARP
+	if (allfamilies || afp->af_status == carp_status)
+		carp_status(s, NULL);
 #endif
 #ifdef USE_MAC
 	if (allfamilies || afp->af_status == maclabel_status)
@@ -1191,6 +1213,9 @@ status(const struct afswtch *afp, int addrcount, struct	sockaddr_dl *sdl,
 	    afp->af_status != link_status
 #ifdef USE_VLANS
 	    && afp->af_status != vlan_status
+#endif
+#ifdef USE_CARP
+	    && afp->af_status != carp_status
 #endif
 		)
 		warnx("%s has no %s interface address!", name, afp->af_name);

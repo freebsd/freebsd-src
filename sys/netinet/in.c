@@ -31,6 +31,8 @@
  * $FreeBSD$
  */
 
+#include "opt_carp.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sockio.h>
@@ -722,6 +724,13 @@ in_ifinit(ifp, ia, sin, scrub)
 	ia->ia_net = i & ia->ia_netmask;
 	ia->ia_subnet = i & ia->ia_subnetmask;
 	in_socktrim(&ia->ia_sockmask);
+#ifdef DEV_CARP
+	/*
+	 * XXX: carp(4) does not have interface route
+	 */
+	if (ifp->if_type == IFT_CARP)
+		return (0);
+#endif
 	/*
 	 * Add route for the network.
 	 */
@@ -846,8 +855,14 @@ in_scrubprefix(target)
 		 * If we got a matching prefix address, move IFA_ROUTE and
 		 * the route itself to it.  Make sure that routing daemons
 		 * get a heads-up.
+		 *
+		 * XXX: a special case for carp(4) interface
 		 */
-		if ((ia->ia_flags & IFA_ROUTE) == 0) {
+		if ((ia->ia_flags & IFA_ROUTE) == 0
+#ifdef DEV_CARP
+		    && (ia->ia_ifp->if_type != IFT_CARP)
+#endif
+							) {
 			rtinit(&(target->ia_ifa), (int)RTM_DELETE,
 			    rtinitflags(target));
 			target->ia_flags &= ~IFA_ROUTE;

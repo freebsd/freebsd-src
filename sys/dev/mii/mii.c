@@ -46,6 +46,8 @@ __FBSDID("$FreeBSD$");
  * plus some NetBSD extensions.
  */
 
+#include "opt_carp.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/socket.h>
@@ -56,6 +58,12 @@ __FBSDID("$FreeBSD$");
 #include <net/if.h>
 #include <net/if_media.h>
 #include <net/route.h>
+
+#ifdef DEV_CARP
+#include <netinet/in.h>
+#include <netinet/in_var.h>
+#include <netinet/ip_carp.h>
+#endif
 
 #include <dev/mii/mii.h>
 #include <dev/mii/miivar.h>
@@ -268,6 +276,10 @@ miibus_linkchg(dev)
 		KNOTE_UNLOCKED(&ifp->if_klist, link);
 		if (ifp->if_nvlans != 0)
 			(*vlan_link_state_p)(ifp, link);
+#ifdef DEV_CARP
+		if (ifp->if_carp)
+			carp_carpdev_state(ifp->if_carp);
+#endif
 	}
 }
 

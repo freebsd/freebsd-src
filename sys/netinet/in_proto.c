@@ -36,6 +36,7 @@
 #include "opt_ipsec.h"
 #include "opt_inet6.h"
 #include "opt_pf.h"
+#include "opt_carp.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -90,6 +91,10 @@
 #ifdef DEV_PFSYNC
 #include <net/pfvar.h>
 #include <net/if_pfsync.h>
+#endif
+
+#ifdef DEV_CARP
+#include <netinet/ip_carp.h>
 #endif
 
 extern	struct domain inetdomain;
@@ -239,6 +244,14 @@ struct protosw inetsw[] = {
   &rip_usrreqs
 },
 #endif	/* DEV_PFSYNC */
+#ifdef DEV_CARP
+{ SOCK_RAW,	&inetdomain,	IPPROTO_CARP,	PR_ATOMIC|PR_ADDR,
+  carp_input,	(pr_output_t*)rip_output,	0,	rip_ctloutput,
+  0,
+  0,		0,		0,		0,
+  &rip_usrreqs
+},
+#endif /* DEV_CARP */
 	/* raw wildcard */
 { SOCK_RAW,	&inetdomain,	0,		PR_ATOMIC|PR_ADDR,
   rip_input,	0,		0,		rip_ctloutput,
@@ -285,4 +298,7 @@ SYSCTL_NODE(_net_inet, IPPROTO_DIVERT,	divert,	CTLFLAG_RW, 0,	"DIVERT");
 #endif
 #ifdef PIM
 SYSCTL_NODE(_net_inet, IPPROTO_PIM,    pim,    CTLFLAG_RW, 0,  "PIM");
+#endif
+#ifdef DEV_CARP
+SYSCTL_NODE(_net_inet, IPPROTO_CARP,    carp,    CTLFLAG_RW, 0,  "CARP");
 #endif

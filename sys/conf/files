@@ -1487,6 +1487,8 @@ netinet/if_atm.c	optional atm
 netinet/if_ether.c	optional ether
 netinet/igmp.c		optional inet
 netinet/in.c		optional inet
+netinet/ip_carp.c	optional carp
+crypto/sha1.c		optional carp
 netinet/in_gif.c	optional gif inet
 netinet/ip_gre.c	optional gre inet
 netinet/ip_id.c		optional inet

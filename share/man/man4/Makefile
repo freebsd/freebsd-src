@@ -35,6 +35,7 @@ MAN=	aac.4 \
 	bridge.4 \
 	bt.4 \
 	cardbus.4 \
+	carp.4 \
 	ccd.4 \
 	cd.4 \
 	ch.4 \

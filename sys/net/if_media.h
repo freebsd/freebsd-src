@@ -227,6 +227,11 @@ int	ifmedia_ioctl(struct ifnet *ifp, struct ifreq *ifr,
 #define IFM_ATM_UNASSIGNED	0x00000400	/* unassigned cells */
 
 /*
+ * CARP Common Address Redundancy Protocol
+ */
+#define	IFM_CARP	0x000000c0
+
+/*
  * Shared media sub-types
  */
 #define	IFM_AUTO	0		/* Autoselect best media */
@@ -299,6 +304,7 @@ struct ifmedia_description {
 	{ IFM_FDDI,		"FDDI" },				\
 	{ IFM_IEEE80211,	"IEEE 802.11 Wireless Ethernet" },	\
 	{ IFM_ATM,		"ATM" },				\
+	{ IFM_CARP,		"Common Address Redundancy Protocol" }, \
 	{ 0, NULL },							\
 }
 

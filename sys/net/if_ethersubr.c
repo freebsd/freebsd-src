@@ -37,6 +37,7 @@
 #include "opt_bdg.h"
 #include "opt_mac.h"
 #include "opt_netgraph.h"
+#include "opt_carp.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -71,6 +72,10 @@
 #endif
 #ifdef INET6
 #include <netinet6/nd6.h>
+#endif
+
+#ifdef DEV_CARP
+#include <netinet/ip_carp.h>
 #endif
 
 #ifdef IPX
@@ -314,6 +319,12 @@ ether_output(struct ifnet *ifp, struct mbuf *m,
 			return (0);	/* XXX */
 		}
 	}
+
+#ifdef DEV_CARP
+	if (ifp->if_carp &&
+	    (error = carp_output(ifp, m, dst, NULL)))
+		goto bad;
+#endif
 
 	/* Handle ng_ether(4) processing, if any */
 	if (ng_ether_output_p != NULL) {
@@ -648,6 +659,19 @@ ether_demux(struct ifnet *ifp, struct mbuf *m)
 
 	if (!(BDG_ACTIVE(ifp)) &&
 	    !(ether_type == ETHERTYPE_VLAN && ifp->if_nvlans > 0)) {
+#ifdef DEV_CARP
+		/*
+		 * XXX: Okay, we need to call carp_forus() and - if it is for
+		 * us jump over code that does the normal check
+		 * "ac_enaddr == ether_dhost". The check sequence is a bit
+		 * different from OpenBSD, so we jump over as few code as
+		 * possible, to catch _all_ sanity checks. This needs
+		 * evaluation, to see if the carp ether_dhost values break any
+		 * of these checks!
+		 */
+		if (ifp->if_carp && carp_forus(ifp->if_carp, eh->ether_dhost))
+			goto pre_stats;
+#endif
 		/*
 		 * Discard packet if upper layers shouldn't see it because it
 		 * was unicast to a different Ethernet address. If the driver
@@ -670,6 +694,9 @@ ether_demux(struct ifnet *ifp, struct mbuf *m)
 		}
 	}
 
+#ifdef DEV_CARP
+pre_stats:
+#endif
 	/* Discard packet if interface is not up */
 	if ((ifp->if_flags & IFF_UP) == 0) {
 		m_freem(m);

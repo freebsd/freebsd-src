@@ -64,6 +64,7 @@
 #include "opt_inet.h"
 #include "opt_inet6.h"
 #include "opt_ipsec.h"
+#include "opt_carp.h"
 
 #include <sys/param.h>
 #include <sys/socket.h>
@@ -120,6 +121,10 @@
 #include <netinet6/ipcomp6.h>
 #endif
 #endif /* IPSEC */
+
+#ifdef DEV_CARP
+#include <netinet/ip_carp.h>
+#endif
 
 #ifdef FAST_IPSEC
 #include <netipsec/ipsec6.h>
@@ -241,6 +246,14 @@ struct ip6protosw inet6sw[] = {
   0,            0,              0,              0,
   &rip6_usrreqs
 },
+#ifdef DEV_CARP
+{ SOCK_RAW,	&inet6domain,	IPPROTO_CARP,	PR_ATOMIC|PR_ADDR,
+  carp6_input,	rip6_output,	0,		rip6_ctloutput,
+  0,
+  0,            0,              0,              0,
+  &rip6_usrreqs
+},
+#endif /* DEV_CARP */
 /* raw wildcard */
 { SOCK_RAW,	&inet6domain,	0,		PR_ATOMIC|PR_ADDR,
   rip6_input,	rip6_output,	0,		rip6_ctloutput,

@@ -374,6 +374,7 @@ extern	int debug_mpsafenet;		/* defined in net/netisr.c */
 	if (!debug_mpsafenet)						\
 		mtx_assert(&Giant, MA_OWNED);				\
 } while (0)
+#define	NET_CALLOUT_MPSAFE	(debug_mpsafenet ? CALLOUT_MPSAFE : 0)
 
 #define	UGAR(rval) do {							\
 	int _val = (rval);						\
