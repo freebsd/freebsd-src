@@ -24,7 +24,7 @@
  * the rights to redistribute these changes.
  *
  *	from: Mach, Revision 2.2  92/04/04  11:34:26  rpd
- *	$Id: bios.S,v 1.2 1993/10/16 19:11:30 rgrimes Exp $
+ *	$Id: bios.S,v 1.3 1994/10/02 05:18:25 rgrimes Exp $
  */
 
 /*
@@ -253,8 +253,7 @@ ENTRY(get_diskinfo)
 	jnc	ok
 	/*
 	 * Urk.  Call failed.  It is not supported for floppies by old BIOS's.
-	 * Guess it's a 15-sector floppy.  Initialize all the registers for
-	 * documentation, although we only need head and sector counts.
+	 * Guess it's a 15-sector floppy.
 	 */
 	subb	%ah, %ah		/* %ax = 0 */
 	movb	%al, %al
@@ -272,9 +271,18 @@ ok:
 	data32
 	call	EXT(real_to_prot)	/* back to protected mode */
 
-	xor	%eax, %eax
-
-	/* form a longword representing all this gunk */
+	/* 
+	 * form a longword representing all this gunk:
+	 *       6 bit zero
+	 *	10 bit cylinder
+	 *	 8 bit head
+	 *	 8 bit sector
+	 */
+	movb	%cl, %al		/* Upper two bits of cylinder count */
+	andl	$192,%eax	
+	leal	0(,%eax,4),%eax		/* << 2 */
+	movb	%ch, %al		/* Lower 8 bits */
+	sall	$16,%eax		/* << 16 */
 	movb	%dh, %ah		/* max head */
 	andb	$0x3f, %cl		/* mask of cylinder gunk */
 	movb	%cl, %al		/* max sector (and # sectors) */
