@@ -1327,5 +1327,5 @@ cleanup(int sig __unused)
 	(void)chmod(line, 0666);
 	(void)chown(line, 0, 0);
 	(void) shutdown(net, 2);
-	exit(1);
+	_exit(1);
 }
