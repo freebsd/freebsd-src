@@ -750,7 +750,7 @@ draw_pxlmouse(scr_stat *scp, int x, int y)
 	if (x < scp->xpixel - 8) {
 		for (i = y, j = 0; i < ymax; ++i, ++j) {
 			m = ~(mouse_and_mask[j] >> xoff);
-#ifdef __i386__
+#if defined(__i386__) || defined(__amd64__)
 			*(u_char *)p &= m >> 8;
 			*(u_char *)(p + 1) &= m;
 #elif defined(__alpha__)
@@ -763,7 +763,7 @@ draw_pxlmouse(scr_stat *scp, int x, int y)
 		xoff += 8;
 		for (i = y, j = 0; i < ymax; ++i, ++j) {
 			m = ~(mouse_and_mask[j] >> xoff);
-#ifdef __i386__
+#if defined(__i386__) || defined(__amd64__)
 			*(u_char *)p &= m;
 #elif defined(__alpha__)
 			writeb(p, readb(p) & (m >> 8));
@@ -776,7 +776,7 @@ draw_pxlmouse(scr_stat *scp, int x, int y)
 	if (x < scp->xpixel - 8) {
 		for (i = y, j = 0; i < ymax; ++i, ++j) {
 			m = mouse_or_mask[j] >> xoff;
-#ifdef __i386__
+#if defined(__i386__) || defined(__amd64__)
 			*(u_char *)p &= m >> 8;
 			*(u_char *)(p + 1) &= m;
 #elif defined(__alpha__)
@@ -788,7 +788,7 @@ draw_pxlmouse(scr_stat *scp, int x, int y)
 	} else {
 		for (i = y, j = 0; i < ymax; ++i, ++j) {
 			m = mouse_or_mask[j] >> xoff;
-#ifdef __i386__
+#if defined(__i386__) || defined(__amd64__)
 			*(u_char *)p &= m;
 #elif defined(__alpha__)
 			writeb(p, readb(p) & (m >> 8));
