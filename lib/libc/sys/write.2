@@ -139,7 +139,7 @@ syscall is assembled to
 and
 .Fn write
 is implemented as a function which locks
-.Va d
+.Fa d
 for read and write, then calls
 .Fn _thread_sys_write .
 If the call to
@@ -148,7 +148,7 @@ would block, a context switch is performed.
 Before returning,
 .Fn write
 unlocks
-.Va d .
+.Fa d .
 .Pp
 In the non-threaded library
 .Fn writev
@@ -163,7 +163,7 @@ syscall is assembled to
 and
 .Fn writev
 is implemented as a function which locks
-.Va d
+.Fa d
 for read and write, then calls
 .Fn _thread_sys_writev .
 If the call to
@@ -172,7 +172,7 @@ would block, a context switch is performed.
 Before returning,
 .Fn writev
 unlocks
-.Va d .
+.Fa d .
 .Sh RETURN VALUES
 Upon successful completion the number of bytes which were written
 is returned.  Otherwise a -1 is returned and the global variable

@@ -130,13 +130,13 @@ syscall is assembled to
 and
 .Fn dup
 is implemented as a function which locks
-.Va oldd
+.Fa oldd
 for read and write, then calls
 .Fn _thread_sys_dup .
 Before returning,
 .Fn dup
 unlocks
-.Va oldd .
+.Fa oldd .
 .Pp
 In the non-threaded library
 .Fn dup2
@@ -151,17 +151,17 @@ syscall is assembled to
 and
 .Fn dup2
 is implemented as a function which locks both
-.Va oldd
+.Fa oldd
 and
-.Va newd
+.Fa newd
 for read and write, then calls
 .Fn _thread_sys_dup2 .
 Before returning,
 .Fn dup2
 unlocks
-.Va oldd .
+.Fa oldd .
 and
-.Va newd .
+.Fa newd .
 .Sh RETURN VALUES
 The value -1 is returned if an error occurs in either call.
 The external variable

@@ -127,13 +127,13 @@ syscall is assembled to
 and
 .Fn flock
 is implemented as a function which locks
-.Va fd
+.Fa fd
 for read and write, then calls
 .Fn _thread_sys_flock .
 Before returning,
 .Fn flock
 unlocks
-.Va fd .
+.Fa fd .
 .Sh RETURN VALUES
 Zero is returned if the operation was successful;
 on an error a -1 is returned and an error code is left in

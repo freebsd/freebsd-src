@@ -155,13 +155,13 @@ syscall is assembled to
 and
 .Fn getdirentries
 is implemented as a function which locks
-.Va fd
+.Fa fd
 for read and write, then calls
 .Fn _thread_sys_getdirentries .
 Before returning,
 .Fn getdirentries
 unlocks
-.Va fd .
+.Fa fd .
 .Sh RETURN VALUES
 If successful, the number of bytes actually transferred is returned.
 Otherwise, -1 is returned and the global variable

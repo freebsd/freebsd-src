@@ -42,9 +42,9 @@
 The
 .Fn kldstat
 function writes the info for the file referred to by
-.Va fileid
+.Fa fileid
 into
-.Va stat .
+.Fa stat .
 .Bd -literal
 struct kld_file_stat {
 	int         version;        /* set to sizeof(linker_file_stat) */
@@ -66,13 +66,13 @@ and not
 itself.
 .It name
 The name of the file referred to by
-.Va fileid .
+.Fa fileid .
 .It refs
 The number of modules referenced by
-.Va fileid .
+.Fa fileid .
 .It id
 The id of the file specified in
-.Va fileid .
+.Fa fileid .
 .It address
 The load address of the kld file.
 .It size
@@ -82,24 +82,24 @@ The size of the file.
 seems to always return 0.
 .Sh ERRORS
 The information for the file referred to by
-.Va fileid
+.Fa fileid
 is filled into the structure pointed to by
-.Va stat
+.Fa stat
 unless:
 .Bl -tag -width Er
 .It Bq Er ENOENT
 The file was not found (probably not loaded).
 .It Bq Er EINVAL
 The version specified in the
-.Va version
+.Fa version
 field of stat is not the proper version.  You would need to rebuild world, the
 kernel, or your application, if this error occurs, given that you did properly
 fill in the
-.Va version
+.Fa version
 field.
 .It Bq Er EFAULT
 There was a problem copying one, some, or all of the fields into
-.Va stat
+.Fa stat
 in the
 .Fn copyout
 function.

@@ -42,21 +42,21 @@ The
 function waits for completion of an asynchronous I/O request.  Upon completion,
 .Fn aio_waitcomplete
 returns the result of the function and sets
-.Ar iocbp
+.Fa iocbp
 to point to the structure associated with the original request. If an
 asynchronous I/O request is completed before
 .Fn aio_waitcomplete
 is called, it returns immediately with the completed request.
 .Pp
 If
-.Ar timeout
+.Fa timeout
 is a non-NULL pointer, it specifies a maximum interval to wait for a
 asynchronous I/O request to complete.  If
-.Ar timeout
+.Fa timeout
 is a NULL pointer,
 .Fn aio_waitcomplete
 waits indefinitely.  To effect a poll, the
-.Ar timeout
+.Fa timeout
 argument should be non-NULL, pointing to a zero-valued timeval structure.
 .Pp
 The
@@ -66,10 +66,10 @@ function also serves the function of
 thus
 .Fn aio_return
 should not be called for the control block returned in
-.Ar iocbp .
+.Fa iocbp .
 .Sh RETURN VALUES
 If an asynchronous I/O request has completed,
-.Ar iocbp
+.Fa iocbp
 is set to point to the control block passed with the original request, and
 the status is returned as described in
 .Xr read 2 ,

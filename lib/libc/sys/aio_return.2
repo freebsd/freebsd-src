@@ -41,7 +41,7 @@ The
 .Fn aio_return
 function returns the final status of the asynchronous I/O request
 associated with the structure pointed to by
-.Ar iocb .
+.Fa iocb .
 .Pp
 .Fn aio_return
 should only be called once, to obtain the final status of an asynchronous
@@ -78,7 +78,7 @@ The
 function will fail if:
 .Bl -tag -width Er
 .It Bq Er EINVAL
-.Ar iocb
+.Fa iocb
 does not reference an outstanding asynchronous I/O request.
 .El
 .Sh STANDARDS
