@@ -1,4 +1,4 @@
-/* $Id: if_wl.c,v 1.6 1997/08/01 03:36:12 msmith Exp $ */
+/* $Id: if_wl.c,v 1.7 1997/08/02 05:19:32 msmith Exp $ */
 /* 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -935,9 +935,7 @@ wlstart(struct ifnet *ifp)
  *
  */
 static int
-wlread(unit, fd_p)
-int	unit;
-u_short	fd_p;
+wlread(int unit, u_short fd_p)
 {
     register struct wl_softc	*sc = WLSOFTC(unit);
     register struct ifnet	*ifp = &sc->wl_if;
@@ -2508,7 +2506,6 @@ wlpsacrc(u_char *buf)
     }
     return(crc);
 }
-
 #ifdef WLCACHE
 
 /*
