@@ -119,6 +119,16 @@ Boston, MA 02111-1307, USA.  */
           fprintf (FILE, "\t.version\t\"01.01\"\n");			\
   } while (0)
 
+/* Identify the front-end which produced this file.  To keep symbol
+   space down, and not confuse kdb, only do this if the language is
+   not C. (svr4.h defines ASM_IDENTIFY_GCC but neglects this) */
+#undef ASM_IDENTIFY_LANGUAGE
+#define ASM_IDENTIFY_LANGUAGE(STREAM)					\
+{									\
+  if (strcmp (lang_identify (), "c") != 0)				\
+    output_lang_identify (STREAM);					\
+}
+
 /* This is how to store into the string BUF
    the symbol_ref name of an internal numbered label where      
    PREFIX is the class of label and NUM is the number within the class.  
