@@ -360,8 +360,8 @@ ia64_init()
 	vm_offset_t kernstart, kernend;
 	vm_offset_t kernstartpfn, kernendpfn, pfn0, pfn1;
 	char *p;
-	struct efi_memory_descriptor ski_md[2]; /* XXX */
-	struct efi_memory_descriptor *mdp;
+	EFI_MEMORY_DESCRIPTOR ski_md[2]; /* XXX */
+	EFI_MEMORY_DESCRIPTOR *mdp;
 	int mdcount, i;
 
 	/* NO OUTPUT ALLOWED UNTIL FURTHER NOTICE */
@@ -420,17 +420,17 @@ ia64_init()
 	 * EFI and pass the results to us. Possibly, we will call EFI
 	 * directly.
 	 */
-	ski_md[0].emd_type = EFI_CONVENTIONAL_MEMORY;
-	ski_md[0].emd_physical_start = 2L*1024*1024;
-	ski_md[0].emd_virtul_start = 0;
-	ski_md[0].emd_number_of_pages = (64L*1024*1024)>>12;
-	ski_md[0].emd_attribute = EFI_MEMORY_WB;
+	ski_md[0].Type = EfiConventionalMemory;
+	ski_md[0].PhysicalStart = 2L*1024*1024;
+	ski_md[0].VirtualStart = 0;
+	ski_md[0].NumberOfPages = (64L*1024*1024)>>12;
+	ski_md[0].Attribute = EFI_MEMORY_WB;
 
-	ski_md[1].emd_type = EFI_CONVENTIONAL_MEMORY;
-	ski_md[1].emd_physical_start = 4096L*1024*1024;
-	ski_md[1].emd_virtul_start = 0;
-	ski_md[1].emd_number_of_pages = (32L*1024*1024)>>12;
-	ski_md[1].emd_attribute = EFI_MEMORY_WB;
+	ski_md[1].Type = EfiConventionalMemory;
+	ski_md[1].PhysicalStart = 4096L*1024*1024;
+	ski_md[1].VirtualStart = 0;
+	ski_md[1].NumberOfPages = (32L*1024*1024)>>12;
+	ski_md[1].Attribute = EFI_MEMORY_WB;
 	
 	mdcount = 1;		/* ignore the high memory for now */
 
@@ -447,14 +447,14 @@ ia64_init()
 		mdp = &ski_md[i];
 #ifdef DEBUG_MD
 		printf("MD %d: type %d pa 0x%lx cnt 0x%lx\n", i,
-		       mdp->emd_type,
-		       mdp->emd_physical_start,
-		       mdp->emd_number_of_pages);
+		       mdp->Type,
+		       mdp->PhysicalStart,
+		       mdp->NumberOfPages);
 #endif
-		totalphysmem += mdp->emd_number_of_pages;
+		totalphysmem += mdp->NumberOfPages;
 
-		if (mdp->emd_type != EFI_CONVENTIONAL_MEMORY) {
-			resvmem += mdp->emd_number_of_pages;
+		if (mdp->Type != EfiConventionalMemory) {
+			resvmem += mdp->NumberOfPages;
 			continue;
 		}
 
@@ -463,9 +463,9 @@ ia64_init()
 		 * software use.  We must determine if this cluster
 		 * holds the kernel.
 		 */
-		physmem += mdp->emd_number_of_pages;
-		pfn0 = atop(mdp->emd_physical_start);
-		pfn1 = pfn0 + mdp->emd_number_of_pages;
+		physmem += mdp->NumberOfPages;
+		pfn0 = atop(mdp->PhysicalStart);
+		pfn1 = pfn0 + mdp->NumberOfPages;
 		if (pfn0 <= kernendpfn && kernstartpfn <= pfn1) {
 			/*
 			 * Must compute the location of the kernel
