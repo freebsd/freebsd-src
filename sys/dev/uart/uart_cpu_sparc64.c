@@ -142,7 +142,10 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 	di->bas.bsh = sparc64_fake_bustag(space, addr, di->bas.bst);
 
 	/* Get the line settings. */
-	di->baudrate = 9600;
+	if (devtype == UART_DEV_KEYBOARD)
+		di->baudrate = 1200;
+	else
+		di->baudrate = 9600;
 	di->databits = 8;
 	di->stopbits = 1;
 	di->parity = UART_PARITY_NONE;
