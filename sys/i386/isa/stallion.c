@@ -33,7 +33,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: stallion.c,v 1.7 1997/03/13 04:13:45 davidn Exp $
+ * $Id: stallion.c,v 1.8 1997/03/23 03:35:06 bde Exp $
  */
 
 /*****************************************************************************/
@@ -491,7 +491,7 @@ static int	stl_getbrdstats(caddr_t data);
 static int	stl_getportstats(stlport_t *portp, caddr_t data);
 static int	stl_clrportstats(stlport_t *portp, caddr_t data);
 static stlport_t *stl_getport(int brdnr, int panelnr, int portnr);
-static void	stlintr(int unit);
+void	stlintr(int unit);
 
 #if NPCI > 0
 static char	*stlpciprobe(pcici_t tag, pcidi_t type);
@@ -1757,7 +1757,7 @@ static inline void stl_mdmisr(stlpanel_t *panelp, int ioaddr)
  *	io register.
  */
 
-static void stlintr(int unit)
+void stlintr(int unit)
 {
 	stlbrd_t	*brdp;
 	stlpanel_t	*panelp;
