@@ -74,7 +74,6 @@ struct pipebuf {
 	u_int	out;		/* out pointer */
 	u_int	size;		/* size of buffer */
 	caddr_t	buffer;		/* kva of buffer */
-	struct	vm_object *object;	/* VM object containing buffer */
 };
 
 /*
