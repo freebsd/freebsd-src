@@ -61,10 +61,12 @@ struct globaldata {
 	pt_entry_t	*gd_prv_CMAP2;
 	pt_entry_t	*gd_prv_CMAP3;
 	pd_entry_t	*gd_prv_PMAP1;
+	pd_entry_t	*gd_prv_PMAP2;
 	caddr_t		gd_prv_CADDR1;
 	caddr_t		gd_prv_CADDR2;
 	caddr_t		gd_prv_CADDR3;
 	pt_entry_t	*gd_prv_PADDR1;
+	pt_entry_t	*gd_prv_PADDR2;
 #endif
 	u_int		gd_astpending;
 };
@@ -80,13 +82,14 @@ struct privatespace {
 	struct globaldata globaldata;
 	char		__filler0[PAGE_SIZE - sizeof(struct globaldata)];
 
-	/* page 1..4 - CPAGE1,CPAGE2,CPAGE3,PPAGE1 */
+	/* page 1..5 - CPAGE1,CPAGE2,CPAGE3,PPAGE1,PPAGE2 */
 	char		CPAGE1[PAGE_SIZE];
 	char		CPAGE2[PAGE_SIZE];
 	char		CPAGE3[PAGE_SIZE];
 	char		PPAGE1[PAGE_SIZE];
+	char		PPAGE2[PAGE_SIZE];
 
-	/* page 5..4+UPAGES - idle stack (UPAGES pages) */
+	/* page 6..5+UPAGES - idle stack (UPAGES pages) */
 	char		idlestack[UPAGES * PAGE_SIZE];
 };
 

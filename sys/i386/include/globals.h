@@ -104,10 +104,12 @@
 #define	prv_CMAP2	GLOBAL_LVALUE(prv_CMAP2, pt_entry_t *)
 #define	prv_CMAP3	GLOBAL_LVALUE(prv_CMAP3, pt_entry_t *)
 #define	prv_PMAP1	GLOBAL_LVALUE(prv_PMAP1, pd_entry_t *)
+#define	prv_PMAP2	GLOBAL_LVALUE(prv_PMAP2, pd_entry_t *)
 #define	prv_CADDR1	GLOBAL_RVALUE(prv_CADDR1, caddr_t)
 #define	prv_CADDR2	GLOBAL_RVALUE(prv_CADDR2, caddr_t)
 #define	prv_CADDR3	GLOBAL_RVALUE(prv_CADDR3, caddr_t)
 #define	prv_PADDR1	GLOBAL_RVALUE(prv_PADDR1, pt_entry_t *)
+#define	prv_PADDR2	GLOBAL_RVALUE(prv_PADDR2, pt_entry_t *)
 #endif
 #endif	/*UP kernel*/
 
@@ -134,10 +136,12 @@ GLOBAL_FUNC(prv_CMAP1)
 GLOBAL_FUNC(prv_CMAP2)
 GLOBAL_FUNC(prv_CMAP3)
 GLOBAL_FUNC(prv_PMAP1)
+GLOBAL_FUNC(prv_PMAP2)
 GLOBAL_FUNC(prv_CADDR1)
 GLOBAL_FUNC(prv_CADDR2)
 GLOBAL_FUNC(prv_CADDR3)
 GLOBAL_FUNC(prv_PADDR1)
+GLOBAL_FUNC(prv_PADDR2)
 #endif
 
 #define	SET_CURPROC(x)	(_global_curproc_set_nv((int)x))

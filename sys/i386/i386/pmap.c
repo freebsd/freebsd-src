@@ -114,6 +114,8 @@
 #include <sys/mman.h>
 #include <sys/malloc.h>
 
+#include <machine/cpu.h>
+#include <machine/ipl.h>
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <sys/sysctl.h>
@@ -215,15 +217,19 @@ extern pt_entry_t *SMPpt;
 #define	CMAP2	prv_CMAP2
 #define	CMAP3	prv_CMAP3
 #define	PMAP1	prv_PMAP1
+#define	PMAP2	prv_PMAP2
 #define	CADDR1	prv_CADDR1
 #define	CADDR2	prv_CADDR2
 #define	CADDR3	prv_CADDR3
 #define	PADDR1	prv_PADDR1
+#define	PADDR2  prv_PADDR2
 #else
 static pt_entry_t *CMAP1, *CMAP2, *CMAP3;
 static caddr_t CADDR1, CADDR2, CADDR3;
 static pd_entry_t *PMAP1;
 static pt_entry_t *PADDR1;
+static pd_entry_t *PMAP2;
+static pt_entry_t *PADDR2;
 #endif
 
 static pt_entry_t *ptmmap;
@@ -257,6 +263,7 @@ static void pmap_insert_entry __P((pmap_t pmap, vm_offset_t va,
 
 static vm_page_t pmap_allocpte __P((pmap_t pmap, vm_offset_t va));
 static vm_page_t _pmap_allocpte __P((pmap_t pmap, unsigned ptepindex));
+static pt_entry_t *pmap_pte_quick __P((pmap_t pmap, vm_offset_t va));
 static vm_page_t pmap_page_lookup __P((vm_object_t object, vm_pindex_t pindex));
 static int pmap_unuse_pt __P((pmap_t, vm_offset_t, vm_page_t));
 static vm_offset_t pmap_kmem_choose(vm_offset_t addr);
@@ -364,6 +371,7 @@ pmap_bootstrap(vm_paddr_t firstaddr, vm_paddr_t loadaddr)
 	 * ptemap is used for pmap_pte
 	 */
 	SYSMAP(pd_entry_t *, PMAP1, PADDR1, 1);
+	SYSMAP(pd_entry_t *, PMAP2, PADDR2, 1);
 #endif
 
 	/*
@@ -454,10 +462,12 @@ pmap_bootstrap(vm_paddr_t firstaddr, vm_paddr_t loadaddr)
 	gd->gd_prv_CMAP2 = &SMPpt[2];
 	gd->gd_prv_CMAP3 = &SMPpt[3];
 	gd->gd_prv_PMAP1 = &SMPpt[4];
+	gd->gd_prv_PMAP2 = &SMPpt[5];
 	gd->gd_prv_CADDR1 = SMP_prvspace[0].CPAGE1;
 	gd->gd_prv_CADDR2 = SMP_prvspace[0].CPAGE2;
 	gd->gd_prv_CADDR3 = SMP_prvspace[0].CPAGE3;
 	gd->gd_prv_PADDR1 = (pt_entry_t *)SMP_prvspace[0].PPAGE1;
+	gd->gd_prv_PADDR2 = (pt_entry_t *)SMP_prvspace[0].PPAGE2;
 #endif
 
 	invltlb();
@@ -663,13 +673,18 @@ pmap_is_current(pmap_t pmap)
  *	Function:
  *		Extract the page table entry associated
  *		with the given map/virtual_address pair.
+ *      Note: Must be protected by splvm()
  */
 
-pt_entry_t *
-pmap_pte(pmap_t pmap, vm_offset_t va)
+static pt_entry_t *
+pmap_pte_quick(pmap_t pmap, vm_offset_t va)
 {
 	pd_entry_t *pde, newpf;
 
+#ifdef INVARIANTS
+	if (~cpl & (net_imask | bio_imask | cam_imask))
+		panic("pmap_pte_quick not protected by splvm()");
+#endif
 	pde = pmap_pde(pmap, va);
 	if (*pde & PG_V) {
 		if (*pde & PG_PS)
@@ -686,6 +701,44 @@ pmap_pte(pmap_t pmap, vm_offset_t va)
 #endif
 		}
 		return PADDR1 + (i386_btop(va) & (NPTEPG - 1));
+	}
+	return (0);
+}
+
+/*
+ *	Routine:	pmap_pte
+ *	Function:
+ *		Extract the page table entry associated
+ *		with the given map/virtual_address pair.
+ *      Note: Must not be called from interrupts on non-current pmap
+ */
+
+pt_entry_t *
+pmap_pte(pmap_t pmap, vm_offset_t va)
+{
+	pd_entry_t *pde, newpf;
+
+	pde = pmap_pde(pmap, va);
+	if (*pde & PG_V) {
+		if (*pde & PG_PS)
+			return (pt_entry_t *)pde;
+		if (pmap_is_current(pmap))
+			return vtopte(va);
+#ifdef INVARIANTS
+		if (intr_nesting_level != 0) {
+			panic("pmap_pte called from interrupt");
+		}
+#endif
+		newpf = *pde & PG_FRAME;
+		if ((*PMAP2 & PG_FRAME) != newpf) {
+			*PMAP2 = newpf | PG_RW | PG_V;
+#ifdef SMP
+			cpu_invlpg(PADDR2);
+#else
+			invltlb_1pg((vm_offset_t) PADDR2);
+#endif
+		}
+		return PADDR2 + (i386_btop(va) & (NPTEPG - 1));
 	}
 	return (0);
 }
@@ -1635,8 +1688,8 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 		if (nva > eva)
 			nva = eva;
 
-		for (; sva < nva; sva += PAGE_SIZE) {
-			pte = pmap_pte(pmap, sva);
+		pte = pmap_pte(pmap, sva);
+		for (; sva < nva; sva += PAGE_SIZE, pte++) {
 			if ((*pte & PG_V) == 0)
 				continue;
 			
@@ -1684,7 +1737,7 @@ pmap_remove_all(vm_page_t m)
 	while ((pv = TAILQ_FIRST(&m->md.pv_list)) != NULL) {
 		pv->pv_pmap->pm_stats.resident_count--;
 
-		pte = pmap_pte(pv->pv_pmap, pv->pv_va);
+		pte = pmap_pte_quick(pv->pv_pmap, pv->pv_va);
 
 		tpte = pte_store(pte, 0);
 		if (tpte & PG_W)
@@ -2681,7 +2734,7 @@ pmap_remove_pages(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 #ifdef PMAP_REMOVE_PAGES_CURPROC_ONLY
 		pte = vtopte(pv->pv_va);
 #else
-		pte = pmap_pte(pv->pv_pmap, pv->pv_va);
+		pte = pmap_pte_quick(pv->pv_pmap, pv->pv_va);
 #endif
 		tpte = *pte;
 
@@ -2762,7 +2815,7 @@ pmap_testbit(vm_page_t m, int bit)
 			continue;
 		}
 #endif
-		pte = pmap_pte(pv->pv_pmap, pv->pv_va);
+		pte = pmap_pte_quick(pv->pv_pmap, pv->pv_va);
 		if (*pte & bit) {
 			splx(s);
 			return TRUE;
@@ -2807,7 +2860,7 @@ pmap_changebit(vm_page_t m, int bit, boolean_t setem)
 		}
 #endif
 
-		pte = pmap_pte(pv->pv_pmap, pv->pv_va);
+		pte = pmap_pte_quick(pv->pv_pmap, pv->pv_va);
 
 		if (setem) {
 			*pte |= bit;
@@ -2893,7 +2946,7 @@ pmap_ts_referenced(vm_page_t m)
 			if (!pmap_track_modified(pv->pv_va))
 				continue;
 
-			pte = pmap_pte(pv->pv_pmap, pv->pv_va);
+			pte = pmap_pte_quick(pv->pv_pmap, pv->pv_va);
 
 			if (pte && (*pte & PG_A)) {
 				*pte &= ~PG_A;
@@ -3180,6 +3233,7 @@ pmap_pid_dump(int pid)
 	struct proc *p;
 	int npte = 0;
 	int index;
+	int s;
 	LIST_FOREACH(p, &allproc, p_list) {
 		if (p->p_pid != pid)
 			continue;
@@ -3195,6 +3249,7 @@ pmap_pid_dump(int pid)
 				
 				pde = &pmap->pm_pdir[i];
 				if (pde && pmap_pde_v(pde)) {
+					s = splvm();
 					for(j=0;j<1024;j++) {
 						unsigned va = base + (j << PAGE_SHIFT);
 						if (va >= (vm_offset_t) VM_MIN_KERNEL_ADDRESS) {
@@ -3202,9 +3257,10 @@ pmap_pid_dump(int pid)
 								index = 0;
 								printf("\n");
 							}
+							splx(s);
 							return npte;
 						}
-						pte = pmap_pte( pmap, va);
+						pte = pmap_pte_quick(pmap, va);
 						if (pte && pmap_pte_v(pte)) {
 							vm_offset_t pa;
 							vm_page_t m;
@@ -3222,6 +3278,7 @@ pmap_pid_dump(int pid)
 							}
 						}
 					}
+					splx(s);
 				}
 			}
 		}
@@ -3242,9 +3299,11 @@ pads(pm)
 {
 	unsigned va, i, j;
 	unsigned *ptep;
+	int s;
 
 	if (pm == kernel_pmap)
 		return;
+	s = splvm();
 	for (i = 0; i < 1024; i++)
 		if (pm->pm_pdir[i])
 			for (j = 0; j < 1024; j++) {
@@ -3253,10 +3312,11 @@ pads(pm)
 					continue;
 				if (pm != kernel_pmap && va > UPT_MAX_ADDRESS)
 					continue;
-				ptep = pmap_pte(pm, va);
+				ptep = pmap_pte_quick(pm, va);
 				if (pmap_pte_v(ptep))
 					printf("%x:%x ", va, *(int *) ptep);
 			};
+	splx(s);
 
 }
 

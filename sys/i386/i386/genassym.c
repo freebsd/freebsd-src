@@ -198,10 +198,12 @@ ASSYM(GD_PRV_CMAP1, offsetof(struct globaldata, gd_prv_CMAP1));
 ASSYM(GD_PRV_CMAP2, offsetof(struct globaldata, gd_prv_CMAP2));
 ASSYM(GD_PRV_CMAP3, offsetof(struct globaldata, gd_prv_CMAP3));
 ASSYM(GD_PRV_PMAP1, offsetof(struct globaldata, gd_prv_PMAP1));
+ASSYM(GD_PRV_PMAP2, offsetof(struct globaldata, gd_prv_PMAP2));
 ASSYM(GD_PRV_CADDR1, offsetof(struct globaldata, gd_prv_CADDR1));
 ASSYM(GD_PRV_CADDR2, offsetof(struct globaldata, gd_prv_CADDR2));
 ASSYM(GD_PRV_CADDR3, offsetof(struct globaldata, gd_prv_CADDR3));
 ASSYM(GD_PRV_PADDR1, offsetof(struct globaldata, gd_prv_PADDR1));
+ASSYM(GD_PRV_PADDR2, offsetof(struct globaldata, gd_prv_PADDR2));
 ASSYM(PS_IDLESTACK, offsetof(struct privatespace, idlestack));
 ASSYM(PS_IDLESTACK_TOP, sizeof(struct privatespace));
 #endif
