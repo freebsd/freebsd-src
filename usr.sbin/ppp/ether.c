@@ -34,6 +34,8 @@
 #include <netdb.h>
 #include <netgraph.h>
 #include <net/ethernet.h>
+#include <net/if.h>
+#include <net/route.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <netgraph/ng_ether.h>
@@ -88,6 +90,7 @@
 #endif
 #include "bundle.h"
 #include "id.h"
+#include "iface.h"
 #include "ether.h"
 
 
@@ -399,9 +402,12 @@ ether_Create(struct physical *p)
   struct ng_mesg *resp;
   const struct hooklist *hlist;
   const struct nodeinfo *ninfo;
-  int f;
+  char *path;
+  int ifacelen, f;
 
   dev = NULL;
+  path = NULL;
+  ifacelen = 0;
   if (p->fd < 0 && !strncasecmp(p->name.full, NG_PPPOE_NODE_TYPE,
                                 PPPOE_NODE_TYPE_LEN) &&
       p->name.full[PPPOE_NODE_TYPE_LEN] == ':') {
@@ -410,8 +416,8 @@ ether_Create(struct physical *p)
     struct ngm_mkpeer mkp;
     struct ngm_connect ngc;
     const char *iface, *provider;
-    char *path, etherid[12];
-    int ifacelen, providerlen;
+    char etherid[12];
+    int providerlen;
     char connectpath[sizeof dev->hook + 2];	/* .:<hook> */
 
     p->fd--;				/* We own the device - change fd */
@@ -672,6 +678,15 @@ ether_Create(struct physical *p)
     if (p->dl->bundle->cfg.mtu > 1492) {
       log_Printf(LogWARN, "%s: Reducing MTU to 1492\n", p->link.name);
       p->dl->bundle->cfg.mtu = 1492;
+    }
+
+    if (path != NULL) {
+      /* Mark the interface as UP if it's not already */
+
+      path[ifacelen] = '\0';		/* Remove the trailing ':' */
+      if (!iface_SetFlags(path, IFF_UP))
+        log_Printf(LogWARN, "%s: Failed to set the IFF_UP flag on %s\n",
+                   p->link.name, path);
     }
 
     return &dev->dev;

@@ -791,7 +791,7 @@ bundle_Create(const char *prefix, int type, int unit)
 #endif
 #endif
 
-  if (!iface_SetFlags(bundle.iface, IFF_UP)) {
+  if (!iface_SetFlags(bundle.iface->name, IFF_UP)) {
     iface_Destroy(bundle.iface);
     bundle.iface = NULL;
     close(bundle.dev.fd);
@@ -886,7 +886,7 @@ static void
 bundle_DownInterface(struct bundle *bundle)
 {
   route_IfDelete(bundle, 1);
-  iface_ClearFlags(bundle->iface, IFF_UP);
+  iface_ClearFlags(bundle->iface->name, IFF_UP);
 }
 
 void
