@@ -1,6 +1,6 @@
-static char     _ittyid[] = "@(#)$Id: iitty.c,v 1.9 1995/07/22 16:44:26 bde Exp $";
+static char     _ittyid[] = "@(#)$Id: iitty.c,v 1.10 1995/07/31 21:01:03 bde Exp $";
 /*******************************************************************************
- *  II - Version 0.1 $Revision: 1.9 $   $State: Exp $
+ *  II - Version 0.1 $Revision: 1.10 $   $State: Exp $
  *
  * Copyright 1994 Dietmar Friede
  *******************************************************************************
@@ -10,6 +10,50 @@ static char     _ittyid[] = "@(#)$Id: iitty.c,v 1.9 1995/07/22 16:44:26 bde Exp 
  *
  *******************************************************************************
  * $Log: iitty.c,v $
+ * Revision 1.10  1995/07/31  21:01:03  bde
+ * Obtained from:	partly from ancient patches of mine via 1.1.5
+ *
+ * Introduce TS_CONNECTED and TS_ZOMBIE states.  TS_CONNECTED is set
+ * while a connection is established.  It is set while (TS_CARR_ON or
+ * CLOCAL is set) and TS_ZOMBIE is clear.  TS_ZOMBIE is set for on to
+ * off transitions of TS_CARR_ON that occur when CLOCAL is clear and
+ * is cleared for off to on transitions of CLOCAL.  I/o can only occur
+ * while TS_CONNECTED is set.  TS_ZOMBIE prevents further i/o.
+ *
+ * Split the input-event sleep address TSA_CARR_ON(tp) into TSA_CARR_ON(tp)
+ * and TSA_HUP_OR_INPUT(tp).  The former address is now used only for
+ * off to on carrier transitions and equivalent CLOCAL transitions.
+ * The latter is used for all input events, all carrier transitions
+ * and certain CLOCAL transitions.  There are some harmless extra
+ * wakeups for rare connection- related events.  Previously there were
+ * too many extra wakeups for non-rare input events.
+ *
+ * Drivers now call l_modem() instead of setting TS_CARR_ON directly
+ * to handle even the initial off to on transition of carrier.  They
+ * should always have done this.  l_modem() now handles TS_CONNECTED
+ * and TS_ZOMBIE as well as TS_CARR_ON.
+ *
+ * gnu/isdn/iitty.c:
+ * Set TS_CONNECTED for first open ourself to go with bogusly setting
+ * CLOCAL.
+ *
+ * i386/isa/syscons.c, i386/isa/pcvt/pcvt_drv.c:
+ * We fake carrier, so don't also fake CLOCAL.
+ *
+ * kern/tty.c:
+ * Testing TS_CONNECTED instead of TS_CARR_ON fixes TIOCCONS forgetting to
+ * test CLOCAL.  TS_ISOPEN was tested instead, but that broke when we disabled
+ * the clearing of TS_ISOPEN for certain transitions of CLOCAL.
+ *
+ * Testing TS_CONNECTED fixes ttyselect() returning false success for output
+ * to devices in state !TS_CARR_ON && !CLOCAL.
+ *
+ * Optimize the other selwakeup() call (this is not related to the other
+ * changes).
+ *
+ * kern/tty_pty.c:
+ * ptcopen() can be declared in traditional C now that dev_t isn't short.
+ *
  * Revision 1.9  1995/07/22  16:44:26  bde
  * Obtained from:	partly from ancient patches of mine via 1.1.5
  *
@@ -177,8 +221,8 @@ ityopen(dev_t dev, int flag, int mode, struct proc * p)
 	while ((flag & O_NONBLOCK) == 0 && (tp->t_cflag & CLOCAL) == 0 &&
 	       (tp->t_state & TS_CARR_ON) == 0)
 	{
-		if (error = ttysleep(tp, TSA_CARR_ON(tp), TTIPRI | PCATCH,
-				     "iidcd", 0))
+		error = tsleep(TSA_CARR_ON(tp), TTIPRI | PCATCH, "iidcd", 0);
+		if (error)
 			break;
 	}
 	(void) spl0();
