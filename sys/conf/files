@@ -842,7 +842,8 @@ pci/ncr.c		optional ncr
 pci/ohci_pci.c		optional ohci
 pci/pccbb.c		optional pccbb cardbus
 pci/pci.c		optional pci
-pci/pci_compat.c	optional pci
+pci/pci_compat.c	optional pci compat_oldpci \
+	warning "Old PCI driver compatability shims present."
 pci/pcic_p.c		optional pcic pci
 pci/pcisupport.c	optional pci
 pci/pci_if.m		optional pci

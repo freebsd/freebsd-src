@@ -30,10 +30,6 @@
 #ifndef _PCIVAR_H_
 #define _PCIVAR_H_
 
-#ifndef PCI_COMPAT
-#define PCI_COMPAT
-#endif
-
 #include <sys/queue.h>
 
 /* some PCI bus constants */
@@ -139,6 +135,15 @@ typedef struct {
 
 extern u_int32_t pci_numdevs;
 
+/* Only if the prerequisites are present */
+#if defined(_SYS_BUS_H_) && defined(_SYS_PCIIO_H_)
+struct pci_devinfo {
+        STAILQ_ENTRY(pci_devinfo) pci_links;
+	struct resource_list resources;
+	pcicfgregs		cfg;
+	struct pci_conf		conf;
+};
+#endif
 
 /* externally visible functions */
 
@@ -265,13 +270,13 @@ PCIB_ACCESSOR(hose,		HOSE,		u_int32_t)
 
 #endif
 
-/* for compatibility to FreeBSD-2.2 version of PCI code */
-
-#ifdef PCI_COMPAT
+/* for compatibility to FreeBSD-2.2 and 3.x versions of PCI code */
 
 #if defined(_KERNEL) && !defined(KLD_MODULE)
 #include "opt_compat_oldpci.h"
 #endif
+
+#ifdef COMPAT_OLDPCI
 
 /* all this is going some day */
 
@@ -283,7 +288,6 @@ typedef void pci_inthand_t(void *arg);
 
 /* just copied from old PCI code for now ... */
 
-#ifdef COMPAT_OLDPCI
 struct pci_device {
     char*    pd_name;
     const char*  (*pd_probe ) (pcici_t tag, pcidi_t type);
@@ -291,7 +295,6 @@ struct pci_device {
     u_long  *pd_count;
     int    (*pd_shutdown) (int, int);
 };
-#endif
 
 #ifdef __i386__
 typedef u_short pci_port_t;
@@ -312,7 +315,6 @@ int pci_unmap_int (pcici_t tag);
 pcici_t pci_get_parent_from_tag(pcici_t tag);
 int     pci_get_bus_from_tag(pcici_t tag);
 
-#ifdef COMPAT_OLDPCI
 struct module;
 int compat_pci_handler (struct module *, int, void *);
 #define COMPAT_PCI_DRIVER(name, pcidata)				\
@@ -322,8 +324,6 @@ static moduledata_t name##_mod = {					\
 	&pcidata							\
 };									\
 DECLARE_MODULE(name, name##_mod, SI_SUB_DRIVERS, SI_ORDER_ANY)
-#endif
+#endif /* COMPAT_OLDPCI */
 
-
-#endif /* PCI_COMPAT */
 #endif /* _PCIVAR_H_ */
