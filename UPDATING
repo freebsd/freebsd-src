@@ -8,6 +8,12 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.  Important recent entries: 20040724 (default X changes).
 
+20040914:
+	The format of the pflogd(8) logfile "/var/log/pflog" has changed for
+	architectures that have a 64 bit long type to make it compatible to
+	the standard pcap format. In order to prevent corruption move away
+	any old logfile before using a new pflogd(8).
+
 20040907:
 	The kernel and userland debugging options have been turned off
 	by default.
