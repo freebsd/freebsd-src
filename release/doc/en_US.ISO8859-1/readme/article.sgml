@@ -82,7 +82,7 @@
 
     <para>The basic requirements for using this &release.type are
     technical proficiency with &os; and an understanding of the ongoing
-    development process of &os; &release.current; 
+    development process of &os; &release.branch; 
     (as discussed on the &a.stable;).</para>
 
     <para>For those more interested
@@ -280,62 +280,50 @@
 
     </para>
 
-    <para>Most information is also available from the
-    Documentation menu during installation.</para>
+      <para>Most of this information is also available from the
+	Documentation menu during installation.  Once the system is
+	installed, you can revisit this menu by running the
+	&man.sysinstall.8; utility.</para>
 
+      <note>
+	<para>It is extremely important to read the errata for any
+	  given release before installing it, to learn about any
+	  <quote>late-breaking news</quote> or post-release problems.
+	  The errata file accompanying each release (most likely right
+	  next to this file) is already out of date by definition, but
+	  other copies are kept updated on the Internet and should be
+	  consulted as the <quote>current errata</quote> for this
+	  release.  These other copies of the errata are located at
+	  <ulink url="http://www.FreeBSD.org/releases/"></ulink> (as
+	  well as any sites which keep up-to-date mirrors of this
+	  location).</para>
+      </note>
   </sect2>
 
   <sect2>
 
   <title>Books and Articles</title>
 
-  <para>Pointers to more documentation on &os; can be found in the
-  <ulink
-  url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/bibliography.html#BIBLIOGRAPHY-FREEBSD">Books
-  &amp; Magazines Specific to FreeBSD</ulink> section of the &os; Handbook.
-  Because of &os;'s strong UNIX heritage, many other articles and books written
-  for UNIX systems are applicable as well.  A selection of these documents
-  can be found in the Handbook's <ulink
-  url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/bibliography.html">Bibliography</ulink>.
-  </para>
+      <para>Two highly-useful collections of &os;-related information,
+	maintained by the &os; Project,
+	are the &os; Handbook and &os; FAQ (Frequently Asked
+	Questions document).  On-line versions of the <ulink
+	url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/">Handbook</ulink>
+	and <ulink
+	url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/faq/">FAQ</ulink>
+	are always available from the <ulink
+	url="http://www.FreeBSD.org/docs.html">FreeBSD Documentation
+	page</ulink> or its mirrors.  If you install the
+	<filename>doc</filename> distribution set, you can use a Web
+	browser to read the Handbook and FAQ locally.</para>
 
-  <para>If you're new to &os; then you should also read
-  all of the documentation files listed in <xref linkend="release-docs">,
-  all of which are available from the Documentation menu in the
-  installation program.
-  It may seem
-  like a lot to read, but it's important to at least acquaint yourself with
-  the types of information available, should you run into problems later.  Once
-  the system is installed, you can also revisit this menu by running
-  the &man.sysinstall.8; utility.</para>
-
-  <para>On-line
-  versions of the <ulink
-  url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/faq/">FAQ</ulink>
-  (Frequently Asked Questions document) and <ulink
-  url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/">Handbook</ulink> are always
-  available from the <ulink
-  url="http://www.FreeBSD.org/docs.html">FreeBSD Documentation
-  page</ulink> or its mirrors.
-  If you install the
-  <filename>doc</filename> distribution set, you can use a
-  Web browser to read the FAQ and Handbook locally.</para>
-
-  <note>
-    <para>It is extremely important to read the errata for any given
-    release before installing it, to learn about any
-    <quote>late-breaking news</quote> or post-release problems.
-    The
-    errata file accompanying each release 
-    (most likely right next to this file) is already out of
-    date by definition, but other copies are kept updated on the Internet
-    and should be consulted as the <quote>current errata</quote> for
-    this release.  These
-    other copies of the errata are located at
-    <ulink url="http://www.FreeBSD.org/releases/"></ulink>
-    (as well as any sites which keep up-to-date mirrors of this
-    location).</para>
-  </note>
+      <para>A listing of books and other documents about &os; can be
+        found in the <ulink
+        url="http://www.FreeBSD.org/doc/en_US.ISO8859-1/books/handbook/bibliography.html">bibliography</ulink>
+        of the &os; Handbook.  Because of &os;'s strong UNIX heritage,
+        many other articles and books written for UNIX systems are
+        applicable as well, some of which are also listed in the
+        bibliography.</para>
   </sect2>
 </sect1>
 
