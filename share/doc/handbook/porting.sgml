@@ -1,4 +1,4 @@
-<!-- $Id: porting.sgml,v 1.14 1996/03/06 09:04:43 asami Exp $ -->
+<!-- $Id: porting.sgml,v 1.15 1996/03/06 09:45:04 asami Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <sect1><heading>Porting an existing piece of free software<label id="porting"></heading>
@@ -156,7 +156,7 @@ The pattern is the year followed by the month.
  # Date created:		5 December 1994
  # Whom:			asami
  #
- # $Id: porting.sgml,v 1.14 1996/03/06 09:04:43 asami Exp $
+ # $Id: porting.sgml,v 1.15 1996/03/06 09:45:04 asami Exp $
  #
  
  DISTNAME=	oneko-1.1b
@@ -791,6 +791,28 @@ FETCH_DEPENDS=   ncftp2:${PORTSDIR}/net/ncftp2
 	  <tt>/etc/make.conf</tt>.)
 
       <sect3>
+	<heading>DIST_SUBDIR</heading>
+	<p>Don't let your port clutter <tt>/usr/ports/distfiles</tt>.  If
+	  your port requires a lot of files (including patchfiles) to be
+	  fetched, or contains a file that has a name that might conflict
+	  with other ports (e.g., `Makefile'), set
+	  <tt>&dollar;{DIST_SUBDIR}</tt> to the name of the port
+	  (<tt>&dollar;{PKGNAME}</tt> without the version part should work
+	  fine).  This will change <tt>&dollar;{DISTDIR}</tt> from the
+	  default <tt>/usr/ports/distfiles</tt> to
+	  <tt>/usr/ports/distfiles/&dollar;{DIST_SUBDIR}</tt>, and in
+	  effect puts everything that is required for your port into that
+	  subdirectory.
+
+	<p>It will also look at the subdirectory with the same name on the
+	  backup master site at <tt>ftp.freebsd.org</tt>.  (Setting
+	  <tt>&dollar;{DISTDIR}</tt> explicitly in your Makefile will not
+	  accomplish this, so please use <tt>&dollar;{DIST_SUBDIR}</tt>.)
+	  
+	<p>Note this does not affect the <tt>&dollar;{MASTER_SITES}</tt>
+	  you define in your Makefile.
+
+      <sect3>
 	<heading>Custom utilities</heading>
 	<p>Don't rely on custom utilities in your local configure
 	  script or anything -- they may not be there on the user's
@@ -936,7 +958,7 @@ lib/libtcl.so.7.3
   person who wrote this Makefile]
  # Whom:			Satoshi Asami <asami@FreeBSD.ORG>
  #
- # $Id: porting.sgml,v 1.14 1996/03/06 09:04:43 asami Exp $
+ # $Id: porting.sgml,v 1.15 1996/03/06 09:45:04 asami Exp $
  [ ^^^^ don't worry about this...it will be automatically filled in by CVS when 
   it is committed to our repository]
  #
