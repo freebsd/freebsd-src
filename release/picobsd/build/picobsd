@@ -641,6 +641,16 @@ __EOF
     log "Fixing permissions"
     (cd ${dst}; chown -R root . )
 
+    if [ -n "${import_files}" ] ; then
+	log "importing ${import_files} into mfs"
+	# We do it in a chroot environment on the target so
+	# symlinks are followed correctly.
+	cp `which tar` ${dst}/my_copy_of_tar
+	(cd ${l_usrtree}/.. ; tar cf - ${import_files} ) | \
+	    (chroot ${dst} /my_copy_of_tar xf - )
+	rm ${dst}/my_copy_of_tar
+    fi
+
     if [ "${early_mfs_mount}" != "1" ] ; then
 	create_mfs
 	log "Copy mfs tree into file"
@@ -706,6 +716,9 @@ fail() {
 	;;
     no_space)
 	echo "Error: no space left on device (${where})"
+	;;
+    no_mfs)
+	echo "Error: while writing MFS into the kernel."
 	;;
     "")
 	echo "User break"
@@ -787,7 +800,7 @@ if [ true ] ; then
     else
 	cc -o wmk ${PICO_TREE}/../write_mfs_in_kernel.c
     fi
-    ./wmk kernel ${c_fs}
+    ./wmk kernel ${c_fs} || fail $? no_mfs
     rm wmk
 else	# not working yet, just a reminder
     objdump -h kernel
