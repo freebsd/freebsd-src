@@ -214,7 +214,9 @@ main(argc, argv)
 		dvname = devicename;
 	else
 		dvname++;
-	sprintf(pidfile, PIDFILE, _PATH_VARRUN, dvname);
+	if (snprintf(pidfile, sizeof(pidfile), PIDFILE, _PATH_VARRUN, dvname) >= sizeof(pidfile))
+		usage();
+
 	if ((pfd = fopen(pidfile, "r")) != NULL) {
 		if (fscanf(pfd, "%ld\n", &lpid) == 1) {
 			pid = lpid;
