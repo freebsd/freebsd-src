@@ -710,6 +710,14 @@ psycho_ue(void *arg)
 
 	afar = PSYCHO_READ8(sc, PSR_UE_AFA);
 	afsr = PSYCHO_READ8(sc, PSR_UE_AFS);
+	/*
+	 * On the UltraSPARC-IIi/IIe, IOMMU misses/protection faults cause
+	 * the AFAR to be set to the physical address of the TTE entry that
+	 * was invalid/write protected. Call into the iommu code to have
+	 * them decoded to virtual IO addresses.
+	 */
+	if ((afsr & UEAFSR_P_DTE) != 0)
+		iommu_decode_fault(sc->sc_is, afar);
 	/* It's uncorrectable.  Dump the regs and panic. */
 	panic("%s: uncorrectable DMA error AFAR %#lx AFSR %#lx\n",
 	    device_get_name(sc->sc_dev), (u_long)afar, (u_long)afsr);

@@ -80,6 +80,7 @@ void iommu_init(char *, struct iommu_state *, int, u_int32_t);
 void iommu_reset(struct iommu_state *);
 void iommu_enter(struct iommu_state *, vm_offset_t, vm_offset_t, int);
 void iommu_remove(struct iommu_state *, vm_offset_t, size_t);
+void iommu_decode_fault(struct iommu_state *, vm_offset_t);
 
 int iommu_dvmamap_create(bus_dma_tag_t, struct iommu_state *, int,
     bus_dmamap_t *);
