@@ -96,6 +96,9 @@ g_bioq_first(struct g_bioq *bq)
 
 	bp = TAILQ_FIRST(&bq->bio_queue);
 	if (bp != NULL) {
+		KASSERT((bp->bio_flags & BIO_ONQUEUE),
+		    ("Bio not on queue bp=%p target %p", bp, bq));
+		bp->bio_flags &= ~BIO_ONQUEUE;
 		TAILQ_REMOVE(&bq->bio_queue, bp, bio_queue);
 		bq->bio_queue_length--;
 	}
@@ -106,6 +109,9 @@ static void
 g_bioq_enqueue_tail(struct bio *bp, struct g_bioq *rq)
 {
 
+	KASSERT(!(bp->bio_flags & BIO_ONQUEUE),
+	    ("Bio already on queue bp=%p target %p", bp, rq));
+	bp->bio_flags |= BIO_ONQUEUE;
 	g_bioq_lock(rq);
 	TAILQ_INSERT_TAIL(&rq->bio_queue, bp, bio_queue);
 	rq->bio_queue_length++;
@@ -252,6 +258,15 @@ g_io_request(struct bio *bp, struct g_consumer *cp)
 	pp = cp->provider;
 	KASSERT(pp != NULL, ("consumer not attached in g_io_request"));
 
+	if (bp->bio_cmd & (BIO_READ|BIO_WRITE|BIO_DELETE)) {
+		KASSERT(bp->bio_offset % cp->provider->sectorsize == 0,
+		    ("wrong offset %jd for sectorsize %u",
+		    bp->bio_offset, cp->provider->sectorsize));
+		KASSERT(bp->bio_length % cp->provider->sectorsize == 0,
+		    ("wrong length %jd for sectorsize %u",
+		    bp->bio_length, cp->provider->sectorsize));
+	}
+
 	bp->bio_from = cp;
 	bp->bio_to = pp;
 	bp->bio_error = 0;
@@ -297,6 +312,9 @@ g_io_deliver(struct bio *bp, int error)
 	    bp, cp, cp->geom->name, pp, pp->name, bp->bio_cmd, error,
 	    (intmax_t)bp->bio_offset, (intmax_t)bp->bio_length);
 
+	/*
+	 * XXX: next two doesn't belong here
+	 */
 	bp->bio_bcount = bp->bio_length;
 	bp->bio_resid = bp->bio_bcount - bp->bio_completed;
 	if (g_collectstats & 1)
@@ -390,6 +408,9 @@ bio_taskqueue(struct bio *bp, bio_task_t *func, void *arg)
 	 * queue, so we use the same lock.
 	 */
 	g_bioq_lock(&g_bio_run_up);
+	KASSERT(!(bp->bio_flags & BIO_ONQUEUE),
+	    ("Bio already on queue bp=%p target taskq", bp));
+	bp->bio_flags |= BIO_ONQUEUE;
 	TAILQ_INSERT_TAIL(&g_bio_run_task.bio_queue, bp, bio_queue);
 	g_bio_run_task.bio_queue_length++;
 	wakeup(&g_wait_up);
