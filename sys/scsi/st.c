@@ -12,7 +12,7 @@
  * on the understanding that TFS is not responsible for the correct
  * functioning of this software in any circumstances.
  *
- * $Id: st.c,v 1.68 1996/04/02 04:54:26 scrappy Exp $
+ * $Id: st.c,v 1.69 1996/06/22 14:57:55 joerg Exp $
  */
 
 /*
@@ -67,9 +67,6 @@
 #define CTLMODE	3
 
 #define IS_CTLMODE(DEV) (MODE(DEV) == CTLMODE)
-
-#define SCSI_2_MAX_DENSITY_CODE	0x17	/* maximum density code specified
-					 * in SCSI II spec. */
 
 static errval	st_space __P((u_int32_t unit, int32_t number, u_int32_t what, u_int32_t flags));
 static errval	st_rewind __P((u_int32_t unit, boolean immed, u_int32_t flags));
@@ -496,6 +493,13 @@ st_close(dev_t dev, int flag, int fmt, struct proc *p,
 
 	if ((st->flags & (ST_WRITTEN | ST_FM_WRITTEN)) == ST_WRITTEN)
 		st_write_filemarks(unit, 1, 0);
+
+	/*
+	 * Since the device has seen its last close, allow media removal. 
+	 * Do this before we attempt an eject.
+	 */
+ 	scsi_prevent(sc_link, PR_ALLOW, SCSI_SILENT);
+
 	switch (mode & 0x3) {
 	case 0:
 	case 3:		/* for now */
@@ -510,7 +514,6 @@ st_close(dev_t dev, int flag, int fmt, struct proc *p,
 		st_unmount(unit, EJECT);
 		break;
 	}
-	scsi_prevent(sc_link, PR_ALLOW, SCSI_SILENT);
 
 	sc_link->flags &= ~SDEV_OPEN;
 	st->flags &= ~ST_OPEN;
@@ -1111,6 +1114,11 @@ struct proc *p, struct scsi_link *sc_link)
 						  flags);
 				break;
 			case MTOFFL:	/* rewind and put the drive offline */
+				/*
+				 * Be sure to allow media removal before
+				 * attempting the eject.
+				 */
+				scsi_prevent(sc_link, PR_ALLOW, SCSI_SILENT);
 				st_unmount(unit, EJECT);
 				break;
 			case MTNOP:	/* no operation, sets status only */
@@ -1141,13 +1149,14 @@ struct proc *p, struct scsi_link *sc_link)
 				goto try_new_value;
 
 			case MTSETDNSTY:	/* Set density for device and mode */
-				if (number > SCSI_2_MAX_DENSITY_CODE) {
+				if (number > (u_int8_t)0xff) {
+					/* Guard against overflows */
 					errcode = EINVAL;
 				} else {
 					st->density = number;
+					goto try_new_value;
 				}
-				goto try_new_value;
-
+				break;
 			case MTCOMP:	/* enable default compression */
 				errcode = st_comp(unit,number);
 				break;
@@ -1814,7 +1823,11 @@ st_interpret_sense(xs)
 			info = xs->datalen;
 		}
 	}
-	if ((sense->error_code & SSD_ERRCODE) != 0x70) {
+
+	key = sense->ext.extended.flags & SSD_KEY;
+
+	if (((sense->error_code & SSD_ERRCODE) != 0x70)
+	  || (key == 0x7)) /* Media Write Protected */ {
 		return SCSIRET_CONTINUE;/* let the generic code handle it */
 	}
 	if(sense->ext.extended.flags & (SSD_EOM|SSD_FILEMARK|SSD_ILI)) {
@@ -1890,7 +1903,6 @@ st_interpret_sense(xs)
 		}
 		return 0;
 	}
-	key = sense->ext.extended.flags & SSD_KEY;
 
 	if (key == 0x8) {
 		xs->flags |= SCSI_EOF; /* some drives need this */
