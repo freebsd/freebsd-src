@@ -243,13 +243,12 @@ struct module;
 struct devsw_module_data {
 	int	(*chainevh)(struct module *, int, void *); /* next handler */
 	void	*chainarg;	/* arg for next event handler */
-	struct	cdevsw *cdevsw;	/* device functions */
 	/* Do not initialize fields hereafter */
 };
 
-#define DEV_MODULE(name, cmaj, bmaj, devsw, evh, arg)			\
+#define DEV_MODULE(name, evh, arg)					\
 static struct devsw_module_data name##_devsw_mod = {			\
-    evh, arg, &devsw							\
+    evh, arg,								\
 };									\
 									\
 static moduledata_t name##_mod = {					\
@@ -257,7 +256,7 @@ static moduledata_t name##_mod = {					\
     devsw_module_handler,						\
     &name##_devsw_mod							\
 };									\
-DECLARE_MODULE(name, name##_mod, SI_SUB_DRIVERS, SI_ORDER_MIDDLE+cmaj*256+bmaj)
+DECLARE_MODULE(name, name##_mod, SI_SUB_DRIVERS, SI_ORDER_MIDDLE)
 
 
 int	cdevsw_add __P((struct cdevsw *new));
