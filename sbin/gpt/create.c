@@ -63,6 +63,8 @@ create(int fd)
 	struct gpt_ent *ent;
 	unsigned int i;
 
+	last = mediasz / secsz - 1LL;
+
 	if (map_find(MAP_TYPE_PRI_GPT_HDR) != NULL ||
 	    map_find(MAP_TYPE_SEC_GPT_HDR) != NULL) {
 		warnx("%s: error: device already contains a GPT", device_name);
@@ -92,12 +94,12 @@ create(int fd)
 		mbr->mbr_part[0].part_esect = 0xff;
 		mbr->mbr_part[0].part_ecyl = 0xff;
 		mbr->mbr_part[0].part_start_lo = htole16(1);
-		if (mediasz > 0xffffffff) {
+		if (last > 0xffffffff) {
 			mbr->mbr_part[0].part_size_lo = htole16(0xffff);
 			mbr->mbr_part[0].part_size_hi = htole16(0xffff);
 		} else {
-			mbr->mbr_part[0].part_size_lo = htole16(mediasz);
-			mbr->mbr_part[0].part_size_hi = htole16(mediasz >> 16);
+			mbr->mbr_part[0].part_size_lo = htole16(last);
+			mbr->mbr_part[0].part_size_hi = htole16(last >> 16);
 		}
 		map = map_add(0LL, 1LL, MAP_TYPE_PMBR, mbr);
 		gpt_write(fd, map);
@@ -117,8 +119,6 @@ create(int fd)
 			blocks++;
 		blocks++;		/* Don't forget the header itself */
 	}
-
-	last = mediasz / secsz - 1LL;
 
 	/* Never cross the median of the device. */
 	if ((blocks + 1LL) > ((last + 1LL) >> 1))
