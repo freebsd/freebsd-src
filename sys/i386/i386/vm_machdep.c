@@ -35,22 +35,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	@(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
- *
- * PATCHES MAGIC                LEVEL   PATCH THAT GOT US HERE
- * --------------------         -----   ----------------------
- * CURRENT PATCH LEVEL:         1       00154
- * --------------------         -----   ----------------------
- *
- * 20 Apr 93	Bruce Evans		New npx-0.5 code
- *
- */
-
-/*
+ *	from: @(#)vm_machdep.c	7.3 (Berkeley) 5/13/91
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
+ *	$Id$
  */
-static char rcsid[] = "$Header: /usr/chroot/CVS/386BSD/src/sys/i386/i386/vm_machdep.c,v 1.3 1993/07/27 10:52:21 davidg Exp $";
 
+#include "npx.h"
 #include "param.h"
 #include "systm.h"
 #include "proc.h"
@@ -152,9 +142,9 @@ cpu_exit(p)
 {
 	static struct pcb nullpcb;	/* pcb to overwrite on last swtch */
 
-#ifdef NPX
+#if NNPX > 0
 	npxexit(p);
-#endif
+#endif	/* NNPX */
 
 	/* move to inactive space and stack, passing arg accross */
 	p = swtch_to_inactive(p);
@@ -174,9 +164,9 @@ cpu_exit(p)
 	register struct proc *p;
 {
 	
-#ifdef NPX
+#if NNPX > 0
 	npxexit(p);
-#endif
+#endif	/* NNPX */
 	splclock();
 	swtch();
 	/* 
@@ -308,8 +298,8 @@ kernacc(addr, count, rw)
 	for (pde += ix; cnt; cnt--, pde++)
 		if (pde->pd_v == 0)
 			return(0);
-	ix = btop(addr-0xfe000000);
-	cnt = btop(addr-0xfe000000+count+NBPG-1);
+	ix = btop(addr-KERNBASE);
+	cnt = btop(addr-KERNBASE+count+NBPG-1);
 	if (cnt > (int)&Syssize)
 		return(0);
 	cnt -= ix;
