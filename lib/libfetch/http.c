@@ -106,14 +106,14 @@ __FBSDID("$FreeBSD$");
 
 struct cookie
 {
-	conn_t		*conn;
-	char		*buf;
-	size_t		 b_size;
-	ssize_t		 b_len;
-	int		 b_pos;
-	int		 eof;
-	int		 error;
-	size_t		 chunksize;
+	conn_t		*conn;		/* connection */
+	char		*buf;		/* chunk buffer */
+	size_t		 b_size;	/* size of chunk buffer */
+	ssize_t		 b_len;		/* amount of data currently in buffer */
+	int		 b_pos;		/* current read offset in buffer */
+	int		 eof;		/* end-of-file flag */
+	int		 error;		/* error flag */
+	size_t		 chunksize;	/* remaining size of current chunk */
 #ifndef NDEBUG
 	size_t		 total;
 #endif
