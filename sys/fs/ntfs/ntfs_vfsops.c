@@ -154,15 +154,12 @@ ntfs_mount (
 
 	/*
 	 * If updating, check whether changing from read-only to
-	 * read/write; if there is no device name, that's all we do.
+	 * read/write.
 	 */
 	if (mp->mnt_flag & MNT_UPDATE) {
-		/* if not updating name...*/
-		if (from == NULL) {
-			error = vfs_copyopt(mp->mnt_optnew, "export",	
-			    &export, sizeof export);
-			if (error) 
-				return (error);
+		error = vfs_copyopt(mp->mnt_optnew, "export",	
+		    &export, sizeof export);
+		if ((error == 0) && export.ex_flags != 0) {
 			/*
 			 * Process export requests.  Jumping to "success"
 			 * will return the vfs_export() error code.
