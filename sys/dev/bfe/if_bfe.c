@@ -613,7 +613,7 @@ bfe_list_newbuf(struct bfe_softc *sc, int c, struct mbuf *m)
 	r = &sc->bfe_rx_ring[c];
 	bus_dmamap_load(sc->bfe_tag, r->bfe_map, mtod(m, void *),
 			MCLBYTES, bfe_dma_map_desc, d, 0);
-	bus_dmamap_sync(sc->bfe_tag, r->bfe_map, BUS_DMASYNC_PREWRITE);
+	bus_dmamap_sync(sc->bfe_tag, r->bfe_map, BUS_DMASYNC_PREREAD);
 
 	ctrl = ETHER_MAX_LEN + 32;
 
