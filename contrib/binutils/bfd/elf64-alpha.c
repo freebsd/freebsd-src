@@ -18,6 +18,8 @@ You should have received a copy of the GNU General Public License
 along with this program; if not, write to the Free Software
 Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  */
 
+/* $FreeBSD$ */
+
 /* We need a published ABI spec for this.  Until one comes out, don't
    assume this'll remain unchanged forever.  */
 
@@ -1030,7 +1032,7 @@ elf64_alpha_info_to_howto (abfd, cache_ptr, dst)
 
 #define MAX_GOT_ENTRIES		(64*1024 / 8)
 
-#define ELF_DYNAMIC_INTERPRETER "/usr/lib/ld.so"
+#define ELF_DYNAMIC_INTERPRETER "/usr/libexec/ld-elf.so.1"
 
 /* Handle an Alpha specific section when reading an object file.  This
    is called when elfcode.h finds a section with an unknown type.
