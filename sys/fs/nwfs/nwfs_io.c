@@ -58,9 +58,9 @@
 #include <netncp/ncp_subr.h>
 #include <netncp/ncp_ncp.h>
 
-#include <nwfs/nwfs.h>
-#include <nwfs/nwfs_node.h>
-#include <nwfs/nwfs_subr.h>
+#include <fs/nwfs/nwfs.h>
+#include <fs/nwfs/nwfs_node.h>
+#include <fs/nwfs/nwfs_subr.h>
 
 static int nwfs_fastlookup = 1;
 

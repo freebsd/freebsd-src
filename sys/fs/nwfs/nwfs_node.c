@@ -53,10 +53,10 @@
 #include <netncp/ncp_conn.h>
 #include <netncp/ncp_subr.h>
 
-#include <nwfs/nwfs.h>
-#include <nwfs/nwfs_mount.h>
-#include <nwfs/nwfs_node.h>
-#include <nwfs/nwfs_subr.h>
+#include <fs/nwfs/nwfs.h>
+#include <fs/nwfs/nwfs_mount.h>
+#include <fs/nwfs/nwfs_node.h>
+#include <fs/nwfs/nwfs_subr.h>
 
 #define	NWNOHASH(fhsum) (&nwhashtbl[(fhsum.f_id) & nwnodehash])
 

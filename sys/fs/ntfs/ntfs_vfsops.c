@@ -60,12 +60,12 @@
 #endif
 
 /*#define NTFS_DEBUG 1*/
-#include <ntfs/ntfs.h>
-#include <ntfs/ntfs_inode.h>
-#include <ntfs/ntfs_subr.h>
-#include <ntfs/ntfs_vfsops.h>
-#include <ntfs/ntfs_ihash.h>
-#include <ntfs/ntfsmount.h>
+#include <fs/ntfs/ntfs.h>
+#include <fs/ntfs/ntfs_inode.h>
+#include <fs/ntfs/ntfs_subr.h>
+#include <fs/ntfs/ntfs_vfsops.h>
+#include <fs/ntfs/ntfs_ihash.h>
+#include <fs/ntfs/ntfsmount.h>
 
 #if defined(__FreeBSD__)
 MALLOC_DEFINE(M_NTFSMNT, "NTFS mount", "NTFS mount structure");

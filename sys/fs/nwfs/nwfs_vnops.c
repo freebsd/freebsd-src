@@ -53,9 +53,9 @@
 #include <netncp/nwerror.h>
 #include <netncp/ncp_nls.h>
 
-#include <nwfs/nwfs.h>
-#include <nwfs/nwfs_node.h>
-#include <nwfs/nwfs_subr.h>
+#include <fs/nwfs/nwfs.h>
+#include <fs/nwfs/nwfs_node.h>
+#include <fs/nwfs/nwfs_subr.h>
 
 /*
  * Prototypes for NWFS vnode operations
