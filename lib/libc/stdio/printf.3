@@ -133,7 +133,7 @@ If sufficient space cannot be allocated,
 .Fn asprintf
 and
 .Fn vasprintf
-will return -1 and set
+will return \-1 and set
 .Fa ret
 to be a
 .Dv NULL
@@ -191,7 +191,7 @@ If unaccessed arguments in the format string are interspersed with ones that
 are accessed the results will be indeterminate.
 .It
 Zero or more of the following flags:
-.Bl -tag -width ".So \&\ \& Sc (space)" -compact -offset indent
+.Bl -tag -width ".So \  Sc (space)"
 .It Sq Cm #
 The value should be converted to an
 .Dq alternate form .
@@ -241,7 +241,7 @@ and
 the
 .Cm 0
 flag is ignored.
-.It Sq Cm \&\-
+.It Sq Cm \-
 A negative field width flag;
 the converted value is to be left adjusted on the field boundary.
 Except for
@@ -253,7 +253,7 @@ A
 overrides a
 .Cm 0
 if both are given.
-.It So \&\ \& Sc (space)
+.It So "\ " Sc (space)
 A blank should be left before a positive number
 produced by a signed conversion
 .Cm ( a , A , d , e , E , f , F , g , G ,
@@ -313,21 +313,20 @@ The following length modifiers are valid for the
 or
 .Cm X
 conversion:
-.Bl -column ".Cm q Em (deprecated)" ".Vt signed char" ".Vt unsigned long long" ".Vt unsigned long long *"
+.Bl -column ".Cm q Em (deprecated)" ".Vt signed char" ".Vt unsigned long long" ".Vt long long *"
 .It Sy Modifier Ta Cm d , i Ta Cm o , u , x , X Ta Cm n
-.It Cm hh Ta Vt signed char Ta Vt unsigned char Ta Vt signed char *
-.It Cm h Ta Vt short Ta Vt unsigned short Ta Vt short *
-.It Cm l No (ell) Ta Vt long Ta Vt unsigned long Ta Vt long *
-.It Cm ll No (ell ell) Ta Vt long long Ta Vt unsigned long long Ta Vt long long *
-.It Cm j Ta Vt intmax_t Ta Vt uintmax_t Ta Vt intmax_t *
-.It Cm t Ta Vt ptrdiff_t Ta Sy * Ta Vt ptrdiff_t *
-.It Cm z Ta Sy * Ta Vt size_t Ta Sy *
-.It Cm q Em (deprecated) Ta Vt quad_t Ta Vt u_quad_t Ta Vt quad_t *
+.It Cm hh Ta Vt "signed char" Ta Vt "unsigned char" Ta Vt "signed char *"
+.It Cm h Ta Vt short Ta Vt "unsigned short" Ta Vt "short *"
+.It Cm l No (ell) Ta Vt long Ta Vt "unsigned long" Ta Vt "long *"
+.It Cm ll No (ell ell) Ta Vt "long long" Ta Vt "unsigned long long" Ta Vt "long long *"
+.It Cm j Ta Vt intmax_t Ta Vt uintmax_t Ta Vt "intmax_t *"
+.It Cm t Ta Vt ptrdiff_t Ta (see note) Ta Vt "ptrdiff_t *"
+.It Cm z Ta (see note) Ta Vt size_t Ta (see note)
+.It Cm q Em (deprecated) Ta Vt quad_t Ta Vt u_quad_t Ta Vt "quad_t *"
 .El
 .Pp
-.Bl -tag -width ".Cm * No -"
-.It Cm * No -
-The
+Note:
+the
 .Cm t
 modifier, when applied to a
 .Cm o , u , x ,
@@ -339,7 +338,8 @@ equivalent in size to a
 The
 .Cm z
 modifier, when applied to a
-.Cm d or
+.Cm d
+or
 .Cm i
 conversion, indicates that the argument is of a signed type equivalent in
 size to a
@@ -349,7 +349,6 @@ Similarly, when applied to an
 conversion, it indicates that the argument is a pointer to a signed type
 equivalent in size to a
 .Vt size_t .
-.El
 .Pp
 The following length modifier is valid for the
 .Cm a , A , e , E , f , F , g ,
@@ -358,7 +357,7 @@ or
 conversion:
 .Bl -column ".Sy Modifier" ".Cm a , A , e , E , f , F , g , G"
 .It Sy Modifier Ta Cm a , A , e , E , f , F , g , G
-.It Cm L Ta Vt long double
+.It Cm L Ta Vt "long double"
 .El
 .Pp
 The following length modifier is valid for the
@@ -368,7 +367,7 @@ or
 conversion:
 .Bl -column ".Sy Modifier" ".Vt wint_t" ".Vt wchar_t *"
 .It Sy Modifier Ta Cm c Ta Cm s
-.It Cm l No (ell) Ta Vt wint_t Ta Vt wchar_t *
+.It Cm l No (ell) Ta Vt wint_t Ta Vt "wchar_t *"
 .El
 .It
 A character that specifies the type of conversion to be applied.
@@ -387,11 +386,12 @@ argument supplies the field width or precision.
 A negative field width is treated as a left adjustment flag followed by a
 positive field width; a negative precision is treated as though it were
 missing.
-If a single format directive mixes positional (nn$)
+If a single format directive mixes positional
+.Pq Li nn$
 and non-positional arguments, the results are undefined.
 .Pp
 The conversion specifiers and their meanings are:
-.Bl -tag -width "diouxX"
+.Bl -tag -width ".Cm diouxX"
 .It Cm diouxX
 The
 .Vt int
@@ -409,11 +409,11 @@ and
 .Cm X )
 notation.
 The letters
-.Cm abcdef
+.Dq Li abcdef
 are used for
 .Cm x
 conversions; the letters
-.Cm ABCDEF
+.Dq Li ABCDEF
 are used for
 .Cm X
 conversions.
@@ -422,7 +422,7 @@ appear; if the converted value requires fewer digits, it is padded on
 the left with zeros.
 .It Cm DOU
 The
-.Vt long int
+.Vt "long int"
 argument is converted to signed decimal, unsigned octal, or unsigned
 decimal, as if the format had been
 .Cm ld , lo ,
@@ -434,7 +434,9 @@ These conversion characters are deprecated, and will eventually disappear.
 The
 .Vt double
 argument is rounded and converted in the style
-.Oo \- Oc Ns d Ns Cm \&. Ns ddd Ns Cm e Ns \\*[Pm]dd
+.Sm off
+.Oo \- Oc Ar d Li \&. Ar ddd Li e \\*[Pm] Ar dd
+.Sm on
 where there is one digit before the
 decimal-point character
 and the number of digits after it is equal to the precision;
@@ -444,9 +446,9 @@ zero, no decimal-point character appears.
 An
 .Cm E
 conversion uses the letter
-.Cm E
+.Ql E
 (rather than
-.Cm e )
+.Ql e )
 to introduce the exponent.
 The exponent always contains at least two digits; if the value is zero,
 the exponent is 00.
@@ -461,7 +463,7 @@ and
 .Li -inf
 respectively when using the lowercase conversion character, and
 .Li INF
-and 
+and
 .Li -INF
 respectively when using the uppercase conversion character.
 Similarly, NaN is represented as
@@ -473,7 +475,9 @@ when using the uppercase conversion.
 The
 .Vt double
 argument is rounded and converted to decimal notation in the style
-.Oo \- Oc Ns ddd Ns Cm \&. Ns ddd ,
+.Sm off
+.Oo \- Oc Ar ddd Li \&. Ar ddd ,
+.Sm on
 where the number of digits after the decimal-point character
 is equal to the precision specification.
 If the precision is missing, it is taken as 6; if the precision is
@@ -498,7 +502,7 @@ If the precision is missing, 6 digits are given; if the precision is zero,
 it is treated as 1.
 Style
 .Cm e
-is used if the exponent from its conversion is less than -4 or greater than
+is used if the exponent from its conversion is less than \-4 or greater than
 or equal to the precision.
 Trailing zeros are removed from the fractional part of the result; a
 decimal point appears only if it is followed by at least one digit.
@@ -506,7 +510,9 @@ decimal point appears only if it is followed by at least one digit.
 The
 .Vt double
 argument is converted to hexadecimal notation in the style
-.Oo \- Oc Ns 0xh Ns Cm \&. Ns hhhp Ns Oo +- Oc Ns d ,
+.Sm off
+.Oo \- Oc Li 0x Ar h Li \&. Ar hhhp Oo \\*[Pm] Oc Ar d ,
+.Sm on
 where the number of digits after the hexadecimal-point character
 is equal to the precision specification.
 If the precision is missing, it is taken as enough to exactly
@@ -514,31 +520,33 @@ represent the floating-point number; if the precision is
 explicitly zero, no hexadecimal-point character appears.
 This is an exact coversion of the mantissa+exponent internal
 floating point representation; the
-.Oo \- Oc Ns 0xh Ns Cm \&. Ns hhh
+.Sm off
+.Oo \- Oc Li 0x Ar h Li \&. Ar hhh
+.Sm on
 portion represents exactly the mantissa; only denormalized
 mantissas have a zero value to the left of the hexadecimal
 point.
 The
 .Cm p
 is a literal character
-.Qq p ;
+.Ql p ;
 the exponent is preceded by a positive or negative sign
 and is represented in decimal, using only enough characters
 to represent the exponent.
 The
 .Cm A
 conversion uses the prefix
-.Cm 0X
+.Dq Li 0X
 (rather than
-.Cm 0x ) ,
+.Dq Li 0x ) ,
 the letters
-.Cm ABCDEF
+.Dq Li ABCDEF
 (rather than
-.Cm abcdef )
+.Dq Li abcdef )
 to represent the hex digits, and the letter
-.Cm P
+.Ql P
 (rather than
-.Cm p )
+.Ql p )
 to seperate the mantissa and exponent.
 .It Cm C
 Treated as
@@ -550,7 +558,7 @@ with the
 The
 .Vt int
 argument is converted to an
-.Vt unsigned char ,
+.Vt "unsigned char" ,
 and the resulting character is written.
 .Pp
 If the
@@ -571,7 +579,7 @@ with the
 (ell) modifier.
 .It Cm s
 The
-.Vt char *
+.Vt "char *"
 argument is expected to be a pointer to an array of character type (pointer
 to a string).
 Characters from the array are written up to (but not including)
@@ -589,7 +597,7 @@ character.
 If the
 .Cm l
 (ell) modifier is used, the
-.Vt wchar_t *
+.Vt "wchar_t *"
 argument is expected to be a pointer to an array of wide characters
 (pointer to a wide string).
 For each wide character in the string, the (potentially multi-byte)
@@ -602,7 +610,8 @@ a terminating wide
 .Dv NUL
 character;
 if a precision is specified, no more than the number of bytes specified are
-written (including shift sequences).  Partial characters are never written.
+written (including shift sequences).
+Partial characters are never written.
 If a precision is given, no null character
 need be present; if the precision is not specified, or is greater than
 the number of bytes required to render the multibyte representation of
@@ -611,7 +620,7 @@ the string, the array must contain a terminating wide
 character.
 .It Cm p
 The
-.Vt void *
+.Vt "void *"
 pointer argument is printed in hexadecimal (as if by
 .Ql %#x
 or
@@ -619,7 +628,7 @@ or
 .It Cm n
 The number of characters written so far is stored into the
 integer indicated by the
-.Vt int *
+.Vt "int *"
 (or variant) pointer argument.
 No argument is converted.
 .It Cm %
@@ -776,31 +785,32 @@ for later interpolation by
 .Pp
 Always use the proper secure idiom:
 .Pp
-.Dl snprintf(buffer, sizeof(buffer), \*q%s\*q, string);
+.Dl "snprintf(buffer, sizeof(buffer), \*q%s\*q, string);"
 .Pp
 The
 .Nm
 family of functions currently lack the ability to use the
-.Qq '
+.Cm '
 flag in conjunction with the
-.Qq f
-conversion specifier.  The
-.Qq a
+.Cm f
+conversion specifier.
+The
+.Cm a
 and
-.Qq A
+.Cm A
 conversion specifiers have not yet been implemented.
 The
-.Qq l
+.Cm l
 (ell) modifier for the
-.Qq c
+.Cm c
 and
-.Qq s
+.Cm s
 conversion specifiers, for wide characters and strings, have not yet
 been implemented.
 The
-.Qq L
+.Cm L
 modifier for floating point formats simply round the
-.Vt long double
+.Vt "long double"
 argument to
 .Vt double ,
 providing no additional precision.
