@@ -1935,7 +1935,7 @@ bge_dma_alloc(dev)
 	 * Create tag for RX mbufs.
 	 */
 	nseg = 32;
-	error = bus_dma_tag_create(sc->bge_cdata.bge_parent_tag, ETHER_ALIGN,
+	error = bus_dma_tag_create(sc->bge_cdata.bge_parent_tag, 1,
 	    0, BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR, NULL,
 	    NULL, MCLBYTES * nseg, nseg, MCLBYTES, 0, NULL, NULL,
 	    &sc->bge_cdata.bge_mtag);
@@ -2024,7 +2024,7 @@ bge_dma_alloc(dev)
 		 */
 
 		error = bus_dma_tag_create(sc->bge_cdata.bge_parent_tag,
-		    ETHER_ALIGN, 0, BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR, NULL,
+		    1, 0, BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR, NULL,
 		    NULL, MCLBYTES * nseg, nseg, BGE_JLEN, 0, NULL, NULL,
 		    &sc->bge_cdata.bge_mtag_jumbo);
 
