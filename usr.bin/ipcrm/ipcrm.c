@@ -52,6 +52,12 @@ static const char rcsid[] =
 
 int signaled;
 
+void usage __P((void));
+int msgrm __P((key_t, int));
+int shmrm __P((key_t, int));
+int semrm __P((key_t, int));
+void not_configured __P((int));
+
 void usage()
 {
 	fprintf(stderr, "%s\n%s\n",
@@ -98,7 +104,7 @@ int semrm(key, id)
     return semctl(id, 0, IPC_RMID, arg);
 }
 
-void not_configured()
+void not_configured(int signo __unused)
 {
     signaled++;
 }
@@ -153,7 +159,7 @@ int main(argc, argv)
 	    if (result < 0) {
 		errflg++;
 		if (!signaled)
-		    warn("%key(%ld): ", IPC_TO_STR(c), target_key);
+		    warn("%ss(%ld): ", IPC_TO_STR(c), target_key);
 		else
 		    warnx("%ss are not configured in the running kernel",
 			  IPC_TO_STRING(c));
