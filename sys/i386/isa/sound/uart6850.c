@@ -60,7 +60,8 @@ static int      my_dev;
 
 static int      reset_uart6850(void);
 static void     (*midi_input_intr) (int dev, u_char data);
-static void     poll_uart6850(u_long dummy);
+static void     poll_uart6850(void *dummy);
+
 
 static sound_os_info *uart6850_osp;
 
@@ -97,7 +98,7 @@ m6850intr(int irq)
  */
 
 static void
-poll_uart6850(u_long dummy)
+poll_uart6850(void * dummy)
 {
     u_long   flags;
 
@@ -110,7 +111,7 @@ poll_uart6850(u_long dummy)
 	uart6850_input_loop();
 
 
-    timeout((timeout_func_t) poll_uart6850, 0, 1);;	/* Come back later */
+    timeout( poll_uart6850, 0, 1);	/* Come back later */
 
     splx(flags);
 }
