@@ -13,7 +13,7 @@
  * the author assume any responsibility for damages incurred with
  * its use.
  *
- * $Id: test1.c,v 1.2 1995/12/23 14:53:07 jkh Exp $
+ * $Id: menu3.c,v 1.1 1996/01/01 03:45:27 jkh Exp $
  */
 
 #include <stdio.h>
@@ -101,7 +101,7 @@ main(int argc, unsigned char *argv[])
   retval = dialog_menu("Do you have the GUTS?",
 		       "C'mon, macho man!  Do you have what it takes to do something REALLY\n"
 		       "dangerous and stupid?  WHAT ARE YOU WAITING FOR?!",
-		       -1, -1, 3, -3, &doit, NULL, NULL, NULL);
+		       -1, -1, 3, -3, doit, NULL, NULL, NULL);
   dialog_clear();
   fprintf(stderr, "returned value for dialog_menu was %d\n", retval);
 
