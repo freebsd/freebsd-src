@@ -425,6 +425,13 @@ Set_Boot_Blocks(struct disk *d, const u_char *b1, const u_char *b2)
 	d->boot1 = malloc(15 * 512);
 	if(!d->boot1) return -1;
 	memcpy(d->boot1, b1, 15 * 512);
+#elif defined(__sparc64__)
+	if (d->boot1 != NULL)
+		free(d->boot1);
+	d->boot1 = malloc(16 * 512);
+	if (d->boot1 == NULL)
+		return (-1);
+	memcpy(d->boot1, b1, 16 * 512);
 #elif defined(__ia64__)
 	/* nothing */
 #else
