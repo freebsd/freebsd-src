@@ -29,11 +29,11 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
  * THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_ax.c,v 1.4 1999/01/28 00:57:52 dillon Exp $
+ *	$Id: if_ax.c,v 1.9 1999/02/23 01:44:20 wpaul Exp $
  */
 
 /*
- * ASIX AX88140A fast ethernet PCI NIC driver.
+ * ASIX AX88140A and AX88141 fast ethernet PCI NIC driver.
  *
  * Written by Bill Paul <wpaul@ctr.columbia.edu>
  * Electrical Engineering Department
@@ -87,7 +87,7 @@
 
 #ifndef lint
 static const char rcsid[] =
-	"$Id: if_ax.c,v 1.4 1999/01/28 00:57:52 dillon Exp $";
+	"$Id: if_ax.c,v 1.9 1999/02/23 01:44:20 wpaul Exp $";
 #endif
 
 /*
@@ -96,6 +96,8 @@ static const char rcsid[] =
 static struct ax_type ax_devs[] = {
 	{ AX_VENDORID, AX_DEVICEID_AX88140A,
 		"ASIX AX88140A 10/100BaseTX" },
+	{ AX_VENDORID, AX_DEVICEID_AX88140A,
+		"ASIX AX88141 10/100BaseTX" },
 	{ 0, 0, NULL }
 };
 
@@ -1048,12 +1050,17 @@ ax_probe(config_id, device_id)
 	pcidi_t			device_id;
 {
 	struct ax_type		*t;
+	u_int32_t		rev;
 
 	t = ax_devs;
 
 	while(t->ax_name != NULL) {
 		if ((device_id & 0xFFFF) == t->ax_vid &&
 		    ((device_id >> 16) & 0xFFFF) == t->ax_did) {
+			/* Check the PCI revision */
+			rev = pci_conf_read(config_id, AX_PCI_REVID) & 0xFF;
+			if (rev >= AX_REVISION_88141)
+				t++;
 			return(t->ax_name);
 		}
 		t++;
@@ -2129,7 +2136,7 @@ static void ax_stop(sc)
 			sc->ax_cdata.ax_rx_chain[i].ax_mbuf = NULL;
 		}
 	}
-	bzero((volatile char *)&sc->ax_ldata->ax_rx_list,
+	bzero((char *)&sc->ax_ldata->ax_rx_list,
 		sizeof(sc->ax_ldata->ax_rx_list));
 
 	/*
@@ -2142,7 +2149,7 @@ static void ax_stop(sc)
 		}
 	}
 
-	bzero((volatile char *)&sc->ax_ldata->ax_tx_list,
+	bzero((char *)&sc->ax_ldata->ax_tx_list,
 		sizeof(sc->ax_ldata->ax_tx_list));
 
 	ifp->if_flags &= ~(IFF_RUNNING | IFF_OACTIVE);
