@@ -202,15 +202,14 @@ static int wi_pccard_detach(dev)
 {
 	struct wi_softc		*sc;
 	struct ifnet		*ifp;
-	int			s;
-
-	s = splimp();
 
 	sc = device_get_softc(dev);
+	WI_LOCK(sc);
 	ifp = &sc->arpcom.ac_if;
 
 	if (sc->wi_gone) {
 		device_printf(dev, "already unloaded\n");
+		WI_UNLOCK(sc);
 		return(ENODEV);
 	}
 
@@ -221,8 +220,9 @@ static int wi_pccard_detach(dev)
 	wi_free(dev);
 	sc->wi_gone = 1;
 
-	splx(s);
 	device_printf(dev, "unload\n");
+	WI_UNLOCK(sc);
+	mtx_destroy(&sc->wi_mtx);
 
 	return(0);
 }
@@ -252,6 +252,9 @@ static int wi_pccard_attach(device_t dev)
 		wi_free(dev);
 		return (error);
 	}
+
+	mtx_init(&sc->wi_mtx, device_get_nameunit(dev), MTX_DEF);
+	WI_LOCK(sc);
 
 	/* Reset the NIC. */
 	wi_reset(sc);
@@ -330,6 +333,7 @@ static int wi_pccard_attach(device_t dev)
 	 */
 	ether_ifattach(ifp, ETHER_BPF_SUPPORTED);
 	callout_handle_init(&sc->wi_stat_ch);
+	WI_UNLOCK(sc);
 
 	return(0);
 }
@@ -521,11 +525,14 @@ static void wi_intr(xsc)
 	struct ifnet		*ifp;
 	u_int16_t		status;
 
+	WI_LOCK(sc);
+
 	ifp = &sc->arpcom.ac_if;
 
 	if (!(ifp->if_flags & IFF_UP)) {
 		CSR_WRITE_2(sc, WI_EVENT_ACK, 0xFFFF);
 		CSR_WRITE_2(sc, WI_INT_EN, 0);
+		WI_UNLOCK(sc);
 		return;
 	}
 
@@ -572,6 +579,8 @@ static void wi_intr(xsc)
 
 	if (ifp->if_snd.ifq_head != NULL)
 		wi_start(ifp);
+
+	WI_UNLOCK(sc);
 
 	return;
 }
@@ -957,15 +966,14 @@ static int wi_ioctl(ifp, command, data)
 	u_long			command;
 	caddr_t			data;
 {
-	int			s, error = 0;
+	int			error = 0;
 	struct wi_softc		*sc;
 	struct wi_req		wreq;
 	struct ifreq		*ifr;
 	struct proc		*p = curproc;
 
-	s = splimp();
-
 	sc = ifp->if_softc;
+	WI_LOCK(sc);
 	ifr = (struct ifreq *)data;
 
 	if (sc->wi_gone) {
@@ -1065,7 +1073,7 @@ static int wi_ioctl(ifp, command, data)
 		break;
 	}
 out:
-	splx(s);
+	WI_UNLOCK(sc);
 
 	return(error);
 }
@@ -1075,14 +1083,15 @@ static void wi_init(xsc)
 {
 	struct wi_softc		*sc = xsc;
 	struct ifnet		*ifp = &sc->arpcom.ac_if;
-	int			s;
 	struct wi_ltv_macaddr	mac;
 	int			id = 0;
 
-	if (sc->wi_gone)
-		return;
+	WI_LOCK(sc);
 
-	s = splimp();
+	if (sc->wi_gone) {
+		WI_UNLOCK(sc);
+		return;
+	}
 
 	if (ifp->if_flags & IFF_RUNNING)
 		wi_stop(sc);
@@ -1165,12 +1174,11 @@ static void wi_init(xsc)
 	/* enable interrupts */
 	CSR_WRITE_2(sc, WI_INT_EN, WI_INTRS);
 
-	splx(s);
-
 	ifp->if_flags |= IFF_RUNNING;
 	ifp->if_flags &= ~IFF_OACTIVE;
 
 	sc->wi_stat_ch = timeout(wi_inquire, sc, hz * 60);
+	WI_UNLOCK(sc);
 
 	return;
 }
@@ -1185,16 +1193,23 @@ static void wi_start(ifp)
 	int			id;
 
 	sc = ifp->if_softc;
+	WI_LOCK(sc);
 
-	if (sc->wi_gone)
+	if (sc->wi_gone) {
+		WI_UNLOCK(sc);
 		return;
+	}
 
-	if (ifp->if_flags & IFF_OACTIVE)
+	if (ifp->if_flags & IFF_OACTIVE) {
+		WI_UNLOCK(sc);
 		return;
+	}
 
 	IF_DEQUEUE(&ifp->if_snd, m0);
-	if (m0 == NULL)
+	if (m0 == NULL) {
+		WI_UNLOCK(sc);
 		return;
+	}
 
 	bzero((char *)&tx_frame, sizeof(tx_frame));
 	id = sc->wi_tx_data_id;
@@ -1260,6 +1275,7 @@ static void wi_start(ifp)
 	 */
 	ifp->if_timer = 5;
 
+	WI_UNLOCK(sc);
 	return;
 }
 
@@ -1305,8 +1321,12 @@ static void wi_stop(sc)
 {
 	struct ifnet		*ifp;
 
-	if (sc->wi_gone)
+	WI_LOCK(sc);
+
+	if (sc->wi_gone) {
+		WI_UNLOCK(sc);
 		return;
+	}
 
 	ifp = &sc->arpcom.ac_if;
 
@@ -1317,6 +1337,7 @@ static void wi_stop(sc)
 
 	ifp->if_flags &= ~(IFF_RUNNING|IFF_OACTIVE);
 
+	WI_UNLOCK(sc);
 	return;
 }
 
