@@ -52,6 +52,6 @@ gdb_cpu_signal(int vector, int _)
 }
 
 void *gdb_cpu_getreg(int, size_t *);
-void gdb_cpu_setreg(int, register_t);
+void gdb_cpu_setreg(int, void *);
 
 #endif /* !_MACHINE_GDB_MACHDEP_H_ */

@@ -128,7 +128,7 @@ gdb_cpu_getreg(int regnum, size_t *regsz)
 }
 
 void
-gdb_cpu_setreg(int regnum, register_t val)
+gdb_cpu_setreg(int regnum, void *val)
 {
 
 	switch (regnum) {

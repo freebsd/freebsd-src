@@ -120,16 +120,22 @@ gdb_trap(int type, int code)
 			break;
 		case 'c': {	/* Continue. */
 			uintmax_t addr;
-			if (!gdb_rx_varhex(&addr))
-				gdb_cpu_setreg(GDB_REG_PC, addr);
+			register_t pc;
+			if (!gdb_rx_varhex(&addr)) {
+				pc = addr;
+				gdb_cpu_setreg(GDB_REG_PC, &pc);
+			}
 			kdb_cpu_clear_singlestep();
 			return (1);
 		}
 		case 'C': {	/* Continue with signal. */
 			uintmax_t addr, sig;
+			register_t pc;
 			if (!gdb_rx_varhex(&sig) && gdb_rx_char() == ';' &&
-			    !gdb_rx_varhex(&addr))
-				gdb_cpu_setreg(GDB_REG_PC, addr);
+			    !gdb_rx_varhex(&addr)) {
+				pc = addr;
+				gdb_cpu_setreg(GDB_REG_PC, &pc);
+			}
 			kdb_cpu_clear_singlestep();
 			return (1);
 		}
@@ -191,9 +197,11 @@ gdb_trap(int type, int code)
 			break;
 		}
 		case 'P': {	/* Write register. */
-			uintmax_t reg, val;
+			char *val;
+			uintmax_t reg;
+			val = gdb_rxp;
 			if (gdb_rx_varhex(&reg) || gdb_rx_char() != '=' ||
-			    gdb_rx_varhex(&val)) {
+			    !gdb_rx_mem(val, gdb_cpu_regsz(reg))) {
 				gdb_tx_err(EINVAL);
 				break;
 			}
@@ -226,16 +234,22 @@ gdb_trap(int type, int code)
 			break;
 		case 's': {	/* Step. */
 			uintmax_t addr;
-			if (!gdb_rx_varhex(&addr))
-				gdb_cpu_setreg(GDB_REG_PC, addr);
+			register_t pc;
+			if (!gdb_rx_varhex(&addr)) {
+				pc = addr;
+				gdb_cpu_setreg(GDB_REG_PC, &pc);
+			}
 			kdb_cpu_set_singlestep();
 			return (1);
 		}
 		case 'S': {	/* Step with signal. */
 			uintmax_t addr, sig;
+			register_t pc;
 			if (!gdb_rx_varhex(&sig) && gdb_rx_char() == ';' &&
-			    !gdb_rx_varhex(&addr))
-				gdb_cpu_setreg(GDB_REG_PC, addr);
+			    !gdb_rx_varhex(&addr)) {
+				pc = addr;
+				gdb_cpu_setreg(GDB_REG_PC, &pc);
+			}
 			kdb_cpu_set_singlestep();
 			return (1);
 		}

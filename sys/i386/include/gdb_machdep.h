@@ -46,7 +46,7 @@ gdb_cpu_query(void)
 }
 
 void *gdb_cpu_getreg(int, size_t *);
-void gdb_cpu_setreg(int, register_t);
+void gdb_cpu_setreg(int, void *);
 int gdb_cpu_signal(int, int);
 
 #endif /* !_MACHINE_GDB_MACHDEP_H_ */

@@ -41,7 +41,7 @@ gdb_cpu_regsz(int regnum)
 }
 
 void *gdb_cpu_getreg(int, size_t *);
-void gdb_cpu_setreg(int, register_t);
+void gdb_cpu_setreg(int, void *);
 int gdb_cpu_signal(int, int);
 int gdb_cpu_query(void);
 
