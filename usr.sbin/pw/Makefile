@@ -1,7 +1,7 @@
-# $Id: Makefile,v 1.1.1.3 1996/12/10 23:58:50 joerg Exp $
+# $Id: Makefile,v 1.2 1996/12/17 14:15:33 davidn Exp $
 
 PROG=	pw
-SRCS=	pw.c pw_conf.c pw_user.c pw_group.c pw_log.c \
+SRCS=	pw.c pw_conf.c pw_user.c pw_group.c pw_log.c pw_nis.c \
 	grupd.c pwupd.c fileupd.c edgroup.c psdate.c \
 	bitmap.c cpdir.c rm_r.c
 

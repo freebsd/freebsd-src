@@ -22,7 +22,7 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\"	$Id: pw.conf.5,v 1.1.1.3 1996/12/10 23:58:59 joerg Exp $
+.\"	$Id: pw.conf.5,v 1.2 1997/01/05 04:05:22 davidn Exp $
 .\"
 .Dd December 9, 1996
 .Dt PW.CONF 5
@@ -66,6 +66,8 @@ affects passwords generated for new users
 reuse gaps in uid sequences
 .It reusegids
 reuse gaps in gid sequences
+.It nispasswd
+path to the NIS passwd database
 .It skeleton
 where to obtain default home contents
 .It newmail
@@ -146,11 +148,18 @@ previous user or group deletions.
 Note that if the default group is not specified using the
 .Ar defaultgroup
 keyword,
-.Xr pw 8
+Xr pw 8
 will create a new group for the user and attempt to keep the new
 user's uid and gid the same.
 If the new user's uid is currently in use as a group id, then the next
 available group id is chosen instead.
+.Pp
+On NIS servers which maintain a separate passwd database to
+.Pa /etc/master.passwd ,
+this option allows the additional file to be concurrently updated
+as user records are added, modified or removed.
+If blank or set to 'no', no additional database is updated.
+An absolute pathname must be used.
 .Pp
 The
 .Ar skeleton
