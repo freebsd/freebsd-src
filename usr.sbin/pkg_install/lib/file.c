@@ -269,18 +269,18 @@ fileGetContents(char *fname)
 
     if (stat(fname, &sb) == FAIL) {
 	cleanup(0);
-	errx(2, "can't stat '%s'", fname);
+	errx(2, __FUNCTION__ ": can't stat '%s'", fname);
     }
 
     contents = (char *)malloc(sb.st_size + 1);
     fd = open(fname, O_RDONLY, 0);
     if (fd == FAIL) {
 	cleanup(0);
-	errx(2, "unable to open '%s' for reading", fname);
+	errx(2, __FUNCTION__ ": unable to open '%s' for reading", fname);
     }
     if (read(fd, contents, sb.st_size) != sb.st_size) {
 	cleanup(0);
-	errx(2, "short read on '%s' - did not get %qd bytes",
+	errx(2, __FUNCTION__ ": short read on '%s' - did not get %qd bytes",
 	     fname, sb.st_size);
     }
     close(fd);
@@ -332,16 +332,16 @@ write_file(char *name, char *str)
     fp = fopen(name, "w");
     if (!fp) {
 	cleanup(0);
-	errx(2, "cannot fopen '%s' for writing", name);
+	errx(2, __FUNCTION__ ": cannot fopen '%s' for writing", name);
     }
     len = strlen(str);
     if (fwrite(str, 1, len, fp) != len) {
 	cleanup(0);
-	errx(2, "short fwrite on '%s', tried to write %d bytes", name, len);
+	errx(2, __FUNCTION__ ": short fwrite on '%s', tried to write %d bytes", name, len);
     }
     if (fclose(fp)) {
 	cleanup(0);
-	errx(2, "failure to fclose '%s'", name);
+	errx(2, __FUNCTION__ ": failure to fclose '%s'", name);
     }
 }
 
@@ -356,7 +356,7 @@ copy_file(char *dir, char *fname, char *to)
 	snprintf(cmd, FILENAME_MAX, "cp -r %s/%s %s", dir, fname, to);
     if (vsystem(cmd)) {
 	cleanup(0);
-	errx(2, "could not perform '%s'", cmd);
+	errx(2, __FUNCTION__ ": could not perform '%s'", cmd);
     }
 }
 
@@ -371,7 +371,7 @@ move_file(char *dir, char *fname, char *to)
 	snprintf(cmd, FILENAME_MAX, "mv %s/%s %s", dir, fname, to);
     if (vsystem(cmd)) {
 	cleanup(0);
-	errx(2, "could not perform '%s'", cmd);
+	errx(2, __FUNCTION__ ": could not perform '%s'", cmd);
     }
 }
 
@@ -403,7 +403,7 @@ copy_hierarchy(char *dir, char *fname, Boolean to)
 #endif
     if (system(cmd)) {
 	cleanup(0);
-	errx(2, "copy_file: could not perform '%s'", cmd);
+	errx(2, __FUNCTION__ ": could not perform '%s'", cmd);
     }
 }
 
@@ -419,10 +419,10 @@ unpack(char *pkg, char *flist)
      * compressed.
      */
     if (strcmp(pkg, "-")) {
-	cp = rindex(pkg, '.');
+	cp = strrchr(pkg, '.');
 	if (cp) {
 	    strcpy(suffix, cp + 1);
-	    if (index(suffix, 'z') || index(suffix, 'Z'))
+	    if (strchr(suffix, 'z') || strchr(suffix, 'Z'))
 		strcpy(args, "-z");
 	}
     }
