@@ -214,26 +214,26 @@ pfs_read(struct vop_read_args *va)
 	struct vnode *vn = va->a_vp;
 	struct pfs_node *pn = vn->v_data;
 	struct uio *uio = va->a_uio;
-	struct sbuf sb;
+	struct sbuf *sb = NULL;
 	char *ps;
 	int error, xlen;
 
 	if (vn->v_type != VREG)
 		return (EINVAL);
 
-	error = sbuf_new(&sb, NULL, uio->uio_offset + uio->uio_resid, 0);
-	if (error)
+	sb = sbuf_new(sb, NULL, uio->uio_offset + uio->uio_resid, 0);
+	if (sb == NULL)
 		return (EIO);
 
-	error = (pn->pn_func)(pn, curproc, &sb);
+	error = (pn->pn_func)(pn, curproc, sb);
 	
 	/* XXX we should possibly detect and handle overflows */
-	sbuf_finish(&sb);
-	ps = sbuf_data(&sb) + uio->uio_offset;
-	xlen = sbuf_len(&sb) - uio->uio_offset;
+	sbuf_finish(sb);
+	ps = sbuf_data(sb) + uio->uio_offset;
+	xlen = sbuf_len(sb) - uio->uio_offset;
 	xlen = imin(xlen, uio->uio_resid);
 	error = (xlen <= 0 ? 0 : uiomove(ps, xlen, uio));
-	sbuf_delete(&sb);
+	sbuf_delete(sb);
 	return (error);
 }
 
