@@ -12,7 +12,7 @@
  */
 
 #ifndef lint
-static char id[] = "@(#)$Id: clock.c,v 8.52.18.14 2001/05/17 18:12:28 gshapiro Exp $";
+static char id[] = "@(#)$Id: clock.c,v 8.52.18.17 2001/07/31 23:04:59 ca Exp $";
 #endif /* ! lint */
 
 #include <sendmail.h>
@@ -21,8 +21,8 @@ static char id[] = "@(#)$Id: clock.c,v 8.52.18.14 2001/05/17 18:12:28 gshapiro E
 # define sigmask(s)	(1 << ((s) - 1))
 #endif /* ! sigmask */
 
-static SIGFUNC_DECL	tick __P((int));
-static void	endsleep __P((void));
+static SIGFUNC_DECL	sm_tick __P((int));
+static void		endsleep __P((void));
 
 
 /*
@@ -119,7 +119,7 @@ sigsafe_setevent(intvl, func, arg)
 		**  This shouldn't happen.  If called from setevent(),
 		**  we have just malloced a FreeEventList entry.  If
 		**  called from a signal handler, it should have been
-		**  from an existing event which tick() just added to the
+		**  from an existing event which sm_tick() just added to the
 		**  FreeEventList.
 		*/
 
@@ -143,7 +143,7 @@ sigsafe_setevent(intvl, func, arg)
 	*evp = ev;
 	LEAVE_CRITICAL();
 
-	(void) setsignal(SIGALRM, tick);
+	(void) setsignal(SIGALRM, sm_tick);
 	intvl = EventQueue->ev_time - now;
 	(void) alarm((unsigned) intvl < 1 ? 1 : intvl);
 	if (wasblocked == 0)
@@ -247,7 +247,7 @@ clear_events()
 		(void) releasesignal(SIGALRM);
 }
 /*
-**  TICK -- take a clock tick
+**  SM_TICK -- take a clock sm_tick
 **
 **	Called by the alarm clock.  This routine runs events as needed.
 **	Always called as a signal handler, so we assume that SIGALRM
@@ -268,8 +268,8 @@ clear_events()
 */
 
 /* ARGSUSED */
-SIGFUNC_DECL
-tick(sig)
+static SIGFUNC_DECL
+sm_tick(sig)
 	int sig;
 {
 	register time_t now;
@@ -279,7 +279,7 @@ tick(sig)
 
 	(void) alarm(0);
 
-	FIX_SYSV_SIGNAL(sig, tick);
+	FIX_SYSV_SIGNAL(sig, sm_tick);
 
 	errno = save_errno;
 	CHECK_CRITICAL(sig);
@@ -287,8 +287,8 @@ tick(sig)
 	mypid = getpid();
 	while (PendingSignal != 0)
 	{
-		int sigbit;
-		int sig;
+		int sigbit = 0;
+		int sig = 0;
 
 		if (bitset(PEND_SIGHUP, PendingSignal))
 		{
@@ -321,7 +321,7 @@ tick(sig)
 
 	now = curtime();
 	if (tTd(5, 4))
-		dprintf("tick: now=%ld\n", (long) now);
+		dprintf("sm_tick: now=%ld\n", (long) now);
 
 	while ((ev = EventQueue) != NULL &&
 	       (ev->ev_time <= now || ev->ev_pid != mypid))
@@ -336,7 +336,7 @@ tick(sig)
 		EventQueue = EventQueue->ev_link;
 		LEAVE_CRITICAL();
 		if (tTd(5, 6))
-			dprintf("tick: ev=%lx, func=%lx, arg=%d, pid=%d\n",
+			dprintf("sm_tick: ev=%lx, func=%lx, arg=%d, pid=%d\n",
 				(u_long) ev, (u_long) ev->ev_func,
 				ev->ev_arg, ev->ev_pid);
 
@@ -431,9 +431,30 @@ pend_signal(sig)
 
 	if (sigbit != 0)
 		PendingSignal |= sigbit;
-	(void) setsignal(SIGALRM, tick);
+	(void) setsignal(SIGALRM, sm_tick);
 	(void) alarm(1);
 	errno = save_errno;
+}
+/*
+**  SM_SIGNAL_NOOP -- A signal no-op function
+**
+**	Parameters:
+**		sig -- signal received
+**
+**	Returns:
+**		SIGFUNC_RETURN
+*/
+
+/* ARGSUSED */
+SIGFUNC_DECL
+sm_signal_noop(sig)
+	int sig;
+{
+	int save_errno = errno;
+
+	FIX_SYSV_SIGNAL(sig, sm_signal_noop);
+	errno = save_errno;
+	return SIGFUNC_RETURN;
 }
 /*
 **  SLEEP -- a version of sleep that works with this stuff

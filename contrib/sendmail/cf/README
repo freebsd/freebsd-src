@@ -221,6 +221,11 @@ to create the pathnames.  The default value of this variable is
 `/etc/mail/'.  If you set this macro to a different value, you MUST include
 a trailing slash.
 
+Notice: all filenames used in a .mc (or .cf) file should be absolute
+(starting at the root, i.e., with '/').  Relative filenames most
+likely cause surprises during operations (unless otherwise noted).
+
+
 +--------+
 | OSTYPE |
 +--------+
@@ -1087,9 +1092,9 @@ delay_checks	The rulesets check_mail and check_relay will not be called
 rbl		This feature is deprecated! Please use dnsbl instead.
 		Turns on rejection of hosts found in the Realtime Blackhole
 		List.  If an argument is provided it is used as the domain
-		in which blocked hosts are listed; otherwise, the main
-		RBL domain rbl.maps.vix.com is used.  For details, see
-		http://maps.vix.com/rbl/.
+		in which blocked hosts are listed; otherwise, the main RBL
+		domain rbl.maps.vix.com is used (see NOTE below).  For
+		details, see http://maps.vix.com/rbl/.
 
 dnsbl		Turns on rejection of hosts found in an DNS based rejection
 		list.  If an argument is provided it is used as the domain
@@ -1101,6 +1106,13 @@ dnsbl		Turns on rejection of hosts found in an DNS based rejection
 		SERVER where SERVER is replaced by the first argument.  This
 		feature can be included several times to query different DNS
 		based rejection lists.
+
+		NOTE: The default DNS blacklist, blackholes.mail-abuse.org,
+		is a service offered by the Mail Abuse Prevention System
+		(MAPS).  As of July 31, 2001, MAPS is a subscription
+		service, so using that network address won't work if you
+		haven't subscribed.  Contact MAPS to subscribe
+		(http://mail-abuse.org/).
 
 loose_relay_check
 		Normally, if % addressing is used for a recipient, e.g.
@@ -1819,9 +1831,17 @@ spammers.  To use this database, use
 	FEATURE(`dnsbl')
 
 This will cause sendmail to reject mail from any site in the
-Realtime Blackhole List database.  You can specify an alternative
-RBL domain to check by specifying an argument to the FEATURE.
-The default error message is
+Realtime Blackhole List database.  This default DNS blacklist,
+blackholes.mail-abuse.org, is a service offered by the Mail Abuse
+Prevention System (MAPS).  As of July 31, 2001, MAPS is a subscription
+service, so using that network address won't work if you haven't
+subscribed.  Contact MAPS to subscribe (http://mail-abuse.org/).
+
+You can specify an alternative RBL server to check by specifying an
+argument to the FEATURE.  The default error message is
+
+You can specify an alternative RBL domain to check by specifying an
+argument to the FEATURE.  The default error message is
 
 	Mail from $&{client_addr} refused by blackhole site DOMAIN
 
@@ -2012,6 +2032,21 @@ probably not be used in production.
 
 In this text, cert will be used as an abreviation for X.509 certificate,
 DN is the distinguished name of a cert, and CA is a certification authority.
+
+For STARTTLS to be offered by sendmail you need to set at least
+this variables (the file names and paths are just examples):
+
+	define(`confCACERT_PATH', `/etc/mail/certs/')
+	define(`confCACERT', `/etc/mail/certs/CA.cert.pem')
+	define(`confSERVER_CERT', `/etc/mail/certs/my.cert.pem')
+	define(`confSERVER_KEY', `/etc/mail/certs/my.key.pem')
+
+On systems which do not have the compile flag HASURANDOM set (see
+sendmail/README) you also must set confRAND_FILE.
+
+See doc/op/op.{me,ps} for more information about these options,
+esp. the sections ``Certificates for STARTTLS'' and ``PRNG for
+STARTTLS''.
 
 Macros related to STARTTLS are:
 
@@ -3278,4 +3313,4 @@ M4 DIVERSIONS
    8	DNS based blacklists
    9	special local rulesets (1 and 2)
 
-$Revision: 8.383.2.1.2.43 $, Last updated $Date: 2001/05/24 16:41:53 $
+$Revision: 8.383.2.1.2.47 $, Last updated $Date: 2001/07/13 22:31:49 $

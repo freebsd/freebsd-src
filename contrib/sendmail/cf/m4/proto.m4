@@ -13,7 +13,7 @@ divert(-1)
 #
 divert(0)
 
-VERSIONID(`$Id: proto.m4,v 8.446.2.5.2.41 2001/05/23 21:32:16 ca Exp $')
+VERSIONID(`$Id: proto.m4,v 8.446.2.5.2.44 2001/07/31 22:25:49 gshapiro Exp $')
 
 MAILER(local)dnl
 
@@ -161,8 +161,10 @@ ifdef(`_ACCEPT_UNRESOLVABLE_DOMAINS_',`dnl',`dnl
 # Resolve map (to check if a host exists in check_mail)
 Kresolve host -a<OK> -T<TEMP>')
 
-ifdef(`_FFR_5_', `# macro storage map
-Kmacro macro')
+ifdef(`_NEED_MACRO_MAP_', `dnl
+ifdef(`_MACRO_MAP_', `', `# macro storage map
+define(`_MACRO_MAP_', `1')dnl
+Kmacro macro')', `dnl')
 
 ifdef(`confCR_FILE', `dnl
 # Hosts for which relaying is permitted ($=R)
@@ -631,7 +633,7 @@ R$* < $* > $* <@>	$: $1 < $2 > $3			unmark <addr>
 R@ $* <@>		$: @ $1				unmark @host:...
 R$* :: $* <@>		$: $1 :: $2			unmark node::addr
 R:`include': $* <@>	$: :`include': $1			unmark :`include':...
-R$* [ IPv6 $- ] <@>	$: $1 [ IPv6 $2 ]		unmark IPv6 addr
+R$* [ IPv6 : $+ ] <@>	$: $1 [ IPv6 : $2 ]		unmark IPv6 addr
 R$* : $* [ $* ]		$: $1 : $2 [ $3 ] <@>		remark if leading colon
 R$* : $* <@>		$: $2				strip colon if marked
 R$* <@>			$: $1				unmark
@@ -707,9 +709,9 @@ ifdef(`_NO_UUCP_', `dnl',
 `R$* < @ localhost . UUCP > $*	$: $1 < @ $j . > $2		.UUCP domain')
 
 # check for IPv6 domain literal (save quoted form)
-R$* < @ [ IPv6 $- ] > $*	$: $2 $| $1 < @@ [ $(dequote $2 $) ] > $3	mark IPv6 addr
-R$- $| $* < @@ $=w > $*		$: $2 < @ $j . > $4		self-literal
-R$- $| $* < @@ [ $+ ] > $*	$@ $2 < @ [ IPv6 $1 ] > $4	canon IP addr
+R$* < @ [ IPv6 : $+ ] > $*	$: $2 $| $1 < @@ [ $(dequote $2 $) ] > $3	mark IPv6 addr
+R$+ $| $* < @@ $=w > $*		$: $2 < @ $j . > $4		self-literal
+R$+ $| $* < @@ [ $+ ] > $*	$@ $2 < @ [ IPv6 : $1 ] > $4	canon IP addr
 
 # check for IPv4 domain literal
 R$* < @ [ $+ ] > $*		$: $1 < @@ [ $2 ] > $3		mark [a.b.c.d]
@@ -907,8 +909,8 @@ ifdef(`_MAILER_smtp_',
 dnl there is no check whether this is really an IP number
 R$* < @ [ $+ ] > $*	$: $>ParseLocal $1 < @ [ $2 ] > $3	numeric internet spec
 R$* < @ [ $+ ] > $*	$1 < @ [ $2 ] : $S > $3		Add smart host to path
-R$* < @ [ IPv6 $- ] : > $*
-		$#_SMTP_ $@ [ $(dequote $2 $) ] $: $1 < @ [IPv6 $2 ] > $3	no smarthost: send
+R$* < @ [ IPv6 : $+ ] : > $*
+		$#_SMTP_ $@ [ $(dequote $2 $) ] $: $1 < @ [IPv6 : $2 ] > $3	no smarthost: send
 R$* < @ [ $+ ] : > $*	$#_SMTP_ $@ [$2] $: $1 < @ [$2] > $3	no smarthost: send
 R$* < @ [ $+ ] : $- : $*> $*	$#$3 $@ $4 $: $1 < @ [$2] > $5	smarthost with mailer
 R$* < @ [ $+ ] : $+ > $*	$#_SMTP_ $@ $3 $: $1 < @ [$2] > $4	smarthost without mailer',
@@ -936,6 +938,8 @@ R<@> $+			$: $1
 R<!> $+			$: $1
 R< error : $-.$-.$- : $+ > $* 	$#error $@ $1.$2.$3 $: $4
 R< error : $- $+ > $* 	$#error $@ $(dequote $1 $) $: $2
+dnl this is not a documented option
+dnl it performs no looping at all for virtusertable
 ifdef(`_NO_VIRTUSER_RECURSION_',
 `R< $+ > $+ < @ $+ >	$: $>ParseLocal $>Parse0 $>canonify $1',
 `R< $+ > $+ < @ $+ >	$: $>Recurse $1')
@@ -1104,7 +1108,7 @@ dnl	<error:text>				-> error
 dnl	<mailer:user@host> lp<@domain>rest	-> mailer host user
 dnl	<mailer:host> address			-> mailer host address
 dnl	<localdomain> address			-> address
-dnl	<[IPv6 number]> address			-> relay number address
+dnl	<[IPv6:number]> address			-> relay number address
 dnl	<host> address				-> relay host address
 ###################################################################
 
@@ -1116,7 +1120,7 @@ R< local : $* > $*		$>CanonLocal < $1 > $2
 R< $- : $+ @ $+ > $*<$*>$*	$# $1 $@ $3 $: $2<@$3>	use literal user
 R< $- : $+ > $*			$# $1 $@ $2 $: $3	try qualified mailer
 R< $=w > $*			$@ $2			delete local host
-R< [ IPv6 $+ ] > $*		$#_RELAY_ $@ $(dequote $1 $) $: $2	use unqualified mailer
+R< [ IPv6 : $+ ] > $*		$#_RELAY_ $@ $(dequote $1 $) $: $2	use unqualified mailer
 R< $+ > $*			$#_RELAY_ $@ $1 $: $2	use unqualified mailer
 
 ###################################################################
@@ -1280,7 +1284,7 @@ dnl 			<result> <passthru>
 SLookUpDomain
 dnl remove IPv6 mark and dequote address
 dnl it is a bit ugly because it is checked on each "iteration"
-R<[IPv6 $-]> <$+> <$*> <$*>	$: <[$(dequote $1 $)]> <$2> <$3> <$4>
+R<[IPv6 : $+]> <$+> <$*> <$*>	$: <[$(dequote $1 $)]> <$2> <$3> <$4>
 dnl workspace <key> <default> <passthru> <mark>
 dnl lookup with tag (in front, no delimiter here)
 R<$*> <$+> <$*> <$- $->		$: < $(access $5`'_TAG_DELIM_`'$1 $: ? $) > <$1> <$2> <$3> <$4 $5>

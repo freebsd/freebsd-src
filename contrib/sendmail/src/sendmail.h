@@ -20,7 +20,7 @@
 #ifdef _DEFINE
 # define EXTERN
 # ifndef lint
-static char SmailId[] =	"@(#)$Id: sendmail.h,v 8.517.4.64 2001/05/23 17:49:13 ca Exp $";
+static char SmailId[] =	"@(#)$Id: sendmail.h,v 8.517.4.69 2001/07/20 18:46:01 gshapiro Exp $";
 # endif /* ! lint */
 #else /* _DEFINE */
 # define EXTERN extern
@@ -1360,8 +1360,9 @@ extern char	*validate_connection __P((SOCKADDR *, char *, ENVELOPE *));
 #define SMFTO_WRITE	0		/* Timeout for sending information */
 #define SMFTO_READ	1		/* Timeout waiting for a response */
 #define SMFTO_EOM	2		/* Timeout for ACK/NAK to EOM */
+#define SMFTO_CONNECT	3		/* Timeout for connect() */
 
-#define SMFTO_NUM_TO	3		/* Total number of timeouts */
+#define SMFTO_NUM_TO	4		/* Total number of timeouts */
 
 struct milter
 {
@@ -1649,13 +1650,14 @@ do									\
 } while (0)
 
 #define CHECK_CRITICAL(sig)						\
+do									\
 {									\
 	if (InCriticalSection > 0 && (sig) != 0)			\
 	{								\
 		pend_signal((sig));					\
 		return SIGFUNC_RETURN;					\
 	}								\
-}
+} while (0)
 
 /* reset signal in case System V semantics */
 #ifdef SYS5SIGNALS
@@ -2114,6 +2116,7 @@ extern SIGFUNC_DECL	reapchild __P((int));
 extern int	releasesignal __P((int));
 extern void	resetlimits __P((void));
 extern bool	rfc822_string __P((char *));
+extern FILE	*safefopen __P((char *, int, int, long));
 extern void	savemail __P((ENVELOPE *, bool));
 extern void	seed_random __P((void));
 extern void	sendtoargv __P((char **, ENVELOPE *));
@@ -2139,6 +2142,7 @@ extern int	sm_getla __P((ENVELOPE *));
 extern struct passwd	*sm_getpwnam __P((char *));
 extern struct passwd	*sm_getpwuid __P((UID_T));
 extern void	sm_setproctitle __P((bool, ENVELOPE *, const char *, ...));
+extern SIGFUNC_DECL	sm_signal_noop __P((int));
 extern int	sm_strcasecmp __P((const char *, const char *));
 extern void	stop_sendmail __P((void));
 extern bool	strcontainedin __P((char *, char *));

@@ -9,7 +9,7 @@
  */
 
 #ifndef lint
-static char id[] = "@(#)$Id: milter.c,v 8.50.4.46 2001/05/11 18:11:36 gshapiro Exp $";
+static char id[] = "@(#)$Id: milter.c,v 8.50.4.51 2001/07/20 00:53:01 gshapiro Exp $";
 #endif /* ! lint */
 
 #if _FFR_MILTER
@@ -26,6 +26,7 @@ static char id[] = "@(#)$Id: milter.c,v 8.50.4.46 2001/05/11 18:11:36 gshapiro E
 #  define SM_FD_ISSET	FD_ISSET
 #  define SM_FD_SETSIZE	FD_SETSIZE
 
+static void	milter_connect_timeout __P((void));
 static void	milter_error __P((struct milter *));
 static int	milter_open __P((struct milter *, bool, ENVELOPE *));
 static void	milter_parse_timeouts __P((char *, struct milter *));
@@ -511,6 +512,8 @@ milter_write(m, cmd, buf, len, to, e)
 **		-1 otherwise.
 */
 
+static jmp_buf	MilterConnectTimeout;
+
 static int
 milter_open(m, parseonly, e)
 	struct milter *m;
@@ -950,8 +953,23 @@ milter_open(m, parseonly, e)
 			return -1;
 		}
 
-		if (connect(sock, (struct sockaddr *) &addr, addrlen) >= 0)
-			break;
+		if (setjmp(MilterConnectTimeout) == 0)
+		{
+			EVENT *ev = NULL;
+			int i;
+
+			if (m->mf_timeout[SMFTO_CONNECT] > 0)
+				ev = setevent(m->mf_timeout[SMFTO_CONNECT],
+					      milter_connect_timeout, 0);
+
+			i = connect(sock, (struct sockaddr *) &addr, addrlen);
+			save_errno = errno;
+			if (ev != NULL)
+				clrevent(ev);
+			errno = save_errno;
+			if (i >= 0)
+				break;
+		}
 
 		/* couldn't connect.... try next address */
 		save_errno = errno;
@@ -1006,6 +1024,8 @@ milter_open(m, parseonly, e)
 			}
 			continue;
 		}
+		p = CurHostName;
+		CurHostName = at;
 		if (tTd(64, 5))
 			dprintf("X%s: error connecting to filter: %s\n",
 				m->mf_name, errstring(save_errno));
@@ -1013,6 +1033,7 @@ milter_open(m, parseonly, e)
 			sm_syslog(LOG_ERR, e->e_id,
 				  "X%s: error connecting to filter: %s",
 				  m->mf_name, errstring(save_errno));
+		CurHostName = p;
 		milter_error(m);
 # if _FFR_FREEHOSTENT && NETINET6
 		if (hp != NULL)
@@ -1029,6 +1050,19 @@ milter_open(m, parseonly, e)
 	}
 # endif /* _FFR_FREEHOSTENT && NETINET6 */
 	return sock;
+}
+
+static void
+milter_connect_timeout()
+{
+	/*
+	**  NOTE: THIS CAN BE CALLED FROM A SIGNAL HANDLER.  DO NOT ADD
+	**	ANYTHING TO THIS ROUTINE UNLESS YOU KNOW WHAT YOU ARE
+	**	DOING.
+	*/
+
+	errno = ETIMEDOUT;
+	longjmp(MilterConnectTimeout, 1);
 }
 /*
 **  MILTER_SETUP -- setup structure for a mail filter
@@ -1066,6 +1100,7 @@ milter_setup(line)
 	m->mf_name = newstr(line);
 	m->mf_state = SMFS_READY;
 	m->mf_sock = -1;
+ 	m->mf_timeout[SMFTO_CONNECT] = (time_t) 0;
 	m->mf_timeout[SMFTO_WRITE] = (time_t) 10;
 	m->mf_timeout[SMFTO_READ] = (time_t) 10;
 	m->mf_timeout[SMFTO_EOM] = (time_t) 300;
@@ -1097,6 +1132,10 @@ milter_setup(line)
 		/* install the field into the filter struct */
 		switch (fcode)
 		{
+		  case 'C':
+			m->mf_timeout[SMFTO_CONNECT] = convtime(p, 's');
+			break;
+
 		  case 'S':		/* socket */
 			if (p == NULL)
 				m->mf_conn = NULL;
@@ -2851,7 +2890,10 @@ milter_connect(hostname, addr, e, state)
 
 # if NETINET6
 	  case AF_INET6:
-		family = SMFIA_INET6;
+		if (IN6_IS_ADDR_V4MAPPED(&addr.sin6.sin6_addr))
+			family = SMFIA_INET;
+		else
+			family = SMFIA_INET6;
 		port = htons(addr.sin6.sin6_port);
 		sockinfo = anynet_ntop(&addr.sin6.sin6_addr, buf6,
 				       sizeof buf6);
