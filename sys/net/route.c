@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)route.c	8.2 (Berkeley) 11/15/93
- *	$Id: route.c,v 1.32 1996/03/11 15:13:05 davidg Exp $
+ *	$Id: route.c,v 1.33 1996/03/29 08:02:30 fenner Exp $
  */
 
 #include "opt_mrouting.h"
@@ -445,6 +445,17 @@ rtrequest(req, dst, gateway, netmask, flags, ret_nrt)
 		if ((flags & RTF_GATEWAY) && !gateway)
 			panic("rtrequest: GATEWAY but no gateway");
 
+		/*
+		 * A host route with the destination equal to the gateway
+		 * will interfere with keeping LLINFO in the routing
+		 * table, so disallow it.
+		 */
+		if (((flags & (RTF_HOST|RTF_GATEWAY|RTF_LLINFO)) ==
+						(RTF_HOST|RTF_GATEWAY)) &&
+		    (dst->sa_len == gateway->sa_len) &&
+		    (bcmp(dst, gateway, dst->sa_len) == 0))
+			senderr(EADDRNOTAVAIL);
+
 		if ((ifa = ifa_ifwithroute(flags, dst, gateway)) == 0)
 			senderr(ENETUNREACH);
 
@@ -655,11 +666,29 @@ rt_setgate(rt0, dst, gate)
 	register struct rtentry *rt = rt0;
 	struct radix_node_head *rnh = rt_tables[dst->sa_family];
 
+	/*
+	 * A host route with the destination equal to the gateway
+	 * will interfere with keeping LLINFO in the routing
+	 * table, so disallow it.
+	 */
+	if (((rt0->rt_flags & (RTF_HOST|RTF_GATEWAY|RTF_LLINFO)) ==
+					(RTF_HOST|RTF_GATEWAY)) &&
+	    (dst->sa_len == gate->sa_len) &&
+	    (bcmp(dst, gate, dst->sa_len) == 0)) {
+		/*
+		 * The route might already exist if this is an RTM_CHANGE
+		 * or a routing redirect, so try to delete it.
+		 */
+		rtrequest(RTM_DELETE, (struct sockaddr *)rt_key(rt0),
+			rt0->rt_gateway, rt_mask(rt0), rt0->rt_flags, 0);
+		return EADDRNOTAVAIL;
+	}
+
 	if (rt->rt_gateway == 0 || glen > ROUNDUP(rt->rt_gateway->sa_len)) {
 		old = (caddr_t)rt_key(rt);
 		R_Malloc(new, caddr_t, dlen + glen);
 		if (new == 0)
-			return 1;
+			return ENOBUFS;
 		rt->rt_nodes->rn_key = new;
 	} else {
 		new = rt->rt_nodes->rn_key;
@@ -689,7 +718,7 @@ rt_setgate(rt0, dst, gate)
 		if (rt->rt_gwroute == rt) {
 			RTFREE(rt->rt_gwroute);
 			rt->rt_gwroute = 0;
-			return 1; /* failure */
+			return EDQUOT; /* failure */
 		}
 	}
 
