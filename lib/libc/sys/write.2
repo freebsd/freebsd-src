@@ -219,6 +219,12 @@ In addition,
 .Fn writev
 may return one of the following errors:
 .Bl -tag -width Er
+.It Bq Er EDESTADDRREQ
+The destination is no longer available when writing to a
+.Ux
+domain datagram socket on which
+.Xr connect 2
+had been used to set a destination address.
 .It Bq Er EINVAL
 .Fa Iovcnt
 was less than or equal to 0, or greater than
