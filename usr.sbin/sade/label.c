@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: label.c,v 1.22 1995/05/23 02:41:07 jkh Exp $
+ * $Id: label.c,v 1.23 1995/05/24 09:00:32 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -473,7 +473,7 @@ diskLabelEditor(char *str)
 		struct chunk *tmp;
 		u_long flags = 0;
 
-		val = msgGetInput(NULL, "Please specify the size for new FreeBSD partition in blocks, or append\na trailing `M' for megabytes (e.g. 20M).\nSpace free: %d blocks (%dMB)", sz, sz / ONE_MEG);
+		val = msgGetInput(NULL, "Please specify the size for new FreeBSD partition in blocks, or append\na trailing `M' for megabytes (e.g. 20M).\n\nSpace free: %d blocks (%dMB)", sz, sz / ONE_MEG);
 		if (!val || (size = strtol(val, &cp, 0)) <= 0)
 		    break;
 
