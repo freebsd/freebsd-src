@@ -32,6 +32,10 @@ The debugging output on the second screen may be very valuable to us in
 understanding your bug report, so please be sure to take note of it when
 reporting any failures in the installation!  Thanks!
 
+You may also wish to read the TROUBLESHOOTING document in _advance_
+and perhaps save yourself from making those sorts of errors in
+the first place! :-)
+
 Menus and scrolling output windows may be traversed with the arrow,
 PageUp/PageDown and TAB keys.  To suspend the installation at any point,
 hit ESC twice.  If you've ever dealt with a DOS installation before, then
