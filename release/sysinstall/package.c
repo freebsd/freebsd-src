@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: package.c,v 1.1 1995/10/15 12:41:05 jkh Exp $
+ * $Id: package.c,v 1.2 1995/10/16 15:14:21 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -62,20 +62,22 @@ package_extract(Device *dev, char *name)
     int i, fd, ret;
 
     /* Check to make sure it's not already there */
-    if (!vsystem("pkg_info -e %s"))
+    if (!vsystem("pkg_info -e %s", name))
 	return RET_SUCCESS;
 
-    if (!dev->init(dev))
+    if (!dev->init(dev)) {
+	msgConfirm("Unable to initialize media type for package add.");
 	return RET_FAIL;
+    }
 
     ret = RET_FAIL;
-    sprintf(path, "packages/%s%s", name, strstr(name, ".tgz") ? "" : ".tgz");
-    fd = dev->get(dev, path, NULL);
+    sprintf(path, "packages/All/%s%s", name, strstr(name, ".tgz") ? "" : ".tgz");
+    msgDebug("pkg_extract: Attempting to fetch %s\n", path);
+    fd = dev->get(dev, path, TRUE);
     if (fd >= 0) {
 	pid_t tpid;
 
-	if (isDebug())
-	    msgDebug("Got target %s from media type %d\n", path, dev->type);
+	msgNotify("Fetching %s from %s\n", path, dev->name);
 	pen[0] = '\0';
 	if ((where = make_playpen(pen, 0)) != NULL) {
 	    if (isDebug())
@@ -114,6 +116,8 @@ package_extract(Device *dev, char *name)
 	if (dev->type == DEVICE_TYPE_TAPE)
 	    unlink(path);
     }
+    else
+	msgDebug("pkg_extract: get operation returned %d\n", fd);
     return ret;
 }
 
