@@ -7,9 +7,9 @@ Derived Software Contributors:
 
 This software was originally derived from William F. Jolitz's 386BSD
 release 0.1, though almost none of the original 386BSD specific code
-remains.  This software has been essentially reimplemented on top of
-4.4 BSD Lite, from the Computer Science Research Group (CSRG) at
-the University of California, Berkeley and associated academic
+remains.  This software has been essentially reimplemented from the
+4.4 BSD Lite release provided by the Computer Science Research Group
+(CSRG) at the University of California, Berkeley and associated academic
 contributors.
 
 There are also portions of NetBSD that have been integrated into FreeBSD
@@ -22,8 +22,8 @@ wish the NetBSD group every success in their endevors.
 
 Hardware Contributors:
 
-A special thank-you to Walnut Creek CDROM for providing two
-486/DX2-66 EISA/VL systems that are being used for our development work,
+A special thank-you to Walnut Creek CDROM for providing the Pentium P5-90
+and 486/DX2-66 EISA/VL systems that are being used for our development work,
 to say nothing of the network access and other donations of hardware
 resources.  It would have been impossible to do this release without
 their support.
@@ -36,13 +36,14 @@ Thanks also to Dermot McDonnell for his donation of a Toshiba XM3401B CDROM
 drive.  It's been most useful!
 
 
-The FreeBSD Core Team (in alphabetical order):
+The FreeBSD Core Team [Board of Directors, The FreeBSD Project]
+(in alphabetical order):
 
 	Andreas Schulz <ats@freebsd.first.gmd.de>
 	Andrew A. Chernov <ache@astral.msk.su>
 	Bruce Evans <bde@FreeBSD.org>
 	David Greenman <davidg@Root.COM>
-	Garrett A. Wollman <wollman@freefall.cdrom.com>
+	Garrett A. Wollman <wollman@FreeBSD.org>
 	Gary Palmer <gpalmer@FreeBSD.org>
 	Geoff Rehmet <csgr@cs.ru.ac.za>
 	Jack Vogel <jackv@FreeBSD.org>
@@ -55,7 +56,26 @@ The FreeBSD Core Team (in alphabetical order):
 	Soren Schmidt <sos@FreeBSD.org>
 
 
-Additional FreeBSD Contributors (in alphabetical order):
+Officers, The FreeBSD Project:
+
+	President:		Jordan K. Hubbard <jkh@FreeBSD.org>
+	Principle Architect:	David Greenman <davidg@FreeBSD.org>
+
+
+Directors, The FreeBSD Project:
+
+	Documentation:		John Fieber <jfieber@FreeBSD.org>
+	Internationalization:	Andrew A. Chernov <ache@FreeBSD.org>
+	Networking:		Garrett A. Wollman <wollman@FreeBSD.org>
+	Release Coordinator:	Poul-Henning Kamp <phk@FreeBSD.org>
+	System Administration:	Gary Palmer <gpalmer@FreeBSD.org>
+	WEBMASTERS:		John Fieber <jfieber@FreeBSD.org> and
+				James L. Robinson <jlrobin@FreeBSD.org>
+	XFree86 Project, Inc:	(Liason) Rich Murphey <rich@FreeBSD.org>
+
+
+Additional FreeBSD Contributors
+(in alphabetical order):
 
 Adam Glass <glass@postgres.berkeley.edu>
 Andrew Herbert <andrew@werple.apana.org.au>
@@ -93,6 +113,7 @@ Martin Birgmeier
 Paul Kranenburg <pk@cs.few.eur.nl>
 Paul Mackerras <paulus@cs.anu.edu.au>
 Poul-Henning Kamp <phk@login.dkuug.dk>
+Chris Provenzano <proven@athena.mit.edu>
 Rob Shady <rls@id.net>
 Sascha Wildner <swildner@channelz.GUN.de>
 Scott Mace <smace@FreeBSD.org>
@@ -201,4 +222,4 @@ Last, but not least, the release engineer would like to thank:
 	His Wife, for chocolate chip cookies, and some other things.
 	The DGB project @ TFS, for patience and tolerance.
 
-$Id: CONTRIB.FreeBSD,v 1.3 1994/11/22 09:54:19 jkh Exp $
+$Id: CONTRIB.FreeBSD,v 1.4 1994/11/27 13:06:18 ats Exp $
