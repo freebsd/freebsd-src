@@ -1,4 +1,4 @@
-#	$Id: Makefile,v 1.352 1998/05/29 19:36:12 jkh Exp $
+#	$Id: Makefile,v 1.353 1998/05/30 12:15:02 jkh Exp $
 #
 # make release CHROOTDIR=/some/dir BUILDNAME=somename [ RELEASETAG=tag ]
 #
@@ -35,6 +35,9 @@ RELEASEPORTSMODULE?=	ports
 # Uncomment this to disable the doc.1 target.  It is also an ERROR
 # to set NOPORTS and not set NODOC since docs depend on ports.
 #NODOC=  YES
+# Comment the following if you want the release documentation to be
+# in English only.
+ALLLANG= yes
 DOCPORTS= archivers/unzip lang/perl5 textproc/jade textproc/iso8879 \
           textproc/linuxdoc textproc/docbook textproc/sgmlformat
 
@@ -195,6 +198,9 @@ rerelease release:
 .endif
 .if defined(NODOC)
 	echo "export NODOC=${NODOC}"		>> ${CHROOTDIR}/mk
+.endif
+.if defined(ALLLANG)
+	echo "export ALLLANG=${ALLLANG}"	>> ${CHROOTDIR}/mk
 .endif
 .if defined(NOSRC)
 	echo "export NOSRC=${NOSRC}"		>> ${CHROOTDIR}/mk
