@@ -24,6 +24,7 @@ SUBDIR=	3dfx \
 	digi \
 	dummynet \
 	ed \
+	em \
 	fdescfs \
 	fdc \
 	fs \
