@@ -1412,8 +1412,7 @@ ogetkerninfo(struct thread *td, struct getkerninfo_args *uap)
 	if (error == 0) {
 		td->td_retval[0] = needed ? needed : size;
 		if (uap->size) {
-			error = copyout((caddr_t)&size, (caddr_t)uap->size,
-				    sizeof(size));
+			error = copyout(&size, uap->size, sizeof(size));
 		}
 	}
 	mtx_unlock(&Giant);

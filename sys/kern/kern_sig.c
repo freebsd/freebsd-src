@@ -829,7 +829,7 @@ sigsuspend(td, uap)
 	SIG_CANTMASK(mask);
 	p->p_sigmask = mask;
 	signotify(p);
-	while (msleep((caddr_t) ps, &p->p_mtx, PPAUSE|PCATCH, "pause", 0) == 0)
+	while (msleep(ps, &p->p_mtx, PPAUSE|PCATCH, "pause", 0) == 0)
 		/* void */;
 	PROC_UNLOCK(p);
 	mtx_unlock(&Giant);
@@ -865,7 +865,7 @@ osigsuspend(td, uap)
 	SIG_CANTMASK(mask);
 	SIGSETLO(p->p_sigmask, mask);
 	signotify(p);
-	while (msleep((caddr_t) ps, &p->p_mtx, PPAUSE|PCATCH, "opause", 0) == 0)
+	while (msleep(ps, &p->p_mtx, PPAUSE|PCATCH, "opause", 0) == 0)
 		/* void */;
 	PROC_UNLOCK(p);
 	mtx_unlock(&Giant);
@@ -1435,7 +1435,7 @@ psignal(p, sig)
 				}
 			} else {
 				p->p_flag |= P_CONTINUED;
-				wakeup((caddr_t)p->p_pptr);
+				wakeup(p->p_pptr);
 				if (td->td_wchan == NULL)
 					goto run;
 				p->p_stat = SSLEEP;
@@ -1708,7 +1708,7 @@ stop(p)
 	mtx_assert(&sched_lock, MA_OWNED);
 	p->p_stat = SSTOP;
 	p->p_flag &= ~P_WAITED;
-	wakeup((caddr_t)p->p_pptr);
+	wakeup(p->p_pptr);
 }
 
 /*

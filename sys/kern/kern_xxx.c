@@ -274,7 +274,7 @@ getdomainname(td, uap)
 	domainnamelen = strlen(domainname) + 1;
 	if ((u_int)uap->len > domainnamelen + 1)
 		uap->len = domainnamelen + 1;
-	error = copyout((caddr_t)domainname, (caddr_t)uap->domainname, uap->len);
+	error = copyout(domainname, uap->domainname, uap->len);
 	mtx_unlock(&Giant);
 	return (error);
 }
@@ -305,7 +305,7 @@ setdomainname(td, uap)
 		goto done2;
 	}
         domainnamelen = uap->len;
-        error = copyin((caddr_t)uap->domainname, domainname, uap->len);
+        error = copyin(uap->domainname, domainname, uap->len);
         domainname[domainnamelen] = 0;
 done2:
 	mtx_unlock(&Giant);
