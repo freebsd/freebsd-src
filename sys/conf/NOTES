@@ -1917,6 +1917,10 @@ device		nmdm
 # motherboards and motherboards with bad or incomplete PCI 2.1 support.
 # As a rough guess, old = before 1998
 #
+# options 	BKTR_NEW_MSP34XX_DRIVER
+# Use new, more complete initialization scheme for the msp34* soundchip.
+# Should fix stereo autodetection if the old driver does only output
+# mono sound.
 
 device		meteor	1
 
