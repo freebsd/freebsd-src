@@ -85,7 +85,7 @@ makeoptions	DESTDIR=/tmp
 # with changing the parameters.  MAXDSIZ is the maximum that the
 # limit can be set to, and the DFLDSIZ is the default value for
 # the limit.  MAXSSIZ is the maximum that the stack limit can be
-# set to.  You might want to set the default lower than the max, 
+# set to.  You might want to set the default lower than the max,
 # and explicitly set the maximum with a shell command for processes
 # that regularly exceed the limit like INND.
 #
@@ -194,7 +194,7 @@ options 	MUTEX_PROFILING
 
 
 #####################################################################
-# COMPATIBILITY OPTIONS                                             
+# COMPATIBILITY OPTIONS
 
 #
 # Implement system calls compatible with 4.3BSD and older versions of
@@ -748,7 +748,7 @@ options 	NFS_DEBUG		# Enable NFS Debugging
 # Coda stuff:
 options 	CODA			#CODA filesystem.
 device		vcoda	4		#coda minicache <-> venus comm.
-# Use the old Coda 5.x venus<->kernel interface instead of the new       
+# Use the old Coda 5.x venus<->kernel interface instead of the new
 # realms-aware 6.x protocol.
 #options 	CODA_COMPAT_5
 
@@ -891,7 +891,7 @@ hint.sa.1.target="6"
 #
 # The pt driver drives SCSI Processor devices.
 #
-# 
+#
 # Target Mode support is provided here but also requires that a SIM
 # (SCSI Host Adapter Driver) provide support as well.
 #
@@ -903,7 +903,7 @@ hint.sa.1.target="6"
 # The targbh driver provides target mode support and exists to respond
 # to incoming commands that do not otherwise have a logical unit assigned
 # to them.
-# 
+#
 # The "unknown" device (uk? in pre-2.0.5) is now part of the base SCSI
 # configuration as the "pass" driver.
 
@@ -913,7 +913,7 @@ device		da		#SCSI direct access devices (aka disks)
 device		sa		#SCSI tapes
 device		cd		#SCSI CD-ROMs
 device		ses		#SCSI Environmental Services (and SAF-TE)
-device		pt		#SCSI processor 
+device		pt		#SCSI processor
 device		targ		#SCSI Target Mode Code
 device		targbh		#SCSI Target Mode Blackhole Device
 device		pass		#CAM passthrough driver
@@ -1188,8 +1188,8 @@ options 	SC_NO_SUSPEND_VTYSWITCH
 #      or FC9x9 Fibre Channel host adapters.
 # ncr: NCR 53C810, 53C825 self-contained SCSI host adapters.
 # sym: Symbios/Logic 53C8XX family of PCI-SCSI I/O processors:
-#      53C810, 53C810A, 53C815, 53C825,  53C825A, 53C860, 53C875, 
-#      53C876, 53C885,  53C895, 53C895A, 53C896,  53C897, 53C1510D, 
+#      53C810, 53C810A, 53C815, 53C825,  53C825A, 53C860, 53C875,
+#      53C876, 53C885,  53C895, 53C895A, 53C896,  53C897, 53C1510D,
 #      53C1010-33, 53C1010-66.
 # trm: Tekram DC395U/UW/F DC315U adapters.
 # wds: WD7000
@@ -1254,7 +1254,7 @@ options 	AHC_TMODE_ENABLE
 # Compile in aic79xx debugging code.
 options 	AHD_DEBUG
 
-# Aic79xx driver debugging options.   
+# Aic79xx driver debugging options.
 # See the ahd(4) manpage
 options 	AHD_DEBUG_OPTS=0xFFFFFFFF
 
@@ -1276,7 +1276,7 @@ options 	ISP_TARGET_MODE=1
 					# Allows the ncr to take precedence
 					# 1 (1<<0) -> 810a, 860
 					# 2 (1<<1) -> 825a, 875, 885, 895
-					# 4 (1<<2) -> 895a, 896, 1510d 
+					# 4 (1<<2) -> 895a, 896, 1510d
 #options 	SYM_SETUP_SCSI_DIFF	#-HVD support for 825a, 875, 885
 					# disabled:0 (default), enabled:1
 #options 	SYM_SETUP_PCI_PARITY	#-PCI parity checking
@@ -1531,8 +1531,8 @@ device		miibus
 #       82c168 and 82c169 PNIC, the Lite-On/Macronix LC82C115 PNIC II
 #       and the Macronix 98713/98713A/98715/98715A/98725 PMAC. This driver
 #       replaces the old al, ax, dm, pn and mx drivers.  List of brands:
-#       Digital DE500-BA, Kingston KNE100TX, D-Link DFE-570TX, SOHOware SFA110, 
-#       SVEC PN102-TX, CNet Pro110B, 120A, and 120B, Compex RL100-TX, 
+#       Digital DE500-BA, Kingston KNE100TX, D-Link DFE-570TX, SOHOware SFA110,
+#       SVEC PN102-TX, CNet Pro110B, 120A, and 120B, Compex RL100-TX,
 #       LinkSys LNE100TX, LNE100TX V2.0, Jaton XpressNet, Alfa Inc GFC2204,
 #       KNE110TX.
 # de:   Digital Equipment DC21040
@@ -1599,7 +1599,7 @@ device		miibus
 # txp:	Support for 3Com 3cR990 cards with the "Typhoon" chipset
 # vr:   Support for various fast ethernet adapters based on the VIA
 #       Technologies VT3043 `Rhine I' and VT86C100A `Rhine II' chips,
-#       including the D-Link DFE530TX (see 'rl' for DFE530TX+), the Hawking 
+#       including the D-Link DFE530TX (see 'rl' for DFE530TX+), the Hawking
 #       Technologies PN102TX, and the AOpen/Acer ALN-320.
 # vx:   3Com 3C590 and 3C595
 # wb:   Support for fast ethernet adapters based on the Winbond W89C840F chip.
@@ -1854,7 +1854,7 @@ hint.gusc.0.flags="0x13"
 #   For PCI cards, you need no hints.
 
 # Mitsumi CD-ROM
-device		mcd      
+device		mcd
 hint.mcd.0.at="isa"
 hint.mcd.0.port="0x300"
 # for the Sony CDU31/33A CDROM
@@ -1983,7 +1983,7 @@ device		cardbus
 # intpm		Intel PIIX4 (82371AB, 82443MX) Power Management Unit
 # alpm		Acer Aladdin-IV/V/Pro2 Power Management Unit
 # ichsmb	Intel ICH SMBus controller chips (82801AA, 82801AB, 82801BA)
-# viapm		VIA VT82C586B/596B/686A and VT8233 Power Management Unit 
+# viapm		VIA VT82C586B/596B/686A and VT8233 Power Management Unit
 # amdpm		AMD 756 Power Management Unit
 # nfpm		NVIDIA nForce Power Management Unit
 #
@@ -2266,7 +2266,7 @@ options 	SOCKBUF_DEBUG	# enable sockbuf last record/mb tail checking
 options 	SEMMAP=31
 
 # Maximum number of System V semaphores that can be used on the system at
-# one time. 
+# one time.
 options 	SEMMNI=11
 
 # Total number of semaphores system wide
@@ -2276,33 +2276,33 @@ options 	SEMMNS=61
 options 	SEMMNU=31
 
 # Maximum number of System V semaphores that can be used by a single process
-# at one time. 
+# at one time.
 options 	SEMMSL=61
 
 # Maximum number of operations that can be outstanding on a single System V
-# semaphore at one time. 
+# semaphore at one time.
 options 	SEMOPM=101
 
 # Maximum number of undo operations that can be outstanding on a single
-# System V semaphore at one time. 
+# System V semaphore at one time.
 options 	SEMUME=11
 
 # Maximum number of shared memory pages system wide.
 options 	SHMALL=1025
 
-# Maximum size, in bytes, of a single System V shared memory region. 
+# Maximum size, in bytes, of a single System V shared memory region.
 options 	SHMMAX=(SHMMAXPGS*PAGE_SIZE+1)
 options 	SHMMAXPGS=1025
 
-# Minimum size, in bytes, of a single System V shared memory region. 
+# Minimum size, in bytes, of a single System V shared memory region.
 options 	SHMMIN=2
 
 # Maximum number of shared memory regions that can be used on the system
-# at one time. 
+# at one time.
 options 	SHMMNI=33
 
 # Maximum number of System V shared memory regions that can be attached to
-# a single process at one time. 
+# a single process at one time.
 options 	SHMSEG=9
 
 # Set the amount of time (in seconds) the system will wait before
@@ -2314,7 +2314,7 @@ options 	PANIC_REBOOT_WAIT_TIME=16
 # Attempt to bypass the buffer cache and put data directly into the
 # userland buffer for read operation when O_DIRECT flag is set on the
 # file.  Both offset and length of the read operation must be
-# multiples of the physical media sector size. 
+# multiples of the physical media sector size.
 #
 #options 	DIRECTIO
 
