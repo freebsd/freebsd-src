@@ -23,14 +23,14 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: interp_forth.c,v 1.4 1998/11/06 03:45:36 msmith Exp $
+ *	$Id: interp_forth.c,v 1.5 1998/11/06 03:50:44 msmith Exp $
  */
 
 #include <stand.h>
 #include "bootstrap.h"
 #include "ficl.h"
 
-#define BFORTH_DEBUG
+/* #define BFORTH_DEBUG */
 
 #ifdef BFORTH_DEBUG
 # define DEBUG(fmt, args...)	printf("%s: " fmt "\n" , __FUNCTION__ , ## args)
