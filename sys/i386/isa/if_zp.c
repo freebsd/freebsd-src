@@ -34,7 +34,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  *	From: if_ep.c,v 1.9 1994/01/25 10:46:29 deraadt Exp $
- *	$Id: if_zp.c,v 1.13 1995/12/05 02:01:18 davidg Exp $
+ *	$Id: if_zp.c,v 1.14 1995/12/13 10:35:36 phk Exp $
  */
 /*-
  * TODO:
@@ -540,7 +540,7 @@ zpattach(isa_dev)
 		bcopy(tmp_addr, sc->arpcom.ac_enaddr, 6);
 	}
 
-	printf(" address %s\n", ether_sprintf(sc->arpcom.ac_enaddr));
+	printf(" address %6D\n", sc->arpcom.ac_enaddr, ":");
 
 	ifp->if_mtu = ETHERMTU;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX;

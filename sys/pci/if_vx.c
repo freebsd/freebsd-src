@@ -239,7 +239,7 @@ vx_pci_attach(
 	GO_WINDOW(2);
 	outw(BASE + VX_W2_ADDR_0 + (i * 2), ntohs(p[i]));
     }
-    printf(" address %s\n", ether_sprintf(sc->arpcom.ac_enaddr));
+    printf(" address %6D\n", sc->arpcom.ac_enaddr, ":");
 
     /*
      * Check for receive overrun anomaly in the first revision of the

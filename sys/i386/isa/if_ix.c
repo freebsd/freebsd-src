@@ -28,7 +28,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- *	$Id: if_ix.c,v 1.16 1995/12/10 13:38:47 phk Exp $
+ *	$Id: if_ix.c,v 1.17 1995/12/15 00:54:17 bde Exp $
  */
 
 #include "ix.h"
@@ -625,7 +625,7 @@ ixattach(struct isa_device *dvp) {
 		sdl->sdl_slen = 0;
 		bcopy(sc->arpcom.ac_enaddr, LLADDR(sdl), ETHER_ADDRESS_LENGTH);
 	}
-	printf("ix%d: address %s\n", unit, ether_sprintf(sc->arpcom.ac_enaddr));
+	printf("ix%d: address %6D\n", unit, sc->arpcom.ac_enaddr, ":");
 	return(0);
 }
 
