@@ -36,7 +36,7 @@
  * SUCH DAMAGE.
  *
  *	from: Id: machdep.c,v 1.193 1996/06/18 01:22:04 bde Exp
- *	$Id: identcpu.c,v 1.19 1997/05/05 14:30:00 kato Exp $
+ *	$Id: identcpu.c,v 1.20 1997/05/19 12:41:35 kato Exp $
  */
 
 #include "opt_cpu.h"
@@ -67,7 +67,7 @@ void earlysetcpuclass(void);
 void panicifcpuunsupported(void);
 static void identifycyrix(void);
 
-u_long	cyrix_did;		/* Device ID of Cyirx CPU */
+u_long	cyrix_did;		/* Device ID of Cyrix CPU */
 int cpu_class = CPUCLASS_386;	/* least common denominator */
 char machine[] = "i386";
 SYSCTL_STRING(_hw, HW_MACHINE, machine, CTLFLAG_RD, machine, 0, "");
