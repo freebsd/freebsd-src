@@ -916,7 +916,7 @@ doMFSKERN:
 	@echo "Running ${.TARGET} for ${FSIMAGE}"
 	@rm -f ${RD}/kernels/BOOTMFS ${RD}/kernels/BOOTMFS.${FSIMAGE}
 	@cd ${.CURDIR}/../sys/${TARGET}/conf && \
-	    sh ${.CURDIR}/${TARGET_ARCH}/dokern.sh ${FDSIZE} < GENERIC > BOOTMFS && \
+	    sh ${.CURDIR}/${TARGET}/dokern.sh ${FDSIZE} < GENERIC > BOOTMFS && \
 	    [ -r GENERIC.hints ] && cp GENERIC.hints BOOTMFS.hints
 .if exists(${.CURDIR}/${TARGET}/drivers.conf)
 	@awk -f ${.CURDIR}/scripts/driver-remove.awk \
