@@ -10,11 +10,12 @@ echo -n 'Initial rc.alpha initialization:'
 #
 case ${osf1_enable} in
 [Yy][Ee][Ss])
-	echo -n ' OSF/1';	osf1 > /dev/null 2>&1
+	echo -n ' OSF/1'
+	if ! kldstat -v | grep osf1_ecoff > /dev/null; then
+		kldload osf1 > /dev/null 2>&1
+	fi
 	;;
 esac
-
-echo '.'
 
 # knob for wether or not we should print out unaligned access warnings
 #
@@ -23,3 +24,5 @@ case ${unaligned_print} in
        sysctl -w machdep.unaligned_print=0
        ;;
 esac
+
+echo '.'
