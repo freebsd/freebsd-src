@@ -17,7 +17,7 @@
  * IMPLIED WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
  * WARRANTIES OF MERCHANTIBILITY AND FITNESS FOR A PARTICULAR PURPOSE.
  *
- * $Id: command.c,v 1.16 1996/03/08 13:22:23 ache Exp $
+ * $Id: command.c,v 1.17 1996/05/11 20:48:22 phk Exp $
  *
  */
 #include <sys/types.h>
@@ -190,9 +190,14 @@ char **argv;
       * We are running setuid, we should change to
       * real user for avoiding security problems.
       */
-     setgid( getgid() );
-     setuid( getuid() );
-
+     if (setgid(getgid()) < 0) {
+	perror("setgid");
+	exit(1);
+     }
+     if (setuid(getuid()) < 0) {
+	perror("setuid");
+	exit(1);
+     }
      TtyOldMode();
      if(argc > 0)
        execvp(argv[0], argv);
