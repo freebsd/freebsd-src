@@ -823,7 +823,8 @@ free_plex(int plexno)
 	Free(plex->sdnos);
     if (plex->lock)
 	Free(plex->lock);
-    destroy_dev(plex->dev);
+    if (plex->dev)
+        destroy_dev(plex->dev);
     bzero(plex, sizeof(struct plex));			    /* and clear it out */
     plex->state = plex_unallocated;
 }
@@ -894,7 +895,8 @@ free_volume(int volno)
     struct volume *vol;
 
     vol = &VOL[volno];
-    destroy_dev(vol->dev);
+    if (vol->dev)
+        destroy_dev(vol->dev);
     bzero(vol, sizeof(struct volume));			    /* and clear it out */
     vol->state = volume_unallocated;
 }
