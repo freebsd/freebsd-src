@@ -347,6 +347,8 @@ _fetch_read(conn_t *conn, char *buf, size_t len)
 	ssize_t rlen, total;
 	int r;
 
+	rlen = 0;
+
 	if (fetchTimeout) {
 		FD_ZERO(&readfds);
 		gettimeofday(&timeout, NULL);
@@ -364,17 +366,13 @@ _fetch_read(conn_t *conn, char *buf, size_t len)
 				wait.tv_usec += 1000000;
 				wait.tv_sec--;
 			}
-			if (wait.tv_sec < 0) {
-				errno = ETIMEDOUT;
-				_fetch_syserr();
-				return (-1);
-			}
+			if (wait.tv_sec < 0)
+				return (rlen);
 			errno = 0;
 			r = select(conn->sd + 1, &readfds, NULL, NULL, &wait);
 			if (r == -1) {
 				if (errno == EINTR && fetchRestartCalls)
 					continue;
-				_fetch_syserr();
 				return (-1);
 			}
 		}
@@ -395,12 +393,6 @@ _fetch_read(conn_t *conn, char *buf, size_t len)
 		buf += rlen;
 		total += rlen;
 	}
-	if (total == 0 && len != 0) {
-		/* no data available at all */
-		errno = EPIPE;
-		_fetch_syserr();
-		return (-1);
-	}
 	return (total);
 }
 
@@ -416,6 +408,7 @@ _fetch_getln(conn_t *conn)
 	char *tmp;
 	size_t tmpsize;
 	char c;
+	int error;
 
 	if (conn->buf == NULL) {
 		if ((conn->buf = malloc(MIN_BUF_SIZE)) == NULL) {
@@ -429,8 +422,11 @@ _fetch_getln(conn_t *conn)
 	conn->buflen = 0;
 
 	do {
-		if (_fetch_read(conn, &c, 1) == -1)
+		error = _fetch_read(conn, &c, 1);
+		if (error == -1)
 			return (-1);
+		else if (error == 0)
+			break;
 		conn->buf[conn->buflen++] = c;
 		if (conn->buflen == conn->bufsize) {
 			tmp = conn->buf;
@@ -456,24 +452,12 @@ _fetch_getln(conn_t *conn)
 ssize_t
 _fetch_write(conn_t *conn, const char *buf, size_t len)
 {
-	struct iovec iov;
-
-	iov.iov_base = __DECONST(char *, buf);
-	iov.iov_len = len;
-	return _fetch_writev(conn, &iov, 1);
-}
-
-/*
- * Write a vector to a connection w/ timeout
- * Note: can modify the iovec.
- */
-ssize_t
-_fetch_writev(conn_t *conn, struct iovec *iov, int iovcnt)
-{
 	struct timeval now, timeout, wait;
 	fd_set writefds;
 	ssize_t wlen, total;
 	int r;
+
+	total = 0;
 
 	if (fetchTimeout) {
 		FD_ZERO(&writefds);
@@ -481,8 +465,7 @@ _fetch_writev(conn_t *conn, struct iovec *iov, int iovcnt)
 		timeout.tv_sec += fetchTimeout;
 	}
 
-	total = 0;
-	while (iovcnt > 0) {
+	while (len > 0) {
 		while (fetchTimeout && !FD_ISSET(conn->sd, &writefds)) {
 			FD_SET(conn->sd, &writefds);
 			gettimeofday(&now, NULL);
@@ -494,7 +477,6 @@ _fetch_writev(conn_t *conn, struct iovec *iov, int iovcnt)
 			}
 			if (wait.tv_sec < 0) {
 				errno = ETIMEDOUT;
-				_fetch_syserr();
 				return (-1);
 			}
 			errno = 0;
@@ -508,32 +490,21 @@ _fetch_writev(conn_t *conn, struct iovec *iov, int iovcnt)
 		errno = 0;
 #ifdef WITH_SSL
 		if (conn->ssl != NULL)
-			wlen = SSL_write(conn->ssl,
-			    iov->iov_base, iov->iov_len);
+			wlen = SSL_write(conn->ssl, buf, len);
 		else
 #endif
-			wlen = writev(conn->sd, iov, iovcnt);
-		if (wlen == 0) {
+			wlen = write(conn->sd, buf, len);
+		if (wlen == 0)
 			/* we consider a short write a failure */
-			errno = EPIPE;
-			_fetch_syserr();
 			return (-1);
-		}
 		if (wlen < 0) {
 			if (errno == EINTR && fetchRestartCalls)
 				continue;
 			return (-1);
 		}
+		len -= wlen;
+		buf += wlen;
 		total += wlen;
-		while (iovcnt > 0 && wlen >= (ssize_t)iov->iov_len) {
-			wlen -= iov->iov_len;
-			iov++;
-			iovcnt--;
-		}
-		if (iovcnt > 0) {
-			iov->iov_len -= wlen;
-			iov->iov_base = __DECONST(char *, iov->iov_base) + wlen;
-		}
 	}
 	return (total);
 }
@@ -545,14 +516,10 @@ _fetch_writev(conn_t *conn, struct iovec *iov, int iovcnt)
 int
 _fetch_putln(conn_t *conn, const char *str, size_t len)
 {
-	struct iovec iov[2];
 
 	DEBUG(fprintf(stderr, ">>> %s\n", str));
-	iov[0].iov_base = __DECONST(char *, str);
-	iov[0].iov_len = len;
-	iov[1].iov_base = __DECONST(char *, ENDL);
-	iov[1].iov_len = sizeof ENDL;
-	if (_fetch_writev(conn, iov, 2) == -1)
+	if (_fetch_write(conn, str, len) == -1 ||
+	    _fetch_write(conn, ENDL, sizeof ENDL) == -1)
 		return (-1);
 	return (0);
 }
