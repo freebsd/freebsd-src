@@ -190,7 +190,7 @@ g_new_providerf(struct g_geom *gp, char *fmt, ...)
 	pp->geom = gp;
 	LIST_INSERT_HEAD(&gp->provider, pp, provider);
 	g_nproviders++;
-	if (g_nproviders > 1)
+	if (strcmp(pp->name, "geom.ctl"))
 		g_post_event(EV_NEW_PROVIDER, NULL, NULL, pp, NULL);
 	return (pp);
 }
