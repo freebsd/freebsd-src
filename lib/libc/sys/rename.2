@@ -30,7 +30,7 @@
 .\" SUCH DAMAGE.
 .\"
 .\"     @(#)rename.2	8.1 (Berkeley) 6/4/93
-.\"	$Id$
+.\"	$Id: rename.2,v 1.6 1997/02/22 15:04:16 peter Exp $
 .\"
 .Dd June 4, 1993
 .Dt RENAME 2
@@ -69,32 +69,32 @@ If the final component of
 is a symbolic link,
 the symbolic link is renamed,
 not the file or directory to which it points.
-.Sh CAVEAT
-The system can deadlock if a loop in the file system graph is present.
-This loop takes the form of an entry in directory
-.Ql Pa a ,
-say
-.Ql Pa a/foo ,
-being a hard link to directory
-.Ql Pa b ,
-and an entry in
-directory
-.Ql Pa b ,
-say
-.Ql Pa b/bar ,
-being a hard link
-to directory
-.Ql Pa a .
-When such a loop exists and two separate processes attempt to
-perform
-.Ql rename a/foo b/bar
-and
-.Ql rename b/bar a/foo ,
-respectively, 
-the system may deadlock attempting to lock
-both directories for modification.
-Hard links to directories should be
-replaced by symbolic links by the system administrator.
+.\".Sh CAVEAT
+.\"The system can deadlock if a loop in the file system graph is present.
+.\"This loop takes the form of an entry in directory
+.\".Ql Pa a ,
+.\"say
+.\".Ql Pa a/foo ,
+.\"being a hard link to directory
+.\".Ql Pa b ,
+.\"and an entry in
+.\"directory
+.\".Ql Pa b ,
+.\"say
+.\".Ql Pa b/bar ,
+.\"being a hard link
+.\"to directory
+.\".Ql Pa a .
+.\"When such a loop exists and two separate processes attempt to
+.\"perform
+.\".Ql rename a/foo b/bar
+.\"and
+.\".Ql rename b/bar a/foo ,
+.\"respectively, 
+.\"the system may deadlock attempting to lock
+.\"both directories for modification.
+.\"Hard links to directories should be
+.\"replaced by symbolic links by the system administrator.
 .Sh RETURN VALUES
 A 0 value is returned if the operation succeeds, otherwise
 .Fn rename
