@@ -403,7 +403,9 @@ ad1816chan_trigger(void *data, int go)
     	struct ad1816_info *ad1816 = ch->parent;
     	int wr, reg;
 
-	if (go == PCMTRIG_EMLDMAWR) return 0;
+	if (go == PCMTRIG_EMLDMAWR || go == PCMTRIG_EMLDMARD)
+		return 0;
+
 	buf_isadma(ch->buffer, go);
     	wr = (ch->dir == PCMDIR_PLAY);
     	reg = wr? AD1816_PLAY : AD1816_CAPT;

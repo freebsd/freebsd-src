@@ -689,7 +689,7 @@ sbchan_trigger(void *data, int go)
 {
 	struct sb_chinfo *ch = data;
 
-	if (go == PCMTRIG_EMLDMAWR)
+	if (go == PCMTRIG_EMLDMAWR || go == PCMTRIG_EMLDMARD)
 		return 0;
 
 	buf_isadma(ch->buffer, go);

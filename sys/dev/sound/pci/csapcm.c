@@ -388,7 +388,9 @@ csachan_trigger(void *data, int go)
 	struct csa_chinfo *ch = data;
 	struct csa_info *csa = ch->parent;
 
-	if (go == PCMTRIG_EMLDMAWR) return 0;
+	if (go == PCMTRIG_EMLDMAWR || go == PCMTRIG_EMLDMARD)
+		return 0;
+
 	if (ch->dir == PCMDIR_PLAY) {
 		if (go == PCMTRIG_START)
 			csa_startplaydma(csa);

@@ -63,6 +63,7 @@ extern pcm_feeder feeder_root;
 
 #define PCMTRIG_START 1
 #define PCMTRIG_EMLDMAWR 2
+#define PCMTRIG_EMLDMARD 3
 #define PCMTRIG_STOP 0
 #define PCMTRIG_ABORT -1
 

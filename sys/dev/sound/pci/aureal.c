@@ -350,7 +350,10 @@ auchan_trigger(void *data, int go)
 {
 	struct au_chinfo *ch = data;
 	struct au_info *au = ch->parent;
-	if (go == PCMTRIG_EMLDMAWR) return 0;
+
+	if (go == PCMTRIG_EMLDMAWR || go == PCMTRIG_EMLDMARD)
+		return 0;
+
 	if (ch->dir == PCMDIR_PLAY) {
 		au_setadb(au, 0x11, (go)? 1 : 0);
 		if (!go) {
