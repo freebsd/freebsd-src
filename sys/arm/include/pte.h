@@ -63,40 +63,6 @@ typedef	uint32_t	pt_entry_t;		/* page table entry */
 #define PT_SIZE		0x1000
 #define PD_SIZE		0x4000
 
-/* Access permissions for L1 sections and L2 pages */
-#define AP_KR		0x00
-#define AP_KRW		0x01
-#define AP_KRWUR	0x02
-#define AP_KRWURW	0x03
-
-#define AP_W		0x01
-#define AP_U		0x02
-
-/* Physical bits in a pte */
-#define PT_B		0x04	/* Phys - Buffered (write) */
-#define PT_C		0x08	/* Phys - Cacheable */
-#define PT_U		0x10	/* Phys - Updateable */
-
-#ifndef LOCORE
-extern pt_entry_t	pte_cache_mode;
-
-#define PT_CACHEABLE	(pte_cache_mode)
-#endif
-
-/* Page R/M attributes (in pmseg.attrs). */
-#define PT_M		0x01	/* Virt - Modified */
-#define PT_H		0x02	/* Virt - Handled (Used) */
-/* Mapping wired/writeable/cacheable attributes (in pv_flags). */
-#define PT_W		0x04	/* Virt - Wired */
-#define PT_Wr		0x08	/* Virt / Phys Write */
-#define PT_NC		0x10	/* Cacheing disabled (multi-mapped page) */
-
-/* access permissions for L2 pages (all sub pages have the same perms) */
-#define PT_AP(x)	((x << 10) | (x << 8) | (x << 6)  | (x << 4))
-
-/* shift for access permissions in a L1 section mapping */
-#define AP_SECTION_SHIFT	10
-
 /* Page table types and masks */
 #define L1_PAGE		0x01	/* L1 page table mapping */
 #define L1_SECTION	0x02	/* L1 section mapping */
