@@ -169,9 +169,11 @@ revive_block(int sdno)
 	bufwait(bp);
     }
 
-    if (bp->b_ioflags & BIO_ERROR)
+    if (bp->b_ioflags & BIO_ERROR) {
 	error = bp->b_error;
-    else
+	if (lock)					    /* we took a lock, */
+	    unlockrange(sd->plexno, lock);		    /* give it back */
+    } else
 	/* Now write to the subdisk */
     {
 	bp->b_dev = VINUM_SD(sdno);			    /* create the device number */
