@@ -479,7 +479,8 @@ struct ocg {
  */
 #define freespace(fs, percentreserved) \
 	(blkstofrags((fs), (fs)->fs_cstotal.cs_nbfree) + \
-	(fs)->fs_cstotal.cs_nffree - ((fs)->fs_dsize * (percentreserved) / 100))
+	(fs)->fs_cstotal.cs_nffree - \
+	((off_t)((fs)->fs_dsize) * (percentreserved) / 100))
 
 /*
  * Determining the size of a file block in the file system.
