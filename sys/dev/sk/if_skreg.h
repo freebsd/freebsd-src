@@ -76,6 +76,16 @@
 #define DEVICEID_3COM_3C940	0x1700
 
 /*
+ * Linksys PCI vendor ID
+ */
+#define VENDORID_LINKSYS	0x1737
+
+/*
+ * Linksys gigabit ethernet device ID
+ */
+#define DEVICEID_LINKSYS_EG1032	0x1032
+
+/*
  * GEnesis registers. The GEnesis chip has a 256-byte I/O window
  * but internally it has a 16K register space. This 16K space is
  * divided into 128-byte blocks. The first 128 bytes of the I/O
