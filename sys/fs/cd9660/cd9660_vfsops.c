@@ -92,6 +92,7 @@ static struct vfsops cd9660_vfsops = {
 	vfs_stdextattrctl,
 };
 VFS_SET(cd9660_vfsops, cd9660, VFCF_READONLY);
+MODULE_VERSION(cd9660, 1);
 
 
 /*
