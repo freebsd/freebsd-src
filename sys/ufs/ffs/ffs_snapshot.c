@@ -83,7 +83,7 @@ ffs_snapshot(mp, snapfile)
 	char *snapfile;
 {
 	ufs_daddr_t rlbn;
-	ufs_daddr_t lbn, blkno, copyblkno, inoblks[FSMAXSNAP];
+	ufs_daddr_t lbn, blkno, iblkno, inoblks[FSMAXSNAP];
 	int error, cg, snaploc, indiroff, numblks;
 	int i, size, base, len, loc, inoblkcnt;
 	int blksperindir, flag = mp->mnt_flag;
@@ -180,21 +180,31 @@ restart:
 	 * be filled in below once we are ready to go, but this upsets
 	 * the soft update code, so we go ahead and write the new buffers.
 	 *
-	 * Allocate all indirect blocks. Also allocate shadow copies
-	 * for each of the indirect blocks.
+	 * Allocate all indirect blocks and mark all of them as not
+	 * needing to be copied.
 	 */
 	for (blkno = NDADDR; blkno < numblks; blkno += NINDIR(fs)) {
 		error = VOP_BALLOC(vp, lblktosize(fs, (off_t)blkno),
 		    fs->fs_bsize, p->p_ucred, B_METAONLY, &ibp);
 		if (error)
 			goto out;
-		copyblkno = fragstoblks(fs, dbtofsb(fs, ibp->b_blkno));
+		iblkno = fragstoblks(fs, dbtofsb(fs, ibp->b_blkno));
 		bdwrite(ibp);
-		error = VOP_BALLOC(vp, lblktosize(fs, (off_t)copyblkno),
-		    fs->fs_bsize, p->p_ucred, 0, &nbp);
-		if (error)
-			goto out;
-		bawrite(nbp);
+		if (iblkno < NDADDR) {
+			if (ip->i_db[iblkno] != 0)
+				panic("ffs_snapshot: lost direct block");
+			ip->i_db[iblkno] = BLK_NOCOPY;
+		} else {
+			error = VOP_BALLOC(vp, lblktosize(fs, (off_t)iblkno),
+			   fs->fs_bsize, KERNCRED, B_METAONLY, &ibp);
+			if (error)
+				goto out;
+			indiroff = (iblkno - NDADDR) % NINDIR(fs);
+			if (((ufs_daddr_t *)(ibp->b_data))[indiroff] != 0)
+				panic("ffs_snapshot: lost indirect block");
+			((ufs_daddr_t *)(ibp->b_data))[indiroff] = BLK_NOCOPY;
+			bdwrite(ibp);
+		}
 	}
 	/*
 	 * Allocate shadow blocks to copy all of the other snapshot inodes
@@ -428,32 +438,6 @@ restart:
 		bzero(&dip->di_db[0], (NDADDR + NIADDR) * sizeof(ufs_daddr_t));
 		nbp->b_flags |= B_VALIDSUSPWRT;
 		bdwrite(nbp);
-	}
-	/*
-	 * Copy all indirect blocks to their shadows (allocated above)
-	 * to avoid deadlock in ffs_copyonwrite.
-	 */
-	for (blkno = NDADDR; blkno < numblks; blkno += NINDIR(fs)) {
-		error = VOP_BALLOC(vp, lblktosize(fs, (off_t)blkno),
-		    fs->fs_bsize, p->p_ucred, B_METAONLY, &ibp);
-		if (error)
-			goto out1;
-		copyblkno = fragstoblks(fs, dbtofsb(fs, ibp->b_blkno));
-		bqrelse(ibp);
-		error = VOP_BALLOC(vp, lblktosize(fs, (off_t)copyblkno),
-		    fs->fs_bsize, p->p_ucred, 0, &nbp);
-		if (error)
-			goto out1;
-		error = VOP_BALLOC(vp, lblktosize(fs, (off_t)blkno),
-		    fs->fs_bsize, p->p_ucred, B_METAONLY, &ibp);
-		if (error) {
-			brelse(nbp);
-			goto out1;
-		}
-		bcopy(ibp->b_data, nbp->b_data, fs->fs_bsize);
-		bqrelse(ibp);
-		nbp->b_flags |= B_VALIDSUSPWRT;
-		bawrite(nbp);
 	}
 	/*
 	 * Record snapshot inode. Since this is the newest snapshot,
