@@ -36,7 +36,8 @@ chkerr() {
 
 # DEBUGGING
 #
-set -v
+# XXX
+# set -v
 
 #  Figure out where the root mount is coming from, synthesize a mount
 #  for /usr and mount it.
@@ -49,7 +50,12 @@ set -v
 #
 set `/bin/df /`
 nfs_root=$8
-mount_nfs -o ro ${nfs_root}/usr /usr
+
+# XXX we should extract the host part from nfs_root, but we don't have
+# any good tool for string parsing yet. The ../ is a dirty hack. We
+# can add more than one. But this whole section to determine the boot
+# ifc etc. needs some cleanup
+mount_nfs -o ro ${nfs_root}/../usr /usr
 
 chkerr $? "mount of /usr"
 
@@ -58,33 +64,40 @@ chkerr $? "mount of /usr"
 
 bootp_ifc=`route -n get default | fgrep interface | awk '{ print $2; }'`
 bootp_ipa=`ifconfig $bootp_ifc | fgrep inet | head -1 | awk '{ print $2; }'`
+bootp_ipbca=`ifconfig $bootp_ifc | fgrep inet | head -1 | awk '{ print $6; }'`
 
-echo "Interface $bootp_ifc IP-Address $bootp_ipa"
+echo "Interface $bootp_ifc IP-Address $bootp_ipa Broadcast $bootp_ipbca"
 
 umount /usr
 
-# retarget /conf/ME
-#
-# MFS's background process takes a bit to startup.  Various config files
-# on server should be softlinks through /conf/ME.  The server's own /conf/ME
-# points to the server's version of the files.
-#
-# We retarget /conf/ME using a -o union mount.  This allows
-# us to 'mkdir' over whatever was there previously.
+# Files in /etc are copied to /conf/etc which is writable. Then
+# per-machine configs from /conf/ip.address/etc are copied onto this
+# directory. First choice is using the client's IP, then the client's
+# broadcast address, then a default configuration.
+# This way we have some flexibility to handle clusters of machines
+# on separate subnets.
 #
 # WARNING! null mounts cannot handle mmap, and since many programs
 # use mmap (such as 'cp'), we have to copy.
 
-mount_mfs -s 256 -T qp120at -o union dummy /conf
-chkerr $? "MFS mount on /conf"
+mount_mfs -s 2048 -T qp120at dummy /conf/etc
+cp -Rp /etc/* /conf/etc
+chkerr $? "MFS mount on /conf/etc"
 
-mkdir /conf/ME
-cp -Rp /conf/$bootp_ipa/* /conf/ME
+if [ -d /conf/$bootp_ipa ]
+then
+	cp -Rp /conf/$bootp_ipa/etc/* /conf/etc
+elif [ -d /conf/$bootp_ipbca ]
+then
+	cp -Rp /conf/$bootp_ipbca/etc/* /conf/etc
+else
+	cp -Rp /conf/default/etc/* /conf/etc
+fi
 
-# retarget the kernel
 #
-
-sysctl -w kern.bootfile=/conf/ME/kernel
+# Make the new directory available as /etc
+#
+mount_null /conf/etc /etc
 
 # Tell /etc/rc to run the specified script after
 # it does its mounts but before it does anything
