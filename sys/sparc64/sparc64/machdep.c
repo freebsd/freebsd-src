@@ -328,7 +328,7 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	 */
 	mtx_init(&sched_lock, "sched lock", MTX_SPIN | MTX_RECURSE);
 	mtx_init(&Giant, "Giant", MTX_DEF | MTX_RECURSE);
-	mtx_init(&proc0.p_mtx, "process lock", MTX_DEF);
+	mtx_init(&proc0.p_mtx, "process lock", MTX_DEF|MTX_DUPOK);
 	intr_init2();
 
 	mtx_lock(&Giant);

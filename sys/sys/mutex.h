@@ -57,6 +57,7 @@
 #define MTX_RECURSE	0x00000004	/* Option: lock allowed to recurse */
 #define	MTX_NOWITNESS	0x00000008	/* Don't do any witness checking. */
 #define	MTX_SLEEPABLE	0x00000010	/* We can sleep with this lock. */
+#define	MTX_DUPOK	0x00000020	/* Don't log a duplicate acquire */
 
 /*
  * Option flags passed to certain lock/unlock routines, through the use

@@ -694,7 +694,7 @@ ia64_init(u_int64_t arg1, u_int64_t arg2)
 	 */
 	mtx_init(&Giant, "Giant", MTX_DEF | MTX_RECURSE);
 	mtx_init(&sched_lock, "sched lock", MTX_SPIN | MTX_RECURSE);
-	mtx_init(&proc0.p_mtx, "process lock", MTX_DEF);
+	mtx_init(&proc0.p_mtx, "process lock", MTX_DEF|MTX_DUPOK);
 	mtx_lock(&Giant);
 
 	/*

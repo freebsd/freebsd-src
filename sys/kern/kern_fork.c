@@ -463,7 +463,7 @@ again:
 	 */
 	proc_linkup(p2, kg2, ke2, td2);
 
-	mtx_init(&p2->p_mtx, "process lock", MTX_DEF);
+	mtx_init(&p2->p_mtx, "process lock", MTX_DEF|MTX_DUPOK);
 	PROC_LOCK(p2);
 	/* note.. XXXKSE no pcb or u-area yet */
 
