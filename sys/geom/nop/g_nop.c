@@ -468,12 +468,12 @@ g_nop_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 {
 	struct g_nop_softc *sc;
 
-	if (pp == NULL)
+	if (pp != NULL || cp != NULL)
 		return;
 	sc = gp->softc;
-	sbuf_printf(sb, "%s<offset>%jd</offset>\n", indent,
+	sbuf_printf(sb, "%s<Offset>%jd</Offset>\n", indent,
 	    (intmax_t)sc->sc_offset);
-	sbuf_printf(sb, "%s<failprob>%u</failprob>\n", indent, sc->sc_failprob);
+	sbuf_printf(sb, "%s<Failprob>%u</Failprob>\n", indent, sc->sc_failprob);
 }
 
 DECLARE_GEOM_CLASS(g_nop_class, g_nop);
