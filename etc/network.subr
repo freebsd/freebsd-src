@@ -847,13 +847,17 @@ network_pass3() {
 
 	case ${sshd_enable} in
 	[Yy][Ee][Ss])
-		if [ ! -f /etc/ssh/ssh_host_key ]; then
-			echo ' creating ssh RSA host key';
-			/usr/bin/ssh-keygen -N "" -f /etc/ssh/ssh_host_key
-		fi
-		if [ ! -f /etc/ssh/ssh_host_dsa_key ]; then
-			echo ' creating ssh DSA host key';
-			/usr/bin/ssh-keygen -d -N "" -f /etc/ssh/ssh_host_dsa_key
+		if [ -x /usr/bin/ssh-keygen ]; then
+			if [ ! -f /etc/ssh/ssh_host_key ]; then
+				echo ' creating ssh RSA host key';
+				/usr/bin/ssh-keygen -trsa1 -N "" \
+					-f /etc/ssh/ssh_host_key
+			fi
+			if [ ! -f /etc/ssh/ssh_host_dsa_key ]; then
+				echo ' creating ssh DSA host key';
+				/usr/bin/ssh-keygen -tdsa -N "" \
+					-f /etc/ssh/ssh_host_dsa_key
+			fi
 		fi
 		;;
 	esac
