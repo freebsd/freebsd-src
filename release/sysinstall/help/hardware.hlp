@@ -1,4 +1,4 @@
-Hardware Documentation Guide:  $Id: hardware.hlp,v 1.1.2.6 1995/10/21 14:07:48 jkh Exp $
+Hardware Documentation Guide:  $Id: hardware.hlp,v 1.1.2.7 1995/10/21 15:03:22 jkh Exp $
 
 Table of Contents
 -----------------
@@ -87,7 +87,7 @@ lpt0    dyn     7       n/a     n/a     Printer Port 0
 lpt1    dyn     dyn     n/a     n/a     Printer Port 1
 lpt2    dyn     dyn     n/a     n/a     Printer Port 2
 
-de0                                     DEC DC21x40 PCI based cards
+de0     n/a     n/a     n/a     n/a     DEC DC21x40 PCI based cards
                                         (including 21140 100bT cards)
 ed0     280     5       dyn     d8000   WD & SMC 80xx; Novell NE1000 &
                                         NE2000; 3Com 3C503
@@ -113,7 +113,7 @@ If the hardware in your computer is not set to the same settings as
 those shown in this table and the item is not marked 'dyn', you will 
 have to either reconfigure your hardware, or use UserConfig ('-c' boot
 option) to reconfigure the kernel to match the way your hardware is
-currently set (see section 1.0).   
+currently set (see section 2).   
 
 If the settings do not match, the kernel may be unable to locate
 or reliably access the devices in your system.
