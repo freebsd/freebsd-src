@@ -109,7 +109,7 @@ vop_whiteout {
 #
 vop_mknod {
 	IN struct vnode *dvp;
-	OUT WILLRELE struct vnode **vpp;
+	OUT struct vnode **vpp;
 	IN struct componentname *cnp;
 	IN struct vattr *vap;
 };
