@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/cdio.h>
 #include <sys/cdrio.h>
 #include <sys/dvdio.h>
+#include <sys/disk.h>
 #include <sys/fcntl.h>
 #include <sys/conf.h>
 #include <sys/ctype.h>
@@ -1030,6 +1031,14 @@ acd_ioctl(dev_t dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 	    error = acd_read_structure(cdp, (struct dvd_struct *)addr);
 	else
 	    error = EINVAL;
+	break;
+
+    case DIOCGMEDIASIZE:
+	*(off_t *)addr = cdp->disk_size * cdp->block_size;
+	break;
+
+    case DIOCGSECTORSIZE:
+	*(u_int *)addr = cdp->block_size;
 	break;
 
     default:
