@@ -69,7 +69,7 @@ pass3(void)
 		inp = inpsort[inpindex];
 		state = inoinfo(inp->i_number)->ino_state;
 		if (inp->i_number == ROOTINO ||
-		    (inp->i_parent != 0 && state != DSTATE))
+		    (inp->i_parent != 0 && !S_IS_DUNFOUND(state)))
 			continue;
 		if (state == DCLEAR)
 			continue;
@@ -80,7 +80,7 @@ pass3(void)
 		 * in pass 4.
 		 */
 		if ((preen || bkgrdflag) &&
-		    resolved && usedsoftdep && state == DSTATE) {
+		    resolved && usedsoftdep && S_IS_DUNFOUND(state)) {
 			if (inp->i_dotdot >= ROOTINO)
 				inoinfo(inp->i_dotdot)->ino_linkcnt++;
 			continue;
@@ -88,7 +88,7 @@ pass3(void)
 		for (loopcnt = 0; ; loopcnt++) {
 			orphan = inp->i_number;
 			if (inp->i_parent == 0 ||
-			    inoinfo(inp->i_parent)->ino_state != DSTATE ||
+			    !INO_IS_DUNFOUND(inp->i_parent) ||
 			    loopcnt > countdirs)
 				break;
 			inp = getinoinfo(inp->i_parent);

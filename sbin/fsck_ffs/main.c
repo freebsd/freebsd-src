@@ -194,7 +194,6 @@ checkfilesys(char *filesys)
 	struct ufs_args args;
 	struct dups *dp;
 	struct statfs *mntp;
-	struct zlncnt *zlnp;
 	struct stat snapdir;
 	struct group *grp;
 	ufs2_daddr_t blks;
@@ -424,14 +423,7 @@ checkfilesys(char *filesys)
 				printf(" %lld,", (long long)dp->dup);
 			printf("\n");
 		}
-		if (zlnhead != NULL) {
-			printf("The following zero link count inodes remain:");
-			for (zlnp = zlnhead; zlnp; zlnp = zlnp->next)
-				printf(" %u,", zlnp->zlncnt);
-			printf("\n");
-		}
 	}
-	zlnhead = (struct zlncnt *)0;
 	duplist = (struct dups *)0;
 	muldup = (struct dups *)0;
 	inocleanup();
