@@ -1594,7 +1594,7 @@ aio_return(struct thread *td, struct aio_return_args *uap)
 {
 	struct proc *p = td->td_proc;
 	int s;
-	int jobref;
+	long jobref;
 	struct aiocblist *cb, *ncb;
 	struct aiocb *ujob;
 	struct kaioinfo *ki;
@@ -1664,7 +1664,7 @@ aio_suspend(struct thread *td, struct aio_suspend_args *uap)
 	int i;
 	int njoblist;
 	int error, s, timo;
-	int *ijoblist;
+	long *ijoblist;
 	struct aiocb **ujoblist;
 	
 	if (uap->nent > AIO_LISTIO_MAX)
@@ -1890,7 +1890,7 @@ aio_error(struct thread *td, struct aio_error_args *uap)
 	int s;
 	struct aiocblist *cb;
 	struct kaioinfo *ki;
-	int jobref;
+	long jobref;
 
 	ki = p->p_aioinfo;
 	if (ki == NULL)
