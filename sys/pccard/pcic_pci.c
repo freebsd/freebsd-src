@@ -219,6 +219,8 @@ static int
 pcic_pci_probe(device_t dev)
 {
 	u_int32_t device_id;
+	u_int8_t subclass;
+	u_int8_t progif;
 	char *desc;
 
 	device_id = pci_get_devid(dev);
@@ -307,6 +309,14 @@ pcic_pci_probe(device_t dev)
 		break;
 
 	default:
+		if (pci_get_class(dev) == PCIC_BRIDGE) {
+			subclass = pci_get_subclass(dev);
+			progif = pci_get_progif(dev);
+			if (subclass == PCIS_BRIDGE_PCMCIA && progif == 0)
+				desc = "Generic PCI-PCMCIA Bridge";
+			if (subclass == PCIS_BRIDGE_CARDBUS && progif == 0)
+				desc = "YENTA PCI-CARDBUS Bridge";
+		}
 		break;
 	}
 
