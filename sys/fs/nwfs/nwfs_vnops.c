@@ -836,7 +836,7 @@ nwfs_lookup(ap)
 	struct nw_entry_info fattr, *fap;
 	ncpfid fid;
 	int nameiop=cnp->cn_nameiop, islastcn;
-	int wantparent, error = 0, notfound;
+	int error = 0, notfound;
 	struct thread *td = cnp->cn_thread;
 	char _name[cnp->cn_namelen+1];
 	bcopy(cnp->cn_nameptr, _name, cnp->cn_namelen);
@@ -857,7 +857,6 @@ nwfs_lookup(ap)
 		return (EROFS);
 	if ((error = VOP_ACCESS(dvp, VEXEC, cnp->cn_cred, td)))
 		return (error);
-	wantparent = flags & (LOCKPARENT|WANTPARENT);
 	nmp = VFSTONWFS(mp);
 	dnp = VTONW(dvp);
 /*
@@ -943,7 +942,7 @@ printf("dvp %d:%d:%d\n", (int)mp, (int)dvp->v_vflag & VV_ROOT, (int)flags & ISDO
 		return (notfound);	/* hard error */
 	if (notfound) { /* entry not found */
 		/* Handle RENAME or CREATE case... */
-		if ((nameiop == CREATE || nameiop == RENAME) && wantparent && islastcn) {
+		if ((nameiop == CREATE || nameiop == RENAME) && islastcn) {
 			cnp->cn_flags |= SAVENAME;
 			return (EJUSTRETURN);
 		}
@@ -966,7 +965,7 @@ printf("dvp %d:%d:%d\n", (int)mp, (int)dvp->v_vflag & VV_ROOT, (int)flags & ISDO
 		cnp->cn_flags |= SAVENAME;	/* I free it later */
 		return (0);
 	}
-	if (nameiop == RENAME && islastcn && wantparent) {
+	if (nameiop == RENAME && islastcn) {
 		error = VOP_ACCESS(dvp, VWRITE, cnp->cn_cred, cnp->cn_thread);
 		if (error) return (error);
 		if (NWCMPF(&dnp->n_fid, &fid)) return EISDIR;

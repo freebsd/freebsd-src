@@ -937,7 +937,7 @@ nfs4_lookup(struct vop_lookup_args *ap)
 	long len;
 	nfsfh_t *fhp;
 	struct nfsnode *np;
-	int wantparent, error = 0, fhsize;
+	int error = 0, fhsize;
 	struct thread *td = cnp->cn_thread;
 	struct nfs4_compound cp;
 	struct nfs4_oparg_getattr ga, dga;
@@ -950,7 +950,6 @@ nfs4_lookup(struct vop_lookup_args *ap)
 		return (EROFS);
 	if (dvp->v_type != VDIR)
 		return (ENOTDIR);
-	wantparent = flags & (LOCKPARENT|WANTPARENT);
 	nmp = VFSTONFS(dvp->v_mount);
 	np = VTONFS(dvp);
 
@@ -1030,7 +1029,7 @@ nfs4_lookup(struct vop_lookup_args *ap)
 	/*
 	 * Handle RENAME case...
 	 */
-	if (cnp->cn_nameiop == RENAME && wantparent && (flags & ISLASTCN)) {
+	if (cnp->cn_nameiop == RENAME && (flags & ISLASTCN)) {
 		if (NFS_CMPFH(np, fhp, fhsize))
 			return (EISDIR);
 
