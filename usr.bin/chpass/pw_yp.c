@@ -35,7 +35,7 @@
  * Center for Telecommunications Research
  * Columbia University, New York City
  *
- *	$Id: pw_yp.c,v 1.9 1997/02/22 19:54:26 peter Exp $
+ *	$Id: pw_yp.c,v 1.2 1997/07/28 18:32:05 wpaul Exp $
  */
 
 #ifdef YP
@@ -65,7 +65,6 @@ struct dom_binding {};
 #include <pw_util.h>
 #include "pw_yp.h"
 #include "ypxfr_extern.h"
-#include "yppasswd_comm.h"
 #include "yppasswd_private.h"
 
 #define PERM_SECURE (S_IRUSR|S_IWUSR)
@@ -339,6 +338,7 @@ char *get_yp_master(getserver)
 	char *mastername;
 	int rval, localport;
 	struct stat st;
+	char			*sockname = YP_SOCKNAME;
 
 	/*
 	 * Sometimes we are called just to probe for rpc.yppasswdd and
@@ -421,6 +421,7 @@ void yp_submit(pw)
 	char *master, *password;
 	int *status = NULL;
 	struct rpc_err err;
+	char			*sockname = YP_SOCKNAME;
 
 	_use_yp = 1;
 
@@ -473,12 +474,13 @@ void yp_submit(pw)
 
 	if (suser_override) {
 		/* Talk to server via AF_UNIX socket. */
-		if (senddat(&master_yppasswd)) {
-			warnx("failed to contact local rpc.yppasswdd");
+		clnt = clnt_create(sockname, MASTER_YPPASSWDPROG,
+					MASTER_YPPASSWDVERS, "unix");
+		if (clnt == NULL) {
+			warnx("failed to contact rpc.yppasswdd: %s",
+				clnt_spcreateerror(master));
 			pw_error(tempname, 0, 1);
 		}
-		/* Get return code. */
-		status = getresp();
 	} else {
 		/* Create a handle to yppasswdd. */
 
@@ -488,23 +490,24 @@ void yp_submit(pw)
 				master, clnt_spcreateerror(master));
 			pw_error(tempname, 0, 1);
 		}
+	}
 
-		clnt->cl_auth = authunix_create_default();
+	clnt->cl_auth = authunix_create_default();
 
+	if (suser_override)
+		status = yppasswdproc_update_master_1(&master_yppasswd, clnt);
+	else
 		status = yppasswdproc_update_1(&yppasswd, clnt);
 
-		clnt_geterr(clnt, &err);
+	clnt_geterr(clnt, &err);
 
-		auth_destroy(clnt->cl_auth);
-		clnt_destroy(clnt);
-	}
+	auth_destroy(clnt->cl_auth);
+	clnt_destroy(clnt);
 
 	/* Call failed: signal the error. */
 
-	if ((!suser_override && err.re_status) != RPC_SUCCESS || status == NULL || *status) {
-		warnx("NIS update failed: %s", (err.re_status != RPC_SUCCESS &&
-			!suser_override) ? clnt_sperrno(err.re_status) : 
-					"rpc.yppasswdd returned error status");
+	if (err.re_status != RPC_SUCCESS || status == NULL || *status) {
+		warnx("NIS update failed: %s", clnt_sperrno(err.re_status));
 		pw_error(NULL, 0, 1);
 	}
 
