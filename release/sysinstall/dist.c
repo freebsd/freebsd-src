@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: dist.c,v 1.73.2.28 1997/05/05 05:17:45 pst Exp $
+ * $Id: dist.c,v 1.73.2.29 1997/05/16 07:46:59 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -380,6 +380,56 @@ distMaybeSetPorts(dialogMenuItem *self)
     return DITEM_SUCCESS | DITEM_RESTORE;
 }
 
+static Boolean
+distSetByName(Distribution *dist, char *name)
+{
+    int i, status = FALSE;
+    
+    /* Loop through current set */
+    for (i = 0; dist[i].my_name; i++) {
+	/* This is shorthand for "dist currently disabled" */
+	if (!dist[i].my_dir)
+	    continue;
+	else if (!strcmp(dist[i].my_name, name)) {
+	    *(dist[i].my_mask) &= ~(dist[i].my_bit);
+	    status = TRUE;
+	    break;
+	}
+	else if (dist[i].my_dist) {
+	    if (distSetByName(dist[i].my_dist, name)) {
+		status = TRUE;
+		break;
+	    }
+	}
+    }
+    return status;
+}
+
+/* Just for the dispatch stuff */
+int
+distSetCustom(dialogMenuItem *self)
+{
+    char *cp, *cp2, *tmp;
+
+    if (!(tmp = variable_get(VAR_DISTS))) {
+	msgDebug("distSetCustom() called without %s variable set.\n", VAR_DISTS);
+	return DITEM_FAILURE;
+    }
+
+    cp = alloca(strlen(tmp) + 1);
+    if (!cp)
+	msgFatal("Couldn't alloca() %d bytes!\n", strlen(tmp) + 1);
+    strcpy(cp, tmp);
+    while (cp) {
+	if ((cp2 = index(cp, ' ')) != NULL)
+	    *(cp2++) = '\0';
+	if (!distSetByName(DistTable, cp))
+	    msgDebug("distSetCustom: Warning, no such release \"%s\"\n", cp);
+	cp = cp2;
+    }
+    return DITEM_SUCCESS;
+}
+    
 int
 distSetSrc(dialogMenuItem *self)
 {

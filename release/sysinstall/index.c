@@ -4,7 +4,7 @@
  * This is probably the last program in the `sysinstall' line - the next
  * generation being essentially a complete rewrite.
  *
- * $Id: index.c,v 1.38.2.9 1997/04/05 07:07:55 jkh Exp $
+ * $Id: index.c,v 1.50 1997/05/05 08:38:12 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -74,6 +74,7 @@ static char *descrs[] = {
     "cad", "Computer Aided Design utilities.",
     "chinese", "Ported software for the Chinese market.",
     "comms", "Communications utilities.",
+    "converters", "Format conversion utilities..",
     "databases", "Database software.",
     "devel", "Software development utilities and libraries.",
     "development", "Software development utilities and libraries.",
@@ -97,6 +98,7 @@ static char *descrs[] = {
     "news", "USENET News support software.",
     "numeric", "Mathematical computation software.",
     "orphans", "Packages without a home elsewhere.",
+    "perl5", "Utilities/modules for the PERL5 language..",
     "plan9", "Software from the plan9 Operating System.",
     "print", "Utilities for dealing with printing.",
     "printing", "Utilities for dealing with printing.",
@@ -105,11 +107,13 @@ static char *descrs[] = {
     "security", "System security software.",
     "shells", "Various shells (tcsh, bash, etc).",
     "sysutils", "Various system utilities.",
-    "www", "WEB utilities (browers, HTTP servers, etc).",
+    "textproc", "Text processing/search utilities.",
+    "tk41", "Utilities & packages for the TK 4.1 toolkit.",
     "troff", "TROFF Text formatting utilities.",
     "utils", "Various user utilities.",
     "utilities", "Various user utilities.",
     "vietnamese", "Ported software for the Vietnamese market.",
+    "www", "WEB utilities (browers, HTTP servers, etc).",
     "x11", "X Window System based utilities.",
     NULL, NULL,
 };

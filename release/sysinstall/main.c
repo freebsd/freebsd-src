@@ -4,7 +4,7 @@
  * This is probably the last attempt in the `sysinstall' line, the next
  * generation being slated for what's essentially a complete rewrite.
  *
- * $Id: main.c,v 1.28.2.12 1997/04/19 06:55:08 jkh Exp $
+ * $Id: main.c,v 1.28.2.13 1997/04/19 21:07:44 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -111,6 +111,7 @@ main(int argc, char **argv)
 	fp = fopen("install.cfg", "r");
 	if (fp) {
 	    msgNotify("Loading pre-configuration file");
+	    variable_set2(VAR_NONINTERACTIVE, "YES");
 	    while (fgets(buf, sizeof buf, fp)) {
 		if (DITEM_STATUS(dispatchCommand(buf)) != DITEM_SUCCESS) {
 		    msgDebug("Command `%s' failed - rest of script aborted.\n", buf);
@@ -118,6 +119,7 @@ main(int argc, char **argv)
 		}
 	    }
 	    fclose(fp);
+	    variable_unset(VAR_NONINTERACTIVE);
 	}
     }
 
