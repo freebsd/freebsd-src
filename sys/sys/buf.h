@@ -237,7 +237,7 @@ extern char *buf_wmesg;			/* Default buffer lock message */
  * Initialize a lock.
  */
 #define BUF_LOCKINIT(bp) \
-	lockinit(&(bp)->b_lock, PRIBIO + 4, buf_wmesg, 0, LK_CANRECURSE)
+	lockinit(&(bp)->b_lock, PRIBIO + 4, buf_wmesg, 0, 0)
 /*
  *
  * Get a lock sleeping non-interruptably until it becomes available.
