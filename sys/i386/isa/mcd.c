@@ -2,7 +2,7 @@
  * Copyright 1993 by Holger Veit (data part)
  * Copyright 1993 by Brian Moore (audio part)
  * Changes Copyright 1993 by Gary Clark II
- * Changes Copyright (C) 1994 by Andrew A. Chernov
+ * Changes Copyright (C) 1994-1995 by Andrey A. Chernov, Moscow, Russia
  *
  * Rewrote probe routine to work on newer Mitsumi drives.
  * Additional changes (C) 1994 by Jordan K. Hubbard
@@ -187,6 +187,8 @@ static	int	mcd_play(int unit, struct mcd_read2 *pb);
 static  int     mcd_playmsf(int unit, struct ioc_play_msf *pt);
 static	int	mcd_pause(int unit);
 static	int	mcd_resume(int unit);
+static  int     mcd_lock_door(int unit, int lock);
+static  int     mcd_close_tray(int unit);
 
 extern	int	hz;
 extern	int	mcd_probe(struct isa_device *dev);
@@ -198,13 +200,17 @@ struct	isa_driver	mcddriver = { mcd_probe, mcd_attach, "mcd" };
 #define MCD_RETRYS	5
 #define MCD_RDRETRYS	8
 
+#define CLOSE_TRAY_SECS 8
+#define DISK_SENSE_SECS 3
+#define WAIT_FRAC 4
+
 /* several delays */
 #define RDELAY_WAITSTAT 300
 #define RDELAY_WAITMODE 300
 #define RDELAY_WAITREAD	800
 
 #define MIN_DELAY       15
-#define DELAY_GETREPLY  1300000
+#define DELAY_GETREPLY  1400000
 
 static struct kern_devconf kdc_mcd[NMCD] = { {
 	0, 0, 0,		/* filled in by dev_attach */
@@ -225,7 +231,6 @@ mcd_registerdev(struct isa_device *id)
 	kdc_mcd[id->id_unit].kdc_isa = id;
 	dev_attach(&kdc_mcd[id->id_unit]);
 }
-
 
 int mcd_attach(struct isa_device *dev)
 {
@@ -249,7 +254,7 @@ int mcd_attach(struct isa_device *dev)
 
 int mcdopen(dev_t dev)
 {
-	int unit,part,phys;
+	int unit,part,phys,r,retry;
 	struct mcd_data *cd;
 	
 	unit = mcd_unit(dev);
@@ -268,8 +273,18 @@ int mcdopen(dev_t dev)
 	if (!(cd->flags & MCDVALID) && cd->openflags)
 		return ENXIO;
 
-	if (mcd_getstat(unit,1) == -1)    /* detect disk change too */
-		return ENXIO;
+	if (mcd_close_tray(unit) == EIO)  /* detect disk change too */
+		return EIO;
+
+	if (    (cd->status & (MCDDSKCHNG|MCDDOOROPEN))
+	    || !(cd->status & MCDDSKIN))
+		for (retry = 0; retry < DISK_SENSE_SECS * WAIT_FRAC; retry++) {
+			(void) tsleep((caddr_t)cd, PSOCK | PCATCH, "mcdsns", hz/WAIT_FRAC);
+			if ((r = mcd_getstat(unit,1)) == -1)
+				return EIO;
+			if (r != -2)
+				break;
+		}
 
 	if (cd->status & MCDDOOROPEN) {
 		printf("mcd%d: door is open\n");
@@ -277,6 +292,10 @@ int mcdopen(dev_t dev)
 	}
 	if (!(cd->status & MCDDSKIN)) {
 		printf("mcd%d: no CD inside\n");
+		return ENXIO;
+	}
+	if (cd->status & MCDDSKCHNG) {
+		printf("mcd%d: CD not sensed\n");
 		return ENXIO;
 	}
 
@@ -300,6 +319,9 @@ MCD_TRACE("open: partition=%d, disksize = %d, blksize=%d\n",
 		if (part == RAW_PART && phys != 0)
 			cd->partflags[part] |= MCDREADRAW;
 		kdc_mcd[unit].kdc_state = DC_BUSY;
+		(void) mcd_lock_door(unit, MCD_LK_LOCK);
+		if (!(cd->flags & MCDVALID))
+			return ENXIO;
 		return 0;
 	}
 	
@@ -323,7 +345,9 @@ int mcdclose(dev_t dev)
 		return ENXIO;
 
 	kdc_mcd[unit].kdc_state = DC_IDLE;
-	if (mcd_getstat(unit,1) == -2)
+	(void) mcd_lock_door(unit, MCD_LK_UNLOCK);
+
+	if (!(cd->flags & MCDVALID))
 		return 0;
 
 	/* close channel */
@@ -463,19 +487,23 @@ int mcdioctl(dev_t dev, int cmd, caddr_t addr, int flags)
 	part = mcd_part(dev);
 	cd = mcd_data + unit;
 
-	if (mcd_getstat(unit, 1) < 0) /* detect disk change too */
-		return EIO;
-	if (!(cd->flags & MCDVALID))
+	if (mcd_getstat(unit, 1) == -1) /* detect disk change too */
 		return EIO;
 MCD_TRACE("ioctl called 0x%x\n",cmd,0,0,0);
 
 	switch (cmd) {
 	case DIOCSBAD:
+		if (!(cd->flags & MCDVALID))
+			return ENXIO;
 		return EINVAL;
 	case DIOCGDINFO:
+		if (!(cd->flags & MCDVALID))
+			return ENXIO;
 		*(struct disklabel *) addr = cd->dlabel;
 		return 0;
 	case DIOCGPART:
+		if (!(cd->flags & MCDVALID))
+			return ENXIO;
 		((struct partinfo *) addr)->disklab = &cd->dlabel;
 		((struct partinfo *) addr)->part =
 		    &cd->dlabel.d_partitions[mcd_part(dev)];
@@ -487,6 +515,8 @@ MCD_TRACE("ioctl called 0x%x\n",cmd,0,0,0);
 		 */
 	case DIOCWDINFO:
 	case DIOCSDINFO:
+		if (!(cd->flags & MCDVALID))
+			return ENXIO;
 		if ((flags & FWRITE) == 0)
 			return EBADF;
 		else {
@@ -495,18 +525,32 @@ MCD_TRACE("ioctl called 0x%x\n",cmd,0,0,0);
 			    0);
 		}
 	case DIOCWLABEL:
+		if (!(cd->flags & MCDVALID))
+			return ENXIO;
 		return EBADF;
 	case CDIOCPLAYTRACKS:
+		if (!(cd->flags & MCDVALID))
+			return ENXIO;
 		return mcd_playtracks(unit, (struct ioc_play_track *) addr);
 	case CDIOCPLAYBLOCKS:
+		if (!(cd->flags & MCDVALID))
+			return ENXIO;
 		return EINVAL;
 	case CDIOCPLAYMSF:
+		if (!(cd->flags & MCDVALID))
+			return ENXIO;
 		return mcd_playmsf(unit, (struct ioc_play_msf *) addr);
 	case CDIOCREADSUBCHANNEL:
+		if (!(cd->flags & MCDVALID))
+			return ENXIO;
 		return mcd_subchan(unit, (struct ioc_read_subchannel *) addr);
 	case CDIOREADTOCHEADER:
+		if (!(cd->flags & MCDVALID))
+			return ENXIO;
 		return mcd_toc_header(unit, (struct ioc_toc_header *) addr);
 	case CDIOREADTOCENTRYS:
+		if (!(cd->flags & MCDVALID))
+			return ENXIO;
 		return mcd_toc_entrys(unit, (struct ioc_read_toc_entry *) addr);
 	case CDIOCSETPATCH:
 	case CDIOCGETVOL:
@@ -518,12 +562,20 @@ MCD_TRACE("ioctl called 0x%x\n",cmd,0,0,0);
 	case CDIOCSETRIGHT:
 		return EINVAL;
 	case CDIOCRESUME:
+		if (!(cd->flags & MCDVALID))
+			return ENXIO;
 		return mcd_resume(unit);
 	case CDIOCPAUSE:
+		if (!(cd->flags & MCDVALID))
+			return ENXIO;
 		return mcd_pause(unit);
 	case CDIOCSTART:
+		if (!(cd->flags & MCDVALID))
+			return ENXIO;
 		return EINVAL;
 	case CDIOCSTOP:
+		if (!(cd->flags & MCDVALID))
+			return ENXIO;
 		return mcd_stop(unit);
 	case CDIOCEJECT:
 		return mcd_eject(unit);
@@ -536,7 +588,7 @@ MCD_TRACE("ioctl called 0x%x\n",cmd,0,0,0);
 	case CDIOCRESET:
 		return mcd_hard_reset(unit);
 	case CDIOCALLOW:
-		return 0;
+		return mcd_lock_door(unit, MCD_LK_UNLOCK);
 	default:
 		return ENOTTY;
 	}
@@ -755,7 +807,10 @@ mcd_getstat(int unit,int sflg)
 	if (sflg)
 		outb(port+mcd_command, MCD_CMDGETSTAT);
 	i = mcd_getreply(unit,DELAY_GETREPLY);
-	if (i<0	|| (i &	MCD_ST_CMDCHECK)) return -1;
+	if (i<0 || (i & MCD_ST_CMDCHECK)) {
+		cd->curr_mode = MCD_MD_UNKNOWN;
+		return -1;
+	}
 
 	cd->status = i;
 
@@ -874,7 +929,9 @@ mcd_volinfo(int unit)
 		return EIO;
 	}
 
-	if (cd->volinfo.trk_low != 0 || cd->volinfo.trk_high != 0) {
+	if (cd->volinfo.trk_low > 0 &&
+	    cd->volinfo.trk_high >= cd->volinfo.trk_low
+	   ) {
 		cd->flags |= MCDVOLINFO;	/* volinfo is OK */
 		return 0;
 	}
@@ -919,8 +976,8 @@ loop:
 		mbx = mbxsave = mbxin;
 
 	case MCD_S_BEGIN1:
-		/* get status */
 retry_status:
+		/* get status */
 		outb(com_port, MCD_CMDGETSTAT);
 		mbx->count = RDELAY_WAITSTAT;
 		timeout((timeout_func_t)mcd_doread,
@@ -946,6 +1003,7 @@ retry_status:
 				printf("mcd%d: audio is active\n",unit);
 				goto readerr;
 			}
+
 retry_mode:
 			/* to check for raw/cooked mode */
 			if (cd->flags & MCDREADRAW) {
@@ -986,7 +1044,7 @@ retry_mode:
 		}
 		cd->status = inb(port+mcd_status) & 0xFF;
 		if (cd->status & MCD_ST_CMDCHECK) {
-			cd->curr_mode =	MCD_MD_UNKNOWN;
+			cd->curr_mode = MCD_MD_UNKNOWN;
 			goto retry_mode;
 		}
 		if (mcd_setflags(unit,cd) < 0)
@@ -1120,13 +1178,58 @@ changed:
 }
 
 static int
-mcd_eject(int unit)
+mcd_lock_door(int unit, int lock)
 {
 	struct mcd_data *cd = mcd_data + unit;
 	int port = cd->iobase;
 
+	outb(port+mcd_command, MCD_CMDLOCKDRV);
+	outb(port+mcd_command, lock);
+	if (mcd_getstat(unit,0) == -1)
+		return EIO;
+	return 0;
+}
+
+static int
+mcd_close_tray(int unit)
+{
+	struct mcd_data *cd = mcd_data + unit;
+	int port = cd->iobase;
+	int retry, r;
+
+	if (mcd_getstat(unit,1) == -1)
+		return EIO;
+	if (cd->status & MCDDOOROPEN) {
+		outb(port+mcd_command, MCD_CMDCLOSETRAY);
+		for (retry = 0; retry < CLOSE_TRAY_SECS * WAIT_FRAC; retry++) {
+			if (inb(port+MCD_FLAGS) & MFL_STATUS_NOT_AVAIL)
+				(void) tsleep((caddr_t)cd, PSOCK | PCATCH, "mcdcls", hz/WAIT_FRAC);
+			else {
+				if ((r = mcd_getstat(unit,0)) == -1)
+					return EIO;
+				return 0;
+			}
+		}
+		return ENXIO;
+	}
+	return 0;
+}
+
+static int
+mcd_eject(int unit)
+{
+	struct mcd_data *cd = mcd_data + unit;
+	int port = cd->iobase, r;
+
+	if (mcd_getstat(unit,1) == -1)    /* detect disk change too */
+		return EIO;
+	if (cd->status & MCDDOOROPEN)
+		return mcd_close_tray(unit);
+	if ((r = mcd_stop(unit)) == EIO)
+		return r;
 	outb(port+mcd_command, MCD_CMDEJECTDISK);
-	if (mcd_getstat(unit,0) == -1) return EIO;
+	if (mcd_getstat(unit,0) == -1)
+		return EIO;
 	return 0;
 }
 
@@ -1332,8 +1435,16 @@ mcd_stop(int unit)
 {
 	struct mcd_data *cd = mcd_data + unit;
 
-	if (mcd_send(unit, MCD_CMDSTOPAUDIO, MCD_RETRYS) < 0)
-		return ENXIO;
+	/* Verify current status */
+	if (cd->audio_status != CD_AS_PLAY_IN_PROGRESS &&
+	    cd->audio_status != CD_AS_PLAY_PAUSED) {
+		if (cd->debug)
+			printf("mcd%d: stop attempted when not playing\n", unit);
+		return EINVAL;
+	}
+	if (cd->audio_status == CD_AS_PLAY_IN_PROGRESS)
+		if (mcd_send(unit, MCD_CMDSTOPAUDIO, MCD_RETRYS) < 0)
+			return EIO;
 	cd->audio_status = CD_AS_PLAY_COMPLETED;
 	return 0;
 }
