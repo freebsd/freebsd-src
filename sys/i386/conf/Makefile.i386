@@ -81,7 +81,7 @@ libkern.a:
 	echo ln -s $S/libkern/obj/libkern.a libkern.a
 
 clean:
-	rm -f eddep *386bsd tags *.o locore.i [a-uw-z]*.s \
+	rm -f eddep *kernel tags *.o locore.i [a-uw-z]*.s \
 		errs linterrs makelinks genassym ,assym.s stamp-assym
 
 #lint: /tmp param.c
