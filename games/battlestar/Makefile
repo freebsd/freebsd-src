@@ -10,4 +10,8 @@ LDADD=	-lcurses -ltermcap -lcompat
 HIDEGAME=hidegame
 #CFLAGS+= -Wall -W
 
+beforeinstall:
+	${INSTALL} -c -o ${BINOWN} -g ${BINGRP} -m 664 /dev/null \
+	    ${DESTDIR}/var/games/battlestar.log
+
 .include <bsd.prog.mk>
