@@ -4,7 +4,7 @@
 #
 #	  Originally written by Toshiharu OHNO
 #
-# $Id: ppp.conf.sample,v 1.27 1997/12/30 23:34:35 brian Exp $
+# $Id: ppp.conf.sample,v 1.28 1997/12/31 03:58:45 brian Exp $
 #
 #################################################################
 
@@ -57,7 +57,7 @@ default:
 #  specified IP actually being correct, therefore, the other side can assign
 #  any IP numbers.
 #
-#  The forth arg to "set ifaddr" makes us send "0.0.0.0" as our requested
+#  The fourth arg to "set ifaddr" makes us send "0.0.0.0" as our requested
 #  IP number, forcing the peer to make the decision.
 #
 pmdemand:
