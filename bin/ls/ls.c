@@ -45,7 +45,7 @@ static const char copyright[] =
 static char sccsid[] = "@(#)ls.c	8.5 (Berkeley) 4/2/94";
 #else
 static const char rcsid[] =
-	"$Id: ls.c,v 1.26 1999/08/19 11:36:12 sheldonh Exp $";
+	"$Id: ls.c,v 1.27 1999/08/19 13:04:08 sheldonh Exp $";
 #endif
 #endif /* not lint */
 
@@ -220,6 +220,8 @@ main(argc, argv)
 			break;
 		case 'n':
 			f_numericonly = 1;
+			f_longform = 1;
+			f_column = f_singlecol = 0;
 			break;
 		case 'o':
 			f_flags = 1;
