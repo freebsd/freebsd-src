@@ -1,7 +1,7 @@
 /*
  * Miscellaneous support routines..
  *
- * $Id: misc.c,v 1.22.2.8 1997/02/19 17:12:26 jkh Exp $
+ * $Id: misc.c,v 1.22.2.9 1997/03/09 22:37:58 jkh Exp $
  *
  * Copyright (c) 1995
  *	Jordan Hubbard.  All rights reserved.
@@ -226,7 +226,7 @@ root_bias(char *path)
 }
 
 /*
- * These next routines are kind of specialized just for building string lists
+ * These next routines are kind of specialized just for building item lists
  * for dialog_menu().
  */
 
