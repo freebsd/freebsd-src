@@ -1,7 +1,8 @@
 #	@(#)Makefile.inc	8.1 (Berkeley) 5/31/93
-#	$Id$
+#	$Id: Makefile.inc,v 1.9 1997/02/22 14:01:23 peter Exp $
 
 BINDIR?=	/bin
+CFLAGS+=	-Wall -Wformat
 NOSHARED?=	YES
 
 .if exists (${.CURDIR}/../../secure)
