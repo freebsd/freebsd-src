@@ -31,7 +31,7 @@
  * SUCH DAMAGE.
  *
  *	@(#)vnode.h	8.7 (Berkeley) 2/4/94
- * $Id: vnode.h,v 1.69 1998/03/16 01:55:35 dyson Exp $
+ * $Id: vnode.h,v 1.70 1998/03/28 10:33:24 bde Exp $
  */
 
 #ifndef _SYS_VNODE_H_
@@ -460,6 +460,7 @@ struct nameidata;
 struct ostat;
 struct proc;
 struct stat;
+struct nstat;
 struct ucred;
 struct uio;
 struct vattr;
@@ -477,6 +478,7 @@ int	cache_lookup __P((struct vnode *dvp, struct vnode **vpp,
 void	cache_purge __P((struct vnode *vp));
 void	cache_purgevfs __P((struct mount *mp));
 void	cvtstat __P((struct stat *st, struct ostat *ost));
+void	cvtnstat __P((struct stat *sb, struct nstat *nsb));
 int 	getnewvnode __P((enum vtagtype tag,
 	    struct mount *mp, vop_t **vops, struct vnode **vpp));
 int	lease_check __P((struct vop_lease_args *ap));
