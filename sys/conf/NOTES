@@ -2,7 +2,7 @@
 # LINT -- config file for checking all the sources, tries to pull in
 #	as much of the source tree as it can.
 #
-#	$Id: LINT,v 1.594 1999/05/06 18:08:23 peter Exp $
+#	$Id: LINT,v 1.595 1999/05/09 16:45:56 phk Exp $
 #
 # NB: You probably don't want to try running a kernel built from this
 # file.  Instead, you should start from GENERIC, and add options from
@@ -37,7 +37,11 @@ maxusers	10
 # but that isn't normally necessary as the debug symbols are not loaded
 # by the kernel and are not useful there anyway.
 #
+# KERNEL can be overridden so that you can change the default name of your
+# kernel.
+#
 #makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
+#makeoptions	KERNEL=foo		#Build kernel "foo" and install "/foo"
 
 #
 # Certain applications can grow to be larger than the 128M limit
