@@ -46,6 +46,12 @@
     <option>create</option> option should be used when another device
     instance is desired.</para>
 
+    <para>Two new &man.ddb.4; commands, <command>hwatch</command> and
+    <command>dhwatch</command>, have been introduced.  Analogous to
+    <command>watch</command> and <command>dwatch</command>, they install
+    hardware watchpoints (as opposed to software watchpoints) if supported
+    by the architecture.</para>
+
     <sect3>
       <title>Processor/Motherboard Support</title>
 
