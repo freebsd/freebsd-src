@@ -1321,7 +1321,7 @@ brelse(struct buf *bp)
 		vm_pindex_t poff;
 		vm_object_t obj;
 
-		obj = bp->b_object;
+		obj = bp->b_bufobj->bo_object;
 
 		/*
 		 * Get the base offset and length of the buffer.  Note that 
@@ -1365,7 +1365,8 @@ brelse(struct buf *bp)
 
 				if ((bp->b_flags & B_INVAL) == 0) {
 					pmap_qenter(
-					    trunc_page((vm_offset_t)bp->b_data),					    bp->b_pages, bp->b_npages);
+					    trunc_page((vm_offset_t)bp->b_data),
+					    bp->b_pages, bp->b_npages);
 				}
 				m = bp->b_pages[i];
 			}
@@ -2634,12 +2635,14 @@ loop:
 					vp->v_type);
 #endif
 			VOP_GETVOBJECT(vp, &vmo);
-			KASSERT(vmo == bp->b_object,
-			    ("ARGH! different b_object %p %p %p\n", bp, vmo, bp->b_object));
+			KASSERT(vmo == bp->b_bufobj->bo_object,
+			    ("ARGH! different b_bufobj->bo_object %p %p %p\n",
+			    bp, vmo, bp->b_bufobj->bo_object));
 		} else {
 			bp->b_flags &= ~B_VMIO;
-			KASSERT(bp->b_object == NULL,
-			    ("ARGH! has b_object %p %p\n", bp, bp->b_object));
+			KASSERT(bp->b_bufobj->bo_object == NULL,
+			    ("ARGH! has b_bufobj->bo_object %p %p\n",
+			    bp, bp->b_bufobj->bo_object));
 		}
 
 		allocbuf(bp, size);
@@ -2863,7 +2866,7 @@ allocbuf(struct buf *bp, int size)
 			 */
 
 			vp = bp->b_vp;
-			obj = bp->b_object;
+			obj = bp->b_bufobj->bo_object;
 
 			VM_OBJECT_LOCK(obj);
 			while (bp->b_npages < desiredpages) {
@@ -3111,7 +3114,6 @@ dev_strategy(struct cdev *dev, struct buf *bp)
 	bip->bio_done = bufdonebio;
 	bip->bio_caller2 = bp;
 	bip->bio_dev = dev;
-
 	KASSERT(dev->si_refcount > 0,
 	    ("dev_strategy on un-referenced struct cdev *(%s)",
 	    devtoname(dev)));
@@ -3184,7 +3186,7 @@ bufdone(struct buf *bp)
 		int iosize;
 		struct vnode *vp = bp->b_vp;
 
-		obj = bp->b_object;
+		obj = bp->b_bufobj->bo_object;
 
 #if defined(VFS_BIO_DEBUG)
 		mp_fixme("usecount and vflag accessed without locks.");
@@ -3326,7 +3328,7 @@ vfs_unbusy_pages(struct buf *bp)
 	if (!(bp->b_flags & B_VMIO))
 		return;
 
-	obj = bp->b_object;
+	obj = bp->b_bufobj->bo_object;
 	VM_OBJECT_LOCK(obj);
 	vm_page_lock_queues();
 	for (i = 0; i < bp->b_npages; i++) {
@@ -3408,7 +3410,7 @@ vfs_busy_pages(struct buf *bp, int clear_modify)
 	if (!(bp->b_flags & B_VMIO))
 		return;
 
-	obj = bp->b_object;
+	obj = bp->b_bufobj->bo_object;
 	foff = bp->b_offset;
 	KASSERT(bp->b_offset != NOOFFSET,
 	    ("vfs_busy_pages: no buffer offset"));
@@ -3449,7 +3451,7 @@ retry:
 		if (clear_modify)
 			vfs_page_set_valid(bp, foff, i, m);
 		else if (m->valid == VM_PAGE_BITS_ALL &&
-			(bp->b_flags & B_CACHE) == 0) {
+		    (bp->b_flags & B_CACHE) == 0) {
 			bp->b_pages[i] = bogus_page;
 			bogus++;
 		}
@@ -3517,7 +3519,6 @@ vfs_bio_set_validclean(struct buf *bp, int base, int size)
 
 	if (!(bp->b_flags & B_VMIO))
 		return;
-
 	/*
 	 * Fixup base to be relative to beginning of first page.
 	 * Set initial n to be the maximum number of bytes in the
@@ -3564,10 +3565,11 @@ vfs_bio_clrbuf(struct buf *bp)
 		clrbuf(bp);
 		return;
 	}
+
 	bp->b_flags &= ~B_INVAL;
 	bp->b_ioflags &= ~BIO_ERROR;
 	VM_OBJECT_LOCK(bp->b_bufobj->bo_object);
-	if( (bp->b_npages == 1) && (bp->b_bufsize < PAGE_SIZE) &&
+	if ((bp->b_npages == 1) && (bp->b_bufsize < PAGE_SIZE) &&
 	    (bp->b_offset & PAGE_MASK) == 0) {
 		if (bp->b_pages[0] == bogus_page)
 			goto unlock;
