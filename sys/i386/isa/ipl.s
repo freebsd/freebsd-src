@@ -43,30 +43,7 @@
 /*
  * AT/386
  * Vector interrupt control section
- *
- *  *_imask	- Interrupt masks for various spl*() functions
- *  ipending	- Pending interrupts (set when a masked interrupt occurs)
  */
-
-	.data
-	ALIGN_DATA
-
-/* current priority (all off) */
-
-	.globl	_tty_imask
-_tty_imask:	.long	0
-	.globl	_bio_imask
-_bio_imask:	.long	0
-	.globl	_net_imask
-_net_imask:	.long	0
-	.globl	_cam_imask
-_cam_imask:	.long	0
-	.globl	_soft_imask
-_soft_imask:	.long	0
-	.globl	_softnet_imask
-_softnet_imask:	.long	0
-	.globl	_softtty_imask
-_softtty_imask:	.long	0
 
 	.text
 

@@ -161,7 +161,6 @@
 #define _bcopy_vector			bcopy_vector
 #define _bigJump			bigJump
 #define _bintr				bintr
-#define _bio_imask			bio_imask
 #define _bioscall_vector		bioscall_vector
 #define _bootCodeSeg			bootCodeSeg
 #define _bootDataSeg			bootDataSeg
@@ -174,7 +173,6 @@
 #define _bootinfo			bootinfo
 #define _btrap				btrap
 #define _bzero				bzero
-#define _cam_imask			cam_imask
 #define _checkstate_cpus		checkstate_cpus
 #define _checkstate_cpustate		checkstate_cpustate
 #define _checkstate_curproc		checkstate_curproc
@@ -251,7 +249,6 @@
 #define	__mtx_enter_giant_def		_mtx_enter_giant_def
 #define	__mtx_exit_giant_def		_mtx_exit_giant_def
 #define _mul64				mul64
-#define _net_imask			net_imask
 #define _nfs_diskless			nfs_diskless
 #define _nfs_diskless_valid		nfs_diskless_valid
 #define _normalize			normalize
@@ -290,10 +287,7 @@
 #define _sigcode			sigcode
 #define _smp_active			smp_active
 #define _smp_rendezvous_action		smp_rendezvous_action
-#define _soft_imask			soft_imask
 #define _softclock			softclock
-#define _softnet_imask			softnet_imask
-#define _softtty_imask			softtty_imask
 #define _spending			spending
 #define _spl0				spl0
 #define _splz				splz
@@ -315,7 +309,6 @@
 #define _time				time
 #define _trap				trap
 #define _trapwrite			trapwrite
-#define _tty_imask			tty_imask
 #define _vec				vec
 #define _vec8254			vec8254
 #define _vm86_prepcall			vm86_prepcall
