@@ -30,7 +30,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: $
+ * $Id: if_lnc.h,v 1.9 1998/11/26 00:57:32 paul Exp $
  */
 
 #include <i386/isa/ic/Am7990.h>
@@ -55,6 +55,9 @@
 
 #define MEM_SLEW 8
 
+/* LNC Flags */
+#define LNC_INITIALISED 1
+#define LNC_ALLMULTI 2
 
 /* BICC port addresses */
 #define BICC_IOSIZE    16
