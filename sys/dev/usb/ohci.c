@@ -1,4 +1,4 @@
-/*	$NetBSD: ohci.c,v 1.74 2000/02/29 21:37:00 augustss Exp $	*/
+/*	$NetBSD: ohci.c,v 1.81 2000/03/25 18:02:32 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -1175,7 +1175,7 @@ ohci_softintr(struct usbd_bus *bus)
 			continue;
 		}
 		cc = OHCI_TD_GET_CC(le32toh(std->td.td_flags));
-		usb_untimeout(ohci_timeout, xfer, xfer->timo_handle);
+		usb_uncallout(xfer->timeout_handle, ohci_timeout, xfer);
 		if (xfer->status == USBD_CANCELLED ||
 		    xfer->status == USBD_TIMEOUT) {
 			DPRINTF(("ohci_process_done: cancel/timeout, xfer=%p\n",
@@ -1510,8 +1510,8 @@ ohci_device_request(usbd_xfer_handle xfer)
 	opipe->tail.td = tail;
 	OWRITE4(sc, OHCI_COMMAND_STATUS, OHCI_CLF);
 	if (xfer->timeout && !sc->sc_bus.use_polling) {
-                usb_timeout(ohci_timeout, xfer,
-			    MS_TO_TICKS(xfer->timeout), xfer->timo_handle);
+		usb_callout(xfer->timeout_handle, MS_TO_TICKS(xfer->timeout),
+			    ohci_timeout, xfer);
 	}
 	splx(s);
 
@@ -1700,6 +1700,7 @@ ohci_open(usbd_pipe_handle pipe)
 
 	DPRINTFN(1, ("ohci_open: pipe=%p, addr=%d, endpt=%d (%d)\n",
 		     pipe, addr, ed->bEndpointAddress, sc->sc_addr));
+
 	if (addr == sc->sc_addr) {
 		switch (ed->bEndpointAddress) {
 		case USB_CONTROL_ENDPOINT:
@@ -1844,7 +1845,7 @@ ohci_abort_xfer(usbd_xfer_handle xfer, usbd_status status)
 
 	xfer->status = status;
 
-	usb_untimeout(ohci_timeout, xfer, xfer->timo_handle);
+	usb_uncallout(xfer->timeout_handle, ohci_timeout, xfer);
 
 	sed = opipe->sed;
 	sed->ed.ed_flags |= htole32(OHCI_ED_SKIP); /* force hardware skip */
@@ -1856,7 +1857,9 @@ ohci_abort_xfer(usbd_xfer_handle xfer, usbd_status status)
 #if 1
 	if (xfer->device->bus->intr_context) {
 		/* We have no process context, so we can't use tsleep(). */
-		timeout(ohci_abort_xfer_end, xfer, hz / USB_FRAMES_PER_SECOND);
+		usb_callout(xfer->pipe->abort_handle,
+		    hz / USB_FRAMES_PER_SECOND, ohci_abort_xfer_end, xfer);
+
 	} else {
 #if defined(DIAGNOSTIC) && defined(__i386__) && defined(__FreeBSD__)
 		KASSERT(curthread->td_intr_nesting_level == 0,
@@ -2527,8 +2530,8 @@ ohci_device_bulk_start(usbd_xfer_handle xfer)
 	sed->ed.ed_flags &= htole32(~OHCI_ED_SKIP);
 	OWRITE4(sc, OHCI_COMMAND_STATUS, OHCI_BLF);
 	if (xfer->timeout && !sc->sc_bus.use_polling) {
-                usb_timeout(ohci_timeout, xfer,
-			    MS_TO_TICKS(xfer->timeout), xfer->timo_handle);
+                usb_callout(xfer->timeout_handle, MS_TO_TICKS(xfer->timeout),
+			    ohci_timeout, xfer);
 	}
 
 #if 0

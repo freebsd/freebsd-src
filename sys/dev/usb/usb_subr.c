@@ -1,4 +1,4 @@
-/*	$NetBSD: usb_subr.c,v 1.76 2000/04/27 15:26:50 augustss Exp $	*/
+/*	$NetBSD: usb_subr.c,v 1.70 2000/03/29 01:45:20 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -696,9 +696,11 @@ usbd_setup_pipe(usbd_device_handle dev, usbd_interface_handle iface,
 	p->refcnt = 1;
 	p->intrxfer = 0;
 	p->running = 0;
+	p->aborting = 0;
 	p->repeat = 0;
 	p->interval = ival;
 	SIMPLEQ_INIT(&p->queue);
+	usb_callout_init(p->abort_handle);
 	err = dev->bus->methods->open_pipe(p);
 	if (err) {
 		DPRINTFN(-1,("usbd_setup_pipe: endpoint=0x%x failed, error="

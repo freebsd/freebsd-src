@@ -1,4 +1,4 @@
-/*	$NetBSD: usbdivar.h,v 1.47 2000/02/22 11:30:56 augustss Exp $	*/
+/*	$NetBSD: usbdivar.h,v 1.53 2000/03/29 01:45:21 augustss Exp $	*/
 /*	$FreeBSD$	*/
 
 /*
@@ -37,6 +37,8 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
+
+#include <sys/callout.h>
 
 /* From usb_mem.h */
 DECLARE_USB_DMA_T;
@@ -156,12 +158,15 @@ struct usbd_pipe {
 	struct usbd_endpoint   *endpoint;
 	int			refcnt;
 	char			running;
+	char			aborting;
 	SIMPLEQ_HEAD(, usbd_xfer) queue;
 	LIST_ENTRY(usbd_pipe)	next;
 
 	usbd_xfer_handle	intrxfer; /* used for repeating requests */
 	char			repeat;
 	int			interval;
+
+	usb_callout_t		abort_handle;
 
 	/* Filled by HC driver. */
 	struct usbd_pipe_methods *methods;
@@ -178,6 +183,11 @@ struct usbd_xfer {
 	usbd_status		status;
 	usbd_callback		callback;
 	__volatile char		done;
+#ifdef DIAGNOSTIC
+	u_int32_t		busy_free;
+#define XFER_FREE 0x46524545
+#define XFER_BUSY 0x42555357
+#endif
 
 	/* For control pipe */
 	usb_device_request_t	request;
@@ -198,11 +208,8 @@ struct usbd_xfer {
 	SIMPLEQ_ENTRY(usbd_xfer) next;
 
 	void		       *hcpriv; /* private use by the HC driver */
-	int			hcprivint;
 
-#if defined(__FreeBSD__)
-	struct callout_handle  timo_handle;
-#endif
+	usb_callout_t		timeout_handle;
 };
 
 void usbd_init(void);
