@@ -62,16 +62,6 @@
 #define PUSHDOWN_LEVEL_2
 
 /*
- * Debug version of simple_lock.  This will store the CPU id of the
- * holding CPU along with the lock.  When a CPU fails to get the lock
- * it compares its own id to the holder id.  If they are the same it
- * panic()s, as simple locks are binary, and this would cause a deadlock.
- *
- */
-#define SL_DEBUG
-
-
-/*
  * Put FAST_INTR() ISRs at an APIC priority above the regular INTs.
  * Allow the mp_lock() routines to handle FAST interrupts while spinning.
  */

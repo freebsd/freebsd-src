@@ -222,7 +222,6 @@ struct	proc {
 	char	p_rqindex;		/* (j) Run queue index. */
 
 	short	p_locks;	/* (*) DEBUG: lockmgr count of held locks */
-	short	p_simple_locks;	/* (*) DEBUG: count of held simple locks */
 	u_int	p_stops;		/* (c) Procfs event bitmask. */
 	u_int	p_stype;		/* (c) Procfs stop event type. */
 	char	p_step;			/* (c) Procfs stop *once* flag. */
