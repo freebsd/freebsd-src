@@ -1,7 +1,7 @@
 /*
  *   Copyright (c) 1997 Joerg Wunsch. All rights reserved.
  *
- *   Copyright (c) 1997, 2001 Hellmuth Michaelis. All rights reserved.
+ *   Copyright (c) 1997, 2002 Hellmuth Michaelis. All rights reserved.
  *
  *   Redistribution and use in source and binary forms, with or without
  *   modification, are permitted provided that the following conditions
@@ -32,7 +32,7 @@
  *
  * $FreeBSD$
  *
- *      last edit-date: [Fri Jul 20 19:14:55 2001]
+ *      last edit-date: [Tue Mar 26 14:37:59 2002]
  *
  *---------------------------------------------------------------------------*/
 
@@ -128,7 +128,9 @@ isdntime			{ return ISDNTIME; }
 isdntxdel-incoming		{ return ISDNTXDELIN; }
 isdntxdel-outgoing		{ return ISDNTXDELOUT; }
 local-phone-dialout		{ return LOCAL_PHONE_DIALOUT; }
+local-subaddr-dialout		{ return LOCAL_SUBADDR_DIALOUT; }
 local-phone-incoming		{ return LOCAL_PHONE_INCOMING; }
+local-subaddr-incoming		{ return LOCAL_SUBADDR_INCOMING; }
 mailer				{ return MAILER; }
 mailto				{ return MAILTO; }
 maxconnecttime			{ return MAXCONNECTTIME; }
@@ -162,7 +164,9 @@ regexpr				{ return REGEXPR; }
 regprog				{ return REGPROG; }
 remdial-handling		{ return REMOTE_NUMBERS_HANDLING; }
 remote-phone-dialout		{ return REMOTE_PHONE_DIALOUT; }
+remote-subaddr-dialout		{ return REMOTE_SUBADDR_DIALOUT; }
 remote-phone-incoming		{ return REMOTE_PHONE_INCOMING; }
+remote-subaddr-incoming		{ return REMOTE_SUBADDR_INCOMING; }
 rotatesuffix			{ return ROTATESUFFIX; }
 rtprio				{ return RTPRIO; }
 system				{ return SYSTEM; }
@@ -170,6 +174,7 @@ tinainitprog			{ return TINAINITPROG; }
 unitlength			{ return UNITLENGTH; }
 unitlengthsrc			{ return UNITLENGTHSRC; }
 useacctfile			{ return USEACCTFILE; }
+usesubaddr			{ return USESUBADDR; }
 usrdevicename			{ return USRDEVICENAME; }
 usrdeviceunit			{ return USRDEVICEUNIT; }
 usedown				{ return USEDOWN; }

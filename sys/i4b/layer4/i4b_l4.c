@@ -204,6 +204,7 @@ i4b_l4_dialoutnumber(int driver, int driver_unit, int cmdlen, char *cmd)
 	if((m = i4b_Dgetmbuf(sizeof(msg_dialoutnumber_ind_t))) != NULL)
 	{
 		msg_dialoutnumber_ind_t *md = (msg_dialoutnumber_ind_t *)m->m_data;
+		int i;
 
 		md->header.type = MSG_DIALOUTNUMBER_IND;
 		md->header.cdid = -1;
@@ -211,11 +212,20 @@ i4b_l4_dialoutnumber(int driver, int driver_unit, int cmdlen, char *cmd)
 		md->driver = driver;
 		md->driver_unit = driver_unit;
 
-		if(cmdlen > TELNO_MAX)
-			cmdlen = TELNO_MAX;
+		for (i = 0; i < cmdlen; i++)
+			if (cmd[i] == '*')
+				break;
 
-		md->cmdlen = cmdlen;
-		bcopy(cmd, md->cmd, cmdlen);
+		/* XXX: TELNO_MAX is _with_ tailing '\0', so max is actually TELNO_MAX - 1 */
+		md->cmdlen = (i < TELNO_MAX  - 1 ? i : TELNO_MAX - 1);
+		/* skip the (first) '*' */
+		md->subaddrlen = (cmdlen - i - 1 < SUBADDR_MAX - 1 ? cmdlen - i - 1 : SUBADDR_MAX - 1);
+
+		bcopy(cmd, md->cmd, md->cmdlen);
+		if (md->subaddrlen != -1)
+			bcopy(cmd+i+1, md->subaddr, md->subaddrlen); 
+
+		NDBGL4(L4_TIMO, "cmd[%d]=%s, subaddr[%d]=%s", md->cmdlen, md->cmd, md->subaddrlen, md->subaddr);
 		i4bputqueue(m);
 	}
 }
@@ -365,11 +375,21 @@ i4b_l4_connect_ind(call_desc_t *cd)
 		else
 			strcpy(mp->dst_telno, TELNO_EMPTY);
 
+		if(strlen(cd->dst_subaddr) > 0)
+			strcpy(mp->dst_subaddr, cd->dst_subaddr);
+		else
+			strcpy(mp->dst_subaddr, TELNO_EMPTY);
+
 		if(strlen(cd->src_telno) > 0)
 			strcpy(mp->src_telno, cd->src_telno);
 		else
 			strcpy(mp->src_telno, TELNO_EMPTY);
 			
+		if(strlen(cd->src_subaddr) > 0)
+			strcpy(mp->src_subaddr, cd->src_subaddr);
+		else
+			strcpy(mp->src_subaddr, TELNO_EMPTY);
+
 		strcpy(mp->display, cd->display);
 
 		mp->scr_ind = cd->scr_ind;

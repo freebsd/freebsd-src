@@ -1,7 +1,7 @@
 /*
  *   Copyright (c) 1997 Joerg Wunsch. All rights reserved.
  *
- *   Copyright (c) 1997, 2001 Hellmuth Michaelis. All rights reserved.
+ *   Copyright (c) 1997, 2002 Hellmuth Michaelis. All rights reserved.
  *
  *   Redistribution and use in source and binary forms, with or without
  *   modification, are permitted provided that the following conditions
@@ -32,7 +32,7 @@
  *
  * $FreeBSD$
  *
- *      last edit-date: [Fri Jul 20 19:14:23 2001]
+ *      last edit-date: [Tue Mar 26 14:37:50 2002]
  *
  *---------------------------------------------------------------------------*/
 
@@ -117,7 +117,9 @@ int		controllercount = -1;
 %token		ISDNTXDELIN
 %token		ISDNTXDELOUT
 %token		LOCAL_PHONE_DIALOUT
+%token		LOCAL_SUBADDR_DIALOUT
 %token		LOCAL_PHONE_INCOMING
+%token		LOCAL_SUBADDR_INCOMING
 %token		LOGEVENTS
 %token		MAILER
 %token		MAILTO
@@ -147,7 +149,9 @@ int		controllercount = -1;
 %token		REGPROG
 %token		REMOTE_NUMBERS_HANDLING
 %token		REMOTE_PHONE_DIALOUT
+%token		REMOTE_SUBADDR_DIALOUT
 %token		REMOTE_PHONE_INCOMING
+%token		REMOTE_SUBADDR_INCOMING
 %token		RESTRICTEDCMD
 %token		ROTATESUFFIX
 %token		RTPRIO
@@ -156,6 +160,7 @@ int		controllercount = -1;
 %token		UNITLENGTH
 %token		UNITLENGTHSRC
 %token		USEACCTFILE
+%token		USESUBADDR
 %token		USEDOWN
 %token		USRDEVICENAME
 %token		USRDEVICEUNIT
@@ -427,7 +432,9 @@ strkeyword:	  ANSWERPROG		{ $$ = ANSWERPROG; }
 		| DISCONNECTPROG	{ $$ = DISCONNECTPROG; }
 		| IDLE_ALG_OUT		{ $$ = IDLE_ALG_OUT; }
 		| LOCAL_PHONE_INCOMING	{ $$ = LOCAL_PHONE_INCOMING; }
+		| LOCAL_SUBADDR_INCOMING	{ $$ = LOCAL_SUBADDR_INCOMING; }
 		| LOCAL_PHONE_DIALOUT	{ $$ = LOCAL_PHONE_DIALOUT; }
+		| LOCAL_SUBADDR_DIALOUT	{ $$ = LOCAL_SUBADDR_DIALOUT; }
 		| NAME			{ $$ = NAME; }		
 		| PPP_EXPECT_AUTH	{ $$ = PPP_EXPECT_AUTH; }
 		| PPP_EXPECT_NAME	{ $$ = PPP_EXPECT_NAME; }
@@ -438,7 +445,9 @@ strkeyword:	  ANSWERPROG		{ $$ = ANSWERPROG; }
 		| REACTION		{ $$ = REACTION; }
 		| REMOTE_NUMBERS_HANDLING { $$ = REMOTE_NUMBERS_HANDLING; }
 		| REMOTE_PHONE_INCOMING	{ $$ = REMOTE_PHONE_INCOMING; }
+		| REMOTE_SUBADDR_INCOMING	{ $$ = REMOTE_SUBADDR_INCOMING; }
 		| REMOTE_PHONE_DIALOUT	{ $$ = REMOTE_PHONE_DIALOUT; }
+		| REMOTE_SUBADDR_DIALOUT	{ $$ = REMOTE_SUBADDR_DIALOUT; }
 		| UNITLENGTHSRC		{ $$ = UNITLENGTHSRC; }		
 		| USRDEVICENAME		{ $$ = USRDEVICENAME; }
 		| VALID			{ $$ = VALID; }
@@ -475,6 +484,7 @@ boolkeyword:	  BUDGETCALLBACKSFILEROTATE { $$ = BUDGETCALLBACKSFILEROTATE; }
 		| PPP_AUTH_RECHALLENGE	{ $$ = PPP_AUTH_RECHALLENGE; }
 		| PPP_AUTH_PARANOID	{ $$ = PPP_AUTH_PARANOID; }
 		| USEDOWN		{ $$ = USEDOWN; }
+		| USESUBADDR		{ $$ = USESUBADDR; }
 		;
 
 /* ================== */

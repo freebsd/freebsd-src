@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 1999 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2002 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -27,11 +27,9 @@
  *	layer3.c - decode and print layer 3 (Q.931) information
  *	-------------------------------------------------------
  *
- *	$Id: layer3.c,v 1.9 2000/02/21 15:17:17 hm Exp $
- *
  * $FreeBSD$
  *
- *      last edit-date: [Mon Feb 21 15:54:58 2000]
+ *      last edit-date: [Tue Mar 26 14:39:02 2002]
  *
  *---------------------------------------------------------------------------*/
 
@@ -501,7 +499,7 @@ layer3(char *pbuf, int n, int off, unsigned char *buf)
 				sprintf((pbuf+strlen(pbuf)),"0x%02x ", buf[j+i]);
 			}
 	
-			sprintf((pbuf+strlen(pbuf)),"]");
+			sprintf((pbuf+strlen(pbuf)),"]\n");
 
 			i += len;
 

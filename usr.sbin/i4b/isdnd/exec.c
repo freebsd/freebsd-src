@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2001 Hellmuth Michaelis. All rights reserved.
+ * Copyright (c) 1997, 2002 Hellmuth Michaelis. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -29,7 +29,7 @@
  *
  * $FreeBSD$
  *
- *      last edit-date: [Mon Nov 19 15:21:38 2001]
+ *      last edit-date: [Tue Mar 26 14:35:46 2002]
  *
  *---------------------------------------------------------------------------*/
 
@@ -228,13 +228,13 @@ exec_answer(cfg_entry_t *cep)
 
 	/* if destination telephone number avail, add it as argument */
 	
-	if(*cep->local_phone_incoming)
-		argv[4] = cep->local_phone_incoming;
+	if(*cep->local_phone_incoming.number)
+		argv[4] = cep->local_phone_incoming.number;
 
 	/* if source telephone number avail, add it as argument */
 	
-	if(*cep->real_phone_incoming)
-		argv[6] = cep->real_phone_incoming;
+	if(*cep->real_phone_incoming.number)
+		argv[6] = cep->real_phone_incoming.number;
 
 	if(*cep->display)
 	{
