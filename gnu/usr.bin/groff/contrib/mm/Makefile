@@ -17,14 +17,14 @@ MLINKS=		groff_mm.7 mm.7 groff_mmse.7 mmse.7
 
 CLEANFILES+=	${MAN}
 
+.include <bsd.prog.mk>
+
+.PATH: ${DIST_DIR}/mm
+
 beforeinstall:
 .for locale in ${LOCALE}
-.if !exists(${locale}) || empty(${locale})
+.if !exists(${DESTDIR}${TMACDIR}/mm/${locale})
 	${INSTALL} -o ${FILESOWN} -g ${FILESGRP} -m ${FILESMODE} \
 		/dev/null ${DESTDIR}${TMACDIR}/mm/${locale}
 .endif
 .endfor
-
-.include <bsd.prog.mk>
-
-.PATH: ${DIST_DIR}/mm
