@@ -38,11 +38,12 @@
  * Config.
  */
 #include <sys/types.h>
+#include <sys/queue.h>
 #include <stdlib.h>
 #include <string.h>
 
 struct file_list {
-	struct	file_list *f_next;
+	STAILQ_ENTRY(file_list) f_next;
 	char	*f_fn;			/* the name */
 	int     f_type;                 /* type or count */
 	u_char	f_flags;		/* see below */
@@ -79,7 +80,7 @@ struct device {
 	char	*d_name;		/* name of device (e.g. rk11) */
 	int	d_count;		/* device count */
 #define	UNKNOWN -2	/* -2 means not set yet */
-	struct	device *d_next;		/* Next one in list */
+	STAILQ_ENTRY(device) d_next;	/* Next one in list */
 };
 
 struct config {
@@ -101,8 +102,10 @@ char	*machinename;
  */
 struct cputype {
 	char	*cpu_name;
-	struct	cputype *cpu_next;
-} *cputype;
+	SLIST_ENTRY(cputype) cpu_next;
+};
+
+SLIST_HEAD(, cputype) cputype;
 
 /*
  * A set of options may also be specified which are like CPU types,
@@ -113,14 +116,18 @@ struct opt {
 	char	*op_name;
 	char	*op_value;
 	int	op_ownfile;	/* true = own file, false = makefile */
-	struct	opt *op_next;
-} *opt, *mkopt;
+	SLIST_ENTRY(opt) op_next;
+};
+
+SLIST_HEAD(opt_head, opt) opt, mkopt;
 
 struct opt_list {
 	char *o_name;
 	char *o_file;
-	struct opt_list *o_next;
-} *otab;
+	SLIST_ENTRY(opt_list) o_next;
+};
+
+SLIST_HEAD(, opt_list) otab;
 
 extern char	*ident;
 extern char	*env;
@@ -141,13 +148,13 @@ void	options(void);
 void	makefile(void);
 void	headers(void);
 
-extern struct	device *dtab;
+extern STAILQ_HEAD(device_head, device) dtab;
 
 extern char	errbuf[80];
 extern int	yyline;
 extern const	char *yyfile;
 
-extern struct	file_list *ftab;
+extern STAILQ_HEAD(file_list_head, file_list) ftab;
 
 extern int	profiling;
 extern int	debugging;
