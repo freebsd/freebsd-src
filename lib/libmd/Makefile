@@ -1,9 +1,10 @@
-#	$Id: Makefile,v 1.28 1998/11/12 04:08:10 jdp Exp $
+#	$Id: Makefile,v 1.29 1999/02/26 04:24:56 wollman Exp $
 
 LIB=	md
 SRCS=	md2c.c md4c.c md5c.c md2hl.c md4hl.c md5hl.c \
+	rmd160c.c rmd160hl.c \
 	sha0c.c sha0hl.c sha1c.c sha1hl.c
-MAN3+=  md2.3 md4.3 md5.3 sha.3
+MAN3+=  md2.3 md4.3 md5.3 ripemd.3 sha.3
 MLINKS+=md2.3 MD2Init.3 md2.3 MD2Update.3 md2.3 MD2Final.3
 MLINKS+=md2.3 MD2End.3  md2.3 MD2File.3   md2.3 MD2Data.3
 MLINKS+=md4.3 MD4Init.3 md4.3 MD4Update.3 md4.3 MD4Final.3
@@ -11,12 +12,18 @@ MLINKS+=md4.3 MD4End.3  md4.3 MD4File.3   md4.3 MD4Data.3
 MLINKS+=md5.3 MD5Init.3 md5.3 MD5Update.3 md5.3 MD5Final.3
 MLINKS+=md5.3 MD5End.3  md5.3 MD5File.3   md5.3 MD5Data.3
 CLEANFILES+=	md[245]hl.c md[245].ref md[245].3 mddriver \
+		rmd160.ref rmd160hl.c rmddriver \
 		sha0.ref sha0hl.c sha1.ref sha1hl.c shadriver
 CFLAGS+= -I${.CURDIR}
+.PATH: ${.CURDIR}/${MACHINE_ARCH}
 
 .if exists(${MACHINE_ARCH}/sha.S)
-SRCS+=	${MACHINE_ARCH}/sha.S
+SRCS+=	sha.S
 CFLAGS+= -DSHA1_ASM -DELF
+.endif
+.if exists(${MACHINE_ARCH}/rmd160.S)
+SRCS+=	rmd160.S
+CFLAGS+= -DRMD160_ASM -DELF
 .endif
 
 all: md2.3 md4.3 md5.3
@@ -42,6 +49,12 @@ sha1hl.c: mdXhl.c
 	(echo '#define LENGTH 20'; \
 		sed -e 's/mdX/sha/g' -e 's/MDX/SHA1_/g' -e 's/SHA1__/SHA1_/g' \
 		${.ALLSRC}) > ${.TARGET}
+
+rmd160hl.c: mdXhl.c
+	(echo '#define LENGTH 20'; \
+		sed -e 's/mdX/ripemd/g' -e 's/MDX/RIPEMD160_/g' \
+			-e 's/RIPEMD160__/RIPEMD160_/g' \
+			${.ALLSRC}) > ${.TARGET}
 
 md2.3: ${.CURDIR}/mdX.3
 	sed -e 's/mdX/md2/g' -e 's/MDX/MD2/g' ${.ALLSRC} > ${.TARGET}
@@ -111,7 +124,20 @@ sha1.ref:
 	echo 'SHA-1 ("12345678901234567890123456789012345678901234567890123456789012345678901234567890") =' \
 		'50abf5706a150990a08b2c5ea40fa0e585554732' ) > ${.TARGET}
 
-test:	md2.ref md4.ref md5.ref sha0.ref sha1.ref
+rmd160.ref:
+	(echo 'RIPEMD160 test suite:'; \
+	echo 'RIPEMD160 ("") = 9c1185a5c5e9fc54612808977ee8f548b2258d31'; \
+	echo 'RIPEMD160 ("abc") = 8eb208f7e05d987a9b044a8e98c6b087f15a0bfc'; \
+	echo 'RIPEMD160 ("message digest") =' \
+		'5d0689ef49d2fae572b881b123a85ffa21595f36'; \
+	echo 'RIPEMD160 ("abcdefghijklmnopqrstuvwxyz") =' \
+		'f71c27109c692c1b56bbdceb5b9d2865b3708dbc'; \
+	echo 'RIPEMD160 ("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789") =' \
+		'b0e20b6e3116640286ed3a87a5713079b21f5189'; \
+	echo 'RIPEMD160 ("12345678901234567890123456789012345678901234567890123456789012345678901234567890") =' \
+		'9b752e45573d4b39f4dbd3323cab82bf63326bfb' ) > ${.TARGET}
+
+test:	md2.ref md4.ref md5.ref sha0.ref rmd160.ref sha1.ref
 	@${ECHO} if any of these test fail, the code produces wrong results
 	@${ECHO} and should NOT be used.
 	${CC} -static ${CFLAGS} ${LDFLAGS} -DMD=2 -o mddriver ${.CURDIR}/mddriver.c -L. -lmd
@@ -124,6 +150,10 @@ test:	md2.ref md4.ref md5.ref sha0.ref sha1.ref
 	./mddriver | cmp md5.ref -
 	@${ECHO} MD5 passed test
 	-rm -f mddriver
+	${CC} -static ${CFLAGS} ${LDFLAGS} -o rmddriver ${.CURDIR}/rmddriver.c -L. -lmd
+	./rmddriver | cmp rmd160.ref -
+	@${ECHO} RIPEMD160 passed test
+	-rm -f rmddriver
 	${CC} -static ${CFLAGS} ${LDFLAGS} -DSHA=0 -o shadriver ${.CURDIR}/shadriver.c -L. -lmd
 	./shadriver | cmp sha0.ref -
 	@${ECHO} SHA-0 passed test
@@ -133,7 +163,7 @@ test:	md2.ref md4.ref md5.ref sha0.ref sha1.ref
 	-rm -f shadriver
 
 beforeinstall:
-.for i in md2.h md4.h md5.h sha.h
+.for i in md2.h md4.h md5.h ripemd.h sha.h
 	${INSTALL} -C -o ${BINOWN} -g ${BINGRP} -m 444 ${.CURDIR}/$i \
 		${DESTDIR}/usr/include
 .endfor
