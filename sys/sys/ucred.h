@@ -81,7 +81,7 @@ struct xucred {
 struct thread;
 
 #ifdef DIAGNOSTIC
-void		cred_free_thread(struct thread *td);
+void	cred_free_thread(struct thread *td);
 #endif
 void	change_egid(struct ucred *newcred, gid_t egid);
 void	change_euid(struct ucred *newcred, struct uidinfo *euip);
