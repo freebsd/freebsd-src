@@ -78,6 +78,7 @@ SUBDIR=	3dfx \
 	tl \
 	twe \
 	tx \
+	txp \
 	udbp \
 	ugen \
 	uhid \

@@ -1710,6 +1710,7 @@ device		miibus
 #       in several Compaq Prosignia, Proliant and Deskpro systems.  It also
 #       supports several Olicom 10Mbps and 10/100 boards.
 # tx:   SMC 9432 TX, BTX and FTX cards. (SMC EtherPower II serie)
+# txp:	Support for 3Com 3cR990 cards with the "Typhoon" chipset
 # vr:   Support for various fast ethernet adapters based on the VIA
 #       Technologies VT3043 `Rhine I' and VT86C100A `Rhine II' chips,
 #       including the D-Link DFE530TX (see 'rl' for DFE530TX+), the Hawking 
