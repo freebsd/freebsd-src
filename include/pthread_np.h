@@ -45,8 +45,10 @@ typedef void	(*pthread_switch_routine_t)(pthread_t, pthread_t);
 __BEGIN_DECLS
 int pthread_attr_setcreatesuspend_np(pthread_attr_t *);
 int pthread_multi_np(void);
+int pthread_resume_all_np(void);
 int pthread_resume_np(pthread_t);
 int pthread_single_np(void);
+int pthread_suspend_all_np(void);
 int pthread_suspend_np(pthread_t);
 int pthread_mutexattr_getkind_np(pthread_mutexattr_t);
 int pthread_mutexattr_setkind_np(pthread_mutexattr_t *, int);
