@@ -49,7 +49,7 @@
 /*
  *	Utah $Hdr: vm_machdep.c 1.16.1.1 89/06/23$
  */
-static char rcsid[] = "$Header: /a/cvs/386BSD/src/sys/i386/i386/vm_machdep.c,v 1.2 1993/07/18 20:56:17 paul Exp $";
+static char rcsid[] = "$Header: /a/cvs/386BSD/src/sys/i386/i386/vm_machdep.c,v 1.3 1993/07/27 10:52:21 davidg Exp $";
 
 #include "param.h"
 #include "systm.h"
@@ -179,6 +179,8 @@ cpu_exit(p)
 #endif
 	splclock();
 	swtch();
+	/*NOTREACHED*/
+	for(;;);
 }
 
 cpu_wait(p) struct proc *p; {
