@@ -142,7 +142,9 @@ main(argc, argv)
 
 	if (*argv != NULL)
 		if (ifd == -1) {		/* Input file. */
-			if ((ifd = open(*argv, O_RDONLY, 0)) < 0)
+			if (strcmp(*argv, "-") == 0)
+				ifd = STDIN_FILENO;
+			else if ((ifd = open(*argv, O_RDONLY, 0)) < 0)
 				err(EX_NOINPUT, "%s", *argv);
 			++argv;
 		}
