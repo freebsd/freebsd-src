@@ -757,7 +757,8 @@ vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int req)
 	vm_pindex_t color;
 	int page_req, s;
 
-#ifdef INVARIANTS
+	page_req = req & VM_ALLOC_CLASS_MASK;
+
 	if ((req & VM_ALLOC_NOOBJ) == 0) {
 		KASSERT(object != NULL,
 		    ("vm_page_alloc: NULL object."));
@@ -765,14 +766,8 @@ vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int req)
 		    MA_OWNED);
 		KASSERT(!vm_page_lookup(object, pindex),
 		    ("vm_page_alloc: page already allocated"));
-	}
-#endif
-
-	page_req = req & VM_ALLOC_CLASS_MASK;
-
-	if ((req & VM_ALLOC_NOOBJ) == 0)
 		color = pindex + object->pg_color;
-	else
+	} else
 		color = pindex;
 
 	/*
