@@ -36,7 +36,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *      $Id: aic7xxx.c,v 1.1 1998/09/15 07:24:16 gibbs Exp $
+ *      $Id: aic7xxx.c,v 1.2 1998/09/16 03:26:10 mjacob Exp $
  */
 /*
  * A few notes on features of the driver.
@@ -961,7 +961,8 @@ ahc_intr(void *arg)
 			scb_index = ahc->qoutfifo[ahc->qoutfifonext];
 			ahc->qoutfifo[ahc->qoutfifonext++] = SCB_LIST_NULL;
 
-			if (scb_index == TARGET_CMD_CMPLT) {
+			if (scb_index == TARGET_CMD_CMPLT
+			 && (ahc->flags & AHC_TARGETMODE) != 0) {
 				ahc_handle_target_cmd(ahc);
 				continue;
 			}
