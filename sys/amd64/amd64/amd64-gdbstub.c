@@ -103,6 +103,7 @@
 #include <setjmp.h>
 
 #include "sio.h"
+#include "opt_ddb.h"
 
 #if NSIO == 0
 void
@@ -250,6 +251,19 @@ putpacket (char *buffer)
   /*  $<packet info>#<checksum>. */
   do
     {
+/*
+ * This is a non-standard hack to allow use of the serial console for
+ * operation as well as debugging.  Simply turn on 'remotechat' in gdb.
+ *
+ * This extension is not part of the Cygnus protocol, is kinda gross,
+ * but gets the job done.
+ */
+#ifdef GDB_REMOTE_CHAT
+      putDebugChar ('|');
+      putDebugChar ('|');
+      putDebugChar ('|');
+      putDebugChar ('|');
+#endif
       putDebugChar ('$');
       checksum = 0;
       count = 0;
