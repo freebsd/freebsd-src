@@ -183,7 +183,6 @@ intr_execute_handlers(struct intsrc *isrc, struct intrframe *iframe)
 	if (vector == 0)
 		clkintr_pending = 1;
 
-	critical_enter();
 	if (ih != NULL && ih->ih_flags & IH_FAST) {
 		/*
 		 * Execute fast interrupt handlers directly.
@@ -191,6 +190,7 @@ intr_execute_handlers(struct intsrc *isrc, struct intrframe *iframe)
 		 * with a NULL argument, then we pass it a pointer to
 		 * a trapframe as its argument.
 		 */
+		critical_enter();
 		TAILQ_FOREACH(ih, &it->it_handlers, ih_next) {
 			MPASS(ih->ih_flags & IH_FAST);
 			CTR3(KTR_INTR, "%s: executing handler %p(%p)",
@@ -204,6 +204,7 @@ intr_execute_handlers(struct intsrc *isrc, struct intrframe *iframe)
 		}
 		isrc->is_pic->pic_eoi_source(isrc);
 		error = 0;
+		critical_exit();
 	} else {
 		/*
 		 * For stray and threaded interrupts, we mask and EOI the
@@ -216,7 +217,6 @@ intr_execute_handlers(struct intsrc *isrc, struct intrframe *iframe)
 		else
 			error = ithread_schedule(it, !cold);
 	}
-	critical_exit();
 	if (error == EINVAL) {
 		atomic_add_long(isrc->is_straycount, 1);
 		if (*isrc->is_straycount < MAX_STRAY_LOG)
