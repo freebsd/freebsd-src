@@ -98,6 +98,7 @@ dev/fb/fb.c			optional	fb
 dev/fb/fb.c			optional	vga
 dev/fb/splash.c			optional	splash
 dev/fb/vga.c			optional	vga
+dev/fdc/fdc.c			optional	fdc
 dev/kbd/atkbd.c			optional	atkbd
 dev/kbd/atkbdc.c		optional	atkbdc
 dev/kbd/kbd.c			optional	atkbd
@@ -125,7 +126,6 @@ geom/geom_mbr.c			standard
 geom/geom_mbr_enc.c		standard
 isa/atkbd_isa.c			optional	atkbd
 isa/atkbdc_isa.c		optional	atkbdc
-isa/fd.c			optional	fdc
 isa/psm.c			optional	psm
 isa/syscons_isa.c		optional	sc
 isa/vga_isa.c			optional	vga
