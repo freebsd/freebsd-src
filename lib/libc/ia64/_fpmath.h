@@ -49,9 +49,17 @@ union IEEEl2bits {
 };
 
 #if _BYTE_ORDER == _LITTLE_ENDIAN
-#define	mask_nbit_l(u)	((u).bits.manh &= 0x7fffffff)
+#define	LDBL_NBIT	0x80000000
+#define	mask_nbit_l(u)	((u).bits.manh &= ~LDBL_NBIT)
 #else /* _BIG_ENDIAN */
-#define	mask_nbit_l(u)	((u).bits.manh &= 0xffffff7f)
+/*
+ * XXX This doesn't look right.  Very few machines have a different
+ *     endianness for integers and floating-point, and in nextafterl()
+ *     we assume that none do.  If you have an environment for testing
+ *     this, please let me know. --das
+ */
+#define	LDBL_NBIT	0x80
+#define	mask_nbit_l(u)	((u).bits.manh &= ~LDBL_NBIT)
 #endif
 
 #define	LDBL_MANH_SIZE	32
