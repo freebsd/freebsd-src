@@ -1,5 +1,5 @@
 #	From: @(#)Makefile	8.3 (Berkeley) 1/7/94
-#	$Id: Makefile,v 1.95 1998/03/20 12:34:21 bde Exp $
+#	$Id: Makefile,v 1.96 1998/03/22 08:55:28 jb Exp $
 
 # XXX MISSING:		deroff diction graph learn plot
 #			spell spline struct xsend
@@ -17,7 +17,7 @@ SUBDIR=	apply at banner basename biff c89 calendar \
 	lam last lastcomm leave lex limits locate lock lockf logger login \
 	logname look lsvfs m4 mail make mesg mkdep mkfifo mklocale mkstr \
 	mk_cmds more msgs ncal netstat newkey nfsstat nice \
-	nm nohup opieinfo opiekey opiepasswd pagesize passwd paste pr printenv \
+	nohup opieinfo opiekey opiepasswd pagesize passwd paste pr printenv \
 	printf quota rdist renice rev rlogin rpcgen \
 	rpcinfo rs rsh rup ruptime rusers rwall \
 	rwho script sed shar showmount size soelim split \
@@ -36,7 +36,7 @@ SUBDIR+=telnet
 .if ${MACHINE_ARCH} == "i386"
 # Things that don't compile on alpha:
 SUBDIR+=ar brandelf doscmd fstat gcore gprof gprof4 ipcrm ipcs kdump ktrace \
-	lorder modstat mt ranlib sasc strip systat top truss vmstat w
+	lorder modstat mt nm ranlib sasc strip systat top truss vmstat w
 
 .if !defined(NOTCL) && exists (${.CURDIR}/../contrib/tcl) && \
 	exists(${.CURDIR}/tclsh) && exists (${.CURDIR}/../lib/libtcl)
