@@ -252,7 +252,7 @@ STANDBY state instead.
 Sample configuration commands include:
 .Bd -literal
 apm_event SUSPENDREQ {
-        exec "/etc/rc.suspend";
+        exec "/etc/rc.suspend apm suspend";
 }
 
 apm_event USERSUSPENDREQ {
@@ -261,8 +261,12 @@ apm_event USERSUSPENDREQ {
         exec "apm -z";
 }
 
-apm_event NORMRESUME, STANDBYRESUME {
-        exec "/etc/rc.resume";
+apm_event NORMRESUME {
+        exec "/etc/rc.resume apm suspend";
+}
+
+apm_event STANDBYRESUME {
+        exec "/etc/rc.resume apm standby";
 }
 
 # resume event configuration for serial mouse users by
