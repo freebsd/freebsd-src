@@ -310,9 +310,7 @@ struct sockaddr_storage {
 /*
  * Maximum queue length specifiable by listen.
  */
-#ifndef	SOMAXCONN
 #define	SOMAXCONN	128
-#endif
 
 /*
  * Message header for recvmsg and sendmsg calls.
