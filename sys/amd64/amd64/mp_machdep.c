@@ -357,9 +357,6 @@ struct mtx		com_mtx;
 /* lock around the MP rendezvous */
 static struct mtx	smp_rv_mtx;
 
-/* only 1 CPU can panic at a time :) */
-struct mtx		panic_mtx;
-
 static void
 init_locks(void)
 {
@@ -371,7 +368,6 @@ init_locks(void)
 	mtx_init(&mcount_mtx, "mcount", MTX_DEF);
 
 	mtx_init(&smp_rv_mtx, "smp rendezvous", MTX_SPIN);
-	mtx_init(&panic_mtx, "panic", MTX_DEF);
 
 #ifdef USE_COMLOCK
 	mtx_init(&com_mtx, "com", MTX_SPIN);

@@ -548,6 +548,10 @@ dumpstatus(vm_offset_t addr, long count)
 	return 0;
 }
 
+#ifdef SMP
+static u_int panic_cpu = NOCPU;
+#endif
+
 /*
  * Panic is called on unresolvable fatal errors.  It prints "panic: mesg",
  * and then reboots.  If we are called twice, then we avoid trying to sync
@@ -562,7 +566,11 @@ panic(const char *fmt, ...)
 
 #ifdef SMP
 	/* Only 1 CPU can panic at a time */
-	mtx_lock(&panic_mtx);
+	if (panic_cpu != PCPU_GET(cpuid) &&
+	    atomic_cmpset_int(&panic_cpu, NOCPU, PCPU_GET(cpuid)) == 0) {
+		for (;;)
+			; /* nothing */
+	}
 #endif
 
 	bootopt = RB_AUTOBOOT | RB_DUMP;
