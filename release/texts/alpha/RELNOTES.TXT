@@ -1,5 +1,5 @@
                                  RELEASE NOTES
-                           FreeBSD snapshot 4.0-STABLE
+                              FreeBSD 4.0-RELEASE
 
 Any installation failures or crashes should be reported by using the
 send-pr command (those preferring a Web-based interface can also see
