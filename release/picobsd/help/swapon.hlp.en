@@ -1,5 +1,0 @@
-[1mswapon[mspecify additional device for paging and swapping
-
-	Usage:
-
-	swapon [-a] [special_file ...]
