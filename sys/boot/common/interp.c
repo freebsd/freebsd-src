@@ -23,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: interp.c,v 1.13 1999/01/22 23:50:13 msmith Exp $
+ *	$Id: interp.c,v 1.14 1999/02/04 17:06:46 dcs Exp $
  */
 /*
  * Simple commandline interpreter, toplevel and misc.
@@ -148,10 +148,23 @@ command_include(int argc, char *argv[])
 {
     int		i;
     int		res;
+    char	**argvbuf;
+
+    /* 
+     * Since argv is static, we need to save it here.
+     */
+    argvbuf = (char**) calloc(argc, sizeof(char*));
+    for (i = 0; i < argc; i++)
+	argvbuf[i] = strdup(argv[i]);
 
     res=CMD_OK;
     for (i = 1; (i < argc) && (res == CMD_OK); i++)
-	res = include(argv[i]);
+	res = include(argvbuf[i]);
+
+    for (i = 0; i < argc; i++)
+	free(argvbuf[i]);
+    free(argvbuf);
+
     return(res);
 }
 
@@ -243,7 +256,7 @@ include(char *filename)
 #ifdef BOOT_FORTH
 	res = bf_run(sp->text);
 	if (res != VM_OUTOFTEXT) {
-		sprintf(command_errbuf, "Error while including %s:\n%s", filename, sp->text);
+		sprintf(command_errbuf, "Error while including %s, in the line:\n%s", filename, sp->text);
 		res = CMD_ERROR;
 		break;
 	} else
