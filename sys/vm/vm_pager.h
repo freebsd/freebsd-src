@@ -53,14 +53,14 @@ TAILQ_HEAD(pagerlst, vm_object);
 struct bio;
 
 struct pagerops {
-	void (*pgo_init) __P((void));		/* Initialize pager. */
-	vm_object_t (*pgo_alloc) __P((void *, vm_ooffset_t, vm_prot_t, vm_ooffset_t));	/* Allocate pager. */
-	void (*pgo_dealloc) __P((vm_object_t));	/* Disassociate. */
-	int (*pgo_getpages) __P((vm_object_t, vm_page_t *, int, int));	/* Get (read) page. */
-	void (*pgo_putpages) __P((vm_object_t, vm_page_t *, int, int, int *)); /* Put (write) page. */
-	boolean_t (*pgo_haspage) __P((vm_object_t, vm_pindex_t, int *, int *)); /* Does pager have page? */
-	void (*pgo_pageunswapped) __P((vm_page_t));
-	void (*pgo_strategy) __P((vm_object_t, struct bio *));
+	void (*pgo_init)(void);		/* Initialize pager. */
+	vm_object_t (*pgo_alloc)(void *, vm_ooffset_t, vm_prot_t, vm_ooffset_t);	/* Allocate pager. */
+	void (*pgo_dealloc)(vm_object_t);	/* Disassociate. */
+	int (*pgo_getpages)(vm_object_t, vm_page_t *, int, int);	/* Get (read) page. */
+	void (*pgo_putpages)(vm_object_t, vm_page_t *, int, int, int *); /* Put (write) page. */
+	boolean_t (*pgo_haspage)(vm_object_t, vm_pindex_t, int *, int *); /* Does pager have page? */
+	void (*pgo_pageunswapped)(vm_page_t);
+	void (*pgo_strategy)(vm_object_t, struct bio *);
 };
 
 /*
@@ -92,19 +92,19 @@ extern int pager_map_size;
 extern struct pagerops *pagertab[];
 extern struct mtx pbuf_mtx;
 
-vm_object_t vm_pager_allocate __P((objtype_t, void *, vm_ooffset_t, vm_prot_t, vm_ooffset_t));
-void vm_pager_bufferinit __P((void));
-void vm_pager_deallocate __P((vm_object_t));
-static __inline int vm_pager_get_pages __P((vm_object_t, vm_page_t *, int, int));
-static __inline boolean_t vm_pager_has_page __P((vm_object_t, vm_pindex_t, int *, int *));
-void vm_pager_init __P((void));
-vm_object_t vm_pager_object_lookup __P((struct pagerlst *, void *));
-vm_offset_t vm_pager_map_pages __P((vm_page_t *, int, boolean_t));
-vm_offset_t vm_pager_map_page __P((vm_page_t));
-void vm_pager_sync __P((void));
-void vm_pager_unmap_pages __P((vm_offset_t, int));
-void vm_pager_unmap_page __P((vm_offset_t));
-void vm_pager_strategy __P((vm_object_t object, struct bio *bp));
+vm_object_t vm_pager_allocate(objtype_t, void *, vm_ooffset_t, vm_prot_t, vm_ooffset_t);
+void vm_pager_bufferinit(void);
+void vm_pager_deallocate(vm_object_t);
+static __inline int vm_pager_get_pages(vm_object_t, vm_page_t *, int, int);
+static __inline boolean_t vm_pager_has_page(vm_object_t, vm_pindex_t, int *, int *);
+void vm_pager_init(void);
+vm_object_t vm_pager_object_lookup(struct pagerlst *, void *);
+vm_offset_t vm_pager_map_pages(vm_page_t *, int, boolean_t);
+vm_offset_t vm_pager_map_page(vm_page_t);
+void vm_pager_sync(void);
+void vm_pager_unmap_pages(vm_offset_t, int);
+void vm_pager_unmap_page(vm_offset_t);
+void vm_pager_strategy(vm_object_t object, struct bio *bp);
 
 /*
  *	vm_page_get_pages:

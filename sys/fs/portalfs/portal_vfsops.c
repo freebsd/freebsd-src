@@ -62,13 +62,13 @@
 
 static MALLOC_DEFINE(M_PORTALFSMNT, "PORTAL mount", "PORTAL mount structure");
 
-static int	portal_mount __P((struct mount *mp, char *path, caddr_t data,
-				  struct nameidata *ndp, struct thread *td));
-static int	portal_unmount __P((struct mount *mp, int mntflags,
-				    struct thread *td));
-static int	portal_root __P((struct mount *mp, struct vnode **vpp));
-static int	portal_statfs __P((struct mount *mp, struct statfs *sbp,
-				   struct thread *td));
+static int	portal_mount(struct mount *mp, char *path, caddr_t data,
+				  struct nameidata *ndp, struct thread *td);
+static int	portal_unmount(struct mount *mp, int mntflags,
+				    struct thread *td);
+static int	portal_root(struct mount *mp, struct vnode **vpp);
+static int	portal_statfs(struct mount *mp, struct statfs *sbp,
+				   struct thread *td);
 
 /*
  * Mount the per-process file descriptors (/dev/fd)

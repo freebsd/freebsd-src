@@ -43,17 +43,17 @@
 #define	_VNODE_PAGER_	1
 
 #ifdef _KERNEL
-vm_object_t vnode_pager_alloc __P((void *, vm_ooffset_t, vm_prot_t, vm_ooffset_t));
-struct vnode *vnode_pager_lock __P((vm_object_t));
+vm_object_t vnode_pager_alloc(void *, vm_ooffset_t, vm_prot_t, vm_ooffset_t);
+struct vnode *vnode_pager_lock(vm_object_t);
 
 /*
  * XXX Generic routines; currently called by badly written FS code; these
  * XXX should go away soon.
  */
-int vnode_pager_generic_getpages __P((struct vnode *vp, vm_page_t *m,
-					  int count, int reqpage));
-int vnode_pager_generic_putpages __P((struct vnode *vp, vm_page_t *m,
+int vnode_pager_generic_getpages(struct vnode *vp, vm_page_t *m,
+					  int count, int reqpage);
+int vnode_pager_generic_putpages(struct vnode *vp, vm_page_t *m,
 					  int count, boolean_t sync,
-					  int *rtvals));
+					  int *rtvals);
 #endif				/* _KERNEL */
 #endif				/* _VNODE_PAGER_ */

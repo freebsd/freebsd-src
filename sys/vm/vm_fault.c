@@ -95,8 +95,7 @@
 #include <vm/vnode_pager.h>
 #include <vm/vm_extern.h>
 
-static int vm_fault_additional_pages __P((vm_page_t, int,
-					  int, vm_page_t *, int *));
+static int vm_fault_additional_pages(vm_page_t, int, int, vm_page_t *, int *);
 
 #define VM_FAULT_READ_AHEAD 8
 #define VM_FAULT_READ_BEHIND 7
@@ -182,7 +181,7 @@ _unlock_things(struct faultstate *fs, int dealloc)
  *	The map in question must be referenced, and remains so.
  *	Caller may hold no locks.
  */
-static int vm_fault1 __P((vm_map_t, vm_offset_t, vm_prot_t, int));
+static int vm_fault1(vm_map_t, vm_offset_t, vm_prot_t, int);
 
 int
 vm_fault(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,

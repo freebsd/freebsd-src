@@ -57,14 +57,14 @@
 
 static MALLOC_DEFINE(M_UNIONFSMNT, "UNION mount", "UNION mount structure");
 
-extern int	union_init __P((struct vfsconf *));
-static int	union_mount __P((struct mount *mp, char *path, caddr_t data,
-				 struct nameidata *ndp, struct thread *td));
-static int	union_root __P((struct mount *mp, struct vnode **vpp));
-static int	union_statfs __P((struct mount *mp, struct statfs *sbp,
-				  struct thread *td));
-static int	union_unmount __P((struct mount *mp, int mntflags,
-				   struct thread *td));
+extern int	union_init(struct vfsconf *);
+static int	union_mount(struct mount *mp, char *path, caddr_t data,
+				 struct nameidata *ndp, struct thread *td);
+static int	union_root(struct mount *mp, struct vnode **vpp);
+static int	union_statfs(struct mount *mp, struct statfs *sbp,
+				  struct thread *td);
+static int	union_unmount(struct mount *mp, int mntflags,
+				   struct thread *td);
 
 /*
  * Mount union filesystem

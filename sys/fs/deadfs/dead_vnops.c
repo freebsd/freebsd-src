@@ -42,20 +42,20 @@
 #include <sys/poll.h>
 #include <sys/vnode.h>
 
-static int	chkvnlock __P((struct vnode *));
+static int	chkvnlock(struct vnode *);
 /*
  * Prototypes for dead operations on vnodes.
  */
-static int	dead_badop __P((void));
-static int	dead_bmap __P((struct vop_bmap_args *));
-static int	dead_ioctl __P((struct vop_ioctl_args *));
-static int	dead_lock __P((struct vop_lock_args *));
-static int	dead_lookup __P((struct vop_lookup_args *));
-static int	dead_open __P((struct vop_open_args *));
-static int	dead_poll __P((struct vop_poll_args *));
-static int	dead_print __P((struct vop_print_args *));
-static int	dead_read __P((struct vop_read_args *));
-static int	dead_write __P((struct vop_write_args *));
+static int	dead_badop(void);
+static int	dead_bmap(struct vop_bmap_args *);
+static int	dead_ioctl(struct vop_ioctl_args *);
+static int	dead_lock(struct vop_lock_args *);
+static int	dead_lookup(struct vop_lookup_args *);
+static int	dead_open(struct vop_open_args *);
+static int	dead_poll(struct vop_poll_args *);
+static int	dead_print(struct vop_print_args *);
+static int	dead_read(struct vop_read_args *);
+static int	dead_write(struct vop_write_args *);
 
 vop_t **dead_vnodeop_p;
 static struct vnodeopv_entry_desc dead_vnodeop_entries[] = {

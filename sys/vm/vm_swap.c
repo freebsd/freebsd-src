@@ -71,7 +71,7 @@ static int nswap;		/* first block after the interleaved devs */
 int nswdev = NSWAPDEV;
 int vm_swap_size;
 
-static int swapdev_strategy __P((struct vop_strategy_args *ap));
+static int swapdev_strategy(struct vop_strategy_args *ap);
 struct vnode *swapdev_vp;
 
 /*

@@ -57,29 +57,29 @@
 
 static MALLOC_DEFINE(M_UMAPFSMNT, "UMAP mount", "UMAP mount structure");
 
-static int	umapfs_fhtovp __P((struct mount *mp, struct fid *fidp,
-				   struct vnode **vpp));
-static int	umapfs_checkexp __P((struct mount *mp, struct sockaddr *nam,
-				    int *extflagsp, struct ucred **credanonp));
-static int	umapfs_mount __P((struct mount *mp, char *path, caddr_t data,
-				  struct nameidata *ndp, struct thread *td));
-static int	umapfs_quotactl __P((struct mount *mp, int cmd, uid_t uid,
-				     caddr_t arg, struct thread *td));
-static int	umapfs_root __P((struct mount *mp, struct vnode **vpp));
-static int	umapfs_start __P((struct mount *mp, int flags, struct thread *td));
-static int	umapfs_statfs __P((struct mount *mp, struct statfs *sbp,
-				   struct thread *td));
-static int	umapfs_sync __P((struct mount *mp, int waitfor,
-				 struct ucred *cred, struct thread *td));
-static int	umapfs_unmount __P((struct mount *mp, int mntflags,
-				    struct thread *td));
-static int	umapfs_vget __P((struct mount *mp, ino_t ino, int flags,
-				 struct vnode **vpp));
-static int	umapfs_vptofh __P((struct vnode *vp, struct fid *fhp));
-static int	umapfs_extattrctl __P((struct mount *mp, int cmd,
+static int	umapfs_fhtovp(struct mount *mp, struct fid *fidp,
+				   struct vnode **vpp);
+static int	umapfs_checkexp(struct mount *mp, struct sockaddr *nam,
+				    int *extflagsp, struct ucred **credanonp);
+static int	umapfs_mount(struct mount *mp, char *path, caddr_t data,
+				  struct nameidata *ndp, struct thread *td);
+static int	umapfs_quotactl(struct mount *mp, int cmd, uid_t uid,
+				     caddr_t arg, struct thread *td);
+static int	umapfs_root(struct mount *mp, struct vnode **vpp);
+static int	umapfs_start(struct mount *mp, int flags, struct thread *td);
+static int	umapfs_statfs(struct mount *mp, struct statfs *sbp,
+				   struct thread *td);
+static int	umapfs_sync(struct mount *mp, int waitfor,
+				 struct ucred *cred, struct thread *td);
+static int	umapfs_unmount(struct mount *mp, int mntflags,
+				    struct thread *td);
+static int	umapfs_vget(struct mount *mp, ino_t ino, int flags,
+				 struct vnode **vpp);
+static int	umapfs_vptofh(struct vnode *vp, struct fid *fhp);
+static int	umapfs_extattrctl(struct mount *mp, int cmd,
 				       struct vnode *filename_vp,
 				       int namespace, const char *attrname,
-				       struct thread *td));
+				       struct thread *td);
 
 /*
  * Mount umap layer

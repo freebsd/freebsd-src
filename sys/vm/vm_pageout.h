@@ -98,16 +98,16 @@ extern int vm_pageout_deficit;
  *	Signal pageout-daemon and wait for it.
  */
 
-extern void pagedaemon_wakeup __P((void));
+extern void pagedaemon_wakeup(void);
 #define VM_WAIT vm_wait()
 #define VM_WAITPFAULT vm_waitpfault()
-extern void vm_wait __P((void));
-extern void vm_waitpfault __P((void));
+extern void vm_wait(void);
+extern void vm_waitpfault(void);
 
 #ifdef _KERNEL
-void vm_pageout_page __P((vm_page_t, vm_object_t));
-void vm_pageout_cluster __P((vm_page_t, vm_object_t));
-int vm_pageout_flush __P((vm_page_t *, int, int));
-void vm_pageout_page_free __P((vm_page_t));
+void vm_pageout_page(vm_page_t, vm_object_t);
+void vm_pageout_cluster(vm_page_t, vm_object_t);
+int vm_pageout_flush(vm_page_t *, int, int);
+void vm_pageout_page_free(vm_page_t);
 #endif
 #endif	/* _VM_VM_PAGEOUT_H_ */

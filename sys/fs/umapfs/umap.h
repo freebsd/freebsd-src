@@ -72,16 +72,16 @@ struct umap_node {
 	struct vnode	*umap_vnode;	/* Back pointer to vnode/umap_node */
 };
 
-extern int umapfs_init __P((struct vfsconf *vfsp));
-extern int umap_node_create __P((struct mount *mp, struct vnode *target, struct vnode **vpp));
-extern u_long umap_reverse_findid __P((u_long id, u_long map[][2], int nentries));
-extern void umap_mapids __P((struct mount *v_mount, struct ucred *credp));
+extern int umapfs_init(struct vfsconf *vfsp);
+extern int umap_node_create(struct mount *mp, struct vnode *target, struct vnode **vpp);
+extern u_long umap_reverse_findid(u_long id, u_long map[][2], int nentries);
+extern void umap_mapids(struct mount *v_mount, struct ucred *credp);
 
 #define	MOUNTTOUMAPMOUNT(mp) ((struct umap_mount *)((mp)->mnt_data))
 #define	VTOUMAP(vp) ((struct umap_node *)(vp)->v_data)
 #define UMAPTOV(xp) ((xp)->umap_vnode)
 #ifdef DIAGNOSTIC
-extern struct vnode *umap_checkvp __P((struct vnode *vp, char *fil, int lno));
+extern struct vnode *umap_checkvp(struct vnode *vp, char *fil, int lno);
 #define	UMAPVPTOLOWERVP(vp) umap_checkvp((vp), __FILE__, __LINE__)
 #else
 #define	UMAPVPTOLOWERVP(vp) (VTOUMAP(vp)->umap_lowervp)

@@ -60,20 +60,20 @@
 
 #include <fs/devfs/devfs.h>
 
-static int	devfs_access __P((struct vop_access_args *ap));
-static int	devfs_getattr __P((struct vop_getattr_args *ap));
-static int	devfs_lookupx __P((struct vop_lookup_args *ap));
-static int	devfs_mknod __P((struct vop_mknod_args *ap));
-static int	devfs_pathconf __P((struct vop_pathconf_args *ap));
-static int	devfs_print __P((struct vop_print_args *ap));
-static int	devfs_read __P((struct vop_read_args *ap));
-static int	devfs_readdir __P((struct vop_readdir_args *ap));
-static int	devfs_readlink __P((struct vop_readlink_args *ap));
-static int	devfs_reclaim __P((struct vop_reclaim_args *ap));
-static int	devfs_remove __P((struct vop_remove_args *ap));
-static int	devfs_revoke __P((struct vop_revoke_args *ap));
-static int	devfs_setattr __P((struct vop_setattr_args *ap));
-static int	devfs_symlink __P((struct vop_symlink_args *ap));
+static int	devfs_access(struct vop_access_args *ap);
+static int	devfs_getattr(struct vop_getattr_args *ap);
+static int	devfs_lookupx(struct vop_lookup_args *ap);
+static int	devfs_mknod(struct vop_mknod_args *ap);
+static int	devfs_pathconf(struct vop_pathconf_args *ap);
+static int	devfs_print(struct vop_print_args *ap);
+static int	devfs_read(struct vop_read_args *ap);
+static int	devfs_readdir(struct vop_readdir_args *ap);
+static int	devfs_readlink(struct vop_readlink_args *ap);
+static int	devfs_reclaim(struct vop_reclaim_args *ap);
+static int	devfs_remove(struct vop_remove_args *ap);
+static int	devfs_revoke(struct vop_revoke_args *ap);
+static int	devfs_setattr(struct vop_setattr_args *ap);
+static int	devfs_symlink(struct vop_symlink_args *ap);
 
 /*
  * Construct the fully qualified path name relative to the mountpoint

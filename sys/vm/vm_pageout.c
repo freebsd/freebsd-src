@@ -106,10 +106,10 @@
  */
 
 /* the kernel process "vm_pageout"*/
-static void vm_pageout __P((void));
-static int vm_pageout_clean __P((vm_page_t));
-static void vm_pageout_scan __P((int pass));
-static int vm_pageout_free_page_calc __P((vm_size_t count));
+static void vm_pageout(void);
+static int vm_pageout_clean(vm_page_t);
+static void vm_pageout_scan(int pass);
+static int vm_pageout_free_page_calc(vm_size_t count);
 struct proc *pageproc;
 
 static struct kproc_desc page_kp = {
@@ -121,7 +121,7 @@ SYSINIT(pagedaemon, SI_SUB_KTHREAD_PAGE, SI_ORDER_FIRST, kproc_start, &page_kp)
 
 #if !defined(NO_SWAPPING)
 /* the kernel process "vm_daemon"*/
-static void vm_daemon __P((void));
+static void vm_daemon(void);
 static struct	proc *vmproc;
 
 static struct kproc_desc vm_kp = {
@@ -203,10 +203,10 @@ int vm_pageout_page_count = VM_PAGEOUT_PAGE_COUNT;
 int vm_page_max_wired;		/* XXX max # of wired pages system-wide */
 
 #if !defined(NO_SWAPPING)
-typedef void freeer_fcn_t __P((vm_map_t, vm_object_t, vm_pindex_t, int));
-static void vm_pageout_map_deactivate_pages __P((vm_map_t, vm_pindex_t));
+typedef void freeer_fcn_t(vm_map_t, vm_object_t, vm_pindex_t, int);
+static void vm_pageout_map_deactivate_pages(vm_map_t, vm_pindex_t);
 static freeer_fcn_t vm_pageout_object_deactivate_pages;
-static void vm_req_vmdaemon __P((void));
+static void vm_req_vmdaemon(void);
 #endif
 static void vm_pageout_page_stats(void);
 

@@ -70,20 +70,20 @@
 
 #include <sys/unistd.h> /* for pathconf(2) constants */
 
-static int	ntfs_read __P((struct vop_read_args *));
-static int	ntfs_write __P((struct vop_write_args *ap));
-static int	ntfs_getattr __P((struct vop_getattr_args *ap));
-static int	ntfs_inactive __P((struct vop_inactive_args *ap));
-static int	ntfs_print __P((struct vop_print_args *ap));
-static int	ntfs_reclaim __P((struct vop_reclaim_args *ap));
-static int	ntfs_strategy __P((struct vop_strategy_args *ap));
-static int	ntfs_access __P((struct vop_access_args *ap));
-static int	ntfs_open __P((struct vop_open_args *ap));
-static int	ntfs_close __P((struct vop_close_args *ap));
-static int	ntfs_readdir __P((struct vop_readdir_args *ap));
-static int	ntfs_lookup __P((struct vop_lookup_args *ap));
-static int	ntfs_fsync __P((struct vop_fsync_args *ap));
-static int	ntfs_pathconf __P((void *));
+static int	ntfs_read(struct vop_read_args *);
+static int	ntfs_write(struct vop_write_args *ap);
+static int	ntfs_getattr(struct vop_getattr_args *ap);
+static int	ntfs_inactive(struct vop_inactive_args *ap);
+static int	ntfs_print(struct vop_print_args *ap);
+static int	ntfs_reclaim(struct vop_reclaim_args *ap);
+static int	ntfs_strategy(struct vop_strategy_args *ap);
+static int	ntfs_access(struct vop_access_args *ap);
+static int	ntfs_open(struct vop_open_args *ap);
+static int	ntfs_close(struct vop_close_args *ap);
+static int	ntfs_readdir(struct vop_readdir_args *ap);
+static int	ntfs_lookup(struct vop_lookup_args *ap);
+static int	ntfs_fsync(struct vop_fsync_args *ap);
+static int	ntfs_pathconf(void *);
 
 int	ntfs_prtactive = 1;	/* 1 => print out reclaim of active vnodes */
 
