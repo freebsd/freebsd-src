@@ -23,13 +23,15 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	$Id: bus.h,v 1.7 1998/11/14 21:58:41 wollman Exp $
+ *	$Id: bus.h,v 1.8 1999/01/16 17:44:08 dfr Exp $
  */
 
 #ifndef _SYS_BUS_H_
 #define _SYS_BUS_H_
 
 #ifdef KERNEL
+
+#include <sys/queue.h>
 
 /*
  * Forward declarations
@@ -76,13 +78,12 @@ struct driver {
     device_ops_t	ops;		/* compiled method table */
 };
 
-typedef enum device_state device_state_t;
-enum device_state {
+typedef enum device_state {
     DS_NOTPRESENT,			/* not probed or probe failed */
     DS_ALIVE,				/* probe succeeded */
     DS_ATTACHED,			/* attach method called */
     DS_BUSY				/* device is open */
-};
+} device_state_t;
 
 /*
  * The root bus, to which all top-level busses are attached.
