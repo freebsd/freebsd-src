@@ -351,7 +351,7 @@ log_DumpBp(int lev, const char *hdr, const struct mbuf *bp)
     b = buf;
     c = b + 50;
     do {
-      f = bp->cnt;
+      f = bp->m_len;
       ptr = CONST_MBUF_CTOP(bp);
       while (f--) {
 	sprintf(b, " %02x", (int) *ptr);
@@ -366,7 +366,7 @@ log_DumpBp(int lev, const char *hdr, const struct mbuf *bp)
           c = b + 50;
         }
       }
-    } while ((bp = bp->next) != NULL);
+    } while ((bp = bp->m_next) != NULL);
 
     if (b > buf) {
       memset(b, ' ', 50 - (b - buf));

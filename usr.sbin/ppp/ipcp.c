@@ -1284,14 +1284,14 @@ extern struct mbuf *
 ipcp_Input(struct bundle *bundle, struct link *l, struct mbuf *bp)
 {
   /* Got PROTO_IPCP from link */
-  mbuf_SetType(bp, MB_IPCPIN);
+  m_settype(bp, MB_IPCPIN);
   if (bundle_Phase(bundle) == PHASE_NETWORK)
     fsm_Input(&bundle->ncp.ipcp.fsm, bp);
   else {
     if (bundle_Phase(bundle) < PHASE_NETWORK)
       log_Printf(LogIPCP, "%s: Error: Unexpected IPCP in phase %s (ignored)\n",
                  l->name, bundle_PhaseName(bundle));
-    mbuf_Free(bp);
+    m_freem(bp);
   }
   return NULL;
 }

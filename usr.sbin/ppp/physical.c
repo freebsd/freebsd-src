@@ -384,14 +384,14 @@ physical_DescriptorWrite(struct descriptor *d, struct bundle *bundle,
     p->out = link_Dequeue(&p->link);
 
   if (p->out) {
-    nw = physical_Write(p, MBUF_CTOP(p->out), p->out->cnt);
+    nw = physical_Write(p, MBUF_CTOP(p->out), p->out->m_len);
     log_Printf(LogDEBUG, "%s: DescriptorWrite: wrote %d(%d) to %d\n",
-               p->link.name, nw, p->out->cnt, p->fd);
+               p->link.name, nw, p->out->m_len, p->fd);
     if (nw > 0) {
-      p->out->cnt -= nw;
-      p->out->offset += nw;
-      if (p->out->cnt == 0)
-	p->out = mbuf_FreeSeg(p->out);
+      p->out->m_len -= nw;
+      p->out->m_offset += nw;
+      if (p->out->m_len == 0)
+	p->out = m_free(p->out);
       result = 1;
     } else if (nw < 0) {
       if (errno != EAGAIN) {
@@ -437,8 +437,8 @@ physical_ShowStatus(struct cmdargs const *arg)
       prompt_Printf(arg->prompt, " Physical outq:   %d\n", n);
 #endif
 
-  prompt_Printf(arg->prompt, " Queued Packets:  %d\n",
-                link_QueueLen(&p->link));
+  prompt_Printf(arg->prompt, " Queued Packets:  %lu\n",
+                (u_long)link_QueueLen(&p->link));
   prompt_Printf(arg->prompt, " Phone Number:    %s\n", arg->cx->phone.chosen);
 
   prompt_Printf(arg->prompt, "\nDefaults:\n");
@@ -903,7 +903,7 @@ void
 physical_DeleteQueue(struct physical *p)
 {
   if (p->out) {
-    mbuf_Free(p->out);
+    m_freem(p->out);
     p->out = NULL;
   }
   link_DeleteQueue(&p->link);
