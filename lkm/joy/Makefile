@@ -3,7 +3,7 @@ KMOD	= joy_mod
 SRCS	= joy.c joy.h
 MAN8	= joy.8
 
-CFLAGS		+= -I. -I/sys -DJOY_MODULE -DACTUALLY_LKM_NOT_KERNEL
+CFLAGS		+= -I. -DJOY_MODULE
 CLEANFILES	+= joy.h
 
 joy.h:
