@@ -694,7 +694,7 @@ cvs_temp_name ()
     int retval;
 
     value = xmalloc (strlen (Tmpdir) + 40);
-    sprintf (value, "%s/%s", Tmpdir, "cvsXXXXXX");
+    sprintf (value, "%s/%s", Tmpdir, "cvsXXXXXXXXXX");
     retval = mkstemp (value);
 
     if (retval == -1)
