@@ -18,6 +18,7 @@ CFLAGS+=	-I${.CURDIR}/../gdb/${MACHINE_ARCH}
 CFLAGS+=	-I${GDBDIR}/gdb
 CFLAGS+=	-I${GDBDIR}/gdb/config
 CFLAGS+=	-I${GDBDIR}/gdb/gdbserver
+CFLAGS+=	-I../libbfd	# for BFD's config.h
 CFLAGS+=	-DNO_MMALLOC
 
 .include <bsd.prog.mk>
