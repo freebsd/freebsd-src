@@ -400,6 +400,9 @@ vxstart(ifp)
 startagain:
     /* Sneak a peek at the next packet */
     m = ifp->if_snd.ifq_head;
+    if (m == NULL) {
+	return;
+    }
     
     /* We need to use m->m_pkthdr.len, so require the header */
     M_ASSERTPKTHDR(m);
