@@ -1,4 +1,4 @@
-<!-- $Id: submitters.sgml,v 1.48 1997/04/13 14:36:18 jkh Exp $ -->
+<!-- $Id: submitters.sgml,v 1.49 1997/04/14 13:20:21 jkh Exp $ -->
 <!-- The FreeBSD Documentation Project -->
 
 <chapt><heading>Contributing to FreeBSD<label id="submitters"></heading>
@@ -538,10 +538,14 @@ like to publically thank them here!
 	<item><htmlurl url="http://www.epilogue.com/" name="Epilogue
         Technology Corporation">
 
+	<item><htmlurl url="mailto:sef@freebsd.org" name="Sean Eric Fagan">
+
 	<item><htmlurl url="mailto:gmarco@masternet.it"
 	name="Gianmarco Giovannelli">
 
 	<item><htmlurl url="mailto:joeg@truenorth.org" name="Josef C. Grosch">
+
+	<item><htmlurl url="mailto:chuckr@freebsd.org" name="Chuck Robey">
 
 	<item><htmlurl url="mailto:ken@stox.sa.enteract.com"
 	name="Kenneth P. Stox"> of <htmlurl url="http://www.imagescape.com"
